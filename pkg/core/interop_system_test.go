@@ -29,7 +29,7 @@ func TestBCGetTransaction(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		require.NoError(t, context.DAO.StoreAsTransaction(tx, 0))
 		v.Estack().PushVal(tx.Hash().BytesBE())
-		err := bcGetTransaction(context, v)
+		err := bcGetTransaction(context)
 		require.NoError(t, err)
 
 		value := v.Estack().Pop().Value()
@@ -49,7 +49,7 @@ func TestBCGetTransaction(t *testing.T) {
 	t.Run("isn't traceable", func(t *testing.T) {
 		require.NoError(t, context.DAO.StoreAsTransaction(tx, 1))
 		v.Estack().PushVal(tx.Hash().BytesBE())
-		err := bcGetTransaction(context, v)
+		err := bcGetTransaction(context)
 		require.NoError(t, err)
 
 		_, ok := v.Estack().Pop().Item().(stackitem.Null)
@@ -59,7 +59,7 @@ func TestBCGetTransaction(t *testing.T) {
 	t.Run("bad hash", func(t *testing.T) {
 		require.NoError(t, context.DAO.StoreAsTransaction(tx, 1))
 		v.Estack().PushVal(tx.Hash().BytesLE())
-		err := bcGetTransaction(context, v)
+		err := bcGetTransaction(context)
 		require.NoError(t, err)
 
 		_, ok := v.Estack().Pop().Item().(stackitem.Null)
@@ -76,7 +76,7 @@ func TestBCGetTransactionFromBlock(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		v.Estack().PushVal(0)
 		v.Estack().PushVal(block.Hash().BytesBE())
-		err := bcGetTransactionFromBlock(context, v)
+		err := bcGetTransactionFromBlock(context)
 		require.NoError(t, err)
 
 		value := v.Estack().Pop().Value()
@@ -88,7 +88,7 @@ func TestBCGetTransactionFromBlock(t *testing.T) {
 	t.Run("invalid block hash", func(t *testing.T) {
 		v.Estack().PushVal(0)
 		v.Estack().PushVal(block.Hash().BytesBE()[:10])
-		err := bcGetTransactionFromBlock(context, v)
+		err := bcGetTransactionFromBlock(context)
 		require.Error(t, err)
 	})
 
@@ -97,7 +97,7 @@ func TestBCGetTransactionFromBlock(t *testing.T) {
 		require.NoError(t, context.DAO.StoreAsBlock(block))
 		v.Estack().PushVal(0)
 		v.Estack().PushVal(block.Hash().BytesBE())
-		err := bcGetTransactionFromBlock(context, v)
+		err := bcGetTransactionFromBlock(context)
 		require.NoError(t, err)
 
 		_, ok := v.Estack().Pop().Item().(stackitem.Null)
@@ -109,7 +109,7 @@ func TestBCGetTransactionFromBlock(t *testing.T) {
 		require.NoError(t, context.DAO.StoreAsBlock(block))
 		v.Estack().PushVal(0)
 		v.Estack().PushVal(block.Hash().BytesLE())
-		err := bcGetTransactionFromBlock(context, v)
+		err := bcGetTransactionFromBlock(context)
 		require.NoError(t, err)
 
 		_, ok := v.Estack().Pop().Item().(stackitem.Null)
@@ -120,7 +120,7 @@ func TestBCGetTransactionFromBlock(t *testing.T) {
 		require.NoError(t, context.DAO.StoreAsBlock(block))
 		v.Estack().PushVal(1)
 		v.Estack().PushVal(block.Hash().BytesBE())
-		err := bcGetTransactionFromBlock(context, v)
+		err := bcGetTransactionFromBlock(context)
 		require.Error(t, err)
 	})
 }
@@ -133,7 +133,7 @@ func TestBCGetBlock(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		v.Estack().PushVal(block.Hash().BytesBE())
-		err := bcGetBlock(context, v)
+		err := bcGetBlock(context)
 		require.NoError(t, err)
 
 		value := v.Estack().Pop().Value()
@@ -152,7 +152,7 @@ func TestBCGetBlock(t *testing.T) {
 
 	t.Run("bad hash", func(t *testing.T) {
 		v.Estack().PushVal(block.Hash().BytesLE())
-		err := bcGetTransaction(context, v)
+		err := bcGetTransaction(context)
 		require.NoError(t, err)
 
 		_, ok := v.Estack().Pop().Item().(stackitem.Null)
@@ -180,14 +180,14 @@ func TestContractIsStandard(t *testing.T) {
 
 		t.Run("true", func(t *testing.T) {
 			v.Estack().PushVal(pub.GetScriptHash().BytesBE())
-			require.NoError(t, contractIsStandard(ic, v))
+			require.NoError(t, contractIsStandard(ic))
 			require.True(t, v.Estack().Pop().Bool())
 		})
 
 		t.Run("false", func(t *testing.T) {
 			tx.Scripts[0].VerificationScript = []byte{9, 8, 7}
 			v.Estack().PushVal(pub.GetScriptHash().BytesBE())
-			require.NoError(t, contractIsStandard(ic, v))
+			require.NoError(t, contractIsStandard(ic))
 			require.False(t, v.Estack().Pop().Bool())
 		})
 	})
@@ -201,7 +201,7 @@ func TestContractIsStandard(t *testing.T) {
 		require.NoError(t, err)
 
 		v.Estack().PushVal(pub.GetScriptHash().BytesBE())
-		require.NoError(t, contractIsStandard(ic, v))
+		require.NoError(t, contractIsStandard(ic))
 		require.True(t, v.Estack().Pop().Bool())
 	})
 	t.Run("contract stored, false", func(t *testing.T) {
@@ -209,7 +209,7 @@ func TestContractIsStandard(t *testing.T) {
 		require.NoError(t, ic.DAO.PutContractState(&state.Contract{ID: 24, Script: script}))
 
 		v.Estack().PushVal(crypto.Hash160(script).BytesBE())
-		require.NoError(t, contractIsStandard(ic, v))
+		require.NoError(t, contractIsStandard(ic))
 		require.False(t, v.Estack().Pop().Bool())
 	})
 }
@@ -222,7 +222,7 @@ func TestContractCreateAccount(t *testing.T) {
 		require.NoError(t, err)
 		pub := priv.PublicKey()
 		v.Estack().PushVal(pub.Bytes())
-		require.NoError(t, contractCreateStandardAccount(ic, v))
+		require.NoError(t, contractCreateStandardAccount(ic))
 
 		value := v.Estack().Pop().Bytes()
 		u, err := util.Uint160DecodeBytesBE(value)
@@ -231,7 +231,7 @@ func TestContractCreateAccount(t *testing.T) {
 	})
 	t.Run("InvalidKey", func(t *testing.T) {
 		v.Estack().PushVal([]byte{1, 2, 3})
-		require.Error(t, contractCreateStandardAccount(ic, v))
+		require.Error(t, contractCreateStandardAccount(ic))
 	})
 }
 
@@ -241,7 +241,7 @@ func TestRuntimeGasLeft(t *testing.T) {
 
 	v.GasLimit = 100
 	v.AddGas(58)
-	require.NoError(t, runtime.GasLeft(ic, v))
+	require.NoError(t, runtime.GasLeft(ic))
 	require.EqualValues(t, 42, v.Estack().Pop().BigInt().Int64())
 }
 
@@ -257,7 +257,7 @@ func TestRuntimeGetNotifications(t *testing.T) {
 
 	t.Run("NoFilter", func(t *testing.T) {
 		v.Estack().PushVal(stackitem.Null{})
-		require.NoError(t, runtime.GetNotifications(ic, v))
+		require.NoError(t, runtime.GetNotifications(ic))
 
 		arr := v.Estack().Pop().Array()
 		require.Equal(t, len(ic.Notifications), len(arr))
@@ -274,7 +274,7 @@ func TestRuntimeGetNotifications(t *testing.T) {
 	t.Run("WithFilter", func(t *testing.T) {
 		h := util.Uint160{2}.BytesBE()
 		v.Estack().PushVal(h)
-		require.NoError(t, runtime.GetNotifications(ic, v))
+		require.NoError(t, runtime.GetNotifications(ic))
 
 		arr := v.Estack().Pop().Array()
 		require.Equal(t, 1, len(arr))
@@ -295,11 +295,11 @@ func TestRuntimeGetInvocationCounter(t *testing.T) {
 
 	t.Run("Zero", func(t *testing.T) {
 		v.LoadScript([]byte{1})
-		require.Error(t, runtime.GetInvocationCounter(ic, v))
+		require.Error(t, runtime.GetInvocationCounter(ic))
 	})
 	t.Run("NonZero", func(t *testing.T) {
 		v.LoadScript([]byte{2})
-		require.NoError(t, runtime.GetInvocationCounter(ic, v))
+		require.NoError(t, runtime.GetInvocationCounter(ic))
 		require.EqualValues(t, 42, v.Estack().Pop().BigInt().Int64())
 	})
 }
@@ -311,7 +311,7 @@ func TestBlockchainGetContractState(t *testing.T) {
 
 	t.Run("positive", func(t *testing.T) {
 		v.Estack().PushVal(cs.ScriptHash().BytesBE())
-		require.NoError(t, bcGetContract(ic, v))
+		require.NoError(t, bcGetContract(ic))
 
 		actual := v.Estack().Pop().Item()
 		compareContractStates(t, cs, actual)
@@ -319,7 +319,7 @@ func TestBlockchainGetContractState(t *testing.T) {
 
 	t.Run("uncknown contract state", func(t *testing.T) {
 		v.Estack().PushVal(util.Uint160{1, 2, 3}.BytesBE())
-		require.NoError(t, bcGetContract(ic, v))
+		require.NoError(t, bcGetContract(ic))
 
 		actual := v.Estack().Pop().Item()
 		require.Equal(t, stackitem.Null{}, actual)
@@ -394,14 +394,14 @@ func getTestContractState() (*state.Contract, *state.Contract) {
 	}
 }
 
-func loadScript(script []byte, args ...interface{}) *vm.VM {
+func loadScript(ic *interop.Context, script []byte, args ...interface{}) {
 	v := vm.New()
 	v.LoadScriptWithFlags(script, smartcontract.AllowCall)
 	for i := range args {
 		v.Estack().PushVal(args[i])
 	}
 	v.GasLimit = -1
-	return v
+	ic.VM = v
 }
 
 func TestContractCall(t *testing.T) {
@@ -417,36 +417,36 @@ func TestContractCall(t *testing.T) {
 
 	addArgs := stackitem.NewArray([]stackitem.Item{stackitem.Make(1), stackitem.Make(2)})
 	t.Run("Good", func(t *testing.T) {
-		v := loadScript(currScript, 42)
-		v.Estack().PushVal(addArgs)
-		v.Estack().PushVal("add")
-		v.Estack().PushVal(h.BytesBE())
-		require.NoError(t, contractCall(ic, v))
-		require.NoError(t, v.Run())
-		require.Equal(t, 2, v.Estack().Len())
-		require.Equal(t, big.NewInt(3), v.Estack().Pop().Value())
-		require.Equal(t, big.NewInt(42), v.Estack().Pop().Value())
+		loadScript(ic, currScript, 42)
+		ic.VM.Estack().PushVal(addArgs)
+		ic.VM.Estack().PushVal("add")
+		ic.VM.Estack().PushVal(h.BytesBE())
+		require.NoError(t, contractCall(ic))
+		require.NoError(t, ic.VM.Run())
+		require.Equal(t, 2, ic.VM.Estack().Len())
+		require.Equal(t, big.NewInt(3), ic.VM.Estack().Pop().Value())
+		require.Equal(t, big.NewInt(42), ic.VM.Estack().Pop().Value())
 	})
 
 	t.Run("CallExInvalidFlag", func(t *testing.T) {
-		v := loadScript(currScript, 42)
-		v.Estack().PushVal(byte(0xFF))
-		v.Estack().PushVal(addArgs)
-		v.Estack().PushVal("add")
-		v.Estack().PushVal(h.BytesBE())
-		require.Error(t, contractCallEx(ic, v))
+		loadScript(ic, currScript, 42)
+		ic.VM.Estack().PushVal(byte(0xFF))
+		ic.VM.Estack().PushVal(addArgs)
+		ic.VM.Estack().PushVal("add")
+		ic.VM.Estack().PushVal(h.BytesBE())
+		require.Error(t, contractCallEx(ic))
 	})
 
 	runInvalid := func(args ...interface{}) func(t *testing.T) {
 		return func(t *testing.T) {
-			v := loadScript(currScript, 42)
+			loadScript(ic, currScript, 42)
 			for i := range args {
-				v.Estack().PushVal(args[i])
+				ic.VM.Estack().PushVal(args[i])
 			}
 			// interops can both return error and panic,
 			// we don't care which kind of error has occured
 			require.Panics(t, func() {
-				err := contractCall(ic, v)
+				err := contractCall(ic)
 				if err != nil {
 					panic(err)
 				}
@@ -466,26 +466,26 @@ func TestContractCall(t *testing.T) {
 	})
 
 	t.Run("IsolatedStack", func(t *testing.T) {
-		v := loadScript(currScript, 42)
-		v.Estack().PushVal(stackitem.NewArray(nil))
-		v.Estack().PushVal("drop")
-		v.Estack().PushVal(h.BytesBE())
-		require.NoError(t, contractCall(ic, v))
-		require.Error(t, v.Run())
+		loadScript(ic, currScript, 42)
+		ic.VM.Estack().PushVal(stackitem.NewArray(nil))
+		ic.VM.Estack().PushVal("drop")
+		ic.VM.Estack().PushVal(h.BytesBE())
+		require.NoError(t, contractCall(ic))
+		require.Error(t, ic.VM.Run())
 	})
 
 	t.Run("CallInitialize", func(t *testing.T) {
 		t.Run("Directly", runInvalid(stackitem.NewArray([]stackitem.Item{}), "_initialize", h.BytesBE()))
 
-		v := loadScript(currScript, 42)
-		v.Estack().PushVal(stackitem.NewArray([]stackitem.Item{stackitem.Make(5)}))
-		v.Estack().PushVal("add3")
-		v.Estack().PushVal(h.BytesBE())
-		require.NoError(t, contractCall(ic, v))
-		require.NoError(t, v.Run())
-		require.Equal(t, 2, v.Estack().Len())
-		require.Equal(t, big.NewInt(8), v.Estack().Pop().Value())
-		require.Equal(t, big.NewInt(42), v.Estack().Pop().Value())
+		loadScript(ic, currScript, 42)
+		ic.VM.Estack().PushVal(stackitem.NewArray([]stackitem.Item{stackitem.Make(5)}))
+		ic.VM.Estack().PushVal("add3")
+		ic.VM.Estack().PushVal(h.BytesBE())
+		require.NoError(t, contractCall(ic))
+		require.NoError(t, ic.VM.Run())
+		require.Equal(t, 2, ic.VM.Estack().Len())
+		require.Equal(t, big.NewInt(8), ic.VM.Estack().Pop().Value())
+		require.Equal(t, big.NewInt(42), ic.VM.Estack().Pop().Value())
 	})
 }
 
@@ -504,7 +504,7 @@ func TestContractCreate(t *testing.T) {
 	t.Run("positive", func(t *testing.T) {
 		putArgsOnStack()
 
-		require.NoError(t, contractCreate(ic, v))
+		require.NoError(t, contractCreate(ic))
 		actual := v.Estack().Pop().Item()
 		compareContractStates(t, cs, actual)
 	})
@@ -513,7 +513,7 @@ func TestContractCreate(t *testing.T) {
 		cs.Script = append(cs.Script, 0x01)
 		putArgsOnStack()
 
-		require.Error(t, contractCreate(ic, v))
+		require.Error(t, contractCreate(ic))
 	})
 
 	t.Run("contract already exists", func(t *testing.T) {
@@ -521,7 +521,7 @@ func TestContractCreate(t *testing.T) {
 		require.NoError(t, ic.DAO.PutContractState(cs))
 		putArgsOnStack()
 
-		require.Error(t, contractCreate(ic, v))
+		require.Error(t, contractCreate(ic))
 	})
 }
 
@@ -553,27 +553,27 @@ func TestContractUpdate(t *testing.T) {
 		require.NoError(t, ic.DAO.PutContractState(cs))
 		v.LoadScriptWithHash([]byte{byte(opcode.RET)}, cs.ScriptHash(), smartcontract.All)
 		putArgsOnStack(nil, nil)
-		require.NoError(t, contractUpdate(ic, v))
+		require.NoError(t, contractUpdate(ic))
 	})
 
 	t.Run("no contract", func(t *testing.T) {
 		require.NoError(t, ic.DAO.PutContractState(cs))
 		v.LoadScriptWithHash([]byte{byte(opcode.RET)}, util.Uint160{8, 9, 7}, smartcontract.All)
-		require.Error(t, contractUpdate(ic, v))
+		require.Error(t, contractUpdate(ic))
 	})
 
 	t.Run("too large script", func(t *testing.T) {
 		require.NoError(t, ic.DAO.PutContractState(cs))
 		v.LoadScriptWithHash([]byte{byte(opcode.RET)}, cs.ScriptHash(), smartcontract.All)
 		putArgsOnStack(make([]byte, MaxContractScriptSize+1), nil)
-		require.Error(t, contractUpdate(ic, v))
+		require.Error(t, contractUpdate(ic))
 	})
 
 	t.Run("too large manifest", func(t *testing.T) {
 		require.NoError(t, ic.DAO.PutContractState(cs))
 		v.LoadScriptWithHash([]byte{byte(opcode.RET)}, cs.ScriptHash(), smartcontract.All)
 		putArgsOnStack(nil, make([]byte, manifest.MaxManifestSize+1))
-		require.Error(t, contractUpdate(ic, v))
+		require.Error(t, contractUpdate(ic))
 	})
 
 	t.Run("gas limit exceeded", func(t *testing.T) {
@@ -581,7 +581,7 @@ func TestContractUpdate(t *testing.T) {
 		v.GasLimit = 0
 		v.LoadScriptWithHash([]byte{byte(opcode.RET)}, cs.ScriptHash(), smartcontract.All)
 		putArgsOnStack([]byte{1}, []byte{2})
-		require.Error(t, contractUpdate(ic, v))
+		require.Error(t, contractUpdate(ic))
 	})
 
 	t.Run("update script, the same script", func(t *testing.T) {
@@ -590,7 +590,7 @@ func TestContractUpdate(t *testing.T) {
 		v.LoadScriptWithHash([]byte{byte(opcode.RET)}, cs.ScriptHash(), smartcontract.All)
 		putArgsOnStack(cs.Script, nil)
 
-		require.Error(t, contractUpdate(ic, v))
+		require.Error(t, contractUpdate(ic))
 	})
 
 	t.Run("update script, already exists", func(t *testing.T) {
@@ -608,7 +608,7 @@ func TestContractUpdate(t *testing.T) {
 		v.LoadScriptWithHash([]byte{byte(opcode.RET)}, cs.ScriptHash(), smartcontract.All)
 		putArgsOnStack(duplicateScript, nil)
 
-		require.Error(t, contractUpdate(ic, v))
+		require.Error(t, contractUpdate(ic))
 	})
 
 	t.Run("update script, positive", func(t *testing.T) {
@@ -617,7 +617,7 @@ func TestContractUpdate(t *testing.T) {
 		newScript := []byte{9, 8, 7, 6, 5}
 		putArgsOnStack(newScript, nil)
 
-		require.NoError(t, contractUpdate(ic, v))
+		require.NoError(t, contractUpdate(ic))
 
 		// updated contract should have new scripthash
 		actual, err := ic.DAO.GetContractState(hash.Hash160(newScript))
@@ -641,7 +641,7 @@ func TestContractUpdate(t *testing.T) {
 		v.LoadScriptWithHash([]byte{byte(opcode.RET)}, cs.ScriptHash(), smartcontract.All)
 		putArgsOnStack(nil, []byte{1, 2, 3})
 
-		require.Error(t, contractUpdate(ic, v))
+		require.Error(t, contractUpdate(ic))
 	})
 
 	t.Run("update manifest, bad contract hash", func(t *testing.T) {
@@ -656,7 +656,7 @@ func TestContractUpdate(t *testing.T) {
 		require.NoError(t, err)
 		putArgsOnStack(nil, manifestBytes)
 
-		require.Error(t, contractUpdate(ic, v))
+		require.Error(t, contractUpdate(ic))
 	})
 
 	t.Run("update manifest, old contract shouldn't have storage", func(t *testing.T) {
@@ -676,7 +676,7 @@ func TestContractUpdate(t *testing.T) {
 		require.NoError(t, err)
 		putArgsOnStack(nil, manifestBytes)
 
-		require.Error(t, contractUpdate(ic, v))
+		require.Error(t, contractUpdate(ic))
 	})
 
 	t.Run("update manifest, positive", func(t *testing.T) {
@@ -693,7 +693,7 @@ func TestContractUpdate(t *testing.T) {
 		require.NoError(t, err)
 		putArgsOnStack(nil, manifestBytes)
 
-		require.NoError(t, contractUpdate(ic, v))
+		require.NoError(t, contractUpdate(ic))
 
 		// updated contract should have new scripthash
 		actual, err := ic.DAO.GetContractState(cs.ScriptHash())
@@ -721,7 +721,7 @@ func TestContractUpdate(t *testing.T) {
 
 		putArgsOnStack(newScript, newManifestBytes)
 
-		require.NoError(t, contractUpdate(ic, v))
+		require.NoError(t, contractUpdate(ic))
 
 		// updated contract should have new script and manifest
 		actual, err := ic.DAO.GetContractState(hash.Hash160(newScript))
@@ -746,7 +746,7 @@ func TestContractGetCallFlags(t *testing.T) {
 	defer bc.Close()
 
 	v.LoadScriptWithHash([]byte{byte(opcode.RET)}, util.Uint160{1, 2, 3}, smartcontract.All)
-	require.NoError(t, contractGetCallFlags(ic, v))
+	require.NoError(t, contractGetCallFlags(ic))
 	require.Equal(t, int64(smartcontract.All), v.Estack().Pop().Value().(*big.Int).Int64())
 }
 
@@ -759,27 +759,27 @@ func TestPointerCallback(t *testing.T) {
 		byte(opcode.DIV), byte(opcode.RET),
 	}
 	t.Run("Good", func(t *testing.T) {
-		v := loadScript(script, 2, stackitem.NewPointer(3, script))
-		v.Estack().PushVal(v.Context())
-		require.NoError(t, callback.Create(ic, v))
+		loadScript(ic, script, 2, stackitem.NewPointer(3, script))
+		ic.VM.Estack().PushVal(ic.VM.Context())
+		require.NoError(t, callback.Create(ic))
 
 		args := stackitem.NewArray([]stackitem.Item{stackitem.Make(3), stackitem.Make(12)})
-		v.Estack().InsertAt(vm.NewElement(args), 1)
-		require.NoError(t, callback.Invoke(ic, v))
+		ic.VM.Estack().InsertAt(vm.NewElement(args), 1)
+		require.NoError(t, callback.Invoke(ic))
 
-		require.NoError(t, v.Run())
-		require.Equal(t, 1, v.Estack().Len())
-		require.Equal(t, big.NewInt(5), v.Estack().Pop().Item().Value())
+		require.NoError(t, ic.VM.Run())
+		require.Equal(t, 1, ic.VM.Estack().Len())
+		require.Equal(t, big.NewInt(5), ic.VM.Estack().Pop().Item().Value())
 	})
 	t.Run("Invalid", func(t *testing.T) {
 		t.Run("NotEnoughParameters", func(t *testing.T) {
-			v := loadScript(script, 2, stackitem.NewPointer(3, script))
-			v.Estack().PushVal(v.Context())
-			require.NoError(t, callback.Create(ic, v))
+			loadScript(ic, script, 2, stackitem.NewPointer(3, script))
+			ic.VM.Estack().PushVal(ic.VM.Context())
+			require.NoError(t, callback.Create(ic))
 
 			args := stackitem.NewArray([]stackitem.Item{stackitem.Make(3)})
-			v.Estack().InsertAt(vm.NewElement(args), 1)
-			require.Error(t, callback.Invoke(ic, v))
+			ic.VM.Estack().InsertAt(vm.NewElement(args), 1)
+			require.Error(t, callback.Invoke(ic))
 		})
 	})
 
@@ -799,11 +799,11 @@ func TestMethodCallback(t *testing.T) {
 	t.Run("Invalid", func(t *testing.T) {
 		runInvalid := func(args ...interface{}) func(t *testing.T) {
 			return func(t *testing.T) {
-				v := loadScript(currCs.Script, 42)
+				loadScript(ic, currCs.Script, 42)
 				for i := range args {
-					v.Estack().PushVal(args[i])
+					ic.VM.Estack().PushVal(args[i])
 				}
-				require.Error(t, callback.CreateFromMethod(ic, v))
+				require.Error(t, callback.CreateFromMethod(ic))
 			}
 		}
 		t.Run("Hash", runInvalid("add", rawHash[1:]))
@@ -812,37 +812,38 @@ func TestMethodCallback(t *testing.T) {
 		t.Run("DisallowedMethod", runInvalid("ret7", rawHash))
 		t.Run("Initialize", runInvalid("_initialize", rawHash))
 		t.Run("NotEnoughArguments", func(t *testing.T) {
-			v := loadScript(currCs.Script, 42, "add", rawHash)
-			require.NoError(t, callback.CreateFromMethod(ic, v))
+			loadScript(ic, currCs.Script, 42, "add", rawHash)
+			require.NoError(t, callback.CreateFromMethod(ic))
 
-			v.Estack().InsertAt(vm.NewElement(stackitem.NewArray([]stackitem.Item{stackitem.Make(1)})), 1)
-			require.Error(t, callback.Invoke(ic, v))
+			ic.VM.Estack().InsertAt(vm.NewElement(stackitem.NewArray([]stackitem.Item{stackitem.Make(1)})), 1)
+			require.Error(t, callback.Invoke(ic))
 		})
 		t.Run("CallIsNotAllowed", func(t *testing.T) {
 			v := vm.New()
+			ic.VM = v
 			v.Load(currCs.Script)
 			v.Estack().PushVal("add")
 			v.Estack().PushVal(rawHash)
-			require.NoError(t, callback.CreateFromMethod(ic, v))
+			require.NoError(t, callback.CreateFromMethod(ic))
 
 			args := stackitem.NewArray([]stackitem.Item{stackitem.Make(1), stackitem.Make(5)})
 			v.Estack().InsertAt(vm.NewElement(args), 1)
-			require.Error(t, callback.Invoke(ic, v))
+			require.Error(t, callback.Invoke(ic))
 		})
 	})
 
 	t.Run("Good", func(t *testing.T) {
-		v := loadScript(currCs.Script, 42, "add", rawHash)
-		require.NoError(t, callback.CreateFromMethod(ic, v))
+		loadScript(ic, currCs.Script, 42, "add", rawHash)
+		require.NoError(t, callback.CreateFromMethod(ic))
 
 		args := stackitem.NewArray([]stackitem.Item{stackitem.Make(1), stackitem.Make(5)})
-		v.Estack().InsertAt(vm.NewElement(args), 1)
+		ic.VM.Estack().InsertAt(vm.NewElement(args), 1)
 
-		require.NoError(t, callback.Invoke(ic, v))
-		require.NoError(t, v.Run())
-		require.Equal(t, 2, v.Estack().Len())
-		require.Equal(t, big.NewInt(6), v.Estack().Pop().Item().Value())
-		require.Equal(t, big.NewInt(42), v.Estack().Pop().Item().Value())
+		require.NoError(t, callback.Invoke(ic))
+		require.NoError(t, ic.VM.Run())
+		require.Equal(t, 2, ic.VM.Estack().Len())
+		require.Equal(t, big.NewInt(6), ic.VM.Estack().Pop().Item().Value())
+		require.Equal(t, big.NewInt(42), ic.VM.Estack().Pop().Item().Value())
 	})
 }
 func TestSyscallCallback(t *testing.T) {
@@ -852,44 +853,44 @@ func TestSyscallCallback(t *testing.T) {
 	ic.Functions = append(ic.Functions, []interop.Function{
 		{
 			ID: 0x42,
-			Func: func(_ *interop.Context, v *vm.VM) error {
-				a := v.Estack().Pop().BigInt()
-				b := v.Estack().Pop().BigInt()
-				v.Estack().PushVal(new(big.Int).Add(a, b))
+			Func: func(ic *interop.Context) error {
+				a := ic.VM.Estack().Pop().BigInt()
+				b := ic.VM.Estack().Pop().BigInt()
+				ic.VM.Estack().PushVal(new(big.Int).Add(a, b))
 				return nil
 			},
 			ParamCount: 2,
 		},
 		{
 			ID:               0x53,
-			Func:             func(_ *interop.Context, _ *vm.VM) error { return nil },
+			Func:             func(_ *interop.Context) error { return nil },
 			DisallowCallback: true,
 		},
 	})
 
 	t.Run("Good", func(t *testing.T) {
 		args := stackitem.NewArray([]stackitem.Item{stackitem.Make(12), stackitem.Make(30)})
-		v := loadScript([]byte{byte(opcode.RET)}, args, 0x42)
-		require.NoError(t, callback.CreateFromSyscall(ic, v))
-		require.NoError(t, callback.Invoke(ic, v))
-		require.Equal(t, 1, v.Estack().Len())
-		require.Equal(t, big.NewInt(42), v.Estack().Pop().Item().Value())
+		loadScript(ic, []byte{byte(opcode.RET)}, args, 0x42)
+		require.NoError(t, callback.CreateFromSyscall(ic))
+		require.NoError(t, callback.Invoke(ic))
+		require.Equal(t, 1, ic.VM.Estack().Len())
+		require.Equal(t, big.NewInt(42), ic.VM.Estack().Pop().Item().Value())
 	})
 
 	t.Run("Invalid", func(t *testing.T) {
 		t.Run("InvalidParameterCount", func(t *testing.T) {
 			args := stackitem.NewArray([]stackitem.Item{stackitem.Make(12)})
-			v := loadScript([]byte{byte(opcode.RET)}, args, 0x42)
-			require.NoError(t, callback.CreateFromSyscall(ic, v))
-			require.Error(t, callback.Invoke(ic, v))
+			loadScript(ic, []byte{byte(opcode.RET)}, args, 0x42)
+			require.NoError(t, callback.CreateFromSyscall(ic))
+			require.Error(t, callback.Invoke(ic))
 		})
 		t.Run("MissingSyscall", func(t *testing.T) {
-			v := loadScript([]byte{byte(opcode.RET)}, stackitem.NewArray(nil), 0x43)
-			require.Error(t, callback.CreateFromSyscall(ic, v))
+			loadScript(ic, []byte{byte(opcode.RET)}, stackitem.NewArray(nil), 0x43)
+			require.Error(t, callback.CreateFromSyscall(ic))
 		})
 		t.Run("Disallowed", func(t *testing.T) {
-			v := loadScript([]byte{byte(opcode.RET)}, stackitem.NewArray(nil), 0x53)
-			require.Error(t, callback.CreateFromSyscall(ic, v))
+			loadScript(ic, []byte{byte(opcode.RET)}, stackitem.NewArray(nil), 0x53)
+			require.Error(t, callback.CreateFromSyscall(ic))
 		})
 	})
 }

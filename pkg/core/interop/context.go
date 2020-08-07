@@ -35,7 +35,7 @@ type Context struct {
 	Notifications []state.NotificationEvent
 	Log           *zap.Logger
 	Invocations   map[util.Uint160]int
-	ScriptGetter  vm.ScriptHashGetter
+	VM            *vm.VM
 	Functions     [][]Function
 }
 
@@ -64,7 +64,7 @@ func NewContext(trigger trigger.Type, bc blockchainer.Blockchainer, d dao.DAO, n
 type Function struct {
 	ID   uint32
 	Name string
-	Func func(*Context, *vm.VM) error
+	Func func(*Context) error
 	// DisallowCallback is true iff syscall can't be used in a callback.
 	DisallowCallback bool
 	// ParamCount is a number of function parameters.
@@ -155,26 +155,26 @@ func (ic *Context) GetFunction(id uint32) *Function {
 }
 
 // SyscallHandler handles syscall with id.
-func (ic *Context) SyscallHandler(v *vm.VM, id uint32) error {
+func (ic *Context) SyscallHandler(_ *vm.VM, id uint32) error {
 	f := ic.GetFunction(id)
 	if f == nil {
 		return errors.New("syscall not found")
 	}
-	cf := v.Context().GetCallFlags()
+	cf := ic.VM.Context().GetCallFlags()
 	if !cf.Has(f.RequiredFlags) {
 		return fmt.Errorf("missing call flags: %05b vs %05b", cf, f.RequiredFlags)
 	}
-	if !v.AddGas(f.Price) {
+	if !ic.VM.AddGas(f.Price) {
 		return errors.New("insufficient amount of gas")
 	}
-	return f.Func(ic, v)
+	return f.Func(ic)
 }
 
-// SpawnVM spawns new VM with the specified gas limit.
+// SpawnVM spawns new VM with the specified gas limit and set context.VM field.
 func (ic *Context) SpawnVM() *vm.VM {
 	v := vm.NewWithTrigger(ic.Trigger)
 	v.GasLimit = -1
 	v.SyscallHandler = ic.SyscallHandler
-	ic.ScriptGetter = v
+	ic.VM = v
 	return v
 }

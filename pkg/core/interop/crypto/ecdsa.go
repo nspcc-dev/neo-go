@@ -18,56 +18,56 @@ import (
 const ECDSAVerifyPrice = 1000000
 
 // ECDSASecp256r1Verify checks ECDSA signature using Secp256r1 elliptic curve.
-func ECDSASecp256r1Verify(ic *interop.Context, v *vm.VM) error {
-	return ecdsaVerify(ic, v, elliptic.P256())
+func ECDSASecp256r1Verify(ic *interop.Context) error {
+	return ecdsaVerify(ic, elliptic.P256())
 }
 
 // ECDSASecp256k1Verify checks ECDSA signature using Secp256k1 elliptic curve
-func ECDSASecp256k1Verify(ic *interop.Context, v *vm.VM) error {
-	return ecdsaVerify(ic, v, btcec.S256())
+func ECDSASecp256k1Verify(ic *interop.Context) error {
+	return ecdsaVerify(ic, btcec.S256())
 }
 
 // ecdsaVerify is internal representation of ECDSASecp256k1Verify and
 // ECDSASecp256r1Verify.
-func ecdsaVerify(ic *interop.Context, v *vm.VM, curve elliptic.Curve) error {
-	msg := getMessage(ic, v.Estack().Pop().Item())
+func ecdsaVerify(ic *interop.Context, curve elliptic.Curve) error {
+	msg := getMessage(ic, ic.VM.Estack().Pop().Item())
 	hashToCheck := hash.Sha256(msg).BytesBE()
-	keyb := v.Estack().Pop().Bytes()
-	signature := v.Estack().Pop().Bytes()
+	keyb := ic.VM.Estack().Pop().Bytes()
+	signature := ic.VM.Estack().Pop().Bytes()
 	pkey, err := keys.NewPublicKeyFromBytes(keyb, curve)
 	if err != nil {
 		return err
 	}
 	res := pkey.Verify(signature, hashToCheck)
-	v.Estack().PushVal(res)
+	ic.VM.Estack().PushVal(res)
 	return nil
 }
 
 // ECDSASecp256r1CheckMultisig checks multiple ECDSA signatures at once using
 // Secp256r1 elliptic curve.
-func ECDSASecp256r1CheckMultisig(ic *interop.Context, v *vm.VM) error {
-	return ecdsaCheckMultisig(ic, v, elliptic.P256())
+func ECDSASecp256r1CheckMultisig(ic *interop.Context) error {
+	return ecdsaCheckMultisig(ic, elliptic.P256())
 }
 
 // ECDSASecp256k1CheckMultisig checks multiple ECDSA signatures at once using
 // Secp256k1 elliptic curve.
-func ECDSASecp256k1CheckMultisig(ic *interop.Context, v *vm.VM) error {
-	return ecdsaCheckMultisig(ic, v, btcec.S256())
+func ECDSASecp256k1CheckMultisig(ic *interop.Context) error {
+	return ecdsaCheckMultisig(ic, btcec.S256())
 }
 
 // ecdsaCheckMultisig is internal representation of ECDSASecp256r1CheckMultisig and
 // ECDSASecp256k1CheckMultisig
-func ecdsaCheckMultisig(ic *interop.Context, v *vm.VM, curve elliptic.Curve) error {
-	msg := getMessage(ic, v.Estack().Pop().Item())
+func ecdsaCheckMultisig(ic *interop.Context, curve elliptic.Curve) error {
+	msg := getMessage(ic, ic.VM.Estack().Pop().Item())
 	hashToCheck := hash.Sha256(msg).BytesBE()
-	pkeys, err := v.Estack().PopSigElements()
+	pkeys, err := ic.VM.Estack().PopSigElements()
 	if err != nil {
 		return fmt.Errorf("wrong parameters: %w", err)
 	}
-	if !v.AddGas(ECDSAVerifyPrice * int64(len(pkeys))) {
+	if !ic.VM.AddGas(ECDSAVerifyPrice * int64(len(pkeys))) {
 		return errors.New("gas limit exceeded")
 	}
-	sigs, err := v.Estack().PopSigElements()
+	sigs, err := ic.VM.Estack().PopSigElements()
 	if err != nil {
 		return fmt.Errorf("wrong parameters: %w", err)
 	}
@@ -76,8 +76,8 @@ func ecdsaCheckMultisig(ic *interop.Context, v *vm.VM, curve elliptic.Curve) err
 	if len(pkeys) < len(sigs) {
 		return errors.New("more signatures than there are keys")
 	}
-	sigok := vm.CheckMultisigPar(v, curve, hashToCheck, pkeys, sigs)
-	v.Estack().PushVal(sigok)
+	sigok := vm.CheckMultisigPar(ic.VM, curve, hashToCheck, pkeys, sigs)
+	ic.VM.Estack().PushVal(sigok)
 	return nil
 }
 

@@ -17,13 +17,13 @@ import (
 // for verifying in the interop context.
 func CheckHashedWitness(ic *interop.Context, hash util.Uint160) (bool, error) {
 	if tx, ok := ic.Container.(*transaction.Transaction); ok {
-		return checkScope(ic.DAO, tx, ic.ScriptGetter, hash)
+		return checkScope(ic.DAO, tx, ic.VM, hash)
 	}
 
 	return false, errors.New("script container is not a transaction")
 }
 
-func checkScope(d dao.DAO, tx *transaction.Transaction, v vm.ScriptHashGetter, hash util.Uint160) (bool, error) {
+func checkScope(d dao.DAO, tx *transaction.Transaction, v *vm.VM, hash util.Uint160) (bool, error) {
 	for _, c := range tx.Signers {
 		if c.Account == hash {
 			if c.Scopes == transaction.Global {
@@ -75,11 +75,11 @@ func CheckKeyedWitness(ic *interop.Context, key *keys.PublicKey) (bool, error) {
 }
 
 // CheckWitness checks witnesses.
-func CheckWitness(ic *interop.Context, v *vm.VM) error {
+func CheckWitness(ic *interop.Context) error {
 	var res bool
 	var err error
 
-	hashOrKey := v.Estack().Pop().Bytes()
+	hashOrKey := ic.VM.Estack().Pop().Bytes()
 	hash, err := util.Uint160DecodeBytesBE(hashOrKey)
 	if err != nil {
 		var key *keys.PublicKey
@@ -94,6 +94,6 @@ func CheckWitness(ic *interop.Context, v *vm.VM) error {
 	if err != nil {
 		return fmt.Errorf("failed to check witness: %w", err)
 	}
-	v.Estack().PushVal(res)
+	ic.VM.Estack().PushVal(res)
 	return nil
 }

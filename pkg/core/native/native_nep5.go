@@ -177,7 +177,7 @@ func (c *nep5TokenNative) TransferInternal(ic *interop.Context, from, to util.Ui
 		return errors.New("negative amount")
 	}
 
-	caller := ic.ScriptGetter.GetCallingScriptHash()
+	caller := ic.VM.GetCallingScriptHash()
 	if caller.Equals(util.Uint160{}) || !from.Equals(caller) {
 		ok, err := runtime.CheckHashedWitness(ic, from)
 		if err != nil {

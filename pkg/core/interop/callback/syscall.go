@@ -28,8 +28,8 @@ func (p *SyscallCallback) LoadContext(v *vm.VM, args []stackitem.Item) {
 }
 
 // CreateFromSyscall creates callback from syscall.
-func CreateFromSyscall(ic *interop.Context, v *vm.VM) error {
-	id := uint32(v.Estack().Pop().BigInt().Int64())
+func CreateFromSyscall(ic *interop.Context) error {
+	id := uint32(ic.VM.Estack().Pop().BigInt().Int64())
 	f := ic.GetFunction(id)
 	if f == nil {
 		return errors.New("syscall not found")
@@ -37,6 +37,6 @@ func CreateFromSyscall(ic *interop.Context, v *vm.VM) error {
 	if f.DisallowCallback {
 		return errors.New("syscall is not allowed to be used in a callback")
 	}
-	v.Estack().PushVal(stackitem.NewInterop(&SyscallCallback{f}))
+	ic.VM.Estack().PushVal(stackitem.NewInterop(&SyscallCallback{f}))
 	return nil
 }

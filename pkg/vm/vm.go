@@ -40,13 +40,6 @@ func newError(ip int, op opcode.Opcode, err interface{}) *errorAtInstruct {
 // StateMessage is a vm state message which could be used as additional info for example by cli.
 type StateMessage string
 
-// ScriptHashGetter defines an interface for getting calling, entry and current script hashes.
-type ScriptHashGetter interface {
-	GetCallingScriptHash() util.Uint160
-	GetEntryScriptHash() util.Uint160
-	GetCurrentScriptHash() util.Uint160
-}
-
 const (
 	// MaxInvocationStackSize is the maximum size of an invocation stack.
 	MaxInvocationStackSize = 1024
