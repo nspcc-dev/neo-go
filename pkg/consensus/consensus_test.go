@@ -58,20 +58,23 @@ func TestService_GetVerified(t *testing.T) {
 
 	// Everyone sends a message.
 	for i := 0; i < 4; i++ {
-		p := new(Payload)
-		p.message = &message{}
+		p := srv.newPayload().(*Payload)
+		p.SetHeight(1)
+		p.SetValidatorIndex(uint16(i))
+		priv, _ := getTestValidator(i)
+		// To properly sign stateroot in prepare request.
+		srv.dbft.Priv = priv
 		// One PrepareRequest and three ChangeViews.
 		if i == 1 {
 			p.SetType(payload.PrepareRequestType)
-			p.SetPayload(&prepareRequest{transactionHashes: hashes})
+			preq := srv.newPrepareRequest().(*prepareRequest)
+			preq.transactionHashes = hashes
+			p.SetPayload(preq)
 		} else {
 			p.SetType(payload.ChangeViewType)
 			p.SetPayload(&changeView{newViewNumber: 1, timestamp: uint64(time.Now().UnixNano() / nsInMs)})
 		}
-		p.SetHeight(1)
-		p.SetValidatorIndex(uint16(i))
 
-		priv, _ := getTestValidator(i)
 		require.NoError(t, p.Sign(priv))
 
 		// Skip srv.OnPayload, because the service is not really started.

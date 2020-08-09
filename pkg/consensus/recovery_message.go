@@ -30,13 +30,13 @@ type (
 		ViewNumber       byte
 		ValidatorIndex   uint8
 		Signature        [signatureSize]byte
-		StateSignature   [signatureSize]byte
 		InvocationScript []byte
 	}
 
 	preparationCompact struct {
 		ValidatorIndex   uint8
 		InvocationScript []byte
+		StateRootSig     [signatureSize]byte
 	}
 )
 
@@ -114,7 +114,6 @@ func (p *commitCompact) DecodeBinary(r *io.BinReader) {
 	p.ViewNumber = r.ReadB()
 	p.ValidatorIndex = r.ReadB()
 	r.ReadBytes(p.Signature[:])
-	r.ReadBytes(p.StateSignature[:])
 	p.InvocationScript = r.ReadVarBytes(1024)
 }
 
@@ -123,7 +122,6 @@ func (p *commitCompact) EncodeBinary(w *io.BinWriter) {
 	w.WriteB(p.ViewNumber)
 	w.WriteB(p.ValidatorIndex)
 	w.WriteBytes(p.Signature[:])
-	w.WriteBytes(p.StateSignature[:])
 	w.WriteVarBytes(p.InvocationScript)
 }
 
@@ -131,12 +129,14 @@ func (p *commitCompact) EncodeBinary(w *io.BinWriter) {
 func (p *preparationCompact) DecodeBinary(r *io.BinReader) {
 	p.ValidatorIndex = r.ReadB()
 	p.InvocationScript = r.ReadVarBytes(1024)
+	r.ReadBytes(p.StateRootSig[:])
 }
 
 // EncodeBinary implements io.Serializable interface.
 func (p *preparationCompact) EncodeBinary(w *io.BinWriter) {
 	w.WriteB(p.ValidatorIndex)
 	w.WriteVarBytes(p.InvocationScript)
+	w.WriteBytes(p.StateRootSig[:])
 }
 
 // AddPayload implements payload.RecoveryMessage interface.
@@ -155,11 +155,13 @@ func (m *recoveryMessage) AddPayload(p payload.ConsensusPayload) {
 		m.preparationPayloads = append(m.preparationPayloads, &preparationCompact{
 			ValidatorIndex:   validator,
 			InvocationScript: p.(*Payload).Witness.InvocationScript,
+			StateRootSig:     p.GetPrepareRequest().(*prepareRequest).stateRootSig,
 		})
 	case payload.PrepareResponseType:
 		m.preparationPayloads = append(m.preparationPayloads, &preparationCompact{
 			ValidatorIndex:   validator,
 			InvocationScript: p.(*Payload).Witness.InvocationScript,
+			StateRootSig:     p.GetPrepareResponse().(*prepareResponse).stateRootSig,
 		})
 
 		if m.preparationHash == nil {
@@ -178,7 +180,6 @@ func (m *recoveryMessage) AddPayload(p payload.ConsensusPayload) {
 			ValidatorIndex:   validator,
 			ViewNumber:       p.ViewNumber(),
 			Signature:        p.GetCommit().(*commit).signature,
-			StateSignature:   p.GetCommit().(*commit).stateSig,
 			InvocationScript: p.(*Payload).Witness.InvocationScript,
 		})
 	}
@@ -221,6 +222,7 @@ func (m *recoveryMessage) GetPrepareResponses(p payload.ConsensusPayload, valida
 	for i, resp := range m.preparationPayloads {
 		r := fromPayload(prepareResponseType, p.(*Payload), &prepareResponse{
 			preparationHash: *m.preparationHash,
+			stateRootSig:    resp.StateRootSig,
 		})
 		r.SetValidatorIndex(uint16(resp.ValidatorIndex))
 		r.Witness.InvocationScript = resp.InvocationScript
@@ -257,7 +259,7 @@ func (m *recoveryMessage) GetCommits(p payload.ConsensusPayload, validators []cr
 	ps := make([]payload.ConsensusPayload, len(m.commitPayloads))
 
 	for i, c := range m.commitPayloads {
-		cc := fromPayload(commitType, p.(*Payload), &commit{signature: c.Signature, stateSig: c.StateSignature})
+		cc := fromPayload(commitType, p.(*Payload), &commit{signature: c.Signature})
 		cc.SetValidatorIndex(uint16(c.ValidatorIndex))
 		cc.Witness.InvocationScript = c.InvocationScript
 		cc.Witness.VerificationScript = getVerificationScript(c.ValidatorIndex, validators)

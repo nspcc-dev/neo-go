@@ -125,12 +125,13 @@ func TestConsensusPayload_DecodeBinaryInvalid(t *testing.T) {
 	// - 1-byte view number
 	// - 1-byte message type (PrepareResponse)
 	// - 32-byte preparation hash
+	// - 64-byte signature
 	// 1-byte delimiter (1)
 	// 2-byte for empty invocation and verification scripts
 	const (
 		lenIndex       = 41
 		typeIndex      = lenIndex + 1
-		delimeterIndex = typeIndex + 34
+		delimeterIndex = typeIndex + 2 + 32 + 64
 	)
 
 	buf := make([]byte, delimeterIndex+1+2)
@@ -150,7 +151,7 @@ func TestConsensusPayload_DecodeBinaryInvalid(t *testing.T) {
 
 	// valid payload
 	buf[delimeterIndex] = 1
-	buf[lenIndex] = 34
+	buf[lenIndex] = 98
 	buf[typeIndex] = byte(prepareResponseType)
 	p := new(Payload)
 	require.NoError(t, testserdes.DecodeBinary(buf, p))
@@ -235,11 +236,12 @@ func randomMessage(t *testing.T, mt messageType) io.Serializable {
 	case prepareRequestType:
 		return randomPrepareRequest(t)
 	case prepareResponseType:
-		return &prepareResponse{preparationHash: random.Uint256()}
+		p := &prepareResponse{preparationHash: random.Uint256()}
+		random.Fill(p.stateRootSig[:])
+		return p
 	case commitType:
 		var c commit
 		random.Fill(c.signature[:])
-		random.Fill(c.stateSig[:])
 		return &c
 	case recoveryRequestType:
 		return &recoveryRequest{timestamp: rand.Uint64()}
@@ -263,6 +265,7 @@ func randomPrepareRequest(t *testing.T) *prepareRequest {
 	for i := 0; i < txCount; i++ {
 		req.transactionHashes[i] = random.Uint256()
 	}
+	random.Fill(req.stateRootSig[:])
 
 	return req
 }
@@ -272,7 +275,7 @@ func randomRecoveryMessage(t *testing.T) *recoveryMessage {
 	require.IsType(t, (*prepareRequest)(nil), result)
 	prepReq := result.(*prepareRequest)
 
-	return &recoveryMessage{
+	rec := &recoveryMessage{
 		preparationPayloads: []*preparationCompact{
 			{
 				ValidatorIndex:   1,
@@ -284,14 +287,12 @@ func randomRecoveryMessage(t *testing.T) *recoveryMessage {
 				ViewNumber:       0,
 				ValidatorIndex:   1,
 				Signature:        [64]byte{1, 2, 3},
-				StateSignature:   [64]byte{4, 5, 6},
 				InvocationScript: random.Bytes(20),
 			},
 			{
 				ViewNumber:       0,
 				ValidatorIndex:   2,
 				Signature:        [64]byte{11, 3, 4, 98},
-				StateSignature:   [64]byte{4, 8, 15, 16, 23, 42},
 				InvocationScript: random.Bytes(10),
 			},
 		},
@@ -308,6 +309,11 @@ func randomRecoveryMessage(t *testing.T) *recoveryMessage {
 			payload: prepReq,
 		},
 	}
+	random.Fill(prepReq.stateRootSig[:])
+	for _, p := range rec.preparationPayloads {
+		random.Fill(p.StateRootSig[:])
+	}
+	return rec
 }
 
 func TestPayload_Sign(t *testing.T) {

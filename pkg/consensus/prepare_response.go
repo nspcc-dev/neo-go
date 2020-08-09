@@ -9,6 +9,7 @@ import (
 // prepareResponse represents dBFT PrepareResponse message.
 type prepareResponse struct {
 	preparationHash util.Uint256
+	stateRootSig    [signatureSize]byte
 }
 
 var _ payload.PrepareResponse = (*prepareResponse)(nil)
@@ -16,11 +17,13 @@ var _ payload.PrepareResponse = (*prepareResponse)(nil)
 // EncodeBinary implements io.Serializable interface.
 func (p *prepareResponse) EncodeBinary(w *io.BinWriter) {
 	w.WriteBytes(p.preparationHash[:])
+	w.WriteBytes(p.stateRootSig[:])
 }
 
 // DecodeBinary implements io.Serializable interface.
 func (p *prepareResponse) DecodeBinary(r *io.BinReader) {
 	r.ReadBytes(p.preparationHash[:])
+	r.ReadBytes(p.stateRootSig[:])
 }
 
 // PreparationHash implements payload.PrepareResponse interface.
