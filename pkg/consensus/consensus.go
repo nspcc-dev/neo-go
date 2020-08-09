@@ -16,7 +16,6 @@ import (
 	coreb "github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/cache"
 	"github.com/nspcc-dev/neo-go/pkg/core/mempool"
-	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
@@ -136,7 +135,7 @@ func NewService(cfg Config) (Service, error) {
 		dbft.WithVerifyBlock(srv.verifyBlock),
 		dbft.WithGetBlock(srv.getBlock),
 		dbft.WithWatchOnly(func() bool { return false }),
-		dbft.WithNewBlockFromContext(newBlockFromContext),
+		dbft.WithNewBlockFromContext(srv.newBlockFromContext),
 		dbft.WithCurrentHeight(cfg.Chain.BlockHeight),
 		dbft.WithCurrentBlockHash(cfg.Chain.CurrentBlockHash),
 		dbft.WithGetValidators(srv.getValidators),
@@ -144,12 +143,13 @@ func NewService(cfg Config) (Service, error) {
 
 		dbft.WithNewConsensusPayload(srv.newPayload),
 		dbft.WithNewPrepareRequest(srv.newPrepareRequest),
-		dbft.WithNewPrepareResponse(func() payload.PrepareResponse { return new(prepareResponse) }),
+		dbft.WithNewPrepareResponse(srv.newPrepareResponse),
 		dbft.WithNewChangeView(func() payload.ChangeView { return new(changeView) }),
-		dbft.WithNewCommit(srv.newCommit),
+		dbft.WithNewCommit(func() payload.Commit { return new(commit) }),
 		dbft.WithNewRecoveryRequest(func() payload.RecoveryRequest { return new(recoveryRequest) }),
 		dbft.WithNewRecoveryMessage(srv.newRecoveryMessage),
 		dbft.WithVerifyPrepareRequest(srv.verifyRequest),
+		dbft.WithVerifyPrepareResponse(srv.verifyResponse),
 	)
 
 	if srv.dbft == nil {
@@ -235,36 +235,42 @@ func (s *service) stateRootEnabled() bool {
 }
 
 func (s *service) newPrepareRequest() payload.PrepareRequest {
+	res := &prepareRequest{
+		stateRootEnabled: s.stateRootEnabled(),
+	}
 	if !s.stateRootEnabled() {
-		return new(prepareRequest)
+		return res
 	}
-	sr, err := s.Chain.GetStateRoot(s.Chain.BlockHeight())
-	if err == nil {
-		return &prepareRequest{
-			stateRootEnabled:  true,
-			proposalStateRoot: sr.MPTRootBase,
-		}
+	sig := s.getStateRootSig()
+	if sig != nil {
+		copy(res.stateRootSig[:], sig)
 	}
-	return &prepareRequest{stateRootEnabled: true}
+	return res
 }
 
-func (s *service) newCommit() payload.Commit {
+func (s *service) getStateRootSig() []byte {
+	var sig []byte
+
+	sr, err := s.Chain.GetStateRoot(s.dbft.BlockIndex - 1)
+	if err == nil {
+		data := sr.GetSignedPart()
+		sig, _ = s.dbft.Priv.Sign(data)
+	}
+	return sig
+}
+
+func (s *service) newPrepareResponse() payload.PrepareResponse {
+	res := &prepareResponse{
+		stateRootEnabled: s.stateRootEnabled(),
+	}
 	if !s.stateRootEnabled() {
-		return new(commit)
+		return res
 	}
-	c := &commit{stateRootEnabled: true}
-	for _, p := range s.dbft.Context.PreparationPayloads {
-		if p != nil && p.ViewNumber() == s.dbft.ViewNumber && p.Type() == payload.PrepareRequestType {
-			pr := p.GetPrepareRequest().(*prepareRequest)
-			data := pr.proposalStateRoot.GetSignedPart()
-			sign, err := s.dbft.Priv.Sign(data)
-			if err == nil {
-				copy(c.stateSig[:], sign)
-			}
-			break
-		}
+	sig := s.getStateRootSig()
+	if sig != nil {
+		copy(res.stateRootSig[:], sig)
 	}
-	return c
+	return res
 }
 
 func (s *service) newRecoveryMessage() payload.RecoveryMessage {
@@ -393,15 +399,29 @@ func (s *service) verifyBlock(b block.Block) bool {
 	return true
 }
 
+func (s *service) verifyStateRootSig(index int, sig []byte) error {
+	r, err := s.Chain.GetStateRoot(s.dbft.BlockIndex - 1)
+	if err != nil {
+		return fmt.Errorf("can't get local state root: %v", err)
+	}
+	validators := s.getValidators()
+	if index >= len(validators) {
+		return errors.New("bad validator index")
+	}
+
+	pub := validators[index]
+	if pub.Verify(r.GetSignedPart(), sig) != nil {
+		return errors.New("bad state root signature")
+	}
+	return nil
+}
+
 func (s *service) verifyRequest(p payload.ConsensusPayload) error {
 	req := p.GetPrepareRequest().(*prepareRequest)
 	if s.stateRootEnabled() {
-		r, err := s.Chain.GetStateRoot(s.dbft.BlockIndex - 1)
+		err := s.verifyStateRootSig(int(p.ValidatorIndex()), req.stateRootSig[:])
 		if err != nil {
-			return fmt.Errorf("can't get local state root: %v", err)
-		}
-		if !r.Equals(&req.proposalStateRoot) {
-			return errors.New("state root mismatch")
+			return err
 		}
 	}
 	// Save lastProposal for getVerified().
@@ -409,6 +429,14 @@ func (s *service) verifyRequest(p payload.ConsensusPayload) error {
 	s.lastProposal = req.transactionHashes
 
 	return nil
+}
+
+func (s *service) verifyResponse(p payload.ConsensusPayload) error {
+	if !s.stateRootEnabled() {
+		return nil
+	}
+	resp := p.GetPrepareResponse().(*prepareResponse)
+	return s.verifyStateRootSig(int(p.ValidatorIndex()), resp.stateRootSig[:])
 }
 
 func (s *service) processBlock(b block.Block) {
@@ -422,36 +450,26 @@ func (s *service) processBlock(b block.Block) {
 			s.log.Warn("error on add block", zap.Error(err))
 		}
 	}
-
-	var rb *state.MPTRootBase
-	for _, p := range s.dbft.PreparationPayloads {
-		if p != nil && p.Type() == payload.PrepareRequestType {
-			rb = &p.GetPrepareRequest().(*prepareRequest).proposalStateRoot
-		}
-	}
-	w := s.getWitness(func(p payload.Commit) []byte { return p.(*commit).stateSig[:] })
-	r := &state.MPTRoot{
-		MPTRootBase: *rb,
-		Witness:     w,
-	}
-	if err := s.Chain.AddStateRoot(r); err != nil {
-		s.log.Warn("errors while adding state root", zap.Error(err))
-	}
-	s.Broadcast(r)
 }
 
 func (s *service) getBlockWitness(_ *coreb.Block) *transaction.Witness {
-	return s.getWitness(func(p payload.Commit) []byte { return p.Signature() })
+	return s.getWitness(func(ctx dbft.Context, i int) []byte {
+		if p := ctx.CommitPayloads[i]; p != nil && p.ViewNumber() == ctx.ViewNumber {
+			return p.GetCommit().Signature()
+		}
+		return nil
+	})
 }
 
-func (s *service) getWitness(f func(p payload.Commit) []byte) *transaction.Witness {
+func (s *service) getWitness(f func(dbft.Context, int) []byte) *transaction.Witness {
 	dctx := s.dbft.Context
 	pubs := convertKeys(dctx.Validators)
 	sigs := make(map[*keys.PublicKey][]byte)
 
 	for i := range pubs {
-		if p := dctx.CommitPayloads[i]; p != nil && p.ViewNumber() == dctx.ViewNumber {
-			sigs[pubs[i]] = f(p.GetCommit())
+		sig := f(dctx, i)
+		if sig != nil {
+			sigs[pubs[i]] = sig
 		}
 	}
 
@@ -603,7 +621,29 @@ func convertKeys(validators []crypto.PublicKey) (pubs []*keys.PublicKey) {
 	return
 }
 
-func newBlockFromContext(ctx *dbft.Context) block.Block {
+func (s *service) newBlockFromContext(ctx *dbft.Context) block.Block {
+	if s.stateRootEnabled() {
+		// This is being called when we're ready to commit, so we can safely
+		// relay stateroot here.
+		stateRoot, err := s.Chain.GetStateRoot(s.dbft.Context.BlockIndex - 1)
+		if err != nil {
+			s.log.Warn("can't get stateroot", zap.Uint32("block", s.dbft.Context.BlockIndex-1))
+		}
+		r := stateRoot.MPTRoot
+		r.Witness = s.getWitness(func(ctx dbft.Context, i int) []byte {
+			if p := ctx.PreparationPayloads[i]; p != nil && p.ViewNumber() == ctx.ViewNumber {
+				if int(ctx.PrimaryIndex) == i {
+					return p.GetPrepareRequest().(*prepareRequest).stateRootSig[:]
+				}
+				return p.GetPrepareResponse().(*prepareResponse).stateRootSig[:]
+			}
+			return nil
+		})
+		if err := s.Chain.AddStateRoot(&r); err != nil {
+			s.log.Warn("errors while adding state root", zap.Error(err))
+		}
+		s.Broadcast(&r)
+	}
 	block := new(neoBlock)
 	if len(ctx.TransactionHashes) == 0 {
 		return nil

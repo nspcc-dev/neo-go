@@ -173,13 +173,13 @@ func testEncodeDecode(srEnabled bool, mt messageType, actual io.Serializable) fu
 }
 
 func TestCommit_Serializable(t *testing.T) {
-	t.Run("WithStateRoot", testEncodeDecode(true, commitType, &commit{stateRootEnabled: true}))
-	t.Run("NoStateRoot", testEncodeDecode(false, commitType, &commit{stateRootEnabled: false}))
+	testEncodeDecode(false, commitType, &commit{})
 }
 
 func TestPrepareResponse_Serializable(t *testing.T) {
-	resp := randomMessage(t, prepareResponseType)
-	testserdes.EncodeDecodeBinary(t, resp, new(prepareResponse))
+	t.Run("WithStateRoot", testEncodeDecode(true, prepareResponseType, &prepareResponse{stateRootEnabled: true}))
+	t.Run("NoStateRoot", testEncodeDecode(false, prepareResponseType, &prepareResponse{stateRootEnabled: false}))
+
 }
 
 func TestPrepareRequest_Serializable(t *testing.T) {
@@ -231,14 +231,15 @@ func randomMessage(t *testing.T, mt messageType, srEnabled ...bool) io.Serializa
 	case prepareRequestType:
 		return randomPrepareRequest(t, srEnabled...)
 	case prepareResponseType:
-		return &prepareResponse{preparationHash: random.Uint256()}
+		var p = prepareResponse{preparationHash: random.Uint256()}
+		if len(srEnabled) > 0 && srEnabled[0] {
+			p.stateRootEnabled = true
+			random.Fill(p.stateRootSig[:])
+		}
+		return &p
 	case commitType:
 		var c commit
 		random.Fill(c.signature[:])
-		if len(srEnabled) > 0 && srEnabled[0] {
-			c.stateRootEnabled = true
-			random.Fill(c.stateSig[:])
-		}
 		return &c
 	case recoveryRequestType:
 		return &recoveryRequest{timestamp: rand.Uint32()}
@@ -268,9 +269,7 @@ func randomPrepareRequest(t *testing.T, srEnabled ...bool) *prepareRequest {
 
 	if len(srEnabled) > 0 && srEnabled[0] {
 		req.stateRootEnabled = true
-		req.proposalStateRoot.Index = rand.Uint32()
-		req.proposalStateRoot.PrevHash = random.Uint256()
-		req.proposalStateRoot.Root = random.Uint256()
+		random.Fill(req.stateRootSig[:])
 	}
 
 	return req
@@ -318,9 +317,10 @@ func randomRecoveryMessage(t *testing.T, srEnabled ...bool) *recoveryMessage {
 	if len(srEnabled) > 0 && srEnabled[0] {
 		rec.stateRootEnabled = true
 		rec.prepareRequest.stateRootEnabled = true
-		for _, c := range rec.commitPayloads {
-			c.stateRootEnabled = true
-			random.Fill(c.StateSignature[:])
+		random.Fill(prepReq.stateRootSig[:])
+		for _, p := range rec.preparationPayloads {
+			p.stateRootEnabled = true
+			random.Fill(p.StateRootSig[:])
 		}
 	}
 	return rec

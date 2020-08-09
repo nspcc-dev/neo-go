@@ -23,7 +23,7 @@ func (m *recoveryRequest) EncodeBinary(w *io.BinWriter) {
 }
 
 // Timestamp implements payload.RecoveryRequest interface.
-func (m *recoveryRequest) Timestamp() uint32 { return m.timestamp }
+func (m *recoveryRequest) Timestamp() uint64 { return uint64(m.timestamp) * nanoInSec }
 
 // SetTimestamp implements payload.RecoveryRequest interface.
-func (m *recoveryRequest) SetTimestamp(ts uint32) { m.timestamp = ts }
+func (m *recoveryRequest) SetTimestamp(ts uint64) { m.timestamp = uint32(ts / nanoInSec) }
