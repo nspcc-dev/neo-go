@@ -62,21 +62,10 @@ func TestNEO_Vote(t *testing.T) {
 		require.NoError(t, neo.VoteInternal(ic, h, candidates[i]))
 	}
 
-	// First 3 validators must be the ones we have voted for.
+	// We still haven't voted enough validators in.
 	pubs, err = neo.GetValidatorsInternal(bc, ic.DAO)
 	require.NoError(t, err)
-	for i := 1; i < sz; i++ {
-		require.Equal(t, pubs[i-1], candidates[i])
-	}
-
-	var ok bool
-	for _, p := range bc.GetStandByValidators() {
-		if pubs[sz-1].Equal(p) {
-			ok = true
-			break
-		}
-	}
-	require.True(t, ok, "last validator must be stand by")
+	require.Equal(t, bc.GetStandByValidators(), pubs)
 
 	// Register and give some value to the last validator.
 	require.NoError(t, neo.RegisterCandidateInternal(ic, candidates[0]))
