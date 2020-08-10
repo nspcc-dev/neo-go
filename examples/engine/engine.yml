@@ -1,0 +1,8 @@
+hasstorage: false
+ispayable: false
+supportedstandards: []
+events:
+  - name: Tx
+    parameters:
+      - name: txHash
+        type: ByteString
