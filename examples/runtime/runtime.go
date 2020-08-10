@@ -5,40 +5,23 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/interop/util"
 )
 
-// Check if the invoker of the contract is the specified owner
-var owner = util.FromAddress("Nis7Cu1Qn6iBb8kbeQ5HgdZT7AsQPqywTC")
+var (
+	// Check if the invoker of the contract is the specified owner
+	owner   = util.FromAddress("NULwe3UAHckN2fzNdcVg31tDiaYtMDwANt")
+	trigger byte
+)
 
-// Main is something to be ran from outside.
-func Main(operation string, args []interface{}) bool {
-	trigger := runtime.GetTrigger()
-
-	// Log owner upon Verification trigger
-	if trigger == runtime.Verification {
-		return CheckWitness()
-	}
-
-	// Discerns between log and notify for this test
-	if trigger == runtime.Application {
-		return handleOperation(operation, args)
-	}
-
-	return false
-}
-
-func handleOperation(operation string, args []interface{}) bool {
-	if operation == "log" {
-		return Log(args)
-	}
-
-	if operation == "notify" {
-		return Notify(args)
-	}
-
-	return false
+// init initializes trigger before any other contract method is called
+func init() {
+	trigger = runtime.GetTrigger()
 }
 
 // CheckWitness checks owner's witness
 func CheckWitness() bool {
+	// Log owner upon Verification trigger
+	if trigger != runtime.Verification {
+		return false
+	}
 	if runtime.CheckWitness(owner) {
 		runtime.Log("Verified Owner")
 	}
@@ -46,14 +29,19 @@ func CheckWitness() bool {
 }
 
 // Log logs given message
-func Log(args []interface{}) bool {
-	message := args[0].(string)
+func Log(message string) bool {
+	if trigger != runtime.Application {
+		return false
+	}
 	runtime.Log(message)
 	return true
 }
 
 // Notify notifies about given message
-func Notify(args []interface{}) bool {
-	runtime.Notify("Event", args[0])
+func Notify(event interface{}) bool {
+	if trigger != runtime.Application {
+		return false
+	}
+	runtime.Notify("Event", event)
 	return true
 }

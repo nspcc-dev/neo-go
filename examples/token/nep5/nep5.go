@@ -34,12 +34,12 @@ func getIntFromDB(ctx storage.Context, key []byte) int {
 }
 
 // GetSupply gets the token totalSupply value from VM storage
-func (t Token) GetSupply(ctx storage.Context) interface{} {
+func (t Token) GetSupply(ctx storage.Context) int {
 	return getIntFromDB(ctx, []byte(t.CirculationKey))
 }
 
 // BalanceOf gets the token balance of a specific address
-func (t Token) BalanceOf(ctx storage.Context, holder []byte) interface{} {
+func (t Token) BalanceOf(ctx storage.Context, holder []byte) int {
 	return getIntFromDB(ctx, holder)
 }
 
@@ -104,7 +104,7 @@ func IsUsableAddress(addr []byte) bool {
 	return false
 }
 
-// Mint initial supply of tokens.
+// Mint initial supply of tokens
 func (t Token) Mint(ctx storage.Context, to []byte) bool {
 	if !IsUsableAddress(t.Owner) {
 		return false
