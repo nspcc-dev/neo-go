@@ -518,7 +518,7 @@ func (s *service) newBlockFromContext(ctx *dbft.Context) block.Block {
 	if err != nil {
 		return nil
 	}
-	script, err := smartcontract.CreateMultiSigRedeemScript(len(validators)-(len(validators)-1)/3, validators)
+	script, err := smartcontract.CreateMultiSigRedeemScript(s.dbft.Context.M(), validators)
 	if err != nil {
 		return nil
 	}
