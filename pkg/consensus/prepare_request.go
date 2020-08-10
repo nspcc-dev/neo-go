@@ -2,7 +2,6 @@ package consensus
 
 import (
 	"github.com/nspcc-dev/dbft/payload"
-	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -15,7 +14,7 @@ type prepareRequest struct {
 	transactionHashes []util.Uint256
 	minerTx           transaction.Transaction
 	nextConsensus     util.Uint160
-	proposalStateRoot state.MPTRootBase
+	stateRootSig      [signatureSize]byte
 
 	stateRootEnabled bool
 }
@@ -30,7 +29,7 @@ func (p *prepareRequest) EncodeBinary(w *io.BinWriter) {
 	w.WriteArray(p.transactionHashes)
 	p.minerTx.EncodeBinary(w)
 	if p.stateRootEnabled {
-		p.proposalStateRoot.EncodeBinary(w)
+		w.WriteBytes(p.stateRootSig[:])
 	}
 }
 
@@ -42,7 +41,7 @@ func (p *prepareRequest) DecodeBinary(r *io.BinReader) {
 	r.ReadArray(&p.transactionHashes)
 	p.minerTx.DecodeBinary(r)
 	if p.stateRootEnabled {
-		p.proposalStateRoot.DecodeBinary(r)
+		r.ReadBytes(p.stateRootSig[:])
 	}
 }
 

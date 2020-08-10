@@ -2,6 +2,8 @@ ProtocolConfiguration:
   Magic: 7630401
   AddressVersion: 23
   SecondsPerBlock: 15
+  EnableStateRoot: true
+  StateRootEnableIndex: 6016000
   LowPriorityThreshold: 0.001
   MemPoolSize: 50000
   StandbyValidators:
@@ -28,7 +30,7 @@ ProtocolConfiguration:
     IssueTransaction: 500
     PublishTransaction: 500
     RegisterTransaction: 10000
-  VerifyBlocks: true
+  VerifyBlocks: false
   VerifyTransactions: false
   FreeGasLimit: 10.0
   MaxTransactionsPerBlock: 500
@@ -40,7 +42,7 @@ ApplicationConfiguration:
   # LogPath could be set up in case you need stdout logs to some proper file.
   # LogPath: "./log/neogo.log"
   DBConfiguration:
-    Type: "leveldb" #other options: 'inmemory','redis','boltdb', 'badgerdb'.
+    Type: "boltdb" #other options: 'inmemory','redis','boltdb', 'badgerdb'.
     # DB type options. Uncomment those you need in case you want to switch DB type.
     LevelDBOptions:
       DataDirectoryPath: "./chains/mainnet"
@@ -48,10 +50,10 @@ ApplicationConfiguration:
   #      Addr: "localhost:6379"
   #      Password: ""
   #      DB: 0
-  #    BoltDBOptions:
-  #      FilePath: "./chains/mainnet.bolt"
-  #    BadgerDBOptions:
-  #      BadgerDir: "./chains/mainnet.badger"
+    BoltDBOptions:
+      FilePath: "./chains/mainnet.bolt"
+    BadgerDBOptions:
+      BadgerDir: "./chains/mainnet.badger"
   #  Uncomment in order to set up custom address for node.
   #  Address: 127.0.0.1
   NodePort: 10333

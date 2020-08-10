@@ -6,8 +6,9 @@ with two configuration options.
 
 ## What is neox
 
-Neox is an extension of original Neo 2 node implemented in neox-2.x branch of
-C# implementation. It includes the following main changes:
+Neox is an extension of original Neo 2 node originally implemented in neox-2.x
+branch of C# implementation (and then presented in the 2.11.0 official
+release). It includes the following main changes:
  * local state root generation for contract storages based on MPT
  * consensus updates for state root exchange between CNs and generation of
    verified (signed by CNs) state root
@@ -43,22 +44,16 @@ entities which are consensus nodes.
 
 ### How and why consensus process was changed in neox
 
-Consensus nodes now exchange state root information with PrepareRequest
-messages, so the Primary node tells everyone its current state root hash
-(along with the block index that state root corresponds to) and the hash of
-the previous state root message. This data might also be versioned in case of
-future updates, so there is a special field reserved for that too, but at the
-moment it's always 0. Backups either confirm this data (if it matches their
-local state) by proceeding with PrepareResponse or request a ChangeView if
-there is some mismatch detected.
+Consensus nodes now exchange state root signatures for height N-1 during
+consensus process for block N with PrepareRequest and PrepareResponse
+messages.
 
-If all goes well CNs generate a signature for this state root data and
-exchange it with their Commit messages (along with new block
-signatures). Effectively this creates another signed chain on the network that
-is always one block behind from the main chain because the process of block `N`
-creation confirms the state resulting from processing of block `N - 1`. A
-separate `stateroot` message is generated and sent along with the new block
-broadcast.
+If all goes well CNs collect enough signatures for this state root data and
+generate (and broadcast) a `stateroot` message along with regular Commit
+consensus messages. Effectively this creates another signed chain on the
+network that is always one block behind from the main chain because the
+process of block `N` creation confirms the state resulting from processing of
+block `N - 1`.
 
 ### How P2P protocol was changed
 

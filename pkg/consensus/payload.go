@@ -49,6 +49,8 @@ const (
 	commitType          messageType = 0x30
 	recoveryRequestType messageType = 0x40
 	recoveryMessageType messageType = 0x41
+
+	nanoInSec = 1000_000_000
 )
 
 // ViewNumber implements payload.ConsensusPayload interface.
@@ -289,11 +291,11 @@ func (m *message) DecodeBinary(r *io.BinReader) {
 			stateRootEnabled: m.stateRootEnabled,
 		}
 	case prepareResponseType:
-		m.payload = new(prepareResponse)
-	case commitType:
-		m.payload = &commit{
+		m.payload = &prepareResponse{
 			stateRootEnabled: m.stateRootEnabled,
 		}
+	case commitType:
+		m.payload = new(commit)
 	case recoveryRequestType:
 		m.payload = new(recoveryRequest)
 	case recoveryMessageType:

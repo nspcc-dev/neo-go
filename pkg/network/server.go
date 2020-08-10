@@ -657,7 +657,7 @@ func (s *Server) requestStateRoot(p Peer) error {
 	if diff := hdrHeight - stateHeight; diff < count {
 		count = diff
 	}
-	if count == 0 {
+	if count <= 1 {
 		return nil
 	}
 	gr := &payload.GetStateRoots{
@@ -852,7 +852,10 @@ func (s *Server) handleNewPayload(item cache.Hashable) {
 	case *state.MPTRoot:
 		s.stateCache.Add(p)
 		msg := s.MkMsg(CMDStateRoot, p)
-		s.broadcastMessage(msg)
+		// Stalling on broadcast here would mean delaying commit which
+		// is not good for consensus. MPTRoot is being generated once
+		// per block, so it shouldn't be a problem.
+		s.broadcastHPMessage(msg)
 	default:
 		s.log.Warn("unknown item type", zap.String("type", fmt.Sprintf("%T", p)))
 	}
