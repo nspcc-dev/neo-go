@@ -1,8 +1,8 @@
 package compiler
 
 import (
-	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"go/ast"
 	"go/parser"
@@ -10,6 +10,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"path"
 	"strings"
 
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
@@ -85,11 +86,32 @@ func (c *codegen) fillImportMap(f *ast.File, pkg *types.Package) {
 
 func getBuildInfo(name string, src interface{}) (*buildInfo, error) {
 	conf := loader.Config{ParserMode: parser.ParseComments}
-	f, err := conf.ParseFile(name, src)
-	if err != nil {
-		return nil, err
+	if src != nil {
+		f, err := conf.ParseFile(name, src)
+		if err != nil {
+			return nil, err
+		}
+		conf.CreateFromFiles("", f)
+	} else {
+		var names []string
+		if strings.HasSuffix(name, ".go") {
+			names = append(names, name)
+		} else {
+			ds, err := ioutil.ReadDir(name)
+			if err != nil {
+				return nil, fmt.Errorf("'%s' is neither Go source nor a directory", name)
+			}
+			for i := range ds {
+				if !ds[i].IsDir() && strings.HasSuffix(ds[i].Name(), ".go") {
+					names = append(names, path.Join(name, ds[i].Name()))
+				}
+			}
+		}
+		if len(names) == 0 {
+			return nil, errors.New("no files provided")
+		}
+		conf.CreateFromFilenames("", names...)
 	}
-	conf.CreateFromFiles("", f)
 
 	prog, err := conf.Load()
 	if err != nil {
@@ -97,12 +119,14 @@ func getBuildInfo(name string, src interface{}) (*buildInfo, error) {
 	}
 
 	return &buildInfo{
-		initialPackage: f.Name.Name,
+		initialPackage: prog.InitialPackages()[0].Pkg.Name(),
 		program:        prog,
 	}, nil
 }
 
 // Compile compiles a Go program into bytecode that can run on the NEO virtual machine.
+// If `r != nil`, `name` is interpreted as a filename, and `r` as file contents.
+// Otherwise `name` is either file name or name of the directory containing source files.
 func Compile(name string, r io.Reader) ([]byte, error) {
 	buf, _, err := CompileWithDebugInfo(name, r)
 	if err != nil {
@@ -123,21 +147,18 @@ func CompileWithDebugInfo(name string, r io.Reader) ([]byte, *DebugInfo, error) 
 
 // CompileAndSave will compile and save the file to disk in the NEF format.
 func CompileAndSave(src string, o *Options) ([]byte, error) {
-	if !strings.HasSuffix(src, ".go") {
-		return nil, fmt.Errorf("%s is not a Go file", src)
-	}
 	o.Outfile = strings.TrimSuffix(o.Outfile, fmt.Sprintf(".%s", fileExt))
 	if len(o.Outfile) == 0 {
-		o.Outfile = strings.TrimSuffix(src, ".go")
+		if strings.HasSuffix(src, ".go") {
+			o.Outfile = strings.TrimSuffix(src, ".go")
+		} else {
+			o.Outfile = "out"
+		}
 	}
 	if len(o.Ext) == 0 {
 		o.Ext = fileExt
 	}
-	b, err := ioutil.ReadFile(src)
-	if err != nil {
-		return nil, err
-	}
-	b, di, err := CompileWithDebugInfo(src, bytes.NewReader(b))
+	b, di, err := CompileWithDebugInfo(src, nil)
 	if err != nil {
 		return nil, fmt.Errorf("error while trying to compile smart contract file: %w", err)
 	}
