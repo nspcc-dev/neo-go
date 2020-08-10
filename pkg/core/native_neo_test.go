@@ -8,19 +8,12 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/internal/testchain"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/stretchr/testify/require"
 )
-
-// testScriptGetter is an auxilliary struct to pass CheckWitness checks.
-type testScriptGetter struct {
-	h util.Uint160
-}
-
-func (t testScriptGetter) GetCallingScriptHash() util.Uint160 { return t.h }
-func (t testScriptGetter) GetEntryScriptHash() util.Uint160   { return t.h }
-func (t testScriptGetter) GetCurrentScriptHash() util.Uint160 { return t.h }
 
 func setSigner(tx *transaction.Transaction, h util.Uint160) {
 	tx.Signers = []transaction.Signer{{
@@ -36,6 +29,7 @@ func TestNEO_Vote(t *testing.T) {
 	neo := bc.contracts.NEO
 	tx := transaction.New(netmode.UnitTestNet, []byte{}, 0)
 	ic := bc.newInteropContext(trigger.System, bc.dao, nil, tx)
+	ic.VM = vm.New()
 
 	pubs, err := neo.GetValidatorsInternal(bc, ic.DAO)
 	require.NoError(t, err)
@@ -55,14 +49,16 @@ func TestNEO_Vote(t *testing.T) {
 
 	for i := 0; i < sz; i++ {
 		to := testchain.PrivateKeyByID(i).GetScriptHash()
-		ic.ScriptGetter = testScriptGetter{testchain.MultisigScriptHash()}
+		ic.VM.Load(testchain.MultisigVerificationScript())
+		ic.VM.LoadScriptWithHash(testchain.MultisigVerificationScript(), testchain.MultisigScriptHash(), smartcontract.All)
 		require.NoError(t, neo.TransferInternal(ic, testchain.MultisigScriptHash(), to, big.NewInt(int64(sz-i)*10000000)))
 	}
 
 	for i := 1; i < sz; i++ {
-		h := testchain.PrivateKeyByID(i).GetScriptHash()
+		priv := testchain.PrivateKeyByID(i)
+		h := priv.GetScriptHash()
 		setSigner(tx, h)
-		ic.ScriptGetter = testScriptGetter{h}
+		ic.VM.Load(priv.PublicKey().GetVerificationScript())
 		require.NoError(t, neo.VoteInternal(ic, h, candidates[i]))
 	}
 
@@ -84,9 +80,10 @@ func TestNEO_Vote(t *testing.T) {
 
 	// Register and give some value to the last validator.
 	require.NoError(t, neo.RegisterCandidateInternal(ic, candidates[0]))
-	h := testchain.PrivateKeyByID(0).GetScriptHash()
+	priv := testchain.PrivateKeyByID(0)
+	h := priv.GetScriptHash()
 	setSigner(tx, h)
-	ic.ScriptGetter = testScriptGetter{h}
+	ic.VM.Load(priv.PublicKey().GetVerificationScript())
 	require.NoError(t, neo.VoteInternal(ic, h, candidates[0]))
 
 	pubs, err = neo.GetValidatorsInternal(bc, ic.DAO)
