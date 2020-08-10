@@ -52,8 +52,8 @@ type rpcTestCase struct {
 	check  func(t *testing.T, e *executor, result interface{})
 }
 
-const testContractHash = "36c3b0c85d98607db00b711885ec3e411d9b1672"
-const deploymentTxHash = "60a1fc8ceb7948d9933aec0cedd148441568575c40af7e0985cc366ed153d57e"
+const testContractHash = "5b5f77b947194ba45ff5fa1ba6e066af5636d110"
+const deploymentTxHash = "af0f94f6bdc5aada7abf1db19f1fcd2ea56cea596c41dc4abdfa6cd9664a7d72"
 
 var rpcTestCases = map[string][]rpcTestCase{
 	"getapplicationlog": {
@@ -451,6 +451,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 			result: func(*executor) interface{} {
 				return &[]result.Validator{}
 			},
+			/* preview3 doesn't return any validators until there is a vote
 			check: func(t *testing.T, e *executor, validators interface{}) {
 				var expected []result.Validator
 				sBValidators := e.chain.GetStandByValidators()
@@ -467,6 +468,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 
 				assert.ElementsMatch(t, expected, *actual)
 			},
+			*/
 		},
 	},
 	"getversion": {
@@ -1025,7 +1027,7 @@ func checkNep5Balances(t *testing.T, e *executor, acc interface{}) {
 			},
 			{
 				Asset:       e.chain.UtilityTokenHash(),
-				Amount:      "915.78962700",
+				Amount:      "915.61054740",
 				LastUpdated: 6,
 			}},
 		Address: testchain.PrivateKeyByID(0).GetScriptHash().StringLE(),
@@ -1142,16 +1144,6 @@ func checkNep5TransfersAux(t *testing.T, e *executor, acc interface{}, start, en
 				})
 			}
 			netFee += b.Transactions[j].NetworkFee
-		}
-		if i > 0 {
-			expected.Received = append(expected.Received, result.NEP5Transfer{
-				Timestamp: b.Timestamp,
-				Asset:     e.chain.UtilityTokenHash(),
-				Address:   "", // minted from network fees.
-				Amount:    amountToString(big.NewInt(netFee), 8),
-				Index:     b.Index,
-				TxHash:    b.Hash(),
-			})
 		}
 	}
 	require.Equal(t, expected.Address, res.Address)

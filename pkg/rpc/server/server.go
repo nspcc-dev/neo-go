@@ -856,7 +856,7 @@ func (s *Server) getValidators(_ request.Params) (interface{}, *response.Error) 
 	if err != nil {
 		return nil, response.NewRPCError("can't get enrollments", "", err)
 	}
-	var res []result.Validator
+	var res = make([]result.Validator, 0)
 	for _, v := range enrollments {
 		res = append(res, result.Validator{
 			PublicKey: *v.Key,

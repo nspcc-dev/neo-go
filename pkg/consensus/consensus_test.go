@@ -226,7 +226,7 @@ func newTestService(t *testing.T) *service {
 }
 
 func getTestValidator(i int) (*privateKey, *publicKey) {
-	key := testchain.PrivateKeyByID(i)
+	key := testchain.PrivateKey(i)
 	return &privateKey{PrivateKey: key}, &publicKey{PublicKey: key.PublicKey()}
 }
 

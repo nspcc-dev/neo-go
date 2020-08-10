@@ -64,7 +64,7 @@ func MultisigVerificationScript() []byte {
 		pubs = append(pubs, priv.PublicKey())
 	}
 
-	script, err := smartcontract.CreateMultiSigRedeemScript(3, pubs)
+	script, err := smartcontract.CreateDefaultMultiSigRedeemScript(pubs)
 	if err != nil {
 		panic(err)
 	}

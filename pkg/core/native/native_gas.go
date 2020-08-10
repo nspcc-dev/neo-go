@@ -8,7 +8,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
-	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 )
@@ -73,7 +72,7 @@ func (g *GAS) Initialize(ic *interop.Context) error {
 	if g.nep5TokenNative.getTotalSupply(ic.DAO).Sign() != 0 {
 		return errors.New("already initialized")
 	}
-	h, _, err := getStandbyValidatorsHash(ic)
+	h, err := getStandbyValidatorsHash(ic)
 	if err != nil {
 		return err
 	}
@@ -103,13 +102,12 @@ func (g *GAS) OnPersist(ic *interop.Context) error {
 	return nil
 }
 
-func getStandbyValidatorsHash(ic *interop.Context) (util.Uint160, []*keys.PublicKey, error) {
-	vs := ic.Chain.GetStandByValidators()
-	s, err := smartcontract.CreateMultiSigRedeemScript(len(vs)/2+1, vs)
+func getStandbyValidatorsHash(ic *interop.Context) (util.Uint160, error) {
+	s, err := smartcontract.CreateDefaultMultiSigRedeemScript(ic.Chain.GetStandByValidators())
 	if err != nil {
-		return util.Uint160{}, nil, err
+		return util.Uint160{}, err
 	}
-	return hash.Hash160(s), vs, nil
+	return hash.Hash160(s), nil
 }
 
 func chainOnPersist(fs ...func(*interop.Context) error) func(*interop.Context) error {

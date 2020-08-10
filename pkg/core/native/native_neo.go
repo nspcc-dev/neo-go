@@ -136,21 +136,15 @@ func (n *NEO) Initialize(ic *interop.Context) error {
 		return errors.New("already initialized")
 	}
 
-	h, vs, err := getStandbyValidatorsHash(ic)
+	h, err := getStandbyValidatorsHash(ic)
 	if err != nil {
 		return err
 	}
 	n.mint(ic, h, big.NewInt(NEOTotalSupply))
 
-	err = ic.DAO.PutStorageItem(n.ContractID, []byte{prefixVotersCount}, &state.StorageItem{Value: []byte{0}})
+	err = ic.DAO.PutStorageItem(n.ContractID, []byte{prefixVotersCount}, &state.StorageItem{Value: []byte{}})
 	if err != nil {
 		return err
-	}
-
-	for i := range vs {
-		if err := n.RegisterCandidateInternal(ic, vs[i]); err != nil {
-			return err
-		}
 	}
 
 	return nil
@@ -422,6 +416,7 @@ func (n *NEO) GetValidatorsInternal(bc blockchainer.Blockchainer, d dao.DAO) (ke
 		count = len(result)
 	}
 	result = result[:count]
+	sort.Sort(result)
 	n.validators.Store(result)
 	return result, nil
 }

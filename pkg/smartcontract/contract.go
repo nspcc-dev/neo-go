@@ -10,7 +10,8 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 )
 
-// CreateMultiSigRedeemScript creates a script runnable by the VM.
+// CreateMultiSigRedeemScript creates an "m out of n" type verification script
+// where n is the length of publicKeys.
 func CreateMultiSigRedeemScript(m int, publicKeys keys.PublicKeys) ([]byte, error) {
 	if m < 1 {
 		return nil, fmt.Errorf("param m cannot be smaller or equal to 1 got %d", m)
@@ -33,4 +34,12 @@ func CreateMultiSigRedeemScript(m int, publicKeys keys.PublicKeys) ([]byte, erro
 	emit.Syscall(buf.BinWriter, "Neo.Crypto.CheckMultisigWithECDsaSecp256r1")
 
 	return buf.Bytes(), nil
+}
+
+// CreateDefaultMultiSigRedeemScript creates an "m out of n" type verification script
+// using publicKeys length with the default BFT assumptions of (n - (n-1)/3) for m.
+func CreateDefaultMultiSigRedeemScript(publicKeys keys.PublicKeys) ([]byte, error) {
+	n := len(publicKeys)
+	m := n - (n-1)/3
+	return CreateMultiSigRedeemScript(m, publicKeys)
 }

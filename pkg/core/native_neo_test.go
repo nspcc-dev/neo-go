@@ -2,6 +2,7 @@ package core
 
 import (
 	"math/big"
+	"sort"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
@@ -31,9 +32,11 @@ func TestNEO_Vote(t *testing.T) {
 	ic := bc.newInteropContext(trigger.System, bc.dao, nil, tx)
 	ic.VM = vm.New()
 
+	standBySorted := bc.GetStandByValidators()
+	sort.Sort(standBySorted)
 	pubs, err := neo.GetValidatorsInternal(bc, ic.DAO)
 	require.NoError(t, err)
-	require.Equal(t, bc.GetStandByValidators(), pubs)
+	require.Equal(t, standBySorted, pubs)
 
 	sz := testchain.Size()
 
@@ -62,21 +65,10 @@ func TestNEO_Vote(t *testing.T) {
 		require.NoError(t, neo.VoteInternal(ic, h, candidates[i]))
 	}
 
-	// First 3 validators must be the ones we have voted for.
+	// We still haven't voted enough validators in.
 	pubs, err = neo.GetValidatorsInternal(bc, ic.DAO)
 	require.NoError(t, err)
-	for i := 1; i < sz; i++ {
-		require.Equal(t, pubs[i-1], candidates[i])
-	}
-
-	var ok bool
-	for _, p := range bc.GetStandByValidators() {
-		if pubs[sz-1].Equal(p) {
-			ok = true
-			break
-		}
-	}
-	require.True(t, ok, "last validator must be stand by")
+	require.Equal(t, standBySorted, pubs)
 
 	// Register and give some value to the last validator.
 	require.NoError(t, neo.RegisterCandidateInternal(ic, candidates[0]))
@@ -88,7 +80,9 @@ func TestNEO_Vote(t *testing.T) {
 
 	pubs, err = neo.GetValidatorsInternal(bc, ic.DAO)
 	require.NoError(t, err)
-	require.Equal(t, candidates, pubs)
+	sortedCandidates := candidates.Copy()
+	sort.Sort(sortedCandidates)
+	require.EqualValues(t, sortedCandidates, pubs)
 
 	require.NoError(t, neo.UnregisterCandidateInternal(ic, candidates[0]))
 	require.Error(t, neo.VoteInternal(ic, h, candidates[0]))
