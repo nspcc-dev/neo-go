@@ -335,6 +335,8 @@ func getTestContractState() (*state.Contract, *state.Contract) {
 		byte(opcode.DROP), byte(opcode.RET),
 		byte(opcode.INITSSLOT), 1, byte(opcode.PUSH3), byte(opcode.STSFLD0), byte(opcode.RET),
 		byte(opcode.LDSFLD0), byte(opcode.ADD), byte(opcode.RET),
+		byte(opcode.PUSH1), byte(opcode.PUSH2), byte(opcode.RET),
+		byte(opcode.RET),
 	}
 	h := hash.Hash160(script)
 	m := manifest.NewManifest(h)
@@ -372,6 +374,16 @@ func getTestContractState() (*state.Contract, *state.Contract) {
 			},
 			ReturnType: smartcontract.IntegerType,
 		},
+		{
+			Name:       "invalidReturn",
+			Offset:     15,
+			ReturnType: smartcontract.IntegerType,
+		},
+		{
+			Name:       "justReturn",
+			Offset:     18,
+			ReturnType: smartcontract.IntegerType,
+		},
 	}
 	cs := &state.Contract{
 		Script:   script,
@@ -385,6 +397,8 @@ func getTestContractState() (*state.Contract, *state.Contract) {
 	perm.Methods.Add("add")
 	perm.Methods.Add("drop")
 	perm.Methods.Add("add3")
+	perm.Methods.Add("invalidReturn")
+	perm.Methods.Add("justReturn")
 	m.Permissions = append(m.Permissions, *perm)
 
 	return cs, &state.Contract{
@@ -463,6 +477,28 @@ func TestContractCall(t *testing.T) {
 		t.Run("Arguments", runInvalid(1, "add", h.BytesBE()))
 		t.Run("NotEnoughArguments", runInvalid(
 			stackitem.NewArray([]stackitem.Item{stackitem.Make(1)}), "add", h.BytesBE()))
+	})
+
+	t.Run("ReturnValues", func(t *testing.T) {
+		t.Run("Many", func(t *testing.T) {
+			loadScript(ic, currScript, 42)
+			ic.VM.Estack().PushVal(stackitem.NewArray(nil))
+			ic.VM.Estack().PushVal("invalidReturn")
+			ic.VM.Estack().PushVal(h.BytesBE())
+			require.NoError(t, contractCall(ic))
+			require.Error(t, ic.VM.Run())
+		})
+		t.Run("Void", func(t *testing.T) {
+			loadScript(ic, currScript, 42)
+			ic.VM.Estack().PushVal(stackitem.NewArray(nil))
+			ic.VM.Estack().PushVal("justReturn")
+			ic.VM.Estack().PushVal(h.BytesBE())
+			require.NoError(t, contractCall(ic))
+			require.NoError(t, ic.VM.Run())
+			require.Equal(t, 2, ic.VM.Estack().Len())
+			require.Equal(t, stackitem.Null{}, ic.VM.Estack().Pop().Item())
+			require.Equal(t, big.NewInt(42), ic.VM.Estack().Pop().Value())
+		})
 	})
 
 	t.Run("IsolatedStack", func(t *testing.T) {

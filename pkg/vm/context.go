@@ -44,6 +44,9 @@ type Context struct {
 
 	// Call flags this context was created with.
 	callFlag smartcontract.CallFlag
+
+	// CheckReturn specifies if amount of return values needs to be checked.
+	CheckReturn bool
 }
 
 var errNoInstParam = errors.New("failed to read instruction parameter")

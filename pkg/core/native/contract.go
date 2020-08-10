@@ -61,6 +61,7 @@ func (cs *Contracts) GetPersistScript() []byte {
 		emit.Opcode(w.BinWriter, opcode.NEWARRAY)
 		emit.String(w.BinWriter, "onPersist")
 		emit.AppCall(w.BinWriter, md.Hash)
+		emit.Opcode(w.BinWriter, opcode.DROP)
 	}
 	cs.persistScript = w.Bytes()
 	return cs.persistScript

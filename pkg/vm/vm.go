@@ -1391,6 +1391,13 @@ func (v *VM) unloadContext(ctx *Context) {
 	if ctx.static != nil && currCtx != nil && ctx.static != currCtx.static {
 		ctx.static.Clear()
 	}
+	if ctx.CheckReturn {
+		if currCtx != nil && ctx.estack.len == 0 {
+			currCtx.estack.PushVal(stackitem.Null{})
+		} else if ctx.estack.len > 1 {
+			panic("return value amount is > 1")
+		}
+	}
 }
 
 // getTryParams splits TRY(L) instruction parameter into offsets for catch and finally blocks.
@@ -1437,6 +1444,7 @@ func (v *VM) Jump(ctx *Context, offset int) {
 // pushes new context to the invocation state
 func (v *VM) Call(ctx *Context, offset int) {
 	newCtx := ctx.Copy()
+	newCtx.CheckReturn = false
 	newCtx.local = nil
 	newCtx.arguments = nil
 	v.istack.PushVal(newCtx)
