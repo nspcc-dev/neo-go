@@ -142,7 +142,7 @@ func (n *NEO) Initialize(ic *interop.Context) error {
 	}
 	n.mint(ic, h, big.NewInt(NEOTotalSupply))
 
-	err = ic.DAO.PutStorageItem(n.ContractID, []byte{prefixVotersCount}, &state.StorageItem{Value: []byte{0}})
+	err = ic.DAO.PutStorageItem(n.ContractID, []byte{prefixVotersCount}, &state.StorageItem{Value: []byte{}})
 	if err != nil {
 		return err
 	}
