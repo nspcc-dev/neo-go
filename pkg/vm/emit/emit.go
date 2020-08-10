@@ -159,20 +159,6 @@ func AppCallWithOperationAndArgs(w *io.BinWriter, scriptHash util.Uint160, opera
 	AppCall(w, scriptHash)
 }
 
-// AppCallWithOperationAndData emits an appcall with the given operation and data.
-func AppCallWithOperationAndData(w *io.BinWriter, scriptHash util.Uint160, operation string, data []byte) {
-	Bytes(w, data)
-	String(w, operation)
-	AppCall(w, scriptHash)
-}
-
-// AppCallWithOperation emits an appcall with the given operation.
-func AppCallWithOperation(w *io.BinWriter, scriptHash util.Uint160, operation string) {
-	Bool(w, false)
-	String(w, operation)
-	AppCall(w, scriptHash)
-}
-
 func isInstructionJmp(op opcode.Opcode) bool {
 	return opcode.JMP <= op && op <= opcode.CALLL
 }
