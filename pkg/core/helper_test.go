@@ -51,11 +51,7 @@ func (bc *Blockchain) newBlock(txs ...*transaction.Transaction) *block.Block {
 
 func newBlock(cfg config.ProtocolConfiguration, index uint32, prev util.Uint256, txs ...*transaction.Transaction) *block.Block {
 	validators, _ := validatorsFromConfig(cfg)
-	vlen := len(validators)
-	valScript, _ := smartcontract.CreateMultiSigRedeemScript(
-		vlen-(vlen-1)/3,
-		validators,
-	)
+	valScript, _ := smartcontract.CreateDefaultMultiSigRedeemScript(validators)
 	witness := transaction.Witness{
 		VerificationScript: valScript,
 	}
@@ -393,7 +389,7 @@ func addSigners(txs ...*transaction.Transaction) {
 
 func signTx(bc *Blockchain, txs ...*transaction.Transaction) error {
 	validators := bc.GetStandByValidators()
-	rawScript, err := smartcontract.CreateMultiSigRedeemScript(bc.config.ValidatorsCount/2+1, validators)
+	rawScript, err := smartcontract.CreateDefaultMultiSigRedeemScript(validators)
 	if err != nil {
 		return fmt.Errorf("failed to sign tx: %w", err)
 	}

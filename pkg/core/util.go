@@ -118,11 +118,7 @@ func committeeFromConfig(cfg config.ProtocolConfiguration) ([]*keys.PublicKey, e
 }
 
 func getNextConsensusAddress(validators []*keys.PublicKey) (val util.Uint160, err error) {
-	vlen := len(validators)
-	raw, err := smartcontract.CreateMultiSigRedeemScript(
-		vlen-(vlen-1)/3,
-		validators,
-	)
+	raw, err := smartcontract.CreateDefaultMultiSigRedeemScript(validators)
 	if err != nil {
 		return val, err
 	}

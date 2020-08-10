@@ -36,3 +36,50 @@ func TestCreateMultiSigRedeemScript(t *testing.T) {
 	assert.Equal(t, opcode.SYSCALL, opcode.Opcode(br.ReadB()))
 	assert.Equal(t, emit.InteropNameToID([]byte("Neo.Crypto.CheckMultisigWithECDsaSecp256r1")), br.ReadU32LE())
 }
+
+func TestCreateDefaultMultiSigRedeemScript(t *testing.T) {
+	var validators = make([]*keys.PublicKey, 0)
+
+	var addKey = func() {
+		key, err := keys.NewPrivateKey()
+		require.NoError(t, err)
+		validators = append(validators, key.PublicKey())
+	}
+	var checkM = func(m int) {
+		validScript, err := CreateMultiSigRedeemScript(m, validators)
+		require.NoError(t, err)
+		defaultScript, err := CreateDefaultMultiSigRedeemScript(validators)
+		require.NoError(t, err)
+		require.Equal(t, validScript, defaultScript)
+	}
+
+	// 1 out of 1
+	addKey()
+	checkM(1)
+
+	// 2 out of 2
+	addKey()
+	checkM(2)
+
+	// 3 out of 4
+	for i := 0; i < 2; i++ {
+		addKey()
+	}
+	checkM(3)
+
+	// 5 out of 6
+	for i := 0; i < 2; i++ {
+		addKey()
+	}
+	checkM(5)
+
+	// 5 out of 7
+	addKey()
+	checkM(5)
+
+	// 7 out of 10
+	for i := 0; i < 3; i++ {
+		addKey()
+	}
+	checkM(7)
+}
