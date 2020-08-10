@@ -261,7 +261,7 @@ func Main(operation string, args []interface{}) bool {
 	token := newToken()
 	trigger := runtime.GetTrigger()
 
-	if trigger == runtime.Verification() {
+	if trigger == runtime.Verification {
 		isOwner := runtime.CheckWitness(token.Owner)
 		if isOwner {
 			return true
@@ -269,7 +269,7 @@ func Main(operation string, args []interface{}) bool {
 		return false
 	}
 
-	if trigger == runtime.Application() {
+	if trigger == runtime.Application {
 		if operation == "mintTokens" {
 			token.AddToCirculation(100)
 		}
