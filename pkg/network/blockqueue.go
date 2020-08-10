@@ -48,7 +48,7 @@ func (bq *blockQueue) run() {
 					err := bq.chain.AddBlock(minblock)
 					if err != nil {
 						// The block might already be added by consensus.
-						if _, errget := bq.chain.GetBlock(minblock.Hash()); errget != nil {
+						if bq.chain.BlockHeight() < minblock.Index {
 							bq.log.Warn("blockQueue: failed adding block into the blockchain",
 								zap.String("error", err.Error()),
 								zap.Uint32("blockHeight", bq.chain.BlockHeight()),
