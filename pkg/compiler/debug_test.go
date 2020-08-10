@@ -249,6 +249,8 @@ func TestSequencePoints(t *testing.T) {
 	d := c.emitDebugInfo(buf)
 	require.NotNil(t, d)
 
+	require.Equal(t, d.Documents, []string{"foo.go"})
+
 	// Main func has 2 return on 4-th and 6-th lines.
 	ps := d.Methods[0].SeqPoints
 	require.Equal(t, 2, len(ps))

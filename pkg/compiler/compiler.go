@@ -10,7 +10,6 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
@@ -158,12 +157,6 @@ func CompileAndSave(src string, o *Options) ([]byte, error) {
 	if o.DebugInfo == "" && o.ManifestFile == "" {
 		return b, nil
 	}
-
-	p, err := filepath.Abs(src)
-	if err != nil {
-		return b, err
-	}
-	di.Documents = append(di.Documents, p)
 
 	if o.DebugInfo != "" {
 		data, err := json.Marshal(di)

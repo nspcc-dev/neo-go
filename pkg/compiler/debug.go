@@ -94,6 +94,7 @@ func (c *codegen) saveSequencePoint(n ast.Node) {
 	end := fset.Position(n.End())
 	c.sequencePoints[c.scope.name] = append(c.sequencePoints[c.scope.name], DebugSeqPoint{
 		Opcode:    c.prog.Len(),
+		Document:  c.docIndex[start.Filename],
 		StartLine: start.Line,
 		StartCol:  start.Offset,
 		EndLine:   end.Line,
@@ -103,9 +104,10 @@ func (c *codegen) saveSequencePoint(n ast.Node) {
 
 func (c *codegen) emitDebugInfo(contract []byte) *DebugInfo {
 	d := &DebugInfo{
-		MainPkg: c.mainPkg.Pkg.Name(),
-		Hash:    hash.Hash160(contract),
-		Events:  []EventDebugInfo{},
+		MainPkg:   c.mainPkg.Pkg.Name(),
+		Hash:      hash.Hash160(contract),
+		Events:    []EventDebugInfo{},
+		Documents: c.documents,
 	}
 	if c.initEndOffset > 0 {
 		d.Methods = append(d.Methods, MethodDebugInfo{
