@@ -25,42 +25,6 @@ type storageOp struct {
 	Value string `json:"value,omitempty"`
 }
 
-// NEO has some differences of key storing (that should go away post-preview2).
-// ours format: contract's ID (uint32le) + key
-// theirs format: contract's ID (uint32le) + key with 16 between every 16 bytes, padded to len 16.
-func toNeoStorageKey(key []byte) []byte {
-	if len(key) < 4 {
-		panic("invalid key in storage")
-	}
-
-	// Prefix is a contract's ID in LE.
-	nkey := make([]byte, 4, len(key))
-	copy(nkey, key[:4])
-	key = key[4:]
-
-	index := 0
-	remain := len(key)
-	for remain >= 16 {
-		nkey = append(nkey, key[index:index+16]...)
-		nkey = append(nkey, 16)
-		index += 16
-		remain -= 16
-	}
-
-	if remain > 0 {
-		nkey = append(nkey, key[index:]...)
-	}
-
-	padding := 16 - remain
-	for i := 0; i < padding; i++ {
-		nkey = append(nkey, 0)
-	}
-
-	nkey = append(nkey, byte(remain))
-
-	return nkey
-}
-
 // batchToMap converts batch to a map so that JSON is compatible
 // with https://github.com/NeoResearch/neo-storage-audit/
 func batchToMap(index uint32, batch *storage.MemBatch) blockDump {
@@ -77,10 +41,9 @@ func batchToMap(index uint32, batch *storage.MemBatch) blockDump {
 			op = "Changed"
 		}
 
-		key = toNeoStorageKey(key[1:])
 		ops = append(ops, storageOp{
 			State: op,
-			Key:   hex.EncodeToString(key),
+			Key:   hex.EncodeToString(key[1:]),
 			Value: hex.EncodeToString(batch.Put[i].Value),
 		})
 	}
@@ -91,10 +54,9 @@ func batchToMap(index uint32, batch *storage.MemBatch) blockDump {
 			continue
 		}
 
-		key = toNeoStorageKey(key[1:])
 		ops = append(ops, storageOp{
 			State: "Deleted",
-			Key:   hex.EncodeToString(key),
+			Key:   hex.EncodeToString(key[1:]),
 		})
 	}
 
