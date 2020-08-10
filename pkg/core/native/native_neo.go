@@ -416,6 +416,7 @@ func (n *NEO) GetValidatorsInternal(bc blockchainer.Blockchainer, d dao.DAO) (ke
 		count = len(result)
 	}
 	result = result[:count]
+	sort.Sort(result)
 	n.validators.Store(result)
 	return result, nil
 }
