@@ -112,7 +112,7 @@ func Main(operation string, args []interface{}) interface{} {
 
 	// This is used to verify if a transfer of system assets (NEO and Gas)
 	// involving this contract's address can proceed.
-	if trigger == runtime.Verification() {
+	if trigger == runtime.Verification {
 		// Check if the invoker is the owner of the contract.
 		if runtime.CheckWitness(cfg.Owner) {
 			return true
@@ -120,7 +120,7 @@ func Main(operation string, args []interface{}) interface{} {
 		// Otherwise TODO
 		return false
 	}
-	if trigger == runtime.Application() {
+	if trigger == runtime.Application {
 		return handleOperation(operation, args, ctx, cfg)
 	}
 	return true

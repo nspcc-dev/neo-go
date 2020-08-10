@@ -4,6 +4,13 @@ It has similar function to Runtime class in .net framwork for Neo.
 */
 package runtime
 
+// Trigger values to compare with GetTrigger result.
+const (
+	System       byte = 0x01
+	Application  byte = 0x40
+	Verification byte = 0x20
+)
+
 // CheckWitness verifies if the given script hash (160-bit BE value in a 20 byte
 // slice) or key (compressed serialized 33-byte form) is one of the signers of
 // this invocation. It uses `System.Runtime.CheckWitness` syscall.
@@ -41,24 +48,6 @@ func GetTime() int {
 // `System.Runtime.GetTrigger` syscall.
 func GetTrigger() byte {
 	return 0x00
-}
-
-// System returns the System trigger type value to compare with
-// GetTrigger return value.
-func System() byte {
-	return 0x01
-}
-
-// Application returns the Application trigger type value to compare with
-// GetTrigger return value.
-func Application() byte {
-	return 0x40
-}
-
-// Verification returns the Verification trigger type value to compare with
-// GetTrigger return value.
-func Verification() byte {
-	return 0x20
 }
 
 // GasLeft returns the amount of gas available for the current execution.

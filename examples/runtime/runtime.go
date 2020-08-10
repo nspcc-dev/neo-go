@@ -13,12 +13,12 @@ func Main(operation string, args []interface{}) bool {
 	trigger := runtime.GetTrigger()
 
 	// Log owner upon Verification trigger
-	if trigger == runtime.Verification() {
+	if trigger == runtime.Verification {
 		return CheckWitness()
 	}
 
 	// Discerns between log and notify for this test
-	if trigger == runtime.Application() {
+	if trigger == runtime.Application {
 		return handleOperation(operation, args)
 	}
 
