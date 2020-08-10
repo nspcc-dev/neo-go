@@ -1,6 +1,7 @@
 package consensus
 
 import (
+	"encoding/hex"
 	"math/rand"
 	"testing"
 
@@ -74,14 +75,13 @@ func TestConsensusPayload_Setters(t *testing.T) {
 	require.Equal(t, pl, p.GetRecoveryMessage())
 }
 
-/*// TODO: update binary (see https://github.com/nspcc-dev/neo-go/issues/1178)
 func TestConsensusPayload_Verify(t *testing.T) {
 	// signed payload from testnet
-	dataHex := "00000000a70b769e4af60878f6daa72be41770c62592c694bf9ead6b16b30ad90f28c4098cc704000400423000d5b4baae11191ac370a4d7860df01824fcea7f934d6461db6d4b7966ca3c135c8c262b7f23bbac13e73885223604141e062234d999068d9a74b77caeeb5271cf01420c4055ae8c7694c296e92da393f944b0dc1cd70d12de3ee944e9afc872d1db427fe87fcbe913709a8ec73e2f5acdfc0b7f0a96e9d63bad0a20e3226c882237f5c771290c2102a7834be9b32e2981d157cb5bbd3acb42cfd11ea5c3b10224d7a44e98c5910f1b0b410a906ad4"
+	dataHex := "000000006c2cf4b46a45e839a6e9b75feef6bd551b1a31f97be1689d55a95a82448291099084000005002221002b7b3e8b02b1ff2dccac65596772f858b3c3e017470a989510d3b2cd270f246901420c40eb0fcb702cacfd3cfdb3f50422f230489e3e0e896914b4f7e13ef0c2e8bf523938e48610f0d1d1c606dd8bc494787ec127c6a10992afa846fe4a53e4c9e0ce6b290c2102ba2c70f5996f357a43198705859fae2cfea13e1172962800772b3d588a9d4abd0b4195440d78"
 	data, err := hex.DecodeString(dataHex)
 	require.NoError(t, err)
 
-	h, err := util.Uint160DecodeStringBE("31b7e7aea5131f74721e002c6a56b6885813f79e")
+	h, err := util.Uint160DecodeStringBE("e1936f674287cf50df72ea1f1bd6d2c8534ad656")
 	require.NoError(t, err)
 
 	p := NewPayload(netmode.TestNet)
@@ -89,7 +89,7 @@ func TestConsensusPayload_Verify(t *testing.T) {
 	require.NoError(t, p.decodeData())
 	require.True(t, p.Verify(h))
 }
-*/
+
 func TestConsensusPayload_Serializable(t *testing.T) {
 	for _, mt := range messageTypes {
 		p := randomPayload(t, mt)
