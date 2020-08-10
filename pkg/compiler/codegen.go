@@ -400,6 +400,9 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 	//     x = 2
 	// )
 	case *ast.GenDecl:
+		if n.Tok == token.VAR || n.Tok == token.CONST {
+			c.saveSequencePoint(n)
+		}
 		if n.Tok == token.CONST {
 			for _, spec := range n.Specs {
 				vs := spec.(*ast.ValueSpec)
