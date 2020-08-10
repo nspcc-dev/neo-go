@@ -44,7 +44,7 @@ func MethodStruct() struct{} { return struct{}{} }
 func unexportedMethod() int { return 1 }
 `
 
-	info, err := getBuildInfo(src)
+	info, err := getBuildInfo("foo.go", src)
 	require.NoError(t, err)
 
 	pkg := info.program.Package(info.initialPackage)
@@ -238,7 +238,7 @@ func TestSequencePoints(t *testing.T) {
 		return false
 	}`
 
-	info, err := getBuildInfo(src)
+	info, err := getBuildInfo("foo.go", src)
 	require.NoError(t, err)
 
 	pkg := info.program.Package(info.initialPackage)

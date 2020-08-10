@@ -84,9 +84,9 @@ func (c *codegen) fillImportMap(f *ast.File, pkg *types.Package) {
 	}
 }
 
-func getBuildInfo(src interface{}) (*buildInfo, error) {
+func getBuildInfo(name string, src interface{}) (*buildInfo, error) {
 	conf := loader.Config{ParserMode: parser.ParseComments}
-	f, err := conf.ParseFile("", src)
+	f, err := conf.ParseFile(name, src)
 	if err != nil {
 		return nil, err
 	}
@@ -104,8 +104,8 @@ func getBuildInfo(src interface{}) (*buildInfo, error) {
 }
 
 // Compile compiles a Go program into bytecode that can run on the NEO virtual machine.
-func Compile(r io.Reader) ([]byte, error) {
-	buf, _, err := CompileWithDebugInfo(r)
+func Compile(name string, r io.Reader) ([]byte, error) {
+	buf, _, err := CompileWithDebugInfo(name, r)
 	if err != nil {
 		return nil, err
 	}
@@ -114,8 +114,8 @@ func Compile(r io.Reader) ([]byte, error) {
 }
 
 // CompileWithDebugInfo compiles a Go program into bytecode and emits debug info.
-func CompileWithDebugInfo(r io.Reader) ([]byte, *DebugInfo, error) {
-	ctx, err := getBuildInfo(r)
+func CompileWithDebugInfo(name string, r io.Reader) ([]byte, *DebugInfo, error) {
+	ctx, err := getBuildInfo(name, r)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -138,7 +138,7 @@ func CompileAndSave(src string, o *Options) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	b, di, err := CompileWithDebugInfo(bytes.NewReader(b))
+	b, di, err := CompileWithDebugInfo(src, bytes.NewReader(b))
 	if err != nil {
 		return nil, fmt.Errorf("error while trying to compile smart contract file: %w", err)
 	}

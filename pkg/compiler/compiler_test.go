@@ -77,6 +77,6 @@ func compileFile(src string) error {
 	if err != nil {
 		return err
 	}
-	_, err = compiler.Compile(file)
+	_, err = compiler.Compile("foo.go", file)
 	return err
 }
