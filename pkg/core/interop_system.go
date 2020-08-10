@@ -519,6 +519,7 @@ func contractCallExInternal(ic *interop.Context, h []byte, name string, args []s
 		}
 		// use Jump not Call here because context was loaded in LoadScript above.
 		ic.VM.Jump(ic.VM.Context(), md.Offset)
+		ic.VM.Context().CheckReturn = true
 	}
 
 	md = cs.Manifest.ABI.GetMethod(manifest.MethodInit)

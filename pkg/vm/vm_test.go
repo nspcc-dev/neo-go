@@ -959,6 +959,14 @@ func TestCALLA(t *testing.T) {
 	t.Run("Good", getTestFuncForVM(prog, 5, stackitem.NewPointer(4, prog)))
 }
 
+func TestCALL(t *testing.T) {
+	prog := makeProgram(
+		opcode.CALL, 4, opcode.ADD, opcode.RET,
+		opcode.CALL, 3, opcode.RET,
+		opcode.PUSH1, opcode.PUSH2, opcode.RET)
+	runWithArgs(t, prog, 3)
+}
+
 func TestNOT(t *testing.T) {
 	prog := makeProgram(opcode.NOT)
 	t.Run("Bool", getTestFuncForVM(prog, true, false))
