@@ -29,8 +29,6 @@ import (
 
 /*  Missing tests:
  *  TestTxGetWitnesses
- *  TestBcGetAccount
- *  TestAccountGetBalance
  *  TestAccountIsStandard
  *  TestCreateContractStateFromVM
  *  TestContractCreate
@@ -299,18 +297,6 @@ func createVMAndContractState(t *testing.T) (*vm.VM, *state.Contract, *interop.C
 	context := chain.newInteropContext(trigger.Application, dao.NewSimple(storage.NewMemoryStore(), netmode.UnitTestNet), nil, nil)
 	v := context.SpawnVM()
 	return v, contractState, context, chain
-}
-
-func createVMAndAccState(t *testing.T) (*vm.VM, *state.Account, *interop.Context, *Blockchain) {
-	rawHash := "4d3b96ae1bcc5a585e075e3b81920210dec16302"
-	hash, err := util.Uint160DecodeStringBE(rawHash)
-	accountState := state.NewAccount(hash)
-
-	require.NoError(t, err)
-	chain := newTestChain(t)
-	context := chain.newInteropContext(trigger.Application, dao.NewSimple(storage.NewMemoryStore(), netmode.UnitTestNet), nil, nil)
-	v := context.SpawnVM()
-	return v, accountState, context, chain
 }
 
 func createVMAndTX(t *testing.T) (*vm.VM, *transaction.Transaction, *interop.Context, *Blockchain) {
