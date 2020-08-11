@@ -12,11 +12,6 @@ type HeaderHashList struct {
 	hashes []util.Uint256
 }
 
-// NewHeaderHashListFromBytes returns a new hash list from the given bytes.
-func NewHeaderHashListFromBytes(b []byte) (*HeaderHashList, error) {
-	return nil, nil
-}
-
 // NewHeaderHashList returns a new pointer to a HeaderHashList.
 func NewHeaderHashList(hashes ...util.Uint256) *HeaderHashList {
 	return &HeaderHashList{
@@ -47,17 +42,9 @@ func (l *HeaderHashList) Last() util.Uint256 {
 	return l.hashes[l.Len()-1]
 }
 
-// Slice return a subslice of the underlying hashes.
-// Subsliced from start to end.
-// Example:
-// 	headers := headerList.Slice(0, 2000)
-func (l *HeaderHashList) Slice(start, end int) []util.Uint256 {
-	return l.hashes[start:end]
-}
-
 // WriteTo writes n underlying hashes to the given BinWriter
 // starting from start.
 func (l *HeaderHashList) Write(bw *io.BinWriter, start, n int) error {
-	bw.WriteArray(l.Slice(start, start+n))
+	bw.WriteArray(l.hashes[start : start+n])
 	return bw.Err
 }
