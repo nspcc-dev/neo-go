@@ -42,7 +42,7 @@ func (l *HeaderHashList) Last() util.Uint256 {
 	return l.hashes[l.Len()-1]
 }
 
-// WriteTo writes n underlying hashes to the given BinWriter
+// Write writes n underlying hashes to the given BinWriter
 // starting from start.
 func (l *HeaderHashList) Write(bw *io.BinWriter, start, n int) error {
 	bw.WriteArray(l.hashes[start : start+n])
