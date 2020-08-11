@@ -303,13 +303,6 @@ func createVMAndTX(t *testing.T) (*vm.VM, *transaction.Transaction, *interop.Con
 	script := []byte{byte(opcode.PUSH1), byte(opcode.RET)}
 	tx := transaction.New(netmode.UnitTestNet, script, 0)
 
-	bytes := make([]byte, 1)
-	attributes := append(tx.Attributes, transaction.Attribute{
-		Usage: transaction.DescriptionURL,
-		Data:  bytes,
-	})
-
-	tx.Attributes = attributes
 	tx.Signers = []transaction.Signer{{Account: util.Uint160{1, 2, 3, 4}}}
 	chain := newTestChain(t)
 	context := chain.newInteropContext(trigger.Application, dao.NewSimple(storage.NewMemoryStore(), netmode.UnitTestNet), nil, tx)

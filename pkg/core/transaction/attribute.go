@@ -3,7 +3,6 @@ package transaction
 import (
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"fmt"
 
 	"github.com/nspcc-dev/neo-go/pkg/io"
@@ -26,15 +25,14 @@ func (attr *Attribute) DecodeBinary(br *io.BinReader) {
 	attr.Usage = AttrUsage(br.ReadB())
 
 	var datasize uint64
+	/**
+
 	switch attr.Usage {
-	case DescriptionURL:
-		// It's not VarUint as per C# implementation, dunno why
-		var urllen = br.ReadB()
-		datasize = uint64(urllen)
 	default:
 		br.Err = fmt.Errorf("failed decoding TX attribute usage: 0x%2x", int(attr.Usage))
 		return
 	}
+	*/
 	attr.Data = make([]byte, datasize)
 	br.ReadBytes(attr.Data)
 }
@@ -43,9 +41,6 @@ func (attr *Attribute) DecodeBinary(br *io.BinReader) {
 func (attr *Attribute) EncodeBinary(bw *io.BinWriter) {
 	bw.WriteB(byte(attr.Usage))
 	switch attr.Usage {
-	case DescriptionURL:
-		bw.WriteB(byte(len(attr.Data)))
-		bw.WriteBytes(attr.Data)
 	default:
 		bw.Err = fmt.Errorf("failed encoding TX attribute usage: 0x%2x", attr.Usage)
 	}
@@ -54,7 +49,7 @@ func (attr *Attribute) EncodeBinary(bw *io.BinWriter) {
 // MarshalJSON implements the json Marshaller interface.
 func (attr *Attribute) MarshalJSON() ([]byte, error) {
 	return json.Marshal(attrJSON{
-		Usage: attr.Usage.String(),
+		Usage: "", // attr.Usage.String() when we're to have some real attributes
 		Data:  base64.StdEncoding.EncodeToString(attr.Data),
 	})
 }
@@ -70,13 +65,13 @@ func (attr *Attribute) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		return err
 	}
+	/**
 	switch aj.Usage {
-	case "DescriptionURL":
-		attr.Usage = DescriptionURL
 	default:
 		return errors.New("wrong Usage")
 
 	}
+	*/
 	attr.Data = binData
 	return nil
 }

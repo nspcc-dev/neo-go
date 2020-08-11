@@ -5,7 +5,6 @@ package transaction
 // AttrUsage represents the purpose of the attribute.
 type AttrUsage uint8
 
-// List of valid attribute usages.
-const (
-	DescriptionURL AttrUsage = 0x81
-)
+// List of valid attribute usages (none for preview3).
+//const (
+//)

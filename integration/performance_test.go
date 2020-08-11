@@ -86,11 +86,6 @@ func getTX(t *testing.B, wif *keys.WIF) *transaction.Transaction {
 			Scopes:  transaction.FeeOnly,
 		},
 	}
-	tx.Attributes = append(tx.Attributes,
-		transaction.Attribute{
-			Usage: transaction.DescriptionURL,
-			Data:  []byte(randString(10)),
-		})
 	return tx
 }
 

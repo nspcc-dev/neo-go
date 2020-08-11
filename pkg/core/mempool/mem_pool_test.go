@@ -68,28 +68,23 @@ func TestOverCapacity(t *testing.T) {
 	require.Equal(t, mempoolSize, mp.Count())
 	require.Equal(t, true, sort.IsSorted(sort.Reverse(mp.verifiedTxes)))
 
+	bigScript := make([]byte, 64)
+	bigScript[0] = byte(opcode.PUSH1)
+	bigScript[1] = byte(opcode.RET)
 	// Fees are also prioritized.
 	for i := 0; i < mempoolSize; i++ {
-		tx := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
-		tx.Attributes = append(tx.Attributes, transaction.Attribute{
-			Usage: transaction.DescriptionURL,
-			Data:  util.Uint256{1, 2, 3, 4}.BytesBE(),
-		})
+		tx := transaction.New(netmode.UnitTestNet, bigScript, 0)
 		tx.NetworkFee = 10000
 		tx.Nonce = txcnt
 		tx.Signers = []transaction.Signer{{Account: util.Uint160{1, 2, 3}}}
 		txcnt++
-		// size is 84, networkFee is 10000 => feePerByte is 119
+		// size is ~90, networkFee is 10000 => feePerByte is 119
 		require.NoError(t, mp.Add(tx, fs))
 		require.Equal(t, mempoolSize, mp.Count())
 		require.Equal(t, true, sort.IsSorted(sort.Reverse(mp.verifiedTxes)))
 	}
 	// Less prioritized txes are not allowed anymore.
-	tx := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
-	tx.Attributes = append(tx.Attributes, transaction.Attribute{
-		Usage: transaction.DescriptionURL,
-		Data:  util.Uint256{1, 2, 3, 4}.BytesBE(),
-	})
+	tx := transaction.New(netmode.UnitTestNet, bigScript, 0)
 	tx.NetworkFee = 100
 	tx.Nonce = txcnt
 	tx.Signers = []transaction.Signer{{Account: util.Uint160{1, 2, 3}}}
@@ -104,7 +99,7 @@ func TestOverCapacity(t *testing.T) {
 	tx.NetworkFee = 7000
 	tx.Signers = []transaction.Signer{{Account: util.Uint160{1, 2, 3}}}
 	txcnt++
-	// size is 51 (no attributes), networkFee is 7000 (<10000)
+	// size is ~51 (small script), networkFee is 7000 (<10000)
 	// => feePerByte is 137 (>119)
 	require.NoError(t, mp.Add(tx, fs))
 	require.Equal(t, mempoolSize, mp.Count())
