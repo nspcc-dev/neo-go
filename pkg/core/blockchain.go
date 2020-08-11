@@ -1511,10 +1511,6 @@ func hashAndIndexToBytes(h util.Uint256, index uint32) []byte {
 	return buf.Bytes()
 }
 
-func (bc *Blockchain) secondsPerBlock() int {
-	return bc.config.SecondsPerBlock
-}
-
 func (bc *Blockchain) newInteropContext(trigger trigger.Type, d dao.DAO, block *block.Block, tx *transaction.Transaction) *interop.Context {
 	ic := interop.NewContext(trigger, bc, d, bc.contracts.Contracts, block, tx, bc.log)
 	ic.Functions = [][]interop.Function{systemInterops, neoInterops}
