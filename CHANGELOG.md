@@ -2,6 +2,45 @@
 
 This document outlines major changes between releases.
 
+## 0.77.0 "Cornification" (11 August 2020)
+
+This release is aligned with Neo 2.11.0 release, bringing important changes to
+the NeoX consensus protocol, some bug fixes and new RPC functionality. It is
+tested to work in consensus with 2.11.0. The DB format was changed for NEP5
+tracking data and we also track UTXO transfers now, so you need to
+resynchronize the DB from the genesis for this version to operate correctly.
+
+New features:
+ * `getutxotransfers` RPC call to track NEO and GAS movements. It accepts
+   address as mandatory parameter, asset name ("gas" or "neo") and start/end
+   time as optional parameters (similar to `getnep5transfers`). See #1268 and
+   #1288.
+ * `invoke*` RPC calls now support passing hashes to be used as verified ones
+   during execution (for contract's `CheckWitness` calls), this functionality
+   is also available in the CLI now (#1282)
+
+Behavior changes:
+ * `getnep5transfers` and `getnep5balance` now return raw balance values, the
+   same way C# node does (previously the result was adjusted by contract's
+   decimals value, #1250)
+ * `getstateheight` RPC call response now uses lowercase field names (#1274)
+ * `getnep5transfers` RPC call now accepts start/end optional time parameters
+   (the same way C# plugin does), lacking start option the result might be
+   different from the one returned by previous node versions (#1284)
+ * we no longer support Go 1.12 to build the node (#1285)
+ * NeoX consensus was reworked to exchange signatures during Prepare phase and
+   emit stateroot message along with Commit (#1291). Note that this new
+   consensus process is not compatible with 0.76.X versions of neo-go or
+   2.10.3-neox-preview1 version of C# node, but it is compatible with 2.11.0,
+   so you need to upgrade all of your consensus nodes for the network to run
+   correctly. Also note that the default configuration for mainnet was changed
+   to enable StateRoot functionality.
+
+Bugs fixed:
+ * `getnep5transfers` RPC call not returning results for migrated contracts
+   (#1215)
+ * incorrect consensus recovery message data for NeoX-enabled networks (#1270)
+
 ## 0.76.2 "Calibration" (19 July 2020)
 
 Minor update for Neo 2. If you're running testnet node, we recommend to
