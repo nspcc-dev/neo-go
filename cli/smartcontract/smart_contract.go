@@ -60,8 +60,16 @@ const (
 
 import "github.com/nspcc-dev/neo-go/pkg/interop/runtime"
 
-func Main(op string, args []interface{}) {
-    runtime.Notify("Hello world!")
+var notificationName string
+
+// init initializes notificationName before calling any other smart-contract method
+func init() {
+	notificationName = "Hello world!"
+}
+
+// RuntimeNotify sends runtime notification with "Hello world!" name
+func RuntimeNotify(args []interface{}) {
+    runtime.Notify(notificationName, args)
 }`
 	// cosignersSeparator is a special value which is used to distinguish
 	// parameters and cosigners for invoke* commands
@@ -325,6 +333,17 @@ func initSmartContract(ctx *cli.Context) error {
 
 	m := ProjectConfig{
 		SupportedStandards: []string{},
+		Events: []manifest.Event{
+			{
+				Name: "Hello world!",
+				Parameters: []manifest.Parameter{
+					{
+						Name: "args",
+						Type: smartcontract.ArrayType,
+					},
+				},
+			},
+		},
 	}
 	b, err := yaml.Marshal(m)
 	if err != nil {
@@ -369,6 +388,7 @@ func contractCompile(ctx *cli.Context) error {
 			return err
 		}
 		o.ContractFeatures = conf.GetFeatures()
+		o.ContractEvents = conf.Events
 		o.ContractSupportedStandards = conf.SupportedStandards
 	}
 

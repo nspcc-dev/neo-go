@@ -233,7 +233,7 @@ func TestCreateBasicChain(t *testing.T) {
 	t.Logf("contractHash: %s", hash.Hash160(avm).StringLE())
 
 	script := io.NewBufBinWriter()
-	m, err := di.ConvertToManifest(smartcontract.HasStorage)
+	m, err := di.ConvertToManifest(smartcontract.HasStorage, nil)
 	require.NoError(t, err)
 	bs, err := m.MarshalJSON()
 	require.NoError(t, err)

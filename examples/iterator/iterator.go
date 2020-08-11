@@ -6,8 +6,8 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/interop/storage"
 )
 
-// Main is Main(), really.
-func Main() bool {
+// NotifyKeysAndValues sends notification with `foo` storage keys and values
+func NotifyKeysAndValues() bool {
 	iter := storage.Find(storage.GetContext(), []byte("foo"))
 	values := iterator.Values(iter)
 	keys := iterator.Keys(iter)

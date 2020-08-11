@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
 	"golang.org/x/tools/go/loader"
 )
@@ -36,6 +37,9 @@ type Options struct {
 
 	// Contract features.
 	ContractFeatures smartcontract.PropertyState
+
+	// Runtime notifications.
+	ContractEvents []manifest.Event
 
 	// The list of standards supported by the contract.
 	ContractSupportedStandards []string
@@ -190,7 +194,7 @@ func CompileAndSave(src string, o *Options) ([]byte, error) {
 	}
 
 	if o.ManifestFile != "" {
-		m, err := di.ConvertToManifest(o.ContractFeatures, o.ContractSupportedStandards...)
+		m, err := di.ConvertToManifest(o.ContractFeatures, o.ContractEvents, o.ContractSupportedStandards...)
 		if err != nil {
 			return b, fmt.Errorf("failed to convert debug info to manifest: %w", err)
 		}

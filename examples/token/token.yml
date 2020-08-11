@@ -1,0 +1,12 @@
+hasstorage: true
+ispayable: false
+supportedstandards: ["NEP-5"]
+events:
+  - name: transfer
+    parameters:
+      - name: from
+        type: ByteString
+      - name: to
+        type: ByteString
+      - name: amount
+        type: Integer
