@@ -72,7 +72,7 @@ func vmAndCompileInterop(t *testing.T, src string) (*vm.VM, *storagePlugin) {
 	vm.GasLimit = -1
 	vm.SyscallHandler = storePlugin.syscallHandler
 
-	b, di, err := compiler.CompileWithDebugInfo(strings.NewReader(src))
+	b, di, err := compiler.CompileWithDebugInfo("foo.go", strings.NewReader(src))
 	require.NoError(t, err)
 
 	invokeMethod(t, testMainIdent, b, vm, di)

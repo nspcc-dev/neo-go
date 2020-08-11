@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"math/big"
 	"os"
 	"strconv"
@@ -306,12 +305,7 @@ func handleLoadGo(c *ishell.Context) {
 		c.Err(errors.New("missing parameter <file>"))
 		return
 	}
-	fb, err := ioutil.ReadFile(c.Args[0])
-	if err != nil {
-		c.Err(err)
-		return
-	}
-	b, err := compiler.Compile(bytes.NewReader(fb))
+	b, err := compiler.Compile(c.Args[0], nil)
 	if err != nil {
 		c.Err(err)
 		return

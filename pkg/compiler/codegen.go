@@ -77,6 +77,11 @@ type codegen struct {
 	// packages contains packages in the order they were loaded.
 	packages []string
 
+	// documents contains paths to all files used by the program.
+	documents []string
+	// docIndex maps file path to an index in documents array.
+	docIndex map[string]int
+
 	// Label table for recording jump destinations.
 	l []int
 }
@@ -395,6 +400,9 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 	//     x = 2
 	// )
 	case *ast.GenDecl:
+		if n.Tok == token.VAR || n.Tok == token.CONST {
+			c.saveSequencePoint(n)
+		}
 		if n.Tok == token.CONST {
 			for _, spec := range n.Specs {
 				vs := spec.(*ast.ValueSpec)
@@ -1541,6 +1549,7 @@ func (c *codegen) newLambda(u uint16, lit *ast.FuncLit) {
 func (c *codegen) compile(info *buildInfo, pkg *loader.PackageInfo) error {
 	c.mainPkg = pkg
 	c.analyzePkgOrder()
+	c.fillDocumentInfo()
 	funUsage := c.analyzeFuncUsage()
 
 	// Bring all imported functions into scope.
@@ -1588,6 +1597,7 @@ func newCodegen(info *buildInfo, pkg *loader.PackageInfo) *codegen {
 		labels:    map[labelWithType]uint16{},
 		typeInfo:  &pkg.Info,
 		constMap:  map[string]types.TypeAndValue{},
+		docIndex:  map[string]int{},
 
 		sequencePoints: make(map[string][]DebugSeqPoint),
 	}

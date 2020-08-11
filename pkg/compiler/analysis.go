@@ -3,6 +3,7 @@ package compiler
 import (
 	"errors"
 	"go/ast"
+	"go/token"
 	"go/types"
 	"strings"
 
@@ -161,6 +162,16 @@ func (c *codegen) visitPkg(pkg *types.Package, seen map[string]bool) {
 	}
 	seen[pkgPath] = true
 	c.packages = append(c.packages, pkgPath)
+}
+
+func (c *codegen) fillDocumentInfo() {
+	fset := c.buildInfo.program.Fset
+	fset.Iterate(func(f *token.File) bool {
+		filePath := f.Position(f.Pos(0)).Filename
+		c.docIndex[filePath] = len(c.documents)
+		c.documents = append(c.documents, filePath)
+		return true
+	})
 }
 
 func (c *codegen) analyzeFuncUsage() funcUsage {

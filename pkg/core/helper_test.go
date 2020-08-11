@@ -225,9 +225,10 @@ func TestCreateBasicChain(t *testing.T) {
 	require.NoError(t, err)
 
 	// Push some contract into the chain.
-	c, err := ioutil.ReadFile(prefix + "test_contract.go")
+	name := prefix + "test_contract.go"
+	c, err := ioutil.ReadFile(name)
 	require.NoError(t, err)
-	avm, di, err := compiler.CompileWithDebugInfo(bytes.NewReader(c))
+	avm, di, err := compiler.CompileWithDebugInfo(name, bytes.NewReader(c))
 	require.NoError(t, err)
 	t.Logf("contractHash: %s", hash.Hash160(avm).StringLE())
 

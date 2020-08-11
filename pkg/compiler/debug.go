@@ -85,15 +85,17 @@ type DebugParam struct {
 }
 
 func (c *codegen) saveSequencePoint(n ast.Node) {
-	if c.scope == nil {
-		// do not save globals for now
-		return
+	name := "init"
+	if c.scope != nil {
+		name = c.scope.name
 	}
+
 	fset := c.buildInfo.program.Fset
 	start := fset.Position(n.Pos())
 	end := fset.Position(n.End())
-	c.sequencePoints[c.scope.name] = append(c.sequencePoints[c.scope.name], DebugSeqPoint{
+	c.sequencePoints[name] = append(c.sequencePoints[name], DebugSeqPoint{
 		Opcode:    c.prog.Len(),
+		Document:  c.docIndex[start.Filename],
 		StartLine: start.Line,
 		StartCol:  start.Offset,
 		EndLine:   end.Line,
@@ -103,9 +105,10 @@ func (c *codegen) saveSequencePoint(n ast.Node) {
 
 func (c *codegen) emitDebugInfo(contract []byte) *DebugInfo {
 	d := &DebugInfo{
-		MainPkg: c.mainPkg.Pkg.Name(),
-		Hash:    hash.Hash160(contract),
-		Events:  []EventDebugInfo{},
+		MainPkg:   c.mainPkg.Pkg.Name(),
+		Hash:      hash.Hash160(contract),
+		Events:    []EventDebugInfo{},
+		Documents: c.documents,
 	}
 	if c.initEndOffset > 0 {
 		d.Methods = append(d.Methods, MethodDebugInfo{
@@ -120,6 +123,7 @@ func (c *codegen) emitDebugInfo(contract []byte) *DebugInfo {
 				End:   uint16(c.initEndOffset),
 			},
 			ReturnType: "Void",
+			SeqPoints:  c.sequencePoints["init"],
 		})
 	}
 	for name, scope := range c.funcs {

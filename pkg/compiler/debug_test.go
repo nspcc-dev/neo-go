@@ -44,7 +44,7 @@ func MethodStruct() struct{} { return struct{}{} }
 func unexportedMethod() int { return 1 }
 `
 
-	info, err := getBuildInfo(src)
+	info, err := getBuildInfo("foo.go", src)
 	require.NoError(t, err)
 
 	pkg := info.program.Package(info.initialPackage)
@@ -238,7 +238,7 @@ func TestSequencePoints(t *testing.T) {
 		return false
 	}`
 
-	info, err := getBuildInfo(src)
+	info, err := getBuildInfo("foo.go", src)
 	require.NoError(t, err)
 
 	pkg := info.program.Package(info.initialPackage)
@@ -248,6 +248,8 @@ func TestSequencePoints(t *testing.T) {
 	buf := c.prog.Bytes()
 	d := c.emitDebugInfo(buf)
 	require.NotNil(t, d)
+
+	require.Equal(t, d.Documents, []string{"foo.go"})
 
 	// Main func has 2 return on 4-th and 6-th lines.
 	ps := d.Methods[0].SeqPoints

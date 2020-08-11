@@ -1,7 +1,6 @@
 package smartcontract
 
 import (
-	"bytes"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -563,12 +562,10 @@ func inspect(ctx *cli.Context) error {
 	if len(in) == 0 {
 		return cli.NewExitError(errNoInput, 1)
 	}
-	b, err := ioutil.ReadFile(in)
-	if err != nil {
-		return cli.NewExitError(err, 1)
-	}
+	var b []byte
+	var err error
 	if compile {
-		b, err = compiler.Compile(bytes.NewReader(b))
+		b, err = compiler.Compile(in, nil)
 		if err != nil {
 			return cli.NewExitError(fmt.Errorf("failed to compile: %w", err), 1)
 		}

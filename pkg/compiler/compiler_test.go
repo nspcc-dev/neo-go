@@ -25,6 +25,20 @@ func TestCompiler(t *testing.T) {
 	config.Version = "0.90.0-test"
 	testCases := []compilerTestCase{
 		{
+			name: "TestCompileDirectory",
+			function: func(t *testing.T) {
+				const multiMainDir = "testdata/multi"
+				_, di, err := compiler.CompileWithDebugInfo(multiMainDir, nil)
+				require.NoError(t, err)
+				m := map[string]bool{}
+				for i := range di.Methods {
+					m[di.Methods[i].Name.Name] = true
+				}
+				require.Contains(t, m, "Func1")
+				require.Contains(t, m, "Func2")
+			},
+		},
+		{
 			name: "TestCompile",
 			function: func(t *testing.T) {
 				infos, err := ioutil.ReadDir(examplePath)
@@ -73,10 +87,6 @@ func filterFilename(infos []os.FileInfo) string {
 }
 
 func compileFile(src string) error {
-	file, err := os.Open(src)
-	if err != nil {
-		return err
-	}
-	_, err = compiler.Compile(file)
+	_, err := compiler.Compile(src, nil)
 	return err
 }
