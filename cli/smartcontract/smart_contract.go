@@ -389,6 +389,7 @@ func contractCompile(ctx *cli.Context) error {
 			return err
 		}
 		o.ContractFeatures = conf.GetFeatures()
+		o.ContractEvents = conf.Events
 		o.ContractSupportedStandards = conf.SupportedStandards
 	}
 

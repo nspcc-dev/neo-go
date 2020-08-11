@@ -88,7 +88,7 @@ func TestAppCall(t *testing.T) {
 
 	inner, di, err := compiler.CompileWithDebugInfo(strings.NewReader(srcInner))
 	require.NoError(t, err)
-	m, err := di.ConvertToManifest(smartcontract.NoProperties)
+	m, err := di.ConvertToManifest(smartcontract.NoProperties, nil)
 	require.NoError(t, err)
 
 	ih := hash.Hash160(inner)
