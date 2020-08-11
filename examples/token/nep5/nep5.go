@@ -116,6 +116,7 @@ func (t Token) Mint(ctx storage.Context, to []byte) bool {
 
 	storage.Put(ctx, to, t.TotalSupply)
 	storage.Put(ctx, []byte("minted"), true)
+	storage.Put(ctx, []byte(t.CirculationKey), t.TotalSupply)
 	runtime.Notify("transfer", "", to, t.TotalSupply)
 	return true
 }
