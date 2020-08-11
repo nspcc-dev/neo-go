@@ -10,26 +10,26 @@ import (
 
 // Attribute represents a Transaction attribute.
 type Attribute struct {
-	Usage AttrUsage
-	Data  []byte
+	Type AttrType
+	Data []byte
 }
 
 // attrJSON is used for JSON I/O of Attribute.
 type attrJSON struct {
-	Usage string `json:"usage"`
-	Data  string `json:"data"`
+	Type string `json:"type"`
+	Data string `json:"data"`
 }
 
 // DecodeBinary implements Serializable interface.
 func (attr *Attribute) DecodeBinary(br *io.BinReader) {
-	attr.Usage = AttrUsage(br.ReadB())
+	attr.Type = AttrType(br.ReadB())
 
 	var datasize uint64
 	/**
 
-	switch attr.Usage {
+	switch attr.Type {
 	default:
-		br.Err = fmt.Errorf("failed decoding TX attribute usage: 0x%2x", int(attr.Usage))
+		br.Err = fmt.Errorf("failed decoding TX attribute usage: 0x%2x", int(attr.Type))
 		return
 	}
 	*/
@@ -39,18 +39,18 @@ func (attr *Attribute) DecodeBinary(br *io.BinReader) {
 
 // EncodeBinary implements Serializable interface.
 func (attr *Attribute) EncodeBinary(bw *io.BinWriter) {
-	bw.WriteB(byte(attr.Usage))
-	switch attr.Usage {
+	bw.WriteB(byte(attr.Type))
+	switch attr.Type {
 	default:
-		bw.Err = fmt.Errorf("failed encoding TX attribute usage: 0x%2x", attr.Usage)
+		bw.Err = fmt.Errorf("failed encoding TX attribute usage: 0x%2x", attr.Type)
 	}
 }
 
 // MarshalJSON implements the json Marshaller interface.
 func (attr *Attribute) MarshalJSON() ([]byte, error) {
 	return json.Marshal(attrJSON{
-		Usage: "", // attr.Usage.String() when we're to have some real attributes
-		Data:  base64.StdEncoding.EncodeToString(attr.Data),
+		Type: "", // attr.Type.String() when we're to have some real attributes
+		Data: base64.StdEncoding.EncodeToString(attr.Data),
 	})
 }
 
@@ -66,9 +66,9 @@ func (attr *Attribute) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	/**
-	switch aj.Usage {
+	switch aj.Type {
 	default:
-		return errors.New("wrong Usage")
+		return errors.New("wrong Type")
 
 	}
 	*/
