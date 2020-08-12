@@ -21,8 +21,6 @@ type DAO interface {
 	AppendNEP5Transfer(acc util.Uint160, index uint32, tr *state.NEP5Transfer) (bool, error)
 	DeleteContractState(hash util.Uint160) error
 	DeleteStorageItem(id int32, key []byte) error
-	GetAccountState(hash util.Uint160) (*state.Account, error)
-	GetAccountStateOrNew(hash util.Uint160) (*state.Account, error)
 	GetAndDecode(entity io.Serializable, key []byte) error
 	GetAppExecResult(hash util.Uint256) (*state.AppExecResult, error)
 	GetBatch() *storage.MemBatch
@@ -46,7 +44,6 @@ type DAO interface {
 	GetWrapped() DAO
 	HasTransaction(hash util.Uint256) bool
 	Persist() (int, error)
-	PutAccountState(as *state.Account) error
 	PutAppExecResult(aer *state.AppExecResult) error
 	PutContractState(cs *state.Contract) error
 	PutCurrentHeader(hashAndIndex []byte) error
@@ -57,7 +54,6 @@ type DAO interface {
 	StoreAsBlock(block *block.Block) error
 	StoreAsCurrentBlock(block *block.Block) error
 	StoreAsTransaction(tx *transaction.Transaction, index uint32) error
-	putAccountState(as *state.Account, buf *io.BufBinWriter) error
 	putNEP5Balances(acc util.Uint160, bs *state.NEP5Balances, buf *io.BufBinWriter) error
 }
 
@@ -111,45 +107,6 @@ func (dao *Simple) putWithBuffer(entity io.Serializable, key []byte, buf *io.Buf
 	}
 	return dao.Store.Put(key, buf.Bytes())
 }
-
-// -- start accounts.
-
-// GetAccountStateOrNew retrieves Account from temporary or persistent Store
-// or creates a new one if it doesn't exist and persists it.
-func (dao *Simple) GetAccountStateOrNew(hash util.Uint160) (*state.Account, error) {
-	account, err := dao.GetAccountState(hash)
-	if err != nil {
-		if err != storage.ErrKeyNotFound {
-			return nil, err
-		}
-		account = state.NewAccount(hash)
-	}
-	return account, nil
-}
-
-// GetAccountState returns Account from the given Store if it's
-// present there. Returns nil otherwise.
-func (dao *Simple) GetAccountState(hash util.Uint160) (*state.Account, error) {
-	account := &state.Account{}
-	key := storage.AppendPrefix(storage.STAccount, hash.BytesBE())
-	err := dao.GetAndDecode(account, key)
-	if err != nil {
-		return nil, err
-	}
-	return account, err
-}
-
-// PutAccountState saves given Account in given store.
-func (dao *Simple) PutAccountState(as *state.Account) error {
-	return dao.putAccountState(as, io.NewBufBinWriter())
-}
-
-func (dao *Simple) putAccountState(as *state.Account, buf *io.BufBinWriter) error {
-	key := storage.AppendPrefix(storage.STAccount, as.ScriptHash.BytesBE())
-	return dao.putWithBuffer(as, key, buf)
-}
-
-// -- end accounts.
 
 // -- start contracts.
 

@@ -13,43 +13,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestCachedDaoAccounts(t *testing.T) {
-	store := storage.NewMemoryStore()
-	// Persistent DAO to check for backing storage.
-	pdao := NewSimple(store, netmode.UnitTestNet)
-	// Cached DAO.
-	cdao := NewCached(pdao)
-
-	hash := random.Uint160()
-	_, err := cdao.GetAccountState(hash)
-	require.NotNil(t, err)
-
-	acc, err := cdao.GetAccountStateOrNew(hash)
-	require.Nil(t, err)
-	_, err = pdao.GetAccountState(hash)
-	require.NotNil(t, err)
-
-	acc.Version = 42
-	require.NoError(t, cdao.PutAccountState(acc))
-	_, err = pdao.GetAccountState(hash)
-	require.NotNil(t, err)
-
-	acc2, err := cdao.GetAccountState(hash)
-	require.Nil(t, err)
-	require.Equal(t, acc, acc2)
-
-	acc2, err = cdao.GetAccountStateOrNew(hash)
-	require.Nil(t, err)
-	require.Equal(t, acc, acc2)
-
-	_, err = cdao.Persist()
-	require.Nil(t, err)
-
-	acct, err := pdao.GetAccountState(hash)
-	require.Nil(t, err)
-	require.Equal(t, acc, acct)
-}
-
 func TestCachedDaoContracts(t *testing.T) {
 	store := storage.NewMemoryStore()
 	pdao := NewSimple(store, netmode.UnitTestNet)

@@ -13,7 +13,6 @@ import (
 // objects in the storeBlock().
 type Cached struct {
 	DAO
-	accounts  map[util.Uint160]*state.Account
 	contracts map[util.Uint160]*state.Contract
 	balances  map[util.Uint160]*state.NEP5Balances
 	transfers map[util.Uint160]map[uint32]*state.NEP5TransferLog
@@ -23,34 +22,10 @@ type Cached struct {
 
 // NewCached returns new Cached wrapping around given backing store.
 func NewCached(d DAO) *Cached {
-	accs := make(map[util.Uint160]*state.Account)
 	ctrs := make(map[util.Uint160]*state.Contract)
 	balances := make(map[util.Uint160]*state.NEP5Balances)
 	transfers := make(map[util.Uint160]map[uint32]*state.NEP5TransferLog)
-	return &Cached{d.GetWrapped(), accs, ctrs, balances, transfers, false}
-}
-
-// GetAccountStateOrNew retrieves Account from cache or underlying store
-// or creates a new one if it doesn't exist.
-func (cd *Cached) GetAccountStateOrNew(hash util.Uint160) (*state.Account, error) {
-	if cd.accounts[hash] != nil {
-		return cd.accounts[hash], nil
-	}
-	return cd.DAO.GetAccountStateOrNew(hash)
-}
-
-// GetAccountState retrieves Account from cache or underlying store.
-func (cd *Cached) GetAccountState(hash util.Uint160) (*state.Account, error) {
-	if cd.accounts[hash] != nil {
-		return cd.accounts[hash], nil
-	}
-	return cd.DAO.GetAccountState(hash)
-}
-
-// PutAccountState saves given Account in the cache.
-func (cd *Cached) PutAccountState(as *state.Account) error {
-	cd.accounts[as.ScriptHash] = as
-	return nil
+	return &Cached{d.GetWrapped(), ctrs, balances, transfers, false}
 }
 
 // GetContractState returns contract state from cache or underlying store.
@@ -149,13 +124,6 @@ func (cd *Cached) Persist() (int, error) {
 	}
 	buf := io.NewBufBinWriter()
 
-	for sc := range cd.accounts {
-		err := cd.DAO.putAccountState(cd.accounts[sc], buf)
-		if err != nil {
-			return 0, err
-		}
-		buf.Reset()
-	}
 	for acc, bs := range cd.balances {
 		err := cd.DAO.putNEP5Balances(acc, bs, buf)
 		if err != nil {
@@ -177,7 +145,6 @@ func (cd *Cached) Persist() (int, error) {
 // GetWrapped implements DAO interface.
 func (cd *Cached) GetWrapped() DAO {
 	return &Cached{cd.DAO.GetWrapped(),
-		cd.accounts,
 		cd.contracts,
 		cd.balances,
 		cd.transfers,

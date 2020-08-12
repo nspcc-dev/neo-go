@@ -41,25 +41,6 @@ func (t *TestSerializable) DecodeBinary(reader *io.BinReader) {
 	t.field = reader.ReadString()
 }
 
-func TestGetAccountStateOrNew_New(t *testing.T) {
-	dao := NewSimple(storage.NewMemoryStore(), netmode.UnitTestNet)
-	hash := random.Uint160()
-	createdAccount, err := dao.GetAccountStateOrNew(hash)
-	require.NoError(t, err)
-	require.NotNil(t, createdAccount)
-}
-
-func TestPutAndGetAccountStateOrNew(t *testing.T) {
-	dao := NewSimple(storage.NewMemoryStore(), netmode.UnitTestNet)
-	hash := random.Uint160()
-	accountState := &state.Account{ScriptHash: hash}
-	err := dao.PutAccountState(accountState)
-	require.NoError(t, err)
-	gotAccount, err := dao.GetAccountStateOrNew(hash)
-	require.NoError(t, err)
-	require.Equal(t, accountState.ScriptHash, gotAccount.ScriptHash)
-}
-
 func TestPutAndGetContractState(t *testing.T) {
 	dao := NewSimple(storage.NewMemoryStore(), netmode.UnitTestNet)
 	contractState := &state.Contract{Script: []byte{}}

@@ -1034,15 +1034,6 @@ func (bc *Blockchain) GetContractScriptHash(id int32) (util.Uint160, error) {
 	return bc.dao.GetContractScriptHash(id)
 }
 
-// GetAccountState returns the account state from its script hash.
-func (bc *Blockchain) GetAccountState(scriptHash util.Uint160) *state.Account {
-	as, err := bc.dao.GetAccountState(scriptHash)
-	if as == nil && err != storage.ErrKeyNotFound {
-		bc.log.Warn("failed to get account state", zap.Error(err))
-	}
-	return as
-}
-
 // GetConfig returns the config stored in the blockchain.
 func (bc *Blockchain) GetConfig() config.ProtocolConfiguration {
 	return bc.config
@@ -1518,10 +1509,6 @@ func hashAndIndexToBytes(h util.Uint256, index uint32) []byte {
 	buf.WriteBytes(h.BytesLE())
 	buf.WriteU32LE(index)
 	return buf.Bytes()
-}
-
-func (bc *Blockchain) secondsPerBlock() int {
-	return bc.config.SecondsPerBlock
 }
 
 func (bc *Blockchain) newInteropContext(trigger trigger.Type, d dao.DAO, block *block.Block, tx *transaction.Transaction) *interop.Context {

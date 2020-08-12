@@ -3,7 +3,6 @@ package transaction
 import (
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"fmt"
 
 	"github.com/nspcc-dev/neo-go/pkg/io"
@@ -11,51 +10,47 @@ import (
 
 // Attribute represents a Transaction attribute.
 type Attribute struct {
-	Usage AttrUsage
-	Data  []byte
+	Type AttrType
+	Data []byte
 }
 
 // attrJSON is used for JSON I/O of Attribute.
 type attrJSON struct {
-	Usage string `json:"usage"`
-	Data  string `json:"data"`
+	Type string `json:"type"`
+	Data string `json:"data"`
 }
 
 // DecodeBinary implements Serializable interface.
 func (attr *Attribute) DecodeBinary(br *io.BinReader) {
-	attr.Usage = AttrUsage(br.ReadB())
+	attr.Type = AttrType(br.ReadB())
 
 	var datasize uint64
-	switch attr.Usage {
-	case DescriptionURL:
-		// It's not VarUint as per C# implementation, dunno why
-		var urllen = br.ReadB()
-		datasize = uint64(urllen)
+	/**
+
+	switch attr.Type {
 	default:
-		br.Err = fmt.Errorf("failed decoding TX attribute usage: 0x%2x", int(attr.Usage))
+		br.Err = fmt.Errorf("failed decoding TX attribute usage: 0x%2x", int(attr.Type))
 		return
 	}
+	*/
 	attr.Data = make([]byte, datasize)
 	br.ReadBytes(attr.Data)
 }
 
 // EncodeBinary implements Serializable interface.
 func (attr *Attribute) EncodeBinary(bw *io.BinWriter) {
-	bw.WriteB(byte(attr.Usage))
-	switch attr.Usage {
-	case DescriptionURL:
-		bw.WriteB(byte(len(attr.Data)))
-		bw.WriteBytes(attr.Data)
+	bw.WriteB(byte(attr.Type))
+	switch attr.Type {
 	default:
-		bw.Err = fmt.Errorf("failed encoding TX attribute usage: 0x%2x", attr.Usage)
+		bw.Err = fmt.Errorf("failed encoding TX attribute usage: 0x%2x", attr.Type)
 	}
 }
 
 // MarshalJSON implements the json Marshaller interface.
 func (attr *Attribute) MarshalJSON() ([]byte, error) {
 	return json.Marshal(attrJSON{
-		Usage: attr.Usage.String(),
-		Data:  base64.StdEncoding.EncodeToString(attr.Data),
+		Type: "", // attr.Type.String() when we're to have some real attributes
+		Data: base64.StdEncoding.EncodeToString(attr.Data),
 	})
 }
 
@@ -70,13 +65,13 @@ func (attr *Attribute) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		return err
 	}
-	switch aj.Usage {
-	case "DescriptionURL":
-		attr.Usage = DescriptionURL
+	/**
+	switch aj.Type {
 	default:
-		return errors.New("wrong Usage")
+		return errors.New("wrong Type")
 
 	}
+	*/
 	attr.Data = binData
 	return nil
 }
