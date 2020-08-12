@@ -582,15 +582,21 @@ func inspect(ctx *cli.Context) error {
 	if len(in) == 0 {
 		return cli.NewExitError(errNoInput, 1)
 	}
-	var b []byte
-	var err error
+	var (
+		b   []byte
+		err error
+	)
 	if compile {
 		b, err = compiler.Compile(in, nil)
 		if err != nil {
 			return cli.NewExitError(fmt.Errorf("failed to compile: %w", err), 1)
 		}
 	} else {
-		nefFile, err := nef.FileFromBytes(b)
+		f, err := ioutil.ReadFile(in)
+		if err != nil {
+			return cli.NewExitError(fmt.Errorf("failed to read .nef file: %w", err), 1)
+		}
+		nefFile, err := nef.FileFromBytes(f)
 		if err != nil {
 			return cli.NewExitError(fmt.Errorf("failed to restore .nef file: %w", err), 1)
 		}
