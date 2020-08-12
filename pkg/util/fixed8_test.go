@@ -6,10 +6,10 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/go-yaml/yaml"
 	"github.com/nspcc-dev/neo-go/pkg/internal/testserdes"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gopkg.in/yaml.v2"
 )
 
 func TestFixed8FromInt64(t *testing.T) {
