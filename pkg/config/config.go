@@ -5,8 +5,8 @@ import (
 	"io/ioutil"
 	"os"
 
-	"github.com/go-yaml/yaml"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
+	"gopkg.in/yaml.v2"
 )
 
 const userAgentFormat = "/NEO-GO:%s/"

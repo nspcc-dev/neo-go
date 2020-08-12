@@ -11,7 +11,6 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/go-yaml/yaml"
 	"github.com/nspcc-dev/neo-go/cli/flags"
 	"github.com/nspcc-dev/neo-go/cli/options"
 	"github.com/nspcc-dev/neo-go/pkg/compiler"
@@ -27,6 +26,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/urfave/cli"
 	"golang.org/x/crypto/ssh/terminal"
+	"gopkg.in/yaml.v2"
 )
 
 var (
