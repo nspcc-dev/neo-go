@@ -343,9 +343,9 @@ func multiTransferNEP5(ctx *cli.Context) error {
 
 	fromFlag := ctx.Generic("from").(*flags.Address)
 	from := fromFlag.Uint160()
-	acc := wall.GetAccount(from)
-	if acc == nil {
-		return cli.NewExitError(fmt.Errorf("can't find account for the address: %s", fromFlag), 1)
+	acc, err := getDecryptedAccount(wall, from)
+	if err != nil {
+		return cli.NewExitError(err, 1)
 	}
 
 	gctx, cancel := options.GetTimeoutContext(ctx)
@@ -406,9 +406,9 @@ func transferNEP5(ctx *cli.Context) error {
 
 	fromFlag := ctx.Generic("from").(*flags.Address)
 	from := fromFlag.Uint160()
-	acc := wall.GetAccount(from)
-	if acc == nil {
-		return cli.NewExitError(fmt.Errorf("can't find account for the address: %s", fromFlag), 1)
+	acc, err := getDecryptedAccount(wall, from)
+	if err != nil {
+		return cli.NewExitError(err, 1)
 	}
 
 	gctx, cancel := options.GetTimeoutContext(ctx)
@@ -444,12 +444,6 @@ func transferNEP5(ctx *cli.Context) error {
 
 func signAndSendTransfer(ctx *cli.Context, c *client.Client, acc *wallet.Account, recepients []client.TransferTarget) error {
 	gas := flags.Fixed8FromContext(ctx, "gas")
-
-	if pass, err := readPassword("Password > "); err != nil {
-		return cli.NewExitError(err, 1)
-	} else if err := acc.Decrypt(pass); err != nil {
-		return cli.NewExitError(err, 1)
-	}
 
 	tx, err := c.CreateNEP5MultiTransferTx(acc, int64(gas), recepients...)
 	if err != nil {
