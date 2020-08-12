@@ -184,6 +184,21 @@ func CompileAndSave(src string, o *Options) ([]byte, error) {
 	}
 
 	if o.DebugInfo != "" {
+		di.Events = make([]EventDebugInfo, len(o.ContractEvents))
+		for i, e := range o.ContractEvents {
+			params := make([]DebugParam, len(e.Parameters))
+			for j, p := range e.Parameters {
+				params[j] = DebugParam{
+					Name: p.Name,
+					Type: p.Type.String(),
+				}
+			}
+			di.Events[i] = EventDebugInfo{
+				ID:         e.Name,
+				Name:       e.Name,
+				Parameters: params,
+			}
+		}
 		data, err := json.Marshal(di)
 		if err != nil {
 			return b, err

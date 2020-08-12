@@ -49,7 +49,7 @@ func (pt ParamType) String() string {
 	case Hash256Type:
 		return "Hash256"
 	case ByteArrayType:
-		return "ByteString"
+		return "ByteArray"
 	case PublicKeyType:
 		return "PublicKey"
 	case StringType:
