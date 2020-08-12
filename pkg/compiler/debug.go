@@ -51,7 +51,7 @@ type DebugMethodName struct {
 // EventDebugInfo represents smart-contract's event debug information.
 type EventDebugInfo struct {
 	ID string `json:"id"`
-	// Name is a human-readable event name in a format "{namespace}-{name}".
+	// Name is a human-readable event name in a format "{namespace},{name}".
 	Name       string       `json:"name"`
 	Parameters []DebugParam `json:"params"`
 }

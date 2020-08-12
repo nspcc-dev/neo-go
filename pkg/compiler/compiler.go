@@ -194,8 +194,10 @@ func CompileAndSave(src string, o *Options) ([]byte, error) {
 				}
 			}
 			di.Events[i] = EventDebugInfo{
-				ID:         e.Name,
-				Name:       e.Name,
+				ID: e.Name,
+				// DebugInfo event name should be at the format {namespace},{name}
+				// but we don't provide namespace via .yml config
+				Name:       "," + e.Name,
 				Parameters: params,
 			}
 		}
