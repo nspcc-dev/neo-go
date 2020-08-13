@@ -8,6 +8,8 @@ import (
 	"go/types"
 	"strconv"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
@@ -26,8 +28,11 @@ type DebugInfo struct {
 
 // MethodDebugInfo represents smart-contract's method debug information.
 type MethodDebugInfo struct {
+	// ID is the actual name of the method.
 	ID string `json:"id"`
-	// Name is the name of the method together with the namespace it belongs to.
+	// Name is the name of the method with the first letter in a lowercase
+	// together with the namespace it belongs to. We need to keep the first letter
+	// lowercased to match manifest standards.
 	Name DebugMethodName `json:"name"`
 	// IsExported defines whether method is exported.
 	IsExported bool `json:"-"`
@@ -51,7 +56,7 @@ type DebugMethodName struct {
 // EventDebugInfo represents smart-contract's event debug information.
 type EventDebugInfo struct {
 	ID string `json:"id"`
-	// Name is a human-readable event name in a format "{namespace}-{name}".
+	// Name is a human-readable event name in a format "{namespace},{name}".
 	Name       string       `json:"name"`
 	Parameters []DebugParam `json:"params"`
 }
@@ -158,10 +163,11 @@ func (c *codegen) methodInfoFromScope(name string, scope *funcScope) *MethodDebu
 	}
 	ss := strings.Split(name, ".")
 	name = ss[len(ss)-1]
+	r, n := utf8.DecodeRuneInString(name)
 	return &MethodDebugInfo{
 		ID: name,
 		Name: DebugMethodName{
-			Name:      name,
+			Name:      string(unicode.ToLower(r)) + name[n:],
 			Namespace: scope.pkg.Name(),
 		},
 		IsExported: scope.decl.Name.IsExported(),
@@ -292,7 +298,7 @@ func (m *MethodDebugInfo) ToManifestMethod() (manifest.Method, error) {
 	if err != nil {
 		return result, err
 	}
-	result.Name = strings.ToLower(string(m.Name.Name[0])) + m.Name.Name[1:]
+	result.Name = m.Name.Name
 	result.Offset = int(m.Range.Start)
 	result.Parameters = parameters
 	result.ReturnType = returnType

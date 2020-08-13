@@ -32,7 +32,7 @@ func TestCompiler(t *testing.T) {
 				require.NoError(t, err)
 				m := map[string]bool{}
 				for i := range di.Methods {
-					m[di.Methods[i].Name.Name] = true
+					m[di.Methods[i].ID] = true
 				}
 				require.Contains(t, m, "Func1")
 				require.Contains(t, m, "Func2")
