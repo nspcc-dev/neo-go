@@ -6,8 +6,8 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
-	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/stretchr/testify/require"
 )
 
@@ -56,7 +56,7 @@ func getPanicSource(need bool, message string) string {
 }
 
 func getLogHandler(logs *[]string) vm.SyscallHandler {
-	logID := emit.InteropNameToID([]byte("System.Runtime.Log"))
+	logID := interopnames.ToID([]byte("System.Runtime.Log"))
 	return func(v *vm.VM, id uint32) error {
 		if id != logID {
 			return errors.New("syscall not found")

@@ -3,15 +3,15 @@ package vm
 import (
 	"encoding/binary"
 
+	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
-	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
 var (
-	verifyInteropID   = emit.InteropNameToID([]byte("Neo.Crypto.VerifyWithECDsaSecp256r1"))
-	multisigInteropID = emit.InteropNameToID([]byte("Neo.Crypto.CheckMultisigWithECDsaSecp256r1"))
+	verifyInteropID   = interopnames.ToID([]byte("Neo.Crypto.VerifyWithECDsaSecp256r1"))
+	multisigInteropID = interopnames.ToID([]byte("Neo.Crypto.CheckMultisigWithECDsaSecp256r1"))
 )
 
 func getNumOfThingsFromInstr(instr opcode.Opcode, param []byte) (int, bool) {

@@ -12,13 +12,13 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/callback"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/crypto"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/enumerator"
+	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/iterator"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/json"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/runtime"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
-	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 )
 
 // SpawnVM returns a VM with script getter and interop functions set
@@ -125,7 +125,7 @@ var neoInterops = []interop.Function{
 // Function slice and then sorts it.
 func initIDinInteropsSlice(iops []interop.Function) {
 	for i := range iops {
-		iops[i].ID = emit.InteropNameToID([]byte(iops[i].Name))
+		iops[i].ID = interopnames.ToID([]byte(iops[i].Name))
 	}
 	interop.Sort(iops)
 }

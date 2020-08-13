@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"sort"
 
+	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
-	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
@@ -19,31 +19,31 @@ type interopIDFuncPrice struct {
 }
 
 var defaultVMInterops = []interopIDFuncPrice{
-	{ID: emit.InteropNameToID([]byte("System.Binary.Deserialize")),
+	{ID: interopnames.ToID([]byte("System.Binary.Deserialize")),
 		Func: RuntimeDeserialize, Price: 500000},
-	{ID: emit.InteropNameToID([]byte("System.Binary.Serialize")),
+	{ID: interopnames.ToID([]byte("System.Binary.Serialize")),
 		Func: RuntimeSerialize, Price: 100000},
-	{ID: emit.InteropNameToID([]byte("System.Runtime.Log")),
+	{ID: interopnames.ToID([]byte("System.Runtime.Log")),
 		Func: runtimeLog, Price: 1000000, RequiredFlags: smartcontract.AllowNotify},
-	{ID: emit.InteropNameToID([]byte("System.Runtime.Notify")),
+	{ID: interopnames.ToID([]byte("System.Runtime.Notify")),
 		Func: runtimeNotify, Price: 1000000, RequiredFlags: smartcontract.AllowNotify},
-	{ID: emit.InteropNameToID([]byte("System.Enumerator.Create")),
+	{ID: interopnames.ToID([]byte("System.Enumerator.Create")),
 		Func: EnumeratorCreate, Price: 400},
-	{ID: emit.InteropNameToID([]byte("System.Enumerator.Next")),
+	{ID: interopnames.ToID([]byte("System.Enumerator.Next")),
 		Func: EnumeratorNext, Price: 1000000},
-	{ID: emit.InteropNameToID([]byte("System.Enumerator.Concat")),
+	{ID: interopnames.ToID([]byte("System.Enumerator.Concat")),
 		Func: EnumeratorConcat, Price: 400},
-	{ID: emit.InteropNameToID([]byte("System.Enumerator.Value")),
+	{ID: interopnames.ToID([]byte("System.Enumerator.Value")),
 		Func: EnumeratorValue, Price: 400},
-	{ID: emit.InteropNameToID([]byte("System.Iterator.Create")),
+	{ID: interopnames.ToID([]byte("System.Iterator.Create")),
 		Func: IteratorCreate, Price: 400},
-	{ID: emit.InteropNameToID([]byte("System.Iterator.Concat")),
+	{ID: interopnames.ToID([]byte("System.Iterator.Concat")),
 		Func: IteratorConcat, Price: 400},
-	{ID: emit.InteropNameToID([]byte("System.Iterator.Key")),
+	{ID: interopnames.ToID([]byte("System.Iterator.Key")),
 		Func: IteratorKey, Price: 400},
-	{ID: emit.InteropNameToID([]byte("System.Iterator.Keys")),
+	{ID: interopnames.ToID([]byte("System.Iterator.Keys")),
 		Func: IteratorKeys, Price: 400},
-	{ID: emit.InteropNameToID([]byte("System.Iterator.Values")),
+	{ID: interopnames.ToID([]byte("System.Iterator.Values")),
 		Func: IteratorValues, Price: 400},
 }
 

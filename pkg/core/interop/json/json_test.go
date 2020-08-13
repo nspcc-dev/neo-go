@@ -5,15 +5,15 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
-	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
+	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/stretchr/testify/require"
 )
 
 var (
-	serializeID   = emit.InteropNameToID([]byte("System.Json.Serialize"))
-	deserializeID = emit.InteropNameToID([]byte("System.Json.Deserialize"))
+	serializeID   = interopnames.ToID([]byte("System.Json.Serialize"))
+	deserializeID = interopnames.ToID([]byte("System.Json.Deserialize"))
 )
 
 var jsonInterops = []interop.Function{

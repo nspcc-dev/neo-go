@@ -11,6 +11,7 @@ import (
 	"math/rand"
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
 	"github.com/nspcc-dev/neo-go/pkg/internal/random"
 	"github.com/nspcc-dev/neo-go/pkg/io"
@@ -23,7 +24,7 @@ import (
 )
 
 func fooInteropHandler(v *VM, id uint32) error {
-	if id == emit.InteropNameToID([]byte("foo")) {
+	if id == interopnames.ToID([]byte("foo")) {
 		if !v.AddGas(1) {
 			return errors.New("invalid gas amount")
 		}

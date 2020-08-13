@@ -2,16 +2,16 @@ package crypto
 
 import (
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
-	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
+	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 )
 
 var (
-	ecdsaSecp256r1VerifyID        = emit.InteropNameToID([]byte("Neo.Crypto.VerifyWithECDsaSecp256r1"))
-	ecdsaSecp256k1VerifyID        = emit.InteropNameToID([]byte("Neo.Crypto.VerifyWithECDsaSecp256k1"))
-	ecdsaSecp256r1CheckMultisigID = emit.InteropNameToID([]byte("Neo.Crypto.CheckMultisigWithECDsaSecp256r1"))
-	ecdsaSecp256k1CheckMultisigID = emit.InteropNameToID([]byte("Neo.Crypto.CheckMultisigWithECDsaSecp256k1"))
-	sha256ID                      = emit.InteropNameToID([]byte("Neo.Crypto.SHA256"))
-	ripemd160ID                   = emit.InteropNameToID([]byte("Neo.Crypto.RIPEMD160"))
+	ecdsaSecp256r1VerifyID        = interopnames.ToID([]byte("Neo.Crypto.VerifyWithECDsaSecp256r1"))
+	ecdsaSecp256k1VerifyID        = interopnames.ToID([]byte("Neo.Crypto.VerifyWithECDsaSecp256k1"))
+	ecdsaSecp256r1CheckMultisigID = interopnames.ToID([]byte("Neo.Crypto.CheckMultisigWithECDsaSecp256r1"))
+	ecdsaSecp256k1CheckMultisigID = interopnames.ToID([]byte("Neo.Crypto.CheckMultisigWithECDsaSecp256k1"))
+	sha256ID                      = interopnames.ToID([]byte("Neo.Crypto.SHA256"))
+	ripemd160ID                   = interopnames.ToID([]byte("Neo.Crypto.RIPEMD160"))
 )
 
 var cryptoInterops = []interop.Function{
