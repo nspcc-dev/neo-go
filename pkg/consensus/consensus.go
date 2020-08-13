@@ -145,7 +145,7 @@ func NewService(cfg Config) (Service, error) {
 		dbft.WithNewPrepareRequest(srv.newPrepareRequest),
 		dbft.WithNewPrepareResponse(srv.newPrepareResponse),
 		dbft.WithNewChangeView(func() payload.ChangeView { return new(changeView) }),
-		dbft.WithNewCommit(func() payload.Commit { return new(commit) }),
+		dbft.WithNewCommit(srv.newCommit),
 		dbft.WithNewRecoveryRequest(func() payload.RecoveryRequest { return new(recoveryRequest) }),
 		dbft.WithNewRecoveryMessage(srv.newRecoveryMessage),
 		dbft.WithVerifyPrepareRequest(srv.verifyRequest),
@@ -257,6 +257,32 @@ func (s *service) getStateRootSig() []byte {
 		sig, _ = s.dbft.Priv.Sign(data)
 	}
 	return sig
+}
+
+func (s *service) newCommit() payload.Commit {
+	if s.stateRootEnabled() {
+		// This is being called when we're ready to commit, so we can safely
+		// relay stateroot here.
+		stateRoot, err := s.Chain.GetStateRoot(s.dbft.Context.BlockIndex - 1)
+		if err != nil {
+			s.log.Warn("can't get stateroot", zap.Uint32("block", s.dbft.Context.BlockIndex-1))
+		}
+		r := stateRoot.MPTRoot
+		r.Witness = s.getWitness(func(ctx dbft.Context, i int) []byte {
+			if p := ctx.PreparationPayloads[i]; p != nil && p.ViewNumber() == ctx.ViewNumber {
+				if int(ctx.PrimaryIndex) == i {
+					return p.GetPrepareRequest().(*prepareRequest).stateRootSig[:]
+				}
+				return p.GetPrepareResponse().(*prepareResponse).stateRootSig[:]
+			}
+			return nil
+		})
+		if err := s.Chain.AddStateRoot(&r); err != nil {
+			s.log.Warn("errors while adding state root", zap.Error(err))
+		}
+		s.Broadcast(&r)
+	}
+	return new(commit)
 }
 
 func (s *service) newPrepareResponse() payload.PrepareResponse {
@@ -622,28 +648,6 @@ func convertKeys(validators []crypto.PublicKey) (pubs []*keys.PublicKey) {
 }
 
 func (s *service) newBlockFromContext(ctx *dbft.Context) block.Block {
-	if s.stateRootEnabled() {
-		// This is being called when we're ready to commit, so we can safely
-		// relay stateroot here.
-		stateRoot, err := s.Chain.GetStateRoot(s.dbft.Context.BlockIndex - 1)
-		if err != nil {
-			s.log.Warn("can't get stateroot", zap.Uint32("block", s.dbft.Context.BlockIndex-1))
-		}
-		r := stateRoot.MPTRoot
-		r.Witness = s.getWitness(func(ctx dbft.Context, i int) []byte {
-			if p := ctx.PreparationPayloads[i]; p != nil && p.ViewNumber() == ctx.ViewNumber {
-				if int(ctx.PrimaryIndex) == i {
-					return p.GetPrepareRequest().(*prepareRequest).stateRootSig[:]
-				}
-				return p.GetPrepareResponse().(*prepareResponse).stateRootSig[:]
-			}
-			return nil
-		})
-		if err := s.Chain.AddStateRoot(&r); err != nil {
-			s.log.Warn("errors while adding state root", zap.Error(err))
-		}
-		s.Broadcast(&r)
-	}
 	block := new(neoBlock)
 	if len(ctx.TransactionHashes) == 0 {
 		return nil
