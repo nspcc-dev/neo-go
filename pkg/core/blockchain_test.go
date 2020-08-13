@@ -16,6 +16,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/internal/testchain"
 	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
@@ -297,6 +298,42 @@ func TestVerifyTx(t *testing.T) {
 		require.NoError(t, accs[0].SignTx(tx))
 		tx.Scripts[0].InvocationScript[10] = ^tx.Scripts[0].InvocationScript[10]
 		checkErr(t, ErrVerificationFailed, tx)
+	})
+}
+
+func TestVerifyHashAgainstScript(t *testing.T) {
+	bc := newTestChain(t)
+	defer bc.Close()
+
+	cs, csInvalid := getTestContractState()
+	ic := bc.newInteropContext(trigger.Verification, bc.dao, nil, nil)
+	require.NoError(t, ic.DAO.PutContractState(cs))
+	require.NoError(t, ic.DAO.PutContractState(csInvalid))
+
+	gas := bc.contracts.Policy.GetMaxVerificationGas(ic.DAO)
+	t.Run("Contract", func(t *testing.T) {
+		t.Run("Missing", func(t *testing.T) {
+			newH := cs.ScriptHash()
+			newH[0] = ^newH[0]
+			w := &transaction.Witness{InvocationScript: []byte{byte(opcode.PUSH4)}}
+			err := bc.verifyHashAgainstScript(newH, w, ic, false, gas)
+			require.True(t, errors.Is(err, ErrUnknownVerificationContract))
+		})
+		t.Run("Invalid", func(t *testing.T) {
+			w := &transaction.Witness{InvocationScript: []byte{byte(opcode.PUSH4)}}
+			err := bc.verifyHashAgainstScript(csInvalid.ScriptHash(), w, ic, false, gas)
+			require.True(t, errors.Is(err, ErrInvalidVerificationContract))
+		})
+		t.Run("ValidSignature", func(t *testing.T) {
+			w := &transaction.Witness{InvocationScript: []byte{byte(opcode.PUSH4)}}
+			err := bc.verifyHashAgainstScript(cs.ScriptHash(), w, ic, false, gas)
+			require.NoError(t, err)
+		})
+		t.Run("InvalidSignature", func(t *testing.T) {
+			w := &transaction.Witness{InvocationScript: []byte{byte(opcode.PUSH3)}}
+			err := bc.verifyHashAgainstScript(cs.ScriptHash(), w, ic, false, gas)
+			require.True(t, errors.Is(err, ErrVerificationFailed))
+		})
 	})
 }
 

@@ -22,6 +22,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
@@ -1430,15 +1431,33 @@ func ScriptFromWitness(hash util.Uint160, witness *transaction.Witness) ([]byte,
 
 // Various witness verification errors.
 var (
-	ErrWitnessHashMismatch = errors.New("witness hash mismatch")
-	ErrVerificationFailed  = errors.New("signature check failed")
+	ErrWitnessHashMismatch         = errors.New("witness hash mismatch")
+	ErrVerificationFailed          = errors.New("signature check failed")
+	ErrUnknownVerificationContract = errors.New("unknown verification contract")
+	ErrInvalidVerificationContract = errors.New("verification contract is missing `verify` method")
 )
 
 // verifyHashAgainstScript verifies given hash against the given witness.
 func (bc *Blockchain) verifyHashAgainstScript(hash util.Uint160, witness *transaction.Witness, interopCtx *interop.Context, useKeys bool, gas int64) error {
-	verification, err := ScriptFromWitness(hash, witness)
-	if err != nil {
-		return err
+	var offset int
+	var initMD *manifest.Method
+	verification := witness.VerificationScript
+	if len(verification) != 0 {
+		if witness.ScriptHash() != hash {
+			return ErrWitnessHashMismatch
+		}
+	} else {
+		cs, err := interopCtx.DAO.GetContractState(hash)
+		if err != nil {
+			return ErrUnknownVerificationContract
+		}
+		md := cs.Manifest.ABI.GetMethod(manifest.MethodVerify)
+		if md == nil {
+			return ErrInvalidVerificationContract
+		}
+		verification = cs.Script
+		offset = md.Offset
+		initMD = cs.Manifest.ABI.GetMethod(manifest.MethodInit)
 	}
 
 	gasPolicy := bc.contracts.Policy.GetMaxVerificationGas(interopCtx.DAO)
@@ -1450,6 +1469,10 @@ func (bc *Blockchain) verifyHashAgainstScript(hash util.Uint160, witness *transa
 	vm.SetPriceGetter(getPrice)
 	vm.GasLimit = gas
 	vm.LoadScriptWithFlags(verification, smartcontract.NoneFlag)
+	vm.Jump(vm.Context(), offset)
+	if initMD != nil {
+		vm.Call(vm.Context(), initMD.Offset)
+	}
 	vm.LoadScript(witness.InvocationScript)
 	if useKeys {
 		bc.keyCacheLock.RLock()
@@ -1458,7 +1481,7 @@ func (bc *Blockchain) verifyHashAgainstScript(hash util.Uint160, witness *transa
 		}
 		bc.keyCacheLock.RUnlock()
 	}
-	err = vm.Run()
+	err := vm.Run()
 	if vm.HasFailed() {
 		return fmt.Errorf("%w: vm execution has failed: %v", ErrVerificationFailed, err)
 	}
