@@ -69,7 +69,7 @@ func unexportedMethod() int { return 1 }
 			"unexportedMethod": "Integer",
 		}
 		for i := range d.Methods {
-			name := d.Methods[i].Name.Name
+			name := d.Methods[i].ID
 			assert.Equal(t, returnTypes[name], d.Methods[i].ReturnType)
 		}
 	})
@@ -79,7 +79,7 @@ func unexportedMethod() int { return 1 }
 			"Main": {"s,String", "res,Integer"},
 		}
 		for i := range d.Methods {
-			v, ok := vars[d.Methods[i].Name.Name]
+			v, ok := vars[d.Methods[i].ID]
 			if ok {
 				require.Equal(t, v, d.Methods[i].Variables)
 			}
@@ -112,7 +112,7 @@ func unexportedMethod() int { return 1 }
 			}},
 		}
 		for i := range d.Methods {
-			v, ok := paramTypes[d.Methods[i].Name.Name]
+			v, ok := paramTypes[d.Methods[i].ID]
 			if ok {
 				require.Equal(t, v, d.Methods[i].Parameters)
 			}
