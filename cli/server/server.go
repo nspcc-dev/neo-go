@@ -9,6 +9,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
+	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/io"
@@ -64,6 +65,10 @@ func NewCommands() []cli.Command {
 		cli.BoolFlag{
 			Name:  "diff, k",
 			Usage: "Use if DB is restore from diff and not full dump",
+		},
+		cli.StringFlag{
+			Name:  "state, r",
+			Usage: "File to import state roots from",
 		},
 	)
 	return []cli.Command{
@@ -251,6 +256,16 @@ func restoreDB(ctx *cli.Context) error {
 	defer inStream.Close()
 	reader := io.NewBinReaderFromIO(inStream)
 
+	var rootsIn *io.BinReader
+	if in := ctx.String("state"); in != "" {
+		inStream, err := os.Open(in)
+		if err != nil {
+			return cli.NewExitError(err, 1)
+		}
+		defer inStream.Close()
+		rootsIn = io.NewBinReaderFromIO(inStream)
+	}
+
 	dumpDir := ctx.String("dump")
 	if dumpDir != "" {
 		cfg.ProtocolConfiguration.SaveStorageBatch = true
@@ -285,11 +300,38 @@ func restoreDB(ctx *cli.Context) error {
 	if count == 0 {
 		count = lastBlock - start
 	}
+
+	var rootStart, rootSize uint32
+	rootCount := count
+	if rootsIn != nil {
+		rootStart = rootsIn.ReadU32LE()
+		rootSize = rootsIn.ReadU32LE()
+		if rootsIn.Err != nil {
+			return cli.NewExitError(fmt.Errorf("error while reading roots file: %w", rootsIn.Err), 1)
+		}
+		if start < rootStart {
+			return cli.NewExitError(fmt.Errorf("roots file start from %d root, can't import %d", rootStart, start), 1)
+		}
+		lastRoot := rootStart + rootSize
+		if rootStart+rootCount > lastRoot {
+			log.Info("state root height is low", zap.Uint32("height", lastRoot))
+			rootCount = lastRoot - rootStart
+		}
+	}
+
 	i := dumpStart
 	for ; i < start; i++ {
 		_, err := readBytes(reader)
 		if err != nil {
 			return cli.NewExitError(err, 1)
+		}
+	}
+	if rootsIn != nil {
+		for j := rootStart; j < start; j++ {
+			_, err := readBytes(rootsIn)
+			if err != nil {
+				return cli.NewExitError(err, 1)
+			}
 		}
 	}
 
@@ -306,40 +348,56 @@ func restoreDB(ctx *cli.Context) error {
 			return cli.NewExitError("cancelled", 1)
 		default:
 		}
-		bytes, err := readBytes(reader)
-		if err != nil {
+		block := new(block.Block)
+		if err := readSizedItem(block, reader); err != nil {
 			return cli.NewExitError(err, 1)
 		}
-		block := &block.Block{}
-		newReader := io.NewBinReaderFromBuf(bytes)
-		block.DecodeBinary(newReader)
-		if newReader.Err != nil {
-			return cli.NewExitError(newReader.Err, 1)
-		}
+		var skipBlock bool
 		if block.Index == 0 && i == 0 && start == 0 {
 			genesis, err := chain.GetBlock(block.Hash())
 			if err == nil && genesis.Index == 0 {
 				log.Info("skipped genesis block", zap.String("hash", block.Hash().StringLE()))
-				continue
+				skipBlock = true
 			}
 		}
-		err = chain.AddBlock(block)
-		if err != nil {
-			return cli.NewExitError(fmt.Errorf("failed to add block %d: %s", i, err), 1)
-		}
-
-		if dumpDir != "" {
-			batch := chain.LastBatch()
-			dump.add(block.Index, batch)
-			lastIndex = block.Index
-			if block.Index%1000 == 0 {
-				if err := dump.tryPersist(dumpDir, block.Index); err != nil {
-					return cli.NewExitError(fmt.Errorf("can't dump storage to file: %v", err), 1)
+		if !skipBlock {
+			err = chain.AddBlock(block)
+			if err != nil {
+				return cli.NewExitError(fmt.Errorf("failed to add block %d: %s", i, err), 1)
+			}
+			if dumpDir != "" {
+				batch := chain.LastBatch()
+				dump.add(block.Index, batch)
+				lastIndex = block.Index
+				if block.Index%1000 == 0 {
+					if err := dump.tryPersist(dumpDir, block.Index); err != nil {
+						return cli.NewExitError(fmt.Errorf("can't dump storage to file: %v", err), 1)
+					}
 				}
+			}
+		}
+		if rootsIn != nil && i < rootStart+rootCount {
+			sr := new(state.MPTRoot)
+			if err := readSizedItem(sr, rootsIn); err != nil {
+				return cli.NewExitError(err, 1)
+			}
+			err = chain.AddStateRoot(sr)
+			if err != nil {
+				return cli.NewExitError(fmt.Errorf("can't add state root: %w", err), 1)
 			}
 		}
 	}
 	return nil
+}
+
+func readSizedItem(item io.Serializable, r *io.BinReader) error {
+	bytes, err := readBytes(r)
+	if err != nil {
+		return err
+	}
+	newReader := io.NewBinReaderFromBuf(bytes)
+	item.DecodeBinary(newReader)
+	return newReader.Err
 }
 
 // readBytes performs reading of block size and then bytes with the length equal to that size.
