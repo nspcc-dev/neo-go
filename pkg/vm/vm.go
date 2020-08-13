@@ -13,6 +13,7 @@ import (
 	"text/tabwriter"
 	"unicode/utf8"
 
+	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
@@ -197,7 +198,11 @@ func (v *VM) PrintOps() {
 			case opcode.INITSLOT:
 				desc = fmt.Sprintf("%d local, %d arg", parameter[0], parameter[1])
 			case opcode.SYSCALL:
-				desc = fmt.Sprintf("%q", parameter)
+				name, err := interopnames.FromID(GetInteropID(parameter))
+				if err != nil {
+					name = "not found"
+				}
+				desc = fmt.Sprintf("%s (%x)", name, parameter)
 			case opcode.PUSHINT8, opcode.PUSHINT16, opcode.PUSHINT32,
 				opcode.PUSHINT64, opcode.PUSHINT128, opcode.PUSHINT256:
 				val := bigint.FromBytes(parameter)
