@@ -26,6 +26,33 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestVerifyHeader(t *testing.T) {
+	bc := newTestChain(t)
+	defer bc.Close()
+	prev := bc.topBlock.Load().(*block.Block).Header()
+	t.Run("Invalid", func(t *testing.T) {
+		t.Run("Hash", func(t *testing.T) {
+			h := prev.Hash()
+			h[0] = ^h[0]
+			hdr := newBlock(bc.config, 1, h).Header()
+			require.True(t, errors.Is(bc.verifyHeader(hdr, prev), ErrHdrHashMismatch))
+		})
+		t.Run("Index", func(t *testing.T) {
+			hdr := newBlock(bc.config, 3, prev.Hash()).Header()
+			require.True(t, errors.Is(bc.verifyHeader(hdr, prev), ErrHdrIndexMismatch))
+		})
+		t.Run("Timestamp", func(t *testing.T) {
+			hdr := newBlock(bc.config, 1, prev.Hash()).Header()
+			hdr.Timestamp = 0
+			require.True(t, errors.Is(bc.verifyHeader(hdr, prev), ErrHdrInvalidTimestamp))
+		})
+	})
+	t.Run("Valid", func(t *testing.T) {
+		hdr := newBlock(bc.config, 1, prev.Hash()).Header()
+		require.NoError(t, bc.verifyHeader(hdr, prev))
+	})
+}
+
 func TestAddHeaders(t *testing.T) {
 	bc := newTestChain(t)
 	defer bc.Close()

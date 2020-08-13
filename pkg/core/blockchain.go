@@ -1179,15 +1179,22 @@ func (bc *Blockchain) ApplyPolicyToTxSet(txes []*transaction.Transaction) []*tra
 	return txes
 }
 
+// Various errors that could be returns upon header verification.
+var (
+	ErrHdrHashMismatch     = errors.New("previous header hash doesn't match")
+	ErrHdrIndexMismatch    = errors.New("previous header index doesn't match")
+	ErrHdrInvalidTimestamp = errors.New("block is not newer than the previous one")
+)
+
 func (bc *Blockchain) verifyHeader(currHeader, prevHeader *block.Header) error {
 	if prevHeader.Hash() != currHeader.PrevHash {
-		return errors.New("previous header hash doesn't match")
+		return ErrHdrHashMismatch
 	}
 	if prevHeader.Index+1 != currHeader.Index {
-		return errors.New("previous header index doesn't match")
+		return ErrHdrIndexMismatch
 	}
 	if prevHeader.Timestamp >= currHeader.Timestamp {
-		return errors.New("block is not newer than the previous one")
+		return ErrHdrInvalidTimestamp
 	}
 	return bc.verifyHeaderWitnesses(currHeader, prevHeader)
 }
