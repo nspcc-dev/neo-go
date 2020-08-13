@@ -287,7 +287,7 @@ func restoreDB(ctx *cli.Context) error {
 	}
 	i := dumpStart
 	for ; i < start; i++ {
-		_, err := readBlock(reader)
+		_, err := readBytes(reader)
 		if err != nil {
 			return cli.NewExitError(err, 1)
 		}
@@ -306,7 +306,7 @@ func restoreDB(ctx *cli.Context) error {
 			return cli.NewExitError("cancelled", 1)
 		default:
 		}
-		bytes, err := readBlock(reader)
+		bytes, err := readBytes(reader)
 		if err != nil {
 			return cli.NewExitError(err, 1)
 		}
@@ -342,8 +342,8 @@ func restoreDB(ctx *cli.Context) error {
 	return nil
 }
 
-// readBlock performs reading of block size and then bytes with the length equal to that size.
-func readBlock(reader *io.BinReader) ([]byte, error) {
+// readBytes performs reading of block size and then bytes with the length equal to that size.
+func readBytes(reader *io.BinReader) ([]byte, error) {
 	var size = reader.ReadU32LE()
 	bytes := make([]byte, size)
 	reader.ReadBytes(bytes)
