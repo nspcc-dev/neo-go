@@ -260,7 +260,7 @@ func (s *service) getStateRootSig() []byte {
 }
 
 func (s *service) newCommit() payload.Commit {
-	if s.stateRootEnabled() {
+	if s.stateRootEnabled() && s.dbft.Context.BlockIndex > s.Chain.GetConfig().StateRootEnableIndex {
 		// This is being called when we're ready to commit, so we can safely
 		// relay stateroot here.
 		stateRoot, err := s.Chain.GetStateRoot(s.dbft.Context.BlockIndex - 1)
