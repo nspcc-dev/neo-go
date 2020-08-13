@@ -133,6 +133,19 @@ func NewService(cfg Config) (Service, error) {
 		return nil, err
 	}
 
+	// Check that wallet password is correct for at least one account.
+	var ok bool
+	for _, acc := range srv.wallet.Accounts {
+		err := acc.Decrypt(srv.Config.Wallet.Password)
+		if err == nil {
+			ok = true
+			break
+		}
+	}
+	if !ok {
+		return nil, errors.New("no account with provided password was found")
+	}
+
 	defer srv.wallet.Close()
 
 	srv.dbft = dbft.New(
