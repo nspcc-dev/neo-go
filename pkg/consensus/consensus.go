@@ -18,6 +18,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/mempool"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
@@ -119,6 +120,19 @@ func NewService(cfg Config) (Service, error) {
 
 	if srv.wallet, err = wallet.NewWalletFromFile(cfg.Wallet.Path); err != nil {
 		return nil, err
+	}
+
+	// Check that wallet password is correct for at least one account.
+	var ok bool
+	for _, acc := range srv.wallet.Accounts {
+		err := acc.Decrypt(srv.Config.Wallet.Password)
+		if err == nil {
+			ok = true
+			break
+		}
+	}
+	if !ok {
+		return nil, errors.New("no account with provided password was found")
 	}
 
 	defer srv.wallet.Close()
@@ -325,7 +339,8 @@ func (s *service) getKeyPair(pubs []crypto.PublicKey) (int, crypto.PrivateKey, c
 
 		key, err := keys.NEP2Decrypt(acc.EncryptedWIF, s.Config.Wallet.Password)
 		if err != nil {
-			continue
+			s.log.Fatal("can't unlock account", zap.String("address", address.Uint160ToString(sh)))
+			break
 		}
 
 		return i, &privateKey{PrivateKey: key}, &publicKey{PublicKey: key.PublicKey()}
