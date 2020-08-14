@@ -78,8 +78,11 @@ func (c *Client) NEP5TotalSupply(tokenHash util.Uint160) (int64, error) {
 }
 
 // NEP5BalanceOf invokes `balanceOf` NEP5 method on a specified contract.
-func (c *Client) NEP5BalanceOf(tokenHash util.Uint160) (int64, error) {
-	result, err := c.InvokeFunction(tokenHash, "balanceOf", []smartcontract.Parameter{}, nil)
+func (c *Client) NEP5BalanceOf(tokenHash, acc util.Uint160) (int64, error) {
+	result, err := c.InvokeFunction(tokenHash, "balanceOf", []smartcontract.Parameter{{
+		Type:  smartcontract.Hash160Type,
+		Value: acc,
+	}}, nil)
 	if err != nil {
 		return 0, err
 	} else if result.State != "HALT" || len(result.Stack) == 0 {
