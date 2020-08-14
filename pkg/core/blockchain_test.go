@@ -1,7 +1,10 @@
 package core
 
 import (
+	"errors"
+	"fmt"
 	"math/big"
+	"math/rand"
 	"testing"
 	"time"
 
@@ -12,14 +15,45 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
+	"github.com/nspcc-dev/neo-go/pkg/internal/testchain"
 	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
+	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestVerifyHeader(t *testing.T) {
+	bc := newTestChain(t)
+	defer bc.Close()
+	prev := bc.topBlock.Load().(*block.Block).Header()
+	t.Run("Invalid", func(t *testing.T) {
+		t.Run("Hash", func(t *testing.T) {
+			h := prev.Hash()
+			h[0] = ^h[0]
+			hdr := newBlock(bc.config, 1, h).Header()
+			require.True(t, errors.Is(bc.verifyHeader(hdr, prev), ErrHdrHashMismatch))
+		})
+		t.Run("Index", func(t *testing.T) {
+			hdr := newBlock(bc.config, 3, prev.Hash()).Header()
+			require.True(t, errors.Is(bc.verifyHeader(hdr, prev), ErrHdrIndexMismatch))
+		})
+		t.Run("Timestamp", func(t *testing.T) {
+			hdr := newBlock(bc.config, 1, prev.Hash()).Header()
+			hdr.Timestamp = 0
+			require.True(t, errors.Is(bc.verifyHeader(hdr, prev), ErrHdrInvalidTimestamp))
+		})
+	})
+	t.Run("Valid", func(t *testing.T) {
+		hdr := newBlock(bc.config, 1, prev.Hash()).Header()
+		require.NoError(t, bc.verifyHeader(hdr, prev))
+	})
+}
 
 func TestAddHeaders(t *testing.T) {
 	bc := newTestChain(t)
@@ -143,6 +177,183 @@ func TestGetBlock(t *testing.T) {
 		}
 		assert.NoError(t, bc.persist())
 	}
+}
+
+func (bc *Blockchain) newTestTx(h util.Uint160, script []byte) *transaction.Transaction {
+	tx := transaction.New(testchain.Network(), script, 1_000_000)
+	tx.Nonce = rand.Uint32()
+	tx.ValidUntilBlock = 100
+	tx.Signers = []transaction.Signer{{
+		Account: h,
+		Scopes:  transaction.CalledByEntry,
+	}}
+	tx.NetworkFee = int64(io.GetVarSize(tx)+200 /* witness */) * bc.FeePerByte()
+	tx.NetworkFee += 1_000_000 // verification cost
+	return tx
+}
+
+func TestVerifyTx(t *testing.T) {
+	bc := newTestChain(t)
+	defer bc.Close()
+
+	accs := make([]*wallet.Account, 2)
+	for i := range accs {
+		var err error
+		accs[i], err = wallet.NewAccount()
+		require.NoError(t, err)
+	}
+
+	neoHash := bc.contracts.NEO.Hash
+	gasHash := bc.contracts.GAS.Hash
+	w := io.NewBufBinWriter()
+	for _, sc := range []util.Uint160{neoHash, gasHash} {
+		for _, a := range accs {
+			amount := int64(1_000_000)
+			if sc.Equals(gasHash) {
+				amount = 1_000_000_000
+			}
+			emit.AppCallWithOperationAndArgs(w.BinWriter, sc, "transfer",
+				neoOwner, a.PrivateKey().GetScriptHash(), amount)
+			emit.Opcode(w.BinWriter, opcode.ASSERT)
+		}
+	}
+	require.NoError(t, w.Err)
+
+	txMove := bc.newTestTx(neoOwner, w.Bytes())
+	txMove.SystemFee = 1_000_000_000
+	require.NoError(t, signTx(bc, txMove))
+	b := bc.newBlock(txMove)
+	require.NoError(t, bc.AddBlock(b))
+
+	aer, err := bc.GetAppExecResult(txMove.Hash())
+	require.NoError(t, err)
+	require.Equal(t, aer.VMState, vm.HaltState)
+
+	res, err := invokeNativePolicyMethod(bc, "blockAccount", accs[1].PrivateKey().GetScriptHash().BytesBE())
+	require.NoError(t, err)
+	checkResult(t, res, stackitem.NewBool(true))
+
+	checkErr := func(t *testing.T, expectedErr error, tx *transaction.Transaction) {
+		err := bc.verifyTx(tx, nil)
+		fmt.Println(err)
+		require.True(t, errors.Is(err, expectedErr))
+	}
+
+	testScript := []byte{byte(opcode.PUSH1)}
+	h := accs[0].PrivateKey().GetScriptHash()
+	t.Run("Expired", func(t *testing.T) {
+		tx := bc.newTestTx(h, testScript)
+		tx.ValidUntilBlock = 1
+		require.NoError(t, accs[0].SignTx(tx))
+		checkErr(t, ErrTxExpired, tx)
+	})
+	t.Run("BlockedAccount", func(t *testing.T) {
+		tx := bc.newTestTx(accs[1].PrivateKey().GetScriptHash(), testScript)
+		require.NoError(t, accs[1].SignTx(tx))
+		err := bc.verifyTx(tx, nil)
+		require.True(t, errors.Is(err, ErrPolicy))
+	})
+	t.Run("InsufficientGas", func(t *testing.T) {
+		balance := bc.GetUtilityTokenBalance(h)
+		tx := bc.newTestTx(h, testScript)
+		tx.SystemFee = balance.Int64() + 1
+		require.NoError(t, accs[0].SignTx(tx))
+		checkErr(t, ErrInsufficientFunds, tx)
+	})
+	t.Run("TooBigTx", func(t *testing.T) {
+		script := make([]byte, transaction.MaxTransactionSize)
+		tx := bc.newTestTx(h, script)
+		require.NoError(t, accs[0].SignTx(tx))
+		checkErr(t, ErrTxTooBig, tx)
+	})
+	t.Run("SmallNetworkFee", func(t *testing.T) {
+		tx := bc.newTestTx(h, testScript)
+		tx.NetworkFee = 1
+		require.NoError(t, accs[0].SignTx(tx))
+		checkErr(t, ErrTxSmallNetworkFee, tx)
+	})
+	t.Run("Conflict", func(t *testing.T) {
+		balance := bc.GetUtilityTokenBalance(h).Int64()
+		tx := bc.newTestTx(h, testScript)
+		tx.NetworkFee = balance / 2
+		require.NoError(t, accs[0].SignTx(tx))
+		checkErr(t, nil, tx)
+
+		tx2 := bc.newTestTx(h, testScript)
+		tx2.NetworkFee = balance / 2
+		require.NoError(t, bc.memPool.Add(tx2, bc))
+		checkErr(t, ErrMemPoolConflict, tx)
+	})
+	t.Run("NotEnoughWitnesses", func(t *testing.T) {
+		tx := bc.newTestTx(h, testScript)
+		checkErr(t, ErrTxInvalidWitnessNum, tx)
+	})
+	t.Run("InvalidWitnessHash", func(t *testing.T) {
+		tx := bc.newTestTx(h, testScript)
+		require.NoError(t, accs[0].SignTx(tx))
+		tx.Scripts[0].VerificationScript = []byte{byte(opcode.PUSHT)}
+		checkErr(t, ErrWitnessHashMismatch, tx)
+	})
+	t.Run("InvalidWitnessSignature", func(t *testing.T) {
+		tx := bc.newTestTx(h, testScript)
+		require.NoError(t, accs[0].SignTx(tx))
+		tx.Scripts[0].InvocationScript[10] = ^tx.Scripts[0].InvocationScript[10]
+		checkErr(t, ErrVerificationFailed, tx)
+	})
+}
+
+func TestVerifyHashAgainstScript(t *testing.T) {
+	bc := newTestChain(t)
+	defer bc.Close()
+
+	cs, csInvalid := getTestContractState()
+	ic := bc.newInteropContext(trigger.Verification, bc.dao, nil, nil)
+	require.NoError(t, ic.DAO.PutContractState(cs))
+	require.NoError(t, ic.DAO.PutContractState(csInvalid))
+
+	gas := bc.contracts.Policy.GetMaxVerificationGas(ic.DAO)
+	t.Run("Contract", func(t *testing.T) {
+		t.Run("Missing", func(t *testing.T) {
+			newH := cs.ScriptHash()
+			newH[0] = ^newH[0]
+			w := &transaction.Witness{InvocationScript: []byte{byte(opcode.PUSH4)}}
+			err := bc.verifyHashAgainstScript(newH, w, ic, false, gas)
+			require.True(t, errors.Is(err, ErrUnknownVerificationContract))
+		})
+		t.Run("Invalid", func(t *testing.T) {
+			w := &transaction.Witness{InvocationScript: []byte{byte(opcode.PUSH4)}}
+			err := bc.verifyHashAgainstScript(csInvalid.ScriptHash(), w, ic, false, gas)
+			require.True(t, errors.Is(err, ErrInvalidVerificationContract))
+		})
+		t.Run("ValidSignature", func(t *testing.T) {
+			w := &transaction.Witness{InvocationScript: []byte{byte(opcode.PUSH4)}}
+			err := bc.verifyHashAgainstScript(cs.ScriptHash(), w, ic, false, gas)
+			require.NoError(t, err)
+		})
+		t.Run("InvalidSignature", func(t *testing.T) {
+			w := &transaction.Witness{InvocationScript: []byte{byte(opcode.PUSH3)}}
+			err := bc.verifyHashAgainstScript(cs.ScriptHash(), w, ic, false, gas)
+			require.True(t, errors.Is(err, ErrVerificationFailed))
+		})
+	})
+	t.Run("NotEnoughGas", func(t *testing.T) {
+		verif := []byte{byte(opcode.PUSH1)}
+		w := &transaction.Witness{
+			InvocationScript:   []byte{byte(opcode.NOP)},
+			VerificationScript: verif,
+		}
+		err := bc.verifyHashAgainstScript(hash.Hash160(verif), w, ic, false, 1)
+		require.True(t, errors.Is(err, ErrVerificationFailed))
+	})
+	t.Run("NoResult", func(t *testing.T) {
+		verif := []byte{byte(opcode.DROP)}
+		w := &transaction.Witness{
+			InvocationScript:   []byte{byte(opcode.PUSH1)},
+			VerificationScript: verif,
+		}
+		err := bc.verifyHashAgainstScript(hash.Hash160(verif), w, ic, false, gas)
+		require.True(t, errors.Is(err, ErrVerificationFailed))
+	})
 }
 
 func TestHasBlock(t *testing.T) {

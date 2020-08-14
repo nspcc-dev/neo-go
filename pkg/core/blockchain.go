@@ -22,6 +22,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
@@ -1179,24 +1180,41 @@ func (bc *Blockchain) ApplyPolicyToTxSet(txes []*transaction.Transaction) []*tra
 	return txes
 }
 
+// Various errors that could be returns upon header verification.
+var (
+	ErrHdrHashMismatch     = errors.New("previous header hash doesn't match")
+	ErrHdrIndexMismatch    = errors.New("previous header index doesn't match")
+	ErrHdrInvalidTimestamp = errors.New("block is not newer than the previous one")
+)
+
 func (bc *Blockchain) verifyHeader(currHeader, prevHeader *block.Header) error {
 	if prevHeader.Hash() != currHeader.PrevHash {
-		return errors.New("previous header hash doesn't match")
+		return ErrHdrHashMismatch
 	}
 	if prevHeader.Index+1 != currHeader.Index {
-		return errors.New("previous header index doesn't match")
+		return ErrHdrIndexMismatch
 	}
 	if prevHeader.Timestamp >= currHeader.Timestamp {
-		return errors.New("block is not newer than the previous one")
+		return ErrHdrInvalidTimestamp
 	}
 	return bc.verifyHeaderWitnesses(currHeader, prevHeader)
 }
+
+// Various errors that could be returned upon verification.
+var (
+	ErrTxExpired           = errors.New("transaction has expired")
+	ErrInsufficientFunds   = errors.New("insufficient funds")
+	ErrTxSmallNetworkFee   = errors.New("too small network fee")
+	ErrTxTooBig            = errors.New("too big transaction")
+	ErrMemPoolConflict     = errors.New("invalid transaction due to conflicts with the memory pool")
+	ErrTxInvalidWitnessNum = errors.New("number of signers doesn't match witnesses")
+)
 
 // verifyTx verifies whether a transaction is bonafide or not.
 func (bc *Blockchain) verifyTx(t *transaction.Transaction, block *block.Block) error {
 	height := bc.BlockHeight()
 	if t.ValidUntilBlock <= height || t.ValidUntilBlock > height+transaction.MaxValidUntilBlockIncrement {
-		return fmt.Errorf("transaction has expired. ValidUntilBlock = %d, current height = %d", t.ValidUntilBlock, height)
+		return fmt.Errorf("%w: ValidUntilBlock = %d, current height = %d", ErrTxExpired, t.ValidUntilBlock, height)
 	}
 	// Policying.
 	if err := bc.contracts.Policy.CheckPolicy(bc.dao, t); err != nil {
@@ -1206,20 +1224,20 @@ func (bc *Blockchain) verifyTx(t *transaction.Transaction, block *block.Block) e
 	balance := bc.GetUtilityTokenBalance(t.Sender())
 	need := t.SystemFee + t.NetworkFee
 	if balance.Cmp(big.NewInt(need)) < 0 {
-		return fmt.Errorf("insufficient funds: balance is %v, need: %v", balance, need)
+		return fmt.Errorf("%w: balance is %v, need: %v", ErrInsufficientFunds, balance, need)
 	}
 	size := io.GetVarSize(t)
 	if size > transaction.MaxTransactionSize {
-		return fmt.Errorf("too big transaction (%d > MaxTransactionSize %d)", size, transaction.MaxTransactionSize)
+		return fmt.Errorf("%w: (%d > MaxTransactionSize %d)", ErrTxTooBig, size, transaction.MaxTransactionSize)
 	}
 	needNetworkFee := int64(size) * bc.FeePerByte()
 	netFee := t.NetworkFee - needNetworkFee
 	if netFee < 0 {
-		return fmt.Errorf("insufficient funds: net fee is %v, need %v", t.NetworkFee, needNetworkFee)
+		return fmt.Errorf("%w: net fee is %v, need %v", ErrTxSmallNetworkFee, t.NetworkFee, needNetworkFee)
 	}
 	if block == nil {
 		if ok := bc.memPool.Verify(t, bc); !ok {
-			return errors.New("invalid transaction due to conflicts with the memory pool")
+			return ErrMemPoolConflict
 		}
 	}
 
@@ -1405,17 +1423,41 @@ func ScriptFromWitness(hash util.Uint160, witness *transaction.Witness) ([]byte,
 		emit.AppCall(bb.BinWriter, hash)
 		verification = bb.Bytes()
 	} else if h := witness.ScriptHash(); hash != h {
-		return nil, errors.New("witness hash mismatch")
+		return nil, ErrWitnessHashMismatch
 	}
 
 	return verification, nil
 }
 
+// Various witness verification errors.
+var (
+	ErrWitnessHashMismatch         = errors.New("witness hash mismatch")
+	ErrVerificationFailed          = errors.New("signature check failed")
+	ErrUnknownVerificationContract = errors.New("unknown verification contract")
+	ErrInvalidVerificationContract = errors.New("verification contract is missing `verify` method")
+)
+
 // verifyHashAgainstScript verifies given hash against the given witness.
 func (bc *Blockchain) verifyHashAgainstScript(hash util.Uint160, witness *transaction.Witness, interopCtx *interop.Context, useKeys bool, gas int64) error {
-	verification, err := ScriptFromWitness(hash, witness)
-	if err != nil {
-		return err
+	var offset int
+	var initMD *manifest.Method
+	verification := witness.VerificationScript
+	if len(verification) != 0 {
+		if witness.ScriptHash() != hash {
+			return ErrWitnessHashMismatch
+		}
+	} else {
+		cs, err := interopCtx.DAO.GetContractState(hash)
+		if err != nil {
+			return ErrUnknownVerificationContract
+		}
+		md := cs.Manifest.ABI.GetMethod(manifest.MethodVerify)
+		if md == nil {
+			return ErrInvalidVerificationContract
+		}
+		verification = cs.Script
+		offset = md.Offset
+		initMD = cs.Manifest.ABI.GetMethod(manifest.MethodInit)
 	}
 
 	gasPolicy := bc.contracts.Policy.GetMaxVerificationGas(interopCtx.DAO)
@@ -1427,6 +1469,10 @@ func (bc *Blockchain) verifyHashAgainstScript(hash util.Uint160, witness *transa
 	vm.SetPriceGetter(getPrice)
 	vm.GasLimit = gas
 	vm.LoadScriptWithFlags(verification, smartcontract.NoneFlag)
+	vm.Jump(vm.Context(), offset)
+	if initMD != nil {
+		vm.Call(vm.Context(), initMD.Offset)
+	}
 	vm.LoadScript(witness.InvocationScript)
 	if useKeys {
 		bc.keyCacheLock.RLock()
@@ -1435,14 +1481,14 @@ func (bc *Blockchain) verifyHashAgainstScript(hash util.Uint160, witness *transa
 		}
 		bc.keyCacheLock.RUnlock()
 	}
-	err = vm.Run()
+	err := vm.Run()
 	if vm.HasFailed() {
-		return fmt.Errorf("vm execution has failed: %w", err)
+		return fmt.Errorf("%w: vm execution has failed: %v", ErrVerificationFailed, err)
 	}
 	resEl := vm.Estack().Pop()
 	if resEl != nil {
 		if !resEl.Bool() {
-			return fmt.Errorf("signature check failed")
+			return fmt.Errorf("%w: invalid signature", ErrVerificationFailed)
 		}
 		if useKeys {
 			bc.keyCacheLock.RLock()
@@ -1455,7 +1501,7 @@ func (bc *Blockchain) verifyHashAgainstScript(hash util.Uint160, witness *transa
 			}
 		}
 	} else {
-		return fmt.Errorf("no result returned from the script")
+		return fmt.Errorf("%w: no result returned from the script", ErrVerificationFailed)
 	}
 	return nil
 }
@@ -1468,7 +1514,7 @@ func (bc *Blockchain) verifyHashAgainstScript(hash util.Uint160, witness *transa
 // Golang implementation of VerifyWitnesses method in C# (https://github.com/neo-project/neo/blob/master/neo/SmartContract/Helper.cs#L87).
 func (bc *Blockchain) verifyTxWitnesses(t *transaction.Transaction, block *block.Block) error {
 	if len(t.Signers) != len(t.Scripts) {
-		return fmt.Errorf("number of signers doesn't match witnesses (%d vs %d)", len(t.Signers), len(t.Scripts))
+		return fmt.Errorf("%w: %d vs %d", ErrTxInvalidWitnessNum, len(t.Signers), len(t.Scripts))
 	}
 	interopCtx := bc.newInteropContext(trigger.Verification, bc.dao, block, t)
 	for i := range t.Signers {

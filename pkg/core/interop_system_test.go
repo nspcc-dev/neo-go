@@ -337,6 +337,7 @@ func getTestContractState() (*state.Contract, *state.Contract) {
 		byte(opcode.LDSFLD0), byte(opcode.ADD), byte(opcode.RET),
 		byte(opcode.PUSH1), byte(opcode.PUSH2), byte(opcode.RET),
 		byte(opcode.RET),
+		byte(opcode.LDSFLD0), byte(opcode.SUB), byte(opcode.CONVERT), byte(stackitem.BooleanT), byte(opcode.RET),
 	}
 	h := hash.Hash160(script)
 	m := manifest.NewManifest(h)
@@ -383,6 +384,11 @@ func getTestContractState() (*state.Contract, *state.Contract) {
 			Name:       "justReturn",
 			Offset:     18,
 			ReturnType: smartcontract.IntegerType,
+		},
+		{
+			Name:       manifest.MethodVerify,
+			Offset:     19,
+			ReturnType: smartcontract.BoolType,
 		},
 	}
 	cs := &state.Contract{

@@ -15,6 +15,9 @@ const (
 	// MethodInit is a name for default initialization method.
 	MethodInit = "_initialize"
 
+	// MethodVerify is a name for default verification method.
+	MethodVerify = "verify"
+
 	// NEP5StandardName represents the name of NEP5 smartcontract standard.
 	NEP5StandardName = "NEP-5"
 	// NEP10StandardName represents the name of NEP10 smartcontract standard.
