@@ -1367,7 +1367,7 @@ func (bc *Blockchain) GetStandByValidators() keys.PublicKeys {
 	return bc.sbCommittee[:bc.config.ValidatorsCount].Copy()
 }
 
-// GetStandByCommittee returns standby commitee from the configuration.
+// GetStandByCommittee returns standby committee from the configuration.
 func (bc *Blockchain) GetStandByCommittee() keys.PublicKeys {
 	return bc.sbCommittee.Copy()
 }

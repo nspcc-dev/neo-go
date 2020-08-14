@@ -19,7 +19,7 @@ type NEP5Balance struct {
 	LastUpdated uint32       `json:"lastupdatedblock"`
 }
 
-// nep5Balance is an auxilliary struct for proper Asset marshaling.
+// nep5Balance is an auxiliary struct for proper Asset marshaling.
 type nep5Balance struct {
 	Asset       string `json:"assethash"`
 	Amount      string `json:"amount"`

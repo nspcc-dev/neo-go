@@ -7,13 +7,13 @@ import (
 )
 
 func TestScopesFromString(t *testing.T) {
-	s, err := ScopesFromString("")
+	_, err := ScopesFromString("")
 	require.Error(t, err)
 
 	_, err = ScopesFromString("123")
 	require.Error(t, err)
 
-	s, err = ScopesFromString("Global")
+	s, err := ScopesFromString("Global")
 	require.NoError(t, err)
 	require.Equal(t, Global, s)
 

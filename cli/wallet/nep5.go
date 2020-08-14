@@ -125,7 +125,7 @@ func newNEP5Commands() []cli.Command {
 		},
 		{
 			Name:  "multitransfer",
-			Usage: "transfer NEP5 tokens to multiple recepients",
+			Usage: "transfer NEP5 tokens to multiple recipients",
 			UsageText: `multitransfer --wallet <path> --rpc-endpoint <node> --timeout <time> --from <addr>` +
 				` <token1>:<addr1>:<amount1> [<token2>:<addr2>:<amount2> [...]]`,
 			Action: multiTransferNEP5,
@@ -357,9 +357,9 @@ func multiTransferNEP5(ctx *cli.Context) error {
 	}
 
 	if ctx.NArg() == 0 {
-		return cli.NewExitError("empty recepients list", 1)
+		return cli.NewExitError("empty recipients list", 1)
 	}
-	var recepients []client.TransferTarget
+	var recipients []client.TransferTarget
 	cache := make(map[string]*wallet.Token)
 	for i := 0; i < ctx.NArg(); i++ {
 		arg := ctx.Args().Get(i)
@@ -387,14 +387,14 @@ func multiTransferNEP5(ctx *cli.Context) error {
 		if err != nil {
 			return cli.NewExitError(fmt.Errorf("invalid amount: %w", err), 1)
 		}
-		recepients = append(recepients, client.TransferTarget{
+		recipients = append(recipients, client.TransferTarget{
 			Token:   token.Hash,
 			Address: addr,
 			Amount:  amount,
 		})
 	}
 
-	return signAndSendTransfer(ctx, c, acc, recepients)
+	return signAndSendTransfer(ctx, c, acc, recipients)
 }
 
 func transferNEP5(ctx *cli.Context) error {
@@ -442,10 +442,10 @@ func transferNEP5(ctx *cli.Context) error {
 	}})
 }
 
-func signAndSendTransfer(ctx *cli.Context, c *client.Client, acc *wallet.Account, recepients []client.TransferTarget) error {
+func signAndSendTransfer(ctx *cli.Context, c *client.Client, acc *wallet.Account, recipients []client.TransferTarget) error {
 	gas := flags.Fixed8FromContext(ctx, "gas")
 
-	tx, err := c.CreateNEP5MultiTransferTx(acc, int64(gas), recepients...)
+	tx, err := c.CreateNEP5MultiTransferTx(acc, int64(gas), recipients...)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}

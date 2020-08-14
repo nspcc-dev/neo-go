@@ -122,16 +122,16 @@ func (c *Client) CreateNEP5TransferTx(acc *wallet.Account, to util.Uint160, toke
 }
 
 // CreateNEP5MultiTransferTx creates an invocation transaction for performing NEP5 transfers
-// from a single sender to multiple recepients.
-func (c *Client) CreateNEP5MultiTransferTx(acc *wallet.Account, gas int64, recepients ...TransferTarget) (*transaction.Transaction, error) {
+// from a single sender to multiple recipients.
+func (c *Client) CreateNEP5MultiTransferTx(acc *wallet.Account, gas int64, recipients ...TransferTarget) (*transaction.Transaction, error) {
 	from, err := address.StringToUint160(acc.Address)
 	if err != nil {
 		return nil, fmt.Errorf("bad account address: %w", err)
 	}
 	w := io.NewBufBinWriter()
-	for i := range recepients {
-		emit.AppCallWithOperationAndArgs(w.BinWriter, recepients[i].Token, "transfer", from,
-			recepients[i].Address, recepients[i].Amount)
+	for i := range recipients {
+		emit.AppCallWithOperationAndArgs(w.BinWriter, recipients[i].Token, "transfer", from,
+			recipients[i].Address, recipients[i].Amount)
 		emit.Opcode(w.BinWriter, opcode.ASSERT)
 	}
 	return c.CreateTxFromScript(w.Bytes(), acc, gas)
@@ -189,9 +189,9 @@ func (c *Client) TransferNEP5(acc *wallet.Account, to util.Uint160, token util.U
 	return c.SendRawTransaction(tx)
 }
 
-// MultiTransferNEP5 is similar to TransferNEP5, buf allows to have multiple recepients.
-func (c *Client) MultiTransferNEP5(acc *wallet.Account, gas int64, recepients ...TransferTarget) (util.Uint256, error) {
-	tx, err := c.CreateNEP5MultiTransferTx(acc, gas, recepients...)
+// MultiTransferNEP5 is similar to TransferNEP5, buf allows to have multiple recipients.
+func (c *Client) MultiTransferNEP5(acc *wallet.Account, gas int64, recipients ...TransferTarget) (util.Uint256, error) {
+	tx, err := c.CreateNEP5MultiTransferTx(acc, gas, recipients...)
 	if err != nil {
 		return util.Uint256{}, err
 	}

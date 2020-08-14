@@ -43,7 +43,7 @@ type Method struct {
 	ReturnType smartcontract.ParamType `json:"returntype"`
 }
 
-// NewParameter returns new paramter with the specified name and type.
+// NewParameter returns new parameter of specified name and type.
 func NewParameter(name string, typ smartcontract.ParamType) Parameter {
 	return Parameter{
 		Name: name,
