@@ -5,6 +5,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
@@ -190,8 +191,8 @@ func TestEmitString(t *testing.T) {
 
 func TestEmitSyscall(t *testing.T) {
 	syscalls := []string{
-		"System.Runtime.Log",
-		"System.Runtime.Notify",
+		interopnames.SystemRuntimeLog,
+		interopnames.SystemRuntimeNotify,
 		"System.Runtime.Whatever",
 	}
 
@@ -201,7 +202,7 @@ func TestEmitSyscall(t *testing.T) {
 		result := buf.Bytes()
 		assert.Equal(t, 5, len(result))
 		assert.Equal(t, opcode.Opcode(result[0]), opcode.SYSCALL)
-		assert.Equal(t, binary.LittleEndian.Uint32(result[1:]), InteropNameToID([]byte(syscall)))
+		assert.Equal(t, binary.LittleEndian.Uint32(result[1:]), interopnames.ToID([]byte(syscall)))
 		buf.Reset()
 	}
 

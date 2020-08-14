@@ -1,13 +1,13 @@
 package emit
 
 import (
-	"crypto/sha256"
 	"encoding/binary"
 	"errors"
 	"fmt"
 	"math/big"
 	"math/bits"
 
+	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -124,7 +124,7 @@ func Syscall(w *io.BinWriter, api string) {
 		return
 	}
 	buf := make([]byte, 4)
-	binary.LittleEndian.PutUint32(buf, InteropNameToID([]byte(api)))
+	binary.LittleEndian.PutUint32(buf, interopnames.ToID([]byte(api)))
 	Instruction(w, opcode.SYSCALL, buf)
 }
 
@@ -149,7 +149,7 @@ func Jmp(w *io.BinWriter, op opcode.Opcode, label uint16) {
 // AppCall emits call to provided contract.
 func AppCall(w *io.BinWriter, scriptHash util.Uint160) {
 	Bytes(w, scriptHash.BytesBE())
-	Syscall(w, "System.Contract.Call")
+	Syscall(w, interopnames.SystemContractCall)
 }
 
 // AppCallWithOperationAndArgs emits an APPCALL with the given operation and arguments.
@@ -161,10 +161,4 @@ func AppCallWithOperationAndArgs(w *io.BinWriter, scriptHash util.Uint160, opera
 
 func isInstructionJmp(op opcode.Opcode) bool {
 	return opcode.JMP <= op && op <= opcode.CALLL
-}
-
-// InteropNameToID returns an identificator of the method based on its name.
-func InteropNameToID(name []byte) uint32 {
-	h := sha256.Sum256(name)
-	return binary.LittleEndian.Uint32(h[:4])
 }

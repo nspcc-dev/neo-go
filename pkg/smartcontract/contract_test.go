@@ -3,9 +3,9 @@ package smartcontract
 import (
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/io"
-	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -34,7 +34,7 @@ func TestCreateMultiSigRedeemScript(t *testing.T) {
 	assert.Equal(t, opcode.PUSH3, opcode.Opcode(br.ReadB()))
 	assert.Equal(t, opcode.PUSHNULL, opcode.Opcode(br.ReadB()))
 	assert.Equal(t, opcode.SYSCALL, opcode.Opcode(br.ReadB()))
-	assert.Equal(t, emit.InteropNameToID([]byte("Neo.Crypto.CheckMultisigWithECDsaSecp256r1")), br.ReadU32LE())
+	assert.Equal(t, interopnames.ToID([]byte(interopnames.NeoCryptoCheckMultisigWithECDsaSecp256r1)), br.ReadU32LE())
 }
 
 func TestCreateDefaultMultiSigRedeemScript(t *testing.T) {

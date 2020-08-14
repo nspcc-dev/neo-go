@@ -4,8 +4,8 @@ import (
 	"errors"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
+	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
-	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
@@ -27,7 +27,7 @@ func Invoke(ic *interop.Context) error {
 	cb.LoadContext(ic.VM, args)
 	switch t := cb.(type) {
 	case *MethodCallback:
-		id := emit.InteropNameToID([]byte("System.Contract.Call"))
+		id := interopnames.ToID([]byte(interopnames.SystemContractCall))
 		return ic.SyscallHandler(ic.VM, id)
 	case *SyscallCallback:
 		return ic.SyscallHandler(ic.VM, t.desc.ID)

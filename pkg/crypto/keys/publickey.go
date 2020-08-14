@@ -11,6 +11,7 @@ import (
 	"math/big"
 
 	"github.com/btcsuite/btcd/btcec"
+	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/io"
@@ -295,7 +296,7 @@ func (p *PublicKey) GetVerificationScript() []byte {
 	}
 	emit.Bytes(buf.BinWriter, b)
 	emit.Opcode(buf.BinWriter, opcode.PUSHNULL)
-	emit.Syscall(buf.BinWriter, "Neo.Crypto.VerifyWithECDsaSecp256r1")
+	emit.Syscall(buf.BinWriter, interopnames.NeoCryptoVerifyWithECDsaSecp256r1)
 
 	return buf.Bytes()
 }

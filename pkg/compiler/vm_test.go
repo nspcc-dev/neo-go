@@ -7,11 +7,11 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/compiler"
+	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
-	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -109,10 +109,10 @@ func newStoragePlugin() *storagePlugin {
 		mem:      make(map[string][]byte),
 		interops: make(map[uint32]func(v *vm.VM) error),
 	}
-	s.interops[emit.InteropNameToID([]byte("System.Storage.Get"))] = s.Get
-	s.interops[emit.InteropNameToID([]byte("System.Storage.Put"))] = s.Put
-	s.interops[emit.InteropNameToID([]byte("System.Storage.GetContext"))] = s.GetContext
-	s.interops[emit.InteropNameToID([]byte("System.Runtime.Notify"))] = s.Notify
+	s.interops[interopnames.ToID([]byte(interopnames.SystemStorageGet))] = s.Get
+	s.interops[interopnames.ToID([]byte(interopnames.SystemStoragePut))] = s.Put
+	s.interops[interopnames.ToID([]byte(interopnames.SystemStorageGetContext))] = s.GetContext
+	s.interops[interopnames.ToID([]byte(interopnames.SystemRuntimeNotify))] = s.Notify
 	return s
 
 }

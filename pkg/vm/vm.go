@@ -13,6 +13,7 @@ import (
 	"text/tabwriter"
 	"unicode/utf8"
 
+	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
@@ -191,10 +192,23 @@ func (v *VM) PrintOps() {
 					v.getOffsetDesc(ctx, catchP), v.getOffsetDesc(ctx, finallyP))
 			case opcode.INITSSLOT:
 				desc = fmt.Sprint(parameter[0])
+			case opcode.CONVERT, opcode.ISTYPE:
+				typ := stackitem.Type(parameter[0])
+				desc = fmt.Sprintf("%s (%x)", typ, parameter[0])
 			case opcode.INITSLOT:
 				desc = fmt.Sprintf("%d local, %d arg", parameter[0], parameter[1])
 			case opcode.SYSCALL:
-				desc = fmt.Sprintf("%q", parameter)
+				name, err := interopnames.FromID(GetInteropID(parameter))
+				if err != nil {
+					name = "not found"
+				}
+				desc = fmt.Sprintf("%s (%x)", name, parameter)
+			case opcode.PUSHINT8, opcode.PUSHINT16, opcode.PUSHINT32,
+				opcode.PUSHINT64, opcode.PUSHINT128, opcode.PUSHINT256:
+				val := bigint.FromBytes(parameter)
+				desc = fmt.Sprintf("%d (%x)", val, parameter)
+			case opcode.LDLOC, opcode.STLOC, opcode.LDARG, opcode.STARG, opcode.LDSFLD, opcode.STSFLD:
+				desc = fmt.Sprintf("%d (%x)", parameter[0], parameter)
 			default:
 				if utf8.Valid(parameter) {
 					desc = fmt.Sprintf("%x (%q)", parameter, parameter)
