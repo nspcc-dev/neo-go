@@ -89,7 +89,7 @@ func contractCreate(ic *interop.Context) error {
 		return err
 	}
 	contract, err := ic.DAO.GetContractState(newcontract.ScriptHash())
-	if contract != nil {
+	if contract != nil && err == nil {
 		return errors.New("contract already exists")
 	}
 	id, err := ic.DAO.GetAndUpdateNextContractID()

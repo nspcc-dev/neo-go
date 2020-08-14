@@ -160,6 +160,7 @@ func TestBlockedAccounts(t *testing.T) {
 		require.NoError(t, chain.persist())
 
 		res, err = invokeNativePolicyMethod(chain, "unblockAccount", account.BytesBE())
+		require.NoError(t, err)
 		checkResult(t, res, stackitem.NewBool(true))
 
 		accounts, err = chain.contracts.Policy.GetBlockedAccountsInternal(chain.dao)
@@ -183,11 +184,13 @@ func TestBlockedAccounts(t *testing.T) {
 
 		// unblock
 		res, err = invokeNativePolicyMethod(chain, "unblockAccount", account.BytesBE())
+		require.NoError(t, err)
 		checkResult(t, res, stackitem.NewBool(true))
 		require.NoError(t, chain.persist())
 
 		// unblock the same account should fail as we don't have it blocked
 		res, err = invokeNativePolicyMethod(chain, "unblockAccount", account.BytesBE())
+		require.NoError(t, err)
 		checkResult(t, res, stackitem.NewBool(false))
 		require.NoError(t, chain.persist())
 	})

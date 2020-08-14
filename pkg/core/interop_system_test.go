@@ -733,6 +733,7 @@ func TestContractUpdate(t *testing.T) {
 
 		// updated contract should have new scripthash
 		actual, err := ic.DAO.GetContractState(cs.ScriptHash())
+		require.NoError(t, err)
 		expected := &state.Contract{
 			ID:       cs.ID,
 			Script:   cs.Script,
