@@ -704,7 +704,7 @@ func (s *Server) handleGetAddrCmd(p Peer) error {
 // to sync up in blocks. A maximum of maxBlockBatch will
 // send at once.
 func (s *Server) requestBlocks(p Peer) error {
-	payload := payload.NewGetBlockByIndex(s.chain.BlockHeight(), -1)
+	payload := payload.NewGetBlockByIndex(s.chain.BlockHeight()+1, -1)
 	return p.EnqueueP2PMessage(NewMessage(CMDGetBlockByIndex, payload))
 }
 
