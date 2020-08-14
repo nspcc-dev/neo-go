@@ -13,7 +13,7 @@ type NEP5Tracker struct {
 	// Balance is the current balance of the account.
 	Balance big.Int
 	// LastUpdatedBlock is a number of block when last `transfer` to or from the
-	// account occured.
+	// account occurred.
 	LastUpdatedBlock uint32
 }
 
@@ -35,9 +35,9 @@ type NEP5Transfer struct {
 	// Amount is the amount of tokens transferred.
 	// It is negative when tokens are sent and positive if they are received.
 	Amount big.Int
-	// Block is a number of block when the event occured.
+	// Block is a number of block when the event occurred.
 	Block uint32
-	// Timestamp is the timestamp of the block where transfer occured.
+	// Timestamp is the timestamp of the block where transfer occurred.
 	Timestamp uint64
 	// Tx is a hash the transaction.
 	Tx util.Uint256

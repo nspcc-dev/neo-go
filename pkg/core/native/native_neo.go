@@ -326,7 +326,7 @@ const (
 )
 
 // ModifyAccountVotes modifies votes of the specified account by value (can be negative).
-// typ specifies if this modify is occuring during transfer or vote (with old or new validator).
+// typ specifies if this modify is occurring during transfer or vote (with old or new validator).
 func (n *NEO) ModifyAccountVotes(acc *state.NEOBalanceState, d dao.DAO, value *big.Int, typ int) error {
 	if acc.VoteTo != nil {
 		key := makeValidatorKey(acc.VoteTo)

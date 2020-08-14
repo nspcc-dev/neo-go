@@ -48,7 +48,7 @@ type Block struct {
 	Timestamp int
 	// Index represents the height of the block.
 	Index int
-	// NextConsensus representes contract address of the next miner (160 bit BE
+	// NextConsensus represents contract address of the next miner (160 bit BE
 	// value in a 20 byte slice).
 	NextConsensus []byte
 	// TransactionsLength represents the length of block's transactions array.

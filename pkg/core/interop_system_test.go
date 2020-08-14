@@ -458,7 +458,7 @@ func TestContractCall(t *testing.T) {
 				ic.VM.Estack().PushVal(args[i])
 			}
 			// interops can both return error and panic,
-			// we don't care which kind of error has occured
+			// we don't care which kind of error has occurred
 			require.Panics(t, func() {
 				err := contractCall(ic)
 				if err != nil {

@@ -9,7 +9,7 @@ import (
 )
 
 // GetProof returns a proof that key belongs to t.
-// Proof consist of serialized nodes occuring on path from the root to the leaf of key.
+// Proof consist of serialized nodes occurring on path from the root to the leaf of key.
 func (t *Trie) GetProof(key []byte) ([][]byte, error) {
 	var proof [][]byte
 	path := toNibbles(key)

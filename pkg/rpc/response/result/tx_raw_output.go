@@ -18,7 +18,7 @@ type TransactionOutputRaw struct {
 	TransactionMetadata
 }
 
-// TransactionMetadata is an auxilliary struct for proper TransactionOutputRaw marshaling.
+// TransactionMetadata is an auxiliary struct for proper TransactionOutputRaw marshaling.
 type TransactionMetadata struct {
 	Blockhash     util.Uint256 `json:"blockhash,omitempty"`
 	Confirmations int          `json:"confirmations,omitempty"`
