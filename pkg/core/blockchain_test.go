@@ -7,6 +7,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
+	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
@@ -273,7 +274,7 @@ func TestSubscriptions(t *testing.T) {
 
 	script := io.NewBufBinWriter()
 	emit.Bytes(script.BinWriter, []byte("yay!"))
-	emit.Syscall(script.BinWriter, "System.Runtime.Notify")
+	emit.Syscall(script.BinWriter, interopnames.SystemRuntimeNotify)
 	require.NoError(t, script.Err)
 	txGood1 := transaction.New(netmode.UnitTestNet, script.Bytes(), 0)
 	txGood1.Signers = []transaction.Signer{{Account: neoOwner}}
@@ -284,7 +285,7 @@ func TestSubscriptions(t *testing.T) {
 	// Reset() reuses the script buffer and we need to keep scripts.
 	script = io.NewBufBinWriter()
 	emit.Bytes(script.BinWriter, []byte("nay!"))
-	emit.Syscall(script.BinWriter, "System.Runtime.Notify")
+	emit.Syscall(script.BinWriter, interopnames.SystemRuntimeNotify)
 	emit.Opcode(script.BinWriter, opcode.THROW)
 	require.NoError(t, script.Err)
 	txBad := transaction.New(netmode.UnitTestNet, script.Bytes(), 0)
@@ -295,7 +296,7 @@ func TestSubscriptions(t *testing.T) {
 
 	script = io.NewBufBinWriter()
 	emit.Bytes(script.BinWriter, []byte("yay! yay! yay!"))
-	emit.Syscall(script.BinWriter, "System.Runtime.Notify")
+	emit.Syscall(script.BinWriter, interopnames.SystemRuntimeNotify)
 	require.NoError(t, script.Err)
 	txGood2 := transaction.New(netmode.UnitTestNet, script.Bytes(), 0)
 	txGood2.Signers = []transaction.Signer{{Account: neoOwner}}

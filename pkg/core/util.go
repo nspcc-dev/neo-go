@@ -8,6 +8,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/crypto"
+	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
@@ -75,7 +76,7 @@ func createGenesisBlock(cfg config.ProtocolConfiguration) (*block.Block, error) 
 
 func deployNativeContracts(magic netmode.Magic) *transaction.Transaction {
 	buf := io.NewBufBinWriter()
-	emit.Syscall(buf.BinWriter, "Neo.Native.Deploy")
+	emit.Syscall(buf.BinWriter, interopnames.NeoNativeDeploy)
 	script := buf.Bytes()
 	tx := transaction.New(magic, script, 0)
 	tx.Nonce = 0

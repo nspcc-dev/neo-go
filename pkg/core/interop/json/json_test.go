@@ -12,8 +12,8 @@ import (
 )
 
 var (
-	serializeID   = interopnames.ToID([]byte("System.Json.Serialize"))
-	deserializeID = interopnames.ToID([]byte("System.Json.Deserialize"))
+	serializeID   = interopnames.ToID([]byte(interopnames.SystemJSONSerialize))
+	deserializeID = interopnames.ToID([]byte(interopnames.SystemJSONDeserialize))
 )
 
 var jsonInterops = []interop.Function{

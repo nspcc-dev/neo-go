@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
@@ -24,7 +25,7 @@ func CreateDeploymentScript(avm []byte, manif *manifest.Manifest) ([]byte, error
 	}
 	emit.Bytes(script.BinWriter, rawManifest)
 	emit.Bytes(script.BinWriter, avm)
-	emit.Syscall(script.BinWriter, "System.Contract.Create")
+	emit.Syscall(script.BinWriter, interopnames.SystemContractCreate)
 	return script.Bytes(), nil
 }
 

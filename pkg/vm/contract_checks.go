@@ -10,8 +10,8 @@ import (
 )
 
 var (
-	verifyInteropID   = interopnames.ToID([]byte("Neo.Crypto.VerifyWithECDsaSecp256r1"))
-	multisigInteropID = interopnames.ToID([]byte("Neo.Crypto.CheckMultisigWithECDsaSecp256r1"))
+	verifyInteropID   = interopnames.ToID([]byte(interopnames.NeoCryptoVerifyWithECDsaSecp256r1))
+	multisigInteropID = interopnames.ToID([]byte(interopnames.NeoCryptoCheckMultisigWithECDsaSecp256r1))
 )
 
 func getNumOfThingsFromInstr(instr opcode.Opcode, param []byte) (int, bool) {

@@ -27,7 +27,7 @@ func Invoke(ic *interop.Context) error {
 	cb.LoadContext(ic.VM, args)
 	switch t := cb.(type) {
 	case *MethodCallback:
-		id := interopnames.ToID([]byte("System.Contract.Call"))
+		id := interopnames.ToID([]byte(interopnames.SystemContractCall))
 		return ic.SyscallHandler(ic.VM, id)
 	case *SyscallCallback:
 		return ic.SyscallHandler(ic.VM, t.desc.ID)

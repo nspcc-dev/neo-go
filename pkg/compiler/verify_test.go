@@ -19,7 +19,7 @@ func TestVerifyGood(t *testing.T) {
 	src := getVerifyProg(pub, sig, msg)
 
 	v, p := vmAndCompileInterop(t, src)
-	p.interops[interopnames.ToID([]byte("Neo.Crypto.VerifyWithECDsaSecp256r1"))] = func(v *vm.VM) error {
+	p.interops[interopnames.ToID([]byte(interopnames.NeoCryptoVerifyWithECDsaSecp256r1))] = func(v *vm.VM) error {
 		assert.Equal(t, msg, v.Estack().Pop().Bytes())
 		assert.Equal(t, pub, v.Estack().Pop().Bytes())
 		assert.Equal(t, sig, v.Estack().Pop().Bytes())

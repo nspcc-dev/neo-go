@@ -149,7 +149,7 @@ func Jmp(w *io.BinWriter, op opcode.Opcode, label uint16) {
 // AppCall emits call to provided contract.
 func AppCall(w *io.BinWriter, scriptHash util.Uint160) {
 	Bytes(w, scriptHash.BytesBE())
-	Syscall(w, "System.Contract.Call")
+	Syscall(w, interopnames.SystemContractCall)
 }
 
 // AppCallWithOperationAndArgs emits an APPCALL with the given operation and arguments.

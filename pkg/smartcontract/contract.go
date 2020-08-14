@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sort"
 
+	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
@@ -31,7 +32,7 @@ func CreateMultiSigRedeemScript(m int, publicKeys keys.PublicKeys) ([]byte, erro
 	}
 	emit.Int(buf.BinWriter, int64(len(publicKeys)))
 	emit.Opcode(buf.BinWriter, opcode.PUSHNULL)
-	emit.Syscall(buf.BinWriter, "Neo.Crypto.CheckMultisigWithECDsaSecp256r1")
+	emit.Syscall(buf.BinWriter, interopnames.NeoCryptoCheckMultisigWithECDsaSecp256r1)
 
 	return buf.Bytes(), nil
 }

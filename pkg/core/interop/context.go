@@ -8,6 +8,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
+	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto"
@@ -110,7 +111,7 @@ func NewContractMD(name string) *ContractMD {
 
 	w := io.NewBufBinWriter()
 	emit.String(w.BinWriter, c.Name)
-	emit.Syscall(w.BinWriter, "Neo.Native.Call")
+	emit.Syscall(w.BinWriter, interopnames.NeoNativeCall)
 
 	c.Script = w.Bytes()
 	c.Hash = hash.Hash160(c.Script)

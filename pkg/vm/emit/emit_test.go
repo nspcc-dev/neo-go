@@ -191,8 +191,8 @@ func TestEmitString(t *testing.T) {
 
 func TestEmitSyscall(t *testing.T) {
 	syscalls := []string{
-		"System.Runtime.Log",
-		"System.Runtime.Notify",
+		interopnames.SystemRuntimeLog,
+		interopnames.SystemRuntimeNotify,
 		"System.Runtime.Whatever",
 	}
 

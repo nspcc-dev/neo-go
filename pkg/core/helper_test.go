@@ -14,6 +14,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/compiler"
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
+	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
@@ -239,7 +240,7 @@ func TestCreateBasicChain(t *testing.T) {
 	require.NoError(t, err)
 	emit.Bytes(script.BinWriter, bs)
 	emit.Bytes(script.BinWriter, avm)
-	emit.Syscall(script.BinWriter, "System.Contract.Create")
+	emit.Syscall(script.BinWriter, interopnames.SystemContractCreate)
 	txScript := script.Bytes()
 
 	txDeploy := transaction.New(testchain.Network(), txScript, 100*native.GASFactor)

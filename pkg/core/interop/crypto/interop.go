@@ -6,12 +6,12 @@ import (
 )
 
 var (
-	ecdsaSecp256r1VerifyID        = interopnames.ToID([]byte("Neo.Crypto.VerifyWithECDsaSecp256r1"))
-	ecdsaSecp256k1VerifyID        = interopnames.ToID([]byte("Neo.Crypto.VerifyWithECDsaSecp256k1"))
-	ecdsaSecp256r1CheckMultisigID = interopnames.ToID([]byte("Neo.Crypto.CheckMultisigWithECDsaSecp256r1"))
-	ecdsaSecp256k1CheckMultisigID = interopnames.ToID([]byte("Neo.Crypto.CheckMultisigWithECDsaSecp256k1"))
-	sha256ID                      = interopnames.ToID([]byte("Neo.Crypto.SHA256"))
-	ripemd160ID                   = interopnames.ToID([]byte("Neo.Crypto.RIPEMD160"))
+	ecdsaSecp256r1VerifyID        = interopnames.ToID([]byte(interopnames.NeoCryptoVerifyWithECDsaSecp256r1))
+	ecdsaSecp256k1VerifyID        = interopnames.ToID([]byte(interopnames.NeoCryptoVerifyWithECDsaSecp256k1))
+	ecdsaSecp256r1CheckMultisigID = interopnames.ToID([]byte(interopnames.NeoCryptoCheckMultisigWithECDsaSecp256r1))
+	ecdsaSecp256k1CheckMultisigID = interopnames.ToID([]byte(interopnames.NeoCryptoCheckMultisigWithECDsaSecp256k1))
+	sha256ID                      = interopnames.ToID([]byte(interopnames.NeoCryptoSHA256))
+	ripemd160ID                   = interopnames.ToID([]byte(interopnames.NeoCryptoRIPEMD160))
 )
 
 var cryptoInterops = []interop.Function{

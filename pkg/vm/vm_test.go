@@ -494,16 +494,16 @@ func getEnumeratorProg(n int, isIter bool) (prog []byte) {
 	prog = []byte{byte(opcode.INITSSLOT), 1, byte(opcode.STSFLD0)}
 	for i := 0; i < n; i++ {
 		prog = append(prog, byte(opcode.LDSFLD0))
-		prog = append(prog, getSyscallProg("System.Enumerator.Next")...)
+		prog = append(prog, getSyscallProg(interopnames.SystemEnumeratorNext)...)
 		prog = append(prog, byte(opcode.LDSFLD0))
-		prog = append(prog, getSyscallProg("System.Enumerator.Value")...)
+		prog = append(prog, getSyscallProg(interopnames.SystemEnumeratorValue)...)
 		if isIter {
 			prog = append(prog, byte(opcode.LDSFLD0))
-			prog = append(prog, getSyscallProg("System.Iterator.Key")...)
+			prog = append(prog, getSyscallProg(interopnames.SystemIteratorKey)...)
 		}
 	}
 	prog = append(prog, byte(opcode.LDSFLD0))
-	prog = append(prog, getSyscallProg("System.Enumerator.Next")...)
+	prog = append(prog, getSyscallProg(interopnames.SystemEnumeratorNext)...)
 
 	return
 }
@@ -595,8 +595,8 @@ func TestIteratorConcat(t *testing.T) {
 }
 
 func TestIteratorKeys(t *testing.T) {
-	prog := getSyscallProg("System.Iterator.Create")
-	prog = append(prog, getSyscallProg("System.Iterator.Keys")...)
+	prog := getSyscallProg(interopnames.SystemIteratorCreate)
+	prog = append(prog, getSyscallProg(interopnames.SystemIteratorKeys)...)
 	prog = append(prog, getEnumeratorProg(2, false)...)
 
 	v := load(prog)
@@ -615,8 +615,8 @@ func TestIteratorKeys(t *testing.T) {
 }
 
 func TestIteratorValues(t *testing.T) {
-	prog := getSyscallProg("System.Iterator.Create")
-	prog = append(prog, getSyscallProg("System.Iterator.Values")...)
+	prog := getSyscallProg(interopnames.SystemIteratorCreate)
+	prog = append(prog, getSyscallProg(interopnames.SystemIteratorValues)...)
 	prog = append(prog, getEnumeratorProg(2, false)...)
 
 	v := load(prog)
@@ -649,8 +649,8 @@ func getSyscallProg(name string) (prog []byte) {
 }
 
 func getSerializeProg() (prog []byte) {
-	prog = append(prog, getSyscallProg("System.Binary.Serialize")...)
-	prog = append(prog, getSyscallProg("System.Binary.Deserialize")...)
+	prog = append(prog, getSyscallProg(interopnames.SystemBinarySerialize)...)
+	prog = append(prog, getSyscallProg(interopnames.SystemBinaryDeserialize)...)
 	prog = append(prog, byte(opcode.RET))
 
 	return
@@ -755,7 +755,7 @@ func TestSerializeStruct(t *testing.T) {
 }
 
 func TestDeserializeUnknown(t *testing.T) {
-	prog := append(getSyscallProg("System.Binary.Deserialize"), byte(opcode.RET))
+	prog := append(getSyscallProg(interopnames.SystemBinaryDeserialize), byte(opcode.RET))
 
 	data, err := stackitem.SerializeItem(stackitem.NewBigInteger(big.NewInt(123)))
 	require.NoError(t, err)
@@ -791,7 +791,7 @@ func TestSerializeMapCompat(t *testing.T) {
 	emit.Bytes(buf.BinWriter, []byte("key"))
 	emit.Bytes(buf.BinWriter, []byte("value"))
 	emit.Opcode(buf.BinWriter, opcode.SETITEM)
-	emit.Syscall(buf.BinWriter, "System.Binary.Serialize")
+	emit.Syscall(buf.BinWriter, interopnames.SystemBinarySerialize)
 	require.NoError(t, buf.Err)
 
 	vm := load(buf.Bytes())

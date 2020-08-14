@@ -56,7 +56,7 @@ func getPanicSource(need bool, message string) string {
 }
 
 func getLogHandler(logs *[]string) vm.SyscallHandler {
-	logID := interopnames.ToID([]byte("System.Runtime.Log"))
+	logID := interopnames.ToID([]byte(interopnames.SystemRuntimeLog))
 	return func(v *vm.VM, id uint32) error {
 		if id != logID {
 			return errors.New("syscall not found")

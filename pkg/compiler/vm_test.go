@@ -109,10 +109,10 @@ func newStoragePlugin() *storagePlugin {
 		mem:      make(map[string][]byte),
 		interops: make(map[uint32]func(v *vm.VM) error),
 	}
-	s.interops[interopnames.ToID([]byte("System.Storage.Get"))] = s.Get
-	s.interops[interopnames.ToID([]byte("System.Storage.Put"))] = s.Put
-	s.interops[interopnames.ToID([]byte("System.Storage.GetContext"))] = s.GetContext
-	s.interops[interopnames.ToID([]byte("System.Runtime.Notify"))] = s.Notify
+	s.interops[interopnames.ToID([]byte(interopnames.SystemStorageGet))] = s.Get
+	s.interops[interopnames.ToID([]byte(interopnames.SystemStoragePut))] = s.Put
+	s.interops[interopnames.ToID([]byte(interopnames.SystemStorageGetContext))] = s.GetContext
+	s.interops[interopnames.ToID([]byte(interopnames.SystemRuntimeNotify))] = s.Notify
 	return s
 
 }

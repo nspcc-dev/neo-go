@@ -12,6 +12,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
@@ -1313,7 +1314,7 @@ func (c *codegen) convertBuiltin(expr *ast.CallExpr) {
 			emit.Opcode(c.prog.BinWriter, opcode.THROW)
 		} else if isString(c.typeInfo.Types[arg].Type) {
 			ast.Walk(c, arg)
-			emit.Syscall(c.prog.BinWriter, "System.Runtime.Log")
+			emit.Syscall(c.prog.BinWriter, interopnames.SystemRuntimeLog)
 			emit.Opcode(c.prog.BinWriter, opcode.THROW)
 		} else {
 			c.prog.Err = errors.New("panic should have string or nil argument")
