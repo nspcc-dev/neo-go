@@ -453,6 +453,16 @@ func (s *Server) handleBlockCmd(p Peer, block *block.Block) error {
 
 // handlePing processes ping request.
 func (s *Server) handlePing(p Peer, ping *payload.Ping) error {
+	err := p.HandlePing(ping)
+	if err != nil {
+		return err
+	}
+	if s.chain.BlockHeight() < ping.LastBlockIndex {
+		err = s.requestBlocks(p)
+		if err != nil {
+			return err
+		}
+	}
 	return p.EnqueueP2PMessage(NewMessage(CMDPong, payload.NewPing(s.chain.BlockHeight(), s.id)))
 }
 

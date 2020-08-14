@@ -431,6 +431,14 @@ func (p *TCPPeer) SendPing(msg *Message) error {
 	return p.EnqueueMessage(msg)
 }
 
+// HandlePing handles a ping message received from the peer.
+func (p *TCPPeer) HandlePing(ping *payload.Ping) error {
+	p.lock.Lock()
+	defer p.lock.Unlock()
+	p.lastBlockIndex = ping.LastBlockIndex
+	return nil
+}
+
 // HandlePong handles a pong message received from the peer and does appropriate
 // accounting of outstanding pings and timeouts.
 func (p *TCPPeer) HandlePong(pong *payload.Ping) error {

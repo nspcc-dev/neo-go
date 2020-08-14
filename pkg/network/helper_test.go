@@ -286,6 +286,11 @@ func (p *localPeer) SendPing(m *Message) error {
 	_ = p.EnqueueMessage(m)
 	return nil
 }
+func (p *localPeer) HandlePing(ping *payload.Ping) error {
+	p.lastBlockIndex = ping.LastBlockIndex
+	return nil
+}
+
 func (p *localPeer) HandlePong(pong *payload.Ping) error {
 	p.lastBlockIndex = pong.LastBlockIndex
 	p.pingSent--
