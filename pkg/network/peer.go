@@ -67,6 +67,9 @@ type Peer interface {
 	HandleVersion(*payload.Version) error
 	HandleVersionAck() error
 
+	// HandlePing checks ping contents against Peer's state and updates it.
+	HandlePing(ping *payload.Ping) error
+
 	// HandlePong checks pong contents against Peer's state and updates it.
 	HandlePong(pong *payload.Ping) error
 }

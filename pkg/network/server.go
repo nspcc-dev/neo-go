@@ -453,6 +453,16 @@ func (s *Server) handleBlockCmd(p Peer, block *block.Block) error {
 
 // handlePing processes ping request.
 func (s *Server) handlePing(p Peer, ping *payload.Ping) error {
+	err := p.HandlePing(ping)
+	if err != nil {
+		return err
+	}
+	if s.chain.BlockHeight() < ping.LastBlockIndex {
+		err = s.requestBlocks(p)
+		if err != nil {
+			return err
+		}
+	}
 	return p.EnqueueP2PMessage(NewMessage(CMDPong, payload.NewPing(s.chain.BlockHeight(), s.id)))
 }
 
@@ -694,7 +704,7 @@ func (s *Server) handleGetAddrCmd(p Peer) error {
 // to sync up in blocks. A maximum of maxBlockBatch will
 // send at once.
 func (s *Server) requestBlocks(p Peer) error {
-	payload := payload.NewGetBlockByIndex(s.chain.BlockHeight(), -1)
+	payload := payload.NewGetBlockByIndex(s.chain.BlockHeight()+1, -1)
 	return p.EnqueueP2PMessage(NewMessage(CMDGetBlockByIndex, payload))
 }
 
