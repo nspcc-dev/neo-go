@@ -516,7 +516,7 @@ func checkEnumeratorStack(t *testing.T, vm *VM, arr []stackitem.Item) {
 	}
 }
 
-func testIterableCreate(t *testing.T, typ string) {
+func testIterableCreate(t *testing.T, typ string, isByteArray bool) {
 	isIter := typ == "Iterator"
 	prog := getSyscallProg("System." + typ + ".Create")
 	prog = append(prog, getEnumeratorProg(2, isIter)...)
@@ -526,7 +526,12 @@ func testIterableCreate(t *testing.T, typ string) {
 		stackitem.NewBigInteger(big.NewInt(42)),
 		stackitem.NewByteArray([]byte{3, 2, 1}),
 	}
-	vm.estack.Push(&Element{value: stackitem.NewArray(arr)})
+	if isByteArray {
+		arr[1] = stackitem.Make(7)
+		vm.estack.PushVal([]byte{42, 7})
+	} else {
+		vm.estack.Push(&Element{value: stackitem.NewArray(arr)})
+	}
 
 	runVM(t, vm)
 	if isIter {
@@ -543,11 +548,13 @@ func testIterableCreate(t *testing.T, typ string) {
 }
 
 func TestEnumeratorCreate(t *testing.T) {
-	testIterableCreate(t, "Enumerator")
+	t.Run("Array", func(t *testing.T) { testIterableCreate(t, "Enumerator", false) })
+	t.Run("ByteArray", func(t *testing.T) { testIterableCreate(t, "Enumerator", true) })
 }
 
 func TestIteratorCreate(t *testing.T) {
-	testIterableCreate(t, "Iterator")
+	t.Run("Array", func(t *testing.T) { testIterableCreate(t, "Iterator", false) })
+	t.Run("ByteArray", func(t *testing.T) { testIterableCreate(t, "Iterator", true) })
 }
 
 func testIterableConcat(t *testing.T, typ string) {
