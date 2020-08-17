@@ -109,10 +109,10 @@ func TestAddNetworkFee(t *testing.T) {
 
 	t.Run("Multi", func(t *testing.T) {
 		tx := transaction.New(testchain.Network(), []byte{byte(opcode.PUSH1)}, 0)
-		accs := getAccounts(t, 3)
-		pubs := keys.PublicKeys{accs[1].PrivateKey().PublicKey(), accs[2].PrivateKey().PublicKey()}
-		require.NoError(t, accs[1].ConvertMultisig(1, pubs))
-		require.NoError(t, accs[2].ConvertMultisig(1, pubs))
+		accs := getAccounts(t, 4)
+		pubs := keys.PublicKeys{accs[1].PrivateKey().PublicKey(), accs[2].PrivateKey().PublicKey(), accs[3].PrivateKey().PublicKey()}
+		require.NoError(t, accs[1].ConvertMultisig(2, pubs))
+		require.NoError(t, accs[2].ConvertMultisig(2, pubs))
 		tx.Signers = []transaction.Signer{
 			{
 				Account: accs[0].PrivateKey().GetScriptHash(),
@@ -126,6 +126,7 @@ func TestAddNetworkFee(t *testing.T) {
 		require.NoError(t, c.AddNetworkFee(tx, 10, accs[0], accs[1]))
 		require.NoError(t, accs[0].SignTx(tx))
 		require.NoError(t, accs[1].SignTx(tx))
+		require.NoError(t, accs[2].SignTx(tx))
 		cFee, _ := core.CalculateNetworkFee(accs[0].Contract.Script)
 		cFeeM, _ := core.CalculateNetworkFee(accs[1].Contract.Script)
 		require.Equal(t, int64(io.GetVarSize(tx))*feePerByte+cFee+cFeeM+10, tx.NetworkFee)
