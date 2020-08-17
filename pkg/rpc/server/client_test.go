@@ -156,3 +156,16 @@ func TestSignAndPushInvocationTx(t *testing.T) {
 	require.Equal(t, h, tx.Hash())
 	require.EqualValues(t, 30, tx.SystemFee)
 }
+
+func TestPing(t *testing.T) {
+	chain, rpcSrv, httpSrv := initServerWithInMemoryChain(t)
+	defer chain.Close()
+
+	c, err := client.New(context.Background(), httpSrv.URL, client.Options{Network: testchain.Network()})
+	require.NoError(t, err)
+
+	require.NoError(t, c.Ping())
+	require.NoError(t, rpcSrv.Shutdown())
+	httpSrv.Close()
+	require.Error(t, c.Ping())
+}
