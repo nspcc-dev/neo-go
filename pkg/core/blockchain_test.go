@@ -354,6 +354,15 @@ func TestVerifyHashAgainstScript(t *testing.T) {
 		err := bc.verifyHashAgainstScript(hash.Hash160(verif), w, ic, false, gas)
 		require.True(t, errors.Is(err, ErrVerificationFailed))
 	})
+	t.Run("TooManyResults", func(t *testing.T) {
+		verif := []byte{byte(opcode.NOP)}
+		w := &transaction.Witness{
+			InvocationScript:   []byte{byte(opcode.PUSH1), byte(opcode.PUSH1)},
+			VerificationScript: verif,
+		}
+		err := bc.verifyHashAgainstScript(hash.Hash160(verif), w, ic, false, gas)
+		require.True(t, errors.Is(err, ErrVerificationFailed))
+	})
 }
 
 func TestHasBlock(t *testing.T) {

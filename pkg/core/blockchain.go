@@ -1490,6 +1490,9 @@ func (bc *Blockchain) verifyHashAgainstScript(hash util.Uint160, witness *transa
 		if !resEl.Bool() {
 			return fmt.Errorf("%w: invalid signature", ErrVerificationFailed)
 		}
+		if vm.Estack().Len() != 0 {
+			return fmt.Errorf("%w: expected exactly one returned value", ErrVerificationFailed)
+		}
 		if useKeys {
 			bc.keyCacheLock.RLock()
 			_, ok := bc.keyCache[hash]

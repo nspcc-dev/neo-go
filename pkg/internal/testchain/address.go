@@ -84,7 +84,7 @@ func MultisigAddress() string {
 // Sign signs data by all consensus nodes and returns invocation script.
 func Sign(data []byte) []byte {
 	buf := io.NewBufBinWriter()
-	for i := 0; i < Size(); i++ {
+	for i := 0; i < 3; i++ {
 		pKey := PrivateKey(i)
 		sig := pKey.Sign(data)
 		if len(sig) != 64 {

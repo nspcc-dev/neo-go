@@ -52,8 +52,8 @@ type rpcTestCase struct {
 	check  func(t *testing.T, e *executor, result interface{})
 }
 
-const testContractHash = "5b5f77b947194ba45ff5fa1ba6e066af5636d110"
-const deploymentTxHash = "af0f94f6bdc5aada7abf1db19f1fcd2ea56cea596c41dc4abdfa6cd9664a7d72"
+const testContractHash = "93c4983afe01a75f74c1e56011bd630e9d8cc755"
+const deploymentTxHash = "583cf0e49d69d8854869efc3e97ad741061da478292a7280580789351a39a1ac"
 
 var rpcTestCases = map[string][]rpcTestCase{
 	"getapplicationlog": {
@@ -1027,7 +1027,7 @@ func checkNep5Balances(t *testing.T, e *executor, acc interface{}) {
 			},
 			{
 				Asset:       e.chain.UtilityTokenHash(),
-				Amount:      "915.61054740",
+				Amount:      "915.61059740",
 				LastUpdated: 6,
 			}},
 		Address: testchain.PrivateKeyByID(0).GetScriptHash().StringLE(),
