@@ -9,7 +9,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
-	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/request"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result"
@@ -410,26 +409,7 @@ func (c *Client) SignAndPushInvocationTx(script []byte, acc *wallet.Account, sys
 	var txHash util.Uint256
 	var err error
 
-	tx := transaction.New(c.opts.Network, script, sysfee)
-	tx.SystemFee = sysfee
-
-	addr, err := address.StringToUint160(acc.Address)
-	if err != nil {
-		return txHash, fmt.Errorf("failed to get address: %w", err)
-	}
-	tx.Signers = getSigners(addr, cosigners)
-
-	validUntilBlock, err := c.CalculateValidUntilBlock()
-	if err != nil {
-		return txHash, fmt.Errorf("failed to add validUntilBlock to transaction: %w", err)
-	}
-	tx.ValidUntilBlock = validUntilBlock
-
-	err = c.AddNetworkFee(tx, int64(netfee), acc)
-	if err != nil {
-		return txHash, fmt.Errorf("failed to add network fee: %w", err)
-	}
-
+	tx, err := c.CreateTxFromScript(script, acc, sysfee, int64(netfee), cosigners...)
 	if err = acc.SignTx(tx); err != nil {
 		return txHash, fmt.Errorf("failed to sign tx: %w", err)
 	}

@@ -134,39 +134,38 @@ func (c *Client) CreateNEP5MultiTransferTx(acc *wallet.Account, gas int64, recip
 			recipients[i].Address, recipients[i].Amount)
 		emit.Opcode(w.BinWriter, opcode.ASSERT)
 	}
-	return c.CreateTxFromScript(w.Bytes(), acc, gas)
+	return c.CreateTxFromScript(w.Bytes(), acc, -1, gas)
 }
 
 // CreateTxFromScript creates transaction and properly sets cosigners and NetworkFee.
-func (c *Client) CreateTxFromScript(script []byte, acc *wallet.Account, gas int64) (*transaction.Transaction, error) {
+// If sysFee <= 0, it is determined via result of `invokescript` RPC.
+func (c *Client) CreateTxFromScript(script []byte, acc *wallet.Account, sysFee, netFee int64,
+	cosigners ...transaction.Signer) (*transaction.Transaction, error) {
 	from, err := address.StringToUint160(acc.Address)
 	if err != nil {
 		return nil, fmt.Errorf("bad account address: %v", err)
 	}
-	result, err := c.InvokeScript(script, []transaction.Signer{
-		{
-			Account: from,
-			Scopes:  transaction.CalledByEntry,
-		},
-	})
-	if err != nil {
-		return nil, fmt.Errorf("can't add system fee to transaction: %w", err)
-	}
-	tx := transaction.New(c.opts.Network, script, result.GasConsumed)
-	tx.Signers = []transaction.Signer{
-		{
-			Account: from,
-			Scopes:  transaction.CalledByEntry,
-		},
-	}
-	tx.ValidUntilBlock, err = c.CalculateValidUntilBlock()
-	if err != nil {
-		return nil, fmt.Errorf("can't calculate validUntilBlock: %w", err)
+
+	signers := getSigners(from, cosigners)
+	if sysFee < 0 {
+		result, err := c.InvokeScript(script, signers)
+		if err != nil {
+			return nil, fmt.Errorf("can't add system fee to transaction: %w", err)
+		}
+		sysFee = result.GasConsumed
 	}
 
-	err = c.AddNetworkFee(tx, gas, acc)
+	tx := transaction.New(c.opts.Network, script, sysFee)
+	tx.Signers = signers
+
+	tx.ValidUntilBlock, err = c.CalculateValidUntilBlock()
 	if err != nil {
-		return nil, fmt.Errorf("can't add network fee to transaction: %w", err)
+		return nil, fmt.Errorf("failed to add validUntilBlock to transaction: %w", err)
+	}
+
+	err = c.AddNetworkFee(tx, netFee, acc)
+	if err != nil {
+		return nil, fmt.Errorf("failed to add network fee: %w", err)
 	}
 
 	return tx, nil

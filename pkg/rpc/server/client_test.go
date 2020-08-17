@@ -169,3 +169,32 @@ func TestPing(t *testing.T) {
 	httpSrv.Close()
 	require.Error(t, c.Ping())
 }
+
+func TestCreateTxFromScript(t *testing.T) {
+	chain, rpcSrv, httpSrv := initServerWithInMemoryChain(t)
+	defer chain.Close()
+	defer rpcSrv.Shutdown()
+
+	c, err := client.New(context.Background(), httpSrv.URL, client.Options{Network: testchain.Network()})
+	require.NoError(t, err)
+
+	priv := testchain.PrivateKey(0)
+	acc, err := wallet.NewAccountFromWIF(priv.WIF())
+	require.NoError(t, err)
+	t.Run("NoSystemFee", func(t *testing.T) {
+		tx, err := c.CreateTxFromScript([]byte{byte(opcode.PUSH1)}, acc, -1, 10)
+		require.NoError(t, err)
+		require.True(t, tx.ValidUntilBlock > chain.BlockHeight())
+		require.EqualValues(t, 30, tx.SystemFee) // PUSH1
+		require.True(t, len(tx.Signers) == 1)
+		require.Equal(t, acc.PrivateKey().GetScriptHash(), tx.Signers[0].Account)
+	})
+	t.Run("ProvideSystemFee", func(t *testing.T) {
+		tx, err := c.CreateTxFromScript([]byte{byte(opcode.PUSH1)}, acc, 123, 10)
+		require.NoError(t, err)
+		require.True(t, tx.ValidUntilBlock > chain.BlockHeight())
+		require.EqualValues(t, 123, tx.SystemFee)
+		require.True(t, len(tx.Signers) == 1)
+		require.Equal(t, acc.PrivateKey().GetScriptHash(), tx.Signers[0].Account)
+	})
+}
