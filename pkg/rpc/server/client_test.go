@@ -132,3 +132,27 @@ func TestAddNetworkFee(t *testing.T) {
 		require.Equal(t, int64(io.GetVarSize(tx))*feePerByte+cFee+cFeeM+10, tx.NetworkFee)
 	})
 }
+
+func TestSignAndPushInvocationTx(t *testing.T) {
+	chain, rpcSrv, httpSrv := initServerWithInMemoryChain(t)
+	defer chain.Close()
+	defer rpcSrv.Shutdown()
+
+	c, err := client.New(context.Background(), httpSrv.URL, client.Options{Network: testchain.Network()})
+	require.NoError(t, err)
+
+	priv := testchain.PrivateKey(0)
+	acc, err := wallet.NewAccountFromWIF(priv.WIF())
+	require.NoError(t, err)
+	h, err := c.SignAndPushInvocationTx([]byte{byte(opcode.PUSH1)}, acc, 30, 0, []transaction.Signer{{
+		Account: priv.GetScriptHash(),
+		Scopes:  transaction.CalledByEntry,
+	}})
+	require.NoError(t, err)
+
+	mp := chain.GetMemPool()
+	tx, ok := mp.TryGetValue(h)
+	require.True(t, ok)
+	require.Equal(t, h, tx.Hash())
+	require.EqualValues(t, 30, tx.SystemFee)
+}
