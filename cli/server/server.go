@@ -50,6 +50,10 @@ func NewCommands() []cli.Command {
 			Name:  "out, o",
 			Usage: "Output file (stdout if not given)",
 		},
+		cli.StringFlag{
+			Name:  "state, r",
+			Usage: "File to export state roots to",
+		},
 	)
 	var cfgCountInFlags = make([]cli.Flag, len(cfgWithCountFlags))
 	copy(cfgCountInFlags, cfgWithCountFlags)
@@ -209,22 +213,47 @@ func dumpDB(ctx *cli.Context) error {
 	if count == 0 {
 		count = chainCount - start
 	}
+
+	var rootsWriter *io.BinWriter
+	if out := ctx.String("state"); out != "" {
+		rootsStream, err := os.Create(out)
+		if err != nil {
+			return cli.NewExitError(fmt.Errorf("can't create file for state roots: %w", err), 1)
+		}
+		defer rootsStream.Close()
+		rootsWriter = io.NewBinWriterFromIO(rootsStream)
+	}
 	if start != 0 {
 		writer.WriteU32LE(start)
 	}
 	writer.WriteU32LE(count)
+
+	rootsCount := count
+	if rootsWriter != nil {
+		rootsWriter.WriteU32LE(start)
+		if h := chain.StateHeight() + 1; start+rootsCount > h {
+			log.Info("state height is low, state root dump will be cut", zap.Uint32("height", h))
+			rootsCount = h - start
+		}
+		rootsWriter.WriteU32LE(rootsCount)
+	}
+
 	for i := start; i < start+count; i++ {
+		if rootsWriter != nil && i < start+rootsCount {
+			r, err := chain.GetStateRoot(i)
+			if err != nil {
+				return cli.NewExitError(fmt.Errorf("failed to get stateroot %d: %w", i, err), 1)
+			}
+			if err := writeSizedItem(&r.MPTRoot, rootsWriter); err != nil {
+				return cli.NewExitError(err, 1)
+			}
+		}
 		bh := chain.GetHeaderHash(int(i))
 		b, err := chain.GetBlock(bh)
 		if err != nil {
 			return cli.NewExitError(fmt.Errorf("failed to get block %d: %s", i, err), 1)
 		}
-		buf := io.NewBufBinWriter()
-		b.EncodeBinary(buf.BinWriter)
-		bytes := buf.Bytes()
-		writer.WriteU32LE(uint32(len(bytes)))
-		writer.WriteBytes(bytes)
-		if writer.Err != nil {
+		if err := writeSizedItem(b, writer); err != nil {
 			return cli.NewExitError(err, 1)
 		}
 	}
@@ -232,6 +261,15 @@ func dumpDB(ctx *cli.Context) error {
 	prometheus.ShutDown()
 	chain.Close()
 	return nil
+}
+
+func writeSizedItem(item io.Serializable, w *io.BinWriter) error {
+	buf := io.NewBufBinWriter()
+	item.EncodeBinary(buf.BinWriter)
+	bytes := buf.Bytes()
+	w.WriteU32LE(uint32(len(bytes)))
+	w.WriteBytes(bytes)
+	return w.Err
 }
 
 func restoreDB(ctx *cli.Context) error {
