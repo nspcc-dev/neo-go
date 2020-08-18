@@ -287,6 +287,7 @@ func getVerificationScript(i uint16, validators []crypto.PublicKey) []byte {
 
 func fromPayload(t messageType, recovery *Payload, p io.Serializable) *Payload {
 	return &Payload{
+		network: recovery.network,
 		message: &message{
 			Type:       t,
 			ViewNumber: recovery.message.ViewNumber,
