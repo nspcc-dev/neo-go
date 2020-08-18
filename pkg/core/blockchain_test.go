@@ -372,17 +372,27 @@ func TestHasBlock(t *testing.T) {
 	}
 }
 
-//TODO NEO3.0:Update binary
-/*
 func TestGetTransaction(t *testing.T) {
-	b1 := getDecodedBlock(t, 1)
-	block := getDecodedBlock(t, 2)
 	bc := newTestChain(t)
+	tx1 := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
+	tx1.Signers = []transaction.Signer{{
+		Account: testchain.MultisigScriptHash(),
+		Scopes:  transaction.CalledByEntry,
+	}}
+	tx2 := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH2)}, 0)
+	tx2.Signers = []transaction.Signer{{
+		Account: testchain.MultisigScriptHash(),
+		Scopes:  transaction.CalledByEntry,
+	}}
+	require.NoError(t, signTx(bc, tx1, tx2))
+	b1 := bc.newBlock(tx1)
 	// Turn verification off, because these blocks are really from some other chain
 	// and can't be verified, but we don't care about that in this test.
 	bc.config.VerifyBlocks = false
+	bc.config.VerifyTransactions = false
 
 	assert.Nil(t, bc.AddBlock(b1))
+	block := bc.newBlock(tx2)
 	assert.Nil(t, bc.AddBlock(block))
 
 	// Test unpersisted and persisted access
@@ -391,15 +401,13 @@ func TestGetTransaction(t *testing.T) {
 		require.Nil(t, err)
 		assert.Equal(t, block.Index, height)
 		assert.Equal(t, block.Transactions[0], tx)
-		assert.Equal(t, 10, io.GetVarSize(tx))
+		assert.Equal(t, 467, io.GetVarSize(tx))
 		assert.Equal(t, 1, io.GetVarSize(tx.Attributes))
-		assert.Equal(t, 1, io.GetVarSize(tx.Inputs))
-		assert.Equal(t, 1, io.GetVarSize(tx.Outputs))
 		assert.Equal(t, 1, io.GetVarSize(tx.Scripts))
 		assert.NoError(t, bc.persist())
 	}
 }
-*/
+
 func TestGetClaimable(t *testing.T) {
 	bc := newTestChain(t)
 	defer bc.Close()
