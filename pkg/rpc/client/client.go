@@ -9,11 +9,9 @@ import (
 	"net"
 	"net/http"
 	"net/url"
-	"sync"
 	"time"
 
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
-	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/request"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response"
 )
@@ -34,8 +32,6 @@ type Client struct {
 	ctx      context.Context
 	opts     Options
 	requestF func(*request.Raw) (*response.Raw, error)
-	wifMu    *sync.Mutex
-	wif      *keys.WIF
 	cache    cache
 }
 
@@ -96,37 +92,11 @@ func New(ctx context.Context, endpoint string, opts Options) (*Client, error) {
 	cl := &Client{
 		ctx:      ctx,
 		cli:      httpClient,
-		wifMu:    new(sync.Mutex),
 		endpoint: url,
 	}
 	cl.opts = opts
 	cl.requestF = cl.makeHTTPRequest
 	return cl, nil
-}
-
-// WIF returns WIF structure associated with the client.
-func (c *Client) WIF() keys.WIF {
-	c.wifMu.Lock()
-	defer c.wifMu.Unlock()
-	return keys.WIF{
-		Version:    c.wif.Version,
-		Compressed: c.wif.Compressed,
-		PrivateKey: c.wif.PrivateKey,
-		S:          c.wif.S,
-	}
-}
-
-// SetWIF decodes given WIF and adds some wallet
-// data to client. Useful for RPC calls that require an open wallet.
-func (c *Client) SetWIF(wif string) error {
-	c.wifMu.Lock()
-	defer c.wifMu.Unlock()
-	decodedWif, err := keys.WIFDecode(wif, 0x00)
-	if err != nil {
-		return fmt.Errorf("failed to decode WIF: %w", err)
-	}
-	c.wif = decodedWif
-	return nil
 }
 
 func (c *Client) performRequest(method string, p request.RawParams, v interface{}) error {
