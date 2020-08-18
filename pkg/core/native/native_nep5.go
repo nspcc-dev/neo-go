@@ -2,6 +2,7 @@ package native
 
 import (
 	"errors"
+	"fmt"
 	"math/big"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
@@ -303,6 +304,10 @@ func toUint160(s stackitem.Item) util.Uint160 {
 
 func getOnPersistWrapper(f func(ic *interop.Context) error) interop.Method {
 	return func(ic *interop.Context, _ []stackitem.Item) stackitem.Item {
-		return stackitem.NewBool(f(ic) == nil)
+		err := f(ic)
+		if err != nil {
+			panic(fmt.Errorf("OnPersist for native contract: %w", err))
+		}
+		return stackitem.Null{}
 	}
 }
