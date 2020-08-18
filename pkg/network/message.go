@@ -159,6 +159,8 @@ func (m *Message) decodePayload() error {
 		p = &payload.MerkleBlock{}
 	case CMDPing, CMDPong:
 		p = &payload.Ping{}
+	case CMDNotFound:
+		p = &payload.Inventory{}
 	default:
 		return fmt.Errorf("can't decode command %s", m.Command.String())
 	}
