@@ -89,7 +89,7 @@ func New() *VM {
 // NewWithTrigger returns a new VM for executions triggered by t.
 func NewWithTrigger(t trigger.Type) *VM {
 	vm := &VM{
-		state:   HaltState,
+		state:   NoneState,
 		istack:  NewStack("invocation"),
 		refs:    newRefCounter(),
 		keys:    make(map[string]*keys.PublicKey),
@@ -358,11 +358,6 @@ func (v *VM) Run() error {
 	// HaltState (the default) or BreakState are safe to continue.
 	v.state = NoneState
 	for {
-		// check for breakpoint before executing the next instruction
-		ctx := v.Context()
-		if ctx != nil && ctx.atBreakPoint() {
-			v.state = BreakState
-		}
 		switch {
 		case v.state.HasFlag(FaultState):
 			// Should be caught and reported already by the v.Step(),
@@ -378,6 +373,11 @@ func (v *VM) Run() error {
 		default:
 			v.state = FaultState
 			return errors.New("unknown state")
+		}
+		// check for breakpoint before executing the next instruction
+		ctx := v.Context()
+		if ctx != nil && ctx.atBreakPoint() {
+			v.state = BreakState
 		}
 	}
 }
@@ -430,13 +430,14 @@ func (v *VM) StepOut() error {
 	var err error
 	if v.state == BreakState {
 		v.state = NoneState
-	} else {
-		v.state = BreakState
 	}
 
 	expSize := v.istack.len
 	for v.state == NoneState && v.istack.len >= expSize {
 		err = v.StepInto()
+	}
+	if v.state == NoneState {
+		v.state = BreakState
 	}
 	return err
 }
@@ -451,8 +452,6 @@ func (v *VM) StepOver() error {
 
 	if v.state == BreakState {
 		v.state = NoneState
-	} else {
-		v.state = BreakState
 	}
 
 	expSize := v.istack.len

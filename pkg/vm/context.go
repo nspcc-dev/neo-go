@@ -221,7 +221,7 @@ func (c *Context) Equals(s stackitem.Item) bool {
 
 func (c *Context) atBreakPoint() bool {
 	for _, n := range c.breakPoints {
-		if n == c.ip {
+		if n == c.nextip {
 			return true
 		}
 	}
