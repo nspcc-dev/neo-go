@@ -167,7 +167,7 @@ var (
 	_ block.Block       = (*neoBlock)(nil)
 )
 
-// NewPayload creates new consensus payloa dfor the provided network.
+// NewPayload creates new consensus payload for the provided network.
 func NewPayload(m netmode.Magic) *Payload {
 	return &Payload{
 		network: m,
