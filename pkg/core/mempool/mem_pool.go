@@ -68,6 +68,14 @@ func (p *item) CompareTo(otherP *item) int {
 		return 1
 	}
 
+	pHigh := p.txn.HasAttribute(transaction.HighPriority)
+	otherHigh := otherP.txn.HasAttribute(transaction.HighPriority)
+	if pHigh && !otherHigh {
+		return 1
+	} else if !pHigh && otherHigh {
+		return -1
+	}
+
 	// Fees sorted ascending.
 	if ret := int(p.txn.FeePerByte() - otherP.txn.FeePerByte()); ret != 0 {
 		return ret

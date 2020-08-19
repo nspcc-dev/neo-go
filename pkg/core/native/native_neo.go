@@ -407,7 +407,7 @@ func (n *NEO) GetValidatorsInternal(bc blockchainer.Blockchainer, d dao.DAO) (ke
 	if vals := n.validators.Load().(keys.PublicKeys); vals != nil {
 		return vals.Copy(), nil
 	}
-	result, err := n.getCommitteeMembers(bc, d)
+	result, err := n.GetCommitteeMembers(bc, d)
 	if err != nil {
 		return nil, err
 	}
@@ -430,7 +430,7 @@ func (n *NEO) getValidators(ic *interop.Context, _ []stackitem.Item) stackitem.I
 }
 
 func (n *NEO) getCommittee(ic *interop.Context, _ []stackitem.Item) stackitem.Item {
-	pubs, err := n.getCommitteeMembers(ic.Chain, ic.DAO)
+	pubs, err := n.GetCommitteeMembers(ic.Chain, ic.DAO)
 	if err != nil {
 		panic(err)
 	}
@@ -450,7 +450,8 @@ func (n *NEO) modifyVoterTurnout(d dao.DAO, amount *big.Int) error {
 	return d.PutStorageItem(n.ContractID, key, si)
 }
 
-func (n *NEO) getCommitteeMembers(bc blockchainer.Blockchainer, d dao.DAO) (keys.PublicKeys, error) {
+// GetCommitteeMembers returns public keys of nodes in committee.
+func (n *NEO) GetCommitteeMembers(bc blockchainer.Blockchainer, d dao.DAO) (keys.PublicKeys, error) {
 	key := []byte{prefixVotersCount}
 	si := d.GetStorageItem(n.ContractID, key)
 	if si == nil {

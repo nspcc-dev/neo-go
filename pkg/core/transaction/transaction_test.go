@@ -112,10 +112,19 @@ func TestMarshalUnmarshalJSONInvocationTX(t *testing.T) {
 		Version:    0,
 		Signers:    []Signer{{Account: util.Uint160{1, 2, 3}}},
 		Script:     []byte{1, 2, 3, 4},
-		Attributes: []Attribute{},
+		Attributes: []Attribute{{Type: HighPriority, Data: []byte{}}},
 		Scripts:    []Witness{},
 		Trimmed:    false,
 	}
 
 	testserdes.MarshalUnmarshalJSON(t, tx, new(Transaction))
+}
+
+func TestTransaction_HasAttribute(t *testing.T) {
+	tx := New(netmode.UnitTestNet, []byte{1}, 0)
+	require.False(t, tx.HasAttribute(HighPriority))
+	tx.Attributes = append(tx.Attributes, Attribute{Type: HighPriority})
+	require.True(t, tx.HasAttribute(HighPriority))
+	tx.Attributes = append(tx.Attributes, Attribute{Type: HighPriority})
+	require.True(t, tx.HasAttribute(HighPriority))
 }

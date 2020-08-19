@@ -119,6 +119,16 @@ func (t *Transaction) VerificationHash() util.Uint256 {
 	return t.verificationHash
 }
 
+// HasAttribute returns true iff t has an attribute of type typ.
+func (t *Transaction) HasAttribute(typ AttrType) bool {
+	for i := range t.Attributes {
+		if t.Attributes[i].Type == typ {
+			return true
+		}
+	}
+	return false
+}
+
 // decodeHashableFields decodes the fields that are used for signing the
 // transaction, which are all fields except the scripts.
 func (t *Transaction) decodeHashableFields(br *io.BinReader) {
@@ -347,6 +357,16 @@ func (t *Transaction) isValid() error {
 			if t.Signers[i].Account.Equals(t.Signers[j].Account) {
 				return errors.New("transaction signers should be unique")
 			}
+		}
+	}
+	hasHighPrio := false
+	for i := range t.Attributes {
+		switch t.Attributes[i].Type {
+		case HighPriority:
+			if hasHighPrio {
+				return errors.New("multiple high priority attributes")
+			}
+			hasHighPrio = true
 		}
 	}
 	if len(t.Script) == 0 {

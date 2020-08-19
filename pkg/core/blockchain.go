@@ -1226,6 +1226,7 @@ var (
 	ErrTxTooBig            = errors.New("too big transaction")
 	ErrMemPoolConflict     = errors.New("invalid transaction due to conflicts with the memory pool")
 	ErrTxInvalidWitnessNum = errors.New("number of signers doesn't match witnesses")
+	ErrInvalidAttribute    = errors.New("invalid attribute")
 )
 
 // verifyAndPoolTx verifies whether a transaction is bonafide or not and tries
@@ -1271,7 +1272,34 @@ func (bc *Blockchain) verifyAndPoolTx(t *transaction.Transaction, pool *mempool.
 			return err
 		}
 	}
+	if err := bc.verifyTxAttributes(t); err != nil {
+		return err
+	}
 
+	return nil
+}
+
+func (bc *Blockchain) verifyTxAttributes(tx *transaction.Transaction) error {
+	for i := range tx.Attributes {
+		switch tx.Attributes[i].Type {
+		case transaction.HighPriority:
+			pubs, err := bc.contracts.NEO.GetCommitteeMembers(bc, bc.dao)
+			if err != nil {
+				return err
+			}
+			s, err := smartcontract.CreateMajorityMultiSigRedeemScript(pubs)
+			if err != nil {
+				return err
+			}
+			h := hash.Hash160(s)
+			for i := range tx.Signers {
+				if tx.Signers[i].Account.Equals(h) {
+					return nil
+				}
+			}
+			return fmt.Errorf("%w: high priority tx is not signed by committee", ErrInvalidAttribute)
+		}
+	}
 	return nil
 }
 
@@ -1288,6 +1316,9 @@ func (bc *Blockchain) isTxStillRelevant(t *transaction.Transaction, txHashes []u
 		return txHashes[i].CompareTo(t.Hash()) >= 0
 	})
 	if index < len(txHashes) && txHashes[index].Equals(t.Hash()) {
+		return false
+	}
+	if err := bc.verifyTxAttributes(t); err != nil {
 		return false
 	}
 	for i := range t.Scripts {

@@ -17,6 +17,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/internal/testchain"
 	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
@@ -344,6 +345,35 @@ func TestVerifyTx(t *testing.T) {
 		require.NoError(t, accs[0].SignTx(tx2))
 		err := bc.PoolTx(tx2)
 		require.True(t, errors.Is(err, ErrOOM))
+	})
+	t.Run("Attribute", func(t *testing.T) {
+		t.Run("InvalidHighPriority", func(t *testing.T) {
+			tx := bc.newTestTx(h, testScript)
+			tx.Attributes = append(tx.Attributes, transaction.Attribute{Type: transaction.HighPriority})
+			require.NoError(t, accs[0].SignTx(tx))
+			checkErr(t, ErrInvalidAttribute, tx)
+		})
+		t.Run("ValidHighPriority", func(t *testing.T) {
+			tx := bc.newTestTx(h, testScript)
+			tx.NetworkFee += 4_000_000 // multisig check
+			tx.Signers = []transaction.Signer{{
+				Account: testchain.MultisigScriptHash(),
+				Scopes:  transaction.FeeOnly,
+			}}
+			validators := bc.GetStandByValidators()
+			rawScript, err := smartcontract.CreateMajorityMultiSigRedeemScript(validators)
+			require.NoError(t, err)
+			size := io.GetVarSize(tx)
+			netFee, sizeDelta := CalculateNetworkFee(rawScript)
+			tx.NetworkFee += netFee
+			tx.NetworkFee += int64(size+sizeDelta) * bc.FeePerByte()
+			data := tx.GetSignedPart()
+			tx.Scripts = []transaction.Witness{{
+				InvocationScript:   testchain.Sign(data),
+				VerificationScript: rawScript,
+			}}
+			require.NoError(t, bc.VerifyTx(tx))
+		})
 	})
 }
 
