@@ -247,8 +247,8 @@ func (mp *Pool) checkPolicy(tx *transaction.Transaction, policyChanged bool) boo
 	return false
 }
 
-// NewMemPool returns a new Pool struct.
-func NewMemPool(capacity int) Pool {
+// New returns a new Pool struct.
+func New(capacity int) Pool {
 	return Pool{
 		verifiedMap:  make(map[util.Uint256]*item),
 		verifiedTxes: make([]*item, 0, capacity),

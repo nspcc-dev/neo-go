@@ -28,7 +28,7 @@ func (fs *FeerStub) GetUtilityTokenBalance(uint160 util.Uint160) *big.Int {
 }
 
 func testMemPoolAddRemoveWithFeer(t *testing.T, fs Feer) {
-	mp := NewMemPool(10)
+	mp := New(10)
 	tx := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
 	tx.Nonce = 0
 	tx.Signers = []transaction.Signer{{Account: util.Uint160{1, 2, 3}}}
@@ -56,7 +56,7 @@ func TestMemPoolAddRemove(t *testing.T) {
 func TestOverCapacity(t *testing.T) {
 	var fs = &FeerStub{}
 	const mempoolSize = 10
-	mp := NewMemPool(mempoolSize)
+	mp := New(mempoolSize)
 
 	for i := 0; i < mempoolSize; i++ {
 		tx := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
@@ -129,7 +129,7 @@ func TestOverCapacity(t *testing.T) {
 func TestGetVerified(t *testing.T) {
 	var fs = &FeerStub{}
 	const mempoolSize = 10
-	mp := NewMemPool(mempoolSize)
+	mp := New(mempoolSize)
 
 	txes := make([]*transaction.Transaction, 0, mempoolSize)
 	for i := 0; i < mempoolSize; i++ {
@@ -153,7 +153,7 @@ func TestGetVerified(t *testing.T) {
 func TestRemoveStale(t *testing.T) {
 	var fs = &FeerStub{}
 	const mempoolSize = 10
-	mp := NewMemPool(mempoolSize)
+	mp := New(mempoolSize)
 
 	txes1 := make([]*transaction.Transaction, 0, mempoolSize/2)
 	txes2 := make([]*transaction.Transaction, 0, mempoolSize/2)
@@ -186,7 +186,7 @@ func TestRemoveStale(t *testing.T) {
 }
 
 func TestMemPoolFees(t *testing.T) {
-	mp := NewMemPool(10)
+	mp := New(10)
 	sender0 := util.Uint160{1, 2, 3}
 	tx0 := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
 	tx0.NetworkFee = balance.Int64() + 1

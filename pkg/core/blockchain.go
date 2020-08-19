@@ -168,7 +168,7 @@ func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration, log *zap.L
 		headersOpDone: make(chan struct{}),
 		stopCh:        make(chan struct{}),
 		runToExitCh:   make(chan struct{}),
-		memPool:       mempool.NewMemPool(cfg.MemPoolSize),
+		memPool:       mempool.New(cfg.MemPoolSize),
 		keyCache:      make(map[util.Uint160]map[string]*keys.PublicKey),
 		sbCommittee:   committee,
 		log:           log,
