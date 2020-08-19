@@ -136,13 +136,13 @@ func (mp *Pool) Add(t *transaction.Transaction, fee Feer) error {
 		timeStamp: time.Now().UTC(),
 	}
 	mp.lock.Lock()
-	if !mp.checkTxConflicts(t, fee) {
-		mp.lock.Unlock()
-		return ErrConflict
-	}
 	if mp.containsKey(t.Hash()) {
 		mp.lock.Unlock()
 		return ErrDup
+	}
+	if !mp.checkTxConflicts(t, fee) {
+		mp.lock.Unlock()
+		return ErrConflict
 	}
 
 	mp.verifiedMap[t.Hash()] = pItem
