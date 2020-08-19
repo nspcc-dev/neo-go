@@ -1632,7 +1632,7 @@ func (c *codegen) resolveFuncDecls(f *ast.File, pkg *types.Package) {
 func (c *codegen) writeJumps(b []byte) ([]byte, error) {
 	ctx := vm.NewContext(b)
 	var offsets []int
-	for op, _, err := ctx.Next(); err == nil && ctx.NextIP() < len(b); op, _, err = ctx.Next() {
+	for op, _, err := ctx.Next(); err == nil && ctx.IP() < len(b); op, _, err = ctx.Next() {
 		switch op {
 		case opcode.JMP, opcode.JMPIFNOT, opcode.JMPIF, opcode.CALL,
 			opcode.JMPEQ, opcode.JMPNE,

@@ -117,3 +117,13 @@ func TestWriteJumps(t *testing.T) {
 	require.Equal(t, expProg, buf)
 	require.Equal(t, expFuncs, c.funcs)
 }
+
+func TestWriteJumpsLastJump(t *testing.T) {
+	c := new(codegen)
+	c.l = []int{2}
+	prog := []byte{byte(opcode.JMP), 3, byte(opcode.RET), byte(opcode.JMPL), 0, 0, 0, 0}
+	expected := []byte{byte(opcode.JMP), 3, byte(opcode.RET), byte(opcode.JMP), 0xFF}
+	actual, err := c.writeJumps(prog)
+	require.NoError(t, err)
+	require.Equal(t, expected, actual)
+}
