@@ -1,10 +1,12 @@
 package transaction
 
 import (
+	"encoding/base64"
 	"encoding/hex"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
+	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/internal/testserdes"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/stretchr/testify/assert"
@@ -34,33 +36,32 @@ func TestWitnessEncodeDecode(t *testing.T) {
 	t.Log(len(witDecode.InvocationScript))
 }
 
-// TODO NEO3.0: update binary
-/*
-
 func TestDecodeEncodeInvocationTX(t *testing.T) {
 	tx := decodeTransaction(rawInvocationTX, t)
-	assert.Equal(t, tx.Type, InvocationType)
-	assert.IsType(t, tx.Data, &InvocationTX{})
 
-	invocTX := tx.Data.(*InvocationTX)
-	script := "0400b33f7114839c33710da24cf8e7d536b8d244f3991cf565c8146063795d3b9b3cd55aef026eae992b91063db0db53c1087472616e7366657267c5cc1cb5392019e2cc4e6d6b5ea54c8d4b6d11acf166cb072961424c54f6"
-	assert.Equal(t, script, hex.EncodeToString(invocTX.Script))
-	assert.Equal(t, util.Fixed8(0), invocTX.Gas)
+	script := "AwB0O6QLAAAADBSqB8w/IZOpc5BKCabmC4fx+WJzlwwU+BPCzI4Yu+SzuH+O+RBbULuTkY4TwAwIdHJhbnNmZXIMFLyvQdaEx9StbuDZnalwe50fDI5mQWJ9W1I4"
+	assert.Equal(t, script, base64.StdEncoding.EncodeToString(tx.Script))
+	assert.Equal(t, uint32(1325564094), tx.Nonce)
+	assert.Equal(t, int64(9007990), tx.SystemFee)
+	assert.Equal(t, int64(1252390), tx.NetworkFee)
+	assert.Equal(t, uint32(2163940), tx.ValidUntilBlock)
+	assert.Equal(t, "58ea0709dac398c451fd51fdf4466f5257c77927c7909834a0ef3b469cd1a2ce", tx.Hash().StringLE())
 
-	assert.Equal(t, 1, len(tx.Attributes))
-	assert.Equal(t, 0, len(tx.Inputs))
-	assert.Equal(t, 0, len(tx.Outputs))
-	invoc := "40c6a131c55ca38995402dff8e92ac55d89cbed4b98dfebbcb01acbc01bd78fa2ce2061be921b8999a9ab79c2958875bccfafe7ce1bbbaf1f56580815ea3a4feed"
-	verif := "2102d41ddce2c97be4c9aa571b8a32cbc305aa29afffbcae71b0ef568db0e93929aaac"
+	assert.Equal(t, 1, len(tx.Signers))
+	assert.Equal(t, CalledByEntry, tx.Signers[0].Scopes)
+	assert.Equal(t, "NiXgSLtGUjTRTgp4y9ax7vyJ9UZAjsRDVt", address.Uint160ToString(tx.Signers[0].Account))
+
+	assert.Equal(t, 0, len(tx.Attributes))
+	invoc := "DEAjYLv2S5ZEwl8Gbb1AZFSwern1bo4l2S2QyWxZj2wp2X6r3PIm81dUgWYs/N0GTuQQl45frj8JovgxKbqc2CZB"
+	verif := "DCEDyvdj+R02kcultd8+sT5mj9rOApWzfi4ln9D7FS01T5ALQZVEDXg="
 	assert.Equal(t, 1, len(tx.Scripts))
-	assert.Equal(t, invoc, hex.EncodeToString(tx.Scripts[0].InvocationScript))
-	assert.Equal(t, verif, hex.EncodeToString(tx.Scripts[0].VerificationScript))
+	assert.Equal(t, invoc, base64.StdEncoding.EncodeToString(tx.Scripts[0].InvocationScript))
+	assert.Equal(t, verif, base64.StdEncoding.EncodeToString(tx.Scripts[0].VerificationScript))
 
 	data, err := testserdes.EncodeBinary(tx)
 	assert.NoError(t, err)
 	assert.Equal(t, rawInvocationTX, hex.EncodeToString(data))
 }
-*/
 
 func TestNew(t *testing.T) {
 	script := []byte{0x51}

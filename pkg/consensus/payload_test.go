@@ -2,6 +2,7 @@ package consensus
 
 import (
 	"encoding/hex"
+	gio "io"
 	"math/rand"
 	"testing"
 
@@ -320,4 +321,21 @@ func TestMessageType_String(t *testing.T) {
 	require.Equal(t, "RecoveryMessage", recoveryMessageType.String())
 	require.Equal(t, "RecoveryRequest", recoveryRequestType.String())
 	require.Equal(t, "UNKNOWN(0xff)", messageType(0xff).String())
+}
+
+func TestPayload_DecodeFromTestnet(t *testing.T) {
+	hexDump := "000000005e3c788da53e6669772c408014abab20c9f33d1a38396de645a2d40fb3a8a37c960801000400423000aaf1b1cd5544485412eab6b1af49b57ae83b236595a0918488a9899e540c4e105aee59ed2cef1015f205ff1909312acab39d504d68f141c77e10ae21e14971ce01420c4040cfd9a6d6aa245d79a905864551dcc68e108c40231b7df8178663ae453f62388c9bd6bf10b1f1fb1a8736faba5561a886efa78ea5ff4f98812a9d2adba5f1f5290c2102a7834be9b32e2981d157cb5bbd3acb42cfd11ea5c3b10224d7a44e98c5910f1b0b4195440d78"
+	data, err := hex.DecodeString(hexDump)
+	require.NoError(t, err)
+
+	buf := io.NewBinReaderFromBuf(data)
+	p := NewPayload(netmode.TestNet)
+	p.DecodeBinary(buf)
+	require.NoError(t, buf.Err)
+	require.NoError(t, p.decodeData())
+	require.Equal(t, payload.CommitType, p.Type())
+	require.Equal(t, uint32(67734), p.Height())
+
+	buf.ReadB()
+	require.Equal(t, gio.EOF, buf.Err)
 }
