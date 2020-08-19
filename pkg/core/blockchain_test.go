@@ -384,24 +384,23 @@ func TestHasBlock(t *testing.T) {
 func TestGetTransaction(t *testing.T) {
 	bc := newTestChain(t)
 	tx1 := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
+	tx1.ValidUntilBlock = 16
 	tx1.Signers = []transaction.Signer{{
 		Account: testchain.MultisigScriptHash(),
 		Scopes:  transaction.CalledByEntry,
 	}}
 	tx2 := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH2)}, 0)
+	tx2.ValidUntilBlock = 16
 	tx2.Signers = []transaction.Signer{{
 		Account: testchain.MultisigScriptHash(),
 		Scopes:  transaction.CalledByEntry,
 	}}
 	require.NoError(t, signTx(bc, tx1, tx2))
 	b1 := bc.newBlock(tx1)
-	// Turn verification off, because these blocks are really from some other chain
-	// and can't be verified, but we don't care about that in this test.
-	bc.config.VerifyBlocks = false
-	bc.config.VerifyTransactions = false
 
 	assert.Nil(t, bc.AddBlock(b1))
 	block := bc.newBlock(tx2)
+	txSize := io.GetVarSize(tx2)
 	assert.Nil(t, bc.AddBlock(block))
 
 	// Test unpersisted and persisted access
@@ -410,7 +409,7 @@ func TestGetTransaction(t *testing.T) {
 		require.Nil(t, err)
 		assert.Equal(t, block.Index, height)
 		assert.Equal(t, block.Transactions[0], tx)
-		assert.Equal(t, 467, io.GetVarSize(tx))
+		assert.Equal(t, txSize, io.GetVarSize(tx))
 		assert.Equal(t, 1, io.GetVarSize(tx.Attributes))
 		assert.Equal(t, 1, io.GetVarSize(tx.Scripts))
 		assert.NoError(t, bc.persist())
