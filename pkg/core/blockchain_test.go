@@ -2,7 +2,6 @@ package core
 
 import (
 	"errors"
-	"fmt"
 	"math/big"
 	"math/rand"
 	"testing"
@@ -252,8 +251,7 @@ func TestVerifyTx(t *testing.T) {
 
 	checkErr := func(t *testing.T, expectedErr error, tx *transaction.Transaction) {
 		err := bc.VerifyTx(tx)
-		fmt.Println(err)
-		require.True(t, errors.Is(err, expectedErr))
+		require.True(t, errors.Is(err, expectedErr), "expected: %v, got: %v", expectedErr, err)
 	}
 
 	testScript := []byte{byte(opcode.PUSH1)}
