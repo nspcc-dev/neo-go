@@ -12,6 +12,10 @@ import (
 )
 
 var (
+	// ErrInsufficientFunds is returned when Sender is not able to pay for
+	// transaction being added irrespective of the other contents of the
+	// pool.
+	ErrInsufficientFunds = errors.New("insufficient funds")
 	// ErrConflict is returned when transaction being added is incompatible
 	// with the contents of the memory pool (Sender doesn't have enough GAS
 	// to pay for all transactions in the pool).
@@ -114,7 +118,7 @@ func (mp *Pool) tryAddSendersFee(tx *transaction.Transaction, feer Feer, needChe
 		senderFee.balance = feer.GetUtilityTokenBalance(tx.Sender())
 		mp.fees[tx.Sender()] = senderFee
 	}
-	if needCheck && !checkBalance(tx, senderFee) {
+	if needCheck && checkBalance(tx, senderFee) != nil {
 		return false
 	}
 	senderFee.feeSum += tx.SystemFee + tx.NetworkFee
@@ -122,11 +126,18 @@ func (mp *Pool) tryAddSendersFee(tx *transaction.Transaction, feer Feer, needChe
 	return true
 }
 
-// checkBalance returns true in case when sender has enough GAS to pay for the
+// checkBalance returns nil in case when sender has enough GAS to pay for the
 // transaction
-func checkBalance(tx *transaction.Transaction, balance utilityBalanceAndFees) bool {
-	needFee := balance.feeSum + tx.SystemFee + tx.NetworkFee
-	return balance.balance.Cmp(big.NewInt(needFee)) >= 0
+func checkBalance(tx *transaction.Transaction, balance utilityBalanceAndFees) error {
+	txFee := tx.SystemFee + tx.NetworkFee
+	if balance.balance.Cmp(big.NewInt(txFee)) < 0 {
+		return ErrInsufficientFunds
+	}
+	needFee := balance.feeSum + txFee
+	if balance.balance.Cmp(big.NewInt(needFee)) < 0 {
+		return ErrConflict
+	}
+	return nil
 }
 
 // Add tries to add given transaction to the Pool.
@@ -140,9 +151,10 @@ func (mp *Pool) Add(t *transaction.Transaction, fee Feer) error {
 		mp.lock.Unlock()
 		return ErrDup
 	}
-	if !mp.checkTxConflicts(t, fee) {
+	err := mp.checkTxConflicts(t, fee)
+	if err != nil {
 		mp.lock.Unlock()
-		return ErrConflict
+		return err
 	}
 
 	mp.verifiedMap[t.Hash()] = pItem
@@ -248,8 +260,8 @@ func (mp *Pool) checkPolicy(tx *transaction.Transaction, policyChanged bool) boo
 }
 
 // New returns a new Pool struct.
-func New(capacity int) Pool {
-	return Pool{
+func New(capacity int) *Pool {
+	return &Pool{
 		verifiedMap:  make(map[util.Uint256]*item),
 		verifiedTxes: make([]*item, 0, capacity),
 		capacity:     capacity,
@@ -283,7 +295,7 @@ func (mp *Pool) GetVerifiedTransactions() []*transaction.Transaction {
 }
 
 // checkTxConflicts is an internal unprotected version of Verify.
-func (mp *Pool) checkTxConflicts(tx *transaction.Transaction, fee Feer) bool {
+func (mp *Pool) checkTxConflicts(tx *transaction.Transaction, fee Feer) error {
 	senderFee, ok := mp.fees[tx.Sender()]
 	if !ok {
 		senderFee.balance = fee.GetUtilityTokenBalance(tx.Sender())
@@ -298,5 +310,5 @@ func (mp *Pool) checkTxConflicts(tx *transaction.Transaction, fee Feer) bool {
 func (mp *Pool) Verify(tx *transaction.Transaction, feer Feer) bool {
 	mp.lock.RLock()
 	defer mp.lock.RUnlock()
-	return mp.checkTxConflicts(tx, feer)
+	return mp.checkTxConflicts(tx, feer) == nil
 }

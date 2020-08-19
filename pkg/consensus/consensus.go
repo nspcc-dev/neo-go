@@ -13,6 +13,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	coreb "github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
+	"github.com/nspcc-dev/neo-go/pkg/core/mempool"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
@@ -358,9 +359,21 @@ func (s *service) verifyBlock(b block.Block) bool {
 	}
 
 	var fee int64
+	var pool = mempool.New(len(coreb.Transactions))
+	var mainPool = s.Chain.GetMemPool()
 	for _, tx := range coreb.Transactions {
+		var err error
+
 		fee += tx.SystemFee
-		if err := s.Chain.VerifyTx(tx, coreb); err != nil {
+		if mainPool.ContainsKey(tx.Hash()) {
+			err = pool.Add(tx, s.Chain)
+			if err == nil {
+				continue
+			}
+		} else {
+			err = s.Chain.PoolTx(tx, pool)
+		}
+		if err != nil {
 			s.log.Warn("invalid transaction in proposed block",
 				zap.Stringer("hash", tx.Hash()),
 				zap.Error(err))
