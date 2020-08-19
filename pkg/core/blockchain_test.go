@@ -402,6 +402,34 @@ func TestVerifyHashAgainstScript(t *testing.T) {
 	})
 }
 
+func TestMemPoolRemoval(t *testing.T) {
+	const added = 16
+	const notAdded = 32
+	bc := newTestChain(t)
+	defer bc.Close()
+	addedTxes := make([]*transaction.Transaction, added)
+	notAddedTxes := make([]*transaction.Transaction, notAdded)
+	for i := range addedTxes {
+		addedTxes[i] = bc.newTestTx(testchain.MultisigScriptHash(), []byte{byte(opcode.PUSH1)})
+		require.NoError(t, signTx(bc, addedTxes[i]))
+		require.NoError(t, bc.PoolTx(addedTxes[i]))
+	}
+	for i := range notAddedTxes {
+		notAddedTxes[i] = bc.newTestTx(testchain.MultisigScriptHash(), []byte{byte(opcode.PUSH1)})
+		require.NoError(t, signTx(bc, notAddedTxes[i]))
+		require.NoError(t, bc.PoolTx(notAddedTxes[i]))
+	}
+	b := bc.newBlock(addedTxes...)
+	require.NoError(t, bc.AddBlock(b))
+	mempool := bc.GetMemPool()
+	for _, tx := range addedTxes {
+		require.False(t, mempool.ContainsKey(tx.Hash()))
+	}
+	for _, tx := range notAddedTxes {
+		require.True(t, mempool.ContainsKey(tx.Hash()))
+	}
+}
+
 func TestHasBlock(t *testing.T) {
 	bc := newTestChain(t)
 	blocks, err := bc.genBlocks(50)
