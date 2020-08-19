@@ -873,7 +873,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 				emit.Opcode(c.prog.BinWriter, opcode.CALLA)
 			}
 		case isSyscall(f):
-			c.convertSyscall(n, f.selector.Name, f.name)
+			c.convertSyscall(n, f.pkg.Name(), f.name)
 		default:
 			emit.Call(c.prog.BinWriter, opcode.CALLL, f.label)
 		}
