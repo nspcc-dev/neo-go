@@ -226,7 +226,7 @@ func isSyscall(fun *funcScope) bool {
 	if fun.selector == nil || fun.pkg == nil || !isInteropPath(fun.pkg.Path()) {
 		return false
 	}
-	_, ok := syscalls[fun.selector.Name][fun.name]
+	_, ok := syscalls[fun.pkg.Name()][fun.name]
 	return ok
 }
 

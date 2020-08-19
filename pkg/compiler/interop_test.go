@@ -60,6 +60,19 @@ func TestFromAddress(t *testing.T) {
 
 		eval(t, src, append(addr1.BytesBE(), addr2.BytesBE()...))
 	})
+
+	t.Run("AliasPackage", func(t *testing.T) {
+		src := `
+		package foo
+		import uu "github.com/nspcc-dev/neo-go/pkg/interop/util"
+		func Main() []byte {
+			addr1 := uu.FromAddress("` + as1 + `")
+			addr2 := uu.FromAddress("` + as2 + `")
+			sum := append(addr1, addr2...)
+			return sum
+		}`
+		eval(t, src, append(addr1.BytesBE(), addr2.BytesBE()...))
+	})
 }
 
 func spawnVM(t *testing.T, ic *interop.Context, src string) *vm.VM {
@@ -165,6 +178,19 @@ func TestAppCall(t *testing.T) {
 		v := spawnVM(t, ic, src)
 		require.NoError(t, v.Run())
 
+		assertResult(t, v, big.NewInt(42))
+	})
+
+	t.Run("AliasPackage", func(t *testing.T) {
+		src := `package foo
+		import ee "github.com/nspcc-dev/neo-go/pkg/interop/engine"
+		func Main() int {
+			var addr = []byte(` + fmt.Sprintf("%#v", string(ih.BytesBE())) + `)
+			result := ee.AppCall(addr, "add3", 39)
+			return result.(int)
+		}`
+		v := spawnVM(t, ic, src)
+		require.NoError(t, v.Run())
 		assertResult(t, v, big.NewInt(42))
 	})
 }
