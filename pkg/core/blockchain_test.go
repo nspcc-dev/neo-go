@@ -117,6 +117,43 @@ func TestAddBlock(t *testing.T) {
 	assert.Equal(t, lastBlock.Hash(), bc.CurrentHeaderHash())
 }
 
+func TestAddBadBlock(t *testing.T) {
+	bc := newTestChain(t)
+	defer bc.Close()
+	// It has ValidUntilBlock == 0, which is wrong
+	tx := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
+	tx.Signers = []transaction.Signer{{
+		Account: testchain.MultisigScriptHash(),
+		Scopes:  transaction.FeeOnly,
+	}}
+	require.NoError(t, signTx(bc, tx))
+	b1 := bc.newBlock(tx)
+
+	require.Error(t, bc.AddBlock(b1))
+	bc.config.VerifyTransactions = false
+	require.NoError(t, bc.AddBlock(b1))
+
+	b2 := bc.newBlock()
+	b2.PrevHash = util.Uint256{}
+
+	require.Error(t, bc.AddBlock(b2))
+	bc.config.VerifyBlocks = false
+	require.NoError(t, bc.AddBlock(b2))
+
+	tx = transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
+	tx.ValidUntilBlock = 128
+	tx.Signers = []transaction.Signer{{
+		Account: testchain.MultisigScriptHash(),
+		Scopes:  transaction.FeeOnly,
+	}}
+	require.NoError(t, signTx(bc, tx))
+	require.NoError(t, bc.PoolTx(tx))
+	bc.config.VerifyTransactions = true
+	bc.config.VerifyBlocks = true
+	b3 := bc.newBlock(tx)
+	require.NoError(t, bc.AddBlock(b3))
+}
+
 func TestScriptFromWitness(t *testing.T) {
 	witness := &transaction.Witness{}
 	h := util.Uint160{1, 2, 3}

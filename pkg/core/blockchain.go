@@ -437,6 +437,12 @@ func (bc *Blockchain) AddBlock(block *block.Block) error {
 		}
 		if bc.config.VerifyTransactions {
 			for _, tx := range block.Transactions {
+				// Transactions are verified before adding them
+				// into the pool, so there is no point in doing
+				// it again even if we're verifying in-block transactions.
+				if bc.memPool.ContainsKey(tx.Hash()) {
+					continue
+				}
 				err := bc.VerifyTx(tx, block)
 				if err != nil {
 					return fmt.Errorf("transaction %s failed to verify: %w", tx.Hash().StringLE(), err)
