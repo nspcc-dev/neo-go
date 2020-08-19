@@ -349,6 +349,10 @@ func (s *service) getTx(h util.Uint256) block.Transaction {
 func (s *service) verifyBlock(b block.Block) bool {
 	coreb := &b.(*neoBlock).Block
 
+	if s.Chain.BlockHeight() >= coreb.Index {
+		s.log.Warn("proposed block has already outdated")
+		return false
+	}
 	maxBlockSize := int(s.Chain.GetMaxBlockSize())
 	size := io.GetVarSize(coreb)
 	if size > maxBlockSize {
@@ -377,6 +381,10 @@ func (s *service) verifyBlock(b block.Block) bool {
 			s.log.Warn("invalid transaction in proposed block",
 				zap.Stringer("hash", tx.Hash()),
 				zap.Error(err))
+			return false
+		}
+		if s.Chain.BlockHeight() >= coreb.Index {
+			s.log.Warn("proposed block has already outdated")
 			return false
 		}
 	}
