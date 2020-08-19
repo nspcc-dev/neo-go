@@ -16,6 +16,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -255,9 +256,14 @@ func (s *service) getKeyPair(pubs []crypto.PublicKey) (int, crypto.PrivateKey, c
 			continue
 		}
 
-		key, err := keys.NEP2Decrypt(acc.EncryptedWIF, s.Config.Wallet.Password)
-		if err != nil {
-			continue
+		key := acc.PrivateKey()
+		if acc.PrivateKey() == nil {
+			err := acc.Decrypt(s.Config.Wallet.Password)
+			if err != nil {
+				s.log.Fatal("can't unlock account", zap.String("address", address.Uint160ToString(sh)))
+				break
+			}
+			key = acc.PrivateKey()
 		}
 
 		return i, &privateKey{PrivateKey: key}, &publicKey{PublicKey: key.PublicKey()}
