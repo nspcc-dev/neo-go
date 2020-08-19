@@ -433,8 +433,8 @@ func handleOps(c *ishell.Context) {
 }
 
 func changePrompt(c ishell.Actions, v *vm.VM) {
-	if v.Ready() && v.Context().IP()-1 >= 0 {
-		c.SetPrompt(fmt.Sprintf("NEO-GO-VM %d > ", v.Context().IP()-1))
+	if v.Ready() && v.Context().IP() >= 0 {
+		c.SetPrompt(fmt.Sprintf("NEO-GO-VM %d > ", v.Context().IP()))
 	} else {
 		c.SetPrompt("NEO-GO-VM > ")
 	}

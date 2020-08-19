@@ -221,7 +221,7 @@ func TestBuiltinDoesNotCompile(t *testing.T) {
 	ctx := v.Context()
 	retCount := 0
 	for op, _, err := ctx.Next(); err == nil; op, _, err = ctx.Next() {
-		if ctx.IP() > len(ctx.Program()) {
+		if ctx.IP() >= len(ctx.Program()) {
 			break
 		}
 		if op == opcode.RET {

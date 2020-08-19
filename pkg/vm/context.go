@@ -141,11 +141,9 @@ func (c *Context) Next() (opcode.Opcode, []byte, error) {
 	return instr, parameter, nil
 }
 
-// IP returns the absolute instruction without taking 0 into account.
-// If that program starts the ip = 0 but IP() will return 1, cause its
-// the first instruction.
+// IP returns current instruction offset in the context script.
 func (c *Context) IP() int {
-	return c.ip + 1
+	return c.ip
 }
 
 // LenInstr returns the number of instructions loaded.
