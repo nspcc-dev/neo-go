@@ -205,7 +205,7 @@ func TestMemPoolFees(t *testing.T) {
 	require.Equal(t, 1, len(mp.fees))
 	require.Equal(t, utilityBalanceAndFees{
 		balance: balance,
-		feeSum:  tx1.NetworkFee,
+		feeSum:  big.NewInt(tx1.NetworkFee),
 	}, mp.fees[sender0])
 
 	// balance shouldn't change after adding one more transaction
@@ -217,7 +217,7 @@ func TestMemPoolFees(t *testing.T) {
 	require.Equal(t, 1, len(mp.fees))
 	require.Equal(t, utilityBalanceAndFees{
 		balance: balance,
-		feeSum:  balance.Int64(),
+		feeSum:  balance,
 	}, mp.fees[sender0])
 
 	// can't add more transactions as we don't have enough GAS
@@ -229,7 +229,7 @@ func TestMemPoolFees(t *testing.T) {
 	require.Equal(t, 1, len(mp.fees))
 	require.Equal(t, utilityBalanceAndFees{
 		balance: balance,
-		feeSum:  balance.Int64(),
+		feeSum:  balance,
 	}, mp.fees[sender0])
 
 	// check whether sender's fee updates correctly
@@ -242,7 +242,7 @@ func TestMemPoolFees(t *testing.T) {
 	require.Equal(t, 1, len(mp.fees))
 	require.Equal(t, utilityBalanceAndFees{
 		balance: balance,
-		feeSum:  tx2.NetworkFee,
+		feeSum:  big.NewInt(tx2.NetworkFee),
 	}, mp.fees[sender0])
 
 	// there should be nothing left

@@ -41,7 +41,7 @@ type items []*item
 // sender's transactions which are currently in mempool
 type utilityBalanceAndFees struct {
 	balance *big.Int
-	feeSum  int64
+	feeSum  *big.Int
 }
 
 // Pool stores the unconfirms transactions.
@@ -116,12 +116,13 @@ func (mp *Pool) tryAddSendersFee(tx *transaction.Transaction, feer Feer, needChe
 	senderFee, ok := mp.fees[tx.Sender()]
 	if !ok {
 		senderFee.balance = feer.GetUtilityTokenBalance(tx.Sender())
+		senderFee.feeSum = big.NewInt(0)
 		mp.fees[tx.Sender()] = senderFee
 	}
 	if needCheck && checkBalance(tx, senderFee) != nil {
 		return false
 	}
-	senderFee.feeSum += tx.SystemFee + tx.NetworkFee
+	senderFee.feeSum.Add(senderFee.feeSum, big.NewInt(tx.SystemFee+tx.NetworkFee))
 	mp.fees[tx.Sender()] = senderFee
 	return true
 }
@@ -129,12 +130,12 @@ func (mp *Pool) tryAddSendersFee(tx *transaction.Transaction, feer Feer, needChe
 // checkBalance returns nil in case when sender has enough GAS to pay for the
 // transaction
 func checkBalance(tx *transaction.Transaction, balance utilityBalanceAndFees) error {
-	txFee := tx.SystemFee + tx.NetworkFee
-	if balance.balance.Cmp(big.NewInt(txFee)) < 0 {
+	txFee := big.NewInt(tx.SystemFee + tx.NetworkFee)
+	if balance.balance.Cmp(txFee) < 0 {
 		return ErrInsufficientFunds
 	}
-	needFee := balance.feeSum + txFee
-	if balance.balance.Cmp(big.NewInt(needFee)) < 0 {
+	needFee := txFee.Add(txFee, balance.feeSum)
+	if balance.balance.Cmp(needFee) < 0 {
 		return ErrConflict
 	}
 	return nil
@@ -212,7 +213,7 @@ func (mp *Pool) Remove(hash util.Uint256) {
 			mp.verifiedTxes = mp.verifiedTxes[:num]
 		}
 		senderFee := mp.fees[it.txn.Sender()]
-		senderFee.feeSum -= it.txn.SystemFee + it.txn.NetworkFee
+		senderFee.feeSum.Sub(senderFee.feeSum, big.NewInt(it.txn.SystemFee+it.txn.NetworkFee))
 		mp.fees[it.txn.Sender()] = senderFee
 	}
 	updateMempoolMetrics(len(mp.verifiedTxes))
@@ -299,6 +300,7 @@ func (mp *Pool) checkTxConflicts(tx *transaction.Transaction, fee Feer) error {
 	senderFee, ok := mp.fees[tx.Sender()]
 	if !ok {
 		senderFee.balance = fee.GetUtilityTokenBalance(tx.Sender())
+		senderFee.feeSum = big.NewInt(0)
 	}
 	return checkBalance(tx, senderFee)
 }
