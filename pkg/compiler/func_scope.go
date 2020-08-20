@@ -124,7 +124,7 @@ func (c *funcScope) countLocals() int {
 			}
 		case *ast.AssignStmt:
 			if n.Tok == token.DEFINE {
-				size += len(n.Rhs)
+				size += len(n.Lhs)
 			}
 		case *ast.ReturnStmt, *ast.IfStmt:
 			size++
