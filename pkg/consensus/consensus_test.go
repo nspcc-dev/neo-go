@@ -9,6 +9,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core"
+	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
@@ -191,6 +192,83 @@ func TestService_OnPayload(t *testing.T) {
 	srv.OnPayload(p)
 	shouldNotReceive(t, srv.messages)
 	srv.Chain.Close()
+}
+
+func TestVerifyBlock(t *testing.T) {
+	srv := newTestService(t)
+	defer srv.Chain.Close()
+	t.Run("good empty", func(t *testing.T) {
+		b := testchain.NewBlock(t, srv.Chain, 1, 0)
+		require.True(t, srv.verifyBlock(&neoBlock{Block: *b}))
+	})
+	t.Run("good pooled tx", func(t *testing.T) {
+		tx := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.RET)}, 100000)
+		tx.ValidUntilBlock = 1
+		addSender(t, tx)
+		signTx(t, srv.Chain.FeePerByte(), tx)
+		require.NoError(t, srv.Chain.PoolTx(tx))
+		b := testchain.NewBlock(t, srv.Chain, 1, 0, tx)
+		require.True(t, srv.verifyBlock(&neoBlock{Block: *b}))
+	})
+	t.Run("good non-pooled tx", func(t *testing.T) {
+		tx := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.RET)}, 100000)
+		tx.ValidUntilBlock = 1
+		addSender(t, tx)
+		signTx(t, srv.Chain.FeePerByte(), tx)
+		b := testchain.NewBlock(t, srv.Chain, 1, 0, tx)
+		require.True(t, srv.verifyBlock(&neoBlock{Block: *b}))
+	})
+	t.Run("good conflicting tx", func(t *testing.T) {
+		tx1 := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.RET)}, 100000)
+		tx1.NetworkFee = 20_000_000 * native.GASFactor
+		tx1.ValidUntilBlock = 1
+		addSender(t, tx1)
+		signTx(t, srv.Chain.FeePerByte(), tx1)
+		tx2 := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.RET)}, 100000)
+		tx2.NetworkFee = 20_000_000 * native.GASFactor
+		tx2.ValidUntilBlock = 1
+		addSender(t, tx2)
+		signTx(t, srv.Chain.FeePerByte(), tx2)
+		require.NoError(t, srv.Chain.PoolTx(tx1))
+		require.Error(t, srv.Chain.PoolTx(tx2))
+		b := testchain.NewBlock(t, srv.Chain, 1, 0, tx2)
+		require.True(t, srv.verifyBlock(&neoBlock{Block: *b}))
+	})
+	t.Run("bad old", func(t *testing.T) {
+		b := testchain.NewBlock(t, srv.Chain, 1, 0)
+		b.Index = srv.Chain.BlockHeight()
+		require.False(t, srv.verifyBlock(&neoBlock{Block: *b}))
+	})
+	t.Run("bad big size", func(t *testing.T) {
+		script := make([]byte, int(srv.Chain.GetMaxBlockSize()))
+		script[0] = byte(opcode.RET)
+		tx := transaction.New(netmode.UnitTestNet, script, 100000)
+		tx.ValidUntilBlock = 1
+		addSender(t, tx)
+		signTx(t, srv.Chain.FeePerByte(), tx)
+		b := testchain.NewBlock(t, srv.Chain, 1, 0, tx)
+		require.False(t, srv.verifyBlock(&neoBlock{Block: *b}))
+	})
+	t.Run("bad tx", func(t *testing.T) {
+		tx := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.RET)}, 100000)
+		tx.ValidUntilBlock = 1
+		addSender(t, tx)
+		signTx(t, srv.Chain.FeePerByte(), tx)
+		tx.Scripts[0].InvocationScript[16] = ^tx.Scripts[0].InvocationScript[16]
+		b := testchain.NewBlock(t, srv.Chain, 1, 0, tx)
+		require.False(t, srv.verifyBlock(&neoBlock{Block: *b}))
+	})
+	t.Run("bad big sys fee", func(t *testing.T) {
+		txes := make([]*transaction.Transaction, 2)
+		for i := range txes {
+			txes[i] = transaction.New(netmode.UnitTestNet, []byte{byte(opcode.RET)}, srv.Chain.GetMaxBlockSystemFee()/2+1)
+			txes[i].ValidUntilBlock = 1
+			addSender(t, txes[i])
+			signTx(t, srv.Chain.FeePerByte(), txes[i])
+		}
+		b := testchain.NewBlock(t, srv.Chain, 1, 0, txes...)
+		require.False(t, srv.verifyBlock(&neoBlock{Block: *b}))
+	})
 }
 
 func shouldReceive(t *testing.T, ch chan Payload) {
