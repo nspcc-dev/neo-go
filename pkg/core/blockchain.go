@@ -18,6 +18,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
+	"github.com/nspcc-dev/neo-go/pkg/crypto"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
@@ -27,7 +28,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
-	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"go.uber.org/zap"
 )
@@ -1373,10 +1373,7 @@ func (bc *Blockchain) verifyStateRootWitness(r *state.MPTRoot) error {
 	if err != nil {
 		return err
 	}
-	interopCtx := bc.newInteropContext(trigger.Verification, bc.dao, nil, nil)
-	interopCtx.Container = r
-	return bc.verifyHashAgainstScript(b.NextConsensus, r.Witness, interopCtx, true,
-		bc.contracts.Policy.GetMaxVerificationGas(interopCtx.DAO))
+	return bc.VerifyWitness(b.NextConsensus, r, r.Witness, bc.contracts.Policy.GetMaxVerificationGas(bc.dao))
 }
 
 // VerifyTx verifies whether transaction is bonafide or not relative to the
@@ -1439,22 +1436,6 @@ func (bc *Blockchain) GetTestVM(tx *transaction.Transaction) *vm.VM {
 	return vm
 }
 
-// ScriptFromWitness returns verification script for provided witness.
-// If hash is not equal to the witness script hash, error is returned.
-func ScriptFromWitness(hash util.Uint160, witness *transaction.Witness) ([]byte, error) {
-	verification := witness.VerificationScript
-
-	if len(verification) == 0 {
-		bb := io.NewBufBinWriter()
-		emit.AppCall(bb.BinWriter, hash)
-		verification = bb.Bytes()
-	} else if h := witness.ScriptHash(); hash != h {
-		return nil, ErrWitnessHashMismatch
-	}
-
-	return verification, nil
-}
-
 // Various witness verification errors.
 var (
 	ErrWitnessHashMismatch         = errors.New("witness hash mismatch")
@@ -1463,8 +1444,8 @@ var (
 	ErrInvalidVerificationContract = errors.New("verification contract is missing `verify` method")
 )
 
-// verifyHashAgainstScript verifies given hash against the given witness.
-func (bc *Blockchain) verifyHashAgainstScript(hash util.Uint160, witness *transaction.Witness, interopCtx *interop.Context, useKeys bool, gas int64) error {
+// initVerificationVM initializes VM for witness check.
+func initVerificationVM(ic *interop.Context, hash util.Uint160, witness *transaction.Witness, keyCache map[string]*keys.PublicKey) error {
 	var offset int
 	var initMD *manifest.Method
 	verification := witness.VerificationScript
@@ -1473,7 +1454,7 @@ func (bc *Blockchain) verifyHashAgainstScript(hash util.Uint160, witness *transa
 			return ErrWitnessHashMismatch
 		}
 	} else {
-		cs, err := interopCtx.DAO.GetContractState(hash)
+		cs, err := ic.DAO.GetContractState(hash)
 		if err != nil {
 			return ErrUnknownVerificationContract
 		}
@@ -1486,6 +1467,28 @@ func (bc *Blockchain) verifyHashAgainstScript(hash util.Uint160, witness *transa
 		initMD = cs.Manifest.ABI.GetMethod(manifest.MethodInit)
 	}
 
+	v := ic.VM
+	v.LoadScriptWithFlags(verification, smartcontract.NoneFlag)
+	v.Jump(v.Context(), offset)
+	if initMD != nil {
+		v.Call(v.Context(), initMD.Offset)
+	}
+	v.LoadScript(witness.InvocationScript)
+	if keyCache != nil {
+		v.SetPublicKeys(keyCache)
+	}
+	return nil
+}
+
+// VerifyWitness checks that w is a correct witness for c signed by h.
+func (bc *Blockchain) VerifyWitness(h util.Uint160, c crypto.Verifiable, w *transaction.Witness, gas int64) error {
+	ic := bc.newInteropContext(trigger.Verification, bc.dao, nil, nil)
+	ic.Container = c
+	return bc.verifyHashAgainstScript(h, w, ic, true, gas)
+}
+
+// verifyHashAgainstScript verifies given hash against the given witness.
+func (bc *Blockchain) verifyHashAgainstScript(hash util.Uint160, witness *transaction.Witness, interopCtx *interop.Context, useKeys bool, gas int64) error {
 	gasPolicy := bc.contracts.Policy.GetMaxVerificationGas(interopCtx.DAO)
 	if gas > gasPolicy {
 		gas = gasPolicy
@@ -1494,18 +1497,16 @@ func (bc *Blockchain) verifyHashAgainstScript(hash util.Uint160, witness *transa
 	vm := interopCtx.SpawnVM()
 	vm.SetPriceGetter(getPrice)
 	vm.GasLimit = gas
-	vm.LoadScriptWithFlags(verification, smartcontract.NoneFlag)
-	vm.Jump(vm.Context(), offset)
-	if initMD != nil {
-		vm.Call(vm.Context(), initMD.Offset)
-	}
-	vm.LoadScript(witness.InvocationScript)
+	var keyCache map[string]*keys.PublicKey
 	if useKeys {
 		bc.keyCacheLock.RLock()
 		if bc.keyCache[hash] != nil {
-			vm.SetPublicKeys(bc.keyCache[hash])
+			keyCache = bc.keyCache[hash]
 		}
 		bc.keyCacheLock.RUnlock()
+	}
+	if err := initVerificationVM(interopCtx, hash, witness, keyCache); err != nil {
+		return err
 	}
 	err := vm.Run()
 	if vm.HasFailed() {
@@ -1564,9 +1565,7 @@ func (bc *Blockchain) verifyHeaderWitnesses(currHeader, prevHeader *block.Header
 	} else {
 		hash = prevHeader.NextConsensus
 	}
-	interopCtx := bc.newInteropContext(trigger.Verification, bc.dao, nil, nil)
-	interopCtx.Container = currHeader
-	return bc.verifyHashAgainstScript(hash, &currHeader.Script, interopCtx, true, verificationGasLimit)
+	return bc.VerifyWitness(hash, currHeader, &currHeader.Script, verificationGasLimit)
 }
 
 // GoverningTokenHash returns the governing token (NEO) native contract hash.

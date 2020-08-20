@@ -246,7 +246,7 @@ func (s *service) validatePayload(p *Payload) bool {
 	pub := validators[p.validatorIndex]
 	h := pub.(*publicKey).GetScriptHash()
 
-	return p.Verify(h)
+	return s.Chain.VerifyWitness(h, p, &p.Witness, payloadGasLimit) == nil
 }
 
 func (s *service) getKeyPair(pubs []crypto.PublicKey) (int, crypto.PrivateKey, crypto.PublicKey) {

@@ -6,13 +6,9 @@ import (
 
 	"github.com/nspcc-dev/dbft/payload"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
-	"github.com/nspcc-dev/neo-go/pkg/core"
-	"github.com/nspcc-dev/neo-go/pkg/core/interop"
-	"github.com/nspcc-dev/neo-go/pkg/core/interop/crypto"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/io"
-	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 )
@@ -213,28 +209,6 @@ func (p *Payload) Sign(key *privateKey) error {
 // GetSignedPart implements crypto.Verifiable interface.
 func (p *Payload) GetSignedPart() []byte {
 	return p.MarshalUnsigned()
-}
-
-// Verify verifies payload using provided Witness.
-func (p *Payload) Verify(scriptHash util.Uint160) bool {
-	verification, err := core.ScriptFromWitness(scriptHash, &p.Witness)
-	if err != nil {
-		return false
-	}
-
-	ic := &interop.Context{Trigger: trigger.Verification, Container: p}
-	crypto.Register(ic)
-	v := ic.SpawnVM()
-	v.GasLimit = payloadGasLimit
-	v.LoadScript(verification)
-	v.LoadScript(p.Witness.InvocationScript)
-
-	err = v.Run()
-	if err != nil || v.HasFailed() || v.Estack().Len() != 1 {
-		return false
-	}
-
-	return v.Estack().Pop().Bool()
 }
 
 // DecodeBinaryUnsigned reads payload from w excluding signature.

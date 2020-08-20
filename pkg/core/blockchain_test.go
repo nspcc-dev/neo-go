@@ -155,27 +155,6 @@ func TestAddBadBlock(t *testing.T) {
 	require.NoError(t, bc.AddBlock(b3))
 }
 
-func TestScriptFromWitness(t *testing.T) {
-	witness := &transaction.Witness{}
-	h := util.Uint160{1, 2, 3}
-
-	res, err := ScriptFromWitness(h, witness)
-	require.NoError(t, err)
-	require.NotNil(t, res)
-
-	witness.VerificationScript = []byte{4, 8, 15, 16, 23, 42}
-	h = hash.Hash160(witness.VerificationScript)
-
-	res, err = ScriptFromWitness(h, witness)
-	require.NoError(t, err)
-	require.NotNil(t, res)
-
-	h[0] = ^h[0]
-	res, err = ScriptFromWitness(h, witness)
-	require.Error(t, err)
-	require.Nil(t, res)
-}
-
 func TestGetHeader(t *testing.T) {
 	bc := newTestChain(t)
 	tx := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)

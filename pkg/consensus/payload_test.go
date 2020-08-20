@@ -88,7 +88,9 @@ func TestConsensusPayload_Verify(t *testing.T) {
 	p := NewPayload(netmode.TestNet)
 	require.NoError(t, testserdes.DecodeBinary(data, p))
 	require.NoError(t, p.decodeData())
-	require.True(t, p.Verify(h))
+	bc := newTestChain(t)
+	defer bc.Close()
+	require.NoError(t, bc.VerifyWitness(h, p, &p.Witness, payloadGasLimit))
 }
 
 func TestConsensusPayload_Serializable(t *testing.T) {
@@ -307,10 +309,14 @@ func TestPayload_Sign(t *testing.T) {
 	require.NoError(t, err)
 
 	priv := &privateKey{key}
+
 	p := randomPayload(t, prepareRequestType)
-	require.False(t, p.Verify(util.Uint160{}))
+	h := priv.PublicKey().GetScriptHash()
+	bc := newTestChain(t)
+	defer bc.Close()
+	require.Error(t, bc.VerifyWitness(h, p, &p.Witness, payloadGasLimit))
 	require.NoError(t, p.Sign(priv))
-	require.True(t, p.Verify(p.Witness.ScriptHash()))
+	require.NoError(t, bc.VerifyWitness(h, p, &p.Witness, payloadGasLimit))
 }
 
 func TestMessageType_String(t *testing.T) {

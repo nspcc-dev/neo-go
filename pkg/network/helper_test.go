@@ -13,6 +13,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/mempool"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
+	"github.com/nspcc-dev/neo-go/pkg/crypto"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/network/capability"
@@ -167,6 +168,9 @@ func (chain testChain) SubscribeForTransactions(ch chan<- *transaction.Transacti
 }
 
 func (chain testChain) VerifyTx(*transaction.Transaction) error {
+	panic("TODO")
+}
+func (testChain) VerifyWitness(util.Uint160, crypto.Verifiable, *transaction.Witness, int64) error {
 	panic("TODO")
 }
 
