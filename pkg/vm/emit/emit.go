@@ -160,5 +160,5 @@ func AppCallWithOperationAndArgs(w *io.BinWriter, scriptHash util.Uint160, opera
 }
 
 func isInstructionJmp(op opcode.Opcode) bool {
-	return opcode.JMP <= op && op <= opcode.CALLL
+	return opcode.JMP <= op && op <= opcode.CALLL || op == opcode.ENDTRYL
 }

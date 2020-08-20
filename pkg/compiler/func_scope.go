@@ -30,6 +30,9 @@ type funcScope struct {
 	// Variables together with it's type in neo-vm.
 	variables []string
 
+	// deferStack is a stack containing encountered `defer` statements.
+	deferStack []deferInfo
+
 	// Local variables
 	vars varScope
 
@@ -43,6 +46,11 @@ type funcScope struct {
 
 	// Local variable counter.
 	i int
+}
+
+type deferInfo struct {
+	finallyLabel uint16
+	expr         *ast.CallExpr
 }
 
 func (c *codegen) newFuncScope(decl *ast.FuncDecl, label uint16) *funcScope {
