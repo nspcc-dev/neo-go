@@ -70,6 +70,11 @@ func TestNEO_Vote(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, standBySorted, pubs)
 
+	require.NoError(t, neo.OnPersist(ic))
+	pubs, err = neo.GetNextBlockValidatorsInternal(bc, ic.DAO)
+	require.NoError(t, err)
+	require.EqualValues(t, standBySorted, pubs)
+
 	// Register and give some value to the last validator.
 	require.NoError(t, neo.RegisterCandidateInternal(ic, candidates[0]))
 	priv := testchain.PrivateKeyByID(0)
@@ -82,6 +87,11 @@ func TestNEO_Vote(t *testing.T) {
 	require.NoError(t, err)
 	sortedCandidates := candidates.Copy()
 	sort.Sort(sortedCandidates)
+	require.EqualValues(t, sortedCandidates, pubs)
+
+	require.NoError(t, neo.OnPersist(ic))
+	pubs, err = neo.GetNextBlockValidatorsInternal(bc, ic.DAO)
+	require.NoError(t, err)
 	require.EqualValues(t, sortedCandidates, pubs)
 
 	require.NoError(t, neo.UnregisterCandidateInternal(ic, candidates[0]))

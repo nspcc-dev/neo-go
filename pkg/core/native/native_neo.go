@@ -26,7 +26,9 @@ type NEO struct {
 	nep5TokenNative
 	GAS *GAS
 
-	validators atomic.Value
+	votesChanged   atomic.Value
+	nextValidators atomic.Value
+	validators     atomic.Value
 }
 
 // keyWithVotes is a serialized key with votes balance. It's not deserialized
@@ -79,6 +81,8 @@ func NewNEO() *NEO {
 	nep5.ContractID = neoContractID
 
 	n.nep5TokenNative = *nep5
+	n.votesChanged.Store(true)
+	n.nextValidators.Store(keys.PublicKeys(nil))
 	n.validators.Store(keys.PublicKeys(nil))
 
 	onp := n.Methods["onPersist"]
@@ -152,10 +156,28 @@ func (n *NEO) Initialize(ic *interop.Context) error {
 
 // OnPersist implements Contract interface.
 func (n *NEO) OnPersist(ic *interop.Context) error {
+	if !n.votesChanged.Load().(bool) {
+		return nil
+	}
 	pubs, err := n.GetValidatorsInternal(ic.Chain, ic.DAO)
 	if err != nil {
 		return err
 	}
+	prev := n.nextValidators.Load().(keys.PublicKeys)
+	if len(prev) == len(pubs) {
+		var needUpdate bool
+		for i := range pubs {
+			if !pubs[i].Equal(prev[i]) {
+				needUpdate = true
+				break
+			}
+		}
+		if !needUpdate {
+			return nil
+		}
+	}
+	n.votesChanged.Store(false)
+	n.nextValidators.Store(pubs)
 	si := new(state.StorageItem)
 	si.Value = pubs.Bytes()
 	return ic.DAO.PutStorageItem(n.ContractID, nextValidatorsKey, si)
@@ -328,6 +350,7 @@ const (
 // ModifyAccountVotes modifies votes of the specified account by value (can be negative).
 // typ specifies if this modify is occurring during transfer or vote (with old or new validator).
 func (n *NEO) ModifyAccountVotes(acc *state.NEOBalanceState, d dao.DAO, value *big.Int, typ int) error {
+	n.votesChanged.Store(true)
 	if acc.VoteTo != nil {
 		key := makeValidatorKey(acc.VoteTo)
 		si := d.GetStorageItem(n.ContractID, key)
