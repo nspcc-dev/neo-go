@@ -1,6 +1,12 @@
 package testchain
 
 import (
+	"testing"
+	"time"
+
+	"github.com/nspcc-dev/neo-go/pkg/core/block"
+	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
+	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
@@ -8,6 +14,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
+	"github.com/stretchr/testify/require"
 )
 
 // privNetKeys is a list of unencrypted WIFs sorted by public key.
@@ -93,4 +100,33 @@ func Sign(data []byte) []byte {
 		emit.Bytes(buf.BinWriter, sig)
 	}
 	return buf.Bytes()
+}
+
+// NewBlock creates new block for the given blockchain with the given offset
+// (usually, 1), primary node index and transactions.
+func NewBlock(t *testing.T, bc blockchainer.Blockchainer, offset uint32, primary uint32, txs ...*transaction.Transaction) *block.Block {
+	witness := transaction.Witness{VerificationScript: MultisigVerificationScript()}
+	height := bc.BlockHeight()
+	h := bc.GetHeaderHash(int(height))
+	hdr, err := bc.GetHeader(h)
+	require.NoError(t, err)
+	b := &block.Block{
+		Base: block.Base{
+			PrevHash:      hdr.Hash(),
+			Timestamp:     (uint64(time.Now().UTC().Unix()) + uint64(hdr.Index)) * 1000,
+			Index:         hdr.Index + offset,
+			NextConsensus: witness.ScriptHash(),
+			Script:        witness,
+			Network:       bc.GetConfig().Magic,
+		},
+		ConsensusData: block.ConsensusData{
+			PrimaryIndex: primary,
+			Nonce:        1111,
+		},
+		Transactions: txs,
+	}
+	_ = b.RebuildMerkleRoot()
+
+	b.Script.InvocationScript = Sign(b.GetSignedPart())
+	return b
 }

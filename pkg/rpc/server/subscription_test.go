@@ -284,7 +284,7 @@ func TestFilteredBlockSubscriptions(t *testing.T) {
 		if primary == 3 {
 			expectedCnt++
 		}
-		b := newBlock(t, chain, 1, primary)
+		b := testchain.NewBlock(t, chain, 1, primary)
 		require.NoError(t, chain.AddBlock(b))
 	}
 
@@ -437,7 +437,7 @@ func testSubscriptionOverflow(t *testing.T) {
 
 	// Push a lot of new blocks, but don't read events for them.
 	for i := 0; i < blockCnt; i++ {
-		b := newBlock(t, chain, 1, 0)
+		b := testchain.NewBlock(t, chain, 1, 0)
 		require.NoError(t, chain.AddBlock(b))
 	}
 	for i := 0; i < blockCnt; i++ {
