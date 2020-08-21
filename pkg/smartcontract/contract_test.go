@@ -83,3 +83,48 @@ func TestCreateDefaultMultiSigRedeemScript(t *testing.T) {
 	}
 	checkM(7)
 }
+
+func TestCreateMajorityMultiSigRedeemScript(t *testing.T) {
+	var validators = make([]*keys.PublicKey, 0)
+
+	var addKey = func() {
+		key, err := keys.NewPrivateKey()
+		require.NoError(t, err)
+		validators = append(validators, key.PublicKey())
+	}
+	var checkM = func(m int) {
+		validScript, err := CreateMultiSigRedeemScript(m, validators)
+		require.NoError(t, err)
+		defaultScript, err := CreateMajorityMultiSigRedeemScript(validators)
+		require.NoError(t, err)
+		require.Equal(t, validScript, defaultScript)
+	}
+
+	// 1 out of 1
+	addKey()
+	checkM(1)
+
+	// 2 out of 2
+	addKey()
+	checkM(2)
+
+	// 3 out of 4
+	addKey()
+	addKey()
+	checkM(3)
+
+	// 4 out of 6
+	addKey()
+	addKey()
+	checkM(4)
+
+	// 5 out of 8
+	addKey()
+	addKey()
+	checkM(5)
+
+	// 6 out of 10
+	addKey()
+	addKey()
+	checkM(6)
+}

@@ -44,3 +44,11 @@ func CreateDefaultMultiSigRedeemScript(publicKeys keys.PublicKeys) ([]byte, erro
 	m := n - (n-1)/3
 	return CreateMultiSigRedeemScript(m, publicKeys)
 }
+
+// CreateMajorityMultiSigRedeemScript creates an "m out of n" type verification script
+// using publicKeys length with m set to majority.
+func CreateMajorityMultiSigRedeemScript(publicKeys keys.PublicKeys) ([]byte, error) {
+	n := len(publicKeys)
+	m := n - (n-1)/2
+	return CreateMultiSigRedeemScript(m, publicKeys)
+}
