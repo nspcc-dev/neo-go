@@ -565,6 +565,9 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		lElse := c.newLabel()
 		lElseEnd := c.newLabel()
 
+		if n.Init != nil {
+			ast.Walk(c, n.Init)
+		}
 		if n.Cond != nil {
 			c.emitBoolExpr(n.Cond, true, false, lElse)
 		}
