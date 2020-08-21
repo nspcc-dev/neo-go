@@ -80,9 +80,14 @@ func (e *Element) BigInt() *big.Int {
 	return val
 }
 
-// Bool converts an underlying value of the element to a boolean.
+// Bool converts an underlying value of the element to a boolean if it's
+// possible to do so, it will panic otherwise.
 func (e *Element) Bool() bool {
-	return e.value.Bool()
+	b, err := e.value.TryBool()
+	if err != nil {
+		panic(err)
+	}
+	return b
 }
 
 // Bytes attempts to get the underlying value of the element as a byte array.

@@ -577,8 +577,12 @@ func compareContractStates(t *testing.T, expected *state.Contract, actual stacki
 	require.Equal(t, 4, len(act))
 	require.Equal(t, expected.Script, act[0].Value().([]byte))
 	require.Equal(t, expectedManifest, act[1].Value().([]byte))
-	require.Equal(t, expected.HasStorage(), act[2].Bool())
-	require.Equal(t, expected.IsPayable(), act[3].Bool())
+	hasstorage, err := act[2].TryBool()
+	require.NoError(t, err)
+	ispayable, err := act[3].TryBool()
+	require.NoError(t, err)
+	require.Equal(t, expected.HasStorage(), hasstorage)
+	require.Equal(t, expected.IsPayable(), ispayable)
 }
 
 func TestContractUpdate(t *testing.T) {

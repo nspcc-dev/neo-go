@@ -54,8 +54,8 @@ func (c *exceptionHandlingContext) Dup() stackitem.Item {
 	return c
 }
 
-// Bool implements stackitem.Item interface.
-func (c *exceptionHandlingContext) Bool() bool {
+// TryBool implements stackitem.Item interface.
+func (c *exceptionHandlingContext) TryBool() (bool, error) {
 	panic("can't convert exceptionHandlingContext to Bool")
 }
 

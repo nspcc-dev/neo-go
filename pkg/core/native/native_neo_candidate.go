@@ -42,7 +42,10 @@ func (c *candidate) fromStackItem(item stackitem.Item) *candidate {
 	if err != nil {
 		panic(err)
 	}
-	c.Registered = arr[0].Bool()
+	c.Registered, err = arr[0].TryBool()
+	if err != nil {
+		panic(err)
+	}
 	c.Votes = *vs
 	return c
 }
