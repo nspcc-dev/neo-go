@@ -507,7 +507,7 @@ func (i *ByteArray) String() string {
 // TryBool implements Item interface.
 func (i *ByteArray) TryBool() (bool, error) {
 	if len(i.value) > MaxBigIntegerSizeBits/8 {
-		return true, nil
+		return false, errors.New("too big byte string")
 	}
 	for _, b := range i.value {
 		if b != 0 {
