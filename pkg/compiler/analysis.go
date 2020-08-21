@@ -14,7 +14,7 @@ import (
 
 var (
 	// Go language builtin functions.
-	goBuiltins = []string{"len", "append", "panic", "make", "copy"}
+	goBuiltins = []string{"len", "append", "panic", "make", "copy", "recover"}
 	// Custom builtin utility functions.
 	customBuiltins = []string{
 		"FromAddress", "Equals",
@@ -40,23 +40,30 @@ func (c *codegen) getIdentName(pkg string, name string) string {
 // and returns number of variables initialized and
 // true if any init functions were encountered.
 func (c *codegen) traverseGlobals() (int, bool) {
+	var hasDefer bool
 	var n int
 	var hasInit bool
 	c.ForEachFile(func(f *ast.File, _ *types.Package) {
 		n += countGlobals(f)
-		if !hasInit {
+		if !hasInit || !hasDefer {
 			ast.Inspect(f, func(node ast.Node) bool {
-				n, ok := node.(*ast.FuncDecl)
-				if ok {
+				switch n := node.(type) {
+				case *ast.FuncDecl:
 					if isInitFunc(n) {
 						hasInit = true
 					}
+					return !hasDefer
+				case *ast.DeferStmt:
+					hasDefer = true
 					return false
 				}
 				return true
 			})
 		}
 	})
+	if hasDefer {
+		n++
+	}
 	if n != 0 || hasInit {
 		if n > 255 {
 			c.prog.BinWriter.Err = errors.New("too many global variables")
@@ -83,6 +90,11 @@ func (c *codegen) traverseGlobals() (int, bool) {
 			// encountered after will be recognized as globals.
 			c.scope = nil
 		})
+		// store auxiliary variables after all others.
+		if hasDefer {
+			c.exceptionIndex = len(c.globals)
+			c.globals["<exception>"] = c.exceptionIndex
+		}
 	}
 	return n, hasInit
 }
@@ -92,7 +104,7 @@ func (c *codegen) traverseGlobals() (int, bool) {
 func countGlobals(f ast.Node) (i int) {
 	ast.Inspect(f, func(node ast.Node) bool {
 		switch n := node.(type) {
-		// Skip all function declarations.
+		// Skip all function declarations if we have already encountered `defer`.
 		case *ast.FuncDecl:
 			return false
 		// After skipping all funcDecls we are sure that each value spec

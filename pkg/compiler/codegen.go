@@ -77,6 +77,9 @@ type codegen struct {
 	// packages contains packages in the order they were loaded.
 	packages []string
 
+	// exceptionIndex is the index of static slot where exception is stored.
+	exceptionIndex int
+
 	// documents contains paths to all files used by the program.
 	documents []string
 	// docIndex maps file path to an index in documents array.
@@ -216,6 +219,11 @@ func getBaseOpcode(t varType) (opcode.Opcode, opcode.Opcode) {
 // emitLoadVar loads specified variable to the evaluation stack.
 func (c *codegen) emitLoadVar(pkg string, name string) {
 	t, i := c.getVarIndex(pkg, name)
+	c.emitLoadByIndex(t, i)
+}
+
+// emitLoadByIndex loads specified variable type with index i.
+func (c *codegen) emitLoadByIndex(t varType, i int) {
 	base, _ := getBaseOpcode(t)
 	if i < 7 {
 		emit.Opcode(c.prog.BinWriter, base+opcode.Opcode(i))
@@ -231,6 +239,11 @@ func (c *codegen) emitStoreVar(pkg string, name string) {
 		return
 	}
 	t, i := c.getVarIndex(pkg, name)
+	c.emitStoreByIndex(t, i)
+}
+
+// emitLoadByIndex stores top value in the specified variable type with index i.
+func (c *codegen) emitStoreByIndex(t varType, i int) {
 	_, base := getBaseOpcode(t)
 	if i < 7 {
 		emit.Opcode(c.prog.BinWriter, base+opcode.Opcode(i))
@@ -831,11 +844,14 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		return nil
 
 	case *ast.DeferStmt:
+		catch := c.newLabel()
 		finally := c.newLabel()
 		param := make([]byte, 8)
+		binary.LittleEndian.PutUint16(param[0:], catch)
 		binary.LittleEndian.PutUint16(param[4:], finally)
 		emit.Instruction(c.prog.BinWriter, opcode.TRYL, param)
 		c.scope.deferStack = append(c.scope.deferStack, deferInfo{
+			catchLabel:   catch,
 			finallyLabel: finally,
 			expr:         n.Call,
 		})
@@ -1103,14 +1119,45 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 }
 
 // processDefers emits code for `defer` statements.
+// TRY-related opcodes handle exception as follows:
+// 1. CATCH block is executed only if exception has occured.
+// 2. FINALLY block is always executed, but after catch block.
+// Go `defer` statements are a bit different:
+// 1. `defer` is always executed irregardless of whether an exception has occured.
+// 2. `recover` can or can not handle a possible exception.
+// Thus we use the following approach:
+// 1. Throwed exception is saved in a static field X, static fields Y and is set to true.
+// 2. CATCH and FINALLY blocks are the same, and both contain the same CALLs.
+// 3. In CATCH block we set Y to true and emit default return values if it is the last defer.
+// 4. Execute FINALLY block only if Y is false.
 func (c *codegen) processDefers() {
 	for i := len(c.scope.deferStack) - 1; i >= 0; i-- {
 		stmt := c.scope.deferStack[i]
 		after := c.newLabel()
 		emit.Jmp(c.prog.BinWriter, opcode.ENDTRYL, after)
-		c.setLabel(stmt.finallyLabel)
-		// Execute body.
+
+		c.setLabel(stmt.catchLabel)
+		c.emitStoreByIndex(varGlobal, c.exceptionIndex)
+		emit.Int(c.prog.BinWriter, 1)
+		c.emitStoreByIndex(varLocal, c.scope.finallyProcessedIndex)
 		ast.Walk(c, stmt.expr)
+		if i == 0 {
+			// After panic, default values must be returns, except for named returns,
+			// which we don't support here for now.
+			for i := len(c.scope.decl.Type.Results.List) - 1; i >= 0; i-- {
+				c.emitDefault(c.typeOf(c.scope.decl.Type.Results.List[i].Type))
+			}
+		}
+		emit.Jmp(c.prog.BinWriter, opcode.ENDTRYL, after)
+
+		c.setLabel(stmt.finallyLabel)
+		before := c.newLabel()
+		c.emitLoadByIndex(varLocal, c.scope.finallyProcessedIndex)
+		emit.Jmp(c.prog.BinWriter, opcode.JMPIFL, before)
+		ast.Walk(c, stmt.expr)
+		c.setLabel(before)
+		emit.Int(c.prog.BinWriter, 0)
+		c.emitStoreByIndex(varLocal, c.scope.finallyProcessedIndex)
 		emit.Opcode(c.prog.BinWriter, opcode.ENDFINALLY)
 		c.setLabel(after)
 	}
@@ -1464,6 +1511,10 @@ func (c *codegen) convertBuiltin(expr *ast.CallExpr) {
 		}
 	case "panic":
 		emit.Opcode(c.prog.BinWriter, opcode.THROW)
+	case "recover":
+		c.emitLoadByIndex(varGlobal, c.exceptionIndex)
+		emit.Opcode(c.prog.BinWriter, opcode.PUSHNULL)
+		c.emitStoreByIndex(varGlobal, c.exceptionIndex)
 	case "ToInteger", "ToByteArray", "ToBool":
 		typ := stackitem.IntegerT
 		switch name {
@@ -1803,8 +1854,13 @@ func (c *codegen) writeJumps(b []byte) ([]byte, error) {
 			opcode.JMPGT, opcode.JMPGE, opcode.JMPLE, opcode.JMPLT:
 		case opcode.TRYL:
 			nextIP := ctx.NextIP()
+			catchArg := b[nextIP-8:]
+			_, err := c.replaceLabelWithOffset(ctx.IP(), catchArg)
+			if err != nil {
+				return nil, err
+			}
 			finallyArg := b[nextIP-4:]
-			_, err := c.replaceLabelWithOffset(ctx.IP(), finallyArg)
+			_, err = c.replaceLabelWithOffset(ctx.IP(), finallyArg)
 			if err != nil {
 				return nil, err
 			}
@@ -1886,6 +1942,9 @@ func shortenJumps(b []byte, offsets []int) []byte {
 			offset += calcOffsetCorrection(ip, ip+offset, offsets)
 			b[nextIP-1] = byte(offset)
 		case opcode.TRY:
+			catchOffset := int(int8(b[nextIP-2]))
+			catchOffset += calcOffsetCorrection(ip, ip+catchOffset, offsets)
+			b[nextIP-1] = byte(catchOffset)
 			finallyOffset := int(int8(b[nextIP-1]))
 			finallyOffset += calcOffsetCorrection(ip, ip+finallyOffset, offsets)
 			b[nextIP-1] = byte(finallyOffset)
@@ -1898,7 +1957,11 @@ func shortenJumps(b []byte, offsets []int) []byte {
 			offset += calcOffsetCorrection(ip, ip+offset, offsets)
 			binary.LittleEndian.PutUint32(arg, uint32(offset))
 		case opcode.TRYL:
-			arg := b[nextIP-4:]
+			arg := b[nextIP-8:]
+			catchOffset := int(int32(binary.LittleEndian.Uint32(arg)))
+			catchOffset += calcOffsetCorrection(ip, ip+catchOffset, offsets)
+			binary.LittleEndian.PutUint32(arg, uint32(catchOffset))
+			arg = b[nextIP-4:]
 			finallyOffset := int(int32(binary.LittleEndian.Uint32(arg)))
 			finallyOffset += calcOffsetCorrection(ip, ip+finallyOffset, offsets)
 			binary.LittleEndian.PutUint32(arg, uint32(finallyOffset))

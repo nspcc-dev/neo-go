@@ -80,3 +80,60 @@ func TestDefer(t *testing.T) {
 		eval(t, src, big.NewInt(13))
 	})
 }
+
+func TestRecover(t *testing.T) {
+	t.Run("Panic", func(t *testing.T) {
+		src := `package foo
+		var a int
+		func Main() int {
+			return h() + a
+		}
+		func h() int {
+			defer func() {
+				if r := recover(); r != nil {
+					a = 3
+				} else {
+					a = 4
+				}
+			}()
+			a = 1
+			panic("msg")
+			return a
+		}`
+		eval(t, src, big.NewInt(3))
+	})
+	t.Run("NoPanic", func(t *testing.T) {
+		src := `package foo
+		var a int
+		func Main() int {
+			return h() + a
+		}
+		func h() int {
+			defer func() {
+				if r := recover(); r != nil {
+					a = 3
+				} else {
+					a = 4
+				}
+			}()
+			a = 1
+			return a
+		}`
+		eval(t, src, big.NewInt(5))
+	})
+	t.Run("PanicInDefer", func(t *testing.T) {
+		src := `package foo
+		var a int
+		func Main() int {
+			return h() + a
+		}
+		func h() int {
+			defer func() { a += 2; _ = recover() }()
+			defer func() { a *= 3; _ = recover(); panic("again") }()
+			a = 1
+			panic("msg")
+			return a
+		}`
+		eval(t, src, big.NewInt(5))
+	})
+}
