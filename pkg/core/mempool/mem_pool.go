@@ -12,6 +12,10 @@ import (
 )
 
 var (
+	// ErrInsufficientFunds is returned when Sender is not able to pay for
+	// transaction being added irrespective of the other contents of the
+	// pool.
+	ErrInsufficientFunds = errors.New("insufficient funds")
 	// ErrConflict is returned when transaction being added is incompatible
 	// with the contents of the memory pool (Sender doesn't have enough GAS
 	// to pay for all transactions in the pool).
@@ -37,7 +41,7 @@ type items []*item
 // sender's transactions which are currently in mempool
 type utilityBalanceAndFees struct {
 	balance *big.Int
-	feeSum  int64
+	feeSum  *big.Int
 }
 
 // Pool stores the unconfirms transactions.
@@ -112,21 +116,29 @@ func (mp *Pool) tryAddSendersFee(tx *transaction.Transaction, feer Feer, needChe
 	senderFee, ok := mp.fees[tx.Sender()]
 	if !ok {
 		senderFee.balance = feer.GetUtilityTokenBalance(tx.Sender())
+		senderFee.feeSum = big.NewInt(0)
 		mp.fees[tx.Sender()] = senderFee
 	}
-	if needCheck && !checkBalance(tx, senderFee) {
+	if needCheck && checkBalance(tx, senderFee) != nil {
 		return false
 	}
-	senderFee.feeSum += tx.SystemFee + tx.NetworkFee
+	senderFee.feeSum.Add(senderFee.feeSum, big.NewInt(tx.SystemFee+tx.NetworkFee))
 	mp.fees[tx.Sender()] = senderFee
 	return true
 }
 
-// checkBalance returns true in case when sender has enough GAS to pay for the
+// checkBalance returns nil in case when sender has enough GAS to pay for the
 // transaction
-func checkBalance(tx *transaction.Transaction, balance utilityBalanceAndFees) bool {
-	needFee := balance.feeSum + tx.SystemFee + tx.NetworkFee
-	return balance.balance.Cmp(big.NewInt(needFee)) >= 0
+func checkBalance(tx *transaction.Transaction, balance utilityBalanceAndFees) error {
+	txFee := big.NewInt(tx.SystemFee + tx.NetworkFee)
+	if balance.balance.Cmp(txFee) < 0 {
+		return ErrInsufficientFunds
+	}
+	needFee := txFee.Add(txFee, balance.feeSum)
+	if balance.balance.Cmp(needFee) < 0 {
+		return ErrConflict
+	}
+	return nil
 }
 
 // Add tries to add given transaction to the Pool.
@@ -136,13 +148,14 @@ func (mp *Pool) Add(t *transaction.Transaction, fee Feer) error {
 		timeStamp: time.Now().UTC(),
 	}
 	mp.lock.Lock()
-	if !mp.checkTxConflicts(t, fee) {
-		mp.lock.Unlock()
-		return ErrConflict
-	}
 	if mp.containsKey(t.Hash()) {
 		mp.lock.Unlock()
 		return ErrDup
+	}
+	err := mp.checkTxConflicts(t, fee)
+	if err != nil {
+		mp.lock.Unlock()
+		return err
 	}
 
 	mp.verifiedMap[t.Hash()] = pItem
@@ -200,7 +213,7 @@ func (mp *Pool) Remove(hash util.Uint256) {
 			mp.verifiedTxes = mp.verifiedTxes[:num]
 		}
 		senderFee := mp.fees[it.txn.Sender()]
-		senderFee.feeSum -= it.txn.SystemFee + it.txn.NetworkFee
+		senderFee.feeSum.Sub(senderFee.feeSum, big.NewInt(it.txn.SystemFee+it.txn.NetworkFee))
 		mp.fees[it.txn.Sender()] = senderFee
 	}
 	updateMempoolMetrics(len(mp.verifiedTxes))
@@ -247,9 +260,9 @@ func (mp *Pool) checkPolicy(tx *transaction.Transaction, policyChanged bool) boo
 	return false
 }
 
-// NewMemPool returns a new Pool struct.
-func NewMemPool(capacity int) Pool {
-	return Pool{
+// New returns a new Pool struct.
+func New(capacity int) *Pool {
+	return &Pool{
 		verifiedMap:  make(map[util.Uint256]*item),
 		verifiedTxes: make([]*item, 0, capacity),
 		capacity:     capacity,
@@ -283,10 +296,11 @@ func (mp *Pool) GetVerifiedTransactions() []*transaction.Transaction {
 }
 
 // checkTxConflicts is an internal unprotected version of Verify.
-func (mp *Pool) checkTxConflicts(tx *transaction.Transaction, fee Feer) bool {
+func (mp *Pool) checkTxConflicts(tx *transaction.Transaction, fee Feer) error {
 	senderFee, ok := mp.fees[tx.Sender()]
 	if !ok {
 		senderFee.balance = fee.GetUtilityTokenBalance(tx.Sender())
+		senderFee.feeSum = big.NewInt(0)
 	}
 	return checkBalance(tx, senderFee)
 }
@@ -298,5 +312,5 @@ func (mp *Pool) checkTxConflicts(tx *transaction.Transaction, fee Feer) bool {
 func (mp *Pool) Verify(tx *transaction.Transaction, feer Feer) bool {
 	mp.lock.RLock()
 	defer mp.lock.RUnlock()
-	return mp.checkTxConflicts(tx, feer)
+	return mp.checkTxConflicts(tx, feer) == nil
 }

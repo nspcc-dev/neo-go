@@ -51,12 +51,12 @@ type Blockchainer interface {
 	mempool.Feer // fee interface
 	GetMaxBlockSize() uint32
 	GetMaxBlockSystemFee() int64
-	PoolTx(*transaction.Transaction) error
+	PoolTx(t *transaction.Transaction, pools ...*mempool.Pool) error
 	SubscribeForBlocks(ch chan<- *block.Block)
 	SubscribeForExecutions(ch chan<- *state.AppExecResult)
 	SubscribeForNotifications(ch chan<- *state.NotificationEvent)
 	SubscribeForTransactions(ch chan<- *transaction.Transaction)
-	VerifyTx(*transaction.Transaction, *block.Block) error
+	VerifyTx(*transaction.Transaction) error
 	GetMemPool() *mempool.Pool
 	UnsubscribeFromBlocks(ch chan<- *block.Block)
 	UnsubscribeFromExecutions(ch chan<- *state.AppExecResult)

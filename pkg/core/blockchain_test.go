@@ -11,6 +11,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
+	"github.com/nspcc-dev/neo-go/pkg/core/mempool"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
@@ -115,6 +116,43 @@ func TestAddBlock(t *testing.T) {
 
 	assert.Equal(t, lastBlock.Index, bc.BlockHeight())
 	assert.Equal(t, lastBlock.Hash(), bc.CurrentHeaderHash())
+}
+
+func TestAddBadBlock(t *testing.T) {
+	bc := newTestChain(t)
+	defer bc.Close()
+	// It has ValidUntilBlock == 0, which is wrong
+	tx := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
+	tx.Signers = []transaction.Signer{{
+		Account: testchain.MultisigScriptHash(),
+		Scopes:  transaction.FeeOnly,
+	}}
+	require.NoError(t, signTx(bc, tx))
+	b1 := bc.newBlock(tx)
+
+	require.Error(t, bc.AddBlock(b1))
+	bc.config.VerifyTransactions = false
+	require.NoError(t, bc.AddBlock(b1))
+
+	b2 := bc.newBlock()
+	b2.PrevHash = util.Uint256{}
+
+	require.Error(t, bc.AddBlock(b2))
+	bc.config.VerifyBlocks = false
+	require.NoError(t, bc.AddBlock(b2))
+
+	tx = transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
+	tx.ValidUntilBlock = 128
+	tx.Signers = []transaction.Signer{{
+		Account: testchain.MultisigScriptHash(),
+		Scopes:  transaction.FeeOnly,
+	}}
+	require.NoError(t, signTx(bc, tx))
+	require.NoError(t, bc.PoolTx(tx))
+	bc.config.VerifyTransactions = true
+	bc.config.VerifyBlocks = true
+	b3 := bc.newBlock(tx)
+	require.NoError(t, bc.AddBlock(b3))
 }
 
 func TestScriptFromWitness(t *testing.T) {
@@ -234,7 +272,7 @@ func TestVerifyTx(t *testing.T) {
 	checkResult(t, res, stackitem.NewBool(true))
 
 	checkErr := func(t *testing.T, expectedErr error, tx *transaction.Transaction) {
-		err := bc.verifyTx(tx, nil)
+		err := bc.VerifyTx(tx)
 		fmt.Println(err)
 		require.True(t, errors.Is(err, expectedErr))
 	}
@@ -250,7 +288,7 @@ func TestVerifyTx(t *testing.T) {
 	t.Run("BlockedAccount", func(t *testing.T) {
 		tx := bc.newTestTx(accs[1].PrivateKey().GetScriptHash(), testScript)
 		require.NoError(t, accs[1].SignTx(tx))
-		err := bc.verifyTx(tx, nil)
+		err := bc.VerifyTx(tx)
 		require.True(t, errors.Is(err, ErrPolicy))
 	})
 	t.Run("InsufficientGas", func(t *testing.T) {
@@ -277,12 +315,13 @@ func TestVerifyTx(t *testing.T) {
 		tx := bc.newTestTx(h, testScript)
 		tx.NetworkFee = balance / 2
 		require.NoError(t, accs[0].SignTx(tx))
-		checkErr(t, nil, tx)
+		require.NoError(t, bc.PoolTx(tx))
 
 		tx2 := bc.newTestTx(h, testScript)
 		tx2.NetworkFee = balance / 2
-		require.NoError(t, bc.memPool.Add(tx2, bc))
-		checkErr(t, ErrMemPoolConflict, tx)
+		require.NoError(t, accs[0].SignTx(tx2))
+		err := bc.PoolTx(tx2)
+		require.True(t, errors.Is(err, ErrMemPoolConflict))
 	})
 	t.Run("NotEnoughWitnesses", func(t *testing.T) {
 		tx := bc.newTestTx(h, testScript)
@@ -299,6 +338,35 @@ func TestVerifyTx(t *testing.T) {
 		require.NoError(t, accs[0].SignTx(tx))
 		tx.Scripts[0].InvocationScript[10] = ^tx.Scripts[0].InvocationScript[10]
 		checkErr(t, ErrVerificationFailed, tx)
+	})
+	t.Run("OldTX", func(t *testing.T) {
+		tx := bc.newTestTx(h, testScript)
+		require.NoError(t, accs[0].SignTx(tx))
+		b := bc.newBlock(tx)
+		require.NoError(t, bc.AddBlock(b))
+
+		err := bc.VerifyTx(tx)
+		require.True(t, errors.Is(err, ErrAlreadyExists))
+	})
+	t.Run("MemPooledTX", func(t *testing.T) {
+		tx := bc.newTestTx(h, testScript)
+		require.NoError(t, accs[0].SignTx(tx))
+		require.NoError(t, bc.PoolTx(tx))
+
+		err := bc.PoolTx(tx)
+		require.True(t, errors.Is(err, ErrAlreadyExists))
+	})
+	t.Run("MemPoolOOM", func(t *testing.T) {
+		bc.memPool = mempool.New(1)
+		tx1 := bc.newTestTx(h, testScript)
+		tx1.NetworkFee += 10000 // Give it more priority.
+		require.NoError(t, accs[0].SignTx(tx1))
+		require.NoError(t, bc.PoolTx(tx1))
+
+		tx2 := bc.newTestTx(h, testScript)
+		require.NoError(t, accs[0].SignTx(tx2))
+		err := bc.PoolTx(tx2)
+		require.True(t, errors.Is(err, ErrOOM))
 	})
 }
 
@@ -363,6 +431,34 @@ func TestVerifyHashAgainstScript(t *testing.T) {
 		err := bc.verifyHashAgainstScript(hash.Hash160(verif), w, ic, false, gas)
 		require.True(t, errors.Is(err, ErrVerificationFailed))
 	})
+}
+
+func TestMemPoolRemoval(t *testing.T) {
+	const added = 16
+	const notAdded = 32
+	bc := newTestChain(t)
+	defer bc.Close()
+	addedTxes := make([]*transaction.Transaction, added)
+	notAddedTxes := make([]*transaction.Transaction, notAdded)
+	for i := range addedTxes {
+		addedTxes[i] = bc.newTestTx(testchain.MultisigScriptHash(), []byte{byte(opcode.PUSH1)})
+		require.NoError(t, signTx(bc, addedTxes[i]))
+		require.NoError(t, bc.PoolTx(addedTxes[i]))
+	}
+	for i := range notAddedTxes {
+		notAddedTxes[i] = bc.newTestTx(testchain.MultisigScriptHash(), []byte{byte(opcode.PUSH1)})
+		require.NoError(t, signTx(bc, notAddedTxes[i]))
+		require.NoError(t, bc.PoolTx(notAddedTxes[i]))
+	}
+	b := bc.newBlock(addedTxes...)
+	require.NoError(t, bc.AddBlock(b))
+	mempool := bc.GetMemPool()
+	for _, tx := range addedTxes {
+		require.False(t, mempool.ContainsKey(tx.Hash()))
+	}
+	for _, tx := range notAddedTxes {
+		require.True(t, mempool.ContainsKey(tx.Hash()))
+	}
 }
 
 func TestHasBlock(t *testing.T) {

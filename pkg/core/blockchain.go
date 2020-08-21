@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"sort"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -112,7 +113,7 @@ type Blockchain struct {
 	stopCh      chan struct{}
 	runToExitCh chan struct{}
 
-	memPool mempool.Pool
+	memPool *mempool.Pool
 
 	// This lock protects concurrent access to keyCache.
 	keyCacheLock sync.RWMutex
@@ -167,7 +168,7 @@ func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration, log *zap.L
 		headersOpDone: make(chan struct{}),
 		stopCh:        make(chan struct{}),
 		runToExitCh:   make(chan struct{}),
-		memPool:       mempool.NewMemPool(cfg.MemPoolSize),
+		memPool:       mempool.New(cfg.MemPoolSize),
 		keyCache:      make(map[util.Uint160]map[string]*keys.PublicKey),
 		sbCommittee:   committee,
 		log:           log,
@@ -436,8 +437,20 @@ func (bc *Blockchain) AddBlock(block *block.Block) error {
 			return fmt.Errorf("block %s is invalid: %w", block.Hash().StringLE(), err)
 		}
 		if bc.config.VerifyTransactions {
+			var mp = mempool.New(len(block.Transactions))
 			for _, tx := range block.Transactions {
-				err := bc.VerifyTx(tx, block)
+				var err error
+				// Transactions are verified before adding them
+				// into the pool, so there is no point in doing
+				// it again even if we're verifying in-block transactions.
+				if bc.memPool.ContainsKey(tx.Hash()) {
+					err = mp.Add(tx, bc)
+					if err == nil {
+						continue
+					}
+				} else {
+					err = bc.verifyAndPoolTx(tx, mp)
+				}
 				if err != nil {
 					return fmt.Errorf("transaction %s failed to verify: %w", tx.Hash().StringLE(), err)
 				}
@@ -601,7 +614,8 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 		}
 	}
 
-	for _, tx := range block.Transactions {
+	var txHashes = make([]util.Uint256, len(block.Transactions))
+	for i, tx := range block.Transactions {
 		if err := cache.StoreAsTransaction(tx, block.Index); err != nil {
 			return err
 		}
@@ -618,8 +632,8 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 			if err != nil {
 				return fmt.Errorf("failed to persist invocation results: %w", err)
 			}
-			for i := range systemInterop.Notifications {
-				bc.handleNotification(&systemInterop.Notifications[i], cache, block, tx.Hash())
+			for j := range systemInterop.Notifications {
+				bc.handleNotification(&systemInterop.Notifications[j], cache, block, tx.Hash())
 			}
 		} else {
 			bc.log.Warn("contract invocation failed",
@@ -640,7 +654,11 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 		if err != nil {
 			return fmt.Errorf("failed to store tx exec result: %w", err)
 		}
+		txHashes[i] = tx.Hash()
 	}
+	sort.Slice(txHashes, func(i, j int) bool {
+		return txHashes[i].CompareTo(txHashes[j]) < 0
+	})
 
 	root := bc.dao.MPT.StateRoot()
 	var prevHash util.Uint256
@@ -682,7 +700,7 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 	}
 	bc.topBlock.Store(block)
 	atomic.StoreUint32(&bc.blockHeight, block.Index)
-	bc.memPool.RemoveStale(bc.isTxStillRelevant, bc)
+	bc.memPool.RemoveStale(func(tx *transaction.Transaction) bool { return bc.isTxStillRelevant(tx, txHashes) }, bc)
 	bc.lock.Unlock()
 
 	updateBlockHeightMetric(block.Index)
@@ -1152,7 +1170,7 @@ func (bc *Blockchain) GetMaxBlockSystemFee() int64 {
 
 // GetMemPool returns the memory pool of the blockchain.
 func (bc *Blockchain) GetMemPool() *mempool.Pool {
-	return &bc.memPool
+	return bc.memPool
 }
 
 // ApplyPolicyToTxSet applies configured policies to given transaction set. It
@@ -1210,8 +1228,9 @@ var (
 	ErrTxInvalidWitnessNum = errors.New("number of signers doesn't match witnesses")
 )
 
-// verifyTx verifies whether a transaction is bonafide or not.
-func (bc *Blockchain) verifyTx(t *transaction.Transaction, block *block.Block) error {
+// verifyAndPoolTx verifies whether a transaction is bonafide or not and tries
+// to add it to the mempool given.
+func (bc *Blockchain) verifyAndPoolTx(t *transaction.Transaction, pool *mempool.Pool) error {
 	height := bc.BlockHeight()
 	if t.ValidUntilBlock <= height || t.ValidUntilBlock > height+transaction.MaxValidUntilBlockIncrement {
 		return fmt.Errorf("%w: ValidUntilBlock = %d, current height = %d", ErrTxExpired, t.ValidUntilBlock, height)
@@ -1220,11 +1239,6 @@ func (bc *Blockchain) verifyTx(t *transaction.Transaction, block *block.Block) e
 	if err := bc.contracts.Policy.CheckPolicy(bc.dao, t); err != nil {
 		// Only one %w can be used.
 		return fmt.Errorf("%w: %v", ErrPolicy, err)
-	}
-	balance := bc.GetUtilityTokenBalance(t.Sender())
-	need := t.SystemFee + t.NetworkFee
-	if balance.Cmp(big.NewInt(need)) < 0 {
-		return fmt.Errorf("%w: balance is %v, need: %v", ErrInsufficientFunds, balance, need)
 	}
 	size := io.GetVarSize(t)
 	if size > transaction.MaxTransactionSize {
@@ -1235,26 +1249,45 @@ func (bc *Blockchain) verifyTx(t *transaction.Transaction, block *block.Block) e
 	if netFee < 0 {
 		return fmt.Errorf("%w: net fee is %v, need %v", ErrTxSmallNetworkFee, t.NetworkFee, needNetworkFee)
 	}
-	if block == nil {
-		if ok := bc.memPool.Verify(t, bc); !ok {
+	if bc.dao.HasTransaction(t.Hash()) {
+		return fmt.Errorf("blockchain: %w", ErrAlreadyExists)
+	}
+	err := bc.verifyTxWitnesses(t, nil)
+	if err != nil {
+		return err
+	}
+	err = pool.Add(t, bc)
+	if err != nil {
+		switch {
+		case errors.Is(err, mempool.ErrConflict):
 			return ErrMemPoolConflict
+		case errors.Is(err, mempool.ErrDup):
+			return fmt.Errorf("mempool: %w", ErrAlreadyExists)
+		case errors.Is(err, mempool.ErrInsufficientFunds):
+			return ErrInsufficientFunds
+		case errors.Is(err, mempool.ErrOOM):
+			return ErrOOM
+		default:
+			return err
 		}
 	}
 
-	return bc.verifyTxWitnesses(t, block)
+	return nil
 }
 
 // isTxStillRelevant is a callback for mempool transaction filtering after the
-// new block addition. It returns false for transactions already present in the
-// chain (added by the new block), transactions using some inputs that are
-// already used (double spends) and does witness reverification for non-standard
+// new block addition. It returns false for transactions added by the new block
+// (passed via txHashes) and does witness reverification for non-standard
 // contracts. It operates under the assumption that full transaction verification
 // was already done so we don't need to check basic things like size, input/output
-// correctness, etc.
-func (bc *Blockchain) isTxStillRelevant(t *transaction.Transaction) bool {
+// correctness, presence in blocks before the new one, etc.
+func (bc *Blockchain) isTxStillRelevant(t *transaction.Transaction, txHashes []util.Uint256) bool {
 	var recheckWitness bool
 
-	if bc.dao.HasTransaction(t.Hash()) {
+	index := sort.Search(len(txHashes), func(i int) bool {
+		return txHashes[i].CompareTo(t.Hash()) >= 0
+	})
+	if index < len(txHashes) && txHashes[index].Equals(t.Hash()) {
 		return false
 	}
 	for i := range t.Scripts {
@@ -1346,38 +1379,31 @@ func (bc *Blockchain) verifyStateRootWitness(r *state.MPTRoot) error {
 		bc.contracts.Policy.GetMaxVerificationGas(interopCtx.DAO))
 }
 
-// VerifyTx verifies whether a transaction is bonafide or not. Block parameter
-// is used for easy interop access and can be omitted for transactions that are
-// not yet added into any block.
-// Golang implementation of Verify method in C# (https://github.com/neo-project/neo/blob/master/neo/Network/P2P/Payloads/Transaction.cs#L270).
-func (bc *Blockchain) VerifyTx(t *transaction.Transaction, block *block.Block) error {
+// VerifyTx verifies whether transaction is bonafide or not relative to the
+// current blockchain state. Note that this verification is completely isolated
+// from the main node's mempool.
+func (bc *Blockchain) VerifyTx(t *transaction.Transaction) error {
+	var mp = mempool.New(1)
 	bc.lock.RLock()
 	defer bc.lock.RUnlock()
-	return bc.verifyTx(t, block)
+	return bc.verifyAndPoolTx(t, mp)
 }
 
-// PoolTx verifies and tries to add given transaction into the mempool.
-func (bc *Blockchain) PoolTx(t *transaction.Transaction) error {
+// PoolTx verifies and tries to add given transaction into the mempool. If not
+// given, the default mempool is used. Passing multiple pools is not supported.
+func (bc *Blockchain) PoolTx(t *transaction.Transaction, pools ...*mempool.Pool) error {
+	var pool = bc.memPool
+
 	bc.lock.RLock()
 	defer bc.lock.RUnlock()
-
-	if bc.HasTransaction(t.Hash()) {
-		return fmt.Errorf("blockchain: %w", ErrAlreadyExists)
+	// Programmer error.
+	if len(pools) > 1 {
+		panic("too many pools given")
 	}
-	if err := bc.verifyTx(t, nil); err != nil {
-		return err
+	if len(pools) == 1 {
+		pool = pools[0]
 	}
-	if err := bc.memPool.Add(t, bc); err != nil {
-		switch {
-		case errors.Is(err, mempool.ErrOOM):
-			return ErrOOM
-		case errors.Is(err, mempool.ErrDup):
-			return fmt.Errorf("mempool: %w", ErrAlreadyExists)
-		default:
-			return err
-		}
-	}
-	return nil
+	return bc.verifyAndPoolTx(t, pool)
 }
 
 //GetStandByValidators returns validators from the configuration.

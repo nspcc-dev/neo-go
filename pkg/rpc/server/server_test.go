@@ -18,7 +18,6 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
-	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
@@ -729,7 +728,7 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 	t.Run("submit", func(t *testing.T) {
 		rpc := `{"jsonrpc": "2.0", "id": 1, "method": "submitblock", "params": ["%s"]}`
 		t.Run("invalid signature", func(t *testing.T) {
-			s := newBlock(t, chain, 1, 0)
+			s := testchain.NewBlock(t, chain, 1, 0)
 			s.Script.VerificationScript[8] ^= 0xff
 			body := doRPCCall(fmt.Sprintf(rpc, encodeBlock(t, s)), httpSrv.URL, t)
 			checkErrGetResult(t, body, true)
@@ -759,13 +758,13 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 		}
 
 		t.Run("invalid height", func(t *testing.T) {
-			b := newBlock(t, chain, 2, 0, newTx())
+			b := testchain.NewBlock(t, chain, 2, 0, newTx())
 			body := doRPCCall(fmt.Sprintf(rpc, encodeBlock(t, b)), httpSrv.URL, t)
 			checkErrGetResult(t, body, true)
 		})
 
 		t.Run("positive", func(t *testing.T) {
-			b := newBlock(t, chain, 1, 0, newTx())
+			b := testchain.NewBlock(t, chain, 1, 0, newTx())
 			body := doRPCCall(fmt.Sprintf(rpc, encodeBlock(t, b)), httpSrv.URL, t)
 			data := checkErrGetResult(t, body, false)
 			var res = new(result.RelayResult)
@@ -932,33 +931,6 @@ func encodeBlock(t *testing.T, b *block.Block) string {
 	b.EncodeBinary(w.BinWriter)
 	require.NoError(t, w.Err)
 	return hex.EncodeToString(w.Bytes())
-}
-
-func newBlock(t *testing.T, bc blockchainer.Blockchainer, index uint32, primary uint32, txs ...*transaction.Transaction) *block.Block {
-	witness := transaction.Witness{VerificationScript: testchain.MultisigVerificationScript()}
-	height := bc.BlockHeight()
-	h := bc.GetHeaderHash(int(height))
-	hdr, err := bc.GetHeader(h)
-	require.NoError(t, err)
-	b := &block.Block{
-		Base: block.Base{
-			PrevHash:      hdr.Hash(),
-			Timestamp:     (uint64(time.Now().UTC().Unix()) + uint64(hdr.Index)) * 1000,
-			Index:         hdr.Index + index,
-			NextConsensus: witness.ScriptHash(),
-			Script:        witness,
-			Network:       bc.GetConfig().Magic,
-		},
-		ConsensusData: block.ConsensusData{
-			PrimaryIndex: primary,
-			Nonce:        1111,
-		},
-		Transactions: txs,
-	}
-	_ = b.RebuildMerkleRoot()
-
-	b.Script.InvocationScript = testchain.Sign(b.GetSignedPart())
-	return b
 }
 
 func (tc rpcTestCase) getResultPair(e *executor) (expected interface{}, res interface{}) {

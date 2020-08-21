@@ -149,7 +149,7 @@ func (chain testChain) GetUtilityTokenBalance(uint160 util.Uint160) *big.Int {
 	panic("TODO")
 }
 
-func (chain testChain) PoolTx(*transaction.Transaction) error {
+func (chain testChain) PoolTx(*transaction.Transaction, ...*mempool.Pool) error {
 	panic("TODO")
 }
 
@@ -166,7 +166,7 @@ func (chain testChain) SubscribeForTransactions(ch chan<- *transaction.Transacti
 	panic("TODO")
 }
 
-func (chain testChain) VerifyTx(*transaction.Transaction, *block.Block) error {
+func (chain testChain) VerifyTx(*transaction.Transaction) error {
 	panic("TODO")
 }
 

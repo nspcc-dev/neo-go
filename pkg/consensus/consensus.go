@@ -13,9 +13,11 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	coreb "github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
+	"github.com/nspcc-dev/neo-go/pkg/core/mempool"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -255,9 +257,14 @@ func (s *service) getKeyPair(pubs []crypto.PublicKey) (int, crypto.PrivateKey, c
 			continue
 		}
 
-		key, err := keys.NEP2Decrypt(acc.EncryptedWIF, s.Config.Wallet.Password)
-		if err != nil {
-			continue
+		key := acc.PrivateKey()
+		if acc.PrivateKey() == nil {
+			err := acc.Decrypt(s.Config.Wallet.Password)
+			if err != nil {
+				s.log.Fatal("can't unlock account", zap.String("address", address.Uint160ToString(sh)))
+				break
+			}
+			key = acc.PrivateKey()
 		}
 
 		return i, &privateKey{PrivateKey: key}, &publicKey{PublicKey: key.PublicKey()}
@@ -342,6 +349,10 @@ func (s *service) getTx(h util.Uint256) block.Transaction {
 func (s *service) verifyBlock(b block.Block) bool {
 	coreb := &b.(*neoBlock).Block
 
+	if s.Chain.BlockHeight() >= coreb.Index {
+		s.log.Warn("proposed block has already outdated")
+		return false
+	}
 	maxBlockSize := int(s.Chain.GetMaxBlockSize())
 	size := io.GetVarSize(coreb)
 	if size > maxBlockSize {
@@ -352,12 +363,28 @@ func (s *service) verifyBlock(b block.Block) bool {
 	}
 
 	var fee int64
+	var pool = mempool.New(len(coreb.Transactions))
+	var mainPool = s.Chain.GetMemPool()
 	for _, tx := range coreb.Transactions {
+		var err error
+
 		fee += tx.SystemFee
-		if err := s.Chain.VerifyTx(tx, coreb); err != nil {
+		if mainPool.ContainsKey(tx.Hash()) {
+			err = pool.Add(tx, s.Chain)
+			if err == nil {
+				continue
+			}
+		} else {
+			err = s.Chain.PoolTx(tx, pool)
+		}
+		if err != nil {
 			s.log.Warn("invalid transaction in proposed block",
 				zap.Stringer("hash", tx.Hash()),
 				zap.Error(err))
+			return false
+		}
+		if s.Chain.BlockHeight() >= coreb.Index {
+			s.log.Warn("proposed block has already outdated")
 			return false
 		}
 	}
