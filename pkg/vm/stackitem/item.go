@@ -871,6 +871,18 @@ func NewPointer(pos int, script []byte) *Pointer {
 	}
 }
 
+// NewPointerWithHash returns new pointer on the specified position of the
+// specified script. It differs from NewPointer in that the script hash is being
+// passed explicitly to save on hash calculcation. This hash is then being used
+// for pointer comparisons.
+func NewPointerWithHash(pos int, script []byte, h util.Uint160) *Pointer {
+	return &Pointer{
+		pos:    pos,
+		script: script,
+		hash:   h,
+	}
+}
+
 // String implements Item interface.
 func (p *Pointer) String() string {
 	return "Pointer"
@@ -1079,7 +1091,7 @@ func deepCopy(item Item, seen map[Item]Item) Item {
 	case *Bool:
 		return NewBool(it.value)
 	case *Pointer:
-		return NewPointer(it.pos, it.script)
+		return NewPointerWithHash(it.pos, it.script, it.hash)
 	case *Interop:
 		return NewInterop(it.value)
 	default:

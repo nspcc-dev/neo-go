@@ -535,7 +535,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 
 	case opcode.PUSHA:
 		n := v.getJumpOffset(ctx, parameter)
-		ptr := stackitem.NewPointer(n, ctx.prog)
+		ptr := stackitem.NewPointerWithHash(n, ctx.prog, ctx.ScriptHash())
 		v.estack.PushVal(ptr)
 
 	case opcode.PUSHNULL:
