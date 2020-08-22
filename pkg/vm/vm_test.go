@@ -1321,6 +1321,16 @@ func TestTRY(t *testing.T) {
 			inner := getTRYProgram(throw, add5, []byte{byte(opcode.THROW)})
 			getTRYTestFunc(32, inner, add5, add9)(t)
 		})
+		t.Run("TryMaxDepth", func(t *testing.T) {
+			loopTries := []byte{byte(opcode.INITSLOT), 0x01, 0x00,
+				byte(opcode.PUSH16), byte(opcode.INC), byte(opcode.STLOC0),
+				byte(opcode.TRY), 1, 1, // jump target
+				byte(opcode.LDLOC0), byte(opcode.DEC), byte(opcode.DUP),
+				byte(opcode.STLOC0), byte(opcode.PUSH0),
+				byte(opcode.JMPGT), 0xf8, byte(opcode.LDLOC0)}
+			vm := load(loopTries)
+			checkVMFailed(t, vm)
+		})
 	})
 }
 

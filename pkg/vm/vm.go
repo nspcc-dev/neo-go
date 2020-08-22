@@ -45,6 +45,10 @@ const (
 	// MaxInvocationStackSize is the maximum size of an invocation stack.
 	MaxInvocationStackSize = 1024
 
+	// MaxTryNestingDepth is the maximum level of TRY nesting allowed,
+	// that is you can't have more exception handling contexts than this.
+	MaxTryNestingDepth = 16
+
 	// MaxStackSize is the maximum number of items allowed to be
 	// on all stacks at once.
 	MaxStackSize = 2 * 1024
@@ -1361,6 +1365,9 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 
 	case opcode.TRY, opcode.TRYL:
 		catchP, finallyP := getTryParams(op, parameter)
+		if ctx.tryStack.Len() >= MaxTryNestingDepth {
+			panic("maximum TRY depth exceeded")
+		}
 		cOffset := v.getJumpOffset(ctx, catchP)
 		fOffset := v.getJumpOffset(ctx, finallyP)
 		if cOffset == 0 && fOffset == 0 {
