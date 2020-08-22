@@ -33,7 +33,8 @@ type Item interface {
 	Dup() Item
 	// TryBool converts Item to a boolean value.
 	TryBool() (bool, error)
-	// TryBytes converts Item to a byte slice.
+	// TryBytes converts Item to a byte slice. If the underlying type is a
+	// byte slice, it's returned as is without copying.
 	TryBytes() ([]byte, error)
 	// TryInteger converts Item to an integer.
 	TryInteger() (*big.Int, error)
@@ -151,8 +152,11 @@ func convertPrimitive(item Item, typ Type) (Item, error) {
 			return nil, err
 		}
 		if typ == BufferT {
-			return NewBuffer(b), nil
+			newb := make([]byte, len(b))
+			copy(newb, b)
+			return NewBuffer(newb), nil
 		}
+		// ByteArray can't really be changed, so it's OK to reuse `b`.
 		return NewByteArray(b), nil
 	case BooleanT:
 		b, err := item.TryBool()
@@ -519,9 +523,7 @@ func (i *ByteArray) TryBool() (bool, error) {
 
 // TryBytes implements Item interface.
 func (i *ByteArray) TryBytes() ([]byte, error) {
-	val := make([]byte, len(i.value))
-	copy(val, i.value)
-	return val, nil
+	return i.value, nil
 }
 
 // TryInteger implements Item interface.
@@ -982,9 +984,7 @@ func (i *Buffer) TryBool() (bool, error) {
 
 // TryBytes implements Item interface.
 func (i *Buffer) TryBytes() ([]byte, error) {
-	val := make([]byte, len(i.value))
-	copy(val, i.value)
-	return val, nil
+	return i.value, nil
 }
 
 // TryInteger implements Item interface.

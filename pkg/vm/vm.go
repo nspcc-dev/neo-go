@@ -663,10 +663,13 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 	case opcode.CAT:
 		b := v.estack.Pop().Bytes()
 		a := v.estack.Pop().Bytes()
-		if l := len(a) + len(b); l > stackitem.MaxSize {
+		l := len(a) + len(b)
+		if l > stackitem.MaxSize {
 			panic(fmt.Sprintf("too big item: %d", l))
 		}
-		ab := append(a, b...)
+		ab := make([]byte, l)
+		copy(ab, a)
+		copy(ab[len(a):], b)
 		v.estack.PushVal(stackitem.NewBuffer(ab))
 
 	case opcode.SUBSTR:
@@ -683,7 +686,9 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		if last > len(s) {
 			panic("invalid offset")
 		}
-		v.estack.PushVal(stackitem.NewBuffer(s[o:last]))
+		res := make([]byte, l)
+		copy(res, s[o:last])
+		v.estack.PushVal(stackitem.NewBuffer(res))
 
 	case opcode.LEFT:
 		l := int(v.estack.Pop().BigInt().Int64())
@@ -694,7 +699,9 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		if t := len(s); l > t {
 			panic("size is too big")
 		}
-		v.estack.PushVal(stackitem.NewBuffer(s[:l]))
+		res := make([]byte, l)
+		copy(res, s[:l])
+		v.estack.PushVal(stackitem.NewBuffer(res))
 
 	case opcode.RIGHT:
 		l := int(v.estack.Pop().BigInt().Int64())
@@ -702,7 +709,9 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			panic("negative length")
 		}
 		s := v.estack.Pop().Bytes()
-		v.estack.PushVal(stackitem.NewBuffer(s[len(s)-l:]))
+		res := make([]byte, l)
+		copy(res, s[len(s)-l:])
+		v.estack.PushVal(stackitem.NewBuffer(res))
 
 	case opcode.DEPTH:
 		v.estack.PushVal(v.estack.Len())
