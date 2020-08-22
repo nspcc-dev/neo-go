@@ -9,22 +9,23 @@ import (
 	"github.com/nspcc-dev/dbft/payload"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/internal/testchain"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/stretchr/testify/require"
 )
 
 func TestRecoveryMessage_Setters(t *testing.T) {
-	const size = 5
-
-	privs := getKeys(t, size)
-	pubs := make([]crypto.PublicKey, 5)
-	for i := range pubs {
-		pubs[i] = &publicKey{privs[i].PublicKey()}
+	srv := newTestService(t)
+	defer srv.Chain.Close()
+	privs := make([]*privateKey, testchain.Size())
+	pubs := make([]crypto.PublicKey, testchain.Size())
+	for i := 0; i < testchain.Size(); i++ {
+		privs[i], pubs[i] = getTestValidator(i)
 	}
 
 	r := &recoveryMessage{}
-	p := new(Payload)
+	p := NewPayload(netmode.UnitTestNet)
 	p.message = &message{}
 	p.SetType(payload.RecoveryMessageType)
 	p.SetPayload(r)
@@ -36,7 +37,7 @@ func TestRecoveryMessage_Setters(t *testing.T) {
 		nonce:             321,
 		transactionHashes: []util.Uint256{{1}},
 	}
-	p1 := new(Payload)
+	p1 := NewPayload(netmode.UnitTestNet)
 	p1.message = &message{}
 	p1.SetType(payload.PrepareRequestType)
 	p1.SetPayload(req)
@@ -44,7 +45,7 @@ func TestRecoveryMessage_Setters(t *testing.T) {
 	require.NoError(t, p1.Sign(privs[0]))
 
 	t.Run("prepare response is added", func(t *testing.T) {
-		p2 := new(Payload)
+		p2 := NewPayload(netmode.UnitTestNet)
 		p2.message = &message{}
 		p2.SetType(payload.PrepareResponseType)
 		p2.SetPayload(&prepareResponse{
@@ -61,7 +62,7 @@ func TestRecoveryMessage_Setters(t *testing.T) {
 		require.Len(t, ps, 1)
 		require.Equal(t, p2, ps[0])
 		ps0 := ps[0].(*Payload)
-		require.True(t, ps0.Verify(ps0.Witness.ScriptHash()))
+		require.True(t, srv.validatePayload(ps0))
 	})
 
 	t.Run("prepare request is added", func(t *testing.T) {
@@ -75,11 +76,11 @@ func TestRecoveryMessage_Setters(t *testing.T) {
 		require.Equal(t, p1, pr)
 
 		pl := pr.(*Payload)
-		require.True(t, pl.Verify(pl.Witness.ScriptHash()))
+		require.True(t, srv.validatePayload(pl))
 	})
 
 	t.Run("change view is added", func(t *testing.T) {
-		p3 := new(Payload)
+		p3 := NewPayload(netmode.UnitTestNet)
 		p3.message = &message{}
 		p3.SetType(payload.ChangeViewType)
 		p3.SetPayload(&changeView{
@@ -96,16 +97,16 @@ func TestRecoveryMessage_Setters(t *testing.T) {
 		require.Equal(t, p3, ps[0])
 
 		ps0 := ps[0].(*Payload)
-		require.True(t, ps0.Verify(ps0.Witness.ScriptHash()))
+		require.True(t, srv.validatePayload(ps0))
 	})
 
 	t.Run("commit is added", func(t *testing.T) {
-		p4 := new(Payload)
+		p4 := NewPayload(netmode.UnitTestNet)
 		p4.message = &message{}
 		p4.SetType(payload.CommitType)
 		p4.SetPayload(randomMessage(t, commitType))
-		p4.SetValidatorIndex(4)
-		require.NoError(t, p4.Sign(privs[4]))
+		p4.SetValidatorIndex(3)
+		require.NoError(t, p4.Sign(privs[3]))
 
 		r.AddPayload(p4)
 
@@ -114,7 +115,7 @@ func TestRecoveryMessage_Setters(t *testing.T) {
 		require.Equal(t, p4, ps[0])
 
 		ps0 := ps[0].(*Payload)
-		require.True(t, ps0.Verify(ps0.Witness.ScriptHash()))
+		require.True(t, srv.validatePayload(ps0))
 	})
 }
 
