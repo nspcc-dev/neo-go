@@ -191,8 +191,8 @@ func (c *Context) Dup() stackitem.Item {
 	return c
 }
 
-// Bool implements stackitem.Item interface.
-func (c *Context) Bool() bool { panic("can't convert Context to Bool") }
+// TryBool implements stackitem.Item interface.
+func (c *Context) TryBool() (bool, error) { panic("can't convert Context to Bool") }
 
 // TryBytes implements stackitem.Item interface.
 func (c *Context) TryBytes() ([]byte, error) {

@@ -401,6 +401,17 @@ func TestVerifyHashAgainstScript(t *testing.T) {
 		err := bc.verifyHashAgainstScript(hash.Hash160(verif), w, ic, false, gas)
 		require.True(t, errors.Is(err, ErrVerificationFailed))
 	})
+	t.Run("BadResult", func(t *testing.T) {
+		verif := make([]byte, 66)
+		verif[0] = byte(opcode.PUSHDATA1)
+		verif[1] = 64
+		w := &transaction.Witness{
+			InvocationScript:   []byte{byte(opcode.NOP)},
+			VerificationScript: verif,
+		}
+		err := bc.verifyHashAgainstScript(hash.Hash160(verif), w, ic, false, gas)
+		require.True(t, errors.Is(err, ErrVerificationFailed))
+	})
 	t.Run("TooManyResults", func(t *testing.T) {
 		verif := []byte{byte(opcode.NOP)}
 		w := &transaction.Witness{

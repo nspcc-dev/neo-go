@@ -31,8 +31,8 @@ type Item interface {
 	Value() interface{}
 	// Dup duplicates current Item.
 	Dup() Item
-	// Bool converts Item to a boolean value.
-	Bool() bool
+	// TryBool converts Item to a boolean value.
+	TryBool() (bool, error)
 	// TryBytes converts Item to a byte slice.
 	TryBytes() ([]byte, error)
 	// TryInteger converts Item to an integer.
@@ -155,7 +155,11 @@ func convertPrimitive(item Item, typ Type) (Item, error) {
 		}
 		return NewByteArray(b), nil
 	case BooleanT:
-		return NewBool(item.Bool()), nil
+		b, err := item.TryBool()
+		if err != nil {
+			return nil, err
+		}
+		return NewBool(b), nil
 	default:
 		return nil, errInvalidConversion
 	}
@@ -210,8 +214,8 @@ func (i *Struct) Dup() Item {
 	return i
 }
 
-// Bool implements Item interface.
-func (i *Struct) Bool() bool { return true }
+// TryBool implements Item interface.
+func (i *Struct) TryBool() (bool, error) { return true, nil }
 
 // TryBytes implements Item interface.
 func (i *Struct) TryBytes() ([]byte, error) {
@@ -255,7 +259,7 @@ func (i *Struct) Convert(typ Type) (Item, error) {
 		copy(arr, i.value)
 		return NewArray(arr), nil
 	case BooleanT:
-		return NewBool(i.Bool()), nil
+		return NewBool(true), nil
 	default:
 		return nil, errInvalidConversion
 	}
@@ -296,8 +300,8 @@ func (i Null) Dup() Item {
 	return i
 }
 
-// Bool implements Item interface.
-func (i Null) Bool() bool { return false }
+// TryBool implements Item interface.
+func (i Null) TryBool() (bool, error) { return false, nil }
 
 // TryBytes implements Item interface.
 func (i Null) TryBytes() ([]byte, error) {
@@ -346,9 +350,9 @@ func (i *BigInteger) Bytes() []byte {
 	return bigint.ToBytes(i.value)
 }
 
-// Bool implements Item interface.
-func (i *BigInteger) Bool() bool {
-	return i.value.Sign() != 0
+// TryBool implements Item interface.
+func (i *BigInteger) TryBool() (bool, error) {
+	return i.value.Sign() != 0, nil
 }
 
 // TryBytes implements Item interface.
@@ -431,8 +435,8 @@ func (i *Bool) Dup() Item {
 	return &Bool{i.value}
 }
 
-// Bool implements Item interface.
-func (i *Bool) Bool() bool { return i.value }
+// TryBool implements Item interface.
+func (i *Bool) TryBool() (bool, error) { return i.value, nil }
 
 // Bytes converts Bool to bytes.
 func (i *Bool) Bytes() []byte {
@@ -500,17 +504,17 @@ func (i *ByteArray) String() string {
 	return "ByteString"
 }
 
-// Bool implements Item interface.
-func (i *ByteArray) Bool() bool {
+// TryBool implements Item interface.
+func (i *ByteArray) TryBool() (bool, error) {
 	if len(i.value) > MaxBigIntegerSizeBits/8 {
-		return true
+		return false, errors.New("too big byte string")
 	}
 	for _, b := range i.value {
 		if b != 0 {
-			return true
+			return true, nil
 		}
 	}
-	return false
+	return false, nil
 }
 
 // TryBytes implements Item interface.
@@ -601,8 +605,8 @@ func (i *Array) String() string {
 	return "Array"
 }
 
-// Bool implements Item interface.
-func (i *Array) Bool() bool { return true }
+// TryBool implements Item interface.
+func (i *Array) TryBool() (bool, error) { return true, nil }
 
 // TryBytes implements Item interface.
 func (i *Array) TryBytes() ([]byte, error) {
@@ -638,7 +642,7 @@ func (i *Array) Convert(typ Type) (Item, error) {
 		copy(arr, i.value)
 		return NewStruct(arr), nil
 	case BooleanT:
-		return NewBool(i.Bool()), nil
+		return NewBool(true), nil
 	default:
 		return nil, errInvalidConversion
 	}
@@ -691,8 +695,8 @@ func (i *Map) Len() int {
 	return len(i.value)
 }
 
-// Bool implements Item interface.
-func (i *Map) Bool() bool { return true }
+// TryBool implements Item interface.
+func (i *Map) TryBool() (bool, error) { return true, nil }
 
 // TryBytes implements Item interface.
 func (i *Map) TryBytes() ([]byte, error) {
@@ -743,7 +747,7 @@ func (i *Map) Convert(typ Type) (Item, error) {
 	case MapT:
 		return i, nil
 	case BooleanT:
-		return NewBool(i.Bool()), nil
+		return NewBool(true), nil
 	default:
 		return nil, errInvalidConversion
 	}
@@ -807,8 +811,8 @@ func (i *Interop) Dup() Item {
 	return i
 }
 
-// Bool implements Item interface.
-func (i *Interop) Bool() bool { return true }
+// TryBool implements Item interface.
+func (i *Interop) TryBool() (bool, error) { return true, nil }
 
 // TryBytes implements Item interface.
 func (i *Interop) TryBytes() ([]byte, error) {
@@ -840,7 +844,7 @@ func (i *Interop) Convert(typ Type) (Item, error) {
 	case InteropT:
 		return i, nil
 	case BooleanT:
-		return NewBool(i.Bool()), nil
+		return NewBool(true), nil
 	default:
 		return nil, errInvalidConversion
 	}
@@ -886,9 +890,9 @@ func (p *Pointer) Dup() Item {
 	}
 }
 
-// Bool implements Item interface.
-func (p *Pointer) Bool() bool {
-	return true
+// TryBool implements Item interface.
+func (p *Pointer) TryBool() (bool, error) {
+	return true, nil
 }
 
 // TryBytes implements Item interface.
@@ -921,7 +925,7 @@ func (p *Pointer) Convert(typ Type) (Item, error) {
 	case PointerT:
 		return p, nil
 	case BooleanT:
-		return NewBool(p.Bool()), nil
+		return NewBool(true), nil
 	default:
 		return nil, errInvalidConversion
 	}
@@ -959,9 +963,9 @@ func (i *Buffer) String() string {
 	return "Buffer"
 }
 
-// Bool implements Item interface.
-func (i *Buffer) Bool() bool {
-	return true
+// TryBool implements Item interface.
+func (i *Buffer) TryBool() (bool, error) {
+	return true, nil
 }
 
 // TryBytes implements Item interface.
@@ -998,7 +1002,7 @@ func (i *Buffer) Type() Type { return BufferT }
 func (i *Buffer) Convert(typ Type) (Item, error) {
 	switch typ {
 	case BooleanT:
-		return NewBool(i.Bool()), nil
+		return NewBool(true), nil
 	case BufferT:
 		return i, nil
 	case ByteArrayT:

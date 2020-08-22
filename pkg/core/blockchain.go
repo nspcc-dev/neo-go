@@ -1514,7 +1514,11 @@ func (bc *Blockchain) verifyHashAgainstScript(hash util.Uint160, witness *transa
 	}
 	resEl := vm.Estack().Pop()
 	if resEl != nil {
-		if !resEl.Bool() {
+		res, err := resEl.Item().TryBool()
+		if err != nil {
+			return fmt.Errorf("%w: invalid return value", ErrVerificationFailed)
+		}
+		if !res {
 			return fmt.Errorf("%w: invalid signature", ErrVerificationFailed)
 		}
 		if vm.Estack().Len() != 0 {
