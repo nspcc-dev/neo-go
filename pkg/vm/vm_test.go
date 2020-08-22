@@ -1336,6 +1336,12 @@ func TestTRY(t *testing.T) {
 			checkVMFailed(t, vm)
 		})
 	})
+	t.Run("ThrowInCall", func(t *testing.T) {
+		catchP := []byte{byte(opcode.CALL), 2, byte(opcode.PUSH1), byte(opcode.ADD), byte(opcode.THROW), byte(opcode.RET)}
+		inner := getTRYProgram(throw, catchP, []byte{byte(opcode.PUSH2)})
+		// add 5 to the exception, mul to the result of inner finally (2)
+		getTRYTestFunc(47, inner, append(add5, byte(opcode.MUL)), add9)(t)
+	})
 }
 
 func TestMEMCPY(t *testing.T) {
