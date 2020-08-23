@@ -59,7 +59,7 @@ var systemInterops = []interop.Function{
 		RequiredFlags: smartcontract.AllowModifyStates, ParamCount: 2, DisallowCallback: true},
 	{Name: interopnames.SystemContractCreateStandardAccount, Func: contractCreateStandardAccount, Price: 10000, ParamCount: 1, DisallowCallback: true},
 	{Name: interopnames.SystemContractDestroy, Func: contractDestroy, Price: 1000000, RequiredFlags: smartcontract.AllowModifyStates, DisallowCallback: true},
-	{Name: interopnames.SystemContractIsStandard, Func: contractIsStandard, Price: 30000, ParamCount: 1},
+	{Name: interopnames.SystemContractIsStandard, Func: contractIsStandard, Price: 30000, RequiredFlags: smartcontract.AllowStates, ParamCount: 1},
 	{Name: interopnames.SystemContractGetCallFlags, Func: contractGetCallFlags, Price: 30000, DisallowCallback: true},
 	{Name: interopnames.SystemContractUpdate, Func: contractUpdate, Price: 0,
 		RequiredFlags: smartcontract.AllowModifyStates, ParamCount: 2, DisallowCallback: true},
