@@ -1699,13 +1699,13 @@ func shortenJumps(b []byte, offsets []int) []byte {
 	// 2. Convert instructions.
 	copyOffset := 0
 	l := len(offsets)
-	b[offsets[0]] = toShortForm(b[offsets[0]])
+	b[offsets[0]] = byte(toShortForm(opcode.Opcode(b[offsets[0]])))
 	for i := 0; i < l; i++ {
 		start := offsets[i] + 2
 		end := len(b)
 		if i != l-1 {
 			end = offsets[i+1] + 2
-			b[offsets[i+1]] = toShortForm(b[offsets[i+1]])
+			b[offsets[i+1]] = byte(toShortForm(opcode.Opcode(b[offsets[i+1]])))
 		}
 		copy(b[start-copyOffset:], b[start+3:end])
 		copyOffset += longToShortRemoveCount
@@ -1731,28 +1731,28 @@ func calcOffsetCorrection(ip, target int, offsets []int) int {
 	return cnt
 }
 
-func toShortForm(b byte) byte {
-	switch op := opcode.Opcode(b); op {
+func toShortForm(op opcode.Opcode) opcode.Opcode {
+	switch op {
 	case opcode.JMPL:
-		return byte(opcode.JMP)
+		return opcode.JMP
 	case opcode.JMPIFL:
-		return byte(opcode.JMPIF)
+		return opcode.JMPIF
 	case opcode.JMPIFNOTL:
-		return byte(opcode.JMPIFNOT)
+		return opcode.JMPIFNOT
 	case opcode.JMPEQL:
-		return byte(opcode.JMPEQ)
+		return opcode.JMPEQ
 	case opcode.JMPNEL:
-		return byte(opcode.JMPNE)
+		return opcode.JMPNE
 	case opcode.JMPGTL:
-		return byte(opcode.JMPGT)
+		return opcode.JMPGT
 	case opcode.JMPGEL:
-		return byte(opcode.JMPGE)
+		return opcode.JMPGE
 	case opcode.JMPLEL:
-		return byte(opcode.JMPLE)
+		return opcode.JMPLE
 	case opcode.JMPLTL:
-		return byte(opcode.JMPLT)
+		return opcode.JMPLT
 	case opcode.CALLL:
-		return byte(opcode.CALL)
+		return opcode.CALL
 	default:
 		panic(fmt.Errorf("invalid opcode: %s", op))
 	}
