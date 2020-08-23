@@ -702,6 +702,15 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			return nil
 		}
 
+		if arg := c.getCompareWithNilArg(n); arg != nil {
+			ast.Walk(c, arg)
+			emit.Opcode(c.prog.BinWriter, opcode.ISNULL)
+			if n.Op == token.NEQ {
+				emit.Opcode(c.prog.BinWriter, opcode.NOT)
+			}
+			return nil
+		}
+
 		switch n.Op {
 		case token.LAND:
 			end := c.newLabel()
@@ -724,27 +733,8 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			return nil
 
 		default:
-			var checkForNull bool
-
-			if isExprNil(n.X) {
-				checkForNull = true
-			} else {
-				ast.Walk(c, n.X)
-			}
-			if isExprNil(n.Y) {
-				checkForNull = true
-			} else {
-				ast.Walk(c, n.Y)
-			}
-			if checkForNull {
-				emit.Opcode(c.prog.BinWriter, opcode.ISNULL)
-				if n.Op == token.NEQ {
-					emit.Opcode(c.prog.BinWriter, opcode.NOT)
-				}
-
-				return nil
-			}
-
+			ast.Walk(c, n.X)
+			ast.Walk(c, n.Y)
 			switch {
 			case n.Op == token.ADD:
 				// VM has separate opcodes for number and string concatenation
@@ -1147,6 +1137,15 @@ func (c *codegen) rangeLoadKey() {
 func isFallthroughStmt(c ast.Node) bool {
 	s, ok := c.(*ast.BranchStmt)
 	return ok && s.Tok == token.FALLTHROUGH
+}
+
+func (c *codegen) getCompareWithNilArg(n *ast.BinaryExpr) ast.Expr {
+	if isExprNil(n.X) {
+		return n.Y
+	} else if isExprNil(n.Y) {
+		return n.X
+	}
+	return nil
 }
 
 func (c *codegen) pushStackLabel(name string, size int) {
