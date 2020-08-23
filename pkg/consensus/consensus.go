@@ -199,7 +199,7 @@ func (s *service) eventLoop() {
 			s.dbft.OnTimeout(hv)
 		case msg := <-s.messages:
 			fields := []zap.Field{
-				zap.Uint16("from", msg.validatorIndex),
+				zap.Uint8("from", msg.validatorIndex),
 				zap.Stringer("type", msg.Type()),
 			}
 

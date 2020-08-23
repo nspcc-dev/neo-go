@@ -30,7 +30,7 @@ type (
 		network        netmode.Magic
 		data           []byte
 		version        uint32
-		validatorIndex uint16
+		validatorIndex uint8
 		prevHash       util.Uint256
 		height         uint32
 
@@ -134,12 +134,12 @@ func (p *Payload) SetVersion(v uint32) {
 
 // ValidatorIndex implements payload.ConsensusPayload interface.
 func (p Payload) ValidatorIndex() uint16 {
-	return p.validatorIndex
+	return uint16(p.validatorIndex)
 }
 
 // SetValidatorIndex implements payload.ConsensusPayload interface.
 func (p *Payload) SetValidatorIndex(i uint16) {
-	p.validatorIndex = i
+	p.validatorIndex = uint8(i)
 }
 
 // PrevHash implements payload.ConsensusPayload interface.
@@ -167,7 +167,7 @@ func (p *Payload) EncodeBinaryUnsigned(w *io.BinWriter) {
 	w.WriteU32LE(p.version)
 	w.WriteBytes(p.prevHash[:])
 	w.WriteU32LE(p.height)
-	w.WriteU16LE(p.validatorIndex)
+	w.WriteB(p.validatorIndex)
 
 	if p.data == nil {
 		ww := io.NewBufBinWriter()
@@ -216,7 +216,7 @@ func (p *Payload) DecodeBinaryUnsigned(r *io.BinReader) {
 	p.version = r.ReadU32LE()
 	r.ReadBytes(p.prevHash[:])
 	p.height = r.ReadU32LE()
-	p.validatorIndex = r.ReadU16LE()
+	p.validatorIndex = r.ReadB()
 
 	p.data = r.ReadVarBytes()
 	if r.Err != nil {
