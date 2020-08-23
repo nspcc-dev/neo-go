@@ -712,21 +712,16 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		}
 
 		switch n.Op {
-		case token.LAND:
+		case token.LAND, token.LOR:
 			end := c.newLabel()
 			ast.Walk(c, n.X)
-			emit.Instruction(c.prog.BinWriter, opcode.JMPIF, []byte{2 + 1 + 5})
-			emit.Opcode(c.prog.BinWriter, opcode.PUSHF)
-			emit.Jmp(c.prog.BinWriter, opcode.JMPL, end)
-			ast.Walk(c, n.Y)
-			c.setLabel(end)
-			return nil
-
-		case token.LOR:
-			end := c.newLabel()
-			ast.Walk(c, n.X)
-			emit.Instruction(c.prog.BinWriter, opcode.JMPIFNOT, []byte{2 + 1 + 5})
-			emit.Opcode(c.prog.BinWriter, opcode.PUSHT)
+			if n.Op == token.LAND {
+				emit.Instruction(c.prog.BinWriter, opcode.JMPIF, []byte{2 + 1 + 5})
+				emit.Opcode(c.prog.BinWriter, opcode.PUSHF)
+			} else {
+				emit.Instruction(c.prog.BinWriter, opcode.JMPIFNOT, []byte{2 + 1 + 5})
+				emit.Opcode(c.prog.BinWriter, opcode.PUSHT)
+			}
 			emit.Jmp(c.prog.BinWriter, opcode.JMPL, end)
 			ast.Walk(c, n.Y)
 			c.setLabel(end)
