@@ -3,6 +3,7 @@ package transaction
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"math/rand"
 
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
@@ -117,6 +118,16 @@ func (t *Transaction) VerificationHash() util.Uint256 {
 		}
 	}
 	return t.verificationHash
+}
+
+// HasAttribute returns true iff t has an attribute of type typ.
+func (t *Transaction) HasAttribute(typ AttrType) bool {
+	for i := range t.Attributes {
+		if t.Attributes[i].Type == typ {
+			return true
+		}
+	}
+	return false
 }
 
 // decodeHashableFields decodes the fields that are used for signing the
@@ -322,35 +333,58 @@ func (t *Transaction) UnmarshalJSON(data []byte) error {
 	return t.isValid()
 }
 
+// Various errors for transaction validation.
+var (
+	ErrInvalidVersion     = errors.New("only version 0 is supported")
+	ErrNegativeSystemFee  = errors.New("negative system fee")
+	ErrNegativeNetworkFee = errors.New("negative network fee")
+	ErrTooBigFees         = errors.New("too big fees: int64 overflow")
+	ErrEmptySigners       = errors.New("signers array should contain sender")
+	ErrInvalidScope       = errors.New("FeeOnly scope can be used only for sender")
+	ErrNonUniqueSigners   = errors.New("transaction signers should be unique")
+	ErrInvalidAttribute   = errors.New("invalid attribute")
+	ErrEmptyScript        = errors.New("no script")
+)
+
 // isValid checks whether decoded/unmarshalled transaction has all fields valid.
 func (t *Transaction) isValid() error {
 	if t.Version > 0 {
-		return errors.New("only version 0 is supported")
+		return ErrInvalidVersion
 	}
 	if t.SystemFee < 0 {
-		return errors.New("negative system fee")
+		return ErrNegativeSystemFee
 	}
 	if t.NetworkFee < 0 {
-		return errors.New("negative network fee")
+		return ErrNegativeNetworkFee
 	}
 	if t.NetworkFee+t.SystemFee < t.SystemFee {
-		return errors.New("too big fees: int64 overflow")
+		return ErrTooBigFees
 	}
 	if len(t.Signers) == 0 {
-		return errors.New("signers array should contain sender")
+		return ErrEmptySigners
 	}
 	for i := 0; i < len(t.Signers); i++ {
 		if i > 0 && t.Signers[i].Scopes == FeeOnly {
-			return errors.New("FeeOnly scope can be used only for sender")
+			return ErrInvalidScope
 		}
 		for j := i + 1; j < len(t.Signers); j++ {
 			if t.Signers[i].Account.Equals(t.Signers[j].Account) {
-				return errors.New("transaction signers should be unique")
+				return ErrNonUniqueSigners
 			}
 		}
 	}
+	hasHighPrio := false
+	for i := range t.Attributes {
+		switch t.Attributes[i].Type {
+		case HighPriority:
+			if hasHighPrio {
+				return fmt.Errorf("%w: multiple high priority attributes", ErrInvalidAttribute)
+			}
+			hasHighPrio = true
+		}
+	}
 	if len(t.Script) == 0 {
-		return errors.New("no script")
+		return ErrEmptyScript
 	}
 	return nil
 }

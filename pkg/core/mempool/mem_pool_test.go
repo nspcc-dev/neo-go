@@ -254,3 +254,42 @@ func TestMemPoolFees(t *testing.T) {
 	}, &FeerStub{})
 	require.Equal(t, 0, len(mp.fees))
 }
+
+func TestMempoolItemsOrder(t *testing.T) {
+	sender0 := util.Uint160{1, 2, 3}
+
+	tx1 := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
+	tx1.NetworkFee = new(big.Int).Div(balance, big.NewInt(8)).Int64()
+	tx1.Signers = []transaction.Signer{{Account: sender0}}
+	tx1.Attributes = []transaction.Attribute{{Type: transaction.HighPriority}}
+	item1 := &item{txn: tx1}
+
+	tx2 := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
+	tx2.NetworkFee = new(big.Int).Div(balance, big.NewInt(16)).Int64()
+	tx2.Signers = []transaction.Signer{{Account: sender0}}
+	tx2.Attributes = []transaction.Attribute{{Type: transaction.HighPriority}}
+	item2 := &item{txn: tx2}
+
+	tx3 := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
+	tx3.NetworkFee = new(big.Int).Div(balance, big.NewInt(2)).Int64()
+	tx3.Signers = []transaction.Signer{{Account: sender0}}
+	item3 := &item{txn: tx3}
+
+	tx4 := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
+	tx4.NetworkFee = new(big.Int).Div(balance, big.NewInt(4)).Int64()
+	tx4.Signers = []transaction.Signer{{Account: sender0}}
+	item4 := &item{txn: tx4}
+
+	require.True(t, item1.CompareTo(item2) > 0)
+	require.True(t, item2.CompareTo(item1) < 0)
+	require.True(t, item1.CompareTo(item3) > 0)
+	require.True(t, item3.CompareTo(item1) < 0)
+	require.True(t, item1.CompareTo(item4) > 0)
+	require.True(t, item4.CompareTo(item1) < 0)
+	require.True(t, item2.CompareTo(item3) > 0)
+	require.True(t, item3.CompareTo(item2) < 0)
+	require.True(t, item2.CompareTo(item4) > 0)
+	require.True(t, item4.CompareTo(item2) < 0)
+	require.True(t, item3.CompareTo(item4) > 0)
+	require.True(t, item4.CompareTo(item3) < 0)
+}

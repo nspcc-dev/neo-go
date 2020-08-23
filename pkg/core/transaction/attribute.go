@@ -3,6 +3,7 @@ package transaction
 import (
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"github.com/nspcc-dev/neo-go/pkg/io"
@@ -25,14 +26,12 @@ func (attr *Attribute) DecodeBinary(br *io.BinReader) {
 	attr.Type = AttrType(br.ReadB())
 
 	var datasize uint64
-	/**
-
 	switch attr.Type {
+	case HighPriority:
 	default:
 		br.Err = fmt.Errorf("failed decoding TX attribute usage: 0x%2x", int(attr.Type))
 		return
 	}
-	*/
 	attr.Data = make([]byte, datasize)
 	br.ReadBytes(attr.Data)
 }
@@ -41,6 +40,7 @@ func (attr *Attribute) DecodeBinary(br *io.BinReader) {
 func (attr *Attribute) EncodeBinary(bw *io.BinWriter) {
 	bw.WriteB(byte(attr.Type))
 	switch attr.Type {
+	case HighPriority:
 	default:
 		bw.Err = fmt.Errorf("failed encoding TX attribute usage: 0x%2x", attr.Type)
 	}
@@ -49,7 +49,7 @@ func (attr *Attribute) EncodeBinary(bw *io.BinWriter) {
 // MarshalJSON implements the json Marshaller interface.
 func (attr *Attribute) MarshalJSON() ([]byte, error) {
 	return json.Marshal(attrJSON{
-		Type: "", // attr.Type.String() when we're to have some real attributes
+		Type: attr.Type.String(),
 		Data: base64.StdEncoding.EncodeToString(attr.Data),
 	})
 }
@@ -65,13 +65,13 @@ func (attr *Attribute) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		return err
 	}
-	/**
 	switch aj.Type {
+	case "HighPriority":
+		attr.Type = HighPriority
 	default:
 		return errors.New("wrong Type")
 
 	}
-	*/
 	attr.Data = binData
 	return nil
 }

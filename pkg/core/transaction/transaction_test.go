@@ -3,6 +3,8 @@ package transaction
 import (
 	"encoding/base64"
 	"encoding/hex"
+	"errors"
+	"math"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
@@ -112,10 +114,100 @@ func TestMarshalUnmarshalJSONInvocationTX(t *testing.T) {
 		Version:    0,
 		Signers:    []Signer{{Account: util.Uint160{1, 2, 3}}},
 		Script:     []byte{1, 2, 3, 4},
-		Attributes: []Attribute{},
+		Attributes: []Attribute{{Type: HighPriority, Data: []byte{}}},
 		Scripts:    []Witness{},
 		Trimmed:    false,
 	}
 
 	testserdes.MarshalUnmarshalJSON(t, tx, new(Transaction))
+}
+
+func TestTransaction_HasAttribute(t *testing.T) {
+	tx := New(netmode.UnitTestNet, []byte{1}, 0)
+	require.False(t, tx.HasAttribute(HighPriority))
+	tx.Attributes = append(tx.Attributes, Attribute{Type: HighPriority})
+	require.True(t, tx.HasAttribute(HighPriority))
+	tx.Attributes = append(tx.Attributes, Attribute{Type: HighPriority})
+	require.True(t, tx.HasAttribute(HighPriority))
+}
+
+func TestTransaction_isValid(t *testing.T) {
+	newTx := func() *Transaction {
+		return &Transaction{
+			Version:    0,
+			SystemFee:  100,
+			NetworkFee: 100,
+			Signers: []Signer{
+				{Account: util.Uint160{1, 2, 3}},
+				{
+					Account: util.Uint160{4, 5, 6},
+					Scopes:  Global,
+				},
+			},
+			Script:     []byte{1, 2, 3, 4},
+			Attributes: []Attribute{},
+			Scripts:    []Witness{},
+			Trimmed:    false,
+		}
+	}
+
+	t.Run("Valid", func(t *testing.T) {
+		t.Run("NoAttributes", func(t *testing.T) {
+			tx := newTx()
+			require.NoError(t, tx.isValid())
+		})
+		t.Run("HighPriority", func(t *testing.T) {
+			tx := newTx()
+			tx.Attributes = []Attribute{{Type: HighPriority}}
+			require.NoError(t, tx.isValid())
+		})
+	})
+	t.Run("InvalidVersion", func(t *testing.T) {
+		tx := newTx()
+		tx.Version = 1
+		require.True(t, errors.Is(tx.isValid(), ErrInvalidVersion))
+	})
+	t.Run("NegativeSystemFee", func(t *testing.T) {
+		tx := newTx()
+		tx.SystemFee = -1
+		require.True(t, errors.Is(tx.isValid(), ErrNegativeSystemFee))
+	})
+	t.Run("NegativeNetworkFee", func(t *testing.T) {
+		tx := newTx()
+		tx.NetworkFee = -1
+		require.True(t, errors.Is(tx.isValid(), ErrNegativeNetworkFee))
+	})
+	t.Run("TooBigFees", func(t *testing.T) {
+		tx := newTx()
+		tx.SystemFee = math.MaxInt64 - tx.NetworkFee + 1
+		require.True(t, errors.Is(tx.isValid(), ErrTooBigFees))
+	})
+	t.Run("EmptySigners", func(t *testing.T) {
+		tx := newTx()
+		tx.Signers = tx.Signers[:0]
+		require.True(t, errors.Is(tx.isValid(), ErrEmptySigners))
+	})
+	t.Run("InvalidScope", func(t *testing.T) {
+		tx := newTx()
+		tx.Signers[1].Scopes = FeeOnly
+		require.True(t, errors.Is(tx.isValid(), ErrInvalidScope))
+	})
+	t.Run("NonUniqueSigners", func(t *testing.T) {
+		tx := newTx()
+		tx.Signers[1].Account = tx.Signers[0].Account
+		require.True(t, errors.Is(tx.isValid(), ErrNonUniqueSigners))
+	})
+	t.Run("MultipleHighPriority", func(t *testing.T) {
+		tx := newTx()
+		tx.Attributes = []Attribute{
+			{Type: HighPriority},
+			{Type: HighPriority},
+		}
+		require.True(t, errors.Is(tx.isValid(), ErrInvalidAttribute))
+	})
+	t.Run("NoScript", func(t *testing.T) {
+		tx := newTx()
+		tx.Script = []byte{}
+		require.True(t, errors.Is(tx.isValid(), ErrEmptyScript))
+	})
 }

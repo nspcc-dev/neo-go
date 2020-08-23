@@ -5,6 +5,7 @@ package transaction
 // AttrType represents the purpose of the attribute.
 type AttrType uint8
 
-// List of valid attribute types (none for preview3).
-//const (
-//)
+// List of valid attribute types.
+const (
+	HighPriority AttrType = 1
+)
