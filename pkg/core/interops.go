@@ -31,8 +31,10 @@ func SpawnVM(ic *interop.Context) *vm.VM {
 
 // All lists are sorted, keep 'em this way, please.
 var systemInterops = []interop.Function{
-	{Name: interopnames.SystemBinaryBase64Decode, Func: runtimeDecode, Price: 100000, ParamCount: 1},
-	{Name: interopnames.SystemBinaryBase64Encode, Func: runtimeEncode, Price: 100000, ParamCount: 1},
+	{Name: interopnames.SystemBinaryBase58Decode, Func: runtimeDecodeBase58, Price: 100000, ParamCount: 1},
+	{Name: interopnames.SystemBinaryBase58Encode, Func: runtimeEncodeBase58, Price: 100000, ParamCount: 1},
+	{Name: interopnames.SystemBinaryBase64Decode, Func: runtimeDecodeBase64, Price: 100000, ParamCount: 1},
+	{Name: interopnames.SystemBinaryBase64Encode, Func: runtimeEncodeBase64, Price: 100000, ParamCount: 1},
 	{Name: interopnames.SystemBinaryDeserialize, Func: runtimeDeserialize, Price: 500000, ParamCount: 1},
 	{Name: interopnames.SystemBinarySerialize, Func: runtimeSerialize, Price: 100000, ParamCount: 1},
 	{Name: interopnames.SystemBlockchainGetBlock, Func: bcGetBlock, Price: 2500000,

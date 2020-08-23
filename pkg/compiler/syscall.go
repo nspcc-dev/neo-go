@@ -11,6 +11,8 @@ type Syscall struct {
 // All lists are sorted, keep 'em this way, please.
 var syscalls = map[string]map[string]Syscall{
 	"binary": {
+		"Base58Decode": {interopnames.SystemBinaryBase58Decode, false},
+		"Base58Encode": {interopnames.SystemBinaryBase58Encode, false},
 		"Base64Decode": {interopnames.SystemBinaryBase64Decode, false},
 		"Base64Encode": {interopnames.SystemBinaryBase64Encode, false},
 		"Deserialize":  {interopnames.SystemBinaryDeserialize, false},

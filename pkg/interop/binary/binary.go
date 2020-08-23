@@ -28,3 +28,15 @@ func Base64Encode(b []byte) []byte {
 func Base64Decode(b []byte) []byte {
 	return nil
 }
+
+// Base58Encode encodes given byte slice into a base58 string and returns byte
+// representation of this string. It uses `System.Binary.Base58Encode` syscall.
+func Base58Encode(b []byte) []byte {
+	return nil
+}
+
+// Base58Decode decodes given base58 string represented as a byte slice into
+// a new byte slice. It uses `System.Binary.Base58Decode` syscall.
+func Base58Decode(b []byte) []byte {
+	return nil
+}
