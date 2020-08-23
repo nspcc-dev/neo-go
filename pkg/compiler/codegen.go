@@ -1440,7 +1440,11 @@ func (c *codegen) emitToken(tok token.Token, typ types.Type) {
 
 func convertToken(tok token.Token, typ types.Type) (opcode.Opcode, error) {
 	switch tok {
-	case token.ADD_ASSIGN:
+	case token.ADD_ASSIGN, token.ADD:
+		// VM has separate opcodes for number and string concatenation
+		if isString(typ) {
+			return opcode.CAT, nil
+		}
 		return opcode.ADD, nil
 	case token.SUB_ASSIGN:
 		return opcode.SUB, nil
@@ -1450,12 +1454,6 @@ func convertToken(tok token.Token, typ types.Type) (opcode.Opcode, error) {
 		return opcode.DIV, nil
 	case token.REM_ASSIGN:
 		return opcode.MOD, nil
-	case token.ADD:
-		// VM has separate opcodes for number and string concatenation
-		if isString(typ) {
-			return opcode.CAT, nil
-		}
-		return opcode.ADD, nil
 	case token.SUB:
 		return opcode.SUB, nil
 	case token.MUL:
