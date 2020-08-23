@@ -689,6 +689,19 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		return nil
 
 	case *ast.BinaryExpr:
+		// The AST package will try to resolve all basic literals for us.
+		// If the typeinfo.Value is not nil we know that the expr is resolved
+		// and needs no further action. e.g. x := 2 + 2 + 2 will be resolved to 6.
+		// NOTE: Constants will also be automatically resolved be the AST parser.
+		// example:
+		// const x = 10
+		// x + 2 will results into 12
+		tinfo := c.typeAndValueOf(n)
+		if tinfo.Value != nil {
+			c.emitLoadConst(tinfo)
+			return nil
+		}
+
 		switch n.Op {
 		case token.LAND:
 			end := c.newLabel()
@@ -711,19 +724,6 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			return nil
 
 		default:
-			// The AST package will try to resolve all basic literals for us.
-			// If the typeinfo.Value is not nil we know that the expr is resolved
-			// and needs no further action. e.g. x := 2 + 2 + 2 will be resolved to 6.
-			// NOTE: Constants will also be automatically resolved be the AST parser.
-			// example:
-			// const x = 10
-			// x + 2 will results into 12
-			tinfo := c.typeAndValueOf(n)
-			if tinfo.Value != nil {
-				c.emitLoadConst(tinfo)
-				return nil
-			}
-
 			var checkForNull bool
 
 			if isExprNil(n.X) {
