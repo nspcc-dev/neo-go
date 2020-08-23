@@ -1087,6 +1087,8 @@ func (c *codegen) emitJumpOnCondition(cond bool, jmpLabel uint16) {
 	}
 }
 
+// emitBoolExpr emits boolean expression. If needJump is true and expression evaluates to `cond`,
+// jump to jmpLabel is performed and no item is left on stack.
 func (c *codegen) emitBoolExpr(n ast.Expr, needJump bool, cond bool, jmpLabel uint16) {
 	if be, ok := n.(*ast.BinaryExpr); ok {
 		c.emitBinaryExpr(be, needJump, cond, jmpLabel)
@@ -1098,6 +1100,8 @@ func (c *codegen) emitBoolExpr(n ast.Expr, needJump bool, cond bool, jmpLabel ui
 	}
 }
 
+// emitBinaryExpr emits binary expression. If needJump is true and expression evaluates to `cond`,
+// jump to jmpLabel is performed and no item is left on stack.
 func (c *codegen) emitBinaryExpr(n *ast.BinaryExpr, needJump bool, cond bool, jmpLabel uint16) {
 	// The AST package will try to resolve all basic literals for us.
 	// If the typeinfo.Value is not nil we know that the expr is resolved
@@ -1150,10 +1154,21 @@ func (c *codegen) emitBinaryExpr(n *ast.BinaryExpr, needJump bool, cond bool, jm
 	default:
 		ast.Walk(c, n.X)
 		ast.Walk(c, n.Y)
-		c.emitToken(n.Op, c.typeOf(n.X))
-		if needJump {
-			c.emitJumpOnCondition(cond, jmpLabel)
+		typ := c.typeOf(n.X)
+		if !needJump {
+			c.emitToken(n.Op, typ)
+			return
 		}
+		op, ok := getJumpForToken(n.Op, typ)
+		if !ok {
+			c.emitToken(n.Op, typ)
+			c.emitJumpOnCondition(cond, jmpLabel)
+			return
+		}
+		if !cond {
+			op = negateJmp(op)
+		}
+		emit.Jmp(c.prog.BinWriter, op, jmpLabel)
 	}
 }
 
@@ -1212,6 +1227,29 @@ func (c *codegen) generateLabel(typ labelOffsetType) (uint16, string) {
 
 func (c *codegen) getLabelOffset(typ labelOffsetType, name string) uint16 {
 	return c.labels[labelWithType{name: name, typ: typ}]
+}
+
+// For `&&` and `||` it return an opcode which jumps only if result is known:
+// false && .. == false, true || .. = true
+func getJumpForToken(tok token.Token, typ types.Type) (opcode.Opcode, bool) {
+	switch tok {
+	case token.GTR:
+		return opcode.JMPGTL, true
+	case token.GEQ:
+		return opcode.JMPGEL, true
+	case token.LSS:
+		return opcode.JMPLTL, true
+	case token.LEQ:
+		return opcode.JMPLEL, true
+	case token.EQL, token.NEQ:
+		if isNumber(typ) {
+			if tok == token.EQL {
+				return opcode.JMPEQL, true
+			}
+			return opcode.JMPNEL, true
+		}
+	}
+	return 0, false
 }
 
 // getByteArray returns byte array value from constant expr.
@@ -1764,6 +1802,29 @@ func calcOffsetCorrection(ip, target int, offsets []int) int {
 		return -cnt
 	}
 	return cnt
+}
+
+func negateJmp(op opcode.Opcode) opcode.Opcode {
+	switch op {
+	case opcode.JMPIFL:
+		return opcode.JMPIFNOTL
+	case opcode.JMPIFNOTL:
+		return opcode.JMPIFL
+	case opcode.JMPEQL:
+		return opcode.JMPNEL
+	case opcode.JMPNEL:
+		return opcode.JMPEQL
+	case opcode.JMPGTL:
+		return opcode.JMPLEL
+	case opcode.JMPGEL:
+		return opcode.JMPLTL
+	case opcode.JMPLEL:
+		return opcode.JMPGTL
+	case opcode.JMPLTL:
+		return opcode.JMPGEL
+	default:
+		panic(fmt.Errorf("invalid opcode in negateJmp: %s", op))
+	}
 }
 
 func toShortForm(op opcode.Opcode) opcode.Opcode {
