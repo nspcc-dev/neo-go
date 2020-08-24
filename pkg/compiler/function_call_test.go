@@ -24,8 +24,8 @@ func TestSimpleFunctionCall(t *testing.T) {
 }
 
 func TestNotAssignedFunctionCall(t *testing.T) {
-	src := `
-		package testcase
+	t.Run("Simple", func(t *testing.T) {
+		src := `package testcase
 		func Main() int {
 			getSomeInteger()
 			getSomeInteger()
@@ -34,12 +34,53 @@ func TestNotAssignedFunctionCall(t *testing.T) {
 
 		func getSomeInteger() int {
 			return 0
-		}
-	`
-	// disable stack checks because it is hard right now
-	// to distinguish between simple function call traversal
-	// and the same traversal inside an assignment.
-	evalWithoutStackChecks(t, src, big.NewInt(0))
+		}`
+		eval(t, src, big.NewInt(0))
+	})
+	t.Run("If", func(t *testing.T) {
+		src := `package testcase
+		func f() bool { return true }
+		func Main() int {
+			if f() {
+				return 42
+			}
+			return 0
+		}`
+		eval(t, src, big.NewInt(42))
+	})
+	t.Run("Switch", func(t *testing.T) {
+		src := `package testcase
+		func f() bool { return true }
+		func Main() int {
+			switch true {
+			case f():
+				return 42
+			default:
+				return 0
+			}
+		}`
+		eval(t, src, big.NewInt(42))
+	})
+	t.Run("Builtin", func(t *testing.T) {
+		src := `package foo
+		import "github.com/nspcc-dev/neo-go/pkg/interop/util"
+		func Main() int {
+			util.FromAddress("NPAsqZkx9WhNd4P72uhZxBhLinSuNkxfB8")
+			util.FromAddress("NPAsqZkx9WhNd4P72uhZxBhLinSuNkxfB8")
+			return 1
+		}`
+		eval(t, src, big.NewInt(1))
+	})
+	t.Run("Lambda", func(t *testing.T) {
+		src := `package foo
+		func Main() int {
+			f := func() (int, int) { return 1, 2 }
+			f()
+			f()
+			return 42
+		}`
+		eval(t, src, big.NewInt(42))
+	})
 }
 
 func TestMultipleFunctionCalls(t *testing.T) {

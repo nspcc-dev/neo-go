@@ -795,6 +795,20 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			emit.Call(c.prog.BinWriter, opcode.CALLL, f.label)
 		}
 
+		if c.scope != nil && c.scope.voidCalls[n] {
+			var sz int
+			if f != nil {
+				sz = f.decl.Type.Results.NumFields()
+			} else if !isBuiltin {
+				// lambda invocation
+				f := c.typeOf(n.Fun).Underlying().(*types.Signature)
+				sz = f.Results().Len()
+			}
+			for i := 0; i < sz; i++ {
+				emit.Opcode(c.prog.BinWriter, opcode.DROP)
+			}
+		}
+
 		return nil
 
 	case *ast.SelectorExpr:

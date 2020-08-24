@@ -90,8 +90,24 @@ func (c *funcScope) analyzeVoidCalls(node ast.Node) bool {
 		}
 	case *ast.BinaryExpr:
 		return false
+	case *ast.IfStmt:
+		// we can't just return `false`, because we still need to process body
+		ce, ok := n.Cond.(*ast.CallExpr)
+		if ok {
+			c.voidCalls[ce] = false
+		}
+	case *ast.CaseClause:
+		for _, e := range n.List {
+			ce, ok := e.(*ast.CallExpr)
+			if ok {
+				c.voidCalls[ce] = false
+			}
+		}
 	case *ast.CallExpr:
-		c.voidCalls[n] = true
+		_, ok := c.voidCalls[n]
+		if !ok {
+			c.voidCalls[n] = true
+		}
 		return false
 	}
 	return true
