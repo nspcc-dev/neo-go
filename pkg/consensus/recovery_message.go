@@ -20,7 +20,7 @@ type (
 	}
 
 	changeViewCompact struct {
-		ValidatorIndex     uint16
+		ValidatorIndex     uint8
 		OriginalViewNumber byte
 		Timestamp          uint64
 		InvocationScript   []byte
@@ -28,13 +28,13 @@ type (
 
 	commitCompact struct {
 		ViewNumber       byte
-		ValidatorIndex   uint16
+		ValidatorIndex   uint8
 		Signature        [signatureSize]byte
 		InvocationScript []byte
 	}
 
 	preparationCompact struct {
-		ValidatorIndex   uint16
+		ValidatorIndex   uint8
 		InvocationScript []byte
 	}
 )
@@ -94,7 +94,7 @@ func (m *recoveryMessage) EncodeBinary(w *io.BinWriter) {
 
 // DecodeBinary implements io.Serializable interface.
 func (p *changeViewCompact) DecodeBinary(r *io.BinReader) {
-	p.ValidatorIndex = r.ReadU16LE()
+	p.ValidatorIndex = r.ReadB()
 	p.OriginalViewNumber = r.ReadB()
 	p.Timestamp = r.ReadU64LE()
 	p.InvocationScript = r.ReadVarBytes(1024)
@@ -102,7 +102,7 @@ func (p *changeViewCompact) DecodeBinary(r *io.BinReader) {
 
 // EncodeBinary implements io.Serializable interface.
 func (p *changeViewCompact) EncodeBinary(w *io.BinWriter) {
-	w.WriteU16LE(p.ValidatorIndex)
+	w.WriteB(p.ValidatorIndex)
 	w.WriteB(p.OriginalViewNumber)
 	w.WriteU64LE(p.Timestamp)
 	w.WriteVarBytes(p.InvocationScript)
@@ -111,7 +111,7 @@ func (p *changeViewCompact) EncodeBinary(w *io.BinWriter) {
 // DecodeBinary implements io.Serializable interface.
 func (p *commitCompact) DecodeBinary(r *io.BinReader) {
 	p.ViewNumber = r.ReadB()
-	p.ValidatorIndex = r.ReadU16LE()
+	p.ValidatorIndex = r.ReadB()
 	r.ReadBytes(p.Signature[:])
 	p.InvocationScript = r.ReadVarBytes(1024)
 }
@@ -119,25 +119,27 @@ func (p *commitCompact) DecodeBinary(r *io.BinReader) {
 // EncodeBinary implements io.Serializable interface.
 func (p *commitCompact) EncodeBinary(w *io.BinWriter) {
 	w.WriteB(p.ViewNumber)
-	w.WriteU16LE(p.ValidatorIndex)
+	w.WriteB(p.ValidatorIndex)
 	w.WriteBytes(p.Signature[:])
 	w.WriteVarBytes(p.InvocationScript)
 }
 
 // DecodeBinary implements io.Serializable interface.
 func (p *preparationCompact) DecodeBinary(r *io.BinReader) {
-	p.ValidatorIndex = r.ReadU16LE()
+	p.ValidatorIndex = r.ReadB()
 	p.InvocationScript = r.ReadVarBytes(1024)
 }
 
 // EncodeBinary implements io.Serializable interface.
 func (p *preparationCompact) EncodeBinary(w *io.BinWriter) {
-	w.WriteU16LE(p.ValidatorIndex)
+	w.WriteB(p.ValidatorIndex)
 	w.WriteVarBytes(p.InvocationScript)
 }
 
 // AddPayload implements payload.RecoveryMessage interface.
 func (m *recoveryMessage) AddPayload(p payload.ConsensusPayload) {
+	validator := uint8(p.ValidatorIndex())
+
 	switch p.Type() {
 	case payload.PrepareRequestType:
 		m.prepareRequest = &message{
@@ -148,12 +150,12 @@ func (m *recoveryMessage) AddPayload(p payload.ConsensusPayload) {
 		h := p.Hash()
 		m.preparationHash = &h
 		m.preparationPayloads = append(m.preparationPayloads, &preparationCompact{
-			ValidatorIndex:   p.ValidatorIndex(),
+			ValidatorIndex:   validator,
 			InvocationScript: p.(*Payload).Witness.InvocationScript,
 		})
 	case payload.PrepareResponseType:
 		m.preparationPayloads = append(m.preparationPayloads, &preparationCompact{
-			ValidatorIndex:   p.ValidatorIndex(),
+			ValidatorIndex:   validator,
 			InvocationScript: p.(*Payload).Witness.InvocationScript,
 		})
 
@@ -163,14 +165,14 @@ func (m *recoveryMessage) AddPayload(p payload.ConsensusPayload) {
 		}
 	case payload.ChangeViewType:
 		m.changeViewPayloads = append(m.changeViewPayloads, &changeViewCompact{
-			ValidatorIndex:     p.ValidatorIndex(),
+			ValidatorIndex:     validator,
 			OriginalViewNumber: p.ViewNumber(),
 			Timestamp:          p.GetChangeView().Timestamp() / nsInMs,
 			InvocationScript:   p.(*Payload).Witness.InvocationScript,
 		})
 	case payload.CommitType:
 		m.commitPayloads = append(m.commitPayloads, &commitCompact{
-			ValidatorIndex:   p.ValidatorIndex(),
+			ValidatorIndex:   validator,
 			ViewNumber:       p.ViewNumber(),
 			Signature:        p.GetCommit().(*commit).signature,
 			InvocationScript: p.(*Payload).Witness.InvocationScript,
@@ -186,7 +188,7 @@ func (m *recoveryMessage) GetPrepareRequest(p payload.ConsensusPayload, validato
 
 	var compact *preparationCompact
 	for _, p := range m.preparationPayloads {
-		if p != nil && p.ValidatorIndex == primary {
+		if p != nil && p.ValidatorIndex == uint8(primary) {
 			compact = p
 			break
 		}
@@ -199,7 +201,7 @@ func (m *recoveryMessage) GetPrepareRequest(p payload.ConsensusPayload, validato
 	req := fromPayload(prepareRequestType, p.(*Payload), m.prepareRequest.payload)
 	req.SetValidatorIndex(primary)
 	req.Witness.InvocationScript = compact.InvocationScript
-	req.Witness.VerificationScript = getVerificationScript(primary, validators)
+	req.Witness.VerificationScript = getVerificationScript(uint8(primary), validators)
 
 	return req
 }
@@ -216,7 +218,7 @@ func (m *recoveryMessage) GetPrepareResponses(p payload.ConsensusPayload, valida
 		r := fromPayload(prepareResponseType, p.(*Payload), &prepareResponse{
 			preparationHash: *m.preparationHash,
 		})
-		r.SetValidatorIndex(resp.ValidatorIndex)
+		r.SetValidatorIndex(uint16(resp.ValidatorIndex))
 		r.Witness.InvocationScript = resp.InvocationScript
 		r.Witness.VerificationScript = getVerificationScript(resp.ValidatorIndex, validators)
 
@@ -236,7 +238,7 @@ func (m *recoveryMessage) GetChangeViews(p payload.ConsensusPayload, validators 
 			timestamp:     cv.Timestamp,
 		})
 		c.message.ViewNumber = cv.OriginalViewNumber
-		c.SetValidatorIndex(cv.ValidatorIndex)
+		c.SetValidatorIndex(uint16(cv.ValidatorIndex))
 		c.Witness.InvocationScript = cv.InvocationScript
 		c.Witness.VerificationScript = getVerificationScript(cv.ValidatorIndex, validators)
 
@@ -252,7 +254,7 @@ func (m *recoveryMessage) GetCommits(p payload.ConsensusPayload, validators []cr
 
 	for i, c := range m.commitPayloads {
 		cc := fromPayload(commitType, p.(*Payload), &commit{signature: c.Signature})
-		cc.SetValidatorIndex(c.ValidatorIndex)
+		cc.SetValidatorIndex(uint16(c.ValidatorIndex))
 		cc.Witness.InvocationScript = c.InvocationScript
 		cc.Witness.VerificationScript = getVerificationScript(c.ValidatorIndex, validators)
 
@@ -272,7 +274,7 @@ func (m *recoveryMessage) SetPreparationHash(h *util.Uint256) {
 	m.preparationHash = h
 }
 
-func getVerificationScript(i uint16, validators []crypto.PublicKey) []byte {
+func getVerificationScript(i uint8, validators []crypto.PublicKey) []byte {
 	if int(i) >= len(validators) {
 		return nil
 	}

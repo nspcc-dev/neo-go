@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"sort"
 
+	"github.com/mr-tron/base58"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
@@ -195,18 +196,37 @@ func runtimeDeserialize(ic *interop.Context) error {
 	return vm.RuntimeDeserialize(ic.VM)
 }
 
-// runtimeEncode encodes top stack item into a base64 string.
-func runtimeEncode(ic *interop.Context) error {
+// runtimeEncodeBase64 encodes top stack item into a base64 string.
+func runtimeEncodeBase64(ic *interop.Context) error {
 	src := ic.VM.Estack().Pop().Bytes()
 	result := base64.StdEncoding.EncodeToString(src)
 	ic.VM.Estack().PushVal([]byte(result))
 	return nil
 }
 
-// runtimeDecode decodes top stack item from base64 string to byte array.
-func runtimeDecode(ic *interop.Context) error {
+// runtimeDecodeBase64 decodes top stack item from base64 string to byte array.
+func runtimeDecodeBase64(ic *interop.Context) error {
 	src := ic.VM.Estack().Pop().String()
 	result, err := base64.StdEncoding.DecodeString(src)
+	if err != nil {
+		return err
+	}
+	ic.VM.Estack().PushVal(result)
+	return nil
+}
+
+// runtimeEncodeBase58 encodes top stack item into a base58 string.
+func runtimeEncodeBase58(ic *interop.Context) error {
+	src := ic.VM.Estack().Pop().Bytes()
+	result := base58.Encode(src)
+	ic.VM.Estack().PushVal([]byte(result))
+	return nil
+}
+
+// runtimeDecodeBase58 decodes top stack item from base58 string to byte array.
+func runtimeDecodeBase58(ic *interop.Context) error {
+	src := ic.VM.Estack().Pop().String()
+	result, err := base58.Decode(src)
 	if err != nil {
 		return err
 	}

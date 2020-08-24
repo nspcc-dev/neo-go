@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/mr-tron/base58"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
@@ -220,36 +221,45 @@ func TestECDSAVerify(t *testing.T) {
 	})
 }
 
-func TestRuntimeEncode(t *testing.T) {
-	str := []byte("my pretty string")
+func TestRuntimeEncodeDecode(t *testing.T) {
+	original := []byte("my pretty string")
+	encoded64 := base64.StdEncoding.EncodeToString(original)
+	encoded58 := base58.Encode(original)
 	v, ic, bc := createVM(t)
 	defer bc.Close()
 
-	v.Estack().PushVal(str)
-	require.NoError(t, runtimeEncode(ic))
-
-	expected := []byte(base64.StdEncoding.EncodeToString(str))
-	actual := v.Estack().Pop().Bytes()
-	require.Equal(t, expected, actual)
-}
-
-func TestRuntimeDecode(t *testing.T) {
-	expected := []byte("my pretty string")
-	str := base64.StdEncoding.EncodeToString(expected)
-	v, ic, bc := createVM(t)
-	defer bc.Close()
-
-	t.Run("positive", func(t *testing.T) {
-		v.Estack().PushVal(str)
-		require.NoError(t, runtimeDecode(ic))
-
+	t.Run("Encode64", func(t *testing.T) {
+		v.Estack().PushVal(original)
+		require.NoError(t, runtimeEncodeBase64(ic))
 		actual := v.Estack().Pop().Bytes()
-		require.Equal(t, expected, actual)
+		require.Equal(t, []byte(encoded64), actual)
 	})
 
-	t.Run("error", func(t *testing.T) {
-		v.Estack().PushVal(str + "%")
-		require.Error(t, runtimeDecode(ic))
+	t.Run("Encode58", func(t *testing.T) {
+		v.Estack().PushVal(original)
+		require.NoError(t, runtimeEncodeBase58(ic))
+		actual := v.Estack().Pop().Bytes()
+		require.Equal(t, []byte(encoded58), actual)
+	})
+	t.Run("Decode64/positive", func(t *testing.T) {
+		v.Estack().PushVal(encoded64)
+		require.NoError(t, runtimeDecodeBase64(ic))
+		actual := v.Estack().Pop().Bytes()
+		require.Equal(t, original, actual)
+	})
+	t.Run("Decode64/error", func(t *testing.T) {
+		v.Estack().PushVal(encoded64 + "%")
+		require.Error(t, runtimeDecodeBase64(ic))
+	})
+	t.Run("Decode58/positive", func(t *testing.T) {
+		v.Estack().PushVal(encoded58)
+		require.NoError(t, runtimeDecodeBase58(ic))
+		actual := v.Estack().Pop().Bytes()
+		require.Equal(t, original, actual)
+	})
+	t.Run("Decode58/error", func(t *testing.T) {
+		v.Estack().PushVal(encoded58 + "%")
+		require.Error(t, runtimeDecodeBase58(ic))
 	})
 }
 
