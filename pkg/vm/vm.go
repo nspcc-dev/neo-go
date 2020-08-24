@@ -659,7 +659,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			panic("invalid destination index")
 		}
 		dst := v.estack.Pop().value.(*stackitem.Buffer).Value().([]byte)
-		if sum := si + n; sum < 0 || sum > len(dst) {
+		if sum := di + n; sum < 0 || sum > len(dst) {
 			panic("size is too big")
 		}
 		copy(dst[di:], src[si:si+n])

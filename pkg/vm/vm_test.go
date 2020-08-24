@@ -1344,6 +1344,10 @@ func TestMEMCPY(t *testing.T) {
 		buf := stackitem.NewBuffer([]byte{0, 1, 2, 3})
 		runWithArgs(t, prog, stackitem.NewBuffer([]byte{0, 6, 7, 3}), buf, buf, 1, []byte{4, 5, 6, 7}, 2, 2)
 	})
+	t.Run("NonZeroDstIndex", func(t *testing.T) {
+		buf := stackitem.NewBuffer([]byte{0, 1, 2})
+		runWithArgs(t, prog, stackitem.NewBuffer([]byte{0, 6, 7}), buf, buf, 1, []byte{4, 5, 6, 7}, 2, 2)
+	})
 	t.Run("NegativeSize", getTestFuncForVM(prog, nil, stackitem.NewBuffer([]byte{0, 1}), 0, []byte{2}, 0, -1))
 	t.Run("NegativeSrcIndex", getTestFuncForVM(prog, nil, stackitem.NewBuffer([]byte{0, 1}), 0, []byte{2}, -1, 1))
 	t.Run("NegativeDstIndex", getTestFuncForVM(prog, nil, stackitem.NewBuffer([]byte{0, 1}), -1, []byte{2}, 0, 1))
