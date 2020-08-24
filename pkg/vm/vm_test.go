@@ -1296,7 +1296,11 @@ func TestTRY(t *testing.T) {
 	add5 := []byte{byte(opcode.PUSH5), byte(opcode.ADD)}
 	add9 := []byte{byte(opcode.PUSH9), byte(opcode.ADD)}
 	t.Run("NoCatch", func(t *testing.T) {
-		t.Run("NoFinally", getTRYTestFunc(nil, push1, nil, nil))
+		t.Run("NoFinally", func(t *testing.T) {
+			prog := getTRYProgram(push1, nil, nil)
+			vm := load(prog)
+			checkVMFailed(t, vm)
+		})
 		t.Run("WithFinally", getTRYTestFunc(10, push1, nil, add9))
 		t.Run("Throw", getTRYTestFunc(nil, throw, nil, add9))
 	})

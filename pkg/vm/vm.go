@@ -1370,7 +1370,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		}
 		cOffset := v.getJumpOffset(ctx, catchP)
 		fOffset := v.getJumpOffset(ctx, finallyP)
-		if cOffset == 0 && fOffset == 0 {
+		if cOffset == ctx.ip && fOffset == ctx.ip {
 			panic("invalid offset for TRY*")
 		} else if cOffset == ctx.ip {
 			cOffset = -1
