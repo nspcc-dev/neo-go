@@ -3,6 +3,7 @@ package storage
 import (
 	"encoding/binary"
 	"errors"
+	"fmt"
 )
 
 // KeyPrefix constants.
@@ -91,6 +92,8 @@ func NewStore(cfg DBConfiguration) (Store, error) {
 		store, err = NewBoltDBStore(cfg.BoltDBOptions)
 	case "badgerdb":
 		store, err = NewBadgerDBStore(cfg.BadgerDBOptions)
+	default:
+		return nil, fmt.Errorf("unknown storage: %s", cfg.Type)
 	}
 	return store, err
 }
