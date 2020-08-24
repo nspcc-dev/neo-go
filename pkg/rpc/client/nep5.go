@@ -134,7 +134,10 @@ func (c *Client) CreateNEP5MultiTransferTx(acc *wallet.Account, gas int64, recip
 			recipients[i].Address, recipients[i].Amount)
 		emit.Opcode(w.BinWriter, opcode.ASSERT)
 	}
-	return c.CreateTxFromScript(w.Bytes(), acc, -1, gas)
+	return c.CreateTxFromScript(w.Bytes(), acc, -1, gas, transaction.Signer{
+		Account: acc.Contract.ScriptHash(),
+		Scopes:  transaction.CalledByEntry,
+	})
 }
 
 // CreateTxFromScript creates transaction and properly sets cosigners and NetworkFee.

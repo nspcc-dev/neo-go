@@ -12,6 +12,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/internal/testchain"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/client"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
@@ -197,4 +198,25 @@ func TestCreateTxFromScript(t *testing.T) {
 		require.True(t, len(tx.Signers) == 1)
 		require.Equal(t, acc.PrivateKey().GetScriptHash(), tx.Signers[0].Account)
 	})
+}
+
+func TestCreateNEP5TransferTx(t *testing.T) {
+	chain, rpcSrv, httpSrv := initServerWithInMemoryChain(t)
+	defer chain.Close()
+	defer rpcSrv.Shutdown()
+
+	c, err := client.New(context.Background(), httpSrv.URL, client.Options{Network: testchain.Network()})
+	require.NoError(t, err)
+
+	priv := testchain.PrivateKeyByID(0)
+	acc, err := wallet.NewAccountFromWIF(priv.WIF())
+	require.NoError(t, err)
+
+	tx, err := c.CreateNEP5TransferTx(acc, util.Uint160{}, client.GasContractHash, 1000, 0)
+	require.NoError(t, err)
+	require.NoError(t, acc.SignTx(tx))
+	require.NoError(t, chain.VerifyTx(tx))
+	v := chain.GetTestVM(tx)
+	v.LoadScriptWithFlags(tx.Script, smartcontract.All)
+	require.NoError(t, v.Run())
 }
