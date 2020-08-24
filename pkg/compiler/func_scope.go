@@ -141,7 +141,7 @@ func (c *funcScope) countArgs() int {
 func (c *funcScope) stackSize() int64 {
 	size := c.countLocals()
 	numArgs := c.countArgs()
-	return int64(size + numArgs + len(c.voidCalls))
+	return int64(size + numArgs)
 }
 
 // newVariable creates a new local variable or argument in the scope of the function.
