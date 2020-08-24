@@ -13,6 +13,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/rpc/request"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 )
@@ -499,16 +500,19 @@ func (c *Client) AddNetworkFee(tx *transaction.Transaction, extraFee int64, accs
 	}
 	size := io.GetVarSize(tx)
 	for i, cosigner := range tx.Signers {
-		if accs[i].Contract.Script == nil {
-			contract, err := c.GetContractState(cosigner.Account)
-			if err == nil {
-				if contract == nil {
-					continue
+		if accs[i].Contract.Deployed {
+			res, err := c.InvokeFunction(cosigner.Account, manifest.MethodVerify, []smartcontract.Parameter{}, tx.Signers)
+			if err == nil && res.State == "HALT" && len(res.Stack) == 1 {
+				r, err := topIntFromStack(res.Stack)
+				if err != nil || r == 0 {
+					return core.ErrVerificationFailed
 				}
-				netFee, sizeDelta := core.CalculateNetworkFee(contract.Script)
-				tx.NetworkFee += netFee
-				size += sizeDelta
+			} else {
+				return core.ErrVerificationFailed
 			}
+			tx.NetworkFee += res.GasConsumed
+			size += io.GetVarSize([]byte{}) * 2 // both scripts are empty
+			continue
 		}
 		netFee, sizeDelta := core.CalculateNetworkFee(accs[i].Contract.Script)
 		tx.NetworkFee += netFee

@@ -51,8 +51,11 @@ type rpcTestCase struct {
 	check  func(t *testing.T, e *executor, result interface{})
 }
 
-const testContractHash = "93c4983afe01a75f74c1e56011bd630e9d8cc755"
-const deploymentTxHash = "583cf0e49d69d8854869efc3e97ad741061da478292a7280580789351a39a1ac"
+const testContractHash = "4546ec6fcdaa1c3ccdb048526b78624b457b60a4"
+const deploymentTxHash = "17be1bbb0fdecae18cd4c6a2db19311f47bd540371e2ea479a46b349a66aa0b3"
+
+const verifyContractHash = "47ef649f9a77cad161ddaa28b39c7e450e5429e7"
+const verifyContractAVM = "560340570300412d510830db4121700c14aa8acf859d4fe402b34e673f2156821796a488ebdb30716813cedb2869db289740"
 
 var rpcTestCases = map[string][]rpcTestCase{
 	"getapplicationlog": {
@@ -438,7 +441,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 				require.True(t, ok)
 				expected := result.UnclaimedGas{
 					Address:   testchain.MultisigScriptHash(),
-					Unclaimed: *big.NewInt(36000),
+					Unclaimed: *big.NewInt(42000),
 				}
 				assert.Equal(t, expected, *actual)
 			},
@@ -814,7 +817,7 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 		require.NoErrorf(t, err, "could not parse response: %s", txOut)
 
 		assert.Equal(t, *block.Transactions[0], actual.Transaction)
-		assert.Equal(t, 8, actual.Confirmations)
+		assert.Equal(t, 9, actual.Confirmations)
 		assert.Equal(t, TXHash, actual.Transaction.Hash())
 	})
 
@@ -999,8 +1002,8 @@ func checkNep5Balances(t *testing.T, e *executor, acc interface{}) {
 			},
 			{
 				Asset:       e.chain.UtilityTokenHash(),
-				Amount:      "915.61059740",
-				LastUpdated: 6,
+				Amount:      "815.59478530",
+				LastUpdated: 7,
 			}},
 		Address: testchain.PrivateKeyByID(0).GetScriptHash().StringLE(),
 	}

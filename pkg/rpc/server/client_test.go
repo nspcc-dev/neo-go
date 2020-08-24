@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"encoding/hex"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
@@ -131,6 +132,65 @@ func TestAddNetworkFee(t *testing.T) {
 		cFee, _ := core.CalculateNetworkFee(accs[0].Contract.Script)
 		cFeeM, _ := core.CalculateNetworkFee(accs[1].Contract.Script)
 		require.Equal(t, int64(io.GetVarSize(tx))*feePerByte+cFee+cFeeM+10, tx.NetworkFee)
+	})
+	t.Run("Contract", func(t *testing.T) {
+		tx := transaction.New(testchain.Network(), []byte{byte(opcode.PUSH1)}, 0)
+		priv := testchain.PrivateKeyByID(0)
+		acc1, err := wallet.NewAccountFromWIF(priv.WIF())
+		require.NoError(t, err)
+		acc1.Contract.Deployed = true
+		acc1.Contract.Script, _ = hex.DecodeString(verifyContractAVM)
+		h, _ := util.Uint160DecodeStringLE(verifyContractHash)
+		tx.ValidUntilBlock = chain.BlockHeight() + 10
+
+		t.Run("Valid", func(t *testing.T) {
+			acc0, err := wallet.NewAccountFromWIF(priv.WIF())
+			require.NoError(t, err)
+			tx.Signers = []transaction.Signer{
+				{
+					Account: acc0.PrivateKey().GetScriptHash(),
+					Scopes:  transaction.CalledByEntry,
+				},
+				{
+					Account: h,
+					Scopes:  transaction.Global,
+				},
+			}
+			require.NoError(t, c.AddNetworkFee(tx, 10, acc0, acc1))
+			require.NoError(t, acc0.SignTx(tx))
+			tx.Scripts = append(tx.Scripts, transaction.Witness{})
+			require.NoError(t, chain.VerifyTx(tx))
+		})
+		t.Run("Invalid", func(t *testing.T) {
+			acc0, err := wallet.NewAccount()
+			require.NoError(t, err)
+			tx.Signers = []transaction.Signer{
+				{
+					Account: acc0.PrivateKey().GetScriptHash(),
+					Scopes:  transaction.CalledByEntry,
+				},
+				{
+					Account: h,
+					Scopes:  transaction.Global,
+				},
+			}
+			require.Error(t, c.AddNetworkFee(tx, 10, acc0, acc1))
+		})
+		t.Run("InvalidContract", func(t *testing.T) {
+			acc0, err := wallet.NewAccountFromWIF(priv.WIF())
+			require.NoError(t, err)
+			tx.Signers = []transaction.Signer{
+				{
+					Account: acc0.PrivateKey().GetScriptHash(),
+					Scopes:  transaction.CalledByEntry,
+				},
+				{
+					Account: util.Uint160{},
+					Scopes:  transaction.Global,
+				},
+			}
+			require.Error(t, c.AddNetworkFee(tx, 10, acc0, acc1))
+		})
 	})
 }
 
