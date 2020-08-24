@@ -2,9 +2,12 @@ package compiler_test
 
 import (
 	"math/big"
+	"strings"
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/pkg/compiler"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
+	"github.com/stretchr/testify/require"
 )
 
 var sliceTestCases = []testCase{
@@ -322,4 +325,42 @@ func TestJumps(t *testing.T) {
 	}
 	`
 	eval(t, src, []byte{0x62, 0x01, 0x00})
+}
+
+func TestMake(t *testing.T) {
+	t.Run("Map", func(t *testing.T) {
+		src := `package foo
+		func Main() int {
+			a := make(map[int]int)
+			a[1] = 10
+			a[2] = 20
+			return a[1]
+		}`
+		eval(t, src, big.NewInt(10))
+	})
+	t.Run("IntSlice", func(t *testing.T) {
+		src := `package foo
+		func Main() int {
+			a := make([]int, 10)
+			return len(a) + a[0]
+		}`
+		eval(t, src, big.NewInt(10))
+	})
+	t.Run("ByteSlice", func(t *testing.T) {
+		src := `package foo
+		func Main() int {
+			a := make([]byte, 10)
+			return len(a) + int(a[0])
+		}`
+		eval(t, src, big.NewInt(10))
+	})
+	t.Run("CapacityError", func(t *testing.T) {
+		src := `package foo
+		func Main() int {
+			a := make([]int, 1, 2)
+			return a[0]
+		}`
+		_, err := compiler.Compile("foo.go", strings.NewReader(src))
+		require.Error(t, err)
+	})
 }

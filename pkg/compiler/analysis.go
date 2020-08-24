@@ -14,7 +14,7 @@ import (
 
 var (
 	// Go language builtin functions.
-	goBuiltins = []string{"len", "append", "panic"}
+	goBuiltins = []string{"len", "append", "panic", "make"}
 	// Custom builtin utility functions.
 	customBuiltins = []string{
 		"FromAddress", "Equals",

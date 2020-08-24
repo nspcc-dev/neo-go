@@ -1305,6 +1305,24 @@ func (c *codegen) convertBuiltin(expr *ast.CallExpr) {
 	}
 
 	switch name {
+	case "make":
+		typ := c.typeOf(expr.Args[0])
+		switch {
+		case isMap(typ):
+			emit.Opcode(c.prog.BinWriter, opcode.NEWMAP)
+		default:
+			if len(expr.Args) == 3 {
+				c.prog.Err = fmt.Errorf("`make()` with a capacity argument is not supported")
+				return
+			}
+			ast.Walk(c, expr.Args[1])
+			if isByteSlice(typ) {
+				emit.Opcode(c.prog.BinWriter, opcode.NEWBUFFER)
+			} else {
+				neoT := toNeoType(typ.(*types.Slice).Elem())
+				emit.Instruction(c.prog.BinWriter, opcode.NEWARRAYT, []byte{byte(neoT)})
+			}
+		}
 	case "len":
 		emit.Opcode(c.prog.BinWriter, opcode.DUP)
 		emit.Opcode(c.prog.BinWriter, opcode.ISNULL)
@@ -1396,6 +1414,9 @@ func transformArgs(fun ast.Expr, args []ast.Expr) []ast.Expr {
 	case *ast.Ident:
 		if f.Name == "panic" {
 			return args[1:]
+		}
+		if f.Name == "make" {
+			return nil
 		}
 	}
 

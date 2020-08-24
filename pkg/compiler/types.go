@@ -27,6 +27,11 @@ func isBasicTypeOfKind(typ types.Type, ks ...types.BasicKind) bool {
 	return false
 }
 
+func isMap(typ types.Type) bool {
+	_, ok := typ.Underlying().(*types.Map)
+	return ok
+}
+
 func isByte(typ types.Type) bool {
 	return isBasicTypeOfKind(typ, types.Uint8, types.Int8)
 }
