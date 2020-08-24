@@ -364,3 +364,67 @@ func TestMake(t *testing.T) {
 		require.Error(t, err)
 	})
 }
+
+func TestCopy(t *testing.T) {
+	t.Run("Invalid", func(t *testing.T) {
+		src := `package foo
+		func Main() []int {
+			src := []int{3, 2, 1}
+			dst := make([]int, 2)
+			copy(dst, src)
+			return dst
+		}`
+		_, err := compiler.Compile("foo.go", strings.NewReader(src))
+		require.Error(t, err)
+	})
+	t.Run("Simple", func(t *testing.T) {
+		src := `package foo
+		func Main() []byte {
+			src := []byte{3, 2, 1}
+			dst := make([]byte, 2)
+			copy(dst, src)
+			return dst
+		}`
+		eval(t, src, []byte{3, 2})
+	})
+	t.Run("LowSrcIndex", func(t *testing.T) {
+		src := `package foo
+		func Main() []byte {
+			src := []byte{3, 2, 1}
+			dst := make([]byte, 2)
+			copy(dst, src[1:])
+			return dst
+		}`
+		eval(t, src, []byte{2, 1})
+	})
+	t.Run("LowDstIndex", func(t *testing.T) {
+		src := `package foo
+		func Main() []byte {
+			src := []byte{3, 2, 1}
+			dst := make([]byte, 2)
+			copy(dst[1:], src[1:])
+			return dst
+		}`
+		eval(t, src, []byte{0, 2})
+	})
+	t.Run("BothIndices", func(t *testing.T) {
+		src := `package foo
+		func Main() []byte {
+			src := []byte{4, 3, 2, 1}
+			dst := make([]byte, 4)
+			copy(dst[1:], src[1:3])
+			return dst
+		}`
+		eval(t, src, []byte{0, 3, 2, 0})
+	})
+	t.Run("EmptySliceExpr", func(t *testing.T) {
+		src := `package foo
+		func Main() []byte {
+			src := []byte{3, 2, 1}
+			dst := make([]byte, 2)
+			copy(dst[1:], src[:])
+			return dst
+		}`
+		eval(t, src, []byte{0, 3})
+	})
+}

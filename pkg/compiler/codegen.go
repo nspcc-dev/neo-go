@@ -1295,6 +1295,44 @@ func (c *codegen) convertSyscall(expr *ast.CallExpr, api, name string) {
 	emit.Opcode(c.prog.BinWriter, opcode.NOP)
 }
 
+// emitSliceHelper emits 3 items on stack: slice, its first index, and its size.
+func (c *codegen) emitSliceHelper(e ast.Expr) {
+	if !isByteSlice(c.typeOf(e)) {
+		c.prog.Err = fmt.Errorf("copy is supported only for byte-slices")
+		return
+	}
+	var hasLowIndex bool
+	switch src := e.(type) {
+	case *ast.SliceExpr:
+		ast.Walk(c, src.X)
+		if src.High != nil {
+			ast.Walk(c, src.High)
+		} else {
+			emit.Opcode(c.prog.BinWriter, opcode.DUP)
+			emit.Opcode(c.prog.BinWriter, opcode.SIZE)
+		}
+		if src.Low != nil {
+			ast.Walk(c, src.Low)
+			hasLowIndex = true
+		} else {
+			emit.Int(c.prog.BinWriter, 0)
+		}
+	default:
+		ast.Walk(c, src)
+		emit.Opcode(c.prog.BinWriter, opcode.DUP)
+		emit.Opcode(c.prog.BinWriter, opcode.SIZE)
+		emit.Int(c.prog.BinWriter, 0)
+	}
+	if !hasLowIndex {
+		emit.Opcode(c.prog.BinWriter, opcode.SWAP)
+	} else {
+		emit.Opcode(c.prog.BinWriter, opcode.DUP)
+		emit.Opcode(c.prog.BinWriter, opcode.ROT)
+		emit.Opcode(c.prog.BinWriter, opcode.SWAP)
+		emit.Opcode(c.prog.BinWriter, opcode.SUB)
+	}
+}
+
 func (c *codegen) convertBuiltin(expr *ast.CallExpr) {
 	var name string
 	switch t := expr.Fun.(type) {
@@ -1305,6 +1343,14 @@ func (c *codegen) convertBuiltin(expr *ast.CallExpr) {
 	}
 
 	switch name {
+	case "copy":
+		// stack for MEMCPY is: dst, dst_index, src, src_index, count
+		c.emitSliceHelper(expr.Args[0])
+		c.emitSliceHelper(expr.Args[1])
+		emit.Int(c.prog.BinWriter, 3)
+		emit.Opcode(c.prog.BinWriter, opcode.ROLL)
+		emit.Opcode(c.prog.BinWriter, opcode.MIN)
+		emit.Opcode(c.prog.BinWriter, opcode.MEMCPY)
 	case "make":
 		typ := c.typeOf(expr.Args[0])
 		switch {
@@ -1412,10 +1458,10 @@ func transformArgs(fun ast.Expr, args []ast.Expr) []ast.Expr {
 			return args[1:]
 		}
 	case *ast.Ident:
-		if f.Name == "panic" {
+		switch f.Name {
+		case "panic":
 			return args[1:]
-		}
-		if f.Name == "make" {
+		case "make", "copy":
 			return nil
 		}
 	}
