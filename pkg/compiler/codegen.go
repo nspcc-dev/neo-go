@@ -578,9 +578,13 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		return nil
 
 	case *ast.SwitchStmt:
-		ast.Walk(c, n.Tag)
-
-		eqOpcode, _ := convertToken(token.EQL, c.typeOf(n.Tag))
+		eqOpcode := opcode.EQUAL
+		if n.Tag != nil {
+			ast.Walk(c, n.Tag)
+			eqOpcode, _ = convertToken(token.EQL, c.typeOf(n.Tag))
+		} else {
+			emit.Bool(c.prog.BinWriter, true)
+		}
 		switchEnd, label := c.generateLabel(labelEnd)
 
 		lastSwitch := c.currentSwitch
@@ -793,6 +797,20 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			c.convertSyscall(n, f.pkg.Name(), f.name)
 		default:
 			emit.Call(c.prog.BinWriter, opcode.CALLL, f.label)
+		}
+
+		if c.scope != nil && c.scope.voidCalls[n] {
+			var sz int
+			if f != nil {
+				sz = f.decl.Type.Results.NumFields()
+			} else if !isBuiltin {
+				// lambda invocation
+				f := c.typeOf(n.Fun).Underlying().(*types.Signature)
+				sz = f.Results().Len()
+			}
+			for i := 0; i < sz; i++ {
+				emit.Opcode(c.prog.BinWriter, opcode.DROP)
+			}
 		}
 
 		return nil

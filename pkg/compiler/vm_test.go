@@ -32,12 +32,6 @@ func runTestCases(t *testing.T, tcases []testCase) {
 	}
 }
 
-func evalWithoutStackChecks(t *testing.T, src string, result interface{}) {
-	v := vmAndCompile(t, src)
-	require.NoError(t, v.Run())
-	assertResult(t, v, result)
-}
-
 func eval(t *testing.T, src string, result interface{}) {
 	vm := vmAndCompile(t, src)
 	err := vm.Run()

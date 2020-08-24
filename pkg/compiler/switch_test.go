@@ -19,6 +19,21 @@ var switchTestCases = []testCase{
 		big.NewInt(2),
 	},
 	{
+		"switch with no tag",
+		`package main
+		func f() bool { return false }
+		func Main() int {
+			switch {
+			case f():
+				return 1
+			case true:
+				return 2
+			}
+			return 3
+		}`,
+		big.NewInt(2),
+	},
+	{
 		"simple switch fail",
 		`package main
 		func Main() int {
