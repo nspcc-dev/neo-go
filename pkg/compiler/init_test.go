@@ -70,8 +70,6 @@ func TestImportOrder(t *testing.T) {
 		import _ "github.com/nspcc-dev/neo-go/pkg/compiler/testdata/pkg2"
 		import "github.com/nspcc-dev/neo-go/pkg/compiler/testdata/pkg3"
 		func Main() int { return pkg3.A }`
-		v := vmAndCompile(t, src)
-		v.PrintOps()
 		eval(t, src, big.NewInt(2))
 	})
 	t.Run("2,1", func(t *testing.T) {
