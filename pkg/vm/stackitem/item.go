@@ -33,7 +33,8 @@ type Item interface {
 	Dup() Item
 	// TryBool converts Item to a boolean value.
 	TryBool() (bool, error)
-	// TryBytes converts Item to a byte slice.
+	// TryBytes converts Item to a byte slice. If the underlying type is a
+	// byte slice, it's returned as is without copying.
 	TryBytes() ([]byte, error)
 	// TryInteger converts Item to an integer.
 	TryInteger() (*big.Int, error)
@@ -151,8 +152,11 @@ func convertPrimitive(item Item, typ Type) (Item, error) {
 			return nil, err
 		}
 		if typ == BufferT {
-			return NewBuffer(b), nil
+			newb := make([]byte, len(b))
+			copy(newb, b)
+			return NewBuffer(newb), nil
 		}
+		// ByteArray can't really be changed, so it's OK to reuse `b`.
 		return NewByteArray(b), nil
 	case BooleanT:
 		b, err := item.TryBool()
@@ -519,9 +523,7 @@ func (i *ByteArray) TryBool() (bool, error) {
 
 // TryBytes implements Item interface.
 func (i *ByteArray) TryBytes() ([]byte, error) {
-	val := make([]byte, len(i.value))
-	copy(val, i.value)
-	return val, nil
+	return i.value, nil
 }
 
 // TryInteger implements Item interface.
@@ -871,6 +873,18 @@ func NewPointer(pos int, script []byte) *Pointer {
 	}
 }
 
+// NewPointerWithHash returns new pointer on the specified position of the
+// specified script. It differs from NewPointer in that the script hash is being
+// passed explicitly to save on hash calculcation. This hash is then being used
+// for pointer comparisons.
+func NewPointerWithHash(pos int, script []byte, h util.Uint160) *Pointer {
+	return &Pointer{
+		pos:    pos,
+		script: script,
+		hash:   h,
+	}
+}
+
 // String implements Item interface.
 func (p *Pointer) String() string {
 	return "Pointer"
@@ -970,9 +984,7 @@ func (i *Buffer) TryBool() (bool, error) {
 
 // TryBytes implements Item interface.
 func (i *Buffer) TryBytes() ([]byte, error) {
-	val := make([]byte, len(i.value))
-	copy(val, i.value)
-	return val, nil
+	return i.value, nil
 }
 
 // TryInteger implements Item interface.
@@ -1079,7 +1091,7 @@ func deepCopy(item Item, seen map[Item]Item) Item {
 	case *Bool:
 		return NewBool(it.value)
 	case *Pointer:
-		return NewPointer(it.pos, it.script)
+		return NewPointerWithHash(it.pos, it.script, it.hash)
 	case *Interop:
 		return NewInterop(it.value)
 	default:

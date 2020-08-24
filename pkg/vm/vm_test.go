@@ -1296,7 +1296,11 @@ func TestTRY(t *testing.T) {
 	add5 := []byte{byte(opcode.PUSH5), byte(opcode.ADD)}
 	add9 := []byte{byte(opcode.PUSH9), byte(opcode.ADD)}
 	t.Run("NoCatch", func(t *testing.T) {
-		t.Run("NoFinally", getTRYTestFunc(nil, push1, nil, nil))
+		t.Run("NoFinally", func(t *testing.T) {
+			prog := getTRYProgram(push1, nil, nil)
+			vm := load(prog)
+			checkVMFailed(t, vm)
+		})
 		t.Run("WithFinally", getTRYTestFunc(10, push1, nil, add9))
 		t.Run("Throw", getTRYTestFunc(nil, throw, nil, add9))
 	})
@@ -1320,6 +1324,16 @@ func TestTRY(t *testing.T) {
 		t.Run("ThrowInFinally", func(t *testing.T) {
 			inner := getTRYProgram(throw, add5, []byte{byte(opcode.THROW)})
 			getTRYTestFunc(32, inner, add5, add9)(t)
+		})
+		t.Run("TryMaxDepth", func(t *testing.T) {
+			loopTries := []byte{byte(opcode.INITSLOT), 0x01, 0x00,
+				byte(opcode.PUSH16), byte(opcode.INC), byte(opcode.STLOC0),
+				byte(opcode.TRY), 1, 1, // jump target
+				byte(opcode.LDLOC0), byte(opcode.DEC), byte(opcode.DUP),
+				byte(opcode.STLOC0), byte(opcode.PUSH0),
+				byte(opcode.JMPGT), 0xf8, byte(opcode.LDLOC0)}
+			vm := load(loopTries)
+			checkVMFailed(t, vm)
 		})
 	})
 }

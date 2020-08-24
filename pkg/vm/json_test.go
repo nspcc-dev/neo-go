@@ -11,8 +11,6 @@ import (
 	"math/big"
 	"os"
 	"path/filepath"
-	"regexp"
-	"strconv"
 	"strings"
 	"testing"
 
@@ -330,23 +328,7 @@ func (v *vmUTScript) UnmarshalJSON(data []byte) error {
 		if b, ok := decodeSingle(ops[i]); ok {
 			script = append(script, b...)
 		} else {
-			const regex = `(?P<hex>(?:0x)?[0-9a-zA-Z]+)\*(?P<num>[0-9]+)`
-			re := regexp.MustCompile(regex)
-			ss := re.FindStringSubmatch(ops[i])
-			if len(ss) != 3 {
-				return fmt.Errorf("invalid script part: %s", ops[i])
-			}
-			b, ok := decodeSingle(ss[1])
-			if !ok {
-				return fmt.Errorf("invalid script part: %s", ops[i])
-			}
-			num, err := strconv.Atoi(ss[2])
-			if err != nil {
-				return fmt.Errorf("invalid script part: %s", ops[i])
-			}
-			for i := 0; i < num; i++ {
-				script = append(script, b...)
-			}
+			return fmt.Errorf("invalid script part: %s", ops[i])
 		}
 	}
 
