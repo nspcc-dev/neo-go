@@ -578,9 +578,13 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		return nil
 
 	case *ast.SwitchStmt:
-		ast.Walk(c, n.Tag)
-
-		eqOpcode, _ := convertToken(token.EQL, c.typeOf(n.Tag))
+		eqOpcode := opcode.EQUAL
+		if n.Tag != nil {
+			ast.Walk(c, n.Tag)
+			eqOpcode, _ = convertToken(token.EQL, c.typeOf(n.Tag))
+		} else {
+			emit.Bool(c.prog.BinWriter, true)
+		}
 		switchEnd, label := c.generateLabel(labelEnd)
 
 		lastSwitch := c.currentSwitch
