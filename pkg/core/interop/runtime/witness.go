@@ -9,6 +9,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 )
@@ -20,6 +21,9 @@ func CheckHashedWitness(ic *interop.Context, hash util.Uint160) (bool, error) {
 		return checkScope(ic.DAO, tx, ic.VM, hash)
 	}
 
+	if !ic.VM.Context().GetCallFlags().Has(smartcontract.AllowStates) {
+		return false, errors.New("missing AllowStates call flag")
+	}
 	return false, errors.New("script container is not a transaction")
 }
 
@@ -48,6 +52,9 @@ func checkScope(d dao.DAO, tx *transaction.Transaction, v *vm.VM, hash util.Uint
 				callingScriptHash := v.GetCallingScriptHash()
 				if callingScriptHash.Equals(util.Uint160{}) {
 					return false, nil
+				}
+				if !v.Context().GetCallFlags().Has(smartcontract.AllowStates) {
+					return false, errors.New("missing AllowStates call flag")
 				}
 				cs, err := d.GetContractState(callingScriptHash)
 				if err != nil {
