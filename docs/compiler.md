@@ -19,11 +19,11 @@ a dialect of Go rather than a complete port of the language:
  * goroutines, channels and garbage collection are not supported and will
    never be because emulating that aspects of Go runtime on top of Neo VM is
    close to impossible
- * even though `panic()` is supported, `recover()` is not, `panic` shuts the
-   VM down
- * lambdas are not supported (#939)
- * it's not possible to rename imported interop packages, they won't work this
-   way (#397, #913)
+ * `defer` and `recover` are supported except for cases where panic occurs in
+   `return` statement, because this complicates implementation and imposes runtime
+    overhead for all contracts. This can easily be mitigated by first storing values
+    in variables and returning the result.
+ * lambdas are supported, but closures are not.
 
 ## VM API (interop layer)
 Compiler translates interop function calls into NEO VM syscalls or (for custom
