@@ -31,6 +31,15 @@ func isByte(typ types.Type) bool {
 	return isBasicTypeOfKind(typ, types.Uint8, types.Int8)
 }
 
+func isBool(typ types.Type) bool {
+	return isBasicTypeOfKind(typ, types.Bool, types.UntypedBool)
+}
+
+func isNumber(typ types.Type) bool {
+	t, ok := typ.Underlying().(*types.Basic)
+	return ok && t.Info()&types.IsNumeric != 0
+}
+
 func isString(typ types.Type) bool {
 	return isBasicTypeOfKind(typ, types.String)
 }

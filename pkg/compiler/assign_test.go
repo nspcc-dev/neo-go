@@ -109,6 +109,16 @@ var assignTestCases = []testCase{
 		big.NewInt(15),
 	},
 	{
+		"add assign for string",
+		`package foo
+		func Main() string {
+			s := "Hello, "
+			s += "world!"
+			return s
+		}`,
+		[]byte("Hello, world!"),
+	},
+	{
 		"decl assign",
 		`
 		package foo
