@@ -2,9 +2,12 @@ package compiler_test
 
 import (
 	"math/big"
+	"strings"
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/pkg/compiler"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
+	"github.com/stretchr/testify/require"
 )
 
 var sliceTestCases = []testCase{
@@ -322,4 +325,106 @@ func TestJumps(t *testing.T) {
 	}
 	`
 	eval(t, src, []byte{0x62, 0x01, 0x00})
+}
+
+func TestMake(t *testing.T) {
+	t.Run("Map", func(t *testing.T) {
+		src := `package foo
+		func Main() int {
+			a := make(map[int]int)
+			a[1] = 10
+			a[2] = 20
+			return a[1]
+		}`
+		eval(t, src, big.NewInt(10))
+	})
+	t.Run("IntSlice", func(t *testing.T) {
+		src := `package foo
+		func Main() int {
+			a := make([]int, 10)
+			return len(a) + a[0]
+		}`
+		eval(t, src, big.NewInt(10))
+	})
+	t.Run("ByteSlice", func(t *testing.T) {
+		src := `package foo
+		func Main() int {
+			a := make([]byte, 10)
+			return len(a) + int(a[0])
+		}`
+		eval(t, src, big.NewInt(10))
+	})
+	t.Run("CapacityError", func(t *testing.T) {
+		src := `package foo
+		func Main() int {
+			a := make([]int, 1, 2)
+			return a[0]
+		}`
+		_, err := compiler.Compile("foo.go", strings.NewReader(src))
+		require.Error(t, err)
+	})
+}
+
+func TestCopy(t *testing.T) {
+	t.Run("Invalid", func(t *testing.T) {
+		src := `package foo
+		func Main() []int {
+			src := []int{3, 2, 1}
+			dst := make([]int, 2)
+			copy(dst, src)
+			return dst
+		}`
+		_, err := compiler.Compile("foo.go", strings.NewReader(src))
+		require.Error(t, err)
+	})
+	t.Run("Simple", func(t *testing.T) {
+		src := `package foo
+		func Main() []byte {
+			src := []byte{3, 2, 1}
+			dst := make([]byte, 2)
+			copy(dst, src)
+			return dst
+		}`
+		eval(t, src, []byte{3, 2})
+	})
+	t.Run("LowSrcIndex", func(t *testing.T) {
+		src := `package foo
+		func Main() []byte {
+			src := []byte{3, 2, 1}
+			dst := make([]byte, 2)
+			copy(dst, src[1:])
+			return dst
+		}`
+		eval(t, src, []byte{2, 1})
+	})
+	t.Run("LowDstIndex", func(t *testing.T) {
+		src := `package foo
+		func Main() []byte {
+			src := []byte{3, 2, 1}
+			dst := make([]byte, 2)
+			copy(dst[1:], src[1:])
+			return dst
+		}`
+		eval(t, src, []byte{0, 2})
+	})
+	t.Run("BothIndices", func(t *testing.T) {
+		src := `package foo
+		func Main() []byte {
+			src := []byte{4, 3, 2, 1}
+			dst := make([]byte, 4)
+			copy(dst[1:], src[1:3])
+			return dst
+		}`
+		eval(t, src, []byte{0, 3, 2, 0})
+	})
+	t.Run("EmptySliceExpr", func(t *testing.T) {
+		src := `package foo
+		func Main() []byte {
+			src := []byte{3, 2, 1}
+			dst := make([]byte, 2)
+			copy(dst[1:], src[:])
+			return dst
+		}`
+		eval(t, src, []byte{0, 3})
+	})
 }
