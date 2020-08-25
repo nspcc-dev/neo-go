@@ -408,7 +408,12 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			for _, spec := range n.Specs {
 				vs := spec.(*ast.ValueSpec)
 				for i := range vs.Names {
-					c.constMap[c.getIdentName("", vs.Names[i].Name)] = c.typeAndValueOf(vs.Values[i])
+					info := c.buildInfo.program.Package(c.currPkg.Path())
+					obj := info.Defs[vs.Names[i]]
+					c.constMap[c.getIdentName("", vs.Names[i].Name)] = types.TypeAndValue{
+						Type:  obj.Type(),
+						Value: obj.(*types.Const).Val(),
+					}
 				}
 			}
 			return nil
