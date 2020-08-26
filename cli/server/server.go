@@ -147,7 +147,7 @@ func initBCWithMetrics(cfg config.Config, log *zap.Logger) (*core.Blockchain, *m
 	if err != nil {
 		return nil, nil, nil, cli.NewExitError(err, 1)
 	}
-	configureAddresses(cfg.ApplicationConfiguration)
+	configureAddresses(&cfg.ApplicationConfiguration)
 	prometheus := metrics.NewPrometheusService(cfg.ApplicationConfiguration.Prometheus, log)
 	pprof := metrics.NewPprofService(cfg.ApplicationConfiguration.Pprof, log)
 
@@ -392,7 +392,7 @@ Main:
 // In case RPC or Prometheus or Pprof Address provided each of them will use it.
 // In case global Address (of the node) provided and RPC/Prometheus/Pprof don't have configured addresses they will
 // use global one. So Node and RPC and Prometheus and Pprof will run on one address.
-func configureAddresses(cfg config.ApplicationConfiguration) {
+func configureAddresses(cfg *config.ApplicationConfiguration) {
 	if cfg.Address != "" {
 		if cfg.RPC.Address == "" {
 			cfg.RPC.Address = cfg.Address
