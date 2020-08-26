@@ -48,9 +48,17 @@ const (
 	prefixCandidate = 33
 	// prefixVotersCount is a prefix for storing total amount of NEO of voters.
 	prefixVotersCount = 1
+	// prefixGasPerBlock is a prefix for storing amount of GAS generated per block.
+	prefixGASPerBlock = 29
 	// effectiveVoterTurnout represents minimal ratio of total supply to total amount voted value
 	// which is require to use non-standby validators.
 	effectiveVoterTurnout = 5
+	// neoHolderRewardRatio is a percent of generated GAS that is distributed to NEO holders.
+	neoHolderRewardRatio = 10
+	// neoHolderRewardRatio is a percent of generated GAS that is distributed to committee.
+	committeeRewardRatio = 5
+	// neoHolderRewardRatio is a percent of generated GAS that is distributed to voters.
+	voterRewardRatio = 85
 )
 
 var (
@@ -146,6 +154,11 @@ func (n *NEO) Initialize(ic *interop.Context) error {
 	}
 	n.mint(ic, h, big.NewInt(NEOTotalSupply))
 
+	gr := &state.GASRecord{{Index: 0, GASPerBlock: *big.NewInt(5 * GASFactor)}}
+	err = ic.DAO.PutStorageItem(n.ContractID, []byte{prefixGASPerBlock}, &state.StorageItem{Value: gr.Bytes()})
+	if err != nil {
+		return err
+	}
 	err = ic.DAO.PutStorageItem(n.ContractID, []byte{prefixVotersCount}, &state.StorageItem{Value: []byte{}})
 	if err != nil {
 		return err
@@ -219,7 +232,10 @@ func (n *NEO) distributeGas(ic *interop.Context, h util.Uint160, acc *state.NEOB
 	if ic.Block == nil || ic.Block.Index == 0 {
 		return nil
 	}
-	gen := ic.Chain.CalculateClaimable(&acc.Balance, acc.BalanceHeight, ic.Block.Index)
+	gen, err := n.CalculateBonus(ic, &acc.Balance, acc.BalanceHeight, ic.Block.Index)
+	if err != nil {
+		return err
+	}
 	acc.BalanceHeight = ic.Block.Index
 	n.GAS.mint(ic, h, gen)
 	return nil
@@ -234,8 +250,44 @@ func (n *NEO) unclaimedGas(ic *interop.Context, args []stackitem.Item) stackitem
 	}
 	tr := bs.Trackers[n.ContractID]
 
-	gen := ic.Chain.CalculateClaimable(&tr.Balance, tr.LastUpdatedBlock, end)
+	gen, err := n.CalculateBonus(ic, &tr.Balance, tr.LastUpdatedBlock, end)
+	if err != nil {
+		panic(err)
+	}
 	return stackitem.NewBigInteger(gen)
+}
+
+// CalculateBonus calculates amount of gas generated for holding `value` NEO from start to end block.
+func (n *NEO) CalculateBonus(ic *interop.Context, value *big.Int, start, end uint32) (*big.Int, error) {
+	if value.Sign() == 0 || start >= end {
+		return big.NewInt(0), nil
+	} else if value.Sign() < 0 {
+		return nil, errors.New("negative value")
+	}
+	si := ic.DAO.GetStorageItem(n.ContractID, []byte{prefixGASPerBlock})
+	var gr state.GASRecord
+	if err := gr.FromBytes(si.Value); err != nil {
+		return nil, err
+	}
+	var sum, tmp big.Int
+	for i := len(gr) - 1; i >= 0; i-- {
+		if gr[i].Index >= end {
+			continue
+		} else if gr[i].Index <= start {
+			tmp.SetInt64(int64(end - start))
+			tmp.Mul(&tmp, &gr[i].GASPerBlock)
+			sum.Add(&sum, &tmp)
+			break
+		}
+		tmp.SetInt64(int64(end - gr[i].Index))
+		tmp.Mul(&tmp, &gr[i].GASPerBlock)
+		sum.Add(&sum, &tmp)
+		end = gr[i].Index
+	}
+	res := new(big.Int).Mul(value, &sum)
+	res.Mul(res, tmp.SetInt64(neoHolderRewardRatio))
+	res.Div(res, tmp.SetInt64(100*NEOTotalSupply))
+	return res, nil
 }
 
 func (n *NEO) registerCandidate(ic *interop.Context, args []stackitem.Item) stackitem.Item {

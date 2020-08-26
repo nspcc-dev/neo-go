@@ -485,7 +485,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 				require.True(t, ok)
 				expected := result.UnclaimedGas{
 					Address:   testchain.MultisigScriptHash(),
-					Unclaimed: *big.NewInt(42000),
+					Unclaimed: *big.NewInt(3500),
 				}
 				assert.Equal(t, expected, *actual)
 			},
@@ -1075,7 +1075,7 @@ func checkNep5Balances(t *testing.T, e *executor, acc interface{}) {
 			},
 			{
 				Asset:       e.chain.UtilityTokenHash(),
-				Amount:      "815.59478530",
+				Amount:      "799.09495030",
 				LastUpdated: 7,
 			}},
 		Address: testchain.PrivateKeyByID(0).GetScriptHash().StringLE(),
@@ -1227,7 +1227,7 @@ func checkNep5TransfersAux(t *testing.T, e *executor, acc interface{}, sent, rcv
 				Timestamp:   blockSendNEO.Timestamp,
 				Asset:       e.chain.UtilityTokenHash(),
 				Address:     "", // Minted GAS.
-				Amount:      "17.99982000",
+				Amount:      "1.49998500",
 				Index:       4,
 				NotifyIndex: 0,
 				TxHash:      txSendNEO.Hash(),

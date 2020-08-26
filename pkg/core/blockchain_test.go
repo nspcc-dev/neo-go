@@ -536,29 +536,12 @@ func TestGetClaimable(t *testing.T) {
 	bc := newTestChain(t)
 	defer bc.Close()
 
-	bc.generationAmount = []int{4, 3, 2, 1}
-	bc.decrementInterval = 2
 	_, err := bc.genBlocks(10)
 	require.NoError(t, err)
 
 	t.Run("first generation period", func(t *testing.T) {
 		amount := bc.CalculateClaimable(big.NewInt(1), 0, 2)
-		require.EqualValues(t, big.NewInt(8), amount)
-	})
-
-	t.Run("a number of full periods", func(t *testing.T) {
-		amount := bc.CalculateClaimable(big.NewInt(1), 0, 6)
-		require.EqualValues(t, big.NewInt(4+4+3+3+2+2), amount)
-	})
-
-	t.Run("start from the 2-nd block", func(t *testing.T) {
-		amount := bc.CalculateClaimable(big.NewInt(1), 1, 7)
-		require.EqualValues(t, big.NewInt(4+3+3+2+2+1), amount)
-	})
-
-	t.Run("end height after generation has ended", func(t *testing.T) {
-		amount := bc.CalculateClaimable(big.NewInt(1), 1, 10)
-		require.EqualValues(t, big.NewInt(4+3+3+2+2+1+1), amount)
+		require.EqualValues(t, big.NewInt(1), amount)
 	})
 }
 

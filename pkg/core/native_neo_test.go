@@ -108,3 +108,20 @@ func TestNEO_Vote(t *testing.T) {
 		require.NotEqual(t, candidates[0], pubs[i])
 	}
 }
+
+func TestNEO_CalculateBonus(t *testing.T) {
+	bc := newTestChain(t)
+	defer bc.Close()
+
+	neo := bc.contracts.NEO
+	ic := bc.newInteropContext(trigger.System, bc.dao, nil, nil)
+	t.Run("Invalid", func(t *testing.T) {
+		_, err := neo.CalculateBonus(ic, new(big.Int).SetInt64(-1), 0, 1)
+		require.Error(t, err)
+	})
+	t.Run("Zero", func(t *testing.T) {
+		res, err := neo.CalculateBonus(ic, big.NewInt(0), 0, 100)
+		require.NoError(t, err)
+		require.EqualValues(t, 0, res.Int64())
+	})
+}
