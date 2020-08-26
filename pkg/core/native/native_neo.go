@@ -13,6 +13,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/runtime"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
@@ -135,6 +136,15 @@ func NewNEO() *NEO {
 	md = newMethodAndPrice(n.getNextBlockValidators, 100000000, smartcontract.AllowStates)
 	n.AddMethod(md, desc, true)
 
+	desc = newDescriptor("getGasPerBlock", smartcontract.IntegerType)
+	md = newMethodAndPrice(n.getGASPerBlock, 100_0000, smartcontract.AllowStates)
+	n.AddMethod(md, desc, false)
+
+	desc = newDescriptor("setGasPerBlock", smartcontract.BoolType,
+		manifest.NewParameter("gasPerBlock", smartcontract.IntegerType))
+	md = newMethodAndPrice(n.setGASPerBlock, 500_0000, smartcontract.AllowModifyStates)
+	n.AddMethod(md, desc, false)
+
 	return n
 }
 
@@ -255,6 +265,80 @@ func (n *NEO) unclaimedGas(ic *interop.Context, args []stackitem.Item) stackitem
 		panic(err)
 	}
 	return stackitem.NewBigInteger(gen)
+}
+
+func (n *NEO) getGASPerBlock(ic *interop.Context, _ []stackitem.Item) stackitem.Item {
+	gas, err := n.GetGASPerBlock(ic, ic.Block.Index)
+	if err != nil {
+		panic(err)
+	}
+	return stackitem.NewBigInteger(gas)
+}
+
+// GetGASPerBlock returns gas generated for block with provided index.
+func (n *NEO) GetGASPerBlock(ic *interop.Context, index uint32) (*big.Int, error) {
+	si := ic.DAO.GetStorageItem(n.ContractID, []byte{prefixGASPerBlock})
+	var gr state.GASRecord
+	if err := gr.FromBytes(si.Value); err != nil {
+		return nil, err
+	}
+	for i := len(gr) - 1; i >= 0; i-- {
+		if gr[i].Index <= index {
+			return &gr[i].GASPerBlock, nil
+		}
+	}
+	return nil, errors.New("contract not initialized")
+}
+
+// GetCommitteeAddress returns address of the committee.
+func (n *NEO) GetCommitteeAddress(bc blockchainer.Blockchainer, d dao.DAO) (util.Uint160, error) {
+	pubs, err := n.GetCommitteeMembers(bc, d)
+	if err != nil {
+		return util.Uint160{}, err
+	}
+	script, err := smartcontract.CreateMajorityMultiSigRedeemScript(pubs)
+	if err != nil {
+		return util.Uint160{}, err
+	}
+	return hash.Hash160(script), nil
+}
+
+func (n *NEO) setGASPerBlock(ic *interop.Context, args []stackitem.Item) stackitem.Item {
+	gas := toBigInt(args[0])
+	ok, err := n.SetGASPerBlock(ic, ic.Block.Index+1, gas)
+	if err != nil {
+		panic(err)
+	}
+	return stackitem.NewBool(ok)
+}
+
+// SetGASPerBlock sets gas generated for blocks after index.
+func (n *NEO) SetGASPerBlock(ic *interop.Context, index uint32, gas *big.Int) (bool, error) {
+	if gas.Sign() == -1 || gas.Cmp(big.NewInt(10*GASFactor)) == 1 {
+		return false, errors.New("invalid value for GASPerBlock")
+	}
+	h, err := n.GetCommitteeAddress(ic.Chain, ic.DAO)
+	if err != nil {
+		return false, err
+	}
+	ok, err := runtime.CheckHashedWitness(ic, h)
+	if err != nil || !ok {
+		return ok, err
+	}
+	si := ic.DAO.GetStorageItem(n.ContractID, []byte{prefixGASPerBlock})
+	var gr state.GASRecord
+	if err := gr.FromBytes(si.Value); err != nil {
+		return false, err
+	}
+	if len(gr) > 0 && gr[len(gr)-1].Index == index {
+		gr[len(gr)-1].GASPerBlock = *gas
+	} else {
+		gr = append(gr, state.GASIndexPair{
+			Index:       index,
+			GASPerBlock: *gas,
+		})
+	}
+	return true, ic.DAO.PutStorageItem(n.ContractID, []byte{prefixGASPerBlock}, &state.StorageItem{Value: gr.Bytes()})
 }
 
 // CalculateBonus calculates amount of gas generated for holding `value` NEO from start to end block.

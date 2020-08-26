@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
+	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/internal/testchain"
@@ -109,12 +110,66 @@ func TestNEO_Vote(t *testing.T) {
 	}
 }
 
+func TestNEO_SetGasPerBlock(t *testing.T) {
+	bc := newTestChain(t)
+	defer bc.Close()
+
+	neo := bc.contracts.NEO
+	tx := transaction.New(netmode.UnitTestNet, []byte{}, 0)
+	ic := bc.newInteropContext(trigger.System, bc.dao, nil, tx)
+	ic.VM = vm.New()
+
+	h, err := neo.GetCommitteeAddress(bc, bc.dao)
+	require.NoError(t, err)
+
+	t.Run("Default", func(t *testing.T) {
+		g, err := neo.GetGASPerBlock(ic, 0)
+		require.NoError(t, err)
+		require.EqualValues(t, 5*native.GASFactor, g.Int64())
+	})
+	t.Run("Invalid", func(t *testing.T) {
+		t.Run("InvalidSignature", func(t *testing.T) {
+			setSigner(tx, util.Uint160{})
+			ok, err := neo.SetGASPerBlock(ic, 10, big.NewInt(native.GASFactor))
+			require.NoError(t, err)
+			require.False(t, ok)
+		})
+		t.Run("TooBigValue", func(t *testing.T) {
+			setSigner(tx, h)
+			_, err := neo.SetGASPerBlock(ic, 10, big.NewInt(10*native.GASFactor+1))
+			require.Error(t, err)
+		})
+	})
+	t.Run("Valid", func(t *testing.T) {
+		setSigner(tx, h)
+		ok, err := neo.SetGASPerBlock(ic, 10, big.NewInt(native.GASFactor))
+		require.NoError(t, err)
+		require.True(t, ok)
+
+		t.Run("Again", func(t *testing.T) {
+			setSigner(tx, h)
+			ok, err := neo.SetGASPerBlock(ic, 10, big.NewInt(native.GASFactor))
+			require.NoError(t, err)
+			require.True(t, ok)
+		})
+
+		g, err := neo.GetGASPerBlock(ic, 9)
+		require.NoError(t, err)
+		require.EqualValues(t, 5*native.GASFactor, g.Int64())
+
+		g, err = neo.GetGASPerBlock(ic, 10)
+		require.NoError(t, err)
+		require.EqualValues(t, native.GASFactor, g.Int64())
+	})
+}
+
 func TestNEO_CalculateBonus(t *testing.T) {
 	bc := newTestChain(t)
 	defer bc.Close()
 
 	neo := bc.contracts.NEO
-	ic := bc.newInteropContext(trigger.System, bc.dao, nil, nil)
+	tx := transaction.New(netmode.UnitTestNet, []byte{}, 0)
+	ic := bc.newInteropContext(trigger.System, bc.dao, nil, tx)
 	t.Run("Invalid", func(t *testing.T) {
 		_, err := neo.CalculateBonus(ic, new(big.Int).SetInt64(-1), 0, 1)
 		require.Error(t, err)
@@ -123,5 +178,18 @@ func TestNEO_CalculateBonus(t *testing.T) {
 		res, err := neo.CalculateBonus(ic, big.NewInt(0), 0, 100)
 		require.NoError(t, err)
 		require.EqualValues(t, 0, res.Int64())
+	})
+	t.Run("ManyBlocks", func(t *testing.T) {
+		h, err := neo.GetCommitteeAddress(bc, bc.dao)
+		require.NoError(t, err)
+		setSigner(tx, h)
+		ok, err := neo.SetGASPerBlock(ic, 10, big.NewInt(1*native.GASFactor))
+		require.NoError(t, err)
+		require.True(t, ok)
+
+		res, err := neo.CalculateBonus(ic, big.NewInt(100), 5, 15)
+		require.NoError(t, err)
+		require.EqualValues(t, (100*5*5/10)+(100*5*1/10), res.Int64())
+
 	})
 }
