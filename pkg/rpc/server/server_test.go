@@ -980,12 +980,12 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 			require.NoError(t, json.Unmarshal(res, actual))
 			checkNep5TransfersAux(t, e, actual, sent, rcvd)
 		}
-		t.Run("time frame only", func(t *testing.T) { testNEP5T(t, 4, 5, 0, 0, []int{3, 4, 5, 6}, []int{0, 1}) })
+		t.Run("time frame only", func(t *testing.T) { testNEP5T(t, 4, 5, 0, 0, []int{3, 4, 5, 6}, []int{1, 2}) })
 		t.Run("no res", func(t *testing.T) { testNEP5T(t, 100, 100, 0, 0, []int{}, []int{}) })
-		t.Run("limit", func(t *testing.T) { testNEP5T(t, 1, 7, 3, 0, []int{0, 1, 2}, []int{}) })
-		t.Run("limit 2", func(t *testing.T) { testNEP5T(t, 4, 5, 2, 0, []int{3}, []int{0}) })
-		t.Run("limit with page", func(t *testing.T) { testNEP5T(t, 1, 7, 3, 1, []int{3, 4}, []int{0}) })
-		t.Run("limit with page 2", func(t *testing.T) { testNEP5T(t, 1, 7, 3, 2, []int{5, 6}, []int{1}) })
+		t.Run("limit", func(t *testing.T) { testNEP5T(t, 1, 7, 3, 0, []int{0, 1}, []int{0}) })
+		t.Run("limit 2", func(t *testing.T) { testNEP5T(t, 4, 5, 2, 0, []int{3}, []int{1}) })
+		t.Run("limit with page", func(t *testing.T) { testNEP5T(t, 1, 7, 3, 1, []int{2, 3}, []int{1}) })
+		t.Run("limit with page 2", func(t *testing.T) { testNEP5T(t, 1, 7, 3, 2, []int{4, 5}, []int{2}) })
 	})
 }
 
@@ -1075,7 +1075,7 @@ func checkNep5Balances(t *testing.T, e *executor, acc interface{}) {
 			},
 			{
 				Asset:       e.chain.UtilityTokenHash(),
-				Amount:      "799.09495030",
+				Amount:      "799.34495030",
 				LastUpdated: 7,
 			}},
 		Address: testchain.PrivateKeyByID(0).GetScriptHash().StringLE(),
@@ -1085,7 +1085,7 @@ func checkNep5Balances(t *testing.T, e *executor, acc interface{}) {
 }
 
 func checkNep5Transfers(t *testing.T, e *executor, acc interface{}) {
-	checkNep5TransfersAux(t, e, acc, []int{0, 1, 2, 3, 4, 5, 6, 7, 8}, []int{0, 1, 2, 3})
+	checkNep5TransfersAux(t, e, acc, []int{0, 1, 2, 3, 4, 5, 6, 7, 8}, []int{0, 1, 2, 3, 4, 5, 6})
 }
 
 func checkNep5TransfersAux(t *testing.T, e *executor, acc interface{}, sent, rcvd []int) {
@@ -1103,6 +1103,7 @@ func checkNep5TransfersAux(t *testing.T, e *executor, acc interface{}, sent, rcv
 	require.NoError(t, err)
 	require.Equal(t, 1, len(blockSendRubles.Transactions))
 	txSendRubles := blockSendRubles.Transactions[0]
+	blockGASBounty := blockSendRubles // index 6 = size of committee
 
 	blockReceiveRubles, err := e.chain.GetBlock(e.chain.GetHeaderHash(5))
 	require.NoError(t, err)
@@ -1214,6 +1215,15 @@ func checkNep5TransfersAux(t *testing.T, e *executor, acc interface{}, sent, rcv
 			},
 		},
 		Received: []result.NEP5Transfer{
+			{
+				Timestamp:   blockGASBounty.Timestamp,
+				Asset:       e.chain.UtilityTokenHash(),
+				Address:     "",
+				Amount:      "0.25000000",
+				Index:       6,
+				NotifyIndex: 0,
+				TxHash:      blockGASBounty.Hash(),
+			},
 			{
 				Timestamp:   blockReceiveRubles.Timestamp,
 				Asset:       rublesHash,

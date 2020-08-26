@@ -14,6 +14,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
+	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/stretchr/testify/require"
 )
 
@@ -29,9 +30,10 @@ func TestNEO_Vote(t *testing.T) {
 	defer bc.Close()
 
 	neo := bc.contracts.NEO
-	tx := transaction.New(netmode.UnitTestNet, []byte{}, 0)
+	tx := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
 	ic := bc.newInteropContext(trigger.System, bc.dao, nil, tx)
 	ic.VM = vm.New()
+	ic.Block = bc.newBlock(tx)
 
 	standBySorted := bc.GetStandByValidators()
 	sort.Sort(standBySorted)
@@ -192,4 +194,27 @@ func TestNEO_CalculateBonus(t *testing.T) {
 		require.EqualValues(t, (100*5*5/10)+(100*5*1/10), res.Int64())
 
 	})
+}
+
+func TestNEO_CommitteeBountyOnPersist(t *testing.T) {
+	bc := newTestChain(t)
+	defer bc.Close()
+
+	hs := make([]util.Uint160, testchain.CommitteeSize())
+	for i := range hs {
+		hs[i] = testchain.PrivateKeyByID(i).GetScriptHash()
+	}
+
+	bs := make(map[int]int64)
+	checkBalances := func() {
+		for i := 0; i < testchain.CommitteeSize(); i++ {
+			require.EqualValues(t, bs[i], bc.GetUtilityTokenBalance(hs[i]).Int64())
+		}
+	}
+
+	for i := 0; i < testchain.CommitteeSize()*2; i++ {
+		require.NoError(t, bc.AddBlock(bc.newBlock()))
+		bs[(i+1)%testchain.CommitteeSize()] += 25000000
+		checkBalances()
+	}
 }

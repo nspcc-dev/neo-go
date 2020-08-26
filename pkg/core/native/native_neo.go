@@ -179,10 +179,22 @@ func (n *NEO) Initialize(ic *interop.Context) error {
 
 // OnPersist implements Contract interface.
 func (n *NEO) OnPersist(ic *interop.Context) error {
+	gas, err := n.GetGASPerBlock(ic, ic.Block.Index)
+	if err != nil {
+		return err
+	}
+	pubs, err := n.GetCommitteeMembers(ic.Chain, ic.DAO)
+	if err != nil {
+		return err
+	}
+	index := int(ic.Block.Index) % len(ic.Chain.GetConfig().StandbyCommittee)
+	gas.Mul(gas, big.NewInt(committeeRewardRatio))
+	n.GAS.mint(ic, pubs[index].GetScriptHash(), gas.Div(gas, big.NewInt(100)))
+
 	if !n.votesChanged.Load().(bool) {
 		return nil
 	}
-	pubs, err := n.GetValidatorsInternal(ic.Chain, ic.DAO)
+	pubs, err = n.GetValidatorsInternal(ic.Chain, ic.DAO)
 	if err != nil {
 		return err
 	}
