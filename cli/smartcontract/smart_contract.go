@@ -73,7 +73,9 @@ func RuntimeNotify(args []interface{}) {
 }`
 	// cosignersSeparator is a special value which is used to distinguish
 	// parameters and cosigners for invoke* commands
-	cosignersSeparator = "--"
+	cosignersSeparator  = "--"
+	arrayStartSeparator = "["
+	arrayEndSeparator   = "]"
 )
 
 // NewCommands returns 'contract' command.
@@ -183,7 +185,9 @@ func NewCommands() []cli.Command {
    specified explicitly or being inferred from the value. To specify the type
    manually use "type:value" syntax where the type is one of the following:
    'signature', 'bool', 'int', 'hash160', 'hash256', 'bytes', 'key' or 'string'.
-   Array types are not currently supported.
+   Array types are also supported: use special space-separated '[' and ']' 
+   symbols around array values to denote array bounds. Nested arrays are also 
+   supported.
 
    Given values are type-checked against given types with the following
    restrictions applied:
@@ -233,6 +237,10 @@ func NewCommands() []cli.Command {
     * 'string\:string' is a string with a value of 'string:string'
     * '03b209fd4f53a7170ea4444e0cb0a6bb6a53c2bd016926989cf85f9b0fba17a70c' is a
       key with a value of '03b209fd4f53a7170ea4444e0cb0a6bb6a53c2bd016926989cf85f9b0fba17a70c'
+    * '[ a b c ]' is an array with strings values 'a', 'b' and 'c'
+    * '[ a b [ c d ] e ]' is an array with 4 values: string 'a', string 'b',
+      array of two strings 'c' and 'd', string 'e'
+    * '[ ]' is an empty array
 
    Signers represent a set of Uint160 hashes with witness scopes and are used
    to verify hashes in System.Runtime.CheckWitness syscall. First signer is treated
@@ -413,15 +421,15 @@ func invokeFunction(ctx *cli.Context) error {
 
 func invokeInternal(ctx *cli.Context, signAndPush bool) error {
 	var (
-		err            error
-		gas            util.Fixed8
-		operation      string
-		params         = make([]smartcontract.Parameter, 0)
-		paramsStart    = 1
-		cosigners      []transaction.Signer
-		cosignersStart = 0
-		resp           *result.Invoke
-		acc            *wallet.Account
+		err             error
+		gas             util.Fixed8
+		operation       string
+		params          = make([]smartcontract.Parameter, 0)
+		paramsStart     = 1
+		cosigners       []transaction.Signer
+		cosignersOffset = 0
+		resp            *result.Invoke
+		acc             *wallet.Account
 	)
 
 	args := ctx.Args()
@@ -439,20 +447,14 @@ func invokeInternal(ctx *cli.Context, signAndPush bool) error {
 	paramsStart++
 
 	if len(args) > paramsStart {
-		for k, s := range args[paramsStart:] {
-			if s == cosignersSeparator {
-				cosignersStart = paramsStart + k + 1
-				break
-			}
-			param, err := smartcontract.NewParameterFromString(s)
-			if err != nil {
-				return cli.NewExitError(fmt.Errorf("failed to parse argument #%d: %w", k+paramsStart+1, err), 1)
-			}
-			params = append(params, *param)
+		cosignersOffset, params, err = parseParams(args[paramsStart:], true)
+		if err != nil {
+			return cli.NewExitError(err, 1)
 		}
 	}
 
-	if len(args) >= cosignersStart && cosignersStart > 0 {
+	cosignersStart := paramsStart + cosignersOffset
+	if len(args) > cosignersStart {
 		for i, c := range args[cosignersStart:] {
 			cosigner, err := parseCosigner(c)
 			if err != nil {
@@ -504,6 +506,52 @@ func invokeInternal(ctx *cli.Context, signAndPush bool) error {
 	}
 
 	return nil
+}
+
+// parseParams extracts array of smartcontract.Parameter from the given args and
+// returns the number of handled words, the array itself and an error.
+// `calledFromMain` denotes whether the method was called from the outside or
+// recursively and used to check if cosignersSeparator and closing bracket are
+// allowed to be in `args` sequence.
+func parseParams(args []string, calledFromMain bool) (int, []smartcontract.Parameter, error) {
+	res := []smartcontract.Parameter{}
+	for k := 0; k < len(args); {
+		s := args[k]
+		switch s {
+		case cosignersSeparator:
+			if calledFromMain {
+				return k + 1, res, nil // `1` to convert index to numWordsRead
+			}
+			return 0, []smartcontract.Parameter{}, errors.New("invalid array syntax: missing closing bracket")
+		case arrayStartSeparator:
+			numWordsRead, array, err := parseParams(args[k+1:], false)
+			if err != nil {
+				return 0, nil, fmt.Errorf("failed to parse array: %w", err)
+			}
+			res = append(res, smartcontract.Parameter{
+				Type:  smartcontract.ArrayType,
+				Value: array,
+			})
+			k += 1 + numWordsRead // `1` for opening bracket
+		case arrayEndSeparator:
+			if calledFromMain {
+				return 0, nil, errors.New("invalid array syntax: missing opening bracket")
+			}
+			return k + 1, res, nil // `1`to convert index to numWordsRead
+		default:
+			param, err := smartcontract.NewParameterFromString(s)
+			if err != nil {
+				return 0, nil, fmt.Errorf("failed to parse argument #%d: %w", k+1, err)
+			}
+			res = append(res, *param)
+			k++
+		}
+	}
+	if calledFromMain {
+		return len(args), res, nil
+	}
+	return 0, []smartcontract.Parameter{}, errors.New("invalid array syntax: missing closing bracket")
+
 }
 
 func testInvokeScript(ctx *cli.Context) error {
