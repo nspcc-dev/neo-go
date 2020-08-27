@@ -123,6 +123,11 @@ func TestParamGetUint256(t *testing.T) {
 	assert.Equal(t, u256, u)
 	require.Nil(t, err)
 
+	p = Param{StringT, "0x" + gas}
+	u, err = p.GetUint256()
+	require.NoError(t, err)
+	assert.Equal(t, u256, u)
+
 	p = Param{StringT, 42}
 	_, err = p.GetUint256()
 	require.NotNil(t, err)
