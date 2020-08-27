@@ -485,13 +485,13 @@ func (n *NEO) GetCommitteeMembers(bc blockchainer.Blockchainer, d dao.DAO) (keys
 	votersCount.Mul(votersCount, big.NewInt(effectiveVoterTurnout))
 	voterTurnout := votersCount.Div(votersCount, n.getTotalSupply(d))
 	if voterTurnout.Sign() != 1 {
-		return bc.GetStandByValidators(), nil
+		return bc.GetStandByCommittee(), nil
 	}
 	cs, err := n.getCandidates(d)
 	if err != nil {
 		return nil, err
 	}
-	sbVals := bc.GetStandByValidators()
+	sbVals := bc.GetStandByCommittee()
 	count := len(sbVals)
 	if len(cs) < count {
 		return sbVals, nil
