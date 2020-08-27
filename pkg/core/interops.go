@@ -77,7 +77,7 @@ var systemInterops = []interop.Function{
 	{Name: interopnames.SystemJSONDeserialize, Func: json.Deserialize, Price: 500000, ParamCount: 1},
 	{Name: interopnames.SystemJSONSerialize, Func: json.Serialize, Price: 100000, ParamCount: 1},
 	{Name: interopnames.SystemRuntimeCheckWitness, Func: runtime.CheckWitness, Price: 30000,
-		RequiredFlags: smartcontract.AllowStates, ParamCount: 1},
+		RequiredFlags: smartcontract.NoneFlag, ParamCount: 1},
 	{Name: interopnames.SystemRuntimeGasLeft, Func: runtime.GasLeft, Price: 400},
 	{Name: interopnames.SystemRuntimeGetCallingScriptHash, Func: engineGetCallingScriptHash, Price: 400},
 	{Name: interopnames.SystemRuntimeGetEntryScriptHash, Func: engineGetEntryScriptHash, Price: 400},

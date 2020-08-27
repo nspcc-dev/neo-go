@@ -226,24 +226,7 @@ func TestCreateBasicChain(t *testing.T) {
 	require.NoError(t, err)
 
 	// Push some contract into the chain.
-	name := prefix + "test_contract.go"
-	c, err := ioutil.ReadFile(name)
-	require.NoError(t, err)
-	avm, di, err := compiler.CompileWithDebugInfo(name, bytes.NewReader(c))
-	require.NoError(t, err)
-	t.Logf("contractHash: %s", hash.Hash160(avm).StringLE())
-
-	script := io.NewBufBinWriter()
-	m, err := di.ConvertToManifest(smartcontract.HasStorage, nil)
-	require.NoError(t, err)
-	bs, err := m.MarshalJSON()
-	require.NoError(t, err)
-	emit.Bytes(script.BinWriter, bs)
-	emit.Bytes(script.BinWriter, avm)
-	emit.Syscall(script.BinWriter, interopnames.SystemContractCreate)
-	txScript := script.Bytes()
-
-	txDeploy := transaction.New(testchain.Network(), txScript, 100*native.GASFactor)
+	txDeploy, avm := newDeployTx(t, prefix+"test_contract.go")
 	txDeploy.Nonce = getNextNonce()
 	txDeploy.ValidUntilBlock = validUntilBlock
 	txDeploy.Signers = []transaction.Signer{{Account: priv0ScriptHash}}
@@ -255,7 +238,7 @@ func TestCreateBasicChain(t *testing.T) {
 	t.Logf("Block2 hash: %s", b.Hash().StringLE())
 
 	// Now invoke this contract.
-	script = io.NewBufBinWriter()
+	script := io.NewBufBinWriter()
 	emit.AppCallWithOperationAndArgs(script.BinWriter, hash.Hash160(avm), "putValue", "testkey", "testvalue")
 
 	txInv := transaction.New(testchain.Network(), script.Bytes(), 1*native.GASFactor)
@@ -330,6 +313,16 @@ func TestCreateBasicChain(t *testing.T) {
 	require.NoError(t, bc.AddBlock(b))
 	t.Logf("sendRublesTx: %v", transferTx.Hash().StringLE())
 
+	// Push verification contract into the chain.
+	txDeploy2, _ := newDeployTx(t, prefix+"verification_contract.go")
+	txDeploy2.Nonce = getNextNonce()
+	txDeploy2.ValidUntilBlock = validUntilBlock
+	txDeploy2.Signers = []transaction.Signer{{Account: priv0ScriptHash}}
+	require.NoError(t, addNetworkFee(bc, txDeploy2, acc0))
+	require.NoError(t, acc0.SignTx(txDeploy2))
+	b = bc.newBlock(txDeploy2)
+	require.NoError(t, bc.AddBlock(b))
+
 	if saveChain {
 		outStream, err := os.Create(prefix + "testblocks.acc")
 		require.NoError(t, err)
@@ -376,6 +369,27 @@ func newNEP5Transfer(sc, from, to util.Uint160, amount int64) *transaction.Trans
 
 	script := w.Bytes()
 	return transaction.New(testchain.Network(), script, 10000000)
+}
+
+func newDeployTx(t *testing.T, name string) (*transaction.Transaction, []byte) {
+	c, err := ioutil.ReadFile(name)
+	require.NoError(t, err)
+	avm, di, err := compiler.CompileWithDebugInfo(name, bytes.NewReader(c))
+	require.NoError(t, err)
+	t.Logf("contractHash (%s): %s", name, hash.Hash160(avm).StringLE())
+	t.Logf("contractScript: %x", avm)
+
+	script := io.NewBufBinWriter()
+	m, err := di.ConvertToManifest(smartcontract.HasStorage, nil)
+	require.NoError(t, err)
+	bs, err := m.MarshalJSON()
+	require.NoError(t, err)
+	emit.Bytes(script.BinWriter, bs)
+	emit.Bytes(script.BinWriter, avm)
+	emit.Syscall(script.BinWriter, interopnames.SystemContractCreate)
+	txScript := script.Bytes()
+
+	return transaction.New(testchain.Network(), txScript, 100*native.GASFactor), avm
 }
 
 func addSigners(txs ...*transaction.Transaction) {
