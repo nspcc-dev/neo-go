@@ -83,6 +83,11 @@ func TestNEO_Vote(t *testing.T) {
 	ic.VM.Load(priv.PublicKey().GetVerificationScript())
 	require.NoError(t, neo.VoteInternal(ic, h, candidates[0]))
 
+	for i := testchain.ValidatorsCount; i < testchain.CommitteeSize(); i++ {
+		priv := testchain.PrivateKey(i)
+		require.NoError(t, neo.RegisterCandidateInternal(ic, priv.PublicKey()))
+	}
+
 	pubs, err = neo.GetValidatorsInternal(bc, ic.DAO)
 	require.NoError(t, err)
 	sortedCandidates := candidates.Copy()
