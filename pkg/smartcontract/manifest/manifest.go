@@ -10,7 +10,7 @@ import (
 
 const (
 	// MaxManifestSize is a max length for a valid contract manifest.
-	MaxManifestSize = 2048
+	MaxManifestSize = 4096
 
 	// MethodInit is a name for default initialization method.
 	MethodInit = "_initialize"
