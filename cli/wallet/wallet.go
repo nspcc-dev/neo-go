@@ -13,6 +13,7 @@ import (
 	"github.com/nspcc-dev/neo-go/cli/options"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/urfave/cli"
@@ -165,6 +166,20 @@ func NewCommands() []cli.Command {
 						Usage: "Minimal number of signatures",
 					},
 				},
+			},
+			{
+				Name:      "import-deployed",
+				Usage:     "import deployed contract",
+				UsageText: "import-multisig --wallet <path> --wif <wif> --contract <hash>",
+				Action:    importDeployed,
+				Flags: append([]cli.Flag{
+					walletPathFlag,
+					wifFlag,
+					cli.StringFlag{
+						Name:  "contract, c",
+						Usage: "Contract hash",
+					},
+				}, options.RPC...),
 			},
 			{
 				Name:      "remove",
@@ -390,12 +405,62 @@ func importMultisig(ctx *cli.Context) error {
 	return nil
 }
 
-func importWallet(ctx *cli.Context) error {
+func importDeployed(ctx *cli.Context) error {
 	wall, err := openWallet(ctx.String("wallet"))
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
 
+	defer wall.Close()
+
+	rawHash := strings.TrimPrefix("0x", ctx.String("contract"))
+	h, err := util.Uint160DecodeStringLE(rawHash)
+	if err != nil {
+		return cli.NewExitError(fmt.Errorf("invalid contract hash: %w", err), 1)
+	}
+
+	acc, err := newAccountFromWIF(ctx.String("wif"))
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
+
+	gctx, cancel := options.GetTimeoutContext(ctx)
+	defer cancel()
+
+	c, err := options.GetRPCClient(gctx, ctx)
+	if err != nil {
+		return err
+	}
+
+	cs, err := c.GetContractState(h)
+	if err != nil {
+		return cli.NewExitError(fmt.Errorf("can't fetch contract info: %w", err), 1)
+	}
+	md := cs.Manifest.ABI.GetMethod(manifest.MethodVerify)
+	if md == nil {
+		return cli.NewExitError("contract has no `verify` method", 1)
+	}
+	acc.Contract.Script = cs.Script
+	for _, p := range md.Parameters {
+		acc.Contract.Parameters = append(acc.Contract.Parameters, wallet.ContractParam{
+			Name: p.Name,
+			Type: p.Type,
+		})
+	}
+	acc.Contract.Deployed = true
+
+	if err := addAccountAndSave(wall, acc); err != nil {
+		return cli.NewExitError(err, 1)
+	}
+
+	return nil
+}
+
+func importWallet(ctx *cli.Context) error {
+	wall, err := openWallet(ctx.String("wallet"))
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
 	defer wall.Close()
 
 	acc, err := newAccountFromWIF(ctx.String("wif"))
