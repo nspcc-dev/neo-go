@@ -1476,6 +1476,7 @@ func (v *VM) Call(ctx *Context, offset int) {
 	newCtx.CheckReturn = false
 	newCtx.local = nil
 	newCtx.arguments = nil
+	newCtx.tryStack = NewStack("exception")
 	v.istack.PushVal(newCtx)
 	v.Jump(newCtx, offset)
 }
@@ -1517,7 +1518,7 @@ func (v *VM) handleException() {
 	pop := 0
 	ictx := v.istack.Peek(0).Value().(*Context)
 	for ictx != nil {
-		e := ictx.tryStack.Peek(pop)
+		e := ictx.tryStack.Peek(0)
 		for e != nil {
 			ectx := e.Value().(*exceptionHandlingContext)
 			if ectx.State == eFinally || (ectx.State == eCatch && !ectx.HasFinally()) {

@@ -38,6 +38,18 @@ func TestMultiDeclaration(t *testing.T) {
 	eval(t, src, big.NewInt(6))
 }
 
+func TestCountLocal(t *testing.T) {
+	src := `package foo
+	func Main() int {
+		a, b, c, d := f()
+		return a + b + c + d
+	}
+	func f() (int, int, int, int) {
+		return 1, 2, 3, 4
+	}`
+	eval(t, src, big.NewInt(10))
+}
+
 func TestMultiDeclarationLocal(t *testing.T) {
 	src := `package foo
 	func Main() int {

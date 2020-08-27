@@ -1,6 +1,7 @@
 package compiler_test
 
 import (
+	"fmt"
 	"math/big"
 	"testing"
 )
@@ -90,4 +91,33 @@ func TestNestedIF(t *testing.T) {
 		}
 	`
 	eval(t, src, big.NewInt(0))
+}
+
+func TestInitIF(t *testing.T) {
+	t.Run("Simple", func(t *testing.T) {
+		src := `package foo
+		func Main() int {
+			if a := 42; true {
+				return a
+			}
+			return 0
+		}`
+		eval(t, src, big.NewInt(42))
+	})
+	t.Run("Shadow", func(t *testing.T) {
+		srcTmpl := `package foo
+		func Main() int {
+			a := 11
+			if a := 42; %v {
+				return a
+			}
+			return a
+		}`
+		t.Run("True", func(t *testing.T) {
+			eval(t, fmt.Sprintf(srcTmpl, true), big.NewInt(42))
+		})
+		t.Run("False", func(t *testing.T) {
+			eval(t, fmt.Sprintf(srcTmpl, false), big.NewInt(11))
+		})
+	})
 }

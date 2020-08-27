@@ -12,7 +12,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
@@ -77,6 +76,9 @@ type codegen struct {
 
 	// packages contains packages in the order they were loaded.
 	packages []string
+
+	// exceptionIndex is the index of static slot where exception is stored.
+	exceptionIndex int
 
 	// documents contains paths to all files used by the program.
 	documents []string
@@ -217,6 +219,11 @@ func getBaseOpcode(t varType) (opcode.Opcode, opcode.Opcode) {
 // emitLoadVar loads specified variable to the evaluation stack.
 func (c *codegen) emitLoadVar(pkg string, name string) {
 	t, i := c.getVarIndex(pkg, name)
+	c.emitLoadByIndex(t, i)
+}
+
+// emitLoadByIndex loads specified variable type with index i.
+func (c *codegen) emitLoadByIndex(t varType, i int) {
 	base, _ := getBaseOpcode(t)
 	if i < 7 {
 		emit.Opcode(c.prog.BinWriter, base+opcode.Opcode(i))
@@ -232,6 +239,11 @@ func (c *codegen) emitStoreVar(pkg string, name string) {
 		return
 	}
 	t, i := c.getVarIndex(pkg, name)
+	c.emitStoreByIndex(t, i)
+}
+
+// emitLoadByIndex stores top value in the specified variable type with index i.
+func (c *codegen) emitStoreByIndex(t varType, i int) {
 	_, base := getBaseOpcode(t)
 	if i < 7 {
 		emit.Opcode(c.prog.BinWriter, base+opcode.Opcode(i))
@@ -553,6 +565,8 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			}
 		}
 
+		c.processDefers()
+
 		c.saveSequencePoint(n)
 		emit.Opcode(c.prog.BinWriter, opcode.RET)
 		return nil
@@ -565,6 +579,9 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		lElse := c.newLabel()
 		lElseEnd := c.newLabel()
 
+		if n.Init != nil {
+			ast.Walk(c, n.Init)
+		}
 		if n.Cond != nil {
 			c.emitBoolExpr(n.Cond, true, false, lElse)
 		}
@@ -708,6 +725,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			numArgs   = len(n.Args)
 			isBuiltin bool
 			isFunc    bool
+			isLiteral bool
 		)
 
 		switch fun := n.Fun.(type) {
@@ -746,6 +764,8 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			ast.Walk(c, n.Args[0])
 			c.emitConvert(stackitem.BufferT)
 			return nil
+		case *ast.FuncLit:
+			isLiteral = true
 		}
 
 		c.saveSequencePoint(n)
@@ -798,6 +818,9 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 				c.emitLoadVar("", name)
 				emit.Opcode(c.prog.BinWriter, opcode.CALLA)
 			}
+		case isLiteral:
+			ast.Walk(c, n.Fun)
+			emit.Opcode(c.prog.BinWriter, opcode.CALLA)
 		case isSyscall(f):
 			c.convertSyscall(n, f.pkg.Name(), f.name)
 		default:
@@ -818,6 +841,20 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			}
 		}
 
+		return nil
+
+	case *ast.DeferStmt:
+		catch := c.newLabel()
+		finally := c.newLabel()
+		param := make([]byte, 8)
+		binary.LittleEndian.PutUint16(param[0:], catch)
+		binary.LittleEndian.PutUint16(param[4:], finally)
+		emit.Instruction(c.prog.BinWriter, opcode.TRYL, param)
+		c.scope.deferStack = append(c.scope.deferStack, deferInfo{
+			catchLabel:   catch,
+			finallyLabel: finally,
+			expr:         n.Call,
+		})
 		return nil
 
 	case *ast.SelectorExpr:
@@ -1079,6 +1116,51 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		return nil
 	}
 	return c
+}
+
+// processDefers emits code for `defer` statements.
+// TRY-related opcodes handle exception as follows:
+// 1. CATCH block is executed only if exception has occured.
+// 2. FINALLY block is always executed, but after catch block.
+// Go `defer` statements are a bit different:
+// 1. `defer` is always executed irregardless of whether an exception has occured.
+// 2. `recover` can or can not handle a possible exception.
+// Thus we use the following approach:
+// 1. Throwed exception is saved in a static field X, static fields Y and is set to true.
+// 2. CATCH and FINALLY blocks are the same, and both contain the same CALLs.
+// 3. In CATCH block we set Y to true and emit default return values if it is the last defer.
+// 4. Execute FINALLY block only if Y is false.
+func (c *codegen) processDefers() {
+	for i := len(c.scope.deferStack) - 1; i >= 0; i-- {
+		stmt := c.scope.deferStack[i]
+		after := c.newLabel()
+		emit.Jmp(c.prog.BinWriter, opcode.ENDTRYL, after)
+
+		c.setLabel(stmt.catchLabel)
+		c.emitStoreByIndex(varGlobal, c.exceptionIndex)
+		emit.Int(c.prog.BinWriter, 1)
+		c.emitStoreByIndex(varLocal, c.scope.finallyProcessedIndex)
+		ast.Walk(c, stmt.expr)
+		if i == 0 {
+			// After panic, default values must be returns, except for named returns,
+			// which we don't support here for now.
+			for i := len(c.scope.decl.Type.Results.List) - 1; i >= 0; i-- {
+				c.emitDefault(c.typeOf(c.scope.decl.Type.Results.List[i].Type))
+			}
+		}
+		emit.Jmp(c.prog.BinWriter, opcode.ENDTRYL, after)
+
+		c.setLabel(stmt.finallyLabel)
+		before := c.newLabel()
+		c.emitLoadByIndex(varLocal, c.scope.finallyProcessedIndex)
+		emit.Jmp(c.prog.BinWriter, opcode.JMPIFL, before)
+		ast.Walk(c, stmt.expr)
+		c.setLabel(before)
+		emit.Int(c.prog.BinWriter, 0)
+		c.emitStoreByIndex(varLocal, c.scope.finallyProcessedIndex)
+		emit.Opcode(c.prog.BinWriter, opcode.ENDFINALLY)
+		c.setLabel(after)
+	}
 }
 
 func (c *codegen) rangeLoadKey() {
@@ -1428,17 +1510,11 @@ func (c *codegen) convertBuiltin(expr *ast.CallExpr) {
 			}
 		}
 	case "panic":
-		arg := expr.Args[0]
-		if isExprNil(arg) {
-			emit.Opcode(c.prog.BinWriter, opcode.DROP)
-			emit.Opcode(c.prog.BinWriter, opcode.THROW)
-		} else if isString(c.typeInfo.Types[arg].Type) {
-			ast.Walk(c, arg)
-			emit.Syscall(c.prog.BinWriter, interopnames.SystemRuntimeLog)
-			emit.Opcode(c.prog.BinWriter, opcode.THROW)
-		} else {
-			c.prog.Err = errors.New("panic should have string or nil argument")
-		}
+		emit.Opcode(c.prog.BinWriter, opcode.THROW)
+	case "recover":
+		c.emitLoadByIndex(varGlobal, c.exceptionIndex)
+		emit.Opcode(c.prog.BinWriter, opcode.PUSHNULL)
+		c.emitStoreByIndex(varGlobal, c.exceptionIndex)
 	case "ToInteger", "ToByteArray", "ToBool":
 		typ := stackitem.IntegerT
 		switch name {
@@ -1482,8 +1558,6 @@ func transformArgs(fun ast.Expr, args []ast.Expr) []ast.Expr {
 		}
 	case *ast.Ident:
 		switch f.Name {
-		case "panic":
-			return args[1:]
 		case "make", "copy":
 			return nil
 		}
@@ -1778,27 +1852,32 @@ func (c *codegen) writeJumps(b []byte) ([]byte, error) {
 		case opcode.JMP, opcode.JMPIFNOT, opcode.JMPIF, opcode.CALL,
 			opcode.JMPEQ, opcode.JMPNE,
 			opcode.JMPGT, opcode.JMPGE, opcode.JMPLE, opcode.JMPLT:
+		case opcode.TRYL:
+			nextIP := ctx.NextIP()
+			catchArg := b[nextIP-8:]
+			_, err := c.replaceLabelWithOffset(ctx.IP(), catchArg)
+			if err != nil {
+				return nil, err
+			}
+			finallyArg := b[nextIP-4:]
+			_, err = c.replaceLabelWithOffset(ctx.IP(), finallyArg)
+			if err != nil {
+				return nil, err
+			}
 		case opcode.JMPL, opcode.JMPIFL, opcode.JMPIFNOTL,
 			opcode.JMPEQL, opcode.JMPNEL,
 			opcode.JMPGTL, opcode.JMPGEL, opcode.JMPLEL, opcode.JMPLTL,
-			opcode.CALLL, opcode.PUSHA:
+			opcode.CALLL, opcode.PUSHA, opcode.ENDTRYL:
 			// we can't use arg returned by ctx.Next() because it is copied
 			nextIP := ctx.NextIP()
 			arg := b[nextIP-4:]
-
-			index := binary.LittleEndian.Uint16(arg)
-			if int(index) > len(c.l) {
-				return nil, fmt.Errorf("unexpected label number: %d (max %d)", index, len(c.l))
-			}
-			offset := c.l[index] - nextIP + 5
-			if offset > math.MaxInt32 || offset < math.MinInt32 {
-				return nil, fmt.Errorf("label offset is too big at the instruction %d: %d (max %d, min %d)",
-					nextIP-5, offset, math.MaxInt32, math.MinInt32)
+			offset, err := c.replaceLabelWithOffset(ctx.IP(), arg)
+			if err != nil {
+				return nil, err
 			}
 			if op != opcode.PUSHA && math.MinInt8 <= offset && offset <= math.MaxInt8 {
 				offsets = append(offsets, ctx.IP())
 			}
-			binary.LittleEndian.PutUint32(arg, uint32(offset))
 		}
 	}
 	// Correct function ip range.
@@ -1818,6 +1897,20 @@ func (c *codegen) writeJumps(b []byte) ([]byte, error) {
 		}
 	}
 	return shortenJumps(b, offsets), nil
+}
+
+func (c *codegen) replaceLabelWithOffset(ip int, arg []byte) (int, error) {
+	index := binary.LittleEndian.Uint16(arg)
+	if int(index) > len(c.l) {
+		return 0, fmt.Errorf("unexpected label number: %d (max %d)", index, len(c.l))
+	}
+	offset := c.l[index] - ip
+	if offset > math.MaxInt32 || offset < math.MinInt32 {
+		return 0, fmt.Errorf("label offset is too big at the instruction %d: %d (max %d, min %d)",
+			ip, offset, math.MaxInt32, math.MinInt32)
+	}
+	binary.LittleEndian.PutUint32(arg, uint32(offset))
+	return offset, nil
 }
 
 // longToShortRemoveCount is a difference between short and long instruction sizes in bytes.
@@ -1844,18 +1937,34 @@ func shortenJumps(b []byte, offsets []int) []byte {
 		switch op {
 		case opcode.JMP, opcode.JMPIFNOT, opcode.JMPIF, opcode.CALL,
 			opcode.JMPEQ, opcode.JMPNE,
-			opcode.JMPGT, opcode.JMPGE, opcode.JMPLE, opcode.JMPLT:
+			opcode.JMPGT, opcode.JMPGE, opcode.JMPLE, opcode.JMPLT, opcode.ENDTRY:
 			offset := int(int8(b[nextIP-1]))
 			offset += calcOffsetCorrection(ip, ip+offset, offsets)
 			b[nextIP-1] = byte(offset)
+		case opcode.TRY:
+			catchOffset := int(int8(b[nextIP-2]))
+			catchOffset += calcOffsetCorrection(ip, ip+catchOffset, offsets)
+			b[nextIP-1] = byte(catchOffset)
+			finallyOffset := int(int8(b[nextIP-1]))
+			finallyOffset += calcOffsetCorrection(ip, ip+finallyOffset, offsets)
+			b[nextIP-1] = byte(finallyOffset)
 		case opcode.JMPL, opcode.JMPIFL, opcode.JMPIFNOTL,
 			opcode.JMPEQL, opcode.JMPNEL,
 			opcode.JMPGTL, opcode.JMPGEL, opcode.JMPLEL, opcode.JMPLTL,
-			opcode.CALLL, opcode.PUSHA:
+			opcode.CALLL, opcode.PUSHA, opcode.ENDTRYL:
 			arg := b[nextIP-4:]
 			offset := int(int32(binary.LittleEndian.Uint32(arg)))
 			offset += calcOffsetCorrection(ip, ip+offset, offsets)
 			binary.LittleEndian.PutUint32(arg, uint32(offset))
+		case opcode.TRYL:
+			arg := b[nextIP-8:]
+			catchOffset := int(int32(binary.LittleEndian.Uint32(arg)))
+			catchOffset += calcOffsetCorrection(ip, ip+catchOffset, offsets)
+			binary.LittleEndian.PutUint32(arg, uint32(catchOffset))
+			arg = b[nextIP-4:]
+			finallyOffset := int(int32(binary.LittleEndian.Uint32(arg)))
+			finallyOffset += calcOffsetCorrection(ip, ip+finallyOffset, offsets)
+			binary.LittleEndian.PutUint32(arg, uint32(finallyOffset))
 		}
 	}
 
@@ -1939,6 +2048,8 @@ func toShortForm(op opcode.Opcode) opcode.Opcode {
 		return opcode.JMPLT
 	case opcode.CALLL:
 		return opcode.CALL
+	case opcode.ENDTRYL:
+		return opcode.ENDTRY
 	default:
 		panic(fmt.Errorf("invalid opcode: %s", op))
 	}

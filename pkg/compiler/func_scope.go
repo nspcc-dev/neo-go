@@ -30,6 +30,12 @@ type funcScope struct {
 	// Variables together with it's type in neo-vm.
 	variables []string
 
+	// deferStack is a stack containing encountered `defer` statements.
+	deferStack []deferInfo
+	// finallyProcessed is a index of static slot with boolean flag determining
+	// if `defer` statement was already processed.
+	finallyProcessedIndex int
+
 	// Local variables
 	vars varScope
 
@@ -43,6 +49,12 @@ type funcScope struct {
 
 	// Local variable counter.
 	i int
+}
+
+type deferInfo struct {
+	catchLabel   uint16
+	finallyLabel uint16
+	expr         *ast.CallExpr
 }
 
 func (c *codegen) newFuncScope(decl *ast.FuncDecl, label uint16) *funcScope {
@@ -115,6 +127,7 @@ func (c *funcScope) analyzeVoidCalls(node ast.Node) bool {
 
 func (c *funcScope) countLocals() int {
 	size := 0
+	hasDefer := false
 	ast.Inspect(c.decl, func(n ast.Node) bool {
 		switch n := n.(type) {
 		case *ast.FuncType:
@@ -124,8 +137,11 @@ func (c *funcScope) countLocals() int {
 			}
 		case *ast.AssignStmt:
 			if n.Tok == token.DEFINE {
-				size += len(n.Rhs)
+				size += len(n.Lhs)
 			}
+		case *ast.DeferStmt:
+			hasDefer = true
+			return false
 		case *ast.ReturnStmt, *ast.IfStmt:
 			size++
 		// This handles the inline GenDecl like "var x = 2"
@@ -143,6 +159,10 @@ func (c *funcScope) countLocals() int {
 		}
 		return true
 	})
+	if hasDefer {
+		c.finallyProcessedIndex = size
+		size++
+	}
 	return size
 }
 
