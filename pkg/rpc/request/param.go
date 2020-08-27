@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
@@ -137,7 +138,7 @@ func (p *Param) GetUint256() (util.Uint256, error) {
 		return util.Uint256{}, err
 	}
 
-	return util.Uint256DecodeStringLE(s)
+	return util.Uint256DecodeStringLE(strings.TrimPrefix(s, "0x"))
 }
 
 // GetUint160FromHex returns Uint160 value of the parameter encoded in hex.
