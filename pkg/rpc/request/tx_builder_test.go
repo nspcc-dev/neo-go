@@ -4,8 +4,10 @@ import (
 	"encoding/hex"
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -86,5 +88,40 @@ func TestInvocationScriptCreationBad(t *testing.T) {
 	for _, ps := range testParams {
 		_, err := CreateFunctionInvocationScript(contract, ps)
 		assert.NotNil(t, err)
+	}
+}
+
+func TestExpandArrayIntoScript(t *testing.T) {
+	testCases := []struct {
+		Input    []Param
+		Expected []byte
+	}{
+		{
+			Input:    []Param{{Type: FuncParamT, Value: FuncParam{Type: smartcontract.StringType, Value: Param{Value: "a"}}}},
+			Expected: []byte{byte(opcode.PUSHDATA1), 1, byte('a')},
+		},
+		{
+			Input:    []Param{{Type: FuncParamT, Value: FuncParam{Type: smartcontract.ArrayType, Value: Param{Value: []Param{{Type: FuncParamT, Value: FuncParam{Type: smartcontract.StringType, Value: Param{Value: "a"}}}}}}}},
+			Expected: []byte{byte(opcode.PUSHDATA1), 1, byte('a'), byte(opcode.PUSH1), byte(opcode.PACK)},
+		},
+	}
+	for _, c := range testCases {
+		script := io.NewBufBinWriter()
+		err := expandArrayIntoScript(script.BinWriter, c.Input)
+		require.NoError(t, err)
+		require.Equal(t, c.Expected, script.Bytes())
+	}
+	errorCases := [][]Param{
+		{
+			{Type: FuncParamT, Value: FuncParam{Type: smartcontract.ArrayType, Value: Param{Value: "a"}}},
+		},
+		{
+			{Type: FuncParamT, Value: FuncParam{Type: smartcontract.ArrayType, Value: Param{Value: []Param{{Type: FuncParamT, Value: nil}}}}},
+		},
+	}
+	for _, c := range errorCases {
+		script := io.NewBufBinWriter()
+		err := expandArrayIntoScript(script.BinWriter, c)
+		require.Error(t, err)
 	}
 }

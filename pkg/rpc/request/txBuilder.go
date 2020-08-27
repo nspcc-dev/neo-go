@@ -97,6 +97,17 @@ func expandArrayIntoScript(script *io.BinWriter, slice []Param) error {
 			default:
 				return errors.New("wrong boolean value")
 			}
+		case smartcontract.ArrayType:
+			val, err := fp.Value.GetArray()
+			if err != nil {
+				return err
+			}
+			err = expandArrayIntoScript(script, val)
+			if err != nil {
+				return err
+			}
+			emit.Int(script, int64(len(val)))
+			emit.Opcode(script, opcode.PACK)
 		default:
 			return fmt.Errorf("parameter type %v is not supported", fp.Type)
 		}
@@ -132,20 +143,6 @@ func CreateFunctionInvocationScript(contract util.Uint160, params Params) ([]byt
 		}
 	}
 
-	emit.AppCall(script.BinWriter, contract)
-	return script.Bytes(), nil
-}
-
-// CreateInvocationScript creates a script to invoke given contract with
-// given parameters. It differs from CreateFunctionInvocationScript in that it
-// expects one array of FuncParams and expands it onto the stack as independent
-// elements.
-func CreateInvocationScript(contract util.Uint160, funcParams []Param) ([]byte, error) {
-	script := io.NewBufBinWriter()
-	err := expandArrayIntoScript(script.BinWriter, funcParams)
-	if err != nil {
-		return nil, err
-	}
 	emit.AppCall(script.BinWriter, contract)
 	return script.Bytes(), nil
 }
