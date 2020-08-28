@@ -1212,10 +1212,7 @@ func (bc *Blockchain) verifyTxAttributes(tx *transaction.Transaction) error {
 	for i := range tx.Attributes {
 		switch tx.Attributes[i].Type {
 		case transaction.HighPriority:
-			pubs, err := bc.contracts.NEO.GetCommitteeMembers(bc, bc.dao)
-			if err != nil {
-				return err
-			}
+			pubs := bc.contracts.NEO.GetCommitteeMembers()
 			s, err := smartcontract.CreateMajorityMultiSigRedeemScript(pubs)
 			if err != nil {
 				return err
@@ -1376,10 +1373,7 @@ func (bc *Blockchain) GetStandByCommittee() keys.PublicKeys {
 
 // GetCommittee returns the sorted list of public keys of nodes in committee.
 func (bc *Blockchain) GetCommittee() (keys.PublicKeys, error) {
-	pubs, err := bc.contracts.NEO.GetCommitteeMembers(bc, bc.dao)
-	if err != nil {
-		return nil, err
-	}
+	pubs := bc.contracts.NEO.GetCommitteeMembers()
 	sort.Sort(pubs)
 	return pubs, nil
 }
@@ -1391,7 +1385,7 @@ func (bc *Blockchain) GetValidators() ([]*keys.PublicKey, error) {
 
 // GetNextBlockValidators returns next block validators.
 func (bc *Blockchain) GetNextBlockValidators() ([]*keys.PublicKey, error) {
-	return bc.contracts.NEO.GetNextBlockValidatorsInternal(bc, bc.dao)
+	return bc.contracts.NEO.GetNextBlockValidatorsInternal(), nil
 }
 
 // GetEnrollments returns all registered validators.

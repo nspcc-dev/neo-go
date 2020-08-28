@@ -30,6 +30,10 @@ type NEO struct {
 	votesChanged   atomic.Value
 	nextValidators atomic.Value
 	validators     atomic.Value
+	// committee contains cached committee members and
+	// is updated during block persist. It's value
+	// is always equal to value stored by `prefixCommittee`.
+	committee atomic.Value
 }
 
 // keyWithVotes is a serialized key with votes balance. It's not deserialized
@@ -63,9 +67,8 @@ const (
 )
 
 var (
-	// nextValidatorsKey is a key used to store validators for the
-	// next block.
-	nextValidatorsKey = []byte{14}
+	// prefixCommittee is a key used to store committee.
+	prefixCommittee = []byte{14}
 )
 
 // makeValidatorKey creates a key from account script hash.
@@ -93,6 +96,7 @@ func NewNEO() *NEO {
 	n.votesChanged.Store(true)
 	n.nextValidators.Store(keys.PublicKeys(nil))
 	n.validators.Store(keys.PublicKeys(nil))
+	n.committee.Store(keys.PublicKeys(nil))
 
 	onp := n.Methods["onPersist"]
 	onp.Func = getOnPersistWrapper(n.onPersist)
@@ -158,6 +162,15 @@ func (n *NEO) Initialize(ic *interop.Context) error {
 		return errors.New("already initialized")
 	}
 
+	committee := ic.Chain.GetStandByCommittee()
+	n.committee.Store(committee)
+	n.updateNextValidators(committee, ic.Chain)
+
+	err := ic.DAO.PutStorageItem(n.ContractID, prefixCommittee, &state.StorageItem{Value: committee.Bytes()})
+	if err != nil {
+		return err
+	}
+
 	h, err := getStandbyValidatorsHash(ic)
 	if err != nil {
 		return err
@@ -177,45 +190,47 @@ func (n *NEO) Initialize(ic *interop.Context) error {
 	return nil
 }
 
+func (n *NEO) updateNextValidators(committee keys.PublicKeys, bc blockchainer.Blockchainer) {
+	nextVals := committee[:bc.GetConfig().ValidatorsCount].Copy()
+	sort.Sort(nextVals)
+	n.nextValidators.Store(nextVals)
+}
+
+func (n *NEO) updateCommittee(ic *interop.Context) error {
+	votesChanged := n.votesChanged.Load().(bool)
+	if !votesChanged {
+		// We need to put in storage anyway, as it affects dumps
+		committee := n.committee.Load().(keys.PublicKeys)
+		si := &state.StorageItem{Value: committee.Bytes()}
+		return ic.DAO.PutStorageItem(n.ContractID, prefixCommittee, si)
+	}
+
+	committee, err := n.ComputeCommitteeMembers(ic.Chain, ic.DAO)
+	if err != nil {
+		return err
+	}
+	n.committee.Store(committee)
+	n.updateNextValidators(committee, ic.Chain)
+	n.votesChanged.Store(false)
+	si := &state.StorageItem{Value: committee.Bytes()}
+	return ic.DAO.PutStorageItem(n.ContractID, prefixCommittee, si)
+}
+
 // OnPersist implements Contract interface.
 func (n *NEO) OnPersist(ic *interop.Context) error {
+	if err := n.updateCommittee(ic); err != nil {
+		return err
+	}
+
 	gas, err := n.GetGASPerBlock(ic, ic.Block.Index)
 	if err != nil {
 		return err
 	}
-	pubs, err := n.GetCommitteeMembers(ic.Chain, ic.DAO)
-	if err != nil {
-		return err
-	}
+	pubs := n.GetCommitteeMembers()
 	index := int(ic.Block.Index) % len(ic.Chain.GetConfig().StandbyCommittee)
 	gas.Mul(gas, big.NewInt(committeeRewardRatio))
 	n.GAS.mint(ic, pubs[index].GetScriptHash(), gas.Div(gas, big.NewInt(100)))
-
-	if !n.votesChanged.Load().(bool) {
-		return nil
-	}
-	pubs, err = n.GetValidatorsInternal(ic.Chain, ic.DAO)
-	if err != nil {
-		return err
-	}
-	prev := n.nextValidators.Load().(keys.PublicKeys)
-	if len(prev) == len(pubs) {
-		var needUpdate bool
-		for i := range pubs {
-			if !pubs[i].Equal(prev[i]) {
-				needUpdate = true
-				break
-			}
-		}
-		if !needUpdate {
-			return nil
-		}
-	}
-	n.votesChanged.Store(false)
-	n.nextValidators.Store(pubs)
-	si := new(state.StorageItem)
-	si.Value = pubs.Bytes()
-	return ic.DAO.PutStorageItem(n.ContractID, nextValidatorsKey, si)
+	return nil
 }
 
 func (n *NEO) increaseBalance(ic *interop.Context, h util.Uint160, si *state.StorageItem, amount *big.Int) error {
@@ -304,10 +319,7 @@ func (n *NEO) GetGASPerBlock(ic *interop.Context, index uint32) (*big.Int, error
 
 // GetCommitteeAddress returns address of the committee.
 func (n *NEO) GetCommitteeAddress(bc blockchainer.Blockchainer, d dao.DAO) (util.Uint160, error) {
-	pubs, err := n.GetCommitteeMembers(bc, d)
-	if err != nil {
-		return util.Uint160{}, err
-	}
+	pubs := n.GetCommitteeMembers()
 	script, err := smartcontract.CreateMajorityMultiSigRedeemScript(pubs)
 	if err != nil {
 		return util.Uint160{}, err
@@ -578,10 +590,7 @@ func (n *NEO) GetValidatorsInternal(bc blockchainer.Blockchainer, d dao.DAO) (ke
 	if vals := n.validators.Load().(keys.PublicKeys); vals != nil {
 		return vals.Copy(), nil
 	}
-	result, err := n.GetCommitteeMembers(bc, d)
-	if err != nil {
-		return nil, err
-	}
+	result := n.GetCommitteeMembers()
 	count := bc.GetConfig().ValidatorsCount
 	if len(result) < count {
 		count = len(result)
@@ -601,10 +610,7 @@ func (n *NEO) getValidators(ic *interop.Context, _ []stackitem.Item) stackitem.I
 }
 
 func (n *NEO) getCommittee(ic *interop.Context, _ []stackitem.Item) stackitem.Item {
-	pubs, err := n.GetCommitteeMembers(ic.Chain, ic.DAO)
-	if err != nil {
-		panic(err)
-	}
+	pubs := n.GetCommitteeMembers()
 	sort.Sort(pubs)
 	return pubsToArray(pubs)
 }
@@ -621,8 +627,13 @@ func (n *NEO) modifyVoterTurnout(d dao.DAO, amount *big.Int) error {
 	return d.PutStorageItem(n.ContractID, key, si)
 }
 
-// GetCommitteeMembers returns public keys of nodes in committee.
-func (n *NEO) GetCommitteeMembers(bc blockchainer.Blockchainer, d dao.DAO) (keys.PublicKeys, error) {
+// GetCommitteeMembers returns public keys of nodes in committee using cached value.
+func (n *NEO) GetCommitteeMembers() keys.PublicKeys {
+	return n.committee.Load().(keys.PublicKeys).Copy()
+}
+
+// ComputeCommitteeMembers returns public keys of nodes in committee.
+func (n *NEO) ComputeCommitteeMembers(bc blockchainer.Blockchainer, d dao.DAO) (keys.PublicKeys, error) {
 	key := []byte{prefixVotersCount}
 	si := d.GetStorageItem(n.ContractID, key)
 	if si == nil {
@@ -633,7 +644,8 @@ func (n *NEO) GetCommitteeMembers(bc blockchainer.Blockchainer, d dao.DAO) (keys
 	votersCount.Mul(votersCount, big.NewInt(effectiveVoterTurnout))
 	voterTurnout := votersCount.Div(votersCount, n.getTotalSupply(d))
 	if voterTurnout.Sign() != 1 {
-		return bc.GetStandByCommittee(), nil
+		pubs := bc.GetStandByCommittee()
+		return pubs, nil
 	}
 	cs, err := n.getCandidates(d)
 	if err != nil {
@@ -664,34 +676,13 @@ func (n *NEO) GetCommitteeMembers(bc blockchainer.Blockchainer, d dao.DAO) (keys
 }
 
 func (n *NEO) getNextBlockValidators(ic *interop.Context, _ []stackitem.Item) stackitem.Item {
-	result, err := n.getNextBlockValidatorsInternal(ic.Chain, ic.DAO)
-	if err != nil {
-		panic(err)
-	}
+	result := n.GetNextBlockValidatorsInternal()
 	return pubsToArray(result)
 }
 
 // GetNextBlockValidatorsInternal returns next block validators.
-func (n *NEO) GetNextBlockValidatorsInternal(bc blockchainer.Blockchainer, d dao.DAO) (keys.PublicKeys, error) {
-	pubs, err := n.getNextBlockValidatorsInternal(bc, d)
-	if err != nil {
-		return nil, err
-	}
-	return pubs.Copy(), nil
-}
-
-// getNextBlockValidatorsInternal returns next block validators.
-func (n *NEO) getNextBlockValidatorsInternal(bc blockchainer.Blockchainer, d dao.DAO) (keys.PublicKeys, error) {
-	si := d.GetStorageItem(n.ContractID, nextValidatorsKey)
-	if si == nil {
-		return n.GetValidatorsInternal(bc, d)
-	}
-	pubs := keys.PublicKeys{}
-	err := pubs.DecodeBytes(si.Value)
-	if err != nil {
-		return nil, err
-	}
-	return pubs, nil
+func (n *NEO) GetNextBlockValidatorsInternal() keys.PublicKeys {
+	return n.nextValidators.Load().(keys.PublicKeys).Copy()
 }
 
 func pubsToArray(pubs keys.PublicKeys) stackitem.Item {

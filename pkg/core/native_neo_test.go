@@ -68,14 +68,15 @@ func TestNEO_Vote(t *testing.T) {
 		require.NoError(t, neo.VoteInternal(ic, h, candidates[i]))
 	}
 
+	require.NoError(t, neo.OnPersist(ic))
+
 	// We still haven't voted enough validators in.
 	pubs, err = neo.GetValidatorsInternal(bc, ic.DAO)
 	require.NoError(t, err)
 	require.Equal(t, standBySorted, pubs)
 
 	require.NoError(t, neo.OnPersist(ic))
-	pubs, err = neo.GetNextBlockValidatorsInternal(bc, ic.DAO)
-	require.NoError(t, err)
+	pubs = neo.GetNextBlockValidatorsInternal()
 	require.EqualValues(t, standBySorted, pubs)
 
 	// Register and give some value to the last validator.
@@ -91,19 +92,19 @@ func TestNEO_Vote(t *testing.T) {
 		require.NoError(t, neo.RegisterCandidateInternal(ic, priv.PublicKey()))
 	}
 
+	require.NoError(t, neo.OnPersist(ic))
 	pubs, err = neo.GetValidatorsInternal(bc, ic.DAO)
 	require.NoError(t, err)
 	sortedCandidates := candidates.Copy()
 	sort.Sort(sortedCandidates)
 	require.EqualValues(t, sortedCandidates, pubs)
 
-	require.NoError(t, neo.OnPersist(ic))
-	pubs, err = neo.GetNextBlockValidatorsInternal(bc, ic.DAO)
-	require.NoError(t, err)
+	pubs = neo.GetNextBlockValidatorsInternal()
 	require.EqualValues(t, sortedCandidates, pubs)
 
 	require.NoError(t, neo.UnregisterCandidateInternal(ic, candidates[0]))
 	require.Error(t, neo.VoteInternal(ic, h, candidates[0]))
+	require.NoError(t, neo.OnPersist(ic))
 
 	pubs, err = neo.GetValidatorsInternal(bc, ic.DAO)
 	require.NoError(t, err)
