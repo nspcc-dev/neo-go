@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 	"syscall"
@@ -222,7 +223,7 @@ func claimGas(ctx *cli.Context) error {
 		return cli.NewExitError("address was not provided", 1)
 	}
 	scriptHash := addrFlag.Uint160()
-	acc, err := getDecryptedAccount(wall, scriptHash)
+	acc, err := getDecryptedAccount(ctx, wall, scriptHash)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -245,7 +246,7 @@ func claimGas(ctx *cli.Context) error {
 		return cli.NewExitError(err, 1)
 	}
 
-	fmt.Println(hash.StringLE())
+	fmt.Fprintln(ctx.App.Writer, hash.StringLE())
 	return nil
 }
 
@@ -265,7 +266,7 @@ func convertWallet(ctx *cli.Context) error {
 	for _, acc := range wall.Accounts {
 		address.Prefix = address.NEO2Prefix
 
-		pass, err := readPassword(fmt.Sprintf("Enter passphrase for account %s (label '%s') > ", acc.Address, acc.Label))
+		pass, err := readPassword(ctx.App.Writer, fmt.Sprintf("Enter passphrase for account %s (label '%s') > ", acc.Address, acc.Label))
 		if err != nil {
 			return cli.NewExitError(err, -1)
 		} else if err := acc.Decrypt(pass); err != nil {
@@ -347,7 +348,7 @@ loop:
 
 	for _, wif := range wifs {
 		if decrypt {
-			pass, err := readPassword("Enter password > ")
+			pass, err := readPassword(ctx.App.Writer, "Enter password > ")
 			if err != nil {
 				return cli.NewExitError(err, 1)
 			}
@@ -360,7 +361,7 @@ loop:
 			wif = pk.WIF()
 		}
 
-		fmt.Println(wif)
+		fmt.Fprintln(ctx.App.Writer, wif)
 	}
 
 	return nil
@@ -389,7 +390,7 @@ func importMultisig(ctx *cli.Context) error {
 		}
 	}
 
-	acc, err := newAccountFromWIF(ctx.String("wif"))
+	acc, err := newAccountFromWIF(ctx.App.Writer, ctx.String("wif"))
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -419,7 +420,7 @@ func importDeployed(ctx *cli.Context) error {
 		return cli.NewExitError(fmt.Errorf("invalid contract hash: %w", err), 1)
 	}
 
-	acc, err := newAccountFromWIF(ctx.String("wif"))
+	acc, err := newAccountFromWIF(ctx.App.Writer, ctx.String("wif"))
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -463,7 +464,7 @@ func importWallet(ctx *cli.Context) error {
 	}
 	defer wall.Close()
 
-	acc, err := newAccountFromWIF(ctx.String("wif"))
+	acc, err := newAccountFromWIF(ctx.App.Writer, ctx.String("wif"))
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -502,8 +503,8 @@ func removeAccount(ctx *cli.Context) error {
 	}
 
 	if !ctx.Bool("force") {
-		fmt.Printf("Account %s will be removed. This action is irreversible.\n", addrArg)
-		if ok := askForConsent(); !ok {
+		fmt.Fprintf(ctx.App.Writer, "Account %s will be removed. This action is irreversible.\n", addrArg)
+		if ok := askForConsent(ctx.App.Writer); !ok {
 			return nil
 		}
 	}
@@ -516,8 +517,8 @@ func removeAccount(ctx *cli.Context) error {
 	return nil
 }
 
-func askForConsent() bool {
-	fmt.Print("Are you sure? [y/N]: ")
+func askForConsent(w io.Writer) bool {
+	fmt.Fprintln(w, "Are you sure? [y/N]: ")
 	reader := bufio.NewReader(os.Stdin)
 	response, err := reader.ReadString('\n')
 	if err == nil {
@@ -526,7 +527,7 @@ func askForConsent() bool {
 			return true
 		}
 	}
-	fmt.Println("Cancelled.")
+	fmt.Fprintln(w, "Cancelled.")
 	return false
 }
 
@@ -536,7 +537,7 @@ func dumpWallet(ctx *cli.Context) error {
 		return cli.NewExitError(err, 1)
 	}
 	if ctx.Bool("decrypt") {
-		pass, err := readPassword("Enter wallet password > ")
+		pass, err := readPassword(ctx.App.Writer, "Enter wallet password > ")
 		if err != nil {
 			return cli.NewExitError(err, 1)
 		}
@@ -548,7 +549,7 @@ func dumpWallet(ctx *cli.Context) error {
 			}
 		}
 	}
-	fmtPrintWallet(wall)
+	fmtPrintWallet(ctx.App.Writer, wall)
 	return nil
 }
 
@@ -571,20 +572,20 @@ func createWallet(ctx *cli.Context) error {
 		}
 	}
 
-	fmtPrintWallet(wall)
-	fmt.Printf("wallet successfully created, file location is %s\n", wall.Path())
+	fmtPrintWallet(ctx.App.Writer, wall)
+	fmt.Fprintf(ctx.App.Writer, "wallet successfully created, file location is %s\n", wall.Path())
 	return nil
 }
 
-func readAccountInfo() (string, string, error) {
+func readAccountInfo(w io.Writer) (string, string, error) {
 	buf := bufio.NewReader(os.Stdin)
-	fmt.Print("Enter the name of the account > ")
+	fmt.Fprint(w, "Enter the name of the account > ")
 	rawName, _ := buf.ReadBytes('\n')
-	phrase, err := readPassword("Enter passphrase > ")
+	phrase, err := readPassword(w, "Enter passphrase > ")
 	if err != nil {
 		return "", "", err
 	}
-	phraseCheck, err := readPassword("Confirm passphrase > ")
+	phraseCheck, err := readPassword(w, "Confirm passphrase > ")
 	if err != nil {
 		return "", "", err
 	}
@@ -598,7 +599,7 @@ func readAccountInfo() (string, string, error) {
 }
 
 func createAccount(ctx *cli.Context, wall *wallet.Wallet) error {
-	name, phrase, err := readAccountInfo()
+	name, phrase, err := readAccountInfo(ctx.App.Writer)
 	if err != nil {
 		return err
 	}
@@ -612,11 +613,11 @@ func openWallet(path string) (*wallet.Wallet, error) {
 	return wallet.NewWalletFromFile(path)
 }
 
-func newAccountFromWIF(wif string) (*wallet.Account, error) {
+func newAccountFromWIF(w io.Writer, wif string) (*wallet.Account, error) {
 	// note: NEP2 strings always have length of 58 even though
 	// base58 strings can have different lengths even if slice lengths are equal
 	if len(wif) == 58 {
-		pass, err := readPassword("Enter password > ")
+		pass, err := readPassword(w, "Enter password > ")
 		if err != nil {
 			return nil, err
 		}
@@ -629,8 +630,8 @@ func newAccountFromWIF(wif string) (*wallet.Account, error) {
 		return nil, err
 	}
 
-	fmt.Println("Provided WIF was unencrypted. Wallet can contain only encrypted keys.")
-	name, pass, err := readAccountInfo()
+	fmt.Fprintln(w, "Provided WIF was unencrypted. Wallet can contain only encrypted keys.")
+	name, pass, err := readAccountInfo(w)
 	if err != nil {
 		return nil, err
 	}
@@ -654,19 +655,19 @@ func addAccountAndSave(w *wallet.Wallet, acc *wallet.Account) error {
 	return w.Save()
 }
 
-func readPassword(prompt string) (string, error) {
-	fmt.Print(prompt)
+func readPassword(w io.Writer, prompt string) (string, error) {
+	fmt.Fprint(w, prompt)
 	rawPass, err := terminal.ReadPassword(syscall.Stdin)
-	fmt.Println()
+	fmt.Fprintln(w)
 	if err != nil {
 		return "", err
 	}
 	return strings.TrimRight(string(rawPass), "\n"), nil
 }
 
-func fmtPrintWallet(wall *wallet.Wallet) {
+func fmtPrintWallet(w io.Writer, wall *wallet.Wallet) {
 	b, _ := wall.JSON()
-	fmt.Println("")
-	fmt.Println(string(b))
-	fmt.Println("")
+	fmt.Fprintln(w, "")
+	fmt.Fprintln(w, string(b))
+	fmt.Fprintln(w, "")
 }

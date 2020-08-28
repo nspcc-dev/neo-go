@@ -33,6 +33,6 @@ func handleParse(ctx *cli.Context) error {
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
-	fmt.Print(res)
+	fmt.Fprint(ctx.App.Writer, res)
 	return nil
 }

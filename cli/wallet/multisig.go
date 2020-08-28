@@ -3,6 +3,7 @@ package wallet
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 
 	"github.com/nspcc-dev/neo-go/cli/options"
@@ -50,7 +51,7 @@ func signMultisig(ctx *cli.Context) error {
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("invalid address: %w", err), 1)
 	}
-	acc, err := getDecryptedAccount(wall, sh)
+	acc, err := getDecryptedAccount(ctx, wall, sh)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -59,7 +60,7 @@ func signMultisig(ctx *cli.Context) error {
 	if !ok {
 		return cli.NewExitError("verifiable item is not a transaction", 1)
 	}
-	printTxInfo(tx)
+	printTxInfo(ctx.App.Writer, tx)
 
 	priv := acc.PrivateKey()
 	sign := priv.Sign(tx.GetSignedPart())
@@ -86,11 +87,11 @@ func signMultisig(ctx *cli.Context) error {
 		if err != nil {
 			return cli.NewExitError(err, 1)
 		}
-		fmt.Println(res.StringLE())
+		fmt.Fprintln(ctx.App.Writer, res.StringLE())
 		return nil
 	}
 
-	fmt.Println(tx.Hash().StringLE())
+	fmt.Fprintln(ctx.App.Writer, tx.Hash().StringLE())
 	return nil
 }
 
@@ -116,6 +117,6 @@ func writeParameterContext(c *context.ParameterContext, filename string) error {
 	return nil
 }
 
-func printTxInfo(t *transaction.Transaction) {
-	fmt.Printf("Hash: %s\n", t.Hash().StringLE())
+func printTxInfo(w io.Writer, t *transaction.Transaction) {
+	fmt.Fprintf(w, "Hash: %s\n", t.Hash().StringLE())
 }

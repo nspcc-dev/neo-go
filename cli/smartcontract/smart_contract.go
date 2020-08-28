@@ -366,7 +366,7 @@ func initSmartContract(ctx *cli.Context) error {
 		return cli.NewExitError(err, 1)
 	}
 
-	fmt.Printf("Successfully initialized smart contract [%s]\n", contractName)
+	fmt.Fprintf(ctx.App.Writer, "Successfully initialized smart contract [%s]\n", contractName)
 
 	return nil
 }
@@ -405,7 +405,7 @@ func contractCompile(ctx *cli.Context) error {
 		return cli.NewExitError(err, 1)
 	}
 	if ctx.Bool("verbose") {
-		fmt.Println(hex.EncodeToString(result))
+		fmt.Fprintln(ctx.App.Writer, hex.EncodeToString(result))
 	}
 
 	return nil
@@ -495,14 +495,14 @@ func invokeInternal(ctx *cli.Context, signAndPush bool) error {
 		if err != nil {
 			return cli.NewExitError(fmt.Errorf("failed to push invocation tx: %w", err), 1)
 		}
-		fmt.Printf("Sent invocation transaction %s\n", txHash.StringLE())
+		fmt.Fprintf(ctx.App.Writer, "Sent invocation transaction %s\n", txHash.StringLE())
 	} else {
 		b, err := json.MarshalIndent(resp, "", "  ")
 		if err != nil {
 			return cli.NewExitError(err, 1)
 		}
 
-		fmt.Println(string(b))
+		fmt.Fprintln(ctx.App.Writer, string(b))
 	}
 
 	return nil
@@ -599,7 +599,7 @@ func testInvokeScript(ctx *cli.Context) error {
 		return cli.NewExitError(err, 1)
 	}
 
-	fmt.Println(string(b))
+	fmt.Fprintln(ctx.App.Writer, string(b))
 
 	return nil
 }
@@ -680,9 +680,9 @@ func getAccFromContext(ctx *cli.Context) (*wallet.Account, error) {
 		return nil, cli.NewExitError(fmt.Errorf("wallet contains no account for '%s'", address.Uint160ToString(addr)), 1)
 	}
 
-	fmt.Printf("Enter account %s password > ", address.Uint160ToString(addr))
+	fmt.Fprintf(ctx.App.Writer, "Enter account %s password > ", address.Uint160ToString(addr))
 	rawPass, err := terminal.ReadPassword(syscall.Stdin)
-	fmt.Println()
+	fmt.Fprintln(ctx.App.Writer)
 	if err != nil {
 		return nil, cli.NewExitError(err, 1)
 	}
@@ -751,7 +751,7 @@ func contractDeploy(ctx *cli.Context) error {
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("failed to push invocation tx: %w", err), 1)
 	}
-	fmt.Printf("Sent deployment transaction %s for contract %s\n", txHash.StringLE(), nefFile.Header.ScriptHash.StringLE())
+	fmt.Fprintf(ctx.App.Writer, "Sent deployment transaction %s for contract %s\n", txHash.StringLE(), nefFile.Header.ScriptHash.StringLE())
 	return nil
 }
 

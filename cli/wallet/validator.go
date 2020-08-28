@@ -83,7 +83,7 @@ func handleCandidate(ctx *cli.Context, method string) error {
 
 	addrFlag := ctx.Generic("address").(*flags.Address)
 	addr := addrFlag.Uint160()
-	acc, err := getDecryptedAccount(wall, addr)
+	acc, err := getDecryptedAccount(ctx, wall, addr)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -111,7 +111,7 @@ func handleCandidate(ctx *cli.Context, method string) error {
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
-	fmt.Println(res.StringLE())
+	fmt.Fprintln(ctx.App.Writer, res.StringLE())
 	return nil
 }
 
@@ -123,7 +123,7 @@ func handleVote(ctx *cli.Context) error {
 
 	addrFlag := ctx.Generic("address").(*flags.Address)
 	addr := addrFlag.Uint160()
-	acc, err := getDecryptedAccount(wall, addr)
+	acc, err := getDecryptedAccount(ctx, wall, addr)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -168,17 +168,17 @@ func handleVote(ctx *cli.Context) error {
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
-	fmt.Println(res.StringLE())
+	fmt.Fprintln(ctx.App.Writer, res.StringLE())
 	return nil
 }
 
-func getDecryptedAccount(wall *wallet.Wallet, addr util.Uint160) (*wallet.Account, error) {
+func getDecryptedAccount(ctx *cli.Context, wall *wallet.Wallet, addr util.Uint160) (*wallet.Account, error) {
 	acc := wall.GetAccount(addr)
 	if acc == nil {
 		return nil, fmt.Errorf("can't find account for the address: %s", address.Uint160ToString(addr))
 	}
 
-	if pass, err := readPassword("Password > "); err != nil {
+	if pass, err := readPassword(ctx.App.Writer, "Password > "); err != nil {
 		return nil, err
 	} else if err := acc.Decrypt(pass); err != nil {
 		return nil, err
