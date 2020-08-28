@@ -201,6 +201,21 @@ func (c *codegen) scTypeFromExpr(typ ast.Expr) string {
 	if c.typeOf(typ) == nil {
 		return "Any"
 	}
+	if named, ok := t.(*types.Named); ok {
+		if isInteropPath(named.String()) {
+			name := named.Obj().Name()
+			pkg := named.Obj().Pkg().Name()
+			switch pkg {
+			case "blockchain", "contract":
+				return "Array" // Block, Transaction, Contract
+			case "interop":
+				if name != "Interface" {
+					return name
+				}
+			}
+			return "InteropInterface"
+		}
+	}
 	switch t := t.Underlying().(type) {
 	case *types.Basic:
 		info := t.Info()
