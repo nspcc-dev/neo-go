@@ -4,6 +4,8 @@ It has similar function to Runtime class in .net framwork for Neo.
 */
 package runtime
 
+import "github.com/nspcc-dev/neo-go/pkg/interop"
+
 // Trigger values to compare with GetTrigger result.
 const (
 	System       byte = 0x01
@@ -60,7 +62,7 @@ func GasLeft() int64 {
 // 'nil' literal means no filtering. It returns slice consisting of following elements:
 // [  scripthash of notification's contract  ,  emitted item  ].
 // This function uses `System.Runtime.GetNotifications` syscall.
-func GetNotifications(h []byte) [][]interface{} {
+func GetNotifications(h interop.Hash160) [][]interface{} {
 	return nil
 }
 

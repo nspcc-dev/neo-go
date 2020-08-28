@@ -3,11 +3,13 @@ Package util contains some special useful functions that are provided by compile
 */
 package util
 
+import "github.com/nspcc-dev/neo-go/pkg/interop"
+
 // FromAddress is an utility function that converts a Neo address to its hash
 // (160 bit BE value in a 20 byte slice). It can only be used for strings known
 // at compilation time, because the conversion is actually being done by the
 // compiler.
-func FromAddress(address string) []byte {
+func FromAddress(address string) interop.Hash160 {
 	return nil
 }
 

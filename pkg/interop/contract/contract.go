@@ -3,6 +3,8 @@ Package contract provides functions to work with contracts.
 */
 package contract
 
+import "github.com/nspcc-dev/neo-go/pkg/interop"
+
 // Contract represents a Neo contract and is used in interop functions. It's
 // a data structure that you can manipulate with using functions from
 // this package. It's similar in function to the Contract class in the Neo .net
@@ -40,13 +42,13 @@ func Destroy() {}
 
 // IsStandard checks if contract with provided hash is a standard signature/multisig contract.
 // This function uses `System.Contract.IsStandard` syscall.
-func IsStandard(h []byte) bool {
+func IsStandard(h interop.Hash160) bool {
 	return false
 }
 
 // CreateStandardAccount calculates script hash of a given public key.
 // This function uses `System.Contract.CreateStandardAccount` syscall.
-func CreateStandardAccount(pub []byte) []byte {
+func CreateStandardAccount(pub interop.PublicKey) []byte {
 	return nil
 }
 
