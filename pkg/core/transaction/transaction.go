@@ -110,8 +110,8 @@ func (t *Transaction) Hash() util.Uint256 {
 	return t.hash
 }
 
-// VerificationHash returns the hash of the transaction used to verify it.
-func (t *Transaction) VerificationHash() util.Uint256 {
+// GetSignedHash returns a hash of the transaction used to verify it.
+func (t *Transaction) GetSignedHash() util.Uint256 {
 	if t.verificationHash.Equals(util.Uint256{}) {
 		if t.createHash() != nil {
 			panic("failed to compute hash!")

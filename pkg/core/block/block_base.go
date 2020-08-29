@@ -78,8 +78,8 @@ func (b *Base) Hash() util.Uint256 {
 	return b.hash
 }
 
-// VerificationHash returns the hash of the block used to verify it.
-func (b *Base) VerificationHash() util.Uint256 {
+// GetSignedHash returns a hash of the block used to verify it.
+func (b *Base) GetSignedHash() util.Uint256 {
 	if b.verificationHash.Equals(util.Uint256{}) {
 		b.createHash()
 	}

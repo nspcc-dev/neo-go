@@ -10,6 +10,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
@@ -30,15 +31,17 @@ func ECDSASecp256k1Verify(ic *interop.Context) error {
 // ecdsaVerify is internal representation of ECDSASecp256k1Verify and
 // ECDSASecp256r1Verify.
 func ecdsaVerify(ic *interop.Context, curve elliptic.Curve) error {
-	msg := getMessage(ic, ic.VM.Estack().Pop().Item())
-	hashToCheck := hash.Sha256(msg).BytesBE()
+	hashToCheck, err := getMessageHash(ic, ic.VM.Estack().Pop().Item())
+	if err != nil {
+		return err
+	}
 	keyb := ic.VM.Estack().Pop().Bytes()
 	signature := ic.VM.Estack().Pop().Bytes()
 	pkey, err := keys.NewPublicKeyFromBytes(keyb, curve)
 	if err != nil {
 		return err
 	}
-	res := pkey.Verify(signature, hashToCheck)
+	res := pkey.Verify(signature, hashToCheck.BytesBE())
 	ic.VM.Estack().PushVal(res)
 	return nil
 }
@@ -58,8 +61,10 @@ func ECDSASecp256k1CheckMultisig(ic *interop.Context) error {
 // ecdsaCheckMultisig is internal representation of ECDSASecp256r1CheckMultisig and
 // ECDSASecp256k1CheckMultisig
 func ecdsaCheckMultisig(ic *interop.Context, curve elliptic.Curve) error {
-	msg := getMessage(ic, ic.VM.Estack().Pop().Item())
-	hashToCheck := hash.Sha256(msg).BytesBE()
+	hashToCheck, err := getMessageHash(ic, ic.VM.Estack().Pop().Item())
+	if err != nil {
+		return err
+	}
 	pkeys, err := ic.VM.Estack().PopSigElements()
 	if err != nil {
 		return fmt.Errorf("wrong parameters: %w", err)
@@ -76,23 +81,23 @@ func ecdsaCheckMultisig(ic *interop.Context, curve elliptic.Curve) error {
 	if len(pkeys) < len(sigs) {
 		return errors.New("more signatures than there are keys")
 	}
-	sigok := vm.CheckMultisigPar(ic.VM, curve, hashToCheck, pkeys, sigs)
+	sigok := vm.CheckMultisigPar(ic.VM, curve, hashToCheck.BytesBE(), pkeys, sigs)
 	ic.VM.Estack().PushVal(sigok)
 	return nil
 }
 
-func getMessage(ic *interop.Context, item stackitem.Item) []byte {
+func getMessageHash(ic *interop.Context, item stackitem.Item) (util.Uint256, error) {
 	var msg []byte
 	switch val := item.(type) {
 	case *stackitem.Interop:
-		msg = val.Value().(crypto.Verifiable).GetSignedPart()
+		return val.Value().(crypto.Verifiable).GetSignedHash(), nil
 	case stackitem.Null:
-		msg = ic.Container.GetSignedPart()
+		return ic.Container.GetSignedHash(), nil
 	default:
 		var err error
 		if msg, err = val.TryBytes(); err != nil {
-			return nil
+			return util.Uint256{}, err
 		}
 	}
-	return msg
+	return hash.Sha256(msg), nil
 }

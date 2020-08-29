@@ -104,12 +104,14 @@ func TestConsensusPayload_Serializable(t *testing.T) {
 		require.Nil(t, actual.message)
 		// message should now be decoded from actual.data byte array
 		assert.NoError(t, actual.decodeData())
+		assert.NotNil(t, actual.MarshalUnsigned())
 		require.Equal(t, p, actual)
 
 		data = p.MarshalUnsigned()
 		pu := NewPayload(netmode.Magic(rand.Uint32()))
 		require.NoError(t, pu.UnmarshalUnsigned(data))
 		assert.NoError(t, pu.decodeData())
+		_ = pu.MarshalUnsigned()
 
 		p.Witness = transaction.Witness{}
 		require.Equal(t, p, pu)
@@ -153,6 +155,7 @@ func TestConsensusPayload_DecodeBinaryInvalid(t *testing.T) {
 	p := new(Payload)
 	require.NoError(t, testserdes.DecodeBinary(buf, p))
 	// decode `data` into `message`
+	_ = p.Hash()
 	assert.NoError(t, p.decodeData())
 	require.Equal(t, expected, p)
 
