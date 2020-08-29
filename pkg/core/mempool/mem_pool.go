@@ -35,7 +35,7 @@ type item struct {
 }
 
 // items is a slice of item.
-type items []*item
+type items []item
 
 // utilityBalanceAndFees stores sender's balance and overall fees of
 // sender's transactions which are currently in mempool
@@ -47,7 +47,7 @@ type utilityBalanceAndFees struct {
 // Pool stores the unconfirms transactions.
 type Pool struct {
 	lock         sync.RWMutex
-	verifiedMap  map[util.Uint256]*item
+	verifiedMap  map[util.Uint256]item
 	verifiedTxes items
 	fees         map[util.Uint160]utilityBalanceAndFees
 
@@ -63,11 +63,7 @@ func (p items) Less(i, j int) bool { return p[i].CompareTo(p[j]) < 0 }
 // difference < 0 implies p < otherP.
 // difference = 0 implies p = otherP.
 // difference > 0 implies p > otherP.
-func (p *item) CompareTo(otherP *item) int {
-	if otherP == nil {
-		return 1
-	}
-
+func (p item) CompareTo(otherP item) int {
 	pHigh := p.txn.HasAttribute(transaction.HighPriority)
 	otherHigh := otherP.txn.HasAttribute(transaction.HighPriority)
 	if pHigh && !otherHigh {
@@ -151,7 +147,7 @@ func checkBalance(tx *transaction.Transaction, balance utilityBalanceAndFees) er
 
 // Add tries to add given transaction to the Pool.
 func (mp *Pool) Add(t *transaction.Transaction, fee Feer) error {
-	var pItem = &item{
+	var pItem = item{
 		txn:       t,
 		timeStamp: time.Now().UTC(),
 	}
@@ -271,8 +267,8 @@ func (mp *Pool) checkPolicy(tx *transaction.Transaction, policyChanged bool) boo
 // New returns a new Pool struct.
 func New(capacity int) *Pool {
 	return &Pool{
-		verifiedMap:  make(map[util.Uint256]*item),
-		verifiedTxes: make([]*item, 0, capacity),
+		verifiedMap:  make(map[util.Uint256]item),
+		verifiedTxes: make([]item, 0, capacity),
 		capacity:     capacity,
 		fees:         make(map[util.Uint160]utilityBalanceAndFees),
 	}
