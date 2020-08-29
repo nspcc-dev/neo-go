@@ -8,6 +8,7 @@ require (
 	github.com/frankban/quicktest v1.10.0 // indirect
 	github.com/go-redis/redis v6.10.2+incompatible
 	github.com/gorilla/websocket v1.4.2
+	github.com/hashicorp/golang-lru v0.5.4
 	github.com/mr-tron/base58 v1.1.2
 	github.com/nspcc-dev/dbft v0.0.0-20200711144034-c526ccc6f570
 	github.com/nspcc-dev/rfc6979 v0.2.0
