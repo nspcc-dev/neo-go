@@ -1,0 +1,72 @@
+{
+  "version": "3.0",
+  "accounts": [
+    {
+      "address": "NbTiM6h8r99kpRtb428XcsUk1TzKed2gTc",
+      "key": "6PYN7LvaWqBNw7Xb7a52LSbPnP91kyuzYi3HncGvQwQoYAY2W8DncTgpux",
+      "label": "",
+      "contract": {
+        "script": "DCECs2Ir9AF73+MXxYrtX0x1PyBrfbiWBG+n13S7xL9/jcILQZVEDXg=",
+        "parameters": [
+          {
+            "name": "parameter0",
+            "type": "Signature"
+          }
+        ],
+        "deployed": false
+      },
+      "lock": false,
+      "isdefault": false
+    },
+    {
+      "address": "NUVPACMnKFhpuHjsRjhUvXz1XhqfGZYVtY",
+      "key": "6PYN7LvaWqBNw7Xb7a52LSbPnP91kyuzYi3HncGvQwQoYAY2W8DncTgpux",
+      "label": "",
+      "contract": {
+        "script": "EwwhAhA6f33QFlWFl/eWDSfFFqQ5T9loueZRVetLAT5AQEBuDCECp7xV/oaE4BGXaNEEujB5W9zIZhnoZK3SYVZyPtGFzWIMIQKzYiv0AXvf4xfFiu1fTHU/IGt9uJYEb6fXdLvEv3+NwgwhA9kMB99j5pDOd5EuEKtRrMlEtmhgI3tgjE+PgwnnHuaZFAtBE43vrw==",
+        "parameters": [
+          {
+            "name": "parameter0",
+            "type": "Signature"
+          },
+          {
+            "name": "parameter1",
+            "type": "Signature"
+          },
+          {
+            "name": "parameter2",
+            "type": "Signature"
+          }
+        ],
+        "deployed": false
+      },
+      "lock": false,
+      "isdefault": false
+    },
+    {
+      "address": "NVNvVRW5Q5naSx2k2iZm7xRgtRNGuZppAK",
+      "key": "6PYN7LvaWqBNw7Xb7a52LSbPnP91kyuzYi3HncGvQwQoYAY2W8DncTgpux",
+      "label": "",
+      "contract": {
+        "script": "EQwhArNiK/QBe9/jF8WK7V9MdT8ga324lgRvp9d0u8S/f43CEQtBE43vrw==",
+        "parameters": [
+          {
+            "name": "parameter0",
+            "type": "Signature"
+          }
+        ],
+        "deployed": false
+      },
+      "lock": false,
+      "isdefault": false
+    }
+  ],
+  "scrypt": {
+    "n": 16384,
+    "r": 8,
+    "p": 8
+  },
+  "extra": {
+    "Tokens": null
+  }
+}
