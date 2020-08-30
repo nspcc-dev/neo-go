@@ -76,12 +76,7 @@ func (p item) CompareTo(otherP item) int {
 		return ret
 	}
 
-	if ret := int(p.txn.NetworkFee - otherP.txn.NetworkFee); ret != 0 {
-		return ret
-	}
-
-	// Transaction hash sorted descending.
-	return otherP.txn.Hash().CompareTo(p.txn.Hash())
+	return int(p.txn.NetworkFee - otherP.txn.NetworkFee)
 }
 
 // Count returns the total number of uncofirm transactions.
