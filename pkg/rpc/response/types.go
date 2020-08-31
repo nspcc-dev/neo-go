@@ -24,6 +24,13 @@ type Raw struct {
 	Result json.RawMessage `json:"result,omitempty"`
 }
 
+// Abstract represents abstract JSON-RPC 2.0 response, it differs from Raw in
+// that Result field is an interface here.
+type Abstract struct {
+	HeaderAndError
+	Result interface{} `json:"result,omitempty"`
+}
+
 // Notification is a type used to represent wire format of events, they're
 // special in that they look like requests but they don't have IDs and their
 // "method" is actually an event name.
