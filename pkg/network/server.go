@@ -805,12 +805,16 @@ func (s *Server) requestTx(hashes ...util.Uint256) {
 // passed, one is to send the message and the other is to filtrate peers (the
 // peer is considered invalid if it returns false).
 func (s *Server) iteratePeersWithSendMsg(msg *Message, send func(Peer, []byte) error, peerOK func(Peer) bool) {
+	// Get a copy of s.peers to avoid holding a lock while sending.
+	peers := s.Peers()
+	if len(peers) == 0 {
+		return
+	}
 	pkt, err := msg.Bytes()
 	if err != nil {
 		return
 	}
-	// Get a copy of s.peers to avoid holding a lock while sending.
-	for peer := range s.Peers() {
+	for peer := range peers {
 		if peerOK != nil && !peerOK(peer) {
 			continue
 		}
