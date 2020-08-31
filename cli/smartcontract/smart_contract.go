@@ -9,9 +9,9 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"syscall"
 
 	"github.com/nspcc-dev/neo-go/cli/flags"
+	"github.com/nspcc-dev/neo-go/cli/input"
 	"github.com/nspcc-dev/neo-go/cli/options"
 	"github.com/nspcc-dev/neo-go/pkg/compiler"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
@@ -25,7 +25,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/urfave/cli"
-	"golang.org/x/crypto/ssh/terminal"
 	"gopkg.in/yaml.v2"
 )
 
@@ -680,8 +679,8 @@ func getAccFromContext(ctx *cli.Context) (*wallet.Account, error) {
 		return nil, cli.NewExitError(fmt.Errorf("wallet contains no account for '%s'", address.Uint160ToString(addr)), 1)
 	}
 
-	fmt.Fprintf(ctx.App.Writer, "Enter account %s password > ", address.Uint160ToString(addr))
-	rawPass, err := terminal.ReadPassword(syscall.Stdin)
+	rawPass, err := input.ReadPassword(ctx.App.Writer,
+		fmt.Sprintf("Enter account %s password > ", address.Uint160ToString(addr)))
 	fmt.Fprintln(ctx.App.Writer)
 	if err != nil {
 		return nil, cli.NewExitError(err, 1)

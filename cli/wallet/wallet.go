@@ -1,16 +1,14 @@
 package wallet
 
 import (
-	"bufio"
 	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
-	"os"
 	"strings"
-	"syscall"
 
 	"github.com/nspcc-dev/neo-go/cli/flags"
+	"github.com/nspcc-dev/neo-go/cli/input"
 	"github.com/nspcc-dev/neo-go/cli/options"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
@@ -18,7 +16,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/urfave/cli"
-	"golang.org/x/crypto/ssh/terminal"
 )
 
 var (
@@ -266,7 +263,7 @@ func convertWallet(ctx *cli.Context) error {
 	for _, acc := range wall.Accounts {
 		address.Prefix = address.NEO2Prefix
 
-		pass, err := readPassword(ctx.App.Writer, fmt.Sprintf("Enter passphrase for account %s (label '%s') > ", acc.Address, acc.Label))
+		pass, err := input.ReadPassword(ctx.App.Writer, fmt.Sprintf("Enter passphrase for account %s (label '%s') > ", acc.Address, acc.Label))
 		if err != nil {
 			return cli.NewExitError(err, -1)
 		} else if err := acc.Decrypt(pass); err != nil {
@@ -348,7 +345,7 @@ loop:
 
 	for _, wif := range wifs {
 		if decrypt {
-			pass, err := readPassword(ctx.App.Writer, "Enter password > ")
+			pass, err := input.ReadPassword(ctx.App.Writer, "Enter password > ")
 			if err != nil {
 				return cli.NewExitError(err, 1)
 			}
@@ -518,9 +515,7 @@ func removeAccount(ctx *cli.Context) error {
 }
 
 func askForConsent(w io.Writer) bool {
-	fmt.Fprintln(w, "Are you sure? [y/N]: ")
-	reader := bufio.NewReader(os.Stdin)
-	response, err := reader.ReadString('\n')
+	response, err := input.ReadLine(w, "Are you sure? [y/N]: ")
 	if err == nil {
 		response = strings.ToLower(strings.TrimSpace(response))
 		if response == "y" || response == "yes" {
@@ -537,7 +532,7 @@ func dumpWallet(ctx *cli.Context) error {
 		return cli.NewExitError(err, 1)
 	}
 	if ctx.Bool("decrypt") {
-		pass, err := readPassword(ctx.App.Writer, "Enter wallet password > ")
+		pass, err := input.ReadPassword(ctx.App.Writer, "Enter wallet password > ")
 		if err != nil {
 			return cli.NewExitError(err, 1)
 		}
@@ -578,14 +573,12 @@ func createWallet(ctx *cli.Context) error {
 }
 
 func readAccountInfo(w io.Writer) (string, string, error) {
-	buf := bufio.NewReader(os.Stdin)
-	fmt.Fprint(w, "Enter the name of the account > ")
-	rawName, _ := buf.ReadBytes('\n')
-	phrase, err := readPassword(w, "Enter passphrase > ")
+	rawName, _ := input.ReadLine(w, "Enter the name of the account > ")
+	phrase, err := input.ReadPassword(w, "Enter passphrase > ")
 	if err != nil {
 		return "", "", err
 	}
-	phraseCheck, err := readPassword(w, "Confirm passphrase > ")
+	phraseCheck, err := input.ReadPassword(w, "Confirm passphrase > ")
 	if err != nil {
 		return "", "", err
 	}
@@ -617,7 +610,7 @@ func newAccountFromWIF(w io.Writer, wif string) (*wallet.Account, error) {
 	// note: NEP2 strings always have length of 58 even though
 	// base58 strings can have different lengths even if slice lengths are equal
 	if len(wif) == 58 {
-		pass, err := readPassword(w, "Enter password > ")
+		pass, err := input.ReadPassword(w, "Enter password > ")
 		if err != nil {
 			return nil, err
 		}
@@ -653,16 +646,6 @@ func addAccountAndSave(w *wallet.Wallet, acc *wallet.Account) error {
 
 	w.AddAccount(acc)
 	return w.Save()
-}
-
-func readPassword(w io.Writer, prompt string) (string, error) {
-	fmt.Fprint(w, prompt)
-	rawPass, err := terminal.ReadPassword(syscall.Stdin)
-	fmt.Fprintln(w)
-	if err != nil {
-		return "", err
-	}
-	return strings.TrimRight(string(rawPass), "\n"), nil
 }
 
 func fmtPrintWallet(w io.Writer, wall *wallet.Wallet) {

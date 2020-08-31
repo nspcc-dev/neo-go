@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/nspcc-dev/neo-go/cli/flags"
+	"github.com/nspcc-dev/neo-go/cli/input"
 	"github.com/nspcc-dev/neo-go/cli/options"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
@@ -178,7 +179,8 @@ func getDecryptedAccount(ctx *cli.Context, wall *wallet.Wallet, addr util.Uint16
 		return nil, fmt.Errorf("can't find account for the address: %s", address.Uint160ToString(addr))
 	}
 
-	if pass, err := readPassword(ctx.App.Writer, "Password > "); err != nil {
+	if pass, err := input.ReadPassword(ctx.App.Writer, "Password > "); err != nil {
+		fmt.Println("ERROR", pass, err)
 		return nil, err
 	} else if err := acc.Decrypt(pass); err != nil {
 		return nil, err
