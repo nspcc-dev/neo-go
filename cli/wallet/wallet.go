@@ -474,7 +474,9 @@ func importWallet(ctx *cli.Context) error {
 		acc.Contract.Script = ctr
 	}
 
-	acc.Label = ctx.String("name")
+	if acc.Label == "" {
+		acc.Label = ctx.String("name")
+	}
 	if err := addAccountAndSave(wall, acc); err != nil {
 		return cli.NewExitError(err, 1)
 	}
