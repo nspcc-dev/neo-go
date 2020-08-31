@@ -577,14 +577,17 @@ func (bc *Blockchain) GetStateRoot(height uint32) (*state.MPTRootState, error) {
 // This is the only way to change Blockchain state.
 func (bc *Blockchain) storeBlock(block *block.Block) error {
 	cache := dao.NewCached(bc.dao)
+	writeBuf := io.NewBufBinWriter()
 	appExecResults := make([]*state.AppExecResult, 0, 1+len(block.Transactions))
-	if err := cache.StoreAsBlock(block); err != nil {
+	if err := cache.StoreAsBlock(block, writeBuf); err != nil {
 		return err
 	}
+	writeBuf.Reset()
 
-	if err := cache.StoreAsCurrentBlock(block); err != nil {
+	if err := cache.StoreAsCurrentBlock(block, writeBuf); err != nil {
 		return err
 	}
+	writeBuf.Reset()
 
 	if block.Index > 0 {
 		systemInterop := bc.newInteropContext(trigger.System, cache, block, nil)
@@ -608,17 +611,19 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 			Events:      systemInterop.Notifications,
 		}
 		appExecResults = append(appExecResults, aer)
-		err := cache.PutAppExecResult(aer)
+		err := cache.PutAppExecResult(aer, writeBuf)
 		if err != nil {
 			return fmt.Errorf("failed to store onPersist exec result: %w", err)
 		}
+		writeBuf.Reset()
 	}
 
 	var txHashes = make([]util.Uint256, len(block.Transactions))
 	for i, tx := range block.Transactions {
-		if err := cache.StoreAsTransaction(tx, block.Index); err != nil {
+		if err := cache.StoreAsTransaction(tx, block.Index, writeBuf); err != nil {
 			return err
 		}
+		writeBuf.Reset()
 
 		systemInterop := bc.newInteropContext(trigger.Application, cache, block, tx)
 		v := systemInterop.SpawnVM()
@@ -650,10 +655,11 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 			Events:      systemInterop.Notifications,
 		}
 		appExecResults = append(appExecResults, aer)
-		err = cache.PutAppExecResult(aer)
+		err = cache.PutAppExecResult(aer, writeBuf)
 		if err != nil {
 			return fmt.Errorf("failed to store tx exec result: %w", err)
 		}
+		writeBuf.Reset()
 		txHashes[i] = tx.Hash()
 	}
 	sort.Slice(txHashes, func(i, j int) bool {

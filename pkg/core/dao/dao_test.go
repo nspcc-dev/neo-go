@@ -86,7 +86,7 @@ func TestPutGetAppExecResult(t *testing.T) {
 		Events: []state.NotificationEvent{},
 		Stack:  []stackitem.Item{},
 	}
-	err := dao.PutAppExecResult(appExecResult)
+	err := dao.PutAppExecResult(appExecResult, nil)
 	require.NoError(t, err)
 	gotAppExecResult, err := dao.GetAppExecResult(hash)
 	require.NoError(t, err)
@@ -136,7 +136,7 @@ func TestPutGetBlock(t *testing.T) {
 		},
 	}
 	hash := b.Hash()
-	err := dao.StoreAsBlock(b)
+	err := dao.StoreAsBlock(b, nil)
 	require.NoError(t, err)
 	gotBlock, err := dao.GetBlock(hash)
 	require.NoError(t, err)
@@ -176,7 +176,7 @@ func TestGetCurrentHeaderHeight_Store(t *testing.T) {
 			},
 		},
 	}
-	err := dao.StoreAsCurrentBlock(b)
+	err := dao.StoreAsCurrentBlock(b, nil)
 	require.NoError(t, err)
 	height, err := dao.GetCurrentBlockHeight()
 	require.NoError(t, err)
@@ -187,7 +187,7 @@ func TestStoreAsTransaction(t *testing.T) {
 	dao := NewSimple(storage.NewMemoryStore(), netmode.UnitTestNet)
 	tx := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 1)
 	hash := tx.Hash()
-	err := dao.StoreAsTransaction(tx, 0)
+	err := dao.StoreAsTransaction(tx, 0, nil)
 	require.NoError(t, err)
 	hasTransaction := dao.HasTransaction(hash)
 	require.True(t, hasTransaction)

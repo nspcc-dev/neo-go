@@ -44,16 +44,16 @@ type DAO interface {
 	GetWrapped() DAO
 	HasTransaction(hash util.Uint256) bool
 	Persist() (int, error)
-	PutAppExecResult(aer *state.AppExecResult) error
+	PutAppExecResult(aer *state.AppExecResult, buf *io.BufBinWriter) error
 	PutContractState(cs *state.Contract) error
 	PutCurrentHeader(hashAndIndex []byte) error
 	PutNEP5Balances(acc util.Uint160, bs *state.NEP5Balances) error
 	PutNEP5TransferLog(acc util.Uint160, index uint32, lg *state.NEP5TransferLog) error
 	PutStorageItem(id int32, key []byte, si *state.StorageItem) error
 	PutVersion(v string) error
-	StoreAsBlock(block *block.Block) error
-	StoreAsCurrentBlock(block *block.Block) error
-	StoreAsTransaction(tx *transaction.Transaction, index uint32) error
+	StoreAsBlock(block *block.Block, buf *io.BufBinWriter) error
+	StoreAsCurrentBlock(block *block.Block, buf *io.BufBinWriter) error
+	StoreAsTransaction(tx *transaction.Transaction, index uint32, buf *io.BufBinWriter) error
 	putNEP5Balances(acc util.Uint160, bs *state.NEP5Balances, buf *io.BufBinWriter) error
 }
 
@@ -270,10 +270,13 @@ func (dao *Simple) GetAppExecResult(hash util.Uint256) (*state.AppExecResult, er
 }
 
 // PutAppExecResult puts given application execution result into the
-// given store.
-func (dao *Simple) PutAppExecResult(aer *state.AppExecResult) error {
+// given store. It can reuse given buffer for the purpose of value serialization.
+func (dao *Simple) PutAppExecResult(aer *state.AppExecResult, buf *io.BufBinWriter) error {
 	key := storage.AppendPrefix(storage.STNotification, aer.TxHash.BytesBE())
-	return dao.Put(aer, key)
+	if buf == nil {
+		return dao.Put(aer, key)
+	}
+	return dao.putWithBuffer(aer, key, buf)
 }
 
 // -- end notification event.
@@ -560,12 +563,15 @@ func (dao *Simple) HasTransaction(hash util.Uint256) bool {
 	return false
 }
 
-// StoreAsBlock stores the given block as DataBlock.
-func (dao *Simple) StoreAsBlock(block *block.Block) error {
+// StoreAsBlock stores given block as DataBlock. It can reuse given buffer for
+// the purpose of value serialization.
+func (dao *Simple) StoreAsBlock(block *block.Block, buf *io.BufBinWriter) error {
 	var (
 		key = storage.AppendPrefix(storage.DataBlock, block.Hash().BytesLE())
-		buf = io.NewBufBinWriter()
 	)
+	if buf == nil {
+		buf = io.NewBufBinWriter()
+	}
 	b, err := block.Trim()
 	if err != nil {
 		return err
@@ -577,19 +583,26 @@ func (dao *Simple) StoreAsBlock(block *block.Block) error {
 	return dao.Store.Put(key, buf.Bytes())
 }
 
-// StoreAsCurrentBlock stores the given block witch prefix SYSCurrentBlock.
-func (dao *Simple) StoreAsCurrentBlock(block *block.Block) error {
-	buf := io.NewBufBinWriter()
+// StoreAsCurrentBlock stores a hash of the given block with prefix
+// SYSCurrentBlock. It can reuse given buffer for the purpose of value
+// serialization.
+func (dao *Simple) StoreAsCurrentBlock(block *block.Block, buf *io.BufBinWriter) error {
+	if buf == nil {
+		buf = io.NewBufBinWriter()
+	}
 	h := block.Hash()
 	h.EncodeBinary(buf.BinWriter)
 	buf.WriteU32LE(block.Index)
 	return dao.Store.Put(storage.SYSCurrentBlock.Bytes(), buf.Bytes())
 }
 
-// StoreAsTransaction stores the given TX as DataTransaction.
-func (dao *Simple) StoreAsTransaction(tx *transaction.Transaction, index uint32) error {
+// StoreAsTransaction stores given TX as DataTransaction. It can reuse given
+// buffer for the purpose of value serialization.
+func (dao *Simple) StoreAsTransaction(tx *transaction.Transaction, index uint32, buf *io.BufBinWriter) error {
 	key := storage.AppendPrefix(storage.DataTransaction, tx.Hash().BytesLE())
-	buf := io.NewBufBinWriter()
+	if buf == nil {
+		buf = io.NewBufBinWriter()
+	}
 	buf.WriteU32LE(index)
 	tx.EncodeBinary(buf.BinWriter)
 	if buf.Err != nil {
