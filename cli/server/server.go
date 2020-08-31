@@ -355,7 +355,7 @@ func startServer(ctx *cli.Context) error {
 	errChan := make(chan error)
 
 	go serv.Start(errChan)
-	go rpcServer.Start(errChan)
+	rpcServer.Start(errChan)
 
 	fmt.Fprintln(ctx.App.Writer, logo())
 	fmt.Fprintln(ctx.App.Writer, serv.UserAgent)

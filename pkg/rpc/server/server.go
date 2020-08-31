@@ -167,18 +167,32 @@ func (s *Server) Start(errChan chan error) {
 		s.https.Handler = http.HandlerFunc(s.handleHTTPRequest)
 		s.log.Info("starting rpc-server (https)", zap.String("endpoint", s.https.Addr))
 		go func() {
-			err := s.https.ListenAndServeTLS(cfg.CertFile, cfg.KeyFile)
+			ln, err := net.Listen("tcp", s.https.Addr)
+			if err != nil {
+				errChan <- err
+				return
+			}
+			s.https.Addr = ln.Addr().String()
+			err = s.https.ServeTLS(ln, cfg.CertFile, cfg.KeyFile)
 			if err != http.ErrServerClosed {
 				s.log.Error("failed to start TLS RPC server", zap.Error(err))
 				errChan <- err
 			}
 		}()
 	}
-	err := s.ListenAndServe()
-	if err != http.ErrServerClosed {
-		s.log.Error("failed to start RPC server", zap.Error(err))
+	ln, err := net.Listen("tcp", s.Addr)
+	if err != nil {
 		errChan <- err
+		return
 	}
+	s.Addr = ln.Addr().String() // set Addr to the actual address
+	go func() {
+		err = s.Serve(ln)
+		if err != http.ErrServerClosed {
+			s.log.Error("failed to start RPC server", zap.Error(err))
+			errChan <- err
+		}
+	}()
 }
 
 // Shutdown overrides the http.Server Shutdown
