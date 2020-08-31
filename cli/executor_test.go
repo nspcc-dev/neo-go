@@ -1,22 +1,28 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"errors"
 	"io"
+	"io/ioutil"
 	"testing"
+	"time"
 
 	"github.com/nspcc-dev/neo-go/cli/input"
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
+	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/network"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/server"
+	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/stretchr/testify/require"
 	"github.com/urfave/cli"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zaptest"
+	"golang.org/x/crypto/ssh/terminal"
 )
 
 const (
@@ -42,6 +48,8 @@ type executor struct {
 	Out *bytes.Buffer
 	// Err contains command errors.
 	Err *bytes.Buffer
+	// In contains command input.
+	In *bytes.Buffer
 }
 
 func newTestChain(t *testing.T) (*core.Blockchain, *server.Server, *network.Server) {
@@ -72,9 +80,13 @@ func newExecutor(t *testing.T, needChain bool) *executor {
 		CLI: newApp(),
 		Out: bytes.NewBuffer(nil),
 		Err: bytes.NewBuffer(nil),
+		In:  bytes.NewBuffer(nil),
 	}
 	e.CLI.Writer = e.Out
 	e.CLI.ErrWriter = e.Err
+	rw := bufio.NewReadWriter(bufio.NewReader(e.In), bufio.NewWriter(ioutil.Discard))
+	require.Nil(t, input.Terminal) // check that tests clean up properly
+	input.Terminal = terminal.NewTerminal(rw, "")
 	if needChain {
 		e.Chain, e.RPC, e.NetSrv = newTestChain(t)
 	}
@@ -92,6 +104,20 @@ func (e *executor) Close(t *testing.T) {
 	if e.Chain != nil {
 		e.Chain.Close()
 	}
+}
+
+// GetTransaction returns tx with hash h after it has persisted.
+// If it is in mempool, we can just wait for the next block, otherwise
+// it must be already in chain. 1 second is time per block in a unittest chain.
+func (e *executor) GetTransaction(t *testing.T, h util.Uint256) *transaction.Transaction {
+	var tx *transaction.Transaction
+	require.Eventually(t, func() bool {
+		var height uint32
+		var err error
+		tx, height, err = e.Chain.GetTransaction(h)
+		return err == nil && height != 0
+	}, time.Second*2, time.Millisecond*100, "too long time waiting for block")
+	return tx
 }
 
 func (e *executor) checkNextLine(t *testing.T, expected string) {
