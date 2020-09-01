@@ -6,7 +6,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
+	"github.com/nspcc-dev/neo-go/pkg/rpc/client"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
@@ -91,4 +93,44 @@ func TestNEP5Transfer(t *testing.T) {
 	require.NoError(t, err)
 	b, _ := e.Chain.GetGoverningTokenBalance(sh)
 	require.Equal(t, big.NewInt(1), b)
+}
+
+func TestNEP5MultiTransfer(t *testing.T) {
+	privs := make([]*keys.PrivateKey, 3)
+	for i := range privs {
+		var err error
+		privs[i], err = keys.NewPrivateKey()
+		require.NoError(t, err)
+	}
+
+	e := newExecutor(t, true)
+	defer e.Close(t)
+	args := []string{
+		"neo-go", "wallet", "nep5", "multitransfer",
+		"--unittest", "--rpc-endpoint", "http://" + e.RPC.Addr,
+		"--wallet", validatorWallet,
+		"--from", validatorAddr,
+		"neo:" + privs[0].Address() + ":42",
+		"GAS:" + privs[1].Address() + ":7",
+		client.NeoContractHash.StringLE() + ":" + privs[2].Address() + ":13",
+	}
+
+	e.In.WriteString("one\r")
+	e.Run(t, args...)
+	line, err := e.Out.ReadString('\n')
+	require.NoError(t, err)
+	h, err := util.Uint256DecodeStringLE(strings.TrimSpace(line))
+	require.NoError(t, err, "can't decode tx hash: %s", line)
+
+	tx := e.GetTransaction(t, h)
+	aer, err := e.Chain.GetAppExecResult(tx.Hash())
+	require.NoError(t, err)
+	require.Equal(t, vm.HaltState, aer.VMState)
+
+	b, _ := e.Chain.GetGoverningTokenBalance(privs[0].GetScriptHash())
+	require.Equal(t, big.NewInt(42), b)
+	b = e.Chain.GetUtilityTokenBalance(privs[1].GetScriptHash())
+	require.Equal(t, big.NewInt(int64(util.Fixed8FromInt64(7))), b)
+	b, _ = e.Chain.GetGoverningTokenBalance(privs[2].GetScriptHash())
+	require.Equal(t, big.NewInt(13), b)
 }

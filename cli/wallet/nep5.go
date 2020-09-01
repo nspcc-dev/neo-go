@@ -373,7 +373,7 @@ func multiTransferNEP5(ctx *cli.Context) error {
 			token, err = getMatchingToken(ctx, wall, ss[0])
 			if err != nil {
 				fmt.Fprintln(ctx.App.ErrWriter, "Can't find matching token in the wallet. Querying RPC-node for balances.")
-				token, err = getMatchingTokenRPC(ctx, c, from, ctx.String("token"))
+				token, err = getMatchingTokenRPC(ctx, c, from, ss[0])
 				if err != nil {
 					return cli.NewExitError(err, 1)
 				}
