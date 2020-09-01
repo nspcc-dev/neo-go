@@ -1,7 +1,10 @@
 package main
 
 import (
+	"io"
 	"math/big"
+	"os"
+	"path"
 	"strconv"
 	"strings"
 	"testing"
@@ -133,4 +136,60 @@ func TestNEP5MultiTransfer(t *testing.T) {
 	require.Equal(t, big.NewInt(int64(util.Fixed8FromInt64(7))), b)
 	b, _ = e.Chain.GetGoverningTokenBalance(privs[2].GetScriptHash())
 	require.Equal(t, big.NewInt(13), b)
+}
+
+func TestNEP5ImportToken(t *testing.T) {
+	e := newExecutor(t, true)
+	defer e.Close(t)
+
+	tmpDir := os.TempDir()
+	walletPath := path.Join(tmpDir, "walletForImport.json")
+	defer os.Remove(walletPath)
+
+	e.Run(t, "neo-go", "wallet", "init", "--wallet", walletPath)
+	e.Run(t, "neo-go", "wallet", "nep5", "import",
+		"--rpc-endpoint", "http://"+e.RPC.Addr,
+		"--wallet", walletPath,
+		"--token", client.GasContractHash.StringLE())
+	e.Run(t, "neo-go", "wallet", "nep5", "import",
+		"--rpc-endpoint", "http://"+e.RPC.Addr,
+		"--wallet", walletPath,
+		"--token", client.NeoContractHash.StringLE())
+
+	t.Run("Info", func(t *testing.T) {
+		checkGASInfo := func(t *testing.T) {
+			e.checkNextLine(t, "^Name:\\s*GAS")
+			e.checkNextLine(t, "^Symbol:\\s*gas")
+			e.checkNextLine(t, "^Hash:\\s*"+client.GasContractHash.StringLE())
+			e.checkNextLine(t, "^Decimals:\\s*8")
+			e.checkNextLine(t, "^Address:\\s*"+address.Uint160ToString(client.GasContractHash))
+		}
+		t.Run("WithToken", func(t *testing.T) {
+			e.Run(t, "neo-go", "wallet", "nep5", "info",
+				"--wallet", walletPath, "--token", client.GasContractHash.StringLE())
+			checkGASInfo(t)
+		})
+		t.Run("NoToken", func(t *testing.T) {
+			e.Run(t, "neo-go", "wallet", "nep5", "info",
+				"--wallet", walletPath)
+			checkGASInfo(t)
+			_, err := e.Out.ReadString('\n')
+			require.NoError(t, err)
+			e.checkNextLine(t, "^Name:\\s*NEO")
+			e.checkNextLine(t, "^Symbol:\\s*neo")
+			e.checkNextLine(t, "^Hash:\\s*"+client.NeoContractHash.StringLE())
+			e.checkNextLine(t, "^Decimals:\\s*0")
+			e.checkNextLine(t, "^Address:\\s*"+address.Uint160ToString(client.NeoContractHash))
+		})
+		t.Run("Remove", func(t *testing.T) {
+			e.In.WriteString("y\r")
+			e.Run(t, "neo-go", "wallet", "nep5", "remove",
+				"--wallet", walletPath, "--token", client.NeoContractHash.StringLE())
+			e.Run(t, "neo-go", "wallet", "nep5", "info",
+				"--wallet", walletPath)
+			checkGASInfo(t)
+			_, err := e.Out.ReadString('\n')
+			require.Equal(t, err, io.EOF)
+		})
+	})
 }

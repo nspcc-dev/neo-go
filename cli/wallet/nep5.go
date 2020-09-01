@@ -105,7 +105,7 @@ func newNEP5Commands() []cli.Command {
 		{
 			Name:      "remove",
 			Usage:     "remove NEP5 token from the wallet",
-			UsageText: "remove --wallet <path> <hash-or-name>",
+			UsageText: "remove --wallet <path> --token <hash-or-name>",
 			Action:    removeNEP5Token,
 			Flags: []cli.Flag{
 				walletPathFlag,
@@ -314,11 +314,7 @@ func removeNEP5Token(ctx *cli.Context) error {
 	}
 	defer wall.Close()
 
-	name := ctx.Args().First()
-	if name == "" {
-		return cli.NewExitError("token must be specified", 1)
-	}
-	token, err := getMatchingToken(ctx, wall, name)
+	token, err := getMatchingToken(ctx, wall, ctx.String("token"))
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
