@@ -1,12 +1,15 @@
 package main
 
 import (
+	"encoding/hex"
 	"os"
 	"path"
 	"strings"
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/stretchr/testify/require"
 )
@@ -81,6 +84,50 @@ func TestWalletInit(t *testing.T) {
 			actual := w.GetAccount(acc.PrivateKey().GetScriptHash())
 			require.NotNil(t, actual)
 			require.NoError(t, actual.Decrypt("somepass"))
+		})
+		t.Run("Multisig", func(t *testing.T) {
+			privs := make([]*keys.PrivateKey, 4)
+			pubs := make(keys.PublicKeys, 4)
+			for i := range privs {
+				var err error
+				privs[i], err = keys.NewPrivateKey()
+				require.NoError(t, err)
+				pubs[i] = privs[i].PublicKey()
+			}
+
+			cmd := []string{"neo-go", "wallet", "import-multisig",
+				"--wallet", walletPath,
+				"--wif", privs[0].WIF(),
+				"--min", "2"}
+			t.Run("InvalidPublicKeys", func(t *testing.T) {
+				e.In.WriteString("multiacc\r")
+				e.In.WriteString("multipass\r")
+				e.In.WriteString("multipass\r")
+				defer e.In.Reset()
+
+				e.RunWithError(t, append(cmd, hex.EncodeToString(pubs[1].Bytes()),
+					hex.EncodeToString(pubs[1].Bytes()),
+					hex.EncodeToString(pubs[2].Bytes()),
+					hex.EncodeToString(pubs[3].Bytes()))...)
+			})
+			e.In.WriteString("multiacc\r")
+			e.In.WriteString("multipass\r")
+			e.In.WriteString("multipass\r")
+			e.Run(t, append(cmd, hex.EncodeToString(pubs[0].Bytes()),
+				hex.EncodeToString(pubs[1].Bytes()),
+				hex.EncodeToString(pubs[2].Bytes()),
+				hex.EncodeToString(pubs[3].Bytes()))...)
+
+			script, err := smartcontract.CreateMultiSigRedeemScript(2, pubs)
+			require.NoError(t, err)
+
+			w, err := wallet.NewWalletFromFile(walletPath)
+			require.NoError(t, err)
+			defer w.Close()
+			actual := w.GetAccount(hash.Hash160(script))
+			require.NotNil(t, actual)
+			require.NoError(t, actual.Decrypt("multipass"))
+			require.Equal(t, script, actual.Contract.Script)
 		})
 	})
 }
