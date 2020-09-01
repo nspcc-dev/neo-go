@@ -14,6 +14,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/network"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/server"
@@ -26,12 +27,16 @@ import (
 )
 
 const (
+	validatorWIF  = "KxyjQ8eUa4FHt3Gvioyt1Wz29cTUrE4eTqX3yFSk1YFCsPL8uNsY"
 	validatorAddr = "NVNvVRW5Q5naSx2k2iZm7xRgtRNGuZppAK"
 
 	validatorWallet = "testdata/wallet1_solo.json"
 )
 
-var validatorHash, _ = address.StringToUint160(validatorAddr)
+var (
+	validatorHash, _ = address.StringToUint160(validatorAddr)
+	validatorPriv, _ = keys.NewPrivateKeyFromWIF(validatorWIF)
+)
 
 // executor represents context for a test instance.
 // It can be safely used in multiple tests, but not in parallel.

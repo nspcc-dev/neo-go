@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"path"
+	"strings"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
@@ -81,5 +82,32 @@ func TestWalletInit(t *testing.T) {
 			require.NotNil(t, actual)
 			require.NoError(t, actual.Decrypt("somepass"))
 		})
+	})
+}
+
+func TestWalletExport(t *testing.T) {
+	e := newExecutor(t, false)
+	defer e.Close(t)
+
+	t.Run("Encrypted", func(t *testing.T) {
+		e.Run(t, "neo-go", "wallet", "export",
+			"--wallet", validatorWallet, validatorAddr)
+		line, err := e.Out.ReadString('\n')
+		require.NoError(t, err)
+		enc, err := keys.NEP2Encrypt(validatorPriv, "one")
+		require.NoError(t, err)
+		require.Equal(t, enc, strings.TrimSpace(line))
+	})
+	t.Run("Decrypted", func(t *testing.T) {
+		t.Run("NoAddress", func(t *testing.T) {
+			e.RunWithError(t, "neo-go", "wallet", "export",
+				"--wallet", validatorWallet, "--decrypt")
+		})
+		e.In.WriteString("one\r")
+		e.Run(t, "neo-go", "wallet", "export",
+			"--wallet", validatorWallet, "--decrypt", validatorAddr)
+		line, err := e.Out.ReadString('\n')
+		require.NoError(t, err)
+		require.Equal(t, validatorWIF, strings.TrimSpace(line))
 	})
 }
