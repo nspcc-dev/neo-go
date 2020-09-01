@@ -2,6 +2,7 @@ package mempool
 
 import (
 	"errors"
+	"math/big"
 	"sort"
 	"sync"
 	"time"
@@ -11,9 +12,13 @@ import (
 )
 
 var (
+	// ErrInsufficientFunds is returned when Sender is not able to pay for
+	// transaction being added irrespective of the other contents of the
+	// pool.
+	ErrInsufficientFunds = errors.New("insufficient funds")
 	// ErrConflict is returned when transaction being added is incompatible
-	// with the contents of the memory pool (using the same inputs as some
-	// other transaction in the pool)
+	// with the contents of the memory pool (Sender doesn't have enough GAS
+	// to pay for all transactions in the pool).
 	ErrConflict = errors.New("conflicts with the memory pool")
 	// ErrDup is returned when transaction being added is already present
 	// in the memory pool.
@@ -27,23 +32,16 @@ var (
 type item struct {
 	txn       *transaction.Transaction
 	timeStamp time.Time
-	isLowPrio bool
 }
 
 // items is a slice of item.
 type items []*item
 
-// TxWithFee combines transaction and its precalculated network fee.
-type TxWithFee struct {
-	Tx  *transaction.Transaction
-	Fee util.Fixed8
-}
-
 // utilityBalanceAndFees stores sender's balance and overall fees of
 // sender's transactions which are currently in mempool
 type utilityBalanceAndFees struct {
-	balance util.Fixed8
-	feeSum  util.Fixed8
+	balance *big.Int
+	feeSum  *big.Int
 }
 
 // Pool stores the unconfirms transactions.
@@ -51,11 +49,10 @@ type Pool struct {
 	lock         sync.RWMutex
 	verifiedMap  map[util.Uint256]*item
 	verifiedTxes items
-	inputs       []*transaction.Input
-	claims       []*transaction.Input
 	fees         map[util.Uint160]utilityBalanceAndFees
 
-	capacity int
+	capacity   int
+	feePerByte int64
 }
 
 func (p items) Len() int           { return len(p) }
@@ -71,34 +68,20 @@ func (p *item) CompareTo(otherP *item) int {
 		return 1
 	}
 
-	if !p.isLowPrio && otherP.isLowPrio {
+	pHigh := p.txn.HasAttribute(transaction.HighPriority)
+	otherHigh := otherP.txn.HasAttribute(transaction.HighPriority)
+	if pHigh && !otherHigh {
 		return 1
-	}
-
-	if p.isLowPrio && !otherP.isLowPrio {
+	} else if !pHigh && otherHigh {
 		return -1
 	}
 
-	if p.isLowPrio && otherP.isLowPrio {
-		thisIsClaimTx := p.txn.Type == transaction.ClaimType
-		otherIsClaimTx := otherP.txn.Type == transaction.ClaimType
-
-		if thisIsClaimTx != otherIsClaimTx {
-			// This is a claim Tx and other isn't.
-			if thisIsClaimTx {
-				return 1
-			}
-			// The other is claim Tx and this isn't.
-			return -1
-		}
-	}
-
 	// Fees sorted ascending.
-	if ret := p.txn.FeePerByte().CompareTo(otherP.txn.FeePerByte()); ret != 0 {
+	if ret := int(p.txn.FeePerByte() - otherP.txn.FeePerByte()); ret != 0 {
 		return ret
 	}
 
-	if ret := p.txn.NetworkFee.CompareTo(otherP.txn.NetworkFee); ret != 0 {
+	if ret := int(p.txn.NetworkFee - otherP.txn.NetworkFee); ret != 0 {
 		return ret
 	}
 
@@ -135,65 +118,35 @@ func (mp *Pool) containsKey(hash util.Uint256) bool {
 	return false
 }
 
-// findIndexForInput finds an index in a sorted Input pointers slice that is
-// appropriate to place this input into (or which contains an identical Input).
-func findIndexForInput(slice []*transaction.Input, input *transaction.Input) int {
-	return sort.Search(len(slice), func(n int) bool {
-		return input.Cmp(slice[n]) <= 0
-	})
-}
-
-// pushInputToSortedSlice pushes new Input into the given slice.
-func pushInputToSortedSlice(slice *[]*transaction.Input, input *transaction.Input) {
-	n := findIndexForInput(*slice, input)
-	*slice = append(*slice, input)
-	if n != len(*slice)-1 {
-		copy((*slice)[n+1:], (*slice)[n:])
-		(*slice)[n] = input
-	}
-}
-
-// dropInputFromSortedSlice removes given input from the given slice.
-func dropInputFromSortedSlice(slice *[]*transaction.Input, input *transaction.Input) {
-	n := findIndexForInput(*slice, input)
-	if n == len(*slice) || *input != *(*slice)[n] {
-		// Not present.
-		return
-	}
-	copy((*slice)[n:], (*slice)[n+1:])
-	*slice = (*slice)[:len(*slice)-1]
-}
-
 // tryAddSendersFee tries to add system fee and network fee to the total sender`s fee in mempool
-// and returns false if sender has not enough GAS to pay
-func (mp *Pool) tryAddSendersFee(tx *transaction.Transaction, feer Feer) bool {
-	if !mp.checkBalanceAndUpdate(tx, feer) {
-		return false
-	}
-	mp.addSendersFee(tx)
-	return true
-}
-
-// checkBalanceAndUpdate returns true in case when sender has enough GAS to pay for
-// the transaction and sets sender's balance value in mempool in case if it was not set
-func (mp *Pool) checkBalanceAndUpdate(tx *transaction.Transaction, feer Feer) bool {
-	senderFee, ok := mp.fees[tx.Sender]
+// and returns false if both balance check is required and sender has not enough GAS to pay
+func (mp *Pool) tryAddSendersFee(tx *transaction.Transaction, feer Feer, needCheck bool) bool {
+	senderFee, ok := mp.fees[tx.Sender()]
 	if !ok {
-		senderFee.balance = feer.GetUtilityTokenBalance(tx.Sender)
-		mp.fees[tx.Sender] = senderFee
+		senderFee.balance = feer.GetUtilityTokenBalance(tx.Sender())
+		senderFee.feeSum = big.NewInt(0)
+		mp.fees[tx.Sender()] = senderFee
 	}
-	needFee := senderFee.feeSum + tx.SystemFee + tx.NetworkFee
-	if senderFee.balance < needFee {
+	if needCheck && checkBalance(tx, senderFee) != nil {
 		return false
 	}
+	senderFee.feeSum.Add(senderFee.feeSum, big.NewInt(tx.SystemFee+tx.NetworkFee))
+	mp.fees[tx.Sender()] = senderFee
 	return true
 }
 
-// addSendersFee adds system fee and network fee to the total sender`s fee in mempool
-func (mp *Pool) addSendersFee(tx *transaction.Transaction) {
-	senderFee := mp.fees[tx.Sender]
-	senderFee.feeSum += tx.SystemFee + tx.NetworkFee
-	mp.fees[tx.Sender] = senderFee
+// checkBalance returns nil in case when sender has enough GAS to pay for the
+// transaction
+func checkBalance(tx *transaction.Transaction, balance utilityBalanceAndFees) error {
+	txFee := big.NewInt(tx.SystemFee + tx.NetworkFee)
+	if balance.balance.Cmp(txFee) < 0 {
+		return ErrInsufficientFunds
+	}
+	needFee := txFee.Add(txFee, balance.feeSum)
+	if balance.balance.Cmp(needFee) < 0 {
+		return ErrConflict
+	}
+	return nil
 }
 
 // Add tries to add given transaction to the Pool.
@@ -202,15 +155,15 @@ func (mp *Pool) Add(t *transaction.Transaction, fee Feer) error {
 		txn:       t,
 		timeStamp: time.Now().UTC(),
 	}
-	pItem.isLowPrio = fee.IsLowPriority(pItem.txn.NetworkFee)
 	mp.lock.Lock()
-	if !mp.checkTxConflicts(t, fee) {
-		mp.lock.Unlock()
-		return ErrConflict
-	}
 	if mp.containsKey(t.Hash()) {
 		mp.lock.Unlock()
 		return ErrDup
+	}
+	err := mp.checkTxConflicts(t, fee)
+	if err != nil {
+		mp.lock.Unlock()
+		return err
 	}
 
 	mp.verifiedMap[t.Hash()] = pItem
@@ -242,19 +195,8 @@ func (mp *Pool) Add(t *transaction.Transaction, fee Feer) error {
 		copy(mp.verifiedTxes[n+1:], mp.verifiedTxes[n:])
 		mp.verifiedTxes[n] = pItem
 	}
-	mp.addSendersFee(pItem.txn)
-
-	// For lots of inputs it might be easier to push them all and sort
-	// afterwards, but that requires benchmarking.
-	for i := range t.Inputs {
-		pushInputToSortedSlice(&mp.inputs, &t.Inputs[i])
-	}
-	if t.Type == transaction.ClaimType {
-		claim := t.Data.(*transaction.ClaimTX)
-		for i := range claim.Claims {
-			pushInputToSortedSlice(&mp.claims, &claim.Claims[i])
-		}
-	}
+	// we already checked balance in checkTxConflicts, so don't need to check again
+	mp.tryAddSendersFee(pItem.txn, fee, false)
 
 	updateMempoolMetrics(len(mp.verifiedTxes))
 	mp.lock.Unlock()
@@ -278,18 +220,9 @@ func (mp *Pool) Remove(hash util.Uint256) {
 		} else if num == len(mp.verifiedTxes)-1 {
 			mp.verifiedTxes = mp.verifiedTxes[:num]
 		}
-		senderFee := mp.fees[it.txn.Sender]
-		senderFee.feeSum -= it.txn.SystemFee + it.txn.NetworkFee
-		mp.fees[it.txn.Sender] = senderFee
-		for i := range it.txn.Inputs {
-			dropInputFromSortedSlice(&mp.inputs, &it.txn.Inputs[i])
-		}
-		if it.txn.Type == transaction.ClaimType {
-			claim := it.txn.Data.(*transaction.ClaimTX)
-			for i := range claim.Claims {
-				dropInputFromSortedSlice(&mp.claims, &claim.Claims[i])
-			}
-		}
+		senderFee := mp.fees[it.txn.Sender()]
+		senderFee.feeSum.Sub(senderFee.feeSum, big.NewInt(it.txn.SystemFee+it.txn.NetworkFee))
+		mp.fees[it.txn.Sender()] = senderFee
 	}
 	updateMempoolMetrics(len(mp.verifiedTxes))
 	mp.lock.Unlock()
@@ -300,43 +233,44 @@ func (mp *Pool) Remove(hash util.Uint256) {
 // drop part of the mempool that is now invalid after the block acceptance.
 func (mp *Pool) RemoveStale(isOK func(*transaction.Transaction) bool, feer Feer) {
 	mp.lock.Lock()
+	policyChanged := mp.loadPolicy(feer)
 	// We can reuse already allocated slice
 	// because items are iterated one-by-one in increasing order.
 	newVerifiedTxes := mp.verifiedTxes[:0]
-	newInputs := mp.inputs[:0]
-	newClaims := mp.claims[:0]
 	mp.fees = make(map[util.Uint160]utilityBalanceAndFees) // it'd be nice to reuse existing map, but we can't easily clear it
 	for _, itm := range mp.verifiedTxes {
-		if isOK(itm.txn) && mp.tryAddSendersFee(itm.txn, feer) {
+		if isOK(itm.txn) && mp.checkPolicy(itm.txn, policyChanged) && mp.tryAddSendersFee(itm.txn, feer, true) {
 			newVerifiedTxes = append(newVerifiedTxes, itm)
-			for i := range itm.txn.Inputs {
-				newInputs = append(newInputs, &itm.txn.Inputs[i])
-			}
-			if itm.txn.Type == transaction.ClaimType {
-				claim := itm.txn.Data.(*transaction.ClaimTX)
-				for i := range claim.Claims {
-					newClaims = append(newClaims, &claim.Claims[i])
-				}
-			}
 		} else {
 			delete(mp.verifiedMap, itm.txn.Hash())
 		}
 	}
-	sort.Slice(newInputs, func(i, j int) bool {
-		return newInputs[i].Cmp(newInputs[j]) < 0
-	})
-	sort.Slice(newClaims, func(i, j int) bool {
-		return newClaims[i].Cmp(newClaims[j]) < 0
-	})
 	mp.verifiedTxes = newVerifiedTxes
-	mp.inputs = newInputs
-	mp.claims = newClaims
 	mp.lock.Unlock()
 }
 
-// NewMemPool returns a new Pool struct.
-func NewMemPool(capacity int) Pool {
-	return Pool{
+// loadPolicy updates feePerByte field and returns whether policy has been
+// changed.
+func (mp *Pool) loadPolicy(feer Feer) bool {
+	newFeePerByte := feer.FeePerByte()
+	if newFeePerByte > mp.feePerByte {
+		mp.feePerByte = newFeePerByte
+		return true
+	}
+	return false
+}
+
+// checkPolicy checks whether transaction fits policy.
+func (mp *Pool) checkPolicy(tx *transaction.Transaction, policyChanged bool) bool {
+	if !policyChanged || tx.FeePerByte() >= mp.feePerByte {
+		return true
+	}
+	return false
+}
+
+// New returns a new Pool struct.
+func New(capacity int) *Pool {
+	return &Pool{
 		verifiedMap:  make(map[util.Uint256]*item),
 		verifiedTxes: make([]*item, 0, capacity),
 		capacity:     capacity,
@@ -345,76 +279,46 @@ func NewMemPool(capacity int) Pool {
 }
 
 // TryGetValue returns a transaction and its fee if it exists in the memory pool.
-func (mp *Pool) TryGetValue(hash util.Uint256) (*transaction.Transaction, util.Fixed8, bool) {
+func (mp *Pool) TryGetValue(hash util.Uint256) (*transaction.Transaction, bool) {
 	mp.lock.RLock()
 	defer mp.lock.RUnlock()
 	if pItem, ok := mp.verifiedMap[hash]; ok {
-		return pItem.txn, pItem.txn.NetworkFee, ok
+		return pItem.txn, ok
 	}
 
-	return nil, 0, false
+	return nil, false
 }
 
-// GetVerifiedTransactions returns a slice of Input from all the transactions in the memory pool
-// whose hash is not included in excludedHashes.
-func (mp *Pool) GetVerifiedTransactions() []TxWithFee {
+// GetVerifiedTransactions returns a slice of transactions with their fees.
+func (mp *Pool) GetVerifiedTransactions() []*transaction.Transaction {
 	mp.lock.RLock()
 	defer mp.lock.RUnlock()
 
-	var t = make([]TxWithFee, len(mp.verifiedTxes))
+	var t = make([]*transaction.Transaction, len(mp.verifiedTxes))
 
 	for i := range mp.verifiedTxes {
-		t[i].Tx = mp.verifiedTxes[i].txn
-		t[i].Fee = mp.verifiedTxes[i].txn.NetworkFee
+		t[i] = mp.verifiedTxes[i].txn
 	}
 
 	return t
 }
 
-// areInputsInPool tries to find inputs in a given sorted pool and returns true
-// if it finds any.
-func areInputsInPool(inputs []transaction.Input, pool []*transaction.Input) bool {
-	for i := range inputs {
-		n := findIndexForInput(pool, &inputs[i])
-		if n < len(pool) && *pool[n] == inputs[i] {
-			return true
-		}
-	}
-	return false
-}
-
 // checkTxConflicts is an internal unprotected version of Verify.
-func (mp *Pool) checkTxConflicts(tx *transaction.Transaction, fee Feer) bool {
-	if areInputsInPool(tx.Inputs, mp.inputs) {
-		return false
+func (mp *Pool) checkTxConflicts(tx *transaction.Transaction, fee Feer) error {
+	senderFee, ok := mp.fees[tx.Sender()]
+	if !ok {
+		senderFee.balance = fee.GetUtilityTokenBalance(tx.Sender())
+		senderFee.feeSum = big.NewInt(0)
 	}
-	if !mp.checkBalanceAndUpdate(tx, fee) {
-		return false
-	}
-	switch tx.Type {
-	case transaction.ClaimType:
-		claim := tx.Data.(*transaction.ClaimTX)
-		if areInputsInPool(claim.Claims, mp.claims) {
-			return false
-		}
-	case transaction.IssueType:
-		// It's a hack, because technically we could check for
-		// available asset amount, but these transactions are so rare
-		// that no one really cares about this restriction.
-		for i := range mp.verifiedTxes {
-			if mp.verifiedTxes[i].txn.Type == transaction.IssueType {
-				return false
-			}
-		}
-	}
-	return true
+	return checkBalance(tx, senderFee)
 }
 
-// Verify verifies if the inputs of a transaction tx are already used in any other transaction in the memory pool.
-// If yes, the transaction tx is not a valid transaction and the function return false.
-// If no, the transaction tx is a valid transaction and the function return true.
+// Verify checks if a Sender of tx is able to pay for it (and all the other
+// transactions in the pool). If yes, the transaction tx is a valid
+// transaction and the function returns true. If no, the transaction tx is
+// considered to be invalid the function returns false.
 func (mp *Pool) Verify(tx *transaction.Transaction, feer Feer) bool {
 	mp.lock.RLock()
 	defer mp.lock.RUnlock()
-	return mp.checkTxConflicts(tx, feer)
+	return mp.checkTxConflicts(tx, feer) == nil
 }

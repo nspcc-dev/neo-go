@@ -20,7 +20,7 @@ func TestPrepareRequest_Setters(t *testing.T) {
 	require.EqualValues(t, 1000000, p.Timestamp())
 
 	p.SetNextConsensus(util.Uint160{5, 6, 7})
-	require.Equal(t, util.Uint160{5, 6, 7}, p.NextConsensus())
+	require.Equal(t, util.Uint160{}, p.NextConsensus())
 
 	p.SetNonce(8765)
 	require.EqualValues(t, 8765, p.Nonce())

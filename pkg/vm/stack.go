@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
 // Stack implementation for the neo-go virtual machine. The stack implements
@@ -29,9 +29,9 @@ import (
 // [ 0 ]
 
 // Element represents an element in the double linked list (the stack),
-// which will hold the underlying StackItem.
+// which will hold the underlying stackitem.Item.
 type Element struct {
-	value      StackItem
+	value      stackitem.Item
 	next, prev *Element
 	stack      *Stack
 }
@@ -40,7 +40,7 @@ type Element struct {
 // to the corresponding type.
 func NewElement(v interface{}) *Element {
 	return &Element{
-		value: makeStackItem(v),
+		value: stackitem.Make(v),
 	}
 }
 
@@ -60,12 +60,12 @@ func (e *Element) Prev() *Element {
 	return nil
 }
 
-// Item returns StackItem contained in the element.
-func (e *Element) Item() StackItem {
+// Item returns Item contained in the element.
+func (e *Element) Item() stackitem.Item {
 	return e.value
 }
 
-// Value returns value of the StackItem contained in the element.
+// Value returns value of the Item contained in the element.
 func (e *Element) Value() interface{} {
 	return e.value.Value()
 }
@@ -80,9 +80,14 @@ func (e *Element) BigInt() *big.Int {
 	return val
 }
 
-// Bool converts an underlying value of the element to a boolean.
+// Bool converts an underlying value of the element to a boolean if it's
+// possible to do so, it will panic otherwise.
 func (e *Element) Bool() bool {
-	return e.value.Bool()
+	b, err := e.value.TryBool()
+	if err != nil {
+		panic(err)
+	}
+	return b
 }
 
 // Bytes attempts to get the underlying value of the element as a byte array.
@@ -95,15 +100,25 @@ func (e *Element) Bytes() []byte {
 	return bs
 }
 
+// String attempts to get string from the element value.
+// It is assumed to be use in interops and panics if string is not a valid UTF-8 byte sequence.
+func (e *Element) String() string {
+	s, err := stackitem.ToString(e.value)
+	if err != nil {
+		panic(err)
+	}
+	return s
+}
+
 // Array attempts to get the underlying value of the element as an array of
 // other items. Will panic if the item type is different which will be caught
 // by the VM.
-func (e *Element) Array() []StackItem {
+func (e *Element) Array() []stackitem.Item {
 	switch t := e.value.(type) {
-	case *ArrayItem:
-		return t.value
-	case *StructItem:
-		return t.value
+	case *stackitem.Array:
+		return t.Value().([]stackitem.Item)
+	case *stackitem.Struct:
+		return t.Value().([]stackitem.Item)
 	default:
 		panic("element is not an array")
 	}
@@ -111,9 +126,9 @@ func (e *Element) Array() []StackItem {
 
 // Interop attempts to get the underlying value of the element
 // as an interop item.
-func (e *Element) Interop() *InteropItem {
+func (e *Element) Interop() *stackitem.Interop {
 	switch t := e.value.(type) {
-	case *InteropItem:
+	case *stackitem.Interop:
 		return t
 	default:
 		panic("element is not an interop")
@@ -190,7 +205,7 @@ func (s *Stack) Push(e *Element) {
 }
 
 // PushVal pushes the given value on the stack. It will infer the
-// underlying StackItem to its corresponding type.
+// underlying Item to its corresponding type.
 func (s *Stack) PushVal(v interface{}) {
 	s.Push(NewElement(v))
 }
@@ -369,7 +384,7 @@ func (s *Stack) PopSigElements() ([][]byte, error) {
 		return nil, fmt.Errorf("nothing on the stack")
 	}
 	switch item.value.(type) {
-	case *ArrayItem:
+	case *stackitem.Array:
 		num = len(item.Array())
 		if num < 1 {
 			return nil, fmt.Errorf("less than one element in the array")
@@ -395,18 +410,24 @@ func (s *Stack) PopSigElements() ([][]byte, error) {
 	return elems, nil
 }
 
-// ToContractParameters converts Stack to slice of smartcontract.Parameter.
-func (s *Stack) ToContractParameters() []smartcontract.Parameter {
-	items := make([]smartcontract.Parameter, 0, s.Len())
+// ToArray converts stack to an array of stackitems with top item being the last.
+func (s *Stack) ToArray() []stackitem.Item {
+	items := make([]stackitem.Item, 0, s.len)
 	s.IterBack(func(e *Element) {
-		// Each item is independent.
-		seen := make(map[StackItem]bool)
-		items = append(items, e.value.ToContractParameter(seen))
+		items = append(items, e.Item())
 	})
 	return items
 }
 
 // MarshalJSON implements JSON marshalling interface.
 func (s *Stack) MarshalJSON() ([]byte, error) {
-	return json.Marshal(s.ToContractParameters())
+	items := s.ToArray()
+	arr := make([]json.RawMessage, len(items))
+	for i := range items {
+		data, err := stackitem.ToJSONWithTypes(items[i])
+		if err == nil {
+			arr[i] = data
+		}
+	}
+	return json.Marshal(arr)
 }

@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/internal/testserdes"
 	"github.com/stretchr/testify/require"
 )
@@ -18,7 +19,7 @@ func getDecodedBlock(t *testing.T, i int) *Block {
 	b, err := hex.DecodeString(data["raw"].(string))
 	require.NoError(t, err)
 
-	block := &Block{}
+	block := New(netmode.TestNet)
 	require.NoError(t, testserdes.DecodeBinary(b, block))
 
 	return block

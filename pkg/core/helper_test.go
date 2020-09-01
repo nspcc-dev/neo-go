@@ -1,16 +1,21 @@
 package core
 
 import (
+	"bytes"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"math/big"
 	"os"
 	"testing"
 	"time"
 
+	"github.com/nspcc-dev/neo-go/pkg/compiler"
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
+	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
+	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
@@ -22,7 +27,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
-	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap/zaptest"
 )
@@ -33,7 +37,7 @@ var neoOwner = testchain.MultisigScriptHash()
 // newTestChain should be called before newBlock invocation to properly setup
 // global state.
 func newTestChain(t *testing.T) *Blockchain {
-	unitTestNetCfg, err := config.Load("../../config", config.ModeUnitTestNet)
+	unitTestNetCfg, err := config.Load("../../config", testchain.Network())
 	require.NoError(t, err)
 	chain, err := NewBlockchain(storage.NewMemoryStore(), unitTestNetCfg.ProtocolConfiguration, zaptest.NewLogger(t))
 	require.NoError(t, err)
@@ -47,20 +51,17 @@ func (bc *Blockchain) newBlock(txs ...*transaction.Transaction) *block.Block {
 }
 
 func newBlock(cfg config.ProtocolConfiguration, index uint32, prev util.Uint256, txs ...*transaction.Transaction) *block.Block {
-	validators, _ := getValidators(cfg)
-	vlen := len(validators)
-	valScript, _ := smartcontract.CreateMultiSigRedeemScript(
-		vlen-(vlen-1)/3,
-		validators,
-	)
+	validators, _ := validatorsFromConfig(cfg)
+	valScript, _ := smartcontract.CreateDefaultMultiSigRedeemScript(validators)
 	witness := transaction.Witness{
 		VerificationScript: valScript,
 	}
 	b := &block.Block{
 		Base: block.Base{
+			Network:       testchain.Network(),
 			Version:       0,
 			PrevHash:      prev,
-			Timestamp:     uint64(time.Now().UTC().Unix()) + uint64(index),
+			Timestamp:     uint64(time.Now().UTC().Unix())*1000 + uint64(index),
 			Index:         index,
 			NextConsensus: witness.ScriptHash(),
 			Script:        witness,
@@ -71,7 +72,10 @@ func newBlock(cfg config.ProtocolConfiguration, index uint32, prev util.Uint256,
 		},
 		Transactions: txs,
 	}
-	_ = b.RebuildMerkleRoot()
+	err := b.RebuildMerkleRoot()
+	if err != nil {
+		panic(err)
+	}
 
 	b.Script.InvocationScript = testchain.Sign(b.GetSignedPart())
 	return b
@@ -98,7 +102,7 @@ func getDecodedBlock(t *testing.T, i int) *block.Block {
 	b, err := hex.DecodeString(data["raw"].(string))
 	require.NoError(t, err)
 
-	block := &block.Block{}
+	block := block.New(testchain.Network())
 	require.NoError(t, testserdes.DecodeBinary(b, block))
 
 	return block
@@ -119,6 +123,7 @@ func getBlockData(i int) (map[string]interface{}, error) {
 func newDumbBlock() *block.Block {
 	return &block.Block{
 		Base: block.Base{
+			Network:       testchain.Network(),
 			Version:       0,
 			PrevHash:      hash.Sha256([]byte("a")),
 			MerkleRoot:    hash.Sha256([]byte("b")),
@@ -135,7 +140,7 @@ func newDumbBlock() *block.Block {
 			Nonce:        1111,
 		},
 		Transactions: []*transaction.Transaction{
-			{Type: transaction.IssueType},
+			transaction.New(testchain.Network(), []byte{byte(opcode.PUSH1)}, 0),
 		},
 	}
 }
@@ -162,167 +167,84 @@ func TestCreateBasicChain(t *testing.T) {
 		return testNonce
 	}
 
-	var neoAmount = util.Fixed8FromInt64(99999000)
-	var neoRemainder = util.Fixed8FromInt64(100000000) - neoAmount
+	const neoAmount = 99999000
 	bc := newTestChain(t)
 	defer bc.Close()
 
 	gasHash := bc.contracts.GAS.Hash
+	neoHash := bc.contracts.NEO.Hash
+	policyHash := bc.contracts.Policy.Hash
 	t.Logf("native GAS hash: %v", gasHash)
+	t.Logf("native NEO hash: %v", neoHash)
+	t.Logf("native Policy hash: %v", policyHash)
 
 	priv0 := testchain.PrivateKeyByID(0)
 	priv0ScriptHash := priv0.GetScriptHash()
 
-	// Move almost all NEO and some nep5 GAS to one simple account.
-	txMoveNeo := newNEP5Transfer(gasHash, neoOwner, priv0ScriptHash, 1000000000)
+	require.Equal(t, big.NewInt(0), bc.GetUtilityTokenBalance(priv0ScriptHash))
+	// Move some NEO to one simple account.
+	txMoveNeo := newNEP5Transfer(neoHash, neoOwner, priv0ScriptHash, neoAmount)
 	txMoveNeo.ValidUntilBlock = validUntilBlock
 	txMoveNeo.Nonce = getNextNonce()
-	txMoveNeo.Sender = neoOwner
-	txMoveNeo.Cosigners = []transaction.Cosigner{{
+	txMoveNeo.Signers = []transaction.Signer{{
 		Account:          neoOwner,
 		Scopes:           transaction.CalledByEntry,
 		AllowedContracts: nil,
 		AllowedGroups:    nil,
 	}}
-
-	// use output of issue tx from genesis block as an input
-	genesisBlock, err := bc.GetBlock(bc.GetHeaderHash(0))
-	require.NoError(t, err)
-	require.Equal(t, 4, len(genesisBlock.Transactions))
-	h := genesisBlock.Transactions[2].Hash()
-	txMoveNeo.AddInput(&transaction.Input{
-		PrevHash:  h,
-		PrevIndex: 0,
-	})
-	txMoveNeo.AddOutput(&transaction.Output{
-		AssetID:    GoverningTokenID(),
-		Amount:     neoAmount,
-		ScriptHash: priv0ScriptHash,
-		Position:   0,
-	})
-	txMoveNeo.AddOutput(&transaction.Output{
-		AssetID:    GoverningTokenID(),
-		Amount:     neoRemainder,
-		ScriptHash: neoOwner,
-		Position:   1,
-	})
 	require.NoError(t, signTx(bc, txMoveNeo))
-	b := bc.newBlock(txMoveNeo)
+	// Move some GAS to one simple account.
+	txMoveGas := newNEP5Transfer(gasHash, neoOwner, priv0ScriptHash, int64(util.Fixed8FromInt64(1000)))
+	txMoveGas.ValidUntilBlock = validUntilBlock
+	txMoveGas.Nonce = getNextNonce()
+	txMoveGas.Signers = []transaction.Signer{{
+		Account:          neoOwner,
+		Scopes:           transaction.CalledByEntry,
+		AllowedContracts: nil,
+		AllowedGroups:    nil,
+	}}
+	require.NoError(t, signTx(bc, txMoveGas))
+	b := bc.newBlock(txMoveNeo, txMoveGas)
 	require.NoError(t, bc.AddBlock(b))
-	t.Logf("txMoveNeo: %s", txMoveNeo.Hash().StringLE())
+	t.Logf("Block1 hash: %s", b.Hash().StringLE())
+	bw := io.NewBufBinWriter()
+	b.EncodeBinary(bw.BinWriter)
+	require.NoError(t, bw.Err)
+	t.Logf("Block1 hex: %s", bw.Bytes())
+	t.Logf("txMoveNeo hash: %s", txMoveNeo.Hash().StringLE())
+	t.Logf("txMoveNeo hex: %s", hex.EncodeToString(txMoveNeo.Bytes()))
+	t.Logf("txMoveGas hash: %s", txMoveGas.Hash().StringLE())
 
+	require.True(t, bc.GetUtilityTokenBalance(priv0ScriptHash).Cmp(big.NewInt(1000*native.GASFactor)) >= 0)
 	// info for getblockheader rpc tests
 	t.Logf("header hash: %s", b.Hash().StringLE())
 	buf := io.NewBufBinWriter()
 	b.Header().EncodeBinary(buf.BinWriter)
 	t.Logf("header: %s", hex.EncodeToString(buf.Bytes()))
 
-	// Generate some blocks to be able to claim GAS for them.
-	_, err = bc.genBlocks(numOfEmptyBlocks)
-	require.NoError(t, err)
-
 	acc0, err := wallet.NewAccountFromWIF(priv0.WIF())
 	require.NoError(t, err)
 
-	// Make a NEO roundtrip (send to myself) and claim GAS.
-	txNeoRound := transaction.NewContractTX()
-	txNeoRound.Nonce = getNextNonce()
-	txNeoRound.Sender = priv0ScriptHash
-	txNeoRound.ValidUntilBlock = validUntilBlock
-	txNeoRound.AddInput(&transaction.Input{
-		PrevHash:  txMoveNeo.Hash(),
-		PrevIndex: 0,
-	})
-	txNeoRound.AddOutput(&transaction.Output{
-		AssetID:    GoverningTokenID(),
-		Amount:     neoAmount,
-		ScriptHash: priv0.GetScriptHash(),
-		Position:   0,
-	})
-	txNeoRound.Data = new(transaction.ContractTX)
-	require.NoError(t, addNetworkFee(bc, txNeoRound, acc0))
-	require.NoError(t, acc0.SignTx(txNeoRound))
-	b = bc.newBlock(txNeoRound)
-	require.NoError(t, bc.AddBlock(b))
-	t.Logf("txNeoRound: %s", txNeoRound.Hash().StringLE())
-
-	claim := new(transaction.ClaimTX)
-	claim.Claims = append(claim.Claims, transaction.Input{
-		PrevHash:  txMoveNeo.Hash(),
-		PrevIndex: 0,
-	})
-	txClaim := transaction.NewClaimTX(claim)
-	txClaim.Nonce = getNextNonce()
-	txClaim.ValidUntilBlock = validUntilBlock
-	txClaim.Sender = priv0ScriptHash
-	txClaim.Data = claim
-	neoGas, sysGas, err := bc.CalculateClaimable(neoAmount, 1, bc.BlockHeight())
-	require.NoError(t, err)
-	gasOwned := neoGas + sysGas
-	txClaim.AddOutput(&transaction.Output{
-		AssetID:    UtilityTokenID(),
-		Amount:     gasOwned,
-		ScriptHash: priv0.GetScriptHash(),
-		Position:   0,
-	})
-	require.NoError(t, addNetworkFee(bc, txClaim, acc0))
-	require.NoError(t, acc0.SignTx(txClaim))
-	b = bc.newBlock(txClaim)
-	require.NoError(t, bc.AddBlock(b))
-	t.Logf("txClaim: %s", txClaim.Hash().StringLE())
-
 	// Push some contract into the chain.
-	avm, err := ioutil.ReadFile(prefix + "test_contract.avm")
-	require.NoError(t, err)
-	t.Logf("contractHash: %s", hash.Hash160(avm).StringLE())
-
-	var props smartcontract.PropertyState
-	script := io.NewBufBinWriter()
-	emit.Bytes(script.BinWriter, []byte("Da contract dat hallos u"))
-	emit.Bytes(script.BinWriter, []byte("joe@example.com"))
-	emit.Bytes(script.BinWriter, []byte("Random Guy"))
-	emit.Bytes(script.BinWriter, []byte("0.99"))
-	emit.Bytes(script.BinWriter, []byte("Helloer"))
-	props |= smartcontract.HasStorage
-	emit.Int(script.BinWriter, int64(props))
-	emit.Int(script.BinWriter, int64(5))
-	params := make([]byte, 1)
-	params[0] = byte(7)
-	emit.Bytes(script.BinWriter, params)
-	emit.Bytes(script.BinWriter, avm)
-	emit.Syscall(script.BinWriter, "Neo.Contract.Create")
-	txScript := script.Bytes()
-
-	invFee := util.Fixed8FromFloat(100)
-	txDeploy := transaction.NewInvocationTX(txScript, invFee)
+	txDeploy, avm := newDeployTx(t, prefix+"test_contract.go")
 	txDeploy.Nonce = getNextNonce()
 	txDeploy.ValidUntilBlock = validUntilBlock
-	txDeploy.Sender = priv0ScriptHash
-	txDeploy.AddInput(&transaction.Input{
-		PrevHash:  txClaim.Hash(),
-		PrevIndex: 0,
-	})
-	txDeploy.AddOutput(&transaction.Output{
-		AssetID:    UtilityTokenID(),
-		Amount:     gasOwned - invFee,
-		ScriptHash: priv0.GetScriptHash(),
-		Position:   0,
-	})
-	gasOwned -= invFee
+	txDeploy.Signers = []transaction.Signer{{Account: priv0ScriptHash}}
 	require.NoError(t, addNetworkFee(bc, txDeploy, acc0))
 	require.NoError(t, acc0.SignTx(txDeploy))
 	b = bc.newBlock(txDeploy)
 	require.NoError(t, bc.AddBlock(b))
 	t.Logf("txDeploy: %s", txDeploy.Hash().StringLE())
+	t.Logf("Block2 hash: %s", b.Hash().StringLE())
 
 	// Now invoke this contract.
-	script = io.NewBufBinWriter()
-	emit.AppCallWithOperationAndArgs(script.BinWriter, hash.Hash160(avm), "Put", "testkey", "testvalue")
+	script := io.NewBufBinWriter()
+	emit.AppCallWithOperationAndArgs(script.BinWriter, hash.Hash160(avm), "putValue", "testkey", "testvalue")
 
-	txInv := transaction.NewInvocationTX(script.Bytes(), 0)
+	txInv := transaction.New(testchain.Network(), script.Bytes(), 1*native.GASFactor)
 	txInv.Nonce = getNextNonce()
 	txInv.ValidUntilBlock = validUntilBlock
-	txInv.Sender = priv0ScriptHash
+	txInv.Signers = []transaction.Signer{{Account: priv0ScriptHash}}
 	require.NoError(t, addNetworkFee(bc, txInv, acc0))
 	require.NoError(t, acc0.SignTx(txInv))
 	b = bc.newBlock(txInv)
@@ -330,26 +252,17 @@ func TestCreateBasicChain(t *testing.T) {
 	t.Logf("txInv: %s", txInv.Hash().StringLE())
 
 	priv1 := testchain.PrivateKeyByID(1)
-	txNeo0to1 := transaction.NewContractTX()
+	txNeo0to1 := newNEP5Transfer(neoHash, priv0ScriptHash, priv1.GetScriptHash(), 1000)
 	txNeo0to1.Nonce = getNextNonce()
 	txNeo0to1.ValidUntilBlock = validUntilBlock
-	txNeo0to1.Sender = priv0ScriptHash
-	txNeo0to1.Data = new(transaction.ContractTX)
-	txNeo0to1.AddInput(&transaction.Input{
-		PrevHash:  txNeoRound.Hash(),
-		PrevIndex: 0,
-	})
-	txNeo0to1.AddOutput(&transaction.Output{
-		AssetID:    GoverningTokenID(),
-		Amount:     util.Fixed8FromInt64(1000),
-		ScriptHash: priv1.GetScriptHash(),
-	})
-	txNeo0to1.AddOutput(&transaction.Output{
-		AssetID:    GoverningTokenID(),
-		Amount:     neoAmount - util.Fixed8FromInt64(1000),
-		ScriptHash: priv0.GetScriptHash(),
-	})
-
+	txNeo0to1.Signers = []transaction.Signer{
+		{
+			Account:          priv0ScriptHash,
+			Scopes:           transaction.CalledByEntry,
+			AllowedContracts: nil,
+			AllowedGroups:    nil,
+		},
+	}
 	require.NoError(t, addNetworkFee(bc, txNeo0to1, acc0))
 	require.NoError(t, acc0.SignTx(txNeo0to1))
 	b = bc.newBlock(txNeo0to1)
@@ -358,17 +271,16 @@ func TestCreateBasicChain(t *testing.T) {
 	sh := hash.Hash160(avm)
 	w := io.NewBufBinWriter()
 	emit.AppCallWithOperationAndArgs(w.BinWriter, sh, "init")
-	initTx := transaction.NewInvocationTX(w.Bytes(), 0)
+	initTx := transaction.New(testchain.Network(), w.Bytes(), 1*native.GASFactor)
 	initTx.Nonce = getNextNonce()
 	initTx.ValidUntilBlock = validUntilBlock
-	initTx.Sender = priv0ScriptHash
+	initTx.Signers = []transaction.Signer{{Account: priv0ScriptHash}}
 	require.NoError(t, addNetworkFee(bc, initTx, acc0))
 	require.NoError(t, acc0.SignTx(initTx))
 	transferTx := newNEP5Transfer(sh, sh, priv0.GetScriptHash(), 1000)
 	transferTx.Nonce = getNextNonce()
 	transferTx.ValidUntilBlock = validUntilBlock
-	transferTx.Sender = priv0ScriptHash
-	transferTx.Cosigners = []transaction.Cosigner{
+	transferTx.Signers = []transaction.Signer{
 		{
 			Account:          priv0ScriptHash,
 			Scopes:           transaction.CalledByEntry,
@@ -381,13 +293,12 @@ func TestCreateBasicChain(t *testing.T) {
 
 	b = bc.newBlock(initTx, transferTx)
 	require.NoError(t, bc.AddBlock(b))
-	t.Logf("recieveRublesTx: %v", transferTx.Hash().StringBE())
+	t.Logf("recieveRublesTx: %v", transferTx.Hash().StringLE())
 
 	transferTx = newNEP5Transfer(sh, priv0.GetScriptHash(), priv1.GetScriptHash(), 123)
 	transferTx.Nonce = getNextNonce()
 	transferTx.ValidUntilBlock = validUntilBlock
-	transferTx.Sender = priv0ScriptHash
-	transferTx.Cosigners = []transaction.Cosigner{
+	transferTx.Signers = []transaction.Signer{
 		{
 			Account:          priv0ScriptHash,
 			Scopes:           transaction.CalledByEntry,
@@ -400,7 +311,17 @@ func TestCreateBasicChain(t *testing.T) {
 
 	b = bc.newBlock(transferTx)
 	require.NoError(t, bc.AddBlock(b))
-	t.Logf("sendRublesTx: %v", transferTx.Hash().StringBE())
+	t.Logf("sendRublesTx: %v", transferTx.Hash().StringLE())
+
+	// Push verification contract into the chain.
+	txDeploy2, _ := newDeployTx(t, prefix+"verification_contract.go")
+	txDeploy2.Nonce = getNextNonce()
+	txDeploy2.ValidUntilBlock = validUntilBlock
+	txDeploy2.Signers = []transaction.Signer{{Account: priv0ScriptHash}}
+	require.NoError(t, addNetworkFee(bc, txDeploy2, acc0))
+	require.NoError(t, acc0.SignTx(txDeploy2))
+	b = bc.newBlock(txDeploy2)
+	require.NoError(t, bc.AddBlock(b))
 
 	if saveChain {
 		outStream, err := os.Create(prefix + "testblocks.acc")
@@ -424,26 +345,20 @@ func TestCreateBasicChain(t *testing.T) {
 		}
 	}
 
-	// Make a NEO roundtrip (send to myself) and claim GAS.
-	txNeoRound = transaction.NewContractTX()
-	txNeoRound.Nonce = getNextNonce()
-	txNeoRound.ValidUntilBlock = validUntilBlock
-	txNeoRound.Sender = priv0ScriptHash
-	txNeoRound.AddInput(&transaction.Input{
-		PrevHash:  txNeo0to1.Hash(),
-		PrevIndex: 1,
-	})
-	txNeoRound.AddOutput(&transaction.Output{
-		AssetID:    GoverningTokenID(),
-		Amount:     neoAmount - util.Fixed8FromInt64(1000),
-		ScriptHash: priv0.GetScriptHash(),
-		Position:   0,
-	})
-	txNeoRound.Data = new(transaction.ContractTX)
-	require.NoError(t, addNetworkFee(bc, txNeoRound, acc0))
-	require.NoError(t, acc0.SignTx(txNeoRound))
-	bw := io.NewBufBinWriter()
-	txNeoRound.EncodeBinary(bw.BinWriter)
+	// Prepare some transaction for future submission.
+	txSendRaw := newNEP5Transfer(neoHash, priv0ScriptHash, priv1.GetScriptHash(), int64(util.Fixed8FromInt64(1000)))
+	txSendRaw.ValidUntilBlock = validUntilBlock
+	txSendRaw.Nonce = getNextNonce()
+	txSendRaw.Signers = []transaction.Signer{{
+		Account:          priv0ScriptHash,
+		Scopes:           transaction.CalledByEntry,
+		AllowedContracts: nil,
+		AllowedGroups:    nil,
+	}}
+	require.NoError(t, addNetworkFee(bc, txSendRaw, acc0))
+	require.NoError(t, acc0.SignTx(txSendRaw))
+	bw = io.NewBufBinWriter()
+	txSendRaw.EncodeBinary(bw.BinWriter)
 	t.Logf("sendrawtransaction: %s", hex.EncodeToString(bw.Bytes()))
 }
 
@@ -453,31 +368,53 @@ func newNEP5Transfer(sc, from, to util.Uint160, amount int64) *transaction.Trans
 	emit.Opcode(w.BinWriter, opcode.ASSERT)
 
 	script := w.Bytes()
-	return transaction.NewInvocationTX(script, 0)
+	return transaction.New(testchain.Network(), script, 10000000)
 }
 
-func addSender(txs ...*transaction.Transaction) error {
+func newDeployTx(t *testing.T, name string) (*transaction.Transaction, []byte) {
+	c, err := ioutil.ReadFile(name)
+	require.NoError(t, err)
+	avm, di, err := compiler.CompileWithDebugInfo(name, bytes.NewReader(c))
+	require.NoError(t, err)
+	t.Logf("contractHash (%s): %s", name, hash.Hash160(avm).StringLE())
+	t.Logf("contractScript: %x", avm)
+
+	script := io.NewBufBinWriter()
+	m, err := di.ConvertToManifest(smartcontract.HasStorage, nil)
+	require.NoError(t, err)
+	bs, err := m.MarshalJSON()
+	require.NoError(t, err)
+	emit.Bytes(script.BinWriter, bs)
+	emit.Bytes(script.BinWriter, avm)
+	emit.Syscall(script.BinWriter, interopnames.SystemContractCreate)
+	txScript := script.Bytes()
+
+	return transaction.New(testchain.Network(), txScript, 100*native.GASFactor), avm
+}
+
+func addSigners(txs ...*transaction.Transaction) {
 	for _, tx := range txs {
-		tx.Sender = neoOwner
+		tx.Signers = []transaction.Signer{{
+			Account:          neoOwner,
+			Scopes:           transaction.CalledByEntry,
+			AllowedContracts: nil,
+			AllowedGroups:    nil,
+		}}
 	}
-	return nil
 }
 
 func signTx(bc *Blockchain, txs ...*transaction.Transaction) error {
-	validators, err := getValidators(bc.config)
+	validators := bc.GetStandByValidators()
+	rawScript, err := smartcontract.CreateDefaultMultiSigRedeemScript(validators)
 	if err != nil {
-		return errors.Wrap(err, "fail to sign tx")
-	}
-	rawScript, err := smartcontract.CreateMultiSigRedeemScript(len(bc.config.StandbyValidators)/2+1, validators)
-	if err != nil {
-		return errors.Wrap(err, "fail to sign tx")
+		return fmt.Errorf("failed to sign tx: %w", err)
 	}
 	for _, tx := range txs {
 		size := io.GetVarSize(tx)
 		netFee, sizeDelta := CalculateNetworkFee(rawScript)
-		tx.NetworkFee = tx.NetworkFee.Add(netFee)
+		tx.NetworkFee += netFee
 		size += sizeDelta
-		tx.NetworkFee = tx.NetworkFee.Add(util.Fixed8(int64(size) * int64(bc.FeePerByte())))
+		tx.NetworkFee += int64(size) * bc.FeePerByte()
 		data := tx.GetSignedPart()
 		tx.Scripts = []transaction.Witness{{
 			InvocationScript:   testchain.Sign(data),
@@ -492,7 +429,7 @@ func addNetworkFee(bc *Blockchain, tx *transaction.Transaction, sender *wallet.A
 	netFee, sizeDelta := CalculateNetworkFee(sender.Contract.Script)
 	tx.NetworkFee += netFee
 	size += sizeDelta
-	for _, cosigner := range tx.Cosigners {
+	for _, cosigner := range tx.Signers {
 		contract := bc.GetContractState(cosigner.Account)
 		if contract != nil {
 			netFee, sizeDelta = CalculateNetworkFee(contract.Script)
@@ -500,6 +437,6 @@ func addNetworkFee(bc *Blockchain, tx *transaction.Transaction, sender *wallet.A
 			size += sizeDelta
 		}
 	}
-	tx.NetworkFee += util.Fixed8(int64(size) * int64(bc.FeePerByte()))
+	tx.NetworkFee += int64(size) * bc.FeePerByte()
 	return nil
 }

@@ -14,21 +14,31 @@ import (
 	"github.com/nspcc-dev/rfc6979"
 )
 
-// PrivateKey represents a NEO private key.
+// PrivateKey represents a NEO private key and provides a high level API around
+// ecdsa.PrivateKey.
 type PrivateKey struct {
-	b []byte
+	ecdsa.PrivateKey
 }
 
-// NewPrivateKey creates a new random private key.
+// NewPrivateKey creates a new random Secp256k1 private key.
 func NewPrivateKey() (*PrivateKey, error) {
-	priv, _, _, err := elliptic.GenerateKey(elliptic.P256(), rand.Reader)
+	priv, x, y, err := elliptic.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
 		return nil, err
 	}
-	return &PrivateKey{b: priv}, nil
+	return &PrivateKey{
+		ecdsa.PrivateKey{
+			PublicKey: ecdsa.PublicKey{
+				Curve: elliptic.P256(),
+				X:     x,
+				Y:     y,
+			},
+			D: new(big.Int).SetBytes(priv),
+		},
+	}, nil
 }
 
-// NewPrivateKeyFromHex returns a PrivateKey created from the
+// NewPrivateKeyFromHex returns a Secp256k1 PrivateKey created from the
 // given hex string.
 func NewPrivateKeyFromHex(str string) (*PrivateKey, error) {
 	b, err := hex.DecodeString(str)
@@ -38,17 +48,35 @@ func NewPrivateKeyFromHex(str string) (*PrivateKey, error) {
 	return NewPrivateKeyFromBytes(b)
 }
 
-// NewPrivateKeyFromBytes returns a NEO PrivateKey from the given byte slice.
+// NewPrivateKeyFromBytes returns a NEO Secp256r1 PrivateKey from the given
+// byte slice.
 func NewPrivateKeyFromBytes(b []byte) (*PrivateKey, error) {
 	if len(b) != 32 {
 		return nil, fmt.Errorf(
 			"invalid byte length: expected %d bytes got %d", 32, len(b),
 		)
 	}
-	return &PrivateKey{b}, nil
+	var (
+		c = elliptic.P256()
+		d = new(big.Int).SetBytes(b)
+	)
+
+	x, y := c.ScalarBaseMult(d.Bytes())
+
+	return &PrivateKey{
+		ecdsa.PrivateKey{
+			PublicKey: ecdsa.PublicKey{
+				Curve: c,
+				X:     x,
+				Y:     y,
+			},
+			D: d,
+		},
+	}, nil
 }
 
-// NewPrivateKeyFromASN1 returns a NEO PrivateKey from the ASN.1 serialized key.
+// NewPrivateKeyFromASN1 returns a NEO Secp256k1 PrivateKey from the ASN.1
+// serialized key.
 func NewPrivateKeyFromASN1(b []byte) (*PrivateKey, error) {
 	privkey, err := x509.ParseECPrivateKey(b)
 	if err != nil {
@@ -59,14 +87,8 @@ func NewPrivateKeyFromASN1(b []byte) (*PrivateKey, error) {
 
 // PublicKey derives the public key from the private key.
 func (p *PrivateKey) PublicKey() *PublicKey {
-	var (
-		c = elliptic.P256()
-		q = new(big.Int).SetBytes(p.b)
-	)
-
-	x, y := c.ScalarBaseMult(q.Bytes())
-
-	return &PublicKey{X: x, Y: y}
+	result := PublicKey(p.PrivateKey.PublicKey)
+	return &result
 }
 
 // NewPrivateKeyFromWIF returns a NEO PrivateKey from the given
@@ -83,7 +105,7 @@ func NewPrivateKeyFromWIF(wif string) (*PrivateKey, error) {
 // Good documentation about this process can be found here:
 // https://en.bitcoin.it/wiki/Wallet_import_format
 func (p *PrivateKey) WIF() string {
-	w, err := WIFEncode(p.b, WIFVersion, true)
+	w, err := WIFEncode(p.Bytes(), WIFVersion, true)
 	// The only way WIFEncode() can fail is if we're to give it a key of
 	// wrong size, but we have a proper key here, aren't we?
 	if err != nil {
@@ -109,13 +131,16 @@ func (p *PrivateKey) GetScriptHash() util.Uint160 {
 // Sign signs arbitrary length data using the private key.
 func (p *PrivateKey) Sign(data []byte) []byte {
 	var (
-		privateKey = p.ecdsa()
+		privateKey = &p.PrivateKey
 		digest     = sha256.Sum256(data)
 	)
 
 	r, s := rfc6979.SignECDSA(privateKey, digest[:], sha256.New)
+	return getSignatureSlice(privateKey.Curve, r, s)
+}
 
-	params := privateKey.Curve.Params()
+func getSignatureSlice(curve elliptic.Curve, r, s *big.Int) []byte {
+	params := curve.Params()
 	curveOrderByteSize := params.P.BitLen() / 8
 	rBytes, sBytes := r.Bytes(), s.Bytes()
 	signature := make([]byte, curveOrderByteSize*2)
@@ -125,21 +150,16 @@ func (p *PrivateKey) Sign(data []byte) []byte {
 	return signature
 }
 
-// ecsda converts the key to a usable ecsda.PrivateKey for signing data.
-func (p *PrivateKey) ecdsa() *ecdsa.PrivateKey {
-	priv := new(ecdsa.PrivateKey)
-	priv.PublicKey.Curve = elliptic.P256()
-	priv.D = new(big.Int).SetBytes(p.b)
-	priv.PublicKey.X, priv.PublicKey.Y = priv.PublicKey.Curve.ScalarBaseMult(p.b)
-	return priv
-}
-
 // String implements the stringer interface.
 func (p *PrivateKey) String() string {
-	return hex.EncodeToString(p.b)
+	return hex.EncodeToString(p.Bytes())
 }
 
 // Bytes returns the underlying bytes of the PrivateKey.
 func (p *PrivateKey) Bytes() []byte {
-	return p.b
+	bytes := p.D.Bytes()
+	result := make([]byte, 32)
+	copy(result[32-len(bytes):], bytes)
+
+	return result
 }

@@ -6,16 +6,15 @@ import (
 	"os"
 	"os/signal"
 
+	"github.com/nspcc-dev/neo-go/cli/options"
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
-	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/network"
 	"github.com/nspcc-dev/neo-go/pkg/network/metrics"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/server"
-	"github.com/pkg/errors"
 	"github.com/urfave/cli"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -25,11 +24,9 @@ import (
 func NewCommands() []cli.Command {
 	var cfgFlags = []cli.Flag{
 		cli.StringFlag{Name: "config-path"},
-		cli.BoolFlag{Name: "privnet, p"},
-		cli.BoolFlag{Name: "mainnet, m"},
-		cli.BoolFlag{Name: "testnet, t"},
 		cli.BoolFlag{Name: "debug, d"},
 	}
+	cfgFlags = append(cfgFlags, options.Network...)
 	var cfgWithCountFlags = make([]cli.Flag, len(cfgFlags))
 	copy(cfgWithCountFlags, cfgFlags)
 	cfgWithCountFlags = append(cfgWithCountFlags,
@@ -108,18 +105,11 @@ func newGraceContext() context.Context {
 // getConfigFromContext looks at path and mode flags in the given config and
 // returns appropriate config.
 func getConfigFromContext(ctx *cli.Context) (config.Config, error) {
-	var net = config.ModePrivNet
-	if ctx.Bool("testnet") {
-		net = config.ModeTestNet
-	}
-	if ctx.Bool("mainnet") {
-		net = config.ModeMainNet
-	}
 	configPath := "./config"
 	if argCp := ctx.String("config-path"); argCp != "" {
 		configPath = argCp
 	}
-	return config.Load(configPath, net)
+	return config.Load(configPath, options.GetNetwork(ctx))
 }
 
 // handleLoggingParams reads logging parameters.
@@ -157,7 +147,7 @@ func initBCWithMetrics(cfg config.Config, log *zap.Logger) (*core.Blockchain, *m
 	if err != nil {
 		return nil, nil, nil, cli.NewExitError(err, 1)
 	}
-	configureAddresses(cfg.ApplicationConfiguration)
+	configureAddresses(&cfg.ApplicationConfiguration)
 	prometheus := metrics.NewPrometheusService(cfg.ApplicationConfiguration.Prometheus, log)
 	pprof := metrics.NewPprofService(cfg.ApplicationConfiguration.Pprof, log)
 
@@ -207,7 +197,7 @@ func dumpDB(ctx *cli.Context) error {
 		bh := chain.GetHeaderHash(int(i))
 		b, err := chain.GetBlock(bh)
 		if err != nil {
-			return cli.NewExitError(fmt.Errorf("failed to get block %d: %s", i, err), 1)
+			return cli.NewExitError(fmt.Errorf("failed to get block %d: %w", i, err), 1)
 		}
 		buf := io.NewBufBinWriter()
 		b.EncodeBinary(buf.BinWriter)
@@ -291,7 +281,7 @@ func restoreDB(ctx *cli.Context) error {
 		default:
 		}
 		bytes, err := readBlock(reader)
-		block := &block.Block{}
+		block := block.New(cfg.ProtocolConfiguration.Magic)
 		newReader := io.NewBinReaderFromBuf(bytes)
 		block.DecodeBinary(newReader)
 		if err != nil {
@@ -301,21 +291,24 @@ func restoreDB(ctx *cli.Context) error {
 			genesis, err := chain.GetBlock(block.Hash())
 			if err == nil && genesis.Index == 0 {
 				log.Info("skipped genesis block", zap.String("hash", block.Hash().StringLE()))
-				continue
+			}
+		} else {
+			err = chain.AddBlock(block)
+			if err != nil {
+				return cli.NewExitError(fmt.Errorf("failed to add block %d: %w", i, err), 1)
 			}
 		}
-		err = chain.AddBlock(block)
-		if err != nil {
-			return cli.NewExitError(fmt.Errorf("failed to add block %d: %s", i, err), 1)
-		}
-
 		if dumpDir != "" {
 			batch := chain.LastBatch()
+			// The genesis block may already be persisted, so LastBatch() will return nil.
+			if batch == nil && block.Index == 0 {
+				continue
+			}
 			dump.add(block.Index, batch)
 			lastIndex = block.Index
 			if block.Index%1000 == 0 {
 				if err := dump.tryPersist(dumpDir, block.Index); err != nil {
-					return cli.NewExitError(fmt.Errorf("can't dump storage to file: %v", err), 1)
+					return cli.NewExitError(fmt.Errorf("can't dump storage to file: %w", err), 1)
 				}
 			}
 		}
@@ -356,7 +349,7 @@ func startServer(ctx *cli.Context) error {
 
 	serv, err := network.NewServer(serverConfig, chain, log)
 	if err != nil {
-		return cli.NewExitError(fmt.Errorf("failed to create network server: %v", err), 1)
+		return cli.NewExitError(fmt.Errorf("failed to create network server: %w", err), 1)
 	}
 	rpcServer := server.New(chain, cfg.ApplicationConfiguration.RPC, serv, log)
 	errChan := make(chan error)
@@ -373,13 +366,13 @@ Main:
 	for {
 		select {
 		case err := <-errChan:
-			shutdownErr = errors.Wrap(err, "Error encountered by server")
+			shutdownErr = fmt.Errorf("server error: %w", err)
 			cancel()
 
 		case <-grace.Done():
 			serv.Shutdown()
 			if serverErr := rpcServer.Shutdown(); serverErr != nil {
-				shutdownErr = errors.Wrap(serverErr, "Error encountered whilst shutting down server")
+				shutdownErr = fmt.Errorf("error on shutdown: %w", serverErr)
 			}
 			prometheus.ShutDown()
 			pprof.ShutDown()
@@ -399,7 +392,7 @@ Main:
 // In case RPC or Prometheus or Pprof Address provided each of them will use it.
 // In case global Address (of the node) provided and RPC/Prometheus/Pprof don't have configured addresses they will
 // use global one. So Node and RPC and Prometheus and Pprof will run on one address.
-func configureAddresses(cfg config.ApplicationConfiguration) {
+func configureAddresses(cfg *config.ApplicationConfiguration) {
 	if cfg.Address != "" {
 		if cfg.RPC.Address == "" {
 			cfg.RPC.Address = cfg.Address
@@ -417,15 +410,12 @@ func configureAddresses(cfg config.ApplicationConfiguration) {
 func initBlockChain(cfg config.Config, log *zap.Logger) (*core.Blockchain, error) {
 	store, err := storage.NewStore(cfg.ApplicationConfiguration.DBConfiguration)
 	if err != nil {
-		return nil, cli.NewExitError(fmt.Errorf("could not initialize storage: %s", err), 1)
+		return nil, cli.NewExitError(fmt.Errorf("could not initialize storage: %w", err), 1)
 	}
 
 	chain, err := core.NewBlockchain(store, cfg.ProtocolConfiguration, log)
 	if err != nil {
-		return nil, cli.NewExitError(fmt.Errorf("could not initialize blockchain: %s", err), 1)
-	}
-	if cfg.ProtocolConfiguration.AddressVersion != 0 {
-		address.Prefix = cfg.ProtocolConfiguration.AddressVersion
+		return nil, cli.NewExitError(fmt.Errorf("could not initialize blockchain: %w", err), 1)
 	}
 	return chain, nil
 }

@@ -1,6 +1,6 @@
 package opcode
 
-//go:generate stringer -type=Opcode
+//go:generate stringer -type=Opcode -linecomment
 
 // Opcode represents a single operation code for the NEO virtual machine.
 type Opcode byte
@@ -46,31 +46,36 @@ const (
 	// Flow control
 	NOP       Opcode = 0x21
 	JMP       Opcode = 0x22
-	JMPL      Opcode = 0x23
+	JMPL      Opcode = 0x23 // JMP_L
 	JMPIF     Opcode = 0x24
-	JMPIFL    Opcode = 0x25
+	JMPIFL    Opcode = 0x25 // JMPIF_L
 	JMPIFNOT  Opcode = 0x26
-	JMPIFNOTL Opcode = 0x27
+	JMPIFNOTL Opcode = 0x27 // JMPIFNOT_L
 	JMPEQ     Opcode = 0x28
-	JMPEQL    Opcode = 0x29
+	JMPEQL    Opcode = 0x29 // JMPEQ_L
 	JMPNE     Opcode = 0x2A
-	JMPNEL    Opcode = 0x2B
+	JMPNEL    Opcode = 0x2B // JMPNE_L
 	JMPGT     Opcode = 0x2C
-	JMPGTL    Opcode = 0x2D
+	JMPGTL    Opcode = 0x2D // JMPGT_L
 	JMPGE     Opcode = 0x2E
-	JMPGEL    Opcode = 0x2F
+	JMPGEL    Opcode = 0x2F // JMPGE_L
 	JMPLT     Opcode = 0x30
-	JMPLTL    Opcode = 0x31
+	JMPLTL    Opcode = 0x31 // JMPLT_L
 	JMPLE     Opcode = 0x32
-	JMPLEL    Opcode = 0x33
+	JMPLEL    Opcode = 0x33 // JMPLE_L
 	CALL      Opcode = 0x34
-	CALLL     Opcode = 0x35
+	CALLL     Opcode = 0x35 // CALL_L
 	CALLA     Opcode = 0x36
 
 	// Exceptions
-	ABORT  Opcode = 0x37
-	ASSERT Opcode = 0x38
-	THROW  Opcode = 0x3A
+	ABORT      Opcode = 0x37
+	ASSERT     Opcode = 0x38
+	THROW      Opcode = 0x3A
+	TRY        Opcode = 0x3B
+	TRYL       Opcode = 0x3C // TRY_L
+	ENDTRY     Opcode = 0x3D
+	ENDTRYL    Opcode = 0x3E // ENDTRY_L
+	ENDFINALLY Opcode = 0x3F
 
 	RET     Opcode = 0x40
 	SYSCALL Opcode = 0x41
@@ -86,7 +91,6 @@ const (
 	PICK     Opcode = 0x4D
 	TUCK     Opcode = 0x4E
 	SWAP     Opcode = 0x50
-	OLDPUSH1 Opcode = 0x51 // FIXME remove #927
 	ROT      Opcode = 0x51
 	ROLL     Opcode = 0x52
 	REVERSE3 Opcode = 0x53
@@ -193,7 +197,7 @@ const (
 	UNPACK       Opcode = 0xC1
 	NEWARRAY0    Opcode = 0xC2
 	NEWARRAY     Opcode = 0xC3
-	NEWARRAYT    Opcode = 0xC4
+	NEWARRAYT    Opcode = 0xC4 // NEWARRAY_T
 	NEWSTRUCT0   Opcode = 0xC5
 	NEWSTRUCT    Opcode = 0xC6
 	NEWMAP       Opcode = 0xC8

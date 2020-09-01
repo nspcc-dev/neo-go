@@ -4,7 +4,7 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/nspcc-dev/neo-go/pkg/vm"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -30,8 +30,7 @@ func TestNotify(t *testing.T) {
 	src := `package foo
 	import "github.com/nspcc-dev/neo-go/pkg/interop/runtime"
 	func Main(arg int) {
-		runtime.Notify(arg, "sum", arg+1)
-		runtime.Notify()
+		runtime.Notify("Event1", arg, "sum", arg+1)
 		runtime.Notify("single")
 	}`
 
@@ -39,10 +38,11 @@ func TestNotify(t *testing.T) {
 	v.Estack().PushVal(11)
 
 	require.NoError(t, v.Run())
-	require.Equal(t, 3, len(s.events))
+	require.Equal(t, 2, len(s.events))
 
-	exp0 := []vm.StackItem{vm.NewBigIntegerItem(big.NewInt(11)), vm.NewByteArrayItem([]byte("sum")), vm.NewBigIntegerItem(big.NewInt(12))}
-	assert.Equal(t, exp0, s.events[0].Value())
-	assert.Equal(t, []vm.StackItem{}, s.events[1].Value())
-	assert.Equal(t, []vm.StackItem{vm.NewByteArrayItem([]byte("single"))}, s.events[2].Value())
+	exp0 := []stackitem.Item{stackitem.NewBigInteger(big.NewInt(11)), stackitem.NewByteArray([]byte("sum")), stackitem.NewBigInteger(big.NewInt(12))}
+	assert.Equal(t, "Event1", s.events[0].Name)
+	assert.Equal(t, exp0, s.events[0].Item.Value())
+	assert.Equal(t, "single", s.events[1].Name)
+	assert.Equal(t, []stackitem.Item{}, s.events[1].Item.Value())
 }

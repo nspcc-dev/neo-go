@@ -3,55 +3,19 @@ package dao
 import (
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/internal/random"
-	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func TestCachedDaoAccounts(t *testing.T) {
-	store := storage.NewMemoryStore()
-	// Persistent DAO to check for backing storage.
-	pdao := NewSimple(store)
-	// Cached DAO.
-	cdao := NewCached(pdao)
-
-	hash := random.Uint160()
-	_, err := cdao.GetAccountState(hash)
-	require.NotNil(t, err)
-
-	acc, err := cdao.GetAccountStateOrNew(hash)
-	require.Nil(t, err)
-	_, err = pdao.GetAccountState(hash)
-	require.NotNil(t, err)
-
-	acc.Version = 42
-	require.NoError(t, cdao.PutAccountState(acc))
-	_, err = pdao.GetAccountState(hash)
-	require.NotNil(t, err)
-
-	acc2, err := cdao.GetAccountState(hash)
-	require.Nil(t, err)
-	require.Equal(t, acc, acc2)
-
-	acc2, err = cdao.GetAccountStateOrNew(hash)
-	require.Nil(t, err)
-	require.Equal(t, acc, acc2)
-
-	_, err = cdao.Persist()
-	require.Nil(t, err)
-
-	acct, err := pdao.GetAccountState(hash)
-	require.Nil(t, err)
-	require.Equal(t, acc, acct)
-}
-
 func TestCachedDaoContracts(t *testing.T) {
 	store := storage.NewMemoryStore()
-	pdao := NewSimple(store)
+	pdao := NewSimple(store, netmode.UnitTestNet)
 	dao := NewCached(pdao)
 
 	script := []byte{0xde, 0xad, 0xbe, 0xef}
@@ -59,10 +23,13 @@ func TestCachedDaoContracts(t *testing.T) {
 	_, err := dao.GetContractState(sh)
 	require.NotNil(t, err)
 
-	cs := &state.Contract{}
-	cs.Name = "test"
-	cs.Script = script
-	cs.ParamList = []smartcontract.ParamType{1, 2}
+	m := manifest.NewManifest(hash.Hash160(script))
+
+	cs := &state.Contract{
+		ID:       123,
+		Script:   script,
+		Manifest: *m,
+	}
 
 	require.NoError(t, dao.PutContractState(cs))
 	cs2, err := dao.GetContractState(sh)
@@ -87,7 +54,7 @@ func TestCachedDaoContracts(t *testing.T) {
 func TestCachedCachedDao(t *testing.T) {
 	store := storage.NewMemoryStore()
 	// Persistent DAO to check for backing storage.
-	pdao := NewSimple(store)
+	pdao := NewSimple(store, netmode.UnitTestNet)
 	assert.NotEqual(t, store, pdao.Store)
 	// Cached DAO.
 	cdao := NewCached(pdao)
@@ -103,29 +70,29 @@ func TestCachedCachedDao(t *testing.T) {
 	assert.NotEqual(t, pdao.Store, intDao.Store)
 	assert.NotEqual(t, cdaoDao.Store, intDao.Store)
 
-	hash := random.Uint160()
+	id := int32(random.Int(0, 1024))
 	key := []byte("qwerty")
 	si := &state.StorageItem{Value: []byte("poiuyt")}
-	require.NoError(t, ccdao.PutStorageItem(hash, key, si))
-	resi := ccdao.GetStorageItem(hash, key)
+	require.NoError(t, ccdao.PutStorageItem(id, key, si))
+	resi := ccdao.GetStorageItem(id, key)
 	assert.Equal(t, si, resi)
 
-	resi = cdao.GetStorageItem(hash, key)
+	resi = cdao.GetStorageItem(id, key)
 	assert.Equal(t, (*state.StorageItem)(nil), resi)
-	resi = pdao.GetStorageItem(hash, key)
+	resi = pdao.GetStorageItem(id, key)
 	assert.Equal(t, (*state.StorageItem)(nil), resi)
 
 	cnt, err := ccdao.Persist()
 	assert.NoError(t, err)
 	assert.Equal(t, 1, cnt)
-	resi = cdao.GetStorageItem(hash, key)
+	resi = cdao.GetStorageItem(id, key)
 	assert.Equal(t, si, resi)
-	resi = pdao.GetStorageItem(hash, key)
+	resi = pdao.GetStorageItem(id, key)
 	assert.Equal(t, (*state.StorageItem)(nil), resi)
 
 	cnt, err = cdao.Persist()
 	assert.NoError(t, err)
 	assert.Equal(t, 1, cnt)
-	resi = pdao.GetStorageItem(hash, key)
+	resi = pdao.GetStorageItem(id, key)
 	assert.Equal(t, si, resi)
 }

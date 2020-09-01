@@ -2,17 +2,22 @@ package cli
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"math/big"
 	"os"
 	"strconv"
 	"strings"
+	"text/tabwriter"
 
 	"github.com/nspcc-dev/neo-go/pkg/compiler"
+	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
+	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
+	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"gopkg.in/abiosoft/ishell.v2"
 )
 
@@ -65,28 +70,45 @@ var commands = []*ishell.Cmd{
 		Func:     handleXStack,
 	},
 	{
-		Name: "loadavm",
-		Help: "Load an avm script into the VM",
-		LongHelp: `Usage: loadavm <file>
+		Name: "loadnef",
+		Help: "Load a NEF-consistent script into the VM",
+		LongHelp: `Usage: loadnef <file>
 <file> is mandatory parameter, example:
-> load /path/to/script.avm`,
-		Func: handleLoadAVM,
+> loadnef /path/to/script.nef`,
+		Func: handleLoadNEF,
+	},
+	{
+		Name: "loadbase64",
+		Help: "Load a base64-encoded script string into the VM",
+		LongHelp: `Usage: loadbase64 <string>
+<string> is mandatory parameter, example:
+> loadbase64 AwAQpdToAAAADBQV9ehtQR1OrVZVhtHtoUHRfoE+agwUzmFvf3Rhfg/EuAVYOvJgKiON9j8TwAwIdHJhbnNmZXIMFDt9NxHG8Mz5sdypA9G/odiW8SOMQWJ9W1I4`,
+		Func: handleLoadBase64,
 	},
 	{
 		Name: "loadhex",
 		Help: "Load a hex-encoded script string into the VM",
 		LongHelp: `Usage: loadhex <string>
 <string> is mandatory parameter, example:
-> load 006166`,
+> loadhex 0c0c48656c6c6f20776f726c6421`,
 		Func: handleLoadHex,
 	},
 	{
 		Name: "loadgo",
 		Help: "Compile and load a Go file into the VM",
-		LongHelp: `Usage: loadhex <file>
+		LongHelp: `Usage: loadgo <file>
 <file> is mandatory parameter, example:
-> load /path/to/file.go`,
+> loadgo /path/to/file.go`,
 		Func: handleLoadGo,
+	},
+	{
+		Name: "parse",
+		Help: "Parse provided argument and convert it into other possible formats",
+		LongHelp: `Usage: parse <arg>
+
+<arg> is an argument which is tried to be interpreted as an item of different types
+        and converted to other formats. Strings are escaped and output in quotes.`,
+		Func: handleParse,
 	},
 	{
 		Name: "run",
@@ -218,7 +240,7 @@ func handleBreak(c *ishell.Context) {
 	}
 	n, err := strconv.Atoi(c.Args[0])
 	if err != nil {
-		c.Err(fmt.Errorf("argument conversion error: %s", err))
+		c.Err(fmt.Errorf("argument conversion error: %w", err))
 		return
 	}
 
@@ -231,8 +253,12 @@ func handleXStack(c *ishell.Context) {
 	c.Println(v.Stack(c.Cmd.Name))
 }
 
-func handleLoadAVM(c *ishell.Context) {
+func handleLoadNEF(c *ishell.Context) {
 	v := getVMFromContext(c)
+	if len(c.Args) < 1 {
+		c.Err(errors.New("missing parameter <file>"))
+		return
+	}
 	if err := v.LoadFile(c.Args[0]); err != nil {
 		c.Err(err)
 	} else {
@@ -241,8 +267,28 @@ func handleLoadAVM(c *ishell.Context) {
 	changePrompt(c, v)
 }
 
+func handleLoadBase64(c *ishell.Context) {
+	v := getVMFromContext(c)
+	if len(c.Args) < 1 {
+		c.Err(errors.New("missing parameter <string>"))
+		return
+	}
+	b, err := base64.StdEncoding.DecodeString(c.Args[0])
+	if err != nil {
+		c.Err(err)
+		return
+	}
+	v.Load(b)
+	c.Printf("READY: loaded %d instructions\n", v.Context().LenInstr())
+	changePrompt(c, v)
+}
+
 func handleLoadHex(c *ishell.Context) {
 	v := getVMFromContext(c)
+	if len(c.Args) < 1 {
+		c.Err(errors.New("missing parameter <string>"))
+		return
+	}
 	b, err := hex.DecodeString(c.Args[0])
 	if err != nil {
 		c.Err(err)
@@ -255,12 +301,11 @@ func handleLoadHex(c *ishell.Context) {
 
 func handleLoadGo(c *ishell.Context) {
 	v := getVMFromContext(c)
-	fb, err := ioutil.ReadFile(c.Args[0])
-	if err != nil {
-		c.Err(err)
+	if len(c.Args) < 1 {
+		c.Err(errors.New("missing parameter <file>"))
 		return
 	}
-	b, err := compiler.Compile(bytes.NewReader(fb))
+	b, err := compiler.Compile(c.Args[0], nil)
 	if err != nil {
 		c.Err(err)
 		return
@@ -276,7 +321,7 @@ func handleRun(c *ishell.Context) {
 	if len(c.Args) != 0 {
 		var (
 			method []byte
-			params []vm.StackItem
+			params []stackitem.Item
 			err    error
 		)
 		method = []byte(c.Args[0])
@@ -337,7 +382,7 @@ func handleStep(c *ishell.Context) {
 	if len(c.Args) > 0 {
 		n, err = strconv.Atoi(c.Args[0])
 		if err != nil {
-			c.Err(fmt.Errorf("argument conversion error: %s", err))
+			c.Err(fmt.Errorf("argument conversion error: %w", err))
 			return
 		}
 	}
@@ -388,8 +433,8 @@ func handleOps(c *ishell.Context) {
 }
 
 func changePrompt(c ishell.Actions, v *vm.VM) {
-	if v.Ready() && v.Context().IP()-1 >= 0 {
-		c.SetPrompt(fmt.Sprintf("NEO-GO-VM %d > ", v.Context().IP()-1))
+	if v.Ready() && v.Context().IP() >= 0 {
+		c.SetPrompt(fmt.Sprintf("NEO-GO-VM %d > ", v.Context().IP()))
 	} else {
 		c.SetPrompt("NEO-GO-VM > ")
 	}
@@ -402,12 +447,65 @@ func (c *VMCLI) Run() error {
 	return nil
 }
 
-func isMethodArg(s string) bool {
-	return len(strings.Split(s, ":")) == 1
+func handleParse(c *ishell.Context) {
+	res, err := Parse(c.Args)
+	if err != nil {
+		c.Err(err)
+		return
+	}
+	c.Print(res)
 }
 
-func parseArgs(args []string) ([]vm.StackItem, error) {
-	items := make([]vm.StackItem, len(args))
+// Parse converts it's argument to other formats.
+func Parse(args []string) (string, error) {
+	if len(args) < 1 {
+		return "", errors.New("missing argument")
+	}
+	arg := args[0]
+	buf := bytes.NewBuffer(nil)
+	if val, err := strconv.ParseInt(arg, 10, 64); err == nil {
+		bs := bigint.ToBytes(big.NewInt(val))
+		buf.WriteString(fmt.Sprintf("Integer to Hex\t%s\n", hex.EncodeToString(bs)))
+		buf.WriteString(fmt.Sprintf("Integer to Base64\t%s\n", base64.StdEncoding.EncodeToString(bs)))
+	}
+	noX := strings.TrimPrefix(arg, "0x")
+	if rawStr, err := hex.DecodeString(noX); err == nil {
+		if val, err := util.Uint160DecodeBytesBE(rawStr); err == nil {
+			buf.WriteString(fmt.Sprintf("BE ScriptHash to Address\t%s\n", address.Uint160ToString(val)))
+			buf.WriteString(fmt.Sprintf("LE ScriptHash to Address\t%s\n", address.Uint160ToString(val.Reverse())))
+		}
+		buf.WriteString(fmt.Sprintf("Hex to String\t%s\n", fmt.Sprintf("%q", string(rawStr))))
+		buf.WriteString(fmt.Sprintf("Hex to Integer\t%s\n", bigint.FromBytes(rawStr)))
+		buf.WriteString(fmt.Sprintf("Swap Endianness\t%s\n", hex.EncodeToString(util.ArrayReverse(rawStr))))
+	}
+	if addr, err := address.StringToUint160(arg); err == nil {
+		buf.WriteString(fmt.Sprintf("Address to BE ScriptHash\t%s\n", addr))
+		buf.WriteString(fmt.Sprintf("Address to LE ScriptHash\t%s\n", addr.Reverse()))
+		buf.WriteString(fmt.Sprintf("Address to Base64 (BE)\t%s\n", base64.StdEncoding.EncodeToString(addr.BytesBE())))
+		buf.WriteString(fmt.Sprintf("Address to Base64 (LE)\t%s\n", base64.StdEncoding.EncodeToString(addr.BytesLE())))
+	}
+	if rawStr, err := base64.StdEncoding.DecodeString(arg); err == nil {
+		buf.WriteString(fmt.Sprintf("Base64 to String\t%s\n", fmt.Sprintf("%q", string(rawStr))))
+		buf.WriteString(fmt.Sprintf("Base64 to BigInteger\t%s\n", bigint.FromBytes(rawStr)))
+	}
+
+	buf.WriteString(fmt.Sprintf("String to Hex\t%s\n", hex.EncodeToString([]byte(arg))))
+	buf.WriteString(fmt.Sprintf("String to Base64\t%s\n", base64.StdEncoding.EncodeToString([]byte(arg))))
+
+	out := buf.Bytes()
+	buf = bytes.NewBuffer(nil)
+	w := tabwriter.NewWriter(buf, 0, 4, 4, '\t', 0)
+	if _, err := w.Write(out); err != nil {
+		return "", err
+	}
+	if err := w.Flush(); err != nil {
+		return "", err
+	}
+	return string(buf.Bytes()), nil
+}
+
+func parseArgs(args []string) ([]stackitem.Item, error) {
+	items := make([]stackitem.Item, len(args))
 	for i, arg := range args {
 		var typ, value string
 		typeAndVal := strings.Split(arg, ":")
@@ -428,9 +526,9 @@ func parseArgs(args []string) ([]vm.StackItem, error) {
 		switch typ {
 		case boolType:
 			if value == boolFalse {
-				items[i] = vm.NewBoolItem(false)
+				items[i] = stackitem.NewBool(false)
 			} else if value == boolTrue {
-				items[i] = vm.NewBoolItem(true)
+				items[i] = stackitem.NewBool(true)
 			} else {
 				return nil, errors.New("failed to parse bool parameter")
 			}
@@ -439,9 +537,9 @@ func parseArgs(args []string) ([]vm.StackItem, error) {
 			if err != nil {
 				return nil, err
 			}
-			items[i] = vm.NewBigIntegerItem(big.NewInt(val))
+			items[i] = stackitem.NewBigInteger(big.NewInt(val))
 		case stringType:
-			items[i] = vm.NewByteArrayItem([]byte(value))
+			items[i] = stackitem.NewByteArray([]byte(value))
 		}
 	}
 

@@ -8,31 +8,40 @@ import (
 	"go/types"
 	"strconv"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 )
 
 // DebugInfo represents smart-contract debug information.
 type DebugInfo struct {
-	EntryPoint string            `json:"entrypoint"`
-	Documents  []string          `json:"documents"`
-	Methods    []MethodDebugInfo `json:"methods"`
-	Events     []EventDebugInfo  `json:"events"`
+	MainPkg   string            `json:"-"`
+	Hash      util.Uint160      `json:"hash"`
+	Documents []string          `json:"documents"`
+	Methods   []MethodDebugInfo `json:"methods"`
+	Events    []EventDebugInfo  `json:"events"`
 }
 
 // MethodDebugInfo represents smart-contract's method debug information.
 type MethodDebugInfo struct {
+	// ID is the actual name of the method.
 	ID string `json:"id"`
-	// Name is the name of the method together with the namespace it belongs to.
+	// Name is the name of the method with the first letter in a lowercase
+	// together with the namespace it belongs to. We need to keep the first letter
+	// lowercased to match manifest standards.
 	Name DebugMethodName `json:"name"`
+	// IsExported defines whether method is exported.
+	IsExported bool `json:"-"`
 	// Range is the range of smart-contract's opcodes corresponding to the method.
 	Range DebugRange `json:"range"`
 	// Parameters is a list of method's parameters.
 	Parameters []DebugParam `json:"params"`
 	// ReturnType is method's return type.
-	ReturnType string   `json:"return-type"`
+	ReturnType string   `json:"return"`
 	Variables  []string `json:"variables"`
 	// SeqPoints is a map between source lines and byte-code instruction offsets.
 	SeqPoints []DebugSeqPoint `json:"sequence-points"`
@@ -47,9 +56,9 @@ type DebugMethodName struct {
 // EventDebugInfo represents smart-contract's event debug information.
 type EventDebugInfo struct {
 	ID string `json:"id"`
-	// Name is a human-readable event name in a format "{namespace}-{name}".
+	// Name is a human-readable event name in a format "{namespace},{name}".
 	Name       string       `json:"name"`
-	Parameters []DebugParam `json:"parameters"`
+	Parameters []DebugParam `json:"params"`
 }
 
 // DebugSeqPoint represents break-point for debugger.
@@ -80,50 +89,18 @@ type DebugParam struct {
 	Type string `json:"type"`
 }
 
-// ABI represents ABI contract info in compatible with NEO Blockchain Toolkit format
-type ABI struct {
-	Hash       util.Uint160 `json:"hash"`
-	Metadata   Metadata     `json:"metadata"`
-	EntryPoint string       `json:"entrypoint"`
-	Functions  []Method     `json:"functions"`
-	Events     []Event      `json:"events"`
-}
-
-// Metadata represents ABI contract metadata
-type Metadata struct {
-	Author               string `json:"author"`
-	Email                string `json:"email"`
-	Version              string `json:"version"`
-	Title                string `json:"title"`
-	Description          string `json:"description"`
-	HasStorage           bool   `json:"has-storage"`
-	HasDynamicInvocation bool   `json:"has-dynamic-invoke"`
-	IsPayable            bool   `json:"is-payable"`
-}
-
-// Method represents ABI method's metadata.
-type Method struct {
-	Name       string       `json:"name"`
-	Parameters []DebugParam `json:"parameters"`
-	ReturnType string       `json:"returntype"`
-}
-
-// Event represents ABI event's metadata.
-type Event struct {
-	Name       string       `json:"name"`
-	Parameters []DebugParam `json:"parameters"`
-}
-
 func (c *codegen) saveSequencePoint(n ast.Node) {
-	if c.scope == nil {
-		// do not save globals for now
-		return
+	name := "init"
+	if c.scope != nil {
+		name = c.scope.name
 	}
+
 	fset := c.buildInfo.program.Fset
 	start := fset.Position(n.Pos())
 	end := fset.Position(n.End())
-	c.sequencePoints[c.scope.name] = append(c.sequencePoints[c.scope.name], DebugSeqPoint{
+	c.sequencePoints[name] = append(c.sequencePoints[name], DebugSeqPoint{
 		Opcode:    c.prog.Len(),
+		Document:  c.docIndex[start.Filename],
 		StartLine: start.Line,
 		StartCol:  start.Offset,
 		EndLine:   end.Line,
@@ -131,10 +108,28 @@ func (c *codegen) saveSequencePoint(n ast.Node) {
 	})
 }
 
-func (c *codegen) emitDebugInfo() *DebugInfo {
+func (c *codegen) emitDebugInfo(contract []byte) *DebugInfo {
 	d := &DebugInfo{
-		EntryPoint: mainIdent,
-		Events:     []EventDebugInfo{},
+		MainPkg:   c.mainPkg.Pkg.Name(),
+		Hash:      hash.Hash160(contract),
+		Events:    []EventDebugInfo{},
+		Documents: c.documents,
+	}
+	if c.initEndOffset > 0 {
+		d.Methods = append(d.Methods, MethodDebugInfo{
+			ID: manifest.MethodInit,
+			Name: DebugMethodName{
+				Name:      manifest.MethodInit,
+				Namespace: c.mainPkg.Pkg.Name(),
+			},
+			IsExported: true,
+			Range: DebugRange{
+				Start: 0,
+				End:   uint16(c.initEndOffset),
+			},
+			ReturnType: "Void",
+			SeqPoints:  c.sequencePoints["init"],
+		})
 	}
 	for name, scope := range c.funcs {
 		m := c.methodInfoFromScope(name, scope)
@@ -166,9 +161,16 @@ func (c *codegen) methodInfoFromScope(name string, scope *funcScope) *MethodDebu
 			})
 		}
 	}
+	ss := strings.Split(name, ".")
+	name = ss[len(ss)-1]
+	r, n := utf8.DecodeRuneInString(name)
 	return &MethodDebugInfo{
-		ID:         name,
-		Name:       DebugMethodName{Name: name},
+		ID: name,
+		Name: DebugMethodName{
+			Name:      string(unicode.ToLower(r)) + name[n:],
+			Namespace: scope.pkg.Name(),
+		},
+		IsExported: scope.decl.Name.IsExported(),
 		Range:      scope.rng,
 		Parameters: params,
 		ReturnType: c.scReturnTypeFromScope(scope),
@@ -214,7 +216,7 @@ func (c *codegen) scTypeFromExpr(typ ast.Expr) string {
 		return "Struct"
 	case *types.Slice:
 		if isByte(t.Elem()) {
-			return "ByteArray"
+			return "ByteString"
 		}
 		return "Array"
 	default:
@@ -267,6 +269,60 @@ func (d *DebugParam) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+// ToManifestParameter converts DebugParam to manifest.Parameter
+func (d *DebugParam) ToManifestParameter() (manifest.Parameter, error) {
+	pType, err := smartcontract.ParseParamType(d.Type)
+	if err != nil {
+		return manifest.Parameter{}, err
+	}
+	return manifest.Parameter{
+		Name: d.Name,
+		Type: pType,
+	}, nil
+}
+
+// ToManifestMethod converts MethodDebugInfo to manifest.Method
+func (m *MethodDebugInfo) ToManifestMethod() (manifest.Method, error) {
+	var (
+		result manifest.Method
+		err    error
+	)
+	parameters := make([]manifest.Parameter, len(m.Parameters))
+	for i, p := range m.Parameters {
+		parameters[i], err = p.ToManifestParameter()
+		if err != nil {
+			return result, err
+		}
+	}
+	returnType, err := smartcontract.ParseParamType(m.ReturnType)
+	if err != nil {
+		return result, err
+	}
+	result.Name = m.Name.Name
+	result.Offset = int(m.Range.Start)
+	result.Parameters = parameters
+	result.ReturnType = returnType
+	return result, nil
+}
+
+// ToManifestEvent converts EventDebugInfo to manifest.Event
+func (e *EventDebugInfo) ToManifestEvent() (manifest.Event, error) {
+	var (
+		result manifest.Event
+		err    error
+	)
+	parameters := make([]manifest.Parameter, len(e.Parameters))
+	for i, p := range e.Parameters {
+		parameters[i], err = p.ToManifestParameter()
+		if err != nil {
+			return result, err
+		}
+	}
+	result.Name = e.Name
+	result.Parameters = parameters
+	return result, nil
+}
+
 // MarshalJSON implements json.Marshaler interface.
 func (d *DebugMethodName) MarshalJSON() ([]byte, error) {
 	return []byte(`"` + d.Namespace + `,` + d.Name + `"`), nil
@@ -311,39 +367,43 @@ func parsePairJSON(data []byte, sep string) (string, string, error) {
 	return ss[0], ss[1], nil
 }
 
-func (di *DebugInfo) convertToABI(contract []byte, cd *smartcontract.ContractDetails) ABI {
-	methods := make([]Method, 0)
+// ConvertToManifest converts contract to the manifest.Manifest struct for debugger.
+// Note: manifest is taken from the external source, however it can be generated ad-hoc. See #1038.
+func (di *DebugInfo) ConvertToManifest(fs smartcontract.PropertyState, events []manifest.Event, supportedStandards ...string) (*manifest.Manifest, error) {
+	if di.MainPkg == "" {
+		return nil, errors.New("no Main method was found")
+	}
+	methods := make([]manifest.Method, 0)
 	for _, method := range di.Methods {
-		if method.Name.Name == di.EntryPoint {
-			methods = append(methods, Method{
-				Name:       method.Name.Name,
-				Parameters: method.Parameters,
-				ReturnType: cd.ReturnType.String(),
-			})
-			break
+		if method.IsExported && method.Name.Namespace == di.MainPkg {
+			mMethod, err := method.ToManifestMethod()
+			if err != nil {
+				return nil, err
+			}
+			methods = append(methods, mMethod)
 		}
 	}
-	events := make([]Event, len(di.Events))
-	for i, event := range di.Events {
-		events[i] = Event{
-			Name:       event.Name,
-			Parameters: event.Parameters,
-		}
+
+	result := manifest.NewManifest(di.Hash)
+	result.Features = fs
+	if supportedStandards != nil {
+		result.SupportedStandards = supportedStandards
 	}
-	return ABI{
-		Hash: hash.Hash160(contract),
-		Metadata: Metadata{
-			Author:               cd.Author,
-			Email:                cd.Email,
-			Version:              cd.Version,
-			Title:                cd.ProjectName,
-			Description:          cd.Description,
-			HasStorage:           cd.HasStorage,
-			HasDynamicInvocation: cd.HasDynamicInvocation,
-			IsPayable:            cd.IsPayable,
+	if events == nil {
+		events = make([]manifest.Event, 0)
+	}
+	result.ABI = manifest.ABI{
+		Hash:    di.Hash,
+		Methods: methods,
+		Events:  events,
+	}
+	result.Permissions = []manifest.Permission{
+		{
+			Contract: manifest.PermissionDesc{
+				Type: manifest.PermissionWildcard,
+			},
+			Methods: manifest.WildStrings{},
 		},
-		EntryPoint: di.EntryPoint,
-		Functions:  methods,
-		Events:     events,
 	}
+	return result, nil
 }

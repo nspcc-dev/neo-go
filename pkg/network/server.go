@@ -10,11 +10,13 @@ import (
 	"sync"
 	"time"
 
+	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/consensus"
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
+	"github.com/nspcc-dev/neo-go/pkg/network/capability"
 	"github.com/nspcc-dev/neo-go/pkg/network/payload"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"go.uber.org/atomic"
@@ -51,6 +53,9 @@ type (
 
 		// id also known as the nonce of the server.
 		id uint32
+
+		// Network's magic number for correct message decoding.
+		network netmode.Magic
 
 		transport Transporter
 		discovery Discoverer
@@ -94,6 +99,7 @@ func NewServer(config ServerConfig, chain blockchainer.Blockchainer, log *zap.Lo
 		ServerConfig:     config,
 		chain:            chain,
 		id:               randomID(),
+		network:          chain.GetConfig().Magic,
 		quit:             make(chan struct{}),
 		register:         make(chan Peer),
 		unregister:       make(chan peerDrop),
@@ -103,21 +109,17 @@ func NewServer(config ServerConfig, chain blockchainer.Blockchainer, log *zap.Lo
 		transactions:     make(chan *transaction.Transaction, 64),
 	}
 	s.bQueue = newBlockQueue(maxBlockBatch, chain, log, func(b *block.Block) {
-		if s.consensusStarted.Load() {
-			s.consensus.OnNewBlock()
-		} else {
+		if !s.consensusStarted.Load() {
 			s.tryStartConsensus()
 		}
-		s.relayBlock(b)
 	})
 
 	srv, err := consensus.NewService(consensus.Config{
-		Logger:     log,
-		Broadcast:  s.handleNewPayload,
-		RelayBlock: s.relayBlock,
-		Chain:      chain,
-		RequestTx:  s.requestTx,
-		Wallet:     config.Wallet,
+		Logger:    log,
+		Broadcast: s.handleNewPayload,
+		Chain:     chain,
+		RequestTx: s.requestTx,
+		Wallet:    config.Wallet,
 
 		TimePerBlock: config.TimePerBlock,
 	})
@@ -148,7 +150,7 @@ func NewServer(config ServerConfig, chain blockchainer.Blockchainer, log *zap.Lo
 		s.AttemptConnPeers = defaultAttemptConnPeers
 	}
 
-	s.transport = NewTCPTransport(s, fmt.Sprintf("%s:%d", config.Address, config.Port), s.log)
+	s.transport = NewTCPTransport(s, net.JoinHostPort(config.Address, strconv.Itoa(int(config.Port))), s.log)
 	s.discovery = NewDefaultDiscovery(
 		s.DialTimeout,
 		s.transport,
@@ -173,6 +175,7 @@ func (s *Server) Start(errChan chan error) {
 	s.discovery.BackFill(s.Seeds...)
 
 	go s.broadcastTxLoop()
+	go s.relayBlocksLoop()
 	go s.bQueue.run()
 	go s.transport.Accept()
 	setServerAndNodeVersions(s.UserAgent, strconv.FormatUint(uint64(s.id), 10))
@@ -184,7 +187,7 @@ func (s *Server) Shutdown() {
 	s.log.Info("shutting down server", zap.Int("peers", s.PeerCount()))
 	s.transport.Close()
 	s.discovery.Close()
-	for p := range s.peers {
+	for p := range s.Peers() {
 		p.Disconnect(errServerShutdown)
 	}
 	s.bQueue.discard()
@@ -346,16 +349,35 @@ func (s *Server) HandshakedPeersCount() int {
 }
 
 // getVersionMsg returns current version message.
-func (s *Server) getVersionMsg() *Message {
+func (s *Server) getVersionMsg() (*Message, error) {
+	port, err := s.Port()
+	if err != nil {
+		return nil, err
+	}
+
+	capabilities := []capability.Capability{
+		{
+			Type: capability.TCPServer,
+			Data: &capability.Server{
+				Port: port,
+			},
+		},
+	}
+	if s.Relay {
+		capabilities = append(capabilities, capability.Capability{
+			Type: capability.FullNode,
+			Data: &capability.Node{
+				StartHeight: s.chain.BlockHeight(),
+			},
+		})
+	}
 	payload := payload.NewVersion(
 		s.Net,
 		s.id,
-		s.Port,
 		s.UserAgent,
-		s.chain.BlockHeight(),
-		s.Relay,
+		capabilities,
 	)
-	return NewMessage(CMDVersion, payload)
+	return NewMessage(CMDVersion, payload), nil
 }
 
 // IsInSync answers the question of whether the server is in sync with the
@@ -424,23 +446,6 @@ func (s *Server) handleVersionCmd(p Peer, version *payload.Version) error {
 	return p.SendVersionAck(NewMessage(CMDVerack, nil))
 }
 
-// handleHeadersCmd processes the headers received from its peer.
-// If the headerHeight of the blockchain still smaller then the peer
-// the server will request more headers.
-// This method could best be called in a separate routine.
-func (s *Server) handleHeadersCmd(p Peer, headers *payload.Headers) {
-	if err := s.chain.AddHeaders(headers.Hdrs...); err != nil {
-		s.log.Warn("failed processing headers", zap.Error(err))
-		return
-	}
-	// The peer will respond with a maximum of 2000 headers in one batch.
-	// We will ask one more batch here if needed. Eventually we will get synced
-	// due to the startProtocol routine that will ask headers every protoTick.
-	if s.chain.HeaderHeight() < p.LastBlockIndex() {
-		s.requestHeaders(p)
-	}
-}
-
 // handleBlockCmd processes the received block received from its peer.
 func (s *Server) handleBlockCmd(p Peer, block *block.Block) error {
 	return s.bQueue.putBlock(block)
@@ -448,6 +453,16 @@ func (s *Server) handleBlockCmd(p Peer, block *block.Block) error {
 
 // handlePing processes ping request.
 func (s *Server) handlePing(p Peer, ping *payload.Ping) error {
+	err := p.HandlePing(ping)
+	if err != nil {
+		return err
+	}
+	if s.chain.BlockHeight() < ping.LastBlockIndex {
+		err = s.requestBlocks(p)
+		if err != nil {
+			return err
+		}
+	}
 	return p.EnqueueP2PMessage(NewMessage(CMDPong, payload.NewPing(s.chain.BlockHeight(), s.id)))
 }
 
@@ -457,8 +472,8 @@ func (s *Server) handlePong(p Peer, pong *payload.Ping) error {
 	if err != nil {
 		return err
 	}
-	if s.chain.HeaderHeight() < pong.LastBlockIndex {
-		return s.requestHeaders(p)
+	if s.chain.BlockHeight() < pong.LastBlockIndex {
+		return s.requestBlocks(p)
 	}
 	return nil
 }
@@ -495,8 +510,28 @@ func (s *Server) handleInvCmd(p Peer, inv *payload.Inventory) error {
 	return nil
 }
 
+// handleMempoolCmd handles getmempool command.
+func (s *Server) handleMempoolCmd(p Peer) error {
+	txs := s.chain.GetMemPool().GetVerifiedTransactions()
+	hs := make([]util.Uint256, 0, payload.MaxHashesCount)
+	for i := range txs {
+		hs = append(hs, txs[i].Hash())
+		if len(hs) < payload.MaxHashesCount && i != len(txs)-1 {
+			continue
+		}
+		msg := NewMessage(CMDInv, payload.NewInventory(payload.TXType, hs))
+		err := p.EnqueueP2PMessage(msg)
+		if err != nil {
+			return err
+		}
+		hs = hs[:0]
+	}
+	return nil
+}
+
 // handleInvCmd processes the received inventory.
 func (s *Server) handleGetDataCmd(p Peer, inv *payload.Inventory) error {
+	var notFound []util.Uint256
 	for _, hash := range inv.Hashes {
 		var msg *Message
 
@@ -505,11 +540,15 @@ func (s *Server) handleGetDataCmd(p Peer, inv *payload.Inventory) error {
 			tx, _, err := s.chain.GetTransaction(hash)
 			if err == nil {
 				msg = NewMessage(CMDTX, tx)
+			} else {
+				notFound = append(notFound, hash)
 			}
 		case payload.BlockType:
 			b, err := s.chain.GetBlock(hash)
 			if err == nil {
 				msg = NewMessage(CMDBlock, b)
+			} else {
+				notFound = append(notFound, hash)
 			}
 		case payload.ConsensusType:
 			if cp := s.consensus.GetPayload(hash); cp != nil {
@@ -530,26 +569,26 @@ func (s *Server) handleGetDataCmd(p Peer, inv *payload.Inventory) error {
 			}
 		}
 	}
+	if len(notFound) != 0 {
+		return p.EnqueueP2PMessage(NewMessage(CMDNotFound, payload.NewInventory(inv.Type, notFound)))
+	}
 	return nil
 }
 
 // handleGetBlocksCmd processes the getblocks request.
 func (s *Server) handleGetBlocksCmd(p Peer, gb *payload.GetBlocks) error {
-	if len(gb.HashStart) < 1 {
-		return errInvalidHashStart
+	count := gb.Count
+	if gb.Count < 0 || gb.Count > payload.MaxHashesCount {
+		count = payload.MaxHashesCount
 	}
-	startHash := gb.HashStart[0]
-	if startHash.Equals(gb.HashStop) {
-		return nil
-	}
-	start, err := s.chain.GetHeader(startHash)
+	start, err := s.chain.GetHeader(gb.HashStart)
 	if err != nil {
 		return err
 	}
 	blockHashes := make([]util.Uint256, 0)
-	for i := start.Index + 1; i < start.Index+1+payload.MaxHashesCount; i++ {
+	for i := start.Index + 1; i < start.Index+uint32(count); i++ {
 		hash := s.chain.GetHeaderHash(int(i))
-		if hash.Equals(util.Uint256{}) || hash.Equals(gb.HashStop) {
+		if hash.Equals(util.Uint256{}) {
 			break
 		}
 		blockHashes = append(blockHashes, hash)
@@ -563,21 +602,43 @@ func (s *Server) handleGetBlocksCmd(p Peer, gb *payload.GetBlocks) error {
 	return p.EnqueueP2PMessage(msg)
 }
 
-// handleGetHeadersCmd processes the getheaders request.
-func (s *Server) handleGetHeadersCmd(p Peer, gh *payload.GetBlocks) error {
-	if len(gh.HashStart) < 1 {
-		return errInvalidHashStart
+// handleGetBlockByIndexCmd processes the getblockbyindex request.
+func (s *Server) handleGetBlockByIndexCmd(p Peer, gbd *payload.GetBlockByIndex) error {
+	count := gbd.Count
+	if gbd.Count < 0 || gbd.Count > payload.MaxHashesCount {
+		count = payload.MaxHashesCount
 	}
-	startHash := gh.HashStart[0]
-	start, err := s.chain.GetHeader(startHash)
-	if err != nil {
-		return err
+	for i := gbd.IndexStart; i < gbd.IndexStart+uint32(count); i++ {
+		hash := s.chain.GetHeaderHash(int(i))
+		if hash.Equals(util.Uint256{}) {
+			break
+		}
+		b, err := s.chain.GetBlock(hash)
+		if err != nil {
+			break
+		}
+		msg := NewMessage(CMDBlock, b)
+		if err = p.EnqueueP2PMessage(msg); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// handleGetHeadersCmd processes the getheaders request.
+func (s *Server) handleGetHeadersCmd(p Peer, gh *payload.GetBlockByIndex) error {
+	if gh.IndexStart > s.chain.HeaderHeight() {
+		return nil
+	}
+	count := gh.Count
+	if gh.Count < 0 || gh.Count > payload.MaxHeadersAllowed {
+		count = payload.MaxHeadersAllowed
 	}
 	resp := payload.Headers{}
-	resp.Hdrs = make([]*block.Header, 0, payload.MaxHeadersAllowed)
-	for i := start.Index + 1; i < start.Index+1+payload.MaxHeadersAllowed; i++ {
+	resp.Hdrs = make([]*block.Header, 0, count)
+	for i := gh.IndexStart; i < gh.IndexStart+uint32(count); i++ {
 		hash := s.chain.GetHeaderHash(int(i))
-		if hash.Equals(util.Uint256{}) || hash.Equals(gh.HashStop) {
+		if hash.Equals(util.Uint256{}) {
 			break
 		}
 		header, err := s.chain.GetHeader(hash)
@@ -615,7 +676,10 @@ func (s *Server) handleTxCmd(tx *transaction.Transaction) error {
 // handleAddrCmd will process received addresses.
 func (s *Server) handleAddrCmd(p Peer, addrs *payload.AddressList) error {
 	for _, a := range addrs.Addrs {
-		s.discovery.BackFill(a.IPPortString())
+		addr, err := a.GetTCPAddress()
+		if err == nil {
+			s.discovery.BackFill(addr)
+		}
 	}
 	return nil
 }
@@ -630,41 +694,18 @@ func (s *Server) handleGetAddrCmd(p Peer) error {
 	ts := time.Now()
 	for i, addr := range addrs {
 		// we know it's a good address, so it can't fail
-		netaddr, _ := net.ResolveTCPAddr("tcp", addr)
-		alist.Addrs[i] = payload.NewAddressAndTime(netaddr, ts)
+		netaddr, _ := net.ResolveTCPAddr("tcp", addr.Address)
+		alist.Addrs[i] = payload.NewAddressAndTime(netaddr, ts, addr.Capabilities)
 	}
 	return p.EnqueueP2PMessage(NewMessage(CMDAddr, alist))
 }
 
-// requestHeaders sends a getheaders message to the peer.
-// The peer will respond with headers op to a count of 2000.
-func (s *Server) requestHeaders(p Peer) error {
-	start := []util.Uint256{s.chain.CurrentHeaderHash()}
-	payload := payload.NewGetBlocks(start, util.Uint256{})
-	return p.EnqueueP2PMessage(NewMessage(CMDGetHeaders, payload))
-}
-
-// requestBlocks sends a getdata message to the peer
+// requestBlocks sends a CMDGetBlockByIndex message to the peer
 // to sync up in blocks. A maximum of maxBlockBatch will
 // send at once.
 func (s *Server) requestBlocks(p Peer) error {
-	var (
-		hashes       []util.Uint256
-		hashStart    = s.chain.BlockHeight() + 1
-		headerHeight = s.chain.HeaderHeight()
-	)
-	for hashStart <= headerHeight && len(hashes) < maxBlockBatch {
-		hash := s.chain.GetHeaderHash(int(hashStart))
-		hashes = append(hashes, hash)
-		hashStart++
-	}
-	if len(hashes) > 0 {
-		payload := payload.NewInventory(payload.BlockType, hashes)
-		return p.EnqueueP2PMessage(NewMessage(CMDGetData, payload))
-	} else if s.chain.HeaderHeight() < p.LastBlockIndex() {
-		return s.requestHeaders(p)
-	}
-	return nil
+	payload := payload.NewGetBlockByIndex(s.chain.BlockHeight()+1, -1)
+	return p.EnqueueP2PMessage(NewMessage(CMDGetBlockByIndex, payload))
 }
 
 // handleMessage processes the given message.
@@ -689,18 +730,21 @@ func (s *Server) handleMessage(peer Peer, msg *Message) error {
 		case CMDGetBlocks:
 			gb := msg.Payload.(*payload.GetBlocks)
 			return s.handleGetBlocksCmd(peer, gb)
+		case CMDGetBlockByIndex:
+			gbd := msg.Payload.(*payload.GetBlockByIndex)
+			return s.handleGetBlockByIndexCmd(peer, gbd)
 		case CMDGetData:
 			inv := msg.Payload.(*payload.Inventory)
 			return s.handleGetDataCmd(peer, inv)
 		case CMDGetHeaders:
-			gh := msg.Payload.(*payload.GetBlocks)
+			gh := msg.Payload.(*payload.GetBlockByIndex)
 			return s.handleGetHeadersCmd(peer, gh)
-		case CMDHeaders:
-			headers := msg.Payload.(*payload.Headers)
-			go s.handleHeadersCmd(peer, headers)
 		case CMDInv:
 			inventory := msg.Payload.(*payload.Inventory)
 			return s.handleInvCmd(peer, inventory)
+		case CMDMempool:
+			// no payload
+			return s.handleMempoolCmd(peer)
 		case CMDBlock:
 			block := msg.Payload.(*block.Block)
 			return s.handleBlockCmd(peer, block)
@@ -785,25 +829,36 @@ func (s *Server) broadcastHPMessage(msg *Message) {
 	s.iteratePeersWithSendMsg(msg, Peer.EnqueueHPPacket, nil)
 }
 
-// relayBlock tells all the other connected nodes about the given block.
-func (s *Server) relayBlock(b *block.Block) {
-	msg := NewMessage(CMDInv, payload.NewInventory(payload.BlockType, []util.Uint256{b.Hash()}))
-	// Filter out nodes that are more current (avoid spamming the network
-	// during initial sync).
-	s.iteratePeersWithSendMsg(msg, Peer.EnqueuePacket, func(p Peer) bool {
-		return p.Handshaked() && p.LastBlockIndex() < b.Index
-	})
+// relayBlocksLoop subscribes to new blocks in the ledger and broadcasts them
+// to the network. Intended to be run as a separate goroutine.
+func (s *Server) relayBlocksLoop() {
+	ch := make(chan *block.Block, 2) // Some buffering to smooth out possible egressing delays.
+	s.chain.SubscribeForBlocks(ch)
+	for {
+		select {
+		case <-s.quit:
+			s.chain.UnsubscribeFromBlocks(ch)
+			return
+		case b := <-ch:
+			msg := NewMessage(CMDInv, payload.NewInventory(payload.BlockType, []util.Uint256{b.Hash()}))
+			// Filter out nodes that are more current (avoid spamming the network
+			// during initial sync).
+			s.iteratePeersWithSendMsg(msg, Peer.EnqueuePacket, func(p Peer) bool {
+				return p.Handshaked() && p.LastBlockIndex() < b.Index
+			})
+		}
+	}
 }
 
 // verifyAndPoolTX verifies the TX and adds it to the local mempool.
 func (s *Server) verifyAndPoolTX(t *transaction.Transaction) RelayReason {
 	if err := s.chain.PoolTx(t); err != nil {
-		switch err {
-		case core.ErrAlreadyExists:
+		switch {
+		case errors.Is(err, core.ErrAlreadyExists):
 			return RelayAlreadyExists
-		case core.ErrOOM:
+		case errors.Is(err, core.ErrOOM):
 			return RelayOutOfMemory
-		case core.ErrPolicy:
+		case errors.Is(err, core.ErrPolicy):
 			return RelayPolicyFail
 		default:
 			return RelayInvalid
@@ -835,9 +890,7 @@ func (s *Server) broadcastTxHashes(hs []util.Uint256) {
 
 	// We need to filter out non-relaying nodes, so plain broadcast
 	// functions don't fit here.
-	s.iteratePeersWithSendMsg(msg, Peer.EnqueuePacket, func(p Peer) bool {
-		return p.Handshaked() && p.Version().Relay
-	})
+	s.iteratePeersWithSendMsg(msg, Peer.EnqueuePacket, Peer.IsFullNode)
 }
 
 // broadcastTxLoop is a loop for batching and sending
@@ -893,4 +946,20 @@ func (s *Server) broadcastTxLoop() {
 			}
 		}
 	}
+}
+
+// Port returns actual server port. It may differs from that of server.Config.
+func (s *Server) Port() (uint16, error) {
+	var port uint16
+	_, portStr, err := net.SplitHostPort(s.transport.Address())
+	if err != nil {
+		port = s.ServerConfig.Port
+	} else {
+		p, err := strconv.ParseUint(portStr, 10, 16)
+		if err != nil {
+			return 0, err
+		}
+		port = uint16(p)
+	}
+	return port, nil
 }

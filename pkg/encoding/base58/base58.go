@@ -2,10 +2,10 @@ package base58
 
 import (
 	"bytes"
+	"errors"
 
 	"github.com/mr-tron/base58"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
-	"github.com/pkg/errors"
 )
 
 // CheckDecode implements a base58-encoded string decoding with hash-based

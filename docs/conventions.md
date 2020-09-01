@@ -15,3 +15,24 @@ func example(test int) (num int) {
 }
 
 In the above function we have used a named return paramter, which allows you to include a simple return statement without the variables you are returning. This practice can cause confusion when functions become large or the logic becomes complex, so these should be avoided.
+
+## Use error wrapping
+
+Bad:
+```
+err = SomeAPI()
+if err != nil {
+    return fmt.Errorf("something bad happened: %v", err)
+}
+```
+
+Good:
+```
+err = SomeAPI()
+if err != nil {
+    return fmt.Errorf("something bad happened: %w", err)
+}
+```
+
+Error wrapping allows `errors.Is` and `errors.As` usage in upper layer
+functions which might be useful.

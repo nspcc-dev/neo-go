@@ -1,7 +1,6 @@
 package nep5
 
 import (
-	"github.com/nspcc-dev/neo-go/pkg/interop/engine"
 	"github.com/nspcc-dev/neo-go/pkg/interop/runtime"
 	"github.com/nspcc-dev/neo-go/pkg/interop/storage"
 	"github.com/nspcc-dev/neo-go/pkg/interop/util"
@@ -23,14 +22,25 @@ type Token struct {
 	CirculationKey string
 }
 
+// getIntFromDB is a helper that checks for nil result of storage.Get and returns
+// zero as the default value.
+func getIntFromDB(ctx storage.Context, key []byte) int {
+	var res int
+	val := storage.Get(ctx, key)
+	if val != nil {
+		res = val.(int)
+	}
+	return res
+}
+
 // GetSupply gets the token totalSupply value from VM storage
-func (t Token) GetSupply(ctx storage.Context) interface{} {
-	return storage.Get(ctx, t.CirculationKey)
+func (t Token) GetSupply(ctx storage.Context) int {
+	return getIntFromDB(ctx, []byte(t.CirculationKey))
 }
 
 // BalanceOf gets the token balance of a specific address
-func (t Token) BalanceOf(ctx storage.Context, hodler []byte) interface{} {
-	return storage.Get(ctx, hodler)
+func (t Token) BalanceOf(ctx storage.Context, holder []byte) int {
+	return getIntFromDB(ctx, holder)
 }
 
 // Transfer token from one user to another
@@ -49,7 +59,7 @@ func (t Token) Transfer(ctx storage.Context, from []byte, to []byte, amount int)
 		storage.Put(ctx, from, diff)
 	}
 
-	amountTo := storage.Get(ctx, to).(int)
+	amountTo := getIntFromDB(ctx, to)
 	totalAmountTo := amountTo + amount
 	storage.Put(ctx, to, totalAmountTo)
 	runtime.Notify("transfer", from, to, amount)
@@ -62,7 +72,7 @@ func (t Token) CanTransfer(ctx storage.Context, from []byte, to []byte, amount i
 		return -1
 	}
 
-	amountFrom := storage.Get(ctx, from).(int)
+	amountFrom := getIntFromDB(ctx, from)
 	if amountFrom < amount {
 		return -1
 	}
@@ -85,7 +95,7 @@ func IsUsableAddress(addr []byte) bool {
 		}
 
 		// Check if a smart contract is calling scripthash
-		callingScriptHash := engine.GetCallingScriptHash()
+		callingScriptHash := runtime.GetCallingScriptHash()
 		if util.Equals(callingScriptHash, addr) {
 			return true
 		}
@@ -94,18 +104,19 @@ func IsUsableAddress(addr []byte) bool {
 	return false
 }
 
-// Mint initial supply of tokens.
+// Mint initial supply of tokens
 func (t Token) Mint(ctx storage.Context, to []byte) bool {
 	if !IsUsableAddress(t.Owner) {
 		return false
 	}
-	minted := storage.Get(ctx, []byte("minted")).(bool)
-	if minted {
+	minted := storage.Get(ctx, []byte("minted"))
+	if minted != nil && minted.(bool) == true {
 		return false
 	}
 
 	storage.Put(ctx, to, t.TotalSupply)
 	storage.Put(ctx, []byte("minted"), true)
+	storage.Put(ctx, []byte(t.CirculationKey), t.TotalSupply)
 	runtime.Notify("transfer", "", to, t.TotalSupply)
 	return true
 }

@@ -6,6 +6,8 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/internal/testserdes"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
+	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -16,30 +18,33 @@ func TestCodeGen_DebugInfo(t *testing.T) {
 func Main(op string) bool {
 	var s string
 	_ = s
-	res := methodInt(op)
-	_ = methodString()	
-	_ = methodByteArray()
-	_ = methodArray()
-	_ = methodStruct()
+	res := MethodInt(op)
+	_ = MethodString()
+	_ = MethodByteArray()
+	_ = MethodArray()
+	_ = MethodStruct()
+	_ = MethodConcat("a", "b", "c")
+	_ = unexportedMethod()
 	return res == 42
 }
 
-func methodInt(a string) int {
+func MethodInt(a string) int {
 	if a == "get42" {
 		return 42
 	}
 	return 3
 }
-func methodConcat(a, b string, c string) string{
+func MethodConcat(a, b string, c string) string{
 	return a + b + c
 }
-func methodString() string { return "" }
-func methodByteArray() []byte { return nil }
-func methodArray() []bool { return nil }
-func methodStruct() struct{} { return struct{}{} }
+func MethodString() string { return "" }
+func MethodByteArray() []byte { return nil }
+func MethodArray() []bool { return nil }
+func MethodStruct() struct{} { return struct{}{} }
+func unexportedMethod() int { return 1 }
 `
 
-	info, err := getBuildInfo(src)
+	info, err := getBuildInfo("foo.go", src)
 	require.NoError(t, err)
 
 	pkg := info.program.Package(info.initialPackage)
@@ -47,19 +52,24 @@ func methodStruct() struct{} { return struct{}{} }
 	require.NoError(t, c.compile(info, pkg))
 
 	buf := c.prog.Bytes()
-	d := c.emitDebugInfo()
+	d := c.emitDebugInfo(buf)
 	require.NotNil(t, d)
+
+	t.Run("hash", func(t *testing.T) {
+		require.True(t, hash.Hash160(buf).Equals(d.Hash))
+	})
 
 	t.Run("return types", func(t *testing.T) {
 		returnTypes := map[string]string{
-			"methodInt":    "Integer",
-			"methodConcat": "String",
-			"methodString": "String", "methodByteArray": "ByteArray",
-			"methodArray": "Array", "methodStruct": "Struct",
-			"Main": "Boolean",
+			"MethodInt":    "Integer",
+			"MethodConcat": "String",
+			"MethodString": "String", "MethodByteArray": "ByteString",
+			"MethodArray": "Array", "MethodStruct": "Struct",
+			"Main":             "Boolean",
+			"unexportedMethod": "Integer",
 		}
 		for i := range d.Methods {
-			name := d.Methods[i].Name.Name
+			name := d.Methods[i].ID
 			assert.Equal(t, returnTypes[name], d.Methods[i].ReturnType)
 		}
 	})
@@ -69,7 +79,7 @@ func methodStruct() struct{} { return struct{}{} }
 			"Main": {"s,String", "res,Integer"},
 		}
 		for i := range d.Methods {
-			v, ok := vars[d.Methods[i].Name.Name]
+			v, ok := vars[d.Methods[i].ID]
 			if ok {
 				require.Equal(t, v, d.Methods[i].Variables)
 			}
@@ -78,11 +88,11 @@ func methodStruct() struct{} { return struct{}{} }
 
 	t.Run("param types", func(t *testing.T) {
 		paramTypes := map[string][]DebugParam{
-			"methodInt": {{
+			"MethodInt": {{
 				Name: "a",
 				Type: "String",
 			}},
-			"methodConcat": {
+			"MethodConcat": {
 				{
 					Name: "a",
 					Type: "String",
@@ -102,7 +112,7 @@ func methodStruct() struct{} { return struct{}{} }
 			}},
 		}
 		for i := range d.Methods {
-			v, ok := paramTypes[d.Methods[i].Name.Name]
+			v, ok := paramTypes[d.Methods[i].ID]
 			if ok {
 				require.Equal(t, v, d.Methods[i].Parameters)
 			}
@@ -116,54 +126,106 @@ func methodStruct() struct{} { return struct{}{} }
 		require.EqualValues(t, opcode.RET, buf[index])
 	}
 
-	t.Run("convert to ABI", func(t *testing.T) {
-		author := "Joe"
-		email := "Joe@ex.com"
-		version := "1.0"
-		title := "MyProj"
-		description := "Description"
-		actual := d.convertToABI(buf, &smartcontract.ContractDetails{
-			Author:               author,
-			Email:                email,
-			Version:              version,
-			ProjectName:          title,
-			Description:          description,
-			HasStorage:           true,
-			HasDynamicInvocation: false,
-			IsPayable:            false,
-			ReturnType:           smartcontract.BoolType,
-			Parameters: []smartcontract.ParamType{
-				smartcontract.StringType,
-			},
-		})
-		expected := ABI{
-			Hash: hash.Hash160(buf),
-			Metadata: Metadata{
-				Author:               author,
-				Email:                email,
-				Version:              version,
-				Title:                title,
-				Description:          description,
-				HasStorage:           true,
-				HasDynamicInvocation: false,
-				IsPayable:            false,
-			},
-			EntryPoint: mainIdent,
-			Functions: []Method{
-				{
-					Name: mainIdent,
-					Parameters: []DebugParam{
-						{
-							Name: "op",
-							Type: "String",
+	t.Run("convert to Manifest", func(t *testing.T) {
+		actual, err := d.ConvertToManifest(smartcontract.HasStorage, nil)
+		require.NoError(t, err)
+		// note: offsets are hard to predict, so we just take them from the output
+		expected := &manifest.Manifest{
+			ABI: manifest.ABI{
+				Hash: hash.Hash160(buf),
+				Methods: []manifest.Method{
+					{
+						Name:   "main",
+						Offset: 0,
+						Parameters: []manifest.Parameter{
+							manifest.NewParameter("op", smartcontract.StringType),
 						},
+						ReturnType: smartcontract.BoolType,
 					},
-					ReturnType: "Boolean",
+					{
+						Name:   "methodInt",
+						Offset: 66,
+						Parameters: []manifest.Parameter{
+							{
+								Name: "a",
+								Type: smartcontract.StringType,
+							},
+						},
+						ReturnType: smartcontract.IntegerType,
+					},
+					{
+						Name:       "methodString",
+						Offset:     97,
+						Parameters: []manifest.Parameter{},
+						ReturnType: smartcontract.StringType,
+					},
+					{
+						Name:       "methodByteArray",
+						Offset:     103,
+						Parameters: []manifest.Parameter{},
+						ReturnType: smartcontract.ByteArrayType,
+					},
+					{
+						Name:       "methodArray",
+						Offset:     108,
+						Parameters: []manifest.Parameter{},
+						ReturnType: smartcontract.ArrayType,
+					},
+					{
+						Name:       "methodStruct",
+						Offset:     113,
+						Parameters: []manifest.Parameter{},
+						ReturnType: smartcontract.ArrayType,
+					},
+					{
+						Name:   "methodConcat",
+						Offset: 88,
+						Parameters: []manifest.Parameter{
+							{
+								Name: "a",
+								Type: smartcontract.StringType,
+							},
+							{
+								Name: "b",
+								Type: smartcontract.StringType,
+							},
+							{
+								Name: "c",
+								Type: smartcontract.StringType,
+							},
+						},
+						ReturnType: smartcontract.StringType,
+					},
+				},
+				Events: []manifest.Event{},
+			},
+			Groups:   []manifest.Group{},
+			Features: smartcontract.HasStorage,
+			Permissions: []manifest.Permission{
+				{
+					Contract: manifest.PermissionDesc{
+						Type: manifest.PermissionWildcard,
+					},
+					Methods: manifest.WildStrings{},
 				},
 			},
-			Events: []Event{},
+			Trusts: manifest.WildUint160s{
+				Value: []util.Uint160{},
+			},
+			SafeMethods: manifest.WildStrings{
+				Value: []string{},
+			},
+			Extra: nil,
 		}
-		assert.Equal(t, expected, actual)
+		require.True(t, expected.ABI.Hash.Equals(actual.ABI.Hash))
+		require.ElementsMatch(t, expected.ABI.Methods, actual.ABI.Methods)
+		require.Equal(t, expected.ABI.Events, actual.ABI.Events)
+		require.Equal(t, expected.Groups, actual.Groups)
+		require.Equal(t, expected.Features, actual.Features)
+		require.Equal(t, expected.Permissions, actual.Permissions)
+		require.Equal(t, expected.Trusts, actual.Trusts)
+		require.Equal(t, expected.SafeMethods, actual.SafeMethods)
+		require.Equal(t, expected.Extra, actual.Extra)
 	})
 }
 
@@ -176,15 +238,18 @@ func TestSequencePoints(t *testing.T) {
 		return false
 	}`
 
-	info, err := getBuildInfo(src)
+	info, err := getBuildInfo("foo.go", src)
 	require.NoError(t, err)
 
 	pkg := info.program.Package(info.initialPackage)
 	c := newCodegen(info, pkg)
 	require.NoError(t, c.compile(info, pkg))
 
-	d := c.emitDebugInfo()
+	buf := c.prog.Bytes()
+	d := c.emitDebugInfo(buf)
 	require.NotNil(t, d)
+
+	require.Equal(t, d.Documents, []string{"foo.go"})
 
 	// Main func has 2 return on 4-th and 6-th lines.
 	ps := d.Methods[0].SeqPoints
@@ -195,8 +260,8 @@ func TestSequencePoints(t *testing.T) {
 
 func TestDebugInfo_MarshalJSON(t *testing.T) {
 	d := &DebugInfo{
-		EntryPoint: "main",
-		Documents:  []string{"/path/to/file"},
+		Hash:      util.Uint160{10, 11, 12, 13},
+		Documents: []string{"/path/to/file"},
 		Methods: []MethodDebugInfo{
 			{
 				ID: "id1",
@@ -209,7 +274,7 @@ func TestDebugInfo_MarshalJSON(t *testing.T) {
 					{"param1", "Integer"},
 					{"ok", "Boolean"},
 				},
-				ReturnType: "ByteArray",
+				ReturnType: "ByteString",
 				Variables:  []string{},
 				SeqPoints: []DebugSeqPoint{
 					{

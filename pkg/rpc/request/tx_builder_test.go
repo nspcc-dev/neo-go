@@ -4,8 +4,10 @@ import (
 	"encoding/hex"
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -30,8 +32,8 @@ func TestInvocationScriptCreationGood(t *testing.T) {
 		ps:     Params{{Type: StringT, Value: "a"}, {Type: ArrayT, Value: []Param{}}},
 		script: "10c00c01610c146f459162ceeb248b071ec157d9e4f6fd26fdbe5041627d5b52",
 	}, {
-		ps:     Params{{Type: StringT, Value: "a"}, {Type: ArrayT, Value: []Param{{Type: FuncParamT, Value: FuncParam{Type: smartcontract.ByteArrayType, Value: Param{Type: StringT, Value: "50befd26fdf6e4d957c11e078b24ebce6291456f"}}}}}},
-		script: "0c1450befd26fdf6e4d957c11e078b24ebce6291456f11c00c01610c146f459162ceeb248b071ec157d9e4f6fd26fdbe5041627d5b52",
+		ps:     Params{{Type: StringT, Value: "a"}, {Type: ArrayT, Value: []Param{{Type: FuncParamT, Value: FuncParam{Type: smartcontract.ByteArrayType, Value: Param{Type: StringT, Value: "AwEtR+diEK7HO+Oas9GG4KQP6Nhr+j1Pq/2le6E7iPlq"}}}}}},
+		script: "0c2103012d47e76210aec73be39ab3d186e0a40fe8d86bfa3d4fabfda57ba13b88f96a11c00c01610c146f459162ceeb248b071ec157d9e4f6fd26fdbe5041627d5b52",
 	}, {
 		ps:     Params{{Type: StringT, Value: "a"}, {Type: ArrayT, Value: []Param{{Type: FuncParamT, Value: FuncParam{Type: smartcontract.SignatureType, Value: Param{Type: StringT, Value: "4edf5005771de04619235d5a4c7a9a11bb78e008541f1da7725f654c33380a3c87e2959a025da706d7255cb3a3fa07ebe9c6559d0d9e6213c68049168eb1056f"}}}}}},
 		script: "0c404edf5005771de04619235d5a4c7a9a11bb78e008541f1da7725f654c33380a3c87e2959a025da706d7255cb3a3fa07ebe9c6559d0d9e6213c68049168eb1056f11c00c01610c146f459162ceeb248b071ec157d9e4f6fd26fdbe5041627d5b52",
@@ -86,5 +88,40 @@ func TestInvocationScriptCreationBad(t *testing.T) {
 	for _, ps := range testParams {
 		_, err := CreateFunctionInvocationScript(contract, ps)
 		assert.NotNil(t, err)
+	}
+}
+
+func TestExpandArrayIntoScript(t *testing.T) {
+	testCases := []struct {
+		Input    []Param
+		Expected []byte
+	}{
+		{
+			Input:    []Param{{Type: FuncParamT, Value: FuncParam{Type: smartcontract.StringType, Value: Param{Value: "a"}}}},
+			Expected: []byte{byte(opcode.PUSHDATA1), 1, byte('a')},
+		},
+		{
+			Input:    []Param{{Type: FuncParamT, Value: FuncParam{Type: smartcontract.ArrayType, Value: Param{Value: []Param{{Type: FuncParamT, Value: FuncParam{Type: smartcontract.StringType, Value: Param{Value: "a"}}}}}}}},
+			Expected: []byte{byte(opcode.PUSHDATA1), 1, byte('a'), byte(opcode.PUSH1), byte(opcode.PACK)},
+		},
+	}
+	for _, c := range testCases {
+		script := io.NewBufBinWriter()
+		err := expandArrayIntoScript(script.BinWriter, c.Input)
+		require.NoError(t, err)
+		require.Equal(t, c.Expected, script.Bytes())
+	}
+	errorCases := [][]Param{
+		{
+			{Type: FuncParamT, Value: FuncParam{Type: smartcontract.ArrayType, Value: Param{Value: "a"}}},
+		},
+		{
+			{Type: FuncParamT, Value: FuncParam{Type: smartcontract.ArrayType, Value: Param{Value: []Param{{Type: FuncParamT, Value: nil}}}}},
+		},
+	}
+	for _, c := range errorCases {
+		script := io.NewBufBinWriter()
+		err := expandArrayIntoScript(script.BinWriter, c)
+		require.Error(t, err)
 	}
 }

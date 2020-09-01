@@ -1,11 +1,12 @@
 package state
 
 import (
+	"crypto/elliptic"
 	"math/big"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/io"
-	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
 // NEP5BalanceState represents balance state of a NEP5-token.
@@ -17,7 +18,7 @@ type NEP5BalanceState struct {
 type NEOBalanceState struct {
 	NEP5BalanceState
 	BalanceHeight uint32
-	Votes         keys.PublicKeys
+	VoteTo        *keys.PublicKey
 }
 
 // NEP5BalanceStateFromBytes converts serialized NEP5BalanceState to structure.
@@ -44,18 +45,27 @@ func (s *NEP5BalanceState) Bytes() []byte {
 	return w.Bytes()
 }
 
+func (s *NEP5BalanceState) toStackItem() stackitem.Item {
+	return stackitem.NewStruct([]stackitem.Item{stackitem.NewBigInteger(&s.Balance)})
+}
+
+func (s *NEP5BalanceState) fromStackItem(item stackitem.Item) {
+	s.Balance = *item.(*stackitem.Struct).Value().([]stackitem.Item)[0].Value().(*big.Int)
+}
+
 // EncodeBinary implements io.Serializable interface.
 func (s *NEP5BalanceState) EncodeBinary(w *io.BinWriter) {
-	w.WriteVarBytes(emit.IntToBytes(&s.Balance))
+	si := s.toStackItem()
+	stackitem.EncodeBinaryStackItem(si, w)
 }
 
 // DecodeBinary implements io.Serializable interface.
 func (s *NEP5BalanceState) DecodeBinary(r *io.BinReader) {
-	buf := r.ReadVarBytes()
+	si := stackitem.DecodeBinaryStackItem(r)
 	if r.Err != nil {
 		return
 	}
-	s.Balance = *emit.BytesToInt(buf)
+	s.fromStackItem(si)
 }
 
 // NEOBalanceStateFromBytes converts serialized NEOBalanceState to structure.
@@ -85,14 +95,46 @@ func (s *NEOBalanceState) Bytes() []byte {
 
 // EncodeBinary implements io.Serializable interface.
 func (s *NEOBalanceState) EncodeBinary(w *io.BinWriter) {
-	s.NEP5BalanceState.EncodeBinary(w)
-	w.WriteU32LE(s.BalanceHeight)
-	w.WriteArray(s.Votes)
+	si := s.toStackItem()
+	stackitem.EncodeBinaryStackItem(si, w)
 }
 
 // DecodeBinary implements io.Serializable interface.
 func (s *NEOBalanceState) DecodeBinary(r *io.BinReader) {
-	s.NEP5BalanceState.DecodeBinary(r)
-	s.BalanceHeight = r.ReadU32LE()
-	r.ReadArray(&s.Votes)
+	si := stackitem.DecodeBinaryStackItem(r)
+	if r.Err != nil {
+		return
+	}
+	r.Err = s.fromStackItem(si)
+}
+
+func (s *NEOBalanceState) toStackItem() stackitem.Item {
+	result := s.NEP5BalanceState.toStackItem().(*stackitem.Struct)
+	result.Append(stackitem.NewBigInteger(big.NewInt(int64(s.BalanceHeight))))
+	if s.VoteTo != nil {
+		result.Append(stackitem.NewByteArray(s.VoteTo.Bytes()))
+	} else {
+		result.Append(stackitem.Null{})
+	}
+	return result
+}
+
+func (s *NEOBalanceState) fromStackItem(item stackitem.Item) error {
+	structItem := item.Value().([]stackitem.Item)
+	s.Balance = *structItem[0].Value().(*big.Int)
+	s.BalanceHeight = uint32(structItem[1].Value().(*big.Int).Int64())
+	if _, ok := structItem[2].(stackitem.Null); ok {
+		s.VoteTo = nil
+		return nil
+	}
+	bs, err := structItem[2].TryBytes()
+	if err != nil {
+		return err
+	}
+	pub, err := keys.NewPublicKeyFromBytes(bs, elliptic.P256())
+	if err != nil {
+		return err
+	}
+	s.VoteTo = pub
+	return nil
 }

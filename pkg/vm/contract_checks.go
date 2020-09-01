@@ -3,13 +3,15 @@ package vm
 import (
 	"encoding/binary"
 
-	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
+	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
+	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
 var (
-	verifyInteropID   = emit.InteropNameToID([]byte("Neo.Crypto.ECDsaVerify"))
-	multisigInteropID = emit.InteropNameToID([]byte("Neo.Crypto.ECDsaCheckMultiSig"))
+	verifyInteropID   = interopnames.ToID([]byte(interopnames.NeoCryptoVerifyWithECDsaSecp256r1))
+	multisigInteropID = interopnames.ToID([]byte(interopnames.NeoCryptoCheckMultisigWithECDsaSecp256r1))
 )
 
 func getNumOfThingsFromInstr(instr opcode.Opcode, param []byte) (int, bool) {
@@ -19,15 +21,15 @@ func getNumOfThingsFromInstr(instr opcode.Opcode, param []byte) (int, bool) {
 	case opcode.PUSH1 <= instr && instr <= opcode.PUSH16:
 		nthings = int(instr-opcode.PUSH1) + 1
 	case instr <= opcode.PUSHINT256:
-		n := emit.BytesToInt(param)
-		if !n.IsInt64() || n.Int64() > MaxArraySize {
+		n := bigint.FromBytes(param)
+		if !n.IsInt64() || n.Int64() > stackitem.MaxArraySize {
 			return 0, false
 		}
 		nthings = int(n.Int64())
 	default:
 		return 0, false
 	}
-	if nthings < 1 || nthings > MaxArraySize {
+	if nthings < 1 || nthings > stackitem.MaxArraySize {
 		return 0, false
 	}
 	return nthings, true
@@ -68,7 +70,7 @@ func ParseMultiSigContract(script []byte) (int, [][]byte, bool) {
 		}
 		pubs = append(pubs, param)
 		nkeys++
-		if nkeys > MaxArraySize {
+		if nkeys > stackitem.MaxArraySize {
 			return nsigs, nil, false
 		}
 	}

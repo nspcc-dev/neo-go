@@ -2,16 +2,19 @@ package native
 
 import (
 	"errors"
+	"fmt"
 	"math/big"
 
+	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/runtime"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
+	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/nspcc-dev/neo-go/pkg/vm"
-	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
 // prefixAccount is the standard prefix used to store account data.
@@ -28,7 +31,6 @@ func makeAccountKey(h util.Uint160) []byte {
 // nep5TokenNative represents NEP-5 token contract.
 type nep5TokenNative struct {
 	interop.ContractMD
-	name       string
 	symbol     string
 	decimals   int64
 	factor     int64
@@ -47,26 +49,27 @@ var _ interop.Contract = (*nep5TokenNative)(nil)
 
 func newNEP5Native(name string) *nep5TokenNative {
 	n := &nep5TokenNative{ContractMD: *interop.NewContractMD(name)}
+	n.Manifest.SupportedStandards = []string{manifest.NEP5StandardName}
 
 	desc := newDescriptor("name", smartcontract.StringType)
-	md := newMethodAndPrice(n.Name, 1, smartcontract.NoneFlag)
+	md := newMethodAndPrice(n.Name, 0, smartcontract.NoneFlag)
 	n.AddMethod(md, desc, true)
 
 	desc = newDescriptor("symbol", smartcontract.StringType)
-	md = newMethodAndPrice(n.Symbol, 1, smartcontract.NoneFlag)
+	md = newMethodAndPrice(n.Symbol, 0, smartcontract.NoneFlag)
 	n.AddMethod(md, desc, true)
 
 	desc = newDescriptor("decimals", smartcontract.IntegerType)
-	md = newMethodAndPrice(n.Decimals, 1, smartcontract.NoneFlag)
+	md = newMethodAndPrice(n.Decimals, 0, smartcontract.NoneFlag)
 	n.AddMethod(md, desc, true)
 
 	desc = newDescriptor("totalSupply", smartcontract.IntegerType)
-	md = newMethodAndPrice(n.TotalSupply, 1, smartcontract.NoneFlag)
+	md = newMethodAndPrice(n.TotalSupply, 1000000, smartcontract.AllowStates)
 	n.AddMethod(md, desc, true)
 
 	desc = newDescriptor("balanceOf", smartcontract.IntegerType,
 		manifest.NewParameter("account", smartcontract.Hash160Type))
-	md = newMethodAndPrice(n.balanceOf, 1, smartcontract.NoneFlag)
+	md = newMethodAndPrice(n.balanceOf, 1000000, smartcontract.AllowStates)
 	n.AddMethod(md, desc, true)
 
 	desc = newDescriptor("transfer", smartcontract.BoolType,
@@ -74,7 +77,11 @@ func newNEP5Native(name string) *nep5TokenNative {
 		manifest.NewParameter("to", smartcontract.Hash160Type),
 		manifest.NewParameter("amount", smartcontract.IntegerType),
 	)
-	md = newMethodAndPrice(n.Transfer, 1, smartcontract.NoneFlag)
+	md = newMethodAndPrice(n.Transfer, 8000000, smartcontract.AllowModifyStates)
+	n.AddMethod(md, desc, false)
+
+	desc = newDescriptor("onPersist", smartcontract.VoidType)
+	md = newMethodAndPrice(getOnPersistWrapper(n.OnPersist), 0, smartcontract.AllowModifyStates)
 	n.AddMethod(md, desc, false)
 
 	n.AddEvent("Transfer", desc.Parameters...)
@@ -86,107 +93,113 @@ func (c *nep5TokenNative) Initialize(_ *interop.Context) error {
 	return nil
 }
 
-func (c *nep5TokenNative) Name(_ *interop.Context, _ []vm.StackItem) vm.StackItem {
-	return vm.NewByteArrayItem([]byte(c.name))
+func (c *nep5TokenNative) Name(_ *interop.Context, _ []stackitem.Item) stackitem.Item {
+	return stackitem.NewByteArray([]byte(c.ContractMD.Name))
 }
 
-func (c *nep5TokenNative) Symbol(_ *interop.Context, _ []vm.StackItem) vm.StackItem {
-	return vm.NewByteArrayItem([]byte(c.symbol))
+func (c *nep5TokenNative) Symbol(_ *interop.Context, _ []stackitem.Item) stackitem.Item {
+	return stackitem.NewByteArray([]byte(c.symbol))
 }
 
-func (c *nep5TokenNative) Decimals(_ *interop.Context, _ []vm.StackItem) vm.StackItem {
-	return vm.NewBigIntegerItem(big.NewInt(c.decimals))
+func (c *nep5TokenNative) Decimals(_ *interop.Context, _ []stackitem.Item) stackitem.Item {
+	return stackitem.NewBigInteger(big.NewInt(c.decimals))
 }
 
-func (c *nep5TokenNative) TotalSupply(ic *interop.Context, _ []vm.StackItem) vm.StackItem {
-	return vm.NewBigIntegerItem(c.getTotalSupply(ic))
+func (c *nep5TokenNative) TotalSupply(ic *interop.Context, _ []stackitem.Item) stackitem.Item {
+	return stackitem.NewBigInteger(c.getTotalSupply(ic.DAO))
 }
 
-func (c *nep5TokenNative) getTotalSupply(ic *interop.Context) *big.Int {
-	si := ic.DAO.GetStorageItem(c.Hash, totalSupplyKey)
+func (c *nep5TokenNative) getTotalSupply(d dao.DAO) *big.Int {
+	si := d.GetStorageItem(c.ContractID, totalSupplyKey)
 	if si == nil {
 		return big.NewInt(0)
 	}
-	return emit.BytesToInt(si.Value)
+	return bigint.FromBytes(si.Value)
 }
 
-func (c *nep5TokenNative) saveTotalSupply(ic *interop.Context, supply *big.Int) error {
-	si := &state.StorageItem{Value: emit.IntToBytes(supply)}
-	return ic.DAO.PutStorageItem(c.Hash, totalSupplyKey, si)
+func (c *nep5TokenNative) saveTotalSupply(d dao.DAO, supply *big.Int) error {
+	si := &state.StorageItem{Value: bigint.ToBytes(supply)}
+	return d.PutStorageItem(c.ContractID, totalSupplyKey, si)
 }
 
-func (c *nep5TokenNative) Transfer(ic *interop.Context, args []vm.StackItem) vm.StackItem {
+func (c *nep5TokenNative) Transfer(ic *interop.Context, args []stackitem.Item) stackitem.Item {
 	from := toUint160(args[0])
 	to := toUint160(args[1])
 	amount := toBigInt(args[2])
-	err := c.transfer(ic, from, to, amount)
-	return vm.NewBoolItem(err == nil)
+	err := c.TransferInternal(ic, from, to, amount)
+	return stackitem.NewBool(err == nil)
 }
 
-func addrToStackItem(u *util.Uint160) vm.StackItem {
+func addrToStackItem(u *util.Uint160) stackitem.Item {
 	if u == nil {
-		return vm.NullItem{}
+		return stackitem.Null{}
 	}
-	return vm.NewByteArrayItem(u.BytesBE())
+	return stackitem.NewByteArray(u.BytesBE())
 }
 
 func (c *nep5TokenNative) emitTransfer(ic *interop.Context, from, to *util.Uint160, amount *big.Int) {
 	ne := state.NotificationEvent{
 		ScriptHash: c.Hash,
-		Item: vm.NewArrayItem([]vm.StackItem{
-			vm.NewByteArrayItem([]byte("Transfer")),
+		Name:       "Transfer",
+		Item: stackitem.NewArray([]stackitem.Item{
 			addrToStackItem(from),
 			addrToStackItem(to),
-			vm.NewBigIntegerItem(amount),
+			stackitem.NewBigInteger(amount),
 		}),
 	}
 	ic.Notifications = append(ic.Notifications, ne)
 }
 
-func (c *nep5TokenNative) transfer(ic *interop.Context, from, to util.Uint160, amount *big.Int) error {
+func (c *nep5TokenNative) updateAccBalance(ic *interop.Context, acc util.Uint160, amount *big.Int) error {
+	key := makeAccountKey(acc)
+	si := ic.DAO.GetStorageItem(c.ContractID, key)
+	if si == nil {
+		if amount.Sign() <= 0 {
+			return errors.New("insufficient funds")
+		}
+		si = new(state.StorageItem)
+	}
+
+	err := c.incBalance(ic, acc, si, amount)
+	if err != nil {
+		return err
+	}
+	if si.Value == nil {
+		err = ic.DAO.DeleteStorageItem(c.ContractID, key)
+	} else {
+		err = ic.DAO.PutStorageItem(c.ContractID, key, si)
+	}
+	return err
+}
+
+// TransferInternal transfers NEO between accounts.
+func (c *nep5TokenNative) TransferInternal(ic *interop.Context, from, to util.Uint160, amount *big.Int) error {
 	if amount.Sign() == -1 {
 		return errors.New("negative amount")
 	}
 
-	ok, err := runtime.CheckHashedWitness(ic, nep5ScriptHash{
-		callingScriptHash: c.Hash,
-		entryScriptHash:   c.Hash,
-		currentScriptHash: c.Hash,
-	}, from)
-	if err != nil {
-		return err
-	} else if !ok {
-		return errors.New("invalid signature")
+	caller := ic.VM.GetCallingScriptHash()
+	if caller.Equals(util.Uint160{}) || !from.Equals(caller) {
+		ok, err := runtime.CheckHashedWitness(ic, from)
+		if err != nil {
+			return err
+		} else if !ok {
+			return errors.New("invalid signature")
+		}
 	}
-
-	keyFrom := makeAccountKey(from)
-	siFrom := ic.DAO.GetStorageItem(c.Hash, keyFrom)
-	if siFrom == nil {
-		return errors.New("insufficient funds")
-	}
-
 	isEmpty := from.Equals(to) || amount.Sign() == 0
 	inc := amount
 	if isEmpty {
 		inc = big.NewInt(0)
+	} else {
+		inc = new(big.Int).Neg(inc)
 	}
-	if err := c.incBalance(ic, from, siFrom, inc); err != nil {
-		return err
-	}
-	if err := ic.DAO.PutStorageItem(c.Hash, keyFrom, siFrom); err != nil {
+	if err := c.updateAccBalance(ic, from, inc); err != nil {
 		return err
 	}
 
 	if !isEmpty {
-		keyTo := makeAccountKey(to)
-		siTo := ic.DAO.GetStorageItem(c.Hash, keyTo)
-		if siTo == nil {
-			siTo = new(state.StorageItem)
-		}
-		if err := c.incBalance(ic, to, siTo, amount); err != nil {
-			return err
-		}
-		if err := ic.DAO.PutStorageItem(c.Hash, keyTo, siTo); err != nil {
+		if err := c.updateAccBalance(ic, to, amount); err != nil {
 			return err
 		}
 	}
@@ -195,24 +208,29 @@ func (c *nep5TokenNative) transfer(ic *interop.Context, from, to util.Uint160, a
 	return nil
 }
 
-func (c *nep5TokenNative) balanceOf(ic *interop.Context, args []vm.StackItem) vm.StackItem {
+func (c *nep5TokenNative) balanceOf(ic *interop.Context, args []stackitem.Item) stackitem.Item {
 	h := toUint160(args[0])
 	bs, err := ic.DAO.GetNEP5Balances(h)
 	if err != nil {
 		panic(err)
 	}
-	balance := bs.Trackers[c.Hash].Balance
-	return vm.NewBigIntegerItem(big.NewInt(balance))
+	balance := bs.Trackers[c.ContractID].Balance
+	return stackitem.NewBigInteger(&balance)
 }
 
 func (c *nep5TokenNative) mint(ic *interop.Context, h util.Uint160, amount *big.Int) {
+	if amount.Sign() == 0 {
+		return
+	}
 	c.addTokens(ic, h, amount)
 	c.emitTransfer(ic, nil, &h, amount)
 }
 
 func (c *nep5TokenNative) burn(ic *interop.Context, h util.Uint160, amount *big.Int) {
-	amount = new(big.Int).Neg(amount)
-	c.addTokens(ic, h, amount)
+	if amount.Sign() == 0 {
+		return
+	}
+	c.addTokens(ic, h, new(big.Int).Neg(amount))
 	c.emitTransfer(ic, &h, nil, amount)
 }
 
@@ -222,27 +240,30 @@ func (c *nep5TokenNative) addTokens(ic *interop.Context, h util.Uint160, amount 
 	}
 
 	key := makeAccountKey(h)
-	si := ic.DAO.GetStorageItem(c.Hash, key)
+	si := ic.DAO.GetStorageItem(c.ContractID, key)
 	if si == nil {
 		si = new(state.StorageItem)
 	}
 	if err := c.incBalance(ic, h, si, amount); err != nil {
 		panic(err)
 	}
-	if err := ic.DAO.PutStorageItem(c.Hash, key, si); err != nil {
+	if err := ic.DAO.PutStorageItem(c.ContractID, key, si); err != nil {
 		panic(err)
 	}
 
-	supply := c.getTotalSupply(ic)
+	supply := c.getTotalSupply(ic.DAO)
 	supply.Add(supply, amount)
-	err := c.saveTotalSupply(ic, supply)
+	err := c.saveTotalSupply(ic.DAO, supply)
 	if err != nil {
 		panic(err)
 	}
 }
 
 func (c *nep5TokenNative) OnPersist(ic *interop.Context) error {
-	return c.onPersist(ic)
+	if ic.Trigger != trigger.System {
+		return errors.New("onPersist should be triggerred by system")
+	}
+	return nil
 }
 
 func newDescriptor(name string, ret smartcontract.ParamType, ps ...manifest.Parameter) *manifest.Method {
@@ -261,7 +282,7 @@ func newMethodAndPrice(f interop.Method, price int64, flags smartcontract.CallFl
 	}
 }
 
-func toBigInt(s vm.StackItem) *big.Int {
+func toBigInt(s stackitem.Item) *big.Int {
 	bi, err := s.TryInteger()
 	if err != nil {
 		panic(err)
@@ -269,7 +290,7 @@ func toBigInt(s vm.StackItem) *big.Int {
 	return bi
 }
 
-func toUint160(s vm.StackItem) util.Uint160 {
+func toUint160(s stackitem.Item) util.Uint160 {
 	buf, err := s.TryBytes()
 	if err != nil {
 		panic(err)
@@ -281,25 +302,12 @@ func toUint160(s vm.StackItem) util.Uint160 {
 	return u
 }
 
-// scriptHash is an auxiliary structure which implements ScriptHashGetter
-// interface over NEP5 native contract and is used for runtime.CheckHashedWitness
-type nep5ScriptHash struct {
-	callingScriptHash util.Uint160
-	entryScriptHash   util.Uint160
-	currentScriptHash util.Uint160
-}
-
-// GetCallingScriptHash implements ScriptHashGetter interface
-func (s nep5ScriptHash) GetCallingScriptHash() util.Uint160 {
-	return s.callingScriptHash
-}
-
-// GetEntryScriptHash implements ScriptHashGetter interface
-func (s nep5ScriptHash) GetEntryScriptHash() util.Uint160 {
-	return s.entryScriptHash
-}
-
-// GetCurrentScriptHash implements ScriptHashGetter interface
-func (s nep5ScriptHash) GetCurrentScriptHash() util.Uint160 {
-	return s.currentScriptHash
+func getOnPersistWrapper(f func(ic *interop.Context) error) interop.Method {
+	return func(ic *interop.Context, _ []stackitem.Item) stackitem.Item {
+		err := f(ic)
+		if err != nil {
+			panic(fmt.Errorf("OnPersist for native contract: %w", err))
+		}
+		return stackitem.Null{}
+	}
 }

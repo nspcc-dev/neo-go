@@ -3,9 +3,9 @@ package smartcontract
 import (
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/io"
-	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -34,5 +34,97 @@ func TestCreateMultiSigRedeemScript(t *testing.T) {
 	assert.Equal(t, opcode.PUSH3, opcode.Opcode(br.ReadB()))
 	assert.Equal(t, opcode.PUSHNULL, opcode.Opcode(br.ReadB()))
 	assert.Equal(t, opcode.SYSCALL, opcode.Opcode(br.ReadB()))
-	assert.Equal(t, emit.InteropNameToID([]byte("Neo.Crypto.ECDsaCheckMultiSig")), br.ReadU32LE())
+	assert.Equal(t, interopnames.ToID([]byte(interopnames.NeoCryptoCheckMultisigWithECDsaSecp256r1)), br.ReadU32LE())
+}
+
+func TestCreateDefaultMultiSigRedeemScript(t *testing.T) {
+	var validators = make([]*keys.PublicKey, 0)
+
+	var addKey = func() {
+		key, err := keys.NewPrivateKey()
+		require.NoError(t, err)
+		validators = append(validators, key.PublicKey())
+	}
+	var checkM = func(m int) {
+		validScript, err := CreateMultiSigRedeemScript(m, validators)
+		require.NoError(t, err)
+		defaultScript, err := CreateDefaultMultiSigRedeemScript(validators)
+		require.NoError(t, err)
+		require.Equal(t, validScript, defaultScript)
+	}
+
+	// 1 out of 1
+	addKey()
+	checkM(1)
+
+	// 2 out of 2
+	addKey()
+	checkM(2)
+
+	// 3 out of 4
+	for i := 0; i < 2; i++ {
+		addKey()
+	}
+	checkM(3)
+
+	// 5 out of 6
+	for i := 0; i < 2; i++ {
+		addKey()
+	}
+	checkM(5)
+
+	// 5 out of 7
+	addKey()
+	checkM(5)
+
+	// 7 out of 10
+	for i := 0; i < 3; i++ {
+		addKey()
+	}
+	checkM(7)
+}
+
+func TestCreateMajorityMultiSigRedeemScript(t *testing.T) {
+	var validators = make([]*keys.PublicKey, 0)
+
+	var addKey = func() {
+		key, err := keys.NewPrivateKey()
+		require.NoError(t, err)
+		validators = append(validators, key.PublicKey())
+	}
+	var checkM = func(m int) {
+		validScript, err := CreateMultiSigRedeemScript(m, validators)
+		require.NoError(t, err)
+		defaultScript, err := CreateMajorityMultiSigRedeemScript(validators)
+		require.NoError(t, err)
+		require.Equal(t, validScript, defaultScript)
+	}
+
+	// 1 out of 1
+	addKey()
+	checkM(1)
+
+	// 2 out of 2
+	addKey()
+	checkM(2)
+
+	// 3 out of 4
+	addKey()
+	addKey()
+	checkM(3)
+
+	// 4 out of 6
+	addKey()
+	addKey()
+	checkM(4)
+
+	// 5 out of 8
+	addKey()
+	addKey()
+	checkM(5)
+
+	// 6 out of 10
+	addKey()
+	addKey()
+	checkM(6)
 }

@@ -8,18 +8,22 @@ import (
 	"github.com/nspcc-dev/dbft"
 	"github.com/nspcc-dev/dbft/block"
 	"github.com/nspcc-dev/dbft/crypto"
-	"github.com/nspcc-dev/dbft/merkle"
 	"github.com/nspcc-dev/dbft/payload"
+	"github.com/nspcc-dev/neo-go/pkg/config"
+	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	coreb "github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
 	"github.com/nspcc-dev/neo-go/pkg/core/mempool"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
+	"go.uber.org/atomic"
 	"go.uber.org/zap"
 )
 
@@ -29,6 +33,9 @@ const cacheMaxCapacity = 100
 
 // defaultTimePerBlock is a period between blocks which is used in NEO.
 const defaultTimePerBlock = 15 * time.Second
+
+// Number of nanoseconds in millisecond.
+const nsInMs = 1000000
 
 // Service represents consensus instance.
 type Service interface {
@@ -42,9 +49,6 @@ type Service interface {
 	OnTransaction(tx *transaction.Transaction)
 	// GetPayload returns Payload with specified hash if it is present in the local cache.
 	GetPayload(h util.Uint256) *Payload
-	// OnNewBlock notifies consensus service that there is a new block in
-	// the chain (without explicitly passing it to the service).
-	OnNewBlock()
 }
 
 type service struct {
@@ -62,9 +66,13 @@ type service struct {
 	transactions chan *transaction.Transaction
 	// blockEvents is used to pass a new block event to the consensus
 	// process.
-	blockEvents  chan struct{}
+	blockEvents  chan *coreb.Block
 	lastProposal []util.Uint256
 	wallet       *wallet.Wallet
+	network      netmode.Magic
+	// started is a flag set with Start method that runs an event handling
+	// goroutine.
+	started *atomic.Bool
 }
 
 // Config is a configuration for consensus services.
@@ -74,9 +82,6 @@ type Config struct {
 	// Broadcast is a callback which is called to notify server
 	// about new consensus payload to sent.
 	Broadcast func(p *Payload)
-	// RelayBlock is a callback that is called to notify server
-	// about the new block that needs to be broadcasted.
-	RelayBlock func(b *coreb.Block)
 	// Chain is a core.Blockchainer instance.
 	Chain blockchainer.Blockchainer
 	// RequestTx is a callback to which will be called
@@ -85,7 +90,7 @@ type Config struct {
 	// TimePerBlock minimal time that should pass before next block is accepted.
 	TimePerBlock time.Duration
 	// Wallet is a local-node wallet configuration.
-	Wallet *wallet.Config
+	Wallet *config.Wallet
 }
 
 // NewService returns new consensus.Service instance.
@@ -107,7 +112,9 @@ func NewService(cfg Config) (Service, error) {
 		messages: make(chan Payload, 100),
 
 		transactions: make(chan *transaction.Transaction, 100),
-		blockEvents:  make(chan struct{}, 1),
+		blockEvents:  make(chan *coreb.Block, 1),
+		network:      cfg.Chain.GetConfig().Magic,
+		started:      atomic.NewBool(false),
 	}
 
 	if cfg.Wallet == nil {
@@ -126,7 +133,6 @@ func NewService(cfg Config) (Service, error) {
 		dbft.WithLogger(srv.log),
 		dbft.WithSecondsPerBlock(cfg.TimePerBlock),
 		dbft.WithGetKeyPair(srv.getKeyPair),
-		dbft.WithTxPerBlock(10000),
 		dbft.WithRequestTx(cfg.RequestTx),
 		dbft.WithGetTx(srv.getTx),
 		dbft.WithGetVerified(srv.getVerifiedTx),
@@ -135,19 +141,20 @@ func NewService(cfg Config) (Service, error) {
 		dbft.WithVerifyBlock(srv.verifyBlock),
 		dbft.WithGetBlock(srv.getBlock),
 		dbft.WithWatchOnly(func() bool { return false }),
-		dbft.WithNewBlockFromContext(newBlockFromContext),
+		dbft.WithNewBlockFromContext(srv.newBlockFromContext),
 		dbft.WithCurrentHeight(cfg.Chain.BlockHeight),
 		dbft.WithCurrentBlockHash(cfg.Chain.CurrentBlockHash),
 		dbft.WithGetValidators(srv.getValidators),
 		dbft.WithGetConsensusAddress(srv.getConsensusAddress),
 
-		dbft.WithNewConsensusPayload(func() payload.ConsensusPayload { p := new(Payload); p.message = &message{}; return p }),
+		dbft.WithNewConsensusPayload(srv.newPayload),
 		dbft.WithNewPrepareRequest(func() payload.PrepareRequest { return new(prepareRequest) }),
 		dbft.WithNewPrepareResponse(func() payload.PrepareResponse { return new(prepareResponse) }),
 		dbft.WithNewChangeView(func() payload.ChangeView { return new(changeView) }),
 		dbft.WithNewCommit(func() payload.Commit { return new(commit) }),
 		dbft.WithNewRecoveryRequest(func() payload.RecoveryRequest { return new(recoveryRequest) }),
 		dbft.WithNewRecoveryMessage(func() payload.RecoveryMessage { return new(recoveryMessage) }),
+		dbft.WithVerifyPrepareRequest(srv.verifyRequest),
 	)
 
 	if srv.dbft == nil {
@@ -162,10 +169,24 @@ var (
 	_ block.Block       = (*neoBlock)(nil)
 )
 
-func (s *service) Start() {
-	s.dbft.Start()
+// NewPayload creates new consensus payload for the provided network.
+func NewPayload(m netmode.Magic) *Payload {
+	return &Payload{
+		network: m,
+		message: new(message),
+	}
+}
 
-	go s.eventLoop()
+func (s *service) newPayload() payload.ConsensusPayload {
+	return NewPayload(s.network)
+}
+
+func (s *service) Start() {
+	if s.started.CAS(false, true) {
+		s.dbft.Start()
+		s.Chain.SubscribeForBlocks(s.blockEvents)
+		go s.eventLoop()
+	}
 }
 
 func (s *service) eventLoop() {
@@ -178,7 +199,7 @@ func (s *service) eventLoop() {
 			s.dbft.OnTimeout(hv)
 		case msg := <-s.messages:
 			fields := []zap.Field{
-				zap.Uint16("from", msg.validatorIndex),
+				zap.Uint8("from", msg.validatorIndex),
 				zap.Stringer("type", msg.Type()),
 			}
 
@@ -204,11 +225,14 @@ func (s *service) eventLoop() {
 			s.dbft.OnReceive(&msg)
 		case tx := <-s.transactions:
 			s.dbft.OnTransaction(tx)
-		case <-s.blockEvents:
-			s.log.Debug("new block in the chain",
-				zap.Uint32("dbft index", s.dbft.BlockIndex),
-				zap.Uint32("chain index", s.Chain.BlockHeight()))
-			s.dbft.InitializeConsensus(0)
+		case b := <-s.blockEvents:
+			// We also receive our own blocks here, so check for index.
+			if b.Index >= s.dbft.BlockIndex {
+				s.log.Debug("new block in the chain",
+					zap.Uint32("dbft index", s.dbft.BlockIndex),
+					zap.Uint32("chain index", s.Chain.BlockHeight()))
+				s.dbft.InitializeConsensus(0)
+			}
 		}
 	}
 }
@@ -222,7 +246,7 @@ func (s *service) validatePayload(p *Payload) bool {
 	pub := validators[p.validatorIndex]
 	h := pub.(*publicKey).GetScriptHash()
 
-	return p.Verify(h)
+	return s.Chain.VerifyWitness(h, p, &p.Witness, payloadGasLimit) == nil
 }
 
 func (s *service) getKeyPair(pubs []crypto.PublicKey) (int, crypto.PrivateKey, crypto.PublicKey) {
@@ -233,9 +257,14 @@ func (s *service) getKeyPair(pubs []crypto.PublicKey) (int, crypto.PrivateKey, c
 			continue
 		}
 
-		key, err := keys.NEP2Decrypt(acc.EncryptedWIF, s.Config.Wallet.Password)
-		if err != nil {
-			continue
+		key := acc.PrivateKey()
+		if acc.PrivateKey() == nil {
+			err := acc.Decrypt(s.Config.Wallet.Password)
+			if err != nil {
+				s.log.Fatal("can't unlock account", zap.String("address", address.Uint160ToString(sh)))
+				break
+			}
+			key = acc.PrivateKey()
 		}
 
 		return i, &privateKey{PrivateKey: key}, &publicKey{PublicKey: key.PublicKey()}
@@ -247,35 +276,28 @@ func (s *service) getKeyPair(pubs []crypto.PublicKey) (int, crypto.PrivateKey, c
 // OnPayload handles Payload receive.
 func (s *service) OnPayload(cp *Payload) {
 	log := s.log.With(zap.Stringer("hash", cp.Hash()))
-	if !s.validatePayload(cp) {
-		log.Debug("can't validate payload")
-		return
-	} else if s.cache.Has(cp.Hash()) {
+	if s.cache.Has(cp.Hash()) {
 		log.Debug("payload is already in cache")
+		return
+	} else if !s.validatePayload(cp) {
+		log.Debug("can't validate payload")
 		return
 	}
 
 	s.Config.Broadcast(cp)
 	s.cache.Add(cp)
 
-	if s.dbft == nil {
-		log.Debug("dbft is nil")
+	if s.dbft == nil || !s.started.Load() {
+		log.Debug("dbft is inactive or not started yet")
 		return
 	}
 
 	// decode payload data into message
-	if cp.message == nil {
+	if cp.message.payload == nil {
 		if err := cp.decodeData(); err != nil {
 			log.Debug("can't decode payload data")
 			return
 		}
-	}
-
-	// we use switch here because other payloads could be possibly added in future
-	switch cp.Type() {
-	case payload.PrepareRequestType:
-		req := cp.GetPrepareRequest().(*prepareRequest)
-		s.lastProposal = req.transactionHashes
 	}
 
 	s.messages <- *cp
@@ -284,20 +306,6 @@ func (s *service) OnPayload(cp *Payload) {
 func (s *service) OnTransaction(tx *transaction.Transaction) {
 	if s.dbft != nil {
 		s.transactions <- tx
-	}
-}
-
-// OnNewBlock notifies consensus process that there is a new block in the chain
-// and dbft should probably be reinitialized.
-func (s *service) OnNewBlock() {
-	if s.dbft != nil {
-		// If there is something in the queue already, the second
-		// consecutive event doesn't make much sense (reinitializing
-		// dbft twice doesn't improve it in any way).
-		select {
-		case s.blockEvents <- struct{}{}:
-		default:
-		}
 	}
 }
 
@@ -340,16 +348,64 @@ func (s *service) getTx(h util.Uint256) block.Transaction {
 
 func (s *service) verifyBlock(b block.Block) bool {
 	coreb := &b.(*neoBlock).Block
+
+	if s.Chain.BlockHeight() >= coreb.Index {
+		s.log.Warn("proposed block has already outdated")
+		return false
+	}
+	maxBlockSize := int(s.Chain.GetMaxBlockSize())
+	size := io.GetVarSize(coreb)
+	if size > maxBlockSize {
+		s.log.Warn("proposed block size exceeds policy max block size",
+			zap.Int("max size allowed", maxBlockSize),
+			zap.Int("block size", size))
+		return false
+	}
+
+	var fee int64
+	var pool = mempool.New(len(coreb.Transactions))
+	var mainPool = s.Chain.GetMemPool()
 	for _, tx := range coreb.Transactions {
-		if err := s.Chain.VerifyTx(tx, coreb); err != nil {
+		var err error
+
+		fee += tx.SystemFee
+		if mainPool.ContainsKey(tx.Hash()) {
+			err = pool.Add(tx, s.Chain)
+			if err == nil {
+				continue
+			}
+		} else {
+			err = s.Chain.PoolTx(tx, pool)
+		}
+		if err != nil {
 			s.log.Warn("invalid transaction in proposed block",
 				zap.Stringer("hash", tx.Hash()),
 				zap.Error(err))
 			return false
 		}
+		if s.Chain.BlockHeight() >= coreb.Index {
+			s.log.Warn("proposed block has already outdated")
+			return false
+		}
+	}
+
+	maxBlockSysFee := s.Chain.GetMaxBlockSystemFee()
+	if fee > maxBlockSysFee {
+		s.log.Warn("proposed block system fee exceeds policy max block system fee",
+			zap.Int("max system fee allowed", int(maxBlockSysFee)),
+			zap.Int("block system fee", int(fee)))
+		return false
 	}
 
 	return true
+}
+
+func (s *service) verifyRequest(p payload.ConsensusPayload) error {
+	req := p.GetPrepareRequest().(*prepareRequest)
+	// Save lastProposal for getVerified().
+	s.lastProposal = req.transactionHashes
+
+	return nil
 }
 
 func (s *service) processBlock(b block.Block) {
@@ -362,8 +418,6 @@ func (s *service) processBlock(b block.Block) {
 		if _, errget := s.Chain.GetBlock(bb.Hash()); errget != nil {
 			s.log.Warn("error on add block", zap.Error(err))
 		}
-	} else {
-		s.Config.RelayBlock(bb)
 	}
 }
 
@@ -410,16 +464,16 @@ func (s *service) getBlock(h util.Uint256) block.Block {
 	return &neoBlock{Block: *b}
 }
 
-func (s *service) getVerifiedTx(count int) []block.Transaction {
+func (s *service) getVerifiedTx() []block.Transaction {
 	pool := s.Config.Chain.GetMemPool()
 
-	var txx []mempool.TxWithFee
+	var txx []*transaction.Transaction
 
 	if s.dbft.ViewNumber > 0 {
-		txx = make([]mempool.TxWithFee, 0, len(s.lastProposal))
+		txx = make([]*transaction.Transaction, 0, len(s.lastProposal))
 		for i := range s.lastProposal {
-			if tx, fee, ok := pool.TryGetValue(s.lastProposal[i]); ok {
-				txx = append(txx, mempool.TxWithFee{Tx: tx, Fee: fee})
+			if tx, ok := pool.TryGetValue(s.lastProposal[i]); ok {
+				txx = append(txx, tx)
 			}
 		}
 
@@ -436,18 +490,22 @@ func (s *service) getVerifiedTx(count int) []block.Transaction {
 
 	res := make([]block.Transaction, len(txx))
 	for i := range txx {
-		res[i] = txx[i].Tx
+		res[i] = txx[i]
 	}
 
 	return res
 }
 
-func (s *service) getValidators(_ ...block.Transaction) []crypto.PublicKey {
+func (s *service) getValidators(txes ...block.Transaction) []crypto.PublicKey {
 	var (
 		pKeys []*keys.PublicKey
 		err   error
 	)
-	pKeys, err = s.Chain.GetValidators()
+	if txes == nil {
+		pKeys, err = s.Chain.GetNextBlockValidators()
+	} else {
+		pKeys, err = s.Chain.GetValidators()
+	}
 	if err != nil {
 		s.log.Error("error while trying to get validators", zap.Error(err))
 	}
@@ -460,15 +518,8 @@ func (s *service) getValidators(_ ...block.Transaction) []crypto.PublicKey {
 	return pubs
 }
 
-func (s *service) getConsensusAddress(validators ...crypto.PublicKey) (h util.Uint160) {
-	pubs := convertKeys(validators)
-
-	script, err := smartcontract.CreateMultiSigRedeemScript(s.dbft.M(), pubs)
-	if err != nil {
-		return
-	}
-
-	return crypto.Hash160(script)
+func (s *service) getConsensusAddress(validators ...crypto.PublicKey) util.Uint160 {
+	return util.Uint160{}
 }
 
 func convertKeys(validators []crypto.PublicKey) (pubs []*keys.PublicKey) {
@@ -480,27 +531,41 @@ func convertKeys(validators []crypto.PublicKey) (pubs []*keys.PublicKey) {
 	return
 }
 
-func newBlockFromContext(ctx *dbft.Context) block.Block {
+func (s *service) newBlockFromContext(ctx *dbft.Context) block.Block {
 	block := new(neoBlock)
 	if ctx.TransactionHashes == nil {
 		return nil
 	}
 
-	block.Block.Timestamp = ctx.Timestamp / 1000000
+	block.Block.Network = s.network
+	block.Block.Timestamp = ctx.Timestamp / nsInMs
 	block.Block.Index = ctx.BlockIndex
-	block.Block.NextConsensus = ctx.NextConsensus
+
+	validators, err := s.Chain.GetValidators()
+	if err != nil {
+		return nil
+	}
+	script, err := smartcontract.CreateMultiSigRedeemScript(s.dbft.Context.M(), validators)
+	if err != nil {
+		return nil
+	}
+	block.Block.NextConsensus = crypto.Hash160(script)
 	block.Block.PrevHash = ctx.PrevHash
 	block.Block.Version = ctx.Version
 	block.Block.ConsensusData.Nonce = ctx.Nonce
 
 	primaryIndex := uint32(ctx.PrimaryIndex)
 	block.Block.ConsensusData.PrimaryIndex = primaryIndex
-	consensusData := coreb.ConsensusData{
-		PrimaryIndex: primaryIndex,
-		Nonce:        ctx.Nonce,
-	}
 
-	mt := merkle.NewMerkleTree(append([]util.Uint256{consensusData.Hash()}, ctx.TransactionHashes...)...)
-	block.Block.MerkleRoot = mt.Root().Hash
+	hashes := make([]util.Uint256, len(ctx.TransactionHashes)+1)
+	hashes[0] = block.Block.ConsensusData.Hash()
+	copy(hashes[1:], ctx.TransactionHashes)
+	mt, err := hash.NewMerkleTree(hashes)
+	if err != nil {
+		s.log.Fatal("can't calculate merkle root for the new block")
+		return nil
+	}
+	block.Block.MerkleRoot = mt.Root()
+
 	return block
 }

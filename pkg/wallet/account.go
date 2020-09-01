@@ -2,8 +2,6 @@ package wallet
 
 import (
 	"bytes"
-	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -46,7 +44,7 @@ type Account struct {
 	Locked bool `json:"lock"`
 
 	// Indicates whether the account is the default change account.
-	Default bool `json:"isDefault"`
+	Default bool `json:"isdefault"`
 }
 
 // Contract represents a subset of the smartcontract to embed in the
@@ -86,37 +84,6 @@ func (c Contract) ScriptHash() util.Uint160 {
 	return hash.Hash160(c.Script)
 }
 
-// MarshalJSON implements json.Marshaler interface.
-func (c Contract) MarshalJSON() ([]byte, error) {
-	var cc contract
-
-	cc.Script = hex.EncodeToString(c.Script)
-	cc.Parameters = c.Parameters
-	cc.Deployed = c.Deployed
-
-	return json.Marshal(cc)
-}
-
-// UnmarshalJSON implements json.Unmarshaler interface.
-func (c *Contract) UnmarshalJSON(data []byte) error {
-	var cc contract
-
-	if err := json.Unmarshal(data, &cc); err != nil {
-		return err
-	}
-
-	script, err := hex.DecodeString(cc.Script)
-	if err != nil {
-		return err
-	}
-
-	c.Script = script
-	c.Parameters = cc.Parameters
-	c.Deployed = cc.Deployed
-
-	return nil
-}
-
 // NewAccount creates a new Account with a random generated PrivateKey.
 func NewAccount() (*Account, error) {
 	priv, err := keys.NewPrivateKey()
@@ -132,11 +99,22 @@ func (a *Account) SignTx(t *transaction.Transaction) error {
 		return errors.New("account is not unlocked")
 	}
 	data := t.GetSignedPart()
+	if data == nil {
+		return errors.New("failed to get transaction's signed part")
+	}
 	sign := a.privateKey.Sign(data)
 
+	verif := a.getVerificationScript()
+	invoc := append([]byte{byte(opcode.PUSHDATA1), 64}, sign...)
+	for i := range t.Scripts {
+		if bytes.Equal(t.Scripts[i].VerificationScript, verif) {
+			t.Scripts[i].InvocationScript = append(t.Scripts[i].InvocationScript, invoc...)
+			return nil
+		}
+	}
 	t.Scripts = append(t.Scripts, transaction.Witness{
-		InvocationScript:   append([]byte{byte(opcode.PUSHDATA1), 64}, sign...),
-		VerificationScript: a.getVerificationScript(),
+		InvocationScript:   invoc,
+		VerificationScript: verif,
 	})
 
 	return nil

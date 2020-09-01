@@ -3,6 +3,8 @@ package smartcontract
 import (
 	"encoding/hex"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 
@@ -10,7 +12,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/pkg/errors"
 )
 
 // ParamType represents the Type of the smart contract parameter.
@@ -19,18 +20,18 @@ type ParamType int
 // A list of supported smart contract parameter types.
 const (
 	UnknownType          ParamType = -1
-	SignatureType        ParamType = 0x00
-	BoolType             ParamType = 0x01
-	IntegerType          ParamType = 0x02
-	Hash160Type          ParamType = 0x03
-	Hash256Type          ParamType = 0x04
-	ByteArrayType        ParamType = 0x05
-	PublicKeyType        ParamType = 0x06
-	StringType           ParamType = 0x07
-	ArrayType            ParamType = 0x10
-	MapType              ParamType = 0x12
-	InteropInterfaceType ParamType = 0xf0
-	AnyType              ParamType = 0xfe
+	AnyType              ParamType = 0x00
+	BoolType             ParamType = 0x10
+	IntegerType          ParamType = 0x11
+	ByteArrayType        ParamType = 0x12
+	StringType           ParamType = 0x13
+	Hash160Type          ParamType = 0x14
+	Hash256Type          ParamType = 0x15
+	PublicKeyType        ParamType = 0x16
+	SignatureType        ParamType = 0x17
+	ArrayType            ParamType = 0x20
+	MapType              ParamType = 0x22
+	InteropInterfaceType ParamType = 0x30
 	VoidType             ParamType = 0xff
 )
 
@@ -143,7 +144,7 @@ func ParseParamType(typ string) (ParamType, error) {
 		return Hash160Type, nil
 	case "hash256":
 		return Hash256Type, nil
-	case "bytes", "bytearray":
+	case "bytes", "bytearray", "bytestring":
 		return ByteArrayType, nil
 	case "key", "publickey":
 		return PublicKeyType, nil
@@ -160,7 +161,7 @@ func ParseParamType(typ string) (ParamType, error) {
 	case "any":
 		return AnyType, nil
 	default:
-		return UnknownType, errors.Errorf("Unknown contract parameter type: %s", typ)
+		return UnknownType, fmt.Errorf("bad parameter type: %s", typ)
 	}
 }
 

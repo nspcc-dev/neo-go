@@ -2,31 +2,21 @@ package client
 
 import (
 	"encoding/hex"
+	"errors"
+	"fmt"
 
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
+	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
-	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/request"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
-	"github.com/pkg/errors"
 )
-
-// GetAccountState returns detailed information about a NEO account.
-func (c *Client) GetAccountState(address string) (*result.AccountState, error) {
-	var (
-		params = request.NewRawParams(address)
-		resp   = &result.AccountState{}
-	)
-	if err := c.performRequest("getaccountstate", params, resp); err != nil {
-		return nil, err
-	}
-	return resp, nil
-}
 
 // GetApplicationLog returns the contract log based on the specified txid.
 func (c *Client) GetApplicationLog(hash util.Uint256) (*result.ApplicationLog, error) {
@@ -35,18 +25,6 @@ func (c *Client) GetApplicationLog(hash util.Uint256) (*result.ApplicationLog, e
 		resp   = &result.ApplicationLog{}
 	)
 	if err := c.performRequest("getapplicationlog", params, resp); err != nil {
-		return nil, err
-	}
-	return resp, nil
-}
-
-// GetAssetState queries the asset information, based on the specified asset number.
-func (c *Client) GetAssetState(hash util.Uint256) (*result.AssetState, error) {
-	var (
-		params = request.NewRawParams(hash.StringLE())
-		resp   = &result.AssetState{}
-	)
-	if err := c.performRequest("getassetstate", params, resp); err != nil {
 		return nil, err
 	}
 	return resp, nil
@@ -94,7 +72,7 @@ func (c *Client) getBlock(params request.RawParams) (*block.Block, error) {
 		return nil, err
 	}
 	r := io.NewBinReaderFromBuf(blockBytes)
-	b = new(block.Block)
+	b = block.New(c.opts.Network)
 	b.DecodeBinary(r)
 	if r.Err != nil {
 		return nil, r.Err
@@ -120,6 +98,7 @@ func (c *Client) getBlockVerbose(params request.RawParams) (*result.Block, error
 		resp = &result.Block{}
 		err  error
 	)
+	resp.Network = c.opts.Network
 	if err = c.performRequest("getblock", params, resp); err != nil {
 		return nil, err
 	}
@@ -155,6 +134,7 @@ func (c *Client) GetBlockHeader(hash util.Uint256) (*block.Header, error) {
 	}
 	r := io.NewBinReaderFromBuf(headerBytes)
 	h = new(block.Header)
+	h.Network = c.opts.Network
 	h.DecodeBinary(r)
 	if r.Err != nil {
 		return nil, r.Err
@@ -187,16 +167,6 @@ func (c *Client) GetBlockSysFee(index uint32) (util.Fixed8, error) {
 	return resp, nil
 }
 
-// GetClaimable returns tx outputs which can be claimed.
-func (c *Client) GetClaimable(address string) (*result.ClaimableInfo, error) {
-	params := request.NewRawParams(address)
-	resp := new(result.ClaimableInfo)
-	if err := c.performRequest("getclaimable", params, resp); err != nil {
-		return nil, err
-	}
-	return resp, nil
-}
-
 // GetConnectionCount returns the current number of connections for the node.
 func (c *Client) GetConnectionCount() (int, error) {
 	var (
@@ -210,10 +180,10 @@ func (c *Client) GetConnectionCount() (int, error) {
 }
 
 // GetContractState queries contract information, according to the contract script hash.
-func (c *Client) GetContractState(hash util.Uint160) (*result.ContractState, error) {
+func (c *Client) GetContractState(hash util.Uint160) (*state.Contract, error) {
 	var (
 		params = request.NewRawParams(hash.StringLE())
-		resp   = &result.ContractState{}
+		resp   = &state.Contract{}
 	)
 	if err := c.performRequest("getcontractstate", params, resp); err != nil {
 		return resp, err
@@ -279,7 +249,7 @@ func (c *Client) GetRawTransaction(hash util.Uint256) (*transaction.Transaction,
 	if err != nil {
 		return nil, err
 	}
-	tx, err := transaction.NewTransactionFromBytes(txBytes)
+	tx, err := transaction.NewTransactionFromBytes(c.opts.Network, txBytes)
 	if err != nil {
 		return nil, err
 	}
@@ -295,18 +265,25 @@ func (c *Client) GetRawTransactionVerbose(hash util.Uint256) (*result.Transactio
 		resp   = &result.TransactionOutputRaw{}
 		err    error
 	)
+	resp.Network = c.opts.Network
 	if err = c.performRequest("getrawtransaction", params, resp); err != nil {
 		return nil, err
 	}
 	return resp, nil
 }
 
-// GetStorage returns the stored value, according to the contract script hash and the stored key.
-func (c *Client) GetStorage(hash util.Uint160, key []byte) ([]byte, error) {
-	var (
-		params = request.NewRawParams(hash.StringLE(), hex.EncodeToString(key))
-		resp   string
-	)
+// GetStorageByID returns the stored value, according to the contract ID and the stored key.
+func (c *Client) GetStorageByID(id int32, key []byte) ([]byte, error) {
+	return c.getStorage(request.NewRawParams(id, hex.EncodeToString(key)))
+}
+
+// GetStorageByHash returns the stored value, according to the contract script hash and the stored key.
+func (c *Client) GetStorageByHash(hash util.Uint160, key []byte) ([]byte, error) {
+	return c.getStorage(request.NewRawParams(hash.StringLE(), hex.EncodeToString(key)))
+}
+
+func (c *Client) getStorage(params request.RawParams) ([]byte, error) {
+	var resp string
 	if err := c.performRequest("getstorage", params, &resp); err != nil {
 		return nil, err
 	}
@@ -329,39 +306,14 @@ func (c *Client) GetTransactionHeight(hash util.Uint256) (uint32, error) {
 	return resp, nil
 }
 
-// GetTxOut returns the corresponding unspent transaction output information (returned change),
-// based on the specified hash and index.
-func (c *Client) GetTxOut(hash util.Uint256, num int) (*result.TransactionOutput, error) {
+// GetUnclaimedGas returns unclaimed GAS amount for the specified address.
+func (c *Client) GetUnclaimedGas(address string) (result.UnclaimedGas, error) {
 	var (
-		params = request.NewRawParams(hash.StringLE(), num)
-		resp   = &result.TransactionOutput{}
+		params = request.NewRawParams(address)
+		resp   result.UnclaimedGas
 	)
-	if err := c.performRequest("gettxout", params, resp); err != nil {
+	if err := c.performRequest("getunclaimedgas", params, &resp); err != nil {
 		return resp, err
-	}
-	return resp, nil
-}
-
-// GetUnclaimed returns unclaimed GAS amount of the specified address.
-func (c *Client) GetUnclaimed(address string) (*result.Unclaimed, error) {
-	var (
-		params = request.NewRawParams(address)
-		resp   = &result.Unclaimed{}
-	)
-	if err := c.performRequest("getunclaimed", params, resp); err != nil {
-		return nil, err
-	}
-	return resp, nil
-}
-
-// GetUnspents returns UTXOs for the given NEO account.
-func (c *Client) GetUnspents(address string) (*result.Unspents, error) {
-	var (
-		params = request.NewRawParams(address)
-		resp   = &result.Unspents{}
-	)
-	if err := c.performRequest("getunspents", params, resp); err != nil {
-		return nil, err
 	}
 	return resp, nil
 }
@@ -392,39 +344,26 @@ func (c *Client) GetVersion() (*result.Version, error) {
 
 // InvokeScript returns the result of the given script after running it true the VM.
 // NOTE: This is a test invoke and will not affect the blockchain.
-func (c *Client) InvokeScript(script string) (*result.Invoke, error) {
-	var (
-		params = request.NewRawParams(script)
-		resp   = &result.Invoke{}
-	)
-	if err := c.performRequest("invokescript", params, resp); err != nil {
-		return nil, err
-	}
-	return resp, nil
+func (c *Client) InvokeScript(script []byte, signers []transaction.Signer) (*result.Invoke, error) {
+	var p = request.NewRawParams(hex.EncodeToString(script))
+	return c.invokeSomething("invokescript", p, signers)
 }
 
 // InvokeFunction returns the results after calling the smart contract scripthash
 // with the given operation and parameters.
 // NOTE: this is test invoke and will not affect the blockchain.
-func (c *Client) InvokeFunction(script, operation string, params []smartcontract.Parameter) (*result.Invoke, error) {
-	var (
-		p    = request.NewRawParams(script, operation, params)
-		resp = &result.Invoke{}
-	)
-	if err := c.performRequest("invokefunction", p, resp); err != nil {
-		return nil, err
-	}
-	return resp, nil
+func (c *Client) InvokeFunction(contract util.Uint160, operation string, params []smartcontract.Parameter, signers []transaction.Signer) (*result.Invoke, error) {
+	var p = request.NewRawParams(contract.StringLE(), operation, params)
+	return c.invokeSomething("invokefunction", p, signers)
 }
 
-// Invoke returns the results after calling the smart contract scripthash
-// with the given parameters.
-func (c *Client) Invoke(script string, params []smartcontract.Parameter) (*result.Invoke, error) {
-	var (
-		p    = request.NewRawParams(script, params)
-		resp = &result.Invoke{}
-	)
-	if err := c.performRequest("invoke", p, resp); err != nil {
+// invokeSomething is an inner wrapper for Invoke* functions
+func (c *Client) invokeSomething(method string, p request.RawParams, signers []transaction.Signer) (*result.Invoke, error) {
+	var resp = new(result.Invoke)
+	if signers != nil {
+		p.Values = append(p.Values, signers)
+	}
+	if err := c.performRequest(method, p, resp); err != nil {
 		return nil, err
 	}
 	return resp, nil
@@ -434,120 +373,77 @@ func (c *Client) Invoke(script string, params []smartcontract.Parameter) (*resul
 // The given hex string needs to be signed with a keypair.
 // When the result of the response object is true, the TX has successfully
 // been broadcasted to the network.
-func (c *Client) SendRawTransaction(rawTX *transaction.Transaction) error {
+func (c *Client) SendRawTransaction(rawTX *transaction.Transaction) (util.Uint256, error) {
 	var (
 		params = request.NewRawParams(hex.EncodeToString(rawTX.Bytes()))
-		resp   bool
+		resp   = new(result.RelayResult)
 	)
-	if err := c.performRequest("sendrawtransaction", params, &resp); err != nil {
-		return err
+	if err := c.performRequest("sendrawtransaction", params, resp); err != nil {
+		return util.Uint256{}, err
 	}
-	if !resp {
-		return errors.New("sendrawtransaction returned false")
-	}
-	return nil
+	return resp.Hash, nil
 }
 
 // SubmitBlock broadcasts a raw block over the NEO network.
-func (c *Client) SubmitBlock(b block.Block) error {
+func (c *Client) SubmitBlock(b block.Block) (util.Uint256, error) {
 	var (
 		params request.RawParams
-		resp   bool
+		resp   = new(result.RelayResult)
 	)
 	buf := io.NewBufBinWriter()
 	b.EncodeBinary(buf.BinWriter)
 	if err := buf.Err; err != nil {
-		return err
+		return util.Uint256{}, err
 	}
 	params = request.NewRawParams(hex.EncodeToString(buf.Bytes()))
 
-	if err := c.performRequest("submitblock", params, &resp); err != nil {
-		return err
+	if err := c.performRequest("submitblock", params, resp); err != nil {
+		return util.Uint256{}, err
 	}
-	if !resp {
-		return errors.New("submitblock returned false")
-	}
-	return nil
-}
-
-// TransferAsset sends an amount of specific asset to a given address.
-// This call requires open wallet. (`wif` key in client struct.)
-// If response.Result is `true` then transaction was formed correctly and was written in blockchain.
-func (c *Client) TransferAsset(asset util.Uint256, address string, amount util.Fixed8) (util.Uint256, error) {
-	var (
-		err      error
-		rawTx    *transaction.Transaction
-		txParams = request.ContractTxParams{
-			AssetID:  asset,
-			Address:  address,
-			Value:    amount,
-			WIF:      c.WIF(),
-			Balancer: c.opts.Balancer,
-		}
-		resp util.Uint256
-	)
-
-	if rawTx, err = request.CreateRawContractTransaction(txParams); err != nil {
-		return resp, errors.Wrap(err, "failed to create raw transaction")
-	}
-
-	validUntilBlock, err := c.CalculateValidUntilBlock()
-	if err != nil {
-		return resp, errors.Wrap(err, "failed to add validUntilBlock to raw transaction")
-	}
-	rawTx.ValidUntilBlock = validUntilBlock
-
-	if err = c.SendRawTransaction(rawTx); err != nil {
-		return resp, errors.Wrap(err, "failed to send raw transaction")
-	}
-	return rawTx.Hash(), nil
+	return resp.Hash, nil
 }
 
 // SignAndPushInvocationTx signs and pushes given script as an invocation
 // transaction  using given wif to sign it and spending the amount of gas
 // specified. It returns a hash of the invocation transaction and an error.
-func (c *Client) SignAndPushInvocationTx(script []byte, acc *wallet.Account, sysfee util.Fixed8, netfee util.Fixed8) (util.Uint256, error) {
+func (c *Client) SignAndPushInvocationTx(script []byte, acc *wallet.Account, sysfee int64, netfee util.Fixed8, cosigners []transaction.Signer) (util.Uint256, error) {
 	var txHash util.Uint256
 	var err error
 
-	tx := transaction.NewInvocationTX(script, sysfee)
-	tx.SystemFee = sysfee
-
-	validUntilBlock, err := c.CalculateValidUntilBlock()
-	if err != nil {
-		return txHash, errors.Wrap(err, "failed to add validUntilBlock to transaction")
-	}
-	tx.ValidUntilBlock = validUntilBlock
-
-	addr, err := address.StringToUint160(acc.Address)
-	if err != nil {
-		return txHash, errors.Wrap(err, "failed to get address")
-	}
-	tx.Sender = addr
-
-	gas := sysfee + netfee
-
-	if gas > 0 {
-		if err = request.AddInputsAndUnspentsToTx(tx, acc.Address, core.UtilityTokenID(), gas, c); err != nil {
-			return txHash, errors.Wrap(err, "failed to add inputs and unspents to transaction")
-		}
-	}
-
-	err = c.AddNetworkFee(tx, acc)
-	if err != nil {
-		return txHash, errors.Wrapf(err, "failed to add network fee")
-	}
-
+	tx, err := c.CreateTxFromScript(script, acc, sysfee, int64(netfee), cosigners...)
 	if err = acc.SignTx(tx); err != nil {
-		return txHash, errors.Wrap(err, "failed to sign tx")
+		return txHash, fmt.Errorf("failed to sign tx: %w", err)
 	}
 	txHash = tx.Hash()
-	err = c.SendRawTransaction(tx)
-
+	actualHash, err := c.SendRawTransaction(tx)
 	if err != nil {
-		return txHash, errors.Wrap(err, "failed sendning tx")
+		return txHash, fmt.Errorf("failed to send tx: %w", err)
+	}
+	if !actualHash.Equals(txHash) {
+		return actualHash, fmt.Errorf("sent and actual tx hashes mismatch:\n\tsent: %v\n\tactual: %v", txHash.StringLE(), actualHash.StringLE())
 	}
 	return txHash, nil
+}
+
+// getSigners returns an array of transaction signers from given sender and cosigners.
+// If cosigners list already contains sender, the sender will be placed at the start of
+// the list.
+func getSigners(sender util.Uint160, cosigners []transaction.Signer) []transaction.Signer {
+	s := transaction.Signer{
+		Account: sender,
+		Scopes:  transaction.FeeOnly,
+	}
+	for i, c := range cosigners {
+		if c.Account == sender {
+			if i == 0 {
+				return cosigners
+			}
+			s.Scopes = c.Scopes
+			cosigners = append(cosigners[:i], cosigners[i+1:]...)
+			break
+		}
+	}
+	return append([]transaction.Signer{s}, cosigners...)
 }
 
 // ValidateAddress verifies that the address is a correct NEO address.
@@ -577,7 +473,7 @@ func (c *Client) CalculateValidUntilBlock() (uint32, error) {
 	)
 	blockCount, err := c.GetBlockCount()
 	if err != nil {
-		return result, errors.Wrapf(err, "cannot get block count")
+		return result, fmt.Errorf("can't get block count: %w", err)
 	}
 
 	if c.cache.calculateValidUntilBlock.expiresAt > blockCount {
@@ -585,7 +481,7 @@ func (c *Client) CalculateValidUntilBlock() (uint32, error) {
 	} else {
 		validators, err := c.GetValidators()
 		if err != nil {
-			return result, errors.Wrapf(err, "cannot get validators")
+			return result, fmt.Errorf("can't get validators: %w", err)
 		}
 		validatorsCount = uint32(len(validators))
 		c.cache.calculateValidUntilBlock = calculateValidUntilBlockCache{
@@ -596,32 +492,36 @@ func (c *Client) CalculateValidUntilBlock() (uint32, error) {
 	return blockCount + validatorsCount, nil
 }
 
-// AddNetworkFee adds network fee for each witness script to transaction.
-func (c *Client) AddNetworkFee(tx *transaction.Transaction, acc *wallet.Account) error {
-	size := io.GetVarSize(tx)
-	if acc.Contract != nil {
-		netFee, sizeDelta := core.CalculateNetworkFee(acc.Contract.Script)
-		tx.NetworkFee += netFee
-		size += sizeDelta
+// AddNetworkFee adds network fee for each witness script and optional extra
+// network fee to transaction. `accs` is an array signer's accounts.
+func (c *Client) AddNetworkFee(tx *transaction.Transaction, extraFee int64, accs ...*wallet.Account) error {
+	if len(tx.Signers) != len(accs) {
+		return errors.New("number of signers must match number of scripts")
 	}
-	for _, cosigner := range tx.Cosigners {
-		contract, err := c.GetContractState(cosigner.Account)
-		if err != nil {
-			return err
-		}
-		if contract == nil {
+	size := io.GetVarSize(tx)
+	for i, cosigner := range tx.Signers {
+		if accs[i].Contract.Deployed {
+			res, err := c.InvokeFunction(cosigner.Account, manifest.MethodVerify, []smartcontract.Parameter{}, tx.Signers)
+			if err == nil && res.State == "HALT" && len(res.Stack) == 1 {
+				r, err := topIntFromStack(res.Stack)
+				if err != nil || r == 0 {
+					return core.ErrVerificationFailed
+				}
+			} else {
+				return core.ErrVerificationFailed
+			}
+			tx.NetworkFee += res.GasConsumed
+			size += io.GetVarSize([]byte{}) * 2 // both scripts are empty
 			continue
 		}
-		netFee, sizeDelta := core.CalculateNetworkFee(contract.Script)
+		netFee, sizeDelta := core.CalculateNetworkFee(accs[i].Contract.Script)
 		tx.NetworkFee += netFee
 		size += sizeDelta
 	}
-	tx.NetworkFee += util.Fixed8(int64(size) * int64(c.GetFeePerByte()))
+	fee, err := c.GetFeePerByte()
+	if err != nil {
+		return err
+	}
+	tx.NetworkFee += int64(size)*fee + extraFee
 	return nil
-}
-
-// GetFeePerByte returns transaction network fee per byte
-func (c *Client) GetFeePerByte() util.Fixed8 {
-	// TODO: make it a part of policy contract
-	return util.Fixed8(1000)
 }

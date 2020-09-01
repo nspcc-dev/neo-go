@@ -4,20 +4,16 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
 	"net/url"
-	"sync"
 	"time"
 
-	"github.com/nspcc-dev/neo-go/pkg/core/state"
-	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
-	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/request"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response"
-	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/pkg/errors"
 )
 
 const (
@@ -36,8 +32,6 @@ type Client struct {
 	ctx      context.Context
 	opts     Options
 	requestF func(*request.Raw) (*response.Raw, error)
-	wifMu    *sync.Mutex
-	wif      *keys.WIF
 	cache    cache
 }
 
@@ -45,13 +39,6 @@ type Client struct {
 // All values are optional. If any duration is not specified
 // a default of 4 seconds will be used.
 type Options struct {
-	// Balancer is an implementation of request.BalanceGetter interface,
-	// if not set then the default Client's implementation will be used, but
-	// it relies on server support for `getunspents` RPC call which is
-	// standard for neo-go, but only implemented as a plugin for C# node. So
-	// you can override it here to use NeoScanServer for example.
-	Balancer request.BalanceGetter
-
 	// Cert is a client-side certificate, it doesn't work at the moment along
 	// with the other two options below.
 	Cert           string
@@ -59,6 +46,7 @@ type Options struct {
 	CACert         string
 	DialTimeout    time.Duration
 	RequestTimeout time.Duration
+	Network        netmode.Magic
 }
 
 // cache stores cache values for the RPC client methods
@@ -104,61 +92,11 @@ func New(ctx context.Context, endpoint string, opts Options) (*Client, error) {
 	cl := &Client{
 		ctx:      ctx,
 		cli:      httpClient,
-		wifMu:    new(sync.Mutex),
 		endpoint: url,
-	}
-	if opts.Balancer == nil {
-		opts.Balancer = cl
 	}
 	cl.opts = opts
 	cl.requestF = cl.makeHTTPRequest
 	return cl, nil
-}
-
-// WIF returns WIF structure associated with the client.
-func (c *Client) WIF() keys.WIF {
-	c.wifMu.Lock()
-	defer c.wifMu.Unlock()
-	return keys.WIF{
-		Version:    c.wif.Version,
-		Compressed: c.wif.Compressed,
-		PrivateKey: c.wif.PrivateKey,
-		S:          c.wif.S,
-	}
-}
-
-// SetWIF decodes given WIF and adds some wallet
-// data to client. Useful for RPC calls that require an open wallet.
-func (c *Client) SetWIF(wif string) error {
-	c.wifMu.Lock()
-	defer c.wifMu.Unlock()
-	decodedWif, err := keys.WIFDecode(wif, 0x00)
-	if err != nil {
-		return errors.Wrap(err, "Failed to decode WIF; failed to add WIF to client ")
-	}
-	c.wif = decodedWif
-	return nil
-}
-
-// CalculateInputs implements request.BalanceGetter interface and returns inputs
-// array for the specified amount of given asset belonging to specified address.
-// This implementation uses GetUnspents JSON-RPC call internally, so make sure
-// your RPC server supports that.
-func (c *Client) CalculateInputs(address string, asset util.Uint256, cost util.Fixed8) ([]transaction.Input, util.Fixed8, error) {
-	var utxos state.UnspentBalances
-
-	resp, err := c.GetUnspents(address)
-	if err != nil {
-		return nil, util.Fixed8(0), errors.Wrapf(err, "cannot get balance for address %v", address)
-	}
-	for _, ubi := range resp.Balance {
-		if asset.Equals(ubi.AssetHash) {
-			utxos = ubi.Unspents
-			break
-		}
-	}
-	return unspentsToInputs(utxos, cost)
-
 }
 
 func (c *Client) performRequest(method string, p request.RawParams, v interface{}) error {
@@ -208,7 +146,7 @@ func (c *Client) makeHTTPRequest(r *request.Raw) (*response.Raw, error) {
 		if resp.StatusCode != http.StatusOK {
 			err = fmt.Errorf("HTTP %d/%s", resp.StatusCode, http.StatusText(resp.StatusCode))
 		} else {
-			err = errors.Wrap(err, "JSON decoding")
+			err = fmt.Errorf("JSON decoding: %w", err)
 		}
 	}
 	if err != nil {

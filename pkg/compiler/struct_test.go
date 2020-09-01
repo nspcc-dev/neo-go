@@ -4,7 +4,7 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/nspcc-dev/neo-go/pkg/vm"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
 var structTestCases = []testCase{
@@ -255,7 +255,7 @@ var structTestCases = []testCase{
 			return t.y
 		}
 		`,
-		[]byte{},
+		big.NewInt(0),
 	},
 	{
 		"test return struct from func",
@@ -281,11 +281,11 @@ var structTestCases = []testCase{
 			return newToken()
 		}
 		`,
-		[]vm.StackItem{
-			vm.NewBigIntegerItem(big.NewInt(1)),
-			vm.NewBigIntegerItem(big.NewInt(2)),
-			vm.NewByteArrayItem([]byte("hello")),
-			vm.NewBoolItem(false),
+		[]stackitem.Item{
+			stackitem.NewBigInteger(big.NewInt(1)),
+			stackitem.NewBigInteger(big.NewInt(2)),
+			stackitem.NewByteArray([]byte("hello")),
+			stackitem.NewBool(false),
 		},
 	},
 	{
@@ -393,6 +393,40 @@ var structTestCases = []testCase{
 			return s1.x.y.a + s1.x.z.a
 		}`,
 		big.NewInt(42),
+	},
+	{
+		"omit field names",
+		`package foo
+		type pair struct { a, b int }
+		func Main() int {
+			p := pair{1, 2}
+			x := p.a * 10
+			return x + p.b
+		}`,
+		big.NewInt(12),
+	},
+	{
+		"uninitialized struct fields",
+		`package foo
+               type Foo struct {
+                       i int
+                       m map[string]int
+                       b []byte
+                       a []int
+                       s struct { ii int }
+               }
+               func NewFoo() Foo { return Foo{} }
+               func Main() int {
+                       foo := NewFoo()
+                       if foo.i != 0 { return 1 }
+                       if len(foo.m) != 0 { return 1 }
+                       if len(foo.b) != 0 { return 1 }
+                       if len(foo.a) != 0 { return 1 }
+                       s := foo.s
+                       if s.ii != 0 { return 1 }
+                       return 2
+               }`,
+		big.NewInt(2),
 	},
 }
 

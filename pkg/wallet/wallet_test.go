@@ -181,14 +181,14 @@ func TestWalletGetChangeAddress(t *testing.T) {
 	require.NoError(t, err)
 	sh := w1.GetChangeAddress()
 	// No default address, the first one is used.
-	expected, err := address.StringToUint160("ALHF9wsXZVEuCGgmDA6ZNsCLtrb4A1g4yG")
+	expected, err := address.StringToUint160("NbTiM6h8r99kpRtb428XcsUk1TzKed2gTc")
 	require.NoError(t, err)
 	require.Equal(t, expected, sh)
 	w2, err := NewWalletFromFile("testdata/wallet2.json")
 	require.NoError(t, err)
 	sh = w2.GetChangeAddress()
 	// Default address.
-	expected, err = address.StringToUint160("AJjSSuKdC88zWvXnZQbEfL21cm74pGJhsF")
+	expected, err = address.StringToUint160("NWvKSwutC8D6VKmmPxAEgFKx2NLvFhn8q5")
 	require.NoError(t, err)
 	require.Equal(t, expected, sh)
 }

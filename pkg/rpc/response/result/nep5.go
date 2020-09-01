@@ -14,16 +14,16 @@ type NEP5Balances struct {
 
 // NEP5Balance represents balance for the single token contract.
 type NEP5Balance struct {
-	Asset       util.Uint160 `json:"asset_hash"`
+	Asset       util.Uint160 `json:"assethash"`
 	Amount      string       `json:"amount"`
-	LastUpdated uint32       `json:"last_updated_block"`
+	LastUpdated uint32       `json:"lastupdatedblock"`
 }
 
-// nep5Balance is an auxilliary struct for proper Asset marshaling.
+// nep5Balance is an auxiliary struct for proper Asset marshaling.
 type nep5Balance struct {
-	Asset       string `json:"asset_hash"`
+	Asset       string `json:"assethash"`
 	Amount      string `json:"amount"`
-	LastUpdated uint32 `json:"last_updated_block"`
+	LastUpdated uint32 `json:"lastupdatedblock"`
 }
 
 // NEP5Transfers is a result for the getnep5transfers RPC.
@@ -36,12 +36,12 @@ type NEP5Transfers struct {
 // NEP5Transfer represents single NEP5 transfer event.
 type NEP5Transfer struct {
 	Timestamp   uint64       `json:"timestamp"`
-	Asset       util.Uint160 `json:"asset_hash"`
-	Address     string       `json:"transfer_address,omitempty"`
+	Asset       util.Uint160 `json:"assethash"`
+	Address     string       `json:"transferaddress,omitempty"`
 	Amount      string       `json:"amount"`
-	Index       uint32       `json:"block_index"`
-	NotifyIndex uint32       `json:"transfer_notify_index"`
-	TxHash      util.Uint256 `json:"tx_hash"`
+	Index       uint32       `json:"blockindex"`
+	NotifyIndex uint32       `json:"transfernotifyindex"`
+	TxHash      util.Uint256 `json:"txhash"`
 }
 
 // MarshalJSON implements json.Marshaler interface.

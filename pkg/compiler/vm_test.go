@@ -1,13 +1,18 @@
 package compiler_test
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/compiler"
+	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
+	"github.com/nspcc-dev/neo-go/pkg/core/state"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
-	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -18,16 +23,13 @@ type testCase struct {
 	result interface{}
 }
 
+// testMainIdent is a method invoked in tests by default.
+const testMainIdent = "Main"
+
 func runTestCases(t *testing.T, tcases []testCase) {
 	for _, tcase := range tcases {
 		t.Run(tcase.name, func(t *testing.T) { eval(t, tcase.src, tcase.result) })
 	}
-}
-
-func evalWithoutStackChecks(t *testing.T, src string, result interface{}) {
-	v := vmAndCompile(t, src)
-	require.NoError(t, v.Run())
-	assertResult(t, v, result)
 }
 
 func eval(t *testing.T, src string, result interface{}) {
@@ -38,7 +40,7 @@ func eval(t *testing.T, src string, result interface{}) {
 	assertResult(t, vm, result)
 }
 
-func evalWithArgs(t *testing.T, src string, op []byte, args []vm.StackItem, result interface{}) {
+func evalWithArgs(t *testing.T, src string, op []byte, args []stackitem.Item, result interface{}) {
 	vm := vmAndCompile(t, src)
 	vm.LoadArgs(op, args)
 	err := vm.Run()
@@ -49,7 +51,6 @@ func evalWithArgs(t *testing.T, src string, op []byte, args []vm.StackItem, resu
 
 func assertResult(t *testing.T, vm *vm.VM, result interface{}) {
 	assert.Equal(t, result, vm.PopResult())
-	assert.Equal(t, 0, vm.Astack().Len())
 	assert.Equal(t, 0, vm.Istack().Len())
 }
 
@@ -62,43 +63,72 @@ func vmAndCompileInterop(t *testing.T, src string) (*vm.VM, *storagePlugin) {
 	vm := vm.New()
 
 	storePlugin := newStoragePlugin()
-	vm.RegisterInteropGetter(storePlugin.getInterop)
+	vm.GasLimit = -1
+	vm.SyscallHandler = storePlugin.syscallHandler
 
-	b, err := compiler.Compile(strings.NewReader(src))
+	b, di, err := compiler.CompileWithDebugInfo("foo.go", strings.NewReader(src))
 	require.NoError(t, err)
-	vm.Load(b)
+
+	invokeMethod(t, testMainIdent, b, vm, di)
 	return vm, storePlugin
+}
+
+func invokeMethod(t *testing.T, method string, script []byte, v *vm.VM, di *compiler.DebugInfo) {
+	mainOffset := -1
+	initOffset := -1
+	for i := range di.Methods {
+		switch di.Methods[i].ID {
+		case method:
+			mainOffset = int(di.Methods[i].Range.Start)
+		case manifest.MethodInit:
+			initOffset = int(di.Methods[i].Range.Start)
+		}
+	}
+	require.True(t, mainOffset >= 0)
+	v.LoadScriptWithFlags(script, smartcontract.All)
+	v.Jump(v.Context(), mainOffset)
+	if initOffset >= 0 {
+		v.Call(v.Context(), initOffset)
+	}
 }
 
 type storagePlugin struct {
 	mem      map[string][]byte
-	interops map[uint32]vm.InteropFunc
-	events   []vm.StackItem
+	interops map[uint32]func(v *vm.VM) error
+	events   []state.NotificationEvent
 }
 
 func newStoragePlugin() *storagePlugin {
 	s := &storagePlugin{
 		mem:      make(map[string][]byte),
-		interops: make(map[uint32]vm.InteropFunc),
+		interops: make(map[uint32]func(v *vm.VM) error),
 	}
-	s.interops[emit.InteropNameToID([]byte("Neo.Storage.Get"))] = s.Get
-	s.interops[emit.InteropNameToID([]byte("Neo.Storage.Put"))] = s.Put
-	s.interops[emit.InteropNameToID([]byte("Neo.Storage.GetContext"))] = s.GetContext
-	s.interops[emit.InteropNameToID([]byte("Neo.Runtime.Notify"))] = s.Notify
+	s.interops[interopnames.ToID([]byte(interopnames.SystemStorageGet))] = s.Get
+	s.interops[interopnames.ToID([]byte(interopnames.SystemStoragePut))] = s.Put
+	s.interops[interopnames.ToID([]byte(interopnames.SystemStorageGetContext))] = s.GetContext
+	s.interops[interopnames.ToID([]byte(interopnames.SystemRuntimeNotify))] = s.Notify
 	return s
 
 }
 
-func (s *storagePlugin) getInterop(id uint32) *vm.InteropFuncPrice {
+func (s *storagePlugin) syscallHandler(v *vm.VM, id uint32) error {
 	f := s.interops[id]
 	if f != nil {
-		return &vm.InteropFuncPrice{Func: f, Price: 1}
+		if !v.AddGas(1) {
+			return errors.New("insufficient amount of gas")
+		}
+		return f(v)
 	}
-	return nil
+	return errors.New("syscall not found")
 }
 
 func (s *storagePlugin) Notify(v *vm.VM) error {
-	s.events = append(s.events, v.Estack().Pop().Item())
+	name := v.Estack().Pop().String()
+	item := stackitem.NewArray(v.Estack().Pop().Array())
+	s.events = append(s.events, state.NotificationEvent{
+		Name: name,
+		Item: item,
+	})
 	return nil
 }
 

@@ -5,6 +5,8 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
+	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/stretchr/testify/assert"
@@ -49,7 +51,7 @@ func TestEmitInt(t *testing.T) {
 		result := buf.Bytes()
 		assert.Equal(t, 3, len(result))
 		assert.EqualValues(t, opcode.PUSHINT16, result[0])
-		assert.EqualValues(t, 300, BytesToInt(result[1:]).Int64())
+		assert.EqualValues(t, 300, bigint.FromBytes(result[1:]).Int64())
 	})
 
 	t.Run("3-byte int", func(t *testing.T) {
@@ -58,7 +60,7 @@ func TestEmitInt(t *testing.T) {
 		result := buf.Bytes()
 		assert.Equal(t, 5, len(result))
 		assert.EqualValues(t, opcode.PUSHINT32, result[0])
-		assert.EqualValues(t, 1<<20, BytesToInt(result[1:]).Int64())
+		assert.EqualValues(t, 1<<20, bigint.FromBytes(result[1:]).Int64())
 	})
 
 	t.Run("4-byte int", func(t *testing.T) {
@@ -67,7 +69,7 @@ func TestEmitInt(t *testing.T) {
 		result := buf.Bytes()
 		assert.Equal(t, 5, len(result))
 		assert.EqualValues(t, opcode.PUSHINT32, result[0])
-		assert.EqualValues(t, 1<<28, BytesToInt(result[1:]).Int64())
+		assert.EqualValues(t, 1<<28, bigint.FromBytes(result[1:]).Int64())
 	})
 
 	t.Run("negative 3-byte int with padding", func(t *testing.T) {
@@ -77,7 +79,7 @@ func TestEmitInt(t *testing.T) {
 		result := buf.Bytes()
 		assert.Equal(t, 5, len(result))
 		assert.EqualValues(t, opcode.PUSHINT32, result[0])
-		assert.EqualValues(t, num, BytesToInt(result[1:]).Int64())
+		assert.EqualValues(t, num, bigint.FromBytes(result[1:]).Int64())
 	})
 }
 
@@ -141,7 +143,7 @@ func TestBytes(t *testing.T) {
 func TestEmitArray(t *testing.T) {
 	t.Run("good", func(t *testing.T) {
 		buf := io.NewBufBinWriter()
-		Array(buf.BinWriter, int64(1), "str", true, []byte{0xCA, 0xFE})
+		Array(buf.BinWriter, nil, int64(1), "str", true, []byte{0xCA, 0xFE})
 		require.NoError(t, buf.Err)
 
 		res := buf.Bytes()
@@ -153,6 +155,7 @@ func TestEmitArray(t *testing.T) {
 		assert.EqualValues(t, 3, res[6])
 		assert.EqualValues(t, []byte("str"), res[7:10])
 		assert.EqualValues(t, opcode.PUSH1, res[10])
+		assert.EqualValues(t, opcode.PUSHNULL, res[11])
 	})
 
 	t.Run("empty", func(t *testing.T) {
@@ -188,9 +191,9 @@ func TestEmitString(t *testing.T) {
 
 func TestEmitSyscall(t *testing.T) {
 	syscalls := []string{
-		"Neo.Runtime.Log",
-		"Neo.Runtime.Notify",
-		"Neo.Runtime.Whatever",
+		interopnames.SystemRuntimeLog,
+		interopnames.SystemRuntimeNotify,
+		"System.Runtime.Whatever",
 	}
 
 	buf := io.NewBufBinWriter()
@@ -199,7 +202,7 @@ func TestEmitSyscall(t *testing.T) {
 		result := buf.Bytes()
 		assert.Equal(t, 5, len(result))
 		assert.Equal(t, opcode.Opcode(result[0]), opcode.SYSCALL)
-		assert.Equal(t, binary.LittleEndian.Uint32(result[1:]), InteropNameToID([]byte(syscall)))
+		assert.Equal(t, binary.LittleEndian.Uint32(result[1:]), interopnames.ToID([]byte(syscall)))
 		buf.Reset()
 	}
 

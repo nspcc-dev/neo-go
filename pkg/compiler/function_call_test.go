@@ -24,8 +24,8 @@ func TestSimpleFunctionCall(t *testing.T) {
 }
 
 func TestNotAssignedFunctionCall(t *testing.T) {
-	src := `
-		package testcase
+	t.Run("Simple", func(t *testing.T) {
+		src := `package testcase
 		func Main() int {
 			getSomeInteger()
 			getSomeInteger()
@@ -34,12 +34,53 @@ func TestNotAssignedFunctionCall(t *testing.T) {
 
 		func getSomeInteger() int {
 			return 0
-		}
-	`
-	// disable stack checks because it is hard right now
-	// to distinguish between simple function call traversal
-	// and the same traversal inside an assignment.
-	evalWithoutStackChecks(t, src, []byte{})
+		}`
+		eval(t, src, big.NewInt(0))
+	})
+	t.Run("If", func(t *testing.T) {
+		src := `package testcase
+		func f() bool { return true }
+		func Main() int {
+			if f() {
+				return 42
+			}
+			return 0
+		}`
+		eval(t, src, big.NewInt(42))
+	})
+	t.Run("Switch", func(t *testing.T) {
+		src := `package testcase
+		func f() bool { return true }
+		func Main() int {
+			switch true {
+			case f():
+				return 42
+			default:
+				return 0
+			}
+		}`
+		eval(t, src, big.NewInt(42))
+	})
+	t.Run("Builtin", func(t *testing.T) {
+		src := `package foo
+		import "github.com/nspcc-dev/neo-go/pkg/interop/util"
+		func Main() int {
+			util.FromAddress("NPAsqZkx9WhNd4P72uhZxBhLinSuNkxfB8")
+			util.FromAddress("NPAsqZkx9WhNd4P72uhZxBhLinSuNkxfB8")
+			return 1
+		}`
+		eval(t, src, big.NewInt(1))
+	})
+	t.Run("Lambda", func(t *testing.T) {
+		src := `package foo
+		func Main() int {
+			f := func() (int, int) { return 1, 2 }
+			f()
+			f()
+			return 42
+		}`
+		eval(t, src, big.NewInt(42))
+	})
 }
 
 func TestMultipleFunctionCalls(t *testing.T) {
@@ -168,4 +209,63 @@ func TestFunctionWithMultipleArgumentNames(t *testing.T) {
 		return a + b
 	}`
 	eval(t, src, big.NewInt(3))
+}
+
+func TestLocalsCount(t *testing.T) {
+	src := `package foo
+	func f(a, b, c int) int {
+		sum := a
+		for i := 0; i < c; i++ {
+			sum += b
+		}
+		return sum
+	}
+	func Main() int {
+		return f(1, 2, 3)
+	}`
+	eval(t, src, big.NewInt(7))
+}
+
+func TestVariadic(t *testing.T) {
+	srcTmpl := `package foo
+	func someFunc(a int, b ...int) int {
+		sum := a
+		for i := range b {
+			sum = sum - b[i]
+		}
+		return sum
+	}
+	func Main() int {
+		%s
+		return someFunc(10, %s)
+	}`
+	t.Run("Elements", func(t *testing.T) {
+		src := fmt.Sprintf(srcTmpl, "", "1, 2, 3")
+		eval(t, src, big.NewInt(4))
+	})
+	t.Run("Slice", func(t *testing.T) {
+		src := fmt.Sprintf(srcTmpl, "a := []int{1, 2, 3}", "a...")
+		eval(t, src, big.NewInt(4))
+	})
+	t.Run("Literal", func(t *testing.T) {
+		src := fmt.Sprintf(srcTmpl, "", "[]int{1, 2, 3}...")
+		eval(t, src, big.NewInt(4))
+	})
+}
+
+func TestVariadicMethod(t *testing.T) {
+	src := `package foo
+	type myInt int
+	func (x myInt) someFunc(a int, b ...int) int {
+		sum := int(x) + a
+		for i := range b {
+			sum = sum - b[i] 
+		}
+		return sum
+	}
+	func Main() int {
+		x := myInt(38)
+		return x.someFunc(10, 1, 2, 3)
+	}`
+	eval(t, src, big.NewInt(42))
 }

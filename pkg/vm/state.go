@@ -1,9 +1,8 @@
 package vm
 
 import (
+	"errors"
 	"strings"
-
-	"github.com/pkg/errors"
 )
 
 // State of the VM.
@@ -11,10 +10,14 @@ type State uint8
 
 // Available States.
 const (
-	noneState State = 0
-	haltState State = 1 << iota
-	faultState
-	breakState
+	// NoneState represents NONE VM state.
+	NoneState State = 0
+	// HaltState represents HALT VM state.
+	HaltState State = 1 << iota
+	// FaultState represents FAULT VM state.
+	FaultState
+	// BreakState represents BREAK VM state.
+	BreakState
 )
 
 // HasFlag checks for State flag presence.
@@ -24,18 +27,18 @@ func (s State) HasFlag(f State) bool {
 
 // String implements the stringer interface.
 func (s State) String() string {
-	if s == noneState {
+	if s == NoneState {
 		return "NONE"
 	}
 
 	ss := make([]string, 0, 3)
-	if s.HasFlag(haltState) {
+	if s.HasFlag(HaltState) {
 		ss = append(ss, "HALT")
 	}
-	if s.HasFlag(faultState) {
+	if s.HasFlag(FaultState) {
 		ss = append(ss, "FAULT")
 	}
-	if s.HasFlag(breakState) {
+	if s.HasFlag(BreakState) {
 		ss = append(ss, "BREAK")
 	}
 	return strings.Join(ss, ", ")
@@ -44,18 +47,18 @@ func (s State) String() string {
 // StateFromString converts string into the VM State.
 func StateFromString(s string) (st State, err error) {
 	if s = strings.TrimSpace(s); s == "NONE" {
-		return noneState, nil
+		return NoneState, nil
 	}
 
 	ss := strings.Split(s, ",")
 	for _, state := range ss {
 		switch state = strings.TrimSpace(state); state {
 		case "HALT":
-			st |= haltState
+			st |= HaltState
 		case "FAULT":
-			st |= faultState
+			st |= FaultState
 		case "BREAK":
-			st |= breakState
+			st |= BreakState
 		default:
 			return 0, errors.New("unknown state")
 		}

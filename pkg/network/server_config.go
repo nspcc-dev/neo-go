@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
-	"github.com/nspcc-dev/neo-go/pkg/wallet"
+	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"go.uber.org/zap/zapcore"
 )
 
@@ -38,7 +38,7 @@ type (
 		// ModePrivNet docker private network.
 		// ModeTestNet NEO test network.
 		// ModeMainNet NEO main network.
-		Net config.NetMode
+		Net netmode.Magic
 
 		// Relay determines whether the server is forwarding its inventory.
 		Relay bool
@@ -62,7 +62,7 @@ type (
 		LogLevel zapcore.Level
 
 		// Wallet is a wallet configuration.
-		Wallet *wallet.Config
+		Wallet *config.Wallet
 
 		// TimePerBlock is an interval which should pass between two successive blocks.
 		TimePerBlock time.Duration
@@ -75,7 +75,7 @@ func NewServerConfig(cfg config.Config) ServerConfig {
 	appConfig := cfg.ApplicationConfiguration
 	protoConfig := cfg.ProtocolConfiguration
 
-	var wc *wallet.Config
+	var wc *config.Wallet
 	if appConfig.UnlockWallet.Path != "" {
 		wc = &appConfig.UnlockWallet
 	}

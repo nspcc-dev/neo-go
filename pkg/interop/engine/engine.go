@@ -1,34 +1,14 @@
+/*
+Package engine allows to make contract calls.
+It's roughly similar in function to ExecutionEngine class in the Neo .net
+framework.
+*/
 package engine
 
-import "github.com/nspcc-dev/neo-go/pkg/interop/transaction"
-
-// Package engine provides function signatures that can be used inside
-// smart contracts that are written in the neo-go framework.
-
-// GetScriptContainer returns the transaction that is in the execution context.
-func GetScriptContainer() transaction.Transaction {
-	return transaction.Transaction{}
-}
-
-// GetExecutingScriptHash returns the script hash of the contract that is
-// currently being executed.
-func GetExecutingScriptHash() []byte {
-	return nil
-}
-
-// GetCallingScriptHash returns the script hash of the contract that started
-// the execution of the current script.
-func GetCallingScriptHash() []byte {
-	return nil
-}
-
-// GetEntryScriptHash returns the script hash of the contract that started the
-// execution from the start.
-func GetEntryScriptHash() []byte {
-	return nil
-}
-
-// AppCall executes script with specified hash using provided arguments.
-func AppCall(scriptHash []byte, args ...interface{}) interface{} {
+// AppCall executes previously deployed blockchain contract with specified hash
+// (160 bit in BE form represented as 20-byte slice) using provided arguments.
+// It returns whatever this contract returns. This function uses
+// `System.Contract.Call` syscall.
+func AppCall(scriptHash []byte, method string, args ...interface{}) interface{} {
 	return nil
 }

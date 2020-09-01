@@ -6,36 +6,62 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
-	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
-	"github.com/nspcc-dev/neo-go/pkg/vm"
 )
 
 // Deploy deploys native contract.
-func Deploy(ic *interop.Context, _ *vm.VM) error {
-	if ic.Block.Index != 0 {
+func Deploy(ic *interop.Context) error {
+	if ic.Block == nil || ic.Block.Index != 0 {
 		return errors.New("native contracts can be deployed only at 0 block")
 	}
 
 	for _, native := range ic.Natives {
 		md := native.Metadata()
 
-		ps := md.Manifest.ABI.EntryPoint.Parameters
-		params := make([]smartcontract.ParamType, len(ps))
-		for i := range ps {
-			params[i] = ps[i].Type
-		}
-
 		cs := &state.Contract{
-			Script:     md.Script,
-			ParamList:  params,
-			ReturnType: md.Manifest.ABI.EntryPoint.ReturnType,
+			ID:       md.ContractID,
+			Script:   md.Script,
+			Manifest: md.Manifest,
 		}
 		if err := ic.DAO.PutContractState(cs); err != nil {
 			return err
 		}
 		if err := native.Initialize(ic); err != nil {
-			return fmt.Errorf("initializing %s native contract: %v", md.ServiceName, err)
+			return fmt.Errorf("initializing %s native contract: %w", md.Name, err)
 		}
 	}
+	return nil
+}
+
+// Call calls specified native contract method.
+func Call(ic *interop.Context) error {
+	name := ic.VM.Estack().Pop().String()
+	var c interop.Contract
+	for _, ctr := range ic.Natives {
+		if ctr.Metadata().Name == name {
+			c = ctr
+			break
+		}
+	}
+	if c == nil {
+		return fmt.Errorf("native contract %s not found", name)
+	}
+	h := ic.VM.GetCurrentScriptHash()
+	if !h.Equals(c.Metadata().Hash) {
+		return errors.New("it is not allowed to use Neo.Native.Call directly to call native contracts. System.Contract.Call should be used")
+	}
+	operation := ic.VM.Estack().Pop().String()
+	args := ic.VM.Estack().Pop().Array()
+	m, ok := c.Metadata().Methods[operation]
+	if !ok {
+		return fmt.Errorf("method %s not found", operation)
+	}
+	if !ic.VM.Context().GetCallFlags().Has(m.RequiredFlags) {
+		return errors.New("missing call flags")
+	}
+	if !ic.VM.AddGas(m.Price) {
+		return errors.New("gas limit exceeded")
+	}
+	result := m.Func(ic, args)
+	ic.VM.Estack().PushVal(result)
 	return nil
 }

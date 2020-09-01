@@ -1,6 +1,7 @@
 package keys
 
 import (
+	"crypto/elliptic"
 	"encoding/hex"
 	"encoding/json"
 	"math/rand"
@@ -37,12 +38,29 @@ func TestEncodeDecodePublicKey(t *testing.T) {
 	}
 }
 
+func TestPublicKeys_Copy(t *testing.T) {
+	pubs := make(PublicKeys, 5)
+	for i := range pubs {
+		priv, err := NewPrivateKey()
+		require.NoError(t, err)
+		pubs[i] = priv.PublicKey()
+	}
+
+	cp := pubs.Copy()
+	priv, err := NewPrivateKey()
+	require.NoError(t, err)
+	cp[0] = priv.PublicKey()
+
+	require.NotEqual(t, pubs[0], cp[0])
+	require.Equal(t, pubs[1:], cp[1:])
+}
+
 func TestNewPublicKeyFromBytes(t *testing.T) {
 	priv, err := NewPrivateKey()
 	require.NoError(t, err)
 
 	b := priv.PublicKey().Bytes()
-	pub, err := NewPublicKeyFromBytes(b)
+	pub, err := NewPublicKeyFromBytes(b, elliptic.P256())
 	require.NoError(t, err)
 	require.Equal(t, priv.PublicKey(), pub)
 }
@@ -89,16 +107,20 @@ func TestPubkeyToAddress(t *testing.T) {
 	pubKey, err := NewPublicKeyFromString("031ee4e73a17d8f76dc02532e2620bcb12425b33c0c9f9694cc2caa8226b68cad4")
 	require.NoError(t, err)
 	actual := pubKey.Address()
-	expected := "AJhhwPRwjUmQhEmwPBrq4CVTMRq7u4S4in"
+	expected := "NcKJdJTEDeCSV9BJAKWWxkBMcHTeVnSzJo"
 	require.Equal(t, expected, actual)
 }
 
 func TestDecodeBytes(t *testing.T) {
 	pubKey := getPubKey(t)
-	decodedPubKey := &PublicKey{}
-	err := decodedPubKey.DecodeBytes(pubKey.Bytes())
-	require.NoError(t, err)
-	require.Equal(t, pubKey, decodedPubKey)
+	var testBytesFunction = func(t *testing.T, bytesFunction func() []byte) {
+		decodedPubKey := &PublicKey{}
+		err := decodedPubKey.DecodeBytes(bytesFunction())
+		require.NoError(t, err)
+		require.Equal(t, pubKey, decodedPubKey)
+	}
+	t.Run("compressed", func(t *testing.T) { testBytesFunction(t, pubKey.Bytes) })
+	t.Run("uncompressed", func(t *testing.T) { testBytesFunction(t, pubKey.UncompressedBytes) })
 }
 
 func TestSort(t *testing.T) {

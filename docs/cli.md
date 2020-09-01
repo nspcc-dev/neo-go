@@ -48,7 +48,6 @@ Example of such configuration:
 ```yaml
 ProtocolConfiguration:
   Magic: 56753
-  AddressVersion: 23
   StandbyValidators:
   - 02b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc2
   - 02103a7f7dd016558597f7960d27c516a4394fd968b9e65155eb4b013e4040406e
@@ -59,10 +58,6 @@ ProtocolConfiguration:
   - 127.0.0.1:20334
   - 127.0.0.1:20335
   - 127.0.0.1:20336
-  SystemFee:
-    EnrollmentTransaction: 1000
-    IssueTransaction: 500
-    RegisterTransaction: 10000
 
 ApplicationConfiguration:
   DataDirectoryPath: "./chains/privnet"
@@ -109,11 +104,11 @@ In case you don't want to provide details use `--skip-details, -skip`.
 ./bin/neo-go contract compile -i mycontract.go
 ```
 
-By default the output filename will be the name of your `.go` file with the `.avm` extension, the file will be located 
+By default the output filename will be the name of your `.go` file with the `.nef` extension, the file will be located 
 in the same directory where you called the command from. If you want another location for your compiled contract:
 
 ```
-./bin/neo-go contract compile -i mycontract.go --out /Users/foo/bar/contract.avm
+./bin/neo-go contract compile -i mycontract.go --out /Users/foo/bar/contract.nef
 ```
 
 ### Deploy
@@ -123,7 +118,7 @@ in the same directory where you called the command from. If you want another loc
 //Implemented in test mode. It means that it won't affect the blockchain
 
 ```
-./bin/neo-go contract testinvoke -i mycontract.avm
+./bin/neo-go contract testinvoke -i mycontract.nef
 ```
 
 ### Debug
@@ -183,6 +178,6 @@ There is a small subset of commands:
 
 ## Wallet operations
 
-- `./bin/neo-go wallet init -p newWallet` to create new wallet in the path `newWallet`
-- `./bin/neo-go wallet dump -p newWallet` to open created wallet in the path `newWallet`
-- `./bin/neo-go wallet init -p newWallet -a` to create new account
+- `./bin/neo-go wallet init -w newWallet` to create new wallet in the path `newWallet`
+- `./bin/neo-go wallet dump -w newWallet` to open created wallet in the path `newWallet`
+- `./bin/neo-go wallet init -w newWallet -a` to create new account

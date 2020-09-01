@@ -17,11 +17,9 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"golang.org/x/tools/go/loader"
 )
-
-// The identifier of the entry function. Default set to Main.
-const mainIdent = "Main"
 
 type codegen struct {
 	// Information about the program with all its dependencies.
@@ -60,6 +58,32 @@ type codegen struct {
 	// containing info about mapping from opcode's offset
 	// to a text span in the source file.
 	sequencePoints map[string][]DebugSeqPoint
+
+	// initEndOffset specifies the end of the initialization method.
+	initEndOffset int
+
+	// importMap contains mapping from package aliases to full package names for the current file.
+	importMap map[string]string
+
+	// constMap contains constants from foreign packages.
+	constMap map[string]types.TypeAndValue
+
+	// currPkg is current package being processed.
+	currPkg *types.Package
+
+	// mainPkg is a main package metadata.
+	mainPkg *loader.PackageInfo
+
+	// packages contains packages in the order they were loaded.
+	packages []string
+
+	// exceptionIndex is the index of static slot where exception is stored.
+	exceptionIndex int
+
+	// documents contains paths to all files used by the program.
+	documents []string
+	// docIndex maps file path to an index in documents array.
+	docIndex map[string]int
 
 	// Label table for recording jump destinations.
 	l []int
@@ -163,15 +187,16 @@ func (c *codegen) emitStoreStructField(i int) {
 
 // getVarIndex returns variable type and position in corresponding slot,
 // according to current scope.
-func (c *codegen) getVarIndex(name string) (varType, int) {
-	if c.scope != nil {
-		if i, ok := c.scope.arguments[name]; ok {
-			return varArgument, i
-		} else if i, ok := c.scope.locals[name]; ok {
-			return varLocal, i
+func (c *codegen) getVarIndex(pkg string, name string) (varType, int) {
+	if pkg == "" {
+		if c.scope != nil {
+			vt, val := c.scope.vars.getVarIndex(name)
+			if val >= 0 {
+				return vt, val
+			}
 		}
 	}
-	if i, ok := c.globals[name]; ok {
+	if i, ok := c.globals[c.getIdentName(pkg, name)]; ok {
 		return varGlobal, i
 	}
 
@@ -192,8 +217,13 @@ func getBaseOpcode(t varType) (opcode.Opcode, opcode.Opcode) {
 }
 
 // emitLoadVar loads specified variable to the evaluation stack.
-func (c *codegen) emitLoadVar(name string) {
-	t, i := c.getVarIndex(name)
+func (c *codegen) emitLoadVar(pkg string, name string) {
+	t, i := c.getVarIndex(pkg, name)
+	c.emitLoadByIndex(t, i)
+}
+
+// emitLoadByIndex loads specified variable type with index i.
+func (c *codegen) emitLoadByIndex(t varType, i int) {
 	base, _ := getBaseOpcode(t)
 	if i < 7 {
 		emit.Opcode(c.prog.BinWriter, base+opcode.Opcode(i))
@@ -203,12 +233,17 @@ func (c *codegen) emitLoadVar(name string) {
 }
 
 // emitStoreVar stores top value from the evaluation stack in the specified variable.
-func (c *codegen) emitStoreVar(name string) {
+func (c *codegen) emitStoreVar(pkg string, name string) {
 	if name == "_" {
 		emit.Opcode(c.prog.BinWriter, opcode.DROP)
 		return
 	}
-	t, i := c.getVarIndex(name)
+	t, i := c.getVarIndex(pkg, name)
+	c.emitStoreByIndex(t, i)
+}
+
+// emitLoadByIndex stores top value in the specified variable type with index i.
+func (c *codegen) emitStoreByIndex(t varType, i int) {
 	_, base := getBaseOpcode(t)
 	if i < 7 {
 		emit.Opcode(c.prog.BinWriter, base+opcode.Opcode(i))
@@ -231,13 +266,6 @@ func (c *codegen) emitDefault(t types.Type) {
 		default:
 			emit.Opcode(c.prog.BinWriter, opcode.PUSHNULL)
 		}
-	case *types.Slice:
-		if isCompoundSlice(t) {
-			emit.Opcode(c.prog.BinWriter, opcode.NEWARRAY0)
-		} else {
-			emit.Int(c.prog.BinWriter, 0)
-			emit.Opcode(c.prog.BinWriter, opcode.NEWBUFFER)
-		}
 	case *types.Struct:
 		num := t.NumFields()
 		emit.Int(c.prog.BinWriter, int64(num))
@@ -256,40 +284,60 @@ func (c *codegen) emitDefault(t types.Type) {
 // convertGlobals traverses the AST and only converts global declarations.
 // If we call this in convertFuncDecl then it will load all global variables
 // into the scope of the function.
-func (c *codegen) convertGlobals(f ast.Node) {
+func (c *codegen) convertGlobals(f *ast.File, _ *types.Package) {
 	ast.Inspect(f, func(node ast.Node) bool {
 		switch n := node.(type) {
 		case *ast.FuncDecl:
 			return false
 		case *ast.GenDecl:
-			// constants are loaded directly so there is no need
-			// to store them as a local variables
-			if n.Tok != token.CONST {
-				ast.Walk(c, n)
-			}
+			ast.Walk(c, n)
 		}
 		return true
 	})
 }
 
-func (c *codegen) convertFuncDecl(file ast.Node, decl *ast.FuncDecl) {
+func isInitFunc(decl *ast.FuncDecl) bool {
+	return decl.Name.Name == "init" && decl.Recv == nil &&
+		decl.Type.Params.NumFields() == 0 &&
+		decl.Type.Results.NumFields() == 0
+}
+
+func (c *codegen) convertInitFuncs(f *ast.File, pkg *types.Package) {
+	ast.Inspect(f, func(node ast.Node) bool {
+		switch n := node.(type) {
+		case *ast.FuncDecl:
+			if isInitFunc(n) {
+				c.convertFuncDecl(f, n, pkg)
+			}
+		case *ast.GenDecl:
+			return false
+		}
+		return true
+	})
+}
+
+func (c *codegen) convertFuncDecl(file ast.Node, decl *ast.FuncDecl, pkg *types.Package) {
 	var (
 		f            *funcScope
 		ok, isLambda bool
 	)
-
-	f, ok = c.funcs[decl.Name.Name]
-	if ok {
-		// If this function is a syscall we will not convert it to bytecode.
-		if isSyscall(f) {
-			return
-		}
-		c.setLabel(f.label)
-	} else if f, ok = c.lambda[decl.Name.Name]; ok {
-		isLambda = ok
-		c.setLabel(f.label)
+	isInit := isInitFunc(decl)
+	if isInit {
+		f = c.newFuncScope(decl, c.newLabel())
 	} else {
-		f = c.newFunc(decl)
+		f, ok = c.funcs[c.getFuncNameFromDecl("", decl)]
+		if ok {
+			// If this function is a syscall or builtin we will not convert it to bytecode.
+			if isSyscall(f) || isCustomBuiltin(f) {
+				return
+			}
+			c.setLabel(f.label)
+		} else if f, ok = c.lambda[c.getIdentName("", decl.Name.Name)]; ok {
+			isLambda = ok
+			c.setLabel(f.label)
+		} else {
+			f = c.newFunc(decl)
+		}
 	}
 
 	f.rng.Start = uint16(c.prog.Len())
@@ -309,6 +357,9 @@ func (c *codegen) convertFuncDecl(file ast.Node, decl *ast.FuncDecl) {
 	if sizeLoc != 0 || sizeArg != 0 {
 		emit.Instruction(c.prog.BinWriter, opcode.INITSLOT, []byte{byte(sizeLoc), byte(sizeArg)})
 	}
+
+	f.vars.newScope()
+	defer f.vars.dropScope()
 
 	// We need to handle methods, which in Go, is just syntactic sugar.
 	// The method receiver will be passed in as first argument.
@@ -336,7 +387,7 @@ func (c *codegen) convertFuncDecl(file ast.Node, decl *ast.FuncDecl) {
 	// If we have reached the end of the function without encountering `return` statement,
 	// we should clean alt.stack manually.
 	// This can be the case with void and named-return functions.
-	if !lastStmtIsReturn(decl) {
+	if !isInit && !lastStmtIsReturn(decl) {
 		c.saveSequencePoint(decl.Body)
 		emit.Opcode(c.prog.BinWriter, opcode.RET)
 	}
@@ -345,7 +396,7 @@ func (c *codegen) convertFuncDecl(file ast.Node, decl *ast.FuncDecl) {
 
 	if !isLambda {
 		for _, f := range c.lambda {
-			c.convertFuncDecl(file, f.decl)
+			c.convertFuncDecl(file, f.decl, pkg)
 		}
 		c.lambda = make(map[string]*funcScope)
 	}
@@ -362,13 +413,30 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 	//     x = 2
 	// )
 	case *ast.GenDecl:
+		if n.Tok == token.VAR || n.Tok == token.CONST {
+			c.saveSequencePoint(n)
+		}
+		if n.Tok == token.CONST {
+			for _, spec := range n.Specs {
+				vs := spec.(*ast.ValueSpec)
+				for i := range vs.Names {
+					info := c.buildInfo.program.Package(c.currPkg.Path())
+					obj := info.Defs[vs.Names[i]]
+					c.constMap[c.getIdentName("", vs.Names[i].Name)] = types.TypeAndValue{
+						Type:  obj.Type(),
+						Value: obj.(*types.Const).Val(),
+					}
+				}
+			}
+			return nil
+		}
 		for _, spec := range n.Specs {
 			switch t := spec.(type) {
 			case *ast.ValueSpec:
 				for _, id := range t.Names {
 					if c.scope == nil {
 						// it is a global declaration
-						c.newGlobal(id.Name)
+						c.newGlobal("", id.Name)
 					} else {
 						c.scope.newLocal(id.Name)
 					}
@@ -380,7 +448,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 					} else {
 						c.emitDefault(c.typeOf(t.Type))
 					}
-					c.emitStoreVar(t.Names[i].Name)
+					c.emitStoreVar("", t.Names[i].Name)
 				}
 			}
 		}
@@ -395,7 +463,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			// RHS can contain exactly one expression, thus there is no need to iterate.
 			ast.Walk(c, n.Lhs[0])
 			ast.Walk(c, n.Rhs[0])
-			c.convertToken(n.Tok)
+			c.emitToken(n.Tok, c.typeOf(n.Rhs[0]))
 		}
 		for i := 0; i < len(n.Lhs); i++ {
 			switch t := n.Lhs[i].(type) {
@@ -411,13 +479,19 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 				if !isAssignOp && (i == 0 || !multiRet) {
 					ast.Walk(c, n.Rhs[i])
 				}
-				c.emitStoreVar(t.Name)
+				c.emitStoreVar("", t.Name)
 
 			case *ast.SelectorExpr:
 				if !isAssignOp {
 					ast.Walk(c, n.Rhs[i])
 				}
-				strct, ok := c.typeOf(t.X).Underlying().(*types.Struct)
+				typ := c.typeOf(t.X)
+				if typ == nil {
+					// Store to other package global variable.
+					c.emitStoreVar(t.X.(*ast.Ident).Name, t.Sel.Name)
+					return nil
+				}
+				strct, ok := c.getStruct(typ)
 				if !ok {
 					c.prog.Err = fmt.Errorf("nested selector assigns not supported yet")
 					return nil
@@ -442,7 +516,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 
 	case *ast.SliceExpr:
 		name := n.X.(*ast.Ident).Name
-		c.emitLoadVar(name)
+		c.emitLoadVar("", name)
 
 		if n.Low != nil {
 			ast.Walk(c, n.Low)
@@ -480,7 +554,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 				for i := len(results.List) - 1; i >= 0; i-- {
 					names := results.List[i].Names
 					for j := len(names) - 1; j >= 0; j-- {
-						c.emitLoadVar(names[j].Name)
+						c.emitLoadVar("", names[j].Name)
 					}
 				}
 			}
@@ -491,18 +565,25 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			}
 		}
 
+		c.processDefers()
+
 		c.saveSequencePoint(n)
 		emit.Opcode(c.prog.BinWriter, opcode.RET)
 		return nil
 
 	case *ast.IfStmt:
+		c.scope.vars.newScope()
+		defer c.scope.vars.dropScope()
+
 		lIf := c.newLabel()
 		lElse := c.newLabel()
 		lElseEnd := c.newLabel()
 
+		if n.Init != nil {
+			ast.Walk(c, n.Init)
+		}
 		if n.Cond != nil {
-			ast.Walk(c, n.Cond)
-			emit.Jmp(c.prog.BinWriter, opcode.JMPIFNOTL, lElse)
+			c.emitBoolExpr(n.Cond, true, false, lElse)
 		}
 
 		c.setLabel(lIf)
@@ -519,9 +600,13 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		return nil
 
 	case *ast.SwitchStmt:
-		ast.Walk(c, n.Tag)
-
-		eqOpcode := c.getEqualityOpcode(n.Tag)
+		eqOpcode := opcode.EQUAL
+		if n.Tag != nil {
+			ast.Walk(c, n.Tag)
+			eqOpcode, _ = convertToken(token.EQL, c.typeOf(n.Tag))
+		} else {
+			emit.Bool(c.prog.BinWriter, true)
+		}
 		switchEnd, label := c.generateLabel(labelEnd)
 
 		lastSwitch := c.currentSwitch
@@ -550,6 +635,8 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 				}
 			}
 
+			c.scope.vars.newScope()
+
 			c.setLabel(lStart)
 			last := len(cc.Body) - 1
 			for j, stmt := range cc.Body {
@@ -561,6 +648,8 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			}
 			emit.Jmp(c.prog.BinWriter, opcode.JMPL, switchEnd)
 			c.setLabel(lEnd)
+
+			c.scope.vars.dropScope()
 		}
 
 		c.setLabel(switchEnd)
@@ -582,24 +671,32 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		c.emitLoadConst(c.typeAndValueOf(n))
 		return nil
 
+	case *ast.StarExpr:
+		_, ok := c.getStruct(c.typeOf(n.X))
+		if !ok {
+			c.prog.Err = errors.New("dereferencing is only supported on structs")
+			return nil
+		}
+		ast.Walk(c, n.X)
+		c.emitConvert(stackitem.StructT)
+		return nil
+
 	case *ast.Ident:
 		if tv := c.typeAndValueOf(n); tv.Value != nil {
 			c.emitLoadConst(tv)
+		} else if n.Name == "nil" {
+			emit.Opcode(c.prog.BinWriter, opcode.PUSHNULL)
 		} else {
-			c.emitLoadVar(n.Name)
+			c.emitLoadVar("", n.Name)
 		}
 		return nil
 
 	case *ast.CompositeLit:
-		typ := c.typeOf(n.Type).Underlying()
-		switch n.Type.(type) {
-		case *ast.Ident, *ast.SelectorExpr, *ast.MapType:
-			switch typ.(type) {
-			case *types.Struct:
-				c.convertStruct(n)
-			case *types.Map:
-				c.convertMap(n)
-			}
+		switch typ := c.typeOf(n).Underlying().(type) {
+		case *types.Struct:
+			c.convertStruct(n, false)
+		case *types.Map:
+			c.convertMap(n)
 		default:
 			ln := len(n.Elts)
 			// ByteArrays needs a different approach than normal arrays.
@@ -617,72 +714,8 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		return nil
 
 	case *ast.BinaryExpr:
-		switch n.Op {
-		case token.LAND:
-			next := c.newLabel()
-			end := c.newLabel()
-			ast.Walk(c, n.X)
-			emit.Jmp(c.prog.BinWriter, opcode.JMPIFL, next)
-			emit.Opcode(c.prog.BinWriter, opcode.PUSHF)
-			emit.Jmp(c.prog.BinWriter, opcode.JMPL, end)
-			c.setLabel(next)
-			ast.Walk(c, n.Y)
-			c.setLabel(end)
-			return nil
-
-		case token.LOR:
-			next := c.newLabel()
-			end := c.newLabel()
-			ast.Walk(c, n.X)
-			emit.Jmp(c.prog.BinWriter, opcode.JMPIFNOTL, next)
-			emit.Opcode(c.prog.BinWriter, opcode.PUSHT)
-			emit.Jmp(c.prog.BinWriter, opcode.JMPL, end)
-			c.setLabel(next)
-			ast.Walk(c, n.Y)
-			c.setLabel(end)
-			return nil
-
-		default:
-			// The AST package will try to resolve all basic literals for us.
-			// If the typeinfo.Value is not nil we know that the expr is resolved
-			// and needs no further action. e.g. x := 2 + 2 + 2 will be resolved to 6.
-			// NOTE: Constants will also be automatically resolved be the AST parser.
-			// example:
-			// const x = 10
-			// x + 2 will results into 12
-			tinfo := c.typeAndValueOf(n)
-			if tinfo.Value != nil {
-				c.emitLoadConst(tinfo)
-				return nil
-			}
-
-			ast.Walk(c, n.X)
-			ast.Walk(c, n.Y)
-
-			switch {
-			case n.Op == token.ADD:
-				// VM has separate opcodes for number and string concatenation
-				if isString(tinfo.Type) {
-					emit.Opcode(c.prog.BinWriter, opcode.CAT)
-				} else {
-					emit.Opcode(c.prog.BinWriter, opcode.ADD)
-				}
-			case n.Op == token.EQL:
-				// VM has separate opcodes for number and string equality
-				op := c.getEqualityOpcode(n.X)
-				emit.Opcode(c.prog.BinWriter, op)
-			case n.Op == token.NEQ:
-				// VM has separate opcodes for number and string equality
-				if isString(c.typeOf(n.X)) {
-					emit.Opcode(c.prog.BinWriter, opcode.NOTEQUAL)
-				} else {
-					emit.Opcode(c.prog.BinWriter, opcode.NUMNOTEQUAL)
-				}
-			default:
-				c.convertToken(n.Op)
-			}
-			return nil
-		}
+		c.emitBinaryExpr(n, false, false, 0)
+		return nil
 
 	case *ast.CallExpr:
 		var (
@@ -690,38 +723,49 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			ok        bool
 			name      string
 			numArgs   = len(n.Args)
-			isBuiltin = isBuiltin(n.Fun)
+			isBuiltin bool
+			isFunc    bool
+			isLiteral bool
 		)
 
 		switch fun := n.Fun.(type) {
 		case *ast.Ident:
-			f, ok = c.funcs[fun.Name]
+			f, ok = c.funcs[c.getIdentName("", fun.Name)]
+			isBuiltin = isGoBuiltin(fun.Name)
 			if !ok && !isBuiltin {
 				name = fun.Name
+			}
+			// distinguish lambda invocations from type conversions
+			if fun.Obj != nil && fun.Obj.Kind == ast.Var {
+				isFunc = true
 			}
 		case *ast.SelectorExpr:
 			// If this is a method call we need to walk the AST to load the struct locally.
 			// Otherwise this is a function call from a imported package and we can call it
 			// directly.
-			if c.typeInfo.Selections[fun] != nil {
+			name, isMethod := c.getFuncNameFromSelector(fun)
+			if isMethod {
 				ast.Walk(c, fun.X)
 				// Dont forget to add 1 extra argument when its a method.
 				numArgs++
 			}
 
-			f, ok = c.funcs[fun.Sel.Name]
+			f, ok = c.funcs[name]
 			// @FIXME this could cause runtime errors.
 			f.selector = fun.X.(*ast.Ident)
 			if !ok {
 				c.prog.Err = fmt.Errorf("could not resolve function %s", fun.Sel.Name)
 				return nil
 			}
+			isBuiltin = isCustomBuiltin(f)
 		case *ast.ArrayType:
 			// For now we will assume that there are only byte slice conversions.
 			// E.g. []byte("foobar") or []byte(scriptHash).
 			ast.Walk(c, n.Args[0])
-			c.emitConvert(vm.BufferT)
+			c.emitConvert(stackitem.BufferT)
 			return nil
+		case *ast.FuncLit:
+			isLiteral = true
 		}
 
 		c.saveSequencePoint(n)
@@ -731,9 +775,30 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		// Handle the arguments
 		for _, arg := range args {
 			ast.Walk(c, arg)
+			typ := c.typeOf(arg)
+			_, ok := typ.Underlying().(*types.Struct)
+			if ok && !isInteropPath(typ.String()) {
+				// To clone struct fields we create a new array and append struct to it.
+				// This way even non-pointer struct fields will be copied.
+				emit.Opcode(c.prog.BinWriter, opcode.NEWARRAY0)
+				emit.Opcode(c.prog.BinWriter, opcode.DUP)
+				emit.Opcode(c.prog.BinWriter, opcode.ROT)
+				emit.Opcode(c.prog.BinWriter, opcode.APPEND)
+				emit.Opcode(c.prog.BinWriter, opcode.PUSH0)
+				emit.Opcode(c.prog.BinWriter, opcode.PICKITEM)
+			}
 		}
 		// Do not swap for builtin functions.
 		if !isBuiltin {
+			typ, ok := c.typeOf(n.Fun).(*types.Signature)
+			if ok && typ.Variadic() && !n.Ellipsis.IsValid() {
+				// pack variadic args into an array only if last argument is not of form `...`
+				varSize := len(n.Args) - typ.Params().Len() + 1
+				c.emitReverse(varSize)
+				emit.Int(c.prog.BinWriter, int64(varSize))
+				emit.Opcode(c.prog.BinWriter, opcode.PACK)
+				numArgs -= varSize - 1
+			}
 			c.emitReverse(numArgs)
 		}
 
@@ -744,19 +809,68 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			// We can be sure builtins are of type *ast.Ident.
 			c.convertBuiltin(n)
 		case name != "":
-			// Function was not found thus is can be only an invocation of func-typed variable.
-			c.emitLoadVar(name)
+			// Function was not found thus is can be only an invocation of func-typed variable or type conversion.
+			// We care only about string conversions because all others are effectively no-op in NeoVM.
+			// E.g. one cannot write `bool(int(a))`, only `int32(int(a))`.
+			if isString(c.typeOf(n.Fun)) {
+				c.emitConvert(stackitem.ByteArrayT)
+			} else if isFunc {
+				c.emitLoadVar("", name)
+				emit.Opcode(c.prog.BinWriter, opcode.CALLA)
+			}
+		case isLiteral:
+			ast.Walk(c, n.Fun)
 			emit.Opcode(c.prog.BinWriter, opcode.CALLA)
 		case isSyscall(f):
-			c.convertSyscall(n, f.selector.Name, f.name)
+			c.convertSyscall(n, f.pkg.Name(), f.name)
 		default:
 			emit.Call(c.prog.BinWriter, opcode.CALLL, f.label)
 		}
 
+		if c.scope != nil && c.scope.voidCalls[n] {
+			var sz int
+			if f != nil {
+				sz = f.decl.Type.Results.NumFields()
+			} else if !isBuiltin {
+				// lambda invocation
+				f := c.typeOf(n.Fun).Underlying().(*types.Signature)
+				sz = f.Results().Len()
+			}
+			for i := 0; i < sz; i++ {
+				emit.Opcode(c.prog.BinWriter, opcode.DROP)
+			}
+		}
+
+		return nil
+
+	case *ast.DeferStmt:
+		catch := c.newLabel()
+		finally := c.newLabel()
+		param := make([]byte, 8)
+		binary.LittleEndian.PutUint16(param[0:], catch)
+		binary.LittleEndian.PutUint16(param[4:], finally)
+		emit.Instruction(c.prog.BinWriter, opcode.TRYL, param)
+		c.scope.deferStack = append(c.scope.deferStack, deferInfo{
+			catchLabel:   catch,
+			finallyLabel: finally,
+			expr:         n.Call,
+		})
 		return nil
 
 	case *ast.SelectorExpr:
-		strct, ok := c.typeOf(n.X).Underlying().(*types.Struct)
+		typ := c.typeOf(n.X)
+		if typ == nil {
+			// This is a global variable from a package.
+			pkgAlias := n.X.(*ast.Ident).Name
+			name := c.getIdentName(pkgAlias, n.Sel.Name)
+			if tv, ok := c.constMap[name]; ok {
+				c.emitLoadConst(tv)
+			} else {
+				c.emitLoadVar(pkgAlias, n.Sel.Name)
+			}
+			return nil
+		}
+		strct, ok := c.getStruct(typ)
 		if !ok {
 			c.prog.Err = fmt.Errorf("selectors are supported only on structs")
 			return nil
@@ -767,6 +881,19 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		return nil
 
 	case *ast.UnaryExpr:
+		if n.Op == token.AND {
+			// We support only taking address from struct literals.
+			// For identifiers we can't support "taking address" in a general way
+			// because both struct and array are reference types.
+			lit, ok := n.X.(*ast.CompositeLit)
+			if ok {
+				c.convertStruct(lit, true)
+				return nil
+			}
+			c.prog.Err = fmt.Errorf("'&' can be used only with struct literals")
+			return nil
+		}
+
 		ast.Walk(c, n.X)
 		// From https://golang.org/ref/spec#Operators
 		// there can be only following unary operators
@@ -789,13 +916,13 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 
 	case *ast.IncDecStmt:
 		ast.Walk(c, n.X)
-		c.convertToken(n.Tok)
+		c.emitToken(n.Tok, c.typeOf(n.X))
 
 		// For now only identifiers are supported for (post) for stmts.
 		// for i := 0; i < 10; i++ {}
 		// Where the post stmt is ( i++ )
 		if ident, ok := n.X.(*ast.Ident); ok {
-			c.emitStoreVar(ident.Name)
+			c.emitStoreVar("", ident.Name)
 		}
 		return nil
 
@@ -842,7 +969,20 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 
 		return nil
 
+	case *ast.BlockStmt:
+		c.scope.vars.newScope()
+		defer c.scope.vars.dropScope()
+
+		for i := range n.List {
+			ast.Walk(c, n.List[i])
+		}
+
+		return nil
+
 	case *ast.ForStmt:
+		c.scope.vars.newScope()
+		defer c.scope.vars.dropScope()
+
 		fstart, label := c.generateLabel(labelStart)
 		fend := c.newNamedLabel(labelEnd, label)
 		fpost := c.newNamedLabel(labelPost, label)
@@ -885,6 +1025,9 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		return nil
 
 	case *ast.RangeStmt:
+		c.scope.vars.newScope()
+		defer c.scope.vars.dropScope()
+
 		start, label := c.generateLabel(labelStart)
 		end := c.newNamedLabel(labelEnd, label)
 		post := c.newNamedLabel(labelPost, label)
@@ -895,30 +1038,63 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		c.currentSwitch = label
 
 		ast.Walk(c, n.X)
-		emit.Syscall(c.prog.BinWriter, "Neo.Iterator.Create")
 
-		c.pushStackLabel(label, 1)
+		// Implementation is a bit different for slices and maps:
+		// For slices we iterate index from 0 to len-1, storing array, len and index on stack.
+		// For maps we iterate index from 0 to len-1, storing map, keyarray, size and index on stack.
+		_, isMap := c.typeOf(n.X).Underlying().(*types.Map)
+		emit.Opcode(c.prog.BinWriter, opcode.DUP)
+		if isMap {
+			emit.Opcode(c.prog.BinWriter, opcode.KEYS)
+			emit.Opcode(c.prog.BinWriter, opcode.DUP)
+		}
+		emit.Opcode(c.prog.BinWriter, opcode.SIZE)
+		emit.Opcode(c.prog.BinWriter, opcode.PUSH0)
+
+		stackSize := 3 // slice, len(slice), index
+		if isMap {
+			stackSize++ // map, keys, len(keys), index in keys
+		}
+		c.pushStackLabel(label, stackSize)
 		c.setLabel(start)
 
-		emit.Opcode(c.prog.BinWriter, opcode.DUP)
-		emit.Syscall(c.prog.BinWriter, "Neo.Enumerator.Next")
-		emit.Jmp(c.prog.BinWriter, opcode.JMPIFNOTL, end)
+		emit.Opcode(c.prog.BinWriter, opcode.OVER)
+		emit.Opcode(c.prog.BinWriter, opcode.OVER)
+		emit.Jmp(c.prog.BinWriter, opcode.JMPLEL, end)
 
-		if n.Key != nil {
-			emit.Opcode(c.prog.BinWriter, opcode.DUP)
-			emit.Syscall(c.prog.BinWriter, "Neo.Iterator.Key")
-			c.emitStoreVar(n.Key.(*ast.Ident).Name)
+		var keyLoaded bool
+		needValue := n.Value != nil && n.Value.(*ast.Ident).Name != "_"
+		if n.Key != nil && n.Key.(*ast.Ident).Name != "_" {
+			if isMap {
+				c.rangeLoadKey()
+				if needValue {
+					emit.Opcode(c.prog.BinWriter, opcode.DUP)
+					keyLoaded = true
+				}
+			} else {
+				emit.Opcode(c.prog.BinWriter, opcode.DUP)
+			}
+			c.emitStoreVar("", n.Key.(*ast.Ident).Name)
 		}
-		if n.Value != nil {
-			emit.Opcode(c.prog.BinWriter, opcode.DUP)
-			emit.Syscall(c.prog.BinWriter, "Neo.Enumerator.Value")
-			c.emitStoreVar(n.Value.(*ast.Ident).Name)
+		if needValue {
+			if !isMap || !keyLoaded {
+				c.rangeLoadKey()
+			}
+			if isMap {
+				// we have loaded only key from key array, now load value
+				emit.Int(c.prog.BinWriter, 4)
+				emit.Opcode(c.prog.BinWriter, opcode.PICK) // load map itself (+1 because key was pushed)
+				emit.Opcode(c.prog.BinWriter, opcode.SWAP) // key should be on top
+				emit.Opcode(c.prog.BinWriter, opcode.PICKITEM)
+			}
+			c.emitStoreVar("", n.Value.(*ast.Ident).Name)
 		}
 
 		ast.Walk(c, n.Body)
 
 		c.setLabel(post)
 
+		emit.Opcode(c.prog.BinWriter, opcode.INC)
 		emit.Jmp(c.prog.BinWriter, opcode.JMPL, start)
 
 		c.setLabel(end)
@@ -935,14 +1111,170 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 	// not the assertion type.
 	case *ast.TypeAssertExpr:
 		ast.Walk(c, n.X)
+		typ := toNeoType(c.typeOf(n.Type))
+		emit.Instruction(c.prog.BinWriter, opcode.CONVERT, []byte{byte(typ)})
 		return nil
 	}
 	return c
 }
 
+// processDefers emits code for `defer` statements.
+// TRY-related opcodes handle exception as follows:
+// 1. CATCH block is executed only if exception has occured.
+// 2. FINALLY block is always executed, but after catch block.
+// Go `defer` statements are a bit different:
+// 1. `defer` is always executed irregardless of whether an exception has occured.
+// 2. `recover` can or can not handle a possible exception.
+// Thus we use the following approach:
+// 1. Throwed exception is saved in a static field X, static fields Y and is set to true.
+// 2. CATCH and FINALLY blocks are the same, and both contain the same CALLs.
+// 3. In CATCH block we set Y to true and emit default return values if it is the last defer.
+// 4. Execute FINALLY block only if Y is false.
+func (c *codegen) processDefers() {
+	for i := len(c.scope.deferStack) - 1; i >= 0; i-- {
+		stmt := c.scope.deferStack[i]
+		after := c.newLabel()
+		emit.Jmp(c.prog.BinWriter, opcode.ENDTRYL, after)
+
+		c.setLabel(stmt.catchLabel)
+		c.emitStoreByIndex(varGlobal, c.exceptionIndex)
+		emit.Int(c.prog.BinWriter, 1)
+		c.emitStoreByIndex(varLocal, c.scope.finallyProcessedIndex)
+		ast.Walk(c, stmt.expr)
+		if i == 0 {
+			// After panic, default values must be returns, except for named returns,
+			// which we don't support here for now.
+			for i := len(c.scope.decl.Type.Results.List) - 1; i >= 0; i-- {
+				c.emitDefault(c.typeOf(c.scope.decl.Type.Results.List[i].Type))
+			}
+		}
+		emit.Jmp(c.prog.BinWriter, opcode.ENDTRYL, after)
+
+		c.setLabel(stmt.finallyLabel)
+		before := c.newLabel()
+		c.emitLoadByIndex(varLocal, c.scope.finallyProcessedIndex)
+		emit.Jmp(c.prog.BinWriter, opcode.JMPIFL, before)
+		ast.Walk(c, stmt.expr)
+		c.setLabel(before)
+		emit.Int(c.prog.BinWriter, 0)
+		c.emitStoreByIndex(varLocal, c.scope.finallyProcessedIndex)
+		emit.Opcode(c.prog.BinWriter, opcode.ENDFINALLY)
+		c.setLabel(after)
+	}
+}
+
+func (c *codegen) rangeLoadKey() {
+	emit.Int(c.prog.BinWriter, 2)
+	emit.Opcode(c.prog.BinWriter, opcode.PICK) // load keys
+	emit.Opcode(c.prog.BinWriter, opcode.OVER) // load index in key array
+	emit.Opcode(c.prog.BinWriter, opcode.PICKITEM)
+}
+
 func isFallthroughStmt(c ast.Node) bool {
 	s, ok := c.(*ast.BranchStmt)
 	return ok && s.Tok == token.FALLTHROUGH
+}
+
+func (c *codegen) getCompareWithNilArg(n *ast.BinaryExpr) ast.Expr {
+	if isExprNil(n.X) {
+		return n.Y
+	} else if isExprNil(n.Y) {
+		return n.X
+	}
+	return nil
+}
+
+func (c *codegen) emitJumpOnCondition(cond bool, jmpLabel uint16) {
+	if cond {
+		emit.Jmp(c.prog.BinWriter, opcode.JMPIFL, jmpLabel)
+	} else {
+		emit.Jmp(c.prog.BinWriter, opcode.JMPIFNOTL, jmpLabel)
+	}
+}
+
+// emitBoolExpr emits boolean expression. If needJump is true and expression evaluates to `cond`,
+// jump to jmpLabel is performed and no item is left on stack.
+func (c *codegen) emitBoolExpr(n ast.Expr, needJump bool, cond bool, jmpLabel uint16) {
+	if be, ok := n.(*ast.BinaryExpr); ok {
+		c.emitBinaryExpr(be, needJump, cond, jmpLabel)
+	} else {
+		ast.Walk(c, n)
+		if needJump {
+			c.emitJumpOnCondition(cond, jmpLabel)
+		}
+	}
+}
+
+// emitBinaryExpr emits binary expression. If needJump is true and expression evaluates to `cond`,
+// jump to jmpLabel is performed and no item is left on stack.
+func (c *codegen) emitBinaryExpr(n *ast.BinaryExpr, needJump bool, cond bool, jmpLabel uint16) {
+	// The AST package will try to resolve all basic literals for us.
+	// If the typeinfo.Value is not nil we know that the expr is resolved
+	// and needs no further action. e.g. x := 2 + 2 + 2 will be resolved to 6.
+	// NOTE: Constants will also be automatically resolved be the AST parser.
+	// example:
+	// const x = 10
+	// x + 2 will results into 12
+	tinfo := c.typeAndValueOf(n)
+	if tinfo.Value != nil {
+		c.emitLoadConst(tinfo)
+		if needJump && isBool(tinfo.Type) {
+			c.emitJumpOnCondition(cond, jmpLabel)
+		}
+		return
+	} else if arg := c.getCompareWithNilArg(n); arg != nil {
+		ast.Walk(c, arg)
+		emit.Opcode(c.prog.BinWriter, opcode.ISNULL)
+		if needJump {
+			c.emitJumpOnCondition(cond == (n.Op == token.EQL), jmpLabel)
+		} else if n.Op == token.NEQ {
+			emit.Opcode(c.prog.BinWriter, opcode.NOT)
+		}
+		return
+	}
+
+	switch n.Op {
+	case token.LAND, token.LOR:
+		end := c.newLabel()
+
+		// true || .. == true, false && .. == false
+		condShort := n.Op == token.LOR
+		if needJump {
+			l := end
+			if cond == condShort {
+				l = jmpLabel
+			}
+			c.emitBoolExpr(n.X, true, condShort, l)
+			c.emitBoolExpr(n.Y, true, cond, jmpLabel)
+		} else {
+			push := c.newLabel()
+			c.emitBoolExpr(n.X, true, condShort, push)
+			c.emitBoolExpr(n.Y, false, false, 0)
+			emit.Jmp(c.prog.BinWriter, opcode.JMPL, end)
+			c.setLabel(push)
+			emit.Bool(c.prog.BinWriter, condShort)
+		}
+		c.setLabel(end)
+
+	default:
+		ast.Walk(c, n.X)
+		ast.Walk(c, n.Y)
+		typ := c.typeOf(n.X)
+		if !needJump {
+			c.emitToken(n.Op, typ)
+			return
+		}
+		op, ok := getJumpForToken(n.Op, typ)
+		if !ok {
+			c.emitToken(n.Op, typ)
+			c.emitJumpOnCondition(cond, jmpLabel)
+			return
+		}
+		if !cond {
+			op = negateJmp(op)
+		}
+		emit.Jmp(c.prog.BinWriter, op, jmpLabel)
+	}
 }
 
 func (c *codegen) pushStackLabel(name string, size int) {
@@ -974,6 +1306,7 @@ func (c *codegen) dropItems(n int) {
 // emitReverse reverses top num items of the stack.
 func (c *codegen) emitReverse(num int) {
 	switch num {
+	case 0, 1:
 	case 2:
 		emit.Opcode(c.prog.BinWriter, opcode.SWAP)
 	case 3:
@@ -1001,13 +1334,27 @@ func (c *codegen) getLabelOffset(typ labelOffsetType, name string) uint16 {
 	return c.labels[labelWithType{name: name, typ: typ}]
 }
 
-func (c *codegen) getEqualityOpcode(expr ast.Expr) opcode.Opcode {
-	t, ok := c.typeOf(expr).Underlying().(*types.Basic)
-	if ok && t.Info()&types.IsNumeric != 0 {
-		return opcode.NUMEQUAL
+// For `&&` and `||` it return an opcode which jumps only if result is known:
+// false && .. == false, true || .. = true
+func getJumpForToken(tok token.Token, typ types.Type) (opcode.Opcode, bool) {
+	switch tok {
+	case token.GTR:
+		return opcode.JMPGTL, true
+	case token.GEQ:
+		return opcode.JMPGEL, true
+	case token.LSS:
+		return opcode.JMPLTL, true
+	case token.LEQ:
+		return opcode.JMPLEL, true
+	case token.EQL, token.NEQ:
+		if isNumber(typ) {
+			if tok == token.EQL {
+				return opcode.JMPEQL, true
+			}
+			return opcode.JMPNEL, true
+		}
 	}
-
-	return opcode.EQUAL
+	return 0, false
 }
 
 // getByteArray returns byte array value from constant expr.
@@ -1038,22 +1385,57 @@ func (c *codegen) getByteArray(expr ast.Expr) []byte {
 }
 
 func (c *codegen) convertSyscall(expr *ast.CallExpr, api, name string) {
-	api, ok := syscalls[api][name]
+	syscall, ok := syscalls[api][name]
 	if !ok {
-		c.prog.Err = fmt.Errorf("unknown VM syscall api: %s", name)
+		c.prog.Err = fmt.Errorf("unknown VM syscall api: %s.%s", api, name)
 		return
 	}
-	switch name {
-	case "Notify":
-		numArgs := len(expr.Args)
-		emit.Int(c.prog.BinWriter, int64(numArgs))
-		emit.Opcode(c.prog.BinWriter, opcode.PACK)
+	emit.Syscall(c.prog.BinWriter, syscall.API)
+	if syscall.ConvertResultToStruct {
+		c.emitConvert(stackitem.StructT)
 	}
-	emit.Syscall(c.prog.BinWriter, api)
 
 	// This NOP instruction is basically not needed, but if we do, we have a
 	// one to one matching avm file with neo-python which is very nice for debugging.
 	emit.Opcode(c.prog.BinWriter, opcode.NOP)
+}
+
+// emitSliceHelper emits 3 items on stack: slice, its first index, and its size.
+func (c *codegen) emitSliceHelper(e ast.Expr) {
+	if !isByteSlice(c.typeOf(e)) {
+		c.prog.Err = fmt.Errorf("copy is supported only for byte-slices")
+		return
+	}
+	var hasLowIndex bool
+	switch src := e.(type) {
+	case *ast.SliceExpr:
+		ast.Walk(c, src.X)
+		if src.High != nil {
+			ast.Walk(c, src.High)
+		} else {
+			emit.Opcode(c.prog.BinWriter, opcode.DUP)
+			emit.Opcode(c.prog.BinWriter, opcode.SIZE)
+		}
+		if src.Low != nil {
+			ast.Walk(c, src.Low)
+			hasLowIndex = true
+		} else {
+			emit.Int(c.prog.BinWriter, 0)
+		}
+	default:
+		ast.Walk(c, src)
+		emit.Opcode(c.prog.BinWriter, opcode.DUP)
+		emit.Opcode(c.prog.BinWriter, opcode.SIZE)
+		emit.Int(c.prog.BinWriter, 0)
+	}
+	if !hasLowIndex {
+		emit.Opcode(c.prog.BinWriter, opcode.SWAP)
+	} else {
+		emit.Opcode(c.prog.BinWriter, opcode.DUP)
+		emit.Opcode(c.prog.BinWriter, opcode.ROT)
+		emit.Opcode(c.prog.BinWriter, opcode.SWAP)
+		emit.Opcode(c.prog.BinWriter, opcode.SUB)
+	}
 }
 
 func (c *codegen) convertBuiltin(expr *ast.CallExpr) {
@@ -1066,48 +1448,82 @@ func (c *codegen) convertBuiltin(expr *ast.CallExpr) {
 	}
 
 	switch name {
+	case "copy":
+		// stack for MEMCPY is: dst, dst_index, src, src_index, count
+		c.emitSliceHelper(expr.Args[0])
+		c.emitSliceHelper(expr.Args[1])
+		emit.Int(c.prog.BinWriter, 3)
+		emit.Opcode(c.prog.BinWriter, opcode.ROLL)
+		emit.Opcode(c.prog.BinWriter, opcode.MIN)
+		emit.Opcode(c.prog.BinWriter, opcode.MEMCPY)
+	case "make":
+		typ := c.typeOf(expr.Args[0])
+		switch {
+		case isMap(typ):
+			emit.Opcode(c.prog.BinWriter, opcode.NEWMAP)
+		default:
+			if len(expr.Args) == 3 {
+				c.prog.Err = fmt.Errorf("`make()` with a capacity argument is not supported")
+				return
+			}
+			ast.Walk(c, expr.Args[1])
+			if isByteSlice(typ) {
+				emit.Opcode(c.prog.BinWriter, opcode.NEWBUFFER)
+			} else {
+				neoT := toNeoType(typ.(*types.Slice).Elem())
+				emit.Instruction(c.prog.BinWriter, opcode.NEWARRAYT, []byte{byte(neoT)})
+			}
+		}
 	case "len":
+		emit.Opcode(c.prog.BinWriter, opcode.DUP)
+		emit.Opcode(c.prog.BinWriter, opcode.ISNULL)
+		emit.Instruction(c.prog.BinWriter, opcode.JMPIF, []byte{2 + 1 + 2})
 		emit.Opcode(c.prog.BinWriter, opcode.SIZE)
+		emit.Instruction(c.prog.BinWriter, opcode.JMP, []byte{2 + 1 + 1})
+		emit.Opcode(c.prog.BinWriter, opcode.DROP)
+		emit.Opcode(c.prog.BinWriter, opcode.PUSH0)
 	case "append":
 		arg := expr.Args[0]
 		typ := c.typeInfo.Types[arg].Type
+		c.emitReverse(len(expr.Args))
+		emit.Opcode(c.prog.BinWriter, opcode.DUP)
+		emit.Opcode(c.prog.BinWriter, opcode.ISNULL)
+		emit.Instruction(c.prog.BinWriter, opcode.JMPIFNOT, []byte{2 + 3})
 		if isByteSlice(typ) {
-			emit.Opcode(c.prog.BinWriter, opcode.CAT)
+			emit.Opcode(c.prog.BinWriter, opcode.DROP)
+			emit.Opcode(c.prog.BinWriter, opcode.PUSH0)
+			emit.Opcode(c.prog.BinWriter, opcode.NEWBUFFER)
 		} else {
-			emit.Opcode(c.prog.BinWriter, opcode.OVER)
-			emit.Opcode(c.prog.BinWriter, opcode.SWAP)
-			emit.Opcode(c.prog.BinWriter, opcode.APPEND)
+			emit.Opcode(c.prog.BinWriter, opcode.DROP)
+			emit.Opcode(c.prog.BinWriter, opcode.NEWARRAY0)
+			emit.Opcode(c.prog.BinWriter, opcode.NOP)
+		}
+		// Jump target.
+		for range expr.Args[1:] {
+			if isByteSlice(typ) {
+				emit.Opcode(c.prog.BinWriter, opcode.SWAP)
+				emit.Opcode(c.prog.BinWriter, opcode.CAT)
+			} else {
+				emit.Opcode(c.prog.BinWriter, opcode.DUP)
+				emit.Opcode(c.prog.BinWriter, opcode.ROT)
+				emit.Opcode(c.prog.BinWriter, opcode.APPEND)
+			}
 		}
 	case "panic":
-		arg := expr.Args[0]
-		if isExprNil(arg) {
-			emit.Opcode(c.prog.BinWriter, opcode.DROP)
-			emit.Opcode(c.prog.BinWriter, opcode.THROW)
-		} else if isString(c.typeInfo.Types[arg].Type) {
-			ast.Walk(c, arg)
-			emit.Syscall(c.prog.BinWriter, "Neo.Runtime.Log")
-			emit.Opcode(c.prog.BinWriter, opcode.THROW)
-		} else {
-			c.prog.Err = errors.New("panic should have string or nil argument")
-		}
+		emit.Opcode(c.prog.BinWriter, opcode.THROW)
+	case "recover":
+		c.emitLoadByIndex(varGlobal, c.exceptionIndex)
+		emit.Opcode(c.prog.BinWriter, opcode.PUSHNULL)
+		c.emitStoreByIndex(varGlobal, c.exceptionIndex)
 	case "ToInteger", "ToByteArray", "ToBool":
-		typ := vm.IntegerT
+		typ := stackitem.IntegerT
 		switch name {
 		case "ToByteArray":
-			typ = vm.ByteArrayT
+			typ = stackitem.ByteArrayT
 		case "ToBool":
-			typ = vm.BooleanT
+			typ = stackitem.BooleanT
 		}
 		c.emitConvert(typ)
-	case "SHA256":
-		emit.Syscall(c.prog.BinWriter, "Neo.Crypto.SHA256")
-	case "AppCall":
-		c.emitReverse(len(expr.Args))
-		buf := c.getByteArray(expr.Args[0])
-		if len(buf) != 20 {
-			c.prog.Err = errors.New("invalid script hash")
-		}
-		emit.Syscall(c.prog.BinWriter, "System.Contract.Call")
 	case "Equals":
 		emit.Opcode(c.prog.BinWriter, opcode.EQUAL)
 	case "FromAddress":
@@ -1123,7 +1539,7 @@ func (c *codegen) convertBuiltin(expr *ast.CallExpr) {
 		}
 		bytes := uint160.BytesBE()
 		emit.Bytes(c.prog.BinWriter, bytes)
-		c.emitConvert(vm.BufferT)
+		c.emitConvert(stackitem.BufferT)
 	}
 }
 
@@ -1141,8 +1557,9 @@ func transformArgs(fun ast.Expr, args []ast.Expr) []ast.Expr {
 			return args[1:]
 		}
 	case *ast.Ident:
-		if f.Name == "panic" {
-			return args[1:]
+		switch f.Name {
+		case "make", "copy":
+			return nil
 		}
 	}
 
@@ -1150,7 +1567,7 @@ func transformArgs(fun ast.Expr, args []ast.Expr) []ast.Expr {
 }
 
 // emitConvert converts top stack item to the specified type.
-func (c *codegen) emitConvert(typ vm.StackItemType) {
+func (c *codegen) emitConvert(typ stackitem.Type) {
 	emit.Instruction(c.prog.BinWriter, opcode.CONVERT, []byte{byte(typ)})
 }
 
@@ -1162,7 +1579,7 @@ func (c *codegen) convertByteArray(lit *ast.CompositeLit) {
 		buf[i] = byte(val)
 	}
 	emit.Bytes(c.prog.BinWriter, buf)
-	c.emitConvert(vm.BufferT)
+	c.emitConvert(stackitem.BufferT)
 }
 
 func (c *codegen) convertMap(lit *ast.CompositeLit) {
@@ -1176,7 +1593,19 @@ func (c *codegen) convertMap(lit *ast.CompositeLit) {
 	}
 }
 
-func (c *codegen) convertStruct(lit *ast.CompositeLit) {
+func (c *codegen) getStruct(typ types.Type) (*types.Struct, bool) {
+	switch t := typ.Underlying().(type) {
+	case *types.Struct:
+		return t, true
+	case *types.Pointer:
+		strct, ok := t.Elem().Underlying().(*types.Struct)
+		return strct, ok
+	default:
+		return nil, false
+	}
+}
+
+func (c *codegen) convertStruct(lit *ast.CompositeLit, ptr bool) {
 	// Create a new structScope to initialize and store
 	// the positions of its variables.
 	strct, ok := c.typeOf(lit).Underlying().(*types.Struct)
@@ -1187,135 +1616,166 @@ func (c *codegen) convertStruct(lit *ast.CompositeLit) {
 
 	emit.Opcode(c.prog.BinWriter, opcode.NOP)
 	emit.Int(c.prog.BinWriter, int64(strct.NumFields()))
-	emit.Opcode(c.prog.BinWriter, opcode.NEWSTRUCT)
+	if ptr {
+		emit.Opcode(c.prog.BinWriter, opcode.NEWARRAY)
+	} else {
+		emit.Opcode(c.prog.BinWriter, opcode.NEWSTRUCT)
+	}
 
+	keyedLit := len(lit.Elts) > 0
+	if keyedLit {
+		_, ok := lit.Elts[0].(*ast.KeyValueExpr)
+		keyedLit = keyedLit && ok
+	}
 	// We need to locally store all the fields, even if they are not initialized.
 	// We will initialize all fields to their "zero" value.
 	for i := 0; i < strct.NumFields(); i++ {
 		sField := strct.Field(i)
-		fieldAdded := false
-
-		// Fields initialized by the program.
-		for _, field := range lit.Elts {
-			f := field.(*ast.KeyValueExpr)
-			fieldName := f.Key.(*ast.Ident).Name
-
-			if sField.Name() == fieldName {
-				emit.Opcode(c.prog.BinWriter, opcode.DUP)
-
-				pos := indexOfStruct(strct, fieldName)
-				emit.Int(c.prog.BinWriter, int64(pos))
-
-				ast.Walk(c, f.Value)
-
-				emit.Opcode(c.prog.BinWriter, opcode.SETITEM)
-				fieldAdded = true
-				break
-			}
-		}
-		if fieldAdded {
-			continue
-		}
+		var initialized bool
 
 		emit.Opcode(c.prog.BinWriter, opcode.DUP)
 		emit.Int(c.prog.BinWriter, int64(i))
-		c.emitDefault(sField.Type())
+
+		if !keyedLit {
+			if len(lit.Elts) > i {
+				ast.Walk(c, lit.Elts[i])
+				initialized = true
+			}
+		} else {
+			// Fields initialized by the program.
+			for _, field := range lit.Elts {
+				f := field.(*ast.KeyValueExpr)
+				fieldName := f.Key.(*ast.Ident).Name
+
+				if sField.Name() == fieldName {
+					ast.Walk(c, f.Value)
+					initialized = true
+					break
+				}
+			}
+		}
+		if !initialized {
+			c.emitDefault(sField.Type())
+		}
 		emit.Opcode(c.prog.BinWriter, opcode.SETITEM)
 	}
 }
 
-func (c *codegen) convertToken(tok token.Token) {
-	switch tok {
-	case token.ADD_ASSIGN:
-		emit.Opcode(c.prog.BinWriter, opcode.ADD)
-	case token.SUB_ASSIGN:
-		emit.Opcode(c.prog.BinWriter, opcode.SUB)
-	case token.MUL_ASSIGN:
-		emit.Opcode(c.prog.BinWriter, opcode.MUL)
-	case token.QUO_ASSIGN:
-		emit.Opcode(c.prog.BinWriter, opcode.DIV)
-	case token.REM_ASSIGN:
-		emit.Opcode(c.prog.BinWriter, opcode.MOD)
-	case token.ADD:
-		emit.Opcode(c.prog.BinWriter, opcode.ADD)
-	case token.SUB:
-		emit.Opcode(c.prog.BinWriter, opcode.SUB)
-	case token.MUL:
-		emit.Opcode(c.prog.BinWriter, opcode.MUL)
-	case token.QUO:
-		emit.Opcode(c.prog.BinWriter, opcode.DIV)
-	case token.REM:
-		emit.Opcode(c.prog.BinWriter, opcode.MOD)
-	case token.LSS:
-		emit.Opcode(c.prog.BinWriter, opcode.LT)
-	case token.LEQ:
-		emit.Opcode(c.prog.BinWriter, opcode.LTE)
-	case token.GTR:
-		emit.Opcode(c.prog.BinWriter, opcode.GT)
-	case token.GEQ:
-		emit.Opcode(c.prog.BinWriter, opcode.GTE)
-	case token.EQL:
-		emit.Opcode(c.prog.BinWriter, opcode.NUMEQUAL)
-	case token.NEQ:
-		emit.Opcode(c.prog.BinWriter, opcode.NUMNOTEQUAL)
-	case token.DEC:
-		emit.Opcode(c.prog.BinWriter, opcode.DEC)
-	case token.INC:
-		emit.Opcode(c.prog.BinWriter, opcode.INC)
-	case token.NOT:
-		emit.Opcode(c.prog.BinWriter, opcode.NOT)
-	case token.AND:
-		emit.Opcode(c.prog.BinWriter, opcode.AND)
-	case token.OR:
-		emit.Opcode(c.prog.BinWriter, opcode.OR)
-	case token.SHL:
-		emit.Opcode(c.prog.BinWriter, opcode.SHL)
-	case token.SHR:
-		emit.Opcode(c.prog.BinWriter, opcode.SHR)
-	case token.XOR:
-		emit.Opcode(c.prog.BinWriter, opcode.XOR)
-	default:
-		c.prog.Err = fmt.Errorf("compiler could not convert token: %s", tok)
+func (c *codegen) emitToken(tok token.Token, typ types.Type) {
+	op, err := convertToken(tok, typ)
+	if err != nil {
+		c.prog.Err = err
 		return
+	}
+	emit.Opcode(c.prog.BinWriter, op)
+}
+
+func convertToken(tok token.Token, typ types.Type) (opcode.Opcode, error) {
+	switch tok {
+	case token.ADD_ASSIGN, token.ADD:
+		// VM has separate opcodes for number and string concatenation
+		if isString(typ) {
+			return opcode.CAT, nil
+		}
+		return opcode.ADD, nil
+	case token.SUB_ASSIGN:
+		return opcode.SUB, nil
+	case token.MUL_ASSIGN:
+		return opcode.MUL, nil
+	case token.QUO_ASSIGN:
+		return opcode.DIV, nil
+	case token.REM_ASSIGN:
+		return opcode.MOD, nil
+	case token.SUB:
+		return opcode.SUB, nil
+	case token.MUL:
+		return opcode.MUL, nil
+	case token.QUO:
+		return opcode.DIV, nil
+	case token.REM:
+		return opcode.MOD, nil
+	case token.LSS:
+		return opcode.LT, nil
+	case token.LEQ:
+		return opcode.LTE, nil
+	case token.GTR:
+		return opcode.GT, nil
+	case token.GEQ:
+		return opcode.GTE, nil
+	case token.EQL:
+		// VM has separate opcodes for number and string equality
+		if isNumber(typ) {
+			return opcode.NUMEQUAL, nil
+		}
+		return opcode.EQUAL, nil
+	case token.NEQ:
+		// VM has separate opcodes for number and string equality
+		if isNumber(typ) {
+			return opcode.NUMNOTEQUAL, nil
+		}
+		return opcode.NOTEQUAL, nil
+	case token.DEC:
+		return opcode.DEC, nil
+	case token.INC:
+		return opcode.INC, nil
+	case token.NOT:
+		return opcode.NOT, nil
+	case token.AND:
+		return opcode.AND, nil
+	case token.OR:
+		return opcode.OR, nil
+	case token.SHL:
+		return opcode.SHL, nil
+	case token.SHR:
+		return opcode.SHR, nil
+	case token.XOR:
+		return opcode.XOR, nil
+	default:
+		return 0, fmt.Errorf("compiler could not convert token: %s", tok)
 	}
 }
 
 func (c *codegen) newFunc(decl *ast.FuncDecl) *funcScope {
-	f := newFuncScope(decl, c.newLabel())
-	c.funcs[f.name] = f
+	f := c.newFuncScope(decl, c.newLabel())
+	c.funcs[c.getFuncNameFromDecl("", decl)] = f
 	return f
+}
+
+// getFuncNameFromSelector returns fully-qualified function name from the selector expression.
+// Second return value is true iff this was a method call, not foreign package call.
+func (c *codegen) getFuncNameFromSelector(e *ast.SelectorExpr) (string, bool) {
+	ident := e.X.(*ast.Ident)
+	if c.typeInfo.Selections[e] != nil {
+		typ := c.typeInfo.Types[ident].Type.String()
+		return c.getIdentName(typ, e.Sel.Name), true
+	}
+	return c.getIdentName(ident.Name, e.Sel.Name), false
 }
 
 func (c *codegen) newLambda(u uint16, lit *ast.FuncLit) {
 	name := fmt.Sprintf("lambda@%d", u)
-	c.lambda[name] = newFuncScope(&ast.FuncDecl{
+	f := c.newFuncScope(&ast.FuncDecl{
 		Name: ast.NewIdent(name),
 		Type: lit.Type,
 		Body: lit.Body,
 	}, u)
+	c.lambda[c.getFuncNameFromDecl("", f.decl)] = f
 }
 
 func (c *codegen) compile(info *buildInfo, pkg *loader.PackageInfo) error {
-	// Resolve the entrypoint of the program.
-	main, mainFile := resolveEntryPoint(mainIdent, pkg)
-	if main == nil {
-		c.prog.Err = fmt.Errorf("could not find func main. Did you forget to declare it? ")
-		return c.prog.Err
-	}
-
-	funUsage := analyzeFuncUsage(info.program.AllPackages)
+	c.mainPkg = pkg
+	c.analyzePkgOrder()
+	c.fillDocumentInfo()
+	funUsage := c.analyzeFuncUsage()
 
 	// Bring all imported functions into scope.
-	for _, pkg := range info.program.AllPackages {
-		for _, f := range pkg.Files {
-			c.resolveFuncDecls(f)
-		}
+	c.ForEachFile(c.resolveFuncDecls)
+
+	n, hasInit := c.traverseGlobals()
+	if n > 0 || hasInit {
+		emit.Opcode(c.prog.BinWriter, opcode.RET)
+		c.initEndOffset = c.prog.Len()
 	}
-
-	c.traverseGlobals(mainFile)
-
-	// convert the entry point first.
-	c.convertFuncDecl(mainFile, main)
 
 	// sort map keys to generate code deterministically.
 	keys := make([]*types.Package, 0, len(info.program.AllPackages))
@@ -1325,23 +1785,19 @@ func (c *codegen) compile(info *buildInfo, pkg *loader.PackageInfo) error {
 	sort.Slice(keys, func(i, j int) bool { return keys[i].Path() < keys[j].Path() })
 
 	// Generate the code for the program.
-	for _, k := range keys {
-		pkg := info.program.AllPackages[k]
-		c.typeInfo = &pkg.Info
-
-		for _, f := range pkg.Files {
-			for _, decl := range f.Decls {
-				switch n := decl.(type) {
-				case *ast.FuncDecl:
-					// Don't convert the function if it's not used. This will save a lot
-					// of bytecode space.
-					if n.Name.Name != mainIdent && funUsage.funcUsed(n.Name.Name) {
-						c.convertFuncDecl(f, n)
-					}
+	c.ForEachFile(func(f *ast.File, pkg *types.Package) {
+		for _, decl := range f.Decls {
+			switch n := decl.(type) {
+			case *ast.FuncDecl:
+				// Don't convert the function if it's not used. This will save a lot
+				// of bytecode space.
+				name := c.getFuncNameFromDecl(pkg.Path(), n)
+				if !isInitFunc(n) && funUsage.funcUsed(name) && !isInteropPath(pkg.Path()) {
+					c.convertFuncDecl(f, n, pkg)
 				}
 			}
 		}
-	}
+	})
 
 	return c.prog.Err
 }
@@ -1356,6 +1812,8 @@ func newCodegen(info *buildInfo, pkg *loader.PackageInfo) *codegen {
 		globals:   map[string]int{},
 		labels:    map[labelWithType]uint16{},
 		typeInfo:  &pkg.Info,
+		constMap:  map[string]types.TypeAndValue{},
+		docIndex:  map[string]int{},
 
 		sequencePoints: make(map[string][]DebugSeqPoint),
 	}
@@ -1370,56 +1828,229 @@ func CodeGen(info *buildInfo) ([]byte, *DebugInfo, error) {
 		return nil, nil, err
 	}
 
-	buf := c.prog.Bytes()
-	if err := c.writeJumps(buf); err != nil {
+	buf, err := c.writeJumps(c.prog.Bytes())
+	if err != nil {
 		return nil, nil, err
 	}
-	return buf, c.emitDebugInfo(), nil
+	return buf, c.emitDebugInfo(buf), nil
 }
 
-func (c *codegen) resolveFuncDecls(f *ast.File) {
+func (c *codegen) resolveFuncDecls(f *ast.File, pkg *types.Package) {
 	for _, decl := range f.Decls {
 		switch n := decl.(type) {
 		case *ast.FuncDecl:
-			if n.Name.Name != mainIdent {
-				c.newFunc(n)
-			}
+			c.newFunc(n)
 		}
 	}
 }
 
-func (c *codegen) writeJumps(b []byte) error {
+func (c *codegen) writeJumps(b []byte) ([]byte, error) {
 	ctx := vm.NewContext(b)
-	for op, _, err := ctx.Next(); err == nil && ctx.NextIP() < len(b); op, _, err = ctx.Next() {
+	var offsets []int
+	for op, _, err := ctx.Next(); err == nil && ctx.IP() < len(b); op, _, err = ctx.Next() {
 		switch op {
 		case opcode.JMP, opcode.JMPIFNOT, opcode.JMPIF, opcode.CALL,
 			opcode.JMPEQ, opcode.JMPNE,
 			opcode.JMPGT, opcode.JMPGE, opcode.JMPLE, opcode.JMPLT:
-			panic("short jumps are not yet supported")
+		case opcode.TRYL:
+			nextIP := ctx.NextIP()
+			catchArg := b[nextIP-8:]
+			_, err := c.replaceLabelWithOffset(ctx.IP(), catchArg)
+			if err != nil {
+				return nil, err
+			}
+			finallyArg := b[nextIP-4:]
+			_, err = c.replaceLabelWithOffset(ctx.IP(), finallyArg)
+			if err != nil {
+				return nil, err
+			}
 		case opcode.JMPL, opcode.JMPIFL, opcode.JMPIFNOTL,
 			opcode.JMPEQL, opcode.JMPNEL,
 			opcode.JMPGTL, opcode.JMPGEL, opcode.JMPLEL, opcode.JMPLTL,
-			opcode.CALLL, opcode.PUSHA:
+			opcode.CALLL, opcode.PUSHA, opcode.ENDTRYL:
 			// we can't use arg returned by ctx.Next() because it is copied
 			nextIP := ctx.NextIP()
 			arg := b[nextIP-4:]
-
-			index := binary.LittleEndian.Uint16(arg)
-			if int(index) > len(c.l) {
-				return fmt.Errorf("unexpected label number: %d (max %d)", index, len(c.l))
+			offset, err := c.replaceLabelWithOffset(ctx.IP(), arg)
+			if err != nil {
+				return nil, err
 			}
-			var offset int
-			if op == opcode.PUSHA {
-				offset = c.l[index]
-			} else {
-				offset = c.l[index] - nextIP + 5
+			if op != opcode.PUSHA && math.MinInt8 <= offset && offset <= math.MaxInt8 {
+				offsets = append(offsets, ctx.IP())
 			}
-			if offset > math.MaxInt32 || offset < math.MinInt32 {
-				return fmt.Errorf("label offset is too big at the instruction %d: %d (max %d, min %d)",
-					nextIP-5, offset, math.MaxInt32, math.MinInt32)
-			}
-			binary.LittleEndian.PutUint32(arg, uint32(offset))
 		}
 	}
-	return nil
+	// Correct function ip range.
+	// Note: indices are sorted in increasing order.
+	for _, f := range c.funcs {
+	loop:
+		for _, ind := range offsets {
+			switch {
+			case ind > int(f.rng.End):
+				break loop
+			case ind < int(f.rng.Start):
+				f.rng.Start -= longToShortRemoveCount
+				f.rng.End -= longToShortRemoveCount
+			case ind >= int(f.rng.Start):
+				f.rng.End -= longToShortRemoveCount
+			}
+		}
+	}
+	return shortenJumps(b, offsets), nil
+}
+
+func (c *codegen) replaceLabelWithOffset(ip int, arg []byte) (int, error) {
+	index := binary.LittleEndian.Uint16(arg)
+	if int(index) > len(c.l) {
+		return 0, fmt.Errorf("unexpected label number: %d (max %d)", index, len(c.l))
+	}
+	offset := c.l[index] - ip
+	if offset > math.MaxInt32 || offset < math.MinInt32 {
+		return 0, fmt.Errorf("label offset is too big at the instruction %d: %d (max %d, min %d)",
+			ip, offset, math.MaxInt32, math.MinInt32)
+	}
+	binary.LittleEndian.PutUint32(arg, uint32(offset))
+	return offset, nil
+}
+
+// longToShortRemoveCount is a difference between short and long instruction sizes in bytes.
+const longToShortRemoveCount = 3
+
+// shortenJumps returns converts b to a program where all long JMP*/CALL* specified by absolute offsets,
+// are replaced with their corresponding short counterparts. It panics if either b or offsets are invalid.
+// This is done in 2 passes:
+// 1. Alter jump offsets taking into account parts to be removed.
+// 2. Perform actual removal of jump targets.
+// Note: after jump offsets altering, there can appear new candidates for conversion.
+// These are ignored for now.
+func shortenJumps(b []byte, offsets []int) []byte {
+	if len(offsets) == 0 {
+		return b
+	}
+
+	// 1. Alter existing jump offsets.
+	ctx := vm.NewContext(b)
+	for op, _, err := ctx.Next(); err == nil && ctx.IP() < len(b); op, _, err = ctx.Next() {
+		// we can't use arg returned by ctx.Next() because it is copied
+		nextIP := ctx.NextIP()
+		ip := ctx.IP()
+		switch op {
+		case opcode.JMP, opcode.JMPIFNOT, opcode.JMPIF, opcode.CALL,
+			opcode.JMPEQ, opcode.JMPNE,
+			opcode.JMPGT, opcode.JMPGE, opcode.JMPLE, opcode.JMPLT, opcode.ENDTRY:
+			offset := int(int8(b[nextIP-1]))
+			offset += calcOffsetCorrection(ip, ip+offset, offsets)
+			b[nextIP-1] = byte(offset)
+		case opcode.TRY:
+			catchOffset := int(int8(b[nextIP-2]))
+			catchOffset += calcOffsetCorrection(ip, ip+catchOffset, offsets)
+			b[nextIP-1] = byte(catchOffset)
+			finallyOffset := int(int8(b[nextIP-1]))
+			finallyOffset += calcOffsetCorrection(ip, ip+finallyOffset, offsets)
+			b[nextIP-1] = byte(finallyOffset)
+		case opcode.JMPL, opcode.JMPIFL, opcode.JMPIFNOTL,
+			opcode.JMPEQL, opcode.JMPNEL,
+			opcode.JMPGTL, opcode.JMPGEL, opcode.JMPLEL, opcode.JMPLTL,
+			opcode.CALLL, opcode.PUSHA, opcode.ENDTRYL:
+			arg := b[nextIP-4:]
+			offset := int(int32(binary.LittleEndian.Uint32(arg)))
+			offset += calcOffsetCorrection(ip, ip+offset, offsets)
+			binary.LittleEndian.PutUint32(arg, uint32(offset))
+		case opcode.TRYL:
+			arg := b[nextIP-8:]
+			catchOffset := int(int32(binary.LittleEndian.Uint32(arg)))
+			catchOffset += calcOffsetCorrection(ip, ip+catchOffset, offsets)
+			binary.LittleEndian.PutUint32(arg, uint32(catchOffset))
+			arg = b[nextIP-4:]
+			finallyOffset := int(int32(binary.LittleEndian.Uint32(arg)))
+			finallyOffset += calcOffsetCorrection(ip, ip+finallyOffset, offsets)
+			binary.LittleEndian.PutUint32(arg, uint32(finallyOffset))
+		}
+	}
+
+	// 2. Convert instructions.
+	copyOffset := 0
+	l := len(offsets)
+	b[offsets[0]] = byte(toShortForm(opcode.Opcode(b[offsets[0]])))
+	for i := 0; i < l; i++ {
+		start := offsets[i] + 2
+		end := len(b)
+		if i != l-1 {
+			end = offsets[i+1] + 2
+			b[offsets[i+1]] = byte(toShortForm(opcode.Opcode(b[offsets[i+1]])))
+		}
+		copy(b[start-copyOffset:], b[start+3:end])
+		copyOffset += longToShortRemoveCount
+	}
+	return b[:len(b)-copyOffset]
+}
+
+func calcOffsetCorrection(ip, target int, offsets []int) int {
+	cnt := 0
+	start := sort.Search(len(offsets), func(i int) bool {
+		return offsets[i] >= ip || offsets[i] >= target
+	})
+	for i := start; i < len(offsets) && (offsets[i] < target || offsets[i] <= ip); i++ {
+		ind := offsets[i]
+		if ip <= ind && ind < target ||
+			ind != ip && target <= ind && ind <= ip {
+			cnt += longToShortRemoveCount
+		}
+	}
+	if ip < target {
+		return -cnt
+	}
+	return cnt
+}
+
+func negateJmp(op opcode.Opcode) opcode.Opcode {
+	switch op {
+	case opcode.JMPIFL:
+		return opcode.JMPIFNOTL
+	case opcode.JMPIFNOTL:
+		return opcode.JMPIFL
+	case opcode.JMPEQL:
+		return opcode.JMPNEL
+	case opcode.JMPNEL:
+		return opcode.JMPEQL
+	case opcode.JMPGTL:
+		return opcode.JMPLEL
+	case opcode.JMPGEL:
+		return opcode.JMPLTL
+	case opcode.JMPLEL:
+		return opcode.JMPGTL
+	case opcode.JMPLTL:
+		return opcode.JMPGEL
+	default:
+		panic(fmt.Errorf("invalid opcode in negateJmp: %s", op))
+	}
+}
+
+func toShortForm(op opcode.Opcode) opcode.Opcode {
+	switch op {
+	case opcode.JMPL:
+		return opcode.JMP
+	case opcode.JMPIFL:
+		return opcode.JMPIF
+	case opcode.JMPIFNOTL:
+		return opcode.JMPIFNOT
+	case opcode.JMPEQL:
+		return opcode.JMPEQ
+	case opcode.JMPNEL:
+		return opcode.JMPNE
+	case opcode.JMPGTL:
+		return opcode.JMPGT
+	case opcode.JMPGEL:
+		return opcode.JMPGE
+	case opcode.JMPLEL:
+		return opcode.JMPLE
+	case opcode.JMPLTL:
+		return opcode.JMPLT
+	case opcode.CALLL:
+		return opcode.CALL
+	case opcode.ENDTRYL:
+		return opcode.ENDTRY
+	default:
+		panic(fmt.Errorf("invalid opcode: %s", op))
+	}
 }

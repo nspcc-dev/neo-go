@@ -39,7 +39,7 @@ func NewBoltDBStore(cfg BoltDBOptions) (*BoltDBStore, error) {
 	err = db.Update(func(tx *bbolt.Tx) error {
 		_, err = tx.CreateBucketIfNotExists(Bucket)
 		if err != nil {
-			return fmt.Errorf("could not create root bucket: %v", err)
+			return fmt.Errorf("could not create root bucket: %w", err)
 		}
 		return nil
 	})

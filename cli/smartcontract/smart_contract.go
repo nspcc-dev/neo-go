@@ -1,11 +1,9 @@
 package smartcontract
 
 import (
-	"bufio"
-	"bytes"
-	"context"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -13,37 +11,34 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/go-yaml/yaml"
 	"github.com/nspcc-dev/neo-go/cli/flags"
+	"github.com/nspcc-dev/neo-go/cli/options"
 	"github.com/nspcc-dev/neo-go/pkg/compiler"
-	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
+	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
-	"github.com/nspcc-dev/neo-go/pkg/rpc/client"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/request"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
-	"github.com/pkg/errors"
 	"github.com/urfave/cli"
 	"golang.org/x/crypto/ssh/terminal"
+	"gopkg.in/yaml.v2"
 )
 
 var (
-	errNoEndpoint          = errors.New("no RPC endpoint specified, use option '--endpoint' or '-e'")
 	errNoInput             = errors.New("no input file was found, specify an input file with the '--in or -i' flag")
 	errNoConfFile          = errors.New("no config file was found, specify a config file with the '--config' or '-c' flag")
+	errNoManifestFile      = errors.New("no manifest file was found, specify a manifest file with the '--manifest' flag")
 	errNoMethod            = errors.New("no method specified for function invocation command")
 	errNoWallet            = errors.New("no wallet parameter found, specify it with the '--wallet or -w' flag")
 	errNoScriptHash        = errors.New("no smart contract hash was provided, specify one as the first argument")
 	errNoSmartContractName = errors.New("no name was provided, specify the '--name or -n' flag")
 	errFileExist           = errors.New("A file with given smart-contract name already exists")
 
-	endpointFlag = cli.StringFlag{
-		Name:  "endpoint, e",
-		Usage: "trusted RPC endpoint address (like 'http://localhost:20331')",
-	}
 	walletFlag = cli.StringFlag{
 		Name:  "wallet, w",
 		Usage: "wallet to use to get the key for transaction signing",
@@ -65,20 +60,60 @@ const (
 
 import "github.com/nspcc-dev/neo-go/pkg/interop/runtime"
 
-func Main(op string, args []interface{}) {
-    runtime.Notify("Hello world!")
+var notificationName string
+
+// init initializes notificationName before calling any other smart-contract method
+func init() {
+	notificationName = "Hello world!"
+}
+
+// RuntimeNotify sends runtime notification with "Hello world!" name
+func RuntimeNotify(args []interface{}) {
+    runtime.Notify(notificationName, args)
 }`
+	// cosignersSeparator is a special value which is used to distinguish
+	// parameters and cosigners for invoke* commands
+	cosignersSeparator  = "--"
+	arrayStartSeparator = "["
+	arrayEndSeparator   = "]"
 )
 
 // NewCommands returns 'contract' command.
 func NewCommands() []cli.Command {
+	testInvokeScriptFlags := []cli.Flag{
+		cli.StringFlag{
+			Name:  "in, i",
+			Usage: "Input location of the .nef file that needs to be invoked",
+		},
+	}
+	testInvokeScriptFlags = append(testInvokeScriptFlags, options.RPC...)
+	deployFlags := []cli.Flag{
+		cli.StringFlag{
+			Name:  "in, i",
+			Usage: "Input file for the smart contract (*.nef)",
+		},
+		cli.StringFlag{
+			Name:  "manifest",
+			Usage: "Manifest input file (*.manifest.json)",
+		},
+		walletFlag,
+		addressFlag,
+		gasFlag,
+	}
+	deployFlags = append(deployFlags, options.RPC...)
+	invokeFunctionFlags := []cli.Flag{
+		walletFlag,
+		addressFlag,
+		gasFlag,
+	}
+	invokeFunctionFlags = append(invokeFunctionFlags, options.RPC...)
 	return []cli.Command{{
 		Name:  "contract",
 		Usage: "compile - debug - deploy smart contracts",
 		Subcommands: []cli.Command{
 			{
 				Name:   "compile",
-				Usage:  "compile a smart contract to a .avm file",
+				Usage:  "compile a smart contract to a .nef file",
 				Action: contractCompile,
 				Flags: []cli.Flag{
 					cli.StringFlag{
@@ -98,8 +133,8 @@ func NewCommands() []cli.Command {
 						Usage: "Emit debug info in a separate file",
 					},
 					cli.StringFlag{
-						Name:  "abi, a",
-						Usage: "Emit application binary interface (.abi.json) file into separate file using configuration input file (*.yml)",
+						Name:  "manifest, m",
+						Usage: "Emit contract manifest (*.manifest.json) file into separate file using configuration input file (*.yml)",
 					},
 					cli.StringFlag{
 						Name:  "config, c",
@@ -109,7 +144,7 @@ func NewCommands() []cli.Command {
 			},
 			{
 				Name:  "deploy",
-				Usage: "deploy a smart contract (.avm with description)",
+				Usage: "deploy a smart contract (.nef with description)",
 				Description: `Deploys given contract into the chain. The gas parameter is for additional
    gas to be added as a network fee to prioritize the transaction. It may also
    be required to add that to satisfy chain's policy regarding transaction size
@@ -117,91 +152,42 @@ func NewCommands() []cli.Command {
    to it).
 `,
 				Action: contractDeploy,
-				Flags: []cli.Flag{
-					cli.StringFlag{
-						Name:  "in, i",
-						Usage: "Input file for the smart contract (*.avm)",
-					},
-					cli.StringFlag{
-						Name:  "config, c",
-						Usage: "configuration input file (*.yml)",
-					},
-					endpointFlag,
-					walletFlag,
-					addressFlag,
-					gasFlag,
-				},
-			},
-			{
-				Name:      "invoke",
-				Usage:     "invoke deployed contract on the blockchain",
-				UsageText: "neo-go contract invoke -e endpoint -w wallet [-a address] [-g gas] scripthash [arguments...]",
-				Description: `Executes given (as a script hash) deployed script with the given arguments.
-   See testinvoke documentation for the details about parameters. It differs
-   from testinvoke in that this command sends an invocation transaction to
-   the network.
-`,
-				Action: invoke,
-				Flags: []cli.Flag{
-					endpointFlag,
-					walletFlag,
-					addressFlag,
-					gasFlag,
-				},
+				Flags:  deployFlags,
 			},
 			{
 				Name:      "invokefunction",
 				Usage:     "invoke deployed contract on the blockchain",
-				UsageText: "neo-go contract invokefunction -e endpoint -w wallet [-a address] [-g gas] scripthash [method] [arguments...]",
-				Description: `Executes given (as a script hash) deployed script with the given method and
-   and arguments. See testinvokefunction documentation for the details about
-   parameters. It differs from testinvokefunction in that this command sends an
-   invocation transaction to the network.
+				UsageText: "neo-go contract invokefunction -r endpoint -w wallet [-a address] [-g gas] scripthash [method] [arguments...] [--] [signers...]",
+				Description: `Executes given (as a script hash) deployed script with the given method,
+   arguments and signers. Sender is included in the list of signers by default
+   with FeeOnly witness scope. If you'd like to change default sender's scope, 
+   specify it via signers parameter. See testinvokefunction documentation for 
+   the details about parameters. It differs from testinvokefunction in that this
+   command sends an invocation transaction to the network.
 `,
 				Action: invokeFunction,
-				Flags: []cli.Flag{
-					endpointFlag,
-					walletFlag,
-					addressFlag,
-					gasFlag,
-				},
-			},
-			{
-				Name:      "testinvoke",
-				Usage:     "invoke deployed contract on the blockchain (test mode)",
-				UsageText: "neo-go contract testinvoke -e endpoint scripthash [arguments...]",
-				Description: `Executes given (as a script hash) deployed script with the given arguments.
-   It's very similar to the tesinvokefunction command, but differs in the way
-   arguments are being passed. This invoker does not accept method parameter
-   and it passes all given parameters as plain values to the contract, not
-   wrapping them them into array like testinvokefunction does. For arguments
-   syntax please refer to the testinvokefunction command help.
-
-   Most of the time (if your contract follows the standard convention of
-   method with array of values parameters) you want to use testinvokefunction
-   command instead of testinvoke.
-`,
-				Action: testInvoke,
-				Flags: []cli.Flag{
-					endpointFlag,
-				},
+				Flags:  invokeFunctionFlags,
 			},
 			{
 				Name:      "testinvokefunction",
 				Usage:     "invoke deployed contract on the blockchain (test mode)",
-				UsageText: "neo-go contract testinvokefunction -e endpoint scripthash [method] [arguments...]",
-				Description: `Executes given (as a script hash) deployed script with the given method and
-   arguments. If no method is given "" is passed to the script, if no arguments
-   are given, an empty array is passed. All of the given arguments are
-   encapsulated into array before invoking the script. The script thus should
-   follow the regular convention of smart contract arguments (method string and
+				UsageText: "neo-go contract testinvokefunction -r endpoint scripthash [method] [arguments...] [--] [signers...]",
+				Description: `Executes given (as a script hash) deployed script with the given method,
+   arguments and signers (sender is not included by default). If no method is given
+   "" is passed to the script, if no arguments are given, an empty array is 
+   passed, if no signers are given no array is passed. If signers are specified,
+   the first one of them is treated as a sender. All of the given arguments are 
+   encapsulated into array before invoking the script. The script thus should 
+   follow the regular convention of smart contract arguments (method string and 
    an array of other arguments).
 
    Arguments always do have regular Neo smart contract parameter types, either
    specified explicitly or being inferred from the value. To specify the type
    manually use "type:value" syntax where the type is one of the following:
    'signature', 'bool', 'int', 'hash160', 'hash256', 'bytes', 'key' or 'string'.
-   Array types are not currently supported.
+   Array types are also supported: use special space-separated '[' and ']' 
+   symbols around array values to denote array bounds. Nested arrays are also 
+   supported.
 
    Given values are type-checked against given types with the following
    restrictions applied:
@@ -251,23 +237,53 @@ func NewCommands() []cli.Command {
     * 'string\:string' is a string with a value of 'string:string'
     * '03b209fd4f53a7170ea4444e0cb0a6bb6a53c2bd016926989cf85f9b0fba17a70c' is a
       key with a value of '03b209fd4f53a7170ea4444e0cb0a6bb6a53c2bd016926989cf85f9b0fba17a70c'
+    * '[ a b c ]' is an array with strings values 'a', 'b' and 'c'
+    * '[ a b [ c d ] e ]' is an array with 4 values: string 'a', string 'b',
+      array of two strings 'c' and 'd', string 'e'
+    * '[ ]' is an empty array
+
+   Signers represent a set of Uint160 hashes with witness scopes and are used
+   to verify hashes in System.Runtime.CheckWitness syscall. First signer is treated
+   as a sender. To specify signers use signer[:scope] syntax where
+    * 'signer' is hex-encoded 160 bit (20 byte) LE value of signer's address,
+                 which could have '0x' prefix.
+    * 'scope' is a comma-separated set of cosigner's scopes, which could be:
+        - 'FeeOnly' - marks transaction's sender and can be used only for the
+                      sender. Signer with this scope can't be used during the
+                      script execution and only pays fees for the transaction.
+        - 'Global' - allows this witness in all contexts. This cannot be combined
+                     with other flags.
+        - 'CalledByEntry' - means that this condition must hold: EntryScriptHash 
+                            == CallingScriptHash. The witness/permission/signature
+                            given on first invocation will automatically expire if
+                            entering deeper internal invokes. This can be default
+                            safe choice for native NEO/GAS.
+        - 'CustomContracts' - define valid custom contract hashes for witness check.
+        - 'CustomGroups' - define custom pubkey for group members.
+
+   If no scopes were specified, 'Global' used as default. If no signers were
+   specified, no array is passed. Note that scopes are properly handled by 
+   neo-go RPC server only. C# implementation does not support scopes capability.
+
+   Examples:
+    * '0000000009070e030d0f0e020d0c06050e030c02'
+    * '0x0000000009070e030d0f0e020d0c06050e030c02'
+    * '0x0000000009070e030d0f0e020d0c06050e030c02:Global'
+    * '0000000009070e030d0f0e020d0c06050e030c02:CalledByEntry,CustomGroups'   
 `,
 				Action: testInvokeFunction,
-				Flags: []cli.Flag{
-					endpointFlag,
-				},
+				Flags:  options.RPC,
 			},
 			{
-				Name:   "testinvokescript",
-				Usage:  "Invoke compiled AVM code on the blockchain (test mode, not creating a transaction for it)",
+				Name:      "testinvokescript",
+				Usage:     "Invoke compiled AVM code in NEF format on the blockchain (test mode, not creating a transaction for it)",
+				UsageText: "neo-go contract testinvokescript -r endpoint -i input.nef [signers...]",
+				Description: `Executes given compiled AVM instructions in NEF format with the given set of
+   signers not included sender by default. See testinvokefunction documentation 
+   for the details about parameters.
+`,
 				Action: testInvokeScript,
-				Flags: []cli.Flag{
-					endpointFlag,
-					cli.StringFlag{
-						Name:  "in, i",
-						Usage: "Input location of the avm file that needs to be invoked",
-					},
-				},
+				Flags:  testInvokeScriptFlags,
 			},
 			{
 				Name:   "init",
@@ -295,7 +311,7 @@ func NewCommands() []cli.Command {
 					},
 					cli.StringFlag{
 						Name:  "in, i",
-						Usage: "input file of the program",
+						Usage: "input file of the program (either .go or .nef)",
 					},
 				},
 			},
@@ -323,23 +339,26 @@ func initSmartContract(ctx *cli.Context) error {
 		return cli.NewExitError(err, 1)
 	}
 
-	// Ask contract information and write a neo-go.yml file unless the -skip-details flag is set.
-	// TODO: Fix the missing neo-go.yml file with the `init` command when the package manager is in place.
-	if !ctx.Bool("skip-details") {
-		details := parseContractDetails()
-		details.ReturnType = smartcontract.ByteArrayType
-		details.Parameters = make([]smartcontract.ParamType, 2)
-		details.Parameters[0] = smartcontract.StringType
-		details.Parameters[1] = smartcontract.ArrayType
-
-		project := &ProjectConfig{Contract: details}
-		b, err := yaml.Marshal(project)
-		if err != nil {
-			return cli.NewExitError(err, 1)
-		}
-		if err := ioutil.WriteFile(filepath.Join(basePath, "neo-go.yml"), b, 0644); err != nil {
-			return cli.NewExitError(err, 1)
-		}
+	m := ProjectConfig{
+		SupportedStandards: []string{},
+		Events: []manifest.Event{
+			{
+				Name: "Hello world!",
+				Parameters: []manifest.Parameter{
+					{
+						Name: "args",
+						Type: smartcontract.ArrayType,
+					},
+				},
+			},
+		},
+	}
+	b, err := yaml.Marshal(m)
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
+	if err := ioutil.WriteFile(filepath.Join(basePath, "neo-go.yml"), b, 0644); err != nil {
+		return cli.NewExitError(err, 1)
 	}
 
 	data := []byte(fmt.Sprintf(smartContractTmpl, contractName))
@@ -357,17 +376,18 @@ func contractCompile(ctx *cli.Context) error {
 	if len(src) == 0 {
 		return cli.NewExitError(errNoInput, 1)
 	}
-	abi := ctx.String("abi")
+	manifestFile := ctx.String("manifest")
 	confFile := ctx.String("config")
-	if len(abi) != 0 && len(confFile) == 0 {
+	debugFile := ctx.String("debug")
+	if len(confFile) == 0 && (len(manifestFile) != 0 || len(debugFile) != 0) {
 		return cli.NewExitError(errNoConfFile, 1)
 	}
 
 	o := &compiler.Options{
 		Outfile: ctx.String("out"),
 
-		DebugInfo: ctx.String("debug"),
-		ABIInfo:   abi,
+		DebugInfo:    debugFile,
+		ManifestFile: manifestFile,
 	}
 
 	if len(confFile) != 0 {
@@ -375,7 +395,9 @@ func contractCompile(ctx *cli.Context) error {
 		if err != nil {
 			return err
 		}
-		o.ContractDetails = &conf.Contract
+		o.ContractFeatures = conf.GetFeatures()
+		o.ContractEvents = conf.Events
+		o.ContractSupportedStandards = conf.SupportedStandards
 	}
 
 	result, err := compiler.CompileAndSave(src, o)
@@ -389,57 +411,56 @@ func contractCompile(ctx *cli.Context) error {
 	return nil
 }
 
-func testInvoke(ctx *cli.Context) error {
-	return invokeInternal(ctx, false, false)
-}
-
 func testInvokeFunction(ctx *cli.Context) error {
-	return invokeInternal(ctx, true, false)
-}
-
-func invoke(ctx *cli.Context) error {
-	return invokeInternal(ctx, false, true)
+	return invokeInternal(ctx, false)
 }
 
 func invokeFunction(ctx *cli.Context) error {
-	return invokeInternal(ctx, true, true)
+	return invokeInternal(ctx, true)
 }
 
-func invokeInternal(ctx *cli.Context, withMethod bool, signAndPush bool) error {
+func invokeInternal(ctx *cli.Context, signAndPush bool) error {
 	var (
-		err         error
-		gas         util.Fixed8
-		operation   string
-		params      = make([]smartcontract.Parameter, 0)
-		paramsStart = 1
-		resp        *result.Invoke
-		acc         *wallet.Account
+		err             error
+		gas             util.Fixed8
+		operation       string
+		params          = make([]smartcontract.Parameter, 0)
+		paramsStart     = 1
+		cosigners       []transaction.Signer
+		cosignersOffset = 0
+		resp            *result.Invoke
+		acc             *wallet.Account
 	)
-
-	endpoint := ctx.String("endpoint")
-	if len(endpoint) == 0 {
-		return cli.NewExitError(errNoEndpoint, 1)
-	}
 
 	args := ctx.Args()
 	if !args.Present() {
 		return cli.NewExitError(errNoScriptHash, 1)
 	}
-	script := args[0]
-	if withMethod {
-		if len(args) <= 1 {
-			return cli.NewExitError(errNoMethod, 1)
-		}
-		operation = args[1]
-		paramsStart++
+	script, err := util.Uint160DecodeStringLE(args[0])
+	if err != nil {
+		return cli.NewExitError(fmt.Errorf("incorrect script hash: %w", err), 1)
 	}
+	if len(args) <= 1 {
+		return cli.NewExitError(errNoMethod, 1)
+	}
+	operation = args[1]
+	paramsStart++
+
 	if len(args) > paramsStart {
-		for k, s := range args[paramsStart:] {
-			param, err := smartcontract.NewParameterFromString(s)
+		cosignersOffset, params, err = parseParams(args[paramsStart:], true)
+		if err != nil {
+			return cli.NewExitError(err, 1)
+		}
+	}
+
+	cosignersStart := paramsStart + cosignersOffset
+	if len(args) > cosignersStart {
+		for i, c := range args[cosignersStart:] {
+			cosigner, err := parseCosigner(c)
 			if err != nil {
-				return cli.NewExitError(fmt.Errorf("failed to parse argument #%d: %v", k+paramsStart+1, err), 1)
+				return cli.NewExitError(fmt.Errorf("failed to parse cosigner #%d: %w", i+1, err), 1)
 			}
-			params = append(params, *param)
+			cosigners = append(cosigners, cosigner)
 		}
 	}
 
@@ -450,16 +471,15 @@ func invokeInternal(ctx *cli.Context, withMethod bool, signAndPush bool) error {
 			return err
 		}
 	}
-	c, err := client.New(context.TODO(), endpoint, client.Options{})
+	gctx, cancel := options.GetTimeoutContext(ctx)
+	defer cancel()
+
+	c, err := options.GetRPCClient(gctx, ctx)
 	if err != nil {
-		return cli.NewExitError(err, 1)
+		return err
 	}
 
-	if withMethod {
-		resp, err = c.InvokeFunction(script, operation, params)
-	} else {
-		resp, err = c.Invoke(script, params)
-	}
+	resp, err = c.InvokeFunction(script, operation, params, cosigners)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -469,11 +489,11 @@ func invokeInternal(ctx *cli.Context, withMethod bool, signAndPush bool) error {
 		}
 		script, err := hex.DecodeString(resp.Script)
 		if err != nil {
-			return cli.NewExitError(fmt.Errorf("bad script returned from the RPC node: %v", err), 1)
+			return cli.NewExitError(fmt.Errorf("bad script returned from the RPC node: %w", err), 1)
 		}
-		txHash, err := c.SignAndPushInvocationTx(script, acc, 0, gas)
+		txHash, err := c.SignAndPushInvocationTx(script, acc, resp.GasConsumed, gas, cosigners)
 		if err != nil {
-			return cli.NewExitError(fmt.Errorf("failed to push invocation tx: %v", err), 1)
+			return cli.NewExitError(fmt.Errorf("failed to push invocation tx: %w", err), 1)
 		}
 		fmt.Printf("Sent invocation transaction %s\n", txHash.StringLE())
 	} else {
@@ -488,28 +508,88 @@ func invokeInternal(ctx *cli.Context, withMethod bool, signAndPush bool) error {
 	return nil
 }
 
+// parseParams extracts array of smartcontract.Parameter from the given args and
+// returns the number of handled words, the array itself and an error.
+// `calledFromMain` denotes whether the method was called from the outside or
+// recursively and used to check if cosignersSeparator and closing bracket are
+// allowed to be in `args` sequence.
+func parseParams(args []string, calledFromMain bool) (int, []smartcontract.Parameter, error) {
+	res := []smartcontract.Parameter{}
+	for k := 0; k < len(args); {
+		s := args[k]
+		switch s {
+		case cosignersSeparator:
+			if calledFromMain {
+				return k + 1, res, nil // `1` to convert index to numWordsRead
+			}
+			return 0, []smartcontract.Parameter{}, errors.New("invalid array syntax: missing closing bracket")
+		case arrayStartSeparator:
+			numWordsRead, array, err := parseParams(args[k+1:], false)
+			if err != nil {
+				return 0, nil, fmt.Errorf("failed to parse array: %w", err)
+			}
+			res = append(res, smartcontract.Parameter{
+				Type:  smartcontract.ArrayType,
+				Value: array,
+			})
+			k += 1 + numWordsRead // `1` for opening bracket
+		case arrayEndSeparator:
+			if calledFromMain {
+				return 0, nil, errors.New("invalid array syntax: missing opening bracket")
+			}
+			return k + 1, res, nil // `1`to convert index to numWordsRead
+		default:
+			param, err := smartcontract.NewParameterFromString(s)
+			if err != nil {
+				return 0, nil, fmt.Errorf("failed to parse argument #%d: %w", k+1, err)
+			}
+			res = append(res, *param)
+			k++
+		}
+	}
+	if calledFromMain {
+		return len(args), res, nil
+	}
+	return 0, []smartcontract.Parameter{}, errors.New("invalid array syntax: missing closing bracket")
+
+}
+
 func testInvokeScript(ctx *cli.Context) error {
 	src := ctx.String("in")
 	if len(src) == 0 {
 		return cli.NewExitError(errNoInput, 1)
-	}
-	endpoint := ctx.String("endpoint")
-	if len(endpoint) == 0 {
-		return cli.NewExitError(errNoEndpoint, 1)
 	}
 
 	b, err := ioutil.ReadFile(src)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
-
-	c, err := client.New(context.TODO(), endpoint, client.Options{})
+	nefFile, err := nef.FileFromBytes(b)
 	if err != nil {
-		return cli.NewExitError(err, 1)
+		return cli.NewExitError(fmt.Errorf("failed to restore .nef file: %w", err), 1)
 	}
 
-	scriptHex := hex.EncodeToString(b)
-	resp, err := c.InvokeScript(scriptHex)
+	args := ctx.Args()
+	var signers []transaction.Signer
+	if args.Present() {
+		for i, c := range args[:] {
+			cosigner, err := parseCosigner(c)
+			if err != nil {
+				return cli.NewExitError(fmt.Errorf("failed to parse signer #%d: %w", i+1, err), 1)
+			}
+			signers = append(signers, cosigner)
+		}
+	}
+
+	gctx, cancel := options.GetTimeoutContext(ctx)
+	defer cancel()
+
+	c, err := options.GetRPCClient(gctx, ctx)
+	if err != nil {
+		return err
+	}
+
+	resp, err := c.InvokeScript(nefFile.Script, signers)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -526,30 +606,22 @@ func testInvokeScript(ctx *cli.Context) error {
 
 // ProjectConfig contains project metadata.
 type ProjectConfig struct {
-	Version  uint
-	Contract smartcontract.ContractDetails `yaml:"project"`
+	HasStorage         bool
+	IsPayable          bool
+	SupportedStandards []string
+	Events             []manifest.Event
 }
 
-func parseContractDetails() smartcontract.ContractDetails {
-	details := smartcontract.ContractDetails{}
-	reader := bufio.NewReader(os.Stdin)
-
-	fmt.Print("Author: ")
-	details.Author, _ = reader.ReadString('\n')
-
-	fmt.Print("Email: ")
-	details.Email, _ = reader.ReadString('\n')
-
-	fmt.Print("Version: ")
-	details.Version, _ = reader.ReadString('\n')
-
-	fmt.Print("Project name: ")
-	details.ProjectName, _ = reader.ReadString('\n')
-
-	fmt.Print("Description: ")
-	details.Description, _ = reader.ReadString('\n')
-
-	return details
+// GetFeatures returns smartcontract features from the config.
+func (p *ProjectConfig) GetFeatures() smartcontract.PropertyState {
+	var fs smartcontract.PropertyState
+	if p.IsPayable {
+		fs |= smartcontract.IsPayable
+	}
+	if p.HasStorage {
+		fs |= smartcontract.HasStorage
+	}
+	return fs
 }
 
 func inspect(ctx *cli.Context) error {
@@ -558,15 +630,25 @@ func inspect(ctx *cli.Context) error {
 	if len(in) == 0 {
 		return cli.NewExitError(errNoInput, 1)
 	}
-	b, err := ioutil.ReadFile(in)
-	if err != nil {
-		return cli.NewExitError(err, 1)
-	}
+	var (
+		b   []byte
+		err error
+	)
 	if compile {
-		b, err = compiler.Compile(bytes.NewReader(b))
+		b, err = compiler.Compile(in, nil)
 		if err != nil {
-			return cli.NewExitError(errors.Wrap(err, "failed to compile"), 1)
+			return cli.NewExitError(fmt.Errorf("failed to compile: %w", err), 1)
 		}
+	} else {
+		f, err := ioutil.ReadFile(in)
+		if err != nil {
+			return cli.NewExitError(fmt.Errorf("failed to read .nef file: %w", err), 1)
+		}
+		nefFile, err := nef.FileFromBytes(f)
+		if err != nil {
+			return cli.NewExitError(fmt.Errorf("failed to restore .nef file: %w", err), 1)
+		}
+		b = nefFile.Script
 	}
 	v := vm.New()
 	v.LoadScript(b)
@@ -618,13 +700,9 @@ func contractDeploy(ctx *cli.Context) error {
 	if len(in) == 0 {
 		return cli.NewExitError(errNoInput, 1)
 	}
-	confFile := ctx.String("config")
-	if len(confFile) == 0 {
-		return cli.NewExitError(errNoConfFile, 1)
-	}
-	endpoint := ctx.String("endpoint")
-	if len(endpoint) == 0 {
-		return cli.NewExitError(errNoEndpoint, 1)
+	manifestFile := ctx.String("manifest")
+	if len(manifestFile) == 0 {
+		return cli.NewExitError(errNoManifestFile, 1)
 	}
 	gas := flags.Fixed8FromContext(ctx, "gas")
 
@@ -632,32 +710,48 @@ func contractDeploy(ctx *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	avm, err := ioutil.ReadFile(in)
+	f, err := ioutil.ReadFile(in)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
-	conf, err := parseContractConfig(confFile)
+	nefFile, err := nef.FileFromBytes(f)
+	if err != nil {
+		return cli.NewExitError(fmt.Errorf("failed to restore .nef file: %w", err), 1)
+	}
+
+	manifestBytes, err := ioutil.ReadFile(manifestFile)
+	if err != nil {
+		return cli.NewExitError(fmt.Errorf("failed to read manifest file: %w", err), 1)
+	}
+	m := &manifest.Manifest{}
+	err = json.Unmarshal(manifestBytes, m)
+	if err != nil {
+		return cli.NewExitError(fmt.Errorf("failed to restore manifest file: %w", err), 1)
+	}
+
+	gctx, cancel := options.GetTimeoutContext(ctx)
+	defer cancel()
+
+	c, err := options.GetRPCClient(gctx, ctx)
 	if err != nil {
 		return err
 	}
 
-	c, err := client.New(context.TODO(), endpoint, client.Options{})
+	txScript, err := request.CreateDeploymentScript(nefFile.Script, m)
 	if err != nil {
-		return cli.NewExitError(err, 1)
+		return cli.NewExitError(fmt.Errorf("failed to create deployment script: %w", err), 1)
+	}
+	// It doesn't require any signers.
+	invRes, err := c.InvokeScript(txScript, nil)
+	if err != nil {
+		return cli.NewExitError(fmt.Errorf("failed to test-invoke deployment script: %w", err), 1)
 	}
 
-	txScript, err := request.CreateDeploymentScript(avm, &conf.Contract)
+	txHash, err := c.SignAndPushInvocationTx(txScript, acc, invRes.GasConsumed, gas, nil)
 	if err != nil {
-		return cli.NewExitError(fmt.Errorf("failed to create deployment script: %v", err), 1)
+		return cli.NewExitError(fmt.Errorf("failed to push invocation tx: %w", err), 1)
 	}
-
-	sysfee := smartcontract.GetDeploymentPrice(request.DetailsToSCProperties(&conf.Contract))
-
-	txHash, err := c.SignAndPushInvocationTx(txScript, acc, sysfee, gas)
-	if err != nil {
-		return cli.NewExitError(fmt.Errorf("failed to push invocation tx: %v", err), 1)
-	}
-	fmt.Printf("Sent deployment transaction %s for contract %s\n", txHash.StringLE(), hash.Hash160(avm).StringLE())
+	fmt.Printf("Sent deployment transaction %s for contract %s\n", txHash.StringLE(), nefFile.Header.ScriptHash.StringLE())
 	return nil
 }
 
@@ -670,7 +764,32 @@ func parseContractConfig(confFile string) (ProjectConfig, error) {
 
 	err = yaml.Unmarshal(confBytes, &conf)
 	if err != nil {
-		return conf, cli.NewExitError(fmt.Errorf("bad config: %v", err), 1)
+		return conf, cli.NewExitError(fmt.Errorf("bad config: %w", err), 1)
 	}
 	return conf, nil
+}
+
+func parseCosigner(c string) (transaction.Signer, error) {
+	var (
+		err error
+		res = transaction.Signer{
+			Scopes: transaction.Global,
+		}
+	)
+	data := strings.SplitN(c, ":", 2)
+	s := data[0]
+	if len(s) == 2*util.Uint160Size+2 && s[0:2] == "0x" {
+		s = s[2:]
+	}
+	res.Account, err = util.Uint160DecodeStringLE(s)
+	if err != nil {
+		return res, err
+	}
+	if len(data) > 1 {
+		res.Scopes, err = transaction.ScopesFromString(data[1])
+		if err != nil {
+			return transaction.Signer{}, err
+		}
+	}
+	return res, nil
 }

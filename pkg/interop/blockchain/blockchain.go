@@ -1,53 +1,102 @@
+/*
+Package blockchain provides functions to access various blockchain data.
+*/
 package blockchain
 
-import (
-	"github.com/nspcc-dev/neo-go/pkg/interop/account"
-	"github.com/nspcc-dev/neo-go/pkg/interop/asset"
-	"github.com/nspcc-dev/neo-go/pkg/interop/block"
-	"github.com/nspcc-dev/neo-go/pkg/interop/contract"
-	"github.com/nspcc-dev/neo-go/pkg/interop/header"
-	"github.com/nspcc-dev/neo-go/pkg/interop/transaction"
-)
+import "github.com/nspcc-dev/neo-go/pkg/interop/contract"
 
-// Package blockchain provides function signatures that can be used inside
-// smart contracts that are written in the neo-go framework.
+// Transaction represents a NEO transaction. It's similar to Transaction class
+// in Neo .net framework.
+type Transaction struct {
+	// Hash represents the hash (256 bit BE value in a 32 byte slice) of the
+	// given transaction (which also is its ID).
+	Hash []byte
+	// Version represents the transaction version.
+	Version int
+	// Nonce is a random number to avoid hash collision.
+	Nonce int
+	// Sender represents the sender (160 bit BE value in a 20 byte slice) of the
+	// given Transaction.
+	Sender []byte
+	// SysFee represents fee to be burned.
+	SysFee int
+	// NetFee represents fee to be distributed to consensus nodes.
+	NetFee int
+	// ValidUntilBlock is the maximum blockchain height exceeding which
+	// transaction should fail verification.
+	ValidUntilBlock int
+	// Script represents code to run in NeoVM for this transaction.
+	Script []byte
+}
 
-// GetHeight returns the height of te block recorded in the current execution scope.
+// Block represents a NEO block, it's a data structure that you can get
+// block-related data from. It's similar to the Block class in the Neo .net
+// framework. To use it you need to get it via GetBlock function call.
+type Block struct {
+	// Hash represents the hash (256 bit BE value in a 32 byte slice) of the
+	// given block.
+	Hash []byte
+	// Version of the block.
+	Version int
+	// PrevHash represents the hash (256 bit BE value in a 32 byte slice) of the
+	// previous block.
+	PrevHash []byte
+	// MerkleRoot represents the root hash (256 bit BE value in a 32 byte slice)
+	// of a transaction list.
+	MerkleRoot []byte
+	// Timestamp represents millisecond-precision block timestamp.
+	Timestamp int
+	// Index represents the height of the block.
+	Index int
+	// NextConsensus represents contract address of the next miner (160 bit BE
+	// value in a 20 byte slice).
+	NextConsensus []byte
+	// TransactionsLength represents the length of block's transactions array.
+	TransactionsLength int
+}
+
+// GetHeight returns current block height (index of the last accepted block).
+// Note that when transaction is being run as a part of new block this block is
+// considered as not yet accepted (persisted) and thus you'll get an index of
+// the previous (already accepted) block. This function uses
+// `System.Blockchain.GetHeight` syscall.
 func GetHeight() int {
 	return 0
 }
 
-// GetHeader returns the header found by the given hash or index.
-func GetHeader(heightOrHash interface{}) header.Header {
-	return header.Header{}
+// GetBlock returns block found by the given hash or index (with the same
+// encoding as for GetHeader). This function uses `System.Blockchain.GetBlock`
+// syscall.
+func GetBlock(heightOrHash interface{}) Block {
+	return Block{}
 }
 
-// GetBlock returns the block found by the given hash or index.
-func GetBlock(heightOrHash interface{}) block.Block {
-	return block.Block{}
+// GetTransaction returns transaction found by the given hash (256 bit in BE
+// format represented as a slice of 32 bytes). This function uses
+// `System.Blockchain.GetTransaction` syscall.
+func GetTransaction(hash []byte) Transaction {
+	return Transaction{}
 }
 
-// GetTransaction returns the transaction found by the given hash.
-func GetTransaction(hash []byte) transaction.Transaction {
-	return transaction.Transaction{}
-}
-
-// GetContract returns the contract found by the given script hash.
-func GetContract(scriptHash []byte) contract.Contract {
-	return contract.Contract{}
-}
-
-// GetAccount returns the account found by the given script hash.
-func GetAccount(scriptHash []byte) account.Account {
-	return account.Account{}
-}
-
-// GetValidators returns a slice of validator addresses.
-func GetValidators() [][]byte {
+// GetTransactionFromBlock returns transaction hash (256 bit in BE format
+// represented as a slice of 32 bytes) from the block found by the given hash or
+// index (with the same encoding as for GetHeader) by its index. This
+// function uses `System.Blockchain.GetTransactionFromBlock` syscall.
+func GetTransactionFromBlock(heightOrHash interface{}, index int) []byte {
 	return nil
 }
 
-// GetAsset returns the asset found by the given asset id.
-func GetAsset(assetID []byte) asset.Asset {
-	return asset.Asset{}
+// GetTransactionHeight returns transaction's height (index of the block that
+// includes it) by the given ID (256 bit in BE format represented as a slice of
+// 32 bytes). This function uses `System.Blockchain.GetTransactionHeight` syscall.
+func GetTransactionHeight(hash []byte) int {
+	return 0
+}
+
+// GetContract returns contract found by the given script hash (160 bit in BE
+// format represented as a slice of 20 bytes). Refer to the `contract` package
+// for details on how to use the returned structure. This function uses
+// `System.Blockchain.GetContract` syscall.
+func GetContract(scriptHash []byte) contract.Contract {
+	return contract.Contract{}
 }

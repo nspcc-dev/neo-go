@@ -34,16 +34,13 @@ which would yield the response:
 
 | Method  |
 | ------- |
-| `getaccountstate` |
 | `getapplicationlog` |
-| `getassetstate` |
 | `getbestblockhash` |
 | `getblock` |
 | `getblockcount` |
 | `getblockhash` |
 | `getblockheader` |
 | `getblocksysfee` |
-| `getclaimable` |
 | `getconnectioncount` |
 | `getcontractstate` |
 | `getnep5balances` |
@@ -53,9 +50,7 @@ which would yield the response:
 | `getrawtransaction` |
 | `getstorage` |
 | `gettransactionheight` |
-| `gettxout` |
-| `getunclaimed` |
-| `getunspents` |
+| `getunclaimedgas` |
 | `getvalidators` |
 | `getversion` |
 | `invoke` |
@@ -64,27 +59,6 @@ which would yield the response:
 | `sendrawtransaction` |
 | `submitblock` |
 | `validateaddress` |
-
-### Unsupported methods
-
-Methods listed down below are not going to be supported for various reasons
-and we're not accepting issues related to them.
-
-| Method  | Reason |
-| ------- | ------------|
-| `claimgas` | Doesn't fit neo-go wallet model, use CLI to do that |
-| `dumpprivkey` | Shouldn't exist for security reasons, see `claimgas` comment also |
-| `getbalance` | Use `getaccountstate` instead, see `claimgas` comment also |
-| `getmetricblocktimestamp` | Not really useful, use other means for node monitoring |
-| `getnewaddress` | See `claimgas` comment |
-| `getunclaimedgas` | Use `getunclaimed` instead, see `claimgas` comment also |
-| `getwalletheight` | Not applicable to neo-go, see `claimgas` comment |
-| `importprivkey` | Not applicable to neo-go, see `claimgas` comment |
-| `listaddress` | Not applicable to neo-go, see `claimgas` comment |
-| `listplugins` | neo-go doesn't have any plugins, so it makes no sense |
-| `sendfrom` | Not applicable to neo-go, see `claimgas` comment |
-| `sendmany` | Not applicable to neo-go, see `claimgas` comment |
-| `sendtoaddress` | Not applicable to neo-go, see `claimgas` comment |
 
 #### Implementation notices
 
@@ -97,6 +71,50 @@ Lacking this signature the transaction is almost useless, so there is no point
 in returning it.
 
 Both methods also don't currently support arrays in function parameters.
+
+##### `getunclaimedgas`
+
+It's possible to call this method for any address with neo-go, unlike with C#
+node where it only works for addresses from opened wallet.
+
+### Unsupported methods
+
+Methods listed down below are not going to be supported for various reasons
+and we're not accepting issues related to them.
+
+| Method  | Reason |
+| ------- | ------------|
+| `claimgas` | Doesn't fit neo-go wallet model, use CLI to do that |
+| `dumpprivkey` | Shouldn't exist for security reasons, see `claimgas` comment also |
+| `getbalance` | To be implemented |
+| `getmetricblocktimestamp` | Not really useful, use other means for node monitoring |
+| `getnewaddress` | See `claimgas` comment |
+| `getwalletheight` | Not applicable to neo-go, see `claimgas` comment |
+| `importprivkey` | Not applicable to neo-go, see `claimgas` comment |
+| `listaddress` | Not applicable to neo-go, see `claimgas` comment |
+| `listplugins` | neo-go doesn't have any plugins, so it makes no sense |
+| `sendfrom` | Not applicable to neo-go, see `claimgas` comment |
+| `sendmany` | Not applicable to neo-go, see `claimgas` comment |
+| `sendtoaddress` | Not applicable to neo-go, see `claimgas` comment |
+
+### Extensions
+
+Some additional extensions are implemented as a part of this RPC server.
+
+#### Websocket server
+
+This server accepts websocket connections on `ws://$BASE_URL/ws` address. You
+can use it to perform regular RPC calls over websockets (it's supposed to be a
+little faster than going regular HTTP route) and you can also use it for
+additional functionality provided only via websockets (like notifications).
+
+#### Notification subsystem
+
+Notification subsystem consists of two additional RPC methods (`subscribe` and
+`unsubscribe` working only over websocket connection) that allow to subscribe
+to various blockchain events (with simple event filtering) and receive them on
+the client as JSON-RPC notifications. More details on that are written in the
+[notifications specification](notifications.md).
 
 ## Reference
 

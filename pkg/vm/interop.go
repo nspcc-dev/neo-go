@@ -5,92 +5,88 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
+	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
-
-// InteropFunc allows to hook into the VM.
-type InteropFunc func(vm *VM) error
-
-// InteropFuncPrice represents an interop function with a price.
-type InteropFuncPrice struct {
-	Func  InteropFunc
-	Price int
-}
 
 // interopIDFuncPrice adds an ID to the InteropFuncPrice.
 type interopIDFuncPrice struct {
-	ID uint32
-	InteropFuncPrice
+	ID            uint32
+	Func          func(vm *VM) error
+	Price         int64
+	RequiredFlags smartcontract.CallFlag
 }
-
-// InteropGetterFunc is a function that returns an interop function-price
-// structure by the given interop ID.
-type InteropGetterFunc func(uint32) *InteropFuncPrice
 
 var defaultVMInterops = []interopIDFuncPrice{
-	{emit.InteropNameToID([]byte("Neo.Runtime.Log")),
-		InteropFuncPrice{runtimeLog, 1}},
-	{emit.InteropNameToID([]byte("Neo.Runtime.Notify")),
-		InteropFuncPrice{runtimeNotify, 1}},
-	{emit.InteropNameToID([]byte("Neo.Runtime.Serialize")),
-		InteropFuncPrice{RuntimeSerialize, 1}},
-	{emit.InteropNameToID([]byte("System.Runtime.Serialize")),
-		InteropFuncPrice{RuntimeSerialize, 1}},
-	{emit.InteropNameToID([]byte("Neo.Runtime.Deserialize")),
-		InteropFuncPrice{RuntimeDeserialize, 1}},
-	{emit.InteropNameToID([]byte("System.Runtime.Deserialize")),
-		InteropFuncPrice{RuntimeDeserialize, 1}},
-	{emit.InteropNameToID([]byte("Neo.Enumerator.Create")),
-		InteropFuncPrice{EnumeratorCreate, 1}},
-	{emit.InteropNameToID([]byte("Neo.Enumerator.Next")),
-		InteropFuncPrice{EnumeratorNext, 1}},
-	{emit.InteropNameToID([]byte("Neo.Enumerator.Concat")),
-		InteropFuncPrice{EnumeratorConcat, 1}},
-	{emit.InteropNameToID([]byte("Neo.Enumerator.Value")),
-		InteropFuncPrice{EnumeratorValue, 1}},
-	{emit.InteropNameToID([]byte("Neo.Iterator.Create")),
-		InteropFuncPrice{IteratorCreate, 1}},
-	{emit.InteropNameToID([]byte("Neo.Iterator.Concat")),
-		InteropFuncPrice{IteratorConcat, 1}},
-	{emit.InteropNameToID([]byte("Neo.Iterator.Key")),
-		InteropFuncPrice{IteratorKey, 1}},
-	{emit.InteropNameToID([]byte("Neo.Iterator.Keys")),
-		InteropFuncPrice{IteratorKeys, 1}},
-	{emit.InteropNameToID([]byte("Neo.Iterator.Values")),
-		InteropFuncPrice{IteratorValues, 1}},
+	{ID: interopnames.ToID([]byte(interopnames.SystemBinaryDeserialize)),
+		Func: RuntimeDeserialize, Price: 500000},
+	{ID: interopnames.ToID([]byte(interopnames.SystemBinarySerialize)),
+		Func: RuntimeSerialize, Price: 100000},
+	{ID: interopnames.ToID([]byte(interopnames.SystemRuntimeLog)),
+		Func: runtimeLog, Price: 1000000, RequiredFlags: smartcontract.AllowNotify},
+	{ID: interopnames.ToID([]byte(interopnames.SystemRuntimeNotify)),
+		Func: runtimeNotify, Price: 1000000, RequiredFlags: smartcontract.AllowNotify},
+	{ID: interopnames.ToID([]byte(interopnames.SystemEnumeratorCreate)),
+		Func: EnumeratorCreate, Price: 400},
+	{ID: interopnames.ToID([]byte(interopnames.SystemEnumeratorNext)),
+		Func: EnumeratorNext, Price: 1000000},
+	{ID: interopnames.ToID([]byte(interopnames.SystemEnumeratorConcat)),
+		Func: EnumeratorConcat, Price: 400},
+	{ID: interopnames.ToID([]byte(interopnames.SystemEnumeratorValue)),
+		Func: EnumeratorValue, Price: 400},
+	{ID: interopnames.ToID([]byte(interopnames.SystemIteratorCreate)),
+		Func: IteratorCreate, Price: 400},
+	{ID: interopnames.ToID([]byte(interopnames.SystemIteratorConcat)),
+		Func: IteratorConcat, Price: 400},
+	{ID: interopnames.ToID([]byte(interopnames.SystemIteratorKey)),
+		Func: IteratorKey, Price: 400},
+	{ID: interopnames.ToID([]byte(interopnames.SystemIteratorKeys)),
+		Func: IteratorKeys, Price: 400},
+	{ID: interopnames.ToID([]byte(interopnames.SystemIteratorValues)),
+		Func: IteratorValues, Price: 400},
 }
 
-func getDefaultVMInterop(id uint32) *InteropFuncPrice {
+func init() {
+	sort.Slice(defaultVMInterops, func(i, j int) bool { return defaultVMInterops[i].ID < defaultVMInterops[j].ID })
+}
+
+func defaultSyscallHandler(v *VM, id uint32) error {
 	n := sort.Search(len(defaultVMInterops), func(i int) bool {
 		return defaultVMInterops[i].ID >= id
 	})
-	if n < len(defaultVMInterops) && defaultVMInterops[n].ID == id {
-		return &defaultVMInterops[n].InteropFuncPrice
+	if n >= len(defaultVMInterops) || defaultVMInterops[n].ID != id {
+		return errors.New("syscall not found")
 	}
-	return nil
+	d := defaultVMInterops[n]
+	if !v.Context().callFlag.Has(d.RequiredFlags) {
+		return fmt.Errorf("missing call flags: %05b vs %05b", v.Context().callFlag, d.RequiredFlags)
+	}
+	return d.Func(v)
 }
 
-// runtimeLog handles the syscall "Neo.Runtime.Log" for printing and logging stuff.
+// runtimeLog handles the syscall "System.Runtime.Log" for printing and logging stuff.
 func runtimeLog(vm *VM) error {
-	item := vm.Estack().Pop()
-	fmt.Printf("NEO-GO-VM (log) > %s\n", item.Value())
+	msg := vm.Estack().Pop().String()
+	fmt.Printf("NEO-GO-VM (log) > %s\n", msg)
 	return nil
 }
 
-// runtimeNotify handles the syscall "Neo.Runtime.Notify" for printing and logging stuff.
+// runtimeNotify handles the syscall "System.Runtime.Notify" for printing and logging stuff.
 func runtimeNotify(vm *VM) error {
+	name := vm.Estack().Pop().String()
 	item := vm.Estack().Pop()
-	fmt.Printf("NEO-GO-VM (notify) > %s\n", item.Value())
+	fmt.Printf("NEO-GO-VM (notify) > [%s] %s\n", name, item.Value())
 	return nil
 }
 
-// RuntimeSerialize handles syscalls System.Runtime.Serialize and Neo.Runtime.Serialize.
+// RuntimeSerialize handles System.Binary.Serialize syscall.
 func RuntimeSerialize(vm *VM) error {
 	item := vm.Estack().Pop()
-	data, err := SerializeItem(item.value)
+	data, err := stackitem.SerializeItem(item.value)
 	if err != nil {
 		return err
-	} else if len(data) > MaxItemSize {
+	} else if len(data) > stackitem.MaxSize {
 		return errors.New("too big item")
 	}
 
@@ -99,11 +95,11 @@ func RuntimeSerialize(vm *VM) error {
 	return nil
 }
 
-// RuntimeDeserialize handles syscalls System.Runtime.Deserialize and Neo.Runtime.Deserialize.
+// RuntimeDeserialize handles System.Binary.Deserialize syscall.
 func RuntimeDeserialize(vm *VM) error {
 	data := vm.Estack().Pop().Bytes()
 
-	item, err := DeserializeItem(data)
+	item, err := stackitem.DeserializeItem(data)
 	if err != nil {
 		return err
 	}
@@ -120,46 +116,59 @@ func init() {
 	})
 }
 
-// EnumeratorCreate handles syscall Neo.Enumerator.Create.
+// EnumeratorCreate handles syscall System.Enumerator.Create.
 func EnumeratorCreate(v *VM) error {
-	data := v.Estack().Pop().Array()
-	v.Estack().Push(&Element{
-		value: NewInteropItem(&arrayWrapper{
+	var interop interface{}
+	switch t := v.Estack().Pop().value.(type) {
+	case *stackitem.Array, *stackitem.Struct:
+		interop = &arrayWrapper{
+			index: -1,
+			value: t.Value().([]stackitem.Item),
+		}
+	default:
+		data, err := t.TryBytes()
+		if err != nil {
+			return fmt.Errorf("can not create enumerator from type %s: %w", t.Type(), err)
+		}
+		interop = &byteArrayWrapper{
 			index: -1,
 			value: data,
-		}),
+		}
+	}
+	v.Estack().Push(&Element{
+		value: stackitem.NewInterop(interop),
 	})
 
 	return nil
 }
 
-// EnumeratorNext handles syscall Neo.Enumerator.Next.
+// EnumeratorNext handles syscall System.Enumerator.Next.
 func EnumeratorNext(v *VM) error {
 	iop := v.Estack().Pop().Interop()
-	arr := iop.value.(enumerator)
+	arr := iop.Value().(enumerator)
 	v.Estack().PushVal(arr.Next())
 
 	return nil
 }
 
-// EnumeratorValue handles syscall Neo.Enumerator.Value.
+// EnumeratorValue handles syscall System.Enumerator.Value.
 func EnumeratorValue(v *VM) error {
 	iop := v.Estack().Pop().Interop()
-	arr := iop.value.(enumerator)
+	arr := iop.Value().(enumerator)
 	v.Estack().Push(&Element{value: arr.Value()})
 
 	return nil
 }
 
-// EnumeratorConcat handles syscall Neo.Enumerator.Concat.
+// EnumeratorConcat handles syscall System.Enumerator.Concat.
 func EnumeratorConcat(v *VM) error {
 	iop1 := v.Estack().Pop().Interop()
-	arr1 := iop1.value.(enumerator)
+	arr1 := iop1.Value().(enumerator)
 	iop2 := v.Estack().Pop().Interop()
-	arr2 := iop2.value.(enumerator)
+	arr2 := iop2.Value().(enumerator)
 
 	v.Estack().Push(&Element{
-		value: NewInteropItem(&concatEnum{
+		value: stackitem.NewInterop(&concatEnum{
 			current: arr1,
 			second:  arr2,
 		}),
@@ -168,20 +177,27 @@ func EnumeratorConcat(v *VM) error {
 	return nil
 }
 
-// IteratorCreate handles syscall Neo.Iterator.Create.
+// IteratorCreate handles syscall System.Iterator.Create.
 func IteratorCreate(v *VM) error {
 	data := v.Estack().Pop()
-	var item StackItem
+	var item stackitem.Item
 	switch t := data.value.(type) {
-	case *ArrayItem, *StructItem:
-		item = NewInteropItem(&arrayWrapper{
+	case *stackitem.Array, *stackitem.Struct:
+		item = stackitem.NewInterop(&arrayWrapper{
 			index: -1,
-			value: t.Value().([]StackItem),
+			value: t.Value().([]stackitem.Item),
 		})
-	case *MapItem:
+	case *stackitem.Map:
 		item = NewMapIterator(t)
 	default:
-		return errors.New("non-iterable type")
+		data, err := t.TryBytes()
+		if err != nil {
+			return fmt.Errorf("non-iterable type %s", t.Type())
+		}
+		item = stackitem.NewInterop(&byteArrayWrapper{
+			index: -1,
+			value: data,
+		})
 	}
 
 	v.Estack().Push(&Element{value: item})
@@ -189,21 +205,21 @@ func IteratorCreate(v *VM) error {
 }
 
 // NewMapIterator returns new interop item containing iterator over m.
-func NewMapIterator(m *MapItem) *InteropItem {
-	return NewInteropItem(&mapWrapper{
+func NewMapIterator(m *stackitem.Map) *stackitem.Interop {
+	return stackitem.NewInterop(&mapWrapper{
 		index: -1,
-		m:     m.value,
+		m:     m.Value().([]stackitem.MapElement),
 	})
 }
 
-// IteratorConcat handles syscall Neo.Iterator.Concat.
+// IteratorConcat handles syscall System.Iterator.Concat.
 func IteratorConcat(v *VM) error {
 	iop1 := v.Estack().Pop().Interop()
-	iter1 := iop1.value.(iterator)
+	iter1 := iop1.Value().(iterator)
 	iop2 := v.Estack().Pop().Interop()
-	iter2 := iop2.value.(iterator)
+	iter2 := iop2.Value().(iterator)
 
-	v.Estack().Push(&Element{value: NewInteropItem(
+	v.Estack().Push(&Element{value: stackitem.NewInterop(
 		&concatIter{
 			current: iter1,
 			second:  iter2,
@@ -213,31 +229,31 @@ func IteratorConcat(v *VM) error {
 	return nil
 }
 
-// IteratorKey handles syscall Neo.Iterator.Key.
+// IteratorKey handles syscall System.Iterator.Key.
 func IteratorKey(v *VM) error {
 	iop := v.estack.Pop().Interop()
-	iter := iop.value.(iterator)
+	iter := iop.Value().(iterator)
 	v.Estack().Push(&Element{value: iter.Key()})
 
 	return nil
 }
 
-// IteratorKeys handles syscall Neo.Iterator.Keys.
+// IteratorKeys handles syscall System.Iterator.Keys.
 func IteratorKeys(v *VM) error {
 	iop := v.estack.Pop().Interop()
-	iter := iop.value.(iterator)
-	v.Estack().Push(&Element{value: NewInteropItem(
+	iter := iop.Value().(iterator)
+	v.Estack().Push(&Element{value: stackitem.NewInterop(
 		&keysWrapper{iter},
 	)})
 
 	return nil
 }
 
-// IteratorValues handles syscall Neo.Iterator.Values.
+// IteratorValues handles syscall System.Iterator.Values.
 func IteratorValues(v *VM) error {
 	iop := v.estack.Pop().Interop()
-	iter := iop.value.(iterator)
-	v.Estack().Push(&Element{value: NewInteropItem(
+	iter := iop.Value().(iterator)
+	v.Estack().Push(&Element{value: stackitem.NewInterop(
 		&valuesWrapper{iter},
 	)})
 

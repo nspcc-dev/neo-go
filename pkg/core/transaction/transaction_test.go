@@ -1,10 +1,14 @@
 package transaction
 
 import (
+	"encoding/base64"
 	"encoding/hex"
+	"errors"
+	"math"
 	"testing"
 
-	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
+	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/internal/testserdes"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/stretchr/testify/assert"
@@ -34,173 +38,176 @@ func TestWitnessEncodeDecode(t *testing.T) {
 	t.Log(len(witDecode.InvocationScript))
 }
 
-// TODO NEO3.0: update binary
-/*
-func TestDecodeEncodeClaimTX(t *testing.T) {
-	tx := decodeTransaction(rawClaimTX, t)
-	assert.Equal(t, tx.Type, ClaimType)
-	assert.IsType(t, tx.Data, &ClaimTX{})
-	claimTX := tx.Data.(*ClaimTX)
-	assert.Equal(t, 4, len(claimTX.Claims))
-	assert.Equal(t, 0, len(tx.Attributes))
-	assert.Equal(t, 0, len(tx.Inputs))
-	assert.Equal(t, 1, len(tx.Outputs))
-	assert.Equal(t, "AQJseD8iBmCD4sgfHRhMahmoi9zvopG6yz", address.Uint160ToString(tx.Outputs[0].ScriptHash))
-	assert.Equal(t, "602c79718b16e442de58778e148d0b1084e3b2dffd5de6b7b16cee7969282de7", tx.Outputs[0].AssetID.StringLE())
-	assert.Equal(t, tx.Outputs[0].Amount.String(), "0.06247739")
-	invoc := "40456349cec43053009accdb7781b0799c6b591c812768804ab0a0b56b5eae7a97694227fcd33e70899c075848b2cee8fae733faac6865b484d3f7df8949e2aadb"
-	verif := "2103945fae1ed3c31d778f149192b76734fcc951b400ba3598faa81ff92ebe477eacac"
-	assert.Equal(t, 1, len(tx.Scripts))
-	assert.Equal(t, invoc, hex.EncodeToString(tx.Scripts[0].InvocationScript))
-	assert.Equal(t, verif, hex.EncodeToString(tx.Scripts[0].VerificationScript))
-
-	data, err := testserdes.EncodeBinary(tx)
-	assert.NoError(t, err)
-	assert.Equal(t, rawClaimTX, hex.EncodeToString(data))
-
-	hash := "2c6a45547b3898318e400e541628990a07acb00f3b9a15a8e966ae49525304da"
-	assert.Equal(t, hash, tx.hash.StringLE())
-}
-
 func TestDecodeEncodeInvocationTX(t *testing.T) {
 	tx := decodeTransaction(rawInvocationTX, t)
-	assert.Equal(t, tx.Type, InvocationType)
-	assert.IsType(t, tx.Data, &InvocationTX{})
 
-	invocTX := tx.Data.(*InvocationTX)
-	script := "0400b33f7114839c33710da24cf8e7d536b8d244f3991cf565c8146063795d3b9b3cd55aef026eae992b91063db0db53c1087472616e7366657267c5cc1cb5392019e2cc4e6d6b5ea54c8d4b6d11acf166cb072961424c54f6"
-	assert.Equal(t, script, hex.EncodeToString(invocTX.Script))
-	assert.Equal(t, util.Fixed8(0), invocTX.Gas)
+	script := "AwB0O6QLAAAADBSqB8w/IZOpc5BKCabmC4fx+WJzlwwU+BPCzI4Yu+SzuH+O+RBbULuTkY4TwAwIdHJhbnNmZXIMFLyvQdaEx9StbuDZnalwe50fDI5mQWJ9W1I4"
+	assert.Equal(t, script, base64.StdEncoding.EncodeToString(tx.Script))
+	assert.Equal(t, uint32(1325564094), tx.Nonce)
+	assert.Equal(t, int64(9007990), tx.SystemFee)
+	assert.Equal(t, int64(1252390), tx.NetworkFee)
+	assert.Equal(t, uint32(2163940), tx.ValidUntilBlock)
+	assert.Equal(t, "58ea0709dac398c451fd51fdf4466f5257c77927c7909834a0ef3b469cd1a2ce", tx.Hash().StringLE())
 
-	assert.Equal(t, 1, len(tx.Attributes))
-	assert.Equal(t, 0, len(tx.Inputs))
-	assert.Equal(t, 0, len(tx.Outputs))
-	invoc := "40c6a131c55ca38995402dff8e92ac55d89cbed4b98dfebbcb01acbc01bd78fa2ce2061be921b8999a9ab79c2958875bccfafe7ce1bbbaf1f56580815ea3a4feed"
-	verif := "2102d41ddce2c97be4c9aa571b8a32cbc305aa29afffbcae71b0ef568db0e93929aaac"
+	assert.Equal(t, 1, len(tx.Signers))
+	assert.Equal(t, CalledByEntry, tx.Signers[0].Scopes)
+	assert.Equal(t, "NiXgSLtGUjTRTgp4y9ax7vyJ9UZAjsRDVt", address.Uint160ToString(tx.Signers[0].Account))
+
+	assert.Equal(t, 0, len(tx.Attributes))
+	invoc := "DEAjYLv2S5ZEwl8Gbb1AZFSwern1bo4l2S2QyWxZj2wp2X6r3PIm81dUgWYs/N0GTuQQl45frj8JovgxKbqc2CZB"
+	verif := "DCEDyvdj+R02kcultd8+sT5mj9rOApWzfi4ln9D7FS01T5ALQZVEDXg="
 	assert.Equal(t, 1, len(tx.Scripts))
-	assert.Equal(t, invoc, hex.EncodeToString(tx.Scripts[0].InvocationScript))
-	assert.Equal(t, verif, hex.EncodeToString(tx.Scripts[0].VerificationScript))
+	assert.Equal(t, invoc, base64.StdEncoding.EncodeToString(tx.Scripts[0].InvocationScript))
+	assert.Equal(t, verif, base64.StdEncoding.EncodeToString(tx.Scripts[0].VerificationScript))
 
 	data, err := testserdes.EncodeBinary(tx)
 	assert.NoError(t, err)
 	assert.Equal(t, rawInvocationTX, hex.EncodeToString(data))
 }
-*/
 
-func TestNewInvocationTX(t *testing.T) {
+func TestNew(t *testing.T) {
 	script := []byte{0x51}
-	tx := NewInvocationTX(script, 1)
-	txData := tx.Data.(*InvocationTX)
-	assert.Equal(t, InvocationType, tx.Type)
-	assert.Equal(t, tx.Version, txData.Version)
-	assert.Equal(t, script, txData.Script)
+	tx := New(netmode.UnitTestNet, script, 1)
+	tx.Signers = []Signer{{Account: util.Uint160{1, 2, 3}}}
+	assert.Equal(t, int64(1), tx.SystemFee)
+	assert.Equal(t, script, tx.Script)
 	// Update hash fields to match tx2 that is gonna autoupdate them on decode.
 	_ = tx.Hash()
-	testserdes.EncodeDecodeBinary(t, tx, new(Transaction))
+	testserdes.EncodeDecodeBinary(t, tx, &Transaction{Network: netmode.UnitTestNet})
 }
 
-func TestEncodingTXWithNoData(t *testing.T) {
+func TestNewTransactionFromBytes(t *testing.T) {
+	script := []byte{0x51}
+	tx := New(netmode.UnitTestNet, script, 1)
+	tx.NetworkFee = 123
+	tx.Signers = []Signer{{Account: util.Uint160{1, 2, 3}}}
+	data, err := testserdes.EncodeBinary(tx)
+	require.NoError(t, err)
+
+	// set cached fields
+	tx.Hash()
+	tx.FeePerByte()
+
+	tx1, err := NewTransactionFromBytes(netmode.UnitTestNet, data)
+	require.NoError(t, err)
+	require.Equal(t, tx, tx1)
+
+	data = append(data, 42)
+	_, err = NewTransactionFromBytes(netmode.UnitTestNet, data)
+	require.Error(t, err)
+}
+
+func TestEncodingTXWithNoScript(t *testing.T) {
 	_, err := testserdes.EncodeBinary(new(Transaction))
 	require.Error(t, err)
 }
 
-func TestMarshalUnmarshalJSONContractTX(t *testing.T) {
-	tx := NewContractTX()
-	tx.Outputs = []Output{{
-		AssetID:    util.Uint256{1, 2, 3, 4},
-		Amount:     567,
-		ScriptHash: util.Uint160{7, 8, 9, 10},
-		Position:   13,
-	}}
-	tx.Scripts = []Witness{{
-		InvocationScript:   []byte{5, 3, 1},
-		VerificationScript: []byte{2, 4, 6},
-	}}
-	tx.Data = &ContractTX{}
-	testserdes.MarshalUnmarshalJSON(t, tx, new(Transaction))
-}
-
-func TestMarshalUnmarshalJSONClaimTX(t *testing.T) {
-	tx := &Transaction{
-		Type:    ClaimType,
-		Version: 0,
-		Data: &ClaimTX{Claims: []Input{
-			{
-				PrevHash:  util.Uint256{1, 2, 3, 4},
-				PrevIndex: uint16(56),
-			},
-		}},
-		Attributes: []Attribute{},
-		Inputs: []Input{{
-			PrevHash:  util.Uint256{5, 6, 7, 8},
-			PrevIndex: uint16(12),
-		}},
-		Outputs: []Output{{
-			AssetID:    util.Uint256{1, 2, 3},
-			Amount:     util.Fixed8FromInt64(1),
-			ScriptHash: util.Uint160{1, 2, 3},
-			Position:   0,
-		}},
-		Scripts: []Witness{},
-		Trimmed: false,
-	}
-
-	testserdes.MarshalUnmarshalJSON(t, tx, new(Transaction))
+func TestDecodingTXWithNoScript(t *testing.T) {
+	txBin, err := hex.DecodeString("00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000")
+	require.NoError(t, err)
+	err = testserdes.DecodeBinary(txBin, new(Transaction))
+	require.Error(t, err)
 }
 
 func TestMarshalUnmarshalJSONInvocationTX(t *testing.T) {
 	tx := &Transaction{
-		Type:    InvocationType,
-		Version: 3,
-		Data: &InvocationTX{
-			Script:  []byte{1, 2, 3, 4},
-			Gas:     util.Fixed8FromFloat(100),
-			Version: 3,
-		},
-		Attributes: []Attribute{},
-		Inputs: []Input{{
-			PrevHash:  util.Uint256{5, 6, 7, 8},
-			PrevIndex: uint16(12),
-		}},
-		Outputs: []Output{{
-			AssetID:    util.Uint256{1, 2, 3},
-			Amount:     util.Fixed8FromInt64(1),
-			ScriptHash: util.Uint160{1, 2, 3},
-			Position:   0,
-		}},
-		Scripts: []Witness{},
-		Trimmed: false,
+		Version:    0,
+		Signers:    []Signer{{Account: util.Uint160{1, 2, 3}}},
+		Script:     []byte{1, 2, 3, 4},
+		Attributes: []Attribute{{Type: HighPriority, Data: []byte{}}},
+		Scripts:    []Witness{},
+		Trimmed:    false,
 	}
 
 	testserdes.MarshalUnmarshalJSON(t, tx, new(Transaction))
 }
 
-func TestMarshalUnmarshalJSONRegisterTX(t *testing.T) {
-	tx := &Transaction{
-		Type:    RegisterType,
-		Version: 5,
-		Data: &RegisterTX{
-			AssetType: 0,
-			Name:      `[{"lang":"zh-CN","name":"小蚁股"},{"lang":"en","name":"AntShare"}]`,
-			Amount:    1000000,
-			Precision: 0,
-			Owner:     keys.PublicKey{},
-			Admin:     util.Uint160{},
-		},
-		Attributes: []Attribute{},
-		Inputs: []Input{{
-			PrevHash:  util.Uint256{5, 6, 7, 8},
-			PrevIndex: uint16(12),
-		}},
-		Outputs: []Output{{
-			AssetID:    util.Uint256{1, 2, 3},
-			Amount:     util.Fixed8FromInt64(1),
-			ScriptHash: util.Uint160{1, 2, 3},
-			Position:   0,
-		}},
-		Scripts: []Witness{},
-		Trimmed: false,
+func TestTransaction_HasAttribute(t *testing.T) {
+	tx := New(netmode.UnitTestNet, []byte{1}, 0)
+	require.False(t, tx.HasAttribute(HighPriority))
+	tx.Attributes = append(tx.Attributes, Attribute{Type: HighPriority})
+	require.True(t, tx.HasAttribute(HighPriority))
+	tx.Attributes = append(tx.Attributes, Attribute{Type: HighPriority})
+	require.True(t, tx.HasAttribute(HighPriority))
+}
+
+func TestTransaction_isValid(t *testing.T) {
+	newTx := func() *Transaction {
+		return &Transaction{
+			Version:    0,
+			SystemFee:  100,
+			NetworkFee: 100,
+			Signers: []Signer{
+				{Account: util.Uint160{1, 2, 3}},
+				{
+					Account: util.Uint160{4, 5, 6},
+					Scopes:  Global,
+				},
+			},
+			Script:     []byte{1, 2, 3, 4},
+			Attributes: []Attribute{},
+			Scripts:    []Witness{},
+			Trimmed:    false,
+		}
 	}
 
-	testserdes.MarshalUnmarshalJSON(t, tx, new(Transaction))
+	t.Run("Valid", func(t *testing.T) {
+		t.Run("NoAttributes", func(t *testing.T) {
+			tx := newTx()
+			require.NoError(t, tx.isValid())
+		})
+		t.Run("HighPriority", func(t *testing.T) {
+			tx := newTx()
+			tx.Attributes = []Attribute{{Type: HighPriority}}
+			require.NoError(t, tx.isValid())
+		})
+	})
+	t.Run("InvalidVersion", func(t *testing.T) {
+		tx := newTx()
+		tx.Version = 1
+		require.True(t, errors.Is(tx.isValid(), ErrInvalidVersion))
+	})
+	t.Run("NegativeSystemFee", func(t *testing.T) {
+		tx := newTx()
+		tx.SystemFee = -1
+		require.True(t, errors.Is(tx.isValid(), ErrNegativeSystemFee))
+	})
+	t.Run("NegativeNetworkFee", func(t *testing.T) {
+		tx := newTx()
+		tx.NetworkFee = -1
+		require.True(t, errors.Is(tx.isValid(), ErrNegativeNetworkFee))
+	})
+	t.Run("TooBigFees", func(t *testing.T) {
+		tx := newTx()
+		tx.SystemFee = math.MaxInt64 - tx.NetworkFee + 1
+		require.True(t, errors.Is(tx.isValid(), ErrTooBigFees))
+	})
+	t.Run("EmptySigners", func(t *testing.T) {
+		tx := newTx()
+		tx.Signers = tx.Signers[:0]
+		require.True(t, errors.Is(tx.isValid(), ErrEmptySigners))
+	})
+	t.Run("InvalidScope", func(t *testing.T) {
+		tx := newTx()
+		tx.Signers[1].Scopes = FeeOnly
+		require.True(t, errors.Is(tx.isValid(), ErrInvalidScope))
+	})
+	t.Run("NonUniqueSigners", func(t *testing.T) {
+		tx := newTx()
+		tx.Signers[1].Account = tx.Signers[0].Account
+		require.True(t, errors.Is(tx.isValid(), ErrNonUniqueSigners))
+	})
+	t.Run("MultipleHighPriority", func(t *testing.T) {
+		tx := newTx()
+		tx.Attributes = []Attribute{
+			{Type: HighPriority},
+			{Type: HighPriority},
+		}
+		require.True(t, errors.Is(tx.isValid(), ErrInvalidAttribute))
+	})
+	t.Run("NoScript", func(t *testing.T) {
+		tx := newTx()
+		tx.Script = []byte{}
+		require.True(t, errors.Is(tx.isValid(), ErrEmptyScript))
+	})
 }

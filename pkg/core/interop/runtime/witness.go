@@ -1,36 +1,34 @@
 package runtime
 
 import (
+	"crypto/elliptic"
+	"errors"
+	"fmt"
+
+	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
-	"github.com/pkg/errors"
 )
 
 // CheckHashedWitness checks given hash against current list of script hashes
 // for verifying in the interop context.
-func CheckHashedWitness(ic *interop.Context, v vm.ScriptHashGetter, hash util.Uint160) (bool, error) {
+func CheckHashedWitness(ic *interop.Context, hash util.Uint160) (bool, error) {
 	if tx, ok := ic.Container.(*transaction.Transaction); ok {
-		return checkScope(tx, v, hash)
+		return checkScope(ic.DAO, tx, ic.VM, hash)
 	}
 
-	// only for non-Transaction types (Block, etc.)
-	hashes, err := ic.Chain.GetScriptHashesForVerifying(ic.Tx)
-	if err != nil {
-		return false, errors.Wrap(err, "failed to get script hashes")
+	if !ic.VM.Context().GetCallFlags().Has(smartcontract.AllowStates) {
+		return false, errors.New("missing AllowStates call flag")
 	}
-	for _, v := range hashes {
-		if hash.Equals(v) {
-			return true, nil
-		}
-	}
-	return false, nil
+	return false, errors.New("script container is not a transaction")
 }
 
-func checkScope(tx *transaction.Transaction, v vm.ScriptHashGetter, hash util.Uint160) (bool, error) {
-	for _, c := range tx.Cosigners {
+func checkScope(d dao.DAO, tx *transaction.Transaction, v *vm.VM, hash util.Uint160) (bool, error) {
+	for _, c := range tx.Signers {
 		if c.Account == hash {
 			if c.Scopes == transaction.Global {
 				return true, nil
@@ -51,13 +49,14 @@ func checkScope(tx *transaction.Transaction, v vm.ScriptHashGetter, hash util.Ui
 				}
 			}
 			if c.Scopes&transaction.CustomGroups != 0 {
-				return true, nil
-				// TODO: we don't currently have Manifest field in ContractState
-				/*callingScriptHash := v.GetCallingScriptHash()
-				if callingScriptHash.Equals(util.Uint160{}){
+				callingScriptHash := v.GetCallingScriptHash()
+				if callingScriptHash.Equals(util.Uint160{}) {
 					return false, nil
 				}
-				cs, err := ic.DAO.GetContractState(callingScriptHash)
+				if !v.Context().GetCallFlags().Has(smartcontract.AllowStates) {
+					return false, errors.New("missing AllowStates call flag")
+				}
+				cs, err := d.GetContractState(callingScriptHash)
 				if err != nil {
 					return false, err
 				}
@@ -68,7 +67,7 @@ func checkScope(tx *transaction.Transaction, v vm.ScriptHashGetter, hash util.Ui
 							return true, nil
 						}
 					}
-				}*/
+				}
 			}
 			return false, nil
 		}
@@ -78,30 +77,30 @@ func checkScope(tx *transaction.Transaction, v vm.ScriptHashGetter, hash util.Ui
 
 // CheckKeyedWitness checks hash of signature check contract with a given public
 // key against current list of script hashes for verifying in the interop context.
-func CheckKeyedWitness(ic *interop.Context, v vm.ScriptHashGetter, key *keys.PublicKey) (bool, error) {
-	return CheckHashedWitness(ic, v, key.GetScriptHash())
+func CheckKeyedWitness(ic *interop.Context, key *keys.PublicKey) (bool, error) {
+	return CheckHashedWitness(ic, key.GetScriptHash())
 }
 
 // CheckWitness checks witnesses.
-func CheckWitness(ic *interop.Context, v *vm.VM) error {
+func CheckWitness(ic *interop.Context) error {
 	var res bool
 	var err error
 
-	hashOrKey := v.Estack().Pop().Bytes()
+	hashOrKey := ic.VM.Estack().Pop().Bytes()
 	hash, err := util.Uint160DecodeBytesBE(hashOrKey)
 	if err != nil {
 		var key *keys.PublicKey
-		key, err = keys.NewPublicKeyFromBytes(hashOrKey)
+		key, err = keys.NewPublicKeyFromBytes(hashOrKey, elliptic.P256())
 		if err != nil {
 			return errors.New("parameter given is neither a key nor a hash")
 		}
-		res, err = CheckKeyedWitness(ic, v, key)
+		res, err = CheckKeyedWitness(ic, key)
 	} else {
-		res, err = CheckHashedWitness(ic, v, hash)
+		res, err = CheckHashedWitness(ic, hash)
 	}
 	if err != nil {
-		return errors.Wrap(err, "failed to check")
+		return fmt.Errorf("failed to check witness: %w", err)
 	}
-	v.Estack().PushVal(res)
+	ic.VM.Estack().PushVal(res)
 	return nil
 }

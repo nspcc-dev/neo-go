@@ -51,6 +51,7 @@ type Peer interface {
 	Version() *payload.Version
 	LastBlockIndex() uint32
 	Handshaked() bool
+	IsFullNode() bool
 
 	// SendPing enqueues a ping message to be sent to the peer and does
 	// appropriate protocol handling like timeouts and outstanding pings
@@ -65,6 +66,9 @@ type Peer interface {
 	StartProtocol()
 	HandleVersion(*payload.Version) error
 	HandleVersionAck() error
+
+	// HandlePing checks ping contents against Peer's state and updates it.
+	HandlePing(ping *payload.Ping) error
 
 	// HandlePong checks pong contents against Peer's state and updates it.
 	HandlePong(pong *payload.Ping) error

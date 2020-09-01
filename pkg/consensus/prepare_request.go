@@ -11,7 +11,6 @@ type prepareRequest struct {
 	timestamp         uint64
 	nonce             uint64
 	transactionHashes []util.Uint256
-	nextConsensus     util.Uint160
 }
 
 var _ payload.PrepareRequest = (*prepareRequest)(nil)
@@ -20,7 +19,6 @@ var _ payload.PrepareRequest = (*prepareRequest)(nil)
 func (p *prepareRequest) EncodeBinary(w *io.BinWriter) {
 	w.WriteU64LE(p.timestamp)
 	w.WriteU64LE(p.nonce)
-	w.WriteBytes(p.nextConsensus[:])
 	w.WriteArray(p.transactionHashes)
 }
 
@@ -28,15 +26,14 @@ func (p *prepareRequest) EncodeBinary(w *io.BinWriter) {
 func (p *prepareRequest) DecodeBinary(r *io.BinReader) {
 	p.timestamp = r.ReadU64LE()
 	p.nonce = r.ReadU64LE()
-	r.ReadBytes(p.nextConsensus[:])
 	r.ReadArray(&p.transactionHashes)
 }
 
 // Timestamp implements payload.PrepareRequest interface.
-func (p *prepareRequest) Timestamp() uint64 { return p.timestamp * 1000000 }
+func (p *prepareRequest) Timestamp() uint64 { return p.timestamp * nsInMs }
 
 // SetTimestamp implements payload.PrepareRequest interface.
-func (p *prepareRequest) SetTimestamp(ts uint64) { p.timestamp = ts / 1000000 }
+func (p *prepareRequest) SetTimestamp(ts uint64) { p.timestamp = ts / nsInMs }
 
 // Nonce implements payload.PrepareRequest interface.
 func (p *prepareRequest) Nonce() uint64 { return p.nonce }
@@ -51,7 +48,7 @@ func (p *prepareRequest) TransactionHashes() []util.Uint256 { return p.transacti
 func (p *prepareRequest) SetTransactionHashes(hs []util.Uint256) { p.transactionHashes = hs }
 
 // NextConsensus implements payload.PrepareRequest interface.
-func (p *prepareRequest) NextConsensus() util.Uint160 { return p.nextConsensus }
+func (p *prepareRequest) NextConsensus() util.Uint160 { return util.Uint160{} }
 
 // SetNextConsensus implements payload.PrepareRequest interface.
-func (p *prepareRequest) SetNextConsensus(nc util.Uint160) { p.nextConsensus = nc }
+func (p *prepareRequest) SetNextConsensus(_ util.Uint160) {}

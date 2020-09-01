@@ -12,7 +12,7 @@ func MakeDirForFile(filePath string, creator string) error {
 	dir := path.Dir(fileName)
 	err := os.MkdirAll(dir, os.ModePerm)
 	if err != nil {
-		return fmt.Errorf("could not create dir for %s: %v", creator, err)
+		return fmt.Errorf("could not create dir for %s: %w", creator, err)
 	}
 	return nil
 }

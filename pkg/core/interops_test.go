@@ -5,6 +5,7 @@ import (
 	"runtime"
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
@@ -13,13 +14,14 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func testNonInterop(t *testing.T, value interface{}, f func(*interop.Context, *vm.VM) error) {
+func testNonInterop(t *testing.T, value interface{}, f func(*interop.Context) error) {
 	v := vm.New()
 	v.Estack().PushVal(value)
 	chain := newTestChain(t)
 	defer chain.Close()
-	context := chain.newInteropContext(trigger.Application, dao.NewSimple(storage.NewMemoryStore()), nil, nil)
-	require.Error(t, f(context, v))
+	context := chain.newInteropContext(trigger.Application, dao.NewSimple(storage.NewMemoryStore(), netmode.UnitTestNet), nil, nil)
+	context.VM = v
+	require.Error(t, f(context))
 }
 
 func TestUnexpectedNonInterops(t *testing.T) {
@@ -31,54 +33,13 @@ func TestUnexpectedNonInterops(t *testing.T) {
 	}
 
 	// All of these functions expect an interop item on the stack.
-	funcs := []func(*interop.Context, *vm.VM) error{
-		accountGetBalance,
-		accountGetScriptHash,
-		assetGetAdmin,
-		assetGetAmount,
-		assetGetAssetID,
-		assetGetAssetType,
-		assetGetAvailable,
-		assetGetIssuer,
-		assetGetOwner,
-		assetGetPrecision,
-		assetRenew,
-		attrGetData,
-		attrGetUsage,
-		blockGetTransaction,
-		blockGetTransactionCount,
-		blockGetTransactions,
-		contractGetScript,
-		contractGetStorageContext,
-		contractIsPayable,
-		headerGetHash,
-		headerGetIndex,
-		headerGetMerkleRoot,
-		headerGetNextConsensus,
-		headerGetPrevHash,
-		headerGetTimestamp,
-		headerGetVersion,
-		inputGetHash,
-		inputGetIndex,
-		invocationTxGetScript,
-		outputGetAssetID,
-		outputGetScriptHash,
-		outputGetValue,
+	funcs := []func(*interop.Context) error{
 		storageContextAsReadOnly,
 		storageDelete,
 		storageFind,
 		storageGet,
 		storagePut,
 		storagePutEx,
-		txGetAttributes,
-		txGetHash,
-		txGetInputs,
-		txGetOutputs,
-		txGetReferences,
-		txGetType,
-		txGetUnspentCoins,
-		txGetWitnesses,
-		witnessGetVerificationScript,
 	}
 	for _, f := range funcs {
 		for k, v := range vals {

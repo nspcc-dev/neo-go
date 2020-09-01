@@ -1,27 +1,27 @@
 package payload
 
 import (
+	"errors"
 	"net"
 	"strconv"
 	"time"
 
 	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/network/capability"
 )
 
 // AddressAndTime payload.
 type AddressAndTime struct {
-	Timestamp uint32
-	Services  uint64
-	IP        [16]byte
-	Port      uint16
+	Timestamp    uint32
+	IP           [16]byte
+	Capabilities capability.Capabilities
 }
 
 // NewAddressAndTime creates a new AddressAndTime object.
-func NewAddressAndTime(e *net.TCPAddr, t time.Time) *AddressAndTime {
+func NewAddressAndTime(e *net.TCPAddr, t time.Time, c capability.Capabilities) *AddressAndTime {
 	aat := AddressAndTime{
-		Timestamp: uint32(t.UTC().Unix()),
-		Services:  1,
-		Port:      uint16(e.Port),
+		Timestamp:    uint32(t.UTC().Unix()),
+		Capabilities: c,
 	}
 	copy(aat.IP[:], e.IP)
 	return &aat
@@ -30,26 +30,34 @@ func NewAddressAndTime(e *net.TCPAddr, t time.Time) *AddressAndTime {
 // DecodeBinary implements Serializable interface.
 func (p *AddressAndTime) DecodeBinary(br *io.BinReader) {
 	p.Timestamp = br.ReadU32LE()
-	p.Services = br.ReadU64LE()
 	br.ReadBytes(p.IP[:])
-	p.Port = br.ReadU16BE()
+	p.Capabilities.DecodeBinary(br)
 }
 
 // EncodeBinary implements Serializable interface.
 func (p *AddressAndTime) EncodeBinary(bw *io.BinWriter) {
 	bw.WriteU32LE(p.Timestamp)
-	bw.WriteU64LE(p.Services)
 	bw.WriteBytes(p.IP[:])
-	bw.WriteU16BE(p.Port)
+	p.Capabilities.EncodeBinary(bw)
 }
 
-// IPPortString makes a string from IP and port specified.
-func (p *AddressAndTime) IPPortString() string {
+// GetTCPAddress makes a string from IP and port specified in TCPCapability.
+// It returns an error if there's no such capability.
+func (p *AddressAndTime) GetTCPAddress() (string, error) {
 	var netip = make(net.IP, 16)
 
 	copy(netip, p.IP[:])
-	port := strconv.Itoa(int(p.Port))
-	return netip.String() + ":" + port
+	port := -1
+	for _, cap := range p.Capabilities {
+		if cap.Type == capability.TCPServer {
+			port = int(cap.Data.(*capability.Server).Port)
+			break
+		}
+	}
+	if port == -1 {
+		return "", errors.New("no TCP capability found")
+	}
+	return net.JoinHostPort(netip.String(), strconv.Itoa(port)), nil
 }
 
 // AddressList is a list with AddrAndTime.

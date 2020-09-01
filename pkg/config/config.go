@@ -5,8 +5,8 @@ import (
 	"io/ioutil"
 	"os"
 
-	"github.com/go-yaml/yaml"
-	"github.com/pkg/errors"
+	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
+	"gopkg.in/yaml.v2"
 )
 
 const userAgentFormat = "/NEO-GO:%s/"
@@ -28,21 +28,23 @@ func (c Config) GenerateUserAgent() string {
 
 // Load attempts to load the config from the given
 // path for the given netMode.
-func Load(path string, netMode NetMode) (Config, error) {
+func Load(path string, netMode netmode.Magic) (Config, error) {
 	configPath := fmt.Sprintf("%s/protocol.%s.yml", path, netMode)
+	return LoadFile(configPath)
+}
+
+// LoadFile loads config from the provided path.
+func LoadFile(configPath string) (Config, error) {
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {
-		return Config{}, errors.Wrap(err, "Unable to load config")
+		return Config{}, fmt.Errorf("config '%s' doesn't exist", configPath)
 	}
 
 	configData, err := ioutil.ReadFile(configPath)
 	if err != nil {
-		return Config{}, errors.Wrap(err, "Unable to read config")
+		return Config{}, fmt.Errorf("unable to read config: %w", err)
 	}
 
 	config := Config{
-		ProtocolConfiguration: ProtocolConfiguration{
-			SystemFee: SystemFee{},
-		},
 		ApplicationConfiguration: ApplicationConfiguration{
 			PingInterval: 30,
 			PingTimeout:  90,
@@ -51,7 +53,7 @@ func Load(path string, netMode NetMode) (Config, error) {
 
 	err = yaml.Unmarshal(configData, &config)
 	if err != nil {
-		return Config{}, errors.Wrap(err, "Problem unmarshaling config json data")
+		return Config{}, fmt.Errorf("failed to unmarshal config YAML: %w", err)
 	}
 
 	return config, nil

@@ -1,10 +1,12 @@
 package request
 
 import (
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -13,7 +15,22 @@ import (
 )
 
 func TestParam_UnmarshalJSON(t *testing.T) {
-	msg := `["str1", 123, ["str2", 3], [{"type": "String", "value": "jajaja"}]]`
+	msg := `["str1", 123, null, ["str2", 3], [{"type": "String", "value": "jajaja"}],
+                 {"primary": 1},
+                 {"sender": "f84d6a337fbc3d3a201d41da99e86b479e7a2554"},
+                 {"signer": "f84d6a337fbc3d3a201d41da99e86b479e7a2554"},
+                 {"sender": "f84d6a337fbc3d3a201d41da99e86b479e7a2554", "signer": "f84d6a337fbc3d3a201d41da99e86b479e7a2554"},
+                 {"contract": "f84d6a337fbc3d3a201d41da99e86b479e7a2554"},
+                 {"name": "my_pretty_notification"},
+                 {"contract": "f84d6a337fbc3d3a201d41da99e86b479e7a2554", "name":"my_pretty_notification"},
+                 {"state": "HALT"},
+                 {"account": "0xcadb3dc2faa3ef14a13b619c9a43124755aa2569"},
+                 [{"account": "0xcadb3dc2faa3ef14a13b619c9a43124755aa2569", "scopes": "Global"}]]`
+	contr, err := util.Uint160DecodeStringLE("f84d6a337fbc3d3a201d41da99e86b479e7a2554")
+	require.NoError(t, err)
+	name := "my_pretty_notification"
+	accountHash, err := util.Uint160DecodeStringLE("cadb3dc2faa3ef14a13b619c9a43124755aa2569")
+	require.NoError(t, err)
 	expected := Params{
 		{
 			Type:  StringT,
@@ -22,6 +39,9 @@ func TestParam_UnmarshalJSON(t *testing.T) {
 		{
 			Type:  NumberT,
 			Value: 123,
+		},
+		{
+			Type: defaultT,
 		},
 		{
 			Type: ArrayT,
@@ -47,6 +67,57 @@ func TestParam_UnmarshalJSON(t *testing.T) {
 							Type:  StringT,
 							Value: "jajaja",
 						},
+					},
+				},
+			},
+		},
+		{
+			Type:  BlockFilterT,
+			Value: BlockFilter{Primary: 1},
+		},
+		{
+			Type:  TxFilterT,
+			Value: TxFilter{Sender: &contr},
+		},
+		{
+			Type:  TxFilterT,
+			Value: TxFilter{Signer: &contr},
+		},
+		{
+			Type:  TxFilterT,
+			Value: TxFilter{Sender: &contr, Signer: &contr},
+		},
+		{
+			Type:  NotificationFilterT,
+			Value: NotificationFilter{Contract: &contr},
+		},
+		{
+			Type:  NotificationFilterT,
+			Value: NotificationFilter{Name: &name},
+		},
+		{
+			Type:  NotificationFilterT,
+			Value: NotificationFilter{Contract: &contr, Name: &name},
+		},
+		{
+			Type:  ExecutionFilterT,
+			Value: ExecutionFilter{State: "HALT"},
+		},
+		{
+			Type: Signer,
+			Value: transaction.Signer{
+				Account: accountHash,
+				Scopes:  transaction.FeeOnly,
+			},
+		},
+		{
+			Type: ArrayT,
+			Value: []Param{
+				{
+					Type: Signer,
+					Value: transaction.Signer{
+						Account: accountHash,
+						Scopes:  transaction.Global,
 					},
 				},
 			},
@@ -102,6 +173,11 @@ func TestParamGetUint256(t *testing.T) {
 	assert.Equal(t, u256, u)
 	require.Nil(t, err)
 
+	p = Param{StringT, "0x" + gas}
+	u, err = p.GetUint256()
+	require.NoError(t, err)
+	assert.Equal(t, u256, u)
+
 	p = Param{StringT, 42}
 	_, err = p.GetUint256()
 	require.NotNil(t, err)
@@ -129,7 +205,7 @@ func TestParamGetUint160FromHex(t *testing.T) {
 }
 
 func TestParamGetUint160FromAddress(t *testing.T) {
-	in := "AK2nJJpJr6o664CWJKi1QRXjqeic2zRp8y"
+	in := "NPAsqZkx9WhNd4P72uhZxBhLinSuNkxfB8"
 	u160, _ := address.StringToUint160(in)
 	p := Param{StringT, in}
 	u, err := p.GetUint160FromAddress()
@@ -143,6 +219,25 @@ func TestParamGetUint160FromAddress(t *testing.T) {
 	p = Param{StringT, "QK2nJJpJr6o664CWJKi1QRXjqeic2zRp8y"}
 	_, err = p.GetUint160FromAddress()
 	require.NotNil(t, err)
+}
+
+func TestParam_GetUint160FromAddressOrHex(t *testing.T) {
+	in := "NPAsqZkx9WhNd4P72uhZxBhLinSuNkxfB8"
+	inHex, _ := address.StringToUint160(in)
+
+	t.Run("Address", func(t *testing.T) {
+		p := Param{StringT, in}
+		u, err := p.GetUint160FromAddressOrHex()
+		require.NoError(t, err)
+		require.Equal(t, inHex, u)
+	})
+
+	t.Run("Hex", func(t *testing.T) {
+		p := Param{StringT, inHex.StringLE()}
+		u, err := p.GetUint160FromAddressOrHex()
+		require.NoError(t, err)
+		require.Equal(t, inHex, u)
+	})
 }
 
 func TestParamGetFuncParam(t *testing.T) {
@@ -181,4 +276,86 @@ func TestParamGetBytesHex(t *testing.T) {
 	p = Param{StringT, "qq2c79718b16e442de58778e148d0b1084e3b2dffd5de6b7b16cee7969282de7"}
 	_, err = p.GetBytesHex()
 	require.NotNil(t, err)
+}
+
+func TestParamGetBytesBase64(t *testing.T) {
+	in := "Aj4A8DoW6HB84EXrQu6A05JFFUHuUQ3BjhyL77rFTXQm"
+	inb, err := base64.StdEncoding.DecodeString(in)
+	require.NoError(t, err)
+	p := Param{StringT, in}
+	bh, err := p.GetBytesBase64()
+	assert.Equal(t, inb, bh)
+	require.Nil(t, err)
+
+	p = Param{StringT, 42}
+	_, err = p.GetBytesBase64()
+	require.NotNil(t, err)
+
+	p = Param{StringT, "@j4A8DoW6HB84EXrQu6A05JFFUHuUQ3BjhyL77rFTXQm"}
+	_, err = p.GetBytesBase64()
+	require.NotNil(t, err)
+}
+
+func TestParamGetSigner(t *testing.T) {
+	c := transaction.Signer{
+		Account: util.Uint160{1, 2, 3, 4},
+		Scopes:  transaction.Global,
+	}
+	p := Param{Type: Signer, Value: c}
+	actual, err := p.GetSigner()
+	require.NoError(t, err)
+	require.Equal(t, c, actual)
+
+	p = Param{Type: Signer, Value: `{"account": "0xcadb3dc2faa3ef14a13b619c9a43124755aa2569", "scopes": 0}`}
+	_, err = p.GetSigner()
+	require.Error(t, err)
+}
+
+func TestParamGetSigners(t *testing.T) {
+	u1 := util.Uint160{1, 2, 3, 4}
+	u2 := util.Uint160{5, 6, 7, 8}
+	t.Run("from hashes", func(t *testing.T) {
+		p := Param{ArrayT, []Param{
+			{Type: StringT, Value: u1.StringLE()},
+			{Type: StringT, Value: u2.StringLE()},
+		}}
+		actual, err := p.GetSigners()
+		require.NoError(t, err)
+		require.Equal(t, 2, len(actual))
+		require.True(t, u1.Equals(actual[0].Account))
+		require.True(t, u2.Equals(actual[1].Account))
+	})
+
+	t.Run("from signers", func(t *testing.T) {
+		c1 := transaction.Signer{
+			Account: u1,
+			Scopes:  transaction.Global,
+		}
+		c2 := transaction.Signer{
+			Account: u2,
+			Scopes:  transaction.CustomContracts,
+			AllowedContracts: []util.Uint160{
+				{1, 2, 3},
+				{4, 5, 6},
+			},
+		}
+		p := Param{ArrayT, []Param{
+			{Type: Signer, Value: c1},
+			{Type: Signer, Value: c2},
+		}}
+		actual, err := p.GetSigners()
+		require.NoError(t, err)
+		require.Equal(t, 2, len(actual))
+		require.Equal(t, c1, actual[0])
+		require.Equal(t, c2, actual[1])
+	})
+
+	t.Run("bad format", func(t *testing.T) {
+		p := Param{ArrayT, []Param{
+			{Type: StringT, Value: u1.StringLE()},
+			{Type: StringT, Value: "bla"},
+		}}
+		_, err := p.GetSigners()
+		require.Error(t, err)
+	})
 }

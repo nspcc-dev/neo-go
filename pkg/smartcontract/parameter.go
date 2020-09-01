@@ -1,9 +1,11 @@
 package smartcontract
 
 import (
+	"encoding/base64"
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math"
 	"math/bits"
@@ -13,7 +15,6 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/pkg/errors"
 )
 
 // PropertyState represents contract properties (flags).
@@ -21,10 +22,9 @@ type PropertyState byte
 
 // List of supported properties.
 const (
-	HasStorage PropertyState = 1 << iota
-	HasDynamicInvoke
-	IsPayable
-	NoProperties = 0
+	HasStorage   PropertyState = 1 << iota
+	IsPayable    PropertyState = 1 << 2
+	NoProperties               = 0
 )
 
 // Parameter represents a smart contract parameter.
@@ -53,11 +53,11 @@ func NewParameter(t ParamType) Parameter {
 
 type rawParameter struct {
 	Type  ParamType       `json:"type"`
-	Value json.RawMessage `json:"value"`
+	Value json.RawMessage `json:"value,omitempty"`
 }
 
 // MarshalJSON implements Marshaler interface.
-func (p *Parameter) MarshalJSON() ([]byte, error) {
+func (p Parameter) MarshalJSON() ([]byte, error) {
 	var (
 		resultRawValue json.RawMessage
 		resultErr      error
@@ -76,17 +76,25 @@ func (p *Parameter) MarshalJSON() ([]byte, error) {
 	case PublicKeyType, ByteArrayType, SignatureType:
 		if p.Value == nil {
 			resultRawValue = []byte("null")
-		} else {
+		} else if p.Type == PublicKeyType {
 			resultRawValue, resultErr = json.Marshal(hex.EncodeToString(p.Value.([]byte)))
+		} else {
+			resultRawValue, resultErr = json.Marshal(base64.StdEncoding.EncodeToString(p.Value.([]byte)))
 		}
 	case ArrayType:
 		var value = p.Value.([]Parameter)
-		resultRawValue, resultErr = json.Marshal(value)
+		if value == nil {
+			resultRawValue, resultErr = json.Marshal([]Parameter{})
+		} else {
+			resultRawValue, resultErr = json.Marshal(value)
+		}
 	case MapType:
 		ppair := p.Value.([]ParameterPair)
 		resultRawValue, resultErr = json.Marshal(ppair)
+	case InteropInterfaceType, AnyType:
+		resultRawValue = nil
 	default:
-		resultErr = errors.Errorf("Marshaller for type %s not implemented", p.Type)
+		resultErr = fmt.Errorf("can't marshal %s", p.Type)
 	}
 	if resultErr != nil {
 		return nil, resultErr
@@ -119,7 +127,12 @@ func (p *Parameter) UnmarshalJSON(data []byte) (err error) {
 		if err = json.Unmarshal(r.Value, &s); err != nil {
 			return
 		}
-		if b, err = hex.DecodeString(s); err != nil {
+		if r.Type == PublicKeyType {
+			b, err = hex.DecodeString(s)
+		} else {
+			b, err = base64.StdEncoding.DecodeString(s)
+		}
+		if err != nil {
 			return
 		}
 		p.Value = b
@@ -166,8 +179,11 @@ func (p *Parameter) UnmarshalJSON(data []byte) (err error) {
 			return
 		}
 		p.Value = h
+	case InteropInterfaceType, AnyType:
+		// stub, ignore value, it can only be null
+		p.Value = nil
 	default:
-		return errors.Errorf("Unmarshaller for type %s not implemented", p.Type)
+		return fmt.Errorf("can't unmarshal %s", p.Type)
 	}
 	return
 }
@@ -196,7 +212,7 @@ func (p *Parameter) EncodeBinary(w *io.BinWriter) {
 		w.WriteBytes(p.Value.(util.Uint160).BytesBE())
 	case Hash256Type:
 		w.WriteBytes(p.Value.(util.Uint256).BytesBE())
-	case InteropInterfaceType:
+	case InteropInterfaceType, AnyType:
 	default:
 		w.Err = fmt.Errorf("unknown type: %x", p.Type)
 	}
@@ -235,7 +251,7 @@ func (p *Parameter) DecodeBinary(r *io.BinReader) {
 		var u util.Uint256
 		r.ReadBytes(u[:])
 		p.Value = u
-	case InteropInterfaceType:
+	case InteropInterfaceType, AnyType:
 	default:
 		r.Err = fmt.Errorf("unknown type: %x", p.Type)
 	}
@@ -284,7 +300,7 @@ func (p Parameter) TryParse(dest interface{}) error {
 	switch p.Type {
 	case ByteArrayType:
 		if data, ok = p.Value.([]byte); !ok {
-			return errors.Errorf("failed to cast %s to []byte", p.Value)
+			return fmt.Errorf("failed to cast %s to []byte", p.Value)
 		}
 		switch dest := dest.(type) {
 		case *util.Uint160:
@@ -346,7 +362,7 @@ func (p Parameter) TryParse(dest interface{}) error {
 			*dest = string(data)
 			return nil
 		default:
-			return errors.Errorf("cannot cast param of type %s to type %s", p.Type, dest)
+			return fmt.Errorf("cannot cast param of type %s to type %s", p.Type, dest)
 		}
 	default:
 		return errors.New("cannot define param type")
@@ -357,7 +373,7 @@ func (p Parameter) TryParse(dest interface{}) error {
 func bytesToUint64(b []byte, size int) (uint64, error) {
 	var length = size / 8
 	if len(b) > length {
-		return 0, errors.Errorf("input doesn't fit into %d bits", size)
+		return 0, fmt.Errorf("input doesn't fit into %d bits", size)
 	}
 	if len(b) < length {
 		data := make([]byte, length)
@@ -396,7 +412,7 @@ func NewParameterFromString(in string) (*Parameter, error) {
 			}
 			// We currently do not support following types:
 			if res.Type == ArrayType || res.Type == MapType || res.Type == InteropInterfaceType || res.Type == VoidType {
-				return nil, errors.Errorf("Unsupported contract parameter type: %s", res.Type)
+				return nil, fmt.Errorf("unsupported parameter type %s", res.Type)
 			}
 			buf.Reset()
 			hadType = true

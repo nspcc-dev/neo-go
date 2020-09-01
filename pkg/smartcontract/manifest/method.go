@@ -4,8 +4,10 @@ import (
 	"encoding/hex"
 	"encoding/json"
 
+	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/util"
 )
 
 // Parameter represents smartcontract's parameter's definition.
@@ -24,23 +26,24 @@ type Event struct {
 // Every SC in a group must provide signature of it's hash to prove
 // it belongs to a group.
 type Group struct {
-	PublicKey *keys.PublicKey `json:"pubKey"`
+	PublicKey *keys.PublicKey `json:"pubkey"`
 	Signature []byte          `json:"signature"`
 }
 
 type groupAux struct {
-	PublicKey string `json:"pubKey"`
+	PublicKey string `json:"pubkey"`
 	Signature []byte `json:"signature"`
 }
 
 // Method represents method's metadata.
 type Method struct {
 	Name       string                  `json:"name"`
+	Offset     int                     `json:"offset"`
 	Parameters []Parameter             `json:"parameters"`
-	ReturnType smartcontract.ParamType `json:"returnType"`
+	ReturnType smartcontract.ParamType `json:"returntype"`
 }
 
-// NewParameter returns new paramter with the specified name and type.
+// NewParameter returns new parameter of specified name and type.
 func NewParameter(name string, typ smartcontract.ParamType) Parameter {
 	return Parameter{
 		Name: name,
@@ -48,16 +51,9 @@ func NewParameter(name string, typ smartcontract.ParamType) Parameter {
 	}
 }
 
-// DefaultEntryPoint represents default entrypoint to a contract.
-func DefaultEntryPoint() *Method {
-	return &Method{
-		Name: "Main",
-		Parameters: []Parameter{
-			NewParameter("operation", smartcontract.StringType),
-			NewParameter("args", smartcontract.ArrayType),
-		},
-		ReturnType: smartcontract.AnyType,
-	}
+// IsValid checks whether group's signature corresponds to the given hash.
+func (g *Group) IsValid(h util.Uint160) bool {
+	return g.PublicKey.Verify(g.Signature, hash.Sha256(h.BytesBE()).BytesBE())
 }
 
 // MarshalJSON implements json.Marshaler interface.

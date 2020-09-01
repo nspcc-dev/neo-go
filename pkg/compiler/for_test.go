@@ -5,7 +5,7 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/nspcc-dev/neo-go/pkg/vm"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
 func TestEntryPointWithMethod(t *testing.T) {
@@ -30,7 +30,7 @@ func TestEntryPointWithArgs(t *testing.T) {
 			return 2 + args[1].(int)
 		}
 	`
-	args := []vm.StackItem{vm.NewBigIntegerItem(big.NewInt(0)), vm.NewBigIntegerItem(big.NewInt(1))}
+	args := []stackitem.Item{stackitem.NewBigInteger(big.NewInt(0)), stackitem.NewBigInteger(big.NewInt(1))}
 	evalWithArgs(t, src, nil, args, big.NewInt(3))
 }
 
@@ -45,7 +45,7 @@ func TestEntryPointWithMethodAndArgs(t *testing.T) {
 			return 0
 		}
 	`
-	args := []vm.StackItem{vm.NewBigIntegerItem(big.NewInt(0)), vm.NewBigIntegerItem(big.NewInt(1))}
+	args := []stackitem.Item{stackitem.NewBigInteger(big.NewInt(0)), stackitem.NewBigInteger(big.NewInt(1))}
 	evalWithArgs(t, src, []byte("foobar"), args, big.NewInt(3))
 }
 
@@ -134,10 +134,10 @@ func TestStringArray(t *testing.T) {
 			return x
 		}
 	`
-	eval(t, src, []vm.StackItem{
-		vm.NewByteArrayItem([]byte("foo")),
-		vm.NewByteArrayItem([]byte("bar")),
-		vm.NewByteArrayItem([]byte("foobar")),
+	eval(t, src, []stackitem.Item{
+		stackitem.NewByteArray([]byte("foo")),
+		stackitem.NewByteArray([]byte("bar")),
+		stackitem.NewByteArray([]byte("foobar")),
 	})
 }
 
@@ -149,10 +149,10 @@ func TestIntArray(t *testing.T) {
 			return arr
 		}
 	`
-	eval(t, src, []vm.StackItem{
-		vm.NewBigIntegerItem(big.NewInt(1)),
-		vm.NewBigIntegerItem(big.NewInt(2)),
-		vm.NewBigIntegerItem(big.NewInt(3)),
+	eval(t, src, []stackitem.Item{
+		stackitem.NewBigInteger(big.NewInt(1)),
+		stackitem.NewBigInteger(big.NewInt(2)),
+		stackitem.NewBigInteger(big.NewInt(3)),
 	})
 }
 
@@ -198,7 +198,7 @@ func TestSimpleString(t *testing.T) {
 			return x
 		}
 	`
-	eval(t, src, vm.NewByteArrayItem([]byte("NEO")).Value())
+	eval(t, src, stackitem.NewByteArray([]byte("NEO")).Value())
 }
 
 func TestBoolAssign(t *testing.T) {
@@ -276,7 +276,7 @@ func TestIfUnaryInvert(t *testing.T) {
 			return 0
 		}
 	`
-	eval(t, src, []byte{})
+	eval(t, src, big.NewInt(0))
 }
 
 func TestAppendByte(t *testing.T) {
@@ -315,7 +315,7 @@ func TestAppendString(t *testing.T) {
 			return arr[3]
 		}
 	`
-	eval(t, src, vm.NewByteArrayItem([]byte("d")).Value())
+	eval(t, src, stackitem.NewByteArray([]byte("d")).Value())
 }
 
 func TestAppendInt(t *testing.T) {

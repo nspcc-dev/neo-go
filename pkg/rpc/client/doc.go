@@ -18,16 +18,13 @@ TODO:
 
 Supported methods
 
-	getaccountstate
 	getapplicationlog
-	getassetstate
 	getbestblockhash
 	getblock
 	getblockcount
 	getblockhash
 	getblockheader
 	getblocksysfee
-	getclaimable
 	getconnectioncount
 	getcontractstate
 	getnep5balances
@@ -37,9 +34,7 @@ Supported methods
 	getrawtransaction
 	getstorage
 	gettransactionheight
-	gettxout
-	getunclaimed
-	getunspents
+	getunclaimedgas
 	getvalidators
 	getversion
 	invoke
@@ -56,7 +51,6 @@ Unsupported methods
 	getbalance
 	getmetricblocktimestamp
 	getnewaddress
-	getunclaimedgas
 	getwalletheight
 	importprivkey
 	listaddress

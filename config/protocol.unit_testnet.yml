@@ -1,21 +1,19 @@
 ProtocolConfiguration:
-  Magic: 56753
-  AddressVersion: 23
+  Magic: 42
   SecondsPerBlock: 15
-  LowPriorityThreshold: 0.000
   MemPoolSize: 50000
-  StandbyValidators:
+  StandbyCommittee:
     - 02b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc2
     - 02103a7f7dd016558597f7960d27c516a4394fd968b9e65155eb4b013e4040406e
     - 03d90c07df63e690ce77912e10ab51acc944b66860237b608c4f8f8309e71ee699
     - 02a7bc55fe8684e0119768d104ba30795bdcc86619e864add26156723ed185cd62
+    - 02c429b3ea1aa486cb2edfd6e99d8055c1f81f1a9206664e2c40a586d187257557
+    - 02c4de32252c50fa171dbe25379e4e2d55cdc12f69e382c39f59a44573ecff2f9d
+  ValidatorsCount: 4
   SeedList:
     - 127.0.0.1:20334
     - 127.0.0.1:20335
     - 127.0.0.1:20336
-  SystemFee:
-    IssueTransaction: 500
-    RegisterTransaction: 10000
   VerifyBlocks: true
   VerifyTransactions: true
 
@@ -47,9 +45,11 @@ ApplicationConfiguration:
   AttemptConnPeers: 5
   MinPeers: 1
   RPC:
+    Address: 127.0.0.1
+    MaxGasInvoke: 10
     Enabled: true
     EnableCORSWorkaround: false
-    Port: 20332
+    Port: 0 # let the system choose port dynamically
   Prometheus:
     Enabled: false #since it's not useful for unit tests.
     Port: 2112

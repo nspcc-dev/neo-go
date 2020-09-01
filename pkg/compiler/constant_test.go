@@ -72,3 +72,17 @@ func TestGlobalsWithFunctionParams(t *testing.T) {
 	`
 	eval(t, src, []byte("FOO"))
 }
+
+func TestIota(t *testing.T) {
+	src := `package foo
+	const (
+		a = 2 << iota
+		b
+
+		c = 11
+	)
+	func Main() int {
+		return a + b + c
+	}`
+	eval(t, src, big.NewInt(17))
+}

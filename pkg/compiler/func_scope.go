@@ -3,6 +3,7 @@ package compiler
 import (
 	"go/ast"
 	"go/token"
+	"go/types"
 )
 
 // A funcScope represents the scope within the function context.
@@ -18,6 +19,9 @@ type funcScope struct {
 	// The declaration of the function in the AST. Nil if this scope is not a function.
 	decl *ast.FuncDecl
 
+	// Package where the function is defined.
+	pkg *types.Package
+
 	// Program label of the scope
 	label uint16
 
@@ -26,9 +30,14 @@ type funcScope struct {
 	// Variables together with it's type in neo-vm.
 	variables []string
 
+	// deferStack is a stack containing encountered `defer` statements.
+	deferStack []deferInfo
+	// finallyProcessed is a index of static slot with boolean flag determining
+	// if `defer` statement was already processed.
+	finallyProcessedIndex int
+
 	// Local variables
-	locals    map[string]int
-	arguments map[string]int
+	vars varScope
 
 	// voidCalls are basically functions that return their value
 	// into nothing. The stack has their return value but there
@@ -42,7 +51,13 @@ type funcScope struct {
 	i int
 }
 
-func newFuncScope(decl *ast.FuncDecl, label uint16) *funcScope {
+type deferInfo struct {
+	catchLabel   uint16
+	finallyLabel uint16
+	expr         *ast.CallExpr
+}
+
+func (c *codegen) newFuncScope(decl *ast.FuncDecl, label uint16) *funcScope {
 	var name string
 	if decl.Name != nil {
 		name = decl.Name.Name
@@ -51,12 +66,20 @@ func newFuncScope(decl *ast.FuncDecl, label uint16) *funcScope {
 		name:      name,
 		decl:      decl,
 		label:     label,
-		locals:    map[string]int{},
-		arguments: map[string]int{},
+		pkg:       c.currPkg,
+		vars:      newVarScope(),
 		voidCalls: map[*ast.CallExpr]bool{},
 		variables: []string{},
 		i:         -1,
 	}
+}
+
+func (c *codegen) getFuncNameFromDecl(pkgPath string, decl *ast.FuncDecl) string {
+	name := decl.Name.Name
+	if decl.Recv != nil {
+		name = decl.Recv.List[0].Type.(*ast.Ident).Name + "." + name
+	}
+	return c.getIdentName(pkgPath, name)
 }
 
 // analyzeVoidCalls checks for functions that are not assigned
@@ -79,8 +102,24 @@ func (c *funcScope) analyzeVoidCalls(node ast.Node) bool {
 		}
 	case *ast.BinaryExpr:
 		return false
+	case *ast.IfStmt:
+		// we can't just return `false`, because we still need to process body
+		ce, ok := n.Cond.(*ast.CallExpr)
+		if ok {
+			c.voidCalls[ce] = false
+		}
+	case *ast.CaseClause:
+		for _, e := range n.List {
+			ce, ok := e.(*ast.CallExpr)
+			if ok {
+				c.voidCalls[ce] = false
+			}
+		}
 	case *ast.CallExpr:
-		c.voidCalls[n] = true
+		_, ok := c.voidCalls[n]
+		if !ok {
+			c.voidCalls[n] = true
+		}
 		return false
 	}
 	return true
@@ -88,6 +127,7 @@ func (c *funcScope) analyzeVoidCalls(node ast.Node) bool {
 
 func (c *funcScope) countLocals() int {
 	size := 0
+	hasDefer := false
 	ast.Inspect(c.decl, func(n ast.Node) bool {
 		switch n := n.(type) {
 		case *ast.FuncType:
@@ -97,8 +137,11 @@ func (c *funcScope) countLocals() int {
 			}
 		case *ast.AssignStmt:
 			if n.Tok == token.DEFINE {
-				size += len(n.Rhs)
+				size += len(n.Lhs)
 			}
+		case *ast.DeferStmt:
+			hasDefer = true
+			return false
 		case *ast.ReturnStmt, *ast.IfStmt:
 			size++
 		// This handles the inline GenDecl like "var x = 2"
@@ -116,6 +159,10 @@ func (c *funcScope) countLocals() int {
 		}
 		return true
 	})
+	if hasDefer {
+		c.finallyProcessedIndex = size
+		size++
+	}
 	return size
 }
 
@@ -130,21 +177,12 @@ func (c *funcScope) countArgs() int {
 func (c *funcScope) stackSize() int64 {
 	size := c.countLocals()
 	numArgs := c.countArgs()
-	return int64(size + numArgs + len(c.voidCalls))
+	return int64(size + numArgs)
 }
 
 // newVariable creates a new local variable or argument in the scope of the function.
 func (c *funcScope) newVariable(t varType, name string) int {
-	c.i++
-	switch t {
-	case varLocal:
-		c.locals[name] = c.i
-	case varArgument:
-		c.arguments[name] = c.i
-	default:
-		panic("invalid type")
-	}
-	return c.i
+	return c.vars.newVariable(t, name)
 }
 
 // newLocal creates a new local variable into the scope of the function.

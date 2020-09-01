@@ -1,8 +1,10 @@
 package vm
 
 import (
+	"crypto/elliptic"
 	"encoding/binary"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"math"
@@ -11,11 +13,15 @@ import (
 	"text/tabwriter"
 	"unicode/utf8"
 
+	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
-	"github.com/pkg/errors"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
 type errorAtInstruct struct {
@@ -35,75 +41,68 @@ func newError(ip int, op opcode.Opcode, err interface{}) *errorAtInstruct {
 // StateMessage is a vm state message which could be used as additional info for example by cli.
 type StateMessage string
 
-// ScriptHashGetter defines an interface for getting calling, entry and current script hashes.
-type ScriptHashGetter interface {
-	GetCallingScriptHash() util.Uint160
-	GetEntryScriptHash() util.Uint160
-	GetCurrentScriptHash() util.Uint160
-}
-
 const (
-	// MaxArraySize is the maximum array size allowed in the VM.
-	MaxArraySize = 1024
-
-	// MaxItemSize is the maximum item size allowed in the VM.
-	MaxItemSize = 1024 * 1024
-
 	// MaxInvocationStackSize is the maximum size of an invocation stack.
 	MaxInvocationStackSize = 1024
 
-	// MaxBigIntegerSizeBits is the maximum size of BigInt item in bits.
-	MaxBigIntegerSizeBits = 32 * 8
+	// MaxTryNestingDepth is the maximum level of TRY nesting allowed,
+	// that is you can't have more exception handling contexts than this.
+	MaxTryNestingDepth = 16
 
 	// MaxStackSize is the maximum number of items allowed to be
 	// on all stacks at once.
 	MaxStackSize = 2 * 1024
 
-	maxSHLArg = MaxBigIntegerSizeBits
+	maxSHLArg = stackitem.MaxBigIntegerSizeBits
 )
+
+// SyscallHandler is a type for syscall handler.
+type SyscallHandler = func(*VM, uint32) error
 
 // VM represents the virtual machine.
 type VM struct {
 	state State
 
-	// callbacks to get interops.
-	getInterop []InteropGetterFunc
-
 	// callback to get interop price
-	getPrice func(*VM, opcode.Opcode, []byte) util.Fixed8
+	getPrice func(*VM, opcode.Opcode, []byte) int64
 
 	istack *Stack // invocation stack.
 	estack *Stack // execution stack.
-	astack *Stack // alt stack.
 
-	static *Slot
-
-	// Hash to verify in CHECKSIG/CHECKMULTISIG.
-	checkhash []byte
+	uncaughtException stackitem.Item // exception being handled
 
 	refs *refCounter
 
-	gasConsumed util.Fixed8
-	gasLimit    util.Fixed8
+	gasConsumed int64
+	GasLimit    int64
+
+	// SyscallHandler handles SYSCALL opcode.
+	SyscallHandler func(v *VM, id uint32) error
+
+	trigger trigger.Type
 
 	// Public keys cache.
 	keys map[string]*keys.PublicKey
 }
 
-// New returns a new VM object ready to load .avm bytecode scripts.
+// New returns a new VM object ready to load AVM bytecode scripts.
 func New() *VM {
+	return NewWithTrigger(trigger.System)
+}
+
+// NewWithTrigger returns a new VM for executions triggered by t.
+func NewWithTrigger(t trigger.Type) *VM {
 	vm := &VM{
-		getInterop: make([]InteropGetterFunc, 0, 3), // 3 functions is typical for our default usage.
-		state:      haltState,
-		istack:     NewStack("invocation"),
-		refs:       newRefCounter(),
-		keys:       make(map[string]*keys.PublicKey),
+		state:   NoneState,
+		istack:  NewStack("invocation"),
+		refs:    newRefCounter(),
+		keys:    make(map[string]*keys.PublicKey),
+		trigger: t,
+
+		SyscallHandler: defaultSyscallHandler,
 	}
 
 	vm.estack = vm.newItemStack("evaluation")
-	vm.astack = vm.newItemStack("alt")
-
-	vm.RegisterInteropGetter(getDefaultVMInterop)
 	return vm
 }
 
@@ -114,38 +113,26 @@ func (v *VM) newItemStack(n string) *Stack {
 	return s
 }
 
-// RegisterInteropGetter registers the given InteropGetterFunc into VM. There
-// can be many interop getters and they're probed in LIFO order wrt their
-// registration time.
-func (v *VM) RegisterInteropGetter(f InteropGetterFunc) {
-	v.getInterop = append(v.getInterop, f)
-}
-
 // SetPriceGetter registers the given PriceGetterFunc in v.
 // f accepts vm's Context, current instruction and instruction parameter.
-func (v *VM) SetPriceGetter(f func(*VM, opcode.Opcode, []byte) util.Fixed8) {
+func (v *VM) SetPriceGetter(f func(*VM, opcode.Opcode, []byte) int64) {
 	v.getPrice = f
 }
 
 // GasConsumed returns the amount of GAS consumed during execution.
-func (v *VM) GasConsumed() util.Fixed8 {
+func (v *VM) GasConsumed() int64 {
 	return v.gasConsumed
 }
 
-// SetGasLimit sets maximum amount of gas which v can spent.
-// If max <= 0, no limit is imposed.
-func (v *VM) SetGasLimit(max util.Fixed8) {
-	v.gasLimit = max
+// AddGas consumes specified amount of gas. It returns true iff gas limit wasn't exceeded.
+func (v *VM) AddGas(gas int64) bool {
+	v.gasConsumed += gas
+	return v.GasLimit < 0 || v.gasConsumed <= v.GasLimit
 }
 
 // Estack returns the evaluation stack so interop hooks can utilize this.
 func (v *VM) Estack() *Stack {
 	return v.estack
-}
-
-// Astack returns the alt stack so interop hooks can utilize this.
-func (v *VM) Astack() *Stack {
-	return v.astack
 }
 
 // Istack returns the invocation stack so interop hooks can utilize this.
@@ -165,7 +152,7 @@ func (v *VM) GetPublicKeys() map[string]*keys.PublicKey {
 }
 
 // LoadArgs loads in the arguments used in the Mian entry point.
-func (v *VM) LoadArgs(method []byte, args []StackItem) {
+func (v *VM) LoadArgs(method []byte, args []stackitem.Item) {
 	if len(args) > 0 {
 		v.estack.PushVal(args)
 	}
@@ -195,14 +182,37 @@ func (v *VM) PrintOps() {
 		var desc = ""
 		if parameter != nil {
 			switch instr {
-			case opcode.JMP, opcode.JMPIF, opcode.JMPIFNOT, opcode.CALL:
-				offset := int16(binary.LittleEndian.Uint16(parameter))
-				desc = fmt.Sprintf("%d (%d/%x)", ctx.ip+int(offset), offset, parameter)
-			case opcode.PUSHA:
-				offset := int32(binary.LittleEndian.Uint32(parameter))
-				desc = fmt.Sprintf("%d (%x)", offset, parameter)
+			case opcode.JMP, opcode.JMPIF, opcode.JMPIFNOT, opcode.CALL,
+				opcode.JMPEQ, opcode.JMPNE,
+				opcode.JMPGT, opcode.JMPGE, opcode.JMPLE, opcode.JMPLT,
+				opcode.JMPL, opcode.JMPIFL, opcode.JMPIFNOTL, opcode.CALLL,
+				opcode.JMPEQL, opcode.JMPNEL,
+				opcode.JMPGTL, opcode.JMPGEL, opcode.JMPLEL, opcode.JMPLTL,
+				opcode.PUSHA, opcode.ENDTRY, opcode.ENDTRYL:
+				desc = v.getOffsetDesc(ctx, parameter)
+			case opcode.TRY, opcode.TRYL:
+				catchP, finallyP := getTryParams(instr, parameter)
+				desc = fmt.Sprintf("catch %s, finally %s",
+					v.getOffsetDesc(ctx, catchP), v.getOffsetDesc(ctx, finallyP))
+			case opcode.INITSSLOT:
+				desc = fmt.Sprint(parameter[0])
+			case opcode.CONVERT, opcode.ISTYPE:
+				typ := stackitem.Type(parameter[0])
+				desc = fmt.Sprintf("%s (%x)", typ, parameter[0])
+			case opcode.INITSLOT:
+				desc = fmt.Sprintf("%d local, %d arg", parameter[0], parameter[1])
 			case opcode.SYSCALL:
-				desc = fmt.Sprintf("%q", parameter)
+				name, err := interopnames.FromID(GetInteropID(parameter))
+				if err != nil {
+					name = "not found"
+				}
+				desc = fmt.Sprintf("%s (%x)", name, parameter)
+			case opcode.PUSHINT8, opcode.PUSHINT16, opcode.PUSHINT32,
+				opcode.PUSHINT64, opcode.PUSHINT128, opcode.PUSHINT256:
+				val := bigint.FromBytes(parameter)
+				desc = fmt.Sprintf("%d (%x)", val, parameter)
+			case opcode.LDLOC, opcode.STLOC, opcode.LDARG, opcode.STARG, opcode.LDSFLD, opcode.STSFLD:
+				desc = fmt.Sprintf("%d (%x)", parameter[0], parameter)
 			default:
 				if utf8.Valid(parameter) {
 					desc = fmt.Sprintf("%x (%q)", parameter, parameter)
@@ -220,6 +230,14 @@ func (v *VM) PrintOps() {
 	w.Flush()
 }
 
+func (v *VM) getOffsetDesc(ctx *Context, parameter []byte) string {
+	offset, rOffset, err := v.calcJumpOffset(ctx, parameter)
+	if err != nil {
+		return fmt.Sprintf("ERROR: %v", err)
+	}
+	return fmt.Sprintf("%d (%d/%x)", offset, rOffset, parameter)
+}
+
 // AddBreakPoint adds a breakpoint to the current context.
 func (v *VM) AddBreakPoint(n int) {
 	ctx := v.Context()
@@ -233,13 +251,17 @@ func (v *VM) AddBreakPointRel(n int) {
 	v.AddBreakPoint(ctx.ip + n)
 }
 
-// LoadFile loads a program from the given path, ready to execute it.
+// LoadFile loads a program in NEF format from the given path, ready to execute it.
 func (v *VM) LoadFile(path string) error {
 	b, err := ioutil.ReadFile(path)
 	if err != nil {
 		return err
 	}
-	v.Load(b)
+	f, err := nef.FileFromBytes(b)
+	if err != nil {
+		return err
+	}
+	v.Load(f.Script)
 	return nil
 }
 
@@ -248,8 +270,7 @@ func (v *VM) Load(prog []byte) {
 	// Clear all stacks and state, it could be a reload.
 	v.istack.Clear()
 	v.estack.Clear()
-	v.astack.Clear()
-	v.state = noneState
+	v.state = NoneState
 	v.gasConsumed = 0
 	v.LoadScript(prog)
 }
@@ -258,20 +279,29 @@ func (v *VM) Load(prog []byte) {
 // will immediately push a new context created from this script to
 // the invocation stack and starts executing it.
 func (v *VM) LoadScript(b []byte) {
+	v.LoadScriptWithFlags(b, smartcontract.NoneFlag)
+}
+
+// LoadScriptWithFlags loads script and sets call flag to f.
+func (v *VM) LoadScriptWithFlags(b []byte, f smartcontract.CallFlag) {
 	ctx := NewContext(b)
+	v.estack = v.newItemStack("estack")
 	ctx.estack = v.estack
-	ctx.astack = v.astack
+	ctx.tryStack = NewStack("exception")
+	ctx.callFlag = f
+	ctx.static = newSlot(v.refs)
 	v.istack.PushVal(ctx)
 }
 
-// loadScriptWithHash if similar to the LoadScript method, but it also loads
+// LoadScriptWithHash if similar to the LoadScriptWithFlags method, but it also loads
 // given script hash directly into the Context to avoid its recalculations. It's
 // up to user of this function to make sure the script and hash match each other.
-func (v *VM) loadScriptWithHash(b []byte, hash util.Uint160, hasDynamicInvoke bool) {
-	v.LoadScript(b)
+func (v *VM) LoadScriptWithHash(b []byte, hash util.Uint160, f smartcontract.CallFlag) {
+	shash := v.GetCurrentScriptHash()
+	v.LoadScriptWithFlags(b, f)
 	ctx := v.Context()
 	ctx.scriptHash = hash
-	ctx.hasDynamicInvoke = hasDynamicInvoke
+	ctx.callingScriptHash = shash
 }
 
 // Context returns the current executed context. Nil if there is no context,
@@ -296,22 +326,19 @@ func (v *VM) PopResult() interface{} {
 // Stack returns json formatted representation of the given stack.
 func (v *VM) Stack(n string) string {
 	var s *Stack
-	if n == "astack" {
-		s = v.astack
-	}
 	if n == "istack" {
 		s = v.istack
 	}
 	if n == "estack" {
 		s = v.estack
 	}
-	b, _ := json.MarshalIndent(s.ToContractParameters(), "", "    ")
+	b, _ := json.MarshalIndent(s, "", "    ")
 	return string(b)
 }
 
-// State returns string representation of the state for the VM.
-func (v *VM) State() string {
-	return v.state.String()
+// State returns the state for the VM.
+func (v *VM) State() State {
+	return v.state
 }
 
 // Ready returns true if the VM ready to execute the loaded program.
@@ -323,38 +350,38 @@ func (v *VM) Ready() bool {
 // Run starts the execution of the loaded program.
 func (v *VM) Run() error {
 	if !v.Ready() {
-		v.state = faultState
+		v.state = FaultState
 		return errors.New("no program loaded")
 	}
 
-	if v.state.HasFlag(faultState) {
+	if v.state.HasFlag(FaultState) {
 		// VM already ran something and failed, in general its state is
 		// undefined in this case so we can't run anything.
 		return errors.New("VM has failed")
 	}
-	// haltState (the default) or breakState are safe to continue.
-	v.state = noneState
+	// HaltState (the default) or BreakState are safe to continue.
+	v.state = NoneState
 	for {
-		// check for breakpoint before executing the next instruction
-		ctx := v.Context()
-		if ctx != nil && ctx.atBreakPoint() {
-			v.state |= breakState
-		}
 		switch {
-		case v.state.HasFlag(faultState):
+		case v.state.HasFlag(FaultState):
 			// Should be caught and reported already by the v.Step(),
 			// but we're checking here anyway just in case.
 			return errors.New("VM has failed")
-		case v.state.HasFlag(haltState), v.state.HasFlag(breakState):
+		case v.state.HasFlag(HaltState), v.state.HasFlag(BreakState):
 			// Normal exit from this loop.
 			return nil
-		case v.state == noneState:
+		case v.state == NoneState:
 			if err := v.Step(); err != nil {
 				return err
 			}
 		default:
-			v.state = faultState
+			v.state = FaultState
 			return errors.New("unknown state")
+		}
+		// check for breakpoint before executing the next instruction
+		ctx := v.Context()
+		if ctx != nil && ctx.atBreakPoint() {
+			v.state = BreakState
 		}
 	}
 }
@@ -364,7 +391,7 @@ func (v *VM) Step() error {
 	ctx := v.Context()
 	op, param, err := ctx.Next()
 	if err != nil {
-		v.state = faultState
+		v.state = FaultState
 		return newError(ctx.ip, op, err)
 	}
 	return v.execute(ctx, op, param)
@@ -376,7 +403,7 @@ func (v *VM) StepInto() error {
 	ctx := v.Context()
 
 	if ctx == nil {
-		v.state |= haltState
+		v.state = HaltState
 	}
 
 	if v.HasStopped() {
@@ -386,7 +413,7 @@ func (v *VM) StepInto() error {
 	if ctx != nil && ctx.prog != nil {
 		op, param, err := ctx.Next()
 		if err != nil {
-			v.state = faultState
+			v.state = FaultState
 			return newError(ctx.ip, op, err)
 		}
 		vErr := v.execute(ctx, op, param)
@@ -397,7 +424,7 @@ func (v *VM) StepInto() error {
 
 	cctx := v.Context()
 	if cctx != nil && cctx.atBreakPoint() {
-		v.state = breakState
+		v.state = BreakState
 	}
 	return nil
 }
@@ -405,15 +432,16 @@ func (v *VM) StepInto() error {
 // StepOut takes the debugger to the line where the current function was called.
 func (v *VM) StepOut() error {
 	var err error
-	if v.state == breakState {
-		v.state = noneState
-	} else {
-		v.state = breakState
+	if v.state == BreakState {
+		v.state = NoneState
 	}
 
 	expSize := v.istack.len
-	for v.state == noneState && v.istack.len >= expSize {
+	for v.state == NoneState && v.istack.len >= expSize {
 		err = v.StepInto()
+	}
+	if v.state == NoneState {
+		v.state = BreakState
 	}
 	return err
 }
@@ -426,22 +454,20 @@ func (v *VM) StepOver() error {
 		return err
 	}
 
-	if v.state == breakState {
-		v.state = noneState
-	} else {
-		v.state = breakState
+	if v.state == BreakState {
+		v.state = NoneState
 	}
 
 	expSize := v.istack.len
 	for {
 		err = v.StepInto()
-		if !(v.state == noneState && v.istack.len > expSize) {
+		if !(v.state == NoneState && v.istack.len > expSize) {
 			break
 		}
 	}
 
-	if v.state == noneState {
-		v.state = breakState
+	if v.state == NoneState {
+		v.state = BreakState
 	}
 
 	return err
@@ -450,45 +476,27 @@ func (v *VM) StepOver() error {
 // HasFailed returns whether VM is in the failed state now. Usually used to
 // check status after Run.
 func (v *VM) HasFailed() bool {
-	return v.state.HasFlag(faultState)
+	return v.state.HasFlag(FaultState)
 }
 
 // HasStopped returns whether VM is in Halt or Failed state.
 func (v *VM) HasStopped() bool {
-	return v.state.HasFlag(haltState) || v.state.HasFlag(faultState)
+	return v.state.HasFlag(HaltState) || v.state.HasFlag(FaultState)
 }
 
 // HasHalted returns whether VM is in Halt state.
 func (v *VM) HasHalted() bool {
-	return v.state.HasFlag(haltState)
+	return v.state.HasFlag(HaltState)
 }
 
 // AtBreakpoint returns whether VM is at breakpoint.
 func (v *VM) AtBreakpoint() bool {
-	return v.state.HasFlag(breakState)
-}
-
-// SetCheckedHash sets checked hash for CHECKSIG and CHECKMULTISIG instructions.
-func (v *VM) SetCheckedHash(h []byte) {
-	v.checkhash = make([]byte, len(h))
-	copy(v.checkhash, h)
+	return v.state.HasFlag(BreakState)
 }
 
 // GetInteropID converts instruction parameter to an interop ID.
 func GetInteropID(parameter []byte) uint32 {
 	return binary.LittleEndian.Uint32(parameter)
-}
-
-// GetInteropByID returns interop function together with price.
-// Registered callbacks are checked in LIFO order.
-func (v *VM) GetInteropByID(id uint32) *InteropFuncPrice {
-	for i := len(v.getInterop) - 1; i >= 0; i-- {
-		if ifunc := v.getInterop[i](id); ifunc != nil {
-			return ifunc
-		}
-	}
-
-	return nil
 }
 
 // execute performs an instruction cycle in the VM. Acting on the instruction (opcode).
@@ -497,62 +505,56 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 	// each panic at a central point, putting the VM in a fault state and setting error.
 	defer func() {
 		if errRecover := recover(); errRecover != nil {
-			v.state = faultState
+			v.state = FaultState
 			err = newError(ctx.ip, op, errRecover)
 		} else if v.refs.size > MaxStackSize {
-			v.state = faultState
+			v.state = FaultState
 			err = newError(ctx.ip, op, "stack is too big")
 		}
 	}()
 
 	if v.getPrice != nil && ctx.ip < len(ctx.prog) {
 		v.gasConsumed += v.getPrice(v, op, parameter)
-		if v.gasLimit > 0 && v.gasConsumed > v.gasLimit {
+		if v.GasLimit >= 0 && v.gasConsumed > v.GasLimit {
 			panic("gas limit is exceeded")
 		}
 	}
 
 	if op <= opcode.PUSHINT256 {
-		v.estack.PushVal(emit.BytesToInt(parameter))
+		v.estack.PushVal(bigint.FromBytes(parameter))
 		return
 	}
 
 	switch op {
-	case opcode.PUSHM1, opcode.PUSH1, opcode.PUSH2, opcode.PUSH3,
+	case opcode.PUSHM1, opcode.PUSH0, opcode.PUSH1, opcode.PUSH2, opcode.PUSH3,
 		opcode.PUSH4, opcode.PUSH5, opcode.PUSH6, opcode.PUSH7,
 		opcode.PUSH8, opcode.PUSH9, opcode.PUSH10, opcode.PUSH11,
 		opcode.PUSH12, opcode.PUSH13, opcode.PUSH14, opcode.PUSH15,
 		opcode.PUSH16:
-		val := int(op) - int(opcode.PUSH1) + 1
+		val := int(op) - int(opcode.PUSH0)
 		v.estack.PushVal(val)
-
-	case opcode.PUSH0:
-		v.estack.PushVal([]byte{})
 
 	case opcode.PUSHDATA1, opcode.PUSHDATA2, opcode.PUSHDATA4:
 		v.estack.PushVal(parameter)
 
 	case opcode.PUSHA:
-		n := int32(binary.LittleEndian.Uint32(parameter))
-		if n < 0 || int(n) > len(ctx.prog) {
-			panic(fmt.Sprintf("invalid pointer offset (%d)", n))
-		}
-		ptr := NewPointerItem(int(n), ctx.prog)
+		n := v.getJumpOffset(ctx, parameter)
+		ptr := stackitem.NewPointerWithHash(n, ctx.prog, ctx.ScriptHash())
 		v.estack.PushVal(ptr)
 
 	case opcode.PUSHNULL:
-		v.estack.PushVal(NullItem{})
+		v.estack.PushVal(stackitem.Null{})
 
 	case opcode.ISNULL:
-		res := v.estack.Pop().value.Equals(NullItem{})
+		res := v.estack.Pop().value.Equals(stackitem.Null{})
 		v.estack.PushVal(res)
 
 	case opcode.ISTYPE:
 		res := v.estack.Pop().Item()
-		v.estack.PushVal(res.Type() == StackItemType(parameter[0]))
+		v.estack.PushVal(res.Type() == stackitem.Type(parameter[0]))
 
 	case opcode.CONVERT:
-		typ := StackItemType(parameter[0])
+		typ := stackitem.Type(parameter[0])
 		item := v.estack.Pop().Item()
 		result, err := item.Convert(typ)
 		if err != nil {
@@ -561,13 +563,10 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		v.estack.PushVal(result)
 
 	case opcode.INITSSLOT:
-		if v.static != nil {
-			panic("already initialized")
-		}
 		if parameter[0] == 0 {
 			panic("zero argument")
 		}
-		v.static = v.newSlot(int(parameter[0]))
+		ctx.static.init(int(parameter[0]))
 
 	case opcode.INITSLOT:
 		if ctx.local != nil || ctx.arguments != nil {
@@ -588,20 +587,20 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		}
 
 	case opcode.LDSFLD0, opcode.LDSFLD1, opcode.LDSFLD2, opcode.LDSFLD3, opcode.LDSFLD4, opcode.LDSFLD5, opcode.LDSFLD6:
-		item := v.static.Get(int(op - opcode.LDSFLD0))
+		item := ctx.static.Get(int(op - opcode.LDSFLD0))
 		v.estack.PushVal(item)
 
 	case opcode.LDSFLD:
-		item := v.static.Get(int(parameter[0]))
+		item := ctx.static.Get(int(parameter[0]))
 		v.estack.PushVal(item)
 
 	case opcode.STSFLD0, opcode.STSFLD1, opcode.STSFLD2, opcode.STSFLD3, opcode.STSFLD4, opcode.STSFLD5, opcode.STSFLD6:
 		item := v.estack.Pop().Item()
-		v.static.Set(int(op-opcode.STSFLD0), item)
+		ctx.static.Set(int(op-opcode.STSFLD0), item)
 
 	case opcode.STSFLD:
 		item := v.estack.Pop().Item()
-		v.static.Set(int(parameter[0]), item)
+		ctx.static.Set(int(parameter[0]), item)
 
 	case opcode.LDLOC0, opcode.LDLOC1, opcode.LDLOC2, opcode.LDLOC3, opcode.LDLOC4, opcode.LDLOC5, opcode.LDLOC6:
 		item := ctx.local.Get(int(op - opcode.LDLOC0))
@@ -637,10 +636,10 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 
 	case opcode.NEWBUFFER:
 		n := toInt(v.estack.Pop().BigInt())
-		if n < 0 || n > MaxItemSize {
+		if n < 0 || n > stackitem.MaxSize {
 			panic("invalid size")
 		}
-		v.estack.PushVal(NewBufferItem(make([]byte, n)))
+		v.estack.PushVal(stackitem.NewBuffer(make([]byte, n)))
 
 	case opcode.MEMCPY:
 		n := toInt(v.estack.Pop().BigInt())
@@ -659,8 +658,8 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		if di < 0 {
 			panic("invalid destination index")
 		}
-		dst := v.estack.Pop().value.(*BufferItem).value
-		if sum := si + n; sum < 0 || sum > len(dst) {
+		dst := v.estack.Pop().value.(*stackitem.Buffer).Value().([]byte)
+		if sum := di + n; sum < 0 || sum > len(dst) {
 			panic("size is too big")
 		}
 		copy(dst[di:], src[si:si+n])
@@ -668,11 +667,14 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 	case opcode.CAT:
 		b := v.estack.Pop().Bytes()
 		a := v.estack.Pop().Bytes()
-		if l := len(a) + len(b); l > MaxItemSize {
+		l := len(a) + len(b)
+		if l > stackitem.MaxSize {
 			panic(fmt.Sprintf("too big item: %d", l))
 		}
-		ab := append(a, b...)
-		v.estack.PushVal(NewBufferItem(ab))
+		ab := make([]byte, l)
+		copy(ab, a)
+		copy(ab[len(a):], b)
+		v.estack.PushVal(stackitem.NewBuffer(ab))
 
 	case opcode.SUBSTR:
 		l := int(v.estack.Pop().BigInt().Int64())
@@ -688,7 +690,9 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		if last > len(s) {
 			panic("invalid offset")
 		}
-		v.estack.PushVal(NewBufferItem(s[o:last]))
+		res := make([]byte, l)
+		copy(res, s[o:last])
+		v.estack.PushVal(stackitem.NewBuffer(res))
 
 	case opcode.LEFT:
 		l := int(v.estack.Pop().BigInt().Int64())
@@ -697,9 +701,11 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		}
 		s := v.estack.Pop().Bytes()
 		if t := len(s); l > t {
-			l = t
+			panic("size is too big")
 		}
-		v.estack.PushVal(NewBufferItem(s[:l]))
+		res := make([]byte, l)
+		copy(res, s[:l])
+		v.estack.PushVal(stackitem.NewBuffer(res))
 
 	case opcode.RIGHT:
 		l := int(v.estack.Pop().BigInt().Int64())
@@ -707,7 +713,9 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			panic("negative length")
 		}
 		s := v.estack.Pop().Bytes()
-		v.estack.PushVal(NewBufferItem(s[len(s)-l:]))
+		res := make([]byte, l)
+		copy(res, s[len(s)-l:])
+		v.estack.PushVal(stackitem.NewBuffer(res))
 
 	case opcode.DEPTH:
 		v.estack.PushVal(v.estack.Len())
@@ -804,7 +812,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		// inplace
 		e := v.estack.Peek(0)
 		i := e.BigInt()
-		e.value = makeStackItem(i.Not(i))
+		e.value = stackitem.Make(i.Not(i))
 
 	case opcode.AND:
 		b := v.estack.Pop().BigInt()
@@ -980,50 +988,32 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 
 	// Object operations
 	case opcode.NEWARRAY0:
-		v.estack.PushVal(&ArrayItem{[]StackItem{}})
+		v.estack.PushVal(stackitem.NewArray([]stackitem.Item{}))
 
 	case opcode.NEWARRAY, opcode.NEWARRAYT:
 		item := v.estack.Pop()
-		switch t := item.value.(type) {
-		case *StructItem:
-			arr := make([]StackItem, len(t.value))
-			copy(arr, t.value)
-			v.estack.PushVal(&ArrayItem{arr})
-		case *ArrayItem:
-			v.estack.PushVal(t)
-		default:
-			n := item.BigInt().Int64()
-			if n > MaxArraySize {
-				panic("too long array")
-			}
-			typ := BooleanT
-			if op == opcode.NEWARRAYT {
-				typ = StackItemType(parameter[0])
-			}
-			items := makeArrayOfType(int(n), typ)
-			v.estack.PushVal(&ArrayItem{items})
+		n := item.BigInt().Int64()
+		if n > stackitem.MaxArraySize {
+			panic("too long array")
 		}
+		typ := stackitem.AnyT
+		if op == opcode.NEWARRAYT {
+			typ = stackitem.Type(parameter[0])
+		}
+		items := makeArrayOfType(int(n), typ)
+		v.estack.PushVal(stackitem.NewArray(items))
 
 	case opcode.NEWSTRUCT0:
-		v.estack.PushVal(&StructItem{[]StackItem{}})
+		v.estack.PushVal(stackitem.NewStruct([]stackitem.Item{}))
 
 	case opcode.NEWSTRUCT:
 		item := v.estack.Pop()
-		switch t := item.value.(type) {
-		case *ArrayItem:
-			arr := make([]StackItem, len(t.value))
-			copy(arr, t.value)
-			v.estack.PushVal(&StructItem{arr})
-		case *StructItem:
-			v.estack.PushVal(t)
-		default:
-			n := item.BigInt().Int64()
-			if n > MaxArraySize {
-				panic("too long struct")
-			}
-			items := makeArrayOfType(int(n), BooleanT)
-			v.estack.PushVal(&StructItem{items})
+		n := item.BigInt().Int64()
+		if n > stackitem.MaxArraySize {
+			panic("too long struct")
 		}
+		items := makeArrayOfType(int(n), stackitem.AnyT)
+		v.estack.PushVal(stackitem.NewStruct(items))
 
 	case opcode.APPEND:
 		itemElem := v.estack.Pop()
@@ -1032,20 +1022,16 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		val := cloneIfStruct(itemElem.value)
 
 		switch t := arrElem.value.(type) {
-		case *ArrayItem:
-			arr := t.Value().([]StackItem)
-			if len(arr) >= MaxArraySize {
+		case *stackitem.Array:
+			if t.Len() >= stackitem.MaxArraySize {
 				panic("too long array")
 			}
-			arr = append(arr, val)
-			t.value = arr
-		case *StructItem:
-			arr := t.Value().([]StackItem)
-			if len(arr) >= MaxArraySize {
+			t.Append(val)
+		case *stackitem.Struct:
+			if t.Len() >= stackitem.MaxArraySize {
 				panic("too long struct")
 			}
-			arr = append(arr, val)
-			t.value = arr
+			t.Append(val)
 		default:
 			panic("APPEND: not of underlying type Array")
 		}
@@ -1054,11 +1040,11 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 
 	case opcode.PACK:
 		n := int(v.estack.Pop().BigInt().Int64())
-		if n < 0 || n > v.estack.Len() || n > MaxArraySize {
+		if n < 0 || n > v.estack.Len() || n > stackitem.MaxArraySize {
 			panic("OPACK: invalid length")
 		}
 
-		items := make([]StackItem, n)
+		items := make([]stackitem.Item, n)
 		for i := 0; i < n; i++ {
 			items[i] = v.estack.Pop().value
 		}
@@ -1081,20 +1067,20 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		index := int(key.BigInt().Int64())
 
 		switch t := obj.value.(type) {
-		// Struct and Array items have their underlying value as []StackItem.
-		case *ArrayItem, *StructItem:
-			arr := t.Value().([]StackItem)
+		// Struct and Array items have their underlying value as []Item.
+		case *stackitem.Array, *stackitem.Struct:
+			arr := t.Value().([]stackitem.Item)
 			if index < 0 || index >= len(arr) {
 				panic("PICKITEM: invalid index")
 			}
 			item := arr[index].Dup()
 			v.estack.PushVal(item)
-		case *MapItem:
+		case *stackitem.Map:
 			index := t.Index(key.Item())
 			if index < 0 {
 				panic("invalid key")
 			}
-			v.estack.Push(&Element{value: t.value[index].Value.Dup()})
+			v.estack.Push(&Element{value: t.Value().([]stackitem.MapElement)[index].Value.Dup()})
 		default:
 			arr := obj.Bytes()
 			if index < 0 || index >= len(arr) {
@@ -1112,9 +1098,9 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		obj := v.estack.Pop()
 
 		switch t := obj.value.(type) {
-		// Struct and Array items have their underlying value as []StackItem.
-		case *ArrayItem, *StructItem:
-			arr := t.Value().([]StackItem)
+		// Struct and Array items have their underlying value as []Item.
+		case *stackitem.Array, *stackitem.Struct:
+			arr := t.Value().([]stackitem.Item)
 			index := int(key.BigInt().Int64())
 			if index < 0 || index >= len(arr) {
 				panic("SETITEM: invalid index")
@@ -1122,18 +1108,18 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			v.refs.Remove(arr[index])
 			arr[index] = item
 			v.refs.Add(arr[index])
-		case *MapItem:
+		case *stackitem.Map:
 			if i := t.Index(key.value); i >= 0 {
-				v.refs.Remove(t.value[i].Value)
-			} else if len(t.value) >= MaxArraySize {
+				v.refs.Remove(t.Value().([]stackitem.MapElement)[i].Value)
+			} else if t.Len() >= stackitem.MaxArraySize {
 				panic("too big map")
 			}
 			t.Add(key.value, item)
 			v.refs.Add(item)
 
-		case *BufferItem:
+		case *stackitem.Buffer:
 			index := toInt(key.BigInt())
-			if index < 0 || index >= len(t.value) {
+			if index < 0 || index >= t.Len() {
 				panic("invalid index")
 			}
 			bi, err := item.TryInteger()
@@ -1141,7 +1127,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			if err != nil || b < math.MinInt8 || b > math.MaxUint8 {
 				panic("invalid value")
 			}
-			t.value[index] = byte(b)
+			t.Value().([]byte)[index] = byte(b)
 
 		default:
 			panic(fmt.Sprintf("SETITEM: invalid item type %s", t))
@@ -1150,14 +1136,14 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 	case opcode.REVERSEITEMS:
 		item := v.estack.Pop()
 		switch t := item.value.(type) {
-		case *ArrayItem, *StructItem:
-			a := t.Value().([]StackItem)
+		case *stackitem.Array, *stackitem.Struct:
+			a := t.Value().([]stackitem.Item)
 			for i, j := 0, len(a)-1; i < j; i, j = i+1, j-1 {
 				a[i], a[j] = a[j], a[i]
 			}
-		case *BufferItem:
-			for i, j := 0, len(t.value)-1; i < j; i, j = i+1, j-1 {
-				t.value[i], t.value[j] = t.value[j], t.value[i]
+		case *stackitem.Buffer:
+			for i, j := 0, t.Len()-1; i < j; i, j = i+1, j-1 {
+				t.Value().([]byte)[i], t.Value().([]byte)[j] = t.Value().([]byte)[j], t.Value().([]byte)[i]
 			}
 		default:
 			panic(fmt.Sprintf("invalid item type %s", t))
@@ -1168,29 +1154,27 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 
 		elem := v.estack.Pop()
 		switch t := elem.value.(type) {
-		case *ArrayItem:
-			a := t.value
+		case *stackitem.Array:
+			a := t.Value().([]stackitem.Item)
 			k := int(key.BigInt().Int64())
 			if k < 0 || k >= len(a) {
 				panic("REMOVE: invalid index")
 			}
 			v.refs.Remove(a[k])
-			a = append(a[:k], a[k+1:]...)
-			t.value = a
-		case *StructItem:
-			a := t.value
+			t.Remove(k)
+		case *stackitem.Struct:
+			a := t.Value().([]stackitem.Item)
 			k := int(key.BigInt().Int64())
 			if k < 0 || k >= len(a) {
 				panic("REMOVE: invalid index")
 			}
 			v.refs.Remove(a[k])
-			a = append(a[:k], a[k+1:]...)
-			t.value = a
-		case *MapItem:
+			t.Remove(k)
+		case *stackitem.Map:
 			index := t.Index(key.Item())
 			// NEO 2.0 doesn't error on missing key.
 			if index >= 0 {
-				v.refs.Remove(t.value[index].Value)
+				v.refs.Remove(t.Value().([]stackitem.MapElement)[index].Value)
 				t.Drop(index)
 			}
 		default:
@@ -1200,21 +1184,21 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 	case opcode.CLEARITEMS:
 		elem := v.estack.Pop()
 		switch t := elem.value.(type) {
-		case *ArrayItem:
-			for _, item := range t.value {
+		case *stackitem.Array:
+			for _, item := range t.Value().([]stackitem.Item) {
 				v.refs.Remove(item)
 			}
-			t.value = t.value[:0]
-		case *StructItem:
-			for _, item := range t.value {
+			t.Clear()
+		case *stackitem.Struct:
+			for _, item := range t.Value().([]stackitem.Item) {
 				v.refs.Remove(item)
 			}
-			t.value = t.value[:0]
-		case *MapItem:
-			for i := range t.value {
-				v.refs.Remove(t.value[i].Value)
+			t.Clear()
+		case *stackitem.Map:
+			for i := range t.Value().([]stackitem.MapElement) {
+				v.refs.Remove(t.Value().([]stackitem.MapElement)[i].Value)
 			}
-			t.value = t.value[:0]
+			t.Clear()
 		default:
 			panic("CLEARITEMS: invalid type")
 		}
@@ -1224,9 +1208,9 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		// Cause there is no native (byte) item type here, hence we need to check
 		// the type of the item for array size operations.
 		switch t := elem.Value().(type) {
-		case []StackItem:
+		case []stackitem.Item:
 			v.estack.PushVal(len(t))
-		case []MapElement:
+		case []stackitem.MapElement:
 			v.estack.PushVal(len(t))
 		default:
 			v.estack.PushVal(len(elem.Bytes()))
@@ -1236,7 +1220,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		opcode.JMPEQ, opcode.JMPEQL, opcode.JMPNE, opcode.JMPNEL,
 		opcode.JMPGT, opcode.JMPGTL, opcode.JMPGE, opcode.JMPGEL,
 		opcode.JMPLT, opcode.JMPLTL, opcode.JMPLE, opcode.JMPLEL:
-		offset := v.getJumpOffset(ctx, parameter, 0)
+		offset := v.getJumpOffset(ctx, parameter)
 		cond := true
 		switch op {
 		case opcode.JMP, opcode.JMPL:
@@ -1248,71 +1232,53 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			cond = getJumpCondition(op, a, b)
 		}
 
-		v.jumpIf(ctx, offset, cond)
+		if cond {
+			v.Jump(ctx, offset)
+		}
 
 	case opcode.CALL, opcode.CALLL:
 		v.checkInvocationStackSize()
-		newCtx := ctx.Copy()
-		newCtx.local = nil
-		newCtx.arguments = nil
-		newCtx.rvcount = -1
-		v.istack.PushVal(newCtx)
-
-		offset := v.getJumpOffset(newCtx, parameter, 0)
-		v.jumpIf(newCtx, offset, true)
+		// Note: jump offset must be calculated regarding to new context,
+		// but it is cloned and thus has the same script and instruction pointer.
+		v.Call(ctx, v.getJumpOffset(ctx, parameter))
 
 	case opcode.CALLA:
-		ptr := v.estack.Pop().Item().(*PointerItem)
-		if ptr.hash != ctx.ScriptHash() {
+		ptr := v.estack.Pop().Item().(*stackitem.Pointer)
+		if ptr.ScriptHash() != ctx.ScriptHash() {
 			panic("invalid script in pointer")
 		}
 
-		newCtx := ctx.Copy()
-		newCtx.local = nil
-		newCtx.arguments = nil
-		newCtx.rvcount = -1
-		v.istack.PushVal(newCtx)
-		v.jumpIf(newCtx, ptr.pos, true)
+		v.Call(ctx, ptr.Position())
 
 	case opcode.SYSCALL:
 		interopID := GetInteropID(parameter)
-		ifunc := v.GetInteropByID(interopID)
-
-		if ifunc == nil {
-			panic(fmt.Sprintf("interop hook (%q/0x%x) not registered", parameter, interopID))
-		}
-		if err := ifunc.Func(v); err != nil {
+		err := v.SyscallHandler(v, interopID)
+		if err != nil {
 			panic(fmt.Sprintf("failed to invoke syscall: %s", err))
 		}
 
 	case opcode.RET:
 		oldCtx := v.istack.Pop().Value().(*Context)
-		rvcount := oldCtx.rvcount
 		oldEstack := v.estack
 
-		if rvcount > 0 && oldEstack.Len() < rvcount {
-			panic("missing some return elements")
-		}
+		v.unloadContext(oldCtx)
 		if v.istack.Len() == 0 {
-			v.state = haltState
+			v.state = HaltState
 			break
 		}
 
 		newEstack := v.Context().estack
 		if oldEstack != newEstack {
-			if rvcount < 0 {
-				rvcount = oldEstack.Len()
-			}
+			rvcount := oldEstack.Len()
 			for i := rvcount; i > 0; i-- {
 				elem := oldEstack.RemoveAt(i - 1)
 				newEstack.Push(elem)
 			}
 			v.estack = newEstack
-			v.astack = v.Context().astack
 		}
 
 	case opcode.NEWMAP:
-		v.estack.Push(&Element{value: NewMapItem()})
+		v.estack.Push(&Element{value: stackitem.NewMap()})
 
 	case opcode.KEYS:
 		item := v.estack.Pop()
@@ -1320,14 +1286,14 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			panic("no argument")
 		}
 
-		m, ok := item.value.(*MapItem)
+		m, ok := item.value.(*stackitem.Map)
 		if !ok {
 			panic("not a Map")
 		}
 
-		arr := make([]StackItem, 0, len(m.value))
-		for k := range m.value {
-			arr = append(arr, m.value[k].Key.Dup())
+		arr := make([]stackitem.Item, 0, m.Len())
+		for k := range m.Value().([]stackitem.MapElement) {
+			arr = append(arr, m.Value().([]stackitem.MapElement)[k].Key.Dup())
 		}
 		v.estack.PushVal(arr)
 
@@ -1337,18 +1303,18 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			panic("no argument")
 		}
 
-		var arr []StackItem
+		var arr []stackitem.Item
 		switch t := item.value.(type) {
-		case *ArrayItem, *StructItem:
-			src := t.Value().([]StackItem)
-			arr = make([]StackItem, len(src))
+		case *stackitem.Array, *stackitem.Struct:
+			src := t.Value().([]stackitem.Item)
+			arr = make([]stackitem.Item, len(src))
 			for i := range src {
 				arr[i] = cloneIfStruct(src[i])
 			}
-		case *MapItem:
-			arr = make([]StackItem, 0, len(t.value))
-			for k := range t.value {
-				arr = append(arr, cloneIfStruct(t.value[k].Value))
+		case *stackitem.Map:
+			arr = make([]stackitem.Item, 0, t.Len())
+			for k := range t.Value().([]stackitem.MapElement) {
+				arr = append(arr, cloneIfStruct(t.Value().([]stackitem.MapElement)[k].Value))
 			}
 		default:
 			panic("not a Map, Array or Struct")
@@ -1365,20 +1331,20 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			panic("no value found")
 		}
 		switch t := c.value.(type) {
-		case *ArrayItem, *StructItem:
+		case *stackitem.Array, *stackitem.Struct:
 			index := key.BigInt().Int64()
 			if index < 0 {
 				panic("negative index")
 			}
 			v.estack.PushVal(index < int64(len(c.Array())))
-		case *MapItem:
+		case *stackitem.Map:
 			v.estack.PushVal(t.Has(key.Item()))
-		case *BufferItem:
+		case *stackitem.Buffer:
 			index := key.BigInt().Int64()
 			if index < 0 {
 				panic("negative index")
 			}
-			v.estack.PushVal(index < int64(len(t.value)))
+			v.estack.PushVal(index < int64(t.Len()))
 		default:
 			panic("wrong collection type")
 		}
@@ -1387,7 +1353,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		// unlucky ^^
 
 	case opcode.THROW:
-		panic("THROW")
+		v.throw(v.estack.Pop().Item())
 
 	case opcode.ABORT:
 		panic("ABORT")
@@ -1397,10 +1363,79 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			panic("ASSERT failed")
 		}
 
+	case opcode.TRY, opcode.TRYL:
+		catchP, finallyP := getTryParams(op, parameter)
+		if ctx.tryStack.Len() >= MaxTryNestingDepth {
+			panic("maximum TRY depth exceeded")
+		}
+		cOffset := v.getJumpOffset(ctx, catchP)
+		fOffset := v.getJumpOffset(ctx, finallyP)
+		if cOffset == ctx.ip && fOffset == ctx.ip {
+			panic("invalid offset for TRY*")
+		} else if cOffset == ctx.ip {
+			cOffset = -1
+		} else if fOffset == ctx.ip {
+			fOffset = -1
+		}
+		eCtx := newExceptionHandlingContext(cOffset, fOffset)
+		ctx.tryStack.PushVal(eCtx)
+
+	case opcode.ENDTRY, opcode.ENDTRYL:
+		eCtx := ctx.tryStack.Peek(0).Value().(*exceptionHandlingContext)
+		if eCtx.State == eFinally {
+			panic("invalid exception handling state during ENDTRY*")
+		}
+		eOffset := v.getJumpOffset(ctx, parameter)
+		if eCtx.HasFinally() {
+			eCtx.State = eFinally
+			eCtx.EndOffset = eOffset
+			eOffset = eCtx.FinallyOffset
+		} else {
+			ctx.tryStack.Pop()
+		}
+		v.Jump(ctx, eOffset)
+
+	case opcode.ENDFINALLY:
+		if v.uncaughtException != nil {
+			v.handleException()
+			return
+		}
+		eCtx := ctx.tryStack.Pop().Value().(*exceptionHandlingContext)
+		v.Jump(ctx, eCtx.EndOffset)
+
 	default:
 		panic(fmt.Sprintf("unknown opcode %s", op.String()))
 	}
 	return
+}
+
+func (v *VM) unloadContext(ctx *Context) {
+	if ctx.local != nil {
+		ctx.local.Clear()
+	}
+	if ctx.arguments != nil {
+		ctx.arguments.Clear()
+	}
+	currCtx := v.Context()
+	if ctx.static != nil && currCtx != nil && ctx.static != currCtx.static {
+		ctx.static.Clear()
+	}
+	if ctx.CheckReturn {
+		if currCtx != nil && ctx.estack.len == 0 {
+			currCtx.estack.PushVal(stackitem.Null{})
+		} else if ctx.estack.len > 1 {
+			panic("return value amount is > 1")
+		}
+	}
+}
+
+// getTryParams splits TRY(L) instruction parameter into offsets for catch and finally blocks.
+func getTryParams(op opcode.Opcode, p []byte) ([]byte, []byte) {
+	i := 1
+	if op == opcode.TRYL {
+		i = 4
+	}
+	return p[:i], p[i:]
 }
 
 // getJumpCondition performs opcode specific comparison of a and b
@@ -1424,18 +1459,43 @@ func getJumpCondition(op opcode.Opcode, a, b *big.Int) bool {
 	}
 }
 
-// jumpIf performs jump to offset if cond is true.
-func (v *VM) jumpIf(ctx *Context, offset int, cond bool) {
-	if cond {
-		ctx.nextip = offset
-	}
+func (v *VM) throw(item stackitem.Item) {
+	v.uncaughtException = item
+	v.handleException()
+}
+
+// Jump performs jump to the offset.
+func (v *VM) Jump(ctx *Context, offset int) {
+	ctx.nextip = offset
+}
+
+// Call calls method by offset. It is similar to Jump but also
+// pushes new context to the invocation state
+func (v *VM) Call(ctx *Context, offset int) {
+	newCtx := ctx.Copy()
+	newCtx.CheckReturn = false
+	newCtx.local = nil
+	newCtx.arguments = nil
+	newCtx.tryStack = NewStack("exception")
+	v.istack.PushVal(newCtx)
+	v.Jump(newCtx, offset)
 }
 
 // getJumpOffset returns instruction number in a current context
 // to a which JMP should be performed.
 // parameter should have length either 1 or 4 and
 // is interpreted as little-endian.
-func (v *VM) getJumpOffset(ctx *Context, parameter []byte, mod int) int {
+func (v *VM) getJumpOffset(ctx *Context, parameter []byte) int {
+	offset, _, err := v.calcJumpOffset(ctx, parameter)
+	if err != nil {
+		panic(err)
+	}
+	return offset
+}
+
+// calcJumpOffset returns absolute and relative offset of JMP/CALL/TRY instructions
+// either in short (1-byte) or long (4-byte) form.
+func (v *VM) calcJumpOffset(ctx *Context, parameter []byte) (int, int, error) {
 	var rOffset int32
 	switch l := len(parameter); l {
 	case 1:
@@ -1443,20 +1503,53 @@ func (v *VM) getJumpOffset(ctx *Context, parameter []byte, mod int) int {
 	case 4:
 		rOffset = int32(binary.LittleEndian.Uint32(parameter))
 	default:
-		panic(fmt.Sprintf("invalid JMP* parameter length: %d", l))
+		_, curr := ctx.CurrInstr()
+		return 0, 0, fmt.Errorf("invalid %s parameter length: %d", curr, l)
 	}
-	offset := ctx.ip + int(rOffset) + mod
+	offset := ctx.ip + int(rOffset)
 	if offset < 0 || offset > len(ctx.prog) {
-		panic(fmt.Sprintf("JMP: invalid offset %d ip at %d", offset, ctx.ip))
+		return 0, 0, fmt.Errorf("invalid offset %d ip at %d", offset, ctx.ip)
 	}
 
-	return offset
+	return offset, int(rOffset), nil
+}
+
+func (v *VM) handleException() {
+	pop := 0
+	ictx := v.istack.Peek(0).Value().(*Context)
+	for ictx != nil {
+		e := ictx.tryStack.Peek(0)
+		for e != nil {
+			ectx := e.Value().(*exceptionHandlingContext)
+			if ectx.State == eFinally || (ectx.State == eCatch && !ectx.HasFinally()) {
+				ictx.tryStack.Pop()
+				e = ictx.tryStack.Peek(0)
+				continue
+			}
+			for i := 0; i < pop; i++ {
+				ctx := v.istack.Pop().Value().(*Context)
+				v.unloadContext(ctx)
+			}
+			if ectx.State == eTry && ectx.HasCatch() {
+				ectx.State = eCatch
+				v.estack.PushVal(v.uncaughtException)
+				v.uncaughtException = nil
+				v.Jump(ictx, ectx.CatchOffset)
+			} else {
+				ectx.State = eFinally
+				v.Jump(ictx, ectx.FinallyOffset)
+			}
+			return
+		}
+		pop++
+		ictx = v.istack.Peek(pop).Value().(*Context)
+	}
 }
 
 // CheckMultisigPar checks if sigs contains sufficient valid signatures.
-func CheckMultisigPar(v *VM, h []byte, pkeys [][]byte, sigs [][]byte) bool {
+func CheckMultisigPar(v *VM, curve elliptic.Curve, h []byte, pkeys [][]byte, sigs [][]byte) bool {
 	if len(sigs) == 1 {
-		return checkMultisig1(v, h, pkeys, sigs[0])
+		return checkMultisig1(v, curve, h, pkeys, sigs[0])
 	}
 
 	k1, k2 := 0, len(pkeys)-1
@@ -1493,8 +1586,8 @@ func CheckMultisigPar(v *VM, h []byte, pkeys [][]byte, sigs [][]byte) bool {
 		go worker(tasks, results)
 	}
 
-	tasks <- task{pub: v.bytesToPublicKey(pkeys[k1]), signum: s1}
-	tasks <- task{pub: v.bytesToPublicKey(pkeys[k2]), signum: s2}
+	tasks <- task{pub: v.bytesToPublicKey(pkeys[k1], curve), signum: s1}
+	tasks <- task{pub: v.bytesToPublicKey(pkeys[k2], curve), signum: s2}
 
 	sigok := true
 	taskCount := 2
@@ -1538,7 +1631,7 @@ loop:
 			nextKey = k2
 		}
 		taskCount++
-		tasks <- task{pub: v.bytesToPublicKey(pkeys[nextKey]), signum: nextSig}
+		tasks <- task{pub: v.bytesToPublicKey(pkeys[nextKey], curve), signum: nextSig}
 	}
 
 	close(tasks)
@@ -1546,9 +1639,9 @@ loop:
 	return sigok
 }
 
-func checkMultisig1(v *VM, h []byte, pkeys [][]byte, sig []byte) bool {
+func checkMultisig1(v *VM, curve elliptic.Curve, h []byte, pkeys [][]byte, sig []byte) bool {
 	for i := range pkeys {
-		pkey := v.bytesToPublicKey(pkeys[i])
+		pkey := v.bytesToPublicKey(pkeys[i], curve)
 		if pkey.Verify(sig, h) {
 			return true
 		}
@@ -1557,30 +1650,30 @@ func checkMultisig1(v *VM, h []byte, pkeys [][]byte, sig []byte) bool {
 	return false
 }
 
-func cloneIfStruct(item StackItem) StackItem {
+func cloneIfStruct(item stackitem.Item) stackitem.Item {
 	switch it := item.(type) {
-	case *StructItem:
+	case *stackitem.Struct:
 		return it.Clone()
 	default:
 		return it
 	}
 }
 
-func makeArrayOfType(n int, typ StackItemType) []StackItem {
+func makeArrayOfType(n int, typ stackitem.Type) []stackitem.Item {
 	if !typ.IsValid() {
 		panic(fmt.Sprintf("invalid stack item type: %d", typ))
 	}
-	items := make([]StackItem, n)
+	items := make([]stackitem.Item, n)
 	for i := range items {
 		switch typ {
-		case BooleanT:
-			items[i] = NewBoolItem(false)
-		case IntegerT:
-			items[i] = NewBigIntegerItem(big.NewInt(0))
-		case ByteArrayT:
-			items[i] = NewByteArrayItem([]byte{})
+		case stackitem.BooleanT:
+			items[i] = stackitem.NewBool(false)
+		case stackitem.IntegerT:
+			items[i] = stackitem.NewBigInteger(big.NewInt(0))
+		case stackitem.ByteArrayT:
+			items[i] = stackitem.NewByteArray([]byte{})
 		default:
-			items[i] = NullItem{}
+			items[i] = stackitem.Null{}
 		}
 	}
 	return items
@@ -1590,7 +1683,7 @@ func validateMapKey(key *Element) {
 	if key == nil {
 		panic("no key found")
 	}
-	if !isValidMapKey(key.Item()) {
+	if !stackitem.IsValidMapKey(key.Item()) {
 		panic("key can't be a collection")
 	}
 }
@@ -1603,14 +1696,14 @@ func (v *VM) checkInvocationStackSize() {
 
 // bytesToPublicKey is a helper deserializing keys using cache and panicing on
 // error.
-func (v *VM) bytesToPublicKey(b []byte) *keys.PublicKey {
+func (v *VM) bytesToPublicKey(b []byte, curve elliptic.Curve) *keys.PublicKey {
 	var pkey *keys.PublicKey
 	s := string(b)
 	if v.keys[s] != nil {
 		pkey = v.keys[s]
 	} else {
 		var err error
-		pkey, err = keys.NewPublicKeyFromBytes(b)
+		pkey, err = keys.NewPublicKeyFromBytes(b, curve)
 		if err != nil {
 			panic(err.Error())
 		}
@@ -1621,7 +1714,7 @@ func (v *VM) bytesToPublicKey(b []byte) *keys.PublicKey {
 
 // GetCallingScriptHash implements ScriptHashGetter interface
 func (v *VM) GetCallingScriptHash() util.Uint160 {
-	return v.getContextScriptHash(1)
+	return v.Context().callingScriptHash
 }
 
 // GetEntryScriptHash implements ScriptHashGetter interface

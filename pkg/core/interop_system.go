@@ -1,9 +1,12 @@
 package core
 
 import (
+	"crypto/elliptic"
 	"errors"
 	"fmt"
 	"math"
+	"math/big"
+	"strings"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
@@ -11,24 +14,47 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
-	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"go.uber.org/zap"
 )
 
 const (
 	// MaxStorageKeyLen is the maximum length of a key for storage items.
-	MaxStorageKeyLen = 1024
+	MaxStorageKeyLen = 64
+	// MaxStorageValueLen is the maximum length of a value for storage items.
+	// It is set to be the maximum value for uint16.
+	MaxStorageValueLen = 65535
+	// MaxTraceableBlocks is the maximum number of blocks before current chain
+	// height we're able to give information about.
+	MaxTraceableBlocks = transaction.MaxValidUntilBlockIncrement
+	// MaxEventNameLen is the maximum length of a name for event.
+	MaxEventNameLen = 32
+	// MaxNotificationSize is the maximum length of a runtime log message.
+	MaxNotificationSize = 1024
 )
 
-// StorageContext contains storing script hash and read/write flag, it's used as
+// StorageContext contains storing id and read/write flag, it's used as
 // a context for storage manipulation functions.
 type StorageContext struct {
-	ScriptHash util.Uint160
-	ReadOnly   bool
+	ID       int32
+	ReadOnly bool
 }
+
+// StorageFlag represents storage flag which denotes whether the stored value is
+// a constant.
+type StorageFlag byte
+
+const (
+	// None is a storage flag for non-constant items.
+	None StorageFlag = 0
+	// Constant is a storage flag for constant items.
+	Constant StorageFlag = 0x01
+)
 
 // getBlockHashFromElement converts given vm.Element to block hash using given
 // Blockchainer if needed. Interop functions accept both block numbers and
@@ -48,55 +74,72 @@ func getBlockHashFromElement(bc blockchainer.Blockchainer, element *vm.Element) 
 	return hash, nil
 }
 
+// blockToStackItem converts block.Block to stackitem.Item
+func blockToStackItem(b *block.Block) stackitem.Item {
+	return stackitem.NewArray([]stackitem.Item{
+		stackitem.NewByteArray(b.Hash().BytesBE()),
+		stackitem.NewBigInteger(big.NewInt(int64(b.Version))),
+		stackitem.NewByteArray(b.PrevHash.BytesBE()),
+		stackitem.NewByteArray(b.MerkleRoot.BytesBE()),
+		stackitem.NewBigInteger(big.NewInt(int64(b.Timestamp))),
+		stackitem.NewBigInteger(big.NewInt(int64(b.Index))),
+		stackitem.NewByteArray(b.NextConsensus.BytesBE()),
+		stackitem.NewBigInteger(big.NewInt(int64(len(b.Transactions)))),
+	})
+}
+
 // bcGetBlock returns current block.
-func bcGetBlock(ic *interop.Context, v *vm.VM) error {
-	hash, err := getBlockHashFromElement(ic.Chain, v.Estack().Pop())
+func bcGetBlock(ic *interop.Context) error {
+	hash, err := getBlockHashFromElement(ic.Chain, ic.VM.Estack().Pop())
 	if err != nil {
 		return err
 	}
 	block, err := ic.Chain.GetBlock(hash)
-	if err != nil {
-		v.Estack().PushVal([]byte{})
+	if err != nil || !isTraceableBlock(ic, block.Index) {
+		ic.VM.Estack().PushVal(stackitem.Null{})
 	} else {
-		v.Estack().PushVal(vm.NewInteropItem(block))
+		ic.VM.Estack().PushVal(blockToStackItem(block))
 	}
 	return nil
 }
 
+// contractToStackItem converts state.Contract to stackitem.Item
+func contractToStackItem(cs *state.Contract) (stackitem.Item, error) {
+	manifest, err := cs.Manifest.MarshalJSON()
+	if err != nil {
+		return nil, err
+	}
+	return stackitem.NewArray([]stackitem.Item{
+		stackitem.NewByteArray(cs.Script),
+		stackitem.NewByteArray(manifest),
+		stackitem.NewBool(cs.HasStorage()),
+		stackitem.NewBool(cs.IsPayable()),
+	}), nil
+}
+
 // bcGetContract returns contract.
-func bcGetContract(ic *interop.Context, v *vm.VM) error {
-	hashbytes := v.Estack().Pop().Bytes()
+func bcGetContract(ic *interop.Context) error {
+	hashbytes := ic.VM.Estack().Pop().Bytes()
 	hash, err := util.Uint160DecodeBytesBE(hashbytes)
 	if err != nil {
 		return err
 	}
 	cs, err := ic.DAO.GetContractState(hash)
 	if err != nil {
-		v.Estack().PushVal([]byte{})
+		ic.VM.Estack().PushVal(stackitem.Null{})
 	} else {
-		v.Estack().PushVal(vm.NewInteropItem(cs))
-	}
-	return nil
-}
-
-// bcGetHeader returns block header.
-func bcGetHeader(ic *interop.Context, v *vm.VM) error {
-	hash, err := getBlockHashFromElement(ic.Chain, v.Estack().Pop())
-	if err != nil {
-		return err
-	}
-	header, err := ic.Chain.GetHeader(hash)
-	if err != nil {
-		v.Estack().PushVal([]byte{})
-	} else {
-		v.Estack().PushVal(vm.NewInteropItem(header))
+		item, err := contractToStackItem(cs)
+		if err != nil {
+			return err
+		}
+		ic.VM.Estack().PushVal(item)
 	}
 	return nil
 }
 
 // bcGetHeight returns blockchain height.
-func bcGetHeight(ic *interop.Context, v *vm.VM) error {
-	v.Estack().PushVal(ic.Chain.BlockHeight())
+func bcGetHeight(ic *interop.Context) error {
+	ic.VM.Estack().PushVal(ic.Chain.BlockHeight())
 	return nil
 }
 
@@ -111,205 +154,156 @@ func getTransactionAndHeight(cd *dao.Cached, v *vm.VM) (*transaction.Transaction
 	return cd.GetTransaction(hash)
 }
 
+// isTraceableBlock defines whether we're able to give information about
+// the block with index specified.
+func isTraceableBlock(ic *interop.Context, index uint32) bool {
+	height := ic.Chain.BlockHeight()
+	return index <= height && index+MaxTraceableBlocks > height
+}
+
+// transactionToStackItem converts transaction.Transaction to stackitem.Item
+func transactionToStackItem(t *transaction.Transaction) stackitem.Item {
+	return stackitem.NewArray([]stackitem.Item{
+		stackitem.NewByteArray(t.Hash().BytesBE()),
+		stackitem.NewBigInteger(big.NewInt(int64(t.Version))),
+		stackitem.NewBigInteger(big.NewInt(int64(t.Nonce))),
+		stackitem.NewByteArray(t.Sender().BytesBE()),
+		stackitem.NewBigInteger(big.NewInt(int64(t.SystemFee))),
+		stackitem.NewBigInteger(big.NewInt(int64(t.NetworkFee))),
+		stackitem.NewBigInteger(big.NewInt(int64(t.ValidUntilBlock))),
+		stackitem.NewByteArray(t.Script),
+	})
+}
+
 // bcGetTransaction returns transaction.
-func bcGetTransaction(ic *interop.Context, v *vm.VM) error {
-	tx, _, err := getTransactionAndHeight(ic.DAO, v)
+func bcGetTransaction(ic *interop.Context) error {
+	tx, h, err := getTransactionAndHeight(ic.DAO, ic.VM)
+	if err != nil || !isTraceableBlock(ic, h) {
+		ic.VM.Estack().PushVal(stackitem.Null{})
+		return nil
+	}
+	ic.VM.Estack().PushVal(transactionToStackItem(tx))
+	return nil
+}
+
+// bcGetTransactionFromBlock returns transaction with the given index from the
+// block with height or hash specified.
+func bcGetTransactionFromBlock(ic *interop.Context) error {
+	hash, err := getBlockHashFromElement(ic.Chain, ic.VM.Estack().Pop())
 	if err != nil {
 		return err
 	}
-	v.Estack().PushVal(vm.NewInteropItem(tx))
-	return nil
-}
-
-// bcGetTransactionHeight returns transaction height.
-func bcGetTransactionHeight(ic *interop.Context, v *vm.VM) error {
-	_, h, err := getTransactionAndHeight(ic.DAO, v)
-	if err != nil {
-		return err
+	index := ic.VM.Estack().Pop().BigInt().Int64()
+	block, err := ic.DAO.GetBlock(hash)
+	if err != nil || !isTraceableBlock(ic, block.Index) {
+		ic.VM.Estack().PushVal(stackitem.Null{})
+		return nil
 	}
-	v.Estack().PushVal(h)
-	return nil
-}
-
-// popHeaderFromVM returns pointer to Header or error. It's main feature is
-// proper treatment of Block structure, because C# code implicitly assumes
-// that header APIs can also operate on blocks.
-func popHeaderFromVM(v *vm.VM) (*block.Header, error) {
-	iface := v.Estack().Pop().Value()
-	header, ok := iface.(*block.Header)
-	if !ok {
-		block, ok := iface.(*block.Block)
-		if !ok {
-			return nil, errors.New("value is not a header or block")
-		}
-		return block.Header(), nil
-	}
-	return header, nil
-}
-
-// headerGetIndex returns block index from the header.
-func headerGetIndex(ic *interop.Context, v *vm.VM) error {
-	header, err := popHeaderFromVM(v)
-	if err != nil {
-		return err
-	}
-	v.Estack().PushVal(header.Index)
-	return nil
-}
-
-// headerGetHash returns header hash of the passed header.
-func headerGetHash(ic *interop.Context, v *vm.VM) error {
-	header, err := popHeaderFromVM(v)
-	if err != nil {
-		return err
-	}
-	v.Estack().PushVal(header.Hash().BytesBE())
-	return nil
-}
-
-// headerGetPrevHash returns previous header hash of the passed header.
-func headerGetPrevHash(ic *interop.Context, v *vm.VM) error {
-	header, err := popHeaderFromVM(v)
-	if err != nil {
-		return err
-	}
-	v.Estack().PushVal(header.PrevHash.BytesBE())
-	return nil
-}
-
-// headerGetTimestamp returns timestamp of the passed header.
-func headerGetTimestamp(ic *interop.Context, v *vm.VM) error {
-	header, err := popHeaderFromVM(v)
-	if err != nil {
-		return err
-	}
-	v.Estack().PushVal(header.Timestamp)
-	return nil
-}
-
-// blockGetTransactionCount returns transactions count in the given block.
-func blockGetTransactionCount(ic *interop.Context, v *vm.VM) error {
-	blockInterface := v.Estack().Pop().Value()
-	block, ok := blockInterface.(*block.Block)
-	if !ok {
-		return errors.New("value is not a block")
-	}
-	v.Estack().PushVal(len(block.Transactions))
-	return nil
-}
-
-// blockGetTransactions returns transactions from the given block.
-func blockGetTransactions(ic *interop.Context, v *vm.VM) error {
-	blockInterface := v.Estack().Pop().Value()
-	block, ok := blockInterface.(*block.Block)
-	if !ok {
-		return errors.New("value is not a block")
-	}
-	if len(block.Transactions) > vm.MaxArraySize {
-		return errors.New("too many transactions")
-	}
-	txes := make([]vm.StackItem, 0, len(block.Transactions))
-	for _, tx := range block.Transactions {
-		txes = append(txes, vm.NewInteropItem(tx))
-	}
-	v.Estack().PushVal(txes)
-	return nil
-}
-
-// blockGetTransaction returns transaction with the given number from the given
-// block.
-func blockGetTransaction(ic *interop.Context, v *vm.VM) error {
-	blockInterface := v.Estack().Pop().Value()
-	block, ok := blockInterface.(*block.Block)
-	if !ok {
-		return errors.New("value is not a block")
-	}
-	index := v.Estack().Pop().BigInt().Int64()
 	if index < 0 || index >= int64(len(block.Transactions)) {
 		return errors.New("wrong transaction index")
 	}
 	tx := block.Transactions[index]
-	v.Estack().PushVal(vm.NewInteropItem(tx))
+	ic.VM.Estack().PushVal(tx.Hash().BytesBE())
 	return nil
 }
 
-// txGetHash returns transaction's hash.
-func txGetHash(ic *interop.Context, v *vm.VM) error {
-	txInterface := v.Estack().Pop().Value()
-	tx, ok := txInterface.(*transaction.Transaction)
-	if !ok {
-		return errors.New("value is not a transaction")
+// bcGetTransactionHeight returns transaction height.
+func bcGetTransactionHeight(ic *interop.Context) error {
+	_, h, err := getTransactionAndHeight(ic.DAO, ic.VM)
+	if err != nil || !isTraceableBlock(ic, h) {
+		ic.VM.Estack().PushVal(-1)
+		return nil
 	}
-	v.Estack().PushVal(tx.Hash().BytesBE())
+	ic.VM.Estack().PushVal(h)
 	return nil
 }
 
-// engineGetScriptContainer returns transaction that contains the script being
-// run.
-func engineGetScriptContainer(ic *interop.Context, v *vm.VM) error {
-	v.Estack().PushVal(vm.NewInteropItem(ic.Container))
+// engineGetScriptContainer returns transaction or block that contains the script
+// being run.
+func engineGetScriptContainer(ic *interop.Context) error {
+	var item stackitem.Item
+	switch t := ic.Container.(type) {
+	case *transaction.Transaction:
+		item = transactionToStackItem(t)
+	case *block.Block:
+		item = blockToStackItem(t)
+	default:
+		return errors.New("unknown script container")
+	}
+	ic.VM.Estack().PushVal(item)
 	return nil
 }
 
 // engineGetExecutingScriptHash returns executing script hash.
-func engineGetExecutingScriptHash(ic *interop.Context, v *vm.VM) error {
-	return v.PushContextScriptHash(0)
+func engineGetExecutingScriptHash(ic *interop.Context) error {
+	return ic.VM.PushContextScriptHash(0)
 }
 
 // engineGetCallingScriptHash returns calling script hash.
-func engineGetCallingScriptHash(ic *interop.Context, v *vm.VM) error {
-	return v.PushContextScriptHash(1)
+func engineGetCallingScriptHash(ic *interop.Context) error {
+	return ic.VM.PushContextScriptHash(1)
 }
 
 // engineGetEntryScriptHash returns entry script hash.
-func engineGetEntryScriptHash(ic *interop.Context, v *vm.VM) error {
-	return v.PushContextScriptHash(v.Istack().Len() - 1)
+func engineGetEntryScriptHash(ic *interop.Context) error {
+	return ic.VM.PushContextScriptHash(ic.VM.Istack().Len() - 1)
 }
 
 // runtimePlatform returns the name of the platform.
-func runtimePlatform(ic *interop.Context, v *vm.VM) error {
-	v.Estack().PushVal([]byte("NEO"))
+func runtimePlatform(ic *interop.Context) error {
+	ic.VM.Estack().PushVal([]byte("NEO"))
 	return nil
 }
 
 // runtimeGetTrigger returns the script trigger.
-func runtimeGetTrigger(ic *interop.Context, v *vm.VM) error {
-	v.Estack().PushVal(byte(ic.Trigger))
+func runtimeGetTrigger(ic *interop.Context) error {
+	ic.VM.Estack().PushVal(byte(ic.Trigger))
 	return nil
 }
 
 // runtimeNotify should pass stack item to the notify plugin to handle it, but
 // in neo-go the only meaningful thing to do here is to log.
-func runtimeNotify(ic *interop.Context, v *vm.VM) error {
-	// It can be just about anything.
-	e := v.Estack().Pop()
-	item := e.Item()
+func runtimeNotify(ic *interop.Context) error {
+	name := ic.VM.Estack().Pop().String()
+	if len(name) > MaxEventNameLen {
+		return fmt.Errorf("event name must be less than %d", MaxEventNameLen)
+	}
+	elem := ic.VM.Estack().Pop()
+	args := elem.Array()
 	// But it has to be serializable, otherwise we either have some broken
 	// (recursive) structure inside or an interop item that can't be used
 	// outside of the interop subsystem anyway. I'd probably fail transactions
 	// that emit such broken notifications, but that might break compatibility
 	// with testnet/mainnet, so we're replacing these with error messages.
-	_, err := vm.SerializeItem(item)
+	_, err := stackitem.SerializeItem(elem.Item())
 	if err != nil {
-		item = vm.NewByteArrayItem([]byte(fmt.Sprintf("bad notification: %v", err)))
+		args = []stackitem.Item{stackitem.NewByteArray([]byte(fmt.Sprintf("bad notification: %v", err)))}
 	}
-	ne := state.NotificationEvent{ScriptHash: v.GetCurrentScriptHash(), Item: item}
+	ne := state.NotificationEvent{
+		ScriptHash: ic.VM.GetCurrentScriptHash(),
+		Name:       name,
+		Item:       stackitem.DeepCopy(stackitem.NewArray(args)).(*stackitem.Array),
+	}
 	ic.Notifications = append(ic.Notifications, ne)
 	return nil
 }
 
 // runtimeLog logs the message passed.
-func runtimeLog(ic *interop.Context, v *vm.VM) error {
-	msg := fmt.Sprintf("%q", v.Estack().Pop().Bytes())
+func runtimeLog(ic *interop.Context) error {
+	state := ic.VM.Estack().Pop().String()
+	if len(state) > MaxNotificationSize {
+		return fmt.Errorf("message length shouldn't exceed %v", MaxNotificationSize)
+	}
+	msg := fmt.Sprintf("%q", state)
 	ic.Log.Info("runtime log",
-		zap.Stringer("script", v.GetCurrentScriptHash()),
+		zap.Stringer("script", ic.VM.GetCurrentScriptHash()),
 		zap.String("logs", msg))
 	return nil
 }
 
 // runtimeGetTime returns timestamp of the block being verified, or the latest
 // one in the blockchain if no block is given to Context.
-func runtimeGetTime(ic *interop.Context, v *vm.VM) error {
+func runtimeGetTime(ic *interop.Context) error {
 	var header *block.Header
 	if ic.Block == nil {
 		var err error
@@ -320,27 +314,13 @@ func runtimeGetTime(ic *interop.Context, v *vm.VM) error {
 	} else {
 		header = ic.Block.Header()
 	}
-	v.Estack().PushVal(header.Timestamp)
-	return nil
-}
-
-func checkStorageContext(ic *interop.Context, stc *StorageContext) error {
-	contract, err := ic.DAO.GetContractState(stc.ScriptHash)
-	if err != nil {
-		return errors.New("no contract found")
-	}
-	if !contract.HasStorage() {
-		return fmt.Errorf("contract %s can't use storage", stc.ScriptHash)
-	}
+	ic.VM.Estack().PushVal(header.Timestamp)
 	return nil
 }
 
 // storageDelete deletes stored key-value pair.
-func storageDelete(ic *interop.Context, v *vm.VM) error {
-	if ic.Trigger != trigger.Application && ic.Trigger != trigger.ApplicationR {
-		return errors.New("can't delete when the trigger is not application")
-	}
-	stcInterface := v.Estack().Pop().Value()
+func storageDelete(ic *interop.Context) error {
+	stcInterface := ic.VM.Estack().Pop().Value()
 	stc, ok := stcInterface.(*StorageContext)
 	if !ok {
 		return fmt.Errorf("%T is not a StorageContext", stcInterface)
@@ -348,168 +328,211 @@ func storageDelete(ic *interop.Context, v *vm.VM) error {
 	if stc.ReadOnly {
 		return errors.New("StorageContext is read only")
 	}
-	err := checkStorageContext(ic, stc)
-	if err != nil {
-		return err
-	}
-	key := v.Estack().Pop().Bytes()
-	si := ic.DAO.GetStorageItem(stc.ScriptHash, key)
+	key := ic.VM.Estack().Pop().Bytes()
+	si := ic.DAO.GetStorageItem(stc.ID, key)
 	if si != nil && si.IsConst {
 		return errors.New("storage item is constant")
 	}
-	return ic.DAO.DeleteStorageItem(stc.ScriptHash, key)
+	return ic.DAO.DeleteStorageItem(stc.ID, key)
 }
 
 // storageGet returns stored key-value pair.
-func storageGet(ic *interop.Context, v *vm.VM) error {
-	stcInterface := v.Estack().Pop().Value()
+func storageGet(ic *interop.Context) error {
+	stcInterface := ic.VM.Estack().Pop().Value()
 	stc, ok := stcInterface.(*StorageContext)
 	if !ok {
 		return fmt.Errorf("%T is not a StorageContext", stcInterface)
 	}
-	err := checkStorageContext(ic, stc)
-	if err != nil {
-		return err
-	}
-	key := v.Estack().Pop().Bytes()
-	si := ic.DAO.GetStorageItem(stc.ScriptHash, key)
+	key := ic.VM.Estack().Pop().Bytes()
+	si := ic.DAO.GetStorageItem(stc.ID, key)
 	if si != nil && si.Value != nil {
-		v.Estack().PushVal(si.Value)
+		ic.VM.Estack().PushVal(si.Value)
 	} else {
-		v.Estack().PushVal([]byte{})
+		ic.VM.Estack().PushVal(stackitem.Null{})
 	}
 	return nil
 }
 
 // storageGetContext returns storage context (scripthash).
-func storageGetContext(ic *interop.Context, v *vm.VM) error {
-	sc := &StorageContext{
-		ScriptHash: v.GetCurrentScriptHash(),
-		ReadOnly:   false,
-	}
-	v.Estack().PushVal(vm.NewInteropItem(sc))
-	return nil
+func storageGetContext(ic *interop.Context) error {
+	return storageGetContextInternal(ic, false)
 }
 
 // storageGetReadOnlyContext returns read-only context (scripthash).
-func storageGetReadOnlyContext(ic *interop.Context, v *vm.VM) error {
-	sc := &StorageContext{
-		ScriptHash: v.GetCurrentScriptHash(),
-		ReadOnly:   true,
+func storageGetReadOnlyContext(ic *interop.Context) error {
+	return storageGetContextInternal(ic, true)
+}
+
+// storageGetContextInternal is internal version of storageGetContext and
+// storageGetReadOnlyContext which allows to specify ReadOnly context flag.
+func storageGetContextInternal(ic *interop.Context, isReadOnly bool) error {
+	contract, err := ic.DAO.GetContractState(ic.VM.GetCurrentScriptHash())
+	if err != nil {
+		return err
 	}
-	v.Estack().PushVal(vm.NewInteropItem(sc))
+	if !contract.HasStorage() {
+		return errors.New("contract is not allowed to use storage")
+	}
+	sc := &StorageContext{
+		ID:       contract.ID,
+		ReadOnly: isReadOnly,
+	}
+	ic.VM.Estack().PushVal(stackitem.NewInterop(sc))
 	return nil
 }
 
 func putWithContextAndFlags(ic *interop.Context, stc *StorageContext, key []byte, value []byte, isConst bool) error {
-	if ic.Trigger != trigger.Application && ic.Trigger != trigger.ApplicationR {
-		return errors.New("can't delete when the trigger is not application")
-	}
 	if len(key) > MaxStorageKeyLen {
 		return errors.New("key is too big")
+	}
+	if len(value) > MaxStorageValueLen {
+		return errors.New("value is too big")
 	}
 	if stc.ReadOnly {
 		return errors.New("StorageContext is read only")
 	}
-	err := checkStorageContext(ic, stc)
-	if err != nil {
-		return err
-	}
-	si := ic.DAO.GetStorageItem(stc.ScriptHash, key)
+	si := ic.DAO.GetStorageItem(stc.ID, key)
 	if si == nil {
 		si = &state.StorageItem{}
 	}
 	if si.IsConst {
 		return errors.New("storage item exists and is read-only")
 	}
+	sizeInc := 1
+	if len(value) > len(si.Value) {
+		sizeInc = len(value) - len(si.Value)
+	}
+	if !ic.VM.AddGas(int64(sizeInc) * StoragePrice) {
+		return errGasLimitExceeded
+	}
 	si.Value = value
 	si.IsConst = isConst
-	return ic.DAO.PutStorageItem(stc.ScriptHash, key, si)
+	return ic.DAO.PutStorageItem(stc.ID, key, si)
 }
 
 // storagePutInternal is a unified implementation of storagePut and storagePutEx.
-func storagePutInternal(ic *interop.Context, v *vm.VM, getFlag bool) error {
-	stcInterface := v.Estack().Pop().Value()
+func storagePutInternal(ic *interop.Context, getFlag bool) error {
+	stcInterface := ic.VM.Estack().Pop().Value()
 	stc, ok := stcInterface.(*StorageContext)
 	if !ok {
 		return fmt.Errorf("%T is not a StorageContext", stcInterface)
 	}
-	key := v.Estack().Pop().Bytes()
-	value := v.Estack().Pop().Bytes()
+	key := ic.VM.Estack().Pop().Bytes()
+	value := ic.VM.Estack().Pop().Bytes()
 	var flag int
 	if getFlag {
-		flag = int(v.Estack().Pop().BigInt().Int64())
+		flag = int(ic.VM.Estack().Pop().BigInt().Int64())
 	}
-	return putWithContextAndFlags(ic, stc, key, value, flag == 1)
+	return putWithContextAndFlags(ic, stc, key, value, int(Constant)&flag != 0)
 }
 
 // storagePut puts key-value pair into the storage.
-func storagePut(ic *interop.Context, v *vm.VM) error {
-	return storagePutInternal(ic, v, false)
+func storagePut(ic *interop.Context) error {
+	return storagePutInternal(ic, false)
 }
 
 // storagePutEx puts key-value pair with given flags into the storage.
-func storagePutEx(ic *interop.Context, v *vm.VM) error {
-	return storagePutInternal(ic, v, true)
+func storagePutEx(ic *interop.Context) error {
+	return storagePutInternal(ic, true)
 }
 
 // storageContextAsReadOnly sets given context to read-only mode.
-func storageContextAsReadOnly(ic *interop.Context, v *vm.VM) error {
-	stcInterface := v.Estack().Pop().Value()
+func storageContextAsReadOnly(ic *interop.Context) error {
+	stcInterface := ic.VM.Estack().Pop().Value()
 	stc, ok := stcInterface.(*StorageContext)
 	if !ok {
 		return fmt.Errorf("%T is not a StorageContext", stcInterface)
 	}
 	if !stc.ReadOnly {
 		stx := &StorageContext{
-			ScriptHash: stc.ScriptHash,
-			ReadOnly:   true,
+			ID:       stc.ID,
+			ReadOnly: true,
 		}
 		stc = stx
 	}
-	v.Estack().PushVal(vm.NewInteropItem(stc))
+	ic.VM.Estack().PushVal(stackitem.NewInterop(stc))
 	return nil
 }
 
 // contractCall calls a contract.
-func contractCall(ic *interop.Context, v *vm.VM) error {
-	h := v.Estack().Pop().Bytes()
-	method := v.Estack().Pop().Item()
-	args := v.Estack().Pop().Item()
-	return contractCallExInternal(ic, v, h, method, args, smartcontract.All)
+func contractCall(ic *interop.Context) error {
+	h := ic.VM.Estack().Pop().Bytes()
+	method := ic.VM.Estack().Pop().String()
+	args := ic.VM.Estack().Pop().Array()
+	return contractCallExInternal(ic, h, method, args, smartcontract.All)
 }
 
 // contractCallEx calls a contract with flags.
-func contractCallEx(ic *interop.Context, v *vm.VM) error {
-	h := v.Estack().Pop().Bytes()
-	method := v.Estack().Pop().Item()
-	args := v.Estack().Pop().Item()
-	flags := smartcontract.CallFlag(int32(v.Estack().Pop().BigInt().Int64()))
-	return contractCallExInternal(ic, v, h, method, args, flags)
+func contractCallEx(ic *interop.Context) error {
+	h := ic.VM.Estack().Pop().Bytes()
+	method := ic.VM.Estack().Pop().String()
+	args := ic.VM.Estack().Pop().Array()
+	flags := smartcontract.CallFlag(int32(ic.VM.Estack().Pop().BigInt().Int64()))
+	if flags&^smartcontract.All != 0 {
+		return errors.New("call flags out of range")
+	}
+	return contractCallExInternal(ic, h, method, args, flags)
 }
 
-func contractCallExInternal(ic *interop.Context, v *vm.VM, h []byte, method vm.StackItem, args vm.StackItem, _ smartcontract.CallFlag) error {
+func contractCallExInternal(ic *interop.Context, h []byte, name string, args []stackitem.Item, f smartcontract.CallFlag) error {
 	u, err := util.Uint160DecodeBytesBE(h)
 	if err != nil {
 		return errors.New("invalid contract hash")
 	}
-	script, _ := ic.GetContract(u)
-	if script == nil {
+	cs, err := ic.DAO.GetContractState(u)
+	if err != nil {
 		return errors.New("contract not found")
 	}
-	// TODO perform flags checking after #923
-	v.LoadScript(script)
-	v.Estack().PushVal(args)
-	v.Estack().PushVal(method)
+	if strings.HasPrefix(name, "_") {
+		return errors.New("invalid method name (starts with '_')")
+	}
+	md := cs.Manifest.ABI.GetMethod(name)
+	if md == nil {
+		return fmt.Errorf("method '%s' not found", name)
+	}
+	curr, err := ic.DAO.GetContractState(ic.VM.GetCurrentScriptHash())
+	if err == nil {
+		if !curr.Manifest.CanCall(&cs.Manifest, name) {
+			return errors.New("disallowed method call")
+		}
+	}
+
+	if len(args) != len(md.Parameters) {
+		return fmt.Errorf("invalid argument count: %d (expected %d)", len(args), len(md.Parameters))
+	}
+
+	ic.Invocations[u]++
+	ic.VM.LoadScriptWithHash(cs.Script, u, ic.VM.Context().GetCallFlags()&f)
+	var isNative bool
+	for i := range ic.Natives {
+		if ic.Natives[i].Metadata().Hash.Equals(u) {
+			isNative = true
+			break
+		}
+	}
+	if isNative {
+		ic.VM.Estack().PushVal(args)
+		ic.VM.Estack().PushVal(name)
+	} else {
+		for i := len(args) - 1; i >= 0; i-- {
+			ic.VM.Estack().PushVal(args[i])
+		}
+		// use Jump not Call here because context was loaded in LoadScript above.
+		ic.VM.Jump(ic.VM.Context(), md.Offset)
+		ic.VM.Context().CheckReturn = true
+	}
+
+	md = cs.Manifest.ABI.GetMethod(manifest.MethodInit)
+	if md != nil {
+		ic.VM.Call(ic.VM.Context(), md.Offset)
+	}
+
 	return nil
 }
 
 // contractDestroy destroys a contract.
-func contractDestroy(ic *interop.Context, v *vm.VM) error {
-	if ic.Trigger != trigger.Application {
-		return errors.New("can't destroy contract when not triggered by application")
-	}
-	hash := v.GetCurrentScriptHash()
+func contractDestroy(ic *interop.Context) error {
+	hash := ic.VM.GetCurrentScriptHash()
 	cs, err := ic.DAO.GetContractState(hash)
 	if err != nil {
 		return nil
@@ -519,31 +542,55 @@ func contractDestroy(ic *interop.Context, v *vm.VM) error {
 		return err
 	}
 	if cs.HasStorage() {
-		siMap, err := ic.DAO.GetStorageItems(hash)
+		siMap, err := ic.DAO.GetStorageItems(cs.ID)
 		if err != nil {
 			return err
 		}
 		for k := range siMap {
-			_ = ic.DAO.DeleteStorageItem(hash, []byte(k))
+			_ = ic.DAO.DeleteStorageItem(cs.ID, []byte(k))
 		}
 	}
 	return nil
 }
 
-// contractGetStorageContext retrieves StorageContext of a contract.
-func contractGetStorageContext(ic *interop.Context, v *vm.VM) error {
-	csInterface := v.Estack().Pop().Value()
-	cs, ok := csInterface.(*state.Contract)
-	if !ok {
-		return fmt.Errorf("%T is not a contract state", cs)
+// contractIsStandard checks if contract is standard (sig or multisig) contract.
+func contractIsStandard(ic *interop.Context) error {
+	h := ic.VM.Estack().Pop().Bytes()
+	u, err := util.Uint160DecodeBytesBE(h)
+	if err != nil {
+		return err
 	}
-	contractState, err := ic.DAO.GetContractState(cs.ScriptHash())
-	if contractState == nil || err != nil {
-		return fmt.Errorf("contract was not created in this transaction")
+	var result bool
+	cs, _ := ic.DAO.GetContractState(u)
+	if cs != nil {
+		result = vm.IsStandardContract(cs.Script)
+	} else {
+		if tx, ok := ic.Container.(*transaction.Transaction); ok {
+			for _, witness := range tx.Scripts {
+				if witness.ScriptHash() == u {
+					result = vm.IsStandardContract(witness.VerificationScript)
+					break
+				}
+			}
+		}
 	}
-	stc := &StorageContext{
-		ScriptHash: cs.ScriptHash(),
+	ic.VM.Estack().PushVal(result)
+	return nil
+}
+
+// contractCreateStandardAccount calculates contract scripthash for a given public key.
+func contractCreateStandardAccount(ic *interop.Context) error {
+	h := ic.VM.Estack().Pop().Bytes()
+	p, err := keys.NewPublicKeyFromBytes(h, elliptic.P256())
+	if err != nil {
+		return err
 	}
-	v.Estack().PushVal(vm.NewInteropItem(stc))
+	ic.VM.Estack().PushVal(p.GetScriptHash().BytesBE())
+	return nil
+}
+
+// contractGetCallFlags returns current context calling flags.
+func contractGetCallFlags(ic *interop.Context) error {
+	ic.VM.Estack().PushVal(ic.VM.Context().GetCallFlags())
 	return nil
 }

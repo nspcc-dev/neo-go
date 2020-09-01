@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/crypto"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
@@ -12,6 +13,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
+	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/stretchr/testify/require"
 )
@@ -68,8 +70,7 @@ func TestParameterContext_AddSignatureMultisig(t *testing.T) {
 	tx := getContractTx()
 	c := NewParameterContext("Neo.Core.ContractTransaction", tx)
 	privs, pubs := getPrivateKeys(t, 4)
-	pubsCopy := make(keys.PublicKeys, len(pubs))
-	copy(pubsCopy, pubs)
+	pubsCopy := keys.PublicKeys(pubs).Copy()
 	script, err := smartcontract.CreateMultiSigRedeemScript(3, pubsCopy)
 	require.NoError(t, err)
 
@@ -109,8 +110,9 @@ func TestParameterContext_AddSignatureMultisig(t *testing.T) {
 }
 
 func newTestVM(w *transaction.Witness, tx *transaction.Transaction) *vm.VM {
-	v := vm.New()
-	v.RegisterInteropGetter(crypto.GetInterop(&interop.Context{Container: tx}))
+	ic := &interop.Context{Container: tx}
+	crypto.Register(ic)
+	v := ic.SpawnVM()
 	v.LoadScript(w.VerificationScript)
 	v.LoadScript(w.InvocationScript)
 	return v
@@ -164,19 +166,10 @@ func newParam(typ smartcontract.ParamType, name string) wallet.ContractParam {
 }
 
 func getContractTx() *transaction.Transaction {
-	tx := transaction.NewContractTX()
-	tx.AddInput(&transaction.Input{
-		PrevHash:  util.Uint256{1, 2, 3, 4},
-		PrevIndex: 5,
-	})
-	tx.AddOutput(&transaction.Output{
-		AssetID:    util.Uint256{7, 8, 9},
-		Amount:     10,
-		ScriptHash: util.Uint160{11, 12},
-	})
-	tx.Data = new(transaction.ContractTX)
+	tx := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
 	tx.Attributes = make([]transaction.Attribute, 0)
 	tx.Scripts = make([]transaction.Witness, 0)
+	tx.Signers = []transaction.Signer{{Account: util.Uint160{1, 2, 3}}}
 	tx.Hash()
 	return tx
 }

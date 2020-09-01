@@ -11,7 +11,12 @@ const (
 	multiplier = decimals * 10
 )
 
-var owner = util.FromAddress("AJX1jGfj3qPBbpAKjY527nPbnrnvSx9nCg")
+var (
+	owner   = util.FromAddress("NULwe3UAHckN2fzNdcVg31tDiaYtMDwANt")
+	trigger byte
+	token   TokenConfig
+	ctx     storage.Context
+)
 
 // TokenConfig holds information about the token we want to use for the sale.
 type TokenConfig struct {
@@ -51,8 +56,8 @@ type TokenConfig struct {
 	KYCKey []byte
 }
 
-// NewTokenConfig returns the initialized TokenConfig.
-func NewTokenConfig() TokenConfig {
+// newTokenConfig returns the initialized TokenConfig.
+func newTokenConfig() TokenConfig {
 	return TokenConfig{
 		Name:                  "My awesome token",
 		Symbol:                "MAT",
@@ -71,113 +76,106 @@ func NewTokenConfig() TokenConfig {
 	}
 }
 
-// InCirculation return the amount of total tokens that are in circulation.
-func (t TokenConfig) InCirculation(ctx storage.Context) int {
-	amount := storage.Get(ctx, t.CirculationKey)
-	return amount.(int)
+// getIntFromDB is a helper that checks for nil result of storage.Get and returns
+// zero as the default value.
+func getIntFromDB(ctx storage.Context, key []byte) int {
+	var res int
+	val := storage.Get(ctx, key)
+	if val != nil {
+		res = val.(int)
+	}
+	return res
+}
+
+// InCirculation returns the amount of total tokens that are in circulation.
+func InCirculation() int {
+	return getIntFromDB(ctx, token.CirculationKey)
 }
 
 // AddToCirculation sets the given amount as "in circulation" in the storage.
-func (t TokenConfig) AddToCirculation(ctx storage.Context, amount int) bool {
-	supply := storage.Get(ctx, t.CirculationKey).(int)
+func AddToCirculation(amount int) bool {
+	supply := getIntFromDB(ctx, token.CirculationKey)
 	supply += amount
-	storage.Put(ctx, t.CirculationKey, supply)
+	storage.Put(ctx, token.CirculationKey, supply)
 	return true
 }
 
-// TokenSaleAvailableAmount returns the total amount of available tokens left
+// AvailableAmount returns the total amount of available tokens left
 // to be distributed.
-func (t TokenConfig) TokenSaleAvailableAmount(ctx storage.Context) int {
-	inCirc := storage.Get(ctx, t.CirculationKey)
-	return t.TotalSupply - inCirc.(int)
+func AvailableAmount() int {
+	inCirc := getIntFromDB(ctx, token.CirculationKey)
+	return token.TotalSupply - inCirc
 }
 
-// Main smart contract entry point.
-func Main(operation string, args []interface{}) interface{} {
-	var (
-		trigger = runtime.GetTrigger()
-		cfg     = NewTokenConfig()
-		ctx     = storage.GetContext()
-	)
+// init initializes runtime trigger, TokenConfig and storage context before any
+// other contract method is called
+func init() {
+	trigger = runtime.GetTrigger()
+	token = newTokenConfig()
+	ctx = storage.GetContext()
+}
 
+// checkOwnerWitness is a helper function which checks whether the invoker is the
+// owner of the contract.
+func checkOwnerWitness() bool {
 	// This is used to verify if a transfer of system assets (NEO and Gas)
 	// involving this contract's address can proceed.
-	if trigger == runtime.Verification() {
+	if trigger == runtime.Application {
 		// Check if the invoker is the owner of the contract.
-		if runtime.CheckWitness(cfg.Owner) {
-			return true
-		}
-		// Otherwise TODO
-		return false
-	}
-	if trigger == runtime.Application() {
-		return handleOperation(operation, args, ctx, cfg)
-	}
-	return true
-}
-
-func handleOperation(op string, args []interface{}, ctx storage.Context, cfg TokenConfig) interface{} {
-	// NEP-5 handlers
-	if op == "name" {
-		return cfg.Name
-	}
-	if op == "decimals" {
-		return cfg.Decimals
-	}
-	if op == "symbol" {
-		return cfg.Symbol
-	}
-	if op == "totalSupply" {
-		return storage.Get(ctx, cfg.CirculationKey)
-	}
-	if op == "balanceOf" {
-		if len(args) == 1 {
-			return storage.Get(ctx, args[0].([]byte))
-		}
-	}
-	if op == "transfer" {
-		if len(args) != 3 {
-			return false
-		}
-		from := args[0].([]byte)
-		to := args[1].([]byte)
-		amount := args[2].(int)
-		return transfer(cfg, ctx, from, to, amount)
-	}
-	if op == "transferFrom" {
-		if len(args) != 3 {
-			return false
-		}
-		from := args[0].([]byte)
-		to := args[1].([]byte)
-		amount := args[2].(int)
-		return transferFrom(cfg, ctx, from, to, amount)
-	}
-	if op == "approve" {
-		if len(args) != 3 {
-			return false
-		}
-		from := args[0].([]byte)
-		to := args[1].([]byte)
-		amount := args[2].(int)
-		return approve(ctx, from, to, amount)
-	}
-	if op == "allowance" {
-		if len(args) != 2 {
-			return false
-		}
-		from := args[0].([]byte)
-		to := args[1].([]byte)
-		return allowance(ctx, from, to)
+		return runtime.CheckWitness(token.Owner)
 	}
 	return false
 }
 
-func transfer(cfg TokenConfig, ctx storage.Context, from, to []byte, amount int) bool {
+// Name returns the token name
+func Name() interface{} {
+	if trigger != runtime.Application {
+		return false
+	}
+	return token.Name
+}
+
+// Decimals returns the token decimals
+func Decimals() interface{} {
+	if trigger != runtime.Application {
+		return false
+	}
+	return token.Decimals
+}
+
+// Symbol returns the token symbol
+func Symbol() interface{} {
+	if trigger != runtime.Application {
+		return false
+	}
+	return token.Symbol
+}
+
+// TotalSupply returns the token total supply value
+func TotalSupply() interface{} {
+	if trigger != runtime.Application {
+		return false
+	}
+	return getIntFromDB(ctx, token.CirculationKey)
+}
+
+// BalanceOf returns the amount of token on the specified address
+func BalanceOf(holder []byte) interface{} {
+	if trigger != runtime.Application {
+		return false
+	}
+	return getIntFromDB(ctx, holder)
+}
+
+// Transfer transfers specified amount of token from one user to another
+func Transfer(from, to []byte, amount int) bool {
+	if trigger != runtime.Application {
+		return false
+	}
 	if amount <= 0 || len(to) != 20 || !runtime.CheckWitness(from) {
 		return false
 	}
-	amountFrom := storage.Get(ctx, from).(int)
+	amountFrom := getIntFromDB(ctx, from)
 	if amountFrom < amount {
 		return false
 	}
@@ -187,13 +185,19 @@ func transfer(cfg TokenConfig, ctx storage.Context, from, to []byte, amount int)
 		diff := amountFrom - amount
 		storage.Put(ctx, from, diff)
 	}
-	amountTo := storage.Get(ctx, to).(int)
+	amountTo := getIntFromDB(ctx, to)
 	totalAmountTo := amountTo + amount
 	storage.Put(ctx, to, totalAmountTo)
 	return true
 }
 
-func transferFrom(cfg TokenConfig, ctx storage.Context, from, to []byte, amount int) bool {
+// TransferFrom transfers specified amount of token from one user to another.
+// It differs from Transfer in that it use allowance value to store the amount
+// of token available to transfer.
+func TransferFrom(from, to []byte, amount int) bool {
+	if trigger != runtime.Application {
+		return false
+	}
 	if amount <= 0 {
 		return false
 	}
@@ -201,15 +205,15 @@ func transferFrom(cfg TokenConfig, ctx storage.Context, from, to []byte, amount 
 	if len(availableKey) != 40 {
 		return false
 	}
-	availableTo := storage.Get(ctx, availableKey).(int)
+	availableTo := getIntFromDB(ctx, availableKey)
 	if availableTo < amount {
 		return false
 	}
-	fromBalance := storage.Get(ctx, from).(int)
+	fromBalance := getIntFromDB(ctx, from)
 	if fromBalance < amount {
 		return false
 	}
-	toBalance := storage.Get(ctx, to).(int)
+	toBalance := getIntFromDB(ctx, to)
 	newFromBalance := fromBalance - amount
 	newToBalance := toBalance + amount
 	storage.Put(ctx, to, newToBalance)
@@ -224,14 +228,15 @@ func transferFrom(cfg TokenConfig, ctx storage.Context, from, to []byte, amount 
 	return true
 }
 
-func approve(ctx storage.Context, owner, spender []byte, amount int) bool {
-	if !runtime.CheckWitness(owner) || amount < 0 {
+// Approve stores token transfer data if the owner has enough token to send.
+func Approve(owner, spender []byte, amount int) bool {
+	if !checkOwnerWitness() || amount < 0 {
 		return false
 	}
 	if len(spender) != 20 {
 		return false
 	}
-	toSpend := storage.Get(ctx, owner).(int)
+	toSpend := getIntFromDB(ctx, owner)
 	if toSpend < amount {
 		return false
 	}
@@ -244,7 +249,11 @@ func approve(ctx storage.Context, owner, spender []byte, amount int) bool {
 	return true
 }
 
-func allowance(ctx storage.Context, from, to []byte) int {
+// Allowance returns allowance value for specified sender and receiver.
+func Allowance(from, to []byte) interface{} {
+	if trigger != runtime.Application {
+		return false
+	}
 	key := append(from, to...)
-	return storage.Get(ctx, key).(int)
+	return getIntFromDB(ctx, key)
 }

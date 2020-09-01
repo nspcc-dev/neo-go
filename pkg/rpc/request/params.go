@@ -7,20 +7,19 @@ type (
 
 // Value returns the param struct for the given
 // index if it exists.
-func (p Params) Value(index int) (*Param, bool) {
+func (p Params) Value(index int) *Param {
 	if len(p) > index {
-		return &p[index], true
+		return &p[index]
 	}
 
-	return nil, false
+	return nil
 }
 
 // ValueWithType returns the param struct at the given index if it
 // exists and matches the given type.
-func (p Params) ValueWithType(index int, valType paramType) (*Param, bool) {
-	if val, ok := p.Value(index); ok && val.Type == valType {
-		return val, true
+func (p Params) ValueWithType(index int, valType paramType) *Param {
+	if val := p.Value(index); val != nil && val.Type == valType {
+		return val
 	}
-
-	return nil, false
+	return nil
 }

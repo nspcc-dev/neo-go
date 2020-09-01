@@ -1,6 +1,8 @@
 package smartcontract
 
 import (
+	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"math"
 	"reflect"
@@ -30,11 +32,11 @@ var marshalJSONTestCases = []struct {
 	},
 	{
 		input:  Parameter{Type: ByteArrayType, Value: []byte{0x01, 0x02, 0x03}},
-		result: `{"type":"ByteArray","value":"010203"}`,
+		result: `{"type":"ByteString","value":"` + hexToBase64("010203") + `"}`,
 	},
 	{
 		input:  Parameter{Type: ByteArrayType},
-		result: `{"type":"ByteArray","value":null}`,
+		result: `{"type":"ByteString","value":null}`,
 	},
 	{
 		input: Parameter{
@@ -66,8 +68,8 @@ var marshalJSONTestCases = []struct {
 					}},
 			},
 		},
-		result: `{"type":"Array","value":[{"type":"ByteArray","value":"0102"},{"type":"Array","value":[` +
-			`{"type":"ByteArray","value":"030201"},{"type":"ByteArray","value":"070809"}]}]}`,
+		result: `{"type":"Array","value":[{"type":"ByteString","value":"` + hexToBase64("0102") + `"},{"type":"Array","value":[` +
+			`{"type":"ByteString","value":"` + hexToBase64("030201") + `"},{"type":"ByteString","value":"` + hexToBase64("070809") + `"}]}]}`,
 	},
 	{
 		input: Parameter{
@@ -122,15 +124,25 @@ var marshalJSONTestCases = []struct {
 		},
 		result: `{"type":"Hash256","value":"0xf037308fa0ab18155bccfc08485468c112409ea5064595699e98c545f245f32d"}`,
 	},
+	{
+		input: Parameter{
+			Type:  InteropInterfaceType,
+			Value: nil,
+		},
+		result: `{"type":"InteropInterface","value":null}`,
+	},
+	{
+		input: Parameter{
+			Type:  ArrayType,
+			Value: []Parameter{},
+		},
+		result: `{"type":"Array","value":[]}`,
+	},
 }
 
 var marshalJSONErrorCases = []Parameter{
 	{
 		Type:  UnknownType,
-		Value: nil,
-	},
-	{
-		Type:  InteropInterfaceType,
 		Value: nil,
 	},
 	{
@@ -141,7 +153,7 @@ var marshalJSONErrorCases = []Parameter{
 
 func TestParam_MarshalJSON(t *testing.T) {
 	for _, tc := range marshalJSONTestCases {
-		res, err := json.Marshal(&tc.input)
+		res, err := json.Marshal(tc.input)
 		assert.NoError(t, err)
 		var actual, expected Parameter
 		assert.NoError(t, json.Unmarshal(res, &actual))
@@ -173,7 +185,7 @@ var unmarshalJSONTestCases = []struct {
 		result: Parameter{Type: IntegerType, Value: int64(12345)},
 	},
 	{
-		input:  `{"type":"ByteArray","value":"010203"}`,
+		input:  `{"type":"ByteString","value":"` + hexToBase64("010203") + `"}`,
 		result: Parameter{Type: ByteArrayType, Value: []byte{0x01, 0x02, 0x03}},
 	},
 	{
@@ -252,12 +264,33 @@ var unmarshalJSONTestCases = []struct {
 		},
 		input: `{"type":"PublicKey","value":"03b3bf1502fbdc05449b506aaf04579724024b06542e49262bfaa3f70e200040a9"}`,
 	},
+	{
+		input: `{"type":"InteropInterface","value":null}`,
+		result: Parameter{
+			Type:  InteropInterfaceType,
+			Value: nil,
+		},
+	},
+	{
+		input: `{"type":"InteropInterface","value":""}`,
+		result: Parameter{
+			Type:  InteropInterfaceType,
+			Value: nil,
+		},
+	},
+	{
+		input: `{"type":"InteropInterface","value":"Hundertwasser"}`,
+		result: Parameter{
+			Type:  InteropInterfaceType,
+			Value: nil,
+		},
+	},
 }
 
 var unmarshalJSONErrorCases = []string{
-	`{"type": "ByteArray","value":`,        // incorrect JSON
-	`{"type": "ByteArray","value":1}`,      // incorrect Value
-	`{"type": "ByteArray","value":"12zz"}`, // incorrect ByteArray value
+	`{"type": "ByteString","value":`,       // incorrect JSON
+	`{"type": "ByteString","value":1}`,     // incorrect Value
+	`{"type": "ByteString","value":"12^"}`, // incorrect ByteArray value
 	`{"type": "String","value":`,           // incorrect JSON
 	`{"type": "String","value":1}`,         // incorrect Value
 	`{"type": "Integer","value": "nn"}`,    // incorrect Integer value
@@ -272,8 +305,6 @@ var unmarshalJSONErrorCases = []string{
 	`{"type": "Map","value": ["key": {}]}`, // incorrect Map value
 	`{"type": "Map","value": ["key": {"type":"String", "value":"qwer"}, "value": {"type":"Boolean"}]}`, // incorrect Map Value value
 	`{"type": "Map","value": ["key": {"type":"String"}, "value": {"type":"Boolean", "value":true}]}`,   // incorrect Map Key value
-
-	`{"type": "InteropInterface","value": ""}`, // ununmarshable type
 }
 
 func TestParam_UnmarshalJSON(t *testing.T) {
@@ -474,4 +505,9 @@ func TestEncodeDecodeBinary(t *testing.T) {
 
 		require.Error(t, testserdes.DecodeBinary([]byte{0xAA}, &p))
 	})
+}
+
+func hexToBase64(s string) string {
+	b, _ := hex.DecodeString(s)
+	return base64.StdEncoding.EncodeToString(b)
 }

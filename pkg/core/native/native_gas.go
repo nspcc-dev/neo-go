@@ -8,11 +8,8 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
-	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
-	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/nspcc-dev/neo-go/pkg/vm"
 )
 
 // GAS represents GAS native contract.
@@ -21,7 +18,8 @@ type GAS struct {
 	NEO *NEO
 }
 
-const gasSyscallName = "Neo.Native.Tokens.GAS"
+const gasName = "GAS"
+const gasContractID = -2
 
 // GASFactor is a divisor for finding GAS integral value.
 const GASFactor = NEOTotalSupply
@@ -30,20 +28,19 @@ const initialGAS = 30000000
 // NewGAS returns GAS native contract.
 func NewGAS() *GAS {
 	g := &GAS{}
-	nep5 := newNEP5Native(gasSyscallName)
-	nep5.name = "GAS"
+	nep5 := newNEP5Native(gasName)
 	nep5.symbol = "gas"
 	nep5.decimals = 8
 	nep5.factor = GASFactor
-	nep5.onPersist = chainOnPersist(g.onPersist, g.OnPersist)
+	nep5.onPersist = chainOnPersist(nep5.OnPersist, g.OnPersist)
 	nep5.incBalance = g.increaseBalance
+	nep5.ContractID = gasContractID
 
 	g.nep5TokenNative = *nep5
 
-	desc := newDescriptor("getSysFeeAmount", smartcontract.IntegerType,
-		manifest.NewParameter("index", smartcontract.IntegerType))
-	md := newMethodAndPrice(g.getSysFeeAmount, 1, smartcontract.NoneFlag)
-	g.AddMethod(md, desc, true)
+	onp := g.Methods["onPersist"]
+	onp.Func = getOnPersistWrapper(g.onPersist)
+	g.Methods["onPersist"] = onp
 
 	return g
 }
@@ -59,7 +56,11 @@ func (g *GAS) increaseBalance(_ *interop.Context, _ util.Uint160, si *state.Stor
 		return errors.New("insufficient funds")
 	}
 	acc.Balance.Add(&acc.Balance, amount)
-	si.Value = acc.Bytes()
+	if acc.Balance.Sign() != 0 {
+		si.Value = acc.Bytes()
+	} else {
+		si.Value = nil
+	}
 	return nil
 }
 
@@ -68,10 +69,10 @@ func (g *GAS) Initialize(ic *interop.Context) error {
 	if err := g.nep5TokenNative.Initialize(ic); err != nil {
 		return err
 	}
-	if g.nep5TokenNative.getTotalSupply(ic).Sign() != 0 {
+	if g.nep5TokenNative.getTotalSupply(ic.DAO).Sign() != 0 {
 		return errors.New("already initialized")
 	}
-	h, _, err := getStandbyValidatorsHash(ic)
+	h, err := getStandbyValidatorsHash(ic)
 	if err != nil {
 		return err
 	}
@@ -81,16 +82,19 @@ func (g *GAS) Initialize(ic *interop.Context) error {
 
 // OnPersist implements Contract interface.
 func (g *GAS) OnPersist(ic *interop.Context) error {
-	for _, tx := range ic.Block.Transactions {
-		absAmount := big.NewInt(int64(tx.SystemFee + tx.NetworkFee))
-		g.burn(ic, tx.Sender, absAmount)
+	if len(ic.Block.Transactions) == 0 {
+		return nil
 	}
-	validators, err := g.NEO.GetValidatorsInternal(ic.Chain, ic.DAO)
+	for _, tx := range ic.Block.Transactions {
+		absAmount := big.NewInt(tx.SystemFee + tx.NetworkFee)
+		g.burn(ic, tx.Sender(), absAmount)
+	}
+	validators, err := g.NEO.getNextBlockValidatorsInternal(ic.Chain, ic.DAO)
 	if err != nil {
-		return fmt.Errorf("cannot get block validators: %v", err)
+		return fmt.Errorf("can't get block validators: %w", err)
 	}
 	primary := validators[ic.Block.ConsensusData.PrimaryIndex].GetScriptHash()
-	var netFee util.Fixed8
+	var netFee int64
 	for _, tx := range ic.Block.Transactions {
 		netFee += tx.NetworkFee
 	}
@@ -98,26 +102,12 @@ func (g *GAS) OnPersist(ic *interop.Context) error {
 	return nil
 }
 
-func (g *GAS) getSysFeeAmount(ic *interop.Context, args []vm.StackItem) vm.StackItem {
-	index := toBigInt(args[0])
-	h := ic.Chain.GetHeaderHash(int(index.Int64()))
-	_, sf, err := ic.DAO.GetBlock(h)
+func getStandbyValidatorsHash(ic *interop.Context) (util.Uint160, error) {
+	s, err := smartcontract.CreateDefaultMultiSigRedeemScript(ic.Chain.GetStandByValidators())
 	if err != nil {
-		panic(err)
+		return util.Uint160{}, err
 	}
-	return vm.NewBigIntegerItem(big.NewInt(int64(sf)))
-}
-
-func getStandbyValidatorsHash(ic *interop.Context) (util.Uint160, []*keys.PublicKey, error) {
-	vs, err := ic.Chain.GetStandByValidators()
-	if err != nil {
-		return util.Uint160{}, nil, err
-	}
-	s, err := smartcontract.CreateMultiSigRedeemScript(len(vs)/2+1, vs)
-	if err != nil {
-		return util.Uint160{}, nil, err
-	}
-	return hash.Hash160(s), vs, nil
+	return hash.Hash160(s), nil
 }
 
 func chainOnPersist(fs ...func(*interop.Context) error) func(*interop.Context) error {

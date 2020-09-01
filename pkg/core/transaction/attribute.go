@@ -1,8 +1,9 @@
 package transaction
 
 import (
-	"encoding/hex"
+	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"github.com/nspcc-dev/neo-go/pkg/io"
@@ -10,37 +11,25 @@ import (
 
 // Attribute represents a Transaction attribute.
 type Attribute struct {
-	Usage AttrUsage `json:"usage"`
-	Data  []byte    `json:"data"`
+	Type AttrType
+	Data []byte
+}
+
+// attrJSON is used for JSON I/O of Attribute.
+type attrJSON struct {
+	Type string `json:"type"`
+	Data string `json:"data"`
 }
 
 // DecodeBinary implements Serializable interface.
 func (attr *Attribute) DecodeBinary(br *io.BinReader) {
-	attr.Usage = AttrUsage(br.ReadB())
+	attr.Type = AttrType(br.ReadB())
 
-	// very special case
-	if attr.Usage == ECDH02 || attr.Usage == ECDH03 {
-		attr.Data = make([]byte, 33)
-		attr.Data[0] = byte(attr.Usage)
-		br.ReadBytes(attr.Data[1:])
-		return
-	}
 	var datasize uint64
-	switch attr.Usage {
-	case ContractHash, Vote, Hash1, Hash2, Hash3, Hash4, Hash5,
-		Hash6, Hash7, Hash8, Hash9, Hash10, Hash11, Hash12, Hash13,
-		Hash14, Hash15:
-		datasize = 32
-	case DescriptionURL:
-		// It's not VarUint as per C# implementation, dunno why
-		var urllen = br.ReadB()
-		datasize = uint64(urllen)
-	case Description, Remark, Remark1, Remark2, Remark3, Remark4,
-		Remark5, Remark6, Remark7, Remark8, Remark9, Remark10, Remark11,
-		Remark12, Remark13, Remark14, Remark15:
-		datasize = br.ReadVarUint()
+	switch attr.Type {
+	case HighPriority:
 	default:
-		br.Err = fmt.Errorf("failed decoding TX attribute usage: 0x%2x", int(attr.Usage))
+		br.Err = fmt.Errorf("failed decoding TX attribute usage: 0x%2x", int(attr.Type))
 		return
 	}
 	attr.Data = make([]byte, datasize)
@@ -49,29 +38,40 @@ func (attr *Attribute) DecodeBinary(br *io.BinReader) {
 
 // EncodeBinary implements Serializable interface.
 func (attr *Attribute) EncodeBinary(bw *io.BinWriter) {
-	bw.WriteB(byte(attr.Usage))
-	switch attr.Usage {
-	case ECDH02, ECDH03:
-		bw.WriteBytes(attr.Data[1:])
-	case Description, Remark, Remark1, Remark2, Remark3, Remark4,
-		Remark5, Remark6, Remark7, Remark8, Remark9, Remark10, Remark11,
-		Remark12, Remark13, Remark14, Remark15:
-		bw.WriteVarBytes(attr.Data)
-	case DescriptionURL:
-		bw.WriteB(byte(len(attr.Data)))
-		fallthrough
-	case ContractHash, Vote, Hash1, Hash2, Hash3, Hash4, Hash5, Hash6,
-		Hash7, Hash8, Hash9, Hash10, Hash11, Hash12, Hash13, Hash14, Hash15:
-		bw.WriteBytes(attr.Data)
+	bw.WriteB(byte(attr.Type))
+	switch attr.Type {
+	case HighPriority:
 	default:
-		bw.Err = fmt.Errorf("failed encoding TX attribute usage: 0x%2x", attr.Usage)
+		bw.Err = fmt.Errorf("failed encoding TX attribute usage: 0x%2x", attr.Type)
 	}
 }
 
 // MarshalJSON implements the json Marshaller interface.
 func (attr *Attribute) MarshalJSON() ([]byte, error) {
-	return json.Marshal(map[string]string{
-		"usage": attr.Usage.String(),
-		"data":  hex.EncodeToString(attr.Data),
+	return json.Marshal(attrJSON{
+		Type: attr.Type.String(),
+		Data: base64.StdEncoding.EncodeToString(attr.Data),
 	})
+}
+
+// UnmarshalJSON implements the json.Unmarshaller interface.
+func (attr *Attribute) UnmarshalJSON(data []byte) error {
+	aj := new(attrJSON)
+	err := json.Unmarshal(data, aj)
+	if err != nil {
+		return err
+	}
+	binData, err := base64.StdEncoding.DecodeString(aj.Data)
+	if err != nil {
+		return err
+	}
+	switch aj.Type {
+	case "HighPriority":
+		attr.Type = HighPriority
+	default:
+		return errors.New("wrong Type")
+
+	}
+	attr.Data = binData
+	return nil
 }

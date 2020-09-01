@@ -79,9 +79,8 @@ services:
     command: "node --config-path /config --privnet"
     volumes:
       - ../config/protocol.privnet.docker.single.yml:/config/protocol.privnet.yml
-      - ./wallets/wallet1.json:/wallet1.json
+      - ./wallets/wallet1_solo.json:/wallet1.json
       - volume_chain:/chains
-      - ./1600-privnet-blocks-single.acc.gz:/privnet-blocks.acc.gz
     networks:
       neo_go_network:
         ipv4_address: 172.200.0.1

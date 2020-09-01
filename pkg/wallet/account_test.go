@@ -66,7 +66,7 @@ func TestNewAccountFromEncryptedWIF(t *testing.T) {
 func TestContract_MarshalJSON(t *testing.T) {
 	var c Contract
 
-	data := []byte(`{"script":"0102","parameters":[{"name":"name0", "type":"Signature"}],"deployed":false}`)
+	data := []byte(`{"script":"AQI=","parameters":[{"name":"name0", "type":"Signature"}],"deployed":false}`)
 	require.NoError(t, json.Unmarshal(data, &c))
 	require.Equal(t, []byte{1, 2}, c.Script)
 
@@ -113,13 +113,13 @@ func TestAccount_ConvertMultisig(t *testing.T) {
 	t.Run("1/1 multisig", func(t *testing.T) {
 		pubs := convertPubs(t, hexs[:1])
 		require.NoError(t, a.ConvertMultisig(1, pubs))
-		require.Equal(t, "AUhsL7QeeomkuzxZexPTa11xNXrbsBrGVc", a.Address)
+		require.Equal(t, "NVNvVRW5Q5naSx2k2iZm7xRgtRNGuZppAK", a.Address)
 	})
 
 	t.Run("3/4 multisig", func(t *testing.T) {
 		pubs := convertPubs(t, hexs)
 		require.NoError(t, a.ConvertMultisig(3, pubs))
-		require.Equal(t, "AXSvJVzydxXuL9da4GVwK25zdesCrVKkHL", a.Address)
+		require.Equal(t, "NUVPACMnKFhpuHjsRjhUvXz1XhqfGZYVtY", a.Address)
 	})
 }
 

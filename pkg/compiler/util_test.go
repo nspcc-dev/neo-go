@@ -23,7 +23,9 @@ func TestSHA256(t *testing.T) {
 	`
 	v := vmAndCompile(t, src)
 	ic := &interop.Context{Trigger: trigger.Verification}
-	v.RegisterInteropGetter(crypto.GetInterop(ic))
+	ic.VM = v
+	crypto.Register(ic)
+	v.SyscallHandler = ic.SyscallHandler
 	require.NoError(t, v.Run())
 	require.True(t, v.Estack().Len() >= 1)
 

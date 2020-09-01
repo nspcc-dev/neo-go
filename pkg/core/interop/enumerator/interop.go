@@ -6,22 +6,22 @@ import (
 )
 
 // Concat concatenates 2 enumerators into a single one.
-func Concat(_ *interop.Context, v *vm.VM) error {
-	return vm.EnumeratorConcat(v)
+func Concat(ic *interop.Context) error {
+	return vm.EnumeratorConcat(ic.VM)
 }
 
-// Create creates an enumerator from an array-like stack item.
-func Create(_ *interop.Context, v *vm.VM) error {
-	return vm.EnumeratorCreate(v)
+// Create creates an enumerator from an array-like or bytearray-like stack item.
+func Create(ic *interop.Context) error {
+	return vm.EnumeratorCreate(ic.VM)
 }
 
 // Next advances the enumerator, pushes true if is it was successful
 // and false otherwise.
-func Next(_ *interop.Context, v *vm.VM) error {
-	return vm.EnumeratorNext(v)
+func Next(ic *interop.Context) error {
+	return vm.EnumeratorNext(ic.VM)
 }
 
 // Value returns the current value of the enumerator.
-func Value(_ *interop.Context, v *vm.VM) error {
-	return vm.EnumeratorValue(v)
+func Value(ic *interop.Context) error {
+	return vm.EnumeratorValue(ic.VM)
 }

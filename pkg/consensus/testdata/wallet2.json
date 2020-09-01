@@ -1,12 +1,12 @@
 {
-  "version": "1.0",
+  "version": "3.0",
   "accounts": [
     {
-      "address": "AJjSSuKdC88zWvXnZQbEfL21cm74pGJhsF",
-      "key": "6PYLZTVkK3RoPU8PSAUPHfnu4Py2JcJfeT92FS77DDakRRLcrNu2uCY46Q",
+      "address": "NWvKSwutC8D6VKmmPxAEgFKx2NLvFhn8q5",
+      "key": "6PYKEHagXJ3mDLdga1FoyTGRtPdJgPz6Gb8sjEFwZvRu7ncD9PVZfHtMzL",
       "label": "",
       "contract": {
-        "script": "0c2102103a7f7dd016558597f7960d27c516a4394fd968b9e65155eb4b013e4040406e0b410a906ad4",
+        "script": "DCECEDp/fdAWVYWX95YNJ8UWpDlP2Wi55lFV60sBPkBAQG4LQZVEDXg=",
         "parameters": [
           {
             "name": "parameter0",
@@ -16,14 +16,14 @@
         "deployed": false
       },
       "lock": false,
-      "isDefault": false
+      "isdefault": false
     },
     {
-      "address": "AXSvJVzydxXuL9da4GVwK25zdesCrVKkHL",
-      "key": "6PYLZTVkK3RoPU8PSAUPHfnu4Py2JcJfeT92FS77DDakRRLcrNu2uCY46Q",
+      "address": "NUVPACMnKFhpuHjsRjhUvXz1XhqfGZYVtY",
+      "key": "6PYKEHagXJ3mDLdga1FoyTGRtPdJgPz6Gb8sjEFwZvRu7ncD9PVZfHtMzL",
       "label": "",
       "contract": {
-        "script": "130c2102103a7f7dd016558597f7960d27c516a4394fd968b9e65155eb4b013e4040406e0c2102a7bc55fe8684e0119768d104ba30795bdcc86619e864add26156723ed185cd620c2102b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc20c2103d90c07df63e690ce77912e10ab51acc944b66860237b608c4f8f8309e71ee699140b413073b3bb",
+        "script": "EwwhAhA6f33QFlWFl/eWDSfFFqQ5T9loueZRVetLAT5AQEBuDCECp7xV/oaE4BGXaNEEujB5W9zIZhnoZK3SYVZyPtGFzWIMIQKzYiv0AXvf4xfFiu1fTHU/IGt9uJYEb6fXdLvEv3+NwgwhA9kMB99j5pDOd5EuEKtRrMlEtmhgI3tgjE+PgwnnHuaZFAtBE43vrw==",
         "parameters": [
           {
             "name": "parameter0",
@@ -41,7 +41,7 @@
         "deployed": false
       },
       "lock": false,
-      "isDefault": false
+      "isdefault": false
     }
   ],
   "scrypt": {

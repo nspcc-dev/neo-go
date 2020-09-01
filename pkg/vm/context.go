@@ -9,6 +9,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
 // Context represents the current execution context of the VM.
@@ -25,23 +26,27 @@ type Context struct {
 	// Breakpoints.
 	breakPoints []int
 
-	// Return value count, -1 is unspecified.
-	rvcount int
-
 	// Evaluation stack pointer.
 	estack *Stack
 
-	// Alt stack pointer.
-	astack *Stack
-
+	static    *Slot
 	local     *Slot
 	arguments *Slot
+
+	// Exception context stack pointer.
+	tryStack *Stack
 
 	// Script hash of the prog.
 	scriptHash util.Uint160
 
-	// Whether it's allowed to make dynamic calls from this context.
-	hasDynamicInvoke bool
+	// Caller's contract script hash.
+	callingScriptHash util.Uint160
+
+	// Call flags this context was created with.
+	callFlag smartcontract.CallFlag
+
+	// CheckReturn specifies if amount of return values needs to be checked.
+	CheckReturn bool
 }
 
 var errNoInstParam = errors.New("failed to read instruction parameter")
@@ -51,7 +56,6 @@ func NewContext(b []byte) *Context {
 	return &Context{
 		prog:        b,
 		breakPoints: []int{},
-		rvcount:     -1,
 	}
 }
 
@@ -77,12 +81,6 @@ func (c *Context) Next() (opcode.Opcode, []byte, error) {
 
 	var numtoread int
 	switch instr {
-	case opcode.OLDPUSH1:
-		// OLDPUSH1 is used during transition to NEO3 in verification scripts.
-		// FIXME remove #927
-		if len(c.prog) == 1 {
-			return opcode.PUSH1, nil, nil
-		}
 	case opcode.PUSHDATA1:
 		if c.nextip >= len(c.prog) {
 			err = errNoInstParam
@@ -102,7 +100,7 @@ func (c *Context) Next() (opcode.Opcode, []byte, error) {
 			err = errNoInstParam
 		} else {
 			var n = binary.LittleEndian.Uint32(c.prog[c.nextip : c.nextip+4])
-			if n > MaxItemSize {
+			if n > stackitem.MaxSize {
 				return instr, nil, errors.New("parameter is too big")
 			}
 			numtoread = int(n)
@@ -111,14 +109,18 @@ func (c *Context) Next() (opcode.Opcode, []byte, error) {
 	case opcode.JMP, opcode.JMPIF, opcode.JMPIFNOT, opcode.JMPEQ, opcode.JMPNE,
 		opcode.JMPGT, opcode.JMPGE, opcode.JMPLT, opcode.JMPLE,
 		opcode.CALL, opcode.ISTYPE, opcode.CONVERT, opcode.NEWARRAYT,
+		opcode.ENDTRY,
 		opcode.INITSSLOT, opcode.LDSFLD, opcode.STSFLD, opcode.LDARG, opcode.STARG, opcode.LDLOC, opcode.STLOC:
 		numtoread = 1
-	case opcode.INITSLOT:
+	case opcode.INITSLOT, opcode.TRY:
 		numtoread = 2
 	case opcode.JMPL, opcode.JMPIFL, opcode.JMPIFNOTL, opcode.JMPEQL, opcode.JMPNEL,
 		opcode.JMPGTL, opcode.JMPGEL, opcode.JMPLTL, opcode.JMPLEL,
+		opcode.ENDTRYL,
 		opcode.CALLL, opcode.SYSCALL, opcode.PUSHA:
 		numtoread = 4
+	case opcode.TRYL:
+		numtoread = 8
 	default:
 		if instr <= opcode.PUSHINT256 {
 			numtoread = 1 << instr
@@ -139,11 +141,9 @@ func (c *Context) Next() (opcode.Opcode, []byte, error) {
 	return instr, parameter, nil
 }
 
-// IP returns the absolute instruction without taking 0 into account.
-// If that program starts the ip = 0 but IP() will return 1, cause its
-// the first instruction.
+// IP returns current instruction offset in the context script.
 func (c *Context) IP() int {
-	return c.ip + 1
+	return c.ip
 }
 
 // LenInstr returns the number of instructions loaded.
@@ -163,6 +163,11 @@ func (c *Context) Copy() *Context {
 	return ctx
 }
 
+// GetCallFlags returns calling flags context was created with.
+func (c *Context) GetCallFlags() smartcontract.CallFlag {
+	return c.callFlag
+}
+
 // Program returns the loaded program.
 func (c *Context) Program() []byte {
 	return c.prog
@@ -176,53 +181,45 @@ func (c *Context) ScriptHash() util.Uint160 {
 	return c.scriptHash
 }
 
-// Value implements StackItem interface.
+// Value implements stackitem.Item interface.
 func (c *Context) Value() interface{} {
 	return c
 }
 
-// Dup implements StackItem interface.
-func (c *Context) Dup() StackItem {
+// Dup implements stackitem.Item interface.
+func (c *Context) Dup() stackitem.Item {
 	return c
 }
 
-// Bool implements StackItem interface.
-func (c *Context) Bool() bool { panic("can't convert Context to Bool") }
+// TryBool implements stackitem.Item interface.
+func (c *Context) TryBool() (bool, error) { panic("can't convert Context to Bool") }
 
-// TryBytes implements StackItem interface.
+// TryBytes implements stackitem.Item interface.
 func (c *Context) TryBytes() ([]byte, error) {
 	return nil, errors.New("can't convert Context to ByteArray")
 }
 
-// TryInteger implements StackItem interface.
+// TryInteger implements stackitem.Item interface.
 func (c *Context) TryInteger() (*big.Int, error) {
 	return nil, errors.New("can't convert Context to Integer")
 }
 
-// Type implements StackItem interface.
-func (c *Context) Type() StackItemType { panic("Context cannot appear on evaluation stack") }
+// Type implements stackitem.Item interface.
+func (c *Context) Type() stackitem.Type { panic("Context cannot appear on evaluation stack") }
 
-// Convert implements StackItem interface.
-func (c *Context) Convert(_ StackItemType) (StackItem, error) {
+// Convert implements stackitem.Item interface.
+func (c *Context) Convert(_ stackitem.Type) (stackitem.Item, error) {
 	panic("Context cannot be converted to anything")
 }
 
-// Equals implements StackItem interface.
-func (c *Context) Equals(s StackItem) bool {
+// Equals implements stackitem.Item interface.
+func (c *Context) Equals(s stackitem.Item) bool {
 	return c == s
-}
-
-// ToContractParameter implements StackItem interface.
-func (c *Context) ToContractParameter(map[StackItem]bool) smartcontract.Parameter {
-	return smartcontract.Parameter{
-		Type:  smartcontract.StringType,
-		Value: c.String(),
-	}
 }
 
 func (c *Context) atBreakPoint() bool {
 	for _, n := range c.breakPoints {
-		if n == c.ip {
+		if n == c.nextip {
 			return true
 		}
 	}

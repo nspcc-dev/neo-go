@@ -1,25 +1,38 @@
 package vm
 
+import (
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
+)
+
 // Slot is a fixed-size slice of stack items.
 type Slot struct {
-	storage []StackItem
+	storage []stackitem.Item
 	refs    *refCounter
 }
 
-// newSlot returns new slot of n items.
-func newSlot(n int, refs *refCounter) *Slot {
+// newSlot returns new slot with the provided reference counter.
+func newSlot(refs *refCounter) *Slot {
 	return &Slot{
-		storage: make([]StackItem, n),
-		refs:    refs,
+		refs: refs,
 	}
 }
 
+// init sets static slot size to n. It is intended to be used only by INITSSLOT.
+func (s *Slot) init(n int) {
+	if s.storage != nil {
+		panic("already initialized")
+	}
+	s.storage = make([]stackitem.Item, n)
+}
+
 func (v *VM) newSlot(n int) *Slot {
-	return newSlot(n, v.refs)
+	s := newSlot(v.refs)
+	s.init(n)
+	return s
 }
 
 // Set sets i-th storage slot.
-func (s *Slot) Set(i int, item StackItem) {
+func (s *Slot) Set(i int, item stackitem.Item) {
 	if s.storage[i] == item {
 		return
 	}
@@ -32,12 +45,24 @@ func (s *Slot) Set(i int, item StackItem) {
 }
 
 // Get returns item contained in i-th slot.
-func (s *Slot) Get(i int) StackItem {
+func (s *Slot) Get(i int) stackitem.Item {
 	if item := s.storage[i]; item != nil {
 		return item
 	}
-	return NullItem{}
+	return stackitem.Null{}
+}
+
+// Clear removes all slot variables from reference counter.
+func (s *Slot) Clear() {
+	for _, item := range s.storage {
+		s.refs.Remove(item)
+	}
 }
 
 // Size returns slot size.
-func (s *Slot) Size() int { return len(s.storage) }
+func (s *Slot) Size() int {
+	if s.storage == nil {
+		panic("not initialized")
+	}
+	return len(s.storage)
+}

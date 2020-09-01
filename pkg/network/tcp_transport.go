@@ -3,6 +3,7 @@ package network
 import (
 	"net"
 	"regexp"
+	"sync"
 	"time"
 
 	"go.uber.org/zap"
@@ -14,6 +15,7 @@ type TCPTransport struct {
 	server   *Server
 	listener net.Listener
 	bindAddr string
+	lock     sync.RWMutex
 }
 
 var reClosedNetwork = regexp.MustCompile(".* use of closed network connection")
@@ -47,7 +49,9 @@ func (t *TCPTransport) Accept() {
 		return
 	}
 
+	t.lock.Lock()
 	t.listener = l
+	t.lock.Unlock()
 
 	for {
 		conn, err := l.Accept()
@@ -83,4 +87,14 @@ func (t *TCPTransport) Close() {
 // Proto implements the Transporter interface.
 func (t *TCPTransport) Proto() string {
 	return "tcp"
+}
+
+// Address implements the Transporter interface.
+func (t *TCPTransport) Address() string {
+	t.lock.RLock()
+	defer t.lock.RUnlock()
+	if t.listener != nil {
+		return t.listener.Addr().String()
+	}
+	return ""
 }

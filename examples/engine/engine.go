@@ -1,23 +1,29 @@
 package enginecontract
 
 import (
-	"github.com/nspcc-dev/neo-go/pkg/interop/engine"
 	"github.com/nspcc-dev/neo-go/pkg/interop/runtime"
 )
 
-// Main is that famous Main() function, you know.
-func Main() bool {
-	tx := engine.GetScriptContainer()
-	runtime.Notify(tx)
+// NotifyScriptContainer sends runtime notification with script container hash
+func NotifyScriptContainer() {
+	tx := runtime.GetScriptContainer()
+	runtime.Notify("Tx", tx.Hash)
+}
 
-	callingScriptHash := engine.GetCallingScriptHash()
-	runtime.Notify(callingScriptHash)
+// NotifyCallingScriptHash sends runtime notification with calling script hash
+func NotifyCallingScriptHash() {
+	callingScriptHash := runtime.GetCallingScriptHash()
+	runtime.Notify("Calling", callingScriptHash)
+}
 
-	execScriptHash := engine.GetExecutingScriptHash()
-	runtime.Notify(execScriptHash)
+// NotifyExecutingScriptHash sends runtime notification about executing script hash
+func NotifyExecutingScriptHash() {
+	execScriptHash := runtime.GetExecutingScriptHash()
+	runtime.Notify("Executing", execScriptHash)
+}
 
-	entryScriptHash := engine.GetEntryScriptHash()
-	runtime.Notify(entryScriptHash)
-
-	return true
+// NotifyEntryScriptHash sends notification about entry script hash
+func NotifyEntryScriptHash() {
+	entryScriptHash := runtime.GetEntryScriptHash()
+	runtime.Notify("Entry", entryScriptHash)
 }

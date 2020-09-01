@@ -1,0 +1,12 @@
+hasstorage: true
+ispayable: false
+supportedstandards: []
+events:
+  - name: found storage values
+    parameters:
+      - name: values
+        type: Any
+  - name: found storage keys
+    parameters:
+      - name: keys
+        type: Any

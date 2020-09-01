@@ -2,24 +2,18 @@ package wallet
 
 import (
 	"bufio"
-	"context"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"strings"
 	"syscall"
 
 	"github.com/nspcc-dev/neo-go/cli/flags"
-	"github.com/nspcc-dev/neo-go/pkg/core"
-	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
+	"github.com/nspcc-dev/neo-go/cli/options"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
-	"github.com/nspcc-dev/neo-go/pkg/rpc/client"
-	"github.com/nspcc-dev/neo-go/pkg/rpc/request"
-	context2 "github.com/nspcc-dev/neo-go/pkg/smartcontract/context"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/urfave/cli"
@@ -27,13 +21,13 @@ import (
 )
 
 var (
-	errNoPath         = errors.New("target path where the wallet should be stored is mandatory and should be passed using (--path, -p) flags")
+	errNoPath         = errors.New("target path where the wallet should be stored is mandatory and should be passed using (--wallet, -w) flags")
 	errPhraseMismatch = errors.New("the entered pass-phrases do not match. Maybe you have misspelled them")
 )
 
 var (
 	walletPathFlag = cli.StringFlag{
-		Name:  "path, p",
+		Name:  "wallet, w",
 		Usage: "Target location of the wallet file.",
 	}
 	wifFlag = cli.StringFlag{
@@ -43,14 +37,6 @@ var (
 	decryptFlag = cli.BoolFlag{
 		Name:  "decrypt, d",
 		Usage: "Decrypt encrypted keys.",
-	}
-	rpcFlag = cli.StringFlag{
-		Name:  "rpc, r",
-		Usage: "RPC node address",
-	}
-	timeoutFlag = cli.DurationFlag{
-		Name:  "timeout, t",
-		Usage: "Timeout for the operation",
 	}
 	outFlag = cli.StringFlag{
 		Name:  "out",
@@ -76,6 +62,14 @@ var (
 
 // NewCommands returns 'wallet' command.
 func NewCommands() []cli.Command {
+	claimFlags := []cli.Flag{
+		walletPathFlag,
+		flags.AddressFlag{
+			Name:  "address, a",
+			Usage: "Address to claim GAS for",
+		},
+	}
+	claimFlags = append(claimFlags, options.RPC...)
 	return []cli.Command{{
 		Name:  "wallet",
 		Usage: "create, open and manage a NEO wallet",
@@ -84,15 +78,7 @@ func NewCommands() []cli.Command {
 				Name:   "claim",
 				Usage:  "claim GAS",
 				Action: claimGas,
-				Flags: []cli.Flag{
-					walletPathFlag,
-					rpcFlag,
-					timeoutFlag,
-					flags.AddressFlag{
-						Name:  "address, a",
-						Usage: "Address to claim GAS for",
-					},
-				},
+				Flags:  claimFlags,
 			},
 			{
 				Name:   "init",
@@ -103,6 +89,18 @@ func NewCommands() []cli.Command {
 					cli.BoolFlag{
 						Name:  "account, a",
 						Usage: "Create a new account",
+					},
+				},
+			},
+			{
+				Name:   "convert",
+				Usage:  "convert addresses from existing NEO2 NEP6-wallet to NEO3 format",
+				Action: convertWallet,
+				Flags: []cli.Flag{
+					walletPathFlag,
+					cli.StringFlag{
+						Name:  "out, o",
+						Usage: "where to write converted wallet",
 					},
 				},
 			},
@@ -126,7 +124,7 @@ func NewCommands() []cli.Command {
 			{
 				Name:      "export",
 				Usage:     "export keys for address",
-				UsageText: "export --path <path> [--decrypt] [<address>]",
+				UsageText: "export --wallet <path> [--decrypt] [<address>]",
 				Action:    exportKeys,
 				Flags: []cli.Flag{
 					walletPathFlag,
@@ -153,7 +151,7 @@ func NewCommands() []cli.Command {
 			{
 				Name:  "import-multisig",
 				Usage: "import multisig contract",
-				UsageText: "import-multisig --path <path> --wif <wif> --min <n>" +
+				UsageText: "import-multisig --wallet <path> --wif <wif> --min <n>" +
 					" [<pubkey1> [<pubkey2> [...]]]",
 				Action: importMultisig,
 				Flags: []cli.Flag{
@@ -170,36 +168,27 @@ func NewCommands() []cli.Command {
 				},
 			},
 			{
+				Name:      "import-deployed",
+				Usage:     "import deployed contract",
+				UsageText: "import-multisig --wallet <path> --wif <wif> --contract <hash>",
+				Action:    importDeployed,
+				Flags: append([]cli.Flag{
+					walletPathFlag,
+					wifFlag,
+					cli.StringFlag{
+						Name:  "contract, c",
+						Usage: "Contract hash",
+					},
+				}, options.RPC...),
+			},
+			{
 				Name:      "remove",
 				Usage:     "remove an account from the wallet",
-				UsageText: "remove --path <path> [--force] <addr>",
+				UsageText: "remove --wallet <path> [--force] <addr>",
 				Action:    removeAccount,
 				Flags: []cli.Flag{
 					walletPathFlag,
 					forceFlag,
-				},
-			},
-			{
-				Name:  "transfer",
-				Usage: "transfer NEO/GAS",
-				UsageText: "transfer --path <path> --from <addr> --to <addr>" +
-					" --amount <amount> --asset [NEO|GAS|<hex-id>] [--out <path>]",
-				Action: transferAsset,
-				Flags: []cli.Flag{
-					walletPathFlag,
-					rpcFlag,
-					timeoutFlag,
-					outFlag,
-					fromAddrFlag,
-					toAddrFlag,
-					cli.StringFlag{
-						Name:  "amount",
-						Usage: "Amount of asset to send",
-					},
-					cli.StringFlag{
-						Name:  "asset",
-						Usage: "Asset ID",
-					},
 				},
 			},
 			{
@@ -212,12 +201,17 @@ func NewCommands() []cli.Command {
 				Usage:       "work with NEP5 contracts",
 				Subcommands: newNEP5Commands(),
 			},
+			{
+				Name:        "candidate",
+				Usage:       "work with candidates",
+				Subcommands: newValidatorCommands(),
+			},
 		},
 	}}
 }
 
 func claimGas(ctx *cli.Context) error {
-	wall, err := openWallet(ctx.String("path"))
+	wall, err := openWallet(ctx.String("wallet"))
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -228,70 +222,79 @@ func claimGas(ctx *cli.Context) error {
 		return cli.NewExitError("address was not provided", 1)
 	}
 	scriptHash := addrFlag.Uint160()
-	acc := wall.GetAccount(scriptHash)
-	if acc == nil {
-		return cli.NewExitError(fmt.Errorf("wallet contains no account for '%s'", addrFlag), 1)
-	}
-
-	pass, err := readPassword("Enter password > ")
+	acc, err := getDecryptedAccount(wall, scriptHash)
 	if err != nil {
 		return cli.NewExitError(err, 1)
-	} else if err := acc.Decrypt(pass); err != nil {
-		return cli.NewExitError(err, 1)
 	}
 
-	gctx, cancel := getGoContext(ctx)
+	gctx, cancel := options.GetTimeoutContext(ctx)
 	defer cancel()
 
-	c, err := client.New(gctx, ctx.String("rpc"), client.Options{})
+	c, err := options.GetRPCClient(gctx, ctx)
+	if err != nil {
+		return err
+	}
+	// Temporary.
+	neoHash, err := util.Uint160DecodeStringLE("3b7d3711c6f0ccf9b1dca903d1bfa1d896f1238c")
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
-	info, err := c.GetClaimable(addrFlag.String())
-	if err != nil {
-		return cli.NewExitError(err, 1)
-	} else if info.Unclaimed == 0 || len(info.Spents) == 0 {
-		fmt.Println("Nothing to claim")
-		return nil
-	}
 
-	var claim transaction.ClaimTX
-	for i := range info.Spents {
-		claim.Claims = append(claim.Claims, transaction.Input{
-			PrevHash:  info.Spents[i].Tx,
-			PrevIndex: uint16(info.Spents[i].N),
-		})
-	}
-
-	tx := transaction.NewClaimTX(&claim)
-	validUntilBlock, err := c.CalculateValidUntilBlock()
+	hash, err := c.TransferNEP5(acc, scriptHash, neoHash, 0, 0)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
-	tx.ValidUntilBlock = validUntilBlock
-	tx.Sender = scriptHash
 
-	tx.AddOutput(&transaction.Output{
-		AssetID:    core.UtilityTokenID(),
-		Amount:     info.Unclaimed,
-		ScriptHash: scriptHash,
-	})
+	fmt.Println(hash.StringLE())
+	return nil
+}
 
-	err = c.AddNetworkFee(tx, acc)
+func convertWallet(ctx *cli.Context) error {
+	wall, err := openWallet(ctx.String("wallet"))
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
-	_ = acc.SignTx(tx)
-	if err := c.SendRawTransaction(tx); err != nil {
-		return cli.NewExitError(err, 1)
-	}
+	defer wall.Close()
 
-	fmt.Println(tx.Hash().StringLE())
+	newWallet, err := wallet.NewWallet(ctx.String("out"))
+	if err != nil {
+		return cli.NewExitError(err, -1)
+	}
+	defer newWallet.Close()
+
+	for _, acc := range wall.Accounts {
+		address.Prefix = address.NEO2Prefix
+
+		pass, err := readPassword(fmt.Sprintf("Enter passphrase for account %s (label '%s') > ", acc.Address, acc.Label))
+		if err != nil {
+			return cli.NewExitError(err, -1)
+		} else if err := acc.Decrypt(pass); err != nil {
+			return cli.NewExitError("invalid passphrase", -1)
+		}
+
+		address.Prefix = address.NEO3Prefix
+		newAcc, err := wallet.NewAccountFromWIF(acc.PrivateKey().WIF())
+		if err != nil {
+			return cli.NewExitError(fmt.Errorf("can't convert account: %w", err), -1)
+		}
+		newAcc.Address = address.Uint160ToString(acc.Contract.ScriptHash())
+		newAcc.Contract = acc.Contract
+		newAcc.Default = acc.Default
+		newAcc.Label = acc.Label
+		newAcc.Locked = acc.Locked
+		if err := newAcc.Encrypt(pass); err != nil {
+			return cli.NewExitError(fmt.Errorf("can't encrypt converted account: %w", err), -1)
+		}
+		newWallet.AddAccount(newAcc)
+	}
+	if err := newWallet.Save(); err != nil {
+		return cli.NewExitError(err, -1)
+	}
 	return nil
 }
 
 func addAccount(ctx *cli.Context) error {
-	wall, err := openWallet(ctx.String("path"))
+	wall, err := openWallet(ctx.String("wallet"))
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -306,7 +309,7 @@ func addAccount(ctx *cli.Context) error {
 }
 
 func exportKeys(ctx *cli.Context) error {
-	wall, err := openWallet(ctx.String("path"))
+	wall, err := openWallet(ctx.String("wallet"))
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -321,7 +324,7 @@ func exportKeys(ctx *cli.Context) error {
 		addr = ctx.Args().First()
 		_, err := address.StringToUint160(addr)
 		if err != nil {
-			return cli.NewExitError(fmt.Errorf("can't parse address: %v", err), 1)
+			return cli.NewExitError(fmt.Errorf("can't parse address: %w", err), 1)
 		}
 	}
 
@@ -364,7 +367,7 @@ loop:
 }
 
 func importMultisig(ctx *cli.Context) error {
-	wall, err := openWallet(ctx.String("path"))
+	wall, err := openWallet(ctx.String("wallet"))
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -382,7 +385,7 @@ func importMultisig(ctx *cli.Context) error {
 	for i := range args {
 		pubs[i], err = keys.NewPublicKeyFromString(args[i])
 		if err != nil {
-			return cli.NewExitError(fmt.Errorf("can't decode public key %d: %v", i, err), 1)
+			return cli.NewExitError(fmt.Errorf("can't decode public key %d: %w", i, err), 1)
 		}
 	}
 
@@ -402,12 +405,62 @@ func importMultisig(ctx *cli.Context) error {
 	return nil
 }
 
-func importWallet(ctx *cli.Context) error {
-	wall, err := openWallet(ctx.String("path"))
+func importDeployed(ctx *cli.Context) error {
+	wall, err := openWallet(ctx.String("wallet"))
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
 
+	defer wall.Close()
+
+	rawHash := strings.TrimPrefix("0x", ctx.String("contract"))
+	h, err := util.Uint160DecodeStringLE(rawHash)
+	if err != nil {
+		return cli.NewExitError(fmt.Errorf("invalid contract hash: %w", err), 1)
+	}
+
+	acc, err := newAccountFromWIF(ctx.String("wif"))
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
+
+	gctx, cancel := options.GetTimeoutContext(ctx)
+	defer cancel()
+
+	c, err := options.GetRPCClient(gctx, ctx)
+	if err != nil {
+		return err
+	}
+
+	cs, err := c.GetContractState(h)
+	if err != nil {
+		return cli.NewExitError(fmt.Errorf("can't fetch contract info: %w", err), 1)
+	}
+	md := cs.Manifest.ABI.GetMethod(manifest.MethodVerify)
+	if md == nil {
+		return cli.NewExitError("contract has no `verify` method", 1)
+	}
+	acc.Contract.Script = cs.Script
+	for _, p := range md.Parameters {
+		acc.Contract.Parameters = append(acc.Contract.Parameters, wallet.ContractParam{
+			Name: p.Name,
+			Type: p.Type,
+		})
+	}
+	acc.Contract.Deployed = true
+
+	if err := addAccountAndSave(wall, acc); err != nil {
+		return cli.NewExitError(err, 1)
+	}
+
+	return nil
+}
+
+func importWallet(ctx *cli.Context) error {
+	wall, err := openWallet(ctx.String("wallet"))
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
 	defer wall.Close()
 
 	acc, err := newAccountFromWIF(ctx.String("wif"))
@@ -432,7 +485,7 @@ func importWallet(ctx *cli.Context) error {
 }
 
 func removeAccount(ctx *cli.Context) error {
-	wall, err := openWallet(ctx.String("path"))
+	wall, err := openWallet(ctx.String("wallet"))
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -456,9 +509,9 @@ func removeAccount(ctx *cli.Context) error {
 	}
 
 	if err := wall.RemoveAccount(acc.Address); err != nil {
-		return cli.NewExitError(fmt.Errorf("error on remove: %v", err), 1)
+		return cli.NewExitError(fmt.Errorf("error on remove: %w", err), 1)
 	} else if err := wall.Save(); err != nil {
-		return cli.NewExitError(fmt.Errorf("error while saving wallet: %v", err), 1)
+		return cli.NewExitError(fmt.Errorf("error while saving wallet: %w", err), 1)
 	}
 	return nil
 }
@@ -477,108 +530,8 @@ func askForConsent() bool {
 	return false
 }
 
-func transferAsset(ctx *cli.Context) error {
-	wall, err := openWallet(ctx.String("path"))
-	if err != nil {
-		return cli.NewExitError(err, 1)
-	}
-	defer wall.Close()
-
-	fromFlag := ctx.Generic("from").(*flags.Address)
-	if !fromFlag.IsSet {
-		return cli.NewExitError("'from' address was not provided", 1)
-	}
-	from := fromFlag.Uint160()
-	acc := wall.GetAccount(from)
-	if acc == nil {
-		return cli.NewExitError(fmt.Errorf("wallet contains no account for '%s'", from), 1)
-	}
-
-	asset, err := getAssetID(ctx.String("asset"))
-	if err != nil {
-		return cli.NewExitError(fmt.Errorf("invalid asset id: %v", err), 1)
-	}
-
-	amount, err := util.Fixed8FromString(ctx.String("amount"))
-	if err != nil {
-		return cli.NewExitError(fmt.Errorf("invalid amount: %v", err), 1)
-	}
-
-	pass, err := readPassword("Enter wallet password > ")
-	if err != nil {
-		return cli.NewExitError(err, 1)
-	} else if err := acc.Decrypt(pass); err != nil {
-		return cli.NewExitError(err, 1)
-	}
-
-	gctx, cancel := getGoContext(ctx)
-	defer cancel()
-
-	c, err := client.New(gctx, ctx.String("rpc"), client.Options{})
-	if err != nil {
-		return cli.NewExitError(err, 1)
-	}
-
-	tx := transaction.NewContractTX()
-	validUntilBlock, err := c.CalculateValidUntilBlock()
-	if err != nil {
-		return cli.NewExitError(err, 1)
-	}
-	tx.ValidUntilBlock = validUntilBlock
-	if err := request.AddInputsAndUnspentsToTx(tx, fromFlag.String(), asset, amount, c); err != nil {
-		return cli.NewExitError(err, 1)
-	}
-	tx.Sender = from
-
-	toFlag := ctx.Generic("to").(*flags.Address)
-	if !toFlag.IsSet {
-		return cli.NewExitError("'to' address was not provided", 1)
-	}
-	toAddr := toFlag.Uint160()
-	tx.AddOutput(&transaction.Output{
-		AssetID:    asset,
-		Amount:     amount,
-		ScriptHash: toAddr,
-		Position:   1,
-	})
-
-	err = c.AddNetworkFee(tx, acc)
-	if err != nil {
-		return cli.NewExitError(err, 1)
-	}
-
-	if outFile := ctx.String("out"); outFile != "" {
-		priv := acc.PrivateKey()
-		pub := priv.PublicKey()
-		sign := priv.Sign(tx.GetSignedPart())
-		c := context2.NewParameterContext("Neo.Core.ContractTransaction", tx)
-		if err := c.AddSignature(acc.Contract, pub, sign); err != nil {
-			return cli.NewExitError(fmt.Errorf("can't add signature: %v", err), 1)
-		} else if data, err := json.Marshal(c); err != nil {
-			return cli.NewExitError(fmt.Errorf("can't marshal tx to JSON: %v", err), 1)
-		} else if err := ioutil.WriteFile(outFile, data, 0644); err != nil {
-			return cli.NewExitError(fmt.Errorf("can't write tx to file: %v", err), 1)
-		}
-	} else {
-		_ = acc.SignTx(tx)
-		if err := c.SendRawTransaction(tx); err != nil {
-			return cli.NewExitError(err, 1)
-		}
-	}
-
-	fmt.Println(tx.Hash().StringLE())
-	return nil
-}
-
-func getGoContext(ctx *cli.Context) (context.Context, func()) {
-	if dur := ctx.Duration("timeout"); dur != 0 {
-		return context.WithTimeout(context.Background(), dur)
-	}
-	return context.Background(), func() {}
-}
-
 func dumpWallet(ctx *cli.Context) error {
-	wall, err := openWallet(ctx.String("path"))
+	wall, err := openWallet(ctx.String("wallet"))
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -600,7 +553,7 @@ func dumpWallet(ctx *cli.Context) error {
 }
 
 func createWallet(ctx *cli.Context) error {
-	path := ctx.String("path")
+	path := ctx.String("wallet")
 	if len(path) == 0 {
 		return cli.NewExitError(errNoPath, 1)
 	}
@@ -657,18 +610,6 @@ func openWallet(path string) (*wallet.Wallet, error) {
 		return nil, errNoPath
 	}
 	return wallet.NewWalletFromFile(path)
-}
-
-func getAssetID(s string) (util.Uint256, error) {
-	s = strings.ToLower(s)
-	switch {
-	case s == "neo":
-		return core.GoverningTokenID(), nil
-	case s == "gas":
-		return core.UtilityTokenID(), nil
-	default:
-		return util.Uint256DecodeStringLE(s)
-	}
 }
 
 func newAccountFromWIF(wif string) (*wallet.Account, error) {

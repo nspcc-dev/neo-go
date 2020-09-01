@@ -8,10 +8,9 @@ import (
 
 func TestStringer(t *testing.T) {
 	tests := map[Type]string{
-		Application:   "Application",
-		ApplicationR:  "ApplicationR",
-		Verification:  "Verification",
-		VerificationR: "VerificationR",
+		System:       "System",
+		Application:  "Application",
+		Verification: "Verification",
 	}
 	for o, s := range tests {
 		assert.Equal(t, s, o.String())
@@ -20,10 +19,9 @@ func TestStringer(t *testing.T) {
 
 func TestEncodeBynary(t *testing.T) {
 	tests := map[Type]byte{
-		Verification:  0x00,
-		VerificationR: 0x01,
-		Application:   0x10,
-		ApplicationR:  0x11,
+		System:       0x01,
+		Verification: 0x20,
+		Application:  0x40,
 	}
 	for o, b := range tests {
 		assert.Equal(t, b, byte(o))
@@ -32,10 +30,9 @@ func TestEncodeBynary(t *testing.T) {
 
 func TestDecodeBynary(t *testing.T) {
 	tests := map[Type]byte{
-		Verification:  0x00,
-		VerificationR: 0x01,
-		Application:   0x10,
-		ApplicationR:  0x11,
+		System:       0x01,
+		Verification: 0x20,
+		Application:  0x40,
 	}
 	for o, b := range tests {
 		assert.Equal(t, o, Type(b))

@@ -5,111 +5,27 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
+	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
-	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
-	"github.com/nspcc-dev/neo-go/pkg/wallet"
-	errs "github.com/pkg/errors"
 )
-
-// CreateRawContractTransaction returns contract-type Transaction built from specified parameters.
-func CreateRawContractTransaction(params ContractTxParams) (*transaction.Transaction, error) {
-	var (
-		err                            error
-		tx                             = transaction.NewContractTX()
-		toAddressHash, fromAddressHash util.Uint160
-		fromAddress                    string
-		receiverOutput                 *transaction.Output
-
-		wif, assetID, toAddress, amount, balancer = params.WIF, params.AssetID, params.Address, params.Value, params.Balancer
-	)
-
-	fromAddress = wif.PrivateKey.Address()
-
-	if fromAddressHash, err = address.StringToUint160(fromAddress); err != nil {
-		return nil, errs.Wrapf(err, "Failed to take script hash from address: %v", fromAddress)
-	}
-
-	if toAddressHash, err = address.StringToUint160(toAddress); err != nil {
-		return nil, errs.Wrapf(err, "Failed to take script hash from address: %v", toAddress)
-	}
-	tx.Sender = fromAddressHash
-
-	if err = AddInputsAndUnspentsToTx(tx, fromAddress, assetID, amount, balancer); err != nil {
-		return nil, errs.Wrap(err, "failed to add inputs and unspents to transaction")
-	}
-	receiverOutput = transaction.NewOutput(assetID, amount, toAddressHash)
-	tx.AddOutput(receiverOutput)
-	if acc, err := wallet.NewAccountFromWIF(wif.S); err != nil {
-		return nil, err
-	} else if err = acc.SignTx(tx); err != nil {
-		return nil, errs.Wrap(err, "failed to sign tx")
-	}
-
-	return tx, nil
-}
-
-// AddInputsAndUnspentsToTx adds inputs needed to transaction and one output
-// with change.
-func AddInputsAndUnspentsToTx(tx *transaction.Transaction, addr string, assetID util.Uint256, amount util.Fixed8, balancer BalanceGetter) error {
-	scriptHash, err := address.StringToUint160(addr)
-	if err != nil {
-		return errs.Wrapf(err, "failed to take script hash from address: %v", addr)
-	}
-	inputs, spent, err := balancer.CalculateInputs(addr, assetID, amount)
-	if err != nil {
-		return errs.Wrap(err, "failed to get inputs")
-	}
-	for _, input := range inputs {
-		tx.AddInput(&input)
-	}
-
-	if senderUnspent := spent - amount; senderUnspent > 0 {
-		senderOutput := transaction.NewOutput(assetID, senderUnspent, scriptHash)
-		tx.AddOutput(senderOutput)
-	}
-	return nil
-}
-
-// DetailsToSCProperties extract the fields needed from ContractDetails
-// and converts them to smartcontract.PropertyState.
-func DetailsToSCProperties(contract *smartcontract.ContractDetails) smartcontract.PropertyState {
-	var props smartcontract.PropertyState
-	if contract.HasStorage {
-		props |= smartcontract.HasStorage
-	}
-	if contract.HasDynamicInvocation {
-		props |= smartcontract.HasDynamicInvoke
-	}
-	if contract.IsPayable {
-		props |= smartcontract.IsPayable
-	}
-	return props
-}
 
 // CreateDeploymentScript returns a script that deploys given smart contract
 // with its metadata.
-func CreateDeploymentScript(avm []byte, contract *smartcontract.ContractDetails) ([]byte, error) {
+func CreateDeploymentScript(avm []byte, manif *manifest.Manifest) ([]byte, error) {
 	script := io.NewBufBinWriter()
-	emit.Bytes(script.BinWriter, []byte(contract.Description))
-	emit.Bytes(script.BinWriter, []byte(contract.Email))
-	emit.Bytes(script.BinWriter, []byte(contract.Author))
-	emit.Bytes(script.BinWriter, []byte(contract.Version))
-	emit.Bytes(script.BinWriter, []byte(contract.ProjectName))
-	emit.Int(script.BinWriter, int64(DetailsToSCProperties(contract)))
-	emit.Int(script.BinWriter, int64(contract.ReturnType))
-	params := make([]byte, len(contract.Parameters))
-	for k := range contract.Parameters {
-		params[k] = byte(contract.Parameters[k])
+	rawManifest, err := manif.MarshalJSON()
+	if err != nil {
+		return nil, err
 	}
-	emit.Bytes(script.BinWriter, params)
+	emit.Bytes(script.BinWriter, rawManifest)
 	emit.Bytes(script.BinWriter, avm)
-	emit.Syscall(script.BinWriter, "Neo.Contract.Create")
+	emit.Syscall(script.BinWriter, interopnames.SystemContractCreate)
 	return script.Bytes(), nil
 }
 
@@ -122,7 +38,13 @@ func expandArrayIntoScript(script *io.BinWriter, slice []Param) error {
 			return err
 		}
 		switch fp.Type {
-		case smartcontract.ByteArrayType, smartcontract.SignatureType:
+		case smartcontract.ByteArrayType:
+			str, err := fp.Value.GetBytesBase64()
+			if err != nil {
+				return err
+			}
+			emit.Bytes(script, str)
+		case smartcontract.SignatureType:
 			str, err := fp.Value.GetBytesHex()
 			if err != nil {
 				return err
@@ -175,6 +97,17 @@ func expandArrayIntoScript(script *io.BinWriter, slice []Param) error {
 			default:
 				return errors.New("wrong boolean value")
 			}
+		case smartcontract.ArrayType:
+			val, err := fp.Value.GetArray()
+			if err != nil {
+				return err
+			}
+			err = expandArrayIntoScript(script, val)
+			if err != nil {
+				return err
+			}
+			emit.Int(script, int64(len(val)))
+			emit.Opcode(script, opcode.PACK)
 		default:
 			return fmt.Errorf("parameter type %v is not supported", fp.Type)
 		}
@@ -210,20 +143,6 @@ func CreateFunctionInvocationScript(contract util.Uint160, params Params) ([]byt
 		}
 	}
 
-	emit.AppCall(script.BinWriter, contract)
-	return script.Bytes(), nil
-}
-
-// CreateInvocationScript creates a script to invoke given contract with
-// given parameters. It differs from CreateFunctionInvocationScript in that it
-// expects one array of FuncParams and expands it onto the stack as independent
-// elements.
-func CreateInvocationScript(contract util.Uint160, funcParams []Param) ([]byte, error) {
-	script := io.NewBufBinWriter()
-	err := expandArrayIntoScript(script.BinWriter, funcParams)
-	if err != nil {
-		return nil, err
-	}
 	emit.AppCall(script.BinWriter, contract)
 	return script.Bytes(), nil
 }

@@ -1,16 +1,18 @@
 package emit
 
 import (
-	"crypto/sha256"
 	"encoding/binary"
 	"errors"
 	"fmt"
 	"math/big"
 	"math/bits"
 
+	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
+	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
 // Instruction emits a VM Instruction with data to the given buffer.
@@ -31,7 +33,7 @@ func Bool(w *io.BinWriter, ok bool) {
 		return
 	}
 	Opcode(w, opcode.PUSHF)
-	Instruction(w, opcode.CONVERT, []byte{0x20}) // 0x20 for Boolean type
+	Instruction(w, opcode.CONVERT, []byte{byte(stackitem.BooleanT)})
 }
 
 func padRight(s int, buf []byte) []byte {
@@ -54,7 +56,7 @@ func Int(w *io.BinWriter, i int64) {
 		val := opcode.Opcode(int(opcode.PUSH1) - 1 + int(i))
 		Opcode(w, val)
 	default:
-		buf := intToBytes(big.NewInt(i), make([]byte, 0, 32))
+		buf := bigint.ToPreallocatedBytes(big.NewInt(i), make([]byte, 0, 32))
 		// l != 0 becase of switch
 		padSize := byte(8 - bits.LeadingZeros8(byte(len(buf)-1)))
 		Opcode(w, opcode.PUSHINT8+opcode.Opcode(padSize))
@@ -77,8 +79,11 @@ func Array(w *io.BinWriter, es ...interface{}) {
 		case bool:
 			Bool(w, e)
 		default:
-			w.Err = errors.New("unsupported type")
-			return
+			if es[i] != nil {
+				w.Err = errors.New("unsupported type")
+				return
+			}
+			Opcode(w, opcode.PUSHNULL)
 		}
 	}
 	Int(w, int64(len(es)))
@@ -119,7 +124,7 @@ func Syscall(w *io.BinWriter, api string) {
 		return
 	}
 	buf := make([]byte, 4)
-	binary.LittleEndian.PutUint32(buf, InteropNameToID([]byte(api)))
+	binary.LittleEndian.PutUint32(buf, interopnames.ToID([]byte(api)))
 	Instruction(w, opcode.SYSCALL, buf)
 }
 
@@ -144,7 +149,7 @@ func Jmp(w *io.BinWriter, op opcode.Opcode, label uint16) {
 // AppCall emits call to provided contract.
 func AppCall(w *io.BinWriter, scriptHash util.Uint160) {
 	Bytes(w, scriptHash.BytesBE())
-	Syscall(w, "System.Contract.Call")
+	Syscall(w, interopnames.SystemContractCall)
 }
 
 // AppCallWithOperationAndArgs emits an APPCALL with the given operation and arguments.
@@ -154,26 +159,6 @@ func AppCallWithOperationAndArgs(w *io.BinWriter, scriptHash util.Uint160, opera
 	AppCall(w, scriptHash)
 }
 
-// AppCallWithOperationAndData emits an appcall with the given operation and data.
-func AppCallWithOperationAndData(w *io.BinWriter, scriptHash util.Uint160, operation string, data []byte) {
-	Bytes(w, data)
-	String(w, operation)
-	AppCall(w, scriptHash)
-}
-
-// AppCallWithOperation emits an appcall with the given operation.
-func AppCallWithOperation(w *io.BinWriter, scriptHash util.Uint160, operation string) {
-	Bool(w, false)
-	String(w, operation)
-	AppCall(w, scriptHash)
-}
-
 func isInstructionJmp(op opcode.Opcode) bool {
-	return opcode.JMP <= op && op <= opcode.CALLL
-}
-
-// InteropNameToID returns an identificator of the method based on its name.
-func InteropNameToID(name []byte) uint32 {
-	h := sha256.Sum256(name)
-	return binary.LittleEndian.Uint32(h[:4])
+	return opcode.JMP <= op && op <= opcode.CALLL || op == opcode.ENDTRYL
 }

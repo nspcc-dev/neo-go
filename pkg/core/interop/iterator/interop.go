@@ -6,26 +6,26 @@ import (
 )
 
 // Concat concatenates 2 iterators into a single one.
-func Concat(_ *interop.Context, v *vm.VM) error {
-	return vm.IteratorConcat(v)
+func Concat(ic *interop.Context) error {
+	return vm.IteratorConcat(ic.VM)
 }
 
 // Create creates an iterator from array-like or map stack item.
-func Create(_ *interop.Context, v *vm.VM) error {
-	return vm.IteratorCreate(v)
+func Create(ic *interop.Context) error {
+	return vm.IteratorCreate(ic.VM)
 }
 
 // Key returns current iterator key.
-func Key(_ *interop.Context, v *vm.VM) error {
-	return vm.IteratorKey(v)
+func Key(ic *interop.Context) error {
+	return vm.IteratorKey(ic.VM)
 }
 
 // Keys returns keys of the iterator.
-func Keys(_ *interop.Context, v *vm.VM) error {
-	return vm.IteratorKeys(v)
+func Keys(ic *interop.Context) error {
+	return vm.IteratorKeys(ic.VM)
 }
 
 // Values returns values of the iterator.
-func Values(_ *interop.Context, v *vm.VM) error {
-	return vm.IteratorValues(v)
+func Values(ic *interop.Context) error {
+	return vm.IteratorValues(ic.VM)
 }
