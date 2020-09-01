@@ -6,6 +6,7 @@ import (
 	"github.com/nspcc-dev/neo-go/cli/flags"
 	"github.com/nspcc-dev/neo-go/cli/input"
 	"github.com/nspcc-dev/neo-go/cli/options"
+	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/io"
@@ -81,6 +82,7 @@ func handleCandidate(ctx *cli.Context, method string) error {
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
+	defer wall.Close()
 
 	addrFlag := ctx.Generic("address").(*flags.Address)
 	addr := addrFlag.Uint160()
@@ -101,7 +103,10 @@ func handleCandidate(ctx *cli.Context, method string) error {
 	w := io.NewBufBinWriter()
 	emit.AppCallWithOperationAndArgs(w.BinWriter, client.NeoContractHash, method, acc.PrivateKey().PublicKey().Bytes())
 	emit.Opcode(w.BinWriter, opcode.ASSERT)
-	tx, err := c.CreateTxFromScript(w.Bytes(), acc, -1, int64(gas))
+	tx, err := c.CreateTxFromScript(w.Bytes(), acc, -1, int64(gas), transaction.Signer{
+		Account: acc.Contract.ScriptHash(),
+		Scopes:  transaction.CalledByEntry,
+	})
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	} else if err = acc.SignTx(tx); err != nil {
@@ -121,6 +126,7 @@ func handleVote(ctx *cli.Context) error {
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
+	defer wall.Close()
 
 	addrFlag := ctx.Generic("address").(*flags.Address)
 	addr := addrFlag.Uint160()
@@ -156,7 +162,10 @@ func handleVote(ctx *cli.Context) error {
 	emit.AppCallWithOperationAndArgs(w.BinWriter, client.NeoContractHash, "vote", addr.BytesBE(), pubArg)
 	emit.Opcode(w.BinWriter, opcode.ASSERT)
 
-	tx, err := c.CreateTxFromScript(w.Bytes(), acc, -1, int64(gas))
+	tx, err := c.CreateTxFromScript(w.Bytes(), acc, -1, int64(gas), transaction.Signer{
+		Account: acc.Contract.ScriptHash(),
+		Scopes:  transaction.CalledByEntry,
+	})
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
