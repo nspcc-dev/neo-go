@@ -6,14 +6,11 @@ import (
 	"os"
 	"path"
 	"strconv"
-	"strings"
 	"testing"
 
-	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/client"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/stretchr/testify/require"
 )
@@ -82,15 +79,7 @@ func TestNEP5Transfer(t *testing.T) {
 
 	e.In.WriteString("one\r")
 	e.Run(t, args...)
-	line, err := e.Out.ReadString('\n')
-	require.NoError(t, err)
-	h, err := util.Uint256DecodeStringLE(strings.TrimSpace(line))
-	require.NoError(t, err, "can't decode tx hash: %s", line)
-
-	tx := e.GetTransaction(t, h)
-	aer, err := e.Chain.GetAppExecResult(tx.Hash())
-	require.NoError(t, err)
-	require.Equal(t, vm.HaltState, aer.VMState)
+	e.checkTxPersisted(t)
 
 	sh, err := address.StringToUint160(w.Accounts[0].Address)
 	require.NoError(t, err)
@@ -99,12 +88,7 @@ func TestNEP5Transfer(t *testing.T) {
 }
 
 func TestNEP5MultiTransfer(t *testing.T) {
-	privs := make([]*keys.PrivateKey, 3)
-	for i := range privs {
-		var err error
-		privs[i], err = keys.NewPrivateKey()
-		require.NoError(t, err)
-	}
+	privs, _ := generateKeys(t, 3)
 
 	e := newExecutor(t, true)
 	defer e.Close(t)
@@ -120,15 +104,7 @@ func TestNEP5MultiTransfer(t *testing.T) {
 
 	e.In.WriteString("one\r")
 	e.Run(t, args...)
-	line, err := e.Out.ReadString('\n')
-	require.NoError(t, err)
-	h, err := util.Uint256DecodeStringLE(strings.TrimSpace(line))
-	require.NoError(t, err, "can't decode tx hash: %s", line)
-
-	tx := e.GetTransaction(t, h)
-	aer, err := e.Chain.GetAppExecResult(tx.Hash())
-	require.NoError(t, err)
-	require.Equal(t, vm.HaltState, aer.VMState)
+	e.checkTxPersisted(t)
 
 	b, _ := e.Chain.GetGoverningTokenBalance(privs[0].GetScriptHash())
 	require.Equal(t, big.NewInt(42), b)

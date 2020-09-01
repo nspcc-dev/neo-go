@@ -3,7 +3,6 @@ package wallet
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	"io/ioutil"
 
 	"github.com/nspcc-dev/neo-go/cli/options"
@@ -60,7 +59,7 @@ func signMultisig(ctx *cli.Context) error {
 	if !ok {
 		return cli.NewExitError("verifiable item is not a transaction", 1)
 	}
-	printTxInfo(ctx.App.Writer, tx)
+	fmt.Fprintln(ctx.App.Writer, tx.Hash().StringLE())
 
 	priv := acc.PrivateKey()
 	sign := priv.Sign(tx.GetSignedPart())
@@ -115,8 +114,4 @@ func writeParameterContext(c *context.ParameterContext, filename string) error {
 		return fmt.Errorf("can't write transaction to file: %w", err)
 	}
 	return nil
-}
-
-func printTxInfo(w io.Writer, t *transaction.Transaction) {
-	fmt.Fprintf(w, "Hash: %s\n", t.Hash().StringLE())
 }

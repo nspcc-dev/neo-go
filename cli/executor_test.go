@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"io/ioutil"
+	"strings"
 	"testing"
 	"time"
 
@@ -19,6 +20,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/network"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/server"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/stretchr/testify/require"
 	"github.com/urfave/cli"
 	"go.uber.org/zap"
@@ -176,4 +178,30 @@ func (e *executor) run(args ...string) error {
 	e.Out.Reset()
 	e.Err.Reset()
 	return e.CLI.Run(args)
+}
+
+func (e *executor) checkTxPersisted(t *testing.T) {
+	line, err := e.Out.ReadString('\n')
+	require.NoError(t, err)
+
+	line = strings.TrimSpace(line)
+	h, err := util.Uint256DecodeStringLE(line)
+	require.NoError(t, err, "can't decode tx hash: %s", line)
+
+	tx := e.GetTransaction(t, h)
+	aer, err := e.Chain.GetAppExecResult(tx.Hash())
+	require.NoError(t, err)
+	require.Equal(t, vm.HaltState, aer.VMState)
+}
+
+func generateKeys(t *testing.T, n int) ([]*keys.PrivateKey, keys.PublicKeys) {
+	privs := make([]*keys.PrivateKey, n)
+	pubs := make(keys.PublicKeys, n)
+	for i := range privs {
+		var err error
+		privs[i], err = keys.NewPrivateKey()
+		require.NoError(t, err)
+		pubs[i] = privs[i].PublicKey()
+	}
+	return privs, pubs
 }

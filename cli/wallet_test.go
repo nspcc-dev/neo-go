@@ -98,14 +98,7 @@ func TestWalletInit(t *testing.T) {
 			require.NoError(t, actual.Decrypt("somepass"))
 		})
 		t.Run("Multisig", func(t *testing.T) {
-			privs := make([]*keys.PrivateKey, 4)
-			pubs := make(keys.PublicKeys, 4)
-			for i := range privs {
-				var err error
-				privs[i], err = keys.NewPrivateKey()
-				require.NoError(t, err)
-				pubs[i] = privs[i].PublicKey()
-			}
+			privs, pubs := generateKeys(t, 4)
 
 			cmd := []string{"neo-go", "wallet", "import-multisig",
 				"--wallet", walletPath,
