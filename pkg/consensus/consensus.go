@@ -42,6 +42,8 @@ type Service interface {
 	// Start initializes dBFT and starts event loop for consensus service.
 	// It must be called only when sufficient amount of peers are connected.
 	Start()
+	// Shutdown stops dBFT event loop.
+	Shutdown()
 
 	// OnPayload is a callback to notify Service about new received payload.
 	OnPayload(p *Payload)
@@ -73,6 +75,7 @@ type service struct {
 	// started is a flag set with Start method that runs an event handling
 	// goroutine.
 	started *atomic.Bool
+	quit    chan struct{}
 }
 
 // Config is a configuration for consensus services.
@@ -115,6 +118,7 @@ func NewService(cfg Config) (Service, error) {
 		blockEvents:  make(chan *coreb.Block, 1),
 		network:      cfg.Chain.GetConfig().Magic,
 		started:      atomic.NewBool(false),
+		quit:         make(chan struct{}),
 	}
 
 	if cfg.Wallet == nil {
@@ -190,9 +194,17 @@ func (s *service) Start() {
 	}
 }
 
+// Shutdown implements Service interface.
+func (s *service) Shutdown() {
+	close(s.quit)
+}
+
 func (s *service) eventLoop() {
 	for {
 		select {
+		case <-s.quit:
+			s.dbft.Timer.Stop()
+			return
 		case <-s.dbft.Timer.C():
 			hv := s.dbft.Timer.HV()
 			s.log.Debug("timer fired",

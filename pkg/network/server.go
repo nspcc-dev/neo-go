@@ -187,6 +187,9 @@ func (s *Server) Shutdown() {
 	s.log.Info("shutting down server", zap.Int("peers", s.PeerCount()))
 	s.transport.Close()
 	s.discovery.Close()
+	if s.consensusStarted.Load() {
+		s.consensus.Shutdown()
+	}
 	for p := range s.Peers() {
 		p.Disconnect(errServerShutdown)
 	}
