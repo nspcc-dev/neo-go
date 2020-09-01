@@ -31,10 +31,22 @@ func TestWalletInit(t *testing.T) {
 
 		w, err := wallet.NewWalletFromFile(walletPath)
 		require.NoError(t, err)
-		defer w.Close()
 		require.Len(t, w.Accounts, 1)
 		require.Equal(t, w.Accounts[0].Label, "testname")
 		require.NoError(t, w.Accounts[0].Decrypt("testpass"))
+		w.Close()
+
+		t.Run("RemoveAccount", func(t *testing.T) {
+			sh := w.Accounts[0].Contract.ScriptHash()
+			addr := w.Accounts[0].Address
+			e.In.WriteString("y\r")
+			e.Run(t, "neo-go", "wallet", "remove",
+				"--wallet", walletPath, addr)
+			w, err := wallet.NewWalletFromFile(walletPath)
+			require.NoError(t, err)
+			require.Nil(t, w.GetAccount(sh))
+			w.Close()
+		})
 	})
 
 	t.Run("Import", func(t *testing.T) {
