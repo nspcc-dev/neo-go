@@ -42,6 +42,9 @@ func MethodByteArray() []byte { return nil }
 func MethodArray() []bool { return nil }
 func MethodStruct() struct{} { return struct{}{} }
 func unexportedMethod() int { return 1 }
+type MyStruct struct {}
+func (ms MyStruct) MethodOnStruct() { }
+func (ms *MyStruct) MethodOnPointerToStruct() { }
 `
 
 	info, err := getBuildInfo("foo.go", src)
@@ -65,8 +68,10 @@ func unexportedMethod() int { return 1 }
 			"MethodConcat": "String",
 			"MethodString": "String", "MethodByteArray": "ByteString",
 			"MethodArray": "Array", "MethodStruct": "Struct",
-			"Main":             "Boolean",
-			"unexportedMethod": "Integer",
+			"Main":                    "Boolean",
+			"unexportedMethod":        "Integer",
+			"MethodOnStruct":          "Void",
+			"MethodOnPointerToStruct": "Void",
 		}
 		for i := range d.Methods {
 			name := d.Methods[i].ID
