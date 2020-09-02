@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/hex"
+	"math/big"
 	"os"
 	"path"
 	"strings"
@@ -162,4 +163,25 @@ func TestWalletExport(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, validatorWIF, strings.TrimSpace(line))
 	})
+}
+
+func TestClaimGas(t *testing.T) {
+	e := newExecutor(t, true)
+	defer e.Close(t)
+
+	start := e.Chain.BlockHeight()
+	balanceBefore := e.Chain.GetUtilityTokenBalance(validatorHash)
+	e.In.WriteString("one\r")
+	e.Run(t, "neo-go", "wallet", "claim",
+		"--unittest", "--rpc-endpoint", "http://"+e.RPC.Addr,
+		"--wallet", validatorWallet,
+		"--address", validatorAddr)
+	tx, end := e.checkTxPersisted(t)
+	b, _ := e.Chain.GetGoverningTokenBalance(validatorHash)
+	cl := e.Chain.CalculateClaimable(b, start, end)
+	require.True(t, cl.Sign() > 0)
+	cl.Sub(cl, big.NewInt(tx.NetworkFee+tx.SystemFee))
+
+	balanceAfter := e.Chain.GetUtilityTokenBalance(validatorHash)
+	require.Equal(t, 0, balanceAfter.Cmp(balanceBefore.Add(balanceBefore, cl)))
 }

@@ -116,15 +116,15 @@ func (e *executor) Close(t *testing.T) {
 // GetTransaction returns tx with hash h after it has persisted.
 // If it is in mempool, we can just wait for the next block, otherwise
 // it must be already in chain. 1 second is time per block in a unittest chain.
-func (e *executor) GetTransaction(t *testing.T, h util.Uint256) *transaction.Transaction {
+func (e *executor) GetTransaction(t *testing.T, h util.Uint256) (*transaction.Transaction, uint32) {
 	var tx *transaction.Transaction
+	var height uint32
 	require.Eventually(t, func() bool {
-		var height uint32
 		var err error
 		tx, height, err = e.Chain.GetTransaction(h)
 		return err == nil && height != 0
 	}, time.Second*2, time.Millisecond*100, "too long time waiting for block")
-	return tx
+	return tx, height
 }
 
 func (e *executor) checkNextLine(t *testing.T, expected string) {
@@ -180,7 +180,7 @@ func (e *executor) run(args ...string) error {
 	return e.CLI.Run(args)
 }
 
-func (e *executor) checkTxPersisted(t *testing.T) {
+func (e *executor) checkTxPersisted(t *testing.T) (*transaction.Transaction, uint32) {
 	line, err := e.Out.ReadString('\n')
 	require.NoError(t, err)
 
@@ -188,10 +188,11 @@ func (e *executor) checkTxPersisted(t *testing.T) {
 	h, err := util.Uint256DecodeStringLE(line)
 	require.NoError(t, err, "can't decode tx hash: %s", line)
 
-	tx := e.GetTransaction(t, h)
+	tx, height := e.GetTransaction(t, h)
 	aer, err := e.Chain.GetAppExecResult(tx.Hash())
 	require.NoError(t, err)
 	require.Equal(t, vm.HaltState, aer.VMState)
+	return tx, height
 }
 
 func generateKeys(t *testing.T, n int) ([]*keys.PrivateKey, keys.PublicKeys) {

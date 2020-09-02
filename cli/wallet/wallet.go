@@ -12,6 +12,7 @@ import (
 	"github.com/nspcc-dev/neo-go/cli/options"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
+	"github.com/nspcc-dev/neo-go/pkg/rpc/client"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
@@ -232,13 +233,8 @@ func claimGas(ctx *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	// Temporary.
-	neoHash, err := util.Uint160DecodeStringLE("3b7d3711c6f0ccf9b1dca903d1bfa1d896f1238c")
-	if err != nil {
-		return cli.NewExitError(err, 1)
-	}
 
-	hash, err := c.TransferNEP5(acc, scriptHash, neoHash, 0, 0)
+	hash, err := c.TransferNEP5(acc, scriptHash, client.NeoContractHash, 0, 0)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
