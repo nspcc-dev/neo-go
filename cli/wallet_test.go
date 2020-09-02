@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/hex"
+	"encoding/json"
 	"math/big"
 	"os"
 	"path"
@@ -252,4 +253,16 @@ func TestImportDeployed(t *testing.T) {
 		b, _ = e.Chain.GetGoverningTokenBalance(privTo.GetScriptHash())
 		require.Equal(t, big.NewInt(1), b)
 	})
+}
+
+func TestWalletDump(t *testing.T) {
+	e := newExecutor(t, false)
+	defer e.Close(t)
+
+	e.Run(t, "neo-go", "wallet", "dump", "--wallet", "testdata/testwallet.json")
+	rawStr := strings.TrimSpace(e.Out.String())
+	w := new(wallet.Wallet)
+	require.NoError(t, json.Unmarshal([]byte(rawStr), w))
+	require.Equal(t, 1, len(w.Accounts))
+	require.Equal(t, "NNuJqXDnRqvwgzhSzhH4jnVFWB1DyZ34EM", w.Accounts[0].Address)
 }
