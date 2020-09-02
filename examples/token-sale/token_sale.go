@@ -92,10 +92,16 @@ func InCirculation() int {
 	return getIntFromDB(ctx, token.CirculationKey)
 }
 
-// AddToCirculation sets the given amount as "in circulation" in the storage.
-func AddToCirculation(amount int) bool {
+// addToCirculation sets the given amount as "in circulation" in the storage.
+func addToCirculation(amount int) bool {
+	if amount < 0 {
+		return false
+	}
 	supply := getIntFromDB(ctx, token.CirculationKey)
 	supply += amount
+	if supply > token.TotalSupply {
+		return false
+	}
 	storage.Put(ctx, token.CirculationKey, supply)
 	return true
 }
@@ -256,4 +262,23 @@ func Allowance(from, to []byte) interface{} {
 	}
 	key := append(from, to...)
 	return getIntFromDB(ctx, key)
+}
+
+// Mint initial supply of tokens
+func Mint(to []byte) bool {
+	if trigger != runtime.Application {
+		return false
+	}
+	if !checkOwnerWitness() {
+		return false
+	}
+	minted := storage.Get(ctx, []byte("minted"))
+	if minted != nil && minted.(bool) == true {
+		return false
+	}
+
+	storage.Put(ctx, to, token.TotalSupply)
+	storage.Put(ctx, []byte("minted"), true)
+	addToCirculation(token.TotalSupply)
+	return true
 }
