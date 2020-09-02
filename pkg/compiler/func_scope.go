@@ -108,6 +108,11 @@ func (c *funcScope) analyzeVoidCalls(node ast.Node) bool {
 		if ok {
 			c.voidCalls[ce] = false
 		}
+	case *ast.SwitchStmt:
+		ce, ok := n.Tag.(*ast.CallExpr)
+		if ok {
+			c.voidCalls[ce] = false
+		}
 	case *ast.CaseClause:
 		for _, e := range n.List {
 			ce, ok := e.(*ast.CallExpr)
