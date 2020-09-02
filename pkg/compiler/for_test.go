@@ -737,6 +737,20 @@ func TestForLoopRangeMap(t *testing.T) {
 	eval(t, src, big.NewInt(42))
 }
 
+func TestForLoopRangeTypeConversion(t *testing.T) {
+	src := `package foo
+	type intArr []int
+	func Main() int {
+		a := []int{1, 2, 3}
+		s := 0
+		for _, v := range intArr(a) {
+			s += v
+		}
+		return s
+	}`
+	eval(t, src, big.NewInt(6))
+}
+
 func TestForLoopComplexConditions(t *testing.T) {
 	src := `
 	package foo
