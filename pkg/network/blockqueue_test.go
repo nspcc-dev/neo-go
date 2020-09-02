@@ -31,6 +31,9 @@ func TestBlockQueue(t *testing.T) {
 	// but they're still not put into the blockchain, because bq isn't running
 	assert.Equal(t, uint32(0), chain.BlockHeight())
 	assert.Equal(t, 4, bq.length())
+	// block with too big index is dropped
+	assert.NoError(t, bq.putBlock(&block.Block{Base: block.Base{Index: bq.chain.BlockHeight() + blockCacheSize + 1}}))
+	assert.Equal(t, 4, bq.length())
 	go bq.run()
 	// run() is asynchronous, so we need some kind of timeout anyway and this is the simplest one
 	for i := 0; i < 5; i++ {
