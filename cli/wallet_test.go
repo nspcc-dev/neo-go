@@ -10,7 +10,9 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/stretchr/testify/require"
 )
@@ -184,4 +186,70 @@ func TestClaimGas(t *testing.T) {
 
 	balanceAfter := e.Chain.GetUtilityTokenBalance(validatorHash)
 	require.Equal(t, 0, balanceAfter.Cmp(balanceBefore.Add(balanceBefore, cl)))
+}
+
+func TestImportDeployed(t *testing.T) {
+	e := newExecutor(t, true)
+	defer e.Close(t)
+
+	e.In.WriteString("one\r")
+	e.Run(t, "neo-go", "contract", "deploy",
+		"--unittest", "--rpc-endpoint", "http://"+e.RPC.Addr,
+		"--wallet", validatorWallet, "--address", validatorAddr,
+		"--in", "testdata/verify.nef", "--manifest", "testdata/verify.manifest.json")
+
+	line, err := e.Out.ReadString('\n')
+	require.NoError(t, err)
+	line = strings.TrimSpace(strings.TrimPrefix(line, "Contract: "))
+	h, err := util.Uint160DecodeStringLE(line)
+	require.NoError(t, err)
+
+	e.checkTxPersisted(t)
+
+	tmpDir := os.TempDir()
+	walletPath := path.Join(tmpDir, "wallet.json")
+	e.Run(t, "neo-go", "wallet", "init", "--wallet", walletPath)
+	defer os.Remove(walletPath)
+
+	priv, err := keys.NewPrivateKey()
+	require.NoError(t, err)
+
+	e.In.WriteString("acc\rpass\rpass\r")
+	e.Run(t, "neo-go", "wallet", "import-deployed",
+		"--unittest", "--rpc-endpoint", "http://"+e.RPC.Addr,
+		"--wallet", walletPath, "--wif", priv.WIF(),
+		"--contract", h.StringLE())
+
+	w, err := wallet.NewWalletFromFile(walletPath)
+	defer w.Close()
+	require.NoError(t, err)
+	require.Equal(t, 1, len(w.Accounts))
+	contractAddr := w.Accounts[0].Address
+	require.Equal(t, address.Uint160ToString(h), contractAddr)
+	require.True(t, w.Accounts[0].Contract.Deployed)
+
+	t.Run("Sign", func(t *testing.T) {
+		e.In.WriteString("one\r")
+		e.Run(t, "neo-go", "wallet", "nep5", "multitransfer",
+			"--unittest", "--rpc-endpoint", "http://"+e.RPC.Addr,
+			"--wallet", validatorWallet, "--from", validatorAddr,
+			"neo:"+contractAddr+":10",
+			"gas:"+contractAddr+":10")
+		e.checkTxPersisted(t)
+
+		privTo, err := keys.NewPrivateKey()
+		require.NoError(t, err)
+
+		e.In.WriteString("pass\r")
+		e.Run(t, "neo-go", "wallet", "nep5", "transfer",
+			"--unittest", "--rpc-endpoint", "http://"+e.RPC.Addr,
+			"--wallet", walletPath, "--from", contractAddr,
+			"--to", privTo.Address(), "--token", "neo", "--amount", "1")
+		e.checkTxPersisted(t)
+
+		b, _ := e.Chain.GetGoverningTokenBalance(h)
+		require.Equal(t, big.NewInt(9), b)
+		b, _ = e.Chain.GetGoverningTokenBalance(privTo.GetScriptHash())
+		require.Equal(t, big.NewInt(1), b)
+	})
 }

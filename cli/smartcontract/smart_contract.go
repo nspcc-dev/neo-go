@@ -681,7 +681,6 @@ func getAccFromContext(ctx *cli.Context) (*wallet.Account, error) {
 
 	rawPass, err := input.ReadPassword(ctx.App.Writer,
 		fmt.Sprintf("Enter account %s password > ", address.Uint160ToString(addr)))
-	fmt.Fprintln(ctx.App.Writer)
 	if err != nil {
 		return nil, cli.NewExitError(err, 1)
 	}
@@ -750,7 +749,8 @@ func contractDeploy(ctx *cli.Context) error {
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("failed to push invocation tx: %w", err), 1)
 	}
-	fmt.Fprintf(ctx.App.Writer, "Sent deployment transaction %s for contract %s\n", txHash.StringLE(), nefFile.Header.ScriptHash.StringLE())
+	fmt.Fprintf(ctx.App.Writer, "Contract: %s\n", nefFile.Header.ScriptHash.StringLE())
+	fmt.Fprintln(ctx.App.Writer, txHash.StringLE())
 	return nil
 }
 

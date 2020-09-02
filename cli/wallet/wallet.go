@@ -407,7 +407,7 @@ func importDeployed(ctx *cli.Context) error {
 
 	defer wall.Close()
 
-	rawHash := strings.TrimPrefix("0x", ctx.String("contract"))
+	rawHash := strings.TrimPrefix(ctx.String("contract"), "0x")
 	h, err := util.Uint160DecodeStringLE(rawHash)
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("invalid contract hash: %w", err), 1)
@@ -434,7 +434,9 @@ func importDeployed(ctx *cli.Context) error {
 	if md == nil {
 		return cli.NewExitError("contract has no `verify` method", 1)
 	}
+	acc.Address = address.Uint160ToString(cs.ScriptHash())
 	acc.Contract.Script = cs.Script
+	acc.Contract.Parameters = acc.Contract.Parameters[:0]
 	for _, p := range md.Parameters {
 		acc.Contract.Parameters = append(acc.Contract.Parameters, wallet.ContractParam{
 			Name: p.Name,
