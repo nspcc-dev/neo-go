@@ -79,9 +79,11 @@ func (t *TCPTransport) isCloseError(err error) bool {
 
 // Close implements the Transporter interface.
 func (t *TCPTransport) Close() {
+	t.lock.Lock()
 	if t.listener != nil {
 		t.listener.Close()
 	}
+	t.lock.Unlock()
 }
 
 // Proto implements the Transporter interface.
