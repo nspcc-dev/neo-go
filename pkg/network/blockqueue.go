@@ -15,6 +15,12 @@ type blockQueue struct {
 	relayF      func(*block.Block)
 }
 
+const (
+	// blockCacheSize is the amount of blocks above current height
+	// which are stored in queue.
+	blockCacheSize = 2000
+)
+
 func newBlockQueue(capacity int, bc blockchainer.Blockchainer, log *zap.Logger, relayer func(*block.Block)) *blockQueue {
 	if log == nil {
 		return nil
@@ -66,7 +72,8 @@ func (bq *blockQueue) run() {
 }
 
 func (bq *blockQueue) putBlock(block *block.Block) error {
-	if bq.chain.BlockHeight() >= block.Index {
+	h := bq.chain.BlockHeight()
+	if block.Index <= h || h+blockCacheSize < block.Index {
 		// can easily happen when fetching the same blocks from
 		// different peers, thus not considered as error
 		return nil
