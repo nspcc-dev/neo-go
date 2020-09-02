@@ -128,8 +128,8 @@ func TestRecover(t *testing.T) {
 			return h() + a
 		}
 		func h() int {
-			defer func() { a += 2; _ = recover() }()
-			defer func() { a *= 3; _ = recover(); panic("again") }()
+			defer func() { a += 2; recover() }()
+			defer func() { a *= 3; recover(); panic("again") }()
 			a = 1
 			panic("msg")
 			return a

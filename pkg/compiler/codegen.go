@@ -1512,7 +1512,9 @@ func (c *codegen) convertBuiltin(expr *ast.CallExpr) {
 	case "panic":
 		emit.Opcode(c.prog.BinWriter, opcode.THROW)
 	case "recover":
-		c.emitLoadByIndex(varGlobal, c.exceptionIndex)
+		if !c.scope.voidCalls[expr] {
+			c.emitLoadByIndex(varGlobal, c.exceptionIndex)
+		}
 		emit.Opcode(c.prog.BinWriter, opcode.PUSHNULL)
 		c.emitStoreByIndex(varGlobal, c.exceptionIndex)
 	case "ToInteger", "ToByteArray", "ToBool":
