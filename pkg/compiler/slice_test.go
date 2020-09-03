@@ -427,4 +427,14 @@ func TestCopy(t *testing.T) {
 		}`
 		eval(t, src, []byte{0, 3})
 	})
+	t.Run("AssignToVariable", func(t *testing.T) {
+		src := `package foo
+		func Main() int {
+			src := []byte{3, 2, 1}
+			dst := make([]byte, 2)
+			n := copy(dst, src)
+			return n
+		}`
+		eval(t, src, big.NewInt(2))
+	})
 }

@@ -1455,6 +1455,14 @@ func (c *codegen) convertBuiltin(expr *ast.CallExpr) {
 		emit.Int(c.prog.BinWriter, 3)
 		emit.Opcode(c.prog.BinWriter, opcode.ROLL)
 		emit.Opcode(c.prog.BinWriter, opcode.MIN)
+		if !c.scope.voidCalls[expr] {
+			// insert top item to the bottom of MEMCPY args, so that it is left on stack
+			emit.Opcode(c.prog.BinWriter, opcode.DUP)
+			emit.Int(c.prog.BinWriter, 6)
+			emit.Opcode(c.prog.BinWriter, opcode.REVERSEN)
+			emit.Int(c.prog.BinWriter, 5)
+			emit.Opcode(c.prog.BinWriter, opcode.REVERSEN)
+		}
 		emit.Opcode(c.prog.BinWriter, opcode.MEMCPY)
 	case "make":
 		typ := c.typeOf(expr.Args[0])
@@ -1512,7 +1520,9 @@ func (c *codegen) convertBuiltin(expr *ast.CallExpr) {
 	case "panic":
 		emit.Opcode(c.prog.BinWriter, opcode.THROW)
 	case "recover":
-		c.emitLoadByIndex(varGlobal, c.exceptionIndex)
+		if !c.scope.voidCalls[expr] {
+			c.emitLoadByIndex(varGlobal, c.exceptionIndex)
+		}
 		emit.Opcode(c.prog.BinWriter, opcode.PUSHNULL)
 		c.emitStoreByIndex(varGlobal, c.exceptionIndex)
 	case "ToInteger", "ToByteArray", "ToBool":
