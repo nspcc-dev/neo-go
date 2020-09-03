@@ -498,7 +498,7 @@ func (s *Server) getApplicationLog(reqParams request.Params) (interface{}, *resp
 		return nil, response.NewRPCError("Unknown transaction", "", err)
 	}
 
-	return result.NewApplicationLog(appExecResult), nil
+	return appExecResult, nil
 }
 
 func (s *Server) getNEP5Balances(ps request.Params) (interface{}, *response.Error) {
@@ -1159,10 +1159,10 @@ chloop:
 			resp.Payload[0] = b
 		case execution := <-s.executionCh:
 			resp.Event = response.ExecutionEventID
-			resp.Payload[0] = result.NewApplicationLog(execution)
+			resp.Payload[0] = execution
 		case notification := <-s.notificationCh:
 			resp.Event = response.NotificationEventID
-			resp.Payload[0] = result.StateEventToResultNotification(*notification)
+			resp.Payload[0] = *notification
 		case tx := <-s.transactionCh:
 			resp.Event = response.TransactionEventID
 			resp.Payload[0] = tx

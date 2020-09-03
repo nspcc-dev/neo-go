@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestStringer(t *testing.T) {
@@ -36,5 +37,27 @@ func TestDecodeBynary(t *testing.T) {
 	}
 	for o, b := range tests {
 		assert.Equal(t, o, Type(b))
+	}
+}
+
+func TestFromString(t *testing.T) {
+	testCases := map[string]Type{
+		"System":       System,
+		"Application":  Application,
+		"Verification": Verification,
+		"All":          All,
+	}
+	for str, expected := range testCases {
+		actual, err := FromString(str)
+		require.NoError(t, err)
+		require.Equal(t, expected, actual)
+	}
+	errorCases := []string{
+		"",
+		"Unknown",
+	}
+	for _, str := range errorCases {
+		_, err := FromString(str)
+		require.Error(t, err)
 	}
 }

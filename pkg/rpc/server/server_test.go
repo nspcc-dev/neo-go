@@ -26,7 +26,9 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/stretchr/testify/assert"
@@ -62,15 +64,15 @@ var rpcTestCases = map[string][]rpcTestCase{
 		{
 			name:   "positive",
 			params: `["` + deploymentTxHash + `"]`,
-			result: func(e *executor) interface{} { return &result.ApplicationLog{} },
+			result: func(e *executor) interface{} { return &state.AppExecResult{} },
 			check: func(t *testing.T, e *executor, acc interface{}) {
-				res, ok := acc.(*result.ApplicationLog)
+				res, ok := acc.(*state.AppExecResult)
 				require.True(t, ok)
 				expectedTxHash, err := util.Uint256DecodeStringLE(deploymentTxHash)
 				require.NoError(t, err)
 				assert.Equal(t, expectedTxHash, res.TxHash)
-				assert.Equal(t, "Application", res.Trigger)
-				assert.Equal(t, "HALT", res.VMState)
+				assert.Equal(t, trigger.Application, res.Trigger)
+				assert.Equal(t, vm.HaltState, res.VMState)
 			},
 		},
 		{
@@ -722,10 +724,10 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 		rpc := `{"jsonrpc": "2.0", "id": 1, "method": "getapplicationlog", "params": ["%s"]}`
 		body := doRPCCall(fmt.Sprintf(rpc, e.chain.GetHeaderHash(1).StringLE()), httpSrv.URL, t)
 		data := checkErrGetResult(t, body, false)
-		var res result.ApplicationLog
+		var res state.AppExecResult
 		require.NoError(t, json.Unmarshal(data, &res))
-		require.Equal(t, "System", res.Trigger)
-		require.Equal(t, "HALT", res.VMState)
+		require.Equal(t, trigger.System, res.Trigger)
+		require.Equal(t, vm.HaltState, res.VMState)
 	})
 
 	t.Run("submit", func(t *testing.T) {

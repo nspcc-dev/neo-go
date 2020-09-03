@@ -1,5 +1,7 @@
 package trigger
 
+import "fmt"
+
 //go:generate stringer -type=Type -output=trigger_type_string.go
 
 // Type represents trigger type used in C# reference node: https://github.com/neo-project/neo/blob/c64748ecbac3baeb8045b16af0d518398a6ced24/neo/SmartContract/TriggerType.cs#L3
@@ -27,3 +29,14 @@ const (
 	// All represents any trigger type.
 	All Type = System | Verification | Application
 )
+
+// FromString converts string to trigger Type
+func FromString(str string) (Type, error) {
+	triggers := []Type{System, Verification, Application, All}
+	for _, t := range triggers {
+		if t.String() == str {
+			return t, nil
+		}
+	}
+	return 0, fmt.Errorf("unknown trigger type: %s", str)
+}
