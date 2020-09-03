@@ -2,6 +2,7 @@ github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03
 github.com/CityOfZion/neo-go v0.62.1-pre.0.20191114145240-e740fbe708f8/go.mod h1:MJCkWUBhi9pn/CrYO1Q3P687y2KeahrOPS9BD9LDGb0=
 github.com/CityOfZion/neo-go v0.70.1-pre.0.20191209120015-fccb0085941e/go.mod h1:0enZl0az8xA6PVkwzEOwPWVJGqlt/GO4hA4kmQ5Xzig=
 github.com/CityOfZion/neo-go v0.70.1-pre.0.20191212173117-32ac01130d4c/go.mod h1:JtlHfeqLywZLswKIKFnAp+yzezY4Dji9qlfQKB2OD/I=
+github.com/CityOfZion/neo-go v0.71.1-pre.0.20200129171427-f773ec69fb84 h1:gcTXk9aO+PhHudJNPFJ9H4RmKjdzz40Tvv2NE1BwRZ0=
 github.com/CityOfZion/neo-go v0.71.1-pre.0.20200129171427-f773ec69fb84/go.mod h1:FLI526IrRWHmcsO+mHsCbj64pJZhwQFTLJZu+A4PGOA=
 github.com/DataDog/zstd v1.4.1 h1:3oxKN3wbHibqx897utPC2LTQU4J+IHWWJO+glkAkpFM=
 github.com/DataDog/zstd v1.4.1/go.mod h1:1jcaCB/ufaK+sKp1NBhlGmpz41jOoPQ35bpF36t7BBo=
@@ -164,8 +165,8 @@ github.com/nspcc-dev/dbft v0.0.0-20200117124306-478e5cfbf03a h1:ajvxgEe9qY4vvoSm
 github.com/nspcc-dev/dbft v0.0.0-20200117124306-478e5cfbf03a/go.mod h1:/YFK+XOxxg0Bfm6P92lY5eDSLYfp06XOdL8KAVgXjVk=
 github.com/nspcc-dev/dbft v0.0.0-20200219114139-199d286ed6c1 h1:yEx9WznS+rjE0jl0dLujCxuZSIb+UTjF+005TJu/nNI=
 github.com/nspcc-dev/dbft v0.0.0-20200219114139-199d286ed6c1/go.mod h1:O0qtn62prQSqizzoagHmuuKoz8QMkU3SzBoKdEvm3aQ=
-github.com/nspcc-dev/dbft v0.0.0-20200711144034-c526ccc6f570 h1:EHBwlOyd2m06C3dnxhpPokpYqlNg7u5ZX/uPBhjYuZ4=
-github.com/nspcc-dev/dbft v0.0.0-20200711144034-c526ccc6f570/go.mod h1:1FYQXSbb6/9HQIkoF8XO7W/S8N7AZRkBsgwbcXRvk0E=
+github.com/nspcc-dev/dbft v0.0.0-20200904131615-4443b3066b8b h1:UgjsL0bhHWF/g7iK673brucYjwpB4MM0Sgg2iVaOYGc=
+github.com/nspcc-dev/dbft v0.0.0-20200904131615-4443b3066b8b/go.mod h1:1FYQXSbb6/9HQIkoF8XO7W/S8N7AZRkBsgwbcXRvk0E=
 github.com/nspcc-dev/neo-go v0.73.1-pre.0.20200303142215-f5a1b928ce09/go.mod h1:pPYwPZ2ks+uMnlRLUyXOpLieaDQSEaf4NM3zHVbRjmg=
 github.com/nspcc-dev/neofs-crypto v0.2.0 h1:ftN+59WqxSWz/RCgXYOfhmltOOqU+udsNQSvN6wkFck=
 github.com/nspcc-dev/neofs-crypto v0.2.0/go.mod h1:F/96fUzPM3wR+UGsPi3faVNmFlA9KAEAUQR7dMxZmNA=
