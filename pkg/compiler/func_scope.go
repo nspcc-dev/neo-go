@@ -77,7 +77,12 @@ func (c *codegen) newFuncScope(decl *ast.FuncDecl, label uint16) *funcScope {
 func (c *codegen) getFuncNameFromDecl(pkgPath string, decl *ast.FuncDecl) string {
 	name := decl.Name.Name
 	if decl.Recv != nil {
-		name = decl.Recv.List[0].Type.(*ast.Ident).Name + "." + name
+		switch t := decl.Recv.List[0].Type.(type) {
+		case *ast.Ident:
+			name = t.Name + "." + name
+		case *ast.StarExpr:
+			name = t.X.(*ast.Ident).Name + "." + name
+		}
 	}
 	return c.getIdentName(pkgPath, name)
 }

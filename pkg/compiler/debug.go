@@ -36,6 +36,8 @@ type MethodDebugInfo struct {
 	Name DebugMethodName `json:"name"`
 	// IsExported defines whether method is exported.
 	IsExported bool `json:"-"`
+	// IsFunction defines whether method has no receiver.
+	IsFunction bool `json:"-"`
 	// Range is the range of smart-contract's opcodes corresponding to the method.
 	Range DebugRange `json:"range"`
 	// Parameters is a list of method's parameters.
@@ -123,6 +125,7 @@ func (c *codegen) emitDebugInfo(contract []byte) *DebugInfo {
 				Namespace: c.mainPkg.Pkg.Name(),
 			},
 			IsExported: true,
+			IsFunction: true,
 			Range: DebugRange{
 				Start: 0,
 				End:   uint16(c.initEndOffset),
@@ -171,6 +174,7 @@ func (c *codegen) methodInfoFromScope(name string, scope *funcScope) *MethodDebu
 			Namespace: scope.pkg.Name(),
 		},
 		IsExported: scope.decl.Name.IsExported(),
+		IsFunction: scope.decl.Recv == nil,
 		Range:      scope.rng,
 		Parameters: params,
 		ReturnType: c.scReturnTypeFromScope(scope),
@@ -375,7 +379,7 @@ func (di *DebugInfo) ConvertToManifest(fs smartcontract.PropertyState, events []
 	}
 	methods := make([]manifest.Method, 0)
 	for _, method := range di.Methods {
-		if method.IsExported && method.Name.Namespace == di.MainPkg {
+		if method.IsExported && method.IsFunction && method.Name.Namespace == di.MainPkg {
 			mMethod, err := method.ToManifestMethod()
 			if err != nil {
 				return nil, err
