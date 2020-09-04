@@ -887,10 +887,17 @@ func (s *Server) requestTx(hashes ...util.Uint256) {
 		return
 	}
 
-	msg := s.MkMsg(CMDGetData, payload.NewInventory(payload.TXType, hashes))
-	// It's high priority because it directly affects consensus process,
-	// even though it's getdata.
-	s.broadcastHPMessage(msg)
+	for i := 0; i < len(hashes)/payload.MaxHashesCount; i++ {
+		start := i * payload.MaxHashesCount
+		stop := (i + 1) * payload.MaxHashesCount
+		if stop < len(hashes) {
+			stop = len(hashes)
+		}
+		msg := s.MkMsg(CMDGetData, payload.NewInventory(payload.TXType, hashes[start:stop]))
+		// It's high priority because it directly affects consensus process,
+		// even though it's getdata.
+		s.broadcastHPMessage(msg)
+	}
 }
 
 // iteratePeersWithSendMsg sends given message to all peers using two functions
