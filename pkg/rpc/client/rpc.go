@@ -489,7 +489,7 @@ func (c *Client) CalculateValidUntilBlock() (uint32, error) {
 			expiresAt:       blockCount + cacheTimeout,
 		}
 	}
-	return blockCount + validatorsCount, nil
+	return blockCount + validatorsCount + 1, nil
 }
 
 // AddNetworkFee adds network fee for each witness script and optional extra
