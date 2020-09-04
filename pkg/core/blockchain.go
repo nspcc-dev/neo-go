@@ -933,10 +933,15 @@ func processTransfer(cache *dao.Cached, tx *transaction.Transaction, b *block.Bl
 	if !isGoverning && !out.AssetID.Equals(UtilityTokenID()) {
 		return nil
 	}
+	var amount = int64(out.Amount)
+	// NEO has no fractional part and Fixed8 representation is just misleading here.
+	if isGoverning {
+		amount = out.Amount.IntegralValue()
+	}
 	tr := &state.Transfer{
 		IsGoverning: isGoverning,
 		IsSent:      isSent,
-		Amount:      int64(out.Amount),
+		Amount:      amount,
 		Block:       b.Index,
 		Timestamp:   b.Timestamp,
 		Tx:          tx.Hash(),

@@ -1288,7 +1288,7 @@ func checkTransfers(t *testing.T, e *executor, acc interface{}, asset string, st
 	u := getUTXOForBlock(res, false, "neo", 1)
 	if start <= 1 && (stop == 0 || stop >= 1) && (asset == "neo" || asset == "") {
 		require.NotNil(t, u)
-		require.EqualValues(t, int64(util.Fixed8FromInt64(99999000)), u.Amount)
+		require.EqualValues(t, int64(99999000), u.Amount)
 	} else {
 		require.Nil(t, u)
 	}
@@ -1306,7 +1306,7 @@ func checkTransfers(t *testing.T, e *executor, acc interface{}, asset string, st
 	u = getUTXOForBlock(res, true, "neo", 206)
 	if start <= 206 && (stop == 0 || stop >= 206) && (asset == "neo" || asset == "") {
 		require.NotNil(t, u)
-		require.EqualValues(t, int64(util.Fixed8FromInt64(99999000)), u.Amount)
+		require.EqualValues(t, int64(99999000), u.Amount)
 	} else {
 		require.Nil(t, u)
 	}
@@ -1314,7 +1314,7 @@ func checkTransfers(t *testing.T, e *executor, acc interface{}, asset string, st
 	u = getUTXOForBlock(res, false, "neo", 206)
 	if start <= 206 && (stop == 0 || stop >= 206) && (asset == "neo" || asset == "") {
 		require.NotNil(t, u)
-		require.EqualValues(t, int64(util.Fixed8FromInt64(99998000)), u.Amount)
+		require.EqualValues(t, int64(99998000), u.Amount)
 	} else {
 		require.Nil(t, u)
 	}
