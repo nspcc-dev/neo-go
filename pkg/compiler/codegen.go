@@ -1527,6 +1527,8 @@ func (c *codegen) convertBuiltin(expr *ast.CallExpr) {
 		}
 		emit.Opcode(c.prog.BinWriter, opcode.PUSHNULL)
 		c.emitStoreByIndex(varGlobal, c.exceptionIndex)
+	case "delete":
+		emit.Opcode(c.prog.BinWriter, opcode.REMOVE)
 	case "ToInteger", "ToByteArray", "ToBool":
 		typ := stackitem.IntegerT
 		switch name {
