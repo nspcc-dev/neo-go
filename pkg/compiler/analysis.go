@@ -112,7 +112,11 @@ func countGlobals(f ast.Node) (i int) {
 		case *ast.GenDecl:
 			if n.Tok == token.VAR {
 				for _, s := range n.Specs {
-					i += len(s.(*ast.ValueSpec).Names)
+					for _, id := range s.(*ast.ValueSpec).Names {
+						if id.Name != "_" {
+							i++
+						}
+					}
 				}
 			}
 			return false
