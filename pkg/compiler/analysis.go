@@ -109,8 +109,13 @@ func countGlobals(f ast.Node) (i int) {
 			return false
 		// After skipping all funcDecls we are sure that each value spec
 		// is a global declared variable or constant.
-		case *ast.ValueSpec:
-			i += len(n.Names)
+		case *ast.GenDecl:
+			if n.Tok == token.VAR {
+				for _, s := range n.Specs {
+					i += len(s.(*ast.ValueSpec).Names)
+				}
+			}
+			return false
 		}
 		return true
 	})
