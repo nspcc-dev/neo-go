@@ -8,10 +8,10 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
+	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/request"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response"
-	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 )
 
@@ -141,9 +141,9 @@ readloop:
 			case response.TransactionEventID:
 				val = &transaction.Transaction{Network: c.opts.Network}
 			case response.NotificationEventID:
-				val = new(result.NotificationEvent)
+				val = new(state.NotificationEvent)
 			case response.ExecutionEventID:
-				val = new(result.ApplicationLog)
+				val = new(state.AppExecResult)
 			case response.MissedEventID:
 				// No value.
 			default:

@@ -29,7 +29,7 @@ func (r Invoke) MarshalJSON() ([]byte, error) {
 	for i := range arr {
 		data, err := stackitem.ToJSONWithTypes(r.Stack[i])
 		if err != nil {
-			st = []byte("error: recursive reference")
+			st = []byte(`"error: recursive reference"`)
 			break
 		}
 		arr[i] = data

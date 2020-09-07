@@ -19,10 +19,10 @@ import (
 )
 
 // GetApplicationLog returns the contract log based on the specified txid.
-func (c *Client) GetApplicationLog(hash util.Uint256) (*result.ApplicationLog, error) {
+func (c *Client) GetApplicationLog(hash util.Uint256) (*state.AppExecResult, error) {
 	var (
 		params = request.NewRawParams(hash.StringLE())
-		resp   = &result.ApplicationLog{}
+		resp   = new(state.AppExecResult)
 	)
 	if err := c.performRequest("getapplicationlog", params, resp); err != nil {
 		return nil, err
