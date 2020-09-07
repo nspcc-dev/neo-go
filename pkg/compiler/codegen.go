@@ -434,13 +434,15 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			switch t := spec.(type) {
 			case *ast.ValueSpec:
 				for _, id := range t.Names {
-					if c.scope == nil {
-						// it is a global declaration
-						c.newGlobal("", id.Name)
-					} else {
-						c.scope.newLocal(id.Name)
+					if id.Name != "_" {
+						if c.scope == nil {
+							// it is a global declaration
+							c.newGlobal("", id.Name)
+						} else {
+							c.scope.newLocal(id.Name)
+						}
+						c.registerDebugVariable(id.Name, t.Type)
 					}
-					c.registerDebugVariable(id.Name, t.Type)
 				}
 				for i := range t.Names {
 					if len(t.Values) != 0 {
@@ -1525,6 +1527,8 @@ func (c *codegen) convertBuiltin(expr *ast.CallExpr) {
 		}
 		emit.Opcode(c.prog.BinWriter, opcode.PUSHNULL)
 		c.emitStoreByIndex(varGlobal, c.exceptionIndex)
+	case "delete":
+		emit.Opcode(c.prog.BinWriter, opcode.REMOVE)
 	case "ToInteger", "ToByteArray", "ToBool":
 		typ := stackitem.IntegerT
 		switch name {

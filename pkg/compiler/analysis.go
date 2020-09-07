@@ -14,7 +14,7 @@ import (
 
 var (
 	// Go language builtin functions.
-	goBuiltins = []string{"len", "append", "panic", "make", "copy", "recover"}
+	goBuiltins = []string{"len", "append", "panic", "make", "copy", "recover", "delete"}
 	// Custom builtin utility functions.
 	customBuiltins = []string{
 		"FromAddress", "Equals",
@@ -109,8 +109,17 @@ func countGlobals(f ast.Node) (i int) {
 			return false
 		// After skipping all funcDecls we are sure that each value spec
 		// is a global declared variable or constant.
-		case *ast.ValueSpec:
-			i += len(n.Names)
+		case *ast.GenDecl:
+			if n.Tok == token.VAR {
+				for _, s := range n.Specs {
+					for _, id := range s.(*ast.ValueSpec).Names {
+						if id.Name != "_" {
+							i++
+						}
+					}
+				}
+			}
+			return false
 		}
 		return true
 	})
