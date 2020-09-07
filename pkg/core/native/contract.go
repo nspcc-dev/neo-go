@@ -57,6 +57,11 @@ func (cs *Contracts) GetPersistScript() []byte {
 	w := io.NewBufBinWriter()
 	for i := range cs.Contracts {
 		md := cs.Contracts[i].Metadata()
+		// Not every contract is persisted:
+		// https://github.com/neo-project/neo/blob/master/src/neo/Ledger/Blockchain.cs#L90
+		if md.ContractID == policyContractID {
+			continue
+		}
 		emit.Int(w.BinWriter, 0)
 		emit.Opcode(w.BinWriter, opcode.NEWARRAY)
 		emit.String(w.BinWriter, "onPersist")
