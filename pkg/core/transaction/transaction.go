@@ -117,6 +117,7 @@ func (t *Transaction) DecodeBinary(br *io.BinReader) {
 			br.Err = errors.New("negative output")
 			return
 		}
+		t.Outputs[i].Position = i
 	}
 	br.ReadArray(&t.Scripts)
 
