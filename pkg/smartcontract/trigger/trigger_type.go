@@ -25,5 +25,5 @@ const (
 	Application Type = 0x40
 
 	// All represents any trigger type.
-	All = System | Verification | Application
+	All Type = System | Verification | Application
 )
