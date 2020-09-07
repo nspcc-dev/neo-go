@@ -30,10 +30,6 @@ type TransactionMetadata struct {
 func NewTransactionOutputRaw(tx *transaction.Transaction, header *block.Header, chain core.Blockchainer) TransactionOutputRaw {
 	// confirmations formula
 	confirmations := int(chain.BlockHeight() - header.Base.Index + 1)
-	// set index position
-	for i, o := range tx.Outputs {
-		o.Position = i
-	}
 	return TransactionOutputRaw{
 		Transaction: tx,
 		TransactionMetadata: TransactionMetadata{

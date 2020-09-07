@@ -1086,6 +1086,37 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 		assert.Equal(t, TXHash, actual.Transaction.Hash())
 	})
 
+	t.Run("getrawtransaction verbose, check outputs", func(t *testing.T) {
+		block, _ := chain.GetBlock(chain.GetHeaderHash(1))
+		TXHash := block.Transactions[1].Hash()
+		rpc := fmt.Sprintf(`{"jsonrpc": "2.0", "id": 1, "method": "getrawtransaction", "params": ["%s", 1]}"`, TXHash.StringLE())
+		body := doRPCCall(rpc, httpSrv.URL, t)
+		txOut := checkErrGetResult(t, body, false)
+		actual := result.TransactionOutputRaw{}
+		err := json.Unmarshal(txOut, &actual)
+		require.NoErrorf(t, err, "could not parse response: %s", txOut)
+		neoID := core.GoverningTokenID()
+		multiAddr, err := util.Uint160DecodeStringBE("be48d3a3f5d10013ab9ffee489706078714f1ea2")
+		require.NoError(t, err)
+		singleAddr, err := keys.NewPrivateKeyFromWIF("KxyjQ8eUa4FHt3Gvioyt1Wz29cTUrE4eTqX3yFSk1YFCsPL8uNsY")
+		require.NoError(t, err)
+		assert.Equal(t, transaction.ContractType, actual.Transaction.Type)
+		assert.Equal(t, []transaction.Output{
+			{
+				AssetID:    neoID,
+				Amount:     util.Fixed8FromInt64(99999000),
+				ScriptHash: singleAddr.GetScriptHash(),
+				Position:   0,
+			},
+			{
+				AssetID:    neoID,
+				Amount:     util.Fixed8FromInt64(1000),
+				ScriptHash: multiAddr,
+				Position:   1,
+			},
+		}, actual.Transaction.Outputs)
+	})
+
 	t.Run("gettxout", func(t *testing.T) {
 		block, _ := chain.GetBlock(chain.GetHeaderHash(0))
 		tx := block.Transactions[3]
