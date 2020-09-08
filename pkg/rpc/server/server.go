@@ -449,23 +449,34 @@ func (s *Server) getVersion(_ request.Params) (interface{}, *response.Error) {
 	}, nil
 }
 
-func getTimestamps(p1, p2 *request.Param) (uint32, uint32, error) {
+func getTimestampsAndLimit(p1, p2, p3 *request.Param) (uint32, uint32, int, error) {
 	var start, end uint32
+	var limit int
 	if p1 != nil {
 		val, err := p1.GetInt()
 		if err != nil {
-			return 0, 0, err
+			return 0, 0, 0, err
 		}
 		start = uint32(val)
 	}
 	if p2 != nil {
 		val, err := p2.GetInt()
 		if err != nil {
-			return 0, 0, err
+			return 0, 0, 0, err
 		}
 		end = uint32(val)
 	}
-	return start, end, nil
+	if p3 != nil {
+		l, err := p3.GetInt()
+		if err != nil {
+			return 0, 0, 0, err
+		}
+		if l <= 0 {
+			return 0, 0, 0, errors.New("can't use negative or zero limit")
+		}
+		limit = l
+	}
+	return start, end, limit, nil
 }
 
 func getAssetMaps(name string) (map[util.Uint256]*result.AssetUTXO, map[util.Uint256]*result.AssetUTXO, error) {
@@ -516,8 +527,8 @@ func (s *Server) getUTXOTransfers(ps request.Params) (interface{}, *response.Err
 		index++
 	}
 
-	p1, p2 := ps.Value(index), ps.Value(index+1)
-	start, end, err := getTimestamps(p1, p2)
+	p1, p2, p3 := ps.Value(index), ps.Value(index+1), ps.Value(index+2)
+	start, end, limit, err := getTimestampsAndLimit(p1, p2, p3)
 	if err != nil {
 		return nil, response.NewInvalidParamsError("", err)
 	}
@@ -534,7 +545,15 @@ func (s *Server) getUTXOTransfers(ps request.Params) (interface{}, *response.Err
 	}
 	tr := new(state.Transfer)
 	err = s.chain.ForEachTransfer(addr, tr, func() error {
-		if tr.Timestamp < start || end != 0 && tr.Timestamp > end {
+		var count int
+		for _, res := range sent {
+			count += len(res.Transactions)
+		}
+		for _, res := range recv {
+			count += len(res.Transactions)
+		}
+		if tr.Timestamp < start || end != 0 && tr.Timestamp > end ||
+			(limit != 0 && count >= limit) {
 			return nil
 		}
 		assetID := core.GoverningTokenID()
@@ -720,8 +739,8 @@ func (s *Server) getNEP5Transfers(ps request.Params) (interface{}, *response.Err
 		return nil, response.ErrInvalidParams
 	}
 
-	p1, p2 := ps.Value(1), ps.Value(2)
-	start, end, err := getTimestamps(p1, p2)
+	p1, p2, p3 := ps.Value(1), ps.Value(2), ps.Value(3)
+	start, end, limit, err := getTimestampsAndLimit(p1, p2, p3)
 	if err != nil {
 		return nil, response.NewInvalidParamsError("", err)
 	}
@@ -739,7 +758,8 @@ func (s *Server) getNEP5Transfers(ps request.Params) (interface{}, *response.Err
 	}
 	tr := new(state.NEP5Transfer)
 	err = s.chain.ForEachNEP5Transfer(u, tr, func() error {
-		if tr.Timestamp < start || tr.Timestamp > end {
+		if tr.Timestamp < start || tr.Timestamp > end ||
+			(limit != 0 && (len(bs.Received)+len(bs.Sent) >= limit)) {
 			return nil
 		}
 		transfer := result.NEP5Transfer{
