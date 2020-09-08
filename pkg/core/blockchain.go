@@ -789,8 +789,8 @@ func (bc *Blockchain) ForEachNEP5Transfer(acc util.Uint160, f func(*state.NEP5Tr
 	if err != nil {
 		return nil
 	}
-	for i := uint32(0); i <= balances.NextTransferBatch; i++ {
-		lg, err := bc.dao.GetNEP5TransferLog(acc, i)
+	for i := int(balances.NextTransferBatch); i >= 0; i-- {
+		lg, err := bc.dao.GetNEP5TransferLog(acc, uint32(i))
 		if err != nil {
 			return nil
 		}

@@ -103,18 +103,20 @@ func (lg *NEP5TransferLog) Append(tr *NEP5Transfer) error {
 
 // ForEach iterates over transfer log returning on first error.
 func (lg *NEP5TransferLog) ForEach(f func(*NEP5Transfer) error) error {
-	if lg == nil {
+	if lg == nil || len(lg.Raw) == 0 {
 		return nil
 	}
-	tr := new(NEP5Transfer)
-	var bytesRead int
-	for i := 1; i < len(lg.Raw); i += bytesRead {
-		r := io.NewBinReaderFromBuf(lg.Raw[i:])
-		bytesRead = tr.DecodeBinaryReturnCount(r)
-		if r.Err != nil {
-			return r.Err
-		} else if err := f(tr); err != nil {
-			return nil
+	transfers := make([]NEP5Transfer, lg.Size())
+	r := io.NewBinReaderFromBuf(lg.Raw[1:])
+	for i := 0; i < lg.Size(); i++ {
+		transfers[i].DecodeBinary(r)
+	}
+	if r.Err != nil {
+		return r.Err
+	}
+	for i := len(transfers) - 1; i >= 0; i-- {
+		if err := f(&transfers[i]); err != nil {
+			return err
 		}
 	}
 	return nil
