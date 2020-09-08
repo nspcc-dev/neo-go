@@ -599,14 +599,17 @@ func (s *Server) getNEP5Transfers(ps request.Params) (interface{}, *response.Err
 		Sent:     []result.NEP5Transfer{},
 	}
 	cache := make(map[int32]decimals)
-	err = s.chain.ForEachNEP5Transfer(u, func(tr *state.NEP5Transfer) error {
-		if tr.Timestamp < start || tr.Timestamp > end ||
+	err = s.chain.ForEachNEP5Transfer(u, func(tr *state.NEP5Transfer) (bool, error) {
+		if tr.Timestamp > end {
+			return true, nil
+		}
+		if tr.Timestamp < start ||
 			(limit != 0 && (len(bs.Received)+len(bs.Sent) >= limit)) {
-			return nil
+			return false, nil
 		}
 		d, err := s.getDecimals(tr.Asset, cache)
 		if err != nil {
-			return nil
+			return false, err
 		}
 		transfer := result.NEP5Transfer{
 			Timestamp: tr.Timestamp,
@@ -620,7 +623,7 @@ func (s *Server) getNEP5Transfers(ps request.Params) (interface{}, *response.Err
 				transfer.Address = address.Uint160ToString(tr.From)
 			}
 			bs.Received = append(bs.Received, transfer)
-			return nil
+			return true, nil
 		}
 
 		transfer.Amount = amountToString(new(big.Int).Neg(&tr.Amount), d.Value)
@@ -628,7 +631,7 @@ func (s *Server) getNEP5Transfers(ps request.Params) (interface{}, *response.Err
 			transfer.Address = address.Uint160ToString(tr.To)
 		}
 		bs.Sent = append(bs.Sent, transfer)
-		return nil
+		return true, nil
 	})
 	if err != nil {
 		return nil, response.NewInternalServerError("invalid NEP5 transfer log", err)

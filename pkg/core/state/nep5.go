@@ -102,9 +102,9 @@ func (lg *NEP5TransferLog) Append(tr *NEP5Transfer) error {
 }
 
 // ForEach iterates over transfer log returning on first error.
-func (lg *NEP5TransferLog) ForEach(f func(*NEP5Transfer) error) error {
+func (lg *NEP5TransferLog) ForEach(f func(*NEP5Transfer) (bool, error)) (bool, error) {
 	if lg == nil || len(lg.Raw) == 0 {
-		return nil
+		return true, nil
 	}
 	transfers := make([]NEP5Transfer, lg.Size())
 	r := io.NewBinReaderFromBuf(lg.Raw[1:])
@@ -112,14 +112,18 @@ func (lg *NEP5TransferLog) ForEach(f func(*NEP5Transfer) error) error {
 		transfers[i].DecodeBinary(r)
 	}
 	if r.Err != nil {
-		return r.Err
+		return false, r.Err
 	}
 	for i := len(transfers) - 1; i >= 0; i-- {
-		if err := f(&transfers[i]); err != nil {
-			return err
+		cont, err := f(&transfers[i])
+		if err != nil {
+			return false, err
+		}
+		if !cont {
+			return false, nil
 		}
 	}
-	return nil
+	return true, nil
 }
 
 // Size returns an amount of transfer written in log.

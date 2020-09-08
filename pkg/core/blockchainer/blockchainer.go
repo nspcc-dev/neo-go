@@ -31,7 +31,7 @@ type Blockchainer interface {
 	GetContractScriptHash(id int32) (util.Uint160, error)
 	GetEnrollments() ([]state.Validator, error)
 	GetGoverningTokenBalance(acc util.Uint160) (*big.Int, uint32)
-	ForEachNEP5Transfer(util.Uint160, func(*state.NEP5Transfer) error) error
+	ForEachNEP5Transfer(util.Uint160, func(*state.NEP5Transfer) (bool, error)) error
 	GetHeaderHash(int) util.Uint256
 	GetHeader(hash util.Uint256) (*block.Header, error)
 	CurrentHeaderHash() util.Uint256
