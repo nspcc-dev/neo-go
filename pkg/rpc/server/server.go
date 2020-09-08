@@ -545,23 +545,34 @@ func (s *Server) getNEP5Balances(ps request.Params) (interface{}, *response.Erro
 	return bs, nil
 }
 
-func getTimestamps(p1, p2 *request.Param) (uint64, uint64, error) {
+func getTimestampsAndLimit(p1, p2, p3 *request.Param) (uint64, uint64, int, error) {
 	var start, end uint64
+	var limit int
 	if p1 != nil {
 		val, err := p1.GetInt()
 		if err != nil {
-			return 0, 0, err
+			return 0, 0, 0, err
 		}
 		start = uint64(val)
 	}
 	if p2 != nil {
 		val, err := p2.GetInt()
 		if err != nil {
-			return 0, 0, err
+			return 0, 0, 0, err
 		}
 		end = uint64(val)
 	}
-	return start, end, nil
+	if p3 != nil {
+		l, err := p3.GetInt()
+		if err != nil {
+			return 0, 0, 0, err
+		}
+		if l <= 0 {
+			return 0, 0, 0, errors.New("can't use negative or zero limit")
+		}
+		limit = l
+	}
+	return start, end, limit, nil
 }
 
 func (s *Server) getNEP5Transfers(ps request.Params) (interface{}, *response.Error) {
@@ -570,8 +581,8 @@ func (s *Server) getNEP5Transfers(ps request.Params) (interface{}, *response.Err
 		return nil, response.ErrInvalidParams
 	}
 
-	p1, p2 := ps.Value(1), ps.Value(2)
-	start, end, err := getTimestamps(p1, p2)
+	p1, p2, p3 := ps.Value(1), ps.Value(2), ps.Value(3)
+	start, end, limit, err := getTimestampsAndLimit(p1, p2, p3)
 	if err != nil {
 		return nil, response.NewInvalidParamsError(err.Error(), err)
 	}
@@ -589,7 +600,8 @@ func (s *Server) getNEP5Transfers(ps request.Params) (interface{}, *response.Err
 	}
 	cache := make(map[int32]decimals)
 	err = s.chain.ForEachNEP5Transfer(u, func(tr *state.NEP5Transfer) error {
-		if tr.Timestamp < start || tr.Timestamp > end {
+		if tr.Timestamp < start || tr.Timestamp > end ||
+			(limit != 0 && (len(bs.Received)+len(bs.Sent) >= limit)) {
 			return nil
 		}
 		d, err := s.getDecimals(tr.Asset, cache)
