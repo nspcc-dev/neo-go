@@ -114,8 +114,8 @@ func (lg *TransferLog) ForEach(size int, tr io.Serializable, f func() error) err
 	if lg == nil {
 		return nil
 	}
-	for i := 0; i < len(lg.Raw); i += size {
-		r := io.NewBinReaderFromBuf(lg.Raw[i : i+size])
+	for i := len(lg.Raw); i > 0; i -= size {
+		r := io.NewBinReaderFromBuf(lg.Raw[i-size : i])
 		tr.DecodeBinary(r)
 		if r.Err != nil {
 			return r.Err

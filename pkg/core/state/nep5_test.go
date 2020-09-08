@@ -28,11 +28,11 @@ func TestNEP5TransferLog_Append(t *testing.T) {
 
 	require.Equal(t, len(expected), lg.Size()/NEP5TransferSize)
 
-	i := 0
+	i := len(expected) - 1
 	tr := new(NEP5Transfer)
 	err := lg.ForEach(NEP5TransferSize, tr, func() error {
 		require.Equal(t, expected[i], tr)
-		i++
+		i--
 		return nil
 	})
 	require.NoError(t, err)

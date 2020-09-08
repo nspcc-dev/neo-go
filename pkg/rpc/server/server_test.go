@@ -1284,24 +1284,25 @@ func checkNep5TransfersAux(t *testing.T, e *executor, acc interface{}, onlyFirst
 
 	if onlyFirst {
 		require.Equal(t, 1, len(res.Received))
+		require.Equal(t, "1000", res.Received[0].Amount)
+		require.Equal(t, assetHashOld, res.Received[0].Asset)
+		require.Equal(t, address.Uint160ToString(assetHashOld), res.Received[0].Address)
 	} else {
 		require.Equal(t, 3, len(res.Received))
-	}
 
-	require.Equal(t, "1000", res.Received[0].Amount)
-	require.Equal(t, assetHashOld, res.Received[0].Asset)
-	require.Equal(t, address.Uint160ToString(assetHashOld), res.Received[0].Address)
+		require.Equal(t, "1000", res.Received[2].Amount)
+		require.Equal(t, assetHashOld, res.Received[2].Asset)
+		require.Equal(t, address.Uint160ToString(assetHashOld), res.Received[2].Address)
 
-	if !onlyFirst {
 		require.Equal(t, "2", res.Received[1].Amount)
 		require.Equal(t, assetHash, res.Received[1].Asset)
 		require.Equal(t, "AWLYWXB8C9Lt1nHdDZJnC5cpYJjgRDLk17", res.Received[1].Address)
 		require.Equal(t, uint32(0), res.Received[1].NotifyIndex)
 
-		require.Equal(t, "1", res.Received[2].Amount)
-		require.Equal(t, assetHash, res.Received[2].Asset)
-		require.Equal(t, "AWLYWXB8C9Lt1nHdDZJnC5cpYJjgRDLk17", res.Received[2].Address)
-		require.Equal(t, uint32(1), res.Received[2].NotifyIndex)
+		require.Equal(t, "1", res.Received[0].Amount)
+		require.Equal(t, assetHash, res.Received[0].Asset)
+		require.Equal(t, "AWLYWXB8C9Lt1nHdDZJnC5cpYJjgRDLk17", res.Received[0].Address)
+		require.Equal(t, uint32(1), res.Received[0].NotifyIndex)
 	}
 
 	require.Equal(t, 1, len(res.Sent))
