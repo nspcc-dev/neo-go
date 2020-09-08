@@ -792,8 +792,9 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 			v.SetCheckedHash(tx.VerificationHash().BytesBE())
 			v.LoadScript(t.Script)
 			v.SetPriceGetter(getPrice)
-			if bc.config.FreeGasLimit > 0 {
-				v.SetGasLimit(bc.config.FreeGasLimit + t.Gas)
+			gasLimit := bc.config.GetFreeGas(block.Index)
+			if gasLimit > 0 {
+				v.SetGasLimit(gasLimit + t.Gas)
 			}
 
 			err := v.Run()

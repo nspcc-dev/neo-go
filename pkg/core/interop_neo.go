@@ -605,7 +605,8 @@ func (ic *interopContext) contractMigrate(v *vm.VM) error {
 			v := ic.bc.GetTestVM(nil)
 			w := io.NewBufBinWriter()
 			emit.AppCallWithOperationAndArgs(w.BinWriter, hash, "decimals")
-			v.SetGasLimit(ic.bc.GetConfig().FreeGasLimit)
+			conf := ic.bc.GetConfig()
+			v.SetGasLimit(conf.GetFreeGas(ic.bc.BlockHeight() + 1)) // BlockHeight() is already persisted, so it's either a new block or test invocation.
 			v.Load(w.Bytes())
 			if err := v.Run(); err == nil && v.Estack().Len() == 1 {
 				res := v.Estack().Pop().Item().ToContractParameter(map[vm.StackItem]bool{})
