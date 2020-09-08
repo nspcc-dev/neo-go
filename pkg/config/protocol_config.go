@@ -26,10 +26,12 @@ type (
 		// transactions exceeding the MaxFreeTransactionSize.
 		FeePerExtraByte float64 `yaml:"FeePerExtraByte"`
 		// FreeGasLimit is an amount of GAS which can be spent for free.
-		FreeGasLimit            util.Fixed8 `yaml:"FreeGasLimit"`
-		LowPriorityThreshold    float64     `yaml:"LowPriorityThreshold"`
-		Magic                   NetMode     `yaml:"Magic"`
-		MaxTransactionsPerBlock int         `yaml:"MaxTransactionsPerBlock"`
+		// It can change over time, thus it's a map of block height to the
+		// respective GAS limit.
+		FreeGasLimit            map[uint32]util.Fixed8 `yaml:"FreeGasLimit"`
+		LowPriorityThreshold    float64                `yaml:"LowPriorityThreshold"`
+		Magic                   NetMode                `yaml:"Magic"`
+		MaxTransactionsPerBlock int                    `yaml:"MaxTransactionsPerBlock"`
 		// Maximum size of low priority transaction in bytes.
 		MaxFreeTransactionSize int `yaml:"MaxFreeTransactionSize"`
 		// Maximum number of low priority transactions accepted into block.
@@ -60,6 +62,20 @@ type (
 	// NetMode describes the mode the blockchain will operate on.
 	NetMode uint32
 )
+
+// GetFreeGas returns FreeGasLimit value for given block height.
+func (p *ProtocolConfiguration) GetFreeGas(block uint32) util.Fixed8 {
+	var gas util.Fixed8
+	var height uint32
+	for h, g := range p.FreeGasLimit {
+		if h > block || h < height {
+			continue
+		}
+		gas = g
+		height = h
+	}
+	return gas
+}
 
 // String implements the stringer interface.
 func (n NetMode) String() string {
