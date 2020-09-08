@@ -19,8 +19,8 @@ func Deserialize(b []byte) interface{} {
 
 // Base64Encode encodes given byte slice into a base64 string and returns byte
 // representation of this string. It uses `System.Binary.Base64Encode` interop.
-func Base64Encode(b []byte) []byte {
-	return nil
+func Base64Encode(b []byte) string {
+	return ""
 }
 
 // Base64Decode decodes given base64 string represented as a byte slice into
@@ -31,8 +31,8 @@ func Base64Decode(b []byte) []byte {
 
 // Base58Encode encodes given byte slice into a base58 string and returns byte
 // representation of this string. It uses `System.Binary.Base58Encode` syscall.
-func Base58Encode(b []byte) []byte {
-	return nil
+func Base58Encode(b []byte) string {
+	return ""
 }
 
 // Base58Decode decodes given base58 string represented as a byte slice into
