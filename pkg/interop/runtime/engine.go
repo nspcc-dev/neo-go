@@ -9,8 +9,8 @@ import (
 // execution context. It never changes in a single execution, no matter how deep
 // this execution goes. This function uses
 // `System.Runtime.GetScriptContainer` syscall.
-func GetScriptContainer() blockchain.Transaction {
-	return blockchain.Transaction{}
+func GetScriptContainer() *blockchain.Transaction {
+	return &blockchain.Transaction{}
 }
 
 // GetExecutingScriptHash returns script hash (160 bit in BE form represented

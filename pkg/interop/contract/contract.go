@@ -21,8 +21,8 @@ type Contract struct {
 //     manifest    contract's manifest (limited in length by 2 KiB)
 // It returns this new created Contract when successful (and fails transaction
 // if not). It uses `System.Contract.Create` syscall.
-func Create(script []byte, manifest []byte) Contract {
-	return Contract{}
+func Create(script []byte, manifest []byte) *Contract {
+	return &Contract{}
 }
 
 // Update updates script and manifest of the calling contract (that is the one that calls Update)

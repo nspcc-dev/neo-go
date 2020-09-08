@@ -70,15 +70,15 @@ func GetHeight() int {
 // GetBlock returns block found by the given hash or index (with the same
 // encoding as for GetHeader). This function uses `System.Blockchain.GetBlock`
 // syscall.
-func GetBlock(heightOrHash interface{}) Block {
-	return Block{}
+func GetBlock(heightOrHash interface{}) *Block {
+	return &Block{}
 }
 
 // GetTransaction returns transaction found by the given hash (256 bit in BE
 // format represented as a slice of 32 bytes). This function uses
 // `System.Blockchain.GetTransaction` syscall.
-func GetTransaction(hash interop.Hash256) Transaction {
-	return Transaction{}
+func GetTransaction(hash interop.Hash256) *Transaction {
+	return &Transaction{}
 }
 
 // GetTransactionFromBlock returns transaction hash (256 bit in BE format
@@ -100,6 +100,6 @@ func GetTransactionHeight(hash interop.Hash256) int {
 // format represented as a slice of 20 bytes). Refer to the `contract` package
 // for details on how to use the returned structure. This function uses
 // `System.Blockchain.GetContract` syscall.
-func GetContract(scriptHash interop.Hash160) contract.Contract {
-	return contract.Contract{}
+func GetContract(scriptHash interop.Hash160) *contract.Contract {
+	return &contract.Contract{}
 }
