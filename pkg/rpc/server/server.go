@@ -544,7 +544,10 @@ func (s *Server) getUTXOTransfers(ps request.Params) (interface{}, *response.Err
 		return nil, response.NewInvalidParamsError("", err)
 	}
 	tr := new(state.Transfer)
-	err = s.chain.ForEachTransfer(addr, tr, func() error {
+	err = s.chain.ForEachTransfer(addr, tr, func() (bool, error) {
+		if tr.Timestamp > end {
+			return true, nil
+		}
 		var count int
 		for _, res := range sent {
 			count += len(res.Transactions)
@@ -552,9 +555,9 @@ func (s *Server) getUTXOTransfers(ps request.Params) (interface{}, *response.Err
 		for _, res := range recv {
 			count += len(res.Transactions)
 		}
-		if tr.Timestamp < start || end != 0 && tr.Timestamp > end ||
+		if tr.Timestamp < start ||
 			(limit != 0 && count >= limit) {
-			return nil
+			return false, nil
 		}
 		assetID := core.GoverningTokenID()
 		if !tr.IsGoverning {
@@ -574,7 +577,7 @@ func (s *Server) getUTXOTransfers(ps request.Params) (interface{}, *response.Err
 			})
 			a.TotalAmount += tr.Amount
 		}
-		return nil
+		return true, nil
 	})
 	if err != nil {
 		return nil, response.NewInternalServerError("", err)
@@ -757,10 +760,13 @@ func (s *Server) getNEP5Transfers(ps request.Params) (interface{}, *response.Err
 		Sent:     []result.NEP5Transfer{},
 	}
 	tr := new(state.NEP5Transfer)
-	err = s.chain.ForEachNEP5Transfer(u, tr, func() error {
-		if tr.Timestamp < start || tr.Timestamp > end ||
+	err = s.chain.ForEachNEP5Transfer(u, tr, func() (bool, error) {
+		if tr.Timestamp > end {
+			return true, nil
+		}
+		if tr.Timestamp < start ||
 			(limit != 0 && (len(bs.Received)+len(bs.Sent) >= limit)) {
-			return nil
+			return false, nil
 		}
 		transfer := result.NEP5Transfer{
 			Timestamp: tr.Timestamp,
@@ -776,7 +782,7 @@ func (s *Server) getNEP5Transfers(ps request.Params) (interface{}, *response.Err
 				transfer.Address = address.Uint160ToString(tr.From)
 			}
 			bs.Received = append(bs.Received, transfer)
-			return nil
+			return true, nil
 		}
 
 		transfer.Amount = strconv.FormatInt(-tr.Amount, 10)
@@ -784,7 +790,7 @@ func (s *Server) getNEP5Transfers(ps request.Params) (interface{}, *response.Err
 			transfer.Address = address.Uint160ToString(tr.To)
 		}
 		bs.Sent = append(bs.Sent, transfer)
-		return nil
+		return true, nil
 	})
 	if err != nil {
 		return nil, response.NewInternalServerError("invalid NEP5 transfer log", err)

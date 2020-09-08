@@ -30,13 +30,13 @@ func TestNEP5TransferLog_Append(t *testing.T) {
 
 	i := len(expected) - 1
 	tr := new(NEP5Transfer)
-	err := lg.ForEach(NEP5TransferSize, tr, func() error {
+	cont, err := lg.ForEach(NEP5TransferSize, tr, func() (bool, error) {
 		require.Equal(t, expected[i], tr)
 		i--
-		return nil
+		return true, nil
 	})
 	require.NoError(t, err)
-
+	require.True(t, cont)
 }
 
 func TestNEP5Tracker_EncodeBinary(t *testing.T) {

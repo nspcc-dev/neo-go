@@ -110,20 +110,25 @@ func (lg *TransferLog) Append(tr io.Serializable) error {
 }
 
 // ForEach iterates over transfer log returning on first error.
-func (lg *TransferLog) ForEach(size int, tr io.Serializable, f func() error) error {
+func (lg *TransferLog) ForEach(size int, tr io.Serializable, f func() (bool, error)) (bool, error) {
 	if lg == nil {
-		return nil
+		return true, nil
 	}
 	for i := len(lg.Raw); i > 0; i -= size {
 		r := io.NewBinReaderFromBuf(lg.Raw[i-size : i])
 		tr.DecodeBinary(r)
 		if r.Err != nil {
-			return r.Err
-		} else if err := f(); err != nil {
-			return nil
+			return false, r.Err
+		}
+		cont, err := f()
+		if err != nil {
+			return false, err
+		}
+		if !cont {
+			return false, nil
 		}
 	}
-	return nil
+	return true, nil
 }
 
 // Size returns an amount of transfer written in log provided size of a single transfer.
