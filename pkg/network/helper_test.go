@@ -96,7 +96,7 @@ func (chain testChain) GetAccountState(util.Uint160) *state.Account {
 func (chain testChain) GetNEP5Metadata(util.Uint160) (*state.NEP5Metadata, error) {
 	panic("TODO")
 }
-func (chain testChain) ForEachNEP5Transfer(util.Uint160, *state.NEP5Transfer, func() error) error {
+func (chain testChain) ForEachNEP5Transfer(util.Uint160, *state.NEP5Transfer, func() (bool, error)) error {
 	panic("TODO")
 }
 func (chain testChain) GetNEP5Balances(util.Uint160) *state.NEP5Balances {
@@ -108,7 +108,7 @@ func (chain testChain) GetValidators(...*transaction.Transaction) ([]*keys.Publi
 func (chain testChain) GetEnrollments() ([]*state.Validator, error) {
 	panic("TODO")
 }
-func (chain testChain) ForEachTransfer(util.Uint160, *state.Transfer, func() error) error {
+func (chain testChain) ForEachTransfer(util.Uint160, *state.Transfer, func() (bool, error)) error {
 	panic("TODO")
 }
 func (chain testChain) GetScriptHashesForVerifying(*transaction.Transaction) ([]util.Uint160, error) {
