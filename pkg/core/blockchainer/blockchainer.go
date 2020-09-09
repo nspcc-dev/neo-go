@@ -22,7 +22,6 @@ type Blockchainer interface {
 	AddHeaders(...*block.Header) error
 	AddBlock(*block.Block) error
 	AddStateRoot(r *state.MPTRoot) error
-	BlockHeight() uint32
 	CalculateClaimable(value *big.Int, startHeight, endHeight uint32) *big.Int
 	Close()
 	HeaderHeight() uint32

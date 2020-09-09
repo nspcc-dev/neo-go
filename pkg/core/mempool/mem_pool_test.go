@@ -23,6 +23,10 @@ func (fs *FeerStub) FeePerByte() int64 {
 	return fs.feePerByte
 }
 
+func (fs *FeerStub) BlockHeight() uint32 {
+	return 0
+}
+
 func (fs *FeerStub) GetUtilityTokenBalance(uint160 util.Uint160) *big.Int {
 	return balance
 }

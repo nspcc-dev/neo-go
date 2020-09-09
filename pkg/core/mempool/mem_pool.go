@@ -5,7 +5,6 @@ import (
 	"math/big"
 	"sort"
 	"sync"
-	"time"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -30,8 +29,8 @@ var (
 
 // item represents a transaction in the the Memory pool.
 type item struct {
-	txn       *transaction.Transaction
-	timeStamp time.Time
+	txn        *transaction.Transaction
+	blockStamp uint32
 }
 
 // items is a slice of item.
@@ -148,8 +147,8 @@ func checkBalance(tx *transaction.Transaction, balance utilityBalanceAndFees) er
 // Add tries to add given transaction to the Pool.
 func (mp *Pool) Add(t *transaction.Transaction, fee Feer) error {
 	var pItem = item{
-		txn:       t,
-		timeStamp: time.Now().UTC(),
+		txn:        t,
+		blockStamp: fee.BlockHeight(),
 	}
 	mp.lock.Lock()
 	if mp.containsKey(t.Hash()) {

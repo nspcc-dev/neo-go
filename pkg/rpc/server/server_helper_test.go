@@ -91,6 +91,10 @@ func (fs *FeerStub) FeePerByte() int64 {
 	return 0
 }
 
+func (fs *FeerStub) BlockHeight() uint32 {
+	return 0
+}
+
 func (fs *FeerStub) GetUtilityTokenBalance(acc util.Uint160) *big.Int {
 	return big.NewInt(1000000 * native.GASFactor)
 }
