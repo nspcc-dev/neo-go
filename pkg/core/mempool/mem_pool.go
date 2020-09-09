@@ -5,7 +5,6 @@ import (
 	"math/big"
 	"sort"
 	"sync"
-	"time"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -30,12 +29,12 @@ var (
 
 // item represents a transaction in the the Memory pool.
 type item struct {
-	txn       *transaction.Transaction
-	timeStamp time.Time
+	txn        *transaction.Transaction
+	blockStamp uint32
 }
 
 // items is a slice of item.
-type items []*item
+type items []item
 
 // utilityBalanceAndFees stores sender's balance and overall fees of
 // sender's transactions which are currently in mempool
@@ -47,7 +46,7 @@ type utilityBalanceAndFees struct {
 // Pool stores the unconfirms transactions.
 type Pool struct {
 	lock         sync.RWMutex
-	verifiedMap  map[util.Uint256]*item
+	verifiedMap  map[util.Uint256]*transaction.Transaction
 	verifiedTxes items
 	fees         map[util.Uint160]utilityBalanceAndFees
 
@@ -63,11 +62,7 @@ func (p items) Less(i, j int) bool { return p[i].CompareTo(p[j]) < 0 }
 // difference < 0 implies p < otherP.
 // difference = 0 implies p = otherP.
 // difference > 0 implies p > otherP.
-func (p *item) CompareTo(otherP *item) int {
-	if otherP == nil {
-		return 1
-	}
-
+func (p item) CompareTo(otherP item) int {
 	pHigh := p.txn.HasAttribute(transaction.HighPriority)
 	otherHigh := otherP.txn.HasAttribute(transaction.HighPriority)
 	if pHigh && !otherHigh {
@@ -81,12 +76,7 @@ func (p *item) CompareTo(otherP *item) int {
 		return ret
 	}
 
-	if ret := int(p.txn.NetworkFee - otherP.txn.NetworkFee); ret != 0 {
-		return ret
-	}
-
-	// Transaction hash sorted descending.
-	return otherP.txn.Hash().CompareTo(p.txn.Hash())
+	return int(p.txn.NetworkFee - otherP.txn.NetworkFee)
 }
 
 // Count returns the total number of uncofirm transactions.
@@ -151,9 +141,9 @@ func checkBalance(tx *transaction.Transaction, balance utilityBalanceAndFees) er
 
 // Add tries to add given transaction to the Pool.
 func (mp *Pool) Add(t *transaction.Transaction, fee Feer) error {
-	var pItem = &item{
-		txn:       t,
-		timeStamp: time.Now().UTC(),
+	var pItem = item{
+		txn:        t,
+		blockStamp: fee.BlockHeight(),
 	}
 	mp.lock.Lock()
 	if mp.containsKey(t.Hash()) {
@@ -166,7 +156,7 @@ func (mp *Pool) Add(t *transaction.Transaction, fee Feer) error {
 		return err
 	}
 
-	mp.verifiedMap[t.Hash()] = pItem
+	mp.verifiedMap[t.Hash()] = t
 	// Insert into sorted array (from max to min, that could also be done
 	// using sort.Sort(sort.Reverse()), but it incurs more overhead. Notice
 	// also that we're searching for position that is strictly more
@@ -207,7 +197,7 @@ func (mp *Pool) Add(t *transaction.Transaction, fee Feer) error {
 // nothing if it doesn't).
 func (mp *Pool) Remove(hash util.Uint256) {
 	mp.lock.Lock()
-	if it, ok := mp.verifiedMap[hash]; ok {
+	if tx, ok := mp.verifiedMap[hash]; ok {
 		var num int
 		delete(mp.verifiedMap, hash)
 		for num = range mp.verifiedTxes {
@@ -220,9 +210,9 @@ func (mp *Pool) Remove(hash util.Uint256) {
 		} else if num == len(mp.verifiedTxes)-1 {
 			mp.verifiedTxes = mp.verifiedTxes[:num]
 		}
-		senderFee := mp.fees[it.txn.Sender()]
-		senderFee.feeSum.Sub(senderFee.feeSum, big.NewInt(it.txn.SystemFee+it.txn.NetworkFee))
-		mp.fees[it.txn.Sender()] = senderFee
+		senderFee := mp.fees[tx.Sender()]
+		senderFee.feeSum.Sub(senderFee.feeSum, big.NewInt(tx.SystemFee+tx.NetworkFee))
+		mp.fees[tx.Sender()] = senderFee
 	}
 	updateMempoolMetrics(len(mp.verifiedTxes))
 	mp.lock.Unlock()
@@ -271,8 +261,8 @@ func (mp *Pool) checkPolicy(tx *transaction.Transaction, policyChanged bool) boo
 // New returns a new Pool struct.
 func New(capacity int) *Pool {
 	return &Pool{
-		verifiedMap:  make(map[util.Uint256]*item),
-		verifiedTxes: make([]*item, 0, capacity),
+		verifiedMap:  make(map[util.Uint256]*transaction.Transaction),
+		verifiedTxes: make([]item, 0, capacity),
 		capacity:     capacity,
 		fees:         make(map[util.Uint160]utilityBalanceAndFees),
 	}
@@ -282,8 +272,8 @@ func New(capacity int) *Pool {
 func (mp *Pool) TryGetValue(hash util.Uint256) (*transaction.Transaction, bool) {
 	mp.lock.RLock()
 	defer mp.lock.RUnlock()
-	if pItem, ok := mp.verifiedMap[hash]; ok {
-		return pItem.txn, ok
+	if tx, ok := mp.verifiedMap[hash]; ok {
+		return tx, ok
 	}
 
 	return nil, false

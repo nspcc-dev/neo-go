@@ -35,6 +35,10 @@ type (
 		height         uint32
 
 		Witness transaction.Witness
+
+		hash       util.Uint256
+		signedHash util.Uint256
+		signedpart []byte
 	}
 )
 
@@ -106,11 +110,13 @@ func (p Payload) GetRecoveryMessage() payload.RecoveryMessage {
 }
 
 // MarshalUnsigned implements payload.ConsensusPayload interface.
-func (p Payload) MarshalUnsigned() []byte {
-	w := io.NewBufBinWriter()
-	p.encodeHashData(w.BinWriter)
-
-	return w.Bytes()
+func (p *Payload) MarshalUnsigned() []byte {
+	if p.signedpart == nil {
+		w := io.NewBufBinWriter()
+		p.encodeHashData(w.BinWriter)
+		p.signedpart = w.Bytes()
+	}
+	return p.signedpart
 }
 
 // UnmarshalUnsigned implements payload.ConsensusPayload interface.
@@ -179,7 +185,10 @@ func (p *Payload) EncodeBinaryUnsigned(w *io.BinWriter) {
 
 // EncodeBinary implements io.Serializable interface.
 func (p *Payload) EncodeBinary(w *io.BinWriter) {
-	p.EncodeBinaryUnsigned(w)
+	if p.signedpart == nil {
+		_ = p.MarshalUnsigned()
+	}
+	w.WriteBytes(p.signedpart[4:])
 
 	w.WriteB(1)
 	p.Witness.EncodeBinary(w)
@@ -193,10 +202,7 @@ func (p *Payload) encodeHashData(w *io.BinWriter) {
 // Sign signs payload using the private key.
 // It also sets corresponding verification and invocation scripts.
 func (p *Payload) Sign(key *privateKey) error {
-	sig, err := key.Sign(p.GetSignedPart())
-	if err != nil {
-		return err
-	}
+	sig := key.SignHash(p.GetSignedHash())
 
 	buf := io.NewBufBinWriter()
 	emit.Bytes(buf.BinWriter, sig)
@@ -224,15 +230,41 @@ func (p *Payload) DecodeBinaryUnsigned(r *io.BinReader) {
 	}
 }
 
+// GetSignedHash returns a hash of the payload used to verify it.
+func (p *Payload) GetSignedHash() util.Uint256 {
+	if p.signedHash.Equals(util.Uint256{}) {
+		if p.createHash() != nil {
+			panic("failed to compute hash!")
+		}
+	}
+	return p.signedHash
+}
+
 // Hash implements payload.ConsensusPayload interface.
 func (p *Payload) Hash() util.Uint256 {
-	w := io.NewBufBinWriter()
-	p.encodeHashData(w.BinWriter)
-	if w.Err != nil {
-		panic("failed to hash payload")
+	if p.hash.Equals(util.Uint256{}) {
+		if p.createHash() != nil {
+			panic("failed to compute hash!")
+		}
 	}
+	return p.hash
+}
 
-	return hash.DoubleSha256(w.Bytes())
+// createHash creates hashes of the payload.
+func (p *Payload) createHash() error {
+	b := p.GetSignedPart()
+	if b == nil {
+		return errors.New("failed to serialize hashable data")
+	}
+	p.updateHashes(b)
+	return nil
+}
+
+// updateHashes updates Payload's hashes based on the given buffer which should
+// be a signable data slice.
+func (p *Payload) updateHashes(b []byte) {
+	p.signedHash = hash.Sha256(b)
+	p.hash = hash.Sha256(p.signedHash.BytesBE())
 }
 
 // DecodeBinary implements io.Serializable interface.

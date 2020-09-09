@@ -27,7 +27,7 @@ func TestBCGetTransaction(t *testing.T) {
 	defer chain.Close()
 
 	t.Run("success", func(t *testing.T) {
-		require.NoError(t, context.DAO.StoreAsTransaction(tx, 0))
+		require.NoError(t, context.DAO.StoreAsTransaction(tx, 0, nil))
 		v.Estack().PushVal(tx.Hash().BytesBE())
 		err := bcGetTransaction(context)
 		require.NoError(t, err)
@@ -47,7 +47,7 @@ func TestBCGetTransaction(t *testing.T) {
 	})
 
 	t.Run("isn't traceable", func(t *testing.T) {
-		require.NoError(t, context.DAO.StoreAsTransaction(tx, 1))
+		require.NoError(t, context.DAO.StoreAsTransaction(tx, 1, nil))
 		v.Estack().PushVal(tx.Hash().BytesBE())
 		err := bcGetTransaction(context)
 		require.NoError(t, err)
@@ -57,7 +57,7 @@ func TestBCGetTransaction(t *testing.T) {
 	})
 
 	t.Run("bad hash", func(t *testing.T) {
-		require.NoError(t, context.DAO.StoreAsTransaction(tx, 1))
+		require.NoError(t, context.DAO.StoreAsTransaction(tx, 1, nil))
 		v.Estack().PushVal(tx.Hash().BytesLE())
 		err := bcGetTransaction(context)
 		require.NoError(t, err)
@@ -71,7 +71,7 @@ func TestBCGetTransactionFromBlock(t *testing.T) {
 	v, block, context, chain := createVMAndBlock(t)
 	defer chain.Close()
 	require.NoError(t, chain.AddBlock(chain.newBlock()))
-	require.NoError(t, context.DAO.StoreAsBlock(block))
+	require.NoError(t, context.DAO.StoreAsBlock(block, nil))
 
 	t.Run("success", func(t *testing.T) {
 		v.Estack().PushVal(0)
@@ -94,7 +94,7 @@ func TestBCGetTransactionFromBlock(t *testing.T) {
 
 	t.Run("isn't traceable", func(t *testing.T) {
 		block.Index = 2
-		require.NoError(t, context.DAO.StoreAsBlock(block))
+		require.NoError(t, context.DAO.StoreAsBlock(block, nil))
 		v.Estack().PushVal(0)
 		v.Estack().PushVal(block.Hash().BytesBE())
 		err := bcGetTransactionFromBlock(context)
@@ -106,7 +106,7 @@ func TestBCGetTransactionFromBlock(t *testing.T) {
 
 	t.Run("bad block hash", func(t *testing.T) {
 		block.Index = 1
-		require.NoError(t, context.DAO.StoreAsBlock(block))
+		require.NoError(t, context.DAO.StoreAsBlock(block, nil))
 		v.Estack().PushVal(0)
 		v.Estack().PushVal(block.Hash().BytesLE())
 		err := bcGetTransactionFromBlock(context)
@@ -117,7 +117,7 @@ func TestBCGetTransactionFromBlock(t *testing.T) {
 	})
 
 	t.Run("bad transaction index", func(t *testing.T) {
-		require.NoError(t, context.DAO.StoreAsBlock(block))
+		require.NoError(t, context.DAO.StoreAsBlock(block, nil))
 		v.Estack().PushVal(1)
 		v.Estack().PushVal(block.Hash().BytesBE())
 		err := bcGetTransactionFromBlock(context)

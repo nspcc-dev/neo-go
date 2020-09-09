@@ -155,6 +155,7 @@ func NewService(cfg Config) (Service, error) {
 		dbft.WithNewRecoveryRequest(func() payload.RecoveryRequest { return new(recoveryRequest) }),
 		dbft.WithNewRecoveryMessage(func() payload.RecoveryMessage { return new(recoveryMessage) }),
 		dbft.WithVerifyPrepareRequest(srv.verifyRequest),
+		dbft.WithVerifyPrepareResponse(func(_ payload.ConsensusPayload) error { return nil }),
 	)
 
 	if srv.dbft == nil {

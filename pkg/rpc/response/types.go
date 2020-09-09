@@ -2,8 +2,6 @@ package response
 
 import (
 	"encoding/json"
-
-	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result"
 )
 
 // Header is a generic JSON-RPC 2.0 response header (ID and JSON-RPC version).
@@ -26,10 +24,11 @@ type Raw struct {
 	Result json.RawMessage `json:"result,omitempty"`
 }
 
-// GetRawTx represents verbose output of `getrawtransaction` RPC call.
-type GetRawTx struct {
+// Abstract represents abstract JSON-RPC 2.0 response, it differs from Raw in
+// that Result field is an interface here.
+type Abstract struct {
 	HeaderAndError
-	Result *result.TransactionOutputRaw `json:"result"`
+	Result interface{} `json:"result,omitempty"`
 }
 
 // Notification is a type used to represent wire format of events, they're

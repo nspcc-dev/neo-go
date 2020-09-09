@@ -795,22 +795,33 @@ func (s *Server) requestTx(hashes ...util.Uint256) {
 		return
 	}
 
-	msg := NewMessage(CMDGetData, payload.NewInventory(payload.TXType, hashes))
-	// It's high priority because it directly affects consensus process,
-	// even though it's getdata.
-	s.broadcastHPMessage(msg)
+	for i := 0; i < len(hashes)/payload.MaxHashesCount; i++ {
+		start := i * payload.MaxHashesCount
+		stop := (i + 1) * payload.MaxHashesCount
+		if stop < len(hashes) {
+			stop = len(hashes)
+		}
+		msg := NewMessage(CMDGetData, payload.NewInventory(payload.TXType, hashes[start:stop]))
+		// It's high priority because it directly affects consensus process,
+		// even though it's getdata.
+		s.broadcastHPMessage(msg)
+	}
 }
 
 // iteratePeersWithSendMsg sends given message to all peers using two functions
 // passed, one is to send the message and the other is to filtrate peers (the
 // peer is considered invalid if it returns false).
 func (s *Server) iteratePeersWithSendMsg(msg *Message, send func(Peer, []byte) error, peerOK func(Peer) bool) {
+	// Get a copy of s.peers to avoid holding a lock while sending.
+	peers := s.Peers()
+	if len(peers) == 0 {
+		return
+	}
 	pkt, err := msg.Bytes()
 	if err != nil {
 		return
 	}
-	// Get a copy of s.peers to avoid holding a lock while sending.
-	for peer := range s.Peers() {
+	for peer := range peers {
 		if peerOK != nil && !peerOK(peer) {
 			continue
 		}
