@@ -4,7 +4,6 @@ import (
 	"errors"
 	"sort"
 	"sync"
-	"time"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -26,7 +25,7 @@ var (
 // item represents a transaction in the the Memory pool.
 type item struct {
 	txn        *transaction.Transaction
-	timeStamp  time.Time
+	blockStamp uint32
 	perByteFee util.Fixed8
 	netFee     util.Fixed8
 	isLowPrio  bool
@@ -162,7 +161,7 @@ func dropInputFromSortedSlice(slice *[]*transaction.Input, input *transaction.In
 func (mp *Pool) Add(t *transaction.Transaction, fee Feer) error {
 	var pItem = &item{
 		txn:        t,
-		timeStamp:  time.Now().UTC(),
+		blockStamp: fee.BlockHeight(),
 		perByteFee: fee.FeePerByte(t),
 		netFee:     fee.NetworkFee(t),
 	}

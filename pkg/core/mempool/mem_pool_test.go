@@ -18,6 +18,10 @@ type FeerStub struct {
 	perByteFee  util.Fixed8
 }
 
+func (fs *FeerStub) BlockHeight() uint32 {
+	return 0
+}
+
 func (fs *FeerStub) NetworkFee(*transaction.Transaction) util.Fixed8 {
 	return fs.netFee
 }
