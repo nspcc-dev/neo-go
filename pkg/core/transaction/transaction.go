@@ -62,8 +62,8 @@ type Transaction struct {
 	// for correct signing/verification.
 	Network netmode.Magic
 
-	// feePerByte is the ratio of NetworkFee and tx size, used for calculating tx priority.
-	feePerByte int64
+	// size is transaction's serialized size.
+	size int
 
 	// Hash of the transaction (double SHA256).
 	hash util.Uint256
@@ -158,6 +158,7 @@ func (t *Transaction) DecodeBinary(br *io.BinReader) {
 	// to do it anymore.
 	if br.Err == nil {
 		br.Err = t.createHash()
+		_ = t.Size()
 	}
 }
 
@@ -252,18 +253,22 @@ func NewTransactionFromBytes(network netmode.Magic, b []byte) (*Transaction, err
 	if r.Err == nil {
 		return nil, errors.New("additional data after the transaction")
 	}
-	tx.feePerByte = tx.NetworkFee / int64(len(b))
+	tx.size = len(b)
 	return tx, nil
 }
 
 // FeePerByte returns NetworkFee of the transaction divided by
 // its size
 func (t *Transaction) FeePerByte() int64 {
-	if t.feePerByte != 0 {
-		return t.feePerByte
+	return t.NetworkFee / int64(t.Size())
+}
+
+// Size returns size of the serialized transaction.
+func (t *Transaction) Size() int {
+	if t.size == 0 {
+		t.size = io.GetVarSize(t)
 	}
-	t.feePerByte = t.NetworkFee / int64(io.GetVarSize(t))
-	return t.feePerByte
+	return t.size
 }
 
 // Sender returns the sender of the transaction which is always on the first place
@@ -296,7 +301,7 @@ type transactionJSON struct {
 func (t *Transaction) MarshalJSON() ([]byte, error) {
 	tx := transactionJSON{
 		TxID:            t.Hash(),
-		Size:            io.GetVarSize(t),
+		Size:            t.Size(),
 		Version:         t.Version,
 		Nonce:           t.Nonce,
 		Sender:          address.Uint160ToString(t.Sender()),
@@ -328,6 +333,9 @@ func (t *Transaction) UnmarshalJSON(data []byte) error {
 	t.Script = tx.Script
 	if t.Hash() != tx.TxID {
 		return errors.New("txid doesn't match transaction hash")
+	}
+	if t.Size() != tx.Size {
+		return errors.New("'size' doesn't match transaction size")
 	}
 
 	return t.isValid()

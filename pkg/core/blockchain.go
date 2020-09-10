@@ -1181,7 +1181,7 @@ func (bc *Blockchain) ApplyPolicyToTxSet(txes []*transaction.Transaction) []*tra
 	)
 	blockSize = uint32(io.GetVarSize(new(block.Block)) + io.GetVarSize(len(txes)+1))
 	for i, tx := range txes {
-		blockSize += uint32(io.GetVarSize(tx))
+		blockSize += uint32(tx.Size())
 		sysFee += tx.SystemFee
 		if blockSize > maxBlockSize || sysFee > maxBlockSysFee {
 			txes = txes[:i]
@@ -1234,7 +1234,7 @@ func (bc *Blockchain) verifyAndPoolTx(t *transaction.Transaction, pool *mempool.
 		// Only one %w can be used.
 		return fmt.Errorf("%w: %v", ErrPolicy, err)
 	}
-	size := io.GetVarSize(t)
+	size := t.Size()
 	if size > transaction.MaxTransactionSize {
 		return fmt.Errorf("%w: (%d > MaxTransactionSize %d)", ErrTxTooBig, size, transaction.MaxTransactionSize)
 	}

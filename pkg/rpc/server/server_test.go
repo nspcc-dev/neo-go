@@ -811,6 +811,7 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 	t.Run("getrawtransaction 2 arguments, verbose", func(t *testing.T) {
 		block, _ := chain.GetBlock(chain.GetHeaderHash(0))
 		TXHash := block.Transactions[0].Hash()
+		_ = block.Transactions[0].Size()
 		rpc := fmt.Sprintf(`{"jsonrpc": "2.0", "id": 1, "method": "getrawtransaction", "params": ["%s", 1]}"`, TXHash.StringLE())
 		body := doRPCCall(rpc, httpSrv.URL, t)
 		txOut := checkErrGetResult(t, body, false)
