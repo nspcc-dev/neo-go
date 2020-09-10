@@ -121,7 +121,6 @@ func (mp *Pool) tryAddSendersFee(tx *transaction.Transaction, feer Feer, needChe
 		return false
 	}
 	senderFee.feeSum.Add(senderFee.feeSum, big.NewInt(tx.SystemFee+tx.NetworkFee))
-	mp.fees[tx.Sender()] = senderFee
 	return true
 }
 
