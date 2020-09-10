@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
-	"sort"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -200,7 +199,7 @@ func (bc *Blockchain) init() error {
 		if err != nil {
 			return err
 		}
-		return bc.storeBlock(genesisBlock)
+		return bc.storeBlock(genesisBlock, nil)
 	}
 	if ver != version {
 		return fmt.Errorf("storage version mismatch betweeen %s and %s", version, ver)
@@ -413,6 +412,7 @@ func (bc *Blockchain) AddBlock(block *block.Block) error {
 	bc.addLock.Lock()
 	defer bc.addLock.Unlock()
 
+	var mp *mempool.Pool
 	expectedHeight := bc.BlockHeight() + 1
 	if expectedHeight != block.Index {
 		return fmt.Errorf("expected %d, got %d: %w", expectedHeight, block.Index, ErrInvalidBlockIndex)
@@ -430,28 +430,26 @@ func (bc *Blockchain) AddBlock(block *block.Block) error {
 		if err != nil {
 			return fmt.Errorf("block %s is invalid: %w", block.Hash().StringLE(), err)
 		}
-		if bc.config.VerifyTransactions {
-			var mp = mempool.New(len(block.Transactions))
-			for _, tx := range block.Transactions {
-				var err error
-				// Transactions are verified before adding them
-				// into the pool, so there is no point in doing
-				// it again even if we're verifying in-block transactions.
-				if bc.memPool.ContainsKey(tx.Hash()) {
-					err = mp.Add(tx, bc)
-					if err == nil {
-						continue
-					}
-				} else {
-					err = bc.verifyAndPoolTx(tx, mp)
+		mp = mempool.New(len(block.Transactions))
+		for _, tx := range block.Transactions {
+			var err error
+			// Transactions are verified before adding them
+			// into the pool, so there is no point in doing
+			// it again even if we're verifying in-block transactions.
+			if bc.memPool.ContainsKey(tx.Hash()) {
+				err = mp.Add(tx, bc)
+				if err == nil {
+					continue
 				}
-				if err != nil {
-					return fmt.Errorf("transaction %s failed to verify: %w", tx.Hash().StringLE(), err)
-				}
+			} else {
+				err = bc.verifyAndPoolTx(tx, mp)
+			}
+			if err != nil && bc.config.VerifyTransactions {
+				return fmt.Errorf("transaction %s failed to verify: %w", tx.Hash().StringLE(), err)
 			}
 		}
 	}
-	return bc.storeBlock(block)
+	return bc.storeBlock(block, mp)
 }
 
 // AddHeaders processes the given headers and add them to the
@@ -569,7 +567,7 @@ func (bc *Blockchain) GetStateRoot(height uint32) (*state.MPTRootState, error) {
 // storeBlock performs chain update using the block given, it executes all
 // transactions with all appropriate side-effects and updates Blockchain state.
 // This is the only way to change Blockchain state.
-func (bc *Blockchain) storeBlock(block *block.Block) error {
+func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error {
 	cache := dao.NewCached(bc.dao)
 	writeBuf := io.NewBufBinWriter()
 	appExecResults := make([]*state.AppExecResult, 0, 1+len(block.Transactions))
@@ -612,8 +610,7 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 		writeBuf.Reset()
 	}
 
-	var txHashes = make([]util.Uint256, len(block.Transactions))
-	for i, tx := range block.Transactions {
+	for _, tx := range block.Transactions {
 		if err := cache.StoreAsTransaction(tx, block.Index, writeBuf); err != nil {
 			return err
 		}
@@ -654,11 +651,7 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 			return fmt.Errorf("failed to store tx exec result: %w", err)
 		}
 		writeBuf.Reset()
-		txHashes[i] = tx.Hash()
 	}
-	sort.Slice(txHashes, func(i, j int) bool {
-		return txHashes[i].CompareTo(txHashes[j]) < 0
-	})
 
 	root := bc.dao.MPT.StateRoot()
 	var prevHash util.Uint256
@@ -700,7 +693,7 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 	}
 	bc.topBlock.Store(block)
 	atomic.StoreUint32(&bc.blockHeight, block.Index)
-	bc.memPool.RemoveStale(func(tx *transaction.Transaction) bool { return bc.isTxStillRelevant(tx, txHashes) }, bc)
+	bc.memPool.RemoveStale(func(tx *transaction.Transaction) bool { return bc.isTxStillRelevant(tx, txpool) }, bc)
 	bc.lock.Unlock()
 
 	updateBlockHeightMetric(block.Index)
@@ -1305,17 +1298,18 @@ func (bc *Blockchain) verifyTxAttributes(tx *transaction.Transaction) error {
 
 // isTxStillRelevant is a callback for mempool transaction filtering after the
 // new block addition. It returns false for transactions added by the new block
-// (passed via txHashes) and does witness reverification for non-standard
+// (passed via txpool) and does witness reverification for non-standard
 // contracts. It operates under the assumption that full transaction verification
 // was already done so we don't need to check basic things like size, input/output
 // correctness, presence in blocks before the new one, etc.
-func (bc *Blockchain) isTxStillRelevant(t *transaction.Transaction, txHashes []util.Uint256) bool {
+func (bc *Blockchain) isTxStillRelevant(t *transaction.Transaction, txpool *mempool.Pool) bool {
 	var recheckWitness bool
 
-	index := sort.Search(len(txHashes), func(i int) bool {
-		return txHashes[i].CompareTo(t.Hash()) >= 0
-	})
-	if index < len(txHashes) && txHashes[index].Equals(t.Hash()) {
+	if txpool == nil {
+		if bc.dao.HasTransaction(t.Hash()) {
+			return false
+		}
+	} else if txpool.ContainsKey(t.Hash()) {
 		return false
 	}
 	if err := bc.verifyTxAttributes(t); err != nil {
