@@ -2003,7 +2003,7 @@ func (bc *Blockchain) PoolTx(t *transaction.Transaction) error {
 		netFee := bc.NetworkFee(t)
 		if maxFree != 0 && txSize > maxFree {
 			if bc.IsLowPriority(netFee) ||
-				netFee < util.Fixed8FromFloat(bc.config.FeePerExtraByte)*util.Fixed8(txSize-maxFree) {
+				netFee < (util.Fixed8FromFloat(bc.config.LowPriorityThreshold)+util.Fixed8FromFloat(bc.config.FeePerExtraByte)*util.Fixed8(txSize-maxFree)) {
 				return ErrPolicy
 			}
 		}
