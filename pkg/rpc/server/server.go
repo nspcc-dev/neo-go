@@ -545,25 +545,12 @@ func (s *Server) getNEP5Balances(ps request.Params) (interface{}, *response.Erro
 	return bs, nil
 }
 
-func getTimestampsAndLimit(p1, p2, p3 *request.Param) (uint64, uint64, int, error) {
+func getTimestampsAndLimit(ps request.Params, index int) (uint64, uint64, int, error) {
 	var start, end uint64
 	var limit int
-	if p1 != nil {
-		val, err := p1.GetInt()
-		if err != nil {
-			return 0, 0, 0, err
-		}
-		start = uint64(val)
-	}
-	if p2 != nil {
-		val, err := p2.GetInt()
-		if err != nil {
-			return 0, 0, 0, err
-		}
-		end = uint64(val)
-	}
-	if p3 != nil {
-		l, err := p3.GetInt()
+	pStart, pEnd, pLimit := ps.Value(index), ps.Value(index+1), ps.Value(index+2)
+	if pLimit != nil {
+		l, err := pLimit.GetInt()
 		if err != nil {
 			return 0, 0, 0, err
 		}
@@ -571,6 +558,24 @@ func getTimestampsAndLimit(p1, p2, p3 *request.Param) (uint64, uint64, int, erro
 			return 0, 0, 0, errors.New("can't use negative or zero limit")
 		}
 		limit = l
+	}
+	if pEnd != nil {
+		val, err := pEnd.GetInt()
+		if err != nil {
+			return 0, 0, 0, err
+		}
+		end = uint64(val)
+	} else {
+		end = uint64(time.Now().Unix() * 1000)
+	}
+	if pStart != nil {
+		val, err := pStart.GetInt()
+		if err != nil {
+			return 0, 0, 0, err
+		}
+		start = uint64(val)
+	} else {
+		start = uint64(time.Now().Add(-time.Hour*24*7).Unix() * 1000)
 	}
 	return start, end, limit, nil
 }
@@ -581,16 +586,9 @@ func (s *Server) getNEP5Transfers(ps request.Params) (interface{}, *response.Err
 		return nil, response.ErrInvalidParams
 	}
 
-	p1, p2, p3 := ps.Value(1), ps.Value(2), ps.Value(3)
-	start, end, limit, err := getTimestampsAndLimit(p1, p2, p3)
+	start, end, limit, err := getTimestampsAndLimit(ps, 1)
 	if err != nil {
 		return nil, response.NewInvalidParamsError(err.Error(), err)
-	}
-	if p2 == nil {
-		end = uint64(time.Now().Unix() * 1000)
-		if p1 == nil {
-			start = uint64(time.Now().Add(-time.Hour*24*7).Unix() * 1000)
-		}
 	}
 
 	bs := &result.NEP5Transfers{
