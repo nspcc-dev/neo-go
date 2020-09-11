@@ -450,25 +450,12 @@ func (s *Server) getVersion(_ request.Params) (interface{}, *response.Error) {
 	}, nil
 }
 
-func getTimestampsAndLimit(p1, p2, p3 *request.Param) (uint32, uint32, int, error) {
+func getTimestampsAndLimit(ps request.Params, index int) (uint32, uint32, int, error) {
 	var start, end uint32
 	var limit int
-	if p1 != nil {
-		val, err := p1.GetInt()
-		if err != nil {
-			return 0, 0, 0, err
-		}
-		start = uint32(val)
-	}
-	if p2 != nil {
-		val, err := p2.GetInt()
-		if err != nil {
-			return 0, 0, 0, err
-		}
-		end = uint32(val)
-	}
-	if p3 != nil {
-		l, err := p3.GetInt()
+	pStart, pEnd, pLimit := ps.Value(index), ps.Value(index+1), ps.Value(index+2)
+	if pLimit != nil {
+		l, err := pLimit.GetInt()
 		if err != nil {
 			return 0, 0, 0, err
 		}
@@ -476,6 +463,24 @@ func getTimestampsAndLimit(p1, p2, p3 *request.Param) (uint32, uint32, int, erro
 			return 0, 0, 0, errors.New("can't use negative or zero limit")
 		}
 		limit = l
+	}
+	if pEnd != nil {
+		val, err := pEnd.GetInt()
+		if err != nil {
+			return 0, 0, 0, err
+		}
+		end = uint32(val)
+	} else {
+		end = uint32(time.Now().Unix())
+	}
+	if pStart != nil {
+		val, err := pStart.GetInt()
+		if err != nil {
+			return 0, 0, 0, err
+		}
+		start = uint32(val)
+	} else {
+		start = uint32(time.Now().Add(-time.Hour * 24 * 7).Unix())
 	}
 	return start, end, limit, nil
 }
@@ -528,16 +533,9 @@ func (s *Server) getUTXOTransfers(ps request.Params) (interface{}, *response.Err
 		index++
 	}
 
-	p1, p2, p3 := ps.Value(index), ps.Value(index+1), ps.Value(index+2)
-	start, end, limit, err := getTimestampsAndLimit(p1, p2, p3)
+	start, end, limit, err := getTimestampsAndLimit(ps, index)
 	if err != nil {
 		return nil, response.NewInvalidParamsError("", err)
-	}
-	if p2 == nil {
-		end = uint32(time.Now().Unix())
-		if p1 == nil {
-			start = uint32(time.Now().Add(-time.Hour * 24 * 7).Unix())
-		}
 	}
 
 	sent, recv, err := getAssetMaps(assetName)
@@ -743,16 +741,9 @@ func (s *Server) getNEP5Transfers(ps request.Params) (interface{}, *response.Err
 		return nil, response.ErrInvalidParams
 	}
 
-	p1, p2, p3 := ps.Value(1), ps.Value(2), ps.Value(3)
-	start, end, limit, err := getTimestampsAndLimit(p1, p2, p3)
+	start, end, limit, err := getTimestampsAndLimit(ps, 1)
 	if err != nil {
 		return nil, response.NewInvalidParamsError("", err)
-	}
-	if p2 == nil {
-		end = uint32(time.Now().Unix())
-		if p1 == nil {
-			start = uint32(time.Now().Add(-time.Hour * 24 * 7).Unix())
-		}
 	}
 
 	bs := &result.NEP5Transfers{
