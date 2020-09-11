@@ -32,7 +32,7 @@ ProtocolConfiguration:
     RegisterTransaction: 100
   VerifyBlocks: true
   VerifyTransactions: false
-  FreeGasLimit: {0: 10.0, 4818000: 50.0}
+  FreeGasLimit: {0: 10.0, 5220000: 50.0}
   MaxTransactionsPerBlock: 500
   MaxFreeTransactionsPerBlock: 20
   MaxFreeTransactionSize: 1024
