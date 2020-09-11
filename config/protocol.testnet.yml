@@ -36,6 +36,7 @@ ProtocolConfiguration:
   MaxTransactionsPerBlock: 500
   MaxFreeTransactionsPerBlock: 20
   MaxFreeTransactionSize: 1024
+  MinimumNetworkFee: 0
   FeePerExtraByte: 0.00001
 
 ApplicationConfiguration:

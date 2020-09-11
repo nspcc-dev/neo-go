@@ -89,6 +89,7 @@ var rpcHandlers = map[string]func(*Server, request.Params) (interface{}, *respon
 	"getclaimable":         (*Server).getClaimable,
 	"getconnectioncount":   (*Server).getConnectionCount,
 	"getcontractstate":     (*Server).getContractState,
+	"getminimumnetworkfee": (*Server).getMinimumNetworkFee,
 	"getnep5balances":      (*Server).getNEP5Balances,
 	"getnep5transfers":     (*Server).getNEP5Transfers,
 	"getpeers":             (*Server).getPeers,
@@ -796,6 +797,10 @@ func (s *Server) getNEP5Transfers(ps request.Params) (interface{}, *response.Err
 		return nil, response.NewInternalServerError("invalid NEP5 transfer log", err)
 	}
 	return bs, nil
+}
+
+func (s *Server) getMinimumNetworkFee(ps request.Params) (interface{}, *response.Error) {
+	return s.chain.GetConfig().MinimumNetworkFee, nil
 }
 
 func (s *Server) getProof(ps request.Params) (interface{}, *response.Error) {

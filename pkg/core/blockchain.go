@@ -168,6 +168,10 @@ func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration, log *zap.L
 		cfg.MaxFreeTransactionSize = 0
 		log.Info("MaxFreeTransactionSize is not set or wrong, setting default value (unlimited)", zap.Int("MaxFreeTransactionSize", cfg.MaxFreeTransactionSize))
 	}
+	if cfg.MinimumNetworkFee < 0 {
+		cfg.MinimumNetworkFee = 0
+		log.Info("MinimumNetworkFee is not set or wrong, setting default value (0)", zap.String("MinimumNetworkFee", cfg.MinimumNetworkFee.String()))
+	}
 	if cfg.FeePerExtraByte <= 0 {
 		cfg.FeePerExtraByte = 0
 		log.Info("FeePerExtraByte is not set or wrong, setting default value", zap.Float64("FeePerExtraByte", cfg.FeePerExtraByte))
@@ -1996,12 +2000,15 @@ func (bc *Blockchain) PoolTx(t *transaction.Transaction) error {
 	if t.Type != transaction.ClaimType {
 		txSize := io.GetVarSize(t)
 		maxFree := bc.config.MaxFreeTransactionSize
+		netFee := bc.NetworkFee(t)
 		if maxFree != 0 && txSize > maxFree {
-			netFee := bc.NetworkFee(t)
 			if bc.IsLowPriority(netFee) ||
 				netFee < util.Fixed8FromFloat(bc.config.FeePerExtraByte)*util.Fixed8(txSize-maxFree) {
 				return ErrPolicy
 			}
+		}
+		if t.Type == transaction.InvocationType && netFee < bc.config.MinimumNetworkFee {
+			return ErrPolicy
 		}
 	}
 	if err := bc.memPool.Add(t, bc); err != nil {
