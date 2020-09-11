@@ -36,7 +36,9 @@ type (
 		MaxFreeTransactionSize int `yaml:"MaxFreeTransactionSize"`
 		// Maximum number of low priority transactions accepted into block.
 		MaxFreeTransactionsPerBlock int `yaml:"MaxFreeTransactionsPerBlock"`
-		MemPoolSize                 int `yaml:"MemPoolSize"`
+		// MinimumNetworkFee sets the minimum required network fee for transaction to pass validation.
+		MinimumNetworkFee util.Fixed8 `yaml:"MinimumNetworkFee"`
+		MemPoolSize       int         `yaml:"MemPoolSize"`
 		// SaveStorageBatch enables storage batch saving before every persist.
 		SaveStorageBatch  bool     `yaml:"SaveStorageBatch"`
 		SecondsPerBlock   int      `yaml:"SecondsPerBlock"`
