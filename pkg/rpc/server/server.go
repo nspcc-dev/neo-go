@@ -450,24 +450,34 @@ func (s *Server) getVersion(_ request.Params) (interface{}, *response.Error) {
 	}, nil
 }
 
-func getTimestampsAndLimit(ps request.Params, index int) (uint32, uint32, int, error) {
+func getTimestampsAndLimit(ps request.Params, index int) (uint32, uint32, int, int, error) {
 	var start, end uint32
-	var limit int
-	pStart, pEnd, pLimit := ps.Value(index), ps.Value(index+1), ps.Value(index+2)
+	var limit, page int
+	pStart, pEnd, pLimit, pPage := ps.Value(index), ps.Value(index+1), ps.Value(index+2), ps.Value(index+3)
+	if pPage != nil {
+		p, err := pPage.GetInt()
+		if err != nil {
+			return 0, 0, 0, 0, err
+		}
+		if p < 0 {
+			return 0, 0, 0, 0, errors.New("can't use negative page")
+		}
+		page = p
+	}
 	if pLimit != nil {
 		l, err := pLimit.GetInt()
 		if err != nil {
-			return 0, 0, 0, err
+			return 0, 0, 0, 0, err
 		}
 		if l <= 0 {
-			return 0, 0, 0, errors.New("can't use negative or zero limit")
+			return 0, 0, 0, 0, errors.New("can't use negative or zero limit")
 		}
 		limit = l
 	}
 	if pEnd != nil {
 		val, err := pEnd.GetInt()
 		if err != nil {
-			return 0, 0, 0, err
+			return 0, 0, 0, 0, err
 		}
 		end = uint32(val)
 	} else {
@@ -476,13 +486,13 @@ func getTimestampsAndLimit(ps request.Params, index int) (uint32, uint32, int, e
 	if pStart != nil {
 		val, err := pStart.GetInt()
 		if err != nil {
-			return 0, 0, 0, err
+			return 0, 0, 0, 0, err
 		}
 		start = uint32(val)
 	} else {
 		start = uint32(time.Now().Add(-time.Hour * 24 * 7).Unix())
 	}
-	return start, end, limit, nil
+	return start, end, limit, page, nil
 }
 
 func getAssetMaps(name string) (map[util.Uint256]*result.AssetUTXO, map[util.Uint256]*result.AssetUTXO, error) {
@@ -533,7 +543,7 @@ func (s *Server) getUTXOTransfers(ps request.Params) (interface{}, *response.Err
 		index++
 	}
 
-	start, end, limit, err := getTimestampsAndLimit(ps, index)
+	start, end, limit, page, err := getTimestampsAndLimit(ps, index)
 	if err != nil {
 		return nil, response.NewInvalidParamsError("", err)
 	}
@@ -543,20 +553,22 @@ func (s *Server) getUTXOTransfers(ps request.Params) (interface{}, *response.Err
 		return nil, response.NewInvalidParamsError("", err)
 	}
 	tr := new(state.Transfer)
+	var resCount, frameCount int
 	err = s.chain.ForEachTransfer(addr, tr, func() (bool, error) {
+		// Iterating from newest to oldest, not yet reached required
+		// time frame, continue looping.
 		if tr.Timestamp > end {
 			return true, nil
 		}
-		var count int
-		for _, res := range sent {
-			count += len(res.Transactions)
-		}
-		for _, res := range recv {
-			count += len(res.Transactions)
-		}
-		if tr.Timestamp < start ||
-			(limit != 0 && count >= limit) {
+		// Iterating from newest to oldest, moved past required
+		// time frame, stop looping.
+		if tr.Timestamp < start {
 			return false, nil
+		}
+		frameCount++
+		// Using limits, not yet reached required page.
+		if limit != 0 && page*limit >= frameCount {
+			return true, nil
 		}
 		assetID := core.GoverningTokenID()
 		if !tr.IsGoverning {
@@ -575,6 +587,11 @@ func (s *Server) getUTXOTransfers(ps request.Params) (interface{}, *response.Err
 				Amount:    tr.Amount,
 			})
 			a.TotalAmount += tr.Amount
+		}
+		resCount++
+		// Using limits, reached limit.
+		if limit != 0 && resCount >= limit {
+			return false, nil
 		}
 		return true, nil
 	})
@@ -741,7 +758,7 @@ func (s *Server) getNEP5Transfers(ps request.Params) (interface{}, *response.Err
 		return nil, response.ErrInvalidParams
 	}
 
-	start, end, limit, err := getTimestampsAndLimit(ps, 1)
+	start, end, limit, page, err := getTimestampsAndLimit(ps, 1)
 	if err != nil {
 		return nil, response.NewInvalidParamsError("", err)
 	}
@@ -752,13 +769,22 @@ func (s *Server) getNEP5Transfers(ps request.Params) (interface{}, *response.Err
 		Sent:     []result.NEP5Transfer{},
 	}
 	tr := new(state.NEP5Transfer)
+	var resCount, frameCount int
 	err = s.chain.ForEachNEP5Transfer(u, tr, func() (bool, error) {
+		// Iterating from newest to oldest, not yet reached required
+		// time frame, continue looping.
 		if tr.Timestamp > end {
 			return true, nil
 		}
-		if tr.Timestamp < start ||
-			(limit != 0 && (len(bs.Received)+len(bs.Sent) >= limit)) {
+		// Iterating from newest to oldest, moved past required
+		// time frame, stop looping.
+		if tr.Timestamp < start {
 			return false, nil
+		}
+		frameCount++
+		// Using limits, not yet reached required page.
+		if limit != 0 && page*limit >= frameCount {
+			return true, nil
 		}
 		transfer := result.NEP5Transfer{
 			Timestamp: tr.Timestamp,
@@ -774,14 +800,18 @@ func (s *Server) getNEP5Transfers(ps request.Params) (interface{}, *response.Err
 				transfer.Address = address.Uint160ToString(tr.From)
 			}
 			bs.Received = append(bs.Received, transfer)
-			return true, nil
+		} else {
+			transfer.Amount = strconv.FormatInt(-tr.Amount, 10)
+			if !tr.To.Equals(util.Uint160{}) {
+				transfer.Address = address.Uint160ToString(tr.To)
+			}
+			bs.Sent = append(bs.Sent, transfer)
 		}
-
-		transfer.Amount = strconv.FormatInt(-tr.Amount, 10)
-		if !tr.To.Equals(util.Uint160{}) {
-			transfer.Address = address.Uint160ToString(tr.To)
+		resCount++
+		// Using limits, reached limit.
+		if limit != 0 && resCount >= limit {
+			return false, nil
 		}
-		bs.Sent = append(bs.Sent, transfer)
 		return true, nil
 	})
 	if err != nil {
