@@ -161,6 +161,31 @@ var rpcTestCases = map[string][]rpcTestCase{
 			fail:   true,
 		},
 		{
+			name:   "invalid stop timestamp",
+			params: `["` + testchain.PrivateKeyByID(0).Address() + `", "1", "blah"]`,
+			fail:   true,
+		},
+		{
+			name:   "invalid limit",
+			params: `["` + testchain.PrivateKeyByID(0).Address() + `", "1", "2", "0"]`,
+			fail:   true,
+		},
+		{
+			name:   "invalid limit 2",
+			params: `["` + testchain.PrivateKeyByID(0).Address() + `", "1", "2", "bleh"]`,
+			fail:   true,
+		},
+		{
+			name:   "invalid page",
+			params: `["` + testchain.PrivateKeyByID(0).Address() + `", "1", "2", "3", "-1"]`,
+			fail:   true,
+		},
+		{
+			name:   "invalid page 2",
+			params: `["` + testchain.PrivateKeyByID(0).Address() + `", "1", "2", "3", "jajaja"]`,
+			fail:   true,
+		},
+		{
 			name:   "positive",
 			params: `["` + testchain.PrivateKeyByID(0).Address() + `", 0]`,
 			result: func(e *executor) interface{} { return &result.NEP5Transfers{} },
@@ -914,21 +939,48 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 	})
 
 	t.Run("getnep5transfers", func(t *testing.T) {
-		ps := []string{`"` + testchain.PrivateKeyByID(0).Address() + `"`}
-		h, err := e.chain.GetHeader(e.chain.GetHeaderHash(4))
-		require.NoError(t, err)
-		ps = append(ps, strconv.FormatUint(h.Timestamp, 10))
-		h, err = e.chain.GetHeader(e.chain.GetHeaderHash(5))
-		require.NoError(t, err)
-		ps = append(ps, strconv.FormatUint(h.Timestamp, 10))
-
-		p := strings.Join(ps, ", ")
-		rpc := fmt.Sprintf(`{"jsonrpc": "2.0", "id": 1, "method": "getnep5transfers", "params": [%s]}`, p)
-		body := doRPCCall(rpc, httpSrv.URL, t)
-		res := checkErrGetResult(t, body, false)
-		actual := new(result.NEP5Transfers)
-		require.NoError(t, json.Unmarshal(res, actual))
-		checkNep5TransfersAux(t, e, actual, 4, 5)
+		testNEP5T := func(t *testing.T, start, stop, limit, page int, sent, rcvd []int) {
+			ps := []string{`"` + testchain.PrivateKeyByID(0).Address() + `"`}
+			if start != 0 {
+				h, err := e.chain.GetHeader(e.chain.GetHeaderHash(start))
+				var ts uint64
+				if err == nil {
+					ts = h.Timestamp
+				} else {
+					ts = uint64(time.Now().UnixNano() / 1_000_000)
+				}
+				ps = append(ps, strconv.FormatUint(ts, 10))
+			}
+			if stop != 0 {
+				h, err := e.chain.GetHeader(e.chain.GetHeaderHash(stop))
+				var ts uint64
+				if err == nil {
+					ts = h.Timestamp
+				} else {
+					ts = uint64(time.Now().UnixNano() / 1_000_000)
+				}
+				ps = append(ps, strconv.FormatUint(ts, 10))
+			}
+			if limit != 0 {
+				ps = append(ps, strconv.FormatInt(int64(limit), 10))
+			}
+			if page != 0 {
+				ps = append(ps, strconv.FormatInt(int64(page), 10))
+			}
+			p := strings.Join(ps, ", ")
+			rpc := fmt.Sprintf(`{"jsonrpc": "2.0", "id": 1, "method": "getnep5transfers", "params": [%s]}`, p)
+			body := doRPCCall(rpc, httpSrv.URL, t)
+			res := checkErrGetResult(t, body, false)
+			actual := new(result.NEP5Transfers)
+			require.NoError(t, json.Unmarshal(res, actual))
+			checkNep5TransfersAux(t, e, actual, sent, rcvd)
+		}
+		t.Run("time frame only", func(t *testing.T) { testNEP5T(t, 4, 5, 0, 0, []int{3, 4, 5, 6}, []int{0, 1}) })
+		t.Run("no res", func(t *testing.T) { testNEP5T(t, 100, 100, 0, 0, []int{}, []int{}) })
+		t.Run("limit", func(t *testing.T) { testNEP5T(t, 1, 7, 3, 0, []int{0, 1, 2}, []int{}) })
+		t.Run("limit 2", func(t *testing.T) { testNEP5T(t, 4, 5, 2, 0, []int{3}, []int{0}) })
+		t.Run("limit with page", func(t *testing.T) { testNEP5T(t, 1, 7, 3, 1, []int{3, 4}, []int{0}) })
+		t.Run("limit with page 2", func(t *testing.T) { testNEP5T(t, 1, 7, 3, 2, []int{5, 6}, []int{1}) })
 	})
 }
 
@@ -1028,41 +1080,66 @@ func checkNep5Balances(t *testing.T, e *executor, acc interface{}) {
 }
 
 func checkNep5Transfers(t *testing.T, e *executor, acc interface{}) {
-	checkNep5TransfersAux(t, e, acc, 0, e.chain.HeaderHeight())
+	checkNep5TransfersAux(t, e, acc, []int{0, 1, 2, 3, 4, 5, 6, 7, 8}, []int{0, 1, 2, 3})
 }
 
-func checkNep5TransfersAux(t *testing.T, e *executor, acc interface{}, start, end uint32) {
+func checkNep5TransfersAux(t *testing.T, e *executor, acc interface{}, sent, rcvd []int) {
 	res, ok := acc.(*result.NEP5Transfers)
 	require.True(t, ok)
 	rublesHash, err := util.Uint160DecodeStringLE(testContractHash)
 	require.NoError(t, err)
+
+	blockDeploy2, err := e.chain.GetBlock(e.chain.GetHeaderHash(7))
+	require.NoError(t, err)
+	require.Equal(t, 1, len(blockDeploy2.Transactions))
+	txDeploy2 := blockDeploy2.Transactions[0]
+
 	blockSendRubles, err := e.chain.GetBlock(e.chain.GetHeaderHash(6))
 	require.NoError(t, err)
 	require.Equal(t, 1, len(blockSendRubles.Transactions))
-	txSendRublesHash := blockSendRubles.Transactions[0].Hash()
+	txSendRubles := blockSendRubles.Transactions[0]
+
 	blockReceiveRubles, err := e.chain.GetBlock(e.chain.GetHeaderHash(5))
 	require.NoError(t, err)
 	require.Equal(t, 2, len(blockReceiveRubles.Transactions))
-	txReceiveRublesHash := blockReceiveRubles.Transactions[1].Hash()
-	blockReceiveGAS, err := e.chain.GetBlock(e.chain.GetHeaderHash(1))
-	require.NoError(t, err)
-	require.Equal(t, 2, len(blockReceiveGAS.Transactions))
-	txReceiveNEOHash := blockReceiveGAS.Transactions[0].Hash()
-	txReceiveGASHash := blockReceiveGAS.Transactions[1].Hash()
+	txInitCall := blockReceiveRubles.Transactions[0]
+	txReceiveRubles := blockReceiveRubles.Transactions[1]
+
 	blockSendNEO, err := e.chain.GetBlock(e.chain.GetHeaderHash(4))
 	require.NoError(t, err)
 	require.Equal(t, 1, len(blockSendNEO.Transactions))
-	txSendNEOHash := blockSendNEO.Transactions[0].Hash()
+	txSendNEO := blockSendNEO.Transactions[0]
+
+	blockCtrInv1, err := e.chain.GetBlock(e.chain.GetHeaderHash(3))
+	require.NoError(t, err)
+	require.Equal(t, 1, len(blockCtrInv1.Transactions))
+	txCtrInv1 := blockCtrInv1.Transactions[0]
+
+	blockCtrDeploy, err := e.chain.GetBlock(e.chain.GetHeaderHash(2))
+	require.NoError(t, err)
+	require.Equal(t, 1, len(blockCtrDeploy.Transactions))
+	txCtrDeploy := blockCtrDeploy.Transactions[0]
+
+	blockReceiveGAS, err := e.chain.GetBlock(e.chain.GetHeaderHash(1))
+	require.NoError(t, err)
+	require.Equal(t, 2, len(blockReceiveGAS.Transactions))
+	txReceiveNEO := blockReceiveGAS.Transactions[0]
+	txReceiveGAS := blockReceiveGAS.Transactions[1]
+
+	// These are laid out here explicitly for 2 purposes:
+	//  * to be able to reference any particular event for paging
+	//  * to check chain events consistency
+	// Technically these could be retrieved from application log, but that would almost
+	// duplicate the Server method.
 	expected := result.NEP5Transfers{
 		Sent: []result.NEP5Transfer{
 			{
-				Timestamp:   blockSendNEO.Timestamp,
-				Asset:       e.chain.GoverningTokenHash(),
-				Address:     testchain.PrivateKeyByID(1).Address(),
-				Amount:      "1000",
-				Index:       4,
-				NotifyIndex: 0,
-				TxHash:      txSendNEOHash,
+				Timestamp: blockDeploy2.Timestamp,
+				Asset:     e.chain.UtilityTokenHash(),
+				Address:   "", // burn
+				Amount:    amountToString(big.NewInt(txDeploy2.SystemFee+txDeploy2.NetworkFee), 8),
+				Index:     7,
+				TxHash:    blockDeploy2.Hash(),
 			},
 			{
 				Timestamp:   blockSendRubles.Timestamp,
@@ -1071,7 +1148,64 @@ func checkNep5TransfersAux(t *testing.T, e *executor, acc interface{}, start, en
 				Amount:      "1.23",
 				Index:       6,
 				NotifyIndex: 0,
-				TxHash:      txSendRublesHash,
+				TxHash:      txSendRubles.Hash(),
+			},
+			{
+				Timestamp: blockSendRubles.Timestamp,
+				Asset:     e.chain.UtilityTokenHash(),
+				Address:   "", // burn
+				Amount:    amountToString(big.NewInt(txSendRubles.SystemFee+txSendRubles.NetworkFee), 8),
+				Index:     6,
+				TxHash:    blockSendRubles.Hash(),
+			},
+			{
+				Timestamp: blockReceiveRubles.Timestamp,
+				Asset:     e.chain.UtilityTokenHash(),
+				Address:   "", // burn
+				Amount:    amountToString(big.NewInt(txReceiveRubles.SystemFee+txReceiveRubles.NetworkFee), 8),
+				Index:     5,
+				TxHash:    blockReceiveRubles.Hash(),
+			},
+			{
+				Timestamp: blockReceiveRubles.Timestamp,
+				Asset:     e.chain.UtilityTokenHash(),
+				Address:   "", // burn
+				Amount:    amountToString(big.NewInt(txInitCall.SystemFee+txInitCall.NetworkFee), 8),
+				Index:     5,
+				TxHash:    blockReceiveRubles.Hash(),
+			},
+			{
+				Timestamp:   blockSendNEO.Timestamp,
+				Asset:       e.chain.GoverningTokenHash(),
+				Address:     testchain.PrivateKeyByID(1).Address(),
+				Amount:      "1000",
+				Index:       4,
+				NotifyIndex: 0,
+				TxHash:      txSendNEO.Hash(),
+			},
+			{
+				Timestamp: blockSendNEO.Timestamp,
+				Asset:     e.chain.UtilityTokenHash(),
+				Address:   "", // burn
+				Amount:    amountToString(big.NewInt(txSendNEO.SystemFee+txSendNEO.NetworkFee), 8),
+				Index:     4,
+				TxHash:    blockSendNEO.Hash(),
+			},
+			{
+				Timestamp: blockCtrInv1.Timestamp,
+				Asset:     e.chain.UtilityTokenHash(),
+				Address:   "", // burn has empty receiver
+				Amount:    amountToString(big.NewInt(txCtrInv1.SystemFee+txCtrInv1.NetworkFee), 8),
+				Index:     3,
+				TxHash:    blockCtrInv1.Hash(),
+			},
+			{
+				Timestamp: blockCtrDeploy.Timestamp,
+				Asset:     e.chain.UtilityTokenHash(),
+				Address:   "", // burn has empty receiver
+				Amount:    amountToString(big.NewInt(txCtrDeploy.SystemFee+txCtrDeploy.NetworkFee), 8),
+				Index:     2,
+				TxHash:    blockCtrDeploy.Hash(),
 			},
 		},
 		Received: []result.NEP5Transfer{
@@ -1082,7 +1216,7 @@ func checkNep5TransfersAux(t *testing.T, e *executor, acc interface{}, start, en
 				Amount:      "10",
 				Index:       5,
 				NotifyIndex: 0,
-				TxHash:      txReceiveRublesHash,
+				TxHash:      txReceiveRubles.Hash(),
 			},
 			{
 				Timestamp:   blockSendNEO.Timestamp,
@@ -1091,7 +1225,7 @@ func checkNep5TransfersAux(t *testing.T, e *executor, acc interface{}, start, en
 				Amount:      "17.99982000",
 				Index:       4,
 				NotifyIndex: 0,
-				TxHash:      txSendNEOHash,
+				TxHash:      txSendNEO.Hash(),
 			},
 			{
 				Timestamp:   blockReceiveGAS.Timestamp,
@@ -1100,7 +1234,7 @@ func checkNep5TransfersAux(t *testing.T, e *executor, acc interface{}, start, en
 				Amount:      "1000",
 				Index:       1,
 				NotifyIndex: 0,
-				TxHash:      txReceiveGASHash,
+				TxHash:      txReceiveGAS.Hash(),
 			},
 			{
 				Timestamp:   blockReceiveGAS.Timestamp,
@@ -1109,49 +1243,33 @@ func checkNep5TransfersAux(t *testing.T, e *executor, acc interface{}, start, en
 				Amount:      "99999000",
 				Index:       1,
 				NotifyIndex: 0,
-				TxHash:      txReceiveNEOHash,
+				TxHash:      txReceiveNEO.Hash(),
 			},
 		},
 		Address: testchain.PrivateKeyByID(0).Address(),
 	}
 
-	// take burned gas into account
-	u := testchain.PrivateKeyByID(0).GetScriptHash()
-	for i := 0; i <= int(e.chain.BlockHeight()); i++ {
-		var netFee int64
-		h := e.chain.GetHeaderHash(i)
-		b, err := e.chain.GetBlock(h)
-		require.NoError(t, err)
-		for j := range b.Transactions {
-			if u.Equals(b.Transactions[j].Sender()) {
-				amount := b.Transactions[j].SystemFee + b.Transactions[j].NetworkFee
-				expected.Sent = append(expected.Sent, result.NEP5Transfer{
-					Timestamp: b.Timestamp,
-					Asset:     e.chain.UtilityTokenHash(),
-					Address:   "", // burn has empty receiver
-					Amount:    amountToString(big.NewInt(amount), 8),
-					Index:     b.Index,
-					TxHash:    b.Hash(),
-				})
-			}
-			netFee += b.Transactions[j].NetworkFee
-		}
-	}
 	require.Equal(t, expected.Address, res.Address)
 
 	arr := make([]result.NEP5Transfer, 0, len(expected.Sent))
 	for i := range expected.Sent {
-		if expected.Sent[i].Index >= start && expected.Sent[i].Index <= end {
-			arr = append(arr, expected.Sent[i])
+		for _, j := range sent {
+			if i == j {
+				arr = append(arr, expected.Sent[i])
+				break
+			}
 		}
 	}
-	require.ElementsMatch(t, arr, res.Sent)
+	require.Equal(t, arr, res.Sent)
 
 	arr = arr[:0]
 	for i := range expected.Received {
-		if expected.Received[i].Index >= start && expected.Received[i].Index <= end {
-			arr = append(arr, expected.Received[i])
+		for _, j := range rcvd {
+			if i == j {
+				arr = append(arr, expected.Received[i])
+				break
+			}
 		}
 	}
-	require.ElementsMatch(t, arr, res.Received)
+	require.Equal(t, arr, res.Received)
 }
