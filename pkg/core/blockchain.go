@@ -156,14 +156,6 @@ func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration, log *zap.L
 		cfg.MemPoolSize = defaultMemPoolSize
 		log.Info("mempool size is not set or wrong, setting default value", zap.Int("MemPoolSize", cfg.MemPoolSize))
 	}
-	if cfg.MaxTransactionsPerBlock <= 0 {
-		cfg.MaxTransactionsPerBlock = 0
-		log.Info("MaxTransactionsPerBlock is not set or wrong, setting default value (unlimited)", zap.Int("MaxTransactionsPerBlock", cfg.MaxTransactionsPerBlock))
-	}
-	if cfg.MaxFreeTransactionsPerBlock <= 0 {
-		cfg.MaxFreeTransactionsPerBlock = 0
-		log.Info("MaxFreeTransactionsPerBlock is not set or wrong, setting default value (unlimited)", zap.Int("MaxFreeTransactionsPerBlock", cfg.MaxFreeTransactionsPerBlock))
-	}
 	if cfg.MaxFreeTransactionSize <= 0 {
 		cfg.MaxFreeTransactionSize = 0
 		log.Info("MaxFreeTransactionSize is not set or wrong, setting default value (unlimited)", zap.Int("MaxFreeTransactionSize", cfg.MaxFreeTransactionSize))
@@ -1646,10 +1638,11 @@ func (bc *Blockchain) GetMemPool() *mempool.Pool {
 // ApplyPolicyToTxSet applies configured policies to given transaction set. It
 // expects slice to be ordered by fee and returns a subslice of it.
 func (bc *Blockchain) ApplyPolicyToTxSet(txes []mempool.TxWithFee) []mempool.TxWithFee {
-	if bc.config.MaxTransactionsPerBlock != 0 && len(txes) > bc.config.MaxTransactionsPerBlock {
-		txes = txes[:bc.config.MaxTransactionsPerBlock]
+	maxTx := bc.config.GetMaxTxPerBlock(bc.BlockHeight())
+	if maxTx != 0 && len(txes) > maxTx {
+		txes = txes[:maxTx]
 	}
-	maxFree := bc.config.MaxFreeTransactionsPerBlock
+	maxFree := bc.config.GetMaxFreeTxPerBlock(bc.BlockHeight())
 	if maxFree != 0 && len(txes) > maxFree {
 		// Transactions are sorted by fee, so we just find the first free one.
 		freeStart := sort.Search(len(txes), func(i int) bool {

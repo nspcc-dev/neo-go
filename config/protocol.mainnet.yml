@@ -33,8 +33,8 @@ ProtocolConfiguration:
   VerifyBlocks: true
   VerifyTransactions: false
   FreeGasLimit: {0: 10.0, 6216000: 50.0}
-  MaxTransactionsPerBlock: 500
-  MaxFreeTransactionsPerBlock: 20
+  MaxTransactionsPerBlock: {0: 500, 6216000: 200}
+  MaxFreeTransactionsPerBlock: {0: 20, 6216000: 199}
   MaxFreeTransactionSize: 1024
   MinimumNetworkFee: 0
   FeePerExtraByte: 0.00001

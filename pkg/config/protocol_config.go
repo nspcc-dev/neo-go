@@ -28,14 +28,15 @@ type (
 		// FreeGasLimit is an amount of GAS which can be spent for free.
 		// It can change over time, thus it's a map of block height to the
 		// respective GAS limit.
-		FreeGasLimit            map[uint32]util.Fixed8 `yaml:"FreeGasLimit"`
-		LowPriorityThreshold    float64                `yaml:"LowPriorityThreshold"`
-		Magic                   NetMode                `yaml:"Magic"`
-		MaxTransactionsPerBlock int                    `yaml:"MaxTransactionsPerBlock"`
+		FreeGasLimit         map[uint32]util.Fixed8 `yaml:"FreeGasLimit"`
+		LowPriorityThreshold float64                `yaml:"LowPriorityThreshold"`
+		Magic                NetMode                `yaml:"Magic"`
+		// Maximum number of transactions allowed to be packed into block.
+		MaxTransactionsPerBlock map[uint32]int `yaml:"MaxTransactionsPerBlock"`
 		// Maximum size of low priority transaction in bytes.
 		MaxFreeTransactionSize int `yaml:"MaxFreeTransactionSize"`
 		// Maximum number of low priority transactions accepted into block.
-		MaxFreeTransactionsPerBlock int `yaml:"MaxFreeTransactionsPerBlock"`
+		MaxFreeTransactionsPerBlock map[uint32]int `yaml:"MaxFreeTransactionsPerBlock"`
 		// MinimumNetworkFee sets the minimum required network fee for transaction to pass validation.
 		MinimumNetworkFee util.Fixed8 `yaml:"MinimumNetworkFee"`
 		MemPoolSize       int         `yaml:"MemPoolSize"`
@@ -77,6 +78,29 @@ func (p *ProtocolConfiguration) GetFreeGas(block uint32) util.Fixed8 {
 		height = h
 	}
 	return gas
+}
+
+func getIntFromMap(m map[uint32]int, block uint32) int {
+	var res int
+	var height uint32
+	for h, i := range m {
+		if h > block || h < height || i < 0 {
+			continue
+		}
+		res = i
+		height = h
+	}
+	return res
+}
+
+// GetMaxTxPerBlock returns MaxTransactionsPerBlock value for given block height.
+func (p *ProtocolConfiguration) GetMaxTxPerBlock(block uint32) int {
+	return getIntFromMap(p.MaxTransactionsPerBlock, block)
+}
+
+// GetMaxFreeTxPerBlock returns MaxFreeTransactionsPerBlock value for given block height.
+func (p *ProtocolConfiguration) GetMaxFreeTxPerBlock(block uint32) int {
+	return getIntFromMap(p.MaxFreeTransactionsPerBlock, block)
 }
 
 // String implements the stringer interface.
