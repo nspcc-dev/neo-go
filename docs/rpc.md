@@ -56,6 +56,7 @@ which would yield the response:
 | `gettxout` |
 | `getunclaimed` |
 | `getunspents` |
+| `getutxotransfers` |
 | `getvalidators` |
 | `getversion` |
 | `invoke` |
@@ -101,6 +102,164 @@ and we're not accepting issues related to them.
 ### Extensions
 
 Some additional extensions are implemented as a part of this RPC server.
+
+#### Limits and paging for getnep5transfers and getutxotransfers
+
+Both `getnep5transfers` and `getutxotransfers` RPC calls never return more than
+1000 results for one request (within specified time frame). You can pass your
+own limit via an additional parameter and then use paging to request the next
+batch of transfers.
+
+Example requesting 10 events for address AYC7wn4xb8SEeYpgPXHHjLr3gBuWbgAC3Q
+within 0-1600094189 timestamps:
+
+```json
+{ "jsonrpc": "2.0", "id": 5, "method": "getnep5transfers", "params":
+["AYC7wn4xb8SEeYpgPXHHjLr3gBuWbgAC3Q", 0, 1600094189, 10] }
+```
+
+Get the next 10 transfers for the same account within the same time frame:
+
+```json
+{ "jsonrpc": "2.0", "id": 5, "method": "getnep5transfers", "params":
+["AYC7wn4xb8SEeYpgPXHHjLr3gBuWbgAC3Q", 0, 1600094189, 10, 1] }
+```
+
+#### getalltransfertx call
+
+In addition to regular `getnep5transfers` and `getutxotransfers` RPC calls
+`getalltransfertx` is provided to return both NEP5 and UTXO events for account
+in a single stream of events. These events are grouped by transaction and an
+additional metadata like fees is provided. It has the same parameters as
+`getnep5transfers`, but limits and paging is applied to transactions instead
+of transfer events. UTXO inputs and outputs are provided by `elements` array,
+while NEP5 transfer events are contained in `events` array.
+
+Example request:
+
+```json
+{ "jsonrpc": "2.0", "id": 5, "method": "getalltransfertx", "params":
+["AYC7wn4xb8SEeYpgPXHHjLr3gBuWbgAC3Q", 0, 1600094189, 2] }
+
+```
+
+Reply:
+
+```json
+{
+   "jsonrpc" : "2.0",
+   "result" : [
+      {
+         "txid" : "0x1cb7e089bb52cabb35c480de9d99c41c6fea7f5a276b41d71ab3fc7c470dcb74",
+         "events" : [
+            {
+               "type" : "send",
+               "asset" : "3a4acd3647086e7c44398aac0349802e6a171129",
+               "value" : "20000000000",
+               "address" : "ALuZLuuDssJqG2E4foANKwbLamYHuffFjg"
+            }
+         ],
+         "net_fee" : 0,
+         "block_index" : 6163114,
+         "timestamp" : 1600094117,
+         "sys_fee" : 0
+      },
+      {
+         "block_index" : 6162995,
+         "net_fee" : 0,
+         "timestamp" : 1600092165,
+         "events" : [
+            {
+               "address" : "ALuZLuuDssJqG2E4foANKwbLamYHuffFjg",
+               "value" : "20000000000",
+               "type" : "receive",
+               "asset" : "3a4acd3647086e7c44398aac0349802e6a171129"
+            }
+         ],
+         "txid" : "0xc8b45480ade5395a4a239bb44eea6d86113f32090c4854b0c4aeee1b9485edab",
+         "sys_fee" : 0
+      }
+   ],
+   "id" : 5
+}
+
+```
+
+Another request:
+
+```json
+{ "jsonrpc": "2.0", "id": 5, "method": "getalltransfertx", "params":
+["AKJL9HwrFGdic9GTTXrdaHuNYa5oxqioRY", 0, 1600079056, 2, 13] }
+```
+
+Reply:
+
+```json
+{
+   "result" : [
+      {
+         "timestamp" : 1561566911,
+         "net_fee" : 1,
+         "events" : [
+            {
+               "address" : "AZCcft1uYtmZXxzHPr5tY7L6M85zG7Dsrv",
+               "asset" : "1578103c13e39df15d0d29826d957e85d770d8c9",
+               "type" : "receive",
+               "value" : "2380844141430"
+            }
+         ],
+         "elements" : [
+            {
+               "asset" : "602c79718b16e442de58778e148d0b1084e3b2dffd5de6b7b16cee7969282de7",
+               "address" : "AZCcft1uYtmZXxzHPr5tY7L6M85zG7Dsrv",
+               "value" : "0.00000831",
+               "type" : "input"
+            },
+            {
+               "address" : "AZCcft1uYtmZXxzHPr5tY7L6M85zG7Dsrv",
+               "asset" : "602c79718b16e442de58778e148d0b1084e3b2dffd5de6b7b16cee7969282de7",
+               "type" : "output",
+               "value" : "0.0000083"
+            }
+         ],
+         "sys_fee" : 0,
+         "txid" : "0xb4f1bdb466d8bd3524502008a0bc1f9342356b4eea67be19d384845c670442a6",
+         "block_index" : 3929554
+      },
+      {
+         "elements" : [
+            {
+               "value" : "0.00000838",
+               "type" : "input",
+               "asset" : "602c79718b16e442de58778e148d0b1084e3b2dffd5de6b7b16cee7969282de7",
+               "address" : "AZCcft1uYtmZXxzHPr5tY7L6M85zG7Dsrv"
+            },
+            {
+               "asset" : "602c79718b16e442de58778e148d0b1084e3b2dffd5de6b7b16cee7969282de7",
+               "address" : "AZCcft1uYtmZXxzHPr5tY7L6M85zG7Dsrv",
+               "value" : "0.00000837",
+               "type" : "output"
+            }
+         ],
+         "events" : [
+            {
+               "asset" : "1578103c13e39df15d0d29826d957e85d770d8c9",
+               "address" : "AZCcft1uYtmZXxzHPr5tY7L6M85zG7Dsrv",
+               "value" : "2100000000",
+               "type" : "receive"
+            }
+         ],
+         "timestamp" : 1561566300,
+         "net_fee" : 1,
+         "block_index" : 3929523,
+         "sys_fee" : 0,
+         "txid" : "0xc045c0612b34218b7e5eaee973114af3eff925f859adf23cf953930f667cdc93"
+      }
+   ],
+   "id" : 5,
+   "jsonrpc" : "2.0"
+}
+```
 
 #### Websocket server
 

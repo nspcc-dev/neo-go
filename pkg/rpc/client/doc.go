@@ -19,6 +19,7 @@ TODO:
 Supported methods
 
 	getaccountstate
+	getalltransfertx
 	getapplicationlog
 	getassetstate
 	getbestblockhash
@@ -40,6 +41,7 @@ Supported methods
 	gettxout
 	getunclaimed
 	getunspents
+	getutxotransfers
 	getvalidators
 	getversion
 	invoke
