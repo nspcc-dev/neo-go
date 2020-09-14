@@ -421,7 +421,7 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 		{
 			name: "positive",
 			invoke: func(c *Client) (interface{}, error) {
-				return c.GetNEP5Transfers("AbHgdBaWEnHkCiLtDZXjhvhaAK2cwFh5pF")
+				return c.GetNEP5Transfers("AbHgdBaWEnHkCiLtDZXjhvhaAK2cwFh5pF", nil, nil, nil, nil)
 			},
 			serverResponse: `{"jsonrpc":"2.0","id":1,"result":{"sent":[],"received":[{"timestamp":1555651816,"assethash":"600c4f5200db36177e3e8a09e9f18e2fc7d12a0f","transferaddress":"AYwgBNMepiv5ocGcyNT4mA8zPLTQ8pDBis","amount":"1000000","blockindex":436036,"transfernotifyindex":0,"txhash":"df7683ece554ecfb85cf41492c5f143215dd43ef9ec61181a28f922da06aba58"}],"address":"AbHgdBaWEnHkCiLtDZXjhvhaAK2cwFh5pF"}}`,
 			result: func(c *Client) interface{} {
@@ -949,7 +949,30 @@ var rpcClientErrorCases = map[string][]rpcClientErrorCase{
 		{
 			name: "getnep5transfers_invalid_params_error",
 			invoke: func(c *Client) (interface{}, error) {
-				return c.GetNEP5Transfers("")
+				return c.GetNEP5Transfers("", nil, nil, nil, nil)
+			},
+		},
+		{
+			name: "getnep5transfers_invalid_params_error 2",
+			invoke: func(c *Client) (interface{}, error) {
+				var stop uint32
+				return c.GetNEP5Transfers("NbTiM6h8r99kpRtb428XcsUk1TzKed2gTc", nil, &stop, nil, nil)
+			},
+		},
+		{
+			name: "getnep5transfers_invalid_params_error 3",
+			invoke: func(c *Client) (interface{}, error) {
+				var start uint32
+				var limit int
+				return c.GetNEP5Transfers("NbTiM6h8r99kpRtb428XcsUk1TzKed2gTc", &start, nil, &limit, nil)
+			},
+		},
+		{
+			name: "getnep5transfers_invalid_params_error 4",
+			invoke: func(c *Client) (interface{}, error) {
+				var start, stop uint32
+				var page int
+				return c.GetNEP5Transfers("NbTiM6h8r99kpRtb428XcsUk1TzKed2gTc", &start, &stop, nil, &page)
 			},
 		},
 		{
@@ -1113,7 +1136,7 @@ var rpcClientErrorCases = map[string][]rpcClientErrorCase{
 		{
 			name: "getnep5transfers_unmarshalling_error",
 			invoke: func(c *Client) (interface{}, error) {
-				return c.GetNEP5Transfers("")
+				return c.GetNEP5Transfers("", nil, nil, nil, nil)
 			},
 		},
 		{
