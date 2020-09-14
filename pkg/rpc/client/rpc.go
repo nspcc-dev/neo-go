@@ -404,6 +404,38 @@ func (c *Client) GetUnspents(address string) (*result.Unspents, error) {
 	return resp, nil
 }
 
+// GetUTXOTransfers is a wrapper for getutxoransfers RPC. Address parameter
+// is mandatory, while all the others are optional. It's only supported since
+// neo-go 0.77.0 with limit and page parameters only since neo-go 0.78.0.
+// These parameters are positional in the JSON-RPC call, you can't specify limit
+// and not specify start/stop for example.
+func (c *Client) GetUTXOTransfers(address string, start, stop *uint32, limit, page *int) (*result.GetUTXO, error) {
+	params := request.NewRawParams(address)
+	if start != nil {
+		params.Values = append(params.Values, *start)
+		if stop != nil {
+			params.Values = append(params.Values, *stop)
+			if limit != nil {
+				params.Values = append(params.Values, *limit)
+				if page != nil {
+					params.Values = append(params.Values, *page)
+				}
+			} else if page != nil {
+				return nil, errors.New("bad parameters")
+			}
+		} else if limit != nil || page != nil {
+			return nil, errors.New("bad parameters")
+		}
+	} else if stop != nil || limit != nil || page != nil {
+		return nil, errors.New("bad parameters")
+	}
+	resp := new(result.GetUTXO)
+	if err := c.performRequest("getutxotransfers", params, resp); err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
 // GetValidators returns the current NEO consensus nodes information and voting status.
 func (c *Client) GetValidators() ([]result.Validator, error) {
 	var (
