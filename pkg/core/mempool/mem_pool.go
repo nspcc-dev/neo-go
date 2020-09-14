@@ -117,26 +117,30 @@ func (mp *Pool) tryAddSendersFee(tx *transaction.Transaction, feer Feer, needChe
 		senderFee.feeSum = big.NewInt(0)
 		mp.fees[tx.Sender()] = senderFee
 	}
-	if needCheck && checkBalance(tx, senderFee) != nil {
-		return false
+	if needCheck {
+		newFeeSum, err := checkBalance(tx, senderFee)
+		if err != nil {
+			return false
+		}
+		senderFee.feeSum.Set(newFeeSum)
+	} else {
+		senderFee.feeSum.Add(senderFee.feeSum, big.NewInt(tx.SystemFee+tx.NetworkFee))
 	}
-	senderFee.feeSum.Add(senderFee.feeSum, big.NewInt(tx.SystemFee+tx.NetworkFee))
-	mp.fees[tx.Sender()] = senderFee
 	return true
 }
 
-// checkBalance returns nil in case when sender has enough GAS to pay for the
-// transaction
-func checkBalance(tx *transaction.Transaction, balance utilityBalanceAndFees) error {
+// checkBalance returns new cumulative fee balance for account or an error in
+// case sender doesn't have enough GAS to pay for the transaction.
+func checkBalance(tx *transaction.Transaction, balance utilityBalanceAndFees) (*big.Int, error) {
 	txFee := big.NewInt(tx.SystemFee + tx.NetworkFee)
 	if balance.balance.Cmp(txFee) < 0 {
-		return ErrInsufficientFunds
+		return nil, ErrInsufficientFunds
 	}
-	needFee := txFee.Add(txFee, balance.feeSum)
-	if balance.balance.Cmp(needFee) < 0 {
-		return ErrConflict
+	txFee.Add(txFee, balance.feeSum)
+	if balance.balance.Cmp(txFee) < 0 {
+		return nil, ErrConflict
 	}
-	return nil
+	return txFee, nil
 }
 
 // Add tries to add given transaction to the Pool.
@@ -300,7 +304,8 @@ func (mp *Pool) checkTxConflicts(tx *transaction.Transaction, fee Feer) error {
 		senderFee.balance = fee.GetUtilityTokenBalance(tx.Sender())
 		senderFee.feeSum = big.NewInt(0)
 	}
-	return checkBalance(tx, senderFee)
+	_, err := checkBalance(tx, senderFee)
+	return err
 }
 
 // Verify checks if a Sender of tx is able to pay for it (and all the other

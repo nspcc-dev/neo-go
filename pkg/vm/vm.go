@@ -80,9 +80,6 @@ type VM struct {
 	SyscallHandler func(v *VM, id uint32) error
 
 	trigger trigger.Type
-
-	// Public keys cache.
-	keys map[string]*keys.PublicKey
 }
 
 // New returns a new VM object ready to load AVM bytecode scripts.
@@ -96,7 +93,6 @@ func NewWithTrigger(t trigger.Type) *VM {
 		state:   NoneState,
 		istack:  NewStack("invocation"),
 		refs:    newRefCounter(),
-		keys:    make(map[string]*keys.PublicKey),
 		trigger: t,
 
 		SyscallHandler: defaultSyscallHandler,
@@ -138,17 +134,6 @@ func (v *VM) Estack() *Stack {
 // Istack returns the invocation stack so interop hooks can utilize this.
 func (v *VM) Istack() *Stack {
 	return v.istack
-}
-
-// SetPublicKeys sets internal key cache to the specified value (note
-// that it doesn't copy them).
-func (v *VM) SetPublicKeys(keys map[string]*keys.PublicKey) {
-	v.keys = keys
-}
-
-// GetPublicKeys returns internal key cache (note that it doesn't copy it).
-func (v *VM) GetPublicKeys() map[string]*keys.PublicKey {
-	return v.keys
 }
 
 // LoadArgs loads in the arguments used in the Mian entry point.
@@ -1586,8 +1571,8 @@ func CheckMultisigPar(v *VM, curve elliptic.Curve, h []byte, pkeys [][]byte, sig
 		go worker(tasks, results)
 	}
 
-	tasks <- task{pub: v.bytesToPublicKey(pkeys[k1], curve), signum: s1}
-	tasks <- task{pub: v.bytesToPublicKey(pkeys[k2], curve), signum: s2}
+	tasks <- task{pub: bytesToPublicKey(pkeys[k1], curve), signum: s1}
+	tasks <- task{pub: bytesToPublicKey(pkeys[k2], curve), signum: s2}
 
 	sigok := true
 	taskCount := 2
@@ -1631,7 +1616,7 @@ loop:
 			nextKey = k2
 		}
 		taskCount++
-		tasks <- task{pub: v.bytesToPublicKey(pkeys[nextKey], curve), signum: nextSig}
+		tasks <- task{pub: bytesToPublicKey(pkeys[nextKey], curve), signum: nextSig}
 	}
 
 	close(tasks)
@@ -1641,7 +1626,7 @@ loop:
 
 func checkMultisig1(v *VM, curve elliptic.Curve, h []byte, pkeys [][]byte, sig []byte) bool {
 	for i := range pkeys {
-		pkey := v.bytesToPublicKey(pkeys[i], curve)
+		pkey := bytesToPublicKey(pkeys[i], curve)
 		if pkey.Verify(sig, h) {
 			return true
 		}
@@ -1696,18 +1681,10 @@ func (v *VM) checkInvocationStackSize() {
 
 // bytesToPublicKey is a helper deserializing keys using cache and panicing on
 // error.
-func (v *VM) bytesToPublicKey(b []byte, curve elliptic.Curve) *keys.PublicKey {
-	var pkey *keys.PublicKey
-	s := string(b)
-	if v.keys[s] != nil {
-		pkey = v.keys[s]
-	} else {
-		var err error
-		pkey, err = keys.NewPublicKeyFromBytes(b, curve)
-		if err != nil {
-			panic(err.Error())
-		}
-		v.keys[s] = pkey
+func bytesToPublicKey(b []byte, curve elliptic.Curve) *keys.PublicKey {
+	pkey, err := keys.NewPublicKeyFromBytes(b, curve)
+	if err != nil {
+		panic(err.Error())
 	}
 	return pkey
 }

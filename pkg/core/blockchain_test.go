@@ -394,22 +394,22 @@ func TestVerifyHashAgainstScript(t *testing.T) {
 			newH := cs.ScriptHash()
 			newH[0] = ^newH[0]
 			w := &transaction.Witness{InvocationScript: []byte{byte(opcode.PUSH4)}}
-			err := bc.verifyHashAgainstScript(newH, w, ic, false, gas)
+			err := bc.verifyHashAgainstScript(newH, w, ic, gas)
 			require.True(t, errors.Is(err, ErrUnknownVerificationContract))
 		})
 		t.Run("Invalid", func(t *testing.T) {
 			w := &transaction.Witness{InvocationScript: []byte{byte(opcode.PUSH4)}}
-			err := bc.verifyHashAgainstScript(csInvalid.ScriptHash(), w, ic, false, gas)
+			err := bc.verifyHashAgainstScript(csInvalid.ScriptHash(), w, ic, gas)
 			require.True(t, errors.Is(err, ErrInvalidVerificationContract))
 		})
 		t.Run("ValidSignature", func(t *testing.T) {
 			w := &transaction.Witness{InvocationScript: []byte{byte(opcode.PUSH4)}}
-			err := bc.verifyHashAgainstScript(cs.ScriptHash(), w, ic, false, gas)
+			err := bc.verifyHashAgainstScript(cs.ScriptHash(), w, ic, gas)
 			require.NoError(t, err)
 		})
 		t.Run("InvalidSignature", func(t *testing.T) {
 			w := &transaction.Witness{InvocationScript: []byte{byte(opcode.PUSH3)}}
-			err := bc.verifyHashAgainstScript(cs.ScriptHash(), w, ic, false, gas)
+			err := bc.verifyHashAgainstScript(cs.ScriptHash(), w, ic, gas)
 			require.True(t, errors.Is(err, ErrVerificationFailed))
 		})
 	})
@@ -419,7 +419,7 @@ func TestVerifyHashAgainstScript(t *testing.T) {
 			InvocationScript:   []byte{byte(opcode.NOP)},
 			VerificationScript: verif,
 		}
-		err := bc.verifyHashAgainstScript(hash.Hash160(verif), w, ic, false, 1)
+		err := bc.verifyHashAgainstScript(hash.Hash160(verif), w, ic, 1)
 		require.True(t, errors.Is(err, ErrVerificationFailed))
 	})
 	t.Run("NoResult", func(t *testing.T) {
@@ -428,7 +428,7 @@ func TestVerifyHashAgainstScript(t *testing.T) {
 			InvocationScript:   []byte{byte(opcode.PUSH1)},
 			VerificationScript: verif,
 		}
-		err := bc.verifyHashAgainstScript(hash.Hash160(verif), w, ic, false, gas)
+		err := bc.verifyHashAgainstScript(hash.Hash160(verif), w, ic, gas)
 		require.True(t, errors.Is(err, ErrVerificationFailed))
 	})
 	t.Run("BadResult", func(t *testing.T) {
@@ -439,7 +439,7 @@ func TestVerifyHashAgainstScript(t *testing.T) {
 			InvocationScript:   []byte{byte(opcode.NOP)},
 			VerificationScript: verif,
 		}
-		err := bc.verifyHashAgainstScript(hash.Hash160(verif), w, ic, false, gas)
+		err := bc.verifyHashAgainstScript(hash.Hash160(verif), w, ic, gas)
 		require.True(t, errors.Is(err, ErrVerificationFailed))
 	})
 	t.Run("TooManyResults", func(t *testing.T) {
@@ -448,7 +448,7 @@ func TestVerifyHashAgainstScript(t *testing.T) {
 			InvocationScript:   []byte{byte(opcode.PUSH1), byte(opcode.PUSH1)},
 			VerificationScript: verif,
 		}
-		err := bc.verifyHashAgainstScript(hash.Hash160(verif), w, ic, false, gas)
+		err := bc.verifyHashAgainstScript(hash.Hash160(verif), w, ic, gas)
 		require.True(t, errors.Is(err, ErrVerificationFailed))
 	})
 }
@@ -524,8 +524,8 @@ func TestGetTransaction(t *testing.T) {
 		tx, height, err := bc.GetTransaction(block.Transactions[0].Hash())
 		require.Nil(t, err)
 		assert.Equal(t, block.Index, height)
+		assert.Equal(t, txSize, tx.Size())
 		assert.Equal(t, block.Transactions[0], tx)
-		assert.Equal(t, txSize, io.GetVarSize(tx))
 		assert.Equal(t, 1, io.GetVarSize(tx.Attributes))
 		assert.Equal(t, 1, io.GetVarSize(tx.Scripts))
 		assert.NoError(t, bc.persist())

@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
-	"sort"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -115,11 +114,6 @@ type Blockchain struct {
 
 	memPool *mempool.Pool
 
-	// This lock protects concurrent access to keyCache.
-	keyCacheLock sync.RWMutex
-	// cache for block verification keys.
-	keyCache map[util.Uint160]map[string]*keys.PublicKey
-
 	sbCommittee keys.PublicKeys
 
 	log *zap.Logger
@@ -169,7 +163,6 @@ func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration, log *zap.L
 		stopCh:        make(chan struct{}),
 		runToExitCh:   make(chan struct{}),
 		memPool:       mempool.New(cfg.MemPoolSize),
-		keyCache:      make(map[util.Uint160]map[string]*keys.PublicKey),
 		sbCommittee:   committee,
 		log:           log,
 		events:        make(chan bcEvent),
@@ -206,7 +199,7 @@ func (bc *Blockchain) init() error {
 		if err != nil {
 			return err
 		}
-		return bc.storeBlock(genesisBlock)
+		return bc.storeBlock(genesisBlock, nil)
 	}
 	if ver != version {
 		return fmt.Errorf("storage version mismatch betweeen %s and %s", version, ver)
@@ -419,6 +412,7 @@ func (bc *Blockchain) AddBlock(block *block.Block) error {
 	bc.addLock.Lock()
 	defer bc.addLock.Unlock()
 
+	var mp *mempool.Pool
 	expectedHeight := bc.BlockHeight() + 1
 	if expectedHeight != block.Index {
 		return fmt.Errorf("expected %d, got %d: %w", expectedHeight, block.Index, ErrInvalidBlockIndex)
@@ -436,28 +430,26 @@ func (bc *Blockchain) AddBlock(block *block.Block) error {
 		if err != nil {
 			return fmt.Errorf("block %s is invalid: %w", block.Hash().StringLE(), err)
 		}
-		if bc.config.VerifyTransactions {
-			var mp = mempool.New(len(block.Transactions))
-			for _, tx := range block.Transactions {
-				var err error
-				// Transactions are verified before adding them
-				// into the pool, so there is no point in doing
-				// it again even if we're verifying in-block transactions.
-				if bc.memPool.ContainsKey(tx.Hash()) {
-					err = mp.Add(tx, bc)
-					if err == nil {
-						continue
-					}
-				} else {
-					err = bc.verifyAndPoolTx(tx, mp)
+		mp = mempool.New(len(block.Transactions))
+		for _, tx := range block.Transactions {
+			var err error
+			// Transactions are verified before adding them
+			// into the pool, so there is no point in doing
+			// it again even if we're verifying in-block transactions.
+			if bc.memPool.ContainsKey(tx.Hash()) {
+				err = mp.Add(tx, bc)
+				if err == nil {
+					continue
 				}
-				if err != nil {
-					return fmt.Errorf("transaction %s failed to verify: %w", tx.Hash().StringLE(), err)
-				}
+			} else {
+				err = bc.verifyAndPoolTx(tx, mp)
+			}
+			if err != nil && bc.config.VerifyTransactions {
+				return fmt.Errorf("transaction %s failed to verify: %w", tx.Hash().StringLE(), err)
 			}
 		}
 	}
-	return bc.storeBlock(block)
+	return bc.storeBlock(block, mp)
 }
 
 // AddHeaders processes the given headers and add them to the
@@ -575,7 +567,7 @@ func (bc *Blockchain) GetStateRoot(height uint32) (*state.MPTRootState, error) {
 // storeBlock performs chain update using the block given, it executes all
 // transactions with all appropriate side-effects and updates Blockchain state.
 // This is the only way to change Blockchain state.
-func (bc *Blockchain) storeBlock(block *block.Block) error {
+func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error {
 	cache := dao.NewCached(bc.dao)
 	writeBuf := io.NewBufBinWriter()
 	appExecResults := make([]*state.AppExecResult, 0, 1+len(block.Transactions))
@@ -618,8 +610,7 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 		writeBuf.Reset()
 	}
 
-	var txHashes = make([]util.Uint256, len(block.Transactions))
-	for i, tx := range block.Transactions {
+	for _, tx := range block.Transactions {
 		if err := cache.StoreAsTransaction(tx, block.Index, writeBuf); err != nil {
 			return err
 		}
@@ -660,11 +651,7 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 			return fmt.Errorf("failed to store tx exec result: %w", err)
 		}
 		writeBuf.Reset()
-		txHashes[i] = tx.Hash()
 	}
-	sort.Slice(txHashes, func(i, j int) bool {
-		return txHashes[i].CompareTo(txHashes[j]) < 0
-	})
 
 	root := bc.dao.MPT.StateRoot()
 	var prevHash util.Uint256
@@ -706,7 +693,7 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 	}
 	bc.topBlock.Store(block)
 	atomic.StoreUint32(&bc.blockHeight, block.Index)
-	bc.memPool.RemoveStale(func(tx *transaction.Transaction) bool { return bc.isTxStillRelevant(tx, txHashes) }, bc)
+	bc.memPool.RemoveStale(func(tx *transaction.Transaction) bool { return bc.isTxStillRelevant(tx, txpool) }, bc)
 	bc.lock.Unlock()
 
 	updateBlockHeightMetric(block.Index)
@@ -771,8 +758,8 @@ func (bc *Blockchain) processNEP5Transfer(cache *dao.Cached, h util.Uint256, b *
 	if nativeContract != nil {
 		id = nativeContract.Metadata().ContractID
 	} else {
-		assetContract := bc.GetContractState(sc)
-		if assetContract == nil {
+		assetContract, err := cache.GetContractState(sc)
+		if err != nil {
 			return
 		}
 		id = assetContract.ID
@@ -1194,7 +1181,7 @@ func (bc *Blockchain) ApplyPolicyToTxSet(txes []*transaction.Transaction) []*tra
 	)
 	blockSize = uint32(io.GetVarSize(new(block.Block)) + io.GetVarSize(len(txes)+1))
 	for i, tx := range txes {
-		blockSize += uint32(io.GetVarSize(tx))
+		blockSize += uint32(tx.Size())
 		sysFee += tx.SystemFee
 		if blockSize > maxBlockSize || sysFee > maxBlockSysFee {
 			txes = txes[:i]
@@ -1247,7 +1234,7 @@ func (bc *Blockchain) verifyAndPoolTx(t *transaction.Transaction, pool *mempool.
 		// Only one %w can be used.
 		return fmt.Errorf("%w: %v", ErrPolicy, err)
 	}
-	size := io.GetVarSize(t)
+	size := t.Size()
 	if size > transaction.MaxTransactionSize {
 		return fmt.Errorf("%w: (%d > MaxTransactionSize %d)", ErrTxTooBig, size, transaction.MaxTransactionSize)
 	}
@@ -1311,17 +1298,18 @@ func (bc *Blockchain) verifyTxAttributes(tx *transaction.Transaction) error {
 
 // isTxStillRelevant is a callback for mempool transaction filtering after the
 // new block addition. It returns false for transactions added by the new block
-// (passed via txHashes) and does witness reverification for non-standard
+// (passed via txpool) and does witness reverification for non-standard
 // contracts. It operates under the assumption that full transaction verification
 // was already done so we don't need to check basic things like size, input/output
 // correctness, presence in blocks before the new one, etc.
-func (bc *Blockchain) isTxStillRelevant(t *transaction.Transaction, txHashes []util.Uint256) bool {
+func (bc *Blockchain) isTxStillRelevant(t *transaction.Transaction, txpool *mempool.Pool) bool {
 	var recheckWitness bool
 
-	index := sort.Search(len(txHashes), func(i int) bool {
-		return txHashes[i].CompareTo(t.Hash()) >= 0
-	})
-	if index < len(txHashes) && txHashes[index].Equals(t.Hash()) {
+	if txpool == nil {
+		if bc.dao.HasTransaction(t.Hash()) {
+			return false
+		}
+	} else if txpool.ContainsKey(t.Hash()) {
 		return false
 	}
 	if err := bc.verifyTxAttributes(t); err != nil {
@@ -1482,7 +1470,7 @@ var (
 )
 
 // initVerificationVM initializes VM for witness check.
-func initVerificationVM(ic *interop.Context, hash util.Uint160, witness *transaction.Witness, keyCache map[string]*keys.PublicKey) error {
+func initVerificationVM(ic *interop.Context, hash util.Uint160, witness *transaction.Witness) error {
 	var offset int
 	var initMD *manifest.Method
 	verification := witness.VerificationScript
@@ -1511,9 +1499,6 @@ func initVerificationVM(ic *interop.Context, hash util.Uint160, witness *transac
 		v.Call(v.Context(), initMD.Offset)
 	}
 	v.LoadScript(witness.InvocationScript)
-	if keyCache != nil {
-		v.SetPublicKeys(keyCache)
-	}
 	return nil
 }
 
@@ -1521,11 +1506,11 @@ func initVerificationVM(ic *interop.Context, hash util.Uint160, witness *transac
 func (bc *Blockchain) VerifyWitness(h util.Uint160, c crypto.Verifiable, w *transaction.Witness, gas int64) error {
 	ic := bc.newInteropContext(trigger.Verification, bc.dao, nil, nil)
 	ic.Container = c
-	return bc.verifyHashAgainstScript(h, w, ic, true, gas)
+	return bc.verifyHashAgainstScript(h, w, ic, gas)
 }
 
 // verifyHashAgainstScript verifies given hash against the given witness.
-func (bc *Blockchain) verifyHashAgainstScript(hash util.Uint160, witness *transaction.Witness, interopCtx *interop.Context, useKeys bool, gas int64) error {
+func (bc *Blockchain) verifyHashAgainstScript(hash util.Uint160, witness *transaction.Witness, interopCtx *interop.Context, gas int64) error {
 	gasPolicy := bc.contracts.Policy.GetMaxVerificationGas(interopCtx.DAO)
 	if gas > gasPolicy {
 		gas = gasPolicy
@@ -1534,15 +1519,7 @@ func (bc *Blockchain) verifyHashAgainstScript(hash util.Uint160, witness *transa
 	vm := interopCtx.SpawnVM()
 	vm.SetPriceGetter(getPrice)
 	vm.GasLimit = gas
-	var keyCache map[string]*keys.PublicKey
-	if useKeys {
-		bc.keyCacheLock.RLock()
-		if bc.keyCache[hash] != nil {
-			keyCache = bc.keyCache[hash]
-		}
-		bc.keyCacheLock.RUnlock()
-	}
-	if err := initVerificationVM(interopCtx, hash, witness, keyCache); err != nil {
+	if err := initVerificationVM(interopCtx, hash, witness); err != nil {
 		return err
 	}
 	err := vm.Run()
@@ -1560,16 +1537,6 @@ func (bc *Blockchain) verifyHashAgainstScript(hash util.Uint160, witness *transa
 		}
 		if vm.Estack().Len() != 0 {
 			return fmt.Errorf("%w: expected exactly one returned value", ErrVerificationFailed)
-		}
-		if useKeys {
-			bc.keyCacheLock.RLock()
-			_, ok := bc.keyCache[hash]
-			bc.keyCacheLock.RUnlock()
-			if !ok {
-				bc.keyCacheLock.Lock()
-				bc.keyCache[hash] = vm.GetPublicKeys()
-				bc.keyCacheLock.Unlock()
-			}
 		}
 	} else {
 		return fmt.Errorf("%w: no result returned from the script", ErrVerificationFailed)
@@ -1589,7 +1556,7 @@ func (bc *Blockchain) verifyTxWitnesses(t *transaction.Transaction, block *block
 	}
 	interopCtx := bc.newInteropContext(trigger.Verification, bc.dao, block, t)
 	for i := range t.Signers {
-		err := bc.verifyHashAgainstScript(t.Signers[i].Account, &t.Scripts[i], interopCtx, false, t.NetworkFee)
+		err := bc.verifyHashAgainstScript(t.Signers[i].Account, &t.Scripts[i], interopCtx, t.NetworkFee)
 		if err != nil {
 			return fmt.Errorf("witness #%d: %w", i, err)
 		}

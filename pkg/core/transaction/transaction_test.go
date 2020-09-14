@@ -73,6 +73,7 @@ func TestNew(t *testing.T) {
 	assert.Equal(t, script, tx.Script)
 	// Update hash fields to match tx2 that is gonna autoupdate them on decode.
 	_ = tx.Hash()
+	_ = tx.Size()
 	testserdes.EncodeDecodeBinary(t, tx, &Transaction{Network: netmode.UnitTestNet})
 }
 
