@@ -28,6 +28,20 @@ func (c *Client) GetAccountState(address string) (*result.AccountState, error) {
 	return resp, nil
 }
 
+// GetAllTransferTx returns all transfer transactions for a given account within
+// specified timestamps (by block time) with specified output limits and page. It
+// only works with neo-go 0.78.0+ servers.
+func (c *Client) GetAllTransferTx(acc util.Uint160, start, end uint32, limit, page int) ([]result.TransferTx, error) {
+	var (
+		params = request.NewRawParams(acc.StringLE(), start, end, limit, page)
+		resp   = new([]result.TransferTx)
+	)
+	if err := c.performRequest("getalltransfertx", params, resp); err != nil {
+		return nil, err
+	}
+	return *resp, nil
+}
+
 // GetApplicationLog returns the contract log based on the specified txid.
 func (c *Client) GetApplicationLog(hash util.Uint256) (*result.ApplicationLog, error) {
 	var (

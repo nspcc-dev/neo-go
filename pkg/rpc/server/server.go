@@ -81,6 +81,7 @@ const (
 
 var rpcHandlers = map[string]func(*Server, request.Params) (interface{}, *response.Error){
 	"getaccountstate":      (*Server).getAccountState,
+	"getalltransfertx":     (*Server).getAllTransferTx,
 	"getapplicationlog":    (*Server).getApplicationLog,
 	"getassetstate":        (*Server).getAssetState,
 	"getbestblockhash":     (*Server).getBestBlockHash,
@@ -826,6 +827,194 @@ func (s *Server) getNEP5Transfers(ps request.Params) (interface{}, *response.Err
 		return nil, response.NewInternalServerError("invalid NEP5 transfer log", err)
 	}
 	return bs, nil
+}
+
+func (s *Server) getAllTransferTx(ps request.Params) (interface{}, *response.Error) {
+	var respErr *response.Error
+
+	u, err := ps.Value(0).GetUint160FromAddressOrHex()
+	if err != nil {
+		return nil, response.ErrInvalidParams
+	}
+
+	start, end, limit, page, err := getTimestampsAndLimit(ps, 1)
+	if err != nil {
+		return nil, response.NewInvalidParamsError("", err)
+	}
+
+	var (
+		utxoCont = make(chan bool)
+		nep5Cont = make(chan bool)
+		utxoTrs  = make(chan state.Transfer)
+		nep5Trs  = make(chan state.NEP5Transfer)
+	)
+
+	go func() {
+		tr := new(state.Transfer)
+		_ = s.chain.ForEachTransfer(u, tr, func() (bool, error) {
+			var cont bool
+
+			// Iterating from newest to oldest, not yet reached required
+			// time frame, continue looping.
+			if tr.Timestamp > end {
+				return true, nil
+			}
+			// Iterating from newest to oldest, moved past required
+			// time frame, stop looping.
+			if tr.Timestamp < start {
+				return false, nil
+			}
+			utxoTrs <- *tr
+			cont = <-utxoCont
+			return cont, nil
+		})
+		close(utxoTrs)
+	}()
+
+	go func() {
+		tr := new(state.NEP5Transfer)
+		_ = s.chain.ForEachNEP5Transfer(u, tr, func() (bool, error) {
+			var cont bool
+
+			// Iterating from newest to oldest, not yet reached required
+			// time frame, continue looping.
+			if tr.Timestamp > end {
+				return true, nil
+			}
+			// Iterating from newest to oldest, moved past required
+			// time frame, stop looping.
+			if tr.Timestamp < start {
+				return false, nil
+			}
+			nep5Trs <- *tr
+			cont = <-nep5Cont
+			return cont, nil
+		})
+		close(nep5Trs)
+	}()
+
+	var (
+		res                = make([]result.TransferTx, 0, limit)
+		frameCount         int
+		utxoLast           state.Transfer
+		nep5Last           state.NEP5Transfer
+		haveUtxo, haveNep5 bool
+	)
+
+	utxoLast, haveUtxo = <-utxoTrs
+	if haveUtxo {
+		utxoCont <- true
+	}
+	nep5Last, haveNep5 = <-nep5Trs
+	if haveNep5 {
+		nep5Cont <- true
+	}
+	for len(res) < limit {
+		if !haveUtxo && !haveNep5 {
+			break
+		}
+		var isNep5 = haveNep5 && (!haveUtxo || (nep5Last.Timestamp > utxoLast.Timestamp))
+		var transfer result.TransferTx
+		if isNep5 {
+			transfer.TxID = nep5Last.Tx
+			transfer.Timestamp = nep5Last.Timestamp
+			transfer.Index = nep5Last.Block
+		} else {
+			transfer.TxID = utxoLast.Tx
+			transfer.Timestamp = utxoLast.Timestamp
+			transfer.Index = utxoLast.Block
+		}
+		frameCount++
+		// Using limits, not yet reached required page. But still need
+		// to drain inputs for this tx.
+		skipTx := page*limit >= frameCount
+
+		if !skipTx {
+			tx, _, err := s.chain.GetTransaction(transfer.TxID)
+			if err != nil {
+				respErr = response.NewInternalServerError("invalid NEP5 transfer log", err)
+				break
+			}
+			transfer.NetworkFee = int64(s.chain.NetworkFee(tx))
+			transfer.SystemFee = int64(s.chain.SystemFee(tx))
+
+			inouts, err := s.chain.References(tx)
+			if err != nil {
+				respErr = response.NewInternalServerError("invalid tx", err)
+				break
+			}
+			for _, inout := range inouts {
+				var event result.TransferTxEvent
+
+				event.Address = address.Uint160ToString(inout.Out.ScriptHash)
+				event.Type = "input"
+				event.Value = inout.Out.Amount.String()
+				event.Asset = inout.Out.AssetID.StringLE()
+				transfer.Elements = append(transfer.Elements, event)
+			}
+			for _, out := range tx.Outputs {
+				var event result.TransferTxEvent
+
+				event.Address = address.Uint160ToString(out.ScriptHash)
+				event.Type = "output"
+				event.Value = out.Amount.String()
+				event.Asset = out.AssetID.StringLE()
+				transfer.Elements = append(transfer.Elements, event)
+			}
+		}
+		// Pick all NEP5 events for this transaction, if there are any.
+		for haveNep5 && nep5Last.Tx.Equals(transfer.TxID) {
+			if !skipTx {
+				var event result.TransferTxEvent
+				event.Asset = nep5Last.Asset.StringLE()
+				if nep5Last.Amount > 0 { // token was received
+					event.Value = strconv.FormatInt(nep5Last.Amount, 10)
+					event.Type = "receive"
+					if !nep5Last.From.Equals(util.Uint160{}) {
+						event.Address = address.Uint160ToString(nep5Last.From)
+					}
+				} else {
+					event.Value = strconv.FormatInt(-nep5Last.Amount, 10)
+					event.Type = "send"
+					if !nep5Last.To.Equals(util.Uint160{}) {
+						event.Address = address.Uint160ToString(nep5Last.To)
+					}
+				}
+				transfer.Events = append(transfer.Events, event)
+			}
+			nep5Last, haveNep5 = <-nep5Trs
+			if haveNep5 {
+				nep5Cont <- true
+			}
+		}
+
+		// Skip UTXO events, we've already got them from inputs and outputs.
+		for haveUtxo && utxoLast.Tx.Equals(transfer.TxID) {
+			utxoLast, haveUtxo = <-utxoTrs
+			if haveUtxo {
+				utxoCont <- true
+			}
+		}
+		if !skipTx {
+			res = append(res, transfer)
+		}
+	}
+	if haveUtxo {
+		_, ok := <-utxoTrs
+		if ok {
+			utxoCont <- false
+		}
+	}
+	if haveNep5 {
+		_, ok := <-nep5Trs
+		if ok {
+			nep5Cont <- false
+		}
+	}
+	if respErr != nil {
+		return nil, respErr
+	}
+	return res, nil
 }
 
 func (s *Server) getMinimumNetworkFee(ps request.Params) (interface{}, *response.Error) {
