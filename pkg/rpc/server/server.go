@@ -77,6 +77,9 @@ const (
 	// treated like subscriber, so technically it's a limit on websocket
 	// connections.
 	maxSubscribers = 64
+
+	// Maximum number of elements for get*transfers requests.
+	maxTransfersLimit = 1000
 )
 
 var rpcHandlers = map[string]func(*Server, request.Params) (interface{}, *response.Error){
@@ -548,6 +551,8 @@ func (s *Server) getNEP5Balances(ps request.Params) (interface{}, *response.Erro
 func getTimestampsAndLimit(ps request.Params, index int) (uint64, uint64, int, int, error) {
 	var start, end uint64
 	var limit, page int
+
+	limit = maxTransfersLimit
 	pStart, pEnd, pLimit, pPage := ps.Value(index), ps.Value(index+1), ps.Value(index+2), ps.Value(index+3)
 	if pPage != nil {
 		p, err := pPage.GetInt()
@@ -566,6 +571,9 @@ func getTimestampsAndLimit(ps request.Params, index int) (uint64, uint64, int, i
 		}
 		if l <= 0 {
 			return 0, 0, 0, 0, errors.New("can't use negative or zero limit")
+		}
+		if l > maxTransfersLimit {
+			return 0, 0, 0, 0, errors.New("too big limit requested")
 		}
 		limit = l
 	}

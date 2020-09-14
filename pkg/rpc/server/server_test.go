@@ -176,6 +176,11 @@ var rpcTestCases = map[string][]rpcTestCase{
 			fail:   true,
 		},
 		{
+			name:   "invalid limit 3",
+			params: `["` + testchain.PrivateKeyByID(0).Address() + `", "1", "2", "100500"]`,
+			fail:   true,
+		},
+		{
 			name:   "invalid page",
 			params: `["` + testchain.PrivateKeyByID(0).Address() + `", "1", "2", "3", "-1"]`,
 			fail:   true,
