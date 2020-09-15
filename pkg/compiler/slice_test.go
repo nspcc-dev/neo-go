@@ -316,6 +316,41 @@ func TestSliceOperations(t *testing.T) {
 	runTestCases(t, sliceTestCases)
 }
 
+func TestSubsliceCompound(t *testing.T) {
+	src := `package foo
+	func Main() []int {
+		a := []int{0, 1, 2, 3}
+		b := a[1:3]
+		return b
+	}`
+	_, err := compiler.Compile("", strings.NewReader(src))
+	require.Error(t, err)
+}
+
+func TestRemove(t *testing.T) {
+	t.Run("Valid", func(t *testing.T) {
+		src := `package foo
+		import "github.com/nspcc-dev/neo-go/pkg/interop/util"
+		func Main() int {
+			a := []int{11, 22, 33}
+			util.Remove(a, 1)
+			return len(a) + a[0] + a[1]
+		}`
+		eval(t, src, big.NewInt(46))
+	})
+	t.Run("ByteSlice", func(t *testing.T) {
+		src := `package foo
+		import "github.com/nspcc-dev/neo-go/pkg/interop/util"
+		func Main() int {
+			a := []byte{11, 22, 33}
+			util.Remove(a, 1)
+			return len(a)
+		}`
+		_, err := compiler.Compile("", strings.NewReader(src))
+		require.Error(t, err)
+	})
+}
+
 func TestJumps(t *testing.T) {
 	src := `
 	package foo

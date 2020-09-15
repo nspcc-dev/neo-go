@@ -517,6 +517,10 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		return nil
 
 	case *ast.SliceExpr:
+		if isCompoundSlice(c.typeOf(n.X.(*ast.Ident)).Underlying()) {
+			c.prog.Err = errors.New("subslices are supported only for []byte")
+			return nil
+		}
 		name := n.X.(*ast.Ident).Name
 		c.emitLoadVar("", name)
 
@@ -1538,6 +1542,12 @@ func (c *codegen) convertBuiltin(expr *ast.CallExpr) {
 			typ = stackitem.BooleanT
 		}
 		c.emitConvert(typ)
+	case "Remove":
+		if !isCompoundSlice(c.typeOf(expr.Args[0])) {
+			c.prog.Err = errors.New("`Remove` supports only non-byte slices")
+			return
+		}
+		emit.Opcode(c.prog.BinWriter, opcode.REMOVE)
 	case "Equals":
 		emit.Opcode(c.prog.BinWriter, opcode.EQUAL)
 	case "FromAddress":

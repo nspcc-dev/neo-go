@@ -32,6 +32,9 @@ pkg.go.dev](https://pkg.go.dev/github.com/nspcc-dev/neo-go/pkg/interop)
 for full API documentation. In general it provides the same level of
 functionality as Neo .net Framework library.
 
+Compiler provides some helpful builtins in `util` and `convert` packages.
+Refer to them for detailed documentation. 
+
 ## Quick start
 
 ### Compiling

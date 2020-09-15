@@ -17,3 +17,8 @@ func FromAddress(address string) []byte {
 func Equals(a, b interface{}) bool {
 	return false
 }
+
+// Remove removes element with index i from slice.
+// This is done in place and slice must have type other than `[]byte`.
+func Remove(slice interface{}, i int) {
+}
