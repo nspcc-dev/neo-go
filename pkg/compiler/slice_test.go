@@ -316,6 +316,17 @@ func TestSliceOperations(t *testing.T) {
 	runTestCases(t, sliceTestCases)
 }
 
+func TestSubsliceCompound(t *testing.T) {
+	src := `package foo
+	func Main() []int {
+		a := []int{0, 1, 2, 3}
+		b := a[1:3]
+		return b
+	}`
+	_, err := compiler.Compile("", strings.NewReader(src))
+	require.Error(t, err)
+}
+
 func TestJumps(t *testing.T) {
 	src := `
 	package foo
