@@ -47,25 +47,19 @@ func (b *Block) Header() *Header {
 }
 
 // computeMerkleTree computes Merkle tree based on actual block's data.
-func (b *Block) computeMerkleTree() (*hash.MerkleTree, error) {
+func (b *Block) computeMerkleTree() util.Uint256 {
 	hashes := make([]util.Uint256, len(b.Transactions)+1)
 	hashes[0] = b.ConsensusData.Hash()
 	for i, tx := range b.Transactions {
 		hashes[i+1] = tx.Hash()
 	}
 
-	return hash.NewMerkleTree(hashes)
+	return hash.CalcMerkleRoot(hashes)
 }
 
 // RebuildMerkleRoot rebuilds the merkleroot of the block.
-func (b *Block) RebuildMerkleRoot() error {
-	merkle, err := b.computeMerkleTree()
-	if err != nil {
-		return err
-	}
-
-	b.MerkleRoot = merkle.Root()
-	return nil
+func (b *Block) RebuildMerkleRoot() {
+	b.MerkleRoot = b.computeMerkleTree()
 }
 
 // Verify verifies the integrity of the block.
@@ -81,11 +75,8 @@ func (b *Block) Verify() error {
 		}
 	}
 
-	merkle, err := b.computeMerkleTree()
-	if err != nil {
-		return err
-	}
-	if !b.MerkleRoot.Equals(merkle.Root()) {
+	merkle := b.computeMerkleTree()
+	if !b.MerkleRoot.Equals(merkle) {
 		return errors.New("MerkleRoot mismatch")
 	}
 	return nil

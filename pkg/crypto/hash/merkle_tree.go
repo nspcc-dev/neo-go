@@ -66,6 +66,38 @@ func buildMerkleTree(leaves []*MerkleTreeNode) *MerkleTreeNode {
 	return buildMerkleTree(parents)
 }
 
+// CalcMerkleRoot calculcates Merkle root hash value for a given slice of hashes.
+// It doesn't create a full MerkleTree structure and it uses given slice as a
+// scratchpad, so it will destroy its contents in the process. But it's much more
+// memory efficient if you only need root hash value, while NewMerkleTree would
+// make 3*N allocations for N hashes, this function will only make 4. It also is
+// an error to call this function for zero-length hashes slice, the function will
+// panic.
+func CalcMerkleRoot(hashes []util.Uint256) util.Uint256 {
+	if len(hashes) == 0 {
+		panic("length of the hashes cannot be zero")
+	}
+	if len(hashes) == 1 {
+		return hashes[0]
+	}
+
+	scratch := make([]byte, 64)
+	parents := hashes[:(len(hashes)+1)/2]
+	for i := 0; i < len(parents); i++ {
+		copy(scratch, hashes[i*2].BytesBE())
+
+		if i*2+1 == len(hashes) {
+			copy(scratch[32:], hashes[i*2].BytesBE())
+		} else {
+			copy(scratch[32:], hashes[i*2+1].BytesBE())
+		}
+
+		parents[i] = DoubleSha256(scratch)
+	}
+
+	return CalcMerkleRoot(parents)
+}
+
 // MerkleTreeNode represents a node in the MerkleTree.
 type MerkleTreeNode struct {
 	hash       util.Uint256

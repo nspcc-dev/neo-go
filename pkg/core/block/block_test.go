@@ -111,11 +111,11 @@ func TestHashBlockEqualsHashHeader(t *testing.T) {
 func TestBlockVerify(t *testing.T) {
 	block := newDumbBlock()
 	assert.NotNil(t, block.Verify())
-	assert.Nil(t, block.RebuildMerkleRoot())
+	block.RebuildMerkleRoot()
 	assert.Nil(t, block.Verify())
 
 	block.Transactions = []*transaction.Transaction{}
-	assert.NoError(t, block.RebuildMerkleRoot())
+	block.RebuildMerkleRoot()
 	assert.Nil(t, block.Verify())
 }
 

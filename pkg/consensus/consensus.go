@@ -562,12 +562,7 @@ func (s *service) newBlockFromContext(ctx *dbft.Context) block.Block {
 	hashes := make([]util.Uint256, len(ctx.TransactionHashes)+1)
 	hashes[0] = block.Block.ConsensusData.Hash()
 	copy(hashes[1:], ctx.TransactionHashes)
-	mt, err := hash.NewMerkleTree(hashes)
-	if err != nil {
-		s.log.Fatal("can't calculate merkle root for the new block")
-		return nil
-	}
-	block.Block.MerkleRoot = mt.Root()
+	block.Block.MerkleRoot = hash.CalcMerkleRoot(hashes)
 
 	return block
 }

@@ -66,10 +66,7 @@ func createGenesisBlock(cfg config.ProtocolConfiguration) (*block.Block, error) 
 			Nonce:        2083236893,
 		},
 	}
-
-	if err = b.RebuildMerkleRoot(); err != nil {
-		return nil, err
-	}
+	b.RebuildMerkleRoot()
 
 	return b, nil
 }
