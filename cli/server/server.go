@@ -272,7 +272,7 @@ func restoreDB(ctx *cli.Context) error {
 		dumpSize = reader.ReadU32LE()
 	}
 	if reader.Err != nil {
-		return cli.NewExitError(err, 1)
+		return cli.NewExitError(reader.Err, 1)
 	}
 	if start < dumpStart {
 		return cli.NewExitError(fmt.Errorf("input file start from %d block, can't import %d", dumpStart, start), 1)
