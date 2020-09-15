@@ -1164,24 +1164,28 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 	})
 
 	t.Run("getutxotransfers", func(t *testing.T) {
-		testGetUTXO := func(t *testing.T, asset string, start, stop int) {
+		testGetUTXO := func(t *testing.T, asset string, start, stop, limit, page int, present []int) {
 			ps := []string{`"AKkkumHbBipZ46UMZJoFynJMXzSRnBvKcs"`}
 			if asset != "" {
 				ps = append(ps, fmt.Sprintf("%q", asset))
 			}
-			if start >= 0 {
-				if start > int(e.chain.HeaderHeight()) {
-					ps = append(ps, strconv.Itoa(int(time.Now().Unix())))
-				} else {
-					b, err := e.chain.GetHeader(e.chain.GetHeaderHash(start))
-					require.NoError(t, err)
-					ps = append(ps, strconv.Itoa(int(b.Timestamp)))
-				}
-				if stop != 0 {
-					b, err := e.chain.GetHeader(e.chain.GetHeaderHash(stop))
-					require.NoError(t, err)
-					ps = append(ps, strconv.Itoa(int(b.Timestamp)))
-				}
+			if start > int(e.chain.HeaderHeight()) {
+				ps = append(ps, strconv.Itoa(int(time.Now().Unix())))
+			} else {
+				b, err := e.chain.GetHeader(e.chain.GetHeaderHash(start))
+				require.NoError(t, err)
+				ps = append(ps, strconv.Itoa(int(b.Timestamp)))
+			}
+			if stop != 0 {
+				b, err := e.chain.GetHeader(e.chain.GetHeaderHash(stop))
+				require.NoError(t, err)
+				ps = append(ps, strconv.Itoa(int(b.Timestamp)))
+			}
+			if limit != 0 {
+				ps = append(ps, strconv.Itoa(limit))
+			}
+			if page != 0 {
+				ps = append(ps, strconv.Itoa(page))
 			}
 			p := strings.Join(ps, ", ")
 			rpc := fmt.Sprintf(`{"jsonrpc": "2.0", "id": 1, "method": "getutxotransfers", "params": [%s]}`, p)
@@ -1189,11 +1193,17 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 			res := checkErrGetResult(t, body, false)
 			actual := new(result.GetUTXO)
 			require.NoError(t, json.Unmarshal(res, actual))
-			checkTransfers(t, e, actual, asset, start, stop)
+			checkTransfers(t, e, actual, present)
 		}
-		t.Run("RestrictByAsset", func(t *testing.T) { testGetUTXO(t, "neo", 0, 0) })
-		t.Run("TooBigStart", func(t *testing.T) { testGetUTXO(t, "", 300, 0) })
-		t.Run("RestrictAll", func(t *testing.T) { testGetUTXO(t, "", 202, 203) })
+		// See `checkTransfers` for the last parameter values.
+		t.Run("All", func(t *testing.T) { testGetUTXO(t, "", 0, 207, 0, 0, []int{0, 1, 2, 3, 4, 5, 6, 7}) })
+		t.Run("RestrictByAsset", func(t *testing.T) { testGetUTXO(t, "neo", 0, 0, 0, 0, []int{0, 1, 2, 6, 7}) })
+		t.Run("TooBigStart", func(t *testing.T) { testGetUTXO(t, "", 300, 0, 0, 0, []int{}) })
+		t.Run("RestrictAll", func(t *testing.T) { testGetUTXO(t, "", 202, 203, 0, 0, []int{1, 2, 3}) })
+		t.Run("Limit", func(t *testing.T) { testGetUTXO(t, "neo", 0, 207, 2, 0, []int{7, 6}) })
+		t.Run("Limit 2", func(t *testing.T) { testGetUTXO(t, "", 0, 204, 1, 0, []int{5}) })
+		t.Run("Limit with page", func(t *testing.T) { testGetUTXO(t, "", 0, 204, 1, 1, []int{4}) })
+		t.Run("Limit with page 2", func(t *testing.T) { testGetUTXO(t, "", 0, 204, 2, 2, []int{1, 0}) })
 	})
 
 	t.Run("getnep5transfers", func(t *testing.T) {
@@ -1212,6 +1222,108 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 		actual := new(result.NEP5Transfers)
 		require.NoError(t, json.Unmarshal(res, actual))
 		checkNep5TransfersAux(t, e, actual, true)
+	})
+
+	t.Run("getalltransfertx", func(t *testing.T) {
+		testGetTxs := func(t *testing.T, asset string, start, stop, limit, page int, present []util.Uint256) {
+			ps := []string{`"AKkkumHbBipZ46UMZJoFynJMXzSRnBvKcs"`}
+			ps = append(ps, strconv.Itoa(start))
+			ps = append(ps, strconv.Itoa(stop))
+			if limit != 0 {
+				ps = append(ps, strconv.Itoa(limit))
+			}
+			if page != 0 {
+				ps = append(ps, strconv.Itoa(page))
+			}
+			p := strings.Join(ps, ", ")
+			rpc := fmt.Sprintf(`{"jsonrpc": "2.0", "id": 1, "method": "getalltransfertx", "params": [%s]}`, p)
+			body := doRPCCall(rpc, httpSrv.URL, t)
+			res := checkErrGetResult(t, body, false)
+			actualp := new([]result.TransferTx)
+			require.NoError(t, json.Unmarshal(res, actualp))
+			actual := *actualp
+			require.Equal(t, len(present), len(actual))
+			for _, id := range present {
+				var isThere bool
+				var ttx result.TransferTx
+				for i := range actual {
+					if id.Equals(actual[i].TxID) {
+						ttx = actual[i]
+						isThere = true
+						break
+					}
+				}
+				require.True(t, isThere)
+				tx, h, err := e.chain.GetTransaction(id)
+				require.NoError(t, err)
+				require.Equal(t, h, ttx.Index)
+				require.Equal(t, int64(e.chain.SystemFee(tx)), ttx.SystemFee)
+				require.Equal(t, int64(e.chain.NetworkFee(tx)), ttx.NetworkFee)
+				require.Equal(t, len(tx.Inputs)+len(tx.Outputs), len(ttx.Elements))
+			}
+		}
+		b, err := e.chain.GetBlock(e.chain.GetHeaderHash(1))
+		require.NoError(t, err)
+		txMoveNeo := b.Transactions[1].Hash()
+		b, err = e.chain.GetBlock(e.chain.GetHeaderHash(202))
+		require.NoError(t, err)
+		txNeoRT := b.Transactions[1].Hash()
+		b, err = e.chain.GetBlock(e.chain.GetHeaderHash(203))
+		require.NoError(t, err)
+		txGasClaim := b.Transactions[1].Hash()
+		b, err = e.chain.GetBlock(e.chain.GetHeaderHash(204))
+		require.NoError(t, err)
+		txDeploy := b.Transactions[1].Hash()
+		ts204 := int(b.Timestamp)
+		b, err = e.chain.GetBlock(e.chain.GetHeaderHash(206))
+		require.NoError(t, err)
+		txNeoTo1 := b.Transactions[1].Hash()
+		b, err = e.chain.GetBlock(e.chain.GetHeaderHash(207))
+		require.NoError(t, err)
+		txNep5Tr := b.Transactions[2].Hash()
+		b, err = e.chain.GetBlock(e.chain.GetHeaderHash(208))
+		require.NoError(t, err)
+		txNep5To1 := b.Transactions[1].Hash()
+		ts208 := int(b.Timestamp)
+		b, err = e.chain.GetBlock(e.chain.GetHeaderHash(209))
+		require.NoError(t, err)
+		txMigrate := b.Transactions[1].Hash()
+		b, err = e.chain.GetBlock(e.chain.GetHeaderHash(210))
+		require.NoError(t, err)
+		txNep5To0 := b.Transactions[1].Hash()
+		lastTs := int(b.Timestamp)
+		t.Run("All", func(t *testing.T) {
+			testGetTxs(t, "", 0, lastTs, 0, 0, []util.Uint256{
+				txMoveNeo, txNeoRT, txGasClaim, txDeploy, txNeoTo1, txNep5Tr,
+				txNep5To1, txMigrate, txNep5To0,
+			})
+		})
+		t.Run("last 3", func(t *testing.T) {
+			testGetTxs(t, "", 0, lastTs, 3, 0, []util.Uint256{
+				txNep5To1, txMigrate, txNep5To0,
+			})
+		})
+		t.Run("3, page 1", func(t *testing.T) {
+			testGetTxs(t, "", 0, lastTs, 3, 1, []util.Uint256{
+				txDeploy, txNeoTo1, txNep5Tr,
+			})
+		})
+		t.Run("3, page 2", func(t *testing.T) {
+			testGetTxs(t, "", 0, lastTs, 3, 2, []util.Uint256{
+				txMoveNeo, txNeoRT, txGasClaim,
+			})
+		})
+		t.Run("3, page 3", func(t *testing.T) {
+			testGetTxs(t, "", 0, lastTs, 3, 3, []util.Uint256{})
+		})
+		t.Run("no dates", func(t *testing.T) {
+			testGetTxs(t, "", 0, 1000000, 0, 0, []util.Uint256{})
+		})
+		t.Run("204-208", func(t *testing.T) {
+			testGetTxs(t, "", ts204, ts208, 0, 0, []util.Uint256{
+				txDeploy, txNeoTo1, txNep5Tr, txNep5To1,
+			})
+		})
 	})
 }
 
@@ -1312,43 +1424,43 @@ func checkNep5TransfersAux(t *testing.T, e *executor, acc interface{}, onlyFirst
 	require.Equal(t, uint32(0), res.Sent[0].NotifyIndex)
 }
 
-func checkTransfers(t *testing.T, e *executor, acc interface{}, asset string, start, stop int) {
+func checkTransfers(t *testing.T, e *executor, acc interface{}, checked []int) {
+	type transfer struct {
+		sent   bool
+		asset  string
+		index  uint32
+		amount int64
+	}
+
+	var transfers = []transfer{
+		{false, "neo", 1, 99999000},       // NEO to us.
+		{false, "neo", 202, 99999000},     // NEO roundtrip for GAS claim.
+		{true, "neo", 202, 99999000},      // NEO roundtrip for GAS claim.
+		{false, "gas", 203, 160798392000}, // GAS claim.
+		{false, "gas", 204, 150798392000}, // Remainder from contract deployment.
+		{true, "gas", 204, 160798392000},  // Contract deployment.
+		{false, "neo", 206, 99998000},     // Remainder of NEO sent.
+		{true, "neo", 206, 99999000},      // NEO to another validator.
+	}
 	res := acc.(*result.GetUTXO)
 	require.Equal(t, res.Address, "AKkkumHbBipZ46UMZJoFynJMXzSRnBvKcs")
 
-	// transfer from multisig address to us
-	u := getUTXOForBlock(res, false, "neo", 1)
-	if start <= 1 && (stop == 0 || stop >= 1) && (asset == "neo" || asset == "") {
-		require.NotNil(t, u)
-		require.EqualValues(t, int64(99999000), u.Amount)
-	} else {
-		require.Nil(t, u)
-	}
+	for i, tr := range transfers {
+		var present bool
 
-	// gas claim
-	u = getUTXOForBlock(res, false, "gas", 203)
-	if start <= 203 && (stop == 0 || stop >= 203) && (asset == "gas" || asset == "") {
-		require.NotNil(t, u)
-		require.EqualValues(t, int64(160798392000), u.Amount)
-	} else {
-		require.Nil(t, u)
-	}
-
-	// transfer from us to another validator
-	u = getUTXOForBlock(res, true, "neo", 206)
-	if start <= 206 && (stop == 0 || stop >= 206) && (asset == "neo" || asset == "") {
-		require.NotNil(t, u)
-		require.EqualValues(t, int64(99999000), u.Amount)
-	} else {
-		require.Nil(t, u)
-	}
-
-	u = getUTXOForBlock(res, false, "neo", 206)
-	if start <= 206 && (stop == 0 || stop >= 206) && (asset == "neo" || asset == "") {
-		require.NotNil(t, u)
-		require.EqualValues(t, int64(99998000), u.Amount)
-	} else {
-		require.Nil(t, u)
+		u := getUTXOForBlock(res, tr.sent, tr.asset, tr.index)
+		for j := range checked {
+			if checked[j] == i {
+				present = true
+				break
+			}
+		}
+		if present {
+			require.NotNil(t, u)
+			require.EqualValues(t, tr.amount, u.Amount)
+		} else {
+			require.Nil(t, u)
+		}
 	}
 }
 

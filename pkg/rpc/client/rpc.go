@@ -28,6 +28,20 @@ func (c *Client) GetAccountState(address string) (*result.AccountState, error) {
 	return resp, nil
 }
 
+// GetAllTransferTx returns all transfer transactions for a given account within
+// specified timestamps (by block time) with specified output limits and page. It
+// only works with neo-go 0.78.0+ servers.
+func (c *Client) GetAllTransferTx(acc util.Uint160, start, end uint32, limit, page int) ([]result.TransferTx, error) {
+	var (
+		params = request.NewRawParams(acc.StringLE(), start, end, limit, page)
+		resp   = new([]result.TransferTx)
+	)
+	if err := c.performRequest("getalltransfertx", params, resp); err != nil {
+		return nil, err
+	}
+	return *resp, nil
+}
+
 // GetApplicationLog returns the contract log based on the specified txid.
 func (c *Client) GetApplicationLog(hash util.Uint256) (*result.ApplicationLog, error) {
 	var (
@@ -231,9 +245,31 @@ func (c *Client) GetNEP5Balances(address util.Uint160) (*result.NEP5Balances, er
 	return resp, nil
 }
 
-// GetNEP5Transfers is a wrapper for getnep5transfers RPC.
-func (c *Client) GetNEP5Transfers(address string) (*result.NEP5Transfers, error) {
+// GetNEP5Transfers is a wrapper for getnep5transfers RPC. Address parameter
+// is mandatory, while all the others are optional. Start and stop parameters
+// are supported since neo-go 0.77.0 and limit and page since neo-go 0.78.0.
+// These parameters are positional in the JSON-RPC call, you can't specify limit
+// and not specify start/stop for example.
+func (c *Client) GetNEP5Transfers(address string, start, stop *uint32, limit, page *int) (*result.NEP5Transfers, error) {
 	params := request.NewRawParams(address)
+	if start != nil {
+		params.Values = append(params.Values, *start)
+		if stop != nil {
+			params.Values = append(params.Values, *stop)
+			if limit != nil {
+				params.Values = append(params.Values, *limit)
+				if page != nil {
+					params.Values = append(params.Values, *page)
+				}
+			} else if page != nil {
+				return nil, errors.New("bad parameters")
+			}
+		} else if limit != nil || page != nil {
+			return nil, errors.New("bad parameters")
+		}
+	} else if stop != nil || limit != nil || page != nil {
+		return nil, errors.New("bad parameters")
+	}
 	resp := new(result.NEP5Transfers)
 	if err := c.performRequest("getnep5transfers", params, resp); err != nil {
 		return nil, err
@@ -363,6 +399,38 @@ func (c *Client) GetUnspents(address string) (*result.Unspents, error) {
 		resp   = &result.Unspents{}
 	)
 	if err := c.performRequest("getunspents", params, resp); err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
+// GetUTXOTransfers is a wrapper for getutxoransfers RPC. Address parameter
+// is mandatory, while all the others are optional. It's only supported since
+// neo-go 0.77.0 with limit and page parameters only since neo-go 0.78.0.
+// These parameters are positional in the JSON-RPC call, you can't specify limit
+// and not specify start/stop for example.
+func (c *Client) GetUTXOTransfers(address string, start, stop *uint32, limit, page *int) (*result.GetUTXO, error) {
+	params := request.NewRawParams(address)
+	if start != nil {
+		params.Values = append(params.Values, *start)
+		if stop != nil {
+			params.Values = append(params.Values, *stop)
+			if limit != nil {
+				params.Values = append(params.Values, *limit)
+				if page != nil {
+					params.Values = append(params.Values, *page)
+				}
+			} else if page != nil {
+				return nil, errors.New("bad parameters")
+			}
+		} else if limit != nil || page != nil {
+			return nil, errors.New("bad parameters")
+		}
+	} else if stop != nil || limit != nil || page != nil {
+		return nil, errors.New("bad parameters")
+	}
+	resp := new(result.GetUTXO)
+	if err := c.performRequest("getutxotransfers", params, resp); err != nil {
 		return nil, err
 	}
 	return resp, nil
