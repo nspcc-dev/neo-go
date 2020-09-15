@@ -935,8 +935,8 @@ func (s *Server) getAllTransferTx(ps request.Params) (interface{}, *response.Err
 				respErr = response.NewInternalServerError("invalid NEP5 transfer log", err)
 				break
 			}
-			transfer.NetworkFee = int64(s.chain.NetworkFee(tx))
-			transfer.SystemFee = int64(s.chain.SystemFee(tx))
+			transfer.NetworkFee = s.chain.NetworkFee(tx).String()
+			transfer.SystemFee = s.chain.SystemFee(tx).String()
 
 			inouts, err := s.chain.References(tx)
 			if err != nil {

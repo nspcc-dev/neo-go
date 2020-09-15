@@ -76,8 +76,8 @@ type TransferTx struct {
 	TxID       util.Uint256      `json:"txid"`
 	Timestamp  uint32            `json:"timestamp"`
 	Index      uint32            `json:"block_index"`
-	SystemFee  int64             `json:"sys_fee"`
-	NetworkFee int64             `json:"net_fee"`
+	SystemFee  string            `json:"sys_fee"`
+	NetworkFee string            `json:"net_fee"`
 	Elements   []TransferTxEvent `json:"elements,omitempty"`
 	Events     []TransferTxEvent `json:"events,omitempty"`
 }

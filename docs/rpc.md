@@ -151,38 +151,37 @@ Reply:
    "result" : [
       {
          "txid" : "0x1cb7e089bb52cabb35c480de9d99c41c6fea7f5a276b41d71ab3fc7c470dcb74",
+         "net_fee" : "0",
          "events" : [
             {
-               "type" : "send",
                "asset" : "3a4acd3647086e7c44398aac0349802e6a171129",
-               "value" : "20000000000",
-               "address" : "ALuZLuuDssJqG2E4foANKwbLamYHuffFjg"
+               "type" : "send",
+               "address" : "ALuZLuuDssJqG2E4foANKwbLamYHuffFjg",
+               "value" : "20000000000"
             }
          ],
-         "net_fee" : 0,
-         "block_index" : 6163114,
+         "sys_fee" : "0",
          "timestamp" : 1600094117,
-         "sys_fee" : 0
+         "block_index" : 6163114
       },
       {
          "block_index" : 6162995,
-         "net_fee" : 0,
          "timestamp" : 1600092165,
+         "sys_fee" : "0",
          "events" : [
             {
+               "asset" : "3a4acd3647086e7c44398aac0349802e6a171129",
                "address" : "ALuZLuuDssJqG2E4foANKwbLamYHuffFjg",
-               "value" : "20000000000",
                "type" : "receive",
-               "asset" : "3a4acd3647086e7c44398aac0349802e6a171129"
+               "value" : "20000000000"
             }
          ],
-         "txid" : "0xc8b45480ade5395a4a239bb44eea6d86113f32090c4854b0c4aeee1b9485edab",
-         "sys_fee" : 0
+         "net_fee" : "0",
+         "txid" : "0xc8b45480ade5395a4a239bb44eea6d86113f32090c4854b0c4aeee1b9485edab"
       }
    ],
    "id" : 5
 }
-
 ```
 
 Another request:
@@ -196,18 +195,10 @@ Reply:
 
 ```json
 {
+   "jsonrpc" : "2.0",
+   "id" : 5,
    "result" : [
       {
-         "timestamp" : 1561566911,
-         "net_fee" : 1,
-         "events" : [
-            {
-               "address" : "AZCcft1uYtmZXxzHPr5tY7L6M85zG7Dsrv",
-               "asset" : "1578103c13e39df15d0d29826d957e85d770d8c9",
-               "type" : "receive",
-               "value" : "2380844141430"
-            }
-         ],
          "elements" : [
             {
                "asset" : "602c79718b16e442de58778e148d0b1084e3b2dffd5de6b7b16cee7969282de7",
@@ -216,48 +207,56 @@ Reply:
                "type" : "input"
             },
             {
-               "address" : "AZCcft1uYtmZXxzHPr5tY7L6M85zG7Dsrv",
-               "asset" : "602c79718b16e442de58778e148d0b1084e3b2dffd5de6b7b16cee7969282de7",
+               "value" : "0.0000083",
                "type" : "output",
-               "value" : "0.0000083"
-            }
-         ],
-         "sys_fee" : 0,
-         "txid" : "0xb4f1bdb466d8bd3524502008a0bc1f9342356b4eea67be19d384845c670442a6",
-         "block_index" : 3929554
-      },
-      {
-         "elements" : [
-            {
-               "value" : "0.00000838",
-               "type" : "input",
                "asset" : "602c79718b16e442de58778e148d0b1084e3b2dffd5de6b7b16cee7969282de7",
                "address" : "AZCcft1uYtmZXxzHPr5tY7L6M85zG7Dsrv"
-            },
-            {
-               "asset" : "602c79718b16e442de58778e148d0b1084e3b2dffd5de6b7b16cee7969282de7",
-               "address" : "AZCcft1uYtmZXxzHPr5tY7L6M85zG7Dsrv",
-               "value" : "0.00000837",
-               "type" : "output"
             }
          ],
          "events" : [
             {
                "asset" : "1578103c13e39df15d0d29826d957e85d770d8c9",
                "address" : "AZCcft1uYtmZXxzHPr5tY7L6M85zG7Dsrv",
-               "value" : "2100000000",
-               "type" : "receive"
+               "type" : "receive",
+               "value" : "2380844141430"
             }
          ],
-         "timestamp" : 1561566300,
-         "net_fee" : 1,
+         "timestamp" : 1561566911,
+         "net_fee" : "0.00000001",
+         "block_index" : 3929554,
+         "sys_fee" : "0",
+         "txid" : "0xb4f1bdb466d8bd3524502008a0bc1f9342356b4eea67be19d384845c670442a6"
+      },
+      {
+         "txid" : "0xc045c0612b34218b7e5eaee973114af3eff925f859adf23cf953930f667cdc93",
+         "sys_fee" : "0",
          "block_index" : 3929523,
-         "sys_fee" : 0,
-         "txid" : "0xc045c0612b34218b7e5eaee973114af3eff925f859adf23cf953930f667cdc93"
+         "net_fee" : "0.00000001",
+         "timestamp" : 1561566300,
+         "events" : [
+            {
+               "asset" : "1578103c13e39df15d0d29826d957e85d770d8c9",
+               "address" : "AZCcft1uYtmZXxzHPr5tY7L6M85zG7Dsrv",
+               "type" : "receive",
+               "value" : "2100000000"
+            }
+         ],
+         "elements" : [
+            {
+               "asset" : "602c79718b16e442de58778e148d0b1084e3b2dffd5de6b7b16cee7969282de7",
+               "address" : "AZCcft1uYtmZXxzHPr5tY7L6M85zG7Dsrv",
+               "type" : "input",
+               "value" : "0.00000838"
+            },
+            {
+               "value" : "0.00000837",
+               "type" : "output",
+               "address" : "AZCcft1uYtmZXxzHPr5tY7L6M85zG7Dsrv",
+               "asset" : "602c79718b16e442de58778e148d0b1084e3b2dffd5de6b7b16cee7969282de7"
+            }
+         ]
       }
-   ],
-   "id" : 5,
-   "jsonrpc" : "2.0"
+   ]
 }
 ```
 

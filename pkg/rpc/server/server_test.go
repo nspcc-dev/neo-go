@@ -1257,8 +1257,8 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 				tx, h, err := e.chain.GetTransaction(id)
 				require.NoError(t, err)
 				require.Equal(t, h, ttx.Index)
-				require.Equal(t, int64(e.chain.SystemFee(tx)), ttx.SystemFee)
-				require.Equal(t, int64(e.chain.NetworkFee(tx)), ttx.NetworkFee)
+				require.Equal(t, e.chain.SystemFee(tx).String(), ttx.SystemFee)
+				require.Equal(t, e.chain.NetworkFee(tx).String(), ttx.NetworkFee)
 				require.Equal(t, len(tx.Inputs)+len(tx.Outputs), len(ttx.Elements))
 			}
 		}
