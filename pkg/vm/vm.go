@@ -263,7 +263,7 @@ func (v *VM) LoadScript(b []byte) {
 	v.astack = ctx.astack
 }
 
-// loadScriptWithHash if similar to the LoadScript method, but it also loads
+// loadScriptWithHash is similar to the LoadScript method, but it also loads
 // given script hash directly into the Context to avoid its recalculations. It's
 // up to user of this function to make sure the script and hash match each other.
 func (v *VM) loadScriptWithHash(b []byte, hash util.Uint160, hasDynamicInvoke bool) {
