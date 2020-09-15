@@ -1542,6 +1542,12 @@ func (c *codegen) convertBuiltin(expr *ast.CallExpr) {
 			typ = stackitem.BooleanT
 		}
 		c.emitConvert(typ)
+	case "Remove":
+		if !isCompoundSlice(c.typeOf(expr.Args[0])) {
+			c.prog.Err = errors.New("`Remove` supports only non-byte slices")
+			return
+		}
+		emit.Opcode(c.prog.BinWriter, opcode.REMOVE)
 	case "Equals":
 		emit.Opcode(c.prog.BinWriter, opcode.EQUAL)
 	case "FromAddress":

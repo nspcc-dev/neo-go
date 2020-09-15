@@ -17,7 +17,7 @@ var (
 	goBuiltins = []string{"len", "append", "panic", "make", "copy", "recover", "delete"}
 	// Custom builtin utility functions.
 	customBuiltins = []string{
-		"FromAddress", "Equals",
+		"FromAddress", "Equals", "Remove",
 		"ToBool", "ToByteArray", "ToInteger",
 	}
 )
