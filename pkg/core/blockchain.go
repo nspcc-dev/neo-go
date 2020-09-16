@@ -483,10 +483,7 @@ func (bc *Blockchain) addHeaders(verify bool, headers ...*block.Header) (err err
 	oldlen := len(bc.headerHashes)
 	var lastHeader *block.Header
 	for _, h := range headers {
-		if int(h.Index-1) >= len(bc.headerHashes) {
-			return fmt.Errorf("height of received header %d is higher than the current header %d", h.Index, len(bc.headerHashes))
-		}
-		if int(h.Index) < len(bc.headerHashes) {
+		if int(h.Index) != len(bc.headerHashes) {
 			continue
 		}
 		bc.headerHashes = append(bc.headerHashes, h.Hash())
