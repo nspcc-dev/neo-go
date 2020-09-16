@@ -115,7 +115,7 @@ func TestMarshalUnmarshalJSONInvocationTX(t *testing.T) {
 		Version:    0,
 		Signers:    []Signer{{Account: util.Uint160{1, 2, 3}}},
 		Script:     []byte{1, 2, 3, 4},
-		Attributes: []Attribute{{Type: HighPriority, Data: []byte{}}},
+		Attributes: []Attribute{{Type: HighPriority}},
 		Scripts:    []Witness{},
 		Trimmed:    false,
 	}

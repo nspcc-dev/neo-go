@@ -1,7 +1,6 @@
 package transaction
 
 import (
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -12,28 +11,23 @@ import (
 // Attribute represents a Transaction attribute.
 type Attribute struct {
 	Type AttrType
-	Data []byte
 }
 
 // attrJSON is used for JSON I/O of Attribute.
 type attrJSON struct {
 	Type string `json:"type"`
-	Data string `json:"data"`
 }
 
 // DecodeBinary implements Serializable interface.
 func (attr *Attribute) DecodeBinary(br *io.BinReader) {
 	attr.Type = AttrType(br.ReadB())
 
-	var datasize uint64
 	switch attr.Type {
 	case HighPriority:
 	default:
 		br.Err = fmt.Errorf("failed decoding TX attribute usage: 0x%2x", int(attr.Type))
 		return
 	}
-	attr.Data = make([]byte, datasize)
-	br.ReadBytes(attr.Data)
 }
 
 // EncodeBinary implements Serializable interface.
@@ -50,7 +44,6 @@ func (attr *Attribute) EncodeBinary(bw *io.BinWriter) {
 func (attr *Attribute) MarshalJSON() ([]byte, error) {
 	return json.Marshal(attrJSON{
 		Type: attr.Type.String(),
-		Data: base64.StdEncoding.EncodeToString(attr.Data),
 	})
 }
 
@@ -61,10 +54,6 @@ func (attr *Attribute) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		return err
 	}
-	binData, err := base64.StdEncoding.DecodeString(aj.Data)
-	if err != nil {
-		return err
-	}
 	switch aj.Type {
 	case "HighPriority":
 		attr.Type = HighPriority
@@ -72,6 +61,5 @@ func (attr *Attribute) UnmarshalJSON(data []byte) error {
 		return errors.New("wrong Type")
 
 	}
-	attr.Data = binData
 	return nil
 }
