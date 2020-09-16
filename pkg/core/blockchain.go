@@ -264,9 +264,6 @@ func (bc *Blockchain) init() error {
 		}
 		headerSliceReverse(headers)
 		for _, h := range headers {
-			if !h.Verify() {
-				return fmt.Errorf("bad header %d/%s in the storage", h.Index, h.Hash())
-			}
 			bc.headerList.Add(h.Hash())
 		}
 	}
@@ -426,9 +423,9 @@ func (bc *Blockchain) AddBlock(block *block.Block) error {
 		}
 	}
 	if bc.config.VerifyBlocks {
-		err := block.Verify()
-		if err != nil {
-			return fmt.Errorf("block %s is invalid: %w", block.Hash().StringLE(), err)
+		merkle := block.ComputeMerkleRoot()
+		if !block.MerkleRoot.Equals(merkle) {
+			return errors.New("invalid block: MerkleRoot mismatch")
 		}
 		mp = mempool.New(len(block.Transactions))
 		for _, tx := range block.Transactions {
@@ -505,10 +502,6 @@ func (bc *Blockchain) addHeaders(verify bool, headers ...*block.Header) (err err
 			}
 			if int(h.Index) < headerList.Len() {
 				continue
-			}
-			if !h.Verify() {
-				err = fmt.Errorf("header %v is invalid", h)
-				return
 			}
 			if err = bc.processHeader(h, batch, headerList); err != nil {
 				return

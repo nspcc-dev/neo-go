@@ -161,7 +161,10 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 			},
 			serverResponse: b1Verbose,
 			result: func(c *Client) interface{} {
-				return getResultBlock1()
+				res := getResultBlock1()
+				// update hidden hash value.
+				_ = res.Block.ConsensusData.Hash()
+				return res
 			},
 		},
 		{
@@ -190,7 +193,10 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 			},
 			serverResponse: b1Verbose,
 			result: func(c *Client) interface{} {
-				return getResultBlock1()
+				res := getResultBlock1()
+				// update hidden hash value.
+				_ = res.Block.ConsensusData.Hash()
+				return res
 			},
 		},
 	},
