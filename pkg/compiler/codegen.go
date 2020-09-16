@@ -1396,10 +1396,7 @@ func (c *codegen) convertSyscall(expr *ast.CallExpr, api, name string) {
 		c.prog.Err = fmt.Errorf("unknown VM syscall api: %s.%s", api, name)
 		return
 	}
-	emit.Syscall(c.prog.BinWriter, syscall.API)
-	if syscall.ConvertResultToStruct {
-		c.emitConvert(stackitem.StructT)
-	}
+	emit.Syscall(c.prog.BinWriter, syscall)
 
 	// This NOP instruction is basically not needed, but if we do, we have a
 	// one to one matching avm file with neo-python which is very nice for debugging.

@@ -15,6 +15,10 @@ import (
 
 func TestCodeGen_DebugInfo(t *testing.T) {
 	src := `package foo
+	import "github.com/nspcc-dev/neo-go/pkg/interop"
+	import "github.com/nspcc-dev/neo-go/pkg/interop/storage"
+	import "github.com/nspcc-dev/neo-go/pkg/interop/blockchain"
+	import "github.com/nspcc-dev/neo-go/pkg/interop/contract"
 func Main(op string) bool {
 	var s string
 	_ = s
@@ -42,6 +46,12 @@ func MethodByteArray() []byte { return nil }
 func MethodArray() []bool { return nil }
 func MethodStruct() struct{} { return struct{}{} }
 func unexportedMethod() int { return 1 }
+func MethodParams(addr interop.Hash160, h interop.Hash256,
+	sig interop.Signature, pub interop.PublicKey,
+	inter interop.Interface, ctr contract.Contract,
+	ctx storage.Context, tx blockchain.Transaction) bool {
+	return true
+}
 type MyStruct struct {}
 func (ms MyStruct) MethodOnStruct() { }
 func (ms *MyStruct) MethodOnPointerToStruct() { }
@@ -72,6 +82,7 @@ func (ms *MyStruct) MethodOnPointerToStruct() { }
 			"unexportedMethod":        "Integer",
 			"MethodOnStruct":          "Void",
 			"MethodOnPointerToStruct": "Void",
+			"MethodParams":            "Boolean",
 		}
 		for i := range d.Methods {
 			name := d.Methods[i].ID
@@ -200,6 +211,21 @@ func (ms *MyStruct) MethodOnPointerToStruct() { }
 							},
 						},
 						ReturnType: smartcontract.StringType,
+					},
+					{
+						Name:   "methodParams",
+						Offset: 125,
+						Parameters: []manifest.Parameter{
+							manifest.NewParameter("addr", smartcontract.Hash160Type),
+							manifest.NewParameter("h", smartcontract.Hash256Type),
+							manifest.NewParameter("sig", smartcontract.SignatureType),
+							manifest.NewParameter("pub", smartcontract.PublicKeyType),
+							manifest.NewParameter("inter", smartcontract.InteropInterfaceType),
+							manifest.NewParameter("ctr", smartcontract.ArrayType),
+							manifest.NewParameter("ctx", smartcontract.InteropInterfaceType),
+							manifest.NewParameter("tx", smartcontract.ArrayType),
+						},
+						ReturnType: smartcontract.BoolType,
 					},
 				},
 				Events: []manifest.Event{},

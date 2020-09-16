@@ -2,6 +2,7 @@ package tokencontract
 
 import (
 	"github.com/nspcc-dev/neo-go/examples/token/nep5"
+	"github.com/nspcc-dev/neo-go/pkg/interop"
 	"github.com/nspcc-dev/neo-go/pkg/interop/storage"
 	"github.com/nspcc-dev/neo-go/pkg/interop/util"
 )
@@ -52,12 +53,12 @@ func TotalSupply() int {
 }
 
 // BalanceOf returns the amount of token on the specified address
-func BalanceOf(holder []byte) interface{} {
+func BalanceOf(holder interop.Hash160) interface{} {
 	return token.BalanceOf(ctx, holder)
 }
 
 // Transfer token from one user to another
-func Transfer(from []byte, to []byte, amount int) bool {
+func Transfer(from interop.Hash160, to interop.Hash160, amount int) bool {
 	return token.Transfer(ctx, from, to, amount)
 }
 
