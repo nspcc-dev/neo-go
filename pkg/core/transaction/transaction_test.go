@@ -206,6 +206,14 @@ func TestTransaction_isValid(t *testing.T) {
 		}
 		require.True(t, errors.Is(tx.isValid(), ErrInvalidAttribute))
 	})
+	t.Run("MultipleOracle", func(t *testing.T) {
+		tx := newTx()
+		tx.Attributes = []Attribute{
+			{Type: OracleResponseT},
+			{Type: OracleResponseT},
+		}
+		require.True(t, errors.Is(tx.isValid(), ErrInvalidAttribute))
+	})
 	t.Run("NoScript", func(t *testing.T) {
 		tx := newTx()
 		tx.Script = []byte{}
