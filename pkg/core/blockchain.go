@@ -423,9 +423,9 @@ func (bc *Blockchain) AddBlock(block *block.Block) error {
 		}
 	}
 	if bc.config.VerifyBlocks {
-		err := block.Verify()
-		if err != nil {
-			return fmt.Errorf("block %s is invalid: %w", block.Hash().StringLE(), err)
+		merkle := block.ComputeMerkleRoot()
+		if !block.MerkleRoot.Equals(merkle) {
+			return errors.New("invalid block: MerkleRoot mismatch")
 		}
 		mp = mempool.New(len(block.Transactions))
 		for _, tx := range block.Transactions {

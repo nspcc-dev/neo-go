@@ -46,8 +46,8 @@ func (b *Block) Header() *Header {
 	}
 }
 
-// computeMerkleTree computes Merkle tree based on actual block's data.
-func (b *Block) computeMerkleTree() util.Uint256 {
+// ComputeMerkleRoot computes Merkle tree root hash based on actual block's data.
+func (b *Block) ComputeMerkleRoot() util.Uint256 {
 	hashes := make([]util.Uint256, len(b.Transactions)+1)
 	hashes[0] = b.ConsensusData.Hash()
 	for i, tx := range b.Transactions {
@@ -59,27 +59,7 @@ func (b *Block) computeMerkleTree() util.Uint256 {
 
 // RebuildMerkleRoot rebuilds the merkleroot of the block.
 func (b *Block) RebuildMerkleRoot() {
-	b.MerkleRoot = b.computeMerkleTree()
-}
-
-// Verify verifies the integrity of the block.
-func (b *Block) Verify() error {
-	if b.Transactions != nil {
-		hashes := map[util.Uint256]bool{}
-		for _, tx := range b.Transactions {
-			if !hashes[tx.Hash()] {
-				hashes[tx.Hash()] = true
-			} else {
-				return errors.New("transaction duplication is not allowed")
-			}
-		}
-	}
-
-	merkle := b.computeMerkleTree()
-	if !b.MerkleRoot.Equals(merkle) {
-		return errors.New("MerkleRoot mismatch")
-	}
-	return nil
+	b.MerkleRoot = b.ComputeMerkleRoot()
 }
 
 // NewBlockFromTrimmedBytes returns a new block from trimmed data.
@@ -173,7 +153,6 @@ func (b *Block) DecodeBinary(br *io.BinReader) {
 	if br.Err != nil {
 		return
 	}
-	br.Err = b.Verify()
 }
 
 // EncodeBinary encodes the block to the given BinWriter, implementing
