@@ -444,10 +444,11 @@ func (bc *Blockchain) AddHeaders(headers ...*block.Header) error {
 
 // addHeaders is an internal implementation of AddHeaders (`verify` parameter
 // tells it to verify or not verify given headers).
-func (bc *Blockchain) addHeaders(verify bool, headers ...*block.Header) (err error) {
+func (bc *Blockchain) addHeaders(verify bool, headers ...*block.Header) error {
 	var (
 		start = time.Now()
 		batch = bc.dao.Store.Batch()
+		err   error
 	)
 
 	if len(headers) > 0 {
@@ -471,7 +472,7 @@ func (bc *Blockchain) addHeaders(verify bool, headers ...*block.Header) (err err
 		}
 		for _, h := range headers {
 			if err = bc.verifyHeader(h, lastHeader); err != nil {
-				return
+				return err
 			}
 			lastHeader = h
 		}
