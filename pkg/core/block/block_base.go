@@ -64,12 +64,6 @@ type baseAux struct {
 	Witnesses     []transaction.Witness `json:"witnesses"`
 }
 
-// Verify verifies the integrity of the Base.
-func (b *Base) Verify() bool {
-	// TODO: Need a persisted blockchain for this.
-	return true
-}
-
 // Hash returns the hash of the block.
 func (b *Base) Hash() util.Uint256 {
 	if b.hash.Equals(util.Uint256{}) {

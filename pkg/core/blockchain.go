@@ -264,9 +264,6 @@ func (bc *Blockchain) init() error {
 		}
 		headerSliceReverse(headers)
 		for _, h := range headers {
-			if !h.Verify() {
-				return fmt.Errorf("bad header %d/%s in the storage", h.Index, h.Hash())
-			}
 			bc.headerList.Add(h.Hash())
 		}
 	}
@@ -505,10 +502,6 @@ func (bc *Blockchain) addHeaders(verify bool, headers ...*block.Header) (err err
 			}
 			if int(h.Index) < headerList.Len() {
 				continue
-			}
-			if !h.Verify() {
-				err = fmt.Errorf("header %v is invalid", h)
-				return
 			}
 			if err = bc.processHeader(h, batch, headerList); err != nil {
 				return
