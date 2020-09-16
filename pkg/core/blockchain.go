@@ -901,7 +901,8 @@ func (bc *Blockchain) GetStorageItems(id int32) (map[string]*state.StorageItem, 
 func (bc *Blockchain) GetBlock(hash util.Uint256) (*block.Block, error) {
 	topBlock := bc.topBlock.Load()
 	if topBlock != nil {
-		if tb, ok := topBlock.(*block.Block); ok && tb.Hash().Equals(hash) {
+		tb := topBlock.(*block.Block)
+		if tb.Hash().Equals(hash) {
 			return tb, nil
 		}
 	}
@@ -924,7 +925,8 @@ func (bc *Blockchain) GetBlock(hash util.Uint256) (*block.Block, error) {
 func (bc *Blockchain) GetHeader(hash util.Uint256) (*block.Header, error) {
 	topBlock := bc.topBlock.Load()
 	if topBlock != nil {
-		if tb, ok := topBlock.(*block.Block); ok && tb.Hash().Equals(hash) {
+		tb := topBlock.(*block.Block)
+		if tb.Hash().Equals(hash) {
 			return tb.Header(), nil
 		}
 	}
@@ -954,9 +956,8 @@ func (bc *Blockchain) HasBlock(hash util.Uint256) bool {
 func (bc *Blockchain) CurrentBlockHash() util.Uint256 {
 	topBlock := bc.topBlock.Load()
 	if topBlock != nil {
-		if tb, ok := topBlock.(*block.Block); ok {
-			return tb.Hash()
-		}
+		tb := topBlock.(*block.Block)
+		return tb.Hash()
 	}
 	return bc.GetHeaderHash(int(bc.BlockHeight()))
 }
