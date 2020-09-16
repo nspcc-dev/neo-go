@@ -974,6 +974,7 @@ func doRPCCallOverWS(rpcCall string, url string, t *testing.T) []byte {
 	c.SetReadDeadline(time.Now().Add(time.Second))
 	_, body, err := c.ReadMessage()
 	require.NoError(t, err)
+	require.NoError(t, c.Close())
 	return bytes.TrimSpace(body)
 }
 
