@@ -72,11 +72,7 @@ func newBlock(cfg config.ProtocolConfiguration, index uint32, prev util.Uint256,
 		},
 		Transactions: txs,
 	}
-	err := b.RebuildMerkleRoot()
-	if err != nil {
-		panic(err)
-	}
-
+	b.RebuildMerkleRoot()
 	b.Script.InvocationScript = testchain.Sign(b.GetSignedPart())
 	return b
 }
