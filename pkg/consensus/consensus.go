@@ -228,14 +228,25 @@ func (s *service) eventLoop() {
 		case tx := <-s.transactions:
 			s.dbft.OnTransaction(tx)
 		case b := <-s.blockEvents:
-			// We also receive our own blocks here, so check for index.
-			if b.Index >= s.dbft.BlockIndex {
-				s.log.Debug("new block in the chain",
-					zap.Uint32("dbft index", s.dbft.BlockIndex),
-					zap.Uint32("chain index", s.Chain.BlockHeight()))
-				s.dbft.InitializeConsensus(0)
-			}
+			s.handleChainBlock(b)
 		}
+		// Always process block event if there is any, we can add one above.
+		select {
+		case b := <-s.blockEvents:
+			s.handleChainBlock(b)
+		default:
+		}
+
+	}
+}
+
+func (s *service) handleChainBlock(b *coreb.Block) {
+	// We can get our own block here, so check for index.
+	if b.Index >= s.dbft.BlockIndex {
+		s.log.Debug("new block in the chain",
+			zap.Uint32("dbft index", s.dbft.BlockIndex),
+			zap.Uint32("chain index", s.Chain.BlockHeight()))
+		s.dbft.InitializeConsensus(0)
 	}
 }
 
