@@ -16,6 +16,7 @@ type Contracts struct {
 	NEO       *NEO
 	GAS       *GAS
 	Policy    *Policy
+	Oracle    *Oracle
 	Contracts []interop.Contract
 	// persistScript is vm script which executes "onPersist" method of every native contract.
 	persistScript []byte
@@ -51,6 +52,12 @@ func NewContracts() *Contracts {
 	policy := newPolicy()
 	cs.Policy = policy
 	cs.Contracts = append(cs.Contracts, policy)
+
+	oracle := newOracle()
+	oracle.GAS = gas
+	oracle.NEO = neo
+	cs.Oracle = oracle
+	cs.Contracts = append(cs.Contracts, oracle)
 	return cs
 }
 
@@ -64,7 +71,7 @@ func (cs *Contracts) GetPersistScript() []byte {
 		md := cs.Contracts[i].Metadata()
 		// Not every contract is persisted:
 		// https://github.com/neo-project/neo/blob/master/src/neo/Ledger/Blockchain.cs#L90
-		if md.ContractID == policyContractID {
+		if md.ContractID == policyContractID || md.ContractID == oracleContractID {
 			continue
 		}
 		emit.Int(w.BinWriter, 0)

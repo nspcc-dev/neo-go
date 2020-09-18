@@ -36,6 +36,22 @@ func TestIDList_EncodeBinary(t *testing.T) {
 	})
 }
 
+func TestIDList_Remove(t *testing.T) {
+	l := IDList{1, 4, 5}
+
+	// missing
+	require.False(t, l.Remove(2))
+	require.Equal(t, IDList{1, 4, 5}, l)
+
+	// middle
+	require.True(t, l.Remove(4))
+	require.Equal(t, IDList{1, 5}, l)
+
+	// last
+	require.True(t, l.Remove(5))
+	require.Equal(t, IDList{1}, l)
+}
+
 func TestNodeList_EncodeBinary(t *testing.T) {
 	priv, err := keys.NewPrivateKey()
 	require.NoError(t, err)

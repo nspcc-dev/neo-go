@@ -74,6 +74,20 @@ func (l *IDList) fromStackItem(it stackitem.Item) error {
 	return nil
 }
 
+// Remove removes id from list.
+func (l *IDList) Remove(id uint64) bool {
+	for i := range *l {
+		if id == (*l)[i] {
+			if i < len(*l) {
+				copy((*l)[i:], (*l)[i+1:])
+			}
+			*l = (*l)[:len(*l)-1]
+			return true
+		}
+	}
+	return false
+}
+
 // Bytes return l serizalized to a byte-slice.
 func (l NodeList) Bytes() []byte {
 	w := io.NewBufBinWriter()
