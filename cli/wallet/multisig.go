@@ -50,7 +50,7 @@ func signMultisig(ctx *cli.Context) error {
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("invalid address: %w", err), 1)
 	}
-	acc, err := getDecryptedAccount(wall, sh)
+	acc, err := getDecryptedAccount(ctx, wall, sh)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -59,7 +59,7 @@ func signMultisig(ctx *cli.Context) error {
 	if !ok {
 		return cli.NewExitError("verifiable item is not a transaction", 1)
 	}
-	printTxInfo(tx)
+	fmt.Fprintln(ctx.App.Writer, tx.Hash().StringLE())
 
 	priv := acc.PrivateKey()
 	sign := priv.Sign(tx.GetSignedPart())
@@ -86,11 +86,11 @@ func signMultisig(ctx *cli.Context) error {
 		if err != nil {
 			return cli.NewExitError(err, 1)
 		}
-		fmt.Println(res.StringLE())
+		fmt.Fprintln(ctx.App.Writer, res.StringLE())
 		return nil
 	}
 
-	fmt.Println(tx.Hash().StringLE())
+	fmt.Fprintln(ctx.App.Writer, tx.Hash().StringLE())
 	return nil
 }
 
@@ -114,8 +114,4 @@ func writeParameterContext(c *context.ParameterContext, filename string) error {
 		return fmt.Errorf("can't write transaction to file: %w", err)
 	}
 	return nil
-}
-
-func printTxInfo(t *transaction.Transaction) {
-	fmt.Printf("Hash: %s\n", t.Hash().StringLE())
 }

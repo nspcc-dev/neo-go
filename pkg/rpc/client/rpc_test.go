@@ -1327,14 +1327,14 @@ func TestCalculateValidUntilBlock(t *testing.T) {
 
 	validUntilBlock, err := c.CalculateValidUntilBlock()
 	assert.NoError(t, err)
-	assert.Equal(t, uint32(54), validUntilBlock)
+	assert.Equal(t, uint32(55), validUntilBlock)
 	assert.Equal(t, 1, getBlockCountCalled)
 	assert.Equal(t, 1, getValidatorsCalled)
 
 	// check, whether caching is working
 	validUntilBlock, err = c.CalculateValidUntilBlock()
 	assert.NoError(t, err)
-	assert.Equal(t, uint32(54), validUntilBlock)
+	assert.Equal(t, uint32(55), validUntilBlock)
 	assert.Equal(t, 2, getBlockCountCalled)
 	assert.Equal(t, 1, getValidatorsCalled)
 }

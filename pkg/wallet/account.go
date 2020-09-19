@@ -98,6 +98,10 @@ func (a *Account) SignTx(t *transaction.Transaction) error {
 	if a.privateKey == nil {
 		return errors.New("account is not unlocked")
 	}
+	if len(a.Contract.Parameters) == 0 {
+		t.Scripts = append(t.Scripts, transaction.Witness{})
+		return nil
+	}
 	data := t.GetSignedPart()
 	if data == nil {
 		return errors.New("failed to get transaction's signed part")

@@ -37,6 +37,7 @@ var RPC = []cli.Flag{
 	cli.BoolFlag{Name: "privnet, p"},
 	cli.BoolFlag{Name: "mainnet, m"},
 	cli.BoolFlag{Name: "testnet, t"},
+	cli.BoolFlag{Name: "unittest", Hidden: true},
 }
 
 var errNoEndpoint = errors.New("no RPC endpoint specified, use option '--" + RPCEndpointFlag + "' or '-r'")
@@ -50,6 +51,9 @@ func GetNetwork(ctx *cli.Context) netmode.Magic {
 	}
 	if ctx.Bool("mainnet") {
 		net = netmode.MainNet
+	}
+	if ctx.Bool("unittest") {
+		net = netmode.UnitTestNet
 	}
 	return net
 }
