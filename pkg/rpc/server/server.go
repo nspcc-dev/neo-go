@@ -894,7 +894,7 @@ func (s *Server) getBlockHeader(reqParams request.Params) (interface{}, *respons
 
 // getUnclaimedGas returns unclaimed GAS amount of the specified address.
 func (s *Server) getUnclaimedGas(ps request.Params) (interface{}, *response.Error) {
-	u, err := ps.ValueWithType(0, request.StringT).GetUint160FromAddress()
+	u, err := ps.ValueWithType(0, request.StringT).GetUint160FromAddressOrHex()
 	if err != nil {
 		return nil, response.ErrInvalidParams
 	}
