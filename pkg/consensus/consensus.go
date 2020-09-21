@@ -74,8 +74,9 @@ type service struct {
 	network      netmode.Magic
 	// started is a flag set with Start method that runs an event handling
 	// goroutine.
-	started *atomic.Bool
-	quit    chan struct{}
+	started  *atomic.Bool
+	quit     chan struct{}
+	finished chan struct{}
 }
 
 // Config is a configuration for consensus services.
@@ -119,6 +120,7 @@ func NewService(cfg Config) (Service, error) {
 		network:      cfg.Chain.GetConfig().Magic,
 		started:      atomic.NewBool(false),
 		quit:         make(chan struct{}),
+		finished:     make(chan struct{}),
 	}
 
 	if cfg.Wallet == nil {
@@ -197,14 +199,16 @@ func (s *service) Start() {
 // Shutdown implements Service interface.
 func (s *service) Shutdown() {
 	close(s.quit)
+	<-s.finished
 }
 
 func (s *service) eventLoop() {
+events:
 	for {
 		select {
 		case <-s.quit:
 			s.dbft.Timer.Stop()
-			return
+			break events
 		case <-s.dbft.Timer.C():
 			hv := s.dbft.Timer.HV()
 			s.log.Debug("timer fired",
@@ -250,6 +254,7 @@ func (s *service) eventLoop() {
 		}
 
 	}
+	close(s.finished)
 }
 
 func (s *service) handleChainBlock(b *coreb.Block) {
