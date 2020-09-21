@@ -8,6 +8,9 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/util"
 )
 
+// NEP5TransferBatchSize is the maximum number of entries for NEP5TransferLog.
+const NEP5TransferBatchSize = 128
+
 // NEP5Tracker contains info about a single account in a NEP5 contract.
 type NEP5Tracker struct {
 	// Balance is the current balance of the account.
@@ -20,8 +23,6 @@ type NEP5Tracker struct {
 // NEP5TransferLog is a log of NEP5 token transfers for the specific command.
 type NEP5TransferLog struct {
 	Raw []byte
-	// size is the number of NEP5Transfers written into Raw
-	size int
 }
 
 // NEP5Transfer represents a single NEP5 Transfer event.
@@ -85,12 +86,18 @@ func (bs *NEP5Balances) EncodeBinary(w *io.BinWriter) {
 // Append appends single transfer to a log.
 func (lg *NEP5TransferLog) Append(tr *NEP5Transfer) error {
 	w := io.NewBufBinWriter()
+	// The first entry, set up counter.
+	if len(lg.Raw) == 0 {
+		w.WriteB(1)
+	}
 	tr.EncodeBinary(w.BinWriter)
 	if w.Err != nil {
 		return w.Err
 	}
+	if len(lg.Raw) != 0 {
+		lg.Raw[0]++
+	}
 	lg.Raw = append(lg.Raw, w.Bytes()...)
-	lg.size++
 	return nil
 }
 
@@ -101,7 +108,7 @@ func (lg *NEP5TransferLog) ForEach(f func(*NEP5Transfer) error) error {
 	}
 	tr := new(NEP5Transfer)
 	var bytesRead int
-	for i := 0; i < len(lg.Raw); i += bytesRead {
+	for i := 1; i < len(lg.Raw); i += bytesRead {
 		r := io.NewBinReaderFromBuf(lg.Raw[i:])
 		bytesRead = tr.DecodeBinaryReturnCount(r)
 		if r.Err != nil {
@@ -115,7 +122,10 @@ func (lg *NEP5TransferLog) ForEach(f func(*NEP5Transfer) error) error {
 
 // Size returns an amount of transfer written in log.
 func (lg *NEP5TransferLog) Size() int {
-	return lg.size
+	if len(lg.Raw) == 0 {
+		return 0
+	}
+	return int(lg.Raw[0])
 }
 
 // EncodeBinary implements io.Serializable interface.

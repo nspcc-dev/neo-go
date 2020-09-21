@@ -208,8 +208,6 @@ func (dao *Simple) putNEP5Balances(acc util.Uint160, bs *state.NEP5Balances, buf
 
 // -- start transfer log.
 
-const nep5TransferBatchSize = 128
-
 func getNEP5TransferLogKey(acc util.Uint160, index uint32) []byte {
 	key := make([]byte, 1+util.Uint160Size+4)
 	key[0] = byte(storage.STNEP5Transfers)
@@ -250,7 +248,7 @@ func (dao *Simple) AppendNEP5Transfer(acc util.Uint160, index uint32, tr *state.
 	if err := lg.Append(tr); err != nil {
 		return false, err
 	}
-	return lg.Size() >= nep5TransferBatchSize, dao.PutNEP5TransferLog(acc, index, lg)
+	return lg.Size() >= state.NEP5TransferBatchSize, dao.PutNEP5TransferLog(acc, index, lg)
 }
 
 // -- end transfer log.
