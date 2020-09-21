@@ -6,6 +6,8 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/internal/random"
 	"github.com/nspcc-dev/neo-go/pkg/internal/testserdes"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
+	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/stretchr/testify/require"
@@ -72,16 +74,41 @@ func TestMarshalUnmarshalJSONNotificationEvent(t *testing.T) {
 }
 
 func TestMarshalUnmarshalJSONAppExecResult(t *testing.T) {
-	t.Run("positive", func(t *testing.T) {
+	t.Run("positive, transaction", func(t *testing.T) {
 		appExecResult := &AppExecResult{
 			TxHash:      random.Uint256(),
-			Trigger:     1,
+			Trigger:     trigger.Application,
 			VMState:     vm.HaltState,
 			GasConsumed: 10,
 			Stack:       []stackitem.Item{},
 			Events:      []NotificationEvent{},
 		}
 		testserdes.MarshalUnmarshalJSON(t, appExecResult, new(AppExecResult))
+	})
+
+	t.Run("positive, block", func(t *testing.T) {
+		appExecResult := &AppExecResult{
+			TxHash:      random.Uint256(),
+			Trigger:     trigger.System,
+			VMState:     vm.HaltState,
+			GasConsumed: 10,
+			Stack:       []stackitem.Item{},
+			Events:      []NotificationEvent{},
+		}
+		data, err := json.Marshal(appExecResult)
+		require.NoError(t, err)
+		actual := new(AppExecResult)
+		require.NoError(t, json.Unmarshal(data, actual))
+		expected := &AppExecResult{
+			// we have no way to restore block hash as it was not marshalled
+			TxHash:      util.Uint256{},
+			Trigger:     appExecResult.Trigger,
+			VMState:     appExecResult.VMState,
+			GasConsumed: appExecResult.GasConsumed,
+			Stack:       appExecResult.Stack,
+			Events:      appExecResult.Events,
+		}
+		require.Equal(t, expected, actual)
 	})
 
 	t.Run("MarshalJSON recursive reference", func(t *testing.T) {
