@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"sort"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -1401,6 +1402,16 @@ func (bc *Blockchain) GetStandByValidators() keys.PublicKeys {
 // GetStandByCommittee returns standby committee from the configuration.
 func (bc *Blockchain) GetStandByCommittee() keys.PublicKeys {
 	return bc.sbCommittee.Copy()
+}
+
+// GetCommittee returns the sorted list of public keys of nodes in committee.
+func (bc *Blockchain) GetCommittee() (keys.PublicKeys, error) {
+	pubs, err := bc.contracts.NEO.GetCommitteeMembers(bc, bc.dao)
+	if err != nil {
+		return nil, err
+	}
+	sort.Sort(pubs)
+	return pubs, nil
 }
 
 // GetValidators returns current validators.

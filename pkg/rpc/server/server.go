@@ -87,6 +87,7 @@ var rpcHandlers = map[string]func(*Server, request.Params) (interface{}, *respon
 	"getblockhash":         (*Server).getBlockHash,
 	"getblockheader":       (*Server).getBlockHeader,
 	"getblocksysfee":       (*Server).getBlockSysFee,
+	"getcommittee":         (*Server).getCommittee,
 	"getconnectioncount":   (*Server).getConnectionCount,
 	"getcontractstate":     (*Server).getContractState,
 	"getnep5balances":      (*Server).getNEP5Balances,
@@ -879,6 +880,15 @@ func (s *Server) getValidators(_ request.Params) (interface{}, *response.Error) 
 		})
 	}
 	return res, nil
+}
+
+// getCommittee returns the current list of NEO committee members
+func (s *Server) getCommittee(_ request.Params) (interface{}, *response.Error) {
+	keys, err := s.chain.GetCommittee()
+	if err != nil {
+		return nil, response.NewInternalServerError("can't get committee members", err)
+	}
+	return keys, nil
 }
 
 // invokeFunction implements the `invokeFunction` RPC call.
