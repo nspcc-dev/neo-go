@@ -10,6 +10,7 @@ package core
 import (
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/callback"
+	"github.com/nspcc-dev/neo-go/pkg/core/interop/contract"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/crypto"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/enumerator"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
@@ -53,9 +54,9 @@ var systemInterops = []interop.Function{
 	{Name: interopnames.SystemCallbackCreateFromMethod, Func: callback.CreateFromMethod, Price: 1000000, ParamCount: 2, DisallowCallback: true},
 	{Name: interopnames.SystemCallbackCreateFromSyscall, Func: callback.CreateFromSyscall, Price: 400, ParamCount: 1, DisallowCallback: true},
 	{Name: interopnames.SystemCallbackInvoke, Func: callback.Invoke, Price: 1000000, ParamCount: 2, DisallowCallback: true},
-	{Name: interopnames.SystemContractCall, Func: contractCall, Price: 1000000,
+	{Name: interopnames.SystemContractCall, Func: contract.Call, Price: 1000000,
 		RequiredFlags: smartcontract.AllowCall, ParamCount: 3, DisallowCallback: true},
-	{Name: interopnames.SystemContractCallEx, Func: contractCallEx, Price: 1000000,
+	{Name: interopnames.SystemContractCallEx, Func: contract.CallEx, Price: 1000000,
 		RequiredFlags: smartcontract.AllowCall, ParamCount: 4, DisallowCallback: true},
 	{Name: interopnames.SystemContractCreate, Func: contractCreate, Price: 0,
 		RequiredFlags: smartcontract.AllowModifyStates, ParamCount: 2, DisallowCallback: true},
