@@ -1,7 +1,6 @@
 package transaction
 
 import (
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -11,29 +10,35 @@ import (
 
 // Attribute represents a Transaction attribute.
 type Attribute struct {
-	Type AttrType
-	Data []byte
+	Type  AttrType
+	Value interface {
+		io.Serializable
+		// toJSONMap is used for embedded json struct marshalling.
+		// Anonymous interface fields are not considered anonymous by
+		// json lib and marshaling Value together with type makes code
+		// harder to follow.
+		toJSONMap(map[string]interface{})
+	}
 }
 
 // attrJSON is used for JSON I/O of Attribute.
 type attrJSON struct {
 	Type string `json:"type"`
-	Data string `json:"data"`
 }
 
 // DecodeBinary implements Serializable interface.
 func (attr *Attribute) DecodeBinary(br *io.BinReader) {
 	attr.Type = AttrType(br.ReadB())
 
-	var datasize uint64
 	switch attr.Type {
 	case HighPriority:
+	case OracleResponseT:
+		attr.Value = new(OracleResponse)
+		attr.Value.DecodeBinary(br)
 	default:
 		br.Err = fmt.Errorf("failed decoding TX attribute usage: 0x%2x", int(attr.Type))
 		return
 	}
-	attr.Data = make([]byte, datasize)
-	br.ReadBytes(attr.Data)
 }
 
 // EncodeBinary implements Serializable interface.
@@ -41,6 +46,8 @@ func (attr *Attribute) EncodeBinary(bw *io.BinWriter) {
 	bw.WriteB(byte(attr.Type))
 	switch attr.Type {
 	case HighPriority:
+	case OracleResponseT:
+		attr.Value.EncodeBinary(bw)
 	default:
 		bw.Err = fmt.Errorf("failed encoding TX attribute usage: 0x%2x", attr.Type)
 	}
@@ -48,10 +55,11 @@ func (attr *Attribute) EncodeBinary(bw *io.BinWriter) {
 
 // MarshalJSON implements the json Marshaller interface.
 func (attr *Attribute) MarshalJSON() ([]byte, error) {
-	return json.Marshal(attrJSON{
-		Type: attr.Type.String(),
-		Data: base64.StdEncoding.EncodeToString(attr.Data),
-	})
+	m := map[string]interface{}{"type": attr.Type.String()}
+	if attr.Value != nil {
+		attr.Value.toJSONMap(m)
+	}
+	return json.Marshal(m)
 }
 
 // UnmarshalJSON implements the json.Unmarshaller interface.
@@ -61,17 +69,18 @@ func (attr *Attribute) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		return err
 	}
-	binData, err := base64.StdEncoding.DecodeString(aj.Data)
-	if err != nil {
-		return err
-	}
 	switch aj.Type {
 	case "HighPriority":
 		attr.Type = HighPriority
+	case "OracleResponse":
+		attr.Type = OracleResponseT
+		// Note: because `type` field will not be present in any attribute
+		// value, we can unmarshal the same data. The overhead is minimal.
+		attr.Value = new(OracleResponse)
+		return json.Unmarshal(data, attr.Value)
 	default:
 		return errors.New("wrong Type")
 
 	}
-	attr.Data = binData
 	return nil
 }

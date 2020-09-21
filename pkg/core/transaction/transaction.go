@@ -381,14 +381,14 @@ func (t *Transaction) isValid() error {
 			}
 		}
 	}
-	hasHighPrio := false
+	attrs := map[AttrType]bool{}
 	for i := range t.Attributes {
-		switch t.Attributes[i].Type {
-		case HighPriority:
-			if hasHighPrio {
-				return fmt.Errorf("%w: multiple high priority attributes", ErrInvalidAttribute)
+		typ := t.Attributes[i].Type
+		if !typ.allowMultiple() {
+			if attrs[typ] {
+				return fmt.Errorf("%w: multiple '%s' attributes", ErrInvalidAttribute, typ.String())
 			}
-			hasHighPrio = true
+			attrs[typ] = true
 		}
 	}
 	if len(t.Script) == 0 {

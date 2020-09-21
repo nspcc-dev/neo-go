@@ -115,7 +115,7 @@ func TestMarshalUnmarshalJSONInvocationTX(t *testing.T) {
 		Version:    0,
 		Signers:    []Signer{{Account: util.Uint160{1, 2, 3}}},
 		Script:     []byte{1, 2, 3, 4},
-		Attributes: []Attribute{{Type: HighPriority, Data: []byte{}}},
+		Attributes: []Attribute{{Type: HighPriority}},
 		Scripts:    []Witness{},
 		Trimmed:    false,
 	}
@@ -203,6 +203,14 @@ func TestTransaction_isValid(t *testing.T) {
 		tx.Attributes = []Attribute{
 			{Type: HighPriority},
 			{Type: HighPriority},
+		}
+		require.True(t, errors.Is(tx.isValid(), ErrInvalidAttribute))
+	})
+	t.Run("MultipleOracle", func(t *testing.T) {
+		tx := newTx()
+		tx.Attributes = []Attribute{
+			{Type: OracleResponseT},
+			{Type: OracleResponseT},
 		}
 		require.True(t, errors.Is(tx.isValid(), ErrInvalidAttribute))
 	})
