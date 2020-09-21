@@ -76,6 +76,9 @@ func (chain testChain) GetAppExecResult(hash util.Uint256) (*state.AppExecResult
 func (chain testChain) GetBlock(hash util.Uint256) (*block.Block, error) {
 	panic("TODO")
 }
+func (chain testChain) GetCommittee() (keys.PublicKeys, error) {
+	panic("TODO")
+}
 func (chain testChain) GetContractState(hash util.Uint160) *state.Contract {
 	panic("TODO")
 }

@@ -19,6 +19,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/internal/testserdes"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/request"
@@ -30,6 +31,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -281,6 +283,22 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 			serverResponse: `{"jsonrpc":"2.0","id":1,"result":"195500"}`,
 			result: func(c *Client) interface{} {
 				return util.Fixed8FromInt64(195500)
+			},
+		},
+	},
+	"getcommittee": {
+		{
+			name: "positive",
+			invoke: func(c *Client) (interface{}, error) {
+				return c.GetCommittee()
+			},
+			serverResponse: `{"jsonrpc":"2.0","id":1,"result":["02103a7f7dd016558597f7960d27c516a4394fd968b9e65155eb4b013e4040406e"]}`,
+			result: func(c *Client) interface{} {
+				member, err := keys.NewPublicKeyFromString("02103a7f7dd016558597f7960d27c516a4394fd968b9e65155eb4b013e4040406e")
+				if err != nil {
+					panic(errors.Wrap(err, "failed to decode public key"))
+				}
+				return keys.PublicKeys{member}
 			},
 		},
 	},
@@ -1066,6 +1084,12 @@ var rpcClientErrorCases = map[string][]rpcClientErrorCase{
 			name: "getblocksysfee_unmarshalling_error",
 			invoke: func(c *Client) (interface{}, error) {
 				return c.GetBlockSysFee(1)
+			},
+		},
+		{
+			name: "getcommittee_unmarshalling_error",
+			invoke: func(c *Client) (interface{}, error) {
+				return c.GetCommittee()
 			},
 		},
 		{

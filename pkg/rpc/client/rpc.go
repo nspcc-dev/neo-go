@@ -9,6 +9,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/request"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result"
@@ -177,6 +178,18 @@ func (c *Client) GetConnectionCount() (int, error) {
 		return resp, err
 	}
 	return resp, nil
+}
+
+// GetCommittee returns the current public keys of NEO nodes in committee.
+func (c *Client) GetCommittee() (keys.PublicKeys, error) {
+	var (
+		params = request.NewRawParams()
+		resp   = new(keys.PublicKeys)
+	)
+	if err := c.performRequest("getcommittee", params, resp); err != nil {
+		return nil, err
+	}
+	return *resp, nil
 }
 
 // GetContractState queries contract information, according to the contract script hash.

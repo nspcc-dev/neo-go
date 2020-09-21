@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"reflect"
+	"sort"
 	"strconv"
 	"strings"
 	"testing"
@@ -351,6 +352,17 @@ var rpcTestCases = map[string][]rpcTestCase{
 			name:   "invalid number height",
 			params: `[-2]`,
 			fail:   true,
+		},
+	},
+	"getcommittee": {
+		{
+			params: "[]",
+			result: func(e *executor) interface{} {
+				// it's a test chain, so committee is a sorted standby committee
+				expected := e.chain.GetStandByCommittee()
+				sort.Sort(expected)
+				return &expected
+			},
 		},
 	},
 	"getconnectioncount": {
