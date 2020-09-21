@@ -148,9 +148,8 @@ func (t *NEP5Transfer) EncodeBinary(w *io.BinWriter) {
 	w.WriteBytes(t.To[:])
 	w.WriteU32LE(t.Block)
 	w.WriteU64LE(t.Timestamp)
-	amountBytes := bigint.ToBytes(&t.Amount)
-	w.WriteU64LE(uint64(len(amountBytes)))
-	w.WriteBytes(amountBytes)
+	amount := bigint.ToBytes(&t.Amount)
+	w.WriteVarBytes(amount)
 }
 
 // DecodeBinary implements io.Serializable interface.
@@ -166,9 +165,7 @@ func (t *NEP5Transfer) DecodeBinaryReturnCount(r *io.BinReader) int {
 	r.ReadBytes(t.To[:])
 	t.Block = r.ReadU32LE()
 	t.Timestamp = r.ReadU64LE()
-	amountLen := r.ReadU64LE()
-	amountBytes := make([]byte, amountLen)
-	r.ReadBytes(amountBytes)
-	t.Amount = *bigint.FromBytes(amountBytes)
-	return 4 + util.Uint160Size*2 + 8 + 4 + (8 + len(amountBytes)) + +util.Uint256Size
+	amount := r.ReadVarBytes(bigint.MaxBytesLen)
+	t.Amount = *bigint.FromBytes(amount)
+	return 4 + util.Uint160Size*2 + 8 + 4 + (io.GetVarSize(len(amount)) + len(amount)) + +util.Uint256Size
 }
