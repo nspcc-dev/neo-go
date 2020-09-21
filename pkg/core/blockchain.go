@@ -883,7 +883,7 @@ func (bc *Blockchain) GetTransaction(hash util.Uint256) (*transaction.Transactio
 }
 
 // GetAppExecResult returns application execution result by the given
-// tx hash.
+// tx hash or block hash.
 func (bc *Blockchain) GetAppExecResult(hash util.Uint256) (*state.AppExecResult, error) {
 	return bc.dao.GetAppExecResult(hash)
 }

@@ -123,7 +123,7 @@ func (ne *NotificationEvent) UnmarshalJSON(data []byte) error {
 
 // appExecResultAux is an auxiliary struct for JSON marshalling
 type appExecResultAux struct {
-	TxHash      util.Uint256        `json:"txid"`
+	TxHash      *util.Uint256       `json:"txid"`
 	Trigger     string              `json:"trigger"`
 	VMState     string              `json:"vmstate"`
 	GasConsumed int64               `json:"gasconsumed,string"`
@@ -151,8 +151,14 @@ func (aer *AppExecResult) MarshalJSON() ([]byte, error) {
 			return nil, err
 		}
 	}
+
+	// do not marshal block hash
+	var hash *util.Uint256
+	if aer.Trigger == trigger.Application {
+		hash = &aer.TxHash
+	}
 	return json.Marshal(&appExecResultAux{
-		TxHash:      aer.TxHash,
+		TxHash:      hash,
 		Trigger:     aer.Trigger.String(),
 		VMState:     aer.VMState.String(),
 		GasConsumed: aer.GasConsumed,
@@ -186,7 +192,9 @@ func (aer *AppExecResult) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	aer.Trigger = trigger
-	aer.TxHash = aux.TxHash
+	if aux.TxHash != nil {
+		aer.TxHash = *aux.TxHash
+	}
 	state, err := vm.StateFromString(aux.VMState)
 	if err != nil {
 		return err

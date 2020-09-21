@@ -500,16 +500,16 @@ func (s *Server) validateAddress(reqParams request.Params) (interface{}, *respon
 	return validateAddress(param.Value), nil
 }
 
-// getApplicationLog returns the contract log based on the specified txid.
+// getApplicationLog returns the contract log based on the specified txid or blockid.
 func (s *Server) getApplicationLog(reqParams request.Params) (interface{}, *response.Error) {
-	txHash, err := reqParams.Value(0).GetUint256()
+	hash, err := reqParams.Value(0).GetUint256()
 	if err != nil {
 		return nil, response.ErrInvalidParams
 	}
 
-	appExecResult, err := s.chain.GetAppExecResult(txHash)
+	appExecResult, err := s.chain.GetAppExecResult(hash)
 	if err != nil {
-		return nil, response.NewRPCError("Unknown transaction", "", err)
+		return nil, response.NewRPCError("Unknown transaction or block", "", err)
 	}
 
 	return appExecResult, nil
