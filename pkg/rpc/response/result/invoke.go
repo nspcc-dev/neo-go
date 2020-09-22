@@ -1,19 +1,28 @@
 package result
 
 import (
+	"encoding/hex"
 	"encoding/json"
+	"errors"
+	"fmt"
 
+	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
+	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
 // Invoke represents code invocation result and is used by several RPC calls
-// that invoke functions, scripts and generic bytecode.
+// that invoke functions, scripts and generic bytecode. Transaction is
+// represented in raw serialized format, use transaction.NewTransactionFromBytes
+// or GetTransaction method to deserialize it.
 type Invoke struct {
 	State          string
 	GasConsumed    int64
 	Script         string
 	Stack          []stackitem.Item
 	FaultException string
+	// Transaction represents transaction bytes. Use GetTransaction method to decode it.
+	Transaction []byte
 }
 
 type invokeAux struct {
@@ -22,6 +31,7 @@ type invokeAux struct {
 	Script         string          `json:"script"`
 	Stack          json.RawMessage `json:"stack"`
 	FaultException string          `json:"exception,omitempty"`
+	Transaction    string          `json:"tx,omitempty"`
 }
 
 // MarshalJSON implements json.Marshaler.
@@ -44,12 +54,20 @@ func (r Invoke) MarshalJSON() ([]byte, error) {
 			return nil, err
 		}
 	}
+
+	var tx string
+	if r.Transaction != nil {
+		st := hex.EncodeToString(r.Transaction)
+		tx = st
+	}
+
 	return json.Marshal(&invokeAux{
 		GasConsumed:    r.GasConsumed,
 		Script:         r.Script,
 		State:          r.State,
 		Stack:          st,
 		FaultException: r.FaultException,
+		Transaction:    tx,
 	})
 }
 
@@ -72,9 +90,24 @@ func (r *Invoke) UnmarshalJSON(data []byte) error {
 			r.Stack = st
 		}
 	}
+	if aux.Transaction != "" {
+		bytes, err := hex.DecodeString(aux.Transaction)
+		if err != nil {
+			return fmt.Errorf("failed to decode transaction bytes from hex: %w", err)
+		}
+		r.Transaction = bytes
+	}
 	r.GasConsumed = aux.GasConsumed
 	r.Script = aux.Script
 	r.State = aux.State
 	r.FaultException = aux.FaultException
 	return nil
+}
+
+// GetTransaction returns decoded transaction from Invoke.Transaction bytes.
+func (r *Invoke) GetTransaction(magic netmode.Magic) (*transaction.Transaction, error) {
+	if r.Transaction == nil {
+		return nil, errors.New("empty transaction")
+	}
+	return transaction.NewTransactionFromBytes(magic, r.Transaction)
 }
