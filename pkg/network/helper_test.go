@@ -95,7 +95,7 @@ func (chain testChain) GetHeader(hash util.Uint256) (*block.Header, error) {
 func (chain testChain) GetNextBlockValidators() ([]*keys.PublicKey, error) {
 	panic("TODO")
 }
-func (chain testChain) ForEachNEP5Transfer(util.Uint160, func(*state.NEP5Transfer) error) error {
+func (chain testChain) ForEachNEP5Transfer(util.Uint160, func(*state.NEP5Transfer) (bool, error)) error {
 	panic("TODO")
 }
 func (chain testChain) GetNEP5Balances(util.Uint160) *state.NEP5Balances {

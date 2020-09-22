@@ -77,6 +77,9 @@ const (
 	// treated like subscriber, so technically it's a limit on websocket
 	// connections.
 	maxSubscribers = 64
+
+	// Maximum number of elements for get*transfers requests.
+	maxTransfersLimit = 1000
 )
 
 var rpcHandlers = map[string]func(*Server, request.Params) (interface{}, *response.Error){
@@ -545,23 +548,54 @@ func (s *Server) getNEP5Balances(ps request.Params) (interface{}, *response.Erro
 	return bs, nil
 }
 
-func getTimestamps(p1, p2 *request.Param) (uint64, uint64, error) {
+func getTimestampsAndLimit(ps request.Params, index int) (uint64, uint64, int, int, error) {
 	var start, end uint64
-	if p1 != nil {
-		val, err := p1.GetInt()
+	var limit, page int
+
+	limit = maxTransfersLimit
+	pStart, pEnd, pLimit, pPage := ps.Value(index), ps.Value(index+1), ps.Value(index+2), ps.Value(index+3)
+	if pPage != nil {
+		p, err := pPage.GetInt()
 		if err != nil {
-			return 0, 0, err
+			return 0, 0, 0, 0, err
 		}
-		start = uint64(val)
+		if p < 0 {
+			return 0, 0, 0, 0, errors.New("can't use negative page")
+		}
+		page = p
 	}
-	if p2 != nil {
-		val, err := p2.GetInt()
+	if pLimit != nil {
+		l, err := pLimit.GetInt()
 		if err != nil {
-			return 0, 0, err
+			return 0, 0, 0, 0, err
+		}
+		if l <= 0 {
+			return 0, 0, 0, 0, errors.New("can't use negative or zero limit")
+		}
+		if l > maxTransfersLimit {
+			return 0, 0, 0, 0, errors.New("too big limit requested")
+		}
+		limit = l
+	}
+	if pEnd != nil {
+		val, err := pEnd.GetInt()
+		if err != nil {
+			return 0, 0, 0, 0, err
 		}
 		end = uint64(val)
+	} else {
+		end = uint64(time.Now().Unix() * 1000)
 	}
-	return start, end, nil
+	if pStart != nil {
+		val, err := pStart.GetInt()
+		if err != nil {
+			return 0, 0, 0, 0, err
+		}
+		start = uint64(val)
+	} else {
+		start = uint64(time.Now().Add(-time.Hour*24*7).Unix() * 1000)
+	}
+	return start, end, limit, page, nil
 }
 
 func (s *Server) getNEP5Transfers(ps request.Params) (interface{}, *response.Error) {
@@ -570,16 +604,9 @@ func (s *Server) getNEP5Transfers(ps request.Params) (interface{}, *response.Err
 		return nil, response.ErrInvalidParams
 	}
 
-	p1, p2 := ps.Value(1), ps.Value(2)
-	start, end, err := getTimestamps(p1, p2)
+	start, end, limit, page, err := getTimestampsAndLimit(ps, 1)
 	if err != nil {
 		return nil, response.NewInvalidParamsError(err.Error(), err)
-	}
-	if p2 == nil {
-		end = uint64(time.Now().Unix() * 1000)
-		if p1 == nil {
-			start = uint64(time.Now().Add(-time.Hour*24*7).Unix() * 1000)
-		}
 	}
 
 	bs := &result.NEP5Transfers{
@@ -588,14 +615,29 @@ func (s *Server) getNEP5Transfers(ps request.Params) (interface{}, *response.Err
 		Sent:     []result.NEP5Transfer{},
 	}
 	cache := make(map[int32]decimals)
-	err = s.chain.ForEachNEP5Transfer(u, func(tr *state.NEP5Transfer) error {
-		if tr.Timestamp < start || tr.Timestamp > end {
-			return nil
+	var resCount, frameCount int
+	err = s.chain.ForEachNEP5Transfer(u, func(tr *state.NEP5Transfer) (bool, error) {
+		// Iterating from newest to oldest, not yet reached required
+		// time frame, continue looping.
+		if tr.Timestamp > end {
+			return true, nil
 		}
+		// Iterating from newest to oldest, moved past required
+		// time frame, stop looping.
+		if tr.Timestamp < start {
+			return false, nil
+		}
+		frameCount++
+		// Using limits, not yet reached required page.
+		if limit != 0 && page*limit >= frameCount {
+			return true, nil
+		}
+
 		d, err := s.getDecimals(tr.Asset, cache)
 		if err != nil {
-			return nil
+			return false, err
 		}
+
 		transfer := result.NEP5Transfer{
 			Timestamp: tr.Timestamp,
 			Asset:     d.Hash,
@@ -608,15 +650,20 @@ func (s *Server) getNEP5Transfers(ps request.Params) (interface{}, *response.Err
 				transfer.Address = address.Uint160ToString(tr.From)
 			}
 			bs.Received = append(bs.Received, transfer)
-			return nil
+		} else {
+			transfer.Amount = amountToString(new(big.Int).Neg(&tr.Amount), d.Value)
+			if !tr.To.Equals(util.Uint160{}) {
+				transfer.Address = address.Uint160ToString(tr.To)
+			}
+			bs.Sent = append(bs.Sent, transfer)
 		}
 
-		transfer.Amount = amountToString(new(big.Int).Neg(&tr.Amount), d.Value)
-		if !tr.To.Equals(util.Uint160{}) {
-			transfer.Address = address.Uint160ToString(tr.To)
+		resCount++
+		// Using limits, reached limit.
+		if limit != 0 && resCount >= limit {
+			return false, nil
 		}
-		bs.Sent = append(bs.Sent, transfer)
-		return nil
+		return true, nil
 	})
 	if err != nil {
 		return nil, response.NewInternalServerError("invalid NEP5 transfer log", err)

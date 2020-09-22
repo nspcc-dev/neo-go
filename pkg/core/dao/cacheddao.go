@@ -95,7 +95,7 @@ func (cd *Cached) AppendNEP5Transfer(acc util.Uint160, index uint32, tr *state.N
 	if err := lg.Append(tr); err != nil {
 		return false, err
 	}
-	return lg.Size() >= nep5TransferBatchSize, cd.PutNEP5TransferLog(acc, index, lg)
+	return lg.Size() >= state.NEP5TransferBatchSize, cd.PutNEP5TransferLog(acc, index, lg)
 }
 
 // Persist flushes all the changes made into the (supposedly) persistent
