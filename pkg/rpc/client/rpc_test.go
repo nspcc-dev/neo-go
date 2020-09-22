@@ -31,7 +31,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
-	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -296,7 +295,7 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 			result: func(c *Client) interface{} {
 				member, err := keys.NewPublicKeyFromString("02103a7f7dd016558597f7960d27c516a4394fd968b9e65155eb4b013e4040406e")
 				if err != nil {
-					panic(errors.Wrap(err, "failed to decode public key"))
+					panic(fmt.Errorf("failed to decode public key: %w", err))
 				}
 				return keys.PublicKeys{member}
 			},
