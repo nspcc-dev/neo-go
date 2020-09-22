@@ -1380,7 +1380,7 @@ func (bc *Blockchain) GetCommittee() (keys.PublicKeys, error) {
 
 // GetValidators returns current validators.
 func (bc *Blockchain) GetValidators() ([]*keys.PublicKey, error) {
-	return bc.contracts.NEO.GetValidatorsInternal(bc, bc.dao)
+	return bc.contracts.NEO.ComputeNextBlockValidators(bc, bc.dao)
 }
 
 // GetNextBlockValidators returns next block validators.

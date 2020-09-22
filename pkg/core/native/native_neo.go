@@ -132,10 +132,6 @@ func NewNEO() *NEO {
 	md = newMethodAndPrice(n.getCommittee, 100000000, smartcontract.AllowStates)
 	n.AddMethod(md, desc, true)
 
-	desc = newDescriptor("getValidators", smartcontract.ArrayType)
-	md = newMethodAndPrice(n.getValidators, 100000000, smartcontract.AllowStates)
-	n.AddMethod(md, desc, true)
-
 	desc = newDescriptor("getNextBlockValidators", smartcontract.ArrayType)
 	md = newMethodAndPrice(n.getNextBlockValidators, 100000000, smartcontract.AllowStates)
 	n.AddMethod(md, desc, true)
@@ -585,28 +581,19 @@ func (n *NEO) getCandidatesCall(ic *interop.Context, _ []stackitem.Item) stackit
 	return stackitem.NewArray(arr)
 }
 
-// GetValidatorsInternal returns a list of current validators.
-func (n *NEO) GetValidatorsInternal(bc blockchainer.Blockchainer, d dao.DAO) (keys.PublicKeys, error) {
+// ComputeNextBlockValidators returns an actual list of current validators.
+func (n *NEO) ComputeNextBlockValidators(bc blockchainer.Blockchainer, d dao.DAO) (keys.PublicKeys, error) {
 	if vals := n.validators.Load().(keys.PublicKeys); vals != nil {
 		return vals.Copy(), nil
 	}
-	result := n.GetCommitteeMembers()
-	count := bc.GetConfig().ValidatorsCount
-	if len(result) < count {
-		count = len(result)
+	result, err := n.ComputeCommitteeMembers(bc, d)
+	if err != nil {
+		return nil, err
 	}
-	result = result[:count]
+	result = result[:bc.GetConfig().ValidatorsCount]
 	sort.Sort(result)
 	n.validators.Store(result)
 	return result, nil
-}
-
-func (n *NEO) getValidators(ic *interop.Context, _ []stackitem.Item) stackitem.Item {
-	result, err := n.GetValidatorsInternal(ic.Chain, ic.DAO)
-	if err != nil {
-		panic(err)
-	}
-	return pubsToArray(result)
 }
 
 func (n *NEO) getCommittee(ic *interop.Context, _ []stackitem.Item) stackitem.Item {

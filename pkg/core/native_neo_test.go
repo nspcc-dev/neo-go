@@ -37,7 +37,7 @@ func TestNEO_Vote(t *testing.T) {
 
 	standBySorted := bc.GetStandByValidators()
 	sort.Sort(standBySorted)
-	pubs, err := neo.GetValidatorsInternal(bc, ic.DAO)
+	pubs, err := neo.ComputeNextBlockValidators(bc, ic.DAO)
 	require.NoError(t, err)
 	require.Equal(t, standBySorted, pubs)
 
@@ -68,10 +68,8 @@ func TestNEO_Vote(t *testing.T) {
 		require.NoError(t, neo.VoteInternal(ic, h, candidates[i]))
 	}
 
-	require.NoError(t, neo.OnPersist(ic))
-
 	// We still haven't voted enough validators in.
-	pubs, err = neo.GetValidatorsInternal(bc, ic.DAO)
+	pubs, err = neo.ComputeNextBlockValidators(bc, ic.DAO)
 	require.NoError(t, err)
 	require.Equal(t, standBySorted, pubs)
 
@@ -93,7 +91,7 @@ func TestNEO_Vote(t *testing.T) {
 	}
 
 	require.NoError(t, neo.OnPersist(ic))
-	pubs, err = neo.GetValidatorsInternal(bc, ic.DAO)
+	pubs, err = neo.ComputeNextBlockValidators(bc, ic.DAO)
 	require.NoError(t, err)
 	sortedCandidates := candidates.Copy()
 	sort.Sort(sortedCandidates)
@@ -106,7 +104,7 @@ func TestNEO_Vote(t *testing.T) {
 	require.Error(t, neo.VoteInternal(ic, h, candidates[0]))
 	require.NoError(t, neo.OnPersist(ic))
 
-	pubs, err = neo.GetValidatorsInternal(bc, ic.DAO)
+	pubs, err = neo.ComputeNextBlockValidators(bc, ic.DAO)
 	require.NoError(t, err)
 	for i := range pubs {
 		require.NotEqual(t, candidates[0], pubs[i])
