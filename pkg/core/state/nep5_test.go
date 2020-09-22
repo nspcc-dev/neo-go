@@ -8,7 +8,6 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/internal/random"
 	"github.com/nspcc-dev/neo-go/pkg/internal/testserdes"
-	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/stretchr/testify/require"
 )
@@ -60,18 +59,6 @@ func TestNEP5Transfer_DecodeBinary(t *testing.T) {
 	}
 
 	testserdes.EncodeDecodeBinary(t, expected, new(NEP5Transfer))
-}
-
-func TestNEP5TransferSize(t *testing.T) {
-	tr := randomTransfer(rand.New(rand.NewSource(0)))
-	size := io.GetVarSize(tr)
-	w := io.NewBufBinWriter()
-	tr.EncodeBinary(w.BinWriter)
-	require.NoError(t, w.Err)
-	r := io.NewBinReaderFromBuf(w.Bytes())
-	actualTr := &NEP5Transfer{}
-	actual := actualTr.DecodeBinaryReturnCount(r)
-	require.EqualValues(t, actual, size)
 }
 
 func randomTransfer(r *rand.Rand) *NEP5Transfer {
