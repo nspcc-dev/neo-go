@@ -35,6 +35,14 @@ func TestNEO_Vote(t *testing.T) {
 	ic.VM = vm.New()
 	ic.Block = bc.newBlock(tx)
 
+	freq := testchain.ValidatorsCount + testchain.CommitteeSize()
+	advanceChain := func(t *testing.T) {
+		for i := 0; i < freq; i++ {
+			require.NoError(t, neo.OnPersist(ic))
+			ic.Block.Index++
+		}
+	}
+
 	standBySorted := bc.GetStandByValidators()
 	sort.Sort(standBySorted)
 	pubs, err := neo.ComputeNextBlockValidators(bc, ic.DAO)
@@ -73,7 +81,7 @@ func TestNEO_Vote(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, standBySorted, pubs)
 
-	require.NoError(t, neo.OnPersist(ic))
+	advanceChain(t)
 	pubs = neo.GetNextBlockValidatorsInternal()
 	require.EqualValues(t, standBySorted, pubs)
 
@@ -90,7 +98,7 @@ func TestNEO_Vote(t *testing.T) {
 		require.NoError(t, neo.RegisterCandidateInternal(ic, priv.PublicKey()))
 	}
 
-	require.NoError(t, neo.OnPersist(ic))
+	advanceChain(t)
 	pubs, err = neo.ComputeNextBlockValidators(bc, ic.DAO)
 	require.NoError(t, err)
 	sortedCandidates := candidates.Copy()
@@ -102,7 +110,7 @@ func TestNEO_Vote(t *testing.T) {
 
 	require.NoError(t, neo.UnregisterCandidateInternal(ic, candidates[0]))
 	require.Error(t, neo.VoteInternal(ic, h, candidates[0]))
-	require.NoError(t, neo.OnPersist(ic))
+	advanceChain(t)
 
 	pubs, err = neo.ComputeNextBlockValidators(bc, ic.DAO)
 	require.NoError(t, err)

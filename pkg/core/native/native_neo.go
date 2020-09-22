@@ -31,7 +31,8 @@ type NEO struct {
 	nextValidators atomic.Value
 	validators     atomic.Value
 	// committee contains cached committee members and
-	// is updated during block persist. It's value
+	// is updated once in a while depending on committee size
+	// (every 28 blocks for mainnet). It's value
 	// is always equal to value stored by `prefixCommittee`.
 	committee atomic.Value
 }
@@ -212,10 +213,18 @@ func (n *NEO) updateCommittee(ic *interop.Context) error {
 	return ic.DAO.PutStorageItem(n.ContractID, prefixCommittee, si)
 }
 
+func shouldUpdateCommittee(h uint32, bc blockchainer.Blockchainer) bool {
+	cfg := bc.GetConfig()
+	r := cfg.ValidatorsCount + len(cfg.StandbyCommittee)
+	return h%uint32(r) == 0
+}
+
 // OnPersist implements Contract interface.
 func (n *NEO) OnPersist(ic *interop.Context) error {
-	if err := n.updateCommittee(ic); err != nil {
-		return err
+	if shouldUpdateCommittee(ic.Block.Index, ic.Chain) {
+		if err := n.updateCommittee(ic); err != nil {
+			return err
+		}
 	}
 
 	gas, err := n.GetGASPerBlock(ic, ic.Block.Index)
