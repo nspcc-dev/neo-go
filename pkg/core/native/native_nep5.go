@@ -31,11 +31,12 @@ func makeAccountKey(h util.Uint160) []byte {
 // nep5TokenNative represents NEP-5 token contract.
 type nep5TokenNative struct {
 	interop.ContractMD
-	symbol     string
-	decimals   int64
-	factor     int64
-	onPersist  func(*interop.Context) error
-	incBalance func(*interop.Context, util.Uint160, *state.StorageItem, *big.Int) error
+	symbol      string
+	decimals    int64
+	factor      int64
+	onPersist   func(*interop.Context) error
+	postPersist func(*interop.Context) error
+	incBalance  func(*interop.Context, util.Uint160, *state.StorageItem, *big.Int) error
 }
 
 // totalSupplyKey is the key used to store totalSupply value.
@@ -82,6 +83,10 @@ func newNEP5Native(name string) *nep5TokenNative {
 
 	desc = newDescriptor("onPersist", smartcontract.VoidType)
 	md = newMethodAndPrice(getOnPersistWrapper(n.OnPersist), 0, smartcontract.AllowModifyStates)
+	n.AddMethod(md, desc, false)
+
+	desc = newDescriptor("postPersist", smartcontract.VoidType)
+	md = newMethodAndPrice(getOnPersistWrapper(postPersistBase), 0, smartcontract.AllowModifyStates)
 	n.AddMethod(md, desc, false)
 
 	n.AddEvent("Transfer", desc.Parameters...)

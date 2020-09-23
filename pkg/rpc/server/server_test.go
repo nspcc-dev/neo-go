@@ -485,7 +485,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 				require.True(t, ok)
 				expected := result.UnclaimedGas{
 					Address:   testchain.MultisigScriptHash(),
-					Unclaimed: *big.NewInt(42000),
+					Unclaimed: *big.NewInt(3500),
 				}
 				assert.Equal(t, expected, *actual)
 			},
@@ -980,12 +980,12 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 			require.NoError(t, json.Unmarshal(res, actual))
 			checkNep5TransfersAux(t, e, actual, sent, rcvd)
 		}
-		t.Run("time frame only", func(t *testing.T) { testNEP5T(t, 4, 5, 0, 0, []int{3, 4, 5, 6}, []int{0, 1}) })
+		t.Run("time frame only", func(t *testing.T) { testNEP5T(t, 4, 5, 0, 0, []int{3, 4, 5, 6}, []int{1, 2}) })
 		t.Run("no res", func(t *testing.T) { testNEP5T(t, 100, 100, 0, 0, []int{}, []int{}) })
-		t.Run("limit", func(t *testing.T) { testNEP5T(t, 1, 7, 3, 0, []int{0, 1, 2}, []int{}) })
-		t.Run("limit 2", func(t *testing.T) { testNEP5T(t, 4, 5, 2, 0, []int{3}, []int{0}) })
-		t.Run("limit with page", func(t *testing.T) { testNEP5T(t, 1, 7, 3, 1, []int{3, 4}, []int{0}) })
-		t.Run("limit with page 2", func(t *testing.T) { testNEP5T(t, 1, 7, 3, 2, []int{5, 6}, []int{1}) })
+		t.Run("limit", func(t *testing.T) { testNEP5T(t, 1, 7, 3, 0, []int{0, 1}, []int{0}) })
+		t.Run("limit 2", func(t *testing.T) { testNEP5T(t, 4, 5, 2, 0, []int{3}, []int{1}) })
+		t.Run("limit with page", func(t *testing.T) { testNEP5T(t, 1, 7, 3, 1, []int{2, 3}, []int{1}) })
+		t.Run("limit with page 2", func(t *testing.T) { testNEP5T(t, 1, 7, 3, 2, []int{4, 5}, []int{2}) })
 	})
 }
 
@@ -1075,7 +1075,7 @@ func checkNep5Balances(t *testing.T, e *executor, acc interface{}) {
 			},
 			{
 				Asset:       e.chain.UtilityTokenHash(),
-				Amount:      "815.59478530",
+				Amount:      "799.59495030",
 				LastUpdated: 7,
 			}},
 		Address: testchain.PrivateKeyByID(0).GetScriptHash().StringLE(),
@@ -1085,7 +1085,7 @@ func checkNep5Balances(t *testing.T, e *executor, acc interface{}) {
 }
 
 func checkNep5Transfers(t *testing.T, e *executor, acc interface{}) {
-	checkNep5TransfersAux(t, e, acc, []int{0, 1, 2, 3, 4, 5, 6, 7, 8}, []int{0, 1, 2, 3})
+	checkNep5TransfersAux(t, e, acc, []int{0, 1, 2, 3, 4, 5, 6, 7, 8}, []int{0, 1, 2, 3, 4, 5, 6})
 }
 
 func checkNep5TransfersAux(t *testing.T, e *executor, acc interface{}, sent, rcvd []int) {
@@ -1103,6 +1103,7 @@ func checkNep5TransfersAux(t *testing.T, e *executor, acc interface{}, sent, rcv
 	require.NoError(t, err)
 	require.Equal(t, 1, len(blockSendRubles.Transactions))
 	txSendRubles := blockSendRubles.Transactions[0]
+	blockGASBounty := blockSendRubles // index 6 = size of committee
 
 	blockReceiveRubles, err := e.chain.GetBlock(e.chain.GetHeaderHash(5))
 	require.NoError(t, err)
@@ -1130,6 +1131,9 @@ func checkNep5TransfersAux(t *testing.T, e *executor, acc interface{}, sent, rcv
 	require.Equal(t, 2, len(blockReceiveGAS.Transactions))
 	txReceiveNEO := blockReceiveGAS.Transactions[0]
 	txReceiveGAS := blockReceiveGAS.Transactions[1]
+
+	blockGASBounty0, err := e.chain.GetBlock(e.chain.GetHeaderHash(0))
+	require.NoError(t, err)
 
 	// These are laid out here explicitly for 2 purposes:
 	//  * to be able to reference any particular event for paging
@@ -1215,6 +1219,15 @@ func checkNep5TransfersAux(t *testing.T, e *executor, acc interface{}, sent, rcv
 		},
 		Received: []result.NEP5Transfer{
 			{
+				Timestamp:   blockGASBounty.Timestamp,
+				Asset:       e.chain.UtilityTokenHash(),
+				Address:     "",
+				Amount:      "0.25000000",
+				Index:       6,
+				NotifyIndex: 0,
+				TxHash:      blockGASBounty.Hash(),
+			},
+			{
 				Timestamp:   blockReceiveRubles.Timestamp,
 				Asset:       rublesHash,
 				Address:     address.Uint160ToString(rublesHash),
@@ -1227,7 +1240,7 @@ func checkNep5TransfersAux(t *testing.T, e *executor, acc interface{}, sent, rcv
 				Timestamp:   blockSendNEO.Timestamp,
 				Asset:       e.chain.UtilityTokenHash(),
 				Address:     "", // Minted GAS.
-				Amount:      "17.99982000",
+				Amount:      "1.49998500",
 				Index:       4,
 				NotifyIndex: 0,
 				TxHash:      txSendNEO.Hash(),
@@ -1249,6 +1262,14 @@ func checkNep5TransfersAux(t *testing.T, e *executor, acc interface{}, sent, rcv
 				Index:       1,
 				NotifyIndex: 0,
 				TxHash:      txReceiveNEO.Hash(),
+			},
+			{
+				Timestamp: blockGASBounty0.Timestamp,
+				Asset:     e.chain.UtilityTokenHash(),
+				Address:   "",
+				Amount:    "0.25000000",
+				Index:     0,
+				TxHash:    blockGASBounty0.Hash(),
 			},
 		},
 		Address: testchain.PrivateKeyByID(0).Address(),

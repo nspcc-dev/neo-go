@@ -536,29 +536,12 @@ func TestGetClaimable(t *testing.T) {
 	bc := newTestChain(t)
 	defer bc.Close()
 
-	bc.generationAmount = []int{4, 3, 2, 1}
-	bc.decrementInterval = 2
 	_, err := bc.genBlocks(10)
 	require.NoError(t, err)
 
 	t.Run("first generation period", func(t *testing.T) {
 		amount := bc.CalculateClaimable(big.NewInt(1), 0, 2)
-		require.EqualValues(t, big.NewInt(8), amount)
-	})
-
-	t.Run("a number of full periods", func(t *testing.T) {
-		amount := bc.CalculateClaimable(big.NewInt(1), 0, 6)
-		require.EqualValues(t, big.NewInt(4+4+3+3+2+2), amount)
-	})
-
-	t.Run("start from the 2-nd block", func(t *testing.T) {
-		amount := bc.CalculateClaimable(big.NewInt(1), 1, 7)
-		require.EqualValues(t, big.NewInt(4+3+3+2+2+1), amount)
-	})
-
-	t.Run("end height after generation has ended", func(t *testing.T) {
-		amount := bc.CalculateClaimable(big.NewInt(1), 1, 10)
-		require.EqualValues(t, big.NewInt(4+3+3+2+2+1+1), amount)
+		require.EqualValues(t, big.NewInt(1), amount)
 	})
 }
 
@@ -604,8 +587,8 @@ func TestSubscriptions(t *testing.T) {
 	blocks, err := bc.genBlocks(1)
 	require.NoError(t, err)
 	require.Eventually(t, func() bool { return len(blockCh) != 0 }, time.Second, 10*time.Millisecond)
-	assert.Empty(t, notificationCh)
-	assert.Len(t, executionCh, 1)
+	assert.Len(t, notificationCh, 1) // validator bounty
+	assert.Len(t, executionCh, 2)
 	assert.Empty(t, txCh)
 
 	b := <-blockCh
@@ -614,6 +597,11 @@ func TestSubscriptions(t *testing.T) {
 
 	aer := <-executionCh
 	assert.Equal(t, b.Hash(), aer.TxHash)
+	aer = <-executionCh
+	assert.Equal(t, b.Hash(), aer.TxHash)
+
+	notif := <-notificationCh
+	require.Equal(t, bc.UtilityTokenHash(), notif.ScriptHash)
 
 	script := io.NewBufBinWriter()
 	emit.Bytes(script.BinWriter, []byte("yay!"))
@@ -682,8 +670,15 @@ func TestSubscriptions(t *testing.T) {
 		}
 	}
 	assert.Empty(t, txCh)
-	assert.Empty(t, notificationCh)
-	assert.Empty(t, executionCh)
+	assert.Len(t, notificationCh, 1)
+	assert.Len(t, executionCh, 1)
+
+	notif = <-notificationCh
+	require.Equal(t, bc.UtilityTokenHash(), notif.ScriptHash)
+
+	exec = <-executionCh
+	require.Equal(t, b.Hash(), exec.TxHash)
+	require.Equal(t, exec.VMState, vm.HaltState)
 
 	bc.UnsubscribeFromBlocks(blockCh)
 	bc.UnsubscribeFromTransactions(txCh)

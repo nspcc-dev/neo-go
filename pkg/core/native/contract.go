@@ -1,8 +1,11 @@
 package native
 
 import (
+	"errors"
+
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
@@ -16,6 +19,8 @@ type Contracts struct {
 	Contracts []interop.Contract
 	// persistScript is vm script which executes "onPersist" method of every native contract.
 	persistScript []byte
+	// postPersistScript is vm script which executes "postPersist" method of every native contract.
+	postPersistScript []byte
 }
 
 // ByHash returns native contract with the specified hash.
@@ -70,4 +75,34 @@ func (cs *Contracts) GetPersistScript() []byte {
 	}
 	cs.persistScript = w.Bytes()
 	return cs.persistScript
+}
+
+// GetPostPersistScript returns VM script calling "postPersist" method of some native contracts.
+func (cs *Contracts) GetPostPersistScript() []byte {
+	if cs.postPersistScript != nil {
+		return cs.postPersistScript
+	}
+	w := io.NewBufBinWriter()
+	for i := range cs.Contracts {
+		md := cs.Contracts[i].Metadata()
+		// Not every contract is persisted:
+		// https://github.com/neo-project/neo/blob/master/src/neo/Ledger/Blockchain.cs#L103
+		if md.ContractID == policyContractID || md.ContractID == gasContractID {
+			continue
+		}
+		emit.Int(w.BinWriter, 0)
+		emit.Opcode(w.BinWriter, opcode.NEWARRAY)
+		emit.String(w.BinWriter, "postPersist")
+		emit.AppCall(w.BinWriter, md.Hash)
+		emit.Opcode(w.BinWriter, opcode.DROP)
+	}
+	cs.postPersistScript = w.Bytes()
+	return cs.postPersistScript
+}
+
+func postPersistBase(ic *interop.Context) error {
+	if ic.Trigger != trigger.System {
+		return errors.New("'postPersist' should be trigered by system")
+	}
+	return nil
 }

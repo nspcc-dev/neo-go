@@ -124,6 +124,10 @@ func newPolicy() *Policy {
 	desc = newDescriptor("onPersist", smartcontract.VoidType)
 	md = newMethodAndPrice(getOnPersistWrapper(p.OnPersist), 0, smartcontract.AllowModifyStates)
 	p.AddMethod(md, desc, false)
+
+	desc = newDescriptor("postPersist", smartcontract.VoidType)
+	md = newMethodAndPrice(getOnPersistWrapper(postPersistBase), 0, smartcontract.AllowModifyStates)
+	p.AddMethod(md, desc, false)
 	return p
 }
 

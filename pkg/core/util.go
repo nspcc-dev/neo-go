@@ -123,14 +123,6 @@ func getNextConsensusAddress(validators []*keys.PublicKey) (val util.Uint160, er
 	return hash.Hash160(raw), nil
 }
 
-func calculateUtilityAmount() util.Fixed8 {
-	sum := 0
-	for i := 0; i < len(genAmount); i++ {
-		sum += genAmount[i]
-	}
-	return util.Fixed8FromInt64(int64(sum * decrementInterval))
-}
-
 // headerSliceReverse reverses the given slice of *Header.
 func headerSliceReverse(dest []*block.Header) {
 	for i, j := 0, len(dest)-1; i < j; i, j = i+1, j-1 {

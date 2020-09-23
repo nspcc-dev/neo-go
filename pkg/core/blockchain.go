@@ -57,9 +57,7 @@ var (
 	ErrInvalidBlockIndex error = errors.New("invalid block index")
 )
 var (
-	genAmount         = []int{6, 5, 4, 3, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}
-	decrementInterval = 2000000
-	persistInterval   = 1 * time.Second
+	persistInterval = 1 * time.Second
 )
 
 // Blockchain represents the blockchain. It maintans internal state representing
@@ -97,9 +95,6 @@ type Blockchain struct {
 
 	// Number of headers stored in the chain file.
 	storedHeaderCount uint32
-
-	generationAmount  []int
-	decrementInterval int
 
 	// Header hashes list with associated lock.
 	headerHashesLock sync.RWMutex
@@ -161,9 +156,6 @@ func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration, log *zap.L
 		events:      make(chan bcEvent),
 		subCh:       make(chan interface{}),
 		unsubCh:     make(chan interface{}),
-
-		generationAmount:  genAmount,
-		decrementInterval: decrementInterval,
 
 		contracts: *native.NewContracts(),
 	}
@@ -373,6 +365,19 @@ func (bc *Blockchain) notificationDispatcher() {
 						ch <- tx
 					}
 				}
+
+				aer = event.appExecResults[aerIdx]
+				if !aer.TxHash.Equals(event.block.Hash()) {
+					panic("inconsistent application execution results")
+				}
+				for ch := range executionFeed {
+					ch <- aer
+				}
+				for i := range aer.Events {
+					for ch := range notificationFeed {
+						ch <- &aer.Events[i]
+					}
+				}
 			}
 			for ch := range blockFeed {
 				ch <- event.block
@@ -536,7 +541,7 @@ func (bc *Blockchain) GetStateRoot(height uint32) (*state.MPTRootState, error) {
 func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error {
 	cache := dao.NewCached(bc.dao)
 	writeBuf := io.NewBufBinWriter()
-	appExecResults := make([]*state.AppExecResult, 0, 1+len(block.Transactions))
+	appExecResults := make([]*state.AppExecResult, 0, 2+len(block.Transactions))
 	if err := cache.StoreAsBlock(block, writeBuf); err != nil {
 		return err
 	}
@@ -548,28 +553,12 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 	writeBuf.Reset()
 
 	if block.Index > 0 {
-		systemInterop := bc.newInteropContext(trigger.System, cache, block, nil)
-		v := systemInterop.SpawnVM()
-		v.LoadScriptWithFlags(bc.contracts.GetPersistScript(), smartcontract.AllowModifyStates|smartcontract.AllowCall)
-		v.SetPriceGetter(getPrice)
-		if err := v.Run(); err != nil {
-			return fmt.Errorf("onPersist run failed: %w", err)
-		} else if _, err := systemInterop.DAO.Persist(); err != nil {
-			return fmt.Errorf("can't save onPersist changes: %w", err)
-		}
-		for i := range systemInterop.Notifications {
-			bc.handleNotification(&systemInterop.Notifications[i], cache, block, block.Hash())
-		}
-		aer := &state.AppExecResult{
-			TxHash:      block.Hash(), // application logs can be retrieved by block hash
-			Trigger:     trigger.System,
-			VMState:     v.State(),
-			GasConsumed: v.GasConsumed(),
-			Stack:       v.Estack().ToArray(),
-			Events:      systemInterop.Notifications,
+		aer, err := bc.runPersist(bc.contracts.GetPersistScript(), block, cache)
+		if err != nil {
+			return fmt.Errorf("onPersist failed: %w", err)
 		}
 		appExecResults = append(appExecResults, aer)
-		err := cache.PutAppExecResult(aer, writeBuf)
+		err = cache.PutAppExecResult(aer, writeBuf)
 		if err != nil {
 			return fmt.Errorf("failed to store onPersist exec result: %w", err)
 		}
@@ -619,6 +608,17 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 		writeBuf.Reset()
 	}
 
+	aer, err := bc.runPersist(bc.contracts.GetPostPersistScript(), block, cache)
+	if err != nil {
+		return fmt.Errorf("postPersist failed: %w", err)
+	}
+	appExecResults = append(appExecResults, aer)
+	err = cache.PutAppExecResult(aer, writeBuf)
+	if err != nil {
+		return fmt.Errorf("failed to store postPersist exec result: %w", err)
+	}
+	writeBuf.Reset()
+
 	root := bc.dao.MPT.StateRoot()
 	var prevHash util.Uint256
 	if block.Index > 0 {
@@ -628,7 +628,7 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 		}
 		prevHash = hash.DoubleSha256(prev.GetSignedPart())
 	}
-	err := bc.AddStateRoot(&state.MPTRoot{
+	err = bc.AddStateRoot(&state.MPTRoot{
 		MPTRootBase: state.MPTRootBase{
 			Index:    block.Index,
 			PrevHash: prevHash,
@@ -670,6 +670,29 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 		bc.events <- bcEvent{block, appExecResults}
 	}
 	return nil
+}
+
+func (bc *Blockchain) runPersist(script []byte, block *block.Block, cache *dao.Cached) (*state.AppExecResult, error) {
+	systemInterop := bc.newInteropContext(trigger.System, cache, block, nil)
+	v := systemInterop.SpawnVM()
+	v.LoadScriptWithFlags(script, smartcontract.AllowModifyStates|smartcontract.AllowCall)
+	v.SetPriceGetter(getPrice)
+	if err := v.Run(); err != nil {
+		return nil, fmt.Errorf("VM has failed: %w", err)
+	} else if _, err := systemInterop.DAO.Persist(); err != nil {
+		return nil, fmt.Errorf("can't save changes: %w", err)
+	}
+	for i := range systemInterop.Notifications {
+		bc.handleNotification(&systemInterop.Notifications[i], cache, block, block.Hash())
+	}
+	return &state.AppExecResult{
+		TxHash:      block.Hash(), // application logs can be retrieved by block hash
+		Trigger:     trigger.System,
+		VMState:     v.State(),
+		GasConsumed: v.GasConsumed(),
+		Stack:       v.Estack().ToArray(),
+		Events:      systemInterop.Notifications,
+	}, nil
 }
 
 func (bc *Blockchain) handleNotification(note *state.NotificationEvent, d *dao.Cached, b *block.Block, h util.Uint256) {
@@ -1083,36 +1106,11 @@ func (bc *Blockchain) UnsubscribeFromExecutions(ch chan<- *state.AppExecResult) 
 }
 
 // CalculateClaimable calculates the amount of GAS generated by owning specified
-// amount of NEO between specified blocks. The amount of NEO being passed is in
-// its natural non-divisible form (1 NEO as 1, 2 NEO as 2, no multiplication by
-// 10⁸ is needed as for Fixed8).
+// amount of NEO between specified blocks.
 func (bc *Blockchain) CalculateClaimable(value *big.Int, startHeight, endHeight uint32) *big.Int {
-	var amount int64
-	di := uint32(bc.decrementInterval)
-
-	ustart := startHeight / di
-	if genSize := uint32(len(bc.generationAmount)); ustart < genSize {
-		uend := endHeight / di
-		iend := endHeight % di
-		if uend >= genSize {
-			uend = genSize - 1
-			iend = di
-		} else if iend == 0 {
-			uend--
-			iend = di
-		}
-
-		istart := startHeight % di
-		for ustart < uend {
-			amount += int64(di-istart) * int64(bc.generationAmount[ustart])
-			ustart++
-			istart = 0
-		}
-
-		amount += int64(iend-istart) * int64(bc.generationAmount[ustart])
-	}
-
-	return new(big.Int).Mul(big.NewInt(amount), value)
+	ic := bc.newInteropContext(trigger.System, bc.dao, nil, nil)
+	res, _ := bc.contracts.NEO.CalculateBonus(ic, value, startHeight, endHeight)
+	return res
 }
 
 // FeePerByte returns transaction network fee per byte.
@@ -1245,10 +1243,7 @@ func (bc *Blockchain) verifyTxAttributes(tx *transaction.Transaction) error {
 	for i := range tx.Attributes {
 		switch tx.Attributes[i].Type {
 		case transaction.HighPriority:
-			pubs, err := bc.contracts.NEO.GetCommitteeMembers(bc, bc.dao)
-			if err != nil {
-				return err
-			}
+			pubs := bc.contracts.NEO.GetCommitteeMembers()
 			s, err := smartcontract.CreateMajorityMultiSigRedeemScript(pubs)
 			if err != nil {
 				return err
@@ -1409,22 +1404,19 @@ func (bc *Blockchain) GetStandByCommittee() keys.PublicKeys {
 
 // GetCommittee returns the sorted list of public keys of nodes in committee.
 func (bc *Blockchain) GetCommittee() (keys.PublicKeys, error) {
-	pubs, err := bc.contracts.NEO.GetCommitteeMembers(bc, bc.dao)
-	if err != nil {
-		return nil, err
-	}
+	pubs := bc.contracts.NEO.GetCommitteeMembers()
 	sort.Sort(pubs)
 	return pubs, nil
 }
 
 // GetValidators returns current validators.
 func (bc *Blockchain) GetValidators() ([]*keys.PublicKey, error) {
-	return bc.contracts.NEO.GetValidatorsInternal(bc, bc.dao)
+	return bc.contracts.NEO.ComputeNextBlockValidators(bc, bc.dao)
 }
 
 // GetNextBlockValidators returns next block validators.
 func (bc *Blockchain) GetNextBlockValidators() ([]*keys.PublicKey, error) {
-	return bc.contracts.NEO.GetNextBlockValidatorsInternal(bc, bc.dao)
+	return bc.contracts.NEO.GetNextBlockValidatorsInternal(), nil
 }
 
 // GetEnrollments returns all registered validators.

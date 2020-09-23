@@ -177,7 +177,7 @@ func TestCreateBasicChain(t *testing.T) {
 	priv0 := testchain.PrivateKeyByID(0)
 	priv0ScriptHash := priv0.GetScriptHash()
 
-	require.Equal(t, big.NewInt(0), bc.GetUtilityTokenBalance(priv0ScriptHash))
+	require.Equal(t, big.NewInt(2500_0000), bc.GetUtilityTokenBalance(priv0ScriptHash)) // gas bounty
 	// Move some NEO to one simple account.
 	txMoveNeo := newNEP5Transfer(neoHash, neoOwner, priv0ScriptHash, neoAmount)
 	txMoveNeo.ValidUntilBlock = validUntilBlock
