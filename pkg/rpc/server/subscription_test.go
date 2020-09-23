@@ -100,7 +100,7 @@ func TestSubscriptions(t *testing.T) {
 		resp := getNotification(t, respMsgs)
 		require.Equal(t, response.ExecutionEventID, resp.Event)
 		for {
-			resp := getNotification(t, respMsgs)
+			resp = getNotification(t, respMsgs)
 			if resp.Event != response.NotificationEventID {
 				break
 			}
