@@ -365,6 +365,19 @@ func (bc *Blockchain) notificationDispatcher() {
 						ch <- tx
 					}
 				}
+
+				aer = event.appExecResults[aerIdx]
+				if !aer.TxHash.Equals(event.block.Hash()) {
+					panic("inconsistent application execution results")
+				}
+				for ch := range executionFeed {
+					ch <- aer
+				}
+				for i := range aer.Events {
+					for ch := range notificationFeed {
+						ch <- &aer.Events[i]
+					}
+				}
 			}
 			for ch := range blockFeed {
 				ch <- event.block
@@ -528,7 +541,7 @@ func (bc *Blockchain) GetStateRoot(height uint32) (*state.MPTRootState, error) {
 func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error {
 	cache := dao.NewCached(bc.dao)
 	writeBuf := io.NewBufBinWriter()
-	appExecResults := make([]*state.AppExecResult, 0, 1+len(block.Transactions))
+	appExecResults := make([]*state.AppExecResult, 0, 2+len(block.Transactions))
 	if err := cache.StoreAsBlock(block, writeBuf); err != nil {
 		return err
 	}
@@ -540,28 +553,12 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 	writeBuf.Reset()
 
 	if block.Index > 0 {
-		systemInterop := bc.newInteropContext(trigger.System, cache, block, nil)
-		v := systemInterop.SpawnVM()
-		v.LoadScriptWithFlags(bc.contracts.GetPersistScript(), smartcontract.AllowModifyStates|smartcontract.AllowCall)
-		v.SetPriceGetter(getPrice)
-		if err := v.Run(); err != nil {
-			return fmt.Errorf("onPersist run failed: %w", err)
-		} else if _, err := systemInterop.DAO.Persist(); err != nil {
-			return fmt.Errorf("can't save onPersist changes: %w", err)
-		}
-		for i := range systemInterop.Notifications {
-			bc.handleNotification(&systemInterop.Notifications[i], cache, block, block.Hash())
-		}
-		aer := &state.AppExecResult{
-			TxHash:      block.Hash(), // application logs can be retrieved by block hash
-			Trigger:     trigger.System,
-			VMState:     v.State(),
-			GasConsumed: v.GasConsumed(),
-			Stack:       v.Estack().ToArray(),
-			Events:      systemInterop.Notifications,
+		aer, err := bc.runPersist(bc.contracts.GetPersistScript(), block, cache)
+		if err != nil {
+			return fmt.Errorf("onPersist failed: %w", err)
 		}
 		appExecResults = append(appExecResults, aer)
-		err := cache.PutAppExecResult(aer, writeBuf)
+		err = cache.PutAppExecResult(aer, writeBuf)
 		if err != nil {
 			return fmt.Errorf("failed to store onPersist exec result: %w", err)
 		}
@@ -611,6 +608,17 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 		writeBuf.Reset()
 	}
 
+	aer, err := bc.runPersist(bc.contracts.GetPostPersistScript(), block, cache)
+	if err != nil {
+		return fmt.Errorf("postPersist failed: %w", err)
+	}
+	appExecResults = append(appExecResults, aer)
+	err = cache.PutAppExecResult(aer, writeBuf)
+	if err != nil {
+		return fmt.Errorf("failed to store postPersist exec result: %w", err)
+	}
+	writeBuf.Reset()
+
 	root := bc.dao.MPT.StateRoot()
 	var prevHash util.Uint256
 	if block.Index > 0 {
@@ -620,7 +628,7 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 		}
 		prevHash = hash.DoubleSha256(prev.GetSignedPart())
 	}
-	err := bc.AddStateRoot(&state.MPTRoot{
+	err = bc.AddStateRoot(&state.MPTRoot{
 		MPTRootBase: state.MPTRootBase{
 			Index:    block.Index,
 			PrevHash: prevHash,
@@ -662,6 +670,29 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 		bc.events <- bcEvent{block, appExecResults}
 	}
 	return nil
+}
+
+func (bc *Blockchain) runPersist(script []byte, block *block.Block, cache *dao.Cached) (*state.AppExecResult, error) {
+	systemInterop := bc.newInteropContext(trigger.System, cache, block, nil)
+	v := systemInterop.SpawnVM()
+	v.LoadScriptWithFlags(script, smartcontract.AllowModifyStates|smartcontract.AllowCall)
+	v.SetPriceGetter(getPrice)
+	if err := v.Run(); err != nil {
+		return nil, fmt.Errorf("VM has failed: %w", err)
+	} else if _, err := systemInterop.DAO.Persist(); err != nil {
+		return nil, fmt.Errorf("can't save changes: %w", err)
+	}
+	for i := range systemInterop.Notifications {
+		bc.handleNotification(&systemInterop.Notifications[i], cache, block, block.Hash())
+	}
+	return &state.AppExecResult{
+		TxHash:      block.Hash(), // application logs can be retrieved by block hash
+		Trigger:     trigger.System,
+		VMState:     v.State(),
+		GasConsumed: v.GasConsumed(),
+		Stack:       v.Estack().ToArray(),
+		Events:      systemInterop.Notifications,
+	}, nil
 }
 
 func (bc *Blockchain) handleNotification(note *state.NotificationEvent, d *dao.Cached, b *block.Block, h util.Uint256) {

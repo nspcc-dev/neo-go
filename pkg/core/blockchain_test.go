@@ -588,7 +588,7 @@ func TestSubscriptions(t *testing.T) {
 	require.NoError(t, err)
 	require.Eventually(t, func() bool { return len(blockCh) != 0 }, time.Second, 10*time.Millisecond)
 	assert.Len(t, notificationCh, 1) // validator bounty
-	assert.Len(t, executionCh, 1)
+	assert.Len(t, executionCh, 2)
 	assert.Empty(t, txCh)
 
 	b := <-blockCh
@@ -596,6 +596,8 @@ func TestSubscriptions(t *testing.T) {
 	assert.Empty(t, blockCh)
 
 	aer := <-executionCh
+	assert.Equal(t, b.Hash(), aer.TxHash)
+	aer = <-executionCh
 	assert.Equal(t, b.Hash(), aer.TxHash)
 
 	notif := <-notificationCh
@@ -669,10 +671,14 @@ func TestSubscriptions(t *testing.T) {
 	}
 	assert.Empty(t, txCh)
 	assert.Len(t, notificationCh, 1)
-	assert.Empty(t, executionCh)
+	assert.Len(t, executionCh, 1)
 
 	notif = <-notificationCh
 	require.Equal(t, bc.UtilityTokenHash(), notif.ScriptHash)
+
+	exec = <-executionCh
+	require.Equal(t, b.Hash(), exec.TxHash)
+	require.Equal(t, exec.VMState, vm.HaltState)
 
 	bc.UnsubscribeFromBlocks(blockCh)
 	bc.UnsubscribeFromTransactions(txCh)

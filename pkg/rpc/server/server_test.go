@@ -1075,7 +1075,7 @@ func checkNep5Balances(t *testing.T, e *executor, acc interface{}) {
 			},
 			{
 				Asset:       e.chain.UtilityTokenHash(),
-				Amount:      "799.34495030",
+				Amount:      "799.59495030",
 				LastUpdated: 7,
 			}},
 		Address: testchain.PrivateKeyByID(0).GetScriptHash().StringLE(),
@@ -1131,6 +1131,9 @@ func checkNep5TransfersAux(t *testing.T, e *executor, acc interface{}, sent, rcv
 	require.Equal(t, 2, len(blockReceiveGAS.Transactions))
 	txReceiveNEO := blockReceiveGAS.Transactions[0]
 	txReceiveGAS := blockReceiveGAS.Transactions[1]
+
+	blockGASBounty0, err := e.chain.GetBlock(e.chain.GetHeaderHash(0))
+	require.NoError(t, err)
 
 	// These are laid out here explicitly for 2 purposes:
 	//  * to be able to reference any particular event for paging
@@ -1259,6 +1262,14 @@ func checkNep5TransfersAux(t *testing.T, e *executor, acc interface{}, sent, rcv
 				Index:       1,
 				NotifyIndex: 0,
 				TxHash:      txReceiveNEO.Hash(),
+			},
+			{
+				Timestamp: blockGASBounty0.Timestamp,
+				Asset:     e.chain.UtilityTokenHash(),
+				Address:   "",
+				Amount:    "0.25000000",
+				Index:     0,
+				TxHash:    blockGASBounty0.Hash(),
 			},
 		},
 		Address: testchain.PrivateKeyByID(0).Address(),

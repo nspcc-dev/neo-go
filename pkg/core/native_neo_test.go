@@ -212,16 +212,16 @@ func TestNEO_CommitteeBountyOnPersist(t *testing.T) {
 		hs[i] = testchain.PrivateKeyByID(i).GetScriptHash()
 	}
 
-	bs := make(map[int]int64)
+	const singleBounty = 25000000
+	bs := map[int]int64{0: singleBounty}
 	checkBalances := func() {
 		for i := 0; i < testchain.CommitteeSize(); i++ {
-			require.EqualValues(t, bs[i], bc.GetUtilityTokenBalance(hs[i]).Int64())
+			require.EqualValues(t, bs[i], bc.GetUtilityTokenBalance(hs[i]).Int64(), i)
 		}
 	}
-
 	for i := 0; i < testchain.CommitteeSize()*2; i++ {
 		require.NoError(t, bc.AddBlock(bc.newBlock()))
-		bs[(i+1)%testchain.CommitteeSize()] += 25000000
+		bs[(i+1)%testchain.CommitteeSize()] += singleBounty
 		checkBalances()
 	}
 }

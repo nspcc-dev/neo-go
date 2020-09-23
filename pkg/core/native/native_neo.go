@@ -90,6 +90,7 @@ func NewNEO() *NEO {
 	nep5.decimals = 0
 	nep5.factor = 1
 	nep5.onPersist = chainOnPersist(nep5.OnPersist, n.OnPersist)
+	nep5.postPersist = chainOnPersist(nep5.postPersist, n.PostPersist)
 	nep5.incBalance = n.increaseBalance
 	nep5.ContractID = neoContractID
 
@@ -102,6 +103,10 @@ func NewNEO() *NEO {
 	onp := n.Methods["onPersist"]
 	onp.Func = getOnPersistWrapper(n.onPersist)
 	n.Methods["onPersist"] = onp
+
+	pp := n.Methods["postPersist"]
+	pp.Func = getOnPersistWrapper(n.postPersist)
+	n.Methods["postPersist"] = pp
 
 	desc := newDescriptor("unclaimedGas", smartcontract.IntegerType,
 		manifest.NewParameter("account", smartcontract.Hash160Type),
@@ -226,7 +231,11 @@ func (n *NEO) OnPersist(ic *interop.Context) error {
 			return err
 		}
 	}
+	return nil
+}
 
+// PostPersist implements Contract interface.
+func (n *NEO) PostPersist(ic *interop.Context) error {
 	gas, err := n.GetGASPerBlock(ic, ic.Block.Index)
 	if err != nil {
 		return err
