@@ -1594,13 +1594,24 @@ func (c *codegen) emitConvert(typ stackitem.Type) {
 
 func (c *codegen) convertByteArray(lit *ast.CompositeLit) {
 	buf := make([]byte, len(lit.Elts))
+	varIndices := []int{}
 	for i := 0; i < len(lit.Elts); i++ {
 		t := c.typeAndValueOf(lit.Elts[i])
-		val, _ := constant.Int64Val(t.Value)
-		buf[i] = byte(val)
+		if t.Value != nil {
+			val, _ := constant.Int64Val(t.Value)
+			buf[i] = byte(val)
+		} else {
+			varIndices = append(varIndices, i)
+		}
 	}
 	emit.Bytes(c.prog.BinWriter, buf)
 	c.emitConvert(stackitem.BufferT)
+	for _, i := range varIndices {
+		emit.Opcode(c.prog.BinWriter, opcode.DUP)
+		emit.Int(c.prog.BinWriter, int64(i))
+		ast.Walk(c, lit.Elts[i])
+		emit.Opcode(c.prog.BinWriter, opcode.SETITEM)
+	}
 }
 
 func (c *codegen) convertMap(lit *ast.CompositeLit) {
