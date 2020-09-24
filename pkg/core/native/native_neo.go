@@ -35,6 +35,8 @@ type NEO struct {
 	// (every 28 blocks for mainnet). It's value
 	// is always equal to value stored by `prefixCommittee`.
 	committee atomic.Value
+	// committeeHash contains script hash of the committee.
+	committeeHash atomic.Value
 }
 
 // keyWithVotes is a serialized key with votes balance. It's not deserialized
@@ -99,6 +101,7 @@ func NewNEO() *NEO {
 	n.nextValidators.Store(keys.PublicKeys(nil))
 	n.validators.Store(keys.PublicKeys(nil))
 	n.committee.Store(keys.PublicKeys(nil))
+	n.committeeHash.Store(util.Uint160{})
 
 	onp := n.Methods["onPersist"]
 	onp.Func = getOnPersistWrapper(n.onPersist)
@@ -166,9 +169,14 @@ func (n *NEO) Initialize(ic *interop.Context) error {
 
 	committee := ic.Chain.GetStandByCommittee()
 	n.committee.Store(committee)
+	script, err := smartcontract.CreateMajorityMultiSigRedeemScript(committee.Copy())
+	if err != nil {
+		return err
+	}
+	n.committeeHash.Store(hash.Hash160(script))
 	n.updateNextValidators(committee, ic.Chain)
 
-	err := ic.DAO.PutStorageItem(n.ContractID, prefixCommittee, &state.StorageItem{Value: committee.Bytes()})
+	err = ic.DAO.PutStorageItem(n.ContractID, prefixCommittee, &state.StorageItem{Value: committee.Bytes()})
 	if err != nil {
 		return err
 	}
@@ -212,6 +220,11 @@ func (n *NEO) updateCommittee(ic *interop.Context) error {
 		return err
 	}
 	n.committee.Store(committee)
+	script, err := smartcontract.CreateMajorityMultiSigRedeemScript(committee.Copy())
+	if err != nil {
+		return err
+	}
+	n.committeeHash.Store(hash.Hash160(script))
 	n.updateNextValidators(committee, ic.Chain)
 	n.votesChanged.Store(false)
 	si := &state.StorageItem{Value: committee.Bytes()}
@@ -332,13 +345,8 @@ func (n *NEO) GetGASPerBlock(ic *interop.Context, index uint32) (*big.Int, error
 }
 
 // GetCommitteeAddress returns address of the committee.
-func (n *NEO) GetCommitteeAddress(bc blockchainer.Blockchainer, d dao.DAO) (util.Uint160, error) {
-	pubs := n.GetCommitteeMembers()
-	script, err := smartcontract.CreateMajorityMultiSigRedeemScript(pubs)
-	if err != nil {
-		return util.Uint160{}, err
-	}
-	return hash.Hash160(script), nil
+func (n *NEO) GetCommitteeAddress() util.Uint160 {
+	return n.committeeHash.Load().(util.Uint160)
 }
 
 func (n *NEO) setGASPerBlock(ic *interop.Context, args []stackitem.Item) stackitem.Item {
@@ -355,10 +363,7 @@ func (n *NEO) SetGASPerBlock(ic *interop.Context, index uint32, gas *big.Int) (b
 	if gas.Sign() == -1 || gas.Cmp(big.NewInt(10*GASFactor)) == 1 {
 		return false, errors.New("invalid value for GASPerBlock")
 	}
-	h, err := n.GetCommitteeAddress(ic.Chain, ic.DAO)
-	if err != nil {
-		return false, err
-	}
+	h := n.GetCommitteeAddress()
 	ok, err := runtime.CheckHashedWitness(ic, h)
 	if err != nil || !ok {
 		return ok, err
