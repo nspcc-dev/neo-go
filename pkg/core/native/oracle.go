@@ -36,6 +36,8 @@ type Oracle struct {
 	nodesChanged atomic.Value
 	// nodes contains cached list of oracle nodes.
 	nodes atomic.Value
+	// oracleHash contains cached oracle script hash.
+	oracleHash atomic.Value
 }
 
 const (
@@ -338,6 +340,15 @@ func (o *Oracle) GetOracleNodes() keys.PublicKeys {
 	return o.nodes.Load().(keys.PublicKeys).Copy()
 }
 
+// GetScriptHash returns script hash or oracle nodes.
+func (o *Oracle) GetScriptHash() (util.Uint160, error) {
+	h := o.oracleHash.Load()
+	if h == nil {
+		return util.Uint160{}, storage.ErrKeyNotFound
+	}
+	return h.(util.Uint160), nil
+}
+
 func (o *Oracle) setOracleNodes(ic *interop.Context, _ []stackitem.Item) stackitem.Item {
 	var pubs keys.PublicKeys
 	err := o.SetOracleNodes(ic, pubs)
@@ -422,6 +433,8 @@ func (o *Oracle) OnPersistEnd(d dao.DAO) {
 	ns := new(NodeList)
 	_ = o.getSerializableFromDAO(d, prefixNodeList, ns)
 	o.nodes.Store(keys.PublicKeys(*ns))
+	script, _ := smartcontract.CreateMajorityMultiSigRedeemScript(keys.PublicKeys(*ns).Copy())
+	o.oracleHash.Store(hash.Hash160(script))
 	o.nodesChanged.Store(false)
 	return
 }
