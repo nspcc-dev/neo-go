@@ -1,6 +1,7 @@
 package core
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"math/big"
@@ -1251,6 +1252,34 @@ func (bc *Blockchain) verifyTxAttributes(tx *transaction.Transaction) error {
 				}
 			}
 			return fmt.Errorf("%w: high priority tx is not signed by committee", ErrInvalidAttribute)
+		case transaction.OracleResponseT:
+			h, err := bc.contracts.Oracle.GetScriptHash()
+			if err != nil {
+				return fmt.Errorf("%w: %v", ErrInvalidAttribute, err)
+			}
+			hasOracle := false
+			for i := range tx.Signers {
+				if tx.Signers[i].Scopes != transaction.FeeOnly {
+					return fmt.Errorf("%w: oracle tx has invalid signer scope", ErrInvalidAttribute)
+				}
+				if tx.Signers[i].Account.Equals(h) {
+					hasOracle = true
+				}
+			}
+			if !hasOracle {
+				return fmt.Errorf("%w: oracle tx is not signed by oracle nodes", ErrInvalidAttribute)
+			}
+			if !bytes.Equal(tx.Script, native.GetOracleResponseScript()) {
+				return fmt.Errorf("%w: oracle tx has invalid script", ErrInvalidAttribute)
+			}
+			resp := tx.Attributes[i].Value.(*transaction.OracleResponse)
+			req, err := bc.contracts.Oracle.GetRequestInternal(bc.dao, resp.ID)
+			if err != nil {
+				return fmt.Errorf("%w: oracle tx points to invalid request: %v", ErrInvalidAttribute, err)
+			}
+			if uint64(tx.NetworkFee+tx.SystemFee) < req.GasForResponse {
+				return fmt.Errorf("%w: oracle tx has insufficient gas", ErrInvalidAttribute)
+			}
 		}
 	}
 	return nil

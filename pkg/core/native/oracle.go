@@ -313,21 +313,26 @@ func (o *Oracle) RequestInternal(ic *interop.Context, url, filter, cb string, us
 		CallbackMethod:   cb,
 		UserData:         data,
 	}
+	return o.PutRequestInternal(id, req, ic.DAO)
+}
+
+// PutRequestInternal puts oracle request with the specified id to d.
+func (o *Oracle) PutRequestInternal(id uint64, req *OracleRequest, d dao.DAO) error {
 	reqItem := &state.StorageItem{Value: req.Bytes()}
 	reqKey := makeRequestKey(id)
-	if err = ic.DAO.PutStorageItem(o.ContractID, reqKey, reqItem); err != nil {
+	if err := d.PutStorageItem(o.ContractID, reqKey, reqItem); err != nil {
 		return err
 	}
 
 	// Add request ID to the id list.
 	lst := new(IDList)
-	key := makeIDListKey(url)
-	if err := o.getSerializableFromDAO(ic.DAO, key, lst); err != nil && !errors.Is(err, storage.ErrKeyNotFound) {
+	key := makeIDListKey(req.URL)
+	if err := o.getSerializableFromDAO(d, key, lst); err != nil && !errors.Is(err, storage.ErrKeyNotFound) {
 		return err
 	}
 	*lst = append(*lst, id)
-	si = &state.StorageItem{Value: lst.Bytes()}
-	return ic.DAO.PutStorageItem(o.ContractID, key, si)
+	si := &state.StorageItem{Value: lst.Bytes()}
+	return d.PutStorageItem(o.ContractID, key, si)
 }
 
 func (o *Oracle) getOracleNodes(ic *interop.Context, _ []stackitem.Item) stackitem.Item {
