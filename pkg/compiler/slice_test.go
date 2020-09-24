@@ -321,6 +321,15 @@ var sliceTestCases = []testCase{
 		}`,
 		[]byte("string"),
 	},
+	{
+		"literal slice with function call",
+		`package foo
+		func fn() byte { return 't' }
+		func Main() []byte {
+			return []byte{'s', fn(), 'r'}
+		}`,
+		[]byte("str"),
+	},
 }
 
 func TestSliceOperations(t *testing.T) {
