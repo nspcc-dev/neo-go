@@ -141,6 +141,7 @@ func TestOracle_Request(t *testing.T) {
 	ic := bc.newInteropContext(trigger.Application, bc.dao, nil, tx)
 	err = orc.SetOracleNodes(ic, keys.PublicKeys{pub})
 	require.NoError(t, err)
+	orc.OnPersistEnd(ic.DAO)
 
 	tx = transaction.New(netmode.UnitTestNet, native.GetOracleResponseScript(), 0)
 	ic.Tx = tx
@@ -223,11 +224,10 @@ func TestOracle_SetOracleNodes(t *testing.T) {
 	ic := bc.newInteropContext(trigger.System, bc.dao, nil, tx)
 	ic.VM = vm.New()
 
-	pubs, err := orc.GetOracleNodes(ic.DAO)
-	require.NoError(t, err)
+	pubs := orc.GetOracleNodes()
 	require.Equal(t, 0, len(pubs))
 
-	err = orc.SetOracleNodes(ic, keys.PublicKeys{})
+	err := orc.SetOracleNodes(ic, keys.PublicKeys{})
 	require.True(t, errors.Is(err, native.ErrEmptyNodeList), "got: %v", err)
 
 	priv, err := keys.NewPrivateKey()
@@ -239,8 +239,8 @@ func TestOracle_SetOracleNodes(t *testing.T) {
 
 	setSigner(tx, testchain.CommitteeScriptHash())
 	require.NoError(t, orc.SetOracleNodes(ic, keys.PublicKeys{pub}))
+	orc.OnPersistEnd(ic.DAO)
 
-	pubs, err = orc.GetOracleNodes(ic.DAO)
-	require.NoError(t, err)
+	pubs = orc.GetOracleNodes()
 	require.Equal(t, keys.PublicKeys{pub}, pubs)
 }

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"math/big"
 	"sort"
+	"sync/atomic"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
@@ -30,6 +31,11 @@ type Oracle struct {
 	interop.ContractMD
 	GAS *GAS
 	NEO *NEO
+
+	// nodesChanged is true if `SetOracleNodes` was called.
+	nodesChanged atomic.Value
+	// nodes contains cached list of oracle nodes.
+	nodes atomic.Value
 }
 
 const (
@@ -165,10 +171,7 @@ func (o *Oracle) PostPersist(ic *interop.Context) error {
 		}
 
 		if nodes == nil {
-			nodes, err = o.GetOracleNodes(ic.DAO)
-			if err != nil {
-				return err
-			}
+			nodes = o.GetOracleNodes()
 			reward = make([]big.Int, len(nodes))
 		}
 
@@ -194,6 +197,8 @@ func (o *Oracle) Initialize(ic *interop.Context) error {
 	if err := ic.DAO.PutStorageItem(o.ContractID, prefixNodeList, si); err != nil {
 		return err
 	}
+	o.nodes.Store(keys.PublicKeys(nil))
+	o.nodesChanged.Store(false)
 	si = &state.StorageItem{Value: make([]byte, 8)} // uint64(0) LE
 	return ic.DAO.PutStorageItem(o.ContractID, prefixRequestID, si)
 }
@@ -324,17 +329,13 @@ func (o *Oracle) RequestInternal(ic *interop.Context, url, filter, cb string, us
 }
 
 func (o *Oracle) getOracleNodes(ic *interop.Context, _ []stackitem.Item) stackitem.Item {
-	pubs, err := o.GetOracleNodes(ic.DAO)
-	if err != nil {
-		panic(err)
-	}
+	pubs := o.GetOracleNodes()
 	return pubsToArray(pubs)
 }
 
 // GetOracleNodes returns public keys of oracle nodes.
-func (o *Oracle) GetOracleNodes(d dao.DAO) (keys.PublicKeys, error) {
-	ns := new(NodeList)
-	return keys.PublicKeys(*ns), o.getSerializableFromDAO(d, prefixNodeList, ns)
+func (o *Oracle) GetOracleNodes() keys.PublicKeys {
+	return o.nodes.Load().(keys.PublicKeys).Copy()
 }
 
 func (o *Oracle) setOracleNodes(ic *interop.Context, _ []stackitem.Item) stackitem.Item {
@@ -357,6 +358,7 @@ func (o *Oracle) SetOracleNodes(ic *interop.Context, pubs keys.PublicKeys) error
 	}
 
 	sort.Sort(pubs)
+	o.nodesChanged.Store(true)
 	si := &state.StorageItem{Value: NodeList(pubs).Bytes()}
 	return ic.DAO.PutStorageItem(o.ContractID, prefixNodeList, si)
 }
@@ -409,4 +411,17 @@ func (o *Oracle) getSerializableFromDAO(d dao.DAO, key []byte, item io.Serializa
 	r := io.NewBinReaderFromBuf(si.Value)
 	item.DecodeBinary(r)
 	return r.Err
+}
+
+// OnPersistEnd updates cached Oracle values if they've been changed
+func (o *Oracle) OnPersistEnd(d dao.DAO) {
+	if !o.nodesChanged.Load().(bool) {
+		return
+	}
+
+	ns := new(NodeList)
+	_ = o.getSerializableFromDAO(d, prefixNodeList, ns)
+	o.nodes.Store(keys.PublicKeys(*ns))
+	o.nodesChanged.Store(false)
+	return
 }
