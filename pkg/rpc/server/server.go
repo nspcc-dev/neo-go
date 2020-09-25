@@ -765,6 +765,42 @@ func (s *Server) contractIDFromParam(param *request.Param) (int32, *response.Err
 	return result, nil
 }
 
+// getContractScriptHashFromParam returns the contract script hash by hex contract hash, address, id or native contract name.
+func (s *Server) contractScriptHashFromParam(param *request.Param) (util.Uint160, *response.Error) {
+	var result util.Uint160
+	if param == nil {
+		return result, response.ErrInvalidParams
+	}
+	switch param.Type {
+	case request.StringT:
+		var err error
+		result, err = param.GetUint160FromAddressOrHex()
+		if err == nil {
+			return result, nil
+		}
+		name, err := param.GetString()
+		if err != nil {
+			return result, response.ErrInvalidParams
+		}
+		result, err = s.chain.GetNativeContractScriptHash(name)
+		if err != nil {
+			return result, response.NewRPCError("Unknown contract: querying by name is supported for native contracts only", "", nil)
+		}
+	case request.NumberT:
+		id, err := param.GetInt()
+		if err != nil {
+			return result, response.ErrInvalidParams
+		}
+		result, err = s.chain.GetContractScriptHash(int32(id))
+		if err != nil {
+			return result, response.NewRPCError("Unknown contract", "", err)
+		}
+	default:
+		return result, response.ErrInvalidParams
+	}
+	return result, nil
+}
+
 func (s *Server) getStorage(ps request.Params) (interface{}, *response.Error) {
 	id, rErr := s.contractIDFromParam(ps.Value(0))
 	if rErr == response.ErrUnknown {
@@ -828,11 +864,12 @@ func (s *Server) getTransactionHeight(ps request.Params) (interface{}, *response
 	return height, nil
 }
 
-// getContractState returns contract state (contract information, according to the contract script hash).
+// getContractState returns contract state (contract information, according to the contract script hash,
+// contract id or native contract name).
 func (s *Server) getContractState(reqParams request.Params) (interface{}, *response.Error) {
-	scriptHash, err := reqParams.ValueWithType(0, request.StringT).GetUint160FromHex()
+	scriptHash, err := s.contractScriptHashFromParam(reqParams.Value(0))
 	if err != nil {
-		return nil, response.ErrInvalidParams
+		return nil, err
 	}
 	cs := s.chain.GetContractState(scriptHash)
 	if cs == nil {

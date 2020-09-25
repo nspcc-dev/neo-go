@@ -77,6 +77,11 @@ Both methods also don't currently support arrays in function parameters.
 It's possible to call this method for any address with neo-go, unlike with C#
 node where it only works for addresses from opened wallet.
 
+##### `getcontractstate`
+
+It's possible to get non-native contract state by its ID, unlike with C# node where
+it only works for native contracts.
+
 ### Unsupported methods
 
 Methods listed down below are not going to be supported for various reasons

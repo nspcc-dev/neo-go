@@ -89,6 +89,9 @@ func (chain testChain) GetContractState(hash util.Uint160) *state.Contract {
 func (chain testChain) GetContractScriptHash(id int32) (util.Uint160, error) {
 	panic("TODO")
 }
+func (chain testChain) GetNativeContractScriptHash(name string) (util.Uint160, error) {
+	panic("TODO")
+}
 func (chain testChain) GetHeaderHash(int) util.Uint256 {
 	return util.Uint256{}
 }

@@ -2,6 +2,7 @@ package native
 
 import (
 	"errors"
+	"strings"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/io"
@@ -29,6 +30,17 @@ type Contracts struct {
 func (cs *Contracts) ByHash(h util.Uint160) interop.Contract {
 	for _, ctr := range cs.Contracts {
 		if ctr.Metadata().Hash.Equals(h) {
+			return ctr
+		}
+	}
+	return nil
+}
+
+// ByName returns native contract with the specified name.
+func (cs *Contracts) ByName(name string) interop.Contract {
+	name = strings.ToLower(name)
+	for _, ctr := range cs.Contracts {
+		if strings.ToLower(ctr.Metadata().Name) == name {
 			return ctr
 		}
 	}
