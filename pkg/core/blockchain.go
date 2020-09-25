@@ -1243,12 +1243,7 @@ func (bc *Blockchain) verifyTxAttributes(tx *transaction.Transaction) error {
 	for i := range tx.Attributes {
 		switch tx.Attributes[i].Type {
 		case transaction.HighPriority:
-			pubs := bc.contracts.NEO.GetCommitteeMembers()
-			s, err := smartcontract.CreateMajorityMultiSigRedeemScript(pubs)
-			if err != nil {
-				return err
-			}
-			h := hash.Hash160(s)
+			h := bc.contracts.NEO.GetCommitteeAddress()
 			for i := range tx.Signers {
 				if tx.Signers[i].Account.Equals(h) {
 					return nil
