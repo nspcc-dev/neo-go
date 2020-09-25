@@ -310,6 +310,26 @@ var sliceTestCases = []testCase{
 		`,
 		big.NewInt(2),
 	},
+	{
+		"literal byte-slice with variable values",
+		`package foo
+		const sym1 = 's'
+		func Main() []byte {
+			sym2 := byte('t')
+			sym4 := byte('i')
+			return []byte{sym1, sym2, 'r', sym4, 'n', 'g'}
+		}`,
+		[]byte("string"),
+	},
+	{
+		"literal slice with function call",
+		`package foo
+		func fn() byte { return 't' }
+		func Main() []byte {
+			return []byte{'s', fn(), 'r'}
+		}`,
+		[]byte("str"),
+	},
 }
 
 func TestSliceOperations(t *testing.T) {

@@ -136,6 +136,18 @@ func (c *funcScope) analyzeVoidCalls(node ast.Node) bool {
 			c.voidCalls[n] = true
 		}
 		return false
+	case *ast.CompositeLit:
+		for _, e := range n.Elts {
+			switch val := e.(type) {
+			case *ast.CallExpr: // slice
+				c.voidCalls[val] = false
+			case *ast.KeyValueExpr: // struct and map
+				ce, ok := val.Value.(*ast.CallExpr)
+				if ok {
+					c.voidCalls[ce] = false
+				}
+			}
+		}
 	}
 	return true
 }
