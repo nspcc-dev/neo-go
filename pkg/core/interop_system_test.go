@@ -8,6 +8,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/callback"
+	"github.com/nspcc-dev/neo-go/pkg/core/interop/contract"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/runtime"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
@@ -441,7 +442,7 @@ func TestContractCall(t *testing.T) {
 		ic.VM.Estack().PushVal(addArgs)
 		ic.VM.Estack().PushVal("add")
 		ic.VM.Estack().PushVal(h.BytesBE())
-		require.NoError(t, contractCall(ic))
+		require.NoError(t, contract.Call(ic))
 		require.NoError(t, ic.VM.Run())
 		require.Equal(t, 2, ic.VM.Estack().Len())
 		require.Equal(t, big.NewInt(3), ic.VM.Estack().Pop().Value())
@@ -454,7 +455,7 @@ func TestContractCall(t *testing.T) {
 		ic.VM.Estack().PushVal(addArgs)
 		ic.VM.Estack().PushVal("add")
 		ic.VM.Estack().PushVal(h.BytesBE())
-		require.Error(t, contractCallEx(ic))
+		require.Error(t, contract.CallEx(ic))
 	})
 
 	runInvalid := func(args ...interface{}) func(t *testing.T) {
@@ -466,7 +467,7 @@ func TestContractCall(t *testing.T) {
 			// interops can both return error and panic,
 			// we don't care which kind of error has occurred
 			require.Panics(t, func() {
-				err := contractCall(ic)
+				err := contract.Call(ic)
 				if err != nil {
 					panic(err)
 				}
@@ -491,7 +492,7 @@ func TestContractCall(t *testing.T) {
 			ic.VM.Estack().PushVal(stackitem.NewArray(nil))
 			ic.VM.Estack().PushVal("invalidReturn")
 			ic.VM.Estack().PushVal(h.BytesBE())
-			require.NoError(t, contractCall(ic))
+			require.NoError(t, contract.Call(ic))
 			require.Error(t, ic.VM.Run())
 		})
 		t.Run("Void", func(t *testing.T) {
@@ -499,7 +500,7 @@ func TestContractCall(t *testing.T) {
 			ic.VM.Estack().PushVal(stackitem.NewArray(nil))
 			ic.VM.Estack().PushVal("justReturn")
 			ic.VM.Estack().PushVal(h.BytesBE())
-			require.NoError(t, contractCall(ic))
+			require.NoError(t, contract.Call(ic))
 			require.NoError(t, ic.VM.Run())
 			require.Equal(t, 2, ic.VM.Estack().Len())
 			require.Equal(t, stackitem.Null{}, ic.VM.Estack().Pop().Item())
@@ -512,7 +513,7 @@ func TestContractCall(t *testing.T) {
 		ic.VM.Estack().PushVal(stackitem.NewArray(nil))
 		ic.VM.Estack().PushVal("drop")
 		ic.VM.Estack().PushVal(h.BytesBE())
-		require.NoError(t, contractCall(ic))
+		require.NoError(t, contract.Call(ic))
 		require.Error(t, ic.VM.Run())
 	})
 
@@ -523,7 +524,7 @@ func TestContractCall(t *testing.T) {
 		ic.VM.Estack().PushVal(stackitem.NewArray([]stackitem.Item{stackitem.Make(5)}))
 		ic.VM.Estack().PushVal("add3")
 		ic.VM.Estack().PushVal(h.BytesBE())
-		require.NoError(t, contractCall(ic))
+		require.NoError(t, contract.Call(ic))
 		require.NoError(t, ic.VM.Run())
 		require.Equal(t, 2, ic.VM.Estack().Len())
 		require.Equal(t, big.NewInt(8), ic.VM.Estack().Pop().Value())

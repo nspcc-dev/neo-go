@@ -11,12 +11,15 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/core/mempool"
+	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/internal/testchain"
 	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
@@ -212,12 +215,16 @@ func TestVerifyTx(t *testing.T) {
 	bc := newTestChain(t)
 	defer bc.Close()
 
-	accs := make([]*wallet.Account, 2)
+	accs := make([]*wallet.Account, 3)
 	for i := range accs {
 		var err error
 		accs[i], err = wallet.NewAccount()
 		require.NoError(t, err)
 	}
+
+	oracleAcc := accs[2]
+	oraclePubs := keys.PublicKeys{oracleAcc.PrivateKey().PublicKey()}
+	require.NoError(t, oracleAcc.ConvertMultisig(1, oraclePubs))
 
 	neoHash := bc.contracts.NEO.Hash
 	gasHash := bc.contracts.GAS.Hash
@@ -229,7 +236,7 @@ func TestVerifyTx(t *testing.T) {
 				amount = 1_000_000_000
 			}
 			emit.AppCallWithOperationAndArgs(w.BinWriter, sc, "transfer",
-				neoOwner, a.PrivateKey().GetScriptHash(), amount)
+				neoOwner, a.Contract.ScriptHash(), amount)
 			emit.Opcode(w.BinWriter, opcode.ASSERT)
 		}
 	}
@@ -375,6 +382,95 @@ func TestVerifyTx(t *testing.T) {
 				VerificationScript: rawScript,
 			}}
 			require.NoError(t, bc.VerifyTx(tx))
+		})
+		t.Run("Oracle", func(t *testing.T) {
+			orc := bc.contracts.Oracle
+			req := &native.OracleRequest{GasForResponse: 1000_0000}
+			require.NoError(t, orc.PutRequestInternal(1, req, bc.dao))
+
+			oracleScript, err := smartcontract.CreateMajorityMultiSigRedeemScript(oraclePubs)
+			require.NoError(t, err)
+			oracleHash := hash.Hash160(oracleScript)
+
+			// We need to create new transaction,
+			// because hashes are cached after signing.
+			getOracleTx := func(t *testing.T) *transaction.Transaction {
+				tx := bc.newTestTx(h, native.GetOracleResponseScript())
+				resp := &transaction.OracleResponse{
+					ID:     1,
+					Code:   transaction.Success,
+					Result: []byte{1, 2, 3},
+				}
+				tx.Attributes = []transaction.Attribute{{
+					Type:  transaction.OracleResponseT,
+					Value: resp,
+				}}
+				tx.NetworkFee += 4_000_000 // multisig check
+				tx.SystemFee = int64(req.GasForResponse - uint64(tx.NetworkFee))
+				tx.Signers = []transaction.Signer{{
+					Account: oracleHash,
+					Scopes:  transaction.FeeOnly,
+				}}
+				size := io.GetVarSize(tx)
+				netFee, sizeDelta := CalculateNetworkFee(oracleScript)
+				tx.NetworkFee += netFee
+				tx.NetworkFee += int64(size+sizeDelta) * bc.FeePerByte()
+				return tx
+			}
+
+			t.Run("NoOracleNodes", func(t *testing.T) {
+				tx := getOracleTx(t)
+				require.NoError(t, oracleAcc.SignTx(tx))
+				checkErr(t, ErrInvalidAttribute, tx)
+			})
+
+			txSetOracle := transaction.New(netmode.UnitTestNet, []byte{}, 0)
+			setSigner(txSetOracle, testchain.CommitteeScriptHash())
+			txSetOracle.Scripts = []transaction.Witness{{
+				InvocationScript:   testchain.SignCommittee(txSetOracle.GetSignedPart()),
+				VerificationScript: testchain.CommitteeVerificationScript(),
+			}}
+			ic := bc.newInteropContext(trigger.All, bc.dao, nil, txSetOracle)
+			require.NoError(t, bc.contracts.Oracle.SetOracleNodes(ic, oraclePubs))
+			bc.contracts.Oracle.OnPersistEnd(ic.DAO)
+			_, err = ic.DAO.Persist()
+			require.NoError(t, err)
+
+			t.Run("Valid", func(t *testing.T) {
+				tx := getOracleTx(t)
+				require.NoError(t, oracleAcc.SignTx(tx))
+				require.NoError(t, bc.VerifyTx(tx))
+			})
+			t.Run("InvalidRequestID", func(t *testing.T) {
+				tx := getOracleTx(t)
+				tx.Attributes[0].Value.(*transaction.OracleResponse).ID = 2
+				require.NoError(t, oracleAcc.SignTx(tx))
+				checkErr(t, ErrInvalidAttribute, tx)
+			})
+			t.Run("InvalidScope", func(t *testing.T) {
+				tx := getOracleTx(t)
+				tx.Signers[0].Scopes = transaction.Global
+				require.NoError(t, oracleAcc.SignTx(tx))
+				checkErr(t, ErrInvalidAttribute, tx)
+			})
+			t.Run("InvalidScript", func(t *testing.T) {
+				tx := getOracleTx(t)
+				tx.Script[0] = ^tx.Script[0]
+				require.NoError(t, oracleAcc.SignTx(tx))
+				checkErr(t, ErrInvalidAttribute, tx)
+			})
+			t.Run("InvalidSigner", func(t *testing.T) {
+				tx := getOracleTx(t)
+				tx.Signers[0].Account = accs[0].Contract.ScriptHash()
+				require.NoError(t, accs[0].SignTx(tx))
+				checkErr(t, ErrInvalidAttribute, tx)
+			})
+			t.Run("SmallFee", func(t *testing.T) {
+				tx := getOracleTx(t)
+				tx.SystemFee = 0
+				require.NoError(t, oracleAcc.SignTx(tx))
+				checkErr(t, ErrInvalidAttribute, tx)
+			})
 		})
 	})
 }

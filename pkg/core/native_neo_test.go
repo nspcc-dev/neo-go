@@ -128,9 +128,7 @@ func TestNEO_SetGasPerBlock(t *testing.T) {
 	ic := bc.newInteropContext(trigger.System, bc.dao, nil, tx)
 	ic.VM = vm.New()
 
-	h, err := neo.GetCommitteeAddress(bc, bc.dao)
-	require.NoError(t, err)
-
+	h := neo.GetCommitteeAddress()
 	t.Run("Default", func(t *testing.T) {
 		g, err := neo.GetGASPerBlock(ic, 0)
 		require.NoError(t, err)
@@ -189,9 +187,7 @@ func TestNEO_CalculateBonus(t *testing.T) {
 		require.EqualValues(t, 0, res.Int64())
 	})
 	t.Run("ManyBlocks", func(t *testing.T) {
-		h, err := neo.GetCommitteeAddress(bc, bc.dao)
-		require.NoError(t, err)
-		setSigner(tx, h)
+		setSigner(tx, neo.GetCommitteeAddress())
 		ok, err := neo.SetGASPerBlock(ic, 10, big.NewInt(1*native.GASFactor))
 		require.NoError(t, err)
 		require.True(t, ok)

@@ -7,6 +7,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
+	"github.com/nspcc-dev/neo-go/pkg/core/interop/contract"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
@@ -131,7 +132,7 @@ func (tn *testNative) callOtherContractWithoutArgs(ic *interop.Context, args []s
 	vm.Estack().PushVal(stackitem.NewArray([]stackitem.Item{})) // no args
 	vm.Estack().PushVal(args[1])                                // method
 	vm.Estack().PushVal(args[0])                                // contract hash
-	err := contractCall(ic)
+	err := contract.Call(ic)
 	if err != nil {
 		return stackitem.NewBigInteger(big.NewInt(-1))
 	}
@@ -147,7 +148,7 @@ func (tn *testNative) callOtherContractWithArg(ic *interop.Context, args []stack
 	vm.Estack().PushVal(stackitem.NewArray([]stackitem.Item{args[2]})) // arg
 	vm.Estack().PushVal(args[1])                                       // method
 	vm.Estack().PushVal(args[0])                                       // contract hash
-	err := contractCall(ic)
+	err := contract.Call(ic)
 	if err != nil {
 		return stackitem.NewBigInteger(big.NewInt(-1))
 	}
