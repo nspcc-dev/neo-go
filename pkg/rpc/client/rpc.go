@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core"
@@ -208,10 +209,25 @@ func (c *Client) GetCommittee() (keys.PublicKeys, error) {
 	return *resp, nil
 }
 
-// GetContractState queries contract information, according to the contract script hash.
-func (c *Client) GetContractState(hash util.Uint160) (*state.Contract, error) {
+// GetContractStateByHash queries contract information, according to the contract script hash.
+func (c *Client) GetContractStateByHash(hash util.Uint160) (*state.Contract, error) {
+	return c.getContractState(hash.StringLE())
+}
+
+// GetContractStateByAddressOrName queries contract information, according to the contract address or name.
+func (c *Client) GetContractStateByAddressOrName(addressOrName string) (*state.Contract, error) {
+	return c.getContractState(addressOrName)
+}
+
+// GetContractStateByID queries contract information, according to the contract ID.
+func (c *Client) GetContractStateByID(id int32) (*state.Contract, error) {
+	return c.getContractState(id)
+}
+
+// getContractState is an internal representation of GetContractStateBy* methods.
+func (c *Client) getContractState(param interface{}) (*state.Contract, error) {
 	var (
-		params = request.NewRawParams(hash.StringLE())
+		params = request.NewRawParams(param)
 		resp   = &state.Contract{}
 	)
 	if err := c.performRequest("getcontractstate", params, resp); err != nil {
@@ -596,4 +612,19 @@ func (c *Client) AddNetworkFee(tx *transaction.Transaction, extraFee int64, accs
 // GetNetwork returns the network magic of the RPC node client connected to.
 func (c *Client) GetNetwork() netmode.Magic {
 	return c.network
+}
+
+// GetNativeContractHash returns native contract hash by its name. It is not case-sensitive.
+func (c *Client) GetNativeContractHash(name string) (util.Uint160, error) {
+	lowercasedName := strings.ToLower(name)
+	hash, ok := c.cache.nativeHashes[lowercasedName]
+	if ok {
+		return hash, nil
+	}
+	cs, err := c.GetContractStateByAddressOrName(name)
+	if err != nil {
+		return util.Uint160{}, err
+	}
+	c.cache.nativeHashes[lowercasedName] = cs.ScriptHash()
+	return cs.ScriptHash(), nil
 }

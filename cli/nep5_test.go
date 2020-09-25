@@ -10,7 +10,6 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
-	"github.com/nspcc-dev/neo-go/pkg/rpc/client"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/stretchr/testify/require"
@@ -138,6 +137,8 @@ func TestNEP5MultiTransfer(t *testing.T) {
 
 	e := newExecutor(t, true)
 	defer e.Close(t)
+	neoContractHash, err := e.Chain.GetNativeContractScriptHash("neo")
+	require.NoError(t, err)
 	args := []string{
 		"neo-go", "wallet", "nep5", "multitransfer",
 		"--rpc-endpoint", "http://" + e.RPC.Addr,
@@ -145,7 +146,7 @@ func TestNEP5MultiTransfer(t *testing.T) {
 		"--from", validatorAddr,
 		"neo:" + privs[0].Address() + ":42",
 		"GAS:" + privs[1].Address() + ":7",
-		client.NeoContractHash.StringLE() + ":" + privs[2].Address() + ":13",
+		neoContractHash.StringLE() + ":" + privs[2].Address() + ":13",
 	}
 
 	e.In.WriteString("one\r")
@@ -168,27 +169,31 @@ func TestNEP5ImportToken(t *testing.T) {
 	walletPath := path.Join(tmpDir, "walletForImport.json")
 	defer os.Remove(walletPath)
 
+	neoContractHash, err := e.Chain.GetNativeContractScriptHash("neo")
+	require.NoError(t, err)
+	gasContractHash, err := e.Chain.GetNativeContractScriptHash("gas")
+	require.NoError(t, err)
 	e.Run(t, "neo-go", "wallet", "init", "--wallet", walletPath)
 	e.Run(t, "neo-go", "wallet", "nep5", "import",
 		"--rpc-endpoint", "http://"+e.RPC.Addr,
 		"--wallet", walletPath,
-		"--token", client.GasContractHash.StringLE())
+		"--token", gasContractHash.StringLE())
 	e.Run(t, "neo-go", "wallet", "nep5", "import",
 		"--rpc-endpoint", "http://"+e.RPC.Addr,
 		"--wallet", walletPath,
-		"--token", client.NeoContractHash.StringLE())
+		"--token", neoContractHash.StringLE())
 
 	t.Run("Info", func(t *testing.T) {
 		checkGASInfo := func(t *testing.T) {
 			e.checkNextLine(t, "^Name:\\s*GAS")
 			e.checkNextLine(t, "^Symbol:\\s*gas")
-			e.checkNextLine(t, "^Hash:\\s*"+client.GasContractHash.StringLE())
+			e.checkNextLine(t, "^Hash:\\s*"+gasContractHash.StringLE())
 			e.checkNextLine(t, "^Decimals:\\s*8")
-			e.checkNextLine(t, "^Address:\\s*"+address.Uint160ToString(client.GasContractHash))
+			e.checkNextLine(t, "^Address:\\s*"+address.Uint160ToString(gasContractHash))
 		}
 		t.Run("WithToken", func(t *testing.T) {
 			e.Run(t, "neo-go", "wallet", "nep5", "info",
-				"--wallet", walletPath, "--token", client.GasContractHash.StringLE())
+				"--wallet", walletPath, "--token", gasContractHash.StringLE())
 			checkGASInfo(t)
 		})
 		t.Run("NoToken", func(t *testing.T) {
@@ -199,14 +204,14 @@ func TestNEP5ImportToken(t *testing.T) {
 			require.NoError(t, err)
 			e.checkNextLine(t, "^Name:\\s*NEO")
 			e.checkNextLine(t, "^Symbol:\\s*neo")
-			e.checkNextLine(t, "^Hash:\\s*"+client.NeoContractHash.StringLE())
+			e.checkNextLine(t, "^Hash:\\s*"+neoContractHash.StringLE())
 			e.checkNextLine(t, "^Decimals:\\s*0")
-			e.checkNextLine(t, "^Address:\\s*"+address.Uint160ToString(client.NeoContractHash))
+			e.checkNextLine(t, "^Address:\\s*"+address.Uint160ToString(neoContractHash))
 		})
 		t.Run("Remove", func(t *testing.T) {
 			e.In.WriteString("y\r")
 			e.Run(t, "neo-go", "wallet", "nep5", "remove",
-				"--wallet", walletPath, "--token", client.NeoContractHash.StringLE())
+				"--wallet", walletPath, "--token", neoContractHash.StringLE())
 			e.Run(t, "neo-go", "wallet", "nep5", "info",
 				"--wallet", walletPath)
 			checkGASInfo(t)

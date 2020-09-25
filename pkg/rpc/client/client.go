@@ -14,6 +14,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/request"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response"
+	"github.com/nspcc-dev/neo-go/pkg/util"
 )
 
 const (
@@ -53,6 +54,7 @@ type Options struct {
 // cache stores cache values for the RPC client methods
 type cache struct {
 	calculateValidUntilBlock calculateValidUntilBlockCache
+	nativeHashes             map[string]util.Uint160
 }
 
 // calculateValidUntilBlockCache stores cached number of validators and
@@ -95,21 +97,34 @@ func New(ctx context.Context, endpoint string, opts Options) (*Client, error) {
 		ctx:      ctx,
 		cli:      httpClient,
 		endpoint: url,
+		cache: cache{
+			nativeHashes: make(map[string]util.Uint160),
+		},
 	}
 	cl.opts = opts
 	cl.requestF = cl.makeHTTPRequest
 	return cl, nil
 }
 
-// Init sets magic of the network client connected to. This method should be called
-// before any transaction-, header- or block-related requests in order to deserialize
-// responses properly.
+// Init sets magic of the network client connected to and native NEO and GAS
+// contracts scripthashes. This method should be called before any transaction-,
+// header- or block-related requests in order to deserialize responses properly.
 func (c *Client) Init() error {
 	version, err := c.GetVersion()
 	if err != nil {
 		return fmt.Errorf("failed to get network magic: %w", err)
 	}
 	c.network = version.Magic
+	neoContractHash, err := c.GetContractStateByAddressOrName("neo")
+	if err != nil {
+		return fmt.Errorf("failed to get NEO contract scripthash: %w", err)
+	}
+	c.cache.nativeHashes["neo"] = neoContractHash.ScriptHash()
+	gasContractHash, err := c.GetContractStateByAddressOrName("gas")
+	if err != nil {
+		return fmt.Errorf("failed to get GAS contract scripthash: %w", err)
+	}
+	c.cache.nativeHashes["gas"] = gasContractHash.ScriptHash()
 	c.initDone = true
 	return nil
 }

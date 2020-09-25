@@ -12,7 +12,6 @@ import (
 	"github.com/nspcc-dev/neo-go/cli/options"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
-	"github.com/nspcc-dev/neo-go/pkg/rpc/client"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
@@ -234,7 +233,11 @@ func claimGas(ctx *cli.Context) error {
 		return err
 	}
 
-	hash, err := c.TransferNEP5(acc, scriptHash, client.NeoContractHash, 0, 0)
+	neoContractHash, err := c.GetNativeContractHash("neo")
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
+	hash, err := c.TransferNEP5(acc, scriptHash, neoContractHash, 0, 0)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -426,7 +429,7 @@ func importDeployed(ctx *cli.Context) error {
 		return err
 	}
 
-	cs, err := c.GetContractState(h)
+	cs, err := c.GetContractStateByHash(h)
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("can't fetch contract info: %w", err), 1)
 	}
