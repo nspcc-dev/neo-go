@@ -70,6 +70,10 @@ key in the server which doesn't fit the model of our node-client interactions.
 Lacking this signature the transaction is almost useless, so there is no point
 in returning it.
 
+It's possible to use `invokefunction` not only with contract scripthash, but also 
+with contract name (for native contracts) or contract ID (for all contracts). This
+feature is not supported by the C# node.
+
 Both methods also don't currently support arrays in function parameters.
 
 ##### `getunclaimedgas`

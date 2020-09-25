@@ -984,9 +984,9 @@ func (s *Server) getCommittee(_ request.Params) (interface{}, *response.Error) {
 
 // invokeFunction implements the `invokeFunction` RPC call.
 func (s *Server) invokeFunction(reqParams request.Params) (interface{}, *response.Error) {
-	scriptHash, err := reqParams.ValueWithType(0, request.StringT).GetUint160FromHex()
-	if err != nil {
-		return nil, response.ErrInvalidParams
+	scriptHash, responseErr := s.contractScriptHashFromParam(reqParams.Value(0))
+	if responseErr != nil {
+		return nil, responseErr
 	}
 	tx := &transaction.Transaction{}
 	checkWitnessHashesIndex := len(reqParams)
