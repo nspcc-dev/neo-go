@@ -69,8 +69,7 @@ func newOracle() *Oracle {
 	o := &Oracle{ContractMD: *interop.NewContractMD(nativenames.Oracle, oracleContractID)}
 
 	w := io.NewBufBinWriter()
-	emit.Int(w.BinWriter, 0)
-	emit.Opcodes(w.BinWriter, opcode.NEWARRAY)
+	emit.Opcodes(w.BinWriter, opcode.NEWARRAY0)
 	emit.Int(w.BinWriter, int64(callflag.All))
 	emit.String(w.BinWriter, "finish")
 	emit.Bytes(w.BinWriter, o.Hash.BytesBE())
