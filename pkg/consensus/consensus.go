@@ -189,7 +189,8 @@ func (s *service) Start() {
 func (s *service) eventLoop() {
 	for {
 		select {
-		case hv := <-s.dbft.Timer.C():
+		case <-s.dbft.Timer.C():
+			hv := s.dbft.Timer.HV()
 			s.log.Debug("timer fired",
 				zap.Uint32("height", hv.Height),
 				zap.Uint("view", uint(hv.View)))
