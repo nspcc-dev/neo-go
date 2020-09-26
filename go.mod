@@ -10,7 +10,7 @@ require (
 	github.com/gorilla/websocket v1.4.2
 	github.com/hashicorp/golang-lru v0.5.4
 	github.com/mr-tron/base58 v1.1.2
-	github.com/nspcc-dev/dbft v0.0.0-20200911152629-be965ee4d449
+	github.com/nspcc-dev/dbft v0.0.0-20200925163137-8f3b9ab3b720
 	github.com/nspcc-dev/rfc6979 v0.2.0
 	github.com/pierrec/lz4 v2.5.2+incompatible
 	github.com/prometheus/client_golang v1.2.1
