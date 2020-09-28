@@ -130,8 +130,7 @@ func TestNEO_SetGasPerBlock(t *testing.T) {
 
 	h := neo.GetCommitteeAddress()
 	t.Run("Default", func(t *testing.T) {
-		g, err := neo.GetGASPerBlock(ic, 0)
-		require.NoError(t, err)
+		g := neo.GetGASPerBlock(ic.DAO, 0)
 		require.EqualValues(t, 5*native.GASFactor, g.Int64())
 	})
 	t.Run("Invalid", func(t *testing.T) {
@@ -149,23 +148,31 @@ func TestNEO_SetGasPerBlock(t *testing.T) {
 	})
 	t.Run("Valid", func(t *testing.T) {
 		setSigner(tx, h)
-		ok, err := neo.SetGASPerBlock(ic, 10, big.NewInt(native.GASFactor))
+		ok, err := neo.SetGASPerBlock(ic, 10, big.NewInt(native.GASFactor*2))
 		require.NoError(t, err)
 		require.True(t, ok)
+		neo.OnPersistEnd(ic.DAO)
+		_, err = ic.DAO.Persist()
+		require.NoError(t, err)
 
 		t.Run("Again", func(t *testing.T) {
 			setSigner(tx, h)
 			ok, err := neo.SetGASPerBlock(ic, 10, big.NewInt(native.GASFactor))
 			require.NoError(t, err)
 			require.True(t, ok)
+
+			t.Run("NotPersisted", func(t *testing.T) {
+				g := neo.GetGASPerBlock(bc.dao, 10)
+				// Old value should be returned.
+				require.EqualValues(t, 2*native.GASFactor, g.Int64())
+			})
 		})
 
-		g, err := neo.GetGASPerBlock(ic, 9)
-		require.NoError(t, err)
+		neo.OnPersistEnd(ic.DAO)
+		g := neo.GetGASPerBlock(ic.DAO, 9)
 		require.EqualValues(t, 5*native.GASFactor, g.Int64())
 
-		g, err = neo.GetGASPerBlock(ic, 10)
-		require.NoError(t, err)
+		g = neo.GetGASPerBlock(ic.DAO, 10)
 		require.EqualValues(t, native.GASFactor, g.Int64())
 	})
 }

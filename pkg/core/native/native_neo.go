@@ -27,6 +27,11 @@ type NEO struct {
 	nep5TokenNative
 	GAS *GAS
 
+	// gasPerBlock represents current value of generated gas per block.
+	// It is append-only and doesn't need to be copied when used.
+	gasPerBlock        atomic.Value
+	gasPerBlockChanged atomic.Value
+
 	votesChanged   atomic.Value
 	nextValidators atomic.Value
 	validators     atomic.Value
@@ -188,6 +193,8 @@ func (n *NEO) Initialize(ic *interop.Context) error {
 	n.mint(ic, h, big.NewInt(NEOTotalSupply))
 
 	gr := &state.GASRecord{{Index: 0, GASPerBlock: *big.NewInt(5 * GASFactor)}}
+	n.gasPerBlock.Store(*gr)
+	n.gasPerBlockChanged.Store(false)
 	err = ic.DAO.PutStorageItem(n.ContractID, []byte{prefixGASPerBlock}, &state.StorageItem{Value: gr.Bytes()})
 	if err != nil {
 		return err
@@ -249,15 +256,22 @@ func (n *NEO) OnPersist(ic *interop.Context) error {
 
 // PostPersist implements Contract interface.
 func (n *NEO) PostPersist(ic *interop.Context) error {
-	gas, err := n.GetGASPerBlock(ic, ic.Block.Index)
-	if err != nil {
-		return err
-	}
+	gas := n.GetGASPerBlock(ic.DAO, ic.Block.Index)
 	pubs := n.GetCommitteeMembers()
 	index := int(ic.Block.Index) % len(ic.Chain.GetConfig().StandbyCommittee)
 	gas.Mul(gas, big.NewInt(committeeRewardRatio))
 	n.GAS.mint(ic, pubs[index].GetScriptHash(), gas.Div(gas, big.NewInt(100)))
+	n.OnPersistEnd(ic.DAO)
 	return nil
+}
+
+// OnPersistEnd updates cached values if they've been changed.
+func (n *NEO) OnPersistEnd(d dao.DAO) {
+	if n.gasPerBlockChanged.Load().(bool) {
+		gr := n.getGASRecordFromDAO(d)
+		n.gasPerBlock.Store(gr)
+		n.gasPerBlockChanged.Store(false)
+	}
 }
 
 func (n *NEO) increaseBalance(ic *interop.Context, h util.Uint160, si *state.StorageItem, amount *big.Int) error {
@@ -322,26 +336,32 @@ func (n *NEO) unclaimedGas(ic *interop.Context, args []stackitem.Item) stackitem
 }
 
 func (n *NEO) getGASPerBlock(ic *interop.Context, _ []stackitem.Item) stackitem.Item {
-	gas, err := n.GetGASPerBlock(ic, ic.Block.Index)
-	if err != nil {
-		panic(err)
-	}
+	gas := n.GetGASPerBlock(ic.DAO, ic.Block.Index)
 	return stackitem.NewBigInteger(gas)
 }
 
-// GetGASPerBlock returns gas generated for block with provided index.
-func (n *NEO) GetGASPerBlock(ic *interop.Context, index uint32) (*big.Int, error) {
-	si := ic.DAO.GetStorageItem(n.ContractID, []byte{prefixGASPerBlock})
+func (n *NEO) getGASRecordFromDAO(d dao.DAO) state.GASRecord {
 	var gr state.GASRecord
-	if err := gr.FromBytes(si.Value); err != nil {
-		return nil, err
+	si := d.GetStorageItem(n.ContractID, []byte{prefixGASPerBlock})
+	_ = gr.FromBytes(si.Value)
+	return gr
+}
+
+// GetGASPerBlock returns gas generated for block with provided index.
+func (n *NEO) GetGASPerBlock(d dao.DAO, index uint32) *big.Int {
+	var gr state.GASRecord
+	if n.gasPerBlockChanged.Load().(bool) {
+		gr = n.getGASRecordFromDAO(d)
+	} else {
+		gr = n.gasPerBlock.Load().(state.GASRecord)
 	}
 	for i := len(gr) - 1; i >= 0; i-- {
 		if gr[i].Index <= index {
-			return &gr[i].GASPerBlock, nil
+			g := gr[i].GASPerBlock
+			return &g
 		}
 	}
-	return nil, errors.New("contract not initialized")
+	panic("contract not initialized")
 }
 
 // GetCommitteeAddress returns address of the committee.
@@ -381,6 +401,7 @@ func (n *NEO) SetGASPerBlock(ic *interop.Context, index uint32, gas *big.Int) (b
 			GASPerBlock: *gas,
 		})
 	}
+	n.gasPerBlockChanged.Store(true)
 	return true, ic.DAO.PutStorageItem(n.ContractID, []byte{prefixGASPerBlock}, &state.StorageItem{Value: gr.Bytes()})
 }
 
