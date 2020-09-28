@@ -100,6 +100,9 @@ func newOracle() *Oracle {
 	o.ContractID = oracleContractID
 	o.Manifest.Features = smartcontract.HasStorage
 
+	o.nodes.Store(keys.PublicKeys(nil))
+	o.nodesChanged.Store(false)
+
 	desc := newDescriptor("request", smartcontract.VoidType,
 		manifest.NewParameter("url", smartcontract.StringType),
 		manifest.NewParameter("filter", smartcontract.StringType),
