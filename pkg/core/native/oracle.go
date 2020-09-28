@@ -431,7 +431,7 @@ func (o *Oracle) getSerializableFromDAO(d dao.DAO, key []byte, item io.Serializa
 
 // OnPersistEnd updates cached Oracle values if they've been changed
 func (o *Oracle) OnPersistEnd(d dao.DAO) {
-	if !o.nodesChanged.Load().(bool) {
+	if nodesChanged := o.nodesChanged.Load(); nodesChanged != nil && !nodesChanged.(bool) {
 		return
 	}
 
