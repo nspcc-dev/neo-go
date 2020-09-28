@@ -130,6 +130,9 @@ func newOracle() *Oracle {
 	md = newMethodAndPrice(getOnPersistWrapper(pp), 0, smartcontract.AllowModifyStates)
 	o.AddMethod(md, desc, false)
 
+	o.nodes.Store(keys.PublicKeys(nil))
+	o.nodesChanged.Store(false)
+
 	return o
 }
 
@@ -199,8 +202,6 @@ func (o *Oracle) Initialize(ic *interop.Context) error {
 	if err := ic.DAO.PutStorageItem(o.ContractID, prefixNodeList, si); err != nil {
 		return err
 	}
-	o.nodes.Store(keys.PublicKeys(nil))
-	o.nodesChanged.Store(false)
 	si = &state.StorageItem{Value: make([]byte, 8)} // uint64(0) LE
 	return ic.DAO.PutStorageItem(o.ContractID, prefixRequestID, si)
 }
