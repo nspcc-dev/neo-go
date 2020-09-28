@@ -41,7 +41,7 @@ func newNEP5Commands() []cli.Command {
 		walletPathFlag,
 		tokenFlag,
 		cli.StringFlag{
-			Name:  "addr",
+			Name:  "address, a",
 			Usage: "Address to use",
 		},
 	}
@@ -78,7 +78,7 @@ func newNEP5Commands() []cli.Command {
 		{
 			Name:      "balance",
 			Usage:     "get address balance",
-			UsageText: "balance --wallet <path> --rpc-endpoint <node> [--timeout <time>] [--addr <addr>] [--token <hash-or-name>]",
+			UsageText: "balance --wallet <path> --rpc-endpoint <node> [--timeout <time>] [--address <address>] [--token <hash-or-name>]",
 			Action:    getNEP5Balance,
 			Flags:     balanceFlags,
 		},
@@ -143,7 +143,7 @@ func getNEP5Balance(ctx *cli.Context) error {
 	}
 	defer wall.Close()
 
-	addr := ctx.String("addr")
+	addr := ctx.String("address")
 	if addr != "" {
 		addrHash, err := address.StringToUint160(addr)
 		if err != nil {

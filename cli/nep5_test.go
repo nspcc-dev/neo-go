@@ -24,7 +24,7 @@ func TestNEP5Balance(t *testing.T) {
 		"--rpc-endpoint", "http://"+e.RPC.Addr,
 		"--wallet", validatorWallet,
 	)
-	cmd := append(cmdbase, "--addr", validatorAddr)
+	cmd := append(cmdbase, "--address", validatorAddr)
 	t.Run("NEO", func(t *testing.T) {
 		b, index := e.Chain.GetGoverningTokenBalance(validatorHash)
 		checkResult := func(t *testing.T) {
@@ -95,7 +95,7 @@ func TestNEP5Balance(t *testing.T) {
 		e.RunWithError(t, append(cmdbalance, "--wallet", "/dev/null")...)
 	})
 	t.Run("Bad address", func(t *testing.T) {
-		e.RunWithError(t, append(cmdbalance, "--rpc-endpoint", "http://"+e.RPC.Addr, "--wallet", validatorWallet, "--addr", "xxx")...)
+		e.RunWithError(t, append(cmdbalance, "--rpc-endpoint", "http://"+e.RPC.Addr, "--wallet", validatorWallet, "--address", "xxx")...)
 	})
 	return
 }

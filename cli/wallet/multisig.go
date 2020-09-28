@@ -18,7 +18,7 @@ func newMultisigCommands() []cli.Command {
 		outFlag,
 		inFlag,
 		cli.StringFlag{
-			Name:  "addr",
+			Name:  "address, a",
 			Usage: "Address to use",
 		},
 	}
@@ -27,7 +27,7 @@ func newMultisigCommands() []cli.Command {
 		{
 			Name:      "sign",
 			Usage:     "sign a transaction",
-			UsageText: "multisig sign --wallet <path> --addr <addr> --in <file.in> --out <file.out>",
+			UsageText: "multisig sign --wallet <path> --address <address> --in <file.in> --out <file.out>",
 			Action:    signMultisig,
 			Flags:     signFlags,
 		},
@@ -45,7 +45,7 @@ func signMultisig(ctx *cli.Context) error {
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
-	addr := ctx.String("addr")
+	addr := ctx.String("address")
 	sh, err := address.StringToUint160(addr)
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("invalid address: %w", err), 1)
