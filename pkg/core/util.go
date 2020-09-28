@@ -7,7 +7,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
-	"github.com/nspcc-dev/neo-go/pkg/core/interop/crypto"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
@@ -15,7 +14,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 )
@@ -128,34 +126,4 @@ func headerSliceReverse(dest []*block.Header) {
 	for i, j := 0, len(dest)-1; i < j; i, j = i+1, j-1 {
 		dest[i], dest[j] = dest[j], dest[i]
 	}
-}
-
-// CalculateNetworkFee returns network fee for transaction
-func CalculateNetworkFee(script []byte) (int64, int) {
-	var (
-		netFee int64
-		size   int
-	)
-	if vm.IsSignatureContract(script) {
-		size += 67 + io.GetVarSize(script)
-		netFee += opcodePrice(opcode.PUSHDATA1, opcode.PUSHNULL, opcode.PUSHDATA1) + crypto.ECDSAVerifyPrice
-	} else if m, pubs, ok := vm.ParseMultiSigContract(script); ok {
-		n := len(pubs)
-		sizeInv := 66 * m
-		size += io.GetVarSize(sizeInv) + sizeInv + io.GetVarSize(script)
-		netFee += calculateMultisigFee(m) + calculateMultisigFee(n)
-		netFee += opcodePrice(opcode.PUSHNULL) + crypto.ECDSAVerifyPrice*int64(n)
-	} else {
-		// We can support more contract types in the future.
-	}
-	return netFee, size
-}
-
-func calculateMultisigFee(n int) int64 {
-	result := opcodePrice(opcode.PUSHDATA1) * int64(n)
-	bw := io.NewBufBinWriter()
-	emit.Int(bw.BinWriter, int64(n))
-	// it's a hack because prices of small PUSH* opcodes are equal
-	result += opcodePrice(opcode.Opcode(bw.Bytes()[0]))
-	return result
 }

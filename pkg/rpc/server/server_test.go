@@ -19,6 +19,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
+	"github.com/nspcc-dev/neo-go/pkg/core/fee"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
@@ -787,7 +788,7 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 
 		addNetworkFee := func(tx *transaction.Transaction) {
 			size := io.GetVarSize(tx)
-			netFee, sizeDelta := core.CalculateNetworkFee(acc0.Contract.Script)
+			netFee, sizeDelta := fee.Calculate(acc0.Contract.Script)
 			tx.NetworkFee += netFee
 			size += sizeDelta
 			tx.NetworkFee += int64(size) * chain.FeePerByte()

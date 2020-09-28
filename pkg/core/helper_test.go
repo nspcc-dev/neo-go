@@ -14,6 +14,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/compiler"
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
+	"github.com/nspcc-dev/neo-go/pkg/core/fee"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
@@ -407,7 +408,7 @@ func signTx(bc *Blockchain, txs ...*transaction.Transaction) error {
 	}
 	for _, tx := range txs {
 		size := io.GetVarSize(tx)
-		netFee, sizeDelta := CalculateNetworkFee(rawScript)
+		netFee, sizeDelta := fee.Calculate(rawScript)
 		tx.NetworkFee += netFee
 		size += sizeDelta
 		tx.NetworkFee += int64(size) * bc.FeePerByte()
@@ -422,13 +423,13 @@ func signTx(bc *Blockchain, txs ...*transaction.Transaction) error {
 
 func addNetworkFee(bc *Blockchain, tx *transaction.Transaction, sender *wallet.Account) error {
 	size := io.GetVarSize(tx)
-	netFee, sizeDelta := CalculateNetworkFee(sender.Contract.Script)
+	netFee, sizeDelta := fee.Calculate(sender.Contract.Script)
 	tx.NetworkFee += netFee
 	size += sizeDelta
 	for _, cosigner := range tx.Signers {
 		contract := bc.GetContractState(cosigner.Account)
 		if contract != nil {
-			netFee, sizeDelta = CalculateNetworkFee(contract.Script)
+			netFee, sizeDelta = fee.Calculate(contract.Script)
 			tx.NetworkFee += netFee
 			size += sizeDelta
 		}

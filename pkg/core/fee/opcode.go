@@ -1,11 +1,9 @@
-package core
+package fee
 
-import (
-	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
-)
+import "github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 
-// opcodePrice returns the deployment prices of specified opcodes
-func opcodePrice(opcodes ...opcode.Opcode) int64 {
+// Opcode returns the deployment prices of specified opcodes.
+func Opcode(opcodes ...opcode.Opcode) int64 {
 	var result int64
 	for _, op := range opcodes {
 		result += prices[op]
