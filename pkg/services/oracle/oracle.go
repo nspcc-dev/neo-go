@@ -1,6 +1,7 @@
 package oracle
 
 import (
+	"errors"
 	"net/http"
 	"net/url"
 	"sync"
@@ -9,6 +10,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
+	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -31,6 +33,9 @@ type (
 		oracleNodes        keys.PublicKeys
 		oracleSignContract []byte
 
+		close      chan struct{}
+		requestMap chan map[uint64]*state.OracleRequest
+
 		// respMtx protects responses map.
 		respMtx   sync.RWMutex
 		responses map[uint64]*incompleteTx
@@ -42,7 +47,7 @@ type (
 	Config struct {
 		Log             *zap.Logger
 		Network         netmode.Magic
-		Wallet          config.Wallet
+		MainCfg         config.OracleConfiguration
 		Client          HTTPClient
 		Chain           blockchainer.Blockchainer
 		ResponseHandler Broadcaster
@@ -81,19 +86,35 @@ func NewOracle(cfg Config) (*Oracle, error) {
 	o := &Oracle{
 		Config: cfg,
 
-		responses: make(map[uint64]*incompleteTx),
+		close:      make(chan struct{}),
+		requestMap: make(chan map[uint64]*state.OracleRequest, 1),
+		responses:  make(map[uint64]*incompleteTx),
+	}
+	if o.MainCfg.RequestTimeout == 0 {
+		o.MainCfg.RequestTimeout = defaultRequestTimeout
 	}
 
 	var err error
-	w := cfg.Wallet
+	w := cfg.MainCfg.UnlockWallet
 	if o.wallet, err = wallet.NewWalletFromFile(w.Path); err != nil {
 		return nil, err
+	}
+
+	haveAccount := false
+	for _, acc := range o.wallet.Accounts {
+		if err := acc.Decrypt(w.Password); err == nil {
+			haveAccount = true
+			break
+		}
+	}
+	if !haveAccount {
+		return nil, errors.New("no wallet account could be unlocked")
 	}
 
 	if o.Client == nil {
 		var client http.Client
 		client.Transport = &http.Transport{DisableKeepAlives: true}
-		client.Timeout = defaultRequestTimeout
+		client.Timeout = o.MainCfg.RequestTimeout
 		o.Client = &client
 	}
 	if o.ResponseHandler == nil {
@@ -106,6 +127,36 @@ func NewOracle(cfg Config) (*Oracle, error) {
 		o.URIValidator = defaultURIValidator
 	}
 	return o, nil
+}
+
+// Shutdown shutdowns Oracle.
+func (o *Oracle) Shutdown() {
+	close(o.close)
+}
+
+// Run runs must be executed in a separate goroutine.
+func (o *Oracle) Run() {
+	for {
+		select {
+		case <-o.close:
+			return
+		case reqs := <-o.requestMap:
+			o.ProcessRequestsInternal(reqs)
+		}
+	}
+}
+
+func (o *Oracle) getOnTransaction() TxCallback {
+	o.mtx.RLock()
+	defer o.mtx.RUnlock()
+	return o.OnTransaction
+}
+
+// SetOnTransaction sets callback to pool and broadcast tx.
+func (o *Oracle) SetOnTransaction(cb TxCallback) {
+	o.mtx.Lock()
+	defer o.mtx.Unlock()
+	o.OnTransaction = cb
 }
 
 func (o *Oracle) getBroadcaster() Broadcaster {

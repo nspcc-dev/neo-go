@@ -66,6 +66,9 @@ type (
 
 		// TimePerBlock is an interval which should pass between two successive blocks.
 		TimePerBlock time.Duration
+
+		// OracleCfg is oracle module configuration.
+		OracleCfg config.OracleConfiguration
 	}
 )
 
@@ -96,5 +99,6 @@ func NewServerConfig(cfg config.Config) ServerConfig {
 		MinPeers:          appConfig.MinPeers,
 		Wallet:            wc,
 		TimePerBlock:      time.Duration(protoConfig.SecondsPerBlock) * time.Second,
+		OracleCfg:         appConfig.Oracle,
 	}
 }

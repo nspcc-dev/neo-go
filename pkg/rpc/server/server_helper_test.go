@@ -16,13 +16,14 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/network"
+	"github.com/nspcc-dev/neo-go/pkg/services/oracle"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zaptest"
 )
 
-func getUnitTestChain(t *testing.T) (*core.Blockchain, config.Config, *zap.Logger) {
+func getUnitTestChain(t *testing.T, enableOracle bool) (*core.Blockchain, *oracle.Oracle, config.Config, *zap.Logger) {
 	net := netmode.UnitTestNet
 	configPath := "../../../config"
 	cfg, err := config.Load(configPath, net)
@@ -33,9 +34,26 @@ func getUnitTestChain(t *testing.T) (*core.Blockchain, config.Config, *zap.Logge
 	chain, err := core.NewBlockchain(memoryStore, cfg.ProtocolConfiguration, logger)
 	require.NoError(t, err, "could not create chain")
 
+	var orc *oracle.Oracle
+	if enableOracle {
+		cfg.ApplicationConfiguration.Oracle.Enabled = true
+		cfg.ApplicationConfiguration.Oracle.UnlockWallet = config.Wallet{
+			Path:     "../../services/oracle/testdata/oracle1.json",
+			Password: "one",
+		}
+		orc, err = oracle.NewOracle(oracle.Config{
+			Log:     logger,
+			Network: netmode.UnitTestNet,
+			MainCfg: cfg.ApplicationConfiguration.Oracle,
+			Chain:   chain,
+		})
+		require.NoError(t, err)
+		chain.SetOracle(orc)
+	}
+
 	go chain.Run()
 
-	return chain, cfg, logger
+	return chain, orc, cfg, logger
 }
 
 func getTestBlocks(t *testing.T) []*block.Block {
@@ -61,13 +79,13 @@ func getTestBlocks(t *testing.T) []*block.Block {
 	return blocks
 }
 
-func initClearServerWithInMemoryChain(t *testing.T) (*core.Blockchain, *Server, *httptest.Server) {
-	chain, cfg, logger := getUnitTestChain(t)
+func initClearServerWithOracle(t *testing.T, needOracle bool) (*core.Blockchain, *Server, *httptest.Server) {
+	chain, orc, cfg, logger := getUnitTestChain(t, needOracle)
 
 	serverConfig := network.NewServerConfig(cfg)
 	server, err := network.NewServer(serverConfig, chain, logger)
 	require.NoError(t, err)
-	rpcServer := New(chain, cfg.ApplicationConfiguration.RPC, server, logger)
+	rpcServer := New(chain, cfg.ApplicationConfiguration.RPC, server, orc, logger)
 	errCh := make(chan error, 2)
 	rpcServer.Start(errCh)
 
@@ -75,6 +93,10 @@ func initClearServerWithInMemoryChain(t *testing.T) (*core.Blockchain, *Server, 
 	srv := httptest.NewServer(handler)
 
 	return chain, &rpcServer, srv
+}
+
+func initClearServerWithInMemoryChain(t *testing.T) (*core.Blockchain, *Server, *httptest.Server) {
+	return initClearServerWithOracle(t, false)
 }
 
 func initServerWithInMemoryChain(t *testing.T) (*core.Blockchain, *Server, *httptest.Server) {

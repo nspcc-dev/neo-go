@@ -13,6 +13,8 @@ import (
 type (
 	incompleteTx struct {
 		sync.RWMutex
+		// isSent is true tx was already broadcasted.
+		isSent bool
 		// tx is oracle response transaction.
 		tx *transaction.Transaction
 		// sigs contains signature from every oracle node.

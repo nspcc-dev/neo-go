@@ -14,6 +14,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
+	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer/services"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/contract"
@@ -189,6 +190,13 @@ func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration, log *zap.L
 	}
 
 	return bc, nil
+}
+
+// SetOracle sets oracle module. It doesn't protected by mutex and
+// must be called before `bc.Run()` to avoid data race.
+func (bc *Blockchain) SetOracle(mod services.Oracle) {
+	bc.contracts.Oracle.Module.Store(mod)
+	bc.contracts.Designate.OracleService.Store(mod)
 }
 
 func (bc *Blockchain) init() error {

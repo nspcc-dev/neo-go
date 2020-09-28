@@ -80,7 +80,7 @@ func newTestChain(t *testing.T, f func(*config.Config)) (*core.Blockchain, *serv
 	netSrv, err := network.NewServer(serverConfig, chain, zap.NewNop())
 	require.NoError(t, err)
 	go netSrv.Start(make(chan error, 1))
-	rpcServer := server.New(chain, cfg.ApplicationConfiguration.RPC, netSrv, logger)
+	rpcServer := server.New(chain, cfg.ApplicationConfiguration.RPC, netSrv, nil, logger)
 	errCh := make(chan error, 2)
 	rpcServer.Start(errCh)
 

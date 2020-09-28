@@ -25,8 +25,10 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/fee"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/io"
+	rpc2 "github.com/nspcc-dev/neo-go/pkg/services/oracle/broadcaster"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
@@ -885,6 +887,13 @@ var rpcTestCases = map[string][]rpcTestCase{
 			fail:   true,
 		},
 	},
+	"submitoracleresponse": {
+		{
+			name:   "no params",
+			params: `[]`,
+			fail:   true,
+		},
+	},
 	"validateaddress": {
 		{
 			name:   "positive",
@@ -918,6 +927,39 @@ func TestRPC(t *testing.T) {
 	t.Run("websocket", func(t *testing.T) {
 		testRPCProtocol(t, doRPCCallOverWS)
 	})
+}
+
+func TestSubmitOracle(t *testing.T) {
+	chain, rpcSrv, httpSrv := initClearServerWithOracle(t, true)
+	defer chain.Close()
+	defer rpcSrv.Shutdown()
+
+	rpc := `{"jsonrpc": "2.0", "id": 1, "method": "submitoracleresponse", "params": %s}`
+	runCase := func(t *testing.T, fail bool, params ...string) func(t *testing.T) {
+		return func(t *testing.T) {
+			ps := `[` + strings.Join(params, ",") + `]`
+			req := fmt.Sprintf(rpc, ps)
+			body := doRPCCallOverHTTP(req, httpSrv.URL, t)
+			checkErrGetResult(t, body, fail)
+		}
+	}
+	t.Run("MissingKey", runCase(t, true))
+	t.Run("InvalidKey", runCase(t, true, `"1234"`))
+
+	priv, err := keys.NewPrivateKey()
+	require.NoError(t, err)
+	pubStr := `"` + base64.StdEncoding.EncodeToString(priv.PublicKey().Bytes()) + `"`
+	t.Run("InvalidReqID", runCase(t, true, pubStr, `"notanumber"`))
+	t.Run("InvalidTxSignature", runCase(t, true, pubStr, `1`, `"qwerty"`))
+
+	txSig := priv.Sign([]byte{1, 2, 3})
+	txSigStr := `"` + base64.StdEncoding.EncodeToString(txSig) + `"`
+	t.Run("MissingMsgSignature", runCase(t, true, pubStr, `1`, txSigStr))
+	t.Run("InvalidMsgSignature", runCase(t, true, pubStr, `1`, txSigStr, `"0123"`))
+
+	msg := rpc2.GetMessage(priv.PublicKey().Bytes(), 1, txSig)
+	msgSigStr := `"` + base64.StdEncoding.EncodeToString(priv.Sign(msg)) + `"`
+	t.Run("Valid", runCase(t, false, pubStr, `1`, txSigStr, msgSigStr))
 }
 
 // testRPCProtocol runs a full set of tests using given callback to make actual

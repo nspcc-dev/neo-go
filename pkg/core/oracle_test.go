@@ -10,6 +10,7 @@ import (
 	"path"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
@@ -27,34 +28,39 @@ import (
 
 const oracleModulePath = "../services/oracle/"
 
+func getOracleConfig(t *testing.T, bc *Blockchain, w, pass string) oracle.Config {
+	return oracle.Config{
+		Log:     zaptest.NewLogger(t),
+		Network: netmode.UnitTestNet,
+		MainCfg: config.OracleConfiguration{
+			UnlockWallet: config.Wallet{
+				Path:     path.Join(oracleModulePath, w),
+				Password: pass,
+			},
+		},
+		Chain:          bc,
+		Client:         newDefaultHTTPClient(),
+		OracleScript:   bc.contracts.Oracle.NEF.Script,
+		OracleResponse: bc.contracts.Oracle.GetOracleResponseScript(),
+		OracleHash:     bc.contracts.Oracle.Hash,
+	}
+}
+
 func getTestOracle(t *testing.T, bc *Blockchain, walletPath, pass string) (
 	*wallet.Account,
 	*oracle.Oracle,
 	map[uint64]*responseWithSig,
 	chan *transaction.Transaction) {
-
 	m := make(map[uint64]*responseWithSig)
 	ch := make(chan *transaction.Transaction, 5)
-	orcCfg := oracle.Config{
-		Log:     zaptest.NewLogger(t),
-		Network: netmode.UnitTestNet,
-		Wallet: config.Wallet{
-			Path:     path.Join(oracleModulePath, walletPath),
-			Password: pass,
-		},
-		Chain:           bc,
-		Client:          newDefaultHTTPClient(),
-		ResponseHandler: saveToMapBroadcaster{m},
-		OnTransaction:   saveTxToChan(ch),
-		URIValidator: func(u *url.URL) error {
-			if strings.HasPrefix(u.Host, "private") {
-				return errors.New("private network")
-			}
-			return nil
-		},
-		OracleScript:   bc.contracts.Oracle.NEF.Script,
-		OracleResponse: bc.contracts.Oracle.GetOracleResponseScript(),
-		OracleHash:     bc.contracts.Oracle.Hash,
+	orcCfg := getOracleConfig(t, bc, walletPath, pass)
+	orcCfg.ResponseHandler = saveToMapBroadcaster{m}
+	orcCfg.OnTransaction = saveTxToChan(ch)
+	orcCfg.URIValidator = func(u *url.URL) error {
+		if strings.HasPrefix(u.Host, "private") {
+			return errors.New("private network")
+		}
+		return nil
 	}
 	orc, err := oracle.NewOracle(orcCfg)
 	require.NoError(t, err)
@@ -97,6 +103,16 @@ func TestCreateResponseTx(t *testing.T) {
 	assert.Equal(t, int64(97783360), tx.SystemFee)
 }
 
+func TestOracle_InvalidWallet(t *testing.T) {
+	bc := newTestChain(t)
+
+	_, err := oracle.NewOracle(getOracleConfig(t, bc, "./testdata/oracle1.json", "invalid"))
+	require.Error(t, err)
+
+	_, err = oracle.NewOracle(getOracleConfig(t, bc, "./testdata/oracle1.json", "one"))
+	require.NoError(t, err)
+}
+
 func TestOracle(t *testing.T) {
 	bc := newTestChain(t)
 	defer bc.Close()
@@ -128,7 +144,7 @@ func TestOracle(t *testing.T) {
 		require.NoError(t, err)
 
 		reqs := map[uint64]*state.OracleRequest{id: req}
-		orc1.AddRequests(reqs)
+		orc1.ProcessRequestsInternal(reqs)
 		require.NotNil(t, m1[id])
 		require.Equal(t, resp, m1[id].resp)
 		require.Empty(t, ch1)
@@ -151,10 +167,14 @@ func TestOracle(t *testing.T) {
 		req := checkResp(t, 1, resp)
 
 		reqs := map[uint64]*state.OracleRequest{1: req}
-		orc2.AddRequests(reqs)
+		orc2.ProcessRequestsInternal(reqs)
 		require.Equal(t, resp, m2[1].resp)
 		require.Empty(t, ch2)
 
+		t.Run("InvalidSignature", func(t *testing.T) {
+			orc1.AddResponse(acc2.PrivateKey().PublicKey(), m2[1].resp.ID, []byte{1, 2, 3})
+			require.Empty(t, ch1)
+		})
 		orc1.AddResponse(acc2.PrivateKey().PublicKey(), m2[1].resp.ID, m2[1].txSig)
 		checkEmitTx(t, ch1)
 
@@ -171,7 +191,7 @@ func TestOracle(t *testing.T) {
 			require.Empty(t, ch2)
 
 			reqs := map[uint64]*state.OracleRequest{reqID: req}
-			orc2.AddRequests(reqs)
+			orc2.ProcessRequestsInternal(reqs)
 			require.Equal(t, resp, m2[reqID].resp)
 			checkEmitTx(t, ch2)
 		})
@@ -221,6 +241,32 @@ func TestOracle(t *testing.T) {
 			Result: make([]byte, transaction.MaxOracleResultSize),
 		})
 	})
+}
+
+func TestOracleFull(t *testing.T) {
+	bc := initTestChain(t, nil, nil)
+	acc, orc, _, _ := getTestOracle(t, bc, "./testdata/oracle2.json", "two")
+	mp := bc.GetMemPool()
+	orc.OnTransaction = func(tx *transaction.Transaction) { _ = mp.Add(tx, bc) }
+	bc.SetOracle(orc)
+
+	cs := getOracleContractState(bc.contracts.Oracle.Hash)
+	require.NoError(t, bc.contracts.Management.PutContractState(bc.dao, cs))
+
+	go bc.Run()
+	defer bc.Close()
+	go orc.Run()
+	defer orc.Shutdown()
+
+	bc.setNodesByRole(t, true, native.RoleOracle, keys.PublicKeys{acc.PrivateKey().PublicKey()})
+	putOracleRequest(t, cs.Hash, bc, "http://get.1234", new(string), "handle", []byte{}, 10_000_000)
+
+	require.Eventually(t, func() bool { return mp.Count() == 1 },
+		time.Second*2, time.Millisecond*200)
+
+	txes := mp.GetVerifiedTransactions()
+	require.Len(t, txes, 1)
+	require.True(t, txes[0].HasAttribute(transaction.OracleResponseT))
 }
 
 type saveToMapBroadcaster struct {

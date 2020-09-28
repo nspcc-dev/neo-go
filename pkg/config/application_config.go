@@ -26,4 +26,5 @@ type ApplicationConfiguration struct {
 	Relay             bool                    `yaml:"Relay"`
 	RPC               rpc.Config              `yaml:"RPC"`
 	UnlockWallet      Wallet                  `yaml:"UnlockWallet"`
+	Oracle            OracleConfiguration     `yaml:"Oracle"`
 }

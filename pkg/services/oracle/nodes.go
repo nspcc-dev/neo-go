@@ -33,7 +33,7 @@ func (o *Oracle) UpdateOracleNodes(oracleNodes keys.PublicKeys) {
 			if acc.PrivateKey() != nil {
 				break
 			}
-			err := acc.Decrypt(o.Wallet.Password)
+			err := acc.Decrypt(o.MainCfg.UnlockWallet.Password)
 			if err != nil {
 				o.Log.Error("can't unlock account",
 					zap.String("address", address.Uint160ToString(acc.Contract.ScriptHash())),

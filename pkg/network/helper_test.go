@@ -14,6 +14,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
+	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer/services"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/mempool"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
@@ -278,7 +279,9 @@ func (chain testChain) ManagementContractHash() util.Uint160 {
 func (chain *testChain) PoolTx(tx *transaction.Transaction, _ ...*mempool.Pool) error {
 	return chain.poolTx(tx)
 }
-
+func (chain testChain) SetOracle(services.Oracle) {
+	panic("TODO")
+}
 func (chain *testChain) SubscribeForBlocks(ch chan<- *block.Block) {
 	chain.blocksCh = append(chain.blocksCh, ch)
 }

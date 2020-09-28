@@ -50,10 +50,14 @@ func (o *Oracle) AddResponse(pub *keys.PublicKey, reqID uint64, txSig []byte) {
 	}
 	incTx.addResponse(pub, txSig, isBackup)
 	readyTx, ready := incTx.finalize(o.getOracleNodes())
+	if ready {
+		ready = !incTx.isSent
+		incTx.isSent = true
+	}
 	incTx.Unlock()
 
 	if ready {
-		o.OnTransaction(readyTx)
+		o.getOnTransaction()(readyTx)
 	}
 }
 
