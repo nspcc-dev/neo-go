@@ -28,7 +28,7 @@ var (
 var (
 	tokenFlag = cli.StringFlag{
 		Name:  "token",
-		Usage: "Token to use",
+		Usage: "Token to use (hash or name (for NEO/GAS or imported tokens))",
 	}
 	gasFlag = flags.Fixed8Flag{
 		Name:  "gas",
