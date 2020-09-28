@@ -127,9 +127,14 @@ func (e *executor) GetTransaction(t *testing.T, h util.Uint256) (*transaction.Tr
 	return tx, height
 }
 
-func (e *executor) checkNextLine(t *testing.T, expected string) {
+func (e *executor) getNextLine(t *testing.T) string {
 	line, err := e.Out.ReadString('\n')
 	require.NoError(t, err)
+	return line
+}
+
+func (e *executor) checkNextLine(t *testing.T, expected string) {
+	line := e.getNextLine(t)
 	e.checkLine(t, line, expected)
 }
 

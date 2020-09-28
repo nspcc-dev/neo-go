@@ -6,6 +6,7 @@ import (
 	"os"
 	"path"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
@@ -18,15 +19,16 @@ import (
 func TestNEP5Balance(t *testing.T) {
 	e := newExecutor(t, true)
 	defer e.Close(t)
-	cmd := []string{
-		"neo-go", "wallet", "nep5", "balance",
-		"--rpc-endpoint", "http://" + e.RPC.Addr,
+	cmdbalance := []string{"neo-go", "wallet", "nep5", "balance"}
+	cmdbase := append(cmdbalance,
+		"--rpc-endpoint", "http://"+e.RPC.Addr,
 		"--wallet", validatorWallet,
-		"--addr", validatorAddr,
-	}
+	)
+	cmd := append(cmdbase, "--addr", validatorAddr)
 	t.Run("NEO", func(t *testing.T) {
 		b, index := e.Chain.GetGoverningTokenBalance(validatorHash)
 		checkResult := func(t *testing.T) {
+			e.checkNextLine(t, "^\\s*Account\\s+"+validatorAddr)
 			e.checkNextLine(t, "^\\s*NEO:\\s+NEO \\("+e.Chain.GoverningTokenHash().StringLE()+"\\)")
 			e.checkNextLine(t, "^\\s*Amount\\s*:\\s*"+b.String())
 			e.checkNextLine(t, "^\\s*Updated\\s*:\\s*"+strconv.FormatUint(uint64(index), 10))
@@ -43,12 +45,57 @@ func TestNEP5Balance(t *testing.T) {
 	})
 	t.Run("GAS", func(t *testing.T) {
 		e.Run(t, append(cmd, "--token", "gas")...)
+		e.checkNextLine(t, "^\\s*Account\\s+"+validatorAddr)
 		e.checkNextLine(t, "^\\s*GAS:\\s+GAS \\("+e.Chain.UtilityTokenHash().StringLE()+"\\)")
 		b := e.Chain.GetUtilityTokenBalance(validatorHash)
 		e.checkNextLine(t, "^\\s*Amount\\s*:\\s*"+util.Fixed8(b.Int64()).String())
 	})
-	t.Run("Invalid", func(t *testing.T) {
-		e.RunWithError(t, append(cmd, "--token", "kek")...)
+	t.Run("all accounts", func(t *testing.T) {
+		e.Run(t, cmdbase...)
+		addr1, err := address.StringToUint160("NbTiM6h8r99kpRtb428XcsUk1TzKed2gTc")
+		require.NoError(t, err)
+		e.checkNextLine(t, "^Account "+address.Uint160ToString(addr1))
+		e.checkNextLine(t, "^\\s*GAS:\\s+GAS \\("+e.Chain.UtilityTokenHash().StringLE()+"\\)")
+		balance := e.Chain.GetUtilityTokenBalance(addr1)
+		e.checkNextLine(t, "^\\s*Amount\\s*:\\s*"+util.Fixed8(balance.Int64()).String())
+		e.checkNextLine(t, "^\\s*Updated:")
+		e.checkNextLine(t, "^\\s*$")
+
+		addr2, err := address.StringToUint160("NUVPACMnKFhpuHjsRjhUvXz1XhqfGZYVtY")
+		require.NoError(t, err)
+		e.checkNextLine(t, "^Account "+address.Uint160ToString(addr2))
+		e.checkNextLine(t, "^\\s*$")
+
+		addr3, err := address.StringToUint160("NVNvVRW5Q5naSx2k2iZm7xRgtRNGuZppAK")
+		require.NoError(t, err)
+		e.checkNextLine(t, "^Account "+address.Uint160ToString(addr3))
+		// The order of assets is undefined.
+		for i := 0; i < 2; i++ {
+			line := e.getNextLine(t)
+			if strings.Contains(line, "GAS") {
+				e.checkLine(t, line, "^\\s*GAS:\\s+GAS \\("+e.Chain.UtilityTokenHash().StringLE()+"\\)")
+				balance = e.Chain.GetUtilityTokenBalance(addr3)
+				e.checkNextLine(t, "^\\s*Amount\\s*:\\s*"+util.Fixed8(balance.Int64()).String())
+				e.checkNextLine(t, "^\\s*Updated:")
+			} else {
+				balance, index := e.Chain.GetGoverningTokenBalance(validatorHash)
+				e.checkLine(t, line, "^\\s*NEO:\\s+NEO \\("+e.Chain.GoverningTokenHash().StringLE()+"\\)")
+				e.checkNextLine(t, "^\\s*Amount\\s*:\\s*"+balance.String())
+				e.checkNextLine(t, "^\\s*Updated\\s*:\\s*"+strconv.FormatUint(uint64(index), 10))
+			}
+		}
+		e.checkEOF(t)
+	})
+	t.Run("Bad token", func(t *testing.T) {
+		e.Run(t, append(cmd, "--token", "kek")...)
+		e.checkNextLine(t, "^\\s*Account\\s+"+validatorAddr)
+		e.checkEOF(t)
+	})
+	t.Run("Bad wallet", func(t *testing.T) {
+		e.RunWithError(t, append(cmdbalance, "--wallet", "/dev/null")...)
+	})
+	t.Run("Bad address", func(t *testing.T) {
+		e.RunWithError(t, append(cmdbalance, "--rpc-endpoint", "http://"+e.RPC.Addr, "--wallet", validatorWallet, "--addr", "xxx")...)
 	})
 	return
 }
