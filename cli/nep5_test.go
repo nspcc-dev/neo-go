@@ -27,7 +27,7 @@ func TestNEP5Balance(t *testing.T) {
 	t.Run("NEO", func(t *testing.T) {
 		b, index := e.Chain.GetGoverningTokenBalance(validatorHash)
 		checkResult := func(t *testing.T) {
-			e.checkNextLine(t, "^\\s*TokenHash:\\s*"+e.Chain.GoverningTokenHash().StringLE())
+			e.checkNextLine(t, "^\\s*NEO:\\s+NEO \\("+e.Chain.GoverningTokenHash().StringLE()+"\\)")
 			e.checkNextLine(t, "^\\s*Amount\\s*:\\s*"+b.String())
 			e.checkNextLine(t, "^\\s*Updated\\s*:\\s*"+strconv.FormatUint(uint64(index), 10))
 			e.checkEOF(t)
@@ -43,7 +43,7 @@ func TestNEP5Balance(t *testing.T) {
 	})
 	t.Run("GAS", func(t *testing.T) {
 		e.Run(t, append(cmd, "--token", "gas")...)
-		e.checkNextLine(t, "^\\s*TokenHash:\\s*"+e.Chain.UtilityTokenHash().StringLE())
+		e.checkNextLine(t, "^\\s*GAS:\\s+GAS \\("+e.Chain.UtilityTokenHash().StringLE()+"\\)")
 		b := e.Chain.GetUtilityTokenBalance(validatorHash)
 		e.checkNextLine(t, "^\\s*Amount\\s*:\\s*"+util.Fixed8(b.Int64()).String())
 	})

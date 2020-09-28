@@ -177,11 +177,23 @@ func getNEP5Balance(ctx *cli.Context) error {
 	}
 
 	for i := range balances.Balances {
+		var tokenName, tokenSymbol string
+
 		asset := balances.Balances[i].Asset
 		if name != "" && !token.Hash.Equals(asset) {
 			continue
 		}
-		fmt.Fprintf(ctx.App.Writer, "TokenHash: %s\n", asset.StringLE())
+		token, err := getMatchingToken(ctx, wall, asset.StringLE())
+		if err != nil {
+			token, err = c.NEP5TokenInfo(asset)
+		}
+		if err == nil {
+			tokenName = token.Name
+			tokenSymbol = token.Symbol
+		} else {
+			tokenSymbol = "UNKNOWN"
+		}
+		fmt.Fprintf(ctx.App.Writer, "%s: %s (%s)\n", strings.ToUpper(tokenSymbol), tokenName, asset.StringLE())
 		fmt.Fprintf(ctx.App.Writer, "\tAmount : %s\n", balances.Balances[i].Amount)
 		fmt.Fprintf(ctx.App.Writer, "\tUpdated: %d\n", balances.Balances[i].LastUpdated)
 	}
@@ -190,9 +202,9 @@ func getNEP5Balance(ctx *cli.Context) error {
 
 func getMatchingToken(ctx *cli.Context, w *wallet.Wallet, name string) (*wallet.Token, error) {
 	switch strings.ToLower(name) {
-	case "neo":
+	case "neo", client.NeoContractHash.StringLE():
 		return neoToken, nil
-	case "gas":
+	case "gas", client.GasContractHash.StringLE():
 		return gasToken, nil
 	}
 	return getMatchingTokenAux(ctx, func(i int) *wallet.Token {
