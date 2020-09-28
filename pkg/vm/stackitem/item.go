@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"math/big"
 	"reflect"
 	"unicode/utf8"
@@ -16,14 +17,17 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/util"
 )
 
-// MaxBigIntegerSizeBits is the maximum size of BigInt item in bits.
-const MaxBigIntegerSizeBits = 32 * 8
-
-// MaxArraySize is the maximum array size allowed in the VM.
-const MaxArraySize = 1024
-
-// MaxSize is the maximum item size allowed in the VM.
-const MaxSize = 1024 * 1024
+const (
+	// MaxBigIntegerSizeBits is the maximum size of BigInt item in bits.
+	MaxBigIntegerSizeBits = 32 * 8
+	// MaxArraySize is the maximum array size allowed in the VM.
+	MaxArraySize = 1024
+	// MaxSize is the maximum item size allowed in the VM.
+	MaxSize = 1024 * 1024
+	// MaxByteArrayComparableSize is the maximum allowed length of ByteArray for Equals method.
+	// It is set to be the maximum uint16 value.
+	MaxByteArrayComparableSize = math.MaxUint16
+)
 
 // Item represents the "real" value that is pushed on the stack.
 type Item interface {
@@ -46,7 +50,10 @@ type Item interface {
 	Convert(Type) (Item, error)
 }
 
-var errInvalidConversion = errors.New("invalid conversion type")
+var (
+	errInvalidConversion          = errors.New("invalid conversion type")
+	errExceedingMaxComparableSize = errors.New("the operand exceeds the maximum comparable size")
+)
 
 // Make tries to make appropriate stack item from provided value.
 // It will panic if it's not possible.
@@ -536,13 +543,22 @@ func (i *ByteArray) TryInteger() (*big.Int, error) {
 
 // Equals implements Item interface.
 func (i *ByteArray) Equals(s Item) bool {
+	if len(i.value) > MaxByteArrayComparableSize {
+		panic(errExceedingMaxComparableSize)
+	}
 	if i == s {
 		return true
 	} else if s == nil {
 		return false
 	}
 	val, ok := s.(*ByteArray)
-	return ok && bytes.Equal(i.value, val.value)
+	if !ok {
+		return false
+	}
+	if len(val.value) > MaxByteArrayComparableSize {
+		panic(errExceedingMaxComparableSize)
+	}
+	return bytes.Equal(i.value, val.value)
 }
 
 // Dup implements Item interface.
