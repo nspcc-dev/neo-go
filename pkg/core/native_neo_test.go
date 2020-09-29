@@ -127,6 +127,7 @@ func TestNEO_SetGasPerBlock(t *testing.T) {
 	tx := transaction.New(netmode.UnitTestNet, []byte{}, 0)
 	ic := bc.newInteropContext(trigger.System, bc.dao, nil, tx)
 	ic.VM = vm.New()
+	ic.VM.LoadScript([]byte{byte(opcode.RET)})
 
 	h := neo.GetCommitteeAddress()
 	t.Run("Default", func(t *testing.T) {
@@ -177,6 +178,8 @@ func TestNEO_CalculateBonus(t *testing.T) {
 	neo := bc.contracts.NEO
 	tx := transaction.New(netmode.UnitTestNet, []byte{}, 0)
 	ic := bc.newInteropContext(trigger.System, bc.dao, nil, tx)
+	ic.SpawnVM()
+	ic.VM.LoadScript([]byte{byte(opcode.RET)})
 	t.Run("Invalid", func(t *testing.T) {
 		_, err := neo.CalculateBonus(ic, new(big.Int).SetInt64(-1), 0, 1)
 		require.Error(t, err)
