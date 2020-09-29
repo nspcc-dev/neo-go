@@ -446,6 +446,9 @@ func (c *Client) SignAndPushInvocationTx(script []byte, acc *wallet.Account, sys
 	var err error
 
 	tx, err := c.CreateTxFromScript(script, acc, sysfee, int64(netfee), cosigners...)
+	if err != nil {
+		return txHash, fmt.Errorf("failed to create tx: %w", err)
+	}
 	if err = acc.SignTx(tx); err != nil {
 		return txHash, fmt.Errorf("failed to sign tx: %w", err)
 	}

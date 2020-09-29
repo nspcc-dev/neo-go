@@ -74,7 +74,7 @@ func TestSignMultisigTx(t *testing.T) {
 	e.In.WriteString("pass\r")
 	e.Run(t, "neo-go", "wallet", "multisig", "sign",
 		"--unittest", "--rpc-endpoint", "http://"+e.RPC.Addr,
-		"--wallet", wallet2Path, "--addr", multisigAddr,
+		"--wallet", wallet2Path, "--address", multisigAddr,
 		"--in", txPath, "--out", txPath)
 	e.checkTxPersisted(t)
 

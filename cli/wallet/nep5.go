@@ -28,7 +28,7 @@ var (
 var (
 	tokenFlag = cli.StringFlag{
 		Name:  "token",
-		Usage: "Token to use",
+		Usage: "Token to use (hash or name (for NEO/GAS or imported tokens))",
 	}
 	gasFlag = flags.Fixed8Flag{
 		Name:  "gas",
@@ -41,7 +41,7 @@ func newNEP5Commands() []cli.Command {
 		walletPathFlag,
 		tokenFlag,
 		cli.StringFlag{
-			Name:  "addr",
+			Name:  "address, a",
 			Usage: "Address to use",
 		},
 	}
@@ -78,7 +78,7 @@ func newNEP5Commands() []cli.Command {
 		{
 			Name:      "balance",
 			Usage:     "get address balance",
-			UsageText: "balance --wallet <path> --rpc-endpoint <node> --timeout <time> --addr <addr> [--token <hash-or-name>]",
+			UsageText: "balance --wallet <path> --rpc-endpoint <node> [--timeout <time>] [--address <address>] [--token <hash-or-name>]",
 			Action:    getNEP5Balance,
 			Flags:     balanceFlags,
 		},
@@ -135,20 +135,30 @@ func newNEP5Commands() []cli.Command {
 }
 
 func getNEP5Balance(ctx *cli.Context) error {
+	var accounts []*wallet.Account
+
 	wall, err := openWallet(ctx.String("wallet"))
 	if err != nil {
-		return cli.NewExitError(err, 1)
+		return cli.NewExitError(fmt.Errorf("bad wallet: %w", err), 1)
 	}
 	defer wall.Close()
 
-	addr := ctx.String("addr")
-	addrHash, err := address.StringToUint160(addr)
-	if err != nil {
-		return cli.NewExitError(fmt.Errorf("invalid address: %w", err), 1)
-	}
-	acc := wall.GetAccount(addrHash)
-	if acc == nil {
-		return cli.NewExitError(fmt.Errorf("can't find account for the address: %s", addr), 1)
+	addr := ctx.String("address")
+	if addr != "" {
+		addrHash, err := address.StringToUint160(addr)
+		if err != nil {
+			return cli.NewExitError(fmt.Errorf("invalid address: %w", err), 1)
+		}
+		acc := wall.GetAccount(addrHash)
+		if acc == nil {
+			return cli.NewExitError(fmt.Errorf("can't find account for the address: %s", addr), 1)
+		}
+		accounts = append(accounts, acc)
+	} else {
+		if len(wall.Accounts) == 0 {
+			return cli.NewExitError(errors.New("no accounts in the wallet"), 1)
+		}
+		accounts = wall.Accounts
 	}
 
 	gctx, cancel := options.GetTimeoutContext(ctx)
@@ -159,40 +169,56 @@ func getNEP5Balance(ctx *cli.Context) error {
 		return err
 	}
 
-	var token *wallet.Token
 	name := ctx.String("token")
-	if name != "" {
-		token, err = getMatchingToken(ctx, wall, name)
+
+	for k, acc := range accounts {
+		addrHash, err := address.StringToUint160(acc.Address)
 		if err != nil {
-			token, err = getMatchingTokenRPC(ctx, c, addrHash, name)
+			return cli.NewExitError(fmt.Errorf("invalid account address: %w", err), 1)
+		}
+		balances, err := c.GetNEP5Balances(addrHash)
+		if err != nil {
+			return cli.NewExitError(err, 1)
+		}
+
+		if k != 0 {
+			fmt.Fprintln(ctx.App.Writer)
+		}
+		fmt.Fprintf(ctx.App.Writer, "Account %s\n", acc.Address)
+
+		for i := range balances.Balances {
+			var tokenName, tokenSymbol string
+
+			asset := balances.Balances[i].Asset
+			token, err := getMatchingToken(ctx, wall, asset.StringLE())
 			if err != nil {
-				return cli.NewExitError(err, 1)
+				token, err = c.NEP5TokenInfo(asset)
 			}
+			if err == nil {
+				if name != "" && !(token.Name == name || token.Symbol == name || token.Address() == name || token.Hash.StringLE() == name) {
+					continue
+				}
+				tokenName = token.Name
+				tokenSymbol = token.Symbol
+			} else {
+				if name != "" {
+					continue
+				}
+				tokenSymbol = "UNKNOWN"
+			}
+			fmt.Fprintf(ctx.App.Writer, "%s: %s (%s)\n", strings.ToUpper(tokenSymbol), tokenName, asset.StringLE())
+			fmt.Fprintf(ctx.App.Writer, "\tAmount : %s\n", balances.Balances[i].Amount)
+			fmt.Fprintf(ctx.App.Writer, "\tUpdated: %d\n", balances.Balances[i].LastUpdated)
 		}
-	}
-
-	balances, err := c.GetNEP5Balances(addrHash)
-	if err != nil {
-		return cli.NewExitError(err, 1)
-	}
-
-	for i := range balances.Balances {
-		asset := balances.Balances[i].Asset
-		if name != "" && !token.Hash.Equals(asset) {
-			continue
-		}
-		fmt.Fprintf(ctx.App.Writer, "TokenHash: %s\n", asset.StringLE())
-		fmt.Fprintf(ctx.App.Writer, "\tAmount : %s\n", balances.Balances[i].Amount)
-		fmt.Fprintf(ctx.App.Writer, "\tUpdated: %d\n", balances.Balances[i].LastUpdated)
 	}
 	return nil
 }
 
 func getMatchingToken(ctx *cli.Context, w *wallet.Wallet, name string) (*wallet.Token, error) {
 	switch strings.ToLower(name) {
-	case "neo":
+	case "neo", client.NeoContractHash.StringLE():
 		return neoToken, nil
-	case "gas":
+	case "gas", client.GasContractHash.StringLE():
 		return gasToken, nil
 	}
 	return getMatchingTokenAux(ctx, func(i int) *wallet.Token {
