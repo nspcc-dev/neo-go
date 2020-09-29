@@ -2031,6 +2031,52 @@ func TestPACKGood(t *testing.T) {
 	assert.Equal(t, int64(1), vm.estack.Peek(1).BigInt().Int64())
 }
 
+func TestPACK_UNPACK_MaxSize(t *testing.T) {
+	prog := makeProgram(opcode.PACK, opcode.UNPACK)
+	elements := make([]int, stackitem.MaxArraySize)
+	vm := load(prog)
+	// canary
+	vm.estack.PushVal(1)
+	for i := len(elements) - 1; i >= 0; i-- {
+		vm.estack.PushVal(elements[i])
+	}
+	vm.estack.PushVal(len(elements))
+	runVM(t, vm)
+	// check reference counter = 1+1+1024
+	assert.Equal(t, 1+1+len(elements), vm.refs.size)
+	assert.Equal(t, 1+1+len(elements), vm.estack.Len()) // canary + length + elements
+	assert.Equal(t, int64(len(elements)), vm.estack.Peek(0).Value().(*big.Int).Int64())
+	for i := 0; i < len(elements); i++ {
+		e, ok := vm.estack.Peek(i + 1).Value().(*big.Int)
+		assert.True(t, ok)
+		assert.Equal(t, int64(elements[i]), e.Int64())
+	}
+	assert.Equal(t, int64(1), vm.estack.Peek(1+len(elements)).BigInt().Int64())
+}
+
+func TestPACK_UNPACK_PACK_MaxSize(t *testing.T) {
+	prog := makeProgram(opcode.PACK, opcode.UNPACK, opcode.PACK)
+	elements := make([]int, stackitem.MaxArraySize)
+	vm := load(prog)
+	// canary
+	vm.estack.PushVal(1)
+	for i := len(elements) - 1; i >= 0; i-- {
+		vm.estack.PushVal(elements[i])
+	}
+	vm.estack.PushVal(len(elements))
+	runVM(t, vm)
+	// check reference counter = 1+1+1024
+	assert.Equal(t, 1+1+len(elements), vm.refs.size)
+	assert.Equal(t, 2, vm.estack.Len())
+	a := vm.estack.Peek(0).Array()
+	assert.Equal(t, len(elements), len(a))
+	for i := 0; i < len(elements); i++ {
+		e := a[i].Value().(*big.Int)
+		assert.Equal(t, int64(elements[i]), e.Int64())
+	}
+	assert.Equal(t, int64(1), vm.estack.Peek(1).BigInt().Int64())
+}
+
 func TestUNPACKBadNotArray(t *testing.T) {
 	prog := makeProgram(opcode.UNPACK)
 	runWithArgs(t, prog, nil, 1)

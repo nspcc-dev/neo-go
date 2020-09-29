@@ -143,6 +143,7 @@ var equalsTestCases = map[string][]struct {
 	item1  Item
 	item2  Item
 	result bool
+	panics bool
 }{
 	"struct": {
 		{
@@ -251,6 +252,21 @@ var equalsTestCases = map[string][]struct {
 			item2:  Make([]byte{1, 2, 3}),
 			result: true,
 		},
+		{
+			item1:  NewByteArray(make([]byte, MaxByteArrayComparableSize+1)),
+			item2:  NewByteArray([]byte{1, 2, 3}),
+			panics: true,
+		},
+		{
+			item1:  NewByteArray([]byte{1, 2, 3}),
+			item2:  NewByteArray(make([]byte, MaxByteArrayComparableSize+1)),
+			panics: true,
+		},
+		{
+			item1:  NewByteArray(make([]byte, MaxByteArrayComparableSize+1)),
+			item2:  NewByteArray(make([]byte, MaxByteArrayComparableSize+1)),
+			panics: true,
+		},
 	},
 	"array": {
 		{
@@ -350,9 +366,15 @@ func TestEquals(t *testing.T) {
 	for name, testBatch := range equalsTestCases {
 		for _, testCase := range testBatch {
 			t.Run(name, func(t *testing.T) {
-				assert.Equal(t, testCase.result, testCase.item1.Equals(testCase.item2))
-				// Reference equals
-				assert.Equal(t, true, testCase.item1.Equals(testCase.item1))
+				if testCase.panics {
+					assert.Panics(t, func() {
+						testCase.item1.Equals(testCase.item2)
+					})
+				} else {
+					assert.Equal(t, testCase.result, testCase.item1.Equals(testCase.item2))
+					// Reference equals
+					assert.Equal(t, true, testCase.item1.Equals(testCase.item1))
+				}
 			})
 		}
 	}
