@@ -40,7 +40,7 @@ func checkScope(d dao.DAO, tx *transaction.Transaction, v *vm.VM, hash util.Uint
 			if c.Scopes&transaction.CalledByEntry != 0 {
 				callingScriptHash := v.GetCallingScriptHash()
 				entryScriptHash := v.GetEntryScriptHash()
-				if callingScriptHash == entryScriptHash {
+				if callingScriptHash.Equals(util.Uint160{}) || callingScriptHash == entryScriptHash {
 					return true, nil
 				}
 			}
