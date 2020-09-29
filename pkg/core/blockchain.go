@@ -1504,11 +1504,12 @@ func initVerificationVM(ic *interop.Context, hash util.Uint160, witness *transac
 func (bc *Blockchain) VerifyWitness(h util.Uint160, c crypto.Verifiable, w *transaction.Witness, gas int64) error {
 	ic := bc.newInteropContext(trigger.Verification, bc.dao, nil, nil)
 	ic.Container = c
-	return bc.verifyHashAgainstScript(h, w, ic, gas)
+	_, err := bc.verifyHashAgainstScript(h, w, ic, gas)
+	return err
 }
 
-// verifyHashAgainstScript verifies given hash against the given witness.
-func (bc *Blockchain) verifyHashAgainstScript(hash util.Uint160, witness *transaction.Witness, interopCtx *interop.Context, gas int64) error {
+// verifyHashAgainstScript verifies given hash against the given witness and returns the amount of GAS consumed.
+func (bc *Blockchain) verifyHashAgainstScript(hash util.Uint160, witness *transaction.Witness, interopCtx *interop.Context, gas int64) (int64, error) {
 	gasPolicy := bc.contracts.Policy.GetMaxVerificationGas(interopCtx.DAO)
 	if gas > gasPolicy {
 		gas = gasPolicy
@@ -1518,28 +1519,28 @@ func (bc *Blockchain) verifyHashAgainstScript(hash util.Uint160, witness *transa
 	vm.SetPriceGetter(getPrice)
 	vm.GasLimit = gas
 	if err := initVerificationVM(interopCtx, hash, witness); err != nil {
-		return err
+		return 0, err
 	}
 	err := vm.Run()
 	if vm.HasFailed() {
-		return fmt.Errorf("%w: vm execution has failed: %v", ErrVerificationFailed, err)
+		return 0, fmt.Errorf("%w: vm execution has failed: %v", ErrVerificationFailed, err)
 	}
 	resEl := vm.Estack().Pop()
 	if resEl != nil {
 		res, err := resEl.Item().TryBool()
 		if err != nil {
-			return fmt.Errorf("%w: invalid return value", ErrVerificationFailed)
+			return 0, fmt.Errorf("%w: invalid return value", ErrVerificationFailed)
 		}
 		if !res {
-			return fmt.Errorf("%w: invalid signature", ErrVerificationFailed)
+			return 0, fmt.Errorf("%w: invalid signature", ErrVerificationFailed)
 		}
 		if vm.Estack().Len() != 0 {
-			return fmt.Errorf("%w: expected exactly one returned value", ErrVerificationFailed)
+			return 0, fmt.Errorf("%w: expected exactly one returned value", ErrVerificationFailed)
 		}
 	} else {
-		return fmt.Errorf("%w: no result returned from the script", ErrVerificationFailed)
+		return 0, fmt.Errorf("%w: no result returned from the script", ErrVerificationFailed)
 	}
-	return nil
+	return vm.GasConsumed(), nil
 }
 
 // verifyTxWitnesses verifies the scripts (witnesses) that come with a given
@@ -1553,11 +1554,13 @@ func (bc *Blockchain) verifyTxWitnesses(t *transaction.Transaction, block *block
 		return fmt.Errorf("%w: %d vs %d", ErrTxInvalidWitnessNum, len(t.Signers), len(t.Scripts))
 	}
 	interopCtx := bc.newInteropContext(trigger.Verification, bc.dao, block, t)
+	gasLimit := t.NetworkFee
 	for i := range t.Signers {
-		err := bc.verifyHashAgainstScript(t.Signers[i].Account, &t.Scripts[i], interopCtx, t.NetworkFee)
+		gasConsumed, err := bc.verifyHashAgainstScript(t.Signers[i].Account, &t.Scripts[i], interopCtx, gasLimit)
 		if err != nil {
 			return fmt.Errorf("witness #%d: %w", i, err)
 		}
+		gasLimit -= gasConsumed
 	}
 
 	return nil
