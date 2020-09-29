@@ -309,7 +309,7 @@ func (n *NEO) increaseBalance(ic *interop.Context, h util.Uint160, si *state.Sto
 		si.Value = acc.Bytes()
 		return nil
 	}
-	if err := n.ModifyAccountVotes(acc, ic.DAO, amount, modifyVoteTransfer); err != nil {
+	if err := n.ModifyAccountVotes(acc, ic.DAO, amount, false); err != nil {
 		return err
 	}
 	if acc.VoteTo != nil {
@@ -550,26 +550,20 @@ func (n *NEO) VoteInternal(ic *interop.Context, h util.Uint160, pub *keys.Public
 			return err
 		}
 	}
-	if err := n.ModifyAccountVotes(acc, ic.DAO, new(big.Int).Neg(&acc.Balance), modifyVoteOld); err != nil {
+	if err := n.ModifyAccountVotes(acc, ic.DAO, new(big.Int).Neg(&acc.Balance), false); err != nil {
 		return err
 	}
 	acc.VoteTo = pub
-	if err := n.ModifyAccountVotes(acc, ic.DAO, &acc.Balance, modifyVoteNew); err != nil {
+	if err := n.ModifyAccountVotes(acc, ic.DAO, &acc.Balance, true); err != nil {
 		return err
 	}
 	si.Value = acc.Bytes()
 	return ic.DAO.PutStorageItem(n.ContractID, key, si)
 }
 
-const (
-	modifyVoteTransfer = iota
-	modifyVoteOld
-	modifyVoteNew
-)
-
 // ModifyAccountVotes modifies votes of the specified account by value (can be negative).
 // typ specifies if this modify is occurring during transfer or vote (with old or new validator).
-func (n *NEO) ModifyAccountVotes(acc *state.NEOBalanceState, d dao.DAO, value *big.Int, typ int) error {
+func (n *NEO) ModifyAccountVotes(acc *state.NEOBalanceState, d dao.DAO, value *big.Int, isNewVote bool) error {
 	n.votesChanged.Store(true)
 	if acc.VoteTo != nil {
 		key := makeValidatorKey(acc.VoteTo)
@@ -579,15 +573,12 @@ func (n *NEO) ModifyAccountVotes(acc *state.NEOBalanceState, d dao.DAO, value *b
 		}
 		cd := new(candidate).FromBytes(si.Value)
 		cd.Votes.Add(&cd.Votes, value)
-		switch typ {
-		case modifyVoteOld:
+		if !isNewVote {
 			if !cd.Registered && cd.Votes.Sign() == 0 {
 				return d.DeleteStorageItem(n.ContractID, key)
 			}
-		case modifyVoteNew:
-			if !cd.Registered {
-				return errors.New("validator must be registered")
-			}
+		} else if !cd.Registered {
+			return errors.New("validator must be registered")
 		}
 		n.validators.Store(keys.PublicKeys(nil))
 		si.Value = cd.Bytes()
