@@ -27,6 +27,8 @@ const (
 	// MaxByteArrayComparableSize is the maximum allowed length of ByteArray for Equals method.
 	// It is set to be the maximum uint16 value.
 	MaxByteArrayComparableSize = math.MaxUint16
+	// MaxKeySize is the maximum size of map key.
+	MaxKeySize = 64
 )
 
 // Item represents the "real" value that is pushed on the stack.
@@ -773,8 +775,8 @@ func (i *Map) Convert(typ Type) (Item, error) {
 
 // Add adds key-value pair to the map.
 func (i *Map) Add(key, value Item) {
-	if !IsValidMapKey(key) {
-		panic("wrong key type")
+	if err := IsValidMapKey(key); err != nil {
+		panic(err)
 	}
 	index := i.Index(key)
 	if index >= 0 {
@@ -792,12 +794,18 @@ func (i *Map) Drop(index int) {
 
 // IsValidMapKey checks whether it's possible to use given Item as a Map
 // key.
-func IsValidMapKey(key Item) bool {
+func IsValidMapKey(key Item) error {
 	switch key.(type) {
-	case *Bool, *BigInteger, *ByteArray:
-		return true
+	case *Bool, *BigInteger:
+		return nil
+	case *ByteArray:
+		size := len(key.Value().([]byte))
+		if size > MaxKeySize {
+			return fmt.Errorf("invalid map key size: %d", size)
+		}
+		return nil
 	default:
-		return false
+		return fmt.Errorf("invalid map key of type %s", key.Type())
 	}
 }
 

@@ -1668,8 +1668,8 @@ func validateMapKey(key *Element) {
 	if key == nil {
 		panic("no key found")
 	}
-	if !stackitem.IsValidMapKey(key.Item()) {
-		panic("key can't be a collection")
+	if err := stackitem.IsValidMapKey(key.Item()); err != nil {
+		panic(err)
 	}
 }
 

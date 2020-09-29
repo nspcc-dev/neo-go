@@ -24,6 +24,7 @@ a dialect of Go rather than a complete port of the language:
     overhead for all contracts. This can easily be mitigated by first storing values
     in variables and returning the result.
  * lambdas are supported, but closures are not.
+ * maps are supported, but valid map keys are booleans, integers and strings with length <= 64
 
 ## VM API (interop layer)
 Compiler translates interop function calls into NEO VM syscalls or (for custom
