@@ -139,6 +139,8 @@ func TestOracle_Request(t *testing.T) {
 	tx := transaction.New(netmode.UnitTestNet, []byte{}, 0)
 	setSigner(tx, testchain.CommitteeScriptHash())
 	ic := bc.newInteropContext(trigger.Application, bc.dao, nil, tx)
+	ic.SpawnVM()
+	ic.VM.LoadScript([]byte{byte(opcode.RET)})
 	err = orc.SetOracleNodes(ic, keys.PublicKeys{pub})
 	require.NoError(t, err)
 	orc.OnPersistEnd(ic.DAO)
@@ -164,7 +166,6 @@ func TestOracle_Request(t *testing.T) {
 
 	// We need to ensure that callback is called thus, executing full script is necessary.
 	resp.ID = 1
-	ic.VM = ic.SpawnVM()
 	ic.VM.LoadScriptWithFlags(tx.Script, smartcontract.All)
 	require.NoError(t, ic.VM.Run())
 
@@ -223,6 +224,7 @@ func TestOracle_SetOracleNodes(t *testing.T) {
 	tx := transaction.New(netmode.UnitTestNet, []byte{}, 0)
 	ic := bc.newInteropContext(trigger.System, bc.dao, nil, tx)
 	ic.VM = vm.New()
+	ic.VM.LoadScript([]byte{byte(opcode.RET)})
 
 	pubs := orc.GetOracleNodes()
 	require.Equal(t, 0, len(pubs))
