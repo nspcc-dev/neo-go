@@ -531,8 +531,8 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		v.estack.PushVal(stackitem.Null{})
 
 	case opcode.ISNULL:
-		res := v.estack.Pop().value.Equals(stackitem.Null{})
-		v.estack.PushVal(res)
+		_, ok := v.estack.Pop().value.(stackitem.Null)
+		v.estack.PushVal(ok)
 
 	case opcode.ISTYPE:
 		res := v.estack.Pop().Item()
