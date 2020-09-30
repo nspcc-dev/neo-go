@@ -138,7 +138,7 @@ func CalculateNetworkFee(script []byte) (int64, int) {
 	)
 	if vm.IsSignatureContract(script) {
 		size += 67 + io.GetVarSize(script)
-		netFee += opcodePrice(opcode.PUSHDATA1, opcode.PUSHNULL) + crypto.ECDSAVerifyPrice
+		netFee += opcodePrice(opcode.PUSHDATA1, opcode.PUSHNULL, opcode.PUSHDATA1) + crypto.ECDSAVerifyPrice
 	} else if m, pubs, ok := vm.ParseMultiSigContract(script); ok {
 		n := len(pubs)
 		sizeInv := 66 * m
