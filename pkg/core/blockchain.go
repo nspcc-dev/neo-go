@@ -1554,7 +1554,7 @@ func (bc *Blockchain) verifyTxWitnesses(t *transaction.Transaction, block *block
 		return fmt.Errorf("%w: %d vs %d", ErrTxInvalidWitnessNum, len(t.Signers), len(t.Scripts))
 	}
 	interopCtx := bc.newInteropContext(trigger.Verification, bc.dao, block, t)
-	gasLimit := t.NetworkFee
+	gasLimit := t.NetworkFee - int64(t.Size())*bc.FeePerByte()
 	for i := range t.Signers {
 		gasConsumed, err := bc.verifyHashAgainstScript(t.Signers[i].Account, &t.Scripts[i], interopCtx, gasLimit)
 		if err != nil {

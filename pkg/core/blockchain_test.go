@@ -215,7 +215,7 @@ func TestVerifyTx(t *testing.T) {
 	bc := newTestChain(t)
 	defer bc.Close()
 
-	accs := make([]*wallet.Account, 4)
+	accs := make([]*wallet.Account, 5)
 	for i := range accs {
 		var err error
 		accs[i], err = wallet.NewAccount()
@@ -291,11 +291,68 @@ func TestVerifyTx(t *testing.T) {
 		require.NoError(t, accs[0].SignTx(tx))
 		checkErr(t, ErrTxTooBig, tx)
 	})
-	t.Run("SmallNetworkFee", func(t *testing.T) {
-		tx := bc.newTestTx(h, testScript)
-		tx.NetworkFee = 1
-		require.NoError(t, accs[0].SignTx(tx))
-		checkErr(t, ErrTxSmallNetworkFee, tx)
+	t.Run("NetworkFee", func(t *testing.T) {
+		t.Run("SmallNetworkFee", func(t *testing.T) {
+			tx := bc.newTestTx(h, testScript)
+			tx.NetworkFee = 1
+			require.NoError(t, accs[0].SignTx(tx))
+			checkErr(t, ErrTxSmallNetworkFee, tx)
+		})
+		t.Run("AlmostEnoughNetworkFee", func(t *testing.T) {
+			tx := bc.newTestTx(h, testScript)
+			verificationNetFee, calcultedScriptSize := CalculateNetworkFee(accs[0].Contract.Script)
+			expectedSize := io.GetVarSize(tx) + calcultedScriptSize
+			calculatedNetFee := verificationNetFee + int64(expectedSize)*bc.FeePerByte()
+			tx.NetworkFee = calculatedNetFee - 1
+			require.NoError(t, accs[0].SignTx(tx))
+			require.Equal(t, expectedSize, io.GetVarSize(tx))
+			checkErr(t, ErrVerificationFailed, tx)
+		})
+		t.Run("EnoughNetworkFee", func(t *testing.T) {
+			tx := bc.newTestTx(h, testScript)
+			verificationNetFee, calcultedScriptSize := CalculateNetworkFee(accs[0].Contract.Script)
+			expectedSize := io.GetVarSize(tx) + calcultedScriptSize
+			calculatedNetFee := verificationNetFee + int64(expectedSize)*bc.FeePerByte()
+			tx.NetworkFee = calculatedNetFee
+			require.NoError(t, accs[0].SignTx(tx))
+			require.Equal(t, expectedSize, io.GetVarSize(tx))
+			require.NoError(t, bc.VerifyTx(tx))
+		})
+		t.Run("CalculateNetworkFee, signature script", func(t *testing.T) {
+			tx := bc.newTestTx(h, testScript)
+			expectedSize := io.GetVarSize(tx)
+			verificationNetFee, calculatedScriptSize := CalculateNetworkFee(accs[0].Contract.Script)
+			expectedSize += calculatedScriptSize
+			expectedNetFee := verificationNetFee + int64(expectedSize)*bc.FeePerByte()
+			tx.NetworkFee = expectedNetFee
+			require.NoError(t, accs[0].SignTx(tx))
+			actualSize := io.GetVarSize(tx)
+			require.Equal(t, expectedSize, actualSize)
+			interopCtx := bc.newInteropContext(trigger.Verification, bc.dao, nil, tx)
+			gasConsumed, err := bc.verifyHashAgainstScript(h, &tx.Scripts[0], interopCtx, -1)
+			require.NoError(t, err)
+			require.Equal(t, verificationNetFee, gasConsumed)
+			require.Equal(t, expectedNetFee, bc.FeePerByte()*int64(actualSize)+gasConsumed)
+		})
+		t.Run("CalculateNetworkFee, multisignature script", func(t *testing.T) {
+			multisigAcc := accs[4]
+			pKeys := keys.PublicKeys{multisigAcc.PrivateKey().PublicKey()}
+			require.NoError(t, multisigAcc.ConvertMultisig(1, pKeys))
+			multisigHash := hash.Hash160(multisigAcc.Contract.Script)
+			tx := bc.newTestTx(multisigHash, testScript)
+			verificationNetFee, calculatedScriptSize := CalculateNetworkFee(multisigAcc.Contract.Script)
+			expectedSize := io.GetVarSize(tx) + calculatedScriptSize
+			expectedNetFee := verificationNetFee + int64(expectedSize)*bc.FeePerByte()
+			tx.NetworkFee = expectedNetFee
+			require.NoError(t, multisigAcc.SignTx(tx))
+			actualSize := io.GetVarSize(tx)
+			require.Equal(t, expectedSize, actualSize)
+			interopCtx := bc.newInteropContext(trigger.Verification, bc.dao, nil, tx)
+			gasConsumed, err := bc.verifyHashAgainstScript(multisigHash, &tx.Scripts[0], interopCtx, -1)
+			require.NoError(t, err)
+			require.Equal(t, verificationNetFee, gasConsumed)
+			require.Equal(t, expectedNetFee, bc.FeePerByte()*int64(actualSize)+gasConsumed)
+		})
 	})
 	t.Run("Conflict", func(t *testing.T) {
 		balance := bc.GetUtilityTokenBalance(h).Int64()

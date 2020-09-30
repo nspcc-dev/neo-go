@@ -206,7 +206,7 @@ func TestCreateBasicChain(t *testing.T) {
 	bw := io.NewBufBinWriter()
 	b.EncodeBinary(bw.BinWriter)
 	require.NoError(t, bw.Err)
-	t.Logf("Block1 hex: %s", bw.Bytes())
+	t.Logf("Block1 hex: %s", hex.EncodeToString(bw.Bytes()))
 	t.Logf("txMoveNeo hash: %s", txMoveNeo.Hash().StringLE())
 	t.Logf("txMoveNeo hex: %s", hex.EncodeToString(txMoveNeo.Bytes()))
 	t.Logf("txMoveGas hash: %s", txMoveGas.Hash().StringLE())

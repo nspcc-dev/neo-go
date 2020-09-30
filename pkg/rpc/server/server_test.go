@@ -54,11 +54,11 @@ type rpcTestCase struct {
 	check  func(t *testing.T, e *executor, result interface{})
 }
 
-const testContractHash = "4546ec6fcdaa1c3ccdb048526b78624b457b60a4"
-const deploymentTxHash = "17be1bbb0fdecae18cd4c6a2db19311f47bd540371e2ea479a46b349a66aa0b3"
+const testContractHash = "b0fda4dd46b8e5d207e86e774a4a133c6db69ee7"
+const deploymentTxHash = "59f7b22b90e26f883a56b916c1580e3ee4f13caded686353cd77577e6194c173"
 
-const verifyContractHash = "47ef649f9a77cad161ddaa28b39c7e450e5429e7"
-const verifyContractAVM = "560340570300412d510830db4121700c14aa8acf859d4fe402b34e673f2156821796a488ebdb30716813cedb2869db289740"
+const verifyContractHash = "c1213693b22cb0454a436d6e0bd76b8c0a3bfdf7"
+const verifyContractAVM = "570300412d51083021700c14aa8acf859d4fe402b34e673f2156821796a488ebdb30716813cedb2869db289740"
 
 var rpcTestCases = map[string][]rpcTestCase{
 	"getapplicationlog": {
@@ -643,12 +643,12 @@ var rpcTestCases = map[string][]rpcTestCase{
 	"sendrawtransaction": {
 		{
 			name:   "positive",
-			params: `["000a0000008096980000000000721b130000000000b004000001aa8acf859d4fe402b34e673f2156821796a488eb01005d0300e87648170000000c1478ba4c24009fe510e136c9995a2e05215e1be4dc0c14aa8acf859d4fe402b34e673f2156821796a488eb13c00c087472616e736665720c1425059ecb4878d3a875f91c51ceded330d4575fde41627d5b523801420c40b99503c74bb1861b0b45060501dd090224f6c404aca8c02ccba3243c9b9691c1ef9e6b824d731f8fab27c56ba75609d32d2d176e97f56d9e3780610c83ebd41a290c2102b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc20b4195440d78"]`,
+			params: `["000b0000008096980000000000261c130000000000b004000001aa8acf859d4fe402b34e673f2156821796a488eb01005d0300e87648170000000c1478ba4c24009fe510e136c9995a2e05215e1be4dc0c14aa8acf859d4fe402b34e673f2156821796a488eb13c00c087472616e736665720c1425059ecb4878d3a875f91c51ceded330d4575fde41627d5b523801420c40ea2f56acf7f64629dc922d65a60176f3963afd4b7c259f2017a3a5139346f8ea54704624590832acb7794069ab2983ddc862b03b6a33d4428cd4c45cbc0941c2290c2102b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc20b4195440d78"]`,
 			result: func(e *executor) interface{} { return &result.RelayResult{} },
 			check: func(t *testing.T, e *executor, inv interface{}) {
 				res, ok := inv.(*result.RelayResult)
 				require.True(t, ok)
-				expectedHash, err := util.Uint256DecodeStringLE("8b6e610a2205914411b26c4380594fa9a1e16961ff5896ed3b16831a151c6dd0")
+				expectedHash, err := util.Uint256DecodeStringLE("ab5573cfc8d70774f04aa7d5521350cfc1aa1239c44c24e490e139408cd46a57")
 				require.NoError(t, err)
 				assert.Equal(t, expectedHash, res.Hash)
 			},
@@ -1075,7 +1075,7 @@ func checkNep5Balances(t *testing.T, e *executor, acc interface{}) {
 			},
 			{
 				Asset:       e.chain.UtilityTokenHash(),
-				Amount:      "799.59495030",
+				Amount:      "799.59641770",
 				LastUpdated: 7,
 			}},
 		Address: testchain.PrivateKeyByID(0).GetScriptHash().StringLE(),
