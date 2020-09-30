@@ -298,6 +298,26 @@ func TestVerifyTx(t *testing.T) {
 			require.NoError(t, accs[0].SignTx(tx))
 			checkErr(t, ErrTxSmallNetworkFee, tx)
 		})
+		t.Run("AlmostEnoughNetworkFee", func(t *testing.T) {
+			tx := bc.newTestTx(h, testScript)
+			verificationNetFee, calcultedScriptSize := CalculateNetworkFee(accs[0].Contract.Script)
+			expectedSize := io.GetVarSize(tx) + calcultedScriptSize
+			calculatedNetFee := verificationNetFee + int64(expectedSize)*bc.FeePerByte()
+			tx.NetworkFee = calculatedNetFee - 1
+			require.NoError(t, accs[0].SignTx(tx))
+			require.Equal(t, expectedSize, io.GetVarSize(tx))
+			checkErr(t, ErrVerificationFailed, tx)
+		})
+		t.Run("EnoughNetworkFee", func(t *testing.T) {
+			tx := bc.newTestTx(h, testScript)
+			verificationNetFee, calcultedScriptSize := CalculateNetworkFee(accs[0].Contract.Script)
+			expectedSize := io.GetVarSize(tx) + calcultedScriptSize
+			calculatedNetFee := verificationNetFee + int64(expectedSize)*bc.FeePerByte()
+			tx.NetworkFee = calculatedNetFee
+			require.NoError(t, accs[0].SignTx(tx))
+			require.Equal(t, expectedSize, io.GetVarSize(tx))
+			require.NoError(t, bc.VerifyTx(tx))
+		})
 		t.Run("CalculateNetworkFee, signature script", func(t *testing.T) {
 			tx := bc.newTestTx(h, testScript)
 			expectedSize := io.GetVarSize(tx)
