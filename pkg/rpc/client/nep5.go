@@ -155,6 +155,9 @@ func (c *Client) CreateTxFromScript(script []byte, acc *wallet.Account, sysFee, 
 		if err != nil {
 			return nil, fmt.Errorf("can't add system fee to transaction: %w", err)
 		}
+		if result.State != "HALT" {
+			return nil, fmt.Errorf("can't add system fee to transaction: bad vm state: %s", result.State)
+		}
 		sysFee = result.GasConsumed
 	}
 
