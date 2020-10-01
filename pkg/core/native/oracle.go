@@ -4,14 +4,11 @@ import (
 	"encoding/binary"
 	"errors"
 	"math/big"
-	"sort"
-	"sync/atomic"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/contract"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
-	"github.com/nspcc-dev/neo-go/pkg/core/interop/runtime"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
@@ -32,12 +29,7 @@ type Oracle struct {
 	GAS *GAS
 	NEO *NEO
 
-	// nodesChanged is true if `SetOracleNodes` was called.
-	nodesChanged atomic.Value
-	// nodes contains cached list of oracle nodes.
-	nodes atomic.Value
-	// oracleHash contains cached oracle script hash.
-	oracleHash atomic.Value
+	Desig *Designate
 }
 
 const (
@@ -81,7 +73,6 @@ var (
 // Various validation errors.
 var (
 	ErrBigArgument      = errors.New("some of the arguments are invalid")
-	ErrEmptyNodeList    = errors.New("oracle nodes list is empty")
 	ErrInvalidWitness   = errors.New("witness check failed")
 	ErrNotEnoughGas     = errors.New("gas limit exceeded")
 	ErrRequestNotFound  = errors.New("oracle request not found")
@@ -113,14 +104,6 @@ func newOracle() *Oracle {
 	md = newMethodAndPrice(o.finish, 0, smartcontract.AllowModifyStates)
 	o.AddMethod(md, desc, false)
 
-	desc = newDescriptor("getOracleNodes", smartcontract.ArrayType)
-	md = newMethodAndPrice(o.getOracleNodes, 100_0000, smartcontract.AllowStates)
-	o.AddMethod(md, desc, true)
-
-	desc = newDescriptor("setOracleNodes", smartcontract.VoidType)
-	md = newMethodAndPrice(o.setOracleNodes, 0, smartcontract.AllowModifyStates)
-	o.AddMethod(md, desc, false)
-
 	desc = newDescriptor("verify", smartcontract.BoolType)
 	md = newMethodAndPrice(o.verify, 100_0000, smartcontract.NoneFlag)
 	o.AddMethod(md, desc, false)
@@ -129,9 +112,6 @@ func newOracle() *Oracle {
 	desc = newDescriptor("postPersist", smartcontract.VoidType)
 	md = newMethodAndPrice(getOnPersistWrapper(pp), 0, smartcontract.AllowModifyStates)
 	o.AddMethod(md, desc, false)
-
-	o.nodes.Store(keys.PublicKeys(nil))
-	o.nodesChanged.Store(false)
 
 	return o
 }
@@ -176,7 +156,10 @@ func (o *Oracle) PostPersist(ic *interop.Context) error {
 		}
 
 		if nodes == nil {
-			nodes = o.GetOracleNodes()
+			nodes, err = o.GetOracleNodes(ic.DAO)
+			if err != nil {
+				return err
+			}
 			reward = make([]big.Int, len(nodes))
 		}
 
@@ -336,48 +319,18 @@ func (o *Oracle) PutRequestInternal(id uint64, req *OracleRequest, d dao.DAO) er
 	return d.PutStorageItem(o.ContractID, key, si)
 }
 
-func (o *Oracle) getOracleNodes(ic *interop.Context, _ []stackitem.Item) stackitem.Item {
-	pubs := o.GetOracleNodes()
-	return pubsToArray(pubs)
-}
-
-// GetOracleNodes returns public keys of oracle nodes.
-func (o *Oracle) GetOracleNodes() keys.PublicKeys {
-	return o.nodes.Load().(keys.PublicKeys).Copy()
-}
-
 // GetScriptHash returns script hash or oracle nodes.
 func (o *Oracle) GetScriptHash() (util.Uint160, error) {
-	h := o.oracleHash.Load()
+	h := o.Desig.oracleHash.Load()
 	if h == nil {
 		return util.Uint160{}, storage.ErrKeyNotFound
 	}
 	return h.(util.Uint160), nil
 }
 
-func (o *Oracle) setOracleNodes(ic *interop.Context, _ []stackitem.Item) stackitem.Item {
-	var pubs keys.PublicKeys
-	err := o.SetOracleNodes(ic, pubs)
-	if err != nil {
-		panic(err)
-	}
-	return pubsToArray(pubs)
-}
-
-// SetOracleNodes sets oracle node public keys to pubs.
-func (o *Oracle) SetOracleNodes(ic *interop.Context, pubs keys.PublicKeys) error {
-	if len(pubs) == 0 {
-		return ErrEmptyNodeList
-	}
-	h := o.NEO.GetCommitteeAddress()
-	if ok, err := runtime.CheckHashedWitness(ic, h); err != nil || !ok {
-		return ErrInvalidWitness
-	}
-
-	sort.Sort(pubs)
-	o.nodesChanged.Store(true)
-	si := &state.StorageItem{Value: NodeList(pubs).Bytes()}
-	return ic.DAO.PutStorageItem(o.ContractID, prefixNodeList, si)
+// GetOracleNodes returns public keys of oracle nodes.
+func (o *Oracle) GetOracleNodes(d dao.DAO) (keys.PublicKeys, error) {
+	return o.Desig.GetDesignatedByRole(d, RoleOracle)
 }
 
 // GetRequestInternal returns request by ID and key under which it is stored.
@@ -421,26 +374,5 @@ func makeIDListKey(url string) []byte {
 }
 
 func (o *Oracle) getSerializableFromDAO(d dao.DAO, key []byte, item io.Serializable) error {
-	si := d.GetStorageItem(o.ContractID, key)
-	if si == nil {
-		return storage.ErrKeyNotFound
-	}
-	r := io.NewBinReaderFromBuf(si.Value)
-	item.DecodeBinary(r)
-	return r.Err
-}
-
-// OnPersistEnd updates cached Oracle values if they've been changed
-func (o *Oracle) OnPersistEnd(d dao.DAO) {
-	if !o.nodesChanged.Load().(bool) {
-		return
-	}
-
-	ns := new(NodeList)
-	_ = o.getSerializableFromDAO(d, prefixNodeList, ns)
-	o.nodes.Store(keys.PublicKeys(*ns))
-	script, _ := smartcontract.CreateMajorityMultiSigRedeemScript(keys.PublicKeys(*ns).Copy())
-	o.oracleHash.Store(hash.Hash160(script))
-	o.nodesChanged.Store(false)
-	return
+	return getSerializableFromDAO(o.ContractID, d, key, item)
 }
