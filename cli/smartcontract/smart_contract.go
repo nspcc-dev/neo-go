@@ -159,7 +159,7 @@ func NewCommands() []cli.Command {
 				UsageText: "neo-go contract invokefunction -r endpoint -w wallet [-a address] [-g gas] scripthash [method] [arguments...] [--] [signers...]",
 				Description: `Executes given (as a script hash) deployed script with the given method,
    arguments and signers. Sender is included in the list of signers by default
-   with FeeOnly witness scope. If you'd like to change default sender's scope, 
+   with None witness scope. If you'd like to change default sender's scope, 
    specify it via signers parameter. See testinvokefunction documentation for 
    the details about parameters. It differs from testinvokefunction in that this
    command sends an invocation transaction to the network.
@@ -247,9 +247,8 @@ func NewCommands() []cli.Command {
     * 'signer' is hex-encoded 160 bit (20 byte) LE value of signer's address,
                  which could have '0x' prefix.
     * 'scope' is a comma-separated set of cosigner's scopes, which could be:
-        - 'FeeOnly' - marks transaction's sender and can be used only for the
-                      sender. Signer with this scope can't be used during the
-                      script execution and only pays fees for the transaction.
+        - 'None' - default witness scope which may be used for the sender
+			       to only pay fee for the transaction.
         - 'Global' - allows this witness in all contexts. This cannot be combined
                      with other flags.
         - 'CalledByEntry' - means that this condition must hold: EntryScriptHash 

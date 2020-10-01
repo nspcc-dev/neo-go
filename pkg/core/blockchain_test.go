@@ -127,7 +127,7 @@ func TestAddBadBlock(t *testing.T) {
 	tx := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
 	tx.Signers = []transaction.Signer{{
 		Account: testchain.MultisigScriptHash(),
-		Scopes:  transaction.FeeOnly,
+		Scopes:  transaction.None,
 	}}
 	require.NoError(t, signTx(bc, tx))
 	b1 := bc.newBlock(tx)
@@ -147,7 +147,7 @@ func TestAddBadBlock(t *testing.T) {
 	tx.ValidUntilBlock = 128
 	tx.Signers = []transaction.Signer{{
 		Account: testchain.MultisigScriptHash(),
-		Scopes:  transaction.FeeOnly,
+		Scopes:  transaction.None,
 	}}
 	require.NoError(t, signTx(bc, tx))
 	require.NoError(t, bc.PoolTx(tx))
@@ -435,7 +435,7 @@ func TestVerifyTx(t *testing.T) {
 			tx.NetworkFee += 4_000_000 // multisig check
 			tx.Signers = []transaction.Signer{{
 				Account: testchain.CommitteeScriptHash(),
-				Scopes:  transaction.FeeOnly,
+				Scopes:  transaction.None,
 			}}
 			rawScript := testchain.CommitteeVerificationScript()
 			require.NoError(t, err)
@@ -476,7 +476,7 @@ func TestVerifyTx(t *testing.T) {
 				tx.SystemFee = int64(req.GasForResponse - uint64(tx.NetworkFee))
 				tx.Signers = []transaction.Signer{{
 					Account: oracleHash,
-					Scopes:  transaction.FeeOnly,
+					Scopes:  transaction.None,
 				}}
 				size := io.GetVarSize(tx)
 				netFee, sizeDelta := CalculateNetworkFee(oracleScript)

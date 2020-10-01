@@ -97,9 +97,9 @@ func TestParseCosigner(t *testing.T) {
 			Account: acc,
 			Scopes:  transaction.CalledByEntry,
 		},
-		acc.StringLE() + ":FeeOnly": {
+		acc.StringLE() + ":None": {
 			Account: acc,
-			Scopes:  transaction.FeeOnly,
+			Scopes:  transaction.None,
 		},
 		acc.StringLE() + ":CalledByEntry,CustomContracts": {
 			Account: acc,
@@ -115,7 +115,7 @@ func TestParseCosigner(t *testing.T) {
 		acc.StringLE() + "0",
 		acc.StringLE() + ":Unknown",
 		acc.StringLE() + ":Global,CustomContracts",
-		acc.StringLE() + ":Global,FeeOnly",
+		acc.StringLE() + ":Global,None",
 	}
 	for _, s := range errorCases {
 		_, err := parseCosigner(s)

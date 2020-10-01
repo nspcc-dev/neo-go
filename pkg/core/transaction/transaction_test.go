@@ -188,11 +188,6 @@ func TestTransaction_isValid(t *testing.T) {
 		tx.Signers = tx.Signers[:0]
 		require.True(t, errors.Is(tx.isValid(), ErrEmptySigners))
 	})
-	t.Run("InvalidScope", func(t *testing.T) {
-		tx := newTx()
-		tx.Signers[1].Scopes = FeeOnly
-		require.True(t, errors.Is(tx.isValid(), ErrInvalidScope))
-	})
 	t.Run("NonUniqueSigners", func(t *testing.T) {
 		tx := newTx()
 		tx.Signers[1].Account = tx.Signers[0].Account

@@ -955,7 +955,7 @@ func (s *Server) invokeFunction(reqParams request.Params) (interface{}, *respons
 		checkWitnessHashesIndex--
 	}
 	if len(tx.Signers) == 0 {
-		tx.Signers = []transaction.Signer{{Account: util.Uint160{}, Scopes: transaction.FeeOnly}}
+		tx.Signers = []transaction.Signer{{Account: util.Uint160{}, Scopes: transaction.None}}
 	}
 	script, err := request.CreateFunctionInvocationScript(scriptHash, reqParams[1:checkWitnessHashesIndex])
 	if err != nil {
@@ -985,7 +985,7 @@ func (s *Server) invokescript(reqParams request.Params) (interface{}, *response.
 		tx.Signers = signers
 	}
 	if len(tx.Signers) == 0 {
-		tx.Signers = []transaction.Signer{{Account: util.Uint160{}, Scopes: transaction.FeeOnly}}
+		tx.Signers = []transaction.Signer{{Account: util.Uint160{}, Scopes: transaction.None}}
 	}
 	tx.Script = script
 	return s.runScriptInVM(script, tx), nil

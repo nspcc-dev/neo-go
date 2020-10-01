@@ -107,7 +107,7 @@ func TestParam_UnmarshalJSON(t *testing.T) {
 			Type: Signer,
 			Value: transaction.Signer{
 				Account: accountHash,
-				Scopes:  transaction.FeeOnly,
+				Scopes:  transaction.None,
 			},
 		},
 		{
