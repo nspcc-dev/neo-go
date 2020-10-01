@@ -614,7 +614,7 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 		{
 			name: "positive",
 			invoke: func(c *Client) (interface{}, error) {
-				return c.GetValidators()
+				return c.GetNextBlockValidators()
 			},
 			serverResponse: `{"id":1,"jsonrpc":"2.0","result":[{"publickey":"02b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc2","votes":"0","active":true},{"publickey":"02103a7f7dd016558597f7960d27c516a4394fd968b9e65155eb4b013e4040406e","votes":"0","active":true},{"publickey":"03d90c07df63e690ce77912e10ab51acc944b66860237b608c4f8f8309e71ee699","votes":"0","active":true},{"publickey":"02a7bc55fe8684e0119768d104ba30795bdcc86619e864add26156723ed185cd62","votes":"0","active":true}]}`,
 			result:         func(c *Client) interface{} { return []result.Validator{} },
@@ -1189,7 +1189,7 @@ var rpcClientErrorCases = map[string][]rpcClientErrorCase{
 		{
 			name: "getvalidators_unmarshalling_error",
 			invoke: func(c *Client) (interface{}, error) {
-				return c.GetValidators()
+				return c.GetNextBlockValidators()
 			},
 		},
 		{
@@ -1354,7 +1354,7 @@ func TestCalculateValidUntilBlock(t *testing.T) {
 		case "getblockcount":
 			getBlockCountCalled++
 			response = `{"jsonrpc":"2.0","id":1,"result":50}`
-		case "getvalidators":
+		case "getnextblockvalidators":
 			getValidatorsCalled++
 			response = `{"id":1,"jsonrpc":"2.0","result":[{"publickey":"02b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc2","votes":"0","active":true},{"publickey":"02103a7f7dd016558597f7960d27c516a4394fd968b9e65155eb4b013e4040406e","votes":"0","active":true},{"publickey":"03d90c07df63e690ce77912e10ab51acc944b66860237b608c4f8f8309e71ee699","votes":"0","active":true},{"publickey":"02a7bc55fe8684e0119768d104ba30795bdcc86619e864add26156723ed185cd62","votes":"0","active":true}]}`
 		default:

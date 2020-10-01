@@ -353,13 +353,13 @@ func (c *Client) GetUnclaimedGas(address string) (result.UnclaimedGas, error) {
 	return resp, nil
 }
 
-// GetValidators returns the current NEO consensus nodes information and voting status.
-func (c *Client) GetValidators() ([]result.Validator, error) {
+// GetNextBlockValidators returns the current NEO consensus nodes information and voting status.
+func (c *Client) GetNextBlockValidators() ([]result.Validator, error) {
 	var (
 		params = request.NewRawParams()
 		resp   = new([]result.Validator)
 	)
-	if err := c.performRequest("getvalidators", params, resp); err != nil {
+	if err := c.performRequest("getnextblockvalidators", params, resp); err != nil {
 		return nil, err
 	}
 	return *resp, nil
@@ -502,7 +502,7 @@ func (c *Client) ValidateAddress(address string) error {
 
 // CalculateValidUntilBlock calculates ValidUntilBlock field for tx as
 // current blockchain height + number of validators. Number of validators
-// is the length of blockchain validators list got from GetValidators()
+// is the length of blockchain validators list got from GetNextBlockValidators()
 // method. Validators count is being cached and updated every 100 blocks.
 func (c *Client) CalculateValidUntilBlock() (uint32, error) {
 	var (
@@ -517,7 +517,7 @@ func (c *Client) CalculateValidUntilBlock() (uint32, error) {
 	if c.cache.calculateValidUntilBlock.expiresAt > blockCount {
 		validatorsCount = c.cache.calculateValidUntilBlock.validatorsCount
 	} else {
-		validators, err := c.GetValidators()
+		validators, err := c.GetNextBlockValidators()
 		if err != nil {
 			return result, fmt.Errorf("can't get validators: %w", err)
 		}
