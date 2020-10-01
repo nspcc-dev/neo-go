@@ -1259,7 +1259,7 @@ func (bc *Blockchain) verifyTxAttributes(tx *transaction.Transaction) error {
 			}
 			hasOracle := false
 			for i := range tx.Signers {
-				if tx.Signers[i].Scopes != transaction.FeeOnly {
+				if tx.Signers[i].Scopes != transaction.None {
 					return fmt.Errorf("%w: oracle tx has invalid signer scope", ErrInvalidAttribute)
 				}
 				if tx.Signers[i].Account.Equals(h) {

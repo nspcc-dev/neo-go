@@ -11,8 +11,8 @@ import (
 type WitnessScope byte
 
 const (
-	// FeeOnly is only valid for a sender, it can't be used during the execution.
-	FeeOnly WitnessScope = 0
+	// None specifies that no contract was witnessed. Only sign the transaction.
+	None WitnessScope = 0
 	// CalledByEntry means that this condition must hold: EntryScriptHash == CallingScriptHash.
 	// No params is needed, as the witness/permission/signature given on first invocation will
 	// automatically expire if entering deeper internal invokes. This can be default safe
@@ -42,7 +42,7 @@ func ScopesFromString(s string) (WitnessScope, error) {
 		CalledByEntry.String():   CalledByEntry,
 		CustomContracts.String(): CustomContracts,
 		CustomGroups.String():    CustomGroups,
-		FeeOnly.String():         FeeOnly,
+		None.String():            None,
 	}
 	var isGlobal bool
 	for _, scopeStr := range scopes {
@@ -64,7 +64,7 @@ func ScopesFromString(s string) (WitnessScope, error) {
 // scopesToString converts witness scope to it's string representation. It uses
 // `, ` to separate scope names.
 func scopesToString(scopes WitnessScope) string {
-	if scopes&Global != 0 || scopes == FeeOnly {
+	if scopes&Global != 0 || scopes == None {
 		return scopes.String()
 	}
 	var res string

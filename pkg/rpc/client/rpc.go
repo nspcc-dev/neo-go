@@ -469,7 +469,7 @@ func (c *Client) SignAndPushInvocationTx(script []byte, acc *wallet.Account, sys
 func getSigners(sender util.Uint160, cosigners []transaction.Signer) []transaction.Signer {
 	s := transaction.Signer{
 		Account: sender,
-		Scopes:  transaction.FeeOnly,
+		Scopes:  transaction.None,
 	}
 	for i, c := range cosigners {
 		if c.Account == sender {

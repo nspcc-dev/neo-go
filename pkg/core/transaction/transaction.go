@@ -348,7 +348,6 @@ var (
 	ErrNegativeNetworkFee = errors.New("negative network fee")
 	ErrTooBigFees         = errors.New("too big fees: int64 overflow")
 	ErrEmptySigners       = errors.New("signers array should contain sender")
-	ErrInvalidScope       = errors.New("FeeOnly scope can be used only for sender")
 	ErrNonUniqueSigners   = errors.New("transaction signers should be unique")
 	ErrInvalidAttribute   = errors.New("invalid attribute")
 	ErrEmptyScript        = errors.New("no script")
@@ -372,9 +371,6 @@ func (t *Transaction) isValid() error {
 		return ErrEmptySigners
 	}
 	for i := 0; i < len(t.Signers); i++ {
-		if i > 0 && t.Signers[i].Scopes == FeeOnly {
-			return ErrInvalidScope
-		}
 		for j := i + 1; j < len(t.Signers); j++ {
 			if t.Signers[i].Account.Equals(t.Signers[j].Account) {
 				return ErrNonUniqueSigners
