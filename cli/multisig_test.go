@@ -5,11 +5,13 @@ import (
 	"math/big"
 	"os"
 	"path"
+	"strings"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
+	"github.com/nspcc-dev/neo-go/pkg/rpc/client"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/stretchr/testify/require"
 )
@@ -82,4 +84,29 @@ func TestSignMultisigTx(t *testing.T) {
 	require.Equal(t, big.NewInt(1), b)
 	b, _ = e.Chain.GetGoverningTokenBalance(multisigHash)
 	require.Equal(t, big.NewInt(3), b)
+
+	t.Run("via invokefunction", func(t *testing.T) {
+		e.In.WriteString("pass\r")
+		e.Run(t, "neo-go", "contract", "invokefunction",
+			"--unittest", "--rpc-endpoint", "http://"+e.RPC.Addr,
+			"--wallet", wallet1Path, "--address", multisigAddr,
+			"--out", txPath,
+			client.NeoContractHash.StringLE(), "transfer",
+			"bytes:"+multisigHash.StringBE(),
+			"bytes:"+priv.GetScriptHash().StringBE(),
+			"int:1",
+			"--", strings.Join([]string{multisigHash.StringLE(), ":", "Global"}, ""))
+
+		e.In.WriteString("pass\r")
+		e.Run(t, "neo-go", "wallet", "multisig", "sign",
+			"--unittest", "--rpc-endpoint", "http://"+e.RPC.Addr,
+			"--wallet", wallet2Path, "--address", multisigAddr,
+			"--in", txPath, "--out", txPath)
+		e.checkTxPersisted(t)
+
+		b, _ := e.Chain.GetGoverningTokenBalance(priv.GetScriptHash())
+		require.Equal(t, big.NewInt(2), b)
+		b, _ = e.Chain.GetGoverningTokenBalance(multisigHash)
+		require.Equal(t, big.NewInt(2), b)
+	})
 }

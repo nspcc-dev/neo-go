@@ -1,24 +1,19 @@
 package wallet
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"strings"
 
 	"github.com/nspcc-dev/neo-go/cli/flags"
 	"github.com/nspcc-dev/neo-go/cli/options"
+	"github.com/nspcc-dev/neo-go/cli/paramcontext"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/client"
-	"github.com/nspcc-dev/neo-go/pkg/smartcontract/context"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/urfave/cli"
 )
-
-// validUntilBlockIncrement is the number of extra blocks to add to an exported transaction
-const validUntilBlockIncrement = 50
 
 var (
 	neoToken = wallet.NewToken(client.NeoContractHash, "NEO", "neo", 0)
@@ -474,18 +469,8 @@ func signAndSendTransfer(ctx *cli.Context, c *client.Client, acc *wallet.Account
 	}
 
 	if outFile := ctx.String("out"); outFile != "" {
-		// avoid fast transaction expiration
-		tx.ValidUntilBlock += validUntilBlockIncrement
-		priv := acc.PrivateKey()
-		pub := priv.PublicKey()
-		sign := priv.Sign(tx.GetSignedPart())
-		scCtx := context.NewParameterContext("Neo.Core.ContractTransaction", tx)
-		if err := scCtx.AddSignature(acc.Contract, pub, sign); err != nil {
-			return cli.NewExitError(fmt.Errorf("can't add signature: %w", err), 1)
-		} else if data, err := json.Marshal(scCtx); err != nil {
-			return cli.NewExitError(fmt.Errorf("can't marshal tx to JSON: %w", err), 1)
-		} else if err := ioutil.WriteFile(outFile, data, 0644); err != nil {
-			return cli.NewExitError(fmt.Errorf("can't write tx to file: %w", err), 1)
+		if err := paramcontext.InitAndSave(tx, acc, outFile); err != nil {
+			return cli.NewExitError(err, 1)
 		}
 	} else {
 		_ = acc.SignTx(tx)

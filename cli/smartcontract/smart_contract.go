@@ -13,6 +13,7 @@ import (
 	"github.com/nspcc-dev/neo-go/cli/flags"
 	"github.com/nspcc-dev/neo-go/cli/input"
 	"github.com/nspcc-dev/neo-go/cli/options"
+	"github.com/nspcc-dev/neo-go/cli/paramcontext"
 	"github.com/nspcc-dev/neo-go/pkg/compiler"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
@@ -49,6 +50,10 @@ var (
 	gasFlag = flags.Fixed8Flag{
 		Name:  "gas, g",
 		Usage: "gas to add to the transaction",
+	}
+	outFlag = cli.StringFlag{
+		Name:  "out",
+		Usage: "file to put JSON transaction to",
 	}
 )
 
@@ -104,6 +109,7 @@ func NewCommands() []cli.Command {
 		walletFlag,
 		addressFlag,
 		gasFlag,
+		outFlag,
 	}
 	invokeFunctionFlags = append(invokeFunctionFlags, options.RPC...)
 	return []cli.Command{{
@@ -156,7 +162,7 @@ func NewCommands() []cli.Command {
 			{
 				Name:      "invokefunction",
 				Usage:     "invoke deployed contract on the blockchain",
-				UsageText: "neo-go contract invokefunction -r endpoint -w wallet [-a address] [-g gas] scripthash [method] [arguments...] [--] [signers...]",
+				UsageText: "neo-go contract invokefunction -r endpoint -w wallet [-a address] [-g gas] [--out file] scripthash [method] [arguments...] [--] [signers...]",
 				Description: `Executes given (as a script hash) deployed script with the given method,
    arguments and signers. Sender is included in the list of signers by default
    with None witness scope. If you'd like to change default sender's scope, 
@@ -480,6 +486,21 @@ func invokeInternal(ctx *cli.Context, signAndPush bool) error {
 	resp, err = c.InvokeFunction(script, operation, params, cosigners)
 	if err != nil {
 		return cli.NewExitError(err, 1)
+	}
+	if out := ctx.String("out"); out != "" {
+		script, err := hex.DecodeString(resp.Script)
+		if err != nil {
+			return cli.NewExitError(fmt.Errorf("bad script returned from the RPC node: %w", err), 1)
+		}
+		tx, err := c.CreateTxFromScript(script, acc, resp.GasConsumed, int64(gas), cosigners...)
+		if err != nil {
+			return cli.NewExitError(fmt.Errorf("failed to create tx: %w", err), 1)
+		}
+		if err := paramcontext.InitAndSave(tx, acc, out); err != nil {
+			return cli.NewExitError(err, 1)
+		}
+		fmt.Fprintln(ctx.App.Writer, tx.Hash().StringLE())
+		return nil
 	}
 	if signAndPush {
 		if len(resp.Script) == 0 {
