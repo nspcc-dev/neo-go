@@ -40,13 +40,15 @@ func (c *codegen) getIdentName(pkg string, name string) string {
 // and returns number of variables initialized.
 // Second return value is -1 if no `init()` functions were encountered
 // and number of maximum amount of locals in any of init functions otherwise.
-func (c *codegen) traverseGlobals() (int, int) {
+// Same for `_deploy()` functions (see docs/compiler.md).
+func (c *codegen) traverseGlobals() (int, int, int) {
 	var hasDefer bool
 	var n int
 	initLocals := -1
+	deployLocals := -1
 	c.ForEachFile(func(f *ast.File, _ *types.Package) {
 		n += countGlobals(f)
-		if initLocals == -1 || !hasDefer {
+		if initLocals == -1 || deployLocals == -1 || !hasDefer {
 			ast.Inspect(f, func(node ast.Node) bool {
 				switch n := node.(type) {
 				case *ast.FuncDecl:
@@ -54,6 +56,11 @@ func (c *codegen) traverseGlobals() (int, int) {
 						c, _ := countLocals(n)
 						if c > initLocals {
 							initLocals = c
+						}
+					} else if isDeployFunc(n) {
+						c, _ := countLocals(n)
+						if c > deployLocals {
+							deployLocals = c
 						}
 					}
 					return !hasDefer
@@ -71,7 +78,7 @@ func (c *codegen) traverseGlobals() (int, int) {
 	if n != 0 || initLocals > -1 {
 		if n > 255 {
 			c.prog.BinWriter.Err = errors.New("too many global variables")
-			return 0, initLocals
+			return 0, initLocals, deployLocals
 		}
 		if n != 0 {
 			emit.Instruction(c.prog.BinWriter, opcode.INITSSLOT, []byte{byte(n)})
@@ -104,7 +111,7 @@ func (c *codegen) traverseGlobals() (int, int) {
 			c.globals["<exception>"] = c.exceptionIndex
 		}
 	}
-	return n, initLocals
+	return n, initLocals, deployLocals
 }
 
 // countGlobals counts the global variables in the program to add

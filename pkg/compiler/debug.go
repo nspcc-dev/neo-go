@@ -134,6 +134,27 @@ func (c *codegen) emitDebugInfo(contract []byte) *DebugInfo {
 			SeqPoints:  c.sequencePoints["init"],
 		})
 	}
+	if c.deployEndOffset >= 0 {
+		d.Methods = append(d.Methods, MethodDebugInfo{
+			ID: manifest.MethodDeploy,
+			Name: DebugMethodName{
+				Name:      manifest.MethodDeploy,
+				Namespace: c.mainPkg.Pkg.Name(),
+			},
+			IsExported: true,
+			IsFunction: true,
+			Range: DebugRange{
+				Start: uint16(c.initEndOffset + 1),
+				End:   uint16(c.deployEndOffset),
+			},
+			Parameters: []DebugParam{{
+				Name: "isUpdate",
+				Type: "Boolean",
+			}},
+			ReturnType: "Void",
+			SeqPoints:  c.sequencePoints[manifest.MethodDeploy],
+		})
+	}
 	for name, scope := range c.funcs {
 		m := c.methodInfoFromScope(name, scope)
 		if m.Range.Start == m.Range.End {

@@ -61,6 +61,8 @@ type codegen struct {
 
 	// initEndOffset specifies the end of the initialization method.
 	initEndOffset int
+	// deployEndOffset specifies the end of the deployment method.
+	deployEndOffset int
 
 	// importMap contains mapping from package aliases to full package names for the current file.
 	importMap map[string]string
@@ -328,13 +330,46 @@ func (c *codegen) convertInitFuncs(f *ast.File, pkg *types.Package, seenBefore b
 	return seenBefore
 }
 
+func isDeployFunc(decl *ast.FuncDecl) bool {
+	if decl.Name.Name != "_deploy" || decl.Recv != nil ||
+		decl.Type.Params.NumFields() != 1 ||
+		decl.Type.Results.NumFields() != 0 {
+		return false
+	}
+	typ, ok := decl.Type.Params.List[0].Type.(*ast.Ident)
+	return ok && typ.Name == "bool"
+}
+
+func (c *codegen) convertDeployFuncs() {
+	seenBefore := false
+	c.ForEachFile(func(f *ast.File, pkg *types.Package) {
+		ast.Inspect(f, func(node ast.Node) bool {
+			switch n := node.(type) {
+			case *ast.FuncDecl:
+				if isDeployFunc(n) {
+					if seenBefore {
+						cnt, _ := countLocals(n)
+						c.clearSlots(cnt)
+					}
+					c.convertFuncDecl(f, n, pkg)
+					seenBefore = true
+				}
+			case *ast.GenDecl:
+				return false
+			}
+			return true
+		})
+	})
+}
+
 func (c *codegen) convertFuncDecl(file ast.Node, decl *ast.FuncDecl, pkg *types.Package) {
 	var (
 		f            *funcScope
 		ok, isLambda bool
 	)
 	isInit := isInitFunc(decl)
-	if isInit {
+	isDeploy := isDeployFunc(decl)
+	if isInit || isDeploy {
 		f = c.newFuncScope(decl, c.newLabel())
 	} else {
 		f, ok = c.funcs[c.getFuncNameFromDecl("", decl)]
@@ -358,7 +393,7 @@ func (c *codegen) convertFuncDecl(file ast.Node, decl *ast.FuncDecl, pkg *types.
 
 	// All globals copied into the scope of the function need to be added
 	// to the stack size of the function.
-	if !isInit {
+	if !isInit && !isDeploy {
 		sizeLoc := f.countLocals()
 		if sizeLoc > 255 {
 			c.prog.Err = errors.New("maximum of 255 local variables is allowed")
@@ -401,7 +436,7 @@ func (c *codegen) convertFuncDecl(file ast.Node, decl *ast.FuncDecl, pkg *types.
 	// If we have reached the end of the function without encountering `return` statement,
 	// we should clean alt.stack manually.
 	// This can be the case with void and named-return functions.
-	if !isInit && !lastStmtIsReturn(decl) {
+	if !isInit && !isDeploy && !lastStmtIsReturn(decl) {
 		c.saveSequencePoint(decl.Body)
 		emit.Opcodes(c.prog.BinWriter, opcode.RET)
 	}
@@ -1792,11 +1827,19 @@ func (c *codegen) compile(info *buildInfo, pkg *loader.PackageInfo) error {
 	// Bring all imported functions into scope.
 	c.ForEachFile(c.resolveFuncDecls)
 
-	n, initLocals := c.traverseGlobals()
+	n, initLocals, deployLocals := c.traverseGlobals()
 	hasInit := initLocals > -1
 	if n > 0 || hasInit {
-		emit.Opcodes(c.prog.BinWriter, opcode.RET)
 		c.initEndOffset = c.prog.Len()
+		emit.Opcodes(c.prog.BinWriter, opcode.RET)
+	}
+
+	hasDeploy := deployLocals > -1
+	if hasDeploy {
+		emit.Instruction(c.prog.BinWriter, opcode.INITSLOT, []byte{byte(deployLocals), 1})
+		c.convertDeployFuncs()
+		c.deployEndOffset = c.prog.Len()
+		emit.Opcodes(c.prog.BinWriter, opcode.RET)
 	}
 
 	// sort map keys to generate code deterministically.
@@ -1814,7 +1857,7 @@ func (c *codegen) compile(info *buildInfo, pkg *loader.PackageInfo) error {
 				// Don't convert the function if it's not used. This will save a lot
 				// of bytecode space.
 				name := c.getFuncNameFromDecl(pkg.Path(), n)
-				if !isInitFunc(n) && funUsage.funcUsed(name) && !isInteropPath(pkg.Path()) {
+				if !isInitFunc(n) && !isDeployFunc(n) && funUsage.funcUsed(name) && !isInteropPath(pkg.Path()) {
 					c.convertFuncDecl(f, n, pkg)
 				}
 			}
@@ -1836,6 +1879,9 @@ func newCodegen(info *buildInfo, pkg *loader.PackageInfo) *codegen {
 		typeInfo:  &pkg.Info,
 		constMap:  map[string]types.TypeAndValue{},
 		docIndex:  map[string]int{},
+
+		initEndOffset:   -1,
+		deployEndOffset: -1,
 
 		sequencePoints: make(map[string][]DebugSeqPoint),
 	}

@@ -36,6 +36,10 @@ functionality as Neo .net Framework library.
 Compiler provides some helpful builtins in `util` and `convert` packages.
 Refer to them for detailed documentation. 
 
+`_deploy()` function has a special meaning and is executed when contract is deployed.
+It should return no value and accept single bool argument which will be true on contract update.
+`_deploy()` functions are called for every imported package in the same order as `init()`. 
+
 ## Quick start
 
 ### Compiling
