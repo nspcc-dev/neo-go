@@ -204,6 +204,30 @@ func (n *NEO) Initialize(ic *interop.Context) error {
 	return nil
 }
 
+// InitializeCache initializes all NEO cache with the proper values from storage.
+// Cache initialisation should be done apart from Initialize because Initialize is
+// called only when deploying native contracts.
+func (n *NEO) InitializeCache(bc blockchainer.Blockchainer, d dao.DAO) error {
+	committee := keys.PublicKeys{}
+	si := d.GetStorageItem(n.ContractID, prefixCommittee)
+	if err := committee.DecodeBytes(si.Value); err != nil {
+		return err
+	}
+	if err := n.updateCache(committee, bc); err != nil {
+		return err
+	}
+
+	var gr state.GASRecord
+	si = d.GetStorageItem(n.ContractID, []byte{prefixGASPerBlock})
+	if err := gr.FromBytes(si.Value); err != nil {
+		return err
+	}
+	n.gasPerBlock.Store(gr)
+	n.gasPerBlockChanged.Store(false)
+
+	return nil
+}
+
 func (n *NEO) updateCache(committee keys.PublicKeys, bc blockchainer.Blockchainer) error {
 	n.committee.Store(committee)
 	script, err := smartcontract.CreateMajorityMultiSigRedeemScript(committee.Copy())
@@ -247,25 +271,6 @@ func shouldUpdateCommittee(h uint32, bc blockchainer.Blockchainer) bool {
 
 // OnPersist implements Contract interface.
 func (n *NEO) OnPersist(ic *interop.Context) error {
-	gpb := n.gasPerBlockChanged.Load()
-	if gpb == nil {
-		committee := keys.PublicKeys{}
-		si := ic.DAO.GetStorageItem(n.ContractID, prefixCommittee)
-		if err := committee.DecodeBytes(si.Value); err != nil {
-			return err
-		}
-		if err := n.updateCache(committee, ic.Chain); err != nil {
-			return err
-		}
-
-		var gr state.GASRecord
-		si = ic.DAO.GetStorageItem(n.ContractID, []byte{prefixGASPerBlock})
-		if err := gr.FromBytes(si.Value); err != nil {
-			return err
-		}
-		n.gasPerBlock.Store(gr)
-		n.gasPerBlockChanged.Store(false)
-	}
 	if shouldUpdateCommittee(ic.Block.Index, ic.Chain) {
 		if err := n.updateCommittee(ic); err != nil {
 			return err
