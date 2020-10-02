@@ -15,10 +15,12 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
+	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/stretchr/testify/require"
@@ -365,23 +367,33 @@ func TestStoragePut(t *testing.T) {
 
 // getTestContractState returns 2 contracts second of which is allowed to call the first.
 func getTestContractState() (*state.Contract, *state.Contract) {
-	script := []byte{
-		byte(opcode.ABORT), // abort if no offset was provided
-		byte(opcode.ADD), byte(opcode.RET),
-		byte(opcode.PUSH7), byte(opcode.RET),
-		byte(opcode.DROP), byte(opcode.RET),
-		byte(opcode.INITSSLOT), 1, byte(opcode.PUSH3), byte(opcode.STSFLD0), byte(opcode.RET),
-		byte(opcode.LDSFLD0), byte(opcode.ADD), byte(opcode.RET),
-		byte(opcode.PUSH1), byte(opcode.PUSH2), byte(opcode.RET),
-		byte(opcode.RET),
-		byte(opcode.LDSFLD0), byte(opcode.SUB), byte(opcode.CONVERT), byte(stackitem.BooleanT), byte(opcode.RET),
-	}
+	w := io.NewBufBinWriter()
+	emit.Opcodes(w.BinWriter, opcode.ABORT)
+	addOff := w.Len()
+	emit.Opcodes(w.BinWriter, opcode.ADD, opcode.RET)
+	ret7Off := w.Len()
+	emit.Opcodes(w.BinWriter, opcode.PUSH7, opcode.RET)
+	dropOff := w.Len()
+	emit.Opcodes(w.BinWriter, opcode.DROP, opcode.RET)
+	initOff := w.Len()
+	emit.Opcodes(w.BinWriter, opcode.INITSSLOT, 1, opcode.PUSH3, opcode.STSFLD0, opcode.RET)
+	add3Off := w.Len()
+	emit.Opcodes(w.BinWriter, opcode.LDSFLD0, opcode.ADD, opcode.RET)
+	invalidRetOff := w.Len()
+	emit.Opcodes(w.BinWriter, opcode.PUSH1, opcode.PUSH2, opcode.RET)
+	justRetOff := w.Len()
+	emit.Opcodes(w.BinWriter, opcode.RET)
+	verifyOff := w.Len()
+	emit.Opcodes(w.BinWriter, opcode.LDSFLD0, opcode.SUB,
+		opcode.CONVERT, opcode.Opcode(stackitem.BooleanT), opcode.RET)
+
+	script := w.Bytes()
 	h := hash.Hash160(script)
 	m := manifest.NewManifest(h)
 	m.ABI.Methods = []manifest.Method{
 		{
 			Name:   "add",
-			Offset: 1,
+			Offset: addOff,
 			Parameters: []manifest.Parameter{
 				manifest.NewParameter("addend1", smartcontract.IntegerType),
 				manifest.NewParameter("addend2", smartcontract.IntegerType),
@@ -390,23 +402,23 @@ func getTestContractState() (*state.Contract, *state.Contract) {
 		},
 		{
 			Name:       "ret7",
-			Offset:     3,
+			Offset:     ret7Off,
 			Parameters: []manifest.Parameter{},
 			ReturnType: smartcontract.IntegerType,
 		},
 		{
 			Name:       "drop",
-			Offset:     5,
+			Offset:     dropOff,
 			ReturnType: smartcontract.VoidType,
 		},
 		{
 			Name:       manifest.MethodInit,
-			Offset:     7,
+			Offset:     initOff,
 			ReturnType: smartcontract.VoidType,
 		},
 		{
 			Name:   "add3",
-			Offset: 12,
+			Offset: add3Off,
 			Parameters: []manifest.Parameter{
 				manifest.NewParameter("addend", smartcontract.IntegerType),
 			},
@@ -414,17 +426,17 @@ func getTestContractState() (*state.Contract, *state.Contract) {
 		},
 		{
 			Name:       "invalidReturn",
-			Offset:     15,
+			Offset:     invalidRetOff,
 			ReturnType: smartcontract.IntegerType,
 		},
 		{
 			Name:       "justReturn",
-			Offset:     18,
+			Offset:     justRetOff,
 			ReturnType: smartcontract.IntegerType,
 		},
 		{
 			Name:       manifest.MethodVerify,
-			Offset:     19,
+			Offset:     verifyOff,
 			ReturnType: smartcontract.BoolType,
 		},
 	}
