@@ -39,8 +39,8 @@ func (cs *Contracts) ByHash(h util.Uint160) interop.Contract {
 func NewContracts() *Contracts {
 	cs := new(Contracts)
 
-	gas := NewGAS()
-	neo := NewNEO()
+	gas := newGAS()
+	neo := newNEO()
 	neo.GAS = gas
 	gas.NEO = neo
 

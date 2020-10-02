@@ -24,8 +24,8 @@ const gasContractID = -2
 const GASFactor = NEOTotalSupply
 const initialGAS = 30000000
 
-// NewGAS returns GAS native contract.
-func NewGAS() *GAS {
+// newGAS returns GAS native contract.
+func newGAS() *GAS {
 	g := &GAS{}
 	nep5 := newNEP5Native(gasName)
 	nep5.symbol = "gas"
