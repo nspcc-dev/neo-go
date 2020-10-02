@@ -185,11 +185,14 @@ func (e *executor) run(args ...string) error {
 	return e.CLI.Run(args)
 }
 
-func (e *executor) checkTxPersisted(t *testing.T) (*transaction.Transaction, uint32) {
+func (e *executor) checkTxPersisted(t *testing.T, prefix ...string) (*transaction.Transaction, uint32) {
 	line, err := e.Out.ReadString('\n')
 	require.NoError(t, err)
 
 	line = strings.TrimSpace(line)
+	if len(prefix) > 0 {
+		line = strings.TrimPrefix(line, prefix[0])
+	}
 	h, err := util.Uint256DecodeStringLE(line)
 	require.NoError(t, err, "can't decode tx hash: %s", line)
 
