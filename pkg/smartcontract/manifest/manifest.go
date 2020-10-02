@@ -15,6 +15,9 @@ const (
 	// MethodInit is a name for default initialization method.
 	MethodInit = "_initialize"
 
+	// MethodDeploy is a name for default method called during contract deployment.
+	MethodDeploy = "_deploy"
+
 	// MethodVerify is a name for default verification method.
 	MethodVerify = "verify"
 

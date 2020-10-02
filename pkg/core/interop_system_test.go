@@ -10,6 +10,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/callback"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/contract"
+	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/runtime"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
@@ -386,10 +387,26 @@ func getTestContractState() (*state.Contract, *state.Contract) {
 	verifyOff := w.Len()
 	emit.Opcodes(w.BinWriter, opcode.LDSFLD0, opcode.SUB,
 		opcode.CONVERT, opcode.Opcode(stackitem.BooleanT), opcode.RET)
+	deployOff := w.Len()
+	emit.Opcodes(w.BinWriter, opcode.JMPIF, 2+8+3)
+	emit.String(w.BinWriter, "create")
+	emit.Opcodes(w.BinWriter, opcode.CALL, 3+8+3, opcode.RET)
+	emit.String(w.BinWriter, "update")
+	emit.Opcodes(w.BinWriter, opcode.CALL, 3, opcode.RET)
+	putValOff := w.Len()
+	emit.String(w.BinWriter, "initial")
+	emit.Syscall(w.BinWriter, interopnames.SystemStorageGetContext)
+	emit.Syscall(w.BinWriter, interopnames.SystemStoragePut)
+	emit.Opcodes(w.BinWriter, opcode.RET)
+	getValOff := w.Len()
+	emit.String(w.BinWriter, "initial")
+	emit.Syscall(w.BinWriter, interopnames.SystemStorageGetContext)
+	emit.Syscall(w.BinWriter, interopnames.SystemStorageGet)
 
 	script := w.Bytes()
 	h := hash.Hash160(script)
 	m := manifest.NewManifest(h)
+	m.Features = smartcontract.HasStorage
 	m.ABI.Methods = []manifest.Method{
 		{
 			Name:   "add",
@@ -439,6 +456,27 @@ func getTestContractState() (*state.Contract, *state.Contract) {
 			Offset:     verifyOff,
 			ReturnType: smartcontract.BoolType,
 		},
+		{
+			Name:   manifest.MethodDeploy,
+			Offset: deployOff,
+			Parameters: []manifest.Parameter{
+				manifest.NewParameter("isUpdate", smartcontract.BoolType),
+			},
+			ReturnType: smartcontract.VoidType,
+		},
+		{
+			Name:       "getValue",
+			Offset:     getValOff,
+			ReturnType: smartcontract.StringType,
+		},
+		{
+			Name:   "putValue",
+			Offset: putValOff,
+			Parameters: []manifest.Parameter{
+				manifest.NewParameter("value", smartcontract.StringType),
+			},
+			ReturnType: smartcontract.VoidType,
+		},
 	}
 	cs := &state.Contract{
 		Script:   script,
@@ -454,6 +492,7 @@ func getTestContractState() (*state.Contract, *state.Contract) {
 	perm.Methods.Add("add3")
 	perm.Methods.Add("invalidReturn")
 	perm.Methods.Add("justReturn")
+	perm.Methods.Add("getValue")
 	m.Permissions = append(m.Permissions, *perm)
 
 	return cs, &state.Contract{
@@ -834,6 +873,55 @@ func TestContractUpdate(t *testing.T) {
 		// old contract should be deleted
 		_, err = ic.DAO.GetContractState(cs.ScriptHash())
 		require.Error(t, err)
+	})
+}
+
+// TestContractCreateDeploy checks that `_deploy` method was called
+// during contract creation or update.
+func TestContractCreateDeploy(t *testing.T) {
+	v, ic, bc := createVM(t)
+	defer bc.Close()
+	v.GasLimit = -1
+
+	putArgs := func(cs *state.Contract) {
+		rawManifest, err := cs.Manifest.MarshalJSON()
+		require.NoError(t, err)
+		v.Estack().PushVal(rawManifest)
+		v.Estack().PushVal(cs.Script)
+	}
+	cs, currCs := getTestContractState()
+
+	v.LoadScriptWithFlags([]byte{byte(opcode.RET)}, smartcontract.All)
+	putArgs(cs)
+	require.NoError(t, contractCreate(ic))
+	require.NoError(t, ic.VM.Run())
+
+	v.LoadScriptWithFlags(currCs.Script, smartcontract.All)
+	err := contract.CallExInternal(ic, cs, "getValue", nil, smartcontract.All)
+	require.NoError(t, err)
+	require.NoError(t, v.Run())
+	require.Equal(t, "create", v.Estack().Pop().String())
+
+	v.LoadScriptWithFlags(cs.Script, smartcontract.All)
+	md := cs.Manifest.ABI.GetMethod("justReturn")
+	v.Jump(v.Context(), md.Offset)
+
+	t.Run("Update", func(t *testing.T) {
+		newCs := &state.Contract{
+			ID:       cs.ID,
+			Script:   append(cs.Script, byte(opcode.RET)),
+			Manifest: cs.Manifest,
+		}
+		newCs.Manifest.ABI.Hash = hash.Hash160(newCs.Script)
+		putArgs(newCs)
+		require.NoError(t, contractUpdate(ic))
+		require.NoError(t, v.Run())
+
+		v.LoadScriptWithFlags(currCs.Script, smartcontract.All)
+		err = contract.CallExInternal(ic, newCs, "getValue", nil, smartcontract.All)
+		require.NoError(t, err)
+		require.NoError(t, v.Run())
+		require.Equal(t, "update", v.Estack().Pop().String())
 	})
 }
 
