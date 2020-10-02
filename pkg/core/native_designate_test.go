@@ -37,7 +37,7 @@ func (bc *Blockchain) setNodesByRole(t *testing.T, ok bool, r native.Role, nodes
 	tx.Signers = []transaction.Signer{
 		{
 			Account: testchain.MultisigScriptHash(),
-			Scopes:  transaction.FeeOnly,
+			Scopes:  transaction.None,
 		},
 		{
 			Account: testchain.CommitteeScriptHash(),
