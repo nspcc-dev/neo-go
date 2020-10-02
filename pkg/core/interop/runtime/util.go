@@ -58,9 +58,11 @@ func GetNotifications(ic *interop.Context) error {
 
 // GetInvocationCounter returns how many times current contract was invoked during current tx execution.
 func GetInvocationCounter(ic *interop.Context) error {
-	count, ok := ic.Invocations[ic.VM.GetCurrentScriptHash()]
+	currentScriptHash := ic.VM.GetCurrentScriptHash()
+	count, ok := ic.Invocations[currentScriptHash]
 	if !ok {
-		return errors.New("current contract wasn't invoked from others")
+		count = 1
+		ic.Invocations[currentScriptHash] = count
 	}
 	ic.VM.Estack().PushVal(count)
 	return nil
