@@ -314,7 +314,7 @@ func (p *PublicKey) GetVerificationScript() []byte {
 		return buf.Bytes()
 	}
 	emit.Bytes(buf.BinWriter, b)
-	emit.Opcode(buf.BinWriter, opcode.PUSHNULL)
+	emit.Opcodes(buf.BinWriter, opcode.PUSHNULL)
 	emit.Syscall(buf.BinWriter, interopnames.NeoCryptoVerifyWithECDsaSecp256r1)
 
 	return buf.Bytes()

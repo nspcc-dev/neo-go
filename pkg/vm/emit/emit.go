@@ -21,18 +21,20 @@ func Instruction(w *io.BinWriter, op opcode.Opcode, b []byte) {
 	w.WriteBytes(b)
 }
 
-// Opcode emits a single VM Instruction without arguments to the given buffer.
-func Opcode(w *io.BinWriter, op opcode.Opcode) {
-	w.WriteB(byte(op))
+// Opcodes emits a single VM Instruction without arguments to the given buffer.
+func Opcodes(w *io.BinWriter, ops ...opcode.Opcode) {
+	for _, op := range ops {
+		w.WriteB(byte(op))
+	}
 }
 
 // Bool emits a bool type the given buffer.
 func Bool(w *io.BinWriter, ok bool) {
 	if ok {
-		Opcode(w, opcode.PUSHT)
+		Opcodes(w, opcode.PUSHT)
 		return
 	}
-	Opcode(w, opcode.PUSHF)
+	Opcodes(w, opcode.PUSHF)
 	Instruction(w, opcode.CONVERT, []byte{byte(stackitem.BooleanT)})
 }
 
@@ -51,15 +53,15 @@ func padRight(s int, buf []byte) []byte {
 func Int(w *io.BinWriter, i int64) {
 	switch {
 	case i == -1:
-		Opcode(w, opcode.PUSHM1)
+		Opcodes(w, opcode.PUSHM1)
 	case i >= 0 && i < 16:
 		val := opcode.Opcode(int(opcode.PUSH1) - 1 + int(i))
-		Opcode(w, val)
+		Opcodes(w, val)
 	default:
 		buf := bigint.ToPreallocatedBytes(big.NewInt(i), make([]byte, 0, 32))
 		// l != 0 becase of switch
 		padSize := byte(8 - bits.LeadingZeros8(byte(len(buf)-1)))
-		Opcode(w, opcode.PUSHINT8+opcode.Opcode(padSize))
+		Opcodes(w, opcode.PUSHINT8+opcode.Opcode(padSize))
 		w.WriteBytes(padRight(1<<padSize, buf))
 	}
 }
@@ -83,11 +85,11 @@ func Array(w *io.BinWriter, es ...interface{}) {
 				w.Err = errors.New("unsupported type")
 				return
 			}
-			Opcode(w, opcode.PUSHNULL)
+			Opcodes(w, opcode.PUSHNULL)
 		}
 	}
 	Int(w, int64(len(es)))
-	Opcode(w, opcode.PACK)
+	Opcodes(w, opcode.PACK)
 }
 
 // String emits a string to the given buffer.

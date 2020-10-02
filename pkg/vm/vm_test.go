@@ -39,7 +39,7 @@ func TestInteropHook(t *testing.T) {
 
 	buf := io.NewBufBinWriter()
 	emit.Syscall(buf.BinWriter, "foo")
-	emit.Opcode(buf.BinWriter, opcode.RET)
+	emit.Opcodes(buf.BinWriter, opcode.RET)
 	v.Load(buf.Bytes())
 	runVM(t, v)
 	assert.Equal(t, 1, v.estack.Len())
@@ -773,11 +773,11 @@ func TestSerializeMapCompat(t *testing.T) {
 
 	// Create a map, push key and value, add KV to map, serialize.
 	buf := io.NewBufBinWriter()
-	emit.Opcode(buf.BinWriter, opcode.NEWMAP)
-	emit.Opcode(buf.BinWriter, opcode.DUP)
+	emit.Opcodes(buf.BinWriter, opcode.NEWMAP)
+	emit.Opcodes(buf.BinWriter, opcode.DUP)
 	emit.Bytes(buf.BinWriter, []byte("key"))
 	emit.Bytes(buf.BinWriter, []byte("value"))
-	emit.Opcode(buf.BinWriter, opcode.SETITEM)
+	emit.Opcodes(buf.BinWriter, opcode.SETITEM)
 	emit.Syscall(buf.BinWriter, interopnames.SystemBinarySerialize)
 	require.NoError(t, buf.Err)
 
@@ -1654,12 +1654,12 @@ func TestSIGN(t *testing.T) {
 func TestSimpleCall(t *testing.T) {
 	buf := io.NewBufBinWriter()
 	w := buf.BinWriter
-	emit.Opcode(w, opcode.PUSH2)
+	emit.Opcodes(w, opcode.PUSH2)
 	emit.Instruction(w, opcode.CALL, []byte{03})
-	emit.Opcode(w, opcode.RET)
-	emit.Opcode(w, opcode.PUSH10)
-	emit.Opcode(w, opcode.ADD)
-	emit.Opcode(w, opcode.RET)
+	emit.Opcodes(w, opcode.RET)
+	emit.Opcodes(w, opcode.PUSH10)
+	emit.Opcodes(w, opcode.ADD)
+	emit.Opcodes(w, opcode.RET)
 
 	result := 12
 	vm := load(buf.Bytes())

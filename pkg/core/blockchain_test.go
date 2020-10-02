@@ -237,12 +237,12 @@ func TestVerifyTx(t *testing.T) {
 			}
 			emit.AppCallWithOperationAndArgs(w.BinWriter, sc, "transfer",
 				neoOwner, a.Contract.ScriptHash(), amount)
-			emit.Opcode(w.BinWriter, opcode.ASSERT)
+			emit.Opcodes(w.BinWriter, opcode.ASSERT)
 		}
 	}
 	emit.AppCallWithOperationAndArgs(w.BinWriter, gasHash, "transfer",
 		neoOwner, testchain.CommitteeScriptHash(), int64(1_000_000_000))
-	emit.Opcode(w.BinWriter, opcode.ASSERT)
+	emit.Opcodes(w.BinWriter, opcode.ASSERT)
 	require.NoError(t, w.Err)
 
 	txMove := bc.newTestTx(neoOwner, w.Bytes())
@@ -782,7 +782,7 @@ func TestSubscriptions(t *testing.T) {
 	script = io.NewBufBinWriter()
 	emit.Bytes(script.BinWriter, []byte("nay!"))
 	emit.Syscall(script.BinWriter, interopnames.SystemRuntimeNotify)
-	emit.Opcode(script.BinWriter, opcode.THROW)
+	emit.Opcodes(script.BinWriter, opcode.THROW)
 	require.NoError(t, script.Err)
 	txBad := transaction.New(netmode.UnitTestNet, script.Bytes(), 0)
 	txBad.Signers = []transaction.Signer{{Account: neoOwner}}

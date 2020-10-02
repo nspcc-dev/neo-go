@@ -23,10 +23,10 @@ func (bc *Blockchain) setNodesByRole(t *testing.T, ok bool, r native.Role, nodes
 		emit.Bytes(w.BinWriter, pub.Bytes())
 	}
 	emit.Int(w.BinWriter, int64(len(nodes)))
-	emit.Opcode(w.BinWriter, opcode.PACK)
+	emit.Opcodes(w.BinWriter, opcode.PACK)
 	emit.Int(w.BinWriter, int64(r))
 	emit.Int(w.BinWriter, 2)
-	emit.Opcode(w.BinWriter, opcode.PACK)
+	emit.Opcodes(w.BinWriter, opcode.PACK)
 	emit.String(w.BinWriter, "designateAsRole")
 	emit.AppCall(w.BinWriter, bc.contracts.Designate.Hash)
 	require.NoError(t, w.Err)

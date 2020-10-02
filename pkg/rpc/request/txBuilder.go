@@ -107,7 +107,7 @@ func expandArrayIntoScript(script *io.BinWriter, slice []Param) error {
 				return err
 			}
 			emit.Int(script, int64(len(val)))
-			emit.Opcode(script, opcode.PACK)
+			emit.Opcodes(script, opcode.PACK)
 		default:
 			return fmt.Errorf("parameter type %v is not supported", fp.Type)
 		}
@@ -139,7 +139,7 @@ func CreateFunctionInvocationScript(contract util.Uint160, params Params) ([]byt
 				return nil, err
 			}
 			emit.Int(script.BinWriter, int64(len(slice)))
-			emit.Opcode(script.BinWriter, opcode.PACK)
+			emit.Opcodes(script.BinWriter, opcode.PACK)
 		}
 	}
 
