@@ -19,8 +19,13 @@ func (m *MerkleBlock) DecodeBinary(br *io.BinReader) {
 	m.Base = &block.Base{}
 	m.Base.DecodeBinary(br)
 
-	m.TxCount = int(br.ReadVarUint())
-	br.ReadArray(&m.Hashes)
+	txCount := int(br.ReadVarUint())
+	if txCount > block.MaxContentsPerBlock {
+		br.Err = block.ErrMaxContentsPerBlock
+		return
+	}
+	m.TxCount = txCount
+	br.ReadArray(&m.Hashes, m.TxCount)
 	m.Flags = br.ReadVarBytes()
 }
 

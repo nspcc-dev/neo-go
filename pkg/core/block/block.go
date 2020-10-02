@@ -3,6 +3,7 @@ package block
 import (
 	"encoding/json"
 	"errors"
+	"math"
 
 	"github.com/Workiva/go-datastructures/queue"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
@@ -11,6 +12,16 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 )
+
+const (
+	// MaxContentsPerBlock is the maximum number of contents (transactions + consensus data) per block.
+	MaxContentsPerBlock = math.MaxUint16
+	// MaxTransactionsPerBlock is the maximum number of transactions per block.
+	MaxTransactionsPerBlock = MaxContentsPerBlock - 1
+)
+
+// ErrMaxContentsPerBlock is returned when the maximum number of contents per block is reached.
+var ErrMaxContentsPerBlock = errors.New("the number of contents exceeds the maximum number of contents per block")
 
 // Block represents one block in the chain.
 type Block struct {
@@ -82,6 +93,9 @@ func NewBlockFromTrimmedBytes(network netmode.Magic, b []byte) (*Block, error) {
 	block.Script.DecodeBinary(br)
 
 	lenHashes := br.ReadVarUint()
+	if lenHashes > MaxContentsPerBlock {
+		return nil, ErrMaxContentsPerBlock
+	}
 	if lenHashes > 0 {
 		var consensusDataHash util.Uint256
 		consensusDataHash.DecodeBinary(br)
@@ -140,6 +154,10 @@ func (b *Block) DecodeBinary(br *io.BinReader) {
 	contentsCount := br.ReadVarUint()
 	if contentsCount == 0 {
 		br.Err = errors.New("invalid block format")
+		return
+	}
+	if contentsCount > MaxContentsPerBlock {
+		br.Err = ErrMaxContentsPerBlock
 		return
 	}
 	b.ConsensusData.DecodeBinary(br)
