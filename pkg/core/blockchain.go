@@ -253,6 +253,11 @@ func (bc *Blockchain) init() error {
 		}
 	}
 
+	err = bc.contracts.NEO.InitializeCache(bc, bc.dao)
+	if err != nil {
+		return fmt.Errorf("can't init cache for NEO native contract: %w", err)
+	}
+
 	return nil
 }
 
