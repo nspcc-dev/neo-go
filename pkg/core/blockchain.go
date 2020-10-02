@@ -651,7 +651,9 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 		return err
 	}
 	bc.contracts.Policy.OnPersistEnd(bc.dao)
-	bc.contracts.Oracle.OnPersistEnd(bc.dao)
+	if err := bc.contracts.Designate.OnPersistEnd(bc.dao); err != nil {
+		return err
+	}
 	bc.dao.MPT.Flush()
 	// Every persist cycle we also compact our in-memory MPT.
 	persistedHeight := atomic.LoadUint32(&bc.persistedHeight)

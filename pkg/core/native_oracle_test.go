@@ -17,7 +17,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
@@ -141,9 +140,9 @@ func TestOracle_Request(t *testing.T) {
 	ic := bc.newInteropContext(trigger.Application, bc.dao, nil, tx)
 	ic.SpawnVM()
 	ic.VM.LoadScript([]byte{byte(opcode.RET)})
-	err = orc.SetOracleNodes(ic, keys.PublicKeys{pub})
+	err = bc.contracts.Designate.DesignateAsRole(ic, native.RoleOracle, keys.PublicKeys{pub})
 	require.NoError(t, err)
-	orc.OnPersistEnd(ic.DAO)
+	require.NoError(t, bc.contracts.Designate.OnPersistEnd(ic.DAO))
 
 	tx = transaction.New(netmode.UnitTestNet, native.GetOracleResponseScript(), 0)
 	ic.Tx = tx
@@ -214,35 +213,4 @@ func TestOracle_Request(t *testing.T) {
 		_, err = orc.GetRequestInternal(ic.DAO, reqID)
 		require.Error(t, err)
 	})
-}
-
-func TestOracle_SetOracleNodes(t *testing.T) {
-	bc := newTestChain(t)
-	defer bc.Close()
-
-	orc := bc.contracts.Oracle
-	tx := transaction.New(netmode.UnitTestNet, []byte{}, 0)
-	ic := bc.newInteropContext(trigger.System, bc.dao, nil, tx)
-	ic.VM = vm.New()
-	ic.VM.LoadScript([]byte{byte(opcode.RET)})
-
-	pubs := orc.GetOracleNodes()
-	require.Equal(t, 0, len(pubs))
-
-	err := orc.SetOracleNodes(ic, keys.PublicKeys{})
-	require.True(t, errors.Is(err, native.ErrEmptyNodeList), "got: %v", err)
-
-	priv, err := keys.NewPrivateKey()
-	require.NoError(t, err)
-
-	pub := priv.PublicKey()
-	err = orc.SetOracleNodes(ic, keys.PublicKeys{pub})
-	require.True(t, errors.Is(err, native.ErrInvalidWitness), "got: %v", err)
-
-	setSigner(tx, testchain.CommitteeScriptHash())
-	require.NoError(t, orc.SetOracleNodes(ic, keys.PublicKeys{pub}))
-	orc.OnPersistEnd(ic.DAO)
-
-	pubs = orc.GetOracleNodes()
-	require.Equal(t, keys.PublicKeys{pub}, pubs)
 }

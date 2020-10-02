@@ -17,6 +17,7 @@ type Contracts struct {
 	GAS       *GAS
 	Policy    *Policy
 	Oracle    *Oracle
+	Designate *Designate
 	Contracts []interop.Contract
 	// persistScript is vm script which executes "onPersist" method of every native contract.
 	persistScript []byte
@@ -58,6 +59,13 @@ func NewContracts() *Contracts {
 	oracle.NEO = neo
 	cs.Oracle = oracle
 	cs.Contracts = append(cs.Contracts, oracle)
+
+	desig := newDesignate()
+	desig.NEO = neo
+	cs.Designate = desig
+	cs.Oracle.Desig = desig
+	cs.Contracts = append(cs.Contracts, desig)
+
 	return cs
 }
 
@@ -71,7 +79,7 @@ func (cs *Contracts) GetPersistScript() []byte {
 		md := cs.Contracts[i].Metadata()
 		// Not every contract is persisted:
 		// https://github.com/neo-project/neo/blob/master/src/neo/Ledger/Blockchain.cs#L90
-		if md.ContractID == policyContractID || md.ContractID == oracleContractID {
+		if md.ContractID == policyContractID || md.ContractID == oracleContractID || md.ContractID == designateContractID {
 			continue
 		}
 		emit.Int(w.BinWriter, 0)
@@ -94,7 +102,7 @@ func (cs *Contracts) GetPostPersistScript() []byte {
 		md := cs.Contracts[i].Metadata()
 		// Not every contract is persisted:
 		// https://github.com/neo-project/neo/blob/master/src/neo/Ledger/Blockchain.cs#L103
-		if md.ContractID == policyContractID || md.ContractID == gasContractID {
+		if md.ContractID == policyContractID || md.ContractID == gasContractID || md.ContractID == designateContractID {
 			continue
 		}
 		emit.Int(w.BinWriter, 0)

@@ -500,8 +500,8 @@ func TestVerifyTx(t *testing.T) {
 			ic := bc.newInteropContext(trigger.All, bc.dao, nil, txSetOracle)
 			ic.SpawnVM()
 			ic.VM.LoadScript([]byte{byte(opcode.RET)})
-			require.NoError(t, bc.contracts.Oracle.SetOracleNodes(ic, oraclePubs))
-			bc.contracts.Oracle.OnPersistEnd(ic.DAO)
+			require.NoError(t, bc.contracts.Designate.DesignateAsRole(ic, native.RoleOracle, oraclePubs))
+			require.NoError(t, bc.contracts.Designate.OnPersistEnd(ic.DAO))
 			_, err = ic.DAO.Persist()
 			require.NoError(t, err)
 
