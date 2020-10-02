@@ -54,4 +54,18 @@ func TestMerkleBlock_EncodeDecodeBinary(t *testing.T) {
 		require.NoError(t, err)
 		require.True(t, errors.Is(block.ErrMaxContentsPerBlock, testserdes.DecodeBinary(data, new(MerkleBlock))))
 	})
+
+	t.Run("bad flags size", func(t *testing.T) {
+		b := newDumbBlock()
+		_ = b.Hash()
+		expected := &MerkleBlock{
+			Base:    b,
+			TxCount: 0,
+			Hashes:  []util.Uint256{},
+			Flags:   []byte{1, 2, 3, 4, 5},
+		}
+		data, err := testserdes.EncodeBinary(expected)
+		require.NoError(t, err)
+		require.Error(t, testserdes.DecodeBinary(data, new(MerkleBlock)))
+	})
 }
