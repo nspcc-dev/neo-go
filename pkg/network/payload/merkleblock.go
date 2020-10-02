@@ -26,7 +26,6 @@ func (m *MerkleBlock) DecodeBinary(br *io.BinReader) {
 
 // EncodeBinary implements Serializable interface.
 func (m *MerkleBlock) EncodeBinary(bw *io.BinWriter) {
-	m.Base = &block.Base{}
 	m.Base.EncodeBinary(bw)
 
 	bw.WriteVarUint(uint64(m.TxCount))
