@@ -83,31 +83,31 @@ const (
 )
 
 var rpcHandlers = map[string]func(*Server, request.Params) (interface{}, *response.Error){
-	"getapplicationlog":    (*Server).getApplicationLog,
-	"getbestblockhash":     (*Server).getBestBlockHash,
-	"getblock":             (*Server).getBlock,
-	"getblockcount":        (*Server).getBlockCount,
-	"getblockhash":         (*Server).getBlockHash,
-	"getblockheader":       (*Server).getBlockHeader,
-	"getblocksysfee":       (*Server).getBlockSysFee,
-	"getcommittee":         (*Server).getCommittee,
-	"getconnectioncount":   (*Server).getConnectionCount,
-	"getcontractstate":     (*Server).getContractState,
-	"getnep5balances":      (*Server).getNEP5Balances,
-	"getnep5transfers":     (*Server).getNEP5Transfers,
-	"getpeers":             (*Server).getPeers,
-	"getrawmempool":        (*Server).getRawMempool,
-	"getrawtransaction":    (*Server).getrawtransaction,
-	"getstorage":           (*Server).getStorage,
-	"gettransactionheight": (*Server).getTransactionHeight,
-	"getunclaimedgas":      (*Server).getUnclaimedGas,
-	"getvalidators":        (*Server).getValidators,
-	"getversion":           (*Server).getVersion,
-	"invokefunction":       (*Server).invokeFunction,
-	"invokescript":         (*Server).invokescript,
-	"sendrawtransaction":   (*Server).sendrawtransaction,
-	"submitblock":          (*Server).submitBlock,
-	"validateaddress":      (*Server).validateAddress,
+	"getapplicationlog":      (*Server).getApplicationLog,
+	"getbestblockhash":       (*Server).getBestBlockHash,
+	"getblock":               (*Server).getBlock,
+	"getblockcount":          (*Server).getBlockCount,
+	"getblockhash":           (*Server).getBlockHash,
+	"getblockheader":         (*Server).getBlockHeader,
+	"getblocksysfee":         (*Server).getBlockSysFee,
+	"getcommittee":           (*Server).getCommittee,
+	"getconnectioncount":     (*Server).getConnectionCount,
+	"getcontractstate":       (*Server).getContractState,
+	"getnep5balances":        (*Server).getNEP5Balances,
+	"getnep5transfers":       (*Server).getNEP5Transfers,
+	"getpeers":               (*Server).getPeers,
+	"getrawmempool":          (*Server).getRawMempool,
+	"getrawtransaction":      (*Server).getrawtransaction,
+	"getstorage":             (*Server).getStorage,
+	"gettransactionheight":   (*Server).getTransactionHeight,
+	"getunclaimedgas":        (*Server).getUnclaimedGas,
+	"getnextblockvalidators": (*Server).getNextBlockValidators,
+	"getversion":             (*Server).getVersion,
+	"invokefunction":         (*Server).invokeFunction,
+	"invokescript":           (*Server).invokescript,
+	"sendrawtransaction":     (*Server).sendrawtransaction,
+	"submitblock":            (*Server).submitBlock,
+	"validateaddress":        (*Server).validateAddress,
 }
 
 var rpcWsHandlers = map[string]func(*Server, request.Params, *subscriber) (interface{}, *response.Error){
@@ -906,13 +906,13 @@ func (s *Server) getUnclaimedGas(ps request.Params) (interface{}, *response.Erro
 	}, nil
 }
 
-// getValidators returns the current NEO consensus nodes information and voting status.
-func (s *Server) getValidators(_ request.Params) (interface{}, *response.Error) {
+// getNextBlockValidators returns validators for the next block with voting status.
+func (s *Server) getNextBlockValidators(_ request.Params) (interface{}, *response.Error) {
 	var validators keys.PublicKeys
 
-	validators, err := s.chain.GetValidators()
+	validators, err := s.chain.GetNextBlockValidators()
 	if err != nil {
-		return nil, response.NewRPCError("can't get validators", "", err)
+		return nil, response.NewRPCError("can't get next block validators", "", err)
 	}
 	enrollments, err := s.chain.GetEnrollments()
 	if err != nil {

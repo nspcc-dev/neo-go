@@ -491,7 +491,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 			},
 		},
 	},
-	"getvalidators": {
+	"getnextblockvalidators": {
 		{
 			params: "[]",
 			result: func(*executor) interface{} {
