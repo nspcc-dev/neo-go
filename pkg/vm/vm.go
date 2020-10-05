@@ -1229,7 +1229,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		v.checkInvocationStackSize()
 		// Note: jump offset must be calculated regarding to new context,
 		// but it is cloned and thus has the same script and instruction pointer.
-		v.Call(ctx, v.getJumpOffset(ctx, parameter))
+		v.call(ctx, v.getJumpOffset(ctx, parameter))
 
 	case opcode.CALLA:
 		ptr := v.estack.Pop().Item().(*stackitem.Pointer)
@@ -1237,7 +1237,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			panic("invalid script in pointer")
 		}
 
-		v.Call(ctx, ptr.Position())
+		v.call(ctx, ptr.Position())
 
 	case opcode.SYSCALL:
 		interopID := GetInteropID(parameter)
@@ -1459,8 +1459,17 @@ func (v *VM) Jump(ctx *Context, offset int) {
 }
 
 // Call calls method by offset. It is similar to Jump but also
-// pushes new context to the invocation state
+// pushes new context to the invocation stack and increments
+// invocation counter for the corresponding context script hash.
 func (v *VM) Call(ctx *Context, offset int) {
+	v.call(ctx, offset)
+	v.Invocations[ctx.ScriptHash()]++
+}
+
+// call is an internal representation of Call, which does not
+// affect the invocation counter and is only being used by vm
+// package.
+func (v *VM) call(ctx *Context, offset int) {
 	newCtx := ctx.Copy()
 	newCtx.CheckReturn = false
 	newCtx.local = nil
