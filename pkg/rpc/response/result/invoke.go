@@ -9,10 +9,10 @@ import (
 // Invoke represents code invocation result and is used by several RPC calls
 // that invoke functions, scripts and generic bytecode.
 type Invoke struct {
-	State       string           `json:"state"`
-	GasConsumed int64            `json:"gasconsumed,string"`
-	Script      string           `json:"script"`
-	Stack       []stackitem.Item `json:"stack"`
+	State       string
+	GasConsumed int64
+	Script      string
+	Stack       []stackitem.Item
 }
 
 type invokeAux struct {
