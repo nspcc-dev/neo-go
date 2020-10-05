@@ -112,6 +112,17 @@ func contractCreate(ic *interop.Context) error {
 	return nil
 }
 
+func checkNonEmpty(b []byte, max int) error {
+	if b != nil {
+		if l := len(b); l == 0 {
+			return errors.New("empty")
+		} else if l > max {
+			return fmt.Errorf("len is %d (max %d)", l, max)
+		}
+	}
+	return nil
+}
+
 // contractUpdate migrates a contract. This method assumes that Manifest and Script
 // of the contract can be updated independently.
 func contractUpdate(ic *interop.Context) error {
@@ -119,22 +130,22 @@ func contractUpdate(ic *interop.Context) error {
 	if contract == nil {
 		return errors.New("contract doesn't exist")
 	}
-	script := ic.VM.Estack().Pop().Bytes()
-	if len(script) > MaxContractScriptSize {
-		return errors.New("the script is too big")
+	script := ic.VM.Estack().Pop().BytesOrNil()
+	manifestBytes := ic.VM.Estack().Pop().BytesOrNil()
+	if script == nil && manifestBytes == nil {
+		return errors.New("both script and manifest are nil")
 	}
-	manifestBytes := ic.VM.Estack().Pop().Bytes()
-	if len(manifestBytes) > manifest.MaxManifestSize {
-		return errors.New("manifest is too big")
+	if err := checkNonEmpty(script, MaxContractScriptSize); err != nil {
+		return fmt.Errorf("invalid script size: %w", err)
+	}
+	if err := checkNonEmpty(manifestBytes, manifest.MaxManifestSize); err != nil {
+		return fmt.Errorf("invalid manifest size: %w", err)
 	}
 	if !ic.VM.AddGas(int64(StoragePrice * (len(script) + len(manifestBytes)))) {
 		return errGasLimitExceeded
 	}
 	// if script was provided, update the old contract script and Manifest.ABI hash
-	if l := len(script); l > 0 {
-		if l > MaxContractScriptSize {
-			return errors.New("invalid script len")
-		}
+	if script != nil {
 		newHash := hash.Hash160(script)
 		if newHash.Equals(contract.ScriptHash()) {
 			return errors.New("the script is the same")
@@ -158,7 +169,7 @@ func contractUpdate(ic *interop.Context) error {
 	}
 	// if manifest was provided, update the old contract manifest and check associated
 	// storage items if needed
-	if len(manifestBytes) > 0 {
+	if manifestBytes != nil {
 		var newManifest manifest.Manifest
 		err := newManifest.UnmarshalJSON(manifestBytes)
 		if err != nil {
