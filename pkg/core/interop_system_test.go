@@ -1,6 +1,7 @@
 package core
 
 import (
+	"errors"
 	"math/big"
 	"testing"
 
@@ -324,6 +325,41 @@ func TestBlockchainGetContractState(t *testing.T) {
 
 		actual := v.Estack().Pop().Item()
 		require.Equal(t, stackitem.Null{}, actual)
+	})
+}
+
+func TestStoragePut(t *testing.T) {
+	_, cs, ic, bc := createVMAndContractState(t)
+	defer bc.Close()
+
+	require.NoError(t, ic.DAO.PutContractState(cs))
+
+	initVM := func(t *testing.T, key, value []byte, gas int64) {
+		v := ic.SpawnVM()
+		v.LoadScript(cs.Script)
+		v.GasLimit = gas
+		v.Estack().PushVal(value)
+		v.Estack().PushVal(key)
+		require.NoError(t, storageGetContext(ic))
+	}
+
+	t.Run("create, not enough gas", func(t *testing.T) {
+		initVM(t, []byte{1}, []byte{2, 3}, 2*StoragePrice)
+		err := storagePut(ic)
+		require.True(t, errors.Is(err, errGasLimitExceeded), "got: %v", err)
+	})
+
+	initVM(t, []byte{4}, []byte{5, 6}, 3*StoragePrice)
+	require.NoError(t, storagePut(ic))
+
+	t.Run("update", func(t *testing.T) {
+		t.Run("not enough gas", func(t *testing.T) {
+			initVM(t, []byte{4}, []byte{5, 6, 7, 8}, StoragePrice)
+			err := storagePut(ic)
+			require.True(t, errors.Is(err, errGasLimitExceeded), "got: %v", err)
+		})
+		initVM(t, []byte{4}, []byte{5, 6, 7, 8}, 2*StoragePrice)
+		require.NoError(t, storagePut(ic))
 	})
 }
 
