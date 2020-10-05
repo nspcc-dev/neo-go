@@ -2,6 +2,7 @@ package consensus
 
 import (
 	"github.com/nspcc-dev/dbft/payload"
+	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 )
@@ -26,7 +27,7 @@ func (p *prepareRequest) EncodeBinary(w *io.BinWriter) {
 func (p *prepareRequest) DecodeBinary(r *io.BinReader) {
 	p.timestamp = r.ReadU64LE()
 	p.nonce = r.ReadU64LE()
-	r.ReadArray(&p.transactionHashes)
+	r.ReadArray(&p.transactionHashes, block.MaxTransactionsPerBlock)
 }
 
 // Timestamp implements payload.PrepareRequest interface.

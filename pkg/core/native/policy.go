@@ -8,6 +8,7 @@ import (
 	"sort"
 	"sync"
 
+	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/runtime"
@@ -30,6 +31,8 @@ const (
 	defaultMaxBlockSystemFee       = 9000 * GASFactor
 	// minBlockSystemFee is the minimum allowed system fee per block.
 	minBlockSystemFee = 4007600
+	// maxFeePerByte is the maximum allowed fee per byte value.
+	maxFeePerByte = 100_000_000
 )
 
 var (
@@ -311,6 +314,10 @@ func (p *Policy) GetBlockedAccountsInternal(dao dao.DAO) (BlockedAccounts, error
 // setMaxTransactionsPerBlock is Policy contract method and  sets the upper limit
 // of transactions per block.
 func (p *Policy) setMaxTransactionsPerBlock(ic *interop.Context, args []stackitem.Item) stackitem.Item {
+	value := uint32(toBigInt(args[0]).Int64())
+	if value > block.MaxTransactionsPerBlock {
+		panic(fmt.Errorf("MaxTransactionsPerBlock cannot exceed the maximum allowed transactions per block = %d", block.MaxTransactionsPerBlock))
+	}
 	ok, err := p.checkValidators(ic)
 	if err != nil {
 		panic(err)
@@ -318,7 +325,6 @@ func (p *Policy) setMaxTransactionsPerBlock(ic *interop.Context, args []stackite
 	if !ok {
 		return stackitem.NewBool(false)
 	}
-	value := uint32(toBigInt(args[0]).Int64())
 	p.lock.Lock()
 	defer p.lock.Unlock()
 	err = p.setUint32WithKey(ic.DAO, maxTransactionsPerBlockKey, value)
@@ -331,15 +337,15 @@ func (p *Policy) setMaxTransactionsPerBlock(ic *interop.Context, args []stackite
 
 // setMaxBlockSize is Policy contract method and sets maximum block size.
 func (p *Policy) setMaxBlockSize(ic *interop.Context, args []stackitem.Item) stackitem.Item {
+	value := uint32(toBigInt(args[0]).Int64())
+	if value > payload.MaxSize {
+		panic(fmt.Errorf("MaxBlockSize cannot be more than the maximum payload size = %d", payload.MaxSize))
+	}
 	ok, err := p.checkValidators(ic)
 	if err != nil {
 		panic(err)
 	}
 	if !ok {
-		return stackitem.NewBool(false)
-	}
-	value := uint32(toBigInt(args[0]).Int64())
-	if payload.MaxSize <= value {
 		return stackitem.NewBool(false)
 	}
 	p.lock.Lock()
@@ -354,6 +360,10 @@ func (p *Policy) setMaxBlockSize(ic *interop.Context, args []stackitem.Item) sta
 
 // setFeePerByte is Policy contract method and sets transaction's fee per byte.
 func (p *Policy) setFeePerByte(ic *interop.Context, args []stackitem.Item) stackitem.Item {
+	value := toBigInt(args[0]).Int64()
+	if value < 0 || value > maxFeePerByte {
+		panic(fmt.Errorf("FeePerByte shouldn't be negative or greater than %d", maxFeePerByte))
+	}
 	ok, err := p.checkValidators(ic)
 	if err != nil {
 		panic(err)
@@ -361,7 +371,6 @@ func (p *Policy) setFeePerByte(ic *interop.Context, args []stackitem.Item) stack
 	if !ok {
 		return stackitem.NewBool(false)
 	}
-	value := toBigInt(args[0]).Int64()
 	p.lock.Lock()
 	defer p.lock.Unlock()
 	err = p.setInt64WithKey(ic.DAO, feePerByteKey, value)
@@ -374,15 +383,15 @@ func (p *Policy) setFeePerByte(ic *interop.Context, args []stackitem.Item) stack
 
 // setMaxBlockSystemFee is Policy contract method and sets the maximum system fee per block.
 func (p *Policy) setMaxBlockSystemFee(ic *interop.Context, args []stackitem.Item) stackitem.Item {
+	value := toBigInt(args[0]).Int64()
+	if value <= minBlockSystemFee {
+		panic(fmt.Errorf("MaxBlockSystemFee cannot be less then %d", minBlockSystemFee))
+	}
 	ok, err := p.checkValidators(ic)
 	if err != nil {
 		panic(err)
 	}
 	if !ok {
-		return stackitem.NewBool(false)
-	}
-	value := toBigInt(args[0]).Int64()
-	if value <= minBlockSystemFee {
 		return stackitem.NewBool(false)
 	}
 	p.lock.Lock()

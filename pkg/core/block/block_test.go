@@ -3,6 +3,7 @@ package block
 import (
 	"encoding/base64"
 	"encoding/hex"
+	"errors"
 	"strings"
 	"testing"
 
@@ -217,4 +218,28 @@ func TestBlockCompare(t *testing.T) {
 	assert.Equal(t, 1, b2.Compare(&b1))
 	assert.Equal(t, 0, b2.Compare(&b2))
 	assert.Equal(t, -1, b2.Compare(&b3))
+}
+
+func TestBlockEncodeDecode(t *testing.T) {
+	t.Run("positive", func(t *testing.T) {
+		b := newDumbBlock()
+		b.Transactions = []*transaction.Transaction{}
+		_ = b.Hash()
+		testserdes.EncodeDecodeBinary(t, b, new(Block))
+	})
+
+	t.Run("bad contents count", func(t *testing.T) {
+		b := newDumbBlock()
+		b.Transactions = make([]*transaction.Transaction, MaxContentsPerBlock)
+		for i := range b.Transactions {
+			b.Transactions[i] = &transaction.Transaction{
+				Script: []byte("my_pretty_script"),
+			}
+		}
+		_ = b.Hash()
+		data, err := testserdes.EncodeBinary(b)
+		require.NoError(t, err)
+
+		require.True(t, errors.Is(testserdes.DecodeBinary(data, new(Block)), ErrMaxContentsPerBlock))
+	})
 }
