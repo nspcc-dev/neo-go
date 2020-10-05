@@ -389,14 +389,14 @@ func putWithContextAndFlags(ic *interop.Context, stc *StorageContext, key []byte
 		return errors.New("StorageContext is read only")
 	}
 	si := ic.DAO.GetStorageItem(stc.ID, key)
-	if si == nil {
-		si = &state.StorageItem{}
-	}
-	if si.IsConst {
+	if si != nil && si.IsConst {
 		return errors.New("storage item exists and is read-only")
 	}
 	sizeInc := 1
-	if len(value) > len(si.Value) {
+	if si == nil {
+		si = &state.StorageItem{}
+		sizeInc = len(key) + len(value)
+	} else if len(value) > len(si.Value) {
 		sizeInc = len(value) - len(si.Value)
 	}
 	if !ic.VM.AddGas(int64(sizeInc) * StoragePrice) {
