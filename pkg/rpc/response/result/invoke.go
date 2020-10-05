@@ -9,17 +9,19 @@ import (
 // Invoke represents code invocation result and is used by several RPC calls
 // that invoke functions, scripts and generic bytecode.
 type Invoke struct {
-	State       string
-	GasConsumed int64
-	Script      string
-	Stack       []stackitem.Item
+	State          string
+	GasConsumed    int64
+	Script         string
+	Stack          []stackitem.Item
+	FaultException string
 }
 
 type invokeAux struct {
-	State       string          `json:"state"`
-	GasConsumed int64           `json:"gasconsumed,string"`
-	Script      string          `json:"script"`
-	Stack       json.RawMessage `json:"stack"`
+	State          string          `json:"state"`
+	GasConsumed    int64           `json:"gasconsumed,string"`
+	Script         string          `json:"script"`
+	Stack          json.RawMessage `json:"stack"`
+	FaultException string          `json:"exception,omitempty"`
 }
 
 // MarshalJSON implements json.Marshaler.
@@ -43,10 +45,11 @@ func (r Invoke) MarshalJSON() ([]byte, error) {
 		}
 	}
 	return json.Marshal(&invokeAux{
-		GasConsumed: r.GasConsumed,
-		Script:      r.Script,
-		State:       r.State,
-		Stack:       st,
+		GasConsumed:    r.GasConsumed,
+		Script:         r.Script,
+		State:          r.State,
+		Stack:          st,
+		FaultException: r.FaultException,
 	})
 }
 
@@ -72,5 +75,6 @@ func (r *Invoke) UnmarshalJSON(data []byte) error {
 	r.GasConsumed = aux.GasConsumed
 	r.Script = aux.Script
 	r.State = aux.State
+	r.FaultException = aux.FaultException
 	return nil
 }

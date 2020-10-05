@@ -540,12 +540,17 @@ func (c *Client) AddNetworkFee(tx *transaction.Transaction, extraFee int64, accs
 	for i, cosigner := range tx.Signers {
 		if accs[i].Contract.Deployed {
 			res, err := c.InvokeFunction(cosigner.Account, manifest.MethodVerify, []smartcontract.Parameter{}, tx.Signers)
-			if err == nil && res.State == "HALT" && len(res.Stack) == 1 {
-				r, err := topIntFromStack(res.Stack)
-				if err != nil || r == 0 {
-					return core.ErrVerificationFailed
-				}
-			} else {
+			if err != nil {
+				return fmt.Errorf("failed to invoke verify: %w", err)
+			}
+			if res.State != "HALT" {
+				return fmt.Errorf("invalid VM state %s due to an error: %s", res.State, res.FaultException)
+			}
+			if l := len(res.Stack); l != 1 {
+				return fmt.Errorf("result stack length should be equal to 1, got %d", l)
+			}
+			r, err := topIntFromStack(res.Stack)
+			if err != nil || r == 0 {
 				return core.ErrVerificationFailed
 			}
 			tx.NetworkFee += res.GasConsumed

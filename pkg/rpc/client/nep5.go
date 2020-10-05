@@ -7,6 +7,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
@@ -34,8 +35,10 @@ func (c *Client) NEP5Decimals(tokenHash util.Uint160) (int64, error) {
 	result, err := c.InvokeFunction(tokenHash, "decimals", []smartcontract.Parameter{}, nil)
 	if err != nil {
 		return 0, err
-	} else if result.State != "HALT" || len(result.Stack) == 0 {
-		return 0, errors.New("invalid VM state")
+	}
+	err = getInvocationError(result)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get NEP5 decimals: %w", err)
 	}
 
 	return topIntFromStack(result.Stack)
@@ -46,8 +49,10 @@ func (c *Client) NEP5Name(tokenHash util.Uint160) (string, error) {
 	result, err := c.InvokeFunction(tokenHash, "name", []smartcontract.Parameter{}, nil)
 	if err != nil {
 		return "", err
-	} else if result.State != "HALT" || len(result.Stack) == 0 {
-		return "", errors.New("invalid VM state")
+	}
+	err = getInvocationError(result)
+	if err != nil {
+		return "", fmt.Errorf("failed to get NEP5 name: %w", err)
 	}
 
 	return topStringFromStack(result.Stack)
@@ -58,8 +63,10 @@ func (c *Client) NEP5Symbol(tokenHash util.Uint160) (string, error) {
 	result, err := c.InvokeFunction(tokenHash, "symbol", []smartcontract.Parameter{}, nil)
 	if err != nil {
 		return "", err
-	} else if result.State != "HALT" || len(result.Stack) == 0 {
-		return "", errors.New("invalid VM state")
+	}
+	err = getInvocationError(result)
+	if err != nil {
+		return "", fmt.Errorf("failed to get NEP5 symbol: %w", err)
 	}
 
 	return topStringFromStack(result.Stack)
@@ -70,8 +77,10 @@ func (c *Client) NEP5TotalSupply(tokenHash util.Uint160) (int64, error) {
 	result, err := c.InvokeFunction(tokenHash, "totalSupply", []smartcontract.Parameter{}, nil)
 	if err != nil {
 		return 0, err
-	} else if result.State != "HALT" || len(result.Stack) == 0 {
-		return 0, errors.New("invalid VM state")
+	}
+	err = getInvocationError(result)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get NEP5 total supply: %w", err)
 	}
 
 	return topIntFromStack(result.Stack)
@@ -85,8 +94,10 @@ func (c *Client) NEP5BalanceOf(tokenHash, acc util.Uint160) (int64, error) {
 	}}, nil)
 	if err != nil {
 		return 0, err
-	} else if result.State != "HALT" || len(result.Stack) == 0 {
-		return 0, errors.New("invalid VM state")
+	}
+	err = getInvocationError(result)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get NEP5 balance: %w", err)
 	}
 
 	return topIntFromStack(result.Stack)
@@ -156,7 +167,7 @@ func (c *Client) CreateTxFromScript(script []byte, acc *wallet.Account, sysFee, 
 			return nil, fmt.Errorf("can't add system fee to transaction: %w", err)
 		}
 		if result.State != "HALT" {
-			return nil, fmt.Errorf("can't add system fee to transaction: bad vm state: %s", result.State)
+			return nil, fmt.Errorf("can't add system fee to transaction: bad vm state: %s due to an error: %s", result.State, result.FaultException)
 		}
 		sysFee = result.GasConsumed
 	}
@@ -224,4 +235,15 @@ func topStringFromStack(st []stackitem.Item) (string, error) {
 		return "", err
 	}
 	return string(bs), nil
+}
+
+// getInvocationError returns an error in case of bad VM state or empty stack.
+func getInvocationError(result *result.Invoke) error {
+	if result.State != "HALT" {
+		return fmt.Errorf("invocation failed: %s", result.FaultException)
+	}
+	if len(result.Stack) == 0 {
+		return errors.New("result stack is empty")
+	}
+	return nil
 }
