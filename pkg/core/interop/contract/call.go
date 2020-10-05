@@ -67,7 +67,7 @@ func CallExInternal(ic *interop.Context, cs *state.Contract,
 	}
 
 	u := cs.ScriptHash()
-	ic.Invocations[u]++
+	ic.VM.Invocations[u]++
 	ic.VM.LoadScriptWithHash(cs.Script, u, ic.VM.Context().GetCallFlags()&f)
 	var isNative bool
 	for i := range ic.Natives {

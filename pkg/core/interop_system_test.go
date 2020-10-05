@@ -296,7 +296,7 @@ func TestRuntimeGetInvocationCounter(t *testing.T) {
 	v, ic, chain := createVM(t)
 	defer chain.Close()
 
-	ic.Invocations[hash.Hash160([]byte{2})] = 42
+	ic.VM.Invocations[hash.Hash160([]byte{2})] = 42
 
 	t.Run("No invocations", func(t *testing.T) {
 		v.LoadScript([]byte{1})

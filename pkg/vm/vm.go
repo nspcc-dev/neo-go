@@ -80,6 +80,9 @@ type VM struct {
 	SyscallHandler func(v *VM, id uint32) error
 
 	trigger trigger.Type
+
+	// Invocations is a script invocation counter.
+	Invocations map[util.Uint160]int
 }
 
 // New returns a new VM object ready to load AVM bytecode scripts.
@@ -96,6 +99,7 @@ func NewWithTrigger(t trigger.Type) *VM {
 		trigger: t,
 
 		SyscallHandler: defaultSyscallHandler,
+		Invocations:    make(map[util.Uint160]int),
 	}
 
 	vm.estack = vm.newItemStack("evaluation")
