@@ -584,6 +584,7 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 		v.GasLimit = tx.SystemFee
 
 		err := v.Run()
+		var faultException string
 		if !v.HasFailed() {
 			_, err := systemInterop.DAO.Persist()
 			if err != nil {
@@ -597,14 +598,16 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 				zap.String("tx", tx.Hash().StringLE()),
 				zap.Uint32("block", block.Index),
 				zap.Error(err))
+			faultException = err.Error()
 		}
 		aer := &state.AppExecResult{
-			TxHash:      tx.Hash(),
-			Trigger:     trigger.Application,
-			VMState:     v.State(),
-			GasConsumed: v.GasConsumed(),
-			Stack:       v.Estack().ToArray(),
-			Events:      systemInterop.Notifications,
+			TxHash:         tx.Hash(),
+			Trigger:        trigger.Application,
+			VMState:        v.State(),
+			GasConsumed:    v.GasConsumed(),
+			Stack:          v.Estack().ToArray(),
+			Events:         systemInterop.Notifications,
+			FaultException: faultException,
 		}
 		appExecResults = append(appExecResults, aer)
 		err = cache.PutAppExecResult(aer, writeBuf)
