@@ -627,7 +627,7 @@ func TestContractUpdate(t *testing.T) {
 	defer bc.Close()
 	v.GasLimit = -1
 
-	putArgsOnStack := func(script, manifest []byte) {
+	putArgsOnStack := func(script, manifest interface{}) {
 		v.Estack().PushVal(manifest)
 		v.Estack().PushVal(script)
 	}
@@ -635,8 +635,8 @@ func TestContractUpdate(t *testing.T) {
 	t.Run("no args", func(t *testing.T) {
 		require.NoError(t, ic.DAO.PutContractState(cs))
 		v.LoadScriptWithHash([]byte{byte(opcode.RET)}, cs.ScriptHash(), smartcontract.All)
-		putArgsOnStack(nil, nil)
-		require.NoError(t, contractUpdate(ic))
+		putArgsOnStack(stackitem.Null{}, stackitem.Null{})
+		require.Error(t, contractUpdate(ic))
 	})
 
 	t.Run("no contract", func(t *testing.T) {
@@ -648,14 +648,14 @@ func TestContractUpdate(t *testing.T) {
 	t.Run("too large script", func(t *testing.T) {
 		require.NoError(t, ic.DAO.PutContractState(cs))
 		v.LoadScriptWithHash([]byte{byte(opcode.RET)}, cs.ScriptHash(), smartcontract.All)
-		putArgsOnStack(make([]byte, MaxContractScriptSize+1), nil)
+		putArgsOnStack(make([]byte, MaxContractScriptSize+1), stackitem.Null{})
 		require.Error(t, contractUpdate(ic))
 	})
 
 	t.Run("too large manifest", func(t *testing.T) {
 		require.NoError(t, ic.DAO.PutContractState(cs))
 		v.LoadScriptWithHash([]byte{byte(opcode.RET)}, cs.ScriptHash(), smartcontract.All)
-		putArgsOnStack(nil, make([]byte, manifest.MaxManifestSize+1))
+		putArgsOnStack(stackitem.Null{}, make([]byte, manifest.MaxManifestSize+1))
 		require.Error(t, contractUpdate(ic))
 	})
 
@@ -671,7 +671,7 @@ func TestContractUpdate(t *testing.T) {
 		require.NoError(t, ic.DAO.PutContractState(cs))
 		v.GasLimit = -1
 		v.LoadScriptWithHash([]byte{byte(opcode.RET)}, cs.ScriptHash(), smartcontract.All)
-		putArgsOnStack(cs.Script, nil)
+		putArgsOnStack(cs.Script, stackitem.Null{})
 
 		require.Error(t, contractUpdate(ic))
 	})
@@ -689,16 +689,23 @@ func TestContractUpdate(t *testing.T) {
 			},
 		}))
 		v.LoadScriptWithHash([]byte{byte(opcode.RET)}, cs.ScriptHash(), smartcontract.All)
-		putArgsOnStack(duplicateScript, nil)
+		putArgsOnStack(duplicateScript, stackitem.Null{})
 
 		require.Error(t, contractUpdate(ic))
 	})
 
 	t.Run("update script, positive", func(t *testing.T) {
 		require.NoError(t, ic.DAO.PutContractState(cs))
+		t.Run("empty manifest", func(t *testing.T) {
+			v.LoadScriptWithHash([]byte{byte(opcode.RET)}, cs.ScriptHash(), smartcontract.All)
+			newScript := []byte{9, 8, 7, 6, 5}
+			putArgsOnStack(newScript, []byte{})
+			require.Error(t, contractUpdate(ic))
+		})
+
 		v.LoadScriptWithHash([]byte{byte(opcode.RET)}, cs.ScriptHash(), smartcontract.All)
 		newScript := []byte{9, 8, 7, 6, 5}
-		putArgsOnStack(newScript, nil)
+		putArgsOnStack(newScript, stackitem.Null{})
 
 		require.NoError(t, contractUpdate(ic))
 
@@ -722,7 +729,7 @@ func TestContractUpdate(t *testing.T) {
 	t.Run("update manifest, bad manifest", func(t *testing.T) {
 		require.NoError(t, ic.DAO.PutContractState(cs))
 		v.LoadScriptWithHash([]byte{byte(opcode.RET)}, cs.ScriptHash(), smartcontract.All)
-		putArgsOnStack(nil, []byte{1, 2, 3})
+		putArgsOnStack(stackitem.Null{}, []byte{1, 2, 3})
 
 		require.Error(t, contractUpdate(ic))
 	})
@@ -737,7 +744,7 @@ func TestContractUpdate(t *testing.T) {
 		}
 		manifestBytes, err := manifest.MarshalJSON()
 		require.NoError(t, err)
-		putArgsOnStack(nil, manifestBytes)
+		putArgsOnStack(stackitem.Null{}, manifestBytes)
 
 		require.Error(t, contractUpdate(ic))
 	})
@@ -757,7 +764,7 @@ func TestContractUpdate(t *testing.T) {
 		}
 		manifestBytes, err := manifest.MarshalJSON()
 		require.NoError(t, err)
-		putArgsOnStack(nil, manifestBytes)
+		putArgsOnStack(stackitem.Null{}, manifestBytes)
 
 		require.Error(t, contractUpdate(ic))
 	})
@@ -765,7 +772,6 @@ func TestContractUpdate(t *testing.T) {
 	t.Run("update manifest, positive", func(t *testing.T) {
 		cs.Manifest.Features = smartcontract.NoProperties
 		require.NoError(t, ic.DAO.PutContractState(cs))
-		v.LoadScriptWithHash([]byte{byte(opcode.RET)}, cs.ScriptHash(), smartcontract.All)
 		manifest := &manifest.Manifest{
 			ABI: manifest.ABI{
 				Hash: cs.ScriptHash(),
@@ -774,8 +780,15 @@ func TestContractUpdate(t *testing.T) {
 		}
 		manifestBytes, err := manifest.MarshalJSON()
 		require.NoError(t, err)
-		putArgsOnStack(nil, manifestBytes)
 
+		t.Run("empty script", func(t *testing.T) {
+			v.LoadScriptWithHash([]byte{byte(opcode.RET)}, cs.ScriptHash(), smartcontract.All)
+			putArgsOnStack([]byte{}, manifestBytes)
+			require.Error(t, contractUpdate(ic))
+		})
+
+		v.LoadScriptWithHash([]byte{byte(opcode.RET)}, cs.ScriptHash(), smartcontract.All)
+		putArgsOnStack(stackitem.Null{}, manifestBytes)
 		require.NoError(t, contractUpdate(ic))
 
 		// updated contract should have new scripthash
