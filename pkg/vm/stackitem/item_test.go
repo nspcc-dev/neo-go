@@ -4,6 +4,7 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -434,6 +435,34 @@ func TestMarshalJSON(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, testCase.result, actual)
 	}
+}
+
+func TestNewVeryBigInteger(t *testing.T) {
+	check := func(ok bool, v *big.Int) {
+		bs := bigint.ToBytes(v)
+		if ok {
+			assert.True(t, len(bs)*8 <= MaxBigIntegerSizeBits)
+		} else {
+			assert.True(t, len(bs)*8 > MaxBigIntegerSizeBits)
+			assert.Panics(t, func() { NewBigInteger(v) })
+		}
+	}
+
+	maxBitSet := big.NewInt(1)
+	maxBitSet.Lsh(maxBitSet, MaxBigIntegerSizeBits-1)
+
+	check(false, maxBitSet)
+	check(true, new(big.Int).Neg(maxBitSet))
+
+	minus1 := new(big.Int).Sub(maxBitSet, big.NewInt(1))
+	check(true, minus1)
+	check(true, new(big.Int).Neg(minus1))
+
+	plus1 := new(big.Int).Add(maxBitSet, big.NewInt(1))
+	check(false, plus1)
+	check(false, new(big.Int).Neg(plus1))
+
+	check(false, new(big.Int).Mul(maxBitSet, big.NewInt(2)))
 }
 
 func TestDeepCopy(t *testing.T) {
