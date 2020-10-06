@@ -181,6 +181,13 @@ func TestEmitBool(t *testing.T) {
 	assert.Equal(t, opcode.Opcode(result[1]), opcode.PUSH0)
 }
 
+func TestEmitOpcode(t *testing.T) {
+	w := io.NewBufBinWriter()
+	Opcodes(w.BinWriter, opcode.PUSH1, opcode.NEWMAP)
+	result := w.Bytes()
+	assert.Equal(t, result, []byte{byte(opcode.PUSH1), byte(opcode.NEWMAP)})
+}
+
 func TestEmitString(t *testing.T) {
 	buf := io.NewBufBinWriter()
 	str := "City Of Zion"

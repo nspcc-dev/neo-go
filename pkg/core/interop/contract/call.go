@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
+	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -44,21 +45,28 @@ func callExInternal(ic *interop.Context, h []byte, name string, args []stackitem
 	if strings.HasPrefix(name, "_") {
 		return errors.New("invalid method name (starts with '_')")
 	}
-	md := cs.Manifest.ABI.GetMethod(name)
-	if md == nil {
-		return fmt.Errorf("method '%s' not found", name)
-	}
 	curr, err := ic.DAO.GetContractState(ic.VM.GetCurrentScriptHash())
 	if err == nil {
 		if !curr.Manifest.CanCall(&cs.Manifest, name) {
 			return errors.New("disallowed method call")
 		}
 	}
+	return CallExInternal(ic, cs, name, args, f)
+}
+
+// CallExInternal calls a contract with flags and can't be invoked directly by user.
+func CallExInternal(ic *interop.Context, cs *state.Contract,
+	name string, args []stackitem.Item, f smartcontract.CallFlag) error {
+	md := cs.Manifest.ABI.GetMethod(name)
+	if md == nil {
+		return fmt.Errorf("method '%s' not found", name)
+	}
 
 	if len(args) != len(md.Parameters) {
 		return fmt.Errorf("invalid argument count: %d (expected %d)", len(args), len(md.Parameters))
 	}
 
+	u := cs.ScriptHash()
 	ic.Invocations[u]++
 	ic.VM.LoadScriptWithHash(cs.Script, u, ic.VM.Context().GetCallFlags()&f)
 	var isNative bool

@@ -102,7 +102,7 @@ func handleCandidate(ctx *cli.Context, method string) error {
 	gas := flags.Fixed8FromContext(ctx, "gas")
 	w := io.NewBufBinWriter()
 	emit.AppCallWithOperationAndArgs(w.BinWriter, client.NeoContractHash, method, acc.PrivateKey().PublicKey().Bytes())
-	emit.Opcode(w.BinWriter, opcode.ASSERT)
+	emit.Opcodes(w.BinWriter, opcode.ASSERT)
 	tx, err := c.CreateTxFromScript(w.Bytes(), acc, -1, int64(gas), transaction.Signer{
 		Account: acc.Contract.ScriptHash(),
 		Scopes:  transaction.CalledByEntry,
@@ -160,7 +160,7 @@ func handleVote(ctx *cli.Context) error {
 	gas := flags.Fixed8FromContext(ctx, "gas")
 	w := io.NewBufBinWriter()
 	emit.AppCallWithOperationAndArgs(w.BinWriter, client.NeoContractHash, "vote", addr.BytesBE(), pubArg)
-	emit.Opcode(w.BinWriter, opcode.ASSERT)
+	emit.Opcodes(w.BinWriter, opcode.ASSERT)
 
 	tx, err := c.CreateTxFromScript(w.Bytes(), acc, -1, int64(gas), transaction.Signer{
 		Account: acc.Contract.ScriptHash(),

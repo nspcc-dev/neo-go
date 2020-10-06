@@ -9,8 +9,10 @@ import (
 
 	"github.com/mr-tron/base58"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
+	"github.com/nspcc-dev/neo-go/pkg/core/interop/contract"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
@@ -109,7 +111,7 @@ func contractCreate(ic *interop.Context) error {
 		return fmt.Errorf("cannot convert contract to stack item: %w", err)
 	}
 	ic.VM.Estack().PushVal(cs)
-	return nil
+	return callDeploy(ic, newcontract, false)
 }
 
 func checkNonEmpty(b []byte, max int) error {
@@ -194,6 +196,15 @@ func contractUpdate(ic *interop.Context) error {
 		}
 	}
 
+	return callDeploy(ic, contract, true)
+}
+
+func callDeploy(ic *interop.Context, cs *state.Contract, isUpdate bool) error {
+	md := cs.Manifest.ABI.GetMethod(manifest.MethodDeploy)
+	if md != nil {
+		return contract.CallExInternal(ic, cs, manifest.MethodDeploy,
+			[]stackitem.Item{stackitem.NewBool(isUpdate)}, smartcontract.All)
+	}
 	return nil
 }
 

@@ -55,6 +55,7 @@ func MethodParams(addr interop.Hash160, h interop.Hash256,
 type MyStruct struct {}
 func (ms MyStruct) MethodOnStruct() { }
 func (ms *MyStruct) MethodOnPointerToStruct() { }
+func _deploy(isUpdate bool) {}
 `
 
 	info, err := getBuildInfo("foo.go", src)
@@ -83,6 +84,7 @@ func (ms *MyStruct) MethodOnPointerToStruct() { }
 			"MethodOnStruct":          "Void",
 			"MethodOnPointerToStruct": "Void",
 			"MethodParams":            "Boolean",
+			"_deploy":                 "Void",
 		}
 		for i := range d.Methods {
 			name := d.Methods[i].ID
@@ -104,6 +106,10 @@ func (ms *MyStruct) MethodOnPointerToStruct() { }
 
 	t.Run("param types", func(t *testing.T) {
 		paramTypes := map[string][]DebugParam{
+			"_deploy": {{
+				Name: "isUpdate",
+				Type: "Boolean",
+			}},
 			"MethodInt": {{
 				Name: "a",
 				Type: "String",
@@ -151,8 +157,16 @@ func (ms *MyStruct) MethodOnPointerToStruct() { }
 				Hash: hash.Hash160(buf),
 				Methods: []manifest.Method{
 					{
-						Name:   "main",
+						Name:   "_deploy",
 						Offset: 0,
+						Parameters: []manifest.Parameter{
+							manifest.NewParameter("isUpdate", smartcontract.BoolType),
+						},
+						ReturnType: smartcontract.VoidType,
+					},
+					{
+						Name:   "main",
+						Offset: 4,
 						Parameters: []manifest.Parameter{
 							manifest.NewParameter("op", smartcontract.StringType),
 						},
@@ -160,7 +174,7 @@ func (ms *MyStruct) MethodOnPointerToStruct() { }
 					},
 					{
 						Name:   "methodInt",
-						Offset: 66,
+						Offset: 70,
 						Parameters: []manifest.Parameter{
 							{
 								Name: "a",
@@ -171,31 +185,31 @@ func (ms *MyStruct) MethodOnPointerToStruct() { }
 					},
 					{
 						Name:       "methodString",
-						Offset:     97,
+						Offset:     101,
 						Parameters: []manifest.Parameter{},
 						ReturnType: smartcontract.StringType,
 					},
 					{
 						Name:       "methodByteArray",
-						Offset:     103,
+						Offset:     107,
 						Parameters: []manifest.Parameter{},
 						ReturnType: smartcontract.ByteArrayType,
 					},
 					{
 						Name:       "methodArray",
-						Offset:     108,
+						Offset:     112,
 						Parameters: []manifest.Parameter{},
 						ReturnType: smartcontract.ArrayType,
 					},
 					{
 						Name:       "methodStruct",
-						Offset:     113,
+						Offset:     117,
 						Parameters: []manifest.Parameter{},
 						ReturnType: smartcontract.ArrayType,
 					},
 					{
 						Name:   "methodConcat",
-						Offset: 88,
+						Offset: 92,
 						Parameters: []manifest.Parameter{
 							{
 								Name: "a",
@@ -214,7 +228,7 @@ func (ms *MyStruct) MethodOnPointerToStruct() { }
 					},
 					{
 						Name:   "methodParams",
-						Offset: 125,
+						Offset: 129,
 						Parameters: []manifest.Parameter{
 							manifest.NewParameter("addr", smartcontract.Hash160Type),
 							manifest.NewParameter("h", smartcontract.Hash256Type),

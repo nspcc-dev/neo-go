@@ -10,15 +10,18 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/callback"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/contract"
+	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/runtime"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
+	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/stretchr/testify/require"
@@ -365,23 +368,49 @@ func TestStoragePut(t *testing.T) {
 
 // getTestContractState returns 2 contracts second of which is allowed to call the first.
 func getTestContractState() (*state.Contract, *state.Contract) {
-	script := []byte{
-		byte(opcode.ABORT), // abort if no offset was provided
-		byte(opcode.ADD), byte(opcode.RET),
-		byte(opcode.PUSH7), byte(opcode.RET),
-		byte(opcode.DROP), byte(opcode.RET),
-		byte(opcode.INITSSLOT), 1, byte(opcode.PUSH3), byte(opcode.STSFLD0), byte(opcode.RET),
-		byte(opcode.LDSFLD0), byte(opcode.ADD), byte(opcode.RET),
-		byte(opcode.PUSH1), byte(opcode.PUSH2), byte(opcode.RET),
-		byte(opcode.RET),
-		byte(opcode.LDSFLD0), byte(opcode.SUB), byte(opcode.CONVERT), byte(stackitem.BooleanT), byte(opcode.RET),
-	}
+	w := io.NewBufBinWriter()
+	emit.Opcodes(w.BinWriter, opcode.ABORT)
+	addOff := w.Len()
+	emit.Opcodes(w.BinWriter, opcode.ADD, opcode.RET)
+	ret7Off := w.Len()
+	emit.Opcodes(w.BinWriter, opcode.PUSH7, opcode.RET)
+	dropOff := w.Len()
+	emit.Opcodes(w.BinWriter, opcode.DROP, opcode.RET)
+	initOff := w.Len()
+	emit.Opcodes(w.BinWriter, opcode.INITSSLOT, 1, opcode.PUSH3, opcode.STSFLD0, opcode.RET)
+	add3Off := w.Len()
+	emit.Opcodes(w.BinWriter, opcode.LDSFLD0, opcode.ADD, opcode.RET)
+	invalidRetOff := w.Len()
+	emit.Opcodes(w.BinWriter, opcode.PUSH1, opcode.PUSH2, opcode.RET)
+	justRetOff := w.Len()
+	emit.Opcodes(w.BinWriter, opcode.RET)
+	verifyOff := w.Len()
+	emit.Opcodes(w.BinWriter, opcode.LDSFLD0, opcode.SUB,
+		opcode.CONVERT, opcode.Opcode(stackitem.BooleanT), opcode.RET)
+	deployOff := w.Len()
+	emit.Opcodes(w.BinWriter, opcode.JMPIF, 2+8+3)
+	emit.String(w.BinWriter, "create")
+	emit.Opcodes(w.BinWriter, opcode.CALL, 3+8+3, opcode.RET)
+	emit.String(w.BinWriter, "update")
+	emit.Opcodes(w.BinWriter, opcode.CALL, 3, opcode.RET)
+	putValOff := w.Len()
+	emit.String(w.BinWriter, "initial")
+	emit.Syscall(w.BinWriter, interopnames.SystemStorageGetContext)
+	emit.Syscall(w.BinWriter, interopnames.SystemStoragePut)
+	emit.Opcodes(w.BinWriter, opcode.RET)
+	getValOff := w.Len()
+	emit.String(w.BinWriter, "initial")
+	emit.Syscall(w.BinWriter, interopnames.SystemStorageGetContext)
+	emit.Syscall(w.BinWriter, interopnames.SystemStorageGet)
+
+	script := w.Bytes()
 	h := hash.Hash160(script)
 	m := manifest.NewManifest(h)
+	m.Features = smartcontract.HasStorage
 	m.ABI.Methods = []manifest.Method{
 		{
 			Name:   "add",
-			Offset: 1,
+			Offset: addOff,
 			Parameters: []manifest.Parameter{
 				manifest.NewParameter("addend1", smartcontract.IntegerType),
 				manifest.NewParameter("addend2", smartcontract.IntegerType),
@@ -390,23 +419,23 @@ func getTestContractState() (*state.Contract, *state.Contract) {
 		},
 		{
 			Name:       "ret7",
-			Offset:     3,
+			Offset:     ret7Off,
 			Parameters: []manifest.Parameter{},
 			ReturnType: smartcontract.IntegerType,
 		},
 		{
 			Name:       "drop",
-			Offset:     5,
+			Offset:     dropOff,
 			ReturnType: smartcontract.VoidType,
 		},
 		{
 			Name:       manifest.MethodInit,
-			Offset:     7,
+			Offset:     initOff,
 			ReturnType: smartcontract.VoidType,
 		},
 		{
 			Name:   "add3",
-			Offset: 12,
+			Offset: add3Off,
 			Parameters: []manifest.Parameter{
 				manifest.NewParameter("addend", smartcontract.IntegerType),
 			},
@@ -414,18 +443,39 @@ func getTestContractState() (*state.Contract, *state.Contract) {
 		},
 		{
 			Name:       "invalidReturn",
-			Offset:     15,
+			Offset:     invalidRetOff,
 			ReturnType: smartcontract.IntegerType,
 		},
 		{
 			Name:       "justReturn",
-			Offset:     18,
+			Offset:     justRetOff,
 			ReturnType: smartcontract.IntegerType,
 		},
 		{
 			Name:       manifest.MethodVerify,
-			Offset:     19,
+			Offset:     verifyOff,
 			ReturnType: smartcontract.BoolType,
+		},
+		{
+			Name:   manifest.MethodDeploy,
+			Offset: deployOff,
+			Parameters: []manifest.Parameter{
+				manifest.NewParameter("isUpdate", smartcontract.BoolType),
+			},
+			ReturnType: smartcontract.VoidType,
+		},
+		{
+			Name:       "getValue",
+			Offset:     getValOff,
+			ReturnType: smartcontract.StringType,
+		},
+		{
+			Name:   "putValue",
+			Offset: putValOff,
+			Parameters: []manifest.Parameter{
+				manifest.NewParameter("value", smartcontract.StringType),
+			},
+			ReturnType: smartcontract.VoidType,
 		},
 	}
 	cs := &state.Contract{
@@ -442,6 +492,7 @@ func getTestContractState() (*state.Contract, *state.Contract) {
 	perm.Methods.Add("add3")
 	perm.Methods.Add("invalidReturn")
 	perm.Methods.Add("justReturn")
+	perm.Methods.Add("getValue")
 	m.Permissions = append(m.Permissions, *perm)
 
 	return cs, &state.Contract{
@@ -835,6 +886,55 @@ func TestContractUpdate(t *testing.T) {
 		// old contract should be deleted
 		_, err = ic.DAO.GetContractState(cs.ScriptHash())
 		require.Error(t, err)
+	})
+}
+
+// TestContractCreateDeploy checks that `_deploy` method was called
+// during contract creation or update.
+func TestContractCreateDeploy(t *testing.T) {
+	v, ic, bc := createVM(t)
+	defer bc.Close()
+	v.GasLimit = -1
+
+	putArgs := func(cs *state.Contract) {
+		rawManifest, err := cs.Manifest.MarshalJSON()
+		require.NoError(t, err)
+		v.Estack().PushVal(rawManifest)
+		v.Estack().PushVal(cs.Script)
+	}
+	cs, currCs := getTestContractState()
+
+	v.LoadScriptWithFlags([]byte{byte(opcode.RET)}, smartcontract.All)
+	putArgs(cs)
+	require.NoError(t, contractCreate(ic))
+	require.NoError(t, ic.VM.Run())
+
+	v.LoadScriptWithFlags(currCs.Script, smartcontract.All)
+	err := contract.CallExInternal(ic, cs, "getValue", nil, smartcontract.All)
+	require.NoError(t, err)
+	require.NoError(t, v.Run())
+	require.Equal(t, "create", v.Estack().Pop().String())
+
+	v.LoadScriptWithFlags(cs.Script, smartcontract.All)
+	md := cs.Manifest.ABI.GetMethod("justReturn")
+	v.Jump(v.Context(), md.Offset)
+
+	t.Run("Update", func(t *testing.T) {
+		newCs := &state.Contract{
+			ID:       cs.ID,
+			Script:   append(cs.Script, byte(opcode.RET)),
+			Manifest: cs.Manifest,
+		}
+		newCs.Manifest.ABI.Hash = hash.Hash160(newCs.Script)
+		putArgs(newCs)
+		require.NoError(t, contractUpdate(ic))
+		require.NoError(t, v.Run())
+
+		v.LoadScriptWithFlags(currCs.Script, smartcontract.All)
+		err = contract.CallExInternal(ic, newCs, "getValue", nil, smartcontract.All)
+		require.NoError(t, err)
+		require.NoError(t, v.Run())
+		require.Equal(t, "update", v.Estack().Pop().String())
 	})
 }
 

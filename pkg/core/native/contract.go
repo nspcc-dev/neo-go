@@ -83,10 +83,10 @@ func (cs *Contracts) GetPersistScript() []byte {
 			continue
 		}
 		emit.Int(w.BinWriter, 0)
-		emit.Opcode(w.BinWriter, opcode.NEWARRAY)
+		emit.Opcodes(w.BinWriter, opcode.NEWARRAY)
 		emit.String(w.BinWriter, "onPersist")
 		emit.AppCall(w.BinWriter, md.Hash)
-		emit.Opcode(w.BinWriter, opcode.DROP)
+		emit.Opcodes(w.BinWriter, opcode.DROP)
 	}
 	cs.persistScript = w.Bytes()
 	return cs.persistScript
@@ -106,10 +106,10 @@ func (cs *Contracts) GetPostPersistScript() []byte {
 			continue
 		}
 		emit.Int(w.BinWriter, 0)
-		emit.Opcode(w.BinWriter, opcode.NEWARRAY)
+		emit.Opcodes(w.BinWriter, opcode.NEWARRAY)
 		emit.String(w.BinWriter, "postPersist")
 		emit.AppCall(w.BinWriter, md.Hash)
-		emit.Opcode(w.BinWriter, opcode.DROP)
+		emit.Opcodes(w.BinWriter, opcode.DROP)
 	}
 	cs.postPersistScript = w.Bytes()
 	return cs.postPersistScript

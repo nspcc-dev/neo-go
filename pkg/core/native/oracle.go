@@ -56,7 +56,7 @@ func init() {
 
 	w.Reset()
 	emit.Int(w.BinWriter, 0)
-	emit.Opcode(w.BinWriter, opcode.NEWARRAY)
+	emit.Opcodes(w.BinWriter, opcode.NEWARRAY)
 	emit.String(w.BinWriter, "finish")
 	emit.Bytes(w.BinWriter, h.BytesBE())
 	emit.Syscall(w.BinWriter, interopnames.SystemContractCall)

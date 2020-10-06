@@ -132,7 +132,7 @@ func (c *Client) CreateNEP5MultiTransferTx(acc *wallet.Account, gas int64, recip
 	for i := range recipients {
 		emit.AppCallWithOperationAndArgs(w.BinWriter, recipients[i].Token, "transfer", from,
 			recipients[i].Address, recipients[i].Amount)
-		emit.Opcode(w.BinWriter, opcode.ASSERT)
+		emit.Opcodes(w.BinWriter, opcode.ASSERT)
 	}
 	return c.CreateTxFromScript(w.Bytes(), acc, -1, gas, transaction.Signer{
 		Account: acc.Contract.ScriptHash(),

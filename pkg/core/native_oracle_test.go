@@ -27,26 +27,26 @@ import (
 func getOracleContractState(h util.Uint160) *state.Contract {
 	w := io.NewBufBinWriter()
 	emit.Int(w.BinWriter, 5)
-	emit.Opcode(w.BinWriter, opcode.PACK)
+	emit.Opcodes(w.BinWriter, opcode.PACK)
 	emit.String(w.BinWriter, "request")
 	emit.Bytes(w.BinWriter, h.BytesBE())
 	emit.Syscall(w.BinWriter, interopnames.SystemContractCall)
-	emit.Opcode(w.BinWriter, opcode.RET)
+	emit.Opcodes(w.BinWriter, opcode.RET)
 
 	// `handle` method aborts if len(userData) == 2
 	offset := w.Len()
-	emit.Opcode(w.BinWriter, opcode.OVER)
-	emit.Opcode(w.BinWriter, opcode.SIZE)
+	emit.Opcodes(w.BinWriter, opcode.OVER)
+	emit.Opcodes(w.BinWriter, opcode.SIZE)
 	emit.Int(w.BinWriter, 2)
 	emit.Instruction(w.BinWriter, opcode.JMPNE, []byte{3})
-	emit.Opcode(w.BinWriter, opcode.ABORT)
+	emit.Opcodes(w.BinWriter, opcode.ABORT)
 	emit.Int(w.BinWriter, 4) // url, userData, code, result
-	emit.Opcode(w.BinWriter, opcode.PACK)
+	emit.Opcodes(w.BinWriter, opcode.PACK)
 	emit.Syscall(w.BinWriter, interopnames.SystemBinarySerialize)
 	emit.String(w.BinWriter, "lastOracleResponse")
 	emit.Syscall(w.BinWriter, interopnames.SystemStorageGetContext)
 	emit.Syscall(w.BinWriter, interopnames.SystemStoragePut)
-	emit.Opcode(w.BinWriter, opcode.RET)
+	emit.Opcodes(w.BinWriter, opcode.RET)
 
 	m := manifest.NewManifest(h)
 	m.Features = smartcontract.HasStorage
