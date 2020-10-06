@@ -152,10 +152,10 @@ func (c *funcScope) analyzeVoidCalls(node ast.Node) bool {
 	return true
 }
 
-func (c *funcScope) countLocals() int {
+func countLocals(decl *ast.FuncDecl) (int, bool) {
 	size := 0
 	hasDefer := false
-	ast.Inspect(c.decl, func(n ast.Node) bool {
+	ast.Inspect(decl, func(n ast.Node) bool {
 		switch n := n.(type) {
 		case *ast.FuncType:
 			num := n.Results.NumFields()
@@ -186,6 +186,11 @@ func (c *funcScope) countLocals() int {
 		}
 		return true
 	})
+	return size, hasDefer
+}
+
+func (c *funcScope) countLocals() int {
+	size, hasDefer := countLocals(c.decl)
 	if hasDefer {
 		c.finallyProcessedIndex = size
 		size++

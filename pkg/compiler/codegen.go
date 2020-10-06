@@ -301,11 +301,23 @@ func isInitFunc(decl *ast.FuncDecl) bool {
 		decl.Type.Results.NumFields() == 0
 }
 
-func (c *codegen) convertInitFuncs(f *ast.File, pkg *types.Package) {
+func (c *codegen) clearSlots(n int) {
+	for i := 0; i < n; i++ {
+		emit.Opcodes(c.prog.BinWriter, opcode.PUSHNULL)
+		c.emitStoreByIndex(varLocal, i)
+	}
+}
+
+func (c *codegen) convertInitFuncs(f *ast.File, pkg *types.Package, seenBefore bool) bool {
 	ast.Inspect(f, func(node ast.Node) bool {
 		switch n := node.(type) {
 		case *ast.FuncDecl:
 			if isInitFunc(n) {
+				if seenBefore {
+					cnt, _ := countLocals(n)
+					c.clearSlots(cnt)
+					seenBefore = true
+				}
 				c.convertFuncDecl(f, n, pkg)
 			}
 		case *ast.GenDecl:
@@ -313,6 +325,7 @@ func (c *codegen) convertInitFuncs(f *ast.File, pkg *types.Package) {
 		}
 		return true
 	})
+	return seenBefore
 }
 
 func (c *codegen) convertFuncDecl(file ast.Node, decl *ast.FuncDecl, pkg *types.Package) {
@@ -345,16 +358,18 @@ func (c *codegen) convertFuncDecl(file ast.Node, decl *ast.FuncDecl, pkg *types.
 
 	// All globals copied into the scope of the function need to be added
 	// to the stack size of the function.
-	sizeLoc := f.countLocals()
-	if sizeLoc > 255 {
-		c.prog.Err = errors.New("maximum of 255 local variables is allowed")
-	}
-	sizeArg := f.countArgs()
-	if sizeArg > 255 {
-		c.prog.Err = errors.New("maximum of 255 local variables is allowed")
-	}
-	if sizeLoc != 0 || sizeArg != 0 {
-		emit.Instruction(c.prog.BinWriter, opcode.INITSLOT, []byte{byte(sizeLoc), byte(sizeArg)})
+	if !isInit {
+		sizeLoc := f.countLocals()
+		if sizeLoc > 255 {
+			c.prog.Err = errors.New("maximum of 255 local variables is allowed")
+		}
+		sizeArg := f.countArgs()
+		if sizeArg > 255 {
+			c.prog.Err = errors.New("maximum of 255 local variables is allowed")
+		}
+		if sizeLoc != 0 || sizeArg != 0 {
+			emit.Instruction(c.prog.BinWriter, opcode.INITSLOT, []byte{byte(sizeLoc), byte(sizeArg)})
+		}
 	}
 
 	f.vars.newScope()
@@ -1777,7 +1792,8 @@ func (c *codegen) compile(info *buildInfo, pkg *loader.PackageInfo) error {
 	// Bring all imported functions into scope.
 	c.ForEachFile(c.resolveFuncDecls)
 
-	n, hasInit := c.traverseGlobals()
+	n, initLocals := c.traverseGlobals()
+	hasInit := initLocals > -1
 	if n > 0 || hasInit {
 		emit.Opcodes(c.prog.BinWriter, opcode.RET)
 		c.initEndOffset = c.prog.Len()

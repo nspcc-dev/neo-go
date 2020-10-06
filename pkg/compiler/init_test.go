@@ -24,11 +24,13 @@ func TestInit(t *testing.T) {
 		var m = map[int]int{}
 		var a = 2
 		func init() {
-			m[1] = 11
+			b := 11
+			m[1] = b
 		}
 		func init() {
 			a = 1
-			m[3] = 30
+			var b int
+			m[3] = 30 + b
 		}
 		func Main() int {
 			return m[1] + m[3] + a

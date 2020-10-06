@@ -37,20 +37,24 @@ func (c *codegen) getIdentName(pkg string, name string) string {
 }
 
 // traverseGlobals visits and initializes global variables.
-// and returns number of variables initialized and
-// true if any init functions were encountered.
-func (c *codegen) traverseGlobals() (int, bool) {
+// and returns number of variables initialized.
+// Second return value is -1 if no `init()` functions were encountered
+// and number of maximum amount of locals in any of init functions otherwise.
+func (c *codegen) traverseGlobals() (int, int) {
 	var hasDefer bool
 	var n int
-	var hasInit bool
+	initLocals := -1
 	c.ForEachFile(func(f *ast.File, _ *types.Package) {
 		n += countGlobals(f)
-		if !hasInit || !hasDefer {
+		if initLocals == -1 || !hasDefer {
 			ast.Inspect(f, func(node ast.Node) bool {
 				switch n := node.(type) {
 				case *ast.FuncDecl:
 					if isInitFunc(n) {
-						hasInit = true
+						c, _ := countLocals(n)
+						if c > initLocals {
+							initLocals = c
+						}
 					}
 					return !hasDefer
 				case *ast.DeferStmt:
@@ -64,14 +68,18 @@ func (c *codegen) traverseGlobals() (int, bool) {
 	if hasDefer {
 		n++
 	}
-	if n != 0 || hasInit {
+	if n != 0 || initLocals > -1 {
 		if n > 255 {
 			c.prog.BinWriter.Err = errors.New("too many global variables")
-			return 0, hasInit
+			return 0, initLocals
 		}
 		if n != 0 {
 			emit.Instruction(c.prog.BinWriter, opcode.INITSSLOT, []byte{byte(n)})
 		}
+		if initLocals > 0 {
+			emit.Instruction(c.prog.BinWriter, opcode.INITSLOT, []byte{byte(initLocals), 0})
+		}
+		seenBefore := false
 		c.ForEachPackage(func(pkg *loader.PackageInfo) {
 			if n > 0 {
 				for _, f := range pkg.Files {
@@ -79,10 +87,10 @@ func (c *codegen) traverseGlobals() (int, bool) {
 					c.convertGlobals(f, pkg.Pkg)
 				}
 			}
-			if hasInit {
+			if initLocals > -1 {
 				for _, f := range pkg.Files {
 					c.fillImportMap(f, pkg.Pkg)
-					c.convertInitFuncs(f, pkg.Pkg)
+					seenBefore = c.convertInitFuncs(f, pkg.Pkg, seenBefore) || seenBefore
 				}
 			}
 			// because we reuse `convertFuncDecl` for init funcs,
@@ -96,7 +104,7 @@ func (c *codegen) traverseGlobals() (int, bool) {
 			c.globals["<exception>"] = c.exceptionIndex
 		}
 	}
-	return n, hasInit
+	return n, initLocals
 }
 
 // countGlobals counts the global variables in the program to add
