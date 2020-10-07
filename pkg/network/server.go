@@ -29,7 +29,6 @@ const (
 	defaultAttemptConnPeers = 20
 	defaultMaxPeers         = 100
 	maxBlockBatch           = 200
-	maxAddrsToSend          = 200
 	minPoolCount            = 30
 )
 
@@ -690,8 +689,8 @@ func (s *Server) handleAddrCmd(p Peer, addrs *payload.AddressList) error {
 // handleGetAddrCmd sends to the peer some good addresses that we know of.
 func (s *Server) handleGetAddrCmd(p Peer) error {
 	addrs := s.discovery.GoodPeers()
-	if len(addrs) > maxAddrsToSend {
-		addrs = addrs[:maxAddrsToSend]
+	if len(addrs) > payload.MaxAddrsCount {
+		addrs = addrs[:payload.MaxAddrsCount]
 	}
 	alist := payload.NewAddressList(len(addrs))
 	ts := time.Now()
