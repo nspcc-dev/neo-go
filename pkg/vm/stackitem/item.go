@@ -350,8 +350,19 @@ type BigInteger struct {
 
 // NewBigInteger returns an new BigInteger object.
 func NewBigInteger(value *big.Int) *BigInteger {
-	if value.BitLen() > MaxBigIntegerSizeBits {
-		panic("integer is too big")
+	const tooBigErrMsg = "integer is too big"
+
+	// There are 2 cases, when `BitLen` differs from actual size:
+	// 1. Positive integer with highest bit on byte boundary = 1.
+	// 2. Negative integer with highest bit on byte boundary = 1
+	//    minus some value. (-0x80 -> 0x80, -0x7F -> 0x81, -0x81 -> 0x7FFF).
+	sz := value.BitLen()
+	if sz > MaxBigIntegerSizeBits {
+		panic(tooBigErrMsg)
+	} else if sz == MaxBigIntegerSizeBits {
+		if value.Sign() == 1 || value.TrailingZeroBits() != MaxBigIntegerSizeBits-1 {
+			panic(tooBigErrMsg)
+		}
 	}
 	return &BigInteger{
 		value: value,

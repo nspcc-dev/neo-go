@@ -994,7 +994,7 @@ func TestArith(t *testing.T) {
 
 func TestADDBigResult(t *testing.T) {
 	prog := makeProgram(opcode.ADD)
-	runWithArgs(t, prog, nil, getBigInt(stackitem.MaxBigIntegerSizeBits, -1), 1)
+	runWithArgs(t, prog, nil, getBigInt(stackitem.MaxBigIntegerSizeBits-1, -1), 1) // 0x7FFF...
 }
 
 func TestMULBigResult(t *testing.T) {
@@ -1035,7 +1035,9 @@ func TestArithNegativeArguments(t *testing.T) {
 
 func TestSUBBigResult(t *testing.T) {
 	prog := makeProgram(opcode.SUB)
-	runWithArgs(t, prog, nil, getBigInt(stackitem.MaxBigIntegerSizeBits, -1), -1)
+	bi := getBigInt(stackitem.MaxBigIntegerSizeBits-1, -1)
+	runWithArgs(t, prog, new(big.Int).Sub(big.NewInt(-1), bi), -1, bi)
+	runWithArgs(t, prog, nil, -2, bi)
 }
 
 func TestSHR(t *testing.T) {
@@ -1198,7 +1200,7 @@ func TestINC(t *testing.T) {
 func TestINCBigResult(t *testing.T) {
 	prog := makeProgram(opcode.INC, opcode.INC)
 	vm := load(prog)
-	x := getBigInt(stackitem.MaxBigIntegerSizeBits, -2)
+	x := getBigInt(stackitem.MaxBigIntegerSizeBits-1, -2)
 	vm.estack.PushVal(x)
 
 	require.NoError(t, vm.Step())
@@ -1212,7 +1214,7 @@ func TestINCBigResult(t *testing.T) {
 func TestDECBigResult(t *testing.T) {
 	prog := makeProgram(opcode.DEC, opcode.DEC)
 	vm := load(prog)
-	x := getBigInt(stackitem.MaxBigIntegerSizeBits, -2)
+	x := getBigInt(stackitem.MaxBigIntegerSizeBits-1, -1)
 	x.Neg(x)
 	vm.estack.PushVal(x)
 
