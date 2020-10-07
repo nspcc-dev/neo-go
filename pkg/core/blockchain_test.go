@@ -453,7 +453,7 @@ func TestVerifyTx(t *testing.T) {
 		})
 		t.Run("Oracle", func(t *testing.T) {
 			orc := bc.contracts.Oracle
-			req := &native.OracleRequest{GasForResponse: 1000_0000}
+			req := &state.OracleRequest{GasForResponse: 1000_0000}
 			require.NoError(t, orc.PutRequestInternal(1, req, bc.dao))
 
 			oracleScript, err := smartcontract.CreateMajorityMultiSigRedeemScript(oraclePubs)
