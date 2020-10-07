@@ -104,7 +104,7 @@ func DecodeBinaryStackItem(r *io.BinReader) Item {
 		var b = r.ReadBool()
 		return NewBool(b)
 	case IntegerT:
-		data := r.ReadVarBytes()
+		data := r.ReadVarBytes(bigint.MaxBytesLen)
 		num := bigint.FromBytes(data)
 		return NewBigInteger(num)
 	case ArrayT, StructT:
