@@ -7,6 +7,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
+	"github.com/nspcc-dev/neo-go/pkg/core/fee"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
@@ -552,7 +553,7 @@ func (c *Client) AddNetworkFee(tx *transaction.Transaction, extraFee int64, accs
 			size += io.GetVarSize([]byte{}) * 2 // both scripts are empty
 			continue
 		}
-		netFee, sizeDelta := core.CalculateNetworkFee(accs[i].Contract.Script)
+		netFee, sizeDelta := fee.Calculate(accs[i].Contract.Script)
 		tx.NetworkFee += netFee
 		size += sizeDelta
 	}

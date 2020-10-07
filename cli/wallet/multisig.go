@@ -59,14 +59,16 @@ func signMultisig(ctx *cli.Context) error {
 	if !ok {
 		return cli.NewExitError("verifiable item is not a transaction", 1)
 	}
-	fmt.Fprintln(ctx.App.Writer, tx.Hash().StringLE())
 
 	priv := acc.PrivateKey()
 	sign := priv.Sign(tx.GetSignedPart())
 	if err := c.AddSignature(acc.Contract, priv.PublicKey(), sign); err != nil {
 		return cli.NewExitError(fmt.Errorf("can't add signature: %w", err), 1)
-	} else if err := writeParameterContext(c, ctx.String("out")); err != nil {
-		return cli.NewExitError(err, 1)
+	}
+	if out := ctx.String("out"); out != "" {
+		if err := writeParameterContext(c, out); err != nil {
+			return cli.NewExitError(err, 1)
+		}
 	}
 	if len(ctx.String(options.RPCEndpointFlag)) != 0 {
 		w, err := c.GetWitness(acc.Contract)

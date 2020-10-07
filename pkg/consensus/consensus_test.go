@@ -9,6 +9,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core"
+	"github.com/nspcc-dev/neo-go/pkg/core/fee"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
@@ -344,7 +345,7 @@ func signTx(t *testing.T, feePerByte int64, txs ...*transaction.Transaction) {
 	require.NoError(t, err)
 	for _, tx := range txs {
 		size := io.GetVarSize(tx)
-		netFee, sizeDelta := core.CalculateNetworkFee(rawScript)
+		netFee, sizeDelta := fee.Calculate(rawScript)
 		tx.NetworkFee += +netFee
 		size += sizeDelta
 		tx.NetworkFee += int64(size) * feePerByte

@@ -333,7 +333,7 @@ func (p *PublicKey) Address() string {
 // Verify returns true if the signature is valid and corresponds
 // to the hash and public key.
 func (p *PublicKey) Verify(signature []byte, hash []byte) bool {
-	if p.X == nil || p.Y == nil {
+	if p.X == nil || p.Y == nil || len(signature) != 64 {
 		return false
 	}
 	rBytes := new(big.Int).SetBytes(signature[0:32])

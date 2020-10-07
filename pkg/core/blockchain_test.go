@@ -9,6 +9,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
+	"github.com/nspcc-dev/neo-go/pkg/core/fee"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/core/mempool"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
@@ -300,7 +301,7 @@ func TestVerifyTx(t *testing.T) {
 		})
 		t.Run("AlmostEnoughNetworkFee", func(t *testing.T) {
 			tx := bc.newTestTx(h, testScript)
-			verificationNetFee, calcultedScriptSize := CalculateNetworkFee(accs[0].Contract.Script)
+			verificationNetFee, calcultedScriptSize := fee.Calculate(accs[0].Contract.Script)
 			expectedSize := io.GetVarSize(tx) + calcultedScriptSize
 			calculatedNetFee := verificationNetFee + int64(expectedSize)*bc.FeePerByte()
 			tx.NetworkFee = calculatedNetFee - 1
@@ -310,7 +311,7 @@ func TestVerifyTx(t *testing.T) {
 		})
 		t.Run("EnoughNetworkFee", func(t *testing.T) {
 			tx := bc.newTestTx(h, testScript)
-			verificationNetFee, calcultedScriptSize := CalculateNetworkFee(accs[0].Contract.Script)
+			verificationNetFee, calcultedScriptSize := fee.Calculate(accs[0].Contract.Script)
 			expectedSize := io.GetVarSize(tx) + calcultedScriptSize
 			calculatedNetFee := verificationNetFee + int64(expectedSize)*bc.FeePerByte()
 			tx.NetworkFee = calculatedNetFee
@@ -321,7 +322,7 @@ func TestVerifyTx(t *testing.T) {
 		t.Run("CalculateNetworkFee, signature script", func(t *testing.T) {
 			tx := bc.newTestTx(h, testScript)
 			expectedSize := io.GetVarSize(tx)
-			verificationNetFee, calculatedScriptSize := CalculateNetworkFee(accs[0].Contract.Script)
+			verificationNetFee, calculatedScriptSize := fee.Calculate(accs[0].Contract.Script)
 			expectedSize += calculatedScriptSize
 			expectedNetFee := verificationNetFee + int64(expectedSize)*bc.FeePerByte()
 			tx.NetworkFee = expectedNetFee
@@ -340,7 +341,7 @@ func TestVerifyTx(t *testing.T) {
 			require.NoError(t, multisigAcc.ConvertMultisig(1, pKeys))
 			multisigHash := hash.Hash160(multisigAcc.Contract.Script)
 			tx := bc.newTestTx(multisigHash, testScript)
-			verificationNetFee, calculatedScriptSize := CalculateNetworkFee(multisigAcc.Contract.Script)
+			verificationNetFee, calculatedScriptSize := fee.Calculate(multisigAcc.Contract.Script)
 			expectedSize := io.GetVarSize(tx) + calculatedScriptSize
 			expectedNetFee := verificationNetFee + int64(expectedSize)*bc.FeePerByte()
 			tx.NetworkFee = expectedNetFee
@@ -440,7 +441,7 @@ func TestVerifyTx(t *testing.T) {
 			rawScript := testchain.CommitteeVerificationScript()
 			require.NoError(t, err)
 			size := io.GetVarSize(tx)
-			netFee, sizeDelta := CalculateNetworkFee(rawScript)
+			netFee, sizeDelta := fee.Calculate(rawScript)
 			tx.NetworkFee += netFee
 			tx.NetworkFee += int64(size+sizeDelta) * bc.FeePerByte()
 			data := tx.GetSignedPart()
@@ -479,7 +480,7 @@ func TestVerifyTx(t *testing.T) {
 					Scopes:  transaction.None,
 				}}
 				size := io.GetVarSize(tx)
-				netFee, sizeDelta := CalculateNetworkFee(oracleScript)
+				netFee, sizeDelta := fee.Calculate(oracleScript)
 				tx.NetworkFee += netFee
 				tx.NetworkFee += int64(size+sizeDelta) * bc.FeePerByte()
 				return tx
