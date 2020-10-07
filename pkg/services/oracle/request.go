@@ -12,6 +12,31 @@ import (
 	"go.uber.org/zap"
 )
 
+const defaultMaxConcurrentRequests = 10
+
+type request struct {
+	ID  uint64
+	Req *state.OracleRequest
+}
+
+func (o *Oracle) runRequestWorker() {
+	for {
+		select {
+		case <-o.close:
+			return
+		case req := <-o.requestCh:
+			acc := o.getAccount()
+			if acc == nil {
+				continue
+			}
+			err := o.processRequest(acc.PrivateKey(), req.ID, req.Req)
+			if err != nil {
+				o.Log.Debug("can't process request", zap.Uint64("id", req.ID), zap.Error(err))
+			}
+		}
+	}
+}
+
 // RemoveRequests removes all data associated with requests
 // which have been processed by oracle contract.
 func (o *Oracle) RemoveRequests(ids []uint64) {

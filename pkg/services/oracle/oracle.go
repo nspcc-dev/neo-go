@@ -34,6 +34,7 @@ type (
 		oracleSignContract []byte
 
 		close      chan struct{}
+		requestCh  chan request
 		requestMap chan map[uint64]*state.OracleRequest
 
 		// respMtx protects responses map.
@@ -93,6 +94,10 @@ func NewOracle(cfg Config) (*Oracle, error) {
 	if o.MainCfg.RequestTimeout == 0 {
 		o.MainCfg.RequestTimeout = defaultRequestTimeout
 	}
+	if o.MainCfg.MaxConcurrentRequests == 0 {
+		o.MainCfg.MaxConcurrentRequests = defaultMaxConcurrentRequests
+	}
+	o.requestCh = make(chan request, o.MainCfg.MaxConcurrentRequests)
 
 	var err error
 	w := cfg.MainCfg.UnlockWallet
@@ -136,12 +141,20 @@ func (o *Oracle) Shutdown() {
 
 // Run runs must be executed in a separate goroutine.
 func (o *Oracle) Run() {
+	for i := 0; i < o.MainCfg.MaxConcurrentRequests; i++ {
+		go o.runRequestWorker()
+	}
 	for {
 		select {
 		case <-o.close:
 			return
 		case reqs := <-o.requestMap:
-			o.ProcessRequestsInternal(reqs)
+			for id, req := range reqs {
+				o.requestCh <- request{
+					ID:  id,
+					Req: req,
+				}
+			}
 		}
 	}
 }
