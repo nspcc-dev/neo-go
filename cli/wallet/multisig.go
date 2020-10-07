@@ -1,14 +1,12 @@
 package wallet
 
 import (
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
 
 	"github.com/nspcc-dev/neo-go/cli/options"
+	"github.com/nspcc-dev/neo-go/cli/paramcontext"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
-	"github.com/nspcc-dev/neo-go/pkg/smartcontract/context"
 	"github.com/urfave/cli"
 )
 
@@ -41,7 +39,7 @@ func signMultisig(ctx *cli.Context) error {
 	}
 	defer wall.Close()
 
-	c, err := readParameterContext(ctx.String("in"))
+	c, err := paramcontext.Read(ctx.String("in"))
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -66,7 +64,7 @@ func signMultisig(ctx *cli.Context) error {
 		return cli.NewExitError(fmt.Errorf("can't add signature: %w", err), 1)
 	}
 	if out := ctx.String("out"); out != "" {
-		if err := writeParameterContext(c, out); err != nil {
+		if err := paramcontext.Save(c, out); err != nil {
 			return cli.NewExitError(err, 1)
 		}
 	}
@@ -93,27 +91,5 @@ func signMultisig(ctx *cli.Context) error {
 	}
 
 	fmt.Fprintln(ctx.App.Writer, tx.Hash().StringLE())
-	return nil
-}
-
-func readParameterContext(filename string) (*context.ParameterContext, error) {
-	data, err := ioutil.ReadFile(filename)
-	if err != nil {
-		return nil, fmt.Errorf("can't read input file: %w", err)
-	}
-
-	c := new(context.ParameterContext)
-	if err := json.Unmarshal(data, c); err != nil {
-		return nil, fmt.Errorf("can't parse transaction: %w", err)
-	}
-	return c, nil
-}
-
-func writeParameterContext(c *context.ParameterContext, filename string) error {
-	if data, err := json.Marshal(c); err != nil {
-		return fmt.Errorf("can't marshal transaction: %w", err)
-	} else if err := ioutil.WriteFile(filename, data, 0644); err != nil {
-		return fmt.Errorf("can't write transaction to file: %w", err)
-	}
 	return nil
 }
