@@ -80,6 +80,9 @@ type VM struct {
 	SyscallHandler func(v *VM, id uint32) error
 
 	trigger trigger.Type
+
+	// Invocations is a script invocation counter.
+	Invocations map[util.Uint160]int
 }
 
 // New returns a new VM object ready to load AVM bytecode scripts.
@@ -96,6 +99,7 @@ func NewWithTrigger(t trigger.Type) *VM {
 		trigger: t,
 
 		SyscallHandler: defaultSyscallHandler,
+		Invocations:    make(map[util.Uint160]int),
 	}
 
 	vm.estack = vm.newItemStack("evaluation")
@@ -1225,7 +1229,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		v.checkInvocationStackSize()
 		// Note: jump offset must be calculated regarding to new context,
 		// but it is cloned and thus has the same script and instruction pointer.
-		v.Call(ctx, v.getJumpOffset(ctx, parameter))
+		v.call(ctx, v.getJumpOffset(ctx, parameter))
 
 	case opcode.CALLA:
 		ptr := v.estack.Pop().Item().(*stackitem.Pointer)
@@ -1233,7 +1237,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			panic("invalid script in pointer")
 		}
 
-		v.Call(ctx, ptr.Position())
+		v.call(ctx, ptr.Position())
 
 	case opcode.SYSCALL:
 		interopID := GetInteropID(parameter)
@@ -1455,8 +1459,17 @@ func (v *VM) Jump(ctx *Context, offset int) {
 }
 
 // Call calls method by offset. It is similar to Jump but also
-// pushes new context to the invocation state
+// pushes new context to the invocation stack and increments
+// invocation counter for the corresponding context script hash.
 func (v *VM) Call(ctx *Context, offset int) {
+	v.call(ctx, offset)
+	v.Invocations[ctx.ScriptHash()]++
+}
+
+// call is an internal representation of Call, which does not
+// affect the invocation counter and is only being used by vm
+// package.
+func (v *VM) call(ctx *Context, offset int) {
 	newCtx := ctx.Copy()
 	newCtx.CheckReturn = false
 	newCtx.local = nil

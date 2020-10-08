@@ -35,7 +35,6 @@ type Context struct {
 	DAO           *dao.Cached
 	Notifications []state.NotificationEvent
 	Log           *zap.Logger
-	Invocations   map[util.Uint160]int
 	VM            *vm.VM
 	Functions     [][]Function
 }
@@ -53,7 +52,6 @@ func NewContext(trigger trigger.Type, bc blockchainer.Blockchainer, d dao.DAO, n
 		DAO:           dao,
 		Notifications: nes,
 		Log:           log,
-		Invocations:   make(map[util.Uint160]int),
 		// Functions is a slice of slices of interops sorted by ID.
 		Functions: [][]Function{},
 	}

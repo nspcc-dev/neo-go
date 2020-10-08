@@ -296,11 +296,13 @@ func TestRuntimeGetInvocationCounter(t *testing.T) {
 	v, ic, chain := createVM(t)
 	defer chain.Close()
 
-	ic.Invocations[hash.Hash160([]byte{2})] = 42
+	ic.VM.Invocations[hash.Hash160([]byte{2})] = 42
 
-	t.Run("Zero", func(t *testing.T) {
+	t.Run("No invocations", func(t *testing.T) {
 		v.LoadScript([]byte{1})
-		require.Error(t, runtime.GetInvocationCounter(ic))
+		// do not return an error in this case.
+		require.NoError(t, runtime.GetInvocationCounter(ic))
+		require.EqualValues(t, 1, v.Estack().Pop().BigInt().Int64())
 	})
 	t.Run("NonZero", func(t *testing.T) {
 		v.LoadScript([]byte{2})
