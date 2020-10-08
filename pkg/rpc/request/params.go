@@ -1,5 +1,7 @@
 package request
 
+import "fmt"
+
 type (
 	// Params represents the JSON-RPC params.
 	Params []Param
@@ -22,4 +24,8 @@ func (p Params) ValueWithType(index int, valType paramType) *Param {
 		return val
 	}
 	return nil
+}
+
+func (p Params) String() string {
+	return fmt.Sprintf("%v", []Param(p))
 }
