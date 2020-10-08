@@ -80,6 +80,9 @@ func NewAddressList(n int) *AddressList {
 // DecodeBinary implements Serializable interface.
 func (p *AddressList) DecodeBinary(br *io.BinReader) {
 	br.ReadArray(&p.Addrs, MaxAddrsCount)
+	if len(p.Addrs) == 0 {
+		br.Err = errors.New("no addresses listed")
+	}
 }
 
 // EncodeBinary implements Serializable interface.
