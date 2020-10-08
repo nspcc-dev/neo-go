@@ -712,8 +712,14 @@ func (s *Server) getDecimals(contractID int32, cache map[int32]decimals) (decima
 		return decimals{}, fmt.Errorf("can't create script: %w", err)
 	}
 	res := s.runScriptInVM(script, nil)
-	if res == nil || res.State != "HALT" || len(res.Stack) == 0 {
-		return decimals{}, errors.New("execution error : no result")
+	if res == nil {
+		return decimals{}, fmt.Errorf("execution error: no result")
+	}
+	if res.State != "HALT" {
+		return decimals{}, fmt.Errorf("execution error: bad VM state %s due to an error %s", res.State, res.FaultException)
+	}
+	if len(res.Stack) == 0 {
+		return decimals{}, fmt.Errorf("execution error: empty stack")
 	}
 
 	d := decimals{Hash: h}
@@ -997,12 +1003,17 @@ func (s *Server) runScriptInVM(script []byte, tx *transaction.Transaction) *resu
 	vm := s.chain.GetTestVM(tx)
 	vm.GasLimit = int64(s.config.MaxGasInvoke)
 	vm.LoadScriptWithFlags(script, smartcontract.All)
-	_ = vm.Run()
+	err := vm.Run()
+	var faultException string
+	if err != nil {
+		faultException = err.Error()
+	}
 	result := &result.Invoke{
-		State:       vm.State().String(),
-		GasConsumed: vm.GasConsumed(),
-		Script:      hex.EncodeToString(script),
-		Stack:       vm.Estack().ToArray(),
+		State:          vm.State().String(),
+		GasConsumed:    vm.GasConsumed(),
+		Script:         hex.EncodeToString(script),
+		Stack:          vm.Estack().ToArray(),
+		FaultException: faultException,
 	}
 	return result
 }

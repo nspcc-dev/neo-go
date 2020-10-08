@@ -1,7 +1,6 @@
 package client
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
@@ -33,8 +32,10 @@ func (c *Client) invokeNativePolicyMethod(operation string) (int64, error) {
 	result, err := c.InvokeFunction(PolicyContractHash, operation, []smartcontract.Parameter{}, nil)
 	if err != nil {
 		return 0, err
-	} else if result.State != "HALT" || len(result.Stack) == 0 {
-		return 0, errors.New("invalid VM state")
+	}
+	err = getInvocationError(result)
+	if err != nil {
+		return 0, fmt.Errorf("failed to invoke %s Policy method: %w", operation, err)
 	}
 
 	return topIntFromStack(result.Stack)
@@ -45,10 +46,11 @@ func (c *Client) GetBlockedAccounts() (native.BlockedAccounts, error) {
 	result, err := c.InvokeFunction(PolicyContractHash, "getBlockedAccounts", []smartcontract.Parameter{}, nil)
 	if err != nil {
 		return nil, err
-	} else if result.State != "HALT" || len(result.Stack) == 0 {
-		return nil, errors.New("invalid VM state")
 	}
-
+	err = getInvocationError(result)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get blocked accounts: %w", err)
+	}
 	return topBlockedAccountsFromStack(result.Stack)
 }
 

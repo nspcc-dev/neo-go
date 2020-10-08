@@ -677,6 +677,41 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 				}
 			},
 		},
+		{
+			name: "positive, FAULT state",
+			invoke: func(c *Client) (interface{}, error) {
+				hash, err := util.Uint160DecodeStringLE("91b83e96f2a7c4fdf0c1688441ec61986c7cae26")
+				if err != nil {
+					panic(err)
+				}
+				contr, err := util.Uint160DecodeStringLE("af7c7328eee5a275a3bcaee2bf0cf662b5e739be")
+				if err != nil {
+					panic(err)
+				}
+				return c.InvokeFunction(contr, "balanceOf", []smartcontract.Parameter{
+					{
+						Type:  smartcontract.Hash160Type,
+						Value: hash,
+					},
+				}, []transaction.Signer{{
+					Account: util.Uint160{1, 2, 3},
+				}})
+			},
+			serverResponse: `{"jsonrpc":"2.0","id":1,"result":{"script":"1426ae7c6c9861ec418468c1f0fdc4a7f2963eb89151c10962616c616e63654f6667be39e7b562f60cbfe2aebca375a2e5ee28737caf","state":"FAULT","gasconsumed":"31100000","stack":[{"type":"ByteString","value":"JivsCEQy"}],"tx":"d101361426ae7c6c9861ec418468c1f0fdc4a7f2963eb89151c10962616c616e63654f6667be39e7b562f60cbfe2aebca375a2e5ee28737caf000000000000000000000000","exception":"gas limit exceeded"}}`,
+			result: func(c *Client) interface{} {
+				bytes, err := hex.DecodeString("262bec084432")
+				if err != nil {
+					panic(err)
+				}
+				return &result.Invoke{
+					State:          "FAULT",
+					GasConsumed:    31100000,
+					Script:         "1426ae7c6c9861ec418468c1f0fdc4a7f2963eb89151c10962616c616e63654f6667be39e7b562f60cbfe2aebca375a2e5ee28737caf",
+					Stack:          []stackitem.Item{stackitem.NewByteArray(bytes)},
+					FaultException: "gas limit exceeded",
+				}
+			},
+		},
 	},
 	"invokescript": {
 		{

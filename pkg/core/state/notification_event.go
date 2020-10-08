@@ -23,12 +23,13 @@ type NotificationEvent struct {
 // AppExecResult represent the result of the script execution, gathering together
 // all resulting notifications, state, stack and other metadata.
 type AppExecResult struct {
-	TxHash      util.Uint256
-	Trigger     trigger.Type
-	VMState     vm.State
-	GasConsumed int64
-	Stack       []stackitem.Item
-	Events      []NotificationEvent
+	TxHash         util.Uint256
+	Trigger        trigger.Type
+	VMState        vm.State
+	GasConsumed    int64
+	Stack          []stackitem.Item
+	Events         []NotificationEvent
+	FaultException string
 }
 
 // EncodeBinary implements the Serializable interface.
@@ -62,6 +63,7 @@ func (aer *AppExecResult) EncodeBinary(w *io.BinWriter) {
 	w.WriteU64LE(uint64(aer.GasConsumed))
 	stackitem.EncodeBinaryStackItem(stackitem.NewArray(aer.Stack), w)
 	w.WriteArray(aer.Events)
+	w.WriteVarBytes([]byte(aer.FaultException))
 }
 
 // DecodeBinary implements the Serializable interface.
@@ -80,6 +82,7 @@ func (aer *AppExecResult) DecodeBinary(r *io.BinReader) {
 		aer.Stack = arr
 	}
 	r.ReadArray(&aer.Events)
+	aer.FaultException = r.ReadString()
 }
 
 // notificationEventAux is an auxiliary struct for NotificationEvent JSON marshalling.
@@ -123,12 +126,13 @@ func (ne *NotificationEvent) UnmarshalJSON(data []byte) error {
 
 // appExecResultAux is an auxiliary struct for JSON marshalling
 type appExecResultAux struct {
-	TxHash      *util.Uint256       `json:"txid"`
-	Trigger     string              `json:"trigger"`
-	VMState     string              `json:"vmstate"`
-	GasConsumed int64               `json:"gasconsumed,string"`
-	Stack       json.RawMessage     `json:"stack"`
-	Events      []NotificationEvent `json:"notifications"`
+	TxHash         *util.Uint256       `json:"txid"`
+	Trigger        string              `json:"trigger"`
+	VMState        string              `json:"vmstate"`
+	GasConsumed    int64               `json:"gasconsumed,string"`
+	Stack          json.RawMessage     `json:"stack"`
+	Events         []NotificationEvent `json:"notifications"`
+	FaultException string              `json:"exception,omitempty"`
 }
 
 // MarshalJSON implements implements json.Marshaler interface.
@@ -158,12 +162,13 @@ func (aer *AppExecResult) MarshalJSON() ([]byte, error) {
 		hash = &aer.TxHash
 	}
 	return json.Marshal(&appExecResultAux{
-		TxHash:      hash,
-		Trigger:     aer.Trigger.String(),
-		VMState:     aer.VMState.String(),
-		GasConsumed: aer.GasConsumed,
-		Stack:       st,
-		Events:      aer.Events,
+		TxHash:         hash,
+		Trigger:        aer.Trigger.String(),
+		VMState:        aer.VMState.String(),
+		GasConsumed:    aer.GasConsumed,
+		Stack:          st,
+		Events:         aer.Events,
+		FaultException: aer.FaultException,
 	})
 }
 
@@ -202,6 +207,7 @@ func (aer *AppExecResult) UnmarshalJSON(data []byte) error {
 	aer.VMState = state
 	aer.Events = aux.Events
 	aer.GasConsumed = aux.GasConsumed
+	aer.FaultException = aux.FaultException
 
 	return nil
 }

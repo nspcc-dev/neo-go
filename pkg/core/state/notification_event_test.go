@@ -24,16 +24,31 @@ func TestEncodeDecodeNotificationEvent(t *testing.T) {
 }
 
 func TestEncodeDecodeAppExecResult(t *testing.T) {
-	appExecResult := &AppExecResult{
-		TxHash:      random.Uint256(),
-		Trigger:     1,
-		VMState:     vm.HaltState,
-		GasConsumed: 10,
-		Stack:       []stackitem.Item{},
-		Events:      []NotificationEvent{},
-	}
+	t.Run("halt", func(t *testing.T) {
+		appExecResult := &AppExecResult{
+			TxHash:      random.Uint256(),
+			Trigger:     1,
+			VMState:     vm.HaltState,
+			GasConsumed: 10,
+			Stack:       []stackitem.Item{},
+			Events:      []NotificationEvent{},
+		}
 
-	testserdes.EncodeDecodeBinary(t, appExecResult, new(AppExecResult))
+		testserdes.EncodeDecodeBinary(t, appExecResult, new(AppExecResult))
+	})
+	t.Run("fault", func(t *testing.T) {
+		appExecResult := &AppExecResult{
+			TxHash:         random.Uint256(),
+			Trigger:        1,
+			VMState:        vm.FaultState,
+			GasConsumed:    10,
+			Stack:          []stackitem.Item{},
+			Events:         []NotificationEvent{},
+			FaultException: "unhandled error",
+		}
+
+		testserdes.EncodeDecodeBinary(t, appExecResult, new(AppExecResult))
+	})
 }
 
 func TestMarshalUnmarshalJSONNotificationEvent(t *testing.T) {
@@ -86,6 +101,18 @@ func TestMarshalUnmarshalJSONAppExecResult(t *testing.T) {
 		testserdes.MarshalUnmarshalJSON(t, appExecResult, new(AppExecResult))
 	})
 
+	t.Run("positive, fault state", func(t *testing.T) {
+		appExecResult := &AppExecResult{
+			TxHash:         random.Uint256(),
+			Trigger:        trigger.Application,
+			VMState:        vm.FaultState,
+			GasConsumed:    10,
+			Stack:          []stackitem.Item{},
+			Events:         []NotificationEvent{},
+			FaultException: "unhandled exception",
+		}
+		testserdes.MarshalUnmarshalJSON(t, appExecResult, new(AppExecResult))
+	})
 	t.Run("positive, block", func(t *testing.T) {
 		appExecResult := &AppExecResult{
 			TxHash:      random.Uint256(),
