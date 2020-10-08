@@ -17,6 +17,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/compiler"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
+	"github.com/nspcc-dev/neo-go/pkg/rpc/client"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/request"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
@@ -440,7 +441,7 @@ func invokeInternal(ctx *cli.Context, signAndPush bool) error {
 	if !args.Present() {
 		return cli.NewExitError(errNoScriptHash, 1)
 	}
-	script, err := util.Uint160DecodeStringLE(args[0])
+	script, err := getScriptHash(args[0])
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("incorrect script hash: %w", err), 1)
 	}
@@ -525,6 +526,23 @@ func invokeInternal(ctx *cli.Context, signAndPush bool) error {
 	}
 
 	return nil
+}
+
+func getScriptHash(hexHash string) (util.Uint160, error) {
+	switch strings.ToLower(hexHash) {
+	case "neo":
+		return client.NeoContractHash, nil
+	case "gas":
+		return client.GasContractHash, nil
+	case "policy":
+		return client.PolicyContractHash, nil
+	case "oracle":
+		return client.OracleContractHash, nil
+	case "designate":
+		return client.DesignateContractHash, nil
+	default:
+		return util.Uint160DecodeStringLE(hexHash)
+	}
 }
 
 // parseParams extracts array of smartcontract.Parameter from the given args and

@@ -20,6 +20,13 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 )
 
+var (
+	// OracleContractHash is a hash of the Oracle native contract.
+	OracleContractHash, _ = util.Uint160DecodeStringBE("3b8cf3bb6e899001f81b63d099f64cbf88b4053c")
+	// DesignateContractHash is a hash of the Designate native contract.
+	DesignateContractHash, _ = util.Uint160DecodeStringBE("6626c668f0e806bec8a26875a6a0bb3ecffe3a76")
+)
+
 // GetApplicationLog returns the contract log based on the specified txid.
 func (c *Client) GetApplicationLog(hash util.Uint256) (*state.AppExecResult, error) {
 	var (

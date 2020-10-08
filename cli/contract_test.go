@@ -6,10 +6,12 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"strconv"
 	"strings"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
+	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
@@ -103,4 +105,23 @@ func TestComlileAndInvokeFunction(t *testing.T) {
 		require.Len(t, res.Stack, 1)
 		require.Equal(t, []byte("on update|sub update"), res.Stack[0].Value())
 	})
+}
+
+func TestInvokeNative(t *testing.T) {
+	e := newExecutor(t, true)
+	defer e.Close(t)
+
+	cmd := []string{"neo-go", "contract", "testinvokefunction",
+		"--unittest", "--rpc-endpoint", "http://" + e.RPC.Addr}
+	checkHalt := func(t *testing.T, params ...string) {
+		e.Run(t, append(cmd, params...)...)
+		res := new(result.Invoke)
+		require.NoError(t, json.Unmarshal(e.Out.Bytes(), res))
+		require.Equal(t, vm.HaltState.String(), res.State)
+	}
+
+	checkHalt(t, "NEO", "getCandidates")
+	checkHalt(t, "GAS", "totalSupply")
+	checkHalt(t, "Policy", "getMaxBlockSize")
+	checkHalt(t, "Designate", "getDesignatedByRole", "int:"+strconv.FormatUint(uint64(native.RoleOracle), 10))
 }
