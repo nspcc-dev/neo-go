@@ -291,7 +291,7 @@ func (s *Server) handleRequest(req *request.In, sub *subscriber) response.Abstra
 
 	s.log.Debug("processing rpc request",
 		zap.String("method", req.Method),
-		zap.String("params", fmt.Sprintf("%v", reqParams)))
+		zap.Stringer("params", reqParams))
 
 	incCounter(req.Method)
 
