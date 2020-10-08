@@ -17,6 +17,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/network/payload"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
+	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
@@ -63,6 +64,7 @@ type Policy struct {
 	feePerByte              int64
 	maxBlockSystemFee       int64
 	maxVerificationGas      int64
+	blockedAccounts         BlockedAccounts
 }
 
 var _ interop.Contract = (*Policy)(nil)
@@ -182,6 +184,7 @@ func (p *Policy) Initialize(ic *interop.Context) error {
 	p.feePerByte = defaultFeePerByte
 	p.maxBlockSystemFee = defaultMaxBlockSystemFee
 	p.maxVerificationGas = defaultMaxVerificationGas
+	p.blockedAccounts = make([]util.Uint160, 0)
 
 	return nil
 }
@@ -192,9 +195,9 @@ func (p *Policy) OnPersist(ic *interop.Context) error {
 }
 
 // OnPersistEnd updates cached Policy values if they've been changed
-func (p *Policy) OnPersistEnd(dao dao.DAO) {
+func (p *Policy) OnPersistEnd(dao dao.DAO) error {
 	if p.isValid {
-		return
+		return nil
 	}
 	p.lock.Lock()
 	defer p.lock.Unlock()
@@ -213,7 +216,18 @@ func (p *Policy) OnPersistEnd(dao dao.DAO) {
 
 	p.maxVerificationGas = defaultMaxVerificationGas
 
+	si := dao.GetStorageItem(p.ContractID, blockedAccountsKey)
+	if si == nil {
+		return errors.New("BlockedAccounts uninitialized")
+	}
+	ba, err := BlockedAccountsFromBytes(si.Value)
+	if err != nil {
+		return fmt.Errorf("failed to decode BlockedAccounts from bytes: %w", err)
+	}
+	p.blockedAccounts = ba
+
 	p.isValid = true
+	return nil
 }
 
 // getMaxTransactionsPerBlock is Policy contract method and returns the upper
@@ -300,6 +314,11 @@ func (p *Policy) getBlockedAccounts(ic *interop.Context, _ []stackitem.Item) sta
 
 // GetBlockedAccountsInternal returns list of blocked accounts hashes.
 func (p *Policy) GetBlockedAccountsInternal(dao dao.DAO) (BlockedAccounts, error) {
+	p.lock.RLock()
+	defer p.lock.RUnlock()
+	if p.isValid {
+		return p.blockedAccounts, nil
+	}
 	si := dao.GetStorageItem(p.ContractID, blockedAccountsKey)
 	if si == nil {
 		return nil, errors.New("BlockedAccounts uninitialized")
@@ -434,12 +453,15 @@ func (p *Policy) blockAccount(ic *interop.Context, args []stackitem.Item) stacki
 		copy(ba[indexToInsert+1:], ba[indexToInsert:])
 		ba[indexToInsert] = value
 	}
+	p.lock.Lock()
+	defer p.lock.Unlock()
 	err = ic.DAO.PutStorageItem(p.ContractID, blockedAccountsKey, &state.StorageItem{
 		Value: ba.Bytes(),
 	})
 	if err != nil {
 		panic(err)
 	}
+	p.isValid = false
 	return stackitem.NewBool(true)
 }
 
@@ -469,12 +491,15 @@ func (p *Policy) unblockAccount(ic *interop.Context, args []stackitem.Item) stac
 		return stackitem.NewBool(false)
 	}
 	ba = append(ba[:indexToRemove], ba[indexToRemove+1:]...)
+	p.lock.Lock()
+	defer p.lock.Unlock()
 	err = ic.DAO.PutStorageItem(p.ContractID, blockedAccountsKey, &state.StorageItem{
 		Value: ba.Bytes(),
 	})
 	if err != nil {
 		panic(err)
 	}
+	p.isValid = false
 	return stackitem.NewBool(true)
 }
 
