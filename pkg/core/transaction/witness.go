@@ -6,6 +6,16 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/util"
 )
 
+const (
+	// MaxInvocationScript is the maximum length of allowed invocation
+	// script. It should fit 11/21 multisignature for the committee.
+	MaxInvocationScript = 1024
+
+	// MaxVerificationScript is the maximum allowed length of verification
+	// script. It should be appropriate for 11/21 multisignature committee.
+	MaxVerificationScript = 1024
+)
+
 // Witness contains 2 scripts.
 type Witness struct {
 	InvocationScript   []byte `json:"invocation"`
@@ -14,8 +24,8 @@ type Witness struct {
 
 // DecodeBinary implements Serializable interface.
 func (w *Witness) DecodeBinary(br *io.BinReader) {
-	w.InvocationScript = br.ReadVarBytes()
-	w.VerificationScript = br.ReadVarBytes()
+	w.InvocationScript = br.ReadVarBytes(MaxInvocationScript)
+	w.VerificationScript = br.ReadVarBytes(MaxVerificationScript)
 }
 
 // EncodeBinary implements Serializable interface.

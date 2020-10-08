@@ -10,6 +10,10 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/network/capability"
 )
 
+// MaxAddrsCount is the maximum number of addresses that could be packed into
+// one payload.
+const MaxAddrsCount = 200
+
 // AddressAndTime payload.
 type AddressAndTime struct {
 	Timestamp    uint32
@@ -75,7 +79,10 @@ func NewAddressList(n int) *AddressList {
 
 // DecodeBinary implements Serializable interface.
 func (p *AddressList) DecodeBinary(br *io.BinReader) {
-	br.ReadArray(&p.Addrs)
+	br.ReadArray(&p.Addrs, MaxAddrsCount)
+	if len(p.Addrs) == 0 {
+		br.Err = errors.New("no addresses listed")
+	}
 }
 
 // EncodeBinary implements Serializable interface.

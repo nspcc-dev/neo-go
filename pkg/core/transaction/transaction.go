@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"math/rand"
 
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
@@ -14,6 +15,8 @@ import (
 )
 
 const (
+	// MaxScriptLength is the limit for transaction's script length.
+	MaxScriptLength = math.MaxUint16
 	// MaxTransactionSize is the upper limit size in bytes that a transaction can reach. It is
 	// set to be 102400.
 	MaxTransactionSize = 102400
@@ -140,7 +143,7 @@ func (t *Transaction) decodeHashableFields(br *io.BinReader) {
 	t.ValidUntilBlock = br.ReadU32LE()
 	br.ReadArray(&t.Signers, MaxAttributes)
 	br.ReadArray(&t.Attributes, MaxAttributes-len(t.Signers))
-	t.Script = br.ReadVarBytes()
+	t.Script = br.ReadVarBytes(MaxScriptLength)
 	if br.Err == nil {
 		br.Err = t.isValid()
 	}

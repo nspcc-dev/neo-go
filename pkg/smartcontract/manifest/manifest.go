@@ -184,7 +184,7 @@ func (m *Manifest) EncodeBinary(w *io.BinWriter) {
 
 // DecodeBinary implements io.Serializable.
 func (m *Manifest) DecodeBinary(r *io.BinReader) {
-	data := r.ReadVarBytes()
+	data := r.ReadVarBytes(MaxManifestSize)
 	if r.Err != nil {
 		return
 	} else if err := json.Unmarshal(data, m); err != nil {
