@@ -279,6 +279,8 @@ func (b saveToMapBroadcaster) SendResponse(_ *keys.PrivateKey, resp *transaction
 		txSig: txSig,
 	}
 }
+func (saveToMapBroadcaster) Run()      {}
+func (saveToMapBroadcaster) Shutdown() {}
 
 type responseWithSig struct {
 	resp  *transaction.OracleResponse

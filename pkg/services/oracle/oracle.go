@@ -67,6 +67,8 @@ type (
 	// Broadcaster broadcasts oracle responses.
 	Broadcaster interface {
 		SendResponse(priv *keys.PrivateKey, resp *transaction.OracleResponse, txSig []byte)
+		Run()
+		Shutdown()
 	}
 
 	defaultResponseHandler struct{}
@@ -137,6 +139,7 @@ func NewOracle(cfg Config) (*Oracle, error) {
 // Shutdown shutdowns Oracle.
 func (o *Oracle) Shutdown() {
 	close(o.close)
+	o.getBroadcaster().Shutdown()
 }
 
 // Run runs must be executed in a separate goroutine.
@@ -182,9 +185,17 @@ func (o *Oracle) getBroadcaster() Broadcaster {
 func (o *Oracle) SetBroadcaster(b Broadcaster) {
 	o.mtx.Lock()
 	defer o.mtx.Unlock()
+	o.ResponseHandler.Shutdown()
 	o.ResponseHandler = b
+	go b.Run()
 }
 
 // SendResponse implements Broadcaster interface.
 func (defaultResponseHandler) SendResponse(*keys.PrivateKey, *transaction.OracleResponse, []byte) {
 }
+
+// Run implements Broadcaster interface.
+func (defaultResponseHandler) Run() {}
+
+// Shutdown implements Broadcaster interface.
+func (defaultResponseHandler) Shutdown() {}

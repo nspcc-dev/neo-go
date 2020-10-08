@@ -1,7 +1,6 @@
 package broadcaster
 
 import (
-	"context"
 	"encoding/base64"
 	"encoding/binary"
 	"time"
@@ -9,21 +8,24 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
-	"github.com/nspcc-dev/neo-go/pkg/rpc/client"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/request"
 	"github.com/nspcc-dev/neo-go/pkg/services/oracle"
 	"go.uber.org/zap"
 )
 
 type rpcBroascaster struct {
-	clients map[string]*client.Client
+	clients map[string]*oracleClient
 	log     *zap.Logger
 
+	close       chan struct{}
+	responses   chan request.RawParams
 	sendTimeout time.Duration
 }
 
 const (
 	defaultSendTimeout = time.Second * 4
+
+	defaultChanCapacity = 16
 )
 
 // New returns new struct capable of broadcasting oracle responses.
@@ -32,18 +34,42 @@ func New(cfg config.OracleConfiguration, log *zap.Logger) oracle.Broadcaster {
 		cfg.ResponseTimeout = defaultSendTimeout
 	}
 	r := &rpcBroascaster{
-		clients:     make(map[string]*client.Client, len(cfg.Nodes)),
+		clients:     make(map[string]*oracleClient, len(cfg.Nodes)),
 		log:         log,
+		close:       make(chan struct{}),
+		responses:   make(chan request.RawParams),
 		sendTimeout: cfg.ResponseTimeout,
 	}
 	for i := range cfg.Nodes {
-		// We ignore error as not every node can be available on startup.
-		r.clients[cfg.Nodes[i]], _ = client.New(context.Background(), "http://"+cfg.Nodes[i], client.Options{
-			DialTimeout:    cfg.ResponseTimeout,
-			RequestTimeout: cfg.ResponseTimeout,
-		})
+		r.clients[cfg.Nodes[i]] = r.newOracleClient(cfg.Nodes[i], cfg.ResponseTimeout, make(chan request.RawParams, defaultChanCapacity))
 	}
 	return r
+}
+
+// Run implements oracle.Broadcaster.
+func (r *rpcBroascaster) Run() {
+	for _, c := range r.clients {
+		go c.run()
+	}
+	for {
+		select {
+		case <-r.close:
+			return
+		case ps := <-r.responses:
+			for _, c := range r.clients {
+				select {
+				case c.responses <- ps:
+				default:
+					c.log.Error("can't send response, channel is full")
+				}
+			}
+		}
+	}
+}
+
+// Shutdown implements oracle.Broadcaster.
+func (r *rpcBroascaster) Shutdown() {
+	close(r.close)
 }
 
 // SendResponse implements interfaces.Broadcaster.
@@ -57,22 +83,7 @@ func (r *rpcBroascaster) SendResponse(priv *keys.PrivateKey, resp *transaction.O
 		base64.StdEncoding.EncodeToString(txSig),
 		base64.StdEncoding.EncodeToString(msgSig),
 	)
-	for addr, c := range r.clients {
-		if c == nil {
-			var err error
-			c, err = client.New(context.Background(), addr, client.Options{
-				DialTimeout:    r.sendTimeout,
-				RequestTimeout: r.sendTimeout,
-			})
-			if err != nil {
-				r.log.Debug("can't connect to oracle node", zap.String("address", addr), zap.Error(err))
-				continue
-			}
-			r.clients[addr] = c
-		}
-		err := c.SubmitRawOracleResponse(params)
-		r.log.Debug("error during oracle response submit", zap.String("address", addr), zap.Error(err))
-	}
+	r.responses <- params
 }
 
 // GetMessage returns data which is signed upon sending response by RPC.
