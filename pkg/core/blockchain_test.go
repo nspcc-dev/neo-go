@@ -510,6 +510,23 @@ func TestVerifyTx(t *testing.T) {
 				tx := getOracleTx(t)
 				require.NoError(t, oracleAcc.SignTx(tx))
 				require.NoError(t, bc.VerifyTx(tx))
+
+				t.Run("NativeVerify", func(t *testing.T) {
+					tx.Signers = append(tx.Signers, transaction.Signer{
+						Account: bc.contracts.Oracle.Hash,
+						Scopes:  transaction.None,
+					})
+					tx.Scripts = append(tx.Scripts, transaction.Witness{})
+					t.Run("NonZeroVerification", func(t *testing.T) {
+						tx.Scripts[len(tx.Scripts)-1].VerificationScript = bc.contracts.Oracle.Script
+						err := bc.VerifyTx(tx)
+						require.True(t, errors.Is(err, ErrNativeContractWitness), "got: %v", err)
+					})
+					t.Run("Good", func(t *testing.T) {
+						tx.Scripts[len(tx.Scripts)-1].VerificationScript = nil
+						require.NoError(t, bc.VerifyTx(tx))
+					})
+				})
 			})
 			t.Run("InvalidRequestID", func(t *testing.T) {
 				tx := getOracleTx(t)
