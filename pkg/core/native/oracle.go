@@ -138,7 +138,7 @@ func (o *Oracle) PostPersist(ic *interop.Context) error {
 			continue
 		}
 		reqKey := makeRequestKey(resp.ID)
-		req := new(OracleRequest)
+		req := new(state.OracleRequest)
 		if err := o.getSerializableFromDAO(ic.DAO, reqKey, req); err != nil {
 			return err
 		}
@@ -299,7 +299,7 @@ func (o *Oracle) RequestInternal(ic *interop.Context, url, filter, cb string, us
 		return ErrBigArgument
 	}
 
-	req := &OracleRequest{
+	req := &state.OracleRequest{
 		OriginalTxID:     o.getOriginalTxID(ic.DAO, ic.Tx),
 		GasForResponse:   gas.Uint64(),
 		URL:              url,
@@ -312,7 +312,7 @@ func (o *Oracle) RequestInternal(ic *interop.Context, url, filter, cb string, us
 }
 
 // PutRequestInternal puts oracle request with the specified id to d.
-func (o *Oracle) PutRequestInternal(id uint64, req *OracleRequest, d dao.DAO) error {
+func (o *Oracle) PutRequestInternal(id uint64, req *state.OracleRequest, d dao.DAO) error {
 	reqItem := &state.StorageItem{Value: req.Bytes()}
 	reqKey := makeRequestKey(id)
 	if err := d.PutStorageItem(o.ContractID, reqKey, reqItem); err != nil {
@@ -345,9 +345,9 @@ func (o *Oracle) GetOracleNodes(d dao.DAO) (keys.PublicKeys, error) {
 }
 
 // GetRequestInternal returns request by ID and key under which it is stored.
-func (o *Oracle) GetRequestInternal(d dao.DAO, id uint64) (*OracleRequest, error) {
+func (o *Oracle) GetRequestInternal(d dao.DAO, id uint64) (*state.OracleRequest, error) {
 	key := makeRequestKey(id)
-	req := new(OracleRequest)
+	req := new(state.OracleRequest)
 	return req, o.getSerializableFromDAO(d, key, req)
 }
 
