@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"net/url"
+	"time"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
@@ -29,7 +30,7 @@ func (o *Oracle) runRequestWorker() {
 			if acc == nil {
 				continue
 			}
-			err := o.processRequest(acc.PrivateKey(), req.ID, req.Req)
+			err := o.processRequest(acc.PrivateKey(), req)
 			if err != nil {
 				o.Log.Debug("can't process request", zap.Uint64("id", req.ID), zap.Error(err))
 			}
@@ -75,23 +76,32 @@ func (o *Oracle) ProcessRequestsInternal(reqs map[uint64]*state.OracleRequest) {
 	}
 
 	// Process actual requests.
-	for id := range reqs {
-		if err := o.processRequest(acc.PrivateKey(), id, reqs[id]); err != nil {
+	for id, req := range reqs {
+		if err := o.processRequest(acc.PrivateKey(), request{ID: id, Req: req}); err != nil {
 			o.Log.Debug("can't process request", zap.Error(err))
 		}
 	}
 }
 
-func (o *Oracle) processRequest(priv *keys.PrivateKey, id uint64, req *state.OracleRequest) error {
-	resp := &transaction.OracleResponse{ID: id}
-	u, err := url.ParseRequestURI(req.URL)
+func (o *Oracle) processRequest(priv *keys.PrivateKey, req request) error {
+	if req.Req == nil {
+		o.processFailedRequest(priv, req)
+		return nil
+	}
+
+	incTx := o.getResponse(req.ID, true)
+	if incTx == nil {
+		return nil
+	}
+	resp := &transaction.OracleResponse{ID: req.ID}
+	u, err := url.ParseRequestURI(req.Req.URL)
 	if err == nil && !o.MainCfg.AllowPrivateHost {
 		err = o.URIValidator(u)
 	}
 	if err != nil {
 		resp.Code = transaction.Forbidden
 	} else if u.Scheme == "http" {
-		r, err := o.Client.Get(req.URL)
+		r, err := o.Client.Get(req.Req.URL)
 		switch {
 		case err != nil:
 			resp.Code = transaction.Error
@@ -119,7 +129,7 @@ func (o *Oracle) processRequest(priv *keys.PrivateKey, id uint64, req *state.Ora
 	}
 
 	currentHeight := o.Chain.BlockHeight()
-	_, h, err := o.Chain.GetTransaction(req.OriginalTxID)
+	_, h, err := o.Chain.GetTransaction(req.Req.OriginalTxID)
 	if err != nil {
 		if !errors.Is(err, storage.ErrKeyNotFound) {
 			return err
@@ -127,20 +137,20 @@ func (o *Oracle) processRequest(priv *keys.PrivateKey, id uint64, req *state.Ora
 		// The only reason tx can be not found is if it wasn't yet persisted from DAO.
 		h = currentHeight
 	}
-	tx, err := o.CreateResponseTx(int64(req.GasForResponse), h, resp)
+	tx, err := o.CreateResponseTx(int64(req.Req.GasForResponse), h, resp)
 	if err != nil {
 		return err
 	}
-	backupTx, err := o.CreateResponseTx(int64(req.GasForResponse), h, &transaction.OracleResponse{
-		ID:   id,
+	backupTx, err := o.CreateResponseTx(int64(req.Req.GasForResponse), h, &transaction.OracleResponse{
+		ID:   req.ID,
 		Code: transaction.ConsensusUnreachable,
 	})
 	if err != nil {
 		return err
 	}
 
-	incTx := o.getResponse(id)
 	incTx.Lock()
+	incTx.request = req.Req
 	incTx.tx = tx
 	incTx.backupTx = backupTx
 	incTx.reverifyTx()
@@ -151,11 +161,13 @@ func (o *Oracle) processRequest(priv *keys.PrivateKey, id uint64, req *state.Ora
 	backupSig := priv.Sign(backupTx.GetSignedPart())
 	incTx.addResponse(priv.PublicKey(), backupSig, true)
 
-	readyTx, ready := incTx.finalize(o.getOracleNodes())
+	readyTx, ready := incTx.finalize(o.getOracleNodes(), false)
 	if ready {
 		ready = !incTx.isSent
 		incTx.isSent = true
 	}
+	incTx.time = time.Now()
+	incTx.attempts++
 	incTx.Unlock()
 
 	o.getBroadcaster().SendResponse(priv, resp, txSig)
@@ -163,4 +175,34 @@ func (o *Oracle) processRequest(priv *keys.PrivateKey, id uint64, req *state.Ora
 		o.getOnTransaction()(readyTx)
 	}
 	return nil
+}
+
+func (o *Oracle) processFailedRequest(priv *keys.PrivateKey, req request) {
+	// Request is being processed again.
+	incTx := o.getResponse(req.ID, false)
+	if incTx == nil {
+		// Request was processed by other oracle nodes.
+		return
+	} else if incTx.isSent {
+		// Tx was sent but not yet persisted. Try to pool it again.
+		o.getOnTransaction()(incTx.tx)
+		return
+	}
+
+	// Don't process request again, fallback to backup tx.
+	incTx.Lock()
+	readyTx, ready := incTx.finalize(o.getOracleNodes(), true)
+	if ready {
+		ready = !incTx.isSent
+		incTx.isSent = true
+	}
+	incTx.time = time.Now()
+	incTx.attempts++
+	txSig := incTx.backupSigs[string(priv.PublicKey().Bytes())].sig
+	incTx.Unlock()
+
+	o.getBroadcaster().SendResponse(priv, getFailedResponse(req.ID), txSig)
+	if ready {
+		o.getOnTransaction()(readyTx)
+	}
 }

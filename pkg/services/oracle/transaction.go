@@ -2,7 +2,9 @@ package oracle
 
 import (
 	"sync"
+	"time"
 
+	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/io"
@@ -15,6 +17,12 @@ type (
 		sync.RWMutex
 		// isSent is true tx was already broadcasted.
 		isSent bool
+		// attempts is how many times request was processed.
+		attempts int
+		// time is the time when request was last processed.
+		time time.Time
+		// request is oracle request.
+		request *state.OracleRequest
 		// tx is oracle response transaction.
 		tx *transaction.Transaction
 		// sigs contains signature from every oracle node.
@@ -74,8 +82,8 @@ func (t *incompleteTx) addResponse(pub *keys.PublicKey, sig []byte, isBackup boo
 
 // finalize checks is either main or backup tx has sufficient number of signatures and returns
 // tx and bool value indicating if it is ready to be broadcasted.
-func (t *incompleteTx) finalize(oracleNodes keys.PublicKeys) (*transaction.Transaction, bool) {
-	if finalizeTx(oracleNodes, t.tx, t.sigs) {
+func (t *incompleteTx) finalize(oracleNodes keys.PublicKeys, backupOnly bool) (*transaction.Transaction, bool) {
+	if !backupOnly && finalizeTx(oracleNodes, t.tx, t.sigs) {
 		return t.tx, true
 	}
 	return t.backupTx, finalizeTx(oracleNodes, t.backupTx, t.backupSigs)
@@ -106,4 +114,16 @@ func finalizeTx(oracleNodes keys.PublicKeys, tx *transaction.Transaction, txSigs
 	}
 	tx.Scripts[1].InvocationScript = w.Bytes()
 	return true
+}
+
+func (t *incompleteTx) getRequest() *state.OracleRequest {
+	t.RLock()
+	defer t.RUnlock()
+	return t.request
+}
+
+func (t *incompleteTx) getTime() time.Time {
+	t.RLock()
+	defer t.RUnlock()
+	return t.time
 }

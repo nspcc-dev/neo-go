@@ -33,6 +33,7 @@ func getOracleConfig(t *testing.T, bc *Blockchain, w, pass string) oracle.Config
 		Log:     zaptest.NewLogger(t),
 		Network: netmode.UnitTestNet,
 		MainCfg: config.OracleConfiguration{
+			RefreshInterval: time.Second,
 			UnlockWallet: config.Wallet{
 				Path:     path.Join(oracleModulePath, w),
 				Password: pass,
