@@ -53,7 +53,7 @@ func newNEP5Native(name string) *nep5TokenNative {
 	n.Manifest.SupportedStandards = []string{manifest.NEP5StandardName}
 
 	desc := newDescriptor("name", smartcontract.StringType)
-	md := newMethodAndPrice(n.Name, 0, smartcontract.NoneFlag)
+	md := newMethodAndPrice(nameMethod(name), 0, smartcontract.NoneFlag)
 	n.AddMethod(md, desc, true)
 
 	desc = newDescriptor("symbol", smartcontract.StringType)
@@ -96,10 +96,6 @@ func newNEP5Native(name string) *nep5TokenNative {
 
 func (c *nep5TokenNative) Initialize(_ *interop.Context) error {
 	return nil
-}
-
-func (c *nep5TokenNative) Name(_ *interop.Context, _ []stackitem.Item) stackitem.Item {
-	return stackitem.NewByteArray([]byte(c.ContractMD.Name))
 }
 
 func (c *nep5TokenNative) Symbol(_ *interop.Context, _ []stackitem.Item) stackitem.Item {

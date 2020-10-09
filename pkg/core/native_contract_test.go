@@ -357,3 +357,27 @@ func TestNativeContract_InvokeOtherContract(t *testing.T) {
 		require.Equal(t, int64(5), res.Stack[0].Value().(*big.Int).Int64())
 	})
 }
+
+func TestAllContractsHaveName(t *testing.T) {
+	bc := newTestChain(t)
+	defer bc.Close()
+	for _, c := range bc.contracts.Contracts {
+		name := c.Metadata().Name
+		t.Run(name, func(t *testing.T) {
+			w := io.NewBufBinWriter()
+			emit.AppCallWithOperationAndArgs(w.BinWriter, c.Metadata().Hash, "name")
+			require.NoError(t, w.Err)
+
+			tx := transaction.New(netmode.UnitTestNet, w.Bytes(), 1007570)
+			tx.ValidUntilBlock = bc.blockHeight + 1
+			addSigners(tx)
+			require.NoError(t, signTx(bc, tx))
+			require.NoError(t, bc.AddBlock(bc.newBlock(tx)))
+
+			aer, err := bc.GetAppExecResult(tx.Hash())
+			require.NoError(t, err)
+			require.Len(t, aer.Stack, 1)
+			require.Equal(t, []byte(name), aer.Stack[0].Value())
+		})
+	}
+}
