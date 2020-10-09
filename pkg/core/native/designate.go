@@ -67,6 +67,10 @@ func newDesignate() *Designate {
 	md = newMethodAndPrice(s.designateAsRole, 0, smartcontract.AllowModifyStates)
 	s.AddMethod(md, desc, false)
 
+	desc = newDescriptor("name", smartcontract.StringType)
+	md = newMethodAndPrice(nameMethod(designateName), 0, smartcontract.NoneFlag)
+	s.AddMethod(md, desc, true)
+
 	return s
 }
 
