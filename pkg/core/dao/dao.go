@@ -627,7 +627,9 @@ func (dao *Simple) GetStorageItems(hash util.Uint160, prefix []byte) ([]StorageI
 		}
 
 		// Cut prefix and hash.
-		s.Key = k[21:]
+		// Must copy here, #1468.
+		s.Key = make([]byte, len(k[21:]))
+		copy(s.Key, k[21:])
 		res = append(res, s)
 	}
 	dao.Store.Seek(makeStorageItemKey(hash, prefix), saveToMap)
