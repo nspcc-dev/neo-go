@@ -413,7 +413,10 @@ func (dao *Simple) GetStorageItemsWithPrefix(id int32, prefix []byte) (map[strin
 		}
 
 		// Cut prefix and hash.
-		siMap[string(k[len(lookupKey):])] = si
+		// Must copy here, #1468.
+		key := make([]byte, len(k[len(lookupKey):]))
+		copy(key, k[len(lookupKey):])
+		siMap[string(key)] = si
 	}
 	dao.Store.Seek(lookupKey, saveToMap)
 	if err != nil {
