@@ -55,6 +55,10 @@ var (
 		Name:  "out",
 		Usage: "file to put JSON transaction to",
 	}
+	forceFlag = cli.StringFlag{
+		Name:  "force",
+		Usage: "force-push the transaction in case of bad VM state after test script invocation",
+	}
 )
 
 const (
@@ -110,6 +114,7 @@ func NewCommands() []cli.Command {
 		addressFlag,
 		gasFlag,
 		outFlag,
+		forceFlag,
 	}
 	invokeFunctionFlags = append(invokeFunctionFlags, options.RPC...)
 	return []cli.Command{{
@@ -486,6 +491,13 @@ func invokeInternal(ctx *cli.Context, signAndPush bool) error {
 	resp, err = c.InvokeFunction(script, operation, params, cosigners)
 	if err != nil {
 		return cli.NewExitError(err, 1)
+	}
+	if signAndPush && resp.State != "HALT" {
+		errText := fmt.Sprintf("Warning: %s VM state returned from the RPC node: %s\n", resp.State, resp.FaultException)
+		if ctx.String("force") == "" {
+			return cli.NewExitError(errText+". Use --force flag to send the transaction anyway.", 1)
+		}
+		fmt.Fprintln(ctx.App.Writer, errText+". Sending transaction...")
 	}
 	if out := ctx.String("out"); out != "" {
 		script, err := hex.DecodeString(resp.Script)
