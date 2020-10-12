@@ -1409,7 +1409,13 @@ func (v *VM) unloadContext(ctx *Context) {
 	if ctx.static != nil && currCtx != nil && ctx.static != currCtx.static {
 		ctx.static.Clear()
 	}
-	if ctx.CheckReturn {
+	switch ctx.CheckReturn {
+	case NoCheck:
+	case EnsureIsEmpty:
+		if currCtx != nil && ctx.estack.len != 0 {
+			panic("return value amount is > 0")
+		}
+	case EnsureNotEmpty:
 		if currCtx != nil && ctx.estack.len == 0 {
 			currCtx.estack.PushVal(stackitem.Null{})
 		} else if ctx.estack.len > 1 {
@@ -1471,7 +1477,7 @@ func (v *VM) Call(ctx *Context, offset int) {
 // package.
 func (v *VM) call(ctx *Context, offset int) {
 	newCtx := ctx.Copy()
-	newCtx.CheckReturn = false
+	newCtx.CheckReturn = NoCheck
 	newCtx.local = nil
 	newCtx.arguments = nil
 	newCtx.tryStack = NewStack("exception")

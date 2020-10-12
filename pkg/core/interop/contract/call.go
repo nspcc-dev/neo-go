@@ -10,6 +10,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
@@ -51,12 +52,12 @@ func callExInternal(ic *interop.Context, h []byte, name string, args []stackitem
 			return errors.New("disallowed method call")
 		}
 	}
-	return CallExInternal(ic, cs, name, args, f)
+	return CallExInternal(ic, cs, name, args, f, vm.EnsureNotEmpty)
 }
 
 // CallExInternal calls a contract with flags and can't be invoked directly by user.
 func CallExInternal(ic *interop.Context, cs *state.Contract,
-	name string, args []stackitem.Item, f smartcontract.CallFlag) error {
+	name string, args []stackitem.Item, f smartcontract.CallFlag, checkReturn vm.CheckReturnState) error {
 	md := cs.Manifest.ABI.GetMethod(name)
 	if md == nil {
 		return fmt.Errorf("method '%s' not found", name)
@@ -86,7 +87,7 @@ func CallExInternal(ic *interop.Context, cs *state.Contract,
 		// use Jump not Call here because context was loaded in LoadScript above.
 		ic.VM.Jump(ic.VM.Context(), md.Offset)
 	}
-	ic.VM.Context().CheckReturn = true
+	ic.VM.Context().CheckReturn = checkReturn
 
 	md = cs.Manifest.ABI.GetMethod(manifest.MethodInit)
 	if md != nil {
