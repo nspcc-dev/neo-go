@@ -1305,7 +1305,11 @@ func (bc *Blockchain) verifyTxAttributes(tx *transaction.Transaction) error {
 // correctness, presence in blocks before the new one, etc.
 func (bc *Blockchain) isTxStillRelevant(t *transaction.Transaction, txpool *mempool.Pool) bool {
 	var recheckWitness bool
+	var curheight = bc.BlockHeight()
 
+	if t.ValidUntilBlock <= curheight {
+		return false
+	}
 	if txpool == nil {
 		if bc.dao.HasTransaction(t.Hash()) {
 			return false
