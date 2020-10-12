@@ -121,3 +121,32 @@ func TestInitIF(t *testing.T) {
 		})
 	})
 }
+
+func TestCallExpIF(t *testing.T) {
+	t.Run("Call", func(t *testing.T) {
+		src := `package foo
+			func someFunc() bool {
+				return true
+			}
+			func Main() int {
+				if someFunc() {
+					return 5
+				}
+				return 6
+			}`
+		eval(t, src, big.NewInt(5))
+	})
+	t.Run("CallWithUnaryExpression", func(t *testing.T) {
+		src := `package foo
+			func someFunc() bool {
+				return false
+			}
+			func Main() int {
+				if !someFunc() {
+					return 5
+				}
+				return 6
+			}`
+		eval(t, src, big.NewInt(5))
+	})
+}
