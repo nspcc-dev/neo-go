@@ -153,14 +153,14 @@ func TestDefaultDiscoverer(t *testing.T) {
 		time.Sleep(time.Second)
 	}
 	assert.Equal(t, len(set1), len(d.BadPeers()))
-	assert.Equal(t, len(set1), len(d.GoodPeers()))
+	assert.Equal(t, 0, len(d.GoodPeers()))
 	assert.Equal(t, 0, len(d.UnconnectedPeers()))
 
 	// Re-adding bad addresses is a no-op.
 	d.BackFill(set1...)
 	assert.Equal(t, 0, len(d.UnconnectedPeers()))
 	assert.Equal(t, len(set1), len(d.BadPeers()))
-	assert.Equal(t, len(set1), len(d.GoodPeers()))
+	assert.Equal(t, 0, len(d.GoodPeers()))
 	require.Equal(t, 0, d.PoolCount())
 
 	// Close should work and subsequent RequestRemote is a no-op.
