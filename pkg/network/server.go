@@ -151,6 +151,7 @@ func NewServer(config ServerConfig, chain blockchainer.Blockchainer, log *zap.Lo
 
 	s.transport = NewTCPTransport(s, net.JoinHostPort(config.Address, strconv.Itoa(int(config.Port))), s.log)
 	s.discovery = NewDefaultDiscovery(
+		s.Seeds,
 		s.DialTimeout,
 		s.transport,
 	)
@@ -170,8 +171,6 @@ func (s *Server) Start(errChan chan error) {
 		zap.Uint32("headerHeight", s.chain.HeaderHeight()))
 
 	s.tryStartConsensus()
-
-	s.discovery.BackFill(s.Seeds...)
 
 	go s.broadcastTxLoop()
 	go s.relayBlocksLoop()
