@@ -107,6 +107,7 @@ func (d *DefaultDiscovery) RegisterBadAddr(addr string) {
 	} else {
 		d.badAddrs[addr] = true
 		delete(d.unconnectedAddrs, addr)
+		delete(d.goodAddrs, addr)
 	}
 	d.lock.Unlock()
 }
@@ -150,6 +151,7 @@ func (d *DefaultDiscovery) GoodPeers() []string {
 func (d *DefaultDiscovery) RegisterGoodAddr(s string) {
 	d.lock.Lock()
 	d.goodAddrs[s] = true
+	delete(d.badAddrs, s)
 	d.lock.Unlock()
 }
 
