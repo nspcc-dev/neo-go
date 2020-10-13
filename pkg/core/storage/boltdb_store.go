@@ -61,6 +61,12 @@ func (s *BoltDBStore) Get(key []byte) (val []byte, err error) {
 	err = s.db.View(func(tx *bbolt.Tx) error {
 		b := tx.Bucket(Bucket)
 		val = b.Get(key)
+		// Value from Get is only valid for the lifetime of transaction, #1482
+		if val != nil {
+			var valcopy = make([]byte, len(val))
+			copy(valcopy, val)
+			val = valcopy
+		}
 		return nil
 	})
 	if val == nil {
