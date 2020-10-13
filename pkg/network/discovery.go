@@ -28,6 +28,7 @@ type Discoverer interface {
 
 // DefaultDiscovery default implementation of the Discoverer interface.
 type DefaultDiscovery struct {
+	seeds            []string
 	transport        Transporter
 	lock             sync.RWMutex
 	closeMtx         sync.RWMutex
@@ -42,8 +43,9 @@ type DefaultDiscovery struct {
 }
 
 // NewDefaultDiscovery returns a new DefaultDiscovery.
-func NewDefaultDiscovery(dt time.Duration, ts Transporter) *DefaultDiscovery {
+func NewDefaultDiscovery(addrs []string, dt time.Duration, ts Transporter) *DefaultDiscovery {
 	d := &DefaultDiscovery{
+		seeds:            addrs,
 		transport:        ts,
 		dialTimeout:      dt,
 		badAddrs:         make(map[string]bool),
@@ -195,15 +197,19 @@ func (d *DefaultDiscovery) Close() {
 // run is a goroutine that makes DefaultDiscovery process its queue to connect
 // to other nodes.
 func (d *DefaultDiscovery) run() {
-	var requested, r int
+	var requested, oldRequest, r int
 	var ok bool
 
 	for {
-		for requested, ok = <-d.requestCh; ok && requested > 0; requested-- {
+		if requested == 0 {
+			requested, ok = <-d.requestCh
+		}
+		oldRequest = requested
+		for ok && requested > 0 {
 			select {
 			case r, ok = <-d.requestCh:
 				if requested <= r {
-					requested = r + 1
+					requested = r
 				}
 			case addr := <-d.pool:
 				d.lock.RLock()
@@ -212,11 +218,30 @@ func (d *DefaultDiscovery) run() {
 				updatePoolCountMetric(d.PoolCount())
 				if !addrIsConnected {
 					go d.tryAddress(addr)
+					requested--
 				}
+			default: // Empty pool
+				d.lock.Lock()
+				for _, addr := range d.seeds {
+					if !d.connectedAddrs[addr] {
+						delete(d.badAddrs, addr)
+						d.unconnectedAddrs[addr] = connRetries
+						d.pushToPoolOrDrop(addr)
+					}
+				}
+				d.lock.Unlock()
 			}
 		}
 		if !ok {
 			return
+		}
+		// Special case, no connections after all attempts.
+		d.lock.RLock()
+		connected := len(d.connectedAddrs)
+		d.lock.RUnlock()
+		if connected == 0 {
+			time.Sleep(d.dialTimeout)
+			requested = oldRequest
 		}
 	}
 }

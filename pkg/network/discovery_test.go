@@ -34,7 +34,7 @@ func (ft *fakeTransp) Close() {
 func TestDefaultDiscoverer(t *testing.T) {
 	ts := &fakeTransp{}
 	ts.dialCh = make(chan string)
-	d := NewDefaultDiscovery(time.Second, ts)
+	d := NewDefaultDiscovery(nil, time.Second/2, ts)
 
 	var set1 = []string{"1.1.1.1:10333", "2.2.2.2:10333"}
 	sort.Strings(set1)
@@ -147,4 +147,27 @@ func TestDefaultDiscoverer(t *testing.T) {
 	// Close should work and subsequent RequestRemote is a no-op.
 	d.Close()
 	d.RequestRemote(42)
+}
+
+func TestSeedDiscovery(t *testing.T) {
+	var seeds = []string{"1.1.1.1:10333", "2.2.2.2:10333"}
+	ts := &fakeTransp{}
+	ts.dialCh = make(chan string)
+	atomic.StoreInt32(&ts.retFalse, 1) // Fail all dial requests.
+	sort.Strings(seeds)
+
+	d := NewDefaultDiscovery(seeds, time.Second/10, ts)
+
+	d.RequestRemote(len(seeds))
+	dialled := make([]string, 0)
+	for i := 0; i < connRetries*2; i++ {
+		for range seeds {
+			select {
+			case a := <-ts.dialCh:
+				dialled = append(dialled, a)
+			case <-time.After(time.Second):
+				t.Fatalf("timeout expecting for transport dial")
+			}
+		}
+	}
 }
