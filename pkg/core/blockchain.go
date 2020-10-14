@@ -29,6 +29,8 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
+	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
+	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"go.uber.org/zap"
 )
@@ -1478,19 +1480,24 @@ func (bc *Blockchain) GetTestVM(tx *transaction.Transaction) *vm.VM {
 // Various witness verification errors.
 var (
 	ErrWitnessHashMismatch         = errors.New("witness hash mismatch")
+	ErrNativeContractWitness       = errors.New("native contract witness must have empty verification script")
 	ErrVerificationFailed          = errors.New("signature check failed")
 	ErrUnknownVerificationContract = errors.New("unknown verification contract")
 	ErrInvalidVerificationContract = errors.New("verification contract is missing `verify` method")
 )
 
 // initVerificationVM initializes VM for witness check.
-func initVerificationVM(ic *interop.Context, hash util.Uint160, witness *transaction.Witness) error {
+func (bc *Blockchain) initVerificationVM(ic *interop.Context, hash util.Uint160, witness *transaction.Witness) error {
 	var offset int
+	var isNative bool
 	var initMD *manifest.Method
 	verification := witness.VerificationScript
 	if len(verification) != 0 {
 		if witness.ScriptHash() != hash {
 			return ErrWitnessHashMismatch
+		}
+		if bc.contracts.ByHash(hash) != nil {
+			return ErrNativeContractWitness
 		}
 	} else {
 		cs, err := ic.DAO.GetContractState(hash)
@@ -1504,12 +1511,21 @@ func initVerificationVM(ic *interop.Context, hash util.Uint160, witness *transac
 		verification = cs.Script
 		offset = md.Offset
 		initMD = cs.Manifest.ABI.GetMethod(manifest.MethodInit)
+		isNative = cs.ID < 0
 	}
 
 	v := ic.VM
 	v.LoadScriptWithFlags(verification, smartcontract.NoneFlag)
 	v.Jump(v.Context(), offset)
-	if initMD != nil {
+	if isNative {
+		w := io.NewBufBinWriter()
+		emit.Opcodes(w.BinWriter, opcode.DEPTH, opcode.PACK)
+		emit.String(w.BinWriter, manifest.MethodVerify)
+		if w.Err != nil {
+			return w.Err
+		}
+		v.LoadScript(w.Bytes())
+	} else if initMD != nil {
 		v.Call(v.Context(), initMD.Offset)
 	}
 	v.LoadScript(witness.InvocationScript)
@@ -1534,7 +1550,7 @@ func (bc *Blockchain) verifyHashAgainstScript(hash util.Uint160, witness *transa
 	vm := interopCtx.SpawnVM()
 	vm.SetPriceGetter(getPrice)
 	vm.GasLimit = gas
-	if err := initVerificationVM(interopCtx, hash, witness); err != nil {
+	if err := bc.initVerificationVM(interopCtx, hash, witness); err != nil {
 		return 0, err
 	}
 	err := vm.Run()
