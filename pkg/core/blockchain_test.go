@@ -559,6 +559,44 @@ func TestVerifyTx(t *testing.T) {
 				checkErr(t, ErrInvalidAttribute, tx)
 			})
 		})
+		t.Run("NotValidBefore", func(t *testing.T) {
+			getNVBTx := func(height uint32) *transaction.Transaction {
+				tx := bc.newTestTx(h, testScript)
+				tx.Attributes = append(tx.Attributes, transaction.Attribute{Type: transaction.NotValidBeforeT, Value: &transaction.NotValidBefore{Height: height}})
+				tx.NetworkFee += 4_000_000 // multisig check
+				tx.Signers = []transaction.Signer{{
+					Account: testchain.CommitteeScriptHash(),
+					Scopes:  transaction.None,
+				}}
+				rawScript := testchain.CommitteeVerificationScript()
+				require.NoError(t, err)
+				size := io.GetVarSize(tx)
+				netFee, sizeDelta := fee.Calculate(rawScript)
+				tx.NetworkFee += netFee
+				tx.NetworkFee += int64(size+sizeDelta) * bc.FeePerByte()
+				data := tx.GetSignedPart()
+				tx.Scripts = []transaction.Witness{{
+					InvocationScript:   testchain.SignCommittee(data),
+					VerificationScript: rawScript,
+				}}
+				return tx
+			}
+			t.Run("Disabled", func(t *testing.T) {
+				tx := getNVBTx(bc.blockHeight + 1)
+				require.Error(t, bc.VerifyTx(tx))
+			})
+			t.Run("Enabled", func(t *testing.T) {
+				bc.config.P2PSigExtensions = true
+				t.Run("NotYetValid", func(t *testing.T) {
+					tx := getNVBTx(bc.blockHeight + 1)
+					require.True(t, errors.Is(bc.VerifyTx(tx), ErrTxNotYetValid))
+				})
+				t.Run("positive", func(t *testing.T) {
+					tx := getNVBTx(bc.blockHeight)
+					require.NoError(t, bc.VerifyTx(tx))
+				})
+			})
+		})
 	})
 }
 

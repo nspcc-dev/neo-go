@@ -27,6 +27,15 @@ func TestAttribute_EncodeBinary(t *testing.T) {
 		}
 		testserdes.EncodeDecodeBinary(t, attr, new(Attribute))
 	})
+	t.Run("NotValidBefore", func(t *testing.T) {
+		attr := &Attribute{
+			Type: NotValidBeforeT,
+			Value: &NotValidBefore{
+				Height: 123,
+			},
+		}
+		testserdes.EncodeDecodeBinary(t, attr, new(Attribute))
+	})
 }
 
 func TestAttribute_MarshalJSON(t *testing.T) {
@@ -62,5 +71,14 @@ func TestAttribute_MarshalJSON(t *testing.T) {
 		require.NoError(t, json.Unmarshal(data, actual))
 		require.Equal(t, attr, actual)
 		testserdes.EncodeDecodeBinary(t, attr, new(Attribute))
+	})
+	t.Run("NotValidBefore", func(t *testing.T) {
+		attr := &Attribute{
+			Type: NotValidBeforeT,
+			Value: &NotValidBefore{
+				Height: 123,
+			},
+		}
+		testserdes.MarshalUnmarshalJSON(t, attr, new(Attribute))
 	})
 }

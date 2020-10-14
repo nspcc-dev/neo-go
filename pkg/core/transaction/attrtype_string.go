@@ -10,11 +10,13 @@ func _() {
 	var x [1]struct{}
 	_ = x[HighPriority-1]
 	_ = x[OracleResponseT-17]
+	_ = x[NotValidBeforeT-224]
 }
 
 const (
 	_AttrType_name_0 = "HighPriority"
 	_AttrType_name_1 = "OracleResponse"
+	_AttrType_name_2 = "NotValidBefore"
 )
 
 func (i AttrType) String() string {
@@ -23,6 +25,8 @@ func (i AttrType) String() string {
 		return _AttrType_name_0
 	case i == 17:
 		return _AttrType_name_1
+	case i == 224:
+		return _AttrType_name_2
 	default:
 		return "AttrType(" + strconv.FormatInt(int64(i), 10) + ")"
 	}

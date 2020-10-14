@@ -1196,6 +1196,7 @@ func (bc *Blockchain) verifyHeader(currHeader, prevHeader *block.Header) error {
 
 // Various errors that could be returned upon verification.
 var (
+	ErrTxNotYetValid       = errors.New("transaction is not yet valid")
 	ErrTxExpired           = errors.New("transaction has expired")
 	ErrInsufficientFunds   = errors.New("insufficient funds")
 	ErrTxSmallNetworkFee   = errors.New("too small network fee")
@@ -1293,6 +1294,14 @@ func (bc *Blockchain) verifyTxAttributes(tx *transaction.Transaction) error {
 			}
 			if uint64(tx.NetworkFee+tx.SystemFee) < req.GasForResponse {
 				return fmt.Errorf("%w: oracle tx has insufficient gas", ErrInvalidAttribute)
+			}
+		case transaction.NotValidBeforeT:
+			if !bc.config.P2PSigExtensions {
+				return errors.New("NotValidBefore attribute was found, but P2PSigExtensions are disabled")
+			}
+			nvb := tx.Attributes[i].Value.(*transaction.NotValidBefore)
+			if height := bc.BlockHeight(); height < nvb.Height {
+				return fmt.Errorf("%w: NotValidBefore = %d, current height = %d", ErrTxNotYetValid, nvb.Height, height)
 			}
 		}
 	}

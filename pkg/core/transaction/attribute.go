@@ -35,6 +35,9 @@ func (attr *Attribute) DecodeBinary(br *io.BinReader) {
 	case OracleResponseT:
 		attr.Value = new(OracleResponse)
 		attr.Value.DecodeBinary(br)
+	case NotValidBeforeT:
+		attr.Value = new(NotValidBefore)
+		attr.Value.DecodeBinary(br)
 	default:
 		br.Err = fmt.Errorf("failed decoding TX attribute usage: 0x%2x", int(attr.Type))
 		return
@@ -46,7 +49,7 @@ func (attr *Attribute) EncodeBinary(bw *io.BinWriter) {
 	bw.WriteB(byte(attr.Type))
 	switch attr.Type {
 	case HighPriority:
-	case OracleResponseT:
+	case OracleResponseT, NotValidBeforeT:
 		attr.Value.EncodeBinary(bw)
 	default:
 		bw.Err = fmt.Errorf("failed encoding TX attribute usage: 0x%2x", attr.Type)
@@ -77,6 +80,10 @@ func (attr *Attribute) UnmarshalJSON(data []byte) error {
 		// Note: because `type` field will not be present in any attribute
 		// value, we can unmarshal the same data. The overhead is minimal.
 		attr.Value = new(OracleResponse)
+		return json.Unmarshal(data, attr.Value)
+	case "NotValidBefore":
+		attr.Type = NotValidBeforeT
+		attr.Value = new(NotValidBefore)
 		return json.Unmarshal(data, attr.Value)
 	default:
 		return errors.New("wrong Type")
