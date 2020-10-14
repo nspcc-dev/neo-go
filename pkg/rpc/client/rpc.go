@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/fee"
@@ -19,6 +20,8 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 )
+
+var errNetworkNotInitialized = errors.New("RPC client network is not initialized")
 
 // GetApplicationLog returns the contract log based on the specified txid.
 func (c *Client) GetApplicationLog(hash util.Uint256) (*state.AppExecResult, error) {
@@ -50,12 +53,14 @@ func (c *Client) GetBlockCount() (uint32, error) {
 	return resp, nil
 }
 
-// GetBlockByIndex returns a block by its height.
+// GetBlockByIndex returns a block by its height. You should initialize network magic
+// with Init before calling GetBlockByIndex.
 func (c *Client) GetBlockByIndex(index uint32) (*block.Block, error) {
 	return c.getBlock(request.NewRawParams(index))
 }
 
-// GetBlockByHash returns a block by its hash.
+// GetBlockByHash returns a block by its hash. You should initialize network magic
+// with Init before calling GetBlockByHash.
 func (c *Client) GetBlockByHash(hash util.Uint256) (*block.Block, error) {
 	return c.getBlock(request.NewRawParams(hash.StringLE()))
 }
@@ -66,6 +71,9 @@ func (c *Client) getBlock(params request.RawParams) (*block.Block, error) {
 		err  error
 		b    *block.Block
 	)
+	if !c.initDone {
+		return nil, errNetworkNotInitialized
+	}
 	if err = c.performRequest("getblock", params, &resp); err != nil {
 		return nil, err
 	}
@@ -74,7 +82,7 @@ func (c *Client) getBlock(params request.RawParams) (*block.Block, error) {
 		return nil, err
 	}
 	r := io.NewBinReaderFromBuf(blockBytes)
-	b = block.New(c.opts.Network)
+	b = block.New(c.GetNetwork())
 	b.DecodeBinary(r)
 	if r.Err != nil {
 		return nil, r.Err
@@ -83,14 +91,14 @@ func (c *Client) getBlock(params request.RawParams) (*block.Block, error) {
 }
 
 // GetBlockByIndexVerbose returns a block wrapper with additional metadata by
-// its height.
+// its height. You should initialize network magic with Init before calling GetBlockByIndexVerbose.
 // NOTE: to get transaction.ID and transaction.Size, use t.Hash() and io.GetVarSize(t) respectively.
 func (c *Client) GetBlockByIndexVerbose(index uint32) (*result.Block, error) {
 	return c.getBlockVerbose(request.NewRawParams(index, 1))
 }
 
 // GetBlockByHashVerbose returns a block wrapper with additional metadata by
-// its hash.
+// its hash. You should initialize network magic with Init before calling GetBlockByHashVerbose.
 func (c *Client) GetBlockByHashVerbose(hash util.Uint256) (*result.Block, error) {
 	return c.getBlockVerbose(request.NewRawParams(hash.StringLE(), 1))
 }
@@ -100,7 +108,10 @@ func (c *Client) getBlockVerbose(params request.RawParams) (*result.Block, error
 		resp = &result.Block{}
 		err  error
 	)
-	resp.Network = c.opts.Network
+	if !c.initDone {
+		return nil, errNetworkNotInitialized
+	}
+	resp.Network = c.GetNetwork()
 	if err = c.performRequest("getblock", params, resp); err != nil {
 		return nil, err
 	}
@@ -120,13 +131,17 @@ func (c *Client) GetBlockHash(index uint32) (util.Uint256, error) {
 }
 
 // GetBlockHeader returns the corresponding block header information from serialized hex string
-// according to the specified script hash.
+// according to the specified script hash. You should initialize network magic
+// // with Init before calling GetBlockHeader.
 func (c *Client) GetBlockHeader(hash util.Uint256) (*block.Header, error) {
 	var (
 		params = request.NewRawParams(hash.StringLE())
 		resp   string
 		h      *block.Header
 	)
+	if !c.initDone {
+		return nil, errNetworkNotInitialized
+	}
 	if err := c.performRequest("getblockheader", params, &resp); err != nil {
 		return nil, err
 	}
@@ -136,7 +151,7 @@ func (c *Client) GetBlockHeader(hash util.Uint256) (*block.Header, error) {
 	}
 	r := io.NewBinReaderFromBuf(headerBytes)
 	h = new(block.Header)
-	h.Network = c.opts.Network
+	h.Network = c.GetNetwork()
 	h.DecodeBinary(r)
 	if r.Err != nil {
 		return nil, r.Err
@@ -271,13 +286,17 @@ func (c *Client) GetRawMemPool() ([]util.Uint256, error) {
 	return *resp, nil
 }
 
-// GetRawTransaction returns a transaction by hash.
+// GetRawTransaction returns a transaction by hash. You should initialize network magic
+// with Init before calling GetRawTransaction.
 func (c *Client) GetRawTransaction(hash util.Uint256) (*transaction.Transaction, error) {
 	var (
 		params = request.NewRawParams(hash.StringLE())
 		resp   string
 		err    error
 	)
+	if !c.initDone {
+		return nil, errNetworkNotInitialized
+	}
 	if err = c.performRequest("getrawtransaction", params, &resp); err != nil {
 		return nil, err
 	}
@@ -285,7 +304,7 @@ func (c *Client) GetRawTransaction(hash util.Uint256) (*transaction.Transaction,
 	if err != nil {
 		return nil, err
 	}
-	tx, err := transaction.NewTransactionFromBytes(c.opts.Network, txBytes)
+	tx, err := transaction.NewTransactionFromBytes(c.GetNetwork(), txBytes)
 	if err != nil {
 		return nil, err
 	}
@@ -293,7 +312,8 @@ func (c *Client) GetRawTransaction(hash util.Uint256) (*transaction.Transaction,
 }
 
 // GetRawTransactionVerbose returns a transaction wrapper with additional
-// metadata by transaction's hash.
+// metadata by transaction's hash. You should initialize network magic
+// with Init before calling GetRawTransactionVerbose.
 // NOTE: to get transaction.ID and transaction.Size, use t.Hash() and io.GetVarSize(t) respectively.
 func (c *Client) GetRawTransactionVerbose(hash util.Uint256) (*result.TransactionOutputRaw, error) {
 	var (
@@ -301,7 +321,10 @@ func (c *Client) GetRawTransactionVerbose(hash util.Uint256) (*result.Transactio
 		resp   = &result.TransactionOutputRaw{}
 		err    error
 	)
-	resp.Network = c.opts.Network
+	if !c.initDone {
+		return nil, errNetworkNotInitialized
+	}
+	resp.Network = c.GetNetwork()
 	if err = c.performRequest("getrawtransaction", params, resp); err != nil {
 		return nil, err
 	}
@@ -568,4 +591,9 @@ func (c *Client) AddNetworkFee(tx *transaction.Transaction, extraFee int64, accs
 	}
 	tx.NetworkFee += int64(size)*fee + extraFee
 	return nil
+}
+
+// GetNetwork returns the network magic of the RPC node client connected to.
+func (c *Client) GetNetwork() netmode.Magic {
+	return c.network
 }

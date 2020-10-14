@@ -176,7 +176,7 @@ func TestClaimGas(t *testing.T) {
 	balanceBefore := e.Chain.GetUtilityTokenBalance(validatorHash)
 	e.In.WriteString("one\r")
 	e.Run(t, "neo-go", "wallet", "claim",
-		"--unittest", "--rpc-endpoint", "http://"+e.RPC.Addr,
+		"--rpc-endpoint", "http://"+e.RPC.Addr,
 		"--wallet", validatorWallet,
 		"--address", validatorAddr)
 	tx, end := e.checkTxPersisted(t)
@@ -195,7 +195,7 @@ func TestImportDeployed(t *testing.T) {
 
 	e.In.WriteString("one\r")
 	e.Run(t, "neo-go", "contract", "deploy",
-		"--unittest", "--rpc-endpoint", "http://"+e.RPC.Addr,
+		"--rpc-endpoint", "http://"+e.RPC.Addr,
 		"--wallet", validatorWallet, "--address", validatorAddr,
 		"--in", "testdata/verify.nef", "--manifest", "testdata/verify.manifest.json")
 
@@ -217,7 +217,7 @@ func TestImportDeployed(t *testing.T) {
 
 	e.In.WriteString("acc\rpass\rpass\r")
 	e.Run(t, "neo-go", "wallet", "import-deployed",
-		"--unittest", "--rpc-endpoint", "http://"+e.RPC.Addr,
+		"--rpc-endpoint", "http://"+e.RPC.Addr,
 		"--wallet", walletPath, "--wif", priv.WIF(),
 		"--contract", h.StringLE())
 
@@ -232,7 +232,7 @@ func TestImportDeployed(t *testing.T) {
 	t.Run("Sign", func(t *testing.T) {
 		e.In.WriteString("one\r")
 		e.Run(t, "neo-go", "wallet", "nep5", "multitransfer",
-			"--unittest", "--rpc-endpoint", "http://"+e.RPC.Addr,
+			"--rpc-endpoint", "http://"+e.RPC.Addr,
 			"--wallet", validatorWallet, "--from", validatorAddr,
 			"neo:"+contractAddr+":10",
 			"gas:"+contractAddr+":10")
@@ -243,7 +243,7 @@ func TestImportDeployed(t *testing.T) {
 
 		e.In.WriteString("pass\r")
 		e.Run(t, "neo-go", "wallet", "nep5", "transfer",
-			"--unittest", "--rpc-endpoint", "http://"+e.RPC.Addr,
+			"--rpc-endpoint", "http://"+e.RPC.Addr,
 			"--wallet", walletPath, "--from", contractAddr,
 			"--to", privTo.Address(), "--token", "neo", "--amount", "1")
 		e.checkTxPersisted(t)

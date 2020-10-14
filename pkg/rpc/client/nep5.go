@@ -152,7 +152,8 @@ func (c *Client) CreateNEP5MultiTransferTx(acc *wallet.Account, gas int64, recip
 }
 
 // CreateTxFromScript creates transaction and properly sets cosigners and NetworkFee.
-// If sysFee <= 0, it is determined via result of `invokescript` RPC.
+// If sysFee <= 0, it is determined via result of `invokescript` RPC. You should
+// initialize network magic with Init before calling CreateTxFromScript.
 func (c *Client) CreateTxFromScript(script []byte, acc *wallet.Account, sysFee, netFee int64,
 	cosigners ...transaction.Signer) (*transaction.Transaction, error) {
 	from, err := address.StringToUint160(acc.Address)
@@ -172,7 +173,10 @@ func (c *Client) CreateTxFromScript(script []byte, acc *wallet.Account, sysFee, 
 		sysFee = result.GasConsumed
 	}
 
-	tx := transaction.New(c.opts.Network, script, sysFee)
+	if !c.initDone {
+		return nil, errNetworkNotInitialized
+	}
+	tx := transaction.New(c.GetNetwork(), script, sysFee)
 	tx.Signers = signers
 
 	tx.ValidUntilBlock, err = c.CalculateValidUntilBlock()

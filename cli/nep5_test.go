@@ -109,7 +109,6 @@ func TestNEP5Transfer(t *testing.T) {
 	defer e.Close(t)
 	args := []string{
 		"neo-go", "wallet", "nep5", "transfer",
-		"--unittest",
 		"--rpc-endpoint", "http://" + e.RPC.Addr,
 		"--wallet", validatorWallet,
 		"--from", validatorAddr,
@@ -141,7 +140,7 @@ func TestNEP5MultiTransfer(t *testing.T) {
 	defer e.Close(t)
 	args := []string{
 		"neo-go", "wallet", "nep5", "multitransfer",
-		"--unittest", "--rpc-endpoint", "http://" + e.RPC.Addr,
+		"--rpc-endpoint", "http://" + e.RPC.Addr,
 		"--wallet", validatorWallet,
 		"--from", validatorAddr,
 		"neo:" + privs[0].Address() + ":42",

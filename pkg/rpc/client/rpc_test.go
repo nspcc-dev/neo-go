@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"math/big"
 	"net/http"
@@ -1248,12 +1249,6 @@ var rpcClientErrorCases = map[string][]rpcClientErrorCase{
 			},
 		},
 		{
-			name: "getversion_unmarshalling_error",
-			invoke: func(c *Client) (interface{}, error) {
-				return c.GetVersion()
-			},
-		},
-		{
 			name: "invokefunction_unmarshalling_error",
 			invoke: func(c *Client) (interface{}, error) {
 				return c.InvokeFunction(util.Uint160{}, "", []smartcontract.Parameter{}, nil)
@@ -1293,13 +1288,17 @@ var rpcClientErrorCases = map[string][]rpcClientErrorCase{
 func TestRPCClients(t *testing.T) {
 	t.Run("Client", func(t *testing.T) {
 		testRPCClient(t, func(ctx context.Context, endpoint string, opts Options) (*Client, error) {
-			return New(ctx, endpoint, opts)
+			c, err := New(ctx, endpoint, opts)
+			require.NoError(t, err)
+			require.NoError(t, c.Init())
+			return c, nil
 		})
 	})
 	t.Run("WSClient", func(t *testing.T) {
 		testRPCClient(t, func(ctx context.Context, endpoint string, opts Options) (*Client, error) {
 			wsc, err := NewWS(ctx, httpURLtoWS(endpoint), opts)
 			require.NoError(t, err)
+			require.NoError(t, wsc.Init())
 			return &wsc.Client, nil
 		})
 	})
@@ -1314,7 +1313,7 @@ func testRPCClient(t *testing.T, newClient func(context.Context, string, Options
 					defer srv.Close()
 
 					endpoint := srv.URL
-					opts := Options{Network: netmode.UnitTestNet}
+					opts := Options{}
 					c, err := newClient(context.TODO(), endpoint, opts)
 					if err != nil {
 						t.Fatal(err)
@@ -1338,7 +1337,7 @@ func testRPCClient(t *testing.T, newClient func(context.Context, string, Options
 		defer srv.Close()
 
 		endpoint := srv.URL
-		opts := Options{Network: netmode.UnitTestNet}
+		opts := Options{}
 		c, err := newClient(context.TODO(), endpoint, opts)
 		if err != nil {
 			t.Fatal(err)
@@ -1365,12 +1364,24 @@ func initTestServer(t *testing.T, resp string) *httptest.Server {
 			require.NoError(t, err)
 			for {
 				ws.SetReadDeadline(time.Now().Add(2 * time.Second))
-				_, _, err = ws.ReadMessage()
+				_, p, err := ws.ReadMessage()
 				if err != nil {
 					break
 				}
+				r := request.NewIn()
+				err = json.Unmarshal(p, r)
+				if err != nil {
+					t.Fatalf("Cannot decode request body: %s", req.Body)
+				}
+				var response string
+				switch r.Method {
+				case "getversion":
+					response = `{"id":1,"jsonrpc":"2.0","result":{"magic":42,"tcpport":20332,"wsport":20342,"nonce":2153672787,"useragent":"/NEO-GO:0.73.1-pre-273-ge381358/"}}`
+				default:
+					response = resp
+				}
 				ws.SetWriteDeadline(time.Now().Add(2 * time.Second))
-				err = ws.WriteMessage(1, []byte(resp))
+				err = ws.WriteMessage(1, []byte(response))
 				if err != nil {
 					break
 				}
@@ -1378,16 +1389,27 @@ func initTestServer(t *testing.T, resp string) *httptest.Server {
 			ws.Close()
 			return
 		}
-		requestHandler(t, w, resp)
+		r := request.NewIn()
+		err := r.DecodeData(req.Body)
+		if err != nil {
+			t.Fatalf("Cannot decode request body: %s", req.Body)
+		}
+		requestHandler(t, r.Method, w, resp)
 	}))
 
 	return srv
 }
 
-func requestHandler(t *testing.T, w http.ResponseWriter, resp string) {
+func requestHandler(t *testing.T, method string, w http.ResponseWriter, resp string) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	_, err := w.Write([]byte(resp))
-
+	var response string
+	switch method {
+	case "getversion":
+		response = `{"id":1,"jsonrpc":"2.0","result":{"magic":42,"tcpport":20332,"wsport":20342,"nonce":2153672787,"useragent":"/NEO-GO:0.73.1-pre-273-ge381358/"}}`
+	default:
+		response = resp
+	}
+	_, err := w.Write([]byte(response))
 	if err != nil {
 		t.Fatalf("Error writing response: %s", err.Error())
 	}
@@ -1412,10 +1434,8 @@ func TestCalculateValidUntilBlock(t *testing.T) {
 		case "getnextblockvalidators":
 			getValidatorsCalled++
 			response = `{"id":1,"jsonrpc":"2.0","result":[{"publickey":"02b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc2","votes":"0","active":true},{"publickey":"02103a7f7dd016558597f7960d27c516a4394fd968b9e65155eb4b013e4040406e","votes":"0","active":true},{"publickey":"03d90c07df63e690ce77912e10ab51acc944b66860237b608c4f8f8309e71ee699","votes":"0","active":true},{"publickey":"02a7bc55fe8684e0119768d104ba30795bdcc86619e864add26156723ed185cd62","votes":"0","active":true}]}`
-		default:
-			t.Fatalf("Bad request method: %s", r.Method)
 		}
-		requestHandler(t, w, response)
+		requestHandler(t, r.Method, w, response)
 	}))
 	defer srv.Close()
 
@@ -1425,6 +1445,7 @@ func TestCalculateValidUntilBlock(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	require.NoError(t, c.Init())
 
 	validUntilBlock, err := c.CalculateValidUntilBlock()
 	assert.NoError(t, err)
@@ -1438,4 +1459,33 @@ func TestCalculateValidUntilBlock(t *testing.T) {
 	assert.Equal(t, uint32(55), validUntilBlock)
 	assert.Equal(t, 2, getBlockCountCalled)
 	assert.Equal(t, 1, getValidatorsCalled)
+}
+
+func TestGetNetwork(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		// request handler already have `getversion` response wrapper
+		requestHandler(t, "getversion", w, "")
+	}))
+	defer srv.Close()
+	endpoint := srv.URL
+	opts := Options{}
+
+	t.Run("bad", func(t *testing.T) {
+		c, err := New(context.TODO(), endpoint, opts)
+		if err != nil {
+			t.Fatal(err)
+		}
+		// network was not initialised
+		require.Equal(t, netmode.Magic(0), c.GetNetwork())
+		require.Equal(t, false, c.initDone)
+	})
+
+	t.Run("good", func(t *testing.T) {
+		c, err := New(context.TODO(), endpoint, opts)
+		if err != nil {
+			t.Fatal(err)
+		}
+		require.NoError(t, c.Init())
+		require.Equal(t, netmode.UnitTestNet, c.GetNetwork())
+	})
 }
