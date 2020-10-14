@@ -977,7 +977,7 @@ func (s *Server) invokescript(reqParams request.Params) (interface{}, *response.
 		return nil, response.ErrInvalidParams
 	}
 
-	script, err := reqParams[0].GetBytesHex()
+	script, err := reqParams[0].GetBytesBase64()
 	if err != nil {
 		return nil, response.ErrInvalidParams
 	}
@@ -1011,7 +1011,7 @@ func (s *Server) runScriptInVM(script []byte, tx *transaction.Transaction) *resu
 	result := &result.Invoke{
 		State:          vm.State().String(),
 		GasConsumed:    vm.GasConsumed(),
-		Script:         hex.EncodeToString(script),
+		Script:         script,
 		Stack:          vm.Estack().ToArray(),
 		FaultException: faultException,
 	}

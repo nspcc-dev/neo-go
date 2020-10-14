@@ -381,7 +381,7 @@ func (c *Client) GetVersion() (*result.Version, error) {
 // InvokeScript returns the result of the given script after running it true the VM.
 // NOTE: This is a test invoke and will not affect the blockchain.
 func (c *Client) InvokeScript(script []byte, signers []transaction.Signer) (*result.Invoke, error) {
-	var p = request.NewRawParams(hex.EncodeToString(script))
+	var p = request.NewRawParams(script)
 	return c.invokeSomething("invokescript", p, signers)
 }
 

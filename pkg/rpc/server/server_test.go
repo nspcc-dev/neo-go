@@ -60,6 +60,7 @@ const deploymentTxHash = "59f7b22b90e26f883a56b916c1580e3ee4f13caded686353cd7757
 
 const verifyContractHash = "c1213693b22cb0454a436d6e0bd76b8c0a3bfdf7"
 const verifyContractAVM = "570300412d51083021700c14aa8acf859d4fe402b34e673f2156821796a488ebdb30716813cedb2869db289740"
+const testVerifyContractAVM = "VwcADBQBDAMOBQYMDQIODw0DDgcJAAAAANswcGgRVUH4J+yMIaonBwAAABFADBQNDwMCCQACAQMHAwQFAgEADgYMCdswcWkRVUH4J+yMIaonBwAAABJAE0A="
 
 var rpcTestCases = map[string][]rpcTestCase{
 	"getapplicationlog": {
@@ -537,7 +538,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 			check: func(t *testing.T, e *executor, inv interface{}) {
 				res, ok := inv.(*result.Invoke)
 				require.True(t, ok)
-				assert.NotEqual(t, "", res.Script)
+				assert.NotNil(t, res.Script)
 				assert.NotEqual(t, "", res.State)
 				assert.NotEqual(t, 0, res.GasConsumed)
 			},
@@ -566,7 +567,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 	"invokescript": {
 		{
 			name:   "positive",
-			params: `["51c56b0d48656c6c6f2c20776f726c6421680f4e656f2e52756e74696d652e4c6f67616c7566"]`,
+			params: `["UcVrDUhlbGxvLCB3b3JsZCFoD05lby5SdW50aW1lLkxvZ2FsdWY="]`,
 			result: func(e *executor) interface{} { return &result.Invoke{} },
 			check: func(t *testing.T, e *executor, inv interface{}) {
 				res, ok := inv.(*result.Invoke)
@@ -578,8 +579,8 @@ var rpcTestCases = map[string][]rpcTestCase{
 		},
 		{
 			name: "positive, good witness",
-			// script is hex-encoded `test_verify.avm` representation, hashes are hex-encoded LE bytes of hashes used in the contract with `0x` prefix
-			params: `["5707000c14010c030e05060c0d020e0f0d030e070900000000db307068115541f827ec8c21aa270700000011400c140d0f03020900020103070304050201000e060c09db307169115541f827ec8c21aa270700000012401340",["0x0000000009070e030d0f0e020d0c06050e030c01","0x090c060e00010205040307030102000902030f0d"]]`,
+			// script is base64-encoded `test_verify.avm` representation, hashes are hex-encoded LE bytes of hashes used in the contract with `0x` prefix
+			params: fmt.Sprintf(`["%s",["0x0000000009070e030d0f0e020d0c06050e030c01","0x090c060e00010205040307030102000902030f0d"]]`, testVerifyContractAVM),
 			result: func(e *executor) interface{} { return &result.Invoke{} },
 			check: func(t *testing.T, e *executor, inv interface{}) {
 				res, ok := inv.(*result.Invoke)
@@ -591,7 +592,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 		},
 		{
 			name:   "positive, bad witness of second hash",
-			params: `["5707000c14010c030e05060c0d020e0f0d030e070900000000db307068115541f827ec8c21aa270700000011400c140d0f03020900020103070304050201000e060c09db307169115541f827ec8c21aa270700000012401340",["0x0000000009070e030d0f0e020d0c06050e030c01"]]`,
+			params: fmt.Sprintf(`["%s",["0x0000000009070e030d0f0e020d0c06050e030c01"]]`, testVerifyContractAVM),
 			result: func(e *executor) interface{} { return &result.Invoke{} },
 			check: func(t *testing.T, e *executor, inv interface{}) {
 				res, ok := inv.(*result.Invoke)
@@ -603,7 +604,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 		},
 		{
 			name:   "positive, no good hashes",
-			params: `["5707000c14010c030e05060c0d020e0f0d030e070900000000db307068115541f827ec8c21aa270700000011400c140d0f03020900020103070304050201000e060c09db307169115541f827ec8c21aa270700000012401340"]`,
+			params: fmt.Sprintf(`["%s"]`, testVerifyContractAVM),
 			result: func(e *executor) interface{} { return &result.Invoke{} },
 			check: func(t *testing.T, e *executor, inv interface{}) {
 				res, ok := inv.(*result.Invoke)
@@ -615,7 +616,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 		},
 		{
 			name:   "positive, bad hashes witness",
-			params: `["5707000c14010c030e05060c0d020e0f0d030e070900000000db307068115541f827ec8c21aa270700000011400c140d0f03020900020103070304050201000e060c09db307169115541f827ec8c21aa270700000012401340",["0x0000000009070e030d0f0e020d0c06050e030c02"]]`,
+			params: fmt.Sprintf(`["%s",["0x0000000009070e030d0f0e020d0c06050e030c02"]]`, testVerifyContractAVM),
 			result: func(e *executor) interface{} { return &result.Invoke{} },
 			check: func(t *testing.T, e *executor, inv interface{}) {
 				res, ok := inv.(*result.Invoke)
