@@ -105,9 +105,19 @@ func (c *funcScope) analyzeVoidCalls(node ast.Node) bool {
 				return false
 			}
 		}
+	case *ast.TypeAssertExpr:
+		ce, ok := n.X.(*ast.CallExpr)
+		if ok {
+			c.voidCalls[ce] = false
+		}
 	case *ast.BinaryExpr:
 		return false
 	case *ast.RangeStmt:
+		ce, ok := n.X.(*ast.CallExpr)
+		if ok {
+			c.voidCalls[ce] = false
+		}
+	case *ast.UnaryExpr:
 		ce, ok := n.X.(*ast.CallExpr)
 		if ok {
 			c.voidCalls[ce] = false

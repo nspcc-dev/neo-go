@@ -123,3 +123,18 @@ func TestNamedReturn(t *testing.T) {
 	t.Run("EmptyReturn", runCase("", big.NewInt(1), big.NewInt(2)))
 	t.Run("AnotherVariable", runCase("b, c", big.NewInt(2), big.NewInt(3)))
 }
+
+func TestTypeAssertReturn(t *testing.T) {
+	src := `
+		package main
+
+		func foo() interface{} {
+			return 5
+		}
+
+		func Main() int {
+			return foo().(int)
+		}
+	`
+	eval(t, src, big.NewInt(5))
+}
