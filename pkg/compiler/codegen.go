@@ -1951,18 +1951,21 @@ func (c *codegen) writeJumps(b []byte) ([]byte, error) {
 	// Correct function ip range.
 	// Note: indices are sorted in increasing order.
 	for _, f := range c.funcs {
+		start, end := f.rng.Start, f.rng.End
 	loop:
 		for _, ind := range offsets {
 			switch {
 			case ind > int(f.rng.End):
 				break loop
 			case ind < int(f.rng.Start):
-				f.rng.Start -= longToShortRemoveCount
-				f.rng.End -= longToShortRemoveCount
+				start -= longToShortRemoveCount
+				end -= longToShortRemoveCount
 			case ind >= int(f.rng.Start):
-				f.rng.End -= longToShortRemoveCount
+				end -= longToShortRemoveCount
 			}
 		}
+		f.rng.Start = start
+		f.rng.End = end
 	}
 	return shortenJumps(b, offsets), nil
 }
