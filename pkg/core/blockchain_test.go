@@ -597,6 +597,38 @@ func TestVerifyTx(t *testing.T) {
 				})
 			})
 		})
+		t.Run("Reserved", func(t *testing.T) {
+			getReservedTx := func(attrType transaction.AttrType) *transaction.Transaction {
+				tx := bc.newTestTx(h, testScript)
+				tx.Attributes = append(tx.Attributes, transaction.Attribute{Type: attrType, Value: &transaction.Reserved{Value: []byte{1, 2, 3}}})
+				tx.NetworkFee += 4_000_000 // multisig check
+				tx.Signers = []transaction.Signer{{
+					Account: testchain.CommitteeScriptHash(),
+					Scopes:  transaction.None,
+				}}
+				rawScript := testchain.CommitteeVerificationScript()
+				require.NoError(t, err)
+				size := io.GetVarSize(tx)
+				netFee, sizeDelta := fee.Calculate(rawScript)
+				tx.NetworkFee += netFee
+				tx.NetworkFee += int64(size+sizeDelta) * bc.FeePerByte()
+				data := tx.GetSignedPart()
+				tx.Scripts = []transaction.Witness{{
+					InvocationScript:   testchain.SignCommittee(data),
+					VerificationScript: rawScript,
+				}}
+				return tx
+			}
+			t.Run("Disabled", func(t *testing.T) {
+				tx := getReservedTx(transaction.ReservedLowerBound + 2)
+				require.Error(t, bc.VerifyTx(tx))
+			})
+			t.Run("Enabled", func(t *testing.T) {
+				bc.config.ReservedAttributes = true
+				tx := getReservedTx(transaction.ReservedLowerBound + 2)
+				require.NoError(t, bc.VerifyTx(tx))
+			})
+		})
 	})
 }
 

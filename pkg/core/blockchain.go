@@ -1258,7 +1258,7 @@ func (bc *Blockchain) verifyAndPoolTx(t *transaction.Transaction, pool *mempool.
 
 func (bc *Blockchain) verifyTxAttributes(tx *transaction.Transaction) error {
 	for i := range tx.Attributes {
-		switch tx.Attributes[i].Type {
+		switch attrType := tx.Attributes[i].Type; attrType {
 		case transaction.HighPriority:
 			h := bc.contracts.NEO.GetCommitteeAddress()
 			for i := range tx.Signers {
@@ -1302,6 +1302,10 @@ func (bc *Blockchain) verifyTxAttributes(tx *transaction.Transaction) error {
 			nvb := tx.Attributes[i].Value.(*transaction.NotValidBefore)
 			if height := bc.BlockHeight(); height < nvb.Height {
 				return fmt.Errorf("%w: NotValidBefore = %d, current height = %d", ErrTxNotYetValid, nvb.Height, height)
+			}
+		default:
+			if !bc.config.ReservedAttributes && attrType >= transaction.ReservedLowerBound && attrType <= transaction.ReservedUpperBound {
+				return errors.New("attribute of reserved type was found, but ReservedAttributes are disabled")
 			}
 		}
 	}

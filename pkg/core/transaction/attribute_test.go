@@ -36,6 +36,29 @@ func TestAttribute_EncodeBinary(t *testing.T) {
 		}
 		testserdes.EncodeDecodeBinary(t, attr, new(Attribute))
 	})
+	t.Run("Reserved", func(t *testing.T) {
+		getReservedAttribute := func(t AttrType) *Attribute {
+			return &Attribute{
+				Type: t,
+				Value: &Reserved{
+					Value: []byte{1, 2, 3, 4, 5},
+				},
+			}
+		}
+		t.Run("lower bound", func(t *testing.T) {
+			testserdes.EncodeDecodeBinary(t, getReservedAttribute(ReservedLowerBound+2), new(Attribute))
+		})
+		t.Run("upper bound", func(t *testing.T) {
+			testserdes.EncodeDecodeBinary(t, getReservedAttribute(ReservedUpperBound), new(Attribute))
+		})
+		t.Run("inside bounds", func(t *testing.T) {
+			testserdes.EncodeDecodeBinary(t, getReservedAttribute(ReservedLowerBound+5), new(Attribute))
+		})
+		t.Run("not reserved", func(t *testing.T) {
+			_, err := testserdes.EncodeBinary(getReservedAttribute(ReservedLowerBound - 1))
+			require.Error(t, err)
+		})
+	})
 }
 
 func TestAttribute_MarshalJSON(t *testing.T) {
