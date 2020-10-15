@@ -351,10 +351,11 @@ func (s *Stack) ReverseTop(n int) error {
 		return nil
 	}
 
-	for i, j := 0, n-1; i < j; {
-		s.swap(i, j)
-		i++
-		j--
+	a, b := s.Peek(0), s.Peek(n-1)
+	for i := 0; i < n/2; i++ {
+		a.value, b.value = b.value, a.value
+		a = a.Next()
+		b = b.Prev()
 	}
 	return nil
 }
