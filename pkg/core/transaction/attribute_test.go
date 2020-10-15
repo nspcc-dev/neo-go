@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/pkg/internal/random"
 	"github.com/nspcc-dev/neo-go/pkg/internal/testserdes"
 	"github.com/stretchr/testify/require"
 )
@@ -59,6 +60,15 @@ func TestAttribute_EncodeBinary(t *testing.T) {
 			require.Error(t, err)
 		})
 	})
+	t.Run("Conflicts", func(t *testing.T) {
+		attr := &Attribute{
+			Type: ConflictsT,
+			Value: &Conflicts{
+				Hash: random.Uint256(),
+			},
+		}
+		testserdes.EncodeDecodeBinary(t, attr, new(Attribute))
+	})
 }
 
 func TestAttribute_MarshalJSON(t *testing.T) {
@@ -100,6 +110,15 @@ func TestAttribute_MarshalJSON(t *testing.T) {
 			Type: NotValidBeforeT,
 			Value: &NotValidBefore{
 				Height: 123,
+			},
+		}
+		testserdes.MarshalUnmarshalJSON(t, attr, new(Attribute))
+	})
+	t.Run("Conflicts", func(t *testing.T) {
+		attr := &Attribute{
+			Type: ConflictsT,
+			Value: &Conflicts{
+				Hash: random.Uint256(),
 			},
 		}
 		testserdes.MarshalUnmarshalJSON(t, attr, new(Attribute))

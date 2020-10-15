@@ -26,6 +26,8 @@ const (
 	// MaxAttributes is maximum number of attributes including signers that can be contained
 	// within a transaction. It is set to be 16.
 	MaxAttributes = 16
+	// DummyVersion represents reserved transaction version for trimmed transactions.
+	DummyVersion = 255
 )
 
 // Transaction is a process recorded in the NEO blockchain.
@@ -370,7 +372,7 @@ var (
 
 // isValid checks whether decoded/unmarshalled transaction has all fields valid.
 func (t *Transaction) isValid() error {
-	if t.Version > 0 {
+	if t.Version > 0 && t.Version != DummyVersion {
 		return ErrInvalidVersion
 	}
 	if t.SystemFee < 0 {

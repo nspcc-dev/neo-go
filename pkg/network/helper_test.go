@@ -41,6 +41,10 @@ func (chain testChain) FeePerByte() int64 {
 	panic("TODO")
 }
 
+func (chain testChain) P2PSigExtensionsEnabled() bool {
+	return false
+}
+
 func (chain testChain) GetMaxBlockSystemFee() int64 {
 	panic("TODO")
 }
