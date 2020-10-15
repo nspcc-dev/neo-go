@@ -1234,6 +1234,9 @@ func (bc *Blockchain) verifyAndPoolTx(t *transaction.Transaction, pool *mempool.
 	if err != nil {
 		return err
 	}
+	if err := bc.verifyTxAttributes(t); err != nil {
+		return err
+	}
 	err = pool.Add(t, bc)
 	if err != nil {
 		switch {
@@ -1248,9 +1251,6 @@ func (bc *Blockchain) verifyAndPoolTx(t *transaction.Transaction, pool *mempool.
 		default:
 			return err
 		}
-	}
-	if err := bc.verifyTxAttributes(t); err != nil {
-		return err
 	}
 
 	return nil
