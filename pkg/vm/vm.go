@@ -273,6 +273,7 @@ func (v *VM) LoadScript(b []byte) {
 
 // LoadScriptWithFlags loads script and sets call flag to f.
 func (v *VM) LoadScriptWithFlags(b []byte, f smartcontract.CallFlag) {
+	v.checkInvocationStackSize()
 	ctx := NewContext(b)
 	v.estack = v.newItemStack("estack")
 	ctx.estack = v.estack
@@ -1226,7 +1227,6 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		}
 
 	case opcode.CALL, opcode.CALLL:
-		v.checkInvocationStackSize()
 		// Note: jump offset must be calculated regarding to new context,
 		// but it is cloned and thus has the same script and instruction pointer.
 		v.call(ctx, v.getJumpOffset(ctx, parameter))
@@ -1476,6 +1476,7 @@ func (v *VM) Call(ctx *Context, offset int) {
 // affect the invocation counter and is only being used by vm
 // package.
 func (v *VM) call(ctx *Context, offset int) {
+	v.checkInvocationStackSize()
 	newCtx := ctx.Copy()
 	newCtx.CheckReturn = NoCheck
 	newCtx.local = nil
