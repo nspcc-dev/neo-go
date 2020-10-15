@@ -1521,7 +1521,8 @@ func (v *VM) calcJumpOffset(ctx *Context, parameter []byte) (int, int, error) {
 
 func (v *VM) handleException() {
 	pop := 0
-	ictx := v.istack.Peek(0).Value().(*Context)
+	ictxv := v.istack.Peek(0)
+	ictx := ictxv.Value().(*Context)
 	for ictx != nil {
 		e := ictx.tryStack.Peek(0)
 		for e != nil {
@@ -1547,7 +1548,8 @@ func (v *VM) handleException() {
 			return
 		}
 		pop++
-		ictx = v.istack.Peek(pop).Value().(*Context)
+		ictxv = ictxv.Next()
+		ictx = ictxv.Value().(*Context)
 	}
 }
 
