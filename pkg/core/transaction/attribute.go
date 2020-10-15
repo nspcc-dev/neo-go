@@ -81,21 +81,19 @@ func (attr *Attribute) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	switch aj.Type {
-	case "HighPriority":
+	case HighPriority.String():
 		attr.Type = HighPriority
-	case "OracleResponse":
+		return nil
+	case OracleResponseT.String():
 		attr.Type = OracleResponseT
 		// Note: because `type` field will not be present in any attribute
 		// value, we can unmarshal the same data. The overhead is minimal.
 		attr.Value = new(OracleResponse)
-		return json.Unmarshal(data, attr.Value)
-	case "NotValidBefore":
+	case NotValidBeforeT.String():
 		attr.Type = NotValidBeforeT
 		attr.Value = new(NotValidBefore)
-		return json.Unmarshal(data, attr.Value)
 	default:
 		return errors.New("wrong Type")
-
 	}
-	return nil
+	return json.Unmarshal(data, attr.Value)
 }
