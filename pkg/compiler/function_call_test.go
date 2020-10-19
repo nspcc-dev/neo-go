@@ -86,6 +86,15 @@ func TestNotAssignedFunctionCall(t *testing.T) {
 		}`
 		eval(t, src, big.NewInt(42))
 	})
+	t.Run("VarDecl", func(t *testing.T) {
+		src := `package foo
+		func foo() []int { return []int{1} }
+		func Main() int {
+			var x = foo()
+			return len(x)
+		}`
+		eval(t, src, big.NewInt(1))
+	})
 }
 
 func TestMultipleFunctionCalls(t *testing.T) {
