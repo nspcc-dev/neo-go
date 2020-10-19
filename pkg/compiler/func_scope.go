@@ -90,73 +90,11 @@ func (c *codegen) getFuncNameFromDecl(pkgPath string, decl *ast.FuncDecl) string
 // analyzeVoidCalls checks for functions that are not assigned
 // and therefore we need to cleanup the return value from the stack.
 func (c *funcScope) analyzeVoidCalls(node ast.Node) bool {
-	switch n := node.(type) {
-	case *ast.AssignStmt:
-		for i := 0; i < len(n.Rhs); i++ {
-			switch n.Rhs[i].(type) {
-			case *ast.CallExpr:
-				return false
-			}
-		}
-	case *ast.ReturnStmt:
-		if len(n.Results) > 0 {
-			switch n.Results[0].(type) {
-			case *ast.CallExpr:
-				return false
-			}
-		}
-	case *ast.TypeAssertExpr:
-		ce, ok := n.X.(*ast.CallExpr)
+	est, ok := node.(*ast.ExprStmt)
+	if ok {
+		ce, ok := est.X.(*ast.CallExpr)
 		if ok {
-			c.voidCalls[ce] = false
-		}
-	case *ast.BinaryExpr:
-		return false
-	case *ast.RangeStmt:
-		ce, ok := n.X.(*ast.CallExpr)
-		if ok {
-			c.voidCalls[ce] = false
-		}
-	case *ast.UnaryExpr:
-		ce, ok := n.X.(*ast.CallExpr)
-		if ok {
-			c.voidCalls[ce] = false
-		}
-	case *ast.IfStmt:
-		// we can't just return `false`, because we still need to process body
-		ce, ok := n.Cond.(*ast.CallExpr)
-		if ok {
-			c.voidCalls[ce] = false
-		}
-	case *ast.SwitchStmt:
-		ce, ok := n.Tag.(*ast.CallExpr)
-		if ok {
-			c.voidCalls[ce] = false
-		}
-	case *ast.CaseClause:
-		for _, e := range n.List {
-			ce, ok := e.(*ast.CallExpr)
-			if ok {
-				c.voidCalls[ce] = false
-			}
-		}
-	case *ast.CallExpr:
-		_, ok := c.voidCalls[n]
-		if !ok {
-			c.voidCalls[n] = true
-		}
-		return false
-	case *ast.CompositeLit:
-		for _, e := range n.Elts {
-			switch val := e.(type) {
-			case *ast.CallExpr: // slice
-				c.voidCalls[val] = false
-			case *ast.KeyValueExpr: // struct and map
-				ce, ok := val.Value.(*ast.CallExpr)
-				if ok {
-					c.voidCalls[ce] = false
-				}
-			}
+			c.voidCalls[ce] = true
 		}
 	}
 	return true
