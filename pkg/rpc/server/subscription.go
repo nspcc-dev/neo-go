@@ -72,7 +72,7 @@ func (f *feed) Matches(r *response.Notification) bool {
 		return senderOK && signerOK
 	case response.NotificationEventID:
 		filt := f.filter.(request.NotificationFilter)
-		notification := r.Payload[0].(state.NotificationEvent)
+		notification := r.Payload[0].(*state.NotificationEvent)
 		hashOk := filt.Contract == nil || notification.ScriptHash.Equals(*filt.Contract)
 		nameOk := filt.Name == nil || notification.Name == *filt.Name
 		return hashOk && nameOk

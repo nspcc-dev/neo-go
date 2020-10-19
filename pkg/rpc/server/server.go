@@ -1244,7 +1244,7 @@ chloop:
 			resp.Payload[0] = execution
 		case notification := <-s.notificationCh:
 			resp.Event = response.NotificationEventID
-			resp.Payload[0] = *notification
+			resp.Payload[0] = notification
 		case tx := <-s.transactionCh:
 			resp.Event = response.TransactionEventID
 			resp.Payload[0] = tx
