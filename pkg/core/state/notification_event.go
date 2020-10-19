@@ -93,7 +93,7 @@ type notificationEventAux struct {
 }
 
 // MarshalJSON implements implements json.Marshaler interface.
-func (ne *NotificationEvent) MarshalJSON() ([]byte, error) {
+func (ne NotificationEvent) MarshalJSON() ([]byte, error) {
 	item, err := stackitem.ToJSONWithTypes(ne.Item)
 	if err != nil {
 		item = []byte(`"error: recursive reference"`)
