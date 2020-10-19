@@ -487,6 +487,9 @@ func invokeInternal(ctx *cli.Context, signAndPush bool) error {
 	if err != nil {
 		return err
 	}
+	if err = c.Init(); err != nil {
+		return err
+	}
 
 	resp, err = c.InvokeFunction(script, operation, params, cosigners)
 	if err != nil {
@@ -500,11 +503,7 @@ func invokeInternal(ctx *cli.Context, signAndPush bool) error {
 		fmt.Fprintln(ctx.App.Writer, errText+". Sending transaction...")
 	}
 	if out := ctx.String("out"); out != "" {
-		script, err := hex.DecodeString(resp.Script)
-		if err != nil {
-			return cli.NewExitError(fmt.Errorf("bad script returned from the RPC node: %w", err), 1)
-		}
-		tx, err := c.CreateTxFromScript(script, acc, resp.GasConsumed, int64(gas), cosigners...)
+		tx, err := c.CreateTxFromScript(resp.Script, acc, resp.GasConsumed, int64(gas), cosigners...)
 		if err != nil {
 			return cli.NewExitError(fmt.Errorf("failed to create tx: %w", err), 1)
 		}
@@ -518,11 +517,7 @@ func invokeInternal(ctx *cli.Context, signAndPush bool) error {
 		if len(resp.Script) == 0 {
 			return cli.NewExitError(errors.New("no script returned from the RPC node"), 1)
 		}
-		script, err := hex.DecodeString(resp.Script)
-		if err != nil {
-			return cli.NewExitError(fmt.Errorf("bad script returned from the RPC node: %w", err), 1)
-		}
-		txHash, err := c.SignAndPushInvocationTx(script, acc, resp.GasConsumed, gas, cosigners)
+		txHash, err := c.SignAndPushInvocationTx(resp.Script, acc, resp.GasConsumed, gas, cosigners)
 		if err != nil {
 			return cli.NewExitError(fmt.Errorf("failed to push invocation tx: %w", err), 1)
 		}

@@ -466,6 +466,7 @@ func (s *Server) getVersion(_ request.Params) (interface{}, *response.Error) {
 		return nil, response.NewInternalServerError("Cannot fetch tcp port", err)
 	}
 	return result.Version{
+		Magic:     s.network,
 		TCPPort:   port,
 		Nonce:     s.coreServer.ID(),
 		UserAgent: s.coreServer.UserAgent,
@@ -977,7 +978,7 @@ func (s *Server) invokescript(reqParams request.Params) (interface{}, *response.
 		return nil, response.ErrInvalidParams
 	}
 
-	script, err := reqParams[0].GetBytesHex()
+	script, err := reqParams[0].GetBytesBase64()
 	if err != nil {
 		return nil, response.ErrInvalidParams
 	}
@@ -1011,7 +1012,7 @@ func (s *Server) runScriptInVM(script []byte, tx *transaction.Transaction) *resu
 	result := &result.Invoke{
 		State:          vm.State().String(),
 		GasConsumed:    vm.GasConsumed(),
-		Script:         hex.EncodeToString(script),
+		Script:         script,
 		Stack:          vm.Estack().ToArray(),
 		FaultException: faultException,
 	}

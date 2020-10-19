@@ -18,7 +18,7 @@ import (
 type Invoke struct {
 	State          string
 	GasConsumed    int64
-	Script         string
+	Script         []byte
 	Stack          []stackitem.Item
 	FaultException string
 	// Transaction represents transaction bytes. Use GetTransaction method to decode it.
@@ -28,7 +28,7 @@ type Invoke struct {
 type invokeAux struct {
 	State          string          `json:"state"`
 	GasConsumed    int64           `json:"gasconsumed,string"`
-	Script         string          `json:"script"`
+	Script         []byte          `json:"script"`
 	Stack          json.RawMessage `json:"stack"`
 	FaultException string          `json:"exception,omitempty"`
 	Transaction    string          `json:"tx,omitempty"`

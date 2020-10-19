@@ -17,7 +17,7 @@ func TestRegisterCandidate(t *testing.T) {
 
 	e.In.WriteString("one\r")
 	e.Run(t, "neo-go", "wallet", "nep5", "multitransfer",
-		"--unittest", "--rpc-endpoint", "http://"+e.RPC.Addr,
+		"--rpc-endpoint", "http://"+e.RPC.Addr,
 		"--wallet", validatorWallet,
 		"--from", validatorAddr,
 		"neo:"+validatorPriv.Address()+":10",
@@ -26,7 +26,7 @@ func TestRegisterCandidate(t *testing.T) {
 
 	e.In.WriteString("one\r")
 	e.Run(t, "neo-go", "wallet", "candidate", "register",
-		"--unittest", "--rpc-endpoint", "http://"+e.RPC.Addr,
+		"--rpc-endpoint", "http://"+e.RPC.Addr,
 		"--wallet", validatorWallet,
 		"--address", validatorPriv.Address())
 	e.checkTxPersisted(t)
@@ -40,7 +40,7 @@ func TestRegisterCandidate(t *testing.T) {
 	t.Run("Vote", func(t *testing.T) {
 		e.In.WriteString("one\r")
 		e.Run(t, "neo-go", "wallet", "candidate", "vote",
-			"--unittest", "--rpc-endpoint", "http://"+e.RPC.Addr,
+			"--rpc-endpoint", "http://"+e.RPC.Addr,
 			"--wallet", validatorWallet,
 			"--address", validatorPriv.Address(),
 			"--candidate", hex.EncodeToString(validatorPriv.PublicKey().Bytes()))
@@ -55,7 +55,7 @@ func TestRegisterCandidate(t *testing.T) {
 
 	e.In.WriteString("one\r")
 	e.Run(t, "neo-go", "wallet", "candidate", "unregister",
-		"--unittest", "--rpc-endpoint", "http://"+e.RPC.Addr,
+		"--rpc-endpoint", "http://"+e.RPC.Addr,
 		"--wallet", validatorWallet,
 		"--address", validatorPriv.Address())
 	e.checkTxPersisted(t)

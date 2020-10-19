@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"testing"
 
-	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/fee"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
@@ -25,8 +24,9 @@ func TestClient_NEP5(t *testing.T) {
 	defer chain.Close()
 	defer rpcSrv.Shutdown()
 
-	c, err := client.New(context.Background(), httpSrv.URL, client.Options{Network: netmode.UnitTestNet})
+	c, err := client.New(context.Background(), httpSrv.URL, client.Options{})
 	require.NoError(t, err)
+	require.NoError(t, c.Init())
 
 	h, err := util.Uint160DecodeStringLE(testContractHash)
 	require.NoError(t, err)
@@ -72,8 +72,9 @@ func TestAddNetworkFee(t *testing.T) {
 	defer chain.Close()
 	defer rpcSrv.Shutdown()
 
-	c, err := client.New(context.Background(), httpSrv.URL, client.Options{Network: testchain.Network()})
+	c, err := client.New(context.Background(), httpSrv.URL, client.Options{})
 	require.NoError(t, err)
+	require.NoError(t, c.Init())
 
 	getAccounts := func(t *testing.T, n int) []*wallet.Account {
 		accs := make([]*wallet.Account, n)
@@ -199,8 +200,9 @@ func TestSignAndPushInvocationTx(t *testing.T) {
 	defer chain.Close()
 	defer rpcSrv.Shutdown()
 
-	c, err := client.New(context.Background(), httpSrv.URL, client.Options{Network: testchain.Network()})
+	c, err := client.New(context.Background(), httpSrv.URL, client.Options{})
 	require.NoError(t, err)
+	require.NoError(t, c.Init())
 
 	priv := testchain.PrivateKey(0)
 	acc, err := wallet.NewAccountFromWIF(priv.WIF())
@@ -222,8 +224,9 @@ func TestPing(t *testing.T) {
 	chain, rpcSrv, httpSrv := initServerWithInMemoryChain(t)
 	defer chain.Close()
 
-	c, err := client.New(context.Background(), httpSrv.URL, client.Options{Network: testchain.Network()})
+	c, err := client.New(context.Background(), httpSrv.URL, client.Options{})
 	require.NoError(t, err)
+	require.NoError(t, c.Init())
 
 	require.NoError(t, c.Ping())
 	require.NoError(t, rpcSrv.Shutdown())
@@ -236,8 +239,9 @@ func TestCreateTxFromScript(t *testing.T) {
 	defer chain.Close()
 	defer rpcSrv.Shutdown()
 
-	c, err := client.New(context.Background(), httpSrv.URL, client.Options{Network: testchain.Network()})
+	c, err := client.New(context.Background(), httpSrv.URL, client.Options{})
 	require.NoError(t, err)
+	require.NoError(t, c.Init())
 
 	priv := testchain.PrivateKey(0)
 	acc, err := wallet.NewAccountFromWIF(priv.WIF())
@@ -265,8 +269,9 @@ func TestCreateNEP5TransferTx(t *testing.T) {
 	defer chain.Close()
 	defer rpcSrv.Shutdown()
 
-	c, err := client.New(context.Background(), httpSrv.URL, client.Options{Network: testchain.Network()})
+	c, err := client.New(context.Background(), httpSrv.URL, client.Options{})
 	require.NoError(t, err)
+	require.NoError(t, c.Init())
 
 	priv := testchain.PrivateKeyByID(0)
 	acc, err := wallet.NewAccountFromWIF(priv.WIF())

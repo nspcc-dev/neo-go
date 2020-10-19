@@ -40,7 +40,7 @@ func TestComlileAndInvokeFunction(t *testing.T) {
 
 	e.In.WriteString("one\r")
 	e.Run(t, "neo-go", "contract", "deploy",
-		"--unittest", "--rpc-endpoint", "http://"+e.RPC.Addr,
+		"--rpc-endpoint", "http://"+e.RPC.Addr,
 		"--wallet", validatorWallet, "--address", validatorAddr,
 		"--in", nefName, "--manifest", manifestName)
 
@@ -53,7 +53,7 @@ func TestComlileAndInvokeFunction(t *testing.T) {
 
 	e.In.WriteString("one\r")
 	e.Run(t, "neo-go", "contract", "testinvokefunction",
-		"--unittest", "--rpc-endpoint", "http://"+e.RPC.Addr,
+		"--rpc-endpoint", "http://"+e.RPC.Addr,
 		h.StringLE(), "getValue")
 
 	res := new(result.Invoke)
@@ -84,7 +84,7 @@ func TestComlileAndInvokeFunction(t *testing.T) {
 
 		e.In.WriteString("one\r")
 		e.Run(t, "neo-go", "contract", "invokefunction",
-			"--unittest", "--rpc-endpoint", "http://"+e.RPC.Addr,
+			"--rpc-endpoint", "http://"+e.RPC.Addr,
 			"--wallet", validatorWallet, "--address", validatorAddr,
 			h.StringLE(), "update",
 			"bytes:"+hex.EncodeToString(realNef.Script),
@@ -94,7 +94,7 @@ func TestComlileAndInvokeFunction(t *testing.T) {
 
 		e.In.WriteString("one\r")
 		e.Run(t, "neo-go", "contract", "testinvokefunction",
-			"--unittest", "--rpc-endpoint", "http://"+e.RPC.Addr,
+			"--rpc-endpoint", "http://"+e.RPC.Addr,
 			hash.Hash160(realNef.Script).StringLE(), "getValue")
 
 		res := new(result.Invoke)

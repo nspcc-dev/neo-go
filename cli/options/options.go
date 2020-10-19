@@ -34,10 +34,6 @@ var RPC = []cli.Flag{
 		Name:  "timeout, s",
 		Usage: "Timeout for the operation (10 seconds by default)",
 	},
-	cli.BoolFlag{Name: "privnet, p"},
-	cli.BoolFlag{Name: "mainnet, m"},
-	cli.BoolFlag{Name: "testnet, t"},
-	cli.BoolFlag{Name: "unittest", Hidden: true},
 }
 
 var errNoEndpoint = errors.New("no RPC endpoint specified, use option '--" + RPCEndpointFlag + "' or '-r'")
@@ -73,7 +69,11 @@ func GetRPCClient(gctx context.Context, ctx *cli.Context) (*client.Client, cli.E
 	if len(endpoint) == 0 {
 		return nil, cli.NewExitError(errNoEndpoint, 1)
 	}
-	c, err := client.New(gctx, endpoint, client.Options{Network: GetNetwork(ctx)})
+	c, err := client.New(gctx, endpoint, client.Options{})
+	if err != nil {
+		return nil, cli.NewExitError(err, 1)
+	}
+	err = c.Init()
 	if err != nil {
 		return nil, cli.NewExitError(err, 1)
 	}

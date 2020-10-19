@@ -53,7 +53,7 @@ func TestSignMultisigTx(t *testing.T) {
 	// Transfer funds to the multisig.
 	e.In.WriteString("one\r")
 	e.Run(t, "neo-go", "wallet", "nep5", "multitransfer",
-		"--unittest", "--rpc-endpoint", "http://"+e.RPC.Addr,
+		"--rpc-endpoint", "http://"+e.RPC.Addr,
 		"--wallet", validatorWallet,
 		"--from", validatorAddr,
 		"neo:"+multisigAddr+":4",
@@ -68,14 +68,14 @@ func TestSignMultisigTx(t *testing.T) {
 	defer os.Remove(txPath)
 	e.In.WriteString("pass\r")
 	e.Run(t, "neo-go", "wallet", "nep5", "transfer",
-		"--unittest", "--rpc-endpoint", "http://"+e.RPC.Addr,
+		"--rpc-endpoint", "http://"+e.RPC.Addr,
 		"--wallet", wallet1Path, "--from", multisigAddr,
 		"--to", priv.Address(), "--token", "neo", "--amount", "1",
 		"--out", txPath)
 
 	e.In.WriteString("pass\r")
 	e.Run(t, "neo-go", "wallet", "multisig", "sign",
-		"--unittest", "--rpc-endpoint", "http://"+e.RPC.Addr,
+		"--rpc-endpoint", "http://"+e.RPC.Addr,
 		"--wallet", wallet2Path, "--address", multisigAddr,
 		"--in", txPath, "--out", txPath)
 	e.checkTxPersisted(t)
@@ -88,7 +88,7 @@ func TestSignMultisigTx(t *testing.T) {
 	t.Run("via invokefunction", func(t *testing.T) {
 		e.In.WriteString("pass\r")
 		e.Run(t, "neo-go", "contract", "invokefunction",
-			"--unittest", "--rpc-endpoint", "http://"+e.RPC.Addr,
+			"--rpc-endpoint", "http://"+e.RPC.Addr,
 			"--wallet", wallet1Path, "--address", multisigAddr,
 			"--out", txPath,
 			client.NeoContractHash.StringLE(), "transfer",
@@ -99,7 +99,7 @@ func TestSignMultisigTx(t *testing.T) {
 
 		e.In.WriteString("pass\r")
 		e.Run(t, "neo-go", "wallet", "multisig", "sign",
-			"--unittest", "--rpc-endpoint", "http://"+e.RPC.Addr,
+			"--rpc-endpoint", "http://"+e.RPC.Addr,
 			"--wallet", wallet2Path, "--address", multisigAddr,
 			"--in", txPath, "--out", txPath)
 		e.checkTxPersisted(t)
