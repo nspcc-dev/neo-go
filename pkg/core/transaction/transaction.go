@@ -133,6 +133,18 @@ func (t *Transaction) HasAttribute(typ AttrType) bool {
 	return false
 }
 
+// GetAttributes returns the list of transaction's attributes of the given type.
+// Returns nil in case if attributes not found.
+func (t *Transaction) GetAttributes(typ AttrType) []Attribute {
+	var result []Attribute
+	for _, attr := range t.Attributes {
+		if attr.Type == typ {
+			result = append(result, attr)
+		}
+	}
+	return result
+}
+
 // decodeHashableFields decodes the fields that are used for signing the
 // transaction, which are all fields except the scripts.
 func (t *Transaction) decodeHashableFields(br *io.BinReader) {
