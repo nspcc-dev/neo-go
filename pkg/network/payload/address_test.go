@@ -9,6 +9,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/internal/testserdes"
 	"github.com/nspcc-dev/neo-go/pkg/network/capability"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestEncodeDecodeAddress(t *testing.T) {
@@ -36,18 +37,38 @@ func TestEncodeDecodeAddress(t *testing.T) {
 	testserdes.EncodeDecodeBinary(t, addr, new(AddressAndTime))
 }
 
-func TestEncodeDecodeAddressList(t *testing.T) {
-	var lenList uint8 = 4
-	addrList := NewAddressList(int(lenList))
-	for i := 0; i < int(lenList); i++ {
-		e, _ := net.ResolveTCPAddr("tcp", fmt.Sprintf("127.0.0.1:200%d", i))
-		addrList.Addrs[i] = NewAddressAndTime(e, time.Now(), capability.Capabilities{
+func fillAddressList(al *AddressList) {
+	for i := 0; i < len(al.Addrs); i++ {
+		e, _ := net.ResolveTCPAddr("tcp", fmt.Sprintf("127.0.0.1:20%d", i))
+		al.Addrs[i] = NewAddressAndTime(e, time.Now(), capability.Capabilities{
 			{
 				Type: capability.TCPServer,
 				Data: &capability.Server{Port: 123},
 			},
 		})
 	}
+}
 
+func TestEncodeDecodeAddressList(t *testing.T) {
+	var lenList uint8 = 4
+	addrList := NewAddressList(int(lenList))
+	fillAddressList(addrList)
 	testserdes.EncodeDecodeBinary(t, addrList, new(AddressList))
+}
+
+func TestEncodeDecodeBadAddressList(t *testing.T) {
+	var newAL = new(AddressList)
+	addrList := NewAddressList(MaxAddrsCount + 1)
+	fillAddressList(addrList)
+
+	bin, err := testserdes.EncodeBinary(addrList)
+	require.NoError(t, err)
+	err = testserdes.DecodeBinary(bin, newAL)
+	require.Error(t, err)
+
+	addrList = NewAddressList(0)
+	bin, err = testserdes.EncodeBinary(addrList)
+	require.NoError(t, err)
+	err = testserdes.DecodeBinary(bin, newAL)
+	require.Error(t, err)
 }

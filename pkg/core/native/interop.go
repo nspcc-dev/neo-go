@@ -6,6 +6,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 )
 
 // Deploy deploys native contract.
@@ -62,6 +63,8 @@ func Call(ic *interop.Context) error {
 		return errors.New("gas limit exceeded")
 	}
 	result := m.Func(ic, args)
-	ic.VM.Estack().PushVal(result)
+	if m.MD.ReturnType != smartcontract.VoidType {
+		ic.VM.Estack().PushVal(result)
+	}
 	return nil
 }

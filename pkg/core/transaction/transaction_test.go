@@ -73,6 +73,7 @@ func TestNew(t *testing.T) {
 	assert.Equal(t, script, tx.Script)
 	// Update hash fields to match tx2 that is gonna autoupdate them on decode.
 	_ = tx.Hash()
+	_ = tx.Size()
 	testserdes.EncodeDecodeBinary(t, tx, &Transaction{Network: netmode.UnitTestNet})
 }
 
@@ -114,7 +115,7 @@ func TestMarshalUnmarshalJSONInvocationTX(t *testing.T) {
 		Version:    0,
 		Signers:    []Signer{{Account: util.Uint160{1, 2, 3}}},
 		Script:     []byte{1, 2, 3, 4},
-		Attributes: []Attribute{{Type: HighPriority, Data: []byte{}}},
+		Attributes: []Attribute{{Type: HighPriority}},
 		Scripts:    []Witness{},
 		Trimmed:    false,
 	}
@@ -187,11 +188,6 @@ func TestTransaction_isValid(t *testing.T) {
 		tx.Signers = tx.Signers[:0]
 		require.True(t, errors.Is(tx.isValid(), ErrEmptySigners))
 	})
-	t.Run("InvalidScope", func(t *testing.T) {
-		tx := newTx()
-		tx.Signers[1].Scopes = FeeOnly
-		require.True(t, errors.Is(tx.isValid(), ErrInvalidScope))
-	})
 	t.Run("NonUniqueSigners", func(t *testing.T) {
 		tx := newTx()
 		tx.Signers[1].Account = tx.Signers[0].Account
@@ -202,6 +198,14 @@ func TestTransaction_isValid(t *testing.T) {
 		tx.Attributes = []Attribute{
 			{Type: HighPriority},
 			{Type: HighPriority},
+		}
+		require.True(t, errors.Is(tx.isValid(), ErrInvalidAttribute))
+	})
+	t.Run("MultipleOracle", func(t *testing.T) {
+		tx := newTx()
+		tx.Attributes = []Attribute{
+			{Type: OracleResponseT},
+			{Type: OracleResponseT},
 		}
 		require.True(t, errors.Is(tx.isValid(), ErrInvalidAttribute))
 	})

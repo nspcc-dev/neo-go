@@ -59,6 +59,13 @@ func (s *MPTRootBase) GetSignedPart() []byte {
 	return buf.Bytes()
 }
 
+// GetSignedHash returns hash of MPTRootBase which needs to be signed.
+func (s *MPTRootBase) GetSignedHash() util.Uint256 {
+	buf := io.NewBufBinWriter()
+	s.EncodeBinary(buf.BinWriter)
+	return hash.Sha256(buf.Bytes())
+}
+
 // Equals checks if s == other.
 func (s *MPTRootBase) Equals(other *MPTRootBase) bool {
 	return s.Version == other.Version && s.Index == other.Index &&

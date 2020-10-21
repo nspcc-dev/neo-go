@@ -29,6 +29,8 @@ const (
 type Client struct {
 	cli      *http.Client
 	endpoint *url.URL
+	network  netmode.Magic
+	initDone bool
 	ctx      context.Context
 	opts     Options
 	requestF func(*request.Raw) (*response.Raw, error)
@@ -46,7 +48,6 @@ type Options struct {
 	CACert         string
 	DialTimeout    time.Duration
 	RequestTimeout time.Duration
-	Network        netmode.Magic
 }
 
 // cache stores cache values for the RPC client methods
@@ -61,7 +62,8 @@ type calculateValidUntilBlockCache struct {
 	expiresAt       uint32
 }
 
-// New returns a new Client ready to use.
+// New returns a new Client ready to use. You should call Init method to
+// initialize network magic the client is operating on.
 func New(ctx context.Context, endpoint string, opts Options) (*Client, error) {
 	url, err := url.Parse(endpoint)
 	if err != nil {
@@ -97,6 +99,19 @@ func New(ctx context.Context, endpoint string, opts Options) (*Client, error) {
 	cl.opts = opts
 	cl.requestF = cl.makeHTTPRequest
 	return cl, nil
+}
+
+// Init sets magic of the network client connected to. This method should be called
+// before any transaction-, header- or block-related requests in order to deserialize
+// responses properly.
+func (c *Client) Init() error {
+	version, err := c.GetVersion()
+	if err != nil {
+		return fmt.Errorf("failed to get network magic: %w", err)
+	}
+	c.network = version.Magic
+	c.initDone = true
+	return nil
 }
 
 func (c *Client) performRequest(method string, p request.RawParams, v interface{}) error {

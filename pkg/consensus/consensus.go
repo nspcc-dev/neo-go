@@ -42,6 +42,8 @@ type Service interface {
 	// Start initializes dBFT and starts event loop for consensus service.
 	// It must be called only when sufficient amount of peers are connected.
 	Start()
+	// Shutdown stops dBFT event loop.
+	Shutdown()
 
 	// OnPayload is a callback to notify Service about new received payload.
 	OnPayload(p *Payload)
@@ -72,7 +74,9 @@ type service struct {
 	network      netmode.Magic
 	// started is a flag set with Start method that runs an event handling
 	// goroutine.
-	started *atomic.Bool
+	started  *atomic.Bool
+	quit     chan struct{}
+	finished chan struct{}
 }
 
 // Config is a configuration for consensus services.
@@ -115,6 +119,8 @@ func NewService(cfg Config) (Service, error) {
 		blockEvents:  make(chan *coreb.Block, 1),
 		network:      cfg.Chain.GetConfig().Magic,
 		started:      atomic.NewBool(false),
+		quit:         make(chan struct{}),
+		finished:     make(chan struct{}),
 	}
 
 	if cfg.Wallet == nil {
@@ -125,6 +131,19 @@ func NewService(cfg Config) (Service, error) {
 
 	if srv.wallet, err = wallet.NewWalletFromFile(cfg.Wallet.Path); err != nil {
 		return nil, err
+	}
+
+	// Check that wallet password is correct for at least one account.
+	var ok bool
+	for _, acc := range srv.wallet.Accounts {
+		err := acc.Decrypt(srv.Config.Wallet.Password)
+		if err == nil {
+			ok = true
+			break
+		}
+	}
+	if !ok {
+		return nil, errors.New("no account with provided password was found")
 	}
 
 	defer srv.wallet.Close()
@@ -155,6 +174,7 @@ func NewService(cfg Config) (Service, error) {
 		dbft.WithNewRecoveryRequest(func() payload.RecoveryRequest { return new(recoveryRequest) }),
 		dbft.WithNewRecoveryMessage(func() payload.RecoveryMessage { return new(recoveryMessage) }),
 		dbft.WithVerifyPrepareRequest(srv.verifyRequest),
+		dbft.WithVerifyPrepareResponse(func(_ payload.ConsensusPayload) error { return nil }),
 	)
 
 	if srv.dbft == nil {
@@ -189,10 +209,21 @@ func (s *service) Start() {
 	}
 }
 
+// Shutdown implements Service interface.
+func (s *service) Shutdown() {
+	close(s.quit)
+	<-s.finished
+}
+
 func (s *service) eventLoop() {
+events:
 	for {
 		select {
-		case hv := <-s.dbft.Timer.C():
+		case <-s.quit:
+			s.dbft.Timer.Stop()
+			break events
+		case <-s.dbft.Timer.C():
+			hv := s.dbft.Timer.HV()
 			s.log.Debug("timer fired",
 				zap.Uint32("height", hv.Height),
 				zap.Uint("view", uint(hv.View)))
@@ -226,14 +257,26 @@ func (s *service) eventLoop() {
 		case tx := <-s.transactions:
 			s.dbft.OnTransaction(tx)
 		case b := <-s.blockEvents:
-			// We also receive our own blocks here, so check for index.
-			if b.Index >= s.dbft.BlockIndex {
-				s.log.Debug("new block in the chain",
-					zap.Uint32("dbft index", s.dbft.BlockIndex),
-					zap.Uint32("chain index", s.Chain.BlockHeight()))
-				s.dbft.InitializeConsensus(0)
-			}
+			s.handleChainBlock(b)
 		}
+		// Always process block event if there is any, we can add one above.
+		select {
+		case b := <-s.blockEvents:
+			s.handleChainBlock(b)
+		default:
+		}
+
+	}
+	close(s.finished)
+}
+
+func (s *service) handleChainBlock(b *coreb.Block) {
+	// We can get our own block here, so check for index.
+	if b.Index >= s.dbft.BlockIndex {
+		s.log.Debug("new block in the chain",
+			zap.Uint32("dbft index", s.dbft.BlockIndex),
+			zap.Uint32("chain index", s.Chain.BlockHeight()))
+		s.dbft.InitializeConsensus(0)
 	}
 }
 
@@ -560,12 +603,7 @@ func (s *service) newBlockFromContext(ctx *dbft.Context) block.Block {
 	hashes := make([]util.Uint256, len(ctx.TransactionHashes)+1)
 	hashes[0] = block.Block.ConsensusData.Hash()
 	copy(hashes[1:], ctx.TransactionHashes)
-	mt, err := hash.NewMerkleTree(hashes)
-	if err != nil {
-		s.log.Fatal("can't calculate merkle root for the new block")
-		return nil
-	}
-	block.Block.MerkleRoot = mt.Root()
+	block.Block.MerkleRoot = hash.CalcMerkleRoot(hashes)
 
 	return block
 }

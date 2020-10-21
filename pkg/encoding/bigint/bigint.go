@@ -6,8 +6,12 @@ import (
 	"math/bits"
 )
 
-// wordSizeBytes is a size of a big.Word (uint) in bytes.`
-const wordSizeBytes = bits.UintSize / 8
+const (
+	// MaxBytesLen is the maximum length of serialized integer suitable for Neo VM.
+	MaxBytesLen = 33 // 32 bytes for 256-bit integer plus 1 if padding needed
+	// wordSizeBytes is a size of a big.Word (uint) in bytes.`
+	wordSizeBytes = bits.UintSize / 8
+)
 
 // FromBytes converts data in little-endian format to
 // an integer.

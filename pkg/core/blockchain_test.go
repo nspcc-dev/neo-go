@@ -9,14 +9,18 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
+	"github.com/nspcc-dev/neo-go/pkg/core/fee"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/core/mempool"
+	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/internal/testchain"
 	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
@@ -124,7 +128,7 @@ func TestAddBadBlock(t *testing.T) {
 	tx := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
 	tx.Signers = []transaction.Signer{{
 		Account: testchain.MultisigScriptHash(),
-		Scopes:  transaction.FeeOnly,
+		Scopes:  transaction.None,
 	}}
 	require.NoError(t, signTx(bc, tx))
 	b1 := bc.newBlock(tx)
@@ -144,7 +148,7 @@ func TestAddBadBlock(t *testing.T) {
 	tx.ValidUntilBlock = 128
 	tx.Signers = []transaction.Signer{{
 		Account: testchain.MultisigScriptHash(),
-		Scopes:  transaction.FeeOnly,
+		Scopes:  transaction.None,
 	}}
 	require.NoError(t, signTx(bc, tx))
 	require.NoError(t, bc.PoolTx(tx))
@@ -212,12 +216,16 @@ func TestVerifyTx(t *testing.T) {
 	bc := newTestChain(t)
 	defer bc.Close()
 
-	accs := make([]*wallet.Account, 2)
+	accs := make([]*wallet.Account, 5)
 	for i := range accs {
 		var err error
 		accs[i], err = wallet.NewAccount()
 		require.NoError(t, err)
 	}
+
+	oracleAcc := accs[2]
+	oraclePubs := keys.PublicKeys{oracleAcc.PrivateKey().PublicKey()}
+	require.NoError(t, oracleAcc.ConvertMultisig(1, oraclePubs))
 
 	neoHash := bc.contracts.NEO.Hash
 	gasHash := bc.contracts.GAS.Hash
@@ -229,13 +237,13 @@ func TestVerifyTx(t *testing.T) {
 				amount = 1_000_000_000
 			}
 			emit.AppCallWithOperationAndArgs(w.BinWriter, sc, "transfer",
-				neoOwner, a.PrivateKey().GetScriptHash(), amount)
-			emit.Opcode(w.BinWriter, opcode.ASSERT)
+				neoOwner, a.Contract.ScriptHash(), amount)
+			emit.Opcodes(w.BinWriter, opcode.ASSERT)
 		}
 	}
 	emit.AppCallWithOperationAndArgs(w.BinWriter, gasHash, "transfer",
 		neoOwner, testchain.CommitteeScriptHash(), int64(1_000_000_000))
-	emit.Opcode(w.BinWriter, opcode.ASSERT)
+	emit.Opcodes(w.BinWriter, opcode.ASSERT)
 	require.NoError(t, w.Err)
 
 	txMove := bc.newTestTx(neoOwner, w.Bytes())
@@ -284,11 +292,68 @@ func TestVerifyTx(t *testing.T) {
 		require.NoError(t, accs[0].SignTx(tx))
 		checkErr(t, ErrTxTooBig, tx)
 	})
-	t.Run("SmallNetworkFee", func(t *testing.T) {
-		tx := bc.newTestTx(h, testScript)
-		tx.NetworkFee = 1
-		require.NoError(t, accs[0].SignTx(tx))
-		checkErr(t, ErrTxSmallNetworkFee, tx)
+	t.Run("NetworkFee", func(t *testing.T) {
+		t.Run("SmallNetworkFee", func(t *testing.T) {
+			tx := bc.newTestTx(h, testScript)
+			tx.NetworkFee = 1
+			require.NoError(t, accs[0].SignTx(tx))
+			checkErr(t, ErrTxSmallNetworkFee, tx)
+		})
+		t.Run("AlmostEnoughNetworkFee", func(t *testing.T) {
+			tx := bc.newTestTx(h, testScript)
+			verificationNetFee, calcultedScriptSize := fee.Calculate(accs[0].Contract.Script)
+			expectedSize := io.GetVarSize(tx) + calcultedScriptSize
+			calculatedNetFee := verificationNetFee + int64(expectedSize)*bc.FeePerByte()
+			tx.NetworkFee = calculatedNetFee - 1
+			require.NoError(t, accs[0].SignTx(tx))
+			require.Equal(t, expectedSize, io.GetVarSize(tx))
+			checkErr(t, ErrVerificationFailed, tx)
+		})
+		t.Run("EnoughNetworkFee", func(t *testing.T) {
+			tx := bc.newTestTx(h, testScript)
+			verificationNetFee, calcultedScriptSize := fee.Calculate(accs[0].Contract.Script)
+			expectedSize := io.GetVarSize(tx) + calcultedScriptSize
+			calculatedNetFee := verificationNetFee + int64(expectedSize)*bc.FeePerByte()
+			tx.NetworkFee = calculatedNetFee
+			require.NoError(t, accs[0].SignTx(tx))
+			require.Equal(t, expectedSize, io.GetVarSize(tx))
+			require.NoError(t, bc.VerifyTx(tx))
+		})
+		t.Run("CalculateNetworkFee, signature script", func(t *testing.T) {
+			tx := bc.newTestTx(h, testScript)
+			expectedSize := io.GetVarSize(tx)
+			verificationNetFee, calculatedScriptSize := fee.Calculate(accs[0].Contract.Script)
+			expectedSize += calculatedScriptSize
+			expectedNetFee := verificationNetFee + int64(expectedSize)*bc.FeePerByte()
+			tx.NetworkFee = expectedNetFee
+			require.NoError(t, accs[0].SignTx(tx))
+			actualSize := io.GetVarSize(tx)
+			require.Equal(t, expectedSize, actualSize)
+			interopCtx := bc.newInteropContext(trigger.Verification, bc.dao, nil, tx)
+			gasConsumed, err := bc.verifyHashAgainstScript(h, &tx.Scripts[0], interopCtx, -1)
+			require.NoError(t, err)
+			require.Equal(t, verificationNetFee, gasConsumed)
+			require.Equal(t, expectedNetFee, bc.FeePerByte()*int64(actualSize)+gasConsumed)
+		})
+		t.Run("CalculateNetworkFee, multisignature script", func(t *testing.T) {
+			multisigAcc := accs[4]
+			pKeys := keys.PublicKeys{multisigAcc.PrivateKey().PublicKey()}
+			require.NoError(t, multisigAcc.ConvertMultisig(1, pKeys))
+			multisigHash := hash.Hash160(multisigAcc.Contract.Script)
+			tx := bc.newTestTx(multisigHash, testScript)
+			verificationNetFee, calculatedScriptSize := fee.Calculate(multisigAcc.Contract.Script)
+			expectedSize := io.GetVarSize(tx) + calculatedScriptSize
+			expectedNetFee := verificationNetFee + int64(expectedSize)*bc.FeePerByte()
+			tx.NetworkFee = expectedNetFee
+			require.NoError(t, multisigAcc.SignTx(tx))
+			actualSize := io.GetVarSize(tx)
+			require.Equal(t, expectedSize, actualSize)
+			interopCtx := bc.newInteropContext(trigger.Verification, bc.dao, nil, tx)
+			gasConsumed, err := bc.verifyHashAgainstScript(multisigHash, &tx.Scripts[0], interopCtx, -1)
+			require.NoError(t, err)
+			require.Equal(t, verificationNetFee, gasConsumed)
+			require.Equal(t, expectedNetFee, bc.FeePerByte()*int64(actualSize)+gasConsumed)
+		})
 	})
 	t.Run("Conflict", func(t *testing.T) {
 		balance := bc.GetUtilityTokenBalance(h).Int64()
@@ -317,6 +382,16 @@ func TestVerifyTx(t *testing.T) {
 		tx := bc.newTestTx(h, testScript)
 		require.NoError(t, accs[0].SignTx(tx))
 		tx.Scripts[0].InvocationScript[10] = ^tx.Scripts[0].InvocationScript[10]
+		checkErr(t, ErrVerificationFailed, tx)
+	})
+	t.Run("InsufficientNetworkFeeForSecondWitness", func(t *testing.T) {
+		tx := bc.newTestTx(h, testScript)
+		tx.Signers = append(tx.Signers, transaction.Signer{
+			Account: accs[3].PrivateKey().GetScriptHash(),
+			Scopes:  transaction.Global,
+		})
+		require.NoError(t, accs[0].SignTx(tx))
+		require.NoError(t, accs[3].SignTx(tx))
 		checkErr(t, ErrVerificationFailed, tx)
 	})
 	t.Run("OldTX", func(t *testing.T) {
@@ -361,12 +436,12 @@ func TestVerifyTx(t *testing.T) {
 			tx.NetworkFee += 4_000_000 // multisig check
 			tx.Signers = []transaction.Signer{{
 				Account: testchain.CommitteeScriptHash(),
-				Scopes:  transaction.FeeOnly,
+				Scopes:  transaction.None,
 			}}
 			rawScript := testchain.CommitteeVerificationScript()
 			require.NoError(t, err)
 			size := io.GetVarSize(tx)
-			netFee, sizeDelta := CalculateNetworkFee(rawScript)
+			netFee, sizeDelta := fee.Calculate(rawScript)
 			tx.NetworkFee += netFee
 			tx.NetworkFee += int64(size+sizeDelta) * bc.FeePerByte()
 			data := tx.GetSignedPart()
@@ -375,6 +450,114 @@ func TestVerifyTx(t *testing.T) {
 				VerificationScript: rawScript,
 			}}
 			require.NoError(t, bc.VerifyTx(tx))
+		})
+		t.Run("Oracle", func(t *testing.T) {
+			orc := bc.contracts.Oracle
+			req := &state.OracleRequest{GasForResponse: 1000_0000}
+			require.NoError(t, orc.PutRequestInternal(1, req, bc.dao))
+
+			oracleScript, err := smartcontract.CreateMajorityMultiSigRedeemScript(oraclePubs)
+			require.NoError(t, err)
+			oracleHash := hash.Hash160(oracleScript)
+
+			// We need to create new transaction,
+			// because hashes are cached after signing.
+			getOracleTx := func(t *testing.T) *transaction.Transaction {
+				tx := bc.newTestTx(h, native.GetOracleResponseScript())
+				resp := &transaction.OracleResponse{
+					ID:     1,
+					Code:   transaction.Success,
+					Result: []byte{1, 2, 3},
+				}
+				tx.Attributes = []transaction.Attribute{{
+					Type:  transaction.OracleResponseT,
+					Value: resp,
+				}}
+				tx.NetworkFee += 4_000_000 // multisig check
+				tx.SystemFee = int64(req.GasForResponse - uint64(tx.NetworkFee))
+				tx.Signers = []transaction.Signer{{
+					Account: oracleHash,
+					Scopes:  transaction.None,
+				}}
+				size := io.GetVarSize(tx)
+				netFee, sizeDelta := fee.Calculate(oracleScript)
+				tx.NetworkFee += netFee
+				tx.NetworkFee += int64(size+sizeDelta) * bc.FeePerByte()
+				return tx
+			}
+
+			t.Run("NoOracleNodes", func(t *testing.T) {
+				tx := getOracleTx(t)
+				require.NoError(t, oracleAcc.SignTx(tx))
+				checkErr(t, ErrInvalidAttribute, tx)
+			})
+
+			txSetOracle := transaction.New(netmode.UnitTestNet, []byte{}, 0)
+			setSigner(txSetOracle, testchain.CommitteeScriptHash())
+			txSetOracle.Scripts = []transaction.Witness{{
+				InvocationScript:   testchain.SignCommittee(txSetOracle.GetSignedPart()),
+				VerificationScript: testchain.CommitteeVerificationScript(),
+			}}
+			ic := bc.newInteropContext(trigger.All, bc.dao, nil, txSetOracle)
+			ic.SpawnVM()
+			ic.VM.LoadScript([]byte{byte(opcode.RET)})
+			require.NoError(t, bc.contracts.Designate.DesignateAsRole(ic, native.RoleOracle, oraclePubs))
+			require.NoError(t, bc.contracts.Designate.OnPersistEnd(ic.DAO))
+			_, err = ic.DAO.Persist()
+			require.NoError(t, err)
+
+			t.Run("Valid", func(t *testing.T) {
+				tx := getOracleTx(t)
+				require.NoError(t, oracleAcc.SignTx(tx))
+				require.NoError(t, bc.VerifyTx(tx))
+
+				t.Run("NativeVerify", func(t *testing.T) {
+					tx.Signers = append(tx.Signers, transaction.Signer{
+						Account: bc.contracts.Oracle.Hash,
+						Scopes:  transaction.None,
+					})
+					tx.Scripts = append(tx.Scripts, transaction.Witness{})
+					t.Run("NonZeroVerification", func(t *testing.T) {
+						tx.Scripts[len(tx.Scripts)-1].VerificationScript = bc.contracts.Oracle.Script
+						err := bc.VerifyTx(tx)
+						require.True(t, errors.Is(err, ErrNativeContractWitness), "got: %v", err)
+					})
+					t.Run("Good", func(t *testing.T) {
+						tx.Scripts[len(tx.Scripts)-1].VerificationScript = nil
+						require.NoError(t, bc.VerifyTx(tx))
+					})
+				})
+			})
+			t.Run("InvalidRequestID", func(t *testing.T) {
+				tx := getOracleTx(t)
+				tx.Attributes[0].Value.(*transaction.OracleResponse).ID = 2
+				require.NoError(t, oracleAcc.SignTx(tx))
+				checkErr(t, ErrInvalidAttribute, tx)
+			})
+			t.Run("InvalidScope", func(t *testing.T) {
+				tx := getOracleTx(t)
+				tx.Signers[0].Scopes = transaction.Global
+				require.NoError(t, oracleAcc.SignTx(tx))
+				checkErr(t, ErrInvalidAttribute, tx)
+			})
+			t.Run("InvalidScript", func(t *testing.T) {
+				tx := getOracleTx(t)
+				tx.Script[0] = ^tx.Script[0]
+				require.NoError(t, oracleAcc.SignTx(tx))
+				checkErr(t, ErrInvalidAttribute, tx)
+			})
+			t.Run("InvalidSigner", func(t *testing.T) {
+				tx := getOracleTx(t)
+				tx.Signers[0].Account = accs[0].Contract.ScriptHash()
+				require.NoError(t, accs[0].SignTx(tx))
+				checkErr(t, ErrInvalidAttribute, tx)
+			})
+			t.Run("SmallFee", func(t *testing.T) {
+				tx := getOracleTx(t)
+				tx.SystemFee = 0
+				require.NoError(t, oracleAcc.SignTx(tx))
+				checkErr(t, ErrInvalidAttribute, tx)
+			})
 		})
 	})
 }
@@ -394,22 +577,22 @@ func TestVerifyHashAgainstScript(t *testing.T) {
 			newH := cs.ScriptHash()
 			newH[0] = ^newH[0]
 			w := &transaction.Witness{InvocationScript: []byte{byte(opcode.PUSH4)}}
-			err := bc.verifyHashAgainstScript(newH, w, ic, false, gas)
+			_, err := bc.verifyHashAgainstScript(newH, w, ic, gas)
 			require.True(t, errors.Is(err, ErrUnknownVerificationContract))
 		})
 		t.Run("Invalid", func(t *testing.T) {
 			w := &transaction.Witness{InvocationScript: []byte{byte(opcode.PUSH4)}}
-			err := bc.verifyHashAgainstScript(csInvalid.ScriptHash(), w, ic, false, gas)
+			_, err := bc.verifyHashAgainstScript(csInvalid.ScriptHash(), w, ic, gas)
 			require.True(t, errors.Is(err, ErrInvalidVerificationContract))
 		})
 		t.Run("ValidSignature", func(t *testing.T) {
 			w := &transaction.Witness{InvocationScript: []byte{byte(opcode.PUSH4)}}
-			err := bc.verifyHashAgainstScript(cs.ScriptHash(), w, ic, false, gas)
+			_, err := bc.verifyHashAgainstScript(cs.ScriptHash(), w, ic, gas)
 			require.NoError(t, err)
 		})
 		t.Run("InvalidSignature", func(t *testing.T) {
 			w := &transaction.Witness{InvocationScript: []byte{byte(opcode.PUSH3)}}
-			err := bc.verifyHashAgainstScript(cs.ScriptHash(), w, ic, false, gas)
+			_, err := bc.verifyHashAgainstScript(cs.ScriptHash(), w, ic, gas)
 			require.True(t, errors.Is(err, ErrVerificationFailed))
 		})
 	})
@@ -419,7 +602,7 @@ func TestVerifyHashAgainstScript(t *testing.T) {
 			InvocationScript:   []byte{byte(opcode.NOP)},
 			VerificationScript: verif,
 		}
-		err := bc.verifyHashAgainstScript(hash.Hash160(verif), w, ic, false, 1)
+		_, err := bc.verifyHashAgainstScript(hash.Hash160(verif), w, ic, 1)
 		require.True(t, errors.Is(err, ErrVerificationFailed))
 	})
 	t.Run("NoResult", func(t *testing.T) {
@@ -428,7 +611,7 @@ func TestVerifyHashAgainstScript(t *testing.T) {
 			InvocationScript:   []byte{byte(opcode.PUSH1)},
 			VerificationScript: verif,
 		}
-		err := bc.verifyHashAgainstScript(hash.Hash160(verif), w, ic, false, gas)
+		_, err := bc.verifyHashAgainstScript(hash.Hash160(verif), w, ic, gas)
 		require.True(t, errors.Is(err, ErrVerificationFailed))
 	})
 	t.Run("BadResult", func(t *testing.T) {
@@ -439,7 +622,7 @@ func TestVerifyHashAgainstScript(t *testing.T) {
 			InvocationScript:   []byte{byte(opcode.NOP)},
 			VerificationScript: verif,
 		}
-		err := bc.verifyHashAgainstScript(hash.Hash160(verif), w, ic, false, gas)
+		_, err := bc.verifyHashAgainstScript(hash.Hash160(verif), w, ic, gas)
 		require.True(t, errors.Is(err, ErrVerificationFailed))
 	})
 	t.Run("TooManyResults", func(t *testing.T) {
@@ -448,7 +631,7 @@ func TestVerifyHashAgainstScript(t *testing.T) {
 			InvocationScript:   []byte{byte(opcode.PUSH1), byte(opcode.PUSH1)},
 			VerificationScript: verif,
 		}
-		err := bc.verifyHashAgainstScript(hash.Hash160(verif), w, ic, false, gas)
+		_, err := bc.verifyHashAgainstScript(hash.Hash160(verif), w, ic, gas)
 		require.True(t, errors.Is(err, ErrVerificationFailed))
 	})
 }
@@ -524,8 +707,8 @@ func TestGetTransaction(t *testing.T) {
 		tx, height, err := bc.GetTransaction(block.Transactions[0].Hash())
 		require.Nil(t, err)
 		assert.Equal(t, block.Index, height)
+		assert.Equal(t, txSize, tx.Size())
 		assert.Equal(t, block.Transactions[0], tx)
-		assert.Equal(t, txSize, io.GetVarSize(tx))
 		assert.Equal(t, 1, io.GetVarSize(tx.Attributes))
 		assert.Equal(t, 1, io.GetVarSize(tx.Scripts))
 		assert.NoError(t, bc.persist())
@@ -536,29 +719,12 @@ func TestGetClaimable(t *testing.T) {
 	bc := newTestChain(t)
 	defer bc.Close()
 
-	bc.generationAmount = []int{4, 3, 2, 1}
-	bc.decrementInterval = 2
 	_, err := bc.genBlocks(10)
 	require.NoError(t, err)
 
 	t.Run("first generation period", func(t *testing.T) {
 		amount := bc.CalculateClaimable(big.NewInt(1), 0, 2)
-		require.EqualValues(t, big.NewInt(8), amount)
-	})
-
-	t.Run("a number of full periods", func(t *testing.T) {
-		amount := bc.CalculateClaimable(big.NewInt(1), 0, 6)
-		require.EqualValues(t, big.NewInt(4+4+3+3+2+2), amount)
-	})
-
-	t.Run("start from the 2-nd block", func(t *testing.T) {
-		amount := bc.CalculateClaimable(big.NewInt(1), 1, 7)
-		require.EqualValues(t, big.NewInt(4+3+3+2+2+1), amount)
-	})
-
-	t.Run("end height after generation has ended", func(t *testing.T) {
-		amount := bc.CalculateClaimable(big.NewInt(1), 1, 10)
-		require.EqualValues(t, big.NewInt(4+3+3+2+2+1+1), amount)
+		require.EqualValues(t, big.NewInt(1), amount)
 	})
 }
 
@@ -604,8 +770,8 @@ func TestSubscriptions(t *testing.T) {
 	blocks, err := bc.genBlocks(1)
 	require.NoError(t, err)
 	require.Eventually(t, func() bool { return len(blockCh) != 0 }, time.Second, 10*time.Millisecond)
-	assert.Empty(t, notificationCh)
-	assert.Len(t, executionCh, 1)
+	assert.Len(t, notificationCh, 1) // validator bounty
+	assert.Len(t, executionCh, 2)
 	assert.Empty(t, txCh)
 
 	b := <-blockCh
@@ -614,6 +780,11 @@ func TestSubscriptions(t *testing.T) {
 
 	aer := <-executionCh
 	assert.Equal(t, b.Hash(), aer.TxHash)
+	aer = <-executionCh
+	assert.Equal(t, b.Hash(), aer.TxHash)
+
+	notif := <-notificationCh
+	require.Equal(t, bc.UtilityTokenHash(), notif.ScriptHash)
 
 	script := io.NewBufBinWriter()
 	emit.Bytes(script.BinWriter, []byte("yay!"))
@@ -629,7 +800,7 @@ func TestSubscriptions(t *testing.T) {
 	script = io.NewBufBinWriter()
 	emit.Bytes(script.BinWriter, []byte("nay!"))
 	emit.Syscall(script.BinWriter, interopnames.SystemRuntimeNotify)
-	emit.Opcode(script.BinWriter, opcode.THROW)
+	emit.Opcodes(script.BinWriter, opcode.THROW)
 	require.NoError(t, script.Err)
 	txBad := transaction.New(netmode.UnitTestNet, script.Bytes(), 0)
 	txBad.Signers = []transaction.Signer{{Account: neoOwner}}
@@ -682,8 +853,15 @@ func TestSubscriptions(t *testing.T) {
 		}
 	}
 	assert.Empty(t, txCh)
-	assert.Empty(t, notificationCh)
-	assert.Empty(t, executionCh)
+	assert.Len(t, notificationCh, 1)
+	assert.Len(t, executionCh, 1)
+
+	notif = <-notificationCh
+	require.Equal(t, bc.UtilityTokenHash(), notif.ScriptHash)
+
+	exec = <-executionCh
+	require.Equal(t, b.Hash(), exec.TxHash)
+	require.Equal(t, exec.VMState, vm.HaltState)
 
 	bc.UnsubscribeFromBlocks(blockCh)
 	bc.UnsubscribeFromTransactions(txCh)

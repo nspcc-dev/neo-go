@@ -19,14 +19,18 @@ func (m *MerkleBlock) DecodeBinary(br *io.BinReader) {
 	m.Base = &block.Base{}
 	m.Base.DecodeBinary(br)
 
-	m.TxCount = int(br.ReadVarUint())
-	br.ReadArray(&m.Hashes)
-	m.Flags = br.ReadVarBytes()
+	txCount := int(br.ReadVarUint())
+	if txCount > block.MaxContentsPerBlock {
+		br.Err = block.ErrMaxContentsPerBlock
+		return
+	}
+	m.TxCount = txCount
+	br.ReadArray(&m.Hashes, m.TxCount)
+	m.Flags = br.ReadVarBytes((txCount + 7) / 8)
 }
 
 // EncodeBinary implements Serializable interface.
 func (m *MerkleBlock) EncodeBinary(bw *io.BinWriter) {
-	m.Base = &block.Base{}
 	m.Base.EncodeBinary(bw)
 
 	bw.WriteVarUint(uint64(m.TxCount))

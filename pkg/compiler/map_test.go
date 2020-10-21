@@ -55,6 +55,26 @@ var mapTestCases = []testCase{
 		`,
 		[]byte("Valera"),
 	},
+	{
+		"delete key",
+		`package foo
+		func Main() int {
+			m := map[int]int{1: 2, 3: 4}
+			delete(m, 1)
+			return len(m)
+		}`,
+		big.NewInt(1),
+	},
+	{
+		"delete missing key",
+		`package foo
+		func Main() int {
+			m := map[int]int{3: 4}
+			delete(m, 1)
+			return len(m)
+		}`,
+		big.NewInt(1),
+	},
 }
 
 func TestMaps(t *testing.T) {

@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"reflect"
+	"sort"
 	"strconv"
 	"strings"
 	"testing"
@@ -18,6 +19,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
+	"github.com/nspcc-dev/neo-go/pkg/core/fee"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
@@ -26,7 +28,9 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/stretchr/testify/assert"
@@ -51,26 +55,27 @@ type rpcTestCase struct {
 	check  func(t *testing.T, e *executor, result interface{})
 }
 
-const testContractHash = "4546ec6fcdaa1c3ccdb048526b78624b457b60a4"
-const deploymentTxHash = "17be1bbb0fdecae18cd4c6a2db19311f47bd540371e2ea479a46b349a66aa0b3"
+const testContractHash = "b0fda4dd46b8e5d207e86e774a4a133c6db69ee7"
+const deploymentTxHash = "59f7b22b90e26f883a56b916c1580e3ee4f13caded686353cd77577e6194c173"
 
-const verifyContractHash = "47ef649f9a77cad161ddaa28b39c7e450e5429e7"
-const verifyContractAVM = "560340570300412d510830db4121700c14aa8acf859d4fe402b34e673f2156821796a488ebdb30716813cedb2869db289740"
+const verifyContractHash = "c1213693b22cb0454a436d6e0bd76b8c0a3bfdf7"
+const verifyContractAVM = "570300412d51083021700c14aa8acf859d4fe402b34e673f2156821796a488ebdb30716813cedb2869db289740"
+const testVerifyContractAVM = "VwcADBQBDAMOBQYMDQIODw0DDgcJAAAAANswcGgRVUH4J+yMIaonBwAAABFADBQNDwMCCQACAQMHAwQFAgEADgYMCdswcWkRVUH4J+yMIaonBwAAABJAE0A="
 
 var rpcTestCases = map[string][]rpcTestCase{
 	"getapplicationlog": {
 		{
 			name:   "positive",
 			params: `["` + deploymentTxHash + `"]`,
-			result: func(e *executor) interface{} { return &result.ApplicationLog{} },
+			result: func(e *executor) interface{} { return &state.AppExecResult{} },
 			check: func(t *testing.T, e *executor, acc interface{}) {
-				res, ok := acc.(*result.ApplicationLog)
+				res, ok := acc.(*state.AppExecResult)
 				require.True(t, ok)
 				expectedTxHash, err := util.Uint256DecodeStringLE(deploymentTxHash)
 				require.NoError(t, err)
 				assert.Equal(t, expectedTxHash, res.TxHash)
-				assert.Equal(t, "Application", res.Trigger)
-				assert.Equal(t, "HALT", res.VMState)
+				assert.Equal(t, trigger.Application, res.Trigger)
+				assert.Equal(t, vm.HaltState, res.VMState)
 			},
 		},
 		{
@@ -155,6 +160,36 @@ var rpcTestCases = map[string][]rpcTestCase{
 		{
 			name:   "invalid timestamp",
 			params: `["` + testchain.PrivateKeyByID(0).Address() + `", "notanumber"]`,
+			fail:   true,
+		},
+		{
+			name:   "invalid stop timestamp",
+			params: `["` + testchain.PrivateKeyByID(0).Address() + `", "1", "blah"]`,
+			fail:   true,
+		},
+		{
+			name:   "invalid limit",
+			params: `["` + testchain.PrivateKeyByID(0).Address() + `", "1", "2", "0"]`,
+			fail:   true,
+		},
+		{
+			name:   "invalid limit 2",
+			params: `["` + testchain.PrivateKeyByID(0).Address() + `", "1", "2", "bleh"]`,
+			fail:   true,
+		},
+		{
+			name:   "invalid limit 3",
+			params: `["` + testchain.PrivateKeyByID(0).Address() + `", "1", "2", "100500"]`,
+			fail:   true,
+		},
+		{
+			name:   "invalid page",
+			params: `["` + testchain.PrivateKeyByID(0).Address() + `", "1", "2", "3", "-1"]`,
+			fail:   true,
+		},
+		{
+			name:   "invalid page 2",
+			params: `["` + testchain.PrivateKeyByID(0).Address() + `", "1", "2", "3", "jajaja"]`,
 			fail:   true,
 		},
 		{
@@ -351,6 +386,17 @@ var rpcTestCases = map[string][]rpcTestCase{
 			fail:   true,
 		},
 	},
+	"getcommittee": {
+		{
+			params: "[]",
+			result: func(e *executor) interface{} {
+				// it's a test chain, so committee is a sorted standby committee
+				expected := e.chain.GetStandByCommittee()
+				sort.Sort(expected)
+				return &expected
+			},
+		},
+	},
 	"getconnectioncount": {
 		{
 			params: "[]",
@@ -441,13 +487,13 @@ var rpcTestCases = map[string][]rpcTestCase{
 				require.True(t, ok)
 				expected := result.UnclaimedGas{
 					Address:   testchain.MultisigScriptHash(),
-					Unclaimed: *big.NewInt(42000),
+					Unclaimed: *big.NewInt(3500),
 				}
 				assert.Equal(t, expected, *actual)
 			},
 		},
 	},
-	"getvalidators": {
+	"getnextblockvalidators": {
 		{
 			params: "[]",
 			result: func(*executor) interface{} {
@@ -492,7 +538,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 			check: func(t *testing.T, e *executor, inv interface{}) {
 				res, ok := inv.(*result.Invoke)
 				require.True(t, ok)
-				assert.NotEqual(t, "", res.Script)
+				assert.NotNil(t, res.Script)
 				assert.NotEqual(t, "", res.State)
 				assert.NotEqual(t, 0, res.GasConsumed)
 			},
@@ -521,7 +567,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 	"invokescript": {
 		{
 			name:   "positive",
-			params: `["51c56b0d48656c6c6f2c20776f726c6421680f4e656f2e52756e74696d652e4c6f67616c7566"]`,
+			params: `["UcVrDUhlbGxvLCB3b3JsZCFoD05lby5SdW50aW1lLkxvZ2FsdWY="]`,
 			result: func(e *executor) interface{} { return &result.Invoke{} },
 			check: func(t *testing.T, e *executor, inv interface{}) {
 				res, ok := inv.(*result.Invoke)
@@ -533,8 +579,8 @@ var rpcTestCases = map[string][]rpcTestCase{
 		},
 		{
 			name: "positive, good witness",
-			// script is hex-encoded `test_verify.avm` representation, hashes are hex-encoded LE bytes of hashes used in the contract with `0x` prefix
-			params: `["5707000c14010c030e05060c0d020e0f0d030e070900000000db307068115541f827ec8c21aa270700000011400c140d0f03020900020103070304050201000e060c09db307169115541f827ec8c21aa270700000012401340",["0x0000000009070e030d0f0e020d0c06050e030c01","0x090c060e00010205040307030102000902030f0d"]]`,
+			// script is base64-encoded `test_verify.avm` representation, hashes are hex-encoded LE bytes of hashes used in the contract with `0x` prefix
+			params: fmt.Sprintf(`["%s",["0x0000000009070e030d0f0e020d0c06050e030c01","0x090c060e00010205040307030102000902030f0d"]]`, testVerifyContractAVM),
 			result: func(e *executor) interface{} { return &result.Invoke{} },
 			check: func(t *testing.T, e *executor, inv interface{}) {
 				res, ok := inv.(*result.Invoke)
@@ -546,7 +592,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 		},
 		{
 			name:   "positive, bad witness of second hash",
-			params: `["5707000c14010c030e05060c0d020e0f0d030e070900000000db307068115541f827ec8c21aa270700000011400c140d0f03020900020103070304050201000e060c09db307169115541f827ec8c21aa270700000012401340",["0x0000000009070e030d0f0e020d0c06050e030c01"]]`,
+			params: fmt.Sprintf(`["%s",["0x0000000009070e030d0f0e020d0c06050e030c01"]]`, testVerifyContractAVM),
 			result: func(e *executor) interface{} { return &result.Invoke{} },
 			check: func(t *testing.T, e *executor, inv interface{}) {
 				res, ok := inv.(*result.Invoke)
@@ -558,7 +604,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 		},
 		{
 			name:   "positive, no good hashes",
-			params: `["5707000c14010c030e05060c0d020e0f0d030e070900000000db307068115541f827ec8c21aa270700000011400c140d0f03020900020103070304050201000e060c09db307169115541f827ec8c21aa270700000012401340"]`,
+			params: fmt.Sprintf(`["%s"]`, testVerifyContractAVM),
 			result: func(e *executor) interface{} { return &result.Invoke{} },
 			check: func(t *testing.T, e *executor, inv interface{}) {
 				res, ok := inv.(*result.Invoke)
@@ -570,7 +616,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 		},
 		{
 			name:   "positive, bad hashes witness",
-			params: `["5707000c14010c030e05060c0d020e0f0d030e070900000000db307068115541f827ec8c21aa270700000011400c140d0f03020900020103070304050201000e060c09db307169115541f827ec8c21aa270700000012401340",["0x0000000009070e030d0f0e020d0c06050e030c02"]]`,
+			params: fmt.Sprintf(`["%s",["0x0000000009070e030d0f0e020d0c06050e030c02"]]`, testVerifyContractAVM),
 			result: func(e *executor) interface{} { return &result.Invoke{} },
 			check: func(t *testing.T, e *executor, inv interface{}) {
 				res, ok := inv.(*result.Invoke)
@@ -599,12 +645,12 @@ var rpcTestCases = map[string][]rpcTestCase{
 	"sendrawtransaction": {
 		{
 			name:   "positive",
-			params: `["000a0000008096980000000000721b130000000000b004000001aa8acf859d4fe402b34e673f2156821796a488eb01005d0300e87648170000000c1478ba4c24009fe510e136c9995a2e05215e1be4dc0c14aa8acf859d4fe402b34e673f2156821796a488eb13c00c087472616e736665720c1425059ecb4878d3a875f91c51ceded330d4575fde41627d5b523801420c40b99503c74bb1861b0b45060501dd090224f6c404aca8c02ccba3243c9b9691c1ef9e6b824d731f8fab27c56ba75609d32d2d176e97f56d9e3780610c83ebd41a290c2102b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc20b4195440d78"]`,
+			params: `["000b0000008096980000000000261c130000000000b004000001aa8acf859d4fe402b34e673f2156821796a488eb01005d0300e87648170000000c1478ba4c24009fe510e136c9995a2e05215e1be4dc0c14aa8acf859d4fe402b34e673f2156821796a488eb13c00c087472616e736665720c1425059ecb4878d3a875f91c51ceded330d4575fde41627d5b523801420c40ea2f56acf7f64629dc922d65a60176f3963afd4b7c259f2017a3a5139346f8ea54704624590832acb7794069ab2983ddc862b03b6a33d4428cd4c45cbc0941c2290c2102b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc20b4195440d78"]`,
 			result: func(e *executor) interface{} { return &result.RelayResult{} },
 			check: func(t *testing.T, e *executor, inv interface{}) {
 				res, ok := inv.(*result.RelayResult)
 				require.True(t, ok)
-				expectedHash, err := util.Uint256DecodeStringLE("8b6e610a2205914411b26c4380594fa9a1e16961ff5896ed3b16831a151c6dd0")
+				expectedHash, err := util.Uint256DecodeStringLE("ab5573cfc8d70774f04aa7d5521350cfc1aa1239c44c24e490e139408cd46a57")
 				require.NoError(t, err)
 				assert.Equal(t, expectedHash, res.Hash)
 			},
@@ -722,10 +768,10 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 		rpc := `{"jsonrpc": "2.0", "id": 1, "method": "getapplicationlog", "params": ["%s"]}`
 		body := doRPCCall(fmt.Sprintf(rpc, e.chain.GetHeaderHash(1).StringLE()), httpSrv.URL, t)
 		data := checkErrGetResult(t, body, false)
-		var res result.ApplicationLog
+		var res state.AppExecResult
 		require.NoError(t, json.Unmarshal(data, &res))
-		require.Equal(t, "System", res.Trigger)
-		require.Equal(t, "HALT", res.VMState)
+		require.Equal(t, trigger.System, res.Trigger)
+		require.Equal(t, vm.HaltState, res.VMState)
 	})
 
 	t.Run("submit", func(t *testing.T) {
@@ -743,7 +789,7 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 
 		addNetworkFee := func(tx *transaction.Transaction) {
 			size := io.GetVarSize(tx)
-			netFee, sizeDelta := core.CalculateNetworkFee(acc0.Contract.Script)
+			netFee, sizeDelta := fee.Calculate(acc0.Contract.Script)
 			tx.NetworkFee += netFee
 			size += sizeDelta
 			tx.NetworkFee += int64(size) * chain.FeePerByte()
@@ -809,6 +855,7 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 	t.Run("getrawtransaction 2 arguments, verbose", func(t *testing.T) {
 		block, _ := chain.GetBlock(chain.GetHeaderHash(0))
 		TXHash := block.Transactions[0].Hash()
+		_ = block.Transactions[0].Size()
 		rpc := fmt.Sprintf(`{"jsonrpc": "2.0", "id": 1, "method": "getrawtransaction", "params": ["%s", 1]}"`, TXHash.StringLE())
 		body := doRPCCall(rpc, httpSrv.URL, t)
 		txOut := checkErrGetResult(t, body, false)
@@ -899,21 +946,48 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 	})
 
 	t.Run("getnep5transfers", func(t *testing.T) {
-		ps := []string{`"` + testchain.PrivateKeyByID(0).Address() + `"`}
-		h, err := e.chain.GetHeader(e.chain.GetHeaderHash(4))
-		require.NoError(t, err)
-		ps = append(ps, strconv.FormatUint(h.Timestamp, 10))
-		h, err = e.chain.GetHeader(e.chain.GetHeaderHash(5))
-		require.NoError(t, err)
-		ps = append(ps, strconv.FormatUint(h.Timestamp, 10))
-
-		p := strings.Join(ps, ", ")
-		rpc := fmt.Sprintf(`{"jsonrpc": "2.0", "id": 1, "method": "getnep5transfers", "params": [%s]}`, p)
-		body := doRPCCall(rpc, httpSrv.URL, t)
-		res := checkErrGetResult(t, body, false)
-		actual := new(result.NEP5Transfers)
-		require.NoError(t, json.Unmarshal(res, actual))
-		checkNep5TransfersAux(t, e, actual, 4, 5)
+		testNEP5T := func(t *testing.T, start, stop, limit, page int, sent, rcvd []int) {
+			ps := []string{`"` + testchain.PrivateKeyByID(0).Address() + `"`}
+			if start != 0 {
+				h, err := e.chain.GetHeader(e.chain.GetHeaderHash(start))
+				var ts uint64
+				if err == nil {
+					ts = h.Timestamp
+				} else {
+					ts = uint64(time.Now().UnixNano() / 1_000_000)
+				}
+				ps = append(ps, strconv.FormatUint(ts, 10))
+			}
+			if stop != 0 {
+				h, err := e.chain.GetHeader(e.chain.GetHeaderHash(stop))
+				var ts uint64
+				if err == nil {
+					ts = h.Timestamp
+				} else {
+					ts = uint64(time.Now().UnixNano() / 1_000_000)
+				}
+				ps = append(ps, strconv.FormatUint(ts, 10))
+			}
+			if limit != 0 {
+				ps = append(ps, strconv.FormatInt(int64(limit), 10))
+			}
+			if page != 0 {
+				ps = append(ps, strconv.FormatInt(int64(page), 10))
+			}
+			p := strings.Join(ps, ", ")
+			rpc := fmt.Sprintf(`{"jsonrpc": "2.0", "id": 1, "method": "getnep5transfers", "params": [%s]}`, p)
+			body := doRPCCall(rpc, httpSrv.URL, t)
+			res := checkErrGetResult(t, body, false)
+			actual := new(result.NEP5Transfers)
+			require.NoError(t, json.Unmarshal(res, actual))
+			checkNep5TransfersAux(t, e, actual, sent, rcvd)
+		}
+		t.Run("time frame only", func(t *testing.T) { testNEP5T(t, 4, 5, 0, 0, []int{3, 4, 5, 6}, []int{1, 2}) })
+		t.Run("no res", func(t *testing.T) { testNEP5T(t, 100, 100, 0, 0, []int{}, []int{}) })
+		t.Run("limit", func(t *testing.T) { testNEP5T(t, 1, 7, 3, 0, []int{0, 1}, []int{0}) })
+		t.Run("limit 2", func(t *testing.T) { testNEP5T(t, 4, 5, 2, 0, []int{3}, []int{1}) })
+		t.Run("limit with page", func(t *testing.T) { testNEP5T(t, 1, 7, 3, 1, []int{2, 3}, []int{1}) })
+		t.Run("limit with page 2", func(t *testing.T) { testNEP5T(t, 1, 7, 3, 2, []int{4, 5}, []int{2}) })
 	})
 }
 
@@ -971,6 +1045,7 @@ func doRPCCallOverWS(rpcCall string, url string, t *testing.T) []byte {
 	c.SetReadDeadline(time.Now().Add(time.Second))
 	_, body, err := c.ReadMessage()
 	require.NoError(t, err)
+	require.NoError(t, c.Close())
 	return bytes.TrimSpace(body)
 }
 
@@ -1002,7 +1077,7 @@ func checkNep5Balances(t *testing.T, e *executor, acc interface{}) {
 			},
 			{
 				Asset:       e.chain.UtilityTokenHash(),
-				Amount:      "815.59478530",
+				Amount:      "799.59641770",
 				LastUpdated: 7,
 			}},
 		Address: testchain.PrivateKeyByID(0).GetScriptHash().StringLE(),
@@ -1012,41 +1087,70 @@ func checkNep5Balances(t *testing.T, e *executor, acc interface{}) {
 }
 
 func checkNep5Transfers(t *testing.T, e *executor, acc interface{}) {
-	checkNep5TransfersAux(t, e, acc, 0, e.chain.HeaderHeight())
+	checkNep5TransfersAux(t, e, acc, []int{0, 1, 2, 3, 4, 5, 6, 7, 8}, []int{0, 1, 2, 3, 4, 5, 6})
 }
 
-func checkNep5TransfersAux(t *testing.T, e *executor, acc interface{}, start, end uint32) {
+func checkNep5TransfersAux(t *testing.T, e *executor, acc interface{}, sent, rcvd []int) {
 	res, ok := acc.(*result.NEP5Transfers)
 	require.True(t, ok)
 	rublesHash, err := util.Uint160DecodeStringLE(testContractHash)
 	require.NoError(t, err)
+
+	blockDeploy2, err := e.chain.GetBlock(e.chain.GetHeaderHash(7))
+	require.NoError(t, err)
+	require.Equal(t, 1, len(blockDeploy2.Transactions))
+	txDeploy2 := blockDeploy2.Transactions[0]
+
 	blockSendRubles, err := e.chain.GetBlock(e.chain.GetHeaderHash(6))
 	require.NoError(t, err)
 	require.Equal(t, 1, len(blockSendRubles.Transactions))
-	txSendRublesHash := blockSendRubles.Transactions[0].Hash()
+	txSendRubles := blockSendRubles.Transactions[0]
+	blockGASBounty := blockSendRubles // index 6 = size of committee
+
 	blockReceiveRubles, err := e.chain.GetBlock(e.chain.GetHeaderHash(5))
 	require.NoError(t, err)
 	require.Equal(t, 2, len(blockReceiveRubles.Transactions))
-	txReceiveRublesHash := blockReceiveRubles.Transactions[1].Hash()
-	blockReceiveGAS, err := e.chain.GetBlock(e.chain.GetHeaderHash(1))
-	require.NoError(t, err)
-	require.Equal(t, 2, len(blockReceiveGAS.Transactions))
-	txReceiveNEOHash := blockReceiveGAS.Transactions[0].Hash()
-	txReceiveGASHash := blockReceiveGAS.Transactions[1].Hash()
+	txInitCall := blockReceiveRubles.Transactions[0]
+	txReceiveRubles := blockReceiveRubles.Transactions[1]
+
 	blockSendNEO, err := e.chain.GetBlock(e.chain.GetHeaderHash(4))
 	require.NoError(t, err)
 	require.Equal(t, 1, len(blockSendNEO.Transactions))
-	txSendNEOHash := blockSendNEO.Transactions[0].Hash()
+	txSendNEO := blockSendNEO.Transactions[0]
+
+	blockCtrInv1, err := e.chain.GetBlock(e.chain.GetHeaderHash(3))
+	require.NoError(t, err)
+	require.Equal(t, 1, len(blockCtrInv1.Transactions))
+	txCtrInv1 := blockCtrInv1.Transactions[0]
+
+	blockCtrDeploy, err := e.chain.GetBlock(e.chain.GetHeaderHash(2))
+	require.NoError(t, err)
+	require.Equal(t, 1, len(blockCtrDeploy.Transactions))
+	txCtrDeploy := blockCtrDeploy.Transactions[0]
+
+	blockReceiveGAS, err := e.chain.GetBlock(e.chain.GetHeaderHash(1))
+	require.NoError(t, err)
+	require.Equal(t, 2, len(blockReceiveGAS.Transactions))
+	txReceiveNEO := blockReceiveGAS.Transactions[0]
+	txReceiveGAS := blockReceiveGAS.Transactions[1]
+
+	blockGASBounty0, err := e.chain.GetBlock(e.chain.GetHeaderHash(0))
+	require.NoError(t, err)
+
+	// These are laid out here explicitly for 2 purposes:
+	//  * to be able to reference any particular event for paging
+	//  * to check chain events consistency
+	// Technically these could be retrieved from application log, but that would almost
+	// duplicate the Server method.
 	expected := result.NEP5Transfers{
 		Sent: []result.NEP5Transfer{
 			{
-				Timestamp:   blockSendNEO.Timestamp,
-				Asset:       e.chain.GoverningTokenHash(),
-				Address:     testchain.PrivateKeyByID(1).Address(),
-				Amount:      "1000",
-				Index:       4,
-				NotifyIndex: 0,
-				TxHash:      txSendNEOHash,
+				Timestamp: blockDeploy2.Timestamp,
+				Asset:     e.chain.UtilityTokenHash(),
+				Address:   "", // burn
+				Amount:    amountToString(big.NewInt(txDeploy2.SystemFee+txDeploy2.NetworkFee), 8),
+				Index:     7,
+				TxHash:    blockDeploy2.Hash(),
 			},
 			{
 				Timestamp:   blockSendRubles.Timestamp,
@@ -1055,10 +1159,76 @@ func checkNep5TransfersAux(t *testing.T, e *executor, acc interface{}, start, en
 				Amount:      "1.23",
 				Index:       6,
 				NotifyIndex: 0,
-				TxHash:      txSendRublesHash,
+				TxHash:      txSendRubles.Hash(),
+			},
+			{
+				Timestamp: blockSendRubles.Timestamp,
+				Asset:     e.chain.UtilityTokenHash(),
+				Address:   "", // burn
+				Amount:    amountToString(big.NewInt(txSendRubles.SystemFee+txSendRubles.NetworkFee), 8),
+				Index:     6,
+				TxHash:    blockSendRubles.Hash(),
+			},
+			{
+				Timestamp: blockReceiveRubles.Timestamp,
+				Asset:     e.chain.UtilityTokenHash(),
+				Address:   "", // burn
+				Amount:    amountToString(big.NewInt(txReceiveRubles.SystemFee+txReceiveRubles.NetworkFee), 8),
+				Index:     5,
+				TxHash:    blockReceiveRubles.Hash(),
+			},
+			{
+				Timestamp: blockReceiveRubles.Timestamp,
+				Asset:     e.chain.UtilityTokenHash(),
+				Address:   "", // burn
+				Amount:    amountToString(big.NewInt(txInitCall.SystemFee+txInitCall.NetworkFee), 8),
+				Index:     5,
+				TxHash:    blockReceiveRubles.Hash(),
+			},
+			{
+				Timestamp:   blockSendNEO.Timestamp,
+				Asset:       e.chain.GoverningTokenHash(),
+				Address:     testchain.PrivateKeyByID(1).Address(),
+				Amount:      "1000",
+				Index:       4,
+				NotifyIndex: 0,
+				TxHash:      txSendNEO.Hash(),
+			},
+			{
+				Timestamp: blockSendNEO.Timestamp,
+				Asset:     e.chain.UtilityTokenHash(),
+				Address:   "", // burn
+				Amount:    amountToString(big.NewInt(txSendNEO.SystemFee+txSendNEO.NetworkFee), 8),
+				Index:     4,
+				TxHash:    blockSendNEO.Hash(),
+			},
+			{
+				Timestamp: blockCtrInv1.Timestamp,
+				Asset:     e.chain.UtilityTokenHash(),
+				Address:   "", // burn has empty receiver
+				Amount:    amountToString(big.NewInt(txCtrInv1.SystemFee+txCtrInv1.NetworkFee), 8),
+				Index:     3,
+				TxHash:    blockCtrInv1.Hash(),
+			},
+			{
+				Timestamp: blockCtrDeploy.Timestamp,
+				Asset:     e.chain.UtilityTokenHash(),
+				Address:   "", // burn has empty receiver
+				Amount:    amountToString(big.NewInt(txCtrDeploy.SystemFee+txCtrDeploy.NetworkFee), 8),
+				Index:     2,
+				TxHash:    blockCtrDeploy.Hash(),
 			},
 		},
 		Received: []result.NEP5Transfer{
+			{
+				Timestamp:   blockGASBounty.Timestamp,
+				Asset:       e.chain.UtilityTokenHash(),
+				Address:     "",
+				Amount:      "0.25000000",
+				Index:       6,
+				NotifyIndex: 0,
+				TxHash:      blockGASBounty.Hash(),
+			},
 			{
 				Timestamp:   blockReceiveRubles.Timestamp,
 				Asset:       rublesHash,
@@ -1066,16 +1236,16 @@ func checkNep5TransfersAux(t *testing.T, e *executor, acc interface{}, start, en
 				Amount:      "10",
 				Index:       5,
 				NotifyIndex: 0,
-				TxHash:      txReceiveRublesHash,
+				TxHash:      txReceiveRubles.Hash(),
 			},
 			{
 				Timestamp:   blockSendNEO.Timestamp,
 				Asset:       e.chain.UtilityTokenHash(),
 				Address:     "", // Minted GAS.
-				Amount:      "17.99982000",
+				Amount:      "1.49998500",
 				Index:       4,
 				NotifyIndex: 0,
-				TxHash:      txSendNEOHash,
+				TxHash:      txSendNEO.Hash(),
 			},
 			{
 				Timestamp:   blockReceiveGAS.Timestamp,
@@ -1084,7 +1254,7 @@ func checkNep5TransfersAux(t *testing.T, e *executor, acc interface{}, start, en
 				Amount:      "1000",
 				Index:       1,
 				NotifyIndex: 0,
-				TxHash:      txReceiveGASHash,
+				TxHash:      txReceiveGAS.Hash(),
 			},
 			{
 				Timestamp:   blockReceiveGAS.Timestamp,
@@ -1093,49 +1263,41 @@ func checkNep5TransfersAux(t *testing.T, e *executor, acc interface{}, start, en
 				Amount:      "99999000",
 				Index:       1,
 				NotifyIndex: 0,
-				TxHash:      txReceiveNEOHash,
+				TxHash:      txReceiveNEO.Hash(),
+			},
+			{
+				Timestamp: blockGASBounty0.Timestamp,
+				Asset:     e.chain.UtilityTokenHash(),
+				Address:   "",
+				Amount:    "0.25000000",
+				Index:     0,
+				TxHash:    blockGASBounty0.Hash(),
 			},
 		},
 		Address: testchain.PrivateKeyByID(0).Address(),
 	}
 
-	// take burned gas into account
-	u := testchain.PrivateKeyByID(0).GetScriptHash()
-	for i := 0; i <= int(e.chain.BlockHeight()); i++ {
-		var netFee int64
-		h := e.chain.GetHeaderHash(i)
-		b, err := e.chain.GetBlock(h)
-		require.NoError(t, err)
-		for j := range b.Transactions {
-			if u.Equals(b.Transactions[j].Sender()) {
-				amount := b.Transactions[j].SystemFee + b.Transactions[j].NetworkFee
-				expected.Sent = append(expected.Sent, result.NEP5Transfer{
-					Timestamp: b.Timestamp,
-					Asset:     e.chain.UtilityTokenHash(),
-					Address:   "", // burn has empty receiver
-					Amount:    amountToString(big.NewInt(amount), 8),
-					Index:     b.Index,
-					TxHash:    b.Hash(),
-				})
-			}
-			netFee += b.Transactions[j].NetworkFee
-		}
-	}
 	require.Equal(t, expected.Address, res.Address)
 
 	arr := make([]result.NEP5Transfer, 0, len(expected.Sent))
 	for i := range expected.Sent {
-		if expected.Sent[i].Index >= start && expected.Sent[i].Index <= end {
-			arr = append(arr, expected.Sent[i])
+		for _, j := range sent {
+			if i == j {
+				arr = append(arr, expected.Sent[i])
+				break
+			}
 		}
 	}
-	require.ElementsMatch(t, arr, res.Sent)
+	require.Equal(t, arr, res.Sent)
 
 	arr = arr[:0]
 	for i := range expected.Received {
-		if expected.Received[i].Index >= start && expected.Received[i].Index <= end {
-			arr = append(arr, expected.Received[i])
+		for _, j := range rcvd {
+			if i == j {
+				arr = append(arr, expected.Received[i])
+				break
+			}
 		}
 	}
-	require.ElementsMatch(t, arr, res.Received)
+	require.Equal(t, arr, res.Received)
 }

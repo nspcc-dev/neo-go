@@ -1,0 +1,52 @@
+ProtocolConfiguration:
+  Magic: 42
+  SecondsPerBlock: 1
+  MemPoolSize: 100
+  StandbyCommittee:
+    - 02b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc2
+  ValidatorsCount: 1
+  VerifyBlocks: true
+  VerifyTransactions: true
+
+ApplicationConfiguration:
+  # LogPath could be set up in case you need stdout logs to some proper file.
+  # LogPath: "./log/neogo.log"
+  DBConfiguration:
+    Type: "inmemory" #other options: 'inmemory','redis','boltdb', 'badgerdb'.
+    # DB type options. Uncomment those you need in case you want to switch DB type.
+  #    LevelDBOptions:
+  #        DataDirectoryPath: "./chains/unit_testnet"
+  #    RedisDBOptions:
+  #      Addr: "localhost:6379"
+  #      Password: ""
+  #      DB: 0
+  #    BoltDBOptions:
+  #      FilePath: "./chains/unit_testnet.bolt"
+  #    BadgerDBOptions:
+  #      BadgerDir: "./chains/unit_testnet.badger"
+  #  Uncomment in order to set up custom address for node.
+  #  Address: 127.0.0.1
+  NodePort: 0
+  Relay: true
+  DialTimeout: 3
+  ProtoTickInterval: 2
+  PingInterval: 30
+  PingTimeout: 90
+  MinPeers: 0
+  MaxPeers: 10
+  AttemptConnPeers: 5
+  UnlockWallet:
+      Path: "testdata/wallet1_solo.json"
+      Password: "one"
+  RPC:
+    Address: 127.0.0.1
+    MaxGasInvoke: 10
+    Enabled: true
+    EnableCORSWorkaround: false
+    Port: 0 # let the system choose port dynamically
+  Prometheus:
+    Enabled: false #since it's not useful for unit tests.
+    Port: 2112
+  Pprof:
+    Enabled: false #since it's not useful for unit tests.
+    Port: 2113

@@ -88,7 +88,7 @@ func TestFromToJSON(t *testing.T) {
 		t.Run("BigNestedArray", getTestDecodeFunc(`[[[[[[[[[[[]]]]]]]]]]]`, nil))
 		t.Run("EncodeRecursive", func(t *testing.T) {
 			// add this item to speed up test a bit
-			item := NewByteArray(make([]byte, MaxSize/100))
+			item := NewByteArray(make([]byte, MaxKeySize))
 			t.Run("Array", func(t *testing.T) {
 				arr := NewArray([]Item{item})
 				arr.Append(arr)

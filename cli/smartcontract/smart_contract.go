@@ -9,10 +9,11 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"syscall"
 
 	"github.com/nspcc-dev/neo-go/cli/flags"
+	"github.com/nspcc-dev/neo-go/cli/input"
 	"github.com/nspcc-dev/neo-go/cli/options"
+	"github.com/nspcc-dev/neo-go/cli/paramcontext"
 	"github.com/nspcc-dev/neo-go/pkg/compiler"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
@@ -25,7 +26,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/urfave/cli"
-	"golang.org/x/crypto/ssh/terminal"
 	"gopkg.in/yaml.v2"
 )
 
@@ -50,6 +50,14 @@ var (
 	gasFlag = flags.Fixed8Flag{
 		Name:  "gas, g",
 		Usage: "gas to add to the transaction",
+	}
+	outFlag = cli.StringFlag{
+		Name:  "out",
+		Usage: "file to put JSON transaction to",
+	}
+	forceFlag = cli.StringFlag{
+		Name:  "force",
+		Usage: "force-push the transaction in case of bad VM state after test script invocation",
 	}
 )
 
@@ -105,6 +113,8 @@ func NewCommands() []cli.Command {
 		walletFlag,
 		addressFlag,
 		gasFlag,
+		outFlag,
+		forceFlag,
 	}
 	invokeFunctionFlags = append(invokeFunctionFlags, options.RPC...)
 	return []cli.Command{{
@@ -157,10 +167,10 @@ func NewCommands() []cli.Command {
 			{
 				Name:      "invokefunction",
 				Usage:     "invoke deployed contract on the blockchain",
-				UsageText: "neo-go contract invokefunction -r endpoint -w wallet [-a address] [-g gas] scripthash [method] [arguments...] [--] [signers...]",
+				UsageText: "neo-go contract invokefunction -r endpoint -w wallet [-a address] [-g gas] [--out file] scripthash [method] [arguments...] [--] [signers...]",
 				Description: `Executes given (as a script hash) deployed script with the given method,
    arguments and signers. Sender is included in the list of signers by default
-   with FeeOnly witness scope. If you'd like to change default sender's scope, 
+   with None witness scope. If you'd like to change default sender's scope, 
    specify it via signers parameter. See testinvokefunction documentation for 
    the details about parameters. It differs from testinvokefunction in that this
    command sends an invocation transaction to the network.
@@ -248,9 +258,8 @@ func NewCommands() []cli.Command {
     * 'signer' is hex-encoded 160 bit (20 byte) LE value of signer's address,
                  which could have '0x' prefix.
     * 'scope' is a comma-separated set of cosigner's scopes, which could be:
-        - 'FeeOnly' - marks transaction's sender and can be used only for the
-                      sender. Signer with this scope can't be used during the
-                      script execution and only pays fees for the transaction.
+        - 'None' - default witness scope which may be used for the sender
+			       to only pay fee for the transaction.
         - 'Global' - allows this witness in all contexts. This cannot be combined
                      with other flags.
         - 'CalledByEntry' - means that this condition must hold: EntryScriptHash 
@@ -366,7 +375,7 @@ func initSmartContract(ctx *cli.Context) error {
 		return cli.NewExitError(err, 1)
 	}
 
-	fmt.Printf("Successfully initialized smart contract [%s]\n", contractName)
+	fmt.Fprintf(ctx.App.Writer, "Successfully initialized smart contract [%s]\n", contractName)
 
 	return nil
 }
@@ -405,7 +414,7 @@ func contractCompile(ctx *cli.Context) error {
 		return cli.NewExitError(err, 1)
 	}
 	if ctx.Bool("verbose") {
-		fmt.Println(hex.EncodeToString(result))
+		fmt.Fprintln(ctx.App.Writer, hex.EncodeToString(result))
 	}
 
 	return nil
@@ -478,31 +487,48 @@ func invokeInternal(ctx *cli.Context, signAndPush bool) error {
 	if err != nil {
 		return err
 	}
+	if err = c.Init(); err != nil {
+		return err
+	}
 
 	resp, err = c.InvokeFunction(script, operation, params, cosigners)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
+	if signAndPush && resp.State != "HALT" {
+		errText := fmt.Sprintf("Warning: %s VM state returned from the RPC node: %s\n", resp.State, resp.FaultException)
+		if ctx.String("force") == "" {
+			return cli.NewExitError(errText+". Use --force flag to send the transaction anyway.", 1)
+		}
+		fmt.Fprintln(ctx.App.Writer, errText+". Sending transaction...")
+	}
+	if out := ctx.String("out"); out != "" {
+		tx, err := c.CreateTxFromScript(resp.Script, acc, resp.GasConsumed, int64(gas), cosigners...)
+		if err != nil {
+			return cli.NewExitError(fmt.Errorf("failed to create tx: %w", err), 1)
+		}
+		if err := paramcontext.InitAndSave(tx, acc, out); err != nil {
+			return cli.NewExitError(err, 1)
+		}
+		fmt.Fprintln(ctx.App.Writer, tx.Hash().StringLE())
+		return nil
+	}
 	if signAndPush {
 		if len(resp.Script) == 0 {
 			return cli.NewExitError(errors.New("no script returned from the RPC node"), 1)
 		}
-		script, err := hex.DecodeString(resp.Script)
-		if err != nil {
-			return cli.NewExitError(fmt.Errorf("bad script returned from the RPC node: %w", err), 1)
-		}
-		txHash, err := c.SignAndPushInvocationTx(script, acc, resp.GasConsumed, gas, cosigners)
+		txHash, err := c.SignAndPushInvocationTx(resp.Script, acc, resp.GasConsumed, gas, cosigners)
 		if err != nil {
 			return cli.NewExitError(fmt.Errorf("failed to push invocation tx: %w", err), 1)
 		}
-		fmt.Printf("Sent invocation transaction %s\n", txHash.StringLE())
+		fmt.Fprintf(ctx.App.Writer, "Sent invocation transaction %s\n", txHash.StringLE())
 	} else {
 		b, err := json.MarshalIndent(resp, "", "  ")
 		if err != nil {
 			return cli.NewExitError(err, 1)
 		}
 
-		fmt.Println(string(b))
+		fmt.Fprintln(ctx.App.Writer, string(b))
 	}
 
 	return nil
@@ -599,7 +625,7 @@ func testInvokeScript(ctx *cli.Context) error {
 		return cli.NewExitError(err, 1)
 	}
 
-	fmt.Println(string(b))
+	fmt.Fprintln(ctx.App.Writer, string(b))
 
 	return nil
 }
@@ -680,9 +706,8 @@ func getAccFromContext(ctx *cli.Context) (*wallet.Account, error) {
 		return nil, cli.NewExitError(fmt.Errorf("wallet contains no account for '%s'", address.Uint160ToString(addr)), 1)
 	}
 
-	fmt.Printf("Enter account %s password > ", address.Uint160ToString(addr))
-	rawPass, err := terminal.ReadPassword(syscall.Stdin)
-	fmt.Println()
+	rawPass, err := input.ReadPassword(ctx.App.Writer,
+		fmt.Sprintf("Enter account %s password > ", address.Uint160ToString(addr)))
 	if err != nil {
 		return nil, cli.NewExitError(err, 1)
 	}
@@ -751,7 +776,8 @@ func contractDeploy(ctx *cli.Context) error {
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("failed to push invocation tx: %w", err), 1)
 	}
-	fmt.Printf("Sent deployment transaction %s for contract %s\n", txHash.StringLE(), nefFile.Header.ScriptHash.StringLE())
+	fmt.Fprintf(ctx.App.Writer, "Contract: %s\n", nefFile.Header.ScriptHash.StringLE())
+	fmt.Fprintln(ctx.App.Writer, txHash.StringLE())
 	return nil
 }
 

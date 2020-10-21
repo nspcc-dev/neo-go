@@ -77,33 +77,37 @@ const (
 	// treated like subscriber, so technically it's a limit on websocket
 	// connections.
 	maxSubscribers = 64
+
+	// Maximum number of elements for get*transfers requests.
+	maxTransfersLimit = 1000
 )
 
 var rpcHandlers = map[string]func(*Server, request.Params) (interface{}, *response.Error){
-	"getapplicationlog":    (*Server).getApplicationLog,
-	"getbestblockhash":     (*Server).getBestBlockHash,
-	"getblock":             (*Server).getBlock,
-	"getblockcount":        (*Server).getBlockCount,
-	"getblockhash":         (*Server).getBlockHash,
-	"getblockheader":       (*Server).getBlockHeader,
-	"getblocksysfee":       (*Server).getBlockSysFee,
-	"getconnectioncount":   (*Server).getConnectionCount,
-	"getcontractstate":     (*Server).getContractState,
-	"getnep5balances":      (*Server).getNEP5Balances,
-	"getnep5transfers":     (*Server).getNEP5Transfers,
-	"getpeers":             (*Server).getPeers,
-	"getrawmempool":        (*Server).getRawMempool,
-	"getrawtransaction":    (*Server).getrawtransaction,
-	"getstorage":           (*Server).getStorage,
-	"gettransactionheight": (*Server).getTransactionHeight,
-	"getunclaimedgas":      (*Server).getUnclaimedGas,
-	"getvalidators":        (*Server).getValidators,
-	"getversion":           (*Server).getVersion,
-	"invokefunction":       (*Server).invokeFunction,
-	"invokescript":         (*Server).invokescript,
-	"sendrawtransaction":   (*Server).sendrawtransaction,
-	"submitblock":          (*Server).submitBlock,
-	"validateaddress":      (*Server).validateAddress,
+	"getapplicationlog":      (*Server).getApplicationLog,
+	"getbestblockhash":       (*Server).getBestBlockHash,
+	"getblock":               (*Server).getBlock,
+	"getblockcount":          (*Server).getBlockCount,
+	"getblockhash":           (*Server).getBlockHash,
+	"getblockheader":         (*Server).getBlockHeader,
+	"getblocksysfee":         (*Server).getBlockSysFee,
+	"getcommittee":           (*Server).getCommittee,
+	"getconnectioncount":     (*Server).getConnectionCount,
+	"getcontractstate":       (*Server).getContractState,
+	"getnep5balances":        (*Server).getNEP5Balances,
+	"getnep5transfers":       (*Server).getNEP5Transfers,
+	"getpeers":               (*Server).getPeers,
+	"getrawmempool":          (*Server).getRawMempool,
+	"getrawtransaction":      (*Server).getrawtransaction,
+	"getstorage":             (*Server).getStorage,
+	"gettransactionheight":   (*Server).getTransactionHeight,
+	"getunclaimedgas":        (*Server).getUnclaimedGas,
+	"getnextblockvalidators": (*Server).getNextBlockValidators,
+	"getversion":             (*Server).getVersion,
+	"invokefunction":         (*Server).invokeFunction,
+	"invokescript":           (*Server).invokescript,
+	"sendrawtransaction":     (*Server).sendrawtransaction,
+	"submitblock":            (*Server).submitBlock,
+	"validateaddress":        (*Server).validateAddress,
 }
 
 var rpcWsHandlers = map[string]func(*Server, request.Params, *subscriber) (interface{}, *response.Error){
@@ -167,18 +171,32 @@ func (s *Server) Start(errChan chan error) {
 		s.https.Handler = http.HandlerFunc(s.handleHTTPRequest)
 		s.log.Info("starting rpc-server (https)", zap.String("endpoint", s.https.Addr))
 		go func() {
-			err := s.https.ListenAndServeTLS(cfg.CertFile, cfg.KeyFile)
+			ln, err := net.Listen("tcp", s.https.Addr)
+			if err != nil {
+				errChan <- err
+				return
+			}
+			s.https.Addr = ln.Addr().String()
+			err = s.https.ServeTLS(ln, cfg.CertFile, cfg.KeyFile)
 			if err != http.ErrServerClosed {
 				s.log.Error("failed to start TLS RPC server", zap.Error(err))
 				errChan <- err
 			}
 		}()
 	}
-	err := s.ListenAndServe()
-	if err != http.ErrServerClosed {
-		s.log.Error("failed to start RPC server", zap.Error(err))
+	ln, err := net.Listen("tcp", s.Addr)
+	if err != nil {
 		errChan <- err
+		return
 	}
+	s.Addr = ln.Addr().String() // set Addr to the actual address
+	go func() {
+		err = s.Serve(ln)
+		if err != http.ErrServerClosed {
+			s.log.Error("failed to start RPC server", zap.Error(err))
+			errChan <- err
+		}
+	}()
 }
 
 // Shutdown overrides the http.Server Shutdown
@@ -230,7 +248,7 @@ func (s *Server) handleHTTPRequest(w http.ResponseWriter, httpRequest *http.Requ
 			s.log.Info("websocket connection upgrade failed", zap.Error(err))
 			return
 		}
-		resChan := make(chan response.Raw)
+		resChan := make(chan response.Abstract)
 		subChan := make(chan *websocket.PreparedMessage, notificationBufSize)
 		subscr := &subscriber{writer: subChan, ws: ws}
 		s.subsLock.Lock()
@@ -262,18 +280,18 @@ func (s *Server) handleHTTPRequest(w http.ResponseWriter, httpRequest *http.Requ
 	s.writeHTTPServerResponse(req, w, resp)
 }
 
-func (s *Server) handleRequest(req *request.In, sub *subscriber) response.Raw {
+func (s *Server) handleRequest(req *request.In, sub *subscriber) response.Abstract {
 	var res interface{}
 	var resErr *response.Error
 
 	reqParams, err := req.Params()
 	if err != nil {
-		return s.packResponseToRaw(req, nil, response.NewInvalidParamsError("Problem parsing request parameters", err))
+		return s.packResponse(req, nil, response.NewInvalidParamsError("Problem parsing request parameters", err))
 	}
 
 	s.log.Debug("processing rpc request",
 		zap.String("method", req.Method),
-		zap.String("params", fmt.Sprintf("%v", reqParams)))
+		zap.Stringer("params", reqParams))
 
 	incCounter(req.Method)
 
@@ -287,10 +305,10 @@ func (s *Server) handleRequest(req *request.In, sub *subscriber) response.Raw {
 			res, resErr = handler(s, *reqParams, sub)
 		}
 	}
-	return s.packResponseToRaw(req, res, resErr)
+	return s.packResponse(req, res, resErr)
 }
 
-func (s *Server) handleWsWrites(ws *websocket.Conn, resChan <-chan response.Raw, subChan <-chan *websocket.PreparedMessage) {
+func (s *Server) handleWsWrites(ws *websocket.Conn, resChan <-chan response.Abstract, subChan <-chan *websocket.PreparedMessage) {
 	pingTicker := time.NewTicker(wsPingPeriod)
 eventloop:
 	for {
@@ -337,7 +355,7 @@ drainloop:
 	}
 }
 
-func (s *Server) handleWsReads(ws *websocket.Conn, resChan chan<- response.Raw, subscr *subscriber) {
+func (s *Server) handleWsReads(ws *websocket.Conn, resChan chan<- response.Abstract, subscr *subscriber) {
 	ws.SetReadLimit(wsReadLimit)
 	ws.SetReadDeadline(time.Now().Add(wsPongLimit))
 	ws.SetPongHandler(func(string) error { ws.SetReadDeadline(time.Now().Add(wsPongLimit)); return nil })
@@ -448,6 +466,7 @@ func (s *Server) getVersion(_ request.Params) (interface{}, *response.Error) {
 		return nil, response.NewInternalServerError("Cannot fetch tcp port", err)
 	}
 	return result.Version{
+		Magic:     s.network,
 		TCPPort:   port,
 		Nonce:     s.coreServer.ID(),
 		UserAgent: s.coreServer.UserAgent,
@@ -486,19 +505,19 @@ func (s *Server) validateAddress(reqParams request.Params) (interface{}, *respon
 	return validateAddress(param.Value), nil
 }
 
-// getApplicationLog returns the contract log based on the specified txid.
+// getApplicationLog returns the contract log based on the specified txid or blockid.
 func (s *Server) getApplicationLog(reqParams request.Params) (interface{}, *response.Error) {
-	txHash, err := reqParams.Value(0).GetUint256()
+	hash, err := reqParams.Value(0).GetUint256()
 	if err != nil {
 		return nil, response.ErrInvalidParams
 	}
 
-	appExecResult, err := s.chain.GetAppExecResult(txHash)
+	appExecResult, err := s.chain.GetAppExecResult(hash)
 	if err != nil {
-		return nil, response.NewRPCError("Unknown transaction", "", err)
+		return nil, response.NewRPCError("Unknown transaction or block", "", err)
 	}
 
-	return result.NewApplicationLog(appExecResult), nil
+	return appExecResult, nil
 }
 
 func (s *Server) getNEP5Balances(ps request.Params) (interface{}, *response.Error) {
@@ -530,23 +549,54 @@ func (s *Server) getNEP5Balances(ps request.Params) (interface{}, *response.Erro
 	return bs, nil
 }
 
-func getTimestamps(p1, p2 *request.Param) (uint64, uint64, error) {
+func getTimestampsAndLimit(ps request.Params, index int) (uint64, uint64, int, int, error) {
 	var start, end uint64
-	if p1 != nil {
-		val, err := p1.GetInt()
+	var limit, page int
+
+	limit = maxTransfersLimit
+	pStart, pEnd, pLimit, pPage := ps.Value(index), ps.Value(index+1), ps.Value(index+2), ps.Value(index+3)
+	if pPage != nil {
+		p, err := pPage.GetInt()
 		if err != nil {
-			return 0, 0, err
+			return 0, 0, 0, 0, err
 		}
-		start = uint64(val)
+		if p < 0 {
+			return 0, 0, 0, 0, errors.New("can't use negative page")
+		}
+		page = p
 	}
-	if p2 != nil {
-		val, err := p2.GetInt()
+	if pLimit != nil {
+		l, err := pLimit.GetInt()
 		if err != nil {
-			return 0, 0, err
+			return 0, 0, 0, 0, err
+		}
+		if l <= 0 {
+			return 0, 0, 0, 0, errors.New("can't use negative or zero limit")
+		}
+		if l > maxTransfersLimit {
+			return 0, 0, 0, 0, errors.New("too big limit requested")
+		}
+		limit = l
+	}
+	if pEnd != nil {
+		val, err := pEnd.GetInt()
+		if err != nil {
+			return 0, 0, 0, 0, err
 		}
 		end = uint64(val)
+	} else {
+		end = uint64(time.Now().Unix() * 1000)
 	}
-	return start, end, nil
+	if pStart != nil {
+		val, err := pStart.GetInt()
+		if err != nil {
+			return 0, 0, 0, 0, err
+		}
+		start = uint64(val)
+	} else {
+		start = uint64(time.Now().Add(-time.Hour*24*7).Unix() * 1000)
+	}
+	return start, end, limit, page, nil
 }
 
 func (s *Server) getNEP5Transfers(ps request.Params) (interface{}, *response.Error) {
@@ -555,16 +605,9 @@ func (s *Server) getNEP5Transfers(ps request.Params) (interface{}, *response.Err
 		return nil, response.ErrInvalidParams
 	}
 
-	p1, p2 := ps.Value(1), ps.Value(2)
-	start, end, err := getTimestamps(p1, p2)
+	start, end, limit, page, err := getTimestampsAndLimit(ps, 1)
 	if err != nil {
 		return nil, response.NewInvalidParamsError(err.Error(), err)
-	}
-	if p2 == nil {
-		end = uint64(time.Now().Unix() * 1000)
-		if p1 == nil {
-			start = uint64(time.Now().Add(-time.Hour*24*7).Unix() * 1000)
-		}
 	}
 
 	bs := &result.NEP5Transfers{
@@ -573,14 +616,29 @@ func (s *Server) getNEP5Transfers(ps request.Params) (interface{}, *response.Err
 		Sent:     []result.NEP5Transfer{},
 	}
 	cache := make(map[int32]decimals)
-	err = s.chain.ForEachNEP5Transfer(u, func(tr *state.NEP5Transfer) error {
-		if tr.Timestamp < start || tr.Timestamp > end {
-			return nil
+	var resCount, frameCount int
+	err = s.chain.ForEachNEP5Transfer(u, func(tr *state.NEP5Transfer) (bool, error) {
+		// Iterating from newest to oldest, not yet reached required
+		// time frame, continue looping.
+		if tr.Timestamp > end {
+			return true, nil
 		}
+		// Iterating from newest to oldest, moved past required
+		// time frame, stop looping.
+		if tr.Timestamp < start {
+			return false, nil
+		}
+		frameCount++
+		// Using limits, not yet reached required page.
+		if limit != 0 && page*limit >= frameCount {
+			return true, nil
+		}
+
 		d, err := s.getDecimals(tr.Asset, cache)
 		if err != nil {
-			return nil
+			return false, err
 		}
+
 		transfer := result.NEP5Transfer{
 			Timestamp: tr.Timestamp,
 			Asset:     d.Hash,
@@ -593,15 +651,20 @@ func (s *Server) getNEP5Transfers(ps request.Params) (interface{}, *response.Err
 				transfer.Address = address.Uint160ToString(tr.From)
 			}
 			bs.Received = append(bs.Received, transfer)
-			return nil
+		} else {
+			transfer.Amount = amountToString(new(big.Int).Neg(&tr.Amount), d.Value)
+			if !tr.To.Equals(util.Uint160{}) {
+				transfer.Address = address.Uint160ToString(tr.To)
+			}
+			bs.Sent = append(bs.Sent, transfer)
 		}
 
-		transfer.Amount = amountToString(new(big.Int).Neg(&tr.Amount), d.Value)
-		if !tr.To.Equals(util.Uint160{}) {
-			transfer.Address = address.Uint160ToString(tr.To)
+		resCount++
+		// Using limits, reached limit.
+		if limit != 0 && resCount >= limit {
+			return false, nil
 		}
-		bs.Sent = append(bs.Sent, transfer)
-		return nil
+		return true, nil
 	})
 	if err != nil {
 		return nil, response.NewInternalServerError("invalid NEP5 transfer log", err)
@@ -650,8 +713,14 @@ func (s *Server) getDecimals(contractID int32, cache map[int32]decimals) (decima
 		return decimals{}, fmt.Errorf("can't create script: %w", err)
 	}
 	res := s.runScriptInVM(script, nil)
-	if res == nil || res.State != "HALT" || len(res.Stack) == 0 {
-		return decimals{}, errors.New("execution error : no result")
+	if res == nil {
+		return decimals{}, fmt.Errorf("execution error: no result")
+	}
+	if res.State != "HALT" {
+		return decimals{}, fmt.Errorf("execution error: bad VM state %s due to an error %s", res.State, res.FaultException)
+	}
+	if len(res.Stack) == 0 {
+		return decimals{}, fmt.Errorf("execution error: empty stack")
 	}
 
 	d := decimals{Hash: h}
@@ -712,7 +781,7 @@ func (s *Server) getStorage(ps request.Params) (interface{}, *response.Error) {
 
 	item := s.chain.GetStorageItem(id, key)
 	if item == nil {
-		return nil, nil
+		return "", nil
 	}
 
 	return hex.EncodeToString(item.Value), nil
@@ -826,7 +895,7 @@ func (s *Server) getBlockHeader(reqParams request.Params) (interface{}, *respons
 
 // getUnclaimedGas returns unclaimed GAS amount of the specified address.
 func (s *Server) getUnclaimedGas(ps request.Params) (interface{}, *response.Error) {
-	u, err := ps.ValueWithType(0, request.StringT).GetUint160FromAddress()
+	u, err := ps.ValueWithType(0, request.StringT).GetUint160FromAddressOrHex()
 	if err != nil {
 		return nil, response.ErrInvalidParams
 	}
@@ -844,13 +913,13 @@ func (s *Server) getUnclaimedGas(ps request.Params) (interface{}, *response.Erro
 	}, nil
 }
 
-// getValidators returns the current NEO consensus nodes information and voting status.
-func (s *Server) getValidators(_ request.Params) (interface{}, *response.Error) {
+// getNextBlockValidators returns validators for the next block with voting status.
+func (s *Server) getNextBlockValidators(_ request.Params) (interface{}, *response.Error) {
 	var validators keys.PublicKeys
 
-	validators, err := s.chain.GetValidators()
+	validators, err := s.chain.GetNextBlockValidators()
 	if err != nil {
-		return nil, response.NewRPCError("can't get validators", "", err)
+		return nil, response.NewRPCError("can't get next block validators", "", err)
 	}
 	enrollments, err := s.chain.GetEnrollments()
 	if err != nil {
@@ -865,6 +934,15 @@ func (s *Server) getValidators(_ request.Params) (interface{}, *response.Error) 
 		})
 	}
 	return res, nil
+}
+
+// getCommittee returns the current list of NEO committee members
+func (s *Server) getCommittee(_ request.Params) (interface{}, *response.Error) {
+	keys, err := s.chain.GetCommittee()
+	if err != nil {
+		return nil, response.NewInternalServerError("can't get committee members", err)
+	}
+	return keys, nil
 }
 
 // invokeFunction implements the `invokeFunction` RPC call.
@@ -884,7 +962,7 @@ func (s *Server) invokeFunction(reqParams request.Params) (interface{}, *respons
 		checkWitnessHashesIndex--
 	}
 	if len(tx.Signers) == 0 {
-		tx.Signers = []transaction.Signer{{Account: util.Uint160{}, Scopes: transaction.FeeOnly}}
+		tx.Signers = []transaction.Signer{{Account: util.Uint160{}, Scopes: transaction.None}}
 	}
 	script, err := request.CreateFunctionInvocationScript(scriptHash, reqParams[1:checkWitnessHashesIndex])
 	if err != nil {
@@ -900,7 +978,7 @@ func (s *Server) invokescript(reqParams request.Params) (interface{}, *response.
 		return nil, response.ErrInvalidParams
 	}
 
-	script, err := reqParams[0].GetBytesHex()
+	script, err := reqParams[0].GetBytesBase64()
 	if err != nil {
 		return nil, response.ErrInvalidParams
 	}
@@ -914,7 +992,7 @@ func (s *Server) invokescript(reqParams request.Params) (interface{}, *response.
 		tx.Signers = signers
 	}
 	if len(tx.Signers) == 0 {
-		tx.Signers = []transaction.Signer{{Account: util.Uint160{}, Scopes: transaction.FeeOnly}}
+		tx.Signers = []transaction.Signer{{Account: util.Uint160{}, Scopes: transaction.None}}
 	}
 	tx.Script = script
 	return s.runScriptInVM(script, tx), nil
@@ -926,12 +1004,17 @@ func (s *Server) runScriptInVM(script []byte, tx *transaction.Transaction) *resu
 	vm := s.chain.GetTestVM(tx)
 	vm.GasLimit = int64(s.config.MaxGasInvoke)
 	vm.LoadScriptWithFlags(script, smartcontract.All)
-	_ = vm.Run()
+	err := vm.Run()
+	var faultException string
+	if err != nil {
+		faultException = err.Error()
+	}
 	result := &result.Invoke{
-		State:       vm.State().String(),
-		GasConsumed: vm.GasConsumed(),
-		Script:      hex.EncodeToString(script),
-		Stack:       vm.Estack().ToArray(),
+		State:          vm.State().String(),
+		GasConsumed:    vm.GasConsumed(),
+		Script:         script,
+		Stack:          vm.Estack().ToArray(),
+		FaultException: faultException,
 	}
 	return result
 }
@@ -1159,10 +1242,10 @@ chloop:
 			resp.Payload[0] = b
 		case execution := <-s.executionCh:
 			resp.Event = response.ExecutionEventID
-			resp.Payload[0] = result.NewApplicationLog(execution)
+			resp.Payload[0] = execution
 		case notification := <-s.notificationCh:
 			resp.Event = response.NotificationEventID
-			resp.Payload[0] = result.StateEventToResultNotification(*notification)
+			resp.Payload[0] = notification
 		case tx := <-s.transactionCh:
 			resp.Event = response.TransactionEventID
 			resp.Payload[0] = tx
@@ -1250,8 +1333,8 @@ func (s *Server) blockHeightFromParam(param *request.Param) (int, *response.Erro
 	return num, nil
 }
 
-func (s *Server) packResponseToRaw(r *request.In, result interface{}, respErr *response.Error) response.Raw {
-	resp := response.Raw{
+func (s *Server) packResponse(r *request.In, result interface{}, respErr *response.Error) response.Abstract {
+	resp := response.Abstract{
 		HeaderAndError: response.HeaderAndError{
 			Header: response.Header{
 				JSONRPC: r.JSONRPC,
@@ -1262,15 +1345,7 @@ func (s *Server) packResponseToRaw(r *request.In, result interface{}, respErr *r
 	if respErr != nil {
 		resp.Error = respErr
 	} else {
-		resJSON, err := json.Marshal(result)
-		if err != nil {
-			s.log.Error("failed to marshal result",
-				zap.Error(err),
-				zap.String("method", r.Method))
-			resp.Error = response.NewInternalServerError("failed to encode result", err)
-		} else {
-			resp.Result = resJSON
-		}
+		resp.Result = result
 	}
 	return resp
 }
@@ -1292,11 +1367,11 @@ func (s *Server) logRequestError(r *request.In, jsonErr *response.Error) {
 
 // writeHTTPErrorResponse writes an error response to the ResponseWriter.
 func (s *Server) writeHTTPErrorResponse(r *request.In, w http.ResponseWriter, jsonErr *response.Error) {
-	resp := s.packResponseToRaw(r, nil, jsonErr)
+	resp := s.packResponse(r, nil, jsonErr)
 	s.writeHTTPServerResponse(r, w, resp)
 }
 
-func (s *Server) writeHTTPServerResponse(r *request.In, w http.ResponseWriter, resp response.Raw) {
+func (s *Server) writeHTTPServerResponse(r *request.In, w http.ResponseWriter, resp response.Abstract) {
 	// Errors can happen in many places and we can only catch ALL of them here.
 	if resp.Error != nil {
 		s.logRequestError(r, resp.Error)

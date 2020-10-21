@@ -5,11 +5,13 @@ import (
 	"sort"
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
 	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/network/payload"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
@@ -41,6 +43,12 @@ func TestMaxTransactionsPerBlock(t *testing.T) {
 		n := chain.contracts.Policy.GetMaxTransactionsPerBlockInternal(chain.dao)
 		require.Equal(t, 1024, int(n))
 	})
+
+	t.Run("set, too big value", func(t *testing.T) {
+		res, err := invokeNativePolicyMethod(chain, "setMaxTransactionsPerBlock", bigint.ToBytes(big.NewInt(block.MaxContentsPerBlock)))
+		require.NoError(t, err)
+		checkFAULTState(t, res)
+	})
 }
 
 func TestMaxBlockSize(t *testing.T) {
@@ -69,6 +77,12 @@ func TestMaxBlockSize(t *testing.T) {
 		checkResult(t, res, stackitem.NewBigInteger(big.NewInt(102400)))
 		require.NoError(t, chain.persist())
 	})
+
+	t.Run("set, too big value", func(t *testing.T) {
+		res, err := invokeNativePolicyMethod(chain, "setMaxBlockSize", bigint.ToBytes(big.NewInt(payload.MaxSize+1)))
+		require.NoError(t, err)
+		checkFAULTState(t, res)
+	})
 }
 
 func TestFeePerByte(t *testing.T) {
@@ -95,6 +109,18 @@ func TestFeePerByte(t *testing.T) {
 		n := chain.contracts.Policy.GetFeePerByteInternal(chain.dao)
 		require.Equal(t, 1024, int(n))
 	})
+
+	t.Run("set, negative value", func(t *testing.T) {
+		res, err := invokeNativePolicyMethod(chain, "setFeePerByte", bigint.ToBytes(big.NewInt(-1)))
+		require.NoError(t, err)
+		checkFAULTState(t, res)
+	})
+
+	t.Run("set, too big value", func(t *testing.T) {
+		res, err := invokeNativePolicyMethod(chain, "setFeePerByte", bigint.ToBytes(big.NewInt(100_000_000+1)))
+		require.NoError(t, err)
+		checkFAULTState(t, res)
+	})
 }
 
 func TestBlockSystemFee(t *testing.T) {
@@ -116,7 +142,7 @@ func TestBlockSystemFee(t *testing.T) {
 	t.Run("set, too low fee", func(t *testing.T) {
 		res, err := invokeNativePolicyMethod(chain, "setMaxBlockSystemFee", bigint.ToBytes(big.NewInt(4007600)))
 		require.NoError(t, err)
-		checkResult(t, res, stackitem.NewBool(false))
+		checkFAULTState(t, res)
 	})
 
 	t.Run("set, success", func(t *testing.T) {
@@ -250,4 +276,8 @@ func checkResult(t *testing.T, result *state.AppExecResult, expected stackitem.I
 	require.Equal(t, vm.HaltState, result.VMState)
 	require.Equal(t, 1, len(result.Stack))
 	require.Equal(t, expected, result.Stack[0])
+}
+
+func checkFAULTState(t *testing.T, result *state.AppExecResult) {
+	require.Equal(t, vm.FaultState, result.VMState)
 }

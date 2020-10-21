@@ -24,6 +24,7 @@ a dialect of Go rather than a complete port of the language:
     overhead for all contracts. This can easily be mitigated by first storing values
     in variables and returning the result.
  * lambdas are supported, but closures are not.
+ * maps are supported, but valid map keys are booleans, integers and strings with length <= 64
 
 ## VM API (interop layer)
 Compiler translates interop function calls into NEO VM syscalls or (for custom
@@ -31,6 +32,13 @@ functions) into NEO VM instructions. [Refer to
 pkg.go.dev](https://pkg.go.dev/github.com/nspcc-dev/neo-go/pkg/interop)
 for full API documentation. In general it provides the same level of
 functionality as Neo .net Framework library.
+
+Compiler provides some helpful builtins in `util` and `convert` packages.
+Refer to them for detailed documentation. 
+
+`_deploy()` function has a special meaning and is executed when contract is deployed.
+It should return no value and accept single bool argument which will be true on contract update.
+`_deploy()` functions are called for every imported package in the same order as `init()`. 
 
 ## Quick start
 

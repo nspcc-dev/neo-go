@@ -7,6 +7,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
+	"github.com/nspcc-dev/neo-go/pkg/core/interop/contract"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
@@ -131,7 +132,7 @@ func (tn *testNative) callOtherContractWithoutArgs(ic *interop.Context, args []s
 	vm.Estack().PushVal(stackitem.NewArray([]stackitem.Item{})) // no args
 	vm.Estack().PushVal(args[1])                                // method
 	vm.Estack().PushVal(args[0])                                // contract hash
-	err := contractCall(ic)
+	err := contract.Call(ic)
 	if err != nil {
 		return stackitem.NewBigInteger(big.NewInt(-1))
 	}
@@ -147,7 +148,7 @@ func (tn *testNative) callOtherContractWithArg(ic *interop.Context, args []stack
 	vm.Estack().PushVal(stackitem.NewArray([]stackitem.Item{args[2]})) // arg
 	vm.Estack().PushVal(args[1])                                       // method
 	vm.Estack().PushVal(args[0])                                       // contract hash
-	err := contractCall(ic)
+	err := contract.Call(ic)
 	if err != nil {
 		return stackitem.NewBigInteger(big.NewInt(-1))
 	}
@@ -355,4 +356,28 @@ func TestNativeContract_InvokeOtherContract(t *testing.T) {
 		require.Equal(t, 1, len(res.Stack))
 		require.Equal(t, int64(5), res.Stack[0].Value().(*big.Int).Int64())
 	})
+}
+
+func TestAllContractsHaveName(t *testing.T) {
+	bc := newTestChain(t)
+	defer bc.Close()
+	for _, c := range bc.contracts.Contracts {
+		name := c.Metadata().Name
+		t.Run(name, func(t *testing.T) {
+			w := io.NewBufBinWriter()
+			emit.AppCallWithOperationAndArgs(w.BinWriter, c.Metadata().Hash, "name")
+			require.NoError(t, w.Err)
+
+			tx := transaction.New(netmode.UnitTestNet, w.Bytes(), 1007570)
+			tx.ValidUntilBlock = bc.blockHeight + 1
+			addSigners(tx)
+			require.NoError(t, signTx(bc, tx))
+			require.NoError(t, bc.AddBlock(bc.newBlock(tx)))
+
+			aer, err := bc.GetAppExecResult(tx.Hash())
+			require.NoError(t, err)
+			require.Len(t, aer.Stack, 1)
+			require.Equal(t, []byte(name), aer.Stack[0].Value())
+		})
+	}
 }

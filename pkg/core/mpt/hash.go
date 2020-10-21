@@ -36,7 +36,7 @@ func (h *HashNode) Hash() util.Uint256 {
 	return h.hash
 }
 
-// IsEmpty returns true iff h is an empty node i.e. contains no hash.
+// IsEmpty returns true if h is an empty node i.e. contains no hash.
 func (h *HashNode) IsEmpty() bool { return !h.hashValid }
 
 // Bytes returns serialized HashNode.

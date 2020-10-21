@@ -2,10 +2,13 @@ package options
 
 import (
 	"flag"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
+
 	"github.com/stretchr/testify/require"
 	"github.com/urfave/cli"
 )
@@ -56,6 +59,17 @@ func TestGetTimeoutContext(t *testing.T) {
 }
 
 func TestGetRPCClient(t *testing.T) {
+	// need test server for proper client.Init() handling
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		response := `{"id":1,"jsonrpc":"2.0","result":{"magic":42,"tcpport":20332,"wsport":20342,"nonce":2153672787,"useragent":"/NEO-GO:0.73.1-pre-273-ge381358/"}}`
+
+		_, err := w.Write([]byte(response))
+		if err != nil {
+			t.Fatalf("Error writing response: %s", err.Error())
+		}
+	}))
+	defer srv.Close()
 	t.Run("no endpoint", func(t *testing.T) {
 		set := flag.NewFlagSet("flagSet", flag.ExitOnError)
 		ctx := cli.NewContext(cli.NewApp(), set, nil)
@@ -66,7 +80,7 @@ func TestGetRPCClient(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		set := flag.NewFlagSet("flagSet", flag.ExitOnError)
-		set.String(RPCEndpointFlag, "http://localhost:50333", "")
+		set.String(RPCEndpointFlag, srv.URL, "")
 		ctx := cli.NewContext(cli.NewApp(), set, nil)
 		gctx, _ := GetTimeoutContext(ctx)
 		_, ec := GetRPCClient(gctx, ctx)

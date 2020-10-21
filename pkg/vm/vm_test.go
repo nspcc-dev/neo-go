@@ -2,7 +2,6 @@ package vm
 
 import (
 	"bytes"
-	"crypto/elliptic"
 	"encoding/binary"
 	"encoding/hex"
 	"errors"
@@ -40,7 +39,7 @@ func TestInteropHook(t *testing.T) {
 
 	buf := io.NewBufBinWriter()
 	emit.Syscall(buf.BinWriter, "foo")
-	emit.Opcode(buf.BinWriter, opcode.RET)
+	emit.Opcodes(buf.BinWriter, opcode.RET)
 	v.Load(buf.Bytes())
 	runVM(t, v)
 	assert.Equal(t, 1, v.estack.Len())
@@ -101,25 +100,6 @@ func TestAddGas(t *testing.T) {
 	require.True(t, v.AddGas(5))
 	require.True(t, v.AddGas(5))
 	require.False(t, v.AddGas(5))
-}
-
-func TestBytesToPublicKey(t *testing.T) {
-	v := newTestVM()
-	cache := v.GetPublicKeys()
-	assert.Equal(t, 0, len(cache))
-	keyHex := "03b209fd4f53a7170ea4444e0cb0a6bb6a53c2bd016926989cf85f9b0fba17a70c"
-	keyBytes, _ := hex.DecodeString(keyHex)
-	key := v.bytesToPublicKey(keyBytes, elliptic.P256())
-	assert.NotNil(t, key)
-	key2 := v.bytesToPublicKey(keyBytes, elliptic.P256())
-	assert.Equal(t, key, key2)
-
-	cache = v.GetPublicKeys()
-	assert.Equal(t, 1, len(cache))
-	assert.NotNil(t, cache[string(keyBytes)])
-
-	keyBytes[0] = 0xff
-	require.Panics(t, func() { v.bytesToPublicKey(keyBytes, elliptic.P256()) })
 }
 
 func TestPushBytes1to75(t *testing.T) {
@@ -793,11 +773,11 @@ func TestSerializeMapCompat(t *testing.T) {
 
 	// Create a map, push key and value, add KV to map, serialize.
 	buf := io.NewBufBinWriter()
-	emit.Opcode(buf.BinWriter, opcode.NEWMAP)
-	emit.Opcode(buf.BinWriter, opcode.DUP)
+	emit.Opcodes(buf.BinWriter, opcode.NEWMAP)
+	emit.Opcodes(buf.BinWriter, opcode.DUP)
 	emit.Bytes(buf.BinWriter, []byte("key"))
 	emit.Bytes(buf.BinWriter, []byte("value"))
-	emit.Opcode(buf.BinWriter, opcode.SETITEM)
+	emit.Opcodes(buf.BinWriter, opcode.SETITEM)
 	emit.Syscall(buf.BinWriter, interopnames.SystemBinarySerialize)
 	require.NoError(t, buf.Err)
 
@@ -1014,7 +994,7 @@ func TestArith(t *testing.T) {
 
 func TestADDBigResult(t *testing.T) {
 	prog := makeProgram(opcode.ADD)
-	runWithArgs(t, prog, nil, getBigInt(stackitem.MaxBigIntegerSizeBits, -1), 1)
+	runWithArgs(t, prog, nil, getBigInt(stackitem.MaxBigIntegerSizeBits-1, -1), 1) // 0x7FFF...
 }
 
 func TestMULBigResult(t *testing.T) {
@@ -1055,7 +1035,9 @@ func TestArithNegativeArguments(t *testing.T) {
 
 func TestSUBBigResult(t *testing.T) {
 	prog := makeProgram(opcode.SUB)
-	runWithArgs(t, prog, nil, getBigInt(stackitem.MaxBigIntegerSizeBits, -1), -1)
+	bi := getBigInt(stackitem.MaxBigIntegerSizeBits-1, -1)
+	runWithArgs(t, prog, new(big.Int).Sub(big.NewInt(-1), bi), -1, bi)
+	runWithArgs(t, prog, nil, -2, bi)
 }
 
 func TestSHR(t *testing.T) {
@@ -1218,7 +1200,7 @@ func TestINC(t *testing.T) {
 func TestINCBigResult(t *testing.T) {
 	prog := makeProgram(opcode.INC, opcode.INC)
 	vm := load(prog)
-	x := getBigInt(stackitem.MaxBigIntegerSizeBits, -2)
+	x := getBigInt(stackitem.MaxBigIntegerSizeBits-1, -2)
 	vm.estack.PushVal(x)
 
 	require.NoError(t, vm.Step())
@@ -1232,7 +1214,7 @@ func TestINCBigResult(t *testing.T) {
 func TestDECBigResult(t *testing.T) {
 	prog := makeProgram(opcode.DEC, opcode.DEC)
 	vm := load(prog)
-	x := getBigInt(stackitem.MaxBigIntegerSizeBits, -2)
+	x := getBigInt(stackitem.MaxBigIntegerSizeBits-1, -1)
 	x.Neg(x)
 	vm.estack.PushVal(x)
 
@@ -1674,12 +1656,12 @@ func TestSIGN(t *testing.T) {
 func TestSimpleCall(t *testing.T) {
 	buf := io.NewBufBinWriter()
 	w := buf.BinWriter
-	emit.Opcode(w, opcode.PUSH2)
+	emit.Opcodes(w, opcode.PUSH2)
 	emit.Instruction(w, opcode.CALL, []byte{03})
-	emit.Opcode(w, opcode.RET)
-	emit.Opcode(w, opcode.PUSH10)
-	emit.Opcode(w, opcode.ADD)
-	emit.Opcode(w, opcode.RET)
+	emit.Opcodes(w, opcode.RET)
+	emit.Opcodes(w, opcode.PUSH10)
+	emit.Opcodes(w, opcode.ADD)
+	emit.Opcodes(w, opcode.RET)
 
 	result := 12
 	vm := load(buf.Bytes())
@@ -2041,6 +2023,52 @@ func TestPACKGood(t *testing.T) {
 	}
 	vm.estack.PushVal(len(elements))
 	runVM(t, vm)
+	assert.Equal(t, 2, vm.estack.Len())
+	a := vm.estack.Peek(0).Array()
+	assert.Equal(t, len(elements), len(a))
+	for i := 0; i < len(elements); i++ {
+		e := a[i].Value().(*big.Int)
+		assert.Equal(t, int64(elements[i]), e.Int64())
+	}
+	assert.Equal(t, int64(1), vm.estack.Peek(1).BigInt().Int64())
+}
+
+func TestPACK_UNPACK_MaxSize(t *testing.T) {
+	prog := makeProgram(opcode.PACK, opcode.UNPACK)
+	elements := make([]int, stackitem.MaxArraySize)
+	vm := load(prog)
+	// canary
+	vm.estack.PushVal(1)
+	for i := len(elements) - 1; i >= 0; i-- {
+		vm.estack.PushVal(elements[i])
+	}
+	vm.estack.PushVal(len(elements))
+	runVM(t, vm)
+	// check reference counter = 1+1+1024
+	assert.Equal(t, 1+1+len(elements), vm.refs.size)
+	assert.Equal(t, 1+1+len(elements), vm.estack.Len()) // canary + length + elements
+	assert.Equal(t, int64(len(elements)), vm.estack.Peek(0).Value().(*big.Int).Int64())
+	for i := 0; i < len(elements); i++ {
+		e, ok := vm.estack.Peek(i + 1).Value().(*big.Int)
+		assert.True(t, ok)
+		assert.Equal(t, int64(elements[i]), e.Int64())
+	}
+	assert.Equal(t, int64(1), vm.estack.Peek(1+len(elements)).BigInt().Int64())
+}
+
+func TestPACK_UNPACK_PACK_MaxSize(t *testing.T) {
+	prog := makeProgram(opcode.PACK, opcode.UNPACK, opcode.PACK)
+	elements := make([]int, stackitem.MaxArraySize)
+	vm := load(prog)
+	// canary
+	vm.estack.PushVal(1)
+	for i := len(elements) - 1; i >= 0; i-- {
+		vm.estack.PushVal(elements[i])
+	}
+	vm.estack.PushVal(len(elements))
+	runVM(t, vm)
+	// check reference counter = 1+1+1024
+	assert.Equal(t, 1+1+len(elements), vm.refs.size)
 	assert.Equal(t, 2, vm.estack.Len())
 	a := vm.estack.Peek(0).Array()
 	assert.Equal(t, len(elements), len(a))

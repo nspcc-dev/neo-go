@@ -52,6 +52,9 @@ func TestPubKeyVerify(t *testing.T) {
 		expected := true
 		assert.Equal(t, expected, result)
 
+		// Small signature, no panic.
+		assert.False(t, pubKey.Verify([]byte{1, 2, 3}, hashedData.BytesBE()))
+
 		pubKey = &PublicKey{}
 		assert.False(t, pubKey.Verify(signedData, hashedData.BytesBE()))
 	})

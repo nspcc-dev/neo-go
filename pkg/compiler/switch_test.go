@@ -34,6 +34,21 @@ var switchTestCases = []testCase{
 		big.NewInt(2),
 	},
 	{
+		"type conversion in tag",
+		`package main
+		type state int
+		func Main() int {
+			a := 1
+			switch state(a) {
+			case 1:
+				return 42
+			default:
+				return 11
+			}
+		}`,
+		big.NewInt(42),
+	},
+	{
 		"simple switch fail",
 		`package main
 		func Main() int {

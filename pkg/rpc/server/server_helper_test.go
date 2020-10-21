@@ -68,7 +68,7 @@ func initClearServerWithInMemoryChain(t *testing.T) (*core.Blockchain, *Server, 
 	require.NoError(t, err)
 	rpcServer := New(chain, cfg.ApplicationConfiguration.RPC, server, logger)
 	errCh := make(chan error, 2)
-	go rpcServer.Start(errCh)
+	rpcServer.Start(errCh)
 
 	handler := http.HandlerFunc(rpcServer.handleHTTPRequest)
 	srv := httptest.NewServer(handler)
@@ -88,6 +88,10 @@ func initServerWithInMemoryChain(t *testing.T) (*core.Blockchain, *Server, *http
 type FeerStub struct{}
 
 func (fs *FeerStub) FeePerByte() int64 {
+	return 0
+}
+
+func (fs *FeerStub) BlockHeight() uint32 {
 	return 0
 }
 

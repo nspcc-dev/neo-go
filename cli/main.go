@@ -13,6 +13,14 @@ import (
 )
 
 func main() {
+	ctl := newApp()
+
+	if err := ctl.Run(os.Args); err != nil {
+		panic(err)
+	}
+}
+
+func newApp() *cli.App {
 	ctl := cli.NewApp()
 	ctl.Name = "neo-go"
 	ctl.Version = config.Version
@@ -23,8 +31,5 @@ func main() {
 	ctl.Commands = append(ctl.Commands, wallet.NewCommands()...)
 	ctl.Commands = append(ctl.Commands, vm.NewCommands()...)
 	ctl.Commands = append(ctl.Commands, util.NewCommands()...)
-
-	if err := ctl.Run(os.Args); err != nil {
-		panic(err)
-	}
+	return ctl
 }

@@ -31,7 +31,7 @@ func CreateMultiSigRedeemScript(m int, publicKeys keys.PublicKeys) ([]byte, erro
 		emit.Bytes(buf.BinWriter, pubKey.Bytes())
 	}
 	emit.Int(buf.BinWriter, int64(len(publicKeys)))
-	emit.Opcode(buf.BinWriter, opcode.PUSHNULL)
+	emit.Opcodes(buf.BinWriter, opcode.PUSHNULL)
 	emit.Syscall(buf.BinWriter, interopnames.NeoCryptoCheckMultisigWithECDsaSecp256r1)
 
 	return buf.Bytes(), nil
@@ -41,7 +41,7 @@ func CreateMultiSigRedeemScript(m int, publicKeys keys.PublicKeys) ([]byte, erro
 // using publicKeys length with the default BFT assumptions of (n - (n-1)/3) for m.
 func CreateDefaultMultiSigRedeemScript(publicKeys keys.PublicKeys) ([]byte, error) {
 	n := len(publicKeys)
-	m := n - (n-1)/3
+	m := GetDefaultHonestNodeCount(n)
 	return CreateMultiSigRedeemScript(m, publicKeys)
 }
 
@@ -51,4 +51,10 @@ func CreateMajorityMultiSigRedeemScript(publicKeys keys.PublicKeys) ([]byte, err
 	n := len(publicKeys)
 	m := n - (n-1)/2
 	return CreateMultiSigRedeemScript(m, publicKeys)
+}
+
+// GetDefaultHonestNodeCount returns minimum number of honest nodes
+// required for network of size n.
+func GetDefaultHonestNodeCount(n int) int {
+	return n - (n-1)/3
 }

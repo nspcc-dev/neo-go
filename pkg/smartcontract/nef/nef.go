@@ -203,11 +203,7 @@ func (n *File) DecodeBinary(r *io.BinReader) {
 		r.Err = errors.New("CRC verification fail")
 		return
 	}
-	n.Script = r.ReadVarBytes()
-	if len(n.Script) > MaxScriptLength {
-		r.Err = errors.New("invalid script length")
-		return
-	}
+	n.Script = r.ReadVarBytes(MaxScriptLength)
 	if !hash.Hash160(n.Script).Equals(n.Header.ScriptHash) {
 		r.Err = errors.New("script hashes mismatch")
 		return

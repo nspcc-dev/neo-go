@@ -310,10 +310,65 @@ var sliceTestCases = []testCase{
 		`,
 		big.NewInt(2),
 	},
+	{
+		"literal byte-slice with variable values",
+		`package foo
+		const sym1 = 's'
+		func Main() []byte {
+			sym2 := byte('t')
+			sym4 := byte('i')
+			return []byte{sym1, sym2, 'r', sym4, 'n', 'g'}
+		}`,
+		[]byte("string"),
+	},
+	{
+		"literal slice with function call",
+		`package foo
+		func fn() byte { return 't' }
+		func Main() []byte {
+			return []byte{'s', fn(), 'r'}
+		}`,
+		[]byte("str"),
+	},
 }
 
 func TestSliceOperations(t *testing.T) {
 	runTestCases(t, sliceTestCases)
+}
+
+func TestSubsliceCompound(t *testing.T) {
+	src := `package foo
+	func Main() []int {
+		a := []int{0, 1, 2, 3}
+		b := a[1:3]
+		return b
+	}`
+	_, err := compiler.Compile("", strings.NewReader(src))
+	require.Error(t, err)
+}
+
+func TestRemove(t *testing.T) {
+	t.Run("Valid", func(t *testing.T) {
+		src := `package foo
+		import "github.com/nspcc-dev/neo-go/pkg/interop/util"
+		func Main() int {
+			a := []int{11, 22, 33}
+			util.Remove(a, 1)
+			return len(a) + a[0] + a[1]
+		}`
+		eval(t, src, big.NewInt(46))
+	})
+	t.Run("ByteSlice", func(t *testing.T) {
+		src := `package foo
+		import "github.com/nspcc-dev/neo-go/pkg/interop/util"
+		func Main() int {
+			a := []byte{11, 22, 33}
+			util.Remove(a, 1)
+			return len(a)
+		}`
+		_, err := compiler.Compile("", strings.NewReader(src))
+		require.Error(t, err)
+	})
 }
 
 func TestJumps(t *testing.T) {
@@ -426,5 +481,15 @@ func TestCopy(t *testing.T) {
 			return dst
 		}`
 		eval(t, src, []byte{0, 3})
+	})
+	t.Run("AssignToVariable", func(t *testing.T) {
+		src := `package foo
+		func Main() int {
+			src := []byte{3, 2, 1}
+			dst := make([]byte, 2)
+			n := copy(dst, src)
+			return n
+		}`
+		eval(t, src, big.NewInt(2))
 	})
 }

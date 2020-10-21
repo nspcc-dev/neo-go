@@ -81,8 +81,8 @@ type VM struct {
 
 	trigger trigger.Type
 
-	// Public keys cache.
-	keys map[string]*keys.PublicKey
+	// Invocations is a script invocation counter.
+	Invocations map[util.Uint160]int
 }
 
 // New returns a new VM object ready to load AVM bytecode scripts.
@@ -96,10 +96,10 @@ func NewWithTrigger(t trigger.Type) *VM {
 		state:   NoneState,
 		istack:  NewStack("invocation"),
 		refs:    newRefCounter(),
-		keys:    make(map[string]*keys.PublicKey),
 		trigger: t,
 
 		SyscallHandler: defaultSyscallHandler,
+		Invocations:    make(map[util.Uint160]int),
 	}
 
 	vm.estack = vm.newItemStack("evaluation")
@@ -138,17 +138,6 @@ func (v *VM) Estack() *Stack {
 // Istack returns the invocation stack so interop hooks can utilize this.
 func (v *VM) Istack() *Stack {
 	return v.istack
-}
-
-// SetPublicKeys sets internal key cache to the specified value (note
-// that it doesn't copy them).
-func (v *VM) SetPublicKeys(keys map[string]*keys.PublicKey) {
-	v.keys = keys
-}
-
-// GetPublicKeys returns internal key cache (note that it doesn't copy it).
-func (v *VM) GetPublicKeys() map[string]*keys.PublicKey {
-	return v.keys
 }
 
 // LoadArgs loads in the arguments used in the Mian entry point.
@@ -284,6 +273,7 @@ func (v *VM) LoadScript(b []byte) {
 
 // LoadScriptWithFlags loads script and sets call flag to f.
 func (v *VM) LoadScriptWithFlags(b []byte, f smartcontract.CallFlag) {
+	v.checkInvocationStackSize()
 	ctx := NewContext(b)
 	v.estack = v.newItemStack("estack")
 	ctx.estack = v.estack
@@ -546,8 +536,8 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		v.estack.PushVal(stackitem.Null{})
 
 	case opcode.ISNULL:
-		res := v.estack.Pop().value.Equals(stackitem.Null{})
-		v.estack.PushVal(res)
+		_, ok := v.estack.Pop().value.(stackitem.Null)
+		v.estack.PushVal(ok)
 
 	case opcode.ISTYPE:
 		res := v.estack.Pop().Item()
@@ -1237,10 +1227,9 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		}
 
 	case opcode.CALL, opcode.CALLL:
-		v.checkInvocationStackSize()
 		// Note: jump offset must be calculated regarding to new context,
 		// but it is cloned and thus has the same script and instruction pointer.
-		v.Call(ctx, v.getJumpOffset(ctx, parameter))
+		v.call(ctx, v.getJumpOffset(ctx, parameter))
 
 	case opcode.CALLA:
 		ptr := v.estack.Pop().Item().(*stackitem.Pointer)
@@ -1248,7 +1237,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			panic("invalid script in pointer")
 		}
 
-		v.Call(ctx, ptr.Position())
+		v.call(ctx, ptr.Position())
 
 	case opcode.SYSCALL:
 		interopID := GetInteropID(parameter)
@@ -1420,7 +1409,13 @@ func (v *VM) unloadContext(ctx *Context) {
 	if ctx.static != nil && currCtx != nil && ctx.static != currCtx.static {
 		ctx.static.Clear()
 	}
-	if ctx.CheckReturn {
+	switch ctx.CheckReturn {
+	case NoCheck:
+	case EnsureIsEmpty:
+		if currCtx != nil && ctx.estack.len != 0 {
+			panic("return value amount is > 0")
+		}
+	case EnsureNotEmpty:
 		if currCtx != nil && ctx.estack.len == 0 {
 			currCtx.estack.PushVal(stackitem.Null{})
 		} else if ctx.estack.len > 1 {
@@ -1470,10 +1465,20 @@ func (v *VM) Jump(ctx *Context, offset int) {
 }
 
 // Call calls method by offset. It is similar to Jump but also
-// pushes new context to the invocation state
+// pushes new context to the invocation stack and increments
+// invocation counter for the corresponding context script hash.
 func (v *VM) Call(ctx *Context, offset int) {
+	v.call(ctx, offset)
+	v.Invocations[ctx.ScriptHash()]++
+}
+
+// call is an internal representation of Call, which does not
+// affect the invocation counter and is only being used by vm
+// package.
+func (v *VM) call(ctx *Context, offset int) {
+	v.checkInvocationStackSize()
 	newCtx := ctx.Copy()
-	newCtx.CheckReturn = false
+	newCtx.CheckReturn = NoCheck
 	newCtx.local = nil
 	newCtx.arguments = nil
 	newCtx.tryStack = NewStack("exception")
@@ -1516,7 +1521,8 @@ func (v *VM) calcJumpOffset(ctx *Context, parameter []byte) (int, int, error) {
 
 func (v *VM) handleException() {
 	pop := 0
-	ictx := v.istack.Peek(0).Value().(*Context)
+	ictxv := v.istack.Peek(0)
+	ictx := ictxv.Value().(*Context)
 	for ictx != nil {
 		e := ictx.tryStack.Peek(0)
 		for e != nil {
@@ -1542,7 +1548,8 @@ func (v *VM) handleException() {
 			return
 		}
 		pop++
-		ictx = v.istack.Peek(pop).Value().(*Context)
+		ictxv = ictxv.Next()
+		ictx = ictxv.Value().(*Context)
 	}
 }
 
@@ -1586,8 +1593,8 @@ func CheckMultisigPar(v *VM, curve elliptic.Curve, h []byte, pkeys [][]byte, sig
 		go worker(tasks, results)
 	}
 
-	tasks <- task{pub: v.bytesToPublicKey(pkeys[k1], curve), signum: s1}
-	tasks <- task{pub: v.bytesToPublicKey(pkeys[k2], curve), signum: s2}
+	tasks <- task{pub: bytesToPublicKey(pkeys[k1], curve), signum: s1}
+	tasks <- task{pub: bytesToPublicKey(pkeys[k2], curve), signum: s2}
 
 	sigok := true
 	taskCount := 2
@@ -1631,7 +1638,7 @@ loop:
 			nextKey = k2
 		}
 		taskCount++
-		tasks <- task{pub: v.bytesToPublicKey(pkeys[nextKey], curve), signum: nextSig}
+		tasks <- task{pub: bytesToPublicKey(pkeys[nextKey], curve), signum: nextSig}
 	}
 
 	close(tasks)
@@ -1641,7 +1648,7 @@ loop:
 
 func checkMultisig1(v *VM, curve elliptic.Curve, h []byte, pkeys [][]byte, sig []byte) bool {
 	for i := range pkeys {
-		pkey := v.bytesToPublicKey(pkeys[i], curve)
+		pkey := bytesToPublicKey(pkeys[i], curve)
 		if pkey.Verify(sig, h) {
 			return true
 		}
@@ -1683,8 +1690,8 @@ func validateMapKey(key *Element) {
 	if key == nil {
 		panic("no key found")
 	}
-	if !stackitem.IsValidMapKey(key.Item()) {
-		panic("key can't be a collection")
+	if err := stackitem.IsValidMapKey(key.Item()); err != nil {
+		panic(err)
 	}
 }
 
@@ -1696,18 +1703,10 @@ func (v *VM) checkInvocationStackSize() {
 
 // bytesToPublicKey is a helper deserializing keys using cache and panicing on
 // error.
-func (v *VM) bytesToPublicKey(b []byte, curve elliptic.Curve) *keys.PublicKey {
-	var pkey *keys.PublicKey
-	s := string(b)
-	if v.keys[s] != nil {
-		pkey = v.keys[s]
-	} else {
-		var err error
-		pkey, err = keys.NewPublicKeyFromBytes(b, curve)
-		if err != nil {
-			panic(err.Error())
-		}
-		v.keys[s] = pkey
+func bytesToPublicKey(b []byte, curve elliptic.Curve) *keys.PublicKey {
+	pkey, err := keys.NewPublicKeyFromBytes(b, curve)
+	if err != nil {
+		panic(err.Error())
 	}
 	return pkey
 }

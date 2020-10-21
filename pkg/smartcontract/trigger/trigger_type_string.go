@@ -11,12 +11,14 @@ func _() {
 	_ = x[System-1]
 	_ = x[Verification-32]
 	_ = x[Application-64]
+	_ = x[All-97]
 }
 
 const (
 	_Type_name_0 = "System"
 	_Type_name_1 = "Verification"
 	_Type_name_2 = "Application"
+	_Type_name_3 = "All"
 )
 
 func (i Type) String() string {
@@ -27,6 +29,8 @@ func (i Type) String() string {
 		return _Type_name_1
 	case i == 64:
 		return _Type_name_2
+	case i == 97:
+		return _Type_name_3
 	default:
 		return "Type(" + strconv.FormatInt(int64(i), 10) + ")"
 	}

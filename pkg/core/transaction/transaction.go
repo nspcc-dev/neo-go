@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"math/rand"
 
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
@@ -14,6 +15,8 @@ import (
 )
 
 const (
+	// MaxScriptLength is the limit for transaction's script length.
+	MaxScriptLength = math.MaxUint16
 	// MaxTransactionSize is the upper limit size in bytes that a transaction can reach. It is
 	// set to be 102400.
 	MaxTransactionSize = 102400
@@ -62,8 +65,8 @@ type Transaction struct {
 	// for correct signing/verification.
 	Network netmode.Magic
 
-	// feePerByte is the ratio of NetworkFee and tx size, used for calculating tx priority.
-	feePerByte int64
+	// size is transaction's serialized size.
+	size int
 
 	// Hash of the transaction (double SHA256).
 	hash util.Uint256
@@ -110,8 +113,8 @@ func (t *Transaction) Hash() util.Uint256 {
 	return t.hash
 }
 
-// VerificationHash returns the hash of the transaction used to verify it.
-func (t *Transaction) VerificationHash() util.Uint256 {
+// GetSignedHash returns a hash of the transaction used to verify it.
+func (t *Transaction) GetSignedHash() util.Uint256 {
 	if t.verificationHash.Equals(util.Uint256{}) {
 		if t.createHash() != nil {
 			panic("failed to compute hash!")
@@ -140,7 +143,7 @@ func (t *Transaction) decodeHashableFields(br *io.BinReader) {
 	t.ValidUntilBlock = br.ReadU32LE()
 	br.ReadArray(&t.Signers, MaxAttributes)
 	br.ReadArray(&t.Attributes, MaxAttributes-len(t.Signers))
-	t.Script = br.ReadVarBytes()
+	t.Script = br.ReadVarBytes(MaxScriptLength)
 	if br.Err == nil {
 		br.Err = t.isValid()
 	}
@@ -158,6 +161,7 @@ func (t *Transaction) DecodeBinary(br *io.BinReader) {
 	// to do it anymore.
 	if br.Err == nil {
 		br.Err = t.createHash()
+		_ = t.Size()
 	}
 }
 
@@ -252,18 +256,22 @@ func NewTransactionFromBytes(network netmode.Magic, b []byte) (*Transaction, err
 	if r.Err == nil {
 		return nil, errors.New("additional data after the transaction")
 	}
-	tx.feePerByte = tx.NetworkFee / int64(len(b))
+	tx.size = len(b)
 	return tx, nil
 }
 
 // FeePerByte returns NetworkFee of the transaction divided by
 // its size
 func (t *Transaction) FeePerByte() int64 {
-	if t.feePerByte != 0 {
-		return t.feePerByte
+	return t.NetworkFee / int64(t.Size())
+}
+
+// Size returns size of the serialized transaction.
+func (t *Transaction) Size() int {
+	if t.size == 0 {
+		t.size = io.GetVarSize(t)
 	}
-	t.feePerByte = t.NetworkFee / int64(io.GetVarSize(t))
-	return t.feePerByte
+	return t.size
 }
 
 // Sender returns the sender of the transaction which is always on the first place
@@ -296,7 +304,7 @@ type transactionJSON struct {
 func (t *Transaction) MarshalJSON() ([]byte, error) {
 	tx := transactionJSON{
 		TxID:            t.Hash(),
-		Size:            io.GetVarSize(t),
+		Size:            t.Size(),
 		Version:         t.Version,
 		Nonce:           t.Nonce,
 		Sender:          address.Uint160ToString(t.Sender()),
@@ -329,6 +337,9 @@ func (t *Transaction) UnmarshalJSON(data []byte) error {
 	if t.Hash() != tx.TxID {
 		return errors.New("txid doesn't match transaction hash")
 	}
+	if t.Size() != tx.Size {
+		return errors.New("'size' doesn't match transaction size")
+	}
 
 	return t.isValid()
 }
@@ -340,7 +351,6 @@ var (
 	ErrNegativeNetworkFee = errors.New("negative network fee")
 	ErrTooBigFees         = errors.New("too big fees: int64 overflow")
 	ErrEmptySigners       = errors.New("signers array should contain sender")
-	ErrInvalidScope       = errors.New("FeeOnly scope can be used only for sender")
 	ErrNonUniqueSigners   = errors.New("transaction signers should be unique")
 	ErrInvalidAttribute   = errors.New("invalid attribute")
 	ErrEmptyScript        = errors.New("no script")
@@ -364,23 +374,20 @@ func (t *Transaction) isValid() error {
 		return ErrEmptySigners
 	}
 	for i := 0; i < len(t.Signers); i++ {
-		if i > 0 && t.Signers[i].Scopes == FeeOnly {
-			return ErrInvalidScope
-		}
 		for j := i + 1; j < len(t.Signers); j++ {
 			if t.Signers[i].Account.Equals(t.Signers[j].Account) {
 				return ErrNonUniqueSigners
 			}
 		}
 	}
-	hasHighPrio := false
+	attrs := map[AttrType]bool{}
 	for i := range t.Attributes {
-		switch t.Attributes[i].Type {
-		case HighPriority:
-			if hasHighPrio {
-				return fmt.Errorf("%w: multiple high priority attributes", ErrInvalidAttribute)
+		typ := t.Attributes[i].Type
+		if !typ.allowMultiple() {
+			if attrs[typ] {
+				return fmt.Errorf("%w: multiple '%s' attributes", ErrInvalidAttribute, typ.String())
 			}
-			hasHighPrio = true
+			attrs[typ] = true
 		}
 	}
 	if len(t.Script) == 0 {

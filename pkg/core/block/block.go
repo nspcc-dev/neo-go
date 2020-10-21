@@ -3,6 +3,7 @@ package block
 import (
 	"encoding/json"
 	"errors"
+	"math"
 
 	"github.com/Workiva/go-datastructures/queue"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
@@ -11,6 +12,16 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 )
+
+const (
+	// MaxContentsPerBlock is the maximum number of contents (transactions + consensus data) per block.
+	MaxContentsPerBlock = math.MaxUint16
+	// MaxTransactionsPerBlock is the maximum number of transactions per block.
+	MaxTransactionsPerBlock = MaxContentsPerBlock - 1
+)
+
+// ErrMaxContentsPerBlock is returned when the maximum number of contents per block is reached.
+var ErrMaxContentsPerBlock = errors.New("the number of contents exceeds the maximum number of contents per block")
 
 // Block represents one block in the chain.
 type Block struct {
@@ -46,49 +57,20 @@ func (b *Block) Header() *Header {
 	}
 }
 
-// computeMerkleTree computes Merkle tree based on actual block's data.
-func (b *Block) computeMerkleTree() (*hash.MerkleTree, error) {
+// ComputeMerkleRoot computes Merkle tree root hash based on actual block's data.
+func (b *Block) ComputeMerkleRoot() util.Uint256 {
 	hashes := make([]util.Uint256, len(b.Transactions)+1)
 	hashes[0] = b.ConsensusData.Hash()
 	for i, tx := range b.Transactions {
 		hashes[i+1] = tx.Hash()
 	}
 
-	return hash.NewMerkleTree(hashes)
+	return hash.CalcMerkleRoot(hashes)
 }
 
 // RebuildMerkleRoot rebuilds the merkleroot of the block.
-func (b *Block) RebuildMerkleRoot() error {
-	merkle, err := b.computeMerkleTree()
-	if err != nil {
-		return err
-	}
-
-	b.MerkleRoot = merkle.Root()
-	return nil
-}
-
-// Verify verifies the integrity of the block.
-func (b *Block) Verify() error {
-	if b.Transactions != nil {
-		hashes := map[util.Uint256]bool{}
-		for _, tx := range b.Transactions {
-			if !hashes[tx.Hash()] {
-				hashes[tx.Hash()] = true
-			} else {
-				return errors.New("transaction duplication is not allowed")
-			}
-		}
-	}
-
-	merkle, err := b.computeMerkleTree()
-	if err != nil {
-		return err
-	}
-	if !b.MerkleRoot.Equals(merkle.Root()) {
-		return errors.New("MerkleRoot mismatch")
-	}
-	return nil
+func (b *Block) RebuildMerkleRoot() {
+	b.MerkleRoot = b.ComputeMerkleRoot()
 }
 
 // NewBlockFromTrimmedBytes returns a new block from trimmed data.
@@ -111,6 +93,9 @@ func NewBlockFromTrimmedBytes(network netmode.Magic, b []byte) (*Block, error) {
 	block.Script.DecodeBinary(br)
 
 	lenHashes := br.ReadVarUint()
+	if lenHashes > MaxContentsPerBlock {
+		return nil, ErrMaxContentsPerBlock
+	}
 	if lenHashes > 0 {
 		var consensusDataHash util.Uint256
 		consensusDataHash.DecodeBinary(br)
@@ -171,6 +156,10 @@ func (b *Block) DecodeBinary(br *io.BinReader) {
 		br.Err = errors.New("invalid block format")
 		return
 	}
+	if contentsCount > MaxContentsPerBlock {
+		br.Err = ErrMaxContentsPerBlock
+		return
+	}
 	b.ConsensusData.DecodeBinary(br)
 	txes := make([]*transaction.Transaction, contentsCount-1)
 	for i := 0; i < int(contentsCount)-1; i++ {
@@ -182,7 +171,6 @@ func (b *Block) DecodeBinary(br *io.BinReader) {
 	if br.Err != nil {
 		return
 	}
-	br.Err = b.Verify()
 }
 
 // EncodeBinary encodes the block to the given BinWriter, implementing

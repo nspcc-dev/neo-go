@@ -2,7 +2,6 @@ package native
 
 import (
 	"errors"
-	"fmt"
 	"math/big"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
@@ -25,8 +24,8 @@ const gasContractID = -2
 const GASFactor = NEOTotalSupply
 const initialGAS = 30000000
 
-// NewGAS returns GAS native contract.
-func NewGAS() *GAS {
+// newGAS returns GAS native contract.
+func newGAS() *GAS {
 	g := &GAS{}
 	nep5 := newNEP5Native(gasName)
 	nep5.symbol = "gas"
@@ -89,10 +88,7 @@ func (g *GAS) OnPersist(ic *interop.Context) error {
 		absAmount := big.NewInt(tx.SystemFee + tx.NetworkFee)
 		g.burn(ic, tx.Sender(), absAmount)
 	}
-	validators, err := g.NEO.getNextBlockValidatorsInternal(ic.Chain, ic.DAO)
-	if err != nil {
-		return fmt.Errorf("can't get block validators: %w", err)
-	}
+	validators := g.NEO.GetNextBlockValidatorsInternal()
 	primary := validators[ic.Block.ConsensusData.PrimaryIndex].GetScriptHash()
 	var netFee int64
 	for _, tx := range ic.Block.Transactions {

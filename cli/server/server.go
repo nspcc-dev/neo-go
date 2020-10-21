@@ -355,11 +355,11 @@ func startServer(ctx *cli.Context) error {
 	errChan := make(chan error)
 
 	go serv.Start(errChan)
-	go rpcServer.Start(errChan)
+	rpcServer.Start(errChan)
 
-	fmt.Println(logo())
-	fmt.Println(serv.UserAgent)
-	fmt.Println()
+	fmt.Fprintln(ctx.App.Writer, logo())
+	fmt.Fprintln(ctx.App.Writer, serv.UserAgent)
+	fmt.Fprintln(ctx.App.Writer)
 
 	var shutdownErr error
 Main:

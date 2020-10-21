@@ -36,6 +36,8 @@ type MethodDebugInfo struct {
 	Name DebugMethodName `json:"name"`
 	// IsExported defines whether method is exported.
 	IsExported bool `json:"-"`
+	// IsFunction defines whether method has no receiver.
+	IsFunction bool `json:"-"`
 	// Range is the range of smart-contract's opcodes corresponding to the method.
 	Range DebugRange `json:"range"`
 	// Parameters is a list of method's parameters.
@@ -123,12 +125,34 @@ func (c *codegen) emitDebugInfo(contract []byte) *DebugInfo {
 				Namespace: c.mainPkg.Pkg.Name(),
 			},
 			IsExported: true,
+			IsFunction: true,
 			Range: DebugRange{
 				Start: 0,
 				End:   uint16(c.initEndOffset),
 			},
 			ReturnType: "Void",
 			SeqPoints:  c.sequencePoints["init"],
+		})
+	}
+	if c.deployEndOffset >= 0 {
+		d.Methods = append(d.Methods, MethodDebugInfo{
+			ID: manifest.MethodDeploy,
+			Name: DebugMethodName{
+				Name:      manifest.MethodDeploy,
+				Namespace: c.mainPkg.Pkg.Name(),
+			},
+			IsExported: true,
+			IsFunction: true,
+			Range: DebugRange{
+				Start: uint16(c.initEndOffset + 1),
+				End:   uint16(c.deployEndOffset),
+			},
+			Parameters: []DebugParam{{
+				Name: "isUpdate",
+				Type: "Boolean",
+			}},
+			ReturnType: "Void",
+			SeqPoints:  c.sequencePoints[manifest.MethodDeploy],
 		})
 	}
 	for name, scope := range c.funcs {
@@ -171,6 +195,7 @@ func (c *codegen) methodInfoFromScope(name string, scope *funcScope) *MethodDebu
 			Namespace: scope.pkg.Name(),
 		},
 		IsExported: scope.decl.Name.IsExported(),
+		IsFunction: scope.decl.Recv == nil,
 		Range:      scope.rng,
 		Parameters: params,
 		ReturnType: c.scReturnTypeFromScope(scope),
@@ -196,6 +221,21 @@ func (c *codegen) scTypeFromExpr(typ ast.Expr) string {
 	t := c.typeOf(typ)
 	if c.typeOf(typ) == nil {
 		return "Any"
+	}
+	if named, ok := t.(*types.Named); ok {
+		if isInteropPath(named.String()) {
+			name := named.Obj().Name()
+			pkg := named.Obj().Pkg().Name()
+			switch pkg {
+			case "blockchain", "contract":
+				return "Array" // Block, Transaction, Contract
+			case "interop":
+				if name != "Interface" {
+					return name
+				}
+			}
+			return "InteropInterface"
+		}
 	}
 	switch t := t.Underlying().(type) {
 	case *types.Basic:
@@ -375,7 +415,7 @@ func (di *DebugInfo) ConvertToManifest(fs smartcontract.PropertyState, events []
 	}
 	methods := make([]manifest.Method, 0)
 	for _, method := range di.Methods {
-		if method.IsExported && method.Name.Namespace == di.MainPkg {
+		if method.IsExported && method.IsFunction && method.Name.Namespace == di.MainPkg {
 			mMethod, err := method.ToManifestMethod()
 			if err != nil {
 				return nil, err

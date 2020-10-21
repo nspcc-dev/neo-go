@@ -4,7 +4,9 @@ import (
 	"fmt"
 
 	"github.com/nspcc-dev/neo-go/cli/flags"
+	"github.com/nspcc-dev/neo-go/cli/input"
 	"github.com/nspcc-dev/neo-go/cli/options"
+	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/io"
@@ -80,10 +82,11 @@ func handleCandidate(ctx *cli.Context, method string) error {
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
+	defer wall.Close()
 
 	addrFlag := ctx.Generic("address").(*flags.Address)
 	addr := addrFlag.Uint160()
-	acc, err := getDecryptedAccount(wall, addr)
+	acc, err := getDecryptedAccount(ctx, wall, addr)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -99,8 +102,11 @@ func handleCandidate(ctx *cli.Context, method string) error {
 	gas := flags.Fixed8FromContext(ctx, "gas")
 	w := io.NewBufBinWriter()
 	emit.AppCallWithOperationAndArgs(w.BinWriter, client.NeoContractHash, method, acc.PrivateKey().PublicKey().Bytes())
-	emit.Opcode(w.BinWriter, opcode.ASSERT)
-	tx, err := c.CreateTxFromScript(w.Bytes(), acc, -1, int64(gas))
+	emit.Opcodes(w.BinWriter, opcode.ASSERT)
+	tx, err := c.CreateTxFromScript(w.Bytes(), acc, -1, int64(gas), transaction.Signer{
+		Account: acc.Contract.ScriptHash(),
+		Scopes:  transaction.CalledByEntry,
+	})
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	} else if err = acc.SignTx(tx); err != nil {
@@ -111,7 +117,7 @@ func handleCandidate(ctx *cli.Context, method string) error {
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
-	fmt.Println(res.StringLE())
+	fmt.Fprintln(ctx.App.Writer, res.StringLE())
 	return nil
 }
 
@@ -120,10 +126,11 @@ func handleVote(ctx *cli.Context) error {
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
+	defer wall.Close()
 
 	addrFlag := ctx.Generic("address").(*flags.Address)
 	addr := addrFlag.Uint160()
-	acc, err := getDecryptedAccount(wall, addr)
+	acc, err := getDecryptedAccount(ctx, wall, addr)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -153,9 +160,12 @@ func handleVote(ctx *cli.Context) error {
 	gas := flags.Fixed8FromContext(ctx, "gas")
 	w := io.NewBufBinWriter()
 	emit.AppCallWithOperationAndArgs(w.BinWriter, client.NeoContractHash, "vote", addr.BytesBE(), pubArg)
-	emit.Opcode(w.BinWriter, opcode.ASSERT)
+	emit.Opcodes(w.BinWriter, opcode.ASSERT)
 
-	tx, err := c.CreateTxFromScript(w.Bytes(), acc, -1, int64(gas))
+	tx, err := c.CreateTxFromScript(w.Bytes(), acc, -1, int64(gas), transaction.Signer{
+		Account: acc.Contract.ScriptHash(),
+		Scopes:  transaction.CalledByEntry,
+	})
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -168,17 +178,18 @@ func handleVote(ctx *cli.Context) error {
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
-	fmt.Println(res.StringLE())
+	fmt.Fprintln(ctx.App.Writer, res.StringLE())
 	return nil
 }
 
-func getDecryptedAccount(wall *wallet.Wallet, addr util.Uint160) (*wallet.Account, error) {
+func getDecryptedAccount(ctx *cli.Context, wall *wallet.Wallet, addr util.Uint160) (*wallet.Account, error) {
 	acc := wall.GetAccount(addr)
 	if acc == nil {
 		return nil, fmt.Errorf("can't find account for the address: %s", address.Uint160ToString(addr))
 	}
 
-	if pass, err := readPassword("Password > "); err != nil {
+	if pass, err := input.ReadPassword(ctx.App.Writer, "Password > "); err != nil {
+		fmt.Println("ERROR", pass, err)
 		return nil, err
 	} else if err := acc.Decrypt(pass); err != nil {
 		return nil, err

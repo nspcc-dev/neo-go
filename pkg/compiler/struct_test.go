@@ -30,6 +30,19 @@ var structTestCases = []testCase{
 		big.NewInt(2),
 	},
 	{
+		"struct field from func result",
+		`
+		package foo
+		type S struct { x int }
+		func fn() int { return 2 }
+		func Main() int {
+			t := S{x: fn()}
+			return t.x
+		}
+		`,
+		big.NewInt(2),
+	},
+	{
 		"struct field return",
 		`
 		package foo

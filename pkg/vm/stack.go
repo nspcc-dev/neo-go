@@ -100,6 +100,19 @@ func (e *Element) Bytes() []byte {
 	return bs
 }
 
+// BytesOrNil attempts to get the underlying value of the element as a byte array or nil.
+// Will panic if the assertion failed which will be caught by the VM.
+func (e *Element) BytesOrNil() []byte {
+	if _, ok := e.value.(stackitem.Null); ok {
+		return nil
+	}
+	bs, err := e.value.TryBytes()
+	if err != nil {
+		panic(err)
+	}
+	return bs
+}
+
 // String attempts to get string from the element value.
 // It is assumed to be use in interops and panics if string is not a valid UTF-8 byte sequence.
 func (e *Element) String() string {
@@ -338,10 +351,11 @@ func (s *Stack) ReverseTop(n int) error {
 		return nil
 	}
 
-	for i, j := 0, n-1; i < j; {
-		s.swap(i, j)
-		i++
-		j--
+	a, b := s.Peek(0), s.Peek(n-1)
+	for i := 0; i < n/2; i++ {
+		a.value, b.value = b.value, a.value
+		a = a.Next()
+		b = b.Prev()
 	}
 	return nil
 }

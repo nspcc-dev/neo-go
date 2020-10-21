@@ -15,6 +15,9 @@ const (
 	// MethodInit is a name for default initialization method.
 	MethodInit = "_initialize"
 
+	// MethodDeploy is a name for default method called during contract deployment.
+	MethodDeploy = "_deploy"
+
 	// MethodVerify is a name for default verification method.
 	MethodVerify = "verify"
 
@@ -181,7 +184,7 @@ func (m *Manifest) EncodeBinary(w *io.BinWriter) {
 
 // DecodeBinary implements io.Serializable.
 func (m *Manifest) DecodeBinary(r *io.BinReader) {
-	data := r.ReadVarBytes()
+	data := r.ReadVarBytes(MaxManifestSize)
 	if r.Err != nil {
 		return
 	} else if err := json.Unmarshal(data, m); err != nil {

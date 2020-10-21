@@ -128,15 +128,19 @@ func (p *PrivateKey) GetScriptHash() util.Uint160 {
 	return pk.GetScriptHash()
 }
 
-// Sign signs arbitrary length data using the private key.
+// Sign signs arbitrary length data using the private key. It uses SHA256 to
+// calculate hash and then SignHash to create a signature (so you can save on
+// hash calculation if you already have it).
 func (p *PrivateKey) Sign(data []byte) []byte {
-	var (
-		privateKey = &p.PrivateKey
-		digest     = sha256.Sum256(data)
-	)
+	var digest = sha256.Sum256(data)
 
-	r, s := rfc6979.SignECDSA(privateKey, digest[:], sha256.New)
-	return getSignatureSlice(privateKey.Curve, r, s)
+	return p.SignHash(digest)
+}
+
+// SignHash signs particular hash the private key.
+func (p *PrivateKey) SignHash(digest util.Uint256) []byte {
+	r, s := rfc6979.SignECDSA(&p.PrivateKey, digest[:], sha256.New)
+	return getSignatureSlice(p.PrivateKey.Curve, r, s)
 }
 
 func getSignatureSlice(curve elliptic.Curve, r, s *big.Int) []byte {

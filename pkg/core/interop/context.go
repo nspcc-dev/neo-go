@@ -35,7 +35,6 @@ type Context struct {
 	DAO           *dao.Cached
 	Notifications []state.NotificationEvent
 	Log           *zap.Logger
-	Invocations   map[util.Uint160]int
 	VM            *vm.VM
 	Functions     [][]Function
 }
@@ -53,7 +52,6 @@ func NewContext(trigger trigger.Type, bc blockchainer.Blockchainer, d dao.DAO, n
 		DAO:           dao,
 		Notifications: nes,
 		Log:           log,
-		Invocations:   make(map[util.Uint160]int),
 		// Functions is a slice of slices of interops sorted by ID.
 		Functions: [][]Function{},
 	}
@@ -82,6 +80,7 @@ type Method = func(ic *Context, args []stackitem.Item) stackitem.Item
 // MethodAndPrice is a native-contract method descriptor.
 type MethodAndPrice struct {
 	Func          Method
+	MD            *manifest.Method
 	Price         int64
 	RequiredFlags smartcontract.CallFlag
 }
@@ -123,6 +122,7 @@ func NewContractMD(name string) *ContractMD {
 // AddMethod adds new method to a native contract.
 func (c *ContractMD) AddMethod(md *MethodAndPrice, desc *manifest.Method, safe bool) {
 	c.Manifest.ABI.Methods = append(c.Manifest.ABI.Methods, *desc)
+	md.MD = desc
 	c.Methods[desc.Name] = *md
 	if safe {
 		c.Manifest.SafeMethods.Add(desc.Name)

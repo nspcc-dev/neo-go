@@ -16,6 +16,14 @@ func init() {
 	trigger = runtime.GetTrigger()
 }
 
+func _deploy(isUpdate bool) {
+	if isUpdate {
+		Log("_deploy method called before contract update")
+		return
+	}
+	Log("_deploy method called before contract creation")
+}
+
 // CheckWitness checks owner's witness
 func CheckWitness() bool {
 	// Log owner upon Verification trigger

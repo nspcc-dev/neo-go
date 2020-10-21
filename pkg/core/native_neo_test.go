@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
+	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/internal/testchain"
@@ -13,6 +14,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
+	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/stretchr/testify/require"
 )
 
@@ -28,13 +30,22 @@ func TestNEO_Vote(t *testing.T) {
 	defer bc.Close()
 
 	neo := bc.contracts.NEO
-	tx := transaction.New(netmode.UnitTestNet, []byte{}, 0)
+	tx := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
 	ic := bc.newInteropContext(trigger.System, bc.dao, nil, tx)
 	ic.VM = vm.New()
+	ic.Block = bc.newBlock(tx)
+
+	freq := testchain.ValidatorsCount + testchain.CommitteeSize()
+	advanceChain := func(t *testing.T) {
+		for i := 0; i < freq; i++ {
+			require.NoError(t, neo.OnPersist(ic))
+			ic.Block.Index++
+		}
+	}
 
 	standBySorted := bc.GetStandByValidators()
 	sort.Sort(standBySorted)
-	pubs, err := neo.GetValidatorsInternal(bc, ic.DAO)
+	pubs, err := neo.ComputeNextBlockValidators(bc, ic.DAO)
 	require.NoError(t, err)
 	require.Equal(t, standBySorted, pubs)
 
@@ -66,13 +77,12 @@ func TestNEO_Vote(t *testing.T) {
 	}
 
 	// We still haven't voted enough validators in.
-	pubs, err = neo.GetValidatorsInternal(bc, ic.DAO)
+	pubs, err = neo.ComputeNextBlockValidators(bc, ic.DAO)
 	require.NoError(t, err)
 	require.Equal(t, standBySorted, pubs)
 
-	require.NoError(t, neo.OnPersist(ic))
-	pubs, err = neo.GetNextBlockValidatorsInternal(bc, ic.DAO)
-	require.NoError(t, err)
+	advanceChain(t)
+	pubs = neo.GetNextBlockValidatorsInternal()
 	require.EqualValues(t, standBySorted, pubs)
 
 	// Register and give some value to the last validator.
@@ -88,23 +98,136 @@ func TestNEO_Vote(t *testing.T) {
 		require.NoError(t, neo.RegisterCandidateInternal(ic, priv.PublicKey()))
 	}
 
-	pubs, err = neo.GetValidatorsInternal(bc, ic.DAO)
+	advanceChain(t)
+	pubs, err = neo.ComputeNextBlockValidators(bc, ic.DAO)
 	require.NoError(t, err)
 	sortedCandidates := candidates.Copy()
 	sort.Sort(sortedCandidates)
 	require.EqualValues(t, sortedCandidates, pubs)
 
-	require.NoError(t, neo.OnPersist(ic))
-	pubs, err = neo.GetNextBlockValidatorsInternal(bc, ic.DAO)
-	require.NoError(t, err)
+	pubs = neo.GetNextBlockValidatorsInternal()
 	require.EqualValues(t, sortedCandidates, pubs)
 
 	require.NoError(t, neo.UnregisterCandidateInternal(ic, candidates[0]))
 	require.Error(t, neo.VoteInternal(ic, h, candidates[0]))
+	advanceChain(t)
 
-	pubs, err = neo.GetValidatorsInternal(bc, ic.DAO)
+	pubs, err = neo.ComputeNextBlockValidators(bc, ic.DAO)
 	require.NoError(t, err)
 	for i := range pubs {
 		require.NotEqual(t, candidates[0], pubs[i])
+	}
+}
+
+func TestNEO_SetGasPerBlock(t *testing.T) {
+	bc := newTestChain(t)
+	defer bc.Close()
+
+	neo := bc.contracts.NEO
+	tx := transaction.New(netmode.UnitTestNet, []byte{}, 0)
+	ic := bc.newInteropContext(trigger.System, bc.dao, nil, tx)
+	ic.VM = vm.New()
+	ic.VM.LoadScript([]byte{byte(opcode.RET)})
+
+	h := neo.GetCommitteeAddress()
+	t.Run("Default", func(t *testing.T) {
+		g := neo.GetGASPerBlock(ic.DAO, 0)
+		require.EqualValues(t, 5*native.GASFactor, g.Int64())
+	})
+	t.Run("Invalid", func(t *testing.T) {
+		t.Run("InvalidSignature", func(t *testing.T) {
+			setSigner(tx, util.Uint160{})
+			ok, err := neo.SetGASPerBlock(ic, 10, big.NewInt(native.GASFactor))
+			require.NoError(t, err)
+			require.False(t, ok)
+		})
+		t.Run("TooBigValue", func(t *testing.T) {
+			setSigner(tx, h)
+			_, err := neo.SetGASPerBlock(ic, 10, big.NewInt(10*native.GASFactor+1))
+			require.Error(t, err)
+		})
+	})
+	t.Run("Valid", func(t *testing.T) {
+		setSigner(tx, h)
+		ok, err := neo.SetGASPerBlock(ic, 10, big.NewInt(native.GASFactor*2))
+		require.NoError(t, err)
+		require.True(t, ok)
+		neo.OnPersistEnd(ic.DAO)
+		_, err = ic.DAO.Persist()
+		require.NoError(t, err)
+
+		t.Run("Again", func(t *testing.T) {
+			setSigner(tx, h)
+			ok, err := neo.SetGASPerBlock(ic, 10, big.NewInt(native.GASFactor))
+			require.NoError(t, err)
+			require.True(t, ok)
+
+			t.Run("NotPersisted", func(t *testing.T) {
+				g := neo.GetGASPerBlock(bc.dao, 10)
+				// Old value should be returned.
+				require.EqualValues(t, 2*native.GASFactor, g.Int64())
+			})
+		})
+
+		neo.OnPersistEnd(ic.DAO)
+		g := neo.GetGASPerBlock(ic.DAO, 9)
+		require.EqualValues(t, 5*native.GASFactor, g.Int64())
+
+		g = neo.GetGASPerBlock(ic.DAO, 10)
+		require.EqualValues(t, native.GASFactor, g.Int64())
+	})
+}
+
+func TestNEO_CalculateBonus(t *testing.T) {
+	bc := newTestChain(t)
+	defer bc.Close()
+
+	neo := bc.contracts.NEO
+	tx := transaction.New(netmode.UnitTestNet, []byte{}, 0)
+	ic := bc.newInteropContext(trigger.System, bc.dao, nil, tx)
+	ic.SpawnVM()
+	ic.VM.LoadScript([]byte{byte(opcode.RET)})
+	t.Run("Invalid", func(t *testing.T) {
+		_, err := neo.CalculateBonus(ic, new(big.Int).SetInt64(-1), 0, 1)
+		require.Error(t, err)
+	})
+	t.Run("Zero", func(t *testing.T) {
+		res, err := neo.CalculateBonus(ic, big.NewInt(0), 0, 100)
+		require.NoError(t, err)
+		require.EqualValues(t, 0, res.Int64())
+	})
+	t.Run("ManyBlocks", func(t *testing.T) {
+		setSigner(tx, neo.GetCommitteeAddress())
+		ok, err := neo.SetGASPerBlock(ic, 10, big.NewInt(1*native.GASFactor))
+		require.NoError(t, err)
+		require.True(t, ok)
+
+		res, err := neo.CalculateBonus(ic, big.NewInt(100), 5, 15)
+		require.NoError(t, err)
+		require.EqualValues(t, (100*5*5/10)+(100*5*1/10), res.Int64())
+
+	})
+}
+
+func TestNEO_CommitteeBountyOnPersist(t *testing.T) {
+	bc := newTestChain(t)
+	defer bc.Close()
+
+	hs := make([]util.Uint160, testchain.CommitteeSize())
+	for i := range hs {
+		hs[i] = testchain.PrivateKeyByID(i).GetScriptHash()
+	}
+
+	const singleBounty = 25000000
+	bs := map[int]int64{0: singleBounty}
+	checkBalances := func() {
+		for i := 0; i < testchain.CommitteeSize(); i++ {
+			require.EqualValues(t, bs[i], bc.GetUtilityTokenBalance(hs[i]).Int64(), i)
+		}
+	}
+	for i := 0; i < testchain.CommitteeSize()*2; i++ {
+		require.NoError(t, bc.AddBlock(bc.newBlock()))
+		bs[(i+1)%testchain.CommitteeSize()] += singleBounty
+		checkBalances()
 	}
 }

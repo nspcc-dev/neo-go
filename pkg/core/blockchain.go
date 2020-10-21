@@ -1,6 +1,7 @@
 package core
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"math/big"
@@ -28,6 +29,8 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
+	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
+	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"go.uber.org/zap"
 )
@@ -57,9 +60,7 @@ var (
 	ErrInvalidBlockIndex error = errors.New("invalid block index")
 )
 var (
-	genAmount         = []int{6, 5, 4, 3, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}
-	decrementInterval = 2000000
-	persistInterval   = 1 * time.Second
+	persistInterval = 1 * time.Second
 )
 
 // Blockchain represents the blockchain. It maintans internal state representing
@@ -98,27 +99,15 @@ type Blockchain struct {
 	// Number of headers stored in the chain file.
 	storedHeaderCount uint32
 
-	generationAmount  []int
-	decrementInterval int
-
-	// All operations on headerList must be called from an
-	// headersOp to be routine safe.
-	headerList *HeaderHashList
-
-	// Only for operating on the headerList.
-	headersOp     chan headersOpFunc
-	headersOpDone chan struct{}
+	// Header hashes list with associated lock.
+	headerHashesLock sync.RWMutex
+	headerHashes     []util.Uint256
 
 	// Stop synchronization mechanisms.
 	stopCh      chan struct{}
 	runToExitCh chan struct{}
 
 	memPool *mempool.Pool
-
-	// This lock protects concurrent access to keyCache.
-	keyCacheLock sync.RWMutex
-	// cache for block verification keys.
-	keyCache map[util.Uint160]map[string]*keys.PublicKey
 
 	sbCommittee keys.PublicKeys
 
@@ -143,8 +132,6 @@ type bcEvent struct {
 	appExecResults []*state.AppExecResult
 }
 
-type headersOpFunc func(headerList *HeaderHashList)
-
 // NewBlockchain returns a new blockchain object the will use the
 // given Store as its underlying storage. For it to work correctly you need
 // to spawn a goroutine for its Run method after this initialization.
@@ -162,22 +149,16 @@ func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration, log *zap.L
 		return nil, err
 	}
 	bc := &Blockchain{
-		config:        cfg,
-		dao:           dao.NewSimple(s, cfg.Magic),
-		headersOp:     make(chan headersOpFunc),
-		headersOpDone: make(chan struct{}),
-		stopCh:        make(chan struct{}),
-		runToExitCh:   make(chan struct{}),
-		memPool:       mempool.New(cfg.MemPoolSize),
-		keyCache:      make(map[util.Uint160]map[string]*keys.PublicKey),
-		sbCommittee:   committee,
-		log:           log,
-		events:        make(chan bcEvent),
-		subCh:         make(chan interface{}),
-		unsubCh:       make(chan interface{}),
-
-		generationAmount:  genAmount,
-		decrementInterval: decrementInterval,
+		config:      cfg,
+		dao:         dao.NewSimple(s, cfg.Magic),
+		stopCh:      make(chan struct{}),
+		runToExitCh: make(chan struct{}),
+		memPool:     mempool.New(cfg.MemPoolSize),
+		sbCommittee: committee,
+		log:         log,
+		events:      make(chan bcEvent),
+		subCh:       make(chan interface{}),
+		unsubCh:     make(chan interface{}),
 
 		contracts: *native.NewContracts(),
 	}
@@ -201,12 +182,12 @@ func (bc *Blockchain) init() error {
 		if err != nil {
 			return err
 		}
-		bc.headerList = NewHeaderHashList(genesisBlock.Hash())
+		bc.headerHashes = []util.Uint256{genesisBlock.Hash()}
 		err = bc.dao.PutCurrentHeader(hashAndIndexToBytes(genesisBlock.Hash(), genesisBlock.Index))
 		if err != nil {
 			return err
 		}
-		return bc.storeBlock(genesisBlock)
+		return bc.storeBlock(genesisBlock, nil)
 	}
 	if ver != version {
 		return fmt.Errorf("storage version mismatch betweeen %s and %s", version, ver)
@@ -227,20 +208,19 @@ func (bc *Blockchain) init() error {
 		return fmt.Errorf("can't init MPT at height %d: %w", bHeight, err)
 	}
 
-	hashes, err := bc.dao.GetHeaderHashes()
+	bc.headerHashes, err = bc.dao.GetHeaderHashes()
 	if err != nil {
 		return err
 	}
 
-	bc.headerList = NewHeaderHashList(hashes...)
-	bc.storedHeaderCount = uint32(len(hashes))
+	bc.storedHeaderCount = uint32(len(bc.headerHashes))
 
 	currHeaderHeight, currHeaderHash, err := bc.dao.GetCurrentHeaderHeight()
 	if err != nil {
 		return err
 	}
 	if bc.storedHeaderCount == 0 && currHeaderHeight == 0 {
-		bc.headerList.Add(currHeaderHash)
+		bc.headerHashes = append(bc.headerHashes, currHeaderHash)
 	}
 
 	// There is a high chance that the Node is stopped before the next
@@ -249,15 +229,15 @@ func (bc *Blockchain) init() error {
 	if currHeaderHeight >= bc.storedHeaderCount {
 		hash := currHeaderHash
 		var targetHash util.Uint256
-		if bc.headerList.Len() > 0 {
-			targetHash = bc.headerList.Get(bc.headerList.Len() - 1)
+		if len(bc.headerHashes) > 0 {
+			targetHash = bc.headerHashes[len(bc.headerHashes)-1]
 		} else {
 			genesisBlock, err := createGenesisBlock(bc.config)
 			if err != nil {
 				return err
 			}
 			targetHash = genesisBlock.Hash()
-			bc.headerList.Add(targetHash)
+			bc.headerHashes = append(bc.headerHashes, targetHash)
 		}
 		headers := make([]*block.Header, 0)
 
@@ -271,11 +251,13 @@ func (bc *Blockchain) init() error {
 		}
 		headerSliceReverse(headers)
 		for _, h := range headers {
-			if !h.Verify() {
-				return fmt.Errorf("bad header %d/%s in the storage", h.Index, h.Hash())
-			}
-			bc.headerList.Add(h.Hash())
+			bc.headerHashes = append(bc.headerHashes, h.Hash())
 		}
+	}
+
+	err = bc.contracts.NEO.InitializeCache(bc, bc.dao)
+	if err != nil {
+		return fmt.Errorf("can't init cache for NEO native contract: %w", err)
 	}
 
 	return nil
@@ -300,9 +282,6 @@ func (bc *Blockchain) Run() {
 		select {
 		case <-bc.stopCh:
 			return
-		case op := <-bc.headersOp:
-			op(bc.headerList)
-			bc.headersOpDone <- struct{}{}
 		case <-persistTimer.C:
 			go func() {
 				err := bc.persist()
@@ -394,6 +373,19 @@ func (bc *Blockchain) notificationDispatcher() {
 						ch <- tx
 					}
 				}
+
+				aer = event.appExecResults[aerIdx]
+				if !aer.TxHash.Equals(event.block.Hash()) {
+					panic("inconsistent application execution results")
+				}
+				for ch := range executionFeed {
+					ch <- aer
+				}
+				for i := range aer.Events {
+					for ch := range notificationFeed {
+						ch <- &aer.Events[i]
+					}
+				}
 			}
 			for ch := range blockFeed {
 				ch <- event.block
@@ -419,45 +411,43 @@ func (bc *Blockchain) AddBlock(block *block.Block) error {
 	bc.addLock.Lock()
 	defer bc.addLock.Unlock()
 
+	var mp *mempool.Pool
 	expectedHeight := bc.BlockHeight() + 1
 	if expectedHeight != block.Index {
 		return fmt.Errorf("expected %d, got %d: %w", expectedHeight, block.Index, ErrInvalidBlockIndex)
 	}
 
-	headerLen := bc.headerListLen()
-	if int(block.Index) == headerLen {
+	if block.Index == bc.HeaderHeight()+1 {
 		err := bc.addHeaders(bc.config.VerifyBlocks, block.Header())
 		if err != nil {
 			return err
 		}
 	}
 	if bc.config.VerifyBlocks {
-		err := block.Verify()
-		if err != nil {
-			return fmt.Errorf("block %s is invalid: %w", block.Hash().StringLE(), err)
+		merkle := block.ComputeMerkleRoot()
+		if !block.MerkleRoot.Equals(merkle) {
+			return errors.New("invalid block: MerkleRoot mismatch")
 		}
-		if bc.config.VerifyTransactions {
-			var mp = mempool.New(len(block.Transactions))
-			for _, tx := range block.Transactions {
-				var err error
-				// Transactions are verified before adding them
-				// into the pool, so there is no point in doing
-				// it again even if we're verifying in-block transactions.
-				if bc.memPool.ContainsKey(tx.Hash()) {
-					err = mp.Add(tx, bc)
-					if err == nil {
-						continue
-					}
-				} else {
-					err = bc.verifyAndPoolTx(tx, mp)
+		mp = mempool.New(len(block.Transactions))
+		for _, tx := range block.Transactions {
+			var err error
+			// Transactions are verified before adding them
+			// into the pool, so there is no point in doing
+			// it again even if we're verifying in-block transactions.
+			if bc.memPool.ContainsKey(tx.Hash()) {
+				err = mp.Add(tx, bc)
+				if err == nil {
+					continue
 				}
-				if err != nil {
-					return fmt.Errorf("transaction %s failed to verify: %w", tx.Hash().StringLE(), err)
-				}
+			} else {
+				err = bc.verifyAndPoolTx(tx, mp)
+			}
+			if err != nil && bc.config.VerifyTransactions {
+				return fmt.Errorf("transaction %s failed to verify: %w", tx.Hash().StringLE(), err)
 			}
 		}
 	}
-	return bc.storeBlock(block)
+	return bc.storeBlock(block, mp)
 }
 
 // AddHeaders processes the given headers and add them to the
@@ -468,10 +458,11 @@ func (bc *Blockchain) AddHeaders(headers ...*block.Header) error {
 
 // addHeaders is an internal implementation of AddHeaders (`verify` parameter
 // tells it to verify or not verify given headers).
-func (bc *Blockchain) addHeaders(verify bool, headers ...*block.Header) (err error) {
+func (bc *Blockchain) addHeaders(verify bool, headers ...*block.Header) error {
 	var (
 		start = time.Now()
 		batch = bc.dao.Store.Batch()
+		err   error
 	)
 
 	if len(headers) > 0 {
@@ -495,75 +486,55 @@ func (bc *Blockchain) addHeaders(verify bool, headers ...*block.Header) (err err
 		}
 		for _, h := range headers {
 			if err = bc.verifyHeader(h, lastHeader); err != nil {
-				return
+				return err
 			}
 			lastHeader = h
 		}
 	}
 
-	bc.headersOp <- func(headerList *HeaderHashList) {
-		oldlen := headerList.Len()
-		for _, h := range headers {
-			if int(h.Index-1) >= headerList.Len() {
-				err = fmt.Errorf(
-					"height of received header %d is higher then the current header %d",
-					h.Index, headerList.Len(),
-				)
-				return
-			}
-			if int(h.Index) < headerList.Len() {
-				continue
-			}
-			if !h.Verify() {
-				err = fmt.Errorf("header %v is invalid", h)
-				return
-			}
-			if err = bc.processHeader(h, batch, headerList); err != nil {
-				return
-			}
-		}
-
-		if oldlen != headerList.Len() {
-			updateHeaderHeightMetric(headerList.Len() - 1)
-			if err = bc.dao.Store.PutBatch(batch); err != nil {
-				return
-			}
-			bc.log.Debug("done processing headers",
-				zap.Int("headerIndex", headerList.Len()-1),
-				zap.Uint32("blockHeight", bc.BlockHeight()),
-				zap.Duration("took", time.Since(start)))
-		}
-	}
-	<-bc.headersOpDone
-	return err
-}
-
-// processHeader processes the given header. Note that this is only thread safe
-// if executed in headers operation.
-func (bc *Blockchain) processHeader(h *block.Header, batch storage.Batch, headerList *HeaderHashList) error {
-	headerList.Add(h.Hash())
-
 	buf := io.NewBufBinWriter()
-	for int(h.Index)-headerBatchCount >= int(bc.storedHeaderCount) {
-		if err := headerList.Write(buf.BinWriter, int(bc.storedHeaderCount), headerBatchCount); err != nil {
+	bc.headerHashesLock.Lock()
+	defer bc.headerHashesLock.Unlock()
+	oldlen := len(bc.headerHashes)
+	var lastHeader *block.Header
+	for _, h := range headers {
+		if int(h.Index) != len(bc.headerHashes) {
+			continue
+		}
+		bc.headerHashes = append(bc.headerHashes, h.Hash())
+		h.EncodeBinary(buf.BinWriter)
+		if buf.Err != nil {
+			return buf.Err
+		}
+
+		key := storage.AppendPrefix(storage.DataBlock, h.Hash().BytesLE())
+		batch.Put(key, buf.Bytes())
+		buf.Reset()
+		lastHeader = h
+	}
+
+	if oldlen != len(bc.headerHashes) {
+		for int(lastHeader.Index)-headerBatchCount >= int(bc.storedHeaderCount) {
+			buf.WriteArray(bc.headerHashes[bc.storedHeaderCount : bc.storedHeaderCount+headerBatchCount])
+			if buf.Err != nil {
+				return buf.Err
+			}
+
+			key := storage.AppendPrefixInt(storage.IXHeaderHashList, int(bc.storedHeaderCount))
+			batch.Put(key, buf.Bytes())
+			bc.storedHeaderCount += headerBatchCount
+		}
+
+		batch.Put(storage.SYSCurrentHeader.Bytes(), hashAndIndexToBytes(lastHeader.Hash(), lastHeader.Index))
+		updateHeaderHeightMetric(len(bc.headerHashes) - 1)
+		if err = bc.dao.Store.PutBatch(batch); err != nil {
 			return err
 		}
-		key := storage.AppendPrefixInt(storage.IXHeaderHashList, int(bc.storedHeaderCount))
-		batch.Put(key, buf.Bytes())
-		bc.storedHeaderCount += headerBatchCount
-		buf.Reset()
+		bc.log.Debug("done processing headers",
+			zap.Int("headerIndex", len(bc.headerHashes)-1),
+			zap.Uint32("blockHeight", bc.BlockHeight()),
+			zap.Duration("took", time.Since(start)))
 	}
-
-	buf.Reset()
-	h.EncodeBinary(buf.BinWriter)
-	if buf.Err != nil {
-		return buf.Err
-	}
-
-	key := storage.AppendPrefix(storage.DataBlock, h.Hash().BytesLE())
-	batch.Put(key, buf.Bytes())
-	batch.Put(storage.SYSCurrentHeader.Bytes(), hashAndIndexToBytes(h.Hash(), h.Index))
-
 	return nil
 }
 
@@ -575,50 +546,38 @@ func (bc *Blockchain) GetStateRoot(height uint32) (*state.MPTRootState, error) {
 // storeBlock performs chain update using the block given, it executes all
 // transactions with all appropriate side-effects and updates Blockchain state.
 // This is the only way to change Blockchain state.
-func (bc *Blockchain) storeBlock(block *block.Block) error {
+func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error {
 	cache := dao.NewCached(bc.dao)
-	appExecResults := make([]*state.AppExecResult, 0, 1+len(block.Transactions))
-	if err := cache.StoreAsBlock(block); err != nil {
+	writeBuf := io.NewBufBinWriter()
+	appExecResults := make([]*state.AppExecResult, 0, 2+len(block.Transactions))
+	if err := cache.StoreAsBlock(block, writeBuf); err != nil {
 		return err
 	}
+	writeBuf.Reset()
 
-	if err := cache.StoreAsCurrentBlock(block); err != nil {
+	if err := cache.StoreAsCurrentBlock(block, writeBuf); err != nil {
 		return err
 	}
+	writeBuf.Reset()
 
 	if block.Index > 0 {
-		systemInterop := bc.newInteropContext(trigger.System, cache, block, nil)
-		v := systemInterop.SpawnVM()
-		v.LoadScriptWithFlags(bc.contracts.GetPersistScript(), smartcontract.AllowModifyStates|smartcontract.AllowCall)
-		v.SetPriceGetter(getPrice)
-		if err := v.Run(); err != nil {
-			return fmt.Errorf("onPersist run failed: %w", err)
-		} else if _, err := systemInterop.DAO.Persist(); err != nil {
-			return fmt.Errorf("can't save onPersist changes: %w", err)
-		}
-		for i := range systemInterop.Notifications {
-			bc.handleNotification(&systemInterop.Notifications[i], cache, block, block.Hash())
-		}
-		aer := &state.AppExecResult{
-			TxHash:      block.Hash(), // application logs can be retrieved by block hash
-			Trigger:     trigger.System,
-			VMState:     v.State(),
-			GasConsumed: v.GasConsumed(),
-			Stack:       v.Estack().ToArray(),
-			Events:      systemInterop.Notifications,
+		aer, err := bc.runPersist(bc.contracts.GetPersistScript(), block, cache)
+		if err != nil {
+			return fmt.Errorf("onPersist failed: %w", err)
 		}
 		appExecResults = append(appExecResults, aer)
-		err := cache.PutAppExecResult(aer)
+		err = cache.PutAppExecResult(aer, writeBuf)
 		if err != nil {
 			return fmt.Errorf("failed to store onPersist exec result: %w", err)
 		}
+		writeBuf.Reset()
 	}
 
-	var txHashes = make([]util.Uint256, len(block.Transactions))
-	for i, tx := range block.Transactions {
-		if err := cache.StoreAsTransaction(tx, block.Index); err != nil {
+	for _, tx := range block.Transactions {
+		if err := cache.StoreAsTransaction(tx, block.Index, writeBuf); err != nil {
 			return err
 		}
+		writeBuf.Reset()
 
 		systemInterop := bc.newInteropContext(trigger.Application, cache, block, tx)
 		v := systemInterop.SpawnVM()
@@ -627,6 +586,7 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 		v.GasLimit = tx.SystemFee
 
 		err := v.Run()
+		var faultException string
 		if !v.HasFailed() {
 			_, err := systemInterop.DAO.Persist()
 			if err != nil {
@@ -640,25 +600,35 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 				zap.String("tx", tx.Hash().StringLE()),
 				zap.Uint32("block", block.Index),
 				zap.Error(err))
+			faultException = err.Error()
 		}
 		aer := &state.AppExecResult{
-			TxHash:      tx.Hash(),
-			Trigger:     trigger.Application,
-			VMState:     v.State(),
-			GasConsumed: v.GasConsumed(),
-			Stack:       v.Estack().ToArray(),
-			Events:      systemInterop.Notifications,
+			TxHash:         tx.Hash(),
+			Trigger:        trigger.Application,
+			VMState:        v.State(),
+			GasConsumed:    v.GasConsumed(),
+			Stack:          v.Estack().ToArray(),
+			Events:         systemInterop.Notifications,
+			FaultException: faultException,
 		}
 		appExecResults = append(appExecResults, aer)
-		err = cache.PutAppExecResult(aer)
+		err = cache.PutAppExecResult(aer, writeBuf)
 		if err != nil {
 			return fmt.Errorf("failed to store tx exec result: %w", err)
 		}
-		txHashes[i] = tx.Hash()
+		writeBuf.Reset()
 	}
-	sort.Slice(txHashes, func(i, j int) bool {
-		return txHashes[i].CompareTo(txHashes[j]) < 0
-	})
+
+	aer, err := bc.runPersist(bc.contracts.GetPostPersistScript(), block, cache)
+	if err != nil {
+		return fmt.Errorf("postPersist failed: %w", err)
+	}
+	appExecResults = append(appExecResults, aer)
+	err = cache.PutAppExecResult(aer, writeBuf)
+	if err != nil {
+		return fmt.Errorf("failed to store postPersist exec result: %w", err)
+	}
+	writeBuf.Reset()
 
 	root := bc.dao.MPT.StateRoot()
 	var prevHash util.Uint256
@@ -669,7 +639,7 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 		}
 		prevHash = hash.DoubleSha256(prev.GetSignedPart())
 	}
-	err := bc.AddStateRoot(&state.MPTRoot{
+	err = bc.AddStateRoot(&state.MPTRoot{
 		MPTRootBase: state.MPTRootBase{
 			Index:    block.Index,
 			PrevHash: prevHash,
@@ -690,7 +660,12 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 		bc.lock.Unlock()
 		return err
 	}
-	bc.contracts.Policy.OnPersistEnd(bc.dao)
+	if err := bc.contracts.Policy.OnPersistEnd(bc.dao); err != nil {
+		return fmt.Errorf("failed to call OnPersistEnd for Policy native contract: %w", err)
+	}
+	if err := bc.contracts.Designate.OnPersistEnd(bc.dao); err != nil {
+		return err
+	}
 	bc.dao.MPT.Flush()
 	// Every persist cycle we also compact our in-memory MPT.
 	persistedHeight := atomic.LoadUint32(&bc.persistedHeight)
@@ -700,7 +675,7 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 	}
 	bc.topBlock.Store(block)
 	atomic.StoreUint32(&bc.blockHeight, block.Index)
-	bc.memPool.RemoveStale(func(tx *transaction.Transaction) bool { return bc.isTxStillRelevant(tx, txHashes) }, bc)
+	bc.memPool.RemoveStale(func(tx *transaction.Transaction) bool { return bc.isTxStillRelevant(tx, txpool) }, bc)
 	bc.lock.Unlock()
 
 	updateBlockHeightMetric(block.Index)
@@ -711,6 +686,29 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 		bc.events <- bcEvent{block, appExecResults}
 	}
 	return nil
+}
+
+func (bc *Blockchain) runPersist(script []byte, block *block.Block, cache *dao.Cached) (*state.AppExecResult, error) {
+	systemInterop := bc.newInteropContext(trigger.System, cache, block, nil)
+	v := systemInterop.SpawnVM()
+	v.LoadScriptWithFlags(script, smartcontract.AllowModifyStates|smartcontract.AllowCall)
+	v.SetPriceGetter(getPrice)
+	if err := v.Run(); err != nil {
+		return nil, fmt.Errorf("VM has failed: %w", err)
+	} else if _, err := systemInterop.DAO.Persist(); err != nil {
+		return nil, fmt.Errorf("can't save changes: %w", err)
+	}
+	for i := range systemInterop.Notifications {
+		bc.handleNotification(&systemInterop.Notifications[i], cache, block, block.Hash())
+	}
+	return &state.AppExecResult{
+		TxHash:      block.Hash(), // application logs can be retrieved by block hash
+		Trigger:     trigger.System,
+		VMState:     v.State(),
+		GasConsumed: v.GasConsumed(),
+		Stack:       v.Estack().ToArray(),
+		Events:      systemInterop.Notifications,
+	}, nil
 }
 
 func (bc *Blockchain) handleNotification(note *state.NotificationEvent, d *dao.Cached, b *block.Block, h util.Uint256) {
@@ -765,8 +763,8 @@ func (bc *Blockchain) processNEP5Transfer(cache *dao.Cached, h util.Uint256, b *
 	if nativeContract != nil {
 		id = nativeContract.Metadata().ContractID
 	} else {
-		assetContract := bc.GetContractState(sc)
-		if assetContract == nil {
+		assetContract, err := cache.GetContractState(sc)
+		if err != nil {
 			return
 		}
 		id = assetContract.ID
@@ -825,19 +823,22 @@ func (bc *Blockchain) processNEP5Transfer(cache *dao.Cached, h util.Uint256, b *
 }
 
 // ForEachNEP5Transfer executes f for each nep5 transfer in log.
-func (bc *Blockchain) ForEachNEP5Transfer(acc util.Uint160, f func(*state.NEP5Transfer) error) error {
+func (bc *Blockchain) ForEachNEP5Transfer(acc util.Uint160, f func(*state.NEP5Transfer) (bool, error)) error {
 	balances, err := bc.dao.GetNEP5Balances(acc)
 	if err != nil {
 		return nil
 	}
-	for i := uint32(0); i <= balances.NextTransferBatch; i++ {
-		lg, err := bc.dao.GetNEP5TransferLog(acc, i)
+	for i := int(balances.NextTransferBatch); i >= 0; i-- {
+		lg, err := bc.dao.GetNEP5TransferLog(acc, uint32(i))
 		if err != nil {
 			return nil
 		}
-		err = lg.ForEach(f)
+		cont, err := lg.ForEach(f)
 		if err != nil {
 			return err
+		}
+		if !cont {
+			break
 		}
 	}
 	return nil
@@ -916,14 +917,6 @@ func (bc *Blockchain) persist() error {
 	return nil
 }
 
-func (bc *Blockchain) headerListLen() (n int) {
-	bc.headersOp <- func(headerList *HeaderHashList) {
-		n = headerList.Len()
-	}
-	<-bc.headersOpDone
-	return
-}
-
 // GetTransaction returns a TX and its height by the given hash.
 func (bc *Blockchain) GetTransaction(hash util.Uint256) (*transaction.Transaction, uint32, error) {
 	if tx, ok := bc.memPool.TryGetValue(hash); ok {
@@ -933,7 +926,7 @@ func (bc *Blockchain) GetTransaction(hash util.Uint256) (*transaction.Transactio
 }
 
 // GetAppExecResult returns application execution result by the given
-// tx hash.
+// tx hash or block hash.
 func (bc *Blockchain) GetAppExecResult(hash util.Uint256) (*state.AppExecResult, error) {
 	return bc.dao.GetAppExecResult(hash)
 }
@@ -952,7 +945,8 @@ func (bc *Blockchain) GetStorageItems(id int32) (map[string]*state.StorageItem, 
 func (bc *Blockchain) GetBlock(hash util.Uint256) (*block.Block, error) {
 	topBlock := bc.topBlock.Load()
 	if topBlock != nil {
-		if tb, ok := topBlock.(*block.Block); ok && tb.Hash().Equals(hash) {
+		tb := topBlock.(*block.Block)
+		if tb.Hash().Equals(hash) {
 			return tb, nil
 		}
 	}
@@ -975,7 +969,8 @@ func (bc *Blockchain) GetBlock(hash util.Uint256) (*block.Block, error) {
 func (bc *Blockchain) GetHeader(hash util.Uint256) (*block.Header, error) {
 	topBlock := bc.topBlock.Load()
 	if topBlock != nil {
-		if tb, ok := topBlock.(*block.Block); ok && tb.Hash().Equals(hash) {
+		tb := topBlock.(*block.Block)
+		if tb.Hash().Equals(hash) {
 			return tb.Header(), nil
 		}
 	}
@@ -1002,31 +997,34 @@ func (bc *Blockchain) HasBlock(hash util.Uint256) bool {
 }
 
 // CurrentBlockHash returns the highest processed block hash.
-func (bc *Blockchain) CurrentBlockHash() (hash util.Uint256) {
-	bc.headersOp <- func(headerList *HeaderHashList) {
-		hash = headerList.Get(int(bc.BlockHeight()))
+func (bc *Blockchain) CurrentBlockHash() util.Uint256 {
+	topBlock := bc.topBlock.Load()
+	if topBlock != nil {
+		tb := topBlock.(*block.Block)
+		return tb.Hash()
 	}
-	<-bc.headersOpDone
-	return
+	return bc.GetHeaderHash(int(bc.BlockHeight()))
 }
 
 // CurrentHeaderHash returns the hash of the latest known header.
-func (bc *Blockchain) CurrentHeaderHash() (hash util.Uint256) {
-	bc.headersOp <- func(headerList *HeaderHashList) {
-		hash = headerList.Last()
-	}
-	<-bc.headersOpDone
-	return
+func (bc *Blockchain) CurrentHeaderHash() util.Uint256 {
+	bc.headerHashesLock.RLock()
+	hash := bc.headerHashes[len(bc.headerHashes)-1]
+	bc.headerHashesLock.RUnlock()
+	return hash
 }
 
-// GetHeaderHash returns the hash from the headerList by its
-// height/index.
-func (bc *Blockchain) GetHeaderHash(i int) (hash util.Uint256) {
-	bc.headersOp <- func(headerList *HeaderHashList) {
-		hash = headerList.Get(i)
+// GetHeaderHash returns hash of the header/block with specified index, if
+// Blockchain doesn't have a hash for this height, zero Uint256 value is returned.
+func (bc *Blockchain) GetHeaderHash(i int) util.Uint256 {
+	bc.headerHashesLock.RLock()
+	defer bc.headerHashesLock.RUnlock()
+
+	hashesLen := len(bc.headerHashes)
+	if hashesLen <= i {
+		return util.Uint256{}
 	}
-	<-bc.headersOpDone
-	return
+	return bc.headerHashes[i]
 }
 
 // BlockHeight returns the height/index of the highest block.
@@ -1036,7 +1034,10 @@ func (bc *Blockchain) BlockHeight() uint32 {
 
 // HeaderHeight returns the index/height of the highest header.
 func (bc *Blockchain) HeaderHeight() uint32 {
-	return uint32(bc.headerListLen() - 1)
+	bc.headerHashesLock.RLock()
+	n := len(bc.headerHashes)
+	bc.headerHashesLock.RUnlock()
+	return uint32(n - 1)
 }
 
 // GetContractState returns contract by its script hash.
@@ -1121,36 +1122,11 @@ func (bc *Blockchain) UnsubscribeFromExecutions(ch chan<- *state.AppExecResult) 
 }
 
 // CalculateClaimable calculates the amount of GAS generated by owning specified
-// amount of NEO between specified blocks. The amount of NEO being passed is in
-// its natural non-divisible form (1 NEO as 1, 2 NEO as 2, no multiplication by
-// 10⁸ is needed as for Fixed8).
+// amount of NEO between specified blocks.
 func (bc *Blockchain) CalculateClaimable(value *big.Int, startHeight, endHeight uint32) *big.Int {
-	var amount int64
-	di := uint32(bc.decrementInterval)
-
-	ustart := startHeight / di
-	if genSize := uint32(len(bc.generationAmount)); ustart < genSize {
-		uend := endHeight / di
-		iend := endHeight % di
-		if uend >= genSize {
-			uend = genSize - 1
-			iend = di
-		} else if iend == 0 {
-			uend--
-			iend = di
-		}
-
-		istart := startHeight % di
-		for ustart < uend {
-			amount += int64(di-istart) * int64(bc.generationAmount[ustart])
-			ustart++
-			istart = 0
-		}
-
-		amount += int64(iend-istart) * int64(bc.generationAmount[ustart])
-	}
-
-	return new(big.Int).Mul(big.NewInt(amount), value)
+	ic := bc.newInteropContext(trigger.System, bc.dao, nil, nil)
+	res, _ := bc.contracts.NEO.CalculateBonus(ic, value, startHeight, endHeight)
+	return res
 }
 
 // FeePerByte returns transaction network fee per byte.
@@ -1188,7 +1164,7 @@ func (bc *Blockchain) ApplyPolicyToTxSet(txes []*transaction.Transaction) []*tra
 	)
 	blockSize = uint32(io.GetVarSize(new(block.Block)) + io.GetVarSize(len(txes)+1))
 	for i, tx := range txes {
-		blockSize += uint32(io.GetVarSize(tx))
+		blockSize += uint32(tx.Size())
 		sysFee += tx.SystemFee
 		if blockSize > maxBlockSize || sysFee > maxBlockSysFee {
 			txes = txes[:i]
@@ -1241,7 +1217,7 @@ func (bc *Blockchain) verifyAndPoolTx(t *transaction.Transaction, pool *mempool.
 		// Only one %w can be used.
 		return fmt.Errorf("%w: %v", ErrPolicy, err)
 	}
-	size := io.GetVarSize(t)
+	size := t.Size()
 	if size > transaction.MaxTransactionSize {
 		return fmt.Errorf("%w: (%d > MaxTransactionSize %d)", ErrTxTooBig, size, transaction.MaxTransactionSize)
 	}
@@ -1283,21 +1259,41 @@ func (bc *Blockchain) verifyTxAttributes(tx *transaction.Transaction) error {
 	for i := range tx.Attributes {
 		switch tx.Attributes[i].Type {
 		case transaction.HighPriority:
-			pubs, err := bc.contracts.NEO.GetCommitteeMembers(bc, bc.dao)
-			if err != nil {
-				return err
-			}
-			s, err := smartcontract.CreateMajorityMultiSigRedeemScript(pubs)
-			if err != nil {
-				return err
-			}
-			h := hash.Hash160(s)
+			h := bc.contracts.NEO.GetCommitteeAddress()
 			for i := range tx.Signers {
 				if tx.Signers[i].Account.Equals(h) {
 					return nil
 				}
 			}
 			return fmt.Errorf("%w: high priority tx is not signed by committee", ErrInvalidAttribute)
+		case transaction.OracleResponseT:
+			h, err := bc.contracts.Oracle.GetScriptHash()
+			if err != nil {
+				return fmt.Errorf("%w: %v", ErrInvalidAttribute, err)
+			}
+			hasOracle := false
+			for i := range tx.Signers {
+				if tx.Signers[i].Scopes != transaction.None {
+					return fmt.Errorf("%w: oracle tx has invalid signer scope", ErrInvalidAttribute)
+				}
+				if tx.Signers[i].Account.Equals(h) {
+					hasOracle = true
+				}
+			}
+			if !hasOracle {
+				return fmt.Errorf("%w: oracle tx is not signed by oracle nodes", ErrInvalidAttribute)
+			}
+			if !bytes.Equal(tx.Script, native.GetOracleResponseScript()) {
+				return fmt.Errorf("%w: oracle tx has invalid script", ErrInvalidAttribute)
+			}
+			resp := tx.Attributes[i].Value.(*transaction.OracleResponse)
+			req, err := bc.contracts.Oracle.GetRequestInternal(bc.dao, resp.ID)
+			if err != nil {
+				return fmt.Errorf("%w: oracle tx points to invalid request: %v", ErrInvalidAttribute, err)
+			}
+			if uint64(tx.NetworkFee+tx.SystemFee) < req.GasForResponse {
+				return fmt.Errorf("%w: oracle tx has insufficient gas", ErrInvalidAttribute)
+			}
 		}
 	}
 	return nil
@@ -1305,17 +1301,22 @@ func (bc *Blockchain) verifyTxAttributes(tx *transaction.Transaction) error {
 
 // isTxStillRelevant is a callback for mempool transaction filtering after the
 // new block addition. It returns false for transactions added by the new block
-// (passed via txHashes) and does witness reverification for non-standard
+// (passed via txpool) and does witness reverification for non-standard
 // contracts. It operates under the assumption that full transaction verification
 // was already done so we don't need to check basic things like size, input/output
 // correctness, presence in blocks before the new one, etc.
-func (bc *Blockchain) isTxStillRelevant(t *transaction.Transaction, txHashes []util.Uint256) bool {
+func (bc *Blockchain) isTxStillRelevant(t *transaction.Transaction, txpool *mempool.Pool) bool {
 	var recheckWitness bool
+	var curheight = bc.BlockHeight()
 
-	index := sort.Search(len(txHashes), func(i int) bool {
-		return txHashes[i].CompareTo(t.Hash()) >= 0
-	})
-	if index < len(txHashes) && txHashes[index].Equals(t.Hash()) {
+	if t.ValidUntilBlock <= curheight {
+		return false
+	}
+	if txpool == nil {
+		if bc.dao.HasTransaction(t.Hash()) {
+			return false
+		}
+	} else if txpool.ContainsKey(t.Hash()) {
 		return false
 	}
 	if err := bc.verifyTxAttributes(t); err != nil {
@@ -1444,14 +1445,21 @@ func (bc *Blockchain) GetStandByCommittee() keys.PublicKeys {
 	return bc.sbCommittee.Copy()
 }
 
+// GetCommittee returns the sorted list of public keys of nodes in committee.
+func (bc *Blockchain) GetCommittee() (keys.PublicKeys, error) {
+	pubs := bc.contracts.NEO.GetCommitteeMembers()
+	sort.Sort(pubs)
+	return pubs, nil
+}
+
 // GetValidators returns current validators.
 func (bc *Blockchain) GetValidators() ([]*keys.PublicKey, error) {
-	return bc.contracts.NEO.GetValidatorsInternal(bc, bc.dao)
+	return bc.contracts.NEO.ComputeNextBlockValidators(bc, bc.dao)
 }
 
 // GetNextBlockValidators returns next block validators.
 func (bc *Blockchain) GetNextBlockValidators() ([]*keys.PublicKey, error) {
-	return bc.contracts.NEO.GetNextBlockValidatorsInternal(bc, bc.dao)
+	return bc.contracts.NEO.GetNextBlockValidatorsInternal(), nil
 }
 
 // GetEnrollments returns all registered validators.
@@ -1461,7 +1469,9 @@ func (bc *Blockchain) GetEnrollments() ([]state.Validator, error) {
 
 // GetTestVM returns a VM and a Store setup for a test run of some sort of code.
 func (bc *Blockchain) GetTestVM(tx *transaction.Transaction) *vm.VM {
-	systemInterop := bc.newInteropContext(trigger.Application, bc.dao, nil, tx)
+	d := bc.dao.GetWrapped().(*dao.Simple)
+	d.MPT = nil
+	systemInterop := bc.newInteropContext(trigger.Application, d, nil, tx)
 	vm := systemInterop.SpawnVM()
 	vm.SetPriceGetter(getPrice)
 	return vm
@@ -1470,19 +1480,24 @@ func (bc *Blockchain) GetTestVM(tx *transaction.Transaction) *vm.VM {
 // Various witness verification errors.
 var (
 	ErrWitnessHashMismatch         = errors.New("witness hash mismatch")
+	ErrNativeContractWitness       = errors.New("native contract witness must have empty verification script")
 	ErrVerificationFailed          = errors.New("signature check failed")
 	ErrUnknownVerificationContract = errors.New("unknown verification contract")
 	ErrInvalidVerificationContract = errors.New("verification contract is missing `verify` method")
 )
 
 // initVerificationVM initializes VM for witness check.
-func initVerificationVM(ic *interop.Context, hash util.Uint160, witness *transaction.Witness, keyCache map[string]*keys.PublicKey) error {
+func (bc *Blockchain) initVerificationVM(ic *interop.Context, hash util.Uint160, witness *transaction.Witness) error {
 	var offset int
+	var isNative bool
 	var initMD *manifest.Method
 	verification := witness.VerificationScript
 	if len(verification) != 0 {
 		if witness.ScriptHash() != hash {
 			return ErrWitnessHashMismatch
+		}
+		if bc.contracts.ByHash(hash) != nil {
+			return ErrNativeContractWitness
 		}
 	} else {
 		cs, err := ic.DAO.GetContractState(hash)
@@ -1496,18 +1511,24 @@ func initVerificationVM(ic *interop.Context, hash util.Uint160, witness *transac
 		verification = cs.Script
 		offset = md.Offset
 		initMD = cs.Manifest.ABI.GetMethod(manifest.MethodInit)
+		isNative = cs.ID < 0
 	}
 
 	v := ic.VM
 	v.LoadScriptWithFlags(verification, smartcontract.NoneFlag)
 	v.Jump(v.Context(), offset)
-	if initMD != nil {
+	if isNative {
+		w := io.NewBufBinWriter()
+		emit.Opcodes(w.BinWriter, opcode.DEPTH, opcode.PACK)
+		emit.String(w.BinWriter, manifest.MethodVerify)
+		if w.Err != nil {
+			return w.Err
+		}
+		v.LoadScript(w.Bytes())
+	} else if initMD != nil {
 		v.Call(v.Context(), initMD.Offset)
 	}
 	v.LoadScript(witness.InvocationScript)
-	if keyCache != nil {
-		v.SetPublicKeys(keyCache)
-	}
 	return nil
 }
 
@@ -1515,11 +1536,12 @@ func initVerificationVM(ic *interop.Context, hash util.Uint160, witness *transac
 func (bc *Blockchain) VerifyWitness(h util.Uint160, c crypto.Verifiable, w *transaction.Witness, gas int64) error {
 	ic := bc.newInteropContext(trigger.Verification, bc.dao, nil, nil)
 	ic.Container = c
-	return bc.verifyHashAgainstScript(h, w, ic, true, gas)
+	_, err := bc.verifyHashAgainstScript(h, w, ic, gas)
+	return err
 }
 
-// verifyHashAgainstScript verifies given hash against the given witness.
-func (bc *Blockchain) verifyHashAgainstScript(hash util.Uint160, witness *transaction.Witness, interopCtx *interop.Context, useKeys bool, gas int64) error {
+// verifyHashAgainstScript verifies given hash against the given witness and returns the amount of GAS consumed.
+func (bc *Blockchain) verifyHashAgainstScript(hash util.Uint160, witness *transaction.Witness, interopCtx *interop.Context, gas int64) (int64, error) {
 	gasPolicy := bc.contracts.Policy.GetMaxVerificationGas(interopCtx.DAO)
 	if gas > gasPolicy {
 		gas = gasPolicy
@@ -1528,47 +1550,29 @@ func (bc *Blockchain) verifyHashAgainstScript(hash util.Uint160, witness *transa
 	vm := interopCtx.SpawnVM()
 	vm.SetPriceGetter(getPrice)
 	vm.GasLimit = gas
-	var keyCache map[string]*keys.PublicKey
-	if useKeys {
-		bc.keyCacheLock.RLock()
-		if bc.keyCache[hash] != nil {
-			keyCache = bc.keyCache[hash]
-		}
-		bc.keyCacheLock.RUnlock()
-	}
-	if err := initVerificationVM(interopCtx, hash, witness, keyCache); err != nil {
-		return err
+	if err := bc.initVerificationVM(interopCtx, hash, witness); err != nil {
+		return 0, err
 	}
 	err := vm.Run()
 	if vm.HasFailed() {
-		return fmt.Errorf("%w: vm execution has failed: %v", ErrVerificationFailed, err)
+		return 0, fmt.Errorf("%w: vm execution has failed: %v", ErrVerificationFailed, err)
 	}
 	resEl := vm.Estack().Pop()
 	if resEl != nil {
 		res, err := resEl.Item().TryBool()
 		if err != nil {
-			return fmt.Errorf("%w: invalid return value", ErrVerificationFailed)
+			return 0, fmt.Errorf("%w: invalid return value", ErrVerificationFailed)
 		}
 		if !res {
-			return fmt.Errorf("%w: invalid signature", ErrVerificationFailed)
+			return 0, fmt.Errorf("%w: invalid signature", ErrVerificationFailed)
 		}
 		if vm.Estack().Len() != 0 {
-			return fmt.Errorf("%w: expected exactly one returned value", ErrVerificationFailed)
-		}
-		if useKeys {
-			bc.keyCacheLock.RLock()
-			_, ok := bc.keyCache[hash]
-			bc.keyCacheLock.RUnlock()
-			if !ok {
-				bc.keyCacheLock.Lock()
-				bc.keyCache[hash] = vm.GetPublicKeys()
-				bc.keyCacheLock.Unlock()
-			}
+			return 0, fmt.Errorf("%w: expected exactly one returned value", ErrVerificationFailed)
 		}
 	} else {
-		return fmt.Errorf("%w: no result returned from the script", ErrVerificationFailed)
+		return 0, fmt.Errorf("%w: no result returned from the script", ErrVerificationFailed)
 	}
-	return nil
+	return vm.GasConsumed(), nil
 }
 
 // verifyTxWitnesses verifies the scripts (witnesses) that come with a given
@@ -1582,11 +1586,13 @@ func (bc *Blockchain) verifyTxWitnesses(t *transaction.Transaction, block *block
 		return fmt.Errorf("%w: %d vs %d", ErrTxInvalidWitnessNum, len(t.Signers), len(t.Scripts))
 	}
 	interopCtx := bc.newInteropContext(trigger.Verification, bc.dao, block, t)
+	gasLimit := t.NetworkFee - int64(t.Size())*bc.FeePerByte()
 	for i := range t.Signers {
-		err := bc.verifyHashAgainstScript(t.Signers[i].Account, &t.Scripts[i], interopCtx, false, t.NetworkFee)
+		gasConsumed, err := bc.verifyHashAgainstScript(t.Signers[i].Account, &t.Scripts[i], interopCtx, gasLimit)
 		if err != nil {
 			return fmt.Errorf("witness #%d: %w", i, err)
 		}
+		gasLimit -= gasConsumed
 	}
 
 	return nil

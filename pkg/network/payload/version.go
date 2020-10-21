@@ -8,6 +8,9 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/network/capability"
 )
 
+// MaxUserAgentLength is the limit for user agent field.
+const MaxUserAgentLength = 1024
+
 // Version payload.
 type Version struct {
 	// NetMode of the node
@@ -42,7 +45,7 @@ func (p *Version) DecodeBinary(br *io.BinReader) {
 	p.Version = br.ReadU32LE()
 	p.Timestamp = br.ReadU32LE()
 	p.Nonce = br.ReadU32LE()
-	p.UserAgent = br.ReadVarBytes()
+	p.UserAgent = br.ReadVarBytes(MaxUserAgentLength)
 	p.Capabilities.DecodeBinary(br)
 }
 

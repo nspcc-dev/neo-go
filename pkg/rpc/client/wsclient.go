@@ -8,10 +8,10 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
+	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/request"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response"
-	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 )
 
@@ -69,6 +69,8 @@ const (
 
 // NewWS returns a new WSClient ready to use (with established websocket
 // connection). You need to use websocket URL for it like `ws://1.2.3.4/ws`.
+// You should call Init method to initialize network magic the client is
+// operating on.
 func NewWS(ctx context.Context, endpoint string, opts Options) (*WSClient, error) {
 	cl, err := New(ctx, endpoint, opts)
 	if err != nil {
@@ -137,13 +139,13 @@ readloop:
 			var val interface{}
 			switch event {
 			case response.BlockEventID:
-				val = block.New(c.opts.Network)
+				val = block.New(c.GetNetwork())
 			case response.TransactionEventID:
-				val = &transaction.Transaction{Network: c.opts.Network}
+				val = &transaction.Transaction{Network: c.GetNetwork()}
 			case response.NotificationEventID:
-				val = new(result.NotificationEvent)
+				val = new(state.NotificationEvent)
 			case response.ExecutionEventID:
-				val = new(result.ApplicationLog)
+				val = new(state.AppExecResult)
 			case response.MissedEventID:
 				// No value.
 			default:

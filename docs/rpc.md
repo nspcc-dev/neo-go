@@ -101,6 +101,28 @@ and we're not accepting issues related to them.
 
 Some additional extensions are implemented as a part of this RPC server.
 
+#### Limits and paging for getnep5transfers
+
+`getnep5transfers` RPC call never returns more than 1000 results for one
+request (within specified time frame). You can pass your own limit via an
+additional parameter and then use paging to request the next batch of
+transfers.
+
+Example requesting 10 events for address NbTiM6h8r99kpRtb428XcsUk1TzKed2gTc
+within 0-1600094189 timestamps:
+
+```json
+{ "jsonrpc": "2.0", "id": 5, "method": "getnep5transfers", "params":
+["NbTiM6h8r99kpRtb428XcsUk1TzKed2gTc", 0, 1600094189, 10] }
+```
+
+Get the next 10 transfers for the same account within the same time frame:
+
+```json
+{ "jsonrpc": "2.0", "id": 5, "method": "getnep5transfers", "params":
+["NbTiM6h8r99kpRtb428XcsUk1TzKed2gTc", 0, 1600094189, 10, 1] }
+```
+
 #### Websocket server
 
 This server accepts websocket connections on `ws://$BASE_URL/ws` address. You

@@ -10,4 +10,5 @@ import (
 type Feer interface {
 	FeePerByte() int64
 	GetUtilityTokenBalance(util.Uint160) *big.Int
+	BlockHeight() uint32
 }

@@ -360,8 +360,8 @@ func FromJSONWithTypes(data []byte) (Item, error) {
 			key, err := FromJSONWithTypes(arr[i].Key)
 			if err != nil {
 				return nil, err
-			} else if !IsValidMapKey(key) {
-				return nil, fmt.Errorf("invalid map key of type %s", key.Type())
+			} else if err = IsValidMapKey(key); err != nil {
+				return nil, err
 			}
 			value, err := FromJSONWithTypes(arr[i].Value)
 			if err != nil {

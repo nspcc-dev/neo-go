@@ -22,16 +22,16 @@ type Blockchainer interface {
 	AddHeaders(...*block.Header) error
 	AddBlock(*block.Block) error
 	AddStateRoot(r *state.MPTRoot) error
-	BlockHeight() uint32
 	CalculateClaimable(value *big.Int, startHeight, endHeight uint32) *big.Int
 	Close()
 	HeaderHeight() uint32
 	GetBlock(hash util.Uint256) (*block.Block, error)
+	GetCommittee() (keys.PublicKeys, error)
 	GetContractState(hash util.Uint160) *state.Contract
 	GetContractScriptHash(id int32) (util.Uint160, error)
 	GetEnrollments() ([]state.Validator, error)
 	GetGoverningTokenBalance(acc util.Uint160) (*big.Int, uint32)
-	ForEachNEP5Transfer(util.Uint160, func(*state.NEP5Transfer) error) error
+	ForEachNEP5Transfer(util.Uint160, func(*state.NEP5Transfer) (bool, error)) error
 	GetHeaderHash(int) util.Uint256
 	GetHeader(hash util.Uint256) (*block.Header, error)
 	CurrentHeaderHash() util.Uint256

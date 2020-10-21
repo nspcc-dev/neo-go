@@ -2,6 +2,7 @@ package storage
 
 import (
 	"github.com/syndtr/goleveldb/leveldb"
+	"github.com/syndtr/goleveldb/leveldb/filter"
 	"github.com/syndtr/goleveldb/leveldb/opt"
 	"github.com/syndtr/goleveldb/leveldb/util"
 )
@@ -21,8 +22,9 @@ type LevelDBStore struct {
 // NewLevelDBStore returns a new LevelDBStore object that will
 // initialize the database found at the given path.
 func NewLevelDBStore(cfg LevelDBOptions) (*LevelDBStore, error) {
-	var opts *opt.Options // should be exposed via LevelDBOptions if anything needed
+	var opts = new(opt.Options) // should be exposed via LevelDBOptions if anything needed
 
+	opts.Filter = filter.NewBloomFilter(10)
 	db, err := leveldb.OpenFile(cfg.DataDirectoryPath, opts)
 	if err != nil {
 		return nil, err

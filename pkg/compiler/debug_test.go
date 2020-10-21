@@ -15,6 +15,10 @@ import (
 
 func TestCodeGen_DebugInfo(t *testing.T) {
 	src := `package foo
+	import "github.com/nspcc-dev/neo-go/pkg/interop"
+	import "github.com/nspcc-dev/neo-go/pkg/interop/storage"
+	import "github.com/nspcc-dev/neo-go/pkg/interop/blockchain"
+	import "github.com/nspcc-dev/neo-go/pkg/interop/contract"
 func Main(op string) bool {
 	var s string
 	_ = s
@@ -42,6 +46,16 @@ func MethodByteArray() []byte { return nil }
 func MethodArray() []bool { return nil }
 func MethodStruct() struct{} { return struct{}{} }
 func unexportedMethod() int { return 1 }
+func MethodParams(addr interop.Hash160, h interop.Hash256,
+	sig interop.Signature, pub interop.PublicKey,
+	inter interop.Interface, ctr contract.Contract,
+	ctx storage.Context, tx blockchain.Transaction) bool {
+	return true
+}
+type MyStruct struct {}
+func (ms MyStruct) MethodOnStruct() { }
+func (ms *MyStruct) MethodOnPointerToStruct() { }
+func _deploy(isUpdate bool) {}
 `
 
 	info, err := getBuildInfo("foo.go", src)
@@ -65,8 +79,12 @@ func unexportedMethod() int { return 1 }
 			"MethodConcat": "String",
 			"MethodString": "String", "MethodByteArray": "ByteString",
 			"MethodArray": "Array", "MethodStruct": "Struct",
-			"Main":             "Boolean",
-			"unexportedMethod": "Integer",
+			"Main":                    "Boolean",
+			"unexportedMethod":        "Integer",
+			"MethodOnStruct":          "Void",
+			"MethodOnPointerToStruct": "Void",
+			"MethodParams":            "Boolean",
+			"_deploy":                 "Void",
 		}
 		for i := range d.Methods {
 			name := d.Methods[i].ID
@@ -88,6 +106,10 @@ func unexportedMethod() int { return 1 }
 
 	t.Run("param types", func(t *testing.T) {
 		paramTypes := map[string][]DebugParam{
+			"_deploy": {{
+				Name: "isUpdate",
+				Type: "Boolean",
+			}},
 			"MethodInt": {{
 				Name: "a",
 				Type: "String",
@@ -135,8 +157,16 @@ func unexportedMethod() int { return 1 }
 				Hash: hash.Hash160(buf),
 				Methods: []manifest.Method{
 					{
-						Name:   "main",
+						Name:   "_deploy",
 						Offset: 0,
+						Parameters: []manifest.Parameter{
+							manifest.NewParameter("isUpdate", smartcontract.BoolType),
+						},
+						ReturnType: smartcontract.VoidType,
+					},
+					{
+						Name:   "main",
+						Offset: 4,
 						Parameters: []manifest.Parameter{
 							manifest.NewParameter("op", smartcontract.StringType),
 						},
@@ -144,7 +174,7 @@ func unexportedMethod() int { return 1 }
 					},
 					{
 						Name:   "methodInt",
-						Offset: 66,
+						Offset: 70,
 						Parameters: []manifest.Parameter{
 							{
 								Name: "a",
@@ -155,31 +185,31 @@ func unexportedMethod() int { return 1 }
 					},
 					{
 						Name:       "methodString",
-						Offset:     97,
+						Offset:     101,
 						Parameters: []manifest.Parameter{},
 						ReturnType: smartcontract.StringType,
 					},
 					{
 						Name:       "methodByteArray",
-						Offset:     103,
+						Offset:     107,
 						Parameters: []manifest.Parameter{},
 						ReturnType: smartcontract.ByteArrayType,
 					},
 					{
 						Name:       "methodArray",
-						Offset:     108,
+						Offset:     112,
 						Parameters: []manifest.Parameter{},
 						ReturnType: smartcontract.ArrayType,
 					},
 					{
 						Name:       "methodStruct",
-						Offset:     113,
+						Offset:     117,
 						Parameters: []manifest.Parameter{},
 						ReturnType: smartcontract.ArrayType,
 					},
 					{
 						Name:   "methodConcat",
-						Offset: 88,
+						Offset: 92,
 						Parameters: []manifest.Parameter{
 							{
 								Name: "a",
@@ -195,6 +225,21 @@ func unexportedMethod() int { return 1 }
 							},
 						},
 						ReturnType: smartcontract.StringType,
+					},
+					{
+						Name:   "methodParams",
+						Offset: 129,
+						Parameters: []manifest.Parameter{
+							manifest.NewParameter("addr", smartcontract.Hash160Type),
+							manifest.NewParameter("h", smartcontract.Hash256Type),
+							manifest.NewParameter("sig", smartcontract.SignatureType),
+							manifest.NewParameter("pub", smartcontract.PublicKeyType),
+							manifest.NewParameter("inter", smartcontract.InteropInterfaceType),
+							manifest.NewParameter("ctr", smartcontract.ArrayType),
+							manifest.NewParameter("ctx", smartcontract.InteropInterfaceType),
+							manifest.NewParameter("tx", smartcontract.ArrayType),
+						},
+						ReturnType: smartcontract.BoolType,
 					},
 				},
 				Events: []manifest.Event{},

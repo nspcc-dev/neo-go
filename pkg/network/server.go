@@ -29,7 +29,6 @@ const (
 	defaultAttemptConnPeers = 20
 	defaultMaxPeers         = 100
 	maxBlockBatch           = 200
-	maxAddrsToSend          = 200
 	minPoolCount            = 30
 )
 
@@ -152,6 +151,7 @@ func NewServer(config ServerConfig, chain blockchainer.Blockchainer, log *zap.Lo
 
 	s.transport = NewTCPTransport(s, net.JoinHostPort(config.Address, strconv.Itoa(int(config.Port))), s.log)
 	s.discovery = NewDefaultDiscovery(
+		s.Seeds,
 		s.DialTimeout,
 		s.transport,
 	)
@@ -172,8 +172,6 @@ func (s *Server) Start(errChan chan error) {
 
 	s.tryStartConsensus()
 
-	s.discovery.BackFill(s.Seeds...)
-
 	go s.broadcastTxLoop()
 	go s.relayBlocksLoop()
 	go s.bQueue.run()
@@ -187,6 +185,9 @@ func (s *Server) Shutdown() {
 	s.log.Info("shutting down server", zap.Int("peers", s.PeerCount()))
 	s.transport.Close()
 	s.discovery.Close()
+	if s.consensusStarted.Load() {
+		s.consensus.Shutdown()
+	}
 	for p := range s.Peers() {
 		p.Disconnect(errServerShutdown)
 	}
@@ -687,8 +688,8 @@ func (s *Server) handleAddrCmd(p Peer, addrs *payload.AddressList) error {
 // handleGetAddrCmd sends to the peer some good addresses that we know of.
 func (s *Server) handleGetAddrCmd(p Peer) error {
 	addrs := s.discovery.GoodPeers()
-	if len(addrs) > maxAddrsToSend {
-		addrs = addrs[:maxAddrsToSend]
+	if len(addrs) > payload.MaxAddrsCount {
+		addrs = addrs[:payload.MaxAddrsCount]
 	}
 	alist := payload.NewAddressList(len(addrs))
 	ts := time.Now()
@@ -795,22 +796,33 @@ func (s *Server) requestTx(hashes ...util.Uint256) {
 		return
 	}
 
-	msg := NewMessage(CMDGetData, payload.NewInventory(payload.TXType, hashes))
-	// It's high priority because it directly affects consensus process,
-	// even though it's getdata.
-	s.broadcastHPMessage(msg)
+	for i := 0; i < len(hashes)/payload.MaxHashesCount; i++ {
+		start := i * payload.MaxHashesCount
+		stop := (i + 1) * payload.MaxHashesCount
+		if stop < len(hashes) {
+			stop = len(hashes)
+		}
+		msg := NewMessage(CMDGetData, payload.NewInventory(payload.TXType, hashes[start:stop]))
+		// It's high priority because it directly affects consensus process,
+		// even though it's getdata.
+		s.broadcastHPMessage(msg)
+	}
 }
 
 // iteratePeersWithSendMsg sends given message to all peers using two functions
 // passed, one is to send the message and the other is to filtrate peers (the
 // peer is considered invalid if it returns false).
 func (s *Server) iteratePeersWithSendMsg(msg *Message, send func(Peer, []byte) error, peerOK func(Peer) bool) {
+	// Get a copy of s.peers to avoid holding a lock while sending.
+	peers := s.Peers()
+	if len(peers) == 0 {
+		return
+	}
 	pkt, err := msg.Bytes()
 	if err != nil {
 		return
 	}
-	// Get a copy of s.peers to avoid holding a lock while sending.
-	for peer := range s.Peers() {
+	for peer := range peers {
 		if peerOK != nil && !peerOK(peer) {
 			continue
 		}

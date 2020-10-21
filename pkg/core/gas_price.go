@@ -1,6 +1,7 @@
 package core
 
 import (
+	"github.com/nspcc-dev/neo-go/pkg/core/fee"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 )
@@ -10,5 +11,5 @@ const StoragePrice = 100000
 
 // getPrice returns a price for executing op with the provided parameter.
 func getPrice(v *vm.VM, op opcode.Opcode, parameter []byte) int64 {
-	return opcodePrice(op)
+	return fee.Opcode(op)
 }

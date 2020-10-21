@@ -63,6 +63,10 @@ func TestNewPublicKeyFromBytes(t *testing.T) {
 	pub, err := NewPublicKeyFromBytes(b, elliptic.P256())
 	require.NoError(t, err)
 	require.Equal(t, priv.PublicKey(), pub)
+	// Test cached access
+	pub2, err := NewPublicKeyFromBytes(b, elliptic.P256())
+	require.NoError(t, err)
+	require.Same(t, pub, pub2)
 }
 
 func TestDecodeFromString(t *testing.T) {

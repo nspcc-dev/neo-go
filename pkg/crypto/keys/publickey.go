@@ -11,6 +11,7 @@ import (
 	"math/big"
 
 	"github.com/btcsuite/btcd/btcec"
+	lru "github.com/hashicorp/golang-lru"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
@@ -105,13 +106,31 @@ func NewPublicKeyFromString(s string) (*PublicKey, error) {
 	return NewPublicKeyFromBytes(b, elliptic.P256())
 }
 
+// keycache is a simple lru cache for P256 keys that avoids Y calculation overhead
+// for known keys.
+var keycache *lru.Cache
+
+func init() {
+	// Less than 100K, probably enough for our purposes.
+	keycache, _ = lru.New(1024)
+}
+
 // NewPublicKeyFromBytes returns public key created from b using given EC.
 func NewPublicKeyFromBytes(b []byte, curve elliptic.Curve) (*PublicKey, error) {
-	pubKey := new(PublicKey)
+	var pubKey *PublicKey
+	cachedKey, ok := keycache.Get(string(b))
+	if ok {
+		pubKey = cachedKey.(*PublicKey)
+		if pubKey.Curve == curve {
+			return pubKey, nil
+		}
+	}
+	pubKey = new(PublicKey)
 	pubKey.Curve = curve
 	if err := pubKey.DecodeBytes(b); err != nil {
 		return nil, err
 	}
+	keycache.Add(string(b), pubKey)
 	return pubKey, nil
 }
 
@@ -295,7 +314,7 @@ func (p *PublicKey) GetVerificationScript() []byte {
 		return buf.Bytes()
 	}
 	emit.Bytes(buf.BinWriter, b)
-	emit.Opcode(buf.BinWriter, opcode.PUSHNULL)
+	emit.Opcodes(buf.BinWriter, opcode.PUSHNULL)
 	emit.Syscall(buf.BinWriter, interopnames.NeoCryptoVerifyWithECDsaSecp256r1)
 
 	return buf.Bytes()
@@ -314,7 +333,7 @@ func (p *PublicKey) Address() string {
 // Verify returns true if the signature is valid and corresponds
 // to the hash and public key.
 func (p *PublicKey) Verify(signature []byte, hash []byte) bool {
-	if p.X == nil || p.Y == nil {
+	if p.X == nil || p.Y == nil || len(signature) != 64 {
 		return false
 	}
 	rBytes := new(big.Int).SetBytes(signature[0:32])

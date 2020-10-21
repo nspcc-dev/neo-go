@@ -5,10 +5,13 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
+	"github.com/nspcc-dev/neo-go/pkg/core/fee"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/request"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result"
@@ -18,11 +21,13 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 )
 
+var errNetworkNotInitialized = errors.New("RPC client network is not initialized")
+
 // GetApplicationLog returns the contract log based on the specified txid.
-func (c *Client) GetApplicationLog(hash util.Uint256) (*result.ApplicationLog, error) {
+func (c *Client) GetApplicationLog(hash util.Uint256) (*state.AppExecResult, error) {
 	var (
 		params = request.NewRawParams(hash.StringLE())
-		resp   = &result.ApplicationLog{}
+		resp   = new(state.AppExecResult)
 	)
 	if err := c.performRequest("getapplicationlog", params, resp); err != nil {
 		return nil, err
@@ -48,12 +53,14 @@ func (c *Client) GetBlockCount() (uint32, error) {
 	return resp, nil
 }
 
-// GetBlockByIndex returns a block by its height.
+// GetBlockByIndex returns a block by its height. You should initialize network magic
+// with Init before calling GetBlockByIndex.
 func (c *Client) GetBlockByIndex(index uint32) (*block.Block, error) {
 	return c.getBlock(request.NewRawParams(index))
 }
 
-// GetBlockByHash returns a block by its hash.
+// GetBlockByHash returns a block by its hash. You should initialize network magic
+// with Init before calling GetBlockByHash.
 func (c *Client) GetBlockByHash(hash util.Uint256) (*block.Block, error) {
 	return c.getBlock(request.NewRawParams(hash.StringLE()))
 }
@@ -64,6 +71,9 @@ func (c *Client) getBlock(params request.RawParams) (*block.Block, error) {
 		err  error
 		b    *block.Block
 	)
+	if !c.initDone {
+		return nil, errNetworkNotInitialized
+	}
 	if err = c.performRequest("getblock", params, &resp); err != nil {
 		return nil, err
 	}
@@ -72,7 +82,7 @@ func (c *Client) getBlock(params request.RawParams) (*block.Block, error) {
 		return nil, err
 	}
 	r := io.NewBinReaderFromBuf(blockBytes)
-	b = block.New(c.opts.Network)
+	b = block.New(c.GetNetwork())
 	b.DecodeBinary(r)
 	if r.Err != nil {
 		return nil, r.Err
@@ -81,14 +91,14 @@ func (c *Client) getBlock(params request.RawParams) (*block.Block, error) {
 }
 
 // GetBlockByIndexVerbose returns a block wrapper with additional metadata by
-// its height.
+// its height. You should initialize network magic with Init before calling GetBlockByIndexVerbose.
 // NOTE: to get transaction.ID and transaction.Size, use t.Hash() and io.GetVarSize(t) respectively.
 func (c *Client) GetBlockByIndexVerbose(index uint32) (*result.Block, error) {
 	return c.getBlockVerbose(request.NewRawParams(index, 1))
 }
 
 // GetBlockByHashVerbose returns a block wrapper with additional metadata by
-// its hash.
+// its hash. You should initialize network magic with Init before calling GetBlockByHashVerbose.
 func (c *Client) GetBlockByHashVerbose(hash util.Uint256) (*result.Block, error) {
 	return c.getBlockVerbose(request.NewRawParams(hash.StringLE(), 1))
 }
@@ -98,7 +108,10 @@ func (c *Client) getBlockVerbose(params request.RawParams) (*result.Block, error
 		resp = &result.Block{}
 		err  error
 	)
-	resp.Network = c.opts.Network
+	if !c.initDone {
+		return nil, errNetworkNotInitialized
+	}
+	resp.Network = c.GetNetwork()
 	if err = c.performRequest("getblock", params, resp); err != nil {
 		return nil, err
 	}
@@ -118,13 +131,17 @@ func (c *Client) GetBlockHash(index uint32) (util.Uint256, error) {
 }
 
 // GetBlockHeader returns the corresponding block header information from serialized hex string
-// according to the specified script hash.
+// according to the specified script hash. You should initialize network magic
+// // with Init before calling GetBlockHeader.
 func (c *Client) GetBlockHeader(hash util.Uint256) (*block.Header, error) {
 	var (
 		params = request.NewRawParams(hash.StringLE())
 		resp   string
 		h      *block.Header
 	)
+	if !c.initDone {
+		return nil, errNetworkNotInitialized
+	}
 	if err := c.performRequest("getblockheader", params, &resp); err != nil {
 		return nil, err
 	}
@@ -134,7 +151,7 @@ func (c *Client) GetBlockHeader(hash util.Uint256) (*block.Header, error) {
 	}
 	r := io.NewBinReaderFromBuf(headerBytes)
 	h = new(block.Header)
-	h.Network = c.opts.Network
+	h.Network = c.GetNetwork()
 	h.DecodeBinary(r)
 	if r.Err != nil {
 		return nil, r.Err
@@ -179,6 +196,18 @@ func (c *Client) GetConnectionCount() (int, error) {
 	return resp, nil
 }
 
+// GetCommittee returns the current public keys of NEO nodes in committee.
+func (c *Client) GetCommittee() (keys.PublicKeys, error) {
+	var (
+		params = request.NewRawParams()
+		resp   = new(keys.PublicKeys)
+	)
+	if err := c.performRequest("getcommittee", params, resp); err != nil {
+		return nil, err
+	}
+	return *resp, nil
+}
+
 // GetContractState queries contract information, according to the contract script hash.
 func (c *Client) GetContractState(hash util.Uint160) (*state.Contract, error) {
 	var (
@@ -201,9 +230,31 @@ func (c *Client) GetNEP5Balances(address util.Uint160) (*result.NEP5Balances, er
 	return resp, nil
 }
 
-// GetNEP5Transfers is a wrapper for getnep5transfers RPC.
-func (c *Client) GetNEP5Transfers(address string) (*result.NEP5Transfers, error) {
+// GetNEP5Transfers is a wrapper for getnep5transfers RPC. Address parameter
+// is mandatory, while all the others are optional. Start and stop parameters
+// are supported since neo-go 0.77.0 and limit and page since neo-go 0.78.0.
+// These parameters are positional in the JSON-RPC call, you can't specify limit
+// and not specify start/stop for example.
+func (c *Client) GetNEP5Transfers(address string, start, stop *uint32, limit, page *int) (*result.NEP5Transfers, error) {
 	params := request.NewRawParams(address)
+	if start != nil {
+		params.Values = append(params.Values, *start)
+		if stop != nil {
+			params.Values = append(params.Values, *stop)
+			if limit != nil {
+				params.Values = append(params.Values, *limit)
+				if page != nil {
+					params.Values = append(params.Values, *page)
+				}
+			} else if page != nil {
+				return nil, errors.New("bad parameters")
+			}
+		} else if limit != nil || page != nil {
+			return nil, errors.New("bad parameters")
+		}
+	} else if stop != nil || limit != nil || page != nil {
+		return nil, errors.New("bad parameters")
+	}
 	resp := new(result.NEP5Transfers)
 	if err := c.performRequest("getnep5transfers", params, resp); err != nil {
 		return nil, err
@@ -235,13 +286,17 @@ func (c *Client) GetRawMemPool() ([]util.Uint256, error) {
 	return *resp, nil
 }
 
-// GetRawTransaction returns a transaction by hash.
+// GetRawTransaction returns a transaction by hash. You should initialize network magic
+// with Init before calling GetRawTransaction.
 func (c *Client) GetRawTransaction(hash util.Uint256) (*transaction.Transaction, error) {
 	var (
 		params = request.NewRawParams(hash.StringLE())
 		resp   string
 		err    error
 	)
+	if !c.initDone {
+		return nil, errNetworkNotInitialized
+	}
 	if err = c.performRequest("getrawtransaction", params, &resp); err != nil {
 		return nil, err
 	}
@@ -249,7 +304,7 @@ func (c *Client) GetRawTransaction(hash util.Uint256) (*transaction.Transaction,
 	if err != nil {
 		return nil, err
 	}
-	tx, err := transaction.NewTransactionFromBytes(c.opts.Network, txBytes)
+	tx, err := transaction.NewTransactionFromBytes(c.GetNetwork(), txBytes)
 	if err != nil {
 		return nil, err
 	}
@@ -257,7 +312,8 @@ func (c *Client) GetRawTransaction(hash util.Uint256) (*transaction.Transaction,
 }
 
 // GetRawTransactionVerbose returns a transaction wrapper with additional
-// metadata by transaction's hash.
+// metadata by transaction's hash. You should initialize network magic
+// with Init before calling GetRawTransactionVerbose.
 // NOTE: to get transaction.ID and transaction.Size, use t.Hash() and io.GetVarSize(t) respectively.
 func (c *Client) GetRawTransactionVerbose(hash util.Uint256) (*result.TransactionOutputRaw, error) {
 	var (
@@ -265,7 +321,10 @@ func (c *Client) GetRawTransactionVerbose(hash util.Uint256) (*result.Transactio
 		resp   = &result.TransactionOutputRaw{}
 		err    error
 	)
-	resp.Network = c.opts.Network
+	if !c.initDone {
+		return nil, errNetworkNotInitialized
+	}
+	resp.Network = c.GetNetwork()
 	if err = c.performRequest("getrawtransaction", params, resp); err != nil {
 		return nil, err
 	}
@@ -318,13 +377,13 @@ func (c *Client) GetUnclaimedGas(address string) (result.UnclaimedGas, error) {
 	return resp, nil
 }
 
-// GetValidators returns the current NEO consensus nodes information and voting status.
-func (c *Client) GetValidators() ([]result.Validator, error) {
+// GetNextBlockValidators returns the current NEO consensus nodes information and voting status.
+func (c *Client) GetNextBlockValidators() ([]result.Validator, error) {
 	var (
 		params = request.NewRawParams()
 		resp   = new([]result.Validator)
 	)
-	if err := c.performRequest("getvalidators", params, resp); err != nil {
+	if err := c.performRequest("getnextblockvalidators", params, resp); err != nil {
 		return nil, err
 	}
 	return *resp, nil
@@ -345,7 +404,7 @@ func (c *Client) GetVersion() (*result.Version, error) {
 // InvokeScript returns the result of the given script after running it true the VM.
 // NOTE: This is a test invoke and will not affect the blockchain.
 func (c *Client) InvokeScript(script []byte, signers []transaction.Signer) (*result.Invoke, error) {
-	var p = request.NewRawParams(hex.EncodeToString(script))
+	var p = request.NewRawParams(script)
 	return c.invokeSomething("invokescript", p, signers)
 }
 
@@ -411,6 +470,9 @@ func (c *Client) SignAndPushInvocationTx(script []byte, acc *wallet.Account, sys
 	var err error
 
 	tx, err := c.CreateTxFromScript(script, acc, sysfee, int64(netfee), cosigners...)
+	if err != nil {
+		return txHash, fmt.Errorf("failed to create tx: %w", err)
+	}
 	if err = acc.SignTx(tx); err != nil {
 		return txHash, fmt.Errorf("failed to sign tx: %w", err)
 	}
@@ -431,7 +493,7 @@ func (c *Client) SignAndPushInvocationTx(script []byte, acc *wallet.Account, sys
 func getSigners(sender util.Uint160, cosigners []transaction.Signer) []transaction.Signer {
 	s := transaction.Signer{
 		Account: sender,
-		Scopes:  transaction.FeeOnly,
+		Scopes:  transaction.None,
 	}
 	for i, c := range cosigners {
 		if c.Account == sender {
@@ -464,7 +526,7 @@ func (c *Client) ValidateAddress(address string) error {
 
 // CalculateValidUntilBlock calculates ValidUntilBlock field for tx as
 // current blockchain height + number of validators. Number of validators
-// is the length of blockchain validators list got from GetValidators()
+// is the length of blockchain validators list got from GetNextBlockValidators()
 // method. Validators count is being cached and updated every 100 blocks.
 func (c *Client) CalculateValidUntilBlock() (uint32, error) {
 	var (
@@ -479,7 +541,7 @@ func (c *Client) CalculateValidUntilBlock() (uint32, error) {
 	if c.cache.calculateValidUntilBlock.expiresAt > blockCount {
 		validatorsCount = c.cache.calculateValidUntilBlock.validatorsCount
 	} else {
-		validators, err := c.GetValidators()
+		validators, err := c.GetNextBlockValidators()
 		if err != nil {
 			return result, fmt.Errorf("can't get validators: %w", err)
 		}
@@ -489,7 +551,7 @@ func (c *Client) CalculateValidUntilBlock() (uint32, error) {
 			expiresAt:       blockCount + cacheTimeout,
 		}
 	}
-	return blockCount + validatorsCount, nil
+	return blockCount + validatorsCount + 1, nil
 }
 
 // AddNetworkFee adds network fee for each witness script and optional extra
@@ -502,19 +564,24 @@ func (c *Client) AddNetworkFee(tx *transaction.Transaction, extraFee int64, accs
 	for i, cosigner := range tx.Signers {
 		if accs[i].Contract.Deployed {
 			res, err := c.InvokeFunction(cosigner.Account, manifest.MethodVerify, []smartcontract.Parameter{}, tx.Signers)
-			if err == nil && res.State == "HALT" && len(res.Stack) == 1 {
-				r, err := topIntFromStack(res.Stack)
-				if err != nil || r == 0 {
-					return core.ErrVerificationFailed
-				}
-			} else {
+			if err != nil {
+				return fmt.Errorf("failed to invoke verify: %w", err)
+			}
+			if res.State != "HALT" {
+				return fmt.Errorf("invalid VM state %s due to an error: %s", res.State, res.FaultException)
+			}
+			if l := len(res.Stack); l != 1 {
+				return fmt.Errorf("result stack length should be equal to 1, got %d", l)
+			}
+			r, err := topIntFromStack(res.Stack)
+			if err != nil || r == 0 {
 				return core.ErrVerificationFailed
 			}
 			tx.NetworkFee += res.GasConsumed
 			size += io.GetVarSize([]byte{}) * 2 // both scripts are empty
 			continue
 		}
-		netFee, sizeDelta := core.CalculateNetworkFee(accs[i].Contract.Script)
+		netFee, sizeDelta := fee.Calculate(accs[i].Contract.Script)
 		tx.NetworkFee += netFee
 		size += sizeDelta
 	}
@@ -524,4 +591,9 @@ func (c *Client) AddNetworkFee(tx *transaction.Transaction, extraFee int64, accs
 	}
 	tx.NetworkFee += int64(size)*fee + extraFee
 	return nil
+}
+
+// GetNetwork returns the network magic of the RPC node client connected to.
+func (c *Client) GetNetwork() netmode.Magic {
+	return c.network
 }

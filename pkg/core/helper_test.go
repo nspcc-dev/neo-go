@@ -14,6 +14,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/compiler"
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
+	"github.com/nspcc-dev/neo-go/pkg/core/fee"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
@@ -72,11 +73,7 @@ func newBlock(cfg config.ProtocolConfiguration, index uint32, prev util.Uint256,
 		},
 		Transactions: txs,
 	}
-	err := b.RebuildMerkleRoot()
-	if err != nil {
-		panic(err)
-	}
-
+	b.RebuildMerkleRoot()
 	b.Script.InvocationScript = testchain.Sign(b.GetSignedPart())
 	return b
 }
@@ -181,7 +178,7 @@ func TestCreateBasicChain(t *testing.T) {
 	priv0 := testchain.PrivateKeyByID(0)
 	priv0ScriptHash := priv0.GetScriptHash()
 
-	require.Equal(t, big.NewInt(0), bc.GetUtilityTokenBalance(priv0ScriptHash))
+	require.Equal(t, big.NewInt(2500_0000), bc.GetUtilityTokenBalance(priv0ScriptHash)) // gas bounty
 	// Move some NEO to one simple account.
 	txMoveNeo := newNEP5Transfer(neoHash, neoOwner, priv0ScriptHash, neoAmount)
 	txMoveNeo.ValidUntilBlock = validUntilBlock
@@ -210,7 +207,7 @@ func TestCreateBasicChain(t *testing.T) {
 	bw := io.NewBufBinWriter()
 	b.EncodeBinary(bw.BinWriter)
 	require.NoError(t, bw.Err)
-	t.Logf("Block1 hex: %s", bw.Bytes())
+	t.Logf("Block1 hex: %s", hex.EncodeToString(bw.Bytes()))
 	t.Logf("txMoveNeo hash: %s", txMoveNeo.Hash().StringLE())
 	t.Logf("txMoveNeo hex: %s", hex.EncodeToString(txMoveNeo.Bytes()))
 	t.Logf("txMoveGas hash: %s", txMoveGas.Hash().StringLE())
@@ -365,7 +362,7 @@ func TestCreateBasicChain(t *testing.T) {
 func newNEP5Transfer(sc, from, to util.Uint160, amount int64) *transaction.Transaction {
 	w := io.NewBufBinWriter()
 	emit.AppCallWithOperationAndArgs(w.BinWriter, sc, "transfer", from, to, amount)
-	emit.Opcode(w.BinWriter, opcode.ASSERT)
+	emit.Opcodes(w.BinWriter, opcode.ASSERT)
 
 	script := w.Bytes()
 	return transaction.New(testchain.Network(), script, 10000000)
@@ -411,7 +408,7 @@ func signTx(bc *Blockchain, txs ...*transaction.Transaction) error {
 	}
 	for _, tx := range txs {
 		size := io.GetVarSize(tx)
-		netFee, sizeDelta := CalculateNetworkFee(rawScript)
+		netFee, sizeDelta := fee.Calculate(rawScript)
 		tx.NetworkFee += netFee
 		size += sizeDelta
 		tx.NetworkFee += int64(size) * bc.FeePerByte()
@@ -426,13 +423,13 @@ func signTx(bc *Blockchain, txs ...*transaction.Transaction) error {
 
 func addNetworkFee(bc *Blockchain, tx *transaction.Transaction, sender *wallet.Account) error {
 	size := io.GetVarSize(tx)
-	netFee, sizeDelta := CalculateNetworkFee(sender.Contract.Script)
+	netFee, sizeDelta := fee.Calculate(sender.Contract.Script)
 	tx.NetworkFee += netFee
 	size += sizeDelta
 	for _, cosigner := range tx.Signers {
 		contract := bc.GetContractState(cosigner.Account)
 		if contract != nil {
-			netFee, sizeDelta = CalculateNetworkFee(contract.Script)
+			netFee, sizeDelta = fee.Calculate(contract.Script)
 			tx.NetworkFee += netFee
 			size += sizeDelta
 		}

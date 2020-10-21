@@ -17,6 +17,10 @@ import (
 // CheckHashedWitness checks given hash against current list of script hashes
 // for verifying in the interop context.
 func CheckHashedWitness(ic *interop.Context, hash util.Uint160) (bool, error) {
+	callingSH := ic.VM.GetCallingScriptHash()
+	if !callingSH.Equals(util.Uint160{}) && hash.Equals(callingSH) {
+		return true, nil
+	}
 	if tx, ok := ic.Container.(*transaction.Transaction); ok {
 		return checkScope(ic.DAO, tx, ic.VM, hash)
 	}
@@ -36,7 +40,7 @@ func checkScope(d dao.DAO, tx *transaction.Transaction, v *vm.VM, hash util.Uint
 			if c.Scopes&transaction.CalledByEntry != 0 {
 				callingScriptHash := v.GetCallingScriptHash()
 				entryScriptHash := v.GetEntryScriptHash()
-				if callingScriptHash == entryScriptHash {
+				if callingScriptHash.Equals(util.Uint160{}) || callingScriptHash == entryScriptHash {
 					return true, nil
 				}
 			}

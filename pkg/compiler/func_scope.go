@@ -77,7 +77,12 @@ func (c *codegen) newFuncScope(decl *ast.FuncDecl, label uint16) *funcScope {
 func (c *codegen) getFuncNameFromDecl(pkgPath string, decl *ast.FuncDecl) string {
 	name := decl.Name.Name
 	if decl.Recv != nil {
-		name = decl.Recv.List[0].Type.(*ast.Ident).Name + "." + name
+		switch t := decl.Recv.List[0].Type.(type) {
+		case *ast.Ident:
+			name = t.Name + "." + name
+		case *ast.StarExpr:
+			name = t.X.(*ast.Ident).Name + "." + name
+		}
 	}
 	return c.getIdentName(pkgPath, name)
 }
@@ -85,50 +90,20 @@ func (c *codegen) getFuncNameFromDecl(pkgPath string, decl *ast.FuncDecl) string
 // analyzeVoidCalls checks for functions that are not assigned
 // and therefore we need to cleanup the return value from the stack.
 func (c *funcScope) analyzeVoidCalls(node ast.Node) bool {
-	switch n := node.(type) {
-	case *ast.AssignStmt:
-		for i := 0; i < len(n.Rhs); i++ {
-			switch n.Rhs[i].(type) {
-			case *ast.CallExpr:
-				return false
-			}
-		}
-	case *ast.ReturnStmt:
-		if len(n.Results) > 0 {
-			switch n.Results[0].(type) {
-			case *ast.CallExpr:
-				return false
-			}
-		}
-	case *ast.BinaryExpr:
-		return false
-	case *ast.IfStmt:
-		// we can't just return `false`, because we still need to process body
-		ce, ok := n.Cond.(*ast.CallExpr)
+	est, ok := node.(*ast.ExprStmt)
+	if ok {
+		ce, ok := est.X.(*ast.CallExpr)
 		if ok {
-			c.voidCalls[ce] = false
+			c.voidCalls[ce] = true
 		}
-	case *ast.CaseClause:
-		for _, e := range n.List {
-			ce, ok := e.(*ast.CallExpr)
-			if ok {
-				c.voidCalls[ce] = false
-			}
-		}
-	case *ast.CallExpr:
-		_, ok := c.voidCalls[n]
-		if !ok {
-			c.voidCalls[n] = true
-		}
-		return false
 	}
 	return true
 }
 
-func (c *funcScope) countLocals() int {
+func countLocals(decl *ast.FuncDecl) (int, bool) {
 	size := 0
 	hasDefer := false
-	ast.Inspect(c.decl, func(n ast.Node) bool {
+	ast.Inspect(decl, func(n ast.Node) bool {
 		switch n := n.(type) {
 		case *ast.FuncType:
 			num := n.Results.NumFields()
@@ -159,6 +134,11 @@ func (c *funcScope) countLocals() int {
 		}
 		return true
 	})
+	return size, hasDefer
+}
+
+func (c *funcScope) countLocals() int {
+	size, hasDefer := countLocals(c.decl)
 	if hasDefer {
 		c.finallyProcessedIndex = size
 		size++

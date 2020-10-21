@@ -177,7 +177,7 @@ func NewBlock(t *testing.T, bc blockchainer.Blockchainer, offset uint32, primary
 		},
 		Transactions: txs,
 	}
-	_ = b.RebuildMerkleRoot()
+	b.RebuildMerkleRoot()
 
 	b.Script.InvocationScript = Sign(b.GetSignedPart())
 	return b

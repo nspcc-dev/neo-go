@@ -3,10 +3,10 @@ package server
 import (
 	"github.com/gorilla/websocket"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
+	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/request"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response"
-	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result"
 	"go.uber.org/atomic"
 )
 
@@ -72,14 +72,14 @@ func (f *feed) Matches(r *response.Notification) bool {
 		return senderOK && signerOK
 	case response.NotificationEventID:
 		filt := f.filter.(request.NotificationFilter)
-		notification := r.Payload[0].(result.NotificationEvent)
-		hashOk := filt.Contract == nil || notification.Contract.Equals(*filt.Contract)
+		notification := r.Payload[0].(*state.NotificationEvent)
+		hashOk := filt.Contract == nil || notification.ScriptHash.Equals(*filt.Contract)
 		nameOk := filt.Name == nil || notification.Name == *filt.Name
 		return hashOk && nameOk
 	case response.ExecutionEventID:
 		filt := f.filter.(request.ExecutionFilter)
-		applog := r.Payload[0].(result.ApplicationLog)
-		return applog.VMState == filt.State
+		applog := r.Payload[0].(*state.AppExecResult)
+		return applog.VMState.String() == filt.State
 	}
 	return false
 }

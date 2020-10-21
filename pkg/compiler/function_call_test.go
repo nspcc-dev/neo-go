@@ -3,7 +3,12 @@ package compiler_test
 import (
 	"fmt"
 	"math/big"
+	"strings"
 	"testing"
+
+	"github.com/nspcc-dev/neo-go/pkg/compiler"
+	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
+	"github.com/stretchr/testify/require"
 )
 
 func TestSimpleFunctionCall(t *testing.T) {
@@ -80,6 +85,15 @@ func TestNotAssignedFunctionCall(t *testing.T) {
 			return 42
 		}`
 		eval(t, src, big.NewInt(42))
+	})
+	t.Run("VarDecl", func(t *testing.T) {
+		src := `package foo
+		func foo() []int { return []int{1} }
+		func Main() int {
+			var x = foo()
+			return len(x)
+		}`
+		eval(t, src, big.NewInt(1))
 	})
 }
 
@@ -268,4 +282,20 @@ func TestVariadicMethod(t *testing.T) {
 		return x.someFunc(10, 1, 2, 3)
 	}`
 	eval(t, src, big.NewInt(42))
+}
+
+func TestJumpOptimize(t *testing.T) {
+	src := `package foo
+	func Get1() int { return 1 }
+	func Get2() int { Get1(); Get1(); Get1(); Get1(); return Get1() }
+	func Get3() int { return Get2() }
+	func Main() int {
+		return Get3()
+	}`
+	b, di, err := compiler.CompileWithDebugInfo("", strings.NewReader(src))
+	require.NoError(t, err)
+	for _, mi := range di.Methods {
+		require.Equal(t, b[mi.Range.Start], byte(opcode.INITSLOT))
+		require.Equal(t, b[mi.Range.End], byte(opcode.RET))
+	}
 }

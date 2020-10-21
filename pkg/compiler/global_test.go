@@ -1,6 +1,7 @@
 package compiler_test
 
 import (
+	"bytes"
 	"fmt"
 	"math/big"
 	"strings"
@@ -237,4 +238,36 @@ func TestMultipleFuncSameName(t *testing.T) {
 		}`
 		eval(t, src, big.NewInt(42))
 	})
+}
+
+func TestConstDontUseSlots(t *testing.T) {
+	const count = 256
+	buf := bytes.NewBufferString("package foo\n")
+	for i := 0; i < count; i++ {
+		buf.WriteString(fmt.Sprintf("const n%d = 1\n", i))
+	}
+	buf.WriteString("func Main() int { sum := 0\n")
+	for i := 0; i < count; i++ {
+		buf.WriteString(fmt.Sprintf("sum += n%d\n", i))
+	}
+	buf.WriteString("return sum }")
+
+	src := buf.String()
+	eval(t, src, big.NewInt(count))
+}
+
+func TestUnderscoreVarsDontUseSlots(t *testing.T) {
+	const count = 128
+	buf := bytes.NewBufferString("package foo\n")
+	for i := 0; i < count; i++ {
+		buf.WriteString(fmt.Sprintf("var _, n%d = 1, 1\n", i))
+	}
+	buf.WriteString("func Main() int { sum := 0\n")
+	for i := 0; i < count; i++ {
+		buf.WriteString(fmt.Sprintf("sum += n%d\n", i))
+	}
+	buf.WriteString("return sum }")
+
+	src := buf.String()
+	eval(t, src, big.NewInt(count))
 }

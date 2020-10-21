@@ -57,6 +57,8 @@ func TestRecoveryMessage_Setters(t *testing.T) {
 
 		ps := r.GetPrepareResponses(p, pubs)
 		require.Len(t, ps, 1)
+		// Update hashes and serialized data.
+		_ = ps[0].Hash()
 		require.Equal(t, p2, ps[0])
 		ps0 := ps[0].(*Payload)
 		require.True(t, srv.validatePayload(ps0))
@@ -91,6 +93,8 @@ func TestRecoveryMessage_Setters(t *testing.T) {
 
 		ps := r.GetChangeViews(p, pubs)
 		require.Len(t, ps, 1)
+		// update hashes and serialized data.
+		_ = ps[0].Hash()
 		require.Equal(t, p3, ps[0])
 
 		ps0 := ps[0].(*Payload)
@@ -109,6 +113,8 @@ func TestRecoveryMessage_Setters(t *testing.T) {
 
 		ps := r.GetCommits(p, pubs)
 		require.Len(t, ps, 1)
+		// update hashes and serialized data.
+		_ = ps[0].Hash()
 		require.Equal(t, p4, ps[0])
 
 		ps0 := ps[0].(*Payload)
