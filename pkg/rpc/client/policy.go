@@ -3,7 +3,6 @@ package client
 import (
 	"fmt"
 
-	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
@@ -41,39 +40,28 @@ func (c *Client) invokeNativePolicyMethod(operation string) (int64, error) {
 	return topIntFromStack(result.Stack)
 }
 
-// GetBlockedAccounts invokes `getBlockedAccounts` method on a native Policy contract.
-func (c *Client) GetBlockedAccounts() (native.BlockedAccounts, error) {
-	result, err := c.InvokeFunction(PolicyContractHash, "getBlockedAccounts", []smartcontract.Parameter{}, nil)
+// IsBlocked invokes `isBlocked` method on native Policy contract.
+func (c *Client) IsBlocked(hash util.Uint160) (bool, error) {
+	result, err := c.InvokeFunction(PolicyContractHash, "isBlocked", []smartcontract.Parameter{{
+		Type:  smartcontract.Hash160Type,
+		Value: hash,
+	}}, nil)
 	if err != nil {
-		return nil, err
+		return false, err
 	}
 	err = getInvocationError(result)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get blocked accounts: %w", err)
+		return false, fmt.Errorf("failed to check if account is blocked: %w", err)
 	}
-	return topBlockedAccountsFromStack(result.Stack)
+	return topBoolFromStack(result.Stack)
 }
 
-func topBlockedAccountsFromStack(st []stackitem.Item) (native.BlockedAccounts, error) {
+// topBoolFromStack returns the top boolean value from stack
+func topBoolFromStack(st []stackitem.Item) (bool, error) {
 	index := len(st) - 1 // top stack element is last in the array
-	var (
-		ba  native.BlockedAccounts
-		err error
-	)
-	items, ok := st[index].Value().([]stackitem.Item)
+	result, ok := st[index].Value().(bool)
 	if !ok {
-		return nil, fmt.Errorf("invalid stack item type: %s", st[index].Type())
+		return false, fmt.Errorf("invalid stack item type: %s", st[index].Type())
 	}
-	ba = make(native.BlockedAccounts, len(items))
-	for i, account := range items {
-		val, ok := account.Value().([]byte)
-		if !ok {
-			return nil, fmt.Errorf("invalid array element: %s", account.Type())
-		}
-		ba[i], err = util.Uint160DecodeBytesLE(val)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return ba, nil
+	return result, nil
 }

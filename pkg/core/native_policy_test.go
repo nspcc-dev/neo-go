@@ -2,7 +2,6 @@ package core
 
 import (
 	"math/big"
-	"sort"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
@@ -10,6 +9,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
+	"github.com/nspcc-dev/neo-go/pkg/internal/random"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/network/payload"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -162,16 +162,15 @@ func TestBlockedAccounts(t *testing.T) {
 	defer chain.Close()
 	account := util.Uint160{1, 2, 3}
 
-	t.Run("get, internal method", func(t *testing.T) {
-		accounts, err := chain.contracts.Policy.GetBlockedAccountsInternal(chain.dao)
-		require.NoError(t, err)
-		require.Equal(t, native.BlockedAccounts{}, accounts)
+	t.Run("isBlocked, internal method", func(t *testing.T) {
+		isBlocked := chain.contracts.Policy.IsBlockedInternal(chain.dao, random.Uint160())
+		require.Equal(t, false, isBlocked)
 	})
 
-	t.Run("get, contract method", func(t *testing.T) {
-		res, err := invokeNativePolicyMethod(chain, "getBlockedAccounts")
+	t.Run("isBlocked, contract method", func(t *testing.T) {
+		res, err := invokeNativePolicyMethod(chain, "isBlocked", random.Uint160())
 		require.NoError(t, err)
-		checkResult(t, res, stackitem.NewArray([]stackitem.Item{}))
+		checkResult(t, res, stackitem.NewBool(false))
 		require.NoError(t, chain.persist())
 	})
 
@@ -180,18 +179,16 @@ func TestBlockedAccounts(t *testing.T) {
 		require.NoError(t, err)
 		checkResult(t, res, stackitem.NewBool(true))
 
-		accounts, err := chain.contracts.Policy.GetBlockedAccountsInternal(chain.dao)
-		require.NoError(t, err)
-		require.Equal(t, native.BlockedAccounts{account}, accounts)
+		isBlocked := chain.contracts.Policy.IsBlockedInternal(chain.dao, account)
+		require.Equal(t, isBlocked, true)
 		require.NoError(t, chain.persist())
 
 		res, err = invokeNativePolicyMethod(chain, "unblockAccount", account.BytesBE())
 		require.NoError(t, err)
 		checkResult(t, res, stackitem.NewBool(true))
 
-		accounts, err = chain.contracts.Policy.GetBlockedAccountsInternal(chain.dao)
-		require.NoError(t, err)
-		require.Equal(t, native.BlockedAccounts{}, accounts)
+		isBlocked = chain.contracts.Policy.IsBlockedInternal(chain.dao, account)
+		require.Equal(t, false, isBlocked)
 		require.NoError(t, chain.persist())
 	})
 
@@ -219,28 +216,6 @@ func TestBlockedAccounts(t *testing.T) {
 		require.NoError(t, err)
 		checkResult(t, res, stackitem.NewBool(false))
 		require.NoError(t, chain.persist())
-	})
-
-	t.Run("sorted", func(t *testing.T) {
-		accounts := []util.Uint160{
-			{2, 3, 4},
-			{4, 5, 6},
-			{3, 4, 5},
-			{1, 2, 3},
-		}
-		for _, acc := range accounts {
-			res, err := invokeNativePolicyMethod(chain, "blockAccount", acc.BytesBE())
-			require.NoError(t, err)
-			checkResult(t, res, stackitem.NewBool(true))
-			require.NoError(t, chain.persist())
-		}
-
-		sort.Slice(accounts, func(i, j int) bool {
-			return accounts[i].Less(accounts[j])
-		})
-		actual, err := chain.contracts.Policy.GetBlockedAccountsInternal(chain.dao)
-		require.NoError(t, err)
-		require.Equal(t, native.BlockedAccounts(accounts), actual)
 	})
 }
 
