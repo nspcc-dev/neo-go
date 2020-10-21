@@ -30,6 +30,9 @@ type Designate struct {
 const (
 	designateContractID = -5
 	designateName       = "Designation"
+
+	// maxNodeCount is the maximum number of nodes to set the role for.
+	maxNodeCount = 32
 )
 
 // Role represents type of participant.
@@ -45,6 +48,7 @@ const (
 var (
 	ErrInvalidRole   = errors.New("invalid role")
 	ErrEmptyNodeList = errors.New("node list is empty")
+	ErrLargeNodeList = errors.New("node list is too large")
 )
 
 func isValidRole(r Role) bool {
@@ -162,8 +166,12 @@ func (s *Designate) designateAsRole(ic *interop.Context, args []stackitem.Item) 
 
 // DesignateAsRole sets nodes for role r.
 func (s *Designate) DesignateAsRole(ic *interop.Context, r Role, pubs keys.PublicKeys) error {
-	if len(pubs) == 0 {
+	length := len(pubs)
+	if length == 0 {
 		return ErrEmptyNodeList
+	}
+	if length > maxNodeCount {
+		return ErrLargeNodeList
 	}
 	if !isValidRole(r) {
 		return ErrInvalidRole
