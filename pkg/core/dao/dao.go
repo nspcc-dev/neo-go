@@ -81,7 +81,7 @@ type Simple struct {
 // NewSimple creates new simple dao using provided backend store.
 func NewSimple(backend storage.Store, network netmode.Magic) *Simple {
 	st := storage.NewMemCachedStore(backend)
-	return &Simple{Store: st, network: network, MPT: mpt.NewTrie(nil, st)}
+	return &Simple{Store: st, network: network}
 }
 
 // GetBatch returns currently accumulated DB changeset.
@@ -340,16 +340,28 @@ func makeStateRootKey(height uint32) []byte {
 }
 
 // InitMPT initializes MPT at the given height.
-func (dao *Simple) InitMPT(height uint32) error {
+func (dao *Simple) InitMPT(height uint32, enableRefCount bool) error {
+	var gcKey = []byte{byte(storage.DataMPT), 1}
 	if height == 0 {
-		dao.MPT = mpt.NewTrie(nil, dao.Store)
-		return nil
+		dao.MPT = mpt.NewTrie(nil, enableRefCount, dao.Store)
+		var val byte
+		if enableRefCount {
+			val = 1
+		}
+		return dao.Store.Put(gcKey, []byte{val})
+	}
+	var hasRefCount bool
+	if v, err := dao.Store.Get(gcKey); err == nil {
+		hasRefCount = v[0] != 0
+	}
+	if hasRefCount != enableRefCount {
+		return fmt.Errorf("KeepOnlyLatestState setting mismatch: old=%v, new=%v", hasRefCount, enableRefCount)
 	}
 	r, err := dao.GetStateRoot(height)
 	if err != nil {
 		return err
 	}
-	dao.MPT = mpt.NewTrie(mpt.NewHashNode(r.Root), dao.Store)
+	dao.MPT = mpt.NewTrie(mpt.NewHashNode(r.Root), enableRefCount, dao.Store)
 	return nil
 }
 
