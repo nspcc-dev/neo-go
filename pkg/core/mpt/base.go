@@ -16,8 +16,6 @@ type BaseNode struct {
 	bytes      []byte
 	hashValid  bool
 	bytesValid bool
-
-	isFlushed bool
 }
 
 // BaseNodeIface abstracts away basic Node functions.
@@ -25,8 +23,6 @@ type BaseNodeIface interface {
 	Hash() util.Uint256
 	Type() NodeType
 	Bytes() []byte
-	IsFlushed() bool
-	SetFlushed()
 }
 
 type flushedNode interface {
@@ -38,7 +34,6 @@ func (b *BaseNode) setCache(bs []byte, h util.Uint256) {
 	b.hash = h
 	b.bytesValid = true
 	b.hashValid = true
-	b.isFlushed = true
 }
 
 // getHash returns a hash of this BaseNode.
@@ -78,17 +73,6 @@ func (b *BaseNode) updateBytes(n Node) {
 func (b *BaseNode) invalidateCache() {
 	b.bytesValid = false
 	b.hashValid = false
-	b.isFlushed = false
-}
-
-// IsFlushed checks for node flush status.
-func (b *BaseNode) IsFlushed() bool {
-	return b.isFlushed
-}
-
-// SetFlushed sets 'flushed' flag to true for this node.
-func (b *BaseNode) SetFlushed() {
-	b.isFlushed = true
 }
 
 // encodeNodeWithType encodes node together with it's type.
@@ -99,6 +83,9 @@ func encodeNodeWithType(n Node, w *io.BinWriter) {
 
 // DecodeNodeWithType decodes node together with it's type.
 func DecodeNodeWithType(r *io.BinReader) Node {
+	if r.Err != nil {
+		return nil
+	}
 	var n Node
 	switch typ := NodeType(r.ReadB()); typ {
 	case BranchT:
