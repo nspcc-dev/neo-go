@@ -30,7 +30,7 @@ ProtocolConfiguration:
     IssueTransaction: 5
     PublishTransaction: 5
     RegisterTransaction: 100
-  VerifyBlocks: true
+  VerifyBlocks: false
   VerifyTransactions: false
   FreeGasLimit: {0: 10.0, 4840000: 50.0}
   MaxTransactionsPerBlock: {0: 500, 4840000: 200}
