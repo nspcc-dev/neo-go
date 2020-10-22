@@ -25,6 +25,7 @@ const (
 // is also expected.
 type NodeObject struct {
 	Node
+	Generation uint32
 }
 
 // Node represents common interface of all MPT nodes.
@@ -37,11 +38,13 @@ type Node interface {
 
 // EncodeBinary implements io.Serializable.
 func (n NodeObject) EncodeBinary(w *io.BinWriter) {
+	w.WriteU32LE(n.Generation)
 	encodeNodeWithType(n.Node, w)
 }
 
 // DecodeBinary implements io.Serializable.
 func (n *NodeObject) DecodeBinary(r *io.BinReader) {
+	n.Generation = r.ReadU32LE()
 	n.Node = DecodeNodeWithType(r)
 }
 

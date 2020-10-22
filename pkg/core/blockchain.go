@@ -85,6 +85,8 @@ type Blockchain struct {
 
 	// Data access object for CRUD operations around storage.
 	dao *dao.Simple
+	// store is persistent store unrerlying dao.
+	store storage.Store
 
 	// Current index/height of the highest block.
 	// Read access should always be called by BlockHeight().
@@ -170,6 +172,7 @@ func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration, log *zap.L
 	bc := &Blockchain{
 		config:        cfg,
 		dao:           dao.NewSimple(s),
+		store:         s,
 		headersOp:     make(chan headersOpFunc),
 		headersOpDone: make(chan struct{}),
 		stopCh:        make(chan struct{}),
@@ -300,6 +303,7 @@ func (bc *Blockchain) Run() {
 		if err := bc.persist(); err != nil {
 			bc.log.Warn("failed to persist", zap.Error(err))
 		}
+		bc.dao.MPT.ShutdownGC()
 		if err := bc.dao.Store.Close(); err != nil {
 			bc.log.Warn("failed to close db", zap.Error(err))
 		}
@@ -580,6 +584,9 @@ func (bc *Blockchain) GetStateRoot(height uint32) (*state.MPTRootState, error) {
 // is happening here, quite allot as you can see :). If things are wired together
 // and all tests are in place, we can make a more optimized and cleaner implementation.
 func (bc *Blockchain) storeBlock(block *block.Block) error {
+	mptGen := block.Index / mpt.GenerationSpan
+	bc.dao.MPT.SetGeneration(mptGen)
+
 	cache := dao.NewCached(bc.dao)
 	appExecResults := make([]*state.AppExecResult, 0, len(block.Transactions))
 	fee := bc.getSystemFeeAmount(block.PrevHash)
@@ -863,6 +870,20 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 	}
 	if bc.config.EnableStateRoot {
 		bc.dao.MPT.Flush()
+		if block.Index%mpt.GenerationSpan == 0 && mptGen > 1 {
+			root := bc.dao.MPT.StateRoot()
+			bc.dao.Persist()
+			go func() {
+				bc.log.Info("start GC", zap.Uint32("generation", mptGen),
+					zap.String("root", root.StringLE()))
+				n, err := bc.dao.MPT.PerformGC(root, bc.store)
+				if err != nil {
+					bc.log.Error("error during MPT GC", zap.Error(err))
+				}
+				bc.log.Info("finish GC", zap.Int("removed", n))
+			}()
+		}
+
 		// Every persist cycle we also compact our in-memory MPT.
 		persistedHeight := atomic.LoadUint32(&bc.persistedHeight)
 		if persistedHeight == block.Index-1 {

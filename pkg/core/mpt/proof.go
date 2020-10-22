@@ -67,7 +67,7 @@ func VerifyProof(rh util.Uint256, key []byte, proofs [][]byte) ([]byte, bool) {
 	for i := range proofs {
 		h := hash.DoubleSha256(proofs[i])
 		// no errors in Put to memory store
-		_ = tr.Store.Put(makeStorageKey(h[:]), proofs[i])
+		_ = tr.Store.Put(makeStorageKey(h[:]), append([]byte{0, 0, 0, 0}, proofs[i]...))
 	}
 	_, bs, err := tr.getWithPath(tr.root, path)
 	return bs, err == nil

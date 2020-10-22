@@ -45,7 +45,7 @@ func TestNode_Serializable(t *testing.T) {
 		t.Run("Good", func(t *testing.T) {
 			l := NewLeafNode(random.Bytes(123))
 			t.Run("Raw", getTestFuncEncode(true, l, new(LeafNode)))
-			t.Run("WithType", getTestFuncEncode(true, &NodeObject{l}, new(NodeObject)))
+			t.Run("WithType", getTestFuncEncode(true, &NodeObject{l, 1}, new(NodeObject)))
 		})
 		t.Run("BigValue", getTestFuncEncode(false,
 			NewLeafNode(random.Bytes(MaxValueLength+1)), new(LeafNode)))
@@ -55,7 +55,7 @@ func TestNode_Serializable(t *testing.T) {
 		t.Run("Good", func(t *testing.T) {
 			e := NewExtensionNode(random.Bytes(42), NewLeafNode(random.Bytes(10)))
 			t.Run("Raw", getTestFuncEncode(true, e, new(ExtensionNode)))
-			t.Run("WithType", getTestFuncEncode(true, &NodeObject{e}, new(NodeObject)))
+			t.Run("WithType", getTestFuncEncode(true, &NodeObject{e, 2}, new(NodeObject)))
 		})
 		t.Run("BigKey", getTestFuncEncode(false,
 			NewExtensionNode(random.Bytes(MaxKeyLength+1), NewLeafNode(random.Bytes(10))), new(ExtensionNode)))
@@ -66,14 +66,14 @@ func TestNode_Serializable(t *testing.T) {
 		b.Children[0] = NewLeafNode(random.Bytes(10))
 		b.Children[lastChild] = NewHashNode(random.Uint256())
 		t.Run("Raw", getTestFuncEncode(true, b, new(BranchNode)))
-		t.Run("WithType", getTestFuncEncode(true, &NodeObject{b}, new(NodeObject)))
+		t.Run("WithType", getTestFuncEncode(true, &NodeObject{b, 0}, new(NodeObject)))
 	})
 
 	t.Run("Hash", func(t *testing.T) {
 		t.Run("Good", func(t *testing.T) {
 			h := NewHashNode(random.Uint256())
 			t.Run("Raw", getTestFuncEncode(true, h, new(HashNode)))
-			t.Run("WithType", getTestFuncEncode(true, &NodeObject{h}, new(NodeObject)))
+			t.Run("WithType", getTestFuncEncode(true, &NodeObject{h, 3}, new(NodeObject)))
 		})
 		t.Run("Empty", func(t *testing.T) { // compare nodes, not hashes
 			testserdes.EncodeDecodeBinary(t, new(HashNode), new(HashNode))

@@ -520,6 +520,7 @@ func (dao *Simple) InitMPT(height uint32) error {
 		return err
 	}
 	dao.MPT = mpt.NewTrie(mpt.NewHashNode(r.Root), dao.Store)
+	dao.MPT.SetGeneration(height / mpt.GenerationSpan)
 	return nil
 }
 

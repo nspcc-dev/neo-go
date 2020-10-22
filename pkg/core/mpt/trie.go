@@ -2,11 +2,15 @@ package mpt
 
 import (
 	"bytes"
+	"encoding/binary"
 	"errors"
+	"fmt"
+	"sync"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"go.uber.org/atomic"
 )
 
 // Trie is an MPT trie storing all key-value pairs.
@@ -14,7 +18,17 @@ type Trie struct {
 	Store *storage.MemCachedStore
 
 	root Node
+
+	gcRunning  atomic.Bool
+	gcMtx      sync.Mutex
+	generation uint32
+	gcClose    chan struct{}
+	gcFinished chan struct{}
 }
+
+// GenerationSpan is an amount of blocks in a single generation.
+// It must be >= 65536 so we can store it in 2 bytes.
+const GenerationSpan = 200000
 
 // ErrNotFound is returned when requested trie item is missing.
 var ErrNotFound = errors.New("item not found")
@@ -30,6 +44,9 @@ func NewTrie(root Node, store *storage.MemCachedStore) *Trie {
 	return &Trie{
 		Store: store,
 		root:  root,
+
+		gcClose:    make(chan struct{}),
+		gcFinished: make(chan struct{}),
 	}
 }
 
@@ -309,11 +326,132 @@ func makeStorageKey(mptKey []byte) []byte {
 	return append([]byte{byte(storage.DataMPT)}, mptKey...)
 }
 
+// SetGeneration sets current generation of MPT,
+// Generation is used for garbage collecting.
+func (t *Trie) SetGeneration(gen uint32) {
+	t.generation = gen
+}
+
+// updateGeneration updates generation for a single node and returns true
+// if it was updated.
+func updateGenerationSingle(h util.Uint256, gen uint32, st storage.Store) error {
+	key := makeStorageKey(h.BytesBE())
+	data, err := st.Get(key)
+	if err != nil {
+		return fmt.Errorf("%w: %s", err, h.BytesBE())
+	}
+	old := binary.LittleEndian.Uint32(data)
+	if old <= gen-2 {
+		binary.LittleEndian.PutUint32(data, gen)
+		_ = st.Put(key, data)
+	}
+	return nil
+}
+
+func (t *Trie) updateGeneration(h util.Uint256, gen uint32, st storage.Store) error {
+	select {
+	case <-t.gcClose:
+		return ErrInterrupted
+	default:
+	}
+
+	node, err := getFromStore(h, st)
+	if err != nil {
+		return err
+	}
+	// Children of node retrieved from store are always hash nodes.
+	switch n := node.(type) {
+	case *BranchNode:
+		for i := range n.Children {
+			if !n.Children[i].(*HashNode).IsEmpty() {
+				if err := t.updateGeneration(n.Children[i].Hash(), gen, st); err != nil {
+					return err
+				}
+			}
+		}
+	case *ExtensionNode:
+		if !n.next.(*HashNode).IsEmpty() {
+			if err := t.updateGeneration(n.next.Hash(), gen, st); err != nil {
+				return err
+			}
+		}
+	case *HashNode:
+		panic(fmt.Sprintf("hash node in store: %s", n.hash))
+	}
+	return updateGenerationSingle(h, gen, st)
+}
+
+const (
+	gcLogBatchSize = 5
+	gcBatchSize    = 1 << gcLogBatchSize
+)
+
+// ErrInterrupted is returned when GC is shutting down.
+var ErrInterrupted = errors.New("GC is shutting down")
+
+// ShutdownGC shutdowns GC if it is in process.
+func (t *Trie) ShutdownGC() {
+	if t.gcRunning.Load() {
+		close(t.gcClose)
+		<-t.gcFinished
+	}
+}
+
+// PerformGC compacts storage by removing items which are no longer
+// belong to trie.
+func (t *Trie) PerformGC(root util.Uint256, st storage.Store) (int, error) {
+	if t.gcRunning.Load() {
+		return 0, errors.New("GC is already running")
+	}
+	if root.Equals(util.Uint256{}) {
+		return 0, nil
+	}
+	t.gcRunning.Store(true)
+	defer func() {
+		t.gcRunning.Store(false)
+		select {
+		case <-t.gcClose:
+			close(t.gcFinished)
+		default:
+		}
+	}()
+	gen := t.generation
+	if err := t.updateGeneration(root, gen, st); err != nil {
+		panic(err)
+	}
+	var n int
+	for i := 0; i <= 0xFF; i += gcBatchSize {
+		t.gcMtx.Lock()
+		_, err := t.Store.Persist()
+		if err != nil {
+			t.gcMtx.Unlock()
+			return 0, err
+		}
+		b := st.Batch()
+		for j := 0; j < gcBatchSize; j++ {
+			st.Seek([]byte{byte(storage.DataMPT), byte(i + j)}, func(k, v []byte) {
+				if len(k) == 33 && binary.LittleEndian.Uint32(v) <= gen-2 {
+					n++
+					b.Delete(k)
+				}
+			})
+		}
+		if err := st.PutBatch(b); err != nil {
+			t.gcMtx.Unlock()
+			return n, err
+		}
+		t.gcMtx.Unlock()
+	}
+	return n, nil
+}
+
 // Flush puts every node in the trie except Hash ones to the storage.
 // Because we care only about block-level changes, there is no need to put every
 // new node to storage. Normally, flush should be called with every StateRoot persist, i.e.
 // after every block.
 func (t *Trie) Flush() {
+	t.gcMtx.Lock()
+	defer t.gcMtx.Unlock()
 	t.flush(t.root)
 }
 
@@ -338,12 +476,19 @@ func (t *Trie) putToStore(n Node) {
 	if n.Type() == HashT {
 		panic("can't put hash node in trie")
 	}
-	_ = t.Store.Put(makeStorageKey(n.Hash().BytesBE()), n.Bytes()) // put in MemCached returns no errors
+	no := NodeObject{Node: n, Generation: t.generation}
+	w := io.NewBufBinWriter()
+	no.EncodeBinary(w.BinWriter)
+	_ = t.Store.Put(makeStorageKey(n.Hash().BytesBE()), w.Bytes())
 	n.SetFlushed()
 }
 
 func (t *Trie) getFromStore(h util.Uint256) (Node, error) {
-	data, err := t.Store.Get(makeStorageKey(h.BytesBE()))
+	return getFromStore(h, t.Store)
+}
+
+func getFromStore(h util.Uint256, st storage.Store) (Node, error) {
+	data, err := st.Get(makeStorageKey(h.BytesBE()))
 	if err != nil {
 		return nil, err
 	}
@@ -354,7 +499,7 @@ func (t *Trie) getFromStore(h util.Uint256) (Node, error) {
 	if r.Err != nil {
 		return nil, r.Err
 	}
-	n.Node.(flushedNode).setCache(data, h)
+	n.Node.(flushedNode).setCache(data[4:], h)
 	return n.Node, nil
 }
 
