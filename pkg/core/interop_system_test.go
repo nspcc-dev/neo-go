@@ -16,6 +16,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/internal/random"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
@@ -507,6 +508,16 @@ func getTestContractState() (*state.Contract, *state.Contract) {
 func loadScript(ic *interop.Context, script []byte, args ...interface{}) {
 	v := vm.New()
 	v.LoadScriptWithFlags(script, smartcontract.AllowCall)
+	for i := range args {
+		v.Estack().PushVal(args[i])
+	}
+	v.GasLimit = -1
+	ic.VM = v
+}
+
+func loadScriptWithHashAndFlags(ic *interop.Context, script []byte, hash util.Uint160, f smartcontract.CallFlag, args ...interface{}) {
+	v := vm.New()
+	v.LoadScriptWithHash(script, hash, f)
 	for i := range args {
 		v.Estack().PushVal(args[i])
 	}
@@ -1090,6 +1101,194 @@ func TestSyscallCallback(t *testing.T) {
 		t.Run("Disallowed", func(t *testing.T) {
 			loadScript(ic, []byte{byte(opcode.RET)}, stackitem.NewArray(nil), 0x53)
 			require.Error(t, callback.CreateFromSyscall(ic))
+		})
+	})
+}
+
+func TestRuntimeCheckWitness(t *testing.T) {
+	_, ic, bc := createVM(t)
+	defer bc.Close()
+
+	script := []byte{byte(opcode.RET)}
+	scriptHash := hash.Hash160(script)
+	check := func(t *testing.T, ic *interop.Context, arg interface{}, shouldFail bool, expected ...bool) {
+		ic.VM.Estack().PushVal(arg)
+		err := runtime.CheckWitness(ic)
+		if shouldFail {
+			require.Error(t, err)
+		} else {
+			require.NoError(t, err)
+			require.NotNil(t, expected)
+			actual, ok := ic.VM.Estack().Pop().Value().(bool)
+			require.True(t, ok)
+			require.Equal(t, expected[0], actual)
+		}
+	}
+	t.Run("error", func(t *testing.T) {
+		t.Run("not a hash or key", func(t *testing.T) {
+			check(t, ic, []byte{1, 2, 3}, true)
+		})
+		t.Run("script container is not a transaction", func(t *testing.T) {
+			loadScriptWithHashAndFlags(ic, script, scriptHash, smartcontract.AllowStates)
+			check(t, ic, random.Uint160().BytesBE(), true)
+		})
+		t.Run("check scope", func(t *testing.T) {
+			t.Run("CustomGroups, missing AllowStates flag", func(t *testing.T) {
+				hash := random.Uint160()
+				tx := &transaction.Transaction{
+					Signers: []transaction.Signer{
+						{
+							Account:       hash,
+							Scopes:        transaction.CustomGroups,
+							AllowedGroups: []*keys.PublicKey{},
+						},
+					},
+				}
+				ic.Container = tx
+				callingScriptHash := scriptHash
+				loadScriptWithHashAndFlags(ic, script, callingScriptHash, smartcontract.All)
+				ic.VM.LoadScriptWithHash([]byte{0x1}, random.Uint160(), smartcontract.AllowCall)
+				check(t, ic, hash.BytesBE(), true)
+			})
+			t.Run("CustomGroups, unknown contract", func(t *testing.T) {
+				hash := random.Uint160()
+				tx := &transaction.Transaction{
+					Signers: []transaction.Signer{
+						{
+							Account:       hash,
+							Scopes:        transaction.CustomGroups,
+							AllowedGroups: []*keys.PublicKey{},
+						},
+					},
+				}
+				ic.Container = tx
+				callingScriptHash := scriptHash
+				loadScriptWithHashAndFlags(ic, script, callingScriptHash, smartcontract.All)
+				ic.VM.LoadScriptWithHash([]byte{0x1}, random.Uint160(), smartcontract.AllowStates)
+				check(t, ic, hash.BytesBE(), true)
+			})
+		})
+	})
+	t.Run("positive", func(t *testing.T) {
+		t.Run("calling scripthash", func(t *testing.T) {
+			t.Run("hashed witness", func(t *testing.T) {
+				callingScriptHash := scriptHash
+				loadScriptWithHashAndFlags(ic, script, callingScriptHash, smartcontract.All)
+				ic.VM.LoadScriptWithHash([]byte{0x1}, random.Uint160(), smartcontract.All)
+				check(t, ic, callingScriptHash.BytesBE(), false, true)
+			})
+			t.Run("keyed witness", func(t *testing.T) {
+				pk, err := keys.NewPrivateKey()
+				require.NoError(t, err)
+				callingScriptHash := pk.PublicKey().GetScriptHash()
+				loadScriptWithHashAndFlags(ic, script, callingScriptHash, smartcontract.All)
+				ic.VM.LoadScriptWithHash([]byte{0x1}, random.Uint160(), smartcontract.All)
+				check(t, ic, pk.PublicKey().Bytes(), false, true)
+			})
+		})
+		t.Run("check scope", func(t *testing.T) {
+			t.Run("Global", func(t *testing.T) {
+				hash := random.Uint160()
+				tx := &transaction.Transaction{
+					Signers: []transaction.Signer{
+						{
+							Account: hash,
+							Scopes:  transaction.Global,
+						},
+					},
+				}
+				loadScriptWithHashAndFlags(ic, script, scriptHash, smartcontract.AllowStates)
+				ic.Container = tx
+				check(t, ic, hash.BytesBE(), false, true)
+			})
+			t.Run("CalledByEntry", func(t *testing.T) {
+				hash := random.Uint160()
+				tx := &transaction.Transaction{
+					Signers: []transaction.Signer{
+						{
+							Account: hash,
+							Scopes:  transaction.CalledByEntry,
+						},
+					},
+				}
+				loadScriptWithHashAndFlags(ic, script, scriptHash, smartcontract.AllowStates)
+				ic.Container = tx
+				check(t, ic, hash.BytesBE(), false, true)
+			})
+			t.Run("CustomContracts", func(t *testing.T) {
+				hash := random.Uint160()
+				tx := &transaction.Transaction{
+					Signers: []transaction.Signer{
+						{
+							Account:          hash,
+							Scopes:           transaction.CustomContracts,
+							AllowedContracts: []util.Uint160{scriptHash},
+						},
+					},
+				}
+				loadScriptWithHashAndFlags(ic, script, scriptHash, smartcontract.AllowStates)
+				ic.Container = tx
+				check(t, ic, hash.BytesBE(), false, true)
+			})
+			t.Run("CustomGroups", func(t *testing.T) {
+				t.Run("empty calling scripthash", func(t *testing.T) {
+					hash := random.Uint160()
+					tx := &transaction.Transaction{
+						Signers: []transaction.Signer{
+							{
+								Account:       hash,
+								Scopes:        transaction.CustomGroups,
+								AllowedGroups: []*keys.PublicKey{},
+							},
+						},
+					}
+					loadScriptWithHashAndFlags(ic, script, scriptHash, smartcontract.AllowStates)
+					ic.Container = tx
+					check(t, ic, hash.BytesBE(), false, false)
+				})
+				t.Run("positive", func(t *testing.T) {
+					targetHash := random.Uint160()
+					pk, err := keys.NewPrivateKey()
+					require.NoError(t, err)
+					tx := &transaction.Transaction{
+						Signers: []transaction.Signer{
+							{
+								Account:       targetHash,
+								Scopes:        transaction.CustomGroups,
+								AllowedGroups: []*keys.PublicKey{pk.PublicKey()},
+							},
+						},
+					}
+					contractScript := []byte{byte(opcode.PUSH1), byte(opcode.RET)}
+					contractScriptHash := hash.Hash160(contractScript)
+					contractState := &state.Contract{
+						ID:     15,
+						Script: contractScript,
+						Manifest: manifest.Manifest{
+							Groups: []manifest.Group{{PublicKey: pk.PublicKey()}},
+						},
+					}
+					require.NoError(t, ic.DAO.PutContractState(contractState))
+					loadScriptWithHashAndFlags(ic, contractScript, contractScriptHash, smartcontract.All)
+					ic.VM.LoadScriptWithHash([]byte{0x1}, random.Uint160(), smartcontract.AllowStates)
+					ic.Container = tx
+					check(t, ic, targetHash.BytesBE(), false, true)
+				})
+			})
+			t.Run("bad scope", func(t *testing.T) {
+				hash := random.Uint160()
+				tx := &transaction.Transaction{
+					Signers: []transaction.Signer{
+						{
+							Account: hash,
+							Scopes:  transaction.None,
+						},
+					},
+				}
+				loadScriptWithHashAndFlags(ic, script, scriptHash, smartcontract.AllowStates)
+				ic.Container = tx
+				check(t, ic, hash.BytesBE(), false, false)
+			})
 		})
 	})
 }
