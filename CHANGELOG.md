@@ -2,6 +2,30 @@
 
 This document outlines major changes between releases.
 
+## 0.78.1 "Circumnavigation" (22 October 2020)
+
+This is a bug fix release that solves DB access and seed reconnection
+problems. If you're using LevelDB or BadgerDB for backend storage you need to
+resynchronize your node for testnet and you're recommended to do that for
+mainnet. BoltDB users can proceed with the old DB.
+
+Behavior changes:
+ * default mainnet configuration now has updated values for FreeGas changes
+   height (6195000 instead of 6200000, #1412)
+
+Improvements:
+ * dBFT timer was tuned to eliminate block processing delay from the
+   inter-block interval, this only affects consensus nodes (#1429)
+
+Bugs fixed:
+ * node using LevelDB or BadgerDB for backend storage had incorrect state for
+   testnet (#1468)
+ * node that failed to connect to seeds on startup never attempted to
+   reconnect to them again (#1483)
+ * node using BoltDB could panic in various situations like processing a new
+   block, this was noticed on the master branch with 3.0 support and never
+   seen on 2.x, although theoretically it could still happen (#1482)
+
 ## 0.78.0 "Cardioacceleration" (15 September 2020)
 
 This version is a Neo 2.12.0-compatible release that follows DeFi-related
