@@ -25,9 +25,6 @@ func CheckHashedWitness(ic *interop.Context, hash util.Uint160) (bool, error) {
 		return checkScope(ic.DAO, tx, ic.VM, hash)
 	}
 
-	if !ic.VM.Context().GetCallFlags().Has(smartcontract.AllowStates) {
-		return false, errors.New("missing AllowStates call flag")
-	}
 	return false, errors.New("script container is not a transaction")
 }
 
