@@ -407,3 +407,13 @@ func (t *Transaction) isValid() error {
 	}
 	return nil
 }
+
+// HasSigner returns true in case if hash is present in the list of signers.
+func (t *Transaction) HasSigner(hash util.Uint160) bool {
+	for _, h := range t.Signers {
+		if h.Account.Equals(hash) {
+			return true
+		}
+	}
+	return false
+}
