@@ -1196,6 +1196,7 @@ func (bc *Blockchain) verifyHeader(currHeader, prevHeader *block.Header) error {
 
 // Various errors that could be returned upon verification.
 var (
+	ErrTxNotYetValid       = errors.New("transaction is not yet valid")
 	ErrTxExpired           = errors.New("transaction has expired")
 	ErrInsufficientFunds   = errors.New("insufficient funds")
 	ErrTxSmallNetworkFee   = errors.New("too small network fee")
@@ -1233,6 +1234,9 @@ func (bc *Blockchain) verifyAndPoolTx(t *transaction.Transaction, pool *mempool.
 	if err != nil {
 		return err
 	}
+	if err := bc.verifyTxAttributes(t); err != nil {
+		return err
+	}
 	err = pool.Add(t, bc)
 	if err != nil {
 		switch {
@@ -1248,16 +1252,13 @@ func (bc *Blockchain) verifyAndPoolTx(t *transaction.Transaction, pool *mempool.
 			return err
 		}
 	}
-	if err := bc.verifyTxAttributes(t); err != nil {
-		return err
-	}
 
 	return nil
 }
 
 func (bc *Blockchain) verifyTxAttributes(tx *transaction.Transaction) error {
 	for i := range tx.Attributes {
-		switch tx.Attributes[i].Type {
+		switch attrType := tx.Attributes[i].Type; attrType {
 		case transaction.HighPriority:
 			h := bc.contracts.NEO.GetCommitteeAddress()
 			for i := range tx.Signers {
@@ -1293,6 +1294,18 @@ func (bc *Blockchain) verifyTxAttributes(tx *transaction.Transaction) error {
 			}
 			if uint64(tx.NetworkFee+tx.SystemFee) < req.GasForResponse {
 				return fmt.Errorf("%w: oracle tx has insufficient gas", ErrInvalidAttribute)
+			}
+		case transaction.NotValidBeforeT:
+			if !bc.config.P2PSigExtensions {
+				return errors.New("NotValidBefore attribute was found, but P2PSigExtensions are disabled")
+			}
+			nvb := tx.Attributes[i].Value.(*transaction.NotValidBefore)
+			if height := bc.BlockHeight(); height < nvb.Height {
+				return fmt.Errorf("%w: NotValidBefore = %d, current height = %d", ErrTxNotYetValid, nvb.Height, height)
+			}
+		default:
+			if !bc.config.ReservedAttributes && attrType >= transaction.ReservedLowerBound && attrType <= transaction.ReservedUpperBound {
+				return errors.New("attribute of reserved type was found, but ReservedAttributes are disabled")
 			}
 		}
 	}

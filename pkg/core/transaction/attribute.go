@@ -30,25 +30,36 @@ type attrJSON struct {
 func (attr *Attribute) DecodeBinary(br *io.BinReader) {
 	attr.Type = AttrType(br.ReadB())
 
-	switch attr.Type {
+	switch t := attr.Type; t {
 	case HighPriority:
+		return
 	case OracleResponseT:
 		attr.Value = new(OracleResponse)
-		attr.Value.DecodeBinary(br)
+	case NotValidBeforeT:
+		attr.Value = new(NotValidBefore)
 	default:
+		if t >= ReservedLowerBound && t <= ReservedUpperBound {
+			attr.Value = new(Reserved)
+			break
+		}
 		br.Err = fmt.Errorf("failed decoding TX attribute usage: 0x%2x", int(attr.Type))
 		return
 	}
+	attr.Value.DecodeBinary(br)
 }
 
 // EncodeBinary implements Serializable interface.
 func (attr *Attribute) EncodeBinary(bw *io.BinWriter) {
 	bw.WriteB(byte(attr.Type))
-	switch attr.Type {
+	switch t := attr.Type; t {
 	case HighPriority:
-	case OracleResponseT:
+	case OracleResponseT, NotValidBeforeT:
 		attr.Value.EncodeBinary(bw)
 	default:
+		if t >= ReservedLowerBound && t <= ReservedUpperBound {
+			attr.Value.EncodeBinary(bw)
+			break
+		}
 		bw.Err = fmt.Errorf("failed encoding TX attribute usage: 0x%2x", attr.Type)
 	}
 }
@@ -70,17 +81,19 @@ func (attr *Attribute) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	switch aj.Type {
-	case "HighPriority":
+	case HighPriority.String():
 		attr.Type = HighPriority
-	case "OracleResponse":
+		return nil
+	case OracleResponseT.String():
 		attr.Type = OracleResponseT
 		// Note: because `type` field will not be present in any attribute
 		// value, we can unmarshal the same data. The overhead is minimal.
 		attr.Value = new(OracleResponse)
-		return json.Unmarshal(data, attr.Value)
+	case NotValidBeforeT.String():
+		attr.Type = NotValidBeforeT
+		attr.Value = new(NotValidBefore)
 	default:
 		return errors.New("wrong Type")
-
 	}
-	return nil
+	return json.Unmarshal(data, attr.Value)
 }

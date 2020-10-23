@@ -7,12 +7,13 @@ import (
 	"math"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/internal/testserdes"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestWitnessEncodeDecode(t *testing.T) {
@@ -213,5 +214,37 @@ func TestTransaction_isValid(t *testing.T) {
 		tx := newTx()
 		tx.Script = []byte{}
 		require.True(t, errors.Is(tx.isValid(), ErrEmptyScript))
+	})
+}
+
+func TestTransaction_GetAttributes(t *testing.T) {
+	attributesTypes := []AttrType{
+		HighPriority,
+		OracleResponseT,
+		NotValidBeforeT,
+	}
+	t.Run("no attributes", func(t *testing.T) {
+		tx := new(Transaction)
+		for _, typ := range attributesTypes {
+			require.Nil(t, tx.GetAttributes(typ))
+		}
+	})
+	t.Run("single attributes", func(t *testing.T) {
+		attrs := make([]Attribute, len(attributesTypes))
+		for i, typ := range attributesTypes {
+			attrs[i] = Attribute{Type: typ}
+		}
+		tx := &Transaction{Attributes: attrs}
+		for _, typ := range attributesTypes {
+			require.Equal(t, []Attribute{{Type: typ}}, tx.GetAttributes(typ))
+		}
+	})
+	t.Run("multiple attributes", func(t *testing.T) {
+		typ := AttrType(ReservedLowerBound + 1)
+		conflictsAttrs := []Attribute{{Type: typ}, {Type: typ}}
+		tx := Transaction{
+			Attributes: append([]Attribute{{Type: HighPriority}}, conflictsAttrs...),
+		}
+		require.Equal(t, conflictsAttrs, tx.GetAttributes(typ))
 	})
 }

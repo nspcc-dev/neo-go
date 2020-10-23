@@ -9,6 +9,10 @@ type (
 	ProtocolConfiguration struct {
 		Magic       netmode.Magic `yaml:"Magic"`
 		MemPoolSize int           `yaml:"MemPoolSize"`
+		// P2PSigExtensions enables additional signature-related transaction attributes
+		P2PSigExtensions bool `yaml:"P2PSigExtensions"`
+		// ReservedAttributes allows to have reserved attributes range for experimental or private purposes.
+		ReservedAttributes bool `yaml:"ReservedAttributes"`
 		// SaveStorageBatch enables storage batch saving before every persist.
 		SaveStorageBatch bool     `yaml:"SaveStorageBatch"`
 		SecondsPerBlock  int      `yaml:"SecondsPerBlock"`
