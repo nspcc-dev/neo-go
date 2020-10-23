@@ -29,6 +29,18 @@ type BaseNodeIface interface {
 	SetFlushed()
 }
 
+type flushedNode interface {
+	setCache([]byte, util.Uint256)
+}
+
+func (b *BaseNode) setCache(bs []byte, h util.Uint256) {
+	b.bytes = bs
+	b.hash = h
+	b.bytesValid = true
+	b.hashValid = true
+	b.isFlushed = true
+}
+
 // getHash returns a hash of this BaseNode.
 func (b *BaseNode) getHash(n Node) util.Uint256 {
 	if !b.hashValid {
