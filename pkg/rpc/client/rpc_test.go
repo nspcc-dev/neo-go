@@ -16,7 +16,6 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
-	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
@@ -378,15 +377,15 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 			},
 		},
 	},
-	"getBlockedAccounts": {
+	"isBlocked": {
 		{
 			name: "positive",
 			invoke: func(c *Client) (interface{}, error) {
-				return c.GetBlockedAccounts()
+				return c.IsBlocked(util.Uint160{1, 2, 3})
 			},
-			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"state":"HALT","gasconsumed":"2007390","script":"EMAMEmdldEJsb2NrZWRBY2NvdW50cwwUmmGkbuyXuJMG186B8VtGIJHQCTJBYn1bUg==","stack":[{"type":"Array","value":[]}],"tx":null}}`,
+			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"state":"HALT","gasconsumed":"2007390","script":"EMAMEmdldEJsb2NrZWRBY2NvdW50cwwUmmGkbuyXuJMG186B8VtGIJHQCTJBYn1bUg==","stack":[{"type":"Boolean","value":false}],"tx":null}}`,
 			result: func(c *Client) interface{} {
-				return native.BlockedAccounts{}
+				return false
 			},
 		},
 	},

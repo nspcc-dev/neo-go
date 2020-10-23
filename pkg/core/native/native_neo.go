@@ -2,7 +2,9 @@ package native
 
 import (
 	"crypto/elliptic"
+	"encoding/binary"
 	"errors"
+	"fmt"
 	"math/big"
 	"sort"
 	"strings"
@@ -189,13 +191,15 @@ func (n *NEO) Initialize(ic *interop.Context) error {
 	}
 	n.mint(ic, h, big.NewInt(NEOTotalSupply))
 
-	gr := &state.GASRecord{{Index: 0, GASPerBlock: *big.NewInt(5 * GASFactor)}}
-	n.gasPerBlock.Store(*gr)
-	n.gasPerBlockChanged.Store(false)
-	err = ic.DAO.PutStorageItem(n.ContractID, []byte{prefixGASPerBlock}, &state.StorageItem{Value: gr.Bytes()})
+	var index uint32 = 0
+	value := big.NewInt(5 * GASFactor)
+	err = n.putGASRecord(ic.DAO, index, value)
 	if err != nil {
 		return err
 	}
+	gr := &gasRecord{{Index: index, GASPerBlock: *value}}
+	n.gasPerBlock.Store(*gr)
+	n.gasPerBlockChanged.Store(false)
 	err = ic.DAO.PutStorageItem(n.ContractID, []byte{prefixVotersCount}, &state.StorageItem{Value: []byte{}})
 	if err != nil {
 		return err
@@ -217,9 +221,8 @@ func (n *NEO) InitializeCache(bc blockchainer.Blockchainer, d dao.DAO) error {
 		return err
 	}
 
-	var gr state.GASRecord
-	si = d.GetStorageItem(n.ContractID, []byte{prefixGASPerBlock})
-	if err := gr.FromBytes(si.Value); err != nil {
+	gr, err := n.getSortedGASRecordFromDAO(d)
+	if err != nil {
 		return err
 	}
 	n.gasPerBlock.Store(gr)
@@ -293,7 +296,10 @@ func (n *NEO) PostPersist(ic *interop.Context) error {
 // OnPersistEnd updates cached values if they've been changed.
 func (n *NEO) OnPersistEnd(d dao.DAO) {
 	if n.gasPerBlockChanged.Load().(bool) {
-		gr := n.getGASRecordFromDAO(d)
+		gr, err := n.getSortedGASRecordFromDAO(d)
+		if err != nil {
+			panic(err)
+		}
 		n.gasPerBlock.Store(gr)
 		n.gasPerBlockChanged.Store(false)
 	}
@@ -365,20 +371,41 @@ func (n *NEO) getGASPerBlock(ic *interop.Context, _ []stackitem.Item) stackitem.
 	return stackitem.NewBigInteger(gas)
 }
 
-func (n *NEO) getGASRecordFromDAO(d dao.DAO) state.GASRecord {
-	var gr state.GASRecord
-	si := d.GetStorageItem(n.ContractID, []byte{prefixGASPerBlock})
-	_ = gr.FromBytes(si.Value)
-	return gr
+func (n *NEO) getSortedGASRecordFromDAO(d dao.DAO) (gasRecord, error) {
+	grMap, err := d.GetStorageItemsWithPrefix(n.ContractID, []byte{prefixGASPerBlock})
+	if err != nil {
+		return gasRecord{}, fmt.Errorf("failed to get gas records from storage: %w", err)
+	}
+	var (
+		i  int
+		gr = make(gasRecord, len(grMap))
+	)
+	for indexBytes, gasValue := range grMap {
+		gr[i] = gasIndexPair{
+			Index:       binary.BigEndian.Uint32([]byte(indexBytes)),
+			GASPerBlock: *bigint.FromBytes(gasValue.Value),
+		}
+		i++
+	}
+	sort.Slice(gr, func(i, j int) bool {
+		return gr[i].Index < gr[j].Index
+	})
+	return gr, nil
 }
 
 // GetGASPerBlock returns gas generated for block with provided index.
 func (n *NEO) GetGASPerBlock(d dao.DAO, index uint32) *big.Int {
-	var gr state.GASRecord
+	var (
+		gr  gasRecord
+		err error
+	)
 	if n.gasPerBlockChanged.Load().(bool) {
-		gr = n.getGASRecordFromDAO(d)
+		gr, err = n.getSortedGASRecordFromDAO(d)
+		if err != nil {
+			panic(err)
+		}
 	} else {
-		gr = n.gasPerBlock.Load().(state.GASRecord)
+		gr = n.gasPerBlock.Load().(gasRecord)
 	}
 	for i := len(gr) - 1; i >= 0; i-- {
 		if gr[i].Index <= index {
@@ -413,21 +440,8 @@ func (n *NEO) SetGASPerBlock(ic *interop.Context, index uint32, gas *big.Int) (b
 	if err != nil || !ok {
 		return ok, err
 	}
-	si := ic.DAO.GetStorageItem(n.ContractID, []byte{prefixGASPerBlock})
-	var gr state.GASRecord
-	if err := gr.FromBytes(si.Value); err != nil {
-		return false, err
-	}
-	if len(gr) > 0 && gr[len(gr)-1].Index == index {
-		gr[len(gr)-1].GASPerBlock = *gas
-	} else {
-		gr = append(gr, state.GASIndexPair{
-			Index:       index,
-			GASPerBlock: *gas,
-		})
-	}
 	n.gasPerBlockChanged.Store(true)
-	return true, ic.DAO.PutStorageItem(n.ContractID, []byte{prefixGASPerBlock}, &state.StorageItem{Value: gr.Bytes()})
+	return true, n.putGASRecord(ic.DAO, index, gas)
 }
 
 // CalculateBonus calculates amount of gas generated for holding `value` NEO from start to end block.
@@ -437,10 +451,17 @@ func (n *NEO) CalculateBonus(ic *interop.Context, value *big.Int, start, end uin
 	} else if value.Sign() < 0 {
 		return nil, errors.New("negative value")
 	}
-	si := ic.DAO.GetStorageItem(n.ContractID, []byte{prefixGASPerBlock})
-	var gr state.GASRecord
-	if err := gr.FromBytes(si.Value); err != nil {
-		return nil, err
+	var (
+		gr  gasRecord
+		err error
+	)
+	if !n.gasPerBlockChanged.Load().(bool) {
+		gr = n.gasPerBlock.Load().(gasRecord)
+	} else {
+		gr, err = n.getSortedGASRecordFromDAO(ic.DAO)
+		if err != nil {
+			return nil, err
+		}
 	}
 	var sum, tmp big.Int
 	for i := len(gr) - 1; i >= 0; i-- {
@@ -750,4 +771,16 @@ func toPublicKey(s stackitem.Item) *keys.PublicKey {
 		panic(err)
 	}
 	return pub
+}
+
+// putGASRecord is a helper which creates key and puts GASPerBlock value into the storage.
+func (n *NEO) putGASRecord(dao dao.DAO, index uint32, value *big.Int) error {
+	key := make([]byte, 5)
+	key[0] = prefixGASPerBlock
+	binary.BigEndian.PutUint32(key[1:], index)
+	si := &state.StorageItem{
+		Value:   bigint.ToBytes(value),
+		IsConst: false,
+	}
+	return dao.PutStorageItem(n.ContractID, key, si)
 }

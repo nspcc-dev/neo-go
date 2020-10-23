@@ -2,7 +2,6 @@ package native
 
 import (
 	"encoding/binary"
-	"errors"
 	"fmt"
 	"math/big"
 	"sort"
@@ -34,6 +33,9 @@ const (
 	minBlockSystemFee = 4007600
 	// maxFeePerByte is the maximum allowed fee per byte value.
 	maxFeePerByte = 100_000_000
+
+	// blockedAccountPrefix is a prefix used to store blocked account.
+	blockedAccountPrefix = 15
 )
 
 var (
@@ -43,8 +45,6 @@ var (
 	// feePerByteKey is a key used to store the minimum fee per byte for
 	// transaction.
 	feePerByteKey = []byte{10}
-	// blockedAccountsKey is a key used to store the list of blocked accounts.
-	blockedAccountsKey = []byte{15}
 	// maxBlockSizeKey is a key used to store the maximum block size value.
 	maxBlockSizeKey = []byte{12}
 	// maxBlockSystemFeeKey is a key used to store the maximum block system fee value.
@@ -64,7 +64,7 @@ type Policy struct {
 	feePerByte              int64
 	maxBlockSystemFee       int64
 	maxVerificationGas      int64
-	blockedAccounts         BlockedAccounts
+	blockedAccounts         []util.Uint160
 }
 
 var _ interop.Contract = (*Policy)(nil)
@@ -88,8 +88,9 @@ func newPolicy() *Policy {
 	md = newMethodAndPrice(p.getFeePerByte, 1000000, smartcontract.AllowStates)
 	p.AddMethod(md, desc, true)
 
-	desc = newDescriptor("getBlockedAccounts", smartcontract.ArrayType)
-	md = newMethodAndPrice(p.getBlockedAccounts, 1000000, smartcontract.AllowStates)
+	desc = newDescriptor("isBlocked", smartcontract.BoolType,
+		manifest.NewParameter("account", smartcontract.Hash160Type))
+	md = newMethodAndPrice(p.isBlocked, 1000000, smartcontract.AllowStates)
 	p.AddMethod(md, desc, true)
 
 	desc = newDescriptor("getMaxBlockSystemFee", smartcontract.IntegerType)
@@ -175,13 +176,6 @@ func (p *Policy) Initialize(ic *interop.Context) error {
 		return err
 	}
 
-	ba := new(BlockedAccounts)
-	si.Value = ba.Bytes()
-	err = ic.DAO.PutStorageItem(p.ContractID, blockedAccountsKey, si)
-	if err != nil {
-		return err
-	}
-
 	p.isValid = true
 	p.maxTransactionsPerBlock = defaultMaxTransactionsPerBlock
 	p.maxBlockSize = defaultMaxBlockSize
@@ -220,15 +214,21 @@ func (p *Policy) OnPersistEnd(dao dao.DAO) error {
 
 	p.maxVerificationGas = defaultMaxVerificationGas
 
-	si := dao.GetStorageItem(p.ContractID, blockedAccountsKey)
-	if si == nil {
-		return errors.New("BlockedAccounts uninitialized")
-	}
-	ba, err := BlockedAccountsFromBytes(si.Value)
+	p.blockedAccounts = make([]util.Uint160, 0)
+	siMap, err := dao.GetStorageItemsWithPrefix(p.ContractID, []byte{blockedAccountPrefix})
 	if err != nil {
-		return fmt.Errorf("failed to decode BlockedAccounts from bytes: %w", err)
+		return fmt.Errorf("failed to get blocked accounts from storage: %w", err)
 	}
-	p.blockedAccounts = ba
+	for key := range siMap {
+		hash, err := util.Uint160DecodeBytesBE([]byte(key))
+		if err != nil {
+			return fmt.Errorf("failed to decode blocked account hash: %w", err)
+		}
+		p.blockedAccounts = append(p.blockedAccounts, hash)
+	}
+	sort.Slice(p.blockedAccounts, func(i, j int) bool {
+		return p.blockedAccounts[i].Less(p.blockedAccounts[j])
+	})
 
 	p.isValid = true
 	return nil
@@ -306,32 +306,28 @@ func (p *Policy) GetMaxBlockSystemFeeInternal(dao dao.DAO) int64 {
 	return p.getInt64WithKey(dao, maxBlockSystemFeeKey)
 }
 
-// getBlockedAccounts is Policy contract method and returns list of blocked
-// accounts hashes.
-func (p *Policy) getBlockedAccounts(ic *interop.Context, _ []stackitem.Item) stackitem.Item {
-	ba, err := p.GetBlockedAccountsInternal(ic.DAO)
-	if err != nil {
-		panic(err)
-	}
-	return ba.ToStackItem()
+// isBlocked is Policy contract method and checks whether provided account is blocked.
+func (p *Policy) isBlocked(ic *interop.Context, args []stackitem.Item) stackitem.Item {
+	hash := toUint160(args[0])
+	return stackitem.NewBool(p.IsBlockedInternal(ic.DAO, hash))
 }
 
-// GetBlockedAccountsInternal returns list of blocked accounts hashes.
-func (p *Policy) GetBlockedAccountsInternal(dao dao.DAO) (BlockedAccounts, error) {
+// IsBlockedInternal checks whether provided account is blocked
+func (p *Policy) IsBlockedInternal(dao dao.DAO, hash util.Uint160) bool {
 	p.lock.RLock()
 	defer p.lock.RUnlock()
 	if p.isValid {
-		return p.blockedAccounts, nil
+		length := len(p.blockedAccounts)
+		i := sort.Search(length, func(i int) bool {
+			return !p.blockedAccounts[i].Less(hash)
+		})
+		if length != 0 && i != length && p.blockedAccounts[i].Equals(hash) {
+			return true
+		}
+		return false
 	}
-	si := dao.GetStorageItem(p.ContractID, blockedAccountsKey)
-	if si == nil {
-		return nil, errors.New("BlockedAccounts uninitialized")
-	}
-	ba, err := BlockedAccountsFromBytes(si.Value)
-	if err != nil {
-		return nil, err
-	}
-	return ba, nil
+	key := append([]byte{blockedAccountPrefix}, hash.BytesBE()...)
+	return dao.GetStorageItem(p.ContractID, key) != nil
 }
 
 // setMaxTransactionsPerBlock is Policy contract method and  sets the upper limit
@@ -437,30 +433,15 @@ func (p *Policy) blockAccount(ic *interop.Context, args []stackitem.Item) stacki
 	if !ok {
 		return stackitem.NewBool(false)
 	}
-	value := toUint160(args[0])
-	si := ic.DAO.GetStorageItem(p.ContractID, blockedAccountsKey)
-	if si == nil {
-		panic("BlockedAccounts uninitialized")
-	}
-	ba, err := BlockedAccountsFromBytes(si.Value)
-	if err != nil {
-		panic(err)
-	}
-	indexToInsert := sort.Search(len(ba), func(i int) bool {
-		return !ba[i].Less(value)
-	})
-	ba = append(ba, value)
-	if indexToInsert != len(ba)-1 && ba[indexToInsert].Equals(value) {
+	hash := toUint160(args[0])
+	if p.IsBlockedInternal(ic.DAO, hash) {
 		return stackitem.NewBool(false)
 	}
-	if len(ba) > 1 {
-		copy(ba[indexToInsert+1:], ba[indexToInsert:])
-		ba[indexToInsert] = value
-	}
+	key := append([]byte{blockedAccountPrefix}, hash.BytesBE()...)
 	p.lock.Lock()
 	defer p.lock.Unlock()
-	err = ic.DAO.PutStorageItem(p.ContractID, blockedAccountsKey, &state.StorageItem{
-		Value: ba.Bytes(),
+	err = ic.DAO.PutStorageItem(p.ContractID, key, &state.StorageItem{
+		Value: []byte{0x01},
 	})
 	if err != nil {
 		panic(err)
@@ -479,27 +460,14 @@ func (p *Policy) unblockAccount(ic *interop.Context, args []stackitem.Item) stac
 	if !ok {
 		return stackitem.NewBool(false)
 	}
-	value := toUint160(args[0])
-	si := ic.DAO.GetStorageItem(p.ContractID, blockedAccountsKey)
-	if si == nil {
-		panic("BlockedAccounts uninitialized")
-	}
-	ba, err := BlockedAccountsFromBytes(si.Value)
-	if err != nil {
-		panic(err)
-	}
-	indexToRemove := sort.Search(len(ba), func(i int) bool {
-		return !ba[i].Less(value)
-	})
-	if indexToRemove == len(ba) || !ba[indexToRemove].Equals(value) {
+	hash := toUint160(args[0])
+	if !p.IsBlockedInternal(ic.DAO, hash) {
 		return stackitem.NewBool(false)
 	}
-	ba = append(ba[:indexToRemove], ba[indexToRemove+1:]...)
+	key := append([]byte{blockedAccountPrefix}, hash.BytesBE()...)
 	p.lock.Lock()
 	defer p.lock.Unlock()
-	err = ic.DAO.PutStorageItem(p.ContractID, blockedAccountsKey, &state.StorageItem{
-		Value: ba.Bytes(),
-	})
+	err = ic.DAO.DeleteStorageItem(p.ContractID, key)
 	if err != nil {
 		panic(err)
 	}
@@ -555,18 +523,9 @@ func (p *Policy) checkValidators(ic *interop.Context) (bool, error) {
 // like not being signed by blocked account or not exceeding block-level system
 // fee limit.
 func (p *Policy) CheckPolicy(d dao.DAO, tx *transaction.Transaction) error {
-	ba, err := p.GetBlockedAccountsInternal(d)
-	if err != nil {
-		return fmt.Errorf("unable to get blocked accounts list: %w", err)
-	}
-	if len(ba) > 0 {
-		for _, signer := range tx.Signers {
-			i := sort.Search(len(ba), func(i int) bool {
-				return !ba[i].Less(signer.Account)
-			})
-			if i != len(ba) && ba[i].Equals(signer.Account) {
-				return fmt.Errorf("account %s is blocked", signer.Account.StringLE())
-			}
+	for _, signer := range tx.Signers {
+		if p.IsBlockedInternal(d, signer.Account) {
+			return fmt.Errorf("account %s is blocked", signer.Account.StringLE())
 		}
 	}
 	maxBlockSystemFee := p.GetMaxBlockSystemFeeInternal(d)

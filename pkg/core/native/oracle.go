@@ -3,6 +3,7 @@ package native
 import (
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"math/big"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
@@ -42,6 +43,8 @@ const (
 	maxFilterLength   = 128
 	maxCallbackLength = 32
 	maxUserDataLength = 512
+	// maxRequestsCount is the maximum number of requests per URL
+	maxRequestsCount = 256
 
 	oracleRequestPrice = 5000_0000
 )
@@ -328,6 +331,9 @@ func (o *Oracle) PutRequestInternal(id uint64, req *state.OracleRequest, d dao.D
 	key := makeIDListKey(req.URL)
 	if err := o.getSerializableFromDAO(d, key, lst); err != nil && !errors.Is(err, storage.ErrKeyNotFound) {
 		return err
+	}
+	if len(*lst) >= maxRequestsCount {
+		return fmt.Errorf("there are too many pending requests for %s url", req.URL)
 	}
 	*lst = append(*lst, id)
 	si := &state.StorageItem{Value: lst.Bytes()}

@@ -92,6 +92,9 @@ func TestDesignate_DesignateAsRole(t *testing.T) {
 	err = des.DesignateAsRole(ic, native.RoleOracle, keys.PublicKeys{})
 	require.True(t, errors.Is(err, native.ErrEmptyNodeList), "got: %v", err)
 
+	err = des.DesignateAsRole(ic, native.RoleOracle, make(keys.PublicKeys, 32+1))
+	require.True(t, errors.Is(err, native.ErrLargeNodeList), "got: %v", err)
+
 	priv, err := keys.NewPrivateKey()
 	require.NoError(t, err)
 	pub := priv.PublicKey()
