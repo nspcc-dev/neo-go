@@ -525,7 +525,7 @@ func (dao *Simple) InitMPT(height uint32) error {
 
 // GetCurrentStateRootHeight returns current state root height.
 func (dao *Simple) GetCurrentStateRootHeight() (uint32, error) {
-	key := []byte{byte(storage.DataMPT)}
+	key := []byte{byte(storage.DataMPTHeight)}
 	val, err := dao.Store.Get(key)
 	if err != nil {
 		if err == storage.ErrKeyNotFound {
@@ -538,7 +538,7 @@ func (dao *Simple) GetCurrentStateRootHeight() (uint32, error) {
 
 // PutCurrentStateRootHeight updates current state root height.
 func (dao *Simple) PutCurrentStateRootHeight(height uint32) error {
-	key := []byte{byte(storage.DataMPT)}
+	key := []byte{byte(storage.DataMPTHeight)}
 	val := make([]byte, 4)
 	binary.LittleEndian.PutUint32(val, height)
 	return dao.Store.Put(key, val)

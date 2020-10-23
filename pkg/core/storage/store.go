@@ -10,6 +10,7 @@ const (
 	DataBlock         KeyPrefix = 0x01
 	DataTransaction   KeyPrefix = 0x02
 	DataMPT           KeyPrefix = 0x03
+	DataMPTHeight     KeyPrefix = 0x04
 	STAccount         KeyPrefix = 0x40
 	STCoin            KeyPrefix = 0x44
 	STSpentCoin       KeyPrefix = 0x45
