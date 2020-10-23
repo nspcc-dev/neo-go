@@ -41,10 +41,9 @@ func TestGetProof_MarshalJSON(t *testing.T) {
 		require.Equal(t, 8, len(p.Result.Proof))
 		for i := range p.Result.Proof { // smoke test that every chunk is correctly encoded node
 			r := io.NewBinReaderFromBuf(p.Result.Proof[i])
-			var n mpt.NodeObject
-			n.DecodeBinary(r)
+			n := mpt.DecodeNodeWithType(r)
 			require.NoError(t, r.Err)
-			require.NotNil(t, n.Node)
+			require.NotNil(t, n)
 		}
 	})
 }

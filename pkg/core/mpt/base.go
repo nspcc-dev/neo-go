@@ -1,6 +1,8 @@
 package mpt
 
 import (
+	"fmt"
+
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -81,4 +83,24 @@ func (b *BaseNode) SetFlushed() {
 func encodeNodeWithType(n Node, w *io.BinWriter) {
 	w.WriteB(byte(n.Type()))
 	n.EncodeBinary(w)
+}
+
+// DecodeNodeWithType decodes node together with it's type.
+func DecodeNodeWithType(r *io.BinReader) Node {
+	var n Node
+	switch typ := NodeType(r.ReadB()); typ {
+	case BranchT:
+		n = new(BranchNode)
+	case ExtensionT:
+		n = new(ExtensionNode)
+	case HashT:
+		n = new(HashNode)
+	case LeafT:
+		n = new(LeafNode)
+	default:
+		r.Err = fmt.Errorf("invalid node type: %x", typ)
+		return nil
+	}
+	n.DecodeBinary(r)
+	return n
 }
