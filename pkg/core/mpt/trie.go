@@ -354,6 +354,7 @@ func (t *Trie) getFromStore(h util.Uint256) (Node, error) {
 	if r.Err != nil {
 		return nil, r.Err
 	}
+	n.Node.(flushedNode).setCache(data, h)
 	return n.Node, nil
 }
 
