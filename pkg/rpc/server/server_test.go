@@ -778,31 +778,112 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 	defer rpcSrv.Shutdown()
 
 	e := &executor{chain: chain, httpSrv: httpSrv}
-	for method, cases := range rpcTestCases {
-		t.Run(method, func(t *testing.T) {
-			rpc := `{"jsonrpc": "2.0", "id": 1, "method": "%s", "params": %s}`
+	t.Run("single request", func(t *testing.T) {
+		for method, cases := range rpcTestCases {
+			t.Run(method, func(t *testing.T) {
+				rpc := `{"jsonrpc": "2.0", "id": 1, "method": "%s", "params": %s}`
 
-			for _, tc := range cases {
-				t.Run(tc.name, func(t *testing.T) {
-					body := doRPCCall(fmt.Sprintf(rpc, method, tc.params), httpSrv.URL, t)
-					result := checkErrGetResult(t, body, tc.fail)
+				for _, tc := range cases {
+					t.Run(tc.name, func(t *testing.T) {
+						body := doRPCCall(fmt.Sprintf(rpc, method, tc.params), httpSrv.URL, t)
+						result := checkErrGetResult(t, body, tc.fail)
+						if tc.fail {
+							return
+						}
+
+						expected, res := tc.getResultPair(e)
+						err := json.Unmarshal(result, res)
+						require.NoErrorf(t, err, "could not parse response: %s", result)
+
+						if tc.check == nil {
+							assert.Equal(t, expected, res)
+						} else {
+							tc.check(t, e, res)
+						}
+					})
+				}
+			})
+		}
+	})
+	t.Run("batch with single request", func(t *testing.T) {
+		for method, cases := range rpcTestCases {
+			if method == "sendrawtransaction" {
+				continue // cannot send the same transaction twice
+			}
+			t.Run(method, func(t *testing.T) {
+				rpc := `[{"jsonrpc": "2.0", "id": 1, "method": "%s", "params": %s}]`
+
+				for _, tc := range cases {
+					t.Run(tc.name, func(t *testing.T) {
+						body := doRPCCall(fmt.Sprintf(rpc, method, tc.params), httpSrv.URL, t)
+						result := checkErrGetBatchResult(t, body, tc.fail)
+						if tc.fail {
+							return
+						}
+
+						expected, res := tc.getResultPair(e)
+						err := json.Unmarshal(result, res)
+						require.NoErrorf(t, err, "could not parse response: %s", result)
+
+						if tc.check == nil {
+							assert.Equal(t, expected, res)
+						} else {
+							tc.check(t, e, res)
+						}
+					})
+				}
+			})
+		}
+	})
+
+	t.Run("batch with multiple requests", func(t *testing.T) {
+		for method, cases := range rpcTestCases {
+			if method == "sendrawtransaction" {
+				continue // cannot send the same transaction twice
+			}
+			t.Run(method, func(t *testing.T) {
+				rpc := `{"jsonrpc": "2.0", "id": %d, "method": "%s", "params": %s},`
+				var resultRPC string
+				for i, tc := range cases {
+					resultRPC += fmt.Sprintf(rpc, i, method, tc.params)
+				}
+				resultRPC = `[` + resultRPC[:len(resultRPC)-1] + `]`
+				body := doRPCCall(resultRPC, httpSrv.URL, t)
+				var responses []response.Raw
+				err := json.Unmarshal(body, &responses)
+				require.Nil(t, err)
+				for i, tc := range cases {
+					var resp response.Raw
+					for _, r := range responses {
+						if bytes.Equal(r.ID, []byte(strconv.Itoa(i))) {
+							resp = r
+							break
+						}
+					}
+					if tc.fail {
+						require.NotNil(t, resp.Error)
+						assert.NotEqual(t, 0, resp.Error.Code)
+						assert.NotEqual(t, "", resp.Error.Message)
+					} else {
+						assert.Nil(t, resp.Error)
+					}
 					if tc.fail {
 						return
 					}
-
 					expected, res := tc.getResultPair(e)
-					err := json.Unmarshal(result, res)
-					require.NoErrorf(t, err, "could not parse response: %s", result)
+					err := json.Unmarshal(resp.Result, res)
+					require.NoErrorf(t, err, "could not parse response: %s", resp.Result)
 
 					if tc.check == nil {
 						assert.Equal(t, expected, res)
 					} else {
 						tc.check(t, e, res)
 					}
-				})
-			}
-		})
-	}
+				}
+
+			})
+		}
+	})
 
 	t.Run("getapplicationlog for block", func(t *testing.T) {
 		rpc := `{"jsonrpc": "2.0", "id": 1, "method": "getapplicationlog", "params": ["%s"]}`
@@ -1073,6 +1154,21 @@ func checkErrGetResult(t *testing.T, body []byte, expectingFail bool) json.RawMe
 		assert.Nil(t, resp.Error)
 	}
 	return resp.Result
+}
+
+func checkErrGetBatchResult(t *testing.T, body []byte, expectingFail bool) json.RawMessage {
+	var resp []response.Raw
+	err := json.Unmarshal(body, &resp)
+	require.Nil(t, err)
+	require.Equal(t, 1, len(resp))
+	if expectingFail {
+		require.NotNil(t, resp[0].Error)
+		assert.NotEqual(t, 0, resp[0].Error.Code)
+		assert.NotEqual(t, "", resp[0].Error.Message)
+	} else {
+		assert.Nil(t, resp[0].Error)
+	}
+	return resp[0].Result
 }
 
 func doRPCCallOverWS(rpcCall string, url string, t *testing.T) []byte {
