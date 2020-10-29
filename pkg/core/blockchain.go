@@ -58,6 +58,10 @@ var (
 	// ErrInvalidBlockIndex is returned when trying to add block with index
 	// other than expected height of the blockchain.
 	ErrInvalidBlockIndex error = errors.New("invalid block index")
+	// ErrHasConflicts is returned when trying to add some transaction which
+	// conflicts with other transaction in the chain or pool according to
+	// Conflicts attribute.
+	ErrHasConflicts = errors.New("has conflicts")
 )
 var (
 	persistInterval = 1 * time.Second
@@ -617,6 +621,18 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 			return fmt.Errorf("failed to store tx exec result: %w", err)
 		}
 		writeBuf.Reset()
+
+		if bc.config.P2PSigExtensions {
+			for _, attr := range tx.GetAttributes(transaction.ConflictsT) {
+				hash := attr.Value.(*transaction.Conflicts).Hash
+				dummyTx := transaction.NewTrimmedTX(hash)
+				dummyTx.Version = transaction.DummyVersion
+				if err = cache.StoreAsTransaction(dummyTx, block.Index, writeBuf); err != nil {
+					return fmt.Errorf("failed to store conflicting transaction %s for transaction %s: %w", hash.StringLE(), tx.Hash().StringLE(), err)
+				}
+				writeBuf.Reset()
+			}
+		}
 	}
 
 	aer, err := bc.runPersist(bc.contracts.GetPostPersistScript(), block, cache)
@@ -984,7 +1000,10 @@ func (bc *Blockchain) GetHeader(hash util.Uint256) (*block.Header, error) {
 // HasTransaction returns true if the blockchain contains he given
 // transaction hash.
 func (bc *Blockchain) HasTransaction(hash util.Uint256) bool {
-	return bc.memPool.ContainsKey(hash) || bc.dao.HasTransaction(hash)
+	if bc.memPool.ContainsKey(hash) {
+		return true
+	}
+	return bc.dao.HasTransaction(hash) == dao.ErrAlreadyExists
 }
 
 // HasBlock returns true if the blockchain contains the given
@@ -1227,8 +1246,16 @@ func (bc *Blockchain) verifyAndPoolTx(t *transaction.Transaction, pool *mempool.
 	if netFee < 0 {
 		return fmt.Errorf("%w: net fee is %v, need %v", ErrTxSmallNetworkFee, t.NetworkFee, needNetworkFee)
 	}
-	if bc.dao.HasTransaction(t.Hash()) {
-		return fmt.Errorf("blockchain: %w", ErrAlreadyExists)
+	// check that current tx wasn't included in the conflicts attributes of some other transaction which is already in the chain
+	if err := bc.dao.HasTransaction(t.Hash()); err != nil {
+		switch {
+		case errors.Is(err, dao.ErrAlreadyExists):
+			return fmt.Errorf("blockchain: %w", ErrAlreadyExists)
+		case errors.Is(err, dao.ErrHasConflicts):
+			return fmt.Errorf("blockchain: %w", ErrHasConflicts)
+		default:
+			return err
+		}
 	}
 	err := bc.verifyTxWitnesses(t, nil)
 	if err != nil {
@@ -1248,6 +1275,8 @@ func (bc *Blockchain) verifyAndPoolTx(t *transaction.Transaction, pool *mempool.
 			return ErrInsufficientFunds
 		case errors.Is(err, mempool.ErrOOM):
 			return ErrOOM
+		case errors.Is(err, mempool.ErrConflictsAttribute):
+			return fmt.Errorf("mempool: %w: %s", ErrHasConflicts, err)
 		default:
 			return err
 		}
@@ -1303,6 +1332,14 @@ func (bc *Blockchain) verifyTxAttributes(tx *transaction.Transaction) error {
 			if height := bc.BlockHeight(); height < nvb.Height {
 				return fmt.Errorf("%w: NotValidBefore = %d, current height = %d", ErrTxNotYetValid, nvb.Height, height)
 			}
+		case transaction.ConflictsT:
+			if !bc.config.P2PSigExtensions {
+				return errors.New("Conflicts attribute was found, but P2PSigExtensions are disabled")
+			}
+			conflicts := tx.Attributes[i].Value.(*transaction.Conflicts)
+			if err := bc.dao.HasTransaction(conflicts.Hash); errors.Is(err, dao.ErrAlreadyExists) {
+				return fmt.Errorf("conflicting transaction %s is already on chain", conflicts.Hash.StringLE())
+			}
 		default:
 			if !bc.config.ReservedAttributes && attrType >= transaction.ReservedLowerBound && attrType <= transaction.ReservedUpperBound {
 				return errors.New("attribute of reserved type was found, but ReservedAttributes are disabled")
@@ -1326,10 +1363,10 @@ func (bc *Blockchain) isTxStillRelevant(t *transaction.Transaction, txpool *memp
 		return false
 	}
 	if txpool == nil {
-		if bc.dao.HasTransaction(t.Hash()) {
+		if bc.dao.HasTransaction(t.Hash()) != nil {
 			return false
 		}
-	} else if txpool.ContainsKey(t.Hash()) {
+	} else if txpool.HasConflicts(t, bc) {
 		return false
 	}
 	if err := bc.verifyTxAttributes(t); err != nil {
@@ -1649,4 +1686,9 @@ func (bc *Blockchain) newInteropContext(trigger trigger.Type, d dao.DAO, block *
 		ic.Container = block
 	}
 	return ic
+}
+
+// P2PSigExtensionsEnabled defines whether P2P signature extensions are enabled.
+func (bc *Blockchain) P2PSigExtensionsEnabled() bool {
+	return bc.config.P2PSigExtensions
 }

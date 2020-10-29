@@ -2,6 +2,7 @@ package mempool
 
 import (
 	"errors"
+	"fmt"
 	"math/big"
 	"sort"
 	"sync"
@@ -25,6 +26,9 @@ var (
 	// ErrOOM is returned when transaction just doesn't fit in the memory
 	// pool because of its capacity constraints.
 	ErrOOM = errors.New("out of memory")
+	// ErrConflictsAttribute is returned when transaction conflicts with other transactions
+	// due to its (or theirs) Conflicts attributes.
+	ErrConflictsAttribute = errors.New("conflicts with memory pool due to Conflicts attribute")
 )
 
 // item represents a transaction in the the Memory pool.
@@ -49,6 +53,8 @@ type Pool struct {
 	verifiedMap  map[util.Uint256]*transaction.Transaction
 	verifiedTxes items
 	fees         map[util.Uint160]utilityBalanceAndFees
+	// conflicts is a map of hashes of transactions which are conflicting with the mempooled ones.
+	conflicts map[util.Uint256][]util.Uint256
 
 	capacity   int
 	feePerByte int64
@@ -108,6 +114,29 @@ func (mp *Pool) containsKey(hash util.Uint256) bool {
 	return false
 }
 
+// HasConflicts returns true if transaction is already in pool or in the Conflicts attributes
+// of pooled transactions or has Conflicts attributes for pooled transactions.
+func (mp *Pool) HasConflicts(t *transaction.Transaction, fee Feer) bool {
+	mp.lock.RLock()
+	defer mp.lock.RUnlock()
+
+	if mp.containsKey(t.Hash()) {
+		return true
+	}
+	if fee.P2PSigExtensionsEnabled() {
+		// do not check sender's signature and fee
+		if _, ok := mp.conflicts[t.Hash()]; ok {
+			return true
+		}
+		for _, attr := range t.GetAttributes(transaction.ConflictsT) {
+			if mp.containsKey(attr.Value.(*transaction.Conflicts).Hash) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // tryAddSendersFee tries to add system fee and network fee to the total sender`s fee in mempool
 // and returns false if both balance check is required and sender has not enough GAS to pay
 func (mp *Pool) tryAddSendersFee(tx *transaction.Transaction, feer Feer, needCheck bool) bool {
@@ -154,13 +183,19 @@ func (mp *Pool) Add(t *transaction.Transaction, fee Feer) error {
 		mp.lock.Unlock()
 		return ErrDup
 	}
-	err := mp.checkTxConflicts(t, fee)
+	conflictsToBeRemoved, err := mp.checkTxConflicts(t, fee)
 	if err != nil {
 		mp.lock.Unlock()
 		return err
 	}
 
 	mp.verifiedMap[t.Hash()] = t
+	if fee.P2PSigExtensionsEnabled() {
+		// Remove conflicting transactions.
+		for _, conflictingTx := range conflictsToBeRemoved {
+			mp.removeInternal(conflictingTx.Hash(), fee)
+		}
+	}
 	// Insert into sorted array (from max to min, that could also be done
 	// using sort.Sort(sort.Reverse()), but it incurs more overhead. Notice
 	// also that we're searching for position that is strictly more
@@ -181,6 +216,9 @@ func (mp *Pool) Add(t *transaction.Transaction, fee Feer) error {
 		// Ditch the last one.
 		unlucky := mp.verifiedTxes[len(mp.verifiedTxes)-1]
 		delete(mp.verifiedMap, unlucky.txn.Hash())
+		if fee.P2PSigExtensionsEnabled() {
+			mp.removeConflictsOf(unlucky.txn)
+		}
 		mp.verifiedTxes[len(mp.verifiedTxes)-1] = pItem
 	} else {
 		mp.verifiedTxes = append(mp.verifiedTxes, pItem)
@@ -188,6 +226,13 @@ func (mp *Pool) Add(t *transaction.Transaction, fee Feer) error {
 	if n != len(mp.verifiedTxes)-1 {
 		copy(mp.verifiedTxes[n+1:], mp.verifiedTxes[n:])
 		mp.verifiedTxes[n] = pItem
+	}
+	if fee.P2PSigExtensionsEnabled() {
+		// Add conflicting hashes to the mp.conflicts list.
+		for _, attr := range t.GetAttributes(transaction.ConflictsT) {
+			hash := attr.Value.(*transaction.Conflicts).Hash
+			mp.conflicts[hash] = append(mp.conflicts[hash], t.Hash())
+		}
 	}
 	// we already checked balance in checkTxConflicts, so don't need to check again
 	mp.tryAddSendersFee(pItem.txn, fee, false)
@@ -199,8 +244,14 @@ func (mp *Pool) Add(t *transaction.Transaction, fee Feer) error {
 
 // Remove removes an item from the mempool, if it exists there (and does
 // nothing if it doesn't).
-func (mp *Pool) Remove(hash util.Uint256) {
+func (mp *Pool) Remove(hash util.Uint256, feer Feer) {
 	mp.lock.Lock()
+	mp.removeInternal(hash, feer)
+	mp.lock.Unlock()
+}
+
+// removeInternal is an internal unlocked representation of Remove
+func (mp *Pool) removeInternal(hash util.Uint256, feer Feer) {
 	if tx, ok := mp.verifiedMap[hash]; ok {
 		var num int
 		delete(mp.verifiedMap, hash)
@@ -217,9 +268,12 @@ func (mp *Pool) Remove(hash util.Uint256) {
 		senderFee := mp.fees[tx.Sender()]
 		senderFee.feeSum.Sub(senderFee.feeSum, big.NewInt(tx.SystemFee+tx.NetworkFee))
 		mp.fees[tx.Sender()] = senderFee
+		if feer.P2PSigExtensionsEnabled() {
+			// remove all conflicting hashes from mp.conflicts list
+			mp.removeConflictsOf(tx)
+		}
 	}
 	updateMempoolMetrics(len(mp.verifiedTxes))
-	mp.lock.Unlock()
 }
 
 // RemoveStale filters verified transactions through the given function keeping
@@ -232,9 +286,18 @@ func (mp *Pool) RemoveStale(isOK func(*transaction.Transaction) bool, feer Feer)
 	// because items are iterated one-by-one in increasing order.
 	newVerifiedTxes := mp.verifiedTxes[:0]
 	mp.fees = make(map[util.Uint160]utilityBalanceAndFees) // it'd be nice to reuse existing map, but we can't easily clear it
+	if feer.P2PSigExtensionsEnabled() {
+		mp.conflicts = make(map[util.Uint256][]util.Uint256)
+	}
 	for _, itm := range mp.verifiedTxes {
 		if isOK(itm.txn) && mp.checkPolicy(itm.txn, policyChanged) && mp.tryAddSendersFee(itm.txn, feer, true) {
 			newVerifiedTxes = append(newVerifiedTxes, itm)
+			if feer.P2PSigExtensionsEnabled() {
+				for _, attr := range itm.txn.GetAttributes(transaction.ConflictsT) {
+					hash := attr.Value.(*transaction.Conflicts).Hash
+					mp.conflicts[hash] = append(mp.conflicts[hash], itm.txn.Hash())
+				}
+			}
 		} else {
 			delete(mp.verifiedMap, itm.txn.Hash())
 		}
@@ -269,6 +332,7 @@ func New(capacity int) *Pool {
 		verifiedTxes: make([]item, 0, capacity),
 		capacity:     capacity,
 		fees:         make(map[util.Uint160]utilityBalanceAndFees),
+		conflicts:    make(map[util.Uint256][]util.Uint256),
 	}
 }
 
@@ -297,15 +361,59 @@ func (mp *Pool) GetVerifiedTransactions() []*transaction.Transaction {
 	return t
 }
 
-// checkTxConflicts is an internal unprotected version of Verify.
-func (mp *Pool) checkTxConflicts(tx *transaction.Transaction, fee Feer) error {
-	senderFee, ok := mp.fees[tx.Sender()]
+// checkTxConflicts is an internal unprotected version of Verify. It takes into
+// consideration conflicting transactions which are about to be removed from mempool.
+func (mp *Pool) checkTxConflicts(tx *transaction.Transaction, fee Feer) ([]*transaction.Transaction, error) {
+	actualSenderFee, ok := mp.fees[tx.Sender()]
 	if !ok {
-		senderFee.balance = fee.GetUtilityTokenBalance(tx.Sender())
-		senderFee.feeSum = big.NewInt(0)
+		actualSenderFee.balance = fee.GetUtilityTokenBalance(tx.Sender())
+		actualSenderFee.feeSum = big.NewInt(0)
 	}
-	_, err := checkBalance(tx, senderFee)
-	return err
+
+	var expectedSenderFee utilityBalanceAndFees
+	// Check Conflicts attributes.
+	var conflictsToBeRemoved []*transaction.Transaction
+	if fee.P2PSigExtensionsEnabled() {
+		// Step 1: check if `tx` was in attributes of mempooled transactions.
+		if conflictingHashes, ok := mp.conflicts[tx.Hash()]; ok {
+			for _, hash := range conflictingHashes {
+				existingTx := mp.verifiedMap[hash]
+				if existingTx.HasSigner(tx.Sender()) && existingTx.NetworkFee > tx.NetworkFee {
+					return nil, fmt.Errorf("%w: conflicting transaction %s has bigger network fee", ErrConflictsAttribute, existingTx.Hash().StringBE())
+				}
+				conflictsToBeRemoved = append(conflictsToBeRemoved, existingTx)
+			}
+		}
+		// Step 2: check if mempooled transactions were in `tx`'s attributes.
+		for _, attr := range tx.GetAttributes(transaction.ConflictsT) {
+			hash := attr.Value.(*transaction.Conflicts).Hash
+			existingTx, ok := mp.verifiedMap[hash]
+			if !ok {
+				continue
+			}
+			if !tx.HasSigner(existingTx.Sender()) {
+				return nil, fmt.Errorf("%w: not signed by the sender of conflicting transaction %s", ErrConflictsAttribute, existingTx.Hash().StringBE())
+			}
+			if existingTx.NetworkFee >= tx.NetworkFee {
+				return nil, fmt.Errorf("%w: conflicting transaction %s has bigger or equal network fee", ErrConflictsAttribute, existingTx.Hash().StringBE())
+			}
+			conflictsToBeRemoved = append(conflictsToBeRemoved, existingTx)
+		}
+		// Step 3: take into account sender's conflicting transactions before balance check.
+		expectedSenderFee = utilityBalanceAndFees{
+			balance: new(big.Int).Set(actualSenderFee.balance),
+			feeSum:  new(big.Int).Set(actualSenderFee.feeSum),
+		}
+		for _, conflictingTx := range conflictsToBeRemoved {
+			if conflictingTx.Sender().Equals(tx.Sender()) {
+				expectedSenderFee.feeSum.Sub(expectedSenderFee.feeSum, big.NewInt(conflictingTx.SystemFee+conflictingTx.NetworkFee))
+			}
+		}
+	} else {
+		expectedSenderFee = actualSenderFee
+	}
+	_, err := checkBalance(tx, expectedSenderFee)
+	return conflictsToBeRemoved, err
 }
 
 // Verify checks if a Sender of tx is able to pay for it (and all the other
@@ -315,5 +423,26 @@ func (mp *Pool) checkTxConflicts(tx *transaction.Transaction, fee Feer) error {
 func (mp *Pool) Verify(tx *transaction.Transaction, feer Feer) bool {
 	mp.lock.RLock()
 	defer mp.lock.RUnlock()
-	return mp.checkTxConflicts(tx, feer) == nil
+	_, err := mp.checkTxConflicts(tx, feer)
+	return err == nil
+}
+
+// removeConflictsOf removes hash of the given transaction from the conflicts list
+// for each Conflicts attribute.
+func (mp *Pool) removeConflictsOf(tx *transaction.Transaction) {
+	// remove all conflicting hashes from mp.conflicts list
+	for _, attr := range tx.GetAttributes(transaction.ConflictsT) {
+		conflictsHash := attr.Value.(*transaction.Conflicts).Hash
+		if len(mp.conflicts[conflictsHash]) == 1 {
+			delete(mp.conflicts, conflictsHash)
+			continue
+		}
+		for i, existingHash := range mp.conflicts[conflictsHash] {
+			if existingHash == tx.Hash() {
+				// tx.Hash can occur in the conflicting hashes array only once, because we can't add the same transaction to the mempol twice
+				mp.conflicts[conflictsHash] = append(mp.conflicts[conflictsHash][:i], mp.conflicts[conflictsHash][i+1:]...)
+				break
+			}
+		}
+	}
 }

@@ -189,8 +189,8 @@ func TestStoreAsTransaction(t *testing.T) {
 	hash := tx.Hash()
 	err := dao.StoreAsTransaction(tx, 0, nil)
 	require.NoError(t, err)
-	hasTransaction := dao.HasTransaction(hash)
-	require.True(t, hasTransaction)
+	err = dao.HasTransaction(hash)
+	require.NotNil(t, err)
 }
 
 func TestMakeStorageItemKey(t *testing.T) {

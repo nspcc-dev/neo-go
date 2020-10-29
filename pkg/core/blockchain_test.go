@@ -18,6 +18,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/internal/random"
 	"github.com/nspcc-dev/neo-go/pkg/internal/testchain"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
@@ -627,6 +628,64 @@ func TestVerifyTx(t *testing.T) {
 				bc.config.ReservedAttributes = true
 				tx := getReservedTx(transaction.ReservedLowerBound + 2)
 				require.NoError(t, bc.VerifyTx(tx))
+			})
+		})
+		t.Run("Conflicts", func(t *testing.T) {
+			getConflictsTx := func(hashes ...util.Uint256) *transaction.Transaction {
+				tx := bc.newTestTx(h, testScript)
+				tx.Attributes = make([]transaction.Attribute, len(hashes))
+				for i, h := range hashes {
+					tx.Attributes[i] = transaction.Attribute{
+						Type: transaction.ConflictsT,
+						Value: &transaction.Conflicts{
+							Hash: h,
+						},
+					}
+				}
+				tx.NetworkFee += 4_000_000 // multisig check
+				tx.Signers = []transaction.Signer{{
+					Account: testchain.CommitteeScriptHash(),
+					Scopes:  transaction.None,
+				}}
+				rawScript := testchain.CommitteeVerificationScript()
+				require.NoError(t, err)
+				size := io.GetVarSize(tx)
+				netFee, sizeDelta := fee.Calculate(rawScript)
+				tx.NetworkFee += netFee
+				tx.NetworkFee += int64(size+sizeDelta) * bc.FeePerByte()
+				data := tx.GetSignedPart()
+				tx.Scripts = []transaction.Witness{{
+					InvocationScript:   testchain.SignCommittee(data),
+					VerificationScript: rawScript,
+				}}
+				return tx
+			}
+			t.Run("disabled", func(t *testing.T) {
+				bc.config.P2PSigExtensions = false
+				tx := getConflictsTx(util.Uint256{1, 2, 3})
+				require.Error(t, bc.VerifyTx(tx))
+			})
+			t.Run("enabled", func(t *testing.T) {
+				bc.config.P2PSigExtensions = true
+				t.Run("dummy on-chain conflict", func(t *testing.T) {
+					tx := bc.newTestTx(h, testScript)
+					require.NoError(t, accs[0].SignTx(tx))
+					dummyTx := transaction.NewTrimmedTX(tx.Hash())
+					dummyTx.Version = transaction.DummyVersion
+					require.NoError(t, bc.dao.StoreAsTransaction(dummyTx, bc.blockHeight, nil))
+					require.True(t, errors.Is(bc.VerifyTx(tx), ErrHasConflicts))
+				})
+				t.Run("attribute on-chain conflict", func(t *testing.T) {
+					b, err := bc.GetBlock(bc.GetHeaderHash(0))
+					require.NoError(t, err)
+					conflictsHash := b.Transactions[0].Hash()
+					tx := getConflictsTx(conflictsHash)
+					require.Error(t, bc.VerifyTx(tx))
+				})
+				t.Run("positive", func(t *testing.T) {
+					tx := getConflictsTx(random.Uint256())
+					require.NoError(t, bc.VerifyTx(tx))
+				})
 			})
 		})
 	})

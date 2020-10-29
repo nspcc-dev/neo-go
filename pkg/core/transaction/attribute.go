@@ -37,6 +37,8 @@ func (attr *Attribute) DecodeBinary(br *io.BinReader) {
 		attr.Value = new(OracleResponse)
 	case NotValidBeforeT:
 		attr.Value = new(NotValidBefore)
+	case ConflictsT:
+		attr.Value = new(Conflicts)
 	default:
 		if t >= ReservedLowerBound && t <= ReservedUpperBound {
 			attr.Value = new(Reserved)
@@ -53,7 +55,7 @@ func (attr *Attribute) EncodeBinary(bw *io.BinWriter) {
 	bw.WriteB(byte(attr.Type))
 	switch t := attr.Type; t {
 	case HighPriority:
-	case OracleResponseT, NotValidBeforeT:
+	case OracleResponseT, NotValidBeforeT, ConflictsT:
 		attr.Value.EncodeBinary(bw)
 	default:
 		if t >= ReservedLowerBound && t <= ReservedUpperBound {
@@ -92,6 +94,9 @@ func (attr *Attribute) UnmarshalJSON(data []byte) error {
 	case NotValidBeforeT.String():
 		attr.Type = NotValidBeforeT
 		attr.Value = new(NotValidBefore)
+	case ConflictsT.String():
+		attr.Type = ConflictsT
+		attr.Value = new(Conflicts)
 	default:
 		return errors.New("wrong Type")
 	}

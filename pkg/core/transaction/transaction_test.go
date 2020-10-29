@@ -12,6 +12,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
+	"github.com/nspcc-dev/neo-go/pkg/internal/random"
 	"github.com/nspcc-dev/neo-go/pkg/internal/testserdes"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 )
@@ -247,4 +248,15 @@ func TestTransaction_GetAttributes(t *testing.T) {
 		}
 		require.Equal(t, conflictsAttrs, tx.GetAttributes(typ))
 	})
+}
+
+func TestTransaction_HasSigner(t *testing.T) {
+	u1, u2 := random.Uint160(), random.Uint160()
+	tx := Transaction{
+		Signers: []Signer{
+			{Account: u1}, {Account: u2},
+		},
+	}
+	require.True(t, tx.HasSigner(u1))
+	require.False(t, tx.HasSigner(util.Uint160{}))
 }

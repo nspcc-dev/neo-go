@@ -15,10 +15,16 @@ const (
 // List of valid attribute types.
 const (
 	HighPriority    AttrType = 1
-	OracleResponseT AttrType = 0x11               // OracleResponse
-	NotValidBeforeT AttrType = ReservedLowerBound // NotValidBefore
+	OracleResponseT AttrType = 0x11                   // OracleResponse
+	NotValidBeforeT AttrType = ReservedLowerBound     // NotValidBefore
+	ConflictsT      AttrType = ReservedLowerBound + 1 // Conflicts
 )
 
 func (a AttrType) allowMultiple() bool {
-	return false
+	switch a {
+	case ConflictsT:
+		return true
+	default:
+		return false
+	}
 }

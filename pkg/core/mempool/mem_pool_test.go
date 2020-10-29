@@ -1,12 +1,14 @@
 package mempool
 
 import (
+	"errors"
 	"math/big"
 	"sort"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
+	"github.com/nspcc-dev/neo-go/pkg/internal/random"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/stretchr/testify/assert"
@@ -15,6 +17,7 @@ import (
 
 type FeerStub struct {
 	feePerByte int64
+	p2pSigExt  bool
 }
 
 var balance = big.NewInt(10000000)
@@ -31,6 +34,10 @@ func (fs *FeerStub) GetUtilityTokenBalance(uint160 util.Uint160) *big.Int {
 	return balance
 }
 
+func (fs *FeerStub) P2PSigExtensionsEnabled() bool {
+	return fs.p2pSigExt
+}
+
 func testMemPoolAddRemoveWithFeer(t *testing.T, fs Feer) {
 	mp := New(10)
 	tx := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
@@ -44,7 +51,7 @@ func testMemPoolAddRemoveWithFeer(t *testing.T, fs Feer) {
 	tx2, ok := mp.TryGetValue(tx.Hash())
 	require.Equal(t, true, ok)
 	require.Equal(t, tx, tx2)
-	mp.Remove(tx.Hash())
+	mp.Remove(tx.Hash(), fs)
 	_, ok = mp.TryGetValue(tx.Hash())
 	require.Equal(t, false, ok)
 	// Make sure nothing left in the mempool after removal.
@@ -148,7 +155,7 @@ func TestGetVerified(t *testing.T) {
 	require.Equal(t, mempoolSize, len(verTxes))
 	require.ElementsMatch(t, txes, verTxes)
 	for _, tx := range txes {
-		mp.Remove(tx.Hash())
+		mp.Remove(tx.Hash(), fs)
 	}
 	verTxes = mp.GetVerifiedTransactions()
 	require.Equal(t, 0, len(verTxes))
@@ -296,4 +303,123 @@ func TestMempoolItemsOrder(t *testing.T) {
 	require.True(t, item4.CompareTo(item2) < 0)
 	require.True(t, item3.CompareTo(item4) > 0)
 	require.True(t, item4.CompareTo(item3) < 0)
+}
+
+func TestMempoolAddRemoveConflicts(t *testing.T) {
+	capacity := 6
+	mp := New(capacity)
+	var fs = &FeerStub{
+		p2pSigExt: true,
+	}
+	getConflictsTx := func(netFee int64, hashes ...util.Uint256) *transaction.Transaction {
+		tx := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
+		tx.NetworkFee = netFee
+		tx.Nonce = uint32(random.Int(0, 1e4))
+		tx.Signers = []transaction.Signer{{Account: util.Uint160{1, 2, 3}}}
+		tx.Attributes = make([]transaction.Attribute, len(hashes))
+		for i, h := range hashes {
+			tx.Attributes[i] = transaction.Attribute{
+				Type: transaction.ConflictsT,
+				Value: &transaction.Conflicts{
+					Hash: h,
+				},
+			}
+		}
+		_, ok := mp.TryGetValue(tx.Hash())
+		require.Equal(t, false, ok)
+		return tx
+	}
+
+	// tx1 in mempool and does not conflicts with anyone
+	smallNetFee := int64(3)
+	tx1 := getConflictsTx(smallNetFee)
+	require.NoError(t, mp.Add(tx1, fs))
+
+	// tx2 conflicts with tx1 and has smaller netfee (Step 2, negative)
+	tx2 := getConflictsTx(smallNetFee-1, tx1.Hash())
+	require.True(t, errors.Is(mp.Add(tx2, fs), ErrConflictsAttribute))
+
+	// tx3 conflicts with mempooled tx1 and has larger netfee => tx1 should be replaced by tx3 (Step 2, positive)
+	tx3 := getConflictsTx(smallNetFee+1, tx1.Hash())
+	require.NoError(t, mp.Add(tx3, fs))
+	require.Equal(t, 1, mp.Count())
+	require.Equal(t, 1, len(mp.conflicts))
+	require.Equal(t, []util.Uint256{tx3.Hash()}, mp.conflicts[tx1.Hash()])
+
+	// tx1 still does not conflicts with anyone, but tx3 is mempooled, conflicts with tx1
+	// and has larger netfee => tx1 shouldn't be added again (Step 1, negative)
+	require.True(t, errors.Is(mp.Add(tx1, fs), ErrConflictsAttribute))
+
+	// tx2 can now safely be added because conflicting tx1 is not in mempool => we
+	// cannot check that tx2 is signed by tx1.Sender
+	require.NoError(t, mp.Add(tx2, fs))
+	require.Equal(t, 1, len(mp.conflicts))
+	require.Equal(t, []util.Uint256{tx3.Hash(), tx2.Hash()}, mp.conflicts[tx1.Hash()])
+
+	// mempooled tx4 conflicts with tx5, but tx4 has smaller netfee => tx4 should be replaced by tx5 (Step 1, positive)
+	tx5 := getConflictsTx(smallNetFee + 1)
+	tx4 := getConflictsTx(smallNetFee, tx5.Hash())
+	require.NoError(t, mp.Add(tx4, fs)) // unverified
+	require.Equal(t, 2, len(mp.conflicts))
+	require.Equal(t, []util.Uint256{tx4.Hash()}, mp.conflicts[tx5.Hash()])
+	require.NoError(t, mp.Add(tx5, fs))
+	// tx5 does not conflict with anyone
+	require.Equal(t, 1, len(mp.conflicts))
+
+	// multiple conflicts in attributes of single transaction
+	tx6 := getConflictsTx(smallNetFee)
+	tx7 := getConflictsTx(smallNetFee)
+	tx8 := getConflictsTx(smallNetFee)
+	// need small network fee later
+	tx9 := getConflictsTx(smallNetFee-2, tx6.Hash(), tx7.Hash(), tx8.Hash())
+	require.NoError(t, mp.Add(tx9, fs))
+	require.Equal(t, 4, len(mp.conflicts))
+	require.Equal(t, []util.Uint256{tx9.Hash()}, mp.conflicts[tx6.Hash()])
+	require.Equal(t, []util.Uint256{tx9.Hash()}, mp.conflicts[tx7.Hash()])
+	require.Equal(t, []util.Uint256{tx9.Hash()}, mp.conflicts[tx8.Hash()])
+	require.Equal(t, []util.Uint256{tx3.Hash(), tx2.Hash()}, mp.conflicts[tx1.Hash()])
+
+	// multiple conflicts in attributes of multiple transactions
+	tx10 := getConflictsTx(smallNetFee, tx6.Hash())
+	tx11 := getConflictsTx(smallNetFee, tx6.Hash())
+	require.NoError(t, mp.Add(tx10, fs)) // unverified, because tx6 is not in the pool
+	require.NoError(t, mp.Add(tx11, fs)) // unverified, because tx6 is not in the pool
+	require.Equal(t, 4, len(mp.conflicts))
+	require.Equal(t, []util.Uint256{tx9.Hash(), tx10.Hash(), tx11.Hash()}, mp.conflicts[tx6.Hash()])
+	require.Equal(t, []util.Uint256{tx9.Hash()}, mp.conflicts[tx7.Hash()])
+	require.Equal(t, []util.Uint256{tx9.Hash()}, mp.conflicts[tx8.Hash()])
+	require.Equal(t, []util.Uint256{tx3.Hash(), tx2.Hash()}, mp.conflicts[tx1.Hash()])
+
+	// reach capacity, remove less prioritised tx9 with its multiple conflicts
+	require.Equal(t, capacity, len(mp.verifiedTxes))
+	tx12 := getConflictsTx(smallNetFee + 2)
+	require.NoError(t, mp.Add(tx12, fs))
+	require.Equal(t, 2, len(mp.conflicts))
+	require.Equal(t, []util.Uint256{tx10.Hash(), tx11.Hash()}, mp.conflicts[tx6.Hash()])
+	require.Equal(t, []util.Uint256{tx3.Hash(), tx2.Hash()}, mp.conflicts[tx1.Hash()])
+
+	// manually remove tx11 with its single conflict
+	mp.Remove(tx11.Hash(), fs)
+	require.Equal(t, 2, len(mp.conflicts))
+	require.Equal(t, []util.Uint256{tx10.Hash()}, mp.conflicts[tx6.Hash()])
+
+	// manually remove last tx which conflicts with tx6 => mp.conflicts[tx6] should also be deleted
+	mp.Remove(tx10.Hash(), fs)
+	require.Equal(t, 1, len(mp.conflicts))
+	require.Equal(t, []util.Uint256{tx3.Hash(), tx2.Hash()}, mp.conflicts[tx1.Hash()])
+
+	// tx13 conflicts with tx2, but is not signed by tx2.Sender
+	tx13 := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
+	tx13.NetworkFee = smallNetFee
+	tx13.Nonce = uint32(random.Int(0, 1e4))
+	tx13.Signers = []transaction.Signer{{Account: util.Uint160{3, 2, 1}}}
+	tx13.Attributes = []transaction.Attribute{{
+		Type: transaction.ConflictsT,
+		Value: &transaction.Conflicts{
+			Hash: tx2.Hash(),
+		},
+	}}
+	_, ok := mp.TryGetValue(tx13.Hash())
+	require.Equal(t, false, ok)
+	require.True(t, errors.Is(mp.Add(tx13, fs), ErrConflictsAttribute))
 }

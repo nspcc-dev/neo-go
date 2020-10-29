@@ -3,6 +3,7 @@ package dao
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"sort"
 
@@ -14,6 +15,15 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+)
+
+// HasTransaction errors
+var (
+	// ErrAlreadyExists is returned when transaction exists in dao.
+	ErrAlreadyExists = errors.New("transaction already exists")
+	// ErrHasConflicts is returned when transaction is in the list of conflicting
+	// transactions which are already in dao.
+	ErrHasConflicts = errors.New("transaction has conflicts")
 )
 
 // DAO is a data access object.
@@ -42,7 +52,7 @@ type DAO interface {
 	GetTransaction(hash util.Uint256) (*transaction.Transaction, uint32, error)
 	GetVersion() (string, error)
 	GetWrapped() DAO
-	HasTransaction(hash util.Uint256) bool
+	HasTransaction(hash util.Uint256) error
 	Persist() (int, error)
 	PutAppExecResult(aer *state.AppExecResult, buf *io.BufBinWriter) error
 	PutContractState(cs *state.Contract) error
@@ -515,12 +525,18 @@ func (dao *Simple) GetHeaderHashes() ([]util.Uint256, error) {
 }
 
 // GetTransaction returns Transaction and its height by the given hash
-// if it exists in the store.
+// if it exists in the store. It does not return dummy transactions.
 func (dao *Simple) GetTransaction(hash util.Uint256) (*transaction.Transaction, uint32, error) {
 	key := storage.AppendPrefix(storage.DataTransaction, hash.BytesLE())
 	b, err := dao.Store.Get(key)
 	if err != nil {
 		return nil, 0, err
+	}
+	if len(b) < 5 {
+		return nil, 0, errors.New("bad transaction bytes")
+	}
+	if b[4] == transaction.DummyVersion {
+		return nil, 0, storage.ErrKeyNotFound
 	}
 	r := io.NewBinReaderFromBuf(b)
 
@@ -558,14 +574,23 @@ func read2000Uint256Hashes(b []byte) ([]util.Uint256, error) {
 	return hashes, nil
 }
 
-// HasTransaction returns true if the given store contains the given
-// Transaction hash.
-func (dao *Simple) HasTransaction(hash util.Uint256) bool {
+// HasTransaction returns nil if the given store does not contain the given
+// Transaction hash. It returns an error in case if transaction is in chain
+// or in the list of conflicting transactions.
+func (dao *Simple) HasTransaction(hash util.Uint256) error {
 	key := storage.AppendPrefix(storage.DataTransaction, hash.BytesLE())
-	if _, err := dao.Store.Get(key); err == nil {
-		return true
+	bytes, err := dao.Store.Get(key)
+	if err != nil {
+		return nil
 	}
-	return false
+
+	if len(bytes) < 5 {
+		return nil
+	}
+	if bytes[4] == transaction.DummyVersion {
+		return ErrHasConflicts
+	}
+	return ErrAlreadyExists
 }
 
 // StoreAsBlock stores given block as DataBlock. It can reuse given buffer for
@@ -609,7 +634,11 @@ func (dao *Simple) StoreAsTransaction(tx *transaction.Transaction, index uint32,
 		buf = io.NewBufBinWriter()
 	}
 	buf.WriteU32LE(index)
-	tx.EncodeBinary(buf.BinWriter)
+	if tx.Version == transaction.DummyVersion {
+		buf.BinWriter.WriteB(tx.Version)
+	} else {
+		tx.EncodeBinary(buf.BinWriter)
+	}
 	if buf.Err != nil {
 		return buf.Err
 	}
