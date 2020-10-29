@@ -506,23 +506,21 @@ func getTestContractState() (*state.Contract, *state.Contract) {
 }
 
 func loadScript(ic *interop.Context, script []byte, args ...interface{}) {
-	v := vm.New()
-	v.LoadScriptWithFlags(script, smartcontract.AllowCall)
+	ic.SpawnVM()
+	ic.VM.LoadScriptWithFlags(script, smartcontract.AllowCall)
 	for i := range args {
-		v.Estack().PushVal(args[i])
+		ic.VM.Estack().PushVal(args[i])
 	}
-	v.GasLimit = -1
-	ic.VM = v
+	ic.VM.GasLimit = -1
 }
 
 func loadScriptWithHashAndFlags(ic *interop.Context, script []byte, hash util.Uint160, f smartcontract.CallFlag, args ...interface{}) {
-	v := vm.New()
-	v.LoadScriptWithHash(script, hash, f)
+	ic.SpawnVM()
+	ic.VM.LoadScriptWithHash(script, hash, f)
 	for i := range args {
-		v.Estack().PushVal(args[i])
+		ic.VM.Estack().PushVal(args[i])
 	}
-	v.GasLimit = -1
-	ic.VM = v
+	ic.VM.GasLimit = -1
 }
 
 func TestContractCall(t *testing.T) {
@@ -1029,15 +1027,14 @@ func TestMethodCallback(t *testing.T) {
 			require.Error(t, callback.Invoke(ic))
 		})
 		t.Run("CallIsNotAllowed", func(t *testing.T) {
-			v := vm.New()
-			ic.VM = v
-			v.Load(currCs.Script)
-			v.Estack().PushVal("add")
-			v.Estack().PushVal(rawHash)
+			ic.SpawnVM()
+			ic.VM.Load(currCs.Script)
+			ic.VM.Estack().PushVal("add")
+			ic.VM.Estack().PushVal(rawHash)
 			require.NoError(t, callback.CreateFromMethod(ic))
 
 			args := stackitem.NewArray([]stackitem.Item{stackitem.Make(1), stackitem.Make(5)})
-			v.Estack().InsertAt(vm.NewElement(args), 1)
+			ic.VM.Estack().InsertAt(vm.NewElement(args), 1)
 			require.Error(t, callback.Invoke(ic))
 		})
 	})

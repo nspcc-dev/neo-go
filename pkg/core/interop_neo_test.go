@@ -147,10 +147,9 @@ func TestECDSAVerify(t *testing.T) {
 
 	ic := chain.newInteropContext(trigger.Application, dao.NewSimple(storage.NewMemoryStore(), netmode.UnitTestNet), nil, nil)
 	runCase := func(t *testing.T, isErr bool, result interface{}, args ...interface{}) {
-		v := vm.New()
-		ic.VM = v
+		ic.SpawnVM()
 		for i := range args {
-			v.Estack().PushVal(args[i])
+			ic.VM.Estack().PushVal(args[i])
 		}
 
 		var err error
@@ -168,8 +167,8 @@ func TestECDSAVerify(t *testing.T) {
 			return
 		}
 		require.NoError(t, err)
-		require.Equal(t, 1, v.Estack().Len())
-		require.Equal(t, result, v.Estack().Pop().Value().(bool))
+		require.Equal(t, 1, ic.VM.Estack().Len())
+		require.Equal(t, result, ic.VM.Estack().Pop().Value().(bool))
 	}
 
 	msg := []byte("test message")

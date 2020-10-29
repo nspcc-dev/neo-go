@@ -13,7 +13,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/stretchr/testify/require"
 )
@@ -32,7 +31,7 @@ func TestNEO_Vote(t *testing.T) {
 	neo := bc.contracts.NEO
 	tx := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
 	ic := bc.newInteropContext(trigger.System, bc.dao, nil, tx)
-	ic.VM = vm.New()
+	ic.SpawnVM()
 	ic.Block = bc.newBlock(tx)
 
 	freq := testchain.ValidatorsCount + testchain.CommitteeSize()
@@ -126,7 +125,7 @@ func TestNEO_SetGasPerBlock(t *testing.T) {
 	neo := bc.contracts.NEO
 	tx := transaction.New(netmode.UnitTestNet, []byte{}, 0)
 	ic := bc.newInteropContext(trigger.System, bc.dao, nil, tx)
-	ic.VM = vm.New()
+	ic.SpawnVM()
 	ic.VM.LoadScript([]byte{byte(opcode.RET)})
 
 	h := neo.GetCommitteeAddress()
