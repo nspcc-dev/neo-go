@@ -87,7 +87,7 @@ type VM struct {
 
 // New returns a new VM object ready to load AVM bytecode scripts.
 func New() *VM {
-	return NewWithTrigger(trigger.System)
+	return NewWithTrigger(trigger.Application)
 }
 
 // NewWithTrigger returns a new VM for executions triggered by t.
