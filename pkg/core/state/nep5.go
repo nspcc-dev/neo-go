@@ -1,8 +1,13 @@
 package state
 
 import (
+	"errors"
+	"math/big"
+
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm"
+	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 )
 
 // NEP5Tracker contains info about a single account in a NEP5 contract.
@@ -146,6 +151,56 @@ func (t *NEP5Tracker) EncodeBinary(w *io.BinWriter) {
 func (t *NEP5Tracker) DecodeBinary(r *io.BinReader) {
 	t.Balance = int64(r.ReadU64LE())
 	t.LastUpdatedBlock = r.ReadU32LE()
+}
+
+func parseUint160(addr []byte) util.Uint160 {
+	if u, err := util.Uint160DecodeBytesBE(addr); err == nil {
+		return u
+	}
+	return util.Uint160{}
+}
+
+// NEP5TransferFromNotification creates NEP5Transfer structure from the given
+// notification (and using given context) if it's possible to parse it as
+// NEP5 transfer.
+func NEP5TransferFromNotification(ne NotificationEvent, txHash util.Uint256, height uint32, time uint32, index uint32) (*NEP5Transfer, error) {
+	arr, ok := ne.Item.Value().([]vm.StackItem)
+	if !ok || len(arr) != 4 {
+		return nil, errors.New("no array or wrong element count")
+	}
+	op, ok := arr[0].Value().([]byte)
+	if !ok || string(op) != "transfer" {
+		return nil, errors.New("not a 'transfer' event")
+	}
+	from, ok := arr[1].Value().([]byte)
+	if !ok {
+		return nil, errors.New("wrong 'from' type")
+	}
+	to, ok := arr[2].Value().([]byte)
+	if !ok {
+		return nil, errors.New("wrong 'to' type")
+	}
+	amount, ok := arr[3].Value().(*big.Int)
+	if !ok {
+		bs, ok := arr[3].Value().([]byte)
+		if !ok {
+			return nil, errors.New("wrong amount type")
+		}
+		amount = emit.BytesToInt(bs)
+	}
+	toAddr := parseUint160(to)
+	fromAddr := parseUint160(from)
+	transfer := &NEP5Transfer{
+		Asset:     ne.ScriptHash,
+		From:      fromAddr,
+		To:        toAddr,
+		Amount:    amount.Int64(),
+		Block:     height,
+		Timestamp: time,
+		Tx:        txHash,
+		Index:     index,
+	}
+	return transfer, nil
 }
 
 // EncodeBinary implements io.Serializable interface.
