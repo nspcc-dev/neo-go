@@ -8,7 +8,8 @@ import "github.com/nspcc-dev/neo-go/pkg/interop"
 
 // Trigger values to compare with GetTrigger result.
 const (
-	System       byte = 0x01
+	OnPersist    byte = 0x01
+	PostPersist  byte = 0x02
 	Application  byte = 0x40
 	Verification byte = 0x20
 )

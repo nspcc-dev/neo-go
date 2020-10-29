@@ -78,7 +78,7 @@ func TestDesignate_DesignateAsRole(t *testing.T) {
 
 	des := bc.contracts.Designate
 	tx := transaction.New(netmode.UnitTestNet, []byte{}, 0)
-	ic := bc.newInteropContext(trigger.System, bc.dao, nil, tx)
+	ic := bc.newInteropContext(trigger.OnPersist, bc.dao, nil, tx)
 	ic.SpawnVM()
 	ic.VM.LoadScript([]byte{byte(opcode.RET)})
 

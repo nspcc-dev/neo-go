@@ -261,8 +261,8 @@ func (c *nep5TokenNative) addTokens(ic *interop.Context, h util.Uint160, amount 
 }
 
 func (c *nep5TokenNative) OnPersist(ic *interop.Context) error {
-	if ic.Trigger != trigger.System {
-		return errors.New("onPersist should be triggerred by system")
+	if ic.Trigger != trigger.OnPersist {
+		return errors.New("onPersist must be triggerred by system")
 	}
 	return nil
 }

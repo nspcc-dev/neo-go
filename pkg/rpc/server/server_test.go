@@ -770,7 +770,7 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 		data := checkErrGetResult(t, body, false)
 		var res state.AppExecResult
 		require.NoError(t, json.Unmarshal(data, &res))
-		require.Equal(t, trigger.System, res.Trigger)
+		require.Equal(t, trigger.PostPersist, res.Trigger)
 		require.Equal(t, vm.HaltState, res.VMState)
 	})
 

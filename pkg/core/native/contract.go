@@ -116,8 +116,8 @@ func (cs *Contracts) GetPostPersistScript() []byte {
 }
 
 func postPersistBase(ic *interop.Context) error {
-	if ic.Trigger != trigger.System {
-		return errors.New("'postPersist' should be trigered by system")
+	if ic.Trigger != trigger.PostPersist {
+		return errors.New("postPersist must be trigered by system")
 	}
 	return nil
 }

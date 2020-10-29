@@ -116,7 +116,7 @@ func TestMarshalUnmarshalJSONAppExecResult(t *testing.T) {
 	t.Run("positive, block", func(t *testing.T) {
 		appExecResult := &AppExecResult{
 			TxHash:      random.Uint256(),
-			Trigger:     trigger.System,
+			Trigger:     trigger.OnPersist,
 			VMState:     vm.HaltState,
 			GasConsumed: 10,
 			Stack:       []stackitem.Item{},

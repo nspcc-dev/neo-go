@@ -30,7 +30,7 @@ func TestNEO_Vote(t *testing.T) {
 
 	neo := bc.contracts.NEO
 	tx := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
-	ic := bc.newInteropContext(trigger.System, bc.dao, nil, tx)
+	ic := bc.newInteropContext(trigger.Application, bc.dao, nil, tx)
 	ic.SpawnVM()
 	ic.Block = bc.newBlock(tx)
 
@@ -124,7 +124,7 @@ func TestNEO_SetGasPerBlock(t *testing.T) {
 
 	neo := bc.contracts.NEO
 	tx := transaction.New(netmode.UnitTestNet, []byte{}, 0)
-	ic := bc.newInteropContext(trigger.System, bc.dao, nil, tx)
+	ic := bc.newInteropContext(trigger.Application, bc.dao, nil, tx)
 	ic.SpawnVM()
 	ic.VM.LoadScript([]byte{byte(opcode.RET)})
 
@@ -183,7 +183,7 @@ func TestNEO_CalculateBonus(t *testing.T) {
 
 	neo := bc.contracts.NEO
 	tx := transaction.New(netmode.UnitTestNet, []byte{}, 0)
-	ic := bc.newInteropContext(trigger.System, bc.dao, nil, tx)
+	ic := bc.newInteropContext(trigger.Application, bc.dao, nil, tx)
 	ic.SpawnVM()
 	ic.VM.LoadScript([]byte{byte(opcode.RET)})
 	t.Run("Invalid", func(t *testing.T) {

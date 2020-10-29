@@ -9,7 +9,8 @@ import (
 
 func TestStringer(t *testing.T) {
 	tests := map[Type]string{
-		System:       "System",
+		OnPersist:    "OnPersist",
+		PostPersist:  "PostPersist",
 		Application:  "Application",
 		Verification: "Verification",
 	}
@@ -20,7 +21,8 @@ func TestStringer(t *testing.T) {
 
 func TestEncodeBynary(t *testing.T) {
 	tests := map[Type]byte{
-		System:       0x01,
+		OnPersist:    0x01,
+		PostPersist:  0x02,
 		Verification: 0x20,
 		Application:  0x40,
 	}
@@ -31,7 +33,8 @@ func TestEncodeBynary(t *testing.T) {
 
 func TestDecodeBynary(t *testing.T) {
 	tests := map[Type]byte{
-		System:       0x01,
+		OnPersist:    0x01,
+		PostPersist:  0x02,
 		Verification: 0x20,
 		Application:  0x40,
 	}
@@ -42,7 +45,8 @@ func TestDecodeBynary(t *testing.T) {
 
 func TestFromString(t *testing.T) {
 	testCases := map[string]Type{
-		"System":       System,
+		"OnPersist":    OnPersist,
+		"PostPersist":  PostPersist,
 		"Application":  Application,
 		"Verification": Verification,
 		"All":          All,

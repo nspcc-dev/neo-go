@@ -565,7 +565,7 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 	writeBuf.Reset()
 
 	if block.Index > 0 {
-		aer, err := bc.runPersist(bc.contracts.GetPersistScript(), block, cache)
+		aer, err := bc.runPersist(bc.contracts.GetPersistScript(), block, cache, trigger.OnPersist)
 		if err != nil {
 			return fmt.Errorf("onPersist failed: %w", err)
 		}
@@ -635,7 +635,7 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 		}
 	}
 
-	aer, err := bc.runPersist(bc.contracts.GetPostPersistScript(), block, cache)
+	aer, err := bc.runPersist(bc.contracts.GetPostPersistScript(), block, cache, trigger.PostPersist)
 	if err != nil {
 		return fmt.Errorf("postPersist failed: %w", err)
 	}
@@ -704,8 +704,8 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 	return nil
 }
 
-func (bc *Blockchain) runPersist(script []byte, block *block.Block, cache *dao.Cached) (*state.AppExecResult, error) {
-	systemInterop := bc.newInteropContext(trigger.System, cache, block, nil)
+func (bc *Blockchain) runPersist(script []byte, block *block.Block, cache *dao.Cached, trig trigger.Type) (*state.AppExecResult, error) {
+	systemInterop := bc.newInteropContext(trig, cache, block, nil)
 	v := systemInterop.SpawnVM()
 	v.LoadScriptWithFlags(script, smartcontract.AllowModifyStates|smartcontract.AllowCall)
 	v.SetPriceGetter(getPrice)
@@ -719,7 +719,7 @@ func (bc *Blockchain) runPersist(script []byte, block *block.Block, cache *dao.C
 	}
 	return &state.AppExecResult{
 		TxHash:      block.Hash(), // application logs can be retrieved by block hash
-		Trigger:     trigger.System,
+		Trigger:     trig,
 		VMState:     v.State(),
 		GasConsumed: v.GasConsumed(),
 		Stack:       v.Estack().ToArray(),
