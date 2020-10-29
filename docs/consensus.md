@@ -28,6 +28,7 @@ before the switch to single-node mode.
 - `docker`
 - `docker-compose`
 - `go` compiler
+
 #### Instructions
 You can use existing docker-compose file located in `.docker/docker-compose.yml`:
 ```bash
