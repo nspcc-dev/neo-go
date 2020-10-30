@@ -9,8 +9,15 @@ type Type byte
 
 // Viable list of supported trigger type constants.
 const (
-	// System is trigger type that indicates that script is being invoke internally by the system.
-	System Type = 0x01
+	// OnPersist is a trigger type that indicates that script is being invoked
+	// internally by the system during block persistence (before transaction
+	// processing).
+	OnPersist Type = 0x01
+
+	// PostPersist is a trigger type that indicates that script is being invoked
+	// by the system after block persistence (transcation processing) has
+	// finished.
+	PostPersist Type = 0x02
 
 	// The verification trigger indicates that the contract is being invoked as a verification function.
 	// The verification function can accept multiple parameters, and should return a boolean value that indicates the validity of the transaction or block.
@@ -27,12 +34,12 @@ const (
 	Application Type = 0x40
 
 	// All represents any trigger type.
-	All Type = System | Verification | Application
+	All Type = OnPersist | PostPersist | Verification | Application
 )
 
 // FromString converts string to trigger Type
 func FromString(str string) (Type, error) {
-	triggers := []Type{System, Verification, Application, All}
+	triggers := []Type{OnPersist, PostPersist, Verification, Application, All}
 	for _, t := range triggers {
 		if t.String() == str {
 			return t, nil

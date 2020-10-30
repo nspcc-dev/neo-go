@@ -39,7 +39,7 @@ func (tn *testNative) Metadata() *interop.ContractMD {
 }
 
 func (tn *testNative) OnPersist(ic *interop.Context, _ []stackitem.Item) stackitem.Item {
-	if ic.Trigger != trigger.System {
+	if ic.Trigger != trigger.OnPersist {
 		panic("invalid trigger")
 	}
 	select {
