@@ -83,10 +83,14 @@ type TransferTx struct {
 }
 
 // TransferTxEvent is an event used for elements or events of TransferTx, it's
-// either a single input/output, or a nep5 transfer.
+// either a single input/output, or a nep5 transfer. The former always has
+// Address and Type fields set with no From/To, the latter can either have
+// From and To or Address and Type depending on particular RPC API function.
 type TransferTxEvent struct {
-	Address string `json:"address"`
-	Type    string `json:"type"`
+	Address string `json:"address,omitempty"`
+	From    string `json:"from,omitempty"`
+	To      string `json:"to,omitempty"`
+	Type    string `json:"type,omitempty"`
 	Value   string `json:"value"`
 	Asset   string `json:"asset"`
 }

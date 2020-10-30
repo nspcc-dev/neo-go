@@ -1325,6 +1325,88 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 			})
 		})
 	})
+	t.Run("getblocktransfertx", func(t *testing.T) {
+		bNeo, err := e.chain.GetBlock(e.chain.GetHeaderHash(206))
+		require.NoError(t, err)
+		txNeoTo1 := bNeo.Transactions[1].Hash()
+
+		body := doRPCCall(`{"jsonrpc": "2.0", "id": 1, "method": "getblocktransfertx", "params": [206]}`, httpSrv.URL, t)
+		res := checkErrGetResult(t, body, false)
+		actualp := new([]result.TransferTx)
+		require.NoError(t, json.Unmarshal(res, actualp))
+		expected := []result.TransferTx{
+			result.TransferTx{
+				TxID:       txNeoTo1,
+				Timestamp:  bNeo.Timestamp,
+				Index:      bNeo.Index,
+				SystemFee:  "0",
+				NetworkFee: "0",
+				Elements: []result.TransferTxEvent{
+					result.TransferTxEvent{
+						Address: "AKkkumHbBipZ46UMZJoFynJMXzSRnBvKcs",
+						Type:    "input",
+						Value:   "99999000",
+						Asset:   "c56f33fc6ecfcd0c225c4ab356fee59390af8560be0e930faebe74a6daff7c9b",
+					},
+					result.TransferTxEvent{
+						Address: "AWLYWXB8C9Lt1nHdDZJnC5cpYJjgRDLk17",
+						Type:    "output",
+						Value:   "1000",
+						Asset:   "c56f33fc6ecfcd0c225c4ab356fee59390af8560be0e930faebe74a6daff7c9b",
+					},
+					result.TransferTxEvent{
+						Address: "AKkkumHbBipZ46UMZJoFynJMXzSRnBvKcs",
+						Type:    "output",
+						Value:   "99998000",
+						Asset:   "c56f33fc6ecfcd0c225c4ab356fee59390af8560be0e930faebe74a6daff7c9b",
+					},
+				},
+			},
+		}
+		require.Equal(t, expected, *actualp)
+
+		bNep5, err := e.chain.GetBlock(e.chain.GetHeaderHash(207))
+		require.NoError(t, err)
+		txNep5Init := bNep5.Transactions[1].Hash()
+		txNep5Transfer := bNep5.Transactions[2].Hash()
+
+		body = doRPCCall(`{"jsonrpc": "2.0", "id": 1, "method": "getblocktransfertx", "params": [207]}`, httpSrv.URL, t)
+		res = checkErrGetResult(t, body, false)
+		actualp = new([]result.TransferTx)
+		require.NoError(t, json.Unmarshal(res, actualp))
+		expected = []result.TransferTx{
+			result.TransferTx{
+				TxID:       txNep5Init,
+				Timestamp:  bNep5.Timestamp,
+				Index:      bNep5.Index,
+				SystemFee:  "0",
+				NetworkFee: "0",
+				Events: []result.TransferTxEvent{
+					result.TransferTxEvent{
+						To:    "AeEc6DNaiVZSNJfTJ72rAFFqVKAMR5B7i3",
+						Value: "1000000",
+						Asset: testContractHashOld,
+					},
+				},
+			},
+			result.TransferTx{
+				TxID:       txNep5Transfer,
+				Timestamp:  bNep5.Timestamp,
+				Index:      bNep5.Index,
+				SystemFee:  "0",
+				NetworkFee: "0",
+				Events: []result.TransferTxEvent{
+					result.TransferTxEvent{
+						From:  "AeEc6DNaiVZSNJfTJ72rAFFqVKAMR5B7i3",
+						To:    "AKkkumHbBipZ46UMZJoFynJMXzSRnBvKcs",
+						Value: "1000",
+						Asset: testContractHashOld,
+					},
+				},
+			},
+		}
+		require.Equal(t, expected, *actualp)
+	})
 }
 
 func (tc rpcTestCase) getResultPair(e *executor) (expected interface{}, res interface{}) {
