@@ -90,6 +90,7 @@ var rpcHandlers = map[string]func(*Server, request.Params) (interface{}, *respon
 	"getblockhash":         (*Server).getBlockHash,
 	"getblockheader":       (*Server).getBlockHeader,
 	"getblocksysfee":       (*Server).getBlockSysFee,
+	"getblocktransfertx":   (*Server).getBlockTransferTx,
 	"getclaimable":         (*Server).getClaimable,
 	"getconnectioncount":   (*Server).getConnectionCount,
 	"getcontractstate":     (*Server).getContractState,
@@ -395,29 +396,34 @@ func (s *Server) getConnectionCount(_ request.Params) (interface{}, *response.Er
 	return s.coreServer.PeerCount(), nil
 }
 
-func (s *Server) getBlock(reqParams request.Params) (interface{}, *response.Error) {
+func (s *Server) getBlockHashFromParam(param *request.Param) (util.Uint256, *response.Error) {
 	var hash util.Uint256
-
-	param := reqParams.Value(0)
 	if param == nil {
-		return nil, response.ErrInvalidParams
+		return hash, response.ErrInvalidParams
 	}
-
 	switch param.Type {
 	case request.StringT:
 		var err error
 		hash, err = param.GetUint256()
 		if err != nil {
-			return nil, response.ErrInvalidParams
+			return hash, response.ErrInvalidParams
 		}
 	case request.NumberT:
 		num, err := s.blockHeightFromParam(param)
 		if err != nil {
-			return nil, response.ErrInvalidParams
+			return hash, response.ErrInvalidParams
 		}
 		hash = s.chain.GetHeaderHash(num)
 	default:
-		return nil, response.ErrInvalidParams
+		return hash, response.ErrInvalidParams
+	}
+	return hash, nil
+}
+
+func (s *Server) getBlock(reqParams request.Params) (interface{}, *response.Error) {
+	hash, respErr := s.getBlockHashFromParam(reqParams.Value(0))
+	if respErr != nil {
+		return nil, respErr
 	}
 
 	block, err := s.chain.GetBlock(hash)
@@ -829,6 +835,56 @@ func (s *Server) getNEP5Transfers(ps request.Params) (interface{}, *response.Err
 	return bs, nil
 }
 
+func appendUTXOToTransferTx(transfer *result.TransferTx, tx *transaction.Transaction, chain core.Blockchainer) *response.Error {
+	inouts, err := chain.References(tx)
+	if err != nil {
+		return response.NewInternalServerError("invalid tx", err)
+	}
+	for _, inout := range inouts {
+		var event result.TransferTxEvent
+
+		event.Address = address.Uint160ToString(inout.Out.ScriptHash)
+		event.Type = "input"
+		event.Value = inout.Out.Amount.String()
+		event.Asset = inout.Out.AssetID.StringLE()
+		transfer.Elements = append(transfer.Elements, event)
+	}
+	for _, out := range tx.Outputs {
+		var event result.TransferTxEvent
+
+		event.Address = address.Uint160ToString(out.ScriptHash)
+		event.Type = "output"
+		event.Value = out.Amount.String()
+		event.Asset = out.AssetID.StringLE()
+		transfer.Elements = append(transfer.Elements, event)
+	}
+	return nil
+}
+
+// uint160ToString converts given hash to address, unless it's zero and an empty
+// string is returned then.
+func uint160ToString(u util.Uint160) string {
+	if u.Equals(util.Uint160{}) {
+		return ""
+	}
+	return address.Uint160ToString(u)
+}
+
+func appendNEP5ToTransferTx(transfer *result.TransferTx, nepTr *state.NEP5Transfer) {
+	var event result.TransferTxEvent
+	event.Asset = nepTr.Asset.StringLE()
+	if nepTr.Amount > 0 { // token was received
+		event.Value = strconv.FormatInt(nepTr.Amount, 10)
+		event.Type = "receive"
+		event.Address = uint160ToString(nepTr.From)
+	} else {
+		event.Value = strconv.FormatInt(-nepTr.Amount, 10)
+		event.Type = "send"
+		event.Address = uint160ToString(nepTr.To)
+	}
+	transfer.Events = append(transfer.Events, event)
+}
+
 func (s *Server) getAllTransferTx(ps request.Params) (interface{}, *response.Error) {
 	var respErr *response.Error
 
@@ -937,50 +993,15 @@ func (s *Server) getAllTransferTx(ps request.Params) (interface{}, *response.Err
 			}
 			transfer.NetworkFee = s.chain.NetworkFee(tx).String()
 			transfer.SystemFee = s.chain.SystemFee(tx).String()
-
-			inouts, err := s.chain.References(tx)
-			if err != nil {
-				respErr = response.NewInternalServerError("invalid tx", err)
+			respErr = appendUTXOToTransferTx(&transfer, tx, s.chain)
+			if respErr != nil {
 				break
-			}
-			for _, inout := range inouts {
-				var event result.TransferTxEvent
-
-				event.Address = address.Uint160ToString(inout.Out.ScriptHash)
-				event.Type = "input"
-				event.Value = inout.Out.Amount.String()
-				event.Asset = inout.Out.AssetID.StringLE()
-				transfer.Elements = append(transfer.Elements, event)
-			}
-			for _, out := range tx.Outputs {
-				var event result.TransferTxEvent
-
-				event.Address = address.Uint160ToString(out.ScriptHash)
-				event.Type = "output"
-				event.Value = out.Amount.String()
-				event.Asset = out.AssetID.StringLE()
-				transfer.Elements = append(transfer.Elements, event)
 			}
 		}
 		// Pick all NEP5 events for this transaction, if there are any.
 		for haveNep5 && nep5Last.Tx.Equals(transfer.TxID) {
 			if !skipTx {
-				var event result.TransferTxEvent
-				event.Asset = nep5Last.Asset.StringLE()
-				if nep5Last.Amount > 0 { // token was received
-					event.Value = strconv.FormatInt(nep5Last.Amount, 10)
-					event.Type = "receive"
-					if !nep5Last.From.Equals(util.Uint160{}) {
-						event.Address = address.Uint160ToString(nep5Last.From)
-					}
-				} else {
-					event.Value = strconv.FormatInt(-nep5Last.Amount, 10)
-					event.Type = "send"
-					if !nep5Last.To.Equals(util.Uint160{}) {
-						event.Address = address.Uint160ToString(nep5Last.To)
-					}
-				}
-				transfer.Events = append(transfer.Events, event)
+				appendNEP5ToTransferTx(&transfer, &nep5Last)
 			}
 			nep5Last, haveNep5 = <-nep5Trs
 			if haveNep5 {
@@ -1234,6 +1255,73 @@ func (s *Server) getAccountStateAux(reqParams request.Params, unspents bool) (in
 		results = result.NewAccountState(as)
 	}
 	return results, resultsErr
+}
+
+func (s *Server) getBlockTransferTx(ps request.Params) (interface{}, *response.Error) {
+	var (
+		res     = make([]result.TransferTx, 0)
+		respErr *response.Error
+	)
+
+	hash, respErr := s.getBlockHashFromParam(ps.Value(0))
+	if respErr != nil {
+		return nil, respErr
+	}
+
+	block, err := s.chain.GetBlock(hash)
+	if err != nil {
+		return nil, response.NewInternalServerError(fmt.Sprintf("Problem locating block with hash: %s", hash), err)
+	}
+
+	for _, tx := range block.Transactions {
+		var transfer = result.TransferTx{
+			TxID:       tx.Hash(),
+			Timestamp:  block.Timestamp,
+			Index:      block.Index,
+			NetworkFee: s.chain.NetworkFee(tx).String(),
+			SystemFee:  s.chain.SystemFee(tx).String(),
+		}
+
+		respErr = appendUTXOToTransferTx(&transfer, tx, s.chain)
+		if respErr != nil {
+			break
+		}
+		if tx.Type == transaction.InvocationType {
+			execRes, err := s.chain.GetAppExecResult(tx.Hash())
+			if err != nil {
+				respErr = response.NewInternalServerError(fmt.Sprintf("no application log for invocation tx %s", tx.Hash()), err)
+				break
+			}
+
+			if execRes.VMState != "HALT" {
+				continue
+			}
+
+			var index uint32
+			for _, note := range execRes.Events {
+				nepTr, err := state.NEP5TransferFromNotification(note, tx.Hash(), block.Index, block.Timestamp, index)
+				// It's OK for event to be something different from NEP5 transfer.
+				if err != nil {
+					continue
+				}
+				transfer.Events = append(transfer.Events, result.TransferTxEvent{
+					Asset: nepTr.Asset.StringLE(),
+					From:  uint160ToString(nepTr.From),
+					To:    uint160ToString(nepTr.To),
+					Value: strconv.FormatInt(nepTr.Amount, 10),
+				})
+				index++
+			}
+		}
+
+		if len(transfer.Elements) != 0 || len(transfer.Events) != 0 {
+			res = append(res, transfer)
+		}
+	}
+	if respErr != nil {
+		return nil, respErr
+	}
+	return res, nil
 }
 
 // getBlockSysFee returns the system fees of the block, based on the specified index.

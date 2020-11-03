@@ -3,7 +3,6 @@ package core
 import (
 	"fmt"
 	"math"
-	"math/big"
 	"sort"
 	"sync"
 	"sync/atomic"
@@ -801,31 +800,11 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 				}
 				var index uint32
 				for _, note := range systemInterop.notifications {
-					arr, ok := note.Item.Value().([]vm.StackItem)
-					if !ok || len(arr) != 4 {
+					transfer, err := state.NEP5TransferFromNotification(note, tx.Hash(), block.Index, block.Timestamp, index)
+					if err != nil {
 						continue
 					}
-					op, ok := arr[0].Value().([]byte)
-					if !ok || string(op) != "transfer" {
-						continue
-					}
-					from, ok := arr[1].Value().([]byte)
-					if !ok {
-						continue
-					}
-					to, ok := arr[2].Value().([]byte)
-					if !ok {
-						continue
-					}
-					amount, ok := arr[3].Value().(*big.Int)
-					if !ok {
-						bs, ok := arr[3].Value().([]byte)
-						if !ok {
-							continue
-						}
-						amount = emit.BytesToInt(bs)
-					}
-					bc.processNEP5Transfer(cache, tx, block, note.ScriptHash, from, to, amount.Int64(), index)
+					bc.processNEP5Transfer(cache, transfer)
 					index++
 				}
 			} else {
@@ -957,66 +936,48 @@ func processTransfer(cache *dao.Cached, tx *transaction.Transaction, b *block.Bl
 	return nil
 }
 
-func parseUint160(addr []byte) util.Uint160 {
-	if u, err := util.Uint160DecodeBytesBE(addr); err == nil {
-		return u
-	}
-	return util.Uint160{}
-}
-
-func (bc *Blockchain) processNEP5Transfer(cache *dao.Cached, tx *transaction.Transaction, b *block.Block, sc util.Uint160, from, to []byte, amount int64, index uint32) {
-	toAddr := parseUint160(to)
-	fromAddr := parseUint160(from)
-	transfer := &state.NEP5Transfer{
-		Asset:     sc,
-		From:      fromAddr,
-		To:        toAddr,
-		Block:     b.Index,
-		Timestamp: b.Timestamp,
-		Tx:        tx.Hash(),
-		Index:     index,
-	}
-	if !fromAddr.Equals(util.Uint160{}) {
-		balances, err := cache.GetNEP5Balances(fromAddr)
+func (bc *Blockchain) processNEP5Transfer(cache *dao.Cached, transfer *state.NEP5Transfer) {
+	if !transfer.From.Equals(util.Uint160{}) {
+		balances, err := cache.GetNEP5Balances(transfer.From)
 		if err != nil {
 			return
 		}
-		bs := balances.Trackers[sc]
-		bs.Balance -= amount
-		bs.LastUpdatedBlock = b.Index
-		balances.Trackers[sc] = bs
+		bs := balances.Trackers[transfer.Asset]
+		bs.Balance -= transfer.Amount
+		bs.LastUpdatedBlock = transfer.Block
+		balances.Trackers[transfer.Asset] = bs
 
-		transfer.Amount = -amount
-		isBig, err := cache.AppendNEP5Transfer(fromAddr, balances.NextTransferBatch, transfer)
+		transfer.Amount = -transfer.Amount
+		isBig, err := cache.AppendNEP5Transfer(transfer.From, balances.NextTransferBatch, transfer)
+		if err != nil {
+			return
+		}
+		transfer.Amount = -transfer.Amount
+		if isBig {
+			balances.NextTransferBatch++
+		}
+		if err := cache.PutNEP5Balances(transfer.From, balances); err != nil {
+			return
+		}
+	}
+	if !transfer.To.Equals(util.Uint160{}) {
+		balances, err := cache.GetNEP5Balances(transfer.To)
+		if err != nil {
+			return
+		}
+		bs := balances.Trackers[transfer.Asset]
+		bs.Balance += transfer.Amount
+		bs.LastUpdatedBlock = transfer.Block
+		balances.Trackers[transfer.Asset] = bs
+
+		isBig, err := cache.AppendNEP5Transfer(transfer.To, balances.NextTransferBatch, transfer)
 		if err != nil {
 			return
 		}
 		if isBig {
 			balances.NextTransferBatch++
 		}
-		if err := cache.PutNEP5Balances(fromAddr, balances); err != nil {
-			return
-		}
-	}
-	if !toAddr.Equals(util.Uint160{}) {
-		balances, err := cache.GetNEP5Balances(toAddr)
-		if err != nil {
-			return
-		}
-		bs := balances.Trackers[sc]
-		bs.Balance += amount
-		bs.LastUpdatedBlock = b.Index
-		balances.Trackers[sc] = bs
-
-		transfer.Amount = amount
-		isBig, err := cache.AppendNEP5Transfer(toAddr, balances.NextTransferBatch, transfer)
-		if err != nil {
-			return
-		}
-		if isBig {
-			balances.NextTransferBatch++
-		}
-		if err := cache.PutNEP5Balances(toAddr, balances); err != nil {
+		if err := cache.PutNEP5Balances(transfer.To, balances); err != nil {
 			return
 		}
 	}

@@ -201,6 +201,30 @@ func (c *Client) GetBlockSysFee(index uint32) (util.Fixed8, error) {
 	return resp, nil
 }
 
+// getBlockTransferTx is an internal version of GetBlockTransferTxByIndex/GetBlockTransferTxByHash.
+func (c *Client) getBlockTransferTx(param interface{}) ([]result.TransferTx, error) {
+	var (
+		params = request.NewRawParams(param)
+		resp   = new([]result.TransferTx)
+	)
+	if err := c.performRequest("getblocktransfertx", params, resp); err != nil {
+		return nil, err
+	}
+	return *resp, nil
+}
+
+// GetBlockTransferTxByIndex returns all transfer transactions from a block.
+// It only works with neo-go 0.79.0+ servers.
+func (c *Client) GetBlockTransferTxByIndex(index uint32) ([]result.TransferTx, error) {
+	return c.getBlockTransferTx(index)
+}
+
+// GetBlockTransferTxByHash returns all transfer transactions from a block.
+// It only works with neo-go 0.79.0+ servers.
+func (c *Client) GetBlockTransferTxByHash(hash util.Uint256) ([]result.TransferTx, error) {
+	return c.getBlockTransferTx(hash)
+}
+
 // GetClaimable returns tx outputs which can be claimed.
 func (c *Client) GetClaimable(address string) (*result.ClaimableInfo, error) {
 	params := request.NewRawParams(address)

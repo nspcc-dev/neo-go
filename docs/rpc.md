@@ -260,6 +260,83 @@ Reply:
 }
 ```
 
+#### getblocktransfertx call
+
+`getblocktransfertx` provides a list of transactions that did some asset
+transfers in a block (either UTXO or NEP5). It gets a block number or hash as
+a single parameter and its output format is similar to `getalltransfertx`
+except for `events` where it doesn't use `address` and `type` fields, but
+rather provides `from` and `to` (meaning that the asset was moved from `from`
+to `to` address).
+
+Example request:
+
+```json
+{ "jsonrpc": "2.0", "id": 5, "method": "getblocktransfertx", "params": [6000003]}
+
+```
+
+Reply:
+```json
+{
+   "id" : 5,
+   "result" : [
+      {
+         "txid" : "0xaec0994211e5d7fd459a4445b113db0102ac79cb90a08b3211b9a9190a6feaa3",
+         "elements" : [
+            {
+               "asset" : "602c79718b16e442de58778e148d0b1084e3b2dffd5de6b7b16cee7969282de7",
+               "type" : "output",
+               "value" : "0.19479178",
+               "address" : "AHwyehUHV8ujVJBN6Tz3jBDuPAHQ1wKU5R"
+            }
+         ],
+         "block_index" : 6000003,
+         "timestamp" : 1597295221,
+         "sys_fee" : "0",
+         "net_fee" : "0"
+      },
+      {
+         "sys_fee" : "0",
+         "net_fee" : "0",
+         "elements" : [
+            {
+               "value" : "971",
+               "address" : "AHFvPbmMbxnD6EQQWcope8VWKEMDtG1qTQ",
+               "asset" : "c56f33fc6ecfcd0c225c4ab356fee59390af8560be0e930faebe74a6daff7c9b",
+               "type" : "input"
+            },
+            {
+               "address" : "AP18zgg58bK6vZ7MX51XfD63eEEuqKCgJt",
+               "value" : "971",
+               "asset" : "c56f33fc6ecfcd0c225c4ab356fee59390af8560be0e930faebe74a6daff7c9b",
+               "type" : "output"
+            }
+         ],
+         "block_index" : 6000003,
+         "txid" : "0x6b0888b10b1150d301f749d56b7365b307d814cfd843bd064e68313bb30c9351",
+         "timestamp" : 1597295221
+      },
+      {
+         "sys_fee" : "0",
+         "net_fee" : "0",
+         "block_index" : 6000003,
+         "txid" : "0x6b2220834059710aecfe4b2cbdb56311bbb27ac5d94795c041b5a2e6fb76f96e",
+         "timestamp" : 1597295221,
+         "events" : [
+            {
+               "from" : "AeNAPrVp7ZWtYLaAWvZ3gkKQsJBZUJJz3r",
+               "asset" : "b951ecbbc5fe37a9c280a76cb0ce0014827294cf",
+               "to" : "AVkhaHaxLaboUVFD1Rke5abTJuKAqziCkY",
+               "value" : "69061428"
+            }
+         ]
+      }
+   ],
+   "jsonrpc" : "2.0"
+}
+```
+
 #### Websocket server
 
 This server accepts websocket connections on `ws://$BASE_URL/ws` address. You
