@@ -396,8 +396,12 @@ func putWithContextAndFlags(ic *interop.Context, stc *StorageContext, key []byte
 	if si == nil {
 		si = &state.StorageItem{}
 		sizeInc = len(key) + len(value)
-	} else if len(value) > len(si.Value) {
-		sizeInc = len(value) - len(si.Value)
+	} else if len(value) != 0 {
+		if len(value) <= len(si.Value) {
+			sizeInc = (len(value)-1)/4 + 1
+		} else {
+			sizeInc = (len(si.Value)-1)/4 + 1 + len(value) - len(si.Value)
+		}
 	}
 	if !ic.VM.AddGas(int64(sizeInc) * StoragePrice) {
 		return errGasLimitExceeded
