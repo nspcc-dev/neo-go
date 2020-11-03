@@ -1158,7 +1158,7 @@ func (bc *Blockchain) UnsubscribeFromExecutions(ch chan<- *state.AppExecResult) 
 // amount of NEO between specified blocks.
 func (bc *Blockchain) CalculateClaimable(value *big.Int, startHeight, endHeight uint32) *big.Int {
 	ic := bc.newInteropContext(trigger.Application, bc.dao, nil, nil)
-	res, _ := bc.contracts.NEO.CalculateBonus(ic, value, startHeight, endHeight)
+	res, _ := bc.contracts.NEO.CalculateNEOHolderReward(ic, value, startHeight, endHeight)
 	return res
 }
 

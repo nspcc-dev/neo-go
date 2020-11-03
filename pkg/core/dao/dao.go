@@ -61,6 +61,7 @@ type DAO interface {
 	PutNEP5TransferLog(acc util.Uint160, index uint32, lg *state.NEP5TransferLog) error
 	PutStorageItem(id int32, key []byte, si *state.StorageItem) error
 	PutVersion(v string) error
+	Seek(id int32, prefix []byte, f func(k, v []byte))
 	StoreAsBlock(block *block.Block, buf *io.BufBinWriter) error
 	StoreAsCurrentBlock(block *block.Block, buf *io.BufBinWriter) error
 	StoreAsTransaction(tx *transaction.Transaction, index uint32, buf *io.BufBinWriter) error
@@ -406,10 +407,6 @@ func (dao *Simple) GetStorageItemsWithPrefix(id int32, prefix []byte) (map[strin
 	var siMap = make(map[string]*state.StorageItem)
 	var err error
 
-	lookupKey := makeStorageItemKey(id, nil)
-	if prefix != nil {
-		lookupKey = append(lookupKey, prefix...)
-	}
 	saveToMap := func(k, v []byte) {
 		if err != nil {
 			return
@@ -421,18 +418,26 @@ func (dao *Simple) GetStorageItemsWithPrefix(id int32, prefix []byte) (map[strin
 			err = r.Err
 			return
 		}
-
 		// Cut prefix and hash.
 		// Must copy here, #1468.
-		key := make([]byte, len(k[len(lookupKey):]))
-		copy(key, k[len(lookupKey):])
+		key := make([]byte, len(k))
+		copy(key, k)
 		siMap[string(key)] = si
 	}
-	dao.Store.Seek(lookupKey, saveToMap)
-	if err != nil {
-		return nil, err
-	}
+	dao.Seek(id, prefix, saveToMap)
 	return siMap, nil
+}
+
+// Seek executes f for all items with a given prefix.
+// If key is to be used outside of f, they must be copied.
+func (dao *Simple) Seek(id int32, prefix []byte, f func(k, v []byte)) {
+	lookupKey := makeStorageItemKey(id, nil)
+	if prefix != nil {
+		lookupKey = append(lookupKey, prefix...)
+	}
+	dao.Store.Seek(lookupKey, func(k, v []byte) {
+		f(k[len(lookupKey):], v)
+	})
 }
 
 // makeStorageItemKey returns a key used to store StorageItem in the DB.
