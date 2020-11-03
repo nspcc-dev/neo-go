@@ -95,7 +95,7 @@ func handleCandidate(ctx *cli.Context, method string) error {
 
 	c, err := options.GetRPCClient(gctx, ctx)
 	if err != nil {
-		return err
+		return cli.NewExitError(err, 1)
 	}
 
 	gas := flags.Fixed8FromContext(ctx, "gas")
@@ -152,7 +152,7 @@ func handleVote(ctx *cli.Context) error {
 
 	c, err := options.GetRPCClient(gctx, ctx)
 	if err != nil {
-		return err
+		return cli.NewExitError(err, 1)
 	}
 
 	var pubArg interface{}

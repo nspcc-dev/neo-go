@@ -230,7 +230,7 @@ func claimGas(ctx *cli.Context) error {
 
 	c, err := options.GetRPCClient(gctx, ctx)
 	if err != nil {
-		return err
+		return cli.NewExitError(err, 1)
 	}
 
 	neoContractHash, err := c.GetNativeContractHash("neo")
@@ -426,7 +426,7 @@ func importDeployed(ctx *cli.Context) error {
 
 	c, err := options.GetRPCClient(gctx, ctx)
 	if err != nil {
-		return err
+		return cli.NewExitError(err, 1)
 	}
 
 	cs, err := c.GetContractStateByHash(h)

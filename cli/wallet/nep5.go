@@ -156,7 +156,7 @@ func getNEP5Balance(ctx *cli.Context) error {
 
 	c, err := options.GetRPCClient(gctx, ctx)
 	if err != nil {
-		return err
+		return cli.NewExitError(err, 1)
 	}
 	err = c.Init()
 	if err != nil {
@@ -271,7 +271,7 @@ func importNEP5Token(ctx *cli.Context) error {
 
 	c, err := options.GetRPCClient(gctx, ctx)
 	if err != nil {
-		return err
+		return cli.NewExitError(err, 1)
 	}
 
 	tok, err := c.NEP5TokenInfo(tokenHash)
@@ -364,7 +364,7 @@ func multiTransferNEP5(ctx *cli.Context) error {
 
 	c, err := options.GetRPCClient(gctx, ctx)
 	if err != nil {
-		return err
+		return cli.NewExitError(err, 1)
 	}
 	err = c.Init()
 	if err != nil {
@@ -431,7 +431,7 @@ func transferNEP5(ctx *cli.Context) error {
 
 	c, err := options.GetRPCClient(gctx, ctx)
 	if err != nil {
-		return err
+		return cli.NewExitError(err, 1)
 	}
 	err = c.Init()
 	if err != nil {
