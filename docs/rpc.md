@@ -74,8 +74,6 @@ It's possible to use `invokefunction` not only with contract scripthash, but als
 with contract name (for native contracts) or contract ID (for all contracts). This
 feature is not supported by the C# node.
 
-Both methods also don't currently support arrays in function parameters.
-
 ##### `getunclaimedgas`
 
 It's possible to call this method for any address with neo-go, unlike with C#
