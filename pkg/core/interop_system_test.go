@@ -364,7 +364,9 @@ func TestStoragePut(t *testing.T) {
 			err := storagePut(ic)
 			require.True(t, errors.Is(err, errGasLimitExceeded), "got: %v", err)
 		})
-		initVM(t, []byte{4}, []byte{5, 6, 7, 8}, 2*StoragePrice)
+		initVM(t, []byte{4}, []byte{5, 6, 7, 8}, 3*StoragePrice)
+		require.NoError(t, storagePut(ic))
+		initVM(t, []byte{4}, []byte{5, 6}, StoragePrice)
 		require.NoError(t, storagePut(ic))
 	})
 }
