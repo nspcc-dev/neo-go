@@ -2,6 +2,7 @@ package transaction
 
 import (
 	"errors"
+	"math"
 
 	"github.com/nspcc-dev/neo-go/pkg/io"
 )
@@ -16,7 +17,8 @@ type OracleResponse struct {
 	Result []byte             `json:"result"`
 }
 
-const maxResultSize = 1024
+// MaxOracleResultSize is the maximum allowed oracle answer size.
+const MaxOracleResultSize = math.MaxUint16
 
 // Enumeration of possible oracle response types.
 const (
@@ -46,7 +48,7 @@ func (r *OracleResponse) DecodeBinary(br *io.BinReader) {
 		br.Err = ErrInvalidResponseCode
 		return
 	}
-	r.Result = br.ReadVarBytes(maxResultSize)
+	r.Result = br.ReadVarBytes(MaxOracleResultSize)
 	if r.Code != Success && len(r.Result) > 0 {
 		br.Err = ErrInvalidResult
 	}
