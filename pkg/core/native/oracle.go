@@ -131,6 +131,13 @@ func newOracle() *Oracle {
 	md = newMethodAndPrice(getOnPersistWrapper(pp), 0, smartcontract.AllowModifyStates)
 	o.AddMethod(md, desc, false)
 
+	o.AddEvent("OracleRequest", manifest.NewParameter("Id", smartcontract.IntegerType),
+		manifest.NewParameter("RequestContract", smartcontract.Hash160Type),
+		manifest.NewParameter("Url", smartcontract.StringType),
+		manifest.NewParameter("Filter", smartcontract.StringType))
+	o.AddEvent("OracleResponse", manifest.NewParameter("Id", smartcontract.IntegerType),
+		manifest.NewParameter("OriginalTx", smartcontract.Hash256Type))
+
 	return o
 }
 
@@ -235,6 +242,15 @@ func (o *Oracle) FinishInternal(ic *interop.Context) error {
 		return ErrRequestNotFound
 	}
 
+	ic.Notifications = append(ic.Notifications, state.NotificationEvent{
+		ScriptHash: o.Hash,
+		Name:       "OracleResponse",
+		Item: stackitem.NewArray([]stackitem.Item{
+			stackitem.Make(resp.ID),
+			stackitem.Make(req.OriginalTxID.BytesBE()),
+		}),
+	})
+
 	r := io.NewBinReaderFromBuf(req.UserData)
 	userData := stackitem.DecodeBinaryStackItem(r)
 	args := stackitem.NewArray([]stackitem.Item{
@@ -306,6 +322,16 @@ func (o *Oracle) RequestInternal(ic *interop.Context, url, filter, cb string, us
 		return ErrBigArgument
 	}
 
+	ic.Notifications = append(ic.Notifications, state.NotificationEvent{
+		ScriptHash: o.Hash,
+		Name:       "OracleRequest",
+		Item: stackitem.NewArray([]stackitem.Item{
+			stackitem.Make(id),
+			stackitem.Make(ic.VM.GetCallingScriptHash().BytesBE()),
+			stackitem.Make(url),
+			stackitem.Make(filter),
+		}),
+	})
 	req := &state.OracleRequest{
 		OriginalTxID:     o.getOriginalTxID(ic.DAO, ic.Tx),
 		GasForResponse:   gas.Uint64(),
