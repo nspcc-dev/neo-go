@@ -70,12 +70,19 @@ key in the server which doesn't fit the model of our node-client interactions.
 Lacking this signature the transaction is almost useless, so there is no point
 in returning it.
 
-Both methods also don't currently support arrays in function parameters.
+It's possible to use `invokefunction` not only with contract scripthash, but also 
+with contract name (for native contracts) or contract ID (for all contracts). This
+feature is not supported by the C# node.
 
 ##### `getunclaimedgas`
 
 It's possible to call this method for any address with neo-go, unlike with C#
 node where it only works for addresses from opened wallet.
+
+##### `getcontractstate`
+
+It's possible to get non-native contract state by its ID, unlike with C# node where
+it only works for native contracts.
 
 ### Unsupported methods
 

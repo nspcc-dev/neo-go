@@ -277,7 +277,10 @@ func TestCreateNEP5TransferTx(t *testing.T) {
 	acc, err := wallet.NewAccountFromWIF(priv.WIF())
 	require.NoError(t, err)
 
-	tx, err := c.CreateNEP5TransferTx(acc, util.Uint160{}, client.GasContractHash, 1000, 0)
+	gasContractHash, err := c.GetNativeContractHash("gas")
+	require.NoError(t, err)
+
+	tx, err := c.CreateNEP5TransferTx(acc, util.Uint160{}, gasContractHash, 1000, 0)
 	require.NoError(t, err)
 	require.NoError(t, acc.SignTx(tx))
 	require.NoError(t, chain.VerifyTx(tx))

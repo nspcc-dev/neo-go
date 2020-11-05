@@ -23,13 +23,6 @@ type TransferTarget struct {
 	Amount  int64
 }
 
-var (
-	// NeoContractHash is a hash of the NEO native contract.
-	NeoContractHash, _ = util.Uint160DecodeStringBE("25059ecb4878d3a875f91c51ceded330d4575fde")
-	// GasContractHash is a hash of the GAS native contract.
-	GasContractHash, _ = util.Uint160DecodeStringBE("bcaf41d684c7d4ad6ee0d99da9707b9d1f0c8e66")
-)
-
 // NEP5Decimals invokes `decimals` NEP5 method on a specified contract.
 func (c *Client) NEP5Decimals(tokenHash util.Uint160) (int64, error) {
 	result, err := c.InvokeFunction(tokenHash, "decimals", []smartcontract.Parameter{}, nil)

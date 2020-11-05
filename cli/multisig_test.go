@@ -11,7 +11,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
-	"github.com/nspcc-dev/neo-go/pkg/rpc/client"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/stretchr/testify/require"
 )
@@ -91,7 +90,7 @@ func TestSignMultisigTx(t *testing.T) {
 			"--rpc-endpoint", "http://"+e.RPC.Addr,
 			"--wallet", wallet1Path, "--address", multisigAddr,
 			"--out", txPath,
-			client.NeoContractHash.StringLE(), "transfer",
+			e.Chain.GoverningTokenHash().StringLE(), "transfer",
 			"bytes:"+multisigHash.StringBE(),
 			"bytes:"+priv.GetScriptHash().StringBE(),
 			"int:1",

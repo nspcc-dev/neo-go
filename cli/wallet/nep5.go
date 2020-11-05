@@ -16,11 +16,6 @@ import (
 )
 
 var (
-	neoToken = wallet.NewToken(client.NeoContractHash, "NEO", "neo", 0)
-	gasToken = wallet.NewToken(client.GasContractHash, "GAS", "gas", 8)
-)
-
-var (
 	tokenFlag = cli.StringFlag{
 		Name:  "token",
 		Usage: "Token to use (hash or name (for NEO/GAS or imported tokens))",
@@ -161,7 +156,11 @@ func getNEP5Balance(ctx *cli.Context) error {
 
 	c, err := options.GetRPCClient(gctx, ctx)
 	if err != nil {
-		return err
+		return cli.NewExitError(err, 1)
+	}
+	err = c.Init()
+	if err != nil {
+		return cli.NewExitError(fmt.Errorf("failed to init RPC client: %w", err), 1)
 	}
 
 	name := ctx.String("token")
@@ -210,12 +209,6 @@ func getNEP5Balance(ctx *cli.Context) error {
 }
 
 func getMatchingToken(ctx *cli.Context, w *wallet.Wallet, name string) (*wallet.Token, error) {
-	switch strings.ToLower(name) {
-	case "neo", client.NeoContractHash.StringLE():
-		return neoToken, nil
-	case "gas", client.GasContractHash.StringLE():
-		return gasToken, nil
-	}
 	return getMatchingTokenAux(ctx, func(i int) *wallet.Token {
 		return w.Extra.Tokens[i]
 	}, len(w.Extra.Tokens), name)
@@ -278,7 +271,7 @@ func importNEP5Token(ctx *cli.Context) error {
 
 	c, err := options.GetRPCClient(gctx, ctx)
 	if err != nil {
-		return err
+		return cli.NewExitError(err, 1)
 	}
 
 	tok, err := c.NEP5TokenInfo(tokenHash)
@@ -371,7 +364,11 @@ func multiTransferNEP5(ctx *cli.Context) error {
 
 	c, err := options.GetRPCClient(gctx, ctx)
 	if err != nil {
-		return err
+		return cli.NewExitError(err, 1)
+	}
+	err = c.Init()
+	if err != nil {
+		return cli.NewExitError(fmt.Errorf("failed to init RPC client: %w", err), 1)
 	}
 
 	if ctx.NArg() == 0 {
@@ -434,7 +431,11 @@ func transferNEP5(ctx *cli.Context) error {
 
 	c, err := options.GetRPCClient(gctx, ctx)
 	if err != nil {
-		return err
+		return cli.NewExitError(err, 1)
+	}
+	err = c.Init()
+	if err != nil {
+		return cli.NewExitError(fmt.Errorf("failed to init RPC client: %w", err), 1)
 	}
 
 	toFlag := ctx.Generic("to").(*flags.Address)

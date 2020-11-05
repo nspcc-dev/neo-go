@@ -80,7 +80,7 @@ func signMultisig(ctx *cli.Context) error {
 
 		c, err := options.GetRPCClient(gctx, ctx)
 		if err != nil {
-			return err
+			return cli.NewExitError(err, 1)
 		}
 		res, err := c.SendRawTransaction(tx)
 		if err != nil {

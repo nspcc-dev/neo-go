@@ -96,7 +96,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 	},
 	"getcontractstate": {
 		{
-			name:   "positive",
+			name:   "positive, by hash",
 			params: fmt.Sprintf(`["%s"]`, testContractHash),
 			result: func(e *executor) interface{} { return &state.Contract{} },
 			check: func(t *testing.T, e *executor, cs interface{}) {
@@ -106,8 +106,48 @@ var rpcTestCases = map[string][]rpcTestCase{
 			},
 		},
 		{
-			name:   "negative",
+			name:   "positive, by id",
+			params: `[0]`,
+			result: func(e *executor) interface{} { return &state.Contract{} },
+			check: func(t *testing.T, e *executor, cs interface{}) {
+				res, ok := cs.(*state.Contract)
+				require.True(t, ok)
+				assert.Equal(t, int32(0), res.ID)
+			},
+		},
+		{
+			name:   "positive, native by id",
+			params: `[-3]`,
+			result: func(e *executor) interface{} { return &state.Contract{} },
+			check: func(t *testing.T, e *executor, cs interface{}) {
+				res, ok := cs.(*state.Contract)
+				require.True(t, ok)
+				assert.Equal(t, int32(-3), res.ID)
+			},
+		},
+		{
+			name:   "positive, native by name",
+			params: `["Policy"]`,
+			result: func(e *executor) interface{} { return &state.Contract{} },
+			check: func(t *testing.T, e *executor, cs interface{}) {
+				res, ok := cs.(*state.Contract)
+				require.True(t, ok)
+				assert.Equal(t, int32(-3), res.ID)
+			},
+		},
+		{
+			name:   "negative, bad hash",
 			params: `["6d1eeca891ee93de2b7a77eb91c26f3b3c04d6c3"]`,
+			fail:   true,
+		},
+		{
+			name:   "negative, bad ID",
+			params: `[-8]`,
+			fail:   true,
+		},
+		{
+			name:   "negative, bad native name",
+			params: `["unknown_native"]`,
 			fail:   true,
 		},
 		{

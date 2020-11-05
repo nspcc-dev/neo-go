@@ -39,6 +39,7 @@ type Blockchainer interface {
 	HasBlock(util.Uint256) bool
 	HasTransaction(util.Uint256) bool
 	GetAppExecResult(util.Uint256) (*state.AppExecResult, error)
+	GetNativeContractScriptHash(string) (util.Uint160, error)
 	GetNextBlockValidators() ([]*keys.PublicKey, error)
 	GetNEP5Balances(util.Uint160) *state.NEP5Balances
 	GetValidators() ([]*keys.PublicKey, error)

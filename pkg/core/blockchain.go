@@ -1073,6 +1073,15 @@ func (bc *Blockchain) GetContractScriptHash(id int32) (util.Uint160, error) {
 	return bc.dao.GetContractScriptHash(id)
 }
 
+// GetNativeContractScriptHash returns native contract script hash by its name.
+func (bc *Blockchain) GetNativeContractScriptHash(name string) (util.Uint160, error) {
+	c := bc.contracts.ByName(name)
+	if c != nil {
+		return c.Metadata().Hash, nil
+	}
+	return util.Uint160{}, errors.New("Unknown native contract")
+}
+
 // GetConfig returns the config stored in the blockchain.
 func (bc *Blockchain) GetConfig() config.ProtocolConfiguration {
 	return bc.config
