@@ -26,9 +26,6 @@ const (
 	// MaxStorageValueLen is the maximum length of a value for storage items.
 	// It is set to be the maximum value for uint16.
 	MaxStorageValueLen = 65535
-	// MaxTraceableBlocks is the maximum number of blocks before current chain
-	// height we're able to give information about.
-	MaxTraceableBlocks = transaction.MaxValidUntilBlockIncrement
 	// MaxEventNameLen is the maximum length of a name for event.
 	MaxEventNameLen = 32
 	// MaxNotificationSize is the maximum length of a runtime log message.
@@ -155,6 +152,7 @@ func getTransactionAndHeight(cd *dao.Cached, v *vm.VM) (*transaction.Transaction
 // the block with index specified.
 func isTraceableBlock(ic *interop.Context, index uint32) bool {
 	height := ic.Chain.BlockHeight()
+	MaxTraceableBlocks := ic.Chain.GetConfig().MaxTraceableBlocks
 	return index <= height && index+MaxTraceableBlocks > height
 }
 

@@ -9,6 +9,8 @@ type (
 	ProtocolConfiguration struct {
 		Magic       netmode.Magic `yaml:"Magic"`
 		MemPoolSize int           `yaml:"MemPoolSize"`
+		// MaxTraceableBlocks is the length of the chain accessible to smart contracts.
+		MaxTraceableBlocks uint32 `yaml:"MaxTraceableBlocks"`
 		// P2PSigExtensions enables additional signature-related transaction attributes
 		P2PSigExtensions bool `yaml:"P2PSigExtensions"`
 		// ReservedAttributes allows to have reserved attributes range for experimental or private purposes.

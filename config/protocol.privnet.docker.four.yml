@@ -1,5 +1,6 @@
 ProtocolConfiguration:
   Magic: 56753
+  MaxTraceableBlocks: 200000
   SecondsPerBlock: 15
   MemPoolSize: 50000
   StandbyCommittee:
