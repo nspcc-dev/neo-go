@@ -922,7 +922,7 @@ func TestSubscriptions(t *testing.T) {
 	txGood1 := transaction.New(netmode.UnitTestNet, script.Bytes(), 0)
 	txGood1.Signers = []transaction.Signer{{Account: neoOwner}}
 	txGood1.Nonce = 1
-	txGood1.ValidUntilBlock = 100500
+	txGood1.ValidUntilBlock = 1024
 	require.NoError(t, signTx(bc, txGood1))
 
 	// Reset() reuses the script buffer and we need to keep scripts.
@@ -934,7 +934,7 @@ func TestSubscriptions(t *testing.T) {
 	txBad := transaction.New(netmode.UnitTestNet, script.Bytes(), 0)
 	txBad.Signers = []transaction.Signer{{Account: neoOwner}}
 	txBad.Nonce = 2
-	txBad.ValidUntilBlock = 100500
+	txBad.ValidUntilBlock = 1024
 	require.NoError(t, signTx(bc, txBad))
 
 	script = io.NewBufBinWriter()
@@ -944,7 +944,7 @@ func TestSubscriptions(t *testing.T) {
 	txGood2 := transaction.New(netmode.UnitTestNet, script.Bytes(), 0)
 	txGood2.Signers = []transaction.Signer{{Account: neoOwner}}
 	txGood2.Nonce = 3
-	txGood2.ValidUntilBlock = 100500
+	txGood2.ValidUntilBlock = 1024
 	require.NoError(t, signTx(bc, txGood2))
 
 	invBlock := newBlock(bc.config, bc.BlockHeight()+1, bc.CurrentHeaderHash(), txGood1, txBad, txGood2)
