@@ -1,6 +1,7 @@
 package native
 
 import (
+	"encoding/binary"
 	"errors"
 	"math"
 	"sort"
@@ -12,8 +13,10 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
+	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
@@ -23,8 +26,13 @@ type Designate struct {
 	NEO *NEO
 
 	rolesChangedFlag atomic.Value
-	oracleNodes      atomic.Value
-	oracleHash       atomic.Value
+	oracles          atomic.Value
+}
+
+type oraclesData struct {
+	nodes  keys.PublicKeys
+	addr   util.Uint160
+	height uint32
 }
 
 const (
@@ -46,9 +54,12 @@ const (
 
 // Various errors.
 var (
-	ErrInvalidRole   = errors.New("invalid role")
-	ErrEmptyNodeList = errors.New("node list is empty")
-	ErrLargeNodeList = errors.New("node list is too large")
+	ErrAlreadyDesignated = errors.New("already designated given role at current block")
+	ErrEmptyNodeList     = errors.New("node list is empty")
+	ErrInvalidIndex      = errors.New("invalid index")
+	ErrInvalidRole       = errors.New("invalid role")
+	ErrLargeNodeList     = errors.New("node list is too large")
+	ErrNoBlock           = errors.New("no persisting block in the context")
 )
 
 func isValidRole(r Role) bool {
@@ -61,8 +72,9 @@ func newDesignate() *Designate {
 	s.Manifest.Features = smartcontract.HasStorage
 
 	desc := newDescriptor("getDesignatedByRole", smartcontract.ArrayType,
-		manifest.NewParameter("role", smartcontract.IntegerType))
-	md := newMethodAndPrice(s.getDesignatedByRole, 0, smartcontract.AllowStates)
+		manifest.NewParameter("role", smartcontract.IntegerType),
+		manifest.NewParameter("index", smartcontract.IntegerType))
+	md := newMethodAndPrice(s.getDesignatedByRole, 1000000, smartcontract.AllowStates)
 	s.AddMethod(md, desc, false)
 
 	desc = newDescriptor("designateAsRole", smartcontract.VoidType,
@@ -80,16 +92,6 @@ func newDesignate() *Designate {
 
 // Initialize initializes Oracle contract.
 func (s *Designate) Initialize(ic *interop.Context) error {
-	roles := []Role{RoleStateValidator, RoleOracle}
-	for _, r := range roles {
-		si := &state.StorageItem{Value: new(NodeList).Bytes()}
-		if err := ic.DAO.PutStorageItem(s.ContractID, []byte{byte(r)}, si); err != nil {
-			return err
-		}
-	}
-
-	s.oracleNodes.Store(keys.PublicKeys(nil))
-	s.rolesChangedFlag.Store(true)
 	return nil
 }
 
@@ -99,15 +101,17 @@ func (s *Designate) OnPersistEnd(d dao.DAO) error {
 		return nil
 	}
 
-	var ns NodeList
-	err := getSerializableFromDAO(s.ContractID, d, []byte{byte(RoleOracle)}, &ns)
+	nodeKeys, height, err := s.GetDesignatedByRole(d, RoleOracle, math.MaxUint32)
 	if err != nil {
 		return err
 	}
 
-	s.oracleNodes.Store(keys.PublicKeys(ns))
-	script, _ := smartcontract.CreateMajorityMultiSigRedeemScript(keys.PublicKeys(ns).Copy())
-	s.oracleHash.Store(hash.Hash160(script))
+	od := &oraclesData{
+		nodes:  nodeKeys,
+		addr:   oracleHashFromNodes(nodeKeys),
+		height: height,
+	}
+	s.oracles.Store(od)
 	s.rolesChangedFlag.Store(false)
 	return nil
 }
@@ -122,7 +126,15 @@ func (s *Designate) getDesignatedByRole(ic *interop.Context, args []stackitem.It
 	if !ok {
 		panic(ErrInvalidRole)
 	}
-	pubs, err := s.GetDesignatedByRole(ic.DAO, r)
+	ind, err := args[1].TryInteger()
+	if err != nil || !ind.IsUint64() {
+		panic(ErrInvalidIndex)
+	}
+	index := ind.Uint64()
+	if index > uint64(ic.Chain.BlockHeight()+1) {
+		panic(ErrInvalidIndex)
+	}
+	pubs, _, err := s.GetDesignatedByRole(ic.DAO, r, uint32(index))
 	if err != nil {
 		panic(err)
 	}
@@ -134,17 +146,72 @@ func (s *Designate) rolesChanged() bool {
 	return rc == nil || rc.(bool)
 }
 
-// GetDesignatedByRole returns nodes for role r.
-func (s *Designate) GetDesignatedByRole(d dao.DAO, r Role) (keys.PublicKeys, error) {
+func oracleHashFromNodes(nodes keys.PublicKeys) util.Uint160 {
+	if len(nodes) == 0 {
+		return util.Uint160{}
+	}
+	script, _ := smartcontract.CreateMajorityMultiSigRedeemScript(nodes.Copy())
+	return hash.Hash160(script)
+}
+
+func (s *Designate) getLastDesignatedHash(d dao.DAO, r Role) (util.Uint160, error) {
 	if !isValidRole(r) {
-		return nil, ErrInvalidRole
+		return util.Uint160{}, ErrInvalidRole
 	}
 	if r == RoleOracle && !s.rolesChanged() {
-		return s.oracleNodes.Load().(keys.PublicKeys), nil
+		odVal := s.oracles.Load()
+		if odVal != nil {
+			od := odVal.(*oraclesData)
+			return od.addr, nil
+		}
+	}
+	nodes, _, err := s.GetDesignatedByRole(d, r, math.MaxUint32)
+	if err != nil {
+		return util.Uint160{}, err
+	}
+	// We only have hashing defined for oracles now.
+	return oracleHashFromNodes(nodes), nil
+}
+
+// GetDesignatedByRole returns nodes for role r.
+func (s *Designate) GetDesignatedByRole(d dao.DAO, r Role, index uint32) (keys.PublicKeys, uint32, error) {
+	if !isValidRole(r) {
+		return nil, 0, ErrInvalidRole
+	}
+	if r == RoleOracle && !s.rolesChanged() {
+		odVal := s.oracles.Load()
+		if odVal != nil {
+			od := odVal.(*oraclesData)
+			if od.height <= index {
+				return od.nodes, od.height, nil
+			}
+		}
+	}
+	kvs, err := d.GetStorageItemsWithPrefix(s.ContractID, []byte{byte(r)})
+	if err != nil {
+		return nil, 0, err
 	}
 	var ns NodeList
-	err := getSerializableFromDAO(s.ContractID, d, []byte{byte(r)}, &ns)
-	return keys.PublicKeys(ns), err
+	var bestIndex uint32
+	var resSi *state.StorageItem
+	for k, si := range kvs {
+		if len(k) < 4 {
+			continue
+		}
+		siInd := binary.BigEndian.Uint32([]byte(k))
+		if (resSi == nil || siInd > bestIndex) && siInd <= index {
+			bestIndex = siInd
+			resSi = si
+		}
+	}
+	if resSi != nil {
+		reader := io.NewBinReaderFromBuf(resSi.Value)
+		ns.DecodeBinary(reader)
+		if reader.Err != nil {
+			return nil, 0, reader.Err
+		}
+	}
+	return keys.PublicKeys(ns), bestIndex, err
 }
 
 func (s *Designate) designateAsRole(ic *interop.Context, args []stackitem.Item) stackitem.Item {
@@ -180,11 +247,21 @@ func (s *Designate) DesignateAsRole(ic *interop.Context, r Role, pubs keys.Publi
 	if ok, err := runtime.CheckHashedWitness(ic, h); err != nil || !ok {
 		return ErrInvalidWitness
 	}
+	if ic.Block == nil {
+		return ErrNoBlock
+	}
+	var key = make([]byte, 5)
+	key[0] = byte(r)
+	binary.BigEndian.PutUint32(key[1:], ic.Block.Index+1)
 
+	si := ic.DAO.GetStorageItem(s.ContractID, key)
+	if si != nil {
+		return ErrAlreadyDesignated
+	}
 	sort.Sort(pubs)
 	s.rolesChangedFlag.Store(true)
-	si := &state.StorageItem{Value: NodeList(pubs).Bytes()}
-	return ic.DAO.PutStorageItem(s.ContractID, []byte{byte(r)}, si)
+	si = &state.StorageItem{Value: NodeList(pubs).Bytes()}
+	return ic.DAO.PutStorageItem(s.ContractID, key, si)
 }
 
 func getRole(item stackitem.Item) (Role, bool) {

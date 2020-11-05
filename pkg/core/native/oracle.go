@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"math"
 	"math/big"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
@@ -341,17 +342,14 @@ func (o *Oracle) PutRequestInternal(id uint64, req *state.OracleRequest, d dao.D
 }
 
 // GetScriptHash returns script hash or oracle nodes.
-func (o *Oracle) GetScriptHash() (util.Uint160, error) {
-	h := o.Desig.oracleHash.Load()
-	if h == nil {
-		return util.Uint160{}, storage.ErrKeyNotFound
-	}
-	return h.(util.Uint160), nil
+func (o *Oracle) GetScriptHash(d dao.DAO) (util.Uint160, error) {
+	return o.Desig.getLastDesignatedHash(d, RoleOracle)
 }
 
 // GetOracleNodes returns public keys of oracle nodes.
 func (o *Oracle) GetOracleNodes(d dao.DAO) (keys.PublicKeys, error) {
-	return o.Desig.GetDesignatedByRole(d, RoleOracle)
+	nodes, _, err := o.Desig.GetDesignatedByRole(d, RoleOracle, math.MaxUint32)
+	return nodes, err
 }
 
 // GetRequestInternal returns request by ID and key under which it is stored.

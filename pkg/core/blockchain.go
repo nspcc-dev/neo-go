@@ -1297,8 +1297,8 @@ func (bc *Blockchain) verifyTxAttributes(tx *transaction.Transaction) error {
 			}
 			return fmt.Errorf("%w: high priority tx is not signed by committee", ErrInvalidAttribute)
 		case transaction.OracleResponseT:
-			h, err := bc.contracts.Oracle.GetScriptHash()
-			if err != nil {
+			h, err := bc.contracts.Oracle.GetScriptHash(bc.dao)
+			if err != nil || h.Equals(util.Uint160{}) {
 				return fmt.Errorf("%w: %v", ErrInvalidAttribute, err)
 			}
 			hasOracle := false
