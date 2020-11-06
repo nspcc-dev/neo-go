@@ -499,7 +499,9 @@ func TestVerifyTx(t *testing.T) {
 				InvocationScript:   testchain.SignCommittee(txSetOracle.GetSignedPart()),
 				VerificationScript: testchain.CommitteeVerificationScript(),
 			}}
-			ic := bc.newInteropContext(trigger.All, bc.dao, nil, txSetOracle)
+			bl := block.New(netmode.UnitTestNet)
+			bl.Index = bc.BlockHeight() + 1
+			ic := bc.newInteropContext(trigger.All, bc.dao, bl, txSetOracle)
 			ic.SpawnVM()
 			ic.VM.LoadScript([]byte{byte(opcode.RET)})
 			require.NoError(t, bc.contracts.Designate.DesignateAsRole(ic, native.RoleOracle, oraclePubs))

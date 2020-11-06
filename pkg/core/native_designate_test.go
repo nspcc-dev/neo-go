@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
+	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
@@ -14,6 +15,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/stretchr/testify/require"
 )
 
@@ -60,6 +62,37 @@ func (bc *Blockchain) setNodesByRole(t *testing.T, ok bool, r native.Role, nodes
 	}
 }
 
+func (bc *Blockchain) getNodesByRole(t *testing.T, ok bool, r native.Role, index uint32, resLen int) {
+	w := io.NewBufBinWriter()
+	emit.AppCallWithOperationAndArgs(w.BinWriter, bc.contracts.Designate.Hash, "getDesignatedByRole", int64(r), int64(index))
+	require.NoError(t, w.Err)
+	tx := transaction.New(netmode.UnitTestNet, w.Bytes(), 0)
+	tx.NetworkFee = 10_000_000
+	tx.SystemFee = 10_000_000
+	tx.ValidUntilBlock = 100
+	tx.Signers = []transaction.Signer{
+		{
+			Account: testchain.MultisigScriptHash(),
+			Scopes:  transaction.None,
+		},
+	}
+	require.NoError(t, signTx(bc, tx))
+	require.NoError(t, bc.AddBlock(bc.newBlock(tx)))
+
+	aer, err := bc.GetAppExecResult(tx.Hash())
+	require.NoError(t, err)
+	if ok {
+		require.Equal(t, vm.HaltState, aer.VMState)
+		require.Equal(t, 1, len(aer.Stack))
+		arrItem := aer.Stack[0]
+		require.Equal(t, stackitem.ArrayT, arrItem.Type())
+		arr := arrItem.(*stackitem.Array)
+		require.Equal(t, resLen, arr.Len())
+	} else {
+		require.Equal(t, vm.FaultState, aer.VMState)
+	}
+}
+
 func TestDesignate_DesignateAsRoleTx(t *testing.T) {
 	bc := newTestChain(t)
 	defer bc.Close()
@@ -70,6 +103,11 @@ func TestDesignate_DesignateAsRoleTx(t *testing.T) {
 
 	bc.setNodesByRole(t, false, 0xFF, pubs)
 	bc.setNodesByRole(t, true, native.RoleOracle, pubs)
+	index := bc.BlockHeight() + 1
+	bc.getNodesByRole(t, false, 0xFF, 0, 0)
+	bc.getNodesByRole(t, false, native.RoleOracle, 100500, 0)
+	bc.getNodesByRole(t, true, native.RoleOracle, 0, 0)     // returns an empty list
+	bc.getNodesByRole(t, true, native.RoleOracle, index, 1) // returns pubs
 }
 
 func TestDesignate_DesignateAsRole(t *testing.T) {
@@ -78,16 +116,19 @@ func TestDesignate_DesignateAsRole(t *testing.T) {
 
 	des := bc.contracts.Designate
 	tx := transaction.New(netmode.UnitTestNet, []byte{}, 0)
-	ic := bc.newInteropContext(trigger.OnPersist, bc.dao, nil, tx)
+	bl := block.New(netmode.UnitTestNet)
+	bl.Index = bc.BlockHeight() + 1
+	ic := bc.newInteropContext(trigger.OnPersist, bc.dao, bl, tx)
 	ic.SpawnVM()
 	ic.VM.LoadScript([]byte{byte(opcode.RET)})
 
-	pubs, err := des.GetDesignatedByRole(bc.dao, 0xFF)
+	pubs, index, err := des.GetDesignatedByRole(bc.dao, 0xFF, 255)
 	require.True(t, errors.Is(err, native.ErrInvalidRole), "got: %v", err)
 
-	pubs, err = des.GetDesignatedByRole(bc.dao, native.RoleOracle)
+	pubs, index, err = des.GetDesignatedByRole(bc.dao, native.RoleOracle, 255)
 	require.NoError(t, err)
 	require.Equal(t, 0, len(pubs))
+	require.Equal(t, uint32(0), index)
 
 	err = des.DesignateAsRole(ic, native.RoleOracle, keys.PublicKeys{})
 	require.True(t, errors.Is(err, native.ErrEmptyNodeList), "got: %v", err)
@@ -110,13 +151,15 @@ func TestDesignate_DesignateAsRole(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, des.OnPersistEnd(ic.DAO))
 
-	pubs, err = des.GetDesignatedByRole(ic.DAO, native.RoleOracle)
+	pubs, index, err = des.GetDesignatedByRole(ic.DAO, native.RoleOracle, bl.Index+1)
 	require.NoError(t, err)
 	require.Equal(t, keys.PublicKeys{pub}, pubs)
+	require.Equal(t, bl.Index+1, index)
 
-	pubs, err = des.GetDesignatedByRole(ic.DAO, native.RoleStateValidator)
+	pubs, index, err = des.GetDesignatedByRole(ic.DAO, native.RoleStateValidator, 255)
 	require.NoError(t, err)
 	require.Equal(t, 0, len(pubs))
+	require.Equal(t, uint32(0), index)
 
 	// Set another role.
 	_, err = keys.NewPrivateKey()
@@ -126,11 +169,13 @@ func TestDesignate_DesignateAsRole(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, des.OnPersistEnd(ic.DAO))
 
-	pubs, err = des.GetDesignatedByRole(ic.DAO, native.RoleOracle)
+	pubs, index, err = des.GetDesignatedByRole(ic.DAO, native.RoleOracle, 255)
 	require.NoError(t, err)
 	require.Equal(t, keys.PublicKeys{pub}, pubs)
+	require.Equal(t, bl.Index+1, index)
 
-	pubs, err = des.GetDesignatedByRole(ic.DAO, native.RoleStateValidator)
+	pubs, index, err = des.GetDesignatedByRole(ic.DAO, native.RoleStateValidator, 255)
 	require.NoError(t, err)
 	require.Equal(t, keys.PublicKeys{pub1}, pubs)
+	require.Equal(t, bl.Index+1, index)
 }

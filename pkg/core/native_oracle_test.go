@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
+	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
@@ -136,8 +137,10 @@ func TestOracle_Request(t *testing.T) {
 	pub := priv.PublicKey()
 
 	tx := transaction.New(netmode.UnitTestNet, []byte{}, 0)
+	bl := block.New(netmode.UnitTestNet)
+	bl.Index = bc.BlockHeight() + 1
 	setSigner(tx, testchain.CommitteeScriptHash())
-	ic := bc.newInteropContext(trigger.Application, bc.dao, nil, tx)
+	ic := bc.newInteropContext(trigger.Application, bc.dao, bl, tx)
 	ic.SpawnVM()
 	ic.VM.LoadScript([]byte{byte(opcode.RET)})
 	err = bc.contracts.Designate.DesignateAsRole(ic, native.RoleOracle, keys.PublicKeys{pub})
