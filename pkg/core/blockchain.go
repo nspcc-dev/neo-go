@@ -40,8 +40,9 @@ const (
 	headerBatchCount = 2000
 	version          = "0.1.0"
 
-	defaultMemPoolSize   = 50000
-	verificationGasLimit = 100000000 // 1 GAS
+	defaultMemPoolSize        = 50000
+	defaultMaxTraceableBlocks = 2102400   // 1 year of 15s blocks
+	verificationGasLimit      = 100000000 // 1 GAS
 )
 
 var (
@@ -147,6 +148,10 @@ func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration, log *zap.L
 	if cfg.MemPoolSize <= 0 {
 		cfg.MemPoolSize = defaultMemPoolSize
 		log.Info("mempool size is not set or wrong, setting default value", zap.Int("MemPoolSize", cfg.MemPoolSize))
+	}
+	if cfg.MaxTraceableBlocks == 0 {
+		cfg.MaxTraceableBlocks = defaultMaxTraceableBlocks
+		log.Info("MaxTraceableBlocks is not set or wrong, using default value", zap.Uint32("MaxTraceableBlocks", cfg.MaxTraceableBlocks))
 	}
 	committee, err := committeeFromConfig(cfg)
 	if err != nil {
