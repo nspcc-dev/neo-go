@@ -1426,12 +1426,12 @@ func initTestServer(t *testing.T, resp string) *httptest.Server {
 			ws.Close()
 			return
 		}
-		r := request.NewIn()
+		r := request.NewRequest()
 		err := r.DecodeData(req.Body)
 		if err != nil {
 			t.Fatalf("Cannot decode request body: %s", req.Body)
 		}
-		requestHandler(t, r, w, resp)
+		requestHandler(t, r.In, w, resp)
 	}))
 
 	return srv
@@ -1480,13 +1480,13 @@ func TestCalculateValidUntilBlock(t *testing.T) {
 		getValidatorsCalled int
 	)
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		r := request.NewIn()
+		r := request.NewRequest()
 		err := r.DecodeData(req.Body)
 		if err != nil {
 			t.Fatalf("Cannot decode request body: %s", req.Body)
 		}
 		var response string
-		switch r.Method {
+		switch r.In.Method {
 		case "getblockcount":
 			getBlockCountCalled++
 			response = `{"jsonrpc":"2.0","id":1,"result":50}`
@@ -1494,7 +1494,7 @@ func TestCalculateValidUntilBlock(t *testing.T) {
 			getValidatorsCalled++
 			response = `{"id":1,"jsonrpc":"2.0","result":[{"publickey":"02b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc2","votes":"0","active":true},{"publickey":"02103a7f7dd016558597f7960d27c516a4394fd968b9e65155eb4b013e4040406e","votes":"0","active":true},{"publickey":"03d90c07df63e690ce77912e10ab51acc944b66860237b608c4f8f8309e71ee699","votes":"0","active":true},{"publickey":"02a7bc55fe8684e0119768d104ba30795bdcc86619e864add26156723ed185cd62","votes":"0","active":true}]}`
 		}
-		requestHandler(t, r, w, response)
+		requestHandler(t, r.In, w, response)
 	}))
 	defer srv.Close()
 
@@ -1522,13 +1522,13 @@ func TestCalculateValidUntilBlock(t *testing.T) {
 
 func TestGetNetwork(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		r := request.NewIn()
+		r := request.NewRequest()
 		err := r.DecodeData(req.Body)
 		if err != nil {
 			t.Fatalf("Cannot decode request body: %s", req.Body)
 		}
 		// request handler already have `getversion` response wrapper
-		requestHandler(t, r, w, "")
+		requestHandler(t, r.In, w, "")
 	}))
 	defer srv.Close()
 	endpoint := srv.URL
