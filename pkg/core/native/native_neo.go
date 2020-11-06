@@ -68,9 +68,9 @@ const (
 	// neoHolderRewardRatio is a percent of generated GAS that is distributed to NEO holders.
 	neoHolderRewardRatio = 10
 	// neoHolderRewardRatio is a percent of generated GAS that is distributed to committee.
-	committeeRewardRatio = 5
+	committeeRewardRatio = 10
 	// neoHolderRewardRatio is a percent of generated GAS that is distributed to voters.
-	voterRewardRatio = 85
+	voterRewardRatio = 80
 )
 
 var (

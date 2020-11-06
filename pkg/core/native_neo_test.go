@@ -288,7 +288,7 @@ func TestNEO_CommitteeBountyOnPersist(t *testing.T) {
 		hs[i] = testchain.PrivateKeyByID(i).GetScriptHash()
 	}
 
-	const singleBounty = 25000000
+	const singleBounty = 50000000
 	bs := map[int]int64{0: singleBounty}
 	checkBalances := func() {
 		for i := 0; i < testchain.CommitteeSize(); i++ {
