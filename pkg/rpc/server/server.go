@@ -951,13 +951,16 @@ func (s *Server) getUnclaimedGas(ps request.Params) (interface{}, *response.Erro
 		return nil, response.ErrInvalidParams
 	}
 
-	neo, neoHeight := s.chain.GetGoverningTokenBalance(u)
+	neo, _ := s.chain.GetGoverningTokenBalance(u)
 	if neo.Sign() == 0 {
 		return result.UnclaimedGas{
 			Address: u,
 		}, nil
 	}
-	gas := s.chain.CalculateClaimable(neo, neoHeight, s.chain.BlockHeight()+1) // +1 as in C#, for the next block.
+	gas, err := s.chain.CalculateClaimable(u, s.chain.BlockHeight()+1) // +1 as in C#, for the next block.
+	if err != nil {
+		return nil, response.NewInternalServerError("can't calculate claimable", err)
+	}
 	return result.UnclaimedGas{
 		Address:   u,
 		Unclaimed: *gas,

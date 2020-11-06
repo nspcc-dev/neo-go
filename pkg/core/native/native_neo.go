@@ -15,6 +15,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/runtime"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
+	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
@@ -397,7 +398,7 @@ func (n *NEO) distributeGas(ic *interop.Context, h util.Uint160, acc *state.NEOB
 	if ic.Block == nil || ic.Block.Index == 0 {
 		return nil
 	}
-	gen, err := n.CalculateBonus(ic, acc.VoteTo, &acc.Balance, acc.BalanceHeight, ic.Block.Index)
+	gen, err := n.calculateBonus(ic.DAO, acc.VoteTo, &acc.Balance, acc.BalanceHeight, ic.Block.Index)
 	if err != nil {
 		return err
 	}
@@ -409,13 +410,7 @@ func (n *NEO) distributeGas(ic *interop.Context, h util.Uint160, acc *state.NEOB
 func (n *NEO) unclaimedGas(ic *interop.Context, args []stackitem.Item) stackitem.Item {
 	u := toUint160(args[0])
 	end := uint32(toBigInt(args[1]).Int64())
-	key := makeAccountKey(u)
-	si := ic.DAO.GetStorageItem(n.ContractID, key)
-	st, err := state.NEOBalanceStateFromBytes(si.Value)
-	if err != nil {
-		panic(err)
-	}
-	gen, err := n.CalculateBonus(ic, st.VoteTo, &st.Balance, st.BalanceHeight, end)
+	gen, err := n.CalculateBonus(ic.DAO, u, end)
 	if err != nil {
 		panic(err)
 	}
@@ -534,14 +529,27 @@ func makeVoterKey(pub []byte, prealloc ...[]byte) []byte {
 
 // CalculateBonus calculates amount of gas generated for holding value NEO from start to end block
 // and having voted for active committee member.
-func (n *NEO) CalculateBonus(ic *interop.Context, vote *keys.PublicKey, value *big.Int, start, end uint32) (*big.Int, error) {
-	r, err := n.CalculateNEOHolderReward(ic, value, start, end)
+func (n *NEO) CalculateBonus(d dao.DAO, acc util.Uint160, end uint32) (*big.Int, error) {
+	key := makeAccountKey(acc)
+	si := d.GetStorageItem(n.ContractID, key)
+	if si == nil {
+		return nil, storage.ErrKeyNotFound
+	}
+	st, err := state.NEOBalanceStateFromBytes(si.Value)
+	if err != nil {
+		return nil, err
+	}
+	return n.calculateBonus(d, st.VoteTo, &st.Balance, st.BalanceHeight, end)
+}
+
+func (n *NEO) calculateBonus(d dao.DAO, vote *keys.PublicKey, value *big.Int, start, end uint32) (*big.Int, error) {
+	r, err := n.CalculateNEOHolderReward(d, value, start, end)
 	if err != nil || vote == nil {
 		return r, err
 	}
 
 	var key = makeVoterKey(vote.Bytes())
-	var reward = n.getGASPerVote(ic.DAO, key, start, end)
+	var reward = n.getGASPerVote(d, key, start, end)
 	var tmp = new(big.Int).Sub(&reward[1], &reward[0])
 	tmp.Mul(tmp, value)
 	tmp.Div(tmp, big.NewInt(voterRewardFactor))
@@ -550,7 +558,7 @@ func (n *NEO) CalculateBonus(ic *interop.Context, vote *keys.PublicKey, value *b
 }
 
 // CalculateNEOHolderReward return GAS reward for holding `value` of NEO from start to end block.
-func (n *NEO) CalculateNEOHolderReward(ic *interop.Context, value *big.Int, start, end uint32) (*big.Int, error) {
+func (n *NEO) CalculateNEOHolderReward(d dao.DAO, value *big.Int, start, end uint32) (*big.Int, error) {
 	if value.Sign() == 0 || start >= end {
 		return big.NewInt(0), nil
 	} else if value.Sign() < 0 {
@@ -563,7 +571,7 @@ func (n *NEO) CalculateNEOHolderReward(ic *interop.Context, value *big.Int, star
 	if !n.gasPerBlockChanged.Load().(bool) {
 		gr = n.gasPerBlock.Load().(gasRecord)
 	} else {
-		gr, err = n.getSortedGASRecordFromDAO(ic.DAO)
+		gr, err = n.getSortedGASRecordFromDAO(d)
 		if err != nil {
 			return nil, err
 		}

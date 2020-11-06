@@ -162,7 +162,8 @@ func TestNEO_Vote(t *testing.T) {
 			newGAS := bc.GetUtilityTokenBalance(accs[i].Contract.ScriptHash())
 			newGAS.Sub(newGAS, gasBalance[i])
 
-			gasForHold := bc.CalculateClaimable(neoBalance[i], transferBlock, bc.BlockHeight())
+			gasForHold, err := bc.contracts.NEO.CalculateNEOHolderReward(bc.dao, neoBalance[i], transferBlock, bc.BlockHeight())
+			require.NoError(t, err)
 			newGAS.Sub(newGAS, gasForHold)
 			require.True(t, newGAS.Sign() > 0)
 			gasBalance[i] = newGAS
@@ -258,11 +259,11 @@ func TestNEO_CalculateBonus(t *testing.T) {
 	ic.SpawnVM()
 	ic.VM.LoadScript([]byte{byte(opcode.RET)})
 	t.Run("Invalid", func(t *testing.T) {
-		_, err := neo.CalculateNEOHolderReward(ic, new(big.Int).SetInt64(-1), 0, 1)
+		_, err := neo.CalculateNEOHolderReward(ic.DAO, new(big.Int).SetInt64(-1), 0, 1)
 		require.Error(t, err)
 	})
 	t.Run("Zero", func(t *testing.T) {
-		res, err := neo.CalculateNEOHolderReward(ic, big.NewInt(0), 0, 100)
+		res, err := neo.CalculateNEOHolderReward(ic.DAO, big.NewInt(0), 0, 100)
 		require.NoError(t, err)
 		require.EqualValues(t, 0, res.Int64())
 	})
@@ -272,7 +273,7 @@ func TestNEO_CalculateBonus(t *testing.T) {
 		require.NoError(t, err)
 		require.True(t, ok)
 
-		res, err := neo.CalculateNEOHolderReward(ic, big.NewInt(100), 5, 15)
+		res, err := neo.CalculateNEOHolderReward(ic.DAO, big.NewInt(100), 5, 15)
 		require.NoError(t, err)
 		require.EqualValues(t, (100*5*5/10)+(100*5*1/10), res.Int64())
 

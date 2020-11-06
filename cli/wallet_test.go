@@ -172,21 +172,48 @@ func TestClaimGas(t *testing.T) {
 	e := newExecutor(t, true)
 	defer e.Close(t)
 
-	start := e.Chain.BlockHeight()
-	balanceBefore := e.Chain.GetUtilityTokenBalance(validatorHash)
+	const walletPath = "testdata/testwallet.json"
+	w, err := wallet.NewWalletFromFile(walletPath)
+	require.NoError(t, err)
+	defer w.Close()
+
+	args := []string{
+		"neo-go", "wallet", "nep5", "multitransfer",
+		"--rpc-endpoint", "http://" + e.RPC.Addr,
+		"--wallet", validatorWallet,
+		"--from", validatorAddr,
+		"neo:" + w.Accounts[0].Address + ":1000",
+		"gas:" + w.Accounts[0].Address + ":1000", // for tx send
+	}
 	e.In.WriteString("one\r")
+	e.Run(t, args...)
+	e.checkTxPersisted(t)
+
+	h, err := address.StringToUint160(w.Accounts[0].Address)
+	require.NoError(t, err)
+
+	balanceBefore := e.Chain.GetUtilityTokenBalance(h)
+	claimHeight := e.Chain.BlockHeight() + 1
+	cl, err := e.Chain.CalculateClaimable(h, claimHeight)
+	require.NoError(t, err)
+	require.True(t, cl.Sign() > 0)
+
+	e.In.WriteString("testpass\r")
 	e.Run(t, "neo-go", "wallet", "claim",
 		"--rpc-endpoint", "http://"+e.RPC.Addr,
-		"--wallet", validatorWallet,
-		"--address", validatorAddr)
-	tx, end := e.checkTxPersisted(t)
-	b, _ := e.Chain.GetGoverningTokenBalance(validatorHash)
-	cl := e.Chain.CalculateClaimable(b, start, end)
-	require.True(t, cl.Sign() > 0)
-	cl.Sub(cl, big.NewInt(tx.NetworkFee+tx.SystemFee))
+		"--wallet", walletPath,
+		"--address", w.Accounts[0].Address)
+	tx, height := e.checkTxPersisted(t)
+	balanceBefore.Sub(balanceBefore, big.NewInt(tx.NetworkFee+tx.SystemFee))
+	balanceBefore.Add(balanceBefore, cl)
 
-	balanceAfter := e.Chain.GetUtilityTokenBalance(validatorHash)
-	require.Equal(t, 0, balanceAfter.Cmp(balanceBefore.Add(balanceBefore, cl)))
+	balanceAfter := e.Chain.GetUtilityTokenBalance(h)
+	// height can be bigger than claimHeight especially when tests are executed with -race.
+	if height == claimHeight {
+		require.Equal(t, 0, balanceAfter.Cmp(balanceBefore))
+	} else {
+		require.Equal(t, 1, balanceAfter.Cmp(balanceBefore))
+	}
 }
 
 func TestImportDeployed(t *testing.T) {

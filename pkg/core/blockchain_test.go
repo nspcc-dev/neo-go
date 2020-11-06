@@ -854,8 +854,9 @@ func TestGetClaimable(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("first generation period", func(t *testing.T) {
-		amount := bc.CalculateClaimable(big.NewInt(1), 0, 2)
-		require.EqualValues(t, big.NewInt(1), amount)
+		amount, err := bc.CalculateClaimable(neoOwner, 1)
+		require.NoError(t, err)
+		require.EqualValues(t, big.NewInt(5*native.GASFactor/10), amount)
 	})
 }
 
