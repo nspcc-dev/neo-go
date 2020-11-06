@@ -38,6 +38,31 @@ type GetRawTx struct {
 	Result *result.TransactionOutputRaw `json:"result"`
 }
 
+// AbstractResult is an interface which represents either single JSON-RPC 2.0 response
+// or batch JSON-RPC 2.0 response.
+type AbstractResult interface {
+	RunForErrors(f func(jsonErr *Error))
+}
+
+// RunForErrors implements AbstractResult interface.
+func (r Raw) RunForErrors(f func(jsonErr *Error)) {
+	if r.Error != nil {
+		f(r.Error)
+	}
+}
+
+// RawBatch represents abstract JSON-RPC 2.0 batch-response.
+type RawBatch []Raw
+
+// RunForErrors implements AbstractResult interface.
+func (rb RawBatch) RunForErrors(f func(jsonErr *Error)) {
+	for _, r := range rb {
+		if r.Error != nil {
+			f(r.Error)
+		}
+	}
+}
+
 // Notification is a type used to represent wire format of events, they're
 // special in that they look like requests but they don't have IDs and their
 // "method" is actually an event name.
