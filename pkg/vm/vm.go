@@ -1132,8 +1132,9 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 				a[i], a[j] = a[j], a[i]
 			}
 		case *stackitem.Buffer:
+			slice := t.Value().([]byte)
 			for i, j := 0, t.Len()-1; i < j; i, j = i+1, j-1 {
-				t.Value().([]byte)[i], t.Value().([]byte)[j] = t.Value().([]byte)[j], t.Value().([]byte)[i]
+				slice[i], slice[j] = slice[j], slice[i]
 			}
 		default:
 			panic(fmt.Sprintf("invalid item type %s", t))
