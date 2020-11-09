@@ -22,11 +22,14 @@ const MaxOracleResultSize = math.MaxUint16
 
 // Enumeration of possible oracle response types.
 const (
-	Success   OracleResponseCode = 0x00
-	NotFound  OracleResponseCode = 0x10
-	Timeout   OracleResponseCode = 0x12
-	Forbidden OracleResponseCode = 0x14
-	Error     OracleResponseCode = 0xff
+	Success              OracleResponseCode = 0x00
+	ConsensusUnreachable OracleResponseCode = 0x10
+	NotFound             OracleResponseCode = 0x12
+	Timeout              OracleResponseCode = 0x14
+	Forbidden            OracleResponseCode = 0x16
+	ResponseTooLarge     OracleResponseCode = 0x18
+	InsufficientFunds    OracleResponseCode = 0x1a
+	Error                OracleResponseCode = 0xff
 )
 
 // Various validation errors.
@@ -37,7 +40,9 @@ var (
 
 // IsValid checks if c is valid response code.
 func (c OracleResponseCode) IsValid() bool {
-	return c == Success || c == NotFound || c == Timeout || c == Forbidden || c == Error
+	return c == Success || c == ConsensusUnreachable || c == NotFound ||
+		c == Timeout || c == Forbidden || c == ResponseTooLarge ||
+		c == InsufficientFunds || c == Error
 }
 
 // DecodeBinary implements io.Serializable interface.
