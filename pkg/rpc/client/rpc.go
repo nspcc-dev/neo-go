@@ -68,7 +68,7 @@ func (c *Client) GetBlockByHash(hash util.Uint256) (*block.Block, error) {
 
 func (c *Client) getBlock(params request.RawParams) (*block.Block, error) {
 	var (
-		resp string
+		resp []byte
 		err  error
 		b    *block.Block
 	)
@@ -78,11 +78,7 @@ func (c *Client) getBlock(params request.RawParams) (*block.Block, error) {
 	if err = c.performRequest("getblock", params, &resp); err != nil {
 		return nil, err
 	}
-	blockBytes, err := hex.DecodeString(resp)
-	if err != nil {
-		return nil, err
-	}
-	r := io.NewBinReaderFromBuf(blockBytes)
+	r := io.NewBinReaderFromBuf(resp)
 	b = block.New(c.GetNetwork())
 	b.DecodeBinary(r)
 	if r.Err != nil {
@@ -137,7 +133,7 @@ func (c *Client) GetBlockHash(index uint32) (util.Uint256, error) {
 func (c *Client) GetBlockHeader(hash util.Uint256) (*block.Header, error) {
 	var (
 		params = request.NewRawParams(hash.StringLE())
-		resp   string
+		resp   []byte
 		h      *block.Header
 	)
 	if !c.initDone {
@@ -146,11 +142,7 @@ func (c *Client) GetBlockHeader(hash util.Uint256) (*block.Header, error) {
 	if err := c.performRequest("getblockheader", params, &resp); err != nil {
 		return nil, err
 	}
-	headerBytes, err := hex.DecodeString(resp)
-	if err != nil {
-		return nil, err
-	}
-	r := io.NewBinReaderFromBuf(headerBytes)
+	r := io.NewBinReaderFromBuf(resp)
 	h = new(block.Header)
 	h.Network = c.GetNetwork()
 	h.DecodeBinary(r)
@@ -307,7 +299,7 @@ func (c *Client) GetRawMemPool() ([]util.Uint256, error) {
 func (c *Client) GetRawTransaction(hash util.Uint256) (*transaction.Transaction, error) {
 	var (
 		params = request.NewRawParams(hash.StringLE())
-		resp   string
+		resp   []byte
 		err    error
 	)
 	if !c.initDone {
@@ -316,11 +308,7 @@ func (c *Client) GetRawTransaction(hash util.Uint256) (*transaction.Transaction,
 	if err = c.performRequest("getrawtransaction", params, &resp); err != nil {
 		return nil, err
 	}
-	txBytes, err := hex.DecodeString(resp)
-	if err != nil {
-		return nil, err
-	}
-	tx, err := transaction.NewTransactionFromBytes(c.GetNetwork(), txBytes)
+	tx, err := transaction.NewTransactionFromBytes(c.GetNetwork(), resp)
 	if err != nil {
 		return nil, err
 	}

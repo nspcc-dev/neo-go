@@ -2,6 +2,7 @@ package server
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -954,7 +955,7 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 		require.NoErrorf(t, err, "could not parse response: %s", result)
 		txBin, err := testserdes.EncodeBinary(tx)
 		require.NoError(t, err)
-		expected := hex.EncodeToString(txBin)
+		expected := base64.StdEncoding.EncodeToString(txBin)
 		assert.Equal(t, expected, res)
 	})
 
@@ -969,7 +970,7 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 		require.NoErrorf(t, err, "could not parse response: %s", result)
 		txBin, err := testserdes.EncodeBinary(tx)
 		require.NoError(t, err)
-		expected := hex.EncodeToString(txBin)
+		expected := base64.StdEncoding.EncodeToString(txBin)
 		assert.Equal(t, expected, res)
 	})
 
@@ -1005,7 +1006,7 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 			w := io.NewBufBinWriter()
 			hdr.EncodeBinary(w.BinWriter)
 			require.NoError(t, w.Err)
-			encoded := hex.EncodeToString(w.Bytes())
+			encoded := base64.StdEncoding.EncodeToString(w.Bytes())
 
 			t.Run("missing", func(t *testing.T) {
 				runCase(t, fmt.Sprintf(rpc, `["`+testHeaderHash+`"]`), &encoded, new(string))

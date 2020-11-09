@@ -458,7 +458,7 @@ func (s *Server) getBlock(reqParams request.Params) (interface{}, *response.Erro
 	}
 	writer := io.NewBufBinWriter()
 	block.EncodeBinary(writer.BinWriter)
-	return hex.EncodeToString(writer.Bytes()), nil
+	return writer.Bytes(), nil
 }
 
 func (s *Server) getBlockHash(reqParams request.Params) (interface{}, *response.Error) {
@@ -858,7 +858,7 @@ func (s *Server) getrawtransaction(reqParams request.Params) (interface{}, *resp
 		}
 		results = result.NewTransactionOutputRaw(tx, header, st, s.chain)
 	} else {
-		results = hex.EncodeToString(tx.Bytes())
+		results = tx.Bytes()
 	}
 
 	return results, resultsErr
@@ -941,7 +941,7 @@ func (s *Server) getBlockHeader(reqParams request.Params) (interface{}, *respons
 	if buf.Err != nil {
 		return nil, response.NewInternalServerError("encoding error", buf.Err)
 	}
-	return hex.EncodeToString(buf.Bytes()), nil
+	return buf.Bytes(), nil
 }
 
 // getUnclaimedGas returns unclaimed GAS amount of the specified address.
