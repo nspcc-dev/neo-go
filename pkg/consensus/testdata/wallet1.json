@@ -42,6 +42,23 @@
       },
       "lock": false,
       "isdefault": false
+    },
+    {
+      "address": "NVNvVRW5Q5naSx2k2iZm7xRgtRNGuZppAK",
+      "key": "6PYN7LvaWqBNw7Xb7a52LSbPnP91kyuzYi3HncGvQwQoYAY2W8DncTgpux",
+      "label": "",
+      "contract": {
+        "script": "EQwhArNiK/QBe9/jF8WK7V9MdT8ga324lgRvp9d0u8S/f43CEQtBE43vrw==",
+        "parameters": [
+          {
+            "name": "parameter0",
+            "type": "Signature"
+          }
+        ],
+        "deployed": false
+      },
+      "lock": false,
+      "isdefault": false
     }
   ],
   "scrypt": {

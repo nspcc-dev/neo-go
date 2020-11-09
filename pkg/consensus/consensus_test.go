@@ -6,6 +6,7 @@ import (
 
 	"github.com/nspcc-dev/dbft/block"
 	"github.com/nspcc-dev/dbft/payload"
+	"github.com/nspcc-dev/dbft/timer"
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core"
@@ -13,6 +14,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/internal/testchain"
 	"github.com/nspcc-dev/neo-go/pkg/io"
@@ -20,6 +22,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
+	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap/zaptest"
 )
@@ -37,6 +40,122 @@ func TestNewService(t *testing.T) {
 	require.Len(t, txx, 1)
 	require.Equal(t, tx, txx[0])
 	srv.Chain.Close()
+}
+
+func initServiceNextConsensus(t *testing.T, newAcc *wallet.Account, offset uint32) (*service, *wallet.Account) {
+	acc, err := wallet.NewAccountFromWIF(testchain.WIF(testchain.IDToOrder(0)))
+	require.NoError(t, err)
+	priv := acc.PrivateKey()
+	require.NoError(t, acc.ConvertMultisig(1, keys.PublicKeys{priv.PublicKey()}))
+
+	bc := newSingleTestChain(t)
+	newPriv := newAcc.PrivateKey()
+
+	// Transfer funds to new validator.
+	w := io.NewBufBinWriter()
+	emit.AppCallWithOperationAndArgs(w.BinWriter, bc.GoverningTokenHash(), "transfer",
+		acc.Contract.ScriptHash().BytesBE(), newPriv.GetScriptHash().BytesBE(), int64(native.NEOTotalSupply))
+	emit.Opcodes(w.BinWriter, opcode.ASSERT)
+	emit.AppCallWithOperationAndArgs(w.BinWriter, bc.UtilityTokenHash(), "transfer",
+		acc.Contract.ScriptHash().BytesBE(), newPriv.GetScriptHash().BytesBE(), int64(1_000_000_000))
+	emit.Opcodes(w.BinWriter, opcode.ASSERT)
+	require.NoError(t, w.Err)
+
+	tx := transaction.New(netmode.UnitTestNet, w.Bytes(), 20_000_000)
+	tx.ValidUntilBlock = bc.BlockHeight() + 1
+	tx.NetworkFee = 10_000_000
+	tx.Signers = []transaction.Signer{{Scopes: transaction.Global, Account: acc.Contract.ScriptHash()}}
+	require.NoError(t, acc.SignTx(tx))
+	require.NoError(t, bc.PoolTx(tx))
+
+	srv := newTestServiceWithChain(t, bc)
+	srv.dbft.Start()
+
+	// Register new candidate.
+	w.Reset()
+	emit.AppCallWithOperationAndArgs(w.BinWriter, bc.GoverningTokenHash(), "registerCandidate", newPriv.PublicKey().Bytes())
+	require.NoError(t, w.Err)
+
+	tx = transaction.New(netmode.UnitTestNet, w.Bytes(), 20_000_000)
+	tx.ValidUntilBlock = bc.BlockHeight() + 1
+	tx.NetworkFee = 20_000_000
+	tx.Signers = []transaction.Signer{{Scopes: transaction.Global, Account: newPriv.GetScriptHash()}}
+	require.NoError(t, newAcc.SignTx(tx))
+
+	require.NoError(t, bc.PoolTx(tx))
+	srv.dbft.OnTimeout(timer.HV{Height: srv.dbft.Context.BlockIndex})
+
+	for i := srv.dbft.BlockIndex; !native.ShouldUpdateCommittee(i+offset, bc); i++ {
+		srv.dbft.OnTimeout(timer.HV{Height: srv.dbft.Context.BlockIndex})
+	}
+
+	// Vote for new candidate.
+	w.Reset()
+	emit.AppCallWithOperationAndArgs(w.BinWriter, bc.GoverningTokenHash(), "vote",
+		newPriv.GetScriptHash(), newPriv.PublicKey().Bytes())
+	emit.Opcodes(w.BinWriter, opcode.ASSERT)
+	require.NoError(t, w.Err)
+
+	tx = transaction.New(netmode.UnitTestNet, w.Bytes(), 20_000_000)
+	tx.ValidUntilBlock = bc.BlockHeight() + 1
+	tx.NetworkFee = 20_000_000
+	tx.Signers = []transaction.Signer{{Scopes: transaction.Global, Account: newPriv.GetScriptHash()}}
+	require.NoError(t, newAcc.SignTx(tx))
+
+	require.NoError(t, bc.PoolTx(tx))
+	srv.dbft.OnTimeout(timer.HV{Height: srv.dbft.BlockIndex})
+
+	return srv, acc
+}
+
+func TestService_NextConsensus(t *testing.T) {
+	newAcc, err := wallet.NewAccount()
+	require.NoError(t, err)
+	script, err := smartcontract.CreateMajorityMultiSigRedeemScript(keys.PublicKeys{newAcc.PrivateKey().PublicKey()})
+	require.NoError(t, err)
+
+	checkNextConsensus := func(t *testing.T, bc *core.Blockchain, height uint32, h util.Uint160) {
+		hdrHash := bc.GetHeaderHash(int(height))
+		hdr, err := bc.GetHeader(hdrHash)
+		require.NoError(t, err)
+		require.Equal(t, h, hdr.NextConsensus)
+	}
+
+	t.Run("vote 1 block before update", func(t *testing.T) {
+		srv, acc := initServiceNextConsensus(t, newAcc, 1)
+		bc := srv.Chain.(*core.Blockchain)
+		defer bc.Close()
+
+		height := bc.BlockHeight()
+		checkNextConsensus(t, bc, height, acc.Contract.ScriptHash())
+		// Reset     <- we are here, update NextConsensus
+		// OnPersist <- update committee
+		// Block     <-
+
+		srv.dbft.OnTimeout(timer.HV{Height: srv.dbft.BlockIndex})
+		checkNextConsensus(t, bc, height+1, hash.Hash160(script))
+	})
+
+	t.Run("vote 2 blocks before update", func(t *testing.T) {
+		srv, acc := initServiceNextConsensus(t, newAcc, 2)
+		bc := srv.Chain.(*core.Blockchain)
+		defer bc.Close()
+
+		height := bc.BlockHeight()
+		checkNextConsensus(t, bc, height, acc.Contract.ScriptHash())
+		// Reset     <- we are here
+		// OnPersist <- nothing to do
+		// Block     <-
+		//
+		// Reset     <- update next consensus
+		// OnPersist <- update committee
+		// Block     <-
+		srv.dbft.OnTimeout(timer.HV{Height: srv.dbft.BlockIndex})
+		checkNextConsensus(t, bc, height+1, acc.Contract.ScriptHash())
+
+		srv.dbft.OnTimeout(timer.HV{Height: srv.dbft.BlockIndex})
+		checkNextConsensus(t, bc, height+2, hash.Hash160(script))
+	})
 }
 
 func TestService_GetVerified(t *testing.T) {
@@ -289,11 +408,16 @@ func shouldNotReceive(t *testing.T, ch chan Payload) {
 }
 
 func newTestService(t *testing.T) *service {
+	return newTestServiceWithChain(t, newTestChain(t))
+}
+
+func newTestServiceWithChain(t *testing.T, bc *core.Blockchain) *service {
 	srv, err := NewService(Config{
-		Logger:    zaptest.NewLogger(t),
-		Broadcast: func(*Payload) {},
-		Chain:     newTestChain(t),
-		RequestTx: func(...util.Uint256) {},
+		Logger:       zaptest.NewLogger(t),
+		Broadcast:    func(*Payload) {},
+		Chain:        bc,
+		RequestTx:    func(...util.Uint256) {},
+		TimePerBlock: time.Duration(bc.GetConfig().SecondsPerBlock) * time.Second,
 		Wallet: &config.Wallet{
 			Path:     "./testdata/wallet1.json",
 			Password: "one",
@@ -307,6 +431,18 @@ func newTestService(t *testing.T) *service {
 func getTestValidator(i int) (*privateKey, *publicKey) {
 	key := testchain.PrivateKey(i)
 	return &privateKey{PrivateKey: key}, &publicKey{PublicKey: key.PublicKey()}
+}
+
+func newSingleTestChain(t *testing.T) *core.Blockchain {
+	configPath := "../../config/protocol.unit_testnet.single.yml"
+	cfg, err := config.LoadFile(configPath)
+	require.NoError(t, err, "could not load config")
+
+	chain, err := core.NewBlockchain(storage.NewMemoryStore(), cfg.ProtocolConfiguration, zaptest.NewLogger(t))
+	require.NoError(t, err, "could not create chain")
+
+	go chain.Run()
+	return chain
 }
 
 func newTestChain(t *testing.T) *core.Blockchain {

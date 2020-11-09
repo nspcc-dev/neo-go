@@ -266,7 +266,8 @@ func (n *NEO) updateCommittee(ic *interop.Context) error {
 	return ic.DAO.PutStorageItem(n.ContractID, prefixCommittee, si)
 }
 
-func shouldUpdateCommittee(h uint32, bc blockchainer.Blockchainer) bool {
+// ShouldUpdateCommittee returns true if committee is updated at block h.
+func ShouldUpdateCommittee(h uint32, bc blockchainer.Blockchainer) bool {
 	cfg := bc.GetConfig()
 	r := cfg.ValidatorsCount + len(cfg.StandbyCommittee)
 	return h%uint32(r) == 0
@@ -274,7 +275,7 @@ func shouldUpdateCommittee(h uint32, bc blockchainer.Blockchainer) bool {
 
 // OnPersist implements Contract interface.
 func (n *NEO) OnPersist(ic *interop.Context) error {
-	if shouldUpdateCommittee(ic.Block.Index, ic.Chain) {
+	if ShouldUpdateCommittee(ic.Block.Index, ic.Chain) {
 		if err := n.updateCommittee(ic); err != nil {
 			return err
 		}
