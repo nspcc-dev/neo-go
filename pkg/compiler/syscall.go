@@ -5,11 +5,13 @@ import "github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 // All lists are sorted, keep 'em this way, please.
 var syscalls = map[string]map[string]string{
 	"binary": {
+		"Atoi":         interopnames.SystemBinaryAtoi,
 		"Base58Decode": interopnames.SystemBinaryBase58Decode,
 		"Base58Encode": interopnames.SystemBinaryBase58Encode,
 		"Base64Decode": interopnames.SystemBinaryBase64Decode,
 		"Base64Encode": interopnames.SystemBinaryBase64Encode,
 		"Deserialize":  interopnames.SystemBinaryDeserialize,
+		"Itoa":         interopnames.SystemBinaryItoa,
 		"Serialize":    interopnames.SystemBinarySerialize,
 	},
 	"blockchain": {
