@@ -14,6 +14,7 @@ import (
 	coreb "github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
 	"github.com/nspcc-dev/neo-go/pkg/core/mempool"
+	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
@@ -584,7 +585,13 @@ func (s *service) newBlockFromContext(ctx *dbft.Context) block.Block {
 	block.Block.Timestamp = ctx.Timestamp / nsInMs
 	block.Block.Index = ctx.BlockIndex
 
-	validators, err := s.Chain.GetValidators()
+	var validators keys.PublicKeys
+	var err error
+	if native.ShouldUpdateCommittee(ctx.BlockIndex, s.Chain) {
+		validators, err = s.Chain.GetValidators()
+	} else {
+		validators, err = s.Chain.GetNextBlockValidators()
+	}
 	if err != nil {
 		return nil
 	}
