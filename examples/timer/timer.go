@@ -1,6 +1,7 @@
 package timer
 
 import (
+	"github.com/nspcc-dev/neo-go/pkg/interop/binary"
 	"github.com/nspcc-dev/neo-go/pkg/interop/contract"
 	"github.com/nspcc-dev/neo-go/pkg/interop/engine"
 	"github.com/nspcc-dev/neo-go/pkg/interop/runtime"
@@ -31,7 +32,8 @@ func _deploy(isUpdate bool) {
 		return
 	}
 	storage.Put(ctx, ticksKey, defaultTicks)
-	runtime.Log("Timer set to " + itoa(defaultTicks) + " ticks.")
+	i := binary.Itoa(defaultTicks, 10)
+	runtime.Log("Timer set to " + i + " ticks.")
 }
 
 // Migrate migrates the contract.
@@ -55,7 +57,8 @@ func Tick() bool {
 		return engine.AppCall(runtime.GetExecutingScriptHash(), "selfDestroy").(bool)
 	}
 	storage.Put(ctx, ticksKey, ticksLeft)
-	runtime.Log(itoa(ticksLeft.(int)) + " ticks left.")
+	i := binary.Itoa(ticksLeft.(int), 10)
+	runtime.Log(i + " ticks left.")
 	return true
 }
 
@@ -68,29 +71,4 @@ func SelfDestroy() bool {
 	contract.Destroy()
 	runtime.Log("Destroyed.")
 	return true
-}
-
-// itoa converts int to string
-func itoa(i int) string {
-	digits := "0123456789"
-	var (
-		res        string
-		isNegative bool
-	)
-	if i < 0 {
-		i = -i
-		isNegative = true
-	}
-	for {
-		r := i % 10
-		res = digits[r:r+1] + res
-		i = i / 10
-		if i == 0 {
-			break
-		}
-	}
-	if isNegative {
-		res = "-" + res
-	}
-	return res
 }
