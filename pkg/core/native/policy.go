@@ -148,34 +148,6 @@ func (p *Policy) Metadata() *interop.ContractMD {
 
 // Initialize initializes Policy native contract and implements Contract interface.
 func (p *Policy) Initialize(ic *interop.Context) error {
-	si := &state.StorageItem{
-		Value: make([]byte, 4, 8),
-	}
-	binary.LittleEndian.PutUint32(si.Value, defaultMaxBlockSize)
-	err := ic.DAO.PutStorageItem(p.ContractID, maxBlockSizeKey, si)
-	if err != nil {
-		return err
-	}
-
-	binary.LittleEndian.PutUint32(si.Value, defaultMaxTransactionsPerBlock)
-	err = ic.DAO.PutStorageItem(p.ContractID, maxTransactionsPerBlockKey, si)
-	if err != nil {
-		return err
-	}
-
-	si.Value = si.Value[:8]
-	binary.LittleEndian.PutUint64(si.Value, defaultFeePerByte)
-	err = ic.DAO.PutStorageItem(p.ContractID, feePerByteKey, si)
-	if err != nil {
-		return err
-	}
-
-	binary.LittleEndian.PutUint64(si.Value, defaultMaxBlockSystemFee)
-	err = ic.DAO.PutStorageItem(p.ContractID, maxBlockSystemFeeKey, si)
-	if err != nil {
-		return err
-	}
-
 	p.isValid = true
 	p.maxTransactionsPerBlock = defaultMaxTransactionsPerBlock
 	p.maxBlockSize = defaultMaxBlockSize
@@ -200,18 +172,10 @@ func (p *Policy) OnPersistEnd(dao dao.DAO) error {
 	p.lock.Lock()
 	defer p.lock.Unlock()
 
-	maxTxPerBlock := p.getUint32WithKey(dao, maxTransactionsPerBlockKey)
-	p.maxTransactionsPerBlock = maxTxPerBlock
-
-	maxBlockSize := p.getUint32WithKey(dao, maxBlockSizeKey)
-	p.maxBlockSize = maxBlockSize
-
-	feePerByte := p.getInt64WithKey(dao, feePerByteKey)
-	p.feePerByte = feePerByte
-
-	maxBlockSystemFee := p.getInt64WithKey(dao, maxBlockSystemFeeKey)
-	p.maxBlockSystemFee = maxBlockSystemFee
-
+	p.maxTransactionsPerBlock = p.getUint32WithKey(dao, maxTransactionsPerBlockKey, defaultMaxTransactionsPerBlock)
+	p.maxBlockSize = p.getUint32WithKey(dao, maxBlockSizeKey, defaultMaxBlockSize)
+	p.feePerByte = p.getInt64WithKey(dao, feePerByteKey, defaultFeePerByte)
+	p.maxBlockSystemFee = p.getInt64WithKey(dao, maxBlockSystemFeeKey, defaultMaxBlockSystemFee)
 	p.maxVerificationGas = defaultMaxVerificationGas
 
 	p.blockedAccounts = make([]util.Uint160, 0)
@@ -248,7 +212,7 @@ func (p *Policy) GetMaxTransactionsPerBlockInternal(dao dao.DAO) uint32 {
 	if p.isValid {
 		return p.maxTransactionsPerBlock
 	}
-	return p.getUint32WithKey(dao, maxTransactionsPerBlockKey)
+	return p.getUint32WithKey(dao, maxTransactionsPerBlockKey, defaultMaxTransactionsPerBlock)
 }
 
 // getMaxBlockSize is Policy contract method and returns maximum block size.
@@ -263,7 +227,7 @@ func (p *Policy) GetMaxBlockSizeInternal(dao dao.DAO) uint32 {
 	if p.isValid {
 		return p.maxBlockSize
 	}
-	return p.getUint32WithKey(dao, maxBlockSizeKey)
+	return p.getUint32WithKey(dao, maxBlockSizeKey, defaultMaxBlockSize)
 }
 
 // getFeePerByte is Policy contract method and returns required transaction's fee
@@ -279,7 +243,7 @@ func (p *Policy) GetFeePerByteInternal(dao dao.DAO) int64 {
 	if p.isValid {
 		return p.feePerByte
 	}
-	return p.getInt64WithKey(dao, feePerByteKey)
+	return p.getInt64WithKey(dao, feePerByteKey, defaultFeePerByte)
 }
 
 // GetMaxVerificationGas returns maximum gas allowed to be burned during verificaion.
@@ -303,7 +267,7 @@ func (p *Policy) GetMaxBlockSystemFeeInternal(dao dao.DAO) int64 {
 	if p.isValid {
 		return p.maxBlockSystemFee
 	}
-	return p.getInt64WithKey(dao, maxBlockSystemFeeKey)
+	return p.getInt64WithKey(dao, maxBlockSystemFeeKey, defaultMaxBlockSystemFee)
 }
 
 // isBlocked is Policy contract method and checks whether provided account is blocked.
@@ -475,40 +439,36 @@ func (p *Policy) unblockAccount(ic *interop.Context, args []stackitem.Item) stac
 	return stackitem.NewBool(true)
 }
 
-func (p *Policy) getUint32WithKey(dao dao.DAO, key []byte) uint32 {
+func (p *Policy) getUint32WithKey(dao dao.DAO, key []byte, defaultValue uint32) uint32 {
 	si := dao.GetStorageItem(p.ContractID, key)
 	if si == nil {
-		return 0
+		return defaultValue
 	}
 	return binary.LittleEndian.Uint32(si.Value)
 }
 
 func (p *Policy) setUint32WithKey(dao dao.DAO, key []byte, value uint32) error {
-	si := dao.GetStorageItem(p.ContractID, key)
-	binary.LittleEndian.PutUint32(si.Value, value)
-	err := dao.PutStorageItem(p.ContractID, key, si)
-	if err != nil {
-		return err
+	si := &state.StorageItem{
+		Value: make([]byte, 4),
 	}
-	return nil
+	binary.LittleEndian.PutUint32(si.Value, value)
+	return dao.PutStorageItem(p.ContractID, key, si)
 }
 
-func (p *Policy) getInt64WithKey(dao dao.DAO, key []byte) int64 {
+func (p *Policy) getInt64WithKey(dao dao.DAO, key []byte, defaultValue int64) int64 {
 	si := dao.GetStorageItem(p.ContractID, key)
 	if si == nil {
-		return 0
+		return defaultValue
 	}
 	return int64(binary.LittleEndian.Uint64(si.Value))
 }
 
 func (p *Policy) setInt64WithKey(dao dao.DAO, key []byte, value int64) error {
-	si := dao.GetStorageItem(p.ContractID, key)
-	binary.LittleEndian.PutUint64(si.Value, uint64(value))
-	err := dao.PutStorageItem(p.ContractID, key, si)
-	if err != nil {
-		return err
+	si := &state.StorageItem{
+		Value: make([]byte, 8),
 	}
-	return nil
+	binary.LittleEndian.PutUint64(si.Value, uint64(value))
+	return dao.PutStorageItem(p.ContractID, key, si)
 }
 
 func (p *Policy) checkValidators(ic *interop.Context) (bool, error) {
