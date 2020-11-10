@@ -9,6 +9,7 @@ package core
 
 import (
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
+	"github.com/nspcc-dev/neo-go/pkg/core/interop/binary"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/callback"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/contract"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/crypto"
@@ -32,11 +33,13 @@ func SpawnVM(ic *interop.Context) *vm.VM {
 
 // All lists are sorted, keep 'em this way, please.
 var systemInterops = []interop.Function{
+	{Name: interopnames.SystemBinaryAtoi, Func: binary.Atoi, Price: 100000, ParamCount: 2},
 	{Name: interopnames.SystemBinaryBase58Decode, Func: runtimeDecodeBase58, Price: 100000, ParamCount: 1},
 	{Name: interopnames.SystemBinaryBase58Encode, Func: runtimeEncodeBase58, Price: 100000, ParamCount: 1},
 	{Name: interopnames.SystemBinaryBase64Decode, Func: runtimeDecodeBase64, Price: 100000, ParamCount: 1},
 	{Name: interopnames.SystemBinaryBase64Encode, Func: runtimeEncodeBase64, Price: 100000, ParamCount: 1},
 	{Name: interopnames.SystemBinaryDeserialize, Func: runtimeDeserialize, Price: 500000, ParamCount: 1},
+	{Name: interopnames.SystemBinaryItoa, Func: binary.Itoa, Price: 100000, ParamCount: 2},
 	{Name: interopnames.SystemBinarySerialize, Func: runtimeSerialize, Price: 100000, ParamCount: 1},
 	{Name: interopnames.SystemBlockchainGetBlock, Func: bcGetBlock, Price: 2500000,
 		RequiredFlags: smartcontract.AllowStates, ParamCount: 1},

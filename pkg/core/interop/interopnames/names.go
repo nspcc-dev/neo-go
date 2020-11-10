@@ -2,11 +2,13 @@ package interopnames
 
 // Names of all used interops.
 const (
+	SystemBinaryAtoi                         = "System.Binary.Atoi"
 	SystemBinaryBase58Decode                 = "System.Binary.Base58Decode"
 	SystemBinaryBase58Encode                 = "System.Binary.Base58Encode"
 	SystemBinaryBase64Decode                 = "System.Binary.Base64Decode"
 	SystemBinaryBase64Encode                 = "System.Binary.Base64Encode"
 	SystemBinaryDeserialize                  = "System.Binary.Deserialize"
+	SystemBinaryItoa                         = "System.Binary.Itoa"
 	SystemBinarySerialize                    = "System.Binary.Serialize"
 	SystemBlockchainGetBlock                 = "System.Blockchain.GetBlock"
 	SystemBlockchainGetContract              = "System.Blockchain.GetContract"
@@ -69,11 +71,13 @@ const (
 )
 
 var names = []string{
+	SystemBinaryAtoi,
 	SystemBinaryBase58Decode,
 	SystemBinaryBase58Encode,
 	SystemBinaryBase64Decode,
 	SystemBinaryBase64Encode,
 	SystemBinaryDeserialize,
+	SystemBinaryItoa,
 	SystemBinarySerialize,
 	SystemBlockchainGetBlock,
 	SystemBlockchainGetContract,

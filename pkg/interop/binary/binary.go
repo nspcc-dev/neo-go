@@ -40,3 +40,15 @@ func Base58Encode(b []byte) string {
 func Base58Decode(b []byte) []byte {
 	return nil
 }
+
+// Itoa converts num in a given base to string. Base should be either 10 or 16.
+// It uses `System.Binary.Itoa` syscall.
+func Itoa(num int, base int) string {
+	return ""
+}
+
+// Atoi converts string to a number in a given base. Base should be either 10 or 16.
+// It uses `System.Binary.Atoi` syscall.
+func Atoi(s string, base int) int {
+	return 0
+}
