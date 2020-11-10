@@ -25,6 +25,7 @@ func newApp() *cli.App {
 	ctl.Name = "neo-go"
 	ctl.Version = config.Version
 	ctl.Usage = "Official Go client for Neo"
+	ctl.ErrWriter = os.Stdout
 
 	ctl.Commands = append(ctl.Commands, server.NewCommands()...)
 	ctl.Commands = append(ctl.Commands, smartcontract.NewCommands()...)
