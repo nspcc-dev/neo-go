@@ -58,6 +58,7 @@ type rpcTestCase struct {
 
 const testContractHash = "b0fda4dd46b8e5d207e86e774a4a133c6db69ee7"
 const deploymentTxHash = "59f7b22b90e26f883a56b916c1580e3ee4f13caded686353cd77577e6194c173"
+const genesisBlockHash = "a496577895eb8c227bb866dc44f99f21c0cf06417ca8f2a877cc5d761a50dac0"
 
 const verifyContractHash = "c1213693b22cb0454a436d6e0bd76b8c0a3bfdf7"
 const verifyContractAVM = "570300412d51083021700c14aa8acf859d4fe402b34e673f2156821796a488ebdb30716813cedb2869db289740"
@@ -78,6 +79,43 @@ var rpcTestCases = map[string][]rpcTestCase{
 				assert.Equal(t, expectedTxHash, res.Container)
 				assert.Equal(t, trigger.Application, res.Executions[0].Trigger)
 				assert.Equal(t, vm.HaltState, res.Executions[0].VMState)
+			},
+		},
+		{
+			name:   "positive, genesis block",
+			params: `["` + genesisBlockHash + `"]`,
+			result: func(e *executor) interface{} { return &result.ApplicationLog{} },
+			check: func(t *testing.T, e *executor, acc interface{}) {
+				res, ok := acc.(*result.ApplicationLog)
+				require.True(t, ok)
+				assert.Equal(t, genesisBlockHash, res.Container.StringLE())
+				assert.Equal(t, 1, len(res.Executions))
+				assert.Equal(t, trigger.PostPersist, res.Executions[0].Trigger) // no onPersist for genesis block
+				assert.Equal(t, vm.HaltState, res.Executions[0].VMState)
+			},
+		},
+		{
+			name:   "positive, genesis block, postPersist",
+			params: `["` + genesisBlockHash + `", "PostPersist"]`,
+			result: func(e *executor) interface{} { return &result.ApplicationLog{} },
+			check: func(t *testing.T, e *executor, acc interface{}) {
+				res, ok := acc.(*result.ApplicationLog)
+				require.True(t, ok)
+				assert.Equal(t, genesisBlockHash, res.Container.StringLE())
+				assert.Equal(t, 1, len(res.Executions))
+				assert.Equal(t, trigger.PostPersist, res.Executions[0].Trigger) // no onPersist for genesis block
+				assert.Equal(t, vm.HaltState, res.Executions[0].VMState)
+			},
+		},
+		{
+			name:   "positive, genesis block, onPersist",
+			params: `["` + genesisBlockHash + `", "OnPersist"]`,
+			result: func(e *executor) interface{} { return &result.ApplicationLog{} },
+			check: func(t *testing.T, e *executor, acc interface{}) {
+				res, ok := acc.(*result.ApplicationLog)
+				require.True(t, ok)
+				assert.Equal(t, genesisBlockHash, res.Container.StringLE())
+				assert.Equal(t, 0, len(res.Executions)) // no onPersist for genesis block
 			},
 		},
 		{

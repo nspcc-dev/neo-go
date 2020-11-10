@@ -12,8 +12,9 @@ import (
 
 // ApplicationLog represent the results of the script executions for block or transaction.
 type ApplicationLog struct {
-	Container  util.Uint256
-	Executions []state.Execution
+	Container     util.Uint256
+	IsTransaction bool
+	Executions    []state.Execution
 }
 
 // applicationLogAux is an auxiliary struct for ApplicationLog JSON marshalling.
@@ -28,7 +29,7 @@ func (l ApplicationLog) MarshalJSON() ([]byte, error) {
 	result := &applicationLogAux{
 		Executions: make([]json.RawMessage, len(l.Executions)),
 	}
-	if l.Executions[0].Trigger == trigger.Application {
+	if l.IsTransaction {
 		result.TxHash = &l.Container
 	} else {
 		result.BlockHash = &l.Container
@@ -67,13 +68,17 @@ func (l *ApplicationLog) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// NewApplicationLog creates ApplicationLog from a set of several application execution results.
-func NewApplicationLog(hash util.Uint256, aers []state.AppExecResult) ApplicationLog {
+// NewApplicationLog creates ApplicationLog from a set of several application execution results
+// including only the results with the specified trigger.
+func NewApplicationLog(hash util.Uint256, aers []state.AppExecResult, trig trigger.Type) ApplicationLog {
 	result := ApplicationLog{
-		Container: hash,
+		Container:     hash,
+		IsTransaction: aers[0].Trigger == trigger.Application,
 	}
 	for _, aer := range aers {
-		result.Executions = append(result.Executions, aer.Execution)
+		if aer.Trigger&trig != 0 {
+			result.Executions = append(result.Executions, aer.Execution)
+		}
 	}
 	return result
 }

@@ -108,7 +108,7 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 		{
 			name: "positive",
 			invoke: func(c *Client) (interface{}, error) {
-				return c.GetApplicationLog(util.Uint256{})
+				return c.GetApplicationLog(util.Uint256{}, nil)
 			},
 			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"txid":"0x17145a039fca704fcdbeb46e6b210af98a1a9e5b9768e46ffc38f71c79ac2521","executions":[{"trigger":"Application","vmstate":"HALT","gasconsumed":"1","stack":[{"type":"Integer","value":"1"}],"notifications":[]}]}}`,
 			result: func(c *Client) interface{} {
@@ -973,7 +973,7 @@ var rpcClientErrorCases = map[string][]rpcClientErrorCase{
 		{
 			name: "getapplicationlog_invalid_params_error",
 			invoke: func(c *Client) (interface{}, error) {
-				return c.GetApplicationLog(util.Uint256{})
+				return c.GetApplicationLog(util.Uint256{}, nil)
 			},
 		},
 		{
@@ -1148,7 +1148,7 @@ var rpcClientErrorCases = map[string][]rpcClientErrorCase{
 		{
 			name: "getapplicationlog_unmarshalling_error",
 			invoke: func(c *Client) (interface{}, error) {
-				return c.GetApplicationLog(util.Uint256{})
+				return c.GetApplicationLog(util.Uint256{}, nil)
 			},
 		},
 		{

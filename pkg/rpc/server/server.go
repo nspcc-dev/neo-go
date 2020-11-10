@@ -527,11 +527,19 @@ func (s *Server) getApplicationLog(reqParams request.Params) (interface{}, *resp
 		return nil, response.ErrInvalidParams
 	}
 
+	trig := trigger.All
+	if len(reqParams) > 1 {
+		trig, err = trigger.FromString(reqParams.ValueWithType(1, request.StringT).String())
+		if err != nil {
+			return nil, response.ErrInvalidParams
+		}
+	}
+
 	appExecResults, err := s.chain.GetAppExecResults(hash, trigger.All)
 	if err != nil {
 		return nil, response.NewRPCError("Unknown transaction or block", "", err)
 	}
-	return result.NewApplicationLog(hash, appExecResults), nil
+	return result.NewApplicationLog(hash, appExecResults, trig), nil
 }
 
 func (s *Server) getNEP5Balances(ps request.Params) (interface{}, *response.Error) {
