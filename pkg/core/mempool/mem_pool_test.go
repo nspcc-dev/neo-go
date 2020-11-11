@@ -5,6 +5,7 @@ import (
 	"math/big"
 	"sort"
 	"testing"
+	"time"
 
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
@@ -16,8 +17,9 @@ import (
 )
 
 type FeerStub struct {
-	feePerByte int64
-	p2pSigExt  bool
+	feePerByte  int64
+	p2pSigExt   bool
+	blockHeight uint32
 }
 
 var balance = big.NewInt(10000000)
@@ -27,7 +29,7 @@ func (fs *FeerStub) FeePerByte() int64 {
 }
 
 func (fs *FeerStub) BlockHeight() uint32 {
-	return 0
+	return fs.blockHeight
 }
 
 func (fs *FeerStub) GetUtilityTokenBalance(uint160 util.Uint160) *big.Int {
@@ -57,6 +59,50 @@ func testMemPoolAddRemoveWithFeer(t *testing.T, fs Feer) {
 	// Make sure nothing left in the mempool after removal.
 	assert.Equal(t, 0, len(mp.verifiedMap))
 	assert.Equal(t, 0, len(mp.verifiedTxes))
+}
+
+func TestMemPoolRemoveStale(t *testing.T) {
+	mp := New(5)
+	txs := make([]*transaction.Transaction, 5)
+	for i := range txs {
+		txs[i] = transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
+		txs[i].Nonce = uint32(i)
+		txs[i].Signers = []transaction.Signer{{Account: util.Uint160{1, 2, 3}}}
+		require.NoError(t, mp.Add(txs[i], &FeerStub{blockHeight: uint32(i)}))
+	}
+
+	staleTxs := make(chan *transaction.Transaction, 5)
+	f := func(tx *transaction.Transaction) {
+		staleTxs <- tx
+	}
+	mp.SetResendThreshold(5, f)
+
+	isValid := func(tx *transaction.Transaction) bool {
+		return tx.Nonce%2 == 0
+	}
+
+	mp.RemoveStale(isValid, &FeerStub{blockHeight: 5}) // 0 + 5
+	require.Eventually(t, func() bool { return len(staleTxs) == 1 }, time.Second, time.Millisecond*100)
+	require.Equal(t, txs[0], <-staleTxs)
+
+	mp.RemoveStale(isValid, &FeerStub{blockHeight: 7}) // 2 + 5
+	require.Eventually(t, func() bool { return len(staleTxs) == 1 }, time.Second, time.Millisecond*100)
+	require.Equal(t, txs[2], <-staleTxs)
+
+	mp.RemoveStale(isValid, &FeerStub{blockHeight: 10}) // 0 + 2 * 5
+	require.Eventually(t, func() bool { return len(staleTxs) == 1 }, time.Second, time.Millisecond*100)
+	require.Equal(t, txs[0], <-staleTxs)
+
+	mp.RemoveStale(isValid, &FeerStub{blockHeight: 15}) // 0 + 3 * 5
+
+	// tx[2] should appear, so it is also checked that tx[0] wasn't sent on height 15.
+	mp.RemoveStale(isValid, &FeerStub{blockHeight: 22}) // 2 + 4 * 5
+	require.Eventually(t, func() bool { return len(staleTxs) == 1 }, time.Second, time.Millisecond*100)
+	require.Equal(t, txs[2], <-staleTxs)
+
+	// panic if something is sent after this.
+	close(staleTxs)
+	require.Len(t, staleTxs, 0)
 }
 
 func TestMemPoolAddRemove(t *testing.T) {

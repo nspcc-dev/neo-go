@@ -171,6 +171,7 @@ func (s *Server) Start(errChan chan error) {
 		zap.Uint32("headerHeight", s.chain.HeaderHeight()))
 
 	s.tryStartConsensus()
+	s.initStaleTxMemPool()
 
 	go s.broadcastTxLoop()
 	go s.relayBlocksLoop()
@@ -903,6 +904,18 @@ func (s *Server) broadcastTxHashes(hs []util.Uint256) {
 	// We need to filter out non-relaying nodes, so plain broadcast
 	// functions don't fit here.
 	s.iteratePeersWithSendMsg(msg, Peer.EnqueuePacket, Peer.IsFullNode)
+}
+
+// initStaleTxMemPool initializes mempool for stale tx processing.
+func (s *Server) initStaleTxMemPool() {
+	cfg := s.chain.GetConfig()
+	threshold := 5
+	if cfg.ValidatorsCount*2 > threshold {
+		threshold = cfg.ValidatorsCount * 2
+	}
+
+	mp := s.chain.GetMemPool()
+	mp.SetResendThreshold(uint32(threshold), s.broadcastTX)
 }
 
 // broadcastTxLoop is a loop for batching and sending
