@@ -2,6 +2,7 @@ package mempool
 
 import (
 	"errors"
+	"math/bits"
 	"sort"
 	"sync"
 
@@ -47,6 +48,9 @@ type Pool struct {
 	verifiedTxes items
 	inputs       []*transaction.Input
 	claims       []*transaction.Input
+
+	resendThreshold uint32
+	resendFunc      func(*transaction.Transaction)
 
 	capacity int
 }
@@ -257,13 +261,14 @@ func (mp *Pool) Remove(hash util.Uint256) {
 // RemoveStale filters verified transactions through the given function keeping
 // only the transactions for which it returns a true result. It's used to quickly
 // drop part of the mempool that is now invalid after the block acceptance.
-func (mp *Pool) RemoveStale(isOK func(*transaction.Transaction) bool) {
+func (mp *Pool) RemoveStale(isOK func(*transaction.Transaction) bool, height uint32) {
 	mp.lock.Lock()
 	// We can reuse already allocated slice
 	// because items are iterated one-by-one in increasing order.
 	newVerifiedTxes := mp.verifiedTxes[:0]
 	newInputs := mp.inputs[:0]
 	newClaims := mp.claims[:0]
+	var staleTxs []*transaction.Transaction
 	for _, itm := range mp.verifiedTxes {
 		if isOK(itm.txn) {
 			newVerifiedTxes = append(newVerifiedTxes, itm)
@@ -276,9 +281,20 @@ func (mp *Pool) RemoveStale(isOK func(*transaction.Transaction) bool) {
 					newClaims = append(newClaims, &claim.Claims[i])
 				}
 			}
+			if mp.resendThreshold != 0 {
+				// tx is resend at resendThreshold, 2*resendThreshold, 4*resendThreshold ...
+				// so quotient must be a power of two.
+				diff := (height - itm.blockStamp)
+				if diff%mp.resendThreshold == 0 && bits.OnesCount32(diff/mp.resendThreshold) == 1 {
+					staleTxs = append(staleTxs, itm.txn)
+				}
+			}
 		} else {
 			delete(mp.verifiedMap, itm.txn.Hash())
 		}
+	}
+	if len(staleTxs) != 0 {
+		go mp.resendStaleTxs(staleTxs)
 	}
 	sort.Slice(newInputs, func(i, j int) bool {
 		return newInputs[i].Cmp(newInputs[j]) < 0
@@ -298,6 +314,21 @@ func NewMemPool(capacity int) Pool {
 		verifiedMap:  make(map[util.Uint256]*item),
 		verifiedTxes: make([]*item, 0, capacity),
 		capacity:     capacity,
+	}
+}
+
+// SetResendThreshold sets threshold after which transaction will be considered stale
+// and returned for retransmission by `GetStaleTransactions`.
+func (mp *Pool) SetResendThreshold(h uint32, f func(*transaction.Transaction)) {
+	mp.lock.Lock()
+	defer mp.lock.Unlock()
+	mp.resendThreshold = h
+	mp.resendFunc = f
+}
+
+func (mp *Pool) resendStaleTxs(txs []*transaction.Transaction) {
+	for i := range txs {
+		mp.resendFunc(txs[i])
 	}
 }
 
