@@ -11,6 +11,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/internal/random"
 	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/stretchr/testify/require"
@@ -82,15 +83,18 @@ func TestPutGetAppExecResult(t *testing.T) {
 	dao := NewSimple(storage.NewMemoryStore(), netmode.UnitTestNet)
 	hash := random.Uint256()
 	appExecResult := &state.AppExecResult{
-		TxHash: hash,
-		Events: []state.NotificationEvent{},
-		Stack:  []stackitem.Item{},
+		Container: hash,
+		Execution: state.Execution{
+			Trigger: trigger.Application,
+			Events:  []state.NotificationEvent{},
+			Stack:   []stackitem.Item{},
+		},
 	}
-	err := dao.PutAppExecResult(appExecResult, nil)
+	err := dao.AppendAppExecResult(appExecResult, nil)
 	require.NoError(t, err)
-	gotAppExecResult, err := dao.GetAppExecResult(hash)
+	gotAppExecResult, err := dao.GetAppExecResults(hash, trigger.All)
 	require.NoError(t, err)
-	require.Equal(t, appExecResult, gotAppExecResult)
+	require.Equal(t, []state.AppExecResult{*appExecResult}, gotAppExecResult)
 }
 
 func TestPutGetStorageItem(t *testing.T) {

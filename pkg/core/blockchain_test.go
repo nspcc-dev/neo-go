@@ -253,9 +253,10 @@ func TestVerifyTx(t *testing.T) {
 	b := bc.newBlock(txMove)
 	require.NoError(t, bc.AddBlock(b))
 
-	aer, err := bc.GetAppExecResult(txMove.Hash())
+	aer, err := bc.GetAppExecResults(txMove.Hash(), trigger.Application)
 	require.NoError(t, err)
-	require.Equal(t, aer.VMState, vm.HaltState)
+	require.Equal(t, 1, len(aer))
+	require.Equal(t, aer[0].VMState, vm.HaltState)
 
 	res, err := invokeNativePolicyMethod(bc, "blockAccount", accs[1].PrivateKey().GetScriptHash().BytesBE())
 	require.NoError(t, err)
@@ -911,9 +912,9 @@ func TestSubscriptions(t *testing.T) {
 	assert.Empty(t, blockCh)
 
 	aer := <-executionCh
-	assert.Equal(t, b.Hash(), aer.TxHash)
+	assert.Equal(t, b.Hash(), aer.Container)
 	aer = <-executionCh
-	assert.Equal(t, b.Hash(), aer.TxHash)
+	assert.Equal(t, b.Hash(), aer.Container)
 
 	notif := <-notificationCh
 	require.Equal(t, bc.UtilityTokenHash(), notif.ScriptHash)
@@ -963,7 +964,7 @@ func TestSubscriptions(t *testing.T) {
 	assert.Empty(t, blockCh)
 
 	exec := <-executionCh
-	require.Equal(t, b.Hash(), exec.TxHash)
+	require.Equal(t, b.Hash(), exec.Container)
 	require.Equal(t, exec.VMState, vm.HaltState)
 
 	// 3 burn events for every tx and 1 mint for primary node
@@ -978,7 +979,7 @@ func TestSubscriptions(t *testing.T) {
 		tx := <-txCh
 		require.Equal(t, txExpected, tx)
 		exec := <-executionCh
-		require.Equal(t, tx.Hash(), exec.TxHash)
+		require.Equal(t, tx.Hash(), exec.Container)
 		if exec.VMState == vm.HaltState {
 			notif := <-notificationCh
 			require.Equal(t, hash.Hash160(tx.Script), notif.ScriptHash)
@@ -992,7 +993,7 @@ func TestSubscriptions(t *testing.T) {
 	require.Equal(t, bc.UtilityTokenHash(), notif.ScriptHash)
 
 	exec = <-executionCh
-	require.Equal(t, b.Hash(), exec.TxHash)
+	require.Equal(t, b.Hash(), exec.Container)
 	require.Equal(t, exec.VMState, vm.HaltState)
 
 	bc.UnsubscribeFromBlocks(blockCh)

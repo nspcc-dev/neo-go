@@ -28,9 +28,10 @@ func setSigner(tx *transaction.Transaction, h util.Uint160) {
 }
 
 func checkTxHalt(t *testing.T, bc *Blockchain, h util.Uint256) {
-	aer, err := bc.GetAppExecResult(h)
+	aer, err := bc.GetAppExecResults(h, trigger.Application)
 	require.NoError(t, err)
-	require.Equal(t, vm.HaltState, aer.VMState, aer.FaultException)
+	require.Equal(t, 1, len(aer))
+	require.Equal(t, vm.HaltState, aer[0].VMState, aer[0].FaultException)
 }
 
 func TestNEO_Vote(t *testing.T) {

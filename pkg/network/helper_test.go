@@ -18,6 +18,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/network/capability"
 	"github.com/nspcc-dev/neo-go/pkg/network/payload"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"go.uber.org/zap/zaptest"
@@ -74,7 +75,7 @@ func (chain *testChain) Close() {
 func (chain testChain) HeaderHeight() uint32 {
 	return 0
 }
-func (chain testChain) GetAppExecResult(hash util.Uint256) (*state.AppExecResult, error) {
+func (chain testChain) GetAppExecResults(hash util.Uint256, trig trigger.Type) ([]state.AppExecResult, error) {
 	panic("TODO")
 }
 func (chain testChain) GetBlock(hash util.Uint256) (*block.Block, error) {

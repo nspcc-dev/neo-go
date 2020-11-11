@@ -30,6 +30,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"go.uber.org/zap"
 )
@@ -526,12 +527,11 @@ func (s *Server) getApplicationLog(reqParams request.Params) (interface{}, *resp
 		return nil, response.ErrInvalidParams
 	}
 
-	appExecResult, err := s.chain.GetAppExecResult(hash)
+	appExecResults, err := s.chain.GetAppExecResults(hash, trigger.All)
 	if err != nil {
 		return nil, response.NewRPCError("Unknown transaction or block", "", err)
 	}
-
-	return appExecResult, nil
+	return result.NewApplicationLog(hash, appExecResults), nil
 }
 
 func (s *Server) getNEP5Balances(ps request.Params) (interface{}, *response.Error) {
@@ -852,11 +852,14 @@ func (s *Server) getrawtransaction(reqParams request.Params) (interface{}, *resp
 		if err != nil {
 			return nil, response.NewInvalidParamsError(err.Error(), err)
 		}
-		st, err := s.chain.GetAppExecResult(txHash)
+		aers, err := s.chain.GetAppExecResults(txHash, trigger.Application)
 		if err != nil {
 			return nil, response.NewRPCError("Unknown transaction", err.Error(), err)
 		}
-		results = result.NewTransactionOutputRaw(tx, header, st, s.chain)
+		if len(aers) == 0 {
+			return nil, response.NewRPCError("Unknown transaction", "", nil)
+		}
+		results = result.NewTransactionOutputRaw(tx, header, &aers[0], s.chain)
 	} else {
 		results = tx.Bytes()
 	}

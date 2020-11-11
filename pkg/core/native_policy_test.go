@@ -12,6 +12,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/internal/random"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/network/payload"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
@@ -240,11 +241,11 @@ func invokeNativePolicyMethod(chain *Blockchain, method string, args ...interfac
 		return nil, err
 	}
 
-	res, err := chain.GetAppExecResult(tx.Hash())
+	res, err := chain.GetAppExecResults(tx.Hash(), trigger.Application)
 	if err != nil {
 		return nil, err
 	}
-	return res, nil
+	return &res[0], nil
 }
 
 func checkResult(t *testing.T, result *state.AppExecResult, expected stackitem.Item) {

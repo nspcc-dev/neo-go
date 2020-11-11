@@ -53,12 +53,13 @@ func (bc *Blockchain) setNodesByRole(t *testing.T, ok bool, r native.Role, nodes
 	})
 	require.NoError(t, bc.AddBlock(bc.newBlock(tx)))
 
-	aer, err := bc.GetAppExecResult(tx.Hash())
+	aer, err := bc.GetAppExecResults(tx.Hash(), trigger.Application)
 	require.NoError(t, err)
+	require.Equal(t, 1, len(aer))
 	if ok {
-		require.Equal(t, vm.HaltState, aer.VMState)
+		require.Equal(t, vm.HaltState, aer[0].VMState)
 	} else {
-		require.Equal(t, vm.FaultState, aer.VMState)
+		require.Equal(t, vm.FaultState, aer[0].VMState)
 	}
 }
 
@@ -79,17 +80,18 @@ func (bc *Blockchain) getNodesByRole(t *testing.T, ok bool, r native.Role, index
 	require.NoError(t, signTx(bc, tx))
 	require.NoError(t, bc.AddBlock(bc.newBlock(tx)))
 
-	aer, err := bc.GetAppExecResult(tx.Hash())
+	aer, err := bc.GetAppExecResults(tx.Hash(), trigger.Application)
 	require.NoError(t, err)
+	require.Equal(t, 1, len(aer))
 	if ok {
-		require.Equal(t, vm.HaltState, aer.VMState)
-		require.Equal(t, 1, len(aer.Stack))
-		arrItem := aer.Stack[0]
+		require.Equal(t, vm.HaltState, aer[0].VMState)
+		require.Equal(t, 1, len(aer[0].Stack))
+		arrItem := aer[0].Stack[0]
 		require.Equal(t, stackitem.ArrayT, arrItem.Type())
 		arr := arrItem.(*stackitem.Array)
 		require.Equal(t, resLen, arr.Len())
 	} else {
-		require.Equal(t, vm.FaultState, aer.VMState)
+		require.Equal(t, vm.FaultState, aer[0].VMState)
 	}
 }
 

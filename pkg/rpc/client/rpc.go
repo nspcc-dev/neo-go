@@ -25,10 +25,10 @@ import (
 var errNetworkNotInitialized = errors.New("RPC client network is not initialized")
 
 // GetApplicationLog returns the contract log based on the specified txid.
-func (c *Client) GetApplicationLog(hash util.Uint256) (*state.AppExecResult, error) {
+func (c *Client) GetApplicationLog(hash util.Uint256) (*result.ApplicationLog, error) {
 	var (
 		params = request.NewRawParams(hash.StringLE())
-		resp   = new(state.AppExecResult)
+		resp   = new(result.ApplicationLog)
 	)
 	if err := c.performRequest("getapplicationlog", params, resp); err != nil {
 		return nil, err

@@ -19,6 +19,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/network"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/server"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/stretchr/testify/require"
@@ -197,9 +198,10 @@ func (e *executor) checkTxPersisted(t *testing.T, prefix ...string) (*transactio
 	require.NoError(t, err, "can't decode tx hash: %s", line)
 
 	tx, height := e.GetTransaction(t, h)
-	aer, err := e.Chain.GetAppExecResult(tx.Hash())
+	aer, err := e.Chain.GetAppExecResults(tx.Hash(), trigger.Application)
 	require.NoError(t, err)
-	require.Equal(t, vm.HaltState, aer.VMState)
+	require.Equal(t, 1, len(aer))
+	require.Equal(t, vm.HaltState, aer[0].VMState)
 	return tx, height
 }
 

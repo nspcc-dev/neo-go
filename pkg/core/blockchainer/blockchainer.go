@@ -10,6 +10,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 )
@@ -38,7 +39,7 @@ type Blockchainer interface {
 	CurrentBlockHash() util.Uint256
 	HasBlock(util.Uint256) bool
 	HasTransaction(util.Uint256) bool
-	GetAppExecResult(util.Uint256) (*state.AppExecResult, error)
+	GetAppExecResults(util.Uint256, trigger.Type) ([]state.AppExecResult, error)
 	GetNativeContractScriptHash(string) (util.Uint160, error)
 	GetNextBlockValidators() ([]*keys.PublicKey, error)
 	GetNEP5Balances(util.Uint160) *state.NEP5Balances
