@@ -438,7 +438,7 @@ func (c *Client) invokeSomething(method string, p request.RawParams, signers []t
 // been broadcasted to the network.
 func (c *Client) SendRawTransaction(rawTX *transaction.Transaction) (util.Uint256, error) {
 	var (
-		params = request.NewRawParams(hex.EncodeToString(rawTX.Bytes()))
+		params = request.NewRawParams(rawTX.Bytes())
 		resp   = new(result.RelayResult)
 	)
 	if err := c.performRequest("sendrawtransaction", params, resp); err != nil {
@@ -458,7 +458,7 @@ func (c *Client) SubmitBlock(b block.Block) (util.Uint256, error) {
 	if err := buf.Err; err != nil {
 		return util.Uint256{}, err
 	}
-	params = request.NewRawParams(hex.EncodeToString(buf.Bytes()))
+	params = request.NewRawParams(buf.Bytes())
 
 	if err := c.performRequest("submitblock", params, resp); err != nil {
 		return util.Uint256{}, err
