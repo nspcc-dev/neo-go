@@ -1,6 +1,9 @@
 package trigger
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 //go:generate stringer -type=Type -output=trigger_type_string.go
 
@@ -40,8 +43,9 @@ const (
 // FromString converts string to trigger Type
 func FromString(str string) (Type, error) {
 	triggers := []Type{OnPersist, PostPersist, Verification, Application, All}
+	str = strings.ToLower(str)
 	for _, t := range triggers {
-		if t.String() == str {
+		if strings.ToLower(t.String()) == str {
 			return t, nil
 		}
 	}
