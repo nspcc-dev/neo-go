@@ -18,6 +18,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 )
@@ -25,11 +26,14 @@ import (
 var errNetworkNotInitialized = errors.New("RPC client network is not initialized")
 
 // GetApplicationLog returns the contract log based on the specified txid.
-func (c *Client) GetApplicationLog(hash util.Uint256) (*state.AppExecResult, error) {
+func (c *Client) GetApplicationLog(hash util.Uint256, trig *trigger.Type) (*result.ApplicationLog, error) {
 	var (
 		params = request.NewRawParams(hash.StringLE())
-		resp   = new(state.AppExecResult)
+		resp   = new(result.ApplicationLog)
 	)
+	if trig != nil {
+		params.Values = append(params.Values, trig.String())
+	}
 	if err := c.performRequest("getapplicationlog", params, resp); err != nil {
 		return nil, err
 	}

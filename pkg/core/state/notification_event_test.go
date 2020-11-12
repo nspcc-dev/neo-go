@@ -7,7 +7,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/internal/random"
 	"github.com/nspcc-dev/neo-go/pkg/internal/testserdes"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
-	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/stretchr/testify/require"
@@ -26,25 +25,29 @@ func TestEncodeDecodeNotificationEvent(t *testing.T) {
 func TestEncodeDecodeAppExecResult(t *testing.T) {
 	t.Run("halt", func(t *testing.T) {
 		appExecResult := &AppExecResult{
-			TxHash:      random.Uint256(),
-			Trigger:     1,
-			VMState:     vm.HaltState,
-			GasConsumed: 10,
-			Stack:       []stackitem.Item{},
-			Events:      []NotificationEvent{},
+			Container: random.Uint256(),
+			Execution: Execution{
+				Trigger:     1,
+				VMState:     vm.HaltState,
+				GasConsumed: 10,
+				Stack:       []stackitem.Item{},
+				Events:      []NotificationEvent{},
+			},
 		}
 
 		testserdes.EncodeDecodeBinary(t, appExecResult, new(AppExecResult))
 	})
 	t.Run("fault", func(t *testing.T) {
 		appExecResult := &AppExecResult{
-			TxHash:         random.Uint256(),
-			Trigger:        1,
-			VMState:        vm.FaultState,
-			GasConsumed:    10,
-			Stack:          []stackitem.Item{},
-			Events:         []NotificationEvent{},
-			FaultException: "unhandled error",
+			Container: random.Uint256(),
+			Execution: Execution{
+				Trigger:        1,
+				VMState:        vm.FaultState,
+				GasConsumed:    10,
+				Stack:          []stackitem.Item{},
+				Events:         []NotificationEvent{},
+				FaultException: "unhandled error",
+			},
 		}
 
 		testserdes.EncodeDecodeBinary(t, appExecResult, new(AppExecResult))
@@ -91,51 +94,44 @@ func TestMarshalUnmarshalJSONNotificationEvent(t *testing.T) {
 func TestMarshalUnmarshalJSONAppExecResult(t *testing.T) {
 	t.Run("positive, transaction", func(t *testing.T) {
 		appExecResult := &AppExecResult{
-			TxHash:      random.Uint256(),
-			Trigger:     trigger.Application,
-			VMState:     vm.HaltState,
-			GasConsumed: 10,
-			Stack:       []stackitem.Item{},
-			Events:      []NotificationEvent{},
+			Container: random.Uint256(),
+			Execution: Execution{
+				Trigger:     trigger.Application,
+				VMState:     vm.HaltState,
+				GasConsumed: 10,
+				Stack:       []stackitem.Item{},
+				Events:      []NotificationEvent{},
+			},
 		}
 		testserdes.MarshalUnmarshalJSON(t, appExecResult, new(AppExecResult))
 	})
 
 	t.Run("positive, fault state", func(t *testing.T) {
 		appExecResult := &AppExecResult{
-			TxHash:         random.Uint256(),
-			Trigger:        trigger.Application,
-			VMState:        vm.FaultState,
-			GasConsumed:    10,
-			Stack:          []stackitem.Item{},
-			Events:         []NotificationEvent{},
-			FaultException: "unhandled exception",
+			Container: random.Uint256(),
+			Execution: Execution{
+				Trigger:        trigger.Application,
+				VMState:        vm.FaultState,
+				GasConsumed:    10,
+				Stack:          []stackitem.Item{},
+				Events:         []NotificationEvent{},
+				FaultException: "unhandled exception",
+			},
 		}
 		testserdes.MarshalUnmarshalJSON(t, appExecResult, new(AppExecResult))
 	})
 	t.Run("positive, block", func(t *testing.T) {
 		appExecResult := &AppExecResult{
-			TxHash:      random.Uint256(),
-			Trigger:     trigger.OnPersist,
-			VMState:     vm.HaltState,
-			GasConsumed: 10,
-			Stack:       []stackitem.Item{},
-			Events:      []NotificationEvent{},
+			Container: random.Uint256(),
+			Execution: Execution{
+				Trigger:     trigger.OnPersist,
+				VMState:     vm.HaltState,
+				GasConsumed: 10,
+				Stack:       []stackitem.Item{},
+				Events:      []NotificationEvent{},
+			},
 		}
-		data, err := json.Marshal(appExecResult)
-		require.NoError(t, err)
-		actual := new(AppExecResult)
-		require.NoError(t, json.Unmarshal(data, actual))
-		expected := &AppExecResult{
-			// we have no way to restore block hash as it was not marshalled
-			TxHash:      util.Uint256{},
-			Trigger:     appExecResult.Trigger,
-			VMState:     appExecResult.VMState,
-			GasConsumed: appExecResult.GasConsumed,
-			Stack:       appExecResult.Stack,
-			Events:      appExecResult.Events,
-		}
-		require.Equal(t, expected, actual)
+		testserdes.MarshalUnmarshalJSON(t, appExecResult, new(AppExecResult))
 	})
 
 	t.Run("MarshalJSON recursive reference", func(t *testing.T) {
@@ -144,7 +140,9 @@ func TestMarshalUnmarshalJSONAppExecResult(t *testing.T) {
 		i[0] = recursive
 		errorCases := []*AppExecResult{
 			{
-				Stack: i,
+				Execution: Execution{
+					Stack: i,
+				},
 			},
 		}
 		for _, errCase := range errorCases {
@@ -155,7 +153,7 @@ func TestMarshalUnmarshalJSONAppExecResult(t *testing.T) {
 
 	t.Run("UnmarshalJSON error", func(t *testing.T) {
 		nilStackCases := []string{
-			`{"txid":"0x17145a039fca704fcdbeb46e6b210af98a1a9e5b9768e46ffc38f71c79ac2521","trigger":"Application","vmstate":"HALT","gasconsumed":"1","stack":[{"type":"WrongType","value":"1"}],"notifications":[]}`,
+			`{"container":"0x17145a039fca704fcdbeb46e6b210af98a1a9e5b9768e46ffc38f71c79ac2521","trigger":"Application","vmstate":"HALT","gasconsumed":"1","stack":[{"type":"WrongType","value":"1"}],"notifications":[]}`,
 		}
 		for _, str := range nilStackCases {
 			actual := new(AppExecResult)
@@ -165,9 +163,9 @@ func TestMarshalUnmarshalJSONAppExecResult(t *testing.T) {
 		}
 
 		errorCases := []string{
-			`{"txid":"0xBadHash","trigger":"Application","vmstate":"HALT","gasconsumed":"1","stack":[{"type":"Integer","value":"1"}],"notifications":[]}`,
-			`{"txid":"0x17145a039fca704fcdbeb46e6b210af98a1a9e5b9768e46ffc38f71c79ac2521","trigger":"Application","vmstate":"BadState","gasconsumed":"1","stack":[{"type":"Integer","value":"1"}],"notifications":[]}`,
-			`{"txid":"0x17145a039fca704fcdbeb46e6b210af98a1a9e5b9768e46ffc38f71c79ac2521","trigger":"BadTrigger","vmstate":"HALT","gasconsumed":"1","stack":[{"type":"Integer","value":"1"}],"notifications":[]}`,
+			`{"container":"0xBadHash","trigger":"Application","vmstate":"HALT","gasconsumed":"1","stack":[{"type":"Integer","value":"1"}],"notifications":[]}`,
+			`{"container":"0x17145a039fca704fcdbeb46e6b210af98a1a9e5b9768e46ffc38f71c79ac2521","trigger":"Application","vmstate":"BadState","gasconsumed":"1","stack":[{"type":"Integer","value":"1"}],"notifications":[]}`,
+			`{"container":"0x17145a039fca704fcdbeb46e6b210af98a1a9e5b9768e46ffc38f71c79ac2521","trigger":"BadTrigger","vmstate":"HALT","gasconsumed":"1","stack":[{"type":"Integer","value":"1"}],"notifications":[]}`,
 		}
 		for _, str := range errorCases {
 			actual := new(AppExecResult)

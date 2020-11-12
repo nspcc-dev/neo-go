@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	iocore "io"
 	"sort"
 
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
@@ -14,6 +15,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 )
 
@@ -28,11 +30,12 @@ var (
 
 // DAO is a data access object.
 type DAO interface {
+	AppendAppExecResult(aer *state.AppExecResult, buf *io.BufBinWriter) error
 	AppendNEP5Transfer(acc util.Uint160, index uint32, tr *state.NEP5Transfer) (bool, error)
 	DeleteContractState(hash util.Uint160) error
 	DeleteStorageItem(id int32, key []byte) error
 	GetAndDecode(entity io.Serializable, key []byte) error
-	GetAppExecResult(hash util.Uint256) (*state.AppExecResult, error)
+	GetAppExecResults(hash util.Uint256, trig trigger.Type) ([]state.AppExecResult, error)
 	GetBatch() *storage.MemBatch
 	GetBlock(hash util.Uint256) (*block.Block, error)
 	GetContractState(hash util.Uint160) (*state.Contract, error)
@@ -266,22 +269,59 @@ func (dao *Simple) AppendNEP5Transfer(acc util.Uint160, index uint32, tr *state.
 
 // -- start notification event.
 
-// GetAppExecResult gets application execution result from the
+// GetAppExecResults gets application execution results with the specified trigger from the
 // given store.
-func (dao *Simple) GetAppExecResult(hash util.Uint256) (*state.AppExecResult, error) {
-	aer := &state.AppExecResult{}
+func (dao *Simple) GetAppExecResults(hash util.Uint256, trig trigger.Type) ([]state.AppExecResult, error) {
 	key := storage.AppendPrefix(storage.STNotification, hash.BytesBE())
-	err := dao.GetAndDecode(aer, key)
+	aers, err := dao.Store.Get(key)
 	if err != nil {
 		return nil, err
 	}
-	return aer, nil
+	r := io.NewBinReaderFromBuf(aers)
+	result := make([]state.AppExecResult, 0, 2)
+	for {
+		aer := new(state.AppExecResult)
+		aer.DecodeBinary(r)
+		if r.Err != nil {
+			if r.Err == iocore.EOF {
+				break
+			}
+			return nil, r.Err
+		}
+		if aer.Trigger&trig != 0 {
+			result = append(result, *aer)
+		}
+	}
+	return result, nil
+}
+
+// AppendAppExecResult appends given application execution result to the existing
+// set of execution results for the corresponding hash. It can reuse given buffer
+// for the purpose of value serialization.
+func (dao *Simple) AppendAppExecResult(aer *state.AppExecResult, buf *io.BufBinWriter) error {
+	key := storage.AppendPrefix(storage.STNotification, aer.Container.BytesBE())
+	aers, err := dao.Store.Get(key)
+	if err != nil && err != storage.ErrKeyNotFound {
+		return err
+	}
+	if len(aers) == 0 {
+		return dao.PutAppExecResult(aer, buf)
+	}
+	if buf == nil {
+		buf = io.NewBufBinWriter()
+	}
+	aer.EncodeBinary(buf.BinWriter)
+	if buf.Err != nil {
+		return buf.Err
+	}
+	aers = append(aers, buf.Bytes()...)
+	return dao.Store.Put(key, aers)
 }
 
 // PutAppExecResult puts given application execution result into the
 // given store. It can reuse given buffer for the purpose of value serialization.
 func (dao *Simple) PutAppExecResult(aer *state.AppExecResult, buf *io.BufBinWriter) error {
-	key := storage.AppendPrefix(storage.STNotification, aer.TxHash.BytesBE())
+	key := storage.AppendPrefix(storage.STNotification, aer.Container.BytesBE())
 	if buf == nil {
 		return dao.Put(aer, key)
 	}

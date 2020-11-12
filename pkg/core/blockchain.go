@@ -349,7 +349,7 @@ func (bc *Blockchain) notificationDispatcher() {
 			// subscribers.
 			if len(txFeed) != 0 || len(notificationFeed) != 0 || len(executionFeed) != 0 {
 				aer := event.appExecResults[0]
-				if !aer.TxHash.Equals(event.block.Hash()) {
+				if !aer.Container.Equals(event.block.Hash()) {
 					panic("inconsistent application execution results")
 				}
 				for ch := range executionFeed {
@@ -364,7 +364,7 @@ func (bc *Blockchain) notificationDispatcher() {
 				aerIdx := 1
 				for _, tx := range event.block.Transactions {
 					aer := event.appExecResults[aerIdx]
-					if !aer.TxHash.Equals(tx.Hash()) {
+					if !aer.Container.Equals(tx.Hash()) {
 						panic("inconsistent application execution results")
 					}
 					aerIdx++
@@ -384,7 +384,7 @@ func (bc *Blockchain) notificationDispatcher() {
 				}
 
 				aer = event.appExecResults[aerIdx]
-				if !aer.TxHash.Equals(event.block.Hash()) {
+				if !aer.Container.Equals(event.block.Hash()) {
 					panic("inconsistent application execution results")
 				}
 				for ch := range executionFeed {
@@ -612,13 +612,15 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 			faultException = err.Error()
 		}
 		aer := &state.AppExecResult{
-			TxHash:         tx.Hash(),
-			Trigger:        trigger.Application,
-			VMState:        v.State(),
-			GasConsumed:    v.GasConsumed(),
-			Stack:          v.Estack().ToArray(),
-			Events:         systemInterop.Notifications,
-			FaultException: faultException,
+			Container: tx.Hash(),
+			Execution: state.Execution{
+				Trigger:        trigger.Application,
+				VMState:        v.State(),
+				GasConsumed:    v.GasConsumed(),
+				Stack:          v.Estack().ToArray(),
+				Events:         systemInterop.Notifications,
+				FaultException: faultException,
+			},
 		}
 		appExecResults = append(appExecResults, aer)
 		err = cache.PutAppExecResult(aer, writeBuf)
@@ -645,7 +647,7 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 		return fmt.Errorf("postPersist failed: %w", err)
 	}
 	appExecResults = append(appExecResults, aer)
-	err = cache.PutAppExecResult(aer, writeBuf)
+	err = cache.AppendAppExecResult(aer, writeBuf)
 	if err != nil {
 		return fmt.Errorf("failed to store postPersist exec result: %w", err)
 	}
@@ -723,12 +725,14 @@ func (bc *Blockchain) runPersist(script []byte, block *block.Block, cache *dao.C
 		bc.handleNotification(&systemInterop.Notifications[i], cache, block, block.Hash())
 	}
 	return &state.AppExecResult{
-		TxHash:      block.Hash(), // application logs can be retrieved by block hash
-		Trigger:     trig,
-		VMState:     v.State(),
-		GasConsumed: v.GasConsumed(),
-		Stack:       v.Estack().ToArray(),
-		Events:      systemInterop.Notifications,
+		Container: block.Hash(), // application logs can be retrieved by block hash
+		Execution: state.Execution{
+			Trigger:     trig,
+			VMState:     v.State(),
+			GasConsumed: v.GasConsumed(),
+			Stack:       v.Estack().ToArray(),
+			Events:      systemInterop.Notifications,
+		},
 	}, nil
 }
 
@@ -946,10 +950,10 @@ func (bc *Blockchain) GetTransaction(hash util.Uint256) (*transaction.Transactio
 	return bc.dao.GetTransaction(hash)
 }
 
-// GetAppExecResult returns application execution result by the given
+// GetAppExecResults returns application execution results with the specified trigger by the given
 // tx hash or block hash.
-func (bc *Blockchain) GetAppExecResult(hash util.Uint256) (*state.AppExecResult, error) {
-	return bc.dao.GetAppExecResult(hash)
+func (bc *Blockchain) GetAppExecResults(hash util.Uint256, trig trigger.Type) ([]state.AppExecResult, error) {
+	return bc.dao.GetAppExecResults(hash, trig)
 }
 
 // GetStorageItem returns an item from storage.

@@ -191,15 +191,17 @@ func TestNativeContract_Invoke(t *testing.T) {
 	b := chain.newBlock(tx, tx2)
 	require.NoError(t, chain.AddBlock(b))
 
-	res, err := chain.GetAppExecResult(tx.Hash())
+	res, err := chain.GetAppExecResults(tx.Hash(), trigger.Application)
 	require.NoError(t, err)
-	require.Equal(t, vm.HaltState, res.VMState)
-	require.Equal(t, 1, len(res.Stack))
-	require.Equal(t, big.NewInt(42), res.Stack[0].Value())
+	require.Equal(t, 1, len(res))
+	require.Equal(t, vm.HaltState, res[0].VMState)
+	require.Equal(t, 1, len(res[0].Stack))
+	require.Equal(t, big.NewInt(42), res[0].Stack[0].Value())
 
-	res, err = chain.GetAppExecResult(tx2.Hash())
+	res, err = chain.GetAppExecResults(tx2.Hash(), trigger.Application)
 	require.NoError(t, err)
-	require.Equal(t, vm.FaultState, res.VMState)
+	require.Equal(t, 1, len(res))
+	require.Equal(t, vm.FaultState, res[0].VMState)
 
 	require.NoError(t, chain.persist())
 	select {
@@ -277,12 +279,13 @@ func TestNativeContract_InvokeOtherContract(t *testing.T) {
 		b := chain.newBlock(tx)
 		require.NoError(t, chain.AddBlock(b))
 
-		res, err := chain.GetAppExecResult(tx.Hash())
+		res, err := chain.GetAppExecResults(tx.Hash(), trigger.Application)
 		require.NoError(t, err)
+		require.Equal(t, 1, len(res))
 		// we expect it to be FeePerByte from Policy contract
-		require.Equal(t, vm.HaltState, res.VMState)
-		require.Equal(t, 1, len(res.Stack))
-		require.Equal(t, big.NewInt(1000), res.Stack[0].Value())
+		require.Equal(t, vm.HaltState, res[0].VMState)
+		require.Equal(t, 1, len(res[0].Stack))
+		require.Equal(t, big.NewInt(1000), res[0].Stack[0].Value())
 	})
 
 	t.Run("native Policy, setFeePerByte", func(t *testing.T) {
@@ -303,12 +306,13 @@ func TestNativeContract_InvokeOtherContract(t *testing.T) {
 
 		require.NoError(t, chain.persist())
 
-		res, err := chain.GetAppExecResult(tx.Hash())
+		res, err := chain.GetAppExecResults(tx.Hash(), trigger.Application)
 		require.NoError(t, err)
+		require.Equal(t, 1, len(res))
 		// we expect it to be `true` which means that native policy value was successfully updated
-		require.Equal(t, vm.HaltState, res.VMState)
-		require.Equal(t, 1, len(res.Stack))
-		require.Equal(t, true, res.Stack[0].Value())
+		require.Equal(t, vm.HaltState, res[0].VMState)
+		require.Equal(t, 1, len(res[0].Stack))
+		require.Equal(t, true, res[0].Stack[0].Value())
 
 		require.NoError(t, chain.persist())
 
@@ -350,11 +354,12 @@ func TestNativeContract_InvokeOtherContract(t *testing.T) {
 		b := chain.newBlock(tx)
 		require.NoError(t, chain.AddBlock(b))
 
-		res, err := chain.GetAppExecResult(tx.Hash())
+		res, err := chain.GetAppExecResults(tx.Hash(), trigger.Application)
 		require.NoError(t, err)
-		require.Equal(t, vm.HaltState, res.VMState)
-		require.Equal(t, 1, len(res.Stack))
-		require.Equal(t, int64(5), res.Stack[0].Value().(*big.Int).Int64())
+		require.Equal(t, 1, len(res))
+		require.Equal(t, vm.HaltState, res[0].VMState)
+		require.Equal(t, 1, len(res[0].Stack))
+		require.Equal(t, int64(5), res[0].Stack[0].Value().(*big.Int).Int64())
 	})
 }
 
@@ -374,10 +379,11 @@ func TestAllContractsHaveName(t *testing.T) {
 			require.NoError(t, signTx(bc, tx))
 			require.NoError(t, bc.AddBlock(bc.newBlock(tx)))
 
-			aer, err := bc.GetAppExecResult(tx.Hash())
+			aers, err := bc.GetAppExecResults(tx.Hash(), trigger.Application)
 			require.NoError(t, err)
-			require.Len(t, aer.Stack, 1)
-			require.Equal(t, []byte(name), aer.Stack[0].Value())
+			require.Equal(t, 1, len(aers))
+			require.Len(t, aers[0].Stack, 1)
+			require.Equal(t, []byte(name), aers[0].Stack[0].Value())
 		})
 	}
 }
