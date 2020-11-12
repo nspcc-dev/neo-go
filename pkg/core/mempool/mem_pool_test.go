@@ -3,6 +3,7 @@ package mempool
 import (
 	"sort"
 	"testing"
+	"time"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/internal/random"
@@ -12,10 +13,15 @@ import (
 )
 
 type FeerStub struct {
+	blockHeight uint32
 	lowPriority bool
 	sysFee      util.Fixed8
 	netFee      util.Fixed8
 	perByteFee  util.Fixed8
+}
+
+func (fs *FeerStub) BlockHeight() uint32 {
+	return fs.blockHeight
 }
 
 func (fs *FeerStub) NetworkFee(*transaction.Transaction) util.Fixed8 {
@@ -51,6 +57,48 @@ func testMemPoolAddRemoveWithFeer(t *testing.T, fs Feer) {
 	// Make sure nothing left in the mempool after removal.
 	assert.Equal(t, 0, len(mp.verifiedMap))
 	assert.Equal(t, 0, len(mp.verifiedTxes))
+}
+
+func TestMemPoolRemoveStale(t *testing.T) {
+	mp := NewMemPool(5)
+	txs := make([]*transaction.Transaction, 5)
+	for i := range txs {
+		txs[i] = newMinerTX(uint32(i))
+		require.NoError(t, mp.Add(txs[i], &FeerStub{blockHeight: uint32(i)}))
+	}
+
+	staleTxs := make(chan *transaction.Transaction, 5)
+	f := func(tx *transaction.Transaction) {
+		staleTxs <- tx
+	}
+	mp.SetResendThreshold(5, f)
+
+	isValid := func(tx *transaction.Transaction) bool {
+		return tx.Data.(*transaction.MinerTX).Nonce%2 == 0
+	}
+
+	mp.RemoveStale(isValid, 5) // 0 + 5
+	require.Eventually(t, func() bool { return len(staleTxs) == 1 }, time.Second, time.Millisecond*100)
+	require.Equal(t, txs[0], <-staleTxs)
+
+	mp.RemoveStale(isValid, 7) // 2 + 5
+	require.Eventually(t, func() bool { return len(staleTxs) == 1 }, time.Second, time.Millisecond*100)
+	require.Equal(t, txs[2], <-staleTxs)
+
+	mp.RemoveStale(isValid, 10) // 0 + 2 * 5
+	require.Eventually(t, func() bool { return len(staleTxs) == 1 }, time.Second, time.Millisecond*100)
+	require.Equal(t, txs[0], <-staleTxs)
+
+	mp.RemoveStale(isValid, 15) // 0 + 3 * 5
+
+	// tx[2] should appear, so it is also checked that tx[0] wasn't sent on height 15.
+	mp.RemoveStale(isValid, 22) // 2 + 4 * 5
+	require.Eventually(t, func() bool { return len(staleTxs) == 1 }, time.Second, time.Millisecond*100)
+	require.Equal(t, txs[2], <-staleTxs)
+
+	// panic if something is sent after this.
+	close(staleTxs)
+	require.Len(t, staleTxs, 0)
 }
 
 func TestMemPoolAddRemove(t *testing.T) {
@@ -119,7 +167,7 @@ func TestMemPoolAddRemoveWithInputsAndClaims(t *testing.T) {
 			return false
 		}
 		return true
-	})
+	}, 0)
 	assert.Equal(t, len(txm1.Inputs), len(mp.inputs))
 	assert.True(t, sort.SliceIsSorted(mp.inputs, mpLessInputs))
 	assert.Equal(t, len(claim2.Claims), len(mp.claims))
@@ -333,7 +381,7 @@ func TestRemoveStale(t *testing.T) {
 			}
 		}
 		return false
-	})
+	}, 0)
 	require.Equal(t, mempoolSize/2, mp.Count())
 	verTxes := mp.GetVerifiedTransactions()
 	for _, txf := range verTxes {

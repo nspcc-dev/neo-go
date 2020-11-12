@@ -85,6 +85,10 @@ func initServerWithInMemoryChain(t *testing.T) (*core.Blockchain, *Server, *http
 
 type FeerStub struct{}
 
+func (fs *FeerStub) BlockHeight() uint32 {
+	return 0
+}
+
 func (fs *FeerStub) NetworkFee(*transaction.Transaction) util.Fixed8 {
 	return 0
 }

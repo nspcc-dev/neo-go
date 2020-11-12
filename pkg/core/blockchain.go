@@ -872,7 +872,7 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 	}
 	bc.topBlock.Store(block)
 	atomic.StoreUint32(&bc.blockHeight, block.Index)
-	bc.memPool.RemoveStale(bc.isTxStillRelevant)
+	bc.memPool.RemoveStale(bc.isTxStillRelevant, block.Index)
 	bc.lock.Unlock()
 
 	updateBlockHeightMetric(block.Index)
