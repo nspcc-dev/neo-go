@@ -308,13 +308,15 @@ func TestMempoolItemsOrder(t *testing.T) {
 func TestMempoolAddRemoveConflicts(t *testing.T) {
 	capacity := 6
 	mp := New(capacity)
-	var fs = &FeerStub{
-		p2pSigExt: true,
-	}
+	var (
+		fs           = &FeerStub{p2pSigExt: true}
+		nonce uint32 = 1
+	)
 	getConflictsTx := func(netFee int64, hashes ...util.Uint256) *transaction.Transaction {
 		tx := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
 		tx.NetworkFee = netFee
-		tx.Nonce = uint32(random.Int(0, 1e4))
+		tx.Nonce = nonce
+		nonce++
 		tx.Signers = []transaction.Signer{{Account: util.Uint160{1, 2, 3}}}
 		tx.Attributes = make([]transaction.Attribute, len(hashes))
 		for i, h := range hashes {
