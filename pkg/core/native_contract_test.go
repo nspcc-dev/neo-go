@@ -175,15 +175,15 @@ func TestNativeContract_Invoke(t *testing.T) {
 	w := io.NewBufBinWriter()
 	emit.AppCallWithOperationAndArgs(w.BinWriter, tn.Metadata().Hash, "sum", int64(14), int64(28))
 	script := w.Bytes()
-	// System.Contract.Call + "sum" itself + opcodes for pushing arguments (PACK is 7000)
-	tx := transaction.New(chain.GetConfig().Magic, script, testSumPrice*2+10000)
+	// System.Contract.Call + "sum" itself + opcodes for pushing arguments (PACK is 15000)
+	tx := transaction.New(chain.GetConfig().Magic, script, testSumPrice*2+18000)
 	validUntil := chain.blockHeight + 1
 	tx.ValidUntilBlock = validUntil
 	addSigners(tx)
 	require.NoError(t, signTx(chain, tx))
 
 	// Enough for Call and other opcodes, but not enough for "sum" call.
-	tx2 := transaction.New(chain.GetConfig().Magic, script, testSumPrice*2)
+	tx2 := transaction.New(chain.GetConfig().Magic, script, testSumPrice*2+8000)
 	tx2.ValidUntilBlock = chain.blockHeight + 1
 	addSigners(tx2)
 	require.NoError(t, signTx(chain, tx2))
@@ -290,7 +290,7 @@ func TestNativeContract_InvokeOtherContract(t *testing.T) {
 		emit.AppCallWithOperationAndArgs(w.BinWriter, tn.Metadata().Hash, "callOtherContractWithArg", chain.contracts.Policy.Hash, "setFeePerByte", int64(500))
 		require.NoError(t, w.Err)
 		script := w.Bytes()
-		tx := transaction.New(chain.GetConfig().Magic, script, testSumPrice*5+10000)
+		tx := transaction.New(chain.GetConfig().Magic, script, testSumPrice*5+18000)
 		validUntil := chain.blockHeight + 1
 		tx.ValidUntilBlock = validUntil
 		addSigners(tx)
@@ -368,7 +368,7 @@ func TestAllContractsHaveName(t *testing.T) {
 			emit.AppCallWithOperationAndArgs(w.BinWriter, c.Metadata().Hash, "name")
 			require.NoError(t, w.Err)
 
-			tx := transaction.New(netmode.UnitTestNet, w.Bytes(), 1007570)
+			tx := transaction.New(netmode.UnitTestNet, w.Bytes(), 1015570)
 			tx.ValidUntilBlock = bc.blockHeight + 1
 			addSigners(tx)
 			require.NoError(t, signTx(bc, tx))
