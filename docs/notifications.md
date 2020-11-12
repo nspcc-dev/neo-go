@@ -339,7 +339,7 @@ Example:
    "method" : "transaction_executed",
    "params" : [
       {
-         "txid" : "0xe1cd5e57e721d2a2e05fb1f08721b12057b25ab1dd7fd0f33ee1639932fdfad7",
+         "container" : "0xe1cd5e57e721d2a2e05fb1f08721b12057b25ab1dd7fd0f33ee1639932fdfad7",
          "executions" : [
             {
                "trigger" : "Application",

@@ -121,18 +121,13 @@ func (ne *NotificationEvent) UnmarshalJSON(data []byte) error {
 
 // appExecResultAux is an auxiliary struct for JSON marshalling
 type appExecResultAux struct {
-	TxHash *util.Uint256 `json:"txid"`
+	Container util.Uint256 `json:"container"`
 }
 
 // MarshalJSON implements implements json.Marshaler interface.
 func (aer *AppExecResult) MarshalJSON() ([]byte, error) {
-	// do not marshal block hash
-	var hash *util.Uint256
-	if aer.Trigger == trigger.Application {
-		hash = &aer.Container
-	}
 	h, err := json.Marshal(&appExecResultAux{
-		TxHash: hash,
+		Container: aer.Container,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal hash: %w", err)
@@ -159,9 +154,7 @@ func (aer *AppExecResult) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &aer.Execution); err != nil {
 		return err
 	}
-	if aux.TxHash != nil {
-		aer.Container = *aux.TxHash
-	}
+	aer.Container = aux.Container
 	return nil
 }
 
