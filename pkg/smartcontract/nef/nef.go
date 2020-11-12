@@ -82,50 +82,49 @@ func NewFile(script []byte) (File, error) {
 }
 
 // GetVersion returns Version from the given string. It accepts the following formats:
-// `major.minor.build-[...]`
-// `major.minor.build.revision-[...]`
+// `major[-...].minor[-...].build[-...]` and `major[-...].minor[-...].build[-...].revision[-...]`
 // where `major`, `minor`, `build` and `revision` are 32-bit integers with base=10
 func GetVersion(version string) (Version, error) {
 	var (
 		result Version
+		err    error
 	)
 	versions := strings.SplitN(version, ".", 4)
 	if len(versions) < 3 {
 		return result, errors.New("invalid version format")
 	}
-	major, err := strconv.ParseInt(versions[0], 10, 32)
+	result.Major, err = parseDashedVersion(versions[0])
 	if err != nil {
 		return result, fmt.Errorf("failed to parse major version: %w", err)
 	}
-	result.Major = int32(major)
-
-	minor, err := strconv.ParseInt(versions[1], 10, 32)
+	result.Minor, err = parseDashedVersion(versions[1])
 	if err != nil {
 		return result, fmt.Errorf("failed to parse minor version: %w", err)
 
 	}
-	result.Minor = int32(minor)
-
-	b := versions[2]
-	if len(versions) == 3 {
-		b = strings.SplitN(b, "-", 2)[0]
-	}
-	build, err := strconv.ParseInt(b, 10, 32)
+	result.Build, err = parseDashedVersion(versions[2])
 	if err != nil {
 		return result, fmt.Errorf("failed to parse build version: %w", err)
 	}
-	result.Build = int32(build)
-
 	if len(versions) == 4 {
-		r := strings.SplitN(versions[3], "-", 2)[0]
-		revision, err := strconv.ParseInt(r, 10, 32)
+		result.Revision, err = parseDashedVersion(versions[3])
 		if err != nil {
 			return result, fmt.Errorf("failed to parse revision version: %w", err)
 		}
-		result.Revision = int32(revision)
 	}
 
 	return result, nil
+}
+
+// parseDashedVersion extracts int from string of the format `int[-...]` where `int` is
+// a 32-bit integer with base=10.
+func parseDashedVersion(version string) (int32, error) {
+	version = strings.SplitN(version, "-", 2)[0]
+	result, err := strconv.ParseInt(version, 10, 32)
+	if err != nil {
+		return 0, err
+	}
+	return int32(result), nil
 }
 
 // EncodeBinary implements io.Serializable interface.

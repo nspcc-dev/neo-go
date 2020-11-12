@@ -93,48 +93,77 @@ func TestBytesFromBytes(t *testing.T) {
 }
 
 func TestGetVersion(t *testing.T) {
-	_, err := GetVersion("qwerty")
-	require.Error(t, err)
-
-	_, err = GetVersion("1.pre")
-	require.Error(t, err)
-
-	_, err = GetVersion("1.1.pre")
-	require.Error(t, err)
-
-	_, err = GetVersion("1.1.1.pre")
-	require.Error(t, err)
-
-	actual, err := GetVersion("1.1.1-pre")
-	require.NoError(t, err)
-	expected := Version{
-		Major:    1,
-		Minor:    1,
-		Build:    1,
-		Revision: 0,
+	testCases := map[string]struct {
+		input    string
+		fails    bool
+		expected Version
+	}{
+		"major only": {
+			input: "1",
+			fails: true,
+		},
+		"major and minor only": {
+			input: "1.1",
+			fails: true,
+		},
+		"major, minor and revision only": {
+			input: "1.1.1",
+			expected: Version{
+				Major:    1,
+				Minor:    1,
+				Build:    1,
+				Revision: 0,
+			},
+		},
+		"full version": {
+			input: "1.1.1.1",
+			expected: Version{
+				Major:    1,
+				Minor:    1,
+				Build:    1,
+				Revision: 1,
+			},
+		},
+		"dashed, without revision": {
+			input: "1-pre.2-pre.3-pre",
+			expected: Version{
+				Major:    1,
+				Minor:    2,
+				Build:    3,
+				Revision: 0,
+			},
+		},
+		"dashed, full version": {
+			input: "1-pre.2-pre.3-pre.4-pre",
+			expected: Version{
+				Major:    1,
+				Minor:    2,
+				Build:    3,
+				Revision: 4,
+			},
+		},
+		"dashed build": {
+			input: "1.2.3-pre.4",
+			expected: Version{
+				Major:    1,
+				Minor:    2,
+				Build:    3,
+				Revision: 4,
+			},
+		},
+		"extra versions": {
+			input: "1.2.3.4.5",
+			fails: true,
+		},
 	}
-	require.Equal(t, expected, actual)
-
-	actual, err = GetVersion("0.90.0-pre")
-	require.NoError(t, err)
-	expected = Version{
-		Major:    0,
-		Minor:    90,
-		Build:    0,
-		Revision: 0,
+	for name, test := range testCases {
+		t.Run(name, func(t *testing.T) {
+			actual, err := GetVersion(test.input)
+			if test.fails {
+				require.NotNil(t, err)
+			} else {
+				require.Equal(t, test.expected, actual)
+			}
+		})
 	}
-	require.Equal(t, expected, actual)
-
-	actual, err = GetVersion("1.1.1.1-pre")
-	require.NoError(t, err)
-	expected = Version{
-		Major:    1,
-		Minor:    1,
-		Build:    1,
-		Revision: 1,
-	}
-	require.Equal(t, expected, actual)
-
-	_, err = GetVersion("1.1.1.1.1")
-	require.Error(t, err)
 }
