@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"math/bits"
 	"sort"
 	"sync"
 
@@ -58,6 +59,9 @@ type Pool struct {
 
 	capacity   int
 	feePerByte int64
+
+	resendThreshold uint32
+	resendFunc      func(*transaction.Transaction)
 }
 
 func (p items) Len() int           { return len(p) }
@@ -289,6 +293,8 @@ func (mp *Pool) RemoveStale(isOK func(*transaction.Transaction) bool, feer Feer)
 	if feer.P2PSigExtensionsEnabled() {
 		mp.conflicts = make(map[util.Uint256][]util.Uint256)
 	}
+	height := feer.BlockHeight()
+	var staleTxs []*transaction.Transaction
 	for _, itm := range mp.verifiedTxes {
 		if isOK(itm.txn) && mp.checkPolicy(itm.txn, policyChanged) && mp.tryAddSendersFee(itm.txn, feer, true) {
 			newVerifiedTxes = append(newVerifiedTxes, itm)
@@ -298,9 +304,20 @@ func (mp *Pool) RemoveStale(isOK func(*transaction.Transaction) bool, feer Feer)
 					mp.conflicts[hash] = append(mp.conflicts[hash], itm.txn.Hash())
 				}
 			}
+			if mp.resendThreshold != 0 {
+				// tx is resend at resendThreshold, 2*resendThreshold, 4*resendThreshold ...
+				// so quotient must be a power of two.
+				diff := (height - itm.blockStamp)
+				if diff%mp.resendThreshold == 0 && bits.OnesCount32(diff/mp.resendThreshold) == 1 {
+					staleTxs = append(staleTxs, itm.txn)
+				}
+			}
 		} else {
 			delete(mp.verifiedMap, itm.txn.Hash())
 		}
+	}
+	if len(staleTxs) != 0 {
+		go mp.resendStaleTxs(staleTxs)
 	}
 	mp.verifiedTxes = newVerifiedTxes
 	mp.lock.Unlock()
@@ -333,6 +350,21 @@ func New(capacity int) *Pool {
 		capacity:     capacity,
 		fees:         make(map[util.Uint160]utilityBalanceAndFees),
 		conflicts:    make(map[util.Uint256][]util.Uint256),
+	}
+}
+
+// SetResendThreshold sets threshold after which transaction will be considered stale
+// and returned for retransmission by `GetStaleTransactions`.
+func (mp *Pool) SetResendThreshold(h uint32, f func(*transaction.Transaction)) {
+	mp.lock.Lock()
+	defer mp.lock.Unlock()
+	mp.resendThreshold = h
+	mp.resendFunc = f
+}
+
+func (mp *Pool) resendStaleTxs(txs []*transaction.Transaction) {
+	for i := range txs {
+		mp.resendFunc(txs[i])
 	}
 }
 
