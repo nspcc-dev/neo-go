@@ -686,7 +686,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 	"sendrawtransaction": {
 		{
 			name:   "positive",
-			params: `["000b0000008096980000000000261c130000000000b004000001aa8acf859d4fe402b34e673f2156821796a488eb01005d0300e87648170000000c1478ba4c24009fe510e136c9995a2e05215e1be4dc0c14aa8acf859d4fe402b34e673f2156821796a488eb13c00c087472616e736665720c1425059ecb4878d3a875f91c51ceded330d4575fde41627d5b523801420c40ea2f56acf7f64629dc922d65a60176f3963afd4b7c259f2017a3a5139346f8ea54704624590832acb7794069ab2983ddc862b03b6a33d4428cd4c45cbc0941c2290c2102b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc20b4195440d78"]`,
+			params: `["AAsAAACAlpgAAAAAACYcEwAAAAAAsAQAAAGqis+FnU/kArNOZz8hVoIXlqSI6wEAXQMA6HZIFwAAAAwUeLpMJACf5RDhNsmZWi4FIV4b5NwMFKqKz4WdT+QCs05nPyFWgheWpIjrE8AMCHRyYW5zZmVyDBQlBZ7LSHjTqHX5HFHO3tMw1Fdf3kFifVtSOAFCDEDqL1as9/ZGKdySLWWmAXbzljr9S3wlnyAXo6UTk0b46lRwRiRZCDKst3lAaaspg93IYrA7ajPUQozUxFy8CUHCKQwhArNiK/QBe9/jF8WK7V9MdT8ga324lgRvp9d0u8S/f43CC0GVRA14"]`,
 			result: func(e *executor) interface{} { return &result.RelayResult{} },
 			check: func(t *testing.T, e *executor, inv interface{}) {
 				res, ok := inv.(*result.RelayResult)
@@ -698,7 +698,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 		},
 		{
 			name:   "negative",
-			params: `["000a000000316e851039019d39dfc2c37d6c3fee19fd5809870000000000000000f2ad050000000000b00400000001316e851039019d39dfc2c37d6c3fee19fd580987015d0300e87648170000000c1420728274afafc36f43a071d328cfa3e629d9cbb00c14316e851039019d39dfc2c37d6c3fee19fd58098713c00c087472616e736665720c14897720d8cd76f4f00abfa37c0edd889c208fde9b41627d5b523801420c40df953141271169421cebab5d27a0163e294d7c7f2d0525b4498745344814fd3d6c5c591c9b1723d05d42856f409adb084cf67acc921cfafc629133a5eb5e7a7e290c2102b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc20b410a906aff"]`,
+			params: `["AAoAAAAxboUQOQGdOd/Cw31sP+4Z/VgJhwAAAAAAAAAA8q0FAAAAAACwBAAAAAExboUQOQGdOd/Cw31sP+4Z/VgJhwFdAwDodkgXAAAADBQgcoJ0r6/Db0OgcdMoz6PmKdnLsAwUMW6FEDkBnTnfwsN9bD/uGf1YCYcTwAwIdHJhbnNmZXIMFIl3INjNdvTwCr+jfA7diJwgj96bQWJ9W1I4AUIMQN+VMUEnEWlCHOurXSegFj4pTXx/LQUltEmHRTRIFP09bFxZHJsXI9BdQoVvQJrbCEz2esySHPr8YpEzpeteen4pDCECs2Ir9AF73+MXxYrtX0x1PyBrfbiWBG+n13S7xL9/jcILQQqQav8="]`,
 			fail:   true,
 		},
 		{
@@ -708,24 +708,24 @@ var rpcTestCases = map[string][]rpcTestCase{
 		},
 		{
 			name:   "invalid string",
-			params: `["notahex"]`,
+			params: `["notabase64%"]`,
 			fail:   true,
 		},
 		{
 			name:   "invalid tx",
-			params: `["0274d792072617720636f6e747261637"]`,
+			params: `["AnTXkgcmF3IGNvbnRyYWNw=="]`,
 			fail:   true,
 		},
 	},
 	"submitblock": {
 		{
-			name:   "invalid hex",
-			params: `["000000005gb86f62eafe8e9246bc0d1648e4e5c8389dee9fb7fe03fcc6772ec8c5e4ec2aedb908054ac1409be5f77d5369c6e03490b2f6676d68d0b3370f8159e0fdadf99bc05f5e030000005704000000000000be48d3a3f5d10013ab9ffee489706078714f1ea201fd0401406f299c82b513f59f5bd120317974852c9694c6e10db1ef2f1bb848b1a33e47a08f8dc03ee784166b2060a94cd4e7af88899b39787938f7f2763ea4d2182776ed40f3bafd85214fef38a4836ca97793001ea411f553c51e88781f7b916c59c145bff28314b6e7ea246789422a996fc4937e290a1b40f6b97c5222540f65b0d47aca40d2b3d19203d456428bfdb529e846285052105957385b65388b9a617f6e2d56a64ec41aa73439eafccb52987bb1975c9b67518b053d9e61b445e4a3377dbc206640bd688489bd62adf6bed9d61a73905b9591eb87053c6f0f4dd70f3bee7295541b490caef044b55b6f9f01dc4a05a756a3f2edd06f5adcbe4e984c1e552f9023f08b532102103a7f7dd016558597f7960d27c516a4394fd968b9e65155eb4b013e4040406e2102a7bc55fe8684e0119768d104ba30795bdcc86619e864add26156723ed185cd622102b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc22103d90c07df63e690ce77912e10ab51acc944b66860237b608c4f8f8309e71ee69954ae0100000000000000000000"]`,
+			name:   "invalid base64",
+			params: `["%%%"]`,
 			fail:   true,
 		},
 		{
 			name:   "invalid block bytes",
-			params: `["0000000027"]`,
+			params: `["AAAAACc="]`,
 			fail:   true,
 		},
 		{
@@ -1129,7 +1129,7 @@ func encodeBlock(t *testing.T, b *block.Block) string {
 	w := io.NewBufBinWriter()
 	b.EncodeBinary(w.BinWriter)
 	require.NoError(t, w.Err)
-	return hex.EncodeToString(w.Bytes())
+	return base64.StdEncoding.EncodeToString(w.Bytes())
 }
 
 func (tc rpcTestCase) getResultPair(e *executor) (expected interface{}, res interface{}) {

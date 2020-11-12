@@ -1075,7 +1075,7 @@ func (s *Server) runScriptInVM(script []byte, tx *transaction.Transaction) *resu
 
 // submitBlock broadcasts a raw block over the NEO network.
 func (s *Server) submitBlock(reqParams request.Params) (interface{}, *response.Error) {
-	blockBytes, err := reqParams.ValueWithType(0, request.StringT).GetBytesHex()
+	blockBytes, err := reqParams.ValueWithType(0, request.StringT).GetBytesBase64()
 	if err != nil {
 		return nil, response.ErrInvalidParams
 	}
@@ -1105,7 +1105,7 @@ func (s *Server) sendrawtransaction(reqParams request.Params) (interface{}, *res
 
 	if len(reqParams) < 1 {
 		return nil, response.ErrInvalidParams
-	} else if byteTx, err := reqParams[0].GetBytesHex(); err != nil {
+	} else if byteTx, err := reqParams[0].GetBytesBase64(); err != nil {
 		return nil, response.ErrInvalidParams
 	} else {
 		tx, err := transaction.NewTransactionFromBytes(s.network, byteTx)

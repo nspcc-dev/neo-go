@@ -1,10 +1,8 @@
 package result
 
 import (
-	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"fmt"
 
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
@@ -31,7 +29,7 @@ type invokeAux struct {
 	Script         []byte          `json:"script"`
 	Stack          json.RawMessage `json:"stack"`
 	FaultException string          `json:"exception,omitempty"`
-	Transaction    string          `json:"tx,omitempty"`
+	Transaction    []byte          `json:"tx,omitempty"`
 }
 
 // MarshalJSON implements json.Marshaler.
@@ -55,19 +53,13 @@ func (r Invoke) MarshalJSON() ([]byte, error) {
 		}
 	}
 
-	var tx string
-	if r.Transaction != nil {
-		st := hex.EncodeToString(r.Transaction)
-		tx = st
-	}
-
 	return json.Marshal(&invokeAux{
 		GasConsumed:    r.GasConsumed,
 		Script:         r.Script,
 		State:          r.State,
 		Stack:          st,
 		FaultException: r.FaultException,
-		Transaction:    tx,
+		Transaction:    r.Transaction,
 	})
 }
 
@@ -90,17 +82,11 @@ func (r *Invoke) UnmarshalJSON(data []byte) error {
 			r.Stack = st
 		}
 	}
-	if aux.Transaction != "" {
-		bytes, err := hex.DecodeString(aux.Transaction)
-		if err != nil {
-			return fmt.Errorf("failed to decode transaction bytes from hex: %w", err)
-		}
-		r.Transaction = bytes
-	}
 	r.GasConsumed = aux.GasConsumed
 	r.Script = aux.Script
 	r.State = aux.State
 	r.FaultException = aux.FaultException
+	r.Transaction = aux.Transaction
 	return nil
 }
 
