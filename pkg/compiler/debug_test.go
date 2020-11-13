@@ -149,7 +149,7 @@ func _deploy(isUpdate bool) {}
 	}
 
 	t.Run("convert to Manifest", func(t *testing.T) {
-		actual, err := d.ConvertToManifest(smartcontract.HasStorage, nil)
+		actual, err := d.ConvertToManifest(nil)
 		require.NoError(t, err)
 		// note: offsets are hard to predict, so we just take them from the output
 		expected := &manifest.Manifest{
@@ -244,8 +244,7 @@ func _deploy(isUpdate bool) {}
 				},
 				Events: []manifest.Event{},
 			},
-			Groups:   []manifest.Group{},
-			Features: smartcontract.HasStorage,
+			Groups: []manifest.Group{},
 			Permissions: []manifest.Permission{
 				{
 					Contract: manifest.PermissionDesc{
@@ -266,7 +265,6 @@ func _deploy(isUpdate bool) {}
 		require.ElementsMatch(t, expected.ABI.Methods, actual.ABI.Methods)
 		require.Equal(t, expected.ABI.Events, actual.ABI.Events)
 		require.Equal(t, expected.Groups, actual.Groups)
-		require.Equal(t, expected.Features, actual.Features)
 		require.Equal(t, expected.Permissions, actual.Permissions)
 		require.Equal(t, expected.Trusts, actual.Trusts)
 		require.Equal(t, expected.SafeMethods, actual.SafeMethods)

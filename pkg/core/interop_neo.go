@@ -182,15 +182,6 @@ func contractUpdate(ic *interop.Context) error {
 		if !contract.Manifest.IsValid(contract.ScriptHash()) {
 			return errors.New("failed to check contract script hash against new manifest")
 		}
-		if !contract.HasStorage() {
-			siMap, err := ic.DAO.GetStorageItems(contract.ID)
-			if err != nil {
-				return fmt.Errorf("failed to update manifest: %w", err)
-			}
-			if len(siMap) != 0 {
-				return errors.New("old contract shouldn't have storage")
-			}
-		}
 		if err := ic.DAO.PutContractState(contract); err != nil {
 			return fmt.Errorf("failed to update manifest: %w", err)
 		}

@@ -1,5 +1,3 @@
-hasstorage: true
-ispayable: false
 supportedstandards: []
 events:
   - name: found storage values

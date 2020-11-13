@@ -69,7 +69,6 @@ func isValidRole(r Role) bool {
 func newDesignate() *Designate {
 	s := &Designate{ContractMD: *interop.NewContractMD(designateName)}
 	s.ContractID = designateContractID
-	s.Manifest.Features = smartcontract.HasStorage
 
 	desc := newDescriptor("getDesignatedByRole", smartcontract.ArrayType,
 		manifest.NewParameter("role", smartcontract.IntegerType),

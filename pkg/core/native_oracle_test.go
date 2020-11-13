@@ -50,7 +50,6 @@ func getOracleContractState(h util.Uint160) *state.Contract {
 	emit.Opcodes(w.BinWriter, opcode.RET)
 
 	m := manifest.NewManifest(h)
-	m.Features = smartcontract.HasStorage
 	m.ABI.Methods = []manifest.Method{
 		{
 			Name:   "requestURL",

@@ -411,7 +411,6 @@ func getTestContractState() (*state.Contract, *state.Contract) {
 	script := w.Bytes()
 	h := hash.Hash160(script)
 	m := manifest.NewManifest(h)
-	m.Features = smartcontract.HasStorage
 	m.ABI.Methods = []manifest.Method{
 		{
 			Name:   "add",
@@ -675,15 +674,9 @@ func compareContractStates(t *testing.T, expected *state.Contract, actual stacki
 	expectedManifest, err := expected.Manifest.MarshalJSON()
 	require.NoError(t, err)
 
-	require.Equal(t, 4, len(act))
+	require.Equal(t, 2, len(act))
 	require.Equal(t, expected.Script, act[0].Value().([]byte))
 	require.Equal(t, expectedManifest, act[1].Value().([]byte))
-	hasstorage, err := act[2].TryBool()
-	require.NoError(t, err)
-	ispayable, err := act[3].TryBool()
-	require.NoError(t, err)
-	require.Equal(t, expected.HasStorage(), hasstorage)
-	require.Equal(t, expected.IsPayable(), ispayable)
 }
 
 func TestContractUpdate(t *testing.T) {
@@ -813,34 +806,12 @@ func TestContractUpdate(t *testing.T) {
 		require.Error(t, contractUpdate(ic))
 	})
 
-	t.Run("update manifest, old contract shouldn't have storage", func(t *testing.T) {
-		cs.Manifest.Features |= smartcontract.HasStorage
-		require.NoError(t, ic.DAO.PutContractState(cs))
-		require.NoError(t, ic.DAO.PutStorageItem(cs.ID, []byte("my_item"), &state.StorageItem{
-			Value:   []byte{1, 2, 3},
-			IsConst: false,
-		}))
-		v.LoadScriptWithHash([]byte{byte(opcode.RET)}, cs.ScriptHash(), smartcontract.All)
-		manifest := &manifest.Manifest{
-			ABI: manifest.ABI{
-				Hash: cs.ScriptHash(),
-			},
-		}
-		manifestBytes, err := manifest.MarshalJSON()
-		require.NoError(t, err)
-		putArgsOnStack(stackitem.Null{}, manifestBytes)
-
-		require.Error(t, contractUpdate(ic))
-	})
-
 	t.Run("update manifest, positive", func(t *testing.T) {
-		cs.Manifest.Features = smartcontract.NoProperties
 		require.NoError(t, ic.DAO.PutContractState(cs))
 		manifest := &manifest.Manifest{
 			ABI: manifest.ABI{
 				Hash: cs.ScriptHash(),
 			},
-			Features: smartcontract.HasStorage,
 		}
 		manifestBytes, err := manifest.MarshalJSON()
 		require.NoError(t, err)
@@ -875,7 +846,6 @@ func TestContractUpdate(t *testing.T) {
 			ABI: manifest.ABI{
 				Hash: hash.Hash160(newScript),
 			},
-			Features: smartcontract.HasStorage,
 		}
 		newManifestBytes, err := newManifest.MarshalJSON()
 		require.NoError(t, err)

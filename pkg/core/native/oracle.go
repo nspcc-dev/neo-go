@@ -104,7 +104,6 @@ func GetOracleResponseScript() []byte {
 func newOracle() *Oracle {
 	o := &Oracle{ContractMD: *interop.NewContractMD(oracleName)}
 	o.ContractID = oracleContractID
-	o.Manifest.Features = smartcontract.HasStorage
 
 	desc := newDescriptor("request", smartcontract.VoidType,
 		manifest.NewParameter("url", smartcontract.StringType),

@@ -1,5 +1,3 @@
-hasstorage: true
-ispayable: false
 supportedstandards: ["NEP-5"]
 events:
   - name: transfer

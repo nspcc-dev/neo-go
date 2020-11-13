@@ -106,8 +106,6 @@ func contractToStackItem(cs *state.Contract) (stackitem.Item, error) {
 	return stackitem.NewArray([]stackitem.Item{
 		stackitem.NewByteArray(cs.Script),
 		stackitem.NewByteArray(manifest),
-		stackitem.NewBool(cs.HasStorage()),
-		stackitem.NewBool(cs.IsPayable()),
 	}), nil
 }
 
@@ -365,9 +363,6 @@ func storageGetContextInternal(ic *interop.Context, isReadOnly bool) error {
 	if err != nil {
 		return err
 	}
-	if !contract.HasStorage() {
-		return errors.New("contract is not allowed to use storage")
-	}
 	sc := &StorageContext{
 		ID:       contract.ID,
 		ReadOnly: isReadOnly,
@@ -464,14 +459,12 @@ func contractDestroy(ic *interop.Context) error {
 	if err != nil {
 		return err
 	}
-	if cs.HasStorage() {
-		siMap, err := ic.DAO.GetStorageItems(cs.ID)
-		if err != nil {
-			return err
-		}
-		for k := range siMap {
-			_ = ic.DAO.DeleteStorageItem(cs.ID, []byte(k))
-		}
+	siMap, err := ic.DAO.GetStorageItems(cs.ID)
+	if err != nil {
+		return err
+	}
+	for k := range siMap {
+		_ = ic.DAO.DeleteStorageItem(cs.ID, []byte(k))
 	}
 	return nil
 }

@@ -101,7 +101,7 @@ func TestAppCall(t *testing.T) {
 
 	inner, di, err := compiler.CompileWithDebugInfo("foo.go", strings.NewReader(srcInner))
 	require.NoError(t, err)
-	m, err := di.ConvertToManifest(smartcontract.NoProperties, nil)
+	m, err := di.ConvertToManifest(nil)
 	require.NoError(t, err)
 
 	ih := hash.Hash160(inner)

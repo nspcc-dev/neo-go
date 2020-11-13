@@ -151,9 +151,7 @@ project:
   version: 1.0
   name: 'Smart contract'
   description: 'Even smarter than Jack himself'
-  hasstorage: true
   hasdynamicinvocation: false
-  ispayable: false
   returntype: ByteArray
   parameters: ['String', 'Array']
 ```

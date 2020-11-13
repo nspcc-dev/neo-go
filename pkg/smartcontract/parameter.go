@@ -17,16 +17,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/util"
 )
 
-// PropertyState represents contract properties (flags).
-type PropertyState byte
-
-// List of supported properties.
-const (
-	HasStorage   PropertyState = 1 << iota
-	IsPayable    PropertyState = 1 << 2
-	NoProperties               = 0
-)
-
 // Parameter represents a smart contract parameter.
 type Parameter struct {
 	// Type of the parameter.

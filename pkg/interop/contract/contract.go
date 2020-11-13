@@ -10,10 +10,8 @@ import "github.com/nspcc-dev/neo-go/pkg/interop"
 // this package. It's similar in function to the Contract class in the Neo .net
 // framework.
 type Contract struct {
-	Script     []byte
-	Manifest   []byte
-	HasStorage bool
-	IsPayable  bool
+	Script   []byte
+	Manifest []byte
 }
 
 // Create creates a new contract using a set of input parameters:

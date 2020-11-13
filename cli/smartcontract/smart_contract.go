@@ -404,7 +404,6 @@ func contractCompile(ctx *cli.Context) error {
 		if err != nil {
 			return err
 		}
-		o.ContractFeatures = conf.GetFeatures()
 		o.ContractEvents = conf.Events
 		o.ContractSupportedStandards = conf.SupportedStandards
 	}
@@ -632,22 +631,8 @@ func testInvokeScript(ctx *cli.Context) error {
 
 // ProjectConfig contains project metadata.
 type ProjectConfig struct {
-	HasStorage         bool
-	IsPayable          bool
 	SupportedStandards []string
 	Events             []manifest.Event
-}
-
-// GetFeatures returns smartcontract features from the config.
-func (p *ProjectConfig) GetFeatures() smartcontract.PropertyState {
-	var fs smartcontract.PropertyState
-	if p.IsPayable {
-		fs |= smartcontract.IsPayable
-	}
-	if p.HasStorage {
-		fs |= smartcontract.HasStorage
-	}
-	return fs
 }
 
 func inspect(ctx *cli.Context) error {

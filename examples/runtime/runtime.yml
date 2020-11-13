@@ -1,5 +1,3 @@
-hasstorage: false
-ispayable: false
 supportedstandards: []
 events:
   - name: Event
