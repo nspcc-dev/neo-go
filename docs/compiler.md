@@ -145,15 +145,12 @@ Deploying a contract to blockchain with neo-go requires a configuration file
 with contract's metadata in YAML format, like the following:
 
 ```
-project:
-  author: Jack Smith
-  email: jack@example.com
-  version: 1.0
-  name: 'Smart contract'
-  description: 'Even smarter than Jack himself'
-  hasdynamicinvocation: false
-  returntype: ByteArray
-  parameters: ['String', 'Array']
+supportedstandards: []
+events:
+  - name: info
+    parameters:
+      - name: message
+        type: ByteString
 ```
 
 It's passed to the `deploy` command via `-c` option:
