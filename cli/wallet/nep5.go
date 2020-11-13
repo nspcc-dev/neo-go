@@ -445,7 +445,7 @@ func transferNEP5(ctx *cli.Context) error {
 		fmt.Fprintln(ctx.App.ErrWriter, "Can't find matching token in the wallet. Querying RPC-node for balances.")
 		token, err = getMatchingTokenRPC(ctx, c, from, ctx.String("token"))
 		if err != nil {
-			return cli.NewExitError(err, 1)
+			return cli.NewExitError(fmt.Errorf("failed to get matching token: %w", err), 1)
 		}
 	}
 
