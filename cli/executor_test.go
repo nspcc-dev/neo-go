@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"io/ioutil"
+	"math"
 	"strings"
 	"testing"
 	"time"
@@ -123,7 +124,7 @@ func (e *executor) GetTransaction(t *testing.T, h util.Uint256) (*transaction.Tr
 	require.Eventually(t, func() bool {
 		var err error
 		tx, height, err = e.Chain.GetTransaction(h)
-		return err == nil && height != 0
+		return err == nil && height != math.MaxUint32
 	}, time.Second*2, time.Millisecond*100, "too long time waiting for block")
 	return tx, height
 }
