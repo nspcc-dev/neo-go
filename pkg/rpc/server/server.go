@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"math"
 	"net"
 	"net/http"
 	"strconv"
@@ -1159,27 +1160,29 @@ func (s *Server) getStorage(ps request.Params) (interface{}, *response.Error) {
 }
 
 func (s *Server) getrawtransaction(reqParams request.Params) (interface{}, *response.Error) {
-	var resultsErr *response.Error
-	var results interface{}
-
-	if txHash, err := reqParams.Value(0).GetUint256(); err != nil {
-		resultsErr = response.ErrInvalidParams
-	} else if tx, height, err := s.chain.GetTransaction(txHash); err != nil {
+	txHash, err := reqParams.Value(0).GetUint256()
+	if err != nil {
+		return nil, response.ErrInvalidParams
+	}
+	tx, height, err := s.chain.GetTransaction(txHash)
+	if err != nil {
 		err = errors.Wrapf(err, "Invalid transaction hash: %s", txHash)
 		return nil, response.NewRPCError("Unknown transaction", err.Error(), err)
-	} else if reqParams.Value(1).GetBoolean() {
+	}
+	if reqParams.Value(1).GetBoolean() {
+		if height == math.MaxUint32 {
+			return result.NewTransactionOutputRaw(tx, nil, s.chain), nil
+		}
 		_header := s.chain.GetHeaderHash(int(height))
 		header, err := s.chain.GetHeader(_header)
 		if err != nil {
-			resultsErr = response.NewInvalidParamsError(err.Error(), err)
-		} else {
-			results = result.NewTransactionOutputRaw(tx, header, s.chain)
+			return nil, response.NewInvalidParamsError(err.Error(), err)
 		}
-	} else {
-		results = hex.EncodeToString(tx.Bytes())
-	}
+		return result.NewTransactionOutputRaw(tx, header, s.chain), nil
 
-	return results, resultsErr
+	}
+	return hex.EncodeToString(tx.Bytes()), nil
+
 }
 
 func (s *Server) getTransactionHeight(ps request.Params) (interface{}, *response.Error) {
@@ -1189,7 +1192,7 @@ func (s *Server) getTransactionHeight(ps request.Params) (interface{}, *response
 	}
 
 	_, height, err := s.chain.GetTransaction(h)
-	if err != nil {
+	if err != nil || height == math.MaxUint32 {
 		return nil, response.NewRPCError("unknown transaction", "", nil)
 	}
 
