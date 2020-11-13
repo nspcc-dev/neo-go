@@ -2,6 +2,7 @@ package core
 
 import (
 	"crypto/elliptic"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
@@ -99,7 +100,7 @@ func bcGetBlock(ic *interop.Context) error {
 
 // contractToStackItem converts state.Contract to stackitem.Item
 func contractToStackItem(cs *state.Contract) (stackitem.Item, error) {
-	manifest, err := cs.Manifest.MarshalJSON()
+	manifest, err := json.Marshal(cs.Manifest)
 	if err != nil {
 		return nil, err
 	}

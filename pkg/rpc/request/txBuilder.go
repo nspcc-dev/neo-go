@@ -1,6 +1,7 @@
 package request
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strconv"
@@ -19,7 +20,7 @@ import (
 // with its metadata.
 func CreateDeploymentScript(avm []byte, manif *manifest.Manifest) ([]byte, error) {
 	script := io.NewBufBinWriter()
-	rawManifest, err := manif.MarshalJSON()
+	rawManifest, err := json.Marshal(manif)
 	if err != nil {
 		return nil, err
 	}

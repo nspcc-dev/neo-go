@@ -36,28 +36,18 @@ type ABI struct {
 // Manifest represens contract metadata.
 type Manifest struct {
 	// ABI is a contract's ABI.
-	ABI ABI
+	ABI ABI `json:"abi"`
 	// Groups is a set of groups to which a contract belongs.
-	Groups      []Group
-	Permissions []Permission
+	Groups      []Group      `json:"groups"`
+	Permissions []Permission `json:"permissions"`
 	// SupportedStandards is a list of standards supported by the contract.
-	SupportedStandards []string
+	SupportedStandards []string `json:"supportedstandards"`
 	// Trusts is a set of hashes to a which contract trusts.
-	Trusts WildUint160s
+	Trusts WildUint160s `json:"trusts"`
 	// SafeMethods is a set of names of safe methods.
-	SafeMethods WildStrings
+	SafeMethods WildStrings `json:"safemethods"`
 	// Extra is an implementation-defined user data.
-	Extra interface{}
-}
-
-type manifestAux struct {
-	ABI                *ABI          `json:"abi"`
-	Groups             []Group       `json:"groups"`
-	Permissions        []Permission  `json:"permissions"`
-	SupportedStandards []string      `json:"supportedstandards"`
-	Trusts             *WildUint160s `json:"trusts"`
-	SafeMethods        *WildStrings  `json:"safemethods"`
-	Extra              interface{}   `json:"extra"`
+	Extra interface{} `json:"extra"`
 }
 
 // NewManifest returns new manifest with necessary fields initialized.
@@ -120,40 +110,6 @@ func (m *Manifest) IsValid(hash util.Uint160) bool {
 		}
 	}
 	return true
-}
-
-// MarshalJSON implements json.Marshaler interface.
-func (m *Manifest) MarshalJSON() ([]byte, error) {
-	aux := &manifestAux{
-		ABI:                &m.ABI,
-		Groups:             m.Groups,
-		Permissions:        m.Permissions,
-		SupportedStandards: m.SupportedStandards,
-		Trusts:             &m.Trusts,
-		SafeMethods:        &m.SafeMethods,
-		Extra:              m.Extra,
-	}
-	return json.Marshal(aux)
-}
-
-// UnmarshalJSON implements json.Unmarshaler interface.
-func (m *Manifest) UnmarshalJSON(data []byte) error {
-	aux := &manifestAux{
-		ABI:         &m.ABI,
-		Trusts:      &m.Trusts,
-		SafeMethods: &m.SafeMethods,
-	}
-
-	if err := json.Unmarshal(data, aux); err != nil {
-		return err
-	}
-
-	m.Groups = aux.Groups
-	m.Permissions = aux.Permissions
-	m.SupportedStandards = aux.SupportedStandards
-	m.Extra = aux.Extra
-
-	return nil
 }
 
 // EncodeBinary implements io.Serializable.

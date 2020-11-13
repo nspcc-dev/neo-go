@@ -379,7 +379,7 @@ func newDeployTx(t *testing.T, name string) (*transaction.Transaction, []byte) {
 	script := io.NewBufBinWriter()
 	m, err := di.ConvertToManifest(nil)
 	require.NoError(t, err)
-	bs, err := m.MarshalJSON()
+	bs, err := json.Marshal(m)
 	require.NoError(t, err)
 	emit.Bytes(script.BinWriter, bs)
 	emit.Bytes(script.BinWriter, avm)
