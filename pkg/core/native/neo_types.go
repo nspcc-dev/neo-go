@@ -34,6 +34,13 @@ type (
 	keysWithVotes []keyWithVotes
 )
 
+// Copy returns slice copy.
+func (k keysWithVotes) Copy() keysWithVotes {
+	ks := make(keysWithVotes, len(k))
+	copy(ks, k)
+	return ks
+}
+
 // PublicKey unmarshals and returns public key of k.
 func (k keyWithVotes) PublicKey() (*keys.PublicKey, error) {
 	if k.UnmarshaledKey != nil {
