@@ -74,7 +74,6 @@ func init() {
 var (
 	prefixIDList    = []byte{6}
 	prefixRequest   = []byte{7}
-	prefixNodeList  = []byte{8}
 	prefixRequestID = []byte{9}
 )
 
@@ -206,11 +205,7 @@ func (o *Oracle) Metadata() *interop.ContractMD {
 
 // Initialize initializes Oracle contract.
 func (o *Oracle) Initialize(ic *interop.Context) error {
-	si := &state.StorageItem{Value: NodeList{}.Bytes()}
-	if err := ic.DAO.PutStorageItem(o.ContractID, prefixNodeList, si); err != nil {
-		return err
-	}
-	si = &state.StorageItem{Value: make([]byte, 8)} // uint64(0) LE
+	si := &state.StorageItem{Value: make([]byte, 8)} // uint64(0) LE
 	return ic.DAO.PutStorageItem(o.ContractID, prefixRequestID, si)
 }
 
