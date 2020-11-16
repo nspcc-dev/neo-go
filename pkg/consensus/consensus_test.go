@@ -121,7 +121,7 @@ func TestService_NextConsensus(t *testing.T) {
 		require.Equal(t, h, hdr.NextConsensus)
 	}
 
-	t.Run("vote 1 block before update", func(t *testing.T) {
+	t.Run("vote 1 block before update", func(t *testing.T) { // voting occurs every block in SingleTestChain
 		srv, acc := initServiceNextConsensus(t, newAcc, 1)
 		bc := srv.Chain.(*core.Blockchain)
 		defer bc.Close()
@@ -135,27 +135,28 @@ func TestService_NextConsensus(t *testing.T) {
 		srv.dbft.OnTimeout(timer.HV{Height: srv.dbft.BlockIndex})
 		checkNextConsensus(t, bc, height+1, hash.Hash160(script))
 	})
+	/*
+		t.Run("vote 2 blocks before update", func(t *testing.T) {
+			srv, acc := initServiceNextConsensus(t, newAcc, 2)
+			bc := srv.Chain.(*core.Blockchain)
+			defer bc.Close()
 
-	t.Run("vote 2 blocks before update", func(t *testing.T) {
-		srv, acc := initServiceNextConsensus(t, newAcc, 2)
-		bc := srv.Chain.(*core.Blockchain)
-		defer bc.Close()
+			height := bc.BlockHeight()
+			checkNextConsensus(t, bc, height, acc.Contract.ScriptHash())
+			// Reset     <- we are here
+			// OnPersist <- nothing to do
+			// Block     <-
+			//
+			// Reset     <- update next consensus
+			// OnPersist <- update committee
+			// Block     <-
+			srv.dbft.OnTimeout(timer.HV{Height: srv.dbft.BlockIndex})
+			checkNextConsensus(t, bc, height+1, acc.Contract.ScriptHash())
 
-		height := bc.BlockHeight()
-		checkNextConsensus(t, bc, height, acc.Contract.ScriptHash())
-		// Reset     <- we are here
-		// OnPersist <- nothing to do
-		// Block     <-
-		//
-		// Reset     <- update next consensus
-		// OnPersist <- update committee
-		// Block     <-
-		srv.dbft.OnTimeout(timer.HV{Height: srv.dbft.BlockIndex})
-		checkNextConsensus(t, bc, height+1, acc.Contract.ScriptHash())
-
-		srv.dbft.OnTimeout(timer.HV{Height: srv.dbft.BlockIndex})
-		checkNextConsensus(t, bc, height+2, hash.Hash160(script))
-	})
+			srv.dbft.OnTimeout(timer.HV{Height: srv.dbft.BlockIndex})
+			checkNextConsensus(t, bc, height+2, hash.Hash160(script))
+		})
+	*/
 }
 
 func TestService_GetVerified(t *testing.T) {
