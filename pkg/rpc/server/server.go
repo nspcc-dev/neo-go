@@ -846,33 +846,34 @@ func (s *Server) getStorage(ps request.Params) (interface{}, *response.Error) {
 }
 
 func (s *Server) getrawtransaction(reqParams request.Params) (interface{}, *response.Error) {
-	var resultsErr *response.Error
-	var results interface{}
-
-	if txHash, err := reqParams.Value(0).GetUint256(); err != nil {
-		resultsErr = response.ErrInvalidParams
-	} else if tx, height, err := s.chain.GetTransaction(txHash); err != nil {
+	txHash, err := reqParams.Value(0).GetUint256()
+	if err != nil {
+		return nil, response.ErrInvalidParams
+	}
+	tx, height, err := s.chain.GetTransaction(txHash)
+	if err != nil {
 		err = fmt.Errorf("invalid transaction %s: %w", txHash, err)
 		return nil, response.NewRPCError("Unknown transaction", err.Error(), err)
-	} else if reqParams.Value(1).GetBoolean() {
+	}
+	if reqParams.Value(1).GetBoolean() {
+		if height == math.MaxUint32 {
+			return result.NewTransactionOutputRaw(tx, nil, nil, s.chain), nil
+		}
 		_header := s.chain.GetHeaderHash(int(height))
 		header, err := s.chain.GetHeader(_header)
 		if err != nil {
-			return nil, response.NewInvalidParamsError(err.Error(), err)
+			return nil, response.NewRPCError("Failed to get header for the transaction", err.Error(), err)
 		}
 		aers, err := s.chain.GetAppExecResults(txHash, trigger.Application)
 		if err != nil {
-			return nil, response.NewRPCError("Unknown transaction", err.Error(), err)
+			return nil, response.NewRPCError("Failed to get application log for the transaction", err.Error(), err)
 		}
 		if len(aers) == 0 {
-			return nil, response.NewRPCError("Unknown transaction", "", nil)
+			return nil, response.NewRPCError("Application log for the transaction is empty", "", nil)
 		}
-		results = result.NewTransactionOutputRaw(tx, header, &aers[0], s.chain)
-	} else {
-		results = tx.Bytes()
+		return result.NewTransactionOutputRaw(tx, header, &aers[0], s.chain), nil
 	}
-
-	return results, resultsErr
+	return tx.Bytes(), nil
 }
 
 func (s *Server) getTransactionHeight(ps request.Params) (interface{}, *response.Error) {
@@ -882,7 +883,7 @@ func (s *Server) getTransactionHeight(ps request.Params) (interface{}, *response
 	}
 
 	_, height, err := s.chain.GetTransaction(h)
-	if err != nil {
+	if err != nil || height == math.MaxUint32 {
 		return nil, response.NewRPCError("unknown transaction", "", nil)
 	}
 

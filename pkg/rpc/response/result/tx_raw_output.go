@@ -23,32 +23,31 @@ type TransactionMetadata struct {
 	Blockhash     util.Uint256 `json:"blockhash,omitempty"`
 	Confirmations int          `json:"confirmations,omitempty"`
 	Timestamp     uint64       `json:"blocktime,omitempty"`
-	VMState       string       `json:"vmstate"`
+	VMState       string       `json:"vmstate,omitempty"`
 }
 
 // NewTransactionOutputRaw returns a new ransactionOutputRaw object.
 func NewTransactionOutputRaw(tx *transaction.Transaction, header *block.Header, appExecResult *state.AppExecResult, chain blockchainer.Blockchainer) TransactionOutputRaw {
+	result := TransactionOutputRaw{
+		Transaction: *tx,
+	}
+	if header == nil {
+		return result
+	}
 	// confirmations formula
 	confirmations := int(chain.BlockHeight() - header.Base.Index + 1)
-	return TransactionOutputRaw{
-		Transaction: *tx,
-		TransactionMetadata: TransactionMetadata{
-			Blockhash:     header.Hash(),
-			Confirmations: confirmations,
-			Timestamp:     header.Timestamp,
-			VMState:       appExecResult.VMState.String(),
-		},
+	result.TransactionMetadata = TransactionMetadata{
+		Blockhash:     header.Hash(),
+		Confirmations: confirmations,
+		Timestamp:     header.Timestamp,
+		VMState:       appExecResult.VMState.String(),
 	}
+	return result
 }
 
 // MarshalJSON implements json.Marshaler interface.
 func (t TransactionOutputRaw) MarshalJSON() ([]byte, error) {
-	output, err := json.Marshal(TransactionMetadata{
-		Blockhash:     t.Blockhash,
-		Confirmations: t.Confirmations,
-		Timestamp:     t.Timestamp,
-		VMState:       t.VMState,
-	})
+	output, err := json.Marshal(t.TransactionMetadata)
 	if err != nil {
 		return nil, err
 	}
@@ -76,10 +75,6 @@ func (t *TransactionOutputRaw) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		return err
 	}
-	t.Blockhash = output.Blockhash
-	t.Confirmations = output.Confirmations
-	t.Timestamp = output.Timestamp
-	t.VMState = output.VMState
-
+	t.TransactionMetadata = *output
 	return json.Unmarshal(data, &t.Transaction)
 }
