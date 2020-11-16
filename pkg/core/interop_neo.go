@@ -3,6 +3,7 @@ package core
 import (
 	"bytes"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"sort"
@@ -75,7 +76,7 @@ func createContractStateFromVM(ic *interop.Context) (*state.Contract, error) {
 		return nil, errGasLimitExceeded
 	}
 	var m manifest.Manifest
-	err := m.UnmarshalJSON(manifestBytes)
+	err := json.Unmarshal(manifestBytes, &m)
 	if err != nil {
 		return nil, fmt.Errorf("unable to retrieve manifest from stack: %w", err)
 	}
@@ -173,7 +174,7 @@ func contractUpdate(ic *interop.Context) error {
 	// storage items if needed
 	if manifestBytes != nil {
 		var newManifest manifest.Manifest
-		err := newManifest.UnmarshalJSON(manifestBytes)
+		err := json.Unmarshal(manifestBytes, &newManifest)
 		if err != nil {
 			return fmt.Errorf("unable to retrieve manifest from stack: %w", err)
 		}
@@ -181,15 +182,6 @@ func contractUpdate(ic *interop.Context) error {
 		contract.Manifest = newManifest
 		if !contract.Manifest.IsValid(contract.ScriptHash()) {
 			return errors.New("failed to check contract script hash against new manifest")
-		}
-		if !contract.HasStorage() {
-			siMap, err := ic.DAO.GetStorageItems(contract.ID)
-			if err != nil {
-				return fmt.Errorf("failed to update manifest: %w", err)
-			}
-			if len(siMap) != 0 {
-				return errors.New("old contract shouldn't have storage")
-			}
 		}
 		if err := ic.DAO.PutContractState(contract); err != nil {
 			return fmt.Errorf("failed to update manifest: %w", err)

@@ -18,7 +18,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
-	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -295,7 +294,6 @@ func createVMAndPushTX(t *testing.T) (*vm.VM, *transaction.Transaction, *interop
 func createVMAndContractState(t *testing.T) (*vm.VM, *state.Contract, *interop.Context, *Blockchain) {
 	script := []byte("testscript")
 	m := manifest.NewManifest(hash.Hash160(script))
-	m.Features = smartcontract.HasStorage
 	contractState := &state.Contract{
 		Script:   script,
 		Manifest: *m,

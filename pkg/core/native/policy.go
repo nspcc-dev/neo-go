@@ -74,7 +74,6 @@ func newPolicy() *Policy {
 	p := &Policy{ContractMD: *interop.NewContractMD(policyName)}
 
 	p.ContractID = policyContractID
-	p.Manifest.Features |= smartcontract.HasStorage
 
 	desc := newDescriptor("getMaxTransactionsPerBlock", smartcontract.IntegerType)
 	md := newMethodAndPrice(p.getMaxTransactionsPerBlock, 1000000, smartcontract.AllowStates)

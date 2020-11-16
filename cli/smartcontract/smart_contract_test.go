@@ -58,24 +58,13 @@ func RuntimeNotify(args []interface{}) {
 	manifest, err := ioutil.ReadFile(contractName + "/" + files[1].Name())
 	require.NoError(t, err)
 	require.Equal(t,
-		`hasstorage: false
-ispayable: false
-supportedstandards: []
+		`supportedstandards: []
 events:
 - name: Hello world!
   parameters:
   - name: args
     type: Array
 `, string(manifest))
-}
-
-func TestGetFeatures(t *testing.T) {
-	cfg := ProjectConfig{
-		IsPayable:  true,
-		HasStorage: true,
-	}
-	f := cfg.GetFeatures()
-	require.Equal(t, smartcontract.IsPayable|smartcontract.HasStorage, f)
 }
 
 func TestParseCosigner(t *testing.T) {

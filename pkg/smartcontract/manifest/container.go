@@ -66,7 +66,7 @@ func (c *WildStrings) Add(v string) { c.Value = append(c.Value, v) }
 func (c *WildUint160s) Add(v util.Uint160) { c.Value = append(c.Value, v) }
 
 // MarshalJSON implements json.Marshaler interface.
-func (c *WildStrings) MarshalJSON() ([]byte, error) {
+func (c WildStrings) MarshalJSON() ([]byte, error) {
 	if c.IsWildcard() {
 		return []byte(`"*"`), nil
 	}
@@ -74,7 +74,7 @@ func (c *WildStrings) MarshalJSON() ([]byte, error) {
 }
 
 // MarshalJSON implements json.Marshaler interface.
-func (c *WildUint160s) MarshalJSON() ([]byte, error) {
+func (c WildUint160s) MarshalJSON() ([]byte, error) {
 	if c.IsWildcard() {
 		return []byte(`"*"`), nil
 	}

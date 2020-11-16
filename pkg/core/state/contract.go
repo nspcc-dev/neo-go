@@ -6,7 +6,6 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/io"
-	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 )
@@ -46,16 +45,6 @@ func (cs *Contract) ScriptHash() util.Uint160 {
 // createHash creates contract script hash.
 func (cs *Contract) createHash() {
 	cs.scriptHash = hash.Hash160(cs.Script)
-}
-
-// HasStorage checks whether the contract has storage property set.
-func (cs *Contract) HasStorage() bool {
-	return (cs.Manifest.Features & smartcontract.HasStorage) != 0
-}
-
-// IsPayable checks whether the contract has payable property set.
-func (cs *Contract) IsPayable() bool {
-	return (cs.Manifest.Features & smartcontract.IsPayable) != 0
 }
 
 type contractJSON struct {

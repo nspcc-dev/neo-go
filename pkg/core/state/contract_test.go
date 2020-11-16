@@ -29,7 +29,6 @@ func TestEncodeDecodeContractState(t *testing.T) {
 		},
 		ReturnType: smartcontract.BoolType,
 	}}
-	m.Features = smartcontract.HasStorage
 	contract := &Contract{
 		ID:       123,
 		Script:   script,
