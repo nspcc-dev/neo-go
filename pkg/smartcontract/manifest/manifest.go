@@ -2,6 +2,7 @@ package manifest
 
 import (
 	"encoding/json"
+	"math"
 
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -9,7 +10,7 @@ import (
 
 const (
 	// MaxManifestSize is a max length for a valid contract manifest.
-	MaxManifestSize = 4096
+	MaxManifestSize = math.MaxUint16
 
 	// MethodInit is a name for default initialization method.
 	MethodInit = "_initialize"
