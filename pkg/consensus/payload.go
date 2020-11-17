@@ -340,7 +340,7 @@ func (t messageType) String() string {
 
 // decode data of payload into it's message
 func (p *Payload) decodeData() error {
-	m := new(message)
+	m := p.message
 	br := io.NewBinReaderFromBuf(p.data)
 	m.DecodeBinary(br)
 	if br.Err != nil {

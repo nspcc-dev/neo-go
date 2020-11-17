@@ -23,7 +23,6 @@ func TestRecoveryMessage_Setters(t *testing.T) {
 
 	r := &recoveryMessage{}
 	p := NewPayload(netmode.UnitTestNet)
-	p.message = &message{}
 	p.SetType(payload.RecoveryMessageType)
 	p.SetPayload(r)
 	// sign payload to have verification script
@@ -35,7 +34,6 @@ func TestRecoveryMessage_Setters(t *testing.T) {
 		transactionHashes: []util.Uint256{{1}},
 	}
 	p1 := NewPayload(netmode.UnitTestNet)
-	p1.message = &message{}
 	p1.SetType(payload.PrepareRequestType)
 	p1.SetPayload(req)
 	p1.SetValidatorIndex(0)
@@ -43,7 +41,6 @@ func TestRecoveryMessage_Setters(t *testing.T) {
 
 	t.Run("prepare response is added", func(t *testing.T) {
 		p2 := NewPayload(netmode.UnitTestNet)
-		p2.message = &message{}
 		p2.SetType(payload.PrepareResponseType)
 		p2.SetPayload(&prepareResponse{
 			preparationHash: p1.Hash(),
@@ -80,7 +77,6 @@ func TestRecoveryMessage_Setters(t *testing.T) {
 
 	t.Run("change view is added", func(t *testing.T) {
 		p3 := NewPayload(netmode.UnitTestNet)
-		p3.message = &message{}
 		p3.SetType(payload.ChangeViewType)
 		p3.SetPayload(&changeView{
 			newViewNumber: 1,
@@ -103,7 +99,6 @@ func TestRecoveryMessage_Setters(t *testing.T) {
 
 	t.Run("commit is added", func(t *testing.T) {
 		p4 := NewPayload(netmode.UnitTestNet)
-		p4.message = &message{}
 		p4.SetType(payload.CommitType)
 		p4.SetPayload(randomMessage(t, commitType))
 		p4.SetValidatorIndex(3)
