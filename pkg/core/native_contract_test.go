@@ -225,8 +225,8 @@ func TestNativeContract_InvokeInternal(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	ic := chain.newInteropContext(trigger.Application,
-		dao.NewSimple(storage.NewMemoryStore(), netmode.UnitTestNet), nil, nil)
+	d := dao.NewSimple(storage.NewMemoryStore(), netmode.UnitTestNet, chain.config.StateRootInHeader)
+	ic := chain.newInteropContext(trigger.Application, d, nil, nil)
 	v := ic.SpawnVM()
 
 	t.Run("fail, bad current script hash", func(t *testing.T) {

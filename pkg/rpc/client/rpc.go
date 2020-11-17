@@ -83,7 +83,7 @@ func (c *Client) getBlock(params request.RawParams) (*block.Block, error) {
 		return nil, err
 	}
 	r := io.NewBinReaderFromBuf(resp)
-	b = block.New(c.GetNetwork())
+	b = block.New(c.GetNetwork(), c.StateRootInHeader())
 	b.DecodeBinary(r)
 	if r.Err != nil {
 		return nil, r.Err
@@ -604,6 +604,11 @@ func (c *Client) AddNetworkFee(tx *transaction.Transaction, extraFee int64, accs
 // GetNetwork returns the network magic of the RPC node client connected to.
 func (c *Client) GetNetwork() netmode.Magic {
 	return c.network
+}
+
+// StateRootInHeader returns true if state root is contained in block header.
+func (c *Client) StateRootInHeader() bool {
+	return c.stateRootInHeader
 }
 
 // GetNativeContractHash returns native contract hash by its name. It is not case-sensitive.

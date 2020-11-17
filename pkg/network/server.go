@@ -55,6 +55,8 @@ type (
 
 		// Network's magic number for correct message decoding.
 		network netmode.Magic
+		// stateRootInHeader specifies if block header contain state root.
+		stateRootInHeader bool
 
 		transport Transporter
 		discovery Discoverer
@@ -95,17 +97,18 @@ func NewServer(config ServerConfig, chain blockchainer.Blockchainer, log *zap.Lo
 	}
 
 	s := &Server{
-		ServerConfig:     config,
-		chain:            chain,
-		id:               randomID(),
-		network:          chain.GetConfig().Magic,
-		quit:             make(chan struct{}),
-		register:         make(chan Peer),
-		unregister:       make(chan peerDrop),
-		peers:            make(map[Peer]bool),
-		consensusStarted: atomic.NewBool(false),
-		log:              log,
-		transactions:     make(chan *transaction.Transaction, 64),
+		ServerConfig:      config,
+		chain:             chain,
+		id:                randomID(),
+		network:           chain.GetConfig().Magic,
+		stateRootInHeader: chain.GetConfig().StateRootInHeader,
+		quit:              make(chan struct{}),
+		register:          make(chan Peer),
+		unregister:        make(chan peerDrop),
+		peers:             make(map[Peer]bool),
+		consensusStarted:  atomic.NewBool(false),
+		log:               log,
+		transactions:      make(chan *transaction.Transaction, 64),
 	}
 	s.bQueue = newBlockQueue(maxBlockBatch, chain, log, func(b *block.Block) {
 		if !s.consensusStarted.Load() {

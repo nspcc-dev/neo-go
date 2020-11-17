@@ -142,7 +142,7 @@ func TestOracle_Request(t *testing.T) {
 	pub := priv.PublicKey()
 
 	tx := transaction.New(netmode.UnitTestNet, []byte{}, 0)
-	bl := block.New(netmode.UnitTestNet)
+	bl := block.New(netmode.UnitTestNet, bc.config.StateRootInHeader)
 	bl.Index = bc.BlockHeight() + 1
 	setSigner(tx, testchain.CommitteeScriptHash())
 	ic := bc.newInteropContext(trigger.Application, bc.dao, bl, tx)

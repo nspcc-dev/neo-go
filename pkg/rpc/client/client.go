@@ -28,14 +28,15 @@ const (
 // Client represents the middleman for executing JSON RPC calls
 // to remote NEO RPC nodes.
 type Client struct {
-	cli      *http.Client
-	endpoint *url.URL
-	network  netmode.Magic
-	initDone bool
-	ctx      context.Context
-	opts     Options
-	requestF func(*request.Raw) (*response.Raw, error)
-	cache    cache
+	cli               *http.Client
+	endpoint          *url.URL
+	network           netmode.Magic
+	stateRootInHeader bool
+	initDone          bool
+	ctx               context.Context
+	opts              Options
+	requestF          func(*request.Raw) (*response.Raw, error)
+	cache             cache
 }
 
 // Options defines options for the RPC client.
@@ -115,6 +116,7 @@ func (c *Client) Init() error {
 		return fmt.Errorf("failed to get network magic: %w", err)
 	}
 	c.network = version.Magic
+	c.stateRootInHeader = version.StateRootInHeader
 	neoContractHash, err := c.GetContractStateByAddressOrName("neo")
 	if err != nil {
 		return fmt.Errorf("failed to get NEO contract scripthash: %w", err)

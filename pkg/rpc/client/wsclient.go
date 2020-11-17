@@ -139,7 +139,7 @@ readloop:
 			var val interface{}
 			switch event {
 			case response.BlockEventID:
-				val = block.New(c.GetNetwork())
+				val = block.New(c.GetNetwork(), c.StateRootInHeader())
 			case response.TransactionEventID:
 				val = &transaction.Transaction{Network: c.GetNetwork()}
 			case response.NotificationEventID:

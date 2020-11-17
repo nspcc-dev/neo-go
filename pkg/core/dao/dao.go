@@ -76,12 +76,14 @@ type Simple struct {
 	MPT     *mpt.Trie
 	Store   *storage.MemCachedStore
 	network netmode.Magic
+	// stateRootInHeader specifies if block header contains state root.
+	stateRootInHeader bool
 }
 
 // NewSimple creates new simple dao using provided backend store.
-func NewSimple(backend storage.Store, network netmode.Magic) *Simple {
+func NewSimple(backend storage.Store, network netmode.Magic, stateRootInHeader bool) *Simple {
 	st := storage.NewMemCachedStore(backend)
-	return &Simple{Store: st, network: network}
+	return &Simple{Store: st, network: network, stateRootInHeader: stateRootInHeader}
 }
 
 // GetBatch returns currently accumulated DB changeset.
@@ -92,7 +94,7 @@ func (dao *Simple) GetBatch() *storage.MemBatch {
 // GetWrapped returns new DAO instance with another layer of wrapped
 // MemCachedStore around the current DAO Store.
 func (dao *Simple) GetWrapped() DAO {
-	d := NewSimple(dao.Store, dao.network)
+	d := NewSimple(dao.Store, dao.network, dao.stateRootInHeader)
 	d.MPT = dao.MPT
 	return d
 }
@@ -514,7 +516,7 @@ func (dao *Simple) GetBlock(hash util.Uint256) (*block.Block, error) {
 		return nil, err
 	}
 
-	block, err := block.NewBlockFromTrimmedBytes(dao.network, b)
+	block, err := block.NewBlockFromTrimmedBytes(dao.network, dao.stateRootInHeader, b)
 	if err != nil {
 		return nil, err
 	}

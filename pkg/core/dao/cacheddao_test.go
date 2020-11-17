@@ -15,7 +15,7 @@ import (
 
 func TestCachedDaoContracts(t *testing.T) {
 	store := storage.NewMemoryStore()
-	pdao := NewSimple(store, netmode.UnitTestNet)
+	pdao := NewSimple(store, netmode.UnitTestNet, false)
 	dao := NewCached(pdao)
 
 	script := []byte{0xde, 0xad, 0xbe, 0xef}
@@ -54,7 +54,7 @@ func TestCachedDaoContracts(t *testing.T) {
 func TestCachedCachedDao(t *testing.T) {
 	store := storage.NewMemoryStore()
 	// Persistent DAO to check for backing storage.
-	pdao := NewSimple(store, netmode.UnitTestNet)
+	pdao := NewSimple(store, netmode.UnitTestNet, false)
 	assert.NotEqual(t, store, pdao.Store)
 	// Cached DAO.
 	cdao := NewCached(pdao)

@@ -285,6 +285,31 @@ func TestService_getTx(t *testing.T) {
 	srv.Chain.Close()
 }
 
+func TestService_PrepareRequest(t *testing.T) {
+	srv := newTestServiceWithState(t, true)
+	srv.dbft.Start()
+	defer srv.dbft.Timer.Stop()
+
+	priv, _ := getTestValidator(1)
+	p := new(Payload)
+	p.message = &message{}
+	p.SetValidatorIndex(1)
+
+	p.SetPayload(&prepareRequest{})
+	require.NoError(t, p.Sign(priv))
+	require.Error(t, srv.verifyRequest(p), "invalid stateroot setting")
+
+	p.SetPayload(&prepareRequest{stateRootEnabled: true})
+	require.NoError(t, p.Sign(priv))
+	require.Error(t, srv.verifyRequest(p), "invalid state root")
+
+	sr, err := srv.Chain.GetStateRoot(srv.dbft.BlockIndex - 1)
+	require.NoError(t, err)
+	p.SetPayload(&prepareRequest{stateRootEnabled: true, stateRoot: sr.Root})
+	require.NoError(t, p.Sign(priv))
+	require.NoError(t, srv.verifyRequest(p))
+}
+
 func TestService_OnPayload(t *testing.T) {
 	srv := newTestService(t)
 	// This test directly reads things from srv.messages that normally
@@ -407,8 +432,12 @@ func shouldNotReceive(t *testing.T, ch chan Payload) {
 	}
 }
 
+func newTestServiceWithState(t *testing.T, stateRootInHeader bool) *service {
+	return newTestServiceWithChain(t, newTestChain(t, stateRootInHeader))
+}
+
 func newTestService(t *testing.T) *service {
-	return newTestServiceWithChain(t, newTestChain(t))
+	return newTestServiceWithState(t, false)
 }
 
 func newTestServiceWithChain(t *testing.T, bc *core.Blockchain) *service {
@@ -445,9 +474,10 @@ func newSingleTestChain(t *testing.T) *core.Blockchain {
 	return chain
 }
 
-func newTestChain(t *testing.T) *core.Blockchain {
+func newTestChain(t *testing.T, stateRootInHeader bool) *core.Blockchain {
 	unitTestNetCfg, err := config.Load("../../config", netmode.UnitTestNet)
 	require.NoError(t, err)
+	unitTestNetCfg.ProtocolConfiguration.StateRootInHeader = stateRootInHeader
 
 	chain, err := core.NewBlockchain(storage.NewMemoryStore(), unitTestNetCfg.ProtocolConfiguration, zaptest.NewLogger(t))
 	require.NoError(t, err)

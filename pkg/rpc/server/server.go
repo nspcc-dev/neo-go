@@ -39,13 +39,14 @@ type (
 	// Server represents the JSON-RPC 2.0 server.
 	Server struct {
 		*http.Server
-		chain      blockchainer.Blockchainer
-		config     rpc.Config
-		network    netmode.Magic
-		coreServer *network.Server
-		log        *zap.Logger
-		https      *http.Server
-		shutdown   chan struct{}
+		chain            blockchainer.Blockchainer
+		config           rpc.Config
+		network          netmode.Magic
+		stateRootEnabled bool
+		coreServer       *network.Server
+		log              *zap.Logger
+		https            *http.Server
+		shutdown         chan struct{}
 
 		subsLock         sync.RWMutex
 		subscribers      map[*subscriber]bool
@@ -138,14 +139,15 @@ func New(chain blockchainer.Blockchainer, conf rpc.Config, coreServer *network.S
 	}
 
 	return Server{
-		Server:     httpServer,
-		chain:      chain,
-		config:     conf,
-		network:    chain.GetConfig().Magic,
-		coreServer: coreServer,
-		log:        log,
-		https:      tlsServer,
-		shutdown:   make(chan struct{}),
+		Server:           httpServer,
+		chain:            chain,
+		config:           conf,
+		network:          chain.GetConfig().Magic,
+		stateRootEnabled: chain.GetConfig().StateRootInHeader,
+		coreServer:       coreServer,
+		log:              log,
+		https:            tlsServer,
+		shutdown:         make(chan struct{}),
 
 		subscribers: make(map[*subscriber]bool),
 		// These are NOT buffered to preserve original order of events.
@@ -1039,7 +1041,7 @@ func (s *Server) submitBlock(reqParams request.Params) (interface{}, *response.E
 	if err != nil {
 		return nil, response.ErrInvalidParams
 	}
-	b := block.New(s.network)
+	b := block.New(s.network, s.stateRootEnabled)
 	r := io.NewBinReaderFromBuf(blockBytes)
 	b.DecodeBinary(r)
 	if r.Err != nil {

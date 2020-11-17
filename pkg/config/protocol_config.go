@@ -24,7 +24,9 @@ type (
 		SecondsPerBlock  int      `yaml:"SecondsPerBlock"`
 		SeedList         []string `yaml:"SeedList"`
 		StandbyCommittee []string `yaml:"StandbyCommittee"`
-		ValidatorsCount  int      `yaml:"ValidatorsCount"`
+		// StateRooInHeader enables storing state root in block header.
+		StateRootInHeader bool `yaml:"StateRootInHeader"`
+		ValidatorsCount   int  `yaml:"ValidatorsCount"`
 		// Whether to verify received blocks.
 		VerifyBlocks bool `yaml:"VerifyBlocks"`
 		// Whether to verify transactions in received blocks.

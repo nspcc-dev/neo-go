@@ -38,8 +38,13 @@ var neoOwner = testchain.MultisigScriptHash()
 // newTestChain should be called before newBlock invocation to properly setup
 // global state.
 func newTestChain(t *testing.T) *Blockchain {
+	return newTestChainWithStateRoot(t, false)
+}
+
+func newTestChainWithStateRoot(t *testing.T, stateRootInHeader bool) *Blockchain {
 	unitTestNetCfg, err := config.Load("../../config", testchain.Network())
 	require.NoError(t, err)
+	unitTestNetCfg.ProtocolConfiguration.StateRootInHeader = stateRootInHeader
 	chain, err := NewBlockchain(storage.NewMemoryStore(), unitTestNetCfg.ProtocolConfiguration, zaptest.NewLogger(t))
 	require.NoError(t, err)
 	go chain.Run()
@@ -48,10 +53,22 @@ func newTestChain(t *testing.T) *Blockchain {
 
 func (bc *Blockchain) newBlock(txs ...*transaction.Transaction) *block.Block {
 	lastBlock := bc.topBlock.Load().(*block.Block)
+	if bc.config.StateRootInHeader {
+		sr, err := bc.GetStateRoot(bc.BlockHeight())
+		if err != nil {
+			panic(err)
+		}
+		return newBlockWithState(bc.config, lastBlock.Index+1, lastBlock.Hash(), &sr.Root, txs...)
+	}
 	return newBlock(bc.config, lastBlock.Index+1, lastBlock.Hash(), txs...)
 }
 
 func newBlock(cfg config.ProtocolConfiguration, index uint32, prev util.Uint256, txs ...*transaction.Transaction) *block.Block {
+	return newBlockWithState(cfg, index, prev, nil, txs...)
+}
+
+func newBlockWithState(cfg config.ProtocolConfiguration, index uint32, prev util.Uint256,
+	prevState *util.Uint256, txs ...*transaction.Transaction) *block.Block {
 	validators, _ := validatorsFromConfig(cfg)
 	valScript, _ := smartcontract.CreateDefaultMultiSigRedeemScript(validators)
 	witness := transaction.Witness{
@@ -72,6 +89,10 @@ func newBlock(cfg config.ProtocolConfiguration, index uint32, prev util.Uint256,
 			Nonce:        1111,
 		},
 		Transactions: txs,
+	}
+	if prevState != nil {
+		b.StateRootEnabled = true
+		b.PrevStateRoot = *prevState
 	}
 	b.RebuildMerkleRoot()
 	b.Script.InvocationScript = testchain.Sign(b.GetSignedPart())
@@ -99,7 +120,7 @@ func getDecodedBlock(t *testing.T, i int) *block.Block {
 	b, err := hex.DecodeString(data["raw"].(string))
 	require.NoError(t, err)
 
-	block := block.New(testchain.Network())
+	block := block.New(testchain.Network(), false)
 	require.NoError(t, testserdes.DecodeBinary(b, block))
 
 	return block

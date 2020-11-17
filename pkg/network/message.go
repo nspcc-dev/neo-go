@@ -34,6 +34,9 @@ type Message struct {
 	// Network this message comes from, it has to be set upon Message
 	// creation for correct decoding.
 	Network netmode.Magic
+	// StateRootInHeader specifies if state root is included in block header.
+	// This is needed for correct decoding.
+	StateRootInHeader bool
 }
 
 // MessageFlag represents compression level of message payload
@@ -106,7 +109,7 @@ func (m *Message) Decode(br *io.BinReader) error {
 		case CMDFilterClear, CMDGetAddr, CMDMempool, CMDVerack:
 			m.Payload = payload.NewNullPayload()
 		default:
-			return errors.New("unexpected empty payload")
+			return fmt.Errorf("unexpected empty payload: %s", m.Command)
 		}
 		return nil
 	}
@@ -142,9 +145,9 @@ func (m *Message) decodePayload() error {
 	case CMDAddr:
 		p = &payload.AddressList{}
 	case CMDBlock:
-		p = block.New(m.Network)
+		p = block.New(m.Network, m.StateRootInHeader)
 	case CMDConsensus:
-		p = consensus.NewPayload(m.Network)
+		p = consensus.NewPayload(m.Network, m.StateRootInHeader)
 	case CMDGetBlocks:
 		p = &payload.GetBlocks{}
 	case CMDGetHeaders:
@@ -152,7 +155,7 @@ func (m *Message) decodePayload() error {
 	case CMDGetBlockByIndex:
 		p = &payload.GetBlockByIndex{}
 	case CMDHeaders:
-		p = &payload.Headers{Network: m.Network}
+		p = &payload.Headers{Network: m.Network, StateRootInHeader: m.StateRootInHeader}
 	case CMDTX:
 		p = &transaction.Transaction{Network: m.Network}
 	case CMDMerkleBlock:
