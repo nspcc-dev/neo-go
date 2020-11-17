@@ -266,12 +266,13 @@ func runtimeNotify(ic *interop.Context) error {
 	args := elem.Array()
 	// But it has to be serializable, otherwise we either have some broken
 	// (recursive) structure inside or an interop item that can't be used
-	// outside of the interop subsystem anyway. I'd probably fail transactions
-	// that emit such broken notifications, but that might break compatibility
-	// with testnet/mainnet, so we're replacing these with error messages.
-	_, err := stackitem.SerializeItem(elem.Item())
+	// outside of the interop subsystem anyway.
+	bytes, err := stackitem.SerializeItem(elem.Item())
 	if err != nil {
-		args = []stackitem.Item{stackitem.NewByteArray([]byte(fmt.Sprintf("bad notification: %v", err)))}
+		return fmt.Errorf("bad notification: %w", err)
+	}
+	if len(bytes) > MaxNotificationSize {
+		return fmt.Errorf("notification size shouldn't exceed %d", MaxNotificationSize)
 	}
 	ne := state.NotificationEvent{
 		ScriptHash: ic.VM.GetCurrentScriptHash(),
