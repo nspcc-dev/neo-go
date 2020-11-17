@@ -1246,7 +1246,7 @@ func checkNep5Balances(t *testing.T, e *executor, acc interface{}) {
 		Balances: []result.NEP5Balance{
 			{
 				Asset:       rubles,
-				Amount:      "8.77",
+				Amount:      "877",
 				LastUpdated: 6,
 			},
 			{
@@ -1256,7 +1256,7 @@ func checkNep5Balances(t *testing.T, e *executor, acc interface{}) {
 			},
 			{
 				Asset:       e.chain.UtilityTokenHash(),
-				Amount:      "800.09641770",
+				Amount:      "80009641770",
 				LastUpdated: 7,
 			}},
 		Address: testchain.PrivateKeyByID(0).GetScriptHash().StringLE(),
@@ -1327,7 +1327,7 @@ func checkNep5TransfersAux(t *testing.T, e *executor, acc interface{}, sent, rcv
 				Timestamp: blockDeploy2.Timestamp,
 				Asset:     e.chain.UtilityTokenHash(),
 				Address:   "", // burn
-				Amount:    amountToString(big.NewInt(txDeploy2.SystemFee+txDeploy2.NetworkFee), 8),
+				Amount:    big.NewInt(txDeploy2.SystemFee + txDeploy2.NetworkFee).String(),
 				Index:     7,
 				TxHash:    blockDeploy2.Hash(),
 			},
@@ -1335,7 +1335,7 @@ func checkNep5TransfersAux(t *testing.T, e *executor, acc interface{}, sent, rcv
 				Timestamp:   blockSendRubles.Timestamp,
 				Asset:       rublesHash,
 				Address:     testchain.PrivateKeyByID(1).Address(),
-				Amount:      "1.23",
+				Amount:      "123",
 				Index:       6,
 				NotifyIndex: 0,
 				TxHash:      txSendRubles.Hash(),
@@ -1344,7 +1344,7 @@ func checkNep5TransfersAux(t *testing.T, e *executor, acc interface{}, sent, rcv
 				Timestamp: blockSendRubles.Timestamp,
 				Asset:     e.chain.UtilityTokenHash(),
 				Address:   "", // burn
-				Amount:    amountToString(big.NewInt(txSendRubles.SystemFee+txSendRubles.NetworkFee), 8),
+				Amount:    big.NewInt(txSendRubles.SystemFee + txSendRubles.NetworkFee).String(),
 				Index:     6,
 				TxHash:    blockSendRubles.Hash(),
 			},
@@ -1352,7 +1352,7 @@ func checkNep5TransfersAux(t *testing.T, e *executor, acc interface{}, sent, rcv
 				Timestamp: blockReceiveRubles.Timestamp,
 				Asset:     e.chain.UtilityTokenHash(),
 				Address:   "", // burn
-				Amount:    amountToString(big.NewInt(txReceiveRubles.SystemFee+txReceiveRubles.NetworkFee), 8),
+				Amount:    big.NewInt(txReceiveRubles.SystemFee + txReceiveRubles.NetworkFee).String(),
 				Index:     5,
 				TxHash:    blockReceiveRubles.Hash(),
 			},
@@ -1360,7 +1360,7 @@ func checkNep5TransfersAux(t *testing.T, e *executor, acc interface{}, sent, rcv
 				Timestamp: blockReceiveRubles.Timestamp,
 				Asset:     e.chain.UtilityTokenHash(),
 				Address:   "", // burn
-				Amount:    amountToString(big.NewInt(txInitCall.SystemFee+txInitCall.NetworkFee), 8),
+				Amount:    big.NewInt(txInitCall.SystemFee + txInitCall.NetworkFee).String(),
 				Index:     5,
 				TxHash:    blockReceiveRubles.Hash(),
 			},
@@ -1377,7 +1377,7 @@ func checkNep5TransfersAux(t *testing.T, e *executor, acc interface{}, sent, rcv
 				Timestamp: blockSendNEO.Timestamp,
 				Asset:     e.chain.UtilityTokenHash(),
 				Address:   "", // burn
-				Amount:    amountToString(big.NewInt(txSendNEO.SystemFee+txSendNEO.NetworkFee), 8),
+				Amount:    big.NewInt(txSendNEO.SystemFee + txSendNEO.NetworkFee).String(),
 				Index:     4,
 				TxHash:    blockSendNEO.Hash(),
 			},
@@ -1385,7 +1385,7 @@ func checkNep5TransfersAux(t *testing.T, e *executor, acc interface{}, sent, rcv
 				Timestamp: blockCtrInv1.Timestamp,
 				Asset:     e.chain.UtilityTokenHash(),
 				Address:   "", // burn has empty receiver
-				Amount:    amountToString(big.NewInt(txCtrInv1.SystemFee+txCtrInv1.NetworkFee), 8),
+				Amount:    big.NewInt(txCtrInv1.SystemFee + txCtrInv1.NetworkFee).String(),
 				Index:     3,
 				TxHash:    blockCtrInv1.Hash(),
 			},
@@ -1393,7 +1393,7 @@ func checkNep5TransfersAux(t *testing.T, e *executor, acc interface{}, sent, rcv
 				Timestamp: blockCtrDeploy.Timestamp,
 				Asset:     e.chain.UtilityTokenHash(),
 				Address:   "", // burn has empty receiver
-				Amount:    amountToString(big.NewInt(txCtrDeploy.SystemFee+txCtrDeploy.NetworkFee), 8),
+				Amount:    big.NewInt(txCtrDeploy.SystemFee + txCtrDeploy.NetworkFee).String(),
 				Index:     2,
 				TxHash:    blockCtrDeploy.Hash(),
 			},
@@ -1403,7 +1403,7 @@ func checkNep5TransfersAux(t *testing.T, e *executor, acc interface{}, sent, rcv
 				Timestamp:   blockGASBounty.Timestamp,
 				Asset:       e.chain.UtilityTokenHash(),
 				Address:     "",
-				Amount:      "0.50000000",
+				Amount:      "50000000",
 				Index:       6,
 				NotifyIndex: 0,
 				TxHash:      blockGASBounty.Hash(),
@@ -1412,7 +1412,7 @@ func checkNep5TransfersAux(t *testing.T, e *executor, acc interface{}, sent, rcv
 				Timestamp:   blockReceiveRubles.Timestamp,
 				Asset:       rublesHash,
 				Address:     address.Uint160ToString(rublesHash),
-				Amount:      "10",
+				Amount:      "1000",
 				Index:       5,
 				NotifyIndex: 0,
 				TxHash:      txReceiveRubles.Hash(),
@@ -1421,7 +1421,7 @@ func checkNep5TransfersAux(t *testing.T, e *executor, acc interface{}, sent, rcv
 				Timestamp:   blockSendNEO.Timestamp,
 				Asset:       e.chain.UtilityTokenHash(),
 				Address:     "", // Minted GAS.
-				Amount:      "1.49998500",
+				Amount:      "149998500",
 				Index:       4,
 				NotifyIndex: 0,
 				TxHash:      txSendNEO.Hash(),
@@ -1430,7 +1430,7 @@ func checkNep5TransfersAux(t *testing.T, e *executor, acc interface{}, sent, rcv
 				Timestamp:   blockReceiveGAS.Timestamp,
 				Asset:       e.chain.UtilityTokenHash(),
 				Address:     testchain.MultisigAddress(),
-				Amount:      "1000",
+				Amount:      "100000000000",
 				Index:       1,
 				NotifyIndex: 0,
 				TxHash:      txReceiveGAS.Hash(),
@@ -1448,7 +1448,7 @@ func checkNep5TransfersAux(t *testing.T, e *executor, acc interface{}, sent, rcv
 				Timestamp: blockGASBounty0.Timestamp,
 				Asset:     e.chain.UtilityTokenHash(),
 				Address:   "",
-				Amount:    "0.50000000",
+				Amount:    "50000000",
 				Index:     0,
 				TxHash:    blockGASBounty0.Hash(),
 			},

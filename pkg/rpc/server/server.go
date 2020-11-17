@@ -554,16 +554,15 @@ func (s *Server) getNEP5Balances(ps request.Params) (interface{}, *response.Erro
 		Balances: []result.NEP5Balance{},
 	}
 	if as != nil {
-		cache := make(map[int32]decimals)
+		cache := make(map[int32]util.Uint160)
 		for id, bal := range as.Trackers {
-			dec, err := s.getDecimals(id, cache)
+			h, err := s.getHash(id, cache)
 			if err != nil {
 				continue
 			}
-			amount := amountToString(&bal.Balance, dec.Value)
 			bs.Balances = append(bs.Balances, result.NEP5Balance{
-				Asset:       dec.Hash,
-				Amount:      amount,
+				Asset:       h,
+				Amount:      bal.Balance.String(),
 				LastUpdated: bal.LastUpdatedBlock,
 			})
 		}
@@ -637,7 +636,7 @@ func (s *Server) getNEP5Transfers(ps request.Params) (interface{}, *response.Err
 		Received: []result.NEP5Transfer{},
 		Sent:     []result.NEP5Transfer{},
 	}
-	cache := make(map[int32]decimals)
+	cache := make(map[int32]util.Uint160)
 	var resCount, frameCount int
 	err = s.chain.ForEachNEP5Transfer(u, func(tr *state.NEP5Transfer) (bool, error) {
 		// Iterating from newest to oldest, not yet reached required
@@ -656,25 +655,25 @@ func (s *Server) getNEP5Transfers(ps request.Params) (interface{}, *response.Err
 			return true, nil
 		}
 
-		d, err := s.getDecimals(tr.Asset, cache)
+		h, err := s.getHash(tr.Asset, cache)
 		if err != nil {
 			return false, err
 		}
 
 		transfer := result.NEP5Transfer{
 			Timestamp: tr.Timestamp,
-			Asset:     d.Hash,
+			Asset:     h,
 			Index:     tr.Block,
 			TxHash:    tr.Tx,
 		}
 		if tr.Amount.Sign() > 0 { // token was received
-			transfer.Amount = amountToString(&tr.Amount, d.Value)
+			transfer.Amount = tr.Amount.String()
 			if !tr.From.Equals(util.Uint160{}) {
 				transfer.Address = address.Uint160ToString(tr.From)
 			}
 			bs.Received = append(bs.Received, transfer)
 		} else {
-			transfer.Amount = amountToString(new(big.Int).Neg(&tr.Amount), d.Value)
+			transfer.Amount = new(big.Int).Neg(&tr.Amount).String()
 			if !tr.To.Equals(util.Uint160{}) {
 				transfer.Address = address.Uint160ToString(tr.To)
 			}
@@ -694,68 +693,17 @@ func (s *Server) getNEP5Transfers(ps request.Params) (interface{}, *response.Err
 	return bs, nil
 }
 
-func amountToString(amount *big.Int, decimals int64) string {
-	if decimals == 0 {
-		return amount.String()
-	}
-	pow := int64(math.Pow10(int(decimals)))
-	q, r := new(big.Int).DivMod(amount, big.NewInt(pow), new(big.Int))
-	if r.Sign() == 0 {
-		return q.String()
-	}
-	fs := fmt.Sprintf("%%d.%%0%dd", decimals)
-	return fmt.Sprintf(fs, q, r)
-}
-
-// decimals represents decimals value for the contract with the specified scripthash.
-type decimals struct {
-	Hash  util.Uint160
-	Value int64
-}
-
-func (s *Server) getDecimals(contractID int32, cache map[int32]decimals) (decimals, error) {
+// getHash returns the hash of the contract by its ID using cache.
+func (s *Server) getHash(contractID int32, cache map[int32]util.Uint160) (util.Uint160, error) {
 	if d, ok := cache[contractID]; ok {
 		return d, nil
 	}
 	h, err := s.chain.GetContractScriptHash(contractID)
 	if err != nil {
-		return decimals{}, err
+		return util.Uint160{}, err
 	}
-	script, err := request.CreateFunctionInvocationScript(h, request.Params{
-		{
-			Type:  request.StringT,
-			Value: "decimals",
-		},
-		{
-			Type:  request.ArrayT,
-			Value: []request.Param{},
-		},
-	})
-	if err != nil {
-		return decimals{}, fmt.Errorf("can't create script: %w", err)
-	}
-	res := s.runScriptInVM(script, nil)
-	if res == nil {
-		return decimals{}, fmt.Errorf("execution error: no result")
-	}
-	if res.State != "HALT" {
-		return decimals{}, fmt.Errorf("execution error: bad VM state %s due to an error %s", res.State, res.FaultException)
-	}
-	if len(res.Stack) == 0 {
-		return decimals{}, fmt.Errorf("execution error: empty stack")
-	}
-
-	d := decimals{Hash: h}
-	bi, err := res.Stack[len(res.Stack)-1].TryInteger()
-	if err != nil {
-		return decimals{}, err
-	}
-	d.Value = bi.Int64()
-	if d.Value < 0 {
-		return d, errors.New("incorrect result: negative result")
-	}
-	cache[contractID] = d
-	return d, nil
+	cache[contractID] = h
+	return h, nil
 }
 
 func (s *Server) contractIDFromParam(param *request.Param) (int32, *response.Error) {
