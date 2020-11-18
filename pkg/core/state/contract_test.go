@@ -14,7 +14,7 @@ func TestEncodeDecodeContractState(t *testing.T) {
 	script := []byte("testscript")
 
 	h := hash.Hash160(script)
-	m := manifest.NewManifest(h, "Test")
+	m := manifest.NewManifest("Test")
 	m.ABI.Methods = []manifest.Method{{
 		Name: "main",
 		Parameters: []manifest.Parameter{

@@ -418,7 +418,7 @@ func getTestContractState() (*state.Contract, *state.Contract) {
 
 	script := w.Bytes()
 	h := hash.Hash160(script)
-	m := manifest.NewManifest(h, "TestMain")
+	m := manifest.NewManifest("TestMain")
 	m.ABI.Methods = []manifest.Method{
 		{
 			Name:   "add",
@@ -507,7 +507,7 @@ func getTestContractState() (*state.Contract, *state.Contract) {
 	}
 
 	currScript := []byte{byte(opcode.RET)}
-	m = manifest.NewManifest(hash.Hash160(currScript), "TestAux")
+	m = manifest.NewManifest("TestAux")
 	perm := manifest.NewPermission(manifest.PermissionHash, h)
 	perm.Methods.Add("add")
 	perm.Methods.Add("drop")
@@ -551,7 +551,7 @@ func TestContractCall(t *testing.T) {
 	require.NoError(t, ic.DAO.PutContractState(currCs))
 
 	currScript := currCs.Script
-	h := cs.Manifest.ABI.Hash
+	h := hash.Hash160(cs.Script)
 
 	addArgs := stackitem.NewArray([]stackitem.Item{stackitem.Make(1), stackitem.Make(2)})
 	t.Run("Good", func(t *testing.T) {
@@ -669,13 +669,6 @@ func TestContractCreate(t *testing.T) {
 		compareContractStates(t, cs, actual)
 	})
 
-	t.Run("invalid scripthash", func(t *testing.T) {
-		cs.Script = append(cs.Script, 0x01)
-		putArgsOnStack()
-
-		require.Error(t, contractCreate(ic))
-	})
-
 	t.Run("contract already exists", func(t *testing.T) {
 		cs.Script = cs.Script[:len(cs.Script)-1]
 		require.NoError(t, ic.DAO.PutContractState(cs))
@@ -758,9 +751,7 @@ func TestContractUpdate(t *testing.T) {
 			ID:     95,
 			Script: duplicateScript,
 			Manifest: manifest.Manifest{
-				ABI: manifest.ABI{
-					Hash: hash.Hash160(duplicateScript),
-				},
+				ABI: manifest.ABI{},
 			},
 		}))
 		v.LoadScriptWithHash([]byte{byte(opcode.RET)}, cs.ScriptHash(), smartcontract.All)
@@ -792,7 +783,6 @@ func TestContractUpdate(t *testing.T) {
 			Script:   newScript,
 			Manifest: cs.Manifest,
 		}
-		expected.Manifest.ABI.Hash = hash.Hash160(newScript)
 		_ = expected.ScriptHash()
 		require.Equal(t, expected, actual)
 
@@ -809,27 +799,10 @@ func TestContractUpdate(t *testing.T) {
 		require.Error(t, contractUpdate(ic))
 	})
 
-	t.Run("update manifest, bad contract hash", func(t *testing.T) {
-		require.NoError(t, ic.DAO.PutContractState(cs))
-		v.LoadScriptWithHash([]byte{byte(opcode.RET)}, cs.ScriptHash(), smartcontract.All)
-		manifest := &manifest.Manifest{
-			ABI: manifest.ABI{
-				Hash: util.Uint160{4, 5, 6},
-			},
-		}
-		manifestBytes, err := json.Marshal(manifest)
-		require.NoError(t, err)
-		putArgsOnStack(stackitem.Null{}, manifestBytes)
-
-		require.Error(t, contractUpdate(ic))
-	})
-
 	t.Run("update manifest, positive", func(t *testing.T) {
 		require.NoError(t, ic.DAO.PutContractState(cs))
 		manifest := &manifest.Manifest{
-			ABI: manifest.ABI{
-				Hash: cs.ScriptHash(),
-			},
+			ABI: manifest.ABI{},
 		}
 		manifestBytes, err := json.Marshal(manifest)
 		require.NoError(t, err)
@@ -861,9 +834,7 @@ func TestContractUpdate(t *testing.T) {
 		v.LoadScriptWithHash([]byte{byte(opcode.RET)}, cs.ScriptHash(), smartcontract.All)
 		newScript := []byte{12, 13, 14}
 		newManifest := manifest.Manifest{
-			ABI: manifest.ABI{
-				Hash: hash.Hash160(newScript),
-			},
+			ABI: manifest.ABI{},
 		}
 		newManifestBytes, err := json.Marshal(newManifest)
 		require.NoError(t, err)
@@ -880,7 +851,6 @@ func TestContractUpdate(t *testing.T) {
 			Script:   newScript,
 			Manifest: newManifest,
 		}
-		expected.Manifest.ABI.Hash = hash.Hash160(newScript)
 		_ = expected.ScriptHash()
 		require.Equal(t, expected, actual)
 
@@ -926,7 +896,6 @@ func TestContractCreateDeploy(t *testing.T) {
 			Script:   append(cs.Script, byte(opcode.RET)),
 			Manifest: cs.Manifest,
 		}
-		newCs.Manifest.ABI.Hash = hash.Hash160(newCs.Script)
 		putArgs(newCs)
 		require.NoError(t, contractUpdate(ic))
 		require.NoError(t, v.Run())
@@ -992,7 +961,7 @@ func TestMethodCallback(t *testing.T) {
 	require.NoError(t, ic.DAO.PutContractState(currCs))
 
 	ic.Functions = append(ic.Functions, systemInterops)
-	rawHash := cs.Manifest.ABI.Hash.BytesBE()
+	rawHash := hash.Hash160(cs.Script).BytesBE()
 
 	t.Run("Invalid", func(t *testing.T) {
 		runInvalid := func(args ...interface{}) func(t *testing.T) {

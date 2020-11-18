@@ -48,7 +48,7 @@ func callExInternal(ic *interop.Context, h []byte, name string, args []stackitem
 	}
 	curr, err := ic.DAO.GetContractState(ic.VM.GetCurrentScriptHash())
 	if err == nil {
-		if !curr.Manifest.CanCall(&cs.Manifest, name) {
+		if !curr.Manifest.CanCall(u, &cs.Manifest, name) {
 			return errors.New("disallowed method call")
 		}
 	}

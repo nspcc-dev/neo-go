@@ -23,7 +23,7 @@ func TestCachedDaoContracts(t *testing.T) {
 	_, err := dao.GetContractState(sh)
 	require.NotNil(t, err)
 
-	m := manifest.NewManifest(hash.Hash160(script), "Test")
+	m := manifest.NewManifest("Test")
 
 	cs := &state.Contract{
 		ID:       123,

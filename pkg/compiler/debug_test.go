@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/internal/testserdes"
-	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -68,10 +67,6 @@ func _deploy(isUpdate bool) {}
 	buf := c.prog.Bytes()
 	d := c.emitDebugInfo(buf)
 	require.NotNil(t, d)
-
-	t.Run("hash", func(t *testing.T) {
-		require.True(t, hash.Hash160(buf).Equals(d.Hash))
-	})
 
 	t.Run("return types", func(t *testing.T) {
 		returnTypes := map[string]string{
@@ -155,7 +150,6 @@ func _deploy(isUpdate bool) {}
 		expected := &manifest.Manifest{
 			Name: "MyCTR",
 			ABI: manifest.ABI{
-				Hash: hash.Hash160(buf),
 				Methods: []manifest.Method{
 					{
 						Name:   "_deploy",
@@ -262,7 +256,6 @@ func _deploy(isUpdate bool) {}
 			},
 			Extra: nil,
 		}
-		require.True(t, expected.ABI.Hash.Equals(actual.ABI.Hash))
 		require.ElementsMatch(t, expected.ABI.Methods, actual.ABI.Methods)
 		require.Equal(t, expected.ABI.Events, actual.ABI.Events)
 		require.Equal(t, expected.Groups, actual.Groups)
@@ -304,7 +297,6 @@ func TestSequencePoints(t *testing.T) {
 
 func TestDebugInfo_MarshalJSON(t *testing.T) {
 	d := &DebugInfo{
-		Hash:      util.Uint160{10, 11, 12, 13},
 		Documents: []string{"/path/to/file"},
 		Methods: []MethodDebugInfo{
 			{

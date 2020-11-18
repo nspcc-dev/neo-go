@@ -162,7 +162,6 @@ func contractUpdate(ic *interop.Context) error {
 			Script:   script,
 			Manifest: contract.Manifest,
 		}
-		contract.Manifest.ABI.Hash = newHash
 		if err := ic.DAO.PutContractState(contract); err != nil {
 			return fmt.Errorf("failed to update script: %w", err)
 		}

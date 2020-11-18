@@ -48,7 +48,7 @@ func CreateFromMethod(ic *interop.Context) error {
 		return errors.New("invalid method name")
 	}
 	currCs, err := ic.DAO.GetContractState(ic.VM.GetCurrentScriptHash())
-	if err == nil && !currCs.Manifest.CanCall(&cs.Manifest, method) {
+	if err == nil && !currCs.Manifest.CanCall(h, &cs.Manifest, method) {
 		return errors.New("method call is not allowed")
 	}
 	md := cs.Manifest.ABI.GetMethod(method)
