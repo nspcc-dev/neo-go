@@ -37,6 +37,13 @@ func TestEncodeDecodeBinary(t *testing.T) {
 		checkDecodeError(t, expected)
 	})
 
+	t.Run("zero-length script", func(t *testing.T) {
+		expected.Script = make([]byte, 0)
+		expected.Header.ScriptHash = hash.Hash160(expected.Script)
+		expected.Checksum = expected.Header.CalculateChecksum()
+		checkDecodeError(t, expected)
+	})
+
 	t.Run("invalid script length", func(t *testing.T) {
 		newScript := make([]byte, MaxScriptLength+1)
 		expected.Script = newScript

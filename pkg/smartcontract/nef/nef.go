@@ -203,6 +203,10 @@ func (n *File) DecodeBinary(r *io.BinReader) {
 		return
 	}
 	n.Script = r.ReadVarBytes(MaxScriptLength)
+	if len(n.Script) == 0 {
+		r.Err = errors.New("empty script")
+		return
+	}
 	if !hash.Hash160(n.Script).Equals(n.Header.ScriptHash) {
 		r.Err = errors.New("script hashes mismatch")
 		return
