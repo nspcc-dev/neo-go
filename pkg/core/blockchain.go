@@ -1280,6 +1280,13 @@ func (bc *Blockchain) verifyAndPoolTx(t *transaction.Transaction, pool *mempool.
 		return fmt.Errorf("%w: (%d > MaxTransactionSize %d)", ErrTxTooBig, size, transaction.MaxTransactionSize)
 	}
 	needNetworkFee := int64(size) * bc.FeePerByte()
+	if bc.P2PSigExtensionsEnabled() {
+		attrs := t.GetAttributes(transaction.NotaryAssistedT)
+		if len(attrs) != 0 {
+			na := attrs[0].Value.(*transaction.NotaryAssisted)
+			needNetworkFee += (int64(na.NKeys) + 1) * transaction.NotaryServiceFeePerKey
+		}
+	}
 	netFee := t.NetworkFee - needNetworkFee
 	if netFee < 0 {
 		return fmt.Errorf("%w: net fee is %v, need %v", ErrTxSmallNetworkFee, t.NetworkFee, needNetworkFee)
@@ -1374,6 +1381,10 @@ func (bc *Blockchain) verifyTxAttributes(tx *transaction.Transaction) error {
 			conflicts := tx.Attributes[i].Value.(*transaction.Conflicts)
 			if err := bc.dao.HasTransaction(conflicts.Hash); errors.Is(err, dao.ErrAlreadyExists) {
 				return fmt.Errorf("%w: conflicting transaction %s is already on chain", ErrInvalidAttribute, conflicts.Hash.StringLE())
+			}
+		case transaction.NotaryAssistedT:
+			if !bc.config.P2PSigExtensions {
+				return fmt.Errorf("%w: NotaryAssisted attribute was found, but P2PSigExtensions are disabled", ErrInvalidAttribute)
 			}
 		default:
 			if !bc.config.ReservedAttributes && attrType >= transaction.ReservedLowerBound && attrType <= transaction.ReservedUpperBound {

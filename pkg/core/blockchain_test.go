@@ -652,12 +652,12 @@ func TestVerifyTx(t *testing.T) {
 				return tx
 			}
 			t.Run("Disabled", func(t *testing.T) {
-				tx := getReservedTx(transaction.ReservedLowerBound + 2)
+				tx := getReservedTx(transaction.ReservedLowerBound + 3)
 				require.Error(t, bc.VerifyTx(tx))
 			})
 			t.Run("Enabled", func(t *testing.T) {
 				bc.config.ReservedAttributes = true
-				tx := getReservedTx(transaction.ReservedLowerBound + 2)
+				tx := getReservedTx(transaction.ReservedLowerBound + 3)
 				require.NoError(t, bc.VerifyTx(tx))
 			})
 		})
@@ -717,6 +717,47 @@ func TestVerifyTx(t *testing.T) {
 					tx := getConflictsTx(random.Uint256())
 					require.NoError(t, bc.VerifyTx(tx))
 				})
+			})
+		})
+		t.Run("NotaryAssisted", func(t *testing.T) {
+			getNotaryAssistedTx := func(signaturesCount uint8, serviceFee int64) *transaction.Transaction {
+				tx := bc.newTestTx(h, testScript)
+				tx.Attributes = append(tx.Attributes, transaction.Attribute{Type: transaction.NotaryAssistedT, Value: &transaction.NotaryAssisted{
+					NKeys: signaturesCount,
+				}})
+				tx.NetworkFee += serviceFee // additional fee for NotaryAssisted attribute
+				tx.NetworkFee += 4_000_000  // multisig check
+				tx.Signers = []transaction.Signer{{
+					Account: testchain.CommitteeScriptHash(),
+					Scopes:  transaction.None,
+				}}
+				rawScript := testchain.CommitteeVerificationScript()
+				require.NoError(t, err)
+				size := io.GetVarSize(tx)
+				netFee, sizeDelta := fee.Calculate(rawScript)
+				tx.NetworkFee += netFee
+				tx.NetworkFee += int64(size+sizeDelta) * bc.FeePerByte()
+				data := tx.GetSignedPart()
+				tx.Scripts = []transaction.Witness{{
+					InvocationScript:   testchain.SignCommittee(data),
+					VerificationScript: rawScript,
+				}}
+				return tx
+			}
+			t.Run("Disabled", func(t *testing.T) {
+				bc.config.P2PSigExtensions = false
+				tx := getNotaryAssistedTx(0, 0)
+				require.Error(t, bc.VerifyTx(tx))
+			})
+			t.Run("Enabled, insufficient network fee", func(t *testing.T) {
+				bc.config.P2PSigExtensions = true
+				tx := getNotaryAssistedTx(1, 0)
+				require.Error(t, bc.VerifyTx(tx))
+			})
+			t.Run("Enabled, positive", func(t *testing.T) {
+				bc.config.P2PSigExtensions = true
+				tx := getNotaryAssistedTx(1, (1+1)*transaction.NotaryServiceFeePerKey)
+				require.NoError(t, bc.VerifyTx(tx))
 			})
 		})
 	})

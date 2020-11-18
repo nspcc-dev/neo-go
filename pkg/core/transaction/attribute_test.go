@@ -61,7 +61,7 @@ func TestAttribute_EncodeBinary(t *testing.T) {
 			}
 		}
 		t.Run("lower bound", func(t *testing.T) {
-			testserdes.EncodeDecodeBinary(t, getReservedAttribute(ReservedLowerBound+2), new(Attribute))
+			testserdes.EncodeDecodeBinary(t, getReservedAttribute(ReservedLowerBound+3), new(Attribute))
 		})
 		t.Run("upper bound", func(t *testing.T) {
 			testserdes.EncodeDecodeBinary(t, getReservedAttribute(ReservedUpperBound), new(Attribute))
@@ -93,6 +93,27 @@ func TestAttribute_EncodeBinary(t *testing.T) {
 			bw := io.NewBufBinWriter()
 			bw.WriteVarBytes(make([]byte, util.Uint256Size-1))
 			require.Error(t, testserdes.DecodeBinary(bw.Bytes(), new(Conflicts)))
+		})
+	})
+	t.Run("NotaryAssisted", func(t *testing.T) {
+		t.Run("positive", func(t *testing.T) {
+			attr := &Attribute{
+				Type: NotaryAssistedT,
+				Value: &NotaryAssisted{
+					NKeys: 3,
+				},
+			}
+			testserdes.EncodeDecodeBinary(t, attr, new(Attribute))
+		})
+		t.Run("bad format: too long", func(t *testing.T) {
+			bw := io.NewBufBinWriter()
+			bw.WriteVarBytes(make([]byte, 2))
+			require.Error(t, testserdes.DecodeBinary(bw.Bytes(), new(NotaryAssisted)))
+		})
+		t.Run("bad format: too short", func(t *testing.T) {
+			bw := io.NewBufBinWriter()
+			bw.WriteVarBytes([]byte{})
+			require.Error(t, testserdes.DecodeBinary(bw.Bytes(), new(NotaryAssisted)))
 		})
 	})
 }
@@ -145,6 +166,15 @@ func TestAttribute_MarshalJSON(t *testing.T) {
 			Type: ConflictsT,
 			Value: &Conflicts{
 				Hash: random.Uint256(),
+			},
+		}
+		testserdes.MarshalUnmarshalJSON(t, attr, new(Attribute))
+	})
+	t.Run("NotaryAssisted", func(t *testing.T) {
+		attr := &Attribute{
+			Type: NotaryAssistedT,
+			Value: &NotaryAssisted{
+				NKeys: 3,
 			},
 		}
 		testserdes.MarshalUnmarshalJSON(t, attr, new(Attribute))
