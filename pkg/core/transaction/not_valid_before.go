@@ -2,6 +2,7 @@ package transaction
 
 import (
 	"encoding/binary"
+	"fmt"
 
 	"github.com/nspcc-dev/neo-go/pkg/io"
 )
@@ -14,6 +15,13 @@ type NotValidBefore struct {
 // DecodeBinary implements io.Serializable interface.
 func (n *NotValidBefore) DecodeBinary(br *io.BinReader) {
 	bytes := br.ReadVarBytes(4)
+	if br.Err != nil {
+		return
+	}
+	if len(bytes) != 4 {
+		br.Err = fmt.Errorf("expected 4 bytes, got %d", len(bytes))
+		return
+	}
 	n.Height = binary.LittleEndian.Uint32(bytes)
 }
 

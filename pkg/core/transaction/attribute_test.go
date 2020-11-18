@@ -31,13 +31,25 @@ func TestAttribute_EncodeBinary(t *testing.T) {
 		testserdes.EncodeDecodeBinary(t, attr, new(Attribute))
 	})
 	t.Run("NotValidBefore", func(t *testing.T) {
-		attr := &Attribute{
-			Type: NotValidBeforeT,
-			Value: &NotValidBefore{
-				Height: 123,
-			},
-		}
-		testserdes.EncodeDecodeBinary(t, attr, new(Attribute))
+		t.Run("positive", func(t *testing.T) {
+			attr := &Attribute{
+				Type: NotValidBeforeT,
+				Value: &NotValidBefore{
+					Height: 123,
+				},
+			}
+			testserdes.EncodeDecodeBinary(t, attr, new(Attribute))
+		})
+		t.Run("bad format: too long", func(t *testing.T) {
+			bw := io.NewBufBinWriter()
+			bw.WriteVarBytes([]byte{1, 2, 3, 4, 5})
+			require.Error(t, testserdes.DecodeBinary(bw.Bytes(), new(NotValidBefore)))
+		})
+		t.Run("bad format: too short", func(t *testing.T) {
+			bw := io.NewBufBinWriter()
+			bw.WriteVarBytes([]byte{1, 2, 3})
+			require.Error(t, testserdes.DecodeBinary(bw.Bytes(), new(NotValidBefore)))
+		})
 	})
 	t.Run("Reserved", func(t *testing.T) {
 		getReservedAttribute := func(t AttrType) *Attribute {
