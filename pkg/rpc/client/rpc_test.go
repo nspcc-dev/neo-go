@@ -19,6 +19,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/request"
@@ -335,10 +336,10 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 				m := manifest.NewManifest("Test")
 				cs := &state.Contract{
 					ID:       0,
+					Hash:     hash.Hash160(script),
 					Script:   script,
 					Manifest: *m,
 				}
-				_ = cs.ScriptHash()
 				return cs
 			},
 		},
@@ -356,10 +357,10 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 				m := manifest.NewManifest("Test")
 				cs := &state.Contract{
 					ID:       0,
+					Hash:     hash.Hash160(script),
 					Script:   script,
 					Manifest: *m,
 				}
-				_ = cs.ScriptHash()
 				return cs
 			},
 		},
@@ -377,10 +378,10 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 				m := manifest.NewManifest("Test")
 				cs := &state.Contract{
 					ID:       0,
+					Hash:     hash.Hash160(script),
 					Script:   script,
 					Manifest: *m,
 				}
-				_ = cs.ScriptHash()
 				return cs
 			},
 		},

@@ -940,7 +940,7 @@ func TestVerifyHashAgainstScript(t *testing.T) {
 	gas := bc.contracts.Policy.GetMaxVerificationGas(ic.DAO)
 	t.Run("Contract", func(t *testing.T) {
 		t.Run("Missing", func(t *testing.T) {
-			newH := cs.ScriptHash()
+			newH := cs.Hash
 			newH[0] = ^newH[0]
 			w := &transaction.Witness{InvocationScript: []byte{byte(opcode.PUSH4)}}
 			_, err := bc.verifyHashAgainstScript(newH, w, ic, gas)
@@ -948,17 +948,17 @@ func TestVerifyHashAgainstScript(t *testing.T) {
 		})
 		t.Run("Invalid", func(t *testing.T) {
 			w := &transaction.Witness{InvocationScript: []byte{byte(opcode.PUSH4)}}
-			_, err := bc.verifyHashAgainstScript(csInvalid.ScriptHash(), w, ic, gas)
+			_, err := bc.verifyHashAgainstScript(csInvalid.Hash, w, ic, gas)
 			require.True(t, errors.Is(err, ErrInvalidVerificationContract))
 		})
 		t.Run("ValidSignature", func(t *testing.T) {
 			w := &transaction.Witness{InvocationScript: []byte{byte(opcode.PUSH4)}}
-			_, err := bc.verifyHashAgainstScript(cs.ScriptHash(), w, ic, gas)
+			_, err := bc.verifyHashAgainstScript(cs.Hash, w, ic, gas)
 			require.NoError(t, err)
 		})
 		t.Run("InvalidSignature", func(t *testing.T) {
 			w := &transaction.Witness{InvocationScript: []byte{byte(opcode.PUSH3)}}
-			_, err := bc.verifyHashAgainstScript(cs.ScriptHash(), w, ic, gas)
+			_, err := bc.verifyHashAgainstScript(cs.Hash, w, ic, gas)
 			require.True(t, errors.Is(err, ErrVerificationFailed))
 		})
 	})
@@ -1071,7 +1071,7 @@ func TestIsTxStillRelevant(t *testing.T) {
 			currentHeight := blockchain.GetHeight()
 			return currentHeight < %d
 		}`, bc.BlockHeight()+2) // deploy + next block
-		txDeploy, avm, err := testchain.NewDeployTx("TestVerify", strings.NewReader(src))
+		txDeploy, h, err := testchain.NewDeployTx("TestVerify", neoOwner, strings.NewReader(src))
 		require.NoError(t, err)
 		txDeploy.ValidUntilBlock = bc.BlockHeight() + 1
 		addSigners(txDeploy)
@@ -1080,7 +1080,7 @@ func TestIsTxStillRelevant(t *testing.T) {
 
 		tx := newTx(t)
 		tx.Signers = append(tx.Signers, transaction.Signer{
-			Account: hash.Hash160(avm),
+			Account: h,
 			Scopes:  transaction.None,
 		})
 		tx.NetworkFee += 1_000_000

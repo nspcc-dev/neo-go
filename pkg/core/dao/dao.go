@@ -136,20 +136,23 @@ func (dao *Simple) GetContractState(hash util.Uint160) (*state.Contract, error) 
 	if err != nil {
 		return nil, err
 	}
-	if contract.ScriptHash() != hash {
-		return nil, fmt.Errorf("found script hash is not equal to expected")
-	}
 
 	return contract, nil
 }
 
 // PutContractState puts given contract state into the given store.
 func (dao *Simple) PutContractState(cs *state.Contract) error {
-	key := storage.AppendPrefix(storage.STContract, cs.ScriptHash().BytesBE())
+	key := storage.AppendPrefix(storage.STContract, cs.Hash.BytesBE())
 	if err := dao.Put(cs, key); err != nil {
 		return err
 	}
-	return dao.putContractScriptHash(cs)
+	if cs.UpdateCounter != 0 { // Update.
+		return nil
+	}
+	key = key[:5]
+	key[0] = byte(storage.STContractID)
+	binary.LittleEndian.PutUint32(key[1:], uint32(cs.ID))
+	return dao.Store.Put(key, cs.Hash.BytesBE())
 }
 
 // DeleteContractState deletes given contract state in the given store.
@@ -171,16 +174,6 @@ func (dao *Simple) GetAndUpdateNextContractID() (int32, error) {
 	data = make([]byte, 4)
 	binary.LittleEndian.PutUint32(data, uint32(id+1))
 	return id, dao.Store.Put(key, data)
-}
-
-// putContractScriptHash puts given contract script hash into the given store.
-// It's a private method because it should be used after PutContractState to keep
-// ID-Hash pair always up-to-date.
-func (dao *Simple) putContractScriptHash(cs *state.Contract) error {
-	key := make([]byte, 5)
-	key[0] = byte(storage.STContractID)
-	binary.LittleEndian.PutUint32(key[1:], uint32(cs.ID))
-	return dao.Store.Put(key, cs.ScriptHash().BytesBE())
 }
 
 // GetContractScriptHash returns script hash of the contract with the specified ID.

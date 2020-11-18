@@ -12,6 +12,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
@@ -81,8 +82,10 @@ func getOracleContractState(h util.Uint160) *state.Contract {
 	perm.Methods.Add("request")
 	m.Permissions = append(m.Permissions, *perm)
 
+	script := w.Bytes()
 	return &state.Contract{
-		Script:   w.Bytes(),
+		Script:   script,
+		Hash:     hash.Hash160(script),
 		Manifest: *m,
 		ID:       42,
 	}
@@ -111,7 +114,7 @@ func TestOracle_Request(t *testing.T) {
 	gasForResponse := int64(2000_1234)
 	var filter = "flt"
 	userData := []byte("custom info")
-	txHash := putOracleRequest(t, cs.ScriptHash(), bc, "url", &filter, userData, gasForResponse)
+	txHash := putOracleRequest(t, cs.Hash, bc, "url", &filter, userData, gasForResponse)
 
 	req, err := orc.GetRequestInternal(bc.dao, 1)
 	require.NotNil(t, req)
@@ -119,7 +122,7 @@ func TestOracle_Request(t *testing.T) {
 	require.Equal(t, txHash, req.OriginalTxID)
 	require.Equal(t, "url", req.URL)
 	require.Equal(t, filter, *req.Filter)
-	require.Equal(t, cs.ScriptHash(), req.CallbackContract)
+	require.Equal(t, cs.Hash, req.CallbackContract)
 	require.Equal(t, "handle", req.CallbackMethod)
 	require.Equal(t, uint64(gasForResponse), req.GasForResponse)
 
@@ -189,7 +192,7 @@ func TestOracle_Request(t *testing.T) {
 	t.Run("ErrorOnFinish", func(t *testing.T) {
 		const reqID = 2
 
-		putOracleRequest(t, cs.ScriptHash(), bc, "url", nil, []byte{1, 2}, gasForResponse)
+		putOracleRequest(t, cs.Hash, bc, "url", nil, []byte{1, 2}, gasForResponse)
 		_, err := orc.GetRequestInternal(bc.dao, reqID) // ensure ID is 2
 		require.NoError(t, err)
 
@@ -221,14 +224,14 @@ func TestOracle_Request(t *testing.T) {
 			require.Equal(t, vm.FaultState, aer[0].VMState)
 		}
 		t.Run("non-UTF8 url", func(t *testing.T) {
-			doBadRequest(t, cs.ScriptHash(), "\xff", nil, []byte{1, 2}, gasForResponse)
+			doBadRequest(t, cs.Hash, "\xff", nil, []byte{1, 2}, gasForResponse)
 		})
 		t.Run("non-UTF8 filter", func(t *testing.T) {
 			var f = "\xff"
-			doBadRequest(t, cs.ScriptHash(), "url", &f, []byte{1, 2}, gasForResponse)
+			doBadRequest(t, cs.Hash, "url", &f, []byte{1, 2}, gasForResponse)
 		})
 		t.Run("not enough gas", func(t *testing.T) {
-			doBadRequest(t, cs.ScriptHash(), "url", nil, nil, 1000)
+			doBadRequest(t, cs.Hash, "url", nil, nil, 1000)
 		})
 	})
 }

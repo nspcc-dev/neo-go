@@ -622,6 +622,6 @@ func (c *Client) GetNativeContractHash(name string) (util.Uint160, error) {
 	if err != nil {
 		return util.Uint160{}, err
 	}
-	c.cache.nativeHashes[lowercasedName] = cs.ScriptHash()
-	return cs.ScriptHash(), nil
+	c.cache.nativeHashes[lowercasedName] = cs.Hash
+	return cs.Hash, nil
 }

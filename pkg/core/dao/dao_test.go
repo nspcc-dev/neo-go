@@ -10,6 +10,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
@@ -44,24 +45,26 @@ func (t *TestSerializable) DecodeBinary(reader *io.BinReader) {
 
 func TestPutAndGetContractState(t *testing.T) {
 	dao := NewSimple(storage.NewMemoryStore(), netmode.UnitTestNet, false)
-	contractState := &state.Contract{Script: []byte{}}
-	hash := contractState.ScriptHash()
+	script := []byte{}
+	h := hash.Hash160(script)
+	contractState := &state.Contract{Hash: h, Script: script}
 	err := dao.PutContractState(contractState)
 	require.NoError(t, err)
-	gotContractState, err := dao.GetContractState(hash)
+	gotContractState, err := dao.GetContractState(contractState.Hash)
 	require.NoError(t, err)
 	require.Equal(t, contractState, gotContractState)
 }
 
 func TestDeleteContractState(t *testing.T) {
 	dao := NewSimple(storage.NewMemoryStore(), netmode.UnitTestNet, false)
-	contractState := &state.Contract{Script: []byte{}}
-	hash := contractState.ScriptHash()
+	script := []byte{}
+	h := hash.Hash160(script)
+	contractState := &state.Contract{Hash: h, Script: script}
 	err := dao.PutContractState(contractState)
 	require.NoError(t, err)
-	err = dao.DeleteContractState(hash)
+	err = dao.DeleteContractState(h)
 	require.NoError(t, err)
-	gotContractState, err := dao.GetContractState(hash)
+	gotContractState, err := dao.GetContractState(h)
 	require.Error(t, err)
 	require.Nil(t, gotContractState)
 }

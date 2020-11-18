@@ -124,8 +124,12 @@ func (c *Client) CreateNEP17MultiTransferTx(acc *wallet.Account, gas int64, reci
 			recipients[i].Address, recipients[i].Amount, nil)
 		emit.Opcodes(w.BinWriter, opcode.ASSERT)
 	}
+	accAddr, err := address.StringToUint160(acc.Address)
+	if err != nil {
+		return nil, fmt.Errorf("bad account address: %v", err)
+	}
 	return c.CreateTxFromScript(w.Bytes(), acc, -1, gas, transaction.Signer{
-		Account: acc.Contract.ScriptHash(),
+		Account: accAddr,
 		Scopes:  transaction.CalledByEntry,
 	})
 }

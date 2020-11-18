@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 )
@@ -181,8 +182,9 @@ func (w *Wallet) Close() {
 
 // GetAccount returns account corresponding to the provided scripthash.
 func (w *Wallet) GetAccount(h util.Uint160) *Account {
+	addr := address.Uint160ToString(h)
 	for _, acc := range w.Accounts {
-		if c := acc.Contract; c != nil && h.Equals(c.ScriptHash()) {
+		if acc.Address == addr {
 			return acc
 		}
 	}

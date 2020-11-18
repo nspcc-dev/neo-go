@@ -107,6 +107,7 @@ func TestAppCall(t *testing.T) {
 	ih := hash.Hash160(inner)
 	ic := interop.NewContext(trigger.Application, nil, dao.NewSimple(storage.NewMemoryStore(), netmode.UnitTestNet, false), nil, nil, nil, zaptest.NewLogger(t))
 	require.NoError(t, ic.DAO.PutContractState(&state.Contract{
+		Hash:     ih,
 		Script:   inner,
 		Manifest: *m,
 	}))

@@ -272,10 +272,9 @@ func initBasicChain(t *testing.T, bc *Blockchain) {
 	require.NoError(t, err)
 
 	// Push some contract into the chain.
-	txDeploy, avm := newDeployTx(t, prefix+"test_contract.go", "Rubl")
+	txDeploy, cHash := newDeployTx(t, priv0ScriptHash, prefix+"test_contract.go", "Rubl")
 	txDeploy.Nonce = getNextNonce()
 	txDeploy.ValidUntilBlock = validUntilBlock
-	txDeploy.Signers = []transaction.Signer{{Account: priv0ScriptHash}}
 	require.NoError(t, addNetworkFee(bc, txDeploy, acc0))
 	require.NoError(t, acc0.SignTx(txDeploy))
 	b = bc.newBlock(txDeploy)
@@ -285,7 +284,7 @@ func initBasicChain(t *testing.T, bc *Blockchain) {
 
 	// Now invoke this contract.
 	script := io.NewBufBinWriter()
-	emit.AppCallWithOperationAndArgs(script.BinWriter, hash.Hash160(avm), "putValue", "testkey", "testvalue")
+	emit.AppCallWithOperationAndArgs(script.BinWriter, cHash, "putValue", "testkey", "testvalue")
 
 	txInv := transaction.New(testchain.Network(), script.Bytes(), 1*native.GASFactor)
 	txInv.Nonce = getNextNonce()
@@ -314,16 +313,15 @@ func initBasicChain(t *testing.T, bc *Blockchain) {
 	b = bc.newBlock(txNeo0to1)
 	require.NoError(t, bc.AddBlock(b))
 
-	sh := hash.Hash160(avm)
 	w := io.NewBufBinWriter()
-	emit.AppCallWithOperationAndArgs(w.BinWriter, sh, "init")
+	emit.AppCallWithOperationAndArgs(w.BinWriter, cHash, "init")
 	initTx := transaction.New(testchain.Network(), w.Bytes(), 1*native.GASFactor)
 	initTx.Nonce = getNextNonce()
 	initTx.ValidUntilBlock = validUntilBlock
 	initTx.Signers = []transaction.Signer{{Account: priv0ScriptHash}}
 	require.NoError(t, addNetworkFee(bc, initTx, acc0))
 	require.NoError(t, acc0.SignTx(initTx))
-	transferTx := newNEP17Transfer(sh, sh, priv0.GetScriptHash(), 1000)
+	transferTx := newNEP17Transfer(cHash, cHash, priv0.GetScriptHash(), 1000)
 	transferTx.Nonce = getNextNonce()
 	transferTx.ValidUntilBlock = validUntilBlock
 	transferTx.Signers = []transaction.Signer{
@@ -341,7 +339,7 @@ func initBasicChain(t *testing.T, bc *Blockchain) {
 	require.NoError(t, bc.AddBlock(b))
 	t.Logf("recieveRublesTx: %v", transferTx.Hash().StringLE())
 
-	transferTx = newNEP17Transfer(sh, priv0.GetScriptHash(), priv1.GetScriptHash(), 123)
+	transferTx = newNEP17Transfer(cHash, priv0.GetScriptHash(), priv1.GetScriptHash(), 123)
 	transferTx.Nonce = getNextNonce()
 	transferTx.ValidUntilBlock = validUntilBlock
 	transferTx.Signers = []transaction.Signer{
@@ -360,10 +358,9 @@ func initBasicChain(t *testing.T, bc *Blockchain) {
 	t.Logf("sendRublesTx: %v", transferTx.Hash().StringLE())
 
 	// Push verification contract into the chain.
-	txDeploy2, _ := newDeployTx(t, prefix+"verification_contract.go", "Verify")
+	txDeploy2, _ := newDeployTx(t, priv0ScriptHash, prefix+"verification_contract.go", "Verify")
 	txDeploy2.Nonce = getNextNonce()
 	txDeploy2.ValidUntilBlock = validUntilBlock
-	txDeploy2.Signers = []transaction.Signer{{Account: priv0ScriptHash}}
 	require.NoError(t, addNetworkFee(bc, txDeploy2, acc0))
 	require.NoError(t, acc0.SignTx(txDeploy2))
 	b = bc.newBlock(txDeploy2)
@@ -379,15 +376,13 @@ func newNEP17Transfer(sc, from, to util.Uint160, amount int64, additionalArgs ..
 	return transaction.New(testchain.Network(), script, 10000000)
 }
 
-func newDeployTx(t *testing.T, name, ctrName string) (*transaction.Transaction, []byte) {
+func newDeployTx(t *testing.T, sender util.Uint160, name, ctrName string) (*transaction.Transaction, util.Uint160) {
 	c, err := ioutil.ReadFile(name)
 	require.NoError(t, err)
-	tx, avm, err := testchain.NewDeployTx(ctrName, bytes.NewReader(c))
+	tx, h, err := testchain.NewDeployTx(ctrName, sender, bytes.NewReader(c))
 	require.NoError(t, err)
-	t.Logf("contractHash (%s): %s", name, hash.Hash160(avm).StringLE())
-	t.Logf("contractScript: %x", avm)
-
-	return tx, avm
+	t.Logf("contractHash (%s): %s", name, h.StringLE())
+	return tx, h
 }
 
 func addSigners(txs ...*transaction.Transaction) {

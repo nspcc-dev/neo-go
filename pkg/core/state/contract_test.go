@@ -7,7 +7,8 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
-	"github.com/stretchr/testify/assert"
+	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/stretchr/testify/require"
 )
 
 func TestEncodeDecodeContractState(t *testing.T) {
@@ -30,21 +31,30 @@ func TestEncodeDecodeContractState(t *testing.T) {
 		ReturnType: smartcontract.BoolType,
 	}}
 	contract := &Contract{
-		ID:       123,
-		Script:   script,
-		Manifest: *m,
+		ID:            123,
+		UpdateCounter: 42,
+		Hash:          h,
+		Script:        script,
+		Manifest:      *m,
 	}
-
-	assert.Equal(t, h, contract.ScriptHash())
 
 	t.Run("Serializable", func(t *testing.T) {
 		contractDecoded := new(Contract)
 		testserdes.EncodeDecodeBinary(t, contract, contractDecoded)
-		assert.Equal(t, contract.ScriptHash(), contractDecoded.ScriptHash())
 	})
 	t.Run("JSON", func(t *testing.T) {
 		contractDecoded := new(Contract)
 		testserdes.MarshalUnmarshalJSON(t, contract, contractDecoded)
-		assert.Equal(t, contract.ScriptHash(), contractDecoded.ScriptHash())
 	})
+}
+
+func TestCreateContractHash(t *testing.T) {
+	var script = []byte{1, 2, 3}
+	var sender util.Uint160
+	var err error
+
+	require.Equal(t, "b4b7417195feca1cdb5a99504ab641d8c220ae99", CreateContractHash(sender, script).StringLE())
+	sender, err = util.Uint160DecodeStringLE("a400ff00ff00ff00ff00ff00ff00ff00ff00ff01")
+	require.NoError(t, err)
+	require.Equal(t, "e56e4ee87f89a70e9138432c387ad49f2ee5b55f", CreateContractHash(sender, script).StringLE())
 }

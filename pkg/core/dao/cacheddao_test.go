@@ -27,6 +27,7 @@ func TestCachedDaoContracts(t *testing.T) {
 
 	cs := &state.Contract{
 		ID:       123,
+		Hash:     sh,
 		Script:   script,
 		Manifest: *m,
 	}

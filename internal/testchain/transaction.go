@@ -5,13 +5,16 @@ import (
 	gio "io"
 
 	"github.com/nspcc-dev/neo-go/pkg/compiler"
+	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
 	"github.com/nspcc-dev/neo-go/pkg/core/fee"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
+	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
@@ -46,28 +49,46 @@ func NewTransferFromOwner(bc blockchainer.Blockchainer, contractHash, to util.Ui
 }
 
 // NewDeployTx returns new deployment tx for contract with name with Go code read from r.
-func NewDeployTx(name string, r gio.Reader) (*transaction.Transaction, []byte, error) {
+func NewDeployTx(name string, sender util.Uint160, r gio.Reader) (*transaction.Transaction, util.Uint160, error) {
+	// nef.NewFile() cares about version a lot.
+	config.Version = "0.90.0-test"
+
 	avm, di, err := compiler.CompileWithDebugInfo(name, r)
 	if err != nil {
-		return nil, nil, err
+		return nil, util.Uint160{}, err
 	}
 
-	w := io.NewBufBinWriter()
+	ne, err := nef.NewFile(avm)
+	if err != nil {
+		return nil, util.Uint160{}, err
+	}
+	neb, err := ne.Bytes()
+	if err != nil {
+		return nil, util.Uint160{}, err
+	}
+
 	m, err := di.ConvertToManifest(name, nil)
 	if err != nil {
-		return nil, nil, err
+		return nil, util.Uint160{}, err
 	}
 	bs, err := json.Marshal(m)
 	if err != nil {
-		return nil, nil, err
+		return nil, util.Uint160{}, err
 	}
+
+	w := io.NewBufBinWriter()
 	emit.Bytes(w.BinWriter, bs)
-	emit.Bytes(w.BinWriter, avm)
+	emit.Bytes(w.BinWriter, neb)
 	emit.Syscall(w.BinWriter, interopnames.SystemContractCreate)
 	if w.Err != nil {
-		return nil, nil, err
+		return nil, util.Uint160{}, w.Err
 	}
-	return transaction.New(Network(), w.Bytes(), 100*native.GASFactor), avm, nil
+	txScript := w.Bytes()
+	tx := transaction.New(Network(), txScript, 100*native.GASFactor)
+	tx.Signers = []transaction.Signer{{Account: sender}}
+	h := state.CreateContractHash(tx.Sender(), avm)
+
+	return tx, h, nil
 }
 
 // SignTx signs provided transactions with validator keys.

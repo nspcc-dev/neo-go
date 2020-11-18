@@ -67,12 +67,11 @@ func CallExInternal(ic *interop.Context, cs *state.Contract,
 		return fmt.Errorf("invalid argument count: %d (expected %d)", len(args), len(md.Parameters))
 	}
 
-	u := cs.ScriptHash()
-	ic.VM.Invocations[u]++
-	ic.VM.LoadScriptWithHash(cs.Script, u, ic.VM.Context().GetCallFlags()&f)
+	ic.VM.Invocations[cs.Hash]++
+	ic.VM.LoadScriptWithHash(cs.Script, cs.Hash, ic.VM.Context().GetCallFlags()&f)
 	var isNative bool
 	for i := range ic.Natives {
-		if ic.Natives[i].Metadata().Hash.Equals(u) {
+		if ic.Natives[i].Metadata().Hash.Equals(cs.Hash) {
 			isNative = true
 			break
 		}

@@ -42,7 +42,7 @@ func (cd *Cached) GetContractState(hash util.Uint160) (*state.Contract, error) {
 
 // PutContractState puts given contract state into the given store.
 func (cd *Cached) PutContractState(cs *state.Contract) error {
-	cd.contracts[cs.ScriptHash()] = cs
+	cd.contracts[cs.Hash] = cs
 	return cd.DAO.PutContractState(cs)
 }
 

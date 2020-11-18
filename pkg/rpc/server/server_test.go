@@ -56,11 +56,11 @@ type rpcTestCase struct {
 	check  func(t *testing.T, e *executor, result interface{})
 }
 
-const testContractHash = "55b692ecc09f240355e042c6c07e8f3fe57546b1"
-const deploymentTxHash = "99e40e5d169eb9a2b6faebc6fc596c050cf3f8a70ad25de8f44309bc8ccbfbfb"
+const testContractHash = "743ed26f78e29ecd595535b74a943b1f9ccbc444"
+const deploymentTxHash = "8e848d367d6194c0ddc12310e0509c0bb3bf716b0bcd9c10508b4bc9c954408d"
 const genesisBlockHash = "a496577895eb8c227bb866dc44f99f21c0cf06417ca8f2a877cc5d761a50dac0"
 
-const verifyContractHash = "c1213693b22cb0454a436d6e0bd76b8c0a3bfdf7"
+const verifyContractHash = "a2eb22340979804cb10cc1add0b8822c201f4d8a"
 const verifyContractAVM = "570300412d51083021700c14aa8acf859d4fe402b34e673f2156821796a488ebdb30716813cedb2869db289740"
 const testVerifyContractAVM = "VwcADBQBDAMOBQYMDQIODw0DDgcJAAAAANswcGgRVUH4J+yMIaonBwAAABFADBQNDwMCCQACAQMHAwQFAgEADgYMCdswcWkRVUH4J+yMIaonBwAAABJAE0A="
 
@@ -142,7 +142,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 			check: func(t *testing.T, e *executor, cs interface{}) {
 				res, ok := cs.(*state.Contract)
 				require.True(t, ok)
-				assert.Equal(t, testContractHash, res.ScriptHash().StringLE())
+				assert.Equal(t, testContractHash, res.Hash.StringLE())
 			},
 		},
 		{
@@ -1345,7 +1345,7 @@ func checkNep17Balances(t *testing.T, e *executor, acc interface{}) {
 			},
 			{
 				Asset:       e.chain.UtilityTokenHash(),
-				Amount:      "80009744770",
+				Amount:      "80009690770",
 				LastUpdated: 7,
 			}},
 		Address: testchain.PrivateKeyByID(0).GetScriptHash().StringLE(),
