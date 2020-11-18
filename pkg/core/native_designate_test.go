@@ -163,7 +163,7 @@ func TestDesignate_DesignateAsRole(t *testing.T) {
 	require.Equal(t, 0, len(pubs))
 	require.Equal(t, uint32(0), index)
 
-	// Set another role.
+	// Set StateValidator role.
 	_, err = keys.NewPrivateKey()
 	require.NoError(t, err)
 	pub1 := priv.PublicKey()
@@ -177,6 +177,21 @@ func TestDesignate_DesignateAsRole(t *testing.T) {
 	require.Equal(t, bl.Index+1, index)
 
 	pubs, index, err = des.GetDesignatedByRole(ic.DAO, native.RoleStateValidator, 255)
+	require.NoError(t, err)
+	require.Equal(t, keys.PublicKeys{pub1}, pubs)
+	require.Equal(t, bl.Index+1, index)
+
+	// Set P2PNotary role.
+	pubs, index, err = des.GetDesignatedByRole(ic.DAO, native.RoleP2PNotary, 255)
+	require.NoError(t, err)
+	require.Equal(t, 0, len(pubs))
+	require.Equal(t, uint32(0), index)
+
+	err = des.DesignateAsRole(ic, native.RoleP2PNotary, keys.PublicKeys{pub1})
+	require.NoError(t, err)
+	require.NoError(t, des.OnPersistEnd(ic.DAO))
+
+	pubs, index, err = des.GetDesignatedByRole(ic.DAO, native.RoleP2PNotary, 255)
 	require.NoError(t, err)
 	require.Equal(t, keys.PublicKeys{pub1}, pubs)
 	require.Equal(t, bl.Index+1, index)

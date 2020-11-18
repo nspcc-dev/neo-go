@@ -171,7 +171,7 @@ func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration, log *zap.L
 		subCh:       make(chan interface{}),
 		unsubCh:     make(chan interface{}),
 
-		contracts: *native.NewContracts(),
+		contracts: *native.NewContracts(cfg.P2PSigExtensions),
 	}
 
 	if err := bc.init(); err != nil {

@@ -17,6 +17,7 @@ ProtocolConfiguration:
     - 127.0.0.1:20336
   VerifyBlocks: true
   VerifyTransactions: true
+  P2PSigExtensions: true
 
 ApplicationConfiguration:
   # LogPath could be set up in case you need stdout logs to some proper file.

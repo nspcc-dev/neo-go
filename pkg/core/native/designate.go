@@ -27,6 +27,9 @@ type Designate struct {
 
 	rolesChangedFlag atomic.Value
 	oracles          atomic.Value
+
+	// p2pSigExtensionsEnabled defines whether the P2P signature extensions logic is relevant.
+	p2pSigExtensionsEnabled bool
 }
 
 type oraclesData struct {
@@ -50,6 +53,7 @@ type Role byte
 const (
 	RoleStateValidator Role = 4
 	RoleOracle         Role = 8
+	RoleP2PNotary      Role = 128
 )
 
 // Various errors.
@@ -62,13 +66,14 @@ var (
 	ErrNoBlock           = errors.New("no persisting block in the context")
 )
 
-func isValidRole(r Role) bool {
-	return r == RoleOracle || r == RoleStateValidator
+func (s *Designate) isValidRole(r Role) bool {
+	return r == RoleOracle || r == RoleStateValidator || (s.p2pSigExtensionsEnabled && r == RoleP2PNotary)
 }
 
-func newDesignate() *Designate {
+func newDesignate(p2pSigExtensionsEnabled bool) *Designate {
 	s := &Designate{ContractMD: *interop.NewContractMD(designateName)}
 	s.ContractID = designateContractID
+	s.p2pSigExtensionsEnabled = p2pSigExtensionsEnabled
 
 	desc := newDescriptor("getDesignatedByRole", smartcontract.ArrayType,
 		manifest.NewParameter("role", smartcontract.IntegerType),
@@ -121,7 +126,7 @@ func (s *Designate) Metadata() *interop.ContractMD {
 }
 
 func (s *Designate) getDesignatedByRole(ic *interop.Context, args []stackitem.Item) stackitem.Item {
-	r, ok := getRole(args[0])
+	r, ok := s.getRole(args[0])
 	if !ok {
 		panic(ErrInvalidRole)
 	}
@@ -154,7 +159,7 @@ func oracleHashFromNodes(nodes keys.PublicKeys) util.Uint160 {
 }
 
 func (s *Designate) getLastDesignatedHash(d dao.DAO, r Role) (util.Uint160, error) {
-	if !isValidRole(r) {
+	if !s.isValidRole(r) {
 		return util.Uint160{}, ErrInvalidRole
 	}
 	if r == RoleOracle && !s.rolesChanged() {
@@ -174,7 +179,7 @@ func (s *Designate) getLastDesignatedHash(d dao.DAO, r Role) (util.Uint160, erro
 
 // GetDesignatedByRole returns nodes for role r.
 func (s *Designate) GetDesignatedByRole(d dao.DAO, r Role, index uint32) (keys.PublicKeys, uint32, error) {
-	if !isValidRole(r) {
+	if !s.isValidRole(r) {
 		return nil, 0, ErrInvalidRole
 	}
 	if r == RoleOracle && !s.rolesChanged() {
@@ -214,7 +219,7 @@ func (s *Designate) GetDesignatedByRole(d dao.DAO, r Role, index uint32) (keys.P
 }
 
 func (s *Designate) designateAsRole(ic *interop.Context, args []stackitem.Item) stackitem.Item {
-	r, ok := getRole(args[0])
+	r, ok := s.getRole(args[0])
 	if !ok {
 		panic(ErrInvalidRole)
 	}
@@ -239,7 +244,7 @@ func (s *Designate) DesignateAsRole(ic *interop.Context, r Role, pubs keys.Publi
 	if length > maxNodeCount {
 		return ErrLargeNodeList
 	}
-	if !isValidRole(r) {
+	if !s.isValidRole(r) {
 		return ErrInvalidRole
 	}
 	h := s.NEO.GetCommitteeAddress()
@@ -263,7 +268,7 @@ func (s *Designate) DesignateAsRole(ic *interop.Context, r Role, pubs keys.Publi
 	return ic.DAO.PutStorageItem(s.ContractID, key, si)
 }
 
-func getRole(item stackitem.Item) (Role, bool) {
+func (s *Designate) getRole(item stackitem.Item) (Role, bool) {
 	bi, err := item.TryInteger()
 	if err != nil {
 		return 0, false
@@ -272,5 +277,5 @@ func getRole(item stackitem.Item) (Role, bool) {
 		return 0, false
 	}
 	u := bi.Uint64()
-	return Role(u), u <= math.MaxUint8 && isValidRole(Role(u))
+	return Role(u), u <= math.MaxUint8 && s.isValidRole(Role(u))
 }

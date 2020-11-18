@@ -49,7 +49,7 @@ func (cs *Contracts) ByName(name string) interop.Contract {
 
 // NewContracts returns new set of native contracts with new GAS, NEO and Policy
 // contracts.
-func NewContracts() *Contracts {
+func NewContracts(p2pSigExtensionsEnabled bool) *Contracts {
 	cs := new(Contracts)
 
 	gas := newGAS()
@@ -72,7 +72,7 @@ func NewContracts() *Contracts {
 	cs.Oracle = oracle
 	cs.Contracts = append(cs.Contracts, oracle)
 
-	desig := newDesignate()
+	desig := newDesignate(p2pSigExtensionsEnabled)
 	desig.NEO = neo
 	cs.Designate = desig
 	cs.Oracle.Desig = desig
