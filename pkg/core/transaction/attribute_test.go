@@ -7,6 +7,8 @@ import (
 
 	"github.com/nspcc-dev/neo-go/internal/random"
 	"github.com/nspcc-dev/neo-go/internal/testserdes"
+	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/stretchr/testify/require"
 )
 
@@ -61,13 +63,25 @@ func TestAttribute_EncodeBinary(t *testing.T) {
 		})
 	})
 	t.Run("Conflicts", func(t *testing.T) {
-		attr := &Attribute{
-			Type: ConflictsT,
-			Value: &Conflicts{
-				Hash: random.Uint256(),
-			},
-		}
-		testserdes.EncodeDecodeBinary(t, attr, new(Attribute))
+		t.Run("positive", func(t *testing.T) {
+			attr := &Attribute{
+				Type: ConflictsT,
+				Value: &Conflicts{
+					Hash: random.Uint256(),
+				},
+			}
+			testserdes.EncodeDecodeBinary(t, attr, new(Attribute))
+		})
+		t.Run("negative: too long", func(t *testing.T) {
+			bw := io.NewBufBinWriter()
+			bw.WriteVarBytes(make([]byte, util.Uint256Size+1))
+			require.Error(t, testserdes.DecodeBinary(bw.Bytes(), new(Conflicts)))
+		})
+		t.Run("negative: bad uint256", func(t *testing.T) {
+			bw := io.NewBufBinWriter()
+			bw.WriteVarBytes(make([]byte, util.Uint256Size-1))
+			require.Error(t, testserdes.DecodeBinary(bw.Bytes(), new(Conflicts)))
+		})
 	})
 }
 
