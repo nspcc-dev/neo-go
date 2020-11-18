@@ -4,7 +4,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"fmt"
 
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -43,21 +42,7 @@ func (n NodeObject) EncodeBinary(w *io.BinWriter) {
 
 // DecodeBinary implements io.Serializable.
 func (n *NodeObject) DecodeBinary(r *io.BinReader) {
-	typ := NodeType(r.ReadB())
-	switch typ {
-	case BranchT:
-		n.Node = new(BranchNode)
-	case ExtensionT:
-		n.Node = new(ExtensionNode)
-	case HashT:
-		n.Node = new(HashNode)
-	case LeafT:
-		n.Node = new(LeafNode)
-	default:
-		r.Err = fmt.Errorf("invalid node type: %x", typ)
-		return
-	}
-	n.Node.DecodeBinary(r)
+	n.Node = DecodeNodeWithType(r)
 }
 
 // UnmarshalJSON implements json.Unmarshaler.

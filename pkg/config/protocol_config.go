@@ -22,6 +22,10 @@ type (
 		AddressVersion byte `yaml:"AddressVersion"`
 		// EnableStateRoot specifies if exchange of state roots should be enabled.
 		EnableStateRoot bool `yaml:"EnableStateRoot"`
+		// KeepOnlyLatestState specifies if MPT should only store latest state.
+		// If true, DB size will be smaller, but older roots won't be accessible.
+		// This value should remain the same for the same database.
+		KeepOnlyLatestState bool `yaml:"KeepOnlyLatestState"`
 		// FeePerExtraByte sets the expected per-byte fee for
 		// transactions exceeding the MaxFreeTransactionSize.
 		FeePerExtraByte float64 `yaml:"FeePerExtraByte"`

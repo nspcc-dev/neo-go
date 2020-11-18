@@ -210,7 +210,7 @@ func (bc *Blockchain) init() error {
 			return err
 		}
 		if bc.config.EnableStateRoot {
-			if err := bc.dao.InitMPT(0); err != nil {
+			if err := bc.dao.InitMPT(0, bc.config.KeepOnlyLatestState); err != nil {
 				return err
 			}
 		}
@@ -232,7 +232,7 @@ func (bc *Blockchain) init() error {
 	bc.blockHeight = bHeight
 	bc.persistedHeight = bHeight
 	if bc.config.EnableStateRoot {
-		if err = bc.dao.InitMPT(bHeight); err != nil {
+		if err = bc.dao.InitMPT(bHeight, bc.config.KeepOnlyLatestState); err != nil {
 			return errors.Wrapf(err, "can't init MPT at height %d", bHeight)
 		}
 	}
@@ -563,7 +563,7 @@ func (bc *Blockchain) GetStateProof(root util.Uint256, key []byte) ([][]byte, er
 	if !bc.config.EnableStateRoot {
 		return nil, errors.New("state root feature is not enabled")
 	}
-	tr := mpt.NewTrie(mpt.NewHashNode(root), storage.NewMemCachedStore(bc.dao.Store))
+	tr := mpt.NewTrie(mpt.NewHashNode(root), bc.config.KeepOnlyLatestState, storage.NewMemCachedStore(bc.dao.Store))
 	return tr.GetProof(key)
 }
 
