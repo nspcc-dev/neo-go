@@ -3,6 +3,7 @@ package native
 import (
 	"errors"
 	"fmt"
+	"math"
 	"math/big"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
@@ -318,6 +319,18 @@ func toUint160(s stackitem.Item) util.Uint160 {
 		panic(err)
 	}
 	return u
+}
+
+func toUint32(s stackitem.Item) uint32 {
+	bigInt := toBigInt(s)
+	if !bigInt.IsInt64() {
+		panic("bigint is not an int64")
+	}
+	int64Value := bigInt.Int64()
+	if int64Value < 0 || int64Value > math.MaxUint32 {
+		panic("bigint does not fit into uint32")
+	}
+	return uint32(int64Value)
 }
 
 func getOnPersistWrapper(f func(ic *interop.Context) error) interop.Method {

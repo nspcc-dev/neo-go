@@ -18,14 +18,18 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/chaindump"
 	"github.com/nspcc-dev/neo-go/pkg/core/fee"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
+	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap/zaptest"
@@ -364,9 +368,9 @@ func initBasicChain(t *testing.T, bc *Blockchain) {
 	require.NoError(t, bc.AddBlock(b))
 }
 
-func newNEP17Transfer(sc, from, to util.Uint160, amount int64) *transaction.Transaction {
+func newNEP17Transfer(sc, from, to util.Uint160, amount int64, additionalArgs ...interface{}) *transaction.Transaction {
 	w := io.NewBufBinWriter()
-	emit.AppCallWithOperationAndArgs(w.BinWriter, sc, "transfer", from, to, amount, nil)
+	emit.AppCallWithOperationAndArgs(w.BinWriter, sc, "transfer", from, to, amount, additionalArgs)
 	emit.Opcodes(w.BinWriter, opcode.ASSERT)
 
 	script := w.Bytes()
@@ -410,4 +414,57 @@ func addNetworkFee(bc *Blockchain, tx *transaction.Transaction, sender *wallet.A
 	}
 	tx.NetworkFee += int64(size) * bc.FeePerByte()
 	return nil
+}
+
+func invokeContractMethod(chain *Blockchain, sysfee int64, hash util.Uint160, method string, args ...interface{}) (*state.AppExecResult, error) {
+	w := io.NewBufBinWriter()
+	emit.AppCallWithOperationAndArgs(w.BinWriter, hash, method, args...)
+	if w.Err != nil {
+		return nil, w.Err
+	}
+	script := w.Bytes()
+	tx := transaction.New(chain.GetConfig().Magic, script, sysfee)
+	tx.ValidUntilBlock = chain.blockHeight + 1
+	addSigners(tx)
+	err := testchain.SignTx(chain, tx)
+	if err != nil {
+		return nil, err
+	}
+	b := chain.newBlock(tx)
+	err = chain.AddBlock(b)
+	if err != nil {
+		return nil, err
+	}
+
+	res, err := chain.GetAppExecResults(tx.Hash(), trigger.Application)
+	if err != nil {
+		return nil, err
+	}
+	return &res[0], nil
+}
+
+func transferTokenFromMultisigAccount(t *testing.T, chain *Blockchain, to, tokenHash util.Uint160, amount int64, additionalArgs ...interface{}) *transaction.Transaction {
+	transferTx := newNEP17Transfer(tokenHash, testchain.MultisigScriptHash(), to, amount, additionalArgs...)
+	transferTx.SystemFee = 100000000
+	transferTx.ValidUntilBlock = chain.BlockHeight() + 1
+	addSigners(transferTx)
+	require.NoError(t, testchain.SignTx(chain, transferTx))
+	b := chain.newBlock(transferTx)
+	require.NoError(t, chain.AddBlock(b))
+	return transferTx
+}
+
+func checkResult(t *testing.T, result *state.AppExecResult, expected stackitem.Item) {
+	require.Equal(t, vm.HaltState, result.VMState)
+	require.Equal(t, 1, len(result.Stack))
+	require.Equal(t, expected, result.Stack[0])
+}
+
+func checkFAULTState(t *testing.T, result *state.AppExecResult) {
+	require.Equal(t, vm.FaultState, result.VMState)
+}
+
+func checkBalanceOf(t *testing.T, chain *Blockchain, addr util.Uint160, expected int) {
+	balance := chain.GetNEP17Balances(addr).Trackers[chain.contracts.GAS.ContractID]
+	require.Equal(t, int64(expected), balance.Balance.Int64())
 }

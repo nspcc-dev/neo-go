@@ -12,6 +12,9 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 )
 
+// reservedContractID represents the upper bound of the reserved IDs for native contracts.
+const reservedContractID = -100
+
 // Contracts is a set of registered native contracts.
 type Contracts struct {
 	NEO       *NEO
@@ -19,6 +22,7 @@ type Contracts struct {
 	Policy    *Policy
 	Oracle    *Oracle
 	Designate *Designate
+	Notary    *Notary
 	Contracts []interop.Contract
 	// persistScript is vm script which executes "onPersist" method of every native contract.
 	persistScript []byte
@@ -47,8 +51,8 @@ func (cs *Contracts) ByName(name string) interop.Contract {
 	return nil
 }
 
-// NewContracts returns new set of native contracts with new GAS, NEO and Policy
-// contracts.
+// NewContracts returns new set of native contracts with new GAS, NEO, Policy, Oracle,
+// Designate and (optional) Notary contracts.
 func NewContracts(p2pSigExtensionsEnabled bool) *Contracts {
 	cs := new(Contracts)
 
@@ -77,6 +81,14 @@ func NewContracts(p2pSigExtensionsEnabled bool) *Contracts {
 	cs.Designate = desig
 	cs.Oracle.Desig = desig
 	cs.Contracts = append(cs.Contracts, desig)
+
+	if p2pSigExtensionsEnabled {
+		notary := newNotary()
+		notary.GAS = gas
+		notary.Desig = desig
+		cs.Notary = notary
+		cs.Contracts = append(cs.Contracts, notary)
+	}
 
 	return cs
 }
@@ -114,7 +126,7 @@ func (cs *Contracts) GetPostPersistScript() []byte {
 		md := cs.Contracts[i].Metadata()
 		// Not every contract is persisted:
 		// https://github.com/neo-project/neo/blob/master/src/neo/Ledger/Blockchain.cs#L103
-		if md.ContractID == policyContractID || md.ContractID == gasContractID || md.ContractID == designateContractID {
+		if md.ContractID == policyContractID || md.ContractID == gasContractID || md.ContractID == designateContractID || md.ContractID == notaryContractID {
 			continue
 		}
 		emit.Int(w.BinWriter, 0)

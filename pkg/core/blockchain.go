@@ -1388,6 +1388,9 @@ func (bc *Blockchain) verifyTxAttributes(tx *transaction.Transaction) error {
 			if !bc.config.P2PSigExtensions {
 				return fmt.Errorf("%w: NotaryAssisted attribute was found, but P2PSigExtensions are disabled", ErrInvalidAttribute)
 			}
+			if !tx.HasSigner(bc.contracts.Notary.Hash) {
+				return fmt.Errorf("%w: NotaryAssisted attribute was found, but transaction is not signed by the Notary native contract", ErrInvalidAttribute)
+			}
 		default:
 			if !bc.config.ReservedAttributes && attrType >= transaction.ReservedLowerBound && attrType <= transaction.ReservedUpperBound {
 				return fmt.Errorf("%w: attribute of reserved type was found, but ReservedAttributes are disabled", ErrInvalidAttribute)
