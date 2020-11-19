@@ -265,9 +265,15 @@ func (o *Oracle) request(ic *interop.Context, args []stackitem.Item) stackitem.I
 	if err != nil {
 		panic(err)
 	}
-	filter, err := stackitem.ToString(args[1])
-	if err != nil {
-		panic(err)
+	var filter *string
+	_, ok := args[1].(stackitem.Null)
+	if !ok {
+		// Check UTF-8 validity.
+		str, err := stackitem.ToString(args[1])
+		if err != nil {
+			panic(err)
+		}
+		filter = &str
 	}
 	cb, err := stackitem.ToString(args[2])
 	if err != nil {
@@ -285,8 +291,8 @@ func (o *Oracle) request(ic *interop.Context, args []stackitem.Item) stackitem.I
 }
 
 // RequestInternal processes oracle request.
-func (o *Oracle) RequestInternal(ic *interop.Context, url, filter, cb string, userData stackitem.Item, gas *big.Int) error {
-	if len(url) > maxURLLength || len(filter) > maxFilterLength || len(cb) > maxCallbackLength || gas.Uint64() < 1000_0000 {
+func (o *Oracle) RequestInternal(ic *interop.Context, url string, filter *string, cb string, userData stackitem.Item, gas *big.Int) error {
+	if len(url) > maxURLLength || (filter != nil && len(*filter) > maxFilterLength) || len(cb) > maxCallbackLength || gas.Uint64() < 1000_0000 {
 		return ErrBigArgument
 	}
 
@@ -317,6 +323,12 @@ func (o *Oracle) RequestInternal(ic *interop.Context, url, filter, cb string, us
 		return ErrBigArgument
 	}
 
+	var filterNotif stackitem.Item
+	if filter != nil {
+		filterNotif = stackitem.Make(*filter)
+	} else {
+		filterNotif = stackitem.Null{}
+	}
 	ic.Notifications = append(ic.Notifications, state.NotificationEvent{
 		ScriptHash: o.Hash,
 		Name:       "OracleRequest",
@@ -324,14 +336,14 @@ func (o *Oracle) RequestInternal(ic *interop.Context, url, filter, cb string, us
 			stackitem.Make(id),
 			stackitem.Make(ic.VM.GetCallingScriptHash().BytesBE()),
 			stackitem.Make(url),
-			stackitem.Make(filter),
+			filterNotif,
 		}),
 	})
 	req := &state.OracleRequest{
 		OriginalTxID:     o.getOriginalTxID(ic.DAO, ic.Tx),
 		GasForResponse:   gas.Uint64(),
 		URL:              url,
-		Filter:           &filter,
+		Filter:           filter,
 		CallbackContract: ic.VM.GetCallingScriptHash(),
 		CallbackMethod:   cb,
 		UserData:         data,

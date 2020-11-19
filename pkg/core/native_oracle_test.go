@@ -18,6 +18,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
@@ -88,10 +89,14 @@ func getOracleContractState(h util.Uint160) *state.Contract {
 }
 
 func putOracleRequest(t *testing.T, h util.Uint160, bc *Blockchain,
-	url, filter string, userData []byte, gas int64) util.Uint256 {
+	url string, filter *string, userData []byte, gas int64) util.Uint256 {
 	w := io.NewBufBinWriter()
+	var filtItem interface{}
+	if filter != nil {
+		filtItem = *filter
+	}
 	emit.AppCallWithOperationAndArgs(w.BinWriter, h, "requestURL",
-		url, filter, "handle", userData, gas)
+		url, filtItem, "handle", userData, gas)
 	require.NoError(t, w.Err)
 
 	gas += 50_000_000 + 5_000_000 // request + contract call with args
@@ -113,15 +118,16 @@ func TestOracle_Request(t *testing.T) {
 	require.NoError(t, bc.dao.PutContractState(cs))
 
 	gasForResponse := int64(2000_1234)
+	var filter = "flt"
 	userData := []byte("custom info")
-	txHash := putOracleRequest(t, cs.ScriptHash(), bc, "url", "flt", userData, gasForResponse)
+	txHash := putOracleRequest(t, cs.ScriptHash(), bc, "url", &filter, userData, gasForResponse)
 
 	req, err := orc.GetRequestInternal(bc.dao, 1)
 	require.NotNil(t, req)
 	require.NoError(t, err)
 	require.Equal(t, txHash, req.OriginalTxID)
 	require.Equal(t, "url", req.URL)
-	require.Equal(t, "flt", *req.Filter)
+	require.Equal(t, filter, *req.Filter)
 	require.Equal(t, cs.ScriptHash(), req.CallbackContract)
 	require.Equal(t, "handle", req.CallbackMethod)
 	require.Equal(t, uint64(gasForResponse), req.GasForResponse)
@@ -192,7 +198,7 @@ func TestOracle_Request(t *testing.T) {
 	t.Run("ErrorOnFinish", func(t *testing.T) {
 		const reqID = 2
 
-		putOracleRequest(t, cs.ScriptHash(), bc, "url", "flt", []byte{1, 2}, gasForResponse)
+		putOracleRequest(t, cs.ScriptHash(), bc, "url", nil, []byte{1, 2}, gasForResponse)
 		_, err := orc.GetRequestInternal(bc.dao, reqID) // ensure ID is 2
 		require.NoError(t, err)
 
@@ -214,5 +220,24 @@ func TestOracle_Request(t *testing.T) {
 		require.NoError(t, orc.PostPersist(ic))
 		_, err = orc.GetRequestInternal(ic.DAO, reqID)
 		require.Error(t, err)
+	})
+	t.Run("BadRequest", func(t *testing.T) {
+		var doBadRequest = func(t *testing.T, h util.Uint160, url string, filter *string, userData []byte, gas int64) {
+			txHash := putOracleRequest(t, h, bc, url, filter, userData, gas)
+			aer, err := bc.GetAppExecResults(txHash, trigger.Application)
+			require.NoError(t, err)
+			require.Equal(t, 1, len(aer))
+			require.Equal(t, vm.FaultState, aer[0].VMState)
+		}
+		t.Run("non-UTF8 url", func(t *testing.T) {
+			doBadRequest(t, cs.ScriptHash(), "\xff", nil, []byte{1, 2}, gasForResponse)
+		})
+		t.Run("non-UTF8 filter", func(t *testing.T) {
+			var f = "\xff"
+			doBadRequest(t, cs.ScriptHash(), "url", &f, []byte{1, 2}, gasForResponse)
+		})
+		t.Run("not enough gas", func(t *testing.T) {
+			doBadRequest(t, cs.ScriptHash(), "url", nil, nil, 1000)
+		})
 	})
 }
