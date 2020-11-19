@@ -13,7 +13,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
-	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
@@ -85,7 +84,7 @@ func newNEP17Native(name string) *nep17TokenNative {
 	n.AddMethod(md, desc, false)
 
 	desc = newDescriptor("onPersist", smartcontract.VoidType)
-	md = newMethodAndPrice(getOnPersistWrapper(n.OnPersist), 0, smartcontract.AllowModifyStates)
+	md = newMethodAndPrice(getOnPersistWrapper(onPersistBase), 0, smartcontract.AllowModifyStates)
 	n.AddMethod(md, desc, false)
 
 	desc = newDescriptor("postPersist", smartcontract.VoidType)
@@ -285,13 +284,6 @@ func (c *nep17TokenNative) addTokens(ic *interop.Context, h util.Uint160, amount
 	if err != nil {
 		panic(err)
 	}
-}
-
-func (c *nep17TokenNative) OnPersist(ic *interop.Context) error {
-	if ic.Trigger != trigger.OnPersist {
-		return errors.New("onPersist must be triggerred by system")
-	}
-	return nil
 }
 
 func newDescriptor(name string, ret smartcontract.ParamType, ps ...manifest.Parameter) *manifest.Method {

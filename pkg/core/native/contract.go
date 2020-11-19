@@ -133,3 +133,10 @@ func postPersistBase(ic *interop.Context) error {
 	}
 	return nil
 }
+
+func onPersistBase(ic *interop.Context) error {
+	if ic.Trigger != trigger.OnPersist {
+		return errors.New("onPersist must be trigered by system")
+	}
+	return nil
+}

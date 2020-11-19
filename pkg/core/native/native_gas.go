@@ -31,7 +31,7 @@ func newGAS() *GAS {
 	nep17.symbol = "gas"
 	nep17.decimals = 8
 	nep17.factor = GASFactor
-	nep17.onPersist = chainOnPersist(nep17.OnPersist, g.OnPersist)
+	nep17.onPersist = chainOnPersist(onPersistBase, g.OnPersist)
 	nep17.incBalance = g.increaseBalance
 	nep17.ContractID = gasContractID
 

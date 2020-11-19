@@ -137,6 +137,10 @@ func newOracle() *Oracle {
 	md = newMethodAndPrice(getOnPersistWrapper(pp), 0, smartcontract.AllowModifyStates)
 	o.AddMethod(md, desc, false)
 
+	desc = newDescriptor("onPersist", smartcontract.VoidType)
+	md = newMethodAndPrice(getOnPersistWrapper(onPersistBase), 0, smartcontract.AllowModifyStates)
+	o.AddMethod(md, desc, false)
+
 	o.AddEvent("OracleRequest", manifest.NewParameter("Id", smartcontract.IntegerType),
 		manifest.NewParameter("RequestContract", smartcontract.Hash160Type),
 		manifest.NewParameter("Url", smartcontract.StringType),
