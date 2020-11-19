@@ -72,6 +72,11 @@ func NewContext(b []byte) *Context {
 	}
 }
 
+// Estack returns the evaluation stack of c.
+func (c *Context) Estack() *Stack {
+	return c.estack
+}
+
 // NextIP returns next instruction pointer.
 func (c *Context) NextIP() int {
 	return c.nextip

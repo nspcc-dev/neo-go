@@ -454,7 +454,7 @@ func getTestContractState() (*state.Contract, *state.Contract) {
 		{
 			Name:       "justReturn",
 			Offset:     justRetOff,
-			ReturnType: smartcontract.IntegerType,
+			ReturnType: smartcontract.VoidType,
 		},
 		{
 			Name:       manifest.MethodVerify,

@@ -62,9 +62,10 @@ func Call(ic *interop.Context) error {
 	if !ic.VM.AddGas(m.Price) {
 		return errors.New("gas limit exceeded")
 	}
+	ctx := ic.VM.Context()
 	result := m.Func(ic, args)
 	if m.MD.ReturnType != smartcontract.VoidType {
-		ic.VM.Estack().PushVal(result)
+		ctx.Estack().PushVal(result)
 	}
 	return nil
 }
