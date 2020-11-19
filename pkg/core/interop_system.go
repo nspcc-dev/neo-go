@@ -299,16 +299,7 @@ func runtimeLog(ic *interop.Context) error {
 // runtimeGetTime returns timestamp of the block being verified, or the latest
 // one in the blockchain if no block is given to Context.
 func runtimeGetTime(ic *interop.Context) error {
-	var header *block.Header
-	if ic.Block == nil {
-		var err error
-		header, err = ic.Chain.GetHeader(ic.Chain.CurrentBlockHash())
-		if err != nil {
-			return err
-		}
-	} else {
-		header = ic.Block.Header()
-	}
+	header := ic.Block.Header()
 	ic.VM.Estack().PushVal(header.Timestamp)
 	return nil
 }

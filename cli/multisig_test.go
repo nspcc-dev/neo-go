@@ -93,7 +93,7 @@ func TestSignMultisigTx(t *testing.T) {
 			e.Chain.GoverningTokenHash().StringLE(), "transfer",
 			"bytes:"+multisigHash.StringBE(),
 			"bytes:"+priv.GetScriptHash().StringBE(),
-			"int:1",
+			"int:1", "bytes:",
 			"--", strings.Join([]string{multisigHash.StringLE(), ":", "Global"}, ""))
 
 		e.In.WriteString("pass\r")

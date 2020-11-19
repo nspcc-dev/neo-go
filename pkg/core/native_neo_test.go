@@ -16,6 +16,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/stretchr/testify/require"
 )
@@ -76,11 +77,11 @@ func TestNEO_Vote(t *testing.T) {
 		w := io.NewBufBinWriter()
 		emit.AppCallWithOperationAndArgs(w.BinWriter, bc.contracts.NEO.Hash, "transfer",
 			neoOwner.BytesBE(), to.BytesBE(),
-			big.NewInt(int64(sz-i)*1000000).Int64())
+			big.NewInt(int64(sz-i)*1000000).Int64(), nil)
 		emit.Opcodes(w.BinWriter, opcode.ASSERT)
 		emit.AppCallWithOperationAndArgs(w.BinWriter, bc.contracts.GAS.Hash, "transfer",
 			neoOwner.BytesBE(), to.BytesBE(),
-			int64(1_000_000_000))
+			int64(1_000_000_000), nil)
 		emit.Opcodes(w.BinWriter, opcode.ASSERT)
 		require.NoError(t, w.Err)
 		tx := transaction.New(netmode.UnitTestNet, w.Bytes(), 1000_000_000)
@@ -141,7 +142,7 @@ func TestNEO_Vote(t *testing.T) {
 			gasBalance[i] = bc.GetUtilityTokenBalance(h)
 			neoBalance[i], _ = bc.GetGoverningTokenBalance(h)
 			emit.AppCallWithOperationAndArgs(w.BinWriter, bc.contracts.NEO.Hash, "transfer",
-				h.BytesBE(), h.BytesBE(), int64(1))
+				h.BytesBE(), h.BytesBE(), int64(1), nil)
 			emit.Opcodes(w.BinWriter, opcode.ASSERT)
 			require.NoError(t, w.Err)
 			tx := transaction.New(netmode.UnitTestNet, w.Bytes(), 0)
@@ -302,4 +303,32 @@ func TestNEO_CommitteeBountyOnPersist(t *testing.T) {
 		bs[(i+1)%testchain.CommitteeSize()] += singleBounty
 		checkBalances()
 	}
+}
+
+func TestNEO_TransferOnPayment(t *testing.T) {
+	bc := newTestChain(t)
+	defer bc.Close()
+
+	cs, _ := getTestContractState()
+	require.NoError(t, bc.dao.PutContractState(cs))
+
+	const amount = 2
+	tx := newNEP5Transfer(bc.contracts.NEO.Hash, neoOwner, cs.ScriptHash(), amount)
+	tx.SystemFee += 1_000_000
+	tx.NetworkFee = 10_000_000
+	tx.ValidUntilBlock = bc.BlockHeight() + 1
+	addSigners(tx)
+	require.NoError(t, signTx(bc, tx))
+	require.NoError(t, bc.AddBlock(bc.newBlock(tx)))
+
+	aer, err := bc.GetAppExecResults(tx.Hash(), trigger.Application)
+	require.NoError(t, err)
+	require.Equal(t, vm.HaltState, aer[0].VMState)
+	require.Len(t, aer[0].Events, 3) // transfer + auto GAS claim + onPayment
+
+	e := aer[0].Events[2]
+	require.Equal(t, "LastPayment", e.Name)
+	arr := e.Item.Value().([]stackitem.Item)
+	require.Equal(t, neoOwner.BytesBE(), arr[0].Value())
+	require.Equal(t, big.NewInt(amount), arr[1].Value())
 }

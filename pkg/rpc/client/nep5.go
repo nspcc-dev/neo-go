@@ -37,20 +37,6 @@ func (c *Client) NEP5Decimals(tokenHash util.Uint160) (int64, error) {
 	return topIntFromStack(result.Stack)
 }
 
-// NEP5Name invokes `name` NEP5 method on a specified contract.
-func (c *Client) NEP5Name(tokenHash util.Uint160) (string, error) {
-	result, err := c.InvokeFunction(tokenHash, "name", []smartcontract.Parameter{}, nil)
-	if err != nil {
-		return "", err
-	}
-	err = getInvocationError(result)
-	if err != nil {
-		return "", fmt.Errorf("failed to get NEP5 name: %w", err)
-	}
-
-	return topStringFromStack(result.Stack)
-}
-
 // NEP5Symbol invokes `symbol` NEP5 method on a specified contract.
 func (c *Client) NEP5Symbol(tokenHash util.Uint160) (string, error) {
 	result, err := c.InvokeFunction(tokenHash, "symbol", []smartcontract.Parameter{}, nil)
@@ -98,7 +84,7 @@ func (c *Client) NEP5BalanceOf(tokenHash, acc util.Uint160) (int64, error) {
 
 // NEP5TokenInfo returns full NEP5 token info.
 func (c *Client) NEP5TokenInfo(tokenHash util.Uint160) (*wallet.Token, error) {
-	name, err := c.NEP5Name(tokenHash)
+	cs, err := c.GetContractStateByHash(tokenHash)
 	if err != nil {
 		return nil, err
 	}
@@ -110,7 +96,7 @@ func (c *Client) NEP5TokenInfo(tokenHash util.Uint160) (*wallet.Token, error) {
 	if err != nil {
 		return nil, err
 	}
-	return wallet.NewToken(tokenHash, name, symbol, decimals), nil
+	return wallet.NewToken(tokenHash, cs.Manifest.Name, symbol, decimals), nil
 }
 
 // CreateNEP5TransferTx creates an invocation transaction for the 'transfer'
@@ -135,7 +121,7 @@ func (c *Client) CreateNEP5MultiTransferTx(acc *wallet.Account, gas int64, recip
 	w := io.NewBufBinWriter()
 	for i := range recipients {
 		emit.AppCallWithOperationAndArgs(w.BinWriter, recipients[i].Token, "transfer", from,
-			recipients[i].Address, recipients[i].Amount)
+			recipients[i].Address, recipients[i].Amount, nil)
 		emit.Opcodes(w.BinWriter, opcode.ASSERT)
 	}
 	return c.CreateTxFromScript(w.Bytes(), acc, -1, gas, transaction.Signer{

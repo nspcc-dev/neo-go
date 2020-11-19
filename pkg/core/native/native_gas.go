@@ -13,7 +13,7 @@ import (
 
 // GAS represents GAS native contract.
 type GAS struct {
-	nep5TokenNative
+	nep17TokenNative
 	NEO *NEO
 }
 
@@ -27,15 +27,15 @@ const initialGAS = 30000000
 // newGAS returns GAS native contract.
 func newGAS() *GAS {
 	g := &GAS{}
-	nep5 := newNEP5Native(gasName)
-	nep5.symbol = "gas"
-	nep5.decimals = 8
-	nep5.factor = GASFactor
-	nep5.onPersist = chainOnPersist(nep5.OnPersist, g.OnPersist)
-	nep5.incBalance = g.increaseBalance
-	nep5.ContractID = gasContractID
+	nep17 := newNEP17Native(gasName)
+	nep17.symbol = "gas"
+	nep17.decimals = 8
+	nep17.factor = GASFactor
+	nep17.onPersist = chainOnPersist(nep17.OnPersist, g.OnPersist)
+	nep17.incBalance = g.increaseBalance
+	nep17.ContractID = gasContractID
 
-	g.nep5TokenNative = *nep5
+	g.nep17TokenNative = *nep17
 
 	onp := g.Methods["onPersist"]
 	onp.Func = getOnPersistWrapper(g.onPersist)
@@ -65,10 +65,10 @@ func (g *GAS) increaseBalance(_ *interop.Context, _ util.Uint160, si *state.Stor
 
 // Initialize initializes GAS contract.
 func (g *GAS) Initialize(ic *interop.Context) error {
-	if err := g.nep5TokenNative.Initialize(ic); err != nil {
+	if err := g.nep17TokenNative.Initialize(ic); err != nil {
 		return err
 	}
-	if g.nep5TokenNative.getTotalSupply(ic.DAO).Sign() != 0 {
+	if g.nep17TokenNative.getTotalSupply(ic.DAO).Sign() != 0 {
 		return errors.New("already initialized")
 	}
 	h, err := getStandbyValidatorsHash(ic)

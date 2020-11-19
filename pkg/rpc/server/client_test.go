@@ -41,11 +41,6 @@ func TestClient_NEP5(t *testing.T) {
 		require.NoError(t, err)
 		require.EqualValues(t, 1_000_000, s)
 	})
-	t.Run("Name", func(t *testing.T) {
-		name, err := c.NEP5Name(h)
-		require.NoError(t, err)
-		require.Equal(t, "Rubl", name)
-	})
 	t.Run("Symbol", func(t *testing.T) {
 		sym, err := c.NEP5Symbol(h)
 		require.NoError(t, err)

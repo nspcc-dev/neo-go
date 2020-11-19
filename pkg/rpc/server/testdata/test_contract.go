@@ -15,11 +15,11 @@ func Init() bool {
 	h := runtime.GetExecutingScriptHash()
 	amount := totalSupply
 	storage.Put(ctx, h, amount)
-	runtime.Notify("transfer", []byte{}, h, amount)
+	runtime.Notify("Transfer", []byte{}, h, amount)
 	return true
 }
 
-func Transfer(from, to []byte, amount int) bool {
+func Transfer(from, to []byte, amount int, data interface{}) bool {
 	ctx := storage.GetContext()
 	if len(from) != 20 {
 		runtime.Log("invalid 'from' address")
@@ -54,7 +54,7 @@ func Transfer(from, to []byte, amount int) bool {
 	toBalance += amount
 	storage.Put(ctx, to, toBalance)
 
-	runtime.Notify("transfer", from, to, amount)
+	runtime.Notify("Transfer", from, to, amount)
 
 	return true
 }
@@ -72,10 +72,6 @@ func BalanceOf(addr []byte) int {
 	}
 	runtime.Notify("balanceOf", addr, amount)
 	return amount
-}
-
-func Name() string {
-	return "Rubl"
 }
 
 func Symbol() string {

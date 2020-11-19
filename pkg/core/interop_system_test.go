@@ -408,6 +408,13 @@ func getTestContractState() (*state.Contract, *state.Contract) {
 	emit.String(w.BinWriter, "initial")
 	emit.Syscall(w.BinWriter, interopnames.SystemStorageGetContext)
 	emit.Syscall(w.BinWriter, interopnames.SystemStorageGet)
+	emit.Opcodes(w.BinWriter, opcode.RET)
+	onPaymentOff := w.Len()
+	emit.Int(w.BinWriter, 3)
+	emit.Opcodes(w.BinWriter, opcode.PACK)
+	emit.String(w.BinWriter, "LastPayment")
+	emit.Syscall(w.BinWriter, interopnames.SystemRuntimeNotify)
+	emit.Opcodes(w.BinWriter, opcode.RET)
 
 	script := w.Bytes()
 	h := hash.Hash160(script)
@@ -479,6 +486,16 @@ func getTestContractState() (*state.Contract, *state.Contract) {
 			Offset: putValOff,
 			Parameters: []manifest.Parameter{
 				manifest.NewParameter("value", smartcontract.StringType),
+			},
+			ReturnType: smartcontract.VoidType,
+		},
+		{
+			Name:   "onPayment",
+			Offset: onPaymentOff,
+			Parameters: []manifest.Parameter{
+				manifest.NewParameter("from", smartcontract.Hash160Type),
+				manifest.NewParameter("amount", smartcontract.IntegerType),
+				manifest.NewParameter("data", smartcontract.AnyType),
 			},
 			ReturnType: smartcontract.VoidType,
 		},

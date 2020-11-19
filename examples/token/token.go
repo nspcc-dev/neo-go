@@ -32,11 +32,6 @@ func init() {
 	ctx = storage.GetContext()
 }
 
-// Name returns the token name
-func Name() string {
-	return token.Name
-}
-
 // Symbol returns the token symbol
 func Symbol() string {
 	return token.Symbol
@@ -58,8 +53,8 @@ func BalanceOf(holder interop.Hash160) interface{} {
 }
 
 // Transfer token from one user to another
-func Transfer(from interop.Hash160, to interop.Hash160, amount int) bool {
-	return token.Transfer(ctx, from, to, amount)
+func Transfer(from interop.Hash160, to interop.Hash160, amount int, data interface{}) bool {
+	return token.Transfer(ctx, from, to, amount, data)
 }
 
 // Mint initial supply of tokens

@@ -44,7 +44,7 @@ func (t Token) BalanceOf(ctx storage.Context, holder []byte) int {
 }
 
 // Transfer token from one user to another
-func (t Token) Transfer(ctx storage.Context, from []byte, to []byte, amount int) bool {
+func (t Token) Transfer(ctx storage.Context, from []byte, to []byte, amount int, data interface{}) bool {
 	amountFrom := t.CanTransfer(ctx, from, to, amount)
 	if amountFrom == -1 {
 		return false

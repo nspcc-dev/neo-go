@@ -1095,7 +1095,7 @@ func (s *Server) invokeFunction(reqParams request.Params) (interface{}, *respons
 		return nil, response.NewInternalServerError("can't create invocation script", err)
 	}
 	tx.Script = script
-	return s.runScriptInVM(script, tx), nil
+	return s.runScriptInVM(script, tx)
 }
 
 // invokescript implements the `invokescript` RPC call.
@@ -1121,16 +1121,27 @@ func (s *Server) invokescript(reqParams request.Params) (interface{}, *response.
 		tx.Signers = []transaction.Signer{{Account: util.Uint160{}, Scopes: transaction.None}}
 	}
 	tx.Script = script
-	return s.runScriptInVM(script, tx), nil
+	return s.runScriptInVM(script, tx)
 }
 
 // runScriptInVM runs given script in a new test VM and returns the invocation
 // result.
-func (s *Server) runScriptInVM(script []byte, tx *transaction.Transaction) *result.Invoke {
-	vm := s.chain.GetTestVM(tx, nil)
+func (s *Server) runScriptInVM(script []byte, tx *transaction.Transaction) (*result.Invoke, *response.Error) {
+	// When transfering funds, script execution does no auto GAS claim,
+	// because it depends on persisting tx height.
+	// This is why we provide block here.
+	b := block.New(s.network, s.stateRootEnabled)
+	b.Index = s.chain.BlockHeight() + 1
+	hdr, err := s.chain.GetHeader(s.chain.GetHeaderHash(int(s.chain.BlockHeight())))
+	if err != nil {
+		return nil, response.NewInternalServerError("can't get last block", err)
+	}
+	b.Timestamp = hdr.Timestamp + uint64(s.chain.GetConfig().SecondsPerBlock*int(time.Second/time.Millisecond))
+
+	vm := s.chain.GetTestVM(tx, b)
 	vm.GasLimit = int64(s.config.MaxGasInvoke)
 	vm.LoadScriptWithFlags(script, smartcontract.All)
-	err := vm.Run()
+	err = vm.Run()
 	var faultException string
 	if err != nil {
 		faultException = err.Error()
@@ -1142,7 +1153,7 @@ func (s *Server) runScriptInVM(script []byte, tx *transaction.Transaction) *resu
 		Stack:          vm.Estack().ToArray(),
 		FaultException: faultException,
 	}
-	return result
+	return result, nil
 }
 
 // submitBlock broadcasts a raw block over the NEO network.

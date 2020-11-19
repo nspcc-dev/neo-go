@@ -758,7 +758,7 @@ func (bc *Blockchain) runPersist(script []byte, block *block.Block, cache *dao.C
 }
 
 func (bc *Blockchain) handleNotification(note *state.NotificationEvent, d *dao.Cached, b *block.Block, h util.Uint256) {
-	if note.Name != "transfer" && note.Name != "Transfer" {
+	if note.Name != "Transfer" {
 		return
 	}
 	arr, ok := note.Item.Value().([]stackitem.Item)

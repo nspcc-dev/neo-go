@@ -265,12 +265,12 @@ func TestVerifyTx(t *testing.T) {
 				amount = 1_000_000_000
 			}
 			emit.AppCallWithOperationAndArgs(w.BinWriter, sc, "transfer",
-				neoOwner, a.Contract.ScriptHash(), amount)
+				neoOwner, a.Contract.ScriptHash(), amount, nil)
 			emit.Opcodes(w.BinWriter, opcode.ASSERT)
 		}
 	}
 	emit.AppCallWithOperationAndArgs(w.BinWriter, gasHash, "transfer",
-		neoOwner, testchain.CommitteeScriptHash(), int64(1_000_000_000))
+		neoOwner, testchain.CommitteeScriptHash(), int64(1_000_000_000), nil)
 	emit.Opcodes(w.BinWriter, opcode.ASSERT)
 	require.NoError(t, w.Err)
 

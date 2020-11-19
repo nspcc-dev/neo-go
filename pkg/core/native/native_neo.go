@@ -28,7 +28,7 @@ import (
 
 // NEO represents NEO native contract.
 type NEO struct {
-	nep5TokenNative
+	nep17TokenNative
 	GAS *GAS
 
 	// gasPerBlock represents current value of generated gas per block.
@@ -93,16 +93,16 @@ func makeValidatorKey(key *keys.PublicKey) []byte {
 // newNEO returns NEO native contract.
 func newNEO() *NEO {
 	n := &NEO{}
-	nep5 := newNEP5Native(neoName)
-	nep5.symbol = "neo"
-	nep5.decimals = 0
-	nep5.factor = 1
-	nep5.onPersist = chainOnPersist(nep5.OnPersist, n.OnPersist)
-	nep5.postPersist = chainOnPersist(nep5.postPersist, n.PostPersist)
-	nep5.incBalance = n.increaseBalance
-	nep5.ContractID = neoContractID
+	nep17 := newNEP17Native(neoName)
+	nep17.symbol = "neo"
+	nep17.decimals = 0
+	nep17.factor = 1
+	nep17.onPersist = chainOnPersist(nep17.OnPersist, n.OnPersist)
+	nep17.postPersist = chainOnPersist(nep17.postPersist, n.PostPersist)
+	nep17.incBalance = n.increaseBalance
+	nep17.ContractID = neoContractID
 
-	n.nep5TokenNative = *nep5
+	n.nep17TokenNative = *nep17
 	n.votesChanged.Store(true)
 	n.nextValidators.Store(keys.PublicKeys(nil))
 	n.validators.Store(keys.PublicKeys(nil))
@@ -165,11 +165,11 @@ func newNEO() *NEO {
 
 // Initialize initializes NEO contract.
 func (n *NEO) Initialize(ic *interop.Context) error {
-	if err := n.nep5TokenNative.Initialize(ic); err != nil {
+	if err := n.nep17TokenNative.Initialize(ic); err != nil {
 		return err
 	}
 
-	if n.nep5TokenNative.getTotalSupply(ic.DAO).Sign() != 0 {
+	if n.nep17TokenNative.getTotalSupply(ic.DAO).Sign() != 0 {
 		return errors.New("already initialized")
 	}
 

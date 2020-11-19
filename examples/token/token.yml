@@ -1,7 +1,7 @@
 name: "Awesome NEO Token"
-supportedstandards: ["NEP-5"]
+supportedstandards: ["NEP-17"]
 events:
-  - name: transfer
+  - name: Transfer
     parameters:
       - name: from
         type: ByteString

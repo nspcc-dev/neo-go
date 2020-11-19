@@ -20,10 +20,13 @@ const (
 	// MethodVerify is a name for default verification method.
 	MethodVerify = "verify"
 
-	// NEP5StandardName represents the name of NEP5 smartcontract standard.
-	NEP5StandardName = "NEP-5"
+	// MethodOnPayment is name of the method which is called when contract receives funds.
+	MethodOnPayment = "onPayment"
+
 	// NEP10StandardName represents the name of NEP10 smartcontract standard.
 	NEP10StandardName = "NEP-10"
+	// NEP17StandardName represents the name of NEP17 smartcontract standard.
+	NEP17StandardName = "NEP-17"
 )
 
 // ABI represents a contract application binary interface.
