@@ -274,6 +274,24 @@ func restoreDB(ctx *cli.Context) error {
 		_ = dump.tryPersist(dumpDir, lastIndex)
 	}()
 
+	processBatch := func(height uint32) error {
+		batch := chain.LastBatch()
+		dump.add(height, batch)
+		lastIndex = height
+		if height%1000 == 0 {
+			if err := dump.tryPersist(dumpDir, height); err != nil {
+				return cli.NewExitError(fmt.Errorf("can't dump storage to file: %w", err), 1)
+			}
+		}
+		return nil
+	}
+
+	if dumpDir != "" && chain.BlockHeight() == 0 && skip == 0 {
+		if err := processBatch(0); err != nil {
+			return err
+		}
+	}
+
 	for ; i < skip+count; i++ {
 		select {
 		case <-gctx.Done():
@@ -299,17 +317,8 @@ func restoreDB(ctx *cli.Context) error {
 			}
 		}
 		if dumpDir != "" {
-			batch := chain.LastBatch()
-			// The genesis block may already be persisted, so LastBatch() will return nil.
-			if batch == nil && block.Index == 0 {
-				continue
-			}
-			dump.add(block.Index, batch)
-			lastIndex = block.Index
-			if block.Index%1000 == 0 {
-				if err := dump.tryPersist(dumpDir, block.Index); err != nil {
-					return cli.NewExitError(fmt.Errorf("can't dump storage to file: %w", err), 1)
-				}
+			if err := processBatch(block.Index); err != nil {
+				return err
 			}
 		}
 	}
