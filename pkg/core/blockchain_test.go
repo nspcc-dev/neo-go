@@ -621,7 +621,7 @@ func TestVerifyTx(t *testing.T) {
 				bc.config.P2PSigExtensions = true
 				t.Run("NotYetValid", func(t *testing.T) {
 					tx := getNVBTx(bc.blockHeight + 1)
-					require.True(t, errors.Is(bc.VerifyTx(tx), ErrTxNotYetValid))
+					require.True(t, errors.Is(bc.VerifyTx(tx), ErrInvalidAttribute))
 				})
 				t.Run("positive", func(t *testing.T) {
 					tx := getNVBTx(bc.blockHeight)

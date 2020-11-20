@@ -1254,7 +1254,6 @@ func (bc *Blockchain) verifyHeader(currHeader, prevHeader *block.Header) error {
 
 // Various errors that could be returned upon verification.
 var (
-	ErrTxNotYetValid       = errors.New("transaction is not yet valid")
 	ErrTxExpired           = errors.New("transaction has expired")
 	ErrInsufficientFunds   = errors.New("insufficient funds")
 	ErrTxSmallNetworkFee   = errors.New("too small network fee")
@@ -1365,23 +1364,23 @@ func (bc *Blockchain) verifyTxAttributes(tx *transaction.Transaction) error {
 			}
 		case transaction.NotValidBeforeT:
 			if !bc.config.P2PSigExtensions {
-				return errors.New("NotValidBefore attribute was found, but P2PSigExtensions are disabled")
+				return fmt.Errorf("%w: NotValidBefore attribute was found, but P2PSigExtensions are disabled", ErrInvalidAttribute)
 			}
 			nvb := tx.Attributes[i].Value.(*transaction.NotValidBefore)
 			if height := bc.BlockHeight(); height < nvb.Height {
-				return fmt.Errorf("%w: NotValidBefore = %d, current height = %d", ErrTxNotYetValid, nvb.Height, height)
+				return fmt.Errorf("%w: transaction is not yet valid: NotValidBefore = %d, current height = %d", ErrInvalidAttribute, nvb.Height, height)
 			}
 		case transaction.ConflictsT:
 			if !bc.config.P2PSigExtensions {
-				return errors.New("Conflicts attribute was found, but P2PSigExtensions are disabled")
+				return fmt.Errorf("%w: Conflicts attribute was found, but P2PSigExtensions are disabled", ErrInvalidAttribute)
 			}
 			conflicts := tx.Attributes[i].Value.(*transaction.Conflicts)
 			if err := bc.dao.HasTransaction(conflicts.Hash); errors.Is(err, dao.ErrAlreadyExists) {
-				return fmt.Errorf("conflicting transaction %s is already on chain", conflicts.Hash.StringLE())
+				return fmt.Errorf("%w: conflicting transaction %s is already on chain", ErrInvalidAttribute, conflicts.Hash.StringLE())
 			}
 		default:
 			if !bc.config.ReservedAttributes && attrType >= transaction.ReservedLowerBound && attrType <= transaction.ReservedUpperBound {
-				return errors.New("attribute of reserved type was found, but ReservedAttributes are disabled")
+				return fmt.Errorf("%w: attribute of reserved type was found, but ReservedAttributes are disabled", ErrInvalidAttribute)
 			}
 		}
 	}
