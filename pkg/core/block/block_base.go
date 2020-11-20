@@ -43,6 +43,11 @@ type Base struct {
 	// necessary for correct signing/verification.
 	Network netmode.Magic
 
+	// StateRootEnabled specifies if header contains state root.
+	StateRootEnabled bool
+	// PrevStateRoot is state root of the previous block.
+	PrevStateRoot util.Uint256
+
 	// Hash of this block, created when binary encoded (double SHA256).
 	hash util.Uint256
 
@@ -61,6 +66,7 @@ type baseAux struct {
 	Timestamp     uint64                `json:"time"`
 	Index         uint32                `json:"index"`
 	NextConsensus string                `json:"nextconsensus"`
+	PrevStateRoot *util.Uint256         `json:"previousstateroot,omitempty"`
 	Witnesses     []transaction.Witness `json:"witnesses"`
 }
 
@@ -130,6 +136,9 @@ func (b *Base) encodeHashableFields(bw *io.BinWriter) {
 	bw.WriteU64LE(b.Timestamp)
 	bw.WriteU32LE(b.Index)
 	bw.WriteBytes(b.NextConsensus[:])
+	if b.StateRootEnabled {
+		bw.WriteBytes(b.PrevStateRoot[:])
+	}
 }
 
 // decodeHashableFields decodes the fields used for hashing.
@@ -141,6 +150,9 @@ func (b *Base) decodeHashableFields(br *io.BinReader) {
 	b.Timestamp = br.ReadU64LE()
 	b.Index = br.ReadU32LE()
 	br.ReadBytes(b.NextConsensus[:])
+	if b.StateRootEnabled {
+		br.ReadBytes(b.PrevStateRoot[:])
+	}
 
 	// Make the hash of the block here so we dont need to do this
 	// again.
@@ -160,6 +172,9 @@ func (b Base) MarshalJSON() ([]byte, error) {
 		Index:         b.Index,
 		NextConsensus: address.Uint160ToString(b.NextConsensus),
 		Witnesses:     []transaction.Witness{b.Script},
+	}
+	if b.StateRootEnabled {
+		aux.PrevStateRoot = &b.PrevStateRoot
 	}
 	return json.Marshal(aux)
 }
@@ -188,6 +203,12 @@ func (b *Base) UnmarshalJSON(data []byte) error {
 	b.Index = aux.Index
 	b.NextConsensus = nextC
 	b.Script = aux.Witnesses[0]
+	if b.StateRootEnabled {
+		if aux.PrevStateRoot == nil {
+			return errors.New("'previousstateroot' is empty")
+		}
+		b.PrevStateRoot = *aux.PrevStateRoot
+	}
 	if !aux.Hash.Equals(b.Hash()) {
 		return errors.New("json 'hash' doesn't match block hash")
 	}

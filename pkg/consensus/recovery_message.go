@@ -16,6 +16,7 @@ type (
 		preparationPayloads []*preparationCompact
 		commitPayloads      []*commitCompact
 		changeViewPayloads  []*changeViewCompact
+		stateRootEnabled    bool
 		prepareRequest      *message
 	}
 
@@ -47,7 +48,7 @@ func (m *recoveryMessage) DecodeBinary(r *io.BinReader) {
 
 	var hasReq = r.ReadBool()
 	if hasReq {
-		m.prepareRequest = new(message)
+		m.prepareRequest = &message{stateRootEnabled: m.stateRootEnabled}
 		m.prepareRequest.DecodeBinary(r)
 		if r.Err == nil && m.prepareRequest.Type != prepareRequestType {
 			r.Err = errors.New("recovery message PrepareRequest has wrong type")
@@ -143,9 +144,10 @@ func (m *recoveryMessage) AddPayload(p payload.ConsensusPayload) {
 	switch p.Type() {
 	case payload.PrepareRequestType:
 		m.prepareRequest = &message{
-			Type:       prepareRequestType,
-			ViewNumber: p.ViewNumber(),
-			payload:    p.GetPrepareRequest().(*prepareRequest),
+			Type:             prepareRequestType,
+			ViewNumber:       p.ViewNumber(),
+			payload:          p.GetPrepareRequest().(*prepareRequest),
+			stateRootEnabled: m.stateRootEnabled,
 		}
 		h := p.Hash()
 		m.preparationHash = &h
@@ -291,9 +293,10 @@ func fromPayload(t messageType, recovery *Payload, p io.Serializable) *Payload {
 	return &Payload{
 		network: recovery.network,
 		message: &message{
-			Type:       t,
-			ViewNumber: recovery.message.ViewNumber,
-			payload:    p,
+			Type:             t,
+			ViewNumber:       recovery.message.ViewNumber,
+			payload:          p,
+			stateRootEnabled: recovery.stateRootEnabled,
 		},
 		version:  recovery.Version(),
 		prevHash: recovery.PrevHash(),

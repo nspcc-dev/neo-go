@@ -16,6 +16,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/mempool"
+	"github.com/nspcc-dev/neo-go/pkg/core/mpt"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
@@ -160,7 +161,7 @@ func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration, log *zap.L
 	}
 	bc := &Blockchain{
 		config:      cfg,
-		dao:         dao.NewSimple(s, cfg.Magic),
+		dao:         dao.NewSimple(s, cfg.Magic, cfg.StateRootInHeader),
 		stopCh:      make(chan struct{}),
 		runToExitCh: make(chan struct{}),
 		memPool:     mempool.New(cfg.MemPoolSize),
@@ -429,6 +430,16 @@ func (bc *Blockchain) AddBlock(block *block.Block) error {
 	if expectedHeight != block.Index {
 		return fmt.Errorf("expected %d, got %d: %w", expectedHeight, block.Index, ErrInvalidBlockIndex)
 	}
+	if bc.config.StateRootInHeader != block.StateRootEnabled {
+		return fmt.Errorf("%w: %v != %v",
+			ErrHdrStateRootSetting, bc.config.StateRootInHeader, block.StateRootEnabled)
+	}
+	if bc.config.StateRootInHeader {
+		if sr := bc.dao.MPT.StateRoot(); block.PrevStateRoot != sr {
+			return fmt.Errorf("%w: %s != %s",
+				ErrHdrInvalidStateRoot, block.PrevStateRoot.StringLE(), sr.StringLE())
+		}
+	}
 
 	if block.Index == bc.HeaderHeight()+1 {
 		err := bc.addHeaders(bc.config.VerifyBlocks, block.Header())
@@ -549,6 +560,12 @@ func (bc *Blockchain) addHeaders(verify bool, headers ...*block.Header) error {
 			zap.Duration("took", time.Since(start)))
 	}
 	return nil
+}
+
+// GetStateProof returns proof of having key in the MPT with the specified root.
+func (bc *Blockchain) GetStateProof(root util.Uint256, key []byte) ([][]byte, error) {
+	tr := mpt.NewTrie(mpt.NewHashNode(root), false, storage.NewMemCachedStore(bc.dao.Store))
+	return tr.GetProof(key)
 }
 
 // GetStateRoot returns state root for a given height.
@@ -1218,6 +1235,8 @@ var (
 	ErrHdrHashMismatch     = errors.New("previous header hash doesn't match")
 	ErrHdrIndexMismatch    = errors.New("previous header index doesn't match")
 	ErrHdrInvalidTimestamp = errors.New("block is not newer than the previous one")
+	ErrHdrStateRootSetting = errors.New("state root setting mismatch")
+	ErrHdrInvalidStateRoot = errors.New("state root for previous block is invalid")
 )
 
 func (bc *Blockchain) verifyHeader(currHeader, prevHeader *block.Header) error {

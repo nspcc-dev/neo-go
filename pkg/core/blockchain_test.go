@@ -122,6 +122,33 @@ func TestAddBlock(t *testing.T) {
 	assert.Equal(t, lastBlock.Hash(), bc.CurrentHeaderHash())
 }
 
+func TestAddBlockStateRoot(t *testing.T) {
+	bc := newTestChainWithStateRoot(t, true)
+	defer bc.Close()
+
+	sr, err := bc.GetStateRoot(bc.BlockHeight())
+	require.NoError(t, err)
+
+	tx := newNEP5Transfer(bc.contracts.NEO.Hash, neoOwner, util.Uint160{}, 1)
+	tx.ValidUntilBlock = bc.BlockHeight() + 1
+	addSigners(tx)
+	require.NoError(t, signTx(bc, tx))
+
+	lastBlock := bc.topBlock.Load().(*block.Block)
+	b := newBlock(bc.config, lastBlock.Index+1, lastBlock.Hash(), tx)
+	err = bc.AddBlock(b)
+	require.True(t, errors.Is(err, ErrHdrStateRootSetting), "got: %v", err)
+
+	u := sr.Root
+	u[0] ^= 0xFF
+	b = newBlockWithState(bc.config, lastBlock.Index+1, lastBlock.Hash(), &u, tx)
+	err = bc.AddBlock(b)
+	require.True(t, errors.Is(err, ErrHdrInvalidStateRoot), "got: %v", err)
+
+	b = bc.newBlock(tx)
+	require.NoError(t, bc.AddBlock(b))
+}
+
 func TestAddBadBlock(t *testing.T) {
 	bc := newTestChain(t)
 	defer bc.Close()
@@ -500,7 +527,7 @@ func TestVerifyTx(t *testing.T) {
 				InvocationScript:   testchain.SignCommittee(txSetOracle.GetSignedPart()),
 				VerificationScript: testchain.CommitteeVerificationScript(),
 			}}
-			bl := block.New(netmode.UnitTestNet)
+			bl := block.New(netmode.UnitTestNet, bc.config.StateRootInHeader)
 			bl.Index = bc.BlockHeight() + 1
 			ic := bc.newInteropContext(trigger.All, bc.dao, bl, txSetOracle)
 			ic.SpawnVM()

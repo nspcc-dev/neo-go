@@ -21,6 +21,8 @@ type (
 		ViewNumber byte
 
 		payload io.Serializable
+		// stateRootEnabled specifies if state root is exchanged during consensus.
+		stateRootEnabled bool
 	}
 
 	// Payload is a type for consensus-related messages.
@@ -302,7 +304,11 @@ func (m *message) DecodeBinary(r *io.BinReader) {
 		cv.newViewNumber = m.ViewNumber + 1
 		m.payload = cv
 	case prepareRequestType:
-		m.payload = new(prepareRequest)
+		r := new(prepareRequest)
+		if m.stateRootEnabled {
+			r.stateRootEnabled = true
+		}
+		m.payload = r
 	case prepareResponseType:
 		m.payload = new(prepareResponse)
 	case commitType:
@@ -310,7 +316,11 @@ func (m *message) DecodeBinary(r *io.BinReader) {
 	case recoveryRequestType:
 		m.payload = new(recoveryRequest)
 	case recoveryMessageType:
-		m.payload = new(recoveryMessage)
+		r := new(recoveryMessage)
+		if m.stateRootEnabled {
+			r.stateRootEnabled = true
+		}
+		m.payload = r
 	default:
 		r.Err = fmt.Errorf("invalid type: 0x%02x", byte(m.Type))
 		return
@@ -340,7 +350,7 @@ func (t messageType) String() string {
 
 // decode data of payload into it's message
 func (p *Payload) decodeData() error {
-	m := new(message)
+	m := p.message
 	br := io.NewBinReaderFromBuf(p.data)
 	m.DecodeBinary(br)
 	if br.Err != nil {

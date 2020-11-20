@@ -118,7 +118,7 @@ func TestDesignate_DesignateAsRole(t *testing.T) {
 
 	des := bc.contracts.Designate
 	tx := transaction.New(netmode.UnitTestNet, []byte{}, 0)
-	bl := block.New(netmode.UnitTestNet)
+	bl := block.New(netmode.UnitTestNet, bc.config.StateRootInHeader)
 	bl.Index = bc.BlockHeight() + 1
 	ic := bc.newInteropContext(trigger.OnPersist, bc.dao, bl, tx)
 	ic.SpawnVM()

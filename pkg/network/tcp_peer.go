@@ -150,7 +150,7 @@ func (p *TCPPeer) handleConn() {
 	if err == nil {
 		r := io.NewBinReaderFromIO(p.conn)
 		for {
-			msg := &Message{Network: p.server.network}
+			msg := &Message{Network: p.server.network, StateRootInHeader: p.server.stateRootInHeader}
 			err = msg.Decode(r)
 
 			if err == payload.ErrTooManyHeaders {

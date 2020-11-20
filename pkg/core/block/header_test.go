@@ -6,12 +6,13 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
+	"github.com/nspcc-dev/neo-go/pkg/internal/random"
 	"github.com/nspcc-dev/neo-go/pkg/internal/testserdes"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/stretchr/testify/assert"
 )
 
-func TestHeaderEncodeDecode(t *testing.T) {
+func testHeaderEncodeDecode(t *testing.T, stateRootEnabled bool) {
 	header := Header{Base: Base{
 		Version:       0,
 		PrevHash:      hash.Sha256([]byte("prevhash")),
@@ -24,9 +25,13 @@ func TestHeaderEncodeDecode(t *testing.T) {
 			VerificationScript: []byte{0x11},
 		},
 	}}
+	if stateRootEnabled {
+		header.StateRootEnabled = stateRootEnabled
+		header.PrevStateRoot = random.Uint256()
+	}
 
 	_ = header.Hash()
-	headerDecode := &Header{}
+	headerDecode := &Header{Base: Base{StateRootEnabled: stateRootEnabled}}
 	testserdes.EncodeDecodeBinary(t, &header, headerDecode)
 
 	assert.Equal(t, header.Version, headerDecode.Version, "expected both versions to be equal")
@@ -36,4 +41,14 @@ func TestHeaderEncodeDecode(t *testing.T) {
 	assert.Equal(t, header.NextConsensus, headerDecode.NextConsensus, "expected both next consensus fields to be equal")
 	assert.Equal(t, header.Script.InvocationScript, headerDecode.Script.InvocationScript, "expected equal invocation scripts")
 	assert.Equal(t, header.Script.VerificationScript, headerDecode.Script.VerificationScript, "expected equal verification scripts")
+	assert.Equal(t, header.PrevStateRoot, headerDecode.PrevStateRoot, "expected equal state roots")
+}
+
+func TestHeaderEncodeDecode(t *testing.T) {
+	t.Run("NoStateRoot", func(t *testing.T) {
+		testHeaderEncodeDecode(t, false)
+	})
+	t.Run("WithStateRoot", func(t *testing.T) {
+		testHeaderEncodeDecode(t, true)
+	})
 }

@@ -77,10 +77,11 @@ func (b *Block) RebuildMerkleRoot() {
 // This is commonly used to create a block from stored data.
 // Blocks created from trimmed data will have their Trimmed field
 // set to true.
-func NewBlockFromTrimmedBytes(network netmode.Magic, b []byte) (*Block, error) {
+func NewBlockFromTrimmedBytes(network netmode.Magic, stateRootEnabled bool, b []byte) (*Block, error) {
 	block := &Block{
 		Base: Base{
-			Network: network,
+			Network:          network,
+			StateRootEnabled: stateRootEnabled,
 		},
 		Trimmed: true,
 	}
@@ -113,10 +114,11 @@ func NewBlockFromTrimmedBytes(network netmode.Magic, b []byte) (*Block, error) {
 }
 
 // New creates a new blank block tied to the specific network.
-func New(network netmode.Magic) *Block {
+func New(network netmode.Magic, stateRootEnabled bool) *Block {
 	return &Block{
 		Base: Base{
-			Network: network,
+			Network:          network,
+			StateRootEnabled: stateRootEnabled,
 		},
 	}
 }

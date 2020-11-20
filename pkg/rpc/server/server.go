@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -19,6 +20,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
+	"github.com/nspcc-dev/neo-go/pkg/core/mpt"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
@@ -39,13 +41,14 @@ type (
 	// Server represents the JSON-RPC 2.0 server.
 	Server struct {
 		*http.Server
-		chain      blockchainer.Blockchainer
-		config     rpc.Config
-		network    netmode.Magic
-		coreServer *network.Server
-		log        *zap.Logger
-		https      *http.Server
-		shutdown   chan struct{}
+		chain            blockchainer.Blockchainer
+		config           rpc.Config
+		network          netmode.Magic
+		stateRootEnabled bool
+		coreServer       *network.Server
+		log              *zap.Logger
+		https            *http.Server
+		shutdown         chan struct{}
 
 		subsLock         sync.RWMutex
 		subscribers      map[*subscriber]bool
@@ -97,8 +100,11 @@ var rpcHandlers = map[string]func(*Server, request.Params) (interface{}, *respon
 	"getnep5balances":        (*Server).getNEP5Balances,
 	"getnep5transfers":       (*Server).getNEP5Transfers,
 	"getpeers":               (*Server).getPeers,
+	"getproof":               (*Server).getProof,
 	"getrawmempool":          (*Server).getRawMempool,
 	"getrawtransaction":      (*Server).getrawtransaction,
+	"getstateheight":         (*Server).getStateHeight,
+	"getstateroot":           (*Server).getStateRoot,
 	"getstorage":             (*Server).getStorage,
 	"gettransactionheight":   (*Server).getTransactionHeight,
 	"getunclaimedgas":        (*Server).getUnclaimedGas,
@@ -109,6 +115,7 @@ var rpcHandlers = map[string]func(*Server, request.Params) (interface{}, *respon
 	"sendrawtransaction":     (*Server).sendrawtransaction,
 	"submitblock":            (*Server).submitBlock,
 	"validateaddress":        (*Server).validateAddress,
+	"verifyproof":            (*Server).verifyProof,
 }
 
 var rpcWsHandlers = map[string]func(*Server, request.Params, *subscriber) (interface{}, *response.Error){
@@ -138,14 +145,15 @@ func New(chain blockchainer.Blockchainer, conf rpc.Config, coreServer *network.S
 	}
 
 	return Server{
-		Server:     httpServer,
-		chain:      chain,
-		config:     conf,
-		network:    chain.GetConfig().Magic,
-		coreServer: coreServer,
-		log:        log,
-		https:      tlsServer,
-		shutdown:   make(chan struct{}),
+		Server:           httpServer,
+		chain:            chain,
+		config:           conf,
+		network:          chain.GetConfig().Magic,
+		stateRootEnabled: chain.GetConfig().StateRootInHeader,
+		coreServer:       coreServer,
+		log:              log,
+		https:            tlsServer,
+		shutdown:         make(chan struct{}),
 
 		subscribers: make(map[*subscriber]bool),
 		// These are NOT buffered to preserve original order of events.
@@ -771,6 +779,110 @@ func (s *Server) contractScriptHashFromParam(param *request.Param) (util.Uint160
 	return result, nil
 }
 
+func makeStorageKey(id int32, key []byte) []byte {
+	skey := make([]byte, 4+len(key))
+	binary.LittleEndian.PutUint32(skey, uint32(id))
+	copy(skey[4:], key)
+	return skey
+}
+
+var errKeepOnlyLatestState = errors.New("'KeepOnlyLatestState' setting is enabled")
+
+func (s *Server) getProof(ps request.Params) (interface{}, *response.Error) {
+	if s.chain.GetConfig().KeepOnlyLatestState {
+		return nil, response.NewInvalidRequestError("'getproof' is not supported", errKeepOnlyLatestState)
+	}
+	root, err := ps.Value(0).GetUint256()
+	if err != nil {
+		return nil, response.ErrInvalidParams
+	}
+	sc, err := ps.Value(1).GetUint160FromHex()
+	if err != nil {
+		return nil, response.ErrInvalidParams
+	}
+	key, err := ps.Value(2).GetBytesHex()
+	if err != nil {
+		return nil, response.ErrInvalidParams
+	}
+	cs := s.chain.GetContractState(sc)
+	if cs == nil {
+		return nil, response.ErrInvalidParams
+	}
+	skey := makeStorageKey(cs.ID, key)
+	proof, err := s.chain.GetStateProof(root, skey)
+	return &result.GetProof{
+		Result: result.ProofWithKey{
+			Key:   skey,
+			Proof: proof,
+		},
+		Success: err == nil,
+	}, nil
+}
+
+func (s *Server) verifyProof(ps request.Params) (interface{}, *response.Error) {
+	if s.chain.GetConfig().KeepOnlyLatestState {
+		return nil, response.NewInvalidRequestError("'verifyproof' is not supported", errKeepOnlyLatestState)
+	}
+	root, err := ps.Value(0).GetUint256()
+	if err != nil {
+		return nil, response.ErrInvalidParams
+	}
+	proofStr, err := ps.Value(1).GetString()
+	if err != nil {
+		return nil, response.ErrInvalidParams
+	}
+	var p result.ProofWithKey
+	if err := p.FromString(proofStr); err != nil {
+		return nil, response.ErrInvalidParams
+	}
+	vp := new(result.VerifyProof)
+	val, ok := mpt.VerifyProof(root, p.Key, p.Proof)
+	if ok {
+		var si state.StorageItem
+		r := io.NewBinReaderFromBuf(val)
+		si.DecodeBinary(r)
+		if r.Err != nil {
+			return nil, response.NewInternalServerError("invalid item in trie", r.Err)
+		}
+		vp.Value = si.Value
+	}
+	return vp, nil
+}
+
+func (s *Server) getStateHeight(_ request.Params) (interface{}, *response.Error) {
+	var height = s.chain.BlockHeight()
+	var stateHeight uint32
+	if s.chain.GetConfig().StateRootInHeader {
+		stateHeight = height - 1
+	}
+	return &result.StateHeight{
+		BlockHeight: height,
+		StateHeight: stateHeight,
+	}, nil
+}
+
+func (s *Server) getStateRoot(ps request.Params) (interface{}, *response.Error) {
+	p := ps.Value(0)
+	if p == nil {
+		return nil, response.NewRPCError("Invalid parameter.", "", nil)
+	}
+	var rt *state.MPTRootState
+	var h util.Uint256
+	height, err := p.GetInt()
+	if err == nil {
+		rt, err = s.chain.GetStateRoot(uint32(height))
+	} else if h, err = p.GetUint256(); err == nil {
+		hdr, err := s.chain.GetHeader(h)
+		if err == nil {
+			rt, err = s.chain.GetStateRoot(hdr.Index)
+		}
+	}
+	if err != nil {
+		return nil, response.NewRPCError("Unknown state root.", "", err)
+	}
+	return rt, nil
+}
+
 func (s *Server) getStorage(ps request.Params) (interface{}, *response.Error) {
 	id, rErr := s.contractIDFromParam(ps.Value(0))
 	if rErr == response.ErrUnknown {
@@ -1039,7 +1151,7 @@ func (s *Server) submitBlock(reqParams request.Params) (interface{}, *response.E
 	if err != nil {
 		return nil, response.ErrInvalidParams
 	}
-	b := block.New(s.network)
+	b := block.New(s.network, s.stateRootEnabled)
 	r := io.NewBinReaderFromBuf(blockBytes)
 	b.DecodeBinary(r)
 	if r.Err != nil {

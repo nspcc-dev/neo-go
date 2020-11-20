@@ -12,6 +12,8 @@ import (
 type Headers struct {
 	Hdrs    []*block.Header
 	Network netmode.Magic
+	// StateRootInHeader specifies whether header contains state root.
+	StateRootInHeader bool
 }
 
 // Users can at most request 2k header.
@@ -38,6 +40,7 @@ func (p *Headers) DecodeBinary(br *io.BinReader) {
 	for i := 0; i < int(lenHeaders); i++ {
 		header := &block.Header{}
 		header.Network = p.Network
+		header.StateRootEnabled = p.StateRootInHeader
 		header.DecodeBinary(br)
 		p.Hdrs[i] = header
 	}

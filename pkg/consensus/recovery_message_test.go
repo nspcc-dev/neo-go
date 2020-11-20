@@ -12,8 +12,17 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestRecoveryMessage_Setters(t *testing.T) {
-	srv := newTestService(t)
+func TestRecoveryMessageSetters(t *testing.T) {
+	t.Run("NoStateRoot", func(t *testing.T) {
+		testRecoveryMessageSetters(t, false)
+	})
+	t.Run("WithStateRoot", func(t *testing.T) {
+		testRecoveryMessageSetters(t, true)
+	})
+}
+
+func testRecoveryMessageSetters(t *testing.T, enableStateRoot bool) {
+	srv := newTestServiceWithState(t, enableStateRoot)
 	defer srv.Chain.Close()
 	privs := make([]*privateKey, testchain.Size())
 	pubs := make([]crypto.PublicKey, testchain.Size())
@@ -21,9 +30,8 @@ func TestRecoveryMessage_Setters(t *testing.T) {
 		privs[i], pubs[i] = getTestValidator(i)
 	}
 
-	r := &recoveryMessage{}
-	p := NewPayload(netmode.UnitTestNet)
-	p.message = &message{}
+	r := &recoveryMessage{stateRootEnabled: enableStateRoot}
+	p := NewPayload(netmode.UnitTestNet, enableStateRoot)
 	p.SetType(payload.RecoveryMessageType)
 	p.SetPayload(r)
 	// sign payload to have verification script
@@ -33,17 +41,16 @@ func TestRecoveryMessage_Setters(t *testing.T) {
 		timestamp:         87,
 		nonce:             321,
 		transactionHashes: []util.Uint256{{1}},
+		stateRootEnabled:  enableStateRoot,
 	}
-	p1 := NewPayload(netmode.UnitTestNet)
-	p1.message = &message{}
+	p1 := NewPayload(netmode.UnitTestNet, enableStateRoot)
 	p1.SetType(payload.PrepareRequestType)
 	p1.SetPayload(req)
 	p1.SetValidatorIndex(0)
 	require.NoError(t, p1.Sign(privs[0]))
 
 	t.Run("prepare response is added", func(t *testing.T) {
-		p2 := NewPayload(netmode.UnitTestNet)
-		p2.message = &message{}
+		p2 := NewPayload(netmode.UnitTestNet, enableStateRoot)
 		p2.SetType(payload.PrepareResponseType)
 		p2.SetPayload(&prepareResponse{
 			preparationHash: p1.Hash(),
@@ -79,8 +86,7 @@ func TestRecoveryMessage_Setters(t *testing.T) {
 	})
 
 	t.Run("change view is added", func(t *testing.T) {
-		p3 := NewPayload(netmode.UnitTestNet)
-		p3.message = &message{}
+		p3 := NewPayload(netmode.UnitTestNet, enableStateRoot)
 		p3.SetType(payload.ChangeViewType)
 		p3.SetPayload(&changeView{
 			newViewNumber: 1,
@@ -102,8 +108,7 @@ func TestRecoveryMessage_Setters(t *testing.T) {
 	})
 
 	t.Run("commit is added", func(t *testing.T) {
-		p4 := NewPayload(netmode.UnitTestNet)
-		p4.message = &message{}
+		p4 := NewPayload(netmode.UnitTestNet, enableStateRoot)
 		p4.SetType(payload.CommitType)
 		p4.SetPayload(randomMessage(t, commitType))
 		p4.SetValidatorIndex(3)

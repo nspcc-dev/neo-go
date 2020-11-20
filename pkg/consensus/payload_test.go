@@ -102,13 +102,15 @@ func TestConsensusPayload_Serializable(t *testing.T) {
 		require.NoError(t, testserdes.DecodeBinary(data, actual))
 		// message is nil after decoding as we didn't yet call decodeData
 		require.Nil(t, actual.message)
+		actual.message = new(message)
 		// message should now be decoded from actual.data byte array
+		actual.message = new(message)
 		assert.NoError(t, actual.decodeData())
 		assert.NotNil(t, actual.MarshalUnsigned())
 		require.Equal(t, p, actual)
 
 		data = p.MarshalUnsigned()
-		pu := NewPayload(netmode.Magic(rand.Uint32()))
+		pu := NewPayload(netmode.Magic(rand.Uint32()), false)
 		require.NoError(t, pu.UnmarshalUnsigned(data))
 		assert.NoError(t, pu.decodeData())
 		_ = pu.MarshalUnsigned()
@@ -152,7 +154,7 @@ func TestConsensusPayload_DecodeBinaryInvalid(t *testing.T) {
 	buf[delimeterIndex] = 1
 	buf[lenIndex] = 34
 	buf[typeIndex] = byte(prepareResponseType)
-	p := new(Payload)
+	p := &Payload{message: new(message)}
 	require.NoError(t, testserdes.DecodeBinary(buf, p))
 	// decode `data` into `message`
 	_ = p.Hash()
@@ -161,7 +163,7 @@ func TestConsensusPayload_DecodeBinaryInvalid(t *testing.T) {
 
 	// invalid type
 	buf[typeIndex] = 0xFF
-	actual := new(Payload)
+	actual := &Payload{message: new(message)}
 	require.NoError(t, testserdes.DecodeBinary(buf, actual))
 	require.Error(t, actual.decodeData())
 
@@ -315,7 +317,7 @@ func TestPayload_Sign(t *testing.T) {
 
 	p := randomPayload(t, prepareRequestType)
 	h := priv.PublicKey().GetScriptHash()
-	bc := newTestChain(t)
+	bc := newTestChain(t, false)
 	defer bc.Close()
 	require.Error(t, bc.VerifyWitness(h, p, &p.Witness, payloadGasLimit))
 	require.NoError(t, p.Sign(priv))

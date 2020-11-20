@@ -11,5 +11,7 @@ type (
 		WSPort    uint16        `json:"wsport,omitempty"`
 		Nonce     uint32        `json:"nonce"`
 		UserAgent string        `json:"useragent"`
+		// StateRootInHeader is true if state root is contained in block header.
+		StateRootInHeader bool `json:"staterootinheader,omitempty"`
 	}
 )

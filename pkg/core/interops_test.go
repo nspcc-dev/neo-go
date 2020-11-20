@@ -19,7 +19,8 @@ func testNonInterop(t *testing.T, value interface{}, f func(*interop.Context) er
 	v.Estack().PushVal(value)
 	chain := newTestChain(t)
 	defer chain.Close()
-	context := chain.newInteropContext(trigger.Application, dao.NewSimple(storage.NewMemoryStore(), netmode.UnitTestNet), nil, nil)
+	d := dao.NewSimple(storage.NewMemoryStore(), netmode.UnitTestNet, chain.config.StateRootInHeader)
+	context := chain.newInteropContext(trigger.Application, d, nil, nil)
 	context.VM = v
 	require.Error(t, f(context))
 }

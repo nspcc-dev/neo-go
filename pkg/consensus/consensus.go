@@ -2,6 +2,7 @@ package consensus
 
 import (
 	"errors"
+	"fmt"
 	"sort"
 	"time"
 
@@ -73,6 +74,8 @@ type service struct {
 	lastProposal []util.Uint256
 	wallet       *wallet.Wallet
 	network      netmode.Magic
+	// stateRootEnabled specifies if state root should be exchanged and checked during consensus.
+	stateRootEnabled bool
 	// started is a flag set with Start method that runs an event handling
 	// goroutine.
 	started  *atomic.Bool
@@ -116,12 +119,13 @@ func NewService(cfg Config) (Service, error) {
 		txx:      newFIFOCache(cacheMaxCapacity),
 		messages: make(chan Payload, 100),
 
-		transactions: make(chan *transaction.Transaction, 100),
-		blockEvents:  make(chan *coreb.Block, 1),
-		network:      cfg.Chain.GetConfig().Magic,
-		started:      atomic.NewBool(false),
-		quit:         make(chan struct{}),
-		finished:     make(chan struct{}),
+		transactions:     make(chan *transaction.Transaction, 100),
+		blockEvents:      make(chan *coreb.Block, 1),
+		network:          cfg.Chain.GetConfig().Magic,
+		stateRootEnabled: cfg.Chain.GetConfig().StateRootInHeader,
+		started:          atomic.NewBool(false),
+		quit:             make(chan struct{}),
+		finished:         make(chan struct{}),
 	}
 
 	if cfg.Wallet == nil {
@@ -168,12 +172,14 @@ func NewService(cfg Config) (Service, error) {
 		dbft.WithGetConsensusAddress(srv.getConsensusAddress),
 
 		dbft.WithNewConsensusPayload(srv.newPayload),
-		dbft.WithNewPrepareRequest(func() payload.PrepareRequest { return new(prepareRequest) }),
+		dbft.WithNewPrepareRequest(srv.newPrepareRequest),
 		dbft.WithNewPrepareResponse(func() payload.PrepareResponse { return new(prepareResponse) }),
 		dbft.WithNewChangeView(func() payload.ChangeView { return new(changeView) }),
 		dbft.WithNewCommit(func() payload.Commit { return new(commit) }),
 		dbft.WithNewRecoveryRequest(func() payload.RecoveryRequest { return new(recoveryRequest) }),
-		dbft.WithNewRecoveryMessage(func() payload.RecoveryMessage { return new(recoveryMessage) }),
+		dbft.WithNewRecoveryMessage(func() payload.RecoveryMessage {
+			return &recoveryMessage{stateRootEnabled: srv.stateRootEnabled}
+		}),
 		dbft.WithVerifyPrepareRequest(srv.verifyRequest),
 		dbft.WithVerifyPrepareResponse(func(_ payload.ConsensusPayload) error { return nil }),
 	)
@@ -191,15 +197,30 @@ var (
 )
 
 // NewPayload creates new consensus payload for the provided network.
-func NewPayload(m netmode.Magic) *Payload {
+func NewPayload(m netmode.Magic, stateRootEnabled bool) *Payload {
 	return &Payload{
 		network: m,
-		message: new(message),
+		message: &message{
+			stateRootEnabled: stateRootEnabled,
+		},
 	}
 }
 
 func (s *service) newPayload() payload.ConsensusPayload {
-	return NewPayload(s.network)
+	return NewPayload(s.network, s.stateRootEnabled)
+}
+
+func (s *service) newPrepareRequest() payload.PrepareRequest {
+	r := new(prepareRequest)
+	if s.stateRootEnabled {
+		r.stateRootEnabled = true
+		if sr, err := s.Chain.GetStateRoot(s.dbft.BlockIndex - 1); err == nil {
+			r.stateRoot = sr.Root
+		} else {
+			panic(err)
+		}
+	}
+	return r
 }
 
 func (s *service) Start() {
@@ -446,6 +467,14 @@ func (s *service) verifyBlock(b block.Block) bool {
 
 func (s *service) verifyRequest(p payload.ConsensusPayload) error {
 	req := p.GetPrepareRequest().(*prepareRequest)
+	if s.stateRootEnabled {
+		sr, err := s.Chain.GetStateRoot(s.dbft.BlockIndex - 1)
+		if err != nil {
+			return err
+		} else if sr.Root != req.stateRoot {
+			return fmt.Errorf("state root mismatch: %s != %s", sr.Root, req.stateRoot)
+		}
+	}
 	// Save lastProposal for getVerified().
 	s.lastProposal = req.transactionHashes
 
@@ -584,6 +613,14 @@ func (s *service) newBlockFromContext(ctx *dbft.Context) block.Block {
 	block.Block.Network = s.network
 	block.Block.Timestamp = ctx.Timestamp / nsInMs
 	block.Block.Index = ctx.BlockIndex
+	if s.stateRootEnabled {
+		sr, err := s.Chain.GetStateRoot(ctx.BlockIndex - 1)
+		if err != nil {
+			return nil
+		}
+		block.StateRootEnabled = true
+		block.PrevStateRoot = sr.Root
+	}
 
 	var validators keys.PublicKeys
 	var err error
