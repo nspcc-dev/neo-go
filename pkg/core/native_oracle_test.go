@@ -50,7 +50,7 @@ func getOracleContractState(h util.Uint160) *state.Contract {
 	emit.Syscall(w.BinWriter, interopnames.SystemStoragePut)
 	emit.Opcodes(w.BinWriter, opcode.RET)
 
-	m := manifest.NewManifest(h)
+	m := manifest.NewManifest(h, "TestOracle")
 	m.ABI.Methods = []manifest.Method{
 		{
 			Name:   "requestURL",

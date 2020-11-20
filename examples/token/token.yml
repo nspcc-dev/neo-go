@@ -1,3 +1,4 @@
+name: "Awesome NEO Token"
 supportedstandards: ["NEP-5"]
 events:
   - name: transfer

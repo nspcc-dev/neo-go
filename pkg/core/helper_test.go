@@ -398,7 +398,7 @@ func newDeployTx(t *testing.T, name string) (*transaction.Transaction, []byte) {
 	t.Logf("contractScript: %x", avm)
 
 	script := io.NewBufBinWriter()
-	m, err := di.ConvertToManifest(nil)
+	m, err := di.ConvertToManifest("Test", nil)
 	require.NoError(t, err)
 	bs, err := json.Marshal(m)
 	require.NoError(t, err)

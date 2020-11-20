@@ -411,7 +411,7 @@ func getTestContractState() (*state.Contract, *state.Contract) {
 
 	script := w.Bytes()
 	h := hash.Hash160(script)
-	m := manifest.NewManifest(h)
+	m := manifest.NewManifest(h, "TestMain")
 	m.ABI.Methods = []manifest.Method{
 		{
 			Name:   "add",
@@ -490,7 +490,7 @@ func getTestContractState() (*state.Contract, *state.Contract) {
 	}
 
 	currScript := []byte{byte(opcode.RET)}
-	m = manifest.NewManifest(hash.Hash160(currScript))
+	m = manifest.NewManifest(hash.Hash160(currScript), "TestAux")
 	perm := manifest.NewPermission(manifest.PermissionHash, h)
 	perm.Methods.Add("add")
 	perm.Methods.Add("drop")

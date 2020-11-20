@@ -1,3 +1,4 @@
+name: "Engine example"
 supportedstandards: []
 events:
   - name: Tx

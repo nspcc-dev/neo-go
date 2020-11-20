@@ -325,7 +325,7 @@ func TestNativeContract_InvokeOtherContract(t *testing.T) {
 		// put some other contract into chain (this contract just pushes `5` on stack)
 		avm := []byte{byte(opcode.PUSH5), byte(opcode.RET)}
 		contractHash := hash.Hash160(avm)
-		m := manifest.NewManifest(contractHash)
+		m := manifest.NewManifest(contractHash, "Test")
 		m.ABI.Methods = []manifest.Method{
 			{
 				Name:       "five",
