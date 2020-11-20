@@ -197,6 +197,9 @@ func (bc *Blockchain) init() error {
 		if err != nil {
 			return err
 		}
+		if err := bc.dao.InitMPT(0, bc.config.KeepOnlyLatestState); err != nil {
+			return fmt.Errorf("can't init MPT: %w", err)
+		}
 		return bc.storeBlock(genesisBlock, nil)
 	}
 	if ver != version {
@@ -214,7 +217,7 @@ func (bc *Blockchain) init() error {
 	}
 	bc.blockHeight = bHeight
 	bc.persistedHeight = bHeight
-	if err = bc.dao.InitMPT(bHeight); err != nil {
+	if err = bc.dao.InitMPT(bHeight, bc.config.KeepOnlyLatestState); err != nil {
 		return fmt.Errorf("can't init MPT at height %d: %w", bHeight, err)
 	}
 

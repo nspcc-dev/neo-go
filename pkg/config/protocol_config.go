@@ -9,6 +9,10 @@ type (
 	ProtocolConfiguration struct {
 		Magic       netmode.Magic `yaml:"Magic"`
 		MemPoolSize int           `yaml:"MemPoolSize"`
+		// KeepOnlyLatestState specifies if MPT should only store latest state.
+		// If true, DB size will be smaller, but older roots won't be accessible.
+		// This value should remain the same for the same database.
+		KeepOnlyLatestState bool `yaml:"KeepOnlyLatestState"`
 		// MaxTraceableBlocks is the length of the chain accessible to smart contracts.
 		MaxTraceableBlocks uint32 `yaml:"MaxTraceableBlocks"`
 		// P2PSigExtensions enables additional signature-related transaction attributes
