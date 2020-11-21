@@ -1557,10 +1557,10 @@ func (bc *Blockchain) GetEnrollments() ([]state.Validator, error) {
 }
 
 // GetTestVM returns a VM and a Store setup for a test run of some sort of code.
-func (bc *Blockchain) GetTestVM(tx *transaction.Transaction) *vm.VM {
+func (bc *Blockchain) GetTestVM(tx *transaction.Transaction, b *block.Block) *vm.VM {
 	d := bc.dao.GetWrapped().(*dao.Simple)
 	d.MPT = nil
-	systemInterop := bc.newInteropContext(trigger.Application, d, nil, tx)
+	systemInterop := bc.newInteropContext(trigger.Application, d, b, tx)
 	vm := systemInterop.SpawnVM()
 	vm.SetPriceGetter(getPrice)
 	return vm

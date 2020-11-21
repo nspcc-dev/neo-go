@@ -1127,7 +1127,7 @@ func (s *Server) invokescript(reqParams request.Params) (interface{}, *response.
 // runScriptInVM runs given script in a new test VM and returns the invocation
 // result.
 func (s *Server) runScriptInVM(script []byte, tx *transaction.Transaction) *result.Invoke {
-	vm := s.chain.GetTestVM(tx)
+	vm := s.chain.GetTestVM(tx, nil)
 	vm.GasLimit = int64(s.config.MaxGasInvoke)
 	vm.LoadScriptWithFlags(script, smartcontract.All)
 	err := vm.Run()

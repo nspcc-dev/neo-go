@@ -284,7 +284,7 @@ func TestCreateNEP5TransferTx(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, acc.SignTx(tx))
 	require.NoError(t, chain.VerifyTx(tx))
-	v := chain.GetTestVM(tx)
+	v := chain.GetTestVM(tx, nil)
 	v.LoadScriptWithFlags(tx.Script, smartcontract.All)
 	require.NoError(t, v.Run())
 }
