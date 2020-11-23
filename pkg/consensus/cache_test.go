@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/dbft/payload"
-	"github.com/nspcc-dev/neo-go/pkg/internal/random"
+	"github.com/nspcc-dev/neo-go/internal/random"
 	"github.com/stretchr/testify/require"
 )
 
