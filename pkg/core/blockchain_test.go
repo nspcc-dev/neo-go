@@ -133,7 +133,7 @@ func TestAddBlockStateRoot(t *testing.T) {
 	tx := newNEP17Transfer(bc.contracts.NEO.Hash, neoOwner, util.Uint160{}, 1)
 	tx.ValidUntilBlock = bc.BlockHeight() + 1
 	addSigners(tx)
-	require.NoError(t, signTx(bc, tx))
+	require.NoError(t, testchain.SignTx(bc, tx))
 
 	lastBlock := bc.topBlock.Load().(*block.Block)
 	b := newBlock(bc.config, lastBlock.Index+1, lastBlock.Hash(), tx)
@@ -159,7 +159,7 @@ func TestAddBadBlock(t *testing.T) {
 		Account: testchain.MultisigScriptHash(),
 		Scopes:  transaction.None,
 	}}
-	require.NoError(t, signTx(bc, tx))
+	require.NoError(t, testchain.SignTx(bc, tx))
 	b1 := bc.newBlock(tx)
 
 	require.Error(t, bc.AddBlock(b1))
@@ -179,7 +179,7 @@ func TestAddBadBlock(t *testing.T) {
 		Account: testchain.MultisigScriptHash(),
 		Scopes:  transaction.None,
 	}}
-	require.NoError(t, signTx(bc, tx))
+	require.NoError(t, testchain.SignTx(bc, tx))
 	require.NoError(t, bc.PoolTx(tx))
 	bc.config.VerifyTransactions = true
 	bc.config.VerifyBlocks = true
@@ -192,7 +192,7 @@ func TestGetHeader(t *testing.T) {
 	tx := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
 	tx.ValidUntilBlock = bc.BlockHeight() + 1
 	addSigners(tx)
-	assert.Nil(t, signTx(bc, tx))
+	assert.Nil(t, testchain.SignTx(bc, tx))
 	block := bc.newBlock(tx)
 	err := bc.AddBlock(block)
 	assert.Nil(t, err)
@@ -277,7 +277,7 @@ func TestVerifyTx(t *testing.T) {
 
 	txMove := bc.newTestTx(neoOwner, w.Bytes())
 	txMove.SystemFee = 1_000_000_000
-	require.NoError(t, signTx(bc, txMove))
+	require.NoError(t, testchain.SignTx(bc, txMove))
 	b := bc.newBlock(txMove)
 	require.NoError(t, bc.AddBlock(b))
 
@@ -805,12 +805,12 @@ func TestMemPoolRemoval(t *testing.T) {
 	notAddedTxes := make([]*transaction.Transaction, notAdded)
 	for i := range addedTxes {
 		addedTxes[i] = bc.newTestTx(testchain.MultisigScriptHash(), []byte{byte(opcode.PUSH1)})
-		require.NoError(t, signTx(bc, addedTxes[i]))
+		require.NoError(t, testchain.SignTx(bc, addedTxes[i]))
 		require.NoError(t, bc.PoolTx(addedTxes[i]))
 	}
 	for i := range notAddedTxes {
 		notAddedTxes[i] = bc.newTestTx(testchain.MultisigScriptHash(), []byte{byte(opcode.PUSH1)})
-		require.NoError(t, signTx(bc, notAddedTxes[i]))
+		require.NoError(t, testchain.SignTx(bc, notAddedTxes[i]))
 		require.NoError(t, bc.PoolTx(notAddedTxes[i]))
 	}
 	b := bc.newBlock(addedTxes...)
@@ -854,7 +854,7 @@ func TestGetTransaction(t *testing.T) {
 		Account: testchain.MultisigScriptHash(),
 		Scopes:  transaction.CalledByEntry,
 	}}
-	require.NoError(t, signTx(bc, tx1, tx2))
+	require.NoError(t, testchain.SignTx(bc, tx1, tx2))
 	b1 := bc.newBlock(tx1)
 
 	assert.Nil(t, bc.AddBlock(b1))
@@ -955,7 +955,7 @@ func TestSubscriptions(t *testing.T) {
 	txGood1.Signers = []transaction.Signer{{Account: neoOwner}}
 	txGood1.Nonce = 1
 	txGood1.ValidUntilBlock = 1024
-	require.NoError(t, signTx(bc, txGood1))
+	require.NoError(t, testchain.SignTx(bc, txGood1))
 
 	// Reset() reuses the script buffer and we need to keep scripts.
 	script = io.NewBufBinWriter()
@@ -967,7 +967,7 @@ func TestSubscriptions(t *testing.T) {
 	txBad.Signers = []transaction.Signer{{Account: neoOwner}}
 	txBad.Nonce = 2
 	txBad.ValidUntilBlock = 1024
-	require.NoError(t, signTx(bc, txBad))
+	require.NoError(t, testchain.SignTx(bc, txBad))
 
 	script = io.NewBufBinWriter()
 	emit.Bytes(script.BinWriter, []byte("yay! yay! yay!"))
@@ -977,7 +977,7 @@ func TestSubscriptions(t *testing.T) {
 	txGood2.Signers = []transaction.Signer{{Account: neoOwner}}
 	txGood2.Nonce = 3
 	txGood2.ValidUntilBlock = 1024
-	require.NoError(t, signTx(bc, txGood2))
+	require.NoError(t, testchain.SignTx(bc, txGood2))
 
 	invBlock := newBlock(bc.config, bc.BlockHeight()+1, bc.CurrentHeaderHash(), txGood1, txBad, txGood2)
 	require.NoError(t, bc.AddBlock(invBlock))

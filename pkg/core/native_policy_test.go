@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/internal/random"
+	"github.com/nspcc-dev/neo-go/internal/testchain"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
@@ -231,7 +232,7 @@ func invokeNativePolicyMethod(chain *Blockchain, method string, args ...interfac
 	validUntil := chain.blockHeight + 1
 	tx.ValidUntilBlock = validUntil
 	addSigners(tx)
-	err := signTx(chain, tx)
+	err := testchain.SignTx(chain, tx)
 	if err != nil {
 		return nil, err
 	}

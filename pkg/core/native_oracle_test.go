@@ -104,7 +104,7 @@ func putOracleRequest(t *testing.T, h util.Uint160, bc *Blockchain,
 	tx.ValidUntilBlock = bc.BlockHeight() + 1
 	tx.NetworkFee = 1_000_000
 	setSigner(tx, testchain.MultisigScriptHash())
-	require.NoError(t, signTx(bc, tx))
+	require.NoError(t, testchain.SignTx(bc, tx))
 	require.NoError(t, bc.AddBlock(bc.newBlock(tx)))
 	return tx.Hash()
 }

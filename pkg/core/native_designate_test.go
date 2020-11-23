@@ -46,7 +46,7 @@ func (bc *Blockchain) setNodesByRole(t *testing.T, ok bool, r native.Role, nodes
 			Scopes:  transaction.CalledByEntry,
 		},
 	}
-	require.NoError(t, signTx(bc, tx))
+	require.NoError(t, testchain.SignTx(bc, tx))
 	tx.Scripts = append(tx.Scripts, transaction.Witness{
 		InvocationScript:   testchain.SignCommittee(tx.GetSignedPart()),
 		VerificationScript: testchain.CommitteeVerificationScript(),
@@ -77,7 +77,7 @@ func (bc *Blockchain) getNodesByRole(t *testing.T, ok bool, r native.Role, index
 			Scopes:  transaction.None,
 		},
 	}
-	require.NoError(t, signTx(bc, tx))
+	require.NoError(t, testchain.SignTx(bc, tx))
 	require.NoError(t, bc.AddBlock(bc.newBlock(tx)))
 
 	aer, err := bc.GetAppExecResults(tx.Hash(), trigger.Application)
