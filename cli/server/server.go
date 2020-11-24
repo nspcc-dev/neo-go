@@ -10,6 +10,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
+	"github.com/nspcc-dev/neo-go/pkg/core/chaindump"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/network"
@@ -193,20 +194,9 @@ func dumpDB(ctx *cli.Context) error {
 		count = chainCount - start
 	}
 	writer.WriteU32LE(count)
-	for i := start; i < start+count; i++ {
-		bh := chain.GetHeaderHash(int(i))
-		b, err := chain.GetBlock(bh)
-		if err != nil {
-			return cli.NewExitError(fmt.Errorf("failed to get block %d: %w", i, err), 1)
-		}
-		buf := io.NewBufBinWriter()
-		b.EncodeBinary(buf.BinWriter)
-		bytes := buf.Bytes()
-		writer.WriteU32LE(uint32(len(bytes)))
-		writer.WriteBytes(bytes)
-		if writer.Err != nil {
-			return cli.NewExitError(err, 1)
-		}
+	err = chaindump.Dump(chain, writer, start, count)
+	if err != nil {
+		return cli.NewExitError(err.Error(), 1)
 	}
 	pprof.ShutDown()
 	prometheus.ShutDown()
@@ -259,13 +249,6 @@ func restoreDB(ctx *cli.Context) error {
 	if count == 0 {
 		count = allBlocks - skip
 	}
-	i := uint32(0)
-	for ; i < skip; i++ {
-		_, err := readBlock(reader)
-		if err != nil {
-			return cli.NewExitError(err, 1)
-		}
-	}
 
 	gctx := newGraceContext()
 	var lastIndex uint32
@@ -274,44 +257,40 @@ func restoreDB(ctx *cli.Context) error {
 		_ = dump.tryPersist(dumpDir, lastIndex)
 	}()
 
-	for ; i < skip+count; i++ {
+	var f = func(b *block.Block) error {
 		select {
 		case <-gctx.Done():
-			return cli.NewExitError("cancelled", 1)
+			return gctx.Err()
 		default:
+			return nil
 		}
-		bytes, err := readBlock(reader)
-		block := block.New(cfg.ProtocolConfiguration.Magic, cfg.ProtocolConfiguration.StateRootInHeader)
-		newReader := io.NewBinReaderFromBuf(bytes)
-		block.DecodeBinary(newReader)
-		if err != nil {
-			return cli.NewExitError(err, 1)
-		}
-		if block.Index == 0 && i == 0 && skip == 0 {
-			genesis, err := chain.GetBlock(block.Hash())
-			if err == nil && genesis.Index == 0 {
-				log.Info("skipped genesis block", zap.String("hash", block.Hash().StringLE()))
+	}
+	if dumpDir != "" {
+		f = func(b *block.Block) error {
+			select {
+			case <-gctx.Done():
+				return gctx.Err()
+			default:
 			}
-		} else {
-			err = chain.AddBlock(block)
-			if err != nil {
-				return cli.NewExitError(fmt.Errorf("failed to add block %d: %w", i, err), 1)
-			}
-		}
-		if dumpDir != "" {
 			batch := chain.LastBatch()
 			// The genesis block may already be persisted, so LastBatch() will return nil.
-			if batch == nil && block.Index == 0 {
-				continue
+			if batch == nil && b.Index == 0 {
+				return nil
 			}
-			dump.add(block.Index, batch)
-			lastIndex = block.Index
-			if block.Index%1000 == 0 {
-				if err := dump.tryPersist(dumpDir, block.Index); err != nil {
-					return cli.NewExitError(fmt.Errorf("can't dump storage to file: %w", err), 1)
+			dump.add(b.Index, batch)
+			lastIndex = b.Index
+			if b.Index%1000 == 0 {
+				if err := dump.tryPersist(dumpDir, b.Index); err != nil {
+					return fmt.Errorf("can't dump storage to file: %w", err)
 				}
 			}
+			return nil
 		}
+	}
+
+	err = chaindump.Restore(chain, reader, skip, count, f)
+	if err != nil {
+		return cli.NewExitError(err, 1)
 	}
 	return nil
 }

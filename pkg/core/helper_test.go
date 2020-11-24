@@ -16,6 +16,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/compiler"
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
+	"github.com/nspcc-dev/neo-go/pkg/core/chaindump"
 	"github.com/nspcc-dev/neo-go/pkg/core/fee"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
@@ -171,10 +172,49 @@ func newDumbBlock() *block.Block {
 func TestCreateBasicChain(t *testing.T) {
 	const saveChain = false
 	const prefix = "../rpc/server/testdata/"
-	// To make enough GAS.
-	const numOfEmptyBlocks = 200
+
+	bc := newTestChain(t)
+	defer bc.Close()
+	initBasicChain(t, bc)
+
+	if saveChain {
+		outStream, err := os.Create(prefix + "testblocks.acc")
+		require.NoError(t, err)
+		defer outStream.Close()
+
+		writer := io.NewBinWriterFromIO(outStream)
+		writer.WriteU32LE(bc.BlockHeight())
+		err = chaindump.Dump(bc, writer, 1, bc.BlockHeight())
+		require.NoError(t, err)
+	}
+
+	priv0 := testchain.PrivateKeyByID(0)
+	priv1 := testchain.PrivateKeyByID(1)
+	priv0ScriptHash := priv0.GetScriptHash()
+	acc0, err := wallet.NewAccountFromWIF(priv0.WIF())
+	require.NoError(t, err)
+
+	// Prepare some transaction for future submission.
+	txSendRaw := newNEP17Transfer(bc.contracts.NEO.Hash, priv0ScriptHash, priv1.GetScriptHash(), int64(util.Fixed8FromInt64(1000)))
+	txSendRaw.ValidUntilBlock = transaction.MaxValidUntilBlockIncrement
+	txSendRaw.Nonce = 0x1234
+	txSendRaw.Signers = []transaction.Signer{{
+		Account:          priv0ScriptHash,
+		Scopes:           transaction.CalledByEntry,
+		AllowedContracts: nil,
+		AllowedGroups:    nil,
+	}}
+	require.NoError(t, addNetworkFee(bc, txSendRaw, acc0))
+	require.NoError(t, acc0.SignTx(txSendRaw))
+	bw := io.NewBufBinWriter()
+	txSendRaw.EncodeBinary(bw.BinWriter)
+	t.Logf("sendrawtransaction: %s", hex.EncodeToString(bw.Bytes()))
+}
+
+func initBasicChain(t *testing.T, bc *Blockchain) {
+	const prefix = "../rpc/server/testdata/"
 	// Increase in case if you need more blocks
-	const validUntilBlock = numOfEmptyBlocks + 1000
+	const validUntilBlock = 1200
 
 	// To be incremented after each created transaction to keep chain constant.
 	var testNonce uint32 = 1
@@ -186,8 +226,6 @@ func TestCreateBasicChain(t *testing.T) {
 	}
 
 	const neoAmount = 99999000
-	bc := newTestChain(t)
-	defer bc.Close()
 
 	gasHash := bc.contracts.GAS.Hash
 	neoHash := bc.contracts.NEO.Hash
@@ -340,44 +378,6 @@ func TestCreateBasicChain(t *testing.T) {
 	require.NoError(t, acc0.SignTx(txDeploy2))
 	b = bc.newBlock(txDeploy2)
 	require.NoError(t, bc.AddBlock(b))
-
-	if saveChain {
-		outStream, err := os.Create(prefix + "testblocks.acc")
-		require.NoError(t, err)
-		defer outStream.Close()
-
-		writer := io.NewBinWriterFromIO(outStream)
-
-		count := bc.BlockHeight() + 1
-		writer.WriteU32LE(count - 1)
-
-		for i := 1; i < int(count); i++ {
-			bh := bc.GetHeaderHash(i)
-			b, err := bc.GetBlock(bh)
-			require.NoError(t, err)
-			bytes, err := testserdes.EncodeBinary(b)
-			require.NoError(t, err)
-			writer.WriteU32LE(uint32(len(bytes)))
-			writer.WriteBytes(bytes)
-			require.NoError(t, writer.Err)
-		}
-	}
-
-	// Prepare some transaction for future submission.
-	txSendRaw := newNEP17Transfer(neoHash, priv0ScriptHash, priv1.GetScriptHash(), int64(util.Fixed8FromInt64(1000)))
-	txSendRaw.ValidUntilBlock = validUntilBlock
-	txSendRaw.Nonce = getNextNonce()
-	txSendRaw.Signers = []transaction.Signer{{
-		Account:          priv0ScriptHash,
-		Scopes:           transaction.CalledByEntry,
-		AllowedContracts: nil,
-		AllowedGroups:    nil,
-	}}
-	require.NoError(t, addNetworkFee(bc, txSendRaw, acc0))
-	require.NoError(t, acc0.SignTx(txSendRaw))
-	bw = io.NewBufBinWriter()
-	txSendRaw.EncodeBinary(bw.BinWriter)
-	t.Logf("sendrawtransaction: %s", hex.EncodeToString(bw.Bytes()))
 }
 
 func newNEP17Transfer(sc, from, to util.Uint160, amount int64) *transaction.Transaction {
