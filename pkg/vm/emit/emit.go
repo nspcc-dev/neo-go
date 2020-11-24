@@ -70,6 +70,8 @@ func Int(w *io.BinWriter, i int64) {
 func Array(w *io.BinWriter, es ...interface{}) {
 	for i := len(es) - 1; i >= 0; i-- {
 		switch e := es[i].(type) {
+		case []interface{}:
+			Array(w, e...)
 		case int64:
 			Int(w, e)
 		case string:
