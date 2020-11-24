@@ -133,7 +133,7 @@ func (tn *testNative) call(ic *interop.Context, args []stackitem.Item, retState 
 	if err != nil {
 		panic(err)
 	}
-	err = contract.CallExInternal(ic, cs, string(bs), args[2].Value().([]stackitem.Item), smartcontract.All, retState)
+	err = contract.CallExInternal(ic, cs, string(bs), args[2].Value().([]stackitem.Item), smartcontract.All, retState, nil)
 	if err != nil {
 		panic(err)
 	}

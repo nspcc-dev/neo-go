@@ -1410,6 +1410,9 @@ func (v *VM) unloadContext(ctx *Context) {
 	if ctx.static != nil && currCtx != nil && ctx.static != currCtx.static {
 		ctx.static.Clear()
 	}
+	if ctx.Callback != nil {
+		ctx.Callback(ctx)
+	}
 	switch ctx.CheckReturn {
 	case NoCheck:
 	case EnsureIsEmpty:

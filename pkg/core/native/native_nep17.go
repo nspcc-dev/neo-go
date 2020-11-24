@@ -161,7 +161,7 @@ func (c *nep17TokenNative) postTransfer(ic *interop.Context, from, to *util.Uint
 		stackitem.NewBigInteger(amount),
 		data,
 	}
-	if err := contract.CallExInternal(ic, cs, manifest.MethodOnPayment, args, smartcontract.All, vm.EnsureIsEmpty); err != nil {
+	if err := contract.CallExInternal(ic, cs, manifest.MethodOnPayment, args, smartcontract.All, vm.EnsureIsEmpty, nil); err != nil {
 		panic(err)
 	}
 }

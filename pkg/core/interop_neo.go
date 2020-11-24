@@ -195,7 +195,7 @@ func callDeploy(ic *interop.Context, cs *state.Contract, isUpdate bool) error {
 	md := cs.Manifest.ABI.GetMethod(manifest.MethodDeploy)
 	if md != nil {
 		return contract.CallExInternal(ic, cs, manifest.MethodDeploy,
-			[]stackitem.Item{stackitem.NewBool(isUpdate)}, smartcontract.All, vm.EnsureIsEmpty)
+			[]stackitem.Item{stackitem.NewBool(isUpdate)}, smartcontract.All, vm.EnsureIsEmpty, nil)
 	}
 	return nil
 }

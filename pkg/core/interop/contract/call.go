@@ -52,12 +52,12 @@ func callExInternal(ic *interop.Context, h []byte, name string, args []stackitem
 			return errors.New("disallowed method call")
 		}
 	}
-	return CallExInternal(ic, cs, name, args, f, vm.EnsureNotEmpty)
+	return CallExInternal(ic, cs, name, args, f, vm.EnsureNotEmpty, nil)
 }
 
 // CallExInternal calls a contract with flags and can't be invoked directly by user.
 func CallExInternal(ic *interop.Context, cs *state.Contract,
-	name string, args []stackitem.Item, f smartcontract.CallFlag, checkReturn vm.CheckReturnState) error {
+	name string, args []stackitem.Item, f smartcontract.CallFlag, checkReturn vm.CheckReturnState, callback func(ctx *vm.Context)) error {
 	md := cs.Manifest.ABI.GetMethod(name)
 	if md == nil {
 		return fmt.Errorf("method '%s' not found", name)
@@ -88,6 +88,7 @@ func CallExInternal(ic *interop.Context, cs *state.Contract,
 		ic.VM.Jump(ic.VM.Context(), md.Offset)
 	}
 	ic.VM.Context().CheckReturn = checkReturn
+	ic.VM.Context().Callback = callback
 
 	md = cs.Manifest.ABI.GetMethod(manifest.MethodInit)
 	if md != nil {
