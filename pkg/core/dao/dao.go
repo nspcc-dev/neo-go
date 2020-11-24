@@ -32,6 +32,7 @@ var (
 type DAO interface {
 	AppendAppExecResult(aer *state.AppExecResult, buf *io.BufBinWriter) error
 	AppendNEP17Transfer(acc util.Uint160, index uint32, tr *state.NEP17Transfer) (bool, error)
+	DeleteBlock(h util.Uint256, buf *io.BufBinWriter) error
 	DeleteContractState(hash util.Uint160) error
 	DeleteStorageItem(id int32, key []byte) error
 	GetAndDecode(entity io.Serializable, key []byte) error
@@ -670,6 +671,46 @@ func (dao *Simple) StoreAsBlock(block *block.Block, buf *io.BufBinWriter) error 
 		return buf.Err
 	}
 	return dao.Store.Put(key, buf.Bytes())
+}
+
+// DeleteBlock removes block from dao.
+func (dao *Simple) DeleteBlock(h util.Uint256, w *io.BufBinWriter) error {
+	batch := dao.Store.Batch()
+	key := make([]byte, util.Uint256Size+1)
+	key[0] = byte(storage.DataBlock)
+	copy(key[1:], h.BytesBE())
+	bs, err := dao.Store.Get(key)
+	if err != nil {
+		return err
+	}
+
+	b, err := block.NewBlockFromTrimmedBytes(dao.network, dao.stateRootInHeader, bs)
+	if err != nil {
+		return err
+	}
+
+	if w == nil {
+		w = io.NewBufBinWriter()
+	}
+	b.Header().EncodeBinary(w.BinWriter)
+	if w.Err != nil {
+		return w.Err
+	}
+	batch.Put(key, w.Bytes())
+
+	key[0] = byte(storage.DataTransaction)
+	for _, tx := range b.Transactions {
+		copy(key[1:], tx.Hash().BytesBE())
+		batch.Delete(key)
+		key[0] = byte(storage.STNotification)
+		batch.Delete(key)
+	}
+
+	key[0] = byte(storage.STNotification)
+	copy(key[1:], h.BytesBE())
+	batch.Delete(key)
+
+	return dao.Store.PutBatch(batch)
 }
 
 // StoreAsCurrentBlock stores a hash of the given block with prefix

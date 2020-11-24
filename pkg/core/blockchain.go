@@ -697,6 +697,18 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 	if bc.config.SaveStorageBatch {
 		bc.lastBatch = cache.DAO.GetBatch()
 	}
+	if bc.config.RemoveUntraceableBlocks {
+		if block.Index > bc.config.MaxTraceableBlocks {
+			index := block.Index - bc.config.MaxTraceableBlocks // is at least 1
+			err := cache.DeleteBlock(bc.headerHashes[index], writeBuf)
+			if err != nil {
+				bc.log.Warn("error while removing old block",
+					zap.Uint32("index", index),
+					zap.Error(err))
+			}
+			writeBuf.Reset()
+		}
+	}
 
 	bc.lock.Lock()
 	_, err = cache.Persist()
