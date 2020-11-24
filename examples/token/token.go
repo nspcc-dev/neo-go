@@ -48,7 +48,7 @@ func TotalSupply() int {
 }
 
 // BalanceOf returns the amount of token on the specified address
-func BalanceOf(holder interop.Hash160) interface{} {
+func BalanceOf(holder interop.Hash160) int {
 	return token.BalanceOf(ctx, holder)
 }
 
@@ -58,6 +58,6 @@ func Transfer(from interop.Hash160, to interop.Hash160, amount int, data interfa
 }
 
 // Mint initial supply of tokens
-func Mint(to []byte) bool {
+func Mint(to interop.Hash160) bool {
 	return token.Mint(ctx, to)
 }

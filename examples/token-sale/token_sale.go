@@ -1,6 +1,7 @@
 package tokensale
 
 import (
+	"github.com/nspcc-dev/neo-go/pkg/interop"
 	"github.com/nspcc-dev/neo-go/pkg/interop/runtime"
 	"github.com/nspcc-dev/neo-go/pkg/interop/storage"
 	"github.com/nspcc-dev/neo-go/pkg/interop/util"
@@ -134,39 +135,39 @@ func checkOwnerWitness() bool {
 }
 
 // Decimals returns the token decimals
-func Decimals() interface{} {
+func Decimals() int {
 	if trigger != runtime.Application {
-		return false
+		panic("invalid trigger")
 	}
 	return token.Decimals
 }
 
 // Symbol returns the token symbol
-func Symbol() interface{} {
+func Symbol() string {
 	if trigger != runtime.Application {
-		return false
+		panic("invalid trigger")
 	}
 	return token.Symbol
 }
 
 // TotalSupply returns the token total supply value
-func TotalSupply() interface{} {
+func TotalSupply() int {
 	if trigger != runtime.Application {
-		return false
+		panic("invalid trigger")
 	}
 	return getIntFromDB(ctx, token.CirculationKey)
 }
 
 // BalanceOf returns the amount of token on the specified address
-func BalanceOf(holder []byte) interface{} {
+func BalanceOf(holder interop.Hash160) int {
 	if trigger != runtime.Application {
-		return false
+		panic("invalid trigger")
 	}
 	return getIntFromDB(ctx, holder)
 }
 
 // Transfer transfers specified amount of token from one user to another
-func Transfer(from, to []byte, amount int) bool {
+func Transfer(from, to interop.Hash160, amount int, _ interface{}) bool {
 	if trigger != runtime.Application {
 		return false
 	}

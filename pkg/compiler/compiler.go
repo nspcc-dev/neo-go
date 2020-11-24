@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest/standard"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
 	"golang.org/x/tools/go/loader"
 )
@@ -33,6 +34,10 @@ type Options struct {
 
 	// The name of the output for contract manifest file.
 	ManifestFile string
+
+	// NoStandardCheck specifies if supported standards compliance needs to be checked.
+	// This setting has effect only if manifest is emitted.
+	NoStandardCheck bool
 
 	// Name is contract's name to be written to manifest.
 	Name string
@@ -213,6 +218,11 @@ func CompileAndSave(src string, o *Options) ([]byte, error) {
 		m, err := di.ConvertToManifest(o.Name, o.ContractEvents, o.ContractSupportedStandards...)
 		if err != nil {
 			return b, fmt.Errorf("failed to convert debug info to manifest: %w", err)
+		}
+		if !o.NoStandardCheck {
+			if err := standard.Check(m, o.ContractSupportedStandards...); err != nil {
+				return b, err
+			}
 		}
 		mData, err := json.Marshal(m)
 		if err != nil {

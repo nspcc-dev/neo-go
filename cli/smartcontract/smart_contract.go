@@ -150,6 +150,10 @@ func NewCommands() []cli.Command {
 						Name:  "config, c",
 						Usage: "Configuration input file (*.yml)",
 					},
+					cli.BoolFlag{
+						Name:  "no-standards",
+						Usage: "do not check compliance with supported standards",
+					},
 				},
 			},
 			{
@@ -398,6 +402,8 @@ func contractCompile(ctx *cli.Context) error {
 
 		DebugInfo:    debugFile,
 		ManifestFile: manifestFile,
+
+		NoStandardCheck: ctx.Bool("no-standards"),
 	}
 
 	if len(confFile) != 0 {

@@ -104,3 +104,54 @@ func TestComlileAndInvokeFunction(t *testing.T) {
 		require.Equal(t, []byte("on update|sub update"), res.Stack[0].Value())
 	})
 }
+
+func TestCompileExamples(t *testing.T) {
+	const examplePath = "../examples"
+	infos, err := ioutil.ReadDir(examplePath)
+	require.NoError(t, err)
+
+	// For proper nef generation.
+	config.Version = "0.90.0-test"
+
+	tmpDir := os.TempDir()
+
+	e := newExecutor(t, false)
+	defer e.Close(t)
+
+	for _, info := range infos {
+		t.Run(info.Name(), func(t *testing.T) {
+			infos, err := ioutil.ReadDir(path.Join(examplePath, info.Name()))
+			require.NoError(t, err)
+			require.False(t, len(infos) == 0, "detected smart contract folder with no contract in it")
+
+			outPath := path.Join(tmpDir, info.Name()+".nef")
+			manifestPath := path.Join(tmpDir, info.Name()+".manifest.json")
+			defer func() {
+				os.Remove(outPath)
+				os.Remove(manifestPath)
+			}()
+
+			cfgName := filterFilename(infos, ".yml")
+			opts := []string{
+				"neo-go", "contract", "compile",
+				"--in", path.Join(examplePath, info.Name()),
+				"--out", outPath,
+				"--manifest", manifestPath,
+				"--config", path.Join(examplePath, info.Name(), cfgName),
+			}
+			e.Run(t, opts...)
+		})
+	}
+}
+
+func filterFilename(infos []os.FileInfo, ext string) string {
+	for _, info := range infos {
+		if !info.IsDir() {
+			name := info.Name()
+			if strings.HasSuffix(name, ext) {
+				return name
+			}
+		}
+	}
+	return ""
+}
