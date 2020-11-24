@@ -129,7 +129,7 @@ func TestAddBlockStateRoot(t *testing.T) {
 	sr, err := bc.GetStateRoot(bc.BlockHeight())
 	require.NoError(t, err)
 
-	tx := newNEP5Transfer(bc.contracts.NEO.Hash, neoOwner, util.Uint160{}, 1)
+	tx := newNEP17Transfer(bc.contracts.NEO.Hash, neoOwner, util.Uint160{}, 1)
 	tx.ValidUntilBlock = bc.BlockHeight() + 1
 	addSigners(tx)
 	require.NoError(t, signTx(bc, tx))

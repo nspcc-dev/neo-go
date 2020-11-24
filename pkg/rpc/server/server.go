@@ -97,8 +97,8 @@ var rpcHandlers = map[string]func(*Server, request.Params) (interface{}, *respon
 	"getcommittee":           (*Server).getCommittee,
 	"getconnectioncount":     (*Server).getConnectionCount,
 	"getcontractstate":       (*Server).getContractState,
-	"getnep5balances":        (*Server).getNEP5Balances,
-	"getnep5transfers":       (*Server).getNEP5Transfers,
+	"getnep17balances":       (*Server).getNEP17Balances,
+	"getnep17transfers":      (*Server).getNEP17Transfers,
 	"getpeers":               (*Server).getPeers,
 	"getproof":               (*Server).getProof,
 	"getrawmempool":          (*Server).getRawMempool,
@@ -550,16 +550,16 @@ func (s *Server) getApplicationLog(reqParams request.Params) (interface{}, *resp
 	return result.NewApplicationLog(hash, appExecResults, trig), nil
 }
 
-func (s *Server) getNEP5Balances(ps request.Params) (interface{}, *response.Error) {
+func (s *Server) getNEP17Balances(ps request.Params) (interface{}, *response.Error) {
 	u, err := ps.Value(0).GetUint160FromAddressOrHex()
 	if err != nil {
 		return nil, response.ErrInvalidParams
 	}
 
-	as := s.chain.GetNEP5Balances(u)
-	bs := &result.NEP5Balances{
+	as := s.chain.GetNEP17Balances(u)
+	bs := &result.NEP17Balances{
 		Address:  address.Uint160ToString(u),
-		Balances: []result.NEP5Balance{},
+		Balances: []result.NEP17Balance{},
 	}
 	if as != nil {
 		cache := make(map[int32]util.Uint160)
@@ -568,7 +568,7 @@ func (s *Server) getNEP5Balances(ps request.Params) (interface{}, *response.Erro
 			if err != nil {
 				continue
 			}
-			bs.Balances = append(bs.Balances, result.NEP5Balance{
+			bs.Balances = append(bs.Balances, result.NEP17Balance{
 				Asset:       h,
 				Amount:      bal.Balance.String(),
 				LastUpdated: bal.LastUpdatedBlock,
@@ -628,7 +628,7 @@ func getTimestampsAndLimit(ps request.Params, index int) (uint64, uint64, int, i
 	return start, end, limit, page, nil
 }
 
-func (s *Server) getNEP5Transfers(ps request.Params) (interface{}, *response.Error) {
+func (s *Server) getNEP17Transfers(ps request.Params) (interface{}, *response.Error) {
 	u, err := ps.Value(0).GetUint160FromAddressOrHex()
 	if err != nil {
 		return nil, response.ErrInvalidParams
@@ -639,14 +639,14 @@ func (s *Server) getNEP5Transfers(ps request.Params) (interface{}, *response.Err
 		return nil, response.NewInvalidParamsError(err.Error(), err)
 	}
 
-	bs := &result.NEP5Transfers{
+	bs := &result.NEP17Transfers{
 		Address:  address.Uint160ToString(u),
-		Received: []result.NEP5Transfer{},
-		Sent:     []result.NEP5Transfer{},
+		Received: []result.NEP17Transfer{},
+		Sent:     []result.NEP17Transfer{},
 	}
 	cache := make(map[int32]util.Uint160)
 	var resCount, frameCount int
-	err = s.chain.ForEachNEP5Transfer(u, func(tr *state.NEP5Transfer) (bool, error) {
+	err = s.chain.ForEachNEP17Transfer(u, func(tr *state.NEP17Transfer) (bool, error) {
 		// Iterating from newest to oldest, not yet reached required
 		// time frame, continue looping.
 		if tr.Timestamp > end {
@@ -668,7 +668,7 @@ func (s *Server) getNEP5Transfers(ps request.Params) (interface{}, *response.Err
 			return false, err
 		}
 
-		transfer := result.NEP5Transfer{
+		transfer := result.NEP17Transfer{
 			Timestamp: tr.Timestamp,
 			Asset:     h,
 			Index:     tr.Block,
@@ -696,7 +696,7 @@ func (s *Server) getNEP5Transfers(ps request.Params) (interface{}, *response.Err
 		return true, nil
 	})
 	if err != nil {
-		return nil, response.NewInternalServerError("invalid NEP5 transfer log", err)
+		return nil, response.NewInternalServerError("invalid NEP17 transfer log", err)
 	}
 	return bs, nil
 }

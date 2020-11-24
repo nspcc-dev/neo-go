@@ -26,7 +26,7 @@ var (
 	}
 )
 
-func newNEP5Commands() []cli.Command {
+func newNEP17Commands() []cli.Command {
 	balanceFlags := []cli.Flag{
 		walletPathFlag,
 		tokenFlag,
@@ -69,21 +69,21 @@ func newNEP5Commands() []cli.Command {
 			Name:      "balance",
 			Usage:     "get address balance",
 			UsageText: "balance --wallet <path> --rpc-endpoint <node> [--timeout <time>] [--address <address>] [--token <hash-or-name>]",
-			Action:    getNEP5Balance,
+			Action:    getNEP17Balance,
 			Flags:     balanceFlags,
 		},
 		{
 			Name:      "import",
-			Usage:     "import NEP5 token to a wallet",
+			Usage:     "import NEP17 token to a wallet",
 			UsageText: "import --wallet <path> --rpc-endpoint <node> --timeout <time> --token <hash>",
-			Action:    importNEP5Token,
+			Action:    importNEP17Token,
 			Flags:     importFlags,
 		},
 		{
 			Name:      "info",
-			Usage:     "print imported NEP5 token info",
+			Usage:     "print imported NEP17 token info",
 			UsageText: "print --wallet <path> [--token <hash-or-name>]",
-			Action:    printNEP5Info,
+			Action:    printNEP17Info,
 			Flags: []cli.Flag{
 				walletPathFlag,
 				cli.StringFlag{
@@ -94,9 +94,9 @@ func newNEP5Commands() []cli.Command {
 		},
 		{
 			Name:      "remove",
-			Usage:     "remove NEP5 token from the wallet",
+			Usage:     "remove NEP17 token from the wallet",
 			UsageText: "remove --wallet <path> --token <hash-or-name>",
-			Action:    removeNEP5Token,
+			Action:    removeNEP17Token,
 			Flags: []cli.Flag{
 				walletPathFlag,
 				cli.StringFlag{
@@ -108,23 +108,23 @@ func newNEP5Commands() []cli.Command {
 		},
 		{
 			Name:      "transfer",
-			Usage:     "transfer NEP5 tokens",
+			Usage:     "transfer NEP17 tokens",
 			UsageText: "transfer --wallet <path> --rpc-endpoint <node> --timeout <time> --from <addr> --to <addr> --token <hash> --amount string",
-			Action:    transferNEP5,
+			Action:    transferNEP17,
 			Flags:     transferFlags,
 		},
 		{
 			Name:  "multitransfer",
-			Usage: "transfer NEP5 tokens to multiple recipients",
+			Usage: "transfer NEP17 tokens to multiple recipients",
 			UsageText: `multitransfer --wallet <path> --rpc-endpoint <node> --timeout <time> --from <addr>` +
 				` <token1>:<addr1>:<amount1> [<token2>:<addr2>:<amount2> [...]]`,
-			Action: multiTransferNEP5,
+			Action: multiTransferNEP17,
 			Flags:  multiTransferFlags,
 		},
 	}
 }
 
-func getNEP5Balance(ctx *cli.Context) error {
+func getNEP17Balance(ctx *cli.Context) error {
 	var accounts []*wallet.Account
 
 	wall, err := openWallet(ctx.String("wallet"))
@@ -170,7 +170,7 @@ func getNEP5Balance(ctx *cli.Context) error {
 		if err != nil {
 			return cli.NewExitError(fmt.Errorf("invalid account address: %w", err), 1)
 		}
-		balances, err := c.GetNEP5Balances(addrHash)
+		balances, err := c.GetNEP17Balances(addrHash)
 		if err != nil {
 			return cli.NewExitError(err, 1)
 		}
@@ -186,7 +186,7 @@ func getNEP5Balance(ctx *cli.Context) error {
 			asset := balances.Balances[i].Asset
 			token, err := getMatchingToken(ctx, wall, asset.StringLE())
 			if err != nil {
-				token, err = c.NEP5TokenInfo(asset)
+				token, err = c.NEP17TokenInfo(asset)
 			}
 			if err == nil {
 				if name != "" && !(token.Name == name || token.Symbol == name || token.Address() == name || token.Hash.StringLE() == name) {
@@ -215,12 +215,12 @@ func getMatchingToken(ctx *cli.Context, w *wallet.Wallet, name string) (*wallet.
 }
 
 func getMatchingTokenRPC(ctx *cli.Context, c *client.Client, addr util.Uint160, name string) (*wallet.Token, error) {
-	bs, err := c.GetNEP5Balances(addr)
+	bs, err := c.GetNEP17Balances(addr)
 	if err != nil {
 		return nil, err
 	}
 	get := func(i int) *wallet.Token {
-		t, _ := c.NEP5TokenInfo(bs.Balances[i].Asset)
+		t, _ := c.NEP17TokenInfo(bs.Balances[i].Asset)
 		return t
 	}
 	return getMatchingTokenAux(ctx, get, len(bs.Balances), name)
@@ -247,7 +247,7 @@ func getMatchingTokenAux(ctx *cli.Context, get func(i int) *wallet.Token, n int,
 	return token, nil
 }
 
-func importNEP5Token(ctx *cli.Context) error {
+func importNEP17Token(ctx *cli.Context) error {
 	wall, err := openWallet(ctx.String("wallet"))
 	if err != nil {
 		return cli.NewExitError(err, 1)
@@ -274,7 +274,7 @@ func importNEP5Token(ctx *cli.Context) error {
 		return cli.NewExitError(err, 1)
 	}
 
-	tok, err := c.NEP5TokenInfo(tokenHash)
+	tok, err := c.NEP17TokenInfo(tokenHash)
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("can't receive token info: %w", err), 1)
 	}
@@ -296,7 +296,7 @@ func printTokenInfo(ctx *cli.Context, tok *wallet.Token) {
 	fmt.Fprintf(w, "Address: %s\n", tok.Address())
 }
 
-func printNEP5Info(ctx *cli.Context) error {
+func printNEP17Info(ctx *cli.Context) error {
 	wall, err := openWallet(ctx.String("wallet"))
 	if err != nil {
 		return cli.NewExitError(err, 1)
@@ -321,7 +321,7 @@ func printNEP5Info(ctx *cli.Context) error {
 	return nil
 }
 
-func removeNEP5Token(ctx *cli.Context) error {
+func removeNEP17Token(ctx *cli.Context) error {
 	wall, err := openWallet(ctx.String("wallet"))
 	if err != nil {
 		return cli.NewExitError(err, 1)
@@ -345,7 +345,7 @@ func removeNEP5Token(ctx *cli.Context) error {
 	return nil
 }
 
-func multiTransferNEP5(ctx *cli.Context) error {
+func multiTransferNEP17(ctx *cli.Context) error {
 	wall, err := openWallet(ctx.String("wallet"))
 	if err != nil {
 		return cli.NewExitError(err, 1)
@@ -412,7 +412,7 @@ func multiTransferNEP5(ctx *cli.Context) error {
 	return signAndSendTransfer(ctx, c, acc, recipients)
 }
 
-func transferNEP5(ctx *cli.Context) error {
+func transferNEP17(ctx *cli.Context) error {
 	wall, err := openWallet(ctx.String("wallet"))
 	if err != nil {
 		return cli.NewExitError(err, 1)
@@ -464,7 +464,7 @@ func transferNEP5(ctx *cli.Context) error {
 func signAndSendTransfer(ctx *cli.Context, c *client.Client, acc *wallet.Account, recipients []client.TransferTarget) error {
 	gas := flags.Fixed8FromContext(ctx, "gas")
 
-	tx, err := c.CreateNEP5MultiTransferTx(acc, int64(gas), recipients...)
+	tx, err := c.CreateNEP17MultiTransferTx(acc, int64(gas), recipients...)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}

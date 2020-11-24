@@ -51,7 +51,7 @@ func TestSignMultisigTx(t *testing.T) {
 
 	// Transfer funds to the multisig.
 	e.In.WriteString("one\r")
-	e.Run(t, "neo-go", "wallet", "nep5", "multitransfer",
+	e.Run(t, "neo-go", "wallet", "nep17", "multitransfer",
 		"--rpc-endpoint", "http://"+e.RPC.Addr,
 		"--wallet", validatorWallet,
 		"--from", validatorAddr,
@@ -66,7 +66,7 @@ func TestSignMultisigTx(t *testing.T) {
 	txPath := path.Join(tmpDir, "multisigtx.json")
 	defer os.Remove(txPath)
 	e.In.WriteString("pass\r")
-	e.Run(t, "neo-go", "wallet", "nep5", "transfer",
+	e.Run(t, "neo-go", "wallet", "nep17", "transfer",
 		"--rpc-endpoint", "http://"+e.RPC.Addr,
 		"--wallet", wallet1Path, "--from", multisigAddr,
 		"--to", priv.Address(), "--token", "neo", "--amount", "1",

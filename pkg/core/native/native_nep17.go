@@ -238,7 +238,7 @@ func (c *nep17TokenNative) TransferInternal(ic *interop.Context, from, to util.U
 
 func (c *nep17TokenNative) balanceOf(ic *interop.Context, args []stackitem.Item) stackitem.Item {
 	h := toUint160(args[0])
-	bs, err := ic.DAO.GetNEP5Balances(h)
+	bs, err := ic.DAO.GetNEP17Balances(h)
 	if err != nil {
 		panic(err)
 	}

@@ -12,16 +12,16 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestNEP5TransferLog_Append(t *testing.T) {
+func TestNEP17TransferLog_Append(t *testing.T) {
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
-	expected := []*NEP5Transfer{
+	expected := []*NEP17Transfer{
 		randomTransfer(r),
 		randomTransfer(r),
 		randomTransfer(r),
 		randomTransfer(r),
 	}
 
-	lg := new(NEP5TransferLog)
+	lg := new(NEP17TransferLog)
 	for _, tr := range expected {
 		require.NoError(t, lg.Append(tr))
 	}
@@ -29,7 +29,7 @@ func TestNEP5TransferLog_Append(t *testing.T) {
 	require.Equal(t, len(expected), lg.Size())
 
 	i := len(expected) - 1
-	cont, err := lg.ForEach(func(tr *NEP5Transfer) (bool, error) {
+	cont, err := lg.ForEach(func(tr *NEP17Transfer) (bool, error) {
 		require.Equal(t, expected[i], tr)
 		i--
 		return true, nil
@@ -38,17 +38,17 @@ func TestNEP5TransferLog_Append(t *testing.T) {
 	require.True(t, cont)
 }
 
-func TestNEP5Tracker_EncodeBinary(t *testing.T) {
-	expected := &NEP5Tracker{
+func TestNEP17Tracker_EncodeBinary(t *testing.T) {
+	expected := &NEP17Tracker{
 		Balance:          *big.NewInt(int64(rand.Uint64())),
 		LastUpdatedBlock: rand.Uint32(),
 	}
 
-	testserdes.EncodeDecodeBinary(t, expected, new(NEP5Tracker))
+	testserdes.EncodeDecodeBinary(t, expected, new(NEP17Tracker))
 }
 
-func TestNEP5Transfer_DecodeBinary(t *testing.T) {
-	expected := &NEP5Transfer{
+func TestNEP17Transfer_DecodeBinary(t *testing.T) {
+	expected := &NEP17Transfer{
 		Asset:     123,
 		From:      util.Uint160{5, 6, 7},
 		To:        util.Uint160{8, 9, 10},
@@ -58,11 +58,11 @@ func TestNEP5Transfer_DecodeBinary(t *testing.T) {
 		Tx:        util.Uint256{8, 5, 3},
 	}
 
-	testserdes.EncodeDecodeBinary(t, expected, new(NEP5Transfer))
+	testserdes.EncodeDecodeBinary(t, expected, new(NEP17Transfer))
 }
 
-func randomTransfer(r *rand.Rand) *NEP5Transfer {
-	return &NEP5Transfer{
+func randomTransfer(r *rand.Rand) *NEP17Transfer {
+	return &NEP17Transfer{
 		Amount: *big.NewInt(int64(r.Uint64())),
 		Block:  r.Uint32(),
 		Asset:  int32(random.Int(10, 10000000)),

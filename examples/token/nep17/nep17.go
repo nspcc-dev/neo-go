@@ -1,4 +1,4 @@
-package nep5
+package nep17
 
 import (
 	"github.com/nspcc-dev/neo-go/pkg/interop/runtime"

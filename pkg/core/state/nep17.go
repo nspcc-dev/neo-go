@@ -8,11 +8,11 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/util"
 )
 
-// NEP5TransferBatchSize is the maximum number of entries for NEP5TransferLog.
-const NEP5TransferBatchSize = 128
+// NEP17TransferBatchSize is the maximum number of entries for NEP17TransferLog.
+const NEP17TransferBatchSize = 128
 
-// NEP5Tracker contains info about a single account in a NEP5 contract.
-type NEP5Tracker struct {
+// NEP17Tracker contains info about a single account in a NEP17 contract.
+type NEP17Tracker struct {
 	// Balance is the current balance of the account.
 	Balance big.Int
 	// LastUpdatedBlock is a number of block when last `transfer` to or from the
@@ -20,14 +20,14 @@ type NEP5Tracker struct {
 	LastUpdatedBlock uint32
 }
 
-// NEP5TransferLog is a log of NEP5 token transfers for the specific command.
-type NEP5TransferLog struct {
+// NEP17TransferLog is a log of NEP17 token transfers for the specific command.
+type NEP17TransferLog struct {
 	Raw []byte
 }
 
-// NEP5Transfer represents a single NEP5 Transfer event.
-type NEP5Transfer struct {
-	// Asset is a NEP5 contract ID.
+// NEP17Transfer represents a single NEP17 Transfer event.
+type NEP17Transfer struct {
+	// Asset is a NEP17 contract ID.
 	Asset int32
 	// Address is the address of the sender.
 	From util.Uint160
@@ -44,29 +44,29 @@ type NEP5Transfer struct {
 	Tx util.Uint256
 }
 
-// NEP5Balances is a map of the NEP5 contract IDs
+// NEP17Balances is a map of the NEP17 contract IDs
 // to the corresponding structures.
-type NEP5Balances struct {
-	Trackers map[int32]NEP5Tracker
+type NEP17Balances struct {
+	Trackers map[int32]NEP17Tracker
 	// NextTransferBatch stores an index of the next transfer batch.
 	NextTransferBatch uint32
 }
 
-// NewNEP5Balances returns new NEP5Balances.
-func NewNEP5Balances() *NEP5Balances {
-	return &NEP5Balances{
-		Trackers: make(map[int32]NEP5Tracker),
+// NewNEP17Balances returns new NEP17Balances.
+func NewNEP17Balances() *NEP17Balances {
+	return &NEP17Balances{
+		Trackers: make(map[int32]NEP17Tracker),
 	}
 }
 
 // DecodeBinary implements io.Serializable interface.
-func (bs *NEP5Balances) DecodeBinary(r *io.BinReader) {
+func (bs *NEP17Balances) DecodeBinary(r *io.BinReader) {
 	bs.NextTransferBatch = r.ReadU32LE()
 	lenBalances := r.ReadVarUint()
-	m := make(map[int32]NEP5Tracker, lenBalances)
+	m := make(map[int32]NEP17Tracker, lenBalances)
 	for i := 0; i < int(lenBalances); i++ {
 		key := int32(r.ReadU32LE())
-		var tr NEP5Tracker
+		var tr NEP17Tracker
 		tr.DecodeBinary(r)
 		m[key] = tr
 	}
@@ -74,7 +74,7 @@ func (bs *NEP5Balances) DecodeBinary(r *io.BinReader) {
 }
 
 // EncodeBinary implements io.Serializable interface.
-func (bs *NEP5Balances) EncodeBinary(w *io.BinWriter) {
+func (bs *NEP17Balances) EncodeBinary(w *io.BinWriter) {
 	w.WriteU32LE(bs.NextTransferBatch)
 	w.WriteVarUint(uint64(len(bs.Trackers)))
 	for k, v := range bs.Trackers {
@@ -84,7 +84,7 @@ func (bs *NEP5Balances) EncodeBinary(w *io.BinWriter) {
 }
 
 // Append appends single transfer to a log.
-func (lg *NEP5TransferLog) Append(tr *NEP5Transfer) error {
+func (lg *NEP17TransferLog) Append(tr *NEP17Transfer) error {
 	w := io.NewBufBinWriter()
 	// The first entry, set up counter.
 	if len(lg.Raw) == 0 {
@@ -102,11 +102,11 @@ func (lg *NEP5TransferLog) Append(tr *NEP5Transfer) error {
 }
 
 // ForEach iterates over transfer log returning on first error.
-func (lg *NEP5TransferLog) ForEach(f func(*NEP5Transfer) (bool, error)) (bool, error) {
+func (lg *NEP17TransferLog) ForEach(f func(*NEP17Transfer) (bool, error)) (bool, error) {
 	if lg == nil || len(lg.Raw) == 0 {
 		return true, nil
 	}
-	transfers := make([]NEP5Transfer, lg.Size())
+	transfers := make([]NEP17Transfer, lg.Size())
 	r := io.NewBinReaderFromBuf(lg.Raw[1:])
 	for i := 0; i < lg.Size(); i++ {
 		transfers[i].DecodeBinary(r)
@@ -127,7 +127,7 @@ func (lg *NEP5TransferLog) ForEach(f func(*NEP5Transfer) (bool, error)) (bool, e
 }
 
 // Size returns an amount of transfer written in log.
-func (lg *NEP5TransferLog) Size() int {
+func (lg *NEP17TransferLog) Size() int {
 	if len(lg.Raw) == 0 {
 		return 0
 	}
@@ -135,19 +135,19 @@ func (lg *NEP5TransferLog) Size() int {
 }
 
 // EncodeBinary implements io.Serializable interface.
-func (t *NEP5Tracker) EncodeBinary(w *io.BinWriter) {
+func (t *NEP17Tracker) EncodeBinary(w *io.BinWriter) {
 	w.WriteVarBytes(bigint.ToBytes(&t.Balance))
 	w.WriteU32LE(t.LastUpdatedBlock)
 }
 
 // DecodeBinary implements io.Serializable interface.
-func (t *NEP5Tracker) DecodeBinary(r *io.BinReader) {
+func (t *NEP17Tracker) DecodeBinary(r *io.BinReader) {
 	t.Balance = *bigint.FromBytes(r.ReadVarBytes())
 	t.LastUpdatedBlock = r.ReadU32LE()
 }
 
 // EncodeBinary implements io.Serializable interface.
-func (t *NEP5Transfer) EncodeBinary(w *io.BinWriter) {
+func (t *NEP17Transfer) EncodeBinary(w *io.BinWriter) {
 	w.WriteU32LE(uint32(t.Asset))
 	w.WriteBytes(t.Tx[:])
 	w.WriteBytes(t.From[:])
@@ -159,7 +159,7 @@ func (t *NEP5Transfer) EncodeBinary(w *io.BinWriter) {
 }
 
 // DecodeBinary implements io.Serializable interface.
-func (t *NEP5Transfer) DecodeBinary(r *io.BinReader) {
+func (t *NEP17Transfer) DecodeBinary(r *io.BinReader) {
 	t.Asset = int32(r.ReadU32LE())
 	r.ReadBytes(t.Tx[:])
 	r.ReadBytes(t.From[:])

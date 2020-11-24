@@ -313,7 +313,7 @@ func TestNEO_TransferOnPayment(t *testing.T) {
 	require.NoError(t, bc.dao.PutContractState(cs))
 
 	const amount = 2
-	tx := newNEP5Transfer(bc.contracts.NEO.Hash, neoOwner, cs.ScriptHash(), amount)
+	tx := newNEP17Transfer(bc.contracts.NEO.Hash, neoOwner, cs.ScriptHash(), amount)
 	tx.SystemFee += 1_000_000
 	tx.NetworkFee = 10_000_000
 	tx.ValidUntilBlock = bc.BlockHeight() + 1

@@ -434,7 +434,7 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 			},
 		},
 	},
-	"getnep5balances": {
+	"getnep17balances": {
 		{
 			name: "positive",
 			invoke: func(c *Client) (interface{}, error) {
@@ -442,7 +442,7 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 				if err != nil {
 					panic(err)
 				}
-				return c.GetNEP5Balances(hash)
+				return c.GetNEP17Balances(hash)
 			},
 			serverResponse: `{"jsonrpc":"2.0","id":1,"result":{"balance":[{"assethash":"a48b6e1291ba24211ad11bb90ae2a10bf1fcd5a8","amount":"50000000000","lastupdatedblock":251604}],"address":"AY6eqWjsUFCzsVELG7yG72XDukKvC34p2w"}}`,
 			result: func(c *Client) interface{} {
@@ -450,8 +450,8 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 				if err != nil {
 					panic(err)
 				}
-				return &result.NEP5Balances{
-					Balances: []result.NEP5Balance{{
+				return &result.NEP17Balances{
+					Balances: []result.NEP17Balance{{
 						Asset:       hash,
 						Amount:      "50000000000",
 						LastUpdated: 251604,
@@ -461,11 +461,11 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 			},
 		},
 	},
-	"getnep5transfers": {
+	"getnep17transfers": {
 		{
 			name: "positive",
 			invoke: func(c *Client) (interface{}, error) {
-				return c.GetNEP5Transfers("AbHgdBaWEnHkCiLtDZXjhvhaAK2cwFh5pF", nil, nil, nil, nil)
+				return c.GetNEP17Transfers("AbHgdBaWEnHkCiLtDZXjhvhaAK2cwFh5pF", nil, nil, nil, nil)
 			},
 			serverResponse: `{"jsonrpc":"2.0","id":1,"result":{"sent":[],"received":[{"timestamp":1555651816,"assethash":"600c4f5200db36177e3e8a09e9f18e2fc7d12a0f","transferaddress":"AYwgBNMepiv5ocGcyNT4mA8zPLTQ8pDBis","amount":"1000000","blockindex":436036,"transfernotifyindex":0,"txhash":"df7683ece554ecfb85cf41492c5f143215dd43ef9ec61181a28f922da06aba58"}],"address":"AbHgdBaWEnHkCiLtDZXjhvhaAK2cwFh5pF"}}`,
 			result: func(c *Client) interface{} {
@@ -477,9 +477,9 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 				if err != nil {
 					panic(err)
 				}
-				return &result.NEP5Transfers{
-					Sent: []result.NEP5Transfer{},
-					Received: []result.NEP5Transfer{
+				return &result.NEP17Transfers{
+					Sent: []result.NEP17Transfer{},
+					Received: []result.NEP17Transfer{
 						{
 							Timestamp:   1555651816,
 							Asset:       assetHash,
@@ -1040,38 +1040,38 @@ var rpcClientErrorCases = map[string][]rpcClientErrorCase{
 			},
 		},
 		{
-			name: "getnep5balances_invalid_params_error",
+			name: "getnep17balances_invalid_params_error",
 			invoke: func(c *Client) (interface{}, error) {
-				return c.GetNEP5Balances(util.Uint160{})
+				return c.GetNEP17Balances(util.Uint160{})
 			},
 		},
 		{
-			name: "getnep5transfers_invalid_params_error",
+			name: "getnep17transfers_invalid_params_error",
 			invoke: func(c *Client) (interface{}, error) {
-				return c.GetNEP5Transfers("", nil, nil, nil, nil)
+				return c.GetNEP17Transfers("", nil, nil, nil, nil)
 			},
 		},
 		{
-			name: "getnep5transfers_invalid_params_error 2",
+			name: "getnep17transfers_invalid_params_error 2",
 			invoke: func(c *Client) (interface{}, error) {
 				var stop uint32
-				return c.GetNEP5Transfers("NbTiM6h8r99kpRtb428XcsUk1TzKed2gTc", nil, &stop, nil, nil)
+				return c.GetNEP17Transfers("NbTiM6h8r99kpRtb428XcsUk1TzKed2gTc", nil, &stop, nil, nil)
 			},
 		},
 		{
-			name: "getnep5transfers_invalid_params_error 3",
+			name: "getnep17transfers_invalid_params_error 3",
 			invoke: func(c *Client) (interface{}, error) {
 				var start uint32
 				var limit int
-				return c.GetNEP5Transfers("NbTiM6h8r99kpRtb428XcsUk1TzKed2gTc", &start, nil, &limit, nil)
+				return c.GetNEP17Transfers("NbTiM6h8r99kpRtb428XcsUk1TzKed2gTc", &start, nil, &limit, nil)
 			},
 		},
 		{
-			name: "getnep5transfers_invalid_params_error 4",
+			name: "getnep17transfers_invalid_params_error 4",
 			invoke: func(c *Client) (interface{}, error) {
 				var start, stop uint32
 				var page int
-				return c.GetNEP5Transfers("NbTiM6h8r99kpRtb428XcsUk1TzKed2gTc", &start, &stop, nil, &page)
+				return c.GetNEP17Transfers("NbTiM6h8r99kpRtb428XcsUk1TzKed2gTc", &start, &stop, nil, &page)
 			},
 		},
 		{
@@ -1227,15 +1227,15 @@ var rpcClientErrorCases = map[string][]rpcClientErrorCase{
 			},
 		},
 		{
-			name: "getnep5balances_unmarshalling_error",
+			name: "getnep17balances_unmarshalling_error",
 			invoke: func(c *Client) (interface{}, error) {
-				return c.GetNEP5Balances(util.Uint160{})
+				return c.GetNEP17Balances(util.Uint160{})
 			},
 		},
 		{
-			name: "getnep5transfers_unmarshalling_error",
+			name: "getnep17transfers_unmarshalling_error",
 			invoke: func(c *Client) (interface{}, error) {
-				return c.GetNEP5Transfers("", nil, nil, nil, nil)
+				return c.GetNEP17Transfers("", nil, nil, nil, nil)
 			},
 		},
 		{

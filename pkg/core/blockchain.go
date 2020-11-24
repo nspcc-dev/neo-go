@@ -791,7 +791,7 @@ func (bc *Blockchain) handleNotification(note *state.NotificationEvent, d *dao.C
 		}
 		amount = bigint.FromBytes(bs)
 	}
-	bc.processNEP5Transfer(d, h, b, note.ScriptHash, from, to, amount)
+	bc.processNEP17Transfer(d, h, b, note.ScriptHash, from, to, amount)
 }
 
 func parseUint160(addr []byte) util.Uint160 {
@@ -801,7 +801,7 @@ func parseUint160(addr []byte) util.Uint160 {
 	return util.Uint160{}
 }
 
-func (bc *Blockchain) processNEP5Transfer(cache *dao.Cached, h util.Uint256, b *block.Block, sc util.Uint160, from, to []byte, amount *big.Int) {
+func (bc *Blockchain) processNEP17Transfer(cache *dao.Cached, h util.Uint256, b *block.Block, sc util.Uint160, from, to []byte, amount *big.Int) {
 	toAddr := parseUint160(to)
 	fromAddr := parseUint160(from)
 	var id int32
@@ -815,7 +815,7 @@ func (bc *Blockchain) processNEP5Transfer(cache *dao.Cached, h util.Uint256, b *
 		}
 		id = assetContract.ID
 	}
-	transfer := &state.NEP5Transfer{
+	transfer := &state.NEP17Transfer{
 		Asset:     id,
 		From:      fromAddr,
 		To:        toAddr,
@@ -824,7 +824,7 @@ func (bc *Blockchain) processNEP5Transfer(cache *dao.Cached, h util.Uint256, b *
 		Tx:        h,
 	}
 	if !fromAddr.Equals(util.Uint160{}) {
-		balances, err := cache.GetNEP5Balances(fromAddr)
+		balances, err := cache.GetNEP17Balances(fromAddr)
 		if err != nil {
 			return
 		}
@@ -833,19 +833,19 @@ func (bc *Blockchain) processNEP5Transfer(cache *dao.Cached, h util.Uint256, b *
 		bs.LastUpdatedBlock = b.Index
 		balances.Trackers[id] = bs
 		transfer.Amount = *new(big.Int).Sub(&transfer.Amount, amount)
-		isBig, err := cache.AppendNEP5Transfer(fromAddr, balances.NextTransferBatch, transfer)
+		isBig, err := cache.AppendNEP17Transfer(fromAddr, balances.NextTransferBatch, transfer)
 		if err != nil {
 			return
 		}
 		if isBig {
 			balances.NextTransferBatch++
 		}
-		if err := cache.PutNEP5Balances(fromAddr, balances); err != nil {
+		if err := cache.PutNEP17Balances(fromAddr, balances); err != nil {
 			return
 		}
 	}
 	if !toAddr.Equals(util.Uint160{}) {
-		balances, err := cache.GetNEP5Balances(toAddr)
+		balances, err := cache.GetNEP17Balances(toAddr)
 		if err != nil {
 			return
 		}
@@ -855,27 +855,27 @@ func (bc *Blockchain) processNEP5Transfer(cache *dao.Cached, h util.Uint256, b *
 		balances.Trackers[id] = bs
 
 		transfer.Amount = *amount
-		isBig, err := cache.AppendNEP5Transfer(toAddr, balances.NextTransferBatch, transfer)
+		isBig, err := cache.AppendNEP17Transfer(toAddr, balances.NextTransferBatch, transfer)
 		if err != nil {
 			return
 		}
 		if isBig {
 			balances.NextTransferBatch++
 		}
-		if err := cache.PutNEP5Balances(toAddr, balances); err != nil {
+		if err := cache.PutNEP17Balances(toAddr, balances); err != nil {
 			return
 		}
 	}
 }
 
-// ForEachNEP5Transfer executes f for each nep5 transfer in log.
-func (bc *Blockchain) ForEachNEP5Transfer(acc util.Uint160, f func(*state.NEP5Transfer) (bool, error)) error {
-	balances, err := bc.dao.GetNEP5Balances(acc)
+// ForEachNEP17Transfer executes f for each nep17 transfer in log.
+func (bc *Blockchain) ForEachNEP17Transfer(acc util.Uint160, f func(*state.NEP17Transfer) (bool, error)) error {
+	balances, err := bc.dao.GetNEP17Balances(acc)
 	if err != nil {
 		return nil
 	}
 	for i := int(balances.NextTransferBatch); i >= 0; i-- {
-		lg, err := bc.dao.GetNEP5TransferLog(acc, uint32(i))
+		lg, err := bc.dao.GetNEP17TransferLog(acc, uint32(i))
 		if err != nil {
 			return nil
 		}
@@ -890,9 +890,9 @@ func (bc *Blockchain) ForEachNEP5Transfer(acc util.Uint160, f func(*state.NEP5Tr
 	return nil
 }
 
-// GetNEP5Balances returns NEP5 balances for the acc.
-func (bc *Blockchain) GetNEP5Balances(acc util.Uint160) *state.NEP5Balances {
-	bs, err := bc.dao.GetNEP5Balances(acc)
+// GetNEP17Balances returns NEP17 balances for the acc.
+func (bc *Blockchain) GetNEP17Balances(acc util.Uint160) *state.NEP17Balances {
+	bs, err := bc.dao.GetNEP17Balances(acc)
 	if err != nil {
 		return nil
 	}
@@ -901,7 +901,7 @@ func (bc *Blockchain) GetNEP5Balances(acc util.Uint160) *state.NEP5Balances {
 
 // GetUtilityTokenBalance returns utility token (GAS) balance for the acc.
 func (bc *Blockchain) GetUtilityTokenBalance(acc util.Uint160) *big.Int {
-	bs, err := bc.dao.GetNEP5Balances(acc)
+	bs, err := bc.dao.GetNEP17Balances(acc)
 	if err != nil {
 		return big.NewInt(0)
 	}
@@ -912,7 +912,7 @@ func (bc *Blockchain) GetUtilityTokenBalance(acc util.Uint160) *big.Int {
 // GetGoverningTokenBalance returns governing token (NEO) balance and the height
 // of the last balance change for the account.
 func (bc *Blockchain) GetGoverningTokenBalance(acc util.Uint160) (*big.Int, uint32) {
-	bs, err := bc.dao.GetNEP5Balances(acc)
+	bs, err := bc.dao.GetNEP17Balances(acc)
 	if err != nil {
 		return big.NewInt(0), 0
 	}

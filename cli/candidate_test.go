@@ -16,7 +16,7 @@ func TestRegisterCandidate(t *testing.T) {
 	defer e.Close(t)
 
 	e.In.WriteString("one\r")
-	e.Run(t, "neo-go", "wallet", "nep5", "multitransfer",
+	e.Run(t, "neo-go", "wallet", "nep17", "multitransfer",
 		"--rpc-endpoint", "http://"+e.RPC.Addr,
 		"--wallet", validatorWallet,
 		"--from", validatorAddr,

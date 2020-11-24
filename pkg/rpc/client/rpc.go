@@ -232,22 +232,22 @@ func (c *Client) getContractState(param interface{}) (*state.Contract, error) {
 	return resp, nil
 }
 
-// GetNEP5Balances is a wrapper for getnep5balances RPC.
-func (c *Client) GetNEP5Balances(address util.Uint160) (*result.NEP5Balances, error) {
+// GetNEP17Balances is a wrapper for getnep17balances RPC.
+func (c *Client) GetNEP17Balances(address util.Uint160) (*result.NEP17Balances, error) {
 	params := request.NewRawParams(address.StringLE())
-	resp := new(result.NEP5Balances)
-	if err := c.performRequest("getnep5balances", params, resp); err != nil {
+	resp := new(result.NEP17Balances)
+	if err := c.performRequest("getnep17balances", params, resp); err != nil {
 		return nil, err
 	}
 	return resp, nil
 }
 
-// GetNEP5Transfers is a wrapper for getnep5transfers RPC. Address parameter
+// GetNEP17Transfers is a wrapper for getnep17transfers RPC. Address parameter
 // is mandatory, while all the others are optional. Start and stop parameters
 // are supported since neo-go 0.77.0 and limit and page since neo-go 0.78.0.
 // These parameters are positional in the JSON-RPC call, you can't specify limit
 // and not specify start/stop for example.
-func (c *Client) GetNEP5Transfers(address string, start, stop *uint32, limit, page *int) (*result.NEP5Transfers, error) {
+func (c *Client) GetNEP17Transfers(address string, start, stop *uint32, limit, page *int) (*result.NEP17Transfers, error) {
 	params := request.NewRawParams(address)
 	if start != nil {
 		params.Values = append(params.Values, *start)
@@ -267,8 +267,8 @@ func (c *Client) GetNEP5Transfers(address string, start, stop *uint32, limit, pa
 	} else if stop != nil || limit != nil || page != nil {
 		return nil, errors.New("bad parameters")
 	}
-	resp := new(result.NEP5Transfers)
-	if err := c.performRequest("getnep5transfers", params, resp); err != nil {
+	resp := new(result.NEP17Transfers)
+	if err := c.performRequest("getnep17transfers", params, resp); err != nil {
 		return nil, err
 	}
 	return resp, nil

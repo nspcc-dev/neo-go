@@ -9,21 +9,21 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
-// NEP5BalanceState represents balance state of a NEP5-token.
-type NEP5BalanceState struct {
+// NEP17BalanceState represents balance state of a NEP17-token.
+type NEP17BalanceState struct {
 	Balance big.Int
 }
 
 // NEOBalanceState represents balance state of a NEO-token.
 type NEOBalanceState struct {
-	NEP5BalanceState
+	NEP17BalanceState
 	BalanceHeight uint32
 	VoteTo        *keys.PublicKey
 }
 
-// NEP5BalanceStateFromBytes converts serialized NEP5BalanceState to structure.
-func NEP5BalanceStateFromBytes(b []byte) (*NEP5BalanceState, error) {
-	balance := new(NEP5BalanceState)
+// NEP17BalanceStateFromBytes converts serialized NEP17BalanceState to structure.
+func NEP17BalanceStateFromBytes(b []byte) (*NEP17BalanceState, error) {
+	balance := new(NEP17BalanceState)
 	if len(b) == 0 {
 		return balance, nil
 	}
@@ -35,8 +35,8 @@ func NEP5BalanceStateFromBytes(b []byte) (*NEP5BalanceState, error) {
 	return balance, nil
 }
 
-// Bytes returns serialized NEP5BalanceState.
-func (s *NEP5BalanceState) Bytes() []byte {
+// Bytes returns serialized NEP17BalanceState.
+func (s *NEP17BalanceState) Bytes() []byte {
 	w := io.NewBufBinWriter()
 	s.EncodeBinary(w.BinWriter)
 	if w.Err != nil {
@@ -45,22 +45,22 @@ func (s *NEP5BalanceState) Bytes() []byte {
 	return w.Bytes()
 }
 
-func (s *NEP5BalanceState) toStackItem() stackitem.Item {
+func (s *NEP17BalanceState) toStackItem() stackitem.Item {
 	return stackitem.NewStruct([]stackitem.Item{stackitem.NewBigInteger(&s.Balance)})
 }
 
-func (s *NEP5BalanceState) fromStackItem(item stackitem.Item) {
+func (s *NEP17BalanceState) fromStackItem(item stackitem.Item) {
 	s.Balance = *item.(*stackitem.Struct).Value().([]stackitem.Item)[0].Value().(*big.Int)
 }
 
 // EncodeBinary implements io.Serializable interface.
-func (s *NEP5BalanceState) EncodeBinary(w *io.BinWriter) {
+func (s *NEP17BalanceState) EncodeBinary(w *io.BinWriter) {
 	si := s.toStackItem()
 	stackitem.EncodeBinaryStackItem(si, w)
 }
 
 // DecodeBinary implements io.Serializable interface.
-func (s *NEP5BalanceState) DecodeBinary(r *io.BinReader) {
+func (s *NEP17BalanceState) DecodeBinary(r *io.BinReader) {
 	si := stackitem.DecodeBinaryStackItem(r)
 	if r.Err != nil {
 		return
@@ -109,7 +109,7 @@ func (s *NEOBalanceState) DecodeBinary(r *io.BinReader) {
 }
 
 func (s *NEOBalanceState) toStackItem() stackitem.Item {
-	result := s.NEP5BalanceState.toStackItem().(*stackitem.Struct)
+	result := s.NEP17BalanceState.toStackItem().(*stackitem.Struct)
 	result.Append(stackitem.NewBigInteger(big.NewInt(int64(s.BalanceHeight))))
 	if s.VoteTo != nil {
 		result.Append(stackitem.NewByteArray(s.VoteTo.Bytes()))

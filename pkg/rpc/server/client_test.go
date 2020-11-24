@@ -19,7 +19,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestClient_NEP5(t *testing.T) {
+func TestClient_NEP17(t *testing.T) {
 	chain, rpcSrv, httpSrv := initServerWithInMemoryChain(t)
 	defer chain.Close()
 	defer rpcSrv.Shutdown()
@@ -32,22 +32,22 @@ func TestClient_NEP5(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("Decimals", func(t *testing.T) {
-		d, err := c.NEP5Decimals(h)
+		d, err := c.NEP17Decimals(h)
 		require.NoError(t, err)
 		require.EqualValues(t, 2, d)
 	})
 	t.Run("TotalSupply", func(t *testing.T) {
-		s, err := c.NEP5TotalSupply(h)
+		s, err := c.NEP17TotalSupply(h)
 		require.NoError(t, err)
 		require.EqualValues(t, 1_000_000, s)
 	})
 	t.Run("Symbol", func(t *testing.T) {
-		sym, err := c.NEP5Symbol(h)
+		sym, err := c.NEP17Symbol(h)
 		require.NoError(t, err)
 		require.Equal(t, "RUB", sym)
 	})
 	t.Run("TokenInfo", func(t *testing.T) {
-		tok, err := c.NEP5TokenInfo(h)
+		tok, err := c.NEP17TokenInfo(h)
 		require.NoError(t, err)
 		require.Equal(t, h, tok.Hash)
 		require.Equal(t, "Rubl", tok.Name)
@@ -56,7 +56,7 @@ func TestClient_NEP5(t *testing.T) {
 	})
 	t.Run("BalanceOf", func(t *testing.T) {
 		acc := testchain.PrivateKeyByID(0).GetScriptHash()
-		b, err := c.NEP5BalanceOf(h, acc)
+		b, err := c.NEP17BalanceOf(h, acc)
 		require.NoError(t, err)
 		require.EqualValues(t, 877, b)
 	})
@@ -259,7 +259,7 @@ func TestCreateTxFromScript(t *testing.T) {
 	})
 }
 
-func TestCreateNEP5TransferTx(t *testing.T) {
+func TestCreateNEP17TransferTx(t *testing.T) {
 	chain, rpcSrv, httpSrv := initServerWithInMemoryChain(t)
 	defer chain.Close()
 	defer rpcSrv.Shutdown()
@@ -275,7 +275,7 @@ func TestCreateNEP5TransferTx(t *testing.T) {
 	gasContractHash, err := c.GetNativeContractHash("gas")
 	require.NoError(t, err)
 
-	tx, err := c.CreateNEP5TransferTx(acc, util.Uint160{}, gasContractHash, 1000, 0)
+	tx, err := c.CreateNEP17TransferTx(acc, util.Uint160{}, gasContractHash, 1000, 0)
 	require.NoError(t, err)
 	require.NoError(t, acc.SignTx(tx))
 	require.NoError(t, chain.VerifyTx(tx))

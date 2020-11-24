@@ -31,7 +31,7 @@ var (
 // DAO is a data access object.
 type DAO interface {
 	AppendAppExecResult(aer *state.AppExecResult, buf *io.BufBinWriter) error
-	AppendNEP5Transfer(acc util.Uint160, index uint32, tr *state.NEP5Transfer) (bool, error)
+	AppendNEP17Transfer(acc util.Uint160, index uint32, tr *state.NEP17Transfer) (bool, error)
 	DeleteContractState(hash util.Uint160) error
 	DeleteStorageItem(id int32, key []byte) error
 	GetAndDecode(entity io.Serializable, key []byte) error
@@ -44,8 +44,8 @@ type DAO interface {
 	GetCurrentHeaderHeight() (i uint32, h util.Uint256, err error)
 	GetCurrentStateRootHeight() (uint32, error)
 	GetHeaderHashes() ([]util.Uint256, error)
-	GetNEP5Balances(acc util.Uint160) (*state.NEP5Balances, error)
-	GetNEP5TransferLog(acc util.Uint160, index uint32) (*state.NEP5TransferLog, error)
+	GetNEP17Balances(acc util.Uint160) (*state.NEP17Balances, error)
+	GetNEP17TransferLog(acc util.Uint160, index uint32) (*state.NEP17TransferLog, error)
 	GetAndUpdateNextContractID() (int32, error)
 	GetStateRoot(height uint32) (*state.MPTRootState, error)
 	PutStateRoot(root *state.MPTRootState) error
@@ -60,15 +60,15 @@ type DAO interface {
 	PutAppExecResult(aer *state.AppExecResult, buf *io.BufBinWriter) error
 	PutContractState(cs *state.Contract) error
 	PutCurrentHeader(hashAndIndex []byte) error
-	PutNEP5Balances(acc util.Uint160, bs *state.NEP5Balances) error
-	PutNEP5TransferLog(acc util.Uint160, index uint32, lg *state.NEP5TransferLog) error
+	PutNEP17Balances(acc util.Uint160, bs *state.NEP17Balances) error
+	PutNEP17TransferLog(acc util.Uint160, index uint32, lg *state.NEP17TransferLog) error
 	PutStorageItem(id int32, key []byte, si *state.StorageItem) error
 	PutVersion(v string) error
 	Seek(id int32, prefix []byte, f func(k, v []byte))
 	StoreAsBlock(block *block.Block, buf *io.BufBinWriter) error
 	StoreAsCurrentBlock(block *block.Block, buf *io.BufBinWriter) error
 	StoreAsTransaction(tx *transaction.Transaction, index uint32, buf *io.BufBinWriter) error
-	putNEP5Balances(acc util.Uint160, bs *state.NEP5Balances, buf *io.BufBinWriter) error
+	putNEP17Balances(acc util.Uint160, bs *state.NEP17Balances, buf *io.BufBinWriter) error
 }
 
 // Simple is memCached wrapper around DB, simple DAO implementation.
@@ -197,12 +197,12 @@ func (dao *Simple) GetContractScriptHash(id int32) (util.Uint160, error) {
 
 // -- end contracts.
 
-// -- start nep5 balances.
+// -- start nep17 balances.
 
-// GetNEP5Balances retrieves nep5 balances from the cache.
-func (dao *Simple) GetNEP5Balances(acc util.Uint160) (*state.NEP5Balances, error) {
-	key := storage.AppendPrefix(storage.STNEP5Balances, acc.BytesBE())
-	bs := state.NewNEP5Balances()
+// GetNEP17Balances retrieves nep17 balances from the cache.
+func (dao *Simple) GetNEP17Balances(acc util.Uint160) (*state.NEP17Balances, error) {
+	key := storage.AppendPrefix(storage.STNEP17Balances, acc.BytesBE())
+	bs := state.NewNEP17Balances()
 	err := dao.GetAndDecode(bs, key)
 	if err != nil && err != storage.ErrKeyNotFound {
 		return nil, err
@@ -210,61 +210,61 @@ func (dao *Simple) GetNEP5Balances(acc util.Uint160) (*state.NEP5Balances, error
 	return bs, nil
 }
 
-// PutNEP5Balances saves nep5 balances from the cache.
-func (dao *Simple) PutNEP5Balances(acc util.Uint160, bs *state.NEP5Balances) error {
-	return dao.putNEP5Balances(acc, bs, io.NewBufBinWriter())
+// PutNEP17Balances saves nep17 balances from the cache.
+func (dao *Simple) PutNEP17Balances(acc util.Uint160, bs *state.NEP17Balances) error {
+	return dao.putNEP17Balances(acc, bs, io.NewBufBinWriter())
 }
 
-func (dao *Simple) putNEP5Balances(acc util.Uint160, bs *state.NEP5Balances, buf *io.BufBinWriter) error {
-	key := storage.AppendPrefix(storage.STNEP5Balances, acc.BytesBE())
+func (dao *Simple) putNEP17Balances(acc util.Uint160, bs *state.NEP17Balances, buf *io.BufBinWriter) error {
+	key := storage.AppendPrefix(storage.STNEP17Balances, acc.BytesBE())
 	return dao.putWithBuffer(bs, key, buf)
 }
 
-// -- end nep5 balances.
+// -- end nep17 balances.
 
 // -- start transfer log.
 
-func getNEP5TransferLogKey(acc util.Uint160, index uint32) []byte {
+func getNEP17TransferLogKey(acc util.Uint160, index uint32) []byte {
 	key := make([]byte, 1+util.Uint160Size+4)
-	key[0] = byte(storage.STNEP5Transfers)
+	key[0] = byte(storage.STNEP17Transfers)
 	copy(key[1:], acc.BytesBE())
 	binary.LittleEndian.PutUint32(key[util.Uint160Size:], index)
 	return key
 }
 
-// GetNEP5TransferLog retrieves transfer log from the cache.
-func (dao *Simple) GetNEP5TransferLog(acc util.Uint160, index uint32) (*state.NEP5TransferLog, error) {
-	key := getNEP5TransferLogKey(acc, index)
+// GetNEP17TransferLog retrieves transfer log from the cache.
+func (dao *Simple) GetNEP17TransferLog(acc util.Uint160, index uint32) (*state.NEP17TransferLog, error) {
+	key := getNEP17TransferLogKey(acc, index)
 	value, err := dao.Store.Get(key)
 	if err != nil {
 		if err == storage.ErrKeyNotFound {
-			return new(state.NEP5TransferLog), nil
+			return new(state.NEP17TransferLog), nil
 		}
 		return nil, err
 	}
-	return &state.NEP5TransferLog{Raw: value}, nil
+	return &state.NEP17TransferLog{Raw: value}, nil
 }
 
-// PutNEP5TransferLog saves given transfer log in the cache.
-func (dao *Simple) PutNEP5TransferLog(acc util.Uint160, index uint32, lg *state.NEP5TransferLog) error {
-	key := getNEP5TransferLogKey(acc, index)
+// PutNEP17TransferLog saves given transfer log in the cache.
+func (dao *Simple) PutNEP17TransferLog(acc util.Uint160, index uint32, lg *state.NEP17TransferLog) error {
+	key := getNEP17TransferLogKey(acc, index)
 	return dao.Store.Put(key, lg.Raw)
 }
 
-// AppendNEP5Transfer appends a single NEP5 transfer to a log.
+// AppendNEP17Transfer appends a single NEP17 transfer to a log.
 // First return value signalizes that log size has exceeded batch size.
-func (dao *Simple) AppendNEP5Transfer(acc util.Uint160, index uint32, tr *state.NEP5Transfer) (bool, error) {
-	lg, err := dao.GetNEP5TransferLog(acc, index)
+func (dao *Simple) AppendNEP17Transfer(acc util.Uint160, index uint32, tr *state.NEP17Transfer) (bool, error) {
+	lg, err := dao.GetNEP17TransferLog(acc, index)
 	if err != nil {
 		if err != storage.ErrKeyNotFound {
 			return false, err
 		}
-		lg = new(state.NEP5TransferLog)
+		lg = new(state.NEP17TransferLog)
 	}
 	if err := lg.Append(tr); err != nil {
 		return false, err
 	}
-	return lg.Size() >= state.NEP5TransferBatchSize, dao.PutNEP5TransferLog(acc, index, lg)
+	return lg.Size() >= state.NEP17TransferBatchSize, dao.PutNEP17TransferLog(acc, index, lg)
 }
 
 // -- end transfer log.
