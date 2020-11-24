@@ -1,7 +1,7 @@
 package tokencontract
 
 import (
-	"github.com/nspcc-dev/neo-go/examples/token/nep5"
+	"github.com/nspcc-dev/neo-go/examples/token/nep17"
 	"github.com/nspcc-dev/neo-go/pkg/interop"
 	"github.com/nspcc-dev/neo-go/pkg/interop/storage"
 	"github.com/nspcc-dev/neo-go/pkg/interop/util"
@@ -14,14 +14,14 @@ const (
 
 var (
 	owner = util.FromAddress("NULwe3UAHckN2fzNdcVg31tDiaYtMDwANt")
-	token nep5.Token
+	token nep17.Token
 	ctx   storage.Context
 )
 
 // init initializes the Token Interface and storage context for the Smart
 // Contract to operate with
 func init() {
-	token = nep5.Token{
+	token = nep17.Token{
 		Name:           "Awesome NEO Token",
 		Symbol:         "ANT",
 		Decimals:       decimals,
@@ -30,11 +30,6 @@ func init() {
 		CirculationKey: "TokenCirculation",
 	}
 	ctx = storage.GetContext()
-}
-
-// Name returns the token name
-func Name() string {
-	return token.Name
 }
 
 // Symbol returns the token symbol
@@ -58,8 +53,8 @@ func BalanceOf(holder interop.Hash160) interface{} {
 }
 
 // Transfer token from one user to another
-func Transfer(from interop.Hash160, to interop.Hash160, amount int) bool {
-	return token.Transfer(ctx, from, to, amount)
+func Transfer(from interop.Hash160, to interop.Hash160, amount int, data interface{}) bool {
+	return token.Transfer(ctx, from, to, amount, data)
 }
 
 // Mint initial supply of tokens

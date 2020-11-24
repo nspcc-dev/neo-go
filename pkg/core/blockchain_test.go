@@ -129,7 +129,7 @@ func TestAddBlockStateRoot(t *testing.T) {
 	sr, err := bc.GetStateRoot(bc.BlockHeight())
 	require.NoError(t, err)
 
-	tx := newNEP5Transfer(bc.contracts.NEO.Hash, neoOwner, util.Uint160{}, 1)
+	tx := newNEP17Transfer(bc.contracts.NEO.Hash, neoOwner, util.Uint160{}, 1)
 	tx.ValidUntilBlock = bc.BlockHeight() + 1
 	addSigners(tx)
 	require.NoError(t, signTx(bc, tx))
@@ -265,12 +265,12 @@ func TestVerifyTx(t *testing.T) {
 				amount = 1_000_000_000
 			}
 			emit.AppCallWithOperationAndArgs(w.BinWriter, sc, "transfer",
-				neoOwner, a.Contract.ScriptHash(), amount)
+				neoOwner, a.Contract.ScriptHash(), amount, nil)
 			emit.Opcodes(w.BinWriter, opcode.ASSERT)
 		}
 	}
 	emit.AppCallWithOperationAndArgs(w.BinWriter, gasHash, "transfer",
-		neoOwner, testchain.CommitteeScriptHash(), int64(1_000_000_000))
+		neoOwner, testchain.CommitteeScriptHash(), int64(1_000_000_000), nil)
 	emit.Opcodes(w.BinWriter, opcode.ASSERT)
 	require.NoError(t, w.Err)
 

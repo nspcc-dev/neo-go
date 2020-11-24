@@ -408,10 +408,17 @@ func getTestContractState() (*state.Contract, *state.Contract) {
 	emit.String(w.BinWriter, "initial")
 	emit.Syscall(w.BinWriter, interopnames.SystemStorageGetContext)
 	emit.Syscall(w.BinWriter, interopnames.SystemStorageGet)
+	emit.Opcodes(w.BinWriter, opcode.RET)
+	onPaymentOff := w.Len()
+	emit.Int(w.BinWriter, 3)
+	emit.Opcodes(w.BinWriter, opcode.PACK)
+	emit.String(w.BinWriter, "LastPayment")
+	emit.Syscall(w.BinWriter, interopnames.SystemRuntimeNotify)
+	emit.Opcodes(w.BinWriter, opcode.RET)
 
 	script := w.Bytes()
 	h := hash.Hash160(script)
-	m := manifest.NewManifest(h)
+	m := manifest.NewManifest(h, "TestMain")
 	m.ABI.Methods = []manifest.Method{
 		{
 			Name:   "add",
@@ -454,7 +461,7 @@ func getTestContractState() (*state.Contract, *state.Contract) {
 		{
 			Name:       "justReturn",
 			Offset:     justRetOff,
-			ReturnType: smartcontract.IntegerType,
+			ReturnType: smartcontract.VoidType,
 		},
 		{
 			Name:       manifest.MethodVerify,
@@ -482,6 +489,16 @@ func getTestContractState() (*state.Contract, *state.Contract) {
 			},
 			ReturnType: smartcontract.VoidType,
 		},
+		{
+			Name:   "onPayment",
+			Offset: onPaymentOff,
+			Parameters: []manifest.Parameter{
+				manifest.NewParameter("from", smartcontract.Hash160Type),
+				manifest.NewParameter("amount", smartcontract.IntegerType),
+				manifest.NewParameter("data", smartcontract.AnyType),
+			},
+			ReturnType: smartcontract.VoidType,
+		},
 	}
 	cs := &state.Contract{
 		Script:   script,
@@ -490,7 +507,7 @@ func getTestContractState() (*state.Contract, *state.Contract) {
 	}
 
 	currScript := []byte{byte(opcode.RET)}
-	m = manifest.NewManifest(hash.Hash160(currScript))
+	m = manifest.NewManifest(hash.Hash160(currScript), "TestAux")
 	perm := manifest.NewPermission(manifest.PermissionHash, h)
 	perm.Methods.Add("add")
 	perm.Methods.Add("drop")

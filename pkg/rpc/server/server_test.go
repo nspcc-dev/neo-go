@@ -56,8 +56,8 @@ type rpcTestCase struct {
 	check  func(t *testing.T, e *executor, result interface{})
 }
 
-const testContractHash = "b0fda4dd46b8e5d207e86e774a4a133c6db69ee7"
-const deploymentTxHash = "59f7b22b90e26f883a56b916c1580e3ee4f13caded686353cd77577e6194c173"
+const testContractHash = "55b692ecc09f240355e042c6c07e8f3fe57546b1"
+const deploymentTxHash = "99e40e5d169eb9a2b6faebc6fc596c050cf3f8a70ad25de8f44309bc8ccbfbfb"
 const genesisBlockHash = "a496577895eb8c227bb866dc44f99f21c0cf06417ca8f2a877cc5d761a50dac0"
 
 const verifyContractHash = "c1213693b22cb0454a436d6e0bd76b8c0a3bfdf7"
@@ -202,7 +202,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 		},
 	},
 
-	"getnep5balances": {
+	"getnep17balances": {
 		{
 			name:   "no params",
 			params: `[]`,
@@ -216,17 +216,17 @@ var rpcTestCases = map[string][]rpcTestCase{
 		{
 			name:   "positive",
 			params: `["` + testchain.PrivateKeyByID(0).GetScriptHash().StringLE() + `"]`,
-			result: func(e *executor) interface{} { return &result.NEP5Balances{} },
-			check:  checkNep5Balances,
+			result: func(e *executor) interface{} { return &result.NEP17Balances{} },
+			check:  checkNep17Balances,
 		},
 		{
 			name:   "positive_address",
 			params: `["` + address.Uint160ToString(testchain.PrivateKeyByID(0).GetScriptHash()) + `"]`,
-			result: func(e *executor) interface{} { return &result.NEP5Balances{} },
-			check:  checkNep5Balances,
+			result: func(e *executor) interface{} { return &result.NEP17Balances{} },
+			check:  checkNep17Balances,
 		},
 	},
-	"getnep5transfers": {
+	"getnep17transfers": {
 		{
 			name:   "no params",
 			params: `[]`,
@@ -275,14 +275,14 @@ var rpcTestCases = map[string][]rpcTestCase{
 		{
 			name:   "positive",
 			params: `["` + testchain.PrivateKeyByID(0).Address() + `", 0]`,
-			result: func(e *executor) interface{} { return &result.NEP5Transfers{} },
-			check:  checkNep5Transfers,
+			result: func(e *executor) interface{} { return &result.NEP17Transfers{} },
+			check:  checkNep17Transfers,
 		},
 		{
 			name:   "positive_hash",
 			params: `["` + testchain.PrivateKeyByID(0).GetScriptHash().StringLE() + `", 0]`,
-			result: func(e *executor) interface{} { return &result.NEP5Transfers{} },
-			check:  checkNep5Transfers,
+			result: func(e *executor) interface{} { return &result.NEP17Transfers{} },
+			check:  checkNep17Transfers,
 		},
 	},
 	"getproof": {
@@ -1198,8 +1198,8 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 		assert.ElementsMatch(t, expected, actual)
 	})
 
-	t.Run("getnep5transfers", func(t *testing.T) {
-		testNEP5T := func(t *testing.T, start, stop, limit, page int, sent, rcvd []int) {
+	t.Run("getnep17transfers", func(t *testing.T) {
+		testNEP17T := func(t *testing.T, start, stop, limit, page int, sent, rcvd []int) {
 			ps := []string{`"` + testchain.PrivateKeyByID(0).Address() + `"`}
 			if start != 0 {
 				h, err := e.chain.GetHeader(e.chain.GetHeaderHash(start))
@@ -1228,19 +1228,19 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 				ps = append(ps, strconv.FormatInt(int64(page), 10))
 			}
 			p := strings.Join(ps, ", ")
-			rpc := fmt.Sprintf(`{"jsonrpc": "2.0", "id": 1, "method": "getnep5transfers", "params": [%s]}`, p)
+			rpc := fmt.Sprintf(`{"jsonrpc": "2.0", "id": 1, "method": "getnep17transfers", "params": [%s]}`, p)
 			body := doRPCCall(rpc, httpSrv.URL, t)
 			res := checkErrGetResult(t, body, false)
-			actual := new(result.NEP5Transfers)
+			actual := new(result.NEP17Transfers)
 			require.NoError(t, json.Unmarshal(res, actual))
-			checkNep5TransfersAux(t, e, actual, sent, rcvd)
+			checkNep17TransfersAux(t, e, actual, sent, rcvd)
 		}
-		t.Run("time frame only", func(t *testing.T) { testNEP5T(t, 4, 5, 0, 0, []int{3, 4, 5, 6}, []int{1, 2}) })
-		t.Run("no res", func(t *testing.T) { testNEP5T(t, 100, 100, 0, 0, []int{}, []int{}) })
-		t.Run("limit", func(t *testing.T) { testNEP5T(t, 1, 7, 3, 0, []int{0, 1}, []int{0}) })
-		t.Run("limit 2", func(t *testing.T) { testNEP5T(t, 4, 5, 2, 0, []int{3}, []int{1}) })
-		t.Run("limit with page", func(t *testing.T) { testNEP5T(t, 1, 7, 3, 1, []int{2, 3}, []int{1}) })
-		t.Run("limit with page 2", func(t *testing.T) { testNEP5T(t, 1, 7, 3, 2, []int{4, 5}, []int{2}) })
+		t.Run("time frame only", func(t *testing.T) { testNEP17T(t, 4, 5, 0, 0, []int{3, 4, 5, 6}, []int{1, 2}) })
+		t.Run("no res", func(t *testing.T) { testNEP17T(t, 100, 100, 0, 0, []int{}, []int{}) })
+		t.Run("limit", func(t *testing.T) { testNEP17T(t, 1, 7, 3, 0, []int{0, 1}, []int{0}) })
+		t.Run("limit 2", func(t *testing.T) { testNEP17T(t, 4, 5, 2, 0, []int{3}, []int{1}) })
+		t.Run("limit with page", func(t *testing.T) { testNEP17T(t, 1, 7, 3, 1, []int{2, 3}, []int{1}) })
+		t.Run("limit with page 2", func(t *testing.T) { testNEP17T(t, 1, 7, 3, 2, []int{4, 5}, []int{2}) })
 	})
 }
 
@@ -1326,13 +1326,13 @@ func doRPCCallOverHTTP(rpcCall string, url string, t *testing.T) []byte {
 	return bytes.TrimSpace(body)
 }
 
-func checkNep5Balances(t *testing.T, e *executor, acc interface{}) {
-	res, ok := acc.(*result.NEP5Balances)
+func checkNep17Balances(t *testing.T, e *executor, acc interface{}) {
+	res, ok := acc.(*result.NEP17Balances)
 	require.True(t, ok)
 	rubles, err := util.Uint160DecodeStringLE(testContractHash)
 	require.NoError(t, err)
-	expected := result.NEP5Balances{
-		Balances: []result.NEP5Balance{
+	expected := result.NEP17Balances{
+		Balances: []result.NEP17Balance{
 			{
 				Asset:       rubles,
 				Amount:      "877",
@@ -1345,7 +1345,7 @@ func checkNep5Balances(t *testing.T, e *executor, acc interface{}) {
 			},
 			{
 				Asset:       e.chain.UtilityTokenHash(),
-				Amount:      "80009641770",
+				Amount:      "80009744770",
 				LastUpdated: 7,
 			}},
 		Address: testchain.PrivateKeyByID(0).GetScriptHash().StringLE(),
@@ -1354,12 +1354,12 @@ func checkNep5Balances(t *testing.T, e *executor, acc interface{}) {
 	require.ElementsMatch(t, expected.Balances, res.Balances)
 }
 
-func checkNep5Transfers(t *testing.T, e *executor, acc interface{}) {
-	checkNep5TransfersAux(t, e, acc, []int{0, 1, 2, 3, 4, 5, 6, 7, 8}, []int{0, 1, 2, 3, 4, 5, 6})
+func checkNep17Transfers(t *testing.T, e *executor, acc interface{}) {
+	checkNep17TransfersAux(t, e, acc, []int{0, 1, 2, 3, 4, 5, 6, 7, 8}, []int{0, 1, 2, 3, 4, 5, 6})
 }
 
-func checkNep5TransfersAux(t *testing.T, e *executor, acc interface{}, sent, rcvd []int) {
-	res, ok := acc.(*result.NEP5Transfers)
+func checkNep17TransfersAux(t *testing.T, e *executor, acc interface{}, sent, rcvd []int) {
+	res, ok := acc.(*result.NEP17Transfers)
 	require.True(t, ok)
 	rublesHash, err := util.Uint160DecodeStringLE(testContractHash)
 	require.NoError(t, err)
@@ -1410,8 +1410,8 @@ func checkNep5TransfersAux(t *testing.T, e *executor, acc interface{}, sent, rcv
 	//  * to check chain events consistency
 	// Technically these could be retrieved from application log, but that would almost
 	// duplicate the Server method.
-	expected := result.NEP5Transfers{
-		Sent: []result.NEP5Transfer{
+	expected := result.NEP17Transfers{
+		Sent: []result.NEP17Transfer{
 			{
 				Timestamp: blockDeploy2.Timestamp,
 				Asset:     e.chain.UtilityTokenHash(),
@@ -1487,7 +1487,7 @@ func checkNep5TransfersAux(t *testing.T, e *executor, acc interface{}, sent, rcv
 				TxHash:    blockCtrDeploy.Hash(),
 			},
 		},
-		Received: []result.NEP5Transfer{
+		Received: []result.NEP17Transfer{
 			{
 				Timestamp:   blockGASBounty.Timestamp,
 				Asset:       e.chain.UtilityTokenHash(),
@@ -1547,7 +1547,7 @@ func checkNep5TransfersAux(t *testing.T, e *executor, acc interface{}, sent, rcv
 
 	require.Equal(t, expected.Address, res.Address)
 
-	arr := make([]result.NEP5Transfer, 0, len(expected.Sent))
+	arr := make([]result.NEP17Transfer, 0, len(expected.Sent))
 	for i := range expected.Sent {
 		for _, j := range sent {
 			if i == j {

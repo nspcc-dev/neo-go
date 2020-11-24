@@ -34,6 +34,9 @@ type Options struct {
 	// The name of the output for contract manifest file.
 	ManifestFile string
 
+	// Name is contract's name to be written to manifest.
+	Name string
+
 	// Runtime notifications.
 	ContractEvents []manifest.Event
 
@@ -207,7 +210,7 @@ func CompileAndSave(src string, o *Options) ([]byte, error) {
 	}
 
 	if o.ManifestFile != "" {
-		m, err := di.ConvertToManifest(o.ContractEvents, o.ContractSupportedStandards...)
+		m, err := di.ConvertToManifest(o.Name, o.ContractEvents, o.ContractSupportedStandards...)
 		if err != nil {
 			return b, fmt.Errorf("failed to convert debug info to manifest: %w", err)
 		}

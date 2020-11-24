@@ -195,9 +195,9 @@ func NewCommands() []cli.Command {
 				Subcommands: newMultisigCommands(),
 			},
 			{
-				Name:        "nep5",
-				Usage:       "work with NEP5 contracts",
-				Subcommands: newNEP5Commands(),
+				Name:        "nep17",
+				Usage:       "work with NEP17 contracts",
+				Subcommands: newNEP17Commands(),
 			},
 			{
 				Name:        "candidate",
@@ -237,7 +237,7 @@ func claimGas(ctx *cli.Context) error {
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
-	hash, err := c.TransferNEP5(acc, scriptHash, neoContractHash, 0, 0)
+	hash, err := c.TransferNEP17(acc, scriptHash, neoContractHash, 0, 0)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}

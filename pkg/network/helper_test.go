@@ -103,10 +103,10 @@ func (chain testChain) GetHeader(hash util.Uint256) (*block.Header, error) {
 func (chain testChain) GetNextBlockValidators() ([]*keys.PublicKey, error) {
 	panic("TODO")
 }
-func (chain testChain) ForEachNEP5Transfer(util.Uint160, func(*state.NEP5Transfer) (bool, error)) error {
+func (chain testChain) ForEachNEP17Transfer(util.Uint160, func(*state.NEP17Transfer) (bool, error)) error {
 	panic("TODO")
 }
-func (chain testChain) GetNEP5Balances(util.Uint160) *state.NEP5Balances {
+func (chain testChain) GetNEP17Balances(util.Uint160) *state.NEP17Balances {
 	panic("TODO")
 }
 func (chain testChain) GetValidators() ([]*keys.PublicKey, error) {
@@ -130,7 +130,7 @@ func (chain testChain) GetStateRoot(height uint32) (*state.MPTRootState, error) 
 func (chain testChain) GetStorageItem(id int32, key []byte) *state.StorageItem {
 	panic("TODO")
 }
-func (chain testChain) GetTestVM(tx *transaction.Transaction) *vm.VM {
+func (chain testChain) GetTestVM(tx *transaction.Transaction, b *block.Block) *vm.VM {
 	panic("TODO")
 }
 func (chain testChain) GetStorageItems(id int32) (map[string]*state.StorageItem, error) {

@@ -23,64 +23,50 @@ type TransferTarget struct {
 	Amount  int64
 }
 
-// NEP5Decimals invokes `decimals` NEP5 method on a specified contract.
-func (c *Client) NEP5Decimals(tokenHash util.Uint160) (int64, error) {
+// NEP17Decimals invokes `decimals` NEP17 method on a specified contract.
+func (c *Client) NEP17Decimals(tokenHash util.Uint160) (int64, error) {
 	result, err := c.InvokeFunction(tokenHash, "decimals", []smartcontract.Parameter{}, nil)
 	if err != nil {
 		return 0, err
 	}
 	err = getInvocationError(result)
 	if err != nil {
-		return 0, fmt.Errorf("failed to get NEP5 decimals: %w", err)
+		return 0, fmt.Errorf("failed to get NEP17 decimals: %w", err)
 	}
 
 	return topIntFromStack(result.Stack)
 }
 
-// NEP5Name invokes `name` NEP5 method on a specified contract.
-func (c *Client) NEP5Name(tokenHash util.Uint160) (string, error) {
-	result, err := c.InvokeFunction(tokenHash, "name", []smartcontract.Parameter{}, nil)
-	if err != nil {
-		return "", err
-	}
-	err = getInvocationError(result)
-	if err != nil {
-		return "", fmt.Errorf("failed to get NEP5 name: %w", err)
-	}
-
-	return topStringFromStack(result.Stack)
-}
-
-// NEP5Symbol invokes `symbol` NEP5 method on a specified contract.
-func (c *Client) NEP5Symbol(tokenHash util.Uint160) (string, error) {
+// NEP17Symbol invokes `symbol` NEP17 method on a specified contract.
+func (c *Client) NEP17Symbol(tokenHash util.Uint160) (string, error) {
 	result, err := c.InvokeFunction(tokenHash, "symbol", []smartcontract.Parameter{}, nil)
 	if err != nil {
 		return "", err
 	}
 	err = getInvocationError(result)
 	if err != nil {
-		return "", fmt.Errorf("failed to get NEP5 symbol: %w", err)
+		return "", fmt.Errorf("failed to get NEP17 symbol: %w", err)
 	}
 
 	return topStringFromStack(result.Stack)
 }
 
-// NEP5TotalSupply invokes `totalSupply` NEP5 method on a specified contract.
-func (c *Client) NEP5TotalSupply(tokenHash util.Uint160) (int64, error) {
+// NEP17TotalSupply invokes `totalSupply` NEP17 method on a specified contract.
+func (c *Client) NEP17TotalSupply(tokenHash util.Uint160) (int64, error) {
 	result, err := c.InvokeFunction(tokenHash, "totalSupply", []smartcontract.Parameter{}, nil)
 	if err != nil {
 		return 0, err
 	}
 	err = getInvocationError(result)
 	if err != nil {
-		return 0, fmt.Errorf("failed to get NEP5 total supply: %w", err)
+		return 0, fmt.Errorf("failed to get NEP17 total supply: %w", err)
 	}
 
 	return topIntFromStack(result.Stack)
 }
 
-// NEP5BalanceOf invokes `balanceOf` NEP5 method on a specified contract.
-func (c *Client) NEP5BalanceOf(tokenHash, acc util.Uint160) (int64, error) {
+// NEP17BalanceOf invokes `balanceOf` NEP17 method on a specified contract.
+func (c *Client) NEP17BalanceOf(tokenHash, acc util.Uint160) (int64, error) {
 	result, err := c.InvokeFunction(tokenHash, "balanceOf", []smartcontract.Parameter{{
 		Type:  smartcontract.Hash160Type,
 		Value: acc,
@@ -90,44 +76,44 @@ func (c *Client) NEP5BalanceOf(tokenHash, acc util.Uint160) (int64, error) {
 	}
 	err = getInvocationError(result)
 	if err != nil {
-		return 0, fmt.Errorf("failed to get NEP5 balance: %w", err)
+		return 0, fmt.Errorf("failed to get NEP17 balance: %w", err)
 	}
 
 	return topIntFromStack(result.Stack)
 }
 
-// NEP5TokenInfo returns full NEP5 token info.
-func (c *Client) NEP5TokenInfo(tokenHash util.Uint160) (*wallet.Token, error) {
-	name, err := c.NEP5Name(tokenHash)
+// NEP17TokenInfo returns full NEP17 token info.
+func (c *Client) NEP17TokenInfo(tokenHash util.Uint160) (*wallet.Token, error) {
+	cs, err := c.GetContractStateByHash(tokenHash)
 	if err != nil {
 		return nil, err
 	}
-	symbol, err := c.NEP5Symbol(tokenHash)
+	symbol, err := c.NEP17Symbol(tokenHash)
 	if err != nil {
 		return nil, err
 	}
-	decimals, err := c.NEP5Decimals(tokenHash)
+	decimals, err := c.NEP17Decimals(tokenHash)
 	if err != nil {
 		return nil, err
 	}
-	return wallet.NewToken(tokenHash, name, symbol, decimals), nil
+	return wallet.NewToken(tokenHash, cs.Manifest.Name, symbol, decimals), nil
 }
 
-// CreateNEP5TransferTx creates an invocation transaction for the 'transfer'
-// method of a given contract (token) to move specified amount of NEP5 assets
+// CreateNEP17TransferTx creates an invocation transaction for the 'transfer'
+// method of a given contract (token) to move specified amount of NEP17 assets
 // (in FixedN format using contract's number of decimals) to given account and
 // returns it. The returned transaction is not signed.
-func (c *Client) CreateNEP5TransferTx(acc *wallet.Account, to util.Uint160, token util.Uint160, amount int64, gas int64) (*transaction.Transaction, error) {
-	return c.CreateNEP5MultiTransferTx(acc, gas, TransferTarget{
+func (c *Client) CreateNEP17TransferTx(acc *wallet.Account, to util.Uint160, token util.Uint160, amount int64, gas int64) (*transaction.Transaction, error) {
+	return c.CreateNEP17MultiTransferTx(acc, gas, TransferTarget{
 		Token:   token,
 		Address: to,
 		Amount:  amount,
 	})
 }
 
-// CreateNEP5MultiTransferTx creates an invocation transaction for performing NEP5 transfers
+// CreateNEP17MultiTransferTx creates an invocation transaction for performing NEP17 transfers
 // from a single sender to multiple recipients.
-func (c *Client) CreateNEP5MultiTransferTx(acc *wallet.Account, gas int64, recipients ...TransferTarget) (*transaction.Transaction, error) {
+func (c *Client) CreateNEP17MultiTransferTx(acc *wallet.Account, gas int64, recipients ...TransferTarget) (*transaction.Transaction, error) {
 	from, err := address.StringToUint160(acc.Address)
 	if err != nil {
 		return nil, fmt.Errorf("bad account address: %w", err)
@@ -135,7 +121,7 @@ func (c *Client) CreateNEP5MultiTransferTx(acc *wallet.Account, gas int64, recip
 	w := io.NewBufBinWriter()
 	for i := range recipients {
 		emit.AppCallWithOperationAndArgs(w.BinWriter, recipients[i].Token, "transfer", from,
-			recipients[i].Address, recipients[i].Amount)
+			recipients[i].Address, recipients[i].Amount, nil)
 		emit.Opcodes(w.BinWriter, opcode.ASSERT)
 	}
 	return c.CreateTxFromScript(w.Bytes(), acc, -1, gas, transaction.Signer{
@@ -185,12 +171,12 @@ func (c *Client) CreateTxFromScript(script []byte, acc *wallet.Account, sysFee, 
 	return tx, nil
 }
 
-// TransferNEP5 creates an invocation transaction that invokes 'transfer' method
-// on a given token to move specified amount of NEP5 assets (in FixedN format
+// TransferNEP17 creates an invocation transaction that invokes 'transfer' method
+// on a given token to move specified amount of NEP17 assets (in FixedN format
 // using contract's number of decimals) to given account and sends it to the
 // network returning just a hash of it.
-func (c *Client) TransferNEP5(acc *wallet.Account, to util.Uint160, token util.Uint160, amount int64, gas int64) (util.Uint256, error) {
-	tx, err := c.CreateNEP5TransferTx(acc, to, token, amount, gas)
+func (c *Client) TransferNEP17(acc *wallet.Account, to util.Uint160, token util.Uint160, amount int64, gas int64) (util.Uint256, error) {
+	tx, err := c.CreateNEP17TransferTx(acc, to, token, amount, gas)
 	if err != nil {
 		return util.Uint256{}, err
 	}
@@ -202,9 +188,9 @@ func (c *Client) TransferNEP5(acc *wallet.Account, to util.Uint160, token util.U
 	return c.SendRawTransaction(tx)
 }
 
-// MultiTransferNEP5 is similar to TransferNEP5, buf allows to have multiple recipients.
-func (c *Client) MultiTransferNEP5(acc *wallet.Account, gas int64, recipients ...TransferTarget) (util.Uint256, error) {
-	tx, err := c.CreateNEP5MultiTransferTx(acc, gas, recipients...)
+// MultiTransferNEP17 is similar to TransferNEP17, buf allows to have multiple recipients.
+func (c *Client) MultiTransferNEP17(acc *wallet.Account, gas int64, recipients ...TransferTarget) (util.Uint256, error) {
+	tx, err := c.CreateNEP17MultiTransferTx(acc, gas, recipients...)
 	if err != nil {
 		return util.Uint256{}, err
 	}

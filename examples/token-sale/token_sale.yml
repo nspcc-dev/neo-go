@@ -1,2 +1,3 @@
-supportedstandards: ["NEP-5"]
+name: "My awesome token"
+supportedstandards: ["NEP-17"]
 events: []

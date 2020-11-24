@@ -1,3 +1,4 @@
+name: "Runtime example"
 supportedstandards: []
 events:
   - name: Event

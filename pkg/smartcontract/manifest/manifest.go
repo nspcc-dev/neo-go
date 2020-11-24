@@ -20,10 +20,13 @@ const (
 	// MethodVerify is a name for default verification method.
 	MethodVerify = "verify"
 
-	// NEP5StandardName represents the name of NEP5 smartcontract standard.
-	NEP5StandardName = "NEP-5"
+	// MethodOnPayment is name of the method which is called when contract receives funds.
+	MethodOnPayment = "onPayment"
+
 	// NEP10StandardName represents the name of NEP10 smartcontract standard.
 	NEP10StandardName = "NEP-10"
+	// NEP17StandardName represents the name of NEP17 smartcontract standard.
+	NEP17StandardName = "NEP-17"
 )
 
 // ABI represents a contract application binary interface.
@@ -35,6 +38,8 @@ type ABI struct {
 
 // Manifest represens contract metadata.
 type Manifest struct {
+	// Name is a contract's name.
+	Name string `json:"name"`
 	// ABI is a contract's ABI.
 	ABI ABI `json:"abi"`
 	// Groups is a set of groups to which a contract belongs.
@@ -51,8 +56,9 @@ type Manifest struct {
 }
 
 // NewManifest returns new manifest with necessary fields initialized.
-func NewManifest(h util.Uint160) *Manifest {
+func NewManifest(h util.Uint160, name string) *Manifest {
 	m := &Manifest{
+		Name: name,
 		ABI: ABI{
 			Hash:    h,
 			Methods: []Method{},
@@ -67,8 +73,8 @@ func NewManifest(h util.Uint160) *Manifest {
 }
 
 // DefaultManifest returns default contract manifest.
-func DefaultManifest(h util.Uint160) *Manifest {
-	m := NewManifest(h)
+func DefaultManifest(h util.Uint160, name string) *Manifest {
+	m := NewManifest(h, name)
 	m.Permissions = []Permission{*NewPermission(PermissionWildcard)}
 	return m
 }

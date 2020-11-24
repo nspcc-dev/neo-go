@@ -133,14 +133,6 @@ func checkOwnerWitness() bool {
 	return false
 }
 
-// Name returns the token name
-func Name() interface{} {
-	if trigger != runtime.Application {
-		return false
-	}
-	return token.Name
-}
-
 // Decimals returns the token decimals
 func Decimals() interface{} {
 	if trigger != runtime.Application {

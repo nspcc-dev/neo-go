@@ -143,7 +143,7 @@ func TestBytes(t *testing.T) {
 func TestEmitArray(t *testing.T) {
 	t.Run("good", func(t *testing.T) {
 		buf := io.NewBufBinWriter()
-		Array(buf.BinWriter, nil, int64(1), "str", true, []byte{0xCA, 0xFE})
+		Array(buf.BinWriter, []interface{}{int64(1), int64(2)}, nil, int64(1), "str", true, []byte{0xCA, 0xFE})
 		require.NoError(t, buf.Err)
 
 		res := buf.Bytes()
@@ -156,6 +156,10 @@ func TestEmitArray(t *testing.T) {
 		assert.EqualValues(t, []byte("str"), res[7:10])
 		assert.EqualValues(t, opcode.PUSH1, res[10])
 		assert.EqualValues(t, opcode.PUSHNULL, res[11])
+		assert.EqualValues(t, opcode.PUSH2, res[12])
+		assert.EqualValues(t, opcode.PUSH1, res[13])
+		assert.EqualValues(t, opcode.PUSH2, res[14])
+		assert.EqualValues(t, opcode.PACK, res[15])
 	})
 
 	t.Run("empty", func(t *testing.T) {

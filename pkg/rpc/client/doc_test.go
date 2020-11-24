@@ -29,7 +29,7 @@ func Example() {
 		fmt.Println(err)
 		os.Exit(1)
 	}
-	resp, err := c.GetNEP5Balances(addr)
+	resp, err := c.GetNEP17Balances(addr)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)

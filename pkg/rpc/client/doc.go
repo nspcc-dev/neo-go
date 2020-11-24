@@ -27,8 +27,8 @@ Supported methods
 	getblocksysfee
 	getconnectioncount
 	getcontractstate
-	getnep5balances
-	getnep5transfers
+	getnep17balances
+	getnep17transfers
 	getpeers
 	getrawmempool
 	getrawtransaction

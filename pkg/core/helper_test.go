@@ -201,7 +201,7 @@ func TestCreateBasicChain(t *testing.T) {
 
 	require.Equal(t, big.NewInt(5000_0000), bc.GetUtilityTokenBalance(priv0ScriptHash)) // gas bounty
 	// Move some NEO to one simple account.
-	txMoveNeo := newNEP5Transfer(neoHash, neoOwner, priv0ScriptHash, neoAmount)
+	txMoveNeo := newNEP17Transfer(neoHash, neoOwner, priv0ScriptHash, neoAmount)
 	txMoveNeo.ValidUntilBlock = validUntilBlock
 	txMoveNeo.Nonce = getNextNonce()
 	txMoveNeo.Signers = []transaction.Signer{{
@@ -212,7 +212,7 @@ func TestCreateBasicChain(t *testing.T) {
 	}}
 	require.NoError(t, signTx(bc, txMoveNeo))
 	// Move some GAS to one simple account.
-	txMoveGas := newNEP5Transfer(gasHash, neoOwner, priv0ScriptHash, int64(util.Fixed8FromInt64(1000)))
+	txMoveGas := newNEP17Transfer(gasHash, neoOwner, priv0ScriptHash, int64(util.Fixed8FromInt64(1000)))
 	txMoveGas.ValidUntilBlock = validUntilBlock
 	txMoveGas.Nonce = getNextNonce()
 	txMoveGas.Signers = []transaction.Signer{{
@@ -244,7 +244,7 @@ func TestCreateBasicChain(t *testing.T) {
 	require.NoError(t, err)
 
 	// Push some contract into the chain.
-	txDeploy, avm := newDeployTx(t, prefix+"test_contract.go")
+	txDeploy, avm := newDeployTx(t, prefix+"test_contract.go", "Rubl")
 	txDeploy.Nonce = getNextNonce()
 	txDeploy.ValidUntilBlock = validUntilBlock
 	txDeploy.Signers = []transaction.Signer{{Account: priv0ScriptHash}}
@@ -270,7 +270,7 @@ func TestCreateBasicChain(t *testing.T) {
 	t.Logf("txInv: %s", txInv.Hash().StringLE())
 
 	priv1 := testchain.PrivateKeyByID(1)
-	txNeo0to1 := newNEP5Transfer(neoHash, priv0ScriptHash, priv1.GetScriptHash(), 1000)
+	txNeo0to1 := newNEP17Transfer(neoHash, priv0ScriptHash, priv1.GetScriptHash(), 1000)
 	txNeo0to1.Nonce = getNextNonce()
 	txNeo0to1.ValidUntilBlock = validUntilBlock
 	txNeo0to1.Signers = []transaction.Signer{
@@ -295,7 +295,7 @@ func TestCreateBasicChain(t *testing.T) {
 	initTx.Signers = []transaction.Signer{{Account: priv0ScriptHash}}
 	require.NoError(t, addNetworkFee(bc, initTx, acc0))
 	require.NoError(t, acc0.SignTx(initTx))
-	transferTx := newNEP5Transfer(sh, sh, priv0.GetScriptHash(), 1000)
+	transferTx := newNEP17Transfer(sh, sh, priv0.GetScriptHash(), 1000)
 	transferTx.Nonce = getNextNonce()
 	transferTx.ValidUntilBlock = validUntilBlock
 	transferTx.Signers = []transaction.Signer{
@@ -313,7 +313,7 @@ func TestCreateBasicChain(t *testing.T) {
 	require.NoError(t, bc.AddBlock(b))
 	t.Logf("recieveRublesTx: %v", transferTx.Hash().StringLE())
 
-	transferTx = newNEP5Transfer(sh, priv0.GetScriptHash(), priv1.GetScriptHash(), 123)
+	transferTx = newNEP17Transfer(sh, priv0.GetScriptHash(), priv1.GetScriptHash(), 123)
 	transferTx.Nonce = getNextNonce()
 	transferTx.ValidUntilBlock = validUntilBlock
 	transferTx.Signers = []transaction.Signer{
@@ -332,7 +332,7 @@ func TestCreateBasicChain(t *testing.T) {
 	t.Logf("sendRublesTx: %v", transferTx.Hash().StringLE())
 
 	// Push verification contract into the chain.
-	txDeploy2, _ := newDeployTx(t, prefix+"verification_contract.go")
+	txDeploy2, _ := newDeployTx(t, prefix+"verification_contract.go", "Verify")
 	txDeploy2.Nonce = getNextNonce()
 	txDeploy2.ValidUntilBlock = validUntilBlock
 	txDeploy2.Signers = []transaction.Signer{{Account: priv0ScriptHash}}
@@ -364,7 +364,7 @@ func TestCreateBasicChain(t *testing.T) {
 	}
 
 	// Prepare some transaction for future submission.
-	txSendRaw := newNEP5Transfer(neoHash, priv0ScriptHash, priv1.GetScriptHash(), int64(util.Fixed8FromInt64(1000)))
+	txSendRaw := newNEP17Transfer(neoHash, priv0ScriptHash, priv1.GetScriptHash(), int64(util.Fixed8FromInt64(1000)))
 	txSendRaw.ValidUntilBlock = validUntilBlock
 	txSendRaw.Nonce = getNextNonce()
 	txSendRaw.Signers = []transaction.Signer{{
@@ -380,16 +380,16 @@ func TestCreateBasicChain(t *testing.T) {
 	t.Logf("sendrawtransaction: %s", hex.EncodeToString(bw.Bytes()))
 }
 
-func newNEP5Transfer(sc, from, to util.Uint160, amount int64) *transaction.Transaction {
+func newNEP17Transfer(sc, from, to util.Uint160, amount int64) *transaction.Transaction {
 	w := io.NewBufBinWriter()
-	emit.AppCallWithOperationAndArgs(w.BinWriter, sc, "transfer", from, to, amount)
+	emit.AppCallWithOperationAndArgs(w.BinWriter, sc, "transfer", from, to, amount, nil)
 	emit.Opcodes(w.BinWriter, opcode.ASSERT)
 
 	script := w.Bytes()
 	return transaction.New(testchain.Network(), script, 10000000)
 }
 
-func newDeployTx(t *testing.T, name string) (*transaction.Transaction, []byte) {
+func newDeployTx(t *testing.T, name, ctrName string) (*transaction.Transaction, []byte) {
 	c, err := ioutil.ReadFile(name)
 	require.NoError(t, err)
 	avm, di, err := compiler.CompileWithDebugInfo(name, bytes.NewReader(c))
@@ -398,7 +398,7 @@ func newDeployTx(t *testing.T, name string) (*transaction.Transaction, []byte) {
 	t.Logf("contractScript: %x", avm)
 
 	script := io.NewBufBinWriter()
-	m, err := di.ConvertToManifest(nil)
+	m, err := di.ConvertToManifest(ctrName, nil)
 	require.NoError(t, err)
 	bs, err := json.Marshal(m)
 	require.NoError(t, err)

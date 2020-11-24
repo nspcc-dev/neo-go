@@ -54,10 +54,10 @@ func initServiceNextConsensus(t *testing.T, newAcc *wallet.Account, offset uint3
 	// Transfer funds to new validator.
 	w := io.NewBufBinWriter()
 	emit.AppCallWithOperationAndArgs(w.BinWriter, bc.GoverningTokenHash(), "transfer",
-		acc.Contract.ScriptHash().BytesBE(), newPriv.GetScriptHash().BytesBE(), int64(native.NEOTotalSupply))
+		acc.Contract.ScriptHash().BytesBE(), newPriv.GetScriptHash().BytesBE(), int64(native.NEOTotalSupply), nil)
 	emit.Opcodes(w.BinWriter, opcode.ASSERT)
 	emit.AppCallWithOperationAndArgs(w.BinWriter, bc.UtilityTokenHash(), "transfer",
-		acc.Contract.ScriptHash().BytesBE(), newPriv.GetScriptHash().BytesBE(), int64(1_000_000_000))
+		acc.Contract.ScriptHash().BytesBE(), newPriv.GetScriptHash().BytesBE(), int64(1_000_000_000), nil)
 	emit.Opcodes(w.BinWriter, opcode.ASSERT)
 	require.NoError(t, w.Err)
 

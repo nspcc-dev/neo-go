@@ -178,7 +178,7 @@ func TestClaimGas(t *testing.T) {
 	defer w.Close()
 
 	args := []string{
-		"neo-go", "wallet", "nep5", "multitransfer",
+		"neo-go", "wallet", "nep17", "multitransfer",
 		"--rpc-endpoint", "http://" + e.RPC.Addr,
 		"--wallet", validatorWallet,
 		"--from", validatorAddr,
@@ -258,7 +258,7 @@ func TestImportDeployed(t *testing.T) {
 
 	t.Run("Sign", func(t *testing.T) {
 		e.In.WriteString("one\r")
-		e.Run(t, "neo-go", "wallet", "nep5", "multitransfer",
+		e.Run(t, "neo-go", "wallet", "nep17", "multitransfer",
 			"--rpc-endpoint", "http://"+e.RPC.Addr,
 			"--wallet", validatorWallet, "--from", validatorAddr,
 			"neo:"+contractAddr+":10",
@@ -269,7 +269,7 @@ func TestImportDeployed(t *testing.T) {
 		require.NoError(t, err)
 
 		e.In.WriteString("pass\r")
-		e.Run(t, "neo-go", "wallet", "nep5", "transfer",
+		e.Run(t, "neo-go", "wallet", "nep17", "transfer",
 			"--rpc-endpoint", "http://"+e.RPC.Addr,
 			"--wallet", walletPath, "--from", contractAddr,
 			"--to", privTo.Address(), "--token", "neo", "--amount", "1")

@@ -58,7 +58,8 @@ func RuntimeNotify(args []interface{}) {
 	manifest, err := ioutil.ReadFile(contractName + "/" + files[1].Name())
 	require.NoError(t, err)
 	require.Equal(t,
-		`supportedstandards: []
+		`name: testContract
+supportedstandards: []
 events:
 - name: Hello world!
   parameters:

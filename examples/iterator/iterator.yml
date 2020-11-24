@@ -1,3 +1,4 @@
+name: "Iterator example"
 supportedstandards: []
 events:
   - name: found storage values

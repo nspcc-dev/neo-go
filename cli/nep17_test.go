@@ -15,10 +15,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestNEP5Balance(t *testing.T) {
+func TestNEP17Balance(t *testing.T) {
 	e := newExecutor(t, true)
 	defer e.Close(t)
-	cmdbalance := []string{"neo-go", "wallet", "nep5", "balance"}
+	cmdbalance := []string{"neo-go", "wallet", "nep17", "balance"}
 	cmdbase := append(cmdbalance,
 		"--rpc-endpoint", "http://"+e.RPC.Addr,
 		"--wallet", validatorWallet,
@@ -99,7 +99,7 @@ func TestNEP5Balance(t *testing.T) {
 	return
 }
 
-func TestNEP5Transfer(t *testing.T) {
+func TestNEP17Transfer(t *testing.T) {
 	w, err := wallet.NewWalletFromFile("testdata/testwallet.json")
 	require.NoError(t, err)
 	defer w.Close()
@@ -107,7 +107,7 @@ func TestNEP5Transfer(t *testing.T) {
 	e := newExecutor(t, true)
 	defer e.Close(t)
 	args := []string{
-		"neo-go", "wallet", "nep5", "transfer",
+		"neo-go", "wallet", "nep17", "transfer",
 		"--rpc-endpoint", "http://" + e.RPC.Addr,
 		"--wallet", validatorWallet,
 		"--from", validatorAddr,
@@ -132,7 +132,7 @@ func TestNEP5Transfer(t *testing.T) {
 	require.Equal(t, big.NewInt(1), b)
 }
 
-func TestNEP5MultiTransfer(t *testing.T) {
+func TestNEP17MultiTransfer(t *testing.T) {
 	privs, _ := generateKeys(t, 3)
 
 	e := newExecutor(t, true)
@@ -140,7 +140,7 @@ func TestNEP5MultiTransfer(t *testing.T) {
 	neoContractHash, err := e.Chain.GetNativeContractScriptHash("neo")
 	require.NoError(t, err)
 	args := []string{
-		"neo-go", "wallet", "nep5", "multitransfer",
+		"neo-go", "wallet", "nep17", "multitransfer",
 		"--rpc-endpoint", "http://" + e.RPC.Addr,
 		"--wallet", validatorWallet,
 		"--from", validatorAddr,
@@ -161,7 +161,7 @@ func TestNEP5MultiTransfer(t *testing.T) {
 	require.Equal(t, big.NewInt(13), b)
 }
 
-func TestNEP5ImportToken(t *testing.T) {
+func TestNEP17ImportToken(t *testing.T) {
 	e := newExecutor(t, true)
 	defer e.Close(t)
 
@@ -174,11 +174,11 @@ func TestNEP5ImportToken(t *testing.T) {
 	gasContractHash, err := e.Chain.GetNativeContractScriptHash("gas")
 	require.NoError(t, err)
 	e.Run(t, "neo-go", "wallet", "init", "--wallet", walletPath)
-	e.Run(t, "neo-go", "wallet", "nep5", "import",
+	e.Run(t, "neo-go", "wallet", "nep17", "import",
 		"--rpc-endpoint", "http://"+e.RPC.Addr,
 		"--wallet", walletPath,
 		"--token", gasContractHash.StringLE())
-	e.Run(t, "neo-go", "wallet", "nep5", "import",
+	e.Run(t, "neo-go", "wallet", "nep17", "import",
 		"--rpc-endpoint", "http://"+e.RPC.Addr,
 		"--wallet", walletPath,
 		"--token", neoContractHash.StringLE())
@@ -192,12 +192,12 @@ func TestNEP5ImportToken(t *testing.T) {
 			e.checkNextLine(t, "^Address:\\s*"+address.Uint160ToString(gasContractHash))
 		}
 		t.Run("WithToken", func(t *testing.T) {
-			e.Run(t, "neo-go", "wallet", "nep5", "info",
+			e.Run(t, "neo-go", "wallet", "nep17", "info",
 				"--wallet", walletPath, "--token", gasContractHash.StringLE())
 			checkGASInfo(t)
 		})
 		t.Run("NoToken", func(t *testing.T) {
-			e.Run(t, "neo-go", "wallet", "nep5", "info",
+			e.Run(t, "neo-go", "wallet", "nep17", "info",
 				"--wallet", walletPath)
 			checkGASInfo(t)
 			_, err := e.Out.ReadString('\n')
@@ -210,9 +210,9 @@ func TestNEP5ImportToken(t *testing.T) {
 		})
 		t.Run("Remove", func(t *testing.T) {
 			e.In.WriteString("y\r")
-			e.Run(t, "neo-go", "wallet", "nep5", "remove",
+			e.Run(t, "neo-go", "wallet", "nep17", "remove",
 				"--wallet", walletPath, "--token", neoContractHash.StringLE())
-			e.Run(t, "neo-go", "wallet", "nep5", "info",
+			e.Run(t, "neo-go", "wallet", "nep17", "info",
 				"--wallet", walletPath)
 			checkGASInfo(t)
 			_, err := e.Out.ReadString('\n')

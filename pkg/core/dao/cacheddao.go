@@ -14,17 +14,17 @@ import (
 type Cached struct {
 	DAO
 	contracts map[util.Uint160]*state.Contract
-	balances  map[util.Uint160]*state.NEP5Balances
-	transfers map[util.Uint160]map[uint32]*state.NEP5TransferLog
+	balances  map[util.Uint160]*state.NEP17Balances
+	transfers map[util.Uint160]map[uint32]*state.NEP17TransferLog
 
-	dropNEP5Cache bool
+	dropNEP17Cache bool
 }
 
 // NewCached returns new Cached wrapping around given backing store.
 func NewCached(d DAO) *Cached {
 	ctrs := make(map[util.Uint160]*state.Contract)
-	balances := make(map[util.Uint160]*state.NEP5Balances)
-	transfers := make(map[util.Uint160]map[uint32]*state.NEP5TransferLog)
+	balances := make(map[util.Uint160]*state.NEP17Balances)
+	transfers := make(map[util.Uint160]map[uint32]*state.NEP17TransferLog)
 	return &Cached{d.GetWrapped(), ctrs, balances, transfers, false}
 }
 
@@ -52,50 +52,50 @@ func (cd *Cached) DeleteContractState(hash util.Uint160) error {
 	return cd.DAO.DeleteContractState(hash)
 }
 
-// GetNEP5Balances retrieves NEP5Balances for the acc.
-func (cd *Cached) GetNEP5Balances(acc util.Uint160) (*state.NEP5Balances, error) {
+// GetNEP17Balances retrieves NEP17Balances for the acc.
+func (cd *Cached) GetNEP17Balances(acc util.Uint160) (*state.NEP17Balances, error) {
 	if bs := cd.balances[acc]; bs != nil {
 		return bs, nil
 	}
-	return cd.DAO.GetNEP5Balances(acc)
+	return cd.DAO.GetNEP17Balances(acc)
 }
 
-// PutNEP5Balances saves NEP5Balances for the acc.
-func (cd *Cached) PutNEP5Balances(acc util.Uint160, bs *state.NEP5Balances) error {
+// PutNEP17Balances saves NEP17Balances for the acc.
+func (cd *Cached) PutNEP17Balances(acc util.Uint160, bs *state.NEP17Balances) error {
 	cd.balances[acc] = bs
 	return nil
 }
 
-// GetNEP5TransferLog retrieves NEP5TransferLog for the acc.
-func (cd *Cached) GetNEP5TransferLog(acc util.Uint160, index uint32) (*state.NEP5TransferLog, error) {
+// GetNEP17TransferLog retrieves NEP17TransferLog for the acc.
+func (cd *Cached) GetNEP17TransferLog(acc util.Uint160, index uint32) (*state.NEP17TransferLog, error) {
 	ts := cd.transfers[acc]
 	if ts != nil && ts[index] != nil {
 		return ts[index], nil
 	}
-	return cd.DAO.GetNEP5TransferLog(acc, index)
+	return cd.DAO.GetNEP17TransferLog(acc, index)
 }
 
-// PutNEP5TransferLog saves NEP5TransferLog for the acc.
-func (cd *Cached) PutNEP5TransferLog(acc util.Uint160, index uint32, bs *state.NEP5TransferLog) error {
+// PutNEP17TransferLog saves NEP17TransferLog for the acc.
+func (cd *Cached) PutNEP17TransferLog(acc util.Uint160, index uint32, bs *state.NEP17TransferLog) error {
 	ts := cd.transfers[acc]
 	if ts == nil {
-		ts = make(map[uint32]*state.NEP5TransferLog, 2)
+		ts = make(map[uint32]*state.NEP17TransferLog, 2)
 		cd.transfers[acc] = ts
 	}
 	ts[index] = bs
 	return nil
 }
 
-// AppendNEP5Transfer appends new transfer to a transfer event log.
-func (cd *Cached) AppendNEP5Transfer(acc util.Uint160, index uint32, tr *state.NEP5Transfer) (bool, error) {
-	lg, err := cd.GetNEP5TransferLog(acc, index)
+// AppendNEP17Transfer appends new transfer to a transfer event log.
+func (cd *Cached) AppendNEP17Transfer(acc util.Uint160, index uint32, tr *state.NEP17Transfer) (bool, error) {
+	lg, err := cd.GetNEP17TransferLog(acc, index)
 	if err != nil {
 		return false, err
 	}
 	if err := lg.Append(tr); err != nil {
 		return false, err
 	}
-	return lg.Size() >= state.NEP5TransferBatchSize, cd.PutNEP5TransferLog(acc, index, lg)
+	return lg.Size() >= state.NEP17TransferBatchSize, cd.PutNEP17TransferLog(acc, index, lg)
 }
 
 // Persist flushes all the changes made into the (supposedly) persistent
@@ -107,8 +107,8 @@ func (cd *Cached) Persist() (int, error) {
 	// usage scenario it should be good enough if cd doesn't modify object
 	// caches (accounts/contracts/etc) in any way.
 	if ok {
-		if cd.dropNEP5Cache {
-			lowerCache.balances = make(map[util.Uint160]*state.NEP5Balances)
+		if cd.dropNEP17Cache {
+			lowerCache.balances = make(map[util.Uint160]*state.NEP17Balances)
 		}
 		var simpleCache *Simple
 		for simpleCache == nil {
@@ -125,7 +125,7 @@ func (cd *Cached) Persist() (int, error) {
 	buf := io.NewBufBinWriter()
 
 	for acc, bs := range cd.balances {
-		err := cd.DAO.putNEP5Balances(acc, bs, buf)
+		err := cd.DAO.putNEP17Balances(acc, bs, buf)
 		if err != nil {
 			return 0, err
 		}
@@ -133,7 +133,7 @@ func (cd *Cached) Persist() (int, error) {
 	}
 	for acc, ts := range cd.transfers {
 		for ind, lg := range ts {
-			err := cd.DAO.PutNEP5TransferLog(acc, ind, lg)
+			err := cd.DAO.PutNEP17TransferLog(acc, ind, lg)
 			if err != nil {
 				return 0, err
 			}
