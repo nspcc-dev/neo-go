@@ -154,6 +154,10 @@ func NewCommands() []cli.Command {
 						Name:  "no-standards",
 						Usage: "do not check compliance with supported standards",
 					},
+					cli.BoolFlag{
+						Name:  "no-events",
+						Usage: "do not check emitted events with the manifest",
+					},
 				},
 			},
 			{
@@ -404,6 +408,7 @@ func contractCompile(ctx *cli.Context) error {
 		ManifestFile: manifestFile,
 
 		NoStandardCheck: ctx.Bool("no-standards"),
+		NoEventsCheck:   ctx.Bool("no-events"),
 	}
 
 	if len(confFile) != 0 {

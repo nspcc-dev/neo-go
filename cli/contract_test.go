@@ -142,6 +142,24 @@ func TestCompileExamples(t *testing.T) {
 			e.Run(t, opts...)
 		})
 	}
+
+	t.Run("invalid events in manifest", func(t *testing.T) {
+		const dir = "./testdata/"
+		for _, name := range []string{"invalid1", "invalid2", "invalid3"} {
+			outPath := path.Join(tmpDir, name+".nef")
+			manifestPath := path.Join(tmpDir, name+".manifest.json")
+			defer func() {
+				os.Remove(outPath)
+				os.Remove(manifestPath)
+			}()
+			e.RunWithError(t, "neo-go", "contract", "compile",
+				"--in", path.Join(dir, name),
+				"--out", outPath,
+				"--manifest", manifestPath,
+				"--config", path.Join(dir, name, "invalid.yml"),
+			)
+		}
+	})
 }
 
 func filterFilename(infos []os.FileInfo, ext string) string {

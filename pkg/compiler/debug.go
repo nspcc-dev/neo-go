@@ -24,6 +24,8 @@ type DebugInfo struct {
 	Documents []string          `json:"documents"`
 	Methods   []MethodDebugInfo `json:"methods"`
 	Events    []EventDebugInfo  `json:"events"`
+	// EmittedEvents contains events occuring in code.
+	EmittedEvents map[string][][]string `json:"-"`
 }
 
 // MethodDebugInfo represents smart-contract's method debug information.
@@ -162,6 +164,7 @@ func (c *codegen) emitDebugInfo(contract []byte) *DebugInfo {
 		}
 		d.Methods = append(d.Methods, *m)
 	}
+	d.EmittedEvents = c.emittedEvents
 	return d
 }
 

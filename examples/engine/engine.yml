@@ -4,4 +4,16 @@ events:
   - name: Tx
     parameters:
       - name: txHash
-        type: ByteString
+        type: Hash256
+  - name: Calling
+    parameters:
+      - name: hash
+        type: Hash160
+  - name: Executing
+    parameters:
+      - name: hash
+        type: Hash160
+  - name: Entry
+    parameters:
+      - name: hash
+        type: Hash160

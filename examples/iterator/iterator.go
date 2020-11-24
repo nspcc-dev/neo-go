@@ -13,7 +13,9 @@ func NotifyKeysAndValues() bool {
 	keys := iterator.Keys(iter)
 
 	runtime.Notify("found storage values", values)
-	runtime.Notify("found storage keys", keys)
+	// For illustration purposes event is emitted with 'Any' type.
+	var typedKeys interface{} = keys
+	runtime.Notify("found storage keys", typedKeys)
 
 	return true
 }

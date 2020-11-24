@@ -1,0 +1,7 @@
+name: "Invalid example"
+supportedstandards: []
+events:
+  - name: Event
+    parameters:
+      - name: address
+        type: Hash160

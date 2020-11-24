@@ -4,7 +4,7 @@ events:
   - name: found storage values
     parameters:
       - name: values
-        type: Any
+        type: InteropInterface
   - name: found storage keys
     parameters:
       - name: keys

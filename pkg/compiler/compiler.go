@@ -35,6 +35,10 @@ type Options struct {
 	// The name of the output for contract manifest file.
 	ManifestFile string
 
+	// NoEventsCheck specifies if events emitted by contract needs to be present in manifest.
+	// This setting has effect only if manifest is emitted.
+	NoEventsCheck bool
+
 	// NoStandardCheck specifies if supported standards compliance needs to be checked.
 	// This setting has effect only if manifest is emitted.
 	NoStandardCheck bool
@@ -222,6 +226,28 @@ func CompileAndSave(src string, o *Options) ([]byte, error) {
 		if !o.NoStandardCheck {
 			if err := standard.Check(m, o.ContractSupportedStandards...); err != nil {
 				return b, err
+			}
+		}
+		if !o.NoEventsCheck {
+			for name := range di.EmittedEvents {
+				ev := m.ABI.GetEvent(name)
+				if ev == nil {
+					return nil, fmt.Errorf("event '%s' is emitted but not specified in manifest", name)
+				}
+				argsList := di.EmittedEvents[name]
+				for i := range argsList {
+					if len(argsList[i]) != len(ev.Parameters) {
+						return nil, fmt.Errorf("event '%s' should have %d parameters but has %d",
+							name, len(ev.Parameters), len(argsList[i]))
+					}
+					for j := range ev.Parameters {
+						expected := ev.Parameters[j].Type.String()
+						if argsList[i][j] != expected {
+							return nil, fmt.Errorf("event '%s' should have '%s' as type of %d parameter, "+
+								"got: %s", name, expected, j+1, argsList[i][j])
+						}
+					}
+				}
 			}
 		}
 		mData, err := json.Marshal(m)
