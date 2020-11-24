@@ -5,6 +5,7 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/internal/testchain"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
@@ -12,7 +13,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
-	"github.com/nspcc-dev/neo-go/pkg/internal/testchain"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
@@ -104,7 +104,7 @@ func putOracleRequest(t *testing.T, h util.Uint160, bc *Blockchain,
 	tx.ValidUntilBlock = bc.BlockHeight() + 1
 	tx.NetworkFee = 1_000_000
 	setSigner(tx, testchain.MultisigScriptHash())
-	require.NoError(t, signTx(bc, tx))
+	require.NoError(t, testchain.SignTx(bc, tx))
 	require.NoError(t, bc.AddBlock(bc.newBlock(tx)))
 	return tx.Hash()
 }

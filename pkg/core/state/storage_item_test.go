@@ -3,7 +3,7 @@ package state
 import (
 	"testing"
 
-	"github.com/nspcc-dev/neo-go/pkg/internal/testserdes"
+	"github.com/nspcc-dev/neo-go/internal/testserdes"
 )
 
 func TestEncodeDecodeStorageItem(t *testing.T) {

@@ -4,12 +4,12 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/internal/testchain"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
-	"github.com/nspcc-dev/neo-go/pkg/internal/testchain"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
@@ -46,7 +46,7 @@ func (bc *Blockchain) setNodesByRole(t *testing.T, ok bool, r native.Role, nodes
 			Scopes:  transaction.CalledByEntry,
 		},
 	}
-	require.NoError(t, signTx(bc, tx))
+	require.NoError(t, testchain.SignTx(bc, tx))
 	tx.Scripts = append(tx.Scripts, transaction.Witness{
 		InvocationScript:   testchain.SignCommittee(tx.GetSignedPart()),
 		VerificationScript: testchain.CommitteeVerificationScript(),
@@ -77,7 +77,7 @@ func (bc *Blockchain) getNodesByRole(t *testing.T, ok bool, r native.Role, index
 			Scopes:  transaction.None,
 		},
 	}
-	require.NoError(t, signTx(bc, tx))
+	require.NoError(t, testchain.SignTx(bc, tx))
 	require.NoError(t, bc.AddBlock(bc.newBlock(tx)))
 
 	aer, err := bc.GetAppExecResults(tx.Hash(), trigger.Application)

@@ -6,7 +6,7 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/nspcc-dev/neo-go/pkg/internal/testserdes"
+	"github.com/nspcc-dev/neo-go/internal/testserdes"
 	"github.com/stretchr/testify/require"
 )
 

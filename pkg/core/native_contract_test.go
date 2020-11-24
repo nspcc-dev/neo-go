@@ -4,6 +4,7 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/internal/testchain"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
@@ -164,13 +165,13 @@ func TestNativeContract_Invoke(t *testing.T) {
 	validUntil := chain.blockHeight + 1
 	tx.ValidUntilBlock = validUntil
 	addSigners(tx)
-	require.NoError(t, signTx(chain, tx))
+	require.NoError(t, testchain.SignTx(chain, tx))
 
 	// Enough for Call and other opcodes, but not enough for "sum" call.
 	tx2 := transaction.New(chain.GetConfig().Magic, script, testSumPrice*2+8000)
 	tx2.ValidUntilBlock = chain.blockHeight + 1
 	addSigners(tx2)
-	require.NoError(t, signTx(chain, tx2))
+	require.NoError(t, testchain.SignTx(chain, tx2))
 
 	b := chain.newBlock(tx, tx2)
 	require.NoError(t, chain.AddBlock(b))
@@ -262,7 +263,7 @@ func TestNativeContract_InvokeOtherContract(t *testing.T) {
 		validUntil := chain.blockHeight + 1
 		tx.ValidUntilBlock = validUntil
 		addSigners(tx)
-		require.NoError(t, signTx(chain, tx))
+		require.NoError(t, testchain.SignTx(chain, tx))
 
 		b := chain.newBlock(tx)
 		require.NoError(t, chain.AddBlock(b))
@@ -289,7 +290,7 @@ func TestAllContractsHaveName(t *testing.T) {
 			tx := transaction.New(netmode.UnitTestNet, w.Bytes(), 1015570)
 			tx.ValidUntilBlock = bc.blockHeight + 1
 			addSigners(tx)
-			require.NoError(t, signTx(bc, tx))
+			require.NoError(t, testchain.SignTx(bc, tx))
 			require.NoError(t, bc.AddBlock(bc.newBlock(tx)))
 
 			aers, err := bc.GetAppExecResults(tx.Hash(), trigger.Application)

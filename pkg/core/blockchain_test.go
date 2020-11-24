@@ -7,8 +7,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/nspcc-dev/neo-go/internal/random"
+	"github.com/nspcc-dev/neo-go/internal/testchain"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
+	"github.com/nspcc-dev/neo-go/pkg/core/chaindump"
 	"github.com/nspcc-dev/neo-go/pkg/core/fee"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/core/mempool"
@@ -18,8 +21,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
-	"github.com/nspcc-dev/neo-go/pkg/internal/random"
-	"github.com/nspcc-dev/neo-go/pkg/internal/testchain"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
@@ -132,7 +133,7 @@ func TestAddBlockStateRoot(t *testing.T) {
 	tx := newNEP17Transfer(bc.contracts.NEO.Hash, neoOwner, util.Uint160{}, 1)
 	tx.ValidUntilBlock = bc.BlockHeight() + 1
 	addSigners(tx)
-	require.NoError(t, signTx(bc, tx))
+	require.NoError(t, testchain.SignTx(bc, tx))
 
 	lastBlock := bc.topBlock.Load().(*block.Block)
 	b := newBlock(bc.config, lastBlock.Index+1, lastBlock.Hash(), tx)
@@ -158,7 +159,7 @@ func TestAddBadBlock(t *testing.T) {
 		Account: testchain.MultisigScriptHash(),
 		Scopes:  transaction.None,
 	}}
-	require.NoError(t, signTx(bc, tx))
+	require.NoError(t, testchain.SignTx(bc, tx))
 	b1 := bc.newBlock(tx)
 
 	require.Error(t, bc.AddBlock(b1))
@@ -178,7 +179,7 @@ func TestAddBadBlock(t *testing.T) {
 		Account: testchain.MultisigScriptHash(),
 		Scopes:  transaction.None,
 	}}
-	require.NoError(t, signTx(bc, tx))
+	require.NoError(t, testchain.SignTx(bc, tx))
 	require.NoError(t, bc.PoolTx(tx))
 	bc.config.VerifyTransactions = true
 	bc.config.VerifyBlocks = true
@@ -191,7 +192,7 @@ func TestGetHeader(t *testing.T) {
 	tx := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
 	tx.ValidUntilBlock = bc.BlockHeight() + 1
 	addSigners(tx)
-	assert.Nil(t, signTx(bc, tx))
+	assert.Nil(t, testchain.SignTx(bc, tx))
 	block := bc.newBlock(tx)
 	err := bc.AddBlock(block)
 	assert.Nil(t, err)
@@ -276,7 +277,7 @@ func TestVerifyTx(t *testing.T) {
 
 	txMove := bc.newTestTx(neoOwner, w.Bytes())
 	txMove.SystemFee = 1_000_000_000
-	require.NoError(t, signTx(bc, txMove))
+	require.NoError(t, testchain.SignTx(bc, txMove))
 	b := bc.newBlock(txMove)
 	require.NoError(t, bc.AddBlock(b))
 
@@ -804,12 +805,12 @@ func TestMemPoolRemoval(t *testing.T) {
 	notAddedTxes := make([]*transaction.Transaction, notAdded)
 	for i := range addedTxes {
 		addedTxes[i] = bc.newTestTx(testchain.MultisigScriptHash(), []byte{byte(opcode.PUSH1)})
-		require.NoError(t, signTx(bc, addedTxes[i]))
+		require.NoError(t, testchain.SignTx(bc, addedTxes[i]))
 		require.NoError(t, bc.PoolTx(addedTxes[i]))
 	}
 	for i := range notAddedTxes {
 		notAddedTxes[i] = bc.newTestTx(testchain.MultisigScriptHash(), []byte{byte(opcode.PUSH1)})
-		require.NoError(t, signTx(bc, notAddedTxes[i]))
+		require.NoError(t, testchain.SignTx(bc, notAddedTxes[i]))
 		require.NoError(t, bc.PoolTx(notAddedTxes[i]))
 	}
 	b := bc.newBlock(addedTxes...)
@@ -853,7 +854,7 @@ func TestGetTransaction(t *testing.T) {
 		Account: testchain.MultisigScriptHash(),
 		Scopes:  transaction.CalledByEntry,
 	}}
-	require.NoError(t, signTx(bc, tx1, tx2))
+	require.NoError(t, testchain.SignTx(bc, tx1, tx2))
 	b1 := bc.newBlock(tx1)
 
 	assert.Nil(t, bc.AddBlock(b1))
@@ -954,7 +955,7 @@ func TestSubscriptions(t *testing.T) {
 	txGood1.Signers = []transaction.Signer{{Account: neoOwner}}
 	txGood1.Nonce = 1
 	txGood1.ValidUntilBlock = 1024
-	require.NoError(t, signTx(bc, txGood1))
+	require.NoError(t, testchain.SignTx(bc, txGood1))
 
 	// Reset() reuses the script buffer and we need to keep scripts.
 	script = io.NewBufBinWriter()
@@ -966,7 +967,7 @@ func TestSubscriptions(t *testing.T) {
 	txBad.Signers = []transaction.Signer{{Account: neoOwner}}
 	txBad.Nonce = 2
 	txBad.ValidUntilBlock = 1024
-	require.NoError(t, signTx(bc, txBad))
+	require.NoError(t, testchain.SignTx(bc, txBad))
 
 	script = io.NewBufBinWriter()
 	emit.Bytes(script.BinWriter, []byte("yay! yay! yay!"))
@@ -976,7 +977,7 @@ func TestSubscriptions(t *testing.T) {
 	txGood2.Signers = []transaction.Signer{{Account: neoOwner}}
 	txGood2.Nonce = 3
 	txGood2.ValidUntilBlock = 1024
-	require.NoError(t, signTx(bc, txGood2))
+	require.NoError(t, testchain.SignTx(bc, txGood2))
 
 	invBlock := newBlock(bc.config, bc.BlockHeight()+1, bc.CurrentHeaderHash(), txGood1, txBad, txGood2)
 	require.NoError(t, bc.AddBlock(invBlock))
@@ -1031,4 +1032,64 @@ func TestSubscriptions(t *testing.T) {
 	// Ensure that new blocks are processed correctly after unsubscription.
 	_, err = bc.genBlocks(2 * chBufSize)
 	require.NoError(t, err)
+}
+
+func testDumpAndRestore(t *testing.T, stateRootInHeader bool) {
+	bc := newTestChainWithStateRoot(t, stateRootInHeader)
+	defer bc.Close()
+
+	initBasicChain(t, bc)
+	require.True(t, bc.BlockHeight() > 5) // ensure that test is valid
+
+	w := io.NewBufBinWriter()
+	require.NoError(t, chaindump.Dump(bc, w.BinWriter, 0, bc.BlockHeight()+1))
+	require.NoError(t, w.Err)
+
+	buf := w.Bytes()
+	t.Run("invalid start", func(t *testing.T) {
+		bc2 := newTestChainWithStateRoot(t, stateRootInHeader)
+		defer bc2.Close()
+
+		r := io.NewBinReaderFromBuf(buf)
+		require.Error(t, chaindump.Restore(bc2, r, 2, 1, nil))
+	})
+	t.Run("good", func(t *testing.T) {
+		bc2 := newTestChainWithStateRoot(t, stateRootInHeader)
+		defer bc2.Close()
+
+		r := io.NewBinReaderFromBuf(buf)
+		require.NoError(t, chaindump.Restore(bc2, r, 0, 2, nil))
+		require.Equal(t, uint32(1), bc2.BlockHeight())
+
+		r = io.NewBinReaderFromBuf(buf) // new reader because start is relative to dump
+		require.NoError(t, chaindump.Restore(bc2, r, 2, 1, nil))
+		t.Run("check handler", func(t *testing.T) {
+			lastIndex := uint32(0)
+			errStopped := errors.New("stopped")
+			f := func(b *block.Block) error {
+				lastIndex = b.Index
+				if b.Index >= bc.BlockHeight()-1 {
+					return errStopped
+				}
+				return nil
+			}
+			require.NoError(t, chaindump.Restore(bc2, r, 0, 1, f))
+			require.Equal(t, bc2.BlockHeight(), lastIndex)
+
+			r = io.NewBinReaderFromBuf(buf)
+			err := chaindump.Restore(bc2, r, 4, bc.BlockHeight()-bc2.BlockHeight(), f)
+			require.True(t, errors.Is(err, errStopped))
+			require.Equal(t, bc.BlockHeight()-1, lastIndex)
+		})
+	})
+
+}
+
+func TestDumpAndRestore(t *testing.T) {
+	t.Run("no state root", func(t *testing.T) {
+		testDumpAndRestore(t, false)
+	})
+	t.Run("with state root", func(t *testing.T) {
+		testDumpAndRestore(t, true)
+	})
 }

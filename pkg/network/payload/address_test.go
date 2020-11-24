@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nspcc-dev/neo-go/pkg/internal/testserdes"
+	"github.com/nspcc-dev/neo-go/internal/testserdes"
 	"github.com/nspcc-dev/neo-go/pkg/network/capability"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

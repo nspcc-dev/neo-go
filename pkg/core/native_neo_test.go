@@ -5,11 +5,11 @@ import (
 	"sort"
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/internal/testchain"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
-	"github.com/nspcc-dev/neo-go/pkg/internal/testchain"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -87,7 +87,7 @@ func TestNEO_Vote(t *testing.T) {
 		tx := transaction.New(netmode.UnitTestNet, w.Bytes(), 1000_000_000)
 		tx.ValidUntilBlock = bc.BlockHeight() + 1
 		setSigner(tx, testchain.MultisigScriptHash())
-		require.NoError(t, signTx(bc, tx))
+		require.NoError(t, testchain.SignTx(bc, tx))
 		txs = append(txs, tx)
 	}
 	require.NoError(t, bc.AddBlock(bc.newBlock(txs...)))
@@ -318,7 +318,7 @@ func TestNEO_TransferOnPayment(t *testing.T) {
 	tx.NetworkFee = 10_000_000
 	tx.ValidUntilBlock = bc.BlockHeight() + 1
 	addSigners(tx)
-	require.NoError(t, signTx(bc, tx))
+	require.NoError(t, testchain.SignTx(bc, tx))
 	require.NoError(t, bc.AddBlock(bc.newBlock(tx)))
 
 	aer, err := bc.GetAppExecResults(tx.Hash(), trigger.Application)

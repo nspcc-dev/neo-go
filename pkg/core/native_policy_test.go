@@ -4,12 +4,13 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/internal/random"
+	"github.com/nspcc-dev/neo-go/internal/testchain"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
-	"github.com/nspcc-dev/neo-go/pkg/internal/random"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/network/payload"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
@@ -231,7 +232,7 @@ func invokeNativePolicyMethod(chain *Blockchain, method string, args ...interfac
 	validUntil := chain.blockHeight + 1
 	tx.ValidUntilBlock = validUntil
 	addSigners(tx)
-	err := signTx(chain, tx)
+	err := testchain.SignTx(chain, tx)
 	if err != nil {
 		return nil, err
 	}
