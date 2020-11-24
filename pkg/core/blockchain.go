@@ -1590,6 +1590,7 @@ func (bc *Blockchain) initVerificationVM(ic *interop.Context, hash util.Uint160,
 	var isNative bool
 	var initMD *manifest.Method
 	verification := witness.VerificationScript
+	flags := smartcontract.NoneFlag
 	if len(verification) != 0 {
 		if witness.ScriptHash() != hash {
 			return ErrWitnessHashMismatch
@@ -1610,10 +1611,11 @@ func (bc *Blockchain) initVerificationVM(ic *interop.Context, hash util.Uint160,
 		offset = md.Offset
 		initMD = cs.Manifest.ABI.GetMethod(manifest.MethodInit)
 		isNative = cs.ID < 0
+		flags = smartcontract.AllowStates
 	}
 
 	v := ic.VM
-	v.LoadScriptWithFlags(verification, smartcontract.NoneFlag)
+	v.LoadScriptWithFlags(verification, flags)
 	v.Jump(v.Context(), offset)
 	if isNative {
 		w := io.NewBufBinWriter()
