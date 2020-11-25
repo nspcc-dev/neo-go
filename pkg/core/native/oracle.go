@@ -113,10 +113,6 @@ func newOracle() *Oracle {
 	md := newMethodAndPrice(o.request, oracleRequestPrice, smartcontract.AllowModifyStates)
 	o.AddMethod(md, desc, false)
 
-	desc = newDescriptor("name", smartcontract.StringType)
-	md = newMethodAndPrice(nameMethod(oracleName), 0, smartcontract.NoneFlag)
-	o.AddMethod(md, desc, true)
-
 	desc = newDescriptor("finish", smartcontract.VoidType)
 	md = newMethodAndPrice(o.finish, 0, smartcontract.AllowModifyStates)
 	o.AddMethod(md, desc, false)

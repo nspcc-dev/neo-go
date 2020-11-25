@@ -276,28 +276,3 @@ func TestNativeContract_InvokeOtherContract(t *testing.T) {
 		require.Equal(t, stackitem.Null{}, res[0].Stack[0]) // simple call is done with EnsureNotEmpty
 	})
 }
-
-func TestAllContractsHaveName(t *testing.T) {
-	bc := newTestChain(t)
-	defer bc.Close()
-	for _, c := range bc.contracts.Contracts {
-		name := c.Metadata().Name
-		t.Run(name, func(t *testing.T) {
-			w := io.NewBufBinWriter()
-			emit.AppCallWithOperationAndArgs(w.BinWriter, c.Metadata().Hash, "name")
-			require.NoError(t, w.Err)
-
-			tx := transaction.New(netmode.UnitTestNet, w.Bytes(), 1015570)
-			tx.ValidUntilBlock = bc.blockHeight + 1
-			addSigners(tx)
-			require.NoError(t, testchain.SignTx(bc, tx))
-			require.NoError(t, bc.AddBlock(bc.newBlock(tx)))
-
-			aers, err := bc.GetAppExecResults(tx.Hash(), trigger.Application)
-			require.NoError(t, err)
-			require.Equal(t, 1, len(aers))
-			require.Len(t, aers[0].Stack, 1)
-			require.Equal(t, []byte(name), aers[0].Stack[0].Value())
-		})
-	}
-}

@@ -87,10 +87,6 @@ func newDesignate(p2pSigExtensionsEnabled bool) *Designate {
 	md = newMethodAndPrice(s.designateAsRole, 0, smartcontract.AllowModifyStates)
 	s.AddMethod(md, desc, false)
 
-	desc = newDescriptor("name", smartcontract.StringType)
-	md = newMethodAndPrice(nameMethod(designateName), 0, smartcontract.NoneFlag)
-	s.AddMethod(md, desc, true)
-
 	desc = newDescriptor("onPersist", smartcontract.VoidType)
 	md = newMethodAndPrice(getOnPersistWrapper(onPersistBase), 0, smartcontract.AllowModifyStates)
 	s.AddMethod(md, desc, false)

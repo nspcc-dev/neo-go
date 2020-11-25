@@ -126,10 +126,6 @@ func newPolicy() *Policy {
 	md = newMethodAndPrice(p.unblockAccount, 3000000, smartcontract.AllowModifyStates)
 	p.AddMethod(md, desc, false)
 
-	desc = newDescriptor("name", smartcontract.StringType)
-	md = newMethodAndPrice(nameMethod(policyName), 0, smartcontract.NoneFlag)
-	p.AddMethod(md, desc, true)
-
 	desc = newDescriptor("onPersist", smartcontract.VoidType)
 	md = newMethodAndPrice(getOnPersistWrapper(p.OnPersist), 0, smartcontract.AllowModifyStates)
 	p.AddMethod(md, desc, false)

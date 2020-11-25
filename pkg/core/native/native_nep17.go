@@ -53,12 +53,8 @@ func newNEP17Native(name string) *nep17TokenNative {
 	n := &nep17TokenNative{ContractMD: *interop.NewContractMD(name)}
 	n.Manifest.SupportedStandards = []string{manifest.NEP17StandardName}
 
-	desc := newDescriptor("name", smartcontract.StringType)
-	md := newMethodAndPrice(nameMethod(name), 0, smartcontract.NoneFlag)
-	n.AddMethod(md, desc, true)
-
-	desc = newDescriptor("symbol", smartcontract.StringType)
-	md = newMethodAndPrice(n.Symbol, 0, smartcontract.NoneFlag)
+	desc := newDescriptor("symbol", smartcontract.StringType)
+	md := newMethodAndPrice(n.Symbol, 0, smartcontract.NoneFlag)
 	n.AddMethod(md, desc, true)
 
 	desc = newDescriptor("decimals", smartcontract.IntegerType)
