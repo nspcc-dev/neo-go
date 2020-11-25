@@ -227,6 +227,7 @@ type localPeer struct {
 	t              *testing.T
 	messageHandler func(t *testing.T, msg *Message)
 	pingSent       int
+	getAddrSent    int
 }
 
 func newLocalPeer(t *testing.T, s *Server) *localPeer {
@@ -321,6 +322,14 @@ func (p *localPeer) Handshaked() bool {
 
 func (p *localPeer) IsFullNode() bool {
 	return p.isFullNode
+}
+
+func (p *localPeer) AddGetAddrSent() {
+	p.getAddrSent++
+}
+func (p *localPeer) CanProcessAddr() bool {
+	p.getAddrSent--
+	return p.getAddrSent >= 0
 }
 
 func newTestServer(t *testing.T, serverConfig ServerConfig) *Server {

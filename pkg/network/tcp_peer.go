@@ -11,6 +11,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/network/capability"
 	"github.com/nspcc-dev/neo-go/pkg/network/payload"
+	"go.uber.org/atomic"
 	"go.uber.org/zap"
 )
 
@@ -57,6 +58,9 @@ type TCPPeer struct {
 	hpSendQ  chan []byte
 
 	wg sync.WaitGroup
+
+	// track outstanding getaddr requests.
+	getAddrSent atomic.Int32
 
 	// number of sent pings.
 	pingSent  int
@@ -454,4 +458,17 @@ func (p *TCPPeer) HandlePong(pong *payload.Ping) error {
 	}
 	p.lastBlockIndex = pong.LastBlockIndex
 	return nil
+}
+
+// AddGetAddrSent increments internal outstanding getaddr requests counter. The
+// peer can only send then one addr reply per getaddr request.
+func (p *TCPPeer) AddGetAddrSent() {
+	p.getAddrSent.Inc()
+}
+
+// CanProcessAddr decrements internal outstanding getaddr requests counter and
+// answers whether the addr command from the peer can be safely processed.
+func (p *TCPPeer) CanProcessAddr() bool {
+	v := p.getAddrSent.Dec()
+	return v >= 0
 }
