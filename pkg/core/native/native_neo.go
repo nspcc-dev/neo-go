@@ -97,7 +97,7 @@ func newNEO() *NEO {
 	nep17.symbol = "neo"
 	nep17.decimals = 0
 	nep17.factor = 1
-	nep17.onPersist = chainOnPersist(nep17.OnPersist, n.OnPersist)
+	nep17.onPersist = chainOnPersist(onPersistBase, n.OnPersist)
 	nep17.postPersist = chainOnPersist(nep17.postPersist, n.PostPersist)
 	nep17.incBalance = n.increaseBalance
 	nep17.ContractID = neoContractID

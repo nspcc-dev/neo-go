@@ -171,7 +171,7 @@ func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration, log *zap.L
 		subCh:       make(chan interface{}),
 		unsubCh:     make(chan interface{}),
 
-		contracts: *native.NewContracts(),
+		contracts: *native.NewContracts(cfg.P2PSigExtensions),
 	}
 
 	if err := bc.init(); err != nil {
@@ -705,9 +705,11 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 		return err
 	}
 	if err := bc.contracts.Policy.OnPersistEnd(bc.dao); err != nil {
+		bc.lock.Unlock()
 		return fmt.Errorf("failed to call OnPersistEnd for Policy native contract: %w", err)
 	}
 	if err := bc.contracts.Designate.OnPersistEnd(bc.dao); err != nil {
+		bc.lock.Unlock()
 		return err
 	}
 	bc.dao.MPT.Flush()
@@ -1254,7 +1256,6 @@ func (bc *Blockchain) verifyHeader(currHeader, prevHeader *block.Header) error {
 
 // Various errors that could be returned upon verification.
 var (
-	ErrTxNotYetValid       = errors.New("transaction is not yet valid")
 	ErrTxExpired           = errors.New("transaction has expired")
 	ErrInsufficientFunds   = errors.New("insufficient funds")
 	ErrTxSmallNetworkFee   = errors.New("too small network fee")
@@ -1281,6 +1282,13 @@ func (bc *Blockchain) verifyAndPoolTx(t *transaction.Transaction, pool *mempool.
 		return fmt.Errorf("%w: (%d > MaxTransactionSize %d)", ErrTxTooBig, size, transaction.MaxTransactionSize)
 	}
 	needNetworkFee := int64(size) * bc.FeePerByte()
+	if bc.P2PSigExtensionsEnabled() {
+		attrs := t.GetAttributes(transaction.NotaryAssistedT)
+		if len(attrs) != 0 {
+			na := attrs[0].Value.(*transaction.NotaryAssisted)
+			needNetworkFee += (int64(na.NKeys) + 1) * transaction.NotaryServiceFeePerKey
+		}
+	}
 	netFee := t.NetworkFee - needNetworkFee
 	if netFee < 0 {
 		return fmt.Errorf("%w: net fee is %v, need %v", ErrTxSmallNetworkFee, t.NetworkFee, needNetworkFee)
@@ -1329,12 +1337,9 @@ func (bc *Blockchain) verifyTxAttributes(tx *transaction.Transaction) error {
 		switch attrType := tx.Attributes[i].Type; attrType {
 		case transaction.HighPriority:
 			h := bc.contracts.NEO.GetCommitteeAddress()
-			for i := range tx.Signers {
-				if tx.Signers[i].Account.Equals(h) {
-					return nil
-				}
+			if !tx.HasSigner(h) {
+				return fmt.Errorf("%w: high priority tx is not signed by committee", ErrInvalidAttribute)
 			}
-			return fmt.Errorf("%w: high priority tx is not signed by committee", ErrInvalidAttribute)
 		case transaction.OracleResponseT:
 			h, err := bc.contracts.Oracle.GetScriptHash(bc.dao)
 			if err != nil || h.Equals(util.Uint160{}) {
@@ -1365,23 +1370,30 @@ func (bc *Blockchain) verifyTxAttributes(tx *transaction.Transaction) error {
 			}
 		case transaction.NotValidBeforeT:
 			if !bc.config.P2PSigExtensions {
-				return errors.New("NotValidBefore attribute was found, but P2PSigExtensions are disabled")
+				return fmt.Errorf("%w: NotValidBefore attribute was found, but P2PSigExtensions are disabled", ErrInvalidAttribute)
 			}
 			nvb := tx.Attributes[i].Value.(*transaction.NotValidBefore)
 			if height := bc.BlockHeight(); height < nvb.Height {
-				return fmt.Errorf("%w: NotValidBefore = %d, current height = %d", ErrTxNotYetValid, nvb.Height, height)
+				return fmt.Errorf("%w: transaction is not yet valid: NotValidBefore = %d, current height = %d", ErrInvalidAttribute, nvb.Height, height)
 			}
 		case transaction.ConflictsT:
 			if !bc.config.P2PSigExtensions {
-				return errors.New("Conflicts attribute was found, but P2PSigExtensions are disabled")
+				return fmt.Errorf("%w: Conflicts attribute was found, but P2PSigExtensions are disabled", ErrInvalidAttribute)
 			}
 			conflicts := tx.Attributes[i].Value.(*transaction.Conflicts)
 			if err := bc.dao.HasTransaction(conflicts.Hash); errors.Is(err, dao.ErrAlreadyExists) {
-				return fmt.Errorf("conflicting transaction %s is already on chain", conflicts.Hash.StringLE())
+				return fmt.Errorf("%w: conflicting transaction %s is already on chain", ErrInvalidAttribute, conflicts.Hash.StringLE())
+			}
+		case transaction.NotaryAssistedT:
+			if !bc.config.P2PSigExtensions {
+				return fmt.Errorf("%w: NotaryAssisted attribute was found, but P2PSigExtensions are disabled", ErrInvalidAttribute)
+			}
+			if !tx.HasSigner(bc.contracts.Notary.Hash) {
+				return fmt.Errorf("%w: NotaryAssisted attribute was found, but transaction is not signed by the Notary native contract", ErrInvalidAttribute)
 			}
 		default:
 			if !bc.config.ReservedAttributes && attrType >= transaction.ReservedLowerBound && attrType <= transaction.ReservedUpperBound {
-				return errors.New("attribute of reserved type was found, but ReservedAttributes are disabled")
+				return fmt.Errorf("%w: attribute of reserved type was found, but ReservedAttributes are disabled", ErrInvalidAttribute)
 			}
 		}
 	}
@@ -1581,6 +1593,7 @@ func (bc *Blockchain) initVerificationVM(ic *interop.Context, hash util.Uint160,
 	var isNative bool
 	var initMD *manifest.Method
 	verification := witness.VerificationScript
+	flags := smartcontract.NoneFlag
 	if len(verification) != 0 {
 		if witness.ScriptHash() != hash {
 			return ErrWitnessHashMismatch
@@ -1601,10 +1614,11 @@ func (bc *Blockchain) initVerificationVM(ic *interop.Context, hash util.Uint160,
 		offset = md.Offset
 		initMD = cs.Manifest.ABI.GetMethod(manifest.MethodInit)
 		isNative = cs.ID < 0
+		flags = smartcontract.AllowStates
 	}
 
 	v := ic.VM
-	v.LoadScriptWithFlags(verification, smartcontract.NoneFlag)
+	v.LoadScriptWithFlags(verification, flags)
 	v.Jump(v.Context(), offset)
 	if isNative {
 		w := io.NewBufBinWriter()

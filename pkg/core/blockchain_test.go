@@ -286,7 +286,7 @@ func TestVerifyTx(t *testing.T) {
 	require.Equal(t, 1, len(aer))
 	require.Equal(t, aer[0].VMState, vm.HaltState)
 
-	res, err := invokeNativePolicyMethod(bc, "blockAccount", accs[1].PrivateKey().GetScriptHash().BytesBE())
+	res, err := invokeContractMethod(bc, 100000000, bc.contracts.Policy.Hash, "blockAccount", accs[1].PrivateKey().GetScriptHash().BytesBE())
 	require.NoError(t, err)
 	checkResult(t, res, stackitem.NewBool(true))
 
@@ -621,7 +621,7 @@ func TestVerifyTx(t *testing.T) {
 				bc.config.P2PSigExtensions = true
 				t.Run("NotYetValid", func(t *testing.T) {
 					tx := getNVBTx(bc.blockHeight + 1)
-					require.True(t, errors.Is(bc.VerifyTx(tx), ErrTxNotYetValid))
+					require.True(t, errors.Is(bc.VerifyTx(tx), ErrInvalidAttribute))
 				})
 				t.Run("positive", func(t *testing.T) {
 					tx := getNVBTx(bc.blockHeight)
@@ -652,12 +652,12 @@ func TestVerifyTx(t *testing.T) {
 				return tx
 			}
 			t.Run("Disabled", func(t *testing.T) {
-				tx := getReservedTx(transaction.ReservedLowerBound + 2)
+				tx := getReservedTx(transaction.ReservedLowerBound + 3)
 				require.Error(t, bc.VerifyTx(tx))
 			})
 			t.Run("Enabled", func(t *testing.T) {
 				bc.config.ReservedAttributes = true
-				tx := getReservedTx(transaction.ReservedLowerBound + 2)
+				tx := getReservedTx(transaction.ReservedLowerBound + 3)
 				require.NoError(t, bc.VerifyTx(tx))
 			})
 		})
@@ -715,6 +715,207 @@ func TestVerifyTx(t *testing.T) {
 				})
 				t.Run("positive", func(t *testing.T) {
 					tx := getConflictsTx(random.Uint256())
+					require.NoError(t, bc.VerifyTx(tx))
+				})
+			})
+		})
+		t.Run("NotaryAssisted", func(t *testing.T) {
+			notary, err := wallet.NewAccount()
+			require.NoError(t, err)
+			txSetNotary := transaction.New(netmode.UnitTestNet, []byte{}, 0)
+			setSigner(txSetNotary, testchain.CommitteeScriptHash())
+			txSetNotary.Scripts = []transaction.Witness{{
+				InvocationScript:   testchain.SignCommittee(txSetNotary.GetSignedPart()),
+				VerificationScript: testchain.CommitteeVerificationScript(),
+			}}
+			bl := block.New(netmode.UnitTestNet, false)
+			bl.Index = bc.BlockHeight() + 1
+			ic := bc.newInteropContext(trigger.All, bc.dao, bl, txSetNotary)
+			ic.SpawnVM()
+			ic.VM.LoadScript([]byte{byte(opcode.RET)})
+			require.NoError(t, bc.contracts.Designate.DesignateAsRole(ic, native.RoleP2PNotary, keys.PublicKeys{notary.PrivateKey().PublicKey()}))
+			require.NoError(t, bc.contracts.Designate.OnPersistEnd(ic.DAO))
+			_, err = ic.DAO.Persist()
+			require.NoError(t, err)
+			getNotaryAssistedTx := func(signaturesCount uint8, serviceFee int64) *transaction.Transaction {
+				tx := bc.newTestTx(h, testScript)
+				tx.Attributes = append(tx.Attributes, transaction.Attribute{Type: transaction.NotaryAssistedT, Value: &transaction.NotaryAssisted{
+					NKeys: signaturesCount,
+				}})
+				tx.NetworkFee += serviceFee // additional fee for NotaryAssisted attribute
+				tx.NetworkFee += 4_000_000  // multisig check
+				tx.Signers = []transaction.Signer{{
+					Account: testchain.CommitteeScriptHash(),
+					Scopes:  transaction.None,
+				},
+					{
+						Account: bc.contracts.Notary.Hash,
+						Scopes:  transaction.None,
+					},
+				}
+				rawScript := testchain.CommitteeVerificationScript()
+				size := io.GetVarSize(tx)
+				netFee, sizeDelta := fee.Calculate(rawScript)
+				tx.NetworkFee += netFee
+				tx.NetworkFee += int64(size+sizeDelta) * bc.FeePerByte()
+				data := tx.GetSignedPart()
+				tx.Scripts = []transaction.Witness{
+					{
+						InvocationScript:   testchain.SignCommittee(data),
+						VerificationScript: rawScript,
+					},
+					{
+						InvocationScript: append([]byte{byte(opcode.PUSHDATA1), 64}, notary.PrivateKey().Sign(data)...),
+					},
+				}
+				return tx
+			}
+			t.Run("Disabled", func(t *testing.T) {
+				bc.config.P2PSigExtensions = false
+				tx := getNotaryAssistedTx(0, 0)
+				require.True(t, errors.Is(bc.VerifyTx(tx), ErrInvalidAttribute))
+			})
+			t.Run("Enabled, insufficient network fee", func(t *testing.T) {
+				bc.config.P2PSigExtensions = true
+				tx := getNotaryAssistedTx(1, 0)
+				require.Error(t, bc.VerifyTx(tx))
+			})
+			t.Run("Test verify", func(t *testing.T) {
+				bc.config.P2PSigExtensions = true
+				t.Run("no NotaryAssisted attribute", func(t *testing.T) {
+					tx := getNotaryAssistedTx(1, (1+1)*transaction.NotaryServiceFeePerKey)
+					tx.Attributes = []transaction.Attribute{}
+					tx.Signers = []transaction.Signer{
+						{
+							Account: testchain.CommitteeScriptHash(),
+							Scopes:  transaction.None,
+						},
+						{
+							Account: bc.contracts.Notary.Hash,
+							Scopes:  transaction.None,
+						},
+					}
+					data := tx.GetSignedPart()
+					tx.Scripts = []transaction.Witness{
+						{
+							InvocationScript:   testchain.SignCommittee(data),
+							VerificationScript: testchain.CommitteeVerificationScript(),
+						},
+						{
+							InvocationScript: append([]byte{byte(opcode.PUSHDATA1), 64}, notary.PrivateKey().Sign(data)...),
+						},
+					}
+					require.Error(t, bc.VerifyTx(tx))
+				})
+				t.Run("no deposit", func(t *testing.T) {
+					tx := getNotaryAssistedTx(1, (1+1)*transaction.NotaryServiceFeePerKey)
+					tx.Signers = []transaction.Signer{
+						{
+							Account: bc.contracts.Notary.Hash,
+							Scopes:  transaction.None,
+						},
+						{
+							Account: testchain.CommitteeScriptHash(),
+							Scopes:  transaction.None,
+						},
+					}
+					data := tx.GetSignedPart()
+					tx.Scripts = []transaction.Witness{
+						{
+							InvocationScript: append([]byte{byte(opcode.PUSHDATA1), 64}, notary.PrivateKey().Sign(data)...),
+						},
+						{
+							InvocationScript:   testchain.SignCommittee(data),
+							VerificationScript: testchain.CommitteeVerificationScript(),
+						},
+					}
+					require.Error(t, bc.VerifyTx(tx))
+				})
+				t.Run("bad Notary signer scope", func(t *testing.T) {
+					tx := getNotaryAssistedTx(1, (1+1)*transaction.NotaryServiceFeePerKey)
+					tx.Signers = []transaction.Signer{
+						{
+							Account: testchain.CommitteeScriptHash(),
+							Scopes:  transaction.None,
+						},
+						{
+							Account: bc.contracts.Notary.Hash,
+							Scopes:  transaction.CalledByEntry,
+						},
+					}
+					data := tx.GetSignedPart()
+					tx.Scripts = []transaction.Witness{
+						{
+							InvocationScript:   testchain.SignCommittee(data),
+							VerificationScript: testchain.CommitteeVerificationScript(),
+						},
+						{
+							InvocationScript: append([]byte{byte(opcode.PUSHDATA1), 64}, notary.PrivateKey().Sign(data)...),
+						},
+					}
+					require.Error(t, bc.VerifyTx(tx))
+				})
+				t.Run("not signed by Notary", func(t *testing.T) {
+					tx := getNotaryAssistedTx(1, (1+1)*transaction.NotaryServiceFeePerKey)
+					tx.Signers = []transaction.Signer{
+						{
+							Account: testchain.CommitteeScriptHash(),
+							Scopes:  transaction.None,
+						},
+					}
+					data := tx.GetSignedPart()
+					tx.Scripts = []transaction.Witness{
+						{
+							InvocationScript:   testchain.SignCommittee(data),
+							VerificationScript: testchain.CommitteeVerificationScript(),
+						},
+					}
+					require.Error(t, bc.VerifyTx(tx))
+				})
+				t.Run("bad Notary node witness", func(t *testing.T) {
+					tx := getNotaryAssistedTx(1, (1+1)*transaction.NotaryServiceFeePerKey)
+					tx.Signers = []transaction.Signer{
+						{
+							Account: testchain.CommitteeScriptHash(),
+							Scopes:  transaction.None,
+						},
+						{
+							Account: bc.contracts.Notary.Hash,
+							Scopes:  transaction.None,
+						},
+					}
+					data := tx.GetSignedPart()
+					acc, err := keys.NewPrivateKey()
+					require.NoError(t, err)
+					tx.Scripts = []transaction.Witness{
+						{
+							InvocationScript:   testchain.SignCommittee(data),
+							VerificationScript: testchain.CommitteeVerificationScript(),
+						},
+						{
+							InvocationScript: append([]byte{byte(opcode.PUSHDATA1), 64}, acc.Sign(data)...),
+						},
+					}
+					require.Error(t, bc.VerifyTx(tx))
+				})
+				t.Run("missing payer", func(t *testing.T) {
+					tx := getNotaryAssistedTx(1, (1+1)*transaction.NotaryServiceFeePerKey)
+					tx.Signers = []transaction.Signer{
+						{
+							Account: bc.contracts.Notary.Hash,
+							Scopes:  transaction.None,
+						},
+					}
+					data := tx.GetSignedPart()
+					tx.Scripts = []transaction.Witness{
+						{
+							InvocationScript: append([]byte{byte(opcode.PUSHDATA1), 64}, notary.PrivateKey().Sign(data)...),
+						},
+					}
+					require.Error(t, bc.VerifyTx(tx))
+				})
+				t.Run("positive", func(t *testing.T) {
+					tx := getNotaryAssistedTx(1, (1+1)*transaction.NotaryServiceFeePerKey)
 					require.NoError(t, bc.VerifyTx(tx))
 				})
 			})

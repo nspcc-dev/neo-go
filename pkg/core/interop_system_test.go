@@ -911,7 +911,7 @@ func TestContractCreateDeploy(t *testing.T) {
 	require.NoError(t, ic.VM.Run())
 
 	v.LoadScriptWithFlags(currCs.Script, smartcontract.All)
-	err := contract.CallExInternal(ic, cs, "getValue", nil, smartcontract.All, vm.EnsureNotEmpty)
+	err := contract.CallExInternal(ic, cs, "getValue", nil, smartcontract.All, vm.EnsureNotEmpty, nil)
 	require.NoError(t, err)
 	require.NoError(t, v.Run())
 	require.Equal(t, "create", v.Estack().Pop().String())
@@ -932,7 +932,7 @@ func TestContractCreateDeploy(t *testing.T) {
 		require.NoError(t, v.Run())
 
 		v.LoadScriptWithFlags(currCs.Script, smartcontract.All)
-		err = contract.CallExInternal(ic, newCs, "getValue", nil, smartcontract.All, vm.EnsureNotEmpty)
+		err = contract.CallExInternal(ic, newCs, "getValue", nil, smartcontract.All, vm.EnsureNotEmpty, nil)
 		require.NoError(t, err)
 		require.NoError(t, v.Run())
 		require.Equal(t, "update", v.Estack().Pop().String())

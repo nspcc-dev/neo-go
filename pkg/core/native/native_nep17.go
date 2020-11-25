@@ -3,6 +3,7 @@ package native
 import (
 	"errors"
 	"fmt"
+	"math"
 	"math/big"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
@@ -13,7 +14,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
-	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
@@ -54,12 +54,8 @@ func newNEP17Native(name string) *nep17TokenNative {
 	n := &nep17TokenNative{ContractMD: *interop.NewContractMD(name)}
 	n.Manifest.SupportedStandards = []string{manifest.NEP17StandardName}
 
-	desc := newDescriptor("name", smartcontract.StringType)
-	md := newMethodAndPrice(nameMethod(name), 0, smartcontract.NoneFlag)
-	n.AddMethod(md, desc, true)
-
-	desc = newDescriptor("symbol", smartcontract.StringType)
-	md = newMethodAndPrice(n.Symbol, 0, smartcontract.NoneFlag)
+	desc := newDescriptor("symbol", smartcontract.StringType)
+	md := newMethodAndPrice(n.Symbol, 0, smartcontract.NoneFlag)
 	n.AddMethod(md, desc, true)
 
 	desc = newDescriptor("decimals", smartcontract.IntegerType)
@@ -75,24 +71,26 @@ func newNEP17Native(name string) *nep17TokenNative {
 	md = newMethodAndPrice(n.balanceOf, 1000000, smartcontract.AllowStates)
 	n.AddMethod(md, desc, true)
 
-	desc = newDescriptor("transfer", smartcontract.BoolType,
+	transferParams := []manifest.Parameter{
 		manifest.NewParameter("from", smartcontract.Hash160Type),
 		manifest.NewParameter("to", smartcontract.Hash160Type),
 		manifest.NewParameter("amount", smartcontract.IntegerType),
-		manifest.NewParameter("data", smartcontract.AnyType),
+	}
+	desc = newDescriptor("transfer", smartcontract.BoolType,
+		append(transferParams, manifest.NewParameter("data", smartcontract.AnyType))...,
 	)
 	md = newMethodAndPrice(n.Transfer, 8000000, smartcontract.AllowModifyStates)
 	n.AddMethod(md, desc, false)
 
 	desc = newDescriptor("onPersist", smartcontract.VoidType)
-	md = newMethodAndPrice(getOnPersistWrapper(n.OnPersist), 0, smartcontract.AllowModifyStates)
+	md = newMethodAndPrice(getOnPersistWrapper(onPersistBase), 0, smartcontract.AllowModifyStates)
 	n.AddMethod(md, desc, false)
 
 	desc = newDescriptor("postPersist", smartcontract.VoidType)
 	md = newMethodAndPrice(getOnPersistWrapper(postPersistBase), 0, smartcontract.AllowModifyStates)
 	n.AddMethod(md, desc, false)
 
-	n.AddEvent("Transfer", desc.Parameters...)
+	n.AddEvent("Transfer", transferParams...)
 
 	return n
 }
@@ -160,7 +158,7 @@ func (c *nep17TokenNative) postTransfer(ic *interop.Context, from, to *util.Uint
 		stackitem.NewBigInteger(amount),
 		data,
 	}
-	if err := contract.CallExInternal(ic, cs, manifest.MethodOnPayment, args, smartcontract.All, vm.EnsureIsEmpty); err != nil {
+	if err := contract.CallExInternal(ic, cs, manifest.MethodOnPayment, args, smartcontract.All, vm.EnsureIsEmpty, nil); err != nil {
 		panic(err)
 	}
 }
@@ -287,13 +285,6 @@ func (c *nep17TokenNative) addTokens(ic *interop.Context, h util.Uint160, amount
 	}
 }
 
-func (c *nep17TokenNative) OnPersist(ic *interop.Context) error {
-	if ic.Trigger != trigger.OnPersist {
-		return errors.New("onPersist must be triggerred by system")
-	}
-	return nil
-}
-
 func newDescriptor(name string, ret smartcontract.ParamType, ps ...manifest.Parameter) *manifest.Method {
 	return &manifest.Method{
 		Name:       name,
@@ -328,6 +319,18 @@ func toUint160(s stackitem.Item) util.Uint160 {
 		panic(err)
 	}
 	return u
+}
+
+func toUint32(s stackitem.Item) uint32 {
+	bigInt := toBigInt(s)
+	if !bigInt.IsInt64() {
+		panic("bigint is not an int64")
+	}
+	int64Value := bigInt.Int64()
+	if int64Value < 0 || int64Value > math.MaxUint32 {
+		panic("bigint does not fit into uint32")
+	}
+	return uint32(int64Value)
 }
 
 func getOnPersistWrapper(f func(ic *interop.Context) error) interop.Method {

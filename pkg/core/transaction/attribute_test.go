@@ -7,6 +7,8 @@ import (
 
 	"github.com/nspcc-dev/neo-go/internal/random"
 	"github.com/nspcc-dev/neo-go/internal/testserdes"
+	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/stretchr/testify/require"
 )
 
@@ -29,13 +31,25 @@ func TestAttribute_EncodeBinary(t *testing.T) {
 		testserdes.EncodeDecodeBinary(t, attr, new(Attribute))
 	})
 	t.Run("NotValidBefore", func(t *testing.T) {
-		attr := &Attribute{
-			Type: NotValidBeforeT,
-			Value: &NotValidBefore{
-				Height: 123,
-			},
-		}
-		testserdes.EncodeDecodeBinary(t, attr, new(Attribute))
+		t.Run("positive", func(t *testing.T) {
+			attr := &Attribute{
+				Type: NotValidBeforeT,
+				Value: &NotValidBefore{
+					Height: 123,
+				},
+			}
+			testserdes.EncodeDecodeBinary(t, attr, new(Attribute))
+		})
+		t.Run("bad format: too long", func(t *testing.T) {
+			bw := io.NewBufBinWriter()
+			bw.WriteVarBytes([]byte{1, 2, 3, 4, 5})
+			require.Error(t, testserdes.DecodeBinary(bw.Bytes(), new(NotValidBefore)))
+		})
+		t.Run("bad format: too short", func(t *testing.T) {
+			bw := io.NewBufBinWriter()
+			bw.WriteVarBytes([]byte{1, 2, 3})
+			require.Error(t, testserdes.DecodeBinary(bw.Bytes(), new(NotValidBefore)))
+		})
 	})
 	t.Run("Reserved", func(t *testing.T) {
 		getReservedAttribute := func(t AttrType) *Attribute {
@@ -47,7 +61,7 @@ func TestAttribute_EncodeBinary(t *testing.T) {
 			}
 		}
 		t.Run("lower bound", func(t *testing.T) {
-			testserdes.EncodeDecodeBinary(t, getReservedAttribute(ReservedLowerBound+2), new(Attribute))
+			testserdes.EncodeDecodeBinary(t, getReservedAttribute(ReservedLowerBound+3), new(Attribute))
 		})
 		t.Run("upper bound", func(t *testing.T) {
 			testserdes.EncodeDecodeBinary(t, getReservedAttribute(ReservedUpperBound), new(Attribute))
@@ -61,13 +75,46 @@ func TestAttribute_EncodeBinary(t *testing.T) {
 		})
 	})
 	t.Run("Conflicts", func(t *testing.T) {
-		attr := &Attribute{
-			Type: ConflictsT,
-			Value: &Conflicts{
-				Hash: random.Uint256(),
-			},
-		}
-		testserdes.EncodeDecodeBinary(t, attr, new(Attribute))
+		t.Run("positive", func(t *testing.T) {
+			attr := &Attribute{
+				Type: ConflictsT,
+				Value: &Conflicts{
+					Hash: random.Uint256(),
+				},
+			}
+			testserdes.EncodeDecodeBinary(t, attr, new(Attribute))
+		})
+		t.Run("negative: too long", func(t *testing.T) {
+			bw := io.NewBufBinWriter()
+			bw.WriteVarBytes(make([]byte, util.Uint256Size+1))
+			require.Error(t, testserdes.DecodeBinary(bw.Bytes(), new(Conflicts)))
+		})
+		t.Run("negative: bad uint256", func(t *testing.T) {
+			bw := io.NewBufBinWriter()
+			bw.WriteVarBytes(make([]byte, util.Uint256Size-1))
+			require.Error(t, testserdes.DecodeBinary(bw.Bytes(), new(Conflicts)))
+		})
+	})
+	t.Run("NotaryAssisted", func(t *testing.T) {
+		t.Run("positive", func(t *testing.T) {
+			attr := &Attribute{
+				Type: NotaryAssistedT,
+				Value: &NotaryAssisted{
+					NKeys: 3,
+				},
+			}
+			testserdes.EncodeDecodeBinary(t, attr, new(Attribute))
+		})
+		t.Run("bad format: too long", func(t *testing.T) {
+			bw := io.NewBufBinWriter()
+			bw.WriteVarBytes(make([]byte, 2))
+			require.Error(t, testserdes.DecodeBinary(bw.Bytes(), new(NotaryAssisted)))
+		})
+		t.Run("bad format: too short", func(t *testing.T) {
+			bw := io.NewBufBinWriter()
+			bw.WriteVarBytes([]byte{})
+			require.Error(t, testserdes.DecodeBinary(bw.Bytes(), new(NotaryAssisted)))
+		})
 	})
 }
 
@@ -119,6 +166,15 @@ func TestAttribute_MarshalJSON(t *testing.T) {
 			Type: ConflictsT,
 			Value: &Conflicts{
 				Hash: random.Uint256(),
+			},
+		}
+		testserdes.MarshalUnmarshalJSON(t, attr, new(Attribute))
+	})
+	t.Run("NotaryAssisted", func(t *testing.T) {
+		attr := &Attribute{
+			Type: NotaryAssistedT,
+			Value: &NotaryAssisted{
+				NKeys: 3,
 			},
 		}
 		testserdes.MarshalUnmarshalJSON(t, attr, new(Attribute))

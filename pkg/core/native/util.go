@@ -2,10 +2,9 @@ package native
 
 import (
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
-	"github.com/nspcc-dev/neo-go/pkg/core/interop"
+	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/io"
-	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
 func getSerializableFromDAO(id int32, d dao.DAO, key []byte, item io.Serializable) error {
@@ -18,8 +17,13 @@ func getSerializableFromDAO(id int32, d dao.DAO, key []byte, item io.Serializabl
 	return r.Err
 }
 
-func nameMethod(name string) interop.Method {
-	return func(_ *interop.Context, _ []stackitem.Item) stackitem.Item {
-		return stackitem.NewByteArray([]byte(name))
+func putSerializableToDAO(id int32, d dao.DAO, key []byte, item io.Serializable) error {
+	w := io.NewBufBinWriter()
+	item.EncodeBinary(w.BinWriter)
+	if w.Err != nil {
+		return w.Err
 	}
+	return d.PutStorageItem(id, key, &state.StorageItem{
+		Value: w.Bytes(),
+	})
 }

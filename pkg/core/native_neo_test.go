@@ -313,14 +313,7 @@ func TestNEO_TransferOnPayment(t *testing.T) {
 	require.NoError(t, bc.dao.PutContractState(cs))
 
 	const amount = 2
-	tx := newNEP17Transfer(bc.contracts.NEO.Hash, neoOwner, cs.ScriptHash(), amount)
-	tx.SystemFee += 1_000_000
-	tx.NetworkFee = 10_000_000
-	tx.ValidUntilBlock = bc.BlockHeight() + 1
-	addSigners(tx)
-	require.NoError(t, testchain.SignTx(bc, tx))
-	require.NoError(t, bc.AddBlock(bc.newBlock(tx)))
-
+	tx := transferTokenFromMultisigAccount(t, bc, cs.ScriptHash(), bc.contracts.NEO.Hash, amount)
 	aer, err := bc.GetAppExecResults(tx.Hash(), trigger.Application)
 	require.NoError(t, err)
 	require.Equal(t, vm.HaltState, aer[0].VMState)

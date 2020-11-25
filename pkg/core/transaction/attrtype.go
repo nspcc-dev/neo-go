@@ -18,6 +18,7 @@ const (
 	OracleResponseT AttrType = 0x11                   // OracleResponse
 	NotValidBeforeT AttrType = ReservedLowerBound     // NotValidBefore
 	ConflictsT      AttrType = ReservedLowerBound + 1 // Conflicts
+	NotaryAssistedT AttrType = ReservedLowerBound + 2 // NotaryAssisted
 )
 
 func (a AttrType) allowMultiple() bool {

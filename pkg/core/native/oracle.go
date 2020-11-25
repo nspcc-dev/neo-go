@@ -113,10 +113,6 @@ func newOracle() *Oracle {
 	md := newMethodAndPrice(o.request, oracleRequestPrice, smartcontract.AllowModifyStates)
 	o.AddMethod(md, desc, false)
 
-	desc = newDescriptor("name", smartcontract.StringType)
-	md = newMethodAndPrice(nameMethod(oracleName), 0, smartcontract.NoneFlag)
-	o.AddMethod(md, desc, true)
-
 	desc = newDescriptor("finish", smartcontract.VoidType)
 	md = newMethodAndPrice(o.finish, 0, smartcontract.AllowModifyStates)
 	o.AddMethod(md, desc, false)
@@ -135,6 +131,10 @@ func newOracle() *Oracle {
 	pp := chainOnPersist(postPersistBase, o.PostPersist)
 	desc = newDescriptor("postPersist", smartcontract.VoidType)
 	md = newMethodAndPrice(getOnPersistWrapper(pp), 0, smartcontract.AllowModifyStates)
+	o.AddMethod(md, desc, false)
+
+	desc = newDescriptor("onPersist", smartcontract.VoidType)
+	md = newMethodAndPrice(getOnPersistWrapper(onPersistBase), 0, smartcontract.AllowModifyStates)
 	o.AddMethod(md, desc, false)
 
 	o.AddEvent("OracleRequest", manifest.NewParameter("Id", smartcontract.IntegerType),
