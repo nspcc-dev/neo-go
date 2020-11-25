@@ -72,4 +72,13 @@ type Peer interface {
 
 	// HandlePong checks pong contents against Peer's state and updates it.
 	HandlePong(pong *payload.Ping) error
+
+	// AddGetAddrSent is to inform local peer context that a getaddr command
+	// is sent. The decision to send getaddr is server-wide, but it needs to be
+	// accounted for in peer's context, thus this method.
+	AddGetAddrSent()
+
+	// CanProcessAddr checks whether an addr command is expected to come from
+	// this peer and can be processed.
+	CanProcessAddr() bool
 }

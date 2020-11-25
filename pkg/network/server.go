@@ -680,6 +680,9 @@ func (s *Server) handleTxCmd(tx *transaction.Transaction) error {
 
 // handleAddrCmd will process received addresses.
 func (s *Server) handleAddrCmd(p Peer, addrs *payload.AddressList) error {
+	if !p.CanProcessAddr() {
+		return errors.New("unexpected addr received")
+	}
 	for _, a := range addrs.Addrs {
 		addr, err := a.GetTCPAddress()
 		if err == nil {
@@ -829,6 +832,9 @@ func (s *Server) iteratePeersWithSendMsg(msg *Message, send func(Peer, []byte) e
 	for peer := range peers {
 		if peerOK != nil && !peerOK(peer) {
 			continue
+		}
+		if msg.Command == CMDGetAddr {
+			peer.AddGetAddrSent()
 		}
 		// Who cares about these messages anyway?
 		_ = send(peer, pkt)
