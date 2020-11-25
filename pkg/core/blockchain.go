@@ -531,7 +531,7 @@ func (bc *Blockchain) addHeaders(verify bool, headers ...*block.Header) error {
 			return buf.Err
 		}
 
-		key := storage.AppendPrefix(storage.DataBlock, h.Hash().BytesLE())
+		key := storage.AppendPrefix(storage.DataBlock, h.Hash().BytesBE())
 		batch.Put(key, buf.Bytes())
 		buf.Reset()
 		lastHeader = h
