@@ -13,6 +13,8 @@ type (
 		// If true, DB size will be smaller, but older roots won't be accessible.
 		// This value should remain the same for the same database.
 		KeepOnlyLatestState bool `yaml:"KeepOnlyLatestState"`
+		// RemoveUntraceableBlocks specifies if old blocks should be removed.
+		RemoveUntraceableBlocks bool `yaml:"RemoveUntraceableBlocks"`
 		// MaxTraceableBlocks is the length of the chain accessible to smart contracts.
 		MaxTraceableBlocks uint32 `yaml:"MaxTraceableBlocks"`
 		// P2PSigExtensions enables additional signature-related transaction attributes

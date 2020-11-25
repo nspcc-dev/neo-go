@@ -114,7 +114,7 @@ func TestAddBlock(t *testing.T) {
 	require.NoError(t, bc.persist())
 
 	for _, block := range blocks {
-		key := storage.AppendPrefix(storage.DataBlock, block.Hash().BytesLE())
+		key := storage.AppendPrefix(storage.DataBlock, block.Hash().BytesBE())
 		_, err := bc.dao.Store.Get(key)
 		require.NoErrorf(t, err, "block %s not persisted", block.Hash())
 	}
