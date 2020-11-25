@@ -90,23 +90,14 @@ func getOracleContractState(h util.Uint160) *state.Contract {
 
 func putOracleRequest(t *testing.T, h util.Uint160, bc *Blockchain,
 	url string, filter *string, userData []byte, gas int64) util.Uint256 {
-	w := io.NewBufBinWriter()
 	var filtItem interface{}
 	if filter != nil {
 		filtItem = *filter
 	}
-	emit.AppCallWithOperationAndArgs(w.BinWriter, h, "requestURL",
+	res, err := invokeContractMethod(bc, gas+50_000_000+5_000_000, h, "requestURL",
 		url, filtItem, "handle", userData, gas)
-	require.NoError(t, w.Err)
-
-	gas += 50_000_000 + 5_000_000 // request + contract call with args
-	tx := transaction.New(netmode.UnitTestNet, w.Bytes(), gas)
-	tx.ValidUntilBlock = bc.BlockHeight() + 1
-	tx.NetworkFee = 1_000_000
-	setSigner(tx, testchain.MultisigScriptHash())
-	require.NoError(t, testchain.SignTx(bc, tx))
-	require.NoError(t, bc.AddBlock(bc.newBlock(tx)))
-	return tx.Hash()
+	require.NoError(t, err)
+	return res.Container
 }
 
 func TestOracle_Request(t *testing.T) {

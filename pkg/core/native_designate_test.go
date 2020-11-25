@@ -64,34 +64,17 @@ func (bc *Blockchain) setNodesByRole(t *testing.T, ok bool, r native.Role, nodes
 }
 
 func (bc *Blockchain) getNodesByRole(t *testing.T, ok bool, r native.Role, index uint32, resLen int) {
-	w := io.NewBufBinWriter()
-	emit.AppCallWithOperationAndArgs(w.BinWriter, bc.contracts.Designate.Hash, "getDesignatedByRole", int64(r), int64(index))
-	require.NoError(t, w.Err)
-	tx := transaction.New(netmode.UnitTestNet, w.Bytes(), 0)
-	tx.NetworkFee = 10_000_000
-	tx.SystemFee = 10_000_000
-	tx.ValidUntilBlock = 100
-	tx.Signers = []transaction.Signer{
-		{
-			Account: testchain.MultisigScriptHash(),
-			Scopes:  transaction.None,
-		},
-	}
-	require.NoError(t, testchain.SignTx(bc, tx))
-	require.NoError(t, bc.AddBlock(bc.newBlock(tx)))
-
-	aer, err := bc.GetAppExecResults(tx.Hash(), trigger.Application)
+	res, err := invokeContractMethod(bc, 10_000_000, bc.contracts.Designate.Hash, "getDesignatedByRole", int64(r), int64(index))
 	require.NoError(t, err)
-	require.Equal(t, 1, len(aer))
 	if ok {
-		require.Equal(t, vm.HaltState, aer[0].VMState)
-		require.Equal(t, 1, len(aer[0].Stack))
-		arrItem := aer[0].Stack[0]
+		require.Equal(t, vm.HaltState, res.VMState)
+		require.Equal(t, 1, len(res.Stack))
+		arrItem := res.Stack[0]
 		require.Equal(t, stackitem.ArrayT, arrItem.Type())
 		arr := arrItem.(*stackitem.Array)
 		require.Equal(t, resLen, arr.Len())
 	} else {
-		require.Equal(t, vm.FaultState, aer[0].VMState)
+		checkFAULTState(t, res)
 	}
 }
 

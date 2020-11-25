@@ -4,7 +4,6 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/nspcc-dev/neo-go/internal/testchain"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
@@ -12,14 +11,11 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
-	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
-	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
-	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/stretchr/testify/require"
 )
@@ -157,44 +153,24 @@ func TestNativeContract_Invoke(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	w := io.NewBufBinWriter()
-	emit.AppCallWithOperationAndArgs(w.BinWriter, tn.Metadata().Hash, "sum", int64(14), int64(28))
-	script := w.Bytes()
 	// System.Contract.Call + "sum" itself + opcodes for pushing arguments (PACK is 15000)
-	tx := transaction.New(chain.GetConfig().Magic, script, testSumPrice*2+18000)
-	validUntil := chain.blockHeight + 1
-	tx.ValidUntilBlock = validUntil
-	addSigners(tx)
-	require.NoError(t, testchain.SignTx(chain, tx))
-
-	// Enough for Call and other opcodes, but not enough for "sum" call.
-	tx2 := transaction.New(chain.GetConfig().Magic, script, testSumPrice*2+8000)
-	tx2.ValidUntilBlock = chain.blockHeight + 1
-	addSigners(tx2)
-	require.NoError(t, testchain.SignTx(chain, tx2))
-
-	b := chain.newBlock(tx, tx2)
-	require.NoError(t, chain.AddBlock(b))
-
-	res, err := chain.GetAppExecResults(tx.Hash(), trigger.Application)
+	res, err := invokeContractMethod(chain, testSumPrice*2+18000, tn.Metadata().Hash, "sum", int64(14), int64(28))
 	require.NoError(t, err)
-	require.Equal(t, 1, len(res))
-	require.Equal(t, vm.HaltState, res[0].VMState)
-	require.Equal(t, 1, len(res[0].Stack))
-	require.Equal(t, big.NewInt(42), res[0].Stack[0].Value())
-
-	res, err = chain.GetAppExecResults(tx2.Hash(), trigger.Application)
-	require.NoError(t, err)
-	require.Equal(t, 1, len(res))
-	require.Equal(t, vm.FaultState, res[0].VMState)
-
+	checkResult(t, res, stackitem.Make(42))
 	require.NoError(t, chain.persist())
+
 	select {
 	case index := <-tn.blocks:
 		require.Equal(t, chain.blockHeight, index)
 	default:
 		require.Fail(t, "onPersist wasn't called")
 	}
+
+	// Enough for Call and other opcodes, but not enough for "sum" call.
+	res, err = invokeContractMethod(chain, testSumPrice*2+8000, tn.Metadata().Hash, "sum", int64(14), int64(28))
+	require.NoError(t, err)
+	checkFAULTState(t, res)
+
 }
 
 func TestNativeContract_InvokeInternal(t *testing.T) {
@@ -254,25 +230,8 @@ func TestNativeContract_InvokeOtherContract(t *testing.T) {
 	require.NoError(t, chain.dao.PutContractState(cs))
 
 	t.Run("non-native, no return", func(t *testing.T) {
-		w := io.NewBufBinWriter()
-		emit.AppCallWithOperationAndArgs(w.BinWriter, tn.Metadata().Hash, "callOtherContractNoReturn",
-			cs.ScriptHash(), "justReturn", []interface{}{})
-		require.NoError(t, w.Err)
-		script := w.Bytes()
-		tx := transaction.New(chain.GetConfig().Magic, script, testSumPrice*4+10000)
-		validUntil := chain.blockHeight + 1
-		tx.ValidUntilBlock = validUntil
-		addSigners(tx)
-		require.NoError(t, testchain.SignTx(chain, tx))
-
-		b := chain.newBlock(tx)
-		require.NoError(t, chain.AddBlock(b))
-
-		res, err := chain.GetAppExecResults(tx.Hash(), trigger.Application)
+		res, err := invokeContractMethod(chain, testSumPrice*4+10000, tn.Metadata().Hash, "callOtherContractNoReturn", cs.ScriptHash(), "justReturn", []interface{}{})
 		require.NoError(t, err)
-		require.Equal(t, 1, len(res))
-		require.Equal(t, vm.HaltState, res[0].VMState)
-		require.Equal(t, 1, len(res[0].Stack))
-		require.Equal(t, stackitem.Null{}, res[0].Stack[0]) // simple call is done with EnsureNotEmpty
+		checkResult(t, res, stackitem.Null{}) // simple call is done with EnsureNotEmpty
 	})
 }
