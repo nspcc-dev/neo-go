@@ -1,6 +1,7 @@
 package nep17
 
 import (
+	"github.com/nspcc-dev/neo-go/pkg/interop"
 	"github.com/nspcc-dev/neo-go/pkg/interop/runtime"
 	"github.com/nspcc-dev/neo-go/pkg/interop/storage"
 	"github.com/nspcc-dev/neo-go/pkg/interop/util"
@@ -44,7 +45,7 @@ func (t Token) BalanceOf(ctx storage.Context, holder []byte) int {
 }
 
 // Transfer token from one user to another
-func (t Token) Transfer(ctx storage.Context, from []byte, to []byte, amount int, data interface{}) bool {
+func (t Token) Transfer(ctx storage.Context, from, to interop.Hash160, amount int, data interface{}) bool {
 	amountFrom := t.CanTransfer(ctx, from, to, amount)
 	if amountFrom == -1 {
 		return false
@@ -62,7 +63,7 @@ func (t Token) Transfer(ctx storage.Context, from []byte, to []byte, amount int,
 	amountTo := getIntFromDB(ctx, to)
 	totalAmountTo := amountTo + amount
 	storage.Put(ctx, to, totalAmountTo)
-	runtime.Notify("transfer", from, to, amount)
+	runtime.Notify("Transfer", from, to, amount)
 	return true
 }
 
@@ -105,7 +106,7 @@ func IsUsableAddress(addr []byte) bool {
 }
 
 // Mint initial supply of tokens
-func (t Token) Mint(ctx storage.Context, to []byte) bool {
+func (t Token) Mint(ctx storage.Context, to interop.Hash160) bool {
 	if !IsUsableAddress(t.Owner) {
 		return false
 	}
@@ -117,6 +118,7 @@ func (t Token) Mint(ctx storage.Context, to []byte) bool {
 	storage.Put(ctx, to, t.TotalSupply)
 	storage.Put(ctx, []byte("minted"), true)
 	storage.Put(ctx, []byte(t.CirculationKey), t.TotalSupply)
-	runtime.Notify("transfer", "", to, t.TotalSupply)
+	var from interop.Hash160
+	runtime.Notify("Transfer", from, to, t.TotalSupply)
 	return true
 }

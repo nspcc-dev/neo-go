@@ -87,6 +87,9 @@ type codegen struct {
 	// docIndex maps file path to an index in documents array.
 	docIndex map[string]int
 
+	// emittedEvents contains all events emitted by contract.
+	emittedEvents map[string][][]string
+
 	// Label table for recording jump destinations.
 	l []int
 }
@@ -870,6 +873,15 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			ast.Walk(c, n.Fun)
 			emit.Opcodes(c.prog.BinWriter, opcode.CALLA)
 		case isSyscall(f):
+			if f.pkg.Name() == "runtime" && f.name == "Notify" {
+				tv := c.typeAndValueOf(n.Args[0])
+				params := make([]string, 0, len(n.Args[1:]))
+				for _, p := range n.Args[1:] {
+					params = append(params, c.scTypeFromExpr(p))
+				}
+				name := constant.StringVal(tv.Value)
+				c.emittedEvents[name] = append(c.emittedEvents[name], params)
+			}
 			c.convertSyscall(n, f.pkg.Name(), f.name)
 		default:
 			emit.Call(c.prog.BinWriter, opcode.CALLL, f.label)
@@ -1883,6 +1895,7 @@ func newCodegen(info *buildInfo, pkg *loader.PackageInfo) *codegen {
 		initEndOffset:   -1,
 		deployEndOffset: -1,
 
+		emittedEvents:  make(map[string][][]string),
 		sequencePoints: make(map[string][]DebugSeqPoint),
 	}
 }

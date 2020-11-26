@@ -4,8 +4,8 @@ events:
   - name: Transfer
     parameters:
       - name: from
-        type: ByteString
+        type: Hash160
       - name: to
-        type: ByteString
+        type: Hash160
       - name: amount
         type: Integer

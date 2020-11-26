@@ -89,6 +89,16 @@ func (a *ABI) GetMethod(name string) *Method {
 	return nil
 }
 
+// GetEvent returns event with the specified name.
+func (a *ABI) GetEvent(name string) *Event {
+	for i := range a.Events {
+		if a.Events[i].Name == name {
+			return &a.Events[i]
+		}
+	}
+	return nil
+}
+
 // CanCall returns true is current contract is allowed to call
 // method of another contract.
 func (m *Manifest) CanCall(toCall *Manifest, method string) bool {
