@@ -173,7 +173,7 @@ type Execution struct {
 type executionAux struct {
 	Trigger        string              `json:"trigger"`
 	VMState        string              `json:"vmstate"`
-	GasConsumed    int64               `json:"gasconsumed,string"`
+	GasConsumed    util.Fixed8         `json:"gasconsumed,string"`
 	Stack          json.RawMessage     `json:"stack"`
 	Events         []NotificationEvent `json:"notifications"`
 	FaultException string              `json:"exception,omitempty"`
@@ -202,7 +202,7 @@ func (e Execution) MarshalJSON() ([]byte, error) {
 	return json.Marshal(&executionAux{
 		Trigger:        e.Trigger.String(),
 		VMState:        e.VMState.String(),
-		GasConsumed:    e.GasConsumed,
+		GasConsumed:    util.Fixed8(e.GasConsumed),
 		Stack:          st,
 		Events:         e.Events,
 		FaultException: e.FaultException,
@@ -239,7 +239,7 @@ func (e *Execution) UnmarshalJSON(data []byte) error {
 	}
 	e.VMState = state
 	e.Events = aux.Events
-	e.GasConsumed = aux.GasConsumed
+	e.GasConsumed = int64(aux.GasConsumed)
 	e.FaultException = aux.FaultException
 	return nil
 }

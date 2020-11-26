@@ -6,6 +6,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
+	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
@@ -25,7 +26,7 @@ type Invoke struct {
 
 type invokeAux struct {
 	State          string          `json:"state"`
-	GasConsumed    int64           `json:"gasconsumed,string"`
+	GasConsumed    util.Fixed8     `json:"gasconsumed,string"`
 	Script         []byte          `json:"script"`
 	Stack          json.RawMessage `json:"stack"`
 	FaultException string          `json:"exception,omitempty"`
@@ -54,7 +55,7 @@ func (r Invoke) MarshalJSON() ([]byte, error) {
 	}
 
 	return json.Marshal(&invokeAux{
-		GasConsumed:    r.GasConsumed,
+		GasConsumed:    util.Fixed8(r.GasConsumed),
 		Script:         r.Script,
 		State:          r.State,
 		Stack:          st,
@@ -82,7 +83,7 @@ func (r *Invoke) UnmarshalJSON(data []byte) error {
 			r.Stack = st
 		}
 	}
-	r.GasConsumed = aux.GasConsumed
+	r.GasConsumed = int64(aux.GasConsumed)
 	r.Script = aux.Script
 	r.State = aux.State
 	r.FaultException = aux.FaultException

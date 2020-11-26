@@ -119,6 +119,8 @@ func TestMarshalUnmarshalJSONInvocationTX(t *testing.T) {
 		Script:     []byte{1, 2, 3, 4},
 		Attributes: []Attribute{{Type: HighPriority}},
 		Scripts:    []Witness{},
+		SystemFee:  int64(util.Fixed8FromFloat(123.45)),
+		NetworkFee: int64(util.Fixed8FromFloat(0.123)),
 		Trimmed:    false,
 	}
 

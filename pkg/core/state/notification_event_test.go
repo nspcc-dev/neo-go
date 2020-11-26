@@ -103,7 +103,21 @@ func TestMarshalUnmarshalJSONAppExecResult(t *testing.T) {
 				Events:      []NotificationEvent{},
 			},
 		}
-		testserdes.MarshalUnmarshalJSON(t, appExecResult, new(AppExecResult))
+
+		data, err := json.Marshal(appExecResult)
+		require.NoError(t, err)
+		expected := `{
+			"container":"0x` + appExecResult.Container.StringLE() + `",
+			"trigger":"Application",
+			"vmstate":"HALT",
+			"gasconsumed":"0.0000001",
+			"stack":[],
+			"notifications":[]
+}`
+		require.JSONEq(t, expected, string(data))
+		actual := new(AppExecResult)
+		require.NoError(t, json.Unmarshal(data, actual))
+		require.Equal(t, appExecResult, actual)
 	})
 
 	t.Run("positive, fault state", func(t *testing.T) {
