@@ -9,6 +9,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/internal/random"
 	"github.com/nspcc-dev/neo-go/internal/testchain"
+	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/chaindump"
@@ -124,7 +125,9 @@ func TestAddBlock(t *testing.T) {
 }
 
 func TestAddBlockStateRoot(t *testing.T) {
-	bc := newTestChainWithStateRoot(t, true)
+	bc := newTestChainWithCustomCfg(t, func(c *config.Config) {
+		c.ProtocolConfiguration.StateRootInHeader = true
+	})
 	defer bc.Close()
 
 	sr, err := bc.GetStateRoot(bc.BlockHeight())
@@ -1235,8 +1238,12 @@ func TestSubscriptions(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func testDumpAndRestore(t *testing.T, stateRootInHeader bool) {
-	bc := newTestChainWithStateRoot(t, stateRootInHeader)
+func testDumpAndRestore(t *testing.T, dumpF, restoreF func(c *config.Config)) {
+	if restoreF == nil {
+		restoreF = dumpF
+	}
+
+	bc := newTestChainWithCustomCfg(t, dumpF)
 	defer bc.Close()
 
 	initBasicChain(t, bc)
@@ -1248,14 +1255,14 @@ func testDumpAndRestore(t *testing.T, stateRootInHeader bool) {
 
 	buf := w.Bytes()
 	t.Run("invalid start", func(t *testing.T) {
-		bc2 := newTestChainWithStateRoot(t, stateRootInHeader)
+		bc2 := newTestChainWithCustomCfg(t, restoreF)
 		defer bc2.Close()
 
 		r := io.NewBinReaderFromBuf(buf)
 		require.Error(t, chaindump.Restore(bc2, r, 2, 1, nil))
 	})
 	t.Run("good", func(t *testing.T) {
-		bc2 := newTestChainWithStateRoot(t, stateRootInHeader)
+		bc2 := newTestChainWithCustomCfg(t, restoreF)
 		defer bc2.Close()
 
 		r := io.NewBinReaderFromBuf(buf)
@@ -1288,9 +1295,52 @@ func testDumpAndRestore(t *testing.T, stateRootInHeader bool) {
 
 func TestDumpAndRestore(t *testing.T) {
 	t.Run("no state root", func(t *testing.T) {
-		testDumpAndRestore(t, false)
+		testDumpAndRestore(t, func(c *config.Config) {
+			c.ProtocolConfiguration.StateRootInHeader = false
+		}, nil)
 	})
 	t.Run("with state root", func(t *testing.T) {
-		testDumpAndRestore(t, true)
+		testDumpAndRestore(t, func(c *config.Config) {
+			c.ProtocolConfiguration.StateRootInHeader = false
+		}, nil)
 	})
+	t.Run("remove untraceable", func(t *testing.T) {
+		// Dump can only be created if all blocks and transactions are present.
+		testDumpAndRestore(t, nil, func(c *config.Config) {
+			c.ProtocolConfiguration.MaxTraceableBlocks = 2
+			c.ProtocolConfiguration.RemoveUntraceableBlocks = true
+		})
+	})
+}
+
+func TestRemoveUntraceable(t *testing.T) {
+	bc := newTestChainWithCustomCfg(t, func(c *config.Config) {
+		c.ProtocolConfiguration.MaxTraceableBlocks = 2
+		c.ProtocolConfiguration.RemoveUntraceableBlocks = true
+	})
+	defer bc.Close()
+
+	tx1, err := testchain.NewTransferFromOwner(bc, bc.contracts.NEO.Hash, util.Uint160{}, 1, 0, bc.BlockHeight()+1)
+	require.NoError(t, err)
+	b1 := bc.newBlock(tx1)
+	require.NoError(t, bc.AddBlock(b1))
+	tx1Height := bc.BlockHeight()
+
+	tx2, err := testchain.NewTransferFromOwner(bc, bc.contracts.NEO.Hash, util.Uint160{}, 1, 0, bc.BlockHeight()+1)
+	require.NoError(t, err)
+	require.NoError(t, bc.AddBlock(bc.newBlock(tx2)))
+
+	_, h1, err := bc.GetTransaction(tx1.Hash())
+	require.NoError(t, err)
+	require.Equal(t, tx1Height, h1)
+
+	require.NoError(t, bc.AddBlock(bc.newBlock()))
+
+	_, _, err = bc.GetTransaction(tx1.Hash())
+	require.Error(t, err)
+	_, err = bc.GetAppExecResults(tx1.Hash(), trigger.Application)
+	require.Error(t, err)
+	b, err := bc.GetBlock(b1.Hash())
+	require.NoError(t, err)
+	require.Len(t, b.Transactions, 0)
 }

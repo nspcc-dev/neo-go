@@ -41,13 +41,15 @@ var neoOwner = testchain.MultisigScriptHash()
 // newTestChain should be called before newBlock invocation to properly setup
 // global state.
 func newTestChain(t *testing.T) *Blockchain {
-	return newTestChainWithStateRoot(t, false)
+	return newTestChainWithCustomCfg(t, nil)
 }
 
-func newTestChainWithStateRoot(t *testing.T, stateRootInHeader bool) *Blockchain {
+func newTestChainWithCustomCfg(t *testing.T, f func(*config.Config)) *Blockchain {
 	unitTestNetCfg, err := config.Load("../../config", testchain.Network())
 	require.NoError(t, err)
-	unitTestNetCfg.ProtocolConfiguration.StateRootInHeader = stateRootInHeader
+	if f != nil {
+		f(&unitTestNetCfg)
+	}
 	chain, err := NewBlockchain(storage.NewMemoryStore(), unitTestNetCfg.ProtocolConfiguration, zaptest.NewLogger(t))
 	require.NoError(t, err)
 	go chain.Run()
