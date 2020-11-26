@@ -11,7 +11,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/io"
-	"github.com/nspcc-dev/neo-go/pkg/util"
 )
 
 // NEO Executable Format 3 (NEF3)
@@ -23,7 +22,6 @@ import (
 // | Magic      | 4 bytes   | Magic header                                               |
 // | Compiler   | 32 bytes  | Compiler used                                              |
 // | Version    | 16 bytes  | Compiler version (Major, Minor, Build, Version)            |
-// | ScriptHash | 20 bytes  | ScriptHash for the script (BE)                             |
 // +------------+-----------+------------------------------------------------------------+
 // | Checksum   | 4 bytes   | First four bytes of double SHA256 hash of the header       |
 // +------------+-----------+------------------------------------------------------------+
@@ -48,10 +46,9 @@ type File struct {
 
 // Header represents File header.
 type Header struct {
-	Magic      uint32
-	Compiler   string
-	Version    Version
-	ScriptHash util.Uint160
+	Magic    uint32
+	Compiler string
+	Version  Version
 }
 
 // Version represents compiler version.
@@ -66,9 +63,8 @@ type Version struct {
 func NewFile(script []byte) (File, error) {
 	file := File{
 		Header: Header{
-			Magic:      Magic,
-			Compiler:   "neo-go",
-			ScriptHash: hash.Hash160(script),
+			Magic:    Magic,
+			Compiler: "neo-go",
 		},
 		Script: script,
 	}
@@ -156,7 +152,6 @@ func (h *Header) EncodeBinary(w *io.BinWriter) {
 		w.WriteBytes(make([]byte, compilerFieldSize-len(bytes)))
 	}
 	h.Version.EncodeBinary(w)
-	h.ScriptHash.EncodeBinary(w)
 }
 
 // DecodeBinary implements io.Serializable interface.
@@ -173,7 +168,6 @@ func (h *Header) DecodeBinary(r *io.BinReader) {
 	})
 	h.Compiler = string(buf)
 	h.Version.DecodeBinary(r)
-	h.ScriptHash.DecodeBinary(r)
 }
 
 // CalculateChecksum returns first 4 bytes of double-SHA256(Header) converted to uint32.
@@ -205,10 +199,6 @@ func (n *File) DecodeBinary(r *io.BinReader) {
 	n.Script = r.ReadVarBytes(MaxScriptLength)
 	if len(n.Script) == 0 {
 		r.Err = errors.New("empty script")
-		return
-	}
-	if !hash.Hash160(n.Script).Equals(n.Header.ScriptHash) {
-		r.Err = errors.New("script hashes mismatch")
 		return
 	}
 }

@@ -4,8 +4,6 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/internal/testserdes"
-	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
-	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/stretchr/testify/require"
 )
 
@@ -21,7 +19,6 @@ func TestEncodeDecodeBinary(t *testing.T) {
 				Build:    3,
 				Revision: 4,
 			},
-			ScriptHash: hash.Hash160(script),
 		},
 		Script: script,
 	}
@@ -39,7 +36,6 @@ func TestEncodeDecodeBinary(t *testing.T) {
 
 	t.Run("zero-length script", func(t *testing.T) {
 		expected.Script = make([]byte, 0)
-		expected.Header.ScriptHash = hash.Hash160(expected.Script)
 		expected.Checksum = expected.Header.CalculateChecksum()
 		checkDecodeError(t, expected)
 	})
@@ -47,21 +43,12 @@ func TestEncodeDecodeBinary(t *testing.T) {
 	t.Run("invalid script length", func(t *testing.T) {
 		newScript := make([]byte, MaxScriptLength+1)
 		expected.Script = newScript
-		expected.Header.ScriptHash = hash.Hash160(newScript)
-		expected.Checksum = expected.Header.CalculateChecksum()
-		checkDecodeError(t, expected)
-	})
-
-	t.Run("invalid scripthash", func(t *testing.T) {
-		expected.Script = script
-		expected.Header.ScriptHash = util.Uint160{1, 2, 3}
 		expected.Checksum = expected.Header.CalculateChecksum()
 		checkDecodeError(t, expected)
 	})
 
 	t.Run("positive", func(t *testing.T) {
 		expected.Script = script
-		expected.Header.ScriptHash = hash.Hash160(script)
 		expected.Checksum = expected.Header.CalculateChecksum()
 		expected.Header.Magic = Magic
 		testserdes.EncodeDecodeBinary(t, expected, &File{})
@@ -86,7 +73,6 @@ func TestBytesFromBytes(t *testing.T) {
 				Build:    3,
 				Revision: 4,
 			},
-			ScriptHash: hash.Hash160(script),
 		},
 		Script: script,
 	}
