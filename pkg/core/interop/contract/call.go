@@ -46,10 +46,13 @@ func callExInternal(ic *interop.Context, h []byte, name string, args []stackitem
 	if strings.HasPrefix(name, "_") {
 		return errors.New("invalid method name (starts with '_')")
 	}
-	curr, err := ic.DAO.GetContractState(ic.VM.GetCurrentScriptHash())
-	if err == nil {
-		if !curr.Manifest.CanCall(u, &cs.Manifest, name) {
-			return errors.New("disallowed method call")
+	ctx := ic.VM.Context()
+	if ctx != nil && ctx.IsDeployed() {
+		curr, err := ic.DAO.GetContractState(ic.VM.GetCurrentScriptHash())
+		if err == nil {
+			if !curr.Manifest.CanCall(u, &cs.Manifest, name) {
+				return errors.New("disallowed method call")
+			}
 		}
 	}
 	return CallExInternal(ic, cs, name, args, f, vm.EnsureNotEmpty, nil)

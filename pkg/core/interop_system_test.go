@@ -581,7 +581,7 @@ func TestContractCall(t *testing.T) {
 
 	runInvalid := func(args ...interface{}) func(t *testing.T) {
 		return func(t *testing.T) {
-			loadScript(ic, currScript, 42)
+			loadScriptWithHashAndFlags(ic, currScript, h, smartcontract.All, 42)
 			for i := range args {
 				ic.VM.Estack().PushVal(args[i])
 			}

@@ -42,6 +42,9 @@ type Context struct {
 	// Caller's contract script hash.
 	callingScriptHash util.Uint160
 
+	// Set to true when running deployed contracts.
+	isDeployed bool
+
 	// Call flags this context was created with.
 	callFlag smartcontract.CallFlag
 
@@ -254,6 +257,11 @@ func (c *Context) atBreakPoint() bool {
 
 func (c *Context) String() string {
 	return "execution context"
+}
+
+// IsDeployed returns whether this context contains deployed contract.
+func (c *Context) IsDeployed() bool {
+	return c.isDeployed
 }
 
 // getContextScriptHash returns script hash of the invocation stack element

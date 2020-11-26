@@ -284,12 +284,16 @@ func (v *VM) LoadScriptWithFlags(b []byte, f smartcontract.CallFlag) {
 }
 
 // LoadScriptWithHash if similar to the LoadScriptWithFlags method, but it also loads
-// given script hash directly into the Context to avoid its recalculations. It's
-// up to user of this function to make sure the script and hash match each other.
+// given script hash directly into the Context to avoid its recalculations and to make
+// is possible to override it for deployed contracts with special hashes (the function
+// assumes that it is used for deployed contracts setting context's parameters
+// accordingly). It's up to user of this function to make sure the script and hash match
+// each other.
 func (v *VM) LoadScriptWithHash(b []byte, hash util.Uint160, f smartcontract.CallFlag) {
 	shash := v.GetCurrentScriptHash()
 	v.LoadScriptWithFlags(b, f)
 	ctx := v.Context()
+	ctx.isDeployed = true
 	ctx.scriptHash = hash
 	ctx.callingScriptHash = shash
 }
