@@ -2,8 +2,10 @@ package core
 
 import (
 	"errors"
+	"fmt"
 	"math/big"
 	"math/rand"
+	"strings"
 	"testing"
 	"time"
 
@@ -997,6 +999,97 @@ func TestVerifyHashAgainstScript(t *testing.T) {
 		}
 		_, err := bc.verifyHashAgainstScript(hash.Hash160(verif), w, ic, gas)
 		require.True(t, errors.Is(err, ErrVerificationFailed))
+	})
+}
+
+func TestIsTxStillRelevant(t *testing.T) {
+	bc := newTestChain(t)
+	defer bc.Close()
+
+	mp := bc.GetMemPool()
+	newTx := func(t *testing.T) *transaction.Transaction {
+		tx := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.RET)}, 100)
+		tx.ValidUntilBlock = bc.BlockHeight() + 1
+		tx.Signers = []transaction.Signer{{
+			Account: neoOwner,
+			Scopes:  transaction.CalledByEntry,
+		}}
+		return tx
+	}
+
+	t.Run("small ValidUntilBlock", func(t *testing.T) {
+		tx := newTx(t)
+		require.NoError(t, testchain.SignTx(bc, tx))
+
+		require.True(t, bc.isTxStillRelevant(tx, nil))
+		require.NoError(t, bc.AddBlock(bc.newBlock()))
+		require.False(t, bc.isTxStillRelevant(tx, nil))
+	})
+
+	t.Run("tx is already persisted", func(t *testing.T) {
+		tx := newTx(t)
+		tx.ValidUntilBlock = bc.BlockHeight() + 2
+		require.NoError(t, testchain.SignTx(bc, tx))
+
+		require.True(t, bc.isTxStillRelevant(tx, nil))
+		require.NoError(t, bc.AddBlock(bc.newBlock(tx)))
+		require.False(t, bc.isTxStillRelevant(tx, nil))
+	})
+
+	t.Run("tx with Conflicts attribute", func(t *testing.T) {
+		tx1 := newTx(t)
+		require.NoError(t, testchain.SignTx(bc, tx1))
+
+		tx2 := newTx(t)
+		tx2.Attributes = []transaction.Attribute{{
+			Type:  transaction.ConflictsT,
+			Value: &transaction.Conflicts{Hash: tx1.Hash()},
+		}}
+		require.NoError(t, testchain.SignTx(bc, tx2))
+
+		require.True(t, bc.isTxStillRelevant(tx1, mp))
+		require.NoError(t, bc.verifyAndPoolTx(tx2, mp))
+		require.False(t, bc.isTxStillRelevant(tx1, mp))
+	})
+	t.Run("NotValidBefore", func(t *testing.T) {
+		tx3 := newTx(t)
+		tx3.Attributes = []transaction.Attribute{{
+			Type:  transaction.NotValidBeforeT,
+			Value: &transaction.NotValidBefore{Height: bc.BlockHeight() + 1},
+		}}
+		tx3.ValidUntilBlock = bc.BlockHeight() + 2
+		require.NoError(t, testchain.SignTx(bc, tx3))
+
+		require.False(t, bc.isTxStillRelevant(tx3, nil))
+		require.NoError(t, bc.AddBlock(bc.newBlock()))
+		require.True(t, bc.isTxStillRelevant(tx3, nil))
+	})
+	t.Run("contract witness check fails", func(t *testing.T) {
+		src := fmt.Sprintf(`package verify
+		import "github.com/nspcc-dev/neo-go/pkg/interop/blockchain"
+		func Verify() bool {
+			currentHeight := blockchain.GetHeight()
+			return currentHeight < %d
+		}`, bc.BlockHeight()+2) // deploy + next block
+		txDeploy, avm, err := testchain.NewDeployTx("TestVerify", strings.NewReader(src))
+		require.NoError(t, err)
+		txDeploy.ValidUntilBlock = bc.BlockHeight() + 1
+		addSigners(txDeploy)
+		require.NoError(t, testchain.SignTx(bc, txDeploy))
+		require.NoError(t, bc.AddBlock(bc.newBlock(txDeploy)))
+
+		tx := newTx(t)
+		tx.Signers = append(tx.Signers, transaction.Signer{
+			Account: hash.Hash160(avm),
+			Scopes:  transaction.None,
+		})
+		tx.NetworkFee += 1_000_000
+		require.NoError(t, testchain.SignTx(bc, tx))
+		tx.Scripts = append(tx.Scripts, transaction.Witness{})
+
+		require.True(t, bc.isTxStillRelevant(tx, mp))
+		require.NoError(t, bc.AddBlock(bc.newBlock()))
+		require.False(t, bc.isTxStillRelevant(tx, mp))
 	})
 }
 
