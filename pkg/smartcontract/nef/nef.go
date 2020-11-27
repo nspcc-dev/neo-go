@@ -23,9 +23,9 @@ import (
 // | Compiler   | 32 bytes  | Compiler used                                              |
 // | Version    | 16 bytes  | Compiler version (Major, Minor, Build, Version)            |
 // +------------+-----------+------------------------------------------------------------+
-// | Checksum   | 4 bytes   | First four bytes of double SHA256 hash of the header       |
-// +------------+-----------+------------------------------------------------------------+
 // | Script     | Var bytes | Var bytes for the payload                                  |
+// +------------+-----------+------------------------------------------------------------+
+// | Checksum   | 4 bytes   | First four bytes of double SHA256 hash of the header       |
 // +------------+-----------+------------------------------------------------------------+
 
 const (
@@ -40,8 +40,8 @@ const (
 // File represents compiled contract file structure according to the NEF3 standard.
 type File struct {
 	Header   Header
-	Checksum uint32
 	Script   []byte
+	Checksum uint32
 }
 
 // Header represents File header.
@@ -73,7 +73,7 @@ func NewFile(script []byte) (File, error) {
 		return file, err
 	}
 	file.Header.Version = v
-	file.Checksum = file.Header.CalculateChecksum()
+	file.Checksum = file.CalculateChecksum()
 	return file, nil
 }
 
@@ -171,34 +171,33 @@ func (h *Header) DecodeBinary(r *io.BinReader) {
 }
 
 // CalculateChecksum returns first 4 bytes of double-SHA256(Header) converted to uint32.
-func (h *Header) CalculateChecksum() uint32 {
-	buf := io.NewBufBinWriter()
-	h.EncodeBinary(buf.BinWriter)
-	if buf.Err != nil {
-		panic(buf.Err)
+func (n *File) CalculateChecksum() uint32 {
+	bb, err := n.Bytes()
+	if err != nil {
+		panic(err)
 	}
-	return binary.LittleEndian.Uint32(hash.Checksum(buf.Bytes()))
+	return binary.LittleEndian.Uint32(hash.Checksum(bb[:len(bb)-4]))
 }
 
 // EncodeBinary implements io.Serializable interface.
 func (n *File) EncodeBinary(w *io.BinWriter) {
 	n.Header.EncodeBinary(w)
-	w.WriteU32LE(n.Checksum)
 	w.WriteVarBytes(n.Script)
+	w.WriteU32LE(n.Checksum)
 }
 
 // DecodeBinary implements io.Serializable interface.
 func (n *File) DecodeBinary(r *io.BinReader) {
 	n.Header.DecodeBinary(r)
-	n.Checksum = r.ReadU32LE()
-	checksum := n.Header.CalculateChecksum()
-	if checksum != n.Checksum {
-		r.Err = errors.New("CRC verification fail")
-		return
-	}
 	n.Script = r.ReadVarBytes(MaxScriptLength)
 	if len(n.Script) == 0 {
 		r.Err = errors.New("empty script")
+		return
+	}
+	n.Checksum = r.ReadU32LE()
+	checksum := n.CalculateChecksum()
+	if checksum != n.Checksum {
+		r.Err = errors.New("checksum verification failure")
 		return
 	}
 }

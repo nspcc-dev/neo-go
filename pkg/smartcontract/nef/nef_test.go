@@ -36,20 +36,20 @@ func TestEncodeDecodeBinary(t *testing.T) {
 
 	t.Run("zero-length script", func(t *testing.T) {
 		expected.Script = make([]byte, 0)
-		expected.Checksum = expected.Header.CalculateChecksum()
+		expected.Checksum = expected.CalculateChecksum()
 		checkDecodeError(t, expected)
 	})
 
 	t.Run("invalid script length", func(t *testing.T) {
 		newScript := make([]byte, MaxScriptLength+1)
 		expected.Script = newScript
-		expected.Checksum = expected.Header.CalculateChecksum()
+		expected.Checksum = expected.CalculateChecksum()
 		checkDecodeError(t, expected)
 	})
 
 	t.Run("positive", func(t *testing.T) {
 		expected.Script = script
-		expected.Checksum = expected.Header.CalculateChecksum()
+		expected.Checksum = expected.CalculateChecksum()
 		expected.Header.Magic = Magic
 		testserdes.EncodeDecodeBinary(t, expected, &File{})
 	})
@@ -76,7 +76,7 @@ func TestBytesFromBytes(t *testing.T) {
 		},
 		Script: script,
 	}
-	expected.Checksum = expected.Header.CalculateChecksum()
+	expected.Checksum = expected.CalculateChecksum()
 
 	bytes, err := expected.Bytes()
 	require.NoError(t, err)
