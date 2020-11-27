@@ -1,7 +1,6 @@
 package testchain
 
 import (
-	"encoding/json"
 	gio "io"
 
 	"github.com/nspcc-dev/neo-go/pkg/compiler"
@@ -9,11 +8,11 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
 	"github.com/nspcc-dev/neo-go/pkg/core/fee"
-	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/rpc/request"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
@@ -62,28 +61,17 @@ func NewDeployTx(name string, sender util.Uint160, r gio.Reader) (*transaction.T
 	if err != nil {
 		return nil, util.Uint160{}, err
 	}
-	neb, err := ne.Bytes()
-	if err != nil {
-		return nil, util.Uint160{}, err
-	}
 
 	m, err := di.ConvertToManifest(name, nil)
 	if err != nil {
 		return nil, util.Uint160{}, err
 	}
-	bs, err := json.Marshal(m)
+
+	txScript, err := request.CreateDeploymentScript(ne, m)
 	if err != nil {
 		return nil, util.Uint160{}, err
 	}
 
-	w := io.NewBufBinWriter()
-	emit.Bytes(w.BinWriter, bs)
-	emit.Bytes(w.BinWriter, neb)
-	emit.Syscall(w.BinWriter, interopnames.SystemContractCreate)
-	if w.Err != nil {
-		return nil, util.Uint160{}, w.Err
-	}
-	txScript := w.Bytes()
 	tx := transaction.New(Network(), txScript, 100*native.GASFactor)
 	tx.Signers = []transaction.Signer{{Account: sender}}
 	h := state.CreateContractHash(tx.Sender(), avm)

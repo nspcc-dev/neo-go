@@ -767,7 +767,7 @@ func contractDeploy(ctx *cli.Context) error {
 		return err
 	}
 
-	txScript, err := request.CreateDeploymentScript(f, m)
+	txScript, err := request.CreateDeploymentScript(&nefFile, m)
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("failed to create deployment script: %w", err), 1)
 	}
