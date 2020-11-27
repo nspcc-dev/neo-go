@@ -273,7 +273,7 @@ func (n *NEO) updateCommittee(ic *interop.Context) error {
 // ShouldUpdateCommittee returns true if committee is updated at block h.
 func ShouldUpdateCommittee(h uint32, bc blockchainer.Blockchainer) bool {
 	cfg := bc.GetConfig()
-	r := cfg.ValidatorsCount + len(cfg.StandbyCommittee)
+	r := len(cfg.StandbyCommittee)
 	return h%uint32(r) == 0
 }
 
