@@ -4,9 +4,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
-	"fmt"
-	"strconv"
-	"strings"
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
@@ -21,7 +18,7 @@ import (
 // +------------+-----------+------------------------------------------------------------+
 // | Magic      | 4 bytes   | Magic header                                               |
 // | Compiler   | 32 bytes  | Compiler used                                              |
-// | Version    | 16 bytes  | Compiler version (Major, Minor, Build, Version)            |
+// | Version    | 16 bytes  | Compiler version                                           |
 // +------------+-----------+------------------------------------------------------------+
 // | Script     | Var bytes | Var bytes for the payload                                  |
 // +------------+-----------+------------------------------------------------------------+
@@ -35,6 +32,8 @@ const (
 	MaxScriptLength = 1024 * 1024
 	// compilerFieldSize is the length of `Compiler` File header field in bytes.
 	compilerFieldSize = 32
+	// versionFieldSize is the length of `Version` File header field in bytes.
+	versionFieldSize = 16
 )
 
 // File represents compiled contract file structure according to the NEF3 standard.
@@ -48,95 +47,24 @@ type File struct {
 type Header struct {
 	Magic    uint32
 	Compiler string
-	Version  Version
-}
-
-// Version represents compiler version.
-type Version struct {
-	Major    int32
-	Minor    int32
-	Build    int32
-	Revision int32
+	Version  string
 }
 
 // NewFile returns new NEF3 file with script specified.
-func NewFile(script []byte) (File, error) {
-	file := File{
+func NewFile(script []byte) (*File, error) {
+	file := &File{
 		Header: Header{
 			Magic:    Magic,
 			Compiler: "neo-go",
+			Version:  config.Version,
 		},
 		Script: script,
 	}
-	v, err := GetVersion(config.Version)
-	if err != nil {
-		return file, err
+	if len(config.Version) > versionFieldSize {
+		return nil, errors.New("too long version")
 	}
-	file.Header.Version = v
 	file.Checksum = file.CalculateChecksum()
 	return file, nil
-}
-
-// GetVersion returns Version from the given string. It accepts the following formats:
-// `major[-...].minor[-...].build[-...]` and `major[-...].minor[-...].build[-...].revision[-...]`
-// where `major`, `minor`, `build` and `revision` are 32-bit integers with base=10
-func GetVersion(version string) (Version, error) {
-	var (
-		result Version
-		err    error
-	)
-	versions := strings.SplitN(version, ".", 4)
-	if len(versions) < 3 {
-		return result, errors.New("invalid version format")
-	}
-	result.Major, err = parseDashedVersion(versions[0])
-	if err != nil {
-		return result, fmt.Errorf("failed to parse major version: %w", err)
-	}
-	result.Minor, err = parseDashedVersion(versions[1])
-	if err != nil {
-		return result, fmt.Errorf("failed to parse minor version: %w", err)
-
-	}
-	result.Build, err = parseDashedVersion(versions[2])
-	if err != nil {
-		return result, fmt.Errorf("failed to parse build version: %w", err)
-	}
-	if len(versions) == 4 {
-		result.Revision, err = parseDashedVersion(versions[3])
-		if err != nil {
-			return result, fmt.Errorf("failed to parse revision version: %w", err)
-		}
-	}
-
-	return result, nil
-}
-
-// parseDashedVersion extracts int from string of the format `int[-...]` where `int` is
-// a 32-bit integer with base=10.
-func parseDashedVersion(version string) (int32, error) {
-	version = strings.SplitN(version, "-", 2)[0]
-	result, err := strconv.ParseInt(version, 10, 32)
-	if err != nil {
-		return 0, err
-	}
-	return int32(result), nil
-}
-
-// EncodeBinary implements io.Serializable interface.
-func (v *Version) EncodeBinary(w *io.BinWriter) {
-	w.WriteU32LE(uint32(v.Major))
-	w.WriteU32LE(uint32(v.Minor))
-	w.WriteU32LE(uint32(v.Build))
-	w.WriteU32LE(uint32(v.Revision))
-}
-
-// DecodeBinary implements io.Serializable interface.
-func (v *Version) DecodeBinary(r *io.BinReader) {
-	v.Major = int32(r.ReadU32LE())
-	v.Minor = int32(r.ReadU32LE())
-	v.Build = int32(r.ReadU32LE())
-	v.Revision = int32(r.ReadU32LE())
 }
 
 // EncodeBinary implements io.Serializable interface.
@@ -146,12 +74,15 @@ func (h *Header) EncodeBinary(w *io.BinWriter) {
 		w.Err = errors.New("invalid compiler name length")
 		return
 	}
-	bytes := []byte(h.Compiler)
-	w.WriteBytes(bytes)
-	if len(bytes) < compilerFieldSize {
-		w.WriteBytes(make([]byte, compilerFieldSize-len(bytes)))
+	var b = make([]byte, compilerFieldSize)
+	copy(b, []byte(h.Compiler))
+	w.WriteBytes(b)
+	b = b[:versionFieldSize]
+	for i := range b {
+		b[i] = 0
 	}
-	h.Version.EncodeBinary(w)
+	copy(b, []byte(h.Version))
+	w.WriteBytes(b)
 }
 
 // DecodeBinary implements io.Serializable interface.
@@ -167,7 +98,12 @@ func (h *Header) DecodeBinary(r *io.BinReader) {
 		return r == 0
 	})
 	h.Compiler = string(buf)
-	h.Version.DecodeBinary(r)
+	buf = buf[:versionFieldSize]
+	r.ReadBytes(buf)
+	buf = bytes.TrimRightFunc(buf, func(r rune) bool {
+		return r == 0
+	})
+	h.Version = string(buf)
 }
 
 // CalculateChecksum returns first 4 bytes of double-SHA256(Header) converted to uint32.
