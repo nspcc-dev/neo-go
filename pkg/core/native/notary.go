@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+	"sync"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
@@ -26,16 +27,28 @@ type Notary struct {
 	interop.ContractMD
 	GAS   *GAS
 	Desig *Designate
+
+	lock sync.RWMutex
+	// isValid defies whether cached values were changed during the current
+	// consensus iteration. If false, these values will be updated after
+	// blockchain DAO persisting. If true, we can safely use cached values.
+	isValid                bool
+	maxNotValidBeforeDelta uint32
 }
 
 const (
 	notaryName       = "Notary"
 	notaryContractID = reservedContractID - 1
+	// NotaryVerificationPrice is the price of `verify` Notary method.
+	NotaryVerificationPrice = 100_0000
 
 	// prefixDeposit is a prefix for storing Notary deposits.
-	prefixDeposit           = 1
-	defaultDepositDeltaTill = 5760
+	prefixDeposit                 = 1
+	defaultDepositDeltaTill       = 5760
+	defaultMaxNotValidBeforeDelta = 140 // 20 rounds for 7 validators, a little more than half an hour
 )
+
+var maxNotValidBeforeDeltaKey = []byte{10}
 
 // newNotary returns Notary native contract.
 func newNotary() *Notary {
@@ -76,6 +89,15 @@ func newNotary() *Notary {
 	md = newMethodAndPrice(n.verify, 100_0000, smartcontract.AllowStates)
 	n.AddMethod(md, desc)
 
+	desc = newDescriptor("getMaxNotValidBeforeDelta", smartcontract.IntegerType)
+	md = newMethodAndPrice(n.getMaxNotValidBeforeDelta, 100_0000, smartcontract.AllowStates)
+	n.AddMethod(md, desc)
+
+	desc = newDescriptor("setMaxNotValidBeforeDelta", smartcontract.BoolType,
+		manifest.NewParameter("value", smartcontract.IntegerType))
+	md = newMethodAndPrice(n.setMaxNotValidBeforeDelta, 300_0000, smartcontract.AllowModifyStates)
+	n.AddMethod(md, desc)
+
 	desc = newDescriptor("onPersist", smartcontract.VoidType)
 	md = newMethodAndPrice(getOnPersistWrapper(n.OnPersist), 0, smartcontract.AllowModifyStates)
 	n.AddMethod(md, desc)
@@ -94,6 +116,8 @@ func (n *Notary) Metadata() *interop.ContractMD {
 
 // Initialize initializes Notary native contract and implements Contract interface.
 func (n *Notary) Initialize(ic *interop.Context) error {
+	n.isValid = true
+	n.maxNotValidBeforeDelta = defaultMaxNotValidBeforeDelta
 	return nil
 }
 
@@ -116,7 +140,7 @@ func (n *Notary) OnPersist(ic *interop.Context) error {
 			nFees += int64(nKeys) + 1
 			if tx.Sender() == n.Hash {
 				payer := tx.Signers[1]
-				balance := n.getDepositFor(ic.DAO, payer.Account)
+				balance := n.GetDepositFor(ic.DAO, payer.Account)
 				balance.Amount.Sub(balance.Amount, big.NewInt(tx.SystemFee+tx.NetworkFee))
 				if balance.Amount.Sign() == 0 {
 					err := n.removeDepositFor(ic.DAO, payer.Account)
@@ -142,6 +166,19 @@ func (n *Notary) OnPersist(ic *interop.Context) error {
 	return nil
 }
 
+// OnPersistEnd updates cached Policy values if they've been changed
+func (n *Notary) OnPersistEnd(dao dao.DAO) error {
+	if n.isValid {
+		return nil
+	}
+	n.lock.Lock()
+	defer n.lock.Unlock()
+
+	n.maxNotValidBeforeDelta = getUint32WithKey(n.ContractID, dao, maxNotValidBeforeDeltaKey, defaultMaxNotValidBeforeDelta)
+	n.isValid = true
+	return nil
+}
+
 // onPayment records deposited amount as belonging to "from" address with a lock
 // till the specified chain's height.
 func (n *Notary) onPayment(ic *interop.Context, args []stackitem.Item) stackitem.Item {
@@ -162,7 +199,7 @@ func (n *Notary) onPayment(ic *interop.Context, args []stackitem.Item) stackitem
 
 	allowedChangeTill := ic.Tx.Sender() == to
 	currentHeight := ic.Chain.BlockHeight()
-	deposit := n.getDepositFor(ic.DAO, to)
+	deposit := n.GetDepositFor(ic.DAO, to)
 	till := toUint32(additionalParams[1])
 	if till < currentHeight {
 		panic(fmt.Errorf("`till` shouldn't be less then the chain's height %d", currentHeight))
@@ -206,7 +243,7 @@ func (n *Notary) lockDepositUntil(ic *interop.Context, args []stackitem.Item) st
 	if till < ic.Chain.BlockHeight() {
 		return stackitem.NewBool(false)
 	}
-	deposit := n.getDepositFor(ic.DAO, addr)
+	deposit := n.GetDepositFor(ic.DAO, addr)
 	if deposit == nil {
 		return stackitem.NewBool(false)
 	}
@@ -235,7 +272,7 @@ func (n *Notary) withdraw(ic *interop.Context, args []stackitem.Item) stackitem.
 	if !args[1].Equals(stackitem.Null{}) {
 		to = toUint160(args[1])
 	}
-	deposit := n.getDepositFor(ic.DAO, from)
+	deposit := n.GetDepositFor(ic.DAO, from)
 	if deposit == nil {
 		return stackitem.NewBool(false)
 	}
@@ -263,21 +300,31 @@ func (n *Notary) withdraw(ic *interop.Context, args []stackitem.Item) stackitem.
 // balanceOf returns deposited GAS amount for specified address.
 func (n *Notary) balanceOf(ic *interop.Context, args []stackitem.Item) stackitem.Item {
 	acc := toUint160(args[0])
-	deposit := n.getDepositFor(ic.DAO, acc)
+	return stackitem.NewBigInteger(n.BalanceOf(ic.DAO, acc))
+}
+
+// BalanceOf is an internal representation of `balanceOf` Notary method.
+func (n *Notary) BalanceOf(dao dao.DAO, acc util.Uint160) *big.Int {
+	deposit := n.GetDepositFor(dao, acc)
 	if deposit == nil {
-		return stackitem.NewBigInteger(big.NewInt(0))
+		return big.NewInt(0)
 	}
-	return stackitem.NewBigInteger(deposit.Amount)
+	return deposit.Amount
 }
 
 // expirationOf Returns deposit lock height for specified address.
 func (n *Notary) expirationOf(ic *interop.Context, args []stackitem.Item) stackitem.Item {
 	acc := toUint160(args[0])
-	deposit := n.getDepositFor(ic.DAO, acc)
+	return stackitem.Make(n.ExpirationOf(ic.DAO, acc))
+}
+
+// ExpirationOf is an internal representation of `expirationOf` Notary method.
+func (n *Notary) ExpirationOf(dao dao.DAO, acc util.Uint160) uint32 {
+	deposit := n.GetDepositFor(dao, acc)
 	if deposit == nil {
-		return stackitem.Make(0)
+		return 0
 	}
-	return stackitem.Make(deposit.Till)
+	return deposit.Till
 }
 
 // verify checks whether the transaction was signed by one of the notaries.
@@ -302,7 +349,7 @@ func (n *Notary) verify(ic *interop.Context, args []stackitem.Item) stackitem.It
 			return stackitem.NewBool(false)
 		}
 		payer := tx.Signers[1].Account
-		balance := n.getDepositFor(ic.DAO, payer)
+		balance := n.GetDepositFor(ic.DAO, payer)
 		if balance == nil || balance.Amount.Cmp(big.NewInt(tx.NetworkFee+tx.SystemFee)) < 0 {
 			return stackitem.NewBool(false)
 		}
@@ -328,9 +375,47 @@ func (n *Notary) GetNotaryNodes(d dao.DAO) (keys.PublicKeys, error) {
 	return nodes, err
 }
 
-// getDepositFor returns state.Deposit for the account specified. It returns nil in case if
+// getMaxNotValidBeforeDelta is Notary contract method and returns the maximum NotValidBefore delta.
+func (n *Notary) getMaxNotValidBeforeDelta(ic *interop.Context, _ []stackitem.Item) stackitem.Item {
+	return stackitem.NewBigInteger(big.NewInt(int64(n.GetMaxNotValidBeforeDelta(ic.DAO))))
+}
+
+// GetMaxNotValidBeforeDelta is an internal representation of Notary getMaxNotValidBeforeDelta method.
+func (n *Notary) GetMaxNotValidBeforeDelta(dao dao.DAO) uint32 {
+	n.lock.RLock()
+	defer n.lock.RUnlock()
+	if n.isValid {
+		return n.maxNotValidBeforeDelta
+	}
+	return getUint32WithKey(n.ContractID, dao, maxNotValidBeforeDeltaKey, defaultMaxNotValidBeforeDelta)
+}
+
+// setMaxNotValidBeforeDelta is Notary contract method and sets the maximum NotValidBefore delta.
+func (n *Notary) setMaxNotValidBeforeDelta(ic *interop.Context, args []stackitem.Item) stackitem.Item {
+	value := toUint32(args[0])
+	if value > transaction.MaxValidUntilBlockIncrement/2 || value < uint32(ic.Chain.GetConfig().ValidatorsCount) {
+		panic(fmt.Errorf("MaxNotValidBeforeDelta cannot be more than %d or less than %d", transaction.MaxValidUntilBlockIncrement/2, ic.Chain.GetConfig().ValidatorsCount))
+	}
+	ok, err := checkValidators(ic)
+	if err != nil {
+		panic(fmt.Errorf("failed to check committee signature: %w", err))
+	}
+	if !ok {
+		return stackitem.NewBool(false)
+	}
+	n.lock.Lock()
+	defer n.lock.Unlock()
+	err = setUint32WithKey(n.ContractID, ic.DAO, maxNotValidBeforeDeltaKey, value)
+	if err != nil {
+		panic(fmt.Errorf("failed to put value into the storage: %w", err))
+	}
+	n.isValid = false
+	return stackitem.NewBool(true)
+}
+
+// GetDepositFor returns state.Deposit for the account specified. It returns nil in case if
 // deposit is not found in storage and panics in case of any other error.
-func (n *Notary) getDepositFor(dao dao.DAO, acc util.Uint160) *state.Deposit {
+func (n *Notary) GetDepositFor(dao dao.DAO, acc util.Uint160) *state.Deposit {
 	key := append([]byte{prefixDeposit}, acc.BytesBE()...)
 	deposit := new(state.Deposit)
 	err := getSerializableFromDAO(n.ContractID, dao, key, deposit)

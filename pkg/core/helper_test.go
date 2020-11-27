@@ -439,6 +439,38 @@ func invokeContractMethod(chain *Blockchain, sysfee int64, hash util.Uint160, me
 	return &res[0], nil
 }
 
+func invokeContractMethodBy(t *testing.T, chain *Blockchain, signer *wallet.Account, hash util.Uint160, method string, args ...interface{}) (*state.AppExecResult, error) {
+	var (
+		netfee int64 = 1000_0000
+		sysfee int64 = 1_0000_0000
+	)
+	transferTx := transferTokenFromMultisigAccount(t, chain, signer.PrivateKey().PublicKey().GetScriptHash(), chain.contracts.GAS.Hash, sysfee+netfee+1000_0000, nil)
+	res, err := chain.GetAppExecResults(transferTx.Hash(), trigger.Application)
+	require.NoError(t, err)
+	require.Equal(t, vm.HaltState, res[0].VMState)
+	require.Equal(t, 0, len(res[0].Stack))
+
+	w := io.NewBufBinWriter()
+	emit.AppCallWithOperationAndArgs(w.BinWriter, hash, method, args...)
+	if w.Err != nil {
+		return nil, w.Err
+	}
+	script := w.Bytes()
+	tx := transaction.New(chain.GetConfig().Magic, script, sysfee)
+	tx.ValidUntilBlock = chain.blockHeight + 1
+	tx.Signers = []transaction.Signer{
+		{Account: signer.PrivateKey().PublicKey().GetScriptHash()},
+	}
+	tx.NetworkFee = netfee
+	err = signer.SignTx(tx)
+	require.NoError(t, err)
+	require.NoError(t, chain.AddBlock(chain.newBlock(tx)))
+
+	res, err = chain.GetAppExecResults(tx.Hash(), trigger.Application)
+	require.NoError(t, err)
+	return &res[0], nil
+}
+
 func transferTokenFromMultisigAccount(t *testing.T, chain *Blockchain, to, tokenHash util.Uint160, amount int64, additionalArgs ...interface{}) *transaction.Transaction {
 	transferTx := newNEP17Transfer(tokenHash, testchain.MultisigScriptHash(), to, amount, additionalArgs...)
 	transferTx.SystemFee = 100000000
@@ -451,7 +483,7 @@ func transferTokenFromMultisigAccount(t *testing.T, chain *Blockchain, to, token
 }
 
 func checkResult(t *testing.T, result *state.AppExecResult, expected stackitem.Item) {
-	require.Equal(t, vm.HaltState, result.VMState)
+	require.Equal(t, vm.HaltState, result.VMState, result.FaultException)
 	require.Equal(t, 1, len(result.Stack))
 	require.Equal(t, expected, result.Stack[0])
 }

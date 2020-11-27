@@ -10,6 +10,7 @@ import (
 	"github.com/nspcc-dev/neo-go/internal/random"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
+	"github.com/nspcc-dev/neo-go/pkg/network/payload"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/stretchr/testify/assert"
@@ -20,9 +21,8 @@ type FeerStub struct {
 	feePerByte  int64
 	p2pSigExt   bool
 	blockHeight uint32
+	balance     int64
 }
-
-var balance = big.NewInt(10000000)
 
 func (fs *FeerStub) FeePerByte() int64 {
 	return fs.feePerByte
@@ -33,7 +33,7 @@ func (fs *FeerStub) BlockHeight() uint32 {
 }
 
 func (fs *FeerStub) GetUtilityTokenBalance(uint160 util.Uint160) *big.Int {
-	return balance
+	return big.NewInt(fs.balance)
 }
 
 func (fs *FeerStub) P2PSigExtensionsEnabled() bool {
@@ -41,7 +41,7 @@ func (fs *FeerStub) P2PSigExtensionsEnabled() bool {
 }
 
 func testMemPoolAddRemoveWithFeer(t *testing.T, fs Feer) {
-	mp := New(10)
+	mp := New(10, 0)
 	tx := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
 	tx.Nonce = 0
 	tx.Signers = []transaction.Signer{{Account: util.Uint160{1, 2, 3}}}
@@ -62,7 +62,7 @@ func testMemPoolAddRemoveWithFeer(t *testing.T, fs Feer) {
 }
 
 func TestMemPoolRemoveStale(t *testing.T) {
-	mp := New(5)
+	mp := New(5, 0)
 	txs := make([]*transaction.Transaction, 5)
 	for i := range txs {
 		txs[i] = transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
@@ -72,7 +72,7 @@ func TestMemPoolRemoveStale(t *testing.T) {
 	}
 
 	staleTxs := make(chan *transaction.Transaction, 5)
-	f := func(tx *transaction.Transaction) {
+	f := func(tx *transaction.Transaction, _ interface{}) {
 		staleTxs <- tx
 	}
 	mp.SetResendThreshold(5, f)
@@ -111,9 +111,9 @@ func TestMemPoolAddRemove(t *testing.T) {
 }
 
 func TestOverCapacity(t *testing.T) {
-	var fs = &FeerStub{}
+	var fs = &FeerStub{balance: 10000000}
 	const mempoolSize = 10
-	mp := New(mempoolSize)
+	mp := New(mempoolSize, 0)
 
 	for i := 0; i < mempoolSize; i++ {
 		tx := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
@@ -186,7 +186,7 @@ func TestOverCapacity(t *testing.T) {
 func TestGetVerified(t *testing.T) {
 	var fs = &FeerStub{}
 	const mempoolSize = 10
-	mp := New(mempoolSize)
+	mp := New(mempoolSize, 0)
 
 	txes := make([]*transaction.Transaction, 0, mempoolSize)
 	for i := 0; i < mempoolSize; i++ {
@@ -210,7 +210,7 @@ func TestGetVerified(t *testing.T) {
 func TestRemoveStale(t *testing.T) {
 	var fs = &FeerStub{}
 	const mempoolSize = 10
-	mp := New(mempoolSize)
+	mp := New(mempoolSize, 0)
 
 	txes1 := make([]*transaction.Transaction, 0, mempoolSize/2)
 	txes2 := make([]*transaction.Transaction, 0, mempoolSize/2)
@@ -243,50 +243,51 @@ func TestRemoveStale(t *testing.T) {
 }
 
 func TestMemPoolFees(t *testing.T) {
-	mp := New(10)
+	mp := New(10, 0)
+	fs := &FeerStub{balance: 10000000}
 	sender0 := util.Uint160{1, 2, 3}
 	tx0 := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
-	tx0.NetworkFee = balance.Int64() + 1
+	tx0.NetworkFee = fs.balance + 1
 	tx0.Signers = []transaction.Signer{{Account: sender0}}
 	// insufficient funds to add transaction, and balance shouldn't be stored
-	require.Equal(t, false, mp.Verify(tx0, &FeerStub{}))
-	require.Error(t, mp.Add(tx0, &FeerStub{}))
+	require.Equal(t, false, mp.Verify(tx0, fs))
+	require.Error(t, mp.Add(tx0, fs))
 	require.Equal(t, 0, len(mp.fees))
 
-	balancePart := new(big.Int).Div(balance, big.NewInt(4))
+	balancePart := new(big.Int).Div(big.NewInt(fs.balance), big.NewInt(4))
 	// no problems with adding another transaction with lower fee
 	tx1 := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
 	tx1.NetworkFee = balancePart.Int64()
 	tx1.Signers = []transaction.Signer{{Account: sender0}}
-	require.NoError(t, mp.Add(tx1, &FeerStub{}))
+	require.NoError(t, mp.Add(tx1, fs))
 	require.Equal(t, 1, len(mp.fees))
 	require.Equal(t, utilityBalanceAndFees{
-		balance: balance,
+		balance: big.NewInt(fs.balance),
 		feeSum:  big.NewInt(tx1.NetworkFee),
 	}, mp.fees[sender0])
 
 	// balance shouldn't change after adding one more transaction
 	tx2 := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
-	tx2.NetworkFee = new(big.Int).Sub(balance, balancePart).Int64()
+	tx2.NetworkFee = new(big.Int).Sub(big.NewInt(fs.balance), balancePart).Int64()
 	tx2.Signers = []transaction.Signer{{Account: sender0}}
-	require.NoError(t, mp.Add(tx2, &FeerStub{}))
+	require.NoError(t, mp.Add(tx2, fs))
 	require.Equal(t, 2, len(mp.verifiedTxes))
 	require.Equal(t, 1, len(mp.fees))
 	require.Equal(t, utilityBalanceAndFees{
-		balance: balance,
-		feeSum:  balance,
+		balance: big.NewInt(fs.balance),
+		feeSum:  big.NewInt(fs.balance),
 	}, mp.fees[sender0])
 
 	// can't add more transactions as we don't have enough GAS
 	tx3 := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
 	tx3.NetworkFee = 1
 	tx3.Signers = []transaction.Signer{{Account: sender0}}
-	require.Equal(t, false, mp.Verify(tx3, &FeerStub{}))
-	require.Error(t, mp.Add(tx3, &FeerStub{}))
+	require.Equal(t, false, mp.Verify(tx3, fs))
+	require.Error(t, mp.Add(tx3, fs))
 	require.Equal(t, 1, len(mp.fees))
 	require.Equal(t, utilityBalanceAndFees{
-		balance: balance,
-		feeSum:  balance,
+		balance: big.NewInt(fs.balance),
+		feeSum:  big.NewInt(fs.balance),
 	}, mp.fees[sender0])
 
 	// check whether sender's fee updates correctly
@@ -295,10 +296,10 @@ func TestMemPoolFees(t *testing.T) {
 			return true
 		}
 		return false
-	}, &FeerStub{})
+	}, fs)
 	require.Equal(t, 1, len(mp.fees))
 	require.Equal(t, utilityBalanceAndFees{
-		balance: balance,
+		balance: big.NewInt(fs.balance),
 		feeSum:  big.NewInt(tx2.NetworkFee),
 	}, mp.fees[sender0])
 
@@ -308,12 +309,13 @@ func TestMemPoolFees(t *testing.T) {
 			return true
 		}
 		return false
-	}, &FeerStub{})
+	}, fs)
 	require.Equal(t, 0, len(mp.fees))
 }
 
 func TestMempoolItemsOrder(t *testing.T) {
 	sender0 := util.Uint160{1, 2, 3}
+	balance := big.NewInt(10000000)
 
 	tx1 := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
 	tx1.NetworkFee = new(big.Int).Div(balance, big.NewInt(8)).Int64()
@@ -352,9 +354,9 @@ func TestMempoolItemsOrder(t *testing.T) {
 }
 
 func TestMempoolAddRemoveOracleResponse(t *testing.T) {
-	mp := New(5)
+	mp := New(5, 0)
 	nonce := uint32(0)
-	fs := &FeerStub{}
+	fs := &FeerStub{balance: 10000}
 	newTx := func(netFee int64, id uint64) *transaction.Transaction {
 		tx := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
 		tx.NetworkFee = netFee
@@ -406,9 +408,9 @@ func TestMempoolAddRemoveOracleResponse(t *testing.T) {
 
 func TestMempoolAddRemoveConflicts(t *testing.T) {
 	capacity := 6
-	mp := New(capacity)
+	mp := New(capacity, 0)
 	var (
-		fs           = &FeerStub{p2pSigExt: true}
+		fs           = &FeerStub{p2pSigExt: true, balance: 100000}
 		nonce uint32 = 1
 	)
 	getConflictsTx := func(netFee int64, hashes ...util.Uint256) *transaction.Transaction {
@@ -523,4 +525,117 @@ func TestMempoolAddRemoveConflicts(t *testing.T) {
 	_, ok := mp.TryGetValue(tx13.Hash())
 	require.Equal(t, false, ok)
 	require.True(t, errors.Is(mp.Add(tx13, fs), ErrConflictsAttribute))
+}
+
+func TestMempoolAddWithDataGetData(t *testing.T) {
+	var (
+		smallNetFee int64 = 3
+		nonce       uint32
+	)
+	fs := &FeerStub{
+		feePerByte:  0,
+		p2pSigExt:   true,
+		blockHeight: 5,
+		balance:     100,
+	}
+	mp := New(10, 1)
+	newTx := func(t *testing.T, netFee int64) *transaction.Transaction {
+		tx := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.RET)}, 0)
+		tx.Signers = []transaction.Signer{{}, {}}
+		tx.NetworkFee = netFee
+		nonce++
+		tx.Nonce = nonce
+		return tx
+	}
+
+	// bad, insufficient deposit
+	r1 := &payload.P2PNotaryRequest{
+		MainTransaction:     newTx(t, 0),
+		FallbackTransaction: newTx(t, fs.balance+1),
+	}
+	require.True(t, errors.Is(mp.Add(r1.FallbackTransaction, fs, r1), ErrInsufficientFunds))
+
+	// good
+	r2 := &payload.P2PNotaryRequest{
+		MainTransaction:     newTx(t, 0),
+		FallbackTransaction: newTx(t, smallNetFee),
+	}
+	require.NoError(t, mp.Add(r2.FallbackTransaction, fs, r2))
+	require.True(t, mp.ContainsKey(r2.FallbackTransaction.Hash()))
+	data, ok := mp.TryGetData(r2.FallbackTransaction.Hash())
+	require.True(t, ok)
+	require.Equal(t, r2, data)
+
+	// bad, already in pool
+	require.True(t, errors.Is(mp.Add(r2.FallbackTransaction, fs, r2), ErrDup))
+
+	// good, higher priority than r2. The resulting mp.verifiedTxes: [r3, r2]
+	r3 := &payload.P2PNotaryRequest{
+		MainTransaction:     newTx(t, 0),
+		FallbackTransaction: newTx(t, smallNetFee+1),
+	}
+	require.NoError(t, mp.Add(r3.FallbackTransaction, fs, r3))
+	require.True(t, mp.ContainsKey(r3.FallbackTransaction.Hash()))
+	data, ok = mp.TryGetData(r3.FallbackTransaction.Hash())
+	require.True(t, ok)
+	require.Equal(t, r3, data)
+
+	// good, same priority as r2. The resulting mp.verifiedTxes: [r3, r2, r4]
+	r4 := &payload.P2PNotaryRequest{
+		MainTransaction:     newTx(t, 0),
+		FallbackTransaction: newTx(t, smallNetFee),
+	}
+	require.NoError(t, mp.Add(r4.FallbackTransaction, fs, r4))
+	require.True(t, mp.ContainsKey(r4.FallbackTransaction.Hash()))
+	data, ok = mp.TryGetData(r4.FallbackTransaction.Hash())
+	require.True(t, ok)
+	require.Equal(t, r4, data)
+
+	// good, same priority as r2. The resulting mp.verifiedTxes: [r3, r2, r4, r5]
+	r5 := &payload.P2PNotaryRequest{
+		MainTransaction:     newTx(t, 0),
+		FallbackTransaction: newTx(t, smallNetFee),
+	}
+	require.NoError(t, mp.Add(r5.FallbackTransaction, fs, r5))
+	require.True(t, mp.ContainsKey(r5.FallbackTransaction.Hash()))
+	data, ok = mp.TryGetData(r5.FallbackTransaction.Hash())
+	require.True(t, ok)
+	require.Equal(t, r5, data)
+
+	// and both r2's and r4's data should still be reachable
+	data, ok = mp.TryGetData(r2.FallbackTransaction.Hash())
+	require.True(t, ok)
+	require.Equal(t, r2, data)
+	data, ok = mp.TryGetData(r4.FallbackTransaction.Hash())
+	require.True(t, ok)
+	require.Equal(t, r4, data)
+
+	// should fail to get unexisting data
+	_, ok = mp.TryGetData(util.Uint256{0, 0, 0})
+	require.False(t, ok)
+
+	// but getting nil data is OK. The resulting mp.verifiedTxes: [r3, r2, r4, r5, r6]
+	r6 := newTx(t, smallNetFee)
+	require.NoError(t, mp.Add(r6, fs, nil))
+	require.True(t, mp.ContainsKey(r6.Hash()))
+	data, ok = mp.TryGetData(r6.Hash())
+	require.True(t, ok)
+	require.Nil(t, data)
+
+	// getting data: item is in verifiedMap, but not in verifiedTxes
+	r7 := &payload.P2PNotaryRequest{
+		MainTransaction:     newTx(t, 0),
+		FallbackTransaction: newTx(t, smallNetFee),
+	}
+	require.NoError(t, mp.Add(r7.FallbackTransaction, fs, r4))
+	require.True(t, mp.ContainsKey(r7.FallbackTransaction.Hash()))
+	r8 := &payload.P2PNotaryRequest{
+		MainTransaction:     newTx(t, 0),
+		FallbackTransaction: newTx(t, smallNetFee-1),
+	}
+	require.NoError(t, mp.Add(r8.FallbackTransaction, fs, r4))
+	require.True(t, mp.ContainsKey(r8.FallbackTransaction.Hash()))
+	mp.verifiedTxes = append(mp.verifiedTxes[:len(mp.verifiedTxes)-2], mp.verifiedTxes[len(mp.verifiedTxes)-1])
+	_, ok = mp.TryGetData(r7.FallbackTransaction.Hash())
+	require.False(t, ok)
 }

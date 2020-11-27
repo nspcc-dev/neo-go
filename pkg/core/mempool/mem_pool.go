@@ -39,6 +39,7 @@ var (
 type item struct {
 	txn        *transaction.Transaction
 	blockStamp uint32
+	data       interface{}
 }
 
 // items is a slice of item.
@@ -64,9 +65,10 @@ type Pool struct {
 
 	capacity   int
 	feePerByte int64
+	payerIndex int
 
 	resendThreshold uint32
-	resendFunc      func(*transaction.Transaction)
+	resendFunc      func(*transaction.Transaction, interface{})
 }
 
 func (p items) Len() int           { return len(p) }
@@ -149,11 +151,12 @@ func (mp *Pool) HasConflicts(t *transaction.Transaction, fee Feer) bool {
 // tryAddSendersFee tries to add system fee and network fee to the total sender`s fee in mempool
 // and returns false if both balance check is required and sender has not enough GAS to pay
 func (mp *Pool) tryAddSendersFee(tx *transaction.Transaction, feer Feer, needCheck bool) bool {
-	senderFee, ok := mp.fees[tx.Sender()]
+	payer := tx.Signers[mp.payerIndex].Account
+	senderFee, ok := mp.fees[payer]
 	if !ok {
-		senderFee.balance = feer.GetUtilityTokenBalance(tx.Sender())
+		senderFee.balance = feer.GetUtilityTokenBalance(payer)
 		senderFee.feeSum = big.NewInt(0)
-		mp.fees[tx.Sender()] = senderFee
+		mp.fees[payer] = senderFee
 	}
 	if needCheck {
 		newFeeSum, err := checkBalance(tx, senderFee)
@@ -182,10 +185,13 @@ func checkBalance(tx *transaction.Transaction, balance utilityBalanceAndFees) (*
 }
 
 // Add tries to add given transaction to the Pool.
-func (mp *Pool) Add(t *transaction.Transaction, fee Feer) error {
+func (mp *Pool) Add(t *transaction.Transaction, fee Feer, data ...interface{}) error {
 	var pItem = item{
 		txn:        t,
 		blockStamp: fee.BlockHeight(),
+	}
+	if data != nil {
+		pItem.data = data[0]
 	}
 	mp.lock.Lock()
 	if mp.containsKey(t.Hash()) {
@@ -281,14 +287,16 @@ func (mp *Pool) removeInternal(hash util.Uint256, feer Feer) {
 				break
 			}
 		}
+		itm := mp.verifiedTxes[num]
 		if num < len(mp.verifiedTxes)-1 {
 			mp.verifiedTxes = append(mp.verifiedTxes[:num], mp.verifiedTxes[num+1:]...)
 		} else if num == len(mp.verifiedTxes)-1 {
 			mp.verifiedTxes = mp.verifiedTxes[:num]
 		}
-		senderFee := mp.fees[tx.Sender()]
+		payer := itm.txn.Signers[mp.payerIndex].Account
+		senderFee := mp.fees[payer]
 		senderFee.feeSum.Sub(senderFee.feeSum, big.NewInt(tx.SystemFee+tx.NetworkFee))
-		mp.fees[tx.Sender()] = senderFee
+		mp.fees[payer] = senderFee
 		if feer.P2PSigExtensionsEnabled() {
 			// remove all conflicting hashes from mp.conflicts list
 			mp.removeConflictsOf(tx)
@@ -314,7 +322,7 @@ func (mp *Pool) RemoveStale(isOK func(*transaction.Transaction) bool, feer Feer)
 		mp.conflicts = make(map[util.Uint256][]util.Uint256)
 	}
 	height := feer.BlockHeight()
-	var staleTxs []*transaction.Transaction
+	var staleItems []item
 	for _, itm := range mp.verifiedTxes {
 		if isOK(itm.txn) && mp.checkPolicy(itm.txn, policyChanged) && mp.tryAddSendersFee(itm.txn, feer, true) {
 			newVerifiedTxes = append(newVerifiedTxes, itm)
@@ -325,11 +333,11 @@ func (mp *Pool) RemoveStale(isOK func(*transaction.Transaction) bool, feer Feer)
 				}
 			}
 			if mp.resendThreshold != 0 {
-				// tx is resend at resendThreshold, 2*resendThreshold, 4*resendThreshold ...
+				// item is resend at resendThreshold, 2*resendThreshold, 4*resendThreshold ...
 				// so quotient must be a power of two.
 				diff := (height - itm.blockStamp)
 				if diff%mp.resendThreshold == 0 && bits.OnesCount32(diff/mp.resendThreshold) == 1 {
-					staleTxs = append(staleTxs, itm.txn)
+					staleItems = append(staleItems, itm)
 				}
 			}
 		} else {
@@ -339,8 +347,8 @@ func (mp *Pool) RemoveStale(isOK func(*transaction.Transaction) bool, feer Feer)
 			}
 		}
 	}
-	if len(staleTxs) != 0 {
-		go mp.resendStaleTxs(staleTxs)
+	if len(staleItems) != 0 {
+		go mp.resendStaleItems(staleItems)
 	}
 	mp.verifiedTxes = newVerifiedTxes
 	mp.lock.Unlock()
@@ -366,11 +374,12 @@ func (mp *Pool) checkPolicy(tx *transaction.Transaction, policyChanged bool) boo
 }
 
 // New returns a new Pool struct.
-func New(capacity int) *Pool {
+func New(capacity int, payerIndex int) *Pool {
 	return &Pool{
 		verifiedMap:  make(map[util.Uint256]*transaction.Transaction),
 		verifiedTxes: make([]item, 0, capacity),
 		capacity:     capacity,
+		payerIndex:   payerIndex,
 		fees:         make(map[util.Uint160]utilityBalanceAndFees),
 		conflicts:    make(map[util.Uint256][]util.Uint256),
 		oracleResp:   make(map[uint64]util.Uint256),
@@ -379,16 +388,16 @@ func New(capacity int) *Pool {
 
 // SetResendThreshold sets threshold after which transaction will be considered stale
 // and returned for retransmission by `GetStaleTransactions`.
-func (mp *Pool) SetResendThreshold(h uint32, f func(*transaction.Transaction)) {
+func (mp *Pool) SetResendThreshold(h uint32, f func(*transaction.Transaction, interface{})) {
 	mp.lock.Lock()
 	defer mp.lock.Unlock()
 	mp.resendThreshold = h
 	mp.resendFunc = f
 }
 
-func (mp *Pool) resendStaleTxs(txs []*transaction.Transaction) {
-	for i := range txs {
-		mp.resendFunc(txs[i])
+func (mp *Pool) resendStaleItems(items []item) {
+	for i := range items {
+		mp.resendFunc(items[i].txn, items[i].data)
 	}
 }
 
@@ -398,6 +407,30 @@ func (mp *Pool) TryGetValue(hash util.Uint256) (*transaction.Transaction, bool) 
 	defer mp.lock.RUnlock()
 	if tx, ok := mp.verifiedMap[hash]; ok {
 		return tx, ok
+	}
+
+	return nil, false
+}
+
+// TryGetData returns data associated with the specified transaction if it exists in the memory pool.
+func (mp *Pool) TryGetData(hash util.Uint256) (interface{}, bool) {
+	mp.lock.RLock()
+	defer mp.lock.RUnlock()
+	if tx, ok := mp.verifiedMap[hash]; ok {
+		itm := item{txn: tx}
+		n := sort.Search(len(mp.verifiedTxes), func(n int) bool {
+			return itm.CompareTo(mp.verifiedTxes[n]) >= 0
+		})
+		if n < len(mp.verifiedTxes) {
+			for i := n; i < len(mp.verifiedTxes); i++ { // items may have equal priority, so `n` is the left bound of the items which are as prioritized as the desired `itm`.
+				if mp.verifiedTxes[i].txn.Hash() == hash {
+					return mp.verifiedTxes[i].data, ok
+				}
+				if itm.CompareTo(mp.verifiedTxes[i]) != 0 {
+					break
+				}
+			}
+		}
 	}
 
 	return nil, false
@@ -420,9 +453,10 @@ func (mp *Pool) GetVerifiedTransactions() []*transaction.Transaction {
 // checkTxConflicts is an internal unprotected version of Verify. It takes into
 // consideration conflicting transactions which are about to be removed from mempool.
 func (mp *Pool) checkTxConflicts(tx *transaction.Transaction, fee Feer) ([]*transaction.Transaction, error) {
-	actualSenderFee, ok := mp.fees[tx.Sender()]
+	payer := tx.Signers[mp.payerIndex].Account
+	actualSenderFee, ok := mp.fees[payer]
 	if !ok {
-		actualSenderFee.balance = fee.GetUtilityTokenBalance(tx.Sender())
+		actualSenderFee.balance = fee.GetUtilityTokenBalance(payer)
 		actualSenderFee.feeSum = big.NewInt(0)
 	}
 
@@ -434,7 +468,7 @@ func (mp *Pool) checkTxConflicts(tx *transaction.Transaction, fee Feer) ([]*tran
 		if conflictingHashes, ok := mp.conflicts[tx.Hash()]; ok {
 			for _, hash := range conflictingHashes {
 				existingTx := mp.verifiedMap[hash]
-				if existingTx.HasSigner(tx.Sender()) && existingTx.NetworkFee > tx.NetworkFee {
+				if existingTx.HasSigner(payer) && existingTx.NetworkFee > tx.NetworkFee {
 					return nil, fmt.Errorf("%w: conflicting transaction %s has bigger network fee", ErrConflictsAttribute, existingTx.Hash().StringBE())
 				}
 				conflictsToBeRemoved = append(conflictsToBeRemoved, existingTx)
@@ -447,7 +481,7 @@ func (mp *Pool) checkTxConflicts(tx *transaction.Transaction, fee Feer) ([]*tran
 			if !ok {
 				continue
 			}
-			if !tx.HasSigner(existingTx.Sender()) {
+			if !tx.HasSigner(existingTx.Signers[mp.payerIndex].Account) {
 				return nil, fmt.Errorf("%w: not signed by the sender of conflicting transaction %s", ErrConflictsAttribute, existingTx.Hash().StringBE())
 			}
 			if existingTx.NetworkFee >= tx.NetworkFee {
@@ -461,7 +495,7 @@ func (mp *Pool) checkTxConflicts(tx *transaction.Transaction, fee Feer) ([]*tran
 			feeSum:  new(big.Int).Set(actualSenderFee.feeSum),
 		}
 		for _, conflictingTx := range conflictsToBeRemoved {
-			if conflictingTx.Sender().Equals(tx.Sender()) {
+			if conflictingTx.Signers[mp.payerIndex].Account.Equals(payer) {
 				expectedSenderFee.feeSum.Sub(expectedSenderFee.feeSum, big.NewInt(conflictingTx.SystemFee+conflictingTx.NetworkFee))
 			}
 		}

@@ -14,6 +14,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
+	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
 	"github.com/nspcc-dev/neo-go/pkg/core/chaindump"
 	"github.com/nspcc-dev/neo-go/pkg/core/fee"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
@@ -447,7 +448,7 @@ func TestVerifyTx(t *testing.T) {
 		require.True(t, errors.Is(err, ErrAlreadyExists))
 	})
 	t.Run("MemPoolOOM", func(t *testing.T) {
-		bc.memPool = mempool.New(1)
+		bc.memPool = mempool.New(1, 0)
 		tx1 := bc.newTestTx(h, testScript)
 		tx1.NetworkFee += 10000 // Give it more priority.
 		require.NoError(t, accs[0].SignTx(tx1))
@@ -926,6 +927,96 @@ func TestVerifyTx(t *testing.T) {
 			})
 		})
 	})
+	t.Run("Partially-filled transaction", func(t *testing.T) {
+		bc.config.P2PSigExtensions = true
+		getPartiallyFilledTx := func(nvb uint32, validUntil uint32) *transaction.Transaction {
+			tx := bc.newTestTx(h, testScript)
+			tx.ValidUntilBlock = validUntil
+			tx.Attributes = []transaction.Attribute{
+				{
+					Type:  transaction.NotValidBeforeT,
+					Value: &transaction.NotValidBefore{Height: nvb},
+				},
+				{
+					Type:  transaction.NotaryAssistedT,
+					Value: &transaction.NotaryAssisted{NKeys: 0},
+				},
+			}
+			tx.Signers = []transaction.Signer{
+				{
+					Account: bc.contracts.Notary.Hash,
+					Scopes:  transaction.None,
+				},
+				{
+					Account: testchain.MultisigScriptHash(),
+					Scopes:  transaction.None,
+				},
+			}
+			size := io.GetVarSize(tx)
+			netFee, sizeDelta := fee.Calculate(testchain.MultisigVerificationScript())
+			tx.NetworkFee = netFee + // multisig witness verification price
+				int64(size)*bc.FeePerByte() + // fee for unsigned size
+				int64(sizeDelta)*bc.FeePerByte() + //fee for multisig size
+				66*bc.FeePerByte() + // fee for Notary signature size (66 bytes for Invocation script and 0 bytes for Verification script)
+				2*bc.FeePerByte() + // fee for the length of each script in Notary witness (they are nil, so we did not take them into account during `size` calculation)
+				transaction.NotaryServiceFeePerKey + // fee for Notary attribute
+				fee.Opcode( // Notary verification script
+					opcode.PUSHDATA1, opcode.RET, // invocation script
+					opcode.DEPTH, opcode.PACK, opcode.PUSHDATA1, opcode.RET, // arguments for native verification call
+					opcode.PUSHDATA1, opcode.SYSCALL, opcode.RET) + // Neo.Native.Call
+				native.NotaryVerificationPrice // Notary witness verification price
+			tx.Scripts = []transaction.Witness{
+				{
+					InvocationScript:   append([]byte{byte(opcode.PUSHDATA1), 64}, make([]byte, 64, 64)...),
+					VerificationScript: []byte{},
+				},
+				{
+					InvocationScript:   testchain.Sign(tx.GetSignedPart()),
+					VerificationScript: testchain.MultisigVerificationScript(),
+				},
+			}
+			return tx
+		}
+
+		mp := mempool.New(10, 1)
+		verificationF := func(bc blockchainer.Blockchainer, tx *transaction.Transaction, data interface{}) error {
+			if data.(int) > 5 {
+				return errors.New("bad data")
+			}
+			return nil
+		}
+		t.Run("failed pre-verification", func(t *testing.T) {
+			tx := getPartiallyFilledTx(bc.blockHeight, bc.blockHeight+1)
+			require.Error(t, bc.PoolTxWithData(tx, 6, mp, bc, verificationF)) // here and below let's use `bc` instead of proper NotaryFeer for the test simplicity.
+		})
+		t.Run("GasLimitExceeded during witness verification", func(t *testing.T) {
+			tx := getPartiallyFilledTx(bc.blockHeight, bc.blockHeight+1)
+			tx.NetworkFee-- // to check that NetworkFee was set correctly in getPartiallyFilledTx
+			tx.Scripts = []transaction.Witness{
+				{
+					InvocationScript:   append([]byte{byte(opcode.PUSHDATA1), 64}, make([]byte, 64, 64)...),
+					VerificationScript: []byte{},
+				},
+				{
+					InvocationScript:   testchain.Sign(tx.GetSignedPart()),
+					VerificationScript: testchain.MultisigVerificationScript(),
+				},
+			}
+			require.Error(t, bc.PoolTxWithData(tx, 5, mp, bc, verificationF))
+		})
+		t.Run("bad NVB: too big", func(t *testing.T) {
+			tx := getPartiallyFilledTx(bc.blockHeight+bc.contracts.Notary.GetMaxNotValidBeforeDelta(bc.dao)+1, bc.blockHeight+1)
+			require.True(t, errors.Is(bc.PoolTxWithData(tx, 5, mp, bc, verificationF), ErrInvalidAttribute))
+		})
+		t.Run("bad ValidUntilBlock: too small", func(t *testing.T) {
+			tx := getPartiallyFilledTx(bc.blockHeight, bc.blockHeight+bc.contracts.Notary.GetMaxNotValidBeforeDelta(bc.dao)+1)
+			require.True(t, errors.Is(bc.PoolTxWithData(tx, 5, mp, bc, verificationF), ErrInvalidAttribute))
+		})
+		t.Run("good", func(t *testing.T) {
+			tx := getPartiallyFilledTx(bc.blockHeight, bc.blockHeight+1)
+			require.NoError(t, bc.PoolTxWithData(tx, 5, mp, bc, verificationF))
+		})
+	})
 }
 
 func TestVerifyHashAgainstScript(t *testing.T) {
@@ -1021,9 +1112,9 @@ func TestIsTxStillRelevant(t *testing.T) {
 		tx := newTx(t)
 		require.NoError(t, testchain.SignTx(bc, tx))
 
-		require.True(t, bc.isTxStillRelevant(tx, nil))
+		require.True(t, bc.IsTxStillRelevant(tx, nil, false))
 		require.NoError(t, bc.AddBlock(bc.newBlock()))
-		require.False(t, bc.isTxStillRelevant(tx, nil))
+		require.False(t, bc.IsTxStillRelevant(tx, nil, false))
 	})
 
 	t.Run("tx is already persisted", func(t *testing.T) {
@@ -1031,9 +1122,9 @@ func TestIsTxStillRelevant(t *testing.T) {
 		tx.ValidUntilBlock = bc.BlockHeight() + 2
 		require.NoError(t, testchain.SignTx(bc, tx))
 
-		require.True(t, bc.isTxStillRelevant(tx, nil))
+		require.True(t, bc.IsTxStillRelevant(tx, nil, false))
 		require.NoError(t, bc.AddBlock(bc.newBlock(tx)))
-		require.False(t, bc.isTxStillRelevant(tx, nil))
+		require.False(t, bc.IsTxStillRelevant(tx, nil, false))
 	})
 
 	t.Run("tx with Conflicts attribute", func(t *testing.T) {
@@ -1047,9 +1138,9 @@ func TestIsTxStillRelevant(t *testing.T) {
 		}}
 		require.NoError(t, testchain.SignTx(bc, tx2))
 
-		require.True(t, bc.isTxStillRelevant(tx1, mp))
-		require.NoError(t, bc.verifyAndPoolTx(tx2, mp))
-		require.False(t, bc.isTxStillRelevant(tx1, mp))
+		require.True(t, bc.IsTxStillRelevant(tx1, mp, false))
+		require.NoError(t, bc.verifyAndPoolTx(tx2, mp, bc))
+		require.False(t, bc.IsTxStillRelevant(tx1, mp, false))
 	})
 	t.Run("NotValidBefore", func(t *testing.T) {
 		tx3 := newTx(t)
@@ -1060,9 +1151,9 @@ func TestIsTxStillRelevant(t *testing.T) {
 		tx3.ValidUntilBlock = bc.BlockHeight() + 2
 		require.NoError(t, testchain.SignTx(bc, tx3))
 
-		require.False(t, bc.isTxStillRelevant(tx3, nil))
+		require.False(t, bc.IsTxStillRelevant(tx3, nil, false))
 		require.NoError(t, bc.AddBlock(bc.newBlock()))
-		require.True(t, bc.isTxStillRelevant(tx3, nil))
+		require.True(t, bc.IsTxStillRelevant(tx3, nil, false))
 	})
 	t.Run("contract witness check fails", func(t *testing.T) {
 		src := fmt.Sprintf(`package verify
@@ -1087,9 +1178,9 @@ func TestIsTxStillRelevant(t *testing.T) {
 		require.NoError(t, testchain.SignTx(bc, tx))
 		tx.Scripts = append(tx.Scripts, transaction.Witness{})
 
-		require.True(t, bc.isTxStillRelevant(tx, mp))
+		require.True(t, bc.IsTxStillRelevant(tx, mp, false))
 		require.NoError(t, bc.AddBlock(bc.newBlock()))
-		require.False(t, bc.isTxStillRelevant(tx, mp))
+		require.False(t, bc.IsTxStillRelevant(tx, mp, false))
 	})
 }
 

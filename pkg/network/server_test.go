@@ -19,6 +19,8 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/network/capability"
 	"github.com/nspcc-dev/neo-go/pkg/network/payload"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/atomic"
@@ -445,7 +447,7 @@ func (s *Server) testHandleGetData(t *testing.T, invType payload.InventoryType, 
 	p.handshaked = true
 	p.messageHandler = func(t *testing.T, msg *Message) {
 		switch msg.Command {
-		case CMDTX, CMDBlock, CMDConsensus:
+		case CMDTX, CMDBlock, CMDConsensus, CMDP2PNotaryRequest:
 			require.Equal(t, found, msg.Payload)
 			recvResponse.Store(true)
 		case CMDNotFound:
@@ -463,6 +465,7 @@ func (s *Server) testHandleGetData(t *testing.T, invType payload.InventoryType, 
 func TestGetData(t *testing.T) {
 	s, shutdown := startTestServer(t)
 	defer shutdown()
+	s.chain.(*testChain).utilityTokenBalance = big.NewInt(1000000)
 
 	t.Run("block", func(t *testing.T) {
 		b := newDummyBlock(2, 0)
@@ -477,6 +480,44 @@ func TestGetData(t *testing.T) {
 		s.chain.(*testChain).putTx(tx)
 		notFound := []util.Uint256{hs[0], hs[2]}
 		s.testHandleGetData(t, payload.TXType, hs, notFound, tx)
+	})
+	t.Run("p2pNotaryRequest", func(t *testing.T) {
+		mainTx := &transaction.Transaction{
+			Attributes:      []transaction.Attribute{{Type: transaction.NotaryAssistedT, Value: &transaction.NotaryAssisted{NKeys: 1}}},
+			Script:          []byte{0, 1, 2},
+			ValidUntilBlock: 123,
+			Signers:         []transaction.Signer{{Account: random.Uint160()}},
+			Scripts:         []transaction.Witness{{InvocationScript: []byte{1, 2, 3}, VerificationScript: []byte{1, 2, 3}}},
+		}
+		mainTx.Size()
+		mainTx.Hash()
+		fallbackTx := &transaction.Transaction{
+			Script:          []byte{1, 2, 3},
+			ValidUntilBlock: 123,
+			Attributes: []transaction.Attribute{
+				{Type: transaction.NotValidBeforeT, Value: &transaction.NotValidBefore{Height: 123}},
+				{Type: transaction.ConflictsT, Value: &transaction.Conflicts{Hash: mainTx.Hash()}},
+				{Type: transaction.NotaryAssistedT, Value: &transaction.NotaryAssisted{NKeys: 0}},
+			},
+			Signers: []transaction.Signer{{Account: random.Uint160()}, {Account: random.Uint160()}},
+			Scripts: []transaction.Witness{{InvocationScript: append([]byte{byte(opcode.PUSHDATA1), 64}, make([]byte, 64, 64)...), VerificationScript: make([]byte, 0)}, {InvocationScript: []byte{}, VerificationScript: []byte{}}},
+		}
+		fallbackTx.Size()
+		fallbackTx.Hash()
+		r := &payload.P2PNotaryRequest{
+			MainTransaction:     mainTx,
+			FallbackTransaction: fallbackTx,
+			Network:             netmode.UnitTestNet,
+			Witness: transaction.Witness{
+				InvocationScript:   []byte{1, 2, 3},
+				VerificationScript: []byte{1, 2, 3},
+			},
+		}
+		r.Hash()
+		require.NoError(t, s.notaryRequestPool.Add(r.FallbackTransaction, s.chain, r))
+		hs := []util.Uint256{random.Uint256(), r.FallbackTransaction.Hash(), random.Uint256()}
+		notFound := []util.Uint256{hs[0], hs[2]}
+		s.testHandleGetData(t, payload.P2PNotaryRequestType, hs, notFound, r)
 	})
 }
 
@@ -602,6 +643,7 @@ func TestGetHeaders(t *testing.T) {
 func TestInv(t *testing.T) {
 	s, shutdown := startTestServer(t)
 	defer shutdown()
+	s.chain.(*testChain).utilityTokenBalance = big.NewInt(10000000)
 
 	var actual []util.Uint256
 	p := newLocalPeer(t, s)
@@ -628,6 +670,24 @@ func TestInv(t *testing.T) {
 		hs := []util.Uint256{random.Uint256(), tx.Hash(), random.Uint256()}
 		s.testHandleMessage(t, p, CMDInv, &payload.Inventory{
 			Type:   payload.TXType,
+			Hashes: hs,
+		})
+		require.Equal(t, []util.Uint256{hs[0], hs[2]}, actual)
+	})
+	t.Run("p2pNotaryRequest", func(t *testing.T) {
+		fallbackTx := transaction.New(netmode.UnitTestNet, random.Bytes(100), 123)
+		fallbackTx.Signers = []transaction.Signer{{Account: random.Uint160()}, {Account: random.Uint160()}}
+		fallbackTx.Size()
+		fallbackTx.Hash()
+		r := &payload.P2PNotaryRequest{
+			MainTransaction:     newDummyTx(),
+			FallbackTransaction: fallbackTx,
+			Network:             netmode.UnitTestNet,
+		}
+		require.NoError(t, s.notaryRequestPool.Add(r.FallbackTransaction, s.chain, r))
+		hs := []util.Uint256{random.Uint256(), r.FallbackTransaction.Hash(), random.Uint256()}
+		s.testHandleMessage(t, p, CMDInv, &payload.Inventory{
+			Type:   payload.P2PNotaryRequestType,
 			Hashes: hs,
 		})
 		require.Equal(t, []util.Uint256{hs[0], hs[2]}, actual)
@@ -762,4 +822,44 @@ func TestMemPool(t *testing.T) {
 
 	s.testHandleMessage(t, p, CMDMempool, payload.NullPayload{})
 	require.ElementsMatch(t, expected, actual)
+}
+
+func TestVerifyNotaryRequest(t *testing.T) {
+	bc := newTestChain()
+	bc.maxVerificationGAS = 10
+	bc.notaryContractScriptHash = util.Uint160{1, 2, 3}
+	newNotaryRequest := func() *payload.P2PNotaryRequest {
+		return &payload.P2PNotaryRequest{
+			MainTransaction: &transaction.Transaction{Script: []byte{0, 1, 2}},
+			FallbackTransaction: &transaction.Transaction{
+				ValidUntilBlock: 321,
+				Signers:         []transaction.Signer{{Account: bc.notaryContractScriptHash}, {Account: random.Uint160()}},
+			},
+			Witness: transaction.Witness{},
+		}
+	}
+
+	t.Run("bad payload witness", func(t *testing.T) {
+		bc.verifyWitnessF = func() error { return errors.New("bad witness") }
+		require.Error(t, verifyNotaryRequest(bc, nil, newNotaryRequest()))
+	})
+
+	t.Run("bad fallback sender", func(t *testing.T) {
+		bc.verifyWitnessF = func() error { return nil }
+		r := newNotaryRequest()
+		r.FallbackTransaction.Signers[0] = transaction.Signer{Account: util.Uint160{7, 8, 9}}
+		require.Error(t, verifyNotaryRequest(bc, nil, r))
+	})
+
+	t.Run("expired deposit", func(t *testing.T) {
+		r := newNotaryRequest()
+		bc.notaryDepositExpiration = r.FallbackTransaction.ValidUntilBlock
+		require.Error(t, verifyNotaryRequest(bc, nil, r))
+	})
+
+	t.Run("good", func(t *testing.T) {
+		r := newNotaryRequest()
+		bc.notaryDepositExpiration = r.FallbackTransaction.ValidUntilBlock + 1
+		require.NoError(t, verifyNotaryRequest(bc, nil, r))
+	})
 }
