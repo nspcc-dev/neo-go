@@ -18,7 +18,7 @@ import (
 // +------------+-----------+------------------------------------------------------------+
 // | Magic      | 4 bytes   | Magic header                                               |
 // | Compiler   | 32 bytes  | Compiler used                                              |
-// | Version    | 16 bytes  | Compiler version                                           |
+// | Version    | 32 bytes  | Compiler version                                           |
 // +------------+-----------+------------------------------------------------------------+
 // | Script     | Var bytes | Var bytes for the payload                                  |
 // +------------+-----------+------------------------------------------------------------+
@@ -30,10 +30,8 @@ const (
 	Magic uint32 = 0x3346454E
 	// MaxScriptLength is the maximum allowed contract script length.
 	MaxScriptLength = 1024 * 1024
-	// compilerFieldSize is the length of `Compiler` File header field in bytes.
+	// compilerFieldSize is the length of `Compiler` and `Version` File header fields in bytes.
 	compilerFieldSize = 32
-	// versionFieldSize is the length of `Version` File header field in bytes.
-	versionFieldSize = 16
 )
 
 // File represents compiled contract file structure according to the NEF3 standard.
@@ -60,7 +58,7 @@ func NewFile(script []byte) (*File, error) {
 		},
 		Script: script,
 	}
-	if len(config.Version) > versionFieldSize {
+	if len(config.Version) > compilerFieldSize {
 		return nil, errors.New("too long version")
 	}
 	file.Checksum = file.CalculateChecksum()
@@ -77,7 +75,6 @@ func (h *Header) EncodeBinary(w *io.BinWriter) {
 	var b = make([]byte, compilerFieldSize)
 	copy(b, []byte(h.Compiler))
 	w.WriteBytes(b)
-	b = b[:versionFieldSize]
 	for i := range b {
 		b[i] = 0
 	}
@@ -98,7 +95,7 @@ func (h *Header) DecodeBinary(r *io.BinReader) {
 		return r == 0
 	})
 	h.Compiler = string(buf)
-	buf = buf[:versionFieldSize]
+	buf = buf[:compilerFieldSize]
 	r.ReadBytes(buf)
 	buf = bytes.TrimRightFunc(buf, func(r rune) bool {
 		return r == 0
