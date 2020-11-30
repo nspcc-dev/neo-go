@@ -75,7 +75,7 @@ func (g *GAS) Initialize(ic *interop.Context) error {
 	if err != nil {
 		return err
 	}
-	g.mint(ic, h, big.NewInt(initialGAS*GASFactor))
+	g.mint(ic, h, big.NewInt(initialGAS*GASFactor), false)
 	return nil
 }
 
@@ -94,7 +94,7 @@ func (g *GAS) OnPersist(ic *interop.Context) error {
 	for _, tx := range ic.Block.Transactions {
 		netFee += tx.NetworkFee
 	}
-	g.mint(ic, primary, big.NewInt(int64(netFee)))
+	g.mint(ic, primary, big.NewInt(int64(netFee)), false)
 	return nil
 }
 

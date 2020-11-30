@@ -139,9 +139,10 @@ func addrToStackItem(u *util.Uint160) stackitem.Item {
 	return stackitem.NewByteArray(u.BytesBE())
 }
 
-func (c *nep17TokenNative) postTransfer(ic *interop.Context, from, to *util.Uint160, amount *big.Int, data stackitem.Item) {
+func (c *nep17TokenNative) postTransfer(ic *interop.Context, from, to *util.Uint160, amount *big.Int,
+	data stackitem.Item, callOnPayment bool) {
 	c.emitTransfer(ic, from, to, amount)
-	if to == nil {
+	if to == nil || !callOnPayment {
 		return
 	}
 	cs, err := ic.DAO.GetContractState(*to)
@@ -230,7 +231,7 @@ func (c *nep17TokenNative) TransferInternal(ic *interop.Context, from, to util.U
 		}
 	}
 
-	c.postTransfer(ic, &from, &to, amount, data)
+	c.postTransfer(ic, &from, &to, amount, data, true)
 	return nil
 }
 
@@ -244,12 +245,12 @@ func (c *nep17TokenNative) balanceOf(ic *interop.Context, args []stackitem.Item)
 	return stackitem.NewBigInteger(&balance)
 }
 
-func (c *nep17TokenNative) mint(ic *interop.Context, h util.Uint160, amount *big.Int) {
+func (c *nep17TokenNative) mint(ic *interop.Context, h util.Uint160, amount *big.Int, callOnPayment bool) {
 	if amount.Sign() == 0 {
 		return
 	}
 	c.addTokens(ic, h, amount)
-	c.postTransfer(ic, nil, &h, amount, stackitem.Null{})
+	c.postTransfer(ic, nil, &h, amount, stackitem.Null{}, callOnPayment)
 }
 
 func (c *nep17TokenNative) burn(ic *interop.Context, h util.Uint160, amount *big.Int) {
@@ -257,7 +258,7 @@ func (c *nep17TokenNative) burn(ic *interop.Context, h util.Uint160, amount *big
 		return
 	}
 	c.addTokens(ic, h, new(big.Int).Neg(amount))
-	c.postTransfer(ic, &h, nil, amount, stackitem.Null{})
+	c.postTransfer(ic, &h, nil, amount, stackitem.Null{}, false)
 }
 
 func (c *nep17TokenNative) addTokens(ic *interop.Context, h util.Uint160, amount *big.Int) {
