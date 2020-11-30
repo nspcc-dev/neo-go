@@ -3,7 +3,6 @@ package fixedn
 import (
 	"encoding/json"
 	"errors"
-	"math"
 	"strconv"
 	"strings"
 
@@ -72,36 +71,11 @@ func Fixed8FromFloat(val float64) Fixed8 {
 // Fixed8FromString parses s which must be a fixed point number
 // with precision up to 10^-8
 func Fixed8FromString(s string) (Fixed8, error) {
-	num, err := FixedNFromString(s, precision)
+	num, err := FromString(s, precision)
 	if err != nil {
 		return 0, err
 	}
-	return Fixed8(num), err
-}
-
-// FixedNFromString parses s which must be a fixed point number
-// with precision 10^-d.
-func FixedNFromString(s string, precision int) (int64, error) {
-	parts := strings.SplitN(s, ".", 2)
-	d := int64(math.Pow10(precision))
-	ip, err := strconv.ParseInt(parts[0], 10, 64)
-	if err != nil {
-		return 0, errInvalidString
-	} else if len(parts) == 1 {
-		return ip * d, nil
-	}
-
-	fp, err := strconv.ParseInt(parts[1], 10, 64)
-	if err != nil || fp >= d {
-		return 0, errInvalidString
-	}
-	for i := len(parts[1]); i < precision; i++ {
-		fp *= 10
-	}
-	if ip < 0 {
-		return ip*d - fp, nil
-	}
-	return ip*d + fp, nil
+	return Fixed8(num.Int64()), err
 }
 
 // UnmarshalJSON implements the json unmarshaller interface.

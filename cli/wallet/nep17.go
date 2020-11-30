@@ -391,14 +391,14 @@ func multiTransferNEP17(ctx *cli.Context) error {
 		if err != nil {
 			return cli.NewExitError(fmt.Errorf("invalid address: '%s'", ss[1]), 1)
 		}
-		amount, err := fixedn.FixedNFromString(ss[2], int(token.Decimals))
+		amount, err := fixedn.FromString(ss[2], int(token.Decimals))
 		if err != nil {
 			return cli.NewExitError(fmt.Errorf("invalid amount: %w", err), 1)
 		}
 		recipients = append(recipients, client.TransferTarget{
 			Token:   token.Hash,
 			Address: addr,
-			Amount:  amount,
+			Amount:  amount.Int64(),
 		})
 	}
 
@@ -438,7 +438,7 @@ func transferNEP17(ctx *cli.Context) error {
 		}
 	}
 
-	amount, err := fixedn.FixedNFromString(ctx.String("amount"), int(token.Decimals))
+	amount, err := fixedn.FromString(ctx.String("amount"), int(token.Decimals))
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("invalid amount: %w", err), 1)
 	}
@@ -446,7 +446,7 @@ func transferNEP17(ctx *cli.Context) error {
 	return signAndSendTransfer(ctx, c, acc, []client.TransferTarget{{
 		Token:   token.Hash,
 		Address: to,
-		Amount:  amount,
+		Amount:  amount.Int64(),
 	}})
 }
 
