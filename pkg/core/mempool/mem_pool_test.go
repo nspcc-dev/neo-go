@@ -351,6 +351,59 @@ func TestMempoolItemsOrder(t *testing.T) {
 	require.True(t, item4.CompareTo(item3) < 0)
 }
 
+func TestMempoolAddRemoveOracleResponse(t *testing.T) {
+	mp := New(5)
+	nonce := uint32(0)
+	fs := &FeerStub{}
+	newTx := func(netFee int64, id uint64) *transaction.Transaction {
+		tx := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
+		tx.NetworkFee = netFee
+		tx.Nonce = nonce
+		nonce++
+		tx.Signers = []transaction.Signer{{Account: util.Uint160{1, 2, 3}}}
+		tx.Attributes = []transaction.Attribute{{
+			Type:  transaction.OracleResponseT,
+			Value: &transaction.OracleResponse{ID: id},
+		}}
+		// sanity check
+		_, ok := mp.TryGetValue(tx.Hash())
+		require.False(t, ok)
+		return tx
+	}
+
+	tx1 := newTx(10, 1)
+	require.NoError(t, mp.Add(tx1, fs))
+
+	// smaller network fee
+	tx2 := newTx(5, 1)
+	err := mp.Add(tx2, fs)
+	require.True(t, errors.Is(err, ErrOracleResponse))
+
+	// ok if old tx is removed
+	mp.Remove(tx1.Hash(), fs)
+	require.NoError(t, mp.Add(tx2, fs))
+
+	// higher network fee
+	tx3 := newTx(6, 1)
+	require.NoError(t, mp.Add(tx3, fs))
+	_, ok := mp.TryGetValue(tx2.Hash())
+	require.False(t, ok)
+	_, ok = mp.TryGetValue(tx3.Hash())
+	require.True(t, ok)
+
+	// another oracle response ID
+	tx4 := newTx(4, 2)
+	require.NoError(t, mp.Add(tx4, fs))
+
+	mp.RemoveStale(func(tx *transaction.Transaction) bool {
+		return tx.Hash() != tx4.Hash()
+	}, fs)
+
+	// check that oracle id was removed.
+	tx5 := newTx(3, 2)
+	require.NoError(t, mp.Add(tx5, fs))
+}
+
 func TestMempoolAddRemoveConflicts(t *testing.T) {
 	capacity := 6
 	mp := New(capacity)
