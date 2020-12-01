@@ -30,6 +30,9 @@ var (
 	// ErrConflictsAttribute is returned when transaction conflicts with other transactions
 	// due to its (or theirs) Conflicts attributes.
 	ErrConflictsAttribute = errors.New("conflicts with memory pool due to Conflicts attribute")
+	// ErrOracleResponse is returned when mempool already contains transaction
+	// with the same oracle response ID and higher network fee.
+	ErrOracleResponse = errors.New("conflicts with memory pool due to OracleResponse attribute")
 )
 
 // item represents a transaction in the the Memory pool.
@@ -56,6 +59,8 @@ type Pool struct {
 	fees         map[util.Uint160]utilityBalanceAndFees
 	// conflicts is a map of hashes of transactions which are conflicting with the mempooled ones.
 	conflicts map[util.Uint256][]util.Uint256
+	// oracleResp contains ids of oracle responses for tx in pool.
+	oracleResp map[uint64]util.Uint256
 
 	capacity   int
 	feePerByte int64
@@ -192,6 +197,18 @@ func (mp *Pool) Add(t *transaction.Transaction, fee Feer) error {
 		mp.lock.Unlock()
 		return err
 	}
+	if attrs := t.GetAttributes(transaction.OracleResponseT); len(attrs) != 0 {
+		id := attrs[0].Value.(*transaction.OracleResponse).ID
+		h, ok := mp.oracleResp[id]
+		if ok {
+			if mp.verifiedMap[h].NetworkFee >= t.NetworkFee {
+				mp.lock.Unlock()
+				return ErrOracleResponse
+			}
+			mp.removeInternal(h, fee)
+		}
+		mp.oracleResp[id] = t.Hash()
+	}
 
 	mp.verifiedMap[t.Hash()] = t
 	if fee.P2PSigExtensionsEnabled() {
@@ -276,6 +293,9 @@ func (mp *Pool) removeInternal(hash util.Uint256, feer Feer) {
 			// remove all conflicting hashes from mp.conflicts list
 			mp.removeConflictsOf(tx)
 		}
+		if attrs := tx.GetAttributes(transaction.OracleResponseT); len(attrs) != 0 {
+			delete(mp.oracleResp, attrs[0].Value.(*transaction.OracleResponse).ID)
+		}
 	}
 	updateMempoolMetrics(len(mp.verifiedTxes))
 }
@@ -314,6 +334,9 @@ func (mp *Pool) RemoveStale(isOK func(*transaction.Transaction) bool, feer Feer)
 			}
 		} else {
 			delete(mp.verifiedMap, itm.txn.Hash())
+			if attrs := itm.txn.GetAttributes(transaction.OracleResponseT); len(attrs) != 0 {
+				delete(mp.oracleResp, attrs[0].Value.(*transaction.OracleResponse).ID)
+			}
 		}
 	}
 	if len(staleTxs) != 0 {
@@ -350,6 +373,7 @@ func New(capacity int) *Pool {
 		capacity:     capacity,
 		fees:         make(map[util.Uint160]utilityBalanceAndFees),
 		conflicts:    make(map[util.Uint256][]util.Uint256),
+		oracleResp:   make(map[uint64]util.Uint256),
 	}
 }
 

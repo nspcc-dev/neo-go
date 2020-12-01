@@ -153,7 +153,7 @@ func (o *Oracle) PostPersist(ic *interop.Context) error {
 		reqKey := makeRequestKey(resp.ID)
 		req := new(state.OracleRequest)
 		if err := o.getSerializableFromDAO(ic.DAO, reqKey, req); err != nil {
-			return err
+			continue
 		}
 		if err := ic.DAO.DeleteStorageItem(o.ContractID, reqKey); err != nil {
 			return err
