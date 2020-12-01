@@ -225,8 +225,6 @@ func TestISTYPE(t *testing.T) {
 func testCONVERT(to stackitem.Type, item, res stackitem.Item) func(t *testing.T) {
 	return func(t *testing.T) {
 		prog := []byte{byte(opcode.CONVERT), byte(to)}
-		v := load(prog)
-		v.PrintOps()
 		runWithArgs(t, prog, res, item)
 	}
 }

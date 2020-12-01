@@ -429,7 +429,9 @@ func handleOps(c *ishell.Context) {
 		return
 	}
 	v := getVMFromContext(c)
-	v.PrintOps()
+	out := bytes.NewBuffer(nil)
+	v.PrintOps(out)
+	c.Println(out.String())
 }
 
 func changePrompt(c ishell.Actions, v *vm.VM) {

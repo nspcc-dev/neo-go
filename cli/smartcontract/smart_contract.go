@@ -678,7 +678,7 @@ func inspect(ctx *cli.Context) error {
 	}
 	v := vm.New()
 	v.LoadScript(b)
-	v.PrintOps()
+	v.PrintOps(ctx.App.Writer)
 
 	return nil
 }
