@@ -12,6 +12,7 @@ import (
 	"strings"
 	"text/tabwriter"
 
+	"github.com/abiosoft/readline"
 	"github.com/nspcc-dev/neo-go/pkg/compiler"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
@@ -28,6 +29,7 @@ const (
 	boolTrue   = "true"
 	intType    = "int"
 	stringType = "string"
+	exitFunc   = "exitFunc"
 )
 
 var commands = []*ishell.Cmd{
@@ -193,15 +195,26 @@ var (
 type VMCLI struct {
 	vm    *vm.VM
 	shell *ishell.Shell
+	// printLogo specifies if logo is printed.
+	printLogo bool
 }
 
 // New returns a new VMCLI object.
 func New() *VMCLI {
+	return NewWithConfig(true, os.Exit, &readline.Config{
+		Prompt: ">>>",
+	})
+}
+
+// NewWithConfig returns new VMCLI instance using provided config.
+func NewWithConfig(printLogo bool, onExit func(int), c *readline.Config) *VMCLI {
 	vmcli := VMCLI{
-		vm:    vm.New(),
-		shell: ishell.New(),
+		vm:        vm.New(),
+		shell:     ishell.NewWithConfig(c),
+		printLogo: printLogo,
 	}
 	vmcli.shell.Set(vmKey, vmcli.vm)
+	vmcli.shell.Set(exitFunc, onExit)
 	for _, c := range commands {
 		vmcli.shell.AddCmd(c)
 	}
@@ -224,7 +237,7 @@ func checkVMIsReady(c *ishell.Context) bool {
 
 func handleExit(c *ishell.Context) {
 	c.Println("Bye!")
-	os.Exit(0)
+	c.Get(exitFunc).(func(int))(0)
 }
 
 func handleIP(c *ishell.Context) {
@@ -460,7 +473,9 @@ func changePrompt(c ishell.Actions, v *vm.VM) {
 
 // Run waits for user input from Stdin and executes the passed command.
 func (c *VMCLI) Run() error {
-	printLogo(c.shell)
+	if c.printLogo {
+		printLogo(c.shell)
+	}
 	c.shell.Run()
 	return nil
 }
@@ -564,14 +579,15 @@ func parseArgs(args []string) ([]stackitem.Item, error) {
 	return items, nil
 }
 
-func printLogo(c *ishell.Shell) {
-	logo := `
+const logo = `
     _   ____________        __________      _    ____  ___
    / | / / ____/ __ \      / ____/ __ \    | |  / /  |/  /
   /  |/ / __/ / / / /_____/ / __/ / / /____| | / / /|_/ / 
  / /|  / /___/ /_/ /_____/ /_/ / /_/ /_____/ |/ / /  / /  
 /_/ |_/_____/\____/      \____/\____/      |___/_/  /_/   
 `
+
+func printLogo(c *ishell.Shell) {
 	c.Print(logo)
 	c.Println()
 	c.Println()
