@@ -121,13 +121,6 @@ func newOracle() *Oracle {
 	md = newMethodAndPrice(o.verify, 100_0000, smartcontract.NoneFlag)
 	o.AddMethod(md, desc, false)
 
-	desc = newDescriptor("onPayment", smartcontract.VoidType,
-		manifest.NewParameter("from", smartcontract.Hash160Type),
-		manifest.NewParameter("amount", smartcontract.IntegerType),
-		manifest.NewParameter("data", smartcontract.AnyType))
-	md = newMethodAndPrice(o.onPayment, 0, smartcontract.NoneFlag)
-	o.AddMethod(md, desc, false)
-
 	pp := chainOnPersist(postPersistBase, o.PostPersist)
 	desc = newDescriptor("postPersist", smartcontract.VoidType)
 	md = newMethodAndPrice(getOnPersistWrapper(pp), 0, smartcontract.AllowModifyStates)
@@ -200,7 +193,7 @@ func (o *Oracle) PostPersist(ic *interop.Context) error {
 		}
 	}
 	for i := range reward {
-		o.GAS.mint(ic, nodes[i].GetScriptHash(), &reward[i])
+		o.GAS.mint(ic, nodes[i].GetScriptHash(), &reward[i], false)
 	}
 	return nil
 }
@@ -307,7 +300,7 @@ func (o *Oracle) RequestInternal(ic *interop.Context, url string, filter *string
 		return ErrNotEnoughGas
 	}
 	callingHash := ic.VM.GetCallingScriptHash()
-	o.GAS.mint(ic, o.Hash, gas)
+	o.GAS.mint(ic, o.Hash, gas, false)
 	si := ic.DAO.GetStorageItem(o.ContractID, prefixRequestID)
 	id := binary.LittleEndian.Uint64(si.Value) + 1
 	binary.LittleEndian.PutUint64(si.Value, id)
@@ -408,14 +401,6 @@ func (o *Oracle) GetIDListInternal(d dao.DAO, url string) (*IDList, error) {
 
 func (o *Oracle) verify(ic *interop.Context, _ []stackitem.Item) stackitem.Item {
 	return stackitem.NewBool(ic.Tx.HasAttribute(transaction.OracleResponseT))
-}
-
-func (o *Oracle) onPayment(ic *interop.Context, _ []stackitem.Item) stackitem.Item {
-	// FIXME when calling native transfer directly, context is not provided.
-	if h := ic.VM.GetCallingScriptHash(); h != o.Hash && h != o.GAS.Hash {
-		panic("only GAS can be accepted")
-	}
-	return stackitem.Null{}
 }
 
 func (o *Oracle) getOriginalTxID(d dao.DAO, tx *transaction.Transaction) util.Uint256 {

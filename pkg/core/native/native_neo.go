@@ -189,7 +189,7 @@ func (n *NEO) Initialize(ic *interop.Context) error {
 	if err != nil {
 		return err
 	}
-	n.mint(ic, h, big.NewInt(NEOTotalSupply))
+	n.mint(ic, h, big.NewInt(NEOTotalSupply), false)
 
 	var index uint32 = 0
 	value := big.NewInt(5 * GASFactor)
@@ -294,7 +294,7 @@ func (n *NEO) PostPersist(ic *interop.Context) error {
 	committeeSize := len(ic.Chain.GetConfig().StandbyCommittee)
 	index := int(ic.Block.Index) % committeeSize
 	committeeReward := new(big.Int).Mul(gas, big.NewInt(committeeRewardRatio))
-	n.GAS.mint(ic, pubs[index].GetScriptHash(), committeeReward.Div(committeeReward, big.NewInt(100)))
+	n.GAS.mint(ic, pubs[index].GetScriptHash(), committeeReward.Div(committeeReward, big.NewInt(100)), false)
 
 	if ShouldUpdateCommittee(ic.Block.Index, ic.Chain) {
 		var voterReward = big.NewInt(voterRewardRatio)
@@ -410,7 +410,7 @@ func (n *NEO) distributeGas(ic *interop.Context, h util.Uint160, acc *state.NEOB
 		return err
 	}
 	acc.BalanceHeight = ic.Block.Index
-	n.GAS.mint(ic, h, gen)
+	n.GAS.mint(ic, h, gen, true)
 	return nil
 }
 
