@@ -229,6 +229,7 @@ func handleBreak(c *ishell.Context) {
 	v := getVMFromContext(c)
 	if len(c.Args) != 1 {
 		c.Err(errors.New("missing parameter <ip>"))
+		return
 	}
 	n, err := strconv.Atoi(c.Args[0])
 	if err != nil {
