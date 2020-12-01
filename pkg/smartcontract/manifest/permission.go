@@ -84,12 +84,12 @@ func (d *PermissionDesc) Group() *keys.PublicKey {
 }
 
 // IsAllowed checks if method is allowed to be executed.
-func (p *Permission) IsAllowed(m *Manifest, method string) bool {
+func (p *Permission) IsAllowed(hash util.Uint160, m *Manifest, method string) bool {
 	switch p.Contract.Type {
 	case PermissionWildcard:
 		return true
 	case PermissionHash:
-		if !p.Contract.Hash().Equals(m.ABI.Hash) {
+		if !p.Contract.Hash().Equals(hash) {
 			return false
 		}
 	case PermissionGroup:

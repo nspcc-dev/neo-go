@@ -121,12 +121,12 @@ func (c *Client) Init() error {
 	if err != nil {
 		return fmt.Errorf("failed to get NEO contract scripthash: %w", err)
 	}
-	c.cache.nativeHashes["neo"] = neoContractHash.ScriptHash()
+	c.cache.nativeHashes["neo"] = neoContractHash.Hash
 	gasContractHash, err := c.GetContractStateByAddressOrName("gas")
 	if err != nil {
 		return fmt.Errorf("failed to get GAS contract scripthash: %w", err)
 	}
-	c.cache.nativeHashes["gas"] = gasContractHash.ScriptHash()
+	c.cache.nativeHashes["gas"] = gasContractHash.Hash
 	c.initDone = true
 	return nil
 }

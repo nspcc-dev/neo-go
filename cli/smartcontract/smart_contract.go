@@ -15,6 +15,7 @@ import (
 	"github.com/nspcc-dev/neo-go/cli/options"
 	"github.com/nspcc-dev/neo-go/cli/paramcontext"
 	"github.com/nspcc-dev/neo-go/pkg/compiler"
+	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/request"
@@ -734,13 +735,18 @@ func contractDeploy(ctx *cli.Context) error {
 	if err != nil {
 		return err
 	}
+	sender, err := address.StringToUint160(acc.Address)
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
 	f, err := ioutil.ReadFile(in)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
+	// Check the file.
 	nefFile, err := nef.FileFromBytes(f)
 	if err != nil {
-		return cli.NewExitError(fmt.Errorf("failed to restore .nef file: %w", err), 1)
+		return cli.NewExitError(fmt.Errorf("failed to read .nef file: %w", err), 1)
 	}
 
 	manifestBytes, err := ioutil.ReadFile(manifestFile)
@@ -761,7 +767,7 @@ func contractDeploy(ctx *cli.Context) error {
 		return err
 	}
 
-	txScript, err := request.CreateDeploymentScript(nefFile.Script, m)
+	txScript, err := request.CreateDeploymentScript(&nefFile, m)
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("failed to create deployment script: %w", err), 1)
 	}
@@ -775,7 +781,8 @@ func contractDeploy(ctx *cli.Context) error {
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("failed to push invocation tx: %w", err), 1)
 	}
-	fmt.Fprintf(ctx.App.Writer, "Contract: %s\n", nefFile.Header.ScriptHash.StringLE())
+	hash := state.CreateContractHash(sender, nefFile.Script)
+	fmt.Fprintf(ctx.App.Writer, "Contract: %s\n", hash.StringLE())
 	fmt.Fprintln(ctx.App.Writer, txHash.StringLE())
 	return nil
 }

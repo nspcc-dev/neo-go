@@ -2,6 +2,7 @@ package manifest
 
 import (
 	"encoding/json"
+	"math"
 
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -9,7 +10,7 @@ import (
 
 const (
 	// MaxManifestSize is a max length for a valid contract manifest.
-	MaxManifestSize = 4096
+	MaxManifestSize = math.MaxUint16
 
 	// MethodInit is a name for default initialization method.
 	MethodInit = "_initialize"
@@ -31,9 +32,8 @@ const (
 
 // ABI represents a contract application binary interface.
 type ABI struct {
-	Hash    util.Uint160 `json:"hash"`
-	Methods []Method     `json:"methods"`
-	Events  []Event      `json:"events"`
+	Methods []Method `json:"methods"`
+	Events  []Event  `json:"events"`
 }
 
 // Manifest represens contract metadata.
@@ -56,11 +56,10 @@ type Manifest struct {
 }
 
 // NewManifest returns new manifest with necessary fields initialized.
-func NewManifest(h util.Uint160, name string) *Manifest {
+func NewManifest(name string) *Manifest {
 	m := &Manifest{
 		Name: name,
 		ABI: ABI{
-			Hash:    h,
 			Methods: []Method{},
 			Events:  []Event{},
 		},
@@ -73,8 +72,8 @@ func NewManifest(h util.Uint160, name string) *Manifest {
 }
 
 // DefaultManifest returns default contract manifest.
-func DefaultManifest(h util.Uint160, name string) *Manifest {
-	m := NewManifest(h, name)
+func DefaultManifest(name string) *Manifest {
+	m := NewManifest(name)
 	m.Permissions = []Permission{*NewPermission(PermissionWildcard)}
 	return m
 }
@@ -100,26 +99,22 @@ func (a *ABI) GetEvent(name string) *Event {
 }
 
 // CanCall returns true is current contract is allowed to call
-// method of another contract.
-func (m *Manifest) CanCall(toCall *Manifest, method string) bool {
+// method of another contract with specified hash.
+func (m *Manifest) CanCall(hash util.Uint160, toCall *Manifest, method string) bool {
 	// this if is not present in the original code but should probably be here
 	if toCall.SafeMethods.Contains(method) {
 		return true
 	}
 	for i := range m.Permissions {
-		if m.Permissions[i].IsAllowed(toCall, method) {
+		if m.Permissions[i].IsAllowed(hash, toCall, method) {
 			return true
 		}
 	}
 	return false
 }
 
-// IsValid checks whether the given hash is the one specified in manifest and
-// verifies it against all the keys in manifest groups.
+// IsValid checks whether the hash given is correct wrt manifest's groups.
 func (m *Manifest) IsValid(hash util.Uint160) bool {
-	if m.ABI.Hash != hash {
-		return false
-	}
 	for _, g := range m.Groups {
 		if !g.IsValid(hash) {
 			return false

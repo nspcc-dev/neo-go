@@ -29,7 +29,7 @@ func (s *MethodCallback) ArgCount() int {
 func (s *MethodCallback) LoadContext(v *vm.VM, args []stackitem.Item) {
 	v.Estack().PushVal(args)
 	v.Estack().PushVal(s.method.Name)
-	v.Estack().PushVal(s.contract.ScriptHash().BytesBE())
+	v.Estack().PushVal(s.contract.Hash.BytesBE())
 }
 
 // CreateFromMethod creates callback for a contract method.
@@ -48,7 +48,7 @@ func CreateFromMethod(ic *interop.Context) error {
 		return errors.New("invalid method name")
 	}
 	currCs, err := ic.DAO.GetContractState(ic.VM.GetCurrentScriptHash())
-	if err == nil && !currCs.Manifest.CanCall(&cs.Manifest, method) {
+	if err == nil && !currCs.Manifest.CanCall(h, &cs.Manifest, method) {
 		return errors.New("method call is not allowed")
 	}
 	md := cs.Manifest.ABI.GetMethod(method)

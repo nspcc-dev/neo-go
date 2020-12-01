@@ -6,15 +6,16 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"sort"
 
 	"github.com/mr-tron/base58"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/contract"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
-	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
@@ -60,39 +61,59 @@ func storageFind(ic *interop.Context) error {
 	return nil
 }
 
-// createContractStateFromVM pops all contract state elements from the VM
-// evaluation stack, does a lot of checks and returns Contract if it
-// succeeds.
-func createContractStateFromVM(ic *interop.Context) (*state.Contract, error) {
-	script := ic.VM.Estack().Pop().Bytes()
-	if len(script) > MaxContractScriptSize {
-		return nil, errors.New("the script is too big")
+// getNefAndManifestFromVM pops NEF and manifest from the VM's evaluation stack,
+// does a lot of checks and returns deserialized structures if succeeds.
+func getNefAndManifestFromVM(v *vm.VM) (*nef.File, *manifest.Manifest, error) {
+	// Always pop both elements.
+	nefBytes := v.Estack().Pop().BytesOrNil()
+	manifestBytes := v.Estack().Pop().BytesOrNil()
+
+	if err := checkNonEmpty(nefBytes, math.MaxInt32); err != nil { // Upper limits are checked during NEF deserialization.
+		return nil, nil, fmt.Errorf("invalid NEF file: %w", err)
 	}
-	manifestBytes := ic.VM.Estack().Pop().Bytes()
-	if len(manifestBytes) > manifest.MaxManifestSize {
-		return nil, errors.New("manifest is too big")
+	if err := checkNonEmpty(manifestBytes, manifest.MaxManifestSize); err != nil {
+		return nil, nil, fmt.Errorf("invalid manifest: %w", err)
 	}
-	if !ic.VM.AddGas(int64(StoragePrice * (len(script) + len(manifestBytes)))) {
-		return nil, errGasLimitExceeded
+
+	if !v.AddGas(int64(StoragePrice * (len(nefBytes) + len(manifestBytes)))) {
+		return nil, nil, errGasLimitExceeded
 	}
-	var m manifest.Manifest
-	err := json.Unmarshal(manifestBytes, &m)
-	if err != nil {
-		return nil, fmt.Errorf("unable to retrieve manifest from stack: %w", err)
+	var resManifest *manifest.Manifest
+	var resNef *nef.File
+	if nefBytes != nil {
+		nf, err := nef.FileFromBytes(nefBytes)
+		if err != nil {
+			return nil, nil, fmt.Errorf("invalid NEF file: %w", err)
+		}
+		resNef = &nf
 	}
-	return &state.Contract{
-		Script:   script,
-		Manifest: m,
-	}, nil
+	if manifestBytes != nil {
+		resManifest = new(manifest.Manifest)
+		err := json.Unmarshal(manifestBytes, resManifest)
+		if err != nil {
+			return nil, nil, fmt.Errorf("invalid manifest: %w", err)
+		}
+	}
+	return resNef, resManifest, nil
 }
 
 // contractCreate creates a contract.
 func contractCreate(ic *interop.Context) error {
-	newcontract, err := createContractStateFromVM(ic)
+	neff, manif, err := getNefAndManifestFromVM(ic.VM)
 	if err != nil {
 		return err
 	}
-	contract, err := ic.DAO.GetContractState(newcontract.ScriptHash())
+	if neff == nil {
+		return errors.New("no valid NEF provided")
+	}
+	if manif == nil {
+		return errors.New("no valid manifest provided")
+	}
+	if ic.Tx == nil {
+		return errors.New("no transaction provided")
+	}
+	h := state.CreateContractHash(ic.Tx.Sender(), neff.Script)
+	contract, err := ic.DAO.GetContractState(h)
 	if contract != nil && err == nil {
 		return errors.New("contract already exists")
 	}
@@ -100,9 +121,14 @@ func contractCreate(ic *interop.Context) error {
 	if err != nil {
 		return err
 	}
-	newcontract.ID = id
-	if !newcontract.Manifest.IsValid(newcontract.ScriptHash()) {
+	if !manif.IsValid(h) {
 		return errors.New("failed to check contract script hash against manifest")
+	}
+	newcontract := &state.Contract{
+		ID:       id,
+		Hash:     h,
+		Script:   neff.Script,
+		Manifest: *manif,
 	}
 	if err := ic.DAO.PutContractState(newcontract); err != nil {
 		return err
@@ -129,65 +155,33 @@ func checkNonEmpty(b []byte, max int) error {
 // contractUpdate migrates a contract. This method assumes that Manifest and Script
 // of the contract can be updated independently.
 func contractUpdate(ic *interop.Context) error {
+	neff, manif, err := getNefAndManifestFromVM(ic.VM)
+	if err != nil {
+		return err
+	}
+	if neff == nil && manif == nil {
+		return errors.New("both NEF and manifest are nil")
+	}
 	contract, _ := ic.DAO.GetContractState(ic.VM.GetCurrentScriptHash())
 	if contract == nil {
 		return errors.New("contract doesn't exist")
 	}
-	script := ic.VM.Estack().Pop().BytesOrNil()
-	manifestBytes := ic.VM.Estack().Pop().BytesOrNil()
-	if script == nil && manifestBytes == nil {
-		return errors.New("both script and manifest are nil")
+	// if NEF was provided, update the contract script
+	if neff != nil {
+		contract.Script = neff.Script
 	}
-	if err := checkNonEmpty(script, MaxContractScriptSize); err != nil {
-		return fmt.Errorf("invalid script size: %w", err)
-	}
-	if err := checkNonEmpty(manifestBytes, manifest.MaxManifestSize); err != nil {
-		return fmt.Errorf("invalid manifest size: %w", err)
-	}
-	if !ic.VM.AddGas(int64(StoragePrice * (len(script) + len(manifestBytes)))) {
-		return errGasLimitExceeded
-	}
-	// if script was provided, update the old contract script and Manifest.ABI hash
-	if script != nil {
-		newHash := hash.Hash160(script)
-		if newHash.Equals(contract.ScriptHash()) {
-			return errors.New("the script is the same")
-		} else if _, err := ic.DAO.GetContractState(newHash); err == nil {
-			return errors.New("contract already exists")
-		}
-		oldHash := contract.ScriptHash()
-		// re-write existing contract variable, as we need it to be up-to-date during manifest update
-		contract = &state.Contract{
-			ID:       contract.ID,
-			Script:   script,
-			Manifest: contract.Manifest,
-		}
-		contract.Manifest.ABI.Hash = newHash
-		if err := ic.DAO.PutContractState(contract); err != nil {
-			return fmt.Errorf("failed to update script: %w", err)
-		}
-		if err := ic.DAO.DeleteContractState(oldHash); err != nil {
-			return fmt.Errorf("failed to update script: %w", err)
-		}
-	}
-	// if manifest was provided, update the old contract manifest and check associated
-	// storage items if needed
-	if manifestBytes != nil {
-		var newManifest manifest.Manifest
-		err := json.Unmarshal(manifestBytes, &newManifest)
-		if err != nil {
-			return fmt.Errorf("unable to retrieve manifest from stack: %w", err)
-		}
-		// we don't have to perform `GetContractState` one more time as it's already up-to-date
-		contract.Manifest = newManifest
-		if !contract.Manifest.IsValid(contract.ScriptHash()) {
+	// if manifest was provided, update the contract manifest
+	if manif != nil {
+		contract.Manifest = *manif
+		if !contract.Manifest.IsValid(contract.Hash) {
 			return errors.New("failed to check contract script hash against new manifest")
 		}
-		if err := ic.DAO.PutContractState(contract); err != nil {
-			return fmt.Errorf("failed to update manifest: %w", err)
-		}
 	}
+	contract.UpdateCounter++
 
+	if err := ic.DAO.PutContractState(contract); err != nil {
+		return fmt.Errorf("failed to update contract: %w", err)
+	}
 	return callDeploy(ic, contract, true)
 }
 

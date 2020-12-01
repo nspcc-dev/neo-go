@@ -11,6 +11,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
@@ -18,14 +19,18 @@ import (
 
 // CreateDeploymentScript returns a script that deploys given smart contract
 // with its metadata.
-func CreateDeploymentScript(avm []byte, manif *manifest.Manifest) ([]byte, error) {
+func CreateDeploymentScript(ne *nef.File, manif *manifest.Manifest) ([]byte, error) {
 	script := io.NewBufBinWriter()
 	rawManifest, err := json.Marshal(manif)
 	if err != nil {
 		return nil, err
 	}
+	neb, err := ne.Bytes()
+	if err != nil {
+		return nil, err
+	}
 	emit.Bytes(script.BinWriter, rawManifest)
-	emit.Bytes(script.BinWriter, avm)
+	emit.Bytes(script.BinWriter, neb)
 	emit.Syscall(script.BinWriter, interopnames.SystemContractCreate)
 	return script.Bytes(), nil
 }

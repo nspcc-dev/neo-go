@@ -167,6 +167,7 @@ func TestWallet_GetAccount(t *testing.T) {
 	}
 
 	for _, acc := range accounts {
+		acc.Address = address.Uint160ToString(acc.Contract.ScriptHash())
 		wallet.AddAccount(acc)
 	}
 

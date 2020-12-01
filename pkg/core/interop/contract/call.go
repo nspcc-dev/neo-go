@@ -46,10 +46,13 @@ func callExInternal(ic *interop.Context, h []byte, name string, args []stackitem
 	if strings.HasPrefix(name, "_") {
 		return errors.New("invalid method name (starts with '_')")
 	}
-	curr, err := ic.DAO.GetContractState(ic.VM.GetCurrentScriptHash())
-	if err == nil {
-		if !curr.Manifest.CanCall(&cs.Manifest, name) {
-			return errors.New("disallowed method call")
+	ctx := ic.VM.Context()
+	if ctx != nil && ctx.IsDeployed() {
+		curr, err := ic.DAO.GetContractState(ic.VM.GetCurrentScriptHash())
+		if err == nil {
+			if !curr.Manifest.CanCall(u, &cs.Manifest, name) {
+				return errors.New("disallowed method call")
+			}
 		}
 	}
 	return CallExInternal(ic, cs, name, args, f, vm.EnsureNotEmpty, nil)
@@ -67,12 +70,11 @@ func CallExInternal(ic *interop.Context, cs *state.Contract,
 		return fmt.Errorf("invalid argument count: %d (expected %d)", len(args), len(md.Parameters))
 	}
 
-	u := cs.ScriptHash()
-	ic.VM.Invocations[u]++
-	ic.VM.LoadScriptWithHash(cs.Script, u, ic.VM.Context().GetCallFlags()&f)
+	ic.VM.Invocations[cs.Hash]++
+	ic.VM.LoadScriptWithHash(cs.Script, cs.Hash, ic.VM.Context().GetCallFlags()&f)
 	var isNative bool
 	for i := range ic.Natives {
-		if ic.Natives[i].Metadata().Hash.Equals(u) {
+		if ic.Natives[i].Metadata().Hash.Equals(cs.Hash) {
 			isNative = true
 			break
 		}

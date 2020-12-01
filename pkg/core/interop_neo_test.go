@@ -294,9 +294,10 @@ func createVMAndPushTX(t *testing.T) (*vm.VM, *transaction.Transaction, *interop
 
 func createVMAndContractState(t *testing.T) (*vm.VM, *state.Contract, *interop.Context, *Blockchain) {
 	script := []byte("testscript")
-	m := manifest.NewManifest(hash.Hash160(script), "Test")
+	m := manifest.NewManifest("Test")
 	contractState := &state.Contract{
 		Script:   script,
+		Hash:     hash.Hash160(script),
 		Manifest: *m,
 		ID:       123,
 	}

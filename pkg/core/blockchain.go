@@ -1601,18 +1601,15 @@ var (
 
 // initVerificationVM initializes VM for witness check.
 func (bc *Blockchain) initVerificationVM(ic *interop.Context, hash util.Uint160, witness *transaction.Witness) error {
-	var offset int
-	var isNative bool
-	var initMD *manifest.Method
-	verification := witness.VerificationScript
-	flags := smartcontract.NoneFlag
-	if len(verification) != 0 {
+	v := ic.VM
+	if len(witness.VerificationScript) != 0 {
 		if witness.ScriptHash() != hash {
 			return ErrWitnessHashMismatch
 		}
 		if bc.contracts.ByHash(hash) != nil {
 			return ErrNativeContractWitness
 		}
+		v.LoadScriptWithFlags(witness.VerificationScript, smartcontract.NoneFlag)
 	} else {
 		cs, err := ic.DAO.GetContractState(hash)
 		if err != nil {
@@ -1622,26 +1619,21 @@ func (bc *Blockchain) initVerificationVM(ic *interop.Context, hash util.Uint160,
 		if md == nil {
 			return ErrInvalidVerificationContract
 		}
-		verification = cs.Script
-		offset = md.Offset
-		initMD = cs.Manifest.ABI.GetMethod(manifest.MethodInit)
-		isNative = cs.ID < 0
-		flags = smartcontract.AllowStates
-	}
+		initMD := cs.Manifest.ABI.GetMethod(manifest.MethodInit)
+		v.LoadScriptWithHash(cs.Script, hash, smartcontract.AllowStates)
+		v.Jump(v.Context(), md.Offset)
 
-	v := ic.VM
-	v.LoadScriptWithFlags(verification, flags)
-	v.Jump(v.Context(), offset)
-	if isNative {
-		w := io.NewBufBinWriter()
-		emit.Opcodes(w.BinWriter, opcode.DEPTH, opcode.PACK)
-		emit.String(w.BinWriter, manifest.MethodVerify)
-		if w.Err != nil {
-			return w.Err
+		if cs.ID < 0 {
+			w := io.NewBufBinWriter()
+			emit.Opcodes(w.BinWriter, opcode.DEPTH, opcode.PACK)
+			emit.String(w.BinWriter, manifest.MethodVerify)
+			if w.Err != nil {
+				return w.Err
+			}
+			v.LoadScript(w.Bytes())
+		} else if initMD != nil {
+			v.Call(v.Context(), initMD.Offset)
 		}
-		v.LoadScript(w.Bytes())
-	} else if initMD != nil {
-		v.Call(v.Context(), initMD.Offset)
 	}
 	v.LoadScript(witness.InvocationScript)
 	return nil

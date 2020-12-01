@@ -149,6 +149,7 @@ func TestNativeContract_Invoke(t *testing.T) {
 
 	err := chain.dao.PutContractState(&state.Contract{
 		Script:   tn.meta.Script,
+		Hash:     tn.meta.Hash,
 		Manifest: tn.meta.Manifest,
 	})
 	require.NoError(t, err)
@@ -221,6 +222,7 @@ func TestNativeContract_InvokeOtherContract(t *testing.T) {
 	chain.registerNative(tn)
 
 	err := chain.dao.PutContractState(&state.Contract{
+		Hash:     tn.meta.Hash,
 		Script:   tn.meta.Script,
 		Manifest: tn.meta.Manifest,
 	})
@@ -230,7 +232,7 @@ func TestNativeContract_InvokeOtherContract(t *testing.T) {
 	require.NoError(t, chain.dao.PutContractState(cs))
 
 	t.Run("non-native, no return", func(t *testing.T) {
-		res, err := invokeContractMethod(chain, testSumPrice*4+10000, tn.Metadata().Hash, "callOtherContractNoReturn", cs.ScriptHash(), "justReturn", []interface{}{})
+		res, err := invokeContractMethod(chain, testSumPrice*4+10000, tn.Metadata().Hash, "callOtherContractNoReturn", cs.Hash, "justReturn", []interface{}{})
 		require.NoError(t, err)
 		checkResult(t, res, stackitem.Null{}) // simple call is done with EnsureNotEmpty
 	})

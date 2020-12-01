@@ -18,7 +18,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
-	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
@@ -75,18 +74,13 @@ func main() {
 	handleError("can't tranfser GAS", err)
 	lastBlock = addBlock(bc, lastBlock, valScript, txMoveNeo, txMoveGas)
 
-	tx, avm, err := testchain.NewDeployTx("DumpContract", strings.NewReader(contract))
+	tx, contractHash, err := testchain.NewDeployTx("DumpContract", h, strings.NewReader(contract))
 	handleError("can't create deploy tx", err)
-	tx.Signers = []transaction.Signer{{
-		Account: h,
-		Scopes:  transaction.CalledByEntry,
-	}}
 	tx.NetworkFee = 10_000_000
 	tx.ValidUntilBlock = bc.BlockHeight() + 1
 	handleError("can't sign deploy tx", acc.SignTx(tx))
 	lastBlock = addBlock(bc, lastBlock, valScript, tx)
 
-	contractHash := hash.Hash160(avm)
 	key := make([]byte, 10)
 	value := make([]byte, 10)
 	nonce := uint32(0)

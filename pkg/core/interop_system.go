@@ -105,6 +105,9 @@ func contractToStackItem(cs *state.Contract) (stackitem.Item, error) {
 		return nil, err
 	}
 	return stackitem.NewArray([]stackitem.Item{
+		stackitem.Make(cs.ID),
+		stackitem.Make(cs.UpdateCounter),
+		stackitem.NewByteArray(cs.Hash.BytesBE()),
 		stackitem.NewByteArray(cs.Script),
 		stackitem.NewByteArray(manifest),
 	}), nil

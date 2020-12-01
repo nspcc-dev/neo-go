@@ -20,6 +20,7 @@ func Deploy(ic *interop.Context) error {
 
 		cs := &state.Contract{
 			ID:       md.ContractID,
+			Hash:     md.Hash,
 			Script:   md.Script,
 			Manifest: md.Manifest,
 		}

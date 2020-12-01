@@ -313,7 +313,7 @@ func TestNEO_TransferOnPayment(t *testing.T) {
 	require.NoError(t, bc.dao.PutContractState(cs))
 
 	const amount = 2
-	tx := transferTokenFromMultisigAccount(t, bc, cs.ScriptHash(), bc.contracts.NEO.Hash, amount)
+	tx := transferTokenFromMultisigAccount(t, bc, cs.Hash, bc.contracts.NEO.Hash, amount)
 	aer, err := bc.GetAppExecResults(tx.Hash(), trigger.Application)
 	require.NoError(t, err)
 	require.Equal(t, vm.HaltState, aer[0].VMState)

@@ -6,7 +6,6 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
-	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/stretchr/testify/require"
 )
 
@@ -106,7 +105,7 @@ func TestComplyValid(t *testing.T) {
 }
 
 func TestCheck(t *testing.T) {
-	m := manifest.NewManifest(util.Uint160{}, "Test")
+	m := manifest.NewManifest("Test")
 	require.Error(t, Check(m, manifest.NEP17StandardName))
 
 	require.NoError(t, Check(nep17, manifest.NEP17StandardName))

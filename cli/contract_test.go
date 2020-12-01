@@ -10,9 +10,7 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
-	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result"
-	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/stretchr/testify/require"
@@ -58,7 +56,7 @@ func TestComlileAndInvokeFunction(t *testing.T) {
 
 	res := new(result.Invoke)
 	require.NoError(t, json.Unmarshal(e.Out.Bytes(), res))
-	require.Equal(t, vm.HaltState.String(), res.State)
+	require.Equal(t, vm.HaltState.String(), res.State, res.FaultException)
 	require.Len(t, res.Stack, 1)
 	require.Equal(t, []byte("on create|sub create"), res.Stack[0].Value())
 
@@ -77,8 +75,6 @@ func TestComlileAndInvokeFunction(t *testing.T) {
 
 		rawNef, err := ioutil.ReadFile(nefName)
 		require.NoError(t, err)
-		realNef, err := nef.FileFromBytes(rawNef)
-		require.NoError(t, err)
 		rawManifest, err := ioutil.ReadFile(manifestName)
 		require.NoError(t, err)
 
@@ -87,7 +83,7 @@ func TestComlileAndInvokeFunction(t *testing.T) {
 			"--rpc-endpoint", "http://"+e.RPC.Addr,
 			"--wallet", validatorWallet, "--address", validatorAddr,
 			h.StringLE(), "update",
-			"bytes:"+hex.EncodeToString(realNef.Script),
+			"bytes:"+hex.EncodeToString(rawNef),
 			"bytes:"+hex.EncodeToString(rawManifest),
 		)
 		e.checkTxPersisted(t, "Sent invocation transaction ")
@@ -95,7 +91,7 @@ func TestComlileAndInvokeFunction(t *testing.T) {
 		e.In.WriteString("one\r")
 		e.Run(t, "neo-go", "contract", "testinvokefunction",
 			"--rpc-endpoint", "http://"+e.RPC.Addr,
-			hash.Hash160(realNef.Script).StringLE(), "getValue")
+			h.StringLE(), "getValue")
 
 		res := new(result.Invoke)
 		require.NoError(t, json.Unmarshal(e.Out.Bytes(), res))

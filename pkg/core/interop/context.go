@@ -114,7 +114,7 @@ func NewContractMD(name string) *ContractMD {
 
 	c.Script = w.Bytes()
 	c.Hash = hash.Hash160(c.Script)
-	c.Manifest = *manifest.DefaultManifest(c.Hash, name)
+	c.Manifest = *manifest.DefaultManifest(name)
 
 	return c
 }
