@@ -183,6 +183,12 @@ example:
 	},
 }
 
+// Various errors.
+var (
+	ErrMissingParameter = errors.New("missing argument")
+	ErrInvalidParameter = errors.New("can't parse argument")
+)
+
 // VMCLI object for interacting with the VM.
 type VMCLI struct {
 	vm    *vm.VM
@@ -241,12 +247,12 @@ func handleBreak(c *ishell.Context) {
 	}
 	v := getVMFromContext(c)
 	if len(c.Args) != 1 {
-		c.Err(errors.New("missing parameter <ip>"))
+		c.Err(fmt.Errorf("%w: <ip>", ErrMissingParameter))
 		return
 	}
 	n, err := strconv.Atoi(c.Args[0])
 	if err != nil {
-		c.Err(fmt.Errorf("argument conversion error: %w", err))
+		c.Err(fmt.Errorf("%w: %v", ErrInvalidParameter, err))
 		return
 	}
 
@@ -262,7 +268,7 @@ func handleXStack(c *ishell.Context) {
 func handleLoadNEF(c *ishell.Context) {
 	v := getVMFromContext(c)
 	if len(c.Args) < 1 {
-		c.Err(errors.New("missing parameter <file>"))
+		c.Err(fmt.Errorf("%w: <file>", ErrMissingParameter))
 		return
 	}
 	if err := v.LoadFile(c.Args[0]); err != nil {
@@ -276,12 +282,12 @@ func handleLoadNEF(c *ishell.Context) {
 func handleLoadBase64(c *ishell.Context) {
 	v := getVMFromContext(c)
 	if len(c.Args) < 1 {
-		c.Err(errors.New("missing parameter <string>"))
+		c.Err(fmt.Errorf("%w: <string>", ErrMissingParameter))
 		return
 	}
 	b, err := base64.StdEncoding.DecodeString(c.Args[0])
 	if err != nil {
-		c.Err(err)
+		c.Err(fmt.Errorf("%w: %v", ErrInvalidParameter, err))
 		return
 	}
 	v.Load(b)
@@ -292,12 +298,12 @@ func handleLoadBase64(c *ishell.Context) {
 func handleLoadHex(c *ishell.Context) {
 	v := getVMFromContext(c)
 	if len(c.Args) < 1 {
-		c.Err(errors.New("missing parameter <string>"))
+		c.Err(fmt.Errorf("%w: <string>", ErrMissingParameter))
 		return
 	}
 	b, err := hex.DecodeString(c.Args[0])
 	if err != nil {
-		c.Err(err)
+		c.Err(fmt.Errorf("%w: %v", ErrInvalidParameter, err))
 		return
 	}
 	v.Load(b)
@@ -308,7 +314,7 @@ func handleLoadHex(c *ishell.Context) {
 func handleLoadGo(c *ishell.Context) {
 	v := getVMFromContext(c)
 	if len(c.Args) < 1 {
-		c.Err(errors.New("missing parameter <file>"))
+		c.Err(fmt.Errorf("%w: <file>", ErrMissingParameter))
 		return
 	}
 	b, err := compiler.Compile(c.Args[0], nil)
@@ -391,7 +397,7 @@ func handleStep(c *ishell.Context) {
 	if len(c.Args) > 0 {
 		n, err = strconv.Atoi(c.Args[0])
 		if err != nil {
-			c.Err(fmt.Errorf("argument conversion error: %w", err))
+			c.Err(fmt.Errorf("%w: %v", ErrInvalidParameter, err))
 			return
 		}
 	}
@@ -471,7 +477,7 @@ func handleParse(c *ishell.Context) {
 // Parse converts it's argument to other formats.
 func Parse(args []string) (string, error) {
 	if len(args) < 1 {
-		return "", errors.New("missing argument")
+		return "", ErrMissingParameter
 	}
 	arg := args[0]
 	buf := bytes.NewBuffer(nil)
@@ -542,12 +548,12 @@ func parseArgs(args []string) ([]stackitem.Item, error) {
 			} else if value == boolTrue {
 				items[i] = stackitem.NewBool(true)
 			} else {
-				return nil, errors.New("failed to parse bool parameter")
+				return nil, fmt.Errorf("%w: invalid bool value", ErrInvalidParameter)
 			}
 		case intType:
 			val, err := strconv.ParseInt(value, 10, 64)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("%w: invalid integer value", ErrInvalidParameter)
 			}
 			items[i] = stackitem.NewBigInteger(big.NewInt(val))
 		case stringType:
