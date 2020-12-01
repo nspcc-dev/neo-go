@@ -22,6 +22,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
+	"github.com/nspcc-dev/neo-go/pkg/encoding/fixedn"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
@@ -198,7 +199,7 @@ func TestCreateBasicChain(t *testing.T) {
 	acc0 := wallet.NewAccountFromPrivateKey(priv0)
 
 	// Prepare some transaction for future submission.
-	txSendRaw := newNEP17Transfer(bc.contracts.NEO.Hash, priv0ScriptHash, priv1.GetScriptHash(), int64(util.Fixed8FromInt64(1000)))
+	txSendRaw := newNEP17Transfer(bc.contracts.NEO.Hash, priv0ScriptHash, priv1.GetScriptHash(), int64(fixedn.Fixed8FromInt64(1000)))
 	txSendRaw.ValidUntilBlock = transaction.MaxValidUntilBlockIncrement
 	txSendRaw.Nonce = 0x1234
 	txSendRaw.Signers = []transaction.Signer{{
@@ -245,7 +246,7 @@ func initBasicChain(t *testing.T, bc *Blockchain) {
 	txMoveNeo, err := testchain.NewTransferFromOwner(bc, neoHash, priv0ScriptHash, neoAmount, getNextNonce(), validUntilBlock)
 	require.NoError(t, err)
 	// Move some GAS to one simple account.
-	txMoveGas, err := testchain.NewTransferFromOwner(bc, gasHash, priv0ScriptHash, int64(util.Fixed8FromInt64(1000)),
+	txMoveGas, err := testchain.NewTransferFromOwner(bc, gasHash, priv0ScriptHash, int64(fixedn.Fixed8FromInt64(1000)),
 		getNextNonce(), validUntilBlock)
 	require.NoError(t, err)
 

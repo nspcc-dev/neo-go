@@ -1,4 +1,4 @@
-package util
+package fixedn
 
 import (
 	"encoding/json"

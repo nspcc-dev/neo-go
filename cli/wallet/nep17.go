@@ -9,6 +9,7 @@ import (
 	"github.com/nspcc-dev/neo-go/cli/options"
 	"github.com/nspcc-dev/neo-go/cli/paramcontext"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
+	"github.com/nspcc-dev/neo-go/pkg/encoding/fixedn"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/client"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
@@ -390,7 +391,7 @@ func multiTransferNEP17(ctx *cli.Context) error {
 		if err != nil {
 			return cli.NewExitError(fmt.Errorf("invalid address: '%s'", ss[1]), 1)
 		}
-		amount, err := util.FixedNFromString(ss[2], int(token.Decimals))
+		amount, err := fixedn.FixedNFromString(ss[2], int(token.Decimals))
 		if err != nil {
 			return cli.NewExitError(fmt.Errorf("invalid amount: %w", err), 1)
 		}
@@ -437,7 +438,7 @@ func transferNEP17(ctx *cli.Context) error {
 		}
 	}
 
-	amount, err := util.FixedNFromString(ctx.String("amount"), int(token.Decimals))
+	amount, err := fixedn.FixedNFromString(ctx.String("amount"), int(token.Decimals))
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("invalid amount: %w", err), 1)
 	}

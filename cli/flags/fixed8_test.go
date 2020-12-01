@@ -5,12 +5,12 @@ import (
 	"io/ioutil"
 	"testing"
 
-	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/encoding/fixedn"
 	"github.com/stretchr/testify/require"
 )
 
 func TestFixed8_String(t *testing.T) {
-	value := util.Fixed8(123)
+	value := fixedn.Fixed8(123)
 	f := Fixed8{
 		Value: value,
 	}
@@ -19,7 +19,7 @@ func TestFixed8_String(t *testing.T) {
 }
 
 func TestFixed8_Set(t *testing.T) {
-	value := util.Fixed8(123)
+	value := fixedn.Fixed8(123)
 	f := Fixed8{}
 
 	require.Error(t, f.Set("not-a-fixed8"))
@@ -30,10 +30,10 @@ func TestFixed8_Set(t *testing.T) {
 
 func TestFixed8_Fixed8(t *testing.T) {
 	f := Fixed8{
-		Value: util.Fixed8(123),
+		Value: fixedn.Fixed8(123),
 	}
 
-	require.Equal(t, util.Fixed8(123), f.Fixed8())
+	require.Equal(t, fixedn.Fixed8(123), f.Fixed8())
 }
 
 func TestFixed8Flag_String(t *testing.T) {

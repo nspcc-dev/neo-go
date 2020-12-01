@@ -19,6 +19,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
+	"github.com/nspcc-dev/neo-go/pkg/encoding/fixedn"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/request"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
@@ -446,7 +447,7 @@ func invokeFunction(ctx *cli.Context) error {
 func invokeInternal(ctx *cli.Context, signAndPush bool) error {
 	var (
 		err             error
-		gas             util.Fixed8
+		gas             fixedn.Fixed8
 		operation       string
 		params          = make([]smartcontract.Parameter, 0)
 		paramsStart     = 1
