@@ -241,7 +241,7 @@ func (v *VM) AddBreakPoint(n int) {
 // instruction pointer.
 func (v *VM) AddBreakPointRel(n int) {
 	ctx := v.Context()
-	v.AddBreakPoint(ctx.ip + n)
+	v.AddBreakPoint(ctx.nextip + n)
 }
 
 // LoadFile loads a program in NEF format from the given path, ready to execute it.

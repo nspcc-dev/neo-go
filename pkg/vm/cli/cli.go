@@ -226,8 +226,13 @@ func handleIP(c *ishell.Context) {
 		return
 	}
 	v := getVMFromContext(c)
-	ip, opcode := v.Context().CurrInstr()
-	c.Printf("instruction pointer at %d (%s)\n", ip, opcode)
+	ctx := v.Context()
+	if ctx.NextIP() < ctx.LenInstr() {
+		ip, opcode := v.Context().NextInstr()
+		c.Printf("instruction pointer at %d (%s)\n", ip, opcode)
+	} else {
+		c.Println("execution has finished")
+	}
 }
 
 func handleBreak(c *ishell.Context) {
@@ -341,22 +346,25 @@ func runVMWithHandling(c *ishell.Context, v *vm.VM) {
 	err := v.Run()
 	if err != nil {
 		c.Err(err)
-		return
 	}
 
 	var message string
 	switch {
 	case v.HasFailed():
-		message = "FAILED"
+		message = "" // the error will be printed on return
 	case v.HasHalted():
 		message = v.Stack("estack")
 	case v.AtBreakpoint():
 		ctx := v.Context()
-		i, op := ctx.CurrInstr()
-		message = fmt.Sprintf("at breakpoint %d (%s)\n", i, op.String())
+		if ctx.NextIP() < ctx.LenInstr() {
+			i, op := ctx.NextInstr()
+			message = fmt.Sprintf("at breakpoint %d (%s)", i, op)
+		} else {
+			message = "execution has finished"
+		}
 	}
 	if message != "" {
-		c.Printf(message)
+		c.Println(message)
 	}
 }
 
@@ -419,8 +427,9 @@ func handleStepType(c *ishell.Context, stepType string) {
 	}
 	if err != nil {
 		c.Err(err)
+	} else {
+		handleIP(c)
 	}
-	handleIP(c)
 	changePrompt(c, v)
 }
 
@@ -435,8 +444,8 @@ func handleOps(c *ishell.Context) {
 }
 
 func changePrompt(c ishell.Actions, v *vm.VM) {
-	if v.Ready() && v.Context().IP() >= 0 {
-		c.SetPrompt(fmt.Sprintf("NEO-GO-VM %d > ", v.Context().IP()))
+	if v.Ready() && v.Context().NextIP() >= 0 && v.Context().NextIP() < v.Context().LenInstr() {
+		c.SetPrompt(fmt.Sprintf("NEO-GO-VM %d > ", v.Context().NextIP()))
 	} else {
 		c.SetPrompt("NEO-GO-VM > ")
 	}
