@@ -3,6 +3,7 @@ ProtocolConfiguration:
   AddressVersion: 23
   SecondsPerBlock: 15
   EnableStateRoot: true
+  KeepOnlyLatestState: false
   LowPriorityThreshold: 0.000
   MemPoolSize: 50000
   StandbyValidators:
