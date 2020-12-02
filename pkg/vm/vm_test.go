@@ -528,11 +528,21 @@ func testIterableCreate(t *testing.T, typ string, isByteArray bool) {
 func TestEnumeratorCreate(t *testing.T) {
 	t.Run("Array", func(t *testing.T) { testIterableCreate(t, "Enumerator", false) })
 	t.Run("ByteArray", func(t *testing.T) { testIterableCreate(t, "Enumerator", true) })
+	t.Run("Interop", func(t *testing.T) {
+		v := New()
+		v.Estack().PushVal(stackitem.NewInterop([]byte{42}))
+		require.Error(t, EnumeratorCreate(v))
+	})
 }
 
 func TestIteratorCreate(t *testing.T) {
 	t.Run("Array", func(t *testing.T) { testIterableCreate(t, "Iterator", false) })
 	t.Run("ByteArray", func(t *testing.T) { testIterableCreate(t, "Iterator", true) })
+	t.Run("Interop", func(t *testing.T) {
+		v := New()
+		v.Estack().PushVal(stackitem.NewInterop([]byte{42}))
+		require.Error(t, IteratorCreate(v))
+	})
 }
 
 func testIterableConcat(t *testing.T, typ string) {
