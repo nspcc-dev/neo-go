@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	mrand "math/rand"
 	"net"
 	"strconv"
 	"sync"
@@ -66,6 +67,9 @@ type (
 
 		lock  sync.RWMutex
 		peers map[Peer]bool
+
+		// lastRequestedHeight contains last requested height.
+		lastRequestedHeight atomic.Uint32
 
 		register   chan Peer
 		unregister chan peerDrop
@@ -710,9 +714,41 @@ func (s *Server) handleGetAddrCmd(p Peer) error {
 
 // requestBlocks sends a CMDGetBlockByIndex message to the peer
 // to sync up in blocks. A maximum of maxBlockBatch will
-// send at once.
+// send at once. Two things we need to take care of:
+// 1. If possible, blocks should be fetched in parallel.
+//    height..+500 to one peer, height+500..+1000 to another etc.
+// 2. Every block must eventually be fetched even if peer sends no answer.
+// Thus the following algorithm is used:
+// 1. Block range is divided into chunks of payload.MaxHashesCount.
+// 2. Send requests for chunk in increasing order.
+// 3. After all requests were sent, request random height.
 func (s *Server) requestBlocks(p Peer) error {
-	payload := payload.NewGetBlockByIndex(s.chain.BlockHeight()+1, -1)
+	var currHeight = s.chain.BlockHeight()
+	var peerHeight = p.LastBlockIndex()
+	var needHeight uint32
+	// lastRequestedHeight can only be increased.
+	for {
+		old := s.lastRequestedHeight.Load()
+		if old <= currHeight {
+			needHeight = currHeight + 1
+			if !s.lastRequestedHeight.CAS(old, needHeight) {
+				continue
+			}
+		} else if old < currHeight+(blockCacheSize-payload.MaxHashesCount) {
+			needHeight = currHeight + 1
+			if peerHeight > old+payload.MaxHashesCount {
+				needHeight = old + payload.MaxHashesCount
+				if !s.lastRequestedHeight.CAS(old, needHeight) {
+					continue
+				}
+			}
+		} else {
+			index := mrand.Intn(blockCacheSize / payload.MaxHashesCount)
+			needHeight = currHeight + 1 + uint32(index*payload.MaxHashesCount)
+		}
+		break
+	}
+	payload := payload.NewGetBlockByIndex(needHeight, -1)
 	return p.EnqueueP2PMessage(NewMessage(CMDGetBlockByIndex, payload))
 }
 

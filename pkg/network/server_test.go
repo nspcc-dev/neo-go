@@ -12,6 +12,60 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestGetBlocksByIndex(t *testing.T) {
+	s := newTestServer(t, ServerConfig{Port: 0, UserAgent: "/test/"})
+	ps := make([]*localPeer, 10)
+	expectsCmd := make([]CommandType, 10)
+	expectedHeight := make([][]uint32, 10)
+	start := s.chain.BlockHeight()
+	for i := range ps {
+		i := i
+		ps[i] = newLocalPeer(t, s)
+		ps[i].messageHandler = func(t *testing.T, msg *Message) {
+			require.Equal(t, expectsCmd[i], msg.Command)
+			if expectsCmd[i] == CMDGetBlockByIndex {
+				p, ok := msg.Payload.(*payload.GetBlockByIndex)
+				require.True(t, ok)
+				require.Contains(t, expectedHeight[i], p.IndexStart)
+				expectsCmd[i] = CMDPong
+			} else if expectsCmd[i] == CMDPong {
+				expectsCmd[i] = CMDGetBlockByIndex
+			}
+		}
+		expectsCmd[i] = CMDGetBlockByIndex
+		expectedHeight[i] = []uint32{start + 1}
+	}
+	go s.transport.Accept()
+
+	nonce := uint32(0)
+	checkPingRespond := func(t *testing.T, peerIndex int, peerHeight uint32, hs ...uint32) {
+		nonce++
+		expectedHeight[peerIndex] = hs
+		require.NoError(t, s.handlePing(ps[peerIndex], payload.NewPing(peerHeight, nonce)))
+	}
+
+	// Send all requests for all chunks.
+	checkPingRespond(t, 0, 5000, 1)
+	checkPingRespond(t, 1, 5000, 1+payload.MaxHashesCount)
+	checkPingRespond(t, 2, 5000, 1+2*payload.MaxHashesCount)
+	checkPingRespond(t, 3, 5000, 1+3*payload.MaxHashesCount)
+
+	// Receive some blocks.
+	s.chain.(*testChain).blockheight = 2123
+
+	// Minimum chunk has priority.
+	checkPingRespond(t, 5, 5000, 2124)
+	checkPingRespond(t, 6, 5000, 2624)
+	// Request minimal height for peers behind.
+	checkPingRespond(t, 7, 3100, 2124)
+	checkPingRespond(t, 8, 5000, 3124)
+	checkPingRespond(t, 9, 5000, 3624)
+	// Request random height after that.
+	checkPingRespond(t, 1, 5000, 2124, 2624, 3124, 3624)
+	checkPingRespond(t, 2, 5000, 2124, 2624, 3124, 3624)
+	checkPingRespond(t, 3, 5000, 2124, 2624, 3124, 3624)
+}
+
 func TestSendVersion(t *testing.T) {
 	var (
 		s = newTestServer(t, ServerConfig{Port: 0, UserAgent: "/test/"})
