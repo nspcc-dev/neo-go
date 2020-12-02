@@ -1,21 +1,18 @@
 package core
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
-	"github.com/nspcc-dev/neo-go/pkg/core/interop/crypto"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/enumerator"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/iterator"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
-	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -126,88 +123,6 @@ func TestStorageFind(t *testing.T) {
 		require.NoError(t, storageFind(context))
 		require.NoError(t, enumerator.Next(context))
 		require.False(t, v.Estack().Pop().Bool())
-	})
-}
-
-func TestECDSAVerify(t *testing.T) {
-	priv, err := keys.NewPrivateKey()
-	require.NoError(t, err)
-
-	chain := newTestChain(t)
-	defer chain.Close()
-
-	ic := chain.newInteropContext(trigger.Application, dao.NewSimple(storage.NewMemoryStore(), netmode.UnitTestNet, false), nil, nil)
-	runCase := func(t *testing.T, isErr bool, result interface{}, args ...interface{}) {
-		ic.SpawnVM()
-		for i := range args {
-			ic.VM.Estack().PushVal(args[i])
-		}
-
-		var err error
-		func() {
-			defer func() {
-				if r := recover(); r != nil {
-					err = fmt.Errorf("panic: %v", r)
-				}
-			}()
-			err = crypto.ECDSASecp256r1Verify(ic)
-		}()
-
-		if isErr {
-			require.Error(t, err)
-			return
-		}
-		require.NoError(t, err)
-		require.Equal(t, 1, ic.VM.Estack().Len())
-		require.Equal(t, result, ic.VM.Estack().Pop().Value().(bool))
-	}
-
-	msg := []byte("test message")
-
-	t.Run("success", func(t *testing.T) {
-		sign := priv.Sign(msg)
-		runCase(t, false, true, sign, priv.PublicKey().Bytes(), msg)
-	})
-
-	t.Run("signed interop item", func(t *testing.T) {
-		tx := transaction.New(netmode.UnitTestNet, []byte{0, 1, 2}, 1)
-		msg := tx.GetSignedPart()
-		sign := priv.Sign(msg)
-		runCase(t, false, true, sign, priv.PublicKey().Bytes(), stackitem.NewInterop(tx))
-	})
-
-	t.Run("signed script container", func(t *testing.T) {
-		tx := transaction.New(netmode.UnitTestNet, []byte{0, 1, 2}, 1)
-		msg := tx.GetSignedPart()
-		sign := priv.Sign(msg)
-		ic.Container = tx
-		runCase(t, false, true, sign, priv.PublicKey().Bytes(), stackitem.Null{})
-	})
-
-	t.Run("missing arguments", func(t *testing.T) {
-		runCase(t, true, false)
-		sign := priv.Sign(msg)
-		runCase(t, true, false, sign)
-		runCase(t, true, false, sign, priv.PublicKey().Bytes())
-	})
-
-	t.Run("invalid signature", func(t *testing.T) {
-		sign := priv.Sign(msg)
-		sign[0] = ^sign[0]
-		runCase(t, false, false, sign, priv.PublicKey().Bytes(), msg)
-	})
-
-	t.Run("invalid public key", func(t *testing.T) {
-		sign := priv.Sign(msg)
-		pub := priv.PublicKey().Bytes()
-		pub[0] = 0xFF // invalid prefix
-		runCase(t, true, false, sign, pub, msg)
-	})
-
-	t.Run("invalid message", func(t *testing.T) {
-		sign := priv.Sign(msg)
-		runCase(t, true, false, sign, priv.PublicKey().Bytes(),
-			stackitem.NewArray([]stackitem.Item{stackitem.NewByteArray(msg)}))
 	})
 }
 
