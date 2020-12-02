@@ -4,6 +4,7 @@ ProtocolConfiguration:
   SecondsPerBlock: 15
   EnableStateRoot: true
   StateRootEnableIndex: 6016000
+  KeepOnlyLatestState: false
   LowPriorityThreshold: 0.001
   MemPoolSize: 50000
   StandbyValidators:
