@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"math"
 	"math/big"
@@ -151,8 +152,11 @@ func (v *VM) LoadArgs(method []byte, args []stackitem.Item) {
 }
 
 // PrintOps prints the opcodes of the current loaded program to stdout.
-func (v *VM) PrintOps() {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 4, ' ', 0)
+func (v *VM) PrintOps(out io.Writer) {
+	if out == nil {
+		out = os.Stdout
+	}
+	w := tabwriter.NewWriter(out, 0, 0, 4, ' ', 0)
 	fmt.Fprintln(w, "INDEX\tOPCODE\tPARAMETER\t")
 	realctx := v.Context()
 	ctx := realctx.Copy()
@@ -237,7 +241,7 @@ func (v *VM) AddBreakPoint(n int) {
 // instruction pointer.
 func (v *VM) AddBreakPointRel(n int) {
 	ctx := v.Context()
-	v.AddBreakPoint(ctx.ip + n)
+	v.AddBreakPoint(ctx.nextip + n)
 }
 
 // LoadFile loads a program in NEF format from the given path, ready to execute it.

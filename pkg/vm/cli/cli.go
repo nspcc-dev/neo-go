@@ -12,6 +12,7 @@ import (
 	"strings"
 	"text/tabwriter"
 
+	"github.com/abiosoft/readline"
 	"github.com/nspcc-dev/neo-go/pkg/compiler"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
@@ -28,6 +29,7 @@ const (
 	boolTrue   = "true"
 	intType    = "int"
 	stringType = "string"
+	exitFunc   = "exitFunc"
 )
 
 var commands = []*ishell.Cmd{
@@ -183,19 +185,36 @@ example:
 	},
 }
 
+// Various errors.
+var (
+	ErrMissingParameter = errors.New("missing argument")
+	ErrInvalidParameter = errors.New("can't parse argument")
+)
+
 // VMCLI object for interacting with the VM.
 type VMCLI struct {
 	vm    *vm.VM
 	shell *ishell.Shell
+	// printLogo specifies if logo is printed.
+	printLogo bool
 }
 
 // New returns a new VMCLI object.
 func New() *VMCLI {
+	return NewWithConfig(true, os.Exit, &readline.Config{
+		Prompt: ">>>",
+	})
+}
+
+// NewWithConfig returns new VMCLI instance using provided config.
+func NewWithConfig(printLogo bool, onExit func(int), c *readline.Config) *VMCLI {
 	vmcli := VMCLI{
-		vm:    vm.New(),
-		shell: ishell.New(),
+		vm:        vm.New(),
+		shell:     ishell.NewWithConfig(c),
+		printLogo: printLogo,
 	}
 	vmcli.shell.Set(vmKey, vmcli.vm)
+	vmcli.shell.Set(exitFunc, onExit)
 	for _, c := range commands {
 		vmcli.shell.AddCmd(c)
 	}
@@ -218,7 +237,7 @@ func checkVMIsReady(c *ishell.Context) bool {
 
 func handleExit(c *ishell.Context) {
 	c.Println("Bye!")
-	os.Exit(0)
+	c.Get(exitFunc).(func(int))(0)
 }
 
 func handleIP(c *ishell.Context) {
@@ -226,8 +245,13 @@ func handleIP(c *ishell.Context) {
 		return
 	}
 	v := getVMFromContext(c)
-	ip, opcode := v.Context().CurrInstr()
-	c.Printf("instruction pointer at %d (%s)\n", ip, opcode)
+	ctx := v.Context()
+	if ctx.NextIP() < ctx.LenInstr() {
+		ip, opcode := v.Context().NextInstr()
+		c.Printf("instruction pointer at %d (%s)\n", ip, opcode)
+	} else {
+		c.Println("execution has finished")
+	}
 }
 
 func handleBreak(c *ishell.Context) {
@@ -236,11 +260,12 @@ func handleBreak(c *ishell.Context) {
 	}
 	v := getVMFromContext(c)
 	if len(c.Args) != 1 {
-		c.Err(errors.New("missing parameter <ip>"))
+		c.Err(fmt.Errorf("%w: <ip>", ErrMissingParameter))
+		return
 	}
 	n, err := strconv.Atoi(c.Args[0])
 	if err != nil {
-		c.Err(fmt.Errorf("argument conversion error: %w", err))
+		c.Err(fmt.Errorf("%w: %v", ErrInvalidParameter, err))
 		return
 	}
 
@@ -256,7 +281,7 @@ func handleXStack(c *ishell.Context) {
 func handleLoadNEF(c *ishell.Context) {
 	v := getVMFromContext(c)
 	if len(c.Args) < 1 {
-		c.Err(errors.New("missing parameter <file>"))
+		c.Err(fmt.Errorf("%w: <file>", ErrMissingParameter))
 		return
 	}
 	if err := v.LoadFile(c.Args[0]); err != nil {
@@ -270,12 +295,12 @@ func handleLoadNEF(c *ishell.Context) {
 func handleLoadBase64(c *ishell.Context) {
 	v := getVMFromContext(c)
 	if len(c.Args) < 1 {
-		c.Err(errors.New("missing parameter <string>"))
+		c.Err(fmt.Errorf("%w: <string>", ErrMissingParameter))
 		return
 	}
 	b, err := base64.StdEncoding.DecodeString(c.Args[0])
 	if err != nil {
-		c.Err(err)
+		c.Err(fmt.Errorf("%w: %v", ErrInvalidParameter, err))
 		return
 	}
 	v.Load(b)
@@ -286,12 +311,12 @@ func handleLoadBase64(c *ishell.Context) {
 func handleLoadHex(c *ishell.Context) {
 	v := getVMFromContext(c)
 	if len(c.Args) < 1 {
-		c.Err(errors.New("missing parameter <string>"))
+		c.Err(fmt.Errorf("%w: <string>", ErrMissingParameter))
 		return
 	}
 	b, err := hex.DecodeString(c.Args[0])
 	if err != nil {
-		c.Err(err)
+		c.Err(fmt.Errorf("%w: %v", ErrInvalidParameter, err))
 		return
 	}
 	v.Load(b)
@@ -302,7 +327,7 @@ func handleLoadHex(c *ishell.Context) {
 func handleLoadGo(c *ishell.Context) {
 	v := getVMFromContext(c)
 	if len(c.Args) < 1 {
-		c.Err(errors.New("missing parameter <file>"))
+		c.Err(fmt.Errorf("%w: <file>", ErrMissingParameter))
 		return
 	}
 	b, err := compiler.Compile(c.Args[0], nil)
@@ -341,22 +366,25 @@ func runVMWithHandling(c *ishell.Context, v *vm.VM) {
 	err := v.Run()
 	if err != nil {
 		c.Err(err)
-		return
 	}
 
 	var message string
 	switch {
 	case v.HasFailed():
-		message = "FAILED"
+		message = "" // the error will be printed on return
 	case v.HasHalted():
 		message = v.Stack("estack")
 	case v.AtBreakpoint():
 		ctx := v.Context()
-		i, op := ctx.CurrInstr()
-		message = fmt.Sprintf("at breakpoint %d (%s)\n", i, op.String())
+		if ctx.NextIP() < ctx.LenInstr() {
+			i, op := ctx.NextInstr()
+			message = fmt.Sprintf("at breakpoint %d (%s)", i, op)
+		} else {
+			message = "execution has finished"
+		}
 	}
 	if message != "" {
-		c.Printf(message)
+		c.Println(message)
 	}
 }
 
@@ -382,7 +410,7 @@ func handleStep(c *ishell.Context) {
 	if len(c.Args) > 0 {
 		n, err = strconv.Atoi(c.Args[0])
 		if err != nil {
-			c.Err(fmt.Errorf("argument conversion error: %w", err))
+			c.Err(fmt.Errorf("%w: %v", ErrInvalidParameter, err))
 			return
 		}
 	}
@@ -419,8 +447,9 @@ func handleStepType(c *ishell.Context, stepType string) {
 	}
 	if err != nil {
 		c.Err(err)
+	} else {
+		handleIP(c)
 	}
-	handleIP(c)
 	changePrompt(c, v)
 }
 
@@ -429,12 +458,14 @@ func handleOps(c *ishell.Context) {
 		return
 	}
 	v := getVMFromContext(c)
-	v.PrintOps()
+	out := bytes.NewBuffer(nil)
+	v.PrintOps(out)
+	c.Println(out.String())
 }
 
 func changePrompt(c ishell.Actions, v *vm.VM) {
-	if v.Ready() && v.Context().IP() >= 0 {
-		c.SetPrompt(fmt.Sprintf("NEO-GO-VM %d > ", v.Context().IP()))
+	if v.Ready() && v.Context().NextIP() >= 0 && v.Context().NextIP() < v.Context().LenInstr() {
+		c.SetPrompt(fmt.Sprintf("NEO-GO-VM %d > ", v.Context().NextIP()))
 	} else {
 		c.SetPrompt("NEO-GO-VM > ")
 	}
@@ -442,7 +473,9 @@ func changePrompt(c ishell.Actions, v *vm.VM) {
 
 // Run waits for user input from Stdin and executes the passed command.
 func (c *VMCLI) Run() error {
-	printLogo(c.shell)
+	if c.printLogo {
+		printLogo(c.shell)
+	}
 	c.shell.Run()
 	return nil
 }
@@ -459,7 +492,7 @@ func handleParse(c *ishell.Context) {
 // Parse converts it's argument to other formats.
 func Parse(args []string) (string, error) {
 	if len(args) < 1 {
-		return "", errors.New("missing argument")
+		return "", ErrMissingParameter
 	}
 	arg := args[0]
 	buf := bytes.NewBuffer(nil)
@@ -530,12 +563,12 @@ func parseArgs(args []string) ([]stackitem.Item, error) {
 			} else if value == boolTrue {
 				items[i] = stackitem.NewBool(true)
 			} else {
-				return nil, errors.New("failed to parse bool parameter")
+				return nil, fmt.Errorf("%w: invalid bool value", ErrInvalidParameter)
 			}
 		case intType:
 			val, err := strconv.ParseInt(value, 10, 64)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("%w: invalid integer value", ErrInvalidParameter)
 			}
 			items[i] = stackitem.NewBigInteger(big.NewInt(val))
 		case stringType:
@@ -546,14 +579,15 @@ func parseArgs(args []string) ([]stackitem.Item, error) {
 	return items, nil
 }
 
-func printLogo(c *ishell.Shell) {
-	logo := `
+const logo = `
     _   ____________        __________      _    ____  ___
    / | / / ____/ __ \      / ____/ __ \    | |  / /  |/  /
   /  |/ / __/ / / / /_____/ / __/ / / /____| | / / /|_/ / 
  / /|  / /___/ /_/ /_____/ /_/ / /_/ /_____/ |/ / /  / /  
 /_/ |_/_____/\____/      \____/\____/      |___/_/  /_/   
 `
+
+func printLogo(c *ishell.Shell) {
 	c.Print(logo)
 	c.Println()
 	c.Println()
