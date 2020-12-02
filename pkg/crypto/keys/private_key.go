@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/btcsuite/btcd/btcec"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/rfc6979"
 )
@@ -20,16 +21,26 @@ type PrivateKey struct {
 	ecdsa.PrivateKey
 }
 
-// NewPrivateKey creates a new random Secp256k1 private key.
+// NewPrivateKey creates a new random Secp256r1 private key.
 func NewPrivateKey() (*PrivateKey, error) {
-	priv, x, y, err := elliptic.GenerateKey(elliptic.P256(), rand.Reader)
+	return newPrivateKeyOnCurve(elliptic.P256())
+}
+
+// NewSecp256k1PrivateKey creates a new random Secp256k1 private key.
+func NewSecp256k1PrivateKey() (*PrivateKey, error) {
+	return newPrivateKeyOnCurve(btcec.S256())
+}
+
+// newPrivateKeyOnCurve creates a new random private key using curve c.
+func newPrivateKeyOnCurve(c elliptic.Curve) (*PrivateKey, error) {
+	priv, x, y, err := elliptic.GenerateKey(c, rand.Reader)
 	if err != nil {
 		return nil, err
 	}
 	return &PrivateKey{
 		ecdsa.PrivateKey{
 			PublicKey: ecdsa.PublicKey{
-				Curve: elliptic.P256(),
+				Curve: c,
 				X:     x,
 				Y:     y,
 			},
