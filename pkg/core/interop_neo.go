@@ -115,12 +115,12 @@ func contractCreate(ic *interop.Context) error {
 	if contract != nil && err == nil {
 		return errors.New("contract already exists")
 	}
+	if !manif.IsValid(h) {
+		return errors.New("failed to check contract script hash against manifest")
+	}
 	id, err := ic.DAO.GetAndUpdateNextContractID()
 	if err != nil {
 		return err
-	}
-	if !manif.IsValid(h) {
-		return errors.New("failed to check contract script hash against manifest")
 	}
 	newcontract := &state.Contract{
 		ID:       id,

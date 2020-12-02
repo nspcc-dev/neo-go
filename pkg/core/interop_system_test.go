@@ -589,14 +589,24 @@ func TestContractCreate(t *testing.T) {
 
 	// nef.NewFile() cares about version a lot.
 	config.Version = "0.90.0-test"
+
+	ne, err := nef.NewFile(cs.Script)
+	require.NoError(t, err)
+	neb, err := ne.Bytes()
+	require.NoError(t, err)
+	priv, err := keys.NewPrivateKey()
+	require.NoError(t, err)
+	sender := util.Uint160{1, 2, 3}
+	h := state.CreateContractHash(sender, ne.Script)
+	sig := priv.Sign(h.BytesBE())
+	cs.Manifest.Groups = []manifest.Group{{
+		PublicKey: priv.PublicKey(),
+		Signature: sig,
+	}}
+	m, err := json.Marshal(cs.Manifest)
+	require.NoError(t, err)
 	putArgsOnStack := func() {
-		manifest, err := json.Marshal(cs.Manifest)
-		require.NoError(t, err)
-		ne, err := nef.NewFile(cs.Script)
-		require.NoError(t, err)
-		neb, err := ne.Bytes()
-		require.NoError(t, err)
-		v.Estack().PushVal(manifest)
+		v.Estack().PushVal(m)
 		v.Estack().PushVal(neb)
 	}
 
@@ -607,11 +617,36 @@ func TestContractCreate(t *testing.T) {
 	})
 
 	ic.Tx = transaction.New(netmode.UnitTestNet, []byte{1}, 0)
-	var sender = util.Uint160{1, 2, 3}
 	ic.Tx.Signers = append(ic.Tx.Signers, transaction.Signer{Account: sender})
 	cs.ID = 0
 	cs.Hash = state.CreateContractHash(sender, cs.Script)
 
+	t.Run("missing NEF", func(t *testing.T) {
+		v.Estack().PushVal(m)
+		v.Estack().PushVal(stackitem.Null{})
+		require.Error(t, contractCreate(ic))
+	})
+	t.Run("missing manifest", func(t *testing.T) {
+		v.Estack().PushVal(stackitem.Null{})
+		v.Estack().PushVal(neb)
+		require.Error(t, contractCreate(ic))
+	})
+	t.Run("invalid manifest (empty)", func(t *testing.T) {
+		v.Estack().PushVal([]byte{})
+		v.Estack().PushVal(neb)
+		require.Error(t, contractCreate(ic))
+	})
+
+	t.Run("invalid manifest (group signature)", func(t *testing.T) {
+		cs.Manifest.Groups[0].Signature = make([]byte, 11)
+		rawManif, err := json.Marshal(cs.Manifest)
+		require.NoError(t, err)
+		v.Estack().PushVal(rawManif)
+		v.Estack().PushVal(neb)
+		require.Error(t, contractCreate(ic))
+	})
+
+	cs.Manifest.Groups[0].Signature = sig
 	t.Run("positive", func(t *testing.T) {
 		putArgsOnStack()
 
