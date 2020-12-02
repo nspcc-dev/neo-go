@@ -2,14 +2,12 @@ package core
 
 import (
 	"bytes"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
 	"sort"
 
-	"github.com/mr-tron/base58"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/contract"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
@@ -191,53 +189,5 @@ func callDeploy(ic *interop.Context, cs *state.Contract, isUpdate bool) error {
 		return contract.CallExInternal(ic, cs, manifest.MethodDeploy,
 			[]stackitem.Item{stackitem.NewBool(isUpdate)}, smartcontract.All, vm.EnsureIsEmpty, nil)
 	}
-	return nil
-}
-
-// runtimeSerialize serializes top stack item into a ByteArray.
-func runtimeSerialize(ic *interop.Context) error {
-	return vm.RuntimeSerialize(ic.VM)
-}
-
-// runtimeDeserialize deserializes ByteArray from a stack into an item.
-func runtimeDeserialize(ic *interop.Context) error {
-	return vm.RuntimeDeserialize(ic.VM)
-}
-
-// runtimeEncodeBase64 encodes top stack item into a base64 string.
-func runtimeEncodeBase64(ic *interop.Context) error {
-	src := ic.VM.Estack().Pop().Bytes()
-	result := base64.StdEncoding.EncodeToString(src)
-	ic.VM.Estack().PushVal([]byte(result))
-	return nil
-}
-
-// runtimeDecodeBase64 decodes top stack item from base64 string to byte array.
-func runtimeDecodeBase64(ic *interop.Context) error {
-	src := ic.VM.Estack().Pop().String()
-	result, err := base64.StdEncoding.DecodeString(src)
-	if err != nil {
-		return err
-	}
-	ic.VM.Estack().PushVal(result)
-	return nil
-}
-
-// runtimeEncodeBase58 encodes top stack item into a base58 string.
-func runtimeEncodeBase58(ic *interop.Context) error {
-	src := ic.VM.Estack().Pop().Bytes()
-	result := base58.Encode(src)
-	ic.VM.Estack().PushVal([]byte(result))
-	return nil
-}
-
-// runtimeDecodeBase58 decodes top stack item from base58 string to byte array.
-func runtimeDecodeBase58(ic *interop.Context) error {
-	src := ic.VM.Estack().Pop().String()
-	result, err := base58.Decode(src)
-	if err != nil {
-		return err
-	}
-	ic.VM.Estack().PushVal(result)
 	return nil
 }
