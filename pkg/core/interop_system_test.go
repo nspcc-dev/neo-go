@@ -31,6 +31,28 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestBCGetTransactionHeight(t *testing.T) {
+	v, tx, ic, chain := createVMAndTX(t)
+	defer chain.Close()
+
+	for i := 0; i < 13; i++ {
+		require.NoError(t, chain.AddBlock(chain.newBlock()))
+	}
+	require.NoError(t, ic.DAO.StoreAsTransaction(tx, 13, nil))
+	t.Run("good", func(t *testing.T) {
+		v.Estack().PushVal(tx.Hash().BytesBE())
+		require.NoError(t, bcGetTransactionHeight(ic))
+		require.Equal(t, big.NewInt(13), v.Estack().Pop().BigInt())
+	})
+	t.Run("bad", func(t *testing.T) {
+		h := tx.Hash()
+		h[0] ^= 0xFF
+		v.Estack().PushVal(h.BytesBE())
+		require.NoError(t, bcGetTransactionHeight(ic))
+		require.Equal(t, big.NewInt(-1), v.Estack().Pop().BigInt())
+	})
+}
+
 func TestBCGetTransaction(t *testing.T) {
 	v, tx, context, chain := createVMAndTX(t)
 	defer chain.Close()
@@ -300,6 +322,83 @@ func TestStoragePut(t *testing.T) {
 		require.NoError(t, storagePut(ic))
 		initVM(t, []byte{4}, []byte{5, 6}, StoragePrice)
 		require.NoError(t, storagePut(ic))
+	})
+
+	t.Run("check limits", func(t *testing.T) {
+		initVM(t, make([]byte, MaxStorageKeyLen), make([]byte, MaxStorageValueLen), -1)
+		require.NoError(t, storagePut(ic))
+	})
+
+	t.Run("bad", func(t *testing.T) {
+		t.Run("readonly context", func(t *testing.T) {
+			initVM(t, []byte{1}, []byte{1}, -1)
+			require.NoError(t, storageContextAsReadOnly(ic))
+			require.Error(t, storagePut(ic))
+		})
+		t.Run("big key", func(t *testing.T) {
+			initVM(t, make([]byte, MaxStorageKeyLen+1), []byte{1}, -1)
+			require.Error(t, storagePut(ic))
+		})
+		t.Run("big value", func(t *testing.T) {
+			initVM(t, []byte{1}, make([]byte, MaxStorageValueLen+1), -1)
+			require.Error(t, storagePut(ic))
+		})
+		t.Run("item exists and is const", func(t *testing.T) {
+			v := ic.SpawnVM()
+			v.LoadScript(cs.Script)
+			v.GasLimit = -1
+			v.Estack().PushVal(1)
+			v.Estack().PushVal("value")
+			v.Estack().PushVal("key")
+			require.NoError(t, storageGetContext(ic))
+			require.NoError(t, storagePutEx(ic))
+
+			v.Estack().PushVal("new")
+			v.Estack().PushVal("key")
+			require.NoError(t, storageGetContext(ic))
+			require.Error(t, storagePut(ic))
+		})
+	})
+}
+
+func TestStorageDelete(t *testing.T) {
+	v, cs, ic, bc := createVMAndContractState(t)
+	defer bc.Close()
+
+	require.NoError(t, ic.DAO.PutContractState(cs))
+	v.LoadScriptWithHash(cs.Script, cs.Hash, smartcontract.All)
+	put := func(key, value string, flag int) {
+		v.Estack().PushVal(flag)
+		v.Estack().PushVal(value)
+		v.Estack().PushVal(key)
+		require.NoError(t, storageGetContext(ic))
+		require.NoError(t, storagePutEx(ic))
+	}
+	put("key1", "value1", 0)
+	put("key2", "value2", 0)
+	put("key3", "value3", 0)
+	put("key4", "value4", 1)
+
+	t.Run("good", func(t *testing.T) {
+		v.Estack().PushVal("key1")
+		require.NoError(t, storageGetContext(ic))
+		require.NoError(t, storageDelete(ic))
+	})
+	t.Run("readonly context", func(t *testing.T) {
+		v.Estack().PushVal("key2")
+		require.NoError(t, storageGetReadOnlyContext(ic))
+		require.Error(t, storageDelete(ic))
+	})
+	t.Run("readonly context (from normal)", func(t *testing.T) {
+		v.Estack().PushVal("key3")
+		require.NoError(t, storageGetContext(ic))
+		require.NoError(t, storageContextAsReadOnly(ic))
+		require.Error(t, storageDelete(ic))
+	})
+	t.Run("constant item", func(t *testing.T) {
+		v.Estack().PushVal("key4")
+		require.NoError(t, storageGetContext(ic))
+		require.Error(t, storageDelete(ic))
 	})
 }
 
@@ -824,6 +923,24 @@ func TestContractUpdate(t *testing.T) {
 		}
 		require.Equal(t, expected, actual)
 	})
+}
+
+func TestContractDestroy(t *testing.T) {
+	v, cs, ic, bc := createVMAndContractState(t)
+	defer bc.Close()
+
+	v.LoadScriptWithHash(cs.Script, cs.Hash, smartcontract.All)
+	require.NoError(t, contractDestroy(ic)) // silent error when contract is missing
+	require.NoError(t, ic.DAO.PutContractState(cs))
+
+	v.Estack().PushVal("value")
+	v.Estack().PushVal("key")
+	require.NoError(t, storageGetContext(ic))
+	require.NoError(t, storagePut(ic))
+	require.NotNil(t, ic.DAO.GetStorageItem(cs.ID, []byte("key")))
+	require.NoError(t, contractDestroy(ic))
+	require.Nil(t, ic.DAO.GetStorageItem(cs.ID, []byte("key")))
+	require.Error(t, storageGetContext(ic))
 }
 
 // TestContractCreateDeploy checks that `_deploy` method was called
