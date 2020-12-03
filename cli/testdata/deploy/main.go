@@ -17,6 +17,11 @@ func _deploy(isUpdate bool) {
 	storage.Put(ctx, key, value)
 }
 
+// Fail just fails.
+func Fail() {
+	panic("as expected")
+}
+
 // Update updates contract with the new one.
 func Update(script, manifest []byte) {
 	contract.Update(script, manifest)

@@ -879,8 +879,12 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 				for _, p := range n.Args[1:] {
 					params = append(params, c.scTypeFromExpr(p))
 				}
-				name := constant.StringVal(tv.Value)
-				c.emittedEvents[name] = append(c.emittedEvents[name], params)
+				// Sometimes event name is stored in a var.
+				// Skip in this case.
+				if tv.Value != nil {
+					name := constant.StringVal(tv.Value)
+					c.emittedEvents[name] = append(c.emittedEvents[name], params)
+				}
 			}
 			c.convertSyscall(n, f.pkg.Name(), f.name)
 		default:
