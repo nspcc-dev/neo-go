@@ -18,7 +18,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
-	"go.uber.org/zap"
 )
 
 const (
@@ -27,10 +26,6 @@ const (
 	// MaxStorageValueLen is the maximum length of a value for storage items.
 	// It is set to be the maximum value for uint16.
 	MaxStorageValueLen = 65535
-	// MaxEventNameLen is the maximum length of a name for event.
-	MaxEventNameLen = 32
-	// MaxNotificationSize is the maximum length of a runtime log message.
-	MaxNotificationSize = 1024
 )
 
 // StorageContext contains storing id and read/write flag, it's used as
@@ -228,82 +223,6 @@ func engineGetScriptContainer(ic *interop.Context) error {
 		return errors.New("unknown script container")
 	}
 	ic.VM.Estack().PushVal(item)
-	return nil
-}
-
-// engineGetExecutingScriptHash returns executing script hash.
-func engineGetExecutingScriptHash(ic *interop.Context) error {
-	return ic.VM.PushContextScriptHash(0)
-}
-
-// engineGetCallingScriptHash returns calling script hash.
-func engineGetCallingScriptHash(ic *interop.Context) error {
-	return ic.VM.PushContextScriptHash(1)
-}
-
-// engineGetEntryScriptHash returns entry script hash.
-func engineGetEntryScriptHash(ic *interop.Context) error {
-	return ic.VM.PushContextScriptHash(ic.VM.Istack().Len() - 1)
-}
-
-// runtimePlatform returns the name of the platform.
-func runtimePlatform(ic *interop.Context) error {
-	ic.VM.Estack().PushVal([]byte("NEO"))
-	return nil
-}
-
-// runtimeGetTrigger returns the script trigger.
-func runtimeGetTrigger(ic *interop.Context) error {
-	ic.VM.Estack().PushVal(byte(ic.Trigger))
-	return nil
-}
-
-// runtimeNotify should pass stack item to the notify plugin to handle it, but
-// in neo-go the only meaningful thing to do here is to log.
-func runtimeNotify(ic *interop.Context) error {
-	name := ic.VM.Estack().Pop().String()
-	if len(name) > MaxEventNameLen {
-		return fmt.Errorf("event name must be less than %d", MaxEventNameLen)
-	}
-	elem := ic.VM.Estack().Pop()
-	args := elem.Array()
-	// But it has to be serializable, otherwise we either have some broken
-	// (recursive) structure inside or an interop item that can't be used
-	// outside of the interop subsystem anyway.
-	bytes, err := stackitem.SerializeItem(elem.Item())
-	if err != nil {
-		return fmt.Errorf("bad notification: %w", err)
-	}
-	if len(bytes) > MaxNotificationSize {
-		return fmt.Errorf("notification size shouldn't exceed %d", MaxNotificationSize)
-	}
-	ne := state.NotificationEvent{
-		ScriptHash: ic.VM.GetCurrentScriptHash(),
-		Name:       name,
-		Item:       stackitem.DeepCopy(stackitem.NewArray(args)).(*stackitem.Array),
-	}
-	ic.Notifications = append(ic.Notifications, ne)
-	return nil
-}
-
-// runtimeLog logs the message passed.
-func runtimeLog(ic *interop.Context) error {
-	state := ic.VM.Estack().Pop().String()
-	if len(state) > MaxNotificationSize {
-		return fmt.Errorf("message length shouldn't exceed %v", MaxNotificationSize)
-	}
-	msg := fmt.Sprintf("%q", state)
-	ic.Log.Info("runtime log",
-		zap.Stringer("script", ic.VM.GetCurrentScriptHash()),
-		zap.String("logs", msg))
-	return nil
-}
-
-// runtimeGetTime returns timestamp of the block being verified, or the latest
-// one in the blockchain if no block is given to Context.
-func runtimeGetTime(ic *interop.Context) error {
-	header := ic.Block.Header()
-	ic.VM.Estack().PushVal(header.Timestamp)
 	return nil
 }
 

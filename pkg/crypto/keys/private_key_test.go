@@ -6,7 +6,9 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/internal/keytestcases"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestPrivateKey(t *testing.T) {
@@ -26,6 +28,21 @@ func TestPrivateKey(t *testing.T) {
 		pubKey := privKey.PublicKey()
 		assert.Equal(t, hex.EncodeToString(pubKey.Bytes()), testCase.PublicKey)
 	}
+}
+
+func TestNewPrivateKeyOnCurve(t *testing.T) {
+	msg := []byte{1, 2, 3}
+	h := hash.Sha256(msg).BytesBE()
+	t.Run("Secp256r1", func(t *testing.T) {
+		p, err := NewPrivateKey()
+		require.NoError(t, err)
+		p.PublicKey().Verify(p.Sign(msg), h)
+	})
+	t.Run("Secp256k1", func(t *testing.T) {
+		p, err := NewSecp256k1PrivateKey()
+		require.NoError(t, err)
+		p.PublicKey().Verify(p.Sign(msg), h)
+	})
 }
 
 func TestPrivateKeyFromWIF(t *testing.T) {

@@ -31,6 +31,28 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestBCGetTransactionHeight(t *testing.T) {
+	v, tx, ic, chain := createVMAndTX(t)
+	defer chain.Close()
+
+	for i := 0; i < 13; i++ {
+		require.NoError(t, chain.AddBlock(chain.newBlock()))
+	}
+	require.NoError(t, ic.DAO.StoreAsTransaction(tx, 13, nil))
+	t.Run("good", func(t *testing.T) {
+		v.Estack().PushVal(tx.Hash().BytesBE())
+		require.NoError(t, bcGetTransactionHeight(ic))
+		require.Equal(t, big.NewInt(13), v.Estack().Pop().BigInt())
+	})
+	t.Run("bad", func(t *testing.T) {
+		h := tx.Hash()
+		h[0] ^= 0xFF
+		v.Estack().PushVal(h.BytesBE())
+		require.NoError(t, bcGetTransactionHeight(ic))
+		require.Equal(t, big.NewInt(-1), v.Estack().Pop().BigInt())
+	})
+}
+
 func TestBCGetTransaction(t *testing.T) {
 	v, tx, context, chain := createVMAndTX(t)
 	defer chain.Close()
@@ -244,77 +266,6 @@ func TestContractCreateAccount(t *testing.T) {
 	})
 }
 
-func TestRuntimeGasLeft(t *testing.T) {
-	v, ic, chain := createVM(t)
-	defer chain.Close()
-
-	v.GasLimit = 100
-	v.AddGas(58)
-	require.NoError(t, runtime.GasLeft(ic))
-	require.EqualValues(t, 42, v.Estack().Pop().BigInt().Int64())
-}
-
-func TestRuntimeGetNotifications(t *testing.T) {
-	v, ic, chain := createVM(t)
-	defer chain.Close()
-
-	ic.Notifications = []state.NotificationEvent{
-		{ScriptHash: util.Uint160{1}, Name: "Event1", Item: stackitem.NewArray([]stackitem.Item{stackitem.NewByteArray([]byte{11})})},
-		{ScriptHash: util.Uint160{2}, Name: "Event2", Item: stackitem.NewArray([]stackitem.Item{stackitem.NewByteArray([]byte{22})})},
-		{ScriptHash: util.Uint160{1}, Name: "Event1", Item: stackitem.NewArray([]stackitem.Item{stackitem.NewByteArray([]byte{33})})},
-	}
-
-	t.Run("NoFilter", func(t *testing.T) {
-		v.Estack().PushVal(stackitem.Null{})
-		require.NoError(t, runtime.GetNotifications(ic))
-
-		arr := v.Estack().Pop().Array()
-		require.Equal(t, len(ic.Notifications), len(arr))
-		for i := range arr {
-			elem := arr[i].Value().([]stackitem.Item)
-			require.Equal(t, ic.Notifications[i].ScriptHash.BytesBE(), elem[0].Value())
-			name, err := stackitem.ToString(elem[1])
-			require.NoError(t, err)
-			require.Equal(t, ic.Notifications[i].Name, name)
-			require.Equal(t, ic.Notifications[i].Item, elem[2])
-		}
-	})
-
-	t.Run("WithFilter", func(t *testing.T) {
-		h := util.Uint160{2}.BytesBE()
-		v.Estack().PushVal(h)
-		require.NoError(t, runtime.GetNotifications(ic))
-
-		arr := v.Estack().Pop().Array()
-		require.Equal(t, 1, len(arr))
-		elem := arr[0].Value().([]stackitem.Item)
-		require.Equal(t, h, elem[0].Value())
-		name, err := stackitem.ToString(elem[1])
-		require.NoError(t, err)
-		require.Equal(t, ic.Notifications[1].Name, name)
-		require.Equal(t, ic.Notifications[1].Item, elem[2])
-	})
-}
-
-func TestRuntimeGetInvocationCounter(t *testing.T) {
-	v, ic, chain := createVM(t)
-	defer chain.Close()
-
-	ic.VM.Invocations[hash.Hash160([]byte{2})] = 42
-
-	t.Run("No invocations", func(t *testing.T) {
-		v.LoadScript([]byte{1})
-		// do not return an error in this case.
-		require.NoError(t, runtime.GetInvocationCounter(ic))
-		require.EqualValues(t, 1, v.Estack().Pop().BigInt().Int64())
-	})
-	t.Run("NonZero", func(t *testing.T) {
-		v.LoadScript([]byte{2})
-		require.NoError(t, runtime.GetInvocationCounter(ic))
-		require.EqualValues(t, 42, v.Estack().Pop().BigInt().Int64())
-	})
-}
-
 func TestBlockchainGetContractState(t *testing.T) {
 	v, cs, ic, bc := createVMAndContractState(t)
 	defer bc.Close()
@@ -371,6 +322,83 @@ func TestStoragePut(t *testing.T) {
 		require.NoError(t, storagePut(ic))
 		initVM(t, []byte{4}, []byte{5, 6}, StoragePrice)
 		require.NoError(t, storagePut(ic))
+	})
+
+	t.Run("check limits", func(t *testing.T) {
+		initVM(t, make([]byte, MaxStorageKeyLen), make([]byte, MaxStorageValueLen), -1)
+		require.NoError(t, storagePut(ic))
+	})
+
+	t.Run("bad", func(t *testing.T) {
+		t.Run("readonly context", func(t *testing.T) {
+			initVM(t, []byte{1}, []byte{1}, -1)
+			require.NoError(t, storageContextAsReadOnly(ic))
+			require.Error(t, storagePut(ic))
+		})
+		t.Run("big key", func(t *testing.T) {
+			initVM(t, make([]byte, MaxStorageKeyLen+1), []byte{1}, -1)
+			require.Error(t, storagePut(ic))
+		})
+		t.Run("big value", func(t *testing.T) {
+			initVM(t, []byte{1}, make([]byte, MaxStorageValueLen+1), -1)
+			require.Error(t, storagePut(ic))
+		})
+		t.Run("item exists and is const", func(t *testing.T) {
+			v := ic.SpawnVM()
+			v.LoadScript(cs.Script)
+			v.GasLimit = -1
+			v.Estack().PushVal(1)
+			v.Estack().PushVal("value")
+			v.Estack().PushVal("key")
+			require.NoError(t, storageGetContext(ic))
+			require.NoError(t, storagePutEx(ic))
+
+			v.Estack().PushVal("new")
+			v.Estack().PushVal("key")
+			require.NoError(t, storageGetContext(ic))
+			require.Error(t, storagePut(ic))
+		})
+	})
+}
+
+func TestStorageDelete(t *testing.T) {
+	v, cs, ic, bc := createVMAndContractState(t)
+	defer bc.Close()
+
+	require.NoError(t, ic.DAO.PutContractState(cs))
+	v.LoadScriptWithHash(cs.Script, cs.Hash, smartcontract.All)
+	put := func(key, value string, flag int) {
+		v.Estack().PushVal(flag)
+		v.Estack().PushVal(value)
+		v.Estack().PushVal(key)
+		require.NoError(t, storageGetContext(ic))
+		require.NoError(t, storagePutEx(ic))
+	}
+	put("key1", "value1", 0)
+	put("key2", "value2", 0)
+	put("key3", "value3", 0)
+	put("key4", "value4", 1)
+
+	t.Run("good", func(t *testing.T) {
+		v.Estack().PushVal("key1")
+		require.NoError(t, storageGetContext(ic))
+		require.NoError(t, storageDelete(ic))
+	})
+	t.Run("readonly context", func(t *testing.T) {
+		v.Estack().PushVal("key2")
+		require.NoError(t, storageGetReadOnlyContext(ic))
+		require.Error(t, storageDelete(ic))
+	})
+	t.Run("readonly context (from normal)", func(t *testing.T) {
+		v.Estack().PushVal("key3")
+		require.NoError(t, storageGetContext(ic))
+		require.NoError(t, storageContextAsReadOnly(ic))
+		require.Error(t, storageDelete(ic))
+	})
+	t.Run("constant item", func(t *testing.T) {
+		v.Estack().PushVal("key4")
+		require.NoError(t, storageGetContext(ic))
+		require.Error(t, storageDelete(ic))
 	})
 }
 
@@ -660,14 +688,24 @@ func TestContractCreate(t *testing.T) {
 
 	// nef.NewFile() cares about version a lot.
 	config.Version = "0.90.0-test"
+
+	ne, err := nef.NewFile(cs.Script)
+	require.NoError(t, err)
+	neb, err := ne.Bytes()
+	require.NoError(t, err)
+	priv, err := keys.NewPrivateKey()
+	require.NoError(t, err)
+	sender := util.Uint160{1, 2, 3}
+	h := state.CreateContractHash(sender, ne.Script)
+	sig := priv.Sign(h.BytesBE())
+	cs.Manifest.Groups = []manifest.Group{{
+		PublicKey: priv.PublicKey(),
+		Signature: sig,
+	}}
+	m, err := json.Marshal(cs.Manifest)
+	require.NoError(t, err)
 	putArgsOnStack := func() {
-		manifest, err := json.Marshal(cs.Manifest)
-		require.NoError(t, err)
-		ne, err := nef.NewFile(cs.Script)
-		require.NoError(t, err)
-		neb, err := ne.Bytes()
-		require.NoError(t, err)
-		v.Estack().PushVal(manifest)
+		v.Estack().PushVal(m)
 		v.Estack().PushVal(neb)
 	}
 
@@ -678,11 +716,36 @@ func TestContractCreate(t *testing.T) {
 	})
 
 	ic.Tx = transaction.New(netmode.UnitTestNet, []byte{1}, 0)
-	var sender = util.Uint160{1, 2, 3}
 	ic.Tx.Signers = append(ic.Tx.Signers, transaction.Signer{Account: sender})
 	cs.ID = 0
 	cs.Hash = state.CreateContractHash(sender, cs.Script)
 
+	t.Run("missing NEF", func(t *testing.T) {
+		v.Estack().PushVal(m)
+		v.Estack().PushVal(stackitem.Null{})
+		require.Error(t, contractCreate(ic))
+	})
+	t.Run("missing manifest", func(t *testing.T) {
+		v.Estack().PushVal(stackitem.Null{})
+		v.Estack().PushVal(neb)
+		require.Error(t, contractCreate(ic))
+	})
+	t.Run("invalid manifest (empty)", func(t *testing.T) {
+		v.Estack().PushVal([]byte{})
+		v.Estack().PushVal(neb)
+		require.Error(t, contractCreate(ic))
+	})
+
+	t.Run("invalid manifest (group signature)", func(t *testing.T) {
+		cs.Manifest.Groups[0].Signature = make([]byte, 11)
+		rawManif, err := json.Marshal(cs.Manifest)
+		require.NoError(t, err)
+		v.Estack().PushVal(rawManif)
+		v.Estack().PushVal(neb)
+		require.Error(t, contractCreate(ic))
+	})
+
+	cs.Manifest.Groups[0].Signature = sig
 	t.Run("positive", func(t *testing.T) {
 		putArgsOnStack()
 
@@ -860,6 +923,24 @@ func TestContractUpdate(t *testing.T) {
 		}
 		require.Equal(t, expected, actual)
 	})
+}
+
+func TestContractDestroy(t *testing.T) {
+	v, cs, ic, bc := createVMAndContractState(t)
+	defer bc.Close()
+
+	v.LoadScriptWithHash(cs.Script, cs.Hash, smartcontract.All)
+	require.NoError(t, contractDestroy(ic)) // silent error when contract is missing
+	require.NoError(t, ic.DAO.PutContractState(cs))
+
+	v.Estack().PushVal("value")
+	v.Estack().PushVal("key")
+	require.NoError(t, storageGetContext(ic))
+	require.NoError(t, storagePut(ic))
+	require.NotNil(t, ic.DAO.GetStorageItem(cs.ID, []byte("key")))
+	require.NoError(t, contractDestroy(ic))
+	require.Nil(t, ic.DAO.GetStorageItem(cs.ID, []byte("key")))
+	require.Error(t, storageGetContext(ic))
 }
 
 // TestContractCreateDeploy checks that `_deploy` method was called
