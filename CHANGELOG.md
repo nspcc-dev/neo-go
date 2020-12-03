@@ -2,6 +2,29 @@
 
 This document outlines major changes between releases.
 
+## 0.78.2 "Colorization" (03 December 2020)
+
+Release 0.78.2 adds some minor features to the node while still being
+compatible both for protocol and for DB format.
+
+New features:
+ * `getblocktransfertx` RPC API to get list of asset-transferring transactions
+   (both UTXO and NEP5) for a block, see docs/rpc.md for more details (#1516)
+ * support for batched JSON-RPC requests (#1509)
+ * `KeepOnlyLatestState` option to only track the latest MPT state and not store
+   old trees, it's disabled by default (keeping old behavior) and can only be
+   turned on for a new DB (resynchronizing state from the genesis block), but
+   it allows to drastically reduce disk space requirements for mainnet node
+   (and even make it work a bit faster while still having stateroot
+   tracking). Nodes with stateroot disabled (`EnableStateRoot: false`) use ~53GB
+   for DB at current 6.5M height, stateroot-enabled nodes (`EnableStateRoot:
+   true`) require ~122GB, but with `KeepOnlyLatestState: true` setting (and
+   `EnableStateRoot: true`) the DB size is ~56GB, so the difference is quite
+   noticeable for disk-constrained setups.
+
+Improvements:
+ * mempooled transaction retransmission mechanism (#1532)
+
 ## 0.78.1 "Circumnavigation" (22 October 2020)
 
 This is a bug fix release that solves DB access and seed reconnection
