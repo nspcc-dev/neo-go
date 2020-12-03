@@ -247,40 +247,25 @@ func claimGas(ctx *cli.Context) error {
 }
 
 func convertWallet(ctx *cli.Context) error {
-	wall, err := openWallet(ctx.String("wallet"))
+	wall, err := newWalletV2FromFile(ctx.String("wallet"))
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
-	defer wall.Close()
 
 	newWallet, err := wallet.NewWallet(ctx.String("out"))
 	if err != nil {
-		return cli.NewExitError(err, -1)
+		return cli.NewExitError(err, 1)
 	}
 	defer newWallet.Close()
 
 	for _, acc := range wall.Accounts {
-		address.Prefix = address.NEO2Prefix
-
 		pass, err := input.ReadPassword(ctx.App.Writer, fmt.Sprintf("Enter passphrase for account %s (label '%s') > ", acc.Address, acc.Label))
 		if err != nil {
-			return cli.NewExitError(err, -1)
-		} else if err := acc.Decrypt(pass); err != nil {
-			return cli.NewExitError("invalid passphrase", -1)
+			return cli.NewExitError(err, 1)
 		}
-
-		address.Prefix = address.NEO3Prefix
-		newAcc, err := wallet.NewAccountFromWIF(acc.PrivateKey().WIF())
+		newAcc, err := acc.convert(pass)
 		if err != nil {
-			return cli.NewExitError(fmt.Errorf("can't convert account: %w", err), -1)
-		}
-		newAcc.Address = address.Uint160ToString(acc.Contract.ScriptHash())
-		newAcc.Contract = acc.Contract
-		newAcc.Default = acc.Default
-		newAcc.Label = acc.Label
-		newAcc.Locked = acc.Locked
-		if err := newAcc.Encrypt(pass); err != nil {
-			return cli.NewExitError(fmt.Errorf("can't encrypt converted account: %w", err), -1)
+			return cli.NewExitError(err, 1)
 		}
 		newWallet.AddAccount(newAcc)
 	}

@@ -310,3 +310,49 @@ func TestWalletDump(t *testing.T) {
 		require.Equal(t, "NNuJqXDnRqvwgzhSzhH4jnVFWB1DyZ34EM", w.Accounts[0].Address)
 	})
 }
+
+// Testcase is the wallet of privnet validator.
+func TestWalletConvert(t *testing.T) {
+	tmpDir := path.Join(os.TempDir(), "neogo.test.convert")
+	require.NoError(t, os.Mkdir(tmpDir, os.ModePerm))
+	defer os.RemoveAll(tmpDir)
+
+	e := newExecutor(t, false)
+	defer e.Close(t)
+
+	outPath := path.Join(tmpDir, "wallet.json")
+	cmd := []string{"neo-go", "wallet", "convert"}
+	t.Run("missing wallet", func(t *testing.T) {
+		e.RunWithError(t, cmd...)
+	})
+
+	cmd = append(cmd, "--wallet", "testdata/wallets/testwallet_NEO2.json", "--out", outPath)
+	t.Run("invalid password", func(t *testing.T) {
+		// missing password
+		e.RunWithError(t, cmd...)
+		// invalid password
+		e.In.WriteString("two\r")
+		e.RunWithError(t, cmd...)
+	})
+
+	// 2 accounts.
+	e.In.WriteString("one\r")
+	e.In.WriteString("one\r")
+	e.Run(t, "neo-go", "wallet", "convert",
+		"--wallet", "testdata/wallets/testwallet_NEO2.json",
+		"--out", outPath)
+
+	actual, err := wallet.NewWalletFromFile(outPath)
+	require.NoError(t, err)
+	expected, err := wallet.NewWalletFromFile("testdata/wallets/testwallet_NEO3.json")
+	require.NoError(t, err)
+	require.Equal(t, len(actual.Accounts), len(expected.Accounts))
+	for _, exp := range expected.Accounts {
+		addr, err := address.StringToUint160(exp.Address)
+		require.NoError(t, err)
+
+		act := actual.GetAccount(addr)
+		require.NotNil(t, act)
+		require.Equal(t, exp, act)
+	}
+}
