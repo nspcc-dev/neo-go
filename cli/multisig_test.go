@@ -36,8 +36,8 @@ func TestSignMultisigTx(t *testing.T) {
 	defer os.Remove(wallet2Path)
 
 	addAccount := func(w string, wif string) {
-		e.In.WriteString("acc\rpass\rpass\r")
 		e.Run(t, "neo-go", "wallet", "init", "--wallet", w)
+		e.In.WriteString("acc\rpass\rpass\r")
 		e.Run(t, "neo-go", "wallet", "import-multisig",
 			"--wallet", w,
 			"--wif", wif,
