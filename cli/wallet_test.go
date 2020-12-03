@@ -286,10 +286,27 @@ func TestWalletDump(t *testing.T) {
 	e := newExecutor(t, false)
 	defer e.Close(t)
 
-	e.Run(t, "neo-go", "wallet", "dump", "--wallet", "testdata/testwallet.json")
+	cmd := []string{"neo-go", "wallet", "dump", "--wallet", "testdata/testwallet.json"}
+	e.Run(t, cmd...)
 	rawStr := strings.TrimSpace(e.Out.String())
 	w := new(wallet.Wallet)
 	require.NoError(t, json.Unmarshal([]byte(rawStr), w))
 	require.Equal(t, 1, len(w.Accounts))
 	require.Equal(t, "NNuJqXDnRqvwgzhSzhH4jnVFWB1DyZ34EM", w.Accounts[0].Address)
+
+	t.Run("with decrypt", func(t *testing.T) {
+		cmd = append(cmd, "--decrypt")
+		t.Run("invalid password", func(t *testing.T) {
+			e.In.WriteString("invalidpass\r")
+			e.RunWithError(t, cmd...)
+		})
+
+		e.In.WriteString("testpass\r")
+		e.Run(t, cmd...)
+		rawStr := strings.TrimSpace(e.Out.String())
+		w := new(wallet.Wallet)
+		require.NoError(t, json.Unmarshal([]byte(rawStr), w))
+		require.Equal(t, 1, len(w.Accounts))
+		require.Equal(t, "NNuJqXDnRqvwgzhSzhH4jnVFWB1DyZ34EM", w.Accounts[0].Address)
+	})
 }
