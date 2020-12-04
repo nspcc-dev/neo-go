@@ -232,15 +232,22 @@ func (d *DefaultDiscovery) run() {
 					requested--
 				}
 			default: // Empty pool
+				var added int
 				d.lock.Lock()
 				for _, addr := range d.seeds {
 					if !d.connectedAddrs[addr] {
 						delete(d.badAddrs, addr)
 						d.unconnectedAddrs[addr] = connRetries
 						d.pushToPoolOrDrop(addr)
+						added++
 					}
 				}
 				d.lock.Unlock()
+				// The pool is empty, but all seed nodes are already connected,
+				// we can end up in an infinite loop here, so drop the request.
+				if added == 0 {
+					requested = 0
+				}
 			}
 		}
 		if !ok {
