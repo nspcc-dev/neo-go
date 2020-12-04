@@ -132,16 +132,14 @@ func TestAddNetworkFee(t *testing.T) {
 	t.Run("Contract", func(t *testing.T) {
 		tx := transaction.New(testchain.Network(), []byte{byte(opcode.PUSH1)}, 0)
 		priv := testchain.PrivateKeyByID(0)
-		acc1, err := wallet.NewAccountFromWIF(priv.WIF())
-		require.NoError(t, err)
+		acc1 := wallet.NewAccountFromPrivateKey(priv)
 		acc1.Contract.Deployed = true
 		acc1.Contract.Script, _ = hex.DecodeString(verifyContractAVM)
 		h, _ := util.Uint160DecodeStringLE(verifyContractHash)
 		tx.ValidUntilBlock = chain.BlockHeight() + 10
 
 		t.Run("Valid", func(t *testing.T) {
-			acc0, err := wallet.NewAccountFromWIF(priv.WIF())
-			require.NoError(t, err)
+			acc0 := wallet.NewAccountFromPrivateKey(priv)
 			tx.Signers = []transaction.Signer{
 				{
 					Account: acc0.PrivateKey().GetScriptHash(),
@@ -173,8 +171,7 @@ func TestAddNetworkFee(t *testing.T) {
 			require.Error(t, c.AddNetworkFee(tx, 10, acc0, acc1))
 		})
 		t.Run("InvalidContract", func(t *testing.T) {
-			acc0, err := wallet.NewAccountFromWIF(priv.WIF())
-			require.NoError(t, err)
+			acc0 := wallet.NewAccountFromPrivateKey(priv)
 			tx.Signers = []transaction.Signer{
 				{
 					Account: acc0.PrivateKey().GetScriptHash(),
@@ -200,8 +197,7 @@ func TestSignAndPushInvocationTx(t *testing.T) {
 	require.NoError(t, c.Init())
 
 	priv := testchain.PrivateKey(0)
-	acc, err := wallet.NewAccountFromWIF(priv.WIF())
-	require.NoError(t, err)
+	acc := wallet.NewAccountFromPrivateKey(priv)
 	h, err := c.SignAndPushInvocationTx([]byte{byte(opcode.PUSH1)}, acc, 30, 0, []transaction.Signer{{
 		Account: priv.GetScriptHash(),
 		Scopes:  transaction.CalledByEntry,
@@ -239,8 +235,7 @@ func TestCreateTxFromScript(t *testing.T) {
 	require.NoError(t, c.Init())
 
 	priv := testchain.PrivateKey(0)
-	acc, err := wallet.NewAccountFromWIF(priv.WIF())
-	require.NoError(t, err)
+	acc := wallet.NewAccountFromPrivateKey(priv)
 	t.Run("NoSystemFee", func(t *testing.T) {
 		tx, err := c.CreateTxFromScript([]byte{byte(opcode.PUSH1)}, acc, -1, 10)
 		require.NoError(t, err)
@@ -269,8 +264,7 @@ func TestCreateNEP17TransferTx(t *testing.T) {
 	require.NoError(t, c.Init())
 
 	priv := testchain.PrivateKeyByID(0)
-	acc, err := wallet.NewAccountFromWIF(priv.WIF())
-	require.NoError(t, err)
+	acc := wallet.NewAccountFromPrivateKey(priv)
 
 	gasContractHash, err := c.GetNativeContractHash("gas")
 	require.NoError(t, err)

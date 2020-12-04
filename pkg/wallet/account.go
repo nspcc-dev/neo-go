@@ -90,7 +90,7 @@ func NewAccount() (*Account, error) {
 	if err != nil {
 		return nil, err
 	}
-	return newAccountFromPrivateKey(priv), nil
+	return NewAccountFromPrivateKey(priv), nil
 }
 
 // SignTx signs transaction t and updates it's Witnesses.
@@ -172,7 +172,7 @@ func NewAccountFromWIF(wif string) (*Account, error) {
 	if err != nil {
 		return nil, err
 	}
-	return newAccountFromPrivateKey(privKey), nil
+	return NewAccountFromPrivateKey(privKey), nil
 }
 
 // NewAccountFromEncryptedWIF creates a new Account from the given encrypted WIF.
@@ -182,7 +182,7 @@ func NewAccountFromEncryptedWIF(wif string, pass string) (*Account, error) {
 		return nil, err
 	}
 
-	a := newAccountFromPrivateKey(priv)
+	a := NewAccountFromPrivateKey(priv)
 	a.EncryptedWIF = wif
 
 	return a, nil
@@ -216,8 +216,8 @@ func (a *Account) ConvertMultisig(m int, pubs []*keys.PublicKey) error {
 	return nil
 }
 
-// newAccountFromPrivateKey creates a wallet from the given PrivateKey.
-func newAccountFromPrivateKey(p *keys.PrivateKey) *Account {
+// NewAccountFromPrivateKey creates a wallet from the given PrivateKey.
+func NewAccountFromPrivateKey(p *keys.PrivateKey) *Account {
 	pubKey := p.PublicKey()
 	pubAddr := p.Address()
 	wif := p.WIF()

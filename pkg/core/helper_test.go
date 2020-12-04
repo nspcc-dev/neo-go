@@ -195,8 +195,7 @@ func TestCreateBasicChain(t *testing.T) {
 	priv0 := testchain.PrivateKeyByID(0)
 	priv1 := testchain.PrivateKeyByID(1)
 	priv0ScriptHash := priv0.GetScriptHash()
-	acc0, err := wallet.NewAccountFromWIF(priv0.WIF())
-	require.NoError(t, err)
+	acc0 := wallet.NewAccountFromPrivateKey(priv0)
 
 	// Prepare some transaction for future submission.
 	txSendRaw := newNEP17Transfer(bc.contracts.NEO.Hash, priv0ScriptHash, priv1.GetScriptHash(), int64(util.Fixed8FromInt64(1000)))
@@ -268,8 +267,7 @@ func initBasicChain(t *testing.T, bc *Blockchain) {
 	b.Header().EncodeBinary(buf.BinWriter)
 	t.Logf("header: %s", hex.EncodeToString(buf.Bytes()))
 
-	acc0, err := wallet.NewAccountFromWIF(priv0.WIF())
-	require.NoError(t, err)
+	acc0 := wallet.NewAccountFromPrivateKey(priv0)
 
 	// Push some contract into the chain.
 	txDeploy, cHash := newDeployTx(t, priv0ScriptHash, prefix+"test_contract.go", "Rubl")

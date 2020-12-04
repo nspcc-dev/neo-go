@@ -58,10 +58,7 @@ func (a *accountV2) convert(pass string) (*wallet.Account, error) {
 	}
 
 	address.Prefix = address.NEO3Prefix
-	newAcc, err := wallet.NewAccountFromWIF(priv.WIF())
-	if err != nil {
-		return nil, err
-	}
+	newAcc := wallet.NewAccountFromPrivateKey(priv)
 	if a.Contract != nil {
 		script, err := hex.DecodeString(a.Contract.Script)
 		if err != nil {
