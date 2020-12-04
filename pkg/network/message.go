@@ -159,7 +159,7 @@ func (m *Message) decodePayload() error {
 	case CMDTX:
 		p = &transaction.Transaction{Network: m.Network}
 	case CMDMerkleBlock:
-		p = &payload.MerkleBlock{}
+		p = &payload.MerkleBlock{Network: m.Network}
 	case CMDPing, CMDPong:
 		p = &payload.Ping{}
 	case CMDNotFound:
