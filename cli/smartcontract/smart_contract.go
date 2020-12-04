@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 
@@ -56,7 +57,7 @@ var (
 		Name:  "out",
 		Usage: "file to put JSON transaction to",
 	}
-	forceFlag = cli.StringFlag{
+	forceFlag = cli.BoolFlag{
 		Name:  "force",
 		Usage: "force-push the transaction in case of bad VM state after test script invocation",
 	}
@@ -350,6 +351,7 @@ func initSmartContract(ctx *cli.Context) error {
 	}
 
 	basePath := contractName
+	contractName = path.Base(contractName)
 	fileName := "main.go"
 
 	// create base directory
@@ -500,9 +502,6 @@ func invokeInternal(ctx *cli.Context, signAndPush bool) error {
 	if err != nil {
 		return err
 	}
-	if err = c.Init(); err != nil {
-		return err
-	}
 
 	resp, err = c.InvokeFunction(script, operation, params, cosigners)
 	if err != nil {
@@ -510,7 +509,7 @@ func invokeInternal(ctx *cli.Context, signAndPush bool) error {
 	}
 	if signAndPush && resp.State != "HALT" {
 		errText := fmt.Sprintf("Warning: %s VM state returned from the RPC node: %s\n", resp.State, resp.FaultException)
-		if ctx.String("force") == "" {
+		if !ctx.Bool("force") {
 			return cli.NewExitError(errText+". Use --force flag to send the transaction anyway.", 1)
 		}
 		fmt.Fprintln(ctx.App.Writer, errText+". Sending transaction...")

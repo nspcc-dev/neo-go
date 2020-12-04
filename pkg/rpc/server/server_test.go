@@ -996,8 +996,7 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 		})
 
 		priv0 := testchain.PrivateKeyByID(0)
-		acc0, err := wallet.NewAccountFromWIF(priv0.WIF())
-		require.NoError(t, err)
+		acc0 := wallet.NewAccountFromPrivateKey(priv0)
 
 		addNetworkFee := func(tx *transaction.Transaction) {
 			size := io.GetVarSize(tx)

@@ -295,17 +295,6 @@ func restoreDB(ctx *cli.Context) error {
 	return nil
 }
 
-// readBlock performs reading of block size and then bytes with the length equal to that size.
-func readBlock(reader *io.BinReader) ([]byte, error) {
-	var size = reader.ReadU32LE()
-	bytes := make([]byte, size)
-	reader.ReadBytes(bytes)
-	if reader.Err != nil {
-		return nil, reader.Err
-	}
-	return bytes, nil
-}
-
 func startServer(ctx *cli.Context) error {
 	cfg, err := getConfigFromContext(ctx)
 	if err != nil {

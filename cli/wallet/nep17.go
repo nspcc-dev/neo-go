@@ -158,10 +158,6 @@ func getNEP17Balance(ctx *cli.Context) error {
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
-	err = c.Init()
-	if err != nil {
-		return cli.NewExitError(fmt.Errorf("failed to init RPC client: %w", err), 1)
-	}
 
 	name := ctx.String("token")
 
@@ -366,10 +362,6 @@ func multiTransferNEP17(ctx *cli.Context) error {
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
-	err = c.Init()
-	if err != nil {
-		return cli.NewExitError(fmt.Errorf("failed to init RPC client: %w", err), 1)
-	}
 
 	if ctx.NArg() == 0 {
 		return cli.NewExitError("empty recipients list", 1)
@@ -432,10 +424,6 @@ func transferNEP17(ctx *cli.Context) error {
 	c, err := options.GetRPCClient(gctx, ctx)
 	if err != nil {
 		return cli.NewExitError(err, 1)
-	}
-	err = c.Init()
-	if err != nil {
-		return cli.NewExitError(fmt.Errorf("failed to init RPC client: %w", err), 1)
 	}
 
 	toFlag := ctx.Generic("to").(*flags.Address)

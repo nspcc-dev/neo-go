@@ -132,7 +132,7 @@ func (e *executor) GetTransaction(t *testing.T, h util.Uint256) (*transaction.Tr
 func (e *executor) getNextLine(t *testing.T) string {
 	line, err := e.Out.ReadString('\n')
 	require.NoError(t, err)
-	return line
+	return strings.TrimSuffix(line, "\n")
 }
 
 func (e *executor) checkNextLine(t *testing.T, expected string) {
@@ -184,7 +184,9 @@ func (e *executor) Run(t *testing.T, args ...string) {
 func (e *executor) run(args ...string) error {
 	e.Out.Reset()
 	e.Err.Reset()
-	return e.CLI.Run(args)
+	err := e.CLI.Run(args)
+	e.In.Reset()
+	return err
 }
 
 func (e *executor) checkTxPersisted(t *testing.T, prefix ...string) (*transaction.Transaction, uint32) {

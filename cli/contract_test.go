@@ -16,6 +16,61 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestContractInitAndCompile(t *testing.T) {
+	tmpDir := path.Join(os.TempDir(), "neogo.inittest")
+	require.NoError(t, os.Mkdir(tmpDir, os.ModePerm))
+	defer os.RemoveAll(tmpDir)
+
+	e := newExecutor(t, false)
+	defer e.Close(t)
+
+	t.Run("no path is provided", func(t *testing.T) {
+		e.RunWithError(t, "neo-go", "contract", "init")
+	})
+	t.Run("invalid path", func(t *testing.T) {
+		e.RunWithError(t, "neo-go", "contract", "init", "--name", "\x00")
+	})
+
+	ctrPath := path.Join(tmpDir, "testcontract")
+	e.Run(t, "neo-go", "contract", "init", "--name", ctrPath)
+
+	t.Run("don't rewrite existing directory", func(t *testing.T) {
+		e.RunWithError(t, "neo-go", "contract", "init", "--name", ctrPath)
+	})
+
+	// For proper nef generation.
+	config.Version = "0.90.0-test"
+
+	srcPath := path.Join(ctrPath, "main.go")
+	cfgPath := path.Join(ctrPath, "neo-go.yml")
+	nefPath := path.Join(tmpDir, "testcontract.nef")
+	manifestPath := path.Join(tmpDir, "testcontract.manifest.json")
+	cmd := []string{"neo-go", "contract", "compile"}
+	t.Run("missing source", func(t *testing.T) {
+		e.RunWithError(t, cmd...)
+	})
+
+	cmd = append(cmd, "--in", srcPath, "--out", nefPath, "--manifest", manifestPath)
+	t.Run("missing config, but require manifest", func(t *testing.T) {
+		e.RunWithError(t, cmd...)
+	})
+	t.Run("provided non-existent config", func(t *testing.T) {
+		cfgName := path.Join(ctrPath, "notexists.yml")
+		e.RunWithError(t, append(cmd, "--config", cfgName)...)
+	})
+
+	cmd = append(cmd, "--config", cfgPath)
+	e.Run(t, cmd...)
+	e.checkEOF(t)
+	require.FileExists(t, nefPath)
+	require.FileExists(t, manifestPath)
+
+	t.Run("output hex script with --verbose", func(t *testing.T) {
+		e.Run(t, append(cmd, "--verbose")...)
+		e.checkNextLine(t, "^[0-9a-hA-H]+$")
+	})
+}
+
 func TestComlileAndInvokeFunction(t *testing.T) {
 	e := newExecutor(t, true)
 	defer e.Close(t)
@@ -23,7 +78,10 @@ func TestComlileAndInvokeFunction(t *testing.T) {
 	// For proper nef generation.
 	config.Version = "0.90.0-test"
 
-	tmpDir := os.TempDir()
+	tmpDir := path.Join(os.TempDir(), "neogo.test.compileandinvoke")
+	require.NoError(t, os.Mkdir(tmpDir, os.ModePerm))
+	defer os.RemoveAll(tmpDir)
+
 	nefName := path.Join(tmpDir, "deploy.nef")
 	manifestName := path.Join(tmpDir, "deploy.manifest.json")
 	e.Run(t, "neo-go", "contract", "compile",
@@ -31,10 +89,12 @@ func TestComlileAndInvokeFunction(t *testing.T) {
 		"--config", "testdata/deploy/neo-go.yml",
 		"--out", nefName, "--manifest", manifestName)
 
-	defer func() {
-		os.Remove(nefName)
-		os.Remove(manifestName)
-	}()
+	// Check that it is possible to invoke before deploy.
+	// This doesn't make much sense, because every method has an offset
+	// which is contained in the manifest. This should be either removed or refactored.
+	e.Run(t, "neo-go", "contract", "testinvokescript",
+		"--rpc-endpoint", "http://"+e.RPC.Addr,
+		"--in", nefName, "--", util.Uint160{1, 2, 3}.StringLE())
 
 	e.In.WriteString("one\r")
 	e.Run(t, "neo-go", "contract", "deploy",
@@ -49,16 +109,65 @@ func TestComlileAndInvokeFunction(t *testing.T) {
 	require.NoError(t, err)
 	e.checkTxPersisted(t)
 
-	e.In.WriteString("one\r")
-	e.Run(t, "neo-go", "contract", "testinvokefunction",
-		"--rpc-endpoint", "http://"+e.RPC.Addr,
-		h.StringLE(), "getValue")
+	cmd := []string{"neo-go", "contract", "testinvokefunction",
+		"--rpc-endpoint", "http://" + e.RPC.Addr}
+	t.Run("missing hash", func(t *testing.T) {
+		e.RunWithError(t, cmd...)
+	})
+	t.Run("invalid hash", func(t *testing.T) {
+		e.RunWithError(t, append(cmd, "notahash")...)
+	})
+
+	cmd = append(cmd, h.StringLE())
+	t.Run("missing method", func(t *testing.T) {
+		e.RunWithError(t, cmd...)
+	})
+
+	cmd = append(cmd, "getValue")
+	t.Run("invalid params", func(t *testing.T) {
+		e.RunWithError(t, append(cmd, "[")...)
+	})
+	t.Run("invalid cosigner", func(t *testing.T) {
+		e.RunWithError(t, append(cmd, "--", "notahash")...)
+	})
+	t.Run("missing RPC address", func(t *testing.T) {
+		e.RunWithError(t, "neo-go", "contract", "testinvokefunction",
+			h.StringLE(), "getValue")
+	})
+
+	e.Run(t, cmd...)
 
 	res := new(result.Invoke)
 	require.NoError(t, json.Unmarshal(e.Out.Bytes(), res))
 	require.Equal(t, vm.HaltState.String(), res.State, res.FaultException)
 	require.Len(t, res.Stack, 1)
 	require.Equal(t, []byte("on create|sub create"), res.Stack[0].Value())
+
+	t.Run("real invoke", func(t *testing.T) {
+		cmd := []string{"neo-go", "contract", "invokefunction",
+			"--rpc-endpoint", "http://" + e.RPC.Addr}
+		t.Run("missing wallet", func(t *testing.T) {
+			cmd := append(cmd, h.StringLE(), "getValue")
+			e.RunWithError(t, cmd...)
+		})
+		t.Run("non-existent wallet", func(t *testing.T) {
+			cmd := append(cmd, "--wallet", path.Join(tmpDir, "not.exists"),
+				h.StringLE(), "getValue")
+			e.RunWithError(t, cmd...)
+		})
+
+		cmd = append(cmd, "--wallet", validatorWallet, "--address", validatorAddr)
+		e.In.WriteString("one\r")
+		e.Run(t, append(cmd, h.StringLE(), "getValue")...)
+
+		t.Run("failind method", func(t *testing.T) {
+			e.In.WriteString("one\r")
+			e.RunWithError(t, append(cmd, h.StringLE(), "fail")...)
+
+			e.In.WriteString("one\r")
+			e.Run(t, append(cmd, "--force", h.StringLE(), "fail")...)
+		})
+	})
 
 	t.Run("Update", func(t *testing.T) {
 		nefName := path.Join(tmpDir, "updated.nef")
@@ -98,6 +207,42 @@ func TestComlileAndInvokeFunction(t *testing.T) {
 		require.Equal(t, vm.HaltState.String(), res.State)
 		require.Len(t, res.Stack, 1)
 		require.Equal(t, []byte("on update|sub update"), res.Stack[0].Value())
+	})
+}
+
+func TestContractInspect(t *testing.T) {
+	e := newExecutor(t, false)
+	defer e.Close(t)
+
+	// For proper nef generation.
+	config.Version = "0.90.0-test"
+	const srcPath = "testdata/deploy/main.go"
+
+	tmpDir := path.Join(os.TempDir(), "neogo.test.contract.inspect")
+	require.NoError(t, os.Mkdir(tmpDir, os.ModePerm))
+	defer os.RemoveAll(tmpDir)
+
+	nefName := path.Join(tmpDir, "deploy.nef")
+	manifestName := path.Join(tmpDir, "deploy.manifest.json")
+	e.Run(t, "neo-go", "contract", "compile",
+		"--in", srcPath,
+		"--config", "testdata/deploy/neo-go.yml",
+		"--out", nefName, "--manifest", manifestName)
+
+	cmd := []string{"neo-go", "contract", "inspect"}
+	t.Run("missing input", func(t *testing.T) {
+		e.RunWithError(t, cmd...)
+	})
+	t.Run("with raw '.go'", func(t *testing.T) {
+		e.RunWithError(t, append(cmd, "--in", srcPath)...)
+		e.Run(t, append(cmd, "--in", srcPath, "--compile")...)
+		require.True(t, strings.Contains(e.Out.String(), "SYSCALL"))
+	})
+	t.Run("with nef", func(t *testing.T) {
+		e.RunWithError(t, append(cmd, "--in", nefName, "--compile")...)
+		e.RunWithError(t, append(cmd, "--in", path.Join(tmpDir, "not.exists"))...)
+		e.Run(t, append(cmd, "--in", nefName)...)
+		require.True(t, strings.Contains(e.Out.String(), "SYSCALL"))
 	})
 }
 
