@@ -56,7 +56,7 @@ var (
 		Name:  "out",
 		Usage: "file to put JSON transaction to",
 	}
-	forceFlag = cli.StringFlag{
+	forceFlag = cli.BoolFlag{
 		Name:  "force",
 		Usage: "force-push the transaction in case of bad VM state after test script invocation",
 	}
@@ -507,7 +507,7 @@ func invokeInternal(ctx *cli.Context, signAndPush bool) error {
 	}
 	if signAndPush && resp.State != "HALT" {
 		errText := fmt.Sprintf("Warning: %s VM state returned from the RPC node: %s\n", resp.State, resp.FaultException)
-		if ctx.String("force") == "" {
+		if !ctx.Bool("force") {
 			return cli.NewExitError(errText+". Use --force flag to send the transaction anyway.", 1)
 		}
 		fmt.Fprintln(ctx.App.Writer, errText+". Sending transaction...")
