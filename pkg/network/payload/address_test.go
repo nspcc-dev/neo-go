@@ -72,3 +72,22 @@ func TestEncodeDecodeBadAddressList(t *testing.T) {
 	err = testserdes.DecodeBinary(bin, newAL)
 	require.Error(t, err)
 }
+
+func TestGetTCPAddress(t *testing.T) {
+	t.Run("bad, no capability", func(t *testing.T) {
+		p := &AddressAndTime{}
+		copy(p.IP[:], net.IPv4(1, 1, 1, 1))
+		p.Capabilities = append(p.Capabilities, capability.Capability{
+			Type: capability.TCPServer,
+			Data: &capability.Server{Port: 123},
+		})
+		s, err := p.GetTCPAddress()
+		require.NoError(t, err)
+		require.Equal(t, "1.1.1.1:123", s)
+	})
+	t.Run("bad, no capability", func(t *testing.T) {
+		p := &AddressAndTime{}
+		s, err := p.GetTCPAddress()
+		fmt.Println(s, err)
+	})
+}

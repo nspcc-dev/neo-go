@@ -159,7 +159,7 @@ func (m *Message) decodePayload() error {
 	case CMDTX:
 		p = &transaction.Transaction{Network: m.Network}
 	case CMDMerkleBlock:
-		p = &payload.MerkleBlock{}
+		p = &payload.MerkleBlock{Network: m.Network}
 	case CMDPing, CMDPong:
 		p = &payload.Ping{}
 	case CMDNotFound:
@@ -195,9 +195,6 @@ func (m *Message) Bytes() ([]byte, error) {
 	w := io.NewBufBinWriter()
 	if err := m.Encode(w.BinWriter); err != nil {
 		return nil, err
-	}
-	if w.Err != nil {
-		return nil, w.Err
 	}
 	return w.Bytes(), nil
 }
