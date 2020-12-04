@@ -248,9 +248,6 @@ func (m *Message) Bytes() ([]byte, error) {
 	if err := m.Encode(w.BinWriter); err != nil {
 		return nil, err
 	}
-	if w.Err != nil {
-		return nil, w.Err
-	}
 	return w.Bytes(), nil
 }
 
