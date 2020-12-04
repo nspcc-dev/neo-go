@@ -132,7 +132,7 @@ func (e *executor) GetTransaction(t *testing.T, h util.Uint256) (*transaction.Tr
 func (e *executor) getNextLine(t *testing.T) string {
 	line, err := e.Out.ReadString('\n')
 	require.NoError(t, err)
-	return line
+	return strings.TrimSuffix(line, "\n")
 }
 
 func (e *executor) checkNextLine(t *testing.T, expected string) {
