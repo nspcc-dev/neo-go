@@ -10,7 +10,7 @@ import (
 )
 
 func TestBlockQueue(t *testing.T) {
-	chain := &testChain{}
+	chain := newTestChain()
 	// notice, it's not yet running
 	bq := newBlockQueue(0, chain, zaptest.NewLogger(t), nil)
 	blocks := make([]*block.Block, 11)

@@ -128,10 +128,10 @@ func TestEncodeDecodeAddr(t *testing.T) {
 
 func TestEncodeDecodeBlock(t *testing.T) {
 	t.Run("good", func(t *testing.T) {
-		testEncodeDecode(t, CMDBlock, newDummyBlock(1))
+		testEncodeDecode(t, CMDBlock, newDummyBlock(12, 1))
 	})
 	t.Run("invalid state root enabled setting", func(t *testing.T) {
-		expected := NewMessage(CMDBlock, newDummyBlock(1))
+		expected := NewMessage(CMDBlock, newDummyBlock(31, 1))
 		expected.Network = netmode.UnitTestNet
 		data, err := testserdes.Encode(expected)
 		require.NoError(t, err)
@@ -270,7 +270,7 @@ func TestInvalidMessages(t *testing.T) {
 		require.NoError(t, err)
 	})
 	t.Run("trimmed payload", func(t *testing.T) {
-		m := NewMessage(CMDBlock, newDummyBlock(0))
+		m := NewMessage(CMDBlock, newDummyBlock(1, 0))
 		data, err := testserdes.Encode(m)
 		require.NoError(t, err)
 		data = data[:len(data)-1]
@@ -288,8 +288,9 @@ func (f failSer) EncodeBinary(r *io.BinWriter) {
 
 func (failSer) DecodeBinary(w *io.BinReader) {}
 
-func newDummyBlock(txCount int) *block.Block {
+func newDummyBlock(height uint32, txCount int) *block.Block {
 	b := block.New(netmode.UnitTestNet, false)
+	b.Index = height
 	b.PrevHash = random.Uint256()
 	b.Timestamp = rand.Uint64()
 	b.Script.InvocationScript = random.Bytes(2)
@@ -303,7 +304,7 @@ func newDummyBlock(txCount int) *block.Block {
 }
 
 func newDummyTx() *transaction.Transaction {
-	tx := transaction.New(netmode.UnitTestNet, random.Bytes(100), int64(rand.Uint64()>>1))
+	tx := transaction.New(netmode.UnitTestNet, random.Bytes(100), 123)
 	tx.Signers = []transaction.Signer{{Account: random.Uint160()}}
 	tx.Size()
 	tx.Hash()

@@ -1,14 +1,17 @@
 package network
 
 import (
+	"errors"
+	"fmt"
 	"math/big"
-	"math/rand"
 	"net"
-	"strconv"
+	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
+	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/mempool"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
@@ -21,45 +24,76 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/zap/zaptest"
 )
 
 type testChain struct {
+	config.ProtocolConfiguration
+	*mempool.Pool
+	blocksCh    []chan<- *block.Block
 	blockheight uint32
+	poolTx      func(*transaction.Transaction) error
+	blocks      map[util.Uint256]*block.Block
+	hdrHashes   map[uint32]util.Uint256
+	txs         map[util.Uint256]*transaction.Transaction
 }
 
-func (chain testChain) ApplyPolicyToTxSet([]*transaction.Transaction) []*transaction.Transaction {
+func newTestChain() *testChain {
+	return &testChain{
+		Pool:      mempool.New(10),
+		poolTx:    func(*transaction.Transaction) error { return nil },
+		blocks:    make(map[util.Uint256]*block.Block),
+		hdrHashes: make(map[uint32]util.Uint256),
+		txs:       make(map[util.Uint256]*transaction.Transaction),
+	}
+}
+
+func (chain *testChain) putBlock(b *block.Block) {
+	chain.blocks[b.Hash()] = b
+	chain.hdrHashes[b.Index] = b.Hash()
+	atomic.StoreUint32(&chain.blockheight, b.Index)
+}
+func (chain *testChain) putHeader(b *block.Block) {
+	chain.hdrHashes[b.Index] = b.Hash()
+}
+
+func (chain *testChain) putTx(tx *transaction.Transaction) {
+	chain.txs[tx.Hash()] = tx
+}
+
+func (chain *testChain) ApplyPolicyToTxSet([]*transaction.Transaction) []*transaction.Transaction {
 	panic("TODO")
 }
-func (chain testChain) GetConfig() config.ProtocolConfiguration {
-	panic("TODO")
+func (chain *testChain) GetConfig() config.ProtocolConfiguration {
+	return chain.ProtocolConfiguration
 }
-func (chain testChain) CalculateClaimable(util.Uint160, uint32) (*big.Int, error) {
+func (chain *testChain) CalculateClaimable(util.Uint160, uint32) (*big.Int, error) {
 	panic("TODO")
 }
 
-func (chain testChain) FeePerByte() int64 {
+func (chain *testChain) FeePerByte() int64 {
 	panic("TODO")
 }
 
-func (chain testChain) P2PSigExtensionsEnabled() bool {
+func (chain *testChain) P2PSigExtensionsEnabled() bool {
 	return false
 }
 
-func (chain testChain) GetMaxBlockSystemFee() int64 {
+func (chain *testChain) GetMaxBlockSystemFee() int64 {
 	panic("TODO")
 }
 
-func (chain testChain) GetMaxBlockSize() uint32 {
+func (chain *testChain) GetMaxBlockSize() uint32 {
 	panic("TODO")
 }
 
-func (chain testChain) AddHeaders(...*block.Header) error {
+func (chain *testChain) AddHeaders(...*block.Header) error {
 	panic("TODO")
 }
 func (chain *testChain) AddBlock(block *block.Block) error {
-	if block.Index == chain.blockheight+1 {
-		atomic.StoreUint32(&chain.blockheight, block.Index)
+	if block.Index == atomic.LoadUint32(&chain.blockheight)+1 {
+		chain.putBlock(block)
 	}
 	return nil
 }
@@ -72,148 +106,200 @@ func (chain *testChain) BlockHeight() uint32 {
 func (chain *testChain) Close() {
 	panic("TODO")
 }
-func (chain testChain) HeaderHeight() uint32 {
-	return 0
+func (chain *testChain) HeaderHeight() uint32 {
+	return atomic.LoadUint32(&chain.blockheight)
 }
-func (chain testChain) GetAppExecResults(hash util.Uint256, trig trigger.Type) ([]state.AppExecResult, error) {
+func (chain *testChain) GetAppExecResults(hash util.Uint256, trig trigger.Type) ([]state.AppExecResult, error) {
 	panic("TODO")
 }
-func (chain testChain) GetBlock(hash util.Uint256) (*block.Block, error) {
+func (chain *testChain) GetBlock(hash util.Uint256) (*block.Block, error) {
+	if b, ok := chain.blocks[hash]; ok {
+		return b, nil
+	}
+	return nil, errors.New("not found")
+}
+func (chain *testChain) GetCommittee() (keys.PublicKeys, error) {
 	panic("TODO")
 }
-func (chain testChain) GetCommittee() (keys.PublicKeys, error) {
+func (chain *testChain) GetContractState(hash util.Uint160) *state.Contract {
 	panic("TODO")
 }
-func (chain testChain) GetContractState(hash util.Uint160) *state.Contract {
+func (chain *testChain) GetContractScriptHash(id int32) (util.Uint160, error) {
 	panic("TODO")
 }
-func (chain testChain) GetContractScriptHash(id int32) (util.Uint160, error) {
+func (chain *testChain) GetNativeContractScriptHash(name string) (util.Uint160, error) {
 	panic("TODO")
 }
-func (chain testChain) GetNativeContractScriptHash(name string) (util.Uint160, error) {
+func (chain *testChain) GetHeaderHash(n int) util.Uint256 {
+	return chain.hdrHashes[uint32(n)]
+}
+func (chain *testChain) GetHeader(hash util.Uint256) (*block.Header, error) {
+	b, err := chain.GetBlock(hash)
+	if err != nil {
+		return nil, err
+	}
+	return b.Header(), nil
+}
+
+func (chain *testChain) GetNextBlockValidators() ([]*keys.PublicKey, error) {
 	panic("TODO")
 }
-func (chain testChain) GetHeaderHash(int) util.Uint256 {
+func (chain *testChain) ForEachNEP17Transfer(util.Uint160, func(*state.NEP17Transfer) (bool, error)) error {
+	panic("TODO")
+}
+func (chain *testChain) GetNEP17Balances(util.Uint160) *state.NEP17Balances {
+	panic("TODO")
+}
+func (chain *testChain) GetValidators() ([]*keys.PublicKey, error) {
+	panic("TODO")
+}
+func (chain *testChain) GetStandByCommittee() keys.PublicKeys {
+	panic("TODO")
+}
+func (chain *testChain) GetStandByValidators() keys.PublicKeys {
+	panic("TODO")
+}
+func (chain *testChain) GetEnrollments() ([]state.Validator, error) {
+	panic("TODO")
+}
+func (chain *testChain) GetStateProof(util.Uint256, []byte) ([][]byte, error) {
+	panic("TODO")
+}
+func (chain *testChain) GetStateRoot(height uint32) (*state.MPTRootState, error) {
+	panic("TODO")
+}
+func (chain *testChain) GetStorageItem(id int32, key []byte) *state.StorageItem {
+	panic("TODO")
+}
+func (chain *testChain) GetTestVM(tx *transaction.Transaction, b *block.Block) *vm.VM {
+	panic("TODO")
+}
+func (chain *testChain) GetStorageItems(id int32) (map[string]*state.StorageItem, error) {
+	panic("TODO")
+}
+func (chain *testChain) CurrentHeaderHash() util.Uint256 {
 	return util.Uint256{}
 }
-func (chain testChain) GetHeader(hash util.Uint256) (*block.Header, error) {
-	panic("TODO")
-}
-
-func (chain testChain) GetNextBlockValidators() ([]*keys.PublicKey, error) {
-	panic("TODO")
-}
-func (chain testChain) ForEachNEP17Transfer(util.Uint160, func(*state.NEP17Transfer) (bool, error)) error {
-	panic("TODO")
-}
-func (chain testChain) GetNEP17Balances(util.Uint160) *state.NEP17Balances {
-	panic("TODO")
-}
-func (chain testChain) GetValidators() ([]*keys.PublicKey, error) {
-	panic("TODO")
-}
-func (chain testChain) GetStandByCommittee() keys.PublicKeys {
-	panic("TODO")
-}
-func (chain testChain) GetStandByValidators() keys.PublicKeys {
-	panic("TODO")
-}
-func (chain testChain) GetEnrollments() ([]state.Validator, error) {
-	panic("TODO")
-}
-func (chain testChain) GetStateProof(util.Uint256, []byte) ([][]byte, error) {
-	panic("TODO")
-}
-func (chain testChain) GetStateRoot(height uint32) (*state.MPTRootState, error) {
-	panic("TODO")
-}
-func (chain testChain) GetStorageItem(id int32, key []byte) *state.StorageItem {
-	panic("TODO")
-}
-func (chain testChain) GetTestVM(tx *transaction.Transaction, b *block.Block) *vm.VM {
-	panic("TODO")
-}
-func (chain testChain) GetStorageItems(id int32) (map[string]*state.StorageItem, error) {
-	panic("TODO")
-}
-func (chain testChain) CurrentHeaderHash() util.Uint256 {
+func (chain *testChain) CurrentBlockHash() util.Uint256 {
 	return util.Uint256{}
 }
-func (chain testChain) CurrentBlockHash() util.Uint256 {
-	return util.Uint256{}
+func (chain *testChain) HasBlock(h util.Uint256) bool {
+	_, ok := chain.blocks[h]
+	return ok
 }
-func (chain testChain) HasBlock(util.Uint256) bool {
-	return false
+func (chain *testChain) HasTransaction(h util.Uint256) bool {
+	_, ok := chain.txs[h]
+	return ok
 }
-func (chain testChain) HasTransaction(util.Uint256) bool {
-	return false
+func (chain *testChain) GetTransaction(h util.Uint256) (*transaction.Transaction, uint32, error) {
+	if tx, ok := chain.txs[h]; ok {
+		return tx, 1, nil
+	}
+	return nil, 0, errors.New("not found")
 }
-func (chain testChain) GetTransaction(util.Uint256) (*transaction.Transaction, uint32, error) {
+
+func (chain *testChain) GetMemPool() *mempool.Pool {
+	return chain.Pool
+}
+
+func (chain *testChain) GetGoverningTokenBalance(acc util.Uint160) (*big.Int, uint32) {
 	panic("TODO")
 }
 
-func (chain testChain) GetMemPool() *mempool.Pool {
+func (chain *testChain) GetUtilityTokenBalance(uint160 util.Uint160) *big.Int {
 	panic("TODO")
 }
 
-func (chain testChain) GetGoverningTokenBalance(acc util.Uint160) (*big.Int, uint32) {
+func (chain *testChain) PoolTx(tx *transaction.Transaction, _ ...*mempool.Pool) error {
+	return chain.poolTx(tx)
+}
+
+func (chain *testChain) SubscribeForBlocks(ch chan<- *block.Block) {
+	chain.blocksCh = append(chain.blocksCh, ch)
+}
+func (chain *testChain) SubscribeForExecutions(ch chan<- *state.AppExecResult) {
+	panic("TODO")
+}
+func (chain *testChain) SubscribeForNotifications(ch chan<- *state.NotificationEvent) {
+	panic("TODO")
+}
+func (chain *testChain) SubscribeForTransactions(ch chan<- *transaction.Transaction) {
 	panic("TODO")
 }
 
-func (chain testChain) GetUtilityTokenBalance(uint160 util.Uint160) *big.Int {
+func (chain *testChain) VerifyTx(*transaction.Transaction) error {
+	panic("TODO")
+}
+func (*testChain) VerifyWitness(util.Uint160, crypto.Verifiable, *transaction.Witness, int64) error {
 	panic("TODO")
 }
 
-func (chain testChain) PoolTx(*transaction.Transaction, ...*mempool.Pool) error {
+func (chain *testChain) UnsubscribeFromBlocks(ch chan<- *block.Block) {
+	for i, c := range chain.blocksCh {
+		if c == ch {
+			if i < len(chain.blocksCh) {
+				copy(chain.blocksCh[i:], chain.blocksCh[i+1:])
+			}
+			chain.blocksCh = chain.blocksCh[:len(chain.blocksCh)]
+		}
+	}
+}
+func (chain *testChain) UnsubscribeFromExecutions(ch chan<- *state.AppExecResult) {
+	panic("TODO")
+}
+func (chain *testChain) UnsubscribeFromNotifications(ch chan<- *state.NotificationEvent) {
+	panic("TODO")
+}
+func (chain *testChain) UnsubscribeFromTransactions(ch chan<- *transaction.Transaction) {
 	panic("TODO")
 }
 
-func (chain testChain) SubscribeForBlocks(ch chan<- *block.Block) {
-	panic("TODO")
-}
-func (chain testChain) SubscribeForExecutions(ch chan<- *state.AppExecResult) {
-	panic("TODO")
-}
-func (chain testChain) SubscribeForNotifications(ch chan<- *state.NotificationEvent) {
-	panic("TODO")
-}
-func (chain testChain) SubscribeForTransactions(ch chan<- *transaction.Transaction) {
-	panic("TODO")
+type testDiscovery struct {
+	sync.Mutex
+	bad          []string
+	good         []string
+	connected    []string
+	unregistered []string
+	backfill     []string
 }
 
-func (chain testChain) VerifyTx(*transaction.Transaction) error {
-	panic("TODO")
-}
-func (testChain) VerifyWitness(util.Uint160, crypto.Verifiable, *transaction.Witness, int64) error {
-	panic("TODO")
-}
+func newTestDiscovery([]string, time.Duration, Transporter) Discoverer { return new(testDiscovery) }
 
-func (chain testChain) UnsubscribeFromBlocks(ch chan<- *block.Block) {
-	panic("TODO")
+func (d *testDiscovery) BackFill(addrs ...string) {
+	d.Lock()
+	defer d.Unlock()
+	d.backfill = append(d.backfill, addrs...)
 }
-func (chain testChain) UnsubscribeFromExecutions(ch chan<- *state.AppExecResult) {
-	panic("TODO")
+func (d *testDiscovery) Close()         {}
+func (d *testDiscovery) PoolCount() int { return 0 }
+func (d *testDiscovery) RegisterBadAddr(addr string) {
+	d.Lock()
+	defer d.Unlock()
+	d.bad = append(d.bad, addr)
 }
-func (chain testChain) UnsubscribeFromNotifications(ch chan<- *state.NotificationEvent) {
-	panic("TODO")
+func (d *testDiscovery) RegisterGoodAddr(string, capability.Capabilities) {}
+func (d *testDiscovery) RegisterConnectedAddr(addr string) {
+	d.Lock()
+	defer d.Unlock()
+	d.connected = append(d.connected, addr)
 }
-func (chain testChain) UnsubscribeFromTransactions(ch chan<- *transaction.Transaction) {
-	panic("TODO")
+func (d *testDiscovery) UnregisterConnectedAddr(addr string) {
+	d.Lock()
+	defer d.Unlock()
+	d.unregistered = append(d.unregistered, addr)
 }
-
-type testDiscovery struct{}
-
-func (d testDiscovery) BackFill(addrs ...string)                         {}
-func (d testDiscovery) Close()                                           {}
-func (d testDiscovery) PoolCount() int                                   { return 0 }
-func (d testDiscovery) RegisterBadAddr(string)                           {}
-func (d testDiscovery) RegisterGoodAddr(string, capability.Capabilities) {}
-func (d testDiscovery) RegisterConnectedAddr(string)                     {}
-func (d testDiscovery) UnregisterConnectedAddr(string)                   {}
-func (d testDiscovery) UnconnectedPeers() []string                       { return []string{} }
-func (d testDiscovery) RequestRemote(n int)                              {}
-func (d testDiscovery) BadPeers() []string                               { return []string{} }
-func (d testDiscovery) GoodPeers() []AddressWithCapabilities             { return []AddressWithCapabilities{} }
+func (d *testDiscovery) UnconnectedPeers() []string {
+	d.Lock()
+	defer d.Unlock()
+	return d.unregistered
+}
+func (d *testDiscovery) RequestRemote(n int) {}
+func (d *testDiscovery) BadPeers() []string {
+	d.Lock()
+	defer d.Unlock()
+	return d.bad
+}
+func (d *testDiscovery) GoodPeers() []AddressWithCapabilities { return []AddressWithCapabilities{} }
 
 var defaultMessageHandler = func(t *testing.T, msg *Message) {}
 
@@ -228,6 +314,7 @@ type localPeer struct {
 	messageHandler func(t *testing.T, msg *Message)
 	pingSent       int
 	getAddrSent    int
+	droppedWith    atomic.Value
 }
 
 func newLocalPeer(t *testing.T, s *Server) *localPeer {
@@ -246,8 +333,14 @@ func (p *localPeer) RemoteAddr() net.Addr {
 func (p *localPeer) PeerAddr() net.Addr {
 	return &p.netaddr
 }
-func (p *localPeer) StartProtocol()       {}
-func (p *localPeer) Disconnect(err error) {}
+func (p *localPeer) StartProtocol() {}
+func (p *localPeer) Disconnect(err error) {
+	if p.droppedWith.Load() == nil {
+		p.droppedWith.Store(err)
+	}
+	fmt.Println("peer dropped:", err)
+	p.server.unregister <- peerDrop{p, err}
+}
 
 func (p *localPeer) EnqueueMessage(msg *Message) error {
 	b, err := msg.Bytes()
@@ -266,7 +359,7 @@ func (p *localPeer) EnqueueP2PPacket(m []byte) error {
 	return p.EnqueueHPPacket(m)
 }
 func (p *localPeer) EnqueueHPPacket(m []byte) error {
-	msg := &Message{}
+	msg := &Message{Network: netmode.UnitTestNet}
 	r := io.NewBinReaderFromBuf(m)
 	err := msg.Decode(r)
 	if err == nil {
@@ -333,17 +426,8 @@ func (p *localPeer) CanProcessAddr() bool {
 }
 
 func newTestServer(t *testing.T, serverConfig ServerConfig) *Server {
-	s := &Server{
-		ServerConfig: serverConfig,
-		chain:        &testChain{},
-		discovery:    testDiscovery{},
-		id:           rand.Uint32(),
-		quit:         make(chan struct{}),
-		register:     make(chan Peer),
-		unregister:   make(chan peerDrop),
-		peers:        make(map[Peer]bool),
-		log:          zaptest.NewLogger(t),
-	}
-	s.transport = NewTCPTransport(s, net.JoinHostPort(s.ServerConfig.Address, strconv.Itoa(int(s.ServerConfig.Port))), s.log)
+	s, err := newServerFromConstructors(serverConfig, newTestChain(), zaptest.NewLogger(t),
+		newFakeTransp, newFakeConsensus, newTestDiscovery)
+	require.NoError(t, err)
 	return s
 }

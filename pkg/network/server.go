@@ -96,6 +96,16 @@ func randomID() uint32 {
 
 // NewServer returns a new Server, initialized with the given configuration.
 func NewServer(config ServerConfig, chain blockchainer.Blockchainer, log *zap.Logger) (*Server, error) {
+	return newServerFromConstructors(config, chain, log, func(s *Server) Transporter {
+		return NewTCPTransport(s, net.JoinHostPort(s.ServerConfig.Address, strconv.Itoa(int(s.ServerConfig.Port))), s.log)
+	}, consensus.NewService, newDefaultDiscovery)
+}
+
+func newServerFromConstructors(config ServerConfig, chain blockchainer.Blockchainer, log *zap.Logger,
+	newTransport func(*Server) Transporter,
+	newConsensus func(consensus.Config) (consensus.Service, error),
+	newDiscovery func([]string, time.Duration, Transporter) Discoverer,
+) (*Server, error) {
 	if log == nil {
 		return nil, errors.New("logger is a required parameter")
 	}
@@ -120,7 +130,7 @@ func NewServer(config ServerConfig, chain blockchainer.Blockchainer, log *zap.Lo
 		}
 	})
 
-	srv, err := consensus.NewService(consensus.Config{
+	srv, err := newConsensus(consensus.Config{
 		Logger:    log,
 		Broadcast: s.handleNewPayload,
 		Chain:     chain,
@@ -156,8 +166,8 @@ func NewServer(config ServerConfig, chain blockchainer.Blockchainer, log *zap.Lo
 		s.AttemptConnPeers = defaultAttemptConnPeers
 	}
 
-	s.transport = NewTCPTransport(s, net.JoinHostPort(config.Address, strconv.Itoa(int(config.Port))), s.log)
-	s.discovery = NewDefaultDiscovery(
+	s.transport = newTransport(s)
+	s.discovery = newDiscovery(
 		s.Seeds,
 		s.DialTimeout,
 		s.transport,

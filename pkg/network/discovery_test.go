@@ -2,6 +2,7 @@ package network
 
 import (
 	"errors"
+	"net"
 	"sort"
 	"sync/atomic"
 	"testing"
@@ -10,11 +11,19 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/network/capability"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	atomic2 "go.uber.org/atomic"
 )
 
 type fakeTransp struct {
 	retFalse int32
+	started  atomic2.Bool
+	closed   atomic2.Bool
 	dialCh   chan string
+	addr     string
+}
+
+func newFakeTransp(s *Server) Transporter {
+	return &fakeTransp{}
 }
 
 func (ft *fakeTransp) Dial(addr string, timeout time.Duration) error {
@@ -26,14 +35,23 @@ func (ft *fakeTransp) Dial(addr string, timeout time.Duration) error {
 	return nil
 }
 func (ft *fakeTransp) Accept() {
+	if ft.started.Load() {
+		panic("started twice")
+	}
+	ft.addr = net.JoinHostPort("0.0.0.0", "42")
+	ft.started.Store(true)
 }
 func (ft *fakeTransp) Proto() string {
 	return ""
 }
 func (ft *fakeTransp) Address() string {
-	return ""
+	return ft.addr
 }
 func (ft *fakeTransp) Close() {
+	if ft.closed.Load() {
+		panic("closed twice")
+	}
+	ft.closed.Store(true)
 }
 func TestDefaultDiscoverer(t *testing.T) {
 	ts := &fakeTransp{}
