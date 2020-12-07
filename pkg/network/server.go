@@ -887,11 +887,14 @@ func (s *Server) requestTx(hashes ...util.Uint256) {
 		return
 	}
 
-	for i := 0; i < len(hashes)/payload.MaxHashesCount; i++ {
+	for i := 0; i <= len(hashes)/payload.MaxHashesCount; i++ {
 		start := i * payload.MaxHashesCount
 		stop := (i + 1) * payload.MaxHashesCount
-		if stop < len(hashes) {
+		if stop > len(hashes) {
 			stop = len(hashes)
+		}
+		if start == stop {
+			break
 		}
 		msg := s.MkMsg(CMDGetData, payload.NewInventory(payload.TXType, hashes[start:stop]))
 		// It's high priority because it directly affects consensus process,
