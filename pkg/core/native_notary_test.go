@@ -1,6 +1,7 @@
 package core
 
 import (
+	"math"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/internal/testchain"
@@ -24,7 +25,7 @@ func TestNotaryContractPipeline(t *testing.T) {
 
 	notaryHash := chain.contracts.Notary.Hash
 	gasHash := chain.contracts.GAS.Hash
-	depositLock := 30
+	depositLock := 100
 
 	// check Notary contract has no GAS on the account
 	checkBalanceOf(t, chain, notaryHash, 0)
@@ -217,6 +218,28 @@ func TestNotaryContractPipeline(t *testing.T) {
 	withdrawRes, err = invokeContractMethod(chain, 100000000, notaryHash, "withdraw", testchain.MultisigScriptHash(), testchain.MultisigScriptHash())
 	require.NoError(t, err)
 	checkResult(t, withdrawRes, stackitem.NewBool(false))
+
+	// `onPayment`: good first deposit to other account, should set default `till` even if other `till` value is provided
+	transferTx = transferTokenFromMultisigAccount(t, chain, notaryHash, gasHash, 2*transaction.NotaryServiceFeePerKey, acc.PrivateKey().PublicKey().GetScriptHash(), int64(math.MaxUint32-1))
+	res, err = chain.GetAppExecResults(transferTx.Hash(), trigger.Application)
+	require.NoError(t, err)
+	require.Equal(t, vm.HaltState, res[0].VMState)
+	require.Equal(t, 0, len(res[0].Stack))
+	checkBalanceOf(t, chain, notaryHash, 2*transaction.NotaryServiceFeePerKey)
+	till, err = invokeContractMethod(chain, 100000000, notaryHash, "expirationOf", acc.PrivateKey().PublicKey().GetScriptHash())
+	require.NoError(t, err)
+	checkResult(t, till, stackitem.Make(5760+chain.BlockHeight()-2))
+
+	// `onPayment`: good second deposit to other account, shouldn't update `till` even if other `till` value is provided
+	transferTx = transferTokenFromMultisigAccount(t, chain, notaryHash, gasHash, 2*transaction.NotaryServiceFeePerKey, acc.PrivateKey().PublicKey().GetScriptHash(), int64(math.MaxUint32-1))
+	res, err = chain.GetAppExecResults(transferTx.Hash(), trigger.Application)
+	require.NoError(t, err)
+	require.Equal(t, vm.HaltState, res[0].VMState)
+	require.Equal(t, 0, len(res[0].Stack))
+	checkBalanceOf(t, chain, notaryHash, 4*transaction.NotaryServiceFeePerKey)
+	till, err = invokeContractMethod(chain, 100000000, notaryHash, "expirationOf", acc.PrivateKey().PublicKey().GetScriptHash())
+	require.NoError(t, err)
+	checkResult(t, till, stackitem.Make(5760+chain.BlockHeight()-4))
 }
 
 func TestNotaryNodesReward(t *testing.T) {

@@ -33,7 +33,8 @@ const (
 	notaryContractID = reservedContractID - 1
 
 	// prefixDeposit is a prefix for storing Notary deposits.
-	prefixDeposit = 1
+	prefixDeposit           = 1
+	defaultDepositDeltaTill = 5760
 )
 
 // newNotary returns Notary native contract.
@@ -158,13 +159,17 @@ func (n *Notary) onPayment(ic *interop.Context, args []stackitem.Item) stackitem
 	if !additionalParams[0].Equals(stackitem.Null{}) {
 		to = toUint160(additionalParams[0])
 	}
-	till := toUint32(additionalParams[1])
+
+	allowedChangeTill := ic.Tx.Sender() == to
 	currentHeight := ic.Chain.BlockHeight()
+	deposit := n.getDepositFor(ic.DAO, to)
+	till := toUint32(additionalParams[1])
 	if till < currentHeight {
 		panic(fmt.Errorf("`till` shouldn't be less then the chain's height %d", currentHeight))
 	}
-
-	deposit := n.getDepositFor(ic.DAO, to)
+	if deposit != nil && till < deposit.Till {
+		panic(fmt.Errorf("`till` shouldn't be less then the previous value %d", deposit.Till))
+	}
 	if deposit == nil {
 		if amount.Cmp(big.NewInt(2*transaction.NotaryServiceFeePerKey)) < 0 {
 			panic(fmt.Errorf("first deposit can not be less then %d, got %d", 2*transaction.NotaryServiceFeePerKey, amount.Int64()))
@@ -172,10 +177,11 @@ func (n *Notary) onPayment(ic *interop.Context, args []stackitem.Item) stackitem
 		deposit = &state.Deposit{
 			Amount: new(big.Int),
 		}
-	} else {
-		if till < deposit.Till {
-			panic(fmt.Errorf("`till` shouldn't be less then the previous value %d", deposit.Till))
+		if !allowedChangeTill {
+			till = currentHeight + defaultDepositDeltaTill
 		}
+	} else if !allowedChangeTill { // only deposit's owner is allowed to set or update `till`
+		till = deposit.Till
 	}
 	deposit.Amount.Add(deposit.Amount, amount)
 	deposit.Till = till
