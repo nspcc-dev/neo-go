@@ -595,7 +595,7 @@ func (s *Server) handleGetBlocksCmd(p Peer, gb *payload.GetBlocks) error {
 		return err
 	}
 	blockHashes := make([]util.Uint256, 0)
-	for i := start.Index + 1; i < start.Index+uint32(count); i++ {
+	for i := start.Index + 1; i <= start.Index+uint32(count); i++ {
 		hash := s.chain.GetHeaderHash(int(i))
 		if hash.Equals(util.Uint256{}) {
 			break
