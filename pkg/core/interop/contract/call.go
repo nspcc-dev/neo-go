@@ -46,8 +46,13 @@ func callExInternal(ic *interop.Context, h []byte, name string, args []stackitem
 	if strings.HasPrefix(name, "_") {
 		return errors.New("invalid method name (starts with '_')")
 	}
-	ctx := ic.VM.Context()
-	if ctx != nil && ctx.IsDeployed() {
+	md := cs.Manifest.ABI.GetMethod(name)
+	if md == nil {
+		return errors.New("method not found")
+	}
+	if md.Safe {
+		f &^= smartcontract.AllowModifyStates
+	} else if ctx := ic.VM.Context(); ctx != nil && ctx.IsDeployed() {
 		curr, err := ic.DAO.GetContractState(ic.VM.GetCurrentScriptHash())
 		if err == nil {
 			if !curr.Manifest.CanCall(u, &cs.Manifest, name) {

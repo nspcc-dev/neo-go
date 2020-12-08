@@ -251,9 +251,6 @@ func _deploy(isUpdate bool) {}
 			Trusts: manifest.WildUint160s{
 				Value: []util.Uint160{},
 			},
-			SafeMethods: manifest.WildStrings{
-				Value: []string{},
-			},
 			Extra: nil,
 		}
 		require.ElementsMatch(t, expected.ABI.Methods, actual.ABI.Methods)
@@ -261,7 +258,6 @@ func _deploy(isUpdate bool) {}
 		require.Equal(t, expected.Groups, actual.Groups)
 		require.Equal(t, expected.Permissions, actual.Permissions)
 		require.Equal(t, expected.Trusts, actual.Trusts)
-		require.Equal(t, expected.SafeMethods, actual.SafeMethods)
 		require.Equal(t, expected.Extra, actual.Extra)
 	})
 }

@@ -121,44 +121,44 @@ func newNEO() *NEO {
 		manifest.NewParameter("account", smartcontract.Hash160Type),
 		manifest.NewParameter("end", smartcontract.IntegerType))
 	md := newMethodAndPrice(n.unclaimedGas, 3000000, smartcontract.AllowStates)
-	n.AddMethod(md, desc, true)
+	n.AddMethod(md, desc)
 
 	desc = newDescriptor("registerCandidate", smartcontract.BoolType,
 		manifest.NewParameter("pubkey", smartcontract.PublicKeyType))
 	md = newMethodAndPrice(n.registerCandidate, 5000000, smartcontract.AllowModifyStates)
-	n.AddMethod(md, desc, false)
+	n.AddMethod(md, desc)
 
 	desc = newDescriptor("unregisterCandidate", smartcontract.BoolType,
 		manifest.NewParameter("pubkey", smartcontract.PublicKeyType))
 	md = newMethodAndPrice(n.unregisterCandidate, 5000000, smartcontract.AllowModifyStates)
-	n.AddMethod(md, desc, false)
+	n.AddMethod(md, desc)
 
 	desc = newDescriptor("vote", smartcontract.BoolType,
 		manifest.NewParameter("account", smartcontract.Hash160Type),
 		manifest.NewParameter("pubkey", smartcontract.PublicKeyType))
 	md = newMethodAndPrice(n.vote, 5000000, smartcontract.AllowModifyStates)
-	n.AddMethod(md, desc, false)
+	n.AddMethod(md, desc)
 
 	desc = newDescriptor("getCandidates", smartcontract.ArrayType)
 	md = newMethodAndPrice(n.getCandidatesCall, 100000000, smartcontract.AllowStates)
-	n.AddMethod(md, desc, true)
+	n.AddMethod(md, desc)
 
 	desc = newDescriptor("getСommittee", smartcontract.ArrayType)
 	md = newMethodAndPrice(n.getCommittee, 100000000, smartcontract.AllowStates)
-	n.AddMethod(md, desc, true)
+	n.AddMethod(md, desc)
 
 	desc = newDescriptor("getNextBlockValidators", smartcontract.ArrayType)
 	md = newMethodAndPrice(n.getNextBlockValidators, 100000000, smartcontract.AllowStates)
-	n.AddMethod(md, desc, true)
+	n.AddMethod(md, desc)
 
 	desc = newDescriptor("getGasPerBlock", smartcontract.IntegerType)
 	md = newMethodAndPrice(n.getGASPerBlock, 100_0000, smartcontract.AllowStates)
-	n.AddMethod(md, desc, false)
+	n.AddMethod(md, desc)
 
 	desc = newDescriptor("setGasPerBlock", smartcontract.BoolType,
 		manifest.NewParameter("gasPerBlock", smartcontract.IntegerType))
 	md = newMethodAndPrice(n.setGASPerBlock, 500_0000, smartcontract.AllowModifyStates)
-	n.AddMethod(md, desc, false)
+	n.AddMethod(md, desc)
 
 	return n
 }

@@ -56,20 +56,20 @@ func newNEP17Native(name string) *nep17TokenNative {
 
 	desc := newDescriptor("symbol", smartcontract.StringType)
 	md := newMethodAndPrice(n.Symbol, 0, smartcontract.NoneFlag)
-	n.AddMethod(md, desc, true)
+	n.AddMethod(md, desc)
 
 	desc = newDescriptor("decimals", smartcontract.IntegerType)
 	md = newMethodAndPrice(n.Decimals, 0, smartcontract.NoneFlag)
-	n.AddMethod(md, desc, true)
+	n.AddMethod(md, desc)
 
 	desc = newDescriptor("totalSupply", smartcontract.IntegerType)
 	md = newMethodAndPrice(n.TotalSupply, 1000000, smartcontract.AllowStates)
-	n.AddMethod(md, desc, true)
+	n.AddMethod(md, desc)
 
 	desc = newDescriptor("balanceOf", smartcontract.IntegerType,
 		manifest.NewParameter("account", smartcontract.Hash160Type))
 	md = newMethodAndPrice(n.balanceOf, 1000000, smartcontract.AllowStates)
-	n.AddMethod(md, desc, true)
+	n.AddMethod(md, desc)
 
 	transferParams := []manifest.Parameter{
 		manifest.NewParameter("from", smartcontract.Hash160Type),
@@ -80,15 +80,15 @@ func newNEP17Native(name string) *nep17TokenNative {
 		append(transferParams, manifest.NewParameter("data", smartcontract.AnyType))...,
 	)
 	md = newMethodAndPrice(n.Transfer, 8000000, smartcontract.AllowModifyStates)
-	n.AddMethod(md, desc, false)
+	n.AddMethod(md, desc)
 
 	desc = newDescriptor("onPersist", smartcontract.VoidType)
 	md = newMethodAndPrice(getOnPersistWrapper(onPersistBase), 0, smartcontract.AllowModifyStates)
-	n.AddMethod(md, desc, false)
+	n.AddMethod(md, desc)
 
 	desc = newDescriptor("postPersist", smartcontract.VoidType)
 	md = newMethodAndPrice(getOnPersistWrapper(postPersistBase), 0, smartcontract.AllowModifyStates)
-	n.AddMethod(md, desc, false)
+	n.AddMethod(md, desc)
 
 	n.AddEvent("Transfer", transferParams...)
 

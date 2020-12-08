@@ -41,6 +41,7 @@ type Method struct {
 	Offset     int                     `json:"offset"`
 	Parameters []Parameter             `json:"parameters"`
 	ReturnType smartcontract.ParamType `json:"returntype"`
+	Safe       bool                    `json:"safe"`
 }
 
 // NewParameter returns new parameter of specified name and type.
