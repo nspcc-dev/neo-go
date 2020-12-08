@@ -73,13 +73,13 @@ func TestSimple_GetAndUpdateNextContractID(t *testing.T) {
 	dao := NewSimple(storage.NewMemoryStore(), netmode.UnitTestNet, false)
 	id, err := dao.GetAndUpdateNextContractID()
 	require.NoError(t, err)
-	require.EqualValues(t, 0, id)
-	id, err = dao.GetAndUpdateNextContractID()
-	require.NoError(t, err)
 	require.EqualValues(t, 1, id)
 	id, err = dao.GetAndUpdateNextContractID()
 	require.NoError(t, err)
 	require.EqualValues(t, 2, id)
+	id, err = dao.GetAndUpdateNextContractID()
+	require.NoError(t, err)
+	require.EqualValues(t, 3, id)
 }
 
 func TestPutGetAppExecResult(t *testing.T) {

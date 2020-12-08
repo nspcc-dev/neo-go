@@ -163,7 +163,7 @@ func (dao *Simple) DeleteContractState(hash util.Uint160) error {
 
 // GetAndUpdateNextContractID returns id for the next contract and increases stored ID.
 func (dao *Simple) GetAndUpdateNextContractID() (int32, error) {
-	var id int32
+	var id = int32(1)
 	key := storage.SYSContractID.Bytes()
 	data, err := dao.Store.Get(key)
 	if err == nil {

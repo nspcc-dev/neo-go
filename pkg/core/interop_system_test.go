@@ -718,7 +718,7 @@ func TestContractCreate(t *testing.T) {
 
 	ic.Tx = transaction.New(netmode.UnitTestNet, []byte{1}, 0)
 	ic.Tx.Signers = append(ic.Tx.Signers, transaction.Signer{Account: sender})
-	cs.ID = 0
+	cs.ID = 1
 	cs.Hash = state.CreateContractHash(sender, cs.Script)
 
 	t.Run("missing NEF", func(t *testing.T) {

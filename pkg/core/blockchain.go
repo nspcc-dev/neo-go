@@ -600,18 +600,16 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 	}
 	writeBuf.Reset()
 
-	if block.Index > 0 {
-		aer, err := bc.runPersist(bc.contracts.GetPersistScript(), block, cache, trigger.OnPersist)
-		if err != nil {
-			return fmt.Errorf("onPersist failed: %w", err)
-		}
-		appExecResults = append(appExecResults, aer)
-		err = cache.PutAppExecResult(aer, writeBuf)
-		if err != nil {
-			return fmt.Errorf("failed to store onPersist exec result: %w", err)
-		}
-		writeBuf.Reset()
+	aer, err := bc.runPersist(bc.contracts.GetPersistScript(), block, cache, trigger.OnPersist)
+	if err != nil {
+		return fmt.Errorf("onPersist failed: %w", err)
 	}
+	appExecResults = append(appExecResults, aer)
+	err = cache.PutAppExecResult(aer, writeBuf)
+	if err != nil {
+		return fmt.Errorf("failed to store onPersist exec result: %w", err)
+	}
+	writeBuf.Reset()
 
 	for _, tx := range block.Transactions {
 		if err := cache.StoreAsTransaction(tx, block.Index, writeBuf); err != nil {
@@ -673,7 +671,7 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 		}
 	}
 
-	aer, err := bc.runPersist(bc.contracts.GetPostPersistScript(), block, cache, trigger.PostPersist)
+	aer, err = bc.runPersist(bc.contracts.GetPostPersistScript(), block, cache, trigger.PostPersist)
 	if err != nil {
 		return fmt.Errorf("postPersist failed: %w", err)
 	}
@@ -1677,7 +1675,7 @@ func (bc *Blockchain) initVerificationVM(ic *interop.Context, hash util.Uint160,
 		v.LoadScriptWithHash(cs.Script, hash, smartcontract.ReadStates|smartcontract.AllowCall)
 		v.Jump(v.Context(), md.Offset)
 
-		if cs.ID < 0 {
+		if cs.ID <= 0 {
 			w := io.NewBufBinWriter()
 			emit.Opcodes(w.BinWriter, opcode.DEPTH, opcode.PACK)
 			emit.String(w.BinWriter, manifest.MethodVerify)

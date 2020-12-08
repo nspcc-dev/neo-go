@@ -126,7 +126,6 @@ var neoInterops = []interop.Function{
 	{Name: interopnames.NeoCryptoSHA256, Func: crypto.Sha256, Price: 1000000, ParamCount: 1},
 	{Name: interopnames.NeoCryptoRIPEMD160, Func: crypto.RipeMD160, Price: 1000000, ParamCount: 1},
 	{Name: interopnames.NeoNativeCall, Func: native.Call, Price: 0, RequiredFlags: smartcontract.AllowCall, ParamCount: 1, DisallowCallback: true},
-	{Name: interopnames.NeoNativeDeploy, Func: native.Deploy, Price: 0, RequiredFlags: smartcontract.WriteStates, DisallowCallback: true},
 }
 
 // initIDinInteropsSlice initializes IDs from names in one given

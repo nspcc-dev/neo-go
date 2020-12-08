@@ -713,11 +713,18 @@ func TestVerifyTx(t *testing.T) {
 					require.True(t, errors.Is(bc.VerifyTx(tx), ErrHasConflicts))
 				})
 				t.Run("attribute on-chain conflict", func(t *testing.T) {
-					b, err := bc.GetBlock(bc.GetHeaderHash(0))
-					require.NoError(t, err)
-					conflictsHash := b.Transactions[0].Hash()
-					tx := getConflictsTx(conflictsHash)
-					require.Error(t, bc.VerifyTx(tx))
+					tx := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
+					tx.ValidUntilBlock = 4242
+					tx.Signers = []transaction.Signer{{
+						Account: testchain.MultisigScriptHash(),
+						Scopes:  transaction.None,
+					}}
+					require.NoError(t, testchain.SignTx(bc, tx))
+					b := bc.newBlock(tx)
+
+					require.NoError(t, bc.AddBlock(b))
+					txConflict := getConflictsTx(tx.Hash())
+					require.Error(t, bc.VerifyTx(txConflict))
 				})
 				t.Run("positive", func(t *testing.T) {
 					tx := getConflictsTx(random.Uint256())

@@ -5,35 +5,9 @@ import (
 	"fmt"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
-	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 )
-
-// Deploy deploys native contract.
-func Deploy(ic *interop.Context) error {
-	if ic.Block == nil || ic.Block.Index != 0 {
-		return errors.New("native contracts can be deployed only at 0 block")
-	}
-
-	for _, native := range ic.Natives {
-		md := native.Metadata()
-
-		cs := &state.Contract{
-			ID:       md.ContractID,
-			Hash:     md.Hash,
-			Script:   md.Script,
-			Manifest: md.Manifest,
-		}
-		if err := ic.DAO.PutContractState(cs); err != nil {
-			return err
-		}
-		if err := native.Initialize(ic); err != nil {
-			return fmt.Errorf("initializing %s native contract: %w", md.Name, err)
-		}
-	}
-	return nil
-}
 
 // Call calls specified native contract method.
 func Call(ic *interop.Context) error {

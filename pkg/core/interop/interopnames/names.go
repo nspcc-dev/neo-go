@@ -69,7 +69,6 @@ const (
 	NeoCryptoSHA256                          = "Neo.Crypto.SHA256"
 	NeoCryptoRIPEMD160                       = "Neo.Crypto.RIPEMD160"
 	NeoNativeCall                            = "Neo.Native.Call"
-	NeoNativeDeploy                          = "Neo.Native.Deploy"
 )
 
 var names = []string{
@@ -140,5 +139,4 @@ var names = []string{
 	NeoCryptoSHA256,
 	NeoCryptoRIPEMD160,
 	NeoNativeCall,
-	NeoNativeDeploy,
 }

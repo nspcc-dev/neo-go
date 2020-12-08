@@ -57,8 +57,8 @@ type rpcTestCase struct {
 }
 
 const testContractHash = "743ed26f78e29ecd595535b74a943b1f9ccbc444"
-const deploymentTxHash = "9ecf1273fe0d8868cc024c8270b569a12edd7ea9d675c88554b937134efb03f8"
-const genesisBlockHash = "a496577895eb8c227bb866dc44f99f21c0cf06417ca8f2a877cc5d761a50dac0"
+const deploymentTxHash = "a72dfaebf9543964d74e803723dae6a86196e0915ae9d76b3cc57c3b2e3e8c49"
+const genesisBlockHash = "0542f4350c6e236d0509bcd98188b0034bfbecc1a0c7fcdb8e4295310d468b70"
 
 const verifyContractHash = "a2eb22340979804cb10cc1add0b8822c201f4d8a"
 const verifyContractAVM = "570300412d51083021700c14aa8acf859d4fe402b34e673f2156821796a488ebdb30716813cedb2869db289740"
@@ -89,8 +89,9 @@ var rpcTestCases = map[string][]rpcTestCase{
 				res, ok := acc.(*result.ApplicationLog)
 				require.True(t, ok)
 				assert.Equal(t, genesisBlockHash, res.Container.StringLE())
-				assert.Equal(t, 1, len(res.Executions))
-				assert.Equal(t, trigger.PostPersist, res.Executions[0].Trigger) // no onPersist for genesis block
+				assert.Equal(t, 2, len(res.Executions))
+				assert.Equal(t, trigger.OnPersist, res.Executions[0].Trigger)
+				assert.Equal(t, trigger.PostPersist, res.Executions[1].Trigger)
 				assert.Equal(t, vm.HaltState, res.Executions[0].VMState)
 			},
 		},
@@ -103,7 +104,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 				require.True(t, ok)
 				assert.Equal(t, genesisBlockHash, res.Container.StringLE())
 				assert.Equal(t, 1, len(res.Executions))
-				assert.Equal(t, trigger.PostPersist, res.Executions[0].Trigger) // no onPersist for genesis block
+				assert.Equal(t, trigger.PostPersist, res.Executions[0].Trigger)
 				assert.Equal(t, vm.HaltState, res.Executions[0].VMState)
 			},
 		},
@@ -115,7 +116,9 @@ var rpcTestCases = map[string][]rpcTestCase{
 				res, ok := acc.(*result.ApplicationLog)
 				require.True(t, ok)
 				assert.Equal(t, genesisBlockHash, res.Container.StringLE())
-				assert.Equal(t, 0, len(res.Executions)) // no onPersist for genesis block
+				assert.Equal(t, 1, len(res.Executions))
+				assert.Equal(t, trigger.OnPersist, res.Executions[0].Trigger)
+				assert.Equal(t, vm.HaltState, res.Executions[0].VMState)
 			},
 		},
 		{
@@ -1075,7 +1078,7 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 	})
 
 	t.Run("getrawtransaction", func(t *testing.T) {
-		block, _ := chain.GetBlock(chain.GetHeaderHash(0))
+		block, _ := chain.GetBlock(chain.GetHeaderHash(1))
 		tx := block.Transactions[0]
 		rpc := fmt.Sprintf(`{"jsonrpc": "2.0", "id": 1, "method": "getrawtransaction", "params": ["%s"]}"`, tx.Hash().StringLE())
 		body := doRPCCall(rpc, httpSrv.URL, t)
@@ -1090,7 +1093,7 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 	})
 
 	t.Run("getrawtransaction 2 arguments", func(t *testing.T) {
-		block, _ := chain.GetBlock(chain.GetHeaderHash(0))
+		block, _ := chain.GetBlock(chain.GetHeaderHash(1))
 		tx := block.Transactions[0]
 		rpc := fmt.Sprintf(`{"jsonrpc": "2.0", "id": 1, "method": "getrawtransaction", "params": ["%s", 0]}"`, tx.Hash().StringLE())
 		body := doRPCCall(rpc, httpSrv.URL, t)
@@ -1105,7 +1108,7 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 	})
 
 	t.Run("getrawtransaction 2 arguments, verbose", func(t *testing.T) {
-		block, _ := chain.GetBlock(chain.GetHeaderHash(0))
+		block, _ := chain.GetBlock(chain.GetHeaderHash(1))
 		TXHash := block.Transactions[0].Hash()
 		_ = block.Transactions[0].Size()
 		rpc := fmt.Sprintf(`{"jsonrpc": "2.0", "id": 1, "method": "getrawtransaction", "params": ["%s", 1]}"`, TXHash.StringLE())
@@ -1116,7 +1119,7 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 		require.NoErrorf(t, err, "could not parse response: %s", txOut)
 
 		assert.Equal(t, *block.Transactions[0], actual.Transaction)
-		assert.Equal(t, 9, actual.Confirmations)
+		assert.Equal(t, 8, actual.Confirmations)
 		assert.Equal(t, TXHash, actual.Transaction.Hash())
 	})
 
