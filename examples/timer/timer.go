@@ -3,7 +3,6 @@ package timer
 import (
 	"github.com/nspcc-dev/neo-go/pkg/interop/binary"
 	"github.com/nspcc-dev/neo-go/pkg/interop/contract"
-	"github.com/nspcc-dev/neo-go/pkg/interop/engine"
 	"github.com/nspcc-dev/neo-go/pkg/interop/runtime"
 	"github.com/nspcc-dev/neo-go/pkg/interop/storage"
 	"github.com/nspcc-dev/neo-go/pkg/interop/util"
@@ -54,7 +53,7 @@ func Tick() bool {
 	ticksLeft = ticksLeft.(int) - 1
 	if ticksLeft == 0 {
 		runtime.Log("Fired!")
-		return engine.AppCall(runtime.GetExecutingScriptHash(), "selfDestroy").(bool)
+		return contract.Call(runtime.GetExecutingScriptHash(), "selfDestroy").(bool)
 	}
 	storage.Put(ctx, ticksKey, ticksLeft)
 	i := binary.Itoa(ticksLeft.(int), 10)

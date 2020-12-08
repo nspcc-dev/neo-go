@@ -23,6 +23,7 @@ var syscalls = map[string]map[string]string{
 		"GetTransactionHeight":    interopnames.SystemBlockchainGetTransactionHeight,
 	},
 	"contract": {
+		"Call":                  interopnames.SystemContractCall,
 		"Create":                interopnames.SystemContractCreate,
 		"CreateStandardAccount": interopnames.SystemContractCreateStandardAccount,
 		"Destroy":               interopnames.SystemContractDestroy,
@@ -43,9 +44,6 @@ var syscalls = map[string]map[string]string{
 		"Create": interopnames.SystemEnumeratorCreate,
 		"Next":   interopnames.SystemEnumeratorNext,
 		"Value":  interopnames.SystemEnumeratorValue,
-	},
-	"engine": {
-		"AppCall": interopnames.SystemContractCall,
 	},
 	"iterator": {
 		"Concat": interopnames.SystemIteratorConcat,

@@ -132,12 +132,12 @@ func TestAppCall(t *testing.T) {
 	t.Run("convert from string constant", func(t *testing.T) {
 		src := `
 		package foo
-		import "github.com/nspcc-dev/neo-go/pkg/interop/engine"
+		import "github.com/nspcc-dev/neo-go/pkg/interop/contract"
 		const scriptHash = ` + fmt.Sprintf("%#v", string(ih.BytesBE())) + `
 		func Main() []byte {
 			x := []byte{1, 2}
 			y := []byte{3, 4}
-			result := engine.AppCall([]byte(scriptHash), "append", x, y)
+			result := contract.Call([]byte(scriptHash), "append", x, y)
 			return result.([]byte)
 		}
 		`
@@ -151,12 +151,12 @@ func TestAppCall(t *testing.T) {
 	t.Run("convert from var", func(t *testing.T) {
 		src := `
 		package foo
-		import "github.com/nspcc-dev/neo-go/pkg/interop/engine"
+		import "github.com/nspcc-dev/neo-go/pkg/interop/contract"
 		func Main() []byte {
 			x := []byte{1, 2}
 			y := []byte{3, 4}
 			var addr = []byte(` + fmt.Sprintf("%#v", string(ih.BytesBE())) + `)
-			result := engine.AppCall(addr, "append", x, y)
+			result := contract.Call(addr, "append", x, y)
 			return result.([]byte)
 		}
 		`
@@ -169,10 +169,10 @@ func TestAppCall(t *testing.T) {
 
 	t.Run("InitializedGlobals", func(t *testing.T) {
 		src := `package foo
-		import "github.com/nspcc-dev/neo-go/pkg/interop/engine"
+		import "github.com/nspcc-dev/neo-go/pkg/interop/contract"
 		func Main() int {
 			var addr = []byte(` + fmt.Sprintf("%#v", string(ih.BytesBE())) + `)
-			result := engine.AppCall(addr, "add3", 39)
+			result := contract.Call(addr, "add3", 39)
 			return result.(int)
 		}`
 
@@ -184,10 +184,10 @@ func TestAppCall(t *testing.T) {
 
 	t.Run("AliasPackage", func(t *testing.T) {
 		src := `package foo
-		import ee "github.com/nspcc-dev/neo-go/pkg/interop/engine"
+		import ee "github.com/nspcc-dev/neo-go/pkg/interop/contract"
 		func Main() int {
 			var addr = []byte(` + fmt.Sprintf("%#v", string(ih.BytesBE())) + `)
-			result := ee.AppCall(addr, "add3", 39)
+			result := ee.Call(addr, "add3", 39)
 			return result.(int)
 		}`
 		v := spawnVM(t, ic, src)
@@ -199,11 +199,11 @@ func TestAppCall(t *testing.T) {
 func getAppCallScript(h string) string {
 	return `
 	package foo
-	import "github.com/nspcc-dev/neo-go/pkg/interop/engine"
+	import "github.com/nspcc-dev/neo-go/pkg/interop/contract"
 	func Main() []byte {
 		x := []byte{1, 2}
 		y := []byte{3, 4}
-		result := engine.AppCall(` + h + `, "append",  x, y)
+		result := contract.Call(` + h + `, "append",  x, y)
 		return result.([]byte)
 	}
 	`
