@@ -202,12 +202,22 @@ func TestExportedVariable(t *testing.T) {
 }
 
 func TestExportedConst(t *testing.T) {
-	src := `package foo
-	import "github.com/nspcc-dev/neo-go/pkg/compiler/testdata/multi"
-	func Main() int {
-		return multi.SomeConst
-	}`
-	eval(t, src, big.NewInt(42))
+	t.Run("with vars", func(t *testing.T) {
+		src := `package foo
+		import "github.com/nspcc-dev/neo-go/pkg/compiler/testdata/multi"
+		func Main() int {
+			return multi.SomeConst
+		}`
+		eval(t, src, big.NewInt(42))
+	})
+	t.Run("const only", func(t *testing.T) {
+		src := `package foo
+		import "github.com/nspcc-dev/neo-go/pkg/compiler/testdata/constonly"
+		func Main() int {
+			return constonly.Answer
+		}`
+		eval(t, src, big.NewInt(42))
+	})
 }
 
 func TestMultipleFuncSameName(t *testing.T) {
