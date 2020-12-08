@@ -14,6 +14,21 @@ type Contract struct {
 	Manifest []byte
 }
 
+// CallFlag specifies valid call flags.
+type CallFlag byte
+
+// Using `smartcontract` package from compiled contract requires moderate
+// compiler refactoring, thus all flags are mirrored here.
+const (
+	AllowStates CallFlag = 1 << iota
+	AllowModifyStates
+	AllowCall
+	AllowNotify
+	ReadOnly          = AllowStates | AllowCall | AllowNotify
+	All               = ReadOnly | AllowModifyStates
+	NoneFlag CallFlag = 0
+)
+
 // Create creates a new contract using a set of input parameters:
 //     script      contract's bytecode (limited in length by 1M)
 //     manifest    contract's manifest (limited in length by 2 KiB)
@@ -61,5 +76,13 @@ func GetCallFlags() int64 {
 // It returns whatever this contract returns. This function uses
 // `System.Contract.Call` syscall.
 func Call(scriptHash interop.Hash160, method string, args ...interface{}) interface{} {
+	return nil
+}
+
+// CallEx executes previously deployed blockchain contract with specified hash
+// (20 bytes in BE form) using provided arguments and call flags.
+// It returns whatever this contract returns. This function uses
+// `System.Contract.CallEx` syscall.
+func CallEx(f CallFlag, scriptHash interop.Hash160, method string, args ...interface{}) interface{} {
 	return nil
 }

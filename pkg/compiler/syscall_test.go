@@ -4,10 +4,23 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/pkg/interop/contract"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// Checks that changes in `smartcontract` are reflected in compiler interop package.
+func TestCallFlags(t *testing.T) {
+	require.EqualValues(t, contract.AllowStates, smartcontract.AllowStates)
+	require.EqualValues(t, contract.AllowModifyStates, smartcontract.AllowModifyStates)
+	require.EqualValues(t, contract.AllowCall, smartcontract.AllowCall)
+	require.EqualValues(t, contract.AllowNotify, smartcontract.AllowNotify)
+	require.EqualValues(t, contract.ReadOnly, smartcontract.ReadOnly)
+	require.EqualValues(t, contract.All, smartcontract.All)
+	require.EqualValues(t, contract.NoneFlag, smartcontract.NoneFlag)
+}
 
 func TestStoragePutGet(t *testing.T) {
 	src := `

@@ -15,6 +15,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
+	cinterop "github.com/nspcc-dev/neo-go/pkg/interop"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
@@ -85,8 +86,26 @@ func spawnVM(t *testing.T, ic *interop.Context, src string) *vm.VM {
 }
 
 func TestAppCall(t *testing.T) {
-	srcInner := `
-	package foo
+	srcDeep := `package foo
+	func Get42() int {
+		return 42
+	}`
+	barCtr, di, err := compiler.CompileWithDebugInfo("bar.go", strings.NewReader(srcDeep))
+	require.NoError(t, err)
+	mBar, err := di.ConvertToManifest("Bar", nil)
+	require.NoError(t, err)
+
+	barH := hash.Hash160(barCtr)
+	ic := interop.NewContext(trigger.Application, nil, dao.NewSimple(storage.NewMemoryStore(), netmode.UnitTestNet, false), nil, nil, nil, zaptest.NewLogger(t))
+	require.NoError(t, ic.DAO.PutContractState(&state.Contract{
+		Hash:     barH,
+		Script:   barCtr,
+		Manifest: *mBar,
+	}))
+
+	srcInner := `package foo
+	import "github.com/nspcc-dev/neo-go/pkg/interop/contract"
+	import "github.com/nspcc-dev/neo-go/pkg/interop"
 	var a int = 3
 	func Main(a []byte, b []byte) []byte {
 		panic("Main was called")
@@ -97,7 +116,11 @@ func TestAppCall(t *testing.T) {
 	func Add3(n int) int {
 		return a + n
 	}
-	`
+	func CallInner() int {
+		return contract.Call(%s, "get42").(int)
+	}`
+	srcInner = fmt.Sprintf(srcInner,
+		fmt.Sprintf("%#v", cinterop.Hash160(barH.BytesBE())))
 
 	inner, di, err := compiler.CompileWithDebugInfo("foo.go", strings.NewReader(srcInner))
 	require.NoError(t, err)
@@ -105,7 +128,6 @@ func TestAppCall(t *testing.T) {
 	require.NoError(t, err)
 
 	ih := hash.Hash160(inner)
-	ic := interop.NewContext(trigger.Application, nil, dao.NewSimple(storage.NewMemoryStore(), netmode.UnitTestNet, false), nil, nil, nil, zaptest.NewLogger(t))
 	require.NoError(t, ic.DAO.PutContractState(&state.Contract{
 		Hash:     ih,
 		Script:   inner,
@@ -118,6 +140,19 @@ func TestAppCall(t *testing.T) {
 		require.NoError(t, v.Run())
 
 		assertResult(t, v, []byte{1, 2, 3, 4})
+	})
+
+	t.Run("callEx, valid", func(t *testing.T) {
+		src := getCallExScript(fmt.Sprintf("%#v", ih.BytesBE()), "contract.AllowCall")
+		v := spawnVM(t, ic, src)
+		require.NoError(t, v.Run())
+
+		assertResult(t, v, big.NewInt(42))
+	})
+	t.Run("callEx, missing flags", func(t *testing.T) {
+		src := getCallExScript(fmt.Sprintf("%#v", ih.BytesBE()), "contract.NoneFlag")
+		v := spawnVM(t, ic, src)
+		require.Error(t, v.Run())
 	})
 
 	t.Run("missing script", func(t *testing.T) {
@@ -207,6 +242,15 @@ func getAppCallScript(h string) string {
 		return result.([]byte)
 	}
 	`
+}
+
+func getCallExScript(h string, flags string) string {
+	return `package foo
+	import "github.com/nspcc-dev/neo-go/pkg/interop/contract"
+	func Main() int {
+		result := contract.CallEx(` + flags + `, ` + h + `, "callInner")
+		return result.(int)
+	}`
 }
 
 func TestBuiltinDoesNotCompile(t *testing.T) {
