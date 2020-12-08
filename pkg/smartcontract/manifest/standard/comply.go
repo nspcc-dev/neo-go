@@ -14,6 +14,7 @@ var (
 	ErrInvalidReturnType     = errors.New("invalid return type")
 	ErrInvalidParameterCount = errors.New("invalid parameter count")
 	ErrInvalidParameterType  = errors.New("invalid parameter type")
+	ErrSafeMethodMismatch    = errors.New("method has wrong safe flag")
 )
 
 var checks = map[string]*manifest.Manifest{
@@ -54,6 +55,9 @@ func Comply(m, st *manifest.Manifest) error {
 				return fmt.Errorf("%w: '%s'[%d] (expected %s, got %s)", ErrInvalidParameterType,
 					name, i, stm.Parameters[i].Type, md.Parameters[i].Type)
 			}
+		}
+		if stm.Safe != md.Safe {
+			return fmt.Errorf("%w: expected %t", ErrSafeMethodMismatch, stm.Safe)
 		}
 	}
 	for _, ste := range st.ABI.Events {
