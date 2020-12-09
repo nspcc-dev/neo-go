@@ -10,7 +10,7 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
-	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/encoding/fixedn"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/stretchr/testify/require"
 )
@@ -47,7 +47,7 @@ func TestNEP17Balance(t *testing.T) {
 		e.checkNextLine(t, "^\\s*Account\\s+"+validatorAddr)
 		e.checkNextLine(t, "^\\s*GAS:\\s+GAS \\("+e.Chain.UtilityTokenHash().StringLE()+"\\)")
 		b := e.Chain.GetUtilityTokenBalance(validatorHash)
-		e.checkNextLine(t, "^\\s*Amount\\s*:\\s*"+util.Fixed8(b.Int64()).String())
+		e.checkNextLine(t, "^\\s*Amount\\s*:\\s*"+fixedn.Fixed8(b.Int64()).String())
 	})
 	t.Run("all accounts", func(t *testing.T) {
 		e.Run(t, cmdbase...)
@@ -56,7 +56,7 @@ func TestNEP17Balance(t *testing.T) {
 		e.checkNextLine(t, "^Account "+address.Uint160ToString(addr1))
 		e.checkNextLine(t, "^\\s*GAS:\\s+GAS \\("+e.Chain.UtilityTokenHash().StringLE()+"\\)")
 		balance := e.Chain.GetUtilityTokenBalance(addr1)
-		e.checkNextLine(t, "^\\s*Amount\\s*:\\s*"+util.Fixed8(balance.Int64()).String())
+		e.checkNextLine(t, "^\\s*Amount\\s*:\\s*"+fixedn.Fixed8(balance.Int64()).String())
 		e.checkNextLine(t, "^\\s*Updated:")
 		e.checkNextLine(t, "^\\s*$")
 
@@ -74,7 +74,7 @@ func TestNEP17Balance(t *testing.T) {
 			if strings.Contains(line, "GAS") {
 				e.checkLine(t, line, "^\\s*GAS:\\s+GAS \\("+e.Chain.UtilityTokenHash().StringLE()+"\\)")
 				balance = e.Chain.GetUtilityTokenBalance(addr3)
-				e.checkNextLine(t, "^\\s*Amount\\s*:\\s*"+util.Fixed8(balance.Int64()).String())
+				e.checkNextLine(t, "^\\s*Amount\\s*:\\s*"+fixedn.Fixed8(balance.Int64()).String())
 				e.checkNextLine(t, "^\\s*Updated:")
 			} else {
 				balance, index := e.Chain.GetGoverningTokenBalance(validatorHash)
@@ -156,7 +156,7 @@ func TestNEP17MultiTransfer(t *testing.T) {
 	b, _ := e.Chain.GetGoverningTokenBalance(privs[0].GetScriptHash())
 	require.Equal(t, big.NewInt(42), b)
 	b = e.Chain.GetUtilityTokenBalance(privs[1].GetScriptHash())
-	require.Equal(t, big.NewInt(int64(util.Fixed8FromInt64(7))), b)
+	require.Equal(t, big.NewInt(int64(fixedn.Fixed8FromInt64(7))), b)
 	b, _ = e.Chain.GetGoverningTokenBalance(privs[2].GetScriptHash())
 	require.Equal(t, big.NewInt(13), b)
 }

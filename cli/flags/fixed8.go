@@ -4,13 +4,13 @@ import (
 	"flag"
 	"strings"
 
-	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/encoding/fixedn"
 	"github.com/urfave/cli"
 )
 
 // Fixed8 is a wrapper for Uint160 with flag.Value methods.
 type Fixed8 struct {
-	Value util.Fixed8
+	Value fixedn.Fixed8
 }
 
 // Fixed8Flag is a flag with type string.
@@ -32,7 +32,7 @@ func (a Fixed8) String() string {
 
 // Set implements flag.Value interface.
 func (a *Fixed8) Set(s string) error {
-	f, err := util.Fixed8FromString(s)
+	f, err := fixedn.Fixed8FromString(s)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -41,7 +41,7 @@ func (a *Fixed8) Set(s string) error {
 }
 
 // Fixed8 casts address to util.Fixed8.
-func (a *Fixed8) Fixed8() util.Fixed8 {
+func (a *Fixed8) Fixed8() fixedn.Fixed8 {
 	return a.Value
 }
 
@@ -70,6 +70,6 @@ func (f Fixed8Flag) Apply(set *flag.FlagSet) {
 }
 
 // Fixed8FromContext returns parsed util.Fixed8 value provided flag name.
-func Fixed8FromContext(ctx *cli.Context, name string) util.Fixed8 {
+func Fixed8FromContext(ctx *cli.Context, name string) fixedn.Fixed8 {
 	return ctx.Generic(name).(*Fixed8).Value
 }

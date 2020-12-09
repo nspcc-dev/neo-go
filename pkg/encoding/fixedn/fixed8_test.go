@@ -1,4 +1,4 @@
-package util
+package fixedn
 
 import (
 	"encoding/json"
@@ -8,7 +8,6 @@ import (
 
 	"github.com/nspcc-dev/neo-go/internal/testserdes"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v2"
 )
 
@@ -83,20 +82,6 @@ func TestFixed8FromString(t *testing.T) {
 	val = "90.1s"
 	_, err = Fixed8FromString(val)
 	assert.Error(t, err)
-}
-
-func TestFixedNFromString(t *testing.T) {
-	val := "123.456"
-	num, err := FixedNFromString(val, 3)
-	require.NoError(t, err)
-	require.EqualValues(t, 123456, num)
-
-	num, err = FixedNFromString(val, 4)
-	require.NoError(t, err)
-	require.EqualValues(t, 1234560, num)
-
-	_, err = FixedNFromString(val, 2)
-	require.Error(t, err)
 }
 
 func TestSatoshi(t *testing.T) {

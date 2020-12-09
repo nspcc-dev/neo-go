@@ -13,6 +13,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/encoding/fixedn"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/request"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result"
@@ -170,10 +171,10 @@ func (c *Client) GetBlockHeaderVerbose(hash util.Uint256) (*result.Header, error
 }
 
 // GetBlockSysFee returns the system fees of the block, based on the specified index.
-func (c *Client) GetBlockSysFee(index uint32) (util.Fixed8, error) {
+func (c *Client) GetBlockSysFee(index uint32) (fixedn.Fixed8, error) {
 	var (
 		params = request.NewRawParams(index)
-		resp   util.Fixed8
+		resp   fixedn.Fixed8
 	)
 	if err := c.performRequest("getblocksysfee", params, &resp); err != nil {
 		return resp, err
@@ -473,7 +474,7 @@ func (c *Client) SubmitBlock(b block.Block) (util.Uint256, error) {
 // SignAndPushInvocationTx signs and pushes given script as an invocation
 // transaction  using given wif to sign it and spending the amount of gas
 // specified. It returns a hash of the invocation transaction and an error.
-func (c *Client) SignAndPushInvocationTx(script []byte, acc *wallet.Account, sysfee int64, netfee util.Fixed8, cosigners []transaction.Signer) (util.Uint256, error) {
+func (c *Client) SignAndPushInvocationTx(script []byte, acc *wallet.Account, sysfee int64, netfee fixedn.Fixed8, cosigners []transaction.Signer) (util.Uint256, error) {
 	var txHash util.Uint256
 	var err error
 
