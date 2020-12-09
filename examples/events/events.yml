@@ -1,0 +1,23 @@
+name: "Event types example"
+supportedstandards: []
+events:
+  - name: SomeBytes
+    parameters:
+      - name: bytes
+        type: ByteArray
+  - name: SomeInteger
+    parameters:
+      - name: int
+        type: Integer
+  - name: SomeString
+    parameters:
+      - name: str
+        type: String
+  - name: SomeMap
+    parameters:
+      - name: m
+        type: Map
+  - name: SomeArray
+    parameters:
+      - name: a
+        type: Array

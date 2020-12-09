@@ -877,7 +877,8 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 				tv := c.typeAndValueOf(n.Args[0])
 				params := make([]string, 0, len(n.Args[1:]))
 				for _, p := range n.Args[1:] {
-					params = append(params, c.scTypeFromExpr(p))
+					st, _ := c.scAndVMTypeFromExpr(p)
+					params = append(params, st.String())
 				}
 				// Sometimes event name is stored in a var.
 				// Skip in this case.
