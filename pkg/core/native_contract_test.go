@@ -91,6 +91,21 @@ func newTestNative() *testNative {
 		RequiredFlags: smartcontract.NoneFlag}
 	tn.meta.AddMethod(md, desc)
 
+	desc = &manifest.Method{
+		Name: "callOtherContractWithReturn",
+		Parameters: []manifest.Parameter{
+			manifest.NewParameter("contractHash", smartcontract.Hash160Type),
+			manifest.NewParameter("method", smartcontract.StringType),
+			manifest.NewParameter("arg", smartcontract.ArrayType),
+		},
+		ReturnType: smartcontract.IntegerType,
+	}
+	md = &interop.MethodAndPrice{
+		Func:          tn.callOtherContractWithReturn,
+		Price:         testSumPrice,
+		RequiredFlags: smartcontract.NoneFlag}
+	tn.meta.AddMethod(md, desc)
+
 	desc = &manifest.Method{Name: "onPersist", ReturnType: smartcontract.BoolType}
 	md = &interop.MethodAndPrice{Func: tn.OnPersist, RequiredFlags: smartcontract.AllowModifyStates}
 	tn.meta.AddMethod(md, desc)
@@ -122,16 +137,17 @@ func toUint160(item stackitem.Item) util.Uint160 {
 	return u
 }
 
-func (tn *testNative) call(ic *interop.Context, args []stackitem.Item, retState vm.CheckReturnState) {
-	cs, err := ic.DAO.GetContractState(toUint160(args[0]))
-	if err != nil {
-		panic(err)
-	}
+func (tn *testNative) call(ic *interop.Context, args []stackitem.Item, checkReturn vm.CheckReturnState) {
+	h := toUint160(args[0])
 	bs, err := args[1].TryBytes()
 	if err != nil {
 		panic(err)
 	}
-	err = contract.CallExInternal(ic, cs, string(bs), args[2].Value().([]stackitem.Item), smartcontract.All, retState, nil)
+	cs, err := ic.DAO.GetContractState(h)
+	if err != nil {
+		panic(err)
+	}
+	err = contract.CallFromNative(ic, tn.meta.Hash, cs, string(bs), args[2].Value().([]stackitem.Item), checkReturn)
 	if err != nil {
 		panic(err)
 	}
@@ -140,6 +156,12 @@ func (tn *testNative) call(ic *interop.Context, args []stackitem.Item, retState 
 func (tn *testNative) callOtherContractNoReturn(ic *interop.Context, args []stackitem.Item) stackitem.Item {
 	tn.call(ic, args, vm.EnsureIsEmpty)
 	return stackitem.Null{}
+}
+
+func (tn *testNative) callOtherContractWithReturn(ic *interop.Context, args []stackitem.Item) stackitem.Item {
+	tn.call(ic, args, vm.EnsureNotEmpty)
+	bi := ic.VM.Estack().Pop().BigInt()
+	return stackitem.Make(bi.Add(bi, big.NewInt(1)))
 }
 
 func TestNativeContract_Invoke(t *testing.T) {
@@ -237,5 +259,11 @@ func TestNativeContract_InvokeOtherContract(t *testing.T) {
 		res, err := invokeContractMethod(chain, testSumPrice*4+10000, tn.Metadata().Hash, "callOtherContractNoReturn", cs.Hash, "justReturn", []interface{}{})
 		require.NoError(t, err)
 		checkResult(t, res, stackitem.Null{}) // simple call is done with EnsureNotEmpty
+	})
+	t.Run("non-native, with return", func(t *testing.T) {
+		res, err := invokeContractMethod(chain, testSumPrice*4+10000, tn.Metadata().Hash,
+			"callOtherContractWithReturn", cs.Hash, "ret7", []interface{}{})
+		require.NoError(t, err)
+		checkResult(t, res, stackitem.Make(8))
 	})
 }
