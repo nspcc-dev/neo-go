@@ -67,6 +67,10 @@ func NewDefaultDiscovery(addrs []string, dt time.Duration, ts Transporter) *Defa
 	return d
 }
 
+func newDefaultDiscovery(addrs []string, dt time.Duration, ts Transporter) Discoverer {
+	return NewDefaultDiscovery(addrs, dt, ts)
+}
+
 // BackFill implements the Discoverer interface and will backfill the
 // the pool with the given addresses.
 func (d *DefaultDiscovery) BackFill(addrs ...string) {
