@@ -13,6 +13,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
 // DebugInfo represents smart-contract debug information.
@@ -42,8 +43,10 @@ type MethodDebugInfo struct {
 	// Parameters is a list of method's parameters.
 	Parameters []DebugParam `json:"params"`
 	// ReturnType is method's return type.
-	ReturnType string   `json:"return"`
-	Variables  []string `json:"variables"`
+	ReturnType string `json:"return"`
+	// ReturnTypeSC is return type to use in manifest.
+	ReturnTypeSC smartcontract.ParamType `json:"-"`
+	Variables    []string                `json:"variables"`
 	// SeqPoints is a map between source lines and byte-code instruction offsets.
 	SeqPoints []DebugSeqPoint `json:"sequence-points"`
 }
@@ -86,8 +89,9 @@ type DebugRange struct {
 
 // DebugParam represents variables's name and type.
 type DebugParam struct {
-	Name string `json:"name"`
-	Type string `json:"type"`
+	Name   string                  `json:"name"`
+	Type   string                  `json:"type"`
+	TypeSC smartcontract.ParamType `json:"-"`
 }
 
 func (c *codegen) saveSequencePoint(n ast.Node) {
@@ -128,8 +132,9 @@ func (c *codegen) emitDebugInfo(contract []byte) *DebugInfo {
 				Start: 0,
 				End:   uint16(c.initEndOffset),
 			},
-			ReturnType: "Void",
-			SeqPoints:  c.sequencePoints["init"],
+			ReturnType:   "Void",
+			ReturnTypeSC: smartcontract.VoidType,
+			SeqPoints:    c.sequencePoints["init"],
 		})
 	}
 	if c.deployEndOffset >= 0 {
@@ -146,11 +151,13 @@ func (c *codegen) emitDebugInfo(contract []byte) *DebugInfo {
 				End:   uint16(c.deployEndOffset),
 			},
 			Parameters: []DebugParam{{
-				Name: "isUpdate",
-				Type: "Boolean",
+				Name:   "isUpdate",
+				Type:   "Boolean",
+				TypeSC: smartcontract.BoolType,
 			}},
-			ReturnType: "Void",
-			SeqPoints:  c.sequencePoints[manifest.MethodDeploy],
+			ReturnType:   "Void",
+			ReturnTypeSC: smartcontract.VoidType,
+			SeqPoints:    c.sequencePoints[manifest.MethodDeploy],
 		})
 	}
 	for name, scope := range c.funcs {
@@ -169,8 +176,8 @@ func (c *codegen) registerDebugVariable(name string, expr ast.Expr) {
 		// do not save globals for now
 		return
 	}
-	typ := c.scTypeFromExpr(expr)
-	c.scope.variables = append(c.scope.variables, name+","+typ)
+	_, vt := c.scAndVMTypeFromExpr(expr)
+	c.scope.variables = append(c.scope.variables, name+","+vt.String())
 }
 
 func (c *codegen) methodInfoFromScope(name string, scope *funcScope) *MethodDebugInfo {
@@ -178,48 +185,53 @@ func (c *codegen) methodInfoFromScope(name string, scope *funcScope) *MethodDebu
 	params := make([]DebugParam, 0, ps.NumFields())
 	for i := range ps.List {
 		for j := range ps.List[i].Names {
+			st, vt := c.scAndVMTypeFromExpr(ps.List[i].Type)
 			params = append(params, DebugParam{
-				Name: ps.List[i].Names[j].Name,
-				Type: c.scTypeFromExpr(ps.List[i].Type),
+				Name:   ps.List[i].Names[j].Name,
+				Type:   vt.String(),
+				TypeSC: st,
 			})
 		}
 	}
 	ss := strings.Split(name, ".")
 	name = ss[len(ss)-1]
 	r, n := utf8.DecodeRuneInString(name)
+	st, vt := c.scAndVMReturnTypeFromScope(scope)
 	return &MethodDebugInfo{
 		ID: name,
 		Name: DebugMethodName{
 			Name:      string(unicode.ToLower(r)) + name[n:],
 			Namespace: scope.pkg.Name(),
 		},
-		IsExported: scope.decl.Name.IsExported(),
-		IsFunction: scope.decl.Recv == nil,
-		Range:      scope.rng,
-		Parameters: params,
-		ReturnType: c.scReturnTypeFromScope(scope),
-		SeqPoints:  c.sequencePoints[name],
-		Variables:  scope.variables,
+		IsExported:   scope.decl.Name.IsExported(),
+		IsFunction:   scope.decl.Recv == nil,
+		Range:        scope.rng,
+		Parameters:   params,
+		ReturnType:   vt,
+		ReturnTypeSC: st,
+		SeqPoints:    c.sequencePoints[name],
+		Variables:    scope.variables,
 	}
 }
 
-func (c *codegen) scReturnTypeFromScope(scope *funcScope) string {
+func (c *codegen) scAndVMReturnTypeFromScope(scope *funcScope) (smartcontract.ParamType, string) {
 	results := scope.decl.Type.Results
 	switch results.NumFields() {
 	case 0:
-		return "Void"
+		return smartcontract.VoidType, "Void"
 	case 1:
-		return c.scTypeFromExpr(results.List[0].Type)
+		st, vt := c.scAndVMTypeFromExpr(results.List[0].Type)
+		return st, vt.String()
 	default:
 		// multiple return values are not supported in debugger
-		return "Any"
+		return smartcontract.AnyType, "Any"
 	}
 }
 
-func (c *codegen) scTypeFromExpr(typ ast.Expr) string {
+func (c *codegen) scAndVMTypeFromExpr(typ ast.Expr) (smartcontract.ParamType, stackitem.Type) {
 	t := c.typeOf(typ)
 	if c.typeOf(typ) == nil {
-		return "Any"
+		return smartcontract.AnyType, stackitem.AnyT
 	}
 	if named, ok := t.(*types.Named); ok {
 		if isInteropPath(named.String()) {
@@ -227,13 +239,22 @@ func (c *codegen) scTypeFromExpr(typ ast.Expr) string {
 			pkg := named.Obj().Pkg().Name()
 			switch pkg {
 			case "blockchain", "contract":
-				return "Array" // Block, Transaction, Contract
+				return smartcontract.ArrayType, stackitem.ArrayT // Block, Transaction, Contract
 			case "interop":
 				if name != "Interface" {
-					return name
+					switch name {
+					case "Hash160":
+						return smartcontract.Hash160Type, stackitem.ByteArrayT
+					case "Hash256":
+						return smartcontract.Hash256Type, stackitem.ByteArrayT
+					case "PublicKey":
+						return smartcontract.PublicKeyType, stackitem.ByteArrayT
+					case "Signature":
+						return smartcontract.SignatureType, stackitem.ByteArrayT
+					}
 				}
 			}
-			return "InteropInterface"
+			return smartcontract.InteropInterfaceType, stackitem.InteropT
 		}
 	}
 	switch t := t.Underlying().(type) {
@@ -241,25 +262,25 @@ func (c *codegen) scTypeFromExpr(typ ast.Expr) string {
 		info := t.Info()
 		switch {
 		case info&types.IsInteger != 0:
-			return "Integer"
+			return smartcontract.IntegerType, stackitem.IntegerT
 		case info&types.IsBoolean != 0:
-			return "Boolean"
+			return smartcontract.BoolType, stackitem.BooleanT
 		case info&types.IsString != 0:
-			return "String"
+			return smartcontract.StringType, stackitem.ByteArrayT
 		default:
-			return "Any"
+			return smartcontract.AnyType, stackitem.AnyT
 		}
 	case *types.Map:
-		return "Map"
+		return smartcontract.MapType, stackitem.MapT
 	case *types.Struct:
-		return "Struct"
+		return smartcontract.ArrayType, stackitem.StructT
 	case *types.Slice:
 		if isByte(t.Elem()) {
-			return "ByteString"
+			return smartcontract.ByteArrayType, stackitem.ByteArrayT
 		}
-		return "Array"
+		return smartcontract.ArrayType, stackitem.ArrayT
 	default:
-		return "Any"
+		return smartcontract.AnyType, stackitem.AnyT
 	}
 }
 
@@ -310,13 +331,9 @@ func (d *DebugParam) UnmarshalJSON(data []byte) error {
 
 // ToManifestParameter converts DebugParam to manifest.Parameter
 func (d *DebugParam) ToManifestParameter() (manifest.Parameter, error) {
-	pType, err := smartcontract.ParseParamType(d.Type)
-	if err != nil {
-		return manifest.Parameter{}, err
-	}
 	return manifest.Parameter{
 		Name: d.Name,
-		Type: pType,
+		Type: d.TypeSC,
 	}, nil
 }
 
@@ -333,14 +350,10 @@ func (m *MethodDebugInfo) ToManifestMethod() (manifest.Method, error) {
 			return result, err
 		}
 	}
-	returnType, err := smartcontract.ParseParamType(m.ReturnType)
-	if err != nil {
-		return result, err
-	}
 	result.Name = m.Name.Name
 	result.Offset = int(m.Range.Start)
 	result.Parameters = parameters
-	result.ReturnType = returnType
+	result.ReturnType = m.ReturnTypeSC
 	return result, nil
 }
 

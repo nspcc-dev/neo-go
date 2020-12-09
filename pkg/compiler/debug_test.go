@@ -71,8 +71,8 @@ func _deploy(isUpdate bool) {}
 	t.Run("return types", func(t *testing.T) {
 		returnTypes := map[string]string{
 			"MethodInt":    "Integer",
-			"MethodConcat": "String",
-			"MethodString": "String", "MethodByteArray": "ByteString",
+			"MethodConcat": "ByteString",
+			"MethodString": "ByteString", "MethodByteArray": "ByteString",
 			"MethodArray": "Array", "MethodStruct": "Struct",
 			"Main":                    "Boolean",
 			"unexportedMethod":        "Integer",
@@ -89,7 +89,7 @@ func _deploy(isUpdate bool) {}
 
 	t.Run("variables", func(t *testing.T) {
 		vars := map[string][]string{
-			"Main": {"s,String", "res,Integer"},
+			"Main": {"s,ByteString", "res,Integer"},
 		}
 		for i := range d.Methods {
 			v, ok := vars[d.Methods[i].ID]
@@ -102,30 +102,36 @@ func _deploy(isUpdate bool) {}
 	t.Run("param types", func(t *testing.T) {
 		paramTypes := map[string][]DebugParam{
 			"_deploy": {{
-				Name: "isUpdate",
-				Type: "Boolean",
+				Name:   "isUpdate",
+				Type:   "Boolean",
+				TypeSC: smartcontract.BoolType,
 			}},
 			"MethodInt": {{
-				Name: "a",
-				Type: "String",
+				Name:   "a",
+				Type:   "ByteString",
+				TypeSC: smartcontract.StringType,
 			}},
 			"MethodConcat": {
 				{
-					Name: "a",
-					Type: "String",
+					Name:   "a",
+					Type:   "ByteString",
+					TypeSC: smartcontract.StringType,
 				},
 				{
-					Name: "b",
-					Type: "String",
+					Name:   "b",
+					Type:   "ByteString",
+					TypeSC: smartcontract.StringType,
 				},
 				{
-					Name: "c",
-					Type: "String",
+					Name:   "c",
+					Type:   "ByteString",
+					TypeSC: smartcontract.StringType,
 				},
 			},
 			"Main": {{
-				Name: "op",
-				Type: "String",
+				Name:   "op",
+				Type:   "ByteString",
+				TypeSC: smartcontract.StringType,
 			}},
 		}
 		for i := range d.Methods {
@@ -303,8 +309,8 @@ func TestDebugInfo_MarshalJSON(t *testing.T) {
 				},
 				Range: DebugRange{Start: 10, End: 20},
 				Parameters: []DebugParam{
-					{"param1", "Integer"},
-					{"ok", "Boolean"},
+					{Name: "param1", Type: "Integer"},
+					{Name: "ok", Type: "Boolean"},
 				},
 				ReturnType: "ByteString",
 				Variables:  []string{},
