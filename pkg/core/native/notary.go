@@ -47,42 +47,42 @@ func newNotary() *Notary {
 		manifest.NewParameter("amount", smartcontract.IntegerType),
 		manifest.NewParameter("data", smartcontract.AnyType))
 	md := newMethodAndPrice(n.onPayment, 100_0000, smartcontract.AllowModifyStates)
-	n.AddMethod(md, desc, true)
+	n.AddMethod(md, desc)
 
 	desc = newDescriptor("lockDepositUntil", smartcontract.BoolType,
 		manifest.NewParameter("address", smartcontract.Hash160Type),
 		manifest.NewParameter("till", smartcontract.IntegerType))
 	md = newMethodAndPrice(n.lockDepositUntil, 100_0000, smartcontract.AllowModifyStates)
-	n.AddMethod(md, desc, true)
+	n.AddMethod(md, desc)
 
 	desc = newDescriptor("withdraw", smartcontract.BoolType,
 		manifest.NewParameter("from", smartcontract.Hash160Type),
 		manifest.NewParameter("to", smartcontract.Hash160Type))
 	md = newMethodAndPrice(n.withdraw, 100_0000, smartcontract.AllowModifyStates)
-	n.AddMethod(md, desc, true)
+	n.AddMethod(md, desc)
 
 	desc = newDescriptor("balanceOf", smartcontract.IntegerType,
 		manifest.NewParameter("addr", smartcontract.Hash160Type))
 	md = newMethodAndPrice(n.balanceOf, 100_0000, smartcontract.AllowStates)
-	n.AddMethod(md, desc, true)
+	n.AddMethod(md, desc)
 
 	desc = newDescriptor("expirationOf", smartcontract.IntegerType,
 		manifest.NewParameter("addr", smartcontract.Hash160Type))
 	md = newMethodAndPrice(n.expirationOf, 100_0000, smartcontract.AllowStates)
-	n.AddMethod(md, desc, true)
+	n.AddMethod(md, desc)
 
 	desc = newDescriptor("verify", smartcontract.BoolType,
 		manifest.NewParameter("signature", smartcontract.SignatureType))
 	md = newMethodAndPrice(n.verify, 100_0000, smartcontract.AllowStates)
-	n.AddMethod(md, desc, false)
+	n.AddMethod(md, desc)
 
 	desc = newDescriptor("onPersist", smartcontract.VoidType)
 	md = newMethodAndPrice(getOnPersistWrapper(n.OnPersist), 0, smartcontract.AllowModifyStates)
-	n.AddMethod(md, desc, false)
+	n.AddMethod(md, desc)
 
 	desc = newDescriptor("postPersist", smartcontract.VoidType)
 	md = newMethodAndPrice(getOnPersistWrapper(postPersistBase), 0, smartcontract.AllowModifyStates)
-	n.AddMethod(md, desc, false)
+	n.AddMethod(md, desc)
 
 	return n
 }

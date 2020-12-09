@@ -66,13 +66,14 @@ func newTestNative() *testNative {
 			manifest.NewParameter("addend2", smartcontract.IntegerType),
 		},
 		ReturnType: smartcontract.IntegerType,
+		Safe:       true,
 	}
 	md := &interop.MethodAndPrice{
 		Func:          tn.sum,
 		Price:         testSumPrice,
 		RequiredFlags: smartcontract.NoneFlag,
 	}
-	tn.meta.AddMethod(md, desc, true)
+	tn.meta.AddMethod(md, desc)
 
 	desc = &manifest.Method{
 		Name: "callOtherContractNoReturn",
@@ -82,16 +83,17 @@ func newTestNative() *testNative {
 			manifest.NewParameter("arg", smartcontract.ArrayType),
 		},
 		ReturnType: smartcontract.VoidType,
+		Safe:       true,
 	}
 	md = &interop.MethodAndPrice{
 		Func:          tn.callOtherContractNoReturn,
 		Price:         testSumPrice,
 		RequiredFlags: smartcontract.NoneFlag}
-	tn.meta.AddMethod(md, desc, true)
+	tn.meta.AddMethod(md, desc)
 
 	desc = &manifest.Method{Name: "onPersist", ReturnType: smartcontract.BoolType}
 	md = &interop.MethodAndPrice{Func: tn.OnPersist, RequiredFlags: smartcontract.AllowModifyStates}
-	tn.meta.AddMethod(md, desc, false)
+	tn.meta.AddMethod(md, desc)
 
 	return tn
 }

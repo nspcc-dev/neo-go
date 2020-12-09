@@ -49,8 +49,6 @@ type Manifest struct {
 	SupportedStandards []string `json:"supportedstandards"`
 	// Trusts is a set of hashes to a which contract trusts.
 	Trusts WildUint160s `json:"trusts"`
-	// SafeMethods is a set of names of safe methods.
-	SafeMethods WildStrings `json:"safemethods"`
 	// Extra is an implementation-defined user data.
 	Extra interface{} `json:"extra"`
 }
@@ -67,7 +65,6 @@ func NewManifest(name string) *Manifest {
 		SupportedStandards: []string{},
 	}
 	m.Trusts.Restrict()
-	m.SafeMethods.Restrict()
 	return m
 }
 
@@ -101,10 +98,6 @@ func (a *ABI) GetEvent(name string) *Event {
 // CanCall returns true is current contract is allowed to call
 // method of another contract with specified hash.
 func (m *Manifest) CanCall(hash util.Uint160, toCall *Manifest, method string) bool {
-	// this if is not present in the original code but should probably be here
-	if toCall.SafeMethods.Contains(method) {
-		return true
-	}
 	for i := range m.Permissions {
 		if m.Permissions[i].IsAllowed(hash, toCall, method) {
 			return true

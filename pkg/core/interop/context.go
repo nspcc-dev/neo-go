@@ -120,13 +120,11 @@ func NewContractMD(name string) *ContractMD {
 }
 
 // AddMethod adds new method to a native contract.
-func (c *ContractMD) AddMethod(md *MethodAndPrice, desc *manifest.Method, safe bool) {
+func (c *ContractMD) AddMethod(md *MethodAndPrice, desc *manifest.Method) {
 	c.Manifest.ABI.Methods = append(c.Manifest.ABI.Methods, *desc)
 	md.MD = desc
+	desc.Safe = (md.RequiredFlags & smartcontract.AllowModifyStates) == 0
 	c.Methods[desc.Name] = *md
-	if safe {
-		c.Manifest.SafeMethods.Add(desc.Name)
-	}
 }
 
 // AddEvent adds new event to a native contract.

@@ -20,6 +20,7 @@ func fooMethodBarEvent() *manifest.Manifest {
 						{Type: smartcontract.PublicKeyType},
 					},
 					ReturnType: smartcontract.IntegerType,
+					Safe:       true,
 				},
 			},
 			Events: []manifest.Event{
@@ -85,6 +86,13 @@ func TestMissingEvent(t *testing.T) {
 	m.ABI.GetEvent("bar").Name = "notabar"
 	err := Comply(m, fooMethodBarEvent())
 	require.True(t, errors.Is(err, ErrEventMissing))
+}
+
+func TestSafeFlag(t *testing.T) {
+	m := fooMethodBarEvent()
+	m.ABI.GetMethod("foo").Safe = false
+	err := Comply(m, fooMethodBarEvent())
+	require.True(t, errors.Is(err, ErrSafeMethodMismatch))
 }
 
 func TestComplyValid(t *testing.T) {
