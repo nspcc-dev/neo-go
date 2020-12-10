@@ -62,7 +62,7 @@ func NewDeployTx(name string, sender util.Uint160, r gio.Reader) (*transaction.T
 		return nil, util.Uint160{}, err
 	}
 
-	m, err := di.ConvertToManifest(name, nil)
+	m, err := di.ConvertToManifest(&compiler.Options{Name: name})
 	if err != nil {
 		return nil, util.Uint160{}, err
 	}

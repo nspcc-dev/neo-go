@@ -150,7 +150,7 @@ func _deploy(isUpdate bool) {}
 	}
 
 	t.Run("convert to Manifest", func(t *testing.T) {
-		actual, err := d.ConvertToManifest("MyCTR", nil)
+		actual, err := d.ConvertToManifest(&Options{Name: "MyCTR"})
 		require.NoError(t, err)
 		// note: offsets are hard to predict, so we just take them from the output
 		expected := &manifest.Manifest{

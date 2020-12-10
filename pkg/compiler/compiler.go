@@ -219,7 +219,7 @@ func CompileAndSave(src string, o *Options) ([]byte, error) {
 	}
 
 	if o.ManifestFile != "" {
-		m, err := di.ConvertToManifest(o.Name, o.ContractEvents, o.ContractSupportedStandards...)
+		m, err := di.ConvertToManifest(o)
 		if err != nil {
 			return b, fmt.Errorf("failed to convert debug info to manifest: %w", err)
 		}
