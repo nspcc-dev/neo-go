@@ -61,10 +61,13 @@ type executor struct {
 	In *bytes.Buffer
 }
 
-func newTestChain(t *testing.T) (*core.Blockchain, *server.Server, *network.Server) {
+func newTestChain(t *testing.T, f func(*config.Config)) (*core.Blockchain, *server.Server, *network.Server) {
 	configPath := "../config/protocol.unit_testnet.single.yml"
 	cfg, err := config.LoadFile(configPath)
 	require.NoError(t, err, "could not load config")
+	if f != nil {
+		f(&cfg)
+	}
 
 	memoryStore := storage.NewMemoryStore()
 	logger := zaptest.NewLogger(t)
@@ -85,6 +88,10 @@ func newTestChain(t *testing.T) (*core.Blockchain, *server.Server, *network.Serv
 }
 
 func newExecutor(t *testing.T, needChain bool) *executor {
+	return newExecutorWithConfig(t, needChain, nil)
+}
+
+func newExecutorWithConfig(t *testing.T, needChain bool, f func(*config.Config)) *executor {
 	e := &executor{
 		CLI: newApp(),
 		Out: bytes.NewBuffer(nil),
@@ -97,7 +104,7 @@ func newExecutor(t *testing.T, needChain bool) *executor {
 	require.Nil(t, input.Terminal) // check that tests clean up properly
 	input.Terminal = terminal.NewTerminal(rw, "")
 	if needChain {
-		e.Chain, e.RPC, e.NetSrv = newTestChain(t)
+		e.Chain, e.RPC, e.NetSrv = newTestChain(t, f)
 	}
 	return e
 }

@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
+	"github.com/nspcc-dev/neo-go/pkg/encoding/fixedn"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
@@ -69,6 +70,35 @@ func TestContractInitAndCompile(t *testing.T) {
 		e.Run(t, append(cmd, "--verbose")...)
 		e.checkNextLine(t, "^[0-9a-hA-H]+$")
 	})
+}
+
+// Checks that error is returned if GAS available for test-invoke exceeds
+// GAS needed to be consumed.
+func TestDeployBigContract(t *testing.T) {
+	e := newExecutorWithConfig(t, true, func(c *config.Config) {
+		c.ApplicationConfiguration.RPC.MaxGasInvoke = fixedn.Fixed8(1)
+	})
+	defer e.Close(t)
+
+	// For proper nef generation.
+	config.Version = "0.90.0-test"
+
+	tmpDir := path.Join(os.TempDir(), "neogo.test.deployfail")
+	require.NoError(t, os.Mkdir(tmpDir, os.ModePerm))
+	defer os.RemoveAll(tmpDir)
+
+	nefName := path.Join(tmpDir, "deploy.nef")
+	manifestName := path.Join(tmpDir, "deploy.manifest.json")
+	e.Run(t, "neo-go", "contract", "compile",
+		"--in", "testdata/deploy/main.go", // compile single file
+		"--config", "testdata/deploy/neo-go.yml",
+		"--out", nefName, "--manifest", manifestName)
+
+	e.In.WriteString("one\r")
+	e.RunWithError(t, "neo-go", "contract", "deploy",
+		"--rpc-endpoint", "http://"+e.RPC.Addr,
+		"--wallet", validatorWallet, "--address", validatorAddr,
+		"--in", nefName, "--manifest", manifestName)
 }
 
 func TestComlileAndInvokeFunction(t *testing.T) {
