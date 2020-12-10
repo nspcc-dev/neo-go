@@ -1695,6 +1695,13 @@ func (bc *Blockchain) verifyTxWitnesses(t *transaction.Transaction, block *block
 	}
 	interopCtx := bc.newInteropContext(trigger.Verification, bc.dao, block, t)
 	gasLimit := t.NetworkFee - int64(t.Size())*bc.FeePerByte()
+	if bc.P2PSigExtensionsEnabled() {
+		attrs := t.GetAttributes(transaction.NotaryAssistedT)
+		if len(attrs) != 0 {
+			na := attrs[0].Value.(*transaction.NotaryAssisted)
+			gasLimit -= (int64(na.NKeys) + 1) * transaction.NotaryServiceFeePerKey
+		}
+	}
 	for i := range t.Signers {
 		gasConsumed, err := bc.verifyHashAgainstScript(t.Signers[i].Account, &t.Scripts[i], interopCtx, gasLimit)
 		if err != nil {
