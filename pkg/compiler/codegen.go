@@ -14,6 +14,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
@@ -746,12 +747,27 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		return nil
 
 	case *ast.CompositeLit:
-		switch typ := c.typeOf(n).Underlying().(type) {
+		t := c.typeOf(n)
+		switch typ := t.Underlying().(type) {
 		case *types.Struct:
 			c.convertStruct(n, false)
 		case *types.Map:
 			c.convertMap(n)
 		default:
+			if tn, ok := t.(*types.Named); ok && isInteropPath(tn.String()) {
+				st, _ := scAndVMInteropTypeFromExpr(tn)
+				expectedLen := -1
+				switch st {
+				case smartcontract.Hash160Type:
+					expectedLen = 20
+				case smartcontract.Hash256Type:
+					expectedLen = 32
+				}
+				if expectedLen != -1 && expectedLen != len(n.Elts) {
+					c.prog.Err = fmt.Errorf("%s type must have size %d", tn.Obj().Name(), expectedLen)
+					return nil
+				}
+			}
 			ln := len(n.Elts)
 			// ByteArrays needs a different approach than normal arrays.
 			if isByteSlice(typ) {

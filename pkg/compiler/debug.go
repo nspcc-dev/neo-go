@@ -228,6 +228,29 @@ func (c *codegen) scAndVMReturnTypeFromScope(scope *funcScope) (smartcontract.Pa
 	}
 }
 
+func scAndVMInteropTypeFromExpr(named *types.Named) (smartcontract.ParamType, stackitem.Type) {
+	name := named.Obj().Name()
+	pkg := named.Obj().Pkg().Name()
+	switch pkg {
+	case "blockchain", "contract":
+		return smartcontract.ArrayType, stackitem.ArrayT // Block, Transaction, Contract
+	case "interop":
+		if name != "Interface" {
+			switch name {
+			case "Hash160":
+				return smartcontract.Hash160Type, stackitem.ByteArrayT
+			case "Hash256":
+				return smartcontract.Hash256Type, stackitem.ByteArrayT
+			case "PublicKey":
+				return smartcontract.PublicKeyType, stackitem.ByteArrayT
+			case "Signature":
+				return smartcontract.SignatureType, stackitem.ByteArrayT
+			}
+		}
+	}
+	return smartcontract.InteropInterfaceType, stackitem.InteropT
+}
+
 func (c *codegen) scAndVMTypeFromExpr(typ ast.Expr) (smartcontract.ParamType, stackitem.Type) {
 	t := c.typeOf(typ)
 	if c.typeOf(typ) == nil {
@@ -235,26 +258,7 @@ func (c *codegen) scAndVMTypeFromExpr(typ ast.Expr) (smartcontract.ParamType, st
 	}
 	if named, ok := t.(*types.Named); ok {
 		if isInteropPath(named.String()) {
-			name := named.Obj().Name()
-			pkg := named.Obj().Pkg().Name()
-			switch pkg {
-			case "blockchain", "contract":
-				return smartcontract.ArrayType, stackitem.ArrayT // Block, Transaction, Contract
-			case "interop":
-				if name != "Interface" {
-					switch name {
-					case "Hash160":
-						return smartcontract.Hash160Type, stackitem.ByteArrayT
-					case "Hash256":
-						return smartcontract.Hash256Type, stackitem.ByteArrayT
-					case "PublicKey":
-						return smartcontract.PublicKeyType, stackitem.ByteArrayT
-					case "Signature":
-						return smartcontract.SignatureType, stackitem.ByteArrayT
-					}
-				}
-			}
-			return smartcontract.InteropInterfaceType, stackitem.InteropT
+			return scAndVMInteropTypeFromExpr(named)
 		}
 	}
 	switch t := t.Underlying().(type) {
