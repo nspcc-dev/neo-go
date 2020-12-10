@@ -1670,11 +1670,11 @@ func (bc *Blockchain) verifyHashAgainstScript(hash util.Uint160, witness *transa
 		if err != nil {
 			return 0, fmt.Errorf("%w: invalid return value", ErrVerificationFailed)
 		}
-		if !res {
-			return 0, fmt.Errorf("%w: invalid signature", ErrVerificationFailed)
-		}
 		if vm.Estack().Len() != 0 {
 			return 0, fmt.Errorf("%w: expected exactly one returned value", ErrVerificationFailed)
+		}
+		if !res {
+			return 0, fmt.Errorf("%w: invalid signature", ErrVerificationFailed)
 		}
 	} else {
 		return 0, fmt.Errorf("%w: no result returned from the script", ErrVerificationFailed)
