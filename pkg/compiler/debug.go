@@ -426,9 +426,6 @@ func parsePairJSON(data []byte, sep string) (string, string, error) {
 // ConvertToManifest converts contract to the manifest.Manifest struct for debugger.
 // Note: manifest is taken from the external source, however it can be generated ad-hoc. See #1038.
 func (di *DebugInfo) ConvertToManifest(o *Options) (*manifest.Manifest, error) {
-	if di.MainPkg == "" {
-		return nil, errors.New("no Main method was found")
-	}
 	methods := make([]manifest.Method, 0)
 	for _, method := range di.Methods {
 		if method.IsExported && method.IsFunction && method.Name.Namespace == di.MainPkg {
