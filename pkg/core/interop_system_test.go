@@ -440,7 +440,8 @@ func getTestContractState() (*state.Contract, *state.Contract) {
 	emit.Syscall(w.BinWriter, interopnames.SystemStorageGet)
 	emit.Opcodes(w.BinWriter, opcode.RET)
 	onPaymentOff := w.Len()
-	emit.Int(w.BinWriter, 3)
+	emit.Syscall(w.BinWriter, interopnames.SystemRuntimeGetCallingScriptHash)
+	emit.Int(w.BinWriter, 4)
 	emit.Opcodes(w.BinWriter, opcode.PACK)
 	emit.String(w.BinWriter, "LastPayment")
 	emit.Syscall(w.BinWriter, interopnames.SystemRuntimeNotify)
@@ -972,7 +973,7 @@ func TestContractCreateDeploy(t *testing.T) {
 
 	cs.Hash = state.CreateContractHash(sender, cs.Script)
 	v.LoadScriptWithHash(currCs.Script, cs.Hash, smartcontract.All)
-	err := contract.CallExInternal(ic, cs, "getValue", nil, smartcontract.All, vm.EnsureNotEmpty, nil)
+	err := contract.CallExInternal(ic, cs, "getValue", nil, smartcontract.All, vm.EnsureNotEmpty)
 	require.NoError(t, err)
 	require.NoError(t, v.Run())
 	require.Equal(t, "create", v.Estack().Pop().String())
@@ -993,7 +994,7 @@ func TestContractCreateDeploy(t *testing.T) {
 		require.NoError(t, v.Run())
 
 		v.LoadScriptWithHash(currCs.Script, cs.Hash, smartcontract.All)
-		err = contract.CallExInternal(ic, newCs, "getValue", nil, smartcontract.All, vm.EnsureNotEmpty, nil)
+		err = contract.CallExInternal(ic, newCs, "getValue", nil, smartcontract.All, vm.EnsureNotEmpty)
 		require.NoError(t, err)
 		require.NoError(t, v.Run())
 		require.Equal(t, "update", v.Estack().Pop().String())

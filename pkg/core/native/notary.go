@@ -247,14 +247,12 @@ func (n *Notary) withdraw(ic *interop.Context, args []stackitem.Item) stackitem.
 		panic(fmt.Errorf("failed to get GAS contract state: %w", err))
 	}
 	transferArgs := []stackitem.Item{stackitem.NewByteArray(n.Hash.BytesBE()), stackitem.NewByteArray(to.BytesBE()), stackitem.NewBigInteger(deposit.Amount), stackitem.Null{}}
-	err = contract.CallExInternal(ic, cs, "transfer", transferArgs, smartcontract.All, vm.EnsureIsEmpty, func(ctx *vm.Context) { // we need EnsureIsEmpty because there's a callback popping result from the stack
-		isTransferOk := ic.VM.Estack().Pop().Bool()
-		if !isTransferOk {
-			panic("failed to transfer GAS from Notary account")
-		}
-	})
+	err = contract.CallFromNative(ic, n.Hash, cs, "transfer", transferArgs, vm.EnsureNotEmpty)
 	if err != nil {
 		panic(fmt.Errorf("failed to transfer GAS from Notary account: %w", err))
+	}
+	if !ic.VM.Estack().Pop().Bool() {
+		panic("failed to transfer GAS from Notary account: `transfer` returned false")
 	}
 	if err := n.removeDepositFor(ic.DAO, from); err != nil {
 		panic(fmt.Errorf("failed to remove withdrawn deposit for %s from the storage: %w", from.StringBE(), err))

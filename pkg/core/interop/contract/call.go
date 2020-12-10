@@ -60,12 +60,18 @@ func callExInternal(ic *interop.Context, h []byte, name string, args []stackitem
 			}
 		}
 	}
-	return CallExInternal(ic, cs, name, args, f, vm.EnsureNotEmpty, nil)
+	return CallExInternal(ic, cs, name, args, f, vm.EnsureNotEmpty)
 }
 
 // CallExInternal calls a contract with flags and can't be invoked directly by user.
 func CallExInternal(ic *interop.Context, cs *state.Contract,
-	name string, args []stackitem.Item, f smartcontract.CallFlag, checkReturn vm.CheckReturnState, callback func(ctx *vm.Context)) error {
+	name string, args []stackitem.Item, f smartcontract.CallFlag, checkReturn vm.CheckReturnState) error {
+	return callExFromNative(ic, ic.VM.GetCurrentScriptHash(), cs, name, args, f, checkReturn)
+}
+
+// callExFromNative calls a contract with flags using provided calling hash.
+func callExFromNative(ic *interop.Context, caller util.Uint160, cs *state.Contract,
+	name string, args []stackitem.Item, f smartcontract.CallFlag, checkReturn vm.CheckReturnState) error {
 	md := cs.Manifest.ABI.GetMethod(name)
 	if md == nil {
 		return fmt.Errorf("method '%s' not found", name)
@@ -76,7 +82,7 @@ func CallExInternal(ic *interop.Context, cs *state.Contract,
 	}
 
 	ic.VM.Invocations[cs.Hash]++
-	ic.VM.LoadScriptWithHash(cs.Script, cs.Hash, ic.VM.Context().GetCallFlags()&f)
+	ic.VM.LoadScriptWithCallingHash(caller, cs.Script, cs.Hash, ic.VM.Context().GetCallFlags()&f)
 	var isNative bool
 	for i := range ic.Natives {
 		if ic.Natives[i].Metadata().Hash.Equals(cs.Hash) {
@@ -95,12 +101,32 @@ func CallExInternal(ic *interop.Context, cs *state.Contract,
 		ic.VM.Jump(ic.VM.Context(), md.Offset)
 	}
 	ic.VM.Context().CheckReturn = checkReturn
-	ic.VM.Context().Callback = callback
 
 	md = cs.Manifest.ABI.GetMethod(manifest.MethodInit)
 	if md != nil {
 		ic.VM.Call(ic.VM.Context(), md.Offset)
 	}
 
+	return nil
+}
+
+// ErrNativeCall is returned for failed calls from native.
+var ErrNativeCall = errors.New("error during call from native")
+
+// CallFromNative performs synchronous call from native contract.
+func CallFromNative(ic *interop.Context, caller util.Uint160, cs *state.Contract, method string, args []stackitem.Item, checkReturn vm.CheckReturnState) error {
+	startSize := ic.VM.Istack().Len()
+	if err := callExFromNative(ic, caller, cs, method, args, smartcontract.All, checkReturn); err != nil {
+		return err
+	}
+
+	for !ic.VM.HasStopped() && ic.VM.Istack().Len() > startSize {
+		if err := ic.VM.Step(); err != nil {
+			return fmt.Errorf("%w: %v", ErrNativeCall, err)
+		}
+	}
+	if ic.VM.State() == vm.FaultState {
+		return ErrNativeCall
+	}
 	return nil
 }

@@ -317,11 +317,32 @@ func TestNEO_TransferOnPayment(t *testing.T) {
 	aer, err := bc.GetAppExecResults(tx.Hash(), trigger.Application)
 	require.NoError(t, err)
 	require.Equal(t, vm.HaltState, aer[0].VMState)
-	require.Len(t, aer[0].Events, 3) // transfer + auto GAS claim + onPayment
+	require.Len(t, aer[0].Events, 3) // transfer + GAS claim for sender + onPayment
 
 	e := aer[0].Events[2]
 	require.Equal(t, "LastPayment", e.Name)
 	arr := e.Item.Value().([]stackitem.Item)
-	require.Equal(t, neoOwner.BytesBE(), arr[0].Value())
-	require.Equal(t, big.NewInt(amount), arr[1].Value())
+	require.Equal(t, bc.contracts.NEO.Hash.BytesBE(), arr[0].Value())
+	require.Equal(t, neoOwner.BytesBE(), arr[1].Value())
+	require.Equal(t, big.NewInt(amount), arr[2].Value())
+
+	tx = transferTokenFromMultisigAccount(t, bc, cs.Hash, bc.contracts.NEO.Hash, amount)
+	aer, err = bc.GetAppExecResults(tx.Hash(), trigger.Application)
+	require.NoError(t, err)
+	require.Equal(t, vm.HaltState, aer[0].VMState)
+	// Now we must also have GAS claim for contract and corresponding `onPayment`.
+	require.Len(t, aer[0].Events, 5)
+
+	e = aer[0].Events[2] // onPayment for GAS claim
+	require.Equal(t, "LastPayment", e.Name)
+	arr = e.Item.Value().([]stackitem.Item)
+	require.Equal(t, stackitem.Null{}, arr[1])
+	require.Equal(t, bc.contracts.GAS.Hash.BytesBE(), arr[0].Value())
+
+	e = aer[0].Events[4] // onPayment for NEO transfer
+	require.Equal(t, "LastPayment", e.Name)
+	arr = e.Item.Value().([]stackitem.Item)
+	require.Equal(t, bc.contracts.NEO.Hash.BytesBE(), arr[0].Value())
+	require.Equal(t, neoOwner.BytesBE(), arr[1].Value())
+	require.Equal(t, big.NewInt(amount), arr[2].Value())
 }

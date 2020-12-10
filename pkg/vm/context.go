@@ -48,14 +48,6 @@ type Context struct {
 	// Call flags this context was created with.
 	callFlag smartcontract.CallFlag
 
-	// InvocationState contains expected return type and actions to be performed on context unload.
-	InvocationState
-}
-
-// InvocationState contains return convention and callback to be executed on context unload.
-type InvocationState struct {
-	// Callback is executed on context unload.
-	Callback func(ctx *Context)
 	// CheckReturn specifies if amount of return values needs to be checked.
 	CheckReturn CheckReturnState
 }

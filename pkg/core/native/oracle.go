@@ -20,6 +20,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
@@ -248,16 +249,17 @@ func (o *Oracle) FinishInternal(ic *interop.Context) error {
 
 	r := io.NewBinReaderFromBuf(req.UserData)
 	userData := stackitem.DecodeBinaryStackItem(r)
-	args := stackitem.NewArray([]stackitem.Item{
+	args := []stackitem.Item{
 		stackitem.Make(req.URL),
 		stackitem.Make(userData),
 		stackitem.Make(resp.Code),
 		stackitem.Make(resp.Result),
-	})
-	ic.VM.Estack().PushVal(args)
-	ic.VM.Estack().PushVal(req.CallbackMethod)
-	ic.VM.Estack().PushVal(req.CallbackContract.BytesBE())
-	return contract.Call(ic)
+	}
+	cs, err := ic.DAO.GetContractState(req.CallbackContract)
+	if err != nil {
+		return err
+	}
+	return contract.CallFromNative(ic, o.Hash, cs, req.CallbackMethod, args, vm.EnsureIsEmpty)
 }
 
 func (o *Oracle) request(ic *interop.Context, args []stackitem.Item) stackitem.Item {

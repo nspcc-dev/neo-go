@@ -284,6 +284,7 @@ func (v *VM) LoadScriptWithFlags(b []byte, f smartcontract.CallFlag) {
 	ctx.tryStack = NewStack("exception")
 	ctx.callFlag = f
 	ctx.static = newSlot(v.refs)
+	ctx.callingScriptHash = v.GetCurrentScriptHash()
 	v.istack.PushVal(ctx)
 }
 
@@ -295,11 +296,17 @@ func (v *VM) LoadScriptWithFlags(b []byte, f smartcontract.CallFlag) {
 // each other.
 func (v *VM) LoadScriptWithHash(b []byte, hash util.Uint160, f smartcontract.CallFlag) {
 	shash := v.GetCurrentScriptHash()
+	v.LoadScriptWithCallingHash(shash, b, hash, f)
+}
+
+// LoadScriptWithCallingHash is similar to LoadScriptWithHash but sets calling hash explicitly.
+// It should be used for calling from native contracts.
+func (v *VM) LoadScriptWithCallingHash(caller util.Uint160, b []byte, hash util.Uint160, f smartcontract.CallFlag) {
 	v.LoadScriptWithFlags(b, f)
 	ctx := v.Context()
 	ctx.isDeployed = true
 	ctx.scriptHash = hash
-	ctx.callingScriptHash = shash
+	ctx.callingScriptHash = caller
 }
 
 // Context returns the current executed context. Nil if there is no context,
@@ -1417,9 +1424,6 @@ func (v *VM) unloadContext(ctx *Context) {
 	currCtx := v.Context()
 	if ctx.static != nil && currCtx != nil && ctx.static != currCtx.static {
 		ctx.static.Clear()
-	}
-	if ctx.Callback != nil {
-		ctx.Callback(ctx)
 	}
 	switch ctx.CheckReturn {
 	case NoCheck:
