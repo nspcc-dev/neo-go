@@ -24,6 +24,42 @@ import (
 	"go.uber.org/zap/zaptest"
 )
 
+func TestTypeConstantSize(t *testing.T) {
+	src := `package foo
+	import "github.com/nspcc-dev/neo-go/pkg/interop"
+	var a %T // type declaration is always ok
+	func Main() interface{} {
+		return %#v
+	}`
+
+	t.Run("Hash160", func(t *testing.T) {
+		t.Run("good", func(t *testing.T) {
+			a := make(cinterop.Hash160, 20)
+			src := fmt.Sprintf(src, a, a)
+			eval(t, src, []byte(a))
+		})
+		t.Run("bad", func(t *testing.T) {
+			a := make(cinterop.Hash160, 19)
+			src := fmt.Sprintf(src, a, a)
+			_, err := compiler.Compile("foo.go", strings.NewReader(src))
+			require.Error(t, err)
+		})
+	})
+	t.Run("Hash256", func(t *testing.T) {
+		t.Run("good", func(t *testing.T) {
+			a := make(cinterop.Hash256, 32)
+			src := fmt.Sprintf(src, a, a)
+			eval(t, src, []byte(a))
+		})
+		t.Run("bad", func(t *testing.T) {
+			a := make(cinterop.Hash256, 31)
+			src := fmt.Sprintf(src, a, a)
+			_, err := compiler.Compile("foo.go", strings.NewReader(src))
+			require.Error(t, err)
+		})
+	})
+}
+
 func TestFromAddress(t *testing.T) {
 	as1 := "NQRLhCpAru9BjGsMwk67vdMwmzKMRgsnnN"
 	addr1, err := address.StringToUint160(as1)
