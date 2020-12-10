@@ -13,6 +13,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
+	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/mempool"
@@ -42,9 +43,10 @@ const (
 	headerBatchCount = 2000
 	version          = "0.1.0"
 
-	defaultMemPoolSize        = 50000
-	defaultMaxTraceableBlocks = 2102400   // 1 year of 15s blocks
-	verificationGasLimit      = 100000000 // 1 GAS
+	defaultMemPoolSize                     = 50000
+	defaultP2PNotaryRequestPayloadPoolSize = 1000
+	defaultMaxTraceableBlocks              = 2102400   // 1 year of 15s blocks
+	verificationGasLimit                   = 100000000 // 1 GAS
 )
 
 var (
@@ -116,6 +118,10 @@ type Blockchain struct {
 
 	memPool *mempool.Pool
 
+	// postBlock is a set of callback methods which should be run under the Blockchain lock after new block is persisted.
+	// Block's transactions are passed via mempool.
+	postBlock []func(blockchainer.Blockchainer, *mempool.Pool, *block.Block)
+
 	sbCommittee keys.PublicKeys
 
 	log *zap.Logger
@@ -151,6 +157,10 @@ func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration, log *zap.L
 		cfg.MemPoolSize = defaultMemPoolSize
 		log.Info("mempool size is not set or wrong, setting default value", zap.Int("MemPoolSize", cfg.MemPoolSize))
 	}
+	if cfg.P2PSigExtensions && cfg.P2PNotaryRequestPayloadPoolSize <= 0 {
+		cfg.P2PNotaryRequestPayloadPoolSize = defaultP2PNotaryRequestPayloadPoolSize
+		log.Info("P2PNotaryRequestPayloadPool size is not set or wrong, setting default value", zap.Int("P2PNotaryRequestPayloadPoolSize", cfg.P2PNotaryRequestPayloadPoolSize))
+	}
 	if cfg.MaxTraceableBlocks == 0 {
 		cfg.MaxTraceableBlocks = defaultMaxTraceableBlocks
 		log.Info("MaxTraceableBlocks is not set or wrong, using default value", zap.Uint32("MaxTraceableBlocks", cfg.MaxTraceableBlocks))
@@ -164,7 +174,7 @@ func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration, log *zap.L
 		dao:         dao.NewSimple(s, cfg.Magic, cfg.StateRootInHeader),
 		stopCh:      make(chan struct{}),
 		runToExitCh: make(chan struct{}),
-		memPool:     mempool.New(cfg.MemPoolSize),
+		memPool:     mempool.New(cfg.MemPoolSize, 0),
 		sbCommittee: committee,
 		log:         log,
 		events:      make(chan bcEvent),
@@ -452,7 +462,7 @@ func (bc *Blockchain) AddBlock(block *block.Block) error {
 		if !block.MerkleRoot.Equals(merkle) {
 			return errors.New("invalid block: MerkleRoot mismatch")
 		}
-		mp = mempool.New(len(block.Transactions))
+		mp = mempool.New(len(block.Transactions), 0)
 		for _, tx := range block.Transactions {
 			var err error
 			// Transactions are verified before adding them
@@ -464,7 +474,7 @@ func (bc *Blockchain) AddBlock(block *block.Block) error {
 					continue
 				}
 			} else {
-				err = bc.verifyAndPoolTx(tx, mp)
+				err = bc.verifyAndPoolTx(tx, mp, bc)
 			}
 			if err != nil && bc.config.VerifyTransactions {
 				return fmt.Errorf("transaction %s failed to verify: %w", tx.Hash().StringLE(), err)
@@ -720,6 +730,13 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 		bc.lock.Unlock()
 		return fmt.Errorf("failed to call OnPersistEnd for Policy native contract: %w", err)
 	}
+	if bc.P2PSigExtensionsEnabled() {
+		err := bc.contracts.Notary.OnPersistEnd(bc.dao)
+		if err != nil {
+			bc.lock.Unlock()
+			return fmt.Errorf("failed to call OnPersistEnd for Notary native contract: %w", err)
+		}
+	}
 	if err := bc.contracts.Designate.OnPersistEnd(bc.dao); err != nil {
 		bc.lock.Unlock()
 		return err
@@ -733,7 +750,10 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 	}
 	bc.topBlock.Store(block)
 	atomic.StoreUint32(&bc.blockHeight, block.Index)
-	bc.memPool.RemoveStale(func(tx *transaction.Transaction) bool { return bc.isTxStillRelevant(tx, txpool) }, bc)
+	bc.memPool.RemoveStale(func(tx *transaction.Transaction) bool { return bc.IsTxStillRelevant(tx, txpool, false) }, bc)
+	for _, f := range bc.postBlock {
+		f(bc, txpool, block)
+	}
 	bc.lock.Unlock()
 
 	updateBlockHeightMetric(block.Index)
@@ -932,6 +952,24 @@ func (bc *Blockchain) GetGoverningTokenBalance(acc util.Uint160) (*big.Int, uint
 	}
 	neo := bs.Trackers[bc.contracts.NEO.ContractID]
 	return &neo.Balance, neo.LastUpdatedBlock
+}
+
+// GetNotaryBalance returns Notary deposit amount for the specified account.
+func (bc *Blockchain) GetNotaryBalance(acc util.Uint160) *big.Int {
+	return bc.contracts.Notary.BalanceOf(bc.dao, acc)
+}
+
+// GetNotaryContractScriptHash returns Notary native contract hash.
+func (bc *Blockchain) GetNotaryContractScriptHash() util.Uint160 {
+	if bc.P2PSigExtensionsEnabled() {
+		return bc.contracts.Notary.Hash
+	}
+	return util.Uint160{}
+}
+
+// GetNotaryDepositExpiration returns Notary deposit expiration height for the specified account.
+func (bc *Blockchain) GetNotaryDepositExpiration(acc util.Uint160) uint32 {
+	return bc.contracts.Notary.ExpirationOf(bc.dao, acc)
 }
 
 // LastBatch returns last persisted storage batch.
@@ -1204,16 +1242,6 @@ func (bc *Blockchain) FeePerByte() int64 {
 	return bc.contracts.Policy.GetFeePerByteInternal(bc.dao)
 }
 
-// GetMaxBlockSize returns maximum allowed block size from native Policy contract.
-func (bc *Blockchain) GetMaxBlockSize() uint32 {
-	return bc.contracts.Policy.GetMaxBlockSizeInternal(bc.dao)
-}
-
-// GetMaxBlockSystemFee returns maximum block system fee from native Policy contract.
-func (bc *Blockchain) GetMaxBlockSystemFee() int64 {
-	return bc.contracts.Policy.GetMaxBlockSystemFeeInternal(bc.dao)
-}
-
 // GetMemPool returns the memory pool of the blockchain.
 func (bc *Blockchain) GetMemPool() *mempool.Pool {
 	return bc.memPool
@@ -1279,9 +1307,10 @@ var (
 
 // verifyAndPoolTx verifies whether a transaction is bonafide or not and tries
 // to add it to the mempool given.
-func (bc *Blockchain) verifyAndPoolTx(t *transaction.Transaction, pool *mempool.Pool) error {
+func (bc *Blockchain) verifyAndPoolTx(t *transaction.Transaction, pool *mempool.Pool, feer mempool.Feer, data ...interface{}) error {
 	height := bc.BlockHeight()
-	if t.ValidUntilBlock <= height || t.ValidUntilBlock > height+transaction.MaxValidUntilBlockIncrement {
+	isPartialTx := data != nil
+	if t.ValidUntilBlock <= height || !isPartialTx && t.ValidUntilBlock > height+transaction.MaxValidUntilBlockIncrement {
 		return fmt.Errorf("%w: ValidUntilBlock = %d, current height = %d", ErrTxExpired, t.ValidUntilBlock, height)
 	}
 	// Policying.
@@ -1316,14 +1345,14 @@ func (bc *Blockchain) verifyAndPoolTx(t *transaction.Transaction, pool *mempool.
 			return err
 		}
 	}
-	err := bc.verifyTxWitnesses(t, nil)
+	err := bc.verifyTxWitnesses(t, nil, isPartialTx)
 	if err != nil {
 		return err
 	}
-	if err := bc.verifyTxAttributes(t); err != nil {
+	if err := bc.verifyTxAttributes(t, isPartialTx); err != nil {
 		return err
 	}
-	err = pool.Add(t, bc)
+	err = pool.Add(t, feer, data...)
 	if err != nil {
 		switch {
 		case errors.Is(err, mempool.ErrConflict):
@@ -1344,7 +1373,7 @@ func (bc *Blockchain) verifyAndPoolTx(t *transaction.Transaction, pool *mempool.
 	return nil
 }
 
-func (bc *Blockchain) verifyTxAttributes(tx *transaction.Transaction) error {
+func (bc *Blockchain) verifyTxAttributes(tx *transaction.Transaction, isPartialTx bool) error {
 	for i := range tx.Attributes {
 		switch attrType := tx.Attributes[i].Type; attrType {
 		case transaction.HighPriority:
@@ -1384,9 +1413,19 @@ func (bc *Blockchain) verifyTxAttributes(tx *transaction.Transaction) error {
 			if !bc.config.P2PSigExtensions {
 				return fmt.Errorf("%w: NotValidBefore attribute was found, but P2PSigExtensions are disabled", ErrInvalidAttribute)
 			}
-			nvb := tx.Attributes[i].Value.(*transaction.NotValidBefore)
-			if height := bc.BlockHeight(); height < nvb.Height {
-				return fmt.Errorf("%w: transaction is not yet valid: NotValidBefore = %d, current height = %d", ErrInvalidAttribute, nvb.Height, height)
+			nvb := tx.Attributes[i].Value.(*transaction.NotValidBefore).Height
+			if isPartialTx {
+				maxNVBDelta := bc.contracts.Notary.GetMaxNotValidBeforeDelta(bc.dao)
+				if bc.BlockHeight()+maxNVBDelta < nvb {
+					return fmt.Errorf("%w: partially-filled transaction should become valid not less then %d blocks after current chain's height %d", ErrInvalidAttribute, maxNVBDelta, bc.BlockHeight())
+				}
+				if nvb+maxNVBDelta < tx.ValidUntilBlock {
+					return fmt.Errorf("%w: partially-filled transaction should be valid during less than %d blocks", ErrInvalidAttribute, maxNVBDelta)
+				}
+			} else {
+				if height := bc.BlockHeight(); height < nvb {
+					return fmt.Errorf("%w: transaction is not yet valid: NotValidBefore = %d, current height = %d", ErrInvalidAttribute, nvb, height)
+				}
 			}
 		case transaction.ConflictsT:
 			if !bc.config.P2PSigExtensions {
@@ -1412,13 +1451,13 @@ func (bc *Blockchain) verifyTxAttributes(tx *transaction.Transaction) error {
 	return nil
 }
 
-// isTxStillRelevant is a callback for mempool transaction filtering after the
+// IsTxStillRelevant is a callback for mempool transaction filtering after the
 // new block addition. It returns false for transactions added by the new block
 // (passed via txpool) and does witness reverification for non-standard
 // contracts. It operates under the assumption that full transaction verification
 // was already done so we don't need to check basic things like size, input/output
 // correctness, presence in blocks before the new one, etc.
-func (bc *Blockchain) isTxStillRelevant(t *transaction.Transaction, txpool *mempool.Pool) bool {
+func (bc *Blockchain) IsTxStillRelevant(t *transaction.Transaction, txpool *mempool.Pool, isPartialTx bool) bool {
 	var recheckWitness bool
 	var curheight = bc.BlockHeight()
 
@@ -1432,7 +1471,7 @@ func (bc *Blockchain) isTxStillRelevant(t *transaction.Transaction, txpool *memp
 	} else if txpool.HasConflicts(t, bc) {
 		return false
 	}
-	if err := bc.verifyTxAttributes(t); err != nil {
+	if err := bc.verifyTxAttributes(t, isPartialTx); err != nil {
 		return false
 	}
 	for i := range t.Scripts {
@@ -1442,7 +1481,7 @@ func (bc *Blockchain) isTxStillRelevant(t *transaction.Transaction, txpool *memp
 		}
 	}
 	if recheckWitness {
-		return bc.verifyTxWitnesses(t, nil) == nil
+		return bc.verifyTxWitnesses(t, nil, isPartialTx) == nil
 	}
 	return true
 
@@ -1525,10 +1564,10 @@ func (bc *Blockchain) verifyStateRootWitness(r *state.MPTRoot) error {
 // current blockchain state. Note that this verification is completely isolated
 // from the main node's mempool.
 func (bc *Blockchain) VerifyTx(t *transaction.Transaction) error {
-	var mp = mempool.New(1)
+	var mp = mempool.New(1, 0)
 	bc.lock.RLock()
 	defer bc.lock.RUnlock()
-	return bc.verifyAndPoolTx(t, mp)
+	return bc.verifyAndPoolTx(t, mp, bc)
 }
 
 // PoolTx verifies and tries to add given transaction into the mempool. If not
@@ -1545,7 +1584,21 @@ func (bc *Blockchain) PoolTx(t *transaction.Transaction, pools ...*mempool.Pool)
 	if len(pools) == 1 {
 		pool = pools[0]
 	}
-	return bc.verifyAndPoolTx(t, pool)
+	return bc.verifyAndPoolTx(t, pool, bc)
+}
+
+// PoolTxWithData verifies and tries to add given transaction with additional data into the mempool.
+func (bc *Blockchain) PoolTxWithData(t *transaction.Transaction, data interface{}, mp *mempool.Pool, feer mempool.Feer, verificationFunction func(bc blockchainer.Blockchainer, tx *transaction.Transaction, data interface{}) error) error {
+	bc.lock.RLock()
+	defer bc.lock.RUnlock()
+
+	if verificationFunction != nil {
+		err := verificationFunction(bc, t, data)
+		if err != nil {
+			return err
+		}
+	}
+	return bc.verifyAndPoolTx(t, mp, feer, data)
 }
 
 //GetStandByValidators returns validators from the configuration.
@@ -1595,6 +1648,7 @@ var (
 	ErrWitnessHashMismatch         = errors.New("witness hash mismatch")
 	ErrNativeContractWitness       = errors.New("native contract witness must have empty verification script")
 	ErrVerificationFailed          = errors.New("signature check failed")
+	ErrInvalidSignature            = fmt.Errorf("%w: invalid signature", ErrVerificationFailed)
 	ErrUnknownVerificationContract = errors.New("unknown verification contract")
 	ErrInvalidVerificationContract = errors.New("verification contract is missing `verify` method")
 )
@@ -1670,11 +1724,11 @@ func (bc *Blockchain) verifyHashAgainstScript(hash util.Uint160, witness *transa
 		if err != nil {
 			return 0, fmt.Errorf("%w: invalid return value", ErrVerificationFailed)
 		}
-		if !res {
-			return 0, fmt.Errorf("%w: invalid signature", ErrVerificationFailed)
-		}
 		if vm.Estack().Len() != 0 {
 			return 0, fmt.Errorf("%w: expected exactly one returned value", ErrVerificationFailed)
+		}
+		if !res {
+			return vm.GasConsumed(), ErrInvalidSignature
 		}
 	} else {
 		return 0, fmt.Errorf("%w: no result returned from the script", ErrVerificationFailed)
@@ -1688,15 +1742,23 @@ func (bc *Blockchain) verifyHashAgainstScript(hash util.Uint160, witness *transa
 // is used for easy interop access and can be omitted for transactions that are
 // not yet added into any block.
 // Golang implementation of VerifyWitnesses method in C# (https://github.com/neo-project/neo/blob/master/neo/SmartContract/Helper.cs#L87).
-func (bc *Blockchain) verifyTxWitnesses(t *transaction.Transaction, block *block.Block) error {
+func (bc *Blockchain) verifyTxWitnesses(t *transaction.Transaction, block *block.Block, isPartialTx bool) error {
 	if len(t.Signers) != len(t.Scripts) {
 		return fmt.Errorf("%w: %d vs %d", ErrTxInvalidWitnessNum, len(t.Signers), len(t.Scripts))
 	}
 	interopCtx := bc.newInteropContext(trigger.Verification, bc.dao, block, t)
 	gasLimit := t.NetworkFee - int64(t.Size())*bc.FeePerByte()
+	if bc.P2PSigExtensionsEnabled() {
+		attrs := t.GetAttributes(transaction.NotaryAssistedT)
+		if len(attrs) != 0 {
+			na := attrs[0].Value.(*transaction.NotaryAssisted)
+			gasLimit -= (int64(na.NKeys) + 1) * transaction.NotaryServiceFeePerKey
+		}
+	}
 	for i := range t.Signers {
 		gasConsumed, err := bc.verifyHashAgainstScript(t.Signers[i].Account, &t.Scripts[i], interopCtx, gasLimit)
-		if err != nil {
+		if err != nil &&
+			!(i == 0 && isPartialTx && errors.Is(err, ErrInvalidSignature)) { // it's OK for partially-filled transaction with dummy first witness.
 			return fmt.Errorf("witness #%d: %w", i, err)
 		}
 		gasLimit -= gasConsumed
@@ -1749,3 +1811,33 @@ func (bc *Blockchain) newInteropContext(trigger trigger.Type, d dao.DAO, block *
 func (bc *Blockchain) P2PSigExtensionsEnabled() bool {
 	return bc.config.P2PSigExtensions
 }
+
+// RegisterPostBlock appends provided function to the list of functions which should be run after new block
+// is stored.
+func (bc *Blockchain) RegisterPostBlock(f func(blockchainer.Blockchainer, *mempool.Pool, *block.Block)) {
+	bc.postBlock = append(bc.postBlock, f)
+}
+
+// -- start Policer.
+
+// GetPolicer provides access to policy values via Policer interface.
+func (bc *Blockchain) GetPolicer() blockchainer.Policer {
+	return bc
+}
+
+// GetMaxBlockSize returns maximum allowed block size from native Policy contract.
+func (bc *Blockchain) GetMaxBlockSize() uint32 {
+	return bc.contracts.Policy.GetMaxBlockSizeInternal(bc.dao)
+}
+
+// GetMaxBlockSystemFee returns maximum block system fee from native Policy contract.
+func (bc *Blockchain) GetMaxBlockSystemFee() int64 {
+	return bc.contracts.Policy.GetMaxBlockSystemFeeInternal(bc.dao)
+}
+
+// GetMaxVerificationGAS returns maximum verification GAS Policy limit.
+func (bc *Blockchain) GetMaxVerificationGAS() int64 {
+	return bc.contracts.Policy.GetMaxVerificationGas(bc.dao)
+}
+
+// -- end Policer.

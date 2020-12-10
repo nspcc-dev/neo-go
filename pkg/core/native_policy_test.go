@@ -11,6 +11,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/network/payload"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
+	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/stretchr/testify/require"
 )
 
@@ -44,6 +45,13 @@ func TestMaxTransactionsPerBlock(t *testing.T) {
 		res, err := invokeContractMethod(chain, 100000000, policyHash, "setMaxTransactionsPerBlock", bigint.ToBytes(big.NewInt(block.MaxContentsPerBlock)))
 		require.NoError(t, err)
 		checkFAULTState(t, res)
+	})
+
+	t.Run("set, not signed by committee", func(t *testing.T) {
+		signer, err := wallet.NewAccount()
+		require.NoError(t, err)
+		invokeRes, err := invokeContractMethodBy(t, chain, signer, policyHash, "setMaxTransactionsPerBlock", bigint.ToBytes(big.NewInt(1024)))
+		checkResult(t, invokeRes, stackitem.NewBool(false))
 	})
 }
 
@@ -79,6 +87,13 @@ func TestMaxBlockSize(t *testing.T) {
 		res, err := invokeContractMethod(chain, 100000000, policyHash, "setMaxBlockSize", bigint.ToBytes(big.NewInt(payload.MaxSize+1)))
 		require.NoError(t, err)
 		checkFAULTState(t, res)
+	})
+
+	t.Run("set, not signed by committee", func(t *testing.T) {
+		signer, err := wallet.NewAccount()
+		require.NoError(t, err)
+		invokeRes, err := invokeContractMethodBy(t, chain, signer, policyHash, "setMaxBlockSize", bigint.ToBytes(big.NewInt(102400)))
+		checkResult(t, invokeRes, stackitem.NewBool(false))
 	})
 }
 
@@ -119,6 +134,13 @@ func TestFeePerByte(t *testing.T) {
 		require.NoError(t, err)
 		checkFAULTState(t, res)
 	})
+
+	t.Run("set, not signed by committee", func(t *testing.T) {
+		signer, err := wallet.NewAccount()
+		require.NoError(t, err)
+		invokeRes, err := invokeContractMethodBy(t, chain, signer, policyHash, "setFeePerByte", bigint.ToBytes(big.NewInt(1024)))
+		checkResult(t, invokeRes, stackitem.NewBool(false))
+	})
 }
 
 func TestBlockSystemFee(t *testing.T) {
@@ -153,6 +175,13 @@ func TestBlockSystemFee(t *testing.T) {
 		require.NoError(t, err)
 		checkResult(t, res, stackitem.NewBigInteger(big.NewInt(100000000)))
 		require.NoError(t, chain.persist())
+	})
+
+	t.Run("set, not signed by committee", func(t *testing.T) {
+		signer, err := wallet.NewAccount()
+		require.NoError(t, err)
+		invokeRes, err := invokeContractMethodBy(t, chain, signer, policyHash, "setMaxBlockSystemFee", bigint.ToBytes(big.NewInt(100000000)))
+		checkResult(t, invokeRes, stackitem.NewBool(false))
 	})
 }
 
@@ -216,5 +245,12 @@ func TestBlockedAccounts(t *testing.T) {
 		require.NoError(t, err)
 		checkResult(t, res, stackitem.NewBool(false))
 		require.NoError(t, chain.persist())
+	})
+
+	t.Run("not signed by committee", func(t *testing.T) {
+		signer, err := wallet.NewAccount()
+		require.NoError(t, err)
+		invokeRes, err := invokeContractMethodBy(t, chain, signer, policyHash, "blockAccount", account.BytesBE())
+		checkResult(t, invokeRes, stackitem.NewBool(false))
 	})
 }

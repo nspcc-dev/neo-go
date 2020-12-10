@@ -386,7 +386,7 @@ func TestVerifyBlock(t *testing.T) {
 		require.False(t, srv.verifyBlock(&neoBlock{Block: *b}))
 	})
 	t.Run("bad big size", func(t *testing.T) {
-		script := make([]byte, int(srv.Chain.GetMaxBlockSize()))
+		script := make([]byte, int(srv.Chain.GetPolicer().GetMaxBlockSize()))
 		script[0] = byte(opcode.RET)
 		tx := transaction.New(netmode.UnitTestNet, script, 100000)
 		tx.ValidUntilBlock = 1
@@ -407,7 +407,7 @@ func TestVerifyBlock(t *testing.T) {
 	t.Run("bad big sys fee", func(t *testing.T) {
 		txes := make([]*transaction.Transaction, 2)
 		for i := range txes {
-			txes[i] = transaction.New(netmode.UnitTestNet, []byte{byte(opcode.RET)}, srv.Chain.GetMaxBlockSystemFee()/2+1)
+			txes[i] = transaction.New(netmode.UnitTestNet, []byte{byte(opcode.RET)}, srv.Chain.GetPolicer().GetMaxBlockSystemFee()/2+1)
 			txes[i].ValidUntilBlock = 1
 			addSender(t, txes[i])
 			signTx(t, srv.Chain.FeePerByte(), txes[i])

@@ -31,15 +31,22 @@ func TestEmptyInv(t *testing.T) {
 }
 
 func TestValid(t *testing.T) {
-	require.True(t, TXType.Valid())
-	require.True(t, BlockType.Valid())
-	require.True(t, ConsensusType.Valid())
-	require.False(t, InventoryType(0xFF).Valid())
+	require.True(t, TXType.Valid(false))
+	require.True(t, TXType.Valid(true))
+	require.True(t, BlockType.Valid(false))
+	require.True(t, BlockType.Valid(true))
+	require.True(t, ConsensusType.Valid(false))
+	require.True(t, ConsensusType.Valid(true))
+	require.False(t, P2PNotaryRequestType.Valid(false))
+	require.True(t, P2PNotaryRequestType.Valid(true))
+	require.False(t, InventoryType(0xFF).Valid(false))
+	require.False(t, InventoryType(0xFF).Valid(true))
 }
 
 func TestString(t *testing.T) {
 	require.Equal(t, "TX", TXType.String())
 	require.Equal(t, "block", BlockType.String())
 	require.Equal(t, "consensus", ConsensusType.String())
+	require.Equal(t, "p2pNotaryRequest", P2PNotaryRequestType.String())
 	require.True(t, strings.Contains(InventoryType(0xFF).String(), "unknown"))
 }

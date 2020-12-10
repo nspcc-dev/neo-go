@@ -25,6 +25,7 @@ type Blockchainer interface {
 	AddStateRoot(r *state.MPTRoot) error
 	CalculateClaimable(h util.Uint160, endHeight uint32) (*big.Int, error)
 	Close()
+	IsTxStillRelevant(t *transaction.Transaction, txpool *mempool.Pool, isPartialTx bool) bool
 	HeaderHeight() uint32
 	GetBlock(hash util.Uint256) (*block.Block, error)
 	GetCommittee() (keys.PublicKeys, error)
@@ -40,9 +41,13 @@ type Blockchainer interface {
 	HasBlock(util.Uint256) bool
 	HasTransaction(util.Uint256) bool
 	GetAppExecResults(util.Uint256, trigger.Type) ([]state.AppExecResult, error)
+	GetNotaryDepositExpiration(acc util.Uint160) uint32
 	GetNativeContractScriptHash(string) (util.Uint160, error)
 	GetNextBlockValidators() ([]*keys.PublicKey, error)
 	GetNEP17Balances(util.Uint160) *state.NEP17Balances
+	GetNotaryContractScriptHash() util.Uint160
+	GetNotaryBalance(acc util.Uint160) *big.Int
+	GetPolicer() Policer
 	GetValidators() ([]*keys.PublicKey, error)
 	GetStandByCommittee() keys.PublicKeys
 	GetStandByValidators() keys.PublicKeys
@@ -53,9 +58,9 @@ type Blockchainer interface {
 	GetTestVM(tx *transaction.Transaction, b *block.Block) *vm.VM
 	GetTransaction(util.Uint256) (*transaction.Transaction, uint32, error)
 	mempool.Feer // fee interface
-	GetMaxBlockSize() uint32
-	GetMaxBlockSystemFee() int64
 	PoolTx(t *transaction.Transaction, pools ...*mempool.Pool) error
+	PoolTxWithData(t *transaction.Transaction, data interface{}, mp *mempool.Pool, feer mempool.Feer, verificationFunction func(bc Blockchainer, t *transaction.Transaction, data interface{}) error) error
+	RegisterPostBlock(f func(Blockchainer, *mempool.Pool, *block.Block))
 	SubscribeForBlocks(ch chan<- *block.Block)
 	SubscribeForExecutions(ch chan<- *state.AppExecResult)
 	SubscribeForNotifications(ch chan<- *state.NotificationEvent)

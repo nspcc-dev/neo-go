@@ -9,6 +9,9 @@ type (
 	ProtocolConfiguration struct {
 		Magic       netmode.Magic `yaml:"Magic"`
 		MemPoolSize int           `yaml:"MemPoolSize"`
+		// P2PNotaryRequestPayloadPoolSize specifies the memory pool size for P2PNotaryRequestPayloads.
+		// It is valid only if P2PSigExtensions are enabled.
+		P2PNotaryRequestPayloadPoolSize int `yaml:"P2PNotaryRequestPayloadPoolSize"`
 		// KeepOnlyLatestState specifies if MPT should only store latest state.
 		// If true, DB size will be smaller, but older roots won't be accessible.
 		// This value should remain the same for the same database.
@@ -17,7 +20,7 @@ type (
 		RemoveUntraceableBlocks bool `yaml:"RemoveUntraceableBlocks"`
 		// MaxTraceableBlocks is the length of the chain accessible to smart contracts.
 		MaxTraceableBlocks uint32 `yaml:"MaxTraceableBlocks"`
-		// P2PSigExtensions enables additional signature-related transaction attributes
+		// P2PSigExtensions enables additional signature-related logic.
 		P2PSigExtensions bool `yaml:"P2PSigExtensions"`
 		// ReservedAttributes allows to have reserved attributes range for experimental or private purposes.
 		ReservedAttributes bool `yaml:"ReservedAttributes"`

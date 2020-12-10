@@ -20,21 +20,24 @@ func (i InventoryType) String() string {
 		return "block"
 	case ConsensusType:
 		return "consensus"
+	case P2PNotaryRequestType:
+		return "p2pNotaryRequest"
 	default:
 		return "unknown inventory type"
 	}
 }
 
 // Valid returns true if the inventory (type) is known.
-func (i InventoryType) Valid() bool {
-	return i == BlockType || i == TXType || i == ConsensusType
+func (i InventoryType) Valid(p2pSigExtensionsEnabled bool) bool {
+	return i == BlockType || i == TXType || i == ConsensusType || (p2pSigExtensionsEnabled && i == P2PNotaryRequestType)
 }
 
 // List of valid InventoryTypes.
 const (
-	TXType        InventoryType = 0x2b
-	BlockType     InventoryType = 0x2c
-	ConsensusType InventoryType = 0x2d
+	TXType               InventoryType = 0x2b
+	BlockType            InventoryType = 0x2c
+	ConsensusType        InventoryType = 0x2d
+	P2PNotaryRequestType InventoryType = 0x50
 )
 
 // Inventory payload.

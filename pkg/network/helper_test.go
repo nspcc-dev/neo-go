@@ -13,6 +13,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
+	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
 	"github.com/nspcc-dev/neo-go/pkg/core/mempool"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
@@ -31,21 +32,30 @@ import (
 type testChain struct {
 	config.ProtocolConfiguration
 	*mempool.Pool
-	blocksCh    []chan<- *block.Block
-	blockheight uint32
-	poolTx      func(*transaction.Transaction) error
-	blocks      map[util.Uint256]*block.Block
-	hdrHashes   map[uint32]util.Uint256
-	txs         map[util.Uint256]*transaction.Transaction
+	blocksCh                 []chan<- *block.Block
+	blockheight              uint32
+	poolTx                   func(*transaction.Transaction) error
+	poolTxWithData           func(*transaction.Transaction, interface{}, *mempool.Pool) error
+	blocks                   map[util.Uint256]*block.Block
+	hdrHashes                map[uint32]util.Uint256
+	txs                      map[util.Uint256]*transaction.Transaction
+	verifyWitnessF           func() error
+	maxVerificationGAS       int64
+	notaryContractScriptHash util.Uint160
+	notaryDepositExpiration  uint32
+	postBlock                []func(blockchainer.Blockchainer, *mempool.Pool, *block.Block)
+	utilityTokenBalance      *big.Int
 }
 
 func newTestChain() *testChain {
 	return &testChain{
-		Pool:      mempool.New(10),
-		poolTx:    func(*transaction.Transaction) error { return nil },
-		blocks:    make(map[util.Uint256]*block.Block),
-		hdrHashes: make(map[uint32]util.Uint256),
-		txs:       make(map[util.Uint256]*transaction.Transaction),
+		Pool:                  mempool.New(10, 0),
+		poolTx:                func(*transaction.Transaction) error { return nil },
+		poolTxWithData:        func(*transaction.Transaction, interface{}, *mempool.Pool) error { return nil },
+		blocks:                make(map[util.Uint256]*block.Block),
+		hdrHashes:             make(map[uint32]util.Uint256),
+		txs:                   make(map[util.Uint256]*transaction.Transaction),
+		ProtocolConfiguration: config.ProtocolConfiguration{P2PNotaryRequestPayloadPoolSize: 10},
 	}
 }
 
@@ -65,6 +75,48 @@ func (chain *testChain) putTx(tx *transaction.Transaction) {
 func (chain *testChain) ApplyPolicyToTxSet([]*transaction.Transaction) []*transaction.Transaction {
 	panic("TODO")
 }
+
+func (chain *testChain) IsTxStillRelevant(t *transaction.Transaction, txpool *mempool.Pool, isPartialTx bool) bool {
+	panic("TODO")
+}
+
+func (chain *testChain) GetNotaryDepositExpiration(acc util.Uint160) uint32 {
+	if chain.notaryDepositExpiration != 0 {
+		return chain.notaryDepositExpiration
+	}
+	panic("TODO")
+}
+
+func (chain *testChain) GetNotaryContractScriptHash() util.Uint160 {
+	if !chain.notaryContractScriptHash.Equals(util.Uint160{}) {
+		return chain.notaryContractScriptHash
+	}
+	panic("TODO")
+}
+
+func (chain *testChain) GetNotaryBalance(acc util.Uint160) *big.Int {
+	panic("TODO")
+}
+
+func (chain *testChain) GetPolicer() blockchainer.Policer {
+	return chain
+}
+
+func (chain *testChain) GetMaxVerificationGAS() int64 {
+	if chain.maxVerificationGAS != 0 {
+		return chain.maxVerificationGAS
+	}
+	panic("TODO")
+}
+
+func (chain *testChain) PoolTxWithData(t *transaction.Transaction, data interface{}, mp *mempool.Pool, feer mempool.Feer, verificationFunction func(bc blockchainer.Blockchainer, t *transaction.Transaction, data interface{}) error) error {
+	return chain.poolTxWithData(t, data, mp)
+}
+
+func (chain *testChain) RegisterPostBlock(f func(blockchainer.Blockchainer, *mempool.Pool, *block.Block)) {
+	chain.postBlock = append(chain.postBlock, f)
+}
+
 func (chain *testChain) GetConfig() config.ProtocolConfiguration {
 	return chain.ProtocolConfiguration
 }
@@ -77,7 +129,7 @@ func (chain *testChain) FeePerByte() int64 {
 }
 
 func (chain *testChain) P2PSigExtensionsEnabled() bool {
-	return false
+	return true
 }
 
 func (chain *testChain) GetMaxBlockSystemFee() int64 {
@@ -207,6 +259,9 @@ func (chain *testChain) GetGoverningTokenBalance(acc util.Uint160) (*big.Int, ui
 }
 
 func (chain *testChain) GetUtilityTokenBalance(uint160 util.Uint160) *big.Int {
+	if chain.utilityTokenBalance != nil {
+		return chain.utilityTokenBalance
+	}
 	panic("TODO")
 }
 
@@ -230,7 +285,10 @@ func (chain *testChain) SubscribeForTransactions(ch chan<- *transaction.Transact
 func (chain *testChain) VerifyTx(*transaction.Transaction) error {
 	panic("TODO")
 }
-func (*testChain) VerifyWitness(util.Uint160, crypto.Verifiable, *transaction.Witness, int64) error {
+func (chain *testChain) VerifyWitness(util.Uint160, crypto.Verifiable, *transaction.Witness, int64) error {
+	if chain.verifyWitnessF != nil {
+		return chain.verifyWitnessF()
+	}
 	panic("TODO")
 }
 

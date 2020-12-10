@@ -418,7 +418,7 @@ func (s *service) verifyBlock(b block.Block) bool {
 		s.log.Warn("proposed block has already outdated")
 		return false
 	}
-	maxBlockSize := int(s.Chain.GetMaxBlockSize())
+	maxBlockSize := int(s.Chain.GetPolicer().GetMaxBlockSize())
 	size := io.GetVarSize(coreb)
 	if size > maxBlockSize {
 		s.log.Warn("proposed block size exceeds policy max block size",
@@ -428,7 +428,7 @@ func (s *service) verifyBlock(b block.Block) bool {
 	}
 
 	var fee int64
-	var pool = mempool.New(len(coreb.Transactions))
+	var pool = mempool.New(len(coreb.Transactions), 0)
 	var mainPool = s.Chain.GetMemPool()
 	for _, tx := range coreb.Transactions {
 		var err error
@@ -454,7 +454,7 @@ func (s *service) verifyBlock(b block.Block) bool {
 		}
 	}
 
-	maxBlockSysFee := s.Chain.GetMaxBlockSystemFee()
+	maxBlockSysFee := s.Chain.GetPolicer().GetMaxBlockSystemFee()
 	if fee > maxBlockSysFee {
 		s.log.Warn("proposed block system fee exceeds policy max block system fee",
 			zap.Int("max system fee allowed", int(maxBlockSysFee)),
