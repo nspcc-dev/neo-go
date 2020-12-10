@@ -334,49 +334,27 @@ func (d *DebugParam) UnmarshalJSON(data []byte) error {
 }
 
 // ToManifestParameter converts DebugParam to manifest.Parameter
-func (d *DebugParam) ToManifestParameter() (manifest.Parameter, error) {
+func (d *DebugParam) ToManifestParameter() manifest.Parameter {
 	return manifest.Parameter{
 		Name: d.Name,
 		Type: d.TypeSC,
-	}, nil
+	}
 }
 
 // ToManifestMethod converts MethodDebugInfo to manifest.Method
-func (m *MethodDebugInfo) ToManifestMethod() (manifest.Method, error) {
+func (m *MethodDebugInfo) ToManifestMethod() manifest.Method {
 	var (
 		result manifest.Method
-		err    error
 	)
 	parameters := make([]manifest.Parameter, len(m.Parameters))
 	for i, p := range m.Parameters {
-		parameters[i], err = p.ToManifestParameter()
-		if err != nil {
-			return result, err
-		}
+		parameters[i] = p.ToManifestParameter()
 	}
 	result.Name = m.Name.Name
 	result.Offset = int(m.Range.Start)
 	result.Parameters = parameters
 	result.ReturnType = m.ReturnTypeSC
-	return result, nil
-}
-
-// ToManifestEvent converts EventDebugInfo to manifest.Event
-func (e *EventDebugInfo) ToManifestEvent() (manifest.Event, error) {
-	var (
-		result manifest.Event
-		err    error
-	)
-	parameters := make([]manifest.Parameter, len(e.Parameters))
-	for i, p := range e.Parameters {
-		parameters[i], err = p.ToManifestParameter()
-		if err != nil {
-			return result, err
-		}
-	}
-	result.Name = e.Name
-	result.Parameters = parameters
-	return result, nil
+	return result
 }
 
 // MarshalJSON implements json.Marshaler interface.
@@ -429,10 +407,7 @@ func (di *DebugInfo) ConvertToManifest(o *Options) (*manifest.Manifest, error) {
 	methods := make([]manifest.Method, 0)
 	for _, method := range di.Methods {
 		if method.IsExported && method.IsFunction && method.Name.Namespace == di.MainPkg {
-			mMethod, err := method.ToManifestMethod()
-			if err != nil {
-				return nil, err
-			}
+			mMethod := method.ToManifestMethod()
 			for i := range o.SafeMethods {
 				if mMethod.Name == o.SafeMethods[i] {
 					mMethod.Safe = true
