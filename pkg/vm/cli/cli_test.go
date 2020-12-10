@@ -75,16 +75,16 @@ func newTestVMCLIWithLogo(t *testing.T, printLogo bool) *executor {
 			Stdin:  e.in,
 			Stdout: e.out,
 		})
-	go func() {
-		require.NoError(t, e.cli.Run())
-		close(e.ch)
-	}()
 	return e
 }
 
 func (e *executor) runProg(t *testing.T, commands ...string) {
 	cmd := strings.Join(commands, "\n") + "\n"
 	e.in.WriteString(cmd + "\n")
+	go func() {
+		require.NoError(t, e.cli.Run())
+		close(e.ch)
+	}()
 	select {
 	case <-e.ch:
 	case <-time.After(time.Second):
