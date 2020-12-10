@@ -15,7 +15,7 @@ require (
 	github.com/nspcc-dev/rfc6979 v0.2.0
 	github.com/pierrec/lz4 v2.5.2+incompatible
 	github.com/prometheus/client_golang v1.2.1
-	github.com/stretchr/testify v1.4.0
+	github.com/stretchr/testify v1.6.1
 	github.com/syndtr/goleveldb v0.0.0-20180307113352-169b1b37be73
 	github.com/urfave/cli v1.20.0
 	go.etcd.io/bbolt v1.3.4
