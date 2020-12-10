@@ -773,6 +773,9 @@ func contractDeploy(ctx *cli.Context) error {
 	}
 	// It doesn't require any signers.
 	invRes, err := c.InvokeScript(txScript, nil)
+	if err == nil && invRes.FaultException != "" {
+		err = errors.New(invRes.FaultException)
+	}
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("failed to test-invoke deployment script: %w", err), 1)
 	}

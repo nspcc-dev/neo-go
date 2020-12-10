@@ -6,7 +6,6 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/nspcc-dev/neo-go/pkg/encoding/fixedn"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/stretchr/testify/require"
 )
@@ -14,7 +13,7 @@ import (
 func TestInvoke_MarshalJSON(t *testing.T) {
 	result := &Invoke{
 		State:          "HALT",
-		GasConsumed:    int64(fixedn.Fixed8FromFloat(123.45)),
+		GasConsumed:    237626000,
 		Script:         []byte{10},
 		Stack:          []stackitem.Item{stackitem.NewBigInteger(big.NewInt(1))},
 		FaultException: "",
@@ -26,7 +25,7 @@ func TestInvoke_MarshalJSON(t *testing.T) {
 	require.NoError(t, err)
 	expected := `{
 		"state":"HALT",
-		"gasconsumed":"123.45",
+		"gasconsumed":"2.37626",
 		"script":"` + base64.StdEncoding.EncodeToString(result.Script) + `",
 		"stack":[
 			{"type":"Integer","value":"1"}
