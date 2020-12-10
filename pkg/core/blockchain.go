@@ -1595,6 +1595,7 @@ var (
 	ErrWitnessHashMismatch         = errors.New("witness hash mismatch")
 	ErrNativeContractWitness       = errors.New("native contract witness must have empty verification script")
 	ErrVerificationFailed          = errors.New("signature check failed")
+	ErrInvalidSignature            = fmt.Errorf("%w: invalid signature", ErrVerificationFailed)
 	ErrUnknownVerificationContract = errors.New("unknown verification contract")
 	ErrInvalidVerificationContract = errors.New("verification contract is missing `verify` method")
 )
@@ -1674,7 +1675,7 @@ func (bc *Blockchain) verifyHashAgainstScript(hash util.Uint160, witness *transa
 			return 0, fmt.Errorf("%w: expected exactly one returned value", ErrVerificationFailed)
 		}
 		if !res {
-			return 0, fmt.Errorf("%w: invalid signature", ErrVerificationFailed)
+			return vm.GasConsumed(), ErrInvalidSignature
 		}
 	} else {
 		return 0, fmt.Errorf("%w: no result returned from the script", ErrVerificationFailed)
