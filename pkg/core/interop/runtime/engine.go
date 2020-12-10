@@ -22,8 +22,13 @@ func GetExecutingScriptHash(ic *interop.Context) error {
 }
 
 // GetCallingScriptHash returns calling script hash.
+// While Executing and Entry script hashes are always valid for non-native contracts,
+// Calling hash is set explicitly when native contracts are used, because when switching from
+// one native to another, no operations are performed on invocation stack.
 func GetCallingScriptHash(ic *interop.Context) error {
-	return ic.VM.PushContextScriptHash(1)
+	h := ic.VM.GetCallingScriptHash()
+	ic.VM.Estack().PushVal(h.BytesBE())
+	return nil
 }
 
 // GetEntryScriptHash returns entry script hash.

@@ -284,6 +284,7 @@ func (v *VM) LoadScriptWithFlags(b []byte, f smartcontract.CallFlag) {
 	ctx.tryStack = NewStack("exception")
 	ctx.callFlag = f
 	ctx.static = newSlot(v.refs)
+	ctx.callingScriptHash = v.GetCurrentScriptHash()
 	v.istack.PushVal(ctx)
 }
 
