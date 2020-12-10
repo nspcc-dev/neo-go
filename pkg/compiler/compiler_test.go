@@ -61,13 +61,13 @@ func TestCompiler(t *testing.T) {
 				require.NoError(t, err)
 				err = os.MkdirAll(exampleSavePath, os.ModePerm)
 				require.NoError(t, err)
-				outfile := exampleSavePath + "/test.nef"
-				_, err = compiler.CompileAndSave(exampleCompilePath+"/"+infos[0].Name(), &compiler.Options{Outfile: outfile})
-				require.NoError(t, err)
 				defer func() {
 					err := os.RemoveAll(exampleSavePath)
 					require.NoError(t, err)
 				}()
+				outfile := exampleSavePath + "/test.nef"
+				_, err = compiler.CompileAndSave(exampleCompilePath+"/"+infos[0].Name(), &compiler.Options{Outfile: outfile})
+				require.NoError(t, err)
 			},
 		},
 	}
