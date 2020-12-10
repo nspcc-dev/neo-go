@@ -43,11 +43,13 @@ func (c *codegen) getIdentName(pkg string, name string) string {
 // Same for `_deploy()` functions (see docs/compiler.md).
 func (c *codegen) traverseGlobals() (int, int, int) {
 	var hasDefer bool
-	var n int
+	var n, nConst int
 	initLocals := -1
 	deployLocals := -1
 	c.ForEachFile(func(f *ast.File, _ *types.Package) {
-		n += countGlobals(f)
+		nv, nc := countGlobals(f)
+		n += nv
+		nConst += nc
 		if initLocals == -1 || deployLocals == -1 || !hasDefer {
 			ast.Inspect(f, func(node ast.Node) bool {
 				switch n := node.(type) {
@@ -75,7 +77,7 @@ func (c *codegen) traverseGlobals() (int, int, int) {
 	if hasDefer {
 		n++
 	}
-	if n != 0 || initLocals > -1 {
+	if n+nConst != 0 || initLocals > -1 {
 		if n > 255 {
 			c.prog.BinWriter.Err = errors.New("too many global variables")
 			return 0, initLocals, deployLocals
@@ -88,7 +90,7 @@ func (c *codegen) traverseGlobals() (int, int, int) {
 		}
 		seenBefore := false
 		c.ForEachPackage(func(pkg *loader.PackageInfo) {
-			if n > 0 {
+			if n+nConst > 0 {
 				for _, f := range pkg.Files {
 					c.fillImportMap(f, pkg.Pkg)
 					c.convertGlobals(f, pkg.Pkg)
@@ -116,7 +118,9 @@ func (c *codegen) traverseGlobals() (int, int, int) {
 
 // countGlobals counts the global variables in the program to add
 // them with the stack size of the function.
-func countGlobals(f ast.Node) (i int) {
+// Second returned argument contains amount of global constants.
+func countGlobals(f ast.Node) (int, int) {
+	var numVar, numConst int
 	ast.Inspect(f, func(node ast.Node) bool {
 		switch n := node.(type) {
 		// Skip all function declarations if we have already encountered `defer`.
@@ -125,11 +129,16 @@ func countGlobals(f ast.Node) (i int) {
 		// After skipping all funcDecls we are sure that each value spec
 		// is a global declared variable or constant.
 		case *ast.GenDecl:
-			if n.Tok == token.VAR {
+			isVar := n.Tok == token.VAR
+			if isVar || n.Tok == token.CONST {
 				for _, s := range n.Specs {
 					for _, id := range s.(*ast.ValueSpec).Names {
 						if id.Name != "_" {
-							i++
+							if isVar {
+								numVar++
+							} else {
+								numConst++
+							}
 						}
 					}
 				}
@@ -138,7 +147,7 @@ func countGlobals(f ast.Node) (i int) {
 		}
 		return true
 	})
-	return
+	return numVar, numConst
 }
 
 // isExprNil looks if the given expression is a `nil`.
