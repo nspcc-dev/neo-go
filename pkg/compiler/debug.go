@@ -433,6 +433,12 @@ func (di *DebugInfo) ConvertToManifest(o *Options) (*manifest.Manifest, error) {
 			if err != nil {
 				return nil, err
 			}
+			for i := range o.SafeMethods {
+				if mMethod.Name == o.SafeMethods[i] {
+					mMethod.Safe = true
+					break
+				}
+			}
 			methods = append(methods, mMethod)
 		}
 	}

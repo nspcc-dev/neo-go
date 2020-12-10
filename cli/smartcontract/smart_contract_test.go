@@ -59,6 +59,7 @@ func RuntimeNotify(args []interface{}) {
 	require.NoError(t, err)
 	require.Equal(t,
 		`name: testContract
+safemethods: []
 supportedstandards: []
 events:
 - name: Hello world!

@@ -51,6 +51,9 @@ type Options struct {
 
 	// The list of standards supported by the contract.
 	ContractSupportedStandards []string
+
+	// SafeMethods contains list of methods which will be marked as safe in manifest.
+	SafeMethods []string
 }
 
 type buildInfo struct {
