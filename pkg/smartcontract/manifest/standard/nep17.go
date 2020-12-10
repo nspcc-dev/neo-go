@@ -14,18 +14,22 @@ var nep17 = &manifest.Manifest{
 					{Type: smartcontract.Hash160Type},
 				},
 				ReturnType: smartcontract.IntegerType,
+				Safe:       true,
 			},
 			{
 				Name:       "decimals",
 				ReturnType: smartcontract.IntegerType,
+				Safe:       true,
 			},
 			{
 				Name:       "symbol",
 				ReturnType: smartcontract.StringType,
+				Safe:       true,
 			},
 			{
 				Name:       "totalSupply",
 				ReturnType: smartcontract.IntegerType,
+				Safe:       true,
 			},
 			{
 				Name: "transfer",

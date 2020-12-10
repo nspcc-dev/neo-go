@@ -1,5 +1,6 @@
 name: "My awesome token"
 supportedstandards: ["NEP-17"]
+safemethods: ["balanceOf", "decimals", "symbol", "totalSupply"]
 events:
 - name: Transfer
   parameters:
