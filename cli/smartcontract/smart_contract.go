@@ -363,6 +363,7 @@ func initSmartContract(ctx *cli.Context) error {
 	m := ProjectConfig{
 		Name:               contractName,
 		SupportedStandards: []string{},
+		SafeMethods:        []string{},
 		Events: []manifest.Event{
 			{
 				Name: "Hello world!",
@@ -423,6 +424,7 @@ func contractCompile(ctx *cli.Context) error {
 		o.Name = conf.Name
 		o.ContractEvents = conf.Events
 		o.ContractSupportedStandards = conf.SupportedStandards
+		o.SafeMethods = conf.SafeMethods
 	}
 
 	result, err := compiler.CompileAndSave(src, o)
@@ -646,6 +648,7 @@ func testInvokeScript(ctx *cli.Context) error {
 // ProjectConfig contains project metadata.
 type ProjectConfig struct {
 	Name               string
+	SafeMethods        []string
 	SupportedStandards []string
 	Events             []manifest.Event
 }

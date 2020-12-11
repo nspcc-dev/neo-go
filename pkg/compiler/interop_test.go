@@ -128,7 +128,7 @@ func TestAppCall(t *testing.T) {
 	}`
 	barCtr, di, err := compiler.CompileWithDebugInfo("bar.go", strings.NewReader(srcDeep))
 	require.NoError(t, err)
-	mBar, err := di.ConvertToManifest("Bar", nil)
+	mBar, err := di.ConvertToManifest(&compiler.Options{Name: "Bar"})
 	require.NoError(t, err)
 
 	barH := hash.Hash160(barCtr)
@@ -160,7 +160,7 @@ func TestAppCall(t *testing.T) {
 
 	inner, di, err := compiler.CompileWithDebugInfo("foo.go", strings.NewReader(srcInner))
 	require.NoError(t, err)
-	m, err := di.ConvertToManifest("Foo", nil)
+	m, err := di.ConvertToManifest(&compiler.Options{Name: "Foo"})
 	require.NoError(t, err)
 
 	ih := hash.Hash160(inner)

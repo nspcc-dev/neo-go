@@ -150,7 +150,7 @@ func _deploy(isUpdate bool) {}
 	}
 
 	t.Run("convert to Manifest", func(t *testing.T) {
-		actual, err := d.ConvertToManifest("MyCTR", nil)
+		actual, err := d.ConvertToManifest(&Options{Name: "MyCTR", SafeMethods: []string{"methodInt", "methodString"}})
 		require.NoError(t, err)
 		// note: offsets are hard to predict, so we just take them from the output
 		expected := &manifest.Manifest{
@@ -183,12 +183,14 @@ func _deploy(isUpdate bool) {}
 							},
 						},
 						ReturnType: smartcontract.IntegerType,
+						Safe:       true,
 					},
 					{
 						Name:       "methodString",
 						Offset:     101,
 						Parameters: []manifest.Parameter{},
 						ReturnType: smartcontract.StringType,
+						Safe:       true,
 					},
 					{
 						Name:       "methodByteArray",
