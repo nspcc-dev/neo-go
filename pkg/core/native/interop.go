@@ -58,7 +58,7 @@ func Call(ic *interop.Context) error {
 		return fmt.Errorf("method %s not found", operation)
 	}
 	if !ic.VM.Context().GetCallFlags().Has(m.RequiredFlags) {
-		return errors.New("missing call flags")
+		return fmt.Errorf("missing call flags for native %s `%s` operation call: %05b vs %05b", name, operation, ic.VM.Context().GetCallFlags(), m.RequiredFlags)
 	}
 	if !ic.VM.AddGas(m.Price) {
 		return errors.New("gas limit exceeded")
