@@ -88,12 +88,16 @@ func toJSON(buf *io.BufBinWriter, item Item) {
 			return
 		}
 		w.WriteBytes([]byte(it.value.String()))
-	case *ByteArray:
+	case *ByteArray, *Buffer:
 		w.WriteB('"')
-		val := it.Value().([]byte)
-		b := make([]byte, base64.StdEncoding.EncodedLen(len(val)))
-		base64.StdEncoding.Encode(b, val)
-		w.WriteBytes(b)
+		s, err := ToString(it)
+		if err != nil {
+			if buf.Err == nil {
+				buf.Err = err
+			}
+			return
+		}
+		w.WriteBytes([]byte(s))
 		w.WriteB('"')
 	case *Bool:
 		if it.value {
@@ -158,11 +162,7 @@ func (d *decoder) decode() (Item, error) {
 			return nil, nil
 		}
 	case string:
-		b, err := base64.StdEncoding.DecodeString(t)
-		if err != nil {
-			return nil, err
-		}
-		return NewByteArray(b), nil
+		return NewByteArray([]byte(t)), nil
 	case float64:
 		if math.Floor(t) != t {
 			return nil, fmt.Errorf("real value is not allowed: %v", t)
