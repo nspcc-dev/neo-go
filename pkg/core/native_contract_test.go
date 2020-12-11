@@ -107,7 +107,7 @@ func newTestNative() *testNative {
 	tn.meta.AddMethod(md, desc)
 
 	desc = &manifest.Method{Name: "onPersist", ReturnType: smartcontract.BoolType}
-	md = &interop.MethodAndPrice{Func: tn.OnPersist, RequiredFlags: smartcontract.AllowModifyStates}
+	md = &interop.MethodAndPrice{Func: tn.OnPersist, RequiredFlags: smartcontract.WriteStates}
 	tn.meta.AddMethod(md, desc)
 
 	return tn

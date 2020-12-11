@@ -1178,11 +1178,11 @@ func TestRuntimeCheckWitness(t *testing.T) {
 			check(t, ic, []byte{1, 2, 3}, true)
 		})
 		t.Run("script container is not a transaction", func(t *testing.T) {
-			loadScriptWithHashAndFlags(ic, script, scriptHash, smartcontract.AllowStates)
+			loadScriptWithHashAndFlags(ic, script, scriptHash, smartcontract.ReadStates)
 			check(t, ic, random.Uint160().BytesBE(), true)
 		})
 		t.Run("check scope", func(t *testing.T) {
-			t.Run("CustomGroups, missing AllowStates flag", func(t *testing.T) {
+			t.Run("CustomGroups, missing ReadStates flag", func(t *testing.T) {
 				hash := random.Uint160()
 				tx := &transaction.Transaction{
 					Signers: []transaction.Signer{
@@ -1213,7 +1213,7 @@ func TestRuntimeCheckWitness(t *testing.T) {
 				ic.Container = tx
 				callingScriptHash := scriptHash
 				loadScriptWithHashAndFlags(ic, script, callingScriptHash, smartcontract.All)
-				ic.VM.LoadScriptWithHash([]byte{0x1}, random.Uint160(), smartcontract.AllowStates)
+				ic.VM.LoadScriptWithHash([]byte{0x1}, random.Uint160(), smartcontract.ReadStates)
 				check(t, ic, hash.BytesBE(), true)
 			})
 		})
@@ -1246,7 +1246,7 @@ func TestRuntimeCheckWitness(t *testing.T) {
 						},
 					},
 				}
-				loadScriptWithHashAndFlags(ic, script, scriptHash, smartcontract.AllowStates)
+				loadScriptWithHashAndFlags(ic, script, scriptHash, smartcontract.ReadStates)
 				ic.Container = tx
 				check(t, ic, hash.BytesBE(), false, true)
 			})
@@ -1260,7 +1260,7 @@ func TestRuntimeCheckWitness(t *testing.T) {
 						},
 					},
 				}
-				loadScriptWithHashAndFlags(ic, script, scriptHash, smartcontract.AllowStates)
+				loadScriptWithHashAndFlags(ic, script, scriptHash, smartcontract.ReadStates)
 				ic.Container = tx
 				check(t, ic, hash.BytesBE(), false, true)
 			})
@@ -1275,7 +1275,7 @@ func TestRuntimeCheckWitness(t *testing.T) {
 						},
 					},
 				}
-				loadScriptWithHashAndFlags(ic, script, scriptHash, smartcontract.AllowStates)
+				loadScriptWithHashAndFlags(ic, script, scriptHash, smartcontract.ReadStates)
 				ic.Container = tx
 				check(t, ic, hash.BytesBE(), false, true)
 			})
@@ -1291,7 +1291,7 @@ func TestRuntimeCheckWitness(t *testing.T) {
 							},
 						},
 					}
-					loadScriptWithHashAndFlags(ic, script, scriptHash, smartcontract.AllowStates)
+					loadScriptWithHashAndFlags(ic, script, scriptHash, smartcontract.ReadStates)
 					ic.Container = tx
 					check(t, ic, hash.BytesBE(), false, false)
 				})
@@ -1320,7 +1320,7 @@ func TestRuntimeCheckWitness(t *testing.T) {
 					}
 					require.NoError(t, ic.DAO.PutContractState(contractState))
 					loadScriptWithHashAndFlags(ic, contractScript, contractScriptHash, smartcontract.All)
-					ic.VM.LoadScriptWithHash([]byte{0x1}, random.Uint160(), smartcontract.AllowStates)
+					ic.VM.LoadScriptWithHash([]byte{0x1}, random.Uint160(), smartcontract.ReadStates)
 					ic.Container = tx
 					check(t, ic, targetHash.BytesBE(), false, true)
 				})
@@ -1335,7 +1335,7 @@ func TestRuntimeCheckWitness(t *testing.T) {
 						},
 					},
 				}
-				loadScriptWithHashAndFlags(ic, script, scriptHash, smartcontract.AllowStates)
+				loadScriptWithHashAndFlags(ic, script, scriptHash, smartcontract.ReadStates)
 				ic.Container = tx
 				check(t, ic, hash.BytesBE(), false, false)
 			})

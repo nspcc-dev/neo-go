@@ -51,7 +51,7 @@ func callExInternal(ic *interop.Context, h []byte, name string, args []stackitem
 		return errors.New("method not found")
 	}
 	if md.Safe {
-		f &^= smartcontract.AllowModifyStates
+		f &^= smartcontract.WriteStates
 	} else if ctx := ic.VM.Context(); ctx != nil && ctx.IsDeployed() {
 		curr, err := ic.DAO.GetContractState(ic.VM.GetCurrentScriptHash())
 		if err == nil {
