@@ -1,7 +1,6 @@
 package stackitem
 
 import (
-	"encoding/base64"
 	"math/big"
 	"testing"
 
@@ -28,10 +27,9 @@ func getTestDecodeFunc(js string, expected ...interface{}) func(t *testing.T) {
 }
 
 func TestFromToJSON(t *testing.T) {
-	var testBase64 = base64.StdEncoding.EncodeToString([]byte("test"))
 	t.Run("ByteString", func(t *testing.T) {
 		t.Run("Empty", getTestDecodeFunc(`""`, []byte{}))
-		t.Run("Base64", getTestDecodeFunc(`"`+testBase64+`"`, "test"))
+		t.Run("Base64", getTestDecodeFunc(`"test"`, "test"))
 	})
 	t.Run("BigInteger", func(t *testing.T) {
 		t.Run("ZeroFloat", getTestDecodeFunc(`12.000`, 12, nil))
@@ -46,7 +44,7 @@ func TestFromToJSON(t *testing.T) {
 	t.Run("Null", getTestDecodeFunc(`null`, Null{}))
 	t.Run("Array", func(t *testing.T) {
 		t.Run("Empty", getTestDecodeFunc(`[]`, NewArray([]Item{})))
-		t.Run("Simple", getTestDecodeFunc((`[1,"`+testBase64+`",true,null]`),
+		t.Run("Simple", getTestDecodeFunc((`[1,"test",true,null]`),
 			NewArray([]Item{NewBigInteger(big.NewInt(1)), NewByteArray([]byte("test")), NewBool(true), Null{}})))
 		t.Run("Nested", getTestDecodeFunc(`[[],[{},null]]`,
 			NewArray([]Item{NewArray([]Item{}), NewArray([]Item{NewMap(), Null{}})})))
@@ -59,11 +57,10 @@ func TestFromToJSON(t *testing.T) {
 		large.Add(NewByteArray([]byte("arr")), NewArray([]Item{NewByteArray([]byte("test"))}))
 		t.Run("Empty", getTestDecodeFunc(`{}`, NewMap()))
 		t.Run("Small", getTestDecodeFunc(`{"a":3}`, small))
-		t.Run("Big", getTestDecodeFunc(`{"3":{"a":3},"arr":["`+testBase64+`"]}`, large))
+		t.Run("Big", getTestDecodeFunc(`{"3":{"a":3},"arr":["test"]}`, large))
 	})
 	t.Run("Invalid", func(t *testing.T) {
 		t.Run("Empty", getTestDecodeFunc(``, nil))
-		t.Run("InvalidString", getTestDecodeFunc(`"not a base64"`, nil))
 		t.Run("InvalidArray", getTestDecodeFunc(`[}`, nil))
 		t.Run("InvalidMap", getTestDecodeFunc(`{]`, nil))
 		t.Run("InvalidMapValue", getTestDecodeFunc(`{"a":{]}`, nil))
@@ -79,9 +76,7 @@ func TestFromToJSON(t *testing.T) {
 			require.Error(t, err)
 		})
 		t.Run("BigByteArray", func(t *testing.T) {
-			l := base64.StdEncoding.DecodedLen(MaxSize + 8)
-			require.True(t, l < MaxSize) // check if test makes sense
-			item := NewByteArray(make([]byte, l))
+			item := NewByteArray(make([]byte, MaxSize))
 			_, err := ToJSON(item)
 			require.Error(t, err)
 		})
