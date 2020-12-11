@@ -79,7 +79,7 @@ func newNEP17Native(name string) *nep17TokenNative {
 	desc = newDescriptor("transfer", smartcontract.BoolType,
 		append(transferParams, manifest.NewParameter("data", smartcontract.AnyType))...,
 	)
-	md = newMethodAndPrice(n.Transfer, 8000000, smartcontract.WriteStates)
+	md = newMethodAndPrice(n.Transfer, 8000000, smartcontract.WriteStates|smartcontract.AllowCall|smartcontract.AllowNotify)
 	n.AddMethod(md, desc)
 
 	desc = newDescriptor("onPersist", smartcontract.VoidType)

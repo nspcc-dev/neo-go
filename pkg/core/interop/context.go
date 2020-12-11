@@ -123,7 +123,7 @@ func NewContractMD(name string) *ContractMD {
 func (c *ContractMD) AddMethod(md *MethodAndPrice, desc *manifest.Method) {
 	c.Manifest.ABI.Methods = append(c.Manifest.ABI.Methods, *desc)
 	md.MD = desc
-	desc.Safe = (md.RequiredFlags & smartcontract.WriteStates) == 0
+	desc.Safe = md.RequiredFlags&(smartcontract.All^smartcontract.ReadOnly) == 0
 	c.Methods[desc.Name] = *md
 }
 
