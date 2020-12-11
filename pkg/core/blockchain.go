@@ -769,7 +769,7 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 func (bc *Blockchain) runPersist(script []byte, block *block.Block, cache *dao.Cached, trig trigger.Type) (*state.AppExecResult, error) {
 	systemInterop := bc.newInteropContext(trig, cache, block, nil)
 	v := systemInterop.SpawnVM()
-	v.LoadScriptWithFlags(script, smartcontract.AllowModifyStates|smartcontract.AllowCall)
+	v.LoadScriptWithFlags(script, smartcontract.WriteStates|smartcontract.AllowCall)
 	v.SetPriceGetter(getPrice)
 	if err := v.Run(); err != nil {
 		return nil, fmt.Errorf("VM has failed: %w", err)
@@ -1674,7 +1674,7 @@ func (bc *Blockchain) initVerificationVM(ic *interop.Context, hash util.Uint160,
 			return ErrInvalidVerificationContract
 		}
 		initMD := cs.Manifest.ABI.GetMethod(manifest.MethodInit)
-		v.LoadScriptWithHash(cs.Script, hash, smartcontract.AllowStates)
+		v.LoadScriptWithHash(cs.Script, hash, smartcontract.ReadStates)
 		v.Jump(v.Context(), md.Offset)
 
 		if cs.ID < 0 {

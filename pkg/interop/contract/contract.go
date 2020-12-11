@@ -20,12 +20,13 @@ type CallFlag byte
 // Using `smartcontract` package from compiled contract requires moderate
 // compiler refactoring, thus all flags are mirrored here.
 const (
-	AllowStates CallFlag = 1 << iota
-	AllowModifyStates
+	ReadStates CallFlag = 1 << iota
+	WriteStates
 	AllowCall
 	AllowNotify
-	ReadOnly          = AllowStates | AllowCall | AllowNotify
-	All               = ReadOnly | AllowModifyStates
+	States            = ReadStates | WriteStates
+	ReadOnly          = ReadStates | AllowCall
+	All               = States | AllowCall | AllowNotify
 	NoneFlag CallFlag = 0
 )
 

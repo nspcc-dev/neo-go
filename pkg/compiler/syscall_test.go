@@ -13,10 +13,11 @@ import (
 
 // Checks that changes in `smartcontract` are reflected in compiler interop package.
 func TestCallFlags(t *testing.T) {
-	require.EqualValues(t, contract.AllowStates, smartcontract.AllowStates)
-	require.EqualValues(t, contract.AllowModifyStates, smartcontract.AllowModifyStates)
+	require.EqualValues(t, contract.ReadStates, smartcontract.ReadStates)
+	require.EqualValues(t, contract.WriteStates, smartcontract.WriteStates)
 	require.EqualValues(t, contract.AllowCall, smartcontract.AllowCall)
 	require.EqualValues(t, contract.AllowNotify, smartcontract.AllowNotify)
+	require.EqualValues(t, contract.States, smartcontract.States)
 	require.EqualValues(t, contract.ReadOnly, smartcontract.ReadOnly)
 	require.EqualValues(t, contract.All, smartcontract.All)
 	require.EqualValues(t, contract.NoneFlag, smartcontract.NoneFlag)

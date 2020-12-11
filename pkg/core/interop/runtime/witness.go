@@ -54,8 +54,8 @@ func checkScope(d dao.DAO, tx *transaction.Transaction, v *vm.VM, hash util.Uint
 				if callingScriptHash.Equals(util.Uint160{}) {
 					return false, nil
 				}
-				if !v.Context().GetCallFlags().Has(smartcontract.AllowStates) {
-					return false, errors.New("missing AllowStates call flag")
+				if !v.Context().GetCallFlags().Has(smartcontract.ReadStates) {
+					return false, errors.New("missing ReadStates call flag")
 				}
 				cs, err := d.GetContractState(callingScriptHash)
 				if err != nil {

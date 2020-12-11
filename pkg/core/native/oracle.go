@@ -111,11 +111,11 @@ func newOracle() *Oracle {
 		manifest.NewParameter("callback", smartcontract.StringType),
 		manifest.NewParameter("userData", smartcontract.AnyType),
 		manifest.NewParameter("gasForResponse", smartcontract.IntegerType))
-	md := newMethodAndPrice(o.request, oracleRequestPrice, smartcontract.AllowModifyStates)
+	md := newMethodAndPrice(o.request, oracleRequestPrice, smartcontract.WriteStates)
 	o.AddMethod(md, desc)
 
 	desc = newDescriptor("finish", smartcontract.VoidType)
-	md = newMethodAndPrice(o.finish, 0, smartcontract.AllowModifyStates)
+	md = newMethodAndPrice(o.finish, 0, smartcontract.WriteStates)
 	o.AddMethod(md, desc)
 
 	desc = newDescriptor("verify", smartcontract.BoolType)
@@ -124,11 +124,11 @@ func newOracle() *Oracle {
 
 	pp := chainOnPersist(postPersistBase, o.PostPersist)
 	desc = newDescriptor("postPersist", smartcontract.VoidType)
-	md = newMethodAndPrice(getOnPersistWrapper(pp), 0, smartcontract.AllowModifyStates)
+	md = newMethodAndPrice(getOnPersistWrapper(pp), 0, smartcontract.WriteStates)
 	o.AddMethod(md, desc)
 
 	desc = newDescriptor("onPersist", smartcontract.VoidType)
-	md = newMethodAndPrice(getOnPersistWrapper(onPersistBase), 0, smartcontract.AllowModifyStates)
+	md = newMethodAndPrice(getOnPersistWrapper(onPersistBase), 0, smartcontract.WriteStates)
 	o.AddMethod(md, desc)
 
 	o.AddEvent("OracleRequest", manifest.NewParameter("Id", smartcontract.IntegerType),
