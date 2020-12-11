@@ -620,7 +620,7 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 		systemInterop := bc.newInteropContext(trigger.Application, cache, block, tx)
 		v := systemInterop.SpawnVM()
 		v.LoadScriptWithFlags(tx.Script, smartcontract.All)
-		v.SetPriceGetter(getPrice)
+		v.SetPriceGetter(bc.getPrice)
 		v.GasLimit = tx.SystemFee
 
 		err := v.Run()
@@ -753,7 +753,7 @@ func (bc *Blockchain) runPersist(script []byte, block *block.Block, cache *dao.C
 	systemInterop := bc.newInteropContext(trig, cache, block, nil)
 	v := systemInterop.SpawnVM()
 	v.LoadScriptWithFlags(script, smartcontract.WriteStates|smartcontract.AllowCall)
-	v.SetPriceGetter(getPrice)
+	v.SetPriceGetter(bc.getPrice)
 	if err := v.Run(); err != nil {
 		return nil, fmt.Errorf("VM has failed: %w", err)
 	} else if _, err := systemInterop.DAO.Persist(); err != nil {
@@ -1622,7 +1622,7 @@ func (bc *Blockchain) GetTestVM(tx *transaction.Transaction, b *block.Block) *vm
 	d.MPT = nil
 	systemInterop := bc.newInteropContext(trigger.Application, d, b, tx)
 	vm := systemInterop.SpawnVM()
-	vm.SetPriceGetter(getPrice)
+	vm.SetPriceGetter(bc.getPrice)
 	return vm
 }
 
@@ -1692,7 +1692,7 @@ func (bc *Blockchain) verifyHashAgainstScript(hash util.Uint160, witness *transa
 	}
 
 	vm := interopCtx.SpawnVM()
-	vm.SetPriceGetter(getPrice)
+	vm.SetPriceGetter(bc.getPrice)
 	vm.GasLimit = gas
 	if err := bc.initVerificationVM(interopCtx, hash, witness); err != nil {
 		return 0, err
@@ -1811,6 +1811,11 @@ func (bc *Blockchain) RegisterPostBlock(f func(blockchainer.Blockchainer, *mempo
 // GetPolicer provides access to policy values via Policer interface.
 func (bc *Blockchain) GetPolicer() blockchainer.Policer {
 	return bc
+}
+
+// GetBaseExecFee return execution price for `NOP`.
+func (bc *Blockchain) GetBaseExecFee() int64 {
+	return interop.DefaultBaseExecFee
 }
 
 // GetMaxBlockSize returns maximum allowed block size from native Policy contract.

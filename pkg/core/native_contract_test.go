@@ -7,6 +7,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
+	"github.com/nspcc-dev/neo-go/pkg/core/fee"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/contract"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
@@ -17,6 +18,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
+	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/stretchr/testify/require"
 )
@@ -54,7 +56,7 @@ func (bc *Blockchain) registerNative(c interop.Contract) {
 	bc.contracts.Contracts = append(bc.contracts.Contracts, c)
 }
 
-const testSumPrice = 1000000
+const testSumPrice = 1 << 15 * interop.DefaultBaseExecFee // same as contract.Call
 
 func newTestNative() *testNative {
 	tn := &testNative{
@@ -176,8 +178,12 @@ func TestNativeContract_Invoke(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	// System.Contract.Call + "sum" itself + opcodes for pushing arguments (PACK is 15000)
-	res, err := invokeContractMethod(chain, testSumPrice*2+18000, tn.Metadata().Hash, "sum", int64(14), int64(28))
+	// System.Contract.Call + "sum" itself + opcodes for pushing arguments.
+	price := int64(testSumPrice * 2)
+	price += 3 * fee.Opcode(chain.GetBaseExecFee(), opcode.PUSHINT8, opcode.PUSHDATA1)
+	price += 2 * fee.Opcode(chain.GetBaseExecFee(), opcode.SYSCALL)
+	price += fee.Opcode(chain.GetBaseExecFee(), opcode.PACK)
+	res, err := invokeContractMethod(chain, price, tn.Metadata().Hash, "sum", int64(14), int64(28))
 	require.NoError(t, err)
 	checkResult(t, res, stackitem.Make(42))
 	require.NoError(t, chain.persist())
@@ -190,10 +196,9 @@ func TestNativeContract_Invoke(t *testing.T) {
 	}
 
 	// Enough for Call and other opcodes, but not enough for "sum" call.
-	res, err = invokeContractMethod(chain, testSumPrice*2+8000, tn.Metadata().Hash, "sum", int64(14), int64(28))
+	res, err = invokeContractMethod(chain, price-1, tn.Metadata().Hash, "sum", int64(14), int64(28))
 	require.NoError(t, err)
 	checkFAULTState(t, res)
-
 }
 
 func TestNativeContract_InvokeInternal(t *testing.T) {

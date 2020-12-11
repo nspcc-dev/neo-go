@@ -102,7 +102,7 @@ func TestAddNetworkFee(t *testing.T) {
 		}}
 		require.NoError(t, c.AddNetworkFee(tx, 10, accs[0]))
 		require.NoError(t, accs[0].SignTx(tx))
-		cFee, _ := fee.Calculate(accs[0].Contract.Script)
+		cFee, _ := fee.Calculate(chain.GetBaseExecFee(), accs[0].Contract.Script)
 		require.Equal(t, int64(io.GetVarSize(tx))*feePerByte+cFee+10, tx.NetworkFee)
 	})
 
@@ -126,8 +126,8 @@ func TestAddNetworkFee(t *testing.T) {
 		require.NoError(t, accs[0].SignTx(tx))
 		require.NoError(t, accs[1].SignTx(tx))
 		require.NoError(t, accs[2].SignTx(tx))
-		cFee, _ := fee.Calculate(accs[0].Contract.Script)
-		cFeeM, _ := fee.Calculate(accs[1].Contract.Script)
+		cFee, _ := fee.Calculate(chain.GetBaseExecFee(), accs[0].Contract.Script)
+		cFeeM, _ := fee.Calculate(chain.GetBaseExecFee(), accs[1].Contract.Script)
 		require.Equal(t, int64(io.GetVarSize(tx))*feePerByte+cFee+cFeeM+10, tx.NetworkFee)
 	})
 	t.Run("Contract", func(t *testing.T) {

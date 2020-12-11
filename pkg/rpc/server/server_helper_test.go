@@ -11,6 +11,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
+	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/io"
@@ -101,4 +102,8 @@ func (fs *FeerStub) GetUtilityTokenBalance(acc util.Uint160) *big.Int {
 
 func (fs FeerStub) P2PSigExtensionsEnabled() bool {
 	return false
+}
+
+func (fs FeerStub) GetBaseExecFee() int64 {
+	return interop.DefaultBaseExecFee
 }

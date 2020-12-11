@@ -24,6 +24,10 @@ type FeerStub struct {
 	balance     int64
 }
 
+func (fs *FeerStub) GetBaseExecFee() int64 {
+	return 30
+}
+
 func (fs *FeerStub) FeePerByte() int64 {
 	return fs.feePerByte
 }

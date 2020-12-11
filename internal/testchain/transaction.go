@@ -92,7 +92,7 @@ func NewDeployTx(bc blockchainer.Blockchainer, name string, sender util.Uint160,
 func SignTx(bc blockchainer.Blockchainer, txs ...*transaction.Transaction) error {
 	for _, tx := range txs {
 		size := io.GetVarSize(tx)
-		netFee, sizeDelta := fee.Calculate(ownerScript)
+		netFee, sizeDelta := fee.Calculate(bc.GetPolicer().GetBaseExecFee(), ownerScript)
 		tx.NetworkFee += netFee
 		size += sizeDelta
 		tx.NetworkFee += int64(size) * bc.FeePerByte()

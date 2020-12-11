@@ -201,6 +201,7 @@ func storageDelete(ic *interop.Context) error {
 	if stc.ReadOnly {
 		return errors.New("StorageContext is read only")
 	}
+	ic.VM.AddGas(native.StoragePrice)
 	key := ic.VM.Estack().Pop().Bytes()
 	si := ic.DAO.GetStorageItem(stc.ID, key)
 	if si != nil && si.IsConst {

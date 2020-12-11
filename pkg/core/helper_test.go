@@ -398,13 +398,13 @@ func addSigners(txs ...*transaction.Transaction) {
 
 func addNetworkFee(bc *Blockchain, tx *transaction.Transaction, sender *wallet.Account) error {
 	size := io.GetVarSize(tx)
-	netFee, sizeDelta := fee.Calculate(sender.Contract.Script)
+	netFee, sizeDelta := fee.Calculate(bc.GetBaseExecFee(), sender.Contract.Script)
 	tx.NetworkFee += netFee
 	size += sizeDelta
 	for _, cosigner := range tx.Signers {
 		contract := bc.GetContractState(cosigner.Account)
 		if contract != nil {
-			netFee, sizeDelta = fee.Calculate(contract.Script)
+			netFee, sizeDelta = fee.Calculate(bc.GetBaseExecFee(), contract.Script)
 			tx.NetworkFee += netFee
 			size += sizeDelta
 		}

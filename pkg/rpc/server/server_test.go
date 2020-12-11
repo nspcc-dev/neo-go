@@ -1003,7 +1003,7 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 
 		addNetworkFee := func(tx *transaction.Transaction) {
 			size := io.GetVarSize(tx)
-			netFee, sizeDelta := fee.Calculate(acc0.Contract.Script)
+			netFee, sizeDelta := fee.Calculate(chain.GetBaseExecFee(), acc0.Contract.Script)
 			tx.NetworkFee += netFee
 			size += sizeDelta
 			tx.NetworkFee += int64(size) * chain.FeePerByte()
