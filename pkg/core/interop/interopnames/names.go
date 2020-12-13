@@ -11,7 +11,6 @@ const (
 	SystemBinaryItoa                         = "System.Binary.Itoa"
 	SystemBinarySerialize                    = "System.Binary.Serialize"
 	SystemBlockchainGetBlock                 = "System.Blockchain.GetBlock"
-	SystemBlockchainGetContract              = "System.Blockchain.GetContract"
 	SystemBlockchainGetHeight                = "System.Blockchain.GetHeight"
 	SystemBlockchainGetTransaction           = "System.Blockchain.GetTransaction"
 	SystemBlockchainGetTransactionFromBlock  = "System.Blockchain.GetTransactionFromBlock"
@@ -22,14 +21,11 @@ const (
 	SystemCallbackInvoke                     = "System.Callback.Invoke"
 	SystemContractCall                       = "System.Contract.Call"
 	SystemContractCallEx                     = "System.Contract.CallEx"
-	SystemContractCreate                     = "System.Contract.Create"
 	SystemContractCreateStandardAccount      = "System.Contract.CreateStandardAccount"
-	SystemContractDestroy                    = "System.Contract.Destroy"
 	SystemContractIsStandard                 = "System.Contract.IsStandard"
 	SystemContractGetCallFlags               = "System.Contract.GetCallFlags"
 	SystemContractNativeOnPersist            = "System.Contract.NativeOnPersist"
 	SystemContractNativePostPersist          = "System.Contract.NativePostPersist"
-	SystemContractUpdate                     = "System.Contract.Update"
 	SystemEnumeratorConcat                   = "System.Enumerator.Concat"
 	SystemEnumeratorCreate                   = "System.Enumerator.Create"
 	SystemEnumeratorNext                     = "System.Enumerator.Next"
@@ -81,7 +77,6 @@ var names = []string{
 	SystemBinaryItoa,
 	SystemBinarySerialize,
 	SystemBlockchainGetBlock,
-	SystemBlockchainGetContract,
 	SystemBlockchainGetHeight,
 	SystemBlockchainGetTransaction,
 	SystemBlockchainGetTransactionFromBlock,
@@ -92,14 +87,11 @@ var names = []string{
 	SystemCallbackInvoke,
 	SystemContractCall,
 	SystemContractCallEx,
-	SystemContractCreate,
 	SystemContractCreateStandardAccount,
-	SystemContractDestroy,
 	SystemContractIsStandard,
 	SystemContractGetCallFlags,
 	SystemContractNativeOnPersist,
 	SystemContractNativePostPersist,
-	SystemContractUpdate,
 	SystemEnumeratorConcat,
 	SystemEnumeratorCreate,
 	SystemEnumeratorNext,

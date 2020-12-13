@@ -109,7 +109,7 @@ func TestOracle_Request(t *testing.T) {
 
 	orc := bc.contracts.Oracle
 	cs := getOracleContractState(orc.Hash)
-	require.NoError(t, bc.dao.PutContractState(cs))
+	require.NoError(t, bc.contracts.Management.PutContractState(bc.dao, cs))
 
 	gasForResponse := int64(2000_1234)
 	var filter = "flt"

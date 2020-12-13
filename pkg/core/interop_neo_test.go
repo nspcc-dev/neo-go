@@ -49,7 +49,7 @@ func TestStorageFind(t *testing.T) {
 		},
 	}
 
-	require.NoError(t, context.DAO.PutContractState(contractState))
+	require.NoError(t, chain.contracts.Management.PutContractState(chain.dao, contractState))
 
 	id := contractState.ID
 

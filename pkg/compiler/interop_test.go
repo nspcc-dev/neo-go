@@ -1,6 +1,7 @@
 package compiler_test
 
 import (
+	"errors"
 	"fmt"
 	"math/big"
 	"strings"
@@ -18,6 +19,7 @@ import (
 	cinterop "github.com/nspcc-dev/neo-go/pkg/interop"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
+	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/stretchr/testify/require"
@@ -132,12 +134,6 @@ func TestAppCall(t *testing.T) {
 	require.NoError(t, err)
 
 	barH := hash.Hash160(barCtr)
-	ic := interop.NewContext(trigger.Application, nil, dao.NewSimple(storage.NewMemoryStore(), netmode.UnitTestNet, false), nil, nil, nil, zaptest.NewLogger(t))
-	require.NoError(t, ic.DAO.PutContractState(&state.Contract{
-		Hash:     barH,
-		Script:   barCtr,
-		Manifest: *mBar,
-	}))
 
 	srcInner := `package foo
 	import "github.com/nspcc-dev/neo-go/pkg/interop/contract"
@@ -164,11 +160,24 @@ func TestAppCall(t *testing.T) {
 	require.NoError(t, err)
 
 	ih := hash.Hash160(inner)
-	require.NoError(t, ic.DAO.PutContractState(&state.Contract{
-		Hash:     ih,
-		Script:   inner,
-		Manifest: *m,
-	}))
+	var contractGetter = func(_ dao.DAO, h util.Uint160) (*state.Contract, error) {
+		if h.Equals(ih) {
+			return &state.Contract{
+				Hash:     ih,
+				Script:   inner,
+				Manifest: *m,
+			}, nil
+		} else if h.Equals(barH) {
+			return &state.Contract{
+				Hash:     barH,
+				Script:   barCtr,
+				Manifest: *mBar,
+			}, nil
+		}
+		return nil, errors.New("not found")
+	}
+
+	ic := interop.NewContext(trigger.Application, nil, dao.NewSimple(storage.NewMemoryStore(), netmode.UnitTestNet, false), contractGetter, nil, nil, nil, zaptest.NewLogger(t))
 
 	t.Run("valid script", func(t *testing.T) {
 		src := getAppCallScript(fmt.Sprintf("%#v", ih.BytesBE()))

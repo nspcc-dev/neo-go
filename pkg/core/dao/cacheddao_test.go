@@ -7,50 +7,9 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
-	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
-	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
-
-func TestCachedDaoContracts(t *testing.T) {
-	store := storage.NewMemoryStore()
-	pdao := NewSimple(store, netmode.UnitTestNet, false)
-	dao := NewCached(pdao)
-
-	script := []byte{0xde, 0xad, 0xbe, 0xef}
-	sh := hash.Hash160(script)
-	_, err := dao.GetContractState(sh)
-	require.NotNil(t, err)
-
-	m := manifest.NewManifest("Test")
-
-	cs := &state.Contract{
-		ID:       123,
-		Hash:     sh,
-		Script:   script,
-		Manifest: *m,
-	}
-
-	require.NoError(t, dao.PutContractState(cs))
-	cs2, err := dao.GetContractState(sh)
-	require.Nil(t, err)
-	require.Equal(t, cs, cs2)
-
-	_, err = dao.Persist()
-	require.Nil(t, err)
-	dao2 := NewCached(pdao)
-	cs2, err = dao2.GetContractState(sh)
-	require.Nil(t, err)
-	require.Equal(t, cs, cs2)
-
-	require.NoError(t, dao.DeleteContractState(sh))
-	cs2, err = dao2.GetContractState(sh)
-	require.Nil(t, err)
-	require.Equal(t, cs, cs2)
-	_, err = dao.GetContractState(sh)
-	require.NotNil(t, err)
-}
 
 func TestCachedCachedDao(t *testing.T) {
 	store := storage.NewMemoryStore()

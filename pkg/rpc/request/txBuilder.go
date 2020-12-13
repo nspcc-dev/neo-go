@@ -1,39 +1,17 @@
 package request
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"strconv"
 
-	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
-	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
-	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 )
-
-// CreateDeploymentScript returns a script that deploys given smart contract
-// with its metadata.
-func CreateDeploymentScript(ne *nef.File, manif *manifest.Manifest) ([]byte, error) {
-	script := io.NewBufBinWriter()
-	rawManifest, err := json.Marshal(manif)
-	if err != nil {
-		return nil, err
-	}
-	neb, err := ne.Bytes()
-	if err != nil {
-		return nil, err
-	}
-	emit.Bytes(script.BinWriter, rawManifest)
-	emit.Bytes(script.BinWriter, neb)
-	emit.Syscall(script.BinWriter, interopnames.SystemContractCreate)
-	return script.Bytes(), nil
-}
 
 // expandArrayIntoScript pushes all FuncParam parameters from the given array
 // into the given buffer in reverse order.

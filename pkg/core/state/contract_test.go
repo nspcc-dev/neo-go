@@ -1,6 +1,8 @@
 package state
 
 import (
+	"encoding/json"
+	"math"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/internal/testserdes"
@@ -8,6 +10,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/stretchr/testify/require"
 )
 
@@ -57,4 +60,42 @@ func TestCreateContractHash(t *testing.T) {
 	sender, err = util.Uint160DecodeStringLE("a400ff00ff00ff00ff00ff00ff00ff00ff00ff01")
 	require.NoError(t, err)
 	require.Equal(t, "e56e4ee87f89a70e9138432c387ad49f2ee5b55f", CreateContractHash(sender, script).StringLE())
+}
+
+func TestContractFromStackItem(t *testing.T) {
+	var (
+		id           = stackitem.Make(42)
+		counter      = stackitem.Make(11)
+		chash        = stackitem.Make(util.Uint160{1, 2, 3}.BytesBE())
+		script       = stackitem.Make([]byte{0, 9, 8})
+		manifest     = manifest.DefaultManifest("stack item")
+		manifestB, _ = json.Marshal(manifest)
+		manifItem    = stackitem.Make(manifestB)
+
+		badCases = []struct {
+			name string
+			item stackitem.Item
+		}{
+			{"not an array", stackitem.Make(1)},
+			{"id is not a number", stackitem.Make([]stackitem.Item{manifItem, counter, chash, script, manifItem})},
+			{"id is out of range", stackitem.Make([]stackitem.Item{stackitem.Make(math.MaxUint32), counter, chash, script, manifItem})},
+			{"counter is not a number", stackitem.Make([]stackitem.Item{id, manifItem, chash, script, manifItem})},
+			{"counter is out of range", stackitem.Make([]stackitem.Item{id, stackitem.Make(100500), chash, script, manifItem})},
+			{"hash is not a byte string", stackitem.Make([]stackitem.Item{id, counter, stackitem.NewArray(nil), script, manifItem})},
+			{"hash is not a hash", stackitem.Make([]stackitem.Item{id, counter, stackitem.Make([]byte{1, 2, 3}), script, manifItem})},
+			{"script is not a byte string", stackitem.Make([]stackitem.Item{id, counter, chash, stackitem.NewArray(nil), manifItem})},
+			{"manifest is not a byte string", stackitem.Make([]stackitem.Item{id, counter, chash, script, stackitem.NewArray(nil)})},
+			{"manifest is not correct", stackitem.Make([]stackitem.Item{id, counter, chash, script, stackitem.Make(100500)})},
+		}
+	)
+	for _, cs := range badCases {
+		t.Run(cs.name, func(t *testing.T) {
+			var c = new(Contract)
+			err := c.FromStackItem(cs.item)
+			require.Error(t, err)
+		})
+	}
+	var c = new(Contract)
+	err := c.FromStackItem(stackitem.Make([]stackitem.Item{id, counter, chash, script, manifItem}))
+	require.NoError(t, err)
 }

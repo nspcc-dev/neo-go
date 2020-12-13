@@ -23,10 +23,7 @@ const prefixAccount = 20
 
 // makeAccountKey creates a key from account script hash.
 func makeAccountKey(h util.Uint160) []byte {
-	k := make([]byte, util.Uint160Size+1)
-	k[0] = prefixAccount
-	copy(k[1:], h.BytesBE())
-	return k
+	return makeUint160Key(prefixAccount, h)
 }
 
 // nep17TokenNative represents NEP-17 token contract.
@@ -132,7 +129,7 @@ func (c *nep17TokenNative) postTransfer(ic *interop.Context, from, to *util.Uint
 	if to == nil || !callOnPayment {
 		return
 	}
-	cs, err := ic.DAO.GetContractState(*to)
+	cs, err := ic.GetContract(*to)
 	if err != nil {
 		return
 	}

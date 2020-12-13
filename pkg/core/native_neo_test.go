@@ -309,8 +309,8 @@ func TestNEO_TransferOnPayment(t *testing.T) {
 	bc := newTestChain(t)
 	defer bc.Close()
 
-	cs, _ := getTestContractState()
-	require.NoError(t, bc.dao.PutContractState(cs))
+	cs, _ := getTestContractState(bc)
+	require.NoError(t, bc.contracts.Management.PutContractState(bc.dao, cs))
 
 	const amount = 2
 	tx := transferTokenFromMultisigAccount(t, bc, cs.Hash, bc.contracts.NEO.Hash, amount)

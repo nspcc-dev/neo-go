@@ -1030,10 +1030,10 @@ func TestVerifyHashAgainstScript(t *testing.T) {
 	bc := newTestChain(t)
 	defer bc.Close()
 
-	cs, csInvalid := getTestContractState()
+	cs, csInvalid := getTestContractState(bc)
 	ic := bc.newInteropContext(trigger.Verification, bc.dao, nil, nil)
-	require.NoError(t, ic.DAO.PutContractState(cs))
-	require.NoError(t, ic.DAO.PutContractState(csInvalid))
+	require.NoError(t, bc.contracts.Management.PutContractState(bc.dao, cs))
+	require.NoError(t, bc.contracts.Management.PutContractState(bc.dao, csInvalid))
 
 	gas := bc.contracts.Policy.GetMaxVerificationGas(ic.DAO)
 	t.Run("Contract", func(t *testing.T) {
@@ -1169,7 +1169,7 @@ func TestIsTxStillRelevant(t *testing.T) {
 			currentHeight := blockchain.GetHeight()
 			return currentHeight < %d
 		}`, bc.BlockHeight()+2) // deploy + next block
-		txDeploy, h, err := testchain.NewDeployTx("TestVerify", neoOwner, strings.NewReader(src))
+		txDeploy, h, err := testchain.NewDeployTx(bc, "TestVerify", neoOwner, strings.NewReader(src))
 		require.NoError(t, err)
 		txDeploy.ValidUntilBlock = bc.BlockHeight() + 1
 		addSigners(txDeploy)

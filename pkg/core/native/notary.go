@@ -276,7 +276,7 @@ func (n *Notary) withdraw(ic *interop.Context, args []stackitem.Item) stackitem.
 	if ic.Chain.BlockHeight() < deposit.Till {
 		return stackitem.NewBool(false)
 	}
-	cs, err := ic.DAO.GetContractState(n.GAS.Hash)
+	cs, err := ic.GetContract(n.GAS.Hash)
 	if err != nil {
 		panic(fmt.Errorf("failed to get GAS contract state: %w", err))
 	}

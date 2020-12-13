@@ -5,7 +5,6 @@ package blockchain
 
 import (
 	"github.com/nspcc-dev/neo-go/pkg/interop"
-	"github.com/nspcc-dev/neo-go/pkg/interop/contract"
 )
 
 // Transaction represents a NEO transaction. It's similar to Transaction class
@@ -94,12 +93,4 @@ func GetTransactionFromBlock(heightOrHash interface{}, index int) interop.Hash25
 // 32 bytes). This function uses `System.Blockchain.GetTransactionHeight` syscall.
 func GetTransactionHeight(hash interop.Hash256) int {
 	return 0
-}
-
-// GetContract returns contract found by the given script hash (160 bit in BE
-// format represented as a slice of 20 bytes). Refer to the `contract` package
-// for details on how to use the returned structure. This function uses
-// `System.Blockchain.GetContract` syscall.
-func GetContract(scriptHash interop.Hash160) *contract.Contract {
-	return &contract.Contract{}
 }

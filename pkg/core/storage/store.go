@@ -13,7 +13,6 @@ const (
 	DataMPT          KeyPrefix = 0x03
 	STAccount        KeyPrefix = 0x40
 	STNotification   KeyPrefix = 0x4d
-	STContract       KeyPrefix = 0x50
 	STContractID     KeyPrefix = 0x51
 	STStorage        KeyPrefix = 0x70
 	STNEP17Transfers KeyPrefix = 0x72
@@ -21,7 +20,6 @@ const (
 	IXHeaderHashList KeyPrefix = 0x80
 	SYSCurrentBlock  KeyPrefix = 0xc0
 	SYSCurrentHeader KeyPrefix = 0xc1
-	SYSContractID    KeyPrefix = 0xc2
 	SYSVersion       KeyPrefix = 0xf0
 )
 

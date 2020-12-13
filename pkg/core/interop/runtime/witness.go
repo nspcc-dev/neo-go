@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
@@ -22,13 +21,13 @@ func CheckHashedWitness(ic *interop.Context, hash util.Uint160) (bool, error) {
 		return true, nil
 	}
 	if tx, ok := ic.Container.(*transaction.Transaction); ok {
-		return checkScope(ic.DAO, tx, ic.VM, hash)
+		return checkScope(ic, tx, ic.VM, hash)
 	}
 
 	return false, errors.New("script container is not a transaction")
 }
 
-func checkScope(d dao.DAO, tx *transaction.Transaction, v *vm.VM, hash util.Uint160) (bool, error) {
+func checkScope(ic *interop.Context, tx *transaction.Transaction, v *vm.VM, hash util.Uint160) (bool, error) {
 	for _, c := range tx.Signers {
 		if c.Account == hash {
 			if c.Scopes == transaction.Global {
@@ -57,9 +56,9 @@ func checkScope(d dao.DAO, tx *transaction.Transaction, v *vm.VM, hash util.Uint
 				if !v.Context().GetCallFlags().Has(smartcontract.ReadStates) {
 					return false, errors.New("missing ReadStates call flag")
 				}
-				cs, err := d.GetContractState(callingScriptHash)
+				cs, err := ic.GetContract(callingScriptHash)
 				if err != nil {
-					return false, err
+					return false, fmt.Errorf("unable to find calling script: %w", err)
 				}
 				// check if the current group is the required one
 				for _, allowedGroup := range c.AllowedGroups {

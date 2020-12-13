@@ -841,7 +841,7 @@ func (bc *Blockchain) processNEP17Transfer(cache *dao.Cached, h util.Uint256, b 
 	if nativeContract != nil {
 		id = nativeContract.Metadata().ContractID
 	} else {
-		assetContract, err := cache.GetContractState(sc)
+		assetContract, err := bc.contracts.Management.GetContract(cache, sc)
 		if err != nil {
 			return
 		}
@@ -1141,7 +1141,7 @@ func (bc *Blockchain) HeaderHeight() uint32 {
 
 // GetContractState returns contract by its script hash.
 func (bc *Blockchain) GetContractState(hash util.Uint160) *state.Contract {
-	contract, err := bc.dao.GetContractState(hash)
+	contract, err := bc.contracts.Management.GetContract(bc.dao, hash)
 	if contract == nil && err != storage.ErrKeyNotFound {
 		bc.log.Warn("failed to get contract state", zap.Error(err))
 	}
@@ -1663,7 +1663,7 @@ func (bc *Blockchain) initVerificationVM(ic *interop.Context, hash util.Uint160,
 		}
 		v.LoadScriptWithFlags(witness.VerificationScript, smartcontract.NoneFlag)
 	} else {
-		cs, err := ic.DAO.GetContractState(hash)
+		cs, err := ic.GetContract(hash)
 		if err != nil {
 			return ErrUnknownVerificationContract
 		}
@@ -1786,6 +1786,11 @@ func (bc *Blockchain) UtilityTokenHash() util.Uint160 {
 	return bc.contracts.GAS.Hash
 }
 
+// ManagementContractHash returns management contract's hash.
+func (bc *Blockchain) ManagementContractHash() util.Uint160 {
+	return bc.contracts.Management.Hash
+}
+
 func hashAndIndexToBytes(h util.Uint256, index uint32) []byte {
 	buf := io.NewBufBinWriter()
 	buf.WriteBytes(h.BytesLE())
@@ -1794,7 +1799,7 @@ func hashAndIndexToBytes(h util.Uint256, index uint32) []byte {
 }
 
 func (bc *Blockchain) newInteropContext(trigger trigger.Type, d dao.DAO, block *block.Block, tx *transaction.Transaction) *interop.Context {
-	ic := interop.NewContext(trigger, bc, d, bc.contracts.Contracts, block, tx, bc.log)
+	ic := interop.NewContext(trigger, bc, d, bc.contracts.Management.GetContract, bc.contracts.Contracts, block, tx, bc.log)
 	ic.Functions = [][]interop.Function{systemInterops, neoInterops}
 	switch {
 	case tx != nil:

@@ -251,7 +251,7 @@ func (o *Oracle) FinishInternal(ic *interop.Context) error {
 		stackitem.Make(resp.Code),
 		stackitem.Make(resp.Result),
 	}
-	cs, err := ic.DAO.GetContractState(req.CallbackContract)
+	cs, err := ic.GetContract(req.CallbackContract)
 	if err != nil {
 		return err
 	}
@@ -307,7 +307,7 @@ func (o *Oracle) RequestInternal(ic *interop.Context, url string, filter *string
 	}
 
 	// Should be executed from contract.
-	_, err := ic.DAO.GetContractState(ic.VM.GetCallingScriptHash())
+	_, err := ic.GetContract(ic.VM.GetCallingScriptHash())
 	if err != nil {
 		return err
 	}

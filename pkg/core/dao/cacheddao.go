@@ -9,11 +9,10 @@ import (
 )
 
 // Cached is a data access object that mimics DAO, but has a write cache
-// for accounts and read cache for contracts. These are the most frequently used
+// for accounts and NEP17 transfer data. These are the most frequently used
 // objects in the storeBlock().
 type Cached struct {
 	DAO
-	contracts map[util.Uint160]*state.Contract
 	balances  map[util.Uint160]*state.NEP17Balances
 	transfers map[util.Uint160]map[uint32]*state.NEP17TransferLog
 
@@ -22,34 +21,9 @@ type Cached struct {
 
 // NewCached returns new Cached wrapping around given backing store.
 func NewCached(d DAO) *Cached {
-	ctrs := make(map[util.Uint160]*state.Contract)
 	balances := make(map[util.Uint160]*state.NEP17Balances)
 	transfers := make(map[util.Uint160]map[uint32]*state.NEP17TransferLog)
-	return &Cached{d.GetWrapped(), ctrs, balances, transfers, false}
-}
-
-// GetContractState returns contract state from cache or underlying store.
-func (cd *Cached) GetContractState(hash util.Uint160) (*state.Contract, error) {
-	if cd.contracts[hash] != nil {
-		return cd.contracts[hash], nil
-	}
-	cs, err := cd.DAO.GetContractState(hash)
-	if err == nil {
-		cd.contracts[hash] = cs
-	}
-	return cs, err
-}
-
-// PutContractState puts given contract state into the given store.
-func (cd *Cached) PutContractState(cs *state.Contract) error {
-	cd.contracts[cs.Hash] = cs
-	return cd.DAO.PutContractState(cs)
-}
-
-// DeleteContractState deletes given contract state in cache and backing store.
-func (cd *Cached) DeleteContractState(hash util.Uint160) error {
-	cd.contracts[hash] = nil
-	return cd.DAO.DeleteContractState(hash)
+	return &Cached{d.GetWrapped(), balances, transfers, false}
 }
 
 // GetNEP17Balances retrieves NEP17Balances for the acc.
@@ -105,7 +79,7 @@ func (cd *Cached) Persist() (int, error) {
 	// If the lower DAO is Cached, we only need to flush the MemCached DB.
 	// This actually breaks DAO interface incapsulation, but for our current
 	// usage scenario it should be good enough if cd doesn't modify object
-	// caches (accounts/contracts/etc) in any way.
+	// caches (accounts/transfer data) in any way.
 	if ok {
 		if cd.dropNEP17Cache {
 			lowerCache.balances = make(map[util.Uint160]*state.NEP17Balances)
@@ -145,7 +119,6 @@ func (cd *Cached) Persist() (int, error) {
 // GetWrapped implements DAO interface.
 func (cd *Cached) GetWrapped() DAO {
 	return &Cached{cd.DAO.GetWrapped(),
-		cd.contracts,
 		cd.balances,
 		cd.transfers,
 		false,

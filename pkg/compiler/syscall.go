@@ -16,7 +16,6 @@ var syscalls = map[string]map[string]string{
 	},
 	"blockchain": {
 		"GetBlock":                interopnames.SystemBlockchainGetBlock,
-		"GetContract":             interopnames.SystemBlockchainGetContract,
 		"GetHeight":               interopnames.SystemBlockchainGetHeight,
 		"GetTransaction":          interopnames.SystemBlockchainGetTransaction,
 		"GetTransactionFromBlock": interopnames.SystemBlockchainGetTransactionFromBlock,
@@ -25,12 +24,9 @@ var syscalls = map[string]map[string]string{
 	"contract": {
 		"Call":                  interopnames.SystemContractCall,
 		"CallEx":                interopnames.SystemContractCallEx,
-		"Create":                interopnames.SystemContractCreate,
 		"CreateStandardAccount": interopnames.SystemContractCreateStandardAccount,
-		"Destroy":               interopnames.SystemContractDestroy,
 		"IsStandard":            interopnames.SystemContractIsStandard,
 		"GetCallFlags":          interopnames.SystemContractGetCallFlags,
-		"Update":                interopnames.SystemContractUpdate,
 	},
 	"crypto": {
 		"ECDsaSecp256k1Verify":        interopnames.NeoCryptoVerifyWithECDsaSecp256k1,
