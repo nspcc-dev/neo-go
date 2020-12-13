@@ -152,25 +152,20 @@ func (p *Policy) OnPersist(ic *interop.Context) error {
 
 // PostPersist implements Contract interface.
 func (p *Policy) PostPersist(ic *interop.Context) error {
-	return nil
-}
-
-// OnPersistEnd updates cached Policy values if they've been changed
-func (p *Policy) OnPersistEnd(dao dao.DAO) error {
+	p.lock.Lock()
+	defer p.lock.Unlock()
 	if p.isValid {
 		return nil
 	}
-	p.lock.Lock()
-	defer p.lock.Unlock()
 
-	p.maxTransactionsPerBlock = getUint32WithKey(p.ContractID, dao, maxTransactionsPerBlockKey, defaultMaxTransactionsPerBlock)
-	p.maxBlockSize = getUint32WithKey(p.ContractID, dao, maxBlockSizeKey, defaultMaxBlockSize)
-	p.feePerByte = getInt64WithKey(p.ContractID, dao, feePerByteKey, defaultFeePerByte)
-	p.maxBlockSystemFee = getInt64WithKey(p.ContractID, dao, maxBlockSystemFeeKey, defaultMaxBlockSystemFee)
+	p.maxTransactionsPerBlock = getUint32WithKey(p.ContractID, ic.DAO, maxTransactionsPerBlockKey, defaultMaxTransactionsPerBlock)
+	p.maxBlockSize = getUint32WithKey(p.ContractID, ic.DAO, maxBlockSizeKey, defaultMaxBlockSize)
+	p.feePerByte = getInt64WithKey(p.ContractID, ic.DAO, feePerByteKey, defaultFeePerByte)
+	p.maxBlockSystemFee = getInt64WithKey(p.ContractID, ic.DAO, maxBlockSystemFeeKey, defaultMaxBlockSystemFee)
 	p.maxVerificationGas = defaultMaxVerificationGas
 
 	p.blockedAccounts = make([]util.Uint160, 0)
-	siMap, err := dao.GetStorageItemsWithPrefix(p.ContractID, []byte{blockedAccountPrefix})
+	siMap, err := ic.DAO.GetStorageItemsWithPrefix(p.ContractID, []byte{blockedAccountPrefix})
 	if err != nil {
 		return fmt.Errorf("failed to get blocked accounts from storage: %w", err)
 	}

@@ -724,21 +724,6 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 		bc.lock.Unlock()
 		return err
 	}
-	if err := bc.contracts.Policy.OnPersistEnd(bc.dao); err != nil {
-		bc.lock.Unlock()
-		return fmt.Errorf("failed to call OnPersistEnd for Policy native contract: %w", err)
-	}
-	if bc.P2PSigExtensionsEnabled() {
-		err := bc.contracts.Notary.OnPersistEnd(bc.dao)
-		if err != nil {
-			bc.lock.Unlock()
-			return fmt.Errorf("failed to call OnPersistEnd for Notary native contract: %w", err)
-		}
-	}
-	if err := bc.contracts.Designate.OnPersistEnd(bc.dao); err != nil {
-		bc.lock.Unlock()
-		return err
-	}
 	bc.dao.MPT.Flush()
 	// Every persist cycle we also compact our in-memory MPT.
 	persistedHeight := atomic.LoadUint32(&bc.persistedHeight)

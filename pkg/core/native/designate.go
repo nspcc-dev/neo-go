@@ -102,16 +102,11 @@ func (s *Designate) OnPersist(ic *interop.Context) error {
 
 // PostPersist implements Contract interface.
 func (s *Designate) PostPersist(ic *interop.Context) error {
-	return nil
-}
-
-// OnPersistEnd updates cached values if they've been changed.
-func (s *Designate) OnPersistEnd(d dao.DAO) error {
 	if !s.rolesChanged() {
 		return nil
 	}
 
-	nodeKeys, height, err := s.GetDesignatedByRole(d, RoleOracle, math.MaxUint32)
+	nodeKeys, height, err := s.GetDesignatedByRole(ic.DAO, RoleOracle, math.MaxUint32)
 	if err != nil {
 		return err
 	}

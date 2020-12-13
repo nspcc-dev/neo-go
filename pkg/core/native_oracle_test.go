@@ -144,7 +144,6 @@ func TestOracle_Request(t *testing.T) {
 	ic.VM.LoadScript([]byte{byte(opcode.RET)})
 	err = bc.contracts.Designate.DesignateAsRole(ic, native.RoleOracle, keys.PublicKeys{pub})
 	require.NoError(t, err)
-	require.NoError(t, bc.contracts.Designate.OnPersistEnd(ic.DAO))
 
 	tx = transaction.New(netmode.UnitTestNet, native.GetOracleResponseScript(), 0)
 	ic.Tx = tx

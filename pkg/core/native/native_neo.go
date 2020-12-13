@@ -320,7 +320,14 @@ func (n *NEO) PostPersist(ic *interop.Context) error {
 		}
 
 	}
-	n.OnPersistEnd(ic.DAO)
+	if n.gasPerBlockChanged.Load().(bool) {
+		gr, err := n.getSortedGASRecordFromDAO(ic.DAO)
+		if err != nil {
+			panic(err)
+		}
+		n.gasPerBlock.Store(gr)
+		n.gasPerBlockChanged.Store(false)
+	}
 	return nil
 }
 
@@ -345,18 +352,6 @@ func (n *NEO) getGASPerVote(d dao.DAO, key []byte, index ...uint32) []big.Int {
 		}
 	})
 	return reward
-}
-
-// OnPersistEnd updates cached values if they've been changed.
-func (n *NEO) OnPersistEnd(d dao.DAO) {
-	if n.gasPerBlockChanged.Load().(bool) {
-		gr, err := n.getSortedGASRecordFromDAO(d)
-		if err != nil {
-			panic(err)
-		}
-		n.gasPerBlock.Store(gr)
-		n.gasPerBlockChanged.Store(false)
-	}
 }
 
 func (n *NEO) increaseBalance(ic *interop.Context, h util.Uint160, si *state.StorageItem, amount *big.Int) error {

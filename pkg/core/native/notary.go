@@ -158,21 +158,16 @@ func (n *Notary) OnPersist(ic *interop.Context) error {
 	return nil
 }
 
-// OnPersistEnd updates cached Policy values if they've been changed
-func (n *Notary) OnPersistEnd(dao dao.DAO) error {
+// PostPersist implements Contract interface.
+func (n *Notary) PostPersist(ic *interop.Context) error {
+	n.lock.Lock()
+	defer n.lock.Unlock()
 	if n.isValid {
 		return nil
 	}
-	n.lock.Lock()
-	defer n.lock.Unlock()
 
-	n.maxNotValidBeforeDelta = getUint32WithKey(n.ContractID, dao, maxNotValidBeforeDeltaKey, defaultMaxNotValidBeforeDelta)
+	n.maxNotValidBeforeDelta = getUint32WithKey(n.ContractID, ic.DAO, maxNotValidBeforeDeltaKey, defaultMaxNotValidBeforeDelta)
 	n.isValid = true
-	return nil
-}
-
-// PostPersist implements Contract interface.
-func (n *Notary) PostPersist(ic *interop.Context) error {
 	return nil
 }
 
