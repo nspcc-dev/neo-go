@@ -213,6 +213,7 @@ func TestCreateBasicChain(t *testing.T) {
 	bw := io.NewBufBinWriter()
 	txSendRaw.EncodeBinary(bw.BinWriter)
 	t.Logf("sendrawtransaction: %s", hex.EncodeToString(bw.Bytes()))
+	require.False(t, saveChain)
 }
 
 func initBasicChain(t *testing.T, bc *Blockchain) {
