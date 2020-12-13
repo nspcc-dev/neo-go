@@ -1,6 +1,7 @@
 package core
 
 import (
+	"errors"
 	"math/big"
 	"testing"
 
@@ -33,16 +34,17 @@ func (tn *testNative) Metadata() *interop.ContractMD {
 	return &tn.meta
 }
 
-func (tn *testNative) OnPersist(ic *interop.Context, _ []stackitem.Item) stackitem.Item {
-	if ic.Trigger != trigger.OnPersist {
-		panic("invalid trigger")
-	}
+func (tn *testNative) OnPersist(ic *interop.Context) error {
 	select {
 	case tn.blocks <- ic.Block.Index:
-		return stackitem.NewBool(true)
+		return nil
 	default:
-		return stackitem.NewBool(false)
+		return errors.New("can't send index")
 	}
+}
+
+func (tn *testNative) PostPersist(ic *interop.Context) error {
+	return nil
 }
 
 var _ interop.Contract = (*testNative)(nil)
@@ -104,10 +106,6 @@ func newTestNative() *testNative {
 		Func:          tn.callOtherContractWithReturn,
 		Price:         testSumPrice,
 		RequiredFlags: smartcontract.NoneFlag}
-	tn.meta.AddMethod(md, desc)
-
-	desc = &manifest.Method{Name: "onPersist", ReturnType: smartcontract.BoolType}
-	md = &interop.MethodAndPrice{Func: tn.OnPersist, RequiredFlags: smartcontract.WriteStates}
 	tn.meta.AddMethod(md, desc)
 
 	return tn
@@ -252,18 +250,28 @@ func TestNativeContract_InvokeOtherContract(t *testing.T) {
 	})
 	require.NoError(t, err)
 
+	var drainTN = func(t *testing.T) {
+		select {
+		case <-tn.blocks:
+		default:
+			require.Fail(t, "testNative didn't send us block")
+		}
+	}
+
 	cs, _ := getTestContractState()
 	require.NoError(t, chain.dao.PutContractState(cs))
 
 	t.Run("non-native, no return", func(t *testing.T) {
 		res, err := invokeContractMethod(chain, testSumPrice*4+10000, tn.Metadata().Hash, "callOtherContractNoReturn", cs.Hash, "justReturn", []interface{}{})
 		require.NoError(t, err)
+		drainTN(t)
 		checkResult(t, res, stackitem.Null{}) // simple call is done with EnsureNotEmpty
 	})
 	t.Run("non-native, with return", func(t *testing.T) {
 		res, err := invokeContractMethod(chain, testSumPrice*4+10000, tn.Metadata().Hash,
 			"callOtherContractWithReturn", cs.Hash, "ret7", []interface{}{})
 		require.NoError(t, err)
+		drainTN(t)
 		checkResult(t, res, stackitem.Make(8))
 	})
 }

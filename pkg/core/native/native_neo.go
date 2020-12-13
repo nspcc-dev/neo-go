@@ -97,8 +97,6 @@ func newNEO() *NEO {
 	nep17.symbol = "neo"
 	nep17.decimals = 0
 	nep17.factor = 1
-	nep17.onPersist = chainOnPersist(onPersistBase, n.OnPersist)
-	nep17.postPersist = chainOnPersist(nep17.postPersist, n.PostPersist)
 	nep17.incBalance = n.increaseBalance
 	nep17.ContractID = neoContractID
 
@@ -108,14 +106,6 @@ func newNEO() *NEO {
 	n.validators.Store(keys.PublicKeys(nil))
 	n.committee.Store(keysWithVotes(nil))
 	n.committeeHash.Store(util.Uint160{})
-
-	onp := n.Methods["onPersist"]
-	onp.Func = getOnPersistWrapper(n.onPersist)
-	n.Methods["onPersist"] = onp
-
-	pp := n.Methods["postPersist"]
-	pp.Func = getOnPersistWrapper(n.postPersist)
-	n.Methods["postPersist"] = pp
 
 	desc := newDescriptor("unclaimedGas", smartcontract.IntegerType,
 		manifest.NewParameter("account", smartcontract.Hash160Type),

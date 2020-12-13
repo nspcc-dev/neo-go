@@ -27,6 +27,8 @@ const (
 	SystemContractDestroy                    = "System.Contract.Destroy"
 	SystemContractIsStandard                 = "System.Contract.IsStandard"
 	SystemContractGetCallFlags               = "System.Contract.GetCallFlags"
+	SystemContractNativeOnPersist            = "System.Contract.NativeOnPersist"
+	SystemContractNativePostPersist          = "System.Contract.NativePostPersist"
 	SystemContractUpdate                     = "System.Contract.Update"
 	SystemEnumeratorConcat                   = "System.Enumerator.Concat"
 	SystemEnumeratorCreate                   = "System.Enumerator.Create"
@@ -96,6 +98,8 @@ var names = []string{
 	SystemContractDestroy,
 	SystemContractIsStandard,
 	SystemContractGetCallFlags,
+	SystemContractNativeOnPersist,
+	SystemContractNativePostPersist,
 	SystemContractUpdate,
 	SystemEnumeratorConcat,
 	SystemEnumeratorCreate,

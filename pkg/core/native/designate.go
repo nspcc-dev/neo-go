@@ -87,19 +87,21 @@ func newDesignate(p2pSigExtensionsEnabled bool) *Designate {
 	md = newMethodAndPrice(s.designateAsRole, 0, smartcontract.WriteStates)
 	s.AddMethod(md, desc)
 
-	desc = newDescriptor("onPersist", smartcontract.VoidType)
-	md = newMethodAndPrice(getOnPersistWrapper(onPersistBase), 0, smartcontract.WriteStates)
-	s.AddMethod(md, desc)
-
-	desc = newDescriptor("postPersist", smartcontract.VoidType)
-	md = newMethodAndPrice(getOnPersistWrapper(postPersistBase), 0, smartcontract.WriteStates)
-	s.AddMethod(md, desc)
-
 	return s
 }
 
 // Initialize initializes Oracle contract.
 func (s *Designate) Initialize(ic *interop.Context) error {
+	return nil
+}
+
+// OnPersist implements Contract interface.
+func (s *Designate) OnPersist(ic *interop.Context) error {
+	return nil
+}
+
+// PostPersist implements Contract interface.
+func (s *Designate) PostPersist(ic *interop.Context) error {
 	return nil
 }
 

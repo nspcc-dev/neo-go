@@ -122,15 +122,6 @@ func newOracle() *Oracle {
 	md = newMethodAndPrice(o.verify, 100_0000, smartcontract.NoneFlag)
 	o.AddMethod(md, desc)
 
-	pp := chainOnPersist(postPersistBase, o.PostPersist)
-	desc = newDescriptor("postPersist", smartcontract.VoidType)
-	md = newMethodAndPrice(getOnPersistWrapper(pp), 0, smartcontract.WriteStates)
-	o.AddMethod(md, desc)
-
-	desc = newDescriptor("onPersist", smartcontract.VoidType)
-	md = newMethodAndPrice(getOnPersistWrapper(onPersistBase), 0, smartcontract.WriteStates)
-	o.AddMethod(md, desc)
-
 	o.AddEvent("OracleRequest", manifest.NewParameter("Id", smartcontract.IntegerType),
 		manifest.NewParameter("RequestContract", smartcontract.Hash160Type),
 		manifest.NewParameter("Url", smartcontract.StringType),
@@ -139,6 +130,11 @@ func newOracle() *Oracle {
 		manifest.NewParameter("OriginalTx", smartcontract.Hash256Type))
 
 	return o
+}
+
+// OnPersist implements Contract interface.
+func (o *Oracle) OnPersist(ic *interop.Context) error {
+	return nil
 }
 
 // PostPersist represents `postPersist` method.

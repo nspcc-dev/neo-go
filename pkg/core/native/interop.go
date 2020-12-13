@@ -7,6 +7,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 )
 
 // Deploy deploys native contract.
@@ -67,6 +68,34 @@ func Call(ic *interop.Context) error {
 	result := m.Func(ic, args)
 	if m.MD.ReturnType != smartcontract.VoidType {
 		ctx.Estack().PushVal(result)
+	}
+	return nil
+}
+
+// OnPersist calls OnPersist methods for all native contracts.
+func OnPersist(ic *interop.Context) error {
+	if ic.Trigger != trigger.OnPersist {
+		return errors.New("onPersist must be trigered by system")
+	}
+	for _, c := range ic.Natives {
+		err := c.OnPersist(ic)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// PostPersist calls PostPersist methods for all native contracts.
+func PostPersist(ic *interop.Context) error {
+	if ic.Trigger != trigger.PostPersist {
+		return errors.New("postPersist must be trigered by system")
+	}
+	for _, c := range ic.Natives {
+		err := c.PostPersist(ic)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }

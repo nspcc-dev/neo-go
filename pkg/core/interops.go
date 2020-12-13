@@ -67,6 +67,8 @@ var systemInterops = []interop.Function{
 	{Name: interopnames.SystemContractDestroy, Func: contractDestroy, Price: 1000000, RequiredFlags: smartcontract.WriteStates, DisallowCallback: true},
 	{Name: interopnames.SystemContractIsStandard, Func: contractIsStandard, Price: 30000, RequiredFlags: smartcontract.ReadStates, ParamCount: 1},
 	{Name: interopnames.SystemContractGetCallFlags, Func: contractGetCallFlags, Price: 30000, DisallowCallback: true},
+	{Name: interopnames.SystemContractNativeOnPersist, Func: native.OnPersist, Price: 0, DisallowCallback: true},
+	{Name: interopnames.SystemContractNativePostPersist, Func: native.PostPersist, Price: 0, DisallowCallback: true},
 	{Name: interopnames.SystemContractUpdate, Func: contractUpdate, Price: 0,
 		RequiredFlags: smartcontract.WriteStates, ParamCount: 2, DisallowCallback: true},
 	{Name: interopnames.SystemEnumeratorConcat, Func: enumerator.Concat, Price: 400, ParamCount: 2, DisallowCallback: true},

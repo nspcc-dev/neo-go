@@ -31,15 +31,10 @@ func newGAS() *GAS {
 	nep17.symbol = "gas"
 	nep17.decimals = 8
 	nep17.factor = GASFactor
-	nep17.onPersist = chainOnPersist(onPersistBase, g.OnPersist)
 	nep17.incBalance = g.increaseBalance
 	nep17.ContractID = gasContractID
 
 	g.nep17TokenNative = *nep17
-
-	onp := g.Methods["onPersist"]
-	onp.Func = getOnPersistWrapper(g.onPersist)
-	g.Methods["onPersist"] = onp
 
 	return g
 }
@@ -98,23 +93,15 @@ func (g *GAS) OnPersist(ic *interop.Context) error {
 	return nil
 }
 
+// PostPersist implements Contract interface.
+func (g *GAS) PostPersist(ic *interop.Context) error {
+	return nil
+}
+
 func getStandbyValidatorsHash(ic *interop.Context) (util.Uint160, error) {
 	s, err := smartcontract.CreateDefaultMultiSigRedeemScript(ic.Chain.GetStandByValidators())
 	if err != nil {
 		return util.Uint160{}, err
 	}
 	return hash.Hash160(s), nil
-}
-
-func chainOnPersist(fs ...func(*interop.Context) error) func(*interop.Context) error {
-	return func(ic *interop.Context) error {
-		for i := range fs {
-			if fs[i] != nil {
-				if err := fs[i](ic); err != nil {
-					return err
-				}
-			}
-		}
-		return nil
-	}
 }

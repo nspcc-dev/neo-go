@@ -124,13 +124,6 @@ func newPolicy() *Policy {
 	md = newMethodAndPrice(p.unblockAccount, 3000000, smartcontract.WriteStates)
 	p.AddMethod(md, desc)
 
-	desc = newDescriptor("onPersist", smartcontract.VoidType)
-	md = newMethodAndPrice(getOnPersistWrapper(p.OnPersist), 0, smartcontract.WriteStates)
-	p.AddMethod(md, desc)
-
-	desc = newDescriptor("postPersist", smartcontract.VoidType)
-	md = newMethodAndPrice(getOnPersistWrapper(postPersistBase), 0, smartcontract.WriteStates)
-	p.AddMethod(md, desc)
 	return p
 }
 
@@ -154,6 +147,11 @@ func (p *Policy) Initialize(ic *interop.Context) error {
 
 // OnPersist implements Contract interface.
 func (p *Policy) OnPersist(ic *interop.Context) error {
+	return nil
+}
+
+// PostPersist implements Contract interface.
+func (p *Policy) PostPersist(ic *interop.Context) error {
 	return nil
 }
 

@@ -1,15 +1,13 @@
 package native
 
 import (
-	"errors"
 	"strings"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
+	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/io"
-	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
-	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 )
 
 // reservedContractID represents the upper bound of the reserved IDs for native contracts.
@@ -62,9 +60,9 @@ func NewContracts(p2pSigExtensionsEnabled bool) *Contracts {
 	gas.NEO = neo
 
 	cs.GAS = gas
-	cs.Contracts = append(cs.Contracts, gas)
 	cs.NEO = neo
 	cs.Contracts = append(cs.Contracts, neo)
+	cs.Contracts = append(cs.Contracts, gas)
 
 	policy := newPolicy()
 	cs.Policy = policy
@@ -93,62 +91,24 @@ func NewContracts(p2pSigExtensionsEnabled bool) *Contracts {
 	return cs
 }
 
-// GetPersistScript returns VM script calling "onPersist" method of every native contract.
+// GetPersistScript returns VM script calling "onPersist" syscall for native contracts.
 func (cs *Contracts) GetPersistScript() []byte {
 	if cs.persistScript != nil {
 		return cs.persistScript
 	}
 	w := io.NewBufBinWriter()
-	for i := range cs.Contracts {
-		md := cs.Contracts[i].Metadata()
-		// Not every contract is persisted:
-		// https://github.com/neo-project/neo/blob/master/src/neo/Ledger/Blockchain.cs#L90
-		if md.ContractID == policyContractID || md.ContractID == oracleContractID || md.ContractID == designateContractID {
-			continue
-		}
-		emit.Int(w.BinWriter, 0)
-		emit.Opcodes(w.BinWriter, opcode.NEWARRAY)
-		emit.String(w.BinWriter, "onPersist")
-		emit.AppCall(w.BinWriter, md.Hash)
-		emit.Opcodes(w.BinWriter, opcode.DROP)
-	}
+	emit.Syscall(w.BinWriter, interopnames.SystemContractNativeOnPersist)
 	cs.persistScript = w.Bytes()
 	return cs.persistScript
 }
 
-// GetPostPersistScript returns VM script calling "postPersist" method of some native contracts.
+// GetPostPersistScript returns VM script calling "postPersist" syscall for native contracts.
 func (cs *Contracts) GetPostPersistScript() []byte {
 	if cs.postPersistScript != nil {
 		return cs.postPersistScript
 	}
 	w := io.NewBufBinWriter()
-	for i := range cs.Contracts {
-		md := cs.Contracts[i].Metadata()
-		// Not every contract is persisted:
-		// https://github.com/neo-project/neo/blob/master/src/neo/Ledger/Blockchain.cs#L103
-		if md.ContractID == policyContractID || md.ContractID == gasContractID || md.ContractID == designateContractID || md.ContractID == notaryContractID {
-			continue
-		}
-		emit.Int(w.BinWriter, 0)
-		emit.Opcodes(w.BinWriter, opcode.NEWARRAY)
-		emit.String(w.BinWriter, "postPersist")
-		emit.AppCall(w.BinWriter, md.Hash)
-		emit.Opcodes(w.BinWriter, opcode.DROP)
-	}
+	emit.Syscall(w.BinWriter, interopnames.SystemContractNativePostPersist)
 	cs.postPersistScript = w.Bytes()
 	return cs.postPersistScript
-}
-
-func postPersistBase(ic *interop.Context) error {
-	if ic.Trigger != trigger.PostPersist {
-		return errors.New("postPersist must be trigered by system")
-	}
-	return nil
-}
-
-func onPersistBase(ic *interop.Context) error {
-	if ic.Trigger != trigger.OnPersist {
-		return errors.New("onPersist must be trigered by system")
-	}
-	return nil
 }

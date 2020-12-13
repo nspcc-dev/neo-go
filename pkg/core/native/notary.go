@@ -98,14 +98,6 @@ func newNotary() *Notary {
 	md = newMethodAndPrice(n.setMaxNotValidBeforeDelta, 300_0000, smartcontract.WriteStates)
 	n.AddMethod(md, desc)
 
-	desc = newDescriptor("onPersist", smartcontract.VoidType)
-	md = newMethodAndPrice(getOnPersistWrapper(n.OnPersist), 0, smartcontract.WriteStates)
-	n.AddMethod(md, desc)
-
-	desc = newDescriptor("postPersist", smartcontract.VoidType)
-	md = newMethodAndPrice(getOnPersistWrapper(postPersistBase), 0, smartcontract.WriteStates)
-	n.AddMethod(md, desc)
-
 	return n
 }
 
@@ -176,6 +168,11 @@ func (n *Notary) OnPersistEnd(dao dao.DAO) error {
 
 	n.maxNotValidBeforeDelta = getUint32WithKey(n.ContractID, dao, maxNotValidBeforeDeltaKey, defaultMaxNotValidBeforeDelta)
 	n.isValid = true
+	return nil
+}
+
+// PostPersist implements Contract interface.
+func (n *Notary) PostPersist(ic *interop.Context) error {
 	return nil
 }
 
