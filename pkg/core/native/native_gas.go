@@ -28,7 +28,7 @@ const initialGAS = 30000000
 func newGAS() *GAS {
 	g := &GAS{}
 	nep17 := newNEP17Native(gasName)
-	nep17.symbol = "gas"
+	nep17.symbol = "GAS"
 	nep17.decimals = 8
 	nep17.factor = GASFactor
 	nep17.incBalance = g.increaseBalance

@@ -34,7 +34,7 @@ func TestNEP17Balance(t *testing.T) {
 			e.checkEOF(t)
 		}
 		t.Run("Alias", func(t *testing.T) {
-			e.Run(t, append(cmd, "--token", "neo")...)
+			e.Run(t, append(cmd, "--token", "NEO")...)
 			checkResult(t)
 		})
 		t.Run("Hash", func(t *testing.T) {
@@ -43,7 +43,7 @@ func TestNEP17Balance(t *testing.T) {
 		})
 	})
 	t.Run("GAS", func(t *testing.T) {
-		e.Run(t, append(cmd, "--token", "gas")...)
+		e.Run(t, append(cmd, "--token", "GAS")...)
 		e.checkNextLine(t, "^\\s*Account\\s+"+validatorAddr)
 		e.checkNextLine(t, "^\\s*GAS:\\s+GAS \\("+e.Chain.UtilityTokenHash().StringLE()+"\\)")
 		b := e.Chain.GetUtilityTokenBalance(validatorHash)
@@ -112,7 +112,7 @@ func TestNEP17Transfer(t *testing.T) {
 		"--wallet", validatorWallet,
 		"--from", validatorAddr,
 		"--to", w.Accounts[0].Address,
-		"--token", "neo",
+		"--token", "NEO",
 		"--amount", "1",
 	}
 
@@ -144,7 +144,7 @@ func TestNEP17MultiTransfer(t *testing.T) {
 		"--rpc-endpoint", "http://" + e.RPC.Addr,
 		"--wallet", validatorWallet,
 		"--from", validatorAddr,
-		"neo:" + privs[0].Address() + ":42",
+		"NEO:" + privs[0].Address() + ":42",
 		"GAS:" + privs[1].Address() + ":7",
 		neoContractHash.StringLE() + ":" + privs[2].Address() + ":13",
 	}
@@ -186,7 +186,7 @@ func TestNEP17ImportToken(t *testing.T) {
 	t.Run("Info", func(t *testing.T) {
 		checkGASInfo := func(t *testing.T) {
 			e.checkNextLine(t, "^Name:\\s*GAS")
-			e.checkNextLine(t, "^Symbol:\\s*gas")
+			e.checkNextLine(t, "^Symbol:\\s*GAS")
 			e.checkNextLine(t, "^Hash:\\s*"+gasContractHash.StringLE())
 			e.checkNextLine(t, "^Decimals:\\s*8")
 			e.checkNextLine(t, "^Address:\\s*"+address.Uint160ToString(gasContractHash))
@@ -203,7 +203,7 @@ func TestNEP17ImportToken(t *testing.T) {
 			_, err := e.Out.ReadString('\n')
 			require.NoError(t, err)
 			e.checkNextLine(t, "^Name:\\s*NEO")
-			e.checkNextLine(t, "^Symbol:\\s*neo")
+			e.checkNextLine(t, "^Symbol:\\s*NEO")
 			e.checkNextLine(t, "^Hash:\\s*"+neoContractHash.StringLE())
 			e.checkNextLine(t, "^Decimals:\\s*0")
 			e.checkNextLine(t, "^Address:\\s*"+address.Uint160ToString(neoContractHash))

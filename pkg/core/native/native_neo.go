@@ -94,7 +94,7 @@ func makeValidatorKey(key *keys.PublicKey) []byte {
 func newNEO() *NEO {
 	n := &NEO{}
 	nep17 := newNEP17Native(neoName)
-	nep17.symbol = "neo"
+	nep17.symbol = "NEO"
 	nep17.decimals = 0
 	nep17.factor = 1
 	nep17.incBalance = n.increaseBalance

@@ -182,8 +182,8 @@ func TestClaimGas(t *testing.T) {
 		"--rpc-endpoint", "http://" + e.RPC.Addr,
 		"--wallet", validatorWallet,
 		"--from", validatorAddr,
-		"neo:" + w.Accounts[0].Address + ":1000",
-		"gas:" + w.Accounts[0].Address + ":1000", // for tx send
+		"NEO:" + w.Accounts[0].Address + ":1000",
+		"GAS:" + w.Accounts[0].Address + ":1000", // for tx send
 	}
 	e.In.WriteString("one\r")
 	e.Run(t, args...)
@@ -261,8 +261,8 @@ func TestImportDeployed(t *testing.T) {
 		e.Run(t, "neo-go", "wallet", "nep17", "multitransfer",
 			"--rpc-endpoint", "http://"+e.RPC.Addr,
 			"--wallet", validatorWallet, "--from", validatorAddr,
-			"neo:"+contractAddr+":10",
-			"gas:"+contractAddr+":10")
+			"NEO:"+contractAddr+":10",
+			"GAS:"+contractAddr+":10")
 		e.checkTxPersisted(t)
 
 		privTo, err := keys.NewPrivateKey()
@@ -272,7 +272,7 @@ func TestImportDeployed(t *testing.T) {
 		e.Run(t, "neo-go", "wallet", "nep17", "transfer",
 			"--rpc-endpoint", "http://"+e.RPC.Addr,
 			"--wallet", walletPath, "--from", contractAddr,
-			"--to", privTo.Address(), "--token", "neo", "--amount", "1")
+			"--to", privTo.Address(), "--token", "NEO", "--amount", "1")
 		e.checkTxPersisted(t)
 
 		b, _ := e.Chain.GetGoverningTokenBalance(h)
