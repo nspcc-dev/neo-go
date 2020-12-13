@@ -127,6 +127,11 @@ func (c *Client) Init() error {
 		return fmt.Errorf("failed to get GAS contract scripthash: %w", err)
 	}
 	c.cache.nativeHashes["gas"] = gasContractHash.Hash
+	policyContractHash, err := c.GetContractStateByAddressOrName("policy")
+	if err != nil {
+		return fmt.Errorf("failed to get Policy contract scripthash: %w", err)
+	}
+	c.cache.nativeHashes["policy"] = policyContractHash.Hash
 	c.initDone = true
 	return nil
 }
