@@ -59,7 +59,7 @@ var (
 func init() {
 	w := io.NewBufBinWriter()
 	emit.String(w.BinWriter, oracleName)
-	emit.Syscall(w.BinWriter, interopnames.NeoNativeCall)
+	emit.Syscall(w.BinWriter, interopnames.SystemContractCallNative)
 	oracleInvokeScript = w.Bytes()
 	h := hash.Hash160(oracleInvokeScript)
 

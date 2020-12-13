@@ -59,6 +59,7 @@ var systemInterops = []interop.Function{
 		RequiredFlags: smartcontract.AllowCall, ParamCount: 3, DisallowCallback: true},
 	{Name: interopnames.SystemContractCallEx, Func: contract.CallEx, Price: 1000000,
 		RequiredFlags: smartcontract.AllowCall, ParamCount: 4, DisallowCallback: true},
+	{Name: interopnames.SystemContractCallNative, Func: native.Call, Price: 0, ParamCount: 1, DisallowCallback: true},
 	{Name: interopnames.SystemContractCreateStandardAccount, Func: contractCreateStandardAccount, Price: 10000, ParamCount: 1, DisallowCallback: true},
 	{Name: interopnames.SystemContractIsStandard, Func: contractIsStandard, Price: 30000, RequiredFlags: smartcontract.ReadStates, ParamCount: 1},
 	{Name: interopnames.SystemContractGetCallFlags, Func: contractGetCallFlags, Price: 30000, DisallowCallback: true},
@@ -118,7 +119,6 @@ var neoInterops = []interop.Function{
 	{Name: interopnames.NeoCryptoCheckMultisigWithECDsaSecp256k1, Func: crypto.ECDSASecp256k1CheckMultisig, Price: 0, ParamCount: 3},
 	{Name: interopnames.NeoCryptoSHA256, Func: crypto.Sha256, Price: 1000000, ParamCount: 1},
 	{Name: interopnames.NeoCryptoRIPEMD160, Func: crypto.RipeMD160, Price: 1000000, ParamCount: 1},
-	{Name: interopnames.NeoNativeCall, Func: native.Call, Price: 0, RequiredFlags: smartcontract.AllowCall, ParamCount: 1, DisallowCallback: true},
 }
 
 // initIDinInteropsSlice initializes IDs from names in one given

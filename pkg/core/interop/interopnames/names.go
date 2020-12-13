@@ -21,6 +21,7 @@ const (
 	SystemCallbackInvoke                     = "System.Callback.Invoke"
 	SystemContractCall                       = "System.Contract.Call"
 	SystemContractCallEx                     = "System.Contract.CallEx"
+	SystemContractCallNative                 = "System.Contract.CallNative"
 	SystemContractCreateStandardAccount      = "System.Contract.CreateStandardAccount"
 	SystemContractIsStandard                 = "System.Contract.IsStandard"
 	SystemContractGetCallFlags               = "System.Contract.GetCallFlags"
@@ -64,7 +65,6 @@ const (
 	NeoCryptoCheckMultisigWithECDsaSecp256k1 = "Neo.Crypto.CheckMultisigWithECDsaSecp256k1"
 	NeoCryptoSHA256                          = "Neo.Crypto.SHA256"
 	NeoCryptoRIPEMD160                       = "Neo.Crypto.RIPEMD160"
-	NeoNativeCall                            = "Neo.Native.Call"
 )
 
 var names = []string{
@@ -87,6 +87,7 @@ var names = []string{
 	SystemCallbackInvoke,
 	SystemContractCall,
 	SystemContractCallEx,
+	SystemContractCallNative,
 	SystemContractCreateStandardAccount,
 	SystemContractIsStandard,
 	SystemContractGetCallFlags,
@@ -130,5 +131,4 @@ var names = []string{
 	NeoCryptoCheckMultisigWithECDsaSecp256k1,
 	NeoCryptoSHA256,
 	NeoCryptoRIPEMD160,
-	NeoNativeCall,
 }

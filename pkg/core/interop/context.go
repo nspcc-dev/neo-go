@@ -116,7 +116,7 @@ func NewContractMD(name string) *ContractMD {
 
 	w := io.NewBufBinWriter()
 	emit.String(w.BinWriter, c.Name)
-	emit.Syscall(w.BinWriter, interopnames.NeoNativeCall)
+	emit.Syscall(w.BinWriter, interopnames.SystemContractCallNative)
 
 	c.Script = w.Bytes()
 	c.Hash = hash.Hash160(c.Script)
