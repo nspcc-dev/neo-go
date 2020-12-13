@@ -11,6 +11,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/contract"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
@@ -36,11 +37,7 @@ type Oracle struct {
 }
 
 const (
-	oracleContractID = -4
-	oracleName       = "Oracle"
-)
-
-const (
+	oracleContractID  = -4
 	maxURLLength      = 256
 	maxFilterLength   = 128
 	maxCallbackLength = 32
@@ -58,7 +55,7 @@ var (
 
 func init() {
 	w := io.NewBufBinWriter()
-	emit.String(w.BinWriter, oracleName)
+	emit.String(w.BinWriter, nativenames.Oracle)
 	emit.Syscall(w.BinWriter, interopnames.SystemContractCallNative)
 	oracleInvokeScript = w.Bytes()
 	h := hash.Hash160(oracleInvokeScript)
@@ -102,7 +99,7 @@ func GetOracleResponseScript() []byte {
 }
 
 func newOracle() *Oracle {
-	o := &Oracle{ContractMD: *interop.NewContractMD(oracleName)}
+	o := &Oracle{ContractMD: *interop.NewContractMD(nativenames.Oracle)}
 	o.ContractID = oracleContractID
 
 	desc := newDescriptor("request", smartcontract.VoidType,

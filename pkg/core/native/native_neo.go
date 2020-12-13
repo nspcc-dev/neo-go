@@ -14,6 +14,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/runtime"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
@@ -49,7 +50,6 @@ type NEO struct {
 }
 
 const (
-	neoName       = "NEO"
 	neoContractID = -1
 	// NEOTotalSupply is the total amount of NEO in the system.
 	NEOTotalSupply = 100000000
@@ -93,7 +93,7 @@ func makeValidatorKey(key *keys.PublicKey) []byte {
 // newNEO returns NEO native contract.
 func newNEO() *NEO {
 	n := &NEO{}
-	nep17 := newNEP17Native(neoName)
+	nep17 := newNEP17Native(nativenames.Neo)
 	nep17.symbol = "NEO"
 	nep17.decimals = 0
 	nep17.factor = 1

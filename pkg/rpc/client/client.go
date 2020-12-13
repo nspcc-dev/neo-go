@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/request"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -117,21 +118,21 @@ func (c *Client) Init() error {
 	}
 	c.network = version.Magic
 	c.stateRootInHeader = version.StateRootInHeader
-	neoContractHash, err := c.GetContractStateByAddressOrName("neo")
+	neoContractHash, err := c.GetContractStateByAddressOrName(nativenames.Neo)
 	if err != nil {
 		return fmt.Errorf("failed to get NEO contract scripthash: %w", err)
 	}
-	c.cache.nativeHashes["neo"] = neoContractHash.Hash
-	gasContractHash, err := c.GetContractStateByAddressOrName("gas")
+	c.cache.nativeHashes[nativenames.Neo] = neoContractHash.Hash
+	gasContractHash, err := c.GetContractStateByAddressOrName(nativenames.Gas)
 	if err != nil {
 		return fmt.Errorf("failed to get GAS contract scripthash: %w", err)
 	}
-	c.cache.nativeHashes["gas"] = gasContractHash.Hash
-	policyContractHash, err := c.GetContractStateByAddressOrName("policy")
+	c.cache.nativeHashes[nativenames.Gas] = gasContractHash.Hash
+	policyContractHash, err := c.GetContractStateByAddressOrName(nativenames.Policy)
 	if err != nil {
 		return fmt.Errorf("failed to get Policy contract scripthash: %w", err)
 	}
-	c.cache.nativeHashes["policy"] = policyContractHash.Hash
+	c.cache.nativeHashes[nativenames.Policy] = policyContractHash.Hash
 	c.initDone = true
 	return nil
 }

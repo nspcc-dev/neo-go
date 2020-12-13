@@ -11,6 +11,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/contract"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/runtime"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
@@ -37,7 +38,6 @@ type Notary struct {
 }
 
 const (
-	notaryName       = "Notary"
 	notaryContractID = reservedContractID - 1
 	// NotaryVerificationPrice is the price of `verify` Notary method.
 	NotaryVerificationPrice = 100_0000
@@ -52,7 +52,7 @@ var maxNotValidBeforeDeltaKey = []byte{10}
 
 // newNotary returns Notary native contract.
 func newNotary() *Notary {
-	n := &Notary{ContractMD: *interop.NewContractMD(notaryName)}
+	n := &Notary{ContractMD: *interop.NewContractMD(nativenames.Notary)}
 	n.ContractID = notaryContractID
 
 	desc := newDescriptor("onPayment", smartcontract.VoidType,

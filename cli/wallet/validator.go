@@ -6,6 +6,7 @@ import (
 	"github.com/nspcc-dev/neo-go/cli/flags"
 	"github.com/nspcc-dev/neo-go/cli/input"
 	"github.com/nspcc-dev/neo-go/cli/options"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
@@ -99,7 +100,7 @@ func handleCandidate(ctx *cli.Context, method string) error {
 	}
 
 	gas := flags.Fixed8FromContext(ctx, "gas")
-	neoContractHash, err := c.GetNativeContractHash("neo")
+	neoContractHash, err := c.GetNativeContractHash(nativenames.Neo)
 	if err != nil {
 		return err
 	}
@@ -161,7 +162,7 @@ func handleVote(ctx *cli.Context) error {
 	}
 
 	gas := flags.Fixed8FromContext(ctx, "gas")
-	neoContractHash, err := c.GetNativeContractHash("neo")
+	neoContractHash, err := c.GetNativeContractHash(nativenames.Neo)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}

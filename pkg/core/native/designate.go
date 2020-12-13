@@ -10,6 +10,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/runtime"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
@@ -40,7 +41,6 @@ type oraclesData struct {
 
 const (
 	designateContractID = -5
-	designateName       = "Designation"
 
 	// maxNodeCount is the maximum number of nodes to set the role for.
 	maxNodeCount = 32
@@ -71,7 +71,7 @@ func (s *Designate) isValidRole(r Role) bool {
 }
 
 func newDesignate(p2pSigExtensionsEnabled bool) *Designate {
-	s := &Designate{ContractMD: *interop.NewContractMD(designateName)}
+	s := &Designate{ContractMD: *interop.NewContractMD(nativenames.Designation)}
 	s.ContractID = designateContractID
 	s.p2pSigExtensionsEnabled = p2pSigExtensionsEnabled
 

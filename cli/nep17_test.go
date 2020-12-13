@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/fixedn"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
@@ -28,7 +29,7 @@ func TestNEP17Balance(t *testing.T) {
 		b, index := e.Chain.GetGoverningTokenBalance(validatorHash)
 		checkResult := func(t *testing.T) {
 			e.checkNextLine(t, "^\\s*Account\\s+"+validatorAddr)
-			e.checkNextLine(t, "^\\s*NEO:\\s+NEO \\("+e.Chain.GoverningTokenHash().StringLE()+"\\)")
+			e.checkNextLine(t, "^\\s*NEO:\\s+NeoToken \\("+e.Chain.GoverningTokenHash().StringLE()+"\\)")
 			e.checkNextLine(t, "^\\s*Amount\\s*:\\s*"+b.String())
 			e.checkNextLine(t, "^\\s*Updated\\s*:\\s*"+strconv.FormatUint(uint64(index), 10))
 			e.checkEOF(t)
@@ -45,7 +46,7 @@ func TestNEP17Balance(t *testing.T) {
 	t.Run("GAS", func(t *testing.T) {
 		e.Run(t, append(cmd, "--token", "GAS")...)
 		e.checkNextLine(t, "^\\s*Account\\s+"+validatorAddr)
-		e.checkNextLine(t, "^\\s*GAS:\\s+GAS \\("+e.Chain.UtilityTokenHash().StringLE()+"\\)")
+		e.checkNextLine(t, "^\\s*GAS:\\s+GasToken \\("+e.Chain.UtilityTokenHash().StringLE()+"\\)")
 		b := e.Chain.GetUtilityTokenBalance(validatorHash)
 		e.checkNextLine(t, "^\\s*Amount\\s*:\\s*"+fixedn.Fixed8(b.Int64()).String())
 	})
@@ -54,7 +55,7 @@ func TestNEP17Balance(t *testing.T) {
 		addr1, err := address.StringToUint160("NbTiM6h8r99kpRtb428XcsUk1TzKed2gTc")
 		require.NoError(t, err)
 		e.checkNextLine(t, "^Account "+address.Uint160ToString(addr1))
-		e.checkNextLine(t, "^\\s*GAS:\\s+GAS \\("+e.Chain.UtilityTokenHash().StringLE()+"\\)")
+		e.checkNextLine(t, "^\\s*GAS:\\s+GasToken \\("+e.Chain.UtilityTokenHash().StringLE()+"\\)")
 		balance := e.Chain.GetUtilityTokenBalance(addr1)
 		e.checkNextLine(t, "^\\s*Amount\\s*:\\s*"+fixedn.Fixed8(balance.Int64()).String())
 		e.checkNextLine(t, "^\\s*Updated:")
@@ -72,13 +73,13 @@ func TestNEP17Balance(t *testing.T) {
 		for i := 0; i < 2; i++ {
 			line := e.getNextLine(t)
 			if strings.Contains(line, "GAS") {
-				e.checkLine(t, line, "^\\s*GAS:\\s+GAS \\("+e.Chain.UtilityTokenHash().StringLE()+"\\)")
+				e.checkLine(t, line, "^\\s*GAS:\\s+GasToken \\("+e.Chain.UtilityTokenHash().StringLE()+"\\)")
 				balance = e.Chain.GetUtilityTokenBalance(addr3)
 				e.checkNextLine(t, "^\\s*Amount\\s*:\\s*"+fixedn.Fixed8(balance.Int64()).String())
 				e.checkNextLine(t, "^\\s*Updated:")
 			} else {
 				balance, index := e.Chain.GetGoverningTokenBalance(validatorHash)
-				e.checkLine(t, line, "^\\s*NEO:\\s+NEO \\("+e.Chain.GoverningTokenHash().StringLE()+"\\)")
+				e.checkLine(t, line, "^\\s*NEO:\\s+NeoToken \\("+e.Chain.GoverningTokenHash().StringLE()+"\\)")
 				e.checkNextLine(t, "^\\s*Amount\\s*:\\s*"+balance.String())
 				e.checkNextLine(t, "^\\s*Updated\\s*:\\s*"+strconv.FormatUint(uint64(index), 10))
 			}
@@ -137,7 +138,7 @@ func TestNEP17MultiTransfer(t *testing.T) {
 
 	e := newExecutor(t, true)
 	defer e.Close(t)
-	neoContractHash, err := e.Chain.GetNativeContractScriptHash("neo")
+	neoContractHash, err := e.Chain.GetNativeContractScriptHash(nativenames.Neo)
 	require.NoError(t, err)
 	args := []string{
 		"neo-go", "wallet", "nep17", "multitransfer",
@@ -169,9 +170,9 @@ func TestNEP17ImportToken(t *testing.T) {
 	walletPath := path.Join(tmpDir, "walletForImport.json")
 	defer os.Remove(walletPath)
 
-	neoContractHash, err := e.Chain.GetNativeContractScriptHash("neo")
+	neoContractHash, err := e.Chain.GetNativeContractScriptHash(nativenames.Neo)
 	require.NoError(t, err)
-	gasContractHash, err := e.Chain.GetNativeContractScriptHash("gas")
+	gasContractHash, err := e.Chain.GetNativeContractScriptHash(nativenames.Gas)
 	require.NoError(t, err)
 	e.Run(t, "neo-go", "wallet", "init", "--wallet", walletPath)
 	e.Run(t, "neo-go", "wallet", "nep17", "import",
@@ -185,7 +186,7 @@ func TestNEP17ImportToken(t *testing.T) {
 
 	t.Run("Info", func(t *testing.T) {
 		checkGASInfo := func(t *testing.T) {
-			e.checkNextLine(t, "^Name:\\s*GAS")
+			e.checkNextLine(t, "^Name:\\s*GasToken")
 			e.checkNextLine(t, "^Symbol:\\s*GAS")
 			e.checkNextLine(t, "^Hash:\\s*"+gasContractHash.StringLE())
 			e.checkNextLine(t, "^Decimals:\\s*8")
@@ -202,7 +203,7 @@ func TestNEP17ImportToken(t *testing.T) {
 			checkGASInfo(t)
 			_, err := e.Out.ReadString('\n')
 			require.NoError(t, err)
-			e.checkNextLine(t, "^Name:\\s*NEO")
+			e.checkNextLine(t, "^Name:\\s*NeoToken")
 			e.checkNextLine(t, "^Symbol:\\s*NEO")
 			e.checkNextLine(t, "^Hash:\\s*"+neoContractHash.StringLE())
 			e.checkNextLine(t, "^Decimals:\\s*0")

@@ -5,6 +5,7 @@ import (
 	"math/big"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
@@ -17,7 +18,6 @@ type GAS struct {
 	NEO *NEO
 }
 
-const gasName = "GAS"
 const gasContractID = -2
 
 // GASFactor is a divisor for finding GAS integral value.
@@ -27,7 +27,7 @@ const initialGAS = 30000000
 // newGAS returns GAS native contract.
 func newGAS() *GAS {
 	g := &GAS{}
-	nep17 := newNEP17Native(gasName)
+	nep17 := newNEP17Native(nativenames.Gas)
 	nep17.symbol = "GAS"
 	nep17.decimals = 8
 	nep17.factor = GASFactor

@@ -9,6 +9,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/network/payload"
@@ -19,7 +20,6 @@ import (
 )
 
 const (
-	policyName       = "Policy"
 	policyContractID = -3
 
 	defaultMaxBlockSize            = 1024 * 256
@@ -69,7 +69,7 @@ var _ interop.Contract = (*Policy)(nil)
 
 // newPolicy returns Policy native contract.
 func newPolicy() *Policy {
-	p := &Policy{ContractMD: *interop.NewContractMD(policyName)}
+	p := &Policy{ContractMD: *interop.NewContractMD(nativenames.Policy)}
 
 	p.ContractID = policyContractID
 

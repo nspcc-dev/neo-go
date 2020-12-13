@@ -16,6 +16,7 @@ import (
 	"github.com/nspcc-dev/neo-go/cli/options"
 	"github.com/nspcc-dev/neo-go/cli/paramcontext"
 	"github.com/nspcc-dev/neo-go/pkg/compiler"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
@@ -771,7 +772,7 @@ func contractDeploy(ctx *cli.Context) error {
 		return err
 	}
 
-	mgmtHash, err := c.GetNativeContractHash("Neo Contract Management")
+	mgmtHash, err := c.GetNativeContractHash(nativenames.Management)
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("failed to get management contract's hash: %w", err), 1)
 	}

@@ -10,6 +10,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/contract"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
@@ -29,7 +30,6 @@ type Management struct {
 const StoragePrice = 100000
 
 const (
-	managementName = "Neo Contract Management"
 	prefixContract = 8
 )
 
@@ -43,7 +43,7 @@ func makeContractKey(h util.Uint160) []byte {
 
 // newManagement creates new Management native contract.
 func newManagement() *Management {
-	var m = &Management{ContractMD: *interop.NewContractMD(managementName)}
+	var m = &Management{ContractMD: *interop.NewContractMD(nativenames.Management)}
 
 	desc := newDescriptor("getContract", smartcontract.ArrayType,
 		manifest.NewParameter("hash", smartcontract.Hash160Type))

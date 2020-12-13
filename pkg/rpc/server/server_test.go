@@ -57,7 +57,7 @@ type rpcTestCase struct {
 }
 
 const testContractHash = "743ed26f78e29ecd595535b74a943b1f9ccbc444"
-const deploymentTxHash = "7e60be17078d05135c359805beece3ea4c5140f55adec8170179713f2124eb14"
+const deploymentTxHash = "37644146394ad76ddb9431d10b724a3cad5f8b249abdaed0b086fcd761756951"
 const genesisBlockHash = "0542f4350c6e236d0509bcd98188b0034bfbecc1a0c7fcdb8e4295310d468b70"
 
 const verifyContractHash = "a2eb22340979804cb10cc1add0b8822c201f4d8a"
@@ -170,7 +170,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 		},
 		{
 			name:   "positive, native by name",
-			params: `["Policy"]`,
+			params: `["PolicyContract"]`,
 			result: func(e *executor) interface{} { return &state.Contract{} },
 			check: func(t *testing.T, e *executor, cs interface{}) {
 				res, ok := cs.(*state.Contract)

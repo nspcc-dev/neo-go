@@ -7,6 +7,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/internal/testchain"
 	"github.com/nspcc-dev/neo-go/pkg/core/fee"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
@@ -266,7 +267,7 @@ func TestCreateNEP17TransferTx(t *testing.T) {
 	priv := testchain.PrivateKeyByID(0)
 	acc := wallet.NewAccountFromPrivateKey(priv)
 
-	gasContractHash, err := c.GetNativeContractHash("gas")
+	gasContractHash, err := c.GetNativeContractHash(nativenames.Gas)
 	require.NoError(t, err)
 
 	tx, err := c.CreateNEP17TransferTx(acc, util.Uint160{}, gasContractHash, 1000, 0)

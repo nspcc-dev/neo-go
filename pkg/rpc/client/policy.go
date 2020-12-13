@@ -3,6 +3,7 @@ package client
 import (
 	"fmt"
 
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
@@ -28,7 +29,7 @@ func (c *Client) invokeNativePolicyMethod(operation string) (int64, error) {
 	if !c.initDone {
 		return 0, errNetworkNotInitialized
 	}
-	result, err := c.InvokeFunction(c.cache.nativeHashes["policy"], operation, []smartcontract.Parameter{}, nil)
+	result, err := c.InvokeFunction(c.cache.nativeHashes[nativenames.Policy], operation, []smartcontract.Parameter{}, nil)
 	if err != nil {
 		return 0, err
 	}
@@ -45,7 +46,7 @@ func (c *Client) IsBlocked(hash util.Uint160) (bool, error) {
 	if !c.initDone {
 		return false, errNetworkNotInitialized
 	}
-	result, err := c.InvokeFunction(c.cache.nativeHashes["policy"], "isBlocked", []smartcontract.Parameter{{
+	result, err := c.InvokeFunction(c.cache.nativeHashes[nativenames.Policy], "isBlocked", []smartcontract.Parameter{{
 		Type:  smartcontract.Hash160Type,
 		Value: hash,
 	}}, nil)

@@ -4,7 +4,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"strings"
 
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core"
@@ -612,10 +611,9 @@ func (c *Client) StateRootInHeader() bool {
 	return c.stateRootInHeader
 }
 
-// GetNativeContractHash returns native contract hash by its name. It is not case-sensitive.
+// GetNativeContractHash returns native contract hash by its name.
 func (c *Client) GetNativeContractHash(name string) (util.Uint160, error) {
-	lowercasedName := strings.ToLower(name)
-	hash, ok := c.cache.nativeHashes[lowercasedName]
+	hash, ok := c.cache.nativeHashes[name]
 	if ok {
 		return hash, nil
 	}
@@ -623,6 +621,6 @@ func (c *Client) GetNativeContractHash(name string) (util.Uint160, error) {
 	if err != nil {
 		return util.Uint160{}, err
 	}
-	c.cache.nativeHashes[lowercasedName] = cs.Hash
+	c.cache.nativeHashes[name] = cs.Hash
 	return cs.Hash, nil
 }
