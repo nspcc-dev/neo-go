@@ -197,7 +197,7 @@ func getNEP17Balance(ctx *cli.Context) error {
 				}
 				tokenSymbol = "UNKNOWN"
 			}
-			fmt.Fprintf(ctx.App.Writer, "%s: %s (%s)\n", strings.ToUpper(tokenSymbol), tokenName, asset.StringLE())
+			fmt.Fprintf(ctx.App.Writer, "%s: %s (%s)\n", tokenSymbol, tokenName, asset.StringLE())
 			fmt.Fprintf(ctx.App.Writer, "\tAmount : %s\n", balances.Balances[i].Amount)
 			fmt.Fprintf(ctx.App.Writer, "\tUpdated: %d\n", balances.Balances[i].LastUpdated)
 		}
