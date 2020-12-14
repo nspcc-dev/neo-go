@@ -17,7 +17,6 @@ func TestCodeGen_DebugInfo(t *testing.T) {
 	import "github.com/nspcc-dev/neo-go/pkg/interop"
 	import "github.com/nspcc-dev/neo-go/pkg/interop/storage"
 	import "github.com/nspcc-dev/neo-go/pkg/interop/blockchain"
-	import "github.com/nspcc-dev/neo-go/pkg/interop/contract"
 func Main(op string) bool {
 	var s string
 	_ = s
@@ -47,7 +46,7 @@ func MethodStruct() struct{} { return struct{}{} }
 func unexportedMethod() int { return 1 }
 func MethodParams(addr interop.Hash160, h interop.Hash256,
 	sig interop.Signature, pub interop.PublicKey,
-	inter interop.Interface, ctr contract.Contract,
+	inter interop.Interface,
 	ctx storage.Context, tx blockchain.Transaction) bool {
 	return true
 }
@@ -238,7 +237,6 @@ func _deploy(isUpdate bool) {}
 							manifest.NewParameter("sig", smartcontract.SignatureType),
 							manifest.NewParameter("pub", smartcontract.PublicKeyType),
 							manifest.NewParameter("inter", smartcontract.InteropInterfaceType),
-							manifest.NewParameter("ctr", smartcontract.ArrayType),
 							manifest.NewParameter("ctx", smartcontract.InteropInterfaceType),
 							manifest.NewParameter("tx", smartcontract.ArrayType),
 						},

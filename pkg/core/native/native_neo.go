@@ -14,6 +14,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/runtime"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
@@ -49,7 +50,6 @@ type NEO struct {
 }
 
 const (
-	neoName       = "NEO"
 	neoContractID = -1
 	// NEOTotalSupply is the total amount of NEO in the system.
 	NEOTotalSupply = 100000000
@@ -93,12 +93,10 @@ func makeValidatorKey(key *keys.PublicKey) []byte {
 // newNEO returns NEO native contract.
 func newNEO() *NEO {
 	n := &NEO{}
-	nep17 := newNEP17Native(neoName)
-	nep17.symbol = "neo"
+	nep17 := newNEP17Native(nativenames.Neo)
+	nep17.symbol = "NEO"
 	nep17.decimals = 0
 	nep17.factor = 1
-	nep17.onPersist = chainOnPersist(onPersistBase, n.OnPersist)
-	nep17.postPersist = chainOnPersist(nep17.postPersist, n.PostPersist)
 	nep17.incBalance = n.increaseBalance
 	nep17.ContractID = neoContractID
 
@@ -108,14 +106,6 @@ func newNEO() *NEO {
 	n.validators.Store(keys.PublicKeys(nil))
 	n.committee.Store(keysWithVotes(nil))
 	n.committeeHash.Store(util.Uint160{})
-
-	onp := n.Methods["onPersist"]
-	onp.Func = getOnPersistWrapper(n.onPersist)
-	n.Methods["onPersist"] = onp
-
-	pp := n.Methods["postPersist"]
-	pp.Func = getOnPersistWrapper(n.postPersist)
-	n.Methods["postPersist"] = pp
 
 	desc := newDescriptor("unclaimedGas", smartcontract.IntegerType,
 		manifest.NewParameter("account", smartcontract.Hash160Type),
@@ -330,7 +320,14 @@ func (n *NEO) PostPersist(ic *interop.Context) error {
 		}
 
 	}
-	n.OnPersistEnd(ic.DAO)
+	if n.gasPerBlockChanged.Load().(bool) {
+		gr, err := n.getSortedGASRecordFromDAO(ic.DAO)
+		if err != nil {
+			panic(err)
+		}
+		n.gasPerBlock.Store(gr)
+		n.gasPerBlockChanged.Store(false)
+	}
 	return nil
 }
 
@@ -355,18 +352,6 @@ func (n *NEO) getGASPerVote(d dao.DAO, key []byte, index ...uint32) []big.Int {
 		}
 	})
 	return reward
-}
-
-// OnPersistEnd updates cached values if they've been changed.
-func (n *NEO) OnPersistEnd(d dao.DAO) {
-	if n.gasPerBlockChanged.Load().(bool) {
-		gr, err := n.getSortedGASRecordFromDAO(d)
-		if err != nil {
-			panic(err)
-		}
-		n.gasPerBlock.Store(gr)
-		n.gasPerBlockChanged.Store(false)
-	}
 }
 
 func (n *NEO) increaseBalance(ic *interop.Context, h util.Uint160, si *state.StorageItem, amount *big.Int) error {

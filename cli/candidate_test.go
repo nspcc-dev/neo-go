@@ -20,8 +20,8 @@ func TestRegisterCandidate(t *testing.T) {
 		"--rpc-endpoint", "http://"+e.RPC.Addr,
 		"--wallet", validatorWallet,
 		"--from", validatorAddr,
-		"neo:"+validatorPriv.Address()+":10",
-		"gas:"+validatorPriv.Address()+":100")
+		"NEO:"+validatorPriv.Address()+":10",
+		"GAS:"+validatorPriv.Address()+":100")
 	e.checkTxPersisted(t)
 
 	e.In.WriteString("one\r")

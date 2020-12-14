@@ -58,6 +58,7 @@ type Blockchainer interface {
 	GetTestVM(tx *transaction.Transaction, b *block.Block) *vm.VM
 	GetTransaction(util.Uint256) (*transaction.Transaction, uint32, error)
 	mempool.Feer // fee interface
+	ManagementContractHash() util.Uint160
 	PoolTx(t *transaction.Transaction, pools ...*mempool.Pool) error
 	PoolTxWithData(t *transaction.Transaction, data interface{}, mp *mempool.Pool, feer mempool.Feer, verificationFunction func(bc Blockchainer, t *transaction.Transaction, data interface{}) error) error
 	RegisterPostBlock(f func(Blockchainer, *mempool.Pool, *block.Block))

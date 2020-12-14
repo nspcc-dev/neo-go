@@ -213,6 +213,7 @@ func TestCreateBasicChain(t *testing.T) {
 	bw := io.NewBufBinWriter()
 	txSendRaw.EncodeBinary(bw.BinWriter)
 	t.Logf("sendrawtransaction: %s", hex.EncodeToString(bw.Bytes()))
+	require.False(t, saveChain)
 }
 
 func initBasicChain(t *testing.T, bc *Blockchain) {
@@ -271,7 +272,7 @@ func initBasicChain(t *testing.T, bc *Blockchain) {
 	acc0 := wallet.NewAccountFromPrivateKey(priv0)
 
 	// Push some contract into the chain.
-	txDeploy, cHash := newDeployTx(t, priv0ScriptHash, prefix+"test_contract.go", "Rubl")
+	txDeploy, cHash := newDeployTx(t, bc, priv0ScriptHash, prefix+"test_contract.go", "Rubl")
 	txDeploy.Nonce = getNextNonce()
 	txDeploy.ValidUntilBlock = validUntilBlock
 	require.NoError(t, addNetworkFee(bc, txDeploy, acc0))
@@ -357,7 +358,7 @@ func initBasicChain(t *testing.T, bc *Blockchain) {
 	t.Logf("sendRublesTx: %v", transferTx.Hash().StringLE())
 
 	// Push verification contract into the chain.
-	txDeploy2, _ := newDeployTx(t, priv0ScriptHash, prefix+"verification_contract.go", "Verify")
+	txDeploy2, _ := newDeployTx(t, bc, priv0ScriptHash, prefix+"verification_contract.go", "Verify")
 	txDeploy2.Nonce = getNextNonce()
 	txDeploy2.ValidUntilBlock = validUntilBlock
 	require.NoError(t, addNetworkFee(bc, txDeploy2, acc0))
@@ -375,10 +376,10 @@ func newNEP17Transfer(sc, from, to util.Uint160, amount int64, additionalArgs ..
 	return transaction.New(testchain.Network(), script, 10000000)
 }
 
-func newDeployTx(t *testing.T, sender util.Uint160, name, ctrName string) (*transaction.Transaction, util.Uint160) {
+func newDeployTx(t *testing.T, bc *Blockchain, sender util.Uint160, name, ctrName string) (*transaction.Transaction, util.Uint160) {
 	c, err := ioutil.ReadFile(name)
 	require.NoError(t, err)
-	tx, h, err := testchain.NewDeployTx(ctrName, sender, bytes.NewReader(c))
+	tx, h, err := testchain.NewDeployTx(bc, ctrName, sender, bytes.NewReader(c))
 	require.NoError(t, err)
 	t.Logf("contractHash (%s): %s", name, h.StringLE())
 	return tx, h

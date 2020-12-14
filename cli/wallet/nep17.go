@@ -197,7 +197,7 @@ func getNEP17Balance(ctx *cli.Context) error {
 				}
 				tokenSymbol = "UNKNOWN"
 			}
-			fmt.Fprintf(ctx.App.Writer, "%s: %s (%s)\n", strings.ToUpper(tokenSymbol), tokenName, asset.StringLE())
+			fmt.Fprintf(ctx.App.Writer, "%s: %s (%s)\n", tokenSymbol, tokenName, asset.StringLE())
 			fmt.Fprintf(ctx.App.Writer, "\tAmount : %s\n", balances.Balances[i].Amount)
 			fmt.Fprintf(ctx.App.Writer, "\tUpdated: %d\n", balances.Balances[i].LastUpdated)
 		}
@@ -228,7 +228,7 @@ func getMatchingTokenAux(ctx *cli.Context, get func(i int) *wallet.Token, n int,
 	var count int
 	for i := 0; i < n; i++ {
 		t := get(i)
-		if t != nil && (t.Name == name || t.Symbol == name || t.Address() == name || t.Hash.StringLE() == name) {
+		if t != nil && (t.Hash.StringLE() == name || t.Address() == name || t.Symbol == name || t.Name == name) {
 			if count == 1 {
 				printTokenInfo(ctx, token)
 				printTokenInfo(ctx, t)

@@ -29,7 +29,7 @@ const (
 	// Magic is a magic File header constant.
 	Magic uint32 = 0x3346454E
 	// MaxScriptLength is the maximum allowed contract script length.
-	MaxScriptLength = 1024 * 1024
+	MaxScriptLength = 512 * 1024
 	// compilerFieldSize is the length of `Compiler` and `Version` File header fields in bytes.
 	compilerFieldSize = 32
 )

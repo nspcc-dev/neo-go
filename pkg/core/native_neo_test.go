@@ -225,7 +225,6 @@ func TestNEO_SetGasPerBlock(t *testing.T) {
 		ok, err := neo.SetGASPerBlock(ic, 10, big.NewInt(native.GASFactor*2))
 		require.NoError(t, err)
 		require.True(t, ok)
-		neo.OnPersistEnd(ic.DAO)
 		_, err = ic.DAO.Persist()
 		require.NoError(t, err)
 
@@ -242,7 +241,6 @@ func TestNEO_SetGasPerBlock(t *testing.T) {
 			})
 		})
 
-		neo.OnPersistEnd(ic.DAO)
 		g := neo.GetGASPerBlock(ic.DAO, 9)
 		require.EqualValues(t, 5*native.GASFactor, g.Int64())
 
@@ -309,8 +307,8 @@ func TestNEO_TransferOnPayment(t *testing.T) {
 	bc := newTestChain(t)
 	defer bc.Close()
 
-	cs, _ := getTestContractState()
-	require.NoError(t, bc.dao.PutContractState(cs))
+	cs, _ := getTestContractState(bc)
+	require.NoError(t, bc.contracts.Management.PutContractState(bc.dao, cs))
 
 	const amount = 2
 	tx := transferTokenFromMultisigAccount(t, bc, cs.Hash, bc.contracts.NEO.Hash, amount)

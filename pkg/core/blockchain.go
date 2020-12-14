@@ -600,18 +600,16 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 	}
 	writeBuf.Reset()
 
-	if block.Index > 0 {
-		aer, err := bc.runPersist(bc.contracts.GetPersistScript(), block, cache, trigger.OnPersist)
-		if err != nil {
-			return fmt.Errorf("onPersist failed: %w", err)
-		}
-		appExecResults = append(appExecResults, aer)
-		err = cache.PutAppExecResult(aer, writeBuf)
-		if err != nil {
-			return fmt.Errorf("failed to store onPersist exec result: %w", err)
-		}
-		writeBuf.Reset()
+	aer, err := bc.runPersist(bc.contracts.GetPersistScript(), block, cache, trigger.OnPersist)
+	if err != nil {
+		return fmt.Errorf("onPersist failed: %w", err)
 	}
+	appExecResults = append(appExecResults, aer)
+	err = cache.PutAppExecResult(aer, writeBuf)
+	if err != nil {
+		return fmt.Errorf("failed to store onPersist exec result: %w", err)
+	}
+	writeBuf.Reset()
 
 	for _, tx := range block.Transactions {
 		if err := cache.StoreAsTransaction(tx, block.Index, writeBuf); err != nil {
@@ -673,7 +671,7 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 		}
 	}
 
-	aer, err := bc.runPersist(bc.contracts.GetPostPersistScript(), block, cache, trigger.PostPersist)
+	aer, err = bc.runPersist(bc.contracts.GetPostPersistScript(), block, cache, trigger.PostPersist)
 	if err != nil {
 		return fmt.Errorf("postPersist failed: %w", err)
 	}
@@ -723,21 +721,6 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 	bc.lock.Lock()
 	_, err = cache.Persist()
 	if err != nil {
-		bc.lock.Unlock()
-		return err
-	}
-	if err := bc.contracts.Policy.OnPersistEnd(bc.dao); err != nil {
-		bc.lock.Unlock()
-		return fmt.Errorf("failed to call OnPersistEnd for Policy native contract: %w", err)
-	}
-	if bc.P2PSigExtensionsEnabled() {
-		err := bc.contracts.Notary.OnPersistEnd(bc.dao)
-		if err != nil {
-			bc.lock.Unlock()
-			return fmt.Errorf("failed to call OnPersistEnd for Notary native contract: %w", err)
-		}
-	}
-	if err := bc.contracts.Designate.OnPersistEnd(bc.dao); err != nil {
 		bc.lock.Unlock()
 		return err
 	}
@@ -843,7 +826,7 @@ func (bc *Blockchain) processNEP17Transfer(cache *dao.Cached, h util.Uint256, b 
 	if nativeContract != nil {
 		id = nativeContract.Metadata().ContractID
 	} else {
-		assetContract, err := cache.GetContractState(sc)
+		assetContract, err := bc.contracts.Management.GetContract(cache, sc)
 		if err != nil {
 			return
 		}
@@ -1143,7 +1126,7 @@ func (bc *Blockchain) HeaderHeight() uint32 {
 
 // GetContractState returns contract by its script hash.
 func (bc *Blockchain) GetContractState(hash util.Uint160) *state.Contract {
-	contract, err := bc.dao.GetContractState(hash)
+	contract, err := bc.contracts.Management.GetContract(bc.dao, hash)
 	if contract == nil && err != storage.ErrKeyNotFound {
 		bc.log.Warn("failed to get contract state", zap.Error(err))
 	}
@@ -1665,7 +1648,7 @@ func (bc *Blockchain) initVerificationVM(ic *interop.Context, hash util.Uint160,
 		}
 		v.LoadScriptWithFlags(witness.VerificationScript, smartcontract.NoneFlag)
 	} else {
-		cs, err := ic.DAO.GetContractState(hash)
+		cs, err := ic.GetContract(hash)
 		if err != nil {
 			return ErrUnknownVerificationContract
 		}
@@ -1674,10 +1657,10 @@ func (bc *Blockchain) initVerificationVM(ic *interop.Context, hash util.Uint160,
 			return ErrInvalidVerificationContract
 		}
 		initMD := cs.Manifest.ABI.GetMethod(manifest.MethodInit)
-		v.LoadScriptWithHash(cs.Script, hash, smartcontract.ReadStates|smartcontract.AllowCall)
+		v.LoadScriptWithHash(cs.Script, hash, smartcontract.ReadStates)
 		v.Jump(v.Context(), md.Offset)
 
-		if cs.ID < 0 {
+		if cs.ID <= 0 {
 			w := io.NewBufBinWriter()
 			emit.Opcodes(w.BinWriter, opcode.DEPTH, opcode.PACK)
 			emit.String(w.BinWriter, manifest.MethodVerify)
@@ -1788,6 +1771,11 @@ func (bc *Blockchain) UtilityTokenHash() util.Uint160 {
 	return bc.contracts.GAS.Hash
 }
 
+// ManagementContractHash returns management contract's hash.
+func (bc *Blockchain) ManagementContractHash() util.Uint160 {
+	return bc.contracts.Management.Hash
+}
+
 func hashAndIndexToBytes(h util.Uint256, index uint32) []byte {
 	buf := io.NewBufBinWriter()
 	buf.WriteBytes(h.BytesLE())
@@ -1796,7 +1784,7 @@ func hashAndIndexToBytes(h util.Uint256, index uint32) []byte {
 }
 
 func (bc *Blockchain) newInteropContext(trigger trigger.Type, d dao.DAO, block *block.Block, tx *transaction.Transaction) *interop.Context {
-	ic := interop.NewContext(trigger, bc, d, bc.contracts.Contracts, block, tx, bc.log)
+	ic := interop.NewContext(trigger, bc, d, bc.contracts.Management.GetContract, bc.contracts.Contracts, block, tx, bc.log)
 	ic.Functions = [][]interop.Function{systemInterops, neoInterops}
 	switch {
 	case tx != nil:

@@ -264,6 +264,9 @@ func (chain *testChain) GetUtilityTokenBalance(uint160 util.Uint160) *big.Int {
 	}
 	panic("TODO")
 }
+func (chain testChain) ManagementContractHash() util.Uint160 {
+	panic("TODO")
+}
 
 func (chain *testChain) PoolTx(tx *transaction.Transaction, _ ...*mempool.Pool) error {
 	return chain.poolTx(tx)

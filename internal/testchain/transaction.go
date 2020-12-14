@@ -1,6 +1,7 @@
 package testchain
 
 import (
+	"encoding/json"
 	gio "io"
 
 	"github.com/nspcc-dev/neo-go/pkg/compiler"
@@ -12,7 +13,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/io"
-	"github.com/nspcc-dev/neo-go/pkg/rpc/request"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
@@ -48,7 +48,7 @@ func NewTransferFromOwner(bc blockchainer.Blockchainer, contractHash, to util.Ui
 }
 
 // NewDeployTx returns new deployment tx for contract with name with Go code read from r.
-func NewDeployTx(name string, sender util.Uint160, r gio.Reader) (*transaction.Transaction, util.Uint160, error) {
+func NewDeployTx(bc blockchainer.Blockchainer, name string, sender util.Uint160, r gio.Reader) (*transaction.Transaction, util.Uint160, error) {
 	// nef.NewFile() cares about version a lot.
 	config.Version = "0.90.0-test"
 
@@ -67,12 +67,21 @@ func NewDeployTx(name string, sender util.Uint160, r gio.Reader) (*transaction.T
 		return nil, util.Uint160{}, err
 	}
 
-	txScript, err := request.CreateDeploymentScript(ne, m)
+	rawManifest, err := json.Marshal(m)
 	if err != nil {
 		return nil, util.Uint160{}, err
 	}
+	neb, err := ne.Bytes()
+	if err != nil {
+		return nil, util.Uint160{}, err
+	}
+	buf := io.NewBufBinWriter()
+	emit.AppCallWithOperationAndArgs(buf.BinWriter, bc.ManagementContractHash(), "deploy", neb, rawManifest)
+	if buf.Err != nil {
+		return nil, util.Uint160{}, buf.Err
+	}
 
-	tx := transaction.New(Network(), txScript, 100*native.GASFactor)
+	tx := transaction.New(Network(), buf.Bytes(), 100*native.GASFactor)
 	tx.Signers = []transaction.Signer{{Account: sender}}
 	h := state.CreateContractHash(tx.Sender(), avm)
 

@@ -1,12 +1,18 @@
 package state
 
 import (
+	"encoding/json"
+	"errors"
+	"math"
+	"math/big"
+
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
 // Contract holds information about a smart contract in the NEO blockchain.
@@ -19,21 +25,81 @@ type Contract struct {
 }
 
 // DecodeBinary implements Serializable interface.
-func (cs *Contract) DecodeBinary(br *io.BinReader) {
-	cs.ID = int32(br.ReadU32LE())
-	cs.UpdateCounter = br.ReadU16LE()
-	cs.Hash.DecodeBinary(br)
-	cs.Script = br.ReadVarBytes()
-	cs.Manifest.DecodeBinary(br)
+func (c *Contract) DecodeBinary(r *io.BinReader) {
+	si := stackitem.DecodeBinaryStackItem(r)
+	if r.Err != nil {
+		return
+	}
+	r.Err = c.FromStackItem(si)
 }
 
 // EncodeBinary implements Serializable interface.
-func (cs *Contract) EncodeBinary(bw *io.BinWriter) {
-	bw.WriteU32LE(uint32(cs.ID))
-	bw.WriteU16LE(cs.UpdateCounter)
-	cs.Hash.EncodeBinary(bw)
-	bw.WriteVarBytes(cs.Script)
-	cs.Manifest.EncodeBinary(bw)
+func (c *Contract) EncodeBinary(w *io.BinWriter) {
+	si, err := c.ToStackItem()
+	if err != nil {
+		w.Err = err
+		return
+	}
+	stackitem.EncodeBinaryStackItem(si, w)
+}
+
+// ToStackItem converts state.Contract to stackitem.Item
+func (c *Contract) ToStackItem() (stackitem.Item, error) {
+	manifest, err := json.Marshal(c.Manifest)
+	if err != nil {
+		return nil, err
+	}
+	return stackitem.NewArray([]stackitem.Item{
+		stackitem.Make(c.ID),
+		stackitem.Make(c.UpdateCounter),
+		stackitem.NewByteArray(c.Hash.BytesBE()),
+		stackitem.NewByteArray(c.Script),
+		stackitem.NewByteArray(manifest),
+	}), nil
+}
+
+// FromStackItem fills Contract's data from given stack itemized contract
+// representation.
+func (c *Contract) FromStackItem(item stackitem.Item) error {
+	arr, ok := item.Value().([]stackitem.Item)
+	if !ok {
+		return errors.New("not an array")
+	}
+	bi, ok := arr[0].Value().(*big.Int)
+	if !ok {
+		return errors.New("ID is not an integer")
+	}
+	if !bi.IsInt64() || bi.Int64() > math.MaxInt32 || bi.Int64() < math.MinInt32 {
+		return errors.New("ID not in int32 range")
+	}
+	c.ID = int32(bi.Int64())
+	bi, ok = arr[1].Value().(*big.Int)
+	if !ok {
+		return errors.New("UpdateCounter is not an integer")
+	}
+	if !bi.IsInt64() || bi.Int64() > math.MaxUint16 || bi.Int64() < 0 {
+		return errors.New("UpdateCounter not in uint16 range")
+	}
+	c.UpdateCounter = uint16(bi.Int64())
+	bytes, err := arr[2].TryBytes()
+	if err != nil {
+		return err
+	}
+	c.Hash, err = util.Uint160DecodeBytesBE(bytes)
+	if err != nil {
+		return err
+	}
+	bytes, err = arr[3].TryBytes()
+	if err != nil {
+		return err
+	}
+	c.Script = make([]byte, len(bytes))
+	copy(c.Script, bytes)
+	bytes, err = arr[4].TryBytes()
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(bytes, &c.Manifest)
 }
 
 // CreateContractHash creates deployed contract hash from transaction sender

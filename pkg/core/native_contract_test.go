@@ -1,6 +1,7 @@
 package core
 
 import (
+	"errors"
 	"math/big"
 	"testing"
 
@@ -33,16 +34,17 @@ func (tn *testNative) Metadata() *interop.ContractMD {
 	return &tn.meta
 }
 
-func (tn *testNative) OnPersist(ic *interop.Context, _ []stackitem.Item) stackitem.Item {
-	if ic.Trigger != trigger.OnPersist {
-		panic("invalid trigger")
-	}
+func (tn *testNative) OnPersist(ic *interop.Context) error {
 	select {
 	case tn.blocks <- ic.Block.Index:
-		return stackitem.NewBool(true)
+		return nil
 	default:
-		return stackitem.NewBool(false)
+		return errors.New("can't send index")
 	}
+}
+
+func (tn *testNative) PostPersist(ic *interop.Context) error {
+	return nil
 }
 
 var _ interop.Contract = (*testNative)(nil)
@@ -106,10 +108,6 @@ func newTestNative() *testNative {
 		RequiredFlags: smartcontract.NoneFlag}
 	tn.meta.AddMethod(md, desc)
 
-	desc = &manifest.Method{Name: "onPersist", ReturnType: smartcontract.BoolType}
-	md = &interop.MethodAndPrice{Func: tn.OnPersist, RequiredFlags: smartcontract.WriteStates}
-	tn.meta.AddMethod(md, desc)
-
 	return tn
 }
 
@@ -138,12 +136,11 @@ func toUint160(item stackitem.Item) util.Uint160 {
 }
 
 func (tn *testNative) call(ic *interop.Context, args []stackitem.Item, checkReturn vm.CheckReturnState) {
-	h := toUint160(args[0])
-	bs, err := args[1].TryBytes()
+	cs, err := ic.GetContract(toUint160(args[0]))
 	if err != nil {
 		panic(err)
 	}
-	cs, err := ic.DAO.GetContractState(h)
+	bs, err := args[1].TryBytes()
 	if err != nil {
 		panic(err)
 	}
@@ -171,7 +168,8 @@ func TestNativeContract_Invoke(t *testing.T) {
 	tn := newTestNative()
 	chain.registerNative(tn)
 
-	err := chain.dao.PutContractState(&state.Contract{
+	err := chain.contracts.Management.PutContractState(chain.dao, &state.Contract{
+		ID:       1,
 		Script:   tn.meta.Script,
 		Hash:     tn.meta.Hash,
 		Manifest: tn.meta.Manifest,
@@ -205,7 +203,8 @@ func TestNativeContract_InvokeInternal(t *testing.T) {
 	tn := newTestNative()
 	chain.registerNative(tn)
 
-	err := chain.dao.PutContractState(&state.Contract{
+	err := chain.contracts.Management.PutContractState(chain.dao, &state.Contract{
+		ID:       1,
 		Script:   tn.meta.Script,
 		Manifest: tn.meta.Manifest,
 	})
@@ -245,25 +244,36 @@ func TestNativeContract_InvokeOtherContract(t *testing.T) {
 	tn := newTestNative()
 	chain.registerNative(tn)
 
-	err := chain.dao.PutContractState(&state.Contract{
+	err := chain.contracts.Management.PutContractState(chain.dao, &state.Contract{
+		ID:       1,
 		Hash:     tn.meta.Hash,
 		Script:   tn.meta.Script,
 		Manifest: tn.meta.Manifest,
 	})
 	require.NoError(t, err)
 
-	cs, _ := getTestContractState()
-	require.NoError(t, chain.dao.PutContractState(cs))
+	var drainTN = func(t *testing.T) {
+		select {
+		case <-tn.blocks:
+		default:
+			require.Fail(t, "testNative didn't send us block")
+		}
+	}
+
+	cs, _ := getTestContractState(chain)
+	require.NoError(t, chain.contracts.Management.PutContractState(chain.dao, cs))
 
 	t.Run("non-native, no return", func(t *testing.T) {
 		res, err := invokeContractMethod(chain, testSumPrice*4+10000, tn.Metadata().Hash, "callOtherContractNoReturn", cs.Hash, "justReturn", []interface{}{})
 		require.NoError(t, err)
+		drainTN(t)
 		checkResult(t, res, stackitem.Null{}) // simple call is done with EnsureNotEmpty
 	})
 	t.Run("non-native, with return", func(t *testing.T) {
 		res, err := invokeContractMethod(chain, testSumPrice*4+10000, tn.Metadata().Hash,
 			"callOtherContractWithReturn", cs.Hash, "ret7", []interface{}{})
 		require.NoError(t, err)
+		drainTN(t)
 		checkResult(t, res, stackitem.Make(8))
 	})
 }

@@ -2,6 +2,7 @@ package callback
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
@@ -39,15 +40,15 @@ func CreateFromMethod(ic *interop.Context) error {
 	if err != nil {
 		return err
 	}
-	cs, err := ic.DAO.GetContractState(h)
+	cs, err := ic.GetContract(h)
 	if err != nil {
-		return errors.New("contract not found")
+		return fmt.Errorf("contract not found: %w", err)
 	}
 	method := string(ic.VM.Estack().Pop().Bytes())
 	if strings.HasPrefix(method, "_") {
 		return errors.New("invalid method name")
 	}
-	currCs, err := ic.DAO.GetContractState(ic.VM.GetCurrentScriptHash())
+	currCs, err := ic.GetContract(ic.VM.GetCurrentScriptHash())
 	if err == nil && !currCs.Manifest.CanCall(h, &cs.Manifest, method) {
 		return errors.New("method call is not allowed")
 	}

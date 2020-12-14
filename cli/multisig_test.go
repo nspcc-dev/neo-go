@@ -55,8 +55,8 @@ func TestSignMultisigTx(t *testing.T) {
 		"--rpc-endpoint", "http://"+e.RPC.Addr,
 		"--wallet", validatorWallet,
 		"--from", validatorAddr,
-		"neo:"+multisigAddr+":4",
-		"gas:"+multisigAddr+":1")
+		"NEO:"+multisigAddr+":4",
+		"GAS:"+multisigAddr+":1")
 	e.checkTxPersisted(t)
 
 	// Sign and transfer funds to another account.
@@ -69,7 +69,7 @@ func TestSignMultisigTx(t *testing.T) {
 	e.Run(t, "neo-go", "wallet", "nep17", "transfer",
 		"--rpc-endpoint", "http://"+e.RPC.Addr,
 		"--wallet", wallet1Path, "--from", multisigAddr,
-		"--to", priv.Address(), "--token", "neo", "--amount", "1",
+		"--to", priv.Address(), "--token", "NEO", "--amount", "1",
 		"--out", txPath)
 
 	e.In.WriteString("pass\r")

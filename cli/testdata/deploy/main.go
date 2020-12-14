@@ -2,18 +2,28 @@ package deploy
 
 import (
 	"github.com/nspcc-dev/neo-go/cli/testdata/deploy/sub"
+	"github.com/nspcc-dev/neo-go/pkg/interop"
 	"github.com/nspcc-dev/neo-go/pkg/interop/contract"
+	"github.com/nspcc-dev/neo-go/pkg/interop/runtime"
 	"github.com/nspcc-dev/neo-go/pkg/interop/storage"
 )
 
 var key = "key"
 
+const mgmtKey = "mgmt"
+
 func _deploy(isUpdate bool) {
+	var value string
+
 	ctx := storage.GetContext()
-	value := "on create"
 	if isUpdate {
 		value = "on update"
+	} else {
+		value = "on create"
+		sh := runtime.GetCallingScriptHash()
+		storage.Put(ctx, mgmtKey, sh)
 	}
+
 	storage.Put(ctx, key, value)
 }
 
@@ -24,7 +34,9 @@ func Fail() {
 
 // Update updates contract with the new one.
 func Update(script, manifest []byte) {
-	contract.Update(script, manifest)
+	ctx := storage.GetReadOnlyContext()
+	mgmt := storage.Get(ctx, mgmtKey).(interop.Hash160)
+	contract.Call(mgmt, "update", script, manifest)
 }
 
 // GetValue returns stored value.

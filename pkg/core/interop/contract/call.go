@@ -39,9 +39,9 @@ func callExInternal(ic *interop.Context, h []byte, name string, args []stackitem
 	if err != nil {
 		return errors.New("invalid contract hash")
 	}
-	cs, err := ic.DAO.GetContractState(u)
+	cs, err := ic.GetContract(u)
 	if err != nil {
-		return errors.New("contract not found")
+		return fmt.Errorf("contract not found: %w", err)
 	}
 	if strings.HasPrefix(name, "_") {
 		return errors.New("invalid method name (starts with '_')")
@@ -53,7 +53,7 @@ func callExInternal(ic *interop.Context, h []byte, name string, args []stackitem
 	if md.Safe {
 		f &^= smartcontract.WriteStates
 	} else if ctx := ic.VM.Context(); ctx != nil && ctx.IsDeployed() {
-		curr, err := ic.DAO.GetContractState(ic.VM.GetCurrentScriptHash())
+		curr, err := ic.GetContract(ic.VM.GetCurrentScriptHash())
 		if err == nil {
 			if !curr.Manifest.CanCall(u, &cs.Manifest, name) {
 				return errors.New("disallowed method call")

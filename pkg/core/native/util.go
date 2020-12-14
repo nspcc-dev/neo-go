@@ -9,6 +9,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/util"
 )
 
 func getSerializableFromDAO(id int32, d dao.DAO, key []byte, item io.Serializable) error {
@@ -70,4 +71,12 @@ func checkValidators(ic *interop.Context) (bool, error) {
 		return false, err
 	}
 	return runtime.CheckHashedWitness(ic, prevBlock.NextConsensus)
+}
+
+// makeUint160Key creates a key from account script hash.
+func makeUint160Key(prefix byte, h util.Uint160) []byte {
+	k := make([]byte, util.Uint160Size+1)
+	k[0] = prefix
+	copy(k[1:], h.BytesBE())
+	return k
 }

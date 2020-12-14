@@ -11,6 +11,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/contract"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/runtime"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
@@ -37,7 +38,6 @@ type Notary struct {
 }
 
 const (
-	notaryName       = "Notary"
 	notaryContractID = reservedContractID - 1
 	// NotaryVerificationPrice is the price of `verify` Notary method.
 	NotaryVerificationPrice = 100_0000
@@ -52,7 +52,7 @@ var maxNotValidBeforeDeltaKey = []byte{10}
 
 // newNotary returns Notary native contract.
 func newNotary() *Notary {
-	n := &Notary{ContractMD: *interop.NewContractMD(notaryName)}
+	n := &Notary{ContractMD: *interop.NewContractMD(nativenames.Notary)}
 	n.ContractID = notaryContractID
 
 	desc := newDescriptor("onPayment", smartcontract.VoidType,
@@ -96,14 +96,6 @@ func newNotary() *Notary {
 	desc = newDescriptor("setMaxNotValidBeforeDelta", smartcontract.BoolType,
 		manifest.NewParameter("value", smartcontract.IntegerType))
 	md = newMethodAndPrice(n.setMaxNotValidBeforeDelta, 300_0000, smartcontract.WriteStates)
-	n.AddMethod(md, desc)
-
-	desc = newDescriptor("onPersist", smartcontract.VoidType)
-	md = newMethodAndPrice(getOnPersistWrapper(n.OnPersist), 0, smartcontract.WriteStates)
-	n.AddMethod(md, desc)
-
-	desc = newDescriptor("postPersist", smartcontract.VoidType)
-	md = newMethodAndPrice(getOnPersistWrapper(postPersistBase), 0, smartcontract.WriteStates)
 	n.AddMethod(md, desc)
 
 	return n
@@ -166,15 +158,15 @@ func (n *Notary) OnPersist(ic *interop.Context) error {
 	return nil
 }
 
-// OnPersistEnd updates cached Policy values if they've been changed
-func (n *Notary) OnPersistEnd(dao dao.DAO) error {
+// PostPersist implements Contract interface.
+func (n *Notary) PostPersist(ic *interop.Context) error {
+	n.lock.Lock()
+	defer n.lock.Unlock()
 	if n.isValid {
 		return nil
 	}
-	n.lock.Lock()
-	defer n.lock.Unlock()
 
-	n.maxNotValidBeforeDelta = getUint32WithKey(n.ContractID, dao, maxNotValidBeforeDeltaKey, defaultMaxNotValidBeforeDelta)
+	n.maxNotValidBeforeDelta = getUint32WithKey(n.ContractID, ic.DAO, maxNotValidBeforeDeltaKey, defaultMaxNotValidBeforeDelta)
 	n.isValid = true
 	return nil
 }
@@ -279,7 +271,7 @@ func (n *Notary) withdraw(ic *interop.Context, args []stackitem.Item) stackitem.
 	if ic.Chain.BlockHeight() < deposit.Till {
 		return stackitem.NewBool(false)
 	}
-	cs, err := ic.DAO.GetContractState(n.GAS.Hash)
+	cs, err := ic.GetContract(n.GAS.Hash)
 	if err != nil {
 		panic(fmt.Errorf("failed to get GAS contract state: %w", err))
 	}

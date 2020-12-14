@@ -109,7 +109,7 @@ func TestOracle_Request(t *testing.T) {
 
 	orc := bc.contracts.Oracle
 	cs := getOracleContractState(orc.Hash)
-	require.NoError(t, bc.dao.PutContractState(cs))
+	require.NoError(t, bc.contracts.Management.PutContractState(bc.dao, cs))
 
 	gasForResponse := int64(2000_1234)
 	var filter = "flt"
@@ -144,7 +144,6 @@ func TestOracle_Request(t *testing.T) {
 	ic.VM.LoadScript([]byte{byte(opcode.RET)})
 	err = bc.contracts.Designate.DesignateAsRole(ic, native.RoleOracle, keys.PublicKeys{pub})
 	require.NoError(t, err)
-	require.NoError(t, bc.contracts.Designate.OnPersistEnd(ic.DAO))
 
 	tx = transaction.New(netmode.UnitTestNet, native.GetOracleResponseScript(), 0)
 	ic.Tx = tx

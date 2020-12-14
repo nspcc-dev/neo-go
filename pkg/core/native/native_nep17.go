@@ -2,7 +2,6 @@ package native
 
 import (
 	"errors"
-	"fmt"
 	"math"
 	"math/big"
 
@@ -24,21 +23,16 @@ const prefixAccount = 20
 
 // makeAccountKey creates a key from account script hash.
 func makeAccountKey(h util.Uint160) []byte {
-	k := make([]byte, util.Uint160Size+1)
-	k[0] = prefixAccount
-	copy(k[1:], h.BytesBE())
-	return k
+	return makeUint160Key(prefixAccount, h)
 }
 
 // nep17TokenNative represents NEP-17 token contract.
 type nep17TokenNative struct {
 	interop.ContractMD
-	symbol      string
-	decimals    int64
-	factor      int64
-	onPersist   func(*interop.Context) error
-	postPersist func(*interop.Context) error
-	incBalance  func(*interop.Context, util.Uint160, *state.StorageItem, *big.Int) error
+	symbol     string
+	decimals   int64
+	factor     int64
+	incBalance func(*interop.Context, util.Uint160, *state.StorageItem, *big.Int) error
 }
 
 // totalSupplyKey is the key used to store totalSupply value.
@@ -47,8 +41,6 @@ var totalSupplyKey = []byte{11}
 func (c *nep17TokenNative) Metadata() *interop.ContractMD {
 	return &c.ContractMD
 }
-
-var _ interop.Contract = (*nep17TokenNative)(nil)
 
 func newNEP17Native(name string) *nep17TokenNative {
 	n := &nep17TokenNative{ContractMD: *interop.NewContractMD(name)}
@@ -80,14 +72,6 @@ func newNEP17Native(name string) *nep17TokenNative {
 		append(transferParams, manifest.NewParameter("data", smartcontract.AnyType))...,
 	)
 	md = newMethodAndPrice(n.Transfer, 8000000, smartcontract.WriteStates|smartcontract.AllowCall|smartcontract.AllowNotify)
-	n.AddMethod(md, desc)
-
-	desc = newDescriptor("onPersist", smartcontract.VoidType)
-	md = newMethodAndPrice(getOnPersistWrapper(onPersistBase), 0, smartcontract.WriteStates)
-	n.AddMethod(md, desc)
-
-	desc = newDescriptor("postPersist", smartcontract.VoidType)
-	md = newMethodAndPrice(getOnPersistWrapper(postPersistBase), 0, smartcontract.WriteStates)
 	n.AddMethod(md, desc)
 
 	n.AddEvent("Transfer", transferParams...)
@@ -145,7 +129,7 @@ func (c *nep17TokenNative) postTransfer(ic *interop.Context, from, to *util.Uint
 	if to == nil || !callOnPayment {
 		return
 	}
-	cs, err := ic.DAO.GetContractState(*to)
+	cs, err := ic.GetContract(*to)
 	if err != nil {
 		return
 	}
@@ -332,14 +316,4 @@ func toUint32(s stackitem.Item) uint32 {
 		panic("bigint does not fit into uint32")
 	}
 	return uint32(int64Value)
-}
-
-func getOnPersistWrapper(f func(ic *interop.Context) error) interop.Method {
-	return func(ic *interop.Context, _ []stackitem.Item) stackitem.Item {
-		err := f(ic)
-		if err != nil {
-			panic(fmt.Errorf("OnPersist for native contract: %w", err))
-		}
-		return stackitem.Null{}
-	}
 }

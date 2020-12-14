@@ -16,17 +16,19 @@ import (
 	"github.com/nspcc-dev/neo-go/cli/options"
 	"github.com/nspcc-dev/neo-go/cli/paramcontext"
 	"github.com/nspcc-dev/neo-go/pkg/compiler"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/fixedn"
-	"github.com/nspcc-dev/neo-go/pkg/rpc/request"
+	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
+	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/urfave/cli"
 	"gopkg.in/yaml.v2"
@@ -770,10 +772,16 @@ func contractDeploy(ctx *cli.Context) error {
 		return err
 	}
 
-	txScript, err := request.CreateDeploymentScript(&nefFile, m)
+	mgmtHash, err := c.GetNativeContractHash(nativenames.Management)
 	if err != nil {
-		return cli.NewExitError(fmt.Errorf("failed to create deployment script: %w", err), 1)
+		return cli.NewExitError(fmt.Errorf("failed to get management contract's hash: %w", err), 1)
 	}
+	buf := io.NewBufBinWriter()
+	emit.AppCallWithOperationAndArgs(buf.BinWriter, mgmtHash, "deploy", f, manifestBytes)
+	if buf.Err != nil {
+		return cli.NewExitError(fmt.Errorf("failed to create deployment script: %w", buf.Err), 1)
+	}
+	txScript := buf.Bytes()
 	// It doesn't require any signers.
 	invRes, err := c.InvokeScript(txScript, nil)
 	if err == nil && invRes.FaultException != "" {

@@ -1,6 +1,7 @@
 package timer
 
 import (
+	"github.com/nspcc-dev/neo-go/pkg/interop"
 	"github.com/nspcc-dev/neo-go/pkg/interop/binary"
 	"github.com/nspcc-dev/neo-go/pkg/interop/contract"
 	"github.com/nspcc-dev/neo-go/pkg/interop/runtime"
@@ -9,6 +10,7 @@ import (
 )
 
 const defaultTicks = 3
+const mgmtKey = "mgmt"
 
 var (
 	// ctx holds storage context for contract methods
@@ -30,6 +32,8 @@ func _deploy(isUpdate bool) {
 		runtime.Log("One more tick is added.")
 		return
 	}
+	sh := runtime.GetCallingScriptHash()
+	storage.Put(ctx, mgmtKey, sh)
 	storage.Put(ctx, ticksKey, defaultTicks)
 	i := binary.Itoa(defaultTicks, 10)
 	runtime.Log("Timer set to " + i + " ticks.")
@@ -41,7 +45,8 @@ func Migrate(script []byte, manifest []byte) bool {
 		runtime.Log("Only owner is allowed to update the contract.")
 		return false
 	}
-	contract.Update(script, manifest)
+	mgmt := storage.Get(ctx, mgmtKey).(interop.Hash160)
+	contract.Call(mgmt, "update", script, manifest)
 	runtime.Log("Contract updated.")
 	return true
 }
@@ -67,7 +72,8 @@ func SelfDestroy() bool {
 		runtime.Log("Only owner or the contract itself are allowed to destroy the contract.")
 		return false
 	}
-	contract.Destroy()
+	mgmt := storage.Get(ctx, mgmtKey).(interop.Hash160)
+	contract.Call(mgmt, "destroy")
 	runtime.Log("Destroyed.")
 	return true
 }

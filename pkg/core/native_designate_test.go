@@ -134,7 +134,6 @@ func TestDesignate_DesignateAsRole(t *testing.T) {
 	setSigner(tx, testchain.CommitteeScriptHash())
 	err = des.DesignateAsRole(ic, native.RoleOracle, keys.PublicKeys{pub})
 	require.NoError(t, err)
-	require.NoError(t, des.OnPersistEnd(ic.DAO))
 
 	pubs, index, err = des.GetDesignatedByRole(ic.DAO, native.RoleOracle, bl.Index+1)
 	require.NoError(t, err)
@@ -152,7 +151,6 @@ func TestDesignate_DesignateAsRole(t *testing.T) {
 	pub1 := priv.PublicKey()
 	err = des.DesignateAsRole(ic, native.RoleStateValidator, keys.PublicKeys{pub1})
 	require.NoError(t, err)
-	require.NoError(t, des.OnPersistEnd(ic.DAO))
 
 	pubs, index, err = des.GetDesignatedByRole(ic.DAO, native.RoleOracle, 255)
 	require.NoError(t, err)
@@ -172,7 +170,6 @@ func TestDesignate_DesignateAsRole(t *testing.T) {
 
 	err = des.DesignateAsRole(ic, native.RoleP2PNotary, keys.PublicKeys{pub1})
 	require.NoError(t, err)
-	require.NoError(t, des.OnPersistEnd(ic.DAO))
 
 	pubs, index, err = des.GetDesignatedByRole(ic.DAO, native.RoleP2PNotary, 255)
 	require.NoError(t, err)

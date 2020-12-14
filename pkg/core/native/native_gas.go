@@ -5,6 +5,7 @@ import (
 	"math/big"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
@@ -17,7 +18,6 @@ type GAS struct {
 	NEO *NEO
 }
 
-const gasName = "GAS"
 const gasContractID = -2
 
 // GASFactor is a divisor for finding GAS integral value.
@@ -27,19 +27,14 @@ const initialGAS = 30000000
 // newGAS returns GAS native contract.
 func newGAS() *GAS {
 	g := &GAS{}
-	nep17 := newNEP17Native(gasName)
-	nep17.symbol = "gas"
+	nep17 := newNEP17Native(nativenames.Gas)
+	nep17.symbol = "GAS"
 	nep17.decimals = 8
 	nep17.factor = GASFactor
-	nep17.onPersist = chainOnPersist(onPersistBase, g.OnPersist)
 	nep17.incBalance = g.increaseBalance
 	nep17.ContractID = gasContractID
 
 	g.nep17TokenNative = *nep17
-
-	onp := g.Methods["onPersist"]
-	onp.Func = getOnPersistWrapper(g.onPersist)
-	g.Methods["onPersist"] = onp
 
 	return g
 }
@@ -98,23 +93,15 @@ func (g *GAS) OnPersist(ic *interop.Context) error {
 	return nil
 }
 
+// PostPersist implements Contract interface.
+func (g *GAS) PostPersist(ic *interop.Context) error {
+	return nil
+}
+
 func getStandbyValidatorsHash(ic *interop.Context) (util.Uint160, error) {
 	s, err := smartcontract.CreateDefaultMultiSigRedeemScript(ic.Chain.GetStandByValidators())
 	if err != nil {
 		return util.Uint160{}, err
 	}
 	return hash.Hash160(s), nil
-}
-
-func chainOnPersist(fs ...func(*interop.Context) error) func(*interop.Context) error {
-	return func(ic *interop.Context) error {
-		for i := range fs {
-			if fs[i] != nil {
-				if err := fs[i](ic); err != nil {
-					return err
-				}
-			}
-		}
-		return nil
-	}
 }

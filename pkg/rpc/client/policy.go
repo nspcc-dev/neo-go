@@ -3,13 +3,11 @@ package client
 import (
 	"fmt"
 
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
-
-// PolicyContractHash represents a hash of native Policy contract.
-var PolicyContractHash, _ = util.Uint160DecodeStringBE("e9ff4ca7cc252e1dfddb26315869cd79505906ce")
 
 // GetMaxTransactionsPerBlock invokes `getMaxTransactionsPerBlock` method on a
 // native Policy contract.
@@ -28,7 +26,10 @@ func (c *Client) GetFeePerByte() (int64, error) {
 }
 
 func (c *Client) invokeNativePolicyMethod(operation string) (int64, error) {
-	result, err := c.InvokeFunction(PolicyContractHash, operation, []smartcontract.Parameter{}, nil)
+	if !c.initDone {
+		return 0, errNetworkNotInitialized
+	}
+	result, err := c.InvokeFunction(c.cache.nativeHashes[nativenames.Policy], operation, []smartcontract.Parameter{}, nil)
 	if err != nil {
 		return 0, err
 	}
@@ -42,7 +43,10 @@ func (c *Client) invokeNativePolicyMethod(operation string) (int64, error) {
 
 // IsBlocked invokes `isBlocked` method on native Policy contract.
 func (c *Client) IsBlocked(hash util.Uint160) (bool, error) {
-	result, err := c.InvokeFunction(PolicyContractHash, "isBlocked", []smartcontract.Parameter{{
+	if !c.initDone {
+		return false, errNetworkNotInitialized
+	}
+	result, err := c.InvokeFunction(c.cache.nativeHashes[nativenames.Policy], "isBlocked", []smartcontract.Parameter{{
 		Type:  smartcontract.Hash160Type,
 		Value: hash,
 	}}, nil)

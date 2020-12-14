@@ -5,16 +5,12 @@ import (
 	"time"
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
-	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
-	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
-	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 )
 
@@ -56,10 +52,8 @@ func createGenesisBlock(cfg config.ProtocolConfiguration) (*block.Block, error) 
 	}
 
 	b := &block.Block{
-		Base: base,
-		Transactions: []*transaction.Transaction{
-			deployNativeContracts(cfg.Magic),
-		},
+		Base:         base,
+		Transactions: []*transaction.Transaction{},
 		ConsensusData: block.ConsensusData{
 			PrimaryIndex: 0,
 			Nonce:        2083236893,
@@ -68,27 +62,6 @@ func createGenesisBlock(cfg config.ProtocolConfiguration) (*block.Block, error) 
 	b.RebuildMerkleRoot()
 
 	return b, nil
-}
-
-func deployNativeContracts(magic netmode.Magic) *transaction.Transaction {
-	buf := io.NewBufBinWriter()
-	emit.Syscall(buf.BinWriter, interopnames.NeoNativeDeploy)
-	script := buf.Bytes()
-	tx := transaction.New(magic, script, 0)
-	tx.Nonce = 0
-	tx.Signers = []transaction.Signer{
-		{
-			Account: hash.Hash160([]byte{byte(opcode.PUSH1)}),
-			Scopes:  transaction.None,
-		},
-	}
-	tx.Scripts = []transaction.Witness{
-		{
-			InvocationScript:   []byte{},
-			VerificationScript: []byte{byte(opcode.PUSH1)},
-		},
-	}
-	return tx
 }
 
 func validatorsFromConfig(cfg config.ProtocolConfiguration) ([]*keys.PublicKey, error) {

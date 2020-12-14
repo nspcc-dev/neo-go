@@ -2,7 +2,6 @@ package core
 
 import (
 	"crypto/elliptic"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
@@ -12,6 +11,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
+	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
@@ -89,41 +89,6 @@ func bcGetBlock(ic *interop.Context) error {
 		ic.VM.Estack().PushVal(stackitem.Null{})
 	} else {
 		ic.VM.Estack().PushVal(blockToStackItem(block))
-	}
-	return nil
-}
-
-// contractToStackItem converts state.Contract to stackitem.Item
-func contractToStackItem(cs *state.Contract) (stackitem.Item, error) {
-	manifest, err := json.Marshal(cs.Manifest)
-	if err != nil {
-		return nil, err
-	}
-	return stackitem.NewArray([]stackitem.Item{
-		stackitem.Make(cs.ID),
-		stackitem.Make(cs.UpdateCounter),
-		stackitem.NewByteArray(cs.Hash.BytesBE()),
-		stackitem.NewByteArray(cs.Script),
-		stackitem.NewByteArray(manifest),
-	}), nil
-}
-
-// bcGetContract returns contract.
-func bcGetContract(ic *interop.Context) error {
-	hashbytes := ic.VM.Estack().Pop().Bytes()
-	hash, err := util.Uint160DecodeBytesBE(hashbytes)
-	if err != nil {
-		return err
-	}
-	cs, err := ic.DAO.GetContractState(hash)
-	if err != nil {
-		ic.VM.Estack().PushVal(stackitem.Null{})
-	} else {
-		item, err := contractToStackItem(cs)
-		if err != nil {
-			return err
-		}
-		ic.VM.Estack().PushVal(item)
 	}
 	return nil
 }
@@ -274,7 +239,7 @@ func storageGetReadOnlyContext(ic *interop.Context) error {
 // storageGetContextInternal is internal version of storageGetContext and
 // storageGetReadOnlyContext which allows to specify ReadOnly context flag.
 func storageGetContextInternal(ic *interop.Context, isReadOnly bool) error {
-	contract, err := ic.DAO.GetContractState(ic.VM.GetCurrentScriptHash())
+	contract, err := ic.GetContract(ic.VM.GetCurrentScriptHash())
 	if err != nil {
 		return err
 	}
@@ -311,7 +276,7 @@ func putWithContextAndFlags(ic *interop.Context, stc *StorageContext, key []byte
 			sizeInc = (len(si.Value)-1)/4 + 1 + len(value) - len(si.Value)
 		}
 	}
-	if !ic.VM.AddGas(int64(sizeInc) * StoragePrice) {
+	if !ic.VM.AddGas(int64(sizeInc) * native.StoragePrice) {
 		return errGasLimitExceeded
 	}
 	si.Value = value
@@ -363,27 +328,6 @@ func storageContextAsReadOnly(ic *interop.Context) error {
 	return nil
 }
 
-// contractDestroy destroys a contract.
-func contractDestroy(ic *interop.Context) error {
-	hash := ic.VM.GetCurrentScriptHash()
-	cs, err := ic.DAO.GetContractState(hash)
-	if err != nil {
-		return nil
-	}
-	err = ic.DAO.DeleteContractState(hash)
-	if err != nil {
-		return err
-	}
-	siMap, err := ic.DAO.GetStorageItems(cs.ID)
-	if err != nil {
-		return err
-	}
-	for k := range siMap {
-		_ = ic.DAO.DeleteStorageItem(cs.ID, []byte(k))
-	}
-	return nil
-}
-
 // contractIsStandard checks if contract is standard (sig or multisig) contract.
 func contractIsStandard(ic *interop.Context) error {
 	h := ic.VM.Estack().Pop().Bytes()
@@ -392,7 +336,7 @@ func contractIsStandard(ic *interop.Context) error {
 		return err
 	}
 	var result bool
-	cs, _ := ic.DAO.GetContractState(u)
+	cs, _ := ic.GetContract(u)
 	if cs != nil {
 		result = vm.IsStandardContract(cs.Script)
 	} else {

@@ -10,6 +10,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/runtime"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
@@ -40,7 +41,6 @@ type oraclesData struct {
 
 const (
 	designateContractID = -5
-	designateName       = "Designation"
 
 	// maxNodeCount is the maximum number of nodes to set the role for.
 	maxNodeCount = 32
@@ -71,7 +71,7 @@ func (s *Designate) isValidRole(r Role) bool {
 }
 
 func newDesignate(p2pSigExtensionsEnabled bool) *Designate {
-	s := &Designate{ContractMD: *interop.NewContractMD(designateName)}
+	s := &Designate{ContractMD: *interop.NewContractMD(nativenames.Designation)}
 	s.ContractID = designateContractID
 	s.p2pSigExtensionsEnabled = p2pSigExtensionsEnabled
 
@@ -87,14 +87,6 @@ func newDesignate(p2pSigExtensionsEnabled bool) *Designate {
 	md = newMethodAndPrice(s.designateAsRole, 0, smartcontract.WriteStates)
 	s.AddMethod(md, desc)
 
-	desc = newDescriptor("onPersist", smartcontract.VoidType)
-	md = newMethodAndPrice(getOnPersistWrapper(onPersistBase), 0, smartcontract.WriteStates)
-	s.AddMethod(md, desc)
-
-	desc = newDescriptor("postPersist", smartcontract.VoidType)
-	md = newMethodAndPrice(getOnPersistWrapper(postPersistBase), 0, smartcontract.WriteStates)
-	s.AddMethod(md, desc)
-
 	return s
 }
 
@@ -103,13 +95,18 @@ func (s *Designate) Initialize(ic *interop.Context) error {
 	return nil
 }
 
-// OnPersistEnd updates cached values if they've been changed.
-func (s *Designate) OnPersistEnd(d dao.DAO) error {
+// OnPersist implements Contract interface.
+func (s *Designate) OnPersist(ic *interop.Context) error {
+	return nil
+}
+
+// PostPersist implements Contract interface.
+func (s *Designate) PostPersist(ic *interop.Context) error {
 	if !s.rolesChanged() {
 		return nil
 	}
 
-	nodeKeys, height, err := s.GetDesignatedByRole(d, RoleOracle, math.MaxUint32)
+	nodeKeys, height, err := s.GetDesignatedByRole(ic.DAO, RoleOracle, math.MaxUint32)
 	if err != nil {
 		return err
 	}

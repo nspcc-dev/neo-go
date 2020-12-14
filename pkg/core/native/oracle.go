@@ -11,6 +11,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/contract"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
@@ -36,11 +37,7 @@ type Oracle struct {
 }
 
 const (
-	oracleContractID = -4
-	oracleName       = "Oracle"
-)
-
-const (
+	oracleContractID  = -4
 	maxURLLength      = 256
 	maxFilterLength   = 128
 	maxCallbackLength = 32
@@ -58,8 +55,8 @@ var (
 
 func init() {
 	w := io.NewBufBinWriter()
-	emit.String(w.BinWriter, oracleName)
-	emit.Syscall(w.BinWriter, interopnames.NeoNativeCall)
+	emit.String(w.BinWriter, nativenames.Oracle)
+	emit.Syscall(w.BinWriter, interopnames.SystemContractCallNative)
 	oracleInvokeScript = w.Bytes()
 	h := hash.Hash160(oracleInvokeScript)
 
@@ -102,7 +99,7 @@ func GetOracleResponseScript() []byte {
 }
 
 func newOracle() *Oracle {
-	o := &Oracle{ContractMD: *interop.NewContractMD(oracleName)}
+	o := &Oracle{ContractMD: *interop.NewContractMD(nativenames.Oracle)}
 	o.ContractID = oracleContractID
 
 	desc := newDescriptor("request", smartcontract.VoidType,
@@ -122,15 +119,6 @@ func newOracle() *Oracle {
 	md = newMethodAndPrice(o.verify, 100_0000, smartcontract.NoneFlag)
 	o.AddMethod(md, desc)
 
-	pp := chainOnPersist(postPersistBase, o.PostPersist)
-	desc = newDescriptor("postPersist", smartcontract.VoidType)
-	md = newMethodAndPrice(getOnPersistWrapper(pp), 0, smartcontract.WriteStates)
-	o.AddMethod(md, desc)
-
-	desc = newDescriptor("onPersist", smartcontract.VoidType)
-	md = newMethodAndPrice(getOnPersistWrapper(onPersistBase), 0, smartcontract.WriteStates)
-	o.AddMethod(md, desc)
-
 	o.AddEvent("OracleRequest", manifest.NewParameter("Id", smartcontract.IntegerType),
 		manifest.NewParameter("RequestContract", smartcontract.Hash160Type),
 		manifest.NewParameter("Url", smartcontract.StringType),
@@ -139,6 +127,11 @@ func newOracle() *Oracle {
 		manifest.NewParameter("OriginalTx", smartcontract.Hash256Type))
 
 	return o
+}
+
+// OnPersist implements Contract interface.
+func (o *Oracle) OnPersist(ic *interop.Context) error {
+	return nil
 }
 
 // PostPersist represents `postPersist` method.
@@ -255,7 +248,7 @@ func (o *Oracle) FinishInternal(ic *interop.Context) error {
 		stackitem.Make(resp.Code),
 		stackitem.Make(resp.Result),
 	}
-	cs, err := ic.DAO.GetContractState(req.CallbackContract)
+	cs, err := ic.GetContract(req.CallbackContract)
 	if err != nil {
 		return err
 	}
@@ -311,7 +304,7 @@ func (o *Oracle) RequestInternal(ic *interop.Context, url string, filter *string
 	}
 
 	// Should be executed from contract.
-	_, err := ic.DAO.GetContractState(ic.VM.GetCallingScriptHash())
+	_, err := ic.GetContract(ic.VM.GetCallingScriptHash())
 	if err != nil {
 		return err
 	}

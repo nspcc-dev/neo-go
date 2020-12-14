@@ -37,10 +37,13 @@ type Context struct {
 	Log           *zap.Logger
 	VM            *vm.VM
 	Functions     [][]Function
+	getContract   func(dao.DAO, util.Uint160) (*state.Contract, error)
 }
 
 // NewContext returns new interop context.
-func NewContext(trigger trigger.Type, bc blockchainer.Blockchainer, d dao.DAO, natives []Contract, block *block.Block, tx *transaction.Transaction, log *zap.Logger) *Context {
+func NewContext(trigger trigger.Type, bc blockchainer.Blockchainer, d dao.DAO,
+	getContract func(dao.DAO, util.Uint160) (*state.Contract, error), natives []Contract,
+	block *block.Block, tx *transaction.Transaction, log *zap.Logger) *Context {
 	dao := dao.NewCached(d)
 	nes := make([]state.NotificationEvent, 0)
 	return &Context{
@@ -53,7 +56,8 @@ func NewContext(trigger trigger.Type, bc blockchainer.Blockchainer, d dao.DAO, n
 		Notifications: nes,
 		Log:           log,
 		// Functions is a slice of slices of interops sorted by ID.
-		Functions: [][]Function{},
+		Functions:   [][]Function{},
+		getContract: getContract,
 	}
 }
 
@@ -89,6 +93,8 @@ type MethodAndPrice struct {
 type Contract interface {
 	Initialize(*Context) error
 	Metadata() *ContractMD
+	OnPersist(*Context) error
+	PostPersist(*Context) error
 }
 
 // ContractMD represents native contract instance.
@@ -110,7 +116,7 @@ func NewContractMD(name string) *ContractMD {
 
 	w := io.NewBufBinWriter()
 	emit.String(w.BinWriter, c.Name)
-	emit.Syscall(w.BinWriter, interopnames.NeoNativeCall)
+	emit.Syscall(w.BinWriter, interopnames.SystemContractCallNative)
 
 	c.Script = w.Bytes()
 	c.Hash = hash.Hash160(c.Script)
@@ -138,6 +144,11 @@ func (c *ContractMD) AddEvent(name string, ps ...manifest.Parameter) {
 // Sort sorts interop functions by id.
 func Sort(fs []Function) {
 	sort.Slice(fs, func(i, j int) bool { return fs[i].ID < fs[j].ID })
+}
+
+// GetContract returns contract by its hash in current interop context.
+func (ic *Context) GetContract(hash util.Uint160) (*state.Contract, error) {
+	return ic.getContract(ic.DAO, hash)
 }
 
 // GetFunction returns metadata for interop with the specified id.

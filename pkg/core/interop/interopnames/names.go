@@ -11,7 +11,6 @@ const (
 	SystemBinaryItoa                         = "System.Binary.Itoa"
 	SystemBinarySerialize                    = "System.Binary.Serialize"
 	SystemBlockchainGetBlock                 = "System.Blockchain.GetBlock"
-	SystemBlockchainGetContract              = "System.Blockchain.GetContract"
 	SystemBlockchainGetHeight                = "System.Blockchain.GetHeight"
 	SystemBlockchainGetTransaction           = "System.Blockchain.GetTransaction"
 	SystemBlockchainGetTransactionFromBlock  = "System.Blockchain.GetTransactionFromBlock"
@@ -22,12 +21,12 @@ const (
 	SystemCallbackInvoke                     = "System.Callback.Invoke"
 	SystemContractCall                       = "System.Contract.Call"
 	SystemContractCallEx                     = "System.Contract.CallEx"
-	SystemContractCreate                     = "System.Contract.Create"
+	SystemContractCallNative                 = "System.Contract.CallNative"
 	SystemContractCreateStandardAccount      = "System.Contract.CreateStandardAccount"
-	SystemContractDestroy                    = "System.Contract.Destroy"
 	SystemContractIsStandard                 = "System.Contract.IsStandard"
 	SystemContractGetCallFlags               = "System.Contract.GetCallFlags"
-	SystemContractUpdate                     = "System.Contract.Update"
+	SystemContractNativeOnPersist            = "System.Contract.NativeOnPersist"
+	SystemContractNativePostPersist          = "System.Contract.NativePostPersist"
 	SystemEnumeratorConcat                   = "System.Enumerator.Concat"
 	SystemEnumeratorCreate                   = "System.Enumerator.Create"
 	SystemEnumeratorNext                     = "System.Enumerator.Next"
@@ -66,8 +65,6 @@ const (
 	NeoCryptoCheckMultisigWithECDsaSecp256k1 = "Neo.Crypto.CheckMultisigWithECDsaSecp256k1"
 	NeoCryptoSHA256                          = "Neo.Crypto.SHA256"
 	NeoCryptoRIPEMD160                       = "Neo.Crypto.RIPEMD160"
-	NeoNativeCall                            = "Neo.Native.Call"
-	NeoNativeDeploy                          = "Neo.Native.Deploy"
 )
 
 var names = []string{
@@ -80,7 +77,6 @@ var names = []string{
 	SystemBinaryItoa,
 	SystemBinarySerialize,
 	SystemBlockchainGetBlock,
-	SystemBlockchainGetContract,
 	SystemBlockchainGetHeight,
 	SystemBlockchainGetTransaction,
 	SystemBlockchainGetTransactionFromBlock,
@@ -91,12 +87,12 @@ var names = []string{
 	SystemCallbackInvoke,
 	SystemContractCall,
 	SystemContractCallEx,
-	SystemContractCreate,
+	SystemContractCallNative,
 	SystemContractCreateStandardAccount,
-	SystemContractDestroy,
 	SystemContractIsStandard,
 	SystemContractGetCallFlags,
-	SystemContractUpdate,
+	SystemContractNativeOnPersist,
+	SystemContractNativePostPersist,
 	SystemEnumeratorConcat,
 	SystemEnumeratorCreate,
 	SystemEnumeratorNext,
@@ -135,6 +131,4 @@ var names = []string{
 	NeoCryptoCheckMultisigWithECDsaSecp256k1,
 	NeoCryptoSHA256,
 	NeoCryptoRIPEMD160,
-	NeoNativeCall,
-	NeoNativeDeploy,
 }
