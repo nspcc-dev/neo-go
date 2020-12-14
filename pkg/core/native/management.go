@@ -119,7 +119,7 @@ func getLimitedSlice(arg stackitem.Item, max int) ([]byte, error) {
 
 // getNefAndManifestFromItems converts input arguments into NEF and manifest
 // adding appropriate deployment GAS price and sanitizing inputs.
-func getNefAndManifestFromItems(args []stackitem.Item, v *vm.VM) (*nef.File, *manifest.Manifest, error) {
+func getNefAndManifestFromItems(ic *interop.Context, args []stackitem.Item) (*nef.File, *manifest.Manifest, error) {
 	nefBytes, err := getLimitedSlice(args[0], math.MaxInt32) // Upper limits are checked during NEF deserialization.
 	if err != nil {
 		return nil, nil, fmt.Errorf("invalid NEF file: %w", err)
@@ -129,7 +129,7 @@ func getNefAndManifestFromItems(args []stackitem.Item, v *vm.VM) (*nef.File, *ma
 		return nil, nil, fmt.Errorf("invalid manifest: %w", err)
 	}
 
-	if !v.AddGas(int64(StoragePrice * (len(nefBytes) + len(manifestBytes)))) {
+	if !ic.VM.AddGas(ic.Chain.GetPolicer().GetStoragePrice() * int64(len(nefBytes)+len(manifestBytes))) {
 		return nil, nil, errGasLimitExceeded
 	}
 	var resManifest *manifest.Manifest
@@ -154,7 +154,7 @@ func getNefAndManifestFromItems(args []stackitem.Item, v *vm.VM) (*nef.File, *ma
 // deploy is an implementation of public deploy method, it's run under
 // VM protections, so it's OK for it to panic instead of returning errors.
 func (m *Management) deploy(ic *interop.Context, args []stackitem.Item) stackitem.Item {
-	neff, manif, err := getNefAndManifestFromItems(args, ic.VM)
+	neff, manif, err := getNefAndManifestFromItems(ic, args)
 	if err != nil {
 		panic(err)
 	}
@@ -208,7 +208,7 @@ func (m *Management) Deploy(d dao.DAO, sender util.Uint160, neff *nef.File, mani
 // update is an implementation of public update method, it's run under
 // VM protections, so it's OK for it to panic instead of returning errors.
 func (m *Management) update(ic *interop.Context, args []stackitem.Item) stackitem.Item {
-	neff, manif, err := getNefAndManifestFromItems(args, ic.VM)
+	neff, manif, err := getNefAndManifestFromItems(ic, args)
 	if err != nil {
 		panic(err)
 	}

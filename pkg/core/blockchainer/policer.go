@@ -6,4 +6,5 @@ type Policer interface {
 	GetMaxBlockSize() uint32
 	GetMaxBlockSystemFee() int64
 	GetMaxVerificationGAS() int64
+	GetStoragePrice() int64
 }

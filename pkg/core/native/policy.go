@@ -34,6 +34,8 @@ const (
 	maxExecFeeFactor = 1000
 	// maxFeePerByte is the maximum allowed fee per byte value.
 	maxFeePerByte = 100_000_000
+	// maxStoragePrice is the maximum allowed price for a byte of storage.
+	maxStoragePrice = 10000000
 
 	// blockedAccountPrefix is a prefix used to store blocked account.
 	blockedAccountPrefix = 15
@@ -52,6 +54,8 @@ var (
 	maxBlockSizeKey = []byte{12}
 	// maxBlockSystemFeeKey is a key used to store the maximum block system fee value.
 	maxBlockSystemFeeKey = []byte{17}
+	// storagePriceKey is a key used to store storage price.
+	storagePriceKey = []byte{19}
 )
 
 // Policy represents Policy native contract.
@@ -68,6 +72,7 @@ type Policy struct {
 	feePerByte              int64
 	maxBlockSystemFee       int64
 	maxVerificationGas      int64
+	storagePrice            uint32
 	blockedAccounts         []util.Uint160
 }
 
@@ -107,6 +112,15 @@ func newPolicy() *Policy {
 	desc = newDescriptor("setExecFeeFactor", smartcontract.BoolType,
 		manifest.NewParameter("value", smartcontract.IntegerType))
 	md = newMethodAndPrice(p.setExecFeeFactor, 3000000, smartcontract.WriteStates)
+	p.AddMethod(md, desc)
+
+	desc = newDescriptor("getStoragePrice", smartcontract.IntegerType)
+	md = newMethodAndPrice(p.getStoragePrice, 1000000, smartcontract.ReadStates)
+	p.AddMethod(md, desc)
+
+	desc = newDescriptor("setStoragePrice", smartcontract.BoolType,
+		manifest.NewParameter("value", smartcontract.IntegerType))
+	md = newMethodAndPrice(p.setStoragePrice, 3000000, smartcontract.WriteStates)
 	p.AddMethod(md, desc)
 
 	desc = newDescriptor("setMaxBlockSize", smartcontract.BoolType,
@@ -156,6 +170,7 @@ func (p *Policy) Initialize(ic *interop.Context) error {
 	p.feePerByte = defaultFeePerByte
 	p.maxBlockSystemFee = defaultMaxBlockSystemFee
 	p.maxVerificationGas = defaultMaxVerificationGas
+	p.storagePrice = StoragePrice
 	p.blockedAccounts = make([]util.Uint160, 0)
 
 	return nil
@@ -180,6 +195,7 @@ func (p *Policy) PostPersist(ic *interop.Context) error {
 	p.feePerByte = getInt64WithKey(p.ContractID, ic.DAO, feePerByteKey, defaultFeePerByte)
 	p.maxBlockSystemFee = getInt64WithKey(p.ContractID, ic.DAO, maxBlockSystemFeeKey, defaultMaxBlockSystemFee)
 	p.maxVerificationGas = defaultMaxVerificationGas
+	p.storagePrice = getUint32WithKey(p.ContractID, ic.DAO, storagePriceKey, StoragePrice)
 
 	p.blockedAccounts = make([]util.Uint160, 0)
 	siMap, err := ic.DAO.GetStorageItemsWithPrefix(p.ContractID, []byte{blockedAccountPrefix})
@@ -330,6 +346,41 @@ func (p *Policy) IsBlockedInternal(dao dao.DAO, hash util.Uint160) bool {
 	}
 	key := append([]byte{blockedAccountPrefix}, hash.BytesBE()...)
 	return dao.GetStorageItem(p.ContractID, key) != nil
+}
+
+func (p *Policy) getStoragePrice(ic *interop.Context, _ []stackitem.Item) stackitem.Item {
+	return stackitem.NewBigInteger(big.NewInt(p.GetStoragePriceInternal(ic.DAO)))
+}
+
+// GetStoragePriceInternal returns current execution fee factor.
+func (p *Policy) GetStoragePriceInternal(d dao.DAO) int64 {
+	p.lock.RLock()
+	defer p.lock.RUnlock()
+	if p.isValid {
+		return int64(p.storagePrice)
+	}
+	return int64(getUint32WithKey(p.ContractID, d, storagePriceKey, StoragePrice))
+}
+
+func (p *Policy) setStoragePrice(ic *interop.Context, args []stackitem.Item) stackitem.Item {
+	value := toUint32(args[0])
+	if value <= 0 || maxStoragePrice < value {
+		panic(fmt.Errorf("StoragePrice must be between 0 and %d", maxStoragePrice))
+	}
+	ok, err := checkValidators(ic)
+	if err != nil {
+		panic(err)
+	} else if !ok {
+		return stackitem.NewBool(false)
+	}
+	p.lock.Lock()
+	defer p.lock.Unlock()
+	err = setUint32WithKey(p.ContractID, ic.DAO, storagePriceKey, uint32(value))
+	if err != nil {
+		panic(err)
+	}
+	p.isValid = false
+	return stackitem.NewBool(true)
 }
 
 // setMaxTransactionsPerBlock is Policy contract method and  sets the upper limit

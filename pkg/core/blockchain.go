@@ -1833,4 +1833,9 @@ func (bc *Blockchain) GetMaxVerificationGAS() int64 {
 	return bc.contracts.Policy.GetMaxVerificationGas(bc.dao)
 }
 
+// GetStoragePrice returns current storage price.
+func (bc *Blockchain) GetStoragePrice() int64 {
+	return bc.contracts.Policy.GetStoragePriceInternal(bc.dao)
+}
+
 // -- end Policer.

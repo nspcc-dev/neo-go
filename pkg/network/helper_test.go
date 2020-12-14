@@ -16,6 +16,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/mempool"
+	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto"
@@ -104,6 +105,9 @@ func (chain *testChain) GetPolicer() blockchainer.Policer {
 }
 func (chain *testChain) GetBaseExecFee() int64 {
 	return interop.DefaultBaseExecFee
+}
+func (chain *testChain) GetStoragePrice() int64 {
+	return native.StoragePrice
 }
 func (chain *testChain) GetMaxVerificationGAS() int64 {
 	if chain.maxVerificationGAS != 0 {

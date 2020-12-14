@@ -11,7 +11,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
-	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
@@ -201,7 +200,7 @@ func storageDelete(ic *interop.Context) error {
 	if stc.ReadOnly {
 		return errors.New("StorageContext is read only")
 	}
-	ic.VM.AddGas(native.StoragePrice)
+	ic.VM.AddGas(ic.Chain.GetPolicer().GetStoragePrice())
 	key := ic.VM.Estack().Pop().Bytes()
 	si := ic.DAO.GetStorageItem(stc.ID, key)
 	if si != nil && si.IsConst {
@@ -277,7 +276,7 @@ func putWithContextAndFlags(ic *interop.Context, stc *StorageContext, key []byte
 			sizeInc = (len(si.Value)-1)/4 + 1 + len(value) - len(si.Value)
 		}
 	}
-	if !ic.VM.AddGas(int64(sizeInc) * native.StoragePrice) {
+	if !ic.VM.AddGas(int64(sizeInc) * ic.Chain.GetPolicer().GetStoragePrice()) {
 		return errGasLimitExceeded
 	}
 	si.Value = value
