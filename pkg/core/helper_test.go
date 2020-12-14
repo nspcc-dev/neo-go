@@ -413,7 +413,8 @@ func addNetworkFee(bc *Blockchain, tx *transaction.Transaction, sender *wallet.A
 	return nil
 }
 
-func invokeContractMethod(chain *Blockchain, sysfee int64, hash util.Uint160, method string, args ...interface{}) (*state.AppExecResult, error) {
+func prepareContractMethodInvoke(chain *Blockchain, sysfee int64,
+	hash util.Uint160, method string, args ...interface{}) (*transaction.Transaction, error) {
 	w := io.NewBufBinWriter()
 	emit.AppCallWithOperationAndArgs(w.BinWriter, hash, method, args...)
 	if w.Err != nil {
@@ -427,17 +428,37 @@ func invokeContractMethod(chain *Blockchain, sysfee int64, hash util.Uint160, me
 	if err != nil {
 		return nil, err
 	}
-	b := chain.newBlock(tx)
-	err = chain.AddBlock(b)
+	return tx, nil
+}
+
+func persistBlock(chain *Blockchain, txs ...*transaction.Transaction) ([]*state.AppExecResult, error) {
+	b := chain.newBlock(txs...)
+	err := chain.AddBlock(b)
 	if err != nil {
 		return nil, err
 	}
 
-	res, err := chain.GetAppExecResults(tx.Hash(), trigger.Application)
+	aers := make([]*state.AppExecResult, len(txs))
+	for i, tx := range txs {
+		res, err := chain.GetAppExecResults(tx.Hash(), trigger.Application)
+		if err != nil {
+			return nil, err
+		}
+		aers[i] = &res[0]
+	}
+	return aers, nil
+}
+
+func invokeContractMethod(chain *Blockchain, sysfee int64, hash util.Uint160, method string, args ...interface{}) (*state.AppExecResult, error) {
+	tx, err := prepareContractMethodInvoke(chain, sysfee, hash, method, args...)
 	if err != nil {
 		return nil, err
 	}
-	return &res[0], nil
+	aers, err := persistBlock(chain, tx)
+	if err != nil {
+		return nil, err
+	}
+	return aers[0], nil
 }
 
 func invokeContractMethodBy(t *testing.T, chain *Blockchain, signer *wallet.Account, hash util.Uint160, method string, args ...interface{}) (*state.AppExecResult, error) {

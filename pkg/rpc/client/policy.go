@@ -25,6 +25,11 @@ func (c *Client) GetFeePerByte() (int64, error) {
 	return c.invokeNativePolicyMethod("getFeePerByte")
 }
 
+// GetExecFeeFactor invokes `getExecFeeFactor` method on a native Policy contract.
+func (c *Client) GetExecFeeFactor() (int64, error) {
+	return c.invokeNativePolicyMethod("getExecFeeFactor")
+}
+
 func (c *Client) invokeNativePolicyMethod(operation string) (int64, error) {
 	if !c.initDone {
 		return 0, errNetworkNotInitialized

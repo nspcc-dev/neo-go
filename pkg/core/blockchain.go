@@ -1815,7 +1815,7 @@ func (bc *Blockchain) GetPolicer() blockchainer.Policer {
 
 // GetBaseExecFee return execution price for `NOP`.
 func (bc *Blockchain) GetBaseExecFee() int64 {
-	return interop.DefaultBaseExecFee
+	return bc.contracts.Policy.GetExecFeeFactorInternal(bc.dao)
 }
 
 // GetMaxBlockSize returns maximum allowed block size from native Policy contract.

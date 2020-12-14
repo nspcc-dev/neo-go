@@ -6,6 +6,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/internal/random"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
+	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
 	"github.com/nspcc-dev/neo-go/pkg/network/payload"
@@ -139,6 +140,62 @@ func TestFeePerByte(t *testing.T) {
 		signer, err := wallet.NewAccount()
 		require.NoError(t, err)
 		invokeRes, err := invokeContractMethodBy(t, chain, signer, policyHash, "setFeePerByte", bigint.ToBytes(big.NewInt(1024)))
+		checkResult(t, invokeRes, stackitem.NewBool(false))
+	})
+}
+
+func TestExecFeeFactor(t *testing.T) {
+	chain := newTestChain(t)
+	defer chain.Close()
+	policyHash := chain.contracts.Policy.Metadata().Hash
+
+	t.Run("get, internal method", func(t *testing.T) {
+		n := chain.contracts.Policy.GetExecFeeFactorInternal(chain.dao)
+		require.EqualValues(t, interop.DefaultBaseExecFee, n)
+	})
+
+	t.Run("get", func(t *testing.T) {
+		res, err := invokeContractMethod(chain, 100000000, policyHash, "getExecFeeFactor")
+		require.NoError(t, err)
+		checkResult(t, res, stackitem.NewBigInteger(big.NewInt(interop.DefaultBaseExecFee)))
+		require.NoError(t, chain.persist())
+	})
+
+	t.Run("set, zero fee", func(t *testing.T) {
+		res, err := invokeContractMethod(chain, 100000000, policyHash, "setExecFeeFactor", int64(0))
+		require.NoError(t, err)
+		checkFAULTState(t, res)
+	})
+
+	t.Run("set, too big fee", func(t *testing.T) {
+		res, err := invokeContractMethod(chain, 100000000, policyHash, "setExecFeeFactor", int64(1001))
+		require.NoError(t, err)
+		checkFAULTState(t, res)
+	})
+
+	t.Run("set, success", func(t *testing.T) {
+		// Set and get in the same block.
+		txSet, err := prepareContractMethodInvoke(chain, 100000000, policyHash, "setExecFeeFactor", int64(123))
+		require.NoError(t, err)
+		txGet1, err := prepareContractMethodInvoke(chain, 100000000, policyHash, "getExecFeeFactor")
+		require.NoError(t, err)
+		aers, err := persistBlock(chain, txSet, txGet1)
+		require.NoError(t, err)
+		checkResult(t, aers[0], stackitem.NewBool(true))
+		checkResult(t, aers[1], stackitem.Make(123))
+		require.NoError(t, chain.persist())
+
+		// Get in the next block.
+		res, err := invokeContractMethod(chain, 100000000, policyHash, "getExecFeeFactor")
+		require.NoError(t, err)
+		checkResult(t, res, stackitem.NewBigInteger(big.NewInt(123)))
+		require.NoError(t, chain.persist())
+	})
+
+	t.Run("set, not signed by committee", func(t *testing.T) {
+		signer, err := wallet.NewAccount()
+		require.NoError(t, err)
+		invokeRes, err := invokeContractMethodBy(t, chain, signer, policyHash, "setExecFeeFactor", int64(100))
 		checkResult(t, invokeRes, stackitem.NewBool(false))
 	})
 }
