@@ -8,18 +8,14 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
-	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto"
-	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
-	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
-	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"go.uber.org/zap"
 )
@@ -114,12 +110,7 @@ func NewContractMD(name string) *ContractMD {
 		Methods: make(map[string]MethodAndPrice),
 	}
 
-	w := io.NewBufBinWriter()
-	emit.String(w.BinWriter, c.Name)
-	emit.Syscall(w.BinWriter, interopnames.SystemContractCallNative)
-
-	c.Script = w.Bytes()
-	c.Hash = hash.Hash160(c.Script)
+	c.Script, c.Hash = state.CreateNativeContractHash(c.Name)
 	c.Manifest = *manifest.DefaultManifest(name)
 
 	return c
