@@ -32,6 +32,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"go.uber.org/zap"
@@ -112,6 +113,7 @@ var rpcHandlers = map[string]func(*Server, request.Params) (interface{}, *respon
 	"getversion":             (*Server).getVersion,
 	"invokefunction":         (*Server).invokeFunction,
 	"invokescript":           (*Server).invokescript,
+	"invokecontractverify":   (*Server).invokeContractVerify,
 	"sendrawtransaction":     (*Server).sendrawtransaction,
 	"submitblock":            (*Server).submitBlock,
 	"validateaddress":        (*Server).validateAddress,
@@ -1080,7 +1082,7 @@ func (s *Server) invokeFunction(reqParams request.Params) (interface{}, *respons
 	tx := &transaction.Transaction{}
 	checkWitnessHashesIndex := len(reqParams)
 	if checkWitnessHashesIndex > 3 {
-		signers, err := reqParams[3].GetSigners()
+		signers, _, err := reqParams[3].GetSignersWithWitnesses()
 		if err != nil {
 			return nil, response.ErrInvalidParams
 		}
@@ -1095,7 +1097,7 @@ func (s *Server) invokeFunction(reqParams request.Params) (interface{}, *respons
 		return nil, response.NewInternalServerError("can't create invocation script", err)
 	}
 	tx.Script = script
-	return s.runScriptInVM(script, tx)
+	return s.runScriptInVM(trigger.Application, script, tx)
 }
 
 // invokescript implements the `invokescript` RPC call.
@@ -1111,7 +1113,7 @@ func (s *Server) invokescript(reqParams request.Params) (interface{}, *response.
 
 	tx := &transaction.Transaction{}
 	if len(reqParams) > 1 {
-		signers, err := reqParams[1].GetSigners()
+		signers, _, err := reqParams[1].GetSignersWithWitnesses()
 		if err != nil {
 			return nil, response.ErrInvalidParams
 		}
@@ -1121,12 +1123,53 @@ func (s *Server) invokescript(reqParams request.Params) (interface{}, *response.
 		tx.Signers = []transaction.Signer{{Account: util.Uint160{}, Scopes: transaction.None}}
 	}
 	tx.Script = script
-	return s.runScriptInVM(script, tx)
+	return s.runScriptInVM(trigger.Application, script, tx)
+}
+
+// invokeContractVerify implements the `invokecontractverify` RPC call.
+func (s *Server) invokeContractVerify(reqParams request.Params) (interface{}, *response.Error) {
+	scriptHash, responseErr := s.contractScriptHashFromParam(reqParams.Value(0))
+	if responseErr != nil {
+		return nil, responseErr
+	}
+
+	args := make(request.Params, 1)
+	args[0] = request.Param{
+		Type:  request.StringT,
+		Value: manifest.MethodVerify,
+	}
+	if len(reqParams) > 1 {
+		args = append(args, reqParams[1])
+	}
+	var tx *transaction.Transaction
+	if len(reqParams) > 2 {
+		signers, witnesses, err := reqParams[2].GetSignersWithWitnesses()
+		if err != nil {
+			return nil, response.ErrInvalidParams
+		}
+		tx = &transaction.Transaction{
+			Signers: signers,
+			Scripts: witnesses,
+		}
+	}
+
+	cs := s.chain.GetContractState(scriptHash)
+	if cs == nil {
+		return nil, response.NewRPCError("unknown contract", scriptHash.StringBE(), nil)
+	}
+	script, err := request.CreateFunctionInvocationScript(cs.Hash, args)
+	if err != nil {
+		return nil, response.NewInternalServerError("can't create invocation script", err)
+	}
+	if tx != nil {
+		tx.Script = script
+	}
+	return s.runScriptInVM(trigger.Verification, script, tx)
 }
 
 // runScriptInVM runs given script in a new test VM and returns the invocation
 // result.
-func (s *Server) runScriptInVM(script []byte, tx *transaction.Transaction) (*result.Invoke, *response.Error) {
+func (s *Server) runScriptInVM(t trigger.Type, script []byte, tx *transaction.Transaction) (*result.Invoke, *response.Error) {
 	// When transfering funds, script execution does no auto GAS claim,
 	// because it depends on persisting tx height.
 	// This is why we provide block here.
@@ -1138,7 +1181,7 @@ func (s *Server) runScriptInVM(script []byte, tx *transaction.Transaction) (*res
 	}
 	b.Timestamp = hdr.Timestamp + uint64(s.chain.GetConfig().SecondsPerBlock*int(time.Second/time.Millisecond))
 
-	vm := s.chain.GetTestVM(tx, b)
+	vm := s.chain.GetTestVM(t, tx, b)
 	vm.GasLimit = int64(s.config.MaxGasInvoke)
 	vm.LoadScriptWithFlags(script, smartcontract.All)
 	err = vm.Run()

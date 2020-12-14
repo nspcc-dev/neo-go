@@ -14,6 +14,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/client"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
@@ -274,7 +275,49 @@ func TestCreateNEP17TransferTx(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, acc.SignTx(tx))
 	require.NoError(t, chain.VerifyTx(tx))
-	v := chain.GetTestVM(tx, nil)
+	v := chain.GetTestVM(trigger.Application, tx, nil)
 	v.LoadScriptWithFlags(tx.Script, smartcontract.All)
 	require.NoError(t, v.Run())
+}
+
+func TestInvokeVerify(t *testing.T) {
+	chain, rpcSrv, httpSrv := initServerWithInMemoryChain(t)
+	defer chain.Close()
+	defer rpcSrv.Shutdown()
+
+	c, err := client.New(context.Background(), httpSrv.URL, client.Options{})
+	require.NoError(t, err)
+	require.NoError(t, c.Init())
+
+	contract, err := util.Uint160DecodeStringLE(verifyContractHash)
+	require.NoError(t, err)
+
+	t.Run("positive, with signer", func(t *testing.T) {
+		res, err := c.InvokeContractVerify(contract, smartcontract.Params{}, []transaction.Signer{{Account: testchain.PrivateKeyByID(0).PublicKey().GetScriptHash()}})
+		require.NoError(t, err)
+		require.Equal(t, "HALT", res.State)
+		require.Equal(t, 1, len(res.Stack))
+		require.True(t, res.Stack[0].Value().(bool))
+	})
+
+	t.Run("positive, with signer and witness", func(t *testing.T) {
+		res, err := c.InvokeContractVerify(contract, smartcontract.Params{}, []transaction.Signer{{Account: testchain.PrivateKeyByID(0).PublicKey().GetScriptHash()}}, transaction.Witness{InvocationScript: []byte{byte(opcode.PUSH1), byte(opcode.RET)}})
+		require.NoError(t, err)
+		require.Equal(t, "HALT", res.State)
+		require.Equal(t, 1, len(res.Stack))
+		require.True(t, res.Stack[0].Value().(bool))
+	})
+
+	t.Run("error, invalid witness number", func(t *testing.T) {
+		_, err := c.InvokeContractVerify(contract, smartcontract.Params{}, []transaction.Signer{{Account: testchain.PrivateKeyByID(0).PublicKey().GetScriptHash()}}, transaction.Witness{InvocationScript: []byte{byte(opcode.PUSH1), byte(opcode.RET)}}, transaction.Witness{InvocationScript: []byte{byte(opcode.RET)}})
+		require.Error(t, err)
+	})
+
+	t.Run("false", func(t *testing.T) {
+		res, err := c.InvokeContractVerify(contract, smartcontract.Params{}, []transaction.Signer{{Account: util.Uint160{}}})
+		require.NoError(t, err)
+		require.Equal(t, "HALT", res.State)
+		require.Equal(t, 1, len(res.Stack))
+		require.False(t, res.Stack[0].Value().(bool))
+	})
 }

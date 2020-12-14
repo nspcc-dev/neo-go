@@ -55,7 +55,7 @@ type Blockchainer interface {
 	GetStateRoot(height uint32) (*state.MPTRootState, error)
 	GetStorageItem(id int32, key []byte) *state.StorageItem
 	GetStorageItems(id int32) (map[string]*state.StorageItem, error)
-	GetTestVM(tx *transaction.Transaction, b *block.Block) *vm.VM
+	GetTestVM(t trigger.Type, tx *transaction.Transaction, b *block.Block) *vm.VM
 	GetTransaction(util.Uint256) (*transaction.Transaction, uint32, error)
 	mempool.Feer // fee interface
 	ManagementContractHash() util.Uint160

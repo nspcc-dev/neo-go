@@ -773,6 +773,62 @@ var rpcTestCases = map[string][]rpcTestCase{
 			fail:   true,
 		},
 	},
+	"invokecontractverify": {
+		{
+			name:   "positive",
+			params: fmt.Sprintf(`["%s", [], [{"account":"%s"}]]`, verifyContractHash, testchain.PrivateKeyByID(0).PublicKey().GetScriptHash().StringLE()),
+			result: func(e *executor) interface{} { return &result.Invoke{} },
+			check: func(t *testing.T, e *executor, inv interface{}) {
+				res, ok := inv.(*result.Invoke)
+				require.True(t, ok)
+				assert.NotNil(t, res.Script)
+				assert.Equal(t, "HALT", res.State)
+				assert.NotEqual(t, 0, res.GasConsumed)
+				assert.Equal(t, true, res.Stack[0].Value().(bool))
+			},
+		},
+		{
+			name:   "positive, no signers",
+			params: fmt.Sprintf(`["%s", []]`, verifyContractHash),
+			result: func(e *executor) interface{} { return &result.Invoke{} },
+			check: func(t *testing.T, e *executor, inv interface{}) {
+				res, ok := inv.(*result.Invoke)
+				require.True(t, ok)
+				assert.NotNil(t, res.Script)
+				assert.Equal(t, "HALT", res.State, res.FaultException)
+				assert.NotEqual(t, 0, res.GasConsumed)
+				assert.Equal(t, false, res.Stack[0].Value().(bool))
+			},
+		},
+		{
+			name:   "positive, with scripts",
+			params: fmt.Sprintf(`["%s", [], [{"account":"%s", "invocation":"MQo=", "verification": ""}]]`, verifyContractHash, testchain.PrivateKeyByID(0).PublicKey().GetScriptHash().StringLE()),
+			result: func(e *executor) interface{} { return &result.Invoke{} },
+			check: func(t *testing.T, e *executor, inv interface{}) {
+				res, ok := inv.(*result.Invoke)
+				require.True(t, ok)
+				assert.NotNil(t, res.Script)
+				assert.Equal(t, "HALT", res.State)
+				assert.NotEqual(t, 0, res.GasConsumed)
+				assert.Equal(t, true, res.Stack[0].Value().(bool))
+			},
+		},
+		{
+			name:   "unknown contract",
+			params: fmt.Sprintf(`["%s", []]`, util.Uint160{}.String()),
+			fail:   true,
+		},
+		{
+			name:   "no params",
+			params: `[]`,
+			fail:   true,
+		},
+		{
+			name:   "not a string",
+			params: `[42, []]`,
+			fail:   true,
+		},
+	},
 	"sendrawtransaction": {
 		{
 			name:   "positive",
