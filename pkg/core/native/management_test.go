@@ -61,3 +61,17 @@ func TestDeployGetUpdateDestroyContract(t *testing.T) {
 	_, err = mgmt.GetContract(d, h)
 	require.Error(t, err)
 }
+
+func TestManagement_Initialize(t *testing.T) {
+	t.Run("good", func(t *testing.T) {
+		d := dao.NewSimple(storage.NewMemoryStore(), netmode.UnitTestNet, false)
+		mgmt := newManagement()
+		require.NoError(t, mgmt.InitializeCache(d))
+	})
+	t.Run("invalid contract state", func(t *testing.T) {
+		d := dao.NewSimple(storage.NewMemoryStore(), netmode.UnitTestNet, false)
+		mgmt := newManagement()
+		require.NoError(t, d.PutStorageItem(mgmt.ContractID, []byte{prefixContract}, &state.StorageItem{Value: []byte{0xFF}}))
+		require.Error(t, mgmt.InitializeCache(d))
+	})
+}
