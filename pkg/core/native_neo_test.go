@@ -148,7 +148,7 @@ func TestNEO_Vote(t *testing.T) {
 			tx := transaction.New(netmode.UnitTestNet, w.Bytes(), 0)
 			tx.ValidUntilBlock = bc.BlockHeight() + 1
 			tx.NetworkFee = 2_000_000
-			tx.SystemFee = 10_000_000
+			tx.SystemFee = 11_000_000
 			setSigner(tx, h)
 			require.NoError(t, accs[i].SignTx(tx))
 			txs = append(txs, tx)

@@ -35,7 +35,7 @@ func NewTransferFromOwner(bc blockchainer.Blockchainer, contractHash, to util.Ui
 	}
 
 	script := w.Bytes()
-	tx := transaction.New(netmode.UnitTestNet, script, 10000000)
+	tx := transaction.New(netmode.UnitTestNet, script, 11000000)
 	tx.ValidUntilBlock = validUntil
 	tx.Nonce = nonce
 	tx.Signers = []transaction.Signer{{
