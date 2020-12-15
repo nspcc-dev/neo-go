@@ -61,7 +61,7 @@ func initServiceNextConsensus(t *testing.T, newAcc *wallet.Account, offset uint3
 	emit.Opcodes(w.BinWriter, opcode.ASSERT)
 	require.NoError(t, w.Err)
 
-	tx := transaction.New(netmode.UnitTestNet, w.Bytes(), 20_000_000)
+	tx := transaction.New(netmode.UnitTestNet, w.Bytes(), 21_000_000)
 	tx.ValidUntilBlock = bc.BlockHeight() + 1
 	tx.NetworkFee = 10_000_000
 	tx.Signers = []transaction.Signer{{Scopes: transaction.Global, Account: acc.Contract.ScriptHash()}}

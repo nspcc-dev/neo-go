@@ -373,7 +373,7 @@ func newNEP17Transfer(sc, from, to util.Uint160, amount int64, additionalArgs ..
 	emit.Opcodes(w.BinWriter, opcode.ASSERT)
 
 	script := w.Bytes()
-	return transaction.New(testchain.Network(), script, 10000000)
+	return transaction.New(testchain.Network(), script, 11000000)
 }
 
 func newDeployTx(t *testing.T, bc *Blockchain, sender util.Uint160, name, ctrName string) (*transaction.Transaction, util.Uint160) {
