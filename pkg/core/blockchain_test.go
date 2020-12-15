@@ -20,6 +20,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/core/mempool"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
@@ -555,7 +556,12 @@ func TestVerifyTx(t *testing.T) {
 					})
 					tx.Scripts = append(tx.Scripts, transaction.Witness{})
 					t.Run("NonZeroVerification", func(t *testing.T) {
-						tx.Scripts[len(tx.Scripts)-1].VerificationScript = bc.contracts.Oracle.Script
+						script, _ := state.CreateNativeContractHash(nativenames.Oracle)
+						w := io.NewBufBinWriter()
+						emit.Opcodes(w.BinWriter, opcode.ABORT)
+						emit.Bytes(w.BinWriter, util.Uint160{}.BytesBE())
+						emit.Bytes(w.BinWriter, script)
+						tx.Scripts[len(tx.Scripts)-1].VerificationScript = w.Bytes()
 						err := bc.VerifyTx(tx)
 						require.True(t, errors.Is(err, ErrNativeContractWitness), "got: %v", err)
 					})

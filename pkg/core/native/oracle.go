@@ -48,19 +48,11 @@ const (
 	oracleRequestPrice = 5000_0000
 )
 
-var (
-	oracleInvokeScript []byte
-	oracleScript       []byte
-)
+var oracleScript []byte
 
 func init() {
+	_, h := state.CreateNativeContractHash(nativenames.Oracle)
 	w := io.NewBufBinWriter()
-	emit.String(w.BinWriter, nativenames.Oracle)
-	emit.Syscall(w.BinWriter, interopnames.SystemContractCallNative)
-	oracleInvokeScript = w.Bytes()
-	h := hash.Hash160(oracleInvokeScript)
-
-	w = io.NewBufBinWriter()
 	emit.Int(w.BinWriter, 0)
 	emit.Opcodes(w.BinWriter, opcode.NEWARRAY)
 	emit.String(w.BinWriter, "finish")
@@ -83,13 +75,6 @@ var (
 	ErrRequestNotFound  = errors.New("oracle request not found")
 	ErrResponseNotFound = errors.New("oracle response not found")
 )
-
-// GetOracleInvokeScript returns oracle contract script.
-func GetOracleInvokeScript() []byte {
-	b := make([]byte, len(oracleInvokeScript))
-	copy(b, oracleInvokeScript)
-	return b
-}
 
 // GetOracleResponseScript returns script for transaction with oracle response.
 func GetOracleResponseScript() []byte {
