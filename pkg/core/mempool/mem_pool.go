@@ -216,7 +216,6 @@ func (mp *Pool) Add(t *transaction.Transaction, fee Feer, data ...interface{}) e
 		mp.oracleResp[id] = t.Hash()
 	}
 
-	mp.verifiedMap[t.Hash()] = t
 	if fee.P2PSigExtensionsEnabled() {
 		// Remove conflicting transactions.
 		for _, conflictingTx := range conflictsToBeRemoved {
@@ -254,6 +253,7 @@ func (mp *Pool) Add(t *transaction.Transaction, fee Feer, data ...interface{}) e
 		copy(mp.verifiedTxes[n+1:], mp.verifiedTxes[n:])
 		mp.verifiedTxes[n] = pItem
 	}
+	mp.verifiedMap[t.Hash()] = t
 	if fee.P2PSigExtensionsEnabled() {
 		// Add conflicting hashes to the mp.conflicts list.
 		for _, attr := range t.GetAttributes(transaction.ConflictsT) {
