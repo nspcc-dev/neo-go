@@ -344,6 +344,8 @@ func TestService_OnPayload(t *testing.T) {
 func TestVerifyBlock(t *testing.T) {
 	srv := newTestService(t)
 	defer srv.Chain.Close()
+
+	srv.lastTimestamp = 1
 	t.Run("good empty", func(t *testing.T) {
 		b := testchain.NewBlock(t, srv.Chain, 1, 0)
 		require.True(t, srv.verifyBlock(&neoBlock{Block: *b}))
@@ -384,6 +386,11 @@ func TestVerifyBlock(t *testing.T) {
 	t.Run("bad old", func(t *testing.T) {
 		b := testchain.NewBlock(t, srv.Chain, 1, 0)
 		b.Index = srv.Chain.BlockHeight()
+		require.False(t, srv.verifyBlock(&neoBlock{Block: *b}))
+	})
+	t.Run("bad timestamp", func(t *testing.T) {
+		b := testchain.NewBlock(t, srv.Chain, 1, 0)
+		b.Timestamp = srv.lastTimestamp - 1
 		require.False(t, srv.verifyBlock(&neoBlock{Block: *b}))
 	})
 	t.Run("bad big size", func(t *testing.T) {

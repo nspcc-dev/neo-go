@@ -81,6 +81,11 @@ type service struct {
 	started  *atomic.Bool
 	quit     chan struct{}
 	finished chan struct{}
+	// lastTimestamp contains timestamp for the last processed block.
+	// We can't rely on timestamp from dbft context because it is changed
+	// before block is accepted, so in case of change view it will contain
+	// updated value.
+	lastTimestamp uint64
 }
 
 // Config is a configuration for consensus services.
@@ -298,6 +303,9 @@ func (s *service) handleChainBlock(b *coreb.Block) {
 		s.log.Debug("new block in the chain",
 			zap.Uint32("dbft index", s.dbft.BlockIndex),
 			zap.Uint32("chain index", s.Chain.BlockHeight()))
+		if s.lastTimestamp < b.Timestamp {
+			s.lastTimestamp = b.Timestamp
+		}
 		s.dbft.InitializeConsensus(0)
 	}
 }
@@ -418,6 +426,12 @@ func (s *service) verifyBlock(b block.Block) bool {
 		s.log.Warn("proposed block has already outdated")
 		return false
 	}
+	if s.lastTimestamp >= coreb.Timestamp {
+		s.log.Warn("proposed block has small timestamp",
+			zap.Uint64("ts", coreb.Timestamp),
+			zap.Uint64("last", s.lastTimestamp))
+		return false
+	}
 	maxBlockSize := int(s.Chain.GetPolicer().GetMaxBlockSize())
 	size := io.GetVarSize(coreb)
 	if size > maxBlockSize {
@@ -491,6 +505,9 @@ func (s *service) processBlock(b block.Block) {
 		if _, errget := s.Chain.GetBlock(bb.Hash()); errget != nil {
 			s.log.Warn("error on add block", zap.Error(err))
 		}
+	}
+	if s.lastTimestamp < bb.Timestamp {
+		s.lastTimestamp = bb.Timestamp
 	}
 }
 
