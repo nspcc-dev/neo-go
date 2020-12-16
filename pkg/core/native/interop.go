@@ -35,6 +35,7 @@ func Call(ic *interop.Context) error {
 	if !ic.VM.Context().GetCallFlags().Has(m.RequiredFlags) {
 		return fmt.Errorf("missing call flags for native %s `%s` operation call: %05b vs %05b", name, operation, ic.VM.Context().GetCallFlags(), m.RequiredFlags)
 	}
+	// Native contract prices are not multiplied by `BaseExecFee`.
 	if !ic.VM.AddGas(m.Price) {
 		return errors.New("gas limit exceeded")
 	}

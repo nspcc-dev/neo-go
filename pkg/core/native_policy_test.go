@@ -1,13 +1,12 @@
 package core
 
 import (
-	"math/big"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/internal/random"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
+	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
-	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
 	"github.com/nspcc-dev/neo-go/pkg/network/payload"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
@@ -15,174 +14,129 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func testPolicyGetSet(t *testing.T, chain *Blockchain, name string, defaultValue, minValue, maxValue int64) {
+	policyHash := chain.contracts.Policy.Metadata().Hash
+	getName := "get" + name
+	setName := "set" + name
+
+	t.Run("set, not signed by committee", func(t *testing.T) {
+		signer, err := wallet.NewAccount()
+		require.NoError(t, err)
+		invokeRes, err := invokeContractMethodBy(t, chain, signer, policyHash, setName, minValue+1)
+		checkResult(t, invokeRes, stackitem.NewBool(false))
+	})
+
+	t.Run("get", func(t *testing.T) {
+		res, err := invokeContractMethod(chain, 100000000, policyHash, getName)
+		require.NoError(t, err)
+		checkResult(t, res, stackitem.Make(defaultValue))
+		require.NoError(t, chain.persist())
+	})
+
+	t.Run("set, zero fee", func(t *testing.T) {
+		res, err := invokeContractMethod(chain, 100000000, policyHash, setName, minValue-1)
+		require.NoError(t, err)
+		checkFAULTState(t, res)
+	})
+
+	if maxValue != 0 {
+		t.Run("set, too big fee", func(t *testing.T) {
+			res, err := invokeContractMethod(chain, 100000000, policyHash, setName, maxValue+1)
+			require.NoError(t, err)
+			checkFAULTState(t, res)
+		})
+	}
+
+	t.Run("set, success", func(t *testing.T) {
+		// Set and get in the same block.
+		txSet, err := prepareContractMethodInvoke(chain, 100000000, policyHash, setName, defaultValue+1)
+		require.NoError(t, err)
+		txGet1, err := prepareContractMethodInvoke(chain, 100000000, policyHash, getName)
+		require.NoError(t, err)
+		aers, err := persistBlock(chain, txSet, txGet1)
+		require.NoError(t, err)
+		checkResult(t, aers[0], stackitem.NewBool(true))
+		checkResult(t, aers[1], stackitem.Make(defaultValue+1))
+		require.NoError(t, chain.persist())
+
+		// Get in the next block.
+		res, err := invokeContractMethod(chain, 100000000, policyHash, getName)
+		require.NoError(t, err)
+		checkResult(t, res, stackitem.Make(defaultValue+1))
+		require.NoError(t, chain.persist())
+	})
+}
+
 func TestMaxTransactionsPerBlock(t *testing.T) {
 	chain := newTestChain(t)
 	defer chain.Close()
-	policyHash := chain.contracts.Policy.Metadata().Hash
 
 	t.Run("get, internal method", func(t *testing.T) {
 		n := chain.contracts.Policy.GetMaxTransactionsPerBlockInternal(chain.dao)
 		require.Equal(t, 512, int(n))
 	})
 
-	t.Run("get, contract method", func(t *testing.T) {
-		res, err := invokeContractMethod(chain, 100000000, policyHash, "getMaxTransactionsPerBlock")
-		require.NoError(t, err)
-		checkResult(t, res, stackitem.NewBigInteger(big.NewInt(512)))
-		require.NoError(t, chain.persist())
-	})
-
-	t.Run("set", func(t *testing.T) {
-		res, err := invokeContractMethod(chain, 100000000, policyHash, "setMaxTransactionsPerBlock", bigint.ToBytes(big.NewInt(1024)))
-		require.NoError(t, err)
-		checkResult(t, res, stackitem.NewBool(true))
-		require.NoError(t, chain.persist())
-		n := chain.contracts.Policy.GetMaxTransactionsPerBlockInternal(chain.dao)
-		require.Equal(t, 1024, int(n))
-	})
-
-	t.Run("set, too big value", func(t *testing.T) {
-		res, err := invokeContractMethod(chain, 100000000, policyHash, "setMaxTransactionsPerBlock", bigint.ToBytes(big.NewInt(block.MaxContentsPerBlock)))
-		require.NoError(t, err)
-		checkFAULTState(t, res)
-	})
-
-	t.Run("set, not signed by committee", func(t *testing.T) {
-		signer, err := wallet.NewAccount()
-		require.NoError(t, err)
-		invokeRes, err := invokeContractMethodBy(t, chain, signer, policyHash, "setMaxTransactionsPerBlock", bigint.ToBytes(big.NewInt(1024)))
-		checkResult(t, invokeRes, stackitem.NewBool(false))
-	})
+	testPolicyGetSet(t, chain, "MaxTransactionsPerBlock", 512, 0, block.MaxTransactionsPerBlock)
 }
 
 func TestMaxBlockSize(t *testing.T) {
 	chain := newTestChain(t)
 	defer chain.Close()
-	policyHash := chain.contracts.Policy.Metadata().Hash
 
 	t.Run("get, internal method", func(t *testing.T) {
 		n := chain.contracts.Policy.GetMaxBlockSizeInternal(chain.dao)
 		require.Equal(t, 1024*256, int(n))
 	})
 
-	t.Run("get, contract method", func(t *testing.T) {
-		res, err := invokeContractMethod(chain, 100000000, policyHash, "getMaxBlockSize")
-		require.NoError(t, err)
-		checkResult(t, res, stackitem.NewBigInteger(big.NewInt(1024*256)))
-		require.NoError(t, chain.persist())
-	})
-
-	t.Run("set", func(t *testing.T) {
-		res, err := invokeContractMethod(chain, 100000000, policyHash, "setMaxBlockSize", bigint.ToBytes(big.NewInt(102400)))
-		require.NoError(t, err)
-		checkResult(t, res, stackitem.NewBool(true))
-		require.NoError(t, chain.persist())
-		res, err = invokeContractMethod(chain, 100000000, policyHash, "getMaxBlockSize")
-		require.NoError(t, err)
-		checkResult(t, res, stackitem.NewBigInteger(big.NewInt(102400)))
-		require.NoError(t, chain.persist())
-	})
-
-	t.Run("set, too big value", func(t *testing.T) {
-		res, err := invokeContractMethod(chain, 100000000, policyHash, "setMaxBlockSize", bigint.ToBytes(big.NewInt(payload.MaxSize+1)))
-		require.NoError(t, err)
-		checkFAULTState(t, res)
-	})
-
-	t.Run("set, not signed by committee", func(t *testing.T) {
-		signer, err := wallet.NewAccount()
-		require.NoError(t, err)
-		invokeRes, err := invokeContractMethodBy(t, chain, signer, policyHash, "setMaxBlockSize", bigint.ToBytes(big.NewInt(102400)))
-		checkResult(t, invokeRes, stackitem.NewBool(false))
-	})
+	testPolicyGetSet(t, chain, "MaxBlockSize", 1024*256, 0, payload.MaxSize)
 }
 
 func TestFeePerByte(t *testing.T) {
 	chain := newTestChain(t)
 	defer chain.Close()
-	policyHash := chain.contracts.Policy.Metadata().Hash
 
 	t.Run("get, internal method", func(t *testing.T) {
 		n := chain.contracts.Policy.GetFeePerByteInternal(chain.dao)
 		require.Equal(t, 1000, int(n))
 	})
 
-	t.Run("get, contract method", func(t *testing.T) {
-		res, err := invokeContractMethod(chain, 100000000, policyHash, "getFeePerByte")
-		require.NoError(t, err)
-		checkResult(t, res, stackitem.NewBigInteger(big.NewInt(1000)))
-		require.NoError(t, chain.persist())
+	testPolicyGetSet(t, chain, "FeePerByte", 1000, 0, 100_000_000)
+}
+
+func TestExecFeeFactor(t *testing.T) {
+	chain := newTestChain(t)
+	defer chain.Close()
+
+	t.Run("get, internal method", func(t *testing.T) {
+		n := chain.contracts.Policy.GetExecFeeFactorInternal(chain.dao)
+		require.EqualValues(t, interop.DefaultBaseExecFee, n)
 	})
 
-	t.Run("set", func(t *testing.T) {
-		res, err := invokeContractMethod(chain, 100000000, policyHash, "setFeePerByte", bigint.ToBytes(big.NewInt(1024)))
-		require.NoError(t, err)
-		checkResult(t, res, stackitem.NewBool(true))
-		require.NoError(t, chain.persist())
-		n := chain.contracts.Policy.GetFeePerByteInternal(chain.dao)
-		require.Equal(t, 1024, int(n))
-	})
-
-	t.Run("set, negative value", func(t *testing.T) {
-		res, err := invokeContractMethod(chain, 100000000, policyHash, "setFeePerByte", bigint.ToBytes(big.NewInt(-1)))
-		require.NoError(t, err)
-		checkFAULTState(t, res)
-	})
-
-	t.Run("set, too big value", func(t *testing.T) {
-		res, err := invokeContractMethod(chain, 100000000, policyHash, "setFeePerByte", bigint.ToBytes(big.NewInt(100_000_000+1)))
-		require.NoError(t, err)
-		checkFAULTState(t, res)
-	})
-
-	t.Run("set, not signed by committee", func(t *testing.T) {
-		signer, err := wallet.NewAccount()
-		require.NoError(t, err)
-		invokeRes, err := invokeContractMethodBy(t, chain, signer, policyHash, "setFeePerByte", bigint.ToBytes(big.NewInt(1024)))
-		checkResult(t, invokeRes, stackitem.NewBool(false))
-	})
+	testPolicyGetSet(t, chain, "ExecFeeFactor", interop.DefaultBaseExecFee, 1, 1000)
 }
 
 func TestBlockSystemFee(t *testing.T) {
 	chain := newTestChain(t)
 	defer chain.Close()
-	policyHash := chain.contracts.Policy.Metadata().Hash
 
 	t.Run("get, internal method", func(t *testing.T) {
 		n := chain.contracts.Policy.GetMaxBlockSystemFeeInternal(chain.dao)
 		require.Equal(t, 9000*native.GASFactor, int(n))
 	})
 
-	t.Run("get", func(t *testing.T) {
-		res, err := invokeContractMethod(chain, 100000000, policyHash, "getMaxBlockSystemFee")
-		require.NoError(t, err)
-		checkResult(t, res, stackitem.NewBigInteger(big.NewInt(9000*native.GASFactor)))
-		require.NoError(t, chain.persist())
+	testPolicyGetSet(t, chain, "MaxBlockSystemFee", 9000*native.GASFactor, 4007600, 0)
+}
+
+func TestStoragePrice(t *testing.T) {
+	chain := newTestChain(t)
+	defer chain.Close()
+
+	t.Run("get, internal method", func(t *testing.T) {
+		n := chain.contracts.Policy.GetStoragePriceInternal(chain.dao)
+		require.Equal(t, int64(native.StoragePrice), n)
 	})
 
-	t.Run("set, too low fee", func(t *testing.T) {
-		res, err := invokeContractMethod(chain, 100000000, policyHash, "setMaxBlockSystemFee", bigint.ToBytes(big.NewInt(4007600)))
-		require.NoError(t, err)
-		checkFAULTState(t, res)
-	})
-
-	t.Run("set, success", func(t *testing.T) {
-		res, err := invokeContractMethod(chain, 100000000, policyHash, "setMaxBlockSystemFee", bigint.ToBytes(big.NewInt(100000000)))
-		require.NoError(t, err)
-		checkResult(t, res, stackitem.NewBool(true))
-		require.NoError(t, chain.persist())
-		res, err = invokeContractMethod(chain, 100000000, policyHash, "getMaxBlockSystemFee")
-		require.NoError(t, err)
-		checkResult(t, res, stackitem.NewBigInteger(big.NewInt(100000000)))
-		require.NoError(t, chain.persist())
-	})
-
-	t.Run("set, not signed by committee", func(t *testing.T) {
-		signer, err := wallet.NewAccount()
-		require.NoError(t, err)
-		invokeRes, err := invokeContractMethodBy(t, chain, signer, policyHash, "setMaxBlockSystemFee", bigint.ToBytes(big.NewInt(100000000)))
-		checkResult(t, invokeRes, stackitem.NewBool(false))
-	})
+	testPolicyGetSet(t, chain, "StoragePrice", native.StoragePrice, 1, 10000000)
 }
 
 func TestBlockedAccounts(t *testing.T) {

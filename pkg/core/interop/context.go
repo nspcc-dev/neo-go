@@ -20,6 +20,11 @@ import (
 	"go.uber.org/zap"
 )
 
+const (
+	// DefaultBaseExecFee specifies default multiplier for opcode and syscall prices.
+	DefaultBaseExecFee = 30
+)
+
 // Context represents context in which interops are executed.
 type Context struct {
 	Chain         blockchainer.Blockchainer
@@ -155,6 +160,14 @@ func (ic *Context) GetFunction(id uint32) *Function {
 	return nil
 }
 
+// BaseExecFee represents factor to multiply syscall prices with.
+func (ic *Context) BaseExecFee() int64 {
+	if ic.Chain == nil {
+		return DefaultBaseExecFee
+	}
+	return ic.Chain.GetPolicer().GetBaseExecFee()
+}
+
 // SyscallHandler handles syscall with id.
 func (ic *Context) SyscallHandler(_ *vm.VM, id uint32) error {
 	f := ic.GetFunction(id)
@@ -165,7 +178,7 @@ func (ic *Context) SyscallHandler(_ *vm.VM, id uint32) error {
 	if !cf.Has(f.RequiredFlags) {
 		return fmt.Errorf("missing call flags: %05b vs %05b", cf, f.RequiredFlags)
 	}
-	if !ic.VM.AddGas(f.Price) {
+	if !ic.VM.AddGas(f.Price * ic.BaseExecFee()) {
 		return errors.New("insufficient amount of gas")
 	}
 	return f.Func(ic)

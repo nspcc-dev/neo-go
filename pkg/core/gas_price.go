@@ -7,6 +7,6 @@ import (
 )
 
 // getPrice returns a price for executing op with the provided parameter.
-func getPrice(v *vm.VM, op opcode.Opcode, parameter []byte) int64 {
-	return fee.Opcode(op)
+func (bc *Blockchain) getPrice(v *vm.VM, op opcode.Opcode, parameter []byte) int64 {
+	return fee.Opcode(bc.GetBaseExecFee(), op)
 }

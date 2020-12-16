@@ -569,6 +569,7 @@ func (c *Client) AddNetworkFee(tx *transaction.Transaction, extraFee int64, accs
 		return errors.New("number of signers must match number of scripts")
 	}
 	size := io.GetVarSize(tx)
+	var ef int64
 	for i, cosigner := range tx.Signers {
 		if accs[i].Contract.Deployed {
 			res, err := c.InvokeFunction(cosigner.Account, manifest.MethodVerify, []smartcontract.Parameter{}, tx.Signers)
@@ -589,7 +590,15 @@ func (c *Client) AddNetworkFee(tx *transaction.Transaction, extraFee int64, accs
 			size += io.GetVarSize([]byte{}) * 2 // both scripts are empty
 			continue
 		}
-		netFee, sizeDelta := fee.Calculate(accs[i].Contract.Script)
+
+		if ef == 0 {
+			var err error
+			ef, err = c.GetExecFeeFactor()
+			if err != nil {
+				return fmt.Errorf("can't get `ExecFeeFactor`: %w", err)
+			}
+		}
+		netFee, sizeDelta := fee.Calculate(ef, accs[i].Contract.Script)
 		tx.NetworkFee += netFee
 		size += sizeDelta
 	}
