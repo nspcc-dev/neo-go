@@ -72,7 +72,7 @@ func newManagement() *Management {
 	m.AddMethod(md, desc)
 
 	desc = newDescriptor("destroy", smartcontract.VoidType)
-	md = newMethodAndPrice(m.destroy, 10000000, smartcontract.WriteStates)
+	md = newMethodAndPrice(m.destroy, 1000000, smartcontract.WriteStates)
 	m.AddMethod(md, desc)
 
 	return m
