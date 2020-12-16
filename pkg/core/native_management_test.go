@@ -159,7 +159,11 @@ func TestContractDeploy(t *testing.T) {
 			require.Equal(t, 1, len(res.Stack))
 			compareContractStates(t, cs1, res.Stack[0])
 		}
-
+		require.Equal(t, aers[0].Events, []state.NotificationEvent{{
+			ScriptHash: mgmtHash,
+			Name:       "Deploy",
+			Item:       stackitem.NewArray([]stackitem.Item{stackitem.NewByteArray(cs1.Hash.BytesBE())}),
+		}})
 		t.Run("_deploy called", func(t *testing.T) {
 			res, err := invokeContractMethod(bc, 1_00000000, cs1.Hash, "getValue")
 			require.NoError(t, err)
@@ -337,7 +341,11 @@ func TestContractUpdate(t *testing.T) {
 		require.Equal(t, vm.HaltState, aers[1].VMState)
 		require.Equal(t, 1, len(aers[1].Stack))
 		compareContractStates(t, cs1, aers[1].Stack[0])
-
+		require.Equal(t, aers[0].Events, []state.NotificationEvent{{
+			ScriptHash: mgmtHash,
+			Name:       "Update",
+			Item:       stackitem.NewArray([]stackitem.Item{stackitem.NewByteArray(cs1.Hash.BytesBE())}),
+		}})
 		t.Run("_deploy called", func(t *testing.T) {
 			res, err := invokeContractMethod(bc, 1_00000000, cs1.Hash, "getValue")
 			require.NoError(t, err)
@@ -358,6 +366,11 @@ func TestContractUpdate(t *testing.T) {
 		res, err := invokeContractMethod(bc, 10_00000000, cs1.Hash, "update", nil, manif1)
 		require.NoError(t, err)
 		require.Equal(t, vm.HaltState, res.VMState)
+		require.Equal(t, res.Events, []state.NotificationEvent{{
+			ScriptHash: mgmtHash,
+			Name:       "Update",
+			Item:       stackitem.NewArray([]stackitem.Item{stackitem.NewByteArray(cs1.Hash.BytesBE())}),
+		}})
 		t.Run("check contract", func(t *testing.T) {
 			checkContractState(t, bc, cs1.Hash, cs1)
 		})
@@ -377,6 +390,11 @@ func TestContractUpdate(t *testing.T) {
 		res, err := invokeContractMethod(bc, 10_00000000, cs1.Hash, "update", nef1b, manif1)
 		require.NoError(t, err)
 		require.Equal(t, vm.HaltState, res.VMState)
+		require.Equal(t, res.Events, []state.NotificationEvent{{
+			ScriptHash: mgmtHash,
+			Name:       "Update",
+			Item:       stackitem.NewArray([]stackitem.Item{stackitem.NewByteArray(cs1.Hash.BytesBE())}),
+		}})
 		t.Run("check contract", func(t *testing.T) {
 			checkContractState(t, bc, cs1.Hash, cs1)
 		})
@@ -432,6 +450,11 @@ func TestContractDestroy(t *testing.T) {
 		res, err := invokeContractMethod(bc, 1_00000000, cs1.Hash, "destroy")
 		require.NoError(t, err)
 		require.Equal(t, vm.HaltState, res.VMState)
+		require.Equal(t, res.Events, []state.NotificationEvent{{
+			ScriptHash: mgmtHash,
+			Name:       "Destroy",
+			Item:       stackitem.NewArray([]stackitem.Item{stackitem.NewByteArray(cs1.Hash.BytesBE())}),
+		}})
 		t.Run("check contract", func(t *testing.T) {
 			res, err := invokeContractMethod(bc, 1_00000000, mgmtHash, "getContract", cs1.Hash.BytesBE())
 			require.NoError(t, err)

@@ -38,7 +38,10 @@ const StoragePrice = 100000
 const (
 	prefixContract = 8
 
-	defaultMinimumDeploymentFee = 10_00000000
+	defaultMinimumDeploymentFee     = 10_00000000
+	contractDeployNotificationName  = "Deploy"
+	contractUpdateNotificationName  = "Update"
+	contractDestroyNotificationName = "Destroy"
 )
 
 var (
@@ -68,17 +71,17 @@ func newManagement() *Management {
 	desc = newDescriptor("deploy", smartcontract.ArrayType,
 		manifest.NewParameter("script", smartcontract.ByteArrayType),
 		manifest.NewParameter("manifest", smartcontract.ByteArrayType))
-	md = newMethodAndPrice(m.deploy, 0, smartcontract.WriteStates)
+	md = newMethodAndPrice(m.deploy, 0, smartcontract.WriteStates|smartcontract.AllowNotify)
 	m.AddMethod(md, desc)
 
 	desc = newDescriptor("update", smartcontract.VoidType,
 		manifest.NewParameter("script", smartcontract.ByteArrayType),
 		manifest.NewParameter("manifest", smartcontract.ByteArrayType))
-	md = newMethodAndPrice(m.update, 0, smartcontract.WriteStates)
+	md = newMethodAndPrice(m.update, 0, smartcontract.WriteStates|smartcontract.AllowNotify)
 	m.AddMethod(md, desc)
 
 	desc = newDescriptor("destroy", smartcontract.VoidType)
-	md = newMethodAndPrice(m.destroy, 1000000, smartcontract.WriteStates)
+	md = newMethodAndPrice(m.destroy, 1000000, smartcontract.WriteStates|smartcontract.AllowNotify)
 	m.AddMethod(md, desc)
 
 	desc = newDescriptor("getMinimumDeploymentFee", smartcontract.IntegerType)
@@ -89,6 +92,11 @@ func newManagement() *Management {
 		manifest.NewParameter("value", smartcontract.IntegerType))
 	md = newMethodAndPrice(m.setMinimumDeploymentFee, 300_0000, smartcontract.WriteStates)
 	m.AddMethod(md, desc)
+
+	hashParam := manifest.NewParameter("Hash", smartcontract.Hash160Type)
+	m.AddEvent(contractDeployNotificationName, hashParam)
+	m.AddEvent(contractUpdateNotificationName, hashParam)
+	m.AddEvent(contractDestroyNotificationName, hashParam)
 	return m
 }
 
@@ -214,6 +222,7 @@ func (m *Management) deploy(ic *interop.Context, args []stackitem.Item) stackite
 		panic(err)
 	}
 	callDeploy(ic, newcontract, false)
+	m.emitNotification(ic, contractDeployNotificationName, newcontract.Hash)
 	return contractToStack(newcontract)
 }
 
@@ -225,7 +234,7 @@ func (m *Management) markUpdated(h util.Uint160) {
 }
 
 // Deploy creates contract's hash/ID and saves new contract into the given DAO.
-// It doesn't run _deploy method.
+// It doesn't run _deploy method and doesn't emit notification.
 func (m *Management) Deploy(d dao.DAO, sender util.Uint160, neff *nef.File, manif *manifest.Manifest) (*state.Contract, error) {
 	h := state.CreateContractHash(sender, neff.Script)
 	key := makeContractKey(h)
@@ -269,11 +278,12 @@ func (m *Management) update(ic *interop.Context, args []stackitem.Item) stackite
 		panic(err)
 	}
 	callDeploy(ic, contract, true)
+	m.emitNotification(ic, contractUpdateNotificationName, contract.Hash)
 	return stackitem.Null{}
 }
 
 // Update updates contract's script and/or manifest in the given DAO.
-// It doesn't run _deploy method.
+// It doesn't run _deploy method and doesn't emit notification.
 func (m *Management) Update(d dao.DAO, hash util.Uint160, neff *nef.File, manif *manifest.Manifest) (*state.Contract, error) {
 	contract, err := m.GetContract(d, hash)
 	if err != nil {
@@ -308,10 +318,11 @@ func (m *Management) destroy(ic *interop.Context, sis []stackitem.Item) stackite
 	if err != nil {
 		panic(err)
 	}
+	m.emitNotification(ic, contractDestroyNotificationName, hash)
 	return stackitem.Null{}
 }
 
-// Destroy drops given contract from DAO along with its storage.
+// Destroy drops given contract from DAO along with its storage. It doesn't emit notification.
 func (m *Management) Destroy(d dao.DAO, hash util.Uint160) error {
 	contract, err := m.GetContract(d, hash)
 	if err != nil {
@@ -501,4 +512,13 @@ func (m *Management) getNextContractID(d dao.DAO) (int32, error) {
 	id.Add(id, big.NewInt(1))
 	si.Value = bigint.ToPreallocatedBytes(id, si.Value)
 	return ret, d.PutStorageItem(m.ContractID, keyNextAvailableID, si)
+}
+
+func (m *Management) emitNotification(ic *interop.Context, name string, hash util.Uint160) {
+	ne := state.NotificationEvent{
+		ScriptHash: m.Hash,
+		Name:       name,
+		Item:       stackitem.NewArray([]stackitem.Item{addrToStackItem(&hash)}),
+	}
+	ic.Notifications = append(ic.Notifications, ne)
 }
