@@ -14,34 +14,33 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func testPolicyGetSet(t *testing.T, chain *Blockchain, name string, defaultValue, minValue, maxValue int64) {
-	policyHash := chain.contracts.Policy.Metadata().Hash
+func testGetSet(t *testing.T, chain *Blockchain, hash util.Uint160, name string, defaultValue, minValue, maxValue int64) {
 	getName := "get" + name
 	setName := "set" + name
 
 	t.Run("set, not signed by committee", func(t *testing.T) {
 		signer, err := wallet.NewAccount()
 		require.NoError(t, err)
-		invokeRes, err := invokeContractMethodBy(t, chain, signer, policyHash, setName, minValue+1)
+		invokeRes, err := invokeContractMethodBy(t, chain, signer, hash, setName, minValue+1)
 		checkResult(t, invokeRes, stackitem.NewBool(false))
 	})
 
-	t.Run("get", func(t *testing.T) {
-		res, err := invokeContractMethod(chain, 100000000, policyHash, getName)
+	t.Run("get, defult value", func(t *testing.T) {
+		res, err := invokeContractMethod(chain, 100000000, hash, getName)
 		require.NoError(t, err)
 		checkResult(t, res, stackitem.Make(defaultValue))
 		require.NoError(t, chain.persist())
 	})
 
-	t.Run("set, zero fee", func(t *testing.T) {
-		res, err := invokeContractMethod(chain, 100000000, policyHash, setName, minValue-1)
+	t.Run("set, too small value", func(t *testing.T) {
+		res, err := invokeContractMethod(chain, 100000000, hash, setName, minValue-1)
 		require.NoError(t, err)
 		checkFAULTState(t, res)
 	})
 
 	if maxValue != 0 {
-		t.Run("set, too big fee", func(t *testing.T) {
-			res, err := invokeContractMethod(chain, 100000000, policyHash, setName, maxValue+1)
+		t.Run("set, too large value", func(t *testing.T) {
+			res, err := invokeContractMethod(chain, 100000000, hash, setName, maxValue+1)
 			require.NoError(t, err)
 			checkFAULTState(t, res)
 		})
@@ -49,9 +48,9 @@ func testPolicyGetSet(t *testing.T, chain *Blockchain, name string, defaultValue
 
 	t.Run("set, success", func(t *testing.T) {
 		// Set and get in the same block.
-		txSet, err := prepareContractMethodInvoke(chain, 100000000, policyHash, setName, defaultValue+1)
+		txSet, err := prepareContractMethodInvoke(chain, 100000000, hash, setName, defaultValue+1)
 		require.NoError(t, err)
-		txGet1, err := prepareContractMethodInvoke(chain, 100000000, policyHash, getName)
+		txGet1, err := prepareContractMethodInvoke(chain, 100000000, hash, getName)
 		require.NoError(t, err)
 		aers, err := persistBlock(chain, txSet, txGet1)
 		require.NoError(t, err)
@@ -60,7 +59,7 @@ func testPolicyGetSet(t *testing.T, chain *Blockchain, name string, defaultValue
 		require.NoError(t, chain.persist())
 
 		// Get in the next block.
-		res, err := invokeContractMethod(chain, 100000000, policyHash, getName)
+		res, err := invokeContractMethod(chain, 100000000, hash, getName)
 		require.NoError(t, err)
 		checkResult(t, res, stackitem.Make(defaultValue+1))
 		require.NoError(t, chain.persist())
@@ -76,7 +75,7 @@ func TestMaxTransactionsPerBlock(t *testing.T) {
 		require.Equal(t, 512, int(n))
 	})
 
-	testPolicyGetSet(t, chain, "MaxTransactionsPerBlock", 512, 0, block.MaxTransactionsPerBlock)
+	testGetSet(t, chain, chain.contracts.Policy.Hash, "MaxTransactionsPerBlock", 512, 0, block.MaxTransactionsPerBlock)
 }
 
 func TestMaxBlockSize(t *testing.T) {
@@ -88,7 +87,7 @@ func TestMaxBlockSize(t *testing.T) {
 		require.Equal(t, 1024*256, int(n))
 	})
 
-	testPolicyGetSet(t, chain, "MaxBlockSize", 1024*256, 0, payload.MaxSize)
+	testGetSet(t, chain, chain.contracts.Policy.Hash, "MaxBlockSize", 1024*256, 0, payload.MaxSize)
 }
 
 func TestFeePerByte(t *testing.T) {
@@ -100,7 +99,7 @@ func TestFeePerByte(t *testing.T) {
 		require.Equal(t, 1000, int(n))
 	})
 
-	testPolicyGetSet(t, chain, "FeePerByte", 1000, 0, 100_000_000)
+	testGetSet(t, chain, chain.contracts.Policy.Hash, "FeePerByte", 1000, 0, 100_000_000)
 }
 
 func TestExecFeeFactor(t *testing.T) {
@@ -112,7 +111,7 @@ func TestExecFeeFactor(t *testing.T) {
 		require.EqualValues(t, interop.DefaultBaseExecFee, n)
 	})
 
-	testPolicyGetSet(t, chain, "ExecFeeFactor", interop.DefaultBaseExecFee, 1, 1000)
+	testGetSet(t, chain, chain.contracts.Policy.Hash, "ExecFeeFactor", interop.DefaultBaseExecFee, 1, 1000)
 }
 
 func TestBlockSystemFee(t *testing.T) {
@@ -124,7 +123,7 @@ func TestBlockSystemFee(t *testing.T) {
 		require.Equal(t, 9000*native.GASFactor, int(n))
 	})
 
-	testPolicyGetSet(t, chain, "MaxBlockSystemFee", 9000*native.GASFactor, 4007600, 0)
+	testGetSet(t, chain, chain.contracts.Policy.Hash, "MaxBlockSystemFee", 9000*native.GASFactor, 4007600, 0)
 }
 
 func TestStoragePrice(t *testing.T) {
@@ -136,7 +135,7 @@ func TestStoragePrice(t *testing.T) {
 		require.Equal(t, int64(native.StoragePrice), n)
 	})
 
-	testPolicyGetSet(t, chain, "StoragePrice", native.StoragePrice, 1, 10000000)
+	testGetSet(t, chain, chain.contracts.Policy.Hash, "StoragePrice", native.StoragePrice, 1, 10000000)
 }
 
 func TestBlockedAccounts(t *testing.T) {

@@ -41,7 +41,7 @@ ApplicationConfiguration:
       Password: "one"
   RPC:
     Address: 127.0.0.1
-    MaxGasInvoke: 10
+    MaxGasInvoke: 15
     Enabled: true
     EnableCORSWorkaround: false
     Port: 0 # let the system choose port dynamically
