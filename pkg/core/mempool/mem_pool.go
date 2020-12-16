@@ -180,7 +180,6 @@ func (mp *Pool) Add(t *transaction.Transaction, fee Feer) error {
 		return ErrDup
 	}
 
-	mp.verifiedMap[t.Hash()] = pItem
 	// Insert into sorted array (from max to min, that could also be done
 	// using sort.Sort(sort.Reverse()), but it incurs more overhead. Notice
 	// also that we're searching for position that is strictly more
@@ -209,6 +208,7 @@ func (mp *Pool) Add(t *transaction.Transaction, fee Feer) error {
 		copy(mp.verifiedTxes[n+1:], mp.verifiedTxes[n:])
 		mp.verifiedTxes[n] = pItem
 	}
+	mp.verifiedMap[t.Hash()] = pItem
 
 	// For lots of inputs it might be easier to push them all and sort
 	// afterwards, but that requires benchmarking.

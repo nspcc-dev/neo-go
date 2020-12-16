@@ -303,6 +303,9 @@ func TestOverCapacity(t *testing.T) {
 	txcnt++
 	require.Error(t, mp.Add(tx, fs))
 	require.Equal(t, mempoolSize, mp.Count())
+	require.Equal(t, mempoolSize, len(mp.verifiedMap))
+	require.Equal(t, mempoolSize, len(mp.verifiedTxes))
+	require.False(t, mp.containsKey(tx.Hash()))
 	require.Equal(t, true, sort.IsSorted(sort.Reverse(mp.verifiedTxes)))
 
 	// But claim tx should still be there.
