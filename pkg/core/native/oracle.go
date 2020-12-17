@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+	"strings"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
@@ -274,6 +275,9 @@ func (o *Oracle) request(ic *interop.Context, args []stackitem.Item) stackitem.I
 func (o *Oracle) RequestInternal(ic *interop.Context, url string, filter *string, cb string, userData stackitem.Item, gas *big.Int) error {
 	if len(url) > maxURLLength || (filter != nil && len(*filter) > maxFilterLength) || len(cb) > maxCallbackLength || gas.Uint64() < 1000_0000 {
 		return ErrBigArgument
+	}
+	if strings.HasPrefix(cb, "_") {
+		return errors.New("disallowed callback method (starts with '_')")
 	}
 
 	if !ic.VM.AddGas(gas.Int64()) {
