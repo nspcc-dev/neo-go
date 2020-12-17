@@ -337,6 +337,21 @@ func NewCommands() []cli.Command {
 					},
 				},
 			},
+			{
+				Name:   "calc-hash",
+				Usage:  "calculates hash of a contract after deployment",
+				Action: calcHash,
+				Flags: []cli.Flag{
+					cli.StringFlag{
+						Name:  "sender, s",
+						Usage: "sender script hash or address",
+					},
+					cli.StringFlag{
+						Name:  "in",
+						Usage: "path to NEF file",
+					},
+				},
+			},
 		},
 	}}
 }
@@ -437,6 +452,35 @@ func contractCompile(ctx *cli.Context) error {
 		fmt.Fprintln(ctx.App.Writer, hex.EncodeToString(result))
 	}
 
+	return nil
+}
+
+func calcHash(ctx *cli.Context) error {
+	s := ctx.String("sender")
+	u, err := address.StringToUint160(s)
+	if err != nil {
+		if strings.HasPrefix(s, "0x") {
+			s = s[2:]
+		}
+		u, err = util.Uint160DecodeStringLE(s)
+		if err != nil {
+			return cli.NewExitError(errors.New("invalid sender: must be either address or Uint160 in LE form"), 1)
+		}
+	}
+
+	p := ctx.String("in")
+	if p == "" {
+		return cli.NewExitError(errors.New("no .nef file was provided"), 1)
+	}
+	f, err := ioutil.ReadFile(p)
+	if err != nil {
+		return cli.NewExitError(fmt.Errorf("can't read .nef file: %w", err), 1)
+	}
+	nefFile, err := nef.FileFromBytes(f)
+	if err != nil {
+		return cli.NewExitError(fmt.Errorf("can't unmarshal .nef file: %w", err), 1)
+	}
+	fmt.Fprintln(ctx.App.Writer, "Contract hash:", state.CreateContractHash(u, nefFile.Script).StringLE())
 	return nil
 }
 
