@@ -29,6 +29,13 @@ func TestEncodeDecodeBinary(t *testing.T) {
 		checkDecodeError(t, expected)
 	})
 
+	t.Run("invalid reserved", func(t *testing.T) {
+		bytes, err := testserdes.EncodeBinary(expected)
+		require.NoError(t, err)
+		bytes[4+32+32] = 1 // set the first reserved byte to 1
+		require.Error(t, testserdes.DecodeBinary(bytes, &File{}))
+	})
+
 	t.Run("zero-length script", func(t *testing.T) {
 		expected.Script = make([]byte, 0)
 		expected.Checksum = expected.CalculateChecksum()

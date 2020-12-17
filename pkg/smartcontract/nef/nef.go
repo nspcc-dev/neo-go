@@ -20,6 +20,8 @@ import (
 // | Compiler   | 32 bytes  | Compiler used                                              |
 // | Version    | 32 bytes  | Compiler version                                           |
 // +------------+-----------+------------------------------------------------------------+
+// | Reserve    | 4 bytes   | 4 bytes are reserved for future extensions. Must be 0.     |
+// +------------+-----------+------------------------------------------------------------+
 // | Script     | Var bytes | Var bytes for the payload                                  |
 // +------------+-----------+------------------------------------------------------------+
 // | Checksum   | 4 bytes   | First four bytes of double SHA256 hash of the header       |
@@ -115,6 +117,7 @@ func (n *File) CalculateChecksum() uint32 {
 // EncodeBinary implements io.Serializable interface.
 func (n *File) EncodeBinary(w *io.BinWriter) {
 	n.Header.EncodeBinary(w)
+	w.WriteU32LE(0) // Reserve
 	w.WriteVarBytes(n.Script)
 	w.WriteU32LE(n.Checksum)
 }
@@ -122,6 +125,11 @@ func (n *File) EncodeBinary(w *io.BinWriter) {
 // DecodeBinary implements io.Serializable interface.
 func (n *File) DecodeBinary(r *io.BinReader) {
 	n.Header.DecodeBinary(r)
+	reserved := r.ReadU32LE()
+	if reserved != 0 {
+		r.Err = errors.New("reserve should be 0")
+		return
+	}
 	n.Script = r.ReadVarBytes(MaxScriptLength)
 	if len(n.Script) == 0 {
 		r.Err = errors.New("empty script")
