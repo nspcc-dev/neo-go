@@ -1,6 +1,8 @@
 package consensus
 
 import (
+	"encoding/hex"
+	gio "io"
 	"math/rand"
 	"testing"
 
@@ -74,24 +76,22 @@ func TestConsensusPayload_Setters(t *testing.T) {
 	require.Equal(t, pl, p.GetRecoveryMessage())
 }
 
-/*
 func TestConsensusPayload_Verify(t *testing.T) {
-	// signed payload from testnet
-	dataHex := "000000006c2cf4b46a45e839a6e9b75feef6bd551b1a31f97be1689d55a95a82448291099084000005002221002b7b3e8b02b1ff2dccac65596772f858b3c3e017470a989510d3b2cd270f246901420c40eb0fcb702cacfd3cfdb3f50422f230489e3e0e896914b4f7e13ef0c2e8bf523938e48610f0d1d1c606dd8bc494787ec127c6a10992afa846fe4a53e4c9e0ce6b290c2102ba2c70f5996f357a43198705859fae2cfea13e1172962800772b3d588a9d4abd0b4195440d78"
+	// signed payload from mixed privnet (Go + 3C# nodes)
+	dataHex := "000000004c02d52305a6a8981bd1598f0c3076d6de15a44a60ca692e189cd8a7249f175c0800000003222100f24b9147a21e09562c68abdec56d3c5fc09936592933aea5692800b75edbab2301420c40b2b8080ab02b703bc4e64407a6f31bb7ae4c9b1b1c8477668afa752eba6148e03b3ffc7e06285c09bdce4582188466209f876c38f9921a88b545393543ab201a290c2103d90c07df63e690ce77912e10ab51acc944b66860237b608c4f8f8309e71ee6990b4195440d78"
 	data, err := hex.DecodeString(dataHex)
 	require.NoError(t, err)
 
-	h, err := util.Uint160DecodeStringBE("e1936f674287cf50df72ea1f1bd6d2c8534ad656")
+	h, err := util.Uint160DecodeStringLE("a8826043c40abacfac1d9acc6b92a4458308ca18")
 	require.NoError(t, err)
 
-	p := NewPayload(netmode.TestNet)
+	p := NewPayload(netmode.PrivNet, false)
 	require.NoError(t, testserdes.DecodeBinary(data, p))
 	require.NoError(t, p.decodeData())
-	bc := newTestChain(t)
+	bc := newTestChain(t, false)
 	defer bc.Close()
 	require.NoError(t, bc.VerifyWitness(h, p, &p.Witness, payloadGasLimit))
 }
-*/
 
 func TestConsensusPayload_Serializable(t *testing.T) {
 	for _, mt := range messageTypes {
@@ -334,21 +334,19 @@ func TestMessageType_String(t *testing.T) {
 	require.Equal(t, "UNKNOWN(0xff)", messageType(0xff).String())
 }
 
-/*
-func TestPayload_DecodeFromTestnet(t *testing.T) {
-	hexDump := "000000005e3c788da53e6669772c408014abab20c9f33d1a38396de645a2d40fb3a8a37c960801000400423000aaf1b1cd5544485412eab6b1af49b57ae83b236595a0918488a9899e540c4e105aee59ed2cef1015f205ff1909312acab39d504d68f141c77e10ae21e14971ce01420c4040cfd9a6d6aa245d79a905864551dcc68e108c40231b7df8178663ae453f62388c9bd6bf10b1f1fb1a8736faba5561a886efa78ea5ff4f98812a9d2adba5f1f5290c2102a7834be9b32e2981d157cb5bbd3acb42cfd11ea5c3b10224d7a44e98c5910f1b0b4195440d78"
+func TestPayload_DecodeFromPrivnet(t *testing.T) {
+	hexDump := "000000004c02d52305a6a8981bd1598f0c3076d6de15a44a60ca692e189cd8a7249f175c08000000004230000368c5c5401d40eef6b8a9899d2041d29fd2e6300980fdcaa6660c10b85965f57852193cdb6f0d1e9f91dc510dff6df3a004b569fe2ad456d07007f6ccd55b1d01420c40e760250b821a4dcfc4b8727ecc409a758ab4bd3b288557fd3c3d76e083fe7c625b4ed25e763ad96c4eb0abc322600d82651fd32f8866fca1403fa04d3acc4675290c2102103a7f7dd016558597f7960d27c516a4394fd968b9e65155eb4b013e4040406e0b4195440d78"
 	data, err := hex.DecodeString(hexDump)
 	require.NoError(t, err)
 
 	buf := io.NewBinReaderFromBuf(data)
-	p := NewPayload(netmode.TestNet)
+	p := NewPayload(netmode.PrivNet, false)
 	p.DecodeBinary(buf)
 	require.NoError(t, buf.Err)
 	require.NoError(t, p.decodeData())
 	require.Equal(t, payload.CommitType, p.Type())
-	require.Equal(t, uint32(67734), p.Height())
+	require.Equal(t, uint32(8), p.Height())
 
 	buf.ReadB()
 	require.Equal(t, gio.EOF, buf.Err)
 }
-*/
