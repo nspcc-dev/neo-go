@@ -9,13 +9,62 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/internal/random"
 	"github.com/nspcc-dev/neo-go/pkg/config"
+	"github.com/nspcc-dev/neo-go/pkg/core/state"
+	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/fixedn"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/stretchr/testify/require"
 )
+
+func TestCalcHash(t *testing.T) {
+	e := newExecutor(t, false)
+	defer e.Close(t)
+
+	nefPath := "./testdata/verify.nef"
+	src, err := ioutil.ReadFile(nefPath)
+	require.NoError(t, err)
+	nefF, err := nef.FileFromBytes(src)
+	require.NoError(t, err)
+	sender := random.Uint160()
+
+	cmd := []string{"neo-go", "contract", "calc-hash"}
+	t.Run("no sender", func(t *testing.T) {
+		e.RunWithError(t, append(cmd, "--in", nefPath)...)
+	})
+	t.Run("no nef file", func(t *testing.T) {
+		e.RunWithError(t, append(cmd, "--sender", sender.StringLE())...)
+	})
+	t.Run("invalid path", func(t *testing.T) {
+		e.RunWithError(t, append(cmd, "--sender", sender.StringLE(),
+			"--in", "./testdata/verify.nef123")...)
+	})
+	t.Run("invalid file", func(t *testing.T) {
+		p := path.Join(os.TempDir(), "neogo.calchash.verify.nef")
+		defer os.Remove(p)
+		require.NoError(t, ioutil.WriteFile(p, src[:4], os.ModePerm))
+		e.RunWithError(t, append(cmd, "--sender", sender.StringLE(), "--in", p)...)
+	})
+
+	cmd = append(cmd, "--in", nefPath)
+	expected := state.CreateContractHash(sender, nefF.Script)
+	t.Run("valid, uint160", func(t *testing.T) {
+		e.Run(t, append(cmd, "--sender", sender.StringLE())...)
+		e.checkNextLine(t, expected.StringLE())
+	})
+	t.Run("valid, uint160 with 0x", func(t *testing.T) {
+		e.Run(t, append(cmd, "--sender", "0x"+sender.StringLE())...)
+		e.checkNextLine(t, expected.StringLE())
+	})
+	t.Run("valid, address", func(t *testing.T) {
+		e.Run(t, append(cmd, "--sender", address.Uint160ToString(sender))...)
+		e.checkNextLine(t, expected.StringLE())
+	})
+}
 
 func TestContractInitAndCompile(t *testing.T) {
 	tmpDir := path.Join(os.TempDir(), "neogo.inittest")
@@ -138,6 +187,12 @@ func TestComlileAndInvokeFunction(t *testing.T) {
 	h, err := util.Uint160DecodeStringLE(line)
 	require.NoError(t, err)
 	e.checkTxPersisted(t)
+
+	t.Run("check calc hash", func(t *testing.T) {
+		e.Run(t, "neo-go", "contract", "calc-hash",
+			"--sender", validatorAddr, "--in", nefName)
+		e.checkNextLine(t, h.StringLE())
+	})
 
 	cmd := []string{"neo-go", "contract", "testinvokefunction",
 		"--rpc-endpoint", "http://" + e.RPC.Addr}
