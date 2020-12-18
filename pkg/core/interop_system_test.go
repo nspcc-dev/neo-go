@@ -506,6 +506,10 @@ func getTestContractState(bc *Blockchain) (*state.Contract, *state.Contract) {
 	emit.String(w.BinWriter, "destroy")
 	emit.AppCall(w.BinWriter, mgmtHash)
 	emit.Opcodes(w.BinWriter, opcode.RET)
+	invalidStackOff := w.Len()
+	emit.Opcodes(w.BinWriter, opcode.NEWARRAY0, opcode.DUP, opcode.DUP, opcode.APPEND, opcode.NEWMAP)
+	emit.Syscall(w.BinWriter, interopnames.SystemIteratorCreate)
+	emit.Opcodes(w.BinWriter, opcode.RET)
 
 	script := w.Bytes()
 	h := hash.Hash160(script)
@@ -602,6 +606,11 @@ func getTestContractState(bc *Blockchain) (*state.Contract, *state.Contract) {
 		{
 			Name:       "destroy",
 			Offset:     destroyOff,
+			ReturnType: smartcontract.VoidType,
+		},
+		{
+			Name:       "invalidStack",
+			Offset:     invalidStackOff,
 			ReturnType: smartcontract.VoidType,
 		},
 	}

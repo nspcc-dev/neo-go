@@ -23,12 +23,28 @@ func SerializeItem(item Item) ([]byte, error) {
 // similar to io.Serializable's EncodeBinary, but works with Item
 // interface.
 func EncodeBinaryStackItem(item Item, w *io.BinWriter) {
-	serializeItemTo(item, w, make(map[Item]bool))
+	serializeItemTo(item, w, false, make(map[Item]bool))
 }
 
-func serializeItemTo(item Item, w *io.BinWriter, seen map[Item]bool) {
+// EncodeBinaryStackItemAppExec encodes given Item into the given BinWriter. It's
+// similar to EncodeBinaryStackItem but allows to encode interop (only type, value is lost).
+func EncodeBinaryStackItemAppExec(item Item, w *io.BinWriter) {
+	bw := io.NewBufBinWriter()
+	serializeItemTo(item, bw.BinWriter, true, make(map[Item]bool))
+	if bw.Err != nil {
+		w.WriteBytes([]byte{byte(InvalidT)})
+		return
+	}
+	w.WriteBytes(bw.Bytes())
+}
+
+func serializeItemTo(item Item, w *io.BinWriter, allowInvalid bool, seen map[Item]bool) {
 	if seen[item] {
 		w.Err = errors.New("recursive structures can't be serialized")
+		return
+	}
+	if item == nil && allowInvalid {
+		w.WriteBytes([]byte{byte(InvalidT)})
 		return
 	}
 
@@ -46,6 +62,10 @@ func serializeItemTo(item Item, w *io.BinWriter, seen map[Item]bool) {
 		w.WriteBytes([]byte{byte(IntegerT)})
 		w.WriteVarBytes(bigint.ToBytes(t.Value().(*big.Int)))
 	case *Interop:
+		if allowInvalid {
+			w.WriteBytes([]byte{byte(InteropT)})
+			return
+		}
 		w.Err = errors.New("interop item can't be serialized")
 	case *Array, *Struct:
 		seen[item] = true
@@ -60,7 +80,7 @@ func serializeItemTo(item Item, w *io.BinWriter, seen map[Item]bool) {
 		arr := t.Value().([]Item)
 		w.WriteVarUint(uint64(len(arr)))
 		for i := range arr {
-			serializeItemTo(arr[i], w, seen)
+			serializeItemTo(arr[i], w, allowInvalid, seen)
 		}
 	case *Map:
 		seen[item] = true
@@ -68,8 +88,8 @@ func serializeItemTo(item Item, w *io.BinWriter, seen map[Item]bool) {
 		w.WriteBytes([]byte{byte(MapT)})
 		w.WriteVarUint(uint64(len(t.Value().([]MapElement))))
 		for i := range t.Value().([]MapElement) {
-			serializeItemTo(t.Value().([]MapElement)[i].Key, w, seen)
-			serializeItemTo(t.Value().([]MapElement)[i].Value, w, seen)
+			serializeItemTo(t.Value().([]MapElement)[i].Key, w, allowInvalid, seen)
+			serializeItemTo(t.Value().([]MapElement)[i].Value, w, allowInvalid, seen)
 		}
 	case Null:
 		w.WriteB(byte(AnyT))
@@ -91,6 +111,16 @@ func DeserializeItem(data []byte) (Item, error) {
 // as a function because Item itself is an interface. Caveat: always check
 // reader's error value before using the returned Item.
 func DecodeBinaryStackItem(r *io.BinReader) Item {
+	return decodeBinaryStackItem(r, false)
+}
+
+// DecodeBinaryStackItemAppExec is similar to DecodeBinaryStackItem
+// but allows Interop values to be present.
+func DecodeBinaryStackItemAppExec(r *io.BinReader) Item {
+	return decodeBinaryStackItem(r, true)
+}
+
+func decodeBinaryStackItem(r *io.BinReader, allowInvalid bool) Item {
 	var t = Type(r.ReadB())
 	if r.Err != nil {
 		return nil
@@ -132,7 +162,15 @@ func DecodeBinaryStackItem(r *io.BinReader) Item {
 		return m
 	case AnyT:
 		return Null{}
+	case InteropT:
+		if allowInvalid {
+			return NewInterop(nil)
+		}
+		fallthrough
 	default:
+		if t == InvalidT && allowInvalid {
+			return nil
+		}
 		r.Err = fmt.Errorf("unknown type: %v", t)
 		return nil
 	}
