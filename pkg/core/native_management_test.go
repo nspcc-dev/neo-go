@@ -7,16 +7,69 @@ import (
 
 	"github.com/nspcc-dev/neo-go/internal/testchain"
 	"github.com/nspcc-dev/neo-go/pkg/config"
+	"github.com/nspcc-dev/neo-go/pkg/core/chaindump"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
+	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
+	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/stretchr/testify/require"
 )
+
+// This is in a separate test because test test for long manifest
+// prevents chain from being dumped. In any real scenario
+// restrictions on tx script length will be applied before
+// restrictions on manifest size. In this test providing manifest of max size
+// leads to tx deserialization failure.
+func TestRestoreAfterDeploy(t *testing.T) {
+	bc := newTestChain(t)
+	defer bc.Close()
+
+	// nef.NewFile() cares about version a lot.
+	config.Version = "0.90.0-test"
+	mgmtHash := bc.ManagementContractHash()
+	cs1, _ := getTestContractState(bc)
+	cs1.ID = 1
+	cs1.Hash = state.CreateContractHash(testchain.MultisigScriptHash(), cs1.Script)
+	manif1, err := json.Marshal(cs1.Manifest)
+	require.NoError(t, err)
+	nef1, err := nef.NewFile(cs1.Script)
+	require.NoError(t, err)
+	nef1b, err := nef1.Bytes()
+	require.NoError(t, err)
+
+	res, err := invokeContractMethod(bc, 100_00000000, mgmtHash, "deploy", nef1b, append(manif1, make([]byte, manifest.MaxManifestSize)...))
+	require.NoError(t, err)
+	checkFAULTState(t, res)
+}
+
+type memoryStore struct {
+	*storage.MemoryStore
+}
+
+func (memoryStore) Close() error { return nil }
+
+func TestStartFromHeight(t *testing.T) {
+	st := memoryStore{storage.NewMemoryStore()}
+	bc := newTestChainWithCustomCfgAndStore(t, st, nil)
+	cs1, _ := getTestContractState(bc)
+	func() {
+		defer bc.Close()
+		require.NoError(t, bc.contracts.Management.PutContractState(bc.dao, cs1))
+		checkContractState(t, bc, cs1.Hash, cs1)
+		_, err := bc.dao.Store.Persist()
+		require.NoError(t, err)
+	}()
+
+	bc2 := newTestChainWithCustomCfgAndStore(t, st, nil)
+	checkContractState(t, bc2, cs1.Hash, cs1)
+}
 
 func TestContractDeploy(t *testing.T) {
 	bc := newTestChain(t)
@@ -70,11 +123,6 @@ func TestContractDeploy(t *testing.T) {
 		require.NoError(t, err)
 		checkFAULTState(t, res)
 	})
-	t.Run("too long manifest", func(t *testing.T) {
-		res, err := invokeContractMethod(bc, 100_00000000, mgmtHash, "deploy", nef1b, append(manif1, make([]byte, manifest.MaxManifestSize)...))
-		require.NoError(t, err)
-		checkFAULTState(t, res)
-	})
 	t.Run("array for manifest", func(t *testing.T) {
 		res, err := invokeContractMethod(bc, 10_00000000, mgmtHash, "deploy", nef1b, []interface{}{int64(1)})
 		require.NoError(t, err)
@@ -99,16 +147,40 @@ func TestContractDeploy(t *testing.T) {
 		checkFAULTState(t, res)
 	})
 	t.Run("positive", func(t *testing.T) {
-		res, err := invokeContractMethod(bc, 10_00000000, mgmtHash, "deploy", nef1b, manif1)
+		tx1, err := prepareContractMethodInvoke(bc, 10_00000000, mgmtHash, "deploy", nef1b, manif1)
 		require.NoError(t, err)
-		require.Equal(t, vm.HaltState, res.VMState)
-		require.Equal(t, 1, len(res.Stack))
-		compareContractStates(t, cs1, res.Stack[0])
+		tx2, err := prepareContractMethodInvoke(bc, 1_00000000, mgmtHash, "getContract", cs1.Hash.BytesBE())
+		require.NoError(t, err)
+
+		aers, err := persistBlock(bc, tx1, tx2)
+		require.NoError(t, err)
+		for _, res := range aers {
+			require.Equal(t, vm.HaltState, res.VMState)
+			require.Equal(t, 1, len(res.Stack))
+			compareContractStates(t, cs1, res.Stack[0])
+		}
+
 		t.Run("_deploy called", func(t *testing.T) {
 			res, err := invokeContractMethod(bc, 1_00000000, cs1.Hash, "getValue")
 			require.NoError(t, err)
 			require.Equal(t, 1, len(res.Stack))
 			require.Equal(t, []byte("create"), res.Stack[0].Value())
+		})
+		t.Run("get after deploy", func(t *testing.T) {
+			checkContractState(t, bc, cs1.Hash, cs1)
+		})
+		t.Run("get after restore", func(t *testing.T) {
+			w := io.NewBufBinWriter()
+			require.NoError(t, chaindump.Dump(bc, w.BinWriter, 0, bc.BlockHeight()+1))
+			require.NoError(t, w.Err)
+
+			r := io.NewBinReaderFromBuf(w.Bytes())
+			bc2 := newTestChain(t)
+			defer bc2.Close()
+
+			require.NoError(t, chaindump.Restore(bc2, r, 0, bc.BlockHeight()+1, nil))
+			require.NoError(t, r.Err)
+			checkContractState(t, bc2, cs1.Hash, cs1)
 		})
 	})
 	t.Run("contract already exists", func(t *testing.T) {
@@ -138,6 +210,11 @@ func TestContractDeploy(t *testing.T) {
 		res, err := invokeContractMethod(bc, 10_00000000, mgmtHash, "deploy", nefDb, manifD)
 		require.NoError(t, err)
 		checkFAULTState(t, res)
+
+		t.Run("get after failed deploy", func(t *testing.T) {
+			h := state.CreateContractHash(neoOwner, deployScript)
+			checkContractState(t, bc, h, nil)
+		})
 	})
 	t.Run("bad _deploy", func(t *testing.T) { // invalid _deploy signature
 		deployScript := []byte{byte(opcode.RET)}
@@ -162,7 +239,25 @@ func TestContractDeploy(t *testing.T) {
 		res, err := invokeContractMethod(bc, 10_00000000, mgmtHash, "deploy", nefDb, manifD)
 		require.NoError(t, err)
 		checkFAULTState(t, res)
+
+		t.Run("get after bad _deploy", func(t *testing.T) {
+			h := state.CreateContractHash(neoOwner, deployScript)
+			checkContractState(t, bc, h, nil)
+		})
 	})
+}
+
+func checkContractState(t *testing.T, bc *Blockchain, h util.Uint160, cs *state.Contract) {
+	mgmtHash := bc.contracts.Management.Hash
+	res, err := invokeContractMethod(bc, 1_00000000, mgmtHash, "getContract", h.BytesBE())
+	require.NoError(t, err)
+	if cs == nil {
+		require.Equal(t, vm.FaultState, res.VMState)
+		return
+	}
+	require.Equal(t, vm.HaltState, res.VMState)
+	require.Equal(t, 1, len(res.Stack))
+	compareContractStates(t, cs, res.Stack[0])
 }
 
 func TestContractUpdate(t *testing.T) {
@@ -231,9 +326,18 @@ func TestContractUpdate(t *testing.T) {
 	cs1.UpdateCounter++
 
 	t.Run("update script, positive", func(t *testing.T) {
-		res, err := invokeContractMethod(bc, 10_00000000, cs1.Hash, "update", nef1b, nil)
+		tx1, err := prepareContractMethodInvoke(bc, 10_00000000, cs1.Hash, "update", nef1b, nil)
 		require.NoError(t, err)
-		require.Equal(t, vm.HaltState, res.VMState)
+		tx2, err := prepareContractMethodInvoke(bc, 1_00000000, mgmtHash, "getContract", cs1.Hash.BytesBE())
+		require.NoError(t, err)
+
+		aers, err := persistBlock(bc, tx1, tx2)
+		require.NoError(t, err)
+		require.Equal(t, vm.HaltState, aers[0].VMState)
+		require.Equal(t, vm.HaltState, aers[1].VMState)
+		require.Equal(t, 1, len(aers[1].Stack))
+		compareContractStates(t, cs1, aers[1].Stack[0])
+
 		t.Run("_deploy called", func(t *testing.T) {
 			res, err := invokeContractMethod(bc, 1_00000000, cs1.Hash, "getValue")
 			require.NoError(t, err)
@@ -241,10 +345,7 @@ func TestContractUpdate(t *testing.T) {
 			require.Equal(t, []byte("update"), res.Stack[0].Value())
 		})
 		t.Run("check contract", func(t *testing.T) {
-			res, err := invokeContractMethod(bc, 1_00000000, mgmtHash, "getContract", cs1.Hash.BytesBE())
-			require.NoError(t, err)
-			require.Equal(t, 1, len(res.Stack))
-			compareContractStates(t, cs1, res.Stack[0])
+			checkContractState(t, bc, cs1.Hash, cs1)
 		})
 	})
 
@@ -258,10 +359,7 @@ func TestContractUpdate(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, vm.HaltState, res.VMState)
 		t.Run("check contract", func(t *testing.T) {
-			res, err := invokeContractMethod(bc, 1_00000000, mgmtHash, "getContract", cs1.Hash.BytesBE())
-			require.NoError(t, err)
-			require.Equal(t, 1, len(res.Stack))
-			compareContractStates(t, cs1, res.Stack[0])
+			checkContractState(t, bc, cs1.Hash, cs1)
 		})
 	})
 
@@ -280,10 +378,7 @@ func TestContractUpdate(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, vm.HaltState, res.VMState)
 		t.Run("check contract", func(t *testing.T) {
-			res, err := invokeContractMethod(bc, 1_00000000, mgmtHash, "getContract", cs1.Hash.BytesBE())
-			require.NoError(t, err)
-			require.Equal(t, 1, len(res.Stack))
-			compareContractStates(t, cs1, res.Stack[0])
+			checkContractState(t, bc, cs1.Hash, cs1)
 		})
 	})
 }

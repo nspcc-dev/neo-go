@@ -6,13 +6,16 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+	"sync"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/contract"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
+	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
+	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
@@ -24,6 +27,9 @@ import (
 // Management is contract-managing native contract.
 type Management struct {
 	interop.ContractMD
+
+	mtx       sync.RWMutex
+	contracts map[util.Uint160]*state.Contract
 }
 
 // StoragePrice is the price to pay for 1 byte of storage.
@@ -43,7 +49,10 @@ func makeContractKey(h util.Uint160) []byte {
 
 // newManagement creates new Management native contract.
 func newManagement() *Management {
-	var m = &Management{ContractMD: *interop.NewContractMD(nativenames.Management)}
+	var m = &Management{
+		ContractMD: *interop.NewContractMD(nativenames.Management),
+		contracts:  make(map[util.Uint160]*state.Contract),
+	}
 
 	desc := newDescriptor("getContract", smartcontract.ArrayType,
 		manifest.NewParameter("hash", smartcontract.Hash160Type))
@@ -89,6 +98,18 @@ func (m *Management) getContract(ic *interop.Context, args []stackitem.Item) sta
 
 // GetContract returns contract with given hash from given DAO.
 func (m *Management) GetContract(d dao.DAO, hash util.Uint160) (*state.Contract, error) {
+	m.mtx.RLock()
+	cs, ok := m.contracts[hash]
+	m.mtx.RUnlock()
+	if !ok {
+		return nil, storage.ErrKeyNotFound
+	} else if cs != nil {
+		return cs, nil
+	}
+	return m.getContractFromDAO(d, hash)
+}
+
+func (m *Management) getContractFromDAO(d dao.DAO, hash util.Uint160) (*state.Contract, error) {
 	contract := new(state.Contract)
 	key := makeContractKey(hash)
 	err := getSerializableFromDAO(m.ContractID, d, key, contract)
@@ -173,7 +194,13 @@ func (m *Management) deploy(ic *interop.Context, args []stackitem.Item) stackite
 	}
 	callDeploy(ic, newcontract, false)
 	return contractToStack(newcontract)
+}
 
+func (m *Management) markUpdated(h util.Uint160) {
+	m.mtx.Lock()
+	// Just set it to nil, to refresh cache in `PostPersist`.
+	m.contracts[h] = nil
+	m.mtx.Unlock()
 }
 
 // Deploy creates contract's hash/ID and saves new contract into the given DAO.
@@ -202,6 +229,7 @@ func (m *Management) Deploy(d dao.DAO, sender util.Uint160, neff *nef.File, mani
 	if err != nil {
 		return nil, err
 	}
+	m.markUpdated(newcontract.Hash)
 	return newcontract, nil
 }
 
@@ -232,14 +260,16 @@ func (m *Management) Update(d dao.DAO, hash util.Uint160, neff *nef.File, manif 
 	}
 	// if NEF was provided, update the contract script
 	if neff != nil {
+		m.markUpdated(hash)
 		contract.Script = neff.Script
 	}
 	// if manifest was provided, update the contract manifest
 	if manif != nil {
-		contract.Manifest = *manif
-		if !contract.Manifest.IsValid(contract.Hash) {
+		if !manif.IsValid(contract.Hash) {
 			return nil, errors.New("invalid manifest for this contract")
 		}
+		m.markUpdated(hash)
+		contract.Manifest = *manif
 	}
 	contract.UpdateCounter++
 	err = m.PutContractState(d, contract)
@@ -285,6 +315,7 @@ func (m *Management) Destroy(d dao.DAO, hash util.Uint160) error {
 			return err
 		}
 	}
+	m.markUpdated(hash)
 	return nil
 }
 
@@ -334,13 +365,59 @@ func (m *Management) OnPersist(ic *interop.Context) error {
 		if err := native.Initialize(ic); err != nil {
 			return fmt.Errorf("initializing %s native contract: %w", md.Name, err)
 		}
+		m.mtx.Lock()
+		m.contracts[md.Hash] = cs
+		m.mtx.Unlock()
 	}
 
 	return nil
 }
 
+// InitializeCache initializes contract cache with the proper values from storage.
+// Cache initialisation should be done apart from Initialize because Initialize is
+// called only when deploying native contracts.
+func (m *Management) InitializeCache(d dao.DAO) error {
+	m.mtx.Lock()
+	defer m.mtx.Unlock()
+
+	var initErr error
+	d.Seek(m.ContractID, []byte{prefixContract}, func(_, v []byte) {
+		var r = io.NewBinReaderFromBuf(v)
+		var si state.StorageItem
+		si.DecodeBinary(r)
+		if r.Err != nil {
+			initErr = r.Err
+			return
+		}
+
+		var cs state.Contract
+		r = io.NewBinReaderFromBuf(si.Value)
+		cs.DecodeBinary(r)
+		if r.Err != nil {
+			initErr = r.Err
+			return
+		}
+		m.contracts[cs.Hash] = &cs
+	})
+	return initErr
+}
+
 // PostPersist implements Contract interface.
-func (m *Management) PostPersist(_ *interop.Context) error {
+func (m *Management) PostPersist(ic *interop.Context) error {
+	m.mtx.Lock()
+	for h, cs := range m.contracts {
+		if cs != nil {
+			continue
+		}
+		newCs, err := m.getContractFromDAO(ic.DAO, h)
+		if err != nil {
+			// Contract was destroyed.
+			delete(m.contracts, h)
+			continue
+		}
+		m.contracts[h] = newCs
+	}
+	m.mtx.Unlock()
 	return nil
 }
 
@@ -355,6 +432,7 @@ func (m *Management) PutContractState(d dao.DAO, cs *state.Contract) error {
 	if err := putSerializableToDAO(m.ContractID, d, key, cs); err != nil {
 		return err
 	}
+	m.markUpdated(cs.Hash)
 	if cs.UpdateCounter != 0 { // Update.
 		return nil
 	}

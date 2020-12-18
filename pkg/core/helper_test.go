@@ -46,19 +46,33 @@ func newTestChain(t *testing.T) *Blockchain {
 }
 
 func newTestChainWithCustomCfg(t *testing.T, f func(*config.Config)) *Blockchain {
+	return newTestChainWithCustomCfgAndStore(t, nil, f)
+}
+
+func newTestChainWithCustomCfgAndStore(t *testing.T, st storage.Store, f func(*config.Config)) *Blockchain {
 	unitTestNetCfg, err := config.Load("../../config", testchain.Network())
 	require.NoError(t, err)
 	if f != nil {
 		f(&unitTestNetCfg)
 	}
-	chain, err := NewBlockchain(storage.NewMemoryStore(), unitTestNetCfg.ProtocolConfiguration, zaptest.NewLogger(t))
+	if st == nil {
+		st = storage.NewMemoryStore()
+	}
+	chain, err := NewBlockchain(st, unitTestNetCfg.ProtocolConfiguration, zaptest.NewLogger(t))
 	require.NoError(t, err)
 	go chain.Run()
 	return chain
 }
 
 func (bc *Blockchain) newBlock(txs ...*transaction.Transaction) *block.Block {
-	lastBlock := bc.topBlock.Load().(*block.Block)
+	lastBlock, ok := bc.topBlock.Load().(*block.Block)
+	if !ok {
+		var err error
+		lastBlock, err = bc.GetBlock(bc.GetHeaderHash(int(bc.BlockHeight())))
+		if err != nil {
+			panic(err)
+		}
+	}
 	if bc.config.StateRootInHeader {
 		sr, err := bc.GetStateRoot(bc.BlockHeight())
 		if err != nil {
