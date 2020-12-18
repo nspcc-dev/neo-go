@@ -23,12 +23,13 @@ const MaxOracleResultSize = math.MaxUint16
 // Enumeration of possible oracle response types.
 const (
 	Success              OracleResponseCode = 0x00
-	ConsensusUnreachable OracleResponseCode = 0x10
-	NotFound             OracleResponseCode = 0x12
-	Timeout              OracleResponseCode = 0x14
-	Forbidden            OracleResponseCode = 0x16
-	ResponseTooLarge     OracleResponseCode = 0x18
-	InsufficientFunds    OracleResponseCode = 0x1a
+	ProtocolNotSupported OracleResponseCode = 0x10
+	ConsensusUnreachable OracleResponseCode = 0x12
+	NotFound             OracleResponseCode = 0x14
+	Timeout              OracleResponseCode = 0x16
+	Forbidden            OracleResponseCode = 0x18
+	ResponseTooLarge     OracleResponseCode = 0x1a
+	InsufficientFunds    OracleResponseCode = 0x1c
 	Error                OracleResponseCode = 0xff
 )
 
@@ -40,7 +41,7 @@ var (
 
 // IsValid checks if c is valid response code.
 func (c OracleResponseCode) IsValid() bool {
-	return c == Success || c == ConsensusUnreachable || c == NotFound ||
+	return c == Success || c == ProtocolNotSupported || c == ConsensusUnreachable || c == NotFound ||
 		c == Timeout || c == Forbidden || c == ResponseTooLarge ||
 		c == InsufficientFunds || c == Error
 }
