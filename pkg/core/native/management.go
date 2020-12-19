@@ -37,10 +37,19 @@ const StoragePrice = 100000
 
 const (
 	prefixContract = 8
+
+	defaultMinimumDeploymentFee     = 10_00000000
+	contractDeployNotificationName  = "Deploy"
+	contractUpdateNotificationName  = "Update"
+	contractDestroyNotificationName = "Destroy"
 )
 
-var errGasLimitExceeded = errors.New("gas limit exceeded")
-var keyNextAvailableID = []byte{15}
+var (
+	errGasLimitExceeded = errors.New("gas limit exceeded")
+
+	keyNextAvailableID      = []byte{15}
+	keyMinimumDeploymentFee = []byte{20}
+)
 
 // makeContractKey creates a key from account script hash.
 func makeContractKey(h util.Uint160) []byte {
@@ -62,19 +71,32 @@ func newManagement() *Management {
 	desc = newDescriptor("deploy", smartcontract.ArrayType,
 		manifest.NewParameter("script", smartcontract.ByteArrayType),
 		manifest.NewParameter("manifest", smartcontract.ByteArrayType))
-	md = newMethodAndPrice(m.deploy, 0, smartcontract.WriteStates)
+	md = newMethodAndPrice(m.deploy, 0, smartcontract.WriteStates|smartcontract.AllowNotify)
 	m.AddMethod(md, desc)
 
 	desc = newDescriptor("update", smartcontract.VoidType,
 		manifest.NewParameter("script", smartcontract.ByteArrayType),
 		manifest.NewParameter("manifest", smartcontract.ByteArrayType))
-	md = newMethodAndPrice(m.update, 0, smartcontract.WriteStates)
+	md = newMethodAndPrice(m.update, 0, smartcontract.WriteStates|smartcontract.AllowNotify)
 	m.AddMethod(md, desc)
 
 	desc = newDescriptor("destroy", smartcontract.VoidType)
-	md = newMethodAndPrice(m.destroy, 10000000, smartcontract.WriteStates)
+	md = newMethodAndPrice(m.destroy, 1000000, smartcontract.WriteStates|smartcontract.AllowNotify)
 	m.AddMethod(md, desc)
 
+	desc = newDescriptor("getMinimumDeploymentFee", smartcontract.IntegerType)
+	md = newMethodAndPrice(m.getMinimumDeploymentFee, 100_0000, smartcontract.ReadStates)
+	m.AddMethod(md, desc)
+
+	desc = newDescriptor("setMinimumDeploymentFee", smartcontract.BoolType,
+		manifest.NewParameter("value", smartcontract.IntegerType))
+	md = newMethodAndPrice(m.setMinimumDeploymentFee, 300_0000, smartcontract.WriteStates)
+	m.AddMethod(md, desc)
+
+	hashParam := manifest.NewParameter("Hash", smartcontract.Hash160Type)
+	m.AddEvent(contractDeployNotificationName, hashParam)
+	m.AddEvent(contractUpdateNotificationName, hashParam)
+	m.AddEvent(contractDestroyNotificationName, hashParam)
 	return m
 }
 
@@ -140,7 +162,7 @@ func getLimitedSlice(arg stackitem.Item, max int) ([]byte, error) {
 
 // getNefAndManifestFromItems converts input arguments into NEF and manifest
 // adding appropriate deployment GAS price and sanitizing inputs.
-func getNefAndManifestFromItems(ic *interop.Context, args []stackitem.Item) (*nef.File, *manifest.Manifest, error) {
+func (m *Management) getNefAndManifestFromItems(ic *interop.Context, args []stackitem.Item, isDeploy bool) (*nef.File, *manifest.Manifest, error) {
 	nefBytes, err := getLimitedSlice(args[0], math.MaxInt32) // Upper limits are checked during NEF deserialization.
 	if err != nil {
 		return nil, nil, fmt.Errorf("invalid NEF file: %w", err)
@@ -150,7 +172,14 @@ func getNefAndManifestFromItems(ic *interop.Context, args []stackitem.Item) (*ne
 		return nil, nil, fmt.Errorf("invalid manifest: %w", err)
 	}
 
-	if !ic.VM.AddGas(ic.Chain.GetPolicer().GetStoragePrice() * int64(len(nefBytes)+len(manifestBytes))) {
+	gas := ic.Chain.GetPolicer().GetStoragePrice() * int64(len(nefBytes)+len(manifestBytes))
+	if isDeploy {
+		fee := m.GetMinimumDeploymentFee(ic.DAO)
+		if fee > gas {
+			gas = fee
+		}
+	}
+	if !ic.VM.AddGas(gas) {
 		return nil, nil, errGasLimitExceeded
 	}
 	var resManifest *manifest.Manifest
@@ -175,7 +204,7 @@ func getNefAndManifestFromItems(ic *interop.Context, args []stackitem.Item) (*ne
 // deploy is an implementation of public deploy method, it's run under
 // VM protections, so it's OK for it to panic instead of returning errors.
 func (m *Management) deploy(ic *interop.Context, args []stackitem.Item) stackitem.Item {
-	neff, manif, err := getNefAndManifestFromItems(ic, args)
+	neff, manif, err := m.getNefAndManifestFromItems(ic, args, true)
 	if err != nil {
 		panic(err)
 	}
@@ -193,6 +222,7 @@ func (m *Management) deploy(ic *interop.Context, args []stackitem.Item) stackite
 		panic(err)
 	}
 	callDeploy(ic, newcontract, false)
+	m.emitNotification(ic, contractDeployNotificationName, newcontract.Hash)
 	return contractToStack(newcontract)
 }
 
@@ -204,7 +234,7 @@ func (m *Management) markUpdated(h util.Uint160) {
 }
 
 // Deploy creates contract's hash/ID and saves new contract into the given DAO.
-// It doesn't run _deploy method.
+// It doesn't run _deploy method and doesn't emit notification.
 func (m *Management) Deploy(d dao.DAO, sender util.Uint160, neff *nef.File, manif *manifest.Manifest) (*state.Contract, error) {
 	h := state.CreateContractHash(sender, neff.Script)
 	key := makeContractKey(h)
@@ -236,7 +266,7 @@ func (m *Management) Deploy(d dao.DAO, sender util.Uint160, neff *nef.File, mani
 // update is an implementation of public update method, it's run under
 // VM protections, so it's OK for it to panic instead of returning errors.
 func (m *Management) update(ic *interop.Context, args []stackitem.Item) stackitem.Item {
-	neff, manif, err := getNefAndManifestFromItems(ic, args)
+	neff, manif, err := m.getNefAndManifestFromItems(ic, args, false)
 	if err != nil {
 		panic(err)
 	}
@@ -248,11 +278,12 @@ func (m *Management) update(ic *interop.Context, args []stackitem.Item) stackite
 		panic(err)
 	}
 	callDeploy(ic, contract, true)
+	m.emitNotification(ic, contractUpdateNotificationName, contract.Hash)
 	return stackitem.Null{}
 }
 
 // Update updates contract's script and/or manifest in the given DAO.
-// It doesn't run _deploy method.
+// It doesn't run _deploy method and doesn't emit notification.
 func (m *Management) Update(d dao.DAO, hash util.Uint160, neff *nef.File, manif *manifest.Manifest) (*state.Contract, error) {
 	contract, err := m.GetContract(d, hash)
 	if err != nil {
@@ -287,10 +318,11 @@ func (m *Management) destroy(ic *interop.Context, sis []stackitem.Item) stackite
 	if err != nil {
 		panic(err)
 	}
+	m.emitNotification(ic, contractDestroyNotificationName, hash)
 	return stackitem.Null{}
 }
 
-// Destroy drops given contract from DAO along with its storage.
+// Destroy drops given contract from DAO along with its storage. It doesn't emit notification.
 func (m *Management) Destroy(d dao.DAO, hash util.Uint160) error {
 	contract, err := m.GetContract(d, hash)
 	if err != nil {
@@ -317,6 +349,34 @@ func (m *Management) Destroy(d dao.DAO, hash util.Uint160) error {
 	}
 	m.markUpdated(hash)
 	return nil
+}
+
+func (m *Management) getMinimumDeploymentFee(ic *interop.Context, args []stackitem.Item) stackitem.Item {
+	return stackitem.NewBigInteger(big.NewInt(m.GetMinimumDeploymentFee(ic.DAO)))
+}
+
+// GetMinimumDeploymentFee returns the minimum required fee for contract deploy.
+func (m *Management) GetMinimumDeploymentFee(dao dao.DAO) int64 {
+	return getInt64WithKey(m.ContractID, dao, keyMinimumDeploymentFee, defaultMinimumDeploymentFee)
+}
+
+func (m *Management) setMinimumDeploymentFee(ic *interop.Context, args []stackitem.Item) stackitem.Item {
+	value := toBigInt(args[0]).Int64()
+	if value < 0 {
+		panic(fmt.Errorf("MinimumDeploymentFee cannot be negative"))
+	}
+	ok, err := checkValidators(ic)
+	if err != nil {
+		panic(err)
+	}
+	if !ok {
+		return stackitem.NewBool(false)
+	}
+	err = setInt64WithKey(m.ContractID, ic.DAO, keyMinimumDeploymentFee, value)
+	if err != nil {
+		panic(err)
+	}
+	return stackitem.NewBool(true)
 }
 
 func callDeploy(ic *interop.Context, cs *state.Contract, isUpdate bool) {
@@ -422,8 +482,8 @@ func (m *Management) PostPersist(ic *interop.Context) error {
 }
 
 // Initialize implements Contract interface.
-func (m *Management) Initialize(_ *interop.Context) error {
-	return nil
+func (m *Management) Initialize(ic *interop.Context) error {
+	return setInt64WithKey(m.ContractID, ic.DAO, keyMinimumDeploymentFee, defaultMinimumDeploymentFee)
 }
 
 // PutContractState saves given contract state into given DAO.
@@ -452,4 +512,13 @@ func (m *Management) getNextContractID(d dao.DAO) (int32, error) {
 	id.Add(id, big.NewInt(1))
 	si.Value = bigint.ToPreallocatedBytes(id, si.Value)
 	return ret, d.PutStorageItem(m.ContractID, keyNextAvailableID, si)
+}
+
+func (m *Management) emitNotification(ic *interop.Context, name string, hash util.Uint160) {
+	ne := state.NotificationEvent{
+		ScriptHash: m.Hash,
+		Name:       name,
+		Item:       stackitem.NewArray([]stackitem.Item{addrToStackItem(&hash)}),
+	}
+	ic.Notifications = append(ic.Notifications, ne)
 }

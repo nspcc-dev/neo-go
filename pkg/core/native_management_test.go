@@ -89,42 +89,42 @@ func TestContractDeploy(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("no NEF", func(t *testing.T) {
-		res, err := invokeContractMethod(bc, 10_00000000, mgmtHash, "deploy", nil, manif1)
+		res, err := invokeContractMethod(bc, 11_00000000, mgmtHash, "deploy", nil, manif1)
 		require.NoError(t, err)
 		checkFAULTState(t, res)
 	})
 	t.Run("no manifest", func(t *testing.T) {
-		res, err := invokeContractMethod(bc, 10_00000000, mgmtHash, "deploy", nef1b, nil)
+		res, err := invokeContractMethod(bc, 11_00000000, mgmtHash, "deploy", nef1b, nil)
 		require.NoError(t, err)
 		checkFAULTState(t, res)
 	})
 	t.Run("int for NEF", func(t *testing.T) {
-		res, err := invokeContractMethod(bc, 10_00000000, mgmtHash, "deploy", int64(1), manif1)
+		res, err := invokeContractMethod(bc, 11_00000000, mgmtHash, "deploy", int64(1), manif1)
 		require.NoError(t, err)
 		checkFAULTState(t, res)
 	})
 	t.Run("zero-length NEF", func(t *testing.T) {
-		res, err := invokeContractMethod(bc, 10_00000000, mgmtHash, "deploy", []byte{}, manif1)
+		res, err := invokeContractMethod(bc, 11_00000000, mgmtHash, "deploy", []byte{}, manif1)
 		require.NoError(t, err)
 		checkFAULTState(t, res)
 	})
 	t.Run("array for NEF", func(t *testing.T) {
-		res, err := invokeContractMethod(bc, 10_00000000, mgmtHash, "deploy", []interface{}{int64(1)}, manif1)
+		res, err := invokeContractMethod(bc, 11_00000000, mgmtHash, "deploy", []interface{}{int64(1)}, manif1)
 		require.NoError(t, err)
 		checkFAULTState(t, res)
 	})
 	t.Run("int for manifest", func(t *testing.T) {
-		res, err := invokeContractMethod(bc, 10_00000000, mgmtHash, "deploy", nef1b, int64(1))
+		res, err := invokeContractMethod(bc, 11_00000000, mgmtHash, "deploy", nef1b, int64(1))
 		require.NoError(t, err)
 		checkFAULTState(t, res)
 	})
 	t.Run("zero-length manifest", func(t *testing.T) {
-		res, err := invokeContractMethod(bc, 10_00000000, mgmtHash, "deploy", nef1b, []byte{})
+		res, err := invokeContractMethod(bc, 11_00000000, mgmtHash, "deploy", nef1b, []byte{})
 		require.NoError(t, err)
 		checkFAULTState(t, res)
 	})
 	t.Run("array for manifest", func(t *testing.T) {
-		res, err := invokeContractMethod(bc, 10_00000000, mgmtHash, "deploy", nef1b, []interface{}{int64(1)})
+		res, err := invokeContractMethod(bc, 11_00000000, mgmtHash, "deploy", nef1b, []interface{}{int64(1)})
 		require.NoError(t, err)
 		checkFAULTState(t, res)
 	})
@@ -137,7 +137,7 @@ func TestContractDeploy(t *testing.T) {
 		manifB, err := json.Marshal(badManifest)
 		require.NoError(t, err)
 
-		res, err := invokeContractMethod(bc, 10_00000000, mgmtHash, "deploy", nef1b, manifB)
+		res, err := invokeContractMethod(bc, 11_00000000, mgmtHash, "deploy", nef1b, manifB)
 		require.NoError(t, err)
 		checkFAULTState(t, res)
 	})
@@ -147,7 +147,7 @@ func TestContractDeploy(t *testing.T) {
 		checkFAULTState(t, res)
 	})
 	t.Run("positive", func(t *testing.T) {
-		tx1, err := prepareContractMethodInvoke(bc, 10_00000000, mgmtHash, "deploy", nef1b, manif1)
+		tx1, err := prepareContractMethodInvoke(bc, 11_00000000, mgmtHash, "deploy", nef1b, manif1)
 		require.NoError(t, err)
 		tx2, err := prepareContractMethodInvoke(bc, 1_00000000, mgmtHash, "getContract", cs1.Hash.BytesBE())
 		require.NoError(t, err)
@@ -159,7 +159,11 @@ func TestContractDeploy(t *testing.T) {
 			require.Equal(t, 1, len(res.Stack))
 			compareContractStates(t, cs1, res.Stack[0])
 		}
-
+		require.Equal(t, aers[0].Events, []state.NotificationEvent{{
+			ScriptHash: mgmtHash,
+			Name:       "Deploy",
+			Item:       stackitem.NewArray([]stackitem.Item{stackitem.NewByteArray(cs1.Hash.BytesBE())}),
+		}})
 		t.Run("_deploy called", func(t *testing.T) {
 			res, err := invokeContractMethod(bc, 1_00000000, cs1.Hash, "getValue")
 			require.NoError(t, err)
@@ -184,7 +188,7 @@ func TestContractDeploy(t *testing.T) {
 		})
 	})
 	t.Run("contract already exists", func(t *testing.T) {
-		res, err := invokeContractMethod(bc, 10_00000000, mgmtHash, "deploy", nef1b, manif1)
+		res, err := invokeContractMethod(bc, 11_00000000, mgmtHash, "deploy", nef1b, manif1)
 		require.NoError(t, err)
 		checkFAULTState(t, res)
 	})
@@ -207,7 +211,7 @@ func TestContractDeploy(t *testing.T) {
 		require.NoError(t, err)
 		manifD, err := json.Marshal(m)
 		require.NoError(t, err)
-		res, err := invokeContractMethod(bc, 10_00000000, mgmtHash, "deploy", nefDb, manifD)
+		res, err := invokeContractMethod(bc, 11_00000000, mgmtHash, "deploy", nefDb, manifD)
 		require.NoError(t, err)
 		checkFAULTState(t, res)
 
@@ -236,7 +240,7 @@ func TestContractDeploy(t *testing.T) {
 		require.NoError(t, err)
 		manifD, err := json.Marshal(m)
 		require.NoError(t, err)
-		res, err := invokeContractMethod(bc, 10_00000000, mgmtHash, "deploy", nefDb, manifD)
+		res, err := invokeContractMethod(bc, 11_00000000, mgmtHash, "deploy", nefDb, manifD)
 		require.NoError(t, err)
 		checkFAULTState(t, res)
 
@@ -337,7 +341,11 @@ func TestContractUpdate(t *testing.T) {
 		require.Equal(t, vm.HaltState, aers[1].VMState)
 		require.Equal(t, 1, len(aers[1].Stack))
 		compareContractStates(t, cs1, aers[1].Stack[0])
-
+		require.Equal(t, aers[0].Events, []state.NotificationEvent{{
+			ScriptHash: mgmtHash,
+			Name:       "Update",
+			Item:       stackitem.NewArray([]stackitem.Item{stackitem.NewByteArray(cs1.Hash.BytesBE())}),
+		}})
 		t.Run("_deploy called", func(t *testing.T) {
 			res, err := invokeContractMethod(bc, 1_00000000, cs1.Hash, "getValue")
 			require.NoError(t, err)
@@ -358,6 +366,11 @@ func TestContractUpdate(t *testing.T) {
 		res, err := invokeContractMethod(bc, 10_00000000, cs1.Hash, "update", nil, manif1)
 		require.NoError(t, err)
 		require.Equal(t, vm.HaltState, res.VMState)
+		require.Equal(t, res.Events, []state.NotificationEvent{{
+			ScriptHash: mgmtHash,
+			Name:       "Update",
+			Item:       stackitem.NewArray([]stackitem.Item{stackitem.NewByteArray(cs1.Hash.BytesBE())}),
+		}})
 		t.Run("check contract", func(t *testing.T) {
 			checkContractState(t, bc, cs1.Hash, cs1)
 		})
@@ -377,6 +390,11 @@ func TestContractUpdate(t *testing.T) {
 		res, err := invokeContractMethod(bc, 10_00000000, cs1.Hash, "update", nef1b, manif1)
 		require.NoError(t, err)
 		require.Equal(t, vm.HaltState, res.VMState)
+		require.Equal(t, res.Events, []state.NotificationEvent{{
+			ScriptHash: mgmtHash,
+			Name:       "Update",
+			Item:       stackitem.NewArray([]stackitem.Item{stackitem.NewByteArray(cs1.Hash.BytesBE())}),
+		}})
 		t.Run("check contract", func(t *testing.T) {
 			checkContractState(t, bc, cs1.Hash, cs1)
 		})
@@ -432,6 +450,11 @@ func TestContractDestroy(t *testing.T) {
 		res, err := invokeContractMethod(bc, 1_00000000, cs1.Hash, "destroy")
 		require.NoError(t, err)
 		require.Equal(t, vm.HaltState, res.VMState)
+		require.Equal(t, res.Events, []state.NotificationEvent{{
+			ScriptHash: mgmtHash,
+			Name:       "Destroy",
+			Item:       stackitem.NewArray([]stackitem.Item{stackitem.NewByteArray(cs1.Hash.BytesBE())}),
+		}})
 		t.Run("check contract", func(t *testing.T) {
 			res, err := invokeContractMethod(bc, 1_00000000, mgmtHash, "getContract", cs1.Hash.BytesBE())
 			require.NoError(t, err)
@@ -454,4 +477,16 @@ func compareContractStates(t *testing.T, expected *state.Contract, actual stacki
 	require.Equal(t, expected.Hash.BytesBE(), act[2].Value().([]byte))
 	require.Equal(t, expected.Script, act[3].Value().([]byte))
 	require.Equal(t, expectedManifest, act[4].Value().([]byte))
+}
+
+func TestMinimumDeploymentFee(t *testing.T) {
+	chain := newTestChain(t)
+	defer chain.Close()
+
+	t.Run("get, internal method", func(t *testing.T) {
+		n := chain.contracts.Management.GetMinimumDeploymentFee(chain.dao)
+		require.Equal(t, 10_00000000, int(n))
+	})
+
+	testGetSet(t, chain, chain.contracts.Management.Hash, "MinimumDeploymentFee", 10_00000000, 0, 0)
 }
