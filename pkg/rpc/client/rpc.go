@@ -17,7 +17,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/rpc/request"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
-	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
@@ -424,11 +423,33 @@ func (c *Client) InvokeFunction(contract util.Uint160, operation string, params 
 	return c.invokeSomething("invokefunction", p, signers)
 }
 
+// InvokeContractVerify returns the results after calling `verify` method of the smart contract
+// with the given parameters under verification trigger type.
+// NOTE: this is test invoke and will not affect the blockchain.
+func (c *Client) InvokeContractVerify(contract util.Uint160, params []smartcontract.Parameter, signers []transaction.Signer, witnesses ...transaction.Witness) (*result.Invoke, error) {
+	var p = request.NewRawParams(contract.StringLE(), params)
+	return c.invokeSomething("invokecontractverify", p, signers, witnesses...)
+}
+
 // invokeSomething is an inner wrapper for Invoke* functions
-func (c *Client) invokeSomething(method string, p request.RawParams, signers []transaction.Signer) (*result.Invoke, error) {
+func (c *Client) invokeSomething(method string, p request.RawParams, signers []transaction.Signer, witnesses ...transaction.Witness) (*result.Invoke, error) {
 	var resp = new(result.Invoke)
 	if signers != nil {
-		p.Values = append(p.Values, signers)
+		if witnesses == nil {
+			p.Values = append(p.Values, signers)
+		} else {
+			if len(witnesses) != len(signers) {
+				return nil, fmt.Errorf("number of witnesses should match number of signers, got %d vs %d", len(witnesses), len(signers))
+			}
+			signersWithWitnesses := make([]request.SignerWithWitness, len(signers))
+			for i := range signersWithWitnesses {
+				signersWithWitnesses[i] = request.SignerWithWitness{
+					Signer:  signers[i],
+					Witness: witnesses[i],
+				}
+			}
+			p.Values = append(p.Values, signersWithWitnesses)
+		}
 	}
 	if err := c.performRequest(method, p, resp); err != nil {
 		return nil, err
@@ -572,7 +593,7 @@ func (c *Client) AddNetworkFee(tx *transaction.Transaction, extraFee int64, accs
 	var ef int64
 	for i, cosigner := range tx.Signers {
 		if accs[i].Contract.Deployed {
-			res, err := c.InvokeFunction(cosigner.Account, manifest.MethodVerify, []smartcontract.Parameter{}, tx.Signers)
+			res, err := c.InvokeContractVerify(cosigner.Account, smartcontract.Params{}, tx.Signers)
 			if err != nil {
 				return fmt.Errorf("failed to invoke verify: %w", err)
 			}

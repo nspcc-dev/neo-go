@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -56,6 +57,11 @@ type (
 	ExecutionFilter struct {
 		State string `json:"state"`
 	}
+	// SignerWithWitness represents transaction's signer with the corresponding witness.
+	SignerWithWitness struct {
+		transaction.Signer
+		transaction.Witness
+	}
 )
 
 // These are parameter types accepted by RPC server.
@@ -69,7 +75,7 @@ const (
 	TxFilterT
 	NotificationFilterT
 	ExecutionFilterT
-	Signer
+	SignerWithWitnessT
 )
 
 var errMissingParameter = errors.New("parameter is missing")
@@ -209,24 +215,25 @@ func (p *Param) GetBytesBase64() ([]byte, error) {
 	return base64.StdEncoding.DecodeString(s)
 }
 
-// GetSigner returns transaction.Signer value of the parameter.
-func (p Param) GetSigner() (transaction.Signer, error) {
-	c, ok := p.Value.(transaction.Signer)
+// GetSignerWithWitness returns SignerWithWitness value of the parameter.
+func (p Param) GetSignerWithWitness() (SignerWithWitness, error) {
+	c, ok := p.Value.(SignerWithWitness)
 	if !ok {
-		return transaction.Signer{}, errors.New("not a signer")
+		return SignerWithWitness{}, errors.New("not a signer")
 	}
 	return c, nil
 }
 
-// GetSigners returns a slice of transaction.Signer with global scope from
+// GetSignersWithWitnesses returns a slice of SignerWithWitness with global scope from
 // array of Uint160 or array of serialized transaction.Signer stored in the
 // parameter.
-func (p Param) GetSigners() ([]transaction.Signer, error) {
+func (p Param) GetSignersWithWitnesses() ([]transaction.Signer, []transaction.Witness, error) {
 	hashes, err := p.GetArray()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	signers := make([]transaction.Signer, len(hashes))
+	witnesses := make([]transaction.Witness, len(hashes))
 	// try to extract hashes first
 	for i, h := range hashes {
 		var u util.Uint160
@@ -241,13 +248,15 @@ func (p Param) GetSigners() ([]transaction.Signer, error) {
 	}
 	if err != nil {
 		for i, h := range hashes {
-			signers[i], err = h.GetSigner()
+			signerWithWitness, err := h.GetSignerWithWitness()
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
+			signers[i] = signerWithWitness.Signer
+			witnesses[i] = signerWithWitness.Witness
 		}
 	}
-	return signers, nil
+	return signers, witnesses, nil
 }
 
 // UnmarshalJSON implements json.Unmarshaler interface.
@@ -263,7 +272,7 @@ func (p *Param) UnmarshalJSON(data []byte) error {
 		{TxFilterT, &TxFilter{}},
 		{NotificationFilterT, &NotificationFilter{}},
 		{ExecutionFilterT, &ExecutionFilter{}},
-		{Signer, &transaction.Signer{}},
+		{SignerWithWitnessT, &signerWithWitnessAux{}},
 		{ArrayT, &[]Param{}},
 	}
 
@@ -298,8 +307,20 @@ func (p *Param) UnmarshalJSON(data []byte) error {
 				} else {
 					continue
 				}
-			case *transaction.Signer:
-				p.Value = *val
+			case *signerWithWitnessAux:
+				aux := *val
+				p.Value = SignerWithWitness{
+					Signer: transaction.Signer{
+						Account:          aux.Account,
+						Scopes:           aux.Scopes,
+						AllowedContracts: aux.AllowedContracts,
+						AllowedGroups:    aux.AllowedGroups,
+					},
+					Witness: transaction.Witness{
+						InvocationScript:   aux.InvocationScript,
+						VerificationScript: aux.VerificationScript,
+					},
+				}
 			case *[]Param:
 				p.Value = *val
 			}
@@ -308,4 +329,28 @@ func (p *Param) UnmarshalJSON(data []byte) error {
 	}
 
 	return errors.New("unknown type")
+}
+
+// signerWithWitnessAux is an auxiluary struct for JSON marshalling. We need it because of
+// DisallowUnknownFields JSON marshaller setting.
+type signerWithWitnessAux struct {
+	Account            util.Uint160             `json:"account"`
+	Scopes             transaction.WitnessScope `json:"scopes"`
+	AllowedContracts   []util.Uint160           `json:"allowedcontracts,omitempty"`
+	AllowedGroups      []*keys.PublicKey        `json:"allowedgroups,omitempty"`
+	InvocationScript   []byte                   `json:"invocation,omitempty"`
+	VerificationScript []byte                   `json:"verification,omitempty"`
+}
+
+// MarshalJSON implements json.Unmarshaler interface.
+func (s *SignerWithWitness) MarshalJSON() ([]byte, error) {
+	signer := &signerWithWitnessAux{
+		Account:            s.Account,
+		Scopes:             s.Scopes,
+		AllowedContracts:   s.AllowedContracts,
+		AllowedGroups:      s.AllowedGroups,
+		InvocationScript:   s.InvocationScript,
+		VerificationScript: s.VerificationScript,
+	}
+	return json.Marshal(signer)
 }

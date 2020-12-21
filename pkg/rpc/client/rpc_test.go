@@ -39,6 +39,7 @@ import (
 type rpcClientTestCase struct {
 	name           string
 	invoke         func(c *Client) (interface{}, error)
+	fails          bool
 	serverResponse string
 	result         func(c *Client) interface{}
 	check          func(t *testing.T, c *Client, result interface{})
@@ -806,6 +807,46 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 			},
 		},
 	},
+	"invokecontractverify": {
+		{
+			name: "positive",
+			invoke: func(c *Client) (interface{}, error) {
+				contr, err := util.Uint160DecodeStringLE("af7c7328eee5a275a3bcaee2bf0cf662b5e739be")
+				if err != nil {
+					panic(err)
+				}
+				return c.InvokeContractVerify(contr, nil, []transaction.Signer{{Account: util.Uint160{1, 2, 3}}}, transaction.Witness{InvocationScript: []byte{1, 2, 3}})
+			},
+			serverResponse: `{"jsonrpc":"2.0","id":1,"result":{"script":"FCaufGyYYexBhGjB8P3Ep/KWPriRUcEJYmFsYW5jZU9mZ74557Vi9gy/4q68o3Wi5e4oc3yv","state":"HALT","gasconsumed":"0.31100000","stack":[{"type":"ByteString","value":"JivsCEQy"}],"tx":"AAgAAACAlpgAAAAAAAIEEwAAAAAAsAQAAAGqis+FnU/kArNOZz8hVoIXlqSI6wEAVwHoAwwUqorPhZ1P5AKzTmc/IVaCF5akiOsMFOeetm08E0pKd27oB9LluEbdpP2wE8AMCHRyYW5zZmVyDBTnnrZtPBNKSndu6AfS5bhG3aT9sEFifVtSOAFCDEDYNAh3TUvYsZrocFYdBvJ0Trdnj1jRuQzy9Q6YroP2Cwgk4v7q3vbeZBikz8Q7vB+RbDPsWUy+ZiqdkkeG4XoUKQwhArNiK/QBe9/jF8WK7V9MdT8ga324lgRvp9d0u8S/f43CC0GVRA14"}}`,
+			result: func(c *Client) interface{} {
+				return &result.Invoke{}
+			},
+			check: func(t *testing.T, c *Client, uns interface{}) {
+				res, ok := uns.(*result.Invoke)
+				require.True(t, ok)
+				bytes, err := hex.DecodeString("262bec084432")
+				if err != nil {
+					panic(err)
+				}
+				script, err := base64.StdEncoding.DecodeString("FCaufGyYYexBhGjB8P3Ep/KWPriRUcEJYmFsYW5jZU9mZ74557Vi9gy/4q68o3Wi5e4oc3yv")
+				if err != nil {
+					panic(err)
+				}
+				assert.Equal(t, "HALT", res.State)
+				assert.Equal(t, int64(31100000), res.GasConsumed)
+				assert.Equal(t, script, res.Script)
+				assert.Equal(t, []stackitem.Item{stackitem.NewByteArray(bytes)}, res.Stack)
+				assert.NotNil(t, res.Transaction)
+			},
+		},
+		{
+			name: "bad witness number",
+			invoke: func(c *Client) (interface{}, error) {
+				return c.InvokeContractVerify(util.Uint160{}, nil, []transaction.Signer{{}}, []transaction.Witness{{}, {}}...)
+			},
+			fails: true,
+		},
+	},
 	"sendrawtransaction": {
 		{
 			name: "positive",
@@ -1365,13 +1406,17 @@ func testRPCClient(t *testing.T, newClient func(context.Context, string, Options
 					}
 
 					actual, err := testCase.invoke(c)
-					assert.NoError(t, err)
-
-					expected := testCase.result(c)
-					if testCase.check == nil {
-						assert.Equal(t, expected, actual)
+					if testCase.fails {
+						assert.Error(t, err)
 					} else {
-						testCase.check(t, c, actual)
+						assert.NoError(t, err)
+
+						expected := testCase.result(c)
+						if testCase.check == nil {
+							assert.Equal(t, expected, actual)
+						} else {
+							testCase.check(t, c, actual)
+						}
 					}
 				})
 			}

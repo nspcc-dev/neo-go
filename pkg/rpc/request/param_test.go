@@ -104,20 +104,24 @@ func TestParam_UnmarshalJSON(t *testing.T) {
 			Value: ExecutionFilter{State: "HALT"},
 		},
 		{
-			Type: Signer,
-			Value: transaction.Signer{
-				Account: accountHash,
-				Scopes:  transaction.None,
+			Type: SignerWithWitnessT,
+			Value: SignerWithWitness{
+				Signer: transaction.Signer{
+					Account: accountHash,
+					Scopes:  transaction.None,
+				},
 			},
 		},
 		{
 			Type: ArrayT,
 			Value: []Param{
 				{
-					Type: Signer,
-					Value: transaction.Signer{
-						Account: accountHash,
-						Scopes:  transaction.Global,
+					Type: SignerWithWitnessT,
+					Value: SignerWithWitness{
+						Signer: transaction.Signer{
+							Account: accountHash,
+							Scopes:  transaction.Global,
+						},
 					},
 				},
 			},
@@ -297,17 +301,24 @@ func TestParamGetBytesBase64(t *testing.T) {
 }
 
 func TestParamGetSigner(t *testing.T) {
-	c := transaction.Signer{
-		Account: util.Uint160{1, 2, 3, 4},
-		Scopes:  transaction.Global,
+	c := SignerWithWitness{
+		Signer: transaction.Signer{
+			Account: util.Uint160{1, 2, 3, 4},
+			Scopes:  transaction.Global,
+		},
+		Witness: transaction.Witness{
+
+			InvocationScript:   []byte{1, 2, 3},
+			VerificationScript: []byte{1, 2, 3},
+		},
 	}
-	p := Param{Type: Signer, Value: c}
-	actual, err := p.GetSigner()
+	p := Param{Type: SignerWithWitnessT, Value: c}
+	actual, err := p.GetSignerWithWitness()
 	require.NoError(t, err)
 	require.Equal(t, c, actual)
 
-	p = Param{Type: Signer, Value: `{"account": "0xcadb3dc2faa3ef14a13b619c9a43124755aa2569", "scopes": 0}`}
-	_, err = p.GetSigner()
+	p = Param{Type: SignerWithWitnessT, Value: `{"account": "0xcadb3dc2faa3ef14a13b619c9a43124755aa2569", "scopes": 0}`}
+	_, err = p.GetSignerWithWitness()
 	require.Error(t, err)
 }
 
@@ -319,7 +330,7 @@ func TestParamGetSigners(t *testing.T) {
 			{Type: StringT, Value: u1.StringLE()},
 			{Type: StringT, Value: u2.StringLE()},
 		}}
-		actual, err := p.GetSigners()
+		actual, _, err := p.GetSignersWithWitnesses()
 		require.NoError(t, err)
 		require.Equal(t, 2, len(actual))
 		require.True(t, u1.Equals(actual[0].Account))
@@ -327,27 +338,48 @@ func TestParamGetSigners(t *testing.T) {
 	})
 
 	t.Run("from signers", func(t *testing.T) {
-		c1 := transaction.Signer{
-			Account: u1,
-			Scopes:  transaction.Global,
+		c1 := SignerWithWitness{
+			Signer: transaction.Signer{
+				Account: u1,
+				Scopes:  transaction.Global,
+			},
+			Witness: transaction.Witness{
+				InvocationScript:   []byte{1, 2, 3},
+				VerificationScript: []byte{1, 2, 3},
+			},
 		}
-		c2 := transaction.Signer{
-			Account: u2,
-			Scopes:  transaction.CustomContracts,
-			AllowedContracts: []util.Uint160{
-				{1, 2, 3},
-				{4, 5, 6},
+		c2 := SignerWithWitness{
+			Signer: transaction.Signer{
+				Account: u2,
+				Scopes:  transaction.CustomContracts,
+				AllowedContracts: []util.Uint160{
+					{1, 2, 3},
+					{4, 5, 6},
+				},
 			},
 		}
 		p := Param{ArrayT, []Param{
-			{Type: Signer, Value: c1},
-			{Type: Signer, Value: c2},
+			{Type: SignerWithWitnessT, Value: c1},
+			{Type: SignerWithWitnessT, Value: c2},
 		}}
-		actual, err := p.GetSigners()
+		actualS, actualW, err := p.GetSignersWithWitnesses()
 		require.NoError(t, err)
-		require.Equal(t, 2, len(actual))
-		require.Equal(t, c1, actual[0])
-		require.Equal(t, c2, actual[1])
+		require.Equal(t, 2, len(actualS))
+		require.Equal(t, transaction.Signer{
+			Account: c1.Account,
+			Scopes:  c1.Scopes,
+		}, actualS[0])
+		require.Equal(t, transaction.Signer{
+			Account:          c2.Account,
+			Scopes:           c2.Scopes,
+			AllowedContracts: c2.AllowedContracts,
+		}, actualS[1])
+		require.EqualValues(t, 2, len(actualW))
+		require.EqualValues(t, transaction.Witness{
+			InvocationScript:   c1.InvocationScript,
+			VerificationScript: c1.VerificationScript,
+		}, actualW[0])
+		require.Equal(t, transaction.Witness{}, actualW[1])
 	})
 
 	t.Run("bad format", func(t *testing.T) {
@@ -355,7 +387,7 @@ func TestParamGetSigners(t *testing.T) {
 			{Type: StringT, Value: u1.StringLE()},
 			{Type: StringT, Value: "bla"},
 		}}
-		_, err := p.GetSigners()
+		_, _, err := p.GetSignersWithWitnesses()
 		require.Error(t, err)
 	})
 }

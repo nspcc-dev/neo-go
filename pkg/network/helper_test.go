@@ -230,7 +230,7 @@ func (chain *testChain) GetStateRoot(height uint32) (*state.MPTRootState, error)
 func (chain *testChain) GetStorageItem(id int32, key []byte) *state.StorageItem {
 	panic("TODO")
 }
-func (chain *testChain) GetTestVM(tx *transaction.Transaction, b *block.Block) *vm.VM {
+func (chain *testChain) GetTestVM(t trigger.Type, tx *transaction.Transaction, b *block.Block) *vm.VM {
 	panic("TODO")
 }
 func (chain *testChain) GetStorageItems(id int32) (map[string]*state.StorageItem, error) {
