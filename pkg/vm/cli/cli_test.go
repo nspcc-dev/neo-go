@@ -155,9 +155,7 @@ func TestLoad(t *testing.T) {
 	})
 
 	src := `package kek
-	func Main(op string, args []interface{}) int {
-		a := args[0].(int)
-		b := args[1].(int)
+	func Main(op string, a, b int) int {
 		if op == "add" {
 			return a + b
 		} else {
@@ -179,7 +177,7 @@ func TestLoad(t *testing.T) {
 			"loadgo",
 			"loadgo "+filenameErr,
 			"loadgo "+filename,
-			"run add 3 5")
+			"run main add 3 5")
 
 		e.checkError(t, ErrMissingParameter)
 		e.checkNextLine(t, "Error:")
@@ -189,7 +187,7 @@ func TestLoad(t *testing.T) {
 	t.Run("loadnef", func(t *testing.T) {
 		config.Version = "0.92.0-test"
 
-		script, err := compiler.Compile("test", strings.NewReader(src))
+		script, di, err := compiler.CompileWithDebugInfo("test", strings.NewReader(src))
 		require.NoError(t, err)
 		nefFile, err := nef.NewFile(script)
 		require.NoError(t, err)
@@ -197,17 +195,28 @@ func TestLoad(t *testing.T) {
 		rawNef, err := nefFile.Bytes()
 		require.NoError(t, err)
 		require.NoError(t, ioutil.WriteFile(filename, rawNef, os.ModePerm))
+		m, err := di.ConvertToManifest(&compiler.Options{})
+		require.NoError(t, err)
+		manifestFile := path.Join(tmpDir, "vmtestcontract.manifest.json")
+		rawManifest, err := json.Marshal(m)
+		require.NoError(t, err)
+		require.NoError(t, ioutil.WriteFile(manifestFile, rawManifest, os.ModePerm))
 		filenameErr := path.Join(tmpDir, "vmtestcontract_err.nef")
 		require.NoError(t, ioutil.WriteFile(filenameErr, append([]byte{1, 2, 3, 4}, rawNef...), os.ModePerm))
+		notExists := path.Join(tmpDir, "notexists.json")
 
 		e := newTestVMCLI(t)
 		e.runProg(t,
 			"loadnef",
-			"loadnef "+filenameErr,
-			"loadnef "+filename,
-			"run add 3 5")
+			"loadnef "+filenameErr+" "+manifestFile,
+			"loadnef "+filename+" "+notExists,
+			"loadnef "+filename+" "+filename,
+			"loadnef "+filename+" "+manifestFile,
+			"run main add 3 5")
 
 		e.checkError(t, ErrMissingParameter)
+		e.checkNextLine(t, "Error:")
+		e.checkNextLine(t, "Error:")
 		e.checkNextLine(t, "Error:")
 		e.checkNextLine(t, "READY: loaded \\d* instructions")
 		e.checkStack(t, 8)
@@ -216,17 +225,21 @@ func TestLoad(t *testing.T) {
 
 func TestRunWithDifferentArguments(t *testing.T) {
 	src := `package kek
-	func Main(op string, args []interface{}) interface{} {
-		switch op {
-		case "getbool":
-			return args[0].(bool)
-		case "getint":
-			return args[0].(int)
-		case "getstring":
-			return args[0].(string)
-		default:
-			return nil
-		}
+	var a = 1
+	func init() {
+		a += 1
+	}
+	func InitHasRun() bool {
+		return a == 2
+	}
+	func Negate(arg bool) bool {
+		return !arg
+	}
+	func GetInt(arg int) int {
+		return arg
+	}
+	func GetString(arg string) string {
+		return arg
 	}`
 
 	filename := path.Join(os.TempDir(), "run_vmtestcontract.go")
@@ -235,13 +248,22 @@ func TestRunWithDifferentArguments(t *testing.T) {
 
 	e := newTestVMCLI(t)
 	e.runProg(t,
-		"loadgo "+filename, "run getbool true",
-		"loadgo "+filename, "run getbool false",
-		"loadgo "+filename, "run getbool bool:invalid",
-		"loadgo "+filename, "run getint 123",
-		"loadgo "+filename, "run getint int:invalid",
-		"loadgo "+filename, "run getstring validstring",
+		"loadgo "+filename, "run notexists",
+		"loadgo "+filename, "run negate false",
+		"loadgo "+filename, "run negate true",
+		"loadgo "+filename, "run negate bool:invalid",
+		"loadgo "+filename, "run getInt 123",
+		"loadgo "+filename, "run getInt int:invalid",
+		"loadgo "+filename, "run getString validstring",
+		"loadgo "+filename, "run initHasRun",
+		"loadhex "+hex.EncodeToString([]byte{byte(opcode.ADD)}),
+		"run _ 1 2",
+		"loadbase64 "+base64.StdEncoding.EncodeToString([]byte{byte(opcode.MUL)}),
+		"run _ 21 2",
 	)
+
+	e.checkNextLine(t, "READY: loaded \\d.* instructions")
+	e.checkNextLine(t, "Error:")
 
 	e.checkNextLine(t, "READY: loaded \\d.* instructions")
 	e.checkStack(t, true)
@@ -260,6 +282,15 @@ func TestRunWithDifferentArguments(t *testing.T) {
 
 	e.checkNextLine(t, "READY: loaded \\d.* instructions")
 	e.checkStack(t, "validstring")
+
+	e.checkNextLine(t, "READY: loaded \\d.* instructions")
+	e.checkStack(t, true)
+
+	e.checkNextLine(t, "READY: loaded \\d.* instructions")
+	e.checkStack(t, 3)
+
+	e.checkNextLine(t, "READY: loaded \\d.* instructions")
+	e.checkStack(t, 42)
 }
 
 func TestPrintOps(t *testing.T) {
