@@ -57,7 +57,11 @@ func (aer *AppExecResult) EncodeBinary(w *io.BinWriter) {
 	w.WriteB(byte(aer.Trigger))
 	w.WriteB(byte(aer.VMState))
 	w.WriteU64LE(uint64(aer.GasConsumed))
-	stackitem.EncodeBinaryStackItem(stackitem.NewArray(aer.Stack), w)
+	// Stack items are expected to be marshaled one by one.
+	w.WriteVarUint(uint64(len(aer.Stack)))
+	for _, it := range aer.Stack {
+		stackitem.EncodeBinaryStackItemAppExec(it, w)
+	}
 	w.WriteArray(aer.Events)
 	w.WriteVarBytes([]byte(aer.FaultException))
 }
@@ -68,15 +72,21 @@ func (aer *AppExecResult) DecodeBinary(r *io.BinReader) {
 	aer.Trigger = trigger.Type(r.ReadB())
 	aer.VMState = vm.State(r.ReadB())
 	aer.GasConsumed = int64(r.ReadU64LE())
-	item := stackitem.DecodeBinaryStackItem(r)
-	if r.Err == nil {
-		arr, ok := item.Value().([]stackitem.Item)
-		if !ok {
-			r.Err = errors.New("array expected")
+	sz := r.ReadVarUint()
+	if stackitem.MaxArraySize < sz && r.Err == nil {
+		r.Err = errors.New("invalid format")
+	}
+	if r.Err != nil {
+		return
+	}
+	arr := make([]stackitem.Item, sz)
+	for i := 0; i < int(sz); i++ {
+		arr[i] = stackitem.DecodeBinaryStackItemAppExec(r)
+		if r.Err != nil {
 			return
 		}
-		aer.Stack = arr
 	}
+	aer.Stack = arr
 	r.ReadArray(&aer.Events)
 	aer.FaultException = r.ReadString()
 }
@@ -182,23 +192,22 @@ type executionAux struct {
 
 // MarshalJSON implements implements json.Marshaler interface.
 func (e Execution) MarshalJSON() ([]byte, error) {
-	var st json.RawMessage
+	var errRecursive = []byte(`"error: recursive reference"`)
 	arr := make([]json.RawMessage, len(e.Stack))
 	for i := range arr {
+		if e.Stack[i] == nil {
+			arr[i] = errRecursive
+			continue
+		}
 		data, err := stackitem.ToJSONWithTypes(e.Stack[i])
 		if err != nil {
-			st = []byte(`"error: recursive reference"`)
-			break
+			data = errRecursive
 		}
 		arr[i] = data
 	}
-	var err error
-	if st == nil {
-		st, err = json.Marshal(arr)
-		if err != nil {
-			return nil, err
-		}
-
+	st, err := json.Marshal(arr)
+	if err != nil {
+		return nil, err
 	}
 	return json.Marshal(&executionAux{
 		Trigger:        e.Trigger.String(),
@@ -222,7 +231,11 @@ func (e *Execution) UnmarshalJSON(data []byte) error {
 		for i := range arr {
 			st[i], err = stackitem.FromJSONWithTypes(arr[i])
 			if err != nil {
-				break
+				var s string
+				if json.Unmarshal(arr[i], &s) != nil {
+					break
+				}
+				err = nil
 			}
 		}
 		if err == nil {

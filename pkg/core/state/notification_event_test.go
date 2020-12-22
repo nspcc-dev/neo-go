@@ -6,6 +6,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/internal/random"
 	"github.com/nspcc-dev/neo-go/internal/testserdes"
+	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
@@ -23,34 +24,62 @@ func TestEncodeDecodeNotificationEvent(t *testing.T) {
 }
 
 func TestEncodeDecodeAppExecResult(t *testing.T) {
-	t.Run("halt", func(t *testing.T) {
-		appExecResult := &AppExecResult{
+	newAer := func() *AppExecResult {
+		return &AppExecResult{
 			Container: random.Uint256(),
 			Execution: Execution{
 				Trigger:     1,
 				VMState:     vm.HaltState,
 				GasConsumed: 10,
-				Stack:       []stackitem.Item{},
+				Stack:       []stackitem.Item{stackitem.NewBool(true)},
 				Events:      []NotificationEvent{},
 			},
 		}
-
+	}
+	t.Run("halt", func(t *testing.T) {
+		appExecResult := newAer()
+		appExecResult.VMState = vm.HaltState
 		testserdes.EncodeDecodeBinary(t, appExecResult, new(AppExecResult))
 	})
 	t.Run("fault", func(t *testing.T) {
-		appExecResult := &AppExecResult{
-			Container: random.Uint256(),
-			Execution: Execution{
-				Trigger:        1,
-				VMState:        vm.FaultState,
-				GasConsumed:    10,
-				Stack:          []stackitem.Item{},
-				Events:         []NotificationEvent{},
-				FaultException: "unhandled error",
-			},
-		}
-
+		appExecResult := newAer()
+		appExecResult.VMState = vm.FaultState
 		testserdes.EncodeDecodeBinary(t, appExecResult, new(AppExecResult))
+	})
+	t.Run("with interop", func(t *testing.T) {
+		appExecResult := newAer()
+		appExecResult.Stack = []stackitem.Item{stackitem.NewInterop(nil)}
+		testserdes.EncodeDecodeBinary(t, appExecResult, new(AppExecResult))
+	})
+	t.Run("recursive reference", func(t *testing.T) {
+		var arr = stackitem.NewArray(nil)
+		arr.Append(arr)
+		appExecResult := newAer()
+		appExecResult.Stack = []stackitem.Item{arr, stackitem.NewBool(true), stackitem.NewInterop(123)}
+
+		bs, err := testserdes.EncodeBinary(appExecResult)
+		require.NoError(t, err)
+		actual := new(AppExecResult)
+		require.NoError(t, testserdes.DecodeBinary(bs, actual))
+		require.Equal(t, 3, len(actual.Stack))
+		require.Nil(t, actual.Stack[0])
+		require.Equal(t, true, actual.Stack[1].Value())
+		require.Equal(t, stackitem.InteropT, actual.Stack[2].Type())
+
+		bs1, err := testserdes.EncodeBinary(actual)
+		require.NoError(t, err)
+		require.Equal(t, bs, bs1)
+	})
+	t.Run("invalid item type", func(t *testing.T) {
+		aer := newAer()
+		w := io.NewBufBinWriter()
+		w.WriteBytes(aer.Container[:])
+		w.WriteB(byte(aer.Trigger))
+		w.WriteB(byte(aer.VMState))
+		w.WriteU64LE(uint64(aer.GasConsumed))
+		stackitem.EncodeBinaryStackItem(stackitem.NewBool(true), w.BinWriter)
+		require.NoError(t, w.Err)
+		require.Error(t, testserdes.DecodeBinary(w.Bytes(), new(AppExecResult)))
 	})
 }
 
@@ -127,7 +156,7 @@ func TestMarshalUnmarshalJSONAppExecResult(t *testing.T) {
 				Trigger:        trigger.Application,
 				VMState:        vm.FaultState,
 				GasConsumed:    10,
-				Stack:          []stackitem.Item{},
+				Stack:          []stackitem.Item{stackitem.NewBool(true)},
 				Events:         []NotificationEvent{},
 				FaultException: "unhandled exception",
 			},
@@ -149,20 +178,28 @@ func TestMarshalUnmarshalJSONAppExecResult(t *testing.T) {
 	})
 
 	t.Run("MarshalJSON recursive reference", func(t *testing.T) {
-		i := make([]stackitem.Item, 1)
-		recursive := stackitem.NewArray(i)
-		i[0] = recursive
-		errorCases := []*AppExecResult{
-			{
-				Execution: Execution{
-					Stack: i,
-				},
+		arr := stackitem.NewArray(nil)
+		arr.Append(arr)
+		errAer := &AppExecResult{
+			Execution: Execution{
+				Trigger: trigger.Application,
+				Stack:   []stackitem.Item{arr, stackitem.NewBool(true), stackitem.NewInterop(123)},
 			},
 		}
-		for _, errCase := range errorCases {
-			_, err := json.Marshal(errCase)
-			require.NoError(t, err)
-		}
+
+		bs, err := json.Marshal(errAer)
+		require.NoError(t, err)
+
+		actual := new(AppExecResult)
+		require.NoError(t, json.Unmarshal(bs, actual))
+		require.Equal(t, 3, len(actual.Stack))
+		require.Nil(t, actual.Stack[0])
+		require.Equal(t, true, actual.Stack[1].Value())
+		require.Equal(t, stackitem.InteropT, actual.Stack[2].Type())
+
+		bs1, err := json.Marshal(actual)
+		require.NoError(t, err)
+		require.Equal(t, bs, bs1)
 	})
 
 	t.Run("UnmarshalJSON error", func(t *testing.T) {

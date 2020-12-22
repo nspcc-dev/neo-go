@@ -1539,3 +1539,17 @@ func TestRemoveUntraceable(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, b.Transactions, 0)
 }
+
+func TestInvalidNotification(t *testing.T) {
+	bc := newTestChain(t)
+	defer bc.Close()
+
+	cs, _ := getTestContractState(bc)
+	require.NoError(t, bc.contracts.Management.PutContractState(bc.dao, cs))
+
+	aer, err := invokeContractMethod(bc, 1_00000000, cs.Hash, "invalidStack")
+	require.NoError(t, err)
+	require.Equal(t, 2, len(aer.Stack))
+	require.Nil(t, aer.Stack[0])
+	require.Equal(t, stackitem.InteropT, aer.Stack[1].Type())
+}

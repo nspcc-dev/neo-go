@@ -17,6 +17,7 @@ const (
 	StructT    Type = 0x41
 	MapT       Type = 0x48
 	InteropT   Type = 0x60
+	InvalidT   Type = 0xFF
 )
 
 // String implements fmt.Stringer interface.
