@@ -64,7 +64,7 @@ func newManagement() *Management {
 	}
 
 	desc := newDescriptor("getContract", smartcontract.ArrayType,
-		manifest.NewParameter("hash", smartcontract.Hash160Type))
+		manifest.NewParameter("hash", smartcontract.ByteArrayType))
 	md := newMethodAndPrice(m.getContract, 1000000, smartcontract.ReadStates)
 	m.AddMethod(md, desc)
 

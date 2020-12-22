@@ -97,7 +97,7 @@ func newPolicy() *Policy {
 	p.AddMethod(md, desc)
 
 	desc = newDescriptor("isBlocked", smartcontract.BoolType,
-		manifest.NewParameter("account", smartcontract.Hash160Type))
+		manifest.NewParameter("account", smartcontract.ByteArrayType))
 	md = newMethodAndPrice(p.isBlocked, 1000000, smartcontract.ReadStates)
 	p.AddMethod(md, desc)
 
@@ -144,12 +144,12 @@ func newPolicy() *Policy {
 	p.AddMethod(md, desc)
 
 	desc = newDescriptor("blockAccount", smartcontract.BoolType,
-		manifest.NewParameter("account", smartcontract.Hash160Type))
+		manifest.NewParameter("account", smartcontract.ByteArrayType))
 	md = newMethodAndPrice(p.blockAccount, 3000000, smartcontract.WriteStates)
 	p.AddMethod(md, desc)
 
 	desc = newDescriptor("unblockAccount", smartcontract.BoolType,
-		manifest.NewParameter("account", smartcontract.Hash160Type))
+		manifest.NewParameter("account", smartcontract.ByteArrayType))
 	md = newMethodAndPrice(p.unblockAccount, 3000000, smartcontract.WriteStates)
 	p.AddMethod(md, desc)
 
