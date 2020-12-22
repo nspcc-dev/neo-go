@@ -50,7 +50,7 @@ ApplicationConfiguration:
   MinPeers: 5
   RPC:
     Enabled: true
-    MaxGasInvoke: 10
+    MaxGasInvoke: 15
     EnableCORSWorkaround: false
     Port: 20332
     TLSConfig:

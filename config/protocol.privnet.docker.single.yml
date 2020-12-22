@@ -41,7 +41,7 @@ ApplicationConfiguration:
   RPC:
     Enabled: true
     EnableCORSWorkaround: false
-    MaxGasInvoke: 10
+    MaxGasInvoke: 15
     Port: 30333
   Prometheus:
     Enabled: true
