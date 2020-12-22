@@ -537,7 +537,7 @@ func (s *Server) handleInvCmd(p Peer, inv *payload.Inventory) error {
 			return err
 		}
 		if inv.Type == payload.ConsensusType {
-			return p.EnqueueHPPacket(pkt)
+			return p.EnqueueHPPacket(true, pkt)
 		}
 		return p.EnqueueP2PPacket(pkt)
 	}
@@ -599,7 +599,7 @@ func (s *Server) handleGetDataCmd(p Peer, inv *payload.Inventory) error {
 			pkt, err := msg.Bytes()
 			if err == nil {
 				if inv.Type == payload.ConsensusType {
-					err = p.EnqueueHPPacket(pkt)
+					err = p.EnqueueHPPacket(true, pkt)
 				} else {
 					err = p.EnqueueP2PPacket(pkt)
 				}
@@ -943,7 +943,7 @@ func (s *Server) requestTx(hashes ...util.Uint256) {
 // iteratePeersWithSendMsg sends given message to all peers using two functions
 // passed, one is to send the message and the other is to filtrate peers (the
 // peer is considered invalid if it returns false).
-func (s *Server) iteratePeersWithSendMsg(msg *Message, send func(Peer, []byte) error, peerOK func(Peer) bool) {
+func (s *Server) iteratePeersWithSendMsg(msg *Message, send func(Peer, bool, []byte) error, peerOK func(Peer) bool) {
 	// Get a copy of s.peers to avoid holding a lock while sending.
 	peers := s.Peers()
 	if len(peers) == 0 {
@@ -953,15 +953,46 @@ func (s *Server) iteratePeersWithSendMsg(msg *Message, send func(Peer, []byte) e
 	if err != nil {
 		return
 	}
+
+	success := make(map[Peer]bool, len(peers))
+	okCount := 0
+	sentCount := 0
 	for peer := range peers {
 		if peerOK != nil && !peerOK(peer) {
+			success[peer] = false
+			continue
+		}
+		okCount++
+		if err := send(peer, false, pkt); err != nil {
 			continue
 		}
 		if msg.Command == CMDGetAddr {
 			peer.AddGetAddrSent()
 		}
-		// Who cares about these messages anyway?
-		_ = send(peer, pkt)
+		success[peer] = true
+		sentCount++
+	}
+
+	// Send to at least 2/3 of good peers.
+	if 3*sentCount >= 2*okCount {
+		return
+	}
+
+	// Perform blocking send now.
+	for peer := range peers {
+		if _, ok := success[peer]; ok || peerOK != nil && !peerOK(peer) {
+			continue
+		}
+		if err := send(peer, true, pkt); err != nil {
+			continue
+		}
+		if msg.Command == CMDGetAddr {
+			peer.AddGetAddrSent()
+		}
+		sentCount++
+		if 3*sentCount >= 2*okCount {
+			return
+		}
 	}
 }
 

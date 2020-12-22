@@ -28,7 +28,7 @@ type Peer interface {
 	// can be shared with other queues (so that message marshalling can be
 	// done once for all peers). Does nothing is the peer is not yet
 	// completed handshaking.
-	EnqueuePacket([]byte) error
+	EnqueuePacket(bool, []byte) error
 
 	// EnqueueP2PMessage is a temporary wrapper that sends a message via
 	// EnqueueP2PPacket if there is no error in serializing it.
@@ -47,7 +47,7 @@ type Peer interface {
 	// EnqueueHPPacket is a blocking high priority packet enqueuer, it
 	// doesn't return until it puts given packet into the high-priority
 	// queue.
-	EnqueueHPPacket([]byte) error
+	EnqueueHPPacket(bool, []byte) error
 	Version() *payload.Version
 	LastBlockIndex() uint32
 	Handshaked() bool
