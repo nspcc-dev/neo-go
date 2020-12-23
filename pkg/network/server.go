@@ -474,7 +474,7 @@ func (s *Server) handleVersionCmd(p Peer, version *payload.Version) error {
 		}
 	}
 	s.lock.RUnlock()
-	return p.SendVersionAck(NewMessage(CMDVerack, nil))
+	return p.SendVersionAck(NewMessage(CMDVerack, payload.NewNullPayload()))
 }
 
 // handleBlockCmd processes the received block received from its peer.

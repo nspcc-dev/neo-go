@@ -216,7 +216,7 @@ func (m *Message) tryCompressPayload() error {
 	compressedPayload := buf.Bytes()
 	if m.Flags&Compressed == 0 {
 		switch m.Payload.(type) {
-		case *payload.Headers, *payload.MerkleBlock, *payload.NullPayload,
+		case *payload.Headers, *payload.MerkleBlock, payload.NullPayload,
 			*payload.Inventory:
 			break
 		default:
