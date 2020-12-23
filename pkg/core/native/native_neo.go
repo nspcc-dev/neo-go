@@ -246,11 +246,9 @@ func (n *NEO) updateCommittee(ic *interop.Context) error {
 		return ic.DAO.PutStorageItem(n.ContractID, prefixCommittee, si)
 	}
 
-	committee, cvs, err := n.computeCommitteeMembers(ic.Chain, ic.DAO)
+	_, cvs, err := n.computeCommitteeMembers(ic.Chain, ic.DAO)
 	if err != nil {
 		return err
-	} else if cvs == nil {
-		cvs = toKeysWithVotes(committee)
 	}
 	if err := n.updateCache(cvs, ic.Chain); err != nil {
 		return err
@@ -852,18 +850,28 @@ func (n *NEO) computeCommitteeMembers(bc blockchainer.Blockchainer, d dao.DAO) (
 	// votersCount / totalSupply must be >= 0.2
 	votersCount.Mul(votersCount, big.NewInt(effectiveVoterTurnout))
 	voterTurnout := votersCount.Div(votersCount, n.getTotalSupply(d))
-	if voterTurnout.Sign() != 1 {
-		pubs := bc.GetStandByCommittee()
-		return pubs, nil, nil
-	}
+
+	sbVals := bc.GetStandByCommittee()
+	count := len(sbVals)
 	cs, err := n.getCandidates(d, false)
 	if err != nil {
 		return nil, nil, err
 	}
-	sbVals := bc.GetStandByCommittee()
-	count := len(sbVals)
-	if len(cs) < count {
-		return sbVals, nil, nil
+	if voterTurnout.Sign() != 1 || len(cs) < count {
+		kvs := make(keysWithVotes, count)
+		for i := range kvs {
+			kvs[i].UnmarshaledKey = sbVals[i]
+			kvs[i].Key = string(sbVals[i].Bytes())
+			votes := big.NewInt(0)
+			for j := range cs {
+				if cs[j].Key == kvs[i].Key {
+					votes = cs[j].Votes
+					break
+				}
+			}
+			kvs[i].Votes = votes
+		}
+		return sbVals, kvs, nil
 	}
 	pubs := make(keys.PublicKeys, count)
 	for i := range pubs {
