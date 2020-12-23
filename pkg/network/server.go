@@ -293,7 +293,28 @@ func (s *Server) run() {
 				addr := drop.peer.PeerAddr().String()
 				if drop.reason == errIdenticalID {
 					s.discovery.RegisterBadAddr(addr)
-				} else if drop.reason != errAlreadyConnected {
+				} else if drop.reason == errAlreadyConnected {
+					// There is a race condition when peer can be disconnected twice for the this reason
+					// which can lead to no connections to peer at all. Here we check for such a possibility.
+					stillConnected := false
+					s.lock.RLock()
+					verDrop := drop.peer.Version()
+					addr := drop.peer.PeerAddr().String()
+					if verDrop != nil {
+						for peer := range s.peers {
+							ver := peer.Version()
+							// Already connected, drop this connection.
+							if ver != nil && ver.Nonce == verDrop.Nonce && peer.PeerAddr().String() == addr {
+								stillConnected = true
+							}
+						}
+					}
+					s.lock.RUnlock()
+					if !stillConnected {
+						s.discovery.UnregisterConnectedAddr(addr)
+						s.discovery.BackFill(addr)
+					}
+				} else {
 					s.discovery.UnregisterConnectedAddr(addr)
 					s.discovery.BackFill(addr)
 				}
