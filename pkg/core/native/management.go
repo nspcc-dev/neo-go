@@ -64,7 +64,7 @@ func newManagement() *Management {
 	}
 
 	desc := newDescriptor("getContract", smartcontract.ArrayType,
-		manifest.NewParameter("hash", smartcontract.Hash160Type))
+		manifest.NewParameter("hash", smartcontract.ByteArrayType))
 	md := newMethodAndPrice(m.getContract, 1000000, smartcontract.ReadStates)
 	m.AddMethod(md, desc)
 
@@ -357,11 +357,11 @@ func (m *Management) getMinimumDeploymentFee(ic *interop.Context, args []stackit
 
 // GetMinimumDeploymentFee returns the minimum required fee for contract deploy.
 func (m *Management) GetMinimumDeploymentFee(dao dao.DAO) int64 {
-	return getInt64WithKey(m.ContractID, dao, keyMinimumDeploymentFee, defaultMinimumDeploymentFee)
+	return int64(getUint32WithKey(m.ContractID, dao, keyMinimumDeploymentFee, defaultMinimumDeploymentFee))
 }
 
 func (m *Management) setMinimumDeploymentFee(ic *interop.Context, args []stackitem.Item) stackitem.Item {
-	value := toBigInt(args[0]).Int64()
+	value := toUint32(args[0])
 	if value < 0 {
 		panic(fmt.Errorf("MinimumDeploymentFee cannot be negative"))
 	}
@@ -372,7 +372,7 @@ func (m *Management) setMinimumDeploymentFee(ic *interop.Context, args []stackit
 	if !ok {
 		return stackitem.NewBool(false)
 	}
-	err = setInt64WithKey(m.ContractID, ic.DAO, keyMinimumDeploymentFee, value)
+	err = setUint32WithKey(m.ContractID, ic.DAO, keyMinimumDeploymentFee, value)
 	if err != nil {
 		panic(err)
 	}
@@ -483,7 +483,7 @@ func (m *Management) PostPersist(ic *interop.Context) error {
 
 // Initialize implements Contract interface.
 func (m *Management) Initialize(ic *interop.Context) error {
-	return setInt64WithKey(m.ContractID, ic.DAO, keyMinimumDeploymentFee, defaultMinimumDeploymentFee)
+	return setUint32WithKey(m.ContractID, ic.DAO, keyMinimumDeploymentFee, defaultMinimumDeploymentFee)
 }
 
 // PutContractState saves given contract state into given DAO.

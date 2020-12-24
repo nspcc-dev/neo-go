@@ -122,6 +122,11 @@ var rpcTestCases = map[string][]rpcTestCase{
 			},
 		},
 		{
+			name:   "invalid trigger (not a string)",
+			params: `["` + genesisBlockHash + `", 1]`,
+			fail:   true,
+		},
+		{
 			name:   "no params",
 			params: `[]`,
 			fail:   true,

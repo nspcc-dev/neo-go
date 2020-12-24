@@ -59,22 +59,23 @@ func newNEP17Native(name string) *nep17TokenNative {
 	n.AddMethod(md, desc)
 
 	desc = newDescriptor("balanceOf", smartcontract.IntegerType,
-		manifest.NewParameter("account", smartcontract.Hash160Type))
+		manifest.NewParameter("account", smartcontract.ByteArrayType))
 	md = newMethodAndPrice(n.balanceOf, 1000000, smartcontract.ReadStates)
 	n.AddMethod(md, desc)
 
-	transferParams := []manifest.Parameter{
-		manifest.NewParameter("from", smartcontract.Hash160Type),
-		manifest.NewParameter("to", smartcontract.Hash160Type),
-		manifest.NewParameter("amount", smartcontract.IntegerType),
-	}
 	desc = newDescriptor("transfer", smartcontract.BoolType,
-		append(transferParams, manifest.NewParameter("data", smartcontract.AnyType))...,
+		manifest.NewParameter("from", smartcontract.ByteArrayType),
+		manifest.NewParameter("to", smartcontract.ByteArrayType),
+		manifest.NewParameter("amount", smartcontract.IntegerType),
+		manifest.NewParameter("data", smartcontract.AnyType),
 	)
 	md = newMethodAndPrice(n.Transfer, 9000000, smartcontract.WriteStates|smartcontract.AllowCall|smartcontract.AllowNotify)
 	n.AddMethod(md, desc)
 
-	n.AddEvent("Transfer", transferParams...)
+	n.AddEvent("Transfer",
+		manifest.NewParameter("from", smartcontract.Hash160Type),
+		manifest.NewParameter("to", smartcontract.Hash160Type),
+		manifest.NewParameter("amount", smartcontract.IntegerType))
 
 	return n
 }

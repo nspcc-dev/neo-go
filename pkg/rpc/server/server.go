@@ -539,7 +539,11 @@ func (s *Server) getApplicationLog(reqParams request.Params) (interface{}, *resp
 
 	trig := trigger.All
 	if len(reqParams) > 1 {
-		trig, err = trigger.FromString(reqParams.ValueWithType(1, request.StringT).String())
+		trigString := reqParams.ValueWithType(1, request.StringT)
+		if trigString == nil {
+			return nil, response.ErrInvalidParams
+		}
+		trig, err = trigger.FromString(trigString.String())
 		if err != nil {
 			return nil, response.ErrInvalidParams
 		}
