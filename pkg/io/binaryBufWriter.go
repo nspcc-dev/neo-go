@@ -19,6 +19,12 @@ func NewBufBinWriter() *BufBinWriter {
 	return &BufBinWriter{BinWriter: NewBinWriterFromIO(b), buf: b}
 }
 
+// NewBufBinWriterPreAlloc makes a BufBinWriter using preallocated buffer.
+func NewBufBinWriterPreAlloc(buf []byte) *BufBinWriter {
+	b := bytes.NewBuffer(buf[:0])
+	return &BufBinWriter{BinWriter: NewBinWriterFromIO(b), buf: b}
+}
+
 // Len returns the number of bytes of the unread portion of the buffer.
 func (bw *BufBinWriter) Len() int {
 	return bw.buf.Len()
