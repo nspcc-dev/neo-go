@@ -440,6 +440,7 @@ func TestContractDestroy(t *testing.T) {
 	require.NoError(t, err)
 	err = bc.dao.PutStorageItem(cs1.ID, []byte{1, 2, 3}, &state.StorageItem{Value: []byte{3, 2, 1}})
 	require.NoError(t, err)
+	require.NoError(t, bc.dao.UpdateMPT())
 
 	t.Run("no contract", func(t *testing.T) {
 		res, err := invokeContractMethod(bc, 1_00000000, mgmtHash, "destroy")

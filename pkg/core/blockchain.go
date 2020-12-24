@@ -687,7 +687,12 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 	}
 	writeBuf.Reset()
 
-	root := bc.dao.MPT.StateRoot()
+	d := cache.DAO.(*dao.Simple)
+	if err := d.UpdateMPT(); err != nil {
+		return fmt.Errorf("error while trying to apply MPT changes: %w", err)
+	}
+
+	root := d.MPT.StateRoot()
 	var prevHash util.Uint256
 	if block.Index > 0 {
 		prev, err := bc.dao.GetStateRoot(block.Index - 1)
