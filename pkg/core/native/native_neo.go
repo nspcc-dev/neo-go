@@ -734,7 +734,7 @@ func (n *NEO) getCandidates(d dao.DAO, sortByKey bool) ([]keyWithVotes, error) {
 		}
 	}
 	if sortByKey {
-		sort.Slice(arr, func(i, j int) bool { return strings.Compare(arr[i].Key, arr[j].Key) == -1 })
+		sort.Slice(arr, func(i, j int) bool { return strings.Compare(arr[i].Key[1:], arr[j].Key[1:]) == -1 })
 	} else {
 		sort.Slice(arr, func(i, j int) bool {
 			// The most-voted validators should end up in the front of the list.
@@ -743,7 +743,7 @@ func (n *NEO) getCandidates(d dao.DAO, sortByKey bool) ([]keyWithVotes, error) {
 				return cmp > 0
 			}
 			// Ties are broken with public keys.
-			return strings.Compare(arr[i].Key, arr[j].Key) == -1
+			return strings.Compare(arr[i].Key[1:], arr[j].Key[1:]) == -1
 		})
 	}
 	return arr, nil
