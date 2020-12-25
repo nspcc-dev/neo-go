@@ -30,6 +30,7 @@ const (
 
 var (
 	errGone           = errors.New("the peer is gone already")
+	errBusy           = errors.New("peer is busy")
 	errStateMismatch  = errors.New("tried to send protocol message before handshake completed")
 	errPingPong       = errors.New("ping/pong timeout")
 	errUnexpectedPong = errors.New("pong message wasn't expected")
@@ -81,21 +82,31 @@ func NewTCPPeer(conn net.Conn, s *Server) *TCPPeer {
 
 // putPacketIntoQueue puts given message into the given queue if the peer has
 // done handshaking.
-func (p *TCPPeer) putPacketIntoQueue(queue chan<- []byte, msg []byte) error {
+func (p *TCPPeer) putPacketIntoQueue(queue chan<- []byte, block bool, msg []byte) error {
 	if !p.Handshaked() {
 		return errStateMismatch
 	}
-	select {
-	case queue <- msg:
-	case <-p.done:
-		return errGone
+	if block {
+		select {
+		case queue <- msg:
+		case <-p.done:
+			return errGone
+		}
+	} else {
+		select {
+		case queue <- msg:
+		case <-p.done:
+			return errGone
+		default:
+			return errBusy
+		}
 	}
 	return nil
 }
 
 // EnqueuePacket implements the Peer interface.
-func (p *TCPPeer) EnqueuePacket(msg []byte) error {
-	return p.putPacketIntoQueue(p.sendQ, msg)
+func (p *TCPPeer) EnqueuePacket(block bool, msg []byte) error {
+	return p.putPacketIntoQueue(p.sendQ, block, msg)
 }
 
 // putMessageIntoQueue serializes given Message and puts it into given queue if
@@ -105,7 +116,7 @@ func (p *TCPPeer) putMsgIntoQueue(queue chan<- []byte, msg *Message) error {
 	if err != nil {
 		return err
 	}
-	return p.putPacketIntoQueue(queue, b)
+	return p.putPacketIntoQueue(queue, true, b)
 }
 
 // EnqueueMessage is a temporary wrapper that sends a message via
@@ -116,7 +127,7 @@ func (p *TCPPeer) EnqueueMessage(msg *Message) error {
 
 // EnqueueP2PPacket implements the Peer interface.
 func (p *TCPPeer) EnqueueP2PPacket(msg []byte) error {
-	return p.putPacketIntoQueue(p.p2pSendQ, msg)
+	return p.putPacketIntoQueue(p.p2pSendQ, true, msg)
 }
 
 // EnqueueP2PMessage implements the Peer interface.
@@ -126,8 +137,8 @@ func (p *TCPPeer) EnqueueP2PMessage(msg *Message) error {
 
 // EnqueueHPPacket implements the Peer interface. It the peer is not yet
 // handshaked it's a noop.
-func (p *TCPPeer) EnqueueHPPacket(msg []byte) error {
-	return p.putPacketIntoQueue(p.hpSendQ, msg)
+func (p *TCPPeer) EnqueueHPPacket(block bool, msg []byte) error {
+	return p.putPacketIntoQueue(p.hpSendQ, block, msg)
 }
 
 func (p *TCPPeer) writeMsg(msg *Message) error {
@@ -184,6 +195,7 @@ func (p *TCPPeer) handleQueues() {
 	var p2pSkipCounter uint32
 	const p2pSkipDivisor = 4
 
+	var writeTimeout = time.Duration(p.server.chain.GetConfig().SecondsPerBlock) * time.Second
 	for {
 		var msg []byte
 
@@ -216,6 +228,10 @@ func (p *TCPPeer) handleQueues() {
 			case msg = <-p.p2pSendQ:
 			case msg = <-p.sendQ:
 			}
+		}
+		err = p.conn.SetWriteDeadline(time.Now().Add(writeTimeout))
+		if err != nil {
+			break
 		}
 		_, err = p.conn.Write(msg)
 		if err != nil {

@@ -293,7 +293,28 @@ func (s *Server) run() {
 				addr := drop.peer.PeerAddr().String()
 				if drop.reason == errIdenticalID {
 					s.discovery.RegisterBadAddr(addr)
-				} else if drop.reason != errAlreadyConnected {
+				} else if drop.reason == errAlreadyConnected {
+					// There is a race condition when peer can be disconnected twice for the this reason
+					// which can lead to no connections to peer at all. Here we check for such a possibility.
+					stillConnected := false
+					s.lock.RLock()
+					verDrop := drop.peer.Version()
+					addr := drop.peer.PeerAddr().String()
+					if verDrop != nil {
+						for peer := range s.peers {
+							ver := peer.Version()
+							// Already connected, drop this connection.
+							if ver != nil && ver.Nonce == verDrop.Nonce && peer.PeerAddr().String() == addr {
+								stillConnected = true
+							}
+						}
+					}
+					s.lock.RUnlock()
+					if !stillConnected {
+						s.discovery.UnregisterConnectedAddr(addr)
+						s.discovery.BackFill(addr)
+					}
+				} else {
 					s.discovery.UnregisterConnectedAddr(addr)
 					s.discovery.BackFill(addr)
 				}
@@ -474,7 +495,7 @@ func (s *Server) handleVersionCmd(p Peer, version *payload.Version) error {
 		}
 	}
 	s.lock.RUnlock()
-	return p.SendVersionAck(NewMessage(CMDVerack, nil))
+	return p.SendVersionAck(NewMessage(CMDVerack, payload.NewNullPayload()))
 }
 
 // handleBlockCmd processes the received block received from its peer.
@@ -537,7 +558,7 @@ func (s *Server) handleInvCmd(p Peer, inv *payload.Inventory) error {
 			return err
 		}
 		if inv.Type == payload.ConsensusType {
-			return p.EnqueueHPPacket(pkt)
+			return p.EnqueueHPPacket(true, pkt)
 		}
 		return p.EnqueueP2PPacket(pkt)
 	}
@@ -599,7 +620,7 @@ func (s *Server) handleGetDataCmd(p Peer, inv *payload.Inventory) error {
 			pkt, err := msg.Bytes()
 			if err == nil {
 				if inv.Type == payload.ConsensusType {
-					err = p.EnqueueHPPacket(pkt)
+					err = p.EnqueueHPPacket(true, pkt)
 				} else {
 					err = p.EnqueueP2PPacket(pkt)
 				}
@@ -943,7 +964,7 @@ func (s *Server) requestTx(hashes ...util.Uint256) {
 // iteratePeersWithSendMsg sends given message to all peers using two functions
 // passed, one is to send the message and the other is to filtrate peers (the
 // peer is considered invalid if it returns false).
-func (s *Server) iteratePeersWithSendMsg(msg *Message, send func(Peer, []byte) error, peerOK func(Peer) bool) {
+func (s *Server) iteratePeersWithSendMsg(msg *Message, send func(Peer, bool, []byte) error, peerOK func(Peer) bool) {
 	// Get a copy of s.peers to avoid holding a lock while sending.
 	peers := s.Peers()
 	if len(peers) == 0 {
@@ -953,15 +974,46 @@ func (s *Server) iteratePeersWithSendMsg(msg *Message, send func(Peer, []byte) e
 	if err != nil {
 		return
 	}
+
+	success := make(map[Peer]bool, len(peers))
+	okCount := 0
+	sentCount := 0
 	for peer := range peers {
 		if peerOK != nil && !peerOK(peer) {
+			success[peer] = false
+			continue
+		}
+		okCount++
+		if err := send(peer, false, pkt); err != nil {
 			continue
 		}
 		if msg.Command == CMDGetAddr {
 			peer.AddGetAddrSent()
 		}
-		// Who cares about these messages anyway?
-		_ = send(peer, pkt)
+		success[peer] = true
+		sentCount++
+	}
+
+	// Send to at least 2/3 of good peers.
+	if 3*sentCount >= 2*okCount {
+		return
+	}
+
+	// Perform blocking send now.
+	for peer := range peers {
+		if _, ok := success[peer]; ok || peerOK != nil && !peerOK(peer) {
+			continue
+		}
+		if err := send(peer, true, pkt); err != nil {
+			continue
+		}
+		if msg.Command == CMDGetAddr {
+			peer.AddGetAddrSent()
+		}
+		sentCount++
+		if 3*sentCount >= 2*okCount {
+			return
+		}
 	}
 }
 

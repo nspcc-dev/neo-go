@@ -415,18 +415,18 @@ func (p *localPeer) EnqueueMessage(msg *Message) error {
 	if err != nil {
 		return err
 	}
-	return p.EnqueuePacket(b)
+	return p.EnqueuePacket(true, b)
 }
-func (p *localPeer) EnqueuePacket(m []byte) error {
-	return p.EnqueueHPPacket(m)
+func (p *localPeer) EnqueuePacket(block bool, m []byte) error {
+	return p.EnqueueHPPacket(block, m)
 }
 func (p *localPeer) EnqueueP2PMessage(msg *Message) error {
 	return p.EnqueueMessage(msg)
 }
 func (p *localPeer) EnqueueP2PPacket(m []byte) error {
-	return p.EnqueueHPPacket(m)
+	return p.EnqueueHPPacket(true, m)
 }
-func (p *localPeer) EnqueueHPPacket(m []byte) error {
+func (p *localPeer) EnqueueHPPacket(_ bool, m []byte) error {
 	msg := &Message{Network: netmode.UnitTestNet}
 	r := io.NewBinReaderFromBuf(m)
 	err := msg.Decode(r)
