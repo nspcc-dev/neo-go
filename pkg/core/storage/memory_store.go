@@ -102,6 +102,23 @@ func (s *MemoryStore) Seek(key []byte, f func(k, v []byte)) {
 	s.mut.RUnlock()
 }
 
+// SeekAll is like seek but also iterates over deleted items.
+func (s *MemoryStore) SeekAll(key []byte, f func(k, v []byte)) {
+	s.mut.RLock()
+	defer s.mut.RUnlock()
+	sk := string(key)
+	for k, v := range s.mem {
+		if strings.HasPrefix(k, sk) {
+			f([]byte(k), v)
+		}
+	}
+	for k := range s.del {
+		if strings.HasPrefix(k, sk) {
+			f([]byte(k), nil)
+		}
+	}
+}
+
 // seek is an internal unlocked implementation of Seek.
 func (s *MemoryStore) seek(key []byte, f func(k, v []byte)) {
 	for k, v := range s.mem {
