@@ -418,29 +418,31 @@ func (t *Trie) updateRefCount(h util.Uint256) int32 {
 func (t *Trie) addRef(h util.Uint256, bs []byte) {
 	node := t.refcount[h]
 	if node == nil {
-		data := make([]byte, len(bs))
-		copy(data, bs)
 		t.refcount[h] = &cachedNode{
 			refcount: 1,
-			bytes:    data,
+			bytes:    bs,
 		}
 		return
 	}
 	node.refcount++
+	if node.bytes == nil {
+		node.bytes = bs
+	}
 }
 
 func (t *Trie) removeRef(h util.Uint256, bs []byte) {
 	node := t.refcount[h]
 	if node == nil {
-		data := make([]byte, len(bs))
-		copy(data, bs)
 		t.refcount[h] = &cachedNode{
 			refcount: -1,
-			bytes:    data,
+			bytes:    bs,
 		}
 		return
 	}
 	node.refcount--
+	if node.bytes == nil {
+		node.bytes = bs
+	}
 }
 
 func (t *Trie) getFromStore(h util.Uint256) (Node, error) {
@@ -460,8 +462,7 @@ func (t *Trie) getFromStore(h util.Uint256) (Node, error) {
 		data = data[:len(data)-4]
 		node := t.refcount[h]
 		if node != nil {
-			node.bytes = make([]byte, len(data))
-			copy(node.bytes, data)
+			node.bytes = data
 			node.initial = int32(r.ReadU32LE())
 		}
 	}
