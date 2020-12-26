@@ -17,6 +17,20 @@ func lcp(a, b []byte) []byte {
 	return a[:i]
 }
 
+func lcpMany(kv []keyValue) []byte {
+	if len(kv) == 1 {
+		return kv[0].key
+	}
+	p := lcp(kv[0].key, kv[1].key)
+	if len(p) == 0 {
+		return p
+	}
+	for i := range kv[2:] {
+		p = lcp(p, kv[2+i].key)
+	}
+	return p
+}
+
 // copySlice is a helper for copying slice if needed.
 func copySlice(a []byte) []byte {
 	b := make([]byte, len(a))
