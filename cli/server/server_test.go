@@ -76,6 +76,7 @@ func TestInitBCWithMetrics(t *testing.T) {
 	cfg, err := getConfigFromContext(ctx)
 	require.NoError(t, err)
 	logger, err := handleLoggingParams(ctx, cfg.ApplicationConfiguration)
+	require.NoError(t, err)
 	chain, prometheus, pprof, err := initBCWithMetrics(cfg, logger)
 	require.NoError(t, err)
 	defer chain.Close()

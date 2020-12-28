@@ -878,7 +878,8 @@ func (s *Server) getStateRoot(ps request.Params) (interface{}, *response.Error) 
 	if err == nil {
 		rt, err = s.chain.GetStateRoot(uint32(height))
 	} else if h, err = p.GetUint256(); err == nil {
-		hdr, err := s.chain.GetHeader(h)
+		var hdr *block.Header
+		hdr, err = s.chain.GetHeader(h)
 		if err == nil {
 			rt, err = s.chain.GetStateRoot(hdr.Index)
 		}
