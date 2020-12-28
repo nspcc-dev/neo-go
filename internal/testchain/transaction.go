@@ -24,7 +24,7 @@ var (
 	ownerScript = MultisigVerificationScript()
 )
 
-// NewTransferFromOwner returns transaction transfering funds from NEO and GAS owner.
+// NewTransferFromOwner returns transaction transferring funds from NEO and GAS owner.
 func NewTransferFromOwner(bc blockchainer.Blockchainer, contractHash, to util.Uint160, amount int64,
 	nonce, validUntil uint32) (*transaction.Transaction, error) {
 	w := io.NewBufBinWriter()

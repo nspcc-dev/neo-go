@@ -1206,10 +1206,10 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 
 // processDefers emits code for `defer` statements.
 // TRY-related opcodes handle exception as follows:
-// 1. CATCH block is executed only if exception has occured.
+// 1. CATCH block is executed only if exception has occurred.
 // 2. FINALLY block is always executed, but after catch block.
 // Go `defer` statements are a bit different:
-// 1. `defer` is always executed irregardless of whether an exception has occured.
+// 1. `defer` is always executed irregardless of whether an exception has occurred.
 // 2. `recover` can or can not handle a possible exception.
 // Thus we use the following approach:
 // 1. Throwed exception is saved in a static field X, static fields Y and is set to true.

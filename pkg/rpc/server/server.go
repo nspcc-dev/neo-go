@@ -1174,7 +1174,7 @@ func (s *Server) invokeContractVerify(reqParams request.Params) (interface{}, *r
 // runScriptInVM runs given script in a new test VM and returns the invocation
 // result.
 func (s *Server) runScriptInVM(t trigger.Type, script []byte, tx *transaction.Transaction) (*result.Invoke, *response.Error) {
-	// When transfering funds, script execution does no auto GAS claim,
+	// When transferring funds, script execution does no auto GAS claim,
 	// because it depends on persisting tx height.
 	// This is why we provide block here.
 	b := block.New(s.network, s.stateRootEnabled)

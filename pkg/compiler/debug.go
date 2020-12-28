@@ -22,7 +22,7 @@ type DebugInfo struct {
 	Documents []string          `json:"documents"`
 	Methods   []MethodDebugInfo `json:"methods"`
 	Events    []EventDebugInfo  `json:"events"`
-	// EmittedEvents contains events occuring in code.
+	// EmittedEvents contains events occurring in code.
 	EmittedEvents map[string][][]string `json:"-"`
 }
 
