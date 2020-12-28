@@ -7,5 +7,5 @@ func Sum() int {
 }
 
 func Func2() bool {
-    return false
+	return false
 }
