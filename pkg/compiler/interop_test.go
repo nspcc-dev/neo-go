@@ -150,7 +150,7 @@ func TestAppCall(t *testing.T) {
 		return a + n
 	}
 	func CallInner() int {
-		return contract.Call(%s, "get42").(int)
+		return contract.Call(%s, "get42", contract.All).(int)
 	}`
 	srcInner = fmt.Sprintf(srcInner,
 		fmt.Sprintf("%#v", cinterop.Hash160(barH.BytesBE())))
@@ -222,7 +222,7 @@ func TestAppCall(t *testing.T) {
 		func Main() []byte {
 			x := []byte{1, 2}
 			y := []byte{3, 4}
-			result := contract.Call([]byte(scriptHash), "append", x, y)
+			result := contract.Call([]byte(scriptHash), "append", contract.All, x, y)
 			return result.([]byte)
 		}
 		`
@@ -241,7 +241,7 @@ func TestAppCall(t *testing.T) {
 			x := []byte{1, 2}
 			y := []byte{3, 4}
 			var addr = []byte(` + fmt.Sprintf("%#v", string(ih.BytesBE())) + `)
-			result := contract.Call(addr, "append", x, y)
+			result := contract.Call(addr, "append", contract.All, x, y)
 			return result.([]byte)
 		}
 		`
@@ -257,7 +257,7 @@ func TestAppCall(t *testing.T) {
 		import "github.com/nspcc-dev/neo-go/pkg/interop/contract"
 		func Main() int {
 			var addr = []byte(` + fmt.Sprintf("%#v", string(ih.BytesBE())) + `)
-			result := contract.Call(addr, "add3", 39)
+			result := contract.Call(addr, "add3", contract.All, 39)
 			return result.(int)
 		}`
 
@@ -272,7 +272,7 @@ func TestAppCall(t *testing.T) {
 		import ee "github.com/nspcc-dev/neo-go/pkg/interop/contract"
 		func Main() int {
 			var addr = []byte(` + fmt.Sprintf("%#v", string(ih.BytesBE())) + `)
-			result := ee.Call(addr, "add3", 39)
+			result := ee.Call(addr, "add3", ee.All, 39)
 			return result.(int)
 		}`
 		v := spawnVM(t, ic, src)
@@ -288,7 +288,7 @@ func getAppCallScript(h string) string {
 	func Main() []byte {
 		x := []byte{1, 2}
 		y := []byte{3, 4}
-		result := contract.Call(` + h + `, "append",  x, y)
+		result := contract.Call(` + h + `, "append", contract.All, x, y)
 		return result.([]byte)
 	}
 	`
@@ -298,7 +298,7 @@ func getCallExScript(h string, flags string) string {
 	return `package foo
 	import "github.com/nspcc-dev/neo-go/pkg/interop/contract"
 	func Main() int {
-		result := contract.CallEx(` + flags + `, ` + h + `, "callInner")
+		result := contract.Call(` + h + `, "callInner", ` + flags + `)
 		return result.(int)
 	}`
 }

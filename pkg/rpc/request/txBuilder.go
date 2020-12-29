@@ -8,6 +8,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
@@ -101,7 +102,7 @@ func expandArrayIntoScript(script *io.BinWriter, slice []Param) error {
 
 // CreateFunctionInvocationScript creates a script to invoke given contract with
 // given parameters.
-func CreateFunctionInvocationScript(contract util.Uint160, params Params) ([]byte, error) {
+func CreateFunctionInvocationScript(contract util.Uint160, method string, params Params) ([]byte, error) {
 	script := io.NewBufBinWriter()
 	for i := len(params) - 1; i >= 0; i-- {
 		switch params[i].Type {
@@ -127,6 +128,6 @@ func CreateFunctionInvocationScript(contract util.Uint160, params Params) ([]byt
 		}
 	}
 
-	emit.AppCall(script.BinWriter, contract)
+	emit.AppCallNoArgs(script.BinWriter, contract, method, callflag.All)
 	return script.Bytes(), nil
 }

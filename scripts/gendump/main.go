@@ -20,6 +20,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"go.uber.org/zap"
@@ -95,7 +96,7 @@ func main() {
 			rand.Read(value)
 
 			w := io.NewBufBinWriter()
-			emit.AppCallWithOperationAndArgs(w.BinWriter, contractHash, "put", key, value)
+			emit.AppCall(w.BinWriter, contractHash, "put", callflag.All, key, value)
 			handleError("can't create transaction", w.Err)
 
 			tx := transaction.New(netmode.UnitTestNet, w.Bytes(), 4_000_000)

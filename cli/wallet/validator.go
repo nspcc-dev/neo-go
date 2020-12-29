@@ -11,6 +11,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
@@ -105,7 +106,7 @@ func handleCandidate(ctx *cli.Context, method string) error {
 		return err
 	}
 	w := io.NewBufBinWriter()
-	emit.AppCallWithOperationAndArgs(w.BinWriter, neoContractHash, method, acc.PrivateKey().PublicKey().Bytes())
+	emit.AppCall(w.BinWriter, neoContractHash, method, callflag.WriteStates, acc.PrivateKey().PublicKey().Bytes())
 	emit.Opcodes(w.BinWriter, opcode.ASSERT)
 	tx, err := c.CreateTxFromScript(w.Bytes(), acc, -1, int64(gas), transaction.Signer{
 		Account: acc.Contract.ScriptHash(),
@@ -167,7 +168,7 @@ func handleVote(ctx *cli.Context) error {
 		return cli.NewExitError(err, 1)
 	}
 	w := io.NewBufBinWriter()
-	emit.AppCallWithOperationAndArgs(w.BinWriter, neoContractHash, "vote", addr.BytesBE(), pubArg)
+	emit.AppCall(w.BinWriter, neoContractHash, "vote", callflag.WriteStates, addr.BytesBE(), pubArg)
 	emit.Opcodes(w.BinWriter, opcode.ASSERT)
 
 	tx, err := c.CreateTxFromScript(w.Bytes(), acc, -1, int64(gas), transaction.Signer{

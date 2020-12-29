@@ -24,6 +24,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -821,7 +822,9 @@ func contractDeploy(ctx *cli.Context) error {
 		return cli.NewExitError(fmt.Errorf("failed to get management contract's hash: %w", err), 1)
 	}
 	buf := io.NewBufBinWriter()
-	emit.AppCallWithOperationAndArgs(buf.BinWriter, mgmtHash, "deploy", f, manifestBytes)
+	emit.AppCall(buf.BinWriter, mgmtHash, "deploy",
+		callflag.ReadStates|callflag.WriteStates|callflag.AllowNotify,
+		f, manifestBytes)
 	if buf.Err != nil {
 		return cli.NewExitError(fmt.Errorf("failed to create deployment script: %w", buf.Err), 1)
 	}

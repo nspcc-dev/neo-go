@@ -502,13 +502,12 @@ func getTestContractState(bc *Blockchain) (*state.Contract, *state.Contract) {
 	updateOff := w.Len()
 	emit.Int(w.BinWriter, 2)
 	emit.Opcodes(w.BinWriter, opcode.PACK)
-	emit.String(w.BinWriter, "update")
-	emit.AppCall(w.BinWriter, mgmtHash)
+	emit.AppCallNoArgs(w.BinWriter, mgmtHash, "update", callflag.All)
+	emit.Opcodes(w.BinWriter, opcode.DROP)
 	emit.Opcodes(w.BinWriter, opcode.RET)
 	destroyOff := w.Len()
-	emit.Opcodes(w.BinWriter, opcode.NEWARRAY0)
-	emit.String(w.BinWriter, "destroy")
-	emit.AppCall(w.BinWriter, mgmtHash)
+	emit.AppCall(w.BinWriter, mgmtHash, "destroy", callflag.All)
+	emit.Opcodes(w.BinWriter, opcode.DROP)
 	emit.Opcodes(w.BinWriter, opcode.RET)
 	invalidStackOff := w.Len()
 	emit.Opcodes(w.BinWriter, opcode.NEWARRAY0, opcode.DUP, opcode.DUP, opcode.APPEND, opcode.NEWMAP)
@@ -685,6 +684,7 @@ func TestContractCall(t *testing.T) {
 	t.Run("Good", func(t *testing.T) {
 		loadScript(ic, currScript, 42)
 		ic.VM.Estack().PushVal(addArgs)
+		ic.VM.Estack().PushVal(callflag.All)
 		ic.VM.Estack().PushVal("add")
 		ic.VM.Estack().PushVal(h.BytesBE())
 		require.NoError(t, contract.Call(ic))
@@ -696,11 +696,11 @@ func TestContractCall(t *testing.T) {
 
 	t.Run("CallExInvalidFlag", func(t *testing.T) {
 		loadScript(ic, currScript, 42)
-		ic.VM.Estack().PushVal(byte(0xFF))
 		ic.VM.Estack().PushVal(addArgs)
+		ic.VM.Estack().PushVal(byte(0xFF))
 		ic.VM.Estack().PushVal("add")
 		ic.VM.Estack().PushVal(h.BytesBE())
-		require.Error(t, contract.CallEx(ic))
+		require.Error(t, contract.Call(ic))
 	})
 
 	runInvalid := func(args ...interface{}) func(t *testing.T) {
@@ -735,6 +735,7 @@ func TestContractCall(t *testing.T) {
 		t.Run("Many", func(t *testing.T) {
 			loadScript(ic, currScript, 42)
 			ic.VM.Estack().PushVal(stackitem.NewArray(nil))
+			ic.VM.Estack().PushVal(callflag.All)
 			ic.VM.Estack().PushVal("invalidReturn")
 			ic.VM.Estack().PushVal(h.BytesBE())
 			require.NoError(t, contract.Call(ic))
@@ -743,6 +744,7 @@ func TestContractCall(t *testing.T) {
 		t.Run("Void", func(t *testing.T) {
 			loadScript(ic, currScript, 42)
 			ic.VM.Estack().PushVal(stackitem.NewArray(nil))
+			ic.VM.Estack().PushVal(callflag.All)
 			ic.VM.Estack().PushVal("justReturn")
 			ic.VM.Estack().PushVal(h.BytesBE())
 			require.NoError(t, contract.Call(ic))
@@ -756,6 +758,7 @@ func TestContractCall(t *testing.T) {
 	t.Run("IsolatedStack", func(t *testing.T) {
 		loadScript(ic, currScript, 42)
 		ic.VM.Estack().PushVal(stackitem.NewArray(nil))
+		ic.VM.Estack().PushVal(callflag.All)
 		ic.VM.Estack().PushVal("drop")
 		ic.VM.Estack().PushVal(h.BytesBE())
 		require.NoError(t, contract.Call(ic))
@@ -767,6 +770,7 @@ func TestContractCall(t *testing.T) {
 
 		loadScript(ic, currScript, 42)
 		ic.VM.Estack().PushVal(stackitem.NewArray([]stackitem.Item{stackitem.Make(5)}))
+		ic.VM.Estack().PushVal(callflag.All)
 		ic.VM.Estack().PushVal("add3")
 		ic.VM.Estack().PushVal(h.BytesBE())
 		require.NoError(t, contract.Call(ic))

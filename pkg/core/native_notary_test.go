@@ -11,6 +11,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
 	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
@@ -174,7 +175,8 @@ func TestNotaryContractPipeline(t *testing.T) {
 
 	// `withdraw`: bad witness
 	w := io.NewBufBinWriter()
-	emit.AppCallWithOperationAndArgs(w.BinWriter, notaryHash, "withdraw", testchain.MultisigScriptHash(), acc.PrivateKey().PublicKey().GetScriptHash())
+	emit.AppCall(w.BinWriter, notaryHash, "withdraw", callflag.All,
+		testchain.MultisigScriptHash(), acc.PrivateKey().PublicKey().GetScriptHash())
 	require.NoError(t, w.Err)
 	script := w.Bytes()
 	withdrawTx := transaction.New(chain.GetConfig().Magic, script, 10000000)

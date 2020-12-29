@@ -11,6 +11,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
@@ -75,11 +76,11 @@ func TestNEO_Vote(t *testing.T) {
 
 		to := accs[i].Contract.ScriptHash()
 		w := io.NewBufBinWriter()
-		emit.AppCallWithOperationAndArgs(w.BinWriter, bc.contracts.NEO.Hash, "transfer",
+		emit.AppCall(w.BinWriter, bc.contracts.NEO.Hash, "transfer", callflag.All,
 			neoOwner.BytesBE(), to.BytesBE(),
 			big.NewInt(int64(sz-i)*1000000).Int64(), nil)
 		emit.Opcodes(w.BinWriter, opcode.ASSERT)
-		emit.AppCallWithOperationAndArgs(w.BinWriter, bc.contracts.GAS.Hash, "transfer",
+		emit.AppCall(w.BinWriter, bc.contracts.GAS.Hash, "transfer", callflag.All,
 			neoOwner.BytesBE(), to.BytesBE(),
 			int64(1_000_000_000), nil)
 		emit.Opcodes(w.BinWriter, opcode.ASSERT)
@@ -141,7 +142,7 @@ func TestNEO_Vote(t *testing.T) {
 			h := accs[i].PrivateKey().GetScriptHash()
 			gasBalance[i] = bc.GetUtilityTokenBalance(h)
 			neoBalance[i], _ = bc.GetGoverningTokenBalance(h)
-			emit.AppCallWithOperationAndArgs(w.BinWriter, bc.contracts.NEO.Hash, "transfer",
+			emit.AppCall(w.BinWriter, bc.contracts.NEO.Hash, "transfer", callflag.All,
 				h.BytesBE(), h.BytesBE(), int64(1), nil)
 			emit.Opcodes(w.BinWriter, opcode.ASSERT)
 			require.NoError(t, w.Err)

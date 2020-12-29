@@ -33,9 +33,11 @@ func getOracleContractState(h util.Uint160) *state.Contract {
 	w := io.NewBufBinWriter()
 	emit.Int(w.BinWriter, 5)
 	emit.Opcodes(w.BinWriter, opcode.PACK)
+	emit.Int(w.BinWriter, int64(callflag.All))
 	emit.String(w.BinWriter, "request")
 	emit.Bytes(w.BinWriter, h.BytesBE())
 	emit.Syscall(w.BinWriter, interopnames.SystemContractCall)
+	emit.Opcodes(w.BinWriter, opcode.DROP)
 	emit.Opcodes(w.BinWriter, opcode.RET)
 
 	// `handle` method aborts if len(userData) == 2

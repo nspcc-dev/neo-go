@@ -278,7 +278,7 @@ func (v *VM) LoadScript(b []byte) {
 // LoadScriptWithFlags loads script and sets call flag to f.
 func (v *VM) LoadScriptWithFlags(b []byte, f callflag.CallFlag) {
 	v.checkInvocationStackSize()
-	ctx := NewContext(b)
+	ctx := NewContextWithParams(b, 0, -1, 0)
 	v.estack = v.newItemStack("estack")
 	ctx.estack = v.estack
 	ctx.tryStack = NewStack("exception")
@@ -296,17 +296,24 @@ func (v *VM) LoadScriptWithFlags(b []byte, f callflag.CallFlag) {
 // each other.
 func (v *VM) LoadScriptWithHash(b []byte, hash util.Uint160, f callflag.CallFlag) {
 	shash := v.GetCurrentScriptHash()
-	v.LoadScriptWithCallingHash(shash, b, hash, f)
+	v.LoadScriptWithCallingHash(shash, b, hash, f, true, 0)
 }
 
 // LoadScriptWithCallingHash is similar to LoadScriptWithHash but sets calling hash explicitly.
 // It should be used for calling from native contracts.
-func (v *VM) LoadScriptWithCallingHash(caller util.Uint160, b []byte, hash util.Uint160, f callflag.CallFlag) {
+func (v *VM) LoadScriptWithCallingHash(caller util.Uint160, b []byte, hash util.Uint160,
+	f callflag.CallFlag, hasReturn bool, paramCount uint16) {
 	v.LoadScriptWithFlags(b, f)
 	ctx := v.Context()
 	ctx.isDeployed = true
 	ctx.scriptHash = hash
 	ctx.callingScriptHash = caller
+	if hasReturn {
+		ctx.RetCount = 1
+	} else {
+		ctx.RetCount = 0
+	}
+	ctx.ParamCount = int(paramCount)
 }
 
 // Context returns the current executed context. Nil if there is no context,
@@ -1274,6 +1281,10 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 
 		newEstack := v.Context().estack
 		if oldEstack != newEstack {
+			if oldCtx.RetCount >= 0 && oldEstack.Len() != oldCtx.RetCount {
+				panic(fmt.Errorf("invalid return values count: expected %d, got %d",
+					oldCtx.RetCount, oldEstack.Len()))
+			}
 			rvcount := oldEstack.Len()
 			for i := rvcount; i > 0; i-- {
 				elem := oldEstack.RemoveAt(i - 1)
@@ -1425,19 +1436,6 @@ func (v *VM) unloadContext(ctx *Context) {
 	if ctx.static != nil && currCtx != nil && ctx.static != currCtx.static {
 		ctx.static.Clear()
 	}
-	switch ctx.CheckReturn {
-	case NoCheck:
-	case EnsureIsEmpty:
-		if currCtx != nil && ctx.estack.len != 0 {
-			panic("return value amount is > 0")
-		}
-	case EnsureNotEmpty:
-		if currCtx != nil && ctx.estack.len == 0 {
-			currCtx.estack.PushVal(stackitem.Null{})
-		} else if ctx.estack.len > 1 {
-			panic("return value amount is > 1")
-		}
-	}
 }
 
 // getTryParams splits TRY(L) instruction parameter into offsets for catch and finally blocks.
@@ -1494,7 +1492,7 @@ func (v *VM) Call(ctx *Context, offset int) {
 func (v *VM) call(ctx *Context, offset int) {
 	v.checkInvocationStackSize()
 	newCtx := ctx.Copy()
-	newCtx.CheckReturn = NoCheck
+	newCtx.RetCount = -1
 	newCtx.local = nil
 	newCtx.arguments = nil
 	newCtx.tryStack = NewStack("exception")

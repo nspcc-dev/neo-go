@@ -48,8 +48,10 @@ type Context struct {
 	// Call flags this context was created with.
 	callFlag callflag.CallFlag
 
-	// CheckReturn specifies if amount of return values needs to be checked.
-	CheckReturn CheckReturnState
+	// ParamCount specifies number of parameters.
+	ParamCount int
+	// RetCount specifies number of return values.
+	RetCount int
 }
 
 // CheckReturnState represents possible states of stack after opcode.RET was processed.
@@ -69,9 +71,18 @@ var errNoInstParam = errors.New("failed to read instruction parameter")
 
 // NewContext returns a new Context object.
 func NewContext(b []byte) *Context {
+	return NewContextWithParams(b, 0, -1, 0)
+}
+
+// NewContextWithParams creates new Context objects using script, parameter count,
+// return value count and initial position in script.
+func NewContextWithParams(b []byte, pcount int, rvcount int, pos int) *Context {
 	return &Context{
 		prog:        b,
 		breakPoints: []int{},
+		ParamCount:  pcount,
+		RetCount:    rvcount,
+		nextip:      pos,
 	}
 }
 

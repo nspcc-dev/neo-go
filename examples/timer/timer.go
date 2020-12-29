@@ -46,7 +46,7 @@ func Migrate(script []byte, manifest []byte) bool {
 		return false
 	}
 	mgmt := storage.Get(ctx, mgmtKey).(interop.Hash160)
-	contract.Call(mgmt, "update", script, manifest)
+	contract.Call(mgmt, "update", contract.All, script, manifest)
 	runtime.Log("Contract updated.")
 	return true
 }
@@ -58,7 +58,7 @@ func Tick() bool {
 	ticksLeft = ticksLeft.(int) - 1
 	if ticksLeft == 0 {
 		runtime.Log("Fired!")
-		return contract.Call(runtime.GetExecutingScriptHash(), "selfDestroy").(bool)
+		return contract.Call(runtime.GetExecutingScriptHash(), "selfDestroy", contract.All).(bool)
 	}
 	storage.Put(ctx, ticksKey, ticksLeft)
 	i := binary.Itoa(ticksLeft.(int), 10)
@@ -73,7 +73,7 @@ func SelfDestroy() bool {
 		return false
 	}
 	mgmt := storage.Get(ctx, mgmtKey).(interop.Hash160)
-	contract.Call(mgmt, "destroy")
+	contract.Call(mgmt, "destroy", contract.All)
 	runtime.Log("Destroyed.")
 	return true
 }

@@ -21,7 +21,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
@@ -222,7 +221,7 @@ func (m *Management) deploy(ic *interop.Context, args []stackitem.Item) stackite
 	if err != nil {
 		panic(err)
 	}
-	callDeploy(ic, newcontract, false)
+	m.callDeploy(ic, newcontract, false)
 	m.emitNotification(ic, contractDeployNotificationName, newcontract.Hash)
 	return contractToStack(newcontract)
 }
@@ -278,7 +277,7 @@ func (m *Management) update(ic *interop.Context, args []stackitem.Item) stackite
 	if err != nil {
 		panic(err)
 	}
-	callDeploy(ic, contract, true)
+	m.callDeploy(ic, contract, true)
 	m.emitNotification(ic, contractUpdateNotificationName, contract.Hash)
 	return stackitem.Null{}
 }
@@ -380,11 +379,11 @@ func (m *Management) setMinimumDeploymentFee(ic *interop.Context, args []stackit
 	return stackitem.NewBool(true)
 }
 
-func callDeploy(ic *interop.Context, cs *state.Contract, isUpdate bool) {
+func (m *Management) callDeploy(ic *interop.Context, cs *state.Contract, isUpdate bool) {
 	md := cs.Manifest.ABI.GetMethod(manifest.MethodDeploy)
 	if md != nil {
-		err := contract.CallExInternal(ic, cs, manifest.MethodDeploy,
-			[]stackitem.Item{stackitem.NewBool(isUpdate)}, callflag.All, vm.EnsureIsEmpty)
+		err := contract.CallFromNative(ic, m.Hash, cs, manifest.MethodDeploy,
+			[]stackitem.Item{stackitem.NewBool(isUpdate)}, false)
 		if err != nil {
 			panic(err)
 		}

@@ -33,7 +33,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
-	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"go.uber.org/zap"
 )
@@ -1675,7 +1674,6 @@ func (bc *Blockchain) initVerificationVM(ic *interop.Context, hash util.Uint160,
 
 		if cs.ID <= 0 {
 			w := io.NewBufBinWriter()
-			emit.Opcodes(w.BinWriter, opcode.DEPTH, opcode.PACK)
 			emit.String(w.BinWriter, manifest.MethodVerify)
 			if w.Err != nil {
 				return w.Err

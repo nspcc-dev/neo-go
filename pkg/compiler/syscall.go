@@ -23,7 +23,6 @@ var syscalls = map[string]map[string]string{
 	},
 	"contract": {
 		"Call":                  interopnames.SystemContractCall,
-		"CallEx":                interopnames.SystemContractCallEx,
 		"CreateStandardAccount": interopnames.SystemContractCreateStandardAccount,
 		"IsStandard":            interopnames.SystemContractIsStandard,
 		"GetCallFlags":          interopnames.SystemContractGetCallFlags,

@@ -40,17 +40,9 @@ func GetCallFlags() int64 {
 }
 
 // Call executes previously deployed blockchain contract with specified hash
-// (20 bytes in BE form) using provided arguments.
-// It returns whatever this contract returns. This function uses
-// `System.Contract.Call` syscall.
-func Call(scriptHash interop.Hash160, method string, args ...interface{}) interface{} {
-	return nil
-}
-
-// CallEx executes previously deployed blockchain contract with specified hash
 // (20 bytes in BE form) using provided arguments and call flags.
 // It returns whatever this contract returns. This function uses
-// `System.Contract.CallEx` syscall.
-func CallEx(f CallFlag, scriptHash interop.Hash160, method string, args ...interface{}) interface{} {
+// `System.Contract.Call` syscall.
+func Call(scriptHash interop.Hash160, method string, f CallFlag, args ...interface{}) interface{} {
 	return nil
 }

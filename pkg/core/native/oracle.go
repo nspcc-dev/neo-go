@@ -23,7 +23,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
@@ -57,6 +56,7 @@ func init() {
 	w := io.NewBufBinWriter()
 	emit.Int(w.BinWriter, 0)
 	emit.Opcodes(w.BinWriter, opcode.NEWARRAY)
+	emit.Int(w.BinWriter, int64(callflag.All))
 	emit.String(w.BinWriter, "finish")
 	emit.Bytes(w.BinWriter, h.BytesBE())
 	emit.Syscall(w.BinWriter, interopnames.SystemContractCall)
@@ -239,7 +239,7 @@ func (o *Oracle) FinishInternal(ic *interop.Context) error {
 	if err != nil {
 		return err
 	}
-	return contract.CallFromNative(ic, o.Hash, cs, req.CallbackMethod, args, vm.EnsureIsEmpty)
+	return contract.CallFromNative(ic, o.Hash, cs, req.CallbackMethod, args, false)
 }
 
 func (o *Oracle) request(ic *interop.Context, args []stackitem.Item) stackitem.Item {

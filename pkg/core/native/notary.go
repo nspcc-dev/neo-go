@@ -20,7 +20,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
@@ -277,7 +276,7 @@ func (n *Notary) withdraw(ic *interop.Context, args []stackitem.Item) stackitem.
 		panic(fmt.Errorf("failed to get GAS contract state: %w", err))
 	}
 	transferArgs := []stackitem.Item{stackitem.NewByteArray(n.Hash.BytesBE()), stackitem.NewByteArray(to.BytesBE()), stackitem.NewBigInteger(deposit.Amount), stackitem.Null{}}
-	err = contract.CallFromNative(ic, n.Hash, cs, "transfer", transferArgs, vm.EnsureNotEmpty)
+	err = contract.CallFromNative(ic, n.Hash, cs, "transfer", transferArgs, true)
 	if err != nil {
 		panic(fmt.Errorf("failed to transfer GAS from Notary account: %w", err))
 	}

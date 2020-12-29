@@ -51,8 +51,6 @@ var systemInterops = []interop.Function{
 	{Name: interopnames.SystemBlockchainGetTransactionHeight, Func: bcGetTransactionHeight, Price: 1 << 15,
 		RequiredFlags: callflag.ReadStates, ParamCount: 1},
 	{Name: interopnames.SystemContractCall, Func: contract.Call, Price: 1 << 15,
-		RequiredFlags: callflag.AllowCall, ParamCount: 3},
-	{Name: interopnames.SystemContractCallEx, Func: contract.CallEx, Price: 1 << 15,
 		RequiredFlags: callflag.AllowCall, ParamCount: 4},
 	{Name: interopnames.SystemContractCallNative, Func: native.Call, Price: 0, ParamCount: 1},
 	{Name: interopnames.SystemContractCreateStandardAccount, Func: contractCreateStandardAccount, Price: 1 << 8, ParamCount: 1},

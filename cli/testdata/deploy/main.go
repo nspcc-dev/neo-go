@@ -36,7 +36,7 @@ func Fail() {
 func Update(script, manifest []byte) {
 	ctx := storage.GetReadOnlyContext()
 	mgmt := storage.Get(ctx, mgmtKey).(interop.Hash160)
-	contract.Call(mgmt, "update", script, manifest)
+	contract.Call(mgmt, "update", contract.All, script, manifest)
 }
 
 // GetValue returns stored value.
