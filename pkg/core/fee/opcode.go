@@ -8,12 +8,12 @@ import (
 func Opcode(base int64, opcodes ...opcode.Opcode) int64 {
 	var result int64
 	for _, op := range opcodes {
-		result += coefficients[op]
+		result += int64(coefficients[op])
 	}
 	return result * base
 }
 
-var coefficients = map[opcode.Opcode]int64{
+var coefficients = [256]uint16{
 	opcode.PUSHINT8:     1 << 0,
 	opcode.PUSHINT16:    1 << 0,
 	opcode.PUSHINT32:    1 << 0,
