@@ -144,7 +144,7 @@ func (c *Context) Next() (opcode.Opcode, []byte, error) {
 		opcode.ENDTRY,
 		opcode.INITSSLOT, opcode.LDSFLD, opcode.STSFLD, opcode.LDARG, opcode.STARG, opcode.LDLOC, opcode.STLOC:
 		numtoread = 1
-	case opcode.INITSLOT, opcode.TRY:
+	case opcode.INITSLOT, opcode.TRY, opcode.CALLT:
 		numtoread = 2
 	case opcode.JMPL, opcode.JMPIFL, opcode.JMPIFNOTL, opcode.JMPEQL, opcode.JMPNEL,
 		opcode.JMPGTL, opcode.JMPGEL, opcode.JMPLTL, opcode.JMPLEL,

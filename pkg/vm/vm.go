@@ -80,6 +80,9 @@ type VM struct {
 	// SyscallHandler handles SYSCALL opcode.
 	SyscallHandler func(v *VM, id uint32) error
 
+	// LoadToken handles CALLT opcode.
+	LoadToken func(id int32) error
+
 	trigger trigger.Type
 
 	// Invocations is a script invocation counter.
@@ -1275,6 +1278,12 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		}
 
 		v.call(ctx, ptr.Position())
+
+	case opcode.CALLT:
+		id := int32(binary.LittleEndian.Uint16(parameter))
+		if err := v.LoadToken(id); err != nil {
+			panic(err)
+		}
 
 	case opcode.SYSCALL:
 		interopID := GetInteropID(parameter)
