@@ -17,7 +17,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
-	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -272,11 +272,11 @@ func (v *VM) Load(prog []byte) {
 // will immediately push a new context created from this script to
 // the invocation stack and starts executing it.
 func (v *VM) LoadScript(b []byte) {
-	v.LoadScriptWithFlags(b, smartcontract.NoneFlag)
+	v.LoadScriptWithFlags(b, callflag.NoneFlag)
 }
 
 // LoadScriptWithFlags loads script and sets call flag to f.
-func (v *VM) LoadScriptWithFlags(b []byte, f smartcontract.CallFlag) {
+func (v *VM) LoadScriptWithFlags(b []byte, f callflag.CallFlag) {
 	v.checkInvocationStackSize()
 	ctx := NewContext(b)
 	v.estack = v.newItemStack("estack")
@@ -294,14 +294,14 @@ func (v *VM) LoadScriptWithFlags(b []byte, f smartcontract.CallFlag) {
 // assumes that it is used for deployed contracts setting context's parameters
 // accordingly). It's up to user of this function to make sure the script and hash match
 // each other.
-func (v *VM) LoadScriptWithHash(b []byte, hash util.Uint160, f smartcontract.CallFlag) {
+func (v *VM) LoadScriptWithHash(b []byte, hash util.Uint160, f callflag.CallFlag) {
 	shash := v.GetCurrentScriptHash()
 	v.LoadScriptWithCallingHash(shash, b, hash, f)
 }
 
 // LoadScriptWithCallingHash is similar to LoadScriptWithHash but sets calling hash explicitly.
 // It should be used for calling from native contracts.
-func (v *VM) LoadScriptWithCallingHash(caller util.Uint160, b []byte, hash util.Uint160, f smartcontract.CallFlag) {
+func (v *VM) LoadScriptWithCallingHash(caller util.Uint160, b []byte, hash util.Uint160, f callflag.CallFlag) {
 	v.LoadScriptWithFlags(b, f)
 	ctx := v.Context()
 	ctx.isDeployed = true

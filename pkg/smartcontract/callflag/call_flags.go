@@ -1,4 +1,4 @@
-package smartcontract
+package callflag
 
 // CallFlag represents call flag.
 type CallFlag byte

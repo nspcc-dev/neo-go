@@ -20,6 +20,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
@@ -94,15 +95,15 @@ func newOracle() *Oracle {
 		manifest.NewParameter("callback", smartcontract.StringType),
 		manifest.NewParameter("userData", smartcontract.AnyType),
 		manifest.NewParameter("gasForResponse", smartcontract.IntegerType))
-	md := newMethodAndPrice(o.request, oracleRequestPrice, smartcontract.WriteStates|smartcontract.AllowNotify)
+	md := newMethodAndPrice(o.request, oracleRequestPrice, callflag.WriteStates|callflag.AllowNotify)
 	o.AddMethod(md, desc)
 
 	desc = newDescriptor("finish", smartcontract.VoidType)
-	md = newMethodAndPrice(o.finish, 0, smartcontract.WriteStates|smartcontract.AllowCall|smartcontract.AllowNotify)
+	md = newMethodAndPrice(o.finish, 0, callflag.WriteStates|callflag.AllowCall|callflag.AllowNotify)
 	o.AddMethod(md, desc)
 
 	desc = newDescriptor("verify", smartcontract.BoolType)
-	md = newMethodAndPrice(o.verify, 100_0000, smartcontract.NoneFlag)
+	md = newMethodAndPrice(o.verify, 100_0000, callflag.NoneFlag)
 	o.AddMethod(md, desc)
 
 	o.AddEvent("OracleRequest", manifest.NewParameter("Id", smartcontract.IntegerType),

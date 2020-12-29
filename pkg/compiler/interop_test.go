@@ -17,7 +17,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	cinterop "github.com/nspcc-dev/neo-go/pkg/interop"
-	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -120,7 +120,7 @@ func spawnVM(t *testing.T, ic *interop.Context, src string) *vm.VM {
 	require.NoError(t, err)
 	v := core.SpawnVM(ic)
 	invokeMethod(t, testMainIdent, b, v, di)
-	v.LoadScriptWithFlags(b, smartcontract.All)
+	v.LoadScriptWithFlags(b, callflag.All)
 	return v
 }
 

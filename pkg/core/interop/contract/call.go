@@ -7,7 +7,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
-	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
@@ -19,7 +19,7 @@ func Call(ic *interop.Context) error {
 	h := ic.VM.Estack().Pop().Bytes()
 	method := ic.VM.Estack().Pop().String()
 	args := ic.VM.Estack().Pop().Array()
-	return callExInternal(ic, h, method, args, smartcontract.All)
+	return callExInternal(ic, h, method, args, callflag.All)
 }
 
 // CallEx calls a contract with flags.
@@ -27,14 +27,14 @@ func CallEx(ic *interop.Context) error {
 	h := ic.VM.Estack().Pop().Bytes()
 	method := ic.VM.Estack().Pop().String()
 	args := ic.VM.Estack().Pop().Array()
-	flags := smartcontract.CallFlag(int32(ic.VM.Estack().Pop().BigInt().Int64()))
-	if flags&^smartcontract.All != 0 {
+	fs := callflag.CallFlag(int32(ic.VM.Estack().Pop().BigInt().Int64()))
+	if fs&^callflag.All != 0 {
 		return errors.New("call flags out of range")
 	}
-	return callExInternal(ic, h, method, args, flags)
+	return callExInternal(ic, h, method, args, fs)
 }
 
-func callExInternal(ic *interop.Context, h []byte, name string, args []stackitem.Item, f smartcontract.CallFlag) error {
+func callExInternal(ic *interop.Context, h []byte, name string, args []stackitem.Item, f callflag.CallFlag) error {
 	u, err := util.Uint160DecodeBytesBE(h)
 	if err != nil {
 		return errors.New("invalid contract hash")
@@ -51,7 +51,7 @@ func callExInternal(ic *interop.Context, h []byte, name string, args []stackitem
 		return errors.New("method not found")
 	}
 	if md.Safe {
-		f &^= smartcontract.WriteStates
+		f &^= callflag.WriteStates
 	} else if ctx := ic.VM.Context(); ctx != nil && ctx.IsDeployed() {
 		curr, err := ic.GetContract(ic.VM.GetCurrentScriptHash())
 		if err == nil {
@@ -65,13 +65,13 @@ func callExInternal(ic *interop.Context, h []byte, name string, args []stackitem
 
 // CallExInternal calls a contract with flags and can't be invoked directly by user.
 func CallExInternal(ic *interop.Context, cs *state.Contract,
-	name string, args []stackitem.Item, f smartcontract.CallFlag, checkReturn vm.CheckReturnState) error {
+	name string, args []stackitem.Item, f callflag.CallFlag, checkReturn vm.CheckReturnState) error {
 	return callExFromNative(ic, ic.VM.GetCurrentScriptHash(), cs, name, args, f, checkReturn)
 }
 
 // callExFromNative calls a contract with flags using provided calling hash.
 func callExFromNative(ic *interop.Context, caller util.Uint160, cs *state.Contract,
-	name string, args []stackitem.Item, f smartcontract.CallFlag, checkReturn vm.CheckReturnState) error {
+	name string, args []stackitem.Item, f callflag.CallFlag, checkReturn vm.CheckReturnState) error {
 	md := cs.Manifest.ABI.GetMethod(name)
 	if md == nil {
 		return fmt.Errorf("method '%s' not found", name)
@@ -116,7 +116,7 @@ var ErrNativeCall = errors.New("error during call from native")
 // CallFromNative performs synchronous call from native contract.
 func CallFromNative(ic *interop.Context, caller util.Uint160, cs *state.Contract, method string, args []stackitem.Item, checkReturn vm.CheckReturnState) error {
 	startSize := ic.VM.Istack().Len()
-	if err := callExFromNative(ic, caller, cs, method, args, smartcontract.All, checkReturn); err != nil {
+	if err := callExFromNative(ic, caller, cs, method, args, callflag.All, checkReturn); err != nil {
 		return err
 	}
 

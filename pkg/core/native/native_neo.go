@@ -22,6 +22,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
@@ -110,44 +111,44 @@ func newNEO() *NEO {
 	desc := newDescriptor("unclaimedGas", smartcontract.IntegerType,
 		manifest.NewParameter("account", smartcontract.Hash160Type),
 		manifest.NewParameter("end", smartcontract.IntegerType))
-	md := newMethodAndPrice(n.unclaimedGas, 3000000, smartcontract.ReadStates)
+	md := newMethodAndPrice(n.unclaimedGas, 3000000, callflag.ReadStates)
 	n.AddMethod(md, desc)
 
 	desc = newDescriptor("registerCandidate", smartcontract.BoolType,
 		manifest.NewParameter("pubkey", smartcontract.ByteArrayType))
-	md = newMethodAndPrice(n.registerCandidate, 5000000, smartcontract.WriteStates)
+	md = newMethodAndPrice(n.registerCandidate, 5000000, callflag.WriteStates)
 	n.AddMethod(md, desc)
 
 	desc = newDescriptor("unregisterCandidate", smartcontract.BoolType,
 		manifest.NewParameter("pubkey", smartcontract.ByteArrayType))
-	md = newMethodAndPrice(n.unregisterCandidate, 5000000, smartcontract.WriteStates)
+	md = newMethodAndPrice(n.unregisterCandidate, 5000000, callflag.WriteStates)
 	n.AddMethod(md, desc)
 
 	desc = newDescriptor("vote", smartcontract.BoolType,
 		manifest.NewParameter("account", smartcontract.Hash160Type),
 		manifest.NewParameter("pubkey", smartcontract.ByteArrayType))
-	md = newMethodAndPrice(n.vote, 5000000, smartcontract.WriteStates)
+	md = newMethodAndPrice(n.vote, 5000000, callflag.WriteStates)
 	n.AddMethod(md, desc)
 
 	desc = newDescriptor("getCandidates", smartcontract.ArrayType)
-	md = newMethodAndPrice(n.getCandidatesCall, 100000000, smartcontract.ReadStates)
+	md = newMethodAndPrice(n.getCandidatesCall, 100000000, callflag.ReadStates)
 	n.AddMethod(md, desc)
 
 	desc = newDescriptor("getСommittee", smartcontract.ArrayType)
-	md = newMethodAndPrice(n.getCommittee, 100000000, smartcontract.ReadStates)
+	md = newMethodAndPrice(n.getCommittee, 100000000, callflag.ReadStates)
 	n.AddMethod(md, desc)
 
 	desc = newDescriptor("getNextBlockValidators", smartcontract.ArrayType)
-	md = newMethodAndPrice(n.getNextBlockValidators, 100000000, smartcontract.ReadStates)
+	md = newMethodAndPrice(n.getNextBlockValidators, 100000000, callflag.ReadStates)
 	n.AddMethod(md, desc)
 
 	desc = newDescriptor("getGasPerBlock", smartcontract.IntegerType)
-	md = newMethodAndPrice(n.getGASPerBlock, 100_0000, smartcontract.ReadStates)
+	md = newMethodAndPrice(n.getGASPerBlock, 100_0000, callflag.ReadStates)
 	n.AddMethod(md, desc)
 
 	desc = newDescriptor("setGasPerBlock", smartcontract.BoolType,
 		manifest.NewParameter("gasPerBlock", smartcontract.IntegerType))
-	md = newMethodAndPrice(n.setGASPerBlock, 500_0000, smartcontract.WriteStates)
+	md = newMethodAndPrice(n.setGASPerBlock, 500_0000, callflag.WriteStates)
 	n.AddMethod(md, desc)
 
 	return n

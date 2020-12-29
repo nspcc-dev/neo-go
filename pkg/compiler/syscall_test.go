@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/interop/contract"
-	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -13,14 +13,14 @@ import (
 
 // Checks that changes in `smartcontract` are reflected in compiler interop package.
 func TestCallFlags(t *testing.T) {
-	require.EqualValues(t, contract.ReadStates, smartcontract.ReadStates)
-	require.EqualValues(t, contract.WriteStates, smartcontract.WriteStates)
-	require.EqualValues(t, contract.AllowCall, smartcontract.AllowCall)
-	require.EqualValues(t, contract.AllowNotify, smartcontract.AllowNotify)
-	require.EqualValues(t, contract.States, smartcontract.States)
-	require.EqualValues(t, contract.ReadOnly, smartcontract.ReadOnly)
-	require.EqualValues(t, contract.All, smartcontract.All)
-	require.EqualValues(t, contract.NoneFlag, smartcontract.NoneFlag)
+	require.EqualValues(t, contract.ReadStates, callflag.ReadStates)
+	require.EqualValues(t, contract.WriteStates, callflag.WriteStates)
+	require.EqualValues(t, contract.AllowCall, callflag.AllowCall)
+	require.EqualValues(t, contract.AllowNotify, callflag.AllowNotify)
+	require.EqualValues(t, contract.States, callflag.States)
+	require.EqualValues(t, contract.ReadOnly, callflag.ReadOnly)
+	require.EqualValues(t, contract.All, callflag.All)
+	require.EqualValues(t, contract.NoneFlag, callflag.NoneFlag)
 }
 
 func TestStoragePutGet(t *testing.T) {

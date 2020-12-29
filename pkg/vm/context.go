@@ -6,7 +6,7 @@ import (
 	"math/big"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
-	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
@@ -46,7 +46,7 @@ type Context struct {
 	isDeployed bool
 
 	// Call flags this context was created with.
-	callFlag smartcontract.CallFlag
+	callFlag callflag.CallFlag
 
 	// CheckReturn specifies if amount of return values needs to be checked.
 	CheckReturn CheckReturnState
@@ -194,7 +194,7 @@ func (c *Context) Copy() *Context {
 }
 
 // GetCallFlags returns calling flags context was created with.
-func (c *Context) GetCallFlags() smartcontract.CallFlag {
+func (c *Context) GetCallFlags() callflag.CallFlag {
 	return c.callFlag
 }
 

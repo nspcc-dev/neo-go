@@ -20,6 +20,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -418,7 +419,7 @@ func TestStorageDelete(t *testing.T) {
 	defer bc.Close()
 
 	require.NoError(t, bc.contracts.Management.PutContractState(ic.DAO, cs))
-	v.LoadScriptWithHash(cs.NEF.Script, cs.Hash, smartcontract.All)
+	v.LoadScriptWithHash(cs.NEF.Script, cs.Hash, callflag.All)
 	put := func(key, value string, flag int) {
 		v.Estack().PushVal(flag)
 		v.Estack().PushVal(value)
@@ -655,14 +656,14 @@ func getTestContractState(bc *Blockchain) (*state.Contract, *state.Contract) {
 
 func loadScript(ic *interop.Context, script []byte, args ...interface{}) {
 	ic.SpawnVM()
-	ic.VM.LoadScriptWithFlags(script, smartcontract.AllowCall)
+	ic.VM.LoadScriptWithFlags(script, callflag.AllowCall)
 	for i := range args {
 		ic.VM.Estack().PushVal(args[i])
 	}
 	ic.VM.GasLimit = -1
 }
 
-func loadScriptWithHashAndFlags(ic *interop.Context, script []byte, hash util.Uint160, f smartcontract.CallFlag, args ...interface{}) {
+func loadScriptWithHashAndFlags(ic *interop.Context, script []byte, hash util.Uint160, f callflag.CallFlag, args ...interface{}) {
 	ic.SpawnVM()
 	ic.VM.LoadScriptWithHash(script, hash, f)
 	for i := range args {
@@ -706,7 +707,7 @@ func TestContractCall(t *testing.T) {
 
 	runInvalid := func(args ...interface{}) func(t *testing.T) {
 		return func(t *testing.T) {
-			loadScriptWithHashAndFlags(ic, currScript, h, smartcontract.All, 42)
+			loadScriptWithHashAndFlags(ic, currScript, h, callflag.All, 42)
 			for i := range args {
 				ic.VM.Estack().PushVal(args[i])
 			}
@@ -782,9 +783,9 @@ func TestContractGetCallFlags(t *testing.T) {
 	v, ic, bc := createVM(t)
 	defer bc.Close()
 
-	v.LoadScriptWithHash([]byte{byte(opcode.RET)}, util.Uint160{1, 2, 3}, smartcontract.All)
+	v.LoadScriptWithHash([]byte{byte(opcode.RET)}, util.Uint160{1, 2, 3}, callflag.All)
 	require.NoError(t, contractGetCallFlags(ic))
-	require.Equal(t, int64(smartcontract.All), v.Estack().Pop().Value().(*big.Int).Int64())
+	require.Equal(t, int64(callflag.All), v.Estack().Pop().Value().(*big.Int).Int64())
 }
 
 func TestPointerCallback(t *testing.T) {
@@ -955,7 +956,7 @@ func TestRuntimeCheckWitness(t *testing.T) {
 			check(t, ic, []byte{1, 2, 3}, true)
 		})
 		t.Run("script container is not a transaction", func(t *testing.T) {
-			loadScriptWithHashAndFlags(ic, script, scriptHash, smartcontract.ReadStates)
+			loadScriptWithHashAndFlags(ic, script, scriptHash, callflag.ReadStates)
 			check(t, ic, random.Uint160().BytesBE(), true)
 		})
 		t.Run("check scope", func(t *testing.T) {
@@ -972,8 +973,8 @@ func TestRuntimeCheckWitness(t *testing.T) {
 				}
 				ic.Container = tx
 				callingScriptHash := scriptHash
-				loadScriptWithHashAndFlags(ic, script, callingScriptHash, smartcontract.All)
-				ic.VM.LoadScriptWithHash([]byte{0x1}, random.Uint160(), smartcontract.AllowCall)
+				loadScriptWithHashAndFlags(ic, script, callingScriptHash, callflag.All)
+				ic.VM.LoadScriptWithHash([]byte{0x1}, random.Uint160(), callflag.AllowCall)
 				check(t, ic, hash.BytesBE(), true)
 			})
 			t.Run("CustomGroups, unknown contract", func(t *testing.T) {
@@ -989,8 +990,8 @@ func TestRuntimeCheckWitness(t *testing.T) {
 				}
 				ic.Container = tx
 				callingScriptHash := scriptHash
-				loadScriptWithHashAndFlags(ic, script, callingScriptHash, smartcontract.All)
-				ic.VM.LoadScriptWithHash([]byte{0x1}, random.Uint160(), smartcontract.ReadStates)
+				loadScriptWithHashAndFlags(ic, script, callingScriptHash, callflag.All)
+				ic.VM.LoadScriptWithHash([]byte{0x1}, random.Uint160(), callflag.ReadStates)
 				check(t, ic, hash.BytesBE(), true)
 			})
 		})
@@ -999,16 +1000,16 @@ func TestRuntimeCheckWitness(t *testing.T) {
 		t.Run("calling scripthash", func(t *testing.T) {
 			t.Run("hashed witness", func(t *testing.T) {
 				callingScriptHash := scriptHash
-				loadScriptWithHashAndFlags(ic, script, callingScriptHash, smartcontract.All)
-				ic.VM.LoadScriptWithHash([]byte{0x1}, random.Uint160(), smartcontract.All)
+				loadScriptWithHashAndFlags(ic, script, callingScriptHash, callflag.All)
+				ic.VM.LoadScriptWithHash([]byte{0x1}, random.Uint160(), callflag.All)
 				check(t, ic, callingScriptHash.BytesBE(), false, true)
 			})
 			t.Run("keyed witness", func(t *testing.T) {
 				pk, err := keys.NewPrivateKey()
 				require.NoError(t, err)
 				callingScriptHash := pk.PublicKey().GetScriptHash()
-				loadScriptWithHashAndFlags(ic, script, callingScriptHash, smartcontract.All)
-				ic.VM.LoadScriptWithHash([]byte{0x1}, random.Uint160(), smartcontract.All)
+				loadScriptWithHashAndFlags(ic, script, callingScriptHash, callflag.All)
+				ic.VM.LoadScriptWithHash([]byte{0x1}, random.Uint160(), callflag.All)
 				check(t, ic, pk.PublicKey().Bytes(), false, true)
 			})
 		})
@@ -1023,7 +1024,7 @@ func TestRuntimeCheckWitness(t *testing.T) {
 						},
 					},
 				}
-				loadScriptWithHashAndFlags(ic, script, scriptHash, smartcontract.ReadStates)
+				loadScriptWithHashAndFlags(ic, script, scriptHash, callflag.ReadStates)
 				ic.Container = tx
 				check(t, ic, hash.BytesBE(), false, true)
 			})
@@ -1037,7 +1038,7 @@ func TestRuntimeCheckWitness(t *testing.T) {
 						},
 					},
 				}
-				loadScriptWithHashAndFlags(ic, script, scriptHash, smartcontract.ReadStates)
+				loadScriptWithHashAndFlags(ic, script, scriptHash, callflag.ReadStates)
 				ic.Container = tx
 				check(t, ic, hash.BytesBE(), false, true)
 			})
@@ -1052,7 +1053,7 @@ func TestRuntimeCheckWitness(t *testing.T) {
 						},
 					},
 				}
-				loadScriptWithHashAndFlags(ic, script, scriptHash, smartcontract.ReadStates)
+				loadScriptWithHashAndFlags(ic, script, scriptHash, callflag.ReadStates)
 				ic.Container = tx
 				check(t, ic, hash.BytesBE(), false, true)
 			})
@@ -1068,7 +1069,7 @@ func TestRuntimeCheckWitness(t *testing.T) {
 							},
 						},
 					}
-					loadScriptWithHashAndFlags(ic, script, scriptHash, smartcontract.ReadStates)
+					loadScriptWithHashAndFlags(ic, script, scriptHash, callflag.ReadStates)
 					ic.Container = tx
 					check(t, ic, hash.BytesBE(), false, false)
 				})
@@ -1098,8 +1099,8 @@ func TestRuntimeCheckWitness(t *testing.T) {
 						},
 					}
 					require.NoError(t, bc.contracts.Management.PutContractState(ic.DAO, contractState))
-					loadScriptWithHashAndFlags(ic, contractScript, contractScriptHash, smartcontract.All)
-					ic.VM.LoadScriptWithHash([]byte{0x1}, random.Uint160(), smartcontract.ReadStates)
+					loadScriptWithHashAndFlags(ic, contractScript, contractScriptHash, callflag.All)
+					ic.VM.LoadScriptWithHash([]byte{0x1}, random.Uint160(), callflag.ReadStates)
 					ic.Container = tx
 					check(t, ic, targetHash.BytesBE(), false, true)
 				})
@@ -1114,7 +1115,7 @@ func TestRuntimeCheckWitness(t *testing.T) {
 						},
 					},
 				}
-				loadScriptWithHashAndFlags(ic, script, scriptHash, smartcontract.ReadStates)
+				loadScriptWithHashAndFlags(ic, script, scriptHash, callflag.ReadStates)
 				ic.Container = tx
 				check(t, ic, hash.BytesBE(), false, false)
 			})

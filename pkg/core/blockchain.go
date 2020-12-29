@@ -27,7 +27,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
 	"github.com/nspcc-dev/neo-go/pkg/io"
-	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -624,7 +624,7 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 
 		systemInterop := bc.newInteropContext(trigger.Application, cache, block, tx)
 		v := systemInterop.SpawnVM()
-		v.LoadScriptWithFlags(tx.Script, smartcontract.All)
+		v.LoadScriptWithFlags(tx.Script, callflag.All)
 		v.SetPriceGetter(bc.getPrice)
 		v.GasLimit = tx.SystemFee
 
@@ -765,7 +765,7 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 func (bc *Blockchain) runPersist(script []byte, block *block.Block, cache *dao.Cached, trig trigger.Type) (*state.AppExecResult, error) {
 	systemInterop := bc.newInteropContext(trig, cache, block, nil)
 	v := systemInterop.SpawnVM()
-	v.LoadScriptWithFlags(script, smartcontract.WriteStates|smartcontract.AllowCall)
+	v.LoadScriptWithFlags(script, callflag.WriteStates|callflag.AllowCall)
 	v.SetPriceGetter(bc.getPrice)
 	if err := v.Run(); err != nil {
 		return nil, fmt.Errorf("VM has failed: %w", err)
@@ -1659,7 +1659,7 @@ func (bc *Blockchain) initVerificationVM(ic *interop.Context, hash util.Uint160,
 		if bc.contracts.ByHash(hash) != nil {
 			return ErrNativeContractWitness
 		}
-		v.LoadScriptWithFlags(witness.VerificationScript, smartcontract.NoneFlag)
+		v.LoadScriptWithFlags(witness.VerificationScript, callflag.NoneFlag)
 	} else {
 		cs, err := ic.GetContract(hash)
 		if err != nil {
@@ -1670,7 +1670,7 @@ func (bc *Blockchain) initVerificationVM(ic *interop.Context, hash util.Uint160,
 			return ErrInvalidVerificationContract
 		}
 		initMD := cs.Manifest.ABI.GetMethod(manifest.MethodInit)
-		v.LoadScriptWithHash(cs.NEF.Script, hash, smartcontract.ReadStates)
+		v.LoadScriptWithHash(cs.NEF.Script, hash, callflag.ReadStates)
 		v.Jump(v.Context(), md.Offset)
 
 		if cs.ID <= 0 {

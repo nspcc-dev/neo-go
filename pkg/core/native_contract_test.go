@@ -14,6 +14,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -75,7 +76,7 @@ func newTestNative() *testNative {
 	md := &interop.MethodAndPrice{
 		Func:          tn.sum,
 		Price:         testSumPrice,
-		RequiredFlags: smartcontract.NoneFlag,
+		RequiredFlags: callflag.NoneFlag,
 	}
 	tn.meta.AddMethod(md, desc)
 
@@ -92,7 +93,7 @@ func newTestNative() *testNative {
 	md = &interop.MethodAndPrice{
 		Func:          tn.callOtherContractNoReturn,
 		Price:         testSumPrice,
-		RequiredFlags: smartcontract.NoneFlag}
+		RequiredFlags: callflag.NoneFlag}
 	tn.meta.AddMethod(md, desc)
 
 	desc = &manifest.Method{
@@ -107,7 +108,7 @@ func newTestNative() *testNative {
 	md = &interop.MethodAndPrice{
 		Func:          tn.callOtherContractWithReturn,
 		Price:         testSumPrice,
-		RequiredFlags: smartcontract.NoneFlag}
+		RequiredFlags: callflag.NoneFlag}
 	tn.meta.AddMethod(md, desc)
 
 	return tn
@@ -220,7 +221,7 @@ func TestNativeContract_InvokeInternal(t *testing.T) {
 	v := ic.SpawnVM()
 
 	t.Run("fail, bad current script hash", func(t *testing.T) {
-		v.LoadScriptWithHash([]byte{1}, util.Uint160{1, 2, 3}, smartcontract.All)
+		v.LoadScriptWithHash([]byte{1}, util.Uint160{1, 2, 3}, callflag.All)
 		v.Estack().PushVal(stackitem.NewArray([]stackitem.Item{stackitem.NewBigInteger(big.NewInt(14)), stackitem.NewBigInteger(big.NewInt(28))}))
 		v.Estack().PushVal("sum")
 		v.Estack().PushVal(tn.Metadata().Name)
@@ -230,7 +231,7 @@ func TestNativeContract_InvokeInternal(t *testing.T) {
 	})
 
 	t.Run("success", func(t *testing.T) {
-		v.LoadScriptWithHash([]byte{1}, tn.Metadata().Hash, smartcontract.All)
+		v.LoadScriptWithHash([]byte{1}, tn.Metadata().Hash, callflag.All)
 		v.Estack().PushVal(stackitem.NewArray([]stackitem.Item{stackitem.NewBigInteger(big.NewInt(14)), stackitem.NewBigInteger(big.NewInt(28))}))
 		v.Estack().PushVal("sum")
 		v.Estack().PushVal(tn.Metadata().Name)

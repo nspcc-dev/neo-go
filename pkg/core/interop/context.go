@@ -11,7 +11,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto"
-	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
@@ -77,7 +77,7 @@ type Function struct {
 	Price      int64
 	// RequiredFlags is a set of flags which must be set during script invocations.
 	// Default value is NoneFlag i.e. no flags are required.
-	RequiredFlags smartcontract.CallFlag
+	RequiredFlags callflag.CallFlag
 }
 
 // Method is a signature for a native method.
@@ -88,7 +88,7 @@ type MethodAndPrice struct {
 	Func          Method
 	MD            *manifest.Method
 	Price         int64
-	RequiredFlags smartcontract.CallFlag
+	RequiredFlags callflag.CallFlag
 }
 
 // Contract is an interface for all native contracts.
@@ -132,7 +132,7 @@ func NewContractMD(name string) *ContractMD {
 func (c *ContractMD) AddMethod(md *MethodAndPrice, desc *manifest.Method) {
 	c.Manifest.ABI.Methods = append(c.Manifest.ABI.Methods, *desc)
 	md.MD = desc
-	desc.Safe = md.RequiredFlags&(smartcontract.All^smartcontract.ReadOnly) == 0
+	desc.Safe = md.RequiredFlags&(callflag.All^callflag.ReadOnly) == 0
 	c.Methods[desc.Name] = *md
 }
 

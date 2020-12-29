@@ -31,7 +31,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/rpc/request"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result"
-	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -1188,7 +1188,7 @@ func (s *Server) runScriptInVM(t trigger.Type, script []byte, tx *transaction.Tr
 
 	vm := s.chain.GetTestVM(t, tx, b)
 	vm.GasLimit = int64(s.config.MaxGasInvoke)
-	vm.LoadScriptWithFlags(script, smartcontract.All)
+	vm.LoadScriptWithFlags(script, callflag.All)
 	err = vm.Run()
 	var faultException string
 	if err != nil {

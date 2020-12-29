@@ -6,7 +6,7 @@ import (
 	"github.com/nspcc-dev/neo-go/internal/random"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
-	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
@@ -103,13 +103,13 @@ func TestRuntimeGetInvocationCounter(t *testing.T) {
 	t.Run("No invocations", func(t *testing.T) {
 		h1 := h
 		h1[0] ^= 0xFF
-		ic.VM.LoadScriptWithHash([]byte{1}, h1, smartcontract.NoneFlag)
+		ic.VM.LoadScriptWithHash([]byte{1}, h1, callflag.NoneFlag)
 		// do not return an error in this case.
 		require.NoError(t, GetInvocationCounter(ic))
 		checkStack(t, ic.VM, 1)
 	})
 	t.Run("NonZero", func(t *testing.T) {
-		ic.VM.LoadScriptWithHash([]byte{1}, h, smartcontract.NoneFlag)
+		ic.VM.LoadScriptWithHash([]byte{1}, h, callflag.NoneFlag)
 		require.NoError(t, GetInvocationCounter(ic))
 		checkStack(t, ic.VM, 42)
 	})

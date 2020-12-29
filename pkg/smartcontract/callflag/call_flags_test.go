@@ -1,4 +1,4 @@
-package smartcontract
+package callflag
 
 import (
 	"testing"

@@ -14,7 +14,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
 	"github.com/nspcc-dev/neo-go/pkg/io"
-	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
@@ -805,7 +805,7 @@ func TestSerializeInterop(t *testing.T) {
 	require.True(t, vm.HasFailed())
 }
 
-func getTestCallFlagsFunc(syscall []byte, flags smartcontract.CallFlag, result interface{}) func(t *testing.T) {
+func getTestCallFlagsFunc(syscall []byte, flags callflag.CallFlag, result interface{}) func(t *testing.T) {
 	return func(t *testing.T) {
 		script := append([]byte{byte(opcode.SYSCALL)}, syscall...)
 		v := newTestVM()
@@ -823,11 +823,11 @@ func getTestCallFlagsFunc(syscall []byte, flags smartcontract.CallFlag, result i
 func TestCallFlags(t *testing.T) {
 	noFlags := []byte{0x77, 0x77, 0x77, 0x77}
 	readOnly := []byte{0x66, 0x66, 0x66, 0x66}
-	t.Run("NoFlagsNoRequired", getTestCallFlagsFunc(noFlags, smartcontract.NoneFlag, new(int)))
-	t.Run("ProvideFlagsNoRequired", getTestCallFlagsFunc(noFlags, smartcontract.AllowCall, new(int)))
-	t.Run("NoFlagsSomeRequired", getTestCallFlagsFunc(readOnly, smartcontract.NoneFlag, nil))
-	t.Run("OnlyOneProvided", getTestCallFlagsFunc(readOnly, smartcontract.AllowCall, nil))
-	t.Run("AllFlagsProvided", getTestCallFlagsFunc(readOnly, smartcontract.ReadOnly, new(int)))
+	t.Run("NoFlagsNoRequired", getTestCallFlagsFunc(noFlags, callflag.NoneFlag, new(int)))
+	t.Run("ProvideFlagsNoRequired", getTestCallFlagsFunc(noFlags, callflag.AllowCall, new(int)))
+	t.Run("NoFlagsSomeRequired", getTestCallFlagsFunc(readOnly, callflag.NoneFlag, nil))
+	t.Run("OnlyOneProvided", getTestCallFlagsFunc(readOnly, callflag.AllowCall, nil))
+	t.Run("AllFlagsProvided", getTestCallFlagsFunc(readOnly, callflag.ReadOnly, new(int)))
 }
 
 func callNTimes(n uint16) []byte {

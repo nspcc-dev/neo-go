@@ -15,7 +15,7 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
-	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/stretchr/testify/require"
@@ -114,7 +114,7 @@ func testSyscallHandler(v *VM, id uint32) error {
 	case 0x77777777:
 		v.Estack().PushVal(stackitem.NewInterop(new(int)))
 	case 0x66666666:
-		if !v.Context().callFlag.Has(smartcontract.ReadOnly) {
+		if !v.Context().callFlag.Has(callflag.ReadOnly) {
 			return errors.New("invalid call flags")
 		}
 		v.Estack().PushVal(stackitem.NewInterop(new(int)))
