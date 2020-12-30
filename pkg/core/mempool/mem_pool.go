@@ -69,6 +69,8 @@ type Pool struct {
 
 	resendThreshold uint32
 	resendFunc      func(*transaction.Transaction, interface{})
+	// removeStaleCallback is a callback method which is called after item is removed from the mempool.
+	removeStaleCallback func(*transaction.Transaction, interface{})
 }
 
 func (p items) Len() int           { return len(p) }
@@ -325,7 +327,10 @@ func (mp *Pool) RemoveStale(isOK func(*transaction.Transaction) bool, feer Feer)
 		mp.conflicts = make(map[util.Uint256][]util.Uint256)
 	}
 	height := feer.BlockHeight()
-	var staleItems []item
+	var (
+		staleItems   []item
+		removedItems []item
+	)
 	for _, itm := range mp.verifiedTxes {
 		if isOK(itm.txn) && mp.checkPolicy(itm.txn, policyChanged) && mp.tryAddSendersFee(itm.txn, feer, true) {
 			newVerifiedTxes = append(newVerifiedTxes, itm)
@@ -348,10 +353,16 @@ func (mp *Pool) RemoveStale(isOK func(*transaction.Transaction) bool, feer Feer)
 			if attrs := itm.txn.GetAttributes(transaction.OracleResponseT); len(attrs) != 0 {
 				delete(mp.oracleResp, attrs[0].Value.(*transaction.OracleResponse).ID)
 			}
+			if feer.P2PSigExtensionsEnabled() && feer.P2PNotaryModuleEnabled() && mp.removeStaleCallback != nil {
+				removedItems = append(removedItems, itm)
+			}
 		}
 	}
 	if len(staleItems) != 0 {
 		go mp.resendStaleItems(staleItems)
+	}
+	if len(removedItems) != 0 {
+		go mp.postRemoveStale(removedItems)
 	}
 	mp.verifiedTxes = newVerifiedTxes
 	mp.lock.Unlock()
@@ -398,9 +409,22 @@ func (mp *Pool) SetResendThreshold(h uint32, f func(*transaction.Transaction, in
 	mp.resendFunc = f
 }
 
+// SetRemoveStaleCallback registers new callback method which should be called after mempool item is kicked off.
+func (mp *Pool) SetRemoveStaleCallback(f func(t *transaction.Transaction, data interface{})) {
+	mp.lock.Lock()
+	defer mp.lock.Unlock()
+	mp.removeStaleCallback = f
+}
+
 func (mp *Pool) resendStaleItems(items []item) {
 	for i := range items {
 		mp.resendFunc(items[i].txn, items[i].data)
+	}
+}
+
+func (mp *Pool) postRemoveStale(items []item) {
+	for i := range items {
+		mp.removeStaleCallback(items[i].txn, items[i].data)
 	}
 }
 

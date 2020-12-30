@@ -32,6 +32,11 @@ func (f NotaryFeer) P2PSigExtensionsEnabled() bool {
 	return f.bc.P2PSigExtensionsEnabled()
 }
 
+// P2PNotaryModuleEnabled implements mempool.Feer interface.
+func (f NotaryFeer) P2PNotaryModuleEnabled() bool {
+	return f.bc.P2PNotaryModuleEnabled()
+}
+
 // NewNotaryFeer returns new NotaryFeer instance.
 func NewNotaryFeer(bc blockchainer.Blockchainer) NotaryFeer {
 	return NotaryFeer{

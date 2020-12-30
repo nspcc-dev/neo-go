@@ -44,6 +44,10 @@ func (fs *FeerStub) P2PSigExtensionsEnabled() bool {
 	return fs.p2pSigExt
 }
 
+func (fs *FeerStub) P2PNotaryModuleEnabled() bool {
+	return false
+}
+
 func testMemPoolAddRemoveWithFeer(t *testing.T, fs Feer) {
 	mp := New(10, 0)
 	tx := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)

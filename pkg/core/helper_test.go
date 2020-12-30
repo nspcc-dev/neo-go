@@ -531,6 +531,14 @@ func invokeContractMethodBy(t *testing.T, chain *Blockchain, signer *wallet.Acco
 	return &res[0], nil
 }
 
+func transferTokenFromMultisigAccountCheckOK(t *testing.T, chain *Blockchain, to, tokenHash util.Uint160, amount int64, additionalArgs ...interface{}) {
+	transferTx := transferTokenFromMultisigAccount(t, chain, to, tokenHash, amount, additionalArgs...)
+	res, err := chain.GetAppExecResults(transferTx.Hash(), trigger.Application)
+	require.NoError(t, err)
+	require.Equal(t, vm.HaltState, res[0].VMState)
+	require.Equal(t, 0, len(res[0].Stack))
+}
+
 func transferTokenFromMultisigAccount(t *testing.T, chain *Blockchain, to, tokenHash util.Uint160, amount int64, additionalArgs ...interface{}) *transaction.Transaction {
 	transferTx := newNEP17Transfer(tokenHash, testchain.MultisigScriptHash(), to, amount, additionalArgs...)
 	transferTx.SystemFee = 100000000

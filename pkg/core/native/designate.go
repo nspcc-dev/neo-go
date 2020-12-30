@@ -37,6 +37,8 @@ type Designate struct {
 	p2pSigExtensionsEnabled bool
 
 	OracleService atomic.Value
+	// NotaryService represents Notary node module.
+	NotaryService atomic.Value
 }
 
 type roleData struct {
@@ -183,9 +185,14 @@ func (s *Designate) updateCachedRoleData(v *atomic.Value, d dao.DAO, r Role) err
 		addr:   s.hashFromNodes(r, nodeKeys),
 		height: height,
 	})
-	if r == RoleOracle {
+	switch r {
+	case RoleOracle:
 		if orc, _ := s.OracleService.Load().(services.Oracle); orc != nil {
 			orc.UpdateOracleNodes(nodeKeys.Copy())
+		}
+	case RoleP2PNotary:
+		if ntr, _ := s.NotaryService.Load().(services.Notary); ntr != nil {
+			ntr.UpdateNotaryNodes(nodeKeys.Copy())
 		}
 	}
 	return nil

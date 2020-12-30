@@ -21,6 +21,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/network/capability"
 	"github.com/nspcc-dev/neo-go/pkg/network/extpool"
 	"github.com/nspcc-dev/neo-go/pkg/network/payload"
+	"github.com/nspcc-dev/neo-go/pkg/services/notary"
 	"github.com/nspcc-dev/neo-go/pkg/services/oracle"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"go.uber.org/atomic"
@@ -69,7 +70,8 @@ type (
 		consensus         consensus.Service
 		notaryRequestPool *mempool.Pool
 		extensiblePool    *extpool.Pool
-		NotaryFeer        NotaryFeer
+		notaryFeer        NotaryFeer
+		notaryModule      *notary.Notary
 
 		lock  sync.RWMutex
 		peers map[Peer]bool
@@ -134,13 +136,37 @@ func newServerFromConstructors(config ServerConfig, chain blockchainer.Blockchai
 		transactions:      make(chan *transaction.Transaction, 64),
 	}
 	if chain.P2PSigExtensionsEnabled() {
-		s.NotaryFeer = NewNotaryFeer(chain)
+		s.notaryFeer = NewNotaryFeer(chain)
 		s.notaryRequestPool = mempool.New(chain.GetConfig().P2PNotaryRequestPayloadPoolSize, 1)
 		chain.RegisterPostBlock(func(bc blockchainer.Blockchainer, txpool *mempool.Pool, _ *block.Block) {
 			s.notaryRequestPool.RemoveStale(func(t *transaction.Transaction) bool {
 				return bc.IsTxStillRelevant(t, txpool, true)
-			}, s.NotaryFeer)
+			}, s.notaryFeer)
 		})
+		if chain.GetConfig().P2PNotary.Enabled {
+			n, err := notary.NewNotary(chain, s.log, func(tx *transaction.Transaction) error {
+				r := s.RelayTxn(tx)
+				if r != RelaySucceed {
+					return fmt.Errorf("can't pool notary tx: hash %s, reason: %d", tx.Hash().StringLE(), byte(r))
+				}
+				return nil
+			})
+			if err != nil {
+				return nil, fmt.Errorf("failed to create Notary module: %w", err)
+			}
+			s.notaryModule = n
+			chain.SetNotary(n)
+			chain.RegisterPoolTxWithDataCallback(func(_ *transaction.Transaction, data interface{}) {
+				if notaryRequest, ok := data.(*payload.P2PNotaryRequest); ok {
+					s.notaryModule.OnNewRequest(notaryRequest)
+				}
+			})
+			chain.RegisterPostBlock(func(bc blockchainer.Blockchainer, pool *mempool.Pool, b *block.Block) {
+				s.notaryModule.PostPersist(bc, pool, b)
+			})
+		}
+	} else if chain.GetConfig().P2PNotary.Enabled {
+		return nil, errors.New("P2PSigExtensions are disabled, but Notary service is enable")
 	}
 	s.bQueue = newBlockQueue(maxBlockBatch, chain, log, func(b *block.Block) {
 		if !s.consensusStarted.Load() {
@@ -805,7 +831,7 @@ func (s *Server) handleP2PNotaryRequestCmd(r *payload.P2PNotaryRequest) error {
 
 // verifyAndPoolNotaryRequest verifies NotaryRequest payload and adds it to the payload mempool.
 func (s *Server) verifyAndPoolNotaryRequest(r *payload.P2PNotaryRequest) RelayReason {
-	if err := s.chain.PoolTxWithData(r.FallbackTransaction, r, s.notaryRequestPool, s.NotaryFeer, verifyNotaryRequest); err != nil {
+	if err := s.chain.PoolTxWithData(r.FallbackTransaction, r, s.notaryRequestPool, s.notaryFeer, verifyNotaryRequest); err != nil {
 		switch {
 		case errors.Is(err, core.ErrAlreadyExists):
 			return RelayAlreadyExists
@@ -827,7 +853,8 @@ func verifyNotaryRequest(bc blockchainer.Blockchainer, _ *transaction.Transactio
 	if err := bc.VerifyWitness(payer, r, &r.Witness, bc.GetPolicer().GetMaxVerificationGAS()); err != nil {
 		return fmt.Errorf("bad P2PNotaryRequest payload witness: %w", err)
 	}
-	if r.FallbackTransaction.Sender() != bc.GetNotaryContractScriptHash() {
+	notaryHash := bc.GetNotaryContractScriptHash()
+	if r.FallbackTransaction.Sender() != notaryHash {
 		return errors.New("P2PNotary contract should be a sender of the fallback transaction")
 	}
 	depositExpiration := bc.GetNotaryDepositExpiration(payer)
@@ -1168,6 +1195,13 @@ func (s *Server) initStaleMemPools() {
 	mp.SetResendThreshold(uint32(threshold), s.broadcastTX)
 	if s.chain.P2PSigExtensionsEnabled() {
 		s.notaryRequestPool.SetResendThreshold(uint32(threshold), s.broadcastP2PNotaryRequestPayload)
+		if s.chain.GetConfig().P2PNotary.Enabled {
+			s.notaryRequestPool.SetRemoveStaleCallback(func(_ *transaction.Transaction, data interface{}) {
+				if notaryRequest, ok := data.(*payload.P2PNotaryRequest); ok {
+					s.notaryModule.OnRequestRemoval(notaryRequest)
+				}
+			})
+		}
 	}
 }
 

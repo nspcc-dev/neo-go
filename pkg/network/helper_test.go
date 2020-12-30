@@ -143,6 +143,10 @@ func (chain *testChain) P2PSigExtensionsEnabled() bool {
 	return true
 }
 
+func (chain *testChain) P2PNotaryModuleEnabled() bool {
+	return false
+}
+
 func (chain *testChain) GetMaxBlockSystemFee() int64 {
 	panic("TODO")
 }
@@ -283,6 +287,12 @@ func (chain *testChain) PoolTx(tx *transaction.Transaction, _ ...*mempool.Pool) 
 	return chain.poolTx(tx)
 }
 func (chain testChain) SetOracle(services.Oracle) {
+	panic("TODO")
+}
+func (chain *testChain) RegisterPoolTxWithDataCallback(f func(t *transaction.Transaction, data interface{})) {
+	panic("TODO")
+}
+func (chain *testChain) SetNotary(notary services.Notary) {
 	panic("TODO")
 }
 func (chain *testChain) SubscribeForBlocks(ch chan<- *block.Block) {

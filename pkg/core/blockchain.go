@@ -122,6 +122,8 @@ type Blockchain struct {
 	// postBlock is a set of callback methods which should be run under the Blockchain lock after new block is persisted.
 	// Block's transactions are passed via mempool.
 	postBlock []func(blockchainer.Blockchainer, *mempool.Pool, *block.Block)
+	// poolTxWithDataCallbacks is a set of callback methods which should be run nuder the Blockchain lock after successful PoolTxWithData invocation.
+	poolTxWithDataCallbacks []func(t *transaction.Transaction, data interface{})
 
 	sbCommittee keys.PublicKeys
 
@@ -199,6 +201,12 @@ func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration, log *zap.L
 func (bc *Blockchain) SetOracle(mod services.Oracle) {
 	bc.contracts.Oracle.Module.Store(mod)
 	bc.contracts.Designate.OracleService.Store(mod)
+}
+
+// SetNotary sets notary module. It doesn't protected by mutex and
+// must be called before `bc.Run()` to avoid data race.
+func (bc *Blockchain) SetNotary(mod services.Notary) {
+	bc.contracts.Designate.NotaryService.Store(mod)
 }
 
 func (bc *Blockchain) init() error {
@@ -1671,7 +1679,19 @@ func (bc *Blockchain) PoolTxWithData(t *transaction.Transaction, data interface{
 			return err
 		}
 	}
-	return bc.verifyAndPoolTx(t, mp, feer, data)
+	if err := bc.verifyAndPoolTx(t, mp, feer, data); err != nil {
+		return err
+	}
+	for _, f := range bc.poolTxWithDataCallbacks {
+		f(t, data)
+	}
+	return nil
+}
+
+// RegisterPoolTxWithDataCallback registers new callback function which is called
+// under the Blockchain lock after successful PoolTxWithData invocation.
+func (bc *Blockchain) RegisterPoolTxWithDataCallback(f func(t *transaction.Transaction, data interface{})) {
+	bc.poolTxWithDataCallbacks = append(bc.poolTxWithDataCallbacks, f)
 }
 
 //GetStandByValidators returns validators from the configuration.
@@ -1890,6 +1910,11 @@ func (bc *Blockchain) newInteropContext(trigger trigger.Type, d dao.DAO, block *
 		ic.Container = block
 	}
 	return ic
+}
+
+// P2PNotaryModuleEnabled defines whether P2P notary module is enabled.
+func (bc *Blockchain) P2PNotaryModuleEnabled() bool {
+	return bc.config.P2PNotary.Enabled
 }
 
 // P2PSigExtensionsEnabled defines whether P2P signature extensions are enabled.
