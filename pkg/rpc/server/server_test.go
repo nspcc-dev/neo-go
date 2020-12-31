@@ -1204,13 +1204,21 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 			`"`+tx.Hash().StringLE()+`"`, 0)
 		body := doRPCCall(rpc, httpSrv.URL, t)
 		res := checkErrGetResult(t, body, false)
+		assert.Equal(t, "null", string(res)) // already spent
+
+		block, _ = chain.GetBlock(e.chain.GetHeaderHash(1))
+		tx = block.Transactions[1]
+		rpc = fmt.Sprintf(`{"jsonrpc": "2.0", "id": 1, "method": "gettxout", "params": [%s, %d]}"`,
+			`"`+tx.Hash().StringLE()+`"`, 1) // Neo remainder in txMoveNeo
+		body = doRPCCall(rpc, httpSrv.URL, t)
+		res = checkErrGetResult(t, body, false)
 
 		var txOut result.TransactionOutput
 		err := json.Unmarshal(res, &txOut)
 		require.NoErrorf(t, err, "could not parse response: %s", res)
-		assert.Equal(t, 0, txOut.N)
+		assert.Equal(t, 1, txOut.N)
 		assert.Equal(t, "0x9b7cffdaa674beae0f930ebe6085af9093e5fe56b34a5c220ccdcf6efc336fc5", txOut.Asset)
-		assert.Equal(t, util.Fixed8FromInt64(100000000), txOut.Value)
+		assert.Equal(t, util.Fixed8FromInt64(1000), txOut.Value)
 		assert.Equal(t, "AZ81H31DMWzbSnFDLFkzh9vHwaDLayV7fU", txOut.Address)
 	})
 
