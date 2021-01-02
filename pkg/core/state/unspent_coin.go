@@ -43,6 +43,11 @@ func (s *UnspentCoin) EncodeBinary(bw *io.BinWriter) {
 func (s *UnspentCoin) DecodeBinary(br *io.BinReader) {
 	s.Height = br.ReadU32LE()
 	br.ReadArray(&s.States)
+	if br.Err == nil {
+		for i := range s.States {
+			s.States[i].Output.Position = i
+		}
+	}
 }
 
 // EncodeBinary implements Serializable interface.

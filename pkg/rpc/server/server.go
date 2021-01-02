@@ -1207,17 +1207,19 @@ func (s *Server) getTxOut(ps request.Params) (interface{}, *response.Error) {
 		return nil, response.ErrInvalidParams
 	}
 
-	tx, _, err := s.chain.GetTransaction(h)
-	if err != nil {
-		return nil, response.NewInvalidParamsError(err.Error(), err)
+	ucs := s.chain.GetUnspentCoinState(h)
+	if ucs == nil {
+		return nil, response.NewInvalidParamsError("invalid tx hash", errors.New("unknown"))
 	}
 
-	if num >= len(tx.Outputs) {
+	if num >= len(ucs.States) {
 		return nil, response.NewInvalidParamsError("invalid index", errors.New("too big index"))
 	}
 
-	out := tx.Outputs[num]
-	return result.NewTxOutput(&out), nil
+	if ucs.States[num].State&state.CoinSpent != 0 {
+		return nil, nil
+	}
+	return result.NewTxOutput(&ucs.States[num].Output), nil
 }
 
 // getContractState returns contract state (contract information, according to the contract script hash).
