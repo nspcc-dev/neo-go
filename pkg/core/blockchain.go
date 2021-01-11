@@ -1237,10 +1237,10 @@ func (bc *Blockchain) headerListLen() (n int) {
 	return
 }
 
-// GetTransaction returns a TX and its height by the given hash.
+// GetTransaction returns a TX and its height by the given hash. The height is MaxUint32 if tx is in the mempool.
 func (bc *Blockchain) GetTransaction(hash util.Uint256) (*transaction.Transaction, uint32, error) {
 	if tx, _, ok := bc.memPool.TryGetValue(hash); ok {
-		return tx, 0, nil // the height is not actually defined for memPool transaction. Not sure if zero is a good number in this case.
+		return tx, math.MaxUint32, nil // the height is not actually defined for memPool transaction.
 	}
 	return bc.dao.GetTransaction(hash)
 }

@@ -266,7 +266,28 @@ func (s *Server) run() {
 				addr := drop.peer.PeerAddr().String()
 				if drop.reason == errIdenticalID {
 					s.discovery.RegisterBadAddr(addr)
-				} else if drop.reason != errAlreadyConnected {
+				} else if drop.reason == errAlreadyConnected {
+					// There is a race condition when peer can be disconnected twice for the this reason
+					// which can lead to no connections to peer at all. Here we check for such a possibility.
+					stillConnected := false
+					s.lock.RLock()
+					verDrop := drop.peer.Version()
+					addr := drop.peer.PeerAddr().String()
+					if verDrop != nil {
+						for peer := range s.peers {
+							ver := peer.Version()
+							// Already connected, drop this connection.
+							if ver != nil && ver.Nonce == verDrop.Nonce && peer.PeerAddr().String() == addr {
+								stillConnected = true
+							}
+						}
+					}
+					s.lock.RUnlock()
+					if !stillConnected {
+						s.discovery.UnregisterConnectedAddr(addr)
+						s.discovery.BackFill(addr)
+					}
+				} else {
 					s.discovery.UnregisterConnectedAddr(addr)
 					s.discovery.BackFill(addr)
 				}
@@ -866,10 +887,20 @@ func (s *Server) requestTx(hashes ...util.Uint256) {
 		return
 	}
 
-	msg := s.MkMsg(CMDGetData, payload.NewInventory(payload.TXType, hashes))
-	// It's high priority because it directly affects consensus process,
-	// even though it's getdata.
-	s.broadcastHPMessage(msg)
+	for i := 0; i <= len(hashes)/payload.MaxHashesCount; i++ {
+		start := i * payload.MaxHashesCount
+		stop := (i + 1) * payload.MaxHashesCount
+		if stop > len(hashes) {
+			stop = len(hashes)
+		}
+		if start == stop {
+			break
+		}
+		msg := s.MkMsg(CMDGetData, payload.NewInventory(payload.TXType, hashes[start:stop]))
+		// It's high priority because it directly affects consensus process,
+		// even though it's getdata.
+		s.broadcastHPMessage(msg)
+	}
 }
 
 // iteratePeersWithSendMsg sends given message to all peers using two functions

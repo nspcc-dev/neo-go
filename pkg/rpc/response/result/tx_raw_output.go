@@ -28,29 +28,27 @@ type TransactionMetadata struct {
 
 // NewTransactionOutputRaw returns a new ransactionOutputRaw object.
 func NewTransactionOutputRaw(tx *transaction.Transaction, header *block.Header, chain core.Blockchainer) TransactionOutputRaw {
-	// confirmations formula
-	confirmations := int(chain.BlockHeight() - header.Base.Index + 1)
-	return TransactionOutputRaw{
+	result := TransactionOutputRaw{
 		Transaction: tx,
 		TransactionMetadata: TransactionMetadata{
-			SysFee:        chain.SystemFee(tx),
-			NetFee:        chain.NetworkFee(tx),
-			Blockhash:     header.Hash(),
-			Confirmations: confirmations,
-			Timestamp:     header.Timestamp,
+			SysFee: chain.SystemFee(tx),
+			NetFee: chain.NetworkFee(tx),
 		},
 	}
+	if header == nil {
+		return result
+	}
+	// confirmations formula
+	confirmations := int(chain.BlockHeight() - header.Base.Index + 1)
+	result.TransactionMetadata.Blockhash = header.Hash()
+	result.TransactionMetadata.Confirmations = confirmations
+	result.TransactionMetadata.Timestamp = header.Timestamp
+	return result
 }
 
 // MarshalJSON implements json.Marshaler interface.
 func (t TransactionOutputRaw) MarshalJSON() ([]byte, error) {
-	output, err := json.Marshal(TransactionMetadata{
-		SysFee:        t.SysFee,
-		NetFee:        t.NetFee,
-		Blockhash:     t.Blockhash,
-		Confirmations: t.Confirmations,
-		Timestamp:     t.Timestamp,
-	})
+	output, err := json.Marshal(t.TransactionMetadata)
 	if err != nil {
 		return nil, err
 	}
@@ -78,17 +76,6 @@ func (t *TransactionOutputRaw) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		return err
 	}
-	t.SysFee = output.SysFee
-	t.NetFee = output.NetFee
-	t.Blockhash = output.Blockhash
-	t.Confirmations = output.Confirmations
-	t.Timestamp = output.Timestamp
-
-	transaction := new(transaction.Transaction)
-	err = json.Unmarshal(data, transaction)
-	if err != nil {
-		return err
-	}
-	t.Transaction = transaction
-	return nil
+	t.TransactionMetadata = *output
+	return json.Unmarshal(data, &t.Transaction)
 }

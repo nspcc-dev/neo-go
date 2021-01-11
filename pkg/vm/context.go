@@ -143,6 +143,15 @@ func (c *Context) CurrInstr() (int, opcode.Opcode) {
 	return c.ip, opcode.Opcode(c.prog[c.ip])
 }
 
+// NextInstr returns the next instruction and opcode.
+func (c *Context) NextInstr() (int, opcode.Opcode) {
+	op := opcode.RET
+	if c.nextip < len(c.prog) {
+		op = opcode.Opcode(c.prog[c.nextip])
+	}
+	return c.nextip, op
+}
+
 // Copy returns an new exact copy of c.
 func (c *Context) Copy() *Context {
 	ctx := new(Context)

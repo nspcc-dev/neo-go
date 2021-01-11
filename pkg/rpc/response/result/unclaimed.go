@@ -1,6 +1,9 @@
 package result
 
 import (
+	"errors"
+	"math"
+
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -37,6 +40,9 @@ func NewUnclaimed(a *state.Account, chain core.Blockchainer) (*Unclaimed, error)
 		_, txHeight, err := chain.GetTransaction(usb.Tx)
 		if err != nil {
 			return nil, err
+		}
+		if txHeight == math.MaxUint32 {
+			return nil, errors.New("wrong transaction stored in account data")
 		}
 		gen, sys, err := chain.CalculateClaimable(usb.Value, txHeight, blockHeight)
 		if err != nil {
