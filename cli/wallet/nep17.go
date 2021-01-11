@@ -3,6 +3,7 @@ package wallet
 import (
 	"errors"
 	"fmt"
+	"math/big"
 	"strings"
 
 	"github.com/nspcc-dev/neo-go/cli/flags"
@@ -179,7 +180,7 @@ func getNEP17Balance(ctx *cli.Context) error {
 
 		for i := range balances.Balances {
 			var tokenName, tokenSymbol string
-
+			tokenDecimals := 0
 			asset := balances.Balances[i].Asset
 			token, err := getMatchingToken(ctx, wall, asset.StringLE())
 			if err != nil {
@@ -191,6 +192,7 @@ func getNEP17Balance(ctx *cli.Context) error {
 				}
 				tokenName = token.Name
 				tokenSymbol = token.Symbol
+				tokenDecimals = int(token.Decimals)
 			} else {
 				if name != "" {
 					continue
@@ -198,7 +200,14 @@ func getNEP17Balance(ctx *cli.Context) error {
 				tokenSymbol = "UNKNOWN"
 			}
 			fmt.Fprintf(ctx.App.Writer, "%s: %s (%s)\n", tokenSymbol, tokenName, asset.StringLE())
-			fmt.Fprintf(ctx.App.Writer, "\tAmount : %s\n", balances.Balances[i].Amount)
+			amount := balances.Balances[i].Amount
+			if tokenDecimals != 0 {
+				b, ok := new(big.Int).SetString(amount, 10)
+				if ok {
+					amount = fixedn.ToString(b, tokenDecimals)
+				}
+			}
+			fmt.Fprintf(ctx.App.Writer, "\tAmount : %s\n", amount)
 			fmt.Fprintf(ctx.App.Writer, "\tUpdated: %d\n", balances.Balances[i].LastUpdated)
 		}
 	}

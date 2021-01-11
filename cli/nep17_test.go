@@ -30,7 +30,7 @@ func TestNEP17Balance(t *testing.T) {
 		checkResult := func(t *testing.T) {
 			e.checkNextLine(t, "^\\s*Account\\s+"+validatorAddr)
 			e.checkNextLine(t, "^\\s*NEO:\\s+NeoToken \\("+e.Chain.GoverningTokenHash().StringLE()+"\\)")
-			e.checkNextLine(t, "^\\s*Amount\\s*:\\s*"+b.String())
+			e.checkNextLine(t, "^\\s*Amount\\s*:\\s*"+b.String()+"$")
 			e.checkNextLine(t, "^\\s*Updated\\s*:\\s*"+strconv.FormatUint(uint64(index), 10))
 			e.checkEOF(t)
 		}
@@ -48,7 +48,7 @@ func TestNEP17Balance(t *testing.T) {
 		e.checkNextLine(t, "^\\s*Account\\s+"+validatorAddr)
 		e.checkNextLine(t, "^\\s*GAS:\\s+GasToken \\("+e.Chain.UtilityTokenHash().StringLE()+"\\)")
 		b := e.Chain.GetUtilityTokenBalance(validatorHash)
-		e.checkNextLine(t, "^\\s*Amount\\s*:\\s*"+fixedn.Fixed8(b.Int64()).String())
+		e.checkNextLine(t, "^\\s*Amount\\s*:\\s*"+fixedn.Fixed8(b.Int64()).String()+"$")
 	})
 	t.Run("all accounts", func(t *testing.T) {
 		e.Run(t, cmdbase...)
@@ -57,7 +57,7 @@ func TestNEP17Balance(t *testing.T) {
 		e.checkNextLine(t, "^Account "+address.Uint160ToString(addr1))
 		e.checkNextLine(t, "^\\s*GAS:\\s+GasToken \\("+e.Chain.UtilityTokenHash().StringLE()+"\\)")
 		balance := e.Chain.GetUtilityTokenBalance(addr1)
-		e.checkNextLine(t, "^\\s*Amount\\s*:\\s*"+fixedn.Fixed8(balance.Int64()).String())
+		e.checkNextLine(t, "^\\s*Amount\\s*:\\s*"+fixedn.Fixed8(balance.Int64()).String()+"$")
 		e.checkNextLine(t, "^\\s*Updated:")
 		e.checkNextLine(t, "^\\s*$")
 
@@ -75,12 +75,12 @@ func TestNEP17Balance(t *testing.T) {
 			if strings.Contains(line, "GAS") {
 				e.checkLine(t, line, "^\\s*GAS:\\s+GasToken \\("+e.Chain.UtilityTokenHash().StringLE()+"\\)")
 				balance = e.Chain.GetUtilityTokenBalance(addr3)
-				e.checkNextLine(t, "^\\s*Amount\\s*:\\s*"+fixedn.Fixed8(balance.Int64()).String())
+				e.checkNextLine(t, "^\\s*Amount\\s*:\\s*"+fixedn.Fixed8(balance.Int64()).String()+"$")
 				e.checkNextLine(t, "^\\s*Updated:")
 			} else {
 				balance, index := e.Chain.GetGoverningTokenBalance(validatorHash)
 				e.checkLine(t, line, "^\\s*NEO:\\s+NeoToken \\("+e.Chain.GoverningTokenHash().StringLE()+"\\)")
-				e.checkNextLine(t, "^\\s*Amount\\s*:\\s*"+balance.String())
+				e.checkNextLine(t, "^\\s*Amount\\s*:\\s*"+balance.String()+"$")
 				e.checkNextLine(t, "^\\s*Updated\\s*:\\s*"+strconv.FormatUint(uint64(index), 10))
 			}
 		}
