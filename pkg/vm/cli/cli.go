@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"math/big"
 	"os"
 	"strconv"
@@ -16,6 +18,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/compiler"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
@@ -23,13 +26,14 @@ import (
 )
 
 const (
-	vmKey      = "vm"
-	boolType   = "bool"
-	boolFalse  = "false"
-	boolTrue   = "true"
-	intType    = "int"
-	stringType = "string"
-	exitFunc   = "exitFunc"
+	vmKey       = "vm"
+	manifestKey = "manifest"
+	boolType    = "bool"
+	boolFalse   = "false"
+	boolTrue    = "true"
+	intType     = "int"
+	stringType  = "string"
+	exitFunc    = "exitFunc"
 )
 
 var commands = []*ishell.Cmd{
@@ -74,9 +78,9 @@ var commands = []*ishell.Cmd{
 	{
 		Name: "loadnef",
 		Help: "Load a NEF-consistent script into the VM",
-		LongHelp: `Usage: loadnef <file>
-<file> is mandatory parameter, example:
-> loadnef /path/to/script.nef`,
+		LongHelp: `Usage: loadnef <file> <manifest>
+both parameters are mandatory, example:
+> loadnef /path/to/script.nef /path/to/manifest.json`,
 		Func: handleLoadNEF,
 	},
 	{
@@ -97,7 +101,7 @@ var commands = []*ishell.Cmd{
 	},
 	{
 		Name: "loadgo",
-		Help: "Compile and load a Go file into the VM",
+		Help: "Compile and load a Go file with the manifest into the VM",
 		LongHelp: `Usage: loadgo <file>
 <file> is mandatory parameter, example:
 > loadgo /path/to/file.go`,
@@ -115,10 +119,11 @@ var commands = []*ishell.Cmd{
 	{
 		Name: "run",
 		Help: "Execute the current loaded script",
-		LongHelp: `Usage: run [<operation> [<parameter>...]]
+		LongHelp: `Usage: run [<method> [<parameter>...]]
 
-<operation> is an operation name, passed as a first parameter to Main() (and it
-        can't be 'help' at the moment)
+<method> is a contract method, specified in manifest (and it
+        can't be 'help' at the moment). It can be '_' which will push parameters
+        onto the stack and execute from the current offset.
 <parameter> is a parameter (can be repeated multiple times) that can be specified
         as <type>:<value>, where type can be:
             '` + boolType + `': supports '` + boolFalse + `' and '` + boolTrue + `' values
@@ -129,11 +134,6 @@ var commands = []*ishell.Cmd{
        following these rules: '` + boolTrue + `' and '` + boolFalse + `' are treated as respective
        boolean values, everything that can be converted to integer is treated as
        integer and everything else is treated like a string.
-
-Passing parameters without operation is not supported. Parameters are packed
-into array before they're passed to the script, so effectively 'run' only
-supports contracts with signatures like this:
-   func Main(operation string, args []interface{}) interface{}
 
 Example:
 > run put ` + stringType + `:"Something to put"`,
@@ -214,6 +214,7 @@ func NewWithConfig(printLogo bool, onExit func(int), c *readline.Config) *VMCLI 
 		printLogo: printLogo,
 	}
 	vmcli.shell.Set(vmKey, vmcli.vm)
+	vmcli.shell.Set(manifestKey, new(manifest.Manifest))
 	vmcli.shell.Set(exitFunc, onExit)
 	for _, c := range commands {
 		vmcli.shell.AddCmd(c)
@@ -224,6 +225,15 @@ func NewWithConfig(printLogo bool, onExit func(int), c *readline.Config) *VMCLI 
 
 func getVMFromContext(c *ishell.Context) *vm.VM {
 	return c.Get(vmKey).(*vm.VM)
+}
+
+func getManifestFromContext(c *ishell.Context) *manifest.Manifest {
+	return c.Get(manifestKey).(*manifest.Manifest)
+}
+
+func setManifestInContext(c *ishell.Context, m *manifest.Manifest) {
+	old := getManifestFromContext(c)
+	*old = *m
 }
 
 func checkVMIsReady(c *ishell.Context) bool {
@@ -280,15 +290,21 @@ func handleXStack(c *ishell.Context) {
 
 func handleLoadNEF(c *ishell.Context) {
 	v := getVMFromContext(c)
-	if len(c.Args) < 1 {
-		c.Err(fmt.Errorf("%w: <file>", ErrMissingParameter))
+	if len(c.Args) < 2 {
+		c.Err(fmt.Errorf("%w: <file> <manifest>", ErrMissingParameter))
 		return
 	}
 	if err := v.LoadFile(c.Args[0]); err != nil {
 		c.Err(err)
-	} else {
-		c.Printf("READY: loaded %d instructions\n", v.Context().LenInstr())
+		return
 	}
+	m, err := getManifestFromFile(c.Args[1])
+	if err != nil {
+		c.Err(err)
+		return
+	}
+	c.Printf("READY: loaded %d instructions\n", v.Context().LenInstr())
+	setManifestInContext(c, m)
 	changePrompt(c, v)
 }
 
@@ -330,32 +346,71 @@ func handleLoadGo(c *ishell.Context) {
 		c.Err(fmt.Errorf("%w: <file>", ErrMissingParameter))
 		return
 	}
-	b, err := compiler.Compile(c.Args[0], nil)
+	b, di, err := compiler.CompileWithDebugInfo(c.Args[0], nil)
 	if err != nil {
 		c.Err(err)
 		return
 	}
+
+	// Don't perform checks, just load.
+	m, err := di.ConvertToManifest(&compiler.Options{})
+	if err != nil {
+		c.Err(fmt.Errorf("can't create manifest: %w", err))
+		return
+	}
+	setManifestInContext(c, m)
 
 	v.Load(b)
 	c.Printf("READY: loaded %d instructions\n", v.Context().LenInstr())
 	changePrompt(c, v)
 }
 
+func getManifestFromFile(name string) (*manifest.Manifest, error) {
+	bs, err := ioutil.ReadFile(name)
+	if err != nil {
+		return nil, fmt.Errorf("%w: can't read manifest", ErrInvalidParameter)
+	}
+
+	var m manifest.Manifest
+	if err := json.Unmarshal(bs, &m); err != nil {
+		return nil, fmt.Errorf("%w: can't unmarshal manifest", ErrInvalidParameter)
+	}
+	return &m, nil
+}
+
 func handleRun(c *ishell.Context) {
 	v := getVMFromContext(c)
+	m := getManifestFromContext(c)
 	if len(c.Args) != 0 {
 		var (
-			method []byte
-			params []stackitem.Item
-			err    error
+			params     []stackitem.Item
+			offset     int
+			err        error
+			runCurrent = c.Args[0] != "_"
 		)
-		method = []byte(c.Args[0])
+
+		if runCurrent {
+			md := m.ABI.GetMethod(c.Args[0])
+			if md == nil {
+				c.Err(fmt.Errorf("%w: method not found", ErrInvalidParameter))
+				return
+			}
+			offset = md.Offset
+		}
 		params, err = parseArgs(c.Args[1:])
 		if err != nil {
 			c.Err(err)
 			return
 		}
-		v.LoadArgs(method, params)
+		for i := len(params) - 1; i >= 0; i-- {
+			v.Estack().PushVal(params[i])
+		}
+		if runCurrent {
+			v.Jump(v.Context(), offset)
+			if initMD := m.ABI.GetMethod(manifest.MethodInit); initMD != nil {
+				v.Call(v.Context(), initMD.Offset)
+			}
+		}
 	}
 	runVMWithHandling(c, v)
 	changePrompt(c, v)
