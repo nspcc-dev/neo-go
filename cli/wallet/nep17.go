@@ -359,7 +359,10 @@ func multiTransferNEP17(ctx *cli.Context) error {
 	defer wall.Close()
 
 	fromFlag := ctx.Generic("from").(*flags.Address)
-	from := fromFlag.Uint160()
+	from, err := getDefaultAddress(fromFlag, wall)
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
 	acc, err := getDecryptedAccount(ctx, wall, from)
 	if err != nil {
 		return cli.NewExitError(err, 1)
@@ -422,7 +425,10 @@ func transferNEP17(ctx *cli.Context) error {
 	defer wall.Close()
 
 	fromFlag := ctx.Generic("from").(*flags.Address)
-	from := fromFlag.Uint160()
+	from, err := getDefaultAddress(fromFlag, wall)
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
 	acc, err := getDecryptedAccount(ctx, wall, from)
 	if err != nil {
 		return cli.NewExitError(err, 1)
@@ -483,4 +489,15 @@ func signAndSendTransfer(ctx *cli.Context, c *client.Client, acc *wallet.Account
 
 	fmt.Fprintln(ctx.App.Writer, tx.Hash().StringLE())
 	return nil
+}
+
+func getDefaultAddress(fromFlag *flags.Address, w *wallet.Wallet) (util.Uint160, error) {
+	if fromFlag.IsSet {
+		return fromFlag.Uint160(), nil
+	}
+	addr := w.GetChangeAddress()
+	if addr.Equals(util.Uint160{}) {
+		return util.Uint160{}, errors.New("can't get default address")
+	}
+	return addr, nil
 }

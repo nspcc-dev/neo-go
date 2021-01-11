@@ -111,10 +111,10 @@ func TestNEP17Transfer(t *testing.T) {
 		"neo-go", "wallet", "nep17", "transfer",
 		"--rpc-endpoint", "http://" + e.RPC.Addr,
 		"--wallet", validatorWallet,
-		"--from", validatorAddr,
 		"--to", w.Accounts[0].Address,
 		"--token", "NEO",
 		"--amount", "1",
+		"--from", validatorAddr,
 	}
 
 	t.Run("InvalidPassword", func(t *testing.T) {
@@ -131,6 +131,33 @@ func TestNEP17Transfer(t *testing.T) {
 	require.NoError(t, err)
 	b, _ := e.Chain.GetGoverningTokenBalance(sh)
 	require.Equal(t, big.NewInt(1), b)
+
+	t.Run("default address", func(t *testing.T) {
+		const validatorDefault = "NbTiM6h8r99kpRtb428XcsUk1TzKed2gTc"
+		e.In.WriteString("one\r")
+		e.Run(t, "neo-go", "wallet", "nep17", "multitransfer",
+			"--rpc-endpoint", "http://"+e.RPC.Addr,
+			"--wallet", validatorWallet,
+			"--from", validatorAddr,
+			"NEO:"+validatorDefault+":42",
+			"GAS:"+validatorDefault+":7")
+		e.checkTxPersisted(t)
+
+		args := args[:len(args)-2] // cut '--from' argument
+		e.In.WriteString("one\r")
+		e.Run(t, args...)
+		e.checkTxPersisted(t)
+
+		sh, err := address.StringToUint160(w.Accounts[0].Address)
+		require.NoError(t, err)
+		b, _ := e.Chain.GetGoverningTokenBalance(sh)
+		require.Equal(t, big.NewInt(2), b)
+
+		sh, err = address.StringToUint160(validatorDefault)
+		require.NoError(t, err)
+		b, _ = e.Chain.GetGoverningTokenBalance(sh)
+		require.Equal(t, big.NewInt(41), b)
+	})
 }
 
 func TestNEP17MultiTransfer(t *testing.T) {
