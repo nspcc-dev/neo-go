@@ -26,6 +26,9 @@ const (
 	RemovePrefix FindFlags = 1 << 1
 	// ValuesOnly is used for iterating over values.
 	ValuesOnly FindFlags = 1 << 2
+	// DeserializeValues is used for deserializing values on-the-fly.
+	// It can be combined with other options.
+	DeserializeValues FindFlags = 1 << 3
 )
 
 // ConvertContextToReadOnly returns new context from the given one, but with

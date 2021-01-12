@@ -30,6 +30,7 @@ func TestFindFlags(t *testing.T) {
 	require.EqualValues(t, storage.KeysOnly, istorage.FindKeysOnly)
 	require.EqualValues(t, storage.RemovePrefix, istorage.FindRemovePrefix)
 	require.EqualValues(t, storage.ValuesOnly, istorage.FindValuesOnly)
+	require.EqualValues(t, storage.DeserializeValues, istorage.FindDeserialize)
 }
 
 func TestStoragePutGet(t *testing.T) {

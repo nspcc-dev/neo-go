@@ -28,6 +28,9 @@ func storageFind(ic *interop.Context) error {
 	if opts&^storage.FindAll != 0 {
 		return fmt.Errorf("%w: unknown flag", errFindInvalidOptions)
 	}
+	if opts&storage.FindKeysOnly != 0 && opts&storage.FindDeserialize != 0 {
+		return fmt.Errorf("%w KeysOnly conflicts with other options", errFindInvalidOptions)
+	}
 	if opts&storage.FindValuesOnly != 0 &&
 		opts&(storage.FindKeysOnly|storage.FindRemovePrefix) != 0 {
 		return fmt.Errorf("%w: KeysOnly conflicts with ValuesOnly", errFindInvalidOptions)

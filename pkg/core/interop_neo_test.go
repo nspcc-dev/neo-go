@@ -37,7 +37,8 @@ func TestStorageFind(t *testing.T) {
 	v, contractState, context, chain := createVMAndContractState(t)
 	defer chain.Close()
 
-	skeys := [][]byte{{0x01, 0x02}, {0x02, 0x01}, {0x01, 0x01}}
+	skeys := [][]byte{{0x01, 0x02}, {0x02, 0x01}, {0x01, 0x01},
+		{0x04, 0x00}, {0x05, 0x00}}
 	items := []*state.StorageItem{
 		{
 			Value: []byte{0x01, 0x02, 0x03, 0x04},
@@ -47,6 +48,12 @@ func TestStorageFind(t *testing.T) {
 		},
 		{
 			Value: []byte{0x03, 0x04, 0x05, 0x06},
+		},
+		{
+			Value: []byte{byte(stackitem.ByteArrayT), 2, 0xCA, 0xFE},
+		},
+		{
+			Value: []byte{0xFF, 0xFF},
 		},
 	}
 
@@ -116,6 +123,27 @@ func TestStorageFind(t *testing.T) {
 			stackitem.NewByteArray(items[0].Value),
 		})
 	})
+	t.Run("deserialize values", func(t *testing.T) {
+		testFind(t, 0x04, istorage.FindValuesOnly|istorage.FindDeserialize, []stackitem.Item{
+			stackitem.NewByteArray(items[3].Value[2:]),
+		})
+		t.Run("invalid", func(t *testing.T) {
+			v.Estack().PushVal(istorage.FindDeserialize)
+			v.Estack().PushVal([]byte{0x05})
+			v.Estack().PushVal(stackitem.NewInterop(&StorageContext{ID: id}))
+			err := storageFind(context)
+			require.NoError(t, err)
+
+			var iter *stackitem.Interop
+			require.NotPanics(t, func() { iter = v.Estack().Pop().Interop() })
+
+			v.Estack().PushVal(iter)
+			require.NoError(t, iterator.Next(context))
+
+			v.Estack().PushVal(iter)
+			require.Panics(t, func() { _ = iterator.Value(context) })
+		})
+	})
 
 	t.Run("normal invocation, empty result", func(t *testing.T) {
 		testFind(t, 0x03, istorage.FindDefault, nil)
@@ -125,6 +153,7 @@ func TestStorageFind(t *testing.T) {
 		invalid := []int64{
 			istorage.FindKeysOnly | istorage.FindValuesOnly,
 			^istorage.FindAll,
+			istorage.FindKeysOnly | istorage.FindDeserialize,
 		}
 		for _, opts := range invalid {
 			v.Estack().PushVal(opts)

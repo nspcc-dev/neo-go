@@ -8,8 +8,10 @@ const (
 	FindKeysOnly     = 1 << 0
 	FindRemovePrefix = 1 << 1
 	FindValuesOnly   = 1 << 2
+	FindDeserialize  = 1 << 3
 
-	FindAll = FindDefault | FindKeysOnly | FindRemovePrefix | FindValuesOnly
+	FindAll = FindDefault | FindKeysOnly | FindRemovePrefix | FindValuesOnly |
+		FindDeserialize
 )
 
 type Iterator struct {
@@ -41,11 +43,20 @@ func (s *Iterator) Value() stackitem.Item {
 	if s.opts&FindKeysOnly != 0 {
 		return stackitem.NewByteArray(key)
 	}
+	value := s.m[s.index].Value
+	if s.opts&FindDeserialize != 0 {
+		bs := s.m[s.index].Value.Value().([]byte)
+		var err error
+		value, err = stackitem.DeserializeItem(bs)
+		if err != nil {
+			panic(err)
+		}
+	}
 	if s.opts&FindValuesOnly != 0 {
-		return s.m[s.index].Value
+		return value
 	}
 	return stackitem.NewStruct([]stackitem.Item{
 		stackitem.NewByteArray(key),
-		s.m[s.index].Value,
+		value,
 	})
 }
