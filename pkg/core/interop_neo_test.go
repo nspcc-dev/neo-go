@@ -7,7 +7,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
-	"github.com/nspcc-dev/neo-go/pkg/core/interop/enumerator"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/iterator"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
@@ -67,33 +66,25 @@ func TestStorageFind(t *testing.T) {
 		require.NoError(t, err)
 
 		var iter *stackitem.Interop
-		require.NotPanics(t, func() { iter = v.Estack().Top().Interop() })
+		require.NotPanics(t, func() { iter = v.Estack().Pop().Interop() })
 
-		require.NoError(t, enumerator.Next(context))
-		require.True(t, v.Estack().Pop().Bool())
+		for _, id := range []int{2, 0} { // sorted indices with mathing prefix
+			v.Estack().PushVal(iter)
+			require.NoError(t, iterator.Next(context))
+			require.True(t, v.Estack().Pop().Bool())
 
-		v.Estack().PushVal(iter)
-		require.NoError(t, iterator.Key(context))
-		require.Equal(t, []byte{0x01, 0x01}, v.Estack().Pop().Bytes())
+			v.Estack().PushVal(iter)
+			require.NoError(t, iterator.Value(context))
 
-		v.Estack().PushVal(iter)
-		require.NoError(t, enumerator.Value(context))
-		require.Equal(t, []byte{0x03, 0x04, 0x05, 0x06}, v.Estack().Pop().Bytes())
-
-		v.Estack().PushVal(iter)
-		require.NoError(t, enumerator.Next(context))
-		require.True(t, v.Estack().Pop().Bool())
-
-		v.Estack().PushVal(iter)
-		require.NoError(t, iterator.Key(context))
-		require.Equal(t, []byte{0x01, 0x02}, v.Estack().Pop().Bytes())
+			kv, ok := v.Estack().Pop().Value().([]stackitem.Item)
+			require.True(t, ok)
+			require.Len(t, kv, 2)
+			require.Equal(t, skeys[id], kv[0].Value())
+			require.Equal(t, items[id].Value, kv[1].Value())
+		}
 
 		v.Estack().PushVal(iter)
-		require.NoError(t, enumerator.Value(context))
-		require.Equal(t, []byte{0x01, 0x02, 0x03, 0x04}, v.Estack().Pop().Bytes())
-
-		v.Estack().PushVal(iter)
-		require.NoError(t, enumerator.Next(context))
+		require.NoError(t, iterator.Next(context))
 		require.False(t, v.Estack().Pop().Bool())
 	})
 
@@ -104,7 +95,7 @@ func TestStorageFind(t *testing.T) {
 		err := storageFind(context)
 		require.NoError(t, err)
 
-		require.NoError(t, enumerator.Next(context))
+		require.NoError(t, iterator.Next(context))
 		require.False(t, v.Estack().Pop().Bool())
 	})
 
@@ -122,7 +113,7 @@ func TestStorageFind(t *testing.T) {
 		v.Estack().PushVal(stackitem.NewInterop(&StorageContext{ID: invalidID}))
 
 		require.NoError(t, storageFind(context))
-		require.NoError(t, enumerator.Next(context))
+		require.NoError(t, iterator.Next(context))
 		require.False(t, v.Estack().Pop().Bool())
 	})
 }

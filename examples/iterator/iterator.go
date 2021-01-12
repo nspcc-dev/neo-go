@@ -9,13 +9,8 @@ import (
 // NotifyKeysAndValues sends notification with `foo` storage keys and values
 func NotifyKeysAndValues() bool {
 	iter := storage.Find(storage.GetContext(), []byte("foo"))
-	values := iterator.Values(iter)
-	keys := iterator.Keys(iter)
-
-	runtime.Notify("found storage values", values)
-	// For illustration purposes event is emitted with 'Any' type.
-	var typedKeys interface{} = keys
-	runtime.Notify("found storage keys", typedKeys)
-
+	for iterator.Next(iter) {
+		runtime.Notify("found storage key-value pair", iterator.Value(iter))
+	}
 	return true
 }

@@ -17,29 +17,19 @@ func TestIterator(t *testing.T) {
 	require.NoError(t, Create(ic))
 
 	res := ic.VM.Estack().Pop().Item()
-	ic.VM.Estack().PushVal(res)
-	require.NoError(t, vm.EnumeratorNext(ic.VM))
-	require.True(t, ic.VM.Estack().Pop().Bool())
+	for i := range full {
+		ic.VM.Estack().PushVal(res)
+		require.NoError(t, Next(ic))
+		require.True(t, ic.VM.Estack().Pop().Bool())
+
+		ic.VM.Estack().PushVal(res)
+		require.NoError(t, Value(ic))
+
+		value := ic.VM.Estack().Pop().Item().Value()
+		require.Equal(t, big.NewInt(int64(full[i])), value)
+	}
 
 	ic.VM.Estack().PushVal(res)
-	require.NoError(t, Key(ic))
-	require.Equal(t, big.NewInt(0), ic.VM.Estack().Pop().BigInt())
-
-	ic.VM.Estack().PushVal(res)
-	require.NoError(t, vm.EnumeratorValue(ic.VM))
-	require.Equal(t, big.NewInt(int64(full[0])), ic.VM.Estack().Pop().BigInt())
-
-	ic.VM.Estack().PushVal(res)
-	require.NoError(t, vm.EnumeratorNext(ic.VM))
-	require.True(t, ic.VM.Estack().Pop().Bool())
-
-	ic.VM.Estack().PushVal(res)
-	require.NoError(t, Keys(ic))
-	require.NoError(t, vm.EnumeratorValue(ic.VM))
-	require.Equal(t, big.NewInt(1), ic.VM.Estack().Pop().BigInt())
-
-	ic.VM.Estack().PushVal(res)
-	require.NoError(t, Values(ic))
-	require.NoError(t, vm.EnumeratorValue(ic.VM))
-	require.Equal(t, big.NewInt(int64(full[1])), ic.VM.Estack().Pop().BigInt())
+	require.NoError(t, Next(ic))
+	require.False(t, false, ic.VM.Estack().Pop().Bool())
 }

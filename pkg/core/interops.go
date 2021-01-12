@@ -12,7 +12,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/binary"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/contract"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/crypto"
-	"github.com/nspcc-dev/neo-go/pkg/core/interop/enumerator"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/iterator"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/json"
@@ -58,13 +57,9 @@ var systemInterops = []interop.Function{
 	{Name: interopnames.SystemContractGetCallFlags, Func: contractGetCallFlags, Price: 1 << 10},
 	{Name: interopnames.SystemContractNativeOnPersist, Func: native.OnPersist, Price: 0, RequiredFlags: callflag.WriteStates},
 	{Name: interopnames.SystemContractNativePostPersist, Func: native.PostPersist, Price: 0, RequiredFlags: callflag.WriteStates},
-	{Name: interopnames.SystemEnumeratorCreate, Func: enumerator.Create, Price: 1 << 4, ParamCount: 1},
-	{Name: interopnames.SystemEnumeratorNext, Func: enumerator.Next, Price: 1 << 15, ParamCount: 1},
-	{Name: interopnames.SystemEnumeratorValue, Func: enumerator.Value, Price: 1 << 4, ParamCount: 1},
 	{Name: interopnames.SystemIteratorCreate, Func: iterator.Create, Price: 1 << 4, ParamCount: 1},
-	{Name: interopnames.SystemIteratorKey, Func: iterator.Key, Price: 1 << 4, ParamCount: 1},
-	{Name: interopnames.SystemIteratorKeys, Func: iterator.Keys, Price: 1 << 4, ParamCount: 1},
-	{Name: interopnames.SystemIteratorValues, Func: iterator.Values, Price: 1 << 4, ParamCount: 1},
+	{Name: interopnames.SystemIteratorNext, Func: iterator.Next, Price: 1 << 15, ParamCount: 1},
+	{Name: interopnames.SystemIteratorValue, Func: iterator.Value, Price: 1 << 4, ParamCount: 1},
 	{Name: interopnames.SystemJSONDeserialize, Func: json.Deserialize, Price: 1 << 14, ParamCount: 1},
 	{Name: interopnames.SystemJSONSerialize, Func: json.Serialize, Price: 1 << 12, ParamCount: 1},
 	{Name: interopnames.SystemRuntimeCheckWitness, Func: runtime.CheckWitness, Price: 1 << 10,

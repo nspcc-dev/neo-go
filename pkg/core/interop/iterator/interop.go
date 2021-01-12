@@ -10,17 +10,14 @@ func Create(ic *interop.Context) error {
 	return vm.IteratorCreate(ic.VM)
 }
 
-// Key returns current iterator key.
-func Key(ic *interop.Context) error {
-	return vm.IteratorKey(ic.VM)
+// Next advances the iterator, pushes true on success and false otherwise.
+func Next(ic *interop.Context) error {
+	return vm.IteratorNext(ic.VM)
 }
 
-// Keys returns keys of the iterator.
-func Keys(ic *interop.Context) error {
-	return vm.IteratorKeys(ic.VM)
-}
-
-// Values returns values of the iterator.
-func Values(ic *interop.Context) error {
-	return vm.IteratorValues(ic.VM)
+// Value returns current iterator value and depends on iterator type:
+// For slices the result is just value.
+// For maps the result is key-value pair packed in a struct.
+func Value(ic *interop.Context) error {
+	return vm.IteratorValue(ic.VM)
 }

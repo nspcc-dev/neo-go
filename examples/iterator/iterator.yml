@@ -1,11 +1,7 @@
 name: "Iterator example"
 supportedstandards: []
 events:
-  - name: found storage values
+  - name: found storage key-value pair
     parameters:
-      - name: values
-        type: InteropInterface
-  - name: found storage keys
-    parameters:
-      - name: keys
+      - name: value
         type: Any

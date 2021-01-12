@@ -35,18 +35,10 @@ var syscalls = map[string]map[string]string{
 		"RIPEMD160":                   interopnames.NeoCryptoRIPEMD160,
 		"SHA256":                      interopnames.NeoCryptoSHA256,
 	},
-	"enumerator": {
-		"Create": interopnames.SystemEnumeratorCreate,
-		"Next":   interopnames.SystemEnumeratorNext,
-		"Value":  interopnames.SystemEnumeratorValue,
-	},
 	"iterator": {
 		"Create": interopnames.SystemIteratorCreate,
-		"Key":    interopnames.SystemIteratorKey,
-		"Keys":   interopnames.SystemIteratorKeys,
-		"Next":   interopnames.SystemEnumeratorNext,
-		"Value":  interopnames.SystemEnumeratorValue,
-		"Values": interopnames.SystemIteratorValues,
+		"Next":   interopnames.SystemIteratorNext,
+		"Value":  interopnames.SystemIteratorValue,
 	},
 	"json": {
 		"Deserialize": interopnames.SystemJSONDeserialize,

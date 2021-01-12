@@ -27,20 +27,12 @@ var defaultVMInterops = []interopIDFuncPrice{
 		Func: runtimeLog, Price: 1 << 15, RequiredFlags: callflag.AllowNotify},
 	{ID: interopnames.ToID([]byte(interopnames.SystemRuntimeNotify)),
 		Func: runtimeNotify, Price: 1 << 15, RequiredFlags: callflag.AllowNotify},
-	{ID: interopnames.ToID([]byte(interopnames.SystemEnumeratorCreate)),
-		Func: EnumeratorCreate, Price: 1 << 4},
-	{ID: interopnames.ToID([]byte(interopnames.SystemEnumeratorNext)),
-		Func: EnumeratorNext, Price: 1 << 15},
-	{ID: interopnames.ToID([]byte(interopnames.SystemEnumeratorValue)),
-		Func: EnumeratorValue, Price: 1 << 4},
 	{ID: interopnames.ToID([]byte(interopnames.SystemIteratorCreate)),
 		Func: IteratorCreate, Price: 1 << 4},
-	{ID: interopnames.ToID([]byte(interopnames.SystemIteratorKey)),
-		Func: IteratorKey, Price: 1 << 4},
-	{ID: interopnames.ToID([]byte(interopnames.SystemIteratorKeys)),
-		Func: IteratorKeys, Price: 1 << 4},
-	{ID: interopnames.ToID([]byte(interopnames.SystemIteratorValues)),
-		Func: IteratorValues, Price: 1 << 4},
+	{ID: interopnames.ToID([]byte(interopnames.SystemIteratorNext)),
+		Func: IteratorNext, Price: 1 << 15},
+	{ID: interopnames.ToID([]byte(interopnames.SystemIteratorValue)),
+		Func: IteratorValue, Price: 1 << 4},
 }
 
 func init() {
@@ -112,45 +104,19 @@ func init() {
 	})
 }
 
-// EnumeratorCreate handles syscall System.Enumerator.Create.
-func EnumeratorCreate(v *VM) error {
-	var interop interface{}
-	switch t := v.Estack().Pop().value.(type) {
-	case *stackitem.Array, *stackitem.Struct:
-		interop = &arrayWrapper{
-			index: -1,
-			value: t.Value().([]stackitem.Item),
-		}
-	default:
-		data, err := t.TryBytes()
-		if err != nil {
-			return fmt.Errorf("can not create enumerator from type %s: %w", t.Type(), err)
-		}
-		interop = &byteArrayWrapper{
-			index: -1,
-			value: data,
-		}
-	}
-	v.Estack().Push(&Element{
-		value: stackitem.NewInterop(interop),
-	})
-
-	return nil
-}
-
-// EnumeratorNext handles syscall System.Enumerator.Next.
-func EnumeratorNext(v *VM) error {
+// IteratorNext handles syscall System.Enumerator.Next.
+func IteratorNext(v *VM) error {
 	iop := v.Estack().Pop().Interop()
-	arr := iop.Value().(enumerator)
+	arr := iop.Value().(iterator)
 	v.Estack().PushVal(arr.Next())
 
 	return nil
 }
 
-// EnumeratorValue handles syscall System.Enumerator.Value.
-func EnumeratorValue(v *VM) error {
+// IteratorValue handles syscall System.Enumerator.Value.
+func IteratorValue(v *VM) error {
 	iop := v.Estack().Pop().Interop()
-	arr := iop.Value().(enumerator)
+	arr := iop.Value().(iterator)
 	v.Estack().Push(&Element{value: arr.Value()})
 
 	return nil
@@ -189,35 +155,4 @@ func NewMapIterator(m *stackitem.Map) *stackitem.Interop {
 		index: -1,
 		m:     m.Value().([]stackitem.MapElement),
 	})
-}
-
-// IteratorKey handles syscall System.Iterator.Key.
-func IteratorKey(v *VM) error {
-	iop := v.estack.Pop().Interop()
-	iter := iop.Value().(iterator)
-	v.Estack().Push(&Element{value: iter.Key()})
-
-	return nil
-}
-
-// IteratorKeys handles syscall System.Iterator.Keys.
-func IteratorKeys(v *VM) error {
-	iop := v.estack.Pop().Interop()
-	iter := iop.Value().(iterator)
-	v.Estack().Push(&Element{value: stackitem.NewInterop(
-		&keysWrapper{iter},
-	)})
-
-	return nil
-}
-
-// IteratorValues handles syscall System.Iterator.Values.
-func IteratorValues(v *VM) error {
-	iop := v.estack.Pop().Interop()
-	iter := iop.Value().(iterator)
-	v.Estack().Push(&Element{value: stackitem.NewInterop(
-		&valuesWrapper{iter},
-	)})
-
-	return nil
 }
