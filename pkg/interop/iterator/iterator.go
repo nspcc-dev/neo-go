@@ -28,6 +28,7 @@ func Next(it Iterator) bool {
 // successful Next call. This function uses `System.Iterator.Value` syscall.
 // For slices the result is just value.
 // For maps the result can be casted to a slice of 2 elements: key and value.
+// For storage iterators refer to `storage.FindFlags` documentation.
 func Value(it Iterator) interface{} {
 	return nil
 }

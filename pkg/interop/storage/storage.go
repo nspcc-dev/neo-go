@@ -14,6 +14,20 @@ import "github.com/nspcc-dev/neo-go/pkg/interop/iterator"
 // to Neo .net framework's StorageContext class.
 type Context struct{}
 
+// FindFlags represents parameters to `Find` iterator.
+type FindFlags byte
+
+const (
+	// None is default option. Iterator values are key-value pairs.
+	None FindFlags = 0
+	// KeysOnly is used for iterating over keys.
+	KeysOnly FindFlags = 1 << 0
+	// RemovePrefix is used for stripping 1-byte prefix from keys.
+	RemovePrefix FindFlags = 1 << 1
+	// ValuesOnly is used for iterating over values.
+	ValuesOnly FindFlags = 1 << 2
+)
+
 // ConvertContextToReadOnly returns new context from the given one, but with
 // writing capability turned off, so that you could only invoke Get and Find
 // using this new Context. If Context is already read-only this function is a
@@ -58,4 +72,6 @@ func Delete(ctx Context, key interface{}) {}
 // that match the given key (contain it as a prefix). See Put documentation on
 // possible key types and iterator package documentation on how to use the
 // returned value. This function uses `System.Storage.Find` syscall.
-func Find(ctx Context, key interface{}) iterator.Iterator { return iterator.Iterator{} }
+func Find(ctx Context, key interface{}, options FindFlags) iterator.Iterator {
+	return iterator.Iterator{}
+}

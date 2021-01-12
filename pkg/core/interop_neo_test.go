@@ -8,6 +8,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/iterator"
+	istorage "github.com/nspcc-dev/neo-go/pkg/core/interop/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
@@ -58,8 +59,9 @@ func TestStorageFind(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	t.Run("normal invocation", func(t *testing.T) {
-		v.Estack().PushVal([]byte{0x01})
+	testFind := func(t *testing.T, prefix byte, opts int64, expected []stackitem.Item) {
+		v.Estack().PushVal(opts)
+		v.Estack().PushVal([]byte{prefix})
 		v.Estack().PushVal(stackitem.NewInterop(&StorageContext{ID: id}))
 
 		err := storageFind(context)
@@ -68,38 +70,71 @@ func TestStorageFind(t *testing.T) {
 		var iter *stackitem.Interop
 		require.NotPanics(t, func() { iter = v.Estack().Pop().Interop() })
 
-		for _, id := range []int{2, 0} { // sorted indices with mathing prefix
+		for i := range expected { // sorted indices with mathing prefix
 			v.Estack().PushVal(iter)
 			require.NoError(t, iterator.Next(context))
 			require.True(t, v.Estack().Pop().Bool())
 
 			v.Estack().PushVal(iter)
 			require.NoError(t, iterator.Value(context))
-
-			kv, ok := v.Estack().Pop().Value().([]stackitem.Item)
-			require.True(t, ok)
-			require.Len(t, kv, 2)
-			require.Equal(t, skeys[id], kv[0].Value())
-			require.Equal(t, items[id].Value, kv[1].Value())
+			require.Equal(t, expected[i], v.Estack().Pop().Item())
 		}
 
 		v.Estack().PushVal(iter)
 		require.NoError(t, iterator.Next(context))
 		require.False(t, v.Estack().Pop().Bool())
+	}
+
+	t.Run("normal invocation", func(t *testing.T) {
+		testFind(t, 0x01, istorage.FindDefault, []stackitem.Item{
+			stackitem.NewStruct([]stackitem.Item{
+				stackitem.NewByteArray(skeys[2]),
+				stackitem.NewByteArray(items[2].Value),
+			}),
+			stackitem.NewStruct([]stackitem.Item{
+				stackitem.NewByteArray(skeys[0]),
+				stackitem.NewByteArray(items[0].Value),
+			}),
+		})
+	})
+
+	t.Run("keys only", func(t *testing.T) {
+		testFind(t, 0x01, istorage.FindKeysOnly, []stackitem.Item{
+			stackitem.NewByteArray(skeys[2]),
+			stackitem.NewByteArray(skeys[0]),
+		})
+	})
+	t.Run("remove prefix", func(t *testing.T) {
+		testFind(t, 0x01, istorage.FindKeysOnly|istorage.FindRemovePrefix, []stackitem.Item{
+			stackitem.NewByteArray(skeys[2][1:]),
+			stackitem.NewByteArray(skeys[0][1:]),
+		})
+	})
+	t.Run("values only", func(t *testing.T) {
+		testFind(t, 0x01, istorage.FindValuesOnly, []stackitem.Item{
+			stackitem.NewByteArray(items[2].Value),
+			stackitem.NewByteArray(items[0].Value),
+		})
 	})
 
 	t.Run("normal invocation, empty result", func(t *testing.T) {
-		v.Estack().PushVal([]byte{0x03})
-		v.Estack().PushVal(stackitem.NewInterop(&StorageContext{ID: id}))
-
-		err := storageFind(context)
-		require.NoError(t, err)
-
-		require.NoError(t, iterator.Next(context))
-		require.False(t, v.Estack().Pop().Bool())
+		testFind(t, 0x03, istorage.FindDefault, nil)
 	})
 
+	t.Run("invalid options", func(t *testing.T) {
+		invalid := []int64{
+			istorage.FindKeysOnly | istorage.FindValuesOnly,
+			^istorage.FindAll,
+		}
+		for _, opts := range invalid {
+			v.Estack().PushVal(opts)
+			v.Estack().PushVal([]byte{0x01})
+			v.Estack().PushVal(stackitem.NewInterop(&StorageContext{ID: id}))
+			require.Error(t, storageFind(context))
+		}
+	})
 	t.Run("invalid type for StorageContext", func(t *testing.T) {
+		v.Estack().PushVal(istorage.FindDefault)
 		v.Estack().PushVal([]byte{0x01})
 		v.Estack().PushVal(stackitem.NewInterop(nil))
 
@@ -109,6 +144,7 @@ func TestStorageFind(t *testing.T) {
 	t.Run("invalid id", func(t *testing.T) {
 		invalidID := id + 1
 
+		v.Estack().PushVal(istorage.FindDefault)
 		v.Estack().PushVal([]byte{0x01})
 		v.Estack().PushVal(stackitem.NewInterop(&StorageContext{ID: invalidID}))
 
