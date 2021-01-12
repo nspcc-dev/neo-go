@@ -545,50 +545,6 @@ func TestIteratorCreate(t *testing.T) {
 	})
 }
 
-func testIterableConcat(t *testing.T, typ string) {
-	isIter := typ == "Iterator"
-	prog := getSyscallProg("System." + typ + ".Create")
-	prog = append(prog, byte(opcode.SWAP))
-	prog = append(prog, getSyscallProg("System."+typ+".Create")...)
-	prog = append(prog, getSyscallProg("System."+typ+".Concat")...)
-	prog = append(prog, getEnumeratorProg(3, isIter)...)
-	vm := load(prog)
-
-	arr := []stackitem.Item{
-		stackitem.NewBool(false),
-		stackitem.NewBigInteger(big.NewInt(123)),
-		stackitem.NewMap(),
-	}
-	vm.estack.Push(&Element{value: stackitem.NewArray(arr[:1])})
-	vm.estack.Push(&Element{value: stackitem.NewArray(arr[1:])})
-
-	runVM(t, vm)
-
-	if isIter {
-		// Yes, this is how iterators are concatenated in reference VM
-		// https://github.com/neo-project/neo/blob/master-2.x/neo.UnitTests/UT_ConcatenatedIterator.cs#L54
-		checkEnumeratorStack(t, vm, []stackitem.Item{
-			stackitem.Make(1), arr[2], stackitem.NewBool(true),
-			stackitem.Make(0), arr[1], stackitem.NewBool(true),
-			stackitem.Make(0), arr[0], stackitem.NewBool(true),
-		})
-	} else {
-		checkEnumeratorStack(t, vm, []stackitem.Item{
-			arr[2], stackitem.NewBool(true),
-			arr[1], stackitem.NewBool(true),
-			arr[0], stackitem.NewBool(true),
-		})
-	}
-}
-
-func TestEnumeratorConcat(t *testing.T) {
-	testIterableConcat(t, "Enumerator")
-}
-
-func TestIteratorConcat(t *testing.T) {
-	testIterableConcat(t, "Iterator")
-}
-
 func TestIteratorKeys(t *testing.T) {
 	prog := getSyscallProg(interopnames.SystemIteratorCreate)
 	prog = append(prog, getSyscallProg(interopnames.SystemIteratorKeys)...)

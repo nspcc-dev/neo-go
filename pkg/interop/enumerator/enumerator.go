@@ -30,12 +30,3 @@ func Next(e Enumerator) bool {
 func Value(e Enumerator) interface{} {
 	return nil
 }
-
-// Concat concatenates two given enumerators returning one that will range on
-// a first and then continue with b. Enumerator positions are not reset for a
-// and b, so if any of them was already advanced by Next the resulting
-// Enumerator will point at this new position and never go back to previous
-// values. This function uses `System.Enumerator.Concat` syscall.
-func Concat(a, b Enumerator) Enumerator {
-	return Enumerator{}
-}

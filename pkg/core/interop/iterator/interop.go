@@ -5,11 +5,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 )
 
-// Concat concatenates 2 iterators into a single one.
-func Concat(ic *interop.Context) error {
-	return vm.IteratorConcat(ic.VM)
-}
-
 // Create creates an iterator from array-like or map stack item.
 func Create(ic *interop.Context) error {
 	return vm.IteratorCreate(ic.VM)

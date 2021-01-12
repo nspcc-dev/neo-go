@@ -22,10 +22,6 @@ type (
 		value []byte
 	}
 
-	concatEnum struct {
-		current enumerator
-		second  enumerator
-	}
 )
 
 type (
@@ -37,11 +33,6 @@ type (
 	mapWrapper struct {
 		index int
 		m     []stackitem.MapElement
-	}
-
-	concatIter struct {
-		current iterator
-		second  iterator
 	}
 
 	keysWrapper struct {
@@ -85,36 +76,6 @@ func (a *byteArrayWrapper) Value() stackitem.Item {
 
 func (a *byteArrayWrapper) Key() stackitem.Item {
 	return stackitem.Make(a.index)
-}
-
-func (c *concatEnum) Next() bool {
-	if c.current.Next() {
-		return true
-	}
-	c.current = c.second
-
-	return c.current.Next()
-}
-
-func (c *concatEnum) Value() stackitem.Item {
-	return c.current.Value()
-}
-
-func (i *concatIter) Next() bool {
-	if i.current.Next() {
-		return true
-	}
-	i.current = i.second
-
-	return i.second.Next()
-}
-
-func (i *concatIter) Value() stackitem.Item {
-	return i.current.Value()
-}
-
-func (i *concatIter) Key() stackitem.Item {
-	return i.current.Key()
 }
 
 func (m *mapWrapper) Next() bool {

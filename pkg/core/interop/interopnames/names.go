@@ -26,11 +26,9 @@ const (
 	SystemContractGetCallFlags               = "System.Contract.GetCallFlags"
 	SystemContractNativeOnPersist            = "System.Contract.NativeOnPersist"
 	SystemContractNativePostPersist          = "System.Contract.NativePostPersist"
-	SystemEnumeratorConcat                   = "System.Enumerator.Concat"
 	SystemEnumeratorCreate                   = "System.Enumerator.Create"
 	SystemEnumeratorNext                     = "System.Enumerator.Next"
 	SystemEnumeratorValue                    = "System.Enumerator.Value"
-	SystemIteratorConcat                     = "System.Iterator.Concat"
 	SystemIteratorCreate                     = "System.Iterator.Create"
 	SystemIteratorKey                        = "System.Iterator.Key"
 	SystemIteratorKeys                       = "System.Iterator.Keys"
@@ -91,11 +89,9 @@ var names = []string{
 	SystemContractGetCallFlags,
 	SystemContractNativeOnPersist,
 	SystemContractNativePostPersist,
-	SystemEnumeratorConcat,
 	SystemEnumeratorCreate,
 	SystemEnumeratorNext,
 	SystemEnumeratorValue,
-	SystemIteratorConcat,
 	SystemIteratorCreate,
 	SystemIteratorKey,
 	SystemIteratorKeys,

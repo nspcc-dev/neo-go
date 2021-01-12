@@ -5,11 +5,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 )
 
-// Concat concatenates 2 enumerators into a single one.
-func Concat(ic *interop.Context) error {
-	return vm.EnumeratorConcat(ic.VM)
-}
-
 // Create creates an enumerator from an array-like or bytearray-like stack item.
 func Create(ic *interop.Context) error {
 	return vm.EnumeratorCreate(ic.VM)

@@ -36,13 +36,11 @@ var syscalls = map[string]map[string]string{
 		"SHA256":                      interopnames.NeoCryptoSHA256,
 	},
 	"enumerator": {
-		"Concat": interopnames.SystemEnumeratorConcat,
 		"Create": interopnames.SystemEnumeratorCreate,
 		"Next":   interopnames.SystemEnumeratorNext,
 		"Value":  interopnames.SystemEnumeratorValue,
 	},
 	"iterator": {
-		"Concat": interopnames.SystemIteratorConcat,
 		"Create": interopnames.SystemIteratorCreate,
 		"Key":    interopnames.SystemIteratorKey,
 		"Keys":   interopnames.SystemIteratorKeys,

@@ -13,11 +13,8 @@ import (
 func TestEnumerator(t *testing.T) {
 	ic := &interop.Context{VM: vm.New()}
 	full := []byte{4, 8, 15}
-	ic.VM.Estack().PushVal(full[2:])
+	ic.VM.Estack().PushVal(full)
 	require.NoError(t, Create(ic))
-	ic.VM.Estack().PushVal(full[:2])
-	require.NoError(t, Create(ic))
-	require.NoError(t, Concat(ic))
 
 	res := ic.VM.Estack().Pop().Item()
 	for i := range full {
