@@ -73,17 +73,17 @@ func NewContracts(p2pSigExtensionsEnabled bool) *Contracts {
 	cs.Policy = policy
 	cs.Contracts = append(cs.Contracts, policy)
 
-	oracle := newOracle()
-	oracle.GAS = gas
-	oracle.NEO = neo
-	cs.Oracle = oracle
-	cs.Contracts = append(cs.Contracts, oracle)
-
 	desig := newDesignate(p2pSigExtensionsEnabled)
 	desig.NEO = neo
 	cs.Designate = desig
-	cs.Oracle.Desig = desig
 	cs.Contracts = append(cs.Contracts, desig)
+
+	oracle := newOracle()
+	oracle.GAS = gas
+	oracle.NEO = neo
+	oracle.Desig = desig
+	cs.Oracle = oracle
+	cs.Contracts = append(cs.Contracts, oracle)
 
 	if p2pSigExtensionsEnabled {
 		notary := newNotary()

@@ -38,7 +38,7 @@ type Oracle struct {
 }
 
 const (
-	oracleContractID  = -4
+	oracleContractID  = -5
 	maxURLLength      = 256
 	maxFilterLength   = 128
 	maxCallbackLength = 32
