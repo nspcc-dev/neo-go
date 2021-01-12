@@ -108,7 +108,7 @@ func newNEO() *NEO {
 	n.committeeHash.Store(util.Uint160{})
 
 	desc := newDescriptor("unclaimedGas", smartcontract.IntegerType,
-		manifest.NewParameter("account", smartcontract.ByteArrayType),
+		manifest.NewParameter("account", smartcontract.Hash160Type),
 		manifest.NewParameter("end", smartcontract.IntegerType))
 	md := newMethodAndPrice(n.unclaimedGas, 3000000, smartcontract.ReadStates)
 	n.AddMethod(md, desc)
@@ -124,7 +124,7 @@ func newNEO() *NEO {
 	n.AddMethod(md, desc)
 
 	desc = newDescriptor("vote", smartcontract.BoolType,
-		manifest.NewParameter("account", smartcontract.ByteArrayType),
+		manifest.NewParameter("account", smartcontract.Hash160Type),
 		manifest.NewParameter("pubkey", smartcontract.ByteArrayType))
 	md = newMethodAndPrice(n.vote, 5000000, smartcontract.WriteStates)
 	n.AddMethod(md, desc)
