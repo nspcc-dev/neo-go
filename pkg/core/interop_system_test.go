@@ -9,7 +9,6 @@ import (
 	"github.com/nspcc-dev/neo-go/internal/random"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
-	"github.com/nspcc-dev/neo-go/pkg/core/interop/callback"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/contract"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/runtime"
@@ -22,7 +21,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
@@ -772,150 +770,6 @@ func TestContractGetCallFlags(t *testing.T) {
 	v.LoadScriptWithHash([]byte{byte(opcode.RET)}, util.Uint160{1, 2, 3}, smartcontract.All)
 	require.NoError(t, contractGetCallFlags(ic))
 	require.Equal(t, int64(smartcontract.All), v.Estack().Pop().Value().(*big.Int).Int64())
-}
-
-func TestPointerCallback(t *testing.T) {
-	_, ic, bc := createVM(t)
-	defer bc.Close()
-
-	script := []byte{
-		byte(opcode.NOP), byte(opcode.INC), byte(opcode.RET),
-		byte(opcode.DIV), byte(opcode.RET),
-	}
-	t.Run("Good", func(t *testing.T) {
-		loadScript(ic, script, 2, stackitem.NewPointer(3, script))
-		ic.VM.Estack().PushVal(ic.VM.Context())
-		require.NoError(t, callback.Create(ic))
-
-		args := stackitem.NewArray([]stackitem.Item{stackitem.Make(3), stackitem.Make(12)})
-		ic.VM.Estack().InsertAt(vm.NewElement(args), 1)
-		require.NoError(t, callback.Invoke(ic))
-
-		require.NoError(t, ic.VM.Run())
-		require.Equal(t, 1, ic.VM.Estack().Len())
-		require.Equal(t, big.NewInt(5), ic.VM.Estack().Pop().Item().Value())
-	})
-	t.Run("Invalid", func(t *testing.T) {
-		t.Run("NotEnoughParameters", func(t *testing.T) {
-			loadScript(ic, script, 2, stackitem.NewPointer(3, script))
-			ic.VM.Estack().PushVal(ic.VM.Context())
-			require.NoError(t, callback.Create(ic))
-
-			args := stackitem.NewArray([]stackitem.Item{stackitem.Make(3)})
-			ic.VM.Estack().InsertAt(vm.NewElement(args), 1)
-			require.Error(t, callback.Invoke(ic))
-		})
-	})
-
-}
-
-func TestMethodCallback(t *testing.T) {
-	_, ic, bc := createVM(t)
-	defer bc.Close()
-
-	cs, currCs := getTestContractState(bc)
-	require.NoError(t, bc.contracts.Management.PutContractState(ic.DAO, cs))
-	require.NoError(t, bc.contracts.Management.PutContractState(ic.DAO, currCs))
-
-	ic.Functions = append(ic.Functions, systemInterops)
-	rawHash := cs.Hash.BytesBE()
-
-	t.Run("Invalid", func(t *testing.T) {
-		runInvalid := func(args ...interface{}) func(t *testing.T) {
-			return func(t *testing.T) {
-				loadScript(ic, currCs.Script, 42)
-				for i := range args {
-					ic.VM.Estack().PushVal(args[i])
-				}
-				require.Error(t, callback.CreateFromMethod(ic))
-			}
-		}
-		t.Run("Hash", runInvalid("add", rawHash[1:]))
-		t.Run("MissingHash", runInvalid("add", util.Uint160{}.BytesBE()))
-		t.Run("MissingMethod", runInvalid("sub", rawHash))
-		t.Run("DisallowedMethod", runInvalid("ret7", rawHash))
-		t.Run("Initialize", runInvalid("_initialize", rawHash))
-		t.Run("NotEnoughArguments", func(t *testing.T) {
-			loadScript(ic, currCs.Script, 42, "add", rawHash)
-			require.NoError(t, callback.CreateFromMethod(ic))
-
-			ic.VM.Estack().InsertAt(vm.NewElement(stackitem.NewArray([]stackitem.Item{stackitem.Make(1)})), 1)
-			require.Error(t, callback.Invoke(ic))
-		})
-		t.Run("CallIsNotAllowed", func(t *testing.T) {
-			ic.SpawnVM()
-			ic.VM.Load(currCs.Script)
-			ic.VM.Estack().PushVal("add")
-			ic.VM.Estack().PushVal(rawHash)
-			require.NoError(t, callback.CreateFromMethod(ic))
-
-			args := stackitem.NewArray([]stackitem.Item{stackitem.Make(1), stackitem.Make(5)})
-			ic.VM.Estack().InsertAt(vm.NewElement(args), 1)
-			require.Error(t, callback.Invoke(ic))
-		})
-	})
-
-	t.Run("Good", func(t *testing.T) {
-		loadScript(ic, currCs.Script, 42, "add", rawHash)
-		require.NoError(t, callback.CreateFromMethod(ic))
-
-		args := stackitem.NewArray([]stackitem.Item{stackitem.Make(1), stackitem.Make(5)})
-		ic.VM.Estack().InsertAt(vm.NewElement(args), 1)
-
-		require.NoError(t, callback.Invoke(ic))
-		require.NoError(t, ic.VM.Run())
-		require.Equal(t, 2, ic.VM.Estack().Len())
-		require.Equal(t, big.NewInt(6), ic.VM.Estack().Pop().Item().Value())
-		require.Equal(t, big.NewInt(42), ic.VM.Estack().Pop().Item().Value())
-	})
-}
-func TestSyscallCallback(t *testing.T) {
-	_, ic, bc := createVM(t)
-	defer bc.Close()
-
-	ic.Functions = append(ic.Functions, []interop.Function{
-		{
-			ID: 0x42,
-			Func: func(ic *interop.Context) error {
-				a := ic.VM.Estack().Pop().BigInt()
-				b := ic.VM.Estack().Pop().BigInt()
-				ic.VM.Estack().PushVal(new(big.Int).Add(a, b))
-				return nil
-			},
-			ParamCount: 2,
-		},
-		{
-			ID:               0x53,
-			Func:             func(_ *interop.Context) error { return nil },
-			DisallowCallback: true,
-		},
-	})
-
-	t.Run("Good", func(t *testing.T) {
-		args := stackitem.NewArray([]stackitem.Item{stackitem.Make(12), stackitem.Make(30)})
-		loadScript(ic, []byte{byte(opcode.RET)}, args, 0x42)
-		require.NoError(t, callback.CreateFromSyscall(ic))
-		require.NoError(t, callback.Invoke(ic))
-		require.Equal(t, 1, ic.VM.Estack().Len())
-		require.Equal(t, big.NewInt(42), ic.VM.Estack().Pop().Item().Value())
-	})
-
-	t.Run("Invalid", func(t *testing.T) {
-		t.Run("InvalidParameterCount", func(t *testing.T) {
-			args := stackitem.NewArray([]stackitem.Item{stackitem.Make(12)})
-			loadScript(ic, []byte{byte(opcode.RET)}, args, 0x42)
-			require.NoError(t, callback.CreateFromSyscall(ic))
-			require.Error(t, callback.Invoke(ic))
-		})
-		t.Run("MissingSyscall", func(t *testing.T) {
-			loadScript(ic, []byte{byte(opcode.RET)}, stackitem.NewArray(nil), 0x43)
-			require.Error(t, callback.CreateFromSyscall(ic))
-		})
-		t.Run("Disallowed", func(t *testing.T) {
-			loadScript(ic, []byte{byte(opcode.RET)}, stackitem.NewArray(nil), 0x53)
-			require.Error(t, callback.CreateFromSyscall(ic))
-		})
-	})
 }
 
 func TestRuntimeCheckWitness(t *testing.T) {

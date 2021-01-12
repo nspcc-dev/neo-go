@@ -69,8 +69,6 @@ type Function struct {
 	ID   uint32
 	Name string
 	Func func(*Context) error
-	// DisallowCallback is true iff syscall can't be used in a callback.
-	DisallowCallback bool
 	// ParamCount is a number of function parameters.
 	ParamCount int
 	Price      int64
