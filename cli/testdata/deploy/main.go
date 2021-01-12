@@ -4,6 +4,7 @@ import (
 	"github.com/nspcc-dev/neo-go/cli/testdata/deploy/sub"
 	"github.com/nspcc-dev/neo-go/pkg/interop"
 	"github.com/nspcc-dev/neo-go/pkg/interop/contract"
+	"github.com/nspcc-dev/neo-go/pkg/interop/iterator"
 	"github.com/nspcc-dev/neo-go/pkg/interop/runtime"
 	"github.com/nspcc-dev/neo-go/pkg/interop/storage"
 )
@@ -45,4 +46,18 @@ func GetValue() string {
 	val1 := storage.Get(ctx, key)
 	val2 := storage.Get(ctx, sub.Key)
 	return val1.(string) + "|" + val2.(string)
+}
+
+// TestFind finds items with the specified prefix.
+func TestFind(f storage.FindFlags) []interface{} {
+	ctx := storage.GetContext()
+	storage.Put(ctx, "findkey1", "value1")
+	storage.Put(ctx, "findkey2", "value2")
+
+	var result []interface{}
+	iter := storage.Find(ctx, "findkey", f)
+	for iterator.Next(iter) {
+		result = append(result, iterator.Value(iter))
+	}
+	return result
 }
