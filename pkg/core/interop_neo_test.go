@@ -1,6 +1,7 @@
 package core
 
 import (
+	"math/big"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
@@ -37,8 +38,20 @@ func TestStorageFind(t *testing.T) {
 	v, contractState, context, chain := createVMAndContractState(t)
 	defer chain.Close()
 
+	arr := []stackitem.Item{
+		stackitem.NewBigInteger(big.NewInt(42)),
+		stackitem.NewByteArray([]byte("second")),
+		stackitem.Null{},
+	}
+	rawArr, err := stackitem.SerializeItem(stackitem.NewArray(arr))
+	require.NoError(t, err)
+	rawArr0, err := stackitem.SerializeItem(stackitem.NewArray(arr[:0]))
+	require.NoError(t, err)
+	rawArr1, err := stackitem.SerializeItem(stackitem.NewArray(arr[:1]))
+	require.NoError(t, err)
+
 	skeys := [][]byte{{0x01, 0x02}, {0x02, 0x01}, {0x01, 0x01},
-		{0x04, 0x00}, {0x05, 0x00}}
+		{0x04, 0x00}, {0x05, 0x00}, {0x06}, {0x07}, {0x08}}
 	items := []*state.StorageItem{
 		{
 			Value: []byte{0x01, 0x02, 0x03, 0x04},
@@ -54,6 +67,15 @@ func TestStorageFind(t *testing.T) {
 		},
 		{
 			Value: []byte{0xFF, 0xFF},
+		},
+		{
+			Value: rawArr,
+		},
+		{
+			Value: rawArr0,
+		},
+		{
+			Value: rawArr1,
 		},
 	}
 
@@ -83,6 +105,10 @@ func TestStorageFind(t *testing.T) {
 			require.True(t, v.Estack().Pop().Bool())
 
 			v.Estack().PushVal(iter)
+			if expected[i] == nil {
+				require.Panics(t, func() { _ = iterator.Value(context) })
+				return
+			}
 			require.NoError(t, iterator.Value(context))
 			require.Equal(t, expected[i], v.Estack().Pop().Item())
 		}
@@ -144,6 +170,19 @@ func TestStorageFind(t *testing.T) {
 			require.Panics(t, func() { _ = iterator.Value(context) })
 		})
 	})
+	t.Run("PickN", func(t *testing.T) {
+		testFind(t, 0x06, istorage.FindPick0|istorage.FindValuesOnly|istorage.FindDeserialize, arr[:1])
+		testFind(t, 0x06, istorage.FindPick1|istorage.FindValuesOnly|istorage.FindDeserialize, arr[1:2])
+		// Array with 0 elements.
+		testFind(t, 0x07, istorage.FindPick0|istorage.FindValuesOnly|istorage.FindDeserialize,
+			[]stackitem.Item{nil})
+		// Array with 1 element.
+		testFind(t, 0x08, istorage.FindPick1|istorage.FindValuesOnly|istorage.FindDeserialize,
+			[]stackitem.Item{nil})
+		// Not an array, but serialized ByteArray.
+		testFind(t, 0x04, istorage.FindPick1|istorage.FindValuesOnly|istorage.FindDeserialize,
+			[]stackitem.Item{nil})
+	})
 
 	t.Run("normal invocation, empty result", func(t *testing.T) {
 		testFind(t, 0x03, istorage.FindDefault, nil)
@@ -154,6 +193,9 @@ func TestStorageFind(t *testing.T) {
 			istorage.FindKeysOnly | istorage.FindValuesOnly,
 			^istorage.FindAll,
 			istorage.FindKeysOnly | istorage.FindDeserialize,
+			istorage.FindPick0,
+			istorage.FindPick0 | istorage.FindPick1 | istorage.FindDeserialize,
+			istorage.FindPick0 | istorage.FindPick1,
 		}
 		for _, opts := range invalid {
 			v.Estack().PushVal(opts)

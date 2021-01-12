@@ -29,6 +29,10 @@ const (
 	// DeserializeValues is used for deserializing values on-the-fly.
 	// It can be combined with other options.
 	DeserializeValues FindFlags = 1 << 3
+	// PickField0 is used to get first field in a serialized struct or array.
+	PickField0 FindFlags = 1 << 4
+	// PickField1 is used to get second field in a serialized struct or array.
+	PickField1 FindFlags = 1 << 5
 )
 
 // ConvertContextToReadOnly returns new context from the given one, but with

@@ -9,9 +9,11 @@ const (
 	FindRemovePrefix = 1 << 1
 	FindValuesOnly   = 1 << 2
 	FindDeserialize  = 1 << 3
+	FindPick0        = 1 << 4
+	FindPick1        = 1 << 5
 
 	FindAll = FindDefault | FindKeysOnly | FindRemovePrefix | FindValuesOnly |
-		FindDeserialize
+		FindDeserialize | FindPick0 | FindPick1
 )
 
 type Iterator struct {
@@ -51,6 +53,11 @@ func (s *Iterator) Value() stackitem.Item {
 		if err != nil {
 			panic(err)
 		}
+	}
+	if s.opts&FindPick0 != 0 {
+		value = value.Value().([]stackitem.Item)[0]
+	} else if s.opts&FindPick1 != 0 {
+		value = value.Value().([]stackitem.Item)[1]
 	}
 	if s.opts&FindValuesOnly != 0 {
 		return value
