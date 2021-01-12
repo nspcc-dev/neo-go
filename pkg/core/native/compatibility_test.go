@@ -8,9 +8,9 @@ import (
 
 // Compatibility test. hashes are taken directly from C# node.
 func TestNativeHashes(t *testing.T) {
-	require.Equal(t, "c0073f4c7069bf38995780c9da065f9b3949ea7a", newDesignate(false).Hash.StringLE())
+	require.Equal(t, "136ec44854ad9a714901eb7d714714f1791203f2", newDesignate(false).Hash.StringLE())
 	require.Equal(t, "a6a6c15dcdc9b997dac448b6926522d22efeedfb", newGAS().Hash.StringLE())
-	require.Equal(t, "cd97b70d82d69adfcd9165374109419fade8d6ab", newManagement().Hash.StringLE())
+	require.Equal(t, "081514120c7894779309255b7fb18b376cec731a", newManagement().Hash.StringLE())
 	require.Equal(t, "0a46e2e37c9987f570b4af253fb77e7eef0f72b6", newNEO().Hash.StringLE())
 	// Not yet a part of NEO.
 	//require.Equal(t, "", newNotary().Hash.StringLE()())
