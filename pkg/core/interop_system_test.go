@@ -21,6 +21,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
@@ -226,7 +227,9 @@ func TestContractIsStandard(t *testing.T) {
 		require.NoError(t, err)
 
 		pub := priv.PublicKey()
-		err = chain.contracts.Management.PutContractState(ic.DAO, &state.Contract{ID: 42, Hash: pub.GetScriptHash(), Script: pub.GetVerificationScript()})
+		ne, err := nef.NewFile(pub.GetVerificationScript())
+		require.NoError(t, err)
+		err = chain.contracts.Management.PutContractState(ic.DAO, &state.Contract{ID: 42, Hash: pub.GetScriptHash(), NEF: *ne})
 		require.NoError(t, err)
 
 		v.Estack().PushVal(pub.GetScriptHash().BytesBE())
@@ -235,7 +238,9 @@ func TestContractIsStandard(t *testing.T) {
 	})
 	t.Run("contract stored, false", func(t *testing.T) {
 		script := []byte{byte(opcode.PUSHT)}
-		require.NoError(t, chain.contracts.Management.PutContractState(ic.DAO, &state.Contract{ID: 24, Hash: hash.Hash160(script), Script: script}))
+		ne, err := nef.NewFile(script)
+		require.NoError(t, err)
+		require.NoError(t, chain.contracts.Management.PutContractState(ic.DAO, &state.Contract{ID: 24, Hash: hash.Hash160(script), NEF: *ne}))
 
 		v.Estack().PushVal(crypto.Hash160(script).BytesBE())
 		require.NoError(t, contractIsStandard(ic))
@@ -343,7 +348,7 @@ func TestStoragePut(t *testing.T) {
 
 	initVM := func(t *testing.T, key, value []byte, gas int64) {
 		v := ic.SpawnVM()
-		v.LoadScript(cs.Script)
+		v.LoadScript(cs.NEF.Script)
 		v.GasLimit = gas
 		v.Estack().PushVal(value)
 		v.Estack().PushVal(key)
@@ -392,7 +397,7 @@ func TestStoragePut(t *testing.T) {
 		})
 		t.Run("item exists and is const", func(t *testing.T) {
 			v := ic.SpawnVM()
-			v.LoadScript(cs.Script)
+			v.LoadScript(cs.NEF.Script)
 			v.GasLimit = -1
 			v.Estack().PushVal(1)
 			v.Estack().PushVal("value")
@@ -413,7 +418,7 @@ func TestStorageDelete(t *testing.T) {
 	defer bc.Close()
 
 	require.NoError(t, bc.contracts.Management.PutContractState(ic.DAO, cs))
-	v.LoadScriptWithHash(cs.Script, cs.Hash, smartcontract.All)
+	v.LoadScriptWithHash(cs.NEF.Script, cs.Hash, smartcontract.All)
 	put := func(key, value string, flag int) {
 		v.Estack().PushVal(flag)
 		v.Estack().PushVal(value)
@@ -615,11 +620,15 @@ func getTestContractState(bc *Blockchain) (*state.Contract, *state.Contract) {
 		},
 	}
 	cs := &state.Contract{
-		Script:   script,
 		Hash:     h,
 		Manifest: *m,
 		ID:       42,
 	}
+	ne, err := nef.NewFile(script)
+	if err != nil {
+		panic(err)
+	}
+	cs.NEF = *ne
 
 	currScript := []byte{byte(opcode.RET)}
 	m = manifest.NewManifest("TestAux")
@@ -631,9 +640,13 @@ func getTestContractState(bc *Blockchain) (*state.Contract, *state.Contract) {
 	perm.Methods.Add("justReturn")
 	perm.Methods.Add("getValue")
 	m.Permissions = append(m.Permissions, *perm)
+	ne, err = nef.NewFile(currScript)
+	if err != nil {
+		panic(err)
+	}
 
 	return cs, &state.Contract{
-		Script:   currScript,
+		NEF:      *ne,
 		Hash:     hash.Hash160(currScript),
 		Manifest: *m,
 		ID:       123,
@@ -666,8 +679,8 @@ func TestContractCall(t *testing.T) {
 	require.NoError(t, bc.contracts.Management.PutContractState(ic.DAO, cs))
 	require.NoError(t, bc.contracts.Management.PutContractState(ic.DAO, currCs))
 
-	currScript := currCs.Script
-	h := hash.Hash160(cs.Script)
+	currScript := currCs.NEF.Script
+	h := hash.Hash160(cs.NEF.Script)
 
 	addArgs := stackitem.NewArray([]stackitem.Item{stackitem.Make(1), stackitem.Make(2)})
 	t.Run("Good", func(t *testing.T) {
@@ -823,7 +836,7 @@ func TestMethodCallback(t *testing.T) {
 	t.Run("Invalid", func(t *testing.T) {
 		runInvalid := func(args ...interface{}) func(t *testing.T) {
 			return func(t *testing.T) {
-				loadScript(ic, currCs.Script, 42)
+				loadScript(ic, currCs.NEF.Script, 42)
 				for i := range args {
 					ic.VM.Estack().PushVal(args[i])
 				}
@@ -836,7 +849,7 @@ func TestMethodCallback(t *testing.T) {
 		t.Run("DisallowedMethod", runInvalid("ret7", rawHash))
 		t.Run("Initialize", runInvalid("_initialize", rawHash))
 		t.Run("NotEnoughArguments", func(t *testing.T) {
-			loadScript(ic, currCs.Script, 42, "add", rawHash)
+			loadScript(ic, currCs.NEF.Script, 42, "add", rawHash)
 			require.NoError(t, callback.CreateFromMethod(ic))
 
 			ic.VM.Estack().InsertAt(vm.NewElement(stackitem.NewArray([]stackitem.Item{stackitem.Make(1)})), 1)
@@ -844,7 +857,7 @@ func TestMethodCallback(t *testing.T) {
 		})
 		t.Run("CallIsNotAllowed", func(t *testing.T) {
 			ic.SpawnVM()
-			ic.VM.Load(currCs.Script)
+			ic.VM.Load(currCs.NEF.Script)
 			ic.VM.Estack().PushVal("add")
 			ic.VM.Estack().PushVal(rawHash)
 			require.NoError(t, callback.CreateFromMethod(ic))
@@ -856,7 +869,7 @@ func TestMethodCallback(t *testing.T) {
 	})
 
 	t.Run("Good", func(t *testing.T) {
-		loadScript(ic, currCs.Script, 42, "add", rawHash)
+		loadScript(ic, currCs.NEF.Script, 42, "add", rawHash)
 		require.NoError(t, callback.CreateFromMethod(ic))
 
 		args := stackitem.NewArray([]stackitem.Item{stackitem.Make(1), stackitem.Make(5)})
@@ -1074,10 +1087,12 @@ func TestRuntimeCheckWitness(t *testing.T) {
 					}
 					contractScript := []byte{byte(opcode.PUSH1), byte(opcode.RET)}
 					contractScriptHash := hash.Hash160(contractScript)
+					ne, err := nef.NewFile(contractScript)
+					require.NoError(t, err)
 					contractState := &state.Contract{
-						ID:     15,
-						Hash:   contractScriptHash,
-						Script: contractScript,
+						ID:   15,
+						Hash: contractScriptHash,
+						NEF:  *ne,
 						Manifest: manifest.Manifest{
 							Groups: []manifest.Group{{PublicKey: pk.PublicKey()}},
 						},

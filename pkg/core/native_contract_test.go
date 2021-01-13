@@ -172,7 +172,7 @@ func TestNativeContract_Invoke(t *testing.T) {
 
 	err := chain.contracts.Management.PutContractState(chain.dao, &state.Contract{
 		ID:       1,
-		Script:   tn.meta.Script,
+		NEF:      tn.meta.NEF,
 		Hash:     tn.meta.Hash,
 		Manifest: tn.meta.Manifest,
 	})
@@ -210,7 +210,7 @@ func TestNativeContract_InvokeInternal(t *testing.T) {
 
 	err := chain.contracts.Management.PutContractState(chain.dao, &state.Contract{
 		ID:       1,
-		Script:   tn.meta.Script,
+		NEF:      tn.meta.NEF,
 		Manifest: tn.meta.Manifest,
 	})
 	require.NoError(t, err)
@@ -252,7 +252,7 @@ func TestNativeContract_InvokeOtherContract(t *testing.T) {
 	err := chain.contracts.Management.PutContractState(chain.dao, &state.Contract{
 		ID:       1,
 		Hash:     tn.meta.Hash,
-		Script:   tn.meta.Script,
+		NEF:      tn.meta.NEF,
 		Manifest: tn.meta.Manifest,
 	})
 	require.NoError(t, err)

@@ -9,6 +9,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/stretchr/testify/require"
@@ -37,9 +38,18 @@ func TestEncodeDecodeContractState(t *testing.T) {
 		ID:            123,
 		UpdateCounter: 42,
 		Hash:          h,
-		Script:        script,
-		Manifest:      *m,
+		NEF: nef.File{
+			Header: nef.Header{
+				Magic:    nef.Magic,
+				Compiler: "neo-go.test",
+				Version:  "test",
+			},
+			Script:   script,
+			Checksum: 0,
+		},
+		Manifest: *m,
 	}
+	contract.NEF.Checksum = contract.NEF.CalculateChecksum()
 
 	t.Run("Serializable", func(t *testing.T) {
 		contractDecoded := new(Contract)
@@ -67,7 +77,10 @@ func TestContractFromStackItem(t *testing.T) {
 		id           = stackitem.Make(42)
 		counter      = stackitem.Make(11)
 		chash        = stackitem.Make(util.Uint160{1, 2, 3}.BytesBE())
-		script       = stackitem.Make([]byte{0, 9, 8})
+		script       = []byte{0, 9, 8}
+		nefFile, _   = nef.NewFile(script)
+		rawNef, _    = nefFile.Bytes()
+		nefItem      = stackitem.NewByteArray(rawNef)
 		manifest     = manifest.DefaultManifest("stack item")
 		manifestB, _ = json.Marshal(manifest)
 		manifItem    = stackitem.Make(manifestB)
@@ -77,15 +90,15 @@ func TestContractFromStackItem(t *testing.T) {
 			item stackitem.Item
 		}{
 			{"not an array", stackitem.Make(1)},
-			{"id is not a number", stackitem.Make([]stackitem.Item{manifItem, counter, chash, script, manifItem})},
-			{"id is out of range", stackitem.Make([]stackitem.Item{stackitem.Make(math.MaxUint32), counter, chash, script, manifItem})},
-			{"counter is not a number", stackitem.Make([]stackitem.Item{id, manifItem, chash, script, manifItem})},
-			{"counter is out of range", stackitem.Make([]stackitem.Item{id, stackitem.Make(100500), chash, script, manifItem})},
-			{"hash is not a byte string", stackitem.Make([]stackitem.Item{id, counter, stackitem.NewArray(nil), script, manifItem})},
-			{"hash is not a hash", stackitem.Make([]stackitem.Item{id, counter, stackitem.Make([]byte{1, 2, 3}), script, manifItem})},
-			{"script is not a byte string", stackitem.Make([]stackitem.Item{id, counter, chash, stackitem.NewArray(nil), manifItem})},
-			{"manifest is not a byte string", stackitem.Make([]stackitem.Item{id, counter, chash, script, stackitem.NewArray(nil)})},
-			{"manifest is not correct", stackitem.Make([]stackitem.Item{id, counter, chash, script, stackitem.Make(100500)})},
+			{"id is not a number", stackitem.Make([]stackitem.Item{manifItem, counter, chash, nefItem, manifItem})},
+			{"id is out of range", stackitem.Make([]stackitem.Item{stackitem.Make(math.MaxUint32), counter, chash, nefItem, manifItem})},
+			{"counter is not a number", stackitem.Make([]stackitem.Item{id, manifItem, chash, nefItem, manifItem})},
+			{"counter is out of range", stackitem.Make([]stackitem.Item{id, stackitem.Make(100500), chash, nefItem, manifItem})},
+			{"hash is not a byte string", stackitem.Make([]stackitem.Item{id, counter, stackitem.NewArray(nil), nefItem, manifItem})},
+			{"hash is not a hash", stackitem.Make([]stackitem.Item{id, counter, stackitem.Make([]byte{1, 2, 3}), nefItem, manifItem})},
+			{"nef is not a byte string", stackitem.Make([]stackitem.Item{id, counter, chash, stackitem.NewArray(nil), manifItem})},
+			{"manifest is not a byte string", stackitem.Make([]stackitem.Item{id, counter, chash, nefItem, stackitem.NewArray(nil)})},
+			{"manifest is not correct", stackitem.Make([]stackitem.Item{id, counter, chash, nefItem, stackitem.Make(100500)})},
 		}
 	)
 	for _, cs := range badCases {
@@ -96,6 +109,6 @@ func TestContractFromStackItem(t *testing.T) {
 		})
 	}
 	var c = new(Contract)
-	err := c.FromStackItem(stackitem.Make([]stackitem.Item{id, counter, chash, script, manifItem}))
+	err := c.FromStackItem(stackitem.Make([]stackitem.Item{id, counter, chash, nefItem, manifItem}))
 	require.NoError(t, err)
 }

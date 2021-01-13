@@ -13,6 +13,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
@@ -103,7 +104,7 @@ type ContractMD struct {
 	Manifest   manifest.Manifest
 	Name       string
 	ContractID int32
-	Script     []byte
+	NEF        nef.File
 	Hash       util.Uint160
 	Methods    map[string]MethodAndPrice
 }
@@ -115,7 +116,13 @@ func NewContractMD(name string) *ContractMD {
 		Methods: make(map[string]MethodAndPrice),
 	}
 
-	c.Script, c.Hash = state.CreateNativeContractHash(c.Name)
+	// NEF is now stored in contract state and affects state dump.
+	// Therefore values are taken from C# node.
+	c.NEF.Header.Compiler = "ScriptBuilder"
+	c.NEF.Header.Magic = nef.Magic
+	c.NEF.Header.Version = "3.0"
+	c.NEF.Script, c.Hash = state.CreateNativeContractHash(c.Name)
+	c.NEF.Checksum = c.NEF.CalculateChecksum()
 	c.Manifest = *manifest.DefaultManifest(name)
 
 	return c

@@ -338,7 +338,7 @@ func contractIsStandard(ic *interop.Context) error {
 	var result bool
 	cs, _ := ic.GetContract(u)
 	if cs != nil {
-		result = vm.IsStandardContract(cs.Script)
+		result = vm.IsStandardContract(cs.NEF.Script)
 	} else {
 		if tx, ok := ic.Container.(*transaction.Transaction); ok {
 			for _, witness := range tx.Scripts {
