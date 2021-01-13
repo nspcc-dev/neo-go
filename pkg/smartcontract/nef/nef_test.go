@@ -1,6 +1,9 @@
 package nef
 
 import (
+	"encoding/base64"
+	"encoding/json"
+	"strconv"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/internal/testserdes"
@@ -72,5 +75,30 @@ func TestBytesFromBytes(t *testing.T) {
 	require.NoError(t, err)
 	actual, err := FileFromBytes(bytes)
 	require.NoError(t, err)
+	require.Equal(t, expected, actual)
+}
+
+func TestMarshalUnmarshalJSON(t *testing.T) {
+	expected := &File{
+		Header: Header{
+			Magic:    Magic,
+			Compiler: "test.compiler",
+			Version:  "test.ver",
+		},
+		Script: []byte{1, 2, 3, 4},
+	}
+	expected.Checksum = expected.CalculateChecksum()
+
+	data, err := json.Marshal(expected)
+	require.NoError(t, err)
+	require.JSONEq(t, `{
+		"magic":`+strconv.FormatUint(uint64(Magic), 10)+`,
+		"compiler": "test.compiler",
+		"version": "test.ver",
+		"script": "`+base64.StdEncoding.EncodeToString(expected.Script)+`",
+		"checksum":`+strconv.FormatUint(uint64(expected.Checksum), 10)+`}`, string(data))
+
+	actual := new(File)
+	require.NoError(t, json.Unmarshal(data, actual))
 	require.Equal(t, expected, actual)
 }
