@@ -694,15 +694,10 @@ func (dao *Simple) Persist() (int, error) {
 
 // UpdateMPT updates MPT using storage items from the underlying memcached store.
 func (dao *Simple) UpdateMPT() error {
-	var err error
+	var b mpt.Batch
 	dao.Store.MemoryStore.SeekAll([]byte{byte(storage.STStorage)}, func(k, v []byte) {
-		if err != nil {
-			return
-		} else if v != nil {
-			err = dao.MPT.Put(k[1:], v)
-		} else {
-			err = dao.MPT.Delete(k[1:])
-		}
+		b.Add(k[1:], v)
 	})
+	_, err := dao.MPT.PutBatch(b)
 	return err
 }

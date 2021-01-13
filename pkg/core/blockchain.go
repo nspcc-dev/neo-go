@@ -689,6 +689,9 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 
 	d := cache.DAO.(*dao.Simple)
 	if err := d.UpdateMPT(); err != nil {
+		// Here MPT can be left in a half-applied state.
+		// However if this error occurs, this is a bug somewhere in code
+		// because changes applied are the ones from HALTed transactions.
 		return fmt.Errorf("error while trying to apply MPT changes: %w", err)
 	}
 
