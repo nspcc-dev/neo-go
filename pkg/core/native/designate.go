@@ -40,7 +40,7 @@ type oraclesData struct {
 }
 
 const (
-	designateContractID = -5
+	designateContractID = -4
 
 	// maxNodeCount is the maximum number of nodes to set the role for.
 	maxNodeCount = 32
