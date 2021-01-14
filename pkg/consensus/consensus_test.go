@@ -1,12 +1,14 @@
 package consensus
 
 import (
+	"errors"
 	"testing"
 	"time"
 
 	"github.com/nspcc-dev/dbft/block"
 	"github.com/nspcc-dev/dbft/payload"
 	"github.com/nspcc-dev/dbft/timer"
+	"github.com/nspcc-dev/neo-go/internal/random"
 	"github.com/nspcc-dev/neo-go/internal/testchain"
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
@@ -180,11 +182,10 @@ func TestService_GetVerified(t *testing.T) {
 	// Everyone sends a message.
 	for i := 0; i < 4; i++ {
 		p := new(Payload)
-		p.message = &message{}
 		// One PrepareRequest and three ChangeViews.
 		if i == 1 {
 			p.SetType(payload.PrepareRequestType)
-			p.SetPayload(&prepareRequest{transactionHashes: hashes})
+			p.SetPayload(&prepareRequest{prevHash: srv.Chain.CurrentBlockHash(), transactionHashes: hashes})
 		} else {
 			p.SetType(payload.ChangeViewType)
 			p.SetPayload(&changeView{newViewNumber: 1, timestamp: uint64(time.Now().UnixNano() / nsInMs)})
@@ -224,8 +225,7 @@ func TestService_ValidatePayload(t *testing.T) {
 	srv := newTestService(t)
 	priv, _ := getTestValidator(1)
 	p := new(Payload)
-	p.message = &message{}
-
+	p.Sender = priv.GetScriptHash()
 	p.SetPayload(&prepareRequest{})
 
 	t.Run("invalid validator index", func(t *testing.T) {
@@ -243,8 +243,16 @@ func TestService_ValidatePayload(t *testing.T) {
 		require.False(t, srv.validatePayload(p))
 	})
 
+	t.Run("invalid sender", func(t *testing.T) {
+		p.SetValidatorIndex(1)
+		p.Sender = util.Uint160{}
+		require.NoError(t, p.Sign(priv))
+		require.False(t, srv.validatePayload(p))
+	})
+
 	t.Run("normal case", func(t *testing.T) {
 		p.SetValidatorIndex(1)
+		p.Sender = priv.GetScriptHash()
 		require.NoError(t, p.Sign(priv))
 		require.True(t, srv.validatePayload(p))
 	})
@@ -295,22 +303,35 @@ func TestService_PrepareRequest(t *testing.T) {
 
 	priv, _ := getTestValidator(1)
 	p := new(Payload)
-	p.message = &message{}
 	p.SetValidatorIndex(1)
 
-	p.SetPayload(&prepareRequest{})
-	require.NoError(t, p.Sign(priv))
-	require.Error(t, srv.verifyRequest(p), "invalid stateroot setting")
+	prevHash := srv.Chain.CurrentBlockHash()
 
-	p.SetPayload(&prepareRequest{stateRootEnabled: true})
-	require.NoError(t, p.Sign(priv))
-	require.Error(t, srv.verifyRequest(p), "invalid state root")
+	checkRequest := func(t *testing.T, expectedErr error, req *prepareRequest) {
+		p.SetPayload(req)
+		require.NoError(t, p.Sign(priv))
+		err := srv.verifyRequest(p)
+		if expectedErr == nil {
+			require.NoError(t, err)
+			return
+		}
+		require.True(t, errors.Is(err, expectedErr), "got: %v", err)
+	}
+
+	checkRequest(t, errInvalidVersion, &prepareRequest{version: 0xFF, prevHash: prevHash})
+	checkRequest(t, errInvalidPrevHash, &prepareRequest{prevHash: random.Uint256()})
+	checkRequest(t, errInvalidStateRoot, &prepareRequest{
+		stateRootEnabled: true,
+		prevHash:         prevHash,
+	})
 
 	sr, err := srv.Chain.GetStateRoot(srv.dbft.BlockIndex - 1)
 	require.NoError(t, err)
-	p.SetPayload(&prepareRequest{stateRootEnabled: true, stateRoot: sr.Root})
-	require.NoError(t, p.Sign(priv))
-	require.NoError(t, srv.verifyRequest(p))
+	checkRequest(t, nil, &prepareRequest{
+		stateRootEnabled: true,
+		prevHash:         prevHash,
+		stateRoot:        sr.Root,
+	})
 }
 
 func TestService_OnPayload(t *testing.T) {
@@ -322,15 +343,18 @@ func TestService_OnPayload(t *testing.T) {
 
 	priv, _ := getTestValidator(1)
 	p := new(Payload)
-	p.message = &message{}
 	p.SetValidatorIndex(1)
 	p.SetPayload(&prepareRequest{})
 
-	// payload is not signed
+	// sender is invalid
 	srv.OnPayload(p)
 	shouldNotReceive(t, srv.messages)
 	require.Nil(t, srv.GetPayload(p.Hash()))
 
+	p = new(Payload)
+	p.SetValidatorIndex(1)
+	p.Sender = priv.GetScriptHash()
+	p.SetPayload(&prepareRequest{})
 	require.NoError(t, p.Sign(priv))
 	srv.OnPayload(p)
 	shouldReceive(t, srv.messages)

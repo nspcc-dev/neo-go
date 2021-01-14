@@ -30,9 +30,12 @@ func testRecoveryMessageSetters(t *testing.T, enableStateRoot bool) {
 		privs[i], pubs[i] = getTestValidator(i)
 	}
 
+	const msgHeight = 10
+
 	r := &recoveryMessage{stateRootEnabled: enableStateRoot}
 	p := NewPayload(netmode.UnitTestNet, enableStateRoot)
 	p.SetType(payload.RecoveryMessageType)
+	p.SetHeight(msgHeight)
 	p.SetPayload(r)
 	// sign payload to have verification script
 	require.NoError(t, p.Sign(privs[0]))
@@ -45,17 +48,21 @@ func testRecoveryMessageSetters(t *testing.T, enableStateRoot bool) {
 	}
 	p1 := NewPayload(netmode.UnitTestNet, enableStateRoot)
 	p1.SetType(payload.PrepareRequestType)
+	p1.SetHeight(msgHeight)
 	p1.SetPayload(req)
 	p1.SetValidatorIndex(0)
+	p1.Sender = privs[0].GetScriptHash()
 	require.NoError(t, p1.Sign(privs[0]))
 
 	t.Run("prepare response is added", func(t *testing.T) {
 		p2 := NewPayload(netmode.UnitTestNet, enableStateRoot)
 		p2.SetType(payload.PrepareResponseType)
+		p2.SetHeight(msgHeight)
 		p2.SetPayload(&prepareResponse{
 			preparationHash: p1.Hash(),
 		})
 		p2.SetValidatorIndex(1)
+		p2.Sender = privs[1].GetScriptHash()
 		require.NoError(t, p2.Sign(privs[1]))
 
 		r.AddPayload(p2)
@@ -88,11 +95,13 @@ func testRecoveryMessageSetters(t *testing.T, enableStateRoot bool) {
 	t.Run("change view is added", func(t *testing.T) {
 		p3 := NewPayload(netmode.UnitTestNet, enableStateRoot)
 		p3.SetType(payload.ChangeViewType)
+		p3.SetHeight(msgHeight)
 		p3.SetPayload(&changeView{
 			newViewNumber: 1,
 			timestamp:     12345,
 		})
 		p3.SetValidatorIndex(3)
+		p3.Sender = privs[3].GetScriptHash()
 		require.NoError(t, p3.Sign(privs[3]))
 
 		r.AddPayload(p3)
@@ -110,8 +119,10 @@ func testRecoveryMessageSetters(t *testing.T, enableStateRoot bool) {
 	t.Run("commit is added", func(t *testing.T) {
 		p4 := NewPayload(netmode.UnitTestNet, enableStateRoot)
 		p4.SetType(payload.CommitType)
+		p4.SetHeight(msgHeight)
 		p4.SetPayload(randomMessage(t, commitType))
 		p4.SetValidatorIndex(3)
+		p4.Sender = privs[3].GetScriptHash()
 		require.NoError(t, p4.Sign(privs[3]))
 
 		r.AddPayload(p4)

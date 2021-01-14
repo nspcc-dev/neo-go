@@ -52,12 +52,12 @@ func getDifferentPayloads(t *testing.T, n int) (payloads []Payload) {
 		var sign [signatureSize]byte
 		random.Fill(sign[:])
 
-		payloads[i].message = &message{}
 		payloads[i].SetValidatorIndex(uint16(i))
 		payloads[i].SetType(payload.MessageType(commitType))
 		payloads[i].payload = &commit{
 			signature: sign,
 		}
+		payloads[i].encodeData()
 	}
 
 	return

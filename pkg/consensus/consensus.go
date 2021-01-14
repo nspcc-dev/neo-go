@@ -21,6 +21,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/io"
+	npayload "github.com/nspcc-dev/neo-go/pkg/network/payload"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
@@ -38,6 +39,9 @@ const defaultTimePerBlock = 15 * time.Second
 
 // Number of nanoseconds in millisecond.
 const nsInMs = 1000000
+
+// Category is message category for extensible payloads.
+const Category = "Consensus"
 
 // Service represents consensus instance.
 type Service interface {
@@ -204,15 +208,33 @@ var (
 // NewPayload creates new consensus payload for the provided network.
 func NewPayload(m netmode.Magic, stateRootEnabled bool) *Payload {
 	return &Payload{
-		network: m,
-		message: &message{
+		Extensible: npayload.Extensible{
+			Network:  m,
+			Category: Category,
+		},
+		message: message{
 			stateRootEnabled: stateRootEnabled,
 		},
 	}
 }
 
-func (s *service) newPayload() payload.ConsensusPayload {
-	return NewPayload(s.network, s.stateRootEnabled)
+func (s *service) newPayload(c *dbft.Context, t payload.MessageType, msg interface{}) payload.ConsensusPayload {
+	cp := NewPayload(s.network, s.stateRootEnabled)
+	cp.SetHeight(c.BlockIndex)
+	cp.SetValidatorIndex(uint16(c.MyIndex))
+	cp.SetViewNumber(c.ViewNumber)
+	cp.SetType(t)
+	if pr, ok := msg.(*prepareRequest); ok {
+		pr.SetPrevHash(s.dbft.PrevHash)
+		pr.SetVersion(s.dbft.Version)
+	}
+	cp.SetPayload(msg)
+
+	cp.Extensible.ValidBlockStart = 0
+	cp.Extensible.ValidBlockEnd = c.BlockIndex
+	cp.Extensible.Sender = c.Validators[c.MyIndex].(*publicKey).GetScriptHash()
+
+	return cp
 }
 
 func (s *service) newPrepareRequest() payload.PrepareRequest {
@@ -257,7 +279,7 @@ events:
 			s.dbft.OnTimeout(hv)
 		case msg := <-s.messages:
 			fields := []zap.Field{
-				zap.Uint8("from", msg.validatorIndex),
+				zap.Uint8("from", msg.message.ValidatorIndex),
 				zap.Stringer("type", msg.Type()),
 			}
 
@@ -312,14 +334,13 @@ func (s *service) handleChainBlock(b *coreb.Block) {
 
 func (s *service) validatePayload(p *Payload) bool {
 	validators := s.getValidators()
-	if int(p.validatorIndex) >= len(validators) {
+	if int(p.message.ValidatorIndex) >= len(validators) {
 		return false
 	}
 
-	pub := validators[p.validatorIndex]
+	pub := validators[p.message.ValidatorIndex]
 	h := pub.(*publicKey).GetScriptHash()
-
-	return s.Chain.VerifyWitness(h, p, &p.Witness, payloadGasLimit) == nil
+	return p.Sender == h
 }
 
 func (s *service) getKeyPair(pubs []crypto.PublicKey) (int, crypto.PrivateKey, crypto.PublicKey) {
@@ -353,7 +374,7 @@ func (s *service) OnPayload(cp *Payload) {
 		log.Debug("payload is already in cache")
 		return
 	} else if !s.validatePayload(cp) {
-		log.Debug("can't validate payload")
+		log.Info("can't validate payload")
 		return
 	}
 
@@ -368,7 +389,7 @@ func (s *service) OnPayload(cp *Payload) {
 	// decode payload data into message
 	if cp.message.payload == nil {
 		if err := cp.decodeData(); err != nil {
-			log.Debug("can't decode payload data")
+			log.Info("can't decode payload data")
 			return
 		}
 	}
@@ -479,14 +500,26 @@ func (s *service) verifyBlock(b block.Block) bool {
 	return true
 }
 
+var (
+	errInvalidPrevHash  = errors.New("invalid PrevHash")
+	errInvalidVersion   = errors.New("invalid Version")
+	errInvalidStateRoot = errors.New("state root mismatch")
+)
+
 func (s *service) verifyRequest(p payload.ConsensusPayload) error {
 	req := p.GetPrepareRequest().(*prepareRequest)
+	if req.prevHash != s.dbft.PrevHash {
+		return errInvalidPrevHash
+	}
+	if req.version != s.dbft.Version {
+		return errInvalidVersion
+	}
 	if s.stateRootEnabled {
 		sr, err := s.Chain.GetStateRoot(s.dbft.BlockIndex - 1)
 		if err != nil {
 			return err
 		} else if sr.Root != req.stateRoot {
-			return fmt.Errorf("state root mismatch: %s != %s", sr.Root, req.stateRoot)
+			return fmt.Errorf("%w: %s != %s", errInvalidStateRoot, sr.Root, req.stateRoot)
 		}
 	}
 	// Save lastProposal for getVerified().
