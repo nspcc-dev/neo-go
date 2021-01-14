@@ -536,7 +536,7 @@ func (s *Server) handleInvCmd(p Peer, inv *payload.Inventory) error {
 	var typExists = map[payload.InventoryType]func(util.Uint256) bool{
 		payload.TXType:    s.chain.HasTransaction,
 		payload.BlockType: s.chain.HasBlock,
-		payload.ConsensusType: func(h util.Uint256) bool {
+		payload.ExtensibleType: func(h util.Uint256) bool {
 			cp := s.consensus.GetPayload(h)
 			return cp != nil
 		},
@@ -557,7 +557,7 @@ func (s *Server) handleInvCmd(p Peer, inv *payload.Inventory) error {
 		if err != nil {
 			return err
 		}
-		if inv.Type == payload.ConsensusType {
+		if inv.Type == payload.ExtensibleType {
 			return p.EnqueueHPPacket(true, pkt)
 		}
 		return p.EnqueueP2PPacket(pkt)
@@ -605,9 +605,9 @@ func (s *Server) handleGetDataCmd(p Peer, inv *payload.Inventory) error {
 			} else {
 				notFound = append(notFound, hash)
 			}
-		case payload.ConsensusType:
+		case payload.ExtensibleType:
 			if cp := s.consensus.GetPayload(hash); cp != nil {
-				msg = NewMessage(CMDConsensus, cp)
+				msg = NewMessage(CMDExtensible, cp)
 			}
 		case payload.P2PNotaryRequestType:
 			if nrp, ok := s.notaryRequestPool.TryGetData(hash); ok { // already have checked P2PSigExtEnabled
@@ -619,7 +619,7 @@ func (s *Server) handleGetDataCmd(p Peer, inv *payload.Inventory) error {
 		if msg != nil {
 			pkt, err := msg.Bytes()
 			if err == nil {
-				if inv.Type == payload.ConsensusType {
+				if inv.Type == payload.ExtensibleType {
 					err = p.EnqueueHPPacket(true, pkt)
 				} else {
 					err = p.EnqueueP2PPacket(pkt)
@@ -715,10 +715,29 @@ func (s *Server) handleGetHeadersCmd(p Peer, gh *payload.GetBlockByIndex) error 
 	return p.EnqueueP2PMessage(msg)
 }
 
-// handleConsensusCmd processes received consensus payload.
-// It never returns an error.
-func (s *Server) handleConsensusCmd(cp *consensus.Payload) error {
-	s.consensus.OnPayload(cp)
+const extensibleVerifyMaxGAS = 2000000
+
+// handleExtensibleCmd processes received extensible payload.
+func (s *Server) handleExtensibleCmd(e *payload.Extensible) error {
+	if err := s.chain.VerifyWitness(e.Sender, e, &e.Witness, extensibleVerifyMaxGAS); err != nil {
+		return err
+	}
+	h := s.chain.BlockHeight()
+	if h < e.ValidBlockStart || e.ValidBlockEnd <= h {
+		// We can receive consensus payload for the last or next block
+		// which leads to unwanted node disconnect.
+		if e.ValidBlockEnd == h {
+			return nil
+		}
+		return errors.New("invalid height")
+	}
+
+	switch e.Category {
+	case consensus.Category:
+		s.consensus.OnPayload(e)
+	default:
+		return errors.New("invalid category")
+	}
 	return nil
 }
 
@@ -895,9 +914,9 @@ func (s *Server) handleMessage(peer Peer, msg *Message) error {
 		case CMDBlock:
 			block := msg.Payload.(*block.Block)
 			return s.handleBlockCmd(peer, block)
-		case CMDConsensus:
-			cp := msg.Payload.(*consensus.Payload)
-			return s.handleConsensusCmd(cp)
+		case CMDExtensible:
+			cp := msg.Payload.(*payload.Extensible)
+			return s.handleExtensibleCmd(cp)
 		case CMDTX:
 			tx := msg.Payload.(*transaction.Transaction)
 			return s.handleTxCmd(tx)
@@ -933,8 +952,8 @@ func (s *Server) handleMessage(peer Peer, msg *Message) error {
 	return nil
 }
 
-func (s *Server) handleNewPayload(p *consensus.Payload) {
-	msg := NewMessage(CMDInv, payload.NewInventory(payload.ConsensusType, []util.Uint256{p.Hash()}))
+func (s *Server) handleNewPayload(p *payload.Extensible) {
+	msg := NewMessage(CMDInv, payload.NewInventory(payload.ExtensibleType, []util.Uint256{p.Hash()}))
 	// It's high priority because it directly affects consensus process,
 	// even though it's just an inv.
 	s.broadcastHPMessage(msg)

@@ -52,11 +52,11 @@ type Service interface {
 	Shutdown()
 
 	// OnPayload is a callback to notify Service about new received payload.
-	OnPayload(p *Payload)
+	OnPayload(p *npayload.Extensible)
 	// OnTransaction is a callback to notify Service about new received transaction.
 	OnTransaction(tx *transaction.Transaction)
 	// GetPayload returns Payload with specified hash if it is present in the local cache.
-	GetPayload(h util.Uint256) *Payload
+	GetPayload(h util.Uint256) *npayload.Extensible
 }
 
 type service struct {
@@ -98,7 +98,7 @@ type Config struct {
 	Logger *zap.Logger
 	// Broadcast is a callback which is called to notify server
 	// about new consensus payload to sent.
-	Broadcast func(p *Payload)
+	Broadcast func(p *npayload.Extensible)
 	// Chain is a core.Blockchainer instance.
 	Chain blockchainer.Blockchainer
 	// RequestTx is a callback to which will be called
@@ -367,13 +367,26 @@ func (s *service) getKeyPair(pubs []crypto.PublicKey) (int, crypto.PrivateKey, c
 	return -1, nil, nil
 }
 
+func (s *service) payloadFromExtensible(ep *npayload.Extensible) *Payload {
+	return &Payload{
+		Extensible: *ep,
+		message: message{
+			stateRootEnabled: s.stateRootEnabled,
+		},
+	}
+}
+
 // OnPayload handles Payload receive.
-func (s *service) OnPayload(cp *Payload) {
+func (s *service) OnPayload(cp *npayload.Extensible) {
 	log := s.log.With(zap.Stringer("hash", cp.Hash()))
 	if s.cache.Has(cp.Hash()) {
 		log.Debug("payload is already in cache")
 		return
-	} else if !s.validatePayload(cp) {
+	}
+
+	p := s.payloadFromExtensible(cp)
+	p.decodeData()
+	if !s.validatePayload(p) {
 		log.Info("can't validate payload")
 		return
 	}
@@ -387,14 +400,14 @@ func (s *service) OnPayload(cp *Payload) {
 	}
 
 	// decode payload data into message
-	if cp.message.payload == nil {
-		if err := cp.decodeData(); err != nil {
+	if p.message.payload == nil {
+		if err := p.decodeData(); err != nil {
 			log.Info("can't decode payload data")
 			return
 		}
 	}
 
-	s.messages <- *cp
+	s.messages <- *p
 }
 
 func (s *service) OnTransaction(tx *transaction.Transaction) {
@@ -404,13 +417,13 @@ func (s *service) OnTransaction(tx *transaction.Transaction) {
 }
 
 // GetPayload returns payload stored in cache.
-func (s *service) GetPayload(h util.Uint256) *Payload {
+func (s *service) GetPayload(h util.Uint256) *npayload.Extensible {
 	p := s.cache.Get(h)
 	if p == nil {
-		return (*Payload)(nil)
+		return (*npayload.Extensible)(nil)
 	}
 
-	cp := *p.(*Payload)
+	cp := *p.(*npayload.Extensible)
 
 	return &cp
 }
@@ -420,8 +433,9 @@ func (s *service) broadcast(p payload.ConsensusPayload) {
 		s.log.Warn("can't sign consensus payload", zap.Error(err))
 	}
 
-	s.cache.Add(p)
-	s.Config.Broadcast(p.(*Payload))
+	ep := &p.(*Payload).Extensible
+	s.cache.Add(ep)
+	s.Config.Broadcast(ep)
 }
 
 func (s *service) getTx(h util.Uint256) block.Transaction {

@@ -21,6 +21,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/io"
+	npayload "github.com/nspcc-dev/neo-go/pkg/network/payload"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -345,9 +346,10 @@ func TestService_OnPayload(t *testing.T) {
 	p := new(Payload)
 	p.SetValidatorIndex(1)
 	p.SetPayload(&prepareRequest{})
+	p.encodeData()
 
 	// sender is invalid
-	srv.OnPayload(p)
+	srv.OnPayload(&p.Extensible)
 	shouldNotReceive(t, srv.messages)
 	require.Nil(t, srv.GetPayload(p.Hash()))
 
@@ -356,12 +358,12 @@ func TestService_OnPayload(t *testing.T) {
 	p.Sender = priv.GetScriptHash()
 	p.SetPayload(&prepareRequest{})
 	require.NoError(t, p.Sign(priv))
-	srv.OnPayload(p)
+	srv.OnPayload(&p.Extensible)
 	shouldReceive(t, srv.messages)
-	require.Equal(t, p, srv.GetPayload(p.Hash()))
+	require.Equal(t, &p.Extensible, srv.GetPayload(p.Hash()))
 
 	// payload has already been received
-	srv.OnPayload(p)
+	srv.OnPayload(&p.Extensible)
 	shouldNotReceive(t, srv.messages)
 	srv.Chain.Close()
 }
@@ -477,7 +479,7 @@ func newTestService(t *testing.T) *service {
 func newTestServiceWithChain(t *testing.T, bc *core.Blockchain) *service {
 	srv, err := NewService(Config{
 		Logger:       zaptest.NewLogger(t),
-		Broadcast:    func(*Payload) {},
+		Broadcast:    func(*npayload.Extensible) {},
 		Chain:        bc,
 		RequestTx:    func(...util.Uint256) {},
 		TimePerBlock: time.Duration(bc.GetConfig().SecondsPerBlock) * time.Second,

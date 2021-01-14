@@ -31,7 +31,7 @@ import (
 type fakeConsensus struct {
 	started  atomic.Bool
 	stopped  atomic.Bool
-	payloads []*consensus.Payload
+	payloads []*payload.Extensible
 	txs      []*transaction.Transaction
 }
 
@@ -40,11 +40,11 @@ var _ consensus.Service = (*fakeConsensus)(nil)
 func newFakeConsensus(c consensus.Config) (consensus.Service, error) {
 	return new(fakeConsensus), nil
 }
-func (f *fakeConsensus) Start()                                       { f.started.Store(true) }
-func (f *fakeConsensus) Shutdown()                                    { f.stopped.Store(true) }
-func (f *fakeConsensus) OnPayload(p *consensus.Payload)               { f.payloads = append(f.payloads, p) }
-func (f *fakeConsensus) OnTransaction(tx *transaction.Transaction)    { f.txs = append(f.txs, tx) }
-func (f *fakeConsensus) GetPayload(h util.Uint256) *consensus.Payload { panic("implement me") }
+func (f *fakeConsensus) Start()                                        { f.started.Store(true) }
+func (f *fakeConsensus) Shutdown()                                     { f.stopped.Store(true) }
+func (f *fakeConsensus) OnPayload(p *payload.Extensible)               { f.payloads = append(f.payloads, p) }
+func (f *fakeConsensus) OnTransaction(tx *transaction.Transaction)     { f.txs = append(f.txs, tx) }
+func (f *fakeConsensus) GetPayload(h util.Uint256) *payload.Extensible { panic("implement me") }
 
 func TestNewServer(t *testing.T) {
 	bc := &testChain{}
@@ -405,9 +405,48 @@ func TestConsensus(t *testing.T) {
 	s, shutdown := startTestServer(t)
 	defer shutdown()
 
-	pl := consensus.NewPayload(netmode.UnitTestNet, false)
-	s.testHandleMessage(t, nil, CMDConsensus, pl)
-	require.Contains(t, s.consensus.(*fakeConsensus).payloads, pl)
+	atomic2.StoreUint32(&s.chain.(*testChain).blockheight, 4)
+	p := newLocalPeer(t, s)
+	p.handshaked = true
+
+	newConsensusMessage := func(start, end uint32) *Message {
+		pl := payload.NewExtensible(netmode.UnitTestNet)
+		pl.Category = consensus.Category
+		pl.ValidBlockStart = start
+		pl.ValidBlockEnd = end
+		return NewMessage(CMDExtensible, pl)
+	}
+
+	s.chain.(*testChain).verifyWitnessF = func() error { return errors.New("invalid") }
+	msg := newConsensusMessage(0, s.chain.BlockHeight()+1)
+	require.Error(t, s.handleMessage(p, msg))
+
+	s.chain.(*testChain).verifyWitnessF = func() error { return nil }
+	require.NoError(t, s.handleMessage(p, msg))
+	require.Contains(t, s.consensus.(*fakeConsensus).payloads, msg.Payload.(*payload.Extensible))
+
+	t.Run("small ValidUntilBlockEnd", func(t *testing.T) {
+		t.Run("current height", func(t *testing.T) {
+			msg := newConsensusMessage(0, s.chain.BlockHeight())
+			require.NoError(t, s.handleMessage(p, msg))
+			require.NotContains(t, s.consensus.(*fakeConsensus).payloads, msg.Payload.(*payload.Extensible))
+		})
+		t.Run("invalid", func(t *testing.T) {
+			msg := newConsensusMessage(0, s.chain.BlockHeight()-1)
+			require.Error(t, s.handleMessage(p, msg))
+		})
+	})
+	t.Run("big ValidUntiLBlockStart", func(t *testing.T) {
+		msg := newConsensusMessage(s.chain.BlockHeight()+1, s.chain.BlockHeight()+2)
+		require.Error(t, s.handleMessage(p, msg))
+	})
+	t.Run("invalid category", func(t *testing.T) {
+		pl := payload.NewExtensible(netmode.UnitTestNet)
+		pl.Category = "invalid"
+		pl.ValidBlockEnd = s.chain.BlockHeight() + 1
+		msg := NewMessage(CMDExtensible, pl)
+		require.Error(t, s.handleMessage(p, msg))
+	})
 }
 
 func TestTransaction(t *testing.T) {
@@ -448,7 +487,7 @@ func (s *Server) testHandleGetData(t *testing.T, invType payload.InventoryType, 
 	p.handshaked = true
 	p.messageHandler = func(t *testing.T, msg *Message) {
 		switch msg.Command {
-		case CMDTX, CMDBlock, CMDConsensus, CMDP2PNotaryRequest:
+		case CMDTX, CMDBlock, CMDExtensible, CMDP2PNotaryRequest:
 			require.Equal(t, found, msg.Payload)
 			recvResponse.Store(true)
 		case CMDNotFound:

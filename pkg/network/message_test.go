@@ -96,7 +96,7 @@ func TestEncodeDecodePing(t *testing.T) {
 }
 
 func TestEncodeDecodeInventory(t *testing.T) {
-	testEncodeDecode(t, CMDInv, payload.NewInventory(payload.ConsensusType, []util.Uint256{{1, 2, 3}}))
+	testEncodeDecode(t, CMDInv, payload.NewInventory(payload.ExtensibleType, []util.Uint256{{1, 2, 3}}))
 }
 
 func TestEncodeDecodeAddr(t *testing.T) {
