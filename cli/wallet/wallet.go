@@ -424,7 +424,7 @@ func importDeployed(ctx *cli.Context) error {
 		return cli.NewExitError("contract has no `verify` method", 1)
 	}
 	acc.Address = address.Uint160ToString(cs.Hash)
-	acc.Contract.Script = cs.Script
+	acc.Contract.Script = cs.NEF.Script
 	acc.Contract.Parameters = acc.Contract.Parameters[:0]
 	for _, p := range md.Parameters {
 		acc.Contract.Parameters = append(acc.Contract.Parameters, wallet.ContractParam{

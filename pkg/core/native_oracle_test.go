@@ -17,6 +17,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
@@ -83,8 +84,12 @@ func getOracleContractState(h util.Uint160) *state.Contract {
 	m.Permissions = append(m.Permissions, *perm)
 
 	script := w.Bytes()
+	ne, err := nef.NewFile(script)
+	if err != nil {
+		panic(err)
+	}
 	return &state.Contract{
-		Script:   script,
+		NEF:      *ne,
 		Hash:     hash.Hash160(script),
 		Manifest: *m,
 		ID:       42,

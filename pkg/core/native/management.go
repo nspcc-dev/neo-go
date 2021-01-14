@@ -252,7 +252,7 @@ func (m *Management) Deploy(d dao.DAO, sender util.Uint160, neff *nef.File, mani
 	newcontract := &state.Contract{
 		ID:       id,
 		Hash:     h,
-		Script:   neff.Script,
+		NEF:      *neff,
 		Manifest: *manif,
 	}
 	err = m.PutContractState(d, newcontract)
@@ -292,7 +292,7 @@ func (m *Management) Update(d dao.DAO, hash util.Uint160, neff *nef.File, manif 
 	// if NEF was provided, update the contract script
 	if neff != nil {
 		m.markUpdated(hash)
-		contract.Script = neff.Script
+		contract.NEF = *neff
 	}
 	// if manifest was provided, update the contract manifest
 	if manif != nil {
@@ -415,7 +415,7 @@ func (m *Management) OnPersist(ic *interop.Context) error {
 		cs := &state.Contract{
 			ID:       md.ContractID,
 			Hash:     md.Hash,
-			Script:   md.Script,
+			NEF:      md.NEF,
 			Manifest: md.Manifest,
 		}
 		err := m.PutContractState(ic.DAO, cs)

@@ -418,7 +418,7 @@ func addNetworkFee(bc *Blockchain, tx *transaction.Transaction, sender *wallet.A
 	for _, cosigner := range tx.Signers {
 		contract := bc.GetContractState(cosigner.Account)
 		if contract != nil {
-			netFee, sizeDelta = fee.Calculate(bc.GetBaseExecFee(), contract.Script)
+			netFee, sizeDelta = fee.Calculate(bc.GetBaseExecFee(), contract.NEF.Script)
 			tx.NetworkFee += netFee
 			size += sizeDelta
 		}

@@ -10,6 +10,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
@@ -21,7 +22,7 @@ type Contract struct {
 	ID            int32             `json:"id"`
 	UpdateCounter uint16            `json:"updatecounter"`
 	Hash          util.Uint160      `json:"hash"`
-	Script        []byte            `json:"script"`
+	NEF           nef.File          `json:"nef"`
 	Manifest      manifest.Manifest `json:"manifest"`
 }
 
@@ -50,11 +51,15 @@ func (c *Contract) ToStackItem() (stackitem.Item, error) {
 	if err != nil {
 		return nil, err
 	}
+	rawNef, err := c.NEF.Bytes()
+	if err != nil {
+		return nil, err
+	}
 	return stackitem.NewArray([]stackitem.Item{
 		stackitem.Make(c.ID),
 		stackitem.Make(c.UpdateCounter),
 		stackitem.NewByteArray(c.Hash.BytesBE()),
-		stackitem.NewByteArray(c.Script),
+		stackitem.NewByteArray(rawNef),
 		stackitem.NewByteArray(manifest),
 	}), nil
 }
@@ -94,8 +99,10 @@ func (c *Contract) FromStackItem(item stackitem.Item) error {
 	if err != nil {
 		return err
 	}
-	c.Script = make([]byte, len(bytes))
-	copy(c.Script, bytes)
+	c.NEF, err = nef.FileFromBytes(bytes)
+	if err != nil {
+		return err
+	}
 	bytes, err = arr[4].TryBytes()
 	if err != nil {
 		return err

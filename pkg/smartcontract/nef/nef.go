@@ -36,16 +36,16 @@ const (
 
 // File represents compiled contract file structure according to the NEF3 standard.
 type File struct {
-	Header   Header
-	Script   []byte
-	Checksum uint32
+	Header
+	Script   []byte `json:"script"`
+	Checksum uint32 `json:"checksum"`
 }
 
 // Header represents File header.
 type Header struct {
-	Magic    uint32
-	Compiler string
-	Version  string
+	Magic    uint32 `json:"magic"`
+	Compiler string `json:"compiler"`
+	Version  string `json:"version"`
 }
 
 // NewFile returns new NEF3 file with script specified.

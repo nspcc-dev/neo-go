@@ -18,6 +18,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	cinterop "github.com/nspcc-dev/neo-go/pkg/interop"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
@@ -162,15 +163,19 @@ func TestAppCall(t *testing.T) {
 	ih := hash.Hash160(inner)
 	var contractGetter = func(_ dao.DAO, h util.Uint160) (*state.Contract, error) {
 		if h.Equals(ih) {
+			innerNef, err := nef.NewFile(inner)
+			require.NoError(t, err)
 			return &state.Contract{
 				Hash:     ih,
-				Script:   inner,
+				NEF:      *innerNef,
 				Manifest: *m,
 			}, nil
 		} else if h.Equals(barH) {
+			barNef, err := nef.NewFile(barCtr)
+			require.NoError(t, err)
 			return &state.Contract{
 				Hash:     barH,
-				Script:   barCtr,
+				NEF:      *barNef,
 				Manifest: *mBar,
 			}, nil
 		}

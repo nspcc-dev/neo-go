@@ -1670,7 +1670,7 @@ func (bc *Blockchain) initVerificationVM(ic *interop.Context, hash util.Uint160,
 			return ErrInvalidVerificationContract
 		}
 		initMD := cs.Manifest.ABI.GetMethod(manifest.MethodInit)
-		v.LoadScriptWithHash(cs.Script, hash, smartcontract.ReadStates)
+		v.LoadScriptWithHash(cs.NEF.Script, hash, smartcontract.ReadStates)
 		v.Jump(v.Context(), md.Offset)
 
 		if cs.ID <= 0 {

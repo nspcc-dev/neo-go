@@ -36,10 +36,10 @@ func TestRestoreAfterDeploy(t *testing.T) {
 	mgmtHash := bc.ManagementContractHash()
 	cs1, _ := getTestContractState(bc)
 	cs1.ID = 1
-	cs1.Hash = state.CreateContractHash(testchain.MultisigScriptHash(), cs1.Script)
+	cs1.Hash = state.CreateContractHash(testchain.MultisigScriptHash(), cs1.NEF.Script)
 	manif1, err := json.Marshal(cs1.Manifest)
 	require.NoError(t, err)
-	nef1, err := nef.NewFile(cs1.Script)
+	nef1, err := nef.NewFile(cs1.NEF.Script)
 	require.NoError(t, err)
 	nef1b, err := nef1.Bytes()
 	require.NoError(t, err)
@@ -80,10 +80,10 @@ func TestContractDeploy(t *testing.T) {
 	mgmtHash := bc.ManagementContractHash()
 	cs1, _ := getTestContractState(bc)
 	cs1.ID = 1
-	cs1.Hash = state.CreateContractHash(testchain.MultisigScriptHash(), cs1.Script)
+	cs1.Hash = state.CreateContractHash(testchain.MultisigScriptHash(), cs1.NEF.Script)
 	manif1, err := json.Marshal(cs1.Manifest)
 	require.NoError(t, err)
-	nef1, err := nef.NewFile(cs1.Script)
+	nef1, err := nef.NewFile(cs1.NEF.Script)
 	require.NoError(t, err)
 	nef1b, err := nef1.Bytes()
 	require.NoError(t, err)
@@ -278,7 +278,7 @@ func TestContractUpdate(t *testing.T) {
 	require.NoError(t, err)
 	manif1, err := json.Marshal(cs1.Manifest)
 	require.NoError(t, err)
-	nef1, err := nef.NewFile(cs1.Script)
+	nef1, err := nef.NewFile(cs1.NEF.Script)
 	require.NoError(t, err)
 	nef1b, err := nef1.Bytes()
 	require.NoError(t, err)
@@ -322,10 +322,9 @@ func TestContractUpdate(t *testing.T) {
 		checkFAULTState(t, res)
 	})
 
-	cs1.Script = append(cs1.Script, byte(opcode.RET))
-	nef1, err = nef.NewFile(cs1.Script)
-	require.NoError(t, err)
-	nef1b, err = nef1.Bytes()
+	cs1.NEF.Script = append(cs1.NEF.Script, byte(opcode.RET))
+	cs1.NEF.Checksum = cs1.NEF.CalculateChecksum()
+	nef1b, err = cs1.NEF.Bytes()
 	require.NoError(t, err)
 	cs1.UpdateCounter++
 
@@ -376,10 +375,9 @@ func TestContractUpdate(t *testing.T) {
 		})
 	})
 
-	cs1.Script = append(cs1.Script, byte(opcode.ABORT))
-	nef1, err = nef.NewFile(cs1.Script)
-	require.NoError(t, err)
-	nef1b, err = nef1.Bytes()
+	cs1.NEF.Script = append(cs1.NEF.Script, byte(opcode.ABORT))
+	cs1.NEF.Checksum = cs1.NEF.CalculateChecksum()
+	nef1b, err = cs1.NEF.Bytes()
 	require.NoError(t, err)
 	cs1.Manifest.Extra = "update me once more"
 	manif1, err = json.Marshal(cs1.Manifest)
@@ -471,12 +469,14 @@ func compareContractStates(t *testing.T, expected *state.Contract, actual stacki
 
 	expectedManifest, err := json.Marshal(expected.Manifest)
 	require.NoError(t, err)
+	expectedNef, err := expected.NEF.Bytes()
+	require.NoError(t, err)
 
 	require.Equal(t, 5, len(act))
 	require.Equal(t, expected.ID, int32(act[0].Value().(*big.Int).Int64()))
 	require.Equal(t, expected.UpdateCounter, uint16(act[1].Value().(*big.Int).Int64()))
 	require.Equal(t, expected.Hash.BytesBE(), act[2].Value().([]byte))
-	require.Equal(t, expected.Script, act[3].Value().([]byte))
+	require.Equal(t, expectedNef, act[3].Value().([]byte))
 	require.Equal(t, expectedManifest, act[4].Value().([]byte))
 }
 

@@ -30,7 +30,7 @@ func TestDeployGetUpdateDestroyContract(t *testing.T) {
 	require.Equal(t, int32(1), contract.ID)
 	require.Equal(t, uint16(0), contract.UpdateCounter)
 	require.Equal(t, h, contract.Hash)
-	require.Equal(t, script, contract.Script)
+	require.Equal(t, ne, &contract.NEF)
 	require.Equal(t, *manif, contract.Manifest)
 
 	// Double deploy.
@@ -44,7 +44,7 @@ func TestDeployGetUpdateDestroyContract(t *testing.T) {
 	require.Equal(t, int32(2), contract2.ID)
 	require.Equal(t, uint16(0), contract2.UpdateCounter)
 	require.Equal(t, state.CreateContractHash(sender2, script), contract2.Hash)
-	require.Equal(t, script, contract2.Script)
+	require.Equal(t, ne, &contract2.NEF)
 	require.Equal(t, *manif, contract2.Manifest)
 
 	refContract, err := mgmt.GetContract(d, h)

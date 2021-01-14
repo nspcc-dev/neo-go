@@ -82,7 +82,7 @@ func callExFromNative(ic *interop.Context, caller util.Uint160, cs *state.Contra
 	}
 
 	ic.VM.Invocations[cs.Hash]++
-	ic.VM.LoadScriptWithCallingHash(caller, cs.Script, cs.Hash, ic.VM.Context().GetCallFlags()&f)
+	ic.VM.LoadScriptWithCallingHash(caller, cs.NEF.Script, cs.Hash, ic.VM.Context().GetCallFlags()&f)
 	var isNative bool
 	for i := range ic.Natives {
 		if ic.Natives[i].Metadata().Hash.Equals(cs.Hash) {
