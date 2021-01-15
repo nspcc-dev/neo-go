@@ -245,6 +245,9 @@ func (mp *Pool) Add(t *transaction.Transaction, fee Feer, data ...interface{}) e
 		if fee.P2PSigExtensionsEnabled() {
 			mp.removeConflictsOf(unlucky.txn)
 		}
+		if attrs := unlucky.txn.GetAttributes(transaction.OracleResponseT); len(attrs) != 0 {
+			delete(mp.oracleResp, attrs[0].Value.(*transaction.OracleResponse).ID)
+		}
 		mp.verifiedTxes[len(mp.verifiedTxes)-1] = pItem
 	} else {
 		mp.verifiedTxes = append(mp.verifiedTxes, pItem)

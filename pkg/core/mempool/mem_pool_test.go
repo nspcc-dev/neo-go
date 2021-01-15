@@ -361,7 +361,7 @@ func TestMempoolItemsOrder(t *testing.T) {
 }
 
 func TestMempoolAddRemoveOracleResponse(t *testing.T) {
-	mp := New(5, 0)
+	mp := New(3, 0)
 	nonce := uint32(0)
 	fs := &FeerStub{balance: 10000}
 	newTx := func(netFee int64, id uint64) *transaction.Transaction {
@@ -411,6 +411,22 @@ func TestMempoolAddRemoveOracleResponse(t *testing.T) {
 	// check that oracle id was removed.
 	tx5 := newTx(3, 2)
 	require.NoError(t, mp.Add(tx5, fs))
+
+	// another oracle response ID with high net fee
+	tx6 := newTx(6, 3)
+	require.NoError(t, mp.Add(tx6, fs))
+	// check respIds
+	for _, i := range []uint64{1, 2, 3} {
+		_, ok := mp.oracleResp[i]
+		require.True(t, ok)
+	}
+	// reach capacity, check that response ID is removed together with tx5
+	tx7 := newTx(6, 4)
+	require.NoError(t, mp.Add(tx7, fs))
+	for _, i := range []uint64{1, 4, 3} {
+		_, ok := mp.oracleResp[i]
+		require.True(t, ok)
+	}
 }
 
 func TestMempoolAddRemoveConflicts(t *testing.T) {
