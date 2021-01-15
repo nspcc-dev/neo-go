@@ -56,11 +56,11 @@ type rpcTestCase struct {
 	check  func(t *testing.T, e *executor, result interface{})
 }
 
-const testContractHash = "743ed26f78e29ecd595535b74a943b1f9ccbc444"
-const deploymentTxHash = "2aef5684c6cf60884cc00400b78c65c5105ed4261a4f614bce74c74927a66bf3"
+const testContractHash = "0b3bc97e94ed99e32dda46c9ecd2d3626979af06"
+const deploymentTxHash = "632b179910b368a34d0b71a1289b24f833186e86ce16b3f805c1ac247a721e16"
 const genesisBlockHash = "0542f4350c6e236d0509bcd98188b0034bfbecc1a0c7fcdb8e4295310d468b70"
 
-const verifyContractHash = "a2eb22340979804cb10cc1add0b8822c201f4d8a"
+const verifyContractHash = "d2da8ee8c0bf6c5bf3dda1ef671dbf5fef7226e9"
 const verifyContractAVM = "570300412d51083021700c14aa8acf859d4fe402b34e673f2156821796a488ebdb30716813cedb2869db289740"
 const testVerifyContractAVM = "VwcADBQBDAMOBQYMDQIODw0DDgcJAAAAANswcGgRVUH4J+yMIaonBwAAABFADBQNDwMCCQACAQMHAwQFAgEADgYMCdswcWkRVUH4J+yMIaonBwAAABJAE0A="
 

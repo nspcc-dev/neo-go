@@ -66,10 +66,10 @@ func TestCreateContractHash(t *testing.T) {
 	var sender util.Uint160
 	var err error
 
-	require.Equal(t, "b4b7417195feca1cdb5a99504ab641d8c220ae99", CreateContractHash(sender, script).StringLE())
+	require.Equal(t, "b8e95ff7b11c427c29355e3398722d97bd2ca069", CreateContractHash(sender, script).StringLE())
 	sender, err = util.Uint160DecodeStringLE("a400ff00ff00ff00ff00ff00ff00ff00ff00ff01")
 	require.NoError(t, err)
-	require.Equal(t, "e56e4ee87f89a70e9138432c387ad49f2ee5b55f", CreateContractHash(sender, script).StringLE())
+	require.Equal(t, "435c467b8e15cb9b1474ad7ee817ffdcfededef9", CreateContractHash(sender, script).StringLE())
 }
 
 func TestContractFromStackItem(t *testing.T) {

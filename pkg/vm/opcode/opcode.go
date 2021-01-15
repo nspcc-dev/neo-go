@@ -66,10 +66,11 @@ const (
 	CALL      Opcode = 0x34
 	CALLL     Opcode = 0x35 // CALL_L
 	CALLA     Opcode = 0x36
+	CALLT     Opcode = 0x37
 
 	// Exceptions
-	ABORT      Opcode = 0x37
-	ASSERT     Opcode = 0x38
+	ABORT      Opcode = 0x38
+	ASSERT     Opcode = 0x39
 	THROW      Opcode = 0x3A
 	TRY        Opcode = 0x3B
 	TRYL       Opcode = 0x3C // TRY_L
