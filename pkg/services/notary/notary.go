@@ -41,6 +41,11 @@ type (
 		accMtx      sync.RWMutex
 		currAccount *wallet.Account
 		wallet      *wallet.Wallet
+
+		mp *mempool.Pool
+		// requests channel
+		reqCh  chan mempool.Event
+		stopCh chan struct{}
 	}
 
 	// Config represents external configuration for Notary module.
@@ -74,7 +79,7 @@ type request struct {
 }
 
 // NewNotary returns new Notary module.
-func NewNotary(bc blockchainer.Blockchainer, log *zap.Logger, onTransaction func(tx *transaction.Transaction) error) (*Notary, error) {
+func NewNotary(bc blockchainer.Blockchainer, mp *mempool.Pool, log *zap.Logger, onTransaction func(tx *transaction.Transaction) error) (*Notary, error) {
 	cfg := bc.GetConfig().P2PNotary
 	w := cfg.UnlockWallet
 	wallet, err := wallet.NewWalletFromFile(w.Path)
@@ -102,7 +107,36 @@ func NewNotary(bc blockchainer.Blockchainer, log *zap.Logger, onTransaction func
 		},
 		wallet:        wallet,
 		onTransaction: onTransaction,
+		mp:            mp,
+		reqCh:         make(chan mempool.Event),
+		stopCh:        make(chan struct{}),
 	}, nil
+}
+
+// Run runs Notary module and should be called in a separate goroutine.
+func (n *Notary) Run() {
+	n.mp.SubscribeForTransactions(n.reqCh)
+	for {
+		select {
+		case <-n.stopCh:
+			n.mp.UnsubscribeFromTransactions(n.reqCh)
+			return
+		case event := <-n.reqCh:
+			if req, ok := event.Data.(*payload.P2PNotaryRequest); ok {
+				switch event.Type {
+				case mempool.TransactionAdded:
+					n.OnNewRequest(req)
+				case mempool.TransactionRemoved:
+					n.OnRequestRemoval(req)
+				}
+			}
+		}
+	}
+}
+
+// Stop shutdowns Notary module.
+func (n *Notary) Stop() {
+	close(n.stopCh)
 }
 
 // OnNewRequest is a callback method which is called after new notary request is added to the notary request pool.

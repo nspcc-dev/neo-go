@@ -12,5 +12,4 @@ type Feer interface {
 	GetUtilityTokenBalance(util.Uint160) *big.Int
 	BlockHeight() uint32
 	P2PSigExtensionsEnabled() bool
-	P2PNotaryModuleEnabled() bool
 }

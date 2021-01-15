@@ -126,10 +126,6 @@ func (fs FeerStub) P2PSigExtensionsEnabled() bool {
 	return false
 }
 
-func (fs FeerStub) P2PNotaryModuleEnabled() bool {
-	return false
-}
-
 func (fs FeerStub) GetBaseExecFee() int64 {
 	return interop.DefaultBaseExecFee
 }

@@ -52,7 +52,7 @@ type testChain struct {
 
 func newTestChain() *testChain {
 	return &testChain{
-		Pool:                  mempool.New(10, 0),
+		Pool:                  mempool.New(10, 0, false),
 		poolTx:                func(*transaction.Transaction) error { return nil },
 		poolTxWithData:        func(*transaction.Transaction, interface{}, *mempool.Pool) error { return nil },
 		blocks:                make(map[util.Uint256]*block.Block),
@@ -141,10 +141,6 @@ func (chain *testChain) FeePerByte() int64 {
 
 func (chain *testChain) P2PSigExtensionsEnabled() bool {
 	return true
-}
-
-func (chain *testChain) P2PNotaryModuleEnabled() bool {
-	return false
 }
 
 func (chain *testChain) GetMaxBlockSystemFee() int64 {
@@ -287,9 +283,6 @@ func (chain *testChain) PoolTx(tx *transaction.Transaction, _ ...*mempool.Pool) 
 	return chain.poolTx(tx)
 }
 func (chain testChain) SetOracle(services.Oracle) {
-	panic("TODO")
-}
-func (chain *testChain) RegisterPoolTxWithDataCallback(f func(t *transaction.Transaction, data interface{})) {
 	panic("TODO")
 }
 func (chain *testChain) SetNotary(notary services.Notary) {

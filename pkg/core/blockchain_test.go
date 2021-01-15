@@ -449,7 +449,7 @@ func TestVerifyTx(t *testing.T) {
 		require.True(t, errors.Is(err, ErrAlreadyExists))
 	})
 	t.Run("MemPoolOOM", func(t *testing.T) {
-		bc.memPool = mempool.New(1, 0)
+		bc.memPool = mempool.New(1, 0, false)
 		tx1 := bc.newTestTx(h, testScript)
 		tx1.NetworkFee += 10000 // Give it more priority.
 		require.NoError(t, accs[0].SignTx(tx1))
@@ -988,7 +988,7 @@ func TestVerifyTx(t *testing.T) {
 			return tx
 		}
 
-		mp := mempool.New(10, 1)
+		mp := mempool.New(10, 1, false)
 		verificationF := func(bc blockchainer.Blockchainer, tx *transaction.Transaction, data interface{}) error {
 			if data.(int) > 5 {
 				return errors.New("bad data")

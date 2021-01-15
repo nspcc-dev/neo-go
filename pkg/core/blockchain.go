@@ -122,8 +122,6 @@ type Blockchain struct {
 	// postBlock is a set of callback methods which should be run under the Blockchain lock after new block is persisted.
 	// Block's transactions are passed via mempool.
 	postBlock []func(blockchainer.Blockchainer, *mempool.Pool, *block.Block)
-	// poolTxWithDataCallbacks is a set of callback methods which should be run nuder the Blockchain lock after successful PoolTxWithData invocation.
-	poolTxWithDataCallbacks []func(t *transaction.Transaction, data interface{})
 
 	sbCommittee keys.PublicKeys
 
@@ -179,7 +177,7 @@ func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration, log *zap.L
 		dao:         dao.NewSimple(s, cfg.Magic, cfg.StateRootInHeader),
 		stopCh:      make(chan struct{}),
 		runToExitCh: make(chan struct{}),
-		memPool:     mempool.New(cfg.MemPoolSize, 0),
+		memPool:     mempool.New(cfg.MemPoolSize, 0, false),
 		sbCommittee: committee,
 		log:         log,
 		events:      make(chan bcEvent),
@@ -485,7 +483,7 @@ func (bc *Blockchain) AddBlock(block *block.Block) error {
 		if !block.MerkleRoot.Equals(merkle) {
 			return errors.New("invalid block: MerkleRoot mismatch")
 		}
-		mp = mempool.New(len(block.Transactions), 0)
+		mp = mempool.New(len(block.Transactions), 0, false)
 		for _, tx := range block.Transactions {
 			var err error
 			// Transactions are verified before adding them
@@ -1645,7 +1643,7 @@ func (bc *Blockchain) verifyStateRootWitness(r *state.MPTRoot) error {
 // current blockchain state. Note that this verification is completely isolated
 // from the main node's mempool.
 func (bc *Blockchain) VerifyTx(t *transaction.Transaction) error {
-	var mp = mempool.New(1, 0)
+	var mp = mempool.New(1, 0, false)
 	bc.lock.RLock()
 	defer bc.lock.RUnlock()
 	return bc.verifyAndPoolTx(t, mp, bc)
@@ -1679,19 +1677,7 @@ func (bc *Blockchain) PoolTxWithData(t *transaction.Transaction, data interface{
 			return err
 		}
 	}
-	if err := bc.verifyAndPoolTx(t, mp, feer, data); err != nil {
-		return err
-	}
-	for _, f := range bc.poolTxWithDataCallbacks {
-		f(t, data)
-	}
-	return nil
-}
-
-// RegisterPoolTxWithDataCallback registers new callback function which is called
-// under the Blockchain lock after successful PoolTxWithData invocation.
-func (bc *Blockchain) RegisterPoolTxWithDataCallback(f func(t *transaction.Transaction, data interface{})) {
-	bc.poolTxWithDataCallbacks = append(bc.poolTxWithDataCallbacks, f)
+	return bc.verifyAndPoolTx(t, mp, feer, data)
 }
 
 //GetStandByValidators returns validators from the configuration.
@@ -1910,11 +1896,6 @@ func (bc *Blockchain) newInteropContext(trigger trigger.Type, d dao.DAO, block *
 		ic.Container = block
 	}
 	return ic
-}
-
-// P2PNotaryModuleEnabled defines whether P2P notary module is enabled.
-func (bc *Blockchain) P2PNotaryModuleEnabled() bool {
-	return bc.config.P2PNotary.Enabled
 }
 
 // P2PSigExtensionsEnabled defines whether P2P signature extensions are enabled.

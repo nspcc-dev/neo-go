@@ -64,7 +64,6 @@ type Blockchainer interface {
 	ManagementContractHash() util.Uint160
 	PoolTx(t *transaction.Transaction, pools ...*mempool.Pool) error
 	PoolTxWithData(t *transaction.Transaction, data interface{}, mp *mempool.Pool, feer mempool.Feer, verificationFunction func(bc Blockchainer, t *transaction.Transaction, data interface{}) error) error
-	RegisterPoolTxWithDataCallback(f func(t *transaction.Transaction, data interface{}))
 	RegisterPostBlock(f func(Blockchainer, *mempool.Pool, *block.Block))
 	SetNotary(mod services.Notary)
 	SubscribeForBlocks(ch chan<- *block.Block)

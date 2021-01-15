@@ -451,7 +451,7 @@ func (s *service) verifyBlock(b block.Block) bool {
 	}
 
 	var fee int64
-	var pool = mempool.New(len(coreb.Transactions), 0)
+	var pool = mempool.New(len(coreb.Transactions), 0, false)
 	var mainPool = s.Chain.GetMemPool()
 	for _, tx := range coreb.Transactions {
 		var err error

@@ -44,12 +44,8 @@ func (fs *FeerStub) P2PSigExtensionsEnabled() bool {
 	return fs.p2pSigExt
 }
 
-func (fs *FeerStub) P2PNotaryModuleEnabled() bool {
-	return false
-}
-
 func testMemPoolAddRemoveWithFeer(t *testing.T, fs Feer) {
-	mp := New(10, 0)
+	mp := New(10, 0, false)
 	tx := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
 	tx.Nonce = 0
 	tx.Signers = []transaction.Signer{{Account: util.Uint160{1, 2, 3}}}
@@ -70,7 +66,7 @@ func testMemPoolAddRemoveWithFeer(t *testing.T, fs Feer) {
 }
 
 func TestMemPoolRemoveStale(t *testing.T) {
-	mp := New(5, 0)
+	mp := New(5, 0, false)
 	txs := make([]*transaction.Transaction, 5)
 	for i := range txs {
 		txs[i] = transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
@@ -121,7 +117,7 @@ func TestMemPoolAddRemove(t *testing.T) {
 func TestOverCapacity(t *testing.T) {
 	var fs = &FeerStub{balance: 10000000}
 	const mempoolSize = 10
-	mp := New(mempoolSize, 0)
+	mp := New(mempoolSize, 0, false)
 
 	for i := 0; i < mempoolSize; i++ {
 		tx := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
@@ -197,7 +193,7 @@ func TestOverCapacity(t *testing.T) {
 func TestGetVerified(t *testing.T) {
 	var fs = &FeerStub{}
 	const mempoolSize = 10
-	mp := New(mempoolSize, 0)
+	mp := New(mempoolSize, 0, false)
 
 	txes := make([]*transaction.Transaction, 0, mempoolSize)
 	for i := 0; i < mempoolSize; i++ {
@@ -221,7 +217,7 @@ func TestGetVerified(t *testing.T) {
 func TestRemoveStale(t *testing.T) {
 	var fs = &FeerStub{}
 	const mempoolSize = 10
-	mp := New(mempoolSize, 0)
+	mp := New(mempoolSize, 0, false)
 
 	txes1 := make([]*transaction.Transaction, 0, mempoolSize/2)
 	txes2 := make([]*transaction.Transaction, 0, mempoolSize/2)
@@ -254,7 +250,7 @@ func TestRemoveStale(t *testing.T) {
 }
 
 func TestMemPoolFees(t *testing.T) {
-	mp := New(10, 0)
+	mp := New(10, 0, false)
 	fs := &FeerStub{balance: 10000000}
 	sender0 := util.Uint160{1, 2, 3}
 	tx0 := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
@@ -365,7 +361,7 @@ func TestMempoolItemsOrder(t *testing.T) {
 }
 
 func TestMempoolAddRemoveOracleResponse(t *testing.T) {
-	mp := New(3, 0)
+	mp := New(3, 0, false)
 	nonce := uint32(0)
 	fs := &FeerStub{balance: 10000}
 	newTx := func(netFee int64, id uint64) *transaction.Transaction {
@@ -435,7 +431,7 @@ func TestMempoolAddRemoveOracleResponse(t *testing.T) {
 
 func TestMempoolAddRemoveConflicts(t *testing.T) {
 	capacity := 6
-	mp := New(capacity, 0)
+	mp := New(capacity, 0, false)
 	var (
 		fs           = &FeerStub{p2pSigExt: true, balance: 100000}
 		nonce uint32 = 1
@@ -565,7 +561,7 @@ func TestMempoolAddWithDataGetData(t *testing.T) {
 		blockHeight: 5,
 		balance:     100,
 	}
-	mp := New(10, 1)
+	mp := New(10, 1, false)
 	newTx := func(t *testing.T, netFee int64) *transaction.Transaction {
 		tx := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.RET)}, 0)
 		tx.Signers = []transaction.Signer{{}, {}}

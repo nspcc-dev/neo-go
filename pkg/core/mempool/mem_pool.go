@@ -10,6 +10,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"go.uber.org/atomic"
 )
 
 var (
@@ -69,8 +70,14 @@ type Pool struct {
 
 	resendThreshold uint32
 	resendFunc      func(*transaction.Transaction, interface{})
-	// removeStaleCallback is a callback method which is called after item is removed from the mempool.
-	removeStaleCallback func(*transaction.Transaction, interface{})
+
+	// subscriptions for mempool events
+	subscriptionsEnabled bool
+	subscriptionsOn      atomic.Bool
+	stopCh               chan struct{}
+	events               chan Event
+	subCh                chan chan<- Event // there are no other events in mempool except Event, so no need in generic subscribers type
+	unsubCh              chan chan<- Event
 }
 
 func (p items) Len() int           { return len(p) }
@@ -251,6 +258,13 @@ func (mp *Pool) Add(t *transaction.Transaction, fee Feer, data ...interface{}) e
 			delete(mp.oracleResp, attrs[0].Value.(*transaction.OracleResponse).ID)
 		}
 		mp.verifiedTxes[len(mp.verifiedTxes)-1] = pItem
+		if mp.subscriptionsOn.Load() {
+			mp.events <- Event{
+				Type: TransactionRemoved,
+				Tx:   unlucky.txn,
+				Data: unlucky.data,
+			}
+		}
 	} else {
 		mp.verifiedTxes = append(mp.verifiedTxes, pItem)
 	}
@@ -271,6 +285,14 @@ func (mp *Pool) Add(t *transaction.Transaction, fee Feer, data ...interface{}) e
 
 	updateMempoolMetrics(len(mp.verifiedTxes))
 	mp.lock.Unlock()
+
+	if mp.subscriptionsOn.Load() {
+		mp.events <- Event{
+			Type: TransactionAdded,
+			Tx:   pItem.txn,
+			Data: pItem.data,
+		}
+	}
 	return nil
 }
 
@@ -309,6 +331,13 @@ func (mp *Pool) removeInternal(hash util.Uint256, feer Feer) {
 		if attrs := tx.GetAttributes(transaction.OracleResponseT); len(attrs) != 0 {
 			delete(mp.oracleResp, attrs[0].Value.(*transaction.OracleResponse).ID)
 		}
+		if mp.subscriptionsOn.Load() {
+			mp.events <- Event{
+				Type: TransactionRemoved,
+				Tx:   itm.txn,
+				Data: itm.data,
+			}
+		}
 	}
 	updateMempoolMetrics(len(mp.verifiedTxes))
 }
@@ -328,8 +357,7 @@ func (mp *Pool) RemoveStale(isOK func(*transaction.Transaction) bool, feer Feer)
 	}
 	height := feer.BlockHeight()
 	var (
-		staleItems   []item
-		removedItems []item
+		staleItems []item
 	)
 	for _, itm := range mp.verifiedTxes {
 		if isOK(itm.txn) && mp.checkPolicy(itm.txn, policyChanged) && mp.tryAddSendersFee(itm.txn, feer, true) {
@@ -353,16 +381,17 @@ func (mp *Pool) RemoveStale(isOK func(*transaction.Transaction) bool, feer Feer)
 			if attrs := itm.txn.GetAttributes(transaction.OracleResponseT); len(attrs) != 0 {
 				delete(mp.oracleResp, attrs[0].Value.(*transaction.OracleResponse).ID)
 			}
-			if feer.P2PSigExtensionsEnabled() && feer.P2PNotaryModuleEnabled() && mp.removeStaleCallback != nil {
-				removedItems = append(removedItems, itm)
+			if mp.subscriptionsOn.Load() {
+				mp.events <- Event{
+					Type: TransactionRemoved,
+					Tx:   itm.txn,
+					Data: itm.data,
+				}
 			}
 		}
 	}
 	if len(staleItems) != 0 {
 		go mp.resendStaleItems(staleItems)
-	}
-	if len(removedItems) != 0 {
-		go mp.postRemoveStale(removedItems)
 	}
 	mp.verifiedTxes = newVerifiedTxes
 	mp.lock.Unlock()
@@ -388,16 +417,23 @@ func (mp *Pool) checkPolicy(tx *transaction.Transaction, policyChanged bool) boo
 }
 
 // New returns a new Pool struct.
-func New(capacity int, payerIndex int) *Pool {
-	return &Pool{
-		verifiedMap:  make(map[util.Uint256]*transaction.Transaction),
-		verifiedTxes: make([]item, 0, capacity),
-		capacity:     capacity,
-		payerIndex:   payerIndex,
-		fees:         make(map[util.Uint160]utilityBalanceAndFees),
-		conflicts:    make(map[util.Uint256][]util.Uint256),
-		oracleResp:   make(map[uint64]util.Uint256),
+func New(capacity int, payerIndex int, enableSubscriptions bool) *Pool {
+	mp := &Pool{
+		verifiedMap:          make(map[util.Uint256]*transaction.Transaction),
+		verifiedTxes:         make([]item, 0, capacity),
+		capacity:             capacity,
+		payerIndex:           payerIndex,
+		fees:                 make(map[util.Uint160]utilityBalanceAndFees),
+		conflicts:            make(map[util.Uint256][]util.Uint256),
+		oracleResp:           make(map[uint64]util.Uint256),
+		subscriptionsEnabled: enableSubscriptions,
+		stopCh:               make(chan struct{}),
+		events:               make(chan Event),
+		subCh:                make(chan chan<- Event),
+		unsubCh:              make(chan chan<- Event),
 	}
+	mp.subscriptionsOn.Store(false)
+	return mp
 }
 
 // SetResendThreshold sets threshold after which transaction will be considered stale
@@ -409,22 +445,9 @@ func (mp *Pool) SetResendThreshold(h uint32, f func(*transaction.Transaction, in
 	mp.resendFunc = f
 }
 
-// SetRemoveStaleCallback registers new callback method which should be called after mempool item is kicked off.
-func (mp *Pool) SetRemoveStaleCallback(f func(t *transaction.Transaction, data interface{})) {
-	mp.lock.Lock()
-	defer mp.lock.Unlock()
-	mp.removeStaleCallback = f
-}
-
 func (mp *Pool) resendStaleItems(items []item) {
 	for i := range items {
 		mp.resendFunc(items[i].txn, items[i].data)
-	}
-}
-
-func (mp *Pool) postRemoveStale(items []item) {
-	for i := range items {
-		mp.removeStaleCallback(items[i].txn, items[i].data)
 	}
 }
 

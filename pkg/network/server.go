@@ -137,14 +137,14 @@ func newServerFromConstructors(config ServerConfig, chain blockchainer.Blockchai
 	}
 	if chain.P2PSigExtensionsEnabled() {
 		s.notaryFeer = NewNotaryFeer(chain)
-		s.notaryRequestPool = mempool.New(chain.GetConfig().P2PNotaryRequestPayloadPoolSize, 1)
+		s.notaryRequestPool = mempool.New(chain.GetConfig().P2PNotaryRequestPayloadPoolSize, 1, chain.GetConfig().P2PNotary.Enabled)
 		chain.RegisterPostBlock(func(bc blockchainer.Blockchainer, txpool *mempool.Pool, _ *block.Block) {
 			s.notaryRequestPool.RemoveStale(func(t *transaction.Transaction) bool {
 				return bc.IsTxStillRelevant(t, txpool, true)
 			}, s.notaryFeer)
 		})
 		if chain.GetConfig().P2PNotary.Enabled {
-			n, err := notary.NewNotary(chain, s.log, func(tx *transaction.Transaction) error {
+			n, err := notary.NewNotary(chain, s.notaryRequestPool, s.log, func(tx *transaction.Transaction) error {
 				r := s.RelayTxn(tx)
 				if r != RelaySucceed {
 					return fmt.Errorf("can't pool notary tx: hash %s, reason: %d", tx.Hash().StringLE(), byte(r))
@@ -156,11 +156,6 @@ func newServerFromConstructors(config ServerConfig, chain blockchainer.Blockchai
 			}
 			s.notaryModule = n
 			chain.SetNotary(n)
-			chain.RegisterPoolTxWithDataCallback(func(_ *transaction.Transaction, data interface{}) {
-				if notaryRequest, ok := data.(*payload.P2PNotaryRequest); ok {
-					s.notaryModule.OnNewRequest(notaryRequest)
-				}
-			})
 			chain.RegisterPostBlock(func(bc blockchainer.Blockchainer, pool *mempool.Pool, b *block.Block) {
 				s.notaryModule.PostPersist(bc, pool, b)
 			})
@@ -261,6 +256,10 @@ func (s *Server) Start(errChan chan error) {
 	if s.oracle != nil {
 		go s.oracle.Run()
 	}
+	if s.notaryModule != nil {
+		s.notaryRequestPool.RunSubscriptions()
+		go s.notaryModule.Run()
+	}
 	go s.relayBlocksLoop()
 	go s.bQueue.run()
 	go s.transport.Accept()
@@ -282,6 +281,10 @@ func (s *Server) Shutdown() {
 	s.bQueue.discard()
 	if s.oracle != nil {
 		s.oracle.Shutdown()
+	}
+	if s.notaryModule != nil {
+		s.notaryModule.Stop()
+		s.notaryRequestPool.StopSubscriptions()
 	}
 	close(s.quit)
 }
@@ -1195,13 +1198,6 @@ func (s *Server) initStaleMemPools() {
 	mp.SetResendThreshold(uint32(threshold), s.broadcastTX)
 	if s.chain.P2PSigExtensionsEnabled() {
 		s.notaryRequestPool.SetResendThreshold(uint32(threshold), s.broadcastP2PNotaryRequestPayload)
-		if s.chain.GetConfig().P2PNotary.Enabled {
-			s.notaryRequestPool.SetRemoveStaleCallback(func(_ *transaction.Transaction, data interface{}) {
-				if notaryRequest, ok := data.(*payload.P2PNotaryRequest); ok {
-					s.notaryModule.OnRequestRemoval(notaryRequest)
-				}
-			})
-		}
 	}
 }
 
