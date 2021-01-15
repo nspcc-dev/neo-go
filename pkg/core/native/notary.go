@@ -52,8 +52,7 @@ var maxNotValidBeforeDeltaKey = []byte{10}
 
 // newNotary returns Notary native contract.
 func newNotary() *Notary {
-	n := &Notary{ContractMD: *interop.NewContractMD(nativenames.Notary)}
-	n.ContractID = notaryContractID
+	n := &Notary{ContractMD: *interop.NewContractMD(nativenames.Notary, notaryContractID)}
 
 	desc := newDescriptor("onPayment", smartcontract.VoidType,
 		manifest.NewParameter("from", smartcontract.Hash160Type),

@@ -57,7 +57,7 @@ type rpcTestCase struct {
 }
 
 const testContractHash = "0b3bc97e94ed99e32dda46c9ecd2d3626979af06"
-const deploymentTxHash = "632b179910b368a34d0b71a1289b24f833186e86ce16b3f805c1ac247a721e16"
+const deploymentTxHash = "4288bb6ad12426a9e34f6af4c050bc291798a46958443d614f457a9a12f087c2"
 const genesisBlockHash = "0542f4350c6e236d0509bcd98188b0034bfbecc1a0c7fcdb8e4295310d468b70"
 
 const verifyContractHash = "d2da8ee8c0bf6c5bf3dda1ef671dbf5fef7226e9"
@@ -155,12 +155,12 @@ var rpcTestCases = map[string][]rpcTestCase{
 		},
 		{
 			name:   "positive, by id",
-			params: `[0]`,
+			params: `[1]`,
 			result: func(e *executor) interface{} { return &state.Contract{} },
 			check: func(t *testing.T, e *executor, cs interface{}) {
 				res, ok := cs.(*state.Contract)
 				require.True(t, ok)
-				assert.Equal(t, int32(0), res.ID)
+				assert.Equal(t, int32(1), res.ID)
 			},
 		},
 		{
@@ -180,7 +180,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 			check: func(t *testing.T, e *executor, cs interface{}) {
 				res, ok := cs.(*state.Contract)
 				require.True(t, ok)
-				assert.Equal(t, int32(-3), res.ID)
+				assert.Equal(t, int32(-4), res.ID)
 			},
 		},
 		{

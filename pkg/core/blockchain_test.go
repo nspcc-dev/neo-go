@@ -20,7 +20,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/core/mempool"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
-	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
@@ -557,7 +556,7 @@ func TestVerifyTx(t *testing.T) {
 					})
 					tx.Scripts = append(tx.Scripts, transaction.Witness{})
 					t.Run("NonZeroVerification", func(t *testing.T) {
-						script, _ := state.CreateNativeContractHash(nativenames.Oracle)
+						script, _ := state.CreateNativeContractHash(-6) //oracleContractID
 						w := io.NewBufBinWriter()
 						emit.Opcodes(w.BinWriter, opcode.ABORT)
 						emit.Bytes(w.BinWriter, util.Uint160{}.BytesBE())
@@ -975,7 +974,7 @@ func TestVerifyTx(t *testing.T) {
 				fee.Opcode(bc.GetBaseExecFee(), // Notary verification script
 					opcode.PUSHDATA1, opcode.RET, // invocation script
 					opcode.PUSHDATA1, opcode.RET, // arguments for native verification call
-					opcode.PUSHDATA1, opcode.SYSCALL, opcode.RET) + // Neo.Native.Call
+					opcode.PUSHINT8, opcode.SYSCALL, opcode.RET) + // Neo.Native.Call
 				native.NotaryVerificationPrice // Notary witness verification price
 			tx.Scripts = []transaction.Witness{
 				{

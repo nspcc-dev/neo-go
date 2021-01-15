@@ -61,7 +61,7 @@ const testSumPrice = 1 << 15 * interop.DefaultBaseExecFee // same as contract.Ca
 
 func newTestNative() *testNative {
 	tn := &testNative{
-		meta:   *interop.NewContractMD("Test.Native.Sum"),
+		meta:   *interop.NewContractMD("Test.Native.Sum", 0),
 		blocks: make(chan uint32, 1),
 	}
 	desc := &manifest.Method{
@@ -181,10 +181,9 @@ func TestNativeContract_Invoke(t *testing.T) {
 
 	// System.Contract.Call + "sum" itself + opcodes for pushing arguments.
 	price := int64(testSumPrice * 2)
-	price += 3 * fee.Opcode(chain.GetBaseExecFee(), opcode.PUSHINT8, opcode.PUSHDATA1)
-	price += 2 * fee.Opcode(chain.GetBaseExecFee(), opcode.SYSCALL)
+	price += 3 * fee.Opcode(chain.GetBaseExecFee(), opcode.PUSHINT8)
+	price += 2 * fee.Opcode(chain.GetBaseExecFee(), opcode.SYSCALL, opcode.PUSHDATA1, opcode.PUSHINT8)
 	price += fee.Opcode(chain.GetBaseExecFee(), opcode.PACK)
-	price += fee.Opcode(chain.GetBaseExecFee(), opcode.PUSHINT8)
 	res, err := invokeContractMethod(chain, price, tn.Metadata().Hash, "sum", int64(14), int64(28))
 	require.NoError(t, err)
 	checkResult(t, res, stackitem.Make(42))
@@ -237,7 +236,7 @@ func TestNativeContract_InvokeInternal(t *testing.T) {
 		v.Estack().PushVal(14)
 		v.Estack().PushVal(28)
 		v.Estack().PushVal("sum")
-		v.Estack().PushVal(tn.Metadata().Name)
+		v.Estack().PushVal(tn.Metadata().ContractID)
 
 		require.NoError(t, native.Call(ic))
 

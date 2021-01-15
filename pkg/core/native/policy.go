@@ -21,7 +21,7 @@ import (
 )
 
 const (
-	policyContractID = -3
+	policyContractID = -4
 
 	defaultMaxBlockSize            = 1024 * 256
 	defaultMaxTransactionsPerBlock = 512
@@ -81,9 +81,7 @@ var _ interop.Contract = (*Policy)(nil)
 
 // newPolicy returns Policy native contract.
 func newPolicy() *Policy {
-	p := &Policy{ContractMD: *interop.NewContractMD(nativenames.Policy)}
-
-	p.ContractID = policyContractID
+	p := &Policy{ContractMD: *interop.NewContractMD(nativenames.Policy, policyContractID)}
 
 	desc := newDescriptor("getMaxTransactionsPerBlock", smartcontract.IntegerType)
 	md := newMethodAndPrice(p.getMaxTransactionsPerBlock, 1000000, callflag.ReadStates)

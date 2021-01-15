@@ -108,10 +108,11 @@ type ContractMD struct {
 }
 
 // NewContractMD returns Contract with the specified list of methods.
-func NewContractMD(name string) *ContractMD {
+func NewContractMD(name string, id int32) *ContractMD {
 	c := &ContractMD{
-		Name:    name,
-		Methods: make(map[string]MethodAndPrice),
+		Name:       name,
+		ContractID: id,
+		Methods:    make(map[string]MethodAndPrice),
 	}
 
 	// NEF is now stored in contract state and affects state dump.
@@ -119,7 +120,7 @@ func NewContractMD(name string) *ContractMD {
 	c.NEF.Header.Compiler = "ScriptBuilder"
 	c.NEF.Header.Magic = nef.Magic
 	c.NEF.Header.Version = "3.0"
-	c.NEF.Script, c.Hash = state.CreateNativeContractHash(c.Name)
+	c.NEF.Script, c.Hash = state.CreateNativeContractHash(id)
 	c.NEF.Checksum = c.NEF.CalculateChecksum()
 	c.Manifest = *manifest.DefaultManifest(name)
 

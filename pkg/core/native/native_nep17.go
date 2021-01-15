@@ -42,8 +42,8 @@ func (c *nep17TokenNative) Metadata() *interop.ContractMD {
 	return &c.ContractMD
 }
 
-func newNEP17Native(name string) *nep17TokenNative {
-	n := &nep17TokenNative{ContractMD: *interop.NewContractMD(name)}
+func newNEP17Native(name string, id int32) *nep17TokenNative {
+	n := &nep17TokenNative{ContractMD: *interop.NewContractMD(name, id)}
 	n.Manifest.SupportedStandards = []string{manifest.NEP17StandardName}
 
 	desc := newDescriptor("symbol", smartcontract.StringType)
