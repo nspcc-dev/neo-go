@@ -17,10 +17,10 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
@@ -65,32 +65,32 @@ func newManagement() *Management {
 
 	desc := newDescriptor("getContract", smartcontract.ArrayType,
 		manifest.NewParameter("hash", smartcontract.Hash160Type))
-	md := newMethodAndPrice(m.getContract, 1000000, smartcontract.ReadStates)
+	md := newMethodAndPrice(m.getContract, 1000000, callflag.ReadStates)
 	m.AddMethod(md, desc)
 
 	desc = newDescriptor("deploy", smartcontract.ArrayType,
 		manifest.NewParameter("script", smartcontract.ByteArrayType),
 		manifest.NewParameter("manifest", smartcontract.ByteArrayType))
-	md = newMethodAndPrice(m.deploy, 0, smartcontract.WriteStates|smartcontract.AllowNotify)
+	md = newMethodAndPrice(m.deploy, 0, callflag.WriteStates|callflag.AllowNotify)
 	m.AddMethod(md, desc)
 
 	desc = newDescriptor("update", smartcontract.VoidType,
 		manifest.NewParameter("script", smartcontract.ByteArrayType),
 		manifest.NewParameter("manifest", smartcontract.ByteArrayType))
-	md = newMethodAndPrice(m.update, 0, smartcontract.WriteStates|smartcontract.AllowNotify)
+	md = newMethodAndPrice(m.update, 0, callflag.WriteStates|callflag.AllowNotify)
 	m.AddMethod(md, desc)
 
 	desc = newDescriptor("destroy", smartcontract.VoidType)
-	md = newMethodAndPrice(m.destroy, 1000000, smartcontract.WriteStates|smartcontract.AllowNotify)
+	md = newMethodAndPrice(m.destroy, 1000000, callflag.WriteStates|callflag.AllowNotify)
 	m.AddMethod(md, desc)
 
 	desc = newDescriptor("getMinimumDeploymentFee", smartcontract.IntegerType)
-	md = newMethodAndPrice(m.getMinimumDeploymentFee, 100_0000, smartcontract.ReadStates)
+	md = newMethodAndPrice(m.getMinimumDeploymentFee, 100_0000, callflag.ReadStates)
 	m.AddMethod(md, desc)
 
 	desc = newDescriptor("setMinimumDeploymentFee", smartcontract.BoolType,
 		manifest.NewParameter("value", smartcontract.IntegerType))
-	md = newMethodAndPrice(m.setMinimumDeploymentFee, 300_0000, smartcontract.WriteStates)
+	md = newMethodAndPrice(m.setMinimumDeploymentFee, 300_0000, callflag.WriteStates)
 	m.AddMethod(md, desc)
 
 	hashParam := manifest.NewParameter("Hash", smartcontract.Hash160Type)
@@ -221,7 +221,7 @@ func (m *Management) deploy(ic *interop.Context, args []stackitem.Item) stackite
 	if err != nil {
 		panic(err)
 	}
-	callDeploy(ic, newcontract, false)
+	m.callDeploy(ic, newcontract, false)
 	m.emitNotification(ic, contractDeployNotificationName, newcontract.Hash)
 	return contractToStack(newcontract)
 }
@@ -277,7 +277,7 @@ func (m *Management) update(ic *interop.Context, args []stackitem.Item) stackite
 	if err != nil {
 		panic(err)
 	}
-	callDeploy(ic, contract, true)
+	m.callDeploy(ic, contract, true)
 	m.emitNotification(ic, contractUpdateNotificationName, contract.Hash)
 	return stackitem.Null{}
 }
@@ -379,11 +379,11 @@ func (m *Management) setMinimumDeploymentFee(ic *interop.Context, args []stackit
 	return stackitem.NewBool(true)
 }
 
-func callDeploy(ic *interop.Context, cs *state.Contract, isUpdate bool) {
+func (m *Management) callDeploy(ic *interop.Context, cs *state.Contract, isUpdate bool) {
 	md := cs.Manifest.ABI.GetMethod(manifest.MethodDeploy)
 	if md != nil {
-		err := contract.CallExInternal(ic, cs, manifest.MethodDeploy,
-			[]stackitem.Item{stackitem.NewBool(isUpdate)}, smartcontract.All, vm.EnsureIsEmpty)
+		err := contract.CallFromNative(ic, m.Hash, cs, manifest.MethodDeploy,
+			[]stackitem.Item{stackitem.NewBool(isUpdate)}, false)
 		if err != nil {
 			panic(err)
 		}

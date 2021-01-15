@@ -20,7 +20,6 @@ const (
 	SystemCallbackCreateFromSyscall          = "System.Callback.CreateFromSyscall"
 	SystemCallbackInvoke                     = "System.Callback.Invoke"
 	SystemContractCall                       = "System.Contract.Call"
-	SystemContractCallEx                     = "System.Contract.CallEx"
 	SystemContractCallNative                 = "System.Contract.CallNative"
 	SystemContractCreateStandardAccount      = "System.Contract.CreateStandardAccount"
 	SystemContractIsStandard                 = "System.Contract.IsStandard"
@@ -86,7 +85,6 @@ var names = []string{
 	SystemCallbackCreateFromSyscall,
 	SystemCallbackInvoke,
 	SystemContractCall,
-	SystemContractCallEx,
 	SystemContractCallNative,
 	SystemContractCreateStandardAccount,
 	SystemContractIsStandard,

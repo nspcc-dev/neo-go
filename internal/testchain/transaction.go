@@ -13,6 +13,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
@@ -28,7 +29,7 @@ var (
 func NewTransferFromOwner(bc blockchainer.Blockchainer, contractHash, to util.Uint160, amount int64,
 	nonce, validUntil uint32) (*transaction.Transaction, error) {
 	w := io.NewBufBinWriter()
-	emit.AppCallWithOperationAndArgs(w.BinWriter, contractHash, "transfer", ownerHash, to, amount, nil)
+	emit.AppCall(w.BinWriter, contractHash, "transfer", callflag.All, ownerHash, to, amount, nil)
 	emit.Opcodes(w.BinWriter, opcode.ASSERT)
 	if w.Err != nil {
 		return nil, w.Err
@@ -76,7 +77,7 @@ func NewDeployTx(bc blockchainer.Blockchainer, name string, sender util.Uint160,
 		return nil, util.Uint160{}, err
 	}
 	buf := io.NewBufBinWriter()
-	emit.AppCallWithOperationAndArgs(buf.BinWriter, bc.ManagementContractHash(), "deploy", neb, rawManifest)
+	emit.AppCall(buf.BinWriter, bc.ManagementContractHash(), "deploy", callflag.All, neb, rawManifest)
 	if buf.Err != nil {
 		return nil, util.Uint160{}, buf.Err
 	}

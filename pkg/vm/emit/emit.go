@@ -10,6 +10,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
 	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
@@ -150,17 +151,18 @@ func Jmp(w *io.BinWriter, op opcode.Opcode, label uint16) {
 	Instruction(w, op, buf)
 }
 
-// AppCall emits call to provided contract.
-func AppCall(w *io.BinWriter, scriptHash util.Uint160) {
+// AppCallNoArgs emits call to provided contract.
+func AppCallNoArgs(w *io.BinWriter, scriptHash util.Uint160, operation string, f callflag.CallFlag) {
+	Int(w, int64(f))
+	String(w, operation)
 	Bytes(w, scriptHash.BytesBE())
 	Syscall(w, interopnames.SystemContractCall)
 }
 
-// AppCallWithOperationAndArgs emits an APPCALL with the given operation and arguments.
-func AppCallWithOperationAndArgs(w *io.BinWriter, scriptHash util.Uint160, operation string, args ...interface{}) {
+// AppCall emits an APPCALL with the default parameters given operation and arguments.
+func AppCall(w *io.BinWriter, scriptHash util.Uint160, operation string, f callflag.CallFlag, args ...interface{}) {
 	Array(w, args...)
-	String(w, operation)
-	AppCall(w, scriptHash)
+	AppCallNoArgs(w, scriptHash, operation, f)
 }
 
 func isInstructionJmp(op opcode.Opcode) bool {

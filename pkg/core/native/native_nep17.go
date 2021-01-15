@@ -12,9 +12,9 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
@@ -47,20 +47,20 @@ func newNEP17Native(name string) *nep17TokenNative {
 	n.Manifest.SupportedStandards = []string{manifest.NEP17StandardName}
 
 	desc := newDescriptor("symbol", smartcontract.StringType)
-	md := newMethodAndPrice(n.Symbol, 0, smartcontract.NoneFlag)
+	md := newMethodAndPrice(n.Symbol, 0, callflag.NoneFlag)
 	n.AddMethod(md, desc)
 
 	desc = newDescriptor("decimals", smartcontract.IntegerType)
-	md = newMethodAndPrice(n.Decimals, 0, smartcontract.NoneFlag)
+	md = newMethodAndPrice(n.Decimals, 0, callflag.NoneFlag)
 	n.AddMethod(md, desc)
 
 	desc = newDescriptor("totalSupply", smartcontract.IntegerType)
-	md = newMethodAndPrice(n.TotalSupply, 1000000, smartcontract.ReadStates)
+	md = newMethodAndPrice(n.TotalSupply, 1000000, callflag.ReadStates)
 	n.AddMethod(md, desc)
 
 	desc = newDescriptor("balanceOf", smartcontract.IntegerType,
 		manifest.NewParameter("account", smartcontract.Hash160Type))
-	md = newMethodAndPrice(n.balanceOf, 1000000, smartcontract.ReadStates)
+	md = newMethodAndPrice(n.balanceOf, 1000000, callflag.ReadStates)
 	n.AddMethod(md, desc)
 
 	transferParams := []manifest.Parameter{
@@ -71,7 +71,7 @@ func newNEP17Native(name string) *nep17TokenNative {
 	desc = newDescriptor("transfer", smartcontract.BoolType,
 		append(transferParams, manifest.NewParameter("data", smartcontract.AnyType))...,
 	)
-	md = newMethodAndPrice(n.Transfer, 9000000, smartcontract.WriteStates|smartcontract.AllowCall|smartcontract.AllowNotify)
+	md = newMethodAndPrice(n.Transfer, 9000000, callflag.WriteStates|callflag.AllowCall|callflag.AllowNotify)
 	n.AddMethod(md, desc)
 
 	n.AddEvent("Transfer", transferParams...)
@@ -143,7 +143,7 @@ func (c *nep17TokenNative) postTransfer(ic *interop.Context, from, to *util.Uint
 		stackitem.NewBigInteger(amount),
 		data,
 	}
-	if err := contract.CallFromNative(ic, c.Hash, cs, manifest.MethodOnPayment, args, vm.EnsureIsEmpty); err != nil {
+	if err := contract.CallFromNative(ic, c.Hash, cs, manifest.MethodOnPayment, args, false); err != nil {
 		panic(err)
 	}
 }
@@ -278,7 +278,7 @@ func newDescriptor(name string, ret smartcontract.ParamType, ps ...manifest.Para
 	}
 }
 
-func newMethodAndPrice(f interop.Method, price int64, flags smartcontract.CallFlag) *interop.MethodAndPrice {
+func newMethodAndPrice(f interop.Method, price int64, flags callflag.CallFlag) *interop.MethodAndPrice {
 	return &interop.MethodAndPrice{
 		Func:          f,
 		Price:         price,

@@ -25,6 +25,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/encoding/fixedn"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
@@ -298,7 +299,7 @@ func initBasicChain(t *testing.T, bc *Blockchain) {
 
 	// Now invoke this contract.
 	script := io.NewBufBinWriter()
-	emit.AppCallWithOperationAndArgs(script.BinWriter, cHash, "putValue", "testkey", "testvalue")
+	emit.AppCall(script.BinWriter, cHash, "putValue", callflag.All, "testkey", "testvalue")
 
 	txInv := transaction.New(testchain.Network(), script.Bytes(), 1*native.GASFactor)
 	txInv.Nonce = getNextNonce()
@@ -328,7 +329,7 @@ func initBasicChain(t *testing.T, bc *Blockchain) {
 	require.NoError(t, bc.AddBlock(b))
 
 	w := io.NewBufBinWriter()
-	emit.AppCallWithOperationAndArgs(w.BinWriter, cHash, "init")
+	emit.AppCall(w.BinWriter, cHash, "init", callflag.All)
 	initTx := transaction.New(testchain.Network(), w.Bytes(), 1*native.GASFactor)
 	initTx.Nonce = getNextNonce()
 	initTx.ValidUntilBlock = validUntilBlock
@@ -383,7 +384,7 @@ func initBasicChain(t *testing.T, bc *Blockchain) {
 
 func newNEP17Transfer(sc, from, to util.Uint160, amount int64, additionalArgs ...interface{}) *transaction.Transaction {
 	w := io.NewBufBinWriter()
-	emit.AppCallWithOperationAndArgs(w.BinWriter, sc, "transfer", from, to, amount, additionalArgs)
+	emit.AppCall(w.BinWriter, sc, "transfer", callflag.All, from, to, amount, additionalArgs)
 	emit.Opcodes(w.BinWriter, opcode.ASSERT)
 
 	script := w.Bytes()
@@ -430,7 +431,7 @@ func addNetworkFee(bc *Blockchain, tx *transaction.Transaction, sender *wallet.A
 func prepareContractMethodInvoke(chain *Blockchain, sysfee int64,
 	hash util.Uint160, method string, args ...interface{}) (*transaction.Transaction, error) {
 	w := io.NewBufBinWriter()
-	emit.AppCallWithOperationAndArgs(w.BinWriter, hash, method, args...)
+	emit.AppCall(w.BinWriter, hash, method, callflag.All, args...)
 	if w.Err != nil {
 		return nil, w.Err
 	}
@@ -487,7 +488,7 @@ func invokeContractMethodBy(t *testing.T, chain *Blockchain, signer *wallet.Acco
 	require.Equal(t, 0, len(res[0].Stack))
 
 	w := io.NewBufBinWriter()
-	emit.AppCallWithOperationAndArgs(w.BinWriter, hash, method, args...)
+	emit.AppCall(w.BinWriter, hash, method, callflag.All, args...)
 	if w.Err != nil {
 		return nil, w.Err
 	}

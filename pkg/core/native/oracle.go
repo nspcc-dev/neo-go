@@ -20,9 +20,9 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
@@ -56,6 +56,7 @@ func init() {
 	w := io.NewBufBinWriter()
 	emit.Int(w.BinWriter, 0)
 	emit.Opcodes(w.BinWriter, opcode.NEWARRAY)
+	emit.Int(w.BinWriter, int64(callflag.All))
 	emit.String(w.BinWriter, "finish")
 	emit.Bytes(w.BinWriter, h.BytesBE())
 	emit.Syscall(w.BinWriter, interopnames.SystemContractCall)
@@ -94,15 +95,15 @@ func newOracle() *Oracle {
 		manifest.NewParameter("callback", smartcontract.StringType),
 		manifest.NewParameter("userData", smartcontract.AnyType),
 		manifest.NewParameter("gasForResponse", smartcontract.IntegerType))
-	md := newMethodAndPrice(o.request, oracleRequestPrice, smartcontract.WriteStates|smartcontract.AllowNotify)
+	md := newMethodAndPrice(o.request, oracleRequestPrice, callflag.WriteStates|callflag.AllowNotify)
 	o.AddMethod(md, desc)
 
 	desc = newDescriptor("finish", smartcontract.VoidType)
-	md = newMethodAndPrice(o.finish, 0, smartcontract.WriteStates|smartcontract.AllowCall|smartcontract.AllowNotify)
+	md = newMethodAndPrice(o.finish, 0, callflag.WriteStates|callflag.AllowCall|callflag.AllowNotify)
 	o.AddMethod(md, desc)
 
 	desc = newDescriptor("verify", smartcontract.BoolType)
-	md = newMethodAndPrice(o.verify, 100_0000, smartcontract.NoneFlag)
+	md = newMethodAndPrice(o.verify, 100_0000, callflag.NoneFlag)
 	o.AddMethod(md, desc)
 
 	o.AddEvent("OracleRequest", manifest.NewParameter("Id", smartcontract.IntegerType),
@@ -238,7 +239,7 @@ func (o *Oracle) FinishInternal(ic *interop.Context) error {
 	if err != nil {
 		return err
 	}
-	return contract.CallFromNative(ic, o.Hash, cs, req.CallbackMethod, args, vm.EnsureIsEmpty)
+	return contract.CallFromNative(ic, o.Hash, cs, req.CallbackMethod, args, false)
 }
 
 func (o *Oracle) request(ic *interop.Context, args []stackitem.Item) stackitem.Item {

@@ -6,7 +6,7 @@ import (
 	"sort"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
-	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
@@ -15,7 +15,7 @@ type interopIDFuncPrice struct {
 	ID            uint32
 	Func          func(vm *VM) error
 	Price         int64
-	RequiredFlags smartcontract.CallFlag
+	RequiredFlags callflag.CallFlag
 }
 
 var defaultVMInterops = []interopIDFuncPrice{
@@ -24,9 +24,9 @@ var defaultVMInterops = []interopIDFuncPrice{
 	{ID: interopnames.ToID([]byte(interopnames.SystemBinarySerialize)),
 		Func: RuntimeSerialize, Price: 1 << 12},
 	{ID: interopnames.ToID([]byte(interopnames.SystemRuntimeLog)),
-		Func: runtimeLog, Price: 1 << 15, RequiredFlags: smartcontract.AllowNotify},
+		Func: runtimeLog, Price: 1 << 15, RequiredFlags: callflag.AllowNotify},
 	{ID: interopnames.ToID([]byte(interopnames.SystemRuntimeNotify)),
-		Func: runtimeNotify, Price: 1 << 15, RequiredFlags: smartcontract.AllowNotify},
+		Func: runtimeNotify, Price: 1 << 15, RequiredFlags: callflag.AllowNotify},
 	{ID: interopnames.ToID([]byte(interopnames.SystemEnumeratorCreate)),
 		Func: EnumeratorCreate, Price: 1 << 4},
 	{ID: interopnames.ToID([]byte(interopnames.SystemEnumeratorNext)),

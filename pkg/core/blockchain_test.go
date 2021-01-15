@@ -28,6 +28,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
@@ -272,12 +273,12 @@ func TestVerifyTx(t *testing.T) {
 			if sc.Equals(gasHash) {
 				amount = 1_000_000_000
 			}
-			emit.AppCallWithOperationAndArgs(w.BinWriter, sc, "transfer",
+			emit.AppCall(w.BinWriter, sc, "transfer", callflag.All,
 				neoOwner, a.Contract.ScriptHash(), amount, nil)
 			emit.Opcodes(w.BinWriter, opcode.ASSERT)
 		}
 	}
-	emit.AppCallWithOperationAndArgs(w.BinWriter, gasHash, "transfer",
+	emit.AppCall(w.BinWriter, gasHash, "transfer", callflag.All,
 		neoOwner, testchain.CommitteeScriptHash(), int64(1_000_000_000), nil)
 	emit.Opcodes(w.BinWriter, opcode.ASSERT)
 	require.NoError(t, w.Err)
@@ -973,7 +974,7 @@ func TestVerifyTx(t *testing.T) {
 				transaction.NotaryServiceFeePerKey + // fee for Notary attribute
 				fee.Opcode(bc.GetBaseExecFee(), // Notary verification script
 					opcode.PUSHDATA1, opcode.RET, // invocation script
-					opcode.DEPTH, opcode.PACK, opcode.PUSHDATA1, opcode.RET, // arguments for native verification call
+					opcode.PUSHDATA1, opcode.RET, // arguments for native verification call
 					opcode.PUSHDATA1, opcode.SYSCALL, opcode.RET) + // Neo.Native.Call
 				native.NotaryVerificationPrice // Notary witness verification price
 			tx.Scripts = []transaction.Witness{

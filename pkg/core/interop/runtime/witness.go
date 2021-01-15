@@ -8,7 +8,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
-	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 )
@@ -53,7 +53,7 @@ func checkScope(ic *interop.Context, tx *transaction.Transaction, v *vm.VM, hash
 				if callingScriptHash.Equals(util.Uint160{}) {
 					return false, nil
 				}
-				if !v.Context().GetCallFlags().Has(smartcontract.ReadStates) {
+				if !v.Context().GetCallFlags().Has(callflag.ReadStates) {
 					return false, errors.New("missing ReadStates call flag")
 				}
 				cs, err := ic.GetContract(callingScriptHash)

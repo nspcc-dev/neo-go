@@ -14,6 +14,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -75,7 +76,7 @@ func newTestNative() *testNative {
 	md := &interop.MethodAndPrice{
 		Func:          tn.sum,
 		Price:         testSumPrice,
-		RequiredFlags: smartcontract.NoneFlag,
+		RequiredFlags: callflag.NoneFlag,
 	}
 	tn.meta.AddMethod(md, desc)
 
@@ -92,7 +93,7 @@ func newTestNative() *testNative {
 	md = &interop.MethodAndPrice{
 		Func:          tn.callOtherContractNoReturn,
 		Price:         testSumPrice,
-		RequiredFlags: smartcontract.NoneFlag}
+		RequiredFlags: callflag.NoneFlag}
 	tn.meta.AddMethod(md, desc)
 
 	desc = &manifest.Method{
@@ -107,7 +108,7 @@ func newTestNative() *testNative {
 	md = &interop.MethodAndPrice{
 		Func:          tn.callOtherContractWithReturn,
 		Price:         testSumPrice,
-		RequiredFlags: smartcontract.NoneFlag}
+		RequiredFlags: callflag.NoneFlag}
 	tn.meta.AddMethod(md, desc)
 
 	return tn
@@ -137,7 +138,7 @@ func toUint160(item stackitem.Item) util.Uint160 {
 	return u
 }
 
-func (tn *testNative) call(ic *interop.Context, args []stackitem.Item, checkReturn vm.CheckReturnState) {
+func (tn *testNative) call(ic *interop.Context, args []stackitem.Item, hasReturn bool) {
 	cs, err := ic.GetContract(toUint160(args[0]))
 	if err != nil {
 		panic(err)
@@ -146,19 +147,19 @@ func (tn *testNative) call(ic *interop.Context, args []stackitem.Item, checkRetu
 	if err != nil {
 		panic(err)
 	}
-	err = contract.CallFromNative(ic, tn.meta.Hash, cs, string(bs), args[2].Value().([]stackitem.Item), checkReturn)
+	err = contract.CallFromNative(ic, tn.meta.Hash, cs, string(bs), args[2].Value().([]stackitem.Item), hasReturn)
 	if err != nil {
 		panic(err)
 	}
 }
 
 func (tn *testNative) callOtherContractNoReturn(ic *interop.Context, args []stackitem.Item) stackitem.Item {
-	tn.call(ic, args, vm.EnsureIsEmpty)
+	tn.call(ic, args, false)
 	return stackitem.Null{}
 }
 
 func (tn *testNative) callOtherContractWithReturn(ic *interop.Context, args []stackitem.Item) stackitem.Item {
-	tn.call(ic, args, vm.EnsureNotEmpty)
+	tn.call(ic, args, true)
 	bi := ic.VM.Estack().Pop().BigInt()
 	return stackitem.Make(bi.Add(bi, big.NewInt(1)))
 }
@@ -183,6 +184,7 @@ func TestNativeContract_Invoke(t *testing.T) {
 	price += 3 * fee.Opcode(chain.GetBaseExecFee(), opcode.PUSHINT8, opcode.PUSHDATA1)
 	price += 2 * fee.Opcode(chain.GetBaseExecFee(), opcode.SYSCALL)
 	price += fee.Opcode(chain.GetBaseExecFee(), opcode.PACK)
+	price += fee.Opcode(chain.GetBaseExecFee(), opcode.PUSHINT8)
 	res, err := invokeContractMethod(chain, price, tn.Metadata().Hash, "sum", int64(14), int64(28))
 	require.NoError(t, err)
 	checkResult(t, res, stackitem.Make(42))
@@ -220,8 +222,9 @@ func TestNativeContract_InvokeInternal(t *testing.T) {
 	v := ic.SpawnVM()
 
 	t.Run("fail, bad current script hash", func(t *testing.T) {
-		v.LoadScriptWithHash([]byte{1}, util.Uint160{1, 2, 3}, smartcontract.All)
-		v.Estack().PushVal(stackitem.NewArray([]stackitem.Item{stackitem.NewBigInteger(big.NewInt(14)), stackitem.NewBigInteger(big.NewInt(28))}))
+		v.LoadScriptWithHash([]byte{1}, util.Uint160{1, 2, 3}, callflag.All)
+		v.Estack().PushVal(14)
+		v.Estack().PushVal(28)
 		v.Estack().PushVal("sum")
 		v.Estack().PushVal(tn.Metadata().Name)
 
@@ -230,8 +233,9 @@ func TestNativeContract_InvokeInternal(t *testing.T) {
 	})
 
 	t.Run("success", func(t *testing.T) {
-		v.LoadScriptWithHash([]byte{1}, tn.Metadata().Hash, smartcontract.All)
-		v.Estack().PushVal(stackitem.NewArray([]stackitem.Item{stackitem.NewBigInteger(big.NewInt(14)), stackitem.NewBigInteger(big.NewInt(28))}))
+		v.LoadScriptWithHash([]byte{1}, tn.Metadata().Hash, callflag.All)
+		v.Estack().PushVal(14)
+		v.Estack().PushVal(28)
 		v.Estack().PushVal("sum")
 		v.Estack().PushVal(tn.Metadata().Name)
 
@@ -272,6 +276,7 @@ func TestNativeContract_InvokeOtherContract(t *testing.T) {
 		res, err := invokeContractMethod(chain, testSumPrice*4+10000, tn.Metadata().Hash, "callOtherContractNoReturn", cs.Hash, "justReturn", []interface{}{})
 		require.NoError(t, err)
 		drainTN(t)
+		require.Equal(t, vm.HaltState, res.VMState, res.FaultException)
 		checkResult(t, res, stackitem.Null{}) // simple call is done with EnsureNotEmpty
 	})
 	t.Run("non-native, with return", func(t *testing.T) {

@@ -14,6 +14,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/client"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
@@ -276,7 +277,7 @@ func TestCreateNEP17TransferTx(t *testing.T) {
 	require.NoError(t, acc.SignTx(tx))
 	require.NoError(t, chain.VerifyTx(tx))
 	v := chain.GetTestVM(trigger.Application, tx, nil)
-	v.LoadScriptWithFlags(tx.Script, smartcontract.All)
+	v.LoadScriptWithFlags(tx.Script, callflag.All)
 	require.NoError(t, v.Run())
 }
 

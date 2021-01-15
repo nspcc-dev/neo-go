@@ -31,7 +31,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/rpc/request"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result"
-	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -1097,7 +1097,7 @@ func (s *Server) invokeFunction(reqParams request.Params) (interface{}, *respons
 	if len(tx.Signers) == 0 {
 		tx.Signers = []transaction.Signer{{Account: util.Uint160{}, Scopes: transaction.None}}
 	}
-	script, err := request.CreateFunctionInvocationScript(scriptHash, reqParams[1:checkWitnessHashesIndex])
+	script, err := request.CreateFunctionInvocationScript(scriptHash, reqParams[1].String(), reqParams[2:checkWitnessHashesIndex])
 	if err != nil {
 		return nil, response.NewInternalServerError("can't create invocation script", err)
 	}
@@ -1138,14 +1138,7 @@ func (s *Server) invokeContractVerify(reqParams request.Params) (interface{}, *r
 		return nil, responseErr
 	}
 
-	args := make(request.Params, 1)
-	args[0] = request.Param{
-		Type:  request.StringT,
-		Value: manifest.MethodVerify,
-	}
-	if len(reqParams) > 1 {
-		args = append(args, reqParams[1])
-	}
+	args := reqParams[1:2]
 	var tx *transaction.Transaction
 	if len(reqParams) > 2 {
 		signers, witnesses, err := reqParams[2].GetSignersWithWitnesses()
@@ -1162,7 +1155,7 @@ func (s *Server) invokeContractVerify(reqParams request.Params) (interface{}, *r
 	if cs == nil {
 		return nil, response.NewRPCError("unknown contract", scriptHash.StringBE(), nil)
 	}
-	script, err := request.CreateFunctionInvocationScript(cs.Hash, args)
+	script, err := request.CreateFunctionInvocationScript(cs.Hash, manifest.MethodVerify, args)
 	if err != nil {
 		return nil, response.NewInternalServerError("can't create invocation script", err)
 	}
@@ -1188,7 +1181,7 @@ func (s *Server) runScriptInVM(t trigger.Type, script []byte, tx *transaction.Tr
 
 	vm := s.chain.GetTestVM(t, tx, b)
 	vm.GasLimit = int64(s.config.MaxGasInvoke)
-	vm.LoadScriptWithFlags(script, smartcontract.All)
+	vm.LoadScriptWithFlags(script, callflag.All)
 	err = vm.Run()
 	var faultException string
 	if err != nil {

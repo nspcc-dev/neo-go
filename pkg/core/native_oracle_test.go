@@ -16,6 +16,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
@@ -32,9 +33,11 @@ func getOracleContractState(h util.Uint160) *state.Contract {
 	w := io.NewBufBinWriter()
 	emit.Int(w.BinWriter, 5)
 	emit.Opcodes(w.BinWriter, opcode.PACK)
+	emit.Int(w.BinWriter, int64(callflag.All))
 	emit.String(w.BinWriter, "request")
 	emit.Bytes(w.BinWriter, h.BytesBE())
 	emit.Syscall(w.BinWriter, interopnames.SystemContractCall)
+	emit.Opcodes(w.BinWriter, opcode.DROP)
 	emit.Opcodes(w.BinWriter, opcode.RET)
 
 	// `handle` method aborts if len(userData) == 2
@@ -171,7 +174,7 @@ func TestOracle_Request(t *testing.T) {
 
 	// We need to ensure that callback is called thus, executing full script is necessary.
 	resp.ID = 1
-	ic.VM.LoadScriptWithFlags(tx.Script, smartcontract.All)
+	ic.VM.LoadScriptWithFlags(tx.Script, callflag.All)
 	require.NoError(t, ic.VM.Run())
 
 	si := ic.DAO.GetStorageItem(cs.ID, []byte("lastOracleResponse"))
@@ -211,7 +214,7 @@ func TestOracle_Request(t *testing.T) {
 		}}
 		ic := bc.newInteropContext(trigger.Application, bc.dao, bc.newBlock(tx), tx)
 		ic.VM = ic.SpawnVM()
-		ic.VM.LoadScriptWithFlags(tx.Script, smartcontract.All)
+		ic.VM.LoadScriptWithFlags(tx.Script, callflag.All)
 		require.Error(t, ic.VM.Run())
 
 		// Request is cleaned up even if callback failed.

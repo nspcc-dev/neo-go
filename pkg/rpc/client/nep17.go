@@ -9,6 +9,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
@@ -120,8 +121,8 @@ func (c *Client) CreateNEP17MultiTransferTx(acc *wallet.Account, gas int64, reci
 	}
 	w := io.NewBufBinWriter()
 	for i := range recipients {
-		emit.AppCallWithOperationAndArgs(w.BinWriter, recipients[i].Token, "transfer", from,
-			recipients[i].Address, recipients[i].Amount, nil)
+		emit.AppCall(w.BinWriter, recipients[i].Token, "transfer",
+			callflag.WriteStates|callflag.AllowCall|callflag.AllowNotify, from, recipients[i].Address, recipients[i].Amount, nil)
 		emit.Opcodes(w.BinWriter, opcode.ASSERT)
 	}
 	accAddr, err := address.StringToUint160(acc.Address)

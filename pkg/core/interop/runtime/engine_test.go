@@ -11,7 +11,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
-	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
@@ -64,7 +64,7 @@ func TestGetScriptHash(t *testing.T) {
 	}
 
 	ic := &interop.Context{VM: vm.New()}
-	ic.VM.LoadScriptWithFlags(scripts[0].s, smartcontract.All)
+	ic.VM.LoadScriptWithFlags(scripts[0].s, callflag.All)
 	require.NoError(t, GetEntryScriptHash(ic))
 	checkStack(t, ic.VM, scripts[0].h.BytesBE())
 	require.NoError(t, GetCallingScriptHash(ic))
@@ -72,7 +72,7 @@ func TestGetScriptHash(t *testing.T) {
 	require.NoError(t, GetExecutingScriptHash(ic))
 	checkStack(t, ic.VM, scripts[0].h.BytesBE())
 
-	ic.VM.LoadScriptWithHash(scripts[1].s, scripts[1].h, smartcontract.All)
+	ic.VM.LoadScriptWithHash(scripts[1].s, scripts[1].h, callflag.All)
 	require.NoError(t, GetEntryScriptHash(ic))
 	checkStack(t, ic.VM, scripts[0].h.BytesBE())
 	require.NoError(t, GetCallingScriptHash(ic))
@@ -108,7 +108,7 @@ func TestLog(t *testing.T) {
 
 	t.Run("big message", func(t *testing.T) {
 		ic := &interop.Context{Log: zap.NewNop(), VM: vm.New()}
-		ic.VM.LoadScriptWithHash([]byte{1}, h, smartcontract.All)
+		ic.VM.LoadScriptWithHash([]byte{1}, h, callflag.All)
 		ic.VM.Estack().PushVal(string(make([]byte, MaxNotificationSize+1)))
 		require.Error(t, Log(ic))
 	})
@@ -116,7 +116,7 @@ func TestLog(t *testing.T) {
 	t.Run("good", func(t *testing.T) {
 		log, buf := newL(zapcore.InfoLevel)
 		ic := &interop.Context{Log: log, VM: vm.New()}
-		ic.VM.LoadScriptWithHash([]byte{1}, h, smartcontract.All)
+		ic.VM.LoadScriptWithHash([]byte{1}, h, callflag.All)
 		ic.VM.Estack().PushVal("hello")
 		require.NoError(t, Log(ic))
 
@@ -137,7 +137,7 @@ func TestNotify(t *testing.T) {
 	h := random.Uint160()
 	newIC := func(name string, args interface{}) *interop.Context {
 		ic := &interop.Context{VM: vm.New()}
-		ic.VM.LoadScriptWithHash([]byte{1}, h, smartcontract.NoneFlag)
+		ic.VM.LoadScriptWithHash([]byte{1}, h, callflag.NoneFlag)
 		ic.VM.Estack().PushVal(args)
 		ic.VM.Estack().PushVal(name)
 		return ic

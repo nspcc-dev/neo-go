@@ -7,6 +7,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
 // Call calls specified native contract method.
@@ -27,7 +28,6 @@ func Call(ic *interop.Context) error {
 		return errors.New("it is not allowed to use Neo.Native.Call directly to call native contracts. System.Contract.Call should be used")
 	}
 	operation := ic.VM.Estack().Pop().String()
-	args := ic.VM.Estack().Pop().Array()
 	m, ok := c.Metadata().Methods[operation]
 	if !ok {
 		return fmt.Errorf("method %s not found", operation)
@@ -40,6 +40,10 @@ func Call(ic *interop.Context) error {
 		return errors.New("gas limit exceeded")
 	}
 	ctx := ic.VM.Context()
+	args := make([]stackitem.Item, len(m.MD.Parameters))
+	for i := range args {
+		args[i] = ic.VM.Estack().Pop().Item()
+	}
 	result := m.Func(ic, args)
 	if m.MD.ReturnType != smartcontract.VoidType {
 		ctx.Estack().PushVal(result)

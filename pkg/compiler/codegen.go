@@ -866,14 +866,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 				emit.Opcodes(c.prog.BinWriter, opcode.PACK)
 				numArgs -= varSize - 1
 			}
-			// CallFlag in CallEx interop should be the last argument
-			// but this can't be reflected in signature due to varargs.
-			// It is first in compiler interop though, thus we just need to reverse 1 values less.
-			if f != nil && isSyscall(f) && f.pkg.Name() == "contract" && f.name == "CallEx" {
-				c.emitReverse(numArgs - 1)
-			} else {
-				c.emitReverse(numArgs)
-			}
+			c.emitReverse(numArgs)
 		}
 
 		// Check builtin first to avoid nil pointer on funcScope!

@@ -9,7 +9,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/compiler"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
-	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
@@ -85,7 +85,7 @@ func invokeMethod(t *testing.T, method string, script []byte, v *vm.VM, di *comp
 		}
 	}
 	require.True(t, mainOffset >= 0)
-	v.LoadScriptWithFlags(script, smartcontract.All)
+	v.LoadScriptWithFlags(script, callflag.All)
 	v.Jump(v.Context(), mainOffset)
 	if initOffset >= 0 {
 		v.Call(v.Context(), initOffset)

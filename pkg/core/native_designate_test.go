@@ -11,6 +11,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
@@ -29,8 +30,7 @@ func (bc *Blockchain) setNodesByRole(t *testing.T, ok bool, r native.Role, nodes
 	emit.Int(w.BinWriter, int64(r))
 	emit.Int(w.BinWriter, 2)
 	emit.Opcodes(w.BinWriter, opcode.PACK)
-	emit.String(w.BinWriter, "designateAsRole")
-	emit.AppCall(w.BinWriter, bc.contracts.Designate.Hash)
+	emit.AppCallNoArgs(w.BinWriter, bc.contracts.Designate.Hash, "designateAsRole", callflag.All)
 	require.NoError(t, w.Err)
 	tx := transaction.New(netmode.UnitTestNet, w.Bytes(), 0)
 	tx.NetworkFee = 10_000_000
