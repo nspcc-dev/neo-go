@@ -93,6 +93,13 @@ func TestDesignate_DesignateAsRoleTx(t *testing.T) {
 	bc.getNodesByRole(t, false, native.RoleOracle, 100500, 0)
 	bc.getNodesByRole(t, true, native.RoleOracle, 0, 0)     // returns an empty list
 	bc.getNodesByRole(t, true, native.RoleOracle, index, 1) // returns pubs
+
+	priv1, err := keys.NewPrivateKey()
+	require.NoError(t, err)
+	pubs = keys.PublicKeys{priv1.PublicKey()}
+	bc.setNodesByRole(t, true, native.RoleStateValidator, pubs)
+	bc.getNodesByRole(t, true, native.RoleStateValidator, bc.BlockHeight()+1, 1)
+
 }
 
 func TestDesignate_DesignateAsRole(t *testing.T) {

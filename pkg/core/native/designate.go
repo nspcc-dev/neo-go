@@ -30,6 +30,8 @@ type Designate struct {
 
 	rolesChangedFlag atomic.Value
 	oracles          atomic.Value
+	stateVals        atomic.Value
+	notaries         atomic.Value
 
 	// p2pSigExtensionsEnabled defines whether the P2P signature extensions logic is relevant.
 	p2pSigExtensionsEnabled bool
@@ -37,7 +39,7 @@ type Designate struct {
 	OracleService atomic.Value
 }
 
-type oraclesData struct {
+type roleData struct {
 	nodes  keys.PublicKeys
 	addr   util.Uint160
 	height uint32
@@ -109,20 +111,18 @@ func (s *Designate) PostPersist(ic *interop.Context) error {
 		return nil
 	}
 
-	nodeKeys, height, err := s.GetDesignatedByRole(ic.DAO, RoleOracle, math.MaxUint32)
-	if err != nil {
+	if err := s.updateCachedRoleData(&s.oracles, ic.DAO, RoleOracle); err != nil {
 		return err
 	}
+	if err := s.updateCachedRoleData(&s.stateVals, ic.DAO, RoleStateValidator); err != nil {
+		return err
+	}
+	if s.p2pSigExtensionsEnabled {
+		if err := s.updateCachedRoleData(&s.notaries, ic.DAO, RoleP2PNotary); err != nil {
+			return err
+		}
+	}
 
-	od := &oraclesData{
-		nodes:  nodeKeys,
-		addr:   oracleHashFromNodes(nodeKeys),
-		height: height,
-	}
-	s.oracles.Store(od)
-	if orc, _ := s.OracleService.Load().(services.Oracle); orc != nil {
-		orc.UpdateOracleNodes(od.nodes.Copy())
-	}
 	s.rolesChangedFlag.Store(false)
 	return nil
 }
@@ -157,7 +157,7 @@ func (s *Designate) rolesChanged() bool {
 	return rc == nil || rc.(bool)
 }
 
-func oracleHashFromNodes(nodes keys.PublicKeys) util.Uint160 {
+func majorityHashFromNodes(nodes keys.PublicKeys) util.Uint160 {
 	if len(nodes) == 0 {
 		return util.Uint160{}
 	}
@@ -165,15 +165,47 @@ func oracleHashFromNodes(nodes keys.PublicKeys) util.Uint160 {
 	return hash.Hash160(script)
 }
 
+func (s *Designate) updateCachedRoleData(v *atomic.Value, d dao.DAO, r Role) error {
+	nodeKeys, height, err := s.GetDesignatedByRole(d, r, math.MaxUint32)
+	if err != nil {
+		return err
+	}
+	v.Store(&roleData{
+		nodes:  nodeKeys,
+		addr:   majorityHashFromNodes(nodeKeys),
+		height: height,
+	})
+	if r == RoleOracle {
+		if orc, _ := s.OracleService.Load().(services.Oracle); orc != nil {
+			orc.UpdateOracleNodes(nodeKeys.Copy())
+		}
+	}
+	return nil
+}
+
+func (s *Designate) getCachedRoleData(r Role) *roleData {
+	var val interface{}
+	switch r {
+	case RoleOracle:
+		val = s.oracles.Load()
+	case RoleStateValidator:
+		val = s.stateVals.Load()
+	case RoleP2PNotary:
+		val = s.notaries.Load()
+	}
+	if val != nil {
+		return val.(*roleData)
+	}
+	return nil
+}
+
 func (s *Designate) getLastDesignatedHash(d dao.DAO, r Role) (util.Uint160, error) {
 	if !s.isValidRole(r) {
 		return util.Uint160{}, ErrInvalidRole
 	}
-	if r == RoleOracle && !s.rolesChanged() {
-		odVal := s.oracles.Load()
-		if odVal != nil {
-			od := odVal.(*oraclesData)
-			return od.addr, nil
+	if !s.rolesChanged() {
+		if val := s.getCachedRoleData(r); val != nil {
+			return val.addr, nil
 		}
 	}
 	nodes, _, err := s.GetDesignatedByRole(d, r, math.MaxUint32)
@@ -181,7 +213,7 @@ func (s *Designate) getLastDesignatedHash(d dao.DAO, r Role) (util.Uint160, erro
 		return util.Uint160{}, err
 	}
 	// We only have hashing defined for oracles now.
-	return oracleHashFromNodes(nodes), nil
+	return majorityHashFromNodes(nodes), nil
 }
 
 // GetDesignatedByRole returns nodes for role r.
@@ -189,13 +221,9 @@ func (s *Designate) GetDesignatedByRole(d dao.DAO, r Role, index uint32) (keys.P
 	if !s.isValidRole(r) {
 		return nil, 0, ErrInvalidRole
 	}
-	if r == RoleOracle && !s.rolesChanged() {
-		odVal := s.oracles.Load()
-		if odVal != nil {
-			od := odVal.(*oraclesData)
-			if od.height <= index {
-				return od.nodes, od.height, nil
-			}
+	if !s.rolesChanged() {
+		if val := s.getCachedRoleData(r); val != nil && val.height <= index {
+			return val.nodes.Copy(), val.height, nil
 		}
 	}
 	kvs, err := d.GetStorageItemsWithPrefix(s.ContractID, []byte{byte(r)})
