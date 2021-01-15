@@ -16,12 +16,14 @@ const (
 		FindDeserialize | FindPick0 | FindPick1
 )
 
+// Iterator is an iterator state representation.
 type Iterator struct {
 	m     []stackitem.MapElement
 	opts  int64
 	index int
 }
 
+// NewIterator creates a new Iterator with given options for a given map.
 func NewIterator(m *stackitem.Map, opts int64) *Iterator {
 	return &Iterator{
 		m:     m.Value().([]stackitem.MapElement),
@@ -30,13 +32,17 @@ func NewIterator(m *stackitem.Map, opts int64) *Iterator {
 	}
 }
 
+// Next advances the iterator and returns true if Value can be called at the
+// current position.
 func (s *Iterator) Next() bool {
 	if s.index < len(s.m) {
-		s.index += 1
+		s.index++
 	}
 	return s.index < len(s.m)
 }
 
+// Value returns current iterators value (exact type depends on options this
+// iterator was created with).
 func (s *Iterator) Value() stackitem.Item {
 	key := s.m[s.index].Key.Value().([]byte)
 	if s.opts&FindRemovePrefix != 0 {
