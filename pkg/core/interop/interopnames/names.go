@@ -26,15 +26,9 @@ const (
 	SystemContractGetCallFlags               = "System.Contract.GetCallFlags"
 	SystemContractNativeOnPersist            = "System.Contract.NativeOnPersist"
 	SystemContractNativePostPersist          = "System.Contract.NativePostPersist"
-	SystemEnumeratorConcat                   = "System.Enumerator.Concat"
-	SystemEnumeratorCreate                   = "System.Enumerator.Create"
-	SystemEnumeratorNext                     = "System.Enumerator.Next"
-	SystemEnumeratorValue                    = "System.Enumerator.Value"
-	SystemIteratorConcat                     = "System.Iterator.Concat"
 	SystemIteratorCreate                     = "System.Iterator.Create"
-	SystemIteratorKey                        = "System.Iterator.Key"
-	SystemIteratorKeys                       = "System.Iterator.Keys"
-	SystemIteratorValues                     = "System.Iterator.Values"
+	SystemIteratorNext                       = "System.Iterator.Next"
+	SystemIteratorValue                      = "System.Iterator.Value"
 	SystemJSONDeserialize                    = "System.Json.Deserialize"
 	SystemJSONSerialize                      = "System.Json.Serialize"
 	SystemRuntimeCheckWitness                = "System.Runtime.CheckWitness"
@@ -91,15 +85,9 @@ var names = []string{
 	SystemContractGetCallFlags,
 	SystemContractNativeOnPersist,
 	SystemContractNativePostPersist,
-	SystemEnumeratorConcat,
-	SystemEnumeratorCreate,
-	SystemEnumeratorNext,
-	SystemEnumeratorValue,
-	SystemIteratorConcat,
 	SystemIteratorCreate,
-	SystemIteratorKey,
-	SystemIteratorKeys,
-	SystemIteratorValues,
+	SystemIteratorNext,
+	SystemIteratorValue,
 	SystemJSONDeserialize,
 	SystemJSONSerialize,
 	SystemRuntimeCheckWitness,

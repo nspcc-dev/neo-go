@@ -32,12 +32,11 @@ func Delete(key []byte) bool {
 
 // Find returns an array of key-value pairs with key that matched the passed value
 func Find(value []byte) []string {
-	iter := storage.Find(ctx, value)
+	iter := storage.Find(ctx, value, storage.None)
 	result := []string{}
 	for iterator.Next(iter) {
-		val := iterator.Value(iter)
-		key := iterator.Key(iter)
-		result = append(result, key.(string)+":"+val.(string))
+		val := iterator.Value(iter).([]string)
+		result = append(result, val[0]+":"+val[1])
 	}
 	return result
 }

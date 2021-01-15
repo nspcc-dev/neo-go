@@ -6,11 +6,13 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"strconv"
 	"strings"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/internal/random"
 	"github.com/nspcc-dev/neo-go/pkg/config"
+	"github.com/nspcc-dev/neo-go/pkg/core/interop/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/fixedn"
@@ -18,6 +20,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/stretchr/testify/require"
 )
 
@@ -251,6 +254,41 @@ func TestComlileAndInvokeFunction(t *testing.T) {
 
 			e.In.WriteString("one\r")
 			e.Run(t, append(cmd, "--force", h.StringLE(), "fail")...)
+		})
+	})
+
+	t.Run("test Storage.Find", func(t *testing.T) {
+		cmd := []string{"neo-go", "contract", "testinvokefunction",
+			"--rpc-endpoint", "http://" + e.RPC.Addr,
+			h.StringLE(), "testFind"}
+
+		t.Run("keys only", func(t *testing.T) {
+			e.Run(t, append(cmd, strconv.FormatInt(storage.FindKeysOnly, 10))...)
+			res := new(result.Invoke)
+			require.NoError(t, json.Unmarshal(e.Out.Bytes(), res))
+			require.Equal(t, vm.HaltState.String(), res.State)
+			require.Len(t, res.Stack, 1)
+			require.Equal(t, []stackitem.Item{
+				stackitem.Make("findkey1"),
+				stackitem.Make("findkey2"),
+			}, res.Stack[0].Value())
+		})
+		t.Run("both", func(t *testing.T) {
+			e.Run(t, append(cmd, strconv.FormatInt(storage.FindDefault, 10))...)
+			res := new(result.Invoke)
+			require.NoError(t, json.Unmarshal(e.Out.Bytes(), res))
+			require.Equal(t, vm.HaltState.String(), res.State)
+			require.Len(t, res.Stack, 1)
+
+			arr, ok := res.Stack[0].Value().([]stackitem.Item)
+			require.True(t, ok)
+			require.Len(t, arr, 2)
+			require.Equal(t, []stackitem.Item{
+				stackitem.Make("findkey1"), stackitem.Make("value1"),
+			}, arr[0].Value())
+			require.Equal(t, []stackitem.Item{
+				stackitem.Make("findkey2"), stackitem.Make("value2"),
+			}, arr[1].Value())
 		})
 	})
 

@@ -7,11 +7,14 @@ import (
 	"sort"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
-	"github.com/nspcc-dev/neo-go/pkg/vm"
+	"github.com/nspcc-dev/neo-go/pkg/core/interop/storage"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
-var errGasLimitExceeded = errors.New("gas limit exceeded")
+var (
+	errGasLimitExceeded   = errors.New("gas limit exceeded")
+	errFindInvalidOptions = errors.New("invalid Find options")
+)
 
 // storageFind finds stored key-value pair.
 func storageFind(ic *interop.Context) error {
@@ -21,6 +24,24 @@ func storageFind(ic *interop.Context) error {
 		return fmt.Errorf("%T is not a StorageContext", stcInterface)
 	}
 	prefix := ic.VM.Estack().Pop().Bytes()
+	opts := ic.VM.Estack().Pop().BigInt().Int64()
+	if opts&^storage.FindAll != 0 {
+		return fmt.Errorf("%w: unknown flag", errFindInvalidOptions)
+	}
+	if opts&storage.FindKeysOnly != 0 &&
+		opts&(storage.FindDeserialize|storage.FindPick0|storage.FindPick1) != 0 {
+		return fmt.Errorf("%w KeysOnly conflicts with other options", errFindInvalidOptions)
+	}
+	if opts&storage.FindValuesOnly != 0 &&
+		opts&(storage.FindKeysOnly|storage.FindRemovePrefix) != 0 {
+		return fmt.Errorf("%w: KeysOnly conflicts with ValuesOnly", errFindInvalidOptions)
+	}
+	if opts&storage.FindPick0 != 0 && opts&storage.FindPick1 != 0 {
+		return fmt.Errorf("%w: Pick0 conflicts with Pick1", errFindInvalidOptions)
+	}
+	if opts&storage.FindDeserialize == 0 && (opts&storage.FindPick0 != 0 || opts&storage.FindPick1 != 0) {
+		return fmt.Errorf("%w: PickN is specified without Deserialize", errFindInvalidOptions)
+	}
 	siMap, err := ic.DAO.GetStorageItemsWithPrefix(stc.ID, prefix)
 	if err != nil {
 		return err
@@ -35,8 +56,8 @@ func storageFind(ic *interop.Context) error {
 			filteredMap.Value().([]stackitem.MapElement)[j].Key.Value().([]byte)) == -1
 	})
 
-	item := vm.NewMapIterator(filteredMap)
-	ic.VM.Estack().PushVal(item)
+	item := storage.NewIterator(filteredMap, opts)
+	ic.VM.Estack().PushVal(stackitem.NewInterop(item))
 
 	return nil
 }

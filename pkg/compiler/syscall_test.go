@@ -4,7 +4,9 @@ import (
 	"math/big"
 	"testing"
 
+	istorage "github.com/nspcc-dev/neo-go/pkg/core/interop/storage"
 	"github.com/nspcc-dev/neo-go/pkg/interop/contract"
+	"github.com/nspcc-dev/neo-go/pkg/interop/storage"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/stretchr/testify/assert"
@@ -21,6 +23,16 @@ func TestCallFlags(t *testing.T) {
 	require.EqualValues(t, contract.ReadOnly, callflag.ReadOnly)
 	require.EqualValues(t, contract.All, callflag.All)
 	require.EqualValues(t, contract.NoneFlag, callflag.NoneFlag)
+}
+
+func TestFindFlags(t *testing.T) {
+	require.EqualValues(t, storage.None, istorage.FindDefault)
+	require.EqualValues(t, storage.KeysOnly, istorage.FindKeysOnly)
+	require.EqualValues(t, storage.RemovePrefix, istorage.FindRemovePrefix)
+	require.EqualValues(t, storage.ValuesOnly, istorage.FindValuesOnly)
+	require.EqualValues(t, storage.DeserializeValues, istorage.FindDeserialize)
+	require.EqualValues(t, storage.PickField0, istorage.FindPick0)
+	require.EqualValues(t, storage.PickField1, istorage.FindPick1)
 }
 
 func TestStoragePutGet(t *testing.T) {

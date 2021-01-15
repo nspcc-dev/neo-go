@@ -468,20 +468,16 @@ func TestPushData4BigN(t *testing.T) {
 	checkVMFailed(t, vm)
 }
 
-func getEnumeratorProg(n int, isIter bool) (prog []byte) {
+func getIteratorProg(n int) (prog []byte) {
 	prog = []byte{byte(opcode.INITSSLOT), 1, byte(opcode.STSFLD0)}
 	for i := 0; i < n; i++ {
 		prog = append(prog, byte(opcode.LDSFLD0))
-		prog = append(prog, getSyscallProg(interopnames.SystemEnumeratorNext)...)
+		prog = append(prog, getSyscallProg(interopnames.SystemIteratorNext)...)
 		prog = append(prog, byte(opcode.LDSFLD0))
-		prog = append(prog, getSyscallProg(interopnames.SystemEnumeratorValue)...)
-		if isIter {
-			prog = append(prog, byte(opcode.LDSFLD0))
-			prog = append(prog, getSyscallProg(interopnames.SystemIteratorKey)...)
-		}
+		prog = append(prog, getSyscallProg(interopnames.SystemIteratorValue)...)
 	}
 	prog = append(prog, byte(opcode.LDSFLD0))
-	prog = append(prog, getSyscallProg(interopnames.SystemEnumeratorNext)...)
+	prog = append(prog, getSyscallProg(interopnames.SystemIteratorNext)...)
 
 	return
 }
@@ -494,10 +490,9 @@ func checkEnumeratorStack(t *testing.T, vm *VM, arr []stackitem.Item) {
 	}
 }
 
-func testIterableCreate(t *testing.T, typ string, isByteArray bool) {
-	isIter := typ == "Iterator"
-	prog := getSyscallProg("System." + typ + ".Create")
-	prog = append(prog, getEnumeratorProg(2, isIter)...)
+func testIterableCreate(t *testing.T, isByteArray bool) {
+	prog := getSyscallProg(interopnames.SystemIteratorCreate)
+	prog = append(prog, getIteratorProg(2)...)
 
 	vm := load(prog)
 	arr := []stackitem.Item{
@@ -512,129 +507,21 @@ func testIterableCreate(t *testing.T, typ string, isByteArray bool) {
 	}
 
 	runVM(t, vm)
-	if isIter {
-		checkEnumeratorStack(t, vm, []stackitem.Item{
-			stackitem.Make(1), arr[1], stackitem.NewBool(true),
-			stackitem.Make(0), arr[0], stackitem.NewBool(true),
-		})
-	} else {
-		checkEnumeratorStack(t, vm, []stackitem.Item{
-			arr[1], stackitem.NewBool(true),
-			arr[0], stackitem.NewBool(true),
-		})
-	}
-}
-
-func TestEnumeratorCreate(t *testing.T) {
-	t.Run("Array", func(t *testing.T) { testIterableCreate(t, "Enumerator", false) })
-	t.Run("ByteArray", func(t *testing.T) { testIterableCreate(t, "Enumerator", true) })
-	t.Run("Interop", func(t *testing.T) {
-		v := New()
-		v.Estack().PushVal(stackitem.NewInterop([]byte{42}))
-		require.Error(t, EnumeratorCreate(v))
+	checkEnumeratorStack(t, vm, []stackitem.Item{
+		arr[1], stackitem.NewBool(true),
+		arr[0], stackitem.NewBool(true),
 	})
 }
 
 func TestIteratorCreate(t *testing.T) {
-	t.Run("Array", func(t *testing.T) { testIterableCreate(t, "Iterator", false) })
-	t.Run("ByteArray", func(t *testing.T) { testIterableCreate(t, "Iterator", true) })
+	t.Run("Array", func(t *testing.T) { testIterableCreate(t, false) })
+	t.Run("ByteArray", func(t *testing.T) { testIterableCreate(t, true) })
+	t.Run("Map", func(f *testing.T) {})
 	t.Run("Interop", func(t *testing.T) {
 		v := New()
 		v.Estack().PushVal(stackitem.NewInterop([]byte{42}))
 		require.Error(t, IteratorCreate(v))
 	})
-}
-
-func testIterableConcat(t *testing.T, typ string) {
-	isIter := typ == "Iterator"
-	prog := getSyscallProg("System." + typ + ".Create")
-	prog = append(prog, byte(opcode.SWAP))
-	prog = append(prog, getSyscallProg("System."+typ+".Create")...)
-	prog = append(prog, getSyscallProg("System."+typ+".Concat")...)
-	prog = append(prog, getEnumeratorProg(3, isIter)...)
-	vm := load(prog)
-
-	arr := []stackitem.Item{
-		stackitem.NewBool(false),
-		stackitem.NewBigInteger(big.NewInt(123)),
-		stackitem.NewMap(),
-	}
-	vm.estack.Push(&Element{value: stackitem.NewArray(arr[:1])})
-	vm.estack.Push(&Element{value: stackitem.NewArray(arr[1:])})
-
-	runVM(t, vm)
-
-	if isIter {
-		// Yes, this is how iterators are concatenated in reference VM
-		// https://github.com/neo-project/neo/blob/master-2.x/neo.UnitTests/UT_ConcatenatedIterator.cs#L54
-		checkEnumeratorStack(t, vm, []stackitem.Item{
-			stackitem.Make(1), arr[2], stackitem.NewBool(true),
-			stackitem.Make(0), arr[1], stackitem.NewBool(true),
-			stackitem.Make(0), arr[0], stackitem.NewBool(true),
-		})
-	} else {
-		checkEnumeratorStack(t, vm, []stackitem.Item{
-			arr[2], stackitem.NewBool(true),
-			arr[1], stackitem.NewBool(true),
-			arr[0], stackitem.NewBool(true),
-		})
-	}
-}
-
-func TestEnumeratorConcat(t *testing.T) {
-	testIterableConcat(t, "Enumerator")
-}
-
-func TestIteratorConcat(t *testing.T) {
-	testIterableConcat(t, "Iterator")
-}
-
-func TestIteratorKeys(t *testing.T) {
-	prog := getSyscallProg(interopnames.SystemIteratorCreate)
-	prog = append(prog, getSyscallProg(interopnames.SystemIteratorKeys)...)
-	prog = append(prog, getEnumeratorProg(2, false)...)
-
-	v := load(prog)
-	arr := stackitem.NewArray([]stackitem.Item{
-		stackitem.NewBool(false),
-		stackitem.NewBigInteger(big.NewInt(42)),
-	})
-	v.estack.PushVal(arr)
-
-	runVM(t, v)
-
-	checkEnumeratorStack(t, v, []stackitem.Item{
-		stackitem.NewBigInteger(big.NewInt(1)), stackitem.NewBool(true),
-		stackitem.NewBigInteger(big.NewInt(0)), stackitem.NewBool(true),
-	})
-}
-
-func TestIteratorValues(t *testing.T) {
-	prog := getSyscallProg(interopnames.SystemIteratorCreate)
-	prog = append(prog, getSyscallProg(interopnames.SystemIteratorValues)...)
-	prog = append(prog, getEnumeratorProg(2, false)...)
-
-	v := load(prog)
-	m := stackitem.NewMap()
-	m.Add(stackitem.NewBigInteger(big.NewInt(1)), stackitem.NewBool(false))
-	m.Add(stackitem.NewByteArray([]byte{32}), stackitem.NewByteArray([]byte{7}))
-	v.estack.PushVal(m)
-
-	runVM(t, v)
-	require.Equal(t, 5, v.estack.Len())
-	require.Equal(t, stackitem.NewBool(false), v.estack.Peek(0).value)
-
-	// Map values can be enumerated in any order.
-	i1, i2 := 1, 3
-	if _, ok := v.estack.Peek(i1).value.(*stackitem.Bool); !ok {
-		i1, i2 = i2, i1
-	}
-
-	require.Equal(t, stackitem.NewBool(false), v.estack.Peek(i1).value)
-	require.Equal(t, stackitem.NewByteArray([]byte{7}), v.estack.Peek(i2).value)
-
-	require.Equal(t, stackitem.NewBool(true), v.estack.Peek(2).value)
-	require.Equal(t, stackitem.NewBool(true), v.estack.Peek(4).value)
 }
 
 func getSyscallProg(name string) (prog []byte) {
