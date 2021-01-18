@@ -38,7 +38,7 @@ type Oracle struct {
 }
 
 const (
-	oracleContractID  = -5
+	oracleContractID  = -6
 	maxURLLength      = 256
 	maxFilterLength   = 128
 	maxCallbackLength = 32
@@ -52,7 +52,7 @@ const (
 var oracleScript []byte
 
 func init() {
-	_, h := state.CreateNativeContractHash(nativenames.Oracle)
+	_, h := state.CreateNativeContractHash(oracleContractID)
 	w := io.NewBufBinWriter()
 	emit.Int(w.BinWriter, 0)
 	emit.Opcodes(w.BinWriter, opcode.NEWARRAY)
@@ -86,8 +86,7 @@ func GetOracleResponseScript() []byte {
 }
 
 func newOracle() *Oracle {
-	o := &Oracle{ContractMD: *interop.NewContractMD(nativenames.Oracle)}
-	o.ContractID = oracleContractID
+	o := &Oracle{ContractMD: *interop.NewContractMD(nativenames.Oracle, oracleContractID)}
 
 	desc := newDescriptor("request", smartcontract.VoidType,
 		manifest.NewParameter("url", smartcontract.StringType),

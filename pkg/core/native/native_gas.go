@@ -18,7 +18,7 @@ type GAS struct {
 	NEO *NEO
 }
 
-const gasContractID = -2
+const gasContractID = -3
 
 // GASFactor is a divisor for finding GAS integral value.
 const GASFactor = NEOTotalSupply
@@ -27,12 +27,11 @@ const initialGAS = 30000000
 // newGAS returns GAS native contract.
 func newGAS() *GAS {
 	g := &GAS{}
-	nep17 := newNEP17Native(nativenames.Gas)
+	nep17 := newNEP17Native(nativenames.Gas, gasContractID)
 	nep17.symbol = "GAS"
 	nep17.decimals = 8
 	nep17.factor = GASFactor
 	nep17.incBalance = g.increaseBalance
-	nep17.ContractID = gasContractID
 
 	g.nep17TokenNative = *nep17
 

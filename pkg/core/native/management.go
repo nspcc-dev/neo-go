@@ -36,6 +36,8 @@ type Management struct {
 const StoragePrice = 100000
 
 const (
+	managementContractID = -1
+
 	prefixContract = 8
 
 	defaultMinimumDeploymentFee     = 10_00000000
@@ -59,7 +61,7 @@ func makeContractKey(h util.Uint160) []byte {
 // newManagement creates new Management native contract.
 func newManagement() *Management {
 	var m = &Management{
-		ContractMD: *interop.NewContractMD(nativenames.Management),
+		ContractMD: *interop.NewContractMD(nativenames.Management, managementContractID),
 		contracts:  make(map[util.Uint160]*state.Contract),
 	}
 

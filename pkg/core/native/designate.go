@@ -41,7 +41,7 @@ type oraclesData struct {
 }
 
 const (
-	designateContractID = -4
+	designateContractID = -5
 
 	// maxNodeCount is the maximum number of nodes to set the role for.
 	maxNodeCount = 32
@@ -72,8 +72,7 @@ func (s *Designate) isValidRole(r Role) bool {
 }
 
 func newDesignate(p2pSigExtensionsEnabled bool) *Designate {
-	s := &Designate{ContractMD: *interop.NewContractMD(nativenames.Designation)}
-	s.ContractID = designateContractID
+	s := &Designate{ContractMD: *interop.NewContractMD(nativenames.Designation, designateContractID)}
 	s.p2pSigExtensionsEnabled = p2pSigExtensionsEnabled
 
 	desc := newDescriptor("getDesignatedByRole", smartcontract.ArrayType,

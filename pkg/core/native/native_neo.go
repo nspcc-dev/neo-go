@@ -51,7 +51,7 @@ type NEO struct {
 }
 
 const (
-	neoContractID = -1
+	neoContractID = -2
 	// NEOTotalSupply is the total amount of NEO in the system.
 	NEOTotalSupply = 100000000
 	// prefixCandidate is a prefix used to store validator's data.
@@ -94,12 +94,11 @@ func makeValidatorKey(key *keys.PublicKey) []byte {
 // newNEO returns NEO native contract.
 func newNEO() *NEO {
 	n := &NEO{}
-	nep17 := newNEP17Native(nativenames.Neo)
+	nep17 := newNEP17Native(nativenames.Neo, neoContractID)
 	nep17.symbol = "NEO"
 	nep17.decimals = 0
 	nep17.factor = 1
 	nep17.incBalance = n.increaseBalance
-	nep17.ContractID = neoContractID
 
 	n.nep17TokenNative = *nep17
 	n.votesChanged.Store(true)

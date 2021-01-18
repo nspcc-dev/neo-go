@@ -124,9 +124,9 @@ func CreateContractHash(sender util.Uint160, script []byte) util.Uint160 {
 }
 
 // CreateNativeContractHash returns script and hash for the native contract.
-func CreateNativeContractHash(name string) ([]byte, util.Uint160) {
+func CreateNativeContractHash(id int32) ([]byte, util.Uint160) {
 	w := io.NewBufBinWriter()
-	emit.String(w.BinWriter, name)
+	emit.Int(w.BinWriter, int64(id))
 	emit.Syscall(w.BinWriter, interopnames.SystemContractCallNative)
 	if w.Err != nil {
 		panic(w.Err)
