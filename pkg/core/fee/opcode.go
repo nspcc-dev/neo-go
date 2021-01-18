@@ -195,6 +195,7 @@ var coefficients = map[opcode.Opcode]int64{
 	opcode.REVERSEITEMS: 1 << 13,
 	opcode.REMOVE:       1 << 4,
 	opcode.CLEARITEMS:   1 << 4,
+	opcode.POPITEM:      1 << 4,
 	opcode.ISNULL:       1 << 1,
 	opcode.ISTYPE:       1 << 1,
 	opcode.CONVERT:      1 << 11,

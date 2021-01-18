@@ -1216,6 +1216,20 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			panic("CLEARITEMS: invalid type")
 		}
 
+	case opcode.POPITEM:
+		arr := v.estack.Pop().Item()
+		elems := arr.Value().([]stackitem.Item)
+		index := len(elems) - 1
+		elem := elems[index]
+		switch item := arr.(type) {
+		case *stackitem.Array:
+			item.Remove(index)
+		case *stackitem.Struct:
+			item.Remove(index)
+		}
+		v.refs.Remove(elem)
+		v.estack.PushVal(elem)
+
 	case opcode.SIZE:
 		elem := v.estack.Pop()
 		// Cause there is no native (byte) item type here, hence we need to check
