@@ -207,7 +207,8 @@ func (s *Designate) getCachedRoleData(r Role) *roleData {
 	return nil
 }
 
-func (s *Designate) getLastDesignatedHash(d dao.DAO, r Role) (util.Uint160, error) {
+// GetLastDesignatedHash returns last designated hash of a given role.
+func (s *Designate) GetLastDesignatedHash(d dao.DAO, r Role) (util.Uint160, error) {
 	if !s.isValidRole(r) {
 		return util.Uint160{}, ErrInvalidRole
 	}

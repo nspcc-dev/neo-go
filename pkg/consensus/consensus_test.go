@@ -351,7 +351,6 @@ func TestService_OnPayload(t *testing.T) {
 	// sender is invalid
 	srv.OnPayload(&p.Extensible)
 	shouldNotReceive(t, srv.messages)
-	require.Nil(t, srv.GetPayload(p.Hash()))
 
 	p = new(Payload)
 	p.SetValidatorIndex(1)
@@ -360,11 +359,6 @@ func TestService_OnPayload(t *testing.T) {
 	require.NoError(t, p.Sign(priv))
 	srv.OnPayload(&p.Extensible)
 	shouldReceive(t, srv.messages)
-	require.Equal(t, &p.Extensible, srv.GetPayload(p.Hash()))
-
-	// payload has already been received
-	srv.OnPayload(&p.Extensible)
-	shouldNotReceive(t, srv.messages)
 	srv.Chain.Close()
 }
 

@@ -377,7 +377,7 @@ func (o *Oracle) PutRequestInternal(id uint64, req *state.OracleRequest, d dao.D
 
 // GetScriptHash returns script hash or oracle nodes.
 func (o *Oracle) GetScriptHash(d dao.DAO) (util.Uint160, error) {
-	return o.Desig.getLastDesignatedHash(d, RoleOracle)
+	return o.Desig.GetLastDesignatedHash(d, RoleOracle)
 }
 
 // GetOracleNodes returns public keys of oracle nodes.

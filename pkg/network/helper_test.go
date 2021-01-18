@@ -82,6 +82,9 @@ func (chain *testChain) ApplyPolicyToTxSet([]*transaction.Transaction) []*transa
 func (chain *testChain) IsTxStillRelevant(t *transaction.Transaction, txpool *mempool.Pool, isPartialTx bool) bool {
 	panic("TODO")
 }
+func (*testChain) IsExtensibleAllowed(uint160 util.Uint160) bool {
+	return true
+}
 
 func (chain *testChain) GetNotaryDepositExpiration(acc util.Uint160) uint32 {
 	if chain.notaryDepositExpiration != 0 {
