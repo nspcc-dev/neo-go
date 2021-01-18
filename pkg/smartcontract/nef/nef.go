@@ -20,6 +20,7 @@ import (
 // | Compiler   | 32 bytes  | Compiler used                                              |
 // | Version    | 32 bytes  | Compiler version                                           |
 // +------------+-----------+------------------------------------------------------------+
+// | Tokens     | Var array | List of method tokens                                      |
 // | Script     | Var bytes | Var bytes for the payload                                  |
 // +------------+-----------+------------------------------------------------------------+
 // | Checksum   | 4 bytes   | First four bytes of double SHA256 hash of the header       |
@@ -37,8 +38,9 @@ const (
 // File represents compiled contract file structure according to the NEF3 standard.
 type File struct {
 	Header
-	Script   []byte `json:"script"`
-	Checksum uint32 `json:"checksum"`
+	Tokens   []MethodToken `json:"tokens"`
+	Script   []byte        `json:"script"`
+	Checksum uint32        `json:"checksum"`
 }
 
 // Header represents File header.
@@ -56,6 +58,7 @@ func NewFile(script []byte) (*File, error) {
 			Compiler: "neo-go",
 			Version:  config.Version,
 		},
+		Tokens: []MethodToken{},
 		Script: script,
 	}
 	if len(config.Version) > compilerFieldSize {
@@ -115,6 +118,7 @@ func (n *File) CalculateChecksum() uint32 {
 // EncodeBinary implements io.Serializable interface.
 func (n *File) EncodeBinary(w *io.BinWriter) {
 	n.Header.EncodeBinary(w)
+	w.WriteArray(n.Tokens)
 	w.WriteVarBytes(n.Script)
 	w.WriteU32LE(n.Checksum)
 }
@@ -122,14 +126,15 @@ func (n *File) EncodeBinary(w *io.BinWriter) {
 // DecodeBinary implements io.Serializable interface.
 func (n *File) DecodeBinary(r *io.BinReader) {
 	n.Header.DecodeBinary(r)
+	r.ReadArray(&n.Tokens)
 	n.Script = r.ReadVarBytes(MaxScriptLength)
-	if len(n.Script) == 0 {
+	if r.Err == nil && len(n.Script) == 0 {
 		r.Err = errors.New("empty script")
 		return
 	}
 	n.Checksum = r.ReadU32LE()
 	checksum := n.CalculateChecksum()
-	if checksum != n.Checksum {
+	if r.Err == nil && checksum != n.Checksum {
 		r.Err = errors.New("checksum verification failure")
 		return
 	}

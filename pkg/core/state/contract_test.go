@@ -44,6 +44,7 @@ func TestEncodeDecodeContractState(t *testing.T) {
 				Compiler: "neo-go.test",
 				Version:  "test",
 			},
+			Tokens:   []nef.MethodToken{},
 			Script:   script,
 			Checksum: 0,
 		},
