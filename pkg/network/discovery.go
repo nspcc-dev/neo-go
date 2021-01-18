@@ -192,8 +192,6 @@ func (d *DefaultDiscovery) tryAddress(addr string) {
 	if err := d.transport.Dial(addr, d.dialTimeout); err != nil {
 		d.RegisterBadAddr(addr)
 		d.RequestRemote(1)
-	} else {
-		d.RegisterConnectedAddr(addr)
 	}
 }
 
