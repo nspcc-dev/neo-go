@@ -308,7 +308,6 @@ func (v *VM) LoadScriptWithCallingHash(caller util.Uint160, b []byte, hash util.
 	f callflag.CallFlag, hasReturn bool, paramCount uint16) {
 	v.LoadScriptWithFlags(b, f)
 	ctx := v.Context()
-	ctx.isDeployed = true
 	ctx.scriptHash = hash
 	ctx.callingScriptHash = caller
 	if hasReturn {
@@ -1519,6 +1518,7 @@ func (v *VM) call(ctx *Context, offset int) {
 	newCtx.local = nil
 	newCtx.arguments = nil
 	newCtx.tryStack = NewStack("exception")
+	newCtx.NEF = ctx.NEF
 	v.istack.PushVal(newCtx)
 	v.Jump(newCtx, offset)
 }
