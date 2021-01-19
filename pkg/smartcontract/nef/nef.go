@@ -17,9 +17,11 @@ import (
 // |   Field    |  Length   |                          Comment                           |
 // +------------+-----------+------------------------------------------------------------+
 // | Magic      | 4 bytes   | Magic header                                               |
-// | Compiler   | 32 bytes  | Compiler used                                              |
-// | Version    | 32 bytes  | Compiler version                                           |
+// | Compiler   | 64 bytes  | Compiler used and it's version                             |
 // +------------+-----------+------------------------------------------------------------+
+// | Reserved   | 2-bytes   | Reserved for extensions. Must be 0.                        |
+// | Tokens     | Var array | List of method tokens                                      |
+// | Reserved   | 2-bytes   | Reserved for extensions. Must be 0.                        |
 // | Script     | Var bytes | Var bytes for the payload                                  |
 // +------------+-----------+------------------------------------------------------------+
 // | Checksum   | 4 bytes   | First four bytes of double SHA256 hash of the header       |
@@ -30,22 +32,22 @@ const (
 	Magic uint32 = 0x3346454E
 	// MaxScriptLength is the maximum allowed contract script length.
 	MaxScriptLength = 512 * 1024
-	// compilerFieldSize is the length of `Compiler` and `Version` File header fields in bytes.
-	compilerFieldSize = 32
+	// compilerFieldSize is the length of `Compiler` File header field in bytes.
+	compilerFieldSize = 64
 )
 
 // File represents compiled contract file structure according to the NEF3 standard.
 type File struct {
 	Header
-	Script   []byte `json:"script"`
-	Checksum uint32 `json:"checksum"`
+	Tokens   []MethodToken `json:"tokens"`
+	Script   []byte        `json:"script"`
+	Checksum uint32        `json:"checksum"`
 }
 
 // Header represents File header.
 type Header struct {
 	Magic    uint32 `json:"magic"`
 	Compiler string `json:"compiler"`
-	Version  string `json:"version"`
 }
 
 // NewFile returns new NEF3 file with script specified.
@@ -53,13 +55,13 @@ func NewFile(script []byte) (*File, error) {
 	file := &File{
 		Header: Header{
 			Magic:    Magic,
-			Compiler: "neo-go",
-			Version:  config.Version,
+			Compiler: "neo-go-" + config.Version,
 		},
+		Tokens: []MethodToken{},
 		Script: script,
 	}
-	if len(config.Version) > compilerFieldSize {
-		return nil, errors.New("too long version")
+	if len(file.Compiler) > compilerFieldSize {
+		return nil, errors.New("too long compiler field")
 	}
 	file.Checksum = file.CalculateChecksum()
 	return file, nil
@@ -74,11 +76,6 @@ func (h *Header) EncodeBinary(w *io.BinWriter) {
 	}
 	var b = make([]byte, compilerFieldSize)
 	copy(b, []byte(h.Compiler))
-	w.WriteBytes(b)
-	for i := range b {
-		b[i] = 0
-	}
-	copy(b, []byte(h.Version))
 	w.WriteBytes(b)
 }
 
@@ -95,12 +92,6 @@ func (h *Header) DecodeBinary(r *io.BinReader) {
 		return r == 0
 	})
 	h.Compiler = string(buf)
-	buf = buf[:compilerFieldSize]
-	r.ReadBytes(buf)
-	buf = bytes.TrimRightFunc(buf, func(r rune) bool {
-		return r == 0
-	})
-	h.Version = string(buf)
 }
 
 // CalculateChecksum returns first 4 bytes of double-SHA256(Header) converted to uint32.
@@ -115,21 +106,37 @@ func (n *File) CalculateChecksum() uint32 {
 // EncodeBinary implements io.Serializable interface.
 func (n *File) EncodeBinary(w *io.BinWriter) {
 	n.Header.EncodeBinary(w)
+	w.WriteU16LE(0)
+	w.WriteArray(n.Tokens)
+	w.WriteU16LE(0)
 	w.WriteVarBytes(n.Script)
 	w.WriteU32LE(n.Checksum)
 }
 
+var errInvalidReserved = errors.New("reserved bytes must be 0")
+
 // DecodeBinary implements io.Serializable interface.
 func (n *File) DecodeBinary(r *io.BinReader) {
 	n.Header.DecodeBinary(r)
+	reserved := r.ReadU16LE()
+	if r.Err == nil && reserved != 0 {
+		r.Err = errInvalidReserved
+		return
+	}
+	r.ReadArray(&n.Tokens)
+	reserved = r.ReadU16LE()
+	if r.Err == nil && reserved != 0 {
+		r.Err = errInvalidReserved
+		return
+	}
 	n.Script = r.ReadVarBytes(MaxScriptLength)
-	if len(n.Script) == 0 {
+	if r.Err == nil && len(n.Script) == 0 {
 		r.Err = errors.New("empty script")
 		return
 	}
 	n.Checksum = r.ReadU32LE()
 	checksum := n.CalculateChecksum()
-	if checksum != n.Checksum {
+	if r.Err == nil && checksum != n.Checksum {
 		r.Err = errors.New("checksum verification failure")
 		return
 	}

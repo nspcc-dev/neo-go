@@ -41,9 +41,9 @@ func TestEncodeDecodeContractState(t *testing.T) {
 		NEF: nef.File{
 			Header: nef.Header{
 				Magic:    nef.Magic,
-				Compiler: "neo-go.test",
-				Version:  "test",
+				Compiler: "neo-go.test-test",
 			},
+			Tokens:   []nef.MethodToken{},
 			Script:   script,
 			Checksum: 0,
 		},
