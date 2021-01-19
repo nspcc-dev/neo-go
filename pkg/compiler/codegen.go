@@ -852,7 +852,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 				// This way even non-pointer struct fields will be copied.
 				emit.Opcodes(c.prog.BinWriter, opcode.NEWARRAY0,
 					opcode.DUP, opcode.ROT, opcode.APPEND,
-					opcode.PUSH0, opcode.PICKITEM)
+					opcode.POPITEM)
 			}
 		}
 		// Do not swap for builtin functions.

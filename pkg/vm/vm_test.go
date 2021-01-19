@@ -2167,6 +2167,36 @@ func TestCLEARITEMS(t *testing.T) {
 	})
 }
 
+func TestPOPITEM(t *testing.T) {
+	testPOPITEM := func(t *testing.T, item, elem, arr interface{}) {
+		prog := makeProgram(opcode.DUP, opcode.POPITEM)
+		v := load(prog)
+		v.estack.PushVal(item)
+
+		runVM(t, v)
+		require.EqualValues(t, stackitem.Make(elem), v.estack.Pop().Item())
+		require.EqualValues(t, stackitem.Make(arr), v.estack.Pop().Item())
+	}
+
+	elems := []stackitem.Item{stackitem.Make(11), stackitem.Make(31)}
+	t.Run("Array", func(t *testing.T) {
+		testPOPITEM(t, stackitem.NewArray(elems), 31, elems[:1])
+	})
+	t.Run("Struct", func(t *testing.T) {
+		testPOPITEM(t, stackitem.NewStruct(elems), 31, elems[:1])
+	})
+	t.Run("0-length array", func(t *testing.T) {
+		prog := makeProgram(opcode.NEWARRAY0, opcode.POPITEM)
+		v := load(prog)
+		checkVMFailed(t, v)
+	})
+	t.Run("primitive type", func(t *testing.T) {
+		prog := makeProgram(opcode.PUSH4, opcode.POPITEM)
+		v := load(prog)
+		checkVMFailed(t, v)
+	})
+}
+
 func TestSWAPGood(t *testing.T) {
 	prog := makeProgram(opcode.SWAP)
 	vm := load(prog)

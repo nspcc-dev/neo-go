@@ -212,6 +212,7 @@ const (
 	REVERSEITEMS Opcode = 0xD1
 	REMOVE       Opcode = 0xD2
 	CLEARITEMS   Opcode = 0xD3
+	POPITEM      Opcode = 0xD4
 
 	// Types
 	ISNULL  Opcode = 0xD8
