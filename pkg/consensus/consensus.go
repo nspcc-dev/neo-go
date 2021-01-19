@@ -235,12 +235,21 @@ func (s *service) eventLoop() {
 	}
 }
 
-func (s *service) newPayload() payload.ConsensusPayload {
-	return &Payload{
+func (s *service) newPayload(c *dbft.Context, t payload.MessageType, msg interface{}) payload.ConsensusPayload {
+	cp := &Payload{
 		message: &message{
 			stateRootEnabled: s.stateRootEnabled(),
 		},
 	}
+	cp.SetHeight(c.BlockIndex)
+	cp.SetValidatorIndex(uint16(c.MyIndex))
+	cp.SetViewNumber(c.ViewNumber)
+	cp.SetType(t)
+	cp.SetPrevHash(c.PrevHash)
+	cp.SetVersion(c.Version)
+	cp.SetPayload(msg)
+
+	return cp
 }
 
 // stateRootEnabled checks if state root feature is enabled on current height.
@@ -453,12 +462,26 @@ func (s *service) verifyStateRootSig(index int, sig []byte) error {
 
 	pub := validators[index]
 	if pub.Verify(r.GetSignedPart(), sig) != nil {
-		return errors.New("bad state root signature")
+		return errInvalidStateRoot
 	}
 	return nil
 }
 
+var (
+	errInvalidPrevHash  = errors.New("invalid PrevHash")
+	errInvalidVersion   = errors.New("invalid Version")
+	errInvalidStateRoot = errors.New("invalid state root signature")
+)
+
 func (s *service) verifyRequest(p payload.ConsensusPayload) error {
+	pl := p.(*Payload)
+	if pl.prevHash != s.dbft.PrevHash {
+		return errInvalidPrevHash
+	}
+	if pl.version != s.dbft.Version {
+		return errInvalidVersion
+	}
+
 	req := p.GetPrepareRequest().(*prepareRequest)
 	if s.stateRootEnabled() {
 		err := s.verifyStateRootSig(int(p.ValidatorIndex()), req.stateRootSig[:])

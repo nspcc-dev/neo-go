@@ -1,6 +1,7 @@
 package consensus
 
 import (
+	"errors"
 	"testing"
 	"time"
 
@@ -12,6 +13,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/internal/random"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/stretchr/testify/require"
@@ -49,23 +51,33 @@ func TestService_GetVerified(t *testing.T) {
 
 	// Everyone sends a message.
 	for i := 0; i < 4; i++ {
-		p := srv.newPayload().(*Payload)
-		p.SetHeight(1)
-		p.SetValidatorIndex(uint16(i))
+		var p *Payload
 		priv, _ := getTestValidator(i)
 		// To properly sign stateroot in prepare request.
 		srv.dbft.Priv = priv
 		// One PrepareRequest and three ChangeViews.
 		if i == 1 {
-			p.SetType(payload.PrepareRequestType)
-			preq := srv.newPrepareRequest().(*prepareRequest)
-			preq.transactionHashes = hashes
-			preq.minerTx = *newMinerTx(999)
-			p.SetPayload(preq)
+			req := &prepareRequest{
+				transactionHashes: hashes,
+				minerTx:           *newMinerTx(999),
+			}
+			if srv.stateRootEnabled() {
+				req.stateRootEnabled = srv.stateRootEnabled()
+				sr, err := srv.Chain.GetStateRoot(srv.Chain.BlockHeight())
+				require.NoError(t, err)
+				sig, err := priv.Sign(sr.GetSignedPart())
+				require.NoError(t, err)
+				copy(req.stateRootSig[:], sig)
+			}
+			p = srv.newPayload(&srv.dbft.Context, payload.PrepareRequestType, req).(*Payload)
 		} else {
-			p.SetType(payload.ChangeViewType)
-			p.SetPayload(&changeView{newViewNumber: 1, timestamp: uint32(time.Now().Unix())})
+			p = srv.newPayload(&srv.dbft.Context, payload.ChangeViewType, &changeView{
+				newViewNumber: 1,
+				timestamp:     uint32(time.Now().Unix()),
+			}).(*Payload)
 		}
+		p.SetHeight(1)
+		p.SetValidatorIndex(uint16(i))
 
 		require.NoError(t, p.Sign(priv))
 
@@ -123,6 +135,47 @@ func TestService_ValidatePayload(t *testing.T) {
 		require.True(t, srv.validatePayload(p))
 	})
 	srv.Chain.Close()
+}
+
+func TestService_PrepareRequest(t *testing.T) {
+	srv := newTestService(t)
+	defer srv.Chain.Close()
+
+	srv.dbft.Start()
+	defer srv.dbft.Timer.Stop()
+
+	priv, _ := getTestValidator(1)
+	prevHash := srv.Chain.CurrentBlockHash()
+
+	checkRequest := func(t *testing.T, expectedErr error, version uint32, prevHash util.Uint256, sig []byte) {
+		req := &prepareRequest{
+			stateRootEnabled: true,
+			minerTx:          *newMinerTx(123),
+		}
+		req.transactionHashes = []util.Uint256{req.minerTx.Hash()}
+		copy(req.stateRootSig[:], sig)
+		p := srv.newPayload(&srv.dbft.Context, payload.PrepareRequestType, req)
+		p.SetValidatorIndex(1)
+		p.(*Payload).SetVersion(version)
+		p.(*Payload).SetPrevHash(prevHash)
+		require.NoError(t, p.(*Payload).Sign(priv))
+		err := srv.verifyRequest(p)
+		if expectedErr == nil {
+			require.NoError(t, err)
+			return
+		}
+		require.True(t, errors.Is(err, expectedErr), "got: %v", err)
+	}
+
+	sr, err := srv.Chain.GetStateRoot(srv.dbft.BlockIndex - 1)
+	require.NoError(t, err)
+	sig, err := priv.Sign(sr.GetSignedPart())
+	require.NoError(t, err)
+
+	checkRequest(t, errInvalidVersion, 0xFF, prevHash, sig)
+	checkRequest(t, errInvalidPrevHash, 0, random.Uint256(), sig)
+	checkRequest(t, errInvalidStateRoot, 0, prevHash, []byte{})
+	checkRequest(t, nil, 0, prevHash, sig)
 }
 
 func TestService_getTx(t *testing.T) {
