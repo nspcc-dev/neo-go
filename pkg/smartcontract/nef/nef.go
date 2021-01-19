@@ -17,8 +17,7 @@ import (
 // |   Field    |  Length   |                          Comment                           |
 // +------------+-----------+------------------------------------------------------------+
 // | Magic      | 4 bytes   | Magic header                                               |
-// | Compiler   | 32 bytes  | Compiler used                                              |
-// | Version    | 32 bytes  | Compiler version                                           |
+// | Compiler   | 64 bytes  | Compiler used and it's version                             |
 // +------------+-----------+------------------------------------------------------------+
 // | Reserved   | 2-bytes   | Reserved for extensions. Must be 0.                        |
 // | Tokens     | Var array | List of method tokens                                      |
@@ -33,8 +32,8 @@ const (
 	Magic uint32 = 0x3346454E
 	// MaxScriptLength is the maximum allowed contract script length.
 	MaxScriptLength = 512 * 1024
-	// compilerFieldSize is the length of `Compiler` and `Version` File header fields in bytes.
-	compilerFieldSize = 32
+	// compilerFieldSize is the length of `Compiler` File header field in bytes.
+	compilerFieldSize = 64
 )
 
 // File represents compiled contract file structure according to the NEF3 standard.
@@ -49,7 +48,6 @@ type File struct {
 type Header struct {
 	Magic    uint32 `json:"magic"`
 	Compiler string `json:"compiler"`
-	Version  string `json:"version"`
 }
 
 // NewFile returns new NEF3 file with script specified.
@@ -57,14 +55,13 @@ func NewFile(script []byte) (*File, error) {
 	file := &File{
 		Header: Header{
 			Magic:    Magic,
-			Compiler: "neo-go",
-			Version:  config.Version,
+			Compiler: "neo-go-" + config.Version,
 		},
 		Tokens: []MethodToken{},
 		Script: script,
 	}
-	if len(config.Version) > compilerFieldSize {
-		return nil, errors.New("too long version")
+	if len(file.Compiler) > compilerFieldSize {
+		return nil, errors.New("too long compiler field")
 	}
 	file.Checksum = file.CalculateChecksum()
 	return file, nil
@@ -79,11 +76,6 @@ func (h *Header) EncodeBinary(w *io.BinWriter) {
 	}
 	var b = make([]byte, compilerFieldSize)
 	copy(b, []byte(h.Compiler))
-	w.WriteBytes(b)
-	for i := range b {
-		b[i] = 0
-	}
-	copy(b, []byte(h.Version))
 	w.WriteBytes(b)
 }
 
@@ -100,12 +92,6 @@ func (h *Header) DecodeBinary(r *io.BinReader) {
 		return r == 0
 	})
 	h.Compiler = string(buf)
-	buf = buf[:compilerFieldSize]
-	r.ReadBytes(buf)
-	buf = bytes.TrimRightFunc(buf, func(r rune) bool {
-		return r == 0
-	})
-	h.Version = string(buf)
 }
 
 // CalculateChecksum returns first 4 bytes of double-SHA256(Header) converted to uint32.

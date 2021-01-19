@@ -117,9 +117,8 @@ func NewContractMD(name string, id int32) *ContractMD {
 
 	// NEF is now stored in contract state and affects state dump.
 	// Therefore values are taken from C# node.
-	c.NEF.Header.Compiler = "ScriptBuilder"
+	c.NEF.Header.Compiler = "neo-core-v3.0"
 	c.NEF.Header.Magic = nef.Magic
-	c.NEF.Header.Version = "3.0"
 	c.NEF.Script, c.Hash = state.CreateNativeContractHash(id)
 	c.NEF.Checksum = c.NEF.CalculateChecksum()
 	c.Manifest = *manifest.DefaultManifest(name)

@@ -20,8 +20,7 @@ func TestEncodeDecodeBinary(t *testing.T) {
 	expected := &File{
 		Header: Header{
 			Magic:    Magic,
-			Compiler: "the best compiler ever",
-			Version:  "1.2.3.4",
+			Compiler: "best compiler version 1",
 		},
 		Tokens: []MethodToken{{
 			Hash:       random.Uint160(),
@@ -100,8 +99,7 @@ func TestBytesFromBytes(t *testing.T) {
 	expected := File{
 		Header: Header{
 			Magic:    Magic,
-			Compiler: "the best compiler ever",
-			Version:  "1.2.3.4",
+			Compiler: "best compiler version 1",
 		},
 		Tokens: []MethodToken{{
 			Hash:       random.Uint160(),
@@ -125,8 +123,7 @@ func TestMarshalUnmarshalJSON(t *testing.T) {
 	expected := &File{
 		Header: Header{
 			Magic:    Magic,
-			Compiler: "test.compiler",
-			Version:  "test.ver",
+			Compiler: "test.compiler-test.ver",
 		},
 		Tokens: []MethodToken{{
 			Hash:       util.Uint160{0x12, 0x34, 0x56, 0x78, 0x91, 0x00},
@@ -143,8 +140,7 @@ func TestMarshalUnmarshalJSON(t *testing.T) {
 	require.NoError(t, err)
 	require.JSONEq(t, `{
 		"magic":`+strconv.FormatUint(uint64(Magic), 10)+`,
-		"compiler": "test.compiler",
-		"version": "test.ver",
+		"compiler": "test.compiler-test.ver",
 		"tokens": [
 			{
 	"hash": "0x`+expected.Tokens[0].Hash.StringLE()+`",
