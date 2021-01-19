@@ -3,11 +3,13 @@ package nef
 import (
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"strconv"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/internal/random"
 	"github.com/nspcc-dev/neo-go/internal/testserdes"
+	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/stretchr/testify/require"
@@ -54,7 +56,6 @@ func TestEncodeDecodeBinary(t *testing.T) {
 		expected.Checksum = expected.CalculateChecksum()
 		checkDecodeError(t, expected)
 	})
-
 	t.Run("invalid tokens list", func(t *testing.T) {
 		expected.Script = script
 		expected.Tokens[0].Method = "_reserved"
@@ -68,6 +69,23 @@ func TestEncodeDecodeBinary(t *testing.T) {
 		expected.Checksum = expected.CalculateChecksum()
 		expected.Header.Magic = Magic
 		testserdes.EncodeDecodeBinary(t, expected, &File{})
+	})
+	t.Run("invalid reserved bytes", func(t *testing.T) {
+		expected.Script = script
+		expected.Tokens = expected.Tokens[:0]
+		expected.Checksum = expected.CalculateChecksum()
+		bytes, err := testserdes.EncodeBinary(expected)
+		require.NoError(t, err)
+
+		sz := io.GetVarSize(&expected.Header)
+		bytes[sz] = 1
+		err = testserdes.DecodeBinary(bytes, new(File))
+		require.True(t, errors.Is(err, errInvalidReserved), "got: %v", err)
+
+		bytes[sz] = 0
+		bytes[sz+3] = 1
+		err = testserdes.DecodeBinary(bytes, new(File))
+		require.True(t, errors.Is(err, errInvalidReserved), "got: %v", err)
 	})
 }
 
