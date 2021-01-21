@@ -59,7 +59,7 @@ func initServiceNextConsensus(t *testing.T, newAcc *wallet.Account, offset uint3
 		acc.Contract.ScriptHash().BytesBE(), newPriv.GetScriptHash().BytesBE(), int64(native.NEOTotalSupply), nil)
 	emit.Opcodes(w.BinWriter, opcode.ASSERT)
 	emit.AppCall(w.BinWriter, bc.UtilityTokenHash(), "transfer", callflag.All,
-		acc.Contract.ScriptHash().BytesBE(), newPriv.GetScriptHash().BytesBE(), int64(1_000_000_000), nil)
+		acc.Contract.ScriptHash().BytesBE(), newPriv.GetScriptHash().BytesBE(), int64(10000_000_000_000), nil)
 	emit.Opcodes(w.BinWriter, opcode.ASSERT)
 	require.NoError(t, w.Err)
 
@@ -78,7 +78,7 @@ func initServiceNextConsensus(t *testing.T, newAcc *wallet.Account, offset uint3
 	emit.AppCall(w.BinWriter, bc.GoverningTokenHash(), "registerCandidate", callflag.All, newPriv.PublicKey().Bytes())
 	require.NoError(t, w.Err)
 
-	tx = transaction.New(netmode.UnitTestNet, w.Bytes(), 20_000_000)
+	tx = transaction.New(netmode.UnitTestNet, w.Bytes(), 1001_00000000)
 	tx.ValidUntilBlock = bc.BlockHeight() + 1
 	tx.NetworkFee = 20_000_000
 	tx.Signers = []transaction.Signer{{Scopes: transaction.Global, Account: newPriv.GetScriptHash()}}

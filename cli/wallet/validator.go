@@ -71,14 +71,14 @@ func newValidatorCommands() []cli.Command {
 }
 
 func handleRegister(ctx *cli.Context) error {
-	return handleCandidate(ctx, "registerCandidate")
+	return handleCandidate(ctx, "registerCandidate", 1001*100000000) // registering costs 1000 GAS
 }
 
 func handleUnregister(ctx *cli.Context) error {
-	return handleCandidate(ctx, "unregisterCandidate")
+	return handleCandidate(ctx, "unregisterCandidate", -1)
 }
 
-func handleCandidate(ctx *cli.Context, method string) error {
+func handleCandidate(ctx *cli.Context, method string, sysGas int64) error {
 	wall, err := openWallet(ctx.String("wallet"))
 	if err != nil {
 		return cli.NewExitError(err, 1)
@@ -108,7 +108,7 @@ func handleCandidate(ctx *cli.Context, method string) error {
 	w := io.NewBufBinWriter()
 	emit.AppCall(w.BinWriter, neoContractHash, method, callflag.WriteStates, acc.PrivateKey().PublicKey().Bytes())
 	emit.Opcodes(w.BinWriter, opcode.ASSERT)
-	tx, err := c.CreateTxFromScript(w.Bytes(), acc, -1, int64(gas), transaction.Signer{
+	tx, err := c.CreateTxFromScript(w.Bytes(), acc, sysGas, int64(gas), transaction.Signer{
 		Account: acc.Contract.ScriptHash(),
 		Scopes:  transaction.CalledByEntry,
 	})
