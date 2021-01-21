@@ -27,6 +27,7 @@ import (
 // Management is contract-managing native contract.
 type Management struct {
 	interop.ContractMD
+	NEO *NEO
 
 	mtx       sync.RWMutex
 	contracts map[util.Uint160]*state.Contract
@@ -367,14 +368,10 @@ func (m *Management) setMinimumDeploymentFee(ic *interop.Context, args []stackit
 	if value < 0 {
 		panic(fmt.Errorf("MinimumDeploymentFee cannot be negative"))
 	}
-	ok, err := checkValidators(ic)
-	if err != nil {
-		panic(err)
-	}
-	if !ok {
+	if !m.NEO.checkCommittee(ic) {
 		return stackitem.NewBool(false)
 	}
-	err = setUint32WithKey(m.ContractID, ic.DAO, keyMinimumDeploymentFee, value)
+	err := setUint32WithKey(m.ContractID, ic.DAO, keyMinimumDeploymentFee, value)
 	if err != nil {
 		panic(err)
 	}

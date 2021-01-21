@@ -62,6 +62,7 @@ var (
 // Policy represents Policy native contract.
 type Policy struct {
 	interop.ContractMD
+	NEO  *NEO
 	lock sync.RWMutex
 	// isValid defies whether cached values were changed during the current
 	// consensus iteration. If false, these values will be updated after
@@ -307,15 +308,12 @@ func (p *Policy) setExecFeeFactor(ic *interop.Context, args []stackitem.Item) st
 	if value <= 0 || maxExecFeeFactor < value {
 		panic(fmt.Errorf("ExecFeeFactor must be between 0 and %d", maxExecFeeFactor))
 	}
-	ok, err := checkValidators(ic)
-	if err != nil {
-		panic(err)
-	} else if !ok {
+	if !p.NEO.checkCommittee(ic) {
 		return stackitem.NewBool(false)
 	}
 	p.lock.Lock()
 	defer p.lock.Unlock()
-	err = setUint32WithKey(p.ContractID, ic.DAO, execFeeFactorKey, uint32(value))
+	err := setUint32WithKey(p.ContractID, ic.DAO, execFeeFactorKey, uint32(value))
 	if err != nil {
 		panic(err)
 	}
@@ -366,15 +364,12 @@ func (p *Policy) setStoragePrice(ic *interop.Context, args []stackitem.Item) sta
 	if value <= 0 || maxStoragePrice < value {
 		panic(fmt.Errorf("StoragePrice must be between 0 and %d", maxStoragePrice))
 	}
-	ok, err := checkValidators(ic)
-	if err != nil {
-		panic(err)
-	} else if !ok {
+	if !p.NEO.checkCommittee(ic) {
 		return stackitem.NewBool(false)
 	}
 	p.lock.Lock()
 	defer p.lock.Unlock()
-	err = setUint32WithKey(p.ContractID, ic.DAO, storagePriceKey, uint32(value))
+	err := setUint32WithKey(p.ContractID, ic.DAO, storagePriceKey, uint32(value))
 	if err != nil {
 		panic(err)
 	}
@@ -389,16 +384,12 @@ func (p *Policy) setMaxTransactionsPerBlock(ic *interop.Context, args []stackite
 	if value > block.MaxTransactionsPerBlock {
 		panic(fmt.Errorf("MaxTransactionsPerBlock cannot exceed the maximum allowed transactions per block = %d", block.MaxTransactionsPerBlock))
 	}
-	ok, err := checkValidators(ic)
-	if err != nil {
-		panic(err)
-	}
-	if !ok {
+	if !p.NEO.checkCommittee(ic) {
 		return stackitem.NewBool(false)
 	}
 	p.lock.Lock()
 	defer p.lock.Unlock()
-	err = setUint32WithKey(p.ContractID, ic.DAO, maxTransactionsPerBlockKey, value)
+	err := setUint32WithKey(p.ContractID, ic.DAO, maxTransactionsPerBlockKey, value)
 	if err != nil {
 		panic(err)
 	}
@@ -412,16 +403,12 @@ func (p *Policy) setMaxBlockSize(ic *interop.Context, args []stackitem.Item) sta
 	if value > payload.MaxSize {
 		panic(fmt.Errorf("MaxBlockSize cannot be more than the maximum payload size = %d", payload.MaxSize))
 	}
-	ok, err := checkValidators(ic)
-	if err != nil {
-		panic(err)
-	}
-	if !ok {
+	if !p.NEO.checkCommittee(ic) {
 		return stackitem.NewBool(false)
 	}
 	p.lock.Lock()
 	defer p.lock.Unlock()
-	err = setUint32WithKey(p.ContractID, ic.DAO, maxBlockSizeKey, value)
+	err := setUint32WithKey(p.ContractID, ic.DAO, maxBlockSizeKey, value)
 	if err != nil {
 		panic(err)
 	}
@@ -435,16 +422,12 @@ func (p *Policy) setFeePerByte(ic *interop.Context, args []stackitem.Item) stack
 	if value < 0 || value > maxFeePerByte {
 		panic(fmt.Errorf("FeePerByte shouldn't be negative or greater than %d", maxFeePerByte))
 	}
-	ok, err := checkValidators(ic)
-	if err != nil {
-		panic(err)
-	}
-	if !ok {
+	if !p.NEO.checkCommittee(ic) {
 		return stackitem.NewBool(false)
 	}
 	p.lock.Lock()
 	defer p.lock.Unlock()
-	err = setInt64WithKey(p.ContractID, ic.DAO, feePerByteKey, value)
+	err := setInt64WithKey(p.ContractID, ic.DAO, feePerByteKey, value)
 	if err != nil {
 		panic(err)
 	}
@@ -458,16 +441,12 @@ func (p *Policy) setMaxBlockSystemFee(ic *interop.Context, args []stackitem.Item
 	if value <= minBlockSystemFee {
 		panic(fmt.Errorf("MaxBlockSystemFee cannot be less then %d", minBlockSystemFee))
 	}
-	ok, err := checkValidators(ic)
-	if err != nil {
-		panic(err)
-	}
-	if !ok {
+	if !p.NEO.checkCommittee(ic) {
 		return stackitem.NewBool(false)
 	}
 	p.lock.Lock()
 	defer p.lock.Unlock()
-	err = setInt64WithKey(p.ContractID, ic.DAO, maxBlockSystemFeeKey, value)
+	err := setInt64WithKey(p.ContractID, ic.DAO, maxBlockSystemFeeKey, value)
 	if err != nil {
 		panic(err)
 	}
@@ -478,11 +457,7 @@ func (p *Policy) setMaxBlockSystemFee(ic *interop.Context, args []stackitem.Item
 // blockAccount is Policy contract method and adds given account hash to the list
 // of blocked accounts.
 func (p *Policy) blockAccount(ic *interop.Context, args []stackitem.Item) stackitem.Item {
-	ok, err := checkValidators(ic)
-	if err != nil {
-		panic(err)
-	}
-	if !ok {
+	if !p.NEO.checkCommittee(ic) {
 		return stackitem.NewBool(false)
 	}
 	hash := toUint160(args[0])
@@ -492,7 +467,7 @@ func (p *Policy) blockAccount(ic *interop.Context, args []stackitem.Item) stacki
 	key := append([]byte{blockedAccountPrefix}, hash.BytesBE()...)
 	p.lock.Lock()
 	defer p.lock.Unlock()
-	err = ic.DAO.PutStorageItem(p.ContractID, key, &state.StorageItem{
+	err := ic.DAO.PutStorageItem(p.ContractID, key, &state.StorageItem{
 		Value: []byte{0x01},
 	})
 	if err != nil {
@@ -505,11 +480,7 @@ func (p *Policy) blockAccount(ic *interop.Context, args []stackitem.Item) stacki
 // unblockAccount is Policy contract method and removes given account hash from
 // the list of blocked accounts.
 func (p *Policy) unblockAccount(ic *interop.Context, args []stackitem.Item) stackitem.Item {
-	ok, err := checkValidators(ic)
-	if err != nil {
-		panic(err)
-	}
-	if !ok {
+	if !p.NEO.checkCommittee(ic) {
 		return stackitem.NewBool(false)
 	}
 	hash := toUint160(args[0])
@@ -519,7 +490,7 @@ func (p *Policy) unblockAccount(ic *interop.Context, args []stackitem.Item) stac
 	key := append([]byte{blockedAccountPrefix}, hash.BytesBE()...)
 	p.lock.Lock()
 	defer p.lock.Unlock()
-	err = ic.DAO.DeleteStorageItem(p.ContractID, key)
+	err := ic.DAO.DeleteStorageItem(p.ContractID, key)
 	if err != nil {
 		panic(err)
 	}

@@ -30,6 +30,8 @@ func TestNotaryContractPipeline(t *testing.T) {
 	gasHash := chain.contracts.GAS.Hash
 	depositLock := 100
 
+	transferFundsToCommittee(t, chain)
+
 	// check Notary contract has no GAS on the account
 	checkBalanceOf(t, chain, notaryHash, 0)
 
@@ -329,6 +331,8 @@ func TestMaxNotValidBeforeDelta(t *testing.T) {
 	defer chain.Close()
 	notaryHash := chain.contracts.Notary.Hash
 
+	transferFundsToCommittee(t, chain)
+
 	t.Run("get, internal method", func(t *testing.T) {
 		n := chain.contracts.Notary.GetMaxNotValidBeforeDelta(chain.dao)
 		require.Equal(t, 140, int(n))
@@ -342,7 +346,7 @@ func TestMaxNotValidBeforeDelta(t *testing.T) {
 	})
 
 	t.Run("set", func(t *testing.T) {
-		res, err := invokeContractMethod(chain, 100000000, notaryHash, "setMaxNotValidBeforeDelta", bigint.ToBytes(big.NewInt(150)))
+		res, err := invokeContractMethodGeneric(chain, 100000000, notaryHash, "setMaxNotValidBeforeDelta", true, bigint.ToBytes(big.NewInt(150)))
 		require.NoError(t, err)
 		checkResult(t, res, stackitem.NewBool(true))
 		n := chain.contracts.Notary.GetMaxNotValidBeforeDelta(chain.dao)
@@ -350,13 +354,13 @@ func TestMaxNotValidBeforeDelta(t *testing.T) {
 	})
 
 	t.Run("set, too big value", func(t *testing.T) {
-		res, err := invokeContractMethod(chain, 100000000, notaryHash, "setMaxNotValidBeforeDelta", bigint.ToBytes(big.NewInt(transaction.MaxValidUntilBlockIncrement/2+1)))
+		res, err := invokeContractMethodGeneric(chain, 100000000, notaryHash, "setMaxNotValidBeforeDelta", true, bigint.ToBytes(big.NewInt(transaction.MaxValidUntilBlockIncrement/2+1)))
 		require.NoError(t, err)
 		checkFAULTState(t, res)
 	})
 
 	t.Run("set, too small value", func(t *testing.T) {
-		res, err := invokeContractMethod(chain, 100000000, notaryHash, "setMaxNotValidBeforeDelta", bigint.ToBytes(big.NewInt(int64(chain.GetConfig().ValidatorsCount-1))))
+		res, err := invokeContractMethodGeneric(chain, 100000000, notaryHash, "setMaxNotValidBeforeDelta", true, bigint.ToBytes(big.NewInt(int64(chain.GetConfig().ValidatorsCount-1))))
 		require.NoError(t, err)
 		checkFAULTState(t, res)
 	})

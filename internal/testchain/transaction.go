@@ -91,17 +91,27 @@ func NewDeployTx(bc blockchainer.Blockchainer, name string, sender util.Uint160,
 
 // SignTx signs provided transactions with validator keys.
 func SignTx(bc blockchainer.Blockchainer, txs ...*transaction.Transaction) error {
+	signTxGeneric(bc, Sign, ownerScript, txs...)
+	return nil
+}
+
+// SignTxCommittee signs transactions by committee.
+func SignTxCommittee(bc blockchainer.Blockchainer, txs ...*transaction.Transaction) error {
+	signTxGeneric(bc, SignCommittee, CommitteeVerificationScript(), txs...)
+	return nil
+}
+
+func signTxGeneric(bc blockchainer.Blockchainer, sign func([]byte) []byte, verif []byte, txs ...*transaction.Transaction) {
 	for _, tx := range txs {
 		size := io.GetVarSize(tx)
-		netFee, sizeDelta := fee.Calculate(bc.GetPolicer().GetBaseExecFee(), ownerScript)
+		netFee, sizeDelta := fee.Calculate(bc.GetPolicer().GetBaseExecFee(), verif)
 		tx.NetworkFee += netFee
 		size += sizeDelta
 		tx.NetworkFee += int64(size) * bc.FeePerByte()
 		data := tx.GetSignedPart()
 		tx.Scripts = []transaction.Witness{{
-			InvocationScript:   Sign(data),
-			VerificationScript: ownerScript,
+			InvocationScript:   sign(data),
+			VerificationScript: verif,
 		}}
 	}
-	return nil
 }

@@ -63,6 +63,7 @@ func NewContracts(p2pSigExtensionsEnabled bool) *Contracts {
 	neo := newNEO()
 	neo.GAS = gas
 	gas.NEO = neo
+	mgmt.NEO = neo
 
 	cs.GAS = gas
 	cs.NEO = neo
@@ -70,6 +71,7 @@ func NewContracts(p2pSigExtensionsEnabled bool) *Contracts {
 	cs.Contracts = append(cs.Contracts, gas)
 
 	policy := newPolicy()
+	policy.NEO = neo
 	cs.Policy = policy
 	cs.Contracts = append(cs.Contracts, policy)
 
@@ -88,6 +90,7 @@ func NewContracts(p2pSigExtensionsEnabled bool) *Contracts {
 	if p2pSigExtensionsEnabled {
 		notary := newNotary()
 		notary.GAS = gas
+		notary.NEO = neo
 		notary.Desig = desig
 		cs.Notary = notary
 		cs.Contracts = append(cs.Contracts, notary)
