@@ -139,7 +139,7 @@ func TestAddBlockStateRoot(t *testing.T) {
 
 	tx := newNEP17Transfer(bc.contracts.NEO.Hash, neoOwner, util.Uint160{}, 1)
 	tx.ValidUntilBlock = bc.BlockHeight() + 1
-	addSigners(tx)
+	addSigners(neoOwner, tx)
 	require.NoError(t, testchain.SignTx(bc, tx))
 
 	lastBlock := bc.topBlock.Load().(*block.Block)
@@ -198,7 +198,7 @@ func TestGetHeader(t *testing.T) {
 	bc := newTestChain(t)
 	tx := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
 	tx.ValidUntilBlock = bc.BlockHeight() + 1
-	addSigners(tx)
+	addSigners(neoOwner, tx)
 	assert.Nil(t, testchain.SignTx(bc, tx))
 	block := bc.newBlock(tx)
 	err := bc.AddBlock(block)
@@ -1176,7 +1176,7 @@ func TestIsTxStillRelevant(t *testing.T) {
 		txDeploy, h, err := testchain.NewDeployTx(bc, "TestVerify", neoOwner, strings.NewReader(src))
 		require.NoError(t, err)
 		txDeploy.ValidUntilBlock = bc.BlockHeight() + 1
-		addSigners(txDeploy)
+		addSigners(neoOwner, txDeploy)
 		require.NoError(t, testchain.SignTx(bc, txDeploy))
 		require.NoError(t, bc.AddBlock(bc.newBlock(txDeploy)))
 

@@ -400,10 +400,10 @@ func newDeployTx(t *testing.T, bc *Blockchain, sender util.Uint160, name, ctrNam
 	return tx, h
 }
 
-func addSigners(txs ...*transaction.Transaction) {
+func addSigners(sender util.Uint160, txs ...*transaction.Transaction) {
 	for _, tx := range txs {
 		tx.Signers = []transaction.Signer{{
-			Account:          neoOwner,
+			Account:          sender,
 			Scopes:           transaction.CalledByEntry,
 			AllowedContracts: nil,
 			AllowedGroups:    nil,
@@ -428,8 +428,8 @@ func addNetworkFee(bc *Blockchain, tx *transaction.Transaction, sender *wallet.A
 	return nil
 }
 
-func prepareContractMethodInvoke(chain *Blockchain, sysfee int64,
-	hash util.Uint160, method string, args ...interface{}) (*transaction.Transaction, error) {
+func prepareContractMethodInvokeGeneric(chain *Blockchain, sysfee int64,
+	hash util.Uint160, method string, isCommittee bool, args ...interface{}) (*transaction.Transaction, error) {
 	w := io.NewBufBinWriter()
 	emit.AppCall(w.BinWriter, hash, method, callflag.All, args...)
 	if w.Err != nil {
@@ -438,12 +438,24 @@ func prepareContractMethodInvoke(chain *Blockchain, sysfee int64,
 	script := w.Bytes()
 	tx := transaction.New(chain.GetConfig().Magic, script, sysfee)
 	tx.ValidUntilBlock = chain.blockHeight + 1
-	addSigners(tx)
-	err := testchain.SignTx(chain, tx)
+	var err error
+	if isCommittee {
+		addSigners(testchain.CommitteeScriptHash(), tx)
+		err = testchain.SignTxCommittee(chain, tx)
+	} else {
+		addSigners(neoOwner, tx)
+		err = testchain.SignTx(chain, tx)
+	}
 	if err != nil {
 		return nil, err
 	}
 	return tx, nil
+}
+
+func prepareContractMethodInvoke(chain *Blockchain, sysfee int64,
+	hash util.Uint160, method string, args ...interface{}) (*transaction.Transaction, error) {
+	return prepareContractMethodInvokeGeneric(chain, sysfee, hash,
+		method, false, args...)
 }
 
 func persistBlock(chain *Blockchain, txs ...*transaction.Transaction) ([]*state.AppExecResult, error) {
@@ -465,7 +477,13 @@ func persistBlock(chain *Blockchain, txs ...*transaction.Transaction) ([]*state.
 }
 
 func invokeContractMethod(chain *Blockchain, sysfee int64, hash util.Uint160, method string, args ...interface{}) (*state.AppExecResult, error) {
-	tx, err := prepareContractMethodInvoke(chain, sysfee, hash, method, args...)
+	return invokeContractMethodGeneric(chain, sysfee, hash, method, false, args...)
+}
+
+func invokeContractMethodGeneric(chain *Blockchain, sysfee int64, hash util.Uint160, method string,
+	isCommittee bool, args ...interface{}) (*state.AppExecResult, error) {
+	tx, err := prepareContractMethodInvokeGeneric(chain, sysfee, hash,
+		method, isCommittee, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -512,7 +530,7 @@ func transferTokenFromMultisigAccount(t *testing.T, chain *Blockchain, to, token
 	transferTx := newNEP17Transfer(tokenHash, testchain.MultisigScriptHash(), to, amount, additionalArgs...)
 	transferTx.SystemFee = 100000000
 	transferTx.ValidUntilBlock = chain.BlockHeight() + 1
-	addSigners(transferTx)
+	addSigners(neoOwner, transferTx)
 	require.NoError(t, testchain.SignTx(chain, transferTx))
 	b := chain.newBlock(transferTx)
 	require.NoError(t, chain.AddBlock(b))
