@@ -462,6 +462,14 @@ func (n *NEO) GetCommitteeAddress() util.Uint160 {
 	return n.committeeHash.Load().(util.Uint160)
 }
 
+func (n *NEO) checkCommittee(ic *interop.Context) bool {
+	ok, err := runtime.CheckHashedWitness(ic, n.GetCommitteeAddress())
+	if err != nil {
+		panic(err)
+	}
+	return ok
+}
+
 func (n *NEO) setGASPerBlock(ic *interop.Context, args []stackitem.Item) stackitem.Item {
 	gas := toBigInt(args[0])
 	ok, err := n.SetGASPerBlock(ic, ic.Block.Index+1, gas)

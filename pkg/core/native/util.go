@@ -4,8 +4,6 @@ import (
 	"encoding/binary"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
-	"github.com/nspcc-dev/neo-go/pkg/core/interop"
-	"github.com/nspcc-dev/neo-go/pkg/core/interop/runtime"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/io"
@@ -63,14 +61,6 @@ func setUint32WithKey(id int32, dao dao.DAO, key []byte, value uint32) error {
 	}
 	binary.LittleEndian.PutUint32(si.Value, value)
 	return dao.PutStorageItem(id, key, si)
-}
-
-func checkValidators(ic *interop.Context) (bool, error) {
-	prevBlock, err := ic.Chain.GetBlock(ic.Block.PrevHash)
-	if err != nil {
-		return false, err
-	}
-	return runtime.CheckHashedWitness(ic, prevBlock.NextConsensus)
 }
 
 // makeUint160Key creates a key from account script hash.

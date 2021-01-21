@@ -293,7 +293,7 @@ func TestVerifyTx(t *testing.T) {
 	require.Equal(t, 1, len(aer))
 	require.Equal(t, aer[0].VMState, vm.HaltState)
 
-	res, err := invokeContractMethod(bc, 100000000, bc.contracts.Policy.Hash, "blockAccount", accs[1].PrivateKey().GetScriptHash().BytesBE())
+	res, err := invokeContractMethodGeneric(bc, 100000000, bc.contracts.Policy.Hash, "blockAccount", true, accs[1].PrivateKey().GetScriptHash().BytesBE())
 	require.NoError(t, err)
 	checkResult(t, res, stackitem.NewBool(true))
 

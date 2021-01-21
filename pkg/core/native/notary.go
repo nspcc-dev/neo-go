@@ -27,6 +27,7 @@ import (
 type Notary struct {
 	interop.ContractMD
 	GAS   *GAS
+	NEO   *NEO
 	Desig *Designate
 
 	lock sync.RWMutex
@@ -387,16 +388,12 @@ func (n *Notary) setMaxNotValidBeforeDelta(ic *interop.Context, args []stackitem
 	if value > transaction.MaxValidUntilBlockIncrement/2 || value < uint32(ic.Chain.GetConfig().ValidatorsCount) {
 		panic(fmt.Errorf("MaxNotValidBeforeDelta cannot be more than %d or less than %d", transaction.MaxValidUntilBlockIncrement/2, ic.Chain.GetConfig().ValidatorsCount))
 	}
-	ok, err := checkValidators(ic)
-	if err != nil {
-		panic(fmt.Errorf("failed to check committee signature: %w", err))
-	}
-	if !ok {
+	if !n.NEO.checkCommittee(ic) {
 		return stackitem.NewBool(false)
 	}
 	n.lock.Lock()
 	defer n.lock.Unlock()
-	err = setUint32WithKey(n.ContractID, ic.DAO, maxNotValidBeforeDeltaKey, value)
+	err := setUint32WithKey(n.ContractID, ic.DAO, maxNotValidBeforeDeltaKey, value)
 	if err != nil {
 		panic(fmt.Errorf("failed to put value into the storage: %w", err))
 	}
