@@ -17,7 +17,7 @@ import (
 
 func transferFundsToCommittee(t *testing.T, chain *Blockchain) {
 	transferTokenFromMultisigAccount(t, chain, testchain.CommitteeScriptHash(),
-		chain.contracts.GAS.Hash, 100_00000000)
+		chain.contracts.GAS.Hash, 1000_00000000)
 }
 
 func testGetSet(t *testing.T, chain *Blockchain, hash util.Uint160, name string, defaultValue, minValue, maxValue int64) {

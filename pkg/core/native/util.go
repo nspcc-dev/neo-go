@@ -8,6 +8,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
 func getSerializableFromDAO(id int32, d dao.DAO, key []byte, item io.Serializable) error {
@@ -69,4 +70,12 @@ func makeUint160Key(prefix byte, h util.Uint160) []byte {
 	k[0] = prefix
 	copy(k[1:], h.BytesBE())
 	return k
+}
+
+func toString(item stackitem.Item) string {
+	s, err := stackitem.ToString(item)
+	if err != nil {
+		panic(err)
+	}
+	return s
 }

@@ -93,8 +93,8 @@ func newBlock(cfg config.ProtocolConfiguration, index uint32, prev util.Uint256,
 	return newBlockWithState(cfg, index, prev, nil, txs...)
 }
 
-func newBlockWithState(cfg config.ProtocolConfiguration, index uint32, prev util.Uint256,
-	prevState *util.Uint256, txs ...*transaction.Transaction) *block.Block {
+func newBlockCustom(cfg config.ProtocolConfiguration, f func(b *block.Block),
+	txs ...*transaction.Transaction) *block.Block {
 	validators, _ := validatorsFromConfig(cfg)
 	valScript, _ := smartcontract.CreateDefaultMultiSigRedeemScript(validators)
 	witness := transaction.Witness{
@@ -103,10 +103,6 @@ func newBlockWithState(cfg config.ProtocolConfiguration, index uint32, prev util
 	b := &block.Block{
 		Base: block.Base{
 			Network:       testchain.Network(),
-			Version:       0,
-			PrevHash:      prev,
-			Timestamp:     uint64(time.Now().UTC().Unix())*1000 + uint64(index),
-			Index:         index,
 			NextConsensus: witness.ScriptHash(),
 			Script:        witness,
 		},
@@ -116,13 +112,25 @@ func newBlockWithState(cfg config.ProtocolConfiguration, index uint32, prev util
 		},
 		Transactions: txs,
 	}
-	if prevState != nil {
-		b.StateRootEnabled = true
-		b.PrevStateRoot = *prevState
-	}
+	f(b)
+
 	b.RebuildMerkleRoot()
 	b.Script.InvocationScript = testchain.Sign(b.GetSignedPart())
 	return b
+}
+
+func newBlockWithState(cfg config.ProtocolConfiguration, index uint32, prev util.Uint256,
+	prevState *util.Uint256, txs ...*transaction.Transaction) *block.Block {
+	return newBlockCustom(cfg, func(b *block.Block) {
+		b.PrevHash = prev
+		b.Timestamp = uint64(time.Now().UTC().Unix())*1000 + uint64(index)
+		b.Index = index
+
+		if prevState != nil {
+			b.StateRootEnabled = true
+			b.PrevStateRoot = *prevState
+		}
+	}, txs...)
 }
 
 func (bc *Blockchain) genBlocks(n int) ([]*block.Block, error) {
