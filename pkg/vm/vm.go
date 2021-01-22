@@ -80,6 +80,9 @@ type VM struct {
 	// SyscallHandler handles SYSCALL opcode.
 	SyscallHandler func(v *VM, id uint32) error
 
+	// LoadToken handles CALLT opcode.
+	LoadToken func(id int32) error
+
 	trigger trigger.Type
 
 	// Invocations is a script invocation counter.
@@ -305,7 +308,6 @@ func (v *VM) LoadScriptWithCallingHash(caller util.Uint160, b []byte, hash util.
 	f callflag.CallFlag, hasReturn bool, paramCount uint16) {
 	v.LoadScriptWithFlags(b, f)
 	ctx := v.Context()
-	ctx.isDeployed = true
 	ctx.scriptHash = hash
 	ctx.callingScriptHash = caller
 	if hasReturn {
@@ -1276,6 +1278,12 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 
 		v.call(ctx, ptr.Position())
 
+	case opcode.CALLT:
+		id := int32(binary.LittleEndian.Uint16(parameter))
+		if err := v.LoadToken(id); err != nil {
+			panic(err)
+		}
+
 	case opcode.SYSCALL:
 		interopID := GetInteropID(parameter)
 		err := v.SyscallHandler(v, interopID)
@@ -1510,6 +1518,7 @@ func (v *VM) call(ctx *Context, offset int) {
 	newCtx.local = nil
 	newCtx.arguments = nil
 	newCtx.tryStack = NewStack("exception")
+	newCtx.NEF = ctx.NEF
 	v.istack.PushVal(newCtx)
 	v.Jump(newCtx, offset)
 }

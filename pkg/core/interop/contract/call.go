@@ -15,6 +15,26 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
+// LoadToken calls method specified by token id.
+func LoadToken(ic *interop.Context) func(id int32) error {
+	return func(id int32) error {
+		ctx := ic.VM.Context()
+		tok := ctx.NEF.Tokens[id]
+		if int(tok.ParamCount) > ctx.Estack().Len() {
+			return errors.New("stack is too small")
+		}
+		args := make([]stackitem.Item, tok.ParamCount)
+		for i := range args {
+			args[i] = ic.VM.Estack().Pop().Item()
+		}
+		cs, err := ic.GetContract(tok.Hash)
+		if err != nil {
+			return fmt.Errorf("contract not found: %w", err)
+		}
+		return callInternal(ic, cs, tok.Method, tok.CallFlag, tok.HasReturn, args)
+	}
+}
+
 // Call calls a contract with flags.
 func Call(ic *interop.Context) error {
 	h := ic.VM.Estack().Pop().Bytes()
@@ -24,10 +44,6 @@ func Call(ic *interop.Context) error {
 		return errors.New("call flags out of range")
 	}
 	args := ic.VM.Estack().Pop().Array()
-	return callInternal(ic, h, method, fs, args)
-}
-
-func callInternal(ic *interop.Context, h []byte, name string, f callflag.CallFlag, args []stackitem.Item) error {
 	u, err := util.Uint160DecodeBytesBE(h)
 	if err != nil {
 		return errors.New("invalid contract hash")
@@ -36,10 +52,10 @@ func callInternal(ic *interop.Context, h []byte, name string, f callflag.CallFla
 	if err != nil {
 		return fmt.Errorf("contract not found: %w", err)
 	}
-	if strings.HasPrefix(name, "_") {
+	if strings.HasPrefix(method, "_") {
 		return errors.New("invalid method name (starts with '_')")
 	}
-	md := cs.Manifest.ABI.GetMethod(name)
+	md := cs.Manifest.ABI.GetMethod(method)
 	if md == nil {
 		return errors.New("method not found")
 	}
@@ -47,12 +63,18 @@ func callInternal(ic *interop.Context, h []byte, name string, f callflag.CallFla
 	if !hasReturn {
 		ic.VM.Estack().PushVal(stackitem.Null{})
 	}
+	return callInternal(ic, cs, method, fs, hasReturn, args)
+}
+
+func callInternal(ic *interop.Context, cs *state.Contract, name string, f callflag.CallFlag,
+	hasReturn bool, args []stackitem.Item) error {
+	md := cs.Manifest.ABI.GetMethod(name)
 	if md.Safe {
 		f &^= callflag.WriteStates
 	} else if ctx := ic.VM.Context(); ctx != nil && ctx.IsDeployed() {
 		curr, err := ic.GetContract(ic.VM.GetCurrentScriptHash())
 		if err == nil {
-			if !curr.Manifest.CanCall(u, &cs.Manifest, name) {
+			if !curr.Manifest.CanCall(cs.Hash, &cs.Manifest, name) {
 				return errors.New("disallowed method call")
 			}
 		}
@@ -74,6 +96,7 @@ func callExFromNative(ic *interop.Context, caller util.Uint160, cs *state.Contra
 
 	ic.VM.Invocations[cs.Hash]++
 	ic.VM.LoadScriptWithCallingHash(caller, cs.NEF.Script, cs.Hash, ic.VM.Context().GetCallFlags()&f, true, uint16(len(args)))
+	ic.VM.Context().NEF = &cs.NEF
 	var isNative bool
 	for i := range ic.Natives {
 		if ic.Natives[i].Metadata().Hash.Equals(cs.Hash) {

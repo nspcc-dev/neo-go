@@ -7,6 +7,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
@@ -42,9 +43,6 @@ type Context struct {
 	// Caller's contract script hash.
 	callingScriptHash util.Uint160
 
-	// Set to true when running deployed contracts.
-	isDeployed bool
-
 	// Call flags this context was created with.
 	callFlag callflag.CallFlag
 
@@ -52,6 +50,8 @@ type Context struct {
 	ParamCount int
 	// RetCount specifies number of return values.
 	RetCount int
+	// NEF represents NEF file for the current contract.
+	NEF *nef.File
 }
 
 // CheckReturnState represents possible states of stack after opcode.RET was processed.
@@ -144,7 +144,7 @@ func (c *Context) Next() (opcode.Opcode, []byte, error) {
 		opcode.ENDTRY,
 		opcode.INITSSLOT, opcode.LDSFLD, opcode.STSFLD, opcode.LDARG, opcode.STARG, opcode.LDLOC, opcode.STLOC:
 		numtoread = 1
-	case opcode.INITSLOT, opcode.TRY:
+	case opcode.INITSLOT, opcode.TRY, opcode.CALLT:
 		numtoread = 2
 	case opcode.JMPL, opcode.JMPIFL, opcode.JMPIFNOTL, opcode.JMPEQL, opcode.JMPNEL,
 		opcode.JMPGTL, opcode.JMPGEL, opcode.JMPLTL, opcode.JMPLEL,
@@ -273,7 +273,7 @@ func (c *Context) String() string {
 
 // IsDeployed returns whether this context contains deployed contract.
 func (c *Context) IsDeployed() bool {
-	return c.isDeployed
+	return c.NEF != nil
 }
 
 // getContextScriptHash returns script hash of the invocation stack element

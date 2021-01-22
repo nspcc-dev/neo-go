@@ -83,9 +83,7 @@ func TestContractDeploy(t *testing.T) {
 	cs1.Hash = state.CreateContractHash(testchain.MultisigScriptHash(), cs1.NEF.Script)
 	manif1, err := json.Marshal(cs1.Manifest)
 	require.NoError(t, err)
-	nef1, err := nef.NewFile(cs1.NEF.Script)
-	require.NoError(t, err)
-	nef1b, err := nef1.Bytes()
+	nef1b, err := cs1.NEF.Bytes()
 	require.NoError(t, err)
 
 	t.Run("no NEF", func(t *testing.T) {

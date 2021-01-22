@@ -513,6 +513,12 @@ func getTestContractState(bc *Blockchain) (*state.Contract, *state.Contract) {
 	emit.Opcodes(w.BinWriter, opcode.NEWARRAY0, opcode.DUP, opcode.DUP, opcode.APPEND, opcode.NEWMAP)
 	emit.Syscall(w.BinWriter, interopnames.SystemIteratorCreate)
 	emit.Opcodes(w.BinWriter, opcode.RET)
+	callT0Off := w.Len()
+	emit.Opcodes(w.BinWriter, opcode.CALLT, 0, 0, opcode.PUSH1, opcode.ADD, opcode.RET)
+	callT1Off := w.Len()
+	emit.Opcodes(w.BinWriter, opcode.CALLT, 1, 0, opcode.RET)
+	callT2Off := w.Len()
+	emit.Opcodes(w.BinWriter, opcode.CALLT, 0, 0, opcode.RET)
 
 	script := w.Bytes()
 	h := hash.Hash160(script)
@@ -616,7 +622,34 @@ func getTestContractState(bc *Blockchain) (*state.Contract, *state.Contract) {
 			Offset:     invalidStackOff,
 			ReturnType: smartcontract.VoidType,
 		},
+		{
+			Name:   "callT0",
+			Offset: callT0Off,
+			Parameters: []manifest.Parameter{
+				manifest.NewParameter("address", smartcontract.Hash160Type),
+			},
+			ReturnType: smartcontract.IntegerType,
+		},
+		{
+			Name:       "callT1",
+			Offset:     callT1Off,
+			ReturnType: smartcontract.IntegerType,
+		},
+		{
+			Name:       "callT2",
+			Offset:     callT2Off,
+			ReturnType: smartcontract.IntegerType,
+		},
 	}
+	m.Permissions = make([]manifest.Permission, 2)
+	m.Permissions[0].Contract.Type = manifest.PermissionHash
+	m.Permissions[0].Contract.Value = bc.contracts.NEO.Hash
+	m.Permissions[0].Methods.Add("balanceOf")
+
+	m.Permissions[1].Contract.Type = manifest.PermissionHash
+	m.Permissions[1].Contract.Value = util.Uint160{}
+	m.Permissions[1].Methods.Add("method")
+
 	cs := &state.Contract{
 		Hash:     h,
 		Manifest: *m,
@@ -626,6 +659,22 @@ func getTestContractState(bc *Blockchain) (*state.Contract, *state.Contract) {
 	if err != nil {
 		panic(err)
 	}
+	ne.Tokens = []nef.MethodToken{
+		{
+			Hash:       bc.contracts.NEO.Hash,
+			Method:     "balanceOf",
+			ParamCount: 1,
+			HasReturn:  true,
+			CallFlag:   callflag.ReadStates,
+		},
+		{
+			Hash:      util.Uint160{},
+			Method:    "method",
+			HasReturn: true,
+			CallFlag:  callflag.ReadStates,
+		},
+	}
+	ne.Checksum = ne.CalculateChecksum()
 	cs.NEF = *ne
 
 	currScript := []byte{byte(opcode.RET)}
@@ -978,5 +1027,30 @@ func TestRuntimeCheckWitness(t *testing.T) {
 				check(t, ic, hash.BytesBE(), false, false)
 			})
 		})
+	})
+}
+
+func TestLoadToken(t *testing.T) {
+	bc := newTestChain(t)
+	defer bc.Close()
+
+	cs, _ := getTestContractState(bc)
+	require.NoError(t, bc.contracts.Management.PutContractState(bc.dao, cs))
+
+	t.Run("good", func(t *testing.T) {
+		aer, err := invokeContractMethod(bc, 1_00000000, cs.Hash, "callT0", neoOwner.BytesBE())
+		require.NoError(t, err)
+		realBalance, _ := bc.GetGoverningTokenBalance(neoOwner)
+		checkResult(t, aer, stackitem.Make(realBalance.Int64()+1))
+	})
+	t.Run("invalid param count", func(t *testing.T) {
+		aer, err := invokeContractMethod(bc, 1_00000000, cs.Hash, "callT2")
+		require.NoError(t, err)
+		checkFAULTState(t, aer)
+	})
+	t.Run("invalid contract", func(t *testing.T) {
+		aer, err := invokeContractMethod(bc, 1_00000000, cs.Hash, "callT1")
+		require.NoError(t, err)
+		checkFAULTState(t, aer)
 	})
 }

@@ -16,6 +16,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
+	"github.com/nspcc-dev/neo-go/pkg/core/interop/contract"
 	"github.com/nspcc-dev/neo-go/pkg/core/mempool"
 	"github.com/nspcc-dev/neo-go/pkg/core/mpt"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
@@ -625,6 +626,7 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 		v := systemInterop.SpawnVM()
 		v.LoadScriptWithFlags(tx.Script, callflag.All)
 		v.SetPriceGetter(bc.getPrice)
+		v.LoadToken = contract.LoadToken(systemInterop)
 		v.GasLimit = tx.SystemFee
 
 		err := v.Run()
@@ -1635,6 +1637,7 @@ func (bc *Blockchain) GetTestVM(t trigger.Type, tx *transaction.Transaction, b *
 	systemInterop := bc.newInteropContext(t, d, b, tx)
 	vm := systemInterop.SpawnVM()
 	vm.SetPriceGetter(bc.getPrice)
+	vm.LoadToken = contract.LoadToken(systemInterop)
 	return vm
 }
 
@@ -1670,6 +1673,7 @@ func (bc *Blockchain) initVerificationVM(ic *interop.Context, hash util.Uint160,
 		}
 		initMD := cs.Manifest.ABI.GetMethod(manifest.MethodInit)
 		v.LoadScriptWithHash(cs.NEF.Script, hash, callflag.ReadStates)
+		v.Context().NEF = &cs.NEF
 		v.Jump(v.Context(), md.Offset)
 
 		if cs.ID <= 0 {
@@ -1704,6 +1708,7 @@ func (bc *Blockchain) verifyHashAgainstScript(hash util.Uint160, witness *transa
 
 	vm := interopCtx.SpawnVM()
 	vm.SetPriceGetter(bc.getPrice)
+	vm.LoadToken = contract.LoadToken(interopCtx)
 	vm.GasLimit = gas
 	if err := bc.initVerificationVM(interopCtx, hash, witness); err != nil {
 		return 0, err
