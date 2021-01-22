@@ -140,6 +140,10 @@ func TestOracle(t *testing.T) {
 	putOracleRequest(t, cs.Hash, bc, "http://get.maxallowed", nil, "handle", []byte{}, 10_000_000)
 	putOracleRequest(t, cs.Hash, bc, "http://get.maxallowed", nil, "handle", []byte{}, 100_000_000)
 
+	flt := "Values[1]"
+	putOracleRequest(t, cs.Hash, bc, "http://get.filter", &flt, "handle", []byte{}, 10_000_000)
+	putOracleRequest(t, cs.Hash, bc, "http://get.filterinv", &flt, "handle", []byte{}, 10_000_000)
+
 	checkResp := func(t *testing.T, id uint64, resp *transaction.OracleResponse) *state.OracleRequest {
 		req, err := oracleCtr.GetRequestInternal(bc.dao, id)
 		require.NoError(t, err)
@@ -240,6 +244,19 @@ func TestOracle(t *testing.T) {
 			ID:     9,
 			Code:   transaction.Success,
 			Result: make([]byte, transaction.MaxOracleResultSize),
+		})
+	})
+	t.Run("WithFilter", func(t *testing.T) {
+		checkResp(t, 10, &transaction.OracleResponse{
+			ID:     10,
+			Code:   transaction.Success,
+			Result: []byte(`[2]`),
+		})
+		t.Run("invalid response", func(t *testing.T) {
+			checkResp(t, 11, &transaction.OracleResponse{
+				ID:   11,
+				Code: transaction.Error,
+			})
 		})
 	})
 }
@@ -353,6 +370,14 @@ func newDefaultHTTPClient() oracle.HTTPClient {
 			"http://get.maxallowed": {
 				code: http.StatusOK,
 				body: make([]byte, transaction.MaxOracleResultSize),
+			},
+			"http://get.filter": {
+				code: http.StatusOK,
+				body: []byte(`{"Values":["one", 2, 3],"Another":null}`),
+			},
+			"http://get.filterinv": {
+				code: http.StatusOK,
+				body: []byte{0xFF},
 			},
 		},
 	}

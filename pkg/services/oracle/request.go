@@ -115,6 +115,14 @@ func (o *Oracle) processRequest(priv *keys.PrivateKey, req request) error {
 				}
 				break
 			}
+			if req.Req.Filter != nil {
+				res, err := filter(result, *req.Req.Filter)
+				if err != nil {
+					resp.Code = transaction.Error
+					break
+				}
+				result = res
+			}
 			resp.Code = transaction.Success
 			resp.Result = result
 		case r.StatusCode == http.StatusForbidden:
