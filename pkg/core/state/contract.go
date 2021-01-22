@@ -112,25 +112,25 @@ func (c *Contract) FromStackItem(item stackitem.Item) error {
 
 // CreateContractHash creates deployed contract hash from transaction sender
 // and contract script.
-func CreateContractHash(sender util.Uint160, script []byte) util.Uint160 {
+func CreateContractHash(sender util.Uint160, checksum uint32, name string) util.Uint160 {
 	w := io.NewBufBinWriter()
 	emit.Opcodes(w.BinWriter, opcode.ABORT)
 	emit.Bytes(w.BinWriter, sender.BytesBE())
-	emit.Bytes(w.BinWriter, script)
+	emit.Int(w.BinWriter, int64(checksum))
+	emit.String(w.BinWriter, name)
 	if w.Err != nil {
 		panic(w.Err)
 	}
 	return hash.Hash160(w.Bytes())
 }
 
-// CreateNativeContractHash returns script and hash for the native contract.
-func CreateNativeContractHash(id int32) ([]byte, util.Uint160) {
+// CreateNativeContractScript returns script for the native contract.
+func CreateNativeContractScript(id int32) []byte {
 	w := io.NewBufBinWriter()
 	emit.Int(w.BinWriter, int64(id))
 	emit.Syscall(w.BinWriter, interopnames.SystemContractCallNative)
 	if w.Err != nil {
 		panic(w.Err)
 	}
-	script := w.Bytes()
-	return script, CreateContractHash(util.Uint160{}, script)
+	return w.Bytes()
 }

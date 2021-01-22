@@ -62,14 +62,22 @@ func TestEncodeDecodeContractState(t *testing.T) {
 }
 
 func TestCreateContractHash(t *testing.T) {
-	var script = []byte{1, 2, 3}
+	var neff = nef.File{
+		Header: nef.Header{
+			Compiler: "test",
+			Magic:    nef.Magic,
+		},
+		Tokens: []nef.MethodToken{},
+		Script: []byte{1, 2, 3},
+	}
 	var sender util.Uint160
 	var err error
 
-	require.Equal(t, "b8e95ff7b11c427c29355e3398722d97bd2ca069", CreateContractHash(sender, script).StringLE())
+	neff.Checksum = neff.CalculateChecksum()
+	require.Equal(t, "9b9628e4f1611af90e761eea8cc21372380c74b6", CreateContractHash(sender, neff.Checksum, "").StringLE())
 	sender, err = util.Uint160DecodeStringLE("a400ff00ff00ff00ff00ff00ff00ff00ff00ff01")
 	require.NoError(t, err)
-	require.Equal(t, "435c467b8e15cb9b1474ad7ee817ffdcfededef9", CreateContractHash(sender, script).StringLE())
+	require.Equal(t, "66eec404d86b918d084e62a29ac9990e3b6f4286", CreateContractHash(sender, neff.Checksum, "").StringLE())
 }
 
 func TestContractFromStackItem(t *testing.T) {

@@ -239,7 +239,7 @@ func (m *Management) markUpdated(h util.Uint160) {
 // Deploy creates contract's hash/ID and saves new contract into the given DAO.
 // It doesn't run _deploy method and doesn't emit notification.
 func (m *Management) Deploy(d dao.DAO, sender util.Uint160, neff *nef.File, manif *manifest.Manifest) (*state.Contract, error) {
-	h := state.CreateContractHash(sender, neff.Script)
+	h := state.CreateContractHash(sender, neff.Checksum, manif.Name)
 	key := makeContractKey(h)
 	si := d.GetStorageItem(m.ContractID, key)
 	if si != nil {
