@@ -307,8 +307,8 @@ type transactionJSON struct {
 	Version         uint8         `json:"version"`
 	Nonce           uint32        `json:"nonce"`
 	Sender          string        `json:"sender"`
-	SystemFee       fixedn.Fixed8 `json:"sysfee,string"`
-	NetworkFee      fixedn.Fixed8 `json:"netfee,string"`
+	SystemFee       fixedn.Fixed8 `json:"sysfee"`
+	NetworkFee      fixedn.Fixed8 `json:"netfee"`
 	ValidUntilBlock uint32        `json:"validuntilblock"`
 	Attributes      []Attribute   `json:"attributes"`
 	Signers         []Signer      `json:"signers"`

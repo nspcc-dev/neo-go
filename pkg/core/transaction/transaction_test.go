@@ -3,6 +3,7 @@ package transaction
 import (
 	"encoding/base64"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"math"
 	"testing"
@@ -111,6 +112,37 @@ func TestDecodingTXWithNoScript(t *testing.T) {
 	require.NoError(t, err)
 	err = testserdes.DecodeBinary(txBin, new(Transaction))
 	require.Error(t, err)
+}
+
+func TestUnmarshalNeoFSTX(t *testing.T) {
+	txjson := []byte(`
+{
+  "hash": "0x635a3624bbe6cf99aee70e9cbd6473d913b6712cad6e717647f3ddf0fd13bfbb",
+  "size": 232,
+  "version": 0,
+  "nonce": 737880259,
+  "sender": "NiRqSd5MtRZT5yUhgWd7oG11brkDG76Jim",
+  "sysfee": "2.2371942",
+  "netfee": "0.0121555",
+  "validuntilblock": 1931,
+  "attributes": [],
+  "signers": [
+    {
+      "account": "0x8f0ecd714c31c5624b6647e5fd661e5031c8f8f6",
+      "scopes": "Global"
+    }
+  ],
+  "script": "DCECs2Ir9AF73+MXxYrtX0x1PyBrfbiWBG+n13S7xL9/jcIRwBESwAwEdm90ZQwUo4Hyc4fSGC6JbZtdrGb9LBbtWJtBYn1bUg==",
+  "witnesses": [
+    {
+      "invocation": "DEDr2gA/8T/wxQvgOZVfCdkbj6uGrprkDgJvpOJCcbl+tvlKZkZytCZEWm6NoZhJyIlEI3VQSLtU3AHuJfShAT5L",
+      "verification": "DCEDAS1H52IQrsc745qz0YbgpA/o2Gv6PU+r/aV7oTuI+WoLQZVEDXg="
+    }
+  ]
+}`)
+	tx := new(Transaction)
+	tx.Network = 56753
+	require.NoError(t, json.Unmarshal(txjson, tx))
 }
 
 func TestMarshalUnmarshalJSONInvocationTX(t *testing.T) {
