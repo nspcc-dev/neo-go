@@ -115,7 +115,7 @@ func newNEO() *NEO {
 
 	desc = newDescriptor("registerCandidate", smartcontract.BoolType,
 		manifest.NewParameter("pubkey", smartcontract.ByteArrayType))
-	md = newMethodAndPrice(n.registerCandidate, 5000000, callflag.WriteStates)
+	md = newMethodAndPrice(n.registerCandidate, 1000_00000000, callflag.WriteStates)
 	n.AddMethod(md, desc)
 
 	desc = newDescriptor("unregisterCandidate", smartcontract.BoolType,

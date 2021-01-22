@@ -21,7 +21,7 @@ func TestRegisterCandidate(t *testing.T) {
 		"--wallet", validatorWallet,
 		"--from", validatorAddr,
 		"NEO:"+validatorPriv.Address()+":10",
-		"GAS:"+validatorPriv.Address()+":100")
+		"GAS:"+validatorPriv.Address()+":10000")
 	e.checkTxPersisted(t)
 
 	e.In.WriteString("one\r")
