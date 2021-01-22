@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
-	"github.com/nspcc-dev/neo-go/pkg/consensus"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/io"
@@ -74,7 +73,7 @@ const (
 	CMDNotFound         CommandType = 0x2a
 	CMDTX                           = CommandType(payload.TXType)
 	CMDBlock                        = CommandType(payload.BlockType)
-	CMDConsensus                    = CommandType(payload.ConsensusType)
+	CMDExtensible                   = CommandType(payload.ExtensibleType)
 	CMDP2PNotaryRequest             = CommandType(payload.P2PNotaryRequestType)
 	CMDReject           CommandType = 0x2f
 
@@ -147,8 +146,8 @@ func (m *Message) decodePayload() error {
 		p = &payload.AddressList{}
 	case CMDBlock:
 		p = block.New(m.Network, m.StateRootInHeader)
-	case CMDConsensus:
-		p = consensus.NewPayload(m.Network, m.StateRootInHeader)
+	case CMDExtensible:
+		p = payload.NewExtensible(m.Network)
 	case CMDP2PNotaryRequest:
 		p = &payload.P2PNotaryRequest{Network: m.Network}
 	case CMDGetBlocks:

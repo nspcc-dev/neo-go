@@ -1,14 +1,11 @@
 package consensus
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/nspcc-dev/dbft/payload"
-	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
-	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
-	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/io"
+	npayload "github.com/nspcc-dev/neo-go/pkg/network/payload"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 )
@@ -17,8 +14,10 @@ type (
 	messageType byte
 
 	message struct {
-		Type       messageType
-		ViewNumber byte
+		Type           messageType
+		BlockIndex     uint32
+		ValidatorIndex byte
+		ViewNumber     byte
 
 		payload io.Serializable
 		// stateRootEnabled specifies if state root is exchanged during consensus.
@@ -27,20 +26,8 @@ type (
 
 	// Payload is a type for consensus-related messages.
 	Payload struct {
-		*message
-
-		network        netmode.Magic
-		data           []byte
-		version        uint32
-		validatorIndex uint8
-		prevHash       util.Uint256
-		height         uint32
-
-		Witness transaction.Witness
-
-		hash       util.Uint256
-		signedHash util.Uint256
-		signedpart []byte
+		npayload.Extensible
+		message
 	}
 )
 
@@ -111,99 +98,36 @@ func (p Payload) GetRecoveryMessage() payload.RecoveryMessage {
 	return p.payload.(payload.RecoveryMessage)
 }
 
-// MarshalUnsigned implements payload.ConsensusPayload interface.
-func (p *Payload) MarshalUnsigned() []byte {
-	if p.signedpart == nil {
-		w := io.NewBufBinWriter()
-		p.encodeHashData(w.BinWriter)
-		p.signedpart = w.Bytes()
-	}
-	return p.signedpart
-}
-
-// UnmarshalUnsigned implements payload.ConsensusPayload interface.
-func (p *Payload) UnmarshalUnsigned(data []byte) error {
-	r := io.NewBinReaderFromBuf(data)
-	p.network = netmode.Magic(r.ReadU32LE())
-	p.DecodeBinaryUnsigned(r)
-
-	return r.Err
-}
-
-// Version implements payload.ConsensusPayload interface.
-func (p Payload) Version() uint32 {
-	return p.version
-}
-
-// SetVersion implements payload.ConsensusPayload interface.
-func (p *Payload) SetVersion(v uint32) {
-	p.version = v
-}
-
 // ValidatorIndex implements payload.ConsensusPayload interface.
 func (p Payload) ValidatorIndex() uint16 {
-	return uint16(p.validatorIndex)
+	return uint16(p.message.ValidatorIndex)
 }
 
 // SetValidatorIndex implements payload.ConsensusPayload interface.
 func (p *Payload) SetValidatorIndex(i uint16) {
-	p.validatorIndex = uint8(i)
-}
-
-// PrevHash implements payload.ConsensusPayload interface.
-func (p Payload) PrevHash() util.Uint256 {
-	return p.prevHash
-}
-
-// SetPrevHash implements payload.ConsensusPayload interface.
-func (p *Payload) SetPrevHash(h util.Uint256) {
-	p.prevHash = h
+	p.message.ValidatorIndex = byte(i)
 }
 
 // Height implements payload.ConsensusPayload interface.
 func (p Payload) Height() uint32 {
-	return p.height
+	return p.message.BlockIndex
 }
 
 // SetHeight implements payload.ConsensusPayload interface.
 func (p *Payload) SetHeight(h uint32) {
-	p.height = h
-}
-
-// EncodeBinaryUnsigned writes payload to w excluding signature.
-func (p *Payload) EncodeBinaryUnsigned(w *io.BinWriter) {
-	w.WriteU32LE(p.version)
-	w.WriteBytes(p.prevHash[:])
-	w.WriteU32LE(p.height)
-	w.WriteB(p.validatorIndex)
-
-	if p.data == nil {
-		ww := io.NewBufBinWriter()
-		p.message.EncodeBinary(ww.BinWriter)
-		p.data = ww.Bytes()
-	}
-	w.WriteVarBytes(p.data)
+	p.message.BlockIndex = h
 }
 
 // EncodeBinary implements io.Serializable interface.
 func (p *Payload) EncodeBinary(w *io.BinWriter) {
-	if p.signedpart == nil {
-		_ = p.MarshalUnsigned()
-	}
-	w.WriteBytes(p.signedpart[4:])
-
-	w.WriteB(1)
-	p.Witness.EncodeBinary(w)
-}
-
-func (p *Payload) encodeHashData(w *io.BinWriter) {
-	w.WriteU32LE(uint32(p.network))
-	p.EncodeBinaryUnsigned(w)
+	p.encodeData()
+	p.Extensible.EncodeBinary(w)
 }
 
 // Sign signs payload using the private key.
 // It also sets corresponding verification and invocation scripts.
 func (p *Payload) Sign(key *privateKey) error {
+	p.encodeData()
 	sig := key.SignHash(p.GetSignedHash())
 
 	buf := io.NewBufBinWriter()
@@ -216,78 +140,39 @@ func (p *Payload) Sign(key *privateKey) error {
 
 // GetSignedPart implements crypto.Verifiable interface.
 func (p *Payload) GetSignedPart() []byte {
-	return p.MarshalUnsigned()
-}
-
-// DecodeBinaryUnsigned reads payload from w excluding signature.
-func (p *Payload) DecodeBinaryUnsigned(r *io.BinReader) {
-	p.version = r.ReadU32LE()
-	r.ReadBytes(p.prevHash[:])
-	p.height = r.ReadU32LE()
-	p.validatorIndex = r.ReadB()
-
-	p.data = r.ReadVarBytes()
-	if r.Err != nil {
-		return
+	if p.Extensible.Data == nil {
+		p.encodeData()
 	}
+	return p.Extensible.GetSignedPart()
 }
 
 // GetSignedHash returns a hash of the payload used to verify it.
 func (p *Payload) GetSignedHash() util.Uint256 {
-	if p.signedHash.Equals(util.Uint256{}) {
-		if p.createHash() != nil {
-			panic("failed to compute hash!")
-		}
+	if p.Extensible.Data == nil {
+		p.encodeData()
 	}
-	return p.signedHash
+	return p.Extensible.GetSignedHash()
 }
 
 // Hash implements payload.ConsensusPayload interface.
 func (p *Payload) Hash() util.Uint256 {
-	if p.hash.Equals(util.Uint256{}) {
-		if p.createHash() != nil {
-			panic("failed to compute hash!")
-		}
+	if p.Extensible.Data == nil {
+		p.encodeData()
 	}
-	return p.hash
-}
-
-// createHash creates hashes of the payload.
-func (p *Payload) createHash() error {
-	b := p.GetSignedPart()
-	if b == nil {
-		return errors.New("failed to serialize hashable data")
-	}
-	p.updateHashes(b)
-	return nil
-}
-
-// updateHashes updates Payload's hashes based on the given buffer which should
-// be a signable data slice.
-func (p *Payload) updateHashes(b []byte) {
-	p.signedHash = hash.Sha256(b)
-	p.hash = hash.Sha256(p.signedHash.BytesBE())
+	return p.Extensible.Hash()
 }
 
 // DecodeBinary implements io.Serializable interface.
 func (p *Payload) DecodeBinary(r *io.BinReader) {
-	p.DecodeBinaryUnsigned(r)
-	if r.Err != nil {
-		return
-	}
-
-	var b = r.ReadB()
-	if b != 1 {
-		r.Err = errors.New("invalid format")
-		return
-	}
-
-	p.Witness.DecodeBinary(r)
+	p.Extensible.DecodeBinary(r)
+	p.decodeData()
 }
 
 // EncodeBinary implements io.Serializable interface.
 func (m *message) EncodeBinary(w *io.BinWriter) {
-	w.WriteBytes([]byte{byte(m.Type)})
+	w.WriteB(byte(m.Type))
+	w.WriteU32LE(m.BlockIndex)
+	w.WriteB(m.ValidatorIndex)
 	w.WriteB(m.ViewNumber)
 	m.payload.EncodeBinary(w)
 }
@@ -295,6 +180,8 @@ func (m *message) EncodeBinary(w *io.BinWriter) {
 // DecodeBinary implements io.Serializable interface.
 func (m *message) DecodeBinary(r *io.BinReader) {
 	m.Type = messageType(r.ReadB())
+	m.BlockIndex = r.ReadU32LE()
+	m.ValidatorIndex = r.ReadB()
 	m.ViewNumber = r.ReadB()
 
 	switch m.Type {
@@ -348,14 +235,22 @@ func (t messageType) String() string {
 	}
 }
 
+func (p *Payload) encodeData() {
+	if p.Extensible.Data == nil {
+		p.Extensible.ValidBlockStart = 0
+		p.Extensible.ValidBlockEnd = p.BlockIndex
+		bw := io.NewBufBinWriter()
+		p.message.EncodeBinary(bw.BinWriter)
+		p.Extensible.Data = bw.Bytes()
+	}
+}
+
 // decode data of payload into it's message
 func (p *Payload) decodeData() error {
-	m := p.message
-	br := io.NewBinReaderFromBuf(p.data)
-	m.DecodeBinary(br)
+	br := io.NewBinReaderFromBuf(p.Extensible.Data)
+	p.message.DecodeBinary(br)
 	if br.Err != nil {
 		return fmt.Errorf("can't decode message: %w", br.Err)
 	}
-	p.message = m
 	return nil
 }

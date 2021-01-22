@@ -6,6 +6,7 @@ import (
 	"github.com/nspcc-dev/dbft/crypto"
 	"github.com/nspcc-dev/dbft/payload"
 	"github.com/nspcc-dev/neo-go/pkg/io"
+	npayload "github.com/nspcc-dev/neo-go/pkg/network/payload"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 )
 
@@ -202,6 +203,7 @@ func (m *recoveryMessage) GetPrepareRequest(p payload.ConsensusPayload, validato
 
 	req := fromPayload(prepareRequestType, p.(*Payload), m.prepareRequest.payload)
 	req.SetValidatorIndex(primary)
+	req.Sender = validators[primary].(*publicKey).GetScriptHash()
 	req.Witness.InvocationScript = compact.InvocationScript
 	req.Witness.VerificationScript = getVerificationScript(uint8(primary), validators)
 
@@ -221,6 +223,7 @@ func (m *recoveryMessage) GetPrepareResponses(p payload.ConsensusPayload, valida
 			preparationHash: *m.preparationHash,
 		})
 		r.SetValidatorIndex(uint16(resp.ValidatorIndex))
+		r.Sender = validators[resp.ValidatorIndex].(*publicKey).GetScriptHash()
 		r.Witness.InvocationScript = resp.InvocationScript
 		r.Witness.VerificationScript = getVerificationScript(resp.ValidatorIndex, validators)
 
@@ -241,6 +244,7 @@ func (m *recoveryMessage) GetChangeViews(p payload.ConsensusPayload, validators 
 		})
 		c.message.ViewNumber = cv.OriginalViewNumber
 		c.SetValidatorIndex(uint16(cv.ValidatorIndex))
+		c.Sender = validators[cv.ValidatorIndex].(*publicKey).GetScriptHash()
 		c.Witness.InvocationScript = cv.InvocationScript
 		c.Witness.VerificationScript = getVerificationScript(cv.ValidatorIndex, validators)
 
@@ -257,6 +261,7 @@ func (m *recoveryMessage) GetCommits(p payload.ConsensusPayload, validators []cr
 	for i, c := range m.commitPayloads {
 		cc := fromPayload(commitType, p.(*Payload), &commit{signature: c.Signature})
 		cc.SetValidatorIndex(uint16(c.ValidatorIndex))
+		cc.Sender = validators[c.ValidatorIndex].(*publicKey).GetScriptHash()
 		cc.Witness.InvocationScript = c.InvocationScript
 		cc.Witness.VerificationScript = getVerificationScript(c.ValidatorIndex, validators)
 
@@ -291,15 +296,17 @@ func getVerificationScript(i uint8, validators []crypto.PublicKey) []byte {
 
 func fromPayload(t messageType, recovery *Payload, p io.Serializable) *Payload {
 	return &Payload{
-		network: recovery.network,
-		message: &message{
+		Extensible: npayload.Extensible{
+			Category:      Category,
+			Network:       recovery.Network,
+			ValidBlockEnd: recovery.BlockIndex,
+		},
+		message: message{
 			Type:             t,
+			BlockIndex:       recovery.BlockIndex,
 			ViewNumber:       recovery.message.ViewNumber,
 			payload:          p,
 			stateRootEnabled: recovery.stateRootEnabled,
 		},
-		version:  recovery.Version(),
-		prevHash: recovery.PrevHash(),
-		height:   recovery.Height(),
 	}
 }
