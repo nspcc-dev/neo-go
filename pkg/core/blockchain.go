@@ -1395,7 +1395,7 @@ func (bc *Blockchain) verifyTxAttributes(tx *transaction.Transaction, isPartialT
 			if !hasOracle {
 				return fmt.Errorf("%w: oracle tx is not signed by oracle nodes", ErrInvalidAttribute)
 			}
-			if !bytes.Equal(tx.Script, native.GetOracleResponseScript()) {
+			if !bytes.Equal(tx.Script, bc.contracts.Oracle.GetOracleResponseScript()) {
 				return fmt.Errorf("%w: oracle tx has invalid script", ErrInvalidAttribute)
 			}
 			resp := tx.Attributes[i].Value.(*transaction.OracleResponse)

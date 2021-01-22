@@ -500,7 +500,7 @@ func TestVerifyTx(t *testing.T) {
 			// We need to create new transaction,
 			// because hashes are cached after signing.
 			getOracleTx := func(t *testing.T) *transaction.Transaction {
-				tx := bc.newTestTx(h, native.GetOracleResponseScript())
+				tx := bc.newTestTx(h, orc.GetOracleResponseScript())
 				resp := &transaction.OracleResponse{
 					ID:     1,
 					Code:   transaction.Success,

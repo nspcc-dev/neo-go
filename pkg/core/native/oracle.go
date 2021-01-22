@@ -34,7 +34,8 @@ type Oracle struct {
 	GAS *GAS
 	NEO *NEO
 
-	Desig *Designate
+	Desig        *Designate
+	oracleScript []byte
 }
 
 const (
@@ -48,20 +49,6 @@ const (
 
 	oracleRequestPrice = 5000_0000
 )
-
-var oracleScript []byte
-
-func init() {
-	_, h := state.CreateNativeContractHash(oracleContractID)
-	w := io.NewBufBinWriter()
-	emit.Int(w.BinWriter, 0)
-	emit.Opcodes(w.BinWriter, opcode.NEWARRAY)
-	emit.Int(w.BinWriter, int64(callflag.All))
-	emit.String(w.BinWriter, "finish")
-	emit.Bytes(w.BinWriter, h.BytesBE())
-	emit.Syscall(w.BinWriter, interopnames.SystemContractCall)
-	oracleScript = w.Bytes()
-}
 
 var (
 	prefixIDList    = []byte{6}
@@ -78,15 +65,17 @@ var (
 	ErrResponseNotFound = errors.New("oracle response not found")
 )
 
-// GetOracleResponseScript returns script for transaction with oracle response.
-func GetOracleResponseScript() []byte {
-	b := make([]byte, len(oracleScript))
-	copy(b, oracleScript)
-	return b
-}
-
 func newOracle() *Oracle {
 	o := &Oracle{ContractMD: *interop.NewContractMD(nativenames.Oracle, oracleContractID)}
+
+	w := io.NewBufBinWriter()
+	emit.Int(w.BinWriter, 0)
+	emit.Opcodes(w.BinWriter, opcode.NEWARRAY)
+	emit.Int(w.BinWriter, int64(callflag.All))
+	emit.String(w.BinWriter, "finish")
+	emit.Bytes(w.BinWriter, o.Hash.BytesBE())
+	emit.Syscall(w.BinWriter, interopnames.SystemContractCall)
+	o.oracleScript = w.Bytes()
 
 	desc := newDescriptor("request", smartcontract.VoidType,
 		manifest.NewParameter("url", smartcontract.StringType),
@@ -113,6 +102,13 @@ func newOracle() *Oracle {
 		manifest.NewParameter("OriginalTx", smartcontract.Hash256Type))
 
 	return o
+}
+
+// GetOracleResponseScript returns script for transaction with oracle response.
+func (o *Oracle) GetOracleResponseScript() []byte {
+	b := make([]byte, len(o.oracleScript))
+	copy(b, o.oracleScript)
+	return b
 }
 
 // OnPersist implements Contract interface.
