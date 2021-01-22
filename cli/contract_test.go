@@ -17,6 +17,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/fixedn"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
@@ -33,28 +34,37 @@ func TestCalcHash(t *testing.T) {
 	require.NoError(t, err)
 	nefF, err := nef.FileFromBytes(src)
 	require.NoError(t, err)
+	manifestPath := "./testdata/verify.manifest.json"
+	manifestBytes, err := ioutil.ReadFile(manifestPath)
+	require.NoError(t, err)
+	manif := &manifest.Manifest{}
+	err = json.Unmarshal(manifestBytes, manif)
+	require.NoError(t, err)
 	sender := random.Uint160()
 
 	cmd := []string{"neo-go", "contract", "calc-hash"}
 	t.Run("no sender", func(t *testing.T) {
-		e.RunWithError(t, append(cmd, "--in", nefPath)...)
+		e.RunWithError(t, append(cmd, "--in", nefPath, "--manifest", manifestPath)...)
 	})
 	t.Run("no nef file", func(t *testing.T) {
-		e.RunWithError(t, append(cmd, "--sender", sender.StringLE())...)
+		e.RunWithError(t, append(cmd, "--sender", sender.StringLE(), "--manifest", manifestPath)...)
+	})
+	t.Run("no manifest file", func(t *testing.T) {
+		e.RunWithError(t, append(cmd, "--sender", sender.StringLE(), "--in", nefPath)...)
 	})
 	t.Run("invalid path", func(t *testing.T) {
 		e.RunWithError(t, append(cmd, "--sender", sender.StringLE(),
-			"--in", "./testdata/verify.nef123")...)
+			"--in", "./testdata/verify.nef123", "--manifest", manifestPath)...)
 	})
 	t.Run("invalid file", func(t *testing.T) {
 		p := path.Join(os.TempDir(), "neogo.calchash.verify.nef")
 		defer os.Remove(p)
 		require.NoError(t, ioutil.WriteFile(p, src[:4], os.ModePerm))
-		e.RunWithError(t, append(cmd, "--sender", sender.StringLE(), "--in", p)...)
+		e.RunWithError(t, append(cmd, "--sender", sender.StringLE(), "--in", p, "--manifest", manifestPath)...)
 	})
 
-	cmd = append(cmd, "--in", nefPath)
-	expected := state.CreateContractHash(sender, nefF.Script)
+	cmd = append(cmd, "--in", nefPath, "--manifest", manifestPath)
+	expected := state.CreateContractHash(sender, nefF.Checksum, manif.Name)
 	t.Run("valid, uint160", func(t *testing.T) {
 		e.Run(t, append(cmd, "--sender", sender.StringLE())...)
 		e.checkNextLine(t, expected.StringLE())
@@ -193,7 +203,8 @@ func TestComlileAndInvokeFunction(t *testing.T) {
 
 	t.Run("check calc hash", func(t *testing.T) {
 		e.Run(t, "neo-go", "contract", "calc-hash",
-			"--sender", validatorAddr, "--in", nefName)
+			"--sender", validatorAddr, "--in", nefName,
+			"--manifest", manifestName)
 		e.checkNextLine(t, h.StringLE())
 	})
 

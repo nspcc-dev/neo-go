@@ -500,7 +500,7 @@ func TestVerifyTx(t *testing.T) {
 			// We need to create new transaction,
 			// because hashes are cached after signing.
 			getOracleTx := func(t *testing.T) *transaction.Transaction {
-				tx := bc.newTestTx(h, native.GetOracleResponseScript())
+				tx := bc.newTestTx(h, orc.GetOracleResponseScript())
 				resp := &transaction.OracleResponse{
 					ID:     1,
 					Code:   transaction.Success,
@@ -556,11 +556,11 @@ func TestVerifyTx(t *testing.T) {
 					})
 					tx.Scripts = append(tx.Scripts, transaction.Witness{})
 					t.Run("NonZeroVerification", func(t *testing.T) {
-						script, _ := state.CreateNativeContractHash(-6) //oracleContractID
 						w := io.NewBufBinWriter()
 						emit.Opcodes(w.BinWriter, opcode.ABORT)
 						emit.Bytes(w.BinWriter, util.Uint160{}.BytesBE())
-						emit.Bytes(w.BinWriter, script)
+						emit.Int(w.BinWriter, int64(orc.NEF.Checksum))
+						emit.String(w.BinWriter, orc.Manifest.Name)
 						tx.Scripts[len(tx.Scripts)-1].VerificationScript = w.Bytes()
 						err := bc.VerifyTx(tx)
 						require.True(t, errors.Is(err, ErrNativeContractWitness), "got: %v", err)

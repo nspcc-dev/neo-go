@@ -84,7 +84,7 @@ func NewDeployTx(bc blockchainer.Blockchainer, name string, sender util.Uint160,
 
 	tx := transaction.New(Network(), buf.Bytes(), 100*native.GASFactor)
 	tx.Signers = []transaction.Signer{{Account: sender}}
-	h := state.CreateContractHash(tx.Sender(), avm)
+	h := state.CreateContractHash(tx.Sender(), ne.Checksum, name)
 
 	return tx, h, nil
 }

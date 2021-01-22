@@ -153,7 +153,7 @@ func TestOracle_Request(t *testing.T) {
 	err = bc.contracts.Designate.DesignateAsRole(ic, native.RoleOracle, keys.PublicKeys{pub})
 	require.NoError(t, err)
 
-	tx = transaction.New(netmode.UnitTestNet, native.GetOracleResponseScript(), 0)
+	tx = transaction.New(netmode.UnitTestNet, orc.GetOracleResponseScript(), 0)
 	ic.Tx = tx
 	ic.Block = bc.newBlock(tx)
 
@@ -203,7 +203,7 @@ func TestOracle_Request(t *testing.T) {
 		_, err := orc.GetRequestInternal(bc.dao, reqID) // ensure ID is 2
 		require.NoError(t, err)
 
-		tx = transaction.New(netmode.UnitTestNet, native.GetOracleResponseScript(), 0)
+		tx = transaction.New(netmode.UnitTestNet, orc.GetOracleResponseScript(), 0)
 		tx.Attributes = []transaction.Attribute{{
 			Type: transaction.OracleResponseT,
 			Value: &transaction.OracleResponse{

@@ -18,12 +18,12 @@ func TestDeployGetUpdateDestroyContract(t *testing.T) {
 	d := dao.NewSimple(storage.NewMemoryStore(), netmode.UnitTestNet, false)
 	script := []byte{1}
 	sender := util.Uint160{1, 2, 3}
-	h := state.CreateContractHash(sender, script)
-
 	ne, err := nef.NewFile(script)
 	require.NoError(t, err)
 	manif := manifest.NewManifest("Test")
 	require.NoError(t, err)
+
+	h := state.CreateContractHash(sender, ne.Checksum, manif.Name)
 
 	contract, err := mgmt.Deploy(d, sender, ne, manif)
 	require.NoError(t, err)
@@ -43,7 +43,7 @@ func TestDeployGetUpdateDestroyContract(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, int32(2), contract2.ID)
 	require.Equal(t, uint16(0), contract2.UpdateCounter)
-	require.Equal(t, state.CreateContractHash(sender2, script), contract2.Hash)
+	require.Equal(t, state.CreateContractHash(sender2, ne.Checksum, manif.Name), contract2.Hash)
 	require.Equal(t, ne, &contract2.NEF)
 	require.Equal(t, *manif, contract2.Manifest)
 

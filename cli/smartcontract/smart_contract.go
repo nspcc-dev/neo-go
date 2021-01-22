@@ -351,6 +351,10 @@ func NewCommands() []cli.Command {
 						Name:  "in",
 						Usage: "path to NEF file",
 					},
+					cli.StringFlag{
+						Name:  "manifest, m",
+						Usage: "path to manifest file",
+					},
 				},
 			},
 		},
@@ -473,6 +477,10 @@ func calcHash(ctx *cli.Context) error {
 	if p == "" {
 		return cli.NewExitError(errors.New("no .nef file was provided"), 1)
 	}
+	mpath := ctx.String("manifest")
+	if mpath == "" {
+		return cli.NewExitError(errors.New("no manifest file provided"), 1)
+	}
 	f, err := ioutil.ReadFile(p)
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("can't read .nef file: %w", err), 1)
@@ -481,7 +489,16 @@ func calcHash(ctx *cli.Context) error {
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("can't unmarshal .nef file: %w", err), 1)
 	}
-	fmt.Fprintln(ctx.App.Writer, "Contract hash:", state.CreateContractHash(u, nefFile.Script).StringLE())
+	manifestBytes, err := ioutil.ReadFile(mpath)
+	if err != nil {
+		return cli.NewExitError(fmt.Errorf("failed to read manifest file: %w", err), 1)
+	}
+	m := &manifest.Manifest{}
+	err = json.Unmarshal(manifestBytes, m)
+	if err != nil {
+		return cli.NewExitError(fmt.Errorf("failed to restore manifest file: %w", err), 1)
+	}
+	fmt.Fprintln(ctx.App.Writer, "Contract hash:", state.CreateContractHash(u, nefFile.Checksum, m.Name).StringLE())
 	return nil
 }
 
@@ -842,7 +859,7 @@ func contractDeploy(ctx *cli.Context) error {
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("failed to push invocation tx: %w", err), 1)
 	}
-	hash := state.CreateContractHash(sender, nefFile.Script)
+	hash := state.CreateContractHash(sender, nefFile.Checksum, m.Name)
 	fmt.Fprintf(ctx.App.Writer, "Contract: %s\n", hash.StringLE())
 	fmt.Fprintln(ctx.App.Writer, txHash.StringLE())
 	return nil

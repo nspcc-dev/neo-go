@@ -36,7 +36,7 @@ func TestRestoreAfterDeploy(t *testing.T) {
 	mgmtHash := bc.ManagementContractHash()
 	cs1, _ := getTestContractState(bc)
 	cs1.ID = 1
-	cs1.Hash = state.CreateContractHash(testchain.MultisigScriptHash(), cs1.NEF.Script)
+	cs1.Hash = state.CreateContractHash(testchain.MultisigScriptHash(), cs1.NEF.Checksum, cs1.Manifest.Name)
 	manif1, err := json.Marshal(cs1.Manifest)
 	require.NoError(t, err)
 	nef1, err := nef.NewFile(cs1.NEF.Script)
@@ -80,7 +80,7 @@ func TestContractDeploy(t *testing.T) {
 	mgmtHash := bc.ManagementContractHash()
 	cs1, _ := getTestContractState(bc)
 	cs1.ID = 1
-	cs1.Hash = state.CreateContractHash(testchain.MultisigScriptHash(), cs1.NEF.Script)
+	cs1.Hash = state.CreateContractHash(testchain.MultisigScriptHash(), cs1.NEF.Checksum, cs1.Manifest.Name)
 	manif1, err := json.Marshal(cs1.Manifest)
 	require.NoError(t, err)
 	nef1b, err := cs1.NEF.Bytes()
@@ -214,7 +214,7 @@ func TestContractDeploy(t *testing.T) {
 		checkFAULTState(t, res)
 
 		t.Run("get after failed deploy", func(t *testing.T) {
-			h := state.CreateContractHash(neoOwner, deployScript)
+			h := state.CreateContractHash(neoOwner, nefD.Checksum, m.Name)
 			checkContractState(t, bc, h, nil)
 		})
 	})
@@ -243,7 +243,7 @@ func TestContractDeploy(t *testing.T) {
 		checkFAULTState(t, res)
 
 		t.Run("get after bad _deploy", func(t *testing.T) {
-			h := state.CreateContractHash(neoOwner, deployScript)
+			h := state.CreateContractHash(neoOwner, nefD.Checksum, m.Name)
 			checkContractState(t, bc, h, nil)
 		})
 	})

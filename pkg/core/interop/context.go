@@ -119,8 +119,9 @@ func NewContractMD(name string, id int32) *ContractMD {
 	// Therefore values are taken from C# node.
 	c.NEF.Header.Compiler = "neo-core-v3.0"
 	c.NEF.Header.Magic = nef.Magic
-	c.NEF.Script, c.Hash = state.CreateNativeContractHash(id)
+	c.NEF.Script = state.CreateNativeContractScript(id)
 	c.NEF.Checksum = c.NEF.CalculateChecksum()
+	c.Hash = state.CreateContractHash(util.Uint160{}, c.NEF.Checksum, name)
 	c.Manifest = *manifest.DefaultManifest(name)
 
 	return c
