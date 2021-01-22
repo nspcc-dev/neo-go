@@ -973,7 +973,6 @@ func TestVerifyTx(t *testing.T) {
 				transaction.NotaryServiceFeePerKey + // fee for Notary attribute
 				fee.Opcode(bc.GetBaseExecFee(), // Notary verification script
 					opcode.PUSHDATA1, opcode.RET, // invocation script
-					opcode.PUSHDATA1, opcode.RET, // arguments for native verification call
 					opcode.PUSHINT8, opcode.SYSCALL, opcode.RET) + // Neo.Native.Call
 				native.NotaryVerificationPrice // Notary witness verification price
 			tx.Scripts = []transaction.Witness{

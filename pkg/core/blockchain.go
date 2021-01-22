@@ -34,7 +34,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
-	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"go.uber.org/zap"
 )
@@ -1654,6 +1653,7 @@ var (
 
 // initVerificationVM initializes VM for witness check.
 func (bc *Blockchain) initVerificationVM(ic *interop.Context, hash util.Uint160, witness *transaction.Witness) error {
+	isNative := false
 	v := ic.VM
 	if len(witness.VerificationScript) != 0 {
 		if witness.ScriptHash() != hash {
@@ -1677,18 +1677,22 @@ func (bc *Blockchain) initVerificationVM(ic *interop.Context, hash util.Uint160,
 		v.Context().NEF = &cs.NEF
 		v.Jump(v.Context(), md.Offset)
 
-		if cs.ID <= 0 {
-			w := io.NewBufBinWriter()
-			emit.String(w.BinWriter, manifest.MethodVerify)
-			if w.Err != nil {
-				return w.Err
-			}
-			v.LoadScript(w.Bytes())
-		} else if initMD != nil {
+		isNative = cs.ID <= 0
+		if !isNative && initMD != nil {
 			v.Call(v.Context(), initMD.Offset)
 		}
 	}
-	v.LoadScript(witness.InvocationScript)
+	if len(witness.InvocationScript) != 0 {
+		v.LoadScript(witness.InvocationScript)
+		if isNative {
+			if err := v.StepOut(); err != nil {
+				return err
+			}
+		}
+	}
+	if isNative {
+		v.Estack().PushVal(manifest.MethodVerify)
+	}
 	return nil
 }
 
