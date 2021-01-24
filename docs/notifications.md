@@ -1,7 +1,7 @@
 # Notification subsystem
 
 Original motivation, requirements and general solution strategy are described
-in the issue #895.
+in the [issue #895](https://github.com/nspcc-dev/neo-go/issues/895).
 
 This extension allows a websocket client to subscribe to various events and
 receive them as JSON-RPC notifications from the server.
