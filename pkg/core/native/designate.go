@@ -157,11 +157,19 @@ func (s *Designate) rolesChanged() bool {
 	return rc == nil || rc.(bool)
 }
 
-func majorityHashFromNodes(nodes keys.PublicKeys) util.Uint160 {
+func (s *Designate) hashFromNodes(r Role, nodes keys.PublicKeys) util.Uint160 {
 	if len(nodes) == 0 {
 		return util.Uint160{}
 	}
-	script, _ := smartcontract.CreateMajorityMultiSigRedeemScript(nodes.Copy())
+	var script []byte
+	switch r {
+	case RoleOracle:
+		script, _ = smartcontract.CreateDefaultMultiSigRedeemScript(nodes.Copy())
+	case RoleP2PNotary:
+		script, _ = smartcontract.CreateMultiSigRedeemScript(1, nodes.Copy())
+	default:
+		script, _ = smartcontract.CreateMajorityMultiSigRedeemScript(nodes.Copy())
+	}
 	return hash.Hash160(script)
 }
 
@@ -172,7 +180,7 @@ func (s *Designate) updateCachedRoleData(v *atomic.Value, d dao.DAO, r Role) err
 	}
 	v.Store(&roleData{
 		nodes:  nodeKeys,
-		addr:   majorityHashFromNodes(nodeKeys),
+		addr:   s.hashFromNodes(r, nodeKeys),
 		height: height,
 	})
 	if r == RoleOracle {
@@ -213,7 +221,7 @@ func (s *Designate) getLastDesignatedHash(d dao.DAO, r Role) (util.Uint160, erro
 		return util.Uint160{}, err
 	}
 	// We only have hashing defined for oracles now.
-	return majorityHashFromNodes(nodes), nil
+	return s.hashFromNodes(r, nodes), nil
 }
 
 // GetDesignatedByRole returns nodes for role r.
