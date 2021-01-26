@@ -300,7 +300,7 @@ func (n *Notary) PostPersist(bc blockchainer.Blockchainer, pool *mempool.Pool, b
 func (n *Notary) finalize(tx *transaction.Transaction) error {
 	acc := n.getAccount()
 	if acc == nil {
-		panic(errors.New("no available Notary account"))
+		panic(errors.New("no available Notary account")) // unreachable code, because all callers of `finalize` check that acc != nil
 	}
 	notaryWitness := transaction.Witness{
 		InvocationScript:   append([]byte{byte(opcode.PUSHDATA1), 64}, acc.PrivateKey().Sign(tx.GetSignedPart())...),
