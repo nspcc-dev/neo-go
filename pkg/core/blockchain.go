@@ -28,6 +28,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
 	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
@@ -1668,7 +1669,7 @@ func (bc *Blockchain) initVerificationVM(ic *interop.Context, hash util.Uint160,
 			return ErrUnknownVerificationContract
 		}
 		md := cs.Manifest.ABI.GetMethod(manifest.MethodVerify, -1)
-		if md == nil {
+		if md == nil || md.ReturnType != smartcontract.BoolType {
 			return ErrInvalidVerificationContract
 		}
 		initMD := cs.Manifest.ABI.GetMethod(manifest.MethodInit, 0)
