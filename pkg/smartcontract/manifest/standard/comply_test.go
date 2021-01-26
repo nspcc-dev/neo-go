@@ -37,14 +37,14 @@ func fooMethodBarEvent() *manifest.Manifest {
 
 func TestComplyMissingMethod(t *testing.T) {
 	m := fooMethodBarEvent()
-	m.ABI.GetMethod("foo").Name = "notafoo"
+	m.ABI.GetMethod("foo", -1).Name = "notafoo"
 	err := Comply(m, fooMethodBarEvent())
 	require.True(t, errors.Is(err, ErrMethodMissing))
 }
 
 func TestComplyInvalidReturnType(t *testing.T) {
 	m := fooMethodBarEvent()
-	m.ABI.GetMethod("foo").ReturnType = smartcontract.VoidType
+	m.ABI.GetMethod("foo", -1).ReturnType = smartcontract.VoidType
 	err := Comply(m, fooMethodBarEvent())
 	require.True(t, errors.Is(err, ErrInvalidReturnType))
 }
@@ -52,10 +52,10 @@ func TestComplyInvalidReturnType(t *testing.T) {
 func TestComplyMethodParameterCount(t *testing.T) {
 	t.Run("Method", func(t *testing.T) {
 		m := fooMethodBarEvent()
-		f := m.ABI.GetMethod("foo")
+		f := m.ABI.GetMethod("foo", -1)
 		f.Parameters = append(f.Parameters, manifest.Parameter{Type: smartcontract.BoolType})
 		err := Comply(m, fooMethodBarEvent())
-		require.True(t, errors.Is(err, ErrInvalidParameterCount))
+		require.True(t, errors.Is(err, ErrMethodMissing))
 	})
 	t.Run("Event", func(t *testing.T) {
 		m := fooMethodBarEvent()
@@ -69,7 +69,7 @@ func TestComplyMethodParameterCount(t *testing.T) {
 func TestComplyParameterType(t *testing.T) {
 	t.Run("Method", func(t *testing.T) {
 		m := fooMethodBarEvent()
-		m.ABI.GetMethod("foo").Parameters[0].Type = smartcontract.InteropInterfaceType
+		m.ABI.GetMethod("foo", -1).Parameters[0].Type = smartcontract.InteropInterfaceType
 		err := Comply(m, fooMethodBarEvent())
 		require.True(t, errors.Is(err, ErrInvalidParameterType))
 	})
@@ -90,7 +90,7 @@ func TestMissingEvent(t *testing.T) {
 
 func TestSafeFlag(t *testing.T) {
 	m := fooMethodBarEvent()
-	m.ABI.GetMethod("foo").Safe = false
+	m.ABI.GetMethod("foo", -1).Safe = false
 	err := Comply(m, fooMethodBarEvent())
 	require.True(t, errors.Is(err, ErrSafeMethodMismatch))
 }

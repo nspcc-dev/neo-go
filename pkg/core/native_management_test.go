@@ -227,9 +227,8 @@ func TestContractDeploy(t *testing.T) {
 				Offset: 0,
 				Parameters: []manifest.Parameter{
 					manifest.NewParameter("isUpdate", smartcontract.BoolType),
-					manifest.NewParameter("param", smartcontract.IntegerType),
 				},
-				ReturnType: smartcontract.VoidType,
+				ReturnType: smartcontract.ArrayType,
 			},
 		}
 		nefD, err := nef.NewFile(deployScript)

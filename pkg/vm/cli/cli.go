@@ -389,25 +389,25 @@ func handleRun(c *ishell.Context) {
 			runCurrent = c.Args[0] != "_"
 		)
 
+		params, err = parseArgs(c.Args[1:])
+		if err != nil {
+			c.Err(err)
+			return
+		}
 		if runCurrent {
-			md := m.ABI.GetMethod(c.Args[0])
+			md := m.ABI.GetMethod(c.Args[0], len(params))
 			if md == nil {
 				c.Err(fmt.Errorf("%w: method not found", ErrInvalidParameter))
 				return
 			}
 			offset = md.Offset
 		}
-		params, err = parseArgs(c.Args[1:])
-		if err != nil {
-			c.Err(err)
-			return
-		}
 		for i := len(params) - 1; i >= 0; i-- {
 			v.Estack().PushVal(params[i])
 		}
 		if runCurrent {
 			v.Jump(v.Context(), offset)
-			if initMD := m.ABI.GetMethod(manifest.MethodInit); initMD != nil {
+			if initMD := m.ABI.GetMethod(manifest.MethodInit, 0); initMD != nil {
 				v.Call(v.Context(), initMD.Offset)
 			}
 		}

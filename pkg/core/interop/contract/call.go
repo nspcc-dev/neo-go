@@ -55,7 +55,7 @@ func Call(ic *interop.Context) error {
 	if strings.HasPrefix(method, "_") {
 		return errors.New("invalid method name (starts with '_')")
 	}
-	md := cs.Manifest.ABI.GetMethod(method)
+	md := cs.Manifest.ABI.GetMethod(method, len(args))
 	if md == nil {
 		return errors.New("method not found")
 	}
@@ -68,7 +68,7 @@ func Call(ic *interop.Context) error {
 
 func callInternal(ic *interop.Context, cs *state.Contract, name string, f callflag.CallFlag,
 	hasReturn bool, args []stackitem.Item) error {
-	md := cs.Manifest.ABI.GetMethod(name)
+	md := cs.Manifest.ABI.GetMethod(name, len(args))
 	if md.Safe {
 		f &^= callflag.WriteStates
 	} else if ctx := ic.VM.Context(); ctx != nil && ctx.IsDeployed() {
@@ -85,7 +85,7 @@ func callInternal(ic *interop.Context, cs *state.Contract, name string, f callfl
 // callExFromNative calls a contract with flags using provided calling hash.
 func callExFromNative(ic *interop.Context, caller util.Uint160, cs *state.Contract,
 	name string, args []stackitem.Item, f callflag.CallFlag, hasReturn bool) error {
-	md := cs.Manifest.ABI.GetMethod(name)
+	md := cs.Manifest.ABI.GetMethod(name, len(args))
 	if md == nil {
 		return fmt.Errorf("method '%s' not found", name)
 	}
@@ -119,7 +119,7 @@ func callExFromNative(ic *interop.Context, caller util.Uint160, cs *state.Contra
 		ic.VM.Context().RetCount = 0
 	}
 
-	md = cs.Manifest.ABI.GetMethod(manifest.MethodInit)
+	md = cs.Manifest.ABI.GetMethod(manifest.MethodInit, 0)
 	if md != nil {
 		ic.VM.Call(ic.VM.Context(), md.Offset)
 	}

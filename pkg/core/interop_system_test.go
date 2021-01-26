@@ -461,6 +461,8 @@ func getTestContractState(bc *Blockchain) (*state.Contract, *state.Contract) {
 	emit.Opcodes(w.BinWriter, opcode.ABORT)
 	addOff := w.Len()
 	emit.Opcodes(w.BinWriter, opcode.ADD, opcode.RET)
+	addMultiOff := w.Len()
+	emit.Opcodes(w.BinWriter, opcode.ADD, opcode.ADD, opcode.RET)
 	ret7Off := w.Len()
 	emit.Opcodes(w.BinWriter, opcode.PUSH7, opcode.RET)
 	dropOff := w.Len()
@@ -530,6 +532,16 @@ func getTestContractState(bc *Blockchain) (*state.Contract, *state.Contract) {
 			Parameters: []manifest.Parameter{
 				manifest.NewParameter("addend1", smartcontract.IntegerType),
 				manifest.NewParameter("addend2", smartcontract.IntegerType),
+			},
+			ReturnType: smartcontract.IntegerType,
+		},
+		{
+			Name:   "add",
+			Offset: addMultiOff,
+			Parameters: []manifest.Parameter{
+				manifest.NewParameter("addend1", smartcontract.IntegerType),
+				manifest.NewParameter("addend2", smartcontract.IntegerType),
+				manifest.NewParameter("addend3", smartcontract.IntegerType),
 			},
 			ReturnType: smartcontract.IntegerType,
 		},
@@ -731,16 +743,31 @@ func TestContractCall(t *testing.T) {
 
 	addArgs := stackitem.NewArray([]stackitem.Item{stackitem.Make(1), stackitem.Make(2)})
 	t.Run("Good", func(t *testing.T) {
-		loadScript(ic, currScript, 42)
-		ic.VM.Estack().PushVal(addArgs)
-		ic.VM.Estack().PushVal(callflag.All)
-		ic.VM.Estack().PushVal("add")
-		ic.VM.Estack().PushVal(h.BytesBE())
-		require.NoError(t, contract.Call(ic))
-		require.NoError(t, ic.VM.Run())
-		require.Equal(t, 2, ic.VM.Estack().Len())
-		require.Equal(t, big.NewInt(3), ic.VM.Estack().Pop().Value())
-		require.Equal(t, big.NewInt(42), ic.VM.Estack().Pop().Value())
+		t.Run("2 arguments", func(t *testing.T) {
+			loadScript(ic, currScript, 42)
+			ic.VM.Estack().PushVal(addArgs)
+			ic.VM.Estack().PushVal(callflag.All)
+			ic.VM.Estack().PushVal("add")
+			ic.VM.Estack().PushVal(h.BytesBE())
+			require.NoError(t, contract.Call(ic))
+			require.NoError(t, ic.VM.Run())
+			require.Equal(t, 2, ic.VM.Estack().Len())
+			require.Equal(t, big.NewInt(3), ic.VM.Estack().Pop().Value())
+			require.Equal(t, big.NewInt(42), ic.VM.Estack().Pop().Value())
+		})
+		t.Run("3 arguments", func(t *testing.T) {
+			loadScript(ic, currScript, 42)
+			ic.VM.Estack().PushVal(stackitem.NewArray(
+				append(addArgs.Value().([]stackitem.Item), stackitem.Make(3))))
+			ic.VM.Estack().PushVal(callflag.All)
+			ic.VM.Estack().PushVal("add")
+			ic.VM.Estack().PushVal(h.BytesBE())
+			require.NoError(t, contract.Call(ic))
+			require.NoError(t, ic.VM.Run())
+			require.Equal(t, 2, ic.VM.Estack().Len())
+			require.Equal(t, big.NewInt(6), ic.VM.Estack().Pop().Value())
+			require.Equal(t, big.NewInt(42), ic.VM.Estack().Pop().Value())
+		})
 	})
 
 	t.Run("CallExInvalidFlag", func(t *testing.T) {
@@ -778,6 +805,10 @@ func TestContractCall(t *testing.T) {
 		t.Run("Arguments", runInvalid(1, "add", h.BytesBE()))
 		t.Run("NotEnoughArguments", runInvalid(
 			stackitem.NewArray([]stackitem.Item{stackitem.Make(1)}), "add", h.BytesBE()))
+		t.Run("TooMuchArguments", runInvalid(
+			stackitem.NewArray([]stackitem.Item{
+				stackitem.Make(1), stackitem.Make(2), stackitem.Make(3), stackitem.Make(4)}),
+			"add", h.BytesBE()))
 	})
 
 	t.Run("ReturnValues", func(t *testing.T) {

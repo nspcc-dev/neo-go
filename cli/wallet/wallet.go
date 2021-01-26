@@ -419,7 +419,7 @@ func importDeployed(ctx *cli.Context) error {
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("can't fetch contract info: %w", err), 1)
 	}
-	md := cs.Manifest.ABI.GetMethod(manifest.MethodVerify)
+	md := cs.Manifest.ABI.GetMethod(manifest.MethodVerify, -1)
 	if md == nil {
 		return cli.NewExitError("contract has no `verify` method", 1)
 	}

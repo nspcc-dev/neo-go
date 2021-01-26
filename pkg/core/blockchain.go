@@ -1667,11 +1667,11 @@ func (bc *Blockchain) initVerificationVM(ic *interop.Context, hash util.Uint160,
 		if err != nil {
 			return ErrUnknownVerificationContract
 		}
-		md := cs.Manifest.ABI.GetMethod(manifest.MethodVerify)
+		md := cs.Manifest.ABI.GetMethod(manifest.MethodVerify, -1)
 		if md == nil {
 			return ErrInvalidVerificationContract
 		}
-		initMD := cs.Manifest.ABI.GetMethod(manifest.MethodInit)
+		initMD := cs.Manifest.ABI.GetMethod(manifest.MethodInit, 0)
 		v.LoadScriptWithHash(cs.NEF.Script, hash, callflag.ReadStates)
 		v.Context().NEF = &cs.NEF
 		v.Jump(v.Context(), md.Offset)
