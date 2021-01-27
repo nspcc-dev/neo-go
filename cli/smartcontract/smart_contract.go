@@ -38,7 +38,7 @@ import (
 var (
 	errNoInput             = errors.New("no input file was found, specify an input file with the '--in or -i' flag")
 	errNoConfFile          = errors.New("no config file was found, specify a config file with the '--config' or '-c' flag")
-	errNoManifestFile      = errors.New("no manifest file was found, specify a manifest file with the '--manifest' flag")
+	errNoManifestFile      = errors.New("no manifest file was found, specify manifest file with '--manifest' or '-m' flag")
 	errNoMethod            = errors.New("no method specified for function invocation command")
 	errNoWallet            = errors.New("no wallet parameter found, specify it with the '--wallet or -w' flag")
 	errNoScriptHash        = errors.New("no smart contract hash was provided, specify one as the first argument")
@@ -107,7 +107,7 @@ func NewCommands() []cli.Command {
 			Usage: "Input file for the smart contract (*.nef)",
 		},
 		cli.StringFlag{
-			Name:  "manifest",
+			Name:  "manifest, m",
 			Usage: "Manifest input file (*.manifest.json)",
 		},
 		walletFlag,
