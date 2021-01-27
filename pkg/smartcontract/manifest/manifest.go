@@ -76,9 +76,9 @@ func DefaultManifest(name string) *Manifest {
 }
 
 // GetMethod returns methods with the specified name.
-func (a *ABI) GetMethod(name string) *Method {
+func (a *ABI) GetMethod(name string, paramCount int) *Method {
 	for i := range a.Methods {
-		if a.Methods[i].Name == name {
+		if a.Methods[i].Name == name && (paramCount == -1 || len(a.Methods[i].Parameters) == paramCount) {
 			return &a.Methods[i]
 		}
 	}

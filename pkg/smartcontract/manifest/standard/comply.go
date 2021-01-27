@@ -40,15 +40,12 @@ func Check(m *manifest.Manifest, standards ...string) error {
 func Comply(m, st *manifest.Manifest) error {
 	for _, stm := range st.ABI.Methods {
 		name := stm.Name
-		md := m.ABI.GetMethod(name)
+		md := m.ABI.GetMethod(name, len(stm.Parameters))
 		if md == nil {
-			return fmt.Errorf("%w: '%s'", ErrMethodMissing, name)
+			return fmt.Errorf("%w: '%s' with %d parameters", ErrMethodMissing, name, len(stm.Parameters))
 		} else if stm.ReturnType != md.ReturnType {
 			return fmt.Errorf("%w: '%s' (expected %s, got %s)", ErrInvalidReturnType,
 				name, stm.ReturnType, md.ReturnType)
-		} else if len(stm.Parameters) != len(md.Parameters) {
-			return fmt.Errorf("%w: '%s' (expected %d, got %d)", ErrInvalidParameterCount,
-				name, len(stm.Parameters), len(md.Parameters))
 		}
 		for i := range stm.Parameters {
 			if stm.Parameters[i].Type != md.Parameters[i].Type {

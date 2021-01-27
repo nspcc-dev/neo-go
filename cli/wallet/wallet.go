@@ -13,6 +13,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
@@ -419,9 +420,9 @@ func importDeployed(ctx *cli.Context) error {
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("can't fetch contract info: %w", err), 1)
 	}
-	md := cs.Manifest.ABI.GetMethod(manifest.MethodVerify)
-	if md == nil {
-		return cli.NewExitError("contract has no `verify` method", 1)
+	md := cs.Manifest.ABI.GetMethod(manifest.MethodVerify, -1)
+	if md == nil || md.ReturnType != smartcontract.BoolType {
+		return cli.NewExitError("contract has no `verify` method with boolean return", 1)
 	}
 	acc.Address = address.Uint160ToString(cs.Hash)
 	acc.Contract.Script = cs.NEF.Script

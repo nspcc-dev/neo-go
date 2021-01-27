@@ -379,7 +379,7 @@ func (m *Management) setMinimumDeploymentFee(ic *interop.Context, args []stackit
 }
 
 func (m *Management) callDeploy(ic *interop.Context, cs *state.Contract, isUpdate bool) {
-	md := cs.Manifest.ABI.GetMethod(manifest.MethodDeploy)
+	md := cs.Manifest.ABI.GetMethod(manifest.MethodDeploy, 1)
 	if md != nil {
 		err := contract.CallFromNative(ic, m.Hash, cs, manifest.MethodDeploy,
 			[]stackitem.Item{stackitem.NewBool(isUpdate)}, false)
