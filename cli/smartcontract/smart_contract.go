@@ -170,10 +170,7 @@ func NewCommands() []cli.Command {
 				Name:  "deploy",
 				Usage: "deploy a smart contract (.nef with description)",
 				Description: `Deploys given contract into the chain. The gas parameter is for additional
-   gas to be added as a network fee to prioritize the transaction. It may also
-   be required to add that to satisfy chain's policy regarding transaction size
-   and the minimum size fee (so if transaction send fails, try adding 0.001 GAS
-   to it).
+   gas to be added as a network fee to prioritize the transaction.
 `,
 				Action: contractDeploy,
 				Flags:  deployFlags,
