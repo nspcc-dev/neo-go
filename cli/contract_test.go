@@ -187,6 +187,9 @@ func TestComlileAndInvokeFunction(t *testing.T) {
 	e.Run(t, "neo-go", "contract", "testinvokescript",
 		"--rpc-endpoint", "http://"+e.RPC.Addr,
 		"--in", nefName, "--", util.Uint160{1, 2, 3}.StringLE())
+	e.Run(t, "neo-go", "contract", "testinvokescript",
+		"--rpc-endpoint", "http://"+e.RPC.Addr,
+		"--in", nefName, "--", address.Uint160ToString(util.Uint160{1, 2, 3}))
 
 	e.In.WriteString("one\r")
 	e.Run(t, "neo-go", "contract", "deploy",
