@@ -135,9 +135,20 @@ func NewContractMD(name string, id int32) *ContractMD {
 
 // AddMethod adds new method to a native contract.
 func (c *ContractMD) AddMethod(md *MethodAndPrice, desc *manifest.Method) {
-	c.Manifest.ABI.Methods = append(c.Manifest.ABI.Methods, *desc)
 	md.MD = desc
 	desc.Safe = md.RequiredFlags&(callflag.All^callflag.ReadOnly) == 0
+
+	index := sort.Search(len(c.Manifest.ABI.Methods), func(i int) bool {
+		md := c.Manifest.ABI.Methods[i]
+		if md.Name != desc.Name {
+			return md.Name >= desc.Name
+		}
+		return len(md.Parameters) > len(desc.Parameters)
+	})
+	c.Manifest.ABI.Methods = append(c.Manifest.ABI.Methods, manifest.Method{})
+	copy(c.Manifest.ABI.Methods[index+1:], c.Manifest.ABI.Methods[index:])
+	c.Manifest.ABI.Methods[index] = *desc
+
 	key := MethodAndArgCount{
 		Name:     desc.Name,
 		ArgCount: len(desc.Parameters),
