@@ -375,6 +375,17 @@ func TestContractUpdate(t *testing.T) {
 		checkFAULTState(t, res)
 	})
 
+	t.Run("change name", func(t *testing.T) {
+		var badManifest = cs1.Manifest
+		badManifest.Name += "tail"
+		manifB, err := json.Marshal(badManifest)
+		require.NoError(t, err)
+
+		res, err := invokeContractMethod(bc, 10_00000000, cs1.Hash, "update", nef1b, manifB)
+		require.NoError(t, err)
+		checkFAULTState(t, res)
+	})
+
 	cs1.NEF.Script = append(cs1.NEF.Script, byte(opcode.RET))
 	cs1.NEF.Checksum = cs1.NEF.CalculateChecksum()
 	nef1b, err = cs1.NEF.Bytes()

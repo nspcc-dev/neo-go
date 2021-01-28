@@ -322,6 +322,9 @@ func (m *Management) Update(d dao.DAO, hash util.Uint160, neff *nef.File, manif 
 	}
 	// if manifest was provided, update the contract manifest
 	if manif != nil {
+		if manif.Name != contract.Manifest.Name {
+			return nil, errors.New("contract name can't be changed")
+		}
 		if !manif.IsValid(contract.Hash) {
 			return nil, errors.New("invalid manifest for this contract")
 		}
