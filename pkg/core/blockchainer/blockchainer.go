@@ -5,6 +5,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
+	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer/services"
 	"github.com/nspcc-dev/neo-go/pkg/core/mempool"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
@@ -57,6 +58,7 @@ type Blockchainer interface {
 	GetStorageItems(id int32) (map[string]*state.StorageItem, error)
 	GetTestVM(t trigger.Type, tx *transaction.Transaction, b *block.Block) *vm.VM
 	GetTransaction(util.Uint256) (*transaction.Transaction, uint32, error)
+	SetOracle(service services.Oracle)
 	mempool.Feer // fee interface
 	ManagementContractHash() util.Uint160
 	PoolTx(t *transaction.Transaction, pools ...*mempool.Pool) error

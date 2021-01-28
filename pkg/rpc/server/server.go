@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"crypto/elliptic"
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
@@ -23,10 +24,13 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/mpt"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/network"
+	"github.com/nspcc-dev/neo-go/pkg/services/oracle"
+	"github.com/nspcc-dev/neo-go/pkg/services/oracle/broadcaster"
 	"github.com/nspcc-dev/neo-go/pkg/rpc"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/request"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response"
@@ -47,6 +51,7 @@ type (
 		network          netmode.Magic
 		stateRootEnabled bool
 		coreServer       *network.Server
+		oracle           *oracle.Oracle
 		log              *zap.Logger
 		https            *http.Server
 		shutdown         chan struct{}
@@ -116,6 +121,7 @@ var rpcHandlers = map[string]func(*Server, request.Params) (interface{}, *respon
 	"invokecontractverify":   (*Server).invokeContractVerify,
 	"sendrawtransaction":     (*Server).sendrawtransaction,
 	"submitblock":            (*Server).submitBlock,
+	"submitoracleresponse":   (*Server).submitOracleResponse,
 	"validateaddress":        (*Server).validateAddress,
 	"verifyproof":            (*Server).verifyProof,
 }
@@ -134,7 +140,8 @@ var invalidBlockHeightError = func(index int, height int) *response.Error {
 var upgrader = websocket.Upgrader{}
 
 // New creates a new Server struct.
-func New(chain blockchainer.Blockchainer, conf rpc.Config, coreServer *network.Server, log *zap.Logger) Server {
+func New(chain blockchainer.Blockchainer, conf rpc.Config, coreServer *network.Server,
+	orc *oracle.Oracle, log *zap.Logger) Server {
 	httpServer := &http.Server{
 		Addr: conf.Address + ":" + strconv.FormatUint(uint64(conf.Port), 10),
 	}
@@ -146,6 +153,9 @@ func New(chain blockchainer.Blockchainer, conf rpc.Config, coreServer *network.S
 		}
 	}
 
+	if orc != nil {
+		orc.SetBroadcaster(broadcaster.New(orc.MainCfg, log))
+	}
 	return Server{
 		Server:           httpServer,
 		chain:            chain,
@@ -154,6 +164,7 @@ func New(chain blockchainer.Blockchainer, conf rpc.Config, coreServer *network.S
 		stateRootEnabled: chain.GetConfig().StateRootInHeader,
 		coreServer:       coreServer,
 		log:              log,
+		oracle:           orc,
 		https:            tlsServer,
 		shutdown:         make(chan struct{}),
 
@@ -1221,6 +1232,38 @@ func (s *Server) submitBlock(reqParams request.Params) (interface{}, *response.E
 	return &result.RelayResult{
 		Hash: b.Hash(),
 	}, nil
+}
+
+func (s *Server) submitOracleResponse(ps request.Params) (interface{}, *response.Error) {
+	if s.oracle == nil {
+		return nil, response.NewInternalServerError("oracle is not enabled", nil)
+	}
+	var pub *keys.PublicKey
+	pubBytes, err := ps.Value(0).GetBytesBase64()
+	if err == nil {
+		pub, err = keys.NewPublicKeyFromBytes(pubBytes, elliptic.P256())
+	}
+	if err != nil {
+		return nil, response.NewInvalidParamsError("public key is missing", err)
+	}
+	reqID, err := ps.Value(1).GetInt()
+	if err != nil {
+		return nil, response.NewInvalidParamsError("request ID is missing", err)
+	}
+	txSig, err := ps.Value(2).GetBytesBase64()
+	if err != nil {
+		return nil, response.NewInvalidParamsError("tx signature is missing", err)
+	}
+	msgSig, err := ps.Value(3).GetBytesBase64()
+	if err != nil {
+		return nil, response.NewInvalidParamsError("msg signature is missing", err)
+	}
+	data := broadcaster.GetMessage(pubBytes, uint64(reqID), txSig)
+	if !pub.Verify(msgSig, hash.Sha256(data).BytesBE()) {
+		return nil, response.NewRPCError("Invalid sign", "", nil)
+	}
+	s.oracle.AddResponse(pub, uint64(reqID), txSig)
+	return json.RawMessage([]byte("{}")), nil
 }
 
 func (s *Server) sendrawtransaction(reqParams request.Params) (interface{}, *response.Error) {

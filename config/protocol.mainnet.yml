@@ -48,6 +48,9 @@ ApplicationConfiguration:
   MaxPeers: 100
   AttemptConnPeers: 20
   MinPeers: 5
+  Oracle:
+    Enabled: false
+
   RPC:
     Enabled: true
     MaxGasInvoke: 15

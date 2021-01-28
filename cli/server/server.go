@@ -319,7 +319,7 @@ func startServer(ctx *cli.Context) error {
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("failed to create network server: %w", err), 1)
 	}
-	rpcServer := server.New(chain, cfg.ApplicationConfiguration.RPC, serv, log)
+	rpcServer := server.New(chain, cfg.ApplicationConfiguration.RPC, serv, serv.GetOracle(), log)
 	errChan := make(chan error)
 
 	go serv.Start(errChan)

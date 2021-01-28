@@ -44,6 +44,17 @@ ApplicationConfiguration:
   MaxPeers: 10
   AttemptConnPeers: 5
   MinPeers: 3
+  Oracle:
+    Enabled: false
+    Nodes:
+      - 172.200.0.1:30333
+      - 172.200.0.2:30334
+      - 172.200.0.3:30335
+      - 172.200.0.4:30336
+    RequestTimeout: 5s
+    UnlockWallet:
+      Path: "/wallet1.json"
+      Password: "one"
   RPC:
     Enabled: true
     MaxGasInvoke: 15

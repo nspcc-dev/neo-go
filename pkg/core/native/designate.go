@@ -7,6 +7,7 @@ import (
 	"sort"
 	"sync/atomic"
 
+	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer/services"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/runtime"
@@ -32,6 +33,8 @@ type Designate struct {
 
 	// p2pSigExtensionsEnabled defines whether the P2P signature extensions logic is relevant.
 	p2pSigExtensionsEnabled bool
+
+	OracleService atomic.Value
 }
 
 type oraclesData struct {
@@ -117,6 +120,9 @@ func (s *Designate) PostPersist(ic *interop.Context) error {
 		height: height,
 	}
 	s.oracles.Store(od)
+	if orc, _ := s.OracleService.Load().(services.Oracle); orc != nil {
+		orc.UpdateOracleNodes(od.nodes.Copy())
+	}
 	s.rolesChangedFlag.Store(false)
 	return nil
 }

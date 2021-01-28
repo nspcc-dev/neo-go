@@ -38,6 +38,14 @@ ApplicationConfiguration:
   MaxPeers: 10
   AttemptConnPeers: 5
   MinPeers: 0
+  Oracle:
+    Enabled: false
+    Nodes:
+      - 172.200.0.1:30333
+    RequestTimeout: 5s
+    UnlockWallet:
+      Path: "/wallet1_solo.json"
+      Password: "one"
   RPC:
     Enabled: true
     EnableCORSWorkaround: false

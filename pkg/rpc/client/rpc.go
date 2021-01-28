@@ -491,6 +491,12 @@ func (c *Client) SubmitBlock(b block.Block) (util.Uint256, error) {
 	return resp.Hash, nil
 }
 
+// SubmitRawOracleResponse submits raw oracle response to the oracle node.
+// Raw params are used to avoid excessive marshalling.
+func (c *Client) SubmitRawOracleResponse(ps request.RawParams) error {
+	return c.performRequest("submitoracleresponse", ps, new(result.RelayResult))
+}
+
 // SignAndPushInvocationTx signs and pushes given script as an invocation
 // transaction  using given wif to sign it and spending the amount of gas
 // specified. It returns a hash of the invocation transaction and an error.
