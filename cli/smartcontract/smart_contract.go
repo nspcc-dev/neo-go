@@ -38,7 +38,7 @@ import (
 var (
 	errNoInput             = errors.New("no input file was found, specify an input file with the '--in or -i' flag")
 	errNoConfFile          = errors.New("no config file was found, specify a config file with the '--config' or '-c' flag")
-	errNoManifestFile      = errors.New("no manifest file was found, specify a manifest file with the '--manifest' flag")
+	errNoManifestFile      = errors.New("no manifest file was found, specify manifest file with '--manifest' or '-m' flag")
 	errNoMethod            = errors.New("no method specified for function invocation command")
 	errNoWallet            = errors.New("no wallet parameter found, specify it with the '--wallet or -w' flag")
 	errNoScriptHash        = errors.New("no smart contract hash was provided, specify one as the first argument")
@@ -107,7 +107,7 @@ func NewCommands() []cli.Command {
 			Usage: "Input file for the smart contract (*.nef)",
 		},
 		cli.StringFlag{
-			Name:  "manifest",
+			Name:  "manifest, m",
 			Usage: "Manifest input file (*.manifest.json)",
 		},
 		walletFlag,
@@ -170,10 +170,7 @@ func NewCommands() []cli.Command {
 				Name:  "deploy",
 				Usage: "deploy a smart contract (.nef with description)",
 				Description: `Deploys given contract into the chain. The gas parameter is for additional
-   gas to be added as a network fee to prioritize the transaction. It may also
-   be required to add that to satisfy chain's policy regarding transaction size
-   and the minimum size fee (so if transaction send fails, try adding 0.001 GAS
-   to it).
+   gas to be added as a network fee to prioritize the transaction.
 `,
 				Action: contractDeploy,
 				Flags:  deployFlags,
@@ -269,8 +266,8 @@ func NewCommands() []cli.Command {
    Signers represent a set of Uint160 hashes with witness scopes and are used
    to verify hashes in System.Runtime.CheckWitness syscall. First signer is treated
    as a sender. To specify signers use signer[:scope] syntax where
-    * 'signer' is hex-encoded 160 bit (20 byte) LE value of signer's address,
-                 which could have '0x' prefix.
+    * 'signer' is a signer's address (as Neo address or hex-encoded 160 bit (20 byte)
+               LE value with or without '0x' prefix).
     * 'scope' is a comma-separated set of cosigner's scopes, which could be:
         - 'None' - default witness scope which may be used for the sender
 			       to only pay fee for the transaction.
@@ -289,9 +286,9 @@ func NewCommands() []cli.Command {
    neo-go RPC server only. C# implementation does not support scopes capability.
 
    Examples:
-    * '0000000009070e030d0f0e020d0c06050e030c02'
+    * 'NNQk4QXsxvsrr3GSozoWBUxEmfag7B6hz5'
+    * 'NVquyZHoPirw6zAEPvY1ZezxM493zMWQqs:Global'
     * '0x0000000009070e030d0f0e020d0c06050e030c02'
-    * '0x0000000009070e030d0f0e020d0c06050e030c02:Global'
     * '0000000009070e030d0f0e020d0c06050e030c02:CalledByEntry,CustomGroups'   
 `,
 				Action: testInvokeFunction,
@@ -891,7 +888,11 @@ func parseCosigner(c string) (transaction.Signer, error) {
 	if len(s) == 2*util.Uint160Size+2 && s[0:2] == "0x" {
 		s = s[2:]
 	}
-	res.Account, err = util.Uint160DecodeStringLE(s)
+	if len(s) == util.Uint160Size*2 {
+		res.Account, err = util.Uint160DecodeStringLE(s)
+	} else {
+		res.Account, err = address.StringToUint160(s)
+	}
 	if err != nil {
 		return res, err
 	}
