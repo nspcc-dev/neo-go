@@ -479,10 +479,16 @@ func getTestContractState(bc *Blockchain) (*state.Contract, *state.Contract) {
 	emit.Opcodes(w.BinWriter, opcode.LDSFLD0, opcode.SUB,
 		opcode.CONVERT, opcode.Opcode(stackitem.BooleanT), opcode.RET)
 	deployOff := w.Len()
-	emit.Opcodes(w.BinWriter, opcode.JMPIF, 2+8+3)
-	emit.String(w.BinWriter, "create")
-	emit.Opcodes(w.BinWriter, opcode.CALL, 3+8+3, opcode.RET)
-	emit.String(w.BinWriter, "update")
+	emit.Opcodes(w.BinWriter, opcode.SWAP, opcode.JMPIF, 2+8+1+1+5+3)
+	emit.String(w.BinWriter, "create")                            // 8 bytes
+	emit.Int(w.BinWriter, 2)                                      // 1 byte
+	emit.Opcodes(w.BinWriter, opcode.PACK)                        // 1 byte
+	emit.Syscall(w.BinWriter, interopnames.SystemBinarySerialize) // 5 bytes
+	emit.Opcodes(w.BinWriter, opcode.CALL, 3+8+1+1+5+3, opcode.RET)
+	emit.String(w.BinWriter, "update")                            // 8 bytes
+	emit.Int(w.BinWriter, 2)                                      // 1 byte
+	emit.Opcodes(w.BinWriter, opcode.PACK)                        // 1 byte
+	emit.Syscall(w.BinWriter, interopnames.SystemBinarySerialize) // 5 bytes
 	emit.Opcodes(w.BinWriter, opcode.CALL, 3, opcode.RET)
 	putValOff := w.Len()
 	emit.String(w.BinWriter, "initial")
@@ -501,6 +507,9 @@ func getTestContractState(bc *Blockchain) (*state.Contract, *state.Contract) {
 	emit.String(w.BinWriter, "LastPayment")
 	emit.Syscall(w.BinWriter, interopnames.SystemRuntimeNotify)
 	emit.Opcodes(w.BinWriter, opcode.RET)
+	update3Off := w.Len()
+	emit.Int(w.BinWriter, 3)
+	emit.Opcodes(w.BinWriter, opcode.JMP, 2+1)
 	updateOff := w.Len()
 	emit.Int(w.BinWriter, 2)
 	emit.Opcodes(w.BinWriter, opcode.PACK)
@@ -588,6 +597,7 @@ func getTestContractState(bc *Blockchain) (*state.Contract, *state.Contract) {
 			Name:   manifest.MethodDeploy,
 			Offset: deployOff,
 			Parameters: []manifest.Parameter{
+				manifest.NewParameter("data", smartcontract.AnyType),
 				manifest.NewParameter("isUpdate", smartcontract.BoolType),
 			},
 			ReturnType: smartcontract.VoidType,
@@ -621,6 +631,16 @@ func getTestContractState(bc *Blockchain) (*state.Contract, *state.Contract) {
 			Parameters: []manifest.Parameter{
 				manifest.NewParameter("nef", smartcontract.ByteArrayType),
 				manifest.NewParameter("manifest", smartcontract.ByteArrayType),
+			},
+			ReturnType: smartcontract.VoidType,
+		},
+		{
+			Name:   "update",
+			Offset: update3Off,
+			Parameters: []manifest.Parameter{
+				manifest.NewParameter("nef", smartcontract.ByteArrayType),
+				manifest.NewParameter("manifest", smartcontract.ByteArrayType),
+				manifest.NewParameter("data", smartcontract.AnyType),
 			},
 			ReturnType: smartcontract.VoidType,
 		},

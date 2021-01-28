@@ -16,7 +16,7 @@ func init() {
 	trigger = runtime.GetTrigger()
 }
 
-func _deploy(isUpdate bool) {
+func _deploy(_ interface{}, isUpdate bool) {
 	if isUpdate {
 		Log("_deploy method called before contract update")
 		return

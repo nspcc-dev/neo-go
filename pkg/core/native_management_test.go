@@ -71,6 +71,57 @@ func TestStartFromHeight(t *testing.T) {
 	checkContractState(t, bc2, cs1.Hash, cs1)
 }
 
+func TestContractDeployAndUpdateWithParameter(t *testing.T) {
+	bc := newTestChain(t)
+	defer bc.Close()
+
+	// nef.NewFile() cares about version a lot.
+	config.Version = "0.90.0-test"
+	mgmtHash := bc.ManagementContractHash()
+	cs1, _ := getTestContractState(bc)
+	cs1.Manifest.Permissions = []manifest.Permission{*manifest.NewPermission(manifest.PermissionWildcard)}
+	cs1.ID = 1
+	cs1.Hash = state.CreateContractHash(testchain.MultisigScriptHash(), cs1.NEF.Checksum, cs1.Manifest.Name)
+	manif1, err := json.Marshal(cs1.Manifest)
+	require.NoError(t, err)
+	nef1b, err := cs1.NEF.Bytes()
+	require.NoError(t, err)
+
+	aer, err := invokeContractMethod(bc, 11_00000000, mgmtHash, "deploy", nef1b, manif1, int64(42))
+	require.NoError(t, err)
+	require.Equal(t, vm.HaltState, aer.VMState)
+
+	t.Run("_deploy called", func(t *testing.T) {
+		res, err := invokeContractMethod(bc, 1_00000000, cs1.Hash, "getValue")
+		require.NoError(t, err)
+		require.Equal(t, 1, len(res.Stack))
+		item, err := stackitem.DeserializeItem(res.Stack[0].Value().([]byte))
+		require.NoError(t, err)
+		expected := []stackitem.Item{stackitem.Make("create"), stackitem.Make(42)}
+		require.Equal(t, stackitem.NewArray(expected), item)
+	})
+
+	cs1.NEF.Script = append(cs1.NEF.Script, byte(opcode.RET))
+	cs1.NEF.Checksum = cs1.NEF.CalculateChecksum()
+	nef1b, err = cs1.NEF.Bytes()
+	require.NoError(t, err)
+	cs1.UpdateCounter++
+
+	aer, err = invokeContractMethod(bc, 10_00000000, cs1.Hash, "update", nef1b, nil, "new data")
+	require.NoError(t, err)
+	require.Equal(t, vm.HaltState, aer.VMState)
+
+	t.Run("_deploy called", func(t *testing.T) {
+		res, err := invokeContractMethod(bc, 1_00000000, cs1.Hash, "getValue")
+		require.NoError(t, err)
+		require.Equal(t, 1, len(res.Stack))
+		item, err := stackitem.DeserializeItem(res.Stack[0].Value().([]byte))
+		require.NoError(t, err)
+		expected := []stackitem.Item{stackitem.Make("update"), stackitem.Make("new data")}
+		require.Equal(t, stackitem.NewArray(expected), item)
+	})
+}
+
 func TestContractDeploy(t *testing.T) {
 	bc := newTestChain(t)
 	defer bc.Close()
@@ -166,7 +217,10 @@ func TestContractDeploy(t *testing.T) {
 			res, err := invokeContractMethod(bc, 1_00000000, cs1.Hash, "getValue")
 			require.NoError(t, err)
 			require.Equal(t, 1, len(res.Stack))
-			require.Equal(t, []byte("create"), res.Stack[0].Value())
+			item, err := stackitem.DeserializeItem(res.Stack[0].Value().([]byte))
+			require.NoError(t, err)
+			expected := []stackitem.Item{stackitem.Make("create"), stackitem.Null{}}
+			require.Equal(t, stackitem.NewArray(expected), item)
 		})
 		t.Run("get after deploy", func(t *testing.T) {
 			checkContractState(t, bc, cs1.Hash, cs1)
@@ -198,6 +252,7 @@ func TestContractDeploy(t *testing.T) {
 				Name:   manifest.MethodDeploy,
 				Offset: 0,
 				Parameters: []manifest.Parameter{
+					manifest.NewParameter("data", smartcontract.AnyType),
 					manifest.NewParameter("isUpdate", smartcontract.BoolType),
 				},
 				ReturnType: smartcontract.VoidType,
@@ -226,6 +281,7 @@ func TestContractDeploy(t *testing.T) {
 				Name:   manifest.MethodDeploy,
 				Offset: 0,
 				Parameters: []manifest.Parameter{
+					manifest.NewParameter("data", smartcontract.AnyType),
 					manifest.NewParameter("isUpdate", smartcontract.BoolType),
 				},
 				ReturnType: smartcontract.ArrayType,
@@ -346,7 +402,10 @@ func TestContractUpdate(t *testing.T) {
 			res, err := invokeContractMethod(bc, 1_00000000, cs1.Hash, "getValue")
 			require.NoError(t, err)
 			require.Equal(t, 1, len(res.Stack))
-			require.Equal(t, []byte("update"), res.Stack[0].Value())
+			item, err := stackitem.DeserializeItem(res.Stack[0].Value().([]byte))
+			require.NoError(t, err)
+			expected := []stackitem.Item{stackitem.Make("update"), stackitem.Null{}}
+			require.Equal(t, stackitem.NewArray(expected), item)
 		})
 		t.Run("check contract", func(t *testing.T) {
 			checkContractState(t, bc, cs1.Hash, cs1)

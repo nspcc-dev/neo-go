@@ -53,7 +53,7 @@ func MethodParams(addr interop.Hash160, h interop.Hash256,
 type MyStruct struct {}
 func (ms MyStruct) MethodOnStruct() { }
 func (ms *MyStruct) MethodOnPointerToStruct() { }
-func _deploy(isUpdate bool) {}
+func _deploy(data interface{}, isUpdate bool) {}
 `
 
 	info, err := getBuildInfo("foo.go", src)
@@ -100,11 +100,18 @@ func _deploy(isUpdate bool) {}
 
 	t.Run("param types", func(t *testing.T) {
 		paramTypes := map[string][]DebugParam{
-			"_deploy": {{
-				Name:   "isUpdate",
-				Type:   "Boolean",
-				TypeSC: smartcontract.BoolType,
-			}},
+			"_deploy": {
+				{
+					Name:   "data",
+					Type:   "Any",
+					TypeSC: smartcontract.AnyType,
+				},
+				{
+					Name:   "isUpdate",
+					Type:   "Boolean",
+					TypeSC: smartcontract.BoolType,
+				},
+			},
 			"MethodInt": {{
 				Name:   "a",
 				Type:   "ByteString",
@@ -160,6 +167,7 @@ func _deploy(isUpdate bool) {}
 						Name:   "_deploy",
 						Offset: 0,
 						Parameters: []manifest.Parameter{
+							manifest.NewParameter("data", smartcontract.AnyType),
 							manifest.NewParameter("isUpdate", smartcontract.BoolType),
 						},
 						ReturnType: smartcontract.VoidType,

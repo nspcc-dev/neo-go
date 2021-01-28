@@ -77,10 +77,24 @@ func newManagement() *Management {
 	md = newMethodAndPrice(m.deploy, 0, callflag.WriteStates|callflag.AllowNotify)
 	m.AddMethod(md, desc)
 
+	desc = newDescriptor("deploy", smartcontract.ArrayType,
+		manifest.NewParameter("script", smartcontract.ByteArrayType),
+		manifest.NewParameter("manifest", smartcontract.ByteArrayType),
+		manifest.NewParameter("data", smartcontract.AnyType))
+	md = newMethodAndPrice(m.deployWithData, 0, callflag.WriteStates|callflag.AllowNotify)
+	m.AddMethod(md, desc)
+
 	desc = newDescriptor("update", smartcontract.VoidType,
 		manifest.NewParameter("script", smartcontract.ByteArrayType),
 		manifest.NewParameter("manifest", smartcontract.ByteArrayType))
 	md = newMethodAndPrice(m.update, 0, callflag.WriteStates|callflag.AllowNotify)
+	m.AddMethod(md, desc)
+
+	desc = newDescriptor("update", smartcontract.VoidType,
+		manifest.NewParameter("script", smartcontract.ByteArrayType),
+		manifest.NewParameter("manifest", smartcontract.ByteArrayType),
+		manifest.NewParameter("data", smartcontract.AnyType))
+	md = newMethodAndPrice(m.updateWithData, 0, callflag.WriteStates|callflag.AllowNotify)
 	m.AddMethod(md, desc)
 
 	desc = newDescriptor("destroy", smartcontract.VoidType)
@@ -204,9 +218,14 @@ func (m *Management) getNefAndManifestFromItems(ic *interop.Context, args []stac
 	return resNef, resManifest, nil
 }
 
-// deploy is an implementation of public deploy method, it's run under
-// VM protections, so it's OK for it to panic instead of returning errors.
+// deploy is an implementation of public 2-argument deploy method.
 func (m *Management) deploy(ic *interop.Context, args []stackitem.Item) stackitem.Item {
+	return m.deployWithData(ic, append(args, stackitem.Null{}))
+}
+
+// deployWithData is an implementation of public 3-argument deploy method.
+// It's run under VM protections, so it's OK for it to panic instead of returning errors.
+func (m *Management) deployWithData(ic *interop.Context, args []stackitem.Item) stackitem.Item {
 	neff, manif, err := m.getNefAndManifestFromItems(ic, args, true)
 	if err != nil {
 		panic(err)
@@ -224,7 +243,7 @@ func (m *Management) deploy(ic *interop.Context, args []stackitem.Item) stackite
 	if err != nil {
 		panic(err)
 	}
-	m.callDeploy(ic, newcontract, false)
+	m.callDeploy(ic, newcontract, args[2], false)
 	m.emitNotification(ic, contractDeployNotificationName, newcontract.Hash)
 	return contractToStack(newcontract)
 }
@@ -266,9 +285,13 @@ func (m *Management) Deploy(d dao.DAO, sender util.Uint160, neff *nef.File, mani
 	return newcontract, nil
 }
 
+func (m *Management) update(ic *interop.Context, args []stackitem.Item) stackitem.Item {
+	return m.updateWithData(ic, append(args, stackitem.Null{}))
+}
+
 // update is an implementation of public update method, it's run under
 // VM protections, so it's OK for it to panic instead of returning errors.
-func (m *Management) update(ic *interop.Context, args []stackitem.Item) stackitem.Item {
+func (m *Management) updateWithData(ic *interop.Context, args []stackitem.Item) stackitem.Item {
 	neff, manif, err := m.getNefAndManifestFromItems(ic, args, false)
 	if err != nil {
 		panic(err)
@@ -280,7 +303,7 @@ func (m *Management) update(ic *interop.Context, args []stackitem.Item) stackite
 	if err != nil {
 		panic(err)
 	}
-	m.callDeploy(ic, contract, true)
+	m.callDeploy(ic, contract, args[2], true)
 	m.emitNotification(ic, contractUpdateNotificationName, contract.Hash)
 	return stackitem.Null{}
 }
@@ -378,11 +401,11 @@ func (m *Management) setMinimumDeploymentFee(ic *interop.Context, args []stackit
 	return stackitem.Null{}
 }
 
-func (m *Management) callDeploy(ic *interop.Context, cs *state.Contract, isUpdate bool) {
-	md := cs.Manifest.ABI.GetMethod(manifest.MethodDeploy, 1)
+func (m *Management) callDeploy(ic *interop.Context, cs *state.Contract, data stackitem.Item, isUpdate bool) {
+	md := cs.Manifest.ABI.GetMethod(manifest.MethodDeploy, 2)
 	if md != nil {
 		err := contract.CallFromNative(ic, m.Hash, cs, manifest.MethodDeploy,
-			[]stackitem.Item{stackitem.NewBool(isUpdate)}, false)
+			[]stackitem.Item{data, stackitem.NewBool(isUpdate)}, false)
 		if err != nil {
 			panic(err)
 		}

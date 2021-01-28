@@ -13,7 +13,7 @@ var key = "key"
 
 const mgmtKey = "mgmt"
 
-func _deploy(isUpdate bool) {
+func _deploy(data interface{}, isUpdate bool) {
 	var value string
 
 	ctx := storage.GetContext()

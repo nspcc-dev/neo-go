@@ -150,11 +150,18 @@ func (c *codegen) emitDebugInfo(contract []byte) *DebugInfo {
 				Start: uint16(c.initEndOffset + 1),
 				End:   uint16(c.deployEndOffset),
 			},
-			Parameters: []DebugParam{{
-				Name:   "isUpdate",
-				Type:   "Boolean",
-				TypeSC: smartcontract.BoolType,
-			}},
+			Parameters: []DebugParam{
+				{
+					Name:   "data",
+					Type:   "Any",
+					TypeSC: smartcontract.AnyType,
+				},
+				{
+					Name:   "isUpdate",
+					Type:   "Boolean",
+					TypeSC: smartcontract.BoolType,
+				},
+			},
 			ReturnType:   "Void",
 			ReturnTypeSC: smartcontract.VoidType,
 			SeqPoints:    c.sequencePoints[manifest.MethodDeploy],

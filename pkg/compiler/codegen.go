@@ -336,11 +336,11 @@ func (c *codegen) convertInitFuncs(f *ast.File, pkg *types.Package, seenBefore b
 
 func isDeployFunc(decl *ast.FuncDecl) bool {
 	if decl.Name.Name != "_deploy" || decl.Recv != nil ||
-		decl.Type.Params.NumFields() != 1 ||
+		decl.Type.Params.NumFields() != 2 ||
 		decl.Type.Results.NumFields() != 0 {
 		return false
 	}
-	typ, ok := decl.Type.Params.List[0].Type.(*ast.Ident)
+	typ, ok := decl.Type.Params.List[1].Type.(*ast.Ident)
 	return ok && typ.Name == "bool"
 }
 
@@ -1869,7 +1869,7 @@ func (c *codegen) compile(info *buildInfo, pkg *loader.PackageInfo) error {
 
 	hasDeploy := deployLocals > -1
 	if hasDeploy {
-		emit.Instruction(c.prog.BinWriter, opcode.INITSLOT, []byte{byte(deployLocals), 1})
+		emit.Instruction(c.prog.BinWriter, opcode.INITSLOT, []byte{byte(deployLocals), 2})
 		c.convertDeployFuncs()
 		c.deployEndOffset = c.prog.Len()
 		emit.Opcodes(c.prog.BinWriter, opcode.RET)
