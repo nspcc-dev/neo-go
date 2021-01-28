@@ -28,7 +28,7 @@ func Call(ic *interop.Context) error {
 		return errors.New("it is not allowed to use Neo.Native.Call directly to call native contracts. System.Contract.Call should be used")
 	}
 	operation := ic.VM.Estack().Pop().String()
-	m, ok := c.Metadata().Methods[operation]
+	m, ok := c.Metadata().GetMethod(operation, ic.VM.Estack().Len())
 	if !ok {
 		return fmt.Errorf("method %s not found", operation)
 	}
