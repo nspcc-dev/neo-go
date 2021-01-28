@@ -19,6 +19,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/mempool"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/network/capability"
+	"github.com/nspcc-dev/neo-go/pkg/network/extpool"
 	"github.com/nspcc-dev/neo-go/pkg/network/payload"
 	"github.com/nspcc-dev/neo-go/pkg/services/oracle"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -67,6 +68,7 @@ type (
 		bQueue            *blockQueue
 		consensus         consensus.Service
 		notaryRequestPool *mempool.Pool
+		extensiblePool    *extpool.Pool
 		NotaryFeer        NotaryFeer
 
 		lock  sync.RWMutex
@@ -127,6 +129,7 @@ func newServerFromConstructors(config ServerConfig, chain blockchainer.Blockchai
 		unregister:        make(chan peerDrop),
 		peers:             make(map[Peer]bool),
 		consensusStarted:  atomic.NewBool(false),
+		extensiblePool:    extpool.New(chain),
 		log:               log,
 		transactions:      make(chan *transaction.Transaction, 64),
 	}
@@ -574,7 +577,7 @@ func (s *Server) handleInvCmd(p Peer, inv *payload.Inventory) error {
 		payload.TXType:    s.chain.HasTransaction,
 		payload.BlockType: s.chain.HasBlock,
 		payload.ExtensibleType: func(h util.Uint256) bool {
-			cp := s.consensus.GetPayload(h)
+			cp := s.extensiblePool.Get(h)
 			return cp != nil
 		},
 		payload.P2PNotaryRequestType: func(h util.Uint256) bool {
@@ -643,7 +646,7 @@ func (s *Server) handleGetDataCmd(p Peer, inv *payload.Inventory) error {
 				notFound = append(notFound, hash)
 			}
 		case payload.ExtensibleType:
-			if cp := s.consensus.GetPayload(hash); cp != nil {
+			if cp := s.extensiblePool.Get(hash); cp != nil {
 				msg = NewMessage(CMDExtensible, cp)
 			}
 		case payload.P2PNotaryRequestType:
@@ -752,28 +755,27 @@ func (s *Server) handleGetHeadersCmd(p Peer, gh *payload.GetBlockByIndex) error 
 	return p.EnqueueP2PMessage(msg)
 }
 
-const extensibleVerifyMaxGAS = 2000000
-
 // handleExtensibleCmd processes received extensible payload.
 func (s *Server) handleExtensibleCmd(e *payload.Extensible) error {
-	if err := s.chain.VerifyWitness(e.Sender, e, &e.Witness, extensibleVerifyMaxGAS); err != nil {
+	ok, err := s.extensiblePool.Add(e)
+	if err != nil {
 		return err
 	}
-	h := s.chain.BlockHeight()
-	if h < e.ValidBlockStart || e.ValidBlockEnd <= h {
-		// We can receive consensus payload for the last or next block
-		// which leads to unwanted node disconnect.
-		if e.ValidBlockEnd == h {
-			return nil
-		}
-		return errors.New("invalid height")
+	if !ok { // payload is already in cache
+		return nil
 	}
-
 	switch e.Category {
 	case consensus.Category:
 		s.consensus.OnPayload(e)
 	default:
 		return errors.New("invalid category")
+	}
+
+	msg := NewMessage(CMDInv, payload.NewInventory(payload.ExtensibleType, []util.Uint256{e.Hash()}))
+	if e.Category == consensus.Category {
+		s.broadcastHPMessage(msg)
+	} else {
+		s.broadcastMessage(msg)
 	}
 	return nil
 }
@@ -990,6 +992,12 @@ func (s *Server) handleMessage(peer Peer, msg *Message) error {
 }
 
 func (s *Server) handleNewPayload(p *payload.Extensible) {
+	_, err := s.extensiblePool.Add(p)
+	if err != nil {
+		s.log.Error("created payload is not valid", zap.Error(err))
+		return
+	}
+
 	msg := NewMessage(CMDInv, payload.NewInventory(payload.ExtensibleType, []util.Uint256{p.Hash()}))
 	// It's high priority because it directly affects consensus process,
 	// even though it's just an inv.
@@ -1100,6 +1108,7 @@ func (s *Server) relayBlocksLoop() {
 			s.iteratePeersWithSendMsg(msg, Peer.EnqueuePacket, func(p Peer) bool {
 				return p.Handshaked() && p.LastBlockIndex() < b.Index
 			})
+			s.extensiblePool.RemoveStale(b.Index)
 		}
 	}
 }

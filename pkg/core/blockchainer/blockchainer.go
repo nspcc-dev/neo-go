@@ -41,6 +41,7 @@ type Blockchainer interface {
 	CurrentBlockHash() util.Uint256
 	HasBlock(util.Uint256) bool
 	HasTransaction(util.Uint256) bool
+	IsExtensibleAllowed(util.Uint160) bool
 	GetAppExecResults(util.Uint256, trigger.Type) ([]state.AppExecResult, error)
 	GetNotaryDepositExpiration(acc util.Uint160) uint32
 	GetNativeContractScriptHash(string) (util.Uint160, error)

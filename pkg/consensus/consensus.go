@@ -55,16 +55,12 @@ type Service interface {
 	OnPayload(p *npayload.Extensible)
 	// OnTransaction is a callback to notify Service about new received transaction.
 	OnTransaction(tx *transaction.Transaction)
-	// GetPayload returns Payload with specified hash if it is present in the local cache.
-	GetPayload(h util.Uint256) *npayload.Extensible
 }
 
 type service struct {
 	Config
 
 	log *zap.Logger
-	// cache is a fifo cache which stores recent payloads.
-	cache *relayCache
 	// txx is a fifo cache which stores miner transactions.
 	txx  *relayCache
 	dbft *dbft.DBFT
@@ -124,7 +120,6 @@ func NewService(cfg Config) (Service, error) {
 		Config: cfg,
 
 		log:      cfg.Logger,
-		cache:    newFIFOCache(cacheMaxCapacity),
 		txx:      newFIFOCache(cacheMaxCapacity),
 		messages: make(chan Payload, 100),
 
@@ -379,20 +374,12 @@ func (s *service) payloadFromExtensible(ep *npayload.Extensible) *Payload {
 // OnPayload handles Payload receive.
 func (s *service) OnPayload(cp *npayload.Extensible) {
 	log := s.log.With(zap.Stringer("hash", cp.Hash()))
-	if s.cache.Has(cp.Hash()) {
-		log.Debug("payload is already in cache")
-		return
-	}
-
 	p := s.payloadFromExtensible(cp)
 	p.decodeData()
 	if !s.validatePayload(p) {
 		log.Info("can't validate payload")
 		return
 	}
-
-	s.Config.Broadcast(cp)
-	s.cache.Add(cp)
 
 	if s.dbft == nil || !s.started.Load() {
 		log.Debug("dbft is inactive or not started yet")
@@ -416,25 +403,12 @@ func (s *service) OnTransaction(tx *transaction.Transaction) {
 	}
 }
 
-// GetPayload returns payload stored in cache.
-func (s *service) GetPayload(h util.Uint256) *npayload.Extensible {
-	p := s.cache.Get(h)
-	if p == nil {
-		return (*npayload.Extensible)(nil)
-	}
-
-	cp := *p.(*npayload.Extensible)
-
-	return &cp
-}
-
 func (s *service) broadcast(p payload.ConsensusPayload) {
 	if err := p.(*Payload).Sign(s.dbft.Priv.(*privateKey)); err != nil {
 		s.log.Warn("can't sign consensus payload", zap.Error(err))
 	}
 
 	ep := &p.(*Payload).Extensible
-	s.cache.Add(ep)
 	s.Config.Broadcast(ep)
 }
 

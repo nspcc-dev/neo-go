@@ -714,6 +714,18 @@ func TestInv(t *testing.T) {
 		})
 		require.Equal(t, []util.Uint256{hs[0], hs[2]}, actual)
 	})
+	t.Run("extensible", func(t *testing.T) {
+		ep := payload.NewExtensible(netmode.UnitTestNet)
+		s.chain.(*testChain).verifyWitnessF = func() error { return nil }
+		ep.ValidBlockEnd = s.chain.(*testChain).BlockHeight() + 1
+		ok, err := s.extensiblePool.Add(ep)
+		require.NoError(t, err)
+		require.True(t, ok)
+		s.testHandleMessage(t, p, CMDInv, &payload.Inventory{
+			Type:   payload.ExtensibleType,
+			Hashes: []util.Uint256{ep.Hash()},
+		})
+	})
 	t.Run("p2pNotaryRequest", func(t *testing.T) {
 		fallbackTx := transaction.New(netmode.UnitTestNet, random.Bytes(100), 123)
 		fallbackTx.Signers = []transaction.Signer{{Account: random.Uint160()}, {Account: random.Uint160()}}

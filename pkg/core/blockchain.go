@@ -131,6 +131,8 @@ type Blockchain struct {
 
 	contracts native.Contracts
 
+	extensible atomic.Value
+
 	// Notification subsystem.
 	events  chan bcEvent
 	subCh   chan interface{}
@@ -297,7 +299,7 @@ func (bc *Blockchain) init() error {
 		return fmt.Errorf("can't init cache for Management native contract: %w", err)
 	}
 
-	return nil
+	return bc.updateExtensibleWhitelist(bHeight)
 }
 
 // Run runs chain loop, it needs to be run as goroutine and executing it is
@@ -759,6 +761,10 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 	for _, f := range bc.postBlock {
 		f(bc, txpool, block)
 	}
+	if err := bc.updateExtensibleWhitelist(block.Index); err != nil {
+		bc.lock.Unlock()
+		return err
+	}
 	bc.lock.Unlock()
 
 	updateBlockHeightMetric(block.Index)
@@ -769,6 +775,68 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 		bc.events <- bcEvent{block, appExecResults}
 	}
 	return nil
+}
+
+func (bc *Blockchain) updateExtensibleWhitelist(height uint32) error {
+	updateCommittee := native.ShouldUpdateCommittee(height, bc)
+	oracles, oh, err := bc.contracts.Designate.GetDesignatedByRole(bc.dao, native.RoleOracle, height)
+	if err != nil {
+		return err
+	}
+	stateVals, sh, err := bc.contracts.Designate.GetDesignatedByRole(bc.dao, native.RoleStateValidator, height)
+	if err != nil {
+		return err
+	}
+
+	if bc.extensible.Load() != nil && !updateCommittee && oh != height && sh != height {
+		return nil
+	}
+
+	newList := []util.Uint160{bc.contracts.NEO.GetCommitteeAddress()}
+	nextVals := bc.contracts.NEO.GetNextBlockValidatorsInternal()
+	script, err := smartcontract.CreateDefaultMultiSigRedeemScript(nextVals)
+	if err != nil {
+		return err
+	}
+	newList = append(newList, hash.Hash160(script))
+	bc.updateExtensibleList(&newList, bc.contracts.NEO.GetNextBlockValidatorsInternal())
+
+	if len(oracles) > 0 {
+		h, err := bc.contracts.Designate.GetLastDesignatedHash(bc.dao, native.RoleOracle)
+		if err != nil {
+			return err
+		}
+		newList = append(newList, h)
+		bc.updateExtensibleList(&newList, oracles)
+	}
+
+	if len(stateVals) > 0 {
+		h, err := bc.contracts.Designate.GetLastDesignatedHash(bc.dao, native.RoleStateValidator)
+		if err != nil {
+			return err
+		}
+		newList = append(newList, h)
+		bc.updateExtensibleList(&newList, stateVals)
+	}
+
+	sort.Slice(newList, func(i, j int) bool {
+		return newList[i].Less(newList[j])
+	})
+	bc.extensible.Store(newList)
+	return nil
+}
+
+func (bc *Blockchain) updateExtensibleList(s *[]util.Uint160, pubs keys.PublicKeys) {
+	for _, pub := range pubs {
+		*s = append(*s, pub.GetScriptHash())
+	}
+}
+
+// IsExtensibleAllowed determines if script hash is allowed to send extensible payloads.
+func (bc *Blockchain) IsExtensibleAllowed(u util.Uint160) bool {
+	us := bc.extensible.Load().([]util.Uint160)
+	n := sort.Search(len(us), func(i int) bool { return !us[i].Less(u) })
+	return n < len(us)
 }
 
 func (bc *Blockchain) runPersist(script []byte, block *block.Block, cache *dao.Cached, trig trigger.Type) (*state.AppExecResult, error) {
