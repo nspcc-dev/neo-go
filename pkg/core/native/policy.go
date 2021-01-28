@@ -109,7 +109,7 @@ func newPolicy() *Policy {
 	md = newMethodAndPrice(p.getExecFeeFactor, 1000000, callflag.ReadStates)
 	p.AddMethod(md, desc)
 
-	desc = newDescriptor("setExecFeeFactor", smartcontract.BoolType,
+	desc = newDescriptor("setExecFeeFactor", smartcontract.VoidType,
 		manifest.NewParameter("value", smartcontract.IntegerType))
 	md = newMethodAndPrice(p.setExecFeeFactor, 3000000, callflag.WriteStates)
 	p.AddMethod(md, desc)
@@ -118,27 +118,27 @@ func newPolicy() *Policy {
 	md = newMethodAndPrice(p.getStoragePrice, 1000000, callflag.ReadStates)
 	p.AddMethod(md, desc)
 
-	desc = newDescriptor("setStoragePrice", smartcontract.BoolType,
+	desc = newDescriptor("setStoragePrice", smartcontract.VoidType,
 		manifest.NewParameter("value", smartcontract.IntegerType))
 	md = newMethodAndPrice(p.setStoragePrice, 3000000, callflag.WriteStates)
 	p.AddMethod(md, desc)
 
-	desc = newDescriptor("setMaxBlockSize", smartcontract.BoolType,
+	desc = newDescriptor("setMaxBlockSize", smartcontract.VoidType,
 		manifest.NewParameter("value", smartcontract.IntegerType))
 	md = newMethodAndPrice(p.setMaxBlockSize, 3000000, callflag.WriteStates)
 	p.AddMethod(md, desc)
 
-	desc = newDescriptor("setMaxTransactionsPerBlock", smartcontract.BoolType,
+	desc = newDescriptor("setMaxTransactionsPerBlock", smartcontract.VoidType,
 		manifest.NewParameter("value", smartcontract.IntegerType))
 	md = newMethodAndPrice(p.setMaxTransactionsPerBlock, 3000000, callflag.WriteStates)
 	p.AddMethod(md, desc)
 
-	desc = newDescriptor("setFeePerByte", smartcontract.BoolType,
+	desc = newDescriptor("setFeePerByte", smartcontract.VoidType,
 		manifest.NewParameter("value", smartcontract.IntegerType))
 	md = newMethodAndPrice(p.setFeePerByte, 3000000, callflag.WriteStates)
 	p.AddMethod(md, desc)
 
-	desc = newDescriptor("setMaxBlockSystemFee", smartcontract.BoolType,
+	desc = newDescriptor("setMaxBlockSystemFee", smartcontract.VoidType,
 		manifest.NewParameter("value", smartcontract.IntegerType))
 	md = newMethodAndPrice(p.setMaxBlockSystemFee, 3000000, callflag.WriteStates)
 	p.AddMethod(md, desc)
@@ -309,7 +309,7 @@ func (p *Policy) setExecFeeFactor(ic *interop.Context, args []stackitem.Item) st
 		panic(fmt.Errorf("ExecFeeFactor must be between 0 and %d", maxExecFeeFactor))
 	}
 	if !p.NEO.checkCommittee(ic) {
-		return stackitem.NewBool(false)
+		panic("invalid committee signature")
 	}
 	p.lock.Lock()
 	defer p.lock.Unlock()
@@ -318,7 +318,7 @@ func (p *Policy) setExecFeeFactor(ic *interop.Context, args []stackitem.Item) st
 		panic(err)
 	}
 	p.isValid = false
-	return stackitem.NewBool(true)
+	return stackitem.Null{}
 }
 
 // isBlocked is Policy contract method and checks whether provided account is blocked.
@@ -365,7 +365,7 @@ func (p *Policy) setStoragePrice(ic *interop.Context, args []stackitem.Item) sta
 		panic(fmt.Errorf("StoragePrice must be between 0 and %d", maxStoragePrice))
 	}
 	if !p.NEO.checkCommittee(ic) {
-		return stackitem.NewBool(false)
+		panic("invalid committee signature")
 	}
 	p.lock.Lock()
 	defer p.lock.Unlock()
@@ -374,7 +374,7 @@ func (p *Policy) setStoragePrice(ic *interop.Context, args []stackitem.Item) sta
 		panic(err)
 	}
 	p.isValid = false
-	return stackitem.NewBool(true)
+	return stackitem.Null{}
 }
 
 // setMaxTransactionsPerBlock is Policy contract method and  sets the upper limit
@@ -385,7 +385,7 @@ func (p *Policy) setMaxTransactionsPerBlock(ic *interop.Context, args []stackite
 		panic(fmt.Errorf("MaxTransactionsPerBlock cannot exceed the maximum allowed transactions per block = %d", block.MaxTransactionsPerBlock))
 	}
 	if !p.NEO.checkCommittee(ic) {
-		return stackitem.NewBool(false)
+		panic("invalid committee signature")
 	}
 	p.lock.Lock()
 	defer p.lock.Unlock()
@@ -394,7 +394,7 @@ func (p *Policy) setMaxTransactionsPerBlock(ic *interop.Context, args []stackite
 		panic(err)
 	}
 	p.isValid = false
-	return stackitem.NewBool(true)
+	return stackitem.Null{}
 }
 
 // setMaxBlockSize is Policy contract method and sets maximum block size.
@@ -404,7 +404,7 @@ func (p *Policy) setMaxBlockSize(ic *interop.Context, args []stackitem.Item) sta
 		panic(fmt.Errorf("MaxBlockSize cannot be more than the maximum payload size = %d", payload.MaxSize))
 	}
 	if !p.NEO.checkCommittee(ic) {
-		return stackitem.NewBool(false)
+		panic("invalid committee signature")
 	}
 	p.lock.Lock()
 	defer p.lock.Unlock()
@@ -413,7 +413,7 @@ func (p *Policy) setMaxBlockSize(ic *interop.Context, args []stackitem.Item) sta
 		panic(err)
 	}
 	p.isValid = false
-	return stackitem.NewBool(true)
+	return stackitem.Null{}
 }
 
 // setFeePerByte is Policy contract method and sets transaction's fee per byte.
@@ -423,7 +423,7 @@ func (p *Policy) setFeePerByte(ic *interop.Context, args []stackitem.Item) stack
 		panic(fmt.Errorf("FeePerByte shouldn't be negative or greater than %d", maxFeePerByte))
 	}
 	if !p.NEO.checkCommittee(ic) {
-		return stackitem.NewBool(false)
+		panic("invalid committee signature")
 	}
 	p.lock.Lock()
 	defer p.lock.Unlock()
@@ -432,7 +432,7 @@ func (p *Policy) setFeePerByte(ic *interop.Context, args []stackitem.Item) stack
 		panic(err)
 	}
 	p.isValid = false
-	return stackitem.NewBool(true)
+	return stackitem.Null{}
 }
 
 // setMaxBlockSystemFee is Policy contract method and sets the maximum system fee per block.
@@ -442,7 +442,7 @@ func (p *Policy) setMaxBlockSystemFee(ic *interop.Context, args []stackitem.Item
 		panic(fmt.Errorf("MaxBlockSystemFee cannot be less then %d", minBlockSystemFee))
 	}
 	if !p.NEO.checkCommittee(ic) {
-		return stackitem.NewBool(false)
+		panic("invalid committee signature")
 	}
 	p.lock.Lock()
 	defer p.lock.Unlock()
@@ -451,14 +451,14 @@ func (p *Policy) setMaxBlockSystemFee(ic *interop.Context, args []stackitem.Item
 		panic(err)
 	}
 	p.isValid = false
-	return stackitem.NewBool(true)
+	return stackitem.Null{}
 }
 
 // blockAccount is Policy contract method and adds given account hash to the list
 // of blocked accounts.
 func (p *Policy) blockAccount(ic *interop.Context, args []stackitem.Item) stackitem.Item {
 	if !p.NEO.checkCommittee(ic) {
-		return stackitem.NewBool(false)
+		panic("invalid committee signature")
 	}
 	hash := toUint160(args[0])
 	if p.IsBlockedInternal(ic.DAO, hash) {
@@ -481,7 +481,7 @@ func (p *Policy) blockAccount(ic *interop.Context, args []stackitem.Item) stacki
 // the list of blocked accounts.
 func (p *Policy) unblockAccount(ic *interop.Context, args []stackitem.Item) stackitem.Item {
 	if !p.NEO.checkCommittee(ic) {
-		return stackitem.NewBool(false)
+		panic("invalid committee signature")
 	}
 	hash := toUint160(args[0])
 	if !p.IsBlockedInternal(ic.DAO, hash) {

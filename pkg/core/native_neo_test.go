@@ -197,57 +197,8 @@ func TestNEO_SetGasPerBlock(t *testing.T) {
 	bc := newTestChain(t)
 	defer bc.Close()
 
-	neo := bc.contracts.NEO
-	tx := transaction.New(netmode.UnitTestNet, []byte{}, 0)
-	ic := bc.newInteropContext(trigger.Application, bc.dao, nil, tx)
-	ic.SpawnVM()
-	ic.VM.LoadScript([]byte{byte(opcode.RET)})
-
-	h := neo.GetCommitteeAddress()
-	t.Run("Default", func(t *testing.T) {
-		g := neo.GetGASPerBlock(ic.DAO, 0)
-		require.EqualValues(t, 5*native.GASFactor, g.Int64())
-	})
-	t.Run("Invalid", func(t *testing.T) {
-		t.Run("InvalidSignature", func(t *testing.T) {
-			setSigner(tx, util.Uint160{})
-			ok, err := neo.SetGASPerBlock(ic, 10, big.NewInt(native.GASFactor))
-			require.NoError(t, err)
-			require.False(t, ok)
-		})
-		t.Run("TooBigValue", func(t *testing.T) {
-			setSigner(tx, h)
-			_, err := neo.SetGASPerBlock(ic, 10, big.NewInt(10*native.GASFactor+1))
-			require.Error(t, err)
-		})
-	})
-	t.Run("Valid", func(t *testing.T) {
-		setSigner(tx, h)
-		ok, err := neo.SetGASPerBlock(ic, 10, big.NewInt(native.GASFactor*2))
-		require.NoError(t, err)
-		require.True(t, ok)
-		_, err = ic.DAO.Persist()
-		require.NoError(t, err)
-
-		t.Run("Again", func(t *testing.T) {
-			setSigner(tx, h)
-			ok, err := neo.SetGASPerBlock(ic, 10, big.NewInt(native.GASFactor))
-			require.NoError(t, err)
-			require.True(t, ok)
-
-			t.Run("NotPersisted", func(t *testing.T) {
-				g := neo.GetGASPerBlock(bc.dao, 10)
-				// Old value should be returned.
-				require.EqualValues(t, 2*native.GASFactor, g.Int64())
-			})
-		})
-
-		g := neo.GetGASPerBlock(ic.DAO, 9)
-		require.EqualValues(t, 5*native.GASFactor, g.Int64())
-
-		g = neo.GetGASPerBlock(ic.DAO, 10)
-		require.EqualValues(t, native.GASFactor, g.Int64())
-	})
+	testGetSet(t, bc, bc.contracts.NEO.Hash, "GasPerBlock",
+		5*native.GASFactor, 0, 10*native.GASFactor)
 }
 
 func TestNEO_CalculateBonus(t *testing.T) {
@@ -270,9 +221,8 @@ func TestNEO_CalculateBonus(t *testing.T) {
 	})
 	t.Run("ManyBlocks", func(t *testing.T) {
 		setSigner(tx, neo.GetCommitteeAddress())
-		ok, err := neo.SetGASPerBlock(ic, 10, big.NewInt(1*native.GASFactor))
+		err := neo.SetGASPerBlock(ic, 10, big.NewInt(1*native.GASFactor))
 		require.NoError(t, err)
-		require.True(t, ok)
 
 		res, err := neo.CalculateNEOHolderReward(ic.DAO, big.NewInt(100), 5, 15)
 		require.NoError(t, err)
