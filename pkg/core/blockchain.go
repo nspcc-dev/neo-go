@@ -19,9 +19,9 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/contract"
 	"github.com/nspcc-dev/neo-go/pkg/core/mempool"
-	"github.com/nspcc-dev/neo-go/pkg/core/mpt"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
+	"github.com/nspcc-dev/neo-go/pkg/core/stateroot"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto"
@@ -134,6 +134,8 @@ type Blockchain struct {
 
 	extensible atomic.Value
 
+	stateRoot *stateroot.Module
+
 	// Notification subsystem.
 	events  chan bcEvent
 	subCh   chan interface{}
@@ -193,6 +195,8 @@ func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration, log *zap.L
 		contracts: *native.NewContracts(cfg.P2PSigExtensions),
 	}
 
+	bc.stateRoot = stateroot.NewModule(bc, bc.log, bc.dao.Store)
+
 	if err := bc.init(); err != nil {
 		return nil, err
 	}
@@ -237,7 +241,7 @@ func (bc *Blockchain) init() error {
 		if err != nil {
 			return err
 		}
-		if err := bc.dao.InitMPT(0, bc.config.KeepOnlyLatestState); err != nil {
+		if err := bc.stateRoot.Init(0, bc.config.KeepOnlyLatestState); err != nil {
 			return fmt.Errorf("can't init MPT: %w", err)
 		}
 		return bc.storeBlock(genesisBlock, nil)
@@ -257,7 +261,7 @@ func (bc *Blockchain) init() error {
 	}
 	bc.blockHeight = bHeight
 	bc.persistedHeight = bHeight
-	if err = bc.dao.InitMPT(bHeight, bc.config.KeepOnlyLatestState); err != nil {
+	if err = bc.stateRoot.Init(bHeight, bc.config.KeepOnlyLatestState); err != nil {
 		return fmt.Errorf("can't init MPT at height %d: %w", bHeight, err)
 	}
 
@@ -479,7 +483,7 @@ func (bc *Blockchain) AddBlock(block *block.Block) error {
 			ErrHdrStateRootSetting, bc.config.StateRootInHeader, block.StateRootEnabled)
 	}
 	if bc.config.StateRootInHeader {
-		if sr := bc.dao.MPT.StateRoot(); block.PrevStateRoot != sr {
+		if sr := bc.stateRoot.CurrentLocalStateRoot(); block.PrevStateRoot != sr {
 			return fmt.Errorf("%w: %s != %s",
 				ErrHdrInvalidStateRoot, block.PrevStateRoot.StringLE(), sr.StringLE())
 		}
@@ -606,15 +610,9 @@ func (bc *Blockchain) addHeaders(verify bool, headers ...*block.Header) error {
 	return nil
 }
 
-// GetStateProof returns proof of having key in the MPT with the specified root.
-func (bc *Blockchain) GetStateProof(root util.Uint256, key []byte) ([][]byte, error) {
-	tr := mpt.NewTrie(mpt.NewHashNode(root), false, storage.NewMemCachedStore(bc.dao.Store))
-	return tr.GetProof(key)
-}
-
-// GetStateRoot returns state root for a given height.
-func (bc *Blockchain) GetStateRoot(height uint32) (*state.MPTRootState, error) {
-	return bc.dao.GetStateRoot(height)
+// GetStateModule returns state root service instance.
+func (bc *Blockchain) GetStateModule() blockchainer.StateRoot {
+	return bc.stateRoot
 }
 
 // storeBlock performs chain update using the block given, it executes all
@@ -718,31 +716,12 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 	writeBuf.Reset()
 
 	d := cache.DAO.(*dao.Simple)
-	if err := d.UpdateMPT(); err != nil {
+	b := d.GetMPTBatch()
+	if err := bc.stateRoot.AddMPTBatch(block.Index, b); err != nil {
 		// Here MPT can be left in a half-applied state.
 		// However if this error occurs, this is a bug somewhere in code
 		// because changes applied are the ones from HALTed transactions.
 		return fmt.Errorf("error while trying to apply MPT changes: %w", err)
-	}
-
-	root := d.MPT.StateRoot()
-	var prevHash util.Uint256
-	if block.Index > 0 {
-		prev, err := bc.dao.GetStateRoot(block.Index - 1)
-		if err != nil {
-			return fmt.Errorf("can't get previous state root: %w", err)
-		}
-		prevHash = hash.DoubleSha256(prev.GetSignedPart())
-	}
-	err = bc.AddStateRoot(&state.MPTRoot{
-		MPTRootBase: state.MPTRootBase{
-			Index:    block.Index,
-			PrevHash: prevHash,
-			Root:     root,
-		},
-	})
-	if err != nil {
-		return err
 	}
 
 	if bc.config.SaveStorageBatch {
@@ -767,13 +746,7 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 		bc.lock.Unlock()
 		return err
 	}
-	bc.dao.MPT.Flush()
-	// Every persist cycle we also compact our in-memory MPT.
-	persistedHeight := atomic.LoadUint32(&bc.persistedHeight)
-	if persistedHeight == block.Index-1 {
-		// 10 is good and roughly estimated to fit remaining trie into 1M of memory.
-		bc.dao.MPT.Collapse(10)
-	}
+
 	bc.topBlock.Store(block)
 	atomic.StoreUint32(&bc.blockHeight, block.Index)
 	bc.memPool.RemoveStale(func(tx *transaction.Transaction) bool { return bc.IsTxStillRelevant(tx, txpool, false) }, bc)
@@ -1582,79 +1555,6 @@ func (bc *Blockchain) IsTxStillRelevant(t *transaction.Transaction, txpool *memp
 
 }
 
-// AddStateRoot add new (possibly unverified) state root to the blockchain.
-func (bc *Blockchain) AddStateRoot(r *state.MPTRoot) error {
-	our, err := bc.GetStateRoot(r.Index)
-	if err == nil {
-		if our.Flag == state.Verified {
-			return bc.updateStateHeight(r.Index)
-		} else if r.Witness == nil && our.Witness != nil {
-			r.Witness = our.Witness
-		}
-	}
-	if err := bc.verifyStateRoot(r); err != nil {
-		return fmt.Errorf("invalid state root: %w", err)
-	}
-	if r.Index > bc.BlockHeight() { // just put it into the store for future checks
-		return bc.dao.PutStateRoot(&state.MPTRootState{
-			MPTRoot: *r,
-			Flag:    state.Unverified,
-		})
-	}
-
-	flag := state.Unverified
-	if r.Witness != nil {
-		if err := bc.verifyStateRootWitness(r); err != nil {
-			return fmt.Errorf("can't verify signature: %w", err)
-		}
-		flag = state.Verified
-	}
-	err = bc.dao.PutStateRoot(&state.MPTRootState{
-		MPTRoot: *r,
-		Flag:    flag,
-	})
-	if err != nil {
-		return err
-	}
-	return bc.updateStateHeight(r.Index)
-}
-
-func (bc *Blockchain) updateStateHeight(newHeight uint32) error {
-	h, err := bc.dao.GetCurrentStateRootHeight()
-	if err != nil {
-		return fmt.Errorf("can't get current state root height: %w", err)
-	} else if newHeight == h+1 {
-		updateStateHeightMetric(newHeight)
-		return bc.dao.PutCurrentStateRootHeight(h + 1)
-	}
-	return nil
-}
-
-// verifyStateRoot checks if state root is valid.
-func (bc *Blockchain) verifyStateRoot(r *state.MPTRoot) error {
-	if r.Index == 0 {
-		return nil
-	}
-	prev, err := bc.GetStateRoot(r.Index - 1)
-	if err != nil {
-		return errors.New("can't get previous state root")
-	} else if !r.PrevHash.Equals(hash.DoubleSha256(prev.GetSignedPart())) {
-		return errors.New("previous hash mismatch")
-	} else if prev.Version != r.Version {
-		return errors.New("version mismatch")
-	}
-	return nil
-}
-
-// verifyStateRootWitness verifies that state root signature is correct.
-func (bc *Blockchain) verifyStateRootWitness(r *state.MPTRoot) error {
-	b, err := bc.GetBlock(bc.GetHeaderHash(int(r.Index)))
-	if err != nil {
-		return err
-	}
-	return bc.VerifyWitness(b.NextConsensus, r, r.Witness, bc.contracts.Policy.GetMaxVerificationGas(bc.dao))
-}
-
 // VerifyTx verifies whether transaction is bonafide or not relative to the
 // current blockchain state. Note that this verification is completely isolated
 // from the main node's mempool.
@@ -1731,7 +1631,6 @@ func (bc *Blockchain) GetEnrollments() ([]state.Validator, error) {
 // GetTestVM returns a VM and a Store setup for a test run of some sort of code.
 func (bc *Blockchain) GetTestVM(t trigger.Type, tx *transaction.Transaction, b *block.Block) *vm.VM {
 	d := bc.dao.GetWrapped().(*dao.Simple)
-	d.MPT = nil
 	systemInterop := bc.newInteropContext(t, d, b, tx)
 	vm := systemInterop.SpawnVM()
 	vm.SetPriceGetter(systemInterop.GetPrice)

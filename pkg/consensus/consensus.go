@@ -236,7 +236,7 @@ func (s *service) newPrepareRequest() payload.PrepareRequest {
 	r := new(prepareRequest)
 	if s.stateRootEnabled {
 		r.stateRootEnabled = true
-		if sr, err := s.Chain.GetStateRoot(s.dbft.BlockIndex - 1); err == nil {
+		if sr, err := s.Chain.GetStateModule().GetStateRoot(s.dbft.BlockIndex - 1); err == nil {
 			r.stateRoot = sr.Root
 		} else {
 			panic(err)
@@ -483,7 +483,7 @@ func (s *service) verifyRequest(p payload.ConsensusPayload) error {
 		return errInvalidVersion
 	}
 	if s.stateRootEnabled {
-		sr, err := s.Chain.GetStateRoot(s.dbft.BlockIndex - 1)
+		sr, err := s.Chain.GetStateModule().GetStateRoot(s.dbft.BlockIndex - 1)
 		if err != nil {
 			return err
 		} else if sr.Root != req.stateRoot {
@@ -637,7 +637,7 @@ func (s *service) newBlockFromContext(ctx *dbft.Context) block.Block {
 	block.Block.Timestamp = ctx.Timestamp / nsInMs
 	block.Block.Index = ctx.BlockIndex
 	if s.stateRootEnabled {
-		sr, err := s.Chain.GetStateRoot(ctx.BlockIndex - 1)
+		sr, err := s.Chain.GetStateModule().GetStateRoot(ctx.BlockIndex - 1)
 		if err != nil {
 			return nil
 		}

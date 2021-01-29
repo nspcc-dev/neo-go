@@ -1287,7 +1287,7 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 		})
 	})
 	t.Run("getproof", func(t *testing.T) {
-		r, err := chain.GetStateRoot(3)
+		r, err := chain.GetStateModule().GetStateRoot(3)
 		require.NoError(t, err)
 
 		rpc := fmt.Sprintf(`{"jsonrpc": "2.0", "id": 1, "method": "getproof", "params": ["%s", "%s", "%x"]}`,
@@ -1316,11 +1316,11 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 			body := doRPCCall(rpc, httpSrv.URL, t)
 			rawRes := checkErrGetResult(t, body, false)
 
-			res := new(state.MPTRootState)
+			res := new(state.MPTRoot)
 			require.NoError(t, json.Unmarshal(rawRes, res))
 			require.NotEqual(t, util.Uint256{}, res.Root) // be sure this test uses valid height
 
-			expected, err := e.chain.GetStateRoot(5)
+			expected, err := e.chain.GetStateModule().GetStateRoot(5)
 			require.NoError(t, err)
 			require.Equal(t, expected, res)
 		}

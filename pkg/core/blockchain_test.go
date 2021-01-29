@@ -132,7 +132,7 @@ func TestAddBlockStateRoot(t *testing.T) {
 		c.ProtocolConfiguration.StateRootInHeader = true
 	})
 
-	sr, err := bc.GetStateRoot(bc.BlockHeight())
+	sr, err := bc.GetStateModule().GetStateRoot(bc.BlockHeight())
 	require.NoError(t, err)
 
 	tx := newNEP17Transfer(bc.contracts.NEO.Hash, neoOwner, util.Uint160{}, 1)

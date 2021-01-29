@@ -321,7 +321,7 @@ func TestService_PrepareRequest(t *testing.T) {
 		prevHash:         prevHash,
 	})
 
-	sr, err := srv.Chain.GetStateRoot(srv.dbft.BlockIndex - 1)
+	sr, err := srv.Chain.GetStateModule().GetStateRoot(srv.dbft.BlockIndex - 1)
 	require.NoError(t, err)
 	checkRequest(t, nil, &prepareRequest{
 		stateRootEnabled: true,
