@@ -29,7 +29,8 @@ func testGetSet(t *testing.T, chain *Blockchain, hash util.Uint160, name string,
 		signer, err := wallet.NewAccount()
 		require.NoError(t, err)
 		invokeRes, err := invokeContractMethodBy(t, chain, signer, hash, setName, minValue+1)
-		checkResult(t, invokeRes, stackitem.NewBool(false))
+		require.NoError(t, err)
+		checkFAULTState(t, invokeRes)
 	})
 
 	t.Run("get, defult value", func(t *testing.T) {
@@ -61,8 +62,10 @@ func testGetSet(t *testing.T, chain *Blockchain, hash util.Uint160, name string,
 		require.NoError(t, err)
 		aers, err := persistBlock(chain, txSet, txGet1)
 		require.NoError(t, err)
-		checkResult(t, aers[0], stackitem.NewBool(true))
-		checkResult(t, aers[1], stackitem.Make(defaultValue+1))
+		checkResult(t, aers[0], stackitem.Null{})
+		if name != "GasPerBlock" { // GasPerBlock is set on the next block
+			checkResult(t, aers[1], stackitem.Make(defaultValue+1))
+		}
 		require.NoError(t, chain.persist())
 
 		// Get in the next block.
@@ -214,6 +217,11 @@ func TestBlockedAccounts(t *testing.T) {
 		signer, err := wallet.NewAccount()
 		require.NoError(t, err)
 		invokeRes, err := invokeContractMethodBy(t, chain, signer, policyHash, "blockAccount", account.BytesBE())
-		checkResult(t, invokeRes, stackitem.NewBool(false))
+		require.NoError(t, err)
+		checkFAULTState(t, invokeRes)
+
+		invokeRes, err = invokeContractMethodBy(t, chain, signer, policyHash, "unblockAccount", account.BytesBE())
+		require.NoError(t, err)
+		checkFAULTState(t, invokeRes)
 	})
 }

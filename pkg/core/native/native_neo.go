@@ -145,7 +145,7 @@ func newNEO() *NEO {
 	md = newMethodAndPrice(n.getGASPerBlock, 100_0000, callflag.ReadStates)
 	n.AddMethod(md, desc)
 
-	desc = newDescriptor("setGasPerBlock", smartcontract.BoolType,
+	desc = newDescriptor("setGasPerBlock", smartcontract.VoidType,
 		manifest.NewParameter("gasPerBlock", smartcontract.IntegerType))
 	md = newMethodAndPrice(n.setGASPerBlock, 500_0000, callflag.WriteStates)
 	n.AddMethod(md, desc)
@@ -472,25 +472,23 @@ func (n *NEO) checkCommittee(ic *interop.Context) bool {
 
 func (n *NEO) setGASPerBlock(ic *interop.Context, args []stackitem.Item) stackitem.Item {
 	gas := toBigInt(args[0])
-	ok, err := n.SetGASPerBlock(ic, ic.Block.Index+1, gas)
+	err := n.SetGASPerBlock(ic, ic.Block.Index+1, gas)
 	if err != nil {
 		panic(err)
 	}
-	return stackitem.NewBool(ok)
+	return stackitem.Null{}
 }
 
 // SetGASPerBlock sets gas generated for blocks after index.
-func (n *NEO) SetGASPerBlock(ic *interop.Context, index uint32, gas *big.Int) (bool, error) {
+func (n *NEO) SetGASPerBlock(ic *interop.Context, index uint32, gas *big.Int) error {
 	if gas.Sign() == -1 || gas.Cmp(big.NewInt(10*GASFactor)) == 1 {
-		return false, errors.New("invalid value for GASPerBlock")
+		return errors.New("invalid value for GASPerBlock")
 	}
-	h := n.GetCommitteeAddress()
-	ok, err := runtime.CheckHashedWitness(ic, h)
-	if err != nil || !ok {
-		return ok, err
+	if !n.checkCommittee(ic) {
+		return errors.New("invalid committee signature")
 	}
 	n.gasPerBlockChanged.Store(true)
-	return true, n.putGASRecord(ic.DAO, index, gas)
+	return n.putGASRecord(ic.DAO, index, gas)
 }
 
 func (n *NEO) dropCandidateIfZero(d dao.DAO, pub *keys.PublicKey, c *candidate) (bool, error) {

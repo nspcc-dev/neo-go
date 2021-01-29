@@ -93,7 +93,7 @@ func newNotary() *Notary {
 	md = newMethodAndPrice(n.getMaxNotValidBeforeDelta, 100_0000, callflag.ReadStates)
 	n.AddMethod(md, desc)
 
-	desc = newDescriptor("setMaxNotValidBeforeDelta", smartcontract.BoolType,
+	desc = newDescriptor("setMaxNotValidBeforeDelta", smartcontract.VoidType,
 		manifest.NewParameter("value", smartcontract.IntegerType))
 	md = newMethodAndPrice(n.setMaxNotValidBeforeDelta, 300_0000, callflag.WriteStates)
 	n.AddMethod(md, desc)
@@ -389,7 +389,7 @@ func (n *Notary) setMaxNotValidBeforeDelta(ic *interop.Context, args []stackitem
 		panic(fmt.Errorf("MaxNotValidBeforeDelta cannot be more than %d or less than %d", transaction.MaxValidUntilBlockIncrement/2, ic.Chain.GetConfig().ValidatorsCount))
 	}
 	if !n.NEO.checkCommittee(ic) {
-		return stackitem.NewBool(false)
+		panic("invalid committee signature")
 	}
 	n.lock.Lock()
 	defer n.lock.Unlock()
@@ -398,7 +398,7 @@ func (n *Notary) setMaxNotValidBeforeDelta(ic *interop.Context, args []stackitem
 		panic(fmt.Errorf("failed to put value into the storage: %w", err))
 	}
 	n.isValid = false
-	return stackitem.NewBool(true)
+	return stackitem.Null{}
 }
 
 // GetDepositFor returns state.Deposit for the account specified. It returns nil in case if

@@ -91,7 +91,7 @@ func newManagement() *Management {
 	md = newMethodAndPrice(m.getMinimumDeploymentFee, 100_0000, callflag.ReadStates)
 	m.AddMethod(md, desc)
 
-	desc = newDescriptor("setMinimumDeploymentFee", smartcontract.BoolType,
+	desc = newDescriptor("setMinimumDeploymentFee", smartcontract.VoidType,
 		manifest.NewParameter("value", smartcontract.IntegerType))
 	md = newMethodAndPrice(m.setMinimumDeploymentFee, 300_0000, callflag.WriteStates)
 	m.AddMethod(md, desc)
@@ -369,13 +369,13 @@ func (m *Management) setMinimumDeploymentFee(ic *interop.Context, args []stackit
 		panic(fmt.Errorf("MinimumDeploymentFee cannot be negative"))
 	}
 	if !m.NEO.checkCommittee(ic) {
-		return stackitem.NewBool(false)
+		panic("invalid committee signature")
 	}
 	err := setUint32WithKey(m.ContractID, ic.DAO, keyMinimumDeploymentFee, value)
 	if err != nil {
 		panic(err)
 	}
-	return stackitem.NewBool(true)
+	return stackitem.Null{}
 }
 
 func (m *Management) callDeploy(ic *interop.Context, cs *state.Contract, isUpdate bool) {

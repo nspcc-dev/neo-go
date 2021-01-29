@@ -2,14 +2,12 @@ package core
 
 import (
 	"math"
-	"math/big"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/internal/testchain"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
-	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
@@ -329,46 +327,7 @@ func TestNotaryNodesReward(t *testing.T) {
 func TestMaxNotValidBeforeDelta(t *testing.T) {
 	chain := newTestChain(t)
 	defer chain.Close()
-	notaryHash := chain.contracts.Notary.Hash
 
-	transferFundsToCommittee(t, chain)
-
-	t.Run("get, internal method", func(t *testing.T) {
-		n := chain.contracts.Notary.GetMaxNotValidBeforeDelta(chain.dao)
-		require.Equal(t, 140, int(n))
-	})
-
-	t.Run("get, contract method", func(t *testing.T) {
-		res, err := invokeContractMethod(chain, 100000000, notaryHash, "getMaxNotValidBeforeDelta")
-		require.NoError(t, err)
-		checkResult(t, res, stackitem.NewBigInteger(big.NewInt(140)))
-		require.NoError(t, chain.persist())
-	})
-
-	t.Run("set", func(t *testing.T) {
-		res, err := invokeContractMethodGeneric(chain, 100000000, notaryHash, "setMaxNotValidBeforeDelta", true, bigint.ToBytes(big.NewInt(150)))
-		require.NoError(t, err)
-		checkResult(t, res, stackitem.NewBool(true))
-		n := chain.contracts.Notary.GetMaxNotValidBeforeDelta(chain.dao)
-		require.Equal(t, 150, int(n))
-	})
-
-	t.Run("set, too big value", func(t *testing.T) {
-		res, err := invokeContractMethodGeneric(chain, 100000000, notaryHash, "setMaxNotValidBeforeDelta", true, bigint.ToBytes(big.NewInt(transaction.MaxValidUntilBlockIncrement/2+1)))
-		require.NoError(t, err)
-		checkFAULTState(t, res)
-	})
-
-	t.Run("set, too small value", func(t *testing.T) {
-		res, err := invokeContractMethodGeneric(chain, 100000000, notaryHash, "setMaxNotValidBeforeDelta", true, bigint.ToBytes(big.NewInt(int64(chain.GetConfig().ValidatorsCount-1))))
-		require.NoError(t, err)
-		checkFAULTState(t, res)
-	})
-
-	t.Run("set, not signed by committee", func(t *testing.T) {
-		signer, err := wallet.NewAccount()
-		require.NoError(t, err)
-		invokeRes, err := invokeContractMethodBy(t, chain, signer, notaryHash, "setMaxNotValidBeforeDelta", bigint.ToBytes(big.NewInt(150)))
-		checkResult(t, invokeRes, stackitem.NewBool(false))
-	})
+	testGetSet(t, chain, chain.contracts.Notary.Hash, "MaxNotValidBeforeDelta",
+		140, int64(chain.GetConfig().ValidatorsCount), transaction.MaxValidUntilBlockIncrement/2)
 }
