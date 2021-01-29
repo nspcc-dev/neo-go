@@ -4,7 +4,7 @@ import "github.com/nspcc-dev/neo-go/pkg/interop/storage"
 
 var Key = "sub"
 
-func _deploy(isUpdate bool) {
+func _deploy(data interface{}, isUpdate bool) {
 	ctx := storage.GetContext()
 	value := "sub create"
 	if isUpdate {

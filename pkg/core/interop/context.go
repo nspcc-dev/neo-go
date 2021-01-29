@@ -104,7 +104,13 @@ type ContractMD struct {
 	ContractID int32
 	NEF        nef.File
 	Hash       util.Uint160
-	Methods    map[string]MethodAndPrice
+	Methods    map[MethodAndArgCount]MethodAndPrice
+}
+
+// MethodAndArgCount represents method's signature.
+type MethodAndArgCount struct {
+	Name     string
+	ArgCount int
 }
 
 // NewContractMD returns Contract with the specified list of methods.
@@ -112,7 +118,7 @@ func NewContractMD(name string, id int32) *ContractMD {
 	c := &ContractMD{
 		Name:       name,
 		ContractID: id,
-		Methods:    make(map[string]MethodAndPrice),
+		Methods:    make(map[MethodAndArgCount]MethodAndPrice),
 	}
 
 	// NEF is now stored in contract state and affects state dump.
@@ -129,10 +135,35 @@ func NewContractMD(name string, id int32) *ContractMD {
 
 // AddMethod adds new method to a native contract.
 func (c *ContractMD) AddMethod(md *MethodAndPrice, desc *manifest.Method) {
-	c.Manifest.ABI.Methods = append(c.Manifest.ABI.Methods, *desc)
 	md.MD = desc
 	desc.Safe = md.RequiredFlags&(callflag.All^callflag.ReadOnly) == 0
-	c.Methods[desc.Name] = *md
+
+	index := sort.Search(len(c.Manifest.ABI.Methods), func(i int) bool {
+		md := c.Manifest.ABI.Methods[i]
+		if md.Name != desc.Name {
+			return md.Name >= desc.Name
+		}
+		return len(md.Parameters) > len(desc.Parameters)
+	})
+	c.Manifest.ABI.Methods = append(c.Manifest.ABI.Methods, manifest.Method{})
+	copy(c.Manifest.ABI.Methods[index+1:], c.Manifest.ABI.Methods[index:])
+	c.Manifest.ABI.Methods[index] = *desc
+
+	key := MethodAndArgCount{
+		Name:     desc.Name,
+		ArgCount: len(desc.Parameters),
+	}
+	c.Methods[key] = *md
+}
+
+// GetMethod returns method `name` with specified number of parameters.
+func (c *ContractMD) GetMethod(name string, paramCount int) (MethodAndPrice, bool) {
+	key := MethodAndArgCount{
+		Name:     name,
+		ArgCount: paramCount,
+	}
+	mp, ok := c.Methods[key]
+	return mp, ok
 }
 
 // AddEvent adds new event to a native contract.
