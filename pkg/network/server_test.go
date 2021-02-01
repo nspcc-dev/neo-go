@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/nspcc-dev/neo-go/internal/fakechain"
 	"github.com/nspcc-dev/neo-go/internal/random"
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
@@ -47,7 +48,7 @@ func (f *fakeConsensus) OnTransaction(tx *transaction.Transaction)     { f.txs =
 func (f *fakeConsensus) GetPayload(h util.Uint256) *payload.Extensible { panic("implement me") }
 
 func TestNewServer(t *testing.T) {
-	bc := &testChain{}
+	bc := &fakechain.FakeChain{}
 	s, err := newServerFromConstructors(ServerConfig{}, bc, nil, newFakeTransp, newFakeConsensus, newTestDiscovery)
 	require.Error(t, err)
 
@@ -223,7 +224,7 @@ func TestGetBlocksByIndex(t *testing.T) {
 	checkPingRespond(t, 3, 5000, 1+3*payload.MaxHashesCount)
 
 	// Receive some blocks.
-	s.chain.(*testChain).blockheight = 2123
+	s.chain.(*fakechain.FakeChain).Blockheight = 2123
 
 	// Minimum chunk has priority.
 	checkPingRespond(t, 5, 5000, 2124)
@@ -392,7 +393,7 @@ func TestBlock(t *testing.T) {
 	s, shutdown := startTestServer(t)
 	defer shutdown()
 
-	atomic2.StoreUint32(&s.chain.(*testChain).blockheight, 12344)
+	atomic2.StoreUint32(&s.chain.(*fakechain.FakeChain).Blockheight, 12344)
 	require.Equal(t, uint32(12344), s.chain.BlockHeight())
 
 	b := block.New(netmode.UnitTestNet, false)
@@ -405,7 +406,7 @@ func TestConsensus(t *testing.T) {
 	s, shutdown := startTestServer(t)
 	defer shutdown()
 
-	atomic2.StoreUint32(&s.chain.(*testChain).blockheight, 4)
+	atomic2.StoreUint32(&s.chain.(*fakechain.FakeChain).Blockheight, 4)
 	p := newLocalPeer(t, s)
 	p.handshaked = true
 
@@ -417,11 +418,11 @@ func TestConsensus(t *testing.T) {
 		return NewMessage(CMDExtensible, pl)
 	}
 
-	s.chain.(*testChain).verifyWitnessF = func() error { return errors.New("invalid") }
+	s.chain.(*fakechain.FakeChain).VerifyWitnessF = func() error { return errors.New("invalid") }
 	msg := newConsensusMessage(0, s.chain.BlockHeight()+1)
 	require.Error(t, s.handleMessage(p, msg))
 
-	s.chain.(*testChain).verifyWitnessF = func() error { return nil }
+	s.chain.(*fakechain.FakeChain).VerifyWitnessF = func() error { return nil }
 	require.NoError(t, s.handleMessage(p, msg))
 	require.Contains(t, s.consensus.(*fakeConsensus).payloads, msg.Payload.(*payload.Extensible))
 
@@ -471,7 +472,7 @@ func TestTransaction(t *testing.T) {
 	})
 	t.Run("bad", func(t *testing.T) {
 		tx := newDummyTx()
-		s.chain.(*testChain).poolTx = func(*transaction.Transaction) error { return core.ErrInsufficientFunds }
+		s.chain.(*fakechain.FakeChain).PoolTxF = func(*transaction.Transaction) error { return core.ErrInsufficientFunds }
 		s.testHandleMessage(t, nil, CMDTX, tx)
 		for _, ftx := range s.consensus.(*fakeConsensus).txs {
 			require.NotEqual(t, ftx, tx)
@@ -505,19 +506,19 @@ func (s *Server) testHandleGetData(t *testing.T, invType payload.InventoryType, 
 func TestGetData(t *testing.T) {
 	s, shutdown := startTestServer(t)
 	defer shutdown()
-	s.chain.(*testChain).utilityTokenBalance = big.NewInt(1000000)
+	s.chain.(*fakechain.FakeChain).UtilityTokenBalance = big.NewInt(1000000)
 
 	t.Run("block", func(t *testing.T) {
 		b := newDummyBlock(2, 0)
 		hs := []util.Uint256{random.Uint256(), b.Hash(), random.Uint256()}
-		s.chain.(*testChain).putBlock(b)
+		s.chain.(*fakechain.FakeChain).PutBlock(b)
 		notFound := []util.Uint256{hs[0], hs[2]}
 		s.testHandleGetData(t, payload.BlockType, hs, notFound, b)
 	})
 	t.Run("transaction", func(t *testing.T) {
 		tx := newDummyTx()
 		hs := []util.Uint256{random.Uint256(), tx.Hash(), random.Uint256()}
-		s.chain.(*testChain).putTx(tx)
+		s.chain.(*fakechain.FakeChain).PutTx(tx)
 		notFound := []util.Uint256{hs[0], hs[2]}
 		s.testHandleGetData(t, payload.TXType, hs, notFound, tx)
 	})
@@ -567,7 +568,7 @@ func initGetBlocksTest(t *testing.T) (*Server, func(), []*block.Block) {
 	var blocks []*block.Block
 	for i := uint32(12); i <= 15; i++ {
 		b := newDummyBlock(i, 3)
-		s.chain.(*testChain).putBlock(b)
+		s.chain.(*fakechain.FakeChain).PutBlock(b)
 		blocks = append(blocks, b)
 	}
 	return s, shutdown, blocks
@@ -633,7 +634,7 @@ func TestGetBlockByIndex(t *testing.T) {
 		s.testHandleMessage(t, p, CMDGetBlockByIndex, &payload.GetBlockByIndex{IndexStart: blocks[0].Index, Count: -1})
 	})
 	t.Run("-1, last header", func(t *testing.T) {
-		s.chain.(*testChain).putHeader(newDummyBlock(16, 2))
+		s.chain.(*fakechain.FakeChain).PutHeader(newDummyBlock(16, 2))
 		actual = nil
 		expected = blocks
 		s.testHandleMessage(t, p, CMDGetBlockByIndex, &payload.GetBlockByIndex{IndexStart: blocks[0].Index, Count: -1})
@@ -683,7 +684,7 @@ func TestGetHeaders(t *testing.T) {
 func TestInv(t *testing.T) {
 	s, shutdown := startTestServer(t)
 	defer shutdown()
-	s.chain.(*testChain).utilityTokenBalance = big.NewInt(10000000)
+	s.chain.(*fakechain.FakeChain).UtilityTokenBalance = big.NewInt(10000000)
 
 	var actual []util.Uint256
 	p := newLocalPeer(t, s)
@@ -696,7 +697,7 @@ func TestInv(t *testing.T) {
 
 	t.Run("blocks", func(t *testing.T) {
 		b := newDummyBlock(10, 3)
-		s.chain.(*testChain).putBlock(b)
+		s.chain.(*fakechain.FakeChain).PutBlock(b)
 		hs := []util.Uint256{random.Uint256(), b.Hash(), random.Uint256()}
 		s.testHandleMessage(t, p, CMDInv, &payload.Inventory{
 			Type:   payload.BlockType,
@@ -706,7 +707,7 @@ func TestInv(t *testing.T) {
 	})
 	t.Run("transaction", func(t *testing.T) {
 		tx := newDummyTx()
-		s.chain.(*testChain).putTx(tx)
+		s.chain.(*fakechain.FakeChain).PutTx(tx)
 		hs := []util.Uint256{random.Uint256(), tx.Hash(), random.Uint256()}
 		s.testHandleMessage(t, p, CMDInv, &payload.Inventory{
 			Type:   payload.TXType,
@@ -716,8 +717,8 @@ func TestInv(t *testing.T) {
 	})
 	t.Run("extensible", func(t *testing.T) {
 		ep := payload.NewExtensible(netmode.UnitTestNet)
-		s.chain.(*testChain).verifyWitnessF = func() error { return nil }
-		ep.ValidBlockEnd = s.chain.(*testChain).BlockHeight() + 1
+		s.chain.(*fakechain.FakeChain).VerifyWitnessF = func() error { return nil }
+		ep.ValidBlockEnd = s.chain.(*fakechain.FakeChain).BlockHeight() + 1
 		ok, err := s.extensiblePool.Add(ep)
 		require.NoError(t, err)
 		require.True(t, ok)
@@ -865,7 +866,7 @@ func TestMemPool(t *testing.T) {
 		}
 	}
 
-	bc := s.chain.(*testChain)
+	bc := s.chain.(*fakechain.FakeChain)
 	expected := make([]util.Uint256, 4)
 	for i := range expected {
 		tx := newDummyTx()
@@ -878,27 +879,27 @@ func TestMemPool(t *testing.T) {
 }
 
 func TestVerifyNotaryRequest(t *testing.T) {
-	bc := newTestChain()
-	bc.maxVerificationGAS = 10
-	bc.notaryContractScriptHash = util.Uint160{1, 2, 3}
+	bc := fakechain.NewFakeChain()
+	bc.MaxVerificationGAS = 10
+	bc.NotaryContractScriptHash = util.Uint160{1, 2, 3}
 	newNotaryRequest := func() *payload.P2PNotaryRequest {
 		return &payload.P2PNotaryRequest{
 			MainTransaction: &transaction.Transaction{Script: []byte{0, 1, 2}},
 			FallbackTransaction: &transaction.Transaction{
 				ValidUntilBlock: 321,
-				Signers:         []transaction.Signer{{Account: bc.notaryContractScriptHash}, {Account: random.Uint160()}},
+				Signers:         []transaction.Signer{{Account: bc.NotaryContractScriptHash}, {Account: random.Uint160()}},
 			},
 			Witness: transaction.Witness{},
 		}
 	}
 
 	t.Run("bad payload witness", func(t *testing.T) {
-		bc.verifyWitnessF = func() error { return errors.New("bad witness") }
+		bc.VerifyWitnessF = func() error { return errors.New("bad witness") }
 		require.Error(t, verifyNotaryRequest(bc, nil, newNotaryRequest()))
 	})
 
 	t.Run("bad fallback sender", func(t *testing.T) {
-		bc.verifyWitnessF = func() error { return nil }
+		bc.VerifyWitnessF = func() error { return nil }
 		r := newNotaryRequest()
 		r.FallbackTransaction.Signers[0] = transaction.Signer{Account: util.Uint160{7, 8, 9}}
 		require.Error(t, verifyNotaryRequest(bc, nil, r))
@@ -906,13 +907,13 @@ func TestVerifyNotaryRequest(t *testing.T) {
 
 	t.Run("expired deposit", func(t *testing.T) {
 		r := newNotaryRequest()
-		bc.notaryDepositExpiration = r.FallbackTransaction.ValidUntilBlock
+		bc.NotaryDepositExpiration = r.FallbackTransaction.ValidUntilBlock
 		require.Error(t, verifyNotaryRequest(bc, nil, r))
 	})
 
 	t.Run("good", func(t *testing.T) {
 		r := newNotaryRequest()
-		bc.notaryDepositExpiration = r.FallbackTransaction.ValidUntilBlock + 1
+		bc.NotaryDepositExpiration = r.FallbackTransaction.ValidUntilBlock + 1
 		require.NoError(t, verifyNotaryRequest(bc, nil, r))
 	})
 }

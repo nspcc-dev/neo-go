@@ -4,13 +4,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/nspcc-dev/neo-go/internal/fakechain"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap/zaptest"
 )
 
 func TestBlockQueue(t *testing.T) {
-	chain := newTestChain()
+	chain := fakechain.NewFakeChain()
 	// notice, it's not yet running
 	bq := newBlockQueue(0, chain, zaptest.NewLogger(t), nil)
 	blocks := make([]*block.Block, 11)
