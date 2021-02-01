@@ -276,7 +276,7 @@ func (chain *FakeChain) GetEnrollments() ([]state.Validator, error) {
 
 // GetStateModule implements Blockchainer interface.
 func (chain *FakeChain) GetStateModule() blockchainer.StateRoot {
-	panic("TODO")
+	return nil
 }
 
 // GetStorageItem implements Blockchainer interface.

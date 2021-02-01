@@ -22,6 +22,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/network/payload"
 	"github.com/nspcc-dev/neo-go/pkg/services/notary"
 	"github.com/nspcc-dev/neo-go/pkg/services/oracle"
+	"github.com/nspcc-dev/neo-go/pkg/services/stateroot"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"go.uber.org/atomic"
 	"go.uber.org/zap"
@@ -87,7 +88,8 @@ type (
 		consensusStarted *atomic.Bool
 		canHandleExtens  *atomic.Bool
 
-		oracle *oracle.Oracle
+		oracle    *oracle.Oracle
+		stateRoot stateroot.Service
 
 		log *zap.Logger
 	}
@@ -170,6 +172,12 @@ func newServerFromConstructors(config ServerConfig, chain blockchainer.Blockchai
 			s.tryStartConsensus()
 		}
 	})
+
+	sr, err := stateroot.New(chain.GetStateModule())
+	if err != nil {
+		return nil, fmt.Errorf("can't initialize StateRoot service: %w", err)
+	}
+	s.stateRoot = sr
 
 	if config.OracleCfg.Enabled {
 		orcCfg := oracle.Config{
@@ -293,6 +301,11 @@ func (s *Server) Shutdown() {
 // GetOracle returns oracle module instance.
 func (s *Server) GetOracle() *oracle.Oracle {
 	return s.oracle
+}
+
+// GetStateRoot returns state root service instance.
+func (s *Server) GetStateRoot() stateroot.Service {
+	return s.stateRoot
 }
 
 // UnconnectedPeers returns a list of peers that are in the discovery peer list
@@ -803,7 +816,11 @@ func (s *Server) handleExtensibleCmd(e *payload.Extensible) error {
 	switch e.Category {
 	case consensus.Category:
 		s.consensus.OnPayload(e)
-	case "StateService": // no-op for now
+	case stateroot.Category:
+		err := s.stateRoot.OnPayload(e)
+		if err != nil {
+			return err
+		}
 	default:
 		return errors.New("invalid category")
 	}

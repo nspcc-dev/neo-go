@@ -9,8 +9,9 @@ import (
 )
 
 const (
-	prefixGC    = 0x01
-	prefixLocal = 0x02
+	prefixGC        = 0x01
+	prefixLocal     = 0x02
+	prefixValidated = 0x03
 )
 
 func (s *Module) addLocalStateRoot(sr *state.MPTRoot) error {
@@ -26,7 +27,10 @@ func (s *Module) addLocalStateRoot(sr *state.MPTRoot) error {
 	}
 	s.currentLocal.Store(sr.Root)
 	s.localHeight.Store(sr.Index)
-	updateStateHeightMetric(sr.Index)
+	if s.bc.GetConfig().StateRootInHeader {
+		s.validatedHeight.Store(sr.Index)
+		updateStateHeightMetric(sr.Index)
+	}
 	return nil
 }
 
@@ -53,4 +57,33 @@ func makeStateRootKey(index uint32) []byte {
 	key[0] = byte(storage.DataMPT)
 	binary.BigEndian.PutUint32(key, index)
 	return key
+}
+
+// AddStateRoot adds validated state root provided by network.
+func (s *Module) AddStateRoot(sr *state.MPTRoot) error {
+	if err := s.VerifyStateRoot(sr); err != nil {
+		return err
+	}
+	key := makeStateRootKey(sr.Index)
+	local, err := s.getStateRoot(key)
+	if err != nil {
+		return err
+	}
+	if local.Witness != nil {
+		return nil
+	}
+	if err := s.putStateRoot(key, sr); err != nil {
+		return err
+	}
+
+	data := make([]byte, 4)
+	binary.LittleEndian.PutUint32(data, sr.Index)
+	if err := s.Store.Put([]byte{byte(storage.DataMPT), prefixValidated}, data); err != nil {
+		return err
+	}
+	s.validatedHeight.Store(sr.Index)
+	if !s.bc.GetConfig().StateRootInHeader {
+		updateStateHeightMetric(sr.Index)
+	}
+	return nil
 }

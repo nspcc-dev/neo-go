@@ -196,6 +196,7 @@ func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration, log *zap.L
 	}
 
 	bc.stateRoot = stateroot.NewModule(bc, bc.log, bc.dao.Store)
+	bc.contracts.Designate.StateRootService = bc.stateRoot
 
 	if err := bc.init(); err != nil {
 		return nil, err

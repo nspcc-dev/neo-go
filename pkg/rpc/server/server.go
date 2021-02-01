@@ -869,7 +869,7 @@ func (s *Server) verifyProof(ps request.Params) (interface{}, *response.Error) {
 
 func (s *Server) getStateHeight(_ request.Params) (interface{}, *response.Error) {
 	var height = s.chain.BlockHeight()
-	var stateHeight uint32
+	var stateHeight = s.chain.GetStateModule().CurrentValidatedHeight()
 	if s.chain.GetConfig().StateRootInHeader {
 		stateHeight = height - 1
 	}
