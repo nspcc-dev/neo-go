@@ -93,8 +93,8 @@ func newBlock(cfg config.ProtocolConfiguration, index uint32, prev util.Uint256,
 	return newBlockWithState(cfg, index, prev, nil, txs...)
 }
 
-func newBlockWithState(cfg config.ProtocolConfiguration, index uint32, prev util.Uint256,
-	prevState *util.Uint256, txs ...*transaction.Transaction) *block.Block {
+func newBlockCustom(cfg config.ProtocolConfiguration, f func(b *block.Block),
+	txs ...*transaction.Transaction) *block.Block {
 	validators, _ := validatorsFromConfig(cfg)
 	valScript, _ := smartcontract.CreateDefaultMultiSigRedeemScript(validators)
 	witness := transaction.Witness{
@@ -103,10 +103,6 @@ func newBlockWithState(cfg config.ProtocolConfiguration, index uint32, prev util
 	b := &block.Block{
 		Base: block.Base{
 			Network:       testchain.Network(),
-			Version:       0,
-			PrevHash:      prev,
-			Timestamp:     uint64(time.Now().UTC().Unix())*1000 + uint64(index),
-			Index:         index,
 			NextConsensus: witness.ScriptHash(),
 			Script:        witness,
 		},
@@ -116,13 +112,25 @@ func newBlockWithState(cfg config.ProtocolConfiguration, index uint32, prev util
 		},
 		Transactions: txs,
 	}
-	if prevState != nil {
-		b.StateRootEnabled = true
-		b.PrevStateRoot = *prevState
-	}
+	f(b)
+
 	b.RebuildMerkleRoot()
 	b.Script.InvocationScript = testchain.Sign(b.GetSignedPart())
 	return b
+}
+
+func newBlockWithState(cfg config.ProtocolConfiguration, index uint32, prev util.Uint256,
+	prevState *util.Uint256, txs ...*transaction.Transaction) *block.Block {
+	return newBlockCustom(cfg, func(b *block.Block) {
+		b.PrevHash = prev
+		b.Timestamp = uint64(time.Now().UTC().Unix())*1000 + uint64(index)
+		b.Index = index
+
+		if prevState != nil {
+			b.StateRootEnabled = true
+			b.PrevStateRoot = *prevState
+		}
+	}, txs...)
 }
 
 func (bc *Blockchain) genBlocks(n int) ([]*block.Block, error) {
@@ -433,8 +441,10 @@ func addNetworkFee(bc *Blockchain, tx *transaction.Transaction, sender *wallet.A
 	return nil
 }
 
+// Signer can be either bool or *wallet.Account.
+// In the first case `true` means sign by committee, `false` means sign by validators.
 func prepareContractMethodInvokeGeneric(chain *Blockchain, sysfee int64,
-	hash util.Uint160, method string, isCommittee bool, args ...interface{}) (*transaction.Transaction, error) {
+	hash util.Uint160, method string, signer interface{}, args ...interface{}) (*transaction.Transaction, error) {
 	w := io.NewBufBinWriter()
 	emit.AppCall(w.BinWriter, hash, method, callflag.All, args...)
 	if w.Err != nil {
@@ -444,17 +454,50 @@ func prepareContractMethodInvokeGeneric(chain *Blockchain, sysfee int64,
 	tx := transaction.New(chain.GetConfig().Magic, script, sysfee)
 	tx.ValidUntilBlock = chain.blockHeight + 1
 	var err error
-	if isCommittee {
-		addSigners(testchain.CommitteeScriptHash(), tx)
-		err = testchain.SignTxCommittee(chain, tx)
-	} else {
-		addSigners(neoOwner, tx)
-		err = testchain.SignTx(chain, tx)
+	switch s := signer.(type) {
+	case bool:
+		if s {
+			addSigners(testchain.CommitteeScriptHash(), tx)
+			err = testchain.SignTxCommittee(chain, tx)
+		} else {
+			addSigners(neoOwner, tx)
+			err = testchain.SignTx(chain, tx)
+		}
+	case *wallet.Account:
+		signTxWithAccounts(chain, tx, s)
+	case []*wallet.Account:
+		signTxWithAccounts(chain, tx, s...)
+	default:
+		panic("invalid signer")
 	}
 	if err != nil {
 		return nil, err
 	}
 	return tx, nil
+}
+
+func signTxWithAccounts(chain *Blockchain, tx *transaction.Transaction, accs ...*wallet.Account) {
+	scope := transaction.CalledByEntry
+	for _, acc := range accs {
+		tx.Signers = append(tx.Signers, transaction.Signer{
+			Account: acc.PrivateKey().GetScriptHash(),
+			Scopes:  scope,
+		})
+		scope = transaction.Global
+	}
+	size := io.GetVarSize(tx)
+	for _, acc := range accs {
+		netFee, sizeDelta := fee.Calculate(chain.GetBaseExecFee(), acc.Contract.Script)
+		size += sizeDelta
+		tx.NetworkFee += netFee
+	}
+	tx.NetworkFee += int64(size) * chain.FeePerByte()
+
+	for _, acc := range accs {
+		if err := acc.SignTx(tx); err != nil {
+			panic(err)
+		}
+	}
 }
 
 func prepareContractMethodInvoke(chain *Blockchain, sysfee int64,
@@ -486,9 +529,9 @@ func invokeContractMethod(chain *Blockchain, sysfee int64, hash util.Uint160, me
 }
 
 func invokeContractMethodGeneric(chain *Blockchain, sysfee int64, hash util.Uint160, method string,
-	isCommittee bool, args ...interface{}) (*state.AppExecResult, error) {
+	signer interface{}, args ...interface{}) (*state.AppExecResult, error) {
 	tx, err := prepareContractMethodInvokeGeneric(chain, sysfee, hash,
-		method, isCommittee, args...)
+		method, signer, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -509,26 +552,7 @@ func invokeContractMethodBy(t *testing.T, chain *Blockchain, signer *wallet.Acco
 	require.NoError(t, err)
 	require.Equal(t, vm.HaltState, res[0].VMState)
 	require.Equal(t, 0, len(res[0].Stack))
-
-	w := io.NewBufBinWriter()
-	emit.AppCall(w.BinWriter, hash, method, callflag.All, args...)
-	if w.Err != nil {
-		return nil, w.Err
-	}
-	script := w.Bytes()
-	tx := transaction.New(chain.GetConfig().Magic, script, sysfee)
-	tx.ValidUntilBlock = chain.blockHeight + 1
-	tx.Signers = []transaction.Signer{
-		{Account: signer.PrivateKey().PublicKey().GetScriptHash()},
-	}
-	tx.NetworkFee = netfee
-	err = signer.SignTx(tx)
-	require.NoError(t, err)
-	require.NoError(t, chain.AddBlock(chain.newBlock(tx)))
-
-	res, err = chain.GetAppExecResults(tx.Hash(), trigger.Application)
-	require.NoError(t, err)
-	return &res[0], nil
+	return invokeContractMethodGeneric(chain, sysfee, hash, method, signer, args...)
 }
 
 func transferTokenFromMultisigAccount(t *testing.T, chain *Blockchain, to, tokenHash util.Uint160, amount int64, additionalArgs ...interface{}) *transaction.Transaction {

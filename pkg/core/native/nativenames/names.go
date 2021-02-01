@@ -9,4 +9,5 @@ const (
 	Oracle      = "OracleContract"
 	Designation = "RoleManagement"
 	Notary      = "Notary"
+	NameService = "NameService"
 )

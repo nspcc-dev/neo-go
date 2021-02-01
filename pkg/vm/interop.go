@@ -122,27 +122,34 @@ func IteratorValue(v *VM) error {
 	return nil
 }
 
-// IteratorCreate handles syscall System.Iterator.Create.
-func IteratorCreate(v *VM) error {
-	data := v.Estack().Pop()
-	var item stackitem.Item
-	switch t := data.value.(type) {
+// NewIterator creates new iterator from the provided stack item.
+func NewIterator(item stackitem.Item) (stackitem.Item, error) {
+	switch t := item.(type) {
 	case *stackitem.Array, *stackitem.Struct:
-		item = stackitem.NewInterop(&arrayWrapper{
+		return stackitem.NewInterop(&arrayWrapper{
 			index: -1,
 			value: t.Value().([]stackitem.Item),
-		})
+		}), nil
 	case *stackitem.Map:
-		item = NewMapIterator(t)
+		return NewMapIterator(t), nil
 	default:
 		data, err := t.TryBytes()
 		if err != nil {
-			return fmt.Errorf("non-iterable type %s", t.Type())
+			return nil, fmt.Errorf("non-iterable type %s", t.Type())
 		}
-		item = stackitem.NewInterop(&byteArrayWrapper{
+		return stackitem.NewInterop(&byteArrayWrapper{
 			index: -1,
 			value: data,
-		})
+		}), nil
+	}
+}
+
+// IteratorCreate handles syscall System.Iterator.Create.
+func IteratorCreate(v *VM) error {
+	data := v.Estack().Pop().Item()
+	item, err := NewIterator(data)
+	if err != nil {
+		return err
 	}
 
 	v.Estack().Push(&Element{value: item})
