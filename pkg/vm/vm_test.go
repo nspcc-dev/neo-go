@@ -1537,6 +1537,26 @@ func TestHASKEYMap(t *testing.T) {
 	t.Run("False", getTestFuncForVM(prog, false, m, 6))
 }
 
+func TestHASKEYBigKey(t *testing.T) {
+	v := newTestVM()
+
+	buf := io.NewBufBinWriter()
+	emit.Int(buf.BinWriter, 1024*1024)
+	emit.Opcodes(buf.BinWriter, opcode.NEWBUFFER, opcode.NEWMAP)
+	emit.Int(buf.BinWriter, 64)
+	emit.Opcodes(buf.BinWriter, opcode.NEWBUFFER)
+	emit.Opcodes(buf.BinWriter, opcode.INITSLOT, opcode.Opcode(0), opcode.Opcode(3))
+
+	emit.Opcodes(buf.BinWriter, opcode.LDARG1, opcode.LDARG0, opcode.CONVERT, opcode.Opcode(stackitem.ByteArrayT))
+	emit.Opcodes(buf.BinWriter, opcode.LDARG0, opcode.SETITEM, opcode.LDARG1, opcode.LDARG2)
+	emit.Opcodes(buf.BinWriter, opcode.CONVERT, opcode.Opcode(stackitem.ByteArrayT))
+	emit.Opcodes(buf.BinWriter, opcode.HASKEY)
+
+	emit.Opcodes(buf.BinWriter, opcode.JMP, opcode.Opcode(0xFB)) // -5
+	v.Load(buf.Bytes())
+	checkVMFailed(t, v)
+}
+
 func TestSIGN(t *testing.T) {
 	prog := makeProgram(opcode.SIGN)
 	t.Run("NoArgument", getTestFuncForVM(prog, nil))
