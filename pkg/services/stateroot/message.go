@@ -20,6 +20,7 @@ type (
 
 // Various message types.
 const (
+	VoteT MessageType = 0
 	RootT MessageType = 1
 )
 
@@ -40,6 +41,8 @@ func (m *Message) EncodeBinary(w *io.BinWriter) {
 // DecodeBinary implements io.Serializable interface.
 func (m *Message) DecodeBinary(r *io.BinReader) {
 	switch m.Type = MessageType(r.ReadB()); m.Type {
+	case VoteT:
+		m.Payload = new(Vote)
 	case RootT:
 		m.Payload = new(state.MPTRoot)
 	default:

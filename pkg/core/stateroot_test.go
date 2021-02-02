@@ -2,10 +2,13 @@ package core
 
 import (
 	"errors"
+	"os"
+	"path"
 	"sort"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/internal/testserdes"
+	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
@@ -20,6 +23,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap/zaptest"
 )
 
 func testSignStateRoot(t *testing.T, r *state.MPTRoot, pubs keys.PublicKeys, accs ...*wallet.Account) []byte {
@@ -71,7 +75,12 @@ func TestStateRoot(t *testing.T) {
 	updateIndex := bc.BlockHeight()
 	transferTokenFromMultisigAccount(t, bc, h, bc.contracts.GAS.Hash, 1_0000_0000)
 
-	srv, err := stateroot.New(bc.GetStateModule())
+	tmpDir := path.Join(os.TempDir(), "neogo.initsnz")
+	require.NoError(t, os.Mkdir(tmpDir, os.ModePerm))
+	defer os.RemoveAll(tmpDir)
+	w := createAndWriteWallet(t, accs[0], path.Join(tmpDir, "w"), "pass")
+	cfg := createStateRootConfig(w.Path(), "pass")
+	srv, err := stateroot.New(cfg, zaptest.NewLogger(t), bc.GetStateModule())
 	require.NoError(t, err)
 	require.EqualValues(t, 0, srv.CurrentValidatedHeight())
 	r, err := srv.GetStateRoot(bc.BlockHeight())
@@ -136,7 +145,12 @@ func TestStateRootInitNonZeroHeight(t *testing.T) {
 
 		_, err := persistBlock(bc)
 		require.NoError(t, err)
-		srv, err := stateroot.New(bc.GetStateModule())
+		tmpDir := path.Join(os.TempDir(), "neogo.initsnz")
+		require.NoError(t, os.Mkdir(tmpDir, os.ModePerm))
+		defer os.RemoveAll(tmpDir)
+		w := createAndWriteWallet(t, accs[0], path.Join(tmpDir, "w"), "pass")
+		cfg := createStateRootConfig(w.Path(), "pass")
+		srv, err := stateroot.New(cfg, zaptest.NewLogger(t), bc.GetStateModule())
 		require.NoError(t, err)
 		r, err := srv.GetStateRoot(2)
 		require.NoError(t, err)
@@ -150,4 +164,82 @@ func TestStateRootInitNonZeroHeight(t *testing.T) {
 	srv := bc2.GetStateModule()
 	require.EqualValues(t, 2, srv.CurrentValidatedHeight())
 	require.Equal(t, root, srv.CurrentLocalStateRoot())
+}
+
+func createAndWriteWallet(t *testing.T, acc *wallet.Account, path, password string) *wallet.Wallet {
+	w, err := wallet.NewWallet(path)
+	require.NoError(t, err)
+	require.NoError(t, acc.Encrypt(password))
+	w.AddAccount(acc)
+	require.NoError(t, w.Save())
+	w.Close()
+	return w
+}
+
+func createStateRootConfig(walletPath, password string) config.StateRoot {
+	return config.StateRoot{
+		Enabled: true,
+		UnlockWallet: config.Wallet{
+			Path:     walletPath,
+			Password: password,
+		},
+	}
+}
+
+func TestStateRootFull(t *testing.T) {
+	tmpDir := path.Join(os.TempDir(), "neogo.stateroot4")
+	require.NoError(t, os.Mkdir(tmpDir, os.ModePerm))
+	defer os.RemoveAll(tmpDir)
+
+	bc := newTestChain(t)
+
+	h, pubs, accs := newMajorityMultisigWithGAS(t, 2)
+	w := createAndWriteWallet(t, accs[1], path.Join(tmpDir, "wallet2"), "two")
+	cfg := createStateRootConfig(w.Path(), "two")
+	srv, err := stateroot.New(cfg, zaptest.NewLogger(t), bc.GetStateModule())
+	require.NoError(t, err)
+
+	var lastValidated *payload.Extensible
+	srv.SetRelayCallback(func(ep *payload.Extensible) {
+		lastValidated = ep
+	})
+
+	bc.setNodesByRole(t, true, native.RoleStateValidator, pubs)
+	transferTokenFromMultisigAccount(t, bc, h, bc.contracts.GAS.Hash, 1_0000_0000)
+	checkVoteBroadcasted(t, bc, lastValidated, 2, 1)
+	_, err = persistBlock(bc)
+	checkVoteBroadcasted(t, bc, lastValidated, 3, 1)
+
+	r, err := srv.GetStateRoot(2)
+	require.NoError(t, err)
+	require.NoError(t, srv.AddSignature(2, 0, accs[0].PrivateKey().SignHash(r.GetSignedHash())))
+	require.NotNil(t, lastValidated)
+
+	msg := new(stateroot.Message)
+	require.NoError(t, testserdes.DecodeBinary(lastValidated.Data, msg))
+	require.Equal(t, stateroot.RootT, msg.Type)
+
+	actual := msg.Payload.(*state.MPTRoot)
+	require.Equal(t, r.Index, actual.Index)
+	require.Equal(t, r.Version, actual.Version)
+	require.Equal(t, r.Root, actual.Root)
+}
+
+func checkVoteBroadcasted(t *testing.T, bc *Blockchain, p *payload.Extensible,
+	height uint32, valIndex byte) {
+	require.NotNil(t, p)
+	m := new(stateroot.Message)
+	require.NoError(t, testserdes.DecodeBinary(p.Data, m))
+	require.Equal(t, stateroot.VoteT, m.Type)
+	vote := m.Payload.(*stateroot.Vote)
+
+	srv := bc.GetStateModule()
+	r, err := srv.GetStateRoot(bc.BlockHeight())
+	require.NoError(t, err)
+	require.Equal(t, height, vote.Height)
+	require.Equal(t, int32(valIndex), vote.ValidatorIndex)
+
+	pubs, _, err := bc.contracts.Designate.GetDesignatedByRole(bc.dao, native.RoleStateValidator, bc.BlockHeight())
+	require.True(t, len(pubs) > int(valIndex))
+	require.True(t, pubs[valIndex].Verify(vote.Signature, r.GetSignedHash().BytesBE()))
 }

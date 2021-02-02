@@ -1,8 +1,6 @@
 package stateroot
 
 import (
-	"sort"
-
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
@@ -14,6 +12,9 @@ func (s *Module) UpdateStateValidators(height uint32, pubs keys.PublicKeys) {
 	h := hash.Hash160(script)
 
 	s.mtx.Lock()
+	if s.updateValidatorsCb != nil {
+		s.updateValidatorsCb(pubs)
+	}
 	kc := s.getKeyCacheForHeight(height)
 	if kc.validatorsHash != h {
 		s.keys = append(s.keys, keyCache{
@@ -27,11 +28,17 @@ func (s *Module) UpdateStateValidators(height uint32, pubs keys.PublicKeys) {
 }
 
 func (s *Module) getKeyCacheForHeight(h uint32) keyCache {
-	index := sort.Search(len(s.keys), func(i int) bool {
-		return s.keys[i].height >= h
-	})
-	if index == len(s.keys) {
-		return keyCache{}
+	for i := len(s.keys) - 1; i >= 0; i-- {
+		if s.keys[i].height <= h && (i+1 == len(s.keys) || s.keys[i+1].height < h) {
+			return s.keys[i]
+		}
 	}
-	return s.keys[index]
+	return keyCache{}
+}
+
+// GetStateValidators returns current state validators.
+func (s *Module) GetStateValidators(height uint32) keys.PublicKeys {
+	s.mtx.RLock()
+	defer s.mtx.RUnlock()
+	return s.getKeyCacheForHeight(height).validatorsKeys.Copy()
 }

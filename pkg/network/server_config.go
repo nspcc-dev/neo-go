@@ -72,6 +72,9 @@ type (
 
 		// P2PNotaryCfg is notary module configuration.
 		P2PNotaryCfg config.P2PNotary
+
+		// StateRootCfg is stateroot module configuration.
+		StateRootCfg config.StateRoot
 	}
 )
 
@@ -104,5 +107,6 @@ func NewServerConfig(cfg config.Config) ServerConfig {
 		TimePerBlock:      time.Duration(protoConfig.SecondsPerBlock) * time.Second,
 		OracleCfg:         appConfig.Oracle,
 		P2PNotaryCfg:      appConfig.P2PNotary,
+		StateRootCfg:      appConfig.StateRoot,
 	}
 }

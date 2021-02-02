@@ -173,7 +173,11 @@ func newServerFromConstructors(config ServerConfig, chain blockchainer.Blockchai
 		}
 	})
 
-	sr, err := stateroot.New(chain.GetStateModule())
+	if config.StateRootCfg.Enabled && chain.GetConfig().StateRootInHeader {
+		return nil, errors.New("`StateRootInHeader` should be disabled when state service is enabled")
+	}
+
+	sr, err := stateroot.New(config.StateRootCfg, s.log, chain.GetStateModule())
 	if err != nil {
 		return nil, fmt.Errorf("can't initialize StateRoot service: %w", err)
 	}
@@ -215,6 +219,10 @@ func newServerFromConstructors(config ServerConfig, chain blockchainer.Blockchai
 	}
 
 	s.consensus = srv
+
+	if config.StateRootCfg.Enabled {
+		s.stateRoot.SetRelayCallback(s.handleNewPayload)
+	}
 
 	if s.MinPeers < 0 {
 		s.log.Info("bad MinPeers configured, using the default value",
@@ -1052,9 +1060,14 @@ func (s *Server) handleNewPayload(p *payload.Extensible) {
 	}
 
 	msg := NewMessage(CMDInv, payload.NewInventory(payload.ExtensibleType, []util.Uint256{p.Hash()}))
-	// It's high priority because it directly affects consensus process,
-	// even though it's just an inv.
-	s.broadcastHPMessage(msg)
+	switch p.Category {
+	case consensus.Category:
+		// It's high priority because it directly affects consensus process,
+		// even though it's just an inv.
+		s.broadcastHPMessage(msg)
+	default:
+		s.broadcastMessage(msg)
+	}
 }
 
 func (s *Server) requestTx(hashes ...util.Uint256) {

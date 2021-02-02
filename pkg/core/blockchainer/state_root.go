@@ -13,5 +13,8 @@ type StateRoot interface {
 	CurrentValidatedHeight() uint32
 	GetStateProof(root util.Uint256, key []byte) ([][]byte, error)
 	GetStateRoot(height uint32) (*state.MPTRoot, error)
+	GetStateValidators(height uint32) keys.PublicKeys
+	SetSignAndSendCallback(func(*state.MPTRoot) error)
+	SetUpdateValidatorsCallback(func(keys.PublicKeys))
 	UpdateStateValidators(height uint32, pubs keys.PublicKeys)
 }

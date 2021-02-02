@@ -30,6 +30,9 @@ type (
 
 		mtx  sync.RWMutex
 		keys []keyCache
+
+		updateValidatorsCb func(publicKeys keys.PublicKeys)
+		signAndSendCb      func(*state.MPTRoot) error
 	}
 
 	keyCache struct {
