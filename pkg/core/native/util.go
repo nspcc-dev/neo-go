@@ -2,14 +2,20 @@ package native
 
 import (
 	"encoding/binary"
+	"encoding/hex"
+	"fmt"
+	"math/big"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
+	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
+
+var intOne = big.NewInt(1)
 
 func getSerializableFromDAO(id int32, d dao.DAO, key []byte, item io.Serializable) error {
 	si := d.GetStorageItem(id, key)
@@ -62,6 +68,20 @@ func setUint32WithKey(id int32, dao dao.DAO, key []byte, value uint32) error {
 	}
 	binary.LittleEndian.PutUint32(si.Value, value)
 	return dao.PutStorageItem(id, key, si)
+}
+
+func setIntWithKey(id int32, dao dao.DAO, key []byte, value int64) error {
+	si := &state.StorageItem{Value: bigint.ToBytes(big.NewInt(value))}
+	return dao.PutStorageItem(id, key, si)
+}
+
+func getIntWithKey(id int32, dao dao.DAO, key []byte) int64 {
+	si := dao.GetStorageItem(id, key)
+	if si == nil {
+		panic(fmt.Errorf("item with id = %d and key = %s is not initialized", id, hex.EncodeToString(key)))
+
+	}
+	return bigint.FromBytes(si.Value).Int64()
 }
 
 // makeUint160Key creates a key from account script hash.

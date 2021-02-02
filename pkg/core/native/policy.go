@@ -29,6 +29,9 @@ const (
 	defaultFeePerByte              = 1000
 	defaultMaxVerificationGas      = 50000000
 	defaultMaxBlockSystemFee       = 9000 * GASFactor
+	// DefaultStoragePrice is the price to pay for 1 byte of storage.
+	DefaultStoragePrice = 100000
+
 	// minBlockSystemFee is the minimum allowed system fee per block.
 	minBlockSystemFee = 4007600
 	// maxExecFeeFactor is the maximum allowed execution fee factor.
@@ -163,6 +166,25 @@ func (p *Policy) Metadata() *interop.ContractMD {
 
 // Initialize initializes Policy native contract and implements Contract interface.
 func (p *Policy) Initialize(ic *interop.Context) error {
+	if err := setIntWithKey(p.ContractID, ic.DAO, maxTransactionsPerBlockKey, defaultMaxTransactionsPerBlock); err != nil {
+		return err
+	}
+	if err := setIntWithKey(p.ContractID, ic.DAO, feePerByteKey, defaultFeePerByte); err != nil {
+		return err
+	}
+	if err := setIntWithKey(p.ContractID, ic.DAO, maxBlockSizeKey, defaultMaxBlockSize); err != nil {
+		return err
+	}
+	if err := setIntWithKey(p.ContractID, ic.DAO, maxBlockSystemFeeKey, defaultMaxBlockSystemFee); err != nil {
+		return err
+	}
+	if err := setIntWithKey(p.ContractID, ic.DAO, execFeeFactorKey, defaultExecFeeFactor); err != nil {
+		return err
+	}
+	if err := setIntWithKey(p.ContractID, ic.DAO, storagePriceKey, DefaultStoragePrice); err != nil {
+		return err
+	}
+
 	p.isValid = true
 	p.maxTransactionsPerBlock = defaultMaxTransactionsPerBlock
 	p.maxBlockSize = defaultMaxBlockSize
@@ -170,7 +192,7 @@ func (p *Policy) Initialize(ic *interop.Context) error {
 	p.feePerByte = defaultFeePerByte
 	p.maxBlockSystemFee = defaultMaxBlockSystemFee
 	p.maxVerificationGas = defaultMaxVerificationGas
-	p.storagePrice = StoragePrice
+	p.storagePrice = DefaultStoragePrice
 	p.blockedAccounts = make([]util.Uint160, 0)
 
 	return nil
@@ -189,13 +211,13 @@ func (p *Policy) PostPersist(ic *interop.Context) error {
 		return nil
 	}
 
-	p.maxTransactionsPerBlock = getUint32WithKey(p.ContractID, ic.DAO, maxTransactionsPerBlockKey, defaultMaxTransactionsPerBlock)
-	p.maxBlockSize = getUint32WithKey(p.ContractID, ic.DAO, maxBlockSizeKey, defaultMaxBlockSize)
-	p.execFeeFactor = getUint32WithKey(p.ContractID, ic.DAO, execFeeFactorKey, defaultExecFeeFactor)
-	p.feePerByte = getInt64WithKey(p.ContractID, ic.DAO, feePerByteKey, defaultFeePerByte)
-	p.maxBlockSystemFee = getInt64WithKey(p.ContractID, ic.DAO, maxBlockSystemFeeKey, defaultMaxBlockSystemFee)
+	p.maxTransactionsPerBlock = uint32(getIntWithKey(p.ContractID, ic.DAO, maxTransactionsPerBlockKey))
+	p.maxBlockSize = uint32(getIntWithKey(p.ContractID, ic.DAO, maxBlockSizeKey))
+	p.execFeeFactor = uint32(getIntWithKey(p.ContractID, ic.DAO, execFeeFactorKey))
+	p.feePerByte = getIntWithKey(p.ContractID, ic.DAO, feePerByteKey)
+	p.maxBlockSystemFee = getIntWithKey(p.ContractID, ic.DAO, maxBlockSystemFeeKey)
 	p.maxVerificationGas = defaultMaxVerificationGas
-	p.storagePrice = getUint32WithKey(p.ContractID, ic.DAO, storagePriceKey, StoragePrice)
+	p.storagePrice = uint32(getIntWithKey(p.ContractID, ic.DAO, storagePriceKey))
 
 	p.blockedAccounts = make([]util.Uint160, 0)
 	siMap, err := ic.DAO.GetStorageItemsWithPrefix(p.ContractID, []byte{blockedAccountPrefix})
@@ -231,7 +253,7 @@ func (p *Policy) GetMaxTransactionsPerBlockInternal(dao dao.DAO) uint32 {
 	if p.isValid {
 		return p.maxTransactionsPerBlock
 	}
-	return getUint32WithKey(p.ContractID, dao, maxTransactionsPerBlockKey, defaultMaxTransactionsPerBlock)
+	return uint32(getIntWithKey(p.ContractID, dao, maxTransactionsPerBlockKey))
 }
 
 // getMaxBlockSize is Policy contract method and returns maximum block size.
@@ -246,7 +268,7 @@ func (p *Policy) GetMaxBlockSizeInternal(dao dao.DAO) uint32 {
 	if p.isValid {
 		return p.maxBlockSize
 	}
-	return getUint32WithKey(p.ContractID, dao, maxBlockSizeKey, defaultMaxBlockSize)
+	return uint32(getIntWithKey(p.ContractID, dao, maxBlockSizeKey))
 }
 
 // getFeePerByte is Policy contract method and returns required transaction's fee
@@ -262,7 +284,7 @@ func (p *Policy) GetFeePerByteInternal(dao dao.DAO) int64 {
 	if p.isValid {
 		return p.feePerByte
 	}
-	return getInt64WithKey(p.ContractID, dao, feePerByteKey, defaultFeePerByte)
+	return getIntWithKey(p.ContractID, dao, feePerByteKey)
 }
 
 // GetMaxVerificationGas returns maximum gas allowed to be burned during verificaion.
@@ -286,7 +308,7 @@ func (p *Policy) GetMaxBlockSystemFeeInternal(dao dao.DAO) int64 {
 	if p.isValid {
 		return p.maxBlockSystemFee
 	}
-	return getInt64WithKey(p.ContractID, dao, maxBlockSystemFeeKey, defaultMaxBlockSystemFee)
+	return getIntWithKey(p.ContractID, dao, maxBlockSystemFeeKey)
 }
 
 func (p *Policy) getExecFeeFactor(ic *interop.Context, _ []stackitem.Item) stackitem.Item {
@@ -300,7 +322,7 @@ func (p *Policy) GetExecFeeFactorInternal(d dao.DAO) int64 {
 	if p.isValid {
 		return int64(p.execFeeFactor)
 	}
-	return int64(getUint32WithKey(p.ContractID, d, execFeeFactorKey, defaultExecFeeFactor))
+	return getIntWithKey(p.ContractID, d, execFeeFactorKey)
 }
 
 func (p *Policy) setExecFeeFactor(ic *interop.Context, args []stackitem.Item) stackitem.Item {
@@ -313,7 +335,7 @@ func (p *Policy) setExecFeeFactor(ic *interop.Context, args []stackitem.Item) st
 	}
 	p.lock.Lock()
 	defer p.lock.Unlock()
-	err := setUint32WithKey(p.ContractID, ic.DAO, execFeeFactorKey, uint32(value))
+	err := setIntWithKey(p.ContractID, ic.DAO, execFeeFactorKey, int64(value))
 	if err != nil {
 		panic(err)
 	}
@@ -356,7 +378,7 @@ func (p *Policy) GetStoragePriceInternal(d dao.DAO) int64 {
 	if p.isValid {
 		return int64(p.storagePrice)
 	}
-	return int64(getUint32WithKey(p.ContractID, d, storagePriceKey, StoragePrice))
+	return getIntWithKey(p.ContractID, d, storagePriceKey)
 }
 
 func (p *Policy) setStoragePrice(ic *interop.Context, args []stackitem.Item) stackitem.Item {
@@ -369,7 +391,7 @@ func (p *Policy) setStoragePrice(ic *interop.Context, args []stackitem.Item) sta
 	}
 	p.lock.Lock()
 	defer p.lock.Unlock()
-	err := setUint32WithKey(p.ContractID, ic.DAO, storagePriceKey, uint32(value))
+	err := setIntWithKey(p.ContractID, ic.DAO, storagePriceKey, int64(value))
 	if err != nil {
 		panic(err)
 	}
@@ -389,7 +411,7 @@ func (p *Policy) setMaxTransactionsPerBlock(ic *interop.Context, args []stackite
 	}
 	p.lock.Lock()
 	defer p.lock.Unlock()
-	err := setUint32WithKey(p.ContractID, ic.DAO, maxTransactionsPerBlockKey, value)
+	err := setIntWithKey(p.ContractID, ic.DAO, maxTransactionsPerBlockKey, int64(value))
 	if err != nil {
 		panic(err)
 	}
@@ -408,7 +430,7 @@ func (p *Policy) setMaxBlockSize(ic *interop.Context, args []stackitem.Item) sta
 	}
 	p.lock.Lock()
 	defer p.lock.Unlock()
-	err := setUint32WithKey(p.ContractID, ic.DAO, maxBlockSizeKey, value)
+	err := setIntWithKey(p.ContractID, ic.DAO, maxBlockSizeKey, int64(value))
 	if err != nil {
 		panic(err)
 	}
@@ -427,7 +449,7 @@ func (p *Policy) setFeePerByte(ic *interop.Context, args []stackitem.Item) stack
 	}
 	p.lock.Lock()
 	defer p.lock.Unlock()
-	err := setInt64WithKey(p.ContractID, ic.DAO, feePerByteKey, value)
+	err := setIntWithKey(p.ContractID, ic.DAO, feePerByteKey, value)
 	if err != nil {
 		panic(err)
 	}
@@ -446,7 +468,7 @@ func (p *Policy) setMaxBlockSystemFee(ic *interop.Context, args []stackitem.Item
 	}
 	p.lock.Lock()
 	defer p.lock.Unlock()
-	err := setInt64WithKey(p.ContractID, ic.DAO, maxBlockSystemFeeKey, value)
+	err := setIntWithKey(p.ContractID, ic.DAO, maxBlockSystemFeeKey, value)
 	if err != nil {
 		panic(err)
 	}

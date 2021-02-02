@@ -355,23 +355,23 @@ func TestStoragePut(t *testing.T) {
 	}
 
 	t.Run("create, not enough gas", func(t *testing.T) {
-		initVM(t, []byte{1}, []byte{2, 3}, 2*native.StoragePrice)
+		initVM(t, []byte{1}, []byte{2, 3}, 2*native.DefaultStoragePrice)
 		err := storagePut(ic)
 		require.True(t, errors.Is(err, errGasLimitExceeded), "got: %v", err)
 	})
 
-	initVM(t, []byte{4}, []byte{5, 6}, 3*native.StoragePrice)
+	initVM(t, []byte{4}, []byte{5, 6}, 3*native.DefaultStoragePrice)
 	require.NoError(t, storagePut(ic))
 
 	t.Run("update", func(t *testing.T) {
 		t.Run("not enough gas", func(t *testing.T) {
-			initVM(t, []byte{4}, []byte{5, 6, 7, 8}, native.StoragePrice)
+			initVM(t, []byte{4}, []byte{5, 6, 7, 8}, native.DefaultStoragePrice)
 			err := storagePut(ic)
 			require.True(t, errors.Is(err, errGasLimitExceeded), "got: %v", err)
 		})
-		initVM(t, []byte{4}, []byte{5, 6, 7, 8}, 3*native.StoragePrice)
+		initVM(t, []byte{4}, []byte{5, 6, 7, 8}, 3*native.DefaultStoragePrice)
 		require.NoError(t, storagePut(ic))
-		initVM(t, []byte{4}, []byte{5, 6}, native.StoragePrice)
+		initVM(t, []byte{4}, []byte{5, 6}, native.DefaultStoragePrice)
 		require.NoError(t, storagePut(ic))
 	})
 

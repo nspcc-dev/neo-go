@@ -1918,6 +1918,9 @@ func (bc *Blockchain) GetPolicer() blockchainer.Policer {
 
 // GetBaseExecFee return execution price for `NOP`.
 func (bc *Blockchain) GetBaseExecFee() int64 {
+	if bc.BlockHeight() == 0 {
+		return interop.DefaultBaseExecFee
+	}
 	return bc.contracts.Policy.GetExecFeeFactorInternal(bc.dao)
 }
 
@@ -1938,6 +1941,9 @@ func (bc *Blockchain) GetMaxVerificationGAS() int64 {
 
 // GetStoragePrice returns current storage price.
 func (bc *Blockchain) GetStoragePrice() int64 {
+	if bc.BlockHeight() == 0 {
+		return native.DefaultStoragePrice
+	}
 	return bc.contracts.Policy.GetStoragePriceInternal(bc.dao)
 }
 

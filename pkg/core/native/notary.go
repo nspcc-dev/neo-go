@@ -108,6 +108,11 @@ func (n *Notary) Metadata() *interop.ContractMD {
 
 // Initialize initializes Notary native contract and implements Contract interface.
 func (n *Notary) Initialize(ic *interop.Context) error {
+	err := setIntWithKey(n.ContractID, ic.DAO, maxNotValidBeforeDeltaKey, defaultMaxNotValidBeforeDelta)
+	if err != nil {
+		return err
+	}
+
 	n.isValid = true
 	n.maxNotValidBeforeDelta = defaultMaxNotValidBeforeDelta
 	return nil
@@ -166,7 +171,7 @@ func (n *Notary) PostPersist(ic *interop.Context) error {
 		return nil
 	}
 
-	n.maxNotValidBeforeDelta = getUint32WithKey(n.ContractID, ic.DAO, maxNotValidBeforeDeltaKey, defaultMaxNotValidBeforeDelta)
+	n.maxNotValidBeforeDelta = uint32(getIntWithKey(n.ContractID, ic.DAO, maxNotValidBeforeDeltaKey))
 	n.isValid = true
 	return nil
 }
@@ -379,7 +384,7 @@ func (n *Notary) GetMaxNotValidBeforeDelta(dao dao.DAO) uint32 {
 	if n.isValid {
 		return n.maxNotValidBeforeDelta
 	}
-	return getUint32WithKey(n.ContractID, dao, maxNotValidBeforeDeltaKey, defaultMaxNotValidBeforeDelta)
+	return uint32(getIntWithKey(n.ContractID, dao, maxNotValidBeforeDeltaKey))
 }
 
 // setMaxNotValidBeforeDelta is Notary contract method and sets the maximum NotValidBefore delta.
@@ -393,7 +398,7 @@ func (n *Notary) setMaxNotValidBeforeDelta(ic *interop.Context, args []stackitem
 	}
 	n.lock.Lock()
 	defer n.lock.Unlock()
-	err := setUint32WithKey(n.ContractID, ic.DAO, maxNotValidBeforeDeltaKey, value)
+	err := setIntWithKey(n.ContractID, ic.DAO, maxNotValidBeforeDeltaKey, int64(value))
 	if err != nil {
 		panic(fmt.Errorf("failed to put value into the storage: %w", err))
 	}

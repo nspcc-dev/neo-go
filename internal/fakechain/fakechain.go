@@ -118,7 +118,7 @@ func (chain *FakeChain) GetBaseExecFee() int64 {
 
 // GetStoragePrice implements Policer interface.
 func (chain *FakeChain) GetStoragePrice() int64 {
-	return native.StoragePrice
+	return native.DefaultStoragePrice
 }
 
 // GetMaxVerificationGAS implements Policer interface.

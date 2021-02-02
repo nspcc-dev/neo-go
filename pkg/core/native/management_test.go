@@ -5,6 +5,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
+	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
@@ -15,7 +16,8 @@ import (
 
 func TestDeployGetUpdateDestroyContract(t *testing.T) {
 	mgmt := newManagement()
-	d := dao.NewSimple(storage.NewMemoryStore(), netmode.UnitTestNet, false)
+	d := dao.NewCached(dao.NewSimple(storage.NewMemoryStore(), netmode.UnitTestNet, false))
+	mgmt.Initialize(&interop.Context{DAO: d})
 	script := []byte{1}
 	sender := util.Uint160{1, 2, 3}
 	ne, err := nef.NewFile(script)

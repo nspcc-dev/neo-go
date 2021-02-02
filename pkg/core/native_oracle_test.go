@@ -124,7 +124,7 @@ func TestOracle_Request(t *testing.T) {
 	userData := []byte("custom info")
 	txHash := putOracleRequest(t, cs.Hash, bc, "url", &filter, "handle", userData, gasForResponse)
 
-	req, err := orc.GetRequestInternal(bc.dao, 1)
+	req, err := orc.GetRequestInternal(bc.dao, 0)
 	require.NotNil(t, req)
 	require.NoError(t, err)
 	require.Equal(t, txHash, req.OriginalTxID)
@@ -136,7 +136,7 @@ func TestOracle_Request(t *testing.T) {
 
 	idList, err := orc.GetIDListInternal(bc.dao, "url")
 	require.NoError(t, err)
-	require.Equal(t, &native.IDList{1}, idList)
+	require.Equal(t, &native.IDList{0}, idList)
 
 	// Finish.
 	priv, err := keys.NewPrivateKey()
@@ -161,7 +161,7 @@ func TestOracle_Request(t *testing.T) {
 	require.True(t, errors.Is(err, native.ErrResponseNotFound), "got: %v", err)
 
 	resp := &transaction.OracleResponse{
-		ID:     13,
+		ID:     12,
 		Code:   transaction.Success,
 		Result: []byte{4, 8, 15, 16, 23, 42},
 	}
@@ -173,7 +173,7 @@ func TestOracle_Request(t *testing.T) {
 	require.True(t, errors.Is(err, native.ErrRequestNotFound), "got: %v", err)
 
 	// We need to ensure that callback is called thus, executing full script is necessary.
-	resp.ID = 1
+	resp.ID = 0
 	ic.VM.LoadScriptWithFlags(tx.Script, callflag.All)
 	require.NoError(t, ic.VM.Run())
 
@@ -189,18 +189,18 @@ func TestOracle_Request(t *testing.T) {
 	require.Equal(t, resp.Result, arr[3].Value())
 
 	// Check that processed request is removed during `postPersist`.
-	_, err = orc.GetRequestInternal(ic.DAO, 1)
+	_, err = orc.GetRequestInternal(ic.DAO, 0)
 	require.NoError(t, err)
 
 	require.NoError(t, orc.PostPersist(ic))
-	_, err = orc.GetRequestInternal(ic.DAO, 1)
+	_, err = orc.GetRequestInternal(ic.DAO, 0)
 	require.Error(t, err)
 
 	t.Run("ErrorOnFinish", func(t *testing.T) {
-		const reqID = 2
+		const reqID = 1
 
 		putOracleRequest(t, cs.Hash, bc, "url", nil, "handle", []byte{1, 2}, gasForResponse)
-		_, err := orc.GetRequestInternal(bc.dao, reqID) // ensure ID is 2
+		_, err := orc.GetRequestInternal(bc.dao, reqID) // ensure ID is 1
 		require.NoError(t, err)
 
 		tx = transaction.New(netmode.UnitTestNet, orc.GetOracleResponseScript(), 0)
