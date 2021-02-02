@@ -21,6 +21,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/network/capability"
 	"github.com/nspcc-dev/neo-go/pkg/network/extpool"
 	"github.com/nspcc-dev/neo-go/pkg/network/payload"
+	"github.com/nspcc-dev/neo-go/pkg/services/notary"
 	"github.com/nspcc-dev/neo-go/pkg/services/oracle"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"go.uber.org/atomic"
@@ -69,7 +70,8 @@ type (
 		consensus         consensus.Service
 		notaryRequestPool *mempool.Pool
 		extensiblePool    *extpool.Pool
-		NotaryFeer        NotaryFeer
+		notaryFeer        NotaryFeer
+		notaryModule      *notary.Notary
 
 		lock  sync.RWMutex
 		peers map[Peer]bool
@@ -134,13 +136,32 @@ func newServerFromConstructors(config ServerConfig, chain blockchainer.Blockchai
 		transactions:      make(chan *transaction.Transaction, 64),
 	}
 	if chain.P2PSigExtensionsEnabled() {
-		s.NotaryFeer = NewNotaryFeer(chain)
-		s.notaryRequestPool = mempool.New(chain.GetConfig().P2PNotaryRequestPayloadPoolSize, 1)
+		s.notaryFeer = NewNotaryFeer(chain)
+		s.notaryRequestPool = mempool.New(chain.GetConfig().P2PNotaryRequestPayloadPoolSize, 1, chain.GetConfig().P2PNotary.Enabled)
 		chain.RegisterPostBlock(func(bc blockchainer.Blockchainer, txpool *mempool.Pool, _ *block.Block) {
 			s.notaryRequestPool.RemoveStale(func(t *transaction.Transaction) bool {
 				return bc.IsTxStillRelevant(t, txpool, true)
-			}, s.NotaryFeer)
+			}, s.notaryFeer)
 		})
+		if chain.GetConfig().P2PNotary.Enabled {
+			n, err := notary.NewNotary(chain, s.notaryRequestPool, s.log, func(tx *transaction.Transaction) error {
+				r := s.RelayTxn(tx)
+				if r != RelaySucceed {
+					return fmt.Errorf("can't pool notary tx: hash %s, reason: %d", tx.Hash().StringLE(), byte(r))
+				}
+				return nil
+			})
+			if err != nil {
+				return nil, fmt.Errorf("failed to create Notary module: %w", err)
+			}
+			s.notaryModule = n
+			chain.SetNotary(n)
+			chain.RegisterPostBlock(func(bc blockchainer.Blockchainer, pool *mempool.Pool, b *block.Block) {
+				s.notaryModule.PostPersist(bc, pool, b)
+			})
+		}
+	} else if chain.GetConfig().P2PNotary.Enabled {
+		return nil, errors.New("P2PSigExtensions are disabled, but Notary service is enable")
 	}
 	s.bQueue = newBlockQueue(maxBlockBatch, chain, log, func(b *block.Block) {
 		if !s.consensusStarted.Load() {
@@ -235,6 +256,10 @@ func (s *Server) Start(errChan chan error) {
 	if s.oracle != nil {
 		go s.oracle.Run()
 	}
+	if s.notaryModule != nil {
+		s.notaryRequestPool.RunSubscriptions()
+		go s.notaryModule.Run()
+	}
 	go s.relayBlocksLoop()
 	go s.bQueue.run()
 	go s.transport.Accept()
@@ -256,6 +281,10 @@ func (s *Server) Shutdown() {
 	s.bQueue.discard()
 	if s.oracle != nil {
 		s.oracle.Shutdown()
+	}
+	if s.notaryModule != nil {
+		s.notaryModule.Stop()
+		s.notaryRequestPool.StopSubscriptions()
 	}
 	close(s.quit)
 }
@@ -805,7 +834,7 @@ func (s *Server) handleP2PNotaryRequestCmd(r *payload.P2PNotaryRequest) error {
 
 // verifyAndPoolNotaryRequest verifies NotaryRequest payload and adds it to the payload mempool.
 func (s *Server) verifyAndPoolNotaryRequest(r *payload.P2PNotaryRequest) RelayReason {
-	if err := s.chain.PoolTxWithData(r.FallbackTransaction, r, s.notaryRequestPool, s.NotaryFeer, verifyNotaryRequest); err != nil {
+	if err := s.chain.PoolTxWithData(r.FallbackTransaction, r, s.notaryRequestPool, s.notaryFeer, verifyNotaryRequest); err != nil {
 		switch {
 		case errors.Is(err, core.ErrAlreadyExists):
 			return RelayAlreadyExists
@@ -827,7 +856,8 @@ func verifyNotaryRequest(bc blockchainer.Blockchainer, _ *transaction.Transactio
 	if err := bc.VerifyWitness(payer, r, &r.Witness, bc.GetPolicer().GetMaxVerificationGAS()); err != nil {
 		return fmt.Errorf("bad P2PNotaryRequest payload witness: %w", err)
 	}
-	if r.FallbackTransaction.Sender() != bc.GetNotaryContractScriptHash() {
+	notaryHash := bc.GetNotaryContractScriptHash()
+	if r.FallbackTransaction.Sender() != notaryHash {
 		return errors.New("P2PNotary contract should be a sender of the fallback transaction")
 	}
 	depositExpiration := bc.GetNotaryDepositExpiration(payer)

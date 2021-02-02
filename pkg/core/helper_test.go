@@ -15,6 +15,7 @@ import (
 	"github.com/nspcc-dev/neo-go/internal/testserdes"
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
+	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
 	"github.com/nspcc-dev/neo-go/pkg/core/chaindump"
 	"github.com/nspcc-dev/neo-go/pkg/core/fee"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
@@ -399,6 +400,9 @@ func newNEP17Transfer(sc, from, to util.Uint160, amount int64, additionalArgs ..
 	w := io.NewBufBinWriter()
 	emit.AppCall(w.BinWriter, sc, "transfer", callflag.All, from, to, amount, additionalArgs)
 	emit.Opcodes(w.BinWriter, opcode.ASSERT)
+	if w.Err != nil {
+		panic(fmt.Errorf("failed to create nep17 transfer transaction: %w", w.Err))
+	}
 
 	script := w.Bytes()
 	return transaction.New(testchain.Network(), script, 11000000)
@@ -555,6 +559,14 @@ func invokeContractMethodBy(t *testing.T, chain *Blockchain, signer *wallet.Acco
 	return invokeContractMethodGeneric(chain, sysfee, hash, method, signer, args...)
 }
 
+func transferTokenFromMultisigAccountCheckOK(t *testing.T, chain *Blockchain, to, tokenHash util.Uint160, amount int64, additionalArgs ...interface{}) {
+	transferTx := transferTokenFromMultisigAccount(t, chain, to, tokenHash, amount, additionalArgs...)
+	res, err := chain.GetAppExecResults(transferTx.Hash(), trigger.Application)
+	require.NoError(t, err)
+	require.Equal(t, vm.HaltState, res[0].VMState)
+	require.Equal(t, 0, len(res[0].Stack))
+}
+
 func transferTokenFromMultisigAccount(t *testing.T, chain *Blockchain, to, tokenHash util.Uint160, amount int64, additionalArgs ...interface{}) *transaction.Transaction {
 	transferTx := newNEP17Transfer(tokenHash, testchain.MultisigScriptHash(), to, amount, additionalArgs...)
 	transferTx.SystemFee = 100000000
@@ -579,4 +591,20 @@ func checkFAULTState(t *testing.T, result *state.AppExecResult) {
 func checkBalanceOf(t *testing.T, chain *Blockchain, addr util.Uint160, expected int) {
 	balance := chain.GetNEP17Balances(addr).Trackers[chain.contracts.GAS.ContractID]
 	require.Equal(t, int64(expected), balance.Balance.Int64())
+}
+
+type NotaryFeerStub struct {
+	bc blockchainer.Blockchainer
+}
+
+func (f NotaryFeerStub) FeePerByte() int64 { return f.bc.FeePerByte() }
+func (f NotaryFeerStub) GetUtilityTokenBalance(acc util.Uint160) *big.Int {
+	return f.bc.GetNotaryBalance(acc)
+}
+func (f NotaryFeerStub) BlockHeight() uint32           { return f.bc.BlockHeight() }
+func (f NotaryFeerStub) P2PSigExtensionsEnabled() bool { return f.bc.P2PSigExtensionsEnabled() }
+func NewNotaryFeerStub(bc blockchainer.Blockchainer) NotaryFeerStub {
+	return NotaryFeerStub{
+		bc: bc,
+	}
 }

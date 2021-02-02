@@ -177,7 +177,7 @@ func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration, log *zap.L
 		dao:         dao.NewSimple(s, cfg.Magic, cfg.StateRootInHeader),
 		stopCh:      make(chan struct{}),
 		runToExitCh: make(chan struct{}),
-		memPool:     mempool.New(cfg.MemPoolSize, 0),
+		memPool:     mempool.New(cfg.MemPoolSize, 0, false),
 		sbCommittee: committee,
 		log:         log,
 		events:      make(chan bcEvent),
@@ -199,6 +199,12 @@ func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration, log *zap.L
 func (bc *Blockchain) SetOracle(mod services.Oracle) {
 	bc.contracts.Oracle.Module.Store(mod)
 	bc.contracts.Designate.OracleService.Store(mod)
+}
+
+// SetNotary sets notary module. It doesn't protected by mutex and
+// must be called before `bc.Run()` to avoid data race.
+func (bc *Blockchain) SetNotary(mod services.Notary) {
+	bc.contracts.Designate.NotaryService.Store(mod)
 }
 
 func (bc *Blockchain) init() error {
@@ -477,7 +483,7 @@ func (bc *Blockchain) AddBlock(block *block.Block) error {
 		if !block.MerkleRoot.Equals(merkle) {
 			return errors.New("invalid block: MerkleRoot mismatch")
 		}
-		mp = mempool.New(len(block.Transactions), 0)
+		mp = mempool.New(len(block.Transactions), 0, false)
 		for _, tx := range block.Transactions {
 			var err error
 			// Transactions are verified before adding them
@@ -1637,7 +1643,7 @@ func (bc *Blockchain) verifyStateRootWitness(r *state.MPTRoot) error {
 // current blockchain state. Note that this verification is completely isolated
 // from the main node's mempool.
 func (bc *Blockchain) VerifyTx(t *transaction.Transaction) error {
-	var mp = mempool.New(1, 0)
+	var mp = mempool.New(1, 0, false)
 	bc.lock.RLock()
 	defer bc.lock.RUnlock()
 	return bc.verifyAndPoolTx(t, mp, bc)

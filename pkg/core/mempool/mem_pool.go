@@ -10,6 +10,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"go.uber.org/atomic"
 )
 
 var (
@@ -69,6 +70,14 @@ type Pool struct {
 
 	resendThreshold uint32
 	resendFunc      func(*transaction.Transaction, interface{})
+
+	// subscriptions for mempool events
+	subscriptionsEnabled bool
+	subscriptionsOn      atomic.Bool
+	stopCh               chan struct{}
+	events               chan Event
+	subCh                chan chan<- Event // there are no other events in mempool except Event, so no need in generic subscribers type
+	unsubCh              chan chan<- Event
 }
 
 func (p items) Len() int           { return len(p) }
@@ -249,6 +258,13 @@ func (mp *Pool) Add(t *transaction.Transaction, fee Feer, data ...interface{}) e
 			delete(mp.oracleResp, attrs[0].Value.(*transaction.OracleResponse).ID)
 		}
 		mp.verifiedTxes[len(mp.verifiedTxes)-1] = pItem
+		if mp.subscriptionsOn.Load() {
+			mp.events <- Event{
+				Type: TransactionRemoved,
+				Tx:   unlucky.txn,
+				Data: unlucky.data,
+			}
+		}
 	} else {
 		mp.verifiedTxes = append(mp.verifiedTxes, pItem)
 	}
@@ -269,6 +285,14 @@ func (mp *Pool) Add(t *transaction.Transaction, fee Feer, data ...interface{}) e
 
 	updateMempoolMetrics(len(mp.verifiedTxes))
 	mp.lock.Unlock()
+
+	if mp.subscriptionsOn.Load() {
+		mp.events <- Event{
+			Type: TransactionAdded,
+			Tx:   pItem.txn,
+			Data: pItem.data,
+		}
+	}
 	return nil
 }
 
@@ -307,6 +331,13 @@ func (mp *Pool) removeInternal(hash util.Uint256, feer Feer) {
 		if attrs := tx.GetAttributes(transaction.OracleResponseT); len(attrs) != 0 {
 			delete(mp.oracleResp, attrs[0].Value.(*transaction.OracleResponse).ID)
 		}
+		if mp.subscriptionsOn.Load() {
+			mp.events <- Event{
+				Type: TransactionRemoved,
+				Tx:   itm.txn,
+				Data: itm.data,
+			}
+		}
 	}
 	updateMempoolMetrics(len(mp.verifiedTxes))
 }
@@ -325,7 +356,9 @@ func (mp *Pool) RemoveStale(isOK func(*transaction.Transaction) bool, feer Feer)
 		mp.conflicts = make(map[util.Uint256][]util.Uint256)
 	}
 	height := feer.BlockHeight()
-	var staleItems []item
+	var (
+		staleItems []item
+	)
 	for _, itm := range mp.verifiedTxes {
 		if isOK(itm.txn) && mp.checkPolicy(itm.txn, policyChanged) && mp.tryAddSendersFee(itm.txn, feer, true) {
 			newVerifiedTxes = append(newVerifiedTxes, itm)
@@ -347,6 +380,13 @@ func (mp *Pool) RemoveStale(isOK func(*transaction.Transaction) bool, feer Feer)
 			delete(mp.verifiedMap, itm.txn.Hash())
 			if attrs := itm.txn.GetAttributes(transaction.OracleResponseT); len(attrs) != 0 {
 				delete(mp.oracleResp, attrs[0].Value.(*transaction.OracleResponse).ID)
+			}
+			if mp.subscriptionsOn.Load() {
+				mp.events <- Event{
+					Type: TransactionRemoved,
+					Tx:   itm.txn,
+					Data: itm.data,
+				}
 			}
 		}
 	}
@@ -377,16 +417,23 @@ func (mp *Pool) checkPolicy(tx *transaction.Transaction, policyChanged bool) boo
 }
 
 // New returns a new Pool struct.
-func New(capacity int, payerIndex int) *Pool {
-	return &Pool{
-		verifiedMap:  make(map[util.Uint256]*transaction.Transaction),
-		verifiedTxes: make([]item, 0, capacity),
-		capacity:     capacity,
-		payerIndex:   payerIndex,
-		fees:         make(map[util.Uint160]utilityBalanceAndFees),
-		conflicts:    make(map[util.Uint256][]util.Uint256),
-		oracleResp:   make(map[uint64]util.Uint256),
+func New(capacity int, payerIndex int, enableSubscriptions bool) *Pool {
+	mp := &Pool{
+		verifiedMap:          make(map[util.Uint256]*transaction.Transaction),
+		verifiedTxes:         make([]item, 0, capacity),
+		capacity:             capacity,
+		payerIndex:           payerIndex,
+		fees:                 make(map[util.Uint160]utilityBalanceAndFees),
+		conflicts:            make(map[util.Uint256][]util.Uint256),
+		oracleResp:           make(map[uint64]util.Uint256),
+		subscriptionsEnabled: enableSubscriptions,
+		stopCh:               make(chan struct{}),
+		events:               make(chan Event),
+		subCh:                make(chan chan<- Event),
+		unsubCh:              make(chan chan<- Event),
 	}
+	mp.subscriptionsOn.Store(false)
+	return mp
 }
 
 // SetResendThreshold sets threshold after which transaction will be considered stale
