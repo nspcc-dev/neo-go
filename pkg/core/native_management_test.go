@@ -534,7 +534,7 @@ func compareContractStates(t *testing.T, expected *state.Contract, actual stacki
 	act, ok := actual.Value().([]stackitem.Item)
 	require.True(t, ok)
 
-	expectedManifest, err := json.Marshal(expected.Manifest)
+	expectedManifest, err := expected.Manifest.ToStackItem()
 	require.NoError(t, err)
 	expectedNef, err := expected.NEF.Bytes()
 	require.NoError(t, err)
@@ -544,7 +544,7 @@ func compareContractStates(t *testing.T, expected *state.Contract, actual stacki
 	require.Equal(t, expected.UpdateCounter, uint16(act[1].Value().(*big.Int).Int64()))
 	require.Equal(t, expected.Hash.BytesBE(), act[2].Value().([]byte))
 	require.Equal(t, expectedNef, act[3].Value().([]byte))
-	require.Equal(t, expectedManifest, act[4].Value().([]byte))
+	require.Equal(t, expectedManifest, act[4])
 }
 
 func TestMinimumDeploymentFee(t *testing.T) {

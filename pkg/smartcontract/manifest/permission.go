@@ -1,6 +1,7 @@
 package manifest
 
 import (
+	"crypto/elliptic"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -8,6 +9,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
 // PermissionType represents permission type.
@@ -170,4 +172,92 @@ func (d *PermissionDesc) UnmarshalJSON(data []byte) error {
 		}
 	}
 	return errors.New("unknown permission")
+}
+
+// ToStackItem converts Permission to stackitem.Item.
+func (p *Permission) ToStackItem() stackitem.Item {
+	var (
+		contract stackitem.Item
+		methods  stackitem.Item
+	)
+	switch p.Contract.Type {
+	case PermissionWildcard:
+		contract = stackitem.Null{}
+	case PermissionHash:
+		contract = stackitem.NewByteArray(p.Contract.Hash().BytesBE())
+	case PermissionGroup:
+		contract = stackitem.NewByteArray(p.Contract.Group().Bytes())
+	}
+	if p.Methods.IsWildcard() {
+		methods = stackitem.Null{}
+	} else {
+		m := make([]stackitem.Item, len(p.Methods.Value))
+		for i := range p.Methods.Value {
+			m[i] = stackitem.Make(p.Methods.Value[i])
+		}
+		methods = stackitem.Make(m)
+	}
+	return stackitem.NewStruct([]stackitem.Item{
+		contract,
+		methods,
+	})
+}
+
+// FromStackItem converts stackitem.Item to Permission.
+func (p *Permission) FromStackItem(item stackitem.Item) error {
+	var err error
+	if item.Type() != stackitem.StructT {
+		return errors.New("invalid Permission stackitem type")
+	}
+	str := item.Value().([]stackitem.Item)
+	if len(str) != 2 {
+		return errors.New("invalid Permission stackitem length")
+	}
+	if _, ok := str[0].(stackitem.Null); ok {
+		p.Contract = PermissionDesc{
+			Type: PermissionWildcard,
+		}
+	} else {
+		byteArr, err := str[0].TryBytes()
+		if err != nil {
+			return err
+		}
+		switch len(byteArr) {
+		case util.Uint160Size:
+			hash, _ := util.Uint160DecodeBytesBE(byteArr)
+			p.Contract = PermissionDesc{
+				Type:  PermissionHash,
+				Value: hash,
+			}
+		case 33:
+			pKey, err := keys.NewPublicKeyFromBytes(byteArr, elliptic.P256())
+			if err != nil {
+				return err
+			}
+			p.Contract = PermissionDesc{
+				Type:  PermissionGroup,
+				Value: pKey,
+			}
+		default:
+			return errors.New("invalid Contract ByteArray length")
+		}
+	}
+	if _, ok := str[1].(stackitem.Null); ok {
+		p.Methods = WildStrings{Value: nil}
+	} else {
+		if str[1].Type() != stackitem.ArrayT {
+			return errors.New("invalid Methods stackitem type")
+		}
+		methods := str[1].Value().([]stackitem.Item)
+		p.Methods = WildStrings{
+			Value: make([]string, len(methods)),
+		}
+		for i := range methods {
+			p.Methods.Value[i], err = stackitem.ToString(methods[i])
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }

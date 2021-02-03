@@ -3,11 +3,13 @@ package manifest
 import (
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/internal/random"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/stretchr/testify/require"
 )
 
@@ -91,4 +93,68 @@ func testMarshalUnmarshal(t *testing.T, expected, actual interface{}) {
 	require.NoError(t, err)
 	require.NoError(t, json.Unmarshal(data, actual))
 	require.Equal(t, expected, actual)
+}
+
+func TestPermission_ToStackItemFromStackItem(t *testing.T) {
+	t.Run("wildcard", func(t *testing.T) {
+		p := NewPermission(PermissionWildcard)
+		expected := stackitem.NewStruct([]stackitem.Item{
+			stackitem.Null{},
+			stackitem.Null{},
+		})
+		CheckToFromStackItem(t, p, expected)
+	})
+
+	t.Run("hash", func(t *testing.T) {
+		p := NewPermission(PermissionHash, util.Uint160{1, 2, 3})
+		p.Methods = WildStrings{Value: []string{"a"}}
+		expected := stackitem.NewStruct([]stackitem.Item{
+			stackitem.NewByteArray(util.Uint160{1, 2, 3}.BytesBE()),
+			stackitem.NewArray([]stackitem.Item{
+				stackitem.NewByteArray([]byte("a")),
+			}),
+		})
+		CheckToFromStackItem(t, p, expected)
+	})
+
+	t.Run("group", func(t *testing.T) {
+		pk, _ := keys.NewPrivateKey()
+		p := NewPermission(PermissionGroup, pk.PublicKey())
+		expected := stackitem.NewStruct([]stackitem.Item{
+			stackitem.NewByteArray(pk.PublicKey().Bytes()),
+			stackitem.Null{},
+		})
+		CheckToFromStackItem(t, p, expected)
+	})
+}
+
+type Interoperable interface {
+	ToStackItem() stackitem.Item
+	FromStackItem(stackitem.Item) error
+}
+
+func CheckToFromStackItem(t *testing.T, source Interoperable, expected stackitem.Item) {
+	actual := source.ToStackItem()
+	require.Equal(t, expected, actual)
+	actualSource := reflect.New(reflect.TypeOf(source).Elem()).Interface().(Interoperable)
+	require.NoError(t, actualSource.FromStackItem(actual))
+	require.Equal(t, source, actualSource)
+}
+
+func TestPermission_FromStackItemErrors(t *testing.T) {
+	errCases := map[string]stackitem.Item{
+		"not a struct":            stackitem.NewArray([]stackitem.Item{}),
+		"invalid length":          stackitem.NewStruct([]stackitem.Item{}),
+		"invalid contract type":   stackitem.NewStruct([]stackitem.Item{stackitem.NewArray([]stackitem.Item{}), stackitem.NewBool(false)}),
+		"invalid contract length": stackitem.NewStruct([]stackitem.Item{stackitem.NewByteArray([]byte{1, 2, 3}), stackitem.NewBool(false)}),
+		"invalid contract pubkey": stackitem.NewStruct([]stackitem.Item{stackitem.NewByteArray(make([]byte, 33)), stackitem.NewBool(false)}),
+		"invalid methods type":    stackitem.NewStruct([]stackitem.Item{stackitem.Null{}, stackitem.NewBool(false)}),
+		"invalid method name":     stackitem.NewStruct([]stackitem.Item{stackitem.Null{}, stackitem.NewArray([]stackitem.Item{stackitem.NewArray([]stackitem.Item{})})}),
+	}
+	for name, errCase := range errCases {
+		t.Run(name, func(t *testing.T) {
+			p := new(Permission)
+			require.Error(t, p.FromStackItem(errCase))
+		})
+	}
 }

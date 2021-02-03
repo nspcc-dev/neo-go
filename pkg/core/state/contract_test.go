@@ -1,7 +1,6 @@
 package state
 
 import (
-	"encoding/json"
 	"math"
 	"testing"
 
@@ -90,8 +89,7 @@ func TestContractFromStackItem(t *testing.T) {
 		rawNef, _    = nefFile.Bytes()
 		nefItem      = stackitem.NewByteArray(rawNef)
 		manifest     = manifest.DefaultManifest("stack item")
-		manifestB, _ = json.Marshal(manifest)
-		manifItem    = stackitem.Make(manifestB)
+		manifItem, _ = manifest.ToStackItem()
 
 		badCases = []struct {
 			name string
@@ -105,8 +103,8 @@ func TestContractFromStackItem(t *testing.T) {
 			{"hash is not a byte string", stackitem.Make([]stackitem.Item{id, counter, stackitem.NewArray(nil), nefItem, manifItem})},
 			{"hash is not a hash", stackitem.Make([]stackitem.Item{id, counter, stackitem.Make([]byte{1, 2, 3}), nefItem, manifItem})},
 			{"nef is not a byte string", stackitem.Make([]stackitem.Item{id, counter, chash, stackitem.NewArray(nil), manifItem})},
-			{"manifest is not a byte string", stackitem.Make([]stackitem.Item{id, counter, chash, nefItem, stackitem.NewArray(nil)})},
-			{"manifest is not correct", stackitem.Make([]stackitem.Item{id, counter, chash, nefItem, stackitem.Make(100500)})},
+			{"manifest is not an array", stackitem.Make([]stackitem.Item{id, counter, chash, nefItem, stackitem.NewByteArray(nil)})},
+			{"manifest is not correct", stackitem.Make([]stackitem.Item{id, counter, chash, nefItem, stackitem.NewArray([]stackitem.Item{stackitem.Make(100500)})})},
 		}
 	)
 	for _, cs := range badCases {

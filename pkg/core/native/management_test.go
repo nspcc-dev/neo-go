@@ -23,7 +23,6 @@ func TestDeployGetUpdateDestroyContract(t *testing.T) {
 	ne, err := nef.NewFile(script)
 	require.NoError(t, err)
 	manif := manifest.NewManifest("Test")
-	require.NoError(t, err)
 
 	h := state.CreateContractHash(sender, ne.Checksum, manif.Name)
 
