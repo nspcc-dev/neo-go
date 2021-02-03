@@ -87,6 +87,37 @@ func TestTypeConversion(t *testing.T) {
 	eval(t, src, big.NewInt(42))
 }
 
+func TestSelectorTypeConversion(t *testing.T) {
+	src := `package foo
+	import "github.com/nspcc-dev/neo-go/pkg/compiler/testdata/types"
+	import "github.com/nspcc-dev/neo-go/pkg/interop/util"
+	import "github.com/nspcc-dev/neo-go/pkg/interop"
+	func Main() int {
+		var a int
+		if util.Equals(types.Buffer(nil), nil) {
+			a += 1
+		}
+
+	    // Buffer != ByteArray
+		if util.Equals(types.Buffer("\x12"), "\x12") {
+			a += 10
+		}
+
+		tmp := []byte{0x23}
+		if util.Equals(types.ByteString(tmp), "\x23") {
+			a += 100
+		}
+
+		addr := "aaaaaaaaaaaaaaaaaaaa"
+		buf := []byte(addr)
+		if util.Equals(interop.Hash160(addr), interop.Hash160(buf)) {
+			a += 1000
+		}
+		return a
+	}`
+	eval(t, src, big.NewInt(1101))
+}
+
 func TestTypeConversionString(t *testing.T) {
 	src := `package foo
 	type mystr string
