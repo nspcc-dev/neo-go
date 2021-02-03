@@ -84,6 +84,11 @@ node where it only works for addresses from opened wallet.
 It's possible to get non-native contract state by its ID, unlike with C# node where
 it only works for native contracts.
 
+##### `getstorage`
+
+This method doesn't work for the Ledger contract, you can get data via regular
+`getblock` and `getrawtransaction` calls.
+
 ### Unsupported methods
 
 Methods listed down below are not going to be supported for various reasons
