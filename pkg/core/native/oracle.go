@@ -434,7 +434,7 @@ func (o *Oracle) getRequests(d dao.DAO) (map[uint64]*state.OracleRequest, error)
 		if r.Err != nil {
 			return nil, r.Err
 		}
-		id := binary.LittleEndian.Uint64([]byte(k))
+		id := binary.BigEndian.Uint64([]byte(k))
 		reqs[id] = req
 	}
 	return reqs, nil
@@ -443,7 +443,7 @@ func (o *Oracle) getRequests(d dao.DAO) (map[uint64]*state.OracleRequest, error)
 func makeRequestKey(id uint64) []byte {
 	k := make([]byte, 9)
 	k[0] = prefixRequest[0]
-	binary.LittleEndian.PutUint64(k[1:], id)
+	binary.BigEndian.PutUint64(k[1:], id)
 	return k
 }
 
