@@ -28,9 +28,9 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/io"
-	rpc2 "github.com/nspcc-dev/neo-go/pkg/services/oracle/broadcaster"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result"
+	rpc2 "github.com/nspcc-dev/neo-go/pkg/services/oracle/broadcaster"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
@@ -59,7 +59,7 @@ type rpcTestCase struct {
 }
 
 const testContractHash = "c6436aab21ebd15279b85af8d7b5808d38455b0a"
-const deploymentTxHash = "e6ffce4533231c4efdea9a65c7abc0e7073d96a4ebc66f402db3a84b6f8939ef"
+const deploymentTxHash = "9a9d6b0876d1e6cfd68efadd0facaaba7e07efbe7b24282d094a0893645581f3"
 const genesisBlockHash = "0542f4350c6e236d0509bcd98188b0034bfbecc1a0c7fcdb8e4295310d468b70"
 
 const verifyContractHash = "03ffc0897543b9b709e0f8cab4a7682dae0ba943"
@@ -182,7 +182,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 			check: func(t *testing.T, e *executor, cs interface{}) {
 				res, ok := cs.(*state.Contract)
 				require.True(t, ok)
-				assert.Equal(t, int32(-4), res.ID)
+				assert.Equal(t, int32(-5), res.ID)
 			},
 		},
 		{
@@ -192,7 +192,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 		},
 		{
 			name:   "negative, bad ID",
-			params: `[-8]`,
+			params: `[-100]`,
 			fail:   true,
 		},
 		{

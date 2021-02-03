@@ -4,13 +4,10 @@ import (
 	"crypto/elliptic"
 	"errors"
 	"fmt"
-	"math"
-	"math/big"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
-	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
-	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
+	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
@@ -45,144 +42,15 @@ const (
 	Constant StorageFlag = 0x01
 )
 
-// getBlockHashFromElement converts given vm.Element to block hash using given
-// Blockchainer if needed. Interop functions accept both block numbers and
-// block hashes as parameters, thus this function is needed.
-func getBlockHashFromElement(bc blockchainer.Blockchainer, element *vm.Element) (util.Uint256, error) {
-	var hash util.Uint256
-	hashbytes := element.Bytes()
-	if len(hashbytes) <= 5 {
-		hashint := element.BigInt().Int64()
-		if hashint < 0 || hashint > math.MaxUint32 {
-			return hash, errors.New("bad block index")
-		}
-		hash = bc.GetHeaderHash(int(hashint))
-	} else {
-		return util.Uint256DecodeBytesBE(hashbytes)
-	}
-	return hash, nil
-}
-
-// blockToStackItem converts block.Block to stackitem.Item
-func blockToStackItem(b *block.Block) stackitem.Item {
-	return stackitem.NewArray([]stackitem.Item{
-		stackitem.NewByteArray(b.Hash().BytesBE()),
-		stackitem.NewBigInteger(big.NewInt(int64(b.Version))),
-		stackitem.NewByteArray(b.PrevHash.BytesBE()),
-		stackitem.NewByteArray(b.MerkleRoot.BytesBE()),
-		stackitem.NewBigInteger(big.NewInt(int64(b.Timestamp))),
-		stackitem.NewBigInteger(big.NewInt(int64(b.Index))),
-		stackitem.NewByteArray(b.NextConsensus.BytesBE()),
-		stackitem.NewBigInteger(big.NewInt(int64(len(b.Transactions)))),
-	})
-}
-
-// bcGetBlock returns current block.
-func bcGetBlock(ic *interop.Context) error {
-	hash, err := getBlockHashFromElement(ic.Chain, ic.VM.Estack().Pop())
-	if err != nil {
-		return err
-	}
-	block, err := ic.Chain.GetBlock(hash)
-	if err != nil || !isTraceableBlock(ic, block.Index) {
-		ic.VM.Estack().PushVal(stackitem.Null{})
-	} else {
-		ic.VM.Estack().PushVal(blockToStackItem(block))
-	}
-	return nil
-}
-
-// bcGetHeight returns blockchain height.
-func bcGetHeight(ic *interop.Context) error {
-	ic.VM.Estack().PushVal(ic.Chain.BlockHeight())
-	return nil
-}
-
-// getTransactionAndHeight gets parameter from the vm evaluation stack and
-// returns transaction and its height if it's present in the blockchain.
-func getTransactionAndHeight(cd *dao.Cached, v *vm.VM) (*transaction.Transaction, uint32, error) {
-	hashbytes := v.Estack().Pop().Bytes()
-	hash, err := util.Uint256DecodeBytesBE(hashbytes)
-	if err != nil {
-		return nil, 0, err
-	}
-	return cd.GetTransaction(hash)
-}
-
-// isTraceableBlock defines whether we're able to give information about
-// the block with index specified.
-func isTraceableBlock(ic *interop.Context, index uint32) bool {
-	height := ic.Chain.BlockHeight()
-	MaxTraceableBlocks := ic.Chain.GetConfig().MaxTraceableBlocks
-	return index <= height && index+MaxTraceableBlocks > height
-}
-
-// transactionToStackItem converts transaction.Transaction to stackitem.Item
-func transactionToStackItem(t *transaction.Transaction) stackitem.Item {
-	return stackitem.NewArray([]stackitem.Item{
-		stackitem.NewByteArray(t.Hash().BytesBE()),
-		stackitem.NewBigInteger(big.NewInt(int64(t.Version))),
-		stackitem.NewBigInteger(big.NewInt(int64(t.Nonce))),
-		stackitem.NewByteArray(t.Sender().BytesBE()),
-		stackitem.NewBigInteger(big.NewInt(int64(t.SystemFee))),
-		stackitem.NewBigInteger(big.NewInt(int64(t.NetworkFee))),
-		stackitem.NewBigInteger(big.NewInt(int64(t.ValidUntilBlock))),
-		stackitem.NewByteArray(t.Script),
-	})
-}
-
-// bcGetTransaction returns transaction.
-func bcGetTransaction(ic *interop.Context) error {
-	tx, h, err := getTransactionAndHeight(ic.DAO, ic.VM)
-	if err != nil || !isTraceableBlock(ic, h) {
-		ic.VM.Estack().PushVal(stackitem.Null{})
-		return nil
-	}
-	ic.VM.Estack().PushVal(transactionToStackItem(tx))
-	return nil
-}
-
-// bcGetTransactionFromBlock returns transaction with the given index from the
-// block with height or hash specified.
-func bcGetTransactionFromBlock(ic *interop.Context) error {
-	hash, err := getBlockHashFromElement(ic.Chain, ic.VM.Estack().Pop())
-	if err != nil {
-		return err
-	}
-	index := ic.VM.Estack().Pop().BigInt().Int64()
-	block, err := ic.DAO.GetBlock(hash)
-	if err != nil || !isTraceableBlock(ic, block.Index) {
-		ic.VM.Estack().PushVal(stackitem.Null{})
-		return nil
-	}
-	if index < 0 || index >= int64(len(block.Transactions)) {
-		return errors.New("wrong transaction index")
-	}
-	tx := block.Transactions[index]
-	ic.VM.Estack().PushVal(tx.Hash().BytesBE())
-	return nil
-}
-
-// bcGetTransactionHeight returns transaction height.
-func bcGetTransactionHeight(ic *interop.Context) error {
-	_, h, err := getTransactionAndHeight(ic.DAO, ic.VM)
-	if err != nil || !isTraceableBlock(ic, h) {
-		ic.VM.Estack().PushVal(-1)
-		return nil
-	}
-	ic.VM.Estack().PushVal(h)
-	return nil
-}
-
 // engineGetScriptContainer returns transaction or block that contains the script
 // being run.
 func engineGetScriptContainer(ic *interop.Context) error {
 	var item stackitem.Item
 	switch t := ic.Container.(type) {
 	case *transaction.Transaction:
-		item = transactionToStackItem(t)
+		item = native.TransactionToStackItem(t)
 	case *block.Block:
-		item = blockToStackItem(t)
+		item = native.BlockToStackItem(t)
 	default:
 		return errors.New("unknown script container")
 	}

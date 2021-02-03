@@ -14,13 +14,6 @@ var syscalls = map[string]map[string]string{
 		"Itoa":         interopnames.SystemBinaryItoa,
 		"Serialize":    interopnames.SystemBinarySerialize,
 	},
-	"blockchain": {
-		"GetBlock":                interopnames.SystemBlockchainGetBlock,
-		"GetHeight":               interopnames.SystemBlockchainGetHeight,
-		"GetTransaction":          interopnames.SystemBlockchainGetTransaction,
-		"GetTransactionFromBlock": interopnames.SystemBlockchainGetTransactionFromBlock,
-		"GetTransactionHeight":    interopnames.SystemBlockchainGetTransactionHeight,
-	},
 	"contract": {
 		"Call":                  interopnames.SystemContractCall,
 		"CreateStandardAccount": interopnames.SystemContractCreateStandardAccount,

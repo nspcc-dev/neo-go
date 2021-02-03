@@ -2,15 +2,38 @@ package runtime
 
 import (
 	"github.com/nspcc-dev/neo-go/pkg/interop"
-	"github.com/nspcc-dev/neo-go/pkg/interop/blockchain"
 )
+
+// Transaction represents a NEO transaction. It's similar to Transaction class
+// in Neo .net framework.
+type Transaction struct {
+	// Hash represents the hash (256 bit BE value in a 32 byte slice) of the
+	// given transaction (which also is its ID).
+	Hash interop.Hash256
+	// Version represents the transaction version.
+	Version int
+	// Nonce is a random number to avoid hash collision.
+	Nonce int
+	// Sender represents the sender (160 bit BE value in a 20 byte slice) of the
+	// given Transaction.
+	Sender interop.Hash160
+	// SysFee represents fee to be burned.
+	SysFee int
+	// NetFee represents fee to be distributed to consensus nodes.
+	NetFee int
+	// ValidUntilBlock is the maximum blockchain height exceeding which
+	// transaction should fail verification.
+	ValidUntilBlock int
+	// Script represents code to run in NeoVM for this transaction.
+	Script []byte
+}
 
 // GetScriptContainer returns the transaction that initially triggered current
 // execution context. It never changes in a single execution, no matter how deep
 // this execution goes. This function uses
 // `System.Runtime.GetScriptContainer` syscall.
-func GetScriptContainer() *blockchain.Transaction {
-	return &blockchain.Transaction{}
+func GetScriptContainer() *Transaction {
+	return &Transaction{}
 }
 
 // GetExecutingScriptHash returns script hash (160 bit in BE form represented

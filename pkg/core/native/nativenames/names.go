@@ -3,6 +3,7 @@ package nativenames
 // Names of all native contracts.
 const (
 	Management  = "ContractManagement"
+	Ledger      = "LedgerContract"
 	Neo         = "NeoToken"
 	Gas         = "GasToken"
 	Policy      = "PolicyContract"
