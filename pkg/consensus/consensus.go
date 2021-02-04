@@ -41,7 +41,7 @@ const defaultTimePerBlock = 15 * time.Second
 const nsInMs = 1000000
 
 // Category is message category for extensible payloads.
-const Category = "Consensus"
+const Category = "dBFT"
 
 // Service represents consensus instance.
 type Service interface {
