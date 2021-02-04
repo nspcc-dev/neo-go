@@ -121,6 +121,7 @@ func (e *Extensible) updateHashes(b []byte) {
 // updateSignedPart updates serialized message if needed.
 func (e *Extensible) updateSignedPart() {
 	w := io.NewBufBinWriter()
+	w.WriteU32LE(uint32(e.Network))
 	e.encodeBinaryUnsigned(w.BinWriter)
 	e.signedpart = w.Bytes()
 }
