@@ -580,7 +580,7 @@ func (s *service) getVerifiedTx() []block.Transaction {
 
 	var txx []*transaction.Transaction
 
-	if s.dbft.ViewNumber > 0 {
+	if s.dbft.ViewNumber > 0 && len(s.lastProposal) > 0 {
 		txx = make([]*transaction.Transaction, 0, len(s.lastProposal))
 		for i := range s.lastProposal {
 			if tx, ok := pool.TryGetValue(s.lastProposal[i]); ok {
