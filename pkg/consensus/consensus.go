@@ -553,7 +553,7 @@ func (s *service) getVerifiedTx() []block.Transaction {
 
 	var txx []mempool.TxWithFee
 
-	if s.dbft.ViewNumber > 0 {
+	if s.dbft.ViewNumber > 0 && len(s.lastProposal) > 0 {
 		txx = make([]mempool.TxWithFee, 0, len(s.lastProposal))
 		for i := range s.lastProposal {
 			if tx, fee, ok := pool.TryGetValue(s.lastProposal[i]); ok {
