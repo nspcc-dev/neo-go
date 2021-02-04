@@ -111,12 +111,7 @@ func TestInlineConversion(t *testing.T) {
 		a := 2
 		{
 			b := 1
-			c := a
-			{
-				bb := b
-				cc := c
-				return (bb + cc) * (b + c)
-			}
+			return (b + a) * (b + a)
 		}
 	}`
 	b2, err := compiler.Compile("foo.go", strings.NewReader(src2))

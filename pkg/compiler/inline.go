@@ -27,9 +27,19 @@ func (c *codegen) inlineCall(f *funcScope, n *ast.CallExpr) {
 	defer c.scope.vars.dropScope()
 	for i := range n.Args {
 		c.scope.vars.locals = oldScope
+		name := sig.Params().At(i).Name()
+		if arg, ok := n.Args[i].(*ast.Ident); ok {
+			// When function argument is variable or const, we may avoid
+			// introducing additional variables for parameters.
+			// This is done by providing additional alias to variable.
+			if vt, index := c.scope.vars.getVarIndex(arg.Name); index != -1 {
+				c.scope.vars.locals = newScope
+				c.scope.vars.addAlias(name, vt, index)
+				continue
+			}
+		}
 		ast.Walk(c, n.Args[i])
 		c.scope.vars.locals = newScope
-		name := sig.Params().At(i).Name()
 		c.scope.newLocal(name)
 		c.emitStoreVar("", name)
 	}

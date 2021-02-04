@@ -4,7 +4,12 @@ type varScope struct {
 	localsCnt int
 	argCnt    int
 	arguments map[string]int
-	locals    []map[string]int
+	locals    []map[string]varInfo
+}
+
+type varInfo struct {
+	refType varType
+	index   int
 }
 
 func newVarScope() varScope {
@@ -14,17 +19,24 @@ func newVarScope() varScope {
 }
 
 func (c *varScope) newScope() {
-	c.locals = append(c.locals, map[string]int{})
+	c.locals = append(c.locals, map[string]varInfo{})
 }
 
 func (c *varScope) dropScope() {
 	c.locals = c.locals[:len(c.locals)-1]
 }
 
+func (c *varScope) addAlias(name string, vt varType, index int) {
+	c.locals[len(c.locals)-1][name] = varInfo{
+		refType: vt,
+		index:   index,
+	}
+}
+
 func (c *varScope) getVarIndex(name string) (varType, int) {
 	for i := len(c.locals) - 1; i >= 0; i-- {
-		if i, ok := c.locals[i][name]; ok {
-			return varLocal, i
+		if vi, ok := c.locals[i][name]; ok {
+			return vi.refType, vi.index
 		}
 	}
 	if i, ok := c.arguments[name]; ok {
@@ -56,7 +68,10 @@ func (c *varScope) newVariable(t varType, name string) int {
 func (c *varScope) newLocal(name string) int {
 	idx := len(c.locals) - 1
 	m := c.locals[idx]
-	m[name] = c.localsCnt
+	m[name] = varInfo{
+		refType: varLocal,
+		index:   c.localsCnt,
+	}
 	c.localsCnt++
 	c.locals[idx] = m
 	return c.localsCnt - 1
