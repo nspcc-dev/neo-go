@@ -48,7 +48,7 @@ type roleData struct {
 }
 
 const (
-	designateContractID = -5
+	designateContractID = -6
 
 	// maxNodeCount is the maximum number of nodes to set the role for.
 	maxNodeCount = 32

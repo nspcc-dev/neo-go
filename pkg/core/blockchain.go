@@ -1744,7 +1744,7 @@ func (bc *Blockchain) initVerificationVM(ic *interop.Context, hash util.Uint160,
 		if bc.contracts.ByHash(hash) != nil {
 			return ErrNativeContractWitness
 		}
-		v.LoadScriptWithFlags(witness.VerificationScript, callflag.NoneFlag)
+		v.LoadScriptWithFlags(witness.VerificationScript, callflag.ReadStates)
 	} else {
 		cs, err := ic.GetContract(hash)
 		if err != nil {

@@ -10,11 +10,6 @@ const (
 	SystemBinaryDeserialize                  = "System.Binary.Deserialize"
 	SystemBinaryItoa                         = "System.Binary.Itoa"
 	SystemBinarySerialize                    = "System.Binary.Serialize"
-	SystemBlockchainGetBlock                 = "System.Blockchain.GetBlock"
-	SystemBlockchainGetHeight                = "System.Blockchain.GetHeight"
-	SystemBlockchainGetTransaction           = "System.Blockchain.GetTransaction"
-	SystemBlockchainGetTransactionFromBlock  = "System.Blockchain.GetTransactionFromBlock"
-	SystemBlockchainGetTransactionHeight     = "System.Blockchain.GetTransactionHeight"
 	SystemCallbackCreate                     = "System.Callback.Create"
 	SystemCallbackCreateFromMethod           = "System.Callback.CreateFromMethod"
 	SystemCallbackCreateFromSyscall          = "System.Callback.CreateFromSyscall"
@@ -69,11 +64,6 @@ var names = []string{
 	SystemBinaryDeserialize,
 	SystemBinaryItoa,
 	SystemBinarySerialize,
-	SystemBlockchainGetBlock,
-	SystemBlockchainGetHeight,
-	SystemBlockchainGetTransaction,
-	SystemBlockchainGetTransactionFromBlock,
-	SystemBlockchainGetTransactionHeight,
 	SystemCallbackCreate,
 	SystemCallbackCreateFromMethod,
 	SystemCallbackCreateFromSyscall,

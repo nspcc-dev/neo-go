@@ -21,7 +21,7 @@ import (
 )
 
 const (
-	policyContractID = -4
+	policyContractID = -5
 
 	defaultMaxBlockSize            = 1024 * 256
 	defaultMaxTransactionsPerBlock = 512

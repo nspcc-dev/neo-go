@@ -16,6 +16,7 @@ const reservedContractID = -100
 // Contracts is a set of registered native contracts.
 type Contracts struct {
 	Management  *Management
+	Ledger      *Ledger
 	NEO         *NEO
 	GAS         *GAS
 	Policy      *Policy
@@ -59,6 +60,10 @@ func NewContracts(p2pSigExtensionsEnabled bool) *Contracts {
 	mgmt := newManagement()
 	cs.Management = mgmt
 	cs.Contracts = append(cs.Contracts, mgmt)
+
+	ledger := newLedger()
+	cs.Ledger = ledger
+	cs.Contracts = append(cs.Contracts, ledger)
 
 	gas := newGAS()
 	neo := newNEO()
