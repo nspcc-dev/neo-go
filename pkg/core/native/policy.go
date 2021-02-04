@@ -490,7 +490,7 @@ func (p *Policy) blockAccount(ic *interop.Context, args []stackitem.Item) stacki
 	p.lock.Lock()
 	defer p.lock.Unlock()
 	err := ic.DAO.PutStorageItem(p.ContractID, key, &state.StorageItem{
-		Value: []byte{0x01},
+		Value: []byte{},
 	})
 	if err != nil {
 		panic(err)
