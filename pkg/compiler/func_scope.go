@@ -22,6 +22,8 @@ type funcScope struct {
 	// Package where the function is defined.
 	pkg *types.Package
 
+	file *ast.File
+
 	// Program label of the scope
 	label uint16
 

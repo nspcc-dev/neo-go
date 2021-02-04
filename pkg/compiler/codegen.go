@@ -31,6 +31,8 @@ type codegen struct {
 
 	// Type information.
 	typeInfo *types.Info
+	// pkgInfoInline is stack of type information for packages containing inline functions.
+	pkgInfoInline []*loader.PackageInfo
 
 	// A mapping of func identifiers with their scope.
 	funcs map[string]*funcScope
@@ -406,6 +408,7 @@ func (c *codegen) convertFuncDecl(file ast.Node, decl *ast.FuncDecl, pkg *types.
 		if sizeArg > 255 {
 			c.prog.Err = errors.New("maximum of 255 local variables is allowed")
 		}
+		sizeLoc = 255 // FIXME count locals including inline variables
 		if sizeLoc != 0 || sizeArg != 0 {
 			emit.Instruction(c.prog.BinWriter, opcode.INITSLOT, []byte{byte(sizeLoc), byte(sizeArg)})
 		}
@@ -623,7 +626,9 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		c.processDefers()
 
 		c.saveSequencePoint(n)
-		emit.Opcodes(c.prog.BinWriter, opcode.RET)
+		if len(c.pkgInfoInline) == 0 {
+			emit.Opcodes(c.prog.BinWriter, opcode.RET)
+		}
 		return nil
 
 	case *ast.IfStmt:
@@ -800,7 +805,12 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 
 		switch fun := n.Fun.(type) {
 		case *ast.Ident:
-			f, ok = c.funcs[c.getIdentName("", fun.Name)]
+			var pkgName string
+			if len(c.pkgInfoInline) != 0 {
+				pkgName = c.pkgInfoInline[len(c.pkgInfoInline)-1].Pkg.Path()
+			}
+			f, ok = c.funcs[c.getIdentName(pkgName, fun.Name)]
+
 			isBuiltin = isGoBuiltin(fun.Name)
 			if !ok && !isBuiltin {
 				name = fun.Name
@@ -808,6 +818,10 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			// distinguish lambda invocations from type conversions
 			if fun.Obj != nil && fun.Obj.Kind == ast.Var {
 				isFunc = true
+			}
+			if ok && canInline(f.pkg.Path()) {
+				c.inlineCall(f, n)
+				return nil
 			}
 		case *ast.SelectorExpr:
 			// If this is a method call we need to walk the AST to load the struct locally.
@@ -824,6 +838,10 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			if ok {
 				f.selector = fun.X.(*ast.Ident)
 				isBuiltin = isCustomBuiltin(f)
+				if canInline(f.pkg.Path()) {
+					c.inlineCall(f, n)
+					return nil
+				}
 			} else {
 				typ := c.typeOf(fun)
 				if _, ok := typ.(*types.Signature); ok {
@@ -1919,7 +1937,7 @@ func (c *codegen) compile(info *buildInfo, pkg *loader.PackageInfo) error {
 				// of bytecode space.
 				name := c.getFuncNameFromDecl(pkg.Path(), n)
 				if !isInitFunc(n) && !isDeployFunc(n) && funUsage.funcUsed(name) &&
-					(!isInteropPath(pkg.Path()) || isNativeHelpersPath(pkg.Path())) {
+					(!isInteropPath(pkg.Path()) && !canInline(pkg.Path())) {
 					c.convertFuncDecl(f, n, pkg)
 				}
 			}
@@ -1970,7 +1988,8 @@ func (c *codegen) resolveFuncDecls(f *ast.File, pkg *types.Package) {
 	for _, decl := range f.Decls {
 		switch n := decl.(type) {
 		case *ast.FuncDecl:
-			c.newFunc(n)
+			fs := c.newFunc(n)
+			fs.file = f
 		}
 	}
 }

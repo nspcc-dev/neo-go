@@ -304,3 +304,11 @@ func canConvert(s string) bool {
 	}
 	return true
 }
+
+// canInline returns true if function is to be inlined.
+// Currently there is a static list of function which are inlined,
+// this may change in future.
+func canInline(s string) bool {
+	return isNativeHelpersPath(s) ||
+		strings.HasPrefix(s, "github.com/nspcc-dev/neo-go/pkg/compiler/testdata/inline")
+}
