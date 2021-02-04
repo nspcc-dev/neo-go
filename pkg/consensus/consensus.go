@@ -229,6 +229,7 @@ func (s *service) eventLoop() {
 				s.log.Debug("new block in the chain",
 					zap.Uint32("dbft index", s.dbft.BlockIndex),
 					zap.Uint32("chain index", s.Chain.BlockHeight()))
+				s.lastProposal = nil
 				s.dbft.InitializeConsensus(0)
 			}
 		}
@@ -492,6 +493,7 @@ func (s *service) processBlock(b block.Block) {
 			s.log.Warn("error on add block", zap.Error(err))
 		}
 	}
+	s.lastProposal = nil
 }
 
 func (s *service) getBlockWitness(_ *coreb.Block) *transaction.Witness {
