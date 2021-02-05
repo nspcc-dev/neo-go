@@ -340,11 +340,18 @@ func getTestContractState(bc *Blockchain) (*state.Contract, *state.Contract) {
 	emit.Syscall(w.BinWriter, interopnames.SystemStorageGetContext)
 	emit.Syscall(w.BinWriter, interopnames.SystemStorageGet)
 	emit.Opcodes(w.BinWriter, opcode.RET)
-	onPaymentOff := w.Len()
+	onNEP17PaymentOff := w.Len()
 	emit.Syscall(w.BinWriter, interopnames.SystemRuntimeGetCallingScriptHash)
 	emit.Int(w.BinWriter, 4)
 	emit.Opcodes(w.BinWriter, opcode.PACK)
 	emit.String(w.BinWriter, "LastPayment")
+	emit.Syscall(w.BinWriter, interopnames.SystemRuntimeNotify)
+	emit.Opcodes(w.BinWriter, opcode.RET)
+	onNEP11PaymentOff := w.Len()
+	emit.Syscall(w.BinWriter, interopnames.SystemRuntimeGetCallingScriptHash)
+	emit.Int(w.BinWriter, 4)
+	emit.Opcodes(w.BinWriter, opcode.PACK)
+	emit.String(w.BinWriter, "LostPayment")
 	emit.Syscall(w.BinWriter, interopnames.SystemRuntimeNotify)
 	emit.Opcodes(w.BinWriter, opcode.RET)
 	update3Off := w.Len()
@@ -456,8 +463,18 @@ func getTestContractState(bc *Blockchain) (*state.Contract, *state.Contract) {
 			ReturnType: smartcontract.VoidType,
 		},
 		{
+			Name:   manifest.MethodOnNEP11Payment,
+			Offset: onNEP11PaymentOff,
+			Parameters: []manifest.Parameter{
+				manifest.NewParameter("from", smartcontract.Hash160Type),
+				manifest.NewParameter("amount", smartcontract.IntegerType),
+				manifest.NewParameter("tokenid", smartcontract.ByteArrayType),
+			},
+			ReturnType: smartcontract.VoidType,
+		},
+		{
 			Name:   manifest.MethodOnNEP17Payment,
-			Offset: onPaymentOff,
+			Offset: onNEP17PaymentOff,
 			Parameters: []manifest.Parameter{
 				manifest.NewParameter("from", smartcontract.Hash160Type),
 				manifest.NewParameter("amount", smartcontract.IntegerType),

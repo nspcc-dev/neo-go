@@ -287,6 +287,16 @@ func TestTransfer(t *testing.T) {
 	testNameServiceInvokeAux(t, bc, defaultNameServiceSysfee, from, "totalSupply", 1)
 	testNameServiceInvokeAux(t, bc, defaultNameServiceSysfee, from, "ownerOf",
 		to.Contract.ScriptHash().BytesBE(), []byte("neo.com"))
+	cs, cs2 := getTestContractState(bc) // cs2 doesn't have OnNEP11Transfer
+	require.NoError(t, bc.contracts.Management.PutContractState(bc.dao, cs))
+	require.NoError(t, bc.contracts.Management.PutContractState(bc.dao, cs2))
+	testNameServiceInvokeAux(t, bc, defaultRegisterSysfee, to, "transfer",
+		nil, cs2.Hash.BytesBE(), []byte("neo.com"))
+	testNameServiceInvokeAux(t, bc, defaultRegisterSysfee, to, "transfer",
+		true, cs.Hash.BytesBE(), []byte("neo.com"))
+	testNameServiceInvokeAux(t, bc, defaultNameServiceSysfee, from, "totalSupply", 1)
+	testNameServiceInvokeAux(t, bc, defaultNameServiceSysfee, from, "ownerOf",
+		cs.Hash.BytesBE(), []byte("neo.com"))
 }
 
 func TestTokensOf(t *testing.T) {

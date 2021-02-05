@@ -24,6 +24,9 @@ const (
 	// MethodOnNEP17Payment is name of the method which is called when contract receives NEP-17 tokens.
 	MethodOnNEP17Payment = "onNEP17Payment"
 
+	// MethodOnNEP11Payment is the name of the method which is called when contract receives NEP-11 tokens.
+	MethodOnNEP11Payment = "onNEP11Payment"
+
 	// NEP10StandardName represents the name of NEP10 smartcontract standard.
 	NEP10StandardName = "NEP-10"
 	// NEP17StandardName represents the name of NEP17 smartcontract standard.
