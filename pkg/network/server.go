@@ -804,6 +804,7 @@ func (s *Server) handleExtensibleCmd(e *payload.Extensible) error {
 	switch e.Category {
 	case consensus.Category:
 		s.consensus.OnPayload(e)
+	case "StateService": // no-op for now
 	default:
 		return errors.New("invalid category")
 	}
