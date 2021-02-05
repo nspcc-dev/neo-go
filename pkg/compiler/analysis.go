@@ -175,10 +175,16 @@ func (f funcUsage) funcUsed(name string) bool {
 }
 
 // lastStmtIsReturn checks if last statement of the declaration was return statement..
-func lastStmtIsReturn(decl *ast.FuncDecl) (b bool) {
-	if l := len(decl.Body.List); l != 0 {
-		_, ok := decl.Body.List[l-1].(*ast.ReturnStmt)
-		return ok
+func lastStmtIsReturn(body *ast.BlockStmt) (b bool) {
+	if l := len(body.List); l != 0 {
+		switch inner := body.List[l-1].(type) {
+		case *ast.BlockStmt:
+			return lastStmtIsReturn(inner)
+		case *ast.ReturnStmt:
+			return true
+		default:
+			return false
+		}
 	}
 	return false
 }

@@ -440,7 +440,7 @@ func (c *codegen) convertFuncDecl(file ast.Node, decl *ast.FuncDecl, pkg *types.
 	// If we have reached the end of the function without encountering `return` statement,
 	// we should clean alt.stack manually.
 	// This can be the case with void and named-return functions.
-	if !isInit && !isDeploy && !lastStmtIsReturn(decl) {
+	if !isInit && !isDeploy && !lastStmtIsReturn(decl.Body) {
 		c.saveSequencePoint(decl.Body)
 		emit.Opcodes(c.prog.BinWriter, opcode.RET)
 	}
