@@ -41,6 +41,10 @@ func (c *codegen) inlineCall(f *funcScope, n *ast.CallExpr) {
 				c.scope.vars.locals = newScope
 				c.scope.vars.addAlias(name, vi.refType, vi.index, vi.tv)
 				continue
+			} else if arg.Name == "nil" {
+				c.scope.vars.locals = newScope
+				c.scope.vars.addAlias(name, varLocal, unspecifiedVarIndex, types.TypeAndValue{})
+				continue
 			}
 		}
 		ast.Walk(c, n.Args[i])

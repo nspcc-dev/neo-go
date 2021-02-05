@@ -230,6 +230,9 @@ func (c *codegen) emitLoadVar(pkg string, name string) {
 	if vi.tv.Value != nil {
 		c.emitLoadConst(vi.tv)
 		return
+	} else if vi.index == unspecifiedVarIndex {
+		emit.Opcodes(c.prog.BinWriter, opcode.PUSHNULL)
+		return
 	}
 	c.emitLoadByIndex(vi.refType, vi.index)
 }
