@@ -4,5 +4,5 @@ func Verify() bool {
 	return true
 }
 
-func OnPayment(from []byte, amount int, data interface{}) {
+func OnNEP17Payment(from []byte, amount int, data interface{}) {
 }

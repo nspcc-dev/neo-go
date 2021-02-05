@@ -8,6 +8,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
+	"github.com/nspcc-dev/neo-go/pkg/core/interop/contract"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/runtime"
 	istorage "github.com/nspcc-dev/neo-go/pkg/core/interop/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
@@ -280,6 +281,26 @@ func (n *nonfungible) postTransfer(ic *interop.Context, from, to *util.Uint160, 
 		}),
 	}
 	ic.Notifications = append(ic.Notifications, ne)
+	if to == nil {
+		return
+	}
+	cs, err := ic.GetContract(*to)
+	if err != nil {
+		return
+	}
+
+	fromArg := stackitem.Item(stackitem.Null{})
+	if from != nil {
+		fromArg = stackitem.NewByteArray((*from).BytesBE())
+	}
+	args := []stackitem.Item{
+		fromArg,
+		stackitem.NewBigInteger(intOne),
+		stackitem.NewByteArray(tokenID),
+	}
+	if err := contract.CallFromNative(ic, n.Hash, cs, manifest.MethodOnNEP11Payment, args, false); err != nil {
+		panic(err)
+	}
 }
 
 func (n *nonfungible) burn(ic *interop.Context, tokenID []byte) {

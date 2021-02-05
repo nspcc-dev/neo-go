@@ -143,7 +143,7 @@ func (c *nep17TokenNative) postTransfer(ic *interop.Context, from, to *util.Uint
 		stackitem.NewBigInteger(amount),
 		data,
 	}
-	if err := contract.CallFromNative(ic, c.Hash, cs, manifest.MethodOnPayment, args, false); err != nil {
+	if err := contract.CallFromNative(ic, c.Hash, cs, manifest.MethodOnNEP17Payment, args, false); err != nil {
 		panic(err)
 	}
 }
