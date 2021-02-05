@@ -2,10 +2,13 @@ package manifest
 
 import (
 	"encoding/json"
+	"math/big"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/stretchr/testify/require"
 )
 
@@ -145,4 +148,185 @@ func TestIsValid(t *testing.T) {
 			require.False(t, m.IsValid(contractHash))
 		})
 	})
+}
+
+func TestManifestToStackItem(t *testing.T) {
+	check := func(t *testing.T, expected *Manifest) {
+		item, err := expected.ToStackItem()
+		require.NoError(t, err)
+		actual := new(Manifest)
+		require.NoError(t, actual.FromStackItem(item))
+		require.Equal(t, expected, actual)
+	}
+
+	t.Run("default", func(t *testing.T) {
+		expected := DefaultManifest("manifest")
+		check(t, expected)
+	})
+
+	t.Run("full", func(t *testing.T) {
+		pk, _ := keys.NewPrivateKey()
+		expected := &Manifest{
+			Name: "manifest",
+			ABI: ABI{
+				Methods: []Method{{
+					Name:   "method",
+					Offset: 15,
+					Parameters: []Parameter{{
+						Name: "param",
+						Type: smartcontract.StringType,
+					}},
+					ReturnType: smartcontract.BoolType,
+					Safe:       true,
+				}},
+				Events: []Event{{
+					Name: "event",
+					Parameters: []Parameter{{
+						Name: "param",
+						Type: smartcontract.BoolType,
+					}},
+				}},
+			},
+			Groups: []Group{{
+				PublicKey: pk.PublicKey(),
+				Signature: []byte{1, 2, 3},
+			}},
+			Permissions:        []Permission{*NewPermission(PermissionWildcard)},
+			SupportedStandards: []string{"NEP-17"},
+			Trusts: WildUint160s{
+				Value: []util.Uint160{{1, 2, 3}},
+			},
+			Extra: "some extra data",
+		}
+		check(t, expected)
+	})
+}
+
+func TestManifest_FromStackItemErrors(t *testing.T) {
+	errCases := map[string]stackitem.Item{
+		"not a struct":                     stackitem.NewArray([]stackitem.Item{}),
+		"invalid length":                   stackitem.NewStruct([]stackitem.Item{}),
+		"invalid name type":                stackitem.NewStruct([]stackitem.Item{stackitem.NewInterop(nil), stackitem.Null{}, stackitem.Null{}, stackitem.Null{}, stackitem.Null{}, stackitem.Null{}, stackitem.Null{}}),
+		"invalid groups type":              stackitem.NewStruct([]stackitem.Item{stackitem.NewByteArray([]byte{}), stackitem.Null{}, stackitem.Null{}, stackitem.Null{}, stackitem.Null{}, stackitem.Null{}, stackitem.Null{}}),
+		"invalid group":                    stackitem.NewStruct([]stackitem.Item{stackitem.NewByteArray([]byte{}), stackitem.NewArray([]stackitem.Item{stackitem.Null{}}), stackitem.Null{}, stackitem.Null{}, stackitem.Null{}, stackitem.Null{}, stackitem.Null{}}),
+		"invalid supported standards type": stackitem.NewStruct([]stackitem.Item{stackitem.NewByteArray([]byte{}), stackitem.NewArray([]stackitem.Item{}), stackitem.Null{}, stackitem.Null{}, stackitem.Null{}, stackitem.Null{}, stackitem.Null{}}),
+		"invalid supported standard":       stackitem.NewStruct([]stackitem.Item{stackitem.NewByteArray([]byte{}), stackitem.NewArray([]stackitem.Item{}), stackitem.NewArray([]stackitem.Item{stackitem.Null{}}), stackitem.Null{}, stackitem.Null{}, stackitem.Null{}, stackitem.Null{}}),
+		"invalid ABI":                      stackitem.NewStruct([]stackitem.Item{stackitem.NewByteArray([]byte{}), stackitem.NewArray([]stackitem.Item{}), stackitem.NewArray([]stackitem.Item{}), stackitem.Null{}, stackitem.Null{}, stackitem.Null{}, stackitem.Null{}}),
+		"invalid Permissions type": stackitem.NewStruct([]stackitem.Item{
+			stackitem.NewByteArray([]byte{}),
+			stackitem.NewArray([]stackitem.Item{}),
+			stackitem.NewArray([]stackitem.Item{}),
+			stackitem.NewStruct([]stackitem.Item{stackitem.NewArray([]stackitem.Item{}), stackitem.NewArray([]stackitem.Item{})}),
+			stackitem.Null{}, stackitem.Null{}, stackitem.Null{}}),
+		"invalid permission": stackitem.NewStruct([]stackitem.Item{
+			stackitem.NewByteArray([]byte{}),
+			stackitem.NewArray([]stackitem.Item{}),
+			stackitem.NewArray([]stackitem.Item{}),
+			stackitem.NewStruct([]stackitem.Item{stackitem.NewArray([]stackitem.Item{}), stackitem.NewArray([]stackitem.Item{})}),
+			stackitem.NewArray([]stackitem.Item{stackitem.Null{}}), stackitem.Null{}, stackitem.Null{}}),
+		"invalid Trusts type": stackitem.NewStruct([]stackitem.Item{
+			stackitem.NewByteArray([]byte{}),
+			stackitem.NewArray([]stackitem.Item{}),
+			stackitem.NewArray([]stackitem.Item{}),
+			stackitem.NewStruct([]stackitem.Item{stackitem.NewArray([]stackitem.Item{}), stackitem.NewArray([]stackitem.Item{})}),
+			stackitem.NewArray([]stackitem.Item{}),
+			stackitem.NewInterop(nil), stackitem.Null{}}),
+		"invalid trust": stackitem.NewStruct([]stackitem.Item{
+			stackitem.NewByteArray([]byte{}),
+			stackitem.NewArray([]stackitem.Item{}),
+			stackitem.NewArray([]stackitem.Item{}),
+			stackitem.NewStruct([]stackitem.Item{stackitem.NewArray([]stackitem.Item{}), stackitem.NewArray([]stackitem.Item{})}),
+			stackitem.NewArray([]stackitem.Item{}),
+			stackitem.NewArray([]stackitem.Item{stackitem.Null{}}), stackitem.Null{}}),
+		"invalid Uint160 trust": stackitem.NewStruct([]stackitem.Item{
+			stackitem.NewByteArray([]byte{}),
+			stackitem.NewArray([]stackitem.Item{}),
+			stackitem.NewArray([]stackitem.Item{}),
+			stackitem.NewStruct([]stackitem.Item{stackitem.NewArray([]stackitem.Item{}), stackitem.NewArray([]stackitem.Item{})}),
+			stackitem.NewArray([]stackitem.Item{}),
+			stackitem.NewArray([]stackitem.Item{stackitem.NewByteArray([]byte{1, 2, 3})}), stackitem.Null{}}),
+		"invalid extra type": stackitem.NewStruct([]stackitem.Item{
+			stackitem.NewByteArray([]byte{}),
+			stackitem.NewArray([]stackitem.Item{}),
+			stackitem.NewArray([]stackitem.Item{}),
+			stackitem.NewStruct([]stackitem.Item{stackitem.NewArray([]stackitem.Item{}), stackitem.NewArray([]stackitem.Item{})}),
+			stackitem.NewArray([]stackitem.Item{}),
+			stackitem.NewArray([]stackitem.Item{}),
+			stackitem.Null{}}),
+		"invalid extra": stackitem.NewStruct([]stackitem.Item{
+			stackitem.NewByteArray([]byte{}),
+			stackitem.NewArray([]stackitem.Item{}),
+			stackitem.NewArray([]stackitem.Item{}),
+			stackitem.NewStruct([]stackitem.Item{stackitem.NewArray([]stackitem.Item{}), stackitem.NewArray([]stackitem.Item{})}),
+			stackitem.NewArray([]stackitem.Item{}),
+			stackitem.NewArray([]stackitem.Item{}),
+			stackitem.NewByteArray([]byte("not a json"))}),
+	}
+	for name, errCase := range errCases {
+		t.Run(name, func(t *testing.T) {
+			p := new(Manifest)
+			require.Error(t, p.FromStackItem(errCase))
+		})
+	}
+}
+
+func TestABI_ToStackItemFromStackItem(t *testing.T) {
+	a := &ABI{
+		Methods: []Method{{
+			Name:       "mur",
+			Offset:     5,
+			Parameters: []Parameter{{Name: "p1", Type: smartcontract.BoolType}},
+			ReturnType: smartcontract.StringType,
+			Safe:       true,
+		}},
+		Events: []Event{{
+			Name:       "mur",
+			Parameters: []Parameter{{Name: "p1", Type: smartcontract.BoolType}},
+		}},
+	}
+	expected := stackitem.NewStruct([]stackitem.Item{
+		stackitem.NewArray([]stackitem.Item{
+			stackitem.NewStruct([]stackitem.Item{
+				stackitem.NewByteArray([]byte("mur")),
+				stackitem.NewArray([]stackitem.Item{
+					stackitem.NewStruct([]stackitem.Item{
+						stackitem.NewByteArray([]byte("p1")),
+						stackitem.NewBigInteger(big.NewInt(int64(smartcontract.BoolType))),
+					}),
+				}),
+				stackitem.NewBigInteger(big.NewInt(int64(smartcontract.StringType))),
+				stackitem.NewBigInteger(big.NewInt(int64(5))),
+				stackitem.NewBool(true),
+			}),
+		}),
+		stackitem.NewArray([]stackitem.Item{
+			stackitem.NewStruct([]stackitem.Item{
+				stackitem.NewByteArray([]byte("mur")),
+				stackitem.NewArray([]stackitem.Item{
+					stackitem.NewStruct([]stackitem.Item{
+						stackitem.NewByteArray([]byte("p1")),
+						stackitem.NewBigInteger(big.NewInt(int64(smartcontract.BoolType))),
+					}),
+				}),
+			}),
+		}),
+	})
+	CheckToFromStackItem(t, a, expected)
+}
+
+func TestABI_FromStackItemErrors(t *testing.T) {
+	errCases := map[string]stackitem.Item{
+		"not a struct":         stackitem.NewArray([]stackitem.Item{}),
+		"invalid length":       stackitem.NewStruct([]stackitem.Item{}),
+		"invalid methods type": stackitem.NewStruct([]stackitem.Item{stackitem.NewInterop(nil), stackitem.Null{}}),
+		"invalid method":       stackitem.NewStruct([]stackitem.Item{stackitem.NewArray([]stackitem.Item{stackitem.Null{}}), stackitem.Null{}}),
+		"invalid events type":  stackitem.NewStruct([]stackitem.Item{stackitem.NewArray([]stackitem.Item{}), stackitem.Null{}}),
+		"invalid event":        stackitem.NewStruct([]stackitem.Item{stackitem.NewArray([]stackitem.Item{}), stackitem.NewArray([]stackitem.Item{stackitem.Null{}})}),
+	}
+	for name, errCase := range errCases {
+		t.Run(name, func(t *testing.T) {
+			p := new(ABI)
+			require.Error(t, p.FromStackItem(errCase))
+		})
+	}
 }

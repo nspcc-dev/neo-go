@@ -1,7 +1,6 @@
 package state
 
 import (
-	"encoding/json"
 	"errors"
 	"math"
 	"math/big"
@@ -47,11 +46,11 @@ func (c *Contract) EncodeBinary(w *io.BinWriter) {
 
 // ToStackItem converts state.Contract to stackitem.Item
 func (c *Contract) ToStackItem() (stackitem.Item, error) {
-	manifest, err := json.Marshal(c.Manifest)
+	rawNef, err := c.NEF.Bytes()
 	if err != nil {
 		return nil, err
 	}
-	rawNef, err := c.NEF.Bytes()
+	m, err := c.Manifest.ToStackItem()
 	if err != nil {
 		return nil, err
 	}
@@ -60,7 +59,7 @@ func (c *Contract) ToStackItem() (stackitem.Item, error) {
 		stackitem.Make(c.UpdateCounter),
 		stackitem.NewByteArray(c.Hash.BytesBE()),
 		stackitem.NewByteArray(rawNef),
-		stackitem.NewByteArray(manifest),
+		m,
 	}), nil
 }
 
@@ -103,11 +102,13 @@ func (c *Contract) FromStackItem(item stackitem.Item) error {
 	if err != nil {
 		return err
 	}
-	bytes, err = arr[4].TryBytes()
+	m := new(manifest.Manifest)
+	err = m.FromStackItem(arr[4])
 	if err != nil {
 		return err
 	}
-	return json.Unmarshal(bytes, &c.Manifest)
+	c.Manifest = *m
+	return nil
 }
 
 // CreateContractHash creates deployed contract hash from transaction sender

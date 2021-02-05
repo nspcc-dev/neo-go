@@ -6,6 +6,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestParseParamType(t *testing.T) {
@@ -314,4 +315,30 @@ func mustHex(s string) []byte {
 		panic(err)
 	}
 	return b
+}
+
+func TestConvertToParamType(t *testing.T) {
+	for _, expected := range []ParamType{
+		UnknownType,
+		AnyType,
+		BoolType,
+		IntegerType,
+		ByteArrayType,
+		StringType,
+		Hash160Type,
+		Hash256Type,
+		PublicKeyType,
+		SignatureType,
+		ArrayType,
+		MapType,
+		InteropInterfaceType,
+		VoidType,
+	} {
+		actual, err := ConvertToParamType(int(expected))
+		require.NoError(t, err)
+		require.Equal(t, expected, actual)
+	}
+
+	_, err := ConvertToParamType(0x01)
+	require.NotNil(t, err)
 }

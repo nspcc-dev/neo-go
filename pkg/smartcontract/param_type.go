@@ -35,6 +35,24 @@ const (
 	VoidType             ParamType = 0xff
 )
 
+// validParamTypes contains a map of known ParamTypes
+var validParamTypes = map[ParamType]bool{
+	UnknownType:          true,
+	AnyType:              true,
+	BoolType:             true,
+	IntegerType:          true,
+	ByteArrayType:        true,
+	StringType:           true,
+	Hash160Type:          true,
+	Hash256Type:          true,
+	PublicKeyType:        true,
+	SignatureType:        true,
+	ArrayType:            true,
+	MapType:              true,
+	InteropInterfaceType: true,
+	VoidType:             true,
+}
+
 // String implements the stringer interface.
 func (pt ParamType) String() string {
 	switch pt {
@@ -267,4 +285,12 @@ func inferParamType(val string) ParamType {
 	}
 	// Anything can be a string.
 	return StringType
+}
+
+// ConvertToParamType converts provided value to parameter type if it's a valid type.
+func ConvertToParamType(val int) (ParamType, error) {
+	if validParamTypes[ParamType(val)] {
+		return ParamType(val), nil
+	}
+	return UnknownType, errors.New("unknown parameter type")
 }
