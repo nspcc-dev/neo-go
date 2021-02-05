@@ -133,7 +133,7 @@ func newNEO() *NEO {
 	md = newMethodAndPrice(n.getCandidatesCall, 100000000, callflag.ReadStates)
 	n.AddMethod(md, desc)
 
-	desc = newDescriptor("getСommittee", smartcontract.ArrayType)
+	desc = newDescriptor("getCommittee", smartcontract.ArrayType)
 	md = newMethodAndPrice(n.getCommittee, 100000000, callflag.ReadStates)
 	n.AddMethod(md, desc)
 

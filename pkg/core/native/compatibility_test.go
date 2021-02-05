@@ -2,6 +2,7 @@ package native
 
 import (
 	"testing"
+	"unicode"
 
 	"github.com/stretchr/testify/require"
 )
@@ -17,4 +18,26 @@ func TestNativeHashes(t *testing.T) {
 	require.Equal(t, "8dc0e742cbdfdeda51ff8a8b78d46829144c80ee", newOracle().Hash.StringLE())
 	// Not yet a part of NEO.
 	//require.Equal(t, "", newNotary().Hash.StringLE()())
+}
+
+// "C" and "O" can easily be typed by accident.
+func TestNamesASCII(t *testing.T) {
+	cs := NewContracts(true)
+	for _, c := range cs.Contracts {
+		require.True(t, isASCII(c.Metadata().Name))
+		for m := range c.Metadata().Methods {
+			require.True(t, isASCII(m.Name))
+		}
+		for _, e := range c.Metadata().Manifest.ABI.Events {
+			require.True(t, isASCII(e.Name))
+		}
+	}
+}
+
+func isASCII(s string) bool {
+	ok := true
+	for i := 0; i < len(s); i++ {
+		ok = ok && s[i] <= unicode.MaxASCII
+	}
+	return ok
 }
