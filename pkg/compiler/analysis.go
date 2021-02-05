@@ -284,3 +284,12 @@ func isInteropPath(s string) bool {
 func isNativeHelpersPath(s string) bool {
 	return strings.HasPrefix(s, interopPrefix+"/native")
 }
+
+// canConvert returns true if type doesn't need to be converted on type assertion.
+func canConvert(s string) bool {
+	if isInteropPath(s) {
+		s = s[len(interopPrefix):]
+		return s != "/iterator.Iterator" && s != "/storage.Context"
+	}
+	return true
+}
