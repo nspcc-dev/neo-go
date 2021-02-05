@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/btcsuite/btcd/btcec"
+	"github.com/nspcc-dev/neo-go/pkg/core/fee"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/crypto"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
@@ -14,9 +15,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
-
-// ECDSAVerifyPrice is a gas price of a single verification.
-const ECDSAVerifyPrice = 1 << 15
 
 // ECDSASecp256r1Verify checks ECDSA signature using Secp256r1 elliptic curve.
 func ECDSASecp256r1Verify(ic *interop.Context) error {
@@ -69,7 +67,7 @@ func ecdsaCheckMultisig(ic *interop.Context, curve elliptic.Curve) error {
 	if err != nil {
 		return fmt.Errorf("wrong parameters: %w", err)
 	}
-	if !ic.VM.AddGas(ic.BaseExecFee() * ECDSAVerifyPrice * int64(len(pkeys))) {
+	if !ic.VM.AddGas(ic.BaseExecFee() * fee.ECDSAVerifyPrice * int64(len(pkeys))) {
 		return errors.New("gas limit exceeded")
 	}
 	sigs, err := ic.VM.Estack().PopSigElements()
