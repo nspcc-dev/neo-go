@@ -3,6 +3,8 @@ Package json provides various JSON serialization/deserialization routines.
 */
 package json
 
+import "github.com/nspcc-dev/neo-go/pkg/interop/neogointernal"
+
 // ToJSON serializes value to json. It uses `System.Json.Serialize` syscall.
 // Serialization format is the following:
 // []byte -> base64 string
@@ -13,7 +15,7 @@ package json
 // []interface{} -> json array
 // map[type1]type2 -> json object with string keys marshaled as strings (not base64).
 func ToJSON(item interface{}) []byte {
-	return nil
+	return neogointernal.Syscall1("System.Json.Serialize", item).([]byte)
 }
 
 // FromJSON deserializes value from json. It uses `System.Json.Deserialize` syscall.
@@ -24,5 +26,5 @@ func ToJSON(item interface{}) []byte {
 // arrays -> []interface{}
 // maps -> map[string]interface{}
 func FromJSON(data []byte) interface{} {
-	return nil
+	return neogointernal.Syscall1("System.Json.Deserialize", data).(interface{})
 }

@@ -3,6 +3,7 @@ package runtime
 import (
 	"github.com/nspcc-dev/neo-go/pkg/interop"
 	"github.com/nspcc-dev/neo-go/pkg/interop/native/ledger"
+	"github.com/nspcc-dev/neo-go/pkg/interop/neogointernal"
 )
 
 // GetScriptContainer returns the transaction that initially triggered current
@@ -10,7 +11,7 @@ import (
 // this execution goes. This function uses
 // `System.Runtime.GetScriptContainer` syscall.
 func GetScriptContainer() *ledger.Transaction {
-	return &ledger.Transaction{}
+	return neogointernal.Syscall0("System.Runtime.GetScriptContainer").(*ledger.Transaction)
 }
 
 // GetExecutingScriptHash returns script hash (160 bit in BE form represented
@@ -19,7 +20,7 @@ func GetScriptContainer() *ledger.Transaction {
 // different contract. This function uses
 // `System.Runtime.GetExecutingScriptHash` syscall.
 func GetExecutingScriptHash() interop.Hash160 {
-	return nil
+	return neogointernal.Syscall0("System.Runtime.GetExecutingScriptHash").(interop.Hash160)
 }
 
 // GetCallingScriptHash returns script hash (160 bit in BE form represented
@@ -28,7 +29,7 @@ func GetExecutingScriptHash() interop.Hash160 {
 // above the GetExecutingScriptHash in the call stack. It uses
 // `System.Runtime.GetCallingScriptHash` syscall.
 func GetCallingScriptHash() interop.Hash160 {
-	return nil
+	return neogointernal.Syscall0("System.Runtime.GetCallingScriptHash").(interop.Hash160)
 }
 
 // GetEntryScriptHash returns script hash (160 bit in BE form represented
@@ -37,5 +38,5 @@ func GetCallingScriptHash() interop.Hash160 {
 // GetScriptContainer) execution from the start. This function uses
 // `System.Runtime.GetEntryScriptHash` syscall.
 func GetEntryScriptHash() interop.Hash160 {
-	return nil
+	return neogointernal.Syscall0("System.Runtime.GetEntryScriptHash").(interop.Hash160)
 }
