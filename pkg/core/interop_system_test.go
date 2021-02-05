@@ -456,7 +456,7 @@ func getTestContractState(bc *Blockchain) (*state.Contract, *state.Contract) {
 			ReturnType: smartcontract.VoidType,
 		},
 		{
-			Name:   "onPayment",
+			Name:   manifest.MethodOnNEP17Payment,
 			Offset: onPaymentOff,
 			Parameters: []manifest.Parameter{
 				manifest.NewParameter("from", smartcontract.Hash160Type),
