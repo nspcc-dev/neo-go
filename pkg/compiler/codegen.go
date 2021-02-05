@@ -194,20 +194,21 @@ func (c *codegen) emitStoreStructField(i int) {
 
 // getVarIndex returns variable type and position in corresponding slot,
 // according to current scope.
-func (c *codegen) getVarIndex(pkg string, name string) (varType, int) {
+func (c *codegen) getVarIndex(pkg string, name string) *varInfo {
 	if pkg == "" {
 		if c.scope != nil {
-			vt, val := c.scope.vars.getVarIndex(name)
-			if val >= 0 {
-				return vt, val
+			vi := c.scope.vars.getVarInfo(name)
+			if vi != nil {
+				return vi
 			}
 		}
 	}
 	if i, ok := c.globals[c.getIdentName(pkg, name)]; ok {
-		return varGlobal, i
+		return &varInfo{refType: varGlobal, index: i}
 	}
 
-	return varLocal, c.scope.newVariable(varLocal, name)
+	c.scope.newVariable(varLocal, name)
+	return c.scope.vars.getVarInfo(name)
 }
 
 func getBaseOpcode(t varType) (opcode.Opcode, opcode.Opcode) {
@@ -225,8 +226,12 @@ func getBaseOpcode(t varType) (opcode.Opcode, opcode.Opcode) {
 
 // emitLoadVar loads specified variable to the evaluation stack.
 func (c *codegen) emitLoadVar(pkg string, name string) {
-	t, i := c.getVarIndex(pkg, name)
-	c.emitLoadByIndex(t, i)
+	vi := c.getVarIndex(pkg, name)
+	if vi.tv.Value != nil {
+		c.emitLoadConst(vi.tv)
+		return
+	}
+	c.emitLoadByIndex(vi.refType, vi.index)
 }
 
 // emitLoadByIndex loads specified variable type with index i.
@@ -245,8 +250,8 @@ func (c *codegen) emitStoreVar(pkg string, name string) {
 		emit.Opcodes(c.prog.BinWriter, opcode.DROP)
 		return
 	}
-	t, i := c.getVarIndex(pkg, name)
-	c.emitStoreByIndex(t, i)
+	vi := c.getVarIndex(pkg, name)
+	c.emitStoreByIndex(vi.refType, vi.index)
 }
 
 // emitLoadByIndex stores top value in the specified variable type with index i.

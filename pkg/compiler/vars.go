@@ -1,5 +1,9 @@
 package compiler
 
+import (
+	"go/types"
+)
+
 type varScope struct {
 	localsCnt int
 	argCnt    int
@@ -10,7 +14,10 @@ type varScope struct {
 type varInfo struct {
 	refType varType
 	index   int
+	tv      types.TypeAndValue
 }
+
+const unspecifiedVarIndex = -1
 
 func newVarScope() varScope {
 	return varScope{
@@ -26,23 +33,27 @@ func (c *varScope) dropScope() {
 	c.locals = c.locals[:len(c.locals)-1]
 }
 
-func (c *varScope) addAlias(name string, vt varType, index int) {
+func (c *varScope) addAlias(name string, vt varType, index int, tv types.TypeAndValue) {
 	c.locals[len(c.locals)-1][name] = varInfo{
 		refType: vt,
 		index:   index,
+		tv:      tv,
 	}
 }
 
-func (c *varScope) getVarIndex(name string) (varType, int) {
+func (c *varScope) getVarInfo(name string) *varInfo {
 	for i := len(c.locals) - 1; i >= 0; i-- {
 		if vi, ok := c.locals[i][name]; ok {
-			return vi.refType, vi.index
+			return &vi
 		}
 	}
 	if i, ok := c.arguments[name]; ok {
-		return varArgument, i
+		return &varInfo{
+			refType: varArgument,
+			index:   i,
+		}
 	}
-	return 0, -1
+	return nil
 }
 
 // newVariable creates a new local variable or argument in the scope of the function.

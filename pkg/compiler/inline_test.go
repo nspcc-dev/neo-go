@@ -110,8 +110,7 @@ func TestInlineConversion(t *testing.T) {
 	func Main() int {
 		a := 2
 		{
-			b := 1
-			return (b + a) * (b + a)
+			return (1 + a) * (1 + a)
 		}
 	}`
 	b2, err := compiler.Compile("foo.go", strings.NewReader(src2))

@@ -28,13 +28,18 @@ func (c *codegen) inlineCall(f *funcScope, n *ast.CallExpr) {
 	for i := range n.Args {
 		c.scope.vars.locals = oldScope
 		name := sig.Params().At(i).Name()
+		if tv := c.typeAndValueOf(n.Args[i]); tv.Value != nil {
+			c.scope.vars.locals = newScope
+			c.scope.vars.addAlias(name, varLocal, unspecifiedVarIndex, tv)
+			continue
+		}
 		if arg, ok := n.Args[i].(*ast.Ident); ok {
 			// When function argument is variable or const, we may avoid
 			// introducing additional variables for parameters.
 			// This is done by providing additional alias to variable.
-			if vt, index := c.scope.vars.getVarIndex(arg.Name); index != -1 {
+			if vi := c.scope.vars.getVarInfo(arg.Name); vi != nil {
 				c.scope.vars.locals = newScope
-				c.scope.vars.addAlias(name, vt, index)
+				c.scope.vars.addAlias(name, vi.refType, vi.index, vi.tv)
 				continue
 			}
 		}
