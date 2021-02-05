@@ -287,9 +287,14 @@ func isNativeHelpersPath(s string) bool {
 
 // canConvert returns true if type doesn't need to be converted on type assertion.
 func canConvert(s string) bool {
+	if len(s) != 0 && s[0] == '*' {
+		s = s[1:]
+	}
 	if isInteropPath(s) {
 		s = s[len(interopPrefix):]
-		return s != "/iterator.Iterator" && s != "/storage.Context"
+		return s != "/iterator.Iterator" && s != "/storage.Context" &&
+			s != "/native/ledger.Block" && s != "/native/ledger.Transaction" &&
+			s != "/native/management.Contract"
 	}
 	return true
 }
