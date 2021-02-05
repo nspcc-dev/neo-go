@@ -13,14 +13,20 @@ func TestHeadersEncodeDecode(t *testing.T) {
 	t.Run("normal case", func(t *testing.T) {
 		headers := newTestHeaders(3)
 
-		testHeadersEncodeDecode(t, headers, 3, false)
+		testHeadersEncodeDecode(t, headers, 3, nil)
 	})
 
 	t.Run("more than max", func(t *testing.T) {
 		const sent = MaxHeadersAllowed + 1
 		headers := newTestHeaders(sent)
 
-		testHeadersEncodeDecode(t, headers, MaxHeadersAllowed, true)
+		testHeadersEncodeDecode(t, headers, MaxHeadersAllowed, ErrTooManyHeaders)
+	})
+
+	t.Run("zero", func(t *testing.T) {
+		headers := newTestHeaders(0)
+
+		testHeadersEncodeDecode(t, headers, 0, ErrNoHeaders)
 	})
 }
 
@@ -42,19 +48,14 @@ func newTestHeaders(n int) *Headers {
 	return headers
 }
 
-func testHeadersEncodeDecode(t *testing.T, headers *Headers, expected int, limit bool) {
+func testHeadersEncodeDecode(t *testing.T, headers *Headers, expected int, retErr error) {
 	data, err := testserdes.EncodeBinary(headers)
 	assert.Nil(t, err)
 
 	headersDecode := &Headers{}
 	rErr := testserdes.DecodeBinary(data, headersDecode)
 
-	err = nil
-	if limit {
-		err = ErrTooManyHeaders
-	}
-
-	assert.Equal(t, err, rErr)
+	assert.Equal(t, retErr, rErr)
 	assert.Equal(t, expected, len(headersDecode.Hdrs))
 
 	for i := 0; i < len(headersDecode.Hdrs); i++ {
