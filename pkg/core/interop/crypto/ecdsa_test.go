@@ -7,6 +7,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
+	"github.com/nspcc-dev/neo-go/pkg/core/fee"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
@@ -247,7 +248,7 @@ func testCurveCHECKMULTISIGBad(t *testing.T, isR1 bool) {
 	t.Run("1_2 too many signatures", func(t *testing.T) { testCHECKMULTISIGBad(t, isR1, true, 2, []int{0}, []int{0, 1}) })
 	t.Run("gas limit exceeded", func(t *testing.T) {
 		v := initCHECKMULTISIGVM(t, isR1, 1, []int{0}, []int{0})
-		v.GasLimit = ECDSAVerifyPrice - 1
+		v.GasLimit = fee.ECDSAVerifyPrice - 1
 		require.Error(t, v.Run())
 	})
 

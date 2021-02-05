@@ -142,10 +142,10 @@ func TestStoragePrice(t *testing.T) {
 
 	t.Run("get, internal method", func(t *testing.T) {
 		n := chain.contracts.Policy.GetStoragePriceInternal(chain.dao)
-		require.Equal(t, int64(native.StoragePrice), n)
+		require.Equal(t, int64(native.DefaultStoragePrice), n)
 	})
 
-	testGetSet(t, chain, chain.contracts.Policy.Hash, "StoragePrice", native.StoragePrice, 1, 10000000)
+	testGetSet(t, chain, chain.contracts.Policy.Hash, "StoragePrice", native.DefaultStoragePrice, 1, 10000000)
 }
 
 func TestBlockedAccounts(t *testing.T) {

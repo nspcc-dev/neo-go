@@ -65,7 +65,7 @@ type VM struct {
 	state State
 
 	// callback to get interop price
-	getPrice func(*VM, opcode.Opcode, []byte) int64
+	getPrice func(opcode.Opcode, []byte) int64
 
 	istack *Stack // invocation stack.
 	estack *Stack // execution stack.
@@ -119,7 +119,7 @@ func (v *VM) newItemStack(n string) *Stack {
 
 // SetPriceGetter registers the given PriceGetterFunc in v.
 // f accepts vm's Context, current instruction and instruction parameter.
-func (v *VM) SetPriceGetter(f func(*VM, opcode.Opcode, []byte) int64) {
+func (v *VM) SetPriceGetter(f func(opcode.Opcode, []byte) int64) {
 	v.getPrice = f
 }
 
@@ -528,7 +528,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 	}()
 
 	if v.getPrice != nil && ctx.ip < len(ctx.prog) {
-		v.gasConsumed += v.getPrice(v, op, parameter)
+		v.gasConsumed += v.getPrice(op, parameter)
 		if v.GasLimit >= 0 && v.gasConsumed > v.GasLimit {
 			panic("gas limit is exceeded")
 		}

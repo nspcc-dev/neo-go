@@ -199,7 +199,7 @@ func (ic *Context) GetFunction(id uint32) *Function {
 
 // BaseExecFee represents factor to multiply syscall prices with.
 func (ic *Context) BaseExecFee() int64 {
-	if ic.Chain == nil {
+	if ic.Chain == nil || (ic.Block != nil && ic.Block.Index == 0) {
 		return DefaultBaseExecFee
 	}
 	return ic.Chain.GetPolicer().GetBaseExecFee()

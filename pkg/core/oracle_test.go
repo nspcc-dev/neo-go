@@ -165,26 +165,26 @@ func TestOracle(t *testing.T) {
 
 	t.Run("NormalRequest", func(t *testing.T) {
 		resp := &transaction.OracleResponse{
-			ID:     1,
+			ID:     0,
 			Code:   transaction.Success,
 			Result: []byte{1, 2, 3, 4},
 		}
-		req := checkResp(t, 1, resp)
+		req := checkResp(t, 0, resp)
 
-		reqs := map[uint64]*state.OracleRequest{1: req}
+		reqs := map[uint64]*state.OracleRequest{0: req}
 		orc2.ProcessRequestsInternal(reqs)
-		require.Equal(t, resp, m2[1].resp)
+		require.Equal(t, resp, m2[0].resp)
 		require.Empty(t, ch2)
 
 		t.Run("InvalidSignature", func(t *testing.T) {
-			orc1.AddResponse(acc2.PrivateKey().PublicKey(), m2[1].resp.ID, []byte{1, 2, 3})
+			orc1.AddResponse(acc2.PrivateKey().PublicKey(), m2[0].resp.ID, []byte{1, 2, 3})
 			require.Empty(t, ch1)
 		})
-		orc1.AddResponse(acc2.PrivateKey().PublicKey(), m2[1].resp.ID, m2[1].txSig)
+		orc1.AddResponse(acc2.PrivateKey().PublicKey(), m2[0].resp.ID, m2[0].txSig)
 		checkEmitTx(t, ch1)
 
 		t.Run("FirstOtherThenMe", func(t *testing.T) {
-			const reqID = 2
+			const reqID = 1
 
 			resp := &transaction.OracleResponse{
 				ID:     reqID,
@@ -203,58 +203,58 @@ func TestOracle(t *testing.T) {
 	})
 	t.Run("Invalid", func(t *testing.T) {
 		t.Run("Timeout", func(t *testing.T) {
-			checkResp(t, 3, &transaction.OracleResponse{
-				ID:   3,
+			checkResp(t, 2, &transaction.OracleResponse{
+				ID:   2,
 				Code: transaction.Timeout,
 			})
 		})
 		t.Run("NotFound", func(t *testing.T) {
-			checkResp(t, 4, &transaction.OracleResponse{
-				ID:   4,
+			checkResp(t, 3, &transaction.OracleResponse{
+				ID:   3,
 				Code: transaction.NotFound,
 			})
 		})
 		t.Run("Forbidden", func(t *testing.T) {
+			checkResp(t, 4, &transaction.OracleResponse{
+				ID:   4,
+				Code: transaction.Forbidden,
+			})
+		})
+		t.Run("PrivateNetwork", func(t *testing.T) {
 			checkResp(t, 5, &transaction.OracleResponse{
 				ID:   5,
 				Code: transaction.Forbidden,
 			})
 		})
-		t.Run("PrivateNetwork", func(t *testing.T) {
+		t.Run("Big", func(t *testing.T) {
 			checkResp(t, 6, &transaction.OracleResponse{
 				ID:   6,
-				Code: transaction.Forbidden,
-			})
-		})
-		t.Run("Big", func(t *testing.T) {
-			checkResp(t, 7, &transaction.OracleResponse{
-				ID:   7,
 				Code: transaction.ResponseTooLarge,
 			})
 		})
 		t.Run("MaxAllowedSmallGAS", func(t *testing.T) {
-			checkResp(t, 8, &transaction.OracleResponse{
-				ID:   8,
+			checkResp(t, 7, &transaction.OracleResponse{
+				ID:   7,
 				Code: transaction.InsufficientFunds,
 			})
 		})
 	})
 	t.Run("MaxAllowedEnoughGAS", func(t *testing.T) {
-		checkResp(t, 9, &transaction.OracleResponse{
-			ID:     9,
+		checkResp(t, 8, &transaction.OracleResponse{
+			ID:     8,
 			Code:   transaction.Success,
 			Result: make([]byte, transaction.MaxOracleResultSize),
 		})
 	})
 	t.Run("WithFilter", func(t *testing.T) {
-		checkResp(t, 10, &transaction.OracleResponse{
-			ID:     10,
+		checkResp(t, 9, &transaction.OracleResponse{
+			ID:     9,
 			Code:   transaction.Success,
 			Result: []byte(`[2]`),
 		})
 		t.Run("invalid response", func(t *testing.T) {
-			checkResp(t, 11, &transaction.OracleResponse{
-				ID:   11,
+			checkResp(t, 10, &transaction.OracleResponse{
+				ID:   10,
 				Code: transaction.Error,
 			})
 		})

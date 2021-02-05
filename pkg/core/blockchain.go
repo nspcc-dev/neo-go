@@ -641,7 +641,7 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 		systemInterop := bc.newInteropContext(trigger.Application, cache, block, tx)
 		v := systemInterop.SpawnVM()
 		v.LoadScriptWithFlags(tx.Script, callflag.All)
-		v.SetPriceGetter(bc.getPrice)
+		v.SetPriceGetter(systemInterop.GetPrice)
 		v.LoadToken = contract.LoadToken(systemInterop)
 		v.GasLimit = tx.SystemFee
 
@@ -849,7 +849,7 @@ func (bc *Blockchain) runPersist(script []byte, block *block.Block, cache *dao.C
 	systemInterop := bc.newInteropContext(trig, cache, block, nil)
 	v := systemInterop.SpawnVM()
 	v.LoadScriptWithFlags(script, callflag.WriteStates|callflag.AllowCall)
-	v.SetPriceGetter(bc.getPrice)
+	v.SetPriceGetter(systemInterop.GetPrice)
 	if err := v.Run(); err != nil {
 		return nil, fmt.Errorf("VM has failed: %w", err)
 	} else if _, err := systemInterop.DAO.Persist(); err != nil {
@@ -1718,7 +1718,7 @@ func (bc *Blockchain) GetTestVM(t trigger.Type, tx *transaction.Transaction, b *
 	d.MPT = nil
 	systemInterop := bc.newInteropContext(t, d, b, tx)
 	vm := systemInterop.SpawnVM()
-	vm.SetPriceGetter(bc.getPrice)
+	vm.SetPriceGetter(systemInterop.GetPrice)
 	vm.LoadToken = contract.LoadToken(systemInterop)
 	return vm
 }
@@ -1794,7 +1794,7 @@ func (bc *Blockchain) verifyHashAgainstScript(hash util.Uint160, witness *transa
 	}
 
 	vm := interopCtx.SpawnVM()
-	vm.SetPriceGetter(bc.getPrice)
+	vm.SetPriceGetter(interopCtx.GetPrice)
 	vm.LoadToken = contract.LoadToken(interopCtx)
 	vm.GasLimit = gas
 	if err := bc.initVerificationVM(interopCtx, hash, witness); err != nil {
@@ -1938,6 +1938,9 @@ func (bc *Blockchain) GetMaxVerificationGAS() int64 {
 
 // GetStoragePrice returns current storage price.
 func (bc *Blockchain) GetStoragePrice() int64 {
+	if bc.BlockHeight() == 0 {
+		return native.DefaultStoragePrice
+	}
 	return bc.contracts.Policy.GetStoragePriceInternal(bc.dao)
 }
 

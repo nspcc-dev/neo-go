@@ -8,6 +8,7 @@ package core
 */
 
 import (
+	"github.com/nspcc-dev/neo-go/pkg/core/fee"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/binary"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/contract"
@@ -88,9 +89,9 @@ var systemInterops = []interop.Function{
 
 var neoInterops = []interop.Function{
 	{Name: interopnames.NeoCryptoVerifyWithECDsaSecp256r1, Func: crypto.ECDSASecp256r1Verify,
-		Price: crypto.ECDSAVerifyPrice, ParamCount: 3},
+		Price: fee.ECDSAVerifyPrice, ParamCount: 3},
 	{Name: interopnames.NeoCryptoVerifyWithECDsaSecp256k1, Func: crypto.ECDSASecp256k1Verify,
-		Price: crypto.ECDSAVerifyPrice, ParamCount: 3},
+		Price: fee.ECDSAVerifyPrice, ParamCount: 3},
 	{Name: interopnames.NeoCryptoCheckMultisigWithECDsaSecp256r1, Func: crypto.ECDSASecp256r1CheckMultisig, Price: 0, ParamCount: 3},
 	{Name: interopnames.NeoCryptoCheckMultisigWithECDsaSecp256k1, Func: crypto.ECDSASecp256k1CheckMultisig, Price: 0, ParamCount: 3},
 	{Name: interopnames.NeoCryptoSHA256, Func: crypto.Sha256, Price: 1 << 15, ParamCount: 1},

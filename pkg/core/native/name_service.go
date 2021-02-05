@@ -172,11 +172,12 @@ func (n *NameService) Metadata() *interop.ContractMD {
 
 // Initialize implements interop.Contract interface.
 func (n *NameService) Initialize(ic *interop.Context) error {
-	si := &state.StorageItem{Value: bigint.ToBytes(big.NewInt(DefaultDomainPrice))}
-	if err := ic.DAO.PutStorageItem(n.ContractID, []byte{prefixDomainPrice}, si); err != nil {
+	if err := n.nonfungible.Initialize(ic); err != nil {
 		return err
 	}
-
+	if err := setIntWithKey(n.ContractID, ic.DAO, []byte{prefixDomainPrice}, DefaultDomainPrice); err != nil {
+		return err
+	}
 	roots := stringList{}
 	return putSerializableToDAO(n.ContractID, ic.DAO, []byte{prefixRoots}, &roots)
 }

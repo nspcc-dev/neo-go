@@ -62,7 +62,7 @@ func TestVM_SetPriceGetter(t *testing.T) {
 		require.EqualValues(t, 0, v.GasConsumed())
 	})
 
-	v.SetPriceGetter(func(_ *VM, op opcode.Opcode, p []byte) int64 {
+	v.SetPriceGetter(func(op opcode.Opcode, p []byte) int64 {
 		if op == opcode.PUSH4 {
 			return 1
 		} else if op == opcode.PUSHDATA1 && bytes.Equal(p, []byte{0xCA, 0xFE}) {

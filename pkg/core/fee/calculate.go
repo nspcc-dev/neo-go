@@ -1,12 +1,14 @@
 package fee
 
 import (
-	"github.com/nspcc-dev/neo-go/pkg/core/interop/crypto"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 )
+
+// ECDSAVerifyPrice is a gas price of a single verification.
+const ECDSAVerifyPrice = 1 << 15
 
 // Calculate returns network fee for transaction
 func Calculate(base int64, script []byte) (int64, int) {
@@ -16,13 +18,13 @@ func Calculate(base int64, script []byte) (int64, int) {
 	)
 	if vm.IsSignatureContract(script) {
 		size += 67 + io.GetVarSize(script)
-		netFee += Opcode(base, opcode.PUSHDATA1, opcode.PUSHNULL, opcode.PUSHDATA1) + base*crypto.ECDSAVerifyPrice
+		netFee += Opcode(base, opcode.PUSHDATA1, opcode.PUSHNULL, opcode.PUSHDATA1) + base*ECDSAVerifyPrice
 	} else if m, pubs, ok := vm.ParseMultiSigContract(script); ok {
 		n := len(pubs)
 		sizeInv := 66 * m
 		size += io.GetVarSize(sizeInv) + sizeInv + io.GetVarSize(script)
 		netFee += calculateMultisig(base, m) + calculateMultisig(base, n)
-		netFee += Opcode(base, opcode.PUSHNULL) + base*crypto.ECDSAVerifyPrice*int64(n)
+		netFee += Opcode(base, opcode.PUSHNULL) + base*ECDSAVerifyPrice*int64(n)
 	} else {
 		// We can support more contract types in the future.
 	}

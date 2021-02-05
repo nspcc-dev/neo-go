@@ -50,8 +50,6 @@ const (
 
 var (
 	nftTotalSupplyKey = []byte{prefixNFTTotalSupply}
-
-	intOne = big.NewInt(1)
 )
 
 func newNonFungible(name string, id int32, symbol string, decimals byte) *nonfungible {
@@ -120,6 +118,11 @@ func newNonFungible(name string, id int32, symbol string, decimals byte) *nonfun
 	return n
 }
 
+// Initialize implements interop.Contract interface.
+func (n nonfungible) Initialize(ic *interop.Context) error {
+	return setIntWithKey(n.ContractID, ic.DAO, nftTotalSupplyKey, 0)
+}
+
 func (n *nonfungible) symbol(_ *interop.Context, _ []stackitem.Item) stackitem.Item {
 	return stackitem.NewByteArray([]byte(n.tokenSymbol))
 }
@@ -135,7 +138,7 @@ func (n *nonfungible) totalSupply(ic *interop.Context, _ []stackitem.Item) stack
 func (n *nonfungible) TotalSupply(d dao.DAO) *big.Int {
 	si := d.GetStorageItem(n.ContractID, nftTotalSupplyKey)
 	if si == nil {
-		return big.NewInt(0)
+		panic(errors.New("total supply is not initialized"))
 	}
 	return bigint.FromBytes(si.Value)
 }

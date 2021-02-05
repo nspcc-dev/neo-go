@@ -33,9 +33,6 @@ type Management struct {
 	contracts map[util.Uint160]*state.Contract
 }
 
-// StoragePrice is the price to pay for 1 byte of storage.
-const StoragePrice = 100000
-
 const (
 	managementContractID = -1
 
@@ -386,7 +383,7 @@ func (m *Management) getMinimumDeploymentFee(ic *interop.Context, args []stackit
 
 // GetMinimumDeploymentFee returns the minimum required fee for contract deploy.
 func (m *Management) GetMinimumDeploymentFee(dao dao.DAO) int64 {
-	return int64(getUint32WithKey(m.ContractID, dao, keyMinimumDeploymentFee, defaultMinimumDeploymentFee))
+	return getIntWithKey(m.ContractID, dao, keyMinimumDeploymentFee)
 }
 
 func (m *Management) setMinimumDeploymentFee(ic *interop.Context, args []stackitem.Item) stackitem.Item {
@@ -397,7 +394,7 @@ func (m *Management) setMinimumDeploymentFee(ic *interop.Context, args []stackit
 	if !m.NEO.checkCommittee(ic) {
 		panic("invalid committee signature")
 	}
-	err := setUint32WithKey(m.ContractID, ic.DAO, keyMinimumDeploymentFee, value)
+	err := setIntWithKey(m.ContractID, ic.DAO, keyMinimumDeploymentFee, int64(value))
 	if err != nil {
 		panic(err)
 	}
@@ -508,7 +505,10 @@ func (m *Management) PostPersist(ic *interop.Context) error {
 
 // Initialize implements Contract interface.
 func (m *Management) Initialize(ic *interop.Context) error {
-	return setUint32WithKey(m.ContractID, ic.DAO, keyMinimumDeploymentFee, defaultMinimumDeploymentFee)
+	if err := setIntWithKey(m.ContractID, ic.DAO, keyMinimumDeploymentFee, defaultMinimumDeploymentFee); err != nil {
+		return err
+	}
+	return setIntWithKey(m.ContractID, ic.DAO, keyNextAvailableID, 1)
 }
 
 // PutContractState saves given contract state into given DAO.
@@ -525,16 +525,14 @@ func (m *Management) PutContractState(d dao.DAO, cs *state.Contract) error {
 }
 
 func (m *Management) getNextContractID(d dao.DAO) (int32, error) {
-	var id = big.NewInt(1)
 	si := d.GetStorageItem(m.ContractID, keyNextAvailableID)
-	if si != nil {
-		id = bigint.FromBytes(si.Value)
-	} else {
-		si = new(state.StorageItem)
-		si.Value = make([]byte, 0, 2)
+	if si == nil {
+		return 0, errors.New("nextAvailableID is not initialized")
+
 	}
+	id := bigint.FromBytes(si.Value)
 	ret := int32(id.Int64())
-	id.Add(id, big.NewInt(1))
+	id.Add(id, intOne)
 	si.Value = bigint.ToPreallocatedBytes(id, si.Value)
 	return ret, d.PutStorageItem(m.ContractID, keyNextAvailableID, si)
 }

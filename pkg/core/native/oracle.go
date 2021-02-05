@@ -20,6 +20,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
@@ -201,8 +202,7 @@ func (o *Oracle) Metadata() *interop.ContractMD {
 
 // Initialize initializes Oracle contract.
 func (o *Oracle) Initialize(ic *interop.Context) error {
-	si := &state.StorageItem{Value: make([]byte, 8)} // uint64(0) LE
-	return ic.DAO.PutStorageItem(o.ContractID, prefixRequestID, si)
+	return setIntWithKey(o.ContractID, ic.DAO, prefixRequestID, 0)
 }
 
 func getResponse(tx *transaction.Transaction) *transaction.OracleResponse {
@@ -302,8 +302,10 @@ func (o *Oracle) RequestInternal(ic *interop.Context, url string, filter *string
 	callingHash := ic.VM.GetCallingScriptHash()
 	o.GAS.mint(ic, o.Hash, gas, false)
 	si := ic.DAO.GetStorageItem(o.ContractID, prefixRequestID)
-	id := binary.LittleEndian.Uint64(si.Value) + 1
-	binary.LittleEndian.PutUint64(si.Value, id)
+	itemID := bigint.FromBytes(si.Value)
+	id := itemID.Uint64()
+	itemID.Add(itemID, intOne)
+	si.Value = bigint.ToPreallocatedBytes(itemID, si.Value)
 	if err := ic.DAO.PutStorageItem(o.ContractID, prefixRequestID, si); err != nil {
 		return err
 	}
@@ -432,7 +434,7 @@ func (o *Oracle) getRequests(d dao.DAO) (map[uint64]*state.OracleRequest, error)
 		if r.Err != nil {
 			return nil, r.Err
 		}
-		id := binary.LittleEndian.Uint64([]byte(k))
+		id := binary.BigEndian.Uint64([]byte(k))
 		reqs[id] = req
 	}
 	return reqs, nil
@@ -441,7 +443,7 @@ func (o *Oracle) getRequests(d dao.DAO) (map[uint64]*state.OracleRequest, error)
 func makeRequestKey(id uint64) []byte {
 	k := make([]byte, 9)
 	k[0] = prefixRequest[0]
-	binary.LittleEndian.PutUint64(k[1:], id)
+	binary.BigEndian.PutUint64(k[1:], id)
 	return k
 }
 
