@@ -171,7 +171,7 @@ func (o *Oracle) Run() {
 			return
 		case <-tick.C:
 			var reprocess []uint64
-			o.respMtx.RLock()
+			o.respMtx.Lock()
 			o.removed = make(map[uint64]bool)
 			for id, incTx := range o.responses {
 				incTx.RLock()
