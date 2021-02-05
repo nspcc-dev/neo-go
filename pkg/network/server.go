@@ -86,6 +86,7 @@ type (
 		transactions chan *transaction.Transaction
 
 		consensusStarted *atomic.Bool
+		canHandleExtens  *atomic.Bool
 
 		oracle *oracle.Oracle
 
@@ -131,6 +132,7 @@ func newServerFromConstructors(config ServerConfig, chain blockchainer.Blockchai
 		unregister:        make(chan peerDrop),
 		peers:             make(map[Peer]bool),
 		consensusStarted:  atomic.NewBool(false),
+		canHandleExtens:   atomic.NewBool(false),
 		extensiblePool:    extpool.New(chain),
 		log:               log,
 		transactions:      make(chan *transaction.Transaction, 64),
@@ -786,6 +788,12 @@ func (s *Server) handleGetHeadersCmd(p Peer, gh *payload.GetBlockByIndex) error 
 
 // handleExtensibleCmd processes received extensible payload.
 func (s *Server) handleExtensibleCmd(e *payload.Extensible) error {
+	if !s.canHandleExtens.Load() {
+		if !s.IsInSync() {
+			return nil
+		}
+		s.canHandleExtens.Store(true)
+	}
 	ok, err := s.extensiblePool.Add(e)
 	if err != nil {
 		return err
