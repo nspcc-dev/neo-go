@@ -8,15 +8,13 @@ import (
 	"math"
 	"testing"
 
-	"github.com/nspcc-dev/neo-go/pkg/encoding/fixedn"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-
 	"github.com/nspcc-dev/neo-go/internal/random"
 	"github.com/nspcc-dev/neo-go/internal/testserdes"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
-	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
+	"github.com/nspcc-dev/neo-go/pkg/encoding/fixedn"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestWitnessEncodeDecode(t *testing.T) {
@@ -45,24 +43,30 @@ func TestWitnessEncodeDecode(t *testing.T) {
 func TestDecodeEncodeInvocationTX(t *testing.T) {
 	tx := decodeTransaction(rawInvocationTX, t)
 
-	script := "AwB0O6QLAAAADBSqB8w/IZOpc5BKCabmC4fx+WJzlwwU+BPCzI4Yu+SzuH+O+RBbULuTkY4TwAwIdHJhbnNmZXIMFLyvQdaEx9StbuDZnalwe50fDI5mQWJ9W1I4"
+	script := "CwMA5AtUAgAAAAwU9u2YbY9keLZH3a4ggwacpM/bI0AMFOCjxVytcgKPtZAXSLGaJ74h9lQEFMAfDAh0cmFuc2ZlcgwUKLOtq3Jp+cIYHbPLdB6/VRkw4nBBYn1bUjk="
 	assert.Equal(t, script, base64.StdEncoding.EncodeToString(tx.Script))
-	assert.Equal(t, uint32(1325564094), tx.Nonce)
-	assert.Equal(t, int64(9007990), tx.SystemFee)
-	assert.Equal(t, int64(1252390), tx.NetworkFee)
-	assert.Equal(t, uint32(2163940), tx.ValidUntilBlock)
-	assert.Equal(t, "58ea0709dac398c451fd51fdf4466f5257c77927c7909834a0ef3b469cd1a2ce", tx.Hash().StringLE())
+	assert.Equal(t, uint32(1274905416), tx.Nonce)
+	assert.Equal(t, int64(9999540), tx.SystemFee)
+	assert.Equal(t, int64(8731800), tx.NetworkFee)
+	assert.Equal(t, uint32(6015), tx.ValidUntilBlock)
+	assert.Equal(t, "affad44bb6acacabc058db0bf1e12ab1239ae5e04007b4d4a2ea0cda868e284a", tx.Hash().StringLE())
 
-	assert.Equal(t, 1, len(tx.Signers))
-	assert.Equal(t, CalledByEntry, tx.Signers[0].Scopes)
-	assert.Equal(t, "NiXgSLtGUjTRTgp4y9ax7vyJ9UZAjsRDVt", address.Uint160ToString(tx.Signers[0].Account))
+	assert.Equal(t, 2, len(tx.Signers))
+	assert.Equal(t, None, tx.Signers[0].Scopes)
+	assert.Equal(t, "fda6b709107296b2e408af72279b4adf033c4d57", tx.Signers[0].Account.StringLE())
+	assert.Equal(t, CalledByEntry, tx.Signers[1].Scopes)
+	assert.Equal(t, "0454f621be279ab1481790b58f0272ad5cc5a3e0", tx.Signers[1].Account.StringLE())
 
 	assert.Equal(t, 0, len(tx.Attributes))
-	invoc := "DEAjYLv2S5ZEwl8Gbb1AZFSwern1bo4l2S2QyWxZj2wp2X6r3PIm81dUgWYs/N0GTuQQl45frj8JovgxKbqc2CZB"
-	verif := "DCEDyvdj+R02kcultd8+sT5mj9rOApWzfi4ln9D7FS01T5ALQZVEDXg="
-	assert.Equal(t, 1, len(tx.Scripts))
-	assert.Equal(t, invoc, base64.StdEncoding.EncodeToString(tx.Scripts[0].InvocationScript))
-	assert.Equal(t, verif, base64.StdEncoding.EncodeToString(tx.Scripts[0].VerificationScript))
+	invoc1 := "DEABqOtwntx2RZGvhG57+6EKkIV3rVc2W1kFk6T4HqWoasBGueGsae057DDLl8LH71OPAPwQUCd1hFSyvt6UzTvv"
+	verif1 := "DCECp4NL6bMuKYHRV8tbvTrLQs/RHqXDsQIk16ROmMWRDxsLQZVEDXg="
+	invoc2 := "DEDiVGE6wrO9dW2QeTKxUnjmKwlKPquQ7/WqLFa1mBYYUndcvXYHasAf5Ir9+JcHeEXEFbPKeIRmjpQ5Zxm222bjDECnQn481SOOOl1Ks7Q2GjeHKvPdi+M2ufHxnwvUly7bh5t4HQxF3GhNp7IguNOZvqGUjB/pJNql7buN8ReJQTBTDECZoVFnkjJgg+UNmdSpdCWzHEKRNpSWiAgWGQhEA+AGXGuldqCkWJ2RFePPcchDxS5Ha2L/Q0nHODiywss59sQ9DECewTwxXkhVA86NHIIbDtQc4/OekUNSlz7I7h/v0CThBucJYQv51QD1bsDnLAnkJ82P0KaL2e87IRduiv2Aqu9xDEAi0z3DIXvkuyIUTZhVLvNfI7HxA2eSS0xr6nHWwoDPKi//FfPJ8jXNViC/MQcJqlPWQD5tL+bQfxPYOAOiwTp/"
+	verif2 := "FQwhAwCbdUDhDyVi5f2PrJ6uwlFmpYsm5BI0j/WoaSe/rCKiDCEDAgXpzvrqWh38WAryDI1aokaLsBSPGl5GBfxiLIDmBLoMIQIUuvDO6jpm8X5+HoOeol/YvtbNgua7bmglAYkGX0T/AQwhAj6bMuqJuU0GbmSbEk/VDjlu6RNp6OKmrhsRwXDQIiVtDCEDQI3NQWOW9keDrFh+oeFZPFfZ/qiAyKahkg6SollHeAYMIQKng0vpsy4pgdFXy1u9OstCz9EepcOxAiTXpE6YxZEPGwwhAroscPWZbzV6QxmHBYWfriz+oT4RcpYoAHcrPViKnUq9FwtBE43vrw=="
+	assert.Equal(t, 2, len(tx.Scripts))
+	assert.Equal(t, invoc1, base64.StdEncoding.EncodeToString(tx.Scripts[0].InvocationScript))
+	assert.Equal(t, verif1, base64.StdEncoding.EncodeToString(tx.Scripts[0].VerificationScript))
+	assert.Equal(t, invoc2, base64.StdEncoding.EncodeToString(tx.Scripts[1].InvocationScript))
+	assert.Equal(t, verif2, base64.StdEncoding.EncodeToString(tx.Scripts[1].VerificationScript))
 
 	data, err := testserdes.EncodeBinary(tx)
 	assert.NoError(t, err)
