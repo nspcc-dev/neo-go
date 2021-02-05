@@ -28,6 +28,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/network"
+	"github.com/nspcc-dev/neo-go/pkg/network/payload"
 	"github.com/nspcc-dev/neo-go/pkg/rpc"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/request"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response"
@@ -122,6 +123,7 @@ var rpcHandlers = map[string]func(*Server, request.Params) (interface{}, *respon
 	"invokecontractverify":   (*Server).invokeContractVerify,
 	"sendrawtransaction":     (*Server).sendrawtransaction,
 	"submitblock":            (*Server).submitBlock,
+	"submitnotaryrequest":    (*Server).submitNotaryRequest,
 	"submitoracleresponse":   (*Server).submitOracleResponse,
 	"validateaddress":        (*Server).validateAddress,
 	"verifyproof":            (*Server).verifyProof,
@@ -1243,6 +1245,48 @@ func (s *Server) submitBlock(reqParams request.Params) (interface{}, *response.E
 	}, nil
 }
 
+// submitNotaryRequest broadcasts P2PNotaryRequest over the NEO network.
+func (s *Server) submitNotaryRequest(ps request.Params) (interface{}, *response.Error) {
+	if !s.chain.P2PSigExtensionsEnabled() {
+		return nil, response.NewInternalServerError("P2PNotaryRequest was received, but P2PSignatureExtensions are disabled", nil)
+	}
+
+	if len(ps) < 1 {
+		return nil, response.ErrInvalidParams
+	}
+	bytePayload, err := ps[0].GetBytesBase64()
+	if err != nil {
+		return nil, response.ErrInvalidParams
+	}
+	r, err := payload.NewP2PNotaryRequestFromBytes(s.network, bytePayload)
+	if err != nil {
+		return nil, response.ErrInvalidParams
+	}
+	return getRelayResult(s.coreServer.RelayP2PNotaryRequest(r), r.FallbackTransaction.Hash())
+}
+
+// getRelayResult returns successful relay result or an error.
+func getRelayResult(relayReason network.RelayReason, hash util.Uint256) (interface{}, *response.Error) {
+	switch relayReason {
+	case network.RelaySucceed:
+		return result.RelayResult{
+			Hash: hash,
+		}, nil
+	case network.RelayAlreadyExists:
+		return nil, response.ErrAlreadyExists
+	case network.RelayOutOfMemory:
+		return nil, response.ErrOutOfMemory
+	case network.RelayUnableToVerify:
+		return nil, response.ErrUnableToVerify
+	case network.RelayInvalid:
+		return nil, response.ErrValidationFailed
+	case network.RelayPolicyFail:
+		return nil, response.ErrPolicyFail
+	default:
+		return nil, response.ErrUnknown
+	}
+}
+
 func (s *Server) submitOracleResponse(ps request.Params) (interface{}, *response.Error) {
 	if s.oracle == nil {
 		return nil, response.NewInternalServerError("oracle is not enabled", nil)
@@ -1276,40 +1320,18 @@ func (s *Server) submitOracleResponse(ps request.Params) (interface{}, *response
 }
 
 func (s *Server) sendrawtransaction(reqParams request.Params) (interface{}, *response.Error) {
-	var resultsErr *response.Error
-	var results interface{}
-
 	if len(reqParams) < 1 {
 		return nil, response.ErrInvalidParams
-	} else if byteTx, err := reqParams[0].GetBytesBase64(); err != nil {
-		return nil, response.ErrInvalidParams
-	} else {
-		tx, err := transaction.NewTransactionFromBytes(s.network, byteTx)
-		if err != nil {
-			return nil, response.ErrInvalidParams
-		}
-		relayReason := s.coreServer.RelayTxn(tx)
-		switch relayReason {
-		case network.RelaySucceed:
-			results = result.RelayResult{
-				Hash: tx.Hash(),
-			}
-		case network.RelayAlreadyExists:
-			resultsErr = response.ErrAlreadyExists
-		case network.RelayOutOfMemory:
-			resultsErr = response.ErrOutOfMemory
-		case network.RelayUnableToVerify:
-			resultsErr = response.ErrUnableToVerify
-		case network.RelayInvalid:
-			resultsErr = response.ErrValidationFailed
-		case network.RelayPolicyFail:
-			resultsErr = response.ErrPolicyFail
-		default:
-			resultsErr = response.ErrUnknown
-		}
 	}
-
-	return results, resultsErr
+	byteTx, err := reqParams[0].GetBytesBase64()
+	if err != nil {
+		return nil, response.ErrInvalidParams
+	}
+	tx, err := transaction.NewTransactionFromBytes(s.network, byteTx)
+	if err != nil {
+		return nil, response.ErrInvalidParams
+	}
+	return getRelayResult(s.coreServer.RelayTxn(tx), tx.Hash())
 }
 
 // subscribe handles subscription requests from websocket clients.
