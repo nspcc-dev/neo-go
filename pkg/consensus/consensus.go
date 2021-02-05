@@ -320,9 +320,7 @@ func (s *service) handleChainBlock(b *coreb.Block) {
 		s.log.Debug("new block in the chain",
 			zap.Uint32("dbft index", s.dbft.BlockIndex),
 			zap.Uint32("chain index", s.Chain.BlockHeight()))
-		if s.lastTimestamp < b.Timestamp {
-			s.lastTimestamp = b.Timestamp
-		}
+		s.postBlock(b)
 		s.dbft.InitializeConsensus(0)
 	}
 }
@@ -527,9 +525,14 @@ func (s *service) processBlock(b block.Block) {
 			s.log.Warn("error on add block", zap.Error(err))
 		}
 	}
-	if s.lastTimestamp < bb.Timestamp {
-		s.lastTimestamp = bb.Timestamp
+	s.postBlock(bb)
+}
+
+func (s *service) postBlock(b *coreb.Block) {
+	if s.lastTimestamp < b.Timestamp {
+		s.lastTimestamp = b.Timestamp
 	}
+	s.lastProposal = nil
 }
 
 func (s *service) getBlockWitness(b *coreb.Block) *transaction.Witness {
@@ -580,7 +583,7 @@ func (s *service) getVerifiedTx() []block.Transaction {
 
 	var txx []*transaction.Transaction
 
-	if s.dbft.ViewNumber > 0 {
+	if s.dbft.ViewNumber > 0 && len(s.lastProposal) > 0 {
 		txx = make([]*transaction.Transaction, 0, len(s.lastProposal))
 		for i := range s.lastProposal {
 			if tx, ok := pool.TryGetValue(s.lastProposal[i]); ok {
