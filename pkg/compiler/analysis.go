@@ -55,14 +55,14 @@ func (c *codegen) traverseGlobals() (int, int, int) {
 				switch n := node.(type) {
 				case *ast.FuncDecl:
 					if isInitFunc(n) {
-						c, _ := countLocals(n)
-						if c > initLocals {
-							initLocals = c
+						num, _ := c.countLocals(n)
+						if num > initLocals {
+							initLocals = num
 						}
 					} else if isDeployFunc(n) {
-						c, _ := countLocals(n)
-						if c > deployLocals {
-							deployLocals = c
+						num, _ := c.countLocals(n)
+						if num > deployLocals {
+							deployLocals = num
 						}
 					}
 					return !hasDefer

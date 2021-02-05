@@ -330,7 +330,7 @@ func (c *codegen) convertInitFuncs(f *ast.File, pkg *types.Package, seenBefore b
 		case *ast.FuncDecl:
 			if isInitFunc(n) {
 				if seenBefore {
-					cnt, _ := countLocals(n)
+					cnt, _ := c.countLocals(n)
 					c.clearSlots(cnt)
 					seenBefore = true
 				}
@@ -362,7 +362,7 @@ func (c *codegen) convertDeployFuncs() {
 			case *ast.FuncDecl:
 				if isDeployFunc(n) {
 					if seenBefore {
-						cnt, _ := countLocals(n)
+						cnt, _ := c.countLocals(n)
 						c.clearSlots(cnt)
 					}
 					c.convertFuncDecl(f, n, pkg)
@@ -408,7 +408,7 @@ func (c *codegen) convertFuncDecl(file ast.Node, decl *ast.FuncDecl, pkg *types.
 	// All globals copied into the scope of the function need to be added
 	// to the stack size of the function.
 	if !isInit && !isDeploy {
-		sizeLoc := f.countLocals()
+		sizeLoc := c.countLocalsWithDefer(f)
 		if sizeLoc > 255 {
 			c.prog.Err = errors.New("maximum of 255 local variables is allowed")
 		}
@@ -416,7 +416,6 @@ func (c *codegen) convertFuncDecl(file ast.Node, decl *ast.FuncDecl, pkg *types.
 		if sizeArg > 255 {
 			c.prog.Err = errors.New("maximum of 255 local variables is allowed")
 		}
-		sizeLoc = 255 // FIXME count locals including inline variables
 		if sizeLoc != 0 || sizeArg != 0 {
 			emit.Instruction(c.prog.BinWriter, opcode.INITSLOT, []byte{byte(sizeLoc), byte(sizeArg)})
 		}
