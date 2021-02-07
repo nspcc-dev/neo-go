@@ -3,7 +3,6 @@ package server
 import (
 	"bytes"
 	"encoding/base64"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -346,15 +345,15 @@ var rpcTestCases = map[string][]rpcTestCase{
 	"getstorage": {
 		{
 			name:   "positive",
-			params: fmt.Sprintf(`["%s", "746573746b6579"]`, testContractHash),
+			params: fmt.Sprintf(`["%s", "dGVzdGtleQ=="]`, testContractHash),
 			result: func(e *executor) interface{} {
-				v := hex.EncodeToString([]byte("testvalue"))
+				v := base64.StdEncoding.EncodeToString([]byte("testvalue"))
 				return &v
 			},
 		},
 		{
 			name:   "missing key",
-			params: fmt.Sprintf(`["%s", "7465"]`, testContractHash),
+			params: fmt.Sprintf(`["%s", "dGU="]`, testContractHash),
 			result: func(e *executor) interface{} {
 				v := ""
 				return &v
@@ -377,7 +376,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 		},
 		{
 			name:   "invalid key",
-			params: fmt.Sprintf(`["%s", "notahex"]`, testContractHash),
+			params: fmt.Sprintf(`["%s", "notabase64$"]`, testContractHash),
 			fail:   true,
 		},
 	},

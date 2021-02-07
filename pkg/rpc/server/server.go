@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/elliptic"
 	"encoding/binary"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -29,12 +28,12 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/network"
-	"github.com/nspcc-dev/neo-go/pkg/services/oracle"
-	"github.com/nspcc-dev/neo-go/pkg/services/oracle/broadcaster"
 	"github.com/nspcc-dev/neo-go/pkg/rpc"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/request"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result"
+	"github.com/nspcc-dev/neo-go/pkg/services/oracle"
+	"github.com/nspcc-dev/neo-go/pkg/services/oracle/broadcaster"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
@@ -910,7 +909,7 @@ func (s *Server) getStorage(ps request.Params) (interface{}, *response.Error) {
 		return nil, rErr
 	}
 
-	key, err := ps.Value(1).GetBytesHex()
+	key, err := ps.Value(1).GetBytesBase64()
 	if err != nil {
 		return nil, response.ErrInvalidParams
 	}
@@ -920,7 +919,7 @@ func (s *Server) getStorage(ps request.Params) (interface{}, *response.Error) {
 		return "", nil
 	}
 
-	return hex.EncodeToString(item.Value), nil
+	return item.Value, nil
 }
 
 func (s *Server) getrawtransaction(reqParams request.Params) (interface{}, *response.Error) {

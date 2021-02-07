@@ -1,7 +1,7 @@
 package client
 
 import (
-	"encoding/hex"
+	"encoding/base64"
 	"errors"
 	"fmt"
 
@@ -340,24 +340,20 @@ func (c *Client) GetRawTransactionVerbose(hash util.Uint256) (*result.Transactio
 
 // GetStorageByID returns the stored value, according to the contract ID and the stored key.
 func (c *Client) GetStorageByID(id int32, key []byte) ([]byte, error) {
-	return c.getStorage(request.NewRawParams(id, hex.EncodeToString(key)))
+	return c.getStorage(request.NewRawParams(id, base64.StdEncoding.EncodeToString(key)))
 }
 
 // GetStorageByHash returns the stored value, according to the contract script hash and the stored key.
 func (c *Client) GetStorageByHash(hash util.Uint160, key []byte) ([]byte, error) {
-	return c.getStorage(request.NewRawParams(hash.StringLE(), hex.EncodeToString(key)))
+	return c.getStorage(request.NewRawParams(hash.StringLE(), base64.StdEncoding.EncodeToString(key)))
 }
 
 func (c *Client) getStorage(params request.RawParams) ([]byte, error) {
-	var resp string
+	var resp []byte
 	if err := c.performRequest("getstorage", params, &resp); err != nil {
 		return nil, err
 	}
-	res, err := hex.DecodeString(resp)
-	if err != nil {
-		return nil, err
-	}
-	return res, nil
+	return resp, nil
 }
 
 // GetTransactionHeight returns the block index in which the transaction is found.
