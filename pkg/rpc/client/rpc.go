@@ -155,6 +155,15 @@ func (c *Client) GetBlockHeader(hash util.Uint256) (*block.Header, error) {
 	return h, nil
 }
 
+// GetBlockHeaderCount returns the number of headers in the main chain.
+func (c *Client) GetBlockHeaderCount() (uint32, error) {
+	var resp uint32
+	if err := c.performRequest("getblockheadercount", request.NewRawParams(), &resp); err != nil {
+		return resp, err
+	}
+	return resp, nil
+}
+
 // GetBlockHeaderVerbose returns the corresponding block header information from Json format string
 // according to the specified script hash.
 func (c *Client) GetBlockHeaderVerbose(hash util.Uint256) (*result.Header, error) {
