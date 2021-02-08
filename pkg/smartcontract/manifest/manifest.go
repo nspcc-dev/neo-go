@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"math"
+	"sort"
 
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
@@ -75,14 +76,43 @@ func (m *Manifest) CanCall(hash util.Uint160, toCall *Manifest, method string) b
 func (m *Manifest) IsValid(hash util.Uint160) error {
 	var err error
 
+	if m.Name == "" {
+		return errors.New("no name")
+	}
+
+	for i := range m.SupportedStandards {
+		if m.SupportedStandards[i] == "" {
+			return errors.New("invalid nameless supported standard")
+		}
+	}
+	if len(m.SupportedStandards) > 1 {
+		names := make([]string, len(m.SupportedStandards))
+		copy(names, m.SupportedStandards)
+		if stringsHaveDups(names) {
+			return errors.New("duplicate supported standards")
+		}
+	}
 	err = m.ABI.IsValid()
 	if err != nil {
 		return err
 	}
-	for _, g := range m.Groups {
-		err = g.IsValid(hash)
-		if err != nil {
-			return err
+	err = Groups(m.Groups).AreValid(hash)
+	if err != nil {
+		return err
+	}
+	if len(m.Trusts.Value) > 1 {
+		hashes := make([]util.Uint160, len(m.Trusts.Value))
+		copy(hashes, m.Trusts.Value)
+		sort.Slice(hashes, func(i, j int) bool {
+			return hashes[i].Less(hashes[j])
+		})
+		for i := range hashes {
+			if i == 0 {
+				continue
+			}
+			if hashes[i] == hashes[i-1] {
+				return errors.New("duplicate trusted contracts")
+			}
 		}
 	}
 	return Permissions(m.Permissions).AreValid()

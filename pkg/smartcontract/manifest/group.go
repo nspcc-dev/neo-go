@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"sort"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
@@ -20,6 +21,9 @@ type Group struct {
 	Signature []byte          `json:"signature"`
 }
 
+// Groups is just an array of Group.
+type Groups []Group
+
 type groupAux struct {
 	PublicKey string `json:"pubkey"`
 	Signature []byte `json:"signature"`
@@ -29,6 +33,33 @@ type groupAux struct {
 func (g *Group) IsValid(h util.Uint160) error {
 	if !g.PublicKey.Verify(g.Signature, hash.Sha256(h.BytesBE()).BytesBE()) {
 		return errors.New("incorrect group signature")
+	}
+	return nil
+}
+
+// AreValid checks for groups correctness and uniqueness.
+func (g Groups) AreValid(h util.Uint160) error {
+	for i := range g {
+		err := g[i].IsValid(h)
+		if err != nil {
+			return err
+		}
+	}
+	if len(g) < 2 {
+		return nil
+	}
+	pkeys := make(keys.PublicKeys, len(g))
+	for i := range g {
+		pkeys[i] = g[i].PublicKey
+	}
+	sort.Sort(pkeys)
+	for i := range pkeys {
+		if i == 0 {
+			continue
+		}
+		if pkeys[i].Cmp(pkeys[i-1]) == 0 {
+			return errors.New("duplicate group keys")
+		}
 	}
 	return nil
 }

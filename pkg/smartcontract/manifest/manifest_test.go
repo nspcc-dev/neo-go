@@ -109,7 +109,13 @@ func TestPermission_IsAllowed(t *testing.T) {
 
 func TestIsValid(t *testing.T) {
 	contractHash := util.Uint160{1, 2, 3}
-	m := NewManifest("Test")
+	m := &Manifest{}
+
+	t.Run("invalid, no name", func(t *testing.T) {
+		require.Error(t, m.IsValid(contractHash))
+	})
+
+	m = NewManifest("Test")
 
 	t.Run("invalid, no ABI methods", func(t *testing.T) {
 		require.Error(t, m.IsValid(contractHash))
@@ -157,6 +163,39 @@ func TestIsValid(t *testing.T) {
 		require.Error(t, m.IsValid(contractHash))
 	})
 	m.Permissions = m.Permissions[:1]
+
+	m.SupportedStandards = append(m.SupportedStandards, "NEP-17")
+	t.Run("valid, with standards", func(t *testing.T) {
+		require.NoError(t, m.IsValid(contractHash))
+	})
+
+	m.SupportedStandards = append(m.SupportedStandards, "")
+	t.Run("invalid, with nameless standard", func(t *testing.T) {
+		require.Error(t, m.IsValid(contractHash))
+	})
+	m.SupportedStandards = m.SupportedStandards[:1]
+
+	m.SupportedStandards = append(m.SupportedStandards, "NEP-17")
+	t.Run("invalid, with duplicate standards", func(t *testing.T) {
+		require.Error(t, m.IsValid(contractHash))
+	})
+	m.SupportedStandards = m.SupportedStandards[:1]
+
+	m.Trusts.Add(util.Uint160{1, 2, 3})
+	t.Run("valid, with trust", func(t *testing.T) {
+		require.NoError(t, m.IsValid(contractHash))
+	})
+
+	m.Trusts.Add(util.Uint160{3, 2, 1})
+	t.Run("valid, with trusts", func(t *testing.T) {
+		require.NoError(t, m.IsValid(contractHash))
+	})
+
+	m.Trusts.Add(util.Uint160{1, 2, 3})
+	t.Run("invalid, with trusts", func(t *testing.T) {
+		require.Error(t, m.IsValid(contractHash))
+	})
+	m.Trusts.Restrict()
 
 	t.Run("with groups", func(t *testing.T) {
 		m.Groups = make([]Group, 3)
