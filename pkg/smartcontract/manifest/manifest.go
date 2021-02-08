@@ -71,13 +71,15 @@ func (m *Manifest) CanCall(hash util.Uint160, toCall *Manifest, method string) b
 }
 
 // IsValid checks whether the hash given is correct wrt manifest's groups.
-func (m *Manifest) IsValid(hash util.Uint160) bool {
+func (m *Manifest) IsValid(hash util.Uint160) error {
+	var err error
 	for _, g := range m.Groups {
-		if !g.IsValid(hash) {
-			return false
+		err = g.IsValid(hash)
+		if err != nil {
+			break
 		}
 	}
-	return true
+	return err
 }
 
 // ToStackItem converts Manifest to stackitem.Item.

@@ -56,8 +56,11 @@ func NewParameter(name string, typ smartcontract.ParamType) Parameter {
 }
 
 // IsValid checks whether group's signature corresponds to the given hash.
-func (g *Group) IsValid(h util.Uint160) bool {
-	return g.PublicKey.Verify(g.Signature, hash.Sha256(h.BytesBE()).BytesBE())
+func (g *Group) IsValid(h util.Uint160) error {
+	if !g.PublicKey.Verify(g.Signature, hash.Sha256(h.BytesBE()).BytesBE()) {
+		return errors.New("incorrect group signature")
+	}
+	return nil
 }
 
 // MarshalJSON implements json.Marshaler interface.

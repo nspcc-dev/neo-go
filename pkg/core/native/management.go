@@ -265,8 +265,9 @@ func (m *Management) Deploy(d dao.DAO, sender util.Uint160, neff *nef.File, mani
 	if err != nil {
 		return nil, err
 	}
-	if !manif.IsValid(h) {
-		return nil, errors.New("invalid manifest for this contract")
+	err = manif.IsValid(h)
+	if err != nil {
+		return nil, fmt.Errorf("invalid manifest: %w", err)
 	}
 	newcontract := &state.Contract{
 		ID:       id,
@@ -322,8 +323,9 @@ func (m *Management) Update(d dao.DAO, hash util.Uint160, neff *nef.File, manif 
 		if manif.Name != contract.Manifest.Name {
 			return nil, errors.New("contract name can't be changed")
 		}
-		if !manif.IsValid(contract.Hash) {
-			return nil, errors.New("invalid manifest for this contract")
+		err = manif.IsValid(contract.Hash)
+		if err != nil {
+			return nil, fmt.Errorf("invalid manifest: %w", err)
 		}
 		m.markUpdated(hash)
 		contract.Manifest = *manif

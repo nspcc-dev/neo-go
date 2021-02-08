@@ -112,7 +112,7 @@ func TestIsValid(t *testing.T) {
 	m := NewManifest("Test")
 
 	t.Run("valid, no groups", func(t *testing.T) {
-		require.True(t, m.IsValid(contractHash))
+		require.NoError(t, m.IsValid(contractHash))
 	})
 
 	t.Run("with groups", func(t *testing.T) {
@@ -129,11 +129,11 @@ func TestIsValid(t *testing.T) {
 		}
 
 		t.Run("valid", func(t *testing.T) {
-			require.True(t, m.IsValid(contractHash))
+			require.NoError(t, m.IsValid(contractHash))
 		})
 
 		t.Run("invalid, wrong contract hash", func(t *testing.T) {
-			require.False(t, m.IsValid(util.Uint160{4, 5, 6}))
+			require.Error(t, m.IsValid(util.Uint160{4, 5, 6}))
 		})
 
 		t.Run("invalid, wrong group signature", func(t *testing.T) {
@@ -145,7 +145,7 @@ func TestIsValid(t *testing.T) {
 				// of the contract hash.
 				Signature: pk.Sign([]byte{1, 2, 3}),
 			})
-			require.False(t, m.IsValid(contractHash))
+			require.Error(t, m.IsValid(contractHash))
 		})
 	})
 }
