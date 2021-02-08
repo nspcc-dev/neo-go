@@ -25,6 +25,18 @@ func NewParameter(name string, typ smartcontract.ParamType) Parameter {
 	}
 }
 
+// IsValid checks Parameter consistency and correctness.
+func (p *Parameter) IsValid() error {
+	if p.Name == "" {
+		return errors.New("empty or absent name")
+	}
+	if p.Type == smartcontract.VoidType {
+		return errors.New("void parameter")
+	}
+	_, err := smartcontract.ConvertToParamType(int(p.Type))
+	return err
+}
+
 // ToStackItem converts Parameter to stackitem.Item.
 func (p *Parameter) ToStackItem() stackitem.Item {
 	return stackitem.NewStruct([]stackitem.Item{
@@ -60,6 +72,12 @@ func (p *Parameter) FromStackItem(item stackitem.Item) error {
 
 // AreValid checks all parameters for validity and consistency.
 func (p Parameters) AreValid() error {
+	for i := range p {
+		err := p[i].IsValid()
+		if err != nil {
+			return err
+		}
+	}
 	if len(p) < 2 {
 		return nil
 	}

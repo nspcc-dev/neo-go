@@ -9,6 +9,29 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestParametersAreValid(t *testing.T) {
+	ps := Parameters{}
+	require.NoError(t, ps.AreValid()) // No parameters.
+
+	ps = append(ps, Parameter{})
+	require.Error(t, ps.AreValid())
+
+	ps[0].Name = "qwerty"
+	require.NoError(t, ps.AreValid())
+
+	ps[0].Type = 0x42 // Invalid type.
+	require.Error(t, ps.AreValid())
+
+	ps[0].Type = smartcontract.VoidType
+	require.Error(t, ps.AreValid())
+
+	ps[0].Type = smartcontract.BoolType
+	require.NoError(t, ps.AreValid())
+
+	ps = append(ps, Parameter{Name: "qwerty"})
+	require.Error(t, ps.AreValid())
+}
+
 func TestParameter_ToStackItemFromStackItem(t *testing.T) {
 	p := &Parameter{
 		Name: "param",
