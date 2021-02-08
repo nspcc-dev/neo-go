@@ -1,6 +1,7 @@
 package core
 
 import (
+	"bytes"
 	"encoding/json"
 	"math/big"
 	"testing"
@@ -174,6 +175,13 @@ func TestContractDeploy(t *testing.T) {
 	})
 	t.Run("array for manifest", func(t *testing.T) {
 		res, err := invokeContractMethod(bc, 11_00000000, mgmtHash, "deploy", nef1b, []interface{}{int64(1)})
+		require.NoError(t, err)
+		checkFAULTState(t, res)
+	})
+	t.Run("non-utf8 manifest", func(t *testing.T) {
+		manifB := bytes.Replace(manif1, []byte("TestMain"), []byte("\xff\xfe\xfd"), 1) // Replace name.
+
+		res, err := invokeContractMethod(bc, 11_00000000, mgmtHash, "deploy", nef1b, manifB)
 		require.NoError(t, err)
 		checkFAULTState(t, res)
 	})

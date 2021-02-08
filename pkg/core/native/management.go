@@ -7,6 +7,7 @@ import (
 	"math"
 	"math/big"
 	"sync"
+	"unicode/utf8"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
@@ -206,6 +207,9 @@ func (m *Management) getNefAndManifestFromItems(ic *interop.Context, args []stac
 		resNef = &nf
 	}
 	if manifestBytes != nil {
+		if !utf8.Valid(manifestBytes) {
+			return nil, nil, errors.New("manifest is not UTF-8 compliant")
+		}
 		resManifest = new(manifest.Manifest)
 		err := json.Unmarshal(manifestBytes, resManifest)
 		if err != nil {
