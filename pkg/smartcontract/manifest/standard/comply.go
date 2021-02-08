@@ -17,17 +17,24 @@ var (
 	ErrSafeMethodMismatch    = errors.New("method has wrong safe flag")
 )
 
-var checks = map[string]*manifest.Manifest{
-	manifest.NEP17StandardName: nep17,
+var checks = map[string][]*Standard{
+	manifest.NEP11StandardName: {nep11NonDivisible, nep11Divisible},
+	manifest.NEP17StandardName: {nep17},
 }
 
 // Check checks if manifest complies with all provided standards.
 // Currently only NEP-17 is supported.
 func Check(m *manifest.Manifest, standards ...string) error {
 	for i := range standards {
-		s, ok := checks[standards[i]]
+		ss, ok := checks[standards[i]]
 		if ok {
-			if err := Comply(m, s); err != nil {
+			var err error
+			for i := range ss {
+				if err = Comply(m, ss[i]); err == nil {
+					break
+				}
+			}
+			if err != nil {
 				return fmt.Errorf("manifest is not compliant with '%s': %w", standards[i], err)
 			}
 		}
@@ -37,24 +44,15 @@ func Check(m *manifest.Manifest, standards ...string) error {
 
 // Comply if m has all methods and event from st manifest and they have the same signature.
 // Parameter names are ignored.
-func Comply(m, st *manifest.Manifest) error {
+func Comply(m *manifest.Manifest, st *Standard) error {
+	if st.Base != nil {
+		if err := Comply(m, st.Base); err != nil {
+			return err
+		}
+	}
 	for _, stm := range st.ABI.Methods {
-		name := stm.Name
-		md := m.ABI.GetMethod(name, len(stm.Parameters))
-		if md == nil {
-			return fmt.Errorf("%w: '%s' with %d parameters", ErrMethodMissing, name, len(stm.Parameters))
-		} else if stm.ReturnType != md.ReturnType {
-			return fmt.Errorf("%w: '%s' (expected %s, got %s)", ErrInvalidReturnType,
-				name, stm.ReturnType, md.ReturnType)
-		}
-		for i := range stm.Parameters {
-			if stm.Parameters[i].Type != md.Parameters[i].Type {
-				return fmt.Errorf("%w: '%s'[%d] (expected %s, got %s)", ErrInvalidParameterType,
-					name, i, stm.Parameters[i].Type, md.Parameters[i].Type)
-			}
-		}
-		if stm.Safe != md.Safe {
-			return fmt.Errorf("%w: expected %t", ErrSafeMethodMismatch, stm.Safe)
+		if err := checkMethod(m, &stm, false); err != nil {
+			return err
 		}
 	}
 	for _, ste := range st.ABI.Events {
@@ -72,6 +70,36 @@ func Comply(m, st *manifest.Manifest) error {
 					name, ste.Parameters[i].Type, ed.Parameters[i].Type)
 			}
 		}
+	}
+	for _, stm := range st.Optional {
+		if err := checkMethod(m, &stm, true); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func checkMethod(m *manifest.Manifest, expected *manifest.Method, allowMissing bool) error {
+	actual := m.ABI.GetMethod(expected.Name, len(expected.Parameters))
+	if actual == nil {
+		if allowMissing {
+			return nil
+		}
+		return fmt.Errorf("%w: '%s' with %d parameters", ErrMethodMissing,
+			expected.Name, len(expected.Parameters))
+	}
+	if expected.ReturnType != actual.ReturnType {
+		return fmt.Errorf("%w: '%s' (expected %s, got %s)", ErrInvalidReturnType,
+			expected.Name, expected.ReturnType, actual.ReturnType)
+	}
+	for i := range expected.Parameters {
+		if expected.Parameters[i].Type != actual.Parameters[i].Type {
+			return fmt.Errorf("%w: '%s'[%d] (expected %s, got %s)", ErrInvalidParameterType,
+				expected.Name, i, expected.Parameters[i].Type, actual.Parameters[i].Type)
+		}
+	}
+	if expected.Safe != actual.Safe {
+		return fmt.Errorf("%w: expected %t", ErrSafeMethodMismatch, expected.Safe)
 	}
 	return nil
 }
