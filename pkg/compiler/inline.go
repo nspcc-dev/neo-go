@@ -25,8 +25,16 @@ func (c *codegen) inlineCall(f *funcScope, n *ast.CallExpr) {
 	c.scope.vars.newScope()
 	newScope := c.scope.vars.locals
 	defer c.scope.vars.dropScope()
+
+	hasVarArgs := !n.Ellipsis.IsValid()
+	needPack := sig.Variadic() && hasVarArgs
 	for i := range n.Args {
 		c.scope.vars.locals = oldScope
+		// true if normal arg or var arg is `slice...`
+		needStore := i < sig.Params().Len()-1 || !sig.Variadic() || !hasVarArgs
+		if !needStore {
+			break
+		}
 		name := sig.Params().At(i).Name()
 		if tv := c.typeAndValueOf(n.Args[i]); tv.Value != nil {
 			c.scope.vars.locals = newScope
@@ -49,6 +57,20 @@ func (c *codegen) inlineCall(f *funcScope, n *ast.CallExpr) {
 		}
 		ast.Walk(c, n.Args[i])
 		c.scope.vars.locals = newScope
+		c.scope.newLocal(name)
+		c.emitStoreVar("", name)
+	}
+
+	if needPack {
+		// traverse variadic args and pack them
+		// if they are provided directly i.e. without `...`
+		c.scope.vars.locals = oldScope
+		for i := sig.Params().Len() - 1; i < len(n.Args); i++ {
+			ast.Walk(c, n.Args[i])
+		}
+		c.scope.vars.locals = newScope
+		c.packVarArgs(n, sig)
+		name := sig.Params().At(sig.Params().Len() - 1).Name()
 		c.scope.newLocal(name)
 		c.emitStoreVar("", name)
 	}

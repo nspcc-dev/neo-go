@@ -91,6 +91,22 @@ func TestInline(t *testing.T) {
 		checkCallCount(t, src, 1, 2)
 		eval(t, src, big.NewInt(51))
 	})
+	t.Run("var args, empty", func(t *testing.T) {
+		src := fmt.Sprintf(srcTmpl, `return inline.VarSum(11)`)
+		checkCallCount(t, src, 0, 1)
+		eval(t, src, big.NewInt(11))
+	})
+	t.Run("var args, direct", func(t *testing.T) {
+		src := fmt.Sprintf(srcTmpl, `return inline.VarSum(11, 14, 17)`)
+		checkCallCount(t, src, 0, 1)
+		eval(t, src, big.NewInt(42))
+	})
+	t.Run("var args, array", func(t *testing.T) {
+		src := fmt.Sprintf(srcTmpl, `arr := []int{14, 17} 
+			return inline.VarSum(11, arr...)`)
+		checkCallCount(t, src, 0, 1)
+		eval(t, src, big.NewInt(42))
+	})
 }
 
 func TestInlineConversion(t *testing.T) {

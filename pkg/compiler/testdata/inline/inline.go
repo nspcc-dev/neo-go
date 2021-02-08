@@ -30,3 +30,11 @@ func DropInsideInline() int {
 	sum(3, 4)
 	return 7
 }
+
+func VarSum(a int, b ...int) int {
+	sum := a
+	for i := range b {
+		sum += b[i]
+	}
+	return sum
+}

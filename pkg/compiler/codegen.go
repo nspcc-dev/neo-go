@@ -892,10 +892,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			typ, ok := c.typeOf(n.Fun).(*types.Signature)
 			if ok && typ.Variadic() && !n.Ellipsis.IsValid() {
 				// pack variadic args into an array only if last argument is not of form `...`
-				varSize := len(n.Args) - typ.Params().Len() + 1
-				c.emitReverse(varSize)
-				emit.Int(c.prog.BinWriter, int64(varSize))
-				emit.Opcodes(c.prog.BinWriter, opcode.PACK)
+				varSize := c.packVarArgs(n, typ)
 				numArgs -= varSize - 1
 			}
 			c.emitReverse(numArgs)
@@ -1230,6 +1227,16 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		return nil
 	}
 	return c
+}
+
+// packVarArgs packs variadic arguments into an array
+// and returns amount of arguments packed.
+func (c *codegen) packVarArgs(n *ast.CallExpr, typ *types.Signature) int {
+	varSize := len(n.Args) - typ.Params().Len() + 1
+	c.emitReverse(varSize)
+	emit.Int(c.prog.BinWriter, int64(varSize))
+	emit.Opcodes(c.prog.BinWriter, opcode.PACK)
+	return varSize
 }
 
 // processDefers emits code for `defer` statements.
