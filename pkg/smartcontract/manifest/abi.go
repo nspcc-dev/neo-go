@@ -49,6 +49,14 @@ func (a *ABI) GetEvent(name string) *Event {
 	return nil
 }
 
+// IsValid checks ABI consistency and correctness.
+func (a *ABI) IsValid() error {
+	if len(a.Methods) == 0 {
+		return errors.New("ABI contains no methods")
+	}
+	return nil
+}
+
 // ToStackItem converts ABI to stackitem.Item.
 func (a *ABI) ToStackItem() stackitem.Item {
 	methods := make([]stackitem.Item, len(a.Methods))

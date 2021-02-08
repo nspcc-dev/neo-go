@@ -70,9 +70,15 @@ func (m *Manifest) CanCall(hash util.Uint160, toCall *Manifest, method string) b
 	return false
 }
 
-// IsValid checks whether the hash given is correct wrt manifest's groups.
+// IsValid checks manifest internal consistency and correctness, one of the
+// checks is for group signature correctness, contract hash is passed for it.
 func (m *Manifest) IsValid(hash util.Uint160) error {
 	var err error
+
+	err = m.ABI.IsValid()
+	if err != nil {
+		return err
+	}
 	for _, g := range m.Groups {
 		err = g.IsValid(hash)
 		if err != nil {

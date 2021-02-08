@@ -111,6 +111,16 @@ func TestIsValid(t *testing.T) {
 	contractHash := util.Uint160{1, 2, 3}
 	m := NewManifest("Test")
 
+	t.Run("invalid, no ABI methods", func(t *testing.T) {
+		require.Error(t, m.IsValid(contractHash))
+	})
+
+	m.ABI.Methods = append(m.ABI.Methods, Method{
+		Name:       "dummy",
+		ReturnType: smartcontract.VoidType,
+		Parameters: []Parameter{},
+	})
+
 	t.Run("valid, no groups", func(t *testing.T) {
 		require.NoError(t, m.IsValid(contractHash))
 	})
