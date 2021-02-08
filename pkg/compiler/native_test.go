@@ -48,6 +48,22 @@ func testPrintHash(u util.Uint160) {
 	fmt.Println(`"`)
 }
 
+func TestContractParameterTypes(t *testing.T) {
+	require.EqualValues(t, management.AnyType, smartcontract.AnyType)
+	require.EqualValues(t, management.BoolType, smartcontract.BoolType)
+	require.EqualValues(t, management.IntegerType, smartcontract.IntegerType)
+	require.EqualValues(t, management.ByteArrayType, smartcontract.ByteArrayType)
+	require.EqualValues(t, management.StringType, smartcontract.StringType)
+	require.EqualValues(t, management.Hash160Type, smartcontract.Hash160Type)
+	require.EqualValues(t, management.Hash256Type, smartcontract.Hash256Type)
+	require.EqualValues(t, management.PublicKeyType, smartcontract.PublicKeyType)
+	require.EqualValues(t, management.SignatureType, smartcontract.SignatureType)
+	require.EqualValues(t, management.ArrayType, smartcontract.ArrayType)
+	require.EqualValues(t, management.MapType, smartcontract.MapType)
+	require.EqualValues(t, management.InteropInterfaceType, smartcontract.InteropInterfaceType)
+	require.EqualValues(t, management.VoidType, smartcontract.VoidType)
+}
+
 func TestRoleManagementRole(t *testing.T) {
 	require.EqualValues(t, native.RoleOracle, roles.Oracle)
 	require.EqualValues(t, native.RoleStateValidator, roles.StateValidator)
