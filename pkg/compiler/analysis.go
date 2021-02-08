@@ -275,6 +275,12 @@ func isSyscall(fun *funcScope) bool {
 	return ok
 }
 
+const interopPrefix = "github.com/nspcc-dev/neo-go/pkg/interop"
+
 func isInteropPath(s string) bool {
-	return strings.HasPrefix(s, "github.com/nspcc-dev/neo-go/pkg/interop")
+	return strings.HasPrefix(s, interopPrefix)
+}
+
+func isNativeHelpersPath(s string) bool {
+	return strings.HasPrefix(s, interopPrefix+"/native")
 }

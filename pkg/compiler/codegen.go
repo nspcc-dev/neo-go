@@ -1915,7 +1915,8 @@ func (c *codegen) compile(info *buildInfo, pkg *loader.PackageInfo) error {
 				// Don't convert the function if it's not used. This will save a lot
 				// of bytecode space.
 				name := c.getFuncNameFromDecl(pkg.Path(), n)
-				if !isInitFunc(n) && !isDeployFunc(n) && funUsage.funcUsed(name) && !isInteropPath(pkg.Path()) {
+				if !isInitFunc(n) && !isDeployFunc(n) && funUsage.funcUsed(name) &&
+					(!isInteropPath(pkg.Path()) || isNativeHelpersPath(pkg.Path())) {
 					c.convertFuncDecl(f, n, pkg)
 				}
 			}
