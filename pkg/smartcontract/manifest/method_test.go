@@ -10,6 +10,27 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestMethodIsValid(t *testing.T) {
+	m := &Method{}
+	require.Error(t, m.IsValid()) // No name.
+
+	m.Name = "qwerty"
+	require.NoError(t, m.IsValid())
+
+	m.Offset = -100
+	require.Error(t, m.IsValid())
+
+	m.Offset = 100
+	m.ReturnType = 0x42 // Invalid type.
+	require.Error(t, m.IsValid())
+
+	m.ReturnType = smartcontract.BoolType
+	require.NoError(t, m.IsValid())
+
+	m.Parameters = append(m.Parameters, NewParameter("param", smartcontract.BoolType), NewParameter("param", smartcontract.BoolType))
+	require.Error(t, m.IsValid())
+}
+
 func TestMethod_ToStackItemFromStackItem(t *testing.T) {
 	m := &Method{
 		Name:       "mur",

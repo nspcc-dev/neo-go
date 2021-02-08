@@ -2,7 +2,6 @@ package manifest
 
 import (
 	"errors"
-	"sort"
 
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
@@ -18,22 +17,7 @@ func (e *Event) IsValid() error {
 	if e.Name == "" {
 		return errors.New("empty or absent name")
 	}
-	if len(e.Parameters) > 1 {
-		paramNames := make([]string, len(e.Parameters))
-		for i := range e.Parameters {
-			paramNames[i] = e.Parameters[i].Name
-		}
-		sort.Strings(paramNames)
-		for i := range paramNames {
-			if i == 0 {
-				continue
-			}
-			if paramNames[i] == paramNames[i-1] {
-				return errors.New("duplicate parameter name")
-			}
-		}
-	}
-	return nil
+	return Parameters(e.Parameters).AreValid()
 }
 
 // ToStackItem converts Event to stackitem.Item.

@@ -16,6 +16,21 @@ type Method struct {
 	Safe       bool                    `json:"safe"`
 }
 
+// IsValid checks Method consistency and correctness.
+func (m *Method) IsValid() error {
+	if m.Name == "" {
+		return errors.New("empty or absent name")
+	}
+	if m.Offset < 0 {
+		return errors.New("negative offset")
+	}
+	_, err := smartcontract.ConvertToParamType(int(m.ReturnType))
+	if err != nil {
+		return err
+	}
+	return Parameters(m.Parameters).AreValid()
+}
+
 // ToStackItem converts Method to stackitem.Item.
 func (m *Method) ToStackItem() stackitem.Item {
 	params := make([]stackitem.Item, len(m.Parameters))

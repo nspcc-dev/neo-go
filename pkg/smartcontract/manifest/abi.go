@@ -54,6 +54,12 @@ func (a *ABI) IsValid() error {
 	if len(a.Methods) == 0 {
 		return errors.New("ABI contains no methods")
 	}
+	for i := range a.Methods {
+		err := a.Methods[i].IsValid()
+		if err != nil {
+			return err
+		}
+	}
 	for i := range a.Events {
 		err := a.Events[i].IsValid()
 		if err != nil {
