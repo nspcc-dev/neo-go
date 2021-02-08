@@ -38,3 +38,7 @@ func VarSum(a int, b ...int) int {
 	}
 	return sum
 }
+
+func Concat(n int) int {
+	return n*100 + b.A*10 + A
+}

@@ -40,6 +40,7 @@ func TestInline(t *testing.T) {
 	func sum(a, b int) int {
 		return 42
 	}
+	var Num = 1
 	func Main() int {
 		%s
 	}`
@@ -107,6 +108,11 @@ func TestInline(t *testing.T) {
 		checkCallCount(t, src, 0, 1)
 		eval(t, src, big.NewInt(42))
 	})
+	t.Run("globals", func(t *testing.T) {
+		src := fmt.Sprintf(srcTmpl, `return inline.Concat(Num)`)
+		checkCallCount(t, src, 0, 1)
+		eval(t, src, big.NewInt(221))
+	})
 }
 
 func TestInlineConversion(t *testing.T) {
@@ -128,6 +134,28 @@ func TestInlineConversion(t *testing.T) {
 		{
 			return (1 + a) * (1 + a)
 		}
+	}`
+	b2, err := compiler.Compile("foo.go", strings.NewReader(src2))
+	require.NoError(t, err)
+	require.Equal(t, b2, b1)
+}
+
+func TestInlineConversionQualified(t *testing.T) {
+	src1 := `package foo
+	import "github.com/nspcc-dev/neo-go/pkg/compiler/testdata/inline"
+	var A = 1
+	func Main() int {
+		return inline.Concat(A)
+	}`
+	b1, err := compiler.Compile("foo.go", strings.NewReader(src1))
+	require.NoError(t, err)
+
+	src2 := `package foo
+	import "github.com/nspcc-dev/neo-go/pkg/compiler/testdata/inline"
+	import "github.com/nspcc-dev/neo-go/pkg/compiler/testdata/inline/b"
+	var A = 1
+	func Main() int {
+		return A * 100 + b.A * 10 + inline.A
 	}`
 	b2, err := compiler.Compile("foo.go", strings.NewReader(src2))
 	require.NoError(t, err)

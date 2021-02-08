@@ -53,6 +53,10 @@ func (c *codegen) inlineCall(f *funcScope, n *ast.CallExpr) {
 				c.scope.vars.locals = newScope
 				c.scope.vars.addAlias(name, varLocal, unspecifiedVarIndex, types.TypeAndValue{})
 				continue
+			} else if index, ok := c.globals[c.getIdentName("", arg.Name)]; ok {
+				c.scope.vars.locals = newScope
+				c.scope.vars.addAlias(name, varGlobal, index, types.TypeAndValue{})
+				continue
 			}
 		}
 		ast.Walk(c, n.Args[i])
