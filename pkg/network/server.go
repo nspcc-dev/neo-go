@@ -835,10 +835,18 @@ func (s *Server) handleP2PNotaryRequestCmd(r *payload.P2PNotaryRequest) error {
 	if !s.chain.P2PSigExtensionsEnabled() {
 		return errors.New("P2PNotaryRequestCMD was received, but P2PSignatureExtensions are disabled")
 	}
-	if s.verifyAndPoolNotaryRequest(r) == RelaySucceed {
+	s.RelayP2PNotaryRequest(r)
+	return nil
+}
+
+// RelayP2PNotaryRequest adds given request to the pool and relays. It does not check
+// P2PSigExtensions enabled.
+func (s *Server) RelayP2PNotaryRequest(r *payload.P2PNotaryRequest) RelayReason {
+	ret := s.verifyAndPoolNotaryRequest(r)
+	if ret == RelaySucceed {
 		s.broadcastP2PNotaryRequestPayload(nil, r)
 	}
-	return nil
+	return ret
 }
 
 // verifyAndPoolNotaryRequest verifies NotaryRequest payload and adds it to the payload mempool.
