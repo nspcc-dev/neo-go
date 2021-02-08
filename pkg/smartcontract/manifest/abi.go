@@ -2,6 +2,7 @@ package manifest
 
 import (
 	"errors"
+	"sort"
 
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
@@ -60,10 +61,47 @@ func (a *ABI) IsValid() error {
 			return err
 		}
 	}
+	if len(a.Methods) > 1 {
+		methods := make([]struct {
+			name   string
+			params int
+		}, len(a.Methods))
+		for i := range methods {
+			methods[i].name = a.Methods[i].Name
+			methods[i].params = len(a.Methods[i].Parameters)
+		}
+		sort.Slice(methods, func(i, j int) bool {
+			if methods[i].name < methods[j].name {
+				return true
+			}
+			if methods[i].name == methods[j].name {
+				return methods[i].params < methods[j].params
+			}
+			return false
+		})
+		for i := range methods {
+			if i == 0 {
+				continue
+			}
+			if methods[i].name == methods[i-1].name &&
+				methods[i].params == methods[i-1].params {
+				return errors.New("duplicate method specifications")
+			}
+		}
+	}
 	for i := range a.Events {
 		err := a.Events[i].IsValid()
 		if err != nil {
 			return err
+		}
+	}
+	if len(a.Events) > 1 {
+		names := make([]string, len(a.Events))
+		for i := range a.Events {
+			names[i] = a.Events[i].Name
+		}
+		if stringsHaveDups(names) {
+			return errors.New("duplicate event names")
 		}
 	}
 	return nil
