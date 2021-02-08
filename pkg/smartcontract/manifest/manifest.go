@@ -5,7 +5,6 @@ import (
 	"errors"
 	"math"
 
-	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
@@ -120,26 +119,6 @@ func (m *Manifest) IsValid(hash util.Uint160) bool {
 		}
 	}
 	return true
-}
-
-// EncodeBinary implements io.Serializable.
-func (m *Manifest) EncodeBinary(w *io.BinWriter) {
-	data, err := json.Marshal(m)
-	if err != nil {
-		w.Err = err
-		return
-	}
-	w.WriteVarBytes(data)
-}
-
-// DecodeBinary implements io.Serializable.
-func (m *Manifest) DecodeBinary(r *io.BinReader) {
-	data := r.ReadVarBytes(MaxManifestSize)
-	if r.Err != nil {
-		return
-	} else if err := json.Unmarshal(data, m); err != nil {
-		r.Err = err
-	}
 }
 
 // ToStackItem converts Manifest to stackitem.Item.
