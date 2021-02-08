@@ -239,7 +239,7 @@ func scAndVMInteropTypeFromExpr(named *types.Named) (smartcontract.ParamType, st
 	name := named.Obj().Name()
 	pkg := named.Obj().Pkg().Name()
 	switch pkg {
-	case "runtime", "contract":
+	case "ledger", "contract":
 		return smartcontract.ArrayType, stackitem.ArrayT // Block, Transaction, Contract
 	case "interop":
 		if name != "Interface" {

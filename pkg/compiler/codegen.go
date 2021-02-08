@@ -821,13 +821,20 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			}
 
 			f, ok = c.funcs[name]
-			// @FIXME this could cause runtime errors.
-			f.selector = fun.X.(*ast.Ident)
-			if !ok {
-				c.prog.Err = fmt.Errorf("could not resolve function %s", fun.Sel.Name)
+			if ok {
+				f.selector = fun.X.(*ast.Ident)
+				isBuiltin = isCustomBuiltin(f)
+			} else {
+				typ := c.typeOf(fun)
+				if _, ok := typ.(*types.Signature); ok {
+					c.prog.Err = fmt.Errorf("could not resolve function %s", fun.Sel.Name)
+					return nil
+				}
+
+				ast.Walk(c, n.Args[0])
+				c.emitExplicitConvert(c.typeOf(n.Args[0]), typ)
 				return nil
 			}
-			isBuiltin = isCustomBuiltin(f)
 		case *ast.ArrayType:
 			// For now we will assume that there are only byte slice conversions.
 			// E.g. []byte("foobar") or []byte(scriptHash).
@@ -1190,8 +1197,11 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 	// not the assertion type.
 	case *ast.TypeAssertExpr:
 		ast.Walk(c, n.X)
-		typ := toNeoType(c.typeOf(n.Type))
-		emit.Instruction(c.prog.BinWriter, opcode.CONVERT, []byte{byte(typ)})
+		goTyp := c.typeOf(n.Type)
+		if canConvert(goTyp.String()) {
+			typ := toNeoType(goTyp)
+			emit.Instruction(c.prog.BinWriter, opcode.CONVERT, []byte{byte(typ)})
+		}
 		return nil
 	}
 	return c
@@ -1239,6 +1249,24 @@ func (c *codegen) processDefers() {
 		c.emitStoreByIndex(varLocal, c.scope.finallyProcessedIndex)
 		emit.Opcodes(c.prog.BinWriter, opcode.ENDFINALLY)
 		c.setLabel(after)
+	}
+}
+
+// emitExplicitConvert handles `someType(someValue)` conversions between string/[]byte.
+// Rules for conversion:
+// 1. interop.* types are converted to ByteArray if not already.
+// 2. Otherwise convert between ByteArray/Buffer.
+// 3. Rules for types which are not string/[]byte should already
+//    be enforced by go parser.
+func (c *codegen) emitExplicitConvert(from, to types.Type) {
+	if isInteropPath(to.String()) {
+		if isByteSlice(from) && !isString(from) {
+			c.emitConvert(stackitem.ByteArrayT)
+		}
+	} else if isByteSlice(to) && !isByteSlice(from) {
+		c.emitConvert(stackitem.BufferT)
+	} else if isString(to) && !isString(from) {
+		c.emitConvert(stackitem.ByteArrayT)
 	}
 }
 
@@ -1890,7 +1918,8 @@ func (c *codegen) compile(info *buildInfo, pkg *loader.PackageInfo) error {
 				// Don't convert the function if it's not used. This will save a lot
 				// of bytecode space.
 				name := c.getFuncNameFromDecl(pkg.Path(), n)
-				if !isInitFunc(n) && !isDeployFunc(n) && funUsage.funcUsed(name) && !isInteropPath(pkg.Path()) {
+				if !isInitFunc(n) && !isDeployFunc(n) && funUsage.funcUsed(name) &&
+					(!isInteropPath(pkg.Path()) || isNativeHelpersPath(pkg.Path())) {
 					c.convertFuncDecl(f, n, pkg)
 				}
 			}
