@@ -16,7 +16,7 @@ func TestCodeGen_DebugInfo(t *testing.T) {
 	src := `package foo
 	import "github.com/nspcc-dev/neo-go/pkg/interop"
 	import "github.com/nspcc-dev/neo-go/pkg/interop/storage"
-	import "github.com/nspcc-dev/neo-go/pkg/interop/runtime"
+	import "github.com/nspcc-dev/neo-go/pkg/interop/native/ledger"
 func Main(op string) bool {
 	var s string
 	_ = s
@@ -47,7 +47,7 @@ func unexportedMethod() int { return 1 }
 func MethodParams(addr interop.Hash160, h interop.Hash256,
 	sig interop.Signature, pub interop.PublicKey,
 	inter interop.Interface,
-	ctx storage.Context, tx runtime.Transaction) bool {
+	ctx storage.Context, tx ledger.Transaction) bool {
 	return true
 }
 type MyStruct struct {}
