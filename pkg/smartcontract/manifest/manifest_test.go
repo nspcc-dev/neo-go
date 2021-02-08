@@ -121,9 +121,31 @@ func TestIsValid(t *testing.T) {
 		Parameters: []Parameter{},
 	})
 
-	t.Run("valid, no groups", func(t *testing.T) {
+	t.Run("valid, no groups/events", func(t *testing.T) {
 		require.NoError(t, m.IsValid(contractHash))
 	})
+
+	m.ABI.Events = append(m.ABI.Events, Event{
+		Name:       "itHappened",
+		Parameters: []Parameter{},
+	})
+
+	t.Run("valid, with events", func(t *testing.T) {
+		require.NoError(t, m.IsValid(contractHash))
+	})
+
+	m.ABI.Events = append(m.ABI.Events, Event{
+		Name: "itHappened",
+		Parameters: []Parameter{
+			NewParameter("qwerty", smartcontract.IntegerType),
+			NewParameter("qwerty", smartcontract.IntegerType),
+		},
+	})
+
+	t.Run("invalid, bad event", func(t *testing.T) {
+		require.Error(t, m.IsValid(contractHash))
+	})
+	m.ABI.Events = m.ABI.Events[:1]
 
 	t.Run("with groups", func(t *testing.T) {
 		m.Groups = make([]Group, 3)

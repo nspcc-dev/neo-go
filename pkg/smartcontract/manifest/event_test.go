@@ -9,6 +9,29 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestEventIsValid(t *testing.T) {
+	e := Event{}
+	require.Error(t, e.IsValid())
+
+	e.Name = "some"
+	require.NoError(t, e.IsValid())
+
+	e.Parameters = make([]Parameter, 0)
+	require.NoError(t, e.IsValid())
+
+	e.Parameters = append(e.Parameters, NewParameter("p1", smartcontract.BoolType))
+	require.NoError(t, e.IsValid())
+
+	e.Parameters = append(e.Parameters, NewParameter("p2", smartcontract.IntegerType))
+	require.NoError(t, e.IsValid())
+
+	e.Parameters = append(e.Parameters, NewParameter("p3", smartcontract.IntegerType))
+	require.NoError(t, e.IsValid())
+
+	e.Parameters = append(e.Parameters, NewParameter("p1", smartcontract.IntegerType))
+	require.Error(t, e.IsValid())
+}
+
 func TestEvent_ToStackItemFromStackItem(t *testing.T) {
 	m := &Event{
 		Name:       "mur",
