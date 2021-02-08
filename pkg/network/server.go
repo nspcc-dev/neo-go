@@ -885,7 +885,7 @@ func verifyNotaryRequest(bc blockchainer.Blockchainer, _ *transaction.Transactio
 }
 
 func (s *Server) broadcastP2PNotaryRequestPayload(_ *transaction.Transaction, data interface{}) {
-	r := data.(payload.P2PNotaryRequest) // we can guarantee that cast is successful
+	r := data.(*payload.P2PNotaryRequest) // we can guarantee that cast is successful
 	msg := NewMessage(CMDInv, payload.NewInventory(payload.P2PNotaryRequestType, []util.Uint256{r.FallbackTransaction.Hash()}))
 	s.broadcastMessage(msg)
 }
