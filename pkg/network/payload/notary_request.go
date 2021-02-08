@@ -24,6 +24,31 @@ type P2PNotaryRequest struct {
 	signedHash util.Uint256
 }
 
+// NewP2PNotaryRequestFromBytes decodes P2PNotaryRequest from the given bytes.
+func NewP2PNotaryRequestFromBytes(network netmode.Magic, b []byte) (*P2PNotaryRequest, error) {
+	req := &P2PNotaryRequest{Network: network}
+	br := io.NewBinReaderFromBuf(b)
+	req.DecodeBinary(br)
+	if br.Err != nil {
+		return nil, br.Err
+	}
+	_ = br.ReadB()
+	if br.Err == nil {
+		return nil, errors.New("additional data after the payload")
+	}
+	return req, nil
+}
+
+// Bytes returns serialized P2PNotaryRequest payload.
+func (r *P2PNotaryRequest) Bytes() ([]byte, error) {
+	buf := io.NewBufBinWriter()
+	r.EncodeBinary(buf.BinWriter)
+	if buf.Err != nil {
+		return nil, buf.Err
+	}
+	return buf.Bytes(), nil
+}
+
 // Hash returns payload's hash.
 func (r *P2PNotaryRequest) Hash() util.Uint256 {
 	if r.hash.Equals(util.Uint256{}) {
@@ -74,8 +99,8 @@ func (r *P2PNotaryRequest) updateHashes(b []byte) {
 
 // DecodeBinaryUnsigned reads payload from w excluding signature.
 func (r *P2PNotaryRequest) decodeHashableFields(br *io.BinReader) {
-	r.MainTransaction = new(transaction.Transaction)
-	r.FallbackTransaction = new(transaction.Transaction)
+	r.MainTransaction = &transaction.Transaction{Network: r.Network}
+	r.FallbackTransaction = &transaction.Transaction{Network: r.Network}
 	r.MainTransaction.DecodeBinary(br)
 	r.FallbackTransaction.DecodeBinary(br)
 	if br.Err == nil {

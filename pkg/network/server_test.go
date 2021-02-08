@@ -524,6 +524,7 @@ func TestGetData(t *testing.T) {
 	})
 	t.Run("p2pNotaryRequest", func(t *testing.T) {
 		mainTx := &transaction.Transaction{
+			Network:         netmode.UnitTestNet,
 			Attributes:      []transaction.Attribute{{Type: transaction.NotaryAssistedT, Value: &transaction.NotaryAssisted{NKeys: 1}}},
 			Script:          []byte{0, 1, 2},
 			ValidUntilBlock: 123,
@@ -533,6 +534,7 @@ func TestGetData(t *testing.T) {
 		mainTx.Size()
 		mainTx.Hash()
 		fallbackTx := &transaction.Transaction{
+			Network:         netmode.UnitTestNet,
 			Script:          []byte{1, 2, 3},
 			ValidUntilBlock: 123,
 			Attributes: []transaction.Attribute{
