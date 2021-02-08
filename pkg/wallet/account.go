@@ -108,7 +108,7 @@ func (a *Account) SignTx(t *transaction.Transaction) error {
 	}
 	sign := a.privateKey.Sign(data)
 
-	verif := a.getVerificationScript()
+	verif := a.GetVerificationScript()
 	invoc := append([]byte{byte(opcode.PUSHDATA1), 64}, sign...)
 	for i := range t.Scripts {
 		if bytes.Equal(t.Scripts[i].VerificationScript, verif) {
@@ -124,7 +124,8 @@ func (a *Account) SignTx(t *transaction.Transaction) error {
 	return nil
 }
 
-func (a *Account) getVerificationScript() []byte {
+// GetVerificationScript returns account's verification script.
+func (a *Account) GetVerificationScript() []byte {
 	if a.Contract != nil {
 		return a.Contract.Script
 	}
