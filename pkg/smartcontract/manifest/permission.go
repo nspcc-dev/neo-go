@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sort"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -35,6 +36,9 @@ type Permission struct {
 	Contract PermissionDesc `json:"contract"`
 	Methods  WildStrings    `json:"methods"`
 }
+
+// Permissions is just an array of Permission.
+type Permissions []Permission
 
 type permissionAux struct {
 	Contract PermissionDesc `json:"contract"`
@@ -83,6 +87,82 @@ func (d *PermissionDesc) Hash() util.Uint160 {
 // Group returns group's public key for group-permission.
 func (d *PermissionDesc) Group() *keys.PublicKey {
 	return d.Value.(*keys.PublicKey)
+}
+
+// IsValid checks if Permission is correct.
+func (p *Permission) IsValid() error {
+	for i := range p.Methods.Value {
+		if p.Methods.Value[i] == "" {
+			return errors.New("empty method name")
+		}
+	}
+	if len(p.Methods.Value) < 2 {
+		return nil
+	}
+	names := make([]string, len(p.Methods.Value))
+	copy(names, p.Methods.Value)
+	if stringsHaveDups(names) {
+		return errors.New("duplicate method names")
+	}
+	return nil
+}
+
+// AreValid checks each Permission and ensures there are no duplicates.
+func (ps Permissions) AreValid() error {
+	for i := range ps {
+		err := ps[i].IsValid()
+		if err != nil {
+			return err
+		}
+	}
+	if len(ps) < 2 {
+		return nil
+	}
+	contracts := make([]PermissionDesc, 0, len(ps))
+	for i := range ps {
+		contracts = append(contracts, ps[i].Contract)
+	}
+	sort.Slice(contracts, func(i, j int) bool {
+		if contracts[i].Type < contracts[j].Type {
+			return true
+		}
+		if contracts[i].Type != contracts[j].Type {
+			return false
+		}
+		switch contracts[i].Type {
+		case PermissionHash:
+			return contracts[i].Hash().Less(contracts[j].Hash())
+		case PermissionGroup:
+			return contracts[i].Group().Cmp(contracts[j].Group()) < 0
+		}
+		return false
+	})
+	for i := range contracts {
+		if i == 0 {
+			continue
+		}
+		j := i - 1
+		if contracts[i].Type != contracts[j].Type {
+			continue
+		}
+		var bad bool
+		switch contracts[i].Type {
+		case PermissionWildcard:
+			bad = true
+		case PermissionHash:
+			if contracts[i].Hash() == contracts[j].Hash() {
+				bad = true
+			}
+		case PermissionGroup:
+			if contracts[i].Group().Cmp(contracts[j].Group()) == 0 {
+				bad = true
+			}
+		}
+		if bad {
+			return errors.New("duplicate contracts")
+		}
+	}
+	return nil
 }
 
 // IsAllowed checks if method is allowed to be executed.

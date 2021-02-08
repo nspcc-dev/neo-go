@@ -21,6 +21,62 @@ func TestNewPermission(t *testing.T) {
 	require.Panics(t, func() { NewPermission(PermissionGroup, util.Uint160{}) })
 }
 
+func TestPermissionIsValid(t *testing.T) {
+	p := Permission{}
+	require.NoError(t, p.IsValid())
+
+	p.Methods.Add("")
+	require.Error(t, p.IsValid())
+
+	p.Methods.Value = nil
+	p.Methods.Add("qwerty")
+	require.NoError(t, p.IsValid())
+
+	p.Methods.Add("poiuyt")
+	require.NoError(t, p.IsValid())
+
+	p.Methods.Add("qwerty")
+	require.Error(t, p.IsValid())
+}
+
+func TestPermissionsAreValid(t *testing.T) {
+	p := Permissions{}
+	require.NoError(t, p.AreValid())
+
+	p = append(p, Permission{Methods: WildStrings{Value: []string{""}}})
+	require.Error(t, p.AreValid())
+
+	p = p[:0]
+	p = append(p, *NewPermission(PermissionHash, util.Uint160{1, 2, 3}))
+	require.NoError(t, p.AreValid())
+
+	priv0, err := keys.NewPrivateKey()
+	require.NoError(t, err)
+	priv1, err := keys.NewPrivateKey()
+	require.NoError(t, err)
+
+	p = append(p, *NewPermission(PermissionGroup, priv0.PublicKey()))
+	require.NoError(t, p.AreValid())
+
+	p = append(p, *NewPermission(PermissionGroup, priv1.PublicKey()))
+	require.NoError(t, p.AreValid())
+
+	p = append(p, *NewPermission(PermissionWildcard))
+	require.NoError(t, p.AreValid())
+
+	p = append(p, *NewPermission(PermissionHash, util.Uint160{3, 2, 1}))
+	require.NoError(t, p.AreValid())
+
+	p = append(p, *NewPermission(PermissionWildcard))
+	require.Error(t, p.AreValid())
+
+	p = append(p[:len(p)-1], *NewPermission(PermissionHash, util.Uint160{1, 2, 3}))
+	require.Error(t, p.AreValid())
+
+	p = append(p[:len(p)-1], *NewPermission(PermissionGroup, priv0.PublicKey()))
+	require.Error(t, p.AreValid())
+}
+
 func TestPermission_MarshalJSON(t *testing.T) {
 	t.Run("wildcard", func(t *testing.T) {
 		expected := NewPermission(PermissionWildcard)

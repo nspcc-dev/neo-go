@@ -85,14 +85,22 @@ func (p Parameters) AreValid() error {
 	for i := range p {
 		names[i] = p[i].Name
 	}
-	sort.Strings(names)
-	for i := range names {
+	if stringsHaveDups(names) {
+		return errors.New("duplicate parameter name")
+	}
+	return nil
+}
+
+// stringsHaveDups checks given set of strings for duplicates. It modifies the slice given!
+func stringsHaveDups(strings []string) bool {
+	sort.Strings(strings)
+	for i := range strings {
 		if i == 0 {
 			continue
 		}
-		if names[i] == names[i-1] {
-			return errors.New("duplicate parameter name")
+		if strings[i] == strings[i-1] {
+			return true
 		}
 	}
-	return nil
+	return false
 }

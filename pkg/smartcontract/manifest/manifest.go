@@ -82,10 +82,10 @@ func (m *Manifest) IsValid(hash util.Uint160) error {
 	for _, g := range m.Groups {
 		err = g.IsValid(hash)
 		if err != nil {
-			break
+			return err
 		}
 	}
-	return err
+	return Permissions(m.Permissions).AreValid()
 }
 
 // ToStackItem converts Manifest to stackitem.Item.

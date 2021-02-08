@@ -147,6 +147,17 @@ func TestIsValid(t *testing.T) {
 	})
 	m.ABI.Events = m.ABI.Events[:1]
 
+	m.Permissions = append(m.Permissions, *NewPermission(PermissionHash, util.Uint160{1, 2, 3}))
+	t.Run("valid, with permissions", func(t *testing.T) {
+		require.NoError(t, m.IsValid(contractHash))
+	})
+
+	m.Permissions = append(m.Permissions, *NewPermission(PermissionHash, util.Uint160{1, 2, 3}))
+	t.Run("invalid, with permissions", func(t *testing.T) {
+		require.Error(t, m.IsValid(contractHash))
+	})
+	m.Permissions = m.Permissions[:1]
+
 	t.Run("with groups", func(t *testing.T) {
 		m.Groups = make([]Group, 3)
 		pks := make([]*keys.PrivateKey, 3)
