@@ -494,6 +494,15 @@ var rpcTestCases = map[string][]rpcTestCase{
 			fail:   true,
 		},
 	},
+	"getblockheadercount": {
+		{
+			params: "[]",
+			result: func(e *executor) interface{} {
+				v := int(e.chain.HeaderHeight() + 1)
+				return &v
+			},
+		},
+	},
 	"getblocksysfee": {
 		{
 			name:   "positive",

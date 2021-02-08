@@ -280,6 +280,18 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 			},
 		},
 	},
+	"getblockheadercount": {
+		{
+			name: "positive",
+			invoke: func(c *Client) (interface{}, error) {
+				return c.GetBlockHeaderCount()
+			},
+			serverResponse: `{"jsonrpc":"2.0","id":1,"result":2021}`,
+			result: func(c *Client) interface{} {
+				return uint32(2021)
+			},
+		},
+	},
 	"getblocksysfee": {
 		{
 			name: "positive",

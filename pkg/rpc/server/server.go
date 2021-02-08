@@ -29,12 +29,12 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/network"
-	"github.com/nspcc-dev/neo-go/pkg/services/oracle"
-	"github.com/nspcc-dev/neo-go/pkg/services/oracle/broadcaster"
 	"github.com/nspcc-dev/neo-go/pkg/rpc"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/request"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result"
+	"github.com/nspcc-dev/neo-go/pkg/services/oracle"
+	"github.com/nspcc-dev/neo-go/pkg/services/oracle/broadcaster"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
@@ -99,6 +99,7 @@ var rpcHandlers = map[string]func(*Server, request.Params) (interface{}, *respon
 	"getblockcount":          (*Server).getBlockCount,
 	"getblockhash":           (*Server).getBlockHash,
 	"getblockheader":         (*Server).getBlockHeader,
+	"getblockheadercount":    (*Server).getBlockHeaderCount,
 	"getblocksysfee":         (*Server).getBlockSysFee,
 	"getcommittee":           (*Server).getCommittee,
 	"getconnectioncount":     (*Server).getConnectionCount,
@@ -431,6 +432,10 @@ func (s *Server) getBestBlockHash(_ request.Params) (interface{}, *response.Erro
 
 func (s *Server) getBlockCount(_ request.Params) (interface{}, *response.Error) {
 	return s.chain.BlockHeight() + 1, nil
+}
+
+func (s *Server) getBlockHeaderCount(_ request.Params) (interface{}, *response.Error) {
+	return s.chain.HeaderHeight() + 1, nil
 }
 
 func (s *Server) getConnectionCount(_ request.Params) (interface{}, *response.Error) {

@@ -40,6 +40,7 @@ which would yield the response:
 | `getblockcount` |
 | `getblockhash` |
 | `getblockheader` |
+| `getblockheadercount` |
 | `getblocksysfee` |
 | `getconnectioncount` |
 | `getcontractstate` |
