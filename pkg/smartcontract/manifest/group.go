@@ -57,6 +57,9 @@ func (g *Group) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	g.PublicKey = pub
+	if len(aux.Signature) != keys.SignatureLen {
+		return errors.New("wrong signature length")
+	}
 	g.Signature = aux.Signature
 	return nil
 }
@@ -89,6 +92,9 @@ func (g *Group) FromStackItem(item stackitem.Item) error {
 	sig, err := group[1].TryBytes()
 	if err != nil {
 		return err
+	}
+	if len(sig) != keys.SignatureLen {
+		return errors.New("wrong signature length")
 	}
 	g.Signature = sig
 	return nil

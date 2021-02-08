@@ -199,7 +199,7 @@ func TestManifestToStackItem(t *testing.T) {
 			},
 			Groups: []Group{{
 				PublicKey: pk.PublicKey(),
-				Signature: []byte{1, 2, 3},
+				Signature: make([]byte, keys.SignatureLen),
 			}},
 			Permissions:        []Permission{*NewPermission(PermissionWildcard)},
 			SupportedStandards: []string{"NEP-17"},

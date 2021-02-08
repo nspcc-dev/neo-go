@@ -117,11 +117,11 @@ func TestGroup_ToStackItemFromStackItem(t *testing.T) {
 	pk, _ := keys.NewPrivateKey()
 	g := &Group{
 		PublicKey: pk.PublicKey(),
-		Signature: []byte{1, 2, 3},
+		Signature: make([]byte, keys.SignatureLen),
 	}
 	expected := stackitem.NewStruct([]stackitem.Item{
 		stackitem.NewByteArray(pk.PublicKey().Bytes()),
-		stackitem.NewByteArray([]byte{1, 2, 3}),
+		stackitem.NewByteArray(make([]byte, keys.SignatureLen)),
 	})
 	CheckToFromStackItem(t, g, expected)
 }
@@ -134,6 +134,7 @@ func TestGroup_FromStackItemErrors(t *testing.T) {
 		"invalid pub type":  stackitem.NewStruct([]stackitem.Item{stackitem.NewInterop(nil), stackitem.Null{}}),
 		"invalid pub bytes": stackitem.NewStruct([]stackitem.Item{stackitem.NewByteArray([]byte{1}), stackitem.Null{}}),
 		"invalid sig type":  stackitem.NewStruct([]stackitem.Item{stackitem.NewByteArray(pk.Bytes()), stackitem.NewInterop(nil)}),
+		"invalid sig len":   stackitem.NewStruct([]stackitem.Item{stackitem.NewByteArray(pk.Bytes()), stackitem.NewByteArray([]byte{1})}),
 	}
 	for name, errCase := range errCases {
 		t.Run(name, func(t *testing.T) {
