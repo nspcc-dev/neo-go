@@ -607,7 +607,7 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 				}
 				return c.GetStorageByHash(hash, key)
 			},
-			serverResponse: `{"jsonrpc":"2.0","id":1,"result":"4c696e"}`,
+			serverResponse: `{"jsonrpc":"2.0","id":1,"result":"TGlu"}`,
 			result: func(c *Client) interface{} {
 				value, err := hex.DecodeString("4c696e")
 				if err != nil {
@@ -625,7 +625,7 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 				}
 				return c.GetStorageByID(-1, key)
 			},
-			serverResponse: `{"jsonrpc":"2.0","id":1,"result":"4c696e"}`,
+			serverResponse: `{"jsonrpc":"2.0","id":1,"result":"TGlu"}`,
 			result: func(c *Client) interface{} {
 				value, err := hex.DecodeString("4c696e")
 				if err != nil {

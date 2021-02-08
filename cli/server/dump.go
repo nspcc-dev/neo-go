@@ -1,7 +1,7 @@
 package server
 
 import (
-	"encoding/hex"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -43,8 +43,8 @@ func batchToMap(index uint32, batch *storage.MemBatch) blockDump {
 
 		ops = append(ops, storageOp{
 			State: op,
-			Key:   hex.EncodeToString(key[1:]),
-			Value: hex.EncodeToString(batch.Put[i].Value),
+			Key:   base64.StdEncoding.EncodeToString(key[1:]),
+			Value: base64.StdEncoding.EncodeToString(batch.Put[i].Value),
 		})
 	}
 
@@ -56,7 +56,7 @@ func batchToMap(index uint32, batch *storage.MemBatch) blockDump {
 
 		ops = append(ops, storageOp{
 			State: "Deleted",
-			Key:   hex.EncodeToString(key[1:]),
+			Key:   base64.StdEncoding.EncodeToString(key[1:]),
 		})
 	}
 

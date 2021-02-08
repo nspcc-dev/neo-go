@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/elliptic"
 	"encoding/binary"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -915,7 +914,7 @@ func (s *Server) getStorage(ps request.Params) (interface{}, *response.Error) {
 		return nil, rErr
 	}
 
-	key, err := ps.Value(1).GetBytesHex()
+	key, err := ps.Value(1).GetBytesBase64()
 	if err != nil {
 		return nil, response.ErrInvalidParams
 	}
@@ -925,7 +924,7 @@ func (s *Server) getStorage(ps request.Params) (interface{}, *response.Error) {
 		return "", nil
 	}
 
-	return hex.EncodeToString(item.Value), nil
+	return item.Value, nil
 }
 
 func (s *Server) getrawtransaction(reqParams request.Params) (interface{}, *response.Error) {
