@@ -1243,6 +1243,19 @@ func (bc *Blockchain) GetNativeContractScriptHash(name string) (util.Uint160, er
 	return util.Uint160{}, errors.New("Unknown native contract")
 }
 
+// GetNatives returns list of native contracts.
+func (bc *Blockchain) GetNatives() []state.NativeContract {
+	res := make([]state.NativeContract, len(bc.contracts.Contracts))
+	for i, c := range bc.contracts.Contracts {
+		md := c.Metadata()
+		res[i].ID = md.ContractID
+		res[i].Hash = md.Hash
+		res[i].Manifest = md.Manifest
+		res[i].NEF = md.NEF
+	}
+	return res
+}
+
 // GetConfig returns the config stored in the blockchain.
 func (bc *Blockchain) GetConfig() config.ProtocolConfiguration {
 	return bc.config

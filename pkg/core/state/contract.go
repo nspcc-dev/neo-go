@@ -30,6 +30,12 @@ type ContractBase struct {
 	Manifest manifest.Manifest `json:"manifest"`
 }
 
+// NativeContract holds information about native contract.
+type NativeContract struct {
+	ContractBase
+	ActiveBlockIndex uint32 `json:"activeblockindex"`
+}
+
 // DecodeBinary implements Serializable interface.
 func (c *Contract) DecodeBinary(r *io.BinReader) {
 	si := stackitem.DecodeBinaryStackItem(r)

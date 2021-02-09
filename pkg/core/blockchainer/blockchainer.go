@@ -45,6 +45,7 @@ type Blockchainer interface {
 	GetAppExecResults(util.Uint256, trigger.Type) ([]state.AppExecResult, error)
 	GetNotaryDepositExpiration(acc util.Uint160) uint32
 	GetNativeContractScriptHash(string) (util.Uint160, error)
+	GetNatives() []state.NativeContract
 	GetNextBlockValidators() ([]*keys.PublicKey, error)
 	GetNEP17Balances(util.Uint160) *state.NEP17Balances
 	GetNotaryContractScriptHash() util.Uint160

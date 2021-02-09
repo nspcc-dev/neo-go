@@ -103,6 +103,7 @@ var rpcHandlers = map[string]func(*Server, request.Params) (interface{}, *respon
 	"getcommittee":           (*Server).getCommittee,
 	"getconnectioncount":     (*Server).getConnectionCount,
 	"getcontractstate":       (*Server).getContractState,
+	"getnativecontracts":     (*Server).getNativeContracts,
 	"getnep17balances":       (*Server).getNEP17Balances,
 	"getnep17transfers":      (*Server).getNEP17Transfers,
 	"getpeers":               (*Server).getPeers,
@@ -984,6 +985,10 @@ func (s *Server) getContractState(reqParams request.Params) (interface{}, *respo
 		return nil, response.NewRPCError("Unknown contract", "", nil)
 	}
 	return cs, nil
+}
+
+func (s *Server) getNativeContracts(_ request.Params) (interface{}, *response.Error) {
+	return s.chain.GetNatives(), nil
 }
 
 // getBlockSysFee returns the system fees of the block, based on the specified index.

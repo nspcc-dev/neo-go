@@ -85,6 +85,11 @@ func (*FakeChain) IsExtensibleAllowed(uint160 util.Uint160) bool {
 	return true
 }
 
+// GetNatives implements blockchainer.Blockchainer interface.
+func (*FakeChain) GetNatives() []state.NativeContract {
+	panic("TODO")
+}
+
 // GetNotaryDepositExpiration implements Blockchainer interface.
 func (chain *FakeChain) GetNotaryDepositExpiration(acc util.Uint160) uint32 {
 	if chain.NotaryDepositExpiration != 0 {

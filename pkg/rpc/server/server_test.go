@@ -552,6 +552,22 @@ var rpcTestCases = map[string][]rpcTestCase{
 			},
 		},
 	},
+	"getnativecontracts": {
+		{
+			params: "[]",
+			result: func(e *executor) interface{} {
+				return new([]state.NativeContract)
+			},
+			check: func(t *testing.T, e *executor, res interface{}) {
+				lst := res.(*[]state.NativeContract)
+				for i := range *lst {
+					cs := e.chain.GetContractState((*lst)[i].Hash)
+					require.NotNil(t, cs)
+					require.True(t, cs.ID <= 0)
+				}
+			},
+		},
+	},
 	"getpeers": {
 		{
 			params: "[]",
