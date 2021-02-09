@@ -158,9 +158,6 @@ func newServerFromConstructors(config ServerConfig, chain blockchainer.Blockchai
 			}
 			s.notaryModule = n
 			chain.SetNotary(n)
-			chain.RegisterPostBlock(func(bc blockchainer.Blockchainer, pool *mempool.Pool, b *block.Block) {
-				s.notaryModule.PostPersist(bc, pool, b)
-			})
 		}
 	} else if chain.GetConfig().P2PNotary.Enabled {
 		return nil, errors.New("P2PSigExtensions are disabled, but Notary service is enable")
