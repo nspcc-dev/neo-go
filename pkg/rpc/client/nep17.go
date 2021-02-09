@@ -104,26 +104,37 @@ func (c *Client) NEP17TokenInfo(tokenHash util.Uint160) (*wallet.Token, error) {
 // method of a given contract (token) to move specified amount of NEP17 assets
 // (in FixedN format using contract's number of decimals) to given account and
 // returns it. The returned transaction is not signed.
-func (c *Client) CreateNEP17TransferTx(acc *wallet.Account, to util.Uint160, token util.Uint160, amount int64, gas int64) (*transaction.Transaction, error) {
-	return c.CreateNEP17MultiTransferTx(acc, gas, TransferTarget{
-		Token:   token,
-		Address: to,
-		Amount:  amount,
-	})
+func (c *Client) CreateNEP17TransferTx(acc *wallet.Account, to util.Uint160, token util.Uint160, amount int64, gas int64, data interface{}) (*transaction.Transaction, error) {
+	return c.CreateNEP17MultiTransferTx(acc, gas, []TransferTarget{
+		{Token: token,
+			Address: to,
+			Amount:  amount,
+		},
+	}, []interface{}{data})
 }
 
 // CreateNEP17MultiTransferTx creates an invocation transaction for performing NEP17 transfers
-// from a single sender to multiple recipients.
-func (c *Client) CreateNEP17MultiTransferTx(acc *wallet.Account, gas int64, recipients ...TransferTarget) (*transaction.Transaction, error) {
+// from a single sender to multiple recipients with the given data.
+func (c *Client) CreateNEP17MultiTransferTx(acc *wallet.Account, gas int64, recipients []TransferTarget, data []interface{}) (*transaction.Transaction, error) {
 	from, err := address.StringToUint160(acc.Address)
 	if err != nil {
 		return nil, fmt.Errorf("bad account address: %w", err)
 	}
+	if data == nil {
+		data = make([]interface{}, len(recipients))
+	} else {
+		if len(data) != len(recipients) {
+			return nil, fmt.Errorf("data and recipients number mismatch: %d vs %d", len(data), len(recipients))
+		}
+	}
 	w := io.NewBufBinWriter()
 	for i := range recipients {
 		emit.AppCall(w.BinWriter, recipients[i].Token, "transfer",
-			callflag.WriteStates|callflag.AllowCall|callflag.AllowNotify, from, recipients[i].Address, recipients[i].Amount, nil)
+			callflag.WriteStates|callflag.AllowCall|callflag.AllowNotify, from, recipients[i].Address, recipients[i].Amount, data[i])
 		emit.Opcodes(w.BinWriter, opcode.ASSERT)
+	}
+	if w.Err != nil {
+		return nil, fmt.Errorf("failed to create transfer script: %w", w.Err)
 	}
 	accAddr, err := address.StringToUint160(acc.Address)
 	if err != nil {
@@ -178,10 +189,10 @@ func (c *Client) CreateTxFromScript(script []byte, acc *wallet.Account, sysFee, 
 
 // TransferNEP17 creates an invocation transaction that invokes 'transfer' method
 // on a given token to move specified amount of NEP17 assets (in FixedN format
-// using contract's number of decimals) to given account and sends it to the
-// network returning just a hash of it.
-func (c *Client) TransferNEP17(acc *wallet.Account, to util.Uint160, token util.Uint160, amount int64, gas int64) (util.Uint256, error) {
-	tx, err := c.CreateNEP17TransferTx(acc, to, token, amount, gas)
+// using contract's number of decimals) to given account with data specified and
+// sends it to the network returning just a hash of it.
+func (c *Client) TransferNEP17(acc *wallet.Account, to util.Uint160, token util.Uint160, amount int64, gas int64, data interface{}) (util.Uint256, error) {
+	tx, err := c.CreateNEP17TransferTx(acc, to, token, amount, gas, data)
 	if err != nil {
 		return util.Uint256{}, err
 	}
@@ -194,8 +205,8 @@ func (c *Client) TransferNEP17(acc *wallet.Account, to util.Uint160, token util.
 }
 
 // MultiTransferNEP17 is similar to TransferNEP17, buf allows to have multiple recipients.
-func (c *Client) MultiTransferNEP17(acc *wallet.Account, gas int64, recipients ...TransferTarget) (util.Uint256, error) {
-	tx, err := c.CreateNEP17MultiTransferTx(acc, gas, recipients...)
+func (c *Client) MultiTransferNEP17(acc *wallet.Account, gas int64, recipients []TransferTarget, data []interface{}) (util.Uint256, error) {
+	tx, err := c.CreateNEP17MultiTransferTx(acc, gas, recipients, data)
 	if err != nil {
 		return util.Uint256{}, err
 	}

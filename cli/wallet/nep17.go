@@ -468,7 +468,7 @@ func transferNEP17(ctx *cli.Context) error {
 func signAndSendTransfer(ctx *cli.Context, c *client.Client, acc *wallet.Account, recipients []client.TransferTarget) error {
 	gas := flags.Fixed8FromContext(ctx, "gas")
 
-	tx, err := c.CreateNEP17MultiTransferTx(acc, int64(gas), recipients...)
+	tx, err := c.CreateNEP17MultiTransferTx(acc, int64(gas), recipients, nil)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
