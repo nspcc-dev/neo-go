@@ -34,19 +34,21 @@ func TestEncodeDecodeContractState(t *testing.T) {
 		ReturnType: smartcontract.BoolType,
 	}}
 	contract := &Contract{
-		ID:            123,
 		UpdateCounter: 42,
-		Hash:          h,
-		NEF: nef.File{
-			Header: nef.Header{
-				Magic:    nef.Magic,
-				Compiler: "neo-go.test-test",
+		ContractBase: ContractBase{
+			ID:   123,
+			Hash: h,
+			NEF: nef.File{
+				Header: nef.Header{
+					Magic:    nef.Magic,
+					Compiler: "neo-go.test-test",
+				},
+				Tokens:   []nef.MethodToken{},
+				Script:   script,
+				Checksum: 0,
 			},
-			Tokens:   []nef.MethodToken{},
-			Script:   script,
-			Checksum: 0,
+			Manifest: *m,
 		},
-		Manifest: *m,
 	}
 	contract.NEF.Checksum = contract.NEF.CalculateChecksum()
 

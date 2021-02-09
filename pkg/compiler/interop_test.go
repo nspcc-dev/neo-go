@@ -166,17 +166,21 @@ func TestAppCall(t *testing.T) {
 			innerNef, err := nef.NewFile(inner)
 			require.NoError(t, err)
 			return &state.Contract{
-				Hash:     ih,
-				NEF:      *innerNef,
-				Manifest: *m,
+				ContractBase: state.ContractBase{
+					Hash:     ih,
+					NEF:      *innerNef,
+					Manifest: *m,
+				},
 			}, nil
 		} else if h.Equals(barH) {
 			barNef, err := nef.NewFile(barCtr)
 			require.NoError(t, err)
 			return &state.Contract{
-				Hash:     barH,
-				NEF:      *barNef,
-				Manifest: *mBar,
+				ContractBase: state.ContractBase{
+					Hash:     barH,
+					NEF:      *barNef,
+					Manifest: *mBar,
+				},
 			}, nil
 		}
 		return nil, errors.New("not found")

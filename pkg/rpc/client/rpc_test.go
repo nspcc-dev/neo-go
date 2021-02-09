@@ -350,10 +350,12 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 				}
 				m := manifest.NewManifest("Test")
 				cs := &state.Contract{
-					ID:       0,
-					Hash:     hash.Hash160(script),
-					NEF:      newTestNEF(script),
-					Manifest: *m,
+					ContractBase: state.ContractBase{
+						ID:       0,
+						Hash:     hash.Hash160(script),
+						NEF:      newTestNEF(script),
+						Manifest: *m,
+					},
 				}
 				return cs
 			},
@@ -371,10 +373,12 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 				}
 				m := manifest.NewManifest("Test")
 				cs := &state.Contract{
-					ID:       0,
-					Hash:     hash.Hash160(script),
-					NEF:      newTestNEF(script),
-					Manifest: *m,
+					ContractBase: state.ContractBase{
+						ID:       0,
+						Hash:     hash.Hash160(script),
+						NEF:      newTestNEF(script),
+						Manifest: *m,
+					},
 				}
 				return cs
 			},
@@ -392,10 +396,12 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 				}
 				m := manifest.NewManifest("Test")
 				cs := &state.Contract{
-					ID:       0,
-					Hash:     hash.Hash160(script),
-					NEF:      newTestNEF(script),
-					Manifest: *m,
+					ContractBase: state.ContractBase{
+						ID:       0,
+						Hash:     hash.Hash160(script),
+						NEF:      newTestNEF(script),
+						Manifest: *m,
+					},
 				}
 				return cs
 			},

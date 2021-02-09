@@ -280,10 +280,12 @@ func (m *Management) Deploy(d dao.DAO, sender util.Uint160, neff *nef.File, mani
 		return nil, err
 	}
 	newcontract := &state.Contract{
-		ID:       id,
-		Hash:     h,
-		NEF:      *neff,
-		Manifest: *manif,
+		ContractBase: state.ContractBase{
+			ID:       id,
+			Hash:     h,
+			NEF:      *neff,
+			Manifest: *manif,
+		},
 	}
 	err = m.PutContractState(d, newcontract)
 	if err != nil {
@@ -451,10 +453,12 @@ func (m *Management) OnPersist(ic *interop.Context) error {
 		md := native.Metadata()
 
 		cs := &state.Contract{
-			ID:       md.ContractID,
-			Hash:     md.Hash,
-			NEF:      md.NEF,
-			Manifest: md.Manifest,
+			ContractBase: state.ContractBase{
+				ID:       md.ContractID,
+				Hash:     md.Hash,
+				NEF:      md.NEF,
+				Manifest: md.Manifest,
+			},
 		}
 		err := m.PutContractState(ic.DAO, cs)
 		if err != nil {

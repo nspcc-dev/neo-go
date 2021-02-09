@@ -18,11 +18,16 @@ import (
 
 // Contract holds information about a smart contract in the NEO blockchain.
 type Contract struct {
-	ID            int32             `json:"id"`
-	UpdateCounter uint16            `json:"updatecounter"`
-	Hash          util.Uint160      `json:"hash"`
-	NEF           nef.File          `json:"nef"`
-	Manifest      manifest.Manifest `json:"manifest"`
+	ContractBase
+	UpdateCounter uint16 `json:"updatecounter"`
+}
+
+// ContractBase represents part shared by native and user-deployed contracts.
+type ContractBase struct {
+	ID       int32             `json:"id"`
+	Hash     util.Uint160      `json:"hash"`
+	NEF      nef.File          `json:"nef"`
+	Manifest manifest.Manifest `json:"manifest"`
 }
 
 // DecodeBinary implements Serializable interface.
