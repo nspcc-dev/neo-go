@@ -390,6 +390,42 @@ func TestVerifyTx(t *testing.T) {
 			require.Equal(t, expectedNetFee, bc.FeePerByte()*int64(actualSize)+gasConsumed)
 		})
 	})
+	t.Run("InvalidTxScript", func(t *testing.T) {
+		tx := bc.newTestTx(h, testScript)
+		tx.Script = append(tx.Script, 0xff)
+		require.NoError(t, accs[0].SignTx(tx))
+		checkErr(t, ErrInvalidScript, tx)
+	})
+	t.Run("InvalidVerificationScript", func(t *testing.T) {
+		tx := bc.newTestTx(h, testScript)
+		verif := []byte{byte(opcode.JMP), 3, 0xff, byte(opcode.PUSHT)}
+		tx.Signers = append(tx.Signers, transaction.Signer{
+			Account: hash.Hash160(verif),
+			Scopes:  transaction.Global,
+		})
+		tx.NetworkFee += 1000000
+		require.NoError(t, accs[0].SignTx(tx))
+		tx.Scripts = append(tx.Scripts, transaction.Witness{
+			InvocationScript:   []byte{},
+			VerificationScript: verif,
+		})
+		checkErr(t, ErrInvalidVerification, tx)
+	})
+	t.Run("InvalidInvocationScript", func(t *testing.T) {
+		tx := bc.newTestTx(h, testScript)
+		verif := []byte{byte(opcode.PUSHT)}
+		tx.Signers = append(tx.Signers, transaction.Signer{
+			Account: hash.Hash160(verif),
+			Scopes:  transaction.Global,
+		})
+		tx.NetworkFee += 1000000
+		require.NoError(t, accs[0].SignTx(tx))
+		tx.Scripts = append(tx.Scripts, transaction.Witness{
+			InvocationScript:   []byte{byte(opcode.JMP), 3, 0xff},
+			VerificationScript: verif,
+		})
+		checkErr(t, ErrInvalidInvocation, tx)
+	})
 	t.Run("Conflict", func(t *testing.T) {
 		balance := bc.GetUtilityTokenBalance(h).Int64()
 		tx := bc.newTestTx(h, testScript)
@@ -583,7 +619,7 @@ func TestVerifyTx(t *testing.T) {
 			})
 			t.Run("InvalidScript", func(t *testing.T) {
 				tx := getOracleTx(t)
-				tx.Script[0] = ^tx.Script[0]
+				tx.Script = append(tx.Script, byte(opcode.NOP))
 				require.NoError(t, oracleAcc.SignTx(tx))
 				checkErr(t, ErrInvalidAttribute, tx)
 			})
