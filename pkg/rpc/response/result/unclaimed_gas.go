@@ -2,11 +2,10 @@ package result
 
 import (
 	"encoding/json"
-	"fmt"
+	"errors"
 	"math/big"
 
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
-	"github.com/nspcc-dev/neo-go/pkg/encoding/fixedn"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 )
 
@@ -26,7 +25,7 @@ type unclaimedGas struct {
 func (g UnclaimedGas) MarshalJSON() ([]byte, error) {
 	gas := &unclaimedGas{
 		Address:   address.Uint160ToString(g.Address),
-		Unclaimed: fixedn.ToString(&g.Unclaimed, 8),
+		Unclaimed: g.Unclaimed.String(),
 	}
 	return json.Marshal(gas)
 }
@@ -37,9 +36,9 @@ func (g *UnclaimedGas) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, gas); err != nil {
 		return err
 	}
-	uncl, err := fixedn.FromString(gas.Unclaimed, 8)
-	if err != nil {
-		return fmt.Errorf("failed to convert unclaimed gas: %w", err)
+	uncl, ok := new(big.Int).SetString(gas.Unclaimed, 10)
+	if !ok {
+		return errors.New("failed to convert unclaimed gas")
 	}
 	g.Unclaimed = *uncl
 	addr, err := address.StringToUint160(gas.Address)
