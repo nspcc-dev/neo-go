@@ -22,27 +22,46 @@ func (c *Client) GetMaxBlockSize() (int64, error) {
 
 // GetFeePerByte invokes `getFeePerByte` method on a native Policy contract.
 func (c *Client) GetFeePerByte() (int64, error) {
+	if !c.initDone {
+		return 0, errNetworkNotInitialized
+	}
 	return c.invokeNativePolicyMethod("getFeePerByte")
 }
 
 // GetExecFeeFactor invokes `getExecFeeFactor` method on a native Policy contract.
 func (c *Client) GetExecFeeFactor() (int64, error) {
+	if !c.initDone {
+		return 0, errNetworkNotInitialized
+	}
 	return c.invokeNativePolicyMethod("getExecFeeFactor")
 }
 
+// GetMaxNotValidBeforeDelta invokes `getMaxNotValidBeforeDelta` method on a native Notary contract.
+func (c *Client) GetMaxNotValidBeforeDelta() (int64, error) {
+	notaryHash, err := c.GetNativeContractHash(nativenames.Notary)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get native Notary hash: %w", err)
+	}
+	return c.invokeNativeGetMethod(notaryHash, "getMaxNotValidBeforeDelta")
+}
+
+// invokeNativePolicy method invokes Get* method on a native Policy contract.
 func (c *Client) invokeNativePolicyMethod(operation string) (int64, error) {
 	if !c.initDone {
 		return 0, errNetworkNotInitialized
 	}
-	result, err := c.InvokeFunction(c.cache.nativeHashes[nativenames.Policy], operation, []smartcontract.Parameter{}, nil)
+	return c.invokeNativeGetMethod(c.cache.nativeHashes[nativenames.Policy], operation)
+}
+
+func (c *Client) invokeNativeGetMethod(hash util.Uint160, operation string) (int64, error) {
+	result, err := c.InvokeFunction(hash, operation, []smartcontract.Parameter{}, nil)
 	if err != nil {
 		return 0, err
 	}
 	err = getInvocationError(result)
 	if err != nil {
-		return 0, fmt.Errorf("failed to invoke %s Policy method: %w", operation, err)
+		return 0, fmt.Errorf("failed to invoke %s method of native contract %s: %w", operation, hash.StringLE(), err)
 	}
-
 	return topIntFromStack(result.Stack)
 }
 
