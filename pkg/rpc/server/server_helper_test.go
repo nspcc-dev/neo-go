@@ -23,7 +23,12 @@ import (
 	"go.uber.org/zap/zaptest"
 )
 
-func getUnitTestChain(t *testing.T, enableOracle bool) (*core.Blockchain, *oracle.Oracle, config.Config, *zap.Logger) {
+const (
+	notaryPath = "../../services/notary/testdata/notary1.json"
+	notaryPass = "one"
+)
+
+func getUnitTestChain(t *testing.T, enableOracle bool, enableNotary bool) (*core.Blockchain, *oracle.Oracle, config.Config, *zap.Logger) {
 	net := netmode.UnitTestNet
 	configPath := "../../../config"
 	cfg, err := config.Load(configPath, net)
@@ -31,6 +36,19 @@ func getUnitTestChain(t *testing.T, enableOracle bool) (*core.Blockchain, *oracl
 
 	memoryStore := storage.NewMemoryStore()
 	logger := zaptest.NewLogger(t)
+	if enableNotary {
+		cfg.ProtocolConfiguration.P2PSigExtensions = true
+		cfg.ProtocolConfiguration.P2PNotaryRequestPayloadPoolSize = 1000
+		cfg.ProtocolConfiguration.P2PNotary = config.P2PNotary{
+			Enabled: true,
+			UnlockWallet: config.Wallet{
+				Path:     notaryPath,
+				Password: notaryPass,
+			},
+		}
+	} else {
+		cfg.ProtocolConfiguration.P2PNotary.Enabled = false
+	}
 	chain, err := core.NewBlockchain(memoryStore, cfg.ProtocolConfiguration, logger)
 	require.NoError(t, err, "could not create chain")
 
@@ -79,8 +97,8 @@ func getTestBlocks(t *testing.T) []*block.Block {
 	return blocks
 }
 
-func initClearServerWithOracle(t *testing.T, needOracle bool) (*core.Blockchain, *Server, *httptest.Server) {
-	chain, orc, cfg, logger := getUnitTestChain(t, needOracle)
+func initClearServerWithServices(t *testing.T, needOracle bool, needNotary bool) (*core.Blockchain, *Server, *httptest.Server) {
+	chain, orc, cfg, logger := getUnitTestChain(t, needOracle, needNotary)
 
 	serverConfig := network.NewServerConfig(cfg)
 	server, err := network.NewServer(serverConfig, chain, logger)
@@ -96,11 +114,20 @@ func initClearServerWithOracle(t *testing.T, needOracle bool) (*core.Blockchain,
 }
 
 func initClearServerWithInMemoryChain(t *testing.T) (*core.Blockchain, *Server, *httptest.Server) {
-	return initClearServerWithOracle(t, false)
+	return initClearServerWithServices(t, false, false)
 }
 
 func initServerWithInMemoryChain(t *testing.T) (*core.Blockchain, *Server, *httptest.Server) {
 	chain, rpcServer, srv := initClearServerWithInMemoryChain(t)
+
+	for _, b := range getTestBlocks(t) {
+		require.NoError(t, chain.AddBlock(b))
+	}
+	return chain, rpcServer, srv
+}
+
+func initServerWithInMemoryChainAndServices(t *testing.T, needOracle bool, needNotary bool) (*core.Blockchain, *Server, *httptest.Server) {
+	chain, rpcServer, srv := initClearServerWithServices(t, needOracle, needNotary)
 
 	for _, b := range getTestBlocks(t) {
 		require.NoError(t, chain.AddBlock(b))
