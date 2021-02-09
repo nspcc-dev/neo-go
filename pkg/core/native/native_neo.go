@@ -170,7 +170,7 @@ func (n *NEO) Initialize(ic *interop.Context) error {
 		return err
 	}
 
-	err = ic.DAO.PutStorageItem(n.ContractID, prefixCommittee, &state.StorageItem{Value: cvs.Bytes()})
+	err = ic.DAO.PutStorageItem(n.ID, prefixCommittee, &state.StorageItem{Value: cvs.Bytes()})
 	if err != nil {
 		return err
 	}
@@ -190,7 +190,7 @@ func (n *NEO) Initialize(ic *interop.Context) error {
 	gr := &gasRecord{{Index: index, GASPerBlock: *value}}
 	n.gasPerBlock.Store(*gr)
 	n.gasPerBlockChanged.Store(false)
-	err = ic.DAO.PutStorageItem(n.ContractID, []byte{prefixVotersCount}, &state.StorageItem{Value: []byte{}})
+	err = ic.DAO.PutStorageItem(n.ID, []byte{prefixVotersCount}, &state.StorageItem{Value: []byte{}})
 	if err != nil {
 		return err
 	}
@@ -203,7 +203,7 @@ func (n *NEO) Initialize(ic *interop.Context) error {
 // called only when deploying native contracts.
 func (n *NEO) InitializeCache(bc blockchainer.Blockchainer, d dao.DAO) error {
 	var committee = keysWithVotes{}
-	si := d.GetStorageItem(n.ContractID, prefixCommittee)
+	si := d.GetStorageItem(n.ID, prefixCommittee)
 	if err := committee.DecodeBytes(si.Value); err != nil {
 		return err
 	}
@@ -243,7 +243,7 @@ func (n *NEO) updateCommittee(ic *interop.Context) error {
 		// We need to put in storage anyway, as it affects dumps
 		committee := n.committee.Load().(keysWithVotes)
 		si := &state.StorageItem{Value: committee.Bytes()}
-		return ic.DAO.PutStorageItem(n.ContractID, prefixCommittee, si)
+		return ic.DAO.PutStorageItem(n.ID, prefixCommittee, si)
 	}
 
 	_, cvs, err := n.computeCommitteeMembers(ic.Chain, ic.DAO)
@@ -255,7 +255,7 @@ func (n *NEO) updateCommittee(ic *interop.Context) error {
 	}
 	n.votesChanged.Store(false)
 	si := &state.StorageItem{Value: cvs.Bytes()}
-	return ic.DAO.PutStorageItem(n.ContractID, prefixCommittee, si)
+	return ic.DAO.PutStorageItem(n.ID, prefixCommittee, si)
 }
 
 // ShouldUpdateCommittee returns true if committee is updated at block h.
@@ -311,7 +311,7 @@ func (n *NEO) PostPersist(ic *interop.Context) error {
 				binary.BigEndian.PutUint32(key[34:], ic.Block.Index+1)
 
 				si.Value = bigint.ToBytes(tmp)
-				if err := ic.DAO.PutStorageItem(n.ContractID, key, si); err != nil {
+				if err := ic.DAO.PutStorageItem(n.ID, key, si); err != nil {
 					return err
 				}
 			}
@@ -333,7 +333,7 @@ func (n *NEO) getGASPerVote(d dao.DAO, key []byte, index ...uint32) []big.Int {
 	var max = make([]uint32, len(index))
 	var reward = make([]big.Int, len(index))
 	var si state.StorageItem
-	d.Seek(n.ContractID, key, func(k, v []byte) {
+	d.Seek(n.ID, key, func(k, v []byte) {
 		if len(k) == 4 {
 			num := binary.BigEndian.Uint32(k)
 			for i, ind := range index {
@@ -413,7 +413,7 @@ func (n *NEO) getGASPerBlock(ic *interop.Context, _ []stackitem.Item) stackitem.
 }
 
 func (n *NEO) getSortedGASRecordFromDAO(d dao.DAO) (gasRecord, error) {
-	grMap, err := d.GetStorageItemsWithPrefix(n.ContractID, []byte{prefixGASPerBlock})
+	grMap, err := d.GetStorageItemsWithPrefix(n.ID, []byte{prefixGASPerBlock})
 	if err != nil {
 		return gasRecord{}, fmt.Errorf("failed to get gas records from storage: %w", err)
 	}
@@ -495,16 +495,16 @@ func (n *NEO) dropCandidateIfZero(d dao.DAO, pub *keys.PublicKey, c *candidate) 
 	if c.Registered || c.Votes.Sign() != 0 {
 		return false, nil
 	}
-	if err := d.DeleteStorageItem(n.ContractID, makeValidatorKey(pub)); err != nil {
+	if err := d.DeleteStorageItem(n.ID, makeValidatorKey(pub)); err != nil {
 		return true, err
 	}
 
 	var toRemove []string
-	d.Seek(n.ContractID, makeVoterKey(pub.Bytes()), func(k, v []byte) {
+	d.Seek(n.ID, makeVoterKey(pub.Bytes()), func(k, v []byte) {
 		toRemove = append(toRemove, string(k))
 	})
 	for i := range toRemove {
-		if err := d.DeleteStorageItem(n.ContractID, []byte(toRemove[i])); err != nil {
+		if err := d.DeleteStorageItem(n.ID, []byte(toRemove[i])); err != nil {
 			return true, err
 		}
 	}
@@ -527,7 +527,7 @@ func makeVoterKey(pub []byte, prealloc ...[]byte) []byte {
 // and having voted for active committee member.
 func (n *NEO) CalculateBonus(d dao.DAO, acc util.Uint160, end uint32) (*big.Int, error) {
 	key := makeAccountKey(acc)
-	si := d.GetStorageItem(n.ContractID, key)
+	si := d.GetStorageItem(n.ID, key)
 	if si == nil {
 		return nil, storage.ErrKeyNotFound
 	}
@@ -608,7 +608,7 @@ func (n *NEO) registerCandidate(ic *interop.Context, args []stackitem.Item) stac
 // RegisterCandidateInternal registers pub as a new candidate.
 func (n *NEO) RegisterCandidateInternal(ic *interop.Context, pub *keys.PublicKey) error {
 	key := makeValidatorKey(pub)
-	si := ic.DAO.GetStorageItem(n.ContractID, key)
+	si := ic.DAO.GetStorageItem(n.ID, key)
 	if si == nil {
 		c := &candidate{Registered: true}
 		si = &state.StorageItem{Value: c.Bytes()}
@@ -617,7 +617,7 @@ func (n *NEO) RegisterCandidateInternal(ic *interop.Context, pub *keys.PublicKey
 		c.Registered = true
 		si.Value = c.Bytes()
 	}
-	return ic.DAO.PutStorageItem(n.ContractID, key, si)
+	return ic.DAO.PutStorageItem(n.ID, key, si)
 }
 
 func (n *NEO) unregisterCandidate(ic *interop.Context, args []stackitem.Item) stackitem.Item {
@@ -635,7 +635,7 @@ func (n *NEO) unregisterCandidate(ic *interop.Context, args []stackitem.Item) st
 // UnregisterCandidateInternal unregisters pub as a candidate.
 func (n *NEO) UnregisterCandidateInternal(ic *interop.Context, pub *keys.PublicKey) error {
 	key := makeValidatorKey(pub)
-	si := ic.DAO.GetStorageItem(n.ContractID, key)
+	si := ic.DAO.GetStorageItem(n.ID, key)
 	if si == nil {
 		return nil
 	}
@@ -647,7 +647,7 @@ func (n *NEO) UnregisterCandidateInternal(ic *interop.Context, pub *keys.PublicK
 		return err
 	}
 	si.Value = c.Bytes()
-	return ic.DAO.PutStorageItem(n.ContractID, key, si)
+	return ic.DAO.PutStorageItem(n.ID, key, si)
 }
 
 func (n *NEO) vote(ic *interop.Context, args []stackitem.Item) stackitem.Item {
@@ -669,7 +669,7 @@ func (n *NEO) VoteInternal(ic *interop.Context, h util.Uint160, pub *keys.Public
 		return errors.New("invalid signature")
 	}
 	key := makeAccountKey(h)
-	si := ic.DAO.GetStorageItem(n.ContractID, key)
+	si := ic.DAO.GetStorageItem(n.ID, key)
 	if si == nil {
 		return errors.New("invalid account")
 	}
@@ -697,7 +697,7 @@ func (n *NEO) VoteInternal(ic *interop.Context, h util.Uint160, pub *keys.Public
 		return err
 	}
 	si.Value = acc.Bytes()
-	return ic.DAO.PutStorageItem(n.ContractID, key, si)
+	return ic.DAO.PutStorageItem(n.ID, key, si)
 }
 
 // ModifyAccountVotes modifies votes of the specified account by value (can be negative).
@@ -706,7 +706,7 @@ func (n *NEO) ModifyAccountVotes(acc *state.NEOBalanceState, d dao.DAO, value *b
 	n.votesChanged.Store(true)
 	if acc.VoteTo != nil {
 		key := makeValidatorKey(acc.VoteTo)
-		si := d.GetStorageItem(n.ContractID, key)
+		si := d.GetStorageItem(n.ID, key)
 		if si == nil {
 			return errors.New("invalid validator")
 		}
@@ -722,13 +722,13 @@ func (n *NEO) ModifyAccountVotes(acc *state.NEOBalanceState, d dao.DAO, value *b
 		}
 		n.validators.Store(keys.PublicKeys(nil))
 		si.Value = cd.Bytes()
-		return d.PutStorageItem(n.ContractID, key, si)
+		return d.PutStorageItem(n.ID, key, si)
 	}
 	return nil
 }
 
 func (n *NEO) getCandidates(d dao.DAO, sortByKey bool) ([]keyWithVotes, error) {
-	siMap, err := d.GetStorageItemsWithPrefix(n.ContractID, []byte{prefixCandidate})
+	siMap, err := d.GetStorageItemsWithPrefix(n.ID, []byte{prefixCandidate})
 	if err != nil {
 		return nil, err
 	}
@@ -811,14 +811,14 @@ func (n *NEO) getCommittee(ic *interop.Context, _ []stackitem.Item) stackitem.It
 
 func (n *NEO) modifyVoterTurnout(d dao.DAO, amount *big.Int) error {
 	key := []byte{prefixVotersCount}
-	si := d.GetStorageItem(n.ContractID, key)
+	si := d.GetStorageItem(n.ID, key)
 	if si == nil {
 		return errors.New("voters count not found")
 	}
 	votersCount := bigint.FromBytes(si.Value)
 	votersCount.Add(votersCount, amount)
 	si.Value = bigint.ToBytes(votersCount)
-	return d.PutStorageItem(n.ContractID, key, si)
+	return d.PutStorageItem(n.ID, key, si)
 }
 
 // GetCommitteeMembers returns public keys of nodes in committee using cached value.
@@ -848,7 +848,7 @@ func toKeysWithVotes(pubs keys.PublicKeys) keysWithVotes {
 // computeCommitteeMembers returns public keys of nodes in committee.
 func (n *NEO) computeCommitteeMembers(bc blockchainer.Blockchainer, d dao.DAO) (keys.PublicKeys, keysWithVotes, error) {
 	key := []byte{prefixVotersCount}
-	si := d.GetStorageItem(n.ContractID, key)
+	si := d.GetStorageItem(n.ID, key)
 	if si == nil {
 		return nil, nil, errors.New("voters count not found")
 	}
@@ -928,5 +928,5 @@ func (n *NEO) putGASRecord(dao dao.DAO, index uint32, value *big.Int) error {
 		Value:   bigint.ToBytes(value),
 		IsConst: false,
 	}
-	return dao.PutStorageItem(n.ContractID, key, si)
+	return dao.PutStorageItem(n.ID, key, si)
 }

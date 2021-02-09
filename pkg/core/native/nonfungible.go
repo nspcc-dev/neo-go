@@ -121,7 +121,7 @@ func newNonFungible(name string, id int32, symbol string, decimals byte) *nonfun
 
 // Initialize implements interop.Contract interface.
 func (n nonfungible) Initialize(ic *interop.Context) error {
-	return setIntWithKey(n.ContractID, ic.DAO, nftTotalSupplyKey, 0)
+	return setIntWithKey(n.ID, ic.DAO, nftTotalSupplyKey, 0)
 }
 
 func (n *nonfungible) symbol(_ *interop.Context, _ []stackitem.Item) stackitem.Item {
@@ -137,7 +137,7 @@ func (n *nonfungible) totalSupply(ic *interop.Context, _ []stackitem.Item) stack
 }
 
 func (n *nonfungible) TotalSupply(d dao.DAO) *big.Int {
-	si := d.GetStorageItem(n.ContractID, nftTotalSupplyKey)
+	si := d.GetStorageItem(n.ID, nftTotalSupplyKey)
 	if si == nil {
 		panic(errors.New("total supply is not initialized"))
 	}
@@ -146,7 +146,7 @@ func (n *nonfungible) TotalSupply(d dao.DAO) *big.Int {
 
 func (n *nonfungible) setTotalSupply(d dao.DAO, ts *big.Int) {
 	si := &state.StorageItem{Value: bigint.ToBytes(ts)}
-	err := d.PutStorageItem(n.ContractID, nftTotalSupplyKey, si)
+	err := d.PutStorageItem(n.ID, nftTotalSupplyKey, si)
 	if err != nil {
 		panic(err)
 	}
@@ -155,23 +155,23 @@ func (n *nonfungible) setTotalSupply(d dao.DAO, ts *big.Int) {
 func (n *nonfungible) tokenState(d dao.DAO, tokenID []byte) (nftTokenState, []byte, error) {
 	key := n.getTokenKey(tokenID)
 	s := n.newTokenState()
-	err := getSerializableFromDAO(n.ContractID, d, key, s)
+	err := getSerializableFromDAO(n.ID, d, key, s)
 	return s, key, err
 }
 
 func (n *nonfungible) accountState(d dao.DAO, owner util.Uint160) (*state.NFTAccountState, []byte, error) {
 	acc := new(state.NFTAccountState)
 	keyAcc := makeNFTAccountKey(owner)
-	err := getSerializableFromDAO(n.ContractID, d, keyAcc, acc)
+	err := getSerializableFromDAO(n.ID, d, keyAcc, acc)
 	return acc, keyAcc, err
 }
 
 func (n *nonfungible) putAccountState(d dao.DAO, key []byte, acc *state.NFTAccountState) {
 	var err error
 	if acc.Balance.Sign() == 0 {
-		err = d.DeleteStorageItem(n.ContractID, key)
+		err = d.DeleteStorageItem(n.ID, key)
 	} else {
-		err = putSerializableToDAO(n.ContractID, d, key, acc)
+		err = putSerializableToDAO(n.ID, d, key, acc)
 	}
 	if err != nil {
 		panic(err)
@@ -216,7 +216,7 @@ func (n *nonfungible) BalanceOf(ic *interop.Context, args []stackitem.Item) stac
 
 func (n *nonfungible) tokens(ic *interop.Context, args []stackitem.Item) stackitem.Item {
 	prefix := []byte{prefixNFTToken}
-	siMap, err := ic.DAO.GetStorageItemsWithPrefix(n.ContractID, prefix)
+	siMap, err := ic.DAO.GetStorageItemsWithPrefix(n.ID, prefix)
 	if err != nil {
 		panic(err)
 	}
@@ -248,10 +248,10 @@ func (n *nonfungible) tokensOf(ic *interop.Context, args []stackitem.Item) stack
 
 func (n *nonfungible) mint(ic *interop.Context, s nftTokenState) {
 	key := n.getTokenKey(s.ID())
-	if ic.DAO.GetStorageItem(n.ContractID, key) != nil {
+	if ic.DAO.GetStorageItem(n.ID, key) != nil {
 		panic("token is already minted")
 	}
-	if err := putSerializableToDAO(n.ContractID, ic.DAO, key, s); err != nil {
+	if err := putSerializableToDAO(n.ID, ic.DAO, key, s); err != nil {
 		panic(err)
 	}
 
@@ -310,11 +310,11 @@ func (n *nonfungible) burn(ic *interop.Context, tokenID []byte) {
 
 func (n *nonfungible) burnByKey(ic *interop.Context, key []byte) {
 	token := n.newTokenState()
-	err := getSerializableFromDAO(n.ContractID, ic.DAO, key, token)
+	err := getSerializableFromDAO(n.ID, ic.DAO, key, token)
 	if err != nil {
 		panic(err)
 	}
-	if err := ic.DAO.DeleteStorageItem(n.ContractID, key); err != nil {
+	if err := ic.DAO.DeleteStorageItem(n.ID, key); err != nil {
 		panic(err)
 	}
 
@@ -361,7 +361,7 @@ func (n *nonfungible) transfer(ic *interop.Context, args []stackitem.Item) stack
 
 		token.Base().Owner = to
 		n.onTransferred(token)
-		err = putSerializableToDAO(n.ContractID, ic.DAO, tokenKey, token)
+		err = putSerializableToDAO(n.ID, ic.DAO, tokenKey, token)
 		if err != nil {
 			panic(err)
 		}

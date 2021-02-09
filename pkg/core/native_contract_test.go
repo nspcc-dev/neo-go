@@ -240,7 +240,7 @@ func TestNativeContract_InvokeInternal(t *testing.T) {
 		v.Estack().PushVal(14)
 		v.Estack().PushVal(28)
 		v.Estack().PushVal("sum")
-		v.Estack().PushVal(tn.Metadata().ContractID)
+		v.Estack().PushVal(tn.Metadata().ID)
 
 		require.NoError(t, native.Call(ic))
 

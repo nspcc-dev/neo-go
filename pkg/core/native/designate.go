@@ -242,7 +242,7 @@ func (s *Designate) GetDesignatedByRole(d dao.DAO, r Role, index uint32) (keys.P
 			return val.nodes.Copy(), val.height, nil
 		}
 	}
-	kvs, err := d.GetStorageItemsWithPrefix(s.ContractID, []byte{byte(r)})
+	kvs, err := d.GetStorageItemsWithPrefix(s.ID, []byte{byte(r)})
 	if err != nil {
 		return nil, 0, err
 	}
@@ -309,14 +309,14 @@ func (s *Designate) DesignateAsRole(ic *interop.Context, r Role, pubs keys.Publi
 	key[0] = byte(r)
 	binary.BigEndian.PutUint32(key[1:], ic.Block.Index+1)
 
-	si := ic.DAO.GetStorageItem(s.ContractID, key)
+	si := ic.DAO.GetStorageItem(s.ID, key)
 	if si != nil {
 		return ErrAlreadyDesignated
 	}
 	sort.Sort(pubs)
 	s.rolesChangedFlag.Store(true)
 	si = &state.StorageItem{Value: NodeList(pubs).Bytes()}
-	return ic.DAO.PutStorageItem(s.ContractID, key, si)
+	return ic.DAO.PutStorageItem(s.ID, key, si)
 }
 
 func (s *Designate) getRole(item stackitem.Item) (Role, bool) {

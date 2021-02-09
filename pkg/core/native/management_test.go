@@ -79,7 +79,7 @@ func TestManagement_Initialize(t *testing.T) {
 	t.Run("invalid contract state", func(t *testing.T) {
 		d := dao.NewSimple(storage.NewMemoryStore(), netmode.UnitTestNet, false)
 		mgmt := newManagement()
-		require.NoError(t, d.PutStorageItem(mgmt.ContractID, []byte{prefixContract}, &state.StorageItem{Value: []byte{0xFF}}))
+		require.NoError(t, d.PutStorageItem(mgmt.ID, []byte{prefixContract}, &state.StorageItem{Value: []byte{0xFF}}))
 		require.Error(t, mgmt.InitializeCache(d))
 	})
 }

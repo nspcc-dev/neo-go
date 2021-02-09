@@ -145,7 +145,7 @@ func (o *Oracle) PostPersist(ic *interop.Context) error {
 		if err := o.getSerializableFromDAO(ic.DAO, reqKey, req); err != nil {
 			continue
 		}
-		if err := ic.DAO.DeleteStorageItem(o.ContractID, reqKey); err != nil {
+		if err := ic.DAO.DeleteStorageItem(o.ID, reqKey); err != nil {
 			return err
 		}
 		if orc != nil {
@@ -163,10 +163,10 @@ func (o *Oracle) PostPersist(ic *interop.Context) error {
 
 		var err error
 		if len(*idList) == 0 {
-			err = ic.DAO.DeleteStorageItem(o.ContractID, idKey)
+			err = ic.DAO.DeleteStorageItem(o.ID, idKey)
 		} else {
 			si := &state.StorageItem{Value: idList.Bytes()}
-			err = ic.DAO.PutStorageItem(o.ContractID, idKey, si)
+			err = ic.DAO.PutStorageItem(o.ID, idKey, si)
 		}
 		if err != nil {
 			return err
@@ -202,7 +202,7 @@ func (o *Oracle) Metadata() *interop.ContractMD {
 
 // Initialize initializes Oracle contract.
 func (o *Oracle) Initialize(ic *interop.Context) error {
-	return setIntWithKey(o.ContractID, ic.DAO, prefixRequestID, 0)
+	return setIntWithKey(o.ID, ic.DAO, prefixRequestID, 0)
 }
 
 func getResponse(tx *transaction.Transaction) *transaction.OracleResponse {
@@ -301,12 +301,12 @@ func (o *Oracle) RequestInternal(ic *interop.Context, url string, filter *string
 	}
 	callingHash := ic.VM.GetCallingScriptHash()
 	o.GAS.mint(ic, o.Hash, gas, false)
-	si := ic.DAO.GetStorageItem(o.ContractID, prefixRequestID)
+	si := ic.DAO.GetStorageItem(o.ID, prefixRequestID)
 	itemID := bigint.FromBytes(si.Value)
 	id := itemID.Uint64()
 	itemID.Add(itemID, intOne)
 	si.Value = bigint.ToPreallocatedBytes(itemID, si.Value)
-	if err := ic.DAO.PutStorageItem(o.ContractID, prefixRequestID, si); err != nil {
+	if err := ic.DAO.PutStorageItem(o.ID, prefixRequestID, si); err != nil {
 		return err
 	}
 
@@ -358,7 +358,7 @@ func (o *Oracle) RequestInternal(ic *interop.Context, url string, filter *string
 func (o *Oracle) PutRequestInternal(id uint64, req *state.OracleRequest, d dao.DAO) error {
 	reqItem := &state.StorageItem{Value: req.Bytes()}
 	reqKey := makeRequestKey(id)
-	if err := d.PutStorageItem(o.ContractID, reqKey, reqItem); err != nil {
+	if err := d.PutStorageItem(o.ID, reqKey, reqItem); err != nil {
 		return err
 	}
 	o.newRequests[id] = req
@@ -374,7 +374,7 @@ func (o *Oracle) PutRequestInternal(id uint64, req *state.OracleRequest, d dao.D
 	}
 	*lst = append(*lst, id)
 	si := &state.StorageItem{Value: lst.Bytes()}
-	return d.PutStorageItem(o.ContractID, key, si)
+	return d.PutStorageItem(o.ID, key, si)
 }
 
 // GetScriptHash returns script hash or oracle nodes.
@@ -419,7 +419,7 @@ func (o *Oracle) getOriginalTxID(d dao.DAO, tx *transaction.Transaction) util.Ui
 
 // getRequests returns all requests which have not been finished yet.
 func (o *Oracle) getRequests(d dao.DAO) (map[uint64]*state.OracleRequest, error) {
-	m, err := d.GetStorageItemsWithPrefix(o.ContractID, prefixRequest)
+	m, err := d.GetStorageItemsWithPrefix(o.ID, prefixRequest)
 	if err != nil {
 		return nil, err
 	}
@@ -452,7 +452,7 @@ func makeIDListKey(url string) []byte {
 }
 
 func (o *Oracle) getSerializableFromDAO(d dao.DAO, key []byte, item io.Serializable) error {
-	return getSerializableFromDAO(o.ContractID, d, key, item)
+	return getSerializableFromDAO(o.ID, d, key, item)
 }
 
 // updateCache updates cached Oracle values if they've been changed
@@ -466,7 +466,7 @@ func (o *Oracle) updateCache(d dao.DAO) error {
 	o.newRequests = make(map[uint64]*state.OracleRequest)
 	for id := range reqs {
 		key := makeRequestKey(id)
-		if si := d.GetStorageItem(o.ContractID, key); si == nil { // tx has failed
+		if si := d.GetStorageItem(o.ID, key); si == nil { // tx has failed
 			delete(reqs, id)
 		}
 	}

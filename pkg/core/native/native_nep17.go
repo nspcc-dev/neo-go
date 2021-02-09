@@ -96,7 +96,7 @@ func (c *nep17TokenNative) TotalSupply(ic *interop.Context, _ []stackitem.Item) 
 }
 
 func (c *nep17TokenNative) getTotalSupply(d dao.DAO) *big.Int {
-	si := d.GetStorageItem(c.ContractID, totalSupplyKey)
+	si := d.GetStorageItem(c.ID, totalSupplyKey)
 	if si == nil {
 		return big.NewInt(0)
 	}
@@ -105,7 +105,7 @@ func (c *nep17TokenNative) getTotalSupply(d dao.DAO) *big.Int {
 
 func (c *nep17TokenNative) saveTotalSupply(d dao.DAO, supply *big.Int) error {
 	si := &state.StorageItem{Value: bigint.ToBytes(supply)}
-	return d.PutStorageItem(c.ContractID, totalSupplyKey, si)
+	return d.PutStorageItem(c.ID, totalSupplyKey, si)
 }
 
 func (c *nep17TokenNative) Transfer(ic *interop.Context, args []stackitem.Item) stackitem.Item {
@@ -163,7 +163,7 @@ func (c *nep17TokenNative) emitTransfer(ic *interop.Context, from, to *util.Uint
 
 func (c *nep17TokenNative) updateAccBalance(ic *interop.Context, acc util.Uint160, amount *big.Int) error {
 	key := makeAccountKey(acc)
-	si := ic.DAO.GetStorageItem(c.ContractID, key)
+	si := ic.DAO.GetStorageItem(c.ID, key)
 	if si == nil {
 		if amount.Sign() <= 0 {
 			return errors.New("insufficient funds")
@@ -176,9 +176,9 @@ func (c *nep17TokenNative) updateAccBalance(ic *interop.Context, acc util.Uint16
 		return err
 	}
 	if si.Value == nil {
-		err = ic.DAO.DeleteStorageItem(c.ContractID, key)
+		err = ic.DAO.DeleteStorageItem(c.ID, key)
 	} else {
-		err = ic.DAO.PutStorageItem(c.ContractID, key, si)
+		err = ic.DAO.PutStorageItem(c.ID, key, si)
 	}
 	return err
 }
@@ -225,7 +225,7 @@ func (c *nep17TokenNative) balanceOf(ic *interop.Context, args []stackitem.Item)
 	if err != nil {
 		panic(err)
 	}
-	balance := bs.Trackers[c.ContractID].Balance
+	balance := bs.Trackers[c.ID].Balance
 	return stackitem.NewBigInteger(&balance)
 }
 
@@ -251,14 +251,14 @@ func (c *nep17TokenNative) addTokens(ic *interop.Context, h util.Uint160, amount
 	}
 
 	key := makeAccountKey(h)
-	si := ic.DAO.GetStorageItem(c.ContractID, key)
+	si := ic.DAO.GetStorageItem(c.ID, key)
 	if si == nil {
 		si = new(state.StorageItem)
 	}
 	if err := c.incBalance(ic, h, si, amount); err != nil {
 		panic(err)
 	}
-	if err := ic.DAO.PutStorageItem(c.ContractID, key, si); err != nil {
+	if err := ic.DAO.PutStorageItem(c.ID, key, si); err != nil {
 		panic(err)
 	}
 
