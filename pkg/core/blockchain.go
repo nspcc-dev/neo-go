@@ -1245,13 +1245,9 @@ func (bc *Blockchain) GetNativeContractScriptHash(name string) (util.Uint160, er
 
 // GetNatives returns list of native contracts.
 func (bc *Blockchain) GetNatives() []state.NativeContract {
-	res := make([]state.NativeContract, len(bc.contracts.Contracts))
-	for i, c := range bc.contracts.Contracts {
-		md := c.Metadata()
-		res[i].ID = md.ID
-		res[i].Hash = md.Hash
-		res[i].Manifest = md.Manifest
-		res[i].NEF = md.NEF
+	res := make([]state.NativeContract, 0, len(bc.contracts.Contracts))
+	for _, c := range bc.contracts.Contracts {
+		res = append(res, c.Metadata().NativeContract)
 	}
 	return res
 }

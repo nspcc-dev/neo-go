@@ -453,12 +453,7 @@ func (m *Management) OnPersist(ic *interop.Context) error {
 		md := native.Metadata()
 
 		cs := &state.Contract{
-			ContractBase: state.ContractBase{
-				ID:       md.ID,
-				Hash:     md.Hash,
-				NEF:      md.NEF,
-				Manifest: md.Manifest,
-			},
+			ContractBase: md.ContractBase,
 		}
 		err := m.PutContractState(ic.DAO, cs)
 		if err != nil {

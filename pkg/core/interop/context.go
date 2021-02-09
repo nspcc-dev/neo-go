@@ -99,12 +99,9 @@ type Contract interface {
 
 // ContractMD represents native contract instance.
 type ContractMD struct {
-	Manifest manifest.Manifest
-	Name     string
-	ID       int32
-	NEF      nef.File
-	Hash     util.Uint160
-	Methods  map[MethodAndArgCount]MethodAndPrice
+	state.NativeContract
+	Name    string
+	Methods map[MethodAndArgCount]MethodAndPrice
 }
 
 // MethodAndArgCount represents method's signature.
@@ -117,9 +114,10 @@ type MethodAndArgCount struct {
 func NewContractMD(name string, id int32) *ContractMD {
 	c := &ContractMD{
 		Name:    name,
-		ID:      id,
 		Methods: make(map[MethodAndArgCount]MethodAndPrice),
 	}
+
+	c.ID = id
 
 	// NEF is now stored in contract state and affects state dump.
 	// Therefore values are taken from C# node.
