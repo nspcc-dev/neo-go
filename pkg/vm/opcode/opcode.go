@@ -219,3 +219,9 @@ const (
 	ISTYPE  Opcode = 0xD9
 	CONVERT Opcode = 0xDB
 )
+
+// IsValid returns true if the opcode passed is valid (defined in the VM).
+func IsValid(op Opcode) bool {
+	_, ok := _Opcode_map[op] // We rely on stringer here, it has a map anyway.
+	return ok
+}
