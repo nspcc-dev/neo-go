@@ -5,8 +5,12 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/util/bitfield"
+	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -113,5 +117,154 @@ func TestIsMultiSigContract(t *testing.T) {
 		prog := testMultisigContract(t, 2, 2)
 		prog = append(prog, 0)
 		assert.False(t, IsMultiSigContract(prog))
+	})
+}
+
+func TestIsScriptCorrect(t *testing.T) {
+	w := io.NewBufBinWriter()
+	emit.String(w.BinWriter, "something")
+
+	jmpOff := w.Len()
+	emit.Opcodes(w.BinWriter, opcode.JMP, opcode.Opcode(-jmpOff))
+
+	retOff := w.Len()
+	emit.Opcodes(w.BinWriter, opcode.RET)
+
+	jmplOff := w.Len()
+	emit.Opcodes(w.BinWriter, opcode.JMPL, opcode.Opcode(0xff), opcode.Opcode(0xff), opcode.Opcode(0xff), opcode.Opcode(0xff))
+
+	tryOff := w.Len()
+	emit.Opcodes(w.BinWriter, opcode.TRY, opcode.Opcode(3), opcode.Opcode(0xfb)) // -5
+
+	trylOff := w.Len()
+	emit.Opcodes(w.BinWriter, opcode.TRYL, opcode.Opcode(0xfd), opcode.Opcode(0xff), opcode.Opcode(0xff), opcode.Opcode(0xff),
+		opcode.Opcode(9), opcode.Opcode(0), opcode.Opcode(0), opcode.Opcode(0))
+
+	istypeOff := w.Len()
+	emit.Opcodes(w.BinWriter, opcode.ISTYPE, opcode.Opcode(stackitem.IntegerT))
+
+	pushOff := w.Len()
+	emit.String(w.BinWriter, "else")
+
+	good := w.Bytes()
+
+	getScript := func() []byte {
+		s := make([]byte, len(good))
+		copy(s, good)
+		return s
+	}
+
+	t.Run("good", func(t *testing.T) {
+		require.NoError(t, IsScriptCorrect(good, nil))
+	})
+
+	t.Run("bad instruction", func(t *testing.T) {
+		bad := getScript()
+		bad[retOff] = 0xff
+		require.Error(t, IsScriptCorrect(bad, nil))
+	})
+
+	t.Run("out of bounds JMP 1", func(t *testing.T) {
+		bad := getScript()
+		bad[jmpOff+1] = 0x80 // -128
+		require.Error(t, IsScriptCorrect(bad, nil))
+	})
+
+	t.Run("out of bounds JMP 2", func(t *testing.T) {
+		bad := getScript()
+		bad[jmpOff+1] = 0x7f
+		require.Error(t, IsScriptCorrect(bad, nil))
+	})
+
+	t.Run("bad JMP offset 1", func(t *testing.T) {
+		bad := getScript()
+		bad[jmpOff+1] = 0xff // into "something"
+		require.Error(t, IsScriptCorrect(bad, nil))
+	})
+
+	t.Run("bad JMP offset 2", func(t *testing.T) {
+		bad := getScript()
+		bad[jmpOff+1] = byte(pushOff - jmpOff + 1)
+		require.Error(t, IsScriptCorrect(bad, nil))
+	})
+
+	t.Run("out of bounds JMPL 1", func(t *testing.T) {
+		bad := getScript()
+		bad[jmplOff+1] = byte(-jmplOff - 1)
+		require.Error(t, IsScriptCorrect(bad, nil))
+	})
+
+	t.Run("out of bounds JMPL 1", func(t *testing.T) {
+		bad := getScript()
+		bad[jmplOff+1] = byte(len(bad) - jmplOff)
+		bad[jmplOff+2] = 0
+		bad[jmplOff+3] = 0
+		bad[jmplOff+4] = 0
+		require.Error(t, IsScriptCorrect(bad, nil))
+	})
+
+	t.Run("bad JMPL offset", func(t *testing.T) {
+		bad := getScript()
+		bad[jmplOff+1] = 0xfe // into JMP
+		require.Error(t, IsScriptCorrect(bad, nil))
+	})
+
+	t.Run("out of bounds TRY 1", func(t *testing.T) {
+		bad := getScript()
+		bad[tryOff+1] = byte(-tryOff - 1)
+		require.Error(t, IsScriptCorrect(bad, nil))
+	})
+
+	t.Run("out of bounds TRY 2", func(t *testing.T) {
+		bad := getScript()
+		bad[tryOff+2] = byte(len(bad) - tryOff)
+		require.Error(t, IsScriptCorrect(bad, nil))
+	})
+
+	t.Run("bad TRYL offset 1", func(t *testing.T) {
+		bad := getScript()
+		bad[trylOff+1] = byte(-(trylOff - jmpOff) - 1) // into "something"
+		require.Error(t, IsScriptCorrect(bad, nil))
+	})
+
+	t.Run("bad TRYL offset 2", func(t *testing.T) {
+		bad := getScript()
+		bad[trylOff+5] = byte(len(bad) - trylOff - 1)
+		require.Error(t, IsScriptCorrect(bad, nil))
+	})
+
+	t.Run("bad ISTYPE type", func(t *testing.T) {
+		bad := getScript()
+		bad[istypeOff+1] = byte(0xff)
+		require.Error(t, IsScriptCorrect(bad, nil))
+	})
+
+	t.Run("bad ISTYPE type (Any)", func(t *testing.T) {
+		bad := getScript()
+		bad[istypeOff+1] = byte(stackitem.AnyT)
+		require.Error(t, IsScriptCorrect(bad, nil))
+	})
+
+	t.Run("good NEWARRAY_T type", func(t *testing.T) {
+		bad := getScript()
+		bad[istypeOff] = byte(opcode.NEWARRAYT)
+		bad[istypeOff+1] = byte(stackitem.AnyT)
+		require.NoError(t, IsScriptCorrect(bad, nil))
+	})
+
+	t.Run("good methods", func(t *testing.T) {
+		methods := bitfield.New(len(good))
+		methods.Set(retOff)
+		methods.Set(tryOff)
+		methods.Set(pushOff)
+		require.NoError(t, IsScriptCorrect(good, methods))
+	})
+
+	t.Run("bad methods", func(t *testing.T) {
+		methods := bitfield.New(len(good))
+		methods.Set(retOff)
+		methods.Set(tryOff)
+		methods.Set(pushOff + 1)
+		require.Error(t, IsScriptCorrect(good, methods))
 	})
 }

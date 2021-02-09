@@ -62,3 +62,18 @@ func (f Field) Equals(o Field) bool {
 	}
 	return true
 }
+
+// IsSubset returns true when f is a subset of o (only has bits set that are
+// set in o).
+func (f Field) IsSubset(o Field) bool {
+	if len(f) > len(o) {
+		return false
+	}
+	for i := range f {
+		r := f[i] & o[i]
+		if r != f[i] {
+			return false
+		}
+	}
+	return true
+}

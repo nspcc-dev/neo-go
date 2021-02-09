@@ -17,6 +17,7 @@ func TestFields(t *testing.T) {
 	b.Set(100)
 	require.True(t, a.IsSet(42))
 	require.False(t, b.IsSet(43))
+	require.True(t, a.IsSubset(b))
 
 	v := uint64(1<<10 | 1<<42)
 	require.Equal(t, v, a[0])
@@ -28,14 +29,17 @@ func TestFields(t *testing.T) {
 	require.True(t, c.Equals(b))
 
 	z := New(128)
+	require.True(t, z.IsSubset(c))
 	c.And(a)
 	require.True(t, c.Equals(b))
 	c.And(z)
 	require.True(t, c.Equals(z))
 
 	c = New(64)
+	require.False(t, z.IsSubset(c))
 	c[0] = a[0]
 	require.False(t, c.Equals(a))
+	require.True(t, c.IsSubset(a))
 
 	b.And(c)
 	require.False(t, b.Equals(a))

@@ -22,6 +22,8 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/util/bitfield"
+	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
@@ -273,6 +275,10 @@ func (m *Management) Deploy(d dao.DAO, sender util.Uint160, neff *nef.File, mani
 	if err != nil {
 		return nil, fmt.Errorf("invalid manifest: %w", err)
 	}
+	err = checkScriptAndMethods(neff.Script, manif.ABI.Methods)
+	if err != nil {
+		return nil, err
+	}
 	newcontract := &state.Contract{
 		ID:       id,
 		Hash:     h,
@@ -333,6 +339,10 @@ func (m *Management) Update(d dao.DAO, hash util.Uint160, neff *nef.File, manif 
 		}
 		m.markUpdated(hash)
 		contract.Manifest = *manif
+	}
+	err = checkScriptAndMethods(contract.NEF.Script, contract.Manifest.ABI.Methods)
+	if err != nil {
+		return nil, err
 	}
 	contract.UpdateCounter++
 	err = m.PutContractState(d, contract)
@@ -550,4 +560,16 @@ func (m *Management) emitNotification(ic *interop.Context, name string, hash uti
 		Item:       stackitem.NewArray([]stackitem.Item{addrToStackItem(&hash)}),
 	}
 	ic.Notifications = append(ic.Notifications, ne)
+}
+
+func checkScriptAndMethods(script []byte, methods []manifest.Method) error {
+	l := len(script)
+	offsets := bitfield.New(l)
+	for i := range methods {
+		if methods[i].Offset >= l {
+			return errors.New("out of bounds method offset")
+		}
+		offsets.Set(methods[i].Offset)
+	}
+	return vm.IsScriptCorrect(script, offsets)
 }
