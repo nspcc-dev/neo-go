@@ -25,7 +25,7 @@ func TestInvoke_MarshalJSON(t *testing.T) {
 	require.NoError(t, err)
 	expected := `{
 		"state":"HALT",
-		"gasconsumed":"2.37626",
+		"gasconsumed":"237626000",
 		"script":"` + base64.StdEncoding.EncodeToString(result.Script) + `",
 		"stack":[
 			{"type":"Integer","value":"1"}

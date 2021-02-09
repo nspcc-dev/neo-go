@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/nspcc-dev/neo-go/pkg/encoding/fixedn"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -184,7 +183,7 @@ type Execution struct {
 type executionAux struct {
 	Trigger        string              `json:"trigger"`
 	VMState        string              `json:"vmstate"`
-	GasConsumed    fixedn.Fixed8       `json:"gasconsumed,string"`
+	GasConsumed    int64               `json:"gasconsumed,string"`
 	Stack          json.RawMessage     `json:"stack"`
 	Events         []NotificationEvent `json:"notifications"`
 	FaultException string              `json:"exception,omitempty"`
@@ -212,7 +211,7 @@ func (e Execution) MarshalJSON() ([]byte, error) {
 	return json.Marshal(&executionAux{
 		Trigger:        e.Trigger.String(),
 		VMState:        e.VMState.String(),
-		GasConsumed:    fixedn.Fixed8(e.GasConsumed),
+		GasConsumed:    e.GasConsumed,
 		Stack:          st,
 		Events:         e.Events,
 		FaultException: e.FaultException,
@@ -253,7 +252,7 @@ func (e *Execution) UnmarshalJSON(data []byte) error {
 	}
 	e.VMState = state
 	e.Events = aux.Events
-	e.GasConsumed = int64(aux.GasConsumed)
+	e.GasConsumed = aux.GasConsumed
 	e.FaultException = aux.FaultException
 	return nil
 }

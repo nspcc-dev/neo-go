@@ -126,8 +126,8 @@ func TestUnmarshalNeoFSTX(t *testing.T) {
   "version": 0,
   "nonce": 737880259,
   "sender": "NiRqSd5MtRZT5yUhgWd7oG11brkDG76Jim",
-  "sysfee": "2.2371942",
-  "netfee": "0.0121555",
+  "sysfee": "223719420",
+  "netfee": "1215550",
   "validuntilblock": 1931,
   "attributes": [],
   "signers": [
