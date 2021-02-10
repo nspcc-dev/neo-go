@@ -10,7 +10,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
-	"github.com/nspcc-dev/neo-go/pkg/encoding/fixedn"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 )
@@ -302,18 +301,18 @@ func (t *Transaction) Sender() util.Uint160 {
 // transactionJSON is a wrapper for Transaction and
 // used for correct marhalling of transaction.Data
 type transactionJSON struct {
-	TxID            util.Uint256  `json:"hash"`
-	Size            int           `json:"size"`
-	Version         uint8         `json:"version"`
-	Nonce           uint32        `json:"nonce"`
-	Sender          string        `json:"sender"`
-	SystemFee       fixedn.Fixed8 `json:"sysfee"`
-	NetworkFee      fixedn.Fixed8 `json:"netfee"`
-	ValidUntilBlock uint32        `json:"validuntilblock"`
-	Attributes      []Attribute   `json:"attributes"`
-	Signers         []Signer      `json:"signers"`
-	Script          []byte        `json:"script"`
-	Scripts         []Witness     `json:"witnesses"`
+	TxID            util.Uint256 `json:"hash"`
+	Size            int          `json:"size"`
+	Version         uint8        `json:"version"`
+	Nonce           uint32       `json:"nonce"`
+	Sender          string       `json:"sender"`
+	SystemFee       int64        `json:"sysfee,string"`
+	NetworkFee      int64        `json:"netfee,string"`
+	ValidUntilBlock uint32       `json:"validuntilblock"`
+	Attributes      []Attribute  `json:"attributes"`
+	Signers         []Signer     `json:"signers"`
+	Script          []byte       `json:"script"`
+	Scripts         []Witness    `json:"witnesses"`
 }
 
 // MarshalJSON implements json.Marshaler interface.
@@ -329,8 +328,8 @@ func (t *Transaction) MarshalJSON() ([]byte, error) {
 		Signers:         t.Signers,
 		Script:          t.Script,
 		Scripts:         t.Scripts,
-		SystemFee:       fixedn.Fixed8(t.SystemFee),
-		NetworkFee:      fixedn.Fixed8(t.NetworkFee),
+		SystemFee:       t.SystemFee,
+		NetworkFee:      t.NetworkFee,
 	}
 	return json.Marshal(tx)
 }
@@ -347,8 +346,8 @@ func (t *Transaction) UnmarshalJSON(data []byte) error {
 	t.Attributes = tx.Attributes
 	t.Signers = tx.Signers
 	t.Scripts = tx.Scripts
-	t.SystemFee = int64(tx.SystemFee)
-	t.NetworkFee = int64(tx.NetworkFee)
+	t.SystemFee = tx.SystemFee
+	t.NetworkFee = tx.NetworkFee
 	t.Script = tx.Script
 	if t.Hash() != tx.TxID {
 		return errors.New("txid doesn't match transaction hash")
