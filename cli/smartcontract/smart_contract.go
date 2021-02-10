@@ -770,7 +770,7 @@ func getAccFromContext(ctx *cli.Context) (*wallet.Account, error) {
 		return nil, cli.NewExitError(fmt.Errorf("wallet contains no account for '%s'", address.Uint160ToString(addr)), 1)
 	}
 
-	rawPass, err := input.ReadPassword(ctx.App.Writer,
+	rawPass, err := input.ReadPassword(
 		fmt.Sprintf("Enter account %s password > ", address.Uint160ToString(addr)))
 	if err != nil {
 		return nil, cli.NewExitError(err, 1)

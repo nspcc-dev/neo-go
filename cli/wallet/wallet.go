@@ -261,7 +261,7 @@ func convertWallet(ctx *cli.Context) error {
 	defer newWallet.Close()
 
 	for _, acc := range wall.Accounts {
-		pass, err := input.ReadPassword(ctx.App.Writer, fmt.Sprintf("Enter passphrase for account %s (label '%s') > ", acc.Address, acc.Label))
+		pass, err := input.ReadPassword(fmt.Sprintf("Enter passphrase for account %s (label '%s') > ", acc.Address, acc.Label))
 		if err != nil {
 			return cli.NewExitError(err, 1)
 		}
@@ -331,7 +331,7 @@ loop:
 
 	for _, wif := range wifs {
 		if decrypt {
-			pass, err := input.ReadPassword(ctx.App.Writer, "Enter password > ")
+			pass, err := input.ReadPassword("Enter password > ")
 			if err != nil {
 				return cli.NewExitError(err, 1)
 			}
@@ -505,7 +505,7 @@ func removeAccount(ctx *cli.Context) error {
 }
 
 func askForConsent(w io.Writer) bool {
-	response, err := input.ReadLine(w, "Are you sure? [y/N]: ")
+	response, err := input.ReadLine("Are you sure? [y/N]: ")
 	if err == nil {
 		response = strings.ToLower(strings.TrimSpace(response))
 		if response == "y" || response == "yes" {
@@ -522,7 +522,7 @@ func dumpWallet(ctx *cli.Context) error {
 		return cli.NewExitError(err, 1)
 	}
 	if ctx.Bool("decrypt") {
-		pass, err := input.ReadPassword(ctx.App.Writer, "Enter wallet password > ")
+		pass, err := input.ReadPassword("Enter wallet password > ")
 		if err != nil {
 			return cli.NewExitError(err, 1)
 		}
@@ -563,12 +563,12 @@ func createWallet(ctx *cli.Context) error {
 }
 
 func readAccountInfo(w io.Writer) (string, string, error) {
-	rawName, _ := input.ReadLine(w, "Enter the name of the account > ")
-	phrase, err := input.ReadPassword(w, "Enter passphrase > ")
+	rawName, _ := input.ReadLine("Enter the name of the account > ")
+	phrase, err := input.ReadPassword("Enter passphrase > ")
 	if err != nil {
 		return "", "", err
 	}
-	phraseCheck, err := input.ReadPassword(w, "Confirm passphrase > ")
+	phraseCheck, err := input.ReadPassword("Confirm passphrase > ")
 	if err != nil {
 		return "", "", err
 	}
@@ -600,7 +600,7 @@ func newAccountFromWIF(w io.Writer, wif string) (*wallet.Account, error) {
 	// note: NEP2 strings always have length of 58 even though
 	// base58 strings can have different lengths even if slice lengths are equal
 	if len(wif) == 58 {
-		pass, err := input.ReadPassword(w, "Enter password > ")
+		pass, err := input.ReadPassword("Enter password > ")
 		if err != nil {
 			return nil, err
 		}

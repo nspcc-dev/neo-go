@@ -1,6 +1,9 @@
 package vm
 
 import (
+	"os"
+
+	"github.com/abiosoft/readline"
 	vmcli "github.com/nspcc-dev/neo-go/pkg/vm/cli"
 	"github.com/urfave/cli"
 )
@@ -18,6 +21,9 @@ func NewCommands() []cli.Command {
 }
 
 func startVMPrompt(ctx *cli.Context) error {
-	p := vmcli.New()
+	p := vmcli.NewWithConfig(true, os.Exit, &readline.Config{
+		Stdout: ctx.App.Writer,
+		Stderr: ctx.App.ErrWriter,
+	})
 	return p.Run()
 }

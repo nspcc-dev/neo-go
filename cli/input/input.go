@@ -1,44 +1,57 @@
 package input
 
 import (
-	"bufio"
-	"fmt"
 	"io"
 	"os"
-	"strings"
 	"syscall"
 
-	"golang.org/x/crypto/ssh/terminal"
+	"golang.org/x/term"
 )
 
 // Terminal is a terminal used for input. If `nil`, stdin is used.
-var Terminal *terminal.Terminal
+var Terminal *term.Terminal
 
-// ReadLine reads line from the input without trailing '\n'
-func ReadLine(w io.Writer, prompt string) (string, error) {
-	if Terminal != nil {
-		_, err := Terminal.Write([]byte(prompt))
-		if err != nil {
-			return "", err
-		}
-		raw, err := Terminal.ReadLine()
-		return strings.TrimRight(raw, "\n"), err
-	}
-	fmt.Fprint(w, prompt)
-	buf := bufio.NewReader(os.Stdin)
-	return buf.ReadString('\n')
+// ReadWriter combiner reader and writer.
+type ReadWriter struct {
+	io.Reader
+	io.Writer
 }
 
-// ReadPassword reads user password with prompt.
-func ReadPassword(w io.Writer, prompt string) (string, error) {
-	if Terminal != nil {
-		return Terminal.ReadPassword(prompt)
+// ReadLine reads line from the input without trailing '\n'
+func ReadLine(prompt string) (string, error) {
+	trm := Terminal
+	if trm == nil {
+		s, err := term.MakeRaw(syscall.Stdin)
+		if err != nil {
+			panic(err)
+		}
+		defer term.Restore(syscall.Stdin, s)
+		trm = term.NewTerminal(ReadWriter{
+			Reader: os.Stdin,
+			Writer: os.Stdout,
+		}, "")
 	}
-	fmt.Fprint(w, prompt)
-	rawPass, err := terminal.ReadPassword(syscall.Stdin)
+	return readLine(trm, prompt)
+}
+
+func readLine(trm *term.Terminal, prompt string) (string, error) {
+	_, err := trm.Write([]byte(prompt))
 	if err != nil {
 		return "", err
 	}
-	fmt.Fprintln(w)
-	return strings.TrimRight(string(rawPass), "\n"), nil
+	return trm.ReadLine()
+}
+
+// ReadPassword reads user password with prompt.
+func ReadPassword(prompt string) (string, error) {
+	trm := Terminal
+	if trm == nil {
+		s, err := term.MakeRaw(syscall.Stdin)
+		if err != nil {
+			panic(err)
+		}
+		defer term.Restore(syscall.Stdin, s)
+		trm = term.NewTerminal(ReadWriter{os.Stdin, os.Stdout}, prompt)
+	}
+	return trm.ReadPassword(prompt)
 }

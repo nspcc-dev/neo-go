@@ -23,7 +23,7 @@ require (
 	go.uber.org/atomic v1.4.0
 	go.uber.org/zap v1.10.0
 	golang.org/x/crypto v0.0.0-20190701094942-4def268fd1a4
-	golang.org/x/sys v0.0.0-20200323222414-85ca7c5b95cd // indirect
+	golang.org/x/term v0.0.0-20201210144234-2321bbc49cbf
 	golang.org/x/text v0.3.0
 	golang.org/x/tools v0.0.0-20180318012157-96caea41033d
 	gopkg.in/abiosoft/ishell.v2 v2.0.0
