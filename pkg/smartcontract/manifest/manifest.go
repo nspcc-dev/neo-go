@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"errors"
 	"math"
+	"sort"
 
-	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
@@ -14,32 +14,11 @@ const (
 	// MaxManifestSize is a max length for a valid contract manifest.
 	MaxManifestSize = math.MaxUint16
 
-	// MethodInit is a name for default initialization method.
-	MethodInit = "_initialize"
-
-	// MethodDeploy is a name for default method called during contract deployment.
-	MethodDeploy = "_deploy"
-
-	// MethodVerify is a name for default verification method.
-	MethodVerify = "verify"
-
-	// MethodOnNEP17Payment is name of the method which is called when contract receives NEP-17 tokens.
-	MethodOnNEP17Payment = "onNEP17Payment"
-
-	// MethodOnNEP11Payment is the name of the method which is called when contract receives NEP-11 tokens.
-	MethodOnNEP11Payment = "onNEP11Payment"
-
 	// NEP10StandardName represents the name of NEP10 smartcontract standard.
 	NEP10StandardName = "NEP-10"
 	// NEP17StandardName represents the name of NEP17 smartcontract standard.
 	NEP17StandardName = "NEP-17"
 )
-
-// ABI represents a contract application binary interface.
-type ABI struct {
-	Methods []Method `json:"methods"`
-	Events  []Event  `json:"events"`
-}
 
 // Manifest represens contract metadata.
 type Manifest struct {
@@ -81,26 +60,6 @@ func DefaultManifest(name string) *Manifest {
 	return m
 }
 
-// GetMethod returns methods with the specified name.
-func (a *ABI) GetMethod(name string, paramCount int) *Method {
-	for i := range a.Methods {
-		if a.Methods[i].Name == name && (paramCount == -1 || len(a.Methods[i].Parameters) == paramCount) {
-			return &a.Methods[i]
-		}
-	}
-	return nil
-}
-
-// GetEvent returns event with the specified name.
-func (a *ABI) GetEvent(name string) *Event {
-	for i := range a.Events {
-		if a.Events[i].Name == name {
-			return &a.Events[i]
-		}
-	}
-	return nil
-}
-
 // CanCall returns true is current contract is allowed to call
 // method of another contract with specified hash.
 func (m *Manifest) CanCall(hash util.Uint160, toCall *Manifest, method string) bool {
@@ -112,34 +71,51 @@ func (m *Manifest) CanCall(hash util.Uint160, toCall *Manifest, method string) b
 	return false
 }
 
-// IsValid checks whether the hash given is correct wrt manifest's groups.
-func (m *Manifest) IsValid(hash util.Uint160) bool {
-	for _, g := range m.Groups {
-		if !g.IsValid(hash) {
-			return false
+// IsValid checks manifest internal consistency and correctness, one of the
+// checks is for group signature correctness, contract hash is passed for it.
+func (m *Manifest) IsValid(hash util.Uint160) error {
+	var err error
+
+	if m.Name == "" {
+		return errors.New("no name")
+	}
+
+	for i := range m.SupportedStandards {
+		if m.SupportedStandards[i] == "" {
+			return errors.New("invalid nameless supported standard")
 		}
 	}
-	return true
-}
-
-// EncodeBinary implements io.Serializable.
-func (m *Manifest) EncodeBinary(w *io.BinWriter) {
-	data, err := json.Marshal(m)
+	if len(m.SupportedStandards) > 1 {
+		names := make([]string, len(m.SupportedStandards))
+		copy(names, m.SupportedStandards)
+		if stringsHaveDups(names) {
+			return errors.New("duplicate supported standards")
+		}
+	}
+	err = m.ABI.IsValid()
 	if err != nil {
-		w.Err = err
-		return
+		return err
 	}
-	w.WriteVarBytes(data)
-}
-
-// DecodeBinary implements io.Serializable.
-func (m *Manifest) DecodeBinary(r *io.BinReader) {
-	data := r.ReadVarBytes(MaxManifestSize)
-	if r.Err != nil {
-		return
-	} else if err := json.Unmarshal(data, m); err != nil {
-		r.Err = err
+	err = Groups(m.Groups).AreValid(hash)
+	if err != nil {
+		return err
 	}
+	if len(m.Trusts.Value) > 1 {
+		hashes := make([]util.Uint160, len(m.Trusts.Value))
+		copy(hashes, m.Trusts.Value)
+		sort.Slice(hashes, func(i, j int) bool {
+			return hashes[i].Less(hashes[j])
+		})
+		for i := range hashes {
+			if i == 0 {
+				continue
+			}
+			if hashes[i] == hashes[i-1] {
+				return errors.New("duplicate trusted contracts")
+			}
+		}
+	}
+	return Permissions(m.Permissions).AreValid()
 }
 
 // ToStackItem converts Manifest to stackitem.Item.
@@ -266,56 +242,4 @@ func (m *Manifest) FromStackItem(item stackitem.Item) error {
 		return nil
 	}
 	return json.Unmarshal(extra, &m.Extra)
-}
-
-// ToStackItem converts ABI to stackitem.Item.
-func (a *ABI) ToStackItem() stackitem.Item {
-	methods := make([]stackitem.Item, len(a.Methods))
-	for i := range a.Methods {
-		methods[i] = a.Methods[i].ToStackItem()
-	}
-	events := make([]stackitem.Item, len(a.Events))
-	for i := range a.Events {
-		events[i] = a.Events[i].ToStackItem()
-	}
-	return stackitem.NewStruct([]stackitem.Item{
-		stackitem.Make(methods),
-		stackitem.Make(events),
-	})
-}
-
-// FromStackItem converts stackitem.Item to ABI.
-func (a *ABI) FromStackItem(item stackitem.Item) error {
-	if item.Type() != stackitem.StructT {
-		return errors.New("invalid ABI stackitem type")
-	}
-	str := item.Value().([]stackitem.Item)
-	if len(str) != 2 {
-		return errors.New("invalid ABI stackitem length")
-	}
-	if str[0].Type() != stackitem.ArrayT {
-		return errors.New("invalid Methods stackitem type")
-	}
-	methods := str[0].Value().([]stackitem.Item)
-	a.Methods = make([]Method, len(methods))
-	for i := range methods {
-		m := new(Method)
-		if err := m.FromStackItem(methods[i]); err != nil {
-			return err
-		}
-		a.Methods[i] = *m
-	}
-	if str[1].Type() != stackitem.ArrayT {
-		return errors.New("invalid Events stackitem type")
-	}
-	events := str[1].Value().([]stackitem.Item)
-	a.Events = make([]Event, len(events))
-	for i := range events {
-		e := new(Event)
-		if err := e.FromStackItem(events[i]); err != nil {
-			return err
-		}
-		a.Events[i] = *e
-	}
-	return nil
 }

@@ -8,9 +8,11 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/stretchr/testify/require"
 )
 
@@ -18,11 +20,16 @@ func TestDeployGetUpdateDestroyContract(t *testing.T) {
 	mgmt := newManagement()
 	d := dao.NewCached(dao.NewSimple(storage.NewMemoryStore(), netmode.UnitTestNet, false))
 	mgmt.Initialize(&interop.Context{DAO: d})
-	script := []byte{1}
+	script := []byte{byte(opcode.RET)}
 	sender := util.Uint160{1, 2, 3}
 	ne, err := nef.NewFile(script)
 	require.NoError(t, err)
 	manif := manifest.NewManifest("Test")
+	manif.ABI.Methods = append(manif.ABI.Methods, manifest.Method{
+		Name:       "dummy",
+		ReturnType: smartcontract.VoidType,
+		Parameters: []manifest.Parameter{},
+	})
 
 	h := state.CreateContractHash(sender, ne.Checksum, manif.Name)
 

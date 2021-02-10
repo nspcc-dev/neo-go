@@ -10,6 +10,27 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestMethodIsValid(t *testing.T) {
+	m := &Method{}
+	require.Error(t, m.IsValid()) // No name.
+
+	m.Name = "qwerty"
+	require.NoError(t, m.IsValid())
+
+	m.Offset = -100
+	require.Error(t, m.IsValid())
+
+	m.Offset = 100
+	m.ReturnType = 0x42 // Invalid type.
+	require.Error(t, m.IsValid())
+
+	m.ReturnType = smartcontract.BoolType
+	require.NoError(t, m.IsValid())
+
+	m.Parameters = append(m.Parameters, NewParameter("param", smartcontract.BoolType), NewParameter("param", smartcontract.BoolType))
+	require.Error(t, m.IsValid())
+}
+
 func TestMethod_ToStackItemFromStackItem(t *testing.T) {
 	m := &Method{
 		Name:       "mur",
@@ -52,76 +73,15 @@ func TestMethod_FromStackItemErrors(t *testing.T) {
 	}
 }
 
-func TestParameter_ToStackItemFromStackItem(t *testing.T) {
-	p := &Parameter{
-		Name: "param",
-		Type: smartcontract.StringType,
-	}
-	expected := stackitem.NewStruct([]stackitem.Item{
-		stackitem.NewByteArray([]byte(p.Name)),
-		stackitem.NewBigInteger(big.NewInt(int64(p.Type))),
-	})
-	CheckToFromStackItem(t, p, expected)
-}
-
-func TestParameter_FromStackItemErrors(t *testing.T) {
-	errCases := map[string]stackitem.Item{
-		"not a struct":       stackitem.NewArray([]stackitem.Item{}),
-		"invalid length":     stackitem.NewStruct([]stackitem.Item{}),
-		"invalid name type":  stackitem.NewStruct([]stackitem.Item{stackitem.NewInterop(nil), stackitem.Null{}}),
-		"invalid type type":  stackitem.NewStruct([]stackitem.Item{stackitem.NewByteArray([]byte{}), stackitem.Null{}}),
-		"invalid type value": stackitem.NewStruct([]stackitem.Item{stackitem.NewByteArray([]byte{}), stackitem.NewBigInteger(big.NewInt(-100500))}),
-	}
-	for name, errCase := range errCases {
-		t.Run(name, func(t *testing.T) {
-			p := new(Parameter)
-			require.Error(t, p.FromStackItem(errCase))
-		})
-	}
-}
-
-func TestEvent_ToStackItemFromStackItem(t *testing.T) {
-	m := &Event{
-		Name:       "mur",
-		Parameters: []Parameter{{Name: "p1", Type: smartcontract.BoolType}},
-	}
-	expected := stackitem.NewStruct([]stackitem.Item{
-		stackitem.NewByteArray([]byte(m.Name)),
-		stackitem.NewArray([]stackitem.Item{
-			stackitem.NewStruct([]stackitem.Item{
-				stackitem.NewByteArray([]byte(m.Parameters[0].Name)),
-				stackitem.NewBigInteger(big.NewInt(int64(m.Parameters[0].Type))),
-			}),
-		}),
-	})
-	CheckToFromStackItem(t, m, expected)
-}
-
-func TestEvent_FromStackItemErrors(t *testing.T) {
-	errCases := map[string]stackitem.Item{
-		"not a struct":            stackitem.NewArray([]stackitem.Item{}),
-		"invalid length":          stackitem.NewStruct([]stackitem.Item{}),
-		"invalid name type":       stackitem.NewStruct([]stackitem.Item{stackitem.NewInterop(nil), stackitem.Null{}}),
-		"invalid parameters type": stackitem.NewStruct([]stackitem.Item{stackitem.NewByteArray([]byte{}), stackitem.Null{}}),
-		"invalid parameter":       stackitem.NewStruct([]stackitem.Item{stackitem.NewByteArray([]byte{}), stackitem.NewArray([]stackitem.Item{stackitem.NewStruct([]stackitem.Item{})})}),
-	}
-	for name, errCase := range errCases {
-		t.Run(name, func(t *testing.T) {
-			p := new(Event)
-			require.Error(t, p.FromStackItem(errCase))
-		})
-	}
-}
-
 func TestGroup_ToStackItemFromStackItem(t *testing.T) {
 	pk, _ := keys.NewPrivateKey()
 	g := &Group{
 		PublicKey: pk.PublicKey(),
-		Signature: []byte{1, 2, 3},
+		Signature: make([]byte, keys.SignatureLen),
 	}
 	expected := stackitem.NewStruct([]stackitem.Item{
 		stackitem.NewByteArray(pk.PublicKey().Bytes()),
-		stackitem.NewByteArray([]byte{1, 2, 3}),
+		stackitem.NewByteArray(make([]byte, keys.SignatureLen)),
 	})
 	CheckToFromStackItem(t, g, expected)
 }
@@ -134,6 +94,7 @@ func TestGroup_FromStackItemErrors(t *testing.T) {
 		"invalid pub type":  stackitem.NewStruct([]stackitem.Item{stackitem.NewInterop(nil), stackitem.Null{}}),
 		"invalid pub bytes": stackitem.NewStruct([]stackitem.Item{stackitem.NewByteArray([]byte{1}), stackitem.Null{}}),
 		"invalid sig type":  stackitem.NewStruct([]stackitem.Item{stackitem.NewByteArray(pk.Bytes()), stackitem.NewInterop(nil)}),
+		"invalid sig len":   stackitem.NewStruct([]stackitem.Item{stackitem.NewByteArray(pk.Bytes()), stackitem.NewByteArray([]byte{1})}),
 	}
 	for name, errCase := range errCases {
 		t.Run(name, func(t *testing.T) {

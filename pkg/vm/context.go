@@ -3,6 +3,7 @@ package vm
 import (
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"math/big"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
@@ -109,6 +110,9 @@ func (c *Context) Next() (opcode.Opcode, []byte, error) {
 
 	var instrbyte = c.prog[c.ip]
 	instr := opcode.Opcode(instrbyte)
+	if !opcode.IsValid(instr) {
+		return instr, nil, fmt.Errorf("incorrect opcode %s", instr.String())
+	}
 	c.nextip++
 
 	var numtoread int

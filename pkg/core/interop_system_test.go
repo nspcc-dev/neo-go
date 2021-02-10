@@ -910,7 +910,7 @@ func TestRuntimeCheckWitness(t *testing.T) {
 						Hash: contractScriptHash,
 						NEF:  *ne,
 						Manifest: manifest.Manifest{
-							Groups: []manifest.Group{{PublicKey: pk.PublicKey()}},
+							Groups: []manifest.Group{{PublicKey: pk.PublicKey(), Signature: make([]byte, keys.SignatureLen)}},
 						},
 					}
 					require.NoError(t, bc.contracts.Management.PutContractState(ic.DAO, contractState))

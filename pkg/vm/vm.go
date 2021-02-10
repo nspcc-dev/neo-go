@@ -185,11 +185,11 @@ func (v *VM) PrintOps(out io.Writer) {
 				opcode.JMPEQL, opcode.JMPNEL,
 				opcode.JMPGTL, opcode.JMPGEL, opcode.JMPLEL, opcode.JMPLTL,
 				opcode.PUSHA, opcode.ENDTRY, opcode.ENDTRYL:
-				desc = v.getOffsetDesc(ctx, parameter)
+				desc = getOffsetDesc(ctx, parameter)
 			case opcode.TRY, opcode.TRYL:
 				catchP, finallyP := getTryParams(instr, parameter)
 				desc = fmt.Sprintf("catch %s, finally %s",
-					v.getOffsetDesc(ctx, catchP), v.getOffsetDesc(ctx, finallyP))
+					getOffsetDesc(ctx, catchP), getOffsetDesc(ctx, finallyP))
 			case opcode.INITSSLOT:
 				desc = fmt.Sprint(parameter[0])
 			case opcode.CONVERT, opcode.ISTYPE:
@@ -226,8 +226,8 @@ func (v *VM) PrintOps(out io.Writer) {
 	w.Flush()
 }
 
-func (v *VM) getOffsetDesc(ctx *Context, parameter []byte) string {
-	offset, rOffset, err := v.calcJumpOffset(ctx, parameter)
+func getOffsetDesc(ctx *Context, parameter []byte) string {
+	offset, rOffset, err := calcJumpOffset(ctx, parameter)
 	if err != nil {
 		return fmt.Sprintf("ERROR: %v", err)
 	}
@@ -552,7 +552,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		v.estack.PushVal(parameter)
 
 	case opcode.PUSHA:
-		n := v.getJumpOffset(ctx, parameter)
+		n := getJumpOffset(ctx, parameter)
 		ptr := stackitem.NewPointerWithHash(n, ctx.prog, ctx.ScriptHash())
 		v.estack.PushVal(ptr)
 
@@ -1249,7 +1249,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		opcode.JMPEQ, opcode.JMPEQL, opcode.JMPNE, opcode.JMPNEL,
 		opcode.JMPGT, opcode.JMPGTL, opcode.JMPGE, opcode.JMPGEL,
 		opcode.JMPLT, opcode.JMPLTL, opcode.JMPLE, opcode.JMPLEL:
-		offset := v.getJumpOffset(ctx, parameter)
+		offset := getJumpOffset(ctx, parameter)
 		cond := true
 		switch op {
 		case opcode.JMP, opcode.JMPL:
@@ -1268,7 +1268,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 	case opcode.CALL, opcode.CALLL:
 		// Note: jump offset must be calculated regarding to new context,
 		// but it is cloned and thus has the same script and instruction pointer.
-		v.call(ctx, v.getJumpOffset(ctx, parameter))
+		v.call(ctx, getJumpOffset(ctx, parameter))
 
 	case opcode.CALLA:
 		ptr := v.estack.Pop().Item().(*stackitem.Pointer)
@@ -1406,8 +1406,8 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		if ctx.tryStack.Len() >= MaxTryNestingDepth {
 			panic("maximum TRY depth exceeded")
 		}
-		cOffset := v.getJumpOffset(ctx, catchP)
-		fOffset := v.getJumpOffset(ctx, finallyP)
+		cOffset := getJumpOffset(ctx, catchP)
+		fOffset := getJumpOffset(ctx, finallyP)
 		if cOffset == ctx.ip && fOffset == ctx.ip {
 			panic("invalid offset for TRY*")
 		} else if cOffset == ctx.ip {
@@ -1423,7 +1423,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		if eCtx.State == eFinally {
 			panic("invalid exception handling state during ENDTRY*")
 		}
-		eOffset := v.getJumpOffset(ctx, parameter)
+		eOffset := getJumpOffset(ctx, parameter)
 		if eCtx.HasFinally() {
 			eCtx.State = eFinally
 			eCtx.EndOffset = eOffset
@@ -1527,8 +1527,8 @@ func (v *VM) call(ctx *Context, offset int) {
 // to a which JMP should be performed.
 // parameter should have length either 1 or 4 and
 // is interpreted as little-endian.
-func (v *VM) getJumpOffset(ctx *Context, parameter []byte) int {
-	offset, _, err := v.calcJumpOffset(ctx, parameter)
+func getJumpOffset(ctx *Context, parameter []byte) int {
+	offset, _, err := calcJumpOffset(ctx, parameter)
 	if err != nil {
 		panic(err)
 	}
@@ -1537,7 +1537,7 @@ func (v *VM) getJumpOffset(ctx *Context, parameter []byte) int {
 
 // calcJumpOffset returns absolute and relative offset of JMP/CALL/TRY instructions
 // either in short (1-byte) or long (4-byte) form.
-func (v *VM) calcJumpOffset(ctx *Context, parameter []byte) (int, int, error) {
+func calcJumpOffset(ctx *Context, parameter []byte) (int, int, error) {
 	var rOffset int32
 	switch l := len(parameter); l {
 	case 1:

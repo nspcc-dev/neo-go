@@ -1,6 +1,7 @@
 package core
 
 import (
+	"bytes"
 	"encoding/json"
 	"math/big"
 	"testing"
@@ -162,6 +163,17 @@ func TestContractDeploy(t *testing.T) {
 		require.NoError(t, err)
 		checkFAULTState(t, res)
 	})
+	t.Run("bad script in NEF", func(t *testing.T) {
+		nf, err := nef.FileFromBytes(nef1b) // make a full copy
+		require.NoError(t, err)
+		nf.Script[0] = 0xff
+		nf.CalculateChecksum()
+		nefbad, err := nf.Bytes()
+		require.NoError(t, err)
+		res, err := invokeContractMethod(bc, 11_00000000, mgmtHash, "deploy", nefbad, manif1)
+		require.NoError(t, err)
+		checkFAULTState(t, res)
+	})
 	t.Run("int for manifest", func(t *testing.T) {
 		res, err := invokeContractMethod(bc, 11_00000000, mgmtHash, "deploy", nef1b, int64(1))
 		require.NoError(t, err)
@@ -174,6 +186,13 @@ func TestContractDeploy(t *testing.T) {
 	})
 	t.Run("array for manifest", func(t *testing.T) {
 		res, err := invokeContractMethod(bc, 11_00000000, mgmtHash, "deploy", nef1b, []interface{}{int64(1)})
+		require.NoError(t, err)
+		checkFAULTState(t, res)
+	})
+	t.Run("non-utf8 manifest", func(t *testing.T) {
+		manifB := bytes.Replace(manif1, []byte("TestMain"), []byte("\xff\xfe\xfd"), 1) // Replace name.
+
+		res, err := invokeContractMethod(bc, 11_00000000, mgmtHash, "deploy", nef1b, manifB)
 		require.NoError(t, err)
 		checkFAULTState(t, res)
 	})
@@ -190,6 +209,32 @@ func TestContractDeploy(t *testing.T) {
 		require.NoError(t, err)
 		checkFAULTState(t, res)
 	})
+	t.Run("bad methods in manifest 1", func(t *testing.T) {
+		var badManifest = cs1.Manifest
+		badManifest.ABI.Methods = make([]manifest.Method, len(cs1.Manifest.ABI.Methods))
+		copy(badManifest.ABI.Methods, cs1.Manifest.ABI.Methods)
+		badManifest.ABI.Methods[0].Offset = 100500 // out of bounds
+
+		manifB, err := json.Marshal(badManifest)
+		require.NoError(t, err)
+		res, err := invokeContractMethod(bc, 11_00000000, mgmtHash, "deploy", nef1b, manifB)
+		require.NoError(t, err)
+		checkFAULTState(t, res)
+	})
+
+	t.Run("bad methods in manifest 2", func(t *testing.T) {
+		var badManifest = cs1.Manifest
+		badManifest.ABI.Methods = make([]manifest.Method, len(cs1.Manifest.ABI.Methods))
+		copy(badManifest.ABI.Methods, cs1.Manifest.ABI.Methods)
+		badManifest.ABI.Methods[0].Offset = len(cs1.NEF.Script) - 2 // Ends with `CALLT(X,X);RET`.
+
+		manifB, err := json.Marshal(badManifest)
+		require.NoError(t, err)
+		res, err := invokeContractMethod(bc, 11_00000000, mgmtHash, "deploy", nef1b, manifB)
+		require.NoError(t, err)
+		checkFAULTState(t, res)
+	})
+
 	t.Run("not enough GAS", func(t *testing.T) {
 		res, err := invokeContractMethod(bc, 1_00000000, mgmtHash, "deploy", nef1b, manif1)
 		require.NoError(t, err)
@@ -371,6 +416,19 @@ func TestContractUpdate(t *testing.T) {
 		require.NoError(t, err)
 
 		res, err := invokeContractMethod(bc, 10_00000000, cs1.Hash, "update", nef1b, manifB)
+		require.NoError(t, err)
+		checkFAULTState(t, res)
+	})
+	t.Run("manifest and script mismatch", func(t *testing.T) {
+		nf, err := nef.FileFromBytes(nef1b) // Make a full copy.
+		require.NoError(t, err)
+		nf.Script = append(nf.Script, byte(opcode.RET))
+		copy(nf.Script[1:], nf.Script)  // Now all method offsets are wrong.
+		nf.Script[0] = byte(opcode.RET) // Even though the script is correct.
+		nf.CalculateChecksum()
+		nefnew, err := nf.Bytes()
+		require.NoError(t, err)
+		res, err := invokeContractMethod(bc, 10_00000000, cs1.Hash, "update", nefnew, manif1)
 		require.NoError(t, err)
 		checkFAULTState(t, res)
 	})

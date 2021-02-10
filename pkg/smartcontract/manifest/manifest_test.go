@@ -109,11 +109,93 @@ func TestPermission_IsAllowed(t *testing.T) {
 
 func TestIsValid(t *testing.T) {
 	contractHash := util.Uint160{1, 2, 3}
-	m := NewManifest("Test")
+	m := &Manifest{}
 
-	t.Run("valid, no groups", func(t *testing.T) {
-		require.True(t, m.IsValid(contractHash))
+	t.Run("invalid, no name", func(t *testing.T) {
+		require.Error(t, m.IsValid(contractHash))
 	})
+
+	m = NewManifest("Test")
+
+	t.Run("invalid, no ABI methods", func(t *testing.T) {
+		require.Error(t, m.IsValid(contractHash))
+	})
+
+	m.ABI.Methods = append(m.ABI.Methods, Method{
+		Name:       "dummy",
+		ReturnType: smartcontract.VoidType,
+		Parameters: []Parameter{},
+	})
+
+	t.Run("valid, no groups/events", func(t *testing.T) {
+		require.NoError(t, m.IsValid(contractHash))
+	})
+
+	m.ABI.Events = append(m.ABI.Events, Event{
+		Name:       "itHappened",
+		Parameters: []Parameter{},
+	})
+
+	t.Run("valid, with events", func(t *testing.T) {
+		require.NoError(t, m.IsValid(contractHash))
+	})
+
+	m.ABI.Events = append(m.ABI.Events, Event{
+		Name: "itHappened",
+		Parameters: []Parameter{
+			NewParameter("qwerty", smartcontract.IntegerType),
+			NewParameter("qwerty", smartcontract.IntegerType),
+		},
+	})
+
+	t.Run("invalid, bad event", func(t *testing.T) {
+		require.Error(t, m.IsValid(contractHash))
+	})
+	m.ABI.Events = m.ABI.Events[:1]
+
+	m.Permissions = append(m.Permissions, *NewPermission(PermissionHash, util.Uint160{1, 2, 3}))
+	t.Run("valid, with permissions", func(t *testing.T) {
+		require.NoError(t, m.IsValid(contractHash))
+	})
+
+	m.Permissions = append(m.Permissions, *NewPermission(PermissionHash, util.Uint160{1, 2, 3}))
+	t.Run("invalid, with permissions", func(t *testing.T) {
+		require.Error(t, m.IsValid(contractHash))
+	})
+	m.Permissions = m.Permissions[:1]
+
+	m.SupportedStandards = append(m.SupportedStandards, "NEP-17")
+	t.Run("valid, with standards", func(t *testing.T) {
+		require.NoError(t, m.IsValid(contractHash))
+	})
+
+	m.SupportedStandards = append(m.SupportedStandards, "")
+	t.Run("invalid, with nameless standard", func(t *testing.T) {
+		require.Error(t, m.IsValid(contractHash))
+	})
+	m.SupportedStandards = m.SupportedStandards[:1]
+
+	m.SupportedStandards = append(m.SupportedStandards, "NEP-17")
+	t.Run("invalid, with duplicate standards", func(t *testing.T) {
+		require.Error(t, m.IsValid(contractHash))
+	})
+	m.SupportedStandards = m.SupportedStandards[:1]
+
+	m.Trusts.Add(util.Uint160{1, 2, 3})
+	t.Run("valid, with trust", func(t *testing.T) {
+		require.NoError(t, m.IsValid(contractHash))
+	})
+
+	m.Trusts.Add(util.Uint160{3, 2, 1})
+	t.Run("valid, with trusts", func(t *testing.T) {
+		require.NoError(t, m.IsValid(contractHash))
+	})
+
+	m.Trusts.Add(util.Uint160{1, 2, 3})
+	t.Run("invalid, with trusts", func(t *testing.T) {
+		require.Error(t, m.IsValid(contractHash))
+	})
+	m.Trusts.Restrict()
 
 	t.Run("with groups", func(t *testing.T) {
 		m.Groups = make([]Group, 3)
@@ -129,11 +211,11 @@ func TestIsValid(t *testing.T) {
 		}
 
 		t.Run("valid", func(t *testing.T) {
-			require.True(t, m.IsValid(contractHash))
+			require.NoError(t, m.IsValid(contractHash))
 		})
 
 		t.Run("invalid, wrong contract hash", func(t *testing.T) {
-			require.False(t, m.IsValid(util.Uint160{4, 5, 6}))
+			require.Error(t, m.IsValid(util.Uint160{4, 5, 6}))
 		})
 
 		t.Run("invalid, wrong group signature", func(t *testing.T) {
@@ -145,7 +227,7 @@ func TestIsValid(t *testing.T) {
 				// of the contract hash.
 				Signature: pk.Sign([]byte{1, 2, 3}),
 			})
-			require.False(t, m.IsValid(contractHash))
+			require.Error(t, m.IsValid(contractHash))
 		})
 	})
 }
@@ -189,7 +271,7 @@ func TestManifestToStackItem(t *testing.T) {
 			},
 			Groups: []Group{{
 				PublicKey: pk.PublicKey(),
-				Signature: []byte{1, 2, 3},
+				Signature: make([]byte, keys.SignatureLen),
 			}},
 			Permissions:        []Permission{*NewPermission(PermissionWildcard)},
 			SupportedStandards: []string{"NEP-17"},

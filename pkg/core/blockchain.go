@@ -1380,6 +1380,7 @@ var (
 	ErrTxSmallNetworkFee   = errors.New("too small network fee")
 	ErrTxTooBig            = errors.New("too big transaction")
 	ErrMemPoolConflict     = errors.New("invalid transaction due to conflicts with the memory pool")
+	ErrInvalidScript       = errors.New("invalid script")
 	ErrTxInvalidWitnessNum = errors.New("number of signers doesn't match witnesses")
 	ErrInvalidAttribute    = errors.New("invalid attribute")
 )
@@ -1387,6 +1388,13 @@ var (
 // verifyAndPoolTx verifies whether a transaction is bonafide or not and tries
 // to add it to the mempool given.
 func (bc *Blockchain) verifyAndPoolTx(t *transaction.Transaction, pool *mempool.Pool, feer mempool.Feer, data ...interface{}) error {
+	// This code can technically be moved out of here, because it doesn't
+	// really require a chain lock.
+	err := vm.IsScriptCorrect(t.Script, nil)
+	if err != nil {
+		return fmt.Errorf("%w: %v", ErrInvalidScript, err)
+	}
+
 	height := bc.BlockHeight()
 	isPartialTx := data != nil
 	if t.ValidUntilBlock <= height || !isPartialTx && t.ValidUntilBlock > height+transaction.MaxValidUntilBlockIncrement {
@@ -1424,7 +1432,7 @@ func (bc *Blockchain) verifyAndPoolTx(t *transaction.Transaction, pool *mempool.
 			return err
 		}
 	}
-	err := bc.verifyTxWitnesses(t, nil, isPartialTx)
+	err = bc.verifyTxWitnesses(t, nil, isPartialTx)
 	if err != nil {
 		return err
 	}
@@ -1728,7 +1736,9 @@ var (
 	ErrWitnessHashMismatch         = errors.New("witness hash mismatch")
 	ErrNativeContractWitness       = errors.New("native contract witness must have empty verification script")
 	ErrVerificationFailed          = errors.New("signature check failed")
+	ErrInvalidInvocation           = errors.New("invalid invocation script")
 	ErrInvalidSignature            = fmt.Errorf("%w: invalid signature", ErrVerificationFailed)
+	ErrInvalidVerification         = errors.New("invalid verification script")
 	ErrUnknownVerificationContract = errors.New("unknown verification contract")
 	ErrInvalidVerificationContract = errors.New("verification contract is missing `verify` method")
 )
@@ -1743,6 +1753,10 @@ func (bc *Blockchain) initVerificationVM(ic *interop.Context, hash util.Uint160,
 		}
 		if bc.contracts.ByHash(hash) != nil {
 			return ErrNativeContractWitness
+		}
+		err := vm.IsScriptCorrect(witness.VerificationScript, nil)
+		if err != nil {
+			return fmt.Errorf("%w: %v", ErrInvalidVerification, err)
 		}
 		v.LoadScriptWithFlags(witness.VerificationScript, callflag.ReadStates)
 	} else {
@@ -1765,6 +1779,10 @@ func (bc *Blockchain) initVerificationVM(ic *interop.Context, hash util.Uint160,
 		}
 	}
 	if len(witness.InvocationScript) != 0 {
+		err := vm.IsScriptCorrect(witness.InvocationScript, nil)
+		if err != nil {
+			return fmt.Errorf("%w: %v", ErrInvalidInvocation, err)
+		}
 		v.LoadScript(witness.InvocationScript)
 		if isNative {
 			if err := v.StepOut(); err != nil {

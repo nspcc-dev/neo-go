@@ -2,9 +2,12 @@ package vm
 
 import (
 	"encoding/binary"
+	"errors"
+	"fmt"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
+	"github.com/nspcc-dev/neo-go/pkg/util/bitfield"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
@@ -126,4 +129,63 @@ func IsSignatureContract(script []byte) bool {
 // multi-signature contract.
 func IsStandardContract(script []byte) bool {
 	return IsSignatureContract(script) || IsMultiSigContract(script)
+}
+
+// IsScriptCorrect checks script for errors and mask provided for correctness wrt
+// instruction boundaries. Normally it returns nil, but can return some specific
+// error if there is any.
+func IsScriptCorrect(script []byte, methods bitfield.Field) error {
+	var (
+		l      = len(script)
+		instrs = bitfield.New(l)
+		jumps  = bitfield.New(l)
+	)
+	ctx := NewContext(script)
+	for ctx.nextip < l {
+		op, param, err := ctx.Next()
+		if err != nil {
+			return err
+		}
+		instrs.Set(ctx.ip)
+		switch op {
+		case opcode.JMP, opcode.JMPIF, opcode.JMPIFNOT, opcode.JMPEQ, opcode.JMPNE,
+			opcode.JMPGT, opcode.JMPGE, opcode.JMPLT, opcode.JMPLE,
+			opcode.CALL, opcode.ENDTRY, opcode.JMPL, opcode.JMPIFL,
+			opcode.JMPIFNOTL, opcode.JMPEQL, opcode.JMPNEL,
+			opcode.JMPGTL, opcode.JMPGEL, opcode.JMPLTL, opcode.JMPLEL,
+			opcode.ENDTRYL, opcode.CALLL, opcode.PUSHA:
+			off, _, err := calcJumpOffset(ctx, param) // It does bounds checking.
+			if err != nil {
+				return err
+			}
+			jumps.Set(off)
+		case opcode.TRY, opcode.TRYL:
+			catchP, finallyP := getTryParams(op, param)
+			off, _, err := calcJumpOffset(ctx, catchP)
+			if err != nil {
+				return err
+			}
+			jumps.Set(off)
+			off, _, err = calcJumpOffset(ctx, finallyP)
+			if err != nil {
+				return err
+			}
+			jumps.Set(off)
+		case opcode.NEWARRAYT, opcode.ISTYPE, opcode.CONVERT:
+			typ := stackitem.Type(param[0])
+			if !typ.IsValid() {
+				return fmt.Errorf("invalid type specification at offset %d", ctx.ip)
+			}
+			if typ == stackitem.AnyT && op != opcode.NEWARRAYT {
+				return fmt.Errorf("using type ANY is incorrect at offset %d", ctx.ip)
+			}
+		}
+	}
+	if !jumps.IsSubset(instrs) {
+		return errors.New("some jumps are done to wrong offsets (not to instruction boundary)")
+	}
+	if methods != nil && !methods.IsSubset(instrs) {
+		return errors.New("some methods point to wrong offsets (not to instruction boundary)")
+	}
+	return nil
 }
