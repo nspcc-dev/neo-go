@@ -151,12 +151,11 @@ func TestRegisterAndRenew(t *testing.T) {
 	testNameServiceInvoke(t, bc, "balanceOf", 0, testchain.CommitteeScriptHash())
 	testNameServiceInvokeAux(t, bc, defaultRegisterSysfee, true, "register",
 		true, "neo.com", testchain.CommitteeScriptHash())
+	topBlock := bc.topBlock.Load().(*block.Block)
+	expectedExpiration := topBlock.Timestamp/1000 + secondsInYear
 	testNameServiceInvokeAux(t, bc, defaultRegisterSysfee, true, "register",
 		false, "neo.com", testchain.CommitteeScriptHash())
 	testNameServiceInvoke(t, bc, "isAvailable", false, "neo.com")
-
-	topBlock := bc.topBlock.Load().(*block.Block)
-	expectedExpiration := topBlock.Timestamp/1000 + secondsInYear
 
 	props := stackitem.NewMap()
 	props.Add(stackitem.Make("name"), stackitem.Make("neo.com"))
