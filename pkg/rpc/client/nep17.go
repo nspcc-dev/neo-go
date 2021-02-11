@@ -129,8 +129,8 @@ func (c *Client) CreateNEP17MultiTransferTx(acc *wallet.Account, gas int64, reci
 	}
 	w := io.NewBufBinWriter()
 	for i := range recipients {
-		emit.AppCall(w.BinWriter, recipients[i].Token, "transfer",
-			callflag.WriteStates|callflag.AllowCall|callflag.AllowNotify, from, recipients[i].Address, recipients[i].Amount, data[i])
+		emit.AppCall(w.BinWriter, recipients[i].Token, "transfer", callflag.All,
+			from, recipients[i].Address, recipients[i].Amount, data[i])
 		emit.Opcodes(w.BinWriter, opcode.ASSERT)
 	}
 	if w.Err != nil {
