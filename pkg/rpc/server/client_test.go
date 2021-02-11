@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/internal/testchain"
+	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/fee"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
@@ -17,6 +18,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/stretchr/testify/require"
@@ -214,6 +216,111 @@ func TestSignAndPushInvocationTx(t *testing.T) {
 	require.EqualValues(t, 30, tx.SystemFee)
 }
 
+func TestSignAndPushP2PNotaryRequest(t *testing.T) {
+	chain, rpcSrv, httpSrv := initServerWithInMemoryChainAndServices(t, false, true)
+	defer chain.Close()
+	defer rpcSrv.Shutdown()
+
+	c, err := client.New(context.Background(), httpSrv.URL, client.Options{})
+	require.NoError(t, err)
+
+	t.Run("client wasn't initialized", func(t *testing.T) {
+		_, err := c.SignAndPushP2PNotaryRequest(nil, nil, 0, 0, 0, nil)
+		require.NotNil(t, err)
+	})
+
+	require.NoError(t, c.Init())
+	t.Run("bad account address", func(t *testing.T) {
+		_, err := c.SignAndPushP2PNotaryRequest(nil, nil, 0, 0, 0, &wallet.Account{Address: "not-an-addr"})
+		require.NotNil(t, err)
+	})
+
+	acc, err := wallet.NewAccount()
+	require.NoError(t, err)
+	t.Run("bad fallback script", func(t *testing.T) {
+		_, err := c.SignAndPushP2PNotaryRequest(nil, []byte{byte(opcode.ASSERT)}, -1, 0, 0, acc)
+		require.NotNil(t, err)
+	})
+
+	t.Run("too large fallbackValidFor", func(t *testing.T) {
+		_, err := c.SignAndPushP2PNotaryRequest(nil, []byte{byte(opcode.RET)}, -1, 0, 141, acc)
+		require.NotNil(t, err)
+	})
+
+	t.Run("good", func(t *testing.T) {
+		sender := testchain.PrivateKeyByID(0) // owner of the deposit in testchain
+		acc := wallet.NewAccountFromPrivateKey(sender)
+		expected := transaction.Transaction{
+			Network:         netmode.UnitTestNet,
+			Attributes:      []transaction.Attribute{{Type: transaction.NotaryAssistedT, Value: &transaction.NotaryAssisted{NKeys: 1}}},
+			Script:          []byte{byte(opcode.RET)},
+			ValidUntilBlock: chain.BlockHeight() + 5,
+			Signers:         []transaction.Signer{{Account: util.Uint160{1, 5, 9}}},
+			Scripts: []transaction.Witness{{
+				InvocationScript:   []byte{1, 4, 7},
+				VerificationScript: []byte{3, 6, 9},
+			}},
+		}
+		mainTx := expected
+		_ = expected.Hash()
+		req, err := c.SignAndPushP2PNotaryRequest(&mainTx, []byte{byte(opcode.RET)}, -1, 0, 6, acc)
+		require.NoError(t, err)
+
+		// check that request was correctly completed
+		require.Equal(t, expected, *req.MainTransaction) // main tx should be the same
+		require.ElementsMatch(t, []transaction.Attribute{
+			{
+				Type:  transaction.NotaryAssistedT,
+				Value: &transaction.NotaryAssisted{NKeys: 0},
+			},
+			{
+				Type:  transaction.NotValidBeforeT,
+				Value: &transaction.NotValidBefore{Height: chain.BlockHeight()},
+			},
+			{
+				Type:  transaction.ConflictsT,
+				Value: &transaction.Conflicts{Hash: mainTx.Hash()},
+			},
+		}, req.FallbackTransaction.Attributes)
+		require.Equal(t, []transaction.Signer{
+			{Account: chain.GetNotaryContractScriptHash()},
+			{Account: acc.PrivateKey().GetScriptHash()},
+		}, req.FallbackTransaction.Signers)
+
+		// it shouldn't be an error to add completed fallback to the chain
+		w, err := wallet.NewWalletFromFile(notaryPath)
+		require.NoError(t, err)
+		ntr := w.Accounts[0]
+		ntr.Decrypt(notaryPass)
+		req.FallbackTransaction.Scripts[0] = transaction.Witness{
+			InvocationScript:   append([]byte{byte(opcode.PUSHDATA1), 64}, ntr.PrivateKey().Sign(req.FallbackTransaction.GetSignedPart())...),
+			VerificationScript: []byte{},
+		}
+		b := testchain.NewBlock(t, chain, 1, 0, req.FallbackTransaction)
+		require.NoError(t, chain.AddBlock(b))
+		appLogs, err := chain.GetAppExecResults(req.FallbackTransaction.Hash(), trigger.Application)
+		require.NoError(t, err)
+		require.Equal(t, 1, len(appLogs))
+		appLog := appLogs[0]
+		require.Equal(t, vm.HaltState, appLog.VMState)
+		require.Equal(t, appLog.GasConsumed, req.FallbackTransaction.SystemFee)
+	})
+}
+
+func TestCalculateNotaryFee(t *testing.T) {
+	chain, rpcSrv, httpSrv := initServerWithInMemoryChain(t)
+	defer chain.Close()
+	defer rpcSrv.Shutdown()
+
+	c, err := client.New(context.Background(), httpSrv.URL, client.Options{})
+	require.NoError(t, err)
+
+	t.Run("client not initialized", func(t *testing.T) {
+		_, err := c.CalculateNotaryFee(0)
+		require.NotNil(t, err)
+	})
+}
+
 func TestPing(t *testing.T) {
 	chain, rpcSrv, httpSrv := initServerWithInMemoryChain(t)
 	defer chain.Close()
@@ -272,7 +379,7 @@ func TestCreateNEP17TransferTx(t *testing.T) {
 	gasContractHash, err := c.GetNativeContractHash(nativenames.Gas)
 	require.NoError(t, err)
 
-	tx, err := c.CreateNEP17TransferTx(acc, util.Uint160{}, gasContractHash, 1000, 0)
+	tx, err := c.CreateNEP17TransferTx(acc, util.Uint160{}, gasContractHash, 1000, 0, nil)
 	require.NoError(t, err)
 	require.NoError(t, acc.SignTx(tx))
 	require.NoError(t, chain.VerifyTx(tx))

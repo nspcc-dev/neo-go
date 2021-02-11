@@ -9,16 +9,21 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/fee"
+	"github.com/nspcc-dev/neo-go/pkg/core/native"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/fixedn"
 	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/network/payload"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/request"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 )
 
@@ -558,6 +563,146 @@ func getSigners(sender util.Uint160, cosigners []transaction.Signer) []transacti
 		}
 	}
 	return append([]transaction.Signer{s}, cosigners...)
+}
+
+// SignAndPushP2PNotaryRequest creates and pushes P2PNotary request constructed from the main
+// and fallback transactions using given wif to sign it. It returns the request and an error.
+// Fallback transaction is constructed from the given script using the amount of gas specified.
+// For successful fallback transaction validation at least 2*transaction.NotaryServiceFeePerKey
+// GAS should be deposited to Notary contract.
+// Main transaction should be constructed by the user. Several rules need to be met for
+// successful main transaction acceptance:
+// 1. Native Notary contract should be a signer of the main transaction.
+// 2. Main transaction should have dummy contract witness for Notary signer.
+// 3. Main transaction should have NotaryAssisted attribute with NKeys specified.
+// 4. NotaryAssisted attribute and dummy Notary witness (as long as the other incomplete witnesses)
+//    should be paid for. Use CalculateNotaryWitness to calculate the amount of network fee to pay
+//    for the attribute and Notary witness.
+// 5. Main transaction either shouldn't have all witnesses attached (in this case none of them
+//	  can be multisignature), or it only should have a partial multisignature.
+// Note: client should be initialized before SignAndPushP2PNotaryRequest call.
+func (c *Client) SignAndPushP2PNotaryRequest(mainTx *transaction.Transaction, fallbackScript []byte, fallbackSysFee int64, fallbackNetFee int64, fallbackValidFor uint32, acc *wallet.Account) (*payload.P2PNotaryRequest, error) {
+	var err error
+	if !c.initDone {
+		return nil, errNetworkNotInitialized
+	}
+	notaryHash, err := c.GetNativeContractHash(nativenames.Notary)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get native Notary hash: %w", err)
+	}
+	from, err := address.StringToUint160(acc.Address)
+	if err != nil {
+		return nil, fmt.Errorf("bad account address: %v", err)
+	}
+	signers := []transaction.Signer{{Account: notaryHash}, {Account: from}}
+	if fallbackSysFee < 0 {
+		result, err := c.InvokeScript(fallbackScript, signers)
+		if err != nil {
+			return nil, fmt.Errorf("can't add system fee to fallback transaction: %w", err)
+		}
+		if result.State != "HALT" {
+			return nil, fmt.Errorf("can't add system fee to fallback transaction: bad vm state %s due to an error: %s", result.State, result.FaultException)
+		}
+		fallbackSysFee = result.GasConsumed
+	}
+
+	maxNVBDelta, err := c.GetMaxNotValidBeforeDelta()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get MaxNotValidBeforeDelta")
+	}
+	if int64(fallbackValidFor) > maxNVBDelta {
+		return nil, fmt.Errorf("fallback transaction should be valid for not more than %d blocks", maxNVBDelta)
+	}
+	fallbackTx := transaction.New(c.GetNetwork(), fallbackScript, fallbackSysFee)
+	fallbackTx.Signers = signers
+	fallbackTx.ValidUntilBlock = mainTx.ValidUntilBlock
+	fallbackTx.Attributes = []transaction.Attribute{
+		{
+			Type:  transaction.NotaryAssistedT,
+			Value: &transaction.NotaryAssisted{NKeys: 0},
+		},
+		{
+			Type:  transaction.NotValidBeforeT,
+			Value: &transaction.NotValidBefore{Height: fallbackTx.ValidUntilBlock - fallbackValidFor + 1},
+		},
+		{
+			Type:  transaction.ConflictsT,
+			Value: &transaction.Conflicts{Hash: mainTx.Hash()},
+		},
+	}
+	extraNetFee, err := c.CalculateNotaryFee(0)
+	if err != nil {
+		return nil, err
+	}
+	fallbackNetFee += extraNetFee
+
+	dummyAccount := &wallet.Account{Contract: &wallet.Contract{Deployed: false}} // don't call `verify` for Notary contract witness, because it will fail
+	err = c.AddNetworkFee(fallbackTx, fallbackNetFee, dummyAccount, acc)
+	if err != nil {
+		return nil, fmt.Errorf("failed to add network fee: %w", err)
+	}
+	fallbackTx.Scripts = []transaction.Witness{
+		{
+			InvocationScript:   append([]byte{byte(opcode.PUSHDATA1), 64}, make([]byte, 64)...),
+			VerificationScript: []byte{},
+		},
+	}
+	if err = acc.SignTx(fallbackTx); err != nil {
+		return nil, fmt.Errorf("failed to sign fallback tx: %w", err)
+	}
+	fallbackHash := fallbackTx.Hash()
+	req := &payload.P2PNotaryRequest{
+		MainTransaction:     mainTx,
+		FallbackTransaction: fallbackTx,
+		Network:             c.GetNetwork(),
+	}
+	req.Witness = transaction.Witness{
+		InvocationScript:   append([]byte{byte(opcode.PUSHDATA1), 64}, acc.PrivateKey().Sign(req.GetSignedPart())...),
+		VerificationScript: acc.GetVerificationScript(),
+	}
+	actualHash, err := c.SubmitP2PNotaryRequest(req)
+	if err != nil {
+		return req, fmt.Errorf("failed to submit notary request: %w", err)
+	}
+	if !actualHash.Equals(fallbackHash) {
+		return req, fmt.Errorf("sent and actual fallback tx hashes mismatch:\n\tsent: %v\n\tactual: %v", fallbackHash.StringLE(), actualHash.StringLE())
+	}
+	return req, nil
+}
+
+// CalculateNotaryFee calculates network fee for one dummy Notary witness and NotaryAssisted attribute with NKeys specified.
+// The result should be added to the transaction's net fee for successful verification.
+func (c *Client) CalculateNotaryFee(nKeys uint8) (int64, error) {
+	baseExecFee, err := c.GetExecFeeFactor()
+	if err != nil {
+		return 0, fmt.Errorf("failed to get BaseExecFeeFactor: %w", err)
+	}
+	feePerByte, err := c.GetFeePerByte()
+	if err != nil {
+		return 0, fmt.Errorf("failed to get FeePerByte: %w", err)
+	}
+	return int64((nKeys+1))*transaction.NotaryServiceFeePerKey + // fee for NotaryAssisted attribute
+			fee.Opcode(baseExecFee, // Notary node witness
+				opcode.PUSHDATA1, opcode.RET, // invocation script
+				opcode.PUSHINT8, opcode.SYSCALL, opcode.RET) + // System.Contract.CallNative
+			native.NotaryVerificationPrice + // Notary witness verification price
+			feePerByte*int64(io.GetVarSize(make([]byte, 66))) + // invocation script per-byte fee
+			feePerByte*int64(io.GetVarSize([]byte{})), // verification script per-byte fee
+		nil
+}
+
+// SubmitP2PNotaryRequest submits given P2PNotaryRequest payload to the RPC node.
+func (c *Client) SubmitP2PNotaryRequest(req *payload.P2PNotaryRequest) (util.Uint256, error) {
+	var resp = new(result.RelayResult)
+	bytes, err := req.Bytes()
+	if err != nil {
+		return util.Uint256{}, fmt.Errorf("failed to encode request: %w", err)
+	}
+	params := request.NewRawParams(bytes)
+	if err := c.performRequest("submitnotaryrequest", params, resp); err != nil {
+		return util.Uint256{}, err
+	}
+	return resp.Hash, nil
 }
 
 // ValidateAddress verifies that the address is a correct NEO address.

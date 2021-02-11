@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"math/big"
 	"os"
+	"path"
 	"strings"
 	"testing"
 	"time"
@@ -25,6 +26,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/fixedn"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
@@ -296,9 +298,11 @@ func initBasicChain(t *testing.T, bc *Blockchain) {
 	gasHash := bc.contracts.GAS.Hash
 	neoHash := bc.contracts.NEO.Hash
 	policyHash := bc.contracts.Policy.Hash
+	notaryHash := bc.contracts.Notary.Hash
 	t.Logf("native GAS hash: %v", gasHash)
 	t.Logf("native NEO hash: %v", neoHash)
 	t.Logf("native Policy hash: %v", policyHash)
+	t.Logf("native Notary hash: %v", notaryHash)
 
 	priv0 := testchain.PrivateKeyByID(0)
 	priv0ScriptHash := priv0.GetScriptHash()
@@ -426,6 +430,31 @@ func initBasicChain(t *testing.T, bc *Blockchain) {
 	require.NoError(t, acc0.SignTx(txDeploy2))
 	b = bc.newBlock(txDeploy2)
 	require.NoError(t, bc.AddBlock(b))
+
+	// Deposit some GAS to notary contract for priv0
+	transferTx = newNEP17Transfer(gasHash, priv0.GetScriptHash(), notaryHash, 10_0000_0000, priv0.GetScriptHash(), int64(bc.BlockHeight()+1000))
+	transferTx.Nonce = getNextNonce()
+	transferTx.ValidUntilBlock = validUntilBlock
+	transferTx.Signers = []transaction.Signer{
+		{
+			Account: priv0ScriptHash,
+			Scopes:  transaction.CalledByEntry,
+		},
+	}
+	require.NoError(t, addNetworkFee(bc, transferTx, acc0))
+	transferTx.SystemFee += 10_0000
+	require.NoError(t, acc0.SignTx(transferTx))
+
+	b = bc.newBlock(transferTx)
+	require.NoError(t, bc.AddBlock(b))
+	t.Logf("notaryDepositTxPriv0: %v", transferTx.Hash().StringLE())
+
+	// Designate new Notary node
+	ntr, err := wallet.NewWalletFromFile(path.Join(notaryModulePath, "./testdata/notary1.json"))
+	require.NoError(t, err)
+	require.NoError(t, ntr.Accounts[0].Decrypt("one"))
+	bc.setNodesByRole(t, true, native.RoleP2PNotary, keys.PublicKeys{ntr.Accounts[0].PrivateKey().PublicKey()})
+	t.Logf("Designated Notary node: %s", hex.EncodeToString(ntr.Accounts[0].PrivateKey().PublicKey().Bytes()))
 }
 
 func newNEP17Transfer(sc, from, to util.Uint160, amount int64, additionalArgs ...interface{}) *transaction.Transaction {

@@ -19,6 +19,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/nspcc-dev/neo-go/internal/testchain"
 	"github.com/nspcc-dev/neo-go/internal/testserdes"
+	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/fee"
@@ -27,6 +28,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/network/payload"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result"
 	rpc2 "github.com/nspcc-dev/neo-go/pkg/services/oracle/broadcaster"
@@ -58,7 +60,7 @@ type rpcTestCase struct {
 }
 
 const testContractHash = "c6436aab21ebd15279b85af8d7b5808d38455b0a"
-const deploymentTxHash = "9a9d6b0876d1e6cfd68efadd0facaaba7e07efbe7b24282d094a0893645581f3"
+const deploymentTxHash = "d0de42d5d23211174a50d74fbd4a919631236a63f16431a5a7e7126759e7ba23"
 const genesisBlockHash = "0542f4350c6e236d0509bcd98188b0034bfbecc1a0c7fcdb8e4295310d468b70"
 
 const verifyContractHash = "03ffc0897543b9b709e0f8cab4a7682dae0ba943"
@@ -649,7 +651,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 				require.True(t, ok)
 				expected := result.UnclaimedGas{
 					Address:   testchain.MultisigScriptHash(),
-					Unclaimed: *big.NewInt(3500),
+					Unclaimed: *big.NewInt(4500),
 				}
 				assert.Equal(t, expected, *actual)
 			},
@@ -918,6 +920,13 @@ var rpcTestCases = map[string][]rpcTestCase{
 			fail:   true,
 		},
 	},
+	"submitnotaryrequest": {
+		{
+			name:   "no params",
+			params: `[]`,
+			fail:   true,
+		},
+	},
 	"validateaddress": {
 		{
 			name:   "positive",
@@ -954,7 +963,7 @@ func TestRPC(t *testing.T) {
 }
 
 func TestSubmitOracle(t *testing.T) {
-	chain, rpcSrv, httpSrv := initClearServerWithOracle(t, true)
+	chain, rpcSrv, httpSrv := initClearServerWithServices(t, true, false)
 	defer chain.Close()
 	defer rpcSrv.Shutdown()
 
@@ -984,6 +993,121 @@ func TestSubmitOracle(t *testing.T) {
 	msg := rpc2.GetMessage(priv.PublicKey().Bytes(), 1, txSig)
 	msgSigStr := `"` + base64.StdEncoding.EncodeToString(priv.Sign(msg)) + `"`
 	t.Run("Valid", runCase(t, false, pubStr, `1`, txSigStr, msgSigStr))
+}
+
+func TestSubmitNotaryRequest(t *testing.T) {
+	rpc := `{"jsonrpc": "2.0", "id": 1, "method": "submitnotaryrequest", "params": %s}`
+
+	t.Run("disabled P2PSigExtensions", func(t *testing.T) {
+		chain, rpcSrv, httpSrv := initClearServerWithServices(t, false, false)
+		defer chain.Close()
+		defer rpcSrv.Shutdown()
+		req := fmt.Sprintf(rpc, "[]")
+		body := doRPCCallOverHTTP(req, httpSrv.URL, t)
+		checkErrGetResult(t, body, true)
+	})
+
+	chain, rpcSrv, httpSrv := initServerWithInMemoryChainAndServices(t, false, true)
+	defer chain.Close()
+	defer rpcSrv.Shutdown()
+
+	runCase := func(t *testing.T, fail bool, params ...string) func(t *testing.T) {
+		return func(t *testing.T) {
+			ps := `[` + strings.Join(params, ",") + `]`
+			req := fmt.Sprintf(rpc, ps)
+			body := doRPCCallOverHTTP(req, httpSrv.URL, t)
+			checkErrGetResult(t, body, fail)
+		}
+	}
+	t.Run("missing request", runCase(t, true))
+	t.Run("not a base64", runCase(t, true, `"not-a-base64$"`))
+	t.Run("invalid request bytes", runCase(t, true, `"not-a-request"`))
+	t.Run("invalid request", func(t *testing.T) {
+		mainTx := &transaction.Transaction{
+			Network:         netmode.UnitTestNet,
+			Attributes:      []transaction.Attribute{{Type: transaction.NotaryAssistedT, Value: &transaction.NotaryAssisted{NKeys: 1}}},
+			Script:          []byte{byte(opcode.RET)},
+			ValidUntilBlock: 123,
+			Signers:         []transaction.Signer{{Account: util.Uint160{1, 5, 9}}},
+			Scripts: []transaction.Witness{{
+				InvocationScript:   []byte{1, 4, 7},
+				VerificationScript: []byte{3, 6, 9},
+			}},
+		}
+		fallbackTx := &transaction.Transaction{
+			Network:         netmode.UnitTestNet,
+			Script:          []byte{byte(opcode.RET)},
+			ValidUntilBlock: 123,
+			Attributes: []transaction.Attribute{
+				{Type: transaction.NotValidBeforeT, Value: &transaction.NotValidBefore{Height: 123}},
+				{Type: transaction.ConflictsT, Value: &transaction.Conflicts{Hash: mainTx.Hash()}},
+				{Type: transaction.NotaryAssistedT, Value: &transaction.NotaryAssisted{NKeys: 0}},
+			},
+			Signers: []transaction.Signer{{Account: util.Uint160{1, 4, 7}}, {Account: util.Uint160{9, 8, 7}}},
+			Scripts: []transaction.Witness{
+				{InvocationScript: append([]byte{byte(opcode.PUSHDATA1), 64}, make([]byte, 64, 64)...), VerificationScript: make([]byte, 0)},
+				{InvocationScript: []byte{1, 2, 3}, VerificationScript: []byte{1, 2, 3}}},
+		}
+		p := &payload.P2PNotaryRequest{
+			Network:             netmode.UnitTestNet,
+			MainTransaction:     mainTx,
+			FallbackTransaction: fallbackTx,
+			Witness: transaction.Witness{
+				InvocationScript:   []byte{1, 2, 3},
+				VerificationScript: []byte{7, 8, 9},
+			},
+		}
+		bytes, err := p.Bytes()
+		require.NoError(t, err)
+		str := fmt.Sprintf(`"%s"`, base64.StdEncoding.EncodeToString(bytes))
+		runCase(t, true, str)(t)
+	})
+	t.Run("valid request", func(t *testing.T) {
+		sender := testchain.PrivateKeyByID(0) // owner of the deposit in testchain
+		mainTx := &transaction.Transaction{
+			Network:         netmode.UnitTestNet,
+			Attributes:      []transaction.Attribute{{Type: transaction.NotaryAssistedT, Value: &transaction.NotaryAssisted{NKeys: 1}}},
+			Script:          []byte{byte(opcode.RET)},
+			ValidUntilBlock: 123,
+			Signers:         []transaction.Signer{{Account: util.Uint160{1, 5, 9}}},
+			Scripts: []transaction.Witness{{
+				InvocationScript:   []byte{1, 4, 7},
+				VerificationScript: []byte{3, 6, 9},
+			}},
+		}
+		fallbackTx := &transaction.Transaction{
+			Network:         netmode.UnitTestNet,
+			Script:          []byte{byte(opcode.RET)},
+			ValidUntilBlock: 123,
+			Attributes: []transaction.Attribute{
+				{Type: transaction.NotValidBeforeT, Value: &transaction.NotValidBefore{Height: 123}},
+				{Type: transaction.ConflictsT, Value: &transaction.Conflicts{Hash: mainTx.Hash()}},
+				{Type: transaction.NotaryAssistedT, Value: &transaction.NotaryAssisted{NKeys: 0}},
+			},
+			Signers: []transaction.Signer{{Account: chain.GetNotaryContractScriptHash()}, {Account: sender.GetScriptHash()}},
+			Scripts: []transaction.Witness{
+				{InvocationScript: append([]byte{byte(opcode.PUSHDATA1), 64}, make([]byte, 64, 64)...), VerificationScript: []byte{}},
+			},
+			NetworkFee: 2_0000_0000,
+		}
+		fallbackTx.Scripts = append(fallbackTx.Scripts, transaction.Witness{
+			InvocationScript:   append([]byte{byte(opcode.PUSHDATA1), 64}, sender.Sign(fallbackTx.GetSignedPart())...),
+			VerificationScript: sender.PublicKey().GetVerificationScript(),
+		})
+		p := &payload.P2PNotaryRequest{
+			Network:             netmode.UnitTestNet,
+			MainTransaction:     mainTx,
+			FallbackTransaction: fallbackTx,
+		}
+		p.Witness = transaction.Witness{
+			InvocationScript:   append([]byte{byte(opcode.PUSHDATA1), 64}, sender.Sign(p.GetSignedPart())...),
+			VerificationScript: sender.PublicKey().GetVerificationScript(),
+		}
+		bytes, err := p.Bytes()
+		require.NoError(t, err)
+		str := fmt.Sprintf(`"%s"`, base64.StdEncoding.EncodeToString(bytes))
+		runCase(t, false, str)(t)
+	})
 }
 
 // testRPCProtocol runs a full set of tests using given callback to make actual
@@ -1246,7 +1370,7 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 		require.NoErrorf(t, err, "could not parse response: %s", txOut)
 
 		assert.Equal(t, *block.Transactions[0], actual.Transaction)
-		assert.Equal(t, 8, actual.Confirmations)
+		assert.Equal(t, 10, actual.Confirmations)
 		assert.Equal(t, TXHash, actual.Transaction.Hash())
 	})
 
@@ -1364,12 +1488,12 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 			require.NoError(t, json.Unmarshal(res, actual))
 			checkNep17TransfersAux(t, e, actual, sent, rcvd)
 		}
-		t.Run("time frame only", func(t *testing.T) { testNEP17T(t, 4, 5, 0, 0, []int{3, 4, 5, 6}, []int{1, 2}) })
+		t.Run("time frame only", func(t *testing.T) { testNEP17T(t, 4, 5, 0, 0, []int{5, 6, 7, 8}, []int{1, 2}) })
 		t.Run("no res", func(t *testing.T) { testNEP17T(t, 100, 100, 0, 0, []int{}, []int{}) })
-		t.Run("limit", func(t *testing.T) { testNEP17T(t, 1, 7, 3, 0, []int{0, 1}, []int{0}) })
-		t.Run("limit 2", func(t *testing.T) { testNEP17T(t, 4, 5, 2, 0, []int{3}, []int{1}) })
-		t.Run("limit with page", func(t *testing.T) { testNEP17T(t, 1, 7, 3, 1, []int{2, 3}, []int{1}) })
-		t.Run("limit with page 2", func(t *testing.T) { testNEP17T(t, 1, 7, 3, 2, []int{4, 5}, []int{2}) })
+		t.Run("limit", func(t *testing.T) { testNEP17T(t, 1, 7, 3, 0, []int{2, 3}, []int{0}) })
+		t.Run("limit 2", func(t *testing.T) { testNEP17T(t, 4, 5, 2, 0, []int{5}, []int{1}) })
+		t.Run("limit with page", func(t *testing.T) { testNEP17T(t, 1, 7, 3, 1, []int{4, 5}, []int{1}) })
+		t.Run("limit with page 2", func(t *testing.T) { testNEP17T(t, 1, 7, 3, 2, []int{6, 7}, []int{2}) })
 	})
 }
 
@@ -1474,8 +1598,8 @@ func checkNep17Balances(t *testing.T, e *executor, acc interface{}) {
 			},
 			{
 				Asset:       e.chain.UtilityTokenHash(),
-				Amount:      "80006665650",
-				LastUpdated: 7,
+				Amount:      "78994306100",
+				LastUpdated: 8,
 			}},
 		Address: testchain.PrivateKeyByID(0).GetScriptHash().StringLE(),
 	}
@@ -1484,7 +1608,7 @@ func checkNep17Balances(t *testing.T, e *executor, acc interface{}) {
 }
 
 func checkNep17Transfers(t *testing.T, e *executor, acc interface{}) {
-	checkNep17TransfersAux(t, e, acc, []int{0, 1, 2, 3, 4, 5, 6, 7, 8}, []int{0, 1, 2, 3, 4, 5, 6})
+	checkNep17TransfersAux(t, e, acc, []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10}, []int{0, 1, 2, 3, 4, 5, 6})
 }
 
 func checkNep17TransfersAux(t *testing.T, e *executor, acc interface{}, sent, rcvd []int) {
@@ -1492,6 +1616,11 @@ func checkNep17TransfersAux(t *testing.T, e *executor, acc interface{}, sent, rc
 	require.True(t, ok)
 	rublesHash, err := util.Uint160DecodeStringLE(testContractHash)
 	require.NoError(t, err)
+
+	blockDepositGAS, err := e.chain.GetBlock(e.chain.GetHeaderHash(8))
+	require.NoError(t, err)
+	require.Equal(t, 1, len(blockDepositGAS.Transactions))
+	txDepositGAS := blockDepositGAS.Transactions[0]
 
 	blockDeploy2, err := e.chain.GetBlock(e.chain.GetHeaderHash(7))
 	require.NoError(t, err)
@@ -1541,6 +1670,23 @@ func checkNep17TransfersAux(t *testing.T, e *executor, acc interface{}, sent, rc
 	// duplicate the Server method.
 	expected := result.NEP17Transfers{
 		Sent: []result.NEP17Transfer{
+			{
+				Timestamp:   blockDepositGAS.Timestamp,
+				Asset:       e.chain.UtilityTokenHash(),
+				Address:     address.Uint160ToString(e.chain.GetNotaryContractScriptHash()),
+				Amount:      "1000000000",
+				Index:       8,
+				NotifyIndex: 0,
+				TxHash:      txDepositGAS.Hash(),
+			},
+			{
+				Timestamp: blockDepositGAS.Timestamp,
+				Asset:     e.chain.UtilityTokenHash(),
+				Address:   "", // burn
+				Amount:    big.NewInt(txDepositGAS.SystemFee + txDepositGAS.NetworkFee).String(),
+				Index:     8,
+				TxHash:    blockDepositGAS.Hash(),
+			},
 			{
 				Timestamp: blockDeploy2.Timestamp,
 				Asset:     e.chain.UtilityTokenHash(),

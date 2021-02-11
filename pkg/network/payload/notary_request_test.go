@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/internal/random"
-	"github.com/nspcc-dev/neo-go/internal/testserdes"
+	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -143,8 +143,9 @@ func TestNotaryRequestIsValid(t *testing.T) {
 	})
 }
 
-func TestNotaryRequestEncodeDecodeBinary(t *testing.T) {
+func TestNotaryRequestBytesFromBytes(t *testing.T) {
 	mainTx := &transaction.Transaction{
+		Network:         netmode.UnitTestNet,
 		Attributes:      []transaction.Attribute{{Type: transaction.NotaryAssistedT, Value: &transaction.NotaryAssisted{NKeys: 1}}},
 		Script:          []byte{0, 1, 2},
 		ValidUntilBlock: 123,
@@ -157,6 +158,7 @@ func TestNotaryRequestEncodeDecodeBinary(t *testing.T) {
 	_ = mainTx.Hash()
 	_ = mainTx.Size()
 	fallbackTx := &transaction.Transaction{
+		Network:         netmode.UnitTestNet,
 		Script:          []byte{3, 2, 1},
 		ValidUntilBlock: 123,
 		Attributes: []transaction.Attribute{
@@ -172,6 +174,7 @@ func TestNotaryRequestEncodeDecodeBinary(t *testing.T) {
 	_ = fallbackTx.Hash()
 	_ = fallbackTx.Size()
 	p := &P2PNotaryRequest{
+		Network:             netmode.UnitTestNet,
 		MainTransaction:     mainTx,
 		FallbackTransaction: fallbackTx,
 		Witness: transaction.Witness{
@@ -180,5 +183,10 @@ func TestNotaryRequestEncodeDecodeBinary(t *testing.T) {
 		},
 	}
 	require.Equal(t, hash.Sha256(p.GetSignedHash().BytesBE()), p.Hash())
-	testserdes.EncodeDecodeBinary(t, p, new(P2PNotaryRequest))
+
+	bytes, err := p.Bytes()
+	require.NoError(t, err)
+	actual, err := NewP2PNotaryRequestFromBytes(netmode.UnitTestNet, bytes)
+	require.NoError(t, err)
+	require.Equal(t, p, actual)
 }

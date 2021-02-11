@@ -95,7 +95,7 @@ func TestNotary(t *testing.T) {
 
 	bc.SetNotary(ntr1)
 	bc.RegisterPostBlock(func(bc blockchainer.Blockchainer, pool *mempool.Pool, b *block.Block) {
-		ntr1.PostPersist(bc, pool, b)
+		ntr1.PostPersist()
 	})
 
 	notaryNodes := keys.PublicKeys{acc1.PrivateKey().PublicKey(), acc2.PrivateKey().PublicKey()}

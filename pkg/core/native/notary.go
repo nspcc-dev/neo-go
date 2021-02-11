@@ -86,7 +86,7 @@ func newNotary() *Notary {
 
 	desc = newDescriptor("verify", smartcontract.BoolType,
 		manifest.NewParameter("signature", smartcontract.SignatureType))
-	md = newMethodAndPrice(n.verify, 100_0000, callflag.ReadStates)
+	md = newMethodAndPrice(n.verify, NotaryVerificationPrice, callflag.ReadStates)
 	n.AddMethod(md, desc)
 
 	desc = newDescriptor("getMaxNotValidBeforeDelta", smartcontract.IntegerType)
@@ -339,6 +339,7 @@ func (n *Notary) verify(ic *interop.Context, args []stackitem.Item) stackitem.It
 			if signer.Scopes != transaction.None {
 				return stackitem.NewBool(false)
 			}
+			break
 		}
 	}
 	if tx.Sender() == n.Hash {
