@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/abiosoft/readline"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
@@ -19,13 +20,37 @@ import (
 )
 
 func TestWalletInit(t *testing.T) {
-	tmpDir := os.TempDir()
+	tmpDir := path.Join(os.TempDir(), "neogo.test.walletinit")
+	require.NoError(t, os.Mkdir(tmpDir, os.ModePerm))
+	defer os.RemoveAll(tmpDir)
+
 	e := newExecutor(t, false)
 	defer e.Close(t)
 
 	walletPath := path.Join(tmpDir, "wallet.json")
 	e.Run(t, "neo-go", "wallet", "init", "--wallet", walletPath)
-	defer os.Remove(walletPath)
+
+	t.Run("terminal escape codes", func(t *testing.T) {
+		walletPath := path.Join(tmpDir, "walletrussian.json")
+		bksp := string([]byte{
+			byte(readline.CharBackward),
+			byte(readline.CharDelete),
+		})
+		e.In.WriteString("буквыы" +
+			bksp + bksp + bksp +
+			"andmore\r")
+		e.In.WriteString("пароу" + bksp + "ль\r")
+		e.In.WriteString("пароль\r")
+		e.Run(t, "neo-go", "wallet", "init", "--account",
+			"--wallet", walletPath)
+
+		w, err := wallet.NewWalletFromFile(walletPath)
+		require.NoError(t, err)
+		require.Len(t, w.Accounts, 1)
+		require.Equal(t, "букandmore", w.Accounts[0].Label)
+		require.NoError(t, w.Accounts[0].Decrypt("пароль"))
+		w.Close()
+	})
 
 	t.Run("CreateAccount", func(t *testing.T) {
 		e.In.WriteString("testname\r")

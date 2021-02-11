@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"bytes"
 	"errors"
 	"io"
@@ -27,7 +26,7 @@ import (
 	"github.com/urfave/cli"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zaptest"
-	"golang.org/x/crypto/ssh/terminal"
+	"golang.org/x/term"
 )
 
 const (
@@ -100,9 +99,6 @@ func newExecutorWithConfig(t *testing.T, needChain bool, f func(*config.Config))
 	}
 	e.CLI.Writer = e.Out
 	e.CLI.ErrWriter = e.Err
-	rw := bufio.NewReadWriter(bufio.NewReader(e.In), bufio.NewWriter(ioutil.Discard))
-	require.Nil(t, input.Terminal) // check that tests clean up properly
-	input.Terminal = terminal.NewTerminal(rw, "")
 	if needChain {
 		e.Chain, e.RPC, e.NetSrv = newTestChain(t, f)
 	}
@@ -191,7 +187,12 @@ func (e *executor) Run(t *testing.T, args ...string) {
 func (e *executor) run(args ...string) error {
 	e.Out.Reset()
 	e.Err.Reset()
+	input.Terminal = term.NewTerminal(input.ReadWriter{
+		Reader: e.In,
+		Writer: ioutil.Discard,
+	}, "")
 	err := e.CLI.Run(args)
+	input.Terminal = nil
 	e.In.Reset()
 	return err
 }
