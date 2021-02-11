@@ -1,12 +1,15 @@
 package consensus
 
 import (
+	"encoding/hex"
+	gio "io"
 	"math/rand"
 	"testing"
 
 	"github.com/nspcc-dev/dbft/payload"
 	"github.com/nspcc-dev/neo-go/internal/random"
 	"github.com/nspcc-dev/neo-go/internal/testserdes"
+	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/io"
@@ -73,23 +76,6 @@ func TestConsensusPayload_Setters(t *testing.T) {
 	require.Equal(t, pl, p.GetRecoveryMessage())
 }
 
-//func TestConsensusPayload_Verify(t *testing.T) {
-//	// signed payload from mixed privnet (Go + 3C# nodes)
-//	dataHex := "000000004c02d52305a6a8981bd1598f0c3076d6de15a44a60ca692e189cd8a7249f175c0800000003222100f24b9147a21e09562c68abdec56d3c5fc09936592933aea5692800b75edbab2301420c40b2b8080ab02b703bc4e64407a6f31bb7ae4c9b1b1c8477668afa752eba6148e03b3ffc7e06285c09bdce4582188466209f876c38f9921a88b545393543ab201a290c2103d90c07df63e690ce77912e10ab51acc944b66860237b608c4f8f8309e71ee6990b4195440d78"
-//	data, err := hex.DecodeString(dataHex)
-//	require.NoError(t, err)
-//
-//	h, err := util.Uint160DecodeStringLE("a8826043c40abacfac1d9acc6b92a4458308ca18")
-//	require.NoError(t, err)
-//
-//	p := NewPayload(netmode.PrivNet, false)
-//	require.NoError(t, testserdes.DecodeBinary(data, p))
-//	require.NoError(t, p.decodeData())
-//	bc := newTestChain(t, false)
-//	defer bc.Close()
-//	require.NoError(t, bc.VerifyWitness(h, p, &p.Witness, payloadGasLimit))
-//}
-
 func TestConsensusPayload_Serializable(t *testing.T) {
 	for _, mt := range messageTypes {
 		p := randomPayload(t, mt)
@@ -102,64 +88,40 @@ func TestConsensusPayload_Serializable(t *testing.T) {
 	}
 }
 
-//func TestConsensusPayload_DecodeBinaryInvalid(t *testing.T) {
-//	// PrepareResponse ConsensusPayload consists of:
-//	// 41-byte common prefix
-//	// 1-byte varint length of the payload (34),
-//	// - 1-byte view number
-//	// - 1-byte message type (PrepareResponse)
-//	// - 32-byte preparation hash
-//	// 1-byte delimiter (1)
-//	// 2-byte for empty invocation and verification scripts
-//	const (
-//		lenIndex       = 41
-//		typeIndex      = lenIndex + 1
-//		delimeterIndex = typeIndex + 34
-//	)
-//
-//	buf := make([]byte, delimeterIndex+1+2)
-//
-//	expected := &Payload{
-//		message: &message{
-//			Type:    prepareResponseType,
-//			payload: &prepareResponse{},
-//		},
-//		Extensible: transaction.Witness{
-//			InvocationScript:   []byte{},
-//			VerificationScript: []byte{},
-//		},
-//	}
-//	// fill `data` for next check
-//	_ = expected.Hash()
-//
-//	// valid payload
-//	buf[delimeterIndex] = 1
-//	buf[lenIndex] = 34
-//	buf[typeIndex] = byte(prepareResponseType)
-//	p := &Payload{message: new(message)}
-//	require.NoError(t, testserdes.DecodeBinary(buf, p))
-//	// decode `data` into `message`
-//	_ = p.Hash()
-//	assert.NoError(t, p.decodeData())
-//	require.Equal(t, expected, p)
-//
-//	// invalid type
-//	buf[typeIndex] = 0xFF
-//	actual := &Payload{message: new(message)}
-//	require.NoError(t, testserdes.DecodeBinary(buf, actual))
-//	require.Error(t, actual.decodeData())
-//
-//	// invalid format
-//	buf[delimeterIndex] = 0
-//	buf[typeIndex] = byte(prepareResponseType)
-//	require.Error(t, testserdes.DecodeBinary(buf, new(Payload)))
-//
-//	// invalid message length
-//	buf[delimeterIndex] = 1
-//	buf[lenIndex] = 0xFF
-//	buf[typeIndex] = byte(prepareResponseType)
-//	require.Error(t, testserdes.DecodeBinary(buf, new(Payload)))
-//}
+func TestConsensusPayload_DecodeBinaryInvalid(t *testing.T) {
+	// PrepareResponse payload consists of:
+	// - 1-byte message type (PrepareResponse)
+	// - 4-byte block index
+	// - 1-byte validator index
+	// - 1-byte view number
+	// - 32-byte preparation hash
+	const (
+		typeIndex = 0
+		size      = 39
+	)
+
+	buf := make([]byte, size)
+	expected := message{
+		Type:    prepareResponseType,
+		payload: &prepareResponse{},
+	}
+
+	// valid payload
+	buf[typeIndex] = byte(prepareResponseType)
+	p := &Payload{Extensible: npayload.Extensible{Data: buf}}
+	require.NoError(t, p.decodeData())
+	require.Equal(t, expected, p.message)
+
+	// invalid type
+	buf[typeIndex] = 0xFF
+	p = &Payload{Extensible: npayload.Extensible{Data: buf}}
+	require.Error(t, p.decodeData())
+
+	// invalid length
+	buf[typeIndex] = byte(prepareResponseType)
+	p = &Payload{Extensible: npayload.Extensible{Data: buf[:len(buf)-1]}}
+	require.Error(t, p.decodeData())
+}
 
 func TestCommit_Serializable(t *testing.T) {
 	c := randomMessage(t, commitType)
@@ -316,19 +278,23 @@ func TestMessageType_String(t *testing.T) {
 	require.Equal(t, "UNKNOWN(0xff)", messageType(0xff).String())
 }
 
-//func TestPayload_DecodeFromPrivnet(t *testing.T) {
-//	hexDump := "000000004c02d52305a6a8981bd1598f0c3076d6de15a44a60ca692e189cd8a7249f175c08000000004230000368c5c5401d40eef6b8a9899d2041d29fd2e6300980fdcaa6660c10b85965f57852193cdb6f0d1e9f91dc510dff6df3a004b569fe2ad456d07007f6ccd55b1d01420c40e760250b821a4dcfc4b8727ecc409a758ab4bd3b288557fd3c3d76e083fe7c625b4ed25e763ad96c4eb0abc322600d82651fd32f8866fca1403fa04d3acc4675290c2102103a7f7dd016558597f7960d27c516a4394fd968b9e65155eb4b013e4040406e0b4195440d78"
-//	data, err := hex.DecodeString(hexDump)
-//	require.NoError(t, err)
-//
-//	buf := io.NewBinReaderFromBuf(data)
-//	p := NewPayload(netmode.PrivNet, false)
-//	p.DecodeBinary(buf)
-//	require.NoError(t, buf.Err)
-//	require.NoError(t, p.decodeData())
-//	require.Equal(t, payload.CommitType, p.Type())
-//	require.Equal(t, uint32(8), p.Height())
-//
-//	buf.ReadB()
-//	require.Equal(t, gio.EOF, buf.Err)
-//}
+func TestPayload_DecodeFromPrivnet(t *testing.T) {
+	hexDump := "0464424654000000000200000018ca088345a4926bcc9a1daccfba0ac4436082a847300200000003003c57d952539c5e0c39a83c0de5744a772c0dcb0e8ccd7c5bba27ef" +
+		"498506cd860cdfd01ad215b251ab64dc64cd544a6f453f3b0128ddc98d95ac15915dbe6f6301420c40b39c9136af3b8186409dec2dbd31d0fd4f3e637b3eeb96d8556b41f8512dd25d91134f62a6c293db089b7e82b7a0fd23bf9a1" +
+		"5ee26c42a5738b913beef74176d290c2103d90c07df63e690ce77912e10ab51acc944b66860237b608c4f8f8309e71ee6990b4195440d78"
+	data, err := hex.DecodeString(hexDump)
+	require.NoError(t, err)
+
+	buf := io.NewBinReaderFromBuf(data)
+	p := NewPayload(netmode.PrivNet, false)
+	p.DecodeBinary(buf)
+	require.NoError(t, buf.Err)
+	require.Equal(t, payload.CommitType, p.Type())
+	require.Equal(t, uint32(2), p.Height())
+	require.Equal(t, uint16(3), p.ValidatorIndex())
+	require.Equal(t, byte(0), p.ViewNumber())
+	require.NotNil(t, p.message.payload)
+
+	buf.ReadB()
+	require.Equal(t, gio.EOF, buf.Err)
+}
