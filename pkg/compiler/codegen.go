@@ -2011,26 +2011,39 @@ func (c *codegen) writeJumps(b []byte) ([]byte, error) {
 			}
 		}
 	}
+
+	if c.deployEndOffset >= 0 {
+		_, end := correctRange(uint16(c.initEndOffset+1), uint16(c.deployEndOffset), offsets)
+		c.deployEndOffset = int(end)
+	}
+	if c.initEndOffset > 0 {
+		_, end := correctRange(0, uint16(c.initEndOffset), offsets)
+		c.initEndOffset = int(end)
+	}
+
 	// Correct function ip range.
 	// Note: indices are sorted in increasing order.
 	for _, f := range c.funcs {
-		start, end := f.rng.Start, f.rng.End
-	loop:
-		for _, ind := range offsets {
-			switch {
-			case ind > int(f.rng.End):
-				break loop
-			case ind < int(f.rng.Start):
-				start -= longToShortRemoveCount
-				end -= longToShortRemoveCount
-			case ind >= int(f.rng.Start):
-				end -= longToShortRemoveCount
-			}
-		}
-		f.rng.Start = start
-		f.rng.End = end
+		f.rng.Start, f.rng.End = correctRange(f.rng.Start, f.rng.End, offsets)
 	}
 	return shortenJumps(b, offsets), nil
+}
+
+func correctRange(start, end uint16, offsets []int) (uint16, uint16) {
+	newStart, newEnd := start, end
+loop:
+	for _, ind := range offsets {
+		switch {
+		case ind > int(end):
+			break loop
+		case ind < int(start):
+			newStart -= longToShortRemoveCount
+			newEnd -= longToShortRemoveCount
+		case ind >= int(start):
+			newEnd -= longToShortRemoveCount
+		}
+	}
+	return newStart, newEnd
 }
 
 func (c *codegen) replaceLabelWithOffset(ip int, arg []byte) (int, error) {

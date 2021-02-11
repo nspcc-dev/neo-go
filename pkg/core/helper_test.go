@@ -8,11 +8,13 @@ import (
 	"io/ioutil"
 	"math/big"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/nspcc-dev/neo-go/internal/testchain"
 	"github.com/nspcc-dev/neo-go/internal/testserdes"
+	"github.com/nspcc-dev/neo-go/pkg/compiler"
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
@@ -27,6 +29,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
@@ -146,6 +149,35 @@ func (bc *Blockchain) genBlocks(n int) ([]*block.Block, error) {
 		lastHash = blocks[i].Hash()
 	}
 	return blocks, nil
+}
+
+func TestBug1728(t *testing.T) {
+	src := `package example
+	import "github.com/nspcc-dev/neo-go/pkg/interop/runtime"
+	func init() { if true { } else { } }
+	func _deploy(_ interface{}, isUpdate bool) {
+		runtime.Log("Deploy")
+	}`
+	b, di, err := compiler.CompileWithDebugInfo("foo", strings.NewReader(src))
+	require.NoError(t, err)
+	m, err := di.ConvertToManifest(&compiler.Options{Name: "TestContract"})
+	require.NoError(t, err)
+	nf, err := nef.NewFile(b)
+	require.NoError(t, err)
+	nf.CalculateChecksum()
+
+	rawManifest, err := json.Marshal(m)
+	require.NoError(t, err)
+	rawNef, err := nf.Bytes()
+	require.NoError(t, err)
+
+	bc := newTestChain(t)
+	defer bc.Close()
+
+	aer, err := invokeContractMethod(bc, 10000000000,
+		bc.contracts.Management.Hash, "deploy", rawNef, rawManifest)
+	require.NoError(t, err)
+	require.Equal(t, aer.VMState, vm.HaltState)
 }
 
 func getDecodedBlock(t *testing.T, i int) *block.Block {
