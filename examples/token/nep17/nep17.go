@@ -2,6 +2,8 @@ package nep17
 
 import (
 	"github.com/nspcc-dev/neo-go/pkg/interop"
+	"github.com/nspcc-dev/neo-go/pkg/interop/contract"
+	"github.com/nspcc-dev/neo-go/pkg/interop/native/management"
 	"github.com/nspcc-dev/neo-go/pkg/interop/runtime"
 	"github.com/nspcc-dev/neo-go/pkg/interop/storage"
 	"github.com/nspcc-dev/neo-go/pkg/interop/util"
@@ -64,6 +66,9 @@ func (t Token) Transfer(ctx storage.Context, from, to interop.Hash160, amount in
 	totalAmountTo := amountTo + amount
 	storage.Put(ctx, to, totalAmountTo)
 	runtime.Notify("Transfer", from, to, amount)
+	if to != nil && management.GetContract(to) != nil {
+		contract.Call(to, "onNEP17Payment", contract.All, from, amount, data)
+	}
 	return true
 }
 
