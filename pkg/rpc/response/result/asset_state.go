@@ -20,7 +20,7 @@ type AssetState struct {
 	Admin      string                `json:"admin"`
 	Issuer     string                `json:"issuer"`
 	Expiration uint32                `json:"expiration"`
-	IsFrozen   bool                  `json:"is_frozen"`
+	IsFrozen   bool                  `json:"frozen"`
 }
 
 // NewAssetState creates a new Asset wrapper.
