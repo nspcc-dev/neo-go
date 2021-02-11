@@ -339,6 +339,7 @@ func (n *Notary) verify(ic *interop.Context, args []stackitem.Item) stackitem.It
 			if signer.Scopes != transaction.None {
 				return stackitem.NewBool(false)
 			}
+			break
 		}
 	}
 	if tx.Sender() == n.Hash {
