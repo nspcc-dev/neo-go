@@ -172,10 +172,12 @@ func TestNativeContract_Invoke(t *testing.T) {
 	chain.registerNative(tn)
 
 	err := chain.contracts.Management.PutContractState(chain.dao, &state.Contract{
-		ID:       1,
-		NEF:      tn.meta.NEF,
-		Hash:     tn.meta.Hash,
-		Manifest: tn.meta.Manifest,
+		ContractBase: state.ContractBase{
+			ID:       1,
+			NEF:      tn.meta.NEF,
+			Hash:     tn.meta.Hash,
+			Manifest: tn.meta.Manifest,
+		},
 	})
 	require.NoError(t, err)
 
@@ -210,9 +212,11 @@ func TestNativeContract_InvokeInternal(t *testing.T) {
 	chain.registerNative(tn)
 
 	err := chain.contracts.Management.PutContractState(chain.dao, &state.Contract{
-		ID:       1,
-		NEF:      tn.meta.NEF,
-		Manifest: tn.meta.Manifest,
+		ContractBase: state.ContractBase{
+			ID:       1,
+			NEF:      tn.meta.NEF,
+			Manifest: tn.meta.Manifest,
+		},
 	})
 	require.NoError(t, err)
 
@@ -236,7 +240,7 @@ func TestNativeContract_InvokeInternal(t *testing.T) {
 		v.Estack().PushVal(14)
 		v.Estack().PushVal(28)
 		v.Estack().PushVal("sum")
-		v.Estack().PushVal(tn.Metadata().ContractID)
+		v.Estack().PushVal(tn.Metadata().ID)
 
 		require.NoError(t, native.Call(ic))
 
@@ -253,10 +257,12 @@ func TestNativeContract_InvokeOtherContract(t *testing.T) {
 	chain.registerNative(tn)
 
 	err := chain.contracts.Management.PutContractState(chain.dao, &state.Contract{
-		ID:       1,
-		Hash:     tn.meta.Hash,
-		NEF:      tn.meta.NEF,
-		Manifest: tn.meta.Manifest,
+		ContractBase: state.ContractBase{
+			ID:       1,
+			Hash:     tn.meta.Hash,
+			NEF:      tn.meta.NEF,
+			Manifest: tn.meta.Manifest,
+		},
 	})
 	require.NoError(t, err)
 

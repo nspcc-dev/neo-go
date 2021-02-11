@@ -68,7 +68,8 @@ func TestContractIsStandard(t *testing.T) {
 		pub := priv.PublicKey()
 		ne, err := nef.NewFile(pub.GetVerificationScript())
 		require.NoError(t, err)
-		err = chain.contracts.Management.PutContractState(ic.DAO, &state.Contract{ID: 42, Hash: pub.GetScriptHash(), NEF: *ne})
+		err = chain.contracts.Management.PutContractState(ic.DAO,
+			&state.Contract{ContractBase: state.ContractBase{ID: 42, Hash: pub.GetScriptHash(), NEF: *ne}})
 		require.NoError(t, err)
 
 		v.Estack().PushVal(pub.GetScriptHash().BytesBE())
@@ -79,7 +80,8 @@ func TestContractIsStandard(t *testing.T) {
 		script := []byte{byte(opcode.PUSHT)}
 		ne, err := nef.NewFile(script)
 		require.NoError(t, err)
-		require.NoError(t, chain.contracts.Management.PutContractState(ic.DAO, &state.Contract{ID: 24, Hash: hash.Hash160(script), NEF: *ne}))
+		require.NoError(t, chain.contracts.Management.PutContractState(ic.DAO,
+			&state.Contract{ContractBase: state.ContractBase{ID: 24, Hash: hash.Hash160(script), NEF: *ne}}))
 
 		v.Estack().PushVal(crypto.Hash160(script).BytesBE())
 		require.NoError(t, contractIsStandard(ic))
@@ -540,9 +542,11 @@ func getTestContractState(bc *Blockchain) (*state.Contract, *state.Contract) {
 	m.Permissions[1].Methods.Add("method")
 
 	cs := &state.Contract{
-		Hash:     h,
-		Manifest: *m,
-		ID:       42,
+		ContractBase: state.ContractBase{
+			Hash:     h,
+			Manifest: *m,
+			ID:       42,
+		},
 	}
 	ne, err := nef.NewFile(script)
 	if err != nil {
@@ -582,10 +586,12 @@ func getTestContractState(bc *Blockchain) (*state.Contract, *state.Contract) {
 	}
 
 	return cs, &state.Contract{
-		NEF:      *ne,
-		Hash:     hash.Hash160(currScript),
-		Manifest: *m,
-		ID:       123,
+		ContractBase: state.ContractBase{
+			NEF:      *ne,
+			Hash:     hash.Hash160(currScript),
+			Manifest: *m,
+			ID:       123,
+		},
 	}
 }
 
@@ -906,11 +912,13 @@ func TestRuntimeCheckWitness(t *testing.T) {
 					ne, err := nef.NewFile(contractScript)
 					require.NoError(t, err)
 					contractState := &state.Contract{
-						ID:   15,
-						Hash: contractScriptHash,
-						NEF:  *ne,
-						Manifest: manifest.Manifest{
-							Groups: []manifest.Group{{PublicKey: pk.PublicKey(), Signature: make([]byte, keys.SignatureLen)}},
+						ContractBase: state.ContractBase{
+							ID:   15,
+							Hash: contractScriptHash,
+							NEF:  *ne,
+							Manifest: manifest.Manifest{
+								Groups: []manifest.Group{{PublicKey: pk.PublicKey(), Signature: make([]byte, keys.SignatureLen)}},
+							},
 						},
 					}
 					require.NoError(t, bc.contracts.Management.PutContractState(ic.DAO, contractState))

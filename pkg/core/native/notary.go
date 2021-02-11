@@ -108,7 +108,7 @@ func (n *Notary) Metadata() *interop.ContractMD {
 
 // Initialize initializes Notary native contract and implements Contract interface.
 func (n *Notary) Initialize(ic *interop.Context) error {
-	err := setIntWithKey(n.ContractID, ic.DAO, maxNotValidBeforeDeltaKey, defaultMaxNotValidBeforeDelta)
+	err := setIntWithKey(n.ID, ic.DAO, maxNotValidBeforeDeltaKey, defaultMaxNotValidBeforeDelta)
 	if err != nil {
 		return err
 	}
@@ -171,7 +171,7 @@ func (n *Notary) PostPersist(ic *interop.Context) error {
 		return nil
 	}
 
-	n.maxNotValidBeforeDelta = uint32(getIntWithKey(n.ContractID, ic.DAO, maxNotValidBeforeDeltaKey))
+	n.maxNotValidBeforeDelta = uint32(getIntWithKey(n.ID, ic.DAO, maxNotValidBeforeDeltaKey))
 	n.isValid = true
 	return nil
 }
@@ -384,7 +384,7 @@ func (n *Notary) GetMaxNotValidBeforeDelta(dao dao.DAO) uint32 {
 	if n.isValid {
 		return n.maxNotValidBeforeDelta
 	}
-	return uint32(getIntWithKey(n.ContractID, dao, maxNotValidBeforeDeltaKey))
+	return uint32(getIntWithKey(n.ID, dao, maxNotValidBeforeDeltaKey))
 }
 
 // setMaxNotValidBeforeDelta is Notary contract method and sets the maximum NotValidBefore delta.
@@ -398,7 +398,7 @@ func (n *Notary) setMaxNotValidBeforeDelta(ic *interop.Context, args []stackitem
 	}
 	n.lock.Lock()
 	defer n.lock.Unlock()
-	err := setIntWithKey(n.ContractID, ic.DAO, maxNotValidBeforeDeltaKey, int64(value))
+	err := setIntWithKey(n.ID, ic.DAO, maxNotValidBeforeDeltaKey, int64(value))
 	if err != nil {
 		panic(fmt.Errorf("failed to put value into the storage: %w", err))
 	}
@@ -411,7 +411,7 @@ func (n *Notary) setMaxNotValidBeforeDelta(ic *interop.Context, args []stackitem
 func (n *Notary) GetDepositFor(dao dao.DAO, acc util.Uint160) *state.Deposit {
 	key := append([]byte{prefixDeposit}, acc.BytesBE()...)
 	deposit := new(state.Deposit)
-	err := getSerializableFromDAO(n.ContractID, dao, key, deposit)
+	err := getSerializableFromDAO(n.ID, dao, key, deposit)
 	if err == nil {
 		return deposit
 	}
@@ -424,13 +424,13 @@ func (n *Notary) GetDepositFor(dao dao.DAO, acc util.Uint160) *state.Deposit {
 // putDepositFor puts deposit on the balance of the specified account in the storage.
 func (n *Notary) putDepositFor(dao dao.DAO, deposit *state.Deposit, acc util.Uint160) error {
 	key := append([]byte{prefixDeposit}, acc.BytesBE()...)
-	return putSerializableToDAO(n.ContractID, dao, key, deposit)
+	return putSerializableToDAO(n.ID, dao, key, deposit)
 }
 
 // removeDepositFor removes deposit from the storage.
 func (n *Notary) removeDepositFor(dao dao.DAO, acc util.Uint160) error {
 	key := append([]byte{prefixDeposit}, acc.BytesBE()...)
-	return dao.DeleteStorageItem(n.ContractID, key)
+	return dao.DeleteStorageItem(n.ID, key)
 }
 
 // calculateNotaryReward calculates the reward for a single notary node based on FEE's count and Notary nodes count.

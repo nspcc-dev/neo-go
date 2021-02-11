@@ -240,6 +240,18 @@ func (c *Client) getContractState(param interface{}) (*state.Contract, error) {
 	return resp, nil
 }
 
+// GetNativeContracts queries information about native contracts.
+func (c *Client) GetNativeContracts() ([]state.NativeContract, error) {
+	var (
+		params = request.NewRawParams()
+		resp   []state.NativeContract
+	)
+	if err := c.performRequest("getnativecontracts", params, &resp); err != nil {
+		return resp, err
+	}
+	return resp, nil
+}
+
 // GetNEP17Balances is a wrapper for getnep17balances RPC.
 func (c *Client) GetNEP17Balances(address util.Uint160) (*result.NEP17Balances, error) {
 	params := request.NewRawParams(address.StringLE())

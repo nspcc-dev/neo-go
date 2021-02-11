@@ -322,3 +322,17 @@ func TestInvokeVerify(t *testing.T) {
 		require.False(t, res.Stack[0].Value().(bool))
 	})
 }
+
+func TestClient_GetNativeContracts(t *testing.T) {
+	chain, rpcSrv, httpSrv := initServerWithInMemoryChain(t)
+	defer chain.Close()
+	defer rpcSrv.Shutdown()
+
+	c, err := client.New(context.Background(), httpSrv.URL, client.Options{})
+	require.NoError(t, err)
+	require.NoError(t, c.Init())
+
+	cs, err := c.GetNativeContracts()
+	require.NoError(t, err)
+	require.Equal(t, chain.GetNatives(), cs)
+}

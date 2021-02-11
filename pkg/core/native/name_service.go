@@ -175,18 +175,18 @@ func (n *NameService) Initialize(ic *interop.Context) error {
 	if err := n.nonfungible.Initialize(ic); err != nil {
 		return err
 	}
-	if err := setIntWithKey(n.ContractID, ic.DAO, []byte{prefixDomainPrice}, DefaultDomainPrice); err != nil {
+	if err := setIntWithKey(n.ID, ic.DAO, []byte{prefixDomainPrice}, DefaultDomainPrice); err != nil {
 		return err
 	}
 	roots := stringList{}
-	return putSerializableToDAO(n.ContractID, ic.DAO, []byte{prefixRoots}, &roots)
+	return putSerializableToDAO(n.ID, ic.DAO, []byte{prefixRoots}, &roots)
 }
 
 // OnPersist implements interop.Contract interface.
 func (n *NameService) OnPersist(ic *interop.Context) error {
 	now := uint32(ic.Block.Timestamp/1000 + 1)
 	keys := []string{}
-	ic.DAO.Seek(n.ContractID, []byte{prefixExpiration}, func(k, v []byte) {
+	ic.DAO.Seek(n.ID, []byte{prefixExpiration}, func(k, v []byte) {
 		if binary.BigEndian.Uint32(k) >= now {
 			return
 		}
@@ -200,20 +200,20 @@ func (n *NameService) OnPersist(ic *interop.Context) error {
 	for i := range keys {
 		key[0] = prefixExpiration
 		key = append(key[:1], []byte(keys[i])...)
-		if err := ic.DAO.DeleteStorageItem(n.ContractID, key); err != nil {
+		if err := ic.DAO.DeleteStorageItem(n.ID, key); err != nil {
 			return err
 		}
 
 		keysToRemove = keysToRemove[:0]
 		key[0] = prefixRecord
 		key = append(key[:1], keys[i][4:]...)
-		ic.DAO.Seek(n.ContractID, key, func(k, v []byte) {
+		ic.DAO.Seek(n.ID, key, func(k, v []byte) {
 			keysToRemove = append(keysToRemove, k)
 		})
 		for i := range keysToRemove {
 			keyRecord = append(keyRecord[:0], key...)
 			keyRecord = append(keyRecord, keysToRemove[i]...)
-			err := ic.DAO.DeleteStorageItem(n.ContractID, keyRecord)
+			err := ic.DAO.DeleteStorageItem(n.ID, keyRecord)
 			if err != nil {
 				return err
 			}
@@ -242,7 +242,7 @@ func (n *NameService) addRoot(ic *interop.Context, args []stackitem.Item) stacki
 		panic("name already exists")
 	}
 
-	err := putSerializableToDAO(n.ContractID, ic.DAO, []byte{prefixRoots}, &roots)
+	err := putSerializableToDAO(n.ID, ic.DAO, []byte{prefixRoots}, &roots)
 	if err != nil {
 		panic(err)
 	}
@@ -259,7 +259,7 @@ func (n *NameService) setPrice(ic *interop.Context, args []stackitem.Item) stack
 
 	n.checkCommittee(ic)
 	si := &state.StorageItem{Value: bigint.ToBytes(price)}
-	err := ic.DAO.PutStorageItem(n.ContractID, []byte{prefixDomainPrice}, si)
+	err := ic.DAO.PutStorageItem(n.ID, []byte{prefixDomainPrice}, si)
 	if err != nil {
 		panic(err)
 	}
@@ -271,7 +271,7 @@ func (n *NameService) getPrice(ic *interop.Context, _ []stackitem.Item) stackite
 }
 
 func (n *NameService) getPriceInternal(d dao.DAO) *big.Int {
-	si := d.GetStorageItem(n.ContractID, []byte{prefixDomainPrice})
+	si := d.GetStorageItem(n.ID, []byte{prefixDomainPrice})
 	return bigint.FromBytes(si.Value)
 }
 
@@ -286,7 +286,7 @@ func (n *NameService) parseName(item stackitem.Item) (string, []string, []byte) 
 
 func (n *NameService) isAvailable(ic *interop.Context, args []stackitem.Item) stackitem.Item {
 	_, names, key := n.parseName(args[0])
-	if ic.DAO.GetStorageItem(n.ContractID, key) != nil {
+	if ic.DAO.GetStorageItem(n.ID, key) != nil {
 		return stackitem.NewBool(false)
 	}
 
@@ -300,7 +300,7 @@ func (n *NameService) isAvailable(ic *interop.Context, args []stackitem.Item) st
 
 func (n *NameService) getRootsInternal(d dao.DAO) (stringList, bool) {
 	var sl stringList
-	err := getSerializableFromDAO(n.ContractID, d, []byte{prefixRoots}, &sl)
+	err := getSerializableFromDAO(n.ID, d, []byte{prefixRoots}, &sl)
 	if err != nil {
 		// Roots are being stored in `Initialize()` and thus must always be present.
 		panic(err)
@@ -315,7 +315,7 @@ func (n *NameService) register(ic *interop.Context, args []stackitem.Item) stack
 		panic("owner is not witnessed")
 	}
 
-	if ic.DAO.GetStorageItem(n.ContractID, key) != nil {
+	if ic.DAO.GetStorageItem(n.ID, key) != nil {
 		return stackitem.NewBool(false)
 	}
 
@@ -334,7 +334,7 @@ func (n *NameService) register(ic *interop.Context, args []stackitem.Item) stack
 		Expiration: uint32(ic.Block.Timestamp/1000 + secondsInYear),
 	}
 	n.mint(ic, token)
-	err := ic.DAO.PutStorageItem(n.ContractID,
+	err := ic.DAO.PutStorageItem(n.ID,
 		makeExpirationKey(token.Expiration, token.ID()),
 		&state.StorageItem{Value: []byte{0}})
 	if err != nil {
@@ -349,25 +349,25 @@ func (n *NameService) renew(ic *interop.Context, args []stackitem.Item) stackite
 		panic("insufficient gas")
 	}
 	token := new(nameState)
-	err := getSerializableFromDAO(n.ContractID, ic.DAO, key, token)
+	err := getSerializableFromDAO(n.ID, ic.DAO, key, token)
 	if err != nil {
 		panic(err)
 	}
 
 	keyExpiration := makeExpirationKey(token.Expiration, token.ID())
-	if err := ic.DAO.DeleteStorageItem(n.ContractID, keyExpiration); err != nil {
+	if err := ic.DAO.DeleteStorageItem(n.ID, keyExpiration); err != nil {
 		panic(err)
 	}
 
 	token.Expiration += secondsInYear
-	err = putSerializableToDAO(n.ContractID, ic.DAO, key, token)
+	err = putSerializableToDAO(n.ID, ic.DAO, key, token)
 	if err != nil {
 		panic(err)
 	}
 
 	binary.BigEndian.PutUint32(key[1:], token.Expiration)
 	si := &state.StorageItem{Value: []byte{0}}
-	err = ic.DAO.PutStorageItem(n.ContractID, key, si)
+	err = ic.DAO.PutStorageItem(n.ID, key, si)
 	if err != nil {
 		panic(err)
 	}
@@ -388,7 +388,7 @@ func (n *NameService) setAdmin(ic *interop.Context, args []stackitem.Item) stack
 	}
 
 	token := new(nameState)
-	err := getSerializableFromDAO(n.ContractID, ic.DAO, key, token)
+	err := getSerializableFromDAO(n.ID, ic.DAO, key, token)
 	if err != nil {
 		panic(err)
 	}
@@ -397,7 +397,7 @@ func (n *NameService) setAdmin(ic *interop.Context, args []stackitem.Item) stack
 	}
 	token.HasAdmin = !isNull
 	token.Admin = admin
-	err = putSerializableToDAO(n.ContractID, ic.DAO, key, token)
+	err = putSerializableToDAO(n.ID, ic.DAO, key, token)
 	if err != nil {
 		panic(err)
 	}
@@ -441,7 +441,7 @@ func (n *NameService) setRecord(ic *interop.Context, args []stackitem.Item) stac
 	}
 	key := makeRecordKey(domain, name, rt)
 	si := &state.StorageItem{Value: []byte(data)}
-	if err := ic.DAO.PutStorageItem(n.ContractID, key, si); err != nil {
+	if err := ic.DAO.PutStorageItem(n.ID, key, si); err != nil {
 		panic(err)
 	}
 	return stackitem.Null{}
@@ -473,7 +473,7 @@ func (n *NameService) getRecord(ic *interop.Context, args []stackitem.Item) stac
 	domain := toDomain(name)
 	rt := toRecordType(args[1])
 	key := makeRecordKey(domain, name, rt)
-	si := ic.DAO.GetStorageItem(n.ContractID, key)
+	si := ic.DAO.GetStorageItem(n.ID, key)
 	if si == nil {
 		return stackitem.Null{}
 	}
@@ -486,7 +486,7 @@ func (n *NameService) deleteRecord(ic *interop.Context, args []stackitem.Item) s
 	domain := toDomain(name)
 	key := n.getTokenKey([]byte(domain))
 	token := new(nameState)
-	err := getSerializableFromDAO(n.ContractID, ic.DAO, key, token)
+	err := getSerializableFromDAO(n.ID, ic.DAO, key, token)
 	if err != nil {
 		panic(err)
 	}
@@ -496,7 +496,7 @@ func (n *NameService) deleteRecord(ic *interop.Context, args []stackitem.Item) s
 	}
 
 	key = makeRecordKey(domain, name, rt)
-	if err := ic.DAO.DeleteStorageItem(n.ContractID, key); err != nil {
+	if err := ic.DAO.DeleteStorageItem(n.ID, key); err != nil {
 		panic(err)
 	}
 	return stackitem.Null{}
@@ -532,7 +532,7 @@ func (n *NameService) getRecordsInternal(d dao.DAO, name string) map[RecordType]
 	key := makeRecordKey(domain, name, 0)
 	key = key[:len(key)-1]
 	res := make(map[RecordType]string)
-	d.Seek(n.ContractID, key, func(k, v []byte) {
+	d.Seek(n.ID, key, func(k, v []byte) {
 		rt := RecordType(k[len(k)-1])
 		var si state.StorageItem
 		r := io.NewBinReaderFromBuf(v)

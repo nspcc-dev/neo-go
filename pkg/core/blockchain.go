@@ -920,7 +920,7 @@ func (bc *Blockchain) processNEP17Transfer(cache *dao.Cached, h util.Uint256, b 
 	var id int32
 	nativeContract := bc.contracts.ByHash(sc)
 	if nativeContract != nil {
-		id = nativeContract.Metadata().ContractID
+		id = nativeContract.Metadata().ID
 	} else {
 		assetContract, err := bc.contracts.Management.GetContract(cache, sc)
 		if err != nil {
@@ -1018,7 +1018,7 @@ func (bc *Blockchain) GetUtilityTokenBalance(acc util.Uint160) *big.Int {
 	if err != nil {
 		return big.NewInt(0)
 	}
-	balance := bs.Trackers[bc.contracts.GAS.ContractID].Balance
+	balance := bs.Trackers[bc.contracts.GAS.ID].Balance
 	return &balance
 }
 
@@ -1029,7 +1029,7 @@ func (bc *Blockchain) GetGoverningTokenBalance(acc util.Uint160) (*big.Int, uint
 	if err != nil {
 		return big.NewInt(0), 0
 	}
-	neo := bs.Trackers[bc.contracts.NEO.ContractID]
+	neo := bs.Trackers[bc.contracts.NEO.ID]
 	return &neo.Balance, neo.LastUpdatedBlock
 }
 
@@ -1241,6 +1241,15 @@ func (bc *Blockchain) GetNativeContractScriptHash(name string) (util.Uint160, er
 		return c.Metadata().Hash, nil
 	}
 	return util.Uint160{}, errors.New("Unknown native contract")
+}
+
+// GetNatives returns list of native contracts.
+func (bc *Blockchain) GetNatives() []state.NativeContract {
+	res := make([]state.NativeContract, 0, len(bc.contracts.Contracts))
+	for _, c := range bc.contracts.Contracts {
+		res = append(res, c.Metadata().NativeContract)
+	}
+	return res
 }
 
 // GetConfig returns the config stored in the blockchain.

@@ -92,10 +92,12 @@ func getOracleContractState(h util.Uint160) *state.Contract {
 		panic(err)
 	}
 	return &state.Contract{
-		NEF:      *ne,
-		Hash:     hash.Hash160(script),
-		Manifest: *m,
-		ID:       42,
+		ContractBase: state.ContractBase{
+			NEF:      *ne,
+			Hash:     hash.Hash160(script),
+			Manifest: *m,
+			ID:       42,
+		},
 	}
 }
 

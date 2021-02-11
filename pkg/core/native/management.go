@@ -151,7 +151,7 @@ func (m *Management) GetContract(d dao.DAO, hash util.Uint160) (*state.Contract,
 func (m *Management) getContractFromDAO(d dao.DAO, hash util.Uint160) (*state.Contract, error) {
 	contract := new(state.Contract)
 	key := makeContractKey(hash)
-	err := getSerializableFromDAO(m.ContractID, d, key, contract)
+	err := getSerializableFromDAO(m.ID, d, key, contract)
 	if err != nil {
 		return nil, err
 	}
@@ -263,7 +263,7 @@ func (m *Management) markUpdated(h util.Uint160) {
 func (m *Management) Deploy(d dao.DAO, sender util.Uint160, neff *nef.File, manif *manifest.Manifest) (*state.Contract, error) {
 	h := state.CreateContractHash(sender, neff.Checksum, manif.Name)
 	key := makeContractKey(h)
-	si := d.GetStorageItem(m.ContractID, key)
+	si := d.GetStorageItem(m.ID, key)
 	if si != nil {
 		return nil, errors.New("contract already exists")
 	}
@@ -280,10 +280,12 @@ func (m *Management) Deploy(d dao.DAO, sender util.Uint160, neff *nef.File, mani
 		return nil, err
 	}
 	newcontract := &state.Contract{
-		ID:       id,
-		Hash:     h,
-		NEF:      *neff,
-		Manifest: *manif,
+		ContractBase: state.ContractBase{
+			ID:       id,
+			Hash:     h,
+			NEF:      *neff,
+			Manifest: *manif,
+		},
 	}
 	err = m.PutContractState(d, newcontract)
 	if err != nil {
@@ -371,7 +373,7 @@ func (m *Management) Destroy(d dao.DAO, hash util.Uint160) error {
 		return err
 	}
 	key := makeContractKey(hash)
-	err = d.DeleteStorageItem(m.ContractID, key)
+	err = d.DeleteStorageItem(m.ID, key)
 	if err != nil {
 		return err
 	}
@@ -399,7 +401,7 @@ func (m *Management) getMinimumDeploymentFee(ic *interop.Context, args []stackit
 
 // GetMinimumDeploymentFee returns the minimum required fee for contract deploy.
 func (m *Management) GetMinimumDeploymentFee(dao dao.DAO) int64 {
-	return getIntWithKey(m.ContractID, dao, keyMinimumDeploymentFee)
+	return getIntWithKey(m.ID, dao, keyMinimumDeploymentFee)
 }
 
 func (m *Management) setMinimumDeploymentFee(ic *interop.Context, args []stackitem.Item) stackitem.Item {
@@ -410,7 +412,7 @@ func (m *Management) setMinimumDeploymentFee(ic *interop.Context, args []stackit
 	if !m.NEO.checkCommittee(ic) {
 		panic("invalid committee signature")
 	}
-	err := setIntWithKey(m.ContractID, ic.DAO, keyMinimumDeploymentFee, int64(value))
+	err := setIntWithKey(m.ID, ic.DAO, keyMinimumDeploymentFee, int64(value))
 	if err != nil {
 		panic(err)
 	}
@@ -451,10 +453,7 @@ func (m *Management) OnPersist(ic *interop.Context) error {
 		md := native.Metadata()
 
 		cs := &state.Contract{
-			ID:       md.ContractID,
-			Hash:     md.Hash,
-			NEF:      md.NEF,
-			Manifest: md.Manifest,
+			ContractBase: md.ContractBase,
 		}
 		err := m.PutContractState(ic.DAO, cs)
 		if err != nil {
@@ -479,7 +478,7 @@ func (m *Management) InitializeCache(d dao.DAO) error {
 	defer m.mtx.Unlock()
 
 	var initErr error
-	d.Seek(m.ContractID, []byte{prefixContract}, func(_, v []byte) {
+	d.Seek(m.ID, []byte{prefixContract}, func(_, v []byte) {
 		var r = io.NewBinReaderFromBuf(v)
 		var si state.StorageItem
 		si.DecodeBinary(r)
@@ -521,16 +520,16 @@ func (m *Management) PostPersist(ic *interop.Context) error {
 
 // Initialize implements Contract interface.
 func (m *Management) Initialize(ic *interop.Context) error {
-	if err := setIntWithKey(m.ContractID, ic.DAO, keyMinimumDeploymentFee, defaultMinimumDeploymentFee); err != nil {
+	if err := setIntWithKey(m.ID, ic.DAO, keyMinimumDeploymentFee, defaultMinimumDeploymentFee); err != nil {
 		return err
 	}
-	return setIntWithKey(m.ContractID, ic.DAO, keyNextAvailableID, 1)
+	return setIntWithKey(m.ID, ic.DAO, keyNextAvailableID, 1)
 }
 
 // PutContractState saves given contract state into given DAO.
 func (m *Management) PutContractState(d dao.DAO, cs *state.Contract) error {
 	key := makeContractKey(cs.Hash)
-	if err := putSerializableToDAO(m.ContractID, d, key, cs); err != nil {
+	if err := putSerializableToDAO(m.ID, d, key, cs); err != nil {
 		return err
 	}
 	m.markUpdated(cs.Hash)
@@ -541,7 +540,7 @@ func (m *Management) PutContractState(d dao.DAO, cs *state.Contract) error {
 }
 
 func (m *Management) getNextContractID(d dao.DAO) (int32, error) {
-	si := d.GetStorageItem(m.ContractID, keyNextAvailableID)
+	si := d.GetStorageItem(m.ID, keyNextAvailableID)
 	if si == nil {
 		return 0, errors.New("nextAvailableID is not initialized")
 
@@ -550,7 +549,7 @@ func (m *Management) getNextContractID(d dao.DAO) (int32, error) {
 	ret := int32(id.Int64())
 	id.Add(id, intOne)
 	si.Value = bigint.ToPreallocatedBytes(id, si.Value)
-	return ret, d.PutStorageItem(m.ContractID, keyNextAvailableID, si)
+	return ret, d.PutStorageItem(m.ID, keyNextAvailableID, si)
 }
 
 func (m *Management) emitNotification(ic *interop.Context, name string, hash util.Uint160) {

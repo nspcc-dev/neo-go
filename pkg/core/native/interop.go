@@ -15,7 +15,7 @@ func Call(ic *interop.Context) error {
 	id := int32(ic.VM.Estack().Pop().BigInt().Int64())
 	var c interop.Contract
 	for _, ctr := range ic.Natives {
-		if ctr.Metadata().ContractID == id {
+		if ctr.Metadata().ID == id {
 			c = ctr
 			break
 		}

@@ -262,10 +262,12 @@ func createVMAndContractState(t *testing.T) (*vm.VM, *state.Contract, *interop.C
 	ne, err := nef.NewFile(script)
 	require.NoError(t, err)
 	contractState := &state.Contract{
-		NEF:      *ne,
-		Hash:     hash.Hash160(script),
-		Manifest: *m,
-		ID:       123,
+		ContractBase: state.ContractBase{
+			NEF:      *ne,
+			Hash:     hash.Hash160(script),
+			Manifest: *m,
+			ID:       123,
+		},
 	}
 
 	chain := newTestChain(t)
