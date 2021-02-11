@@ -688,6 +688,7 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 				Precision:  t.Precision,
 				Owner:      t.Owner,
 				Admin:      t.Admin,
+				Issuer:     t.Admin,
 				Expiration: bc.BlockHeight() + registeredAssetLifetime,
 			})
 			if err != nil {
