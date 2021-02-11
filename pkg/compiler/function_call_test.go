@@ -286,6 +286,16 @@ func TestVariadicMethod(t *testing.T) {
 
 func TestJumpOptimize(t *testing.T) {
 	src := `package foo
+	func init() {
+		if true {} else {}
+		var a int
+		_ = a
+	}
+	func _deploy(_ interface{}, upd bool) {
+		if true {} else {}
+		t := upd
+		_ = t
+	}
 	func Get1() int { return 1 }
 	func Get2() int { Get1(); Get1(); Get1(); Get1(); return Get1() }
 	func Get3() int { return Get2() }
@@ -294,6 +304,7 @@ func TestJumpOptimize(t *testing.T) {
 	}`
 	b, di, err := compiler.CompileWithDebugInfo("", strings.NewReader(src))
 	require.NoError(t, err)
+	require.Equal(t, 6, len(di.Methods))
 	for _, mi := range di.Methods {
 		require.Equal(t, b[mi.Range.Start], byte(opcode.INITSLOT))
 		require.Equal(t, b[mi.Range.End], byte(opcode.RET))
