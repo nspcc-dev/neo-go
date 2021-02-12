@@ -178,7 +178,7 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 			invoke: func(c *Client) (interface{}, error) {
 				return c.GetAssetState(util.Uint256{})
 			},
-			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"id":"0xc56f33fc6ecfcd0c225c4ab356fee59390af8560be0e930faebe74a6daff7c9b","type":0,"name":"NEO","amount":"100000000","available":"100000000","precision":0,"owner":"00","admin":"Abf2qMs1pzQb8kYk9RuxtUb9jtRKJVuBJt","issuer":"AFmseVrdL9f9oyCzZefL9tG6UbvhPbdYzM","expiration":4000000,"frozen":false}}`,
+			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"id":"0xc56f33fc6ecfcd0c225c4ab356fee59390af8560be0e930faebe74a6daff7c9b","type":"GoverningToken","name":"NEO","amount":"100000000","available":"100000000","precision":0,"owner":"00","admin":"Abf2qMs1pzQb8kYk9RuxtUb9jtRKJVuBJt","issuer":"AFmseVrdL9f9oyCzZefL9tG6UbvhPbdYzM","expiration":4000000,"frozen":false}}`,
 			result: func(c *Client) interface{} {
 				return &result.AssetState{
 					ID:         core.GoverningTokenID(),
