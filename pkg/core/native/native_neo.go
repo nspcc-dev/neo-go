@@ -125,7 +125,7 @@ func newNEO() *NEO {
 
 	desc = newDescriptor("vote", smartcontract.BoolType,
 		manifest.NewParameter("account", smartcontract.Hash160Type),
-		manifest.NewParameter("pubkey", smartcontract.ByteArrayType))
+		manifest.NewParameter("voteTo", smartcontract.ByteArrayType))
 	md = newMethodAndPrice(n.vote, 5000000, callflag.WriteStates)
 	n.AddMethod(md, desc)
 
