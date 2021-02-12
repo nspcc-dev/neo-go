@@ -260,7 +260,11 @@ func testContractCall(t *testing.T, hash util.Uint160, md interop.MethodAndPrice
 		require.Equal(t, md.MD.Name, method)
 
 		fs := callflag.CallFlag(int32(v.Estack().Pop().BigInt().Int64()))
-		require.Equal(t, md.RequiredFlags, fs)
+		extended := md.RequiredFlags // In some (all?) cases it's desirable to have Read permissions where Write is also allowed.
+		if md.RequiredFlags&callflag.WriteStates != 0 {
+			extended |= callflag.ReadStates
+		}
+		require.True(t, fs == md.RequiredFlags || fs == extended)
 
 		args := v.Estack().Pop().Array()
 		require.Equal(t, len(md.MD.Parameters), len(args))
