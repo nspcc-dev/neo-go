@@ -481,7 +481,7 @@ func TestContractUpdate(t *testing.T) {
 		})
 	})
 
-	cs1.Manifest.Extra = "update me"
+	cs1.Manifest.Extra = []byte(`"update me"`)
 	manif1, err = json.Marshal(cs1.Manifest)
 	require.NoError(t, err)
 	cs1.UpdateCounter++
@@ -504,7 +504,7 @@ func TestContractUpdate(t *testing.T) {
 	cs1.NEF.Checksum = cs1.NEF.CalculateChecksum()
 	nef1b, err = cs1.NEF.Bytes()
 	require.NoError(t, err)
-	cs1.Manifest.Extra = "update me once more"
+	cs1.Manifest.Extra = []byte(`"update me once more"`)
 	manif1, err = json.Marshal(cs1.Manifest)
 	require.NoError(t, err)
 	cs1.UpdateCounter++

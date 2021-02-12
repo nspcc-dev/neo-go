@@ -34,7 +34,7 @@ type Manifest struct {
 	// Trusts is a set of hashes to a which contract trusts.
 	Trusts WildUint160s `json:"trusts"`
 	// Extra is an implementation-defined user data.
-	Extra interface{} `json:"extra"`
+	Extra json.RawMessage `json:"extra"`
 }
 
 // NewManifest returns new manifest with necessary fields initialized.
@@ -48,6 +48,7 @@ func NewManifest(name string) *Manifest {
 		Groups:             []Group{},
 		Permissions:        []Permission{},
 		SupportedStandards: []string{},
+		Extra:              json.RawMessage("null"),
 	}
 	m.Trusts.Restrict()
 	return m
@@ -143,11 +144,7 @@ func (m *Manifest) ToStackItem() (stackitem.Item, error) {
 	}
 	extra := stackitem.Make("null")
 	if m.Extra != nil {
-		e, err := json.Marshal(m.Extra)
-		if err != nil {
-			return nil, err
-		}
-		extra = stackitem.NewByteArray(e)
+		extra = stackitem.NewByteArray(m.Extra)
 	}
 	return stackitem.NewStruct([]stackitem.Item{
 		stackitem.Make(m.Name),
@@ -238,8 +235,6 @@ func (m *Manifest) FromStackItem(item stackitem.Item) error {
 	if err != nil {
 		return err
 	}
-	if string(extra) == "null" {
-		return nil
-	}
-	return json.Unmarshal(extra, &m.Extra)
+	m.Extra = extra
+	return nil
 }

@@ -1,6 +1,7 @@
 package compiler
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/internal/testserdes"
@@ -265,7 +266,7 @@ func _deploy(data interface{}, isUpdate bool) {}
 			Trusts: manifest.WildUint160s{
 				Value: []util.Uint160{},
 			},
-			Extra: nil,
+			Extra: json.RawMessage("null"),
 		}
 		require.ElementsMatch(t, expected.ABI.Methods, actual.ABI.Methods)
 		require.Equal(t, expected.ABI.Events, actual.ABI.Events)
