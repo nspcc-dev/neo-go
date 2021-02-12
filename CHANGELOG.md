@@ -2,6 +2,108 @@
 
 This document outlines major changes between releases.
 
+## 0.93.0 "Hyperproduction" (12 Feb 2021)
+
+This is a 3.0.0-preview5 compatible release with important protocol changes,
+improved smart contract interop interface for native contracts (it's much
+easier now to use them) and complete Notary subsystem which is a NeoGo
+experimental protocol extension for P2P signature collection.
+
+Please note that this release is incompatible with 0.92.0 and there are no
+plans for long-term support of it, Neo 3 is still changing and improving.
+
+The release is tested with preview5 testnet data (and one of testnet CNs is
+already a neo-go node) up to 48K blocks and it has exactly the same storage
+data except for the Ledger contract that technically can differ between nodes
+(it's not a part of state proper), and in case of neo-go it's intentionally
+different (but this doesn't affect contract's functionality and state roots
+compatibility).
+
+New features:
+ * "ProtocolNotSupported" oracle response code (#1630)
+ * POPITEM VM opcode (#1670)
+ * CALLT VM opcode and contract tokens support (#1673)
+ * extensible P2P payloads (#1667, #1674, #1706, #1709)
+ * contract method overloading (#1689)
+ * oracle module (#1427, #1703)
+ * NNS native contract (#1678, #1712, #1721)
+ * complete P2P Notary subsytem (experimental protocol extension, use only on
+   private networks, #1658, #1726)
+ * Ledger native contract (#1696)
+ * `getblockheadercount` RPC call (#1718)
+ * native contract wrappers for Go smart contracts (#1702)
+ * `getnativecontracts` RPC call (#1724)
+
+Behavior changes:
+ * VM CLI now supports and requires manifests to properly work with NEF files
+   (#1642)
+ * NEP17-related CLI commands now output GAS balance as floating point numbers
+   (#1654)
+ * `--from` parameter can be omitted now for NEP17 CLI transfers, the default
+   wallet address will be used in this case (#1655)
+ * native contracts now use more specific types for methods arguments (#1657)
+ * some native contract names and IDs have changed (#1622, #1660)
+ * NEF file is stored now in contract's state instead of script only which
+   also affects RPC calls and ContractManagement's interface
+ * call flag definitions were moved to a package of their own (#1647)
+ * callback syscalls were removed (#1647)
+ * calling a contract now requires specifying allowed flags (and `CallEx`
+   syscall was removed, #1647)
+ * iterator/enumerator `Concat` calls were removed (#1656)
+ * `System.Enumerator.*` syscalls were removed (#1656)
+ * `System.Storage.Find` interface was reworked (#1656)
+ * NEF file format was changed merging compiler and version fields, adding
+   reserved fields and tokens (#1672)
+ * registering as committee/validator candidate now costs 1000 GAS (#1684)
+ * dbft now uses extensible P2P payloads (#1667)
+ * contract hashing scheme was changed now including names in the mix (#1686)
+ * GAS fees JSON marshalling was changed to plain integers (#1687, #1723)
+ * native methods requiring committee signature now fail the script instead of
+   returning `false` (#1695)
+ * native ContractManagement contract now has two `deploy` methods, with
+   additional data and without it (#1693)
+ * updated contract manifest now can't change contract's name (#1693)
+ * default values of native contracts were moved to storage from code (#1703)
+ * blocked accounts now store empty string instead of `01` byte (#1703)
+ * testnet magic number was changed for preview5 (#1709, #1715)
+ * `onPayment` method was renamed to `onNEP17Payment` (#1712)
+ * manifests are stored and accessed as stack items instead of JSON (#1704)
+ * zero-length "Headers" packet is a protocol error now (#1716)
+ * `getstorage` RPC call now uses base64 instead of hex for input/output
+   (#1717)
+ * state dumper and comparer now use base64 instead of hex (#1717)
+ * deployed contracts and manifests are now checked for correctness (#1729)
+ * transaction scripts are now checked for correctness before execution
+   (#1729)
+
+Improvements:
+ * default VM interop prices were adjusted (#1643)
+ * batched MPT updates (#1641)
+ * you can use `-m` now for manifest parameter of contract deploying command
+   (#1690)
+ * transaction cosigners can be specified with addresses now (#1690)
+ * compiler documentation was updated (#1690)
+
+Bugs fixed:
+ * oracle response transaction can't be correctly evicted from the mempool
+   (#1668)
+ * the node left with zero peers didn't initiate reconnections to seeds in rare
+   cases (#1671)
+ * native contracts supposed to check for committee witness in fact checked
+   for validators witness (#1679)
+ * it was allowed for contracts to have non-bool `verify` methods (#1689)
+ * previous proposal reuse could lead to empty blocks accepted even if there
+   are transactions in the mempool (#1707)
+ * NEO contract's `getCommittee` method name was misspelled (#1708)
+ * CLI wasn't correctly handling escape sequences (#1727)
+ * init and deploy methods could be misoptimized leading to execution failures
+   (#1730)
+ * NEP-17 contract example was missing `onNEP17Payment` invocation (#1732)
+ * missing state read privilege could lead to transaction failures for
+   transfers from CLI or when using native contract wrappers (#1734, #1735)
+ * some native contract methods had different parameter names and return
+   output types (#1736)
+
 ## 0.92.0 "Fermentation" (28 Dec 2020)
 
 NeoGo project is closing year 2020 with 3.0.0-preview4 compatible release that
