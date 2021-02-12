@@ -31,7 +31,7 @@ func BalanceOf(addr interop.Hash160) int {
 // Transfer represents `transfer` method of NEO native contract.
 func Transfer(from, to interop.Hash160, amount int, data interface{}) bool {
 	return contract.Call(interop.Hash160(Hash), "transfer",
-		contract.WriteStates|contract.AllowCall|contract.AllowNotify, from, to, amount, data).(bool)
+		contract.All, from, to, amount, data).(bool)
 }
 
 // GetCommittee represents `getCommittee` method of NEO native contract.
