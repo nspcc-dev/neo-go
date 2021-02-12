@@ -1,6 +1,9 @@
 package main
 
 import (
+	"bytes"
+	"encoding/base64"
+	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -11,6 +14,8 @@ import (
 
 	"github.com/urfave/cli"
 )
+
+var ledgerContractID = -2
 
 type dump []blockDump
 
@@ -39,15 +44,27 @@ func readFile(path string) (dump, error) {
 }
 
 func (d dump) normalize() {
+	ledgerIDBytes := make([]byte, 4)
+	binary.LittleEndian.PutUint32(ledgerIDBytes, uint32(ledgerContractID))
 	for i := range d {
+		var newStorage []storageOp
 		for j := range d[i].Storage {
+			keyBytes, err := base64.StdEncoding.DecodeString(d[i].Storage[j].Key)
+			if err != nil {
+				panic(fmt.Errorf("invalid key encoding: %w", err))
+			}
+			if bytes.HasPrefix(keyBytes, ledgerIDBytes) {
+				continue
+			}
 			if d[i].Storage[j].State == "Changed" {
 				d[i].Storage[j].State = "Added"
 			}
+			newStorage = append(newStorage, d[i].Storage[j])
 		}
-		sort.Slice(d[i].Storage, func(k, l int) bool {
-			return d[i].Storage[k].Key < d[i].Storage[l].Key
+		sort.Slice(newStorage, func(k, l int) bool {
+			return newStorage[k].Key < newStorage[l].Key
 		})
+		d[i].Storage = newStorage
 	}
 	// assume that d is already sorted by Block
 }
@@ -71,9 +88,6 @@ func compare(a, b string) error {
 		blockB := &dumpB[i]
 		if blockA.Block != blockB.Block {
 			return fmt.Errorf("block number mismatch: %d vs %d", blockA.Block, blockB.Block)
-		}
-		if blockA.Size != blockB.Size {
-			return fmt.Errorf("block %d, changes number mismatch: %d vs %d", blockA.Block, blockA.Size, blockB.Size)
 		}
 		if len(blockA.Storage) != len(blockB.Storage) {
 			return fmt.Errorf("block %d, changes length mismatch: %d vs %d", blockA.Block, len(blockA.Storage), len(blockB.Storage))

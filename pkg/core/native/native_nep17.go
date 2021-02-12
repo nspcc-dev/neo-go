@@ -258,13 +258,19 @@ func (c *nep17TokenNative) addTokens(ic *interop.Context, h util.Uint160, amount
 	if err := c.incBalance(ic, h, si, amount); err != nil {
 		panic(err)
 	}
-	if err := ic.DAO.PutStorageItem(c.ID, key, si); err != nil {
+	var err error
+	if si.Value == nil {
+		err = ic.DAO.DeleteStorageItem(c.ID, key)
+	} else {
+		err = ic.DAO.PutStorageItem(c.ID, key, si)
+	}
+	if err != nil {
 		panic(err)
 	}
 
 	supply := c.getTotalSupply(ic.DAO)
 	supply.Add(supply, amount)
-	err := c.saveTotalSupply(ic.DAO, supply)
+	err = c.saveTotalSupply(ic.DAO, supply)
 	if err != nil {
 		panic(err)
 	}

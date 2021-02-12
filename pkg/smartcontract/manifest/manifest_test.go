@@ -278,7 +278,7 @@ func TestManifestToStackItem(t *testing.T) {
 			Trusts: WildUint160s{
 				Value: []util.Uint160{{1, 2, 3}},
 			},
-			Extra: "some extra data",
+			Extra: []byte(`even not a json allowed`),
 		}
 		check(t, expected)
 	})
@@ -335,14 +335,6 @@ func TestManifest_FromStackItemErrors(t *testing.T) {
 			stackitem.NewArray([]stackitem.Item{}),
 			stackitem.NewArray([]stackitem.Item{}),
 			stackitem.Null{}}),
-		"invalid extra": stackitem.NewStruct([]stackitem.Item{
-			stackitem.NewByteArray([]byte{}),
-			stackitem.NewArray([]stackitem.Item{}),
-			stackitem.NewArray([]stackitem.Item{}),
-			stackitem.NewStruct([]stackitem.Item{stackitem.NewArray([]stackitem.Item{}), stackitem.NewArray([]stackitem.Item{})}),
-			stackitem.NewArray([]stackitem.Item{}),
-			stackitem.NewArray([]stackitem.Item{}),
-			stackitem.NewByteArray([]byte("not a json"))}),
 	}
 	for name, errCase := range errCases {
 		t.Run(name, func(t *testing.T) {

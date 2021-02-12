@@ -53,12 +53,12 @@ func newLedger() *Ledger {
 	l.AddMethod(md, desc)
 
 	desc = newDescriptor("getTransaction", smartcontract.ArrayType,
-		manifest.NewParameter("hash", smartcontract.ByteArrayType))
+		manifest.NewParameter("hash", smartcontract.Hash256Type))
 	md = newMethodAndPrice(l.getTransaction, 1000000, callflag.ReadStates)
 	l.AddMethod(md, desc)
 
 	desc = newDescriptor("getTransactionHeight", smartcontract.IntegerType,
-		manifest.NewParameter("hash", smartcontract.ByteArrayType))
+		manifest.NewParameter("hash", smartcontract.Hash256Type))
 	md = newMethodAndPrice(l.getTransactionHeight, 1000000, callflag.ReadStates)
 	l.AddMethod(md, desc)
 
