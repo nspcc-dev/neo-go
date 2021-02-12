@@ -72,26 +72,26 @@ func newManagement() *Management {
 	m.AddMethod(md, desc)
 
 	desc = newDescriptor("deploy", smartcontract.ArrayType,
-		manifest.NewParameter("script", smartcontract.ByteArrayType),
+		manifest.NewParameter("nefFile", smartcontract.ByteArrayType),
 		manifest.NewParameter("manifest", smartcontract.ByteArrayType))
 	md = newMethodAndPrice(m.deploy, 0, callflag.WriteStates|callflag.AllowNotify)
 	m.AddMethod(md, desc)
 
 	desc = newDescriptor("deploy", smartcontract.ArrayType,
-		manifest.NewParameter("script", smartcontract.ByteArrayType),
+		manifest.NewParameter("nefFile", smartcontract.ByteArrayType),
 		manifest.NewParameter("manifest", smartcontract.ByteArrayType),
 		manifest.NewParameter("data", smartcontract.AnyType))
 	md = newMethodAndPrice(m.deployWithData, 0, callflag.WriteStates|callflag.AllowNotify)
 	m.AddMethod(md, desc)
 
 	desc = newDescriptor("update", smartcontract.VoidType,
-		manifest.NewParameter("script", smartcontract.ByteArrayType),
+		manifest.NewParameter("nefFile", smartcontract.ByteArrayType),
 		manifest.NewParameter("manifest", smartcontract.ByteArrayType))
 	md = newMethodAndPrice(m.update, 0, callflag.WriteStates|callflag.AllowNotify)
 	m.AddMethod(md, desc)
 
 	desc = newDescriptor("update", smartcontract.VoidType,
-		manifest.NewParameter("script", smartcontract.ByteArrayType),
+		manifest.NewParameter("nefFile", smartcontract.ByteArrayType),
 		manifest.NewParameter("manifest", smartcontract.ByteArrayType),
 		manifest.NewParameter("data", smartcontract.AnyType))
 	md = newMethodAndPrice(m.updateWithData, 0, callflag.WriteStates|callflag.AllowNotify)
