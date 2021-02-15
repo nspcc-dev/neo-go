@@ -439,10 +439,6 @@ func TestVerifyTx(t *testing.T) {
 		err := bc.PoolTx(tx2)
 		require.True(t, errors.Is(err, ErrMemPoolConflict))
 	})
-	t.Run("NotEnoughWitnesses", func(t *testing.T) {
-		tx := bc.newTestTx(h, testScript)
-		checkErr(t, ErrTxInvalidWitnessNum, tx)
-	})
 	t.Run("InvalidWitnessHash", func(t *testing.T) {
 		tx := bc.newTestTx(h, testScript)
 		require.NoError(t, accs[0].SignTx(tx))

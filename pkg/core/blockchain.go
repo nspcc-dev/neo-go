@@ -1384,14 +1384,13 @@ func (bc *Blockchain) verifyHeader(currHeader, prevHeader *block.Header) error {
 
 // Various errors that could be returned upon verification.
 var (
-	ErrTxExpired           = errors.New("transaction has expired")
-	ErrInsufficientFunds   = errors.New("insufficient funds")
-	ErrTxSmallNetworkFee   = errors.New("too small network fee")
-	ErrTxTooBig            = errors.New("too big transaction")
-	ErrMemPoolConflict     = errors.New("invalid transaction due to conflicts with the memory pool")
-	ErrInvalidScript       = errors.New("invalid script")
-	ErrTxInvalidWitnessNum = errors.New("number of signers doesn't match witnesses")
-	ErrInvalidAttribute    = errors.New("invalid attribute")
+	ErrTxExpired         = errors.New("transaction has expired")
+	ErrInsufficientFunds = errors.New("insufficient funds")
+	ErrTxSmallNetworkFee = errors.New("too small network fee")
+	ErrTxTooBig          = errors.New("too big transaction")
+	ErrMemPoolConflict   = errors.New("invalid transaction due to conflicts with the memory pool")
+	ErrInvalidScript     = errors.New("invalid script")
+	ErrInvalidAttribute  = errors.New("invalid attribute")
 )
 
 // verifyAndPoolTx verifies whether a transaction is bonafide or not and tries
@@ -1856,9 +1855,6 @@ func (bc *Blockchain) verifyHashAgainstScript(hash util.Uint160, witness *transa
 // not yet added into any block.
 // Golang implementation of VerifyWitnesses method in C# (https://github.com/neo-project/neo/blob/master/neo/SmartContract/Helper.cs#L87).
 func (bc *Blockchain) verifyTxWitnesses(t *transaction.Transaction, block *block.Block, isPartialTx bool) error {
-	if len(t.Signers) != len(t.Scripts) {
-		return fmt.Errorf("%w: %d vs %d", ErrTxInvalidWitnessNum, len(t.Signers), len(t.Scripts))
-	}
 	interopCtx := bc.newInteropContext(trigger.Verification, bc.dao, block, t)
 	gasLimit := t.NetworkFee - int64(t.Size())*bc.FeePerByte()
 	if bc.P2PSigExtensionsEnabled() {

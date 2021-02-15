@@ -280,8 +280,8 @@ func createVMAndContractState(t *testing.T) (*vm.VM, *state.Contract, *interop.C
 func createVMAndTX(t *testing.T) (*vm.VM, *transaction.Transaction, *interop.Context, *Blockchain) {
 	script := []byte{byte(opcode.PUSH1), byte(opcode.RET)}
 	tx := transaction.New(netmode.UnitTestNet, script, 0)
-
 	tx.Signers = []transaction.Signer{{Account: util.Uint160{1, 2, 3, 4}}}
+	tx.Scripts = []transaction.Witness{{InvocationScript: []byte{}, VerificationScript: []byte{}}}
 	chain := newTestChain(t)
 	d := dao.NewSimple(storage.NewMemoryStore(), netmode.UnitTestNet, chain.config.StateRootInHeader)
 	context := chain.newInteropContext(trigger.Application, d, nil, tx)

@@ -13,6 +13,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/fixedn"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -77,6 +78,7 @@ func TestNew(t *testing.T) {
 	script := []byte{0x51}
 	tx := New(netmode.UnitTestNet, script, 1)
 	tx.Signers = []Signer{{Account: util.Uint160{1, 2, 3}}}
+	tx.Scripts = []Witness{{InvocationScript: []byte{}, VerificationScript: []byte{}}}
 	assert.Equal(t, int64(1), tx.SystemFee)
 	assert.Equal(t, script, tx.Script)
 	// Update hash fields to match tx2 that is gonna autoupdate them on decode.
@@ -90,6 +92,7 @@ func TestNewTransactionFromBytes(t *testing.T) {
 	tx := New(netmode.UnitTestNet, script, 1)
 	tx.NetworkFee = 123
 	tx.Signers = []Signer{{Account: util.Uint160{1, 2, 3}}}
+	tx.Scripts = []Witness{{InvocationScript: []byte{}, VerificationScript: []byte{}}}
 	data, err := testserdes.EncodeBinary(tx)
 	require.NoError(t, err)
 
@@ -116,6 +119,15 @@ func TestDecodingTXWithNoScript(t *testing.T) {
 	require.NoError(t, err)
 	err = testserdes.DecodeBinary(txBin, new(Transaction))
 	require.Error(t, err)
+}
+
+func TestDecodingTxWithInvalidWitnessesNumber(t *testing.T) {
+	tx := New(netmode.UnitTestNet, []byte{byte(opcode.RET)}, 1)
+	tx.Signers = []Signer{{Account: util.Uint160{1, 2, 3}}}
+	tx.Scripts = []Witness{{InvocationScript: []byte{}, VerificationScript: []byte{}}, {InvocationScript: []byte{}, VerificationScript: []byte{}}}
+	data, err := testserdes.EncodeBinary(tx)
+	require.NoError(t, err)
+	require.True(t, errors.Is(testserdes.DecodeBinary(data, new(Transaction)), ErrInvalidWitnessNum))
 }
 
 func TestUnmarshalNeoFSTX(t *testing.T) {
