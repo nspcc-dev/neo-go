@@ -1577,11 +1577,44 @@ func (bc *Blockchain) NetworkFee(t *transaction.Transaction) util.Fixed8 {
 
 // SystemFee returns system fee.
 func (bc *Blockchain) SystemFee(t *transaction.Transaction) util.Fixed8 {
-	if t.Type == transaction.InvocationType {
+	switch t.Type {
+	case transaction.InvocationType:
 		inv := t.Data.(*transaction.InvocationTX)
-		if inv.Version >= 1 {
-			return inv.Gas
+		return inv.Gas
+	case transaction.IssueType:
+		if t.Version >= 1 {
+			return util.Fixed8(0)
 		}
+		var iszero = true
+		for i := range t.Outputs {
+			asset := t.Outputs[i].AssetID
+			if asset != UtilityTokenID() && asset != GoverningTokenID() {
+				iszero = false
+				break
+			}
+		}
+		if iszero {
+			return util.Fixed8(0)
+		}
+	case transaction.RegisterType:
+		reg := t.Data.(*transaction.RegisterTX)
+		if reg.AssetType == transaction.GoverningToken || reg.AssetType == transaction.UtilityToken {
+			return util.Fixed8(0)
+		}
+	case transaction.StateType:
+		res := util.Fixed8(0)
+		st := t.Data.(*transaction.StateTX)
+		for _, desc := range st.Descriptors {
+			if desc.Type == transaction.Validator && desc.Field == "Registered" {
+				for i := range desc.Value {
+					if desc.Value[i] != 0 {
+						res += util.Fixed8FromInt64(1000)
+						break
+					}
+				}
+			}
+		}
+		return res
 	}
 	return bc.GetConfig().SystemFee.TryGetValue(t.Type)
 }
