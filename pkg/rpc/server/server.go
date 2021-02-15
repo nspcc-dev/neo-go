@@ -1371,9 +1371,9 @@ func (s *Server) getBlockSysFee(reqParams request.Params) (interface{}, *respons
 
 // getBlockHeader returns the corresponding block header information according to the specified script hash.
 func (s *Server) getBlockHeader(reqParams request.Params) (interface{}, *response.Error) {
-	hash, err := reqParams.ValueWithType(0, request.StringT).GetUint256()
-	if err != nil {
-		return nil, response.ErrInvalidParams
+	hash, respErr := s.getBlockHashFromParam(reqParams.Value(0))
+	if respErr != nil {
+		return nil, respErr
 	}
 
 	verbose := reqParams.Value(1).GetBoolean()
