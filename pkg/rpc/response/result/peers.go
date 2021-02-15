@@ -1,6 +1,7 @@
 package result
 
 import (
+	"strconv"
 	"strings"
 )
 
@@ -18,7 +19,7 @@ type (
 	// Peer represents the peer.
 	Peer struct {
 		Address string `json:"address"`
-		Port    string `json:"port"`
+		Port    uint16 `json:"port"`
 	}
 )
 
@@ -50,9 +51,10 @@ func (g *GetPeers) AddBad(addrs []string) {
 func (p *Peers) addPeers(addrs []string) {
 	for i := range addrs {
 		addressParts := strings.Split(addrs[i], ":")
+		port, _ := strconv.Atoi(addressParts[1]) // We know it's a good port number.
 		peer := Peer{
 			Address: addressParts[0],
-			Port:    addressParts[1],
+			Port:    uint16(port),
 		}
 
 		*p = append(*p, peer)
