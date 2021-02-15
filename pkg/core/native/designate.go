@@ -283,7 +283,7 @@ func (s *Designate) designateAsRole(ic *interop.Context, args []stackitem.Item) 
 	if err != nil {
 		panic(err)
 	}
-	return pubsToArray(keys.PublicKeys(ns))
+	return stackitem.Null{}
 }
 
 // DesignateAsRole sets nodes for role r.
