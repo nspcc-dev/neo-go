@@ -19,7 +19,7 @@ import (
 )
 
 const (
-	policyContractID = -5
+	policyContractID = -7
 
 	defaultExecFeeFactor      = interop.DefaultBaseExecFee
 	defaultFeePerByte         = 1000

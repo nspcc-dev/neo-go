@@ -103,8 +103,6 @@ func TestSyscallExecution(t *testing.T) {
 		"crypto.ECDsaSecp256k1Verify":        {interopnames.NeoCryptoVerifyWithECDsaSecp256k1, []string{b, pub, sig}, false},
 		"crypto.ECDSASecp256r1CheckMultisig": {interopnames.NeoCryptoCheckMultisigWithECDsaSecp256r1, []string{b, pubs, sigs}, false},
 		"crypto.ECDSASecp256k1CheckMultisig": {interopnames.NeoCryptoCheckMultisigWithECDsaSecp256k1, []string{b, pubs, sigs}, false},
-		"crypto.SHA256":                      {interopnames.NeoCryptoSHA256, []string{b}, false},
-		"crypto.RIPEMD160":                   {interopnames.NeoCryptoRIPEMD160, []string{b}, false},
 	}
 	ic := &interop.Context{}
 	core.SpawnVM(ic) // set Functions field

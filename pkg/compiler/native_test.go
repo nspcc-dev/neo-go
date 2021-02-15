@@ -9,6 +9,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
+	"github.com/nspcc-dev/neo-go/pkg/interop/native/crypto"
 	"github.com/nspcc-dev/neo-go/pkg/interop/native/gas"
 	"github.com/nspcc-dev/neo-go/pkg/interop/native/ledger"
 	"github.com/nspcc-dev/neo-go/pkg/interop/native/management"
@@ -37,6 +38,7 @@ func TestContractHashes(t *testing.T) {
 	require.Equal(t, []byte(ledger.Hash), cs.Ledger.Hash.BytesBE())
 	require.Equal(t, []byte(management.Hash), cs.Management.Hash.BytesBE())
 	require.Equal(t, []byte(notary.Hash), cs.Notary.Hash.BytesBE())
+	require.Equal(t, []byte(crypto.Hash), cs.Crypto.Hash.BytesBE())
 }
 
 // testPrintHash is a helper for updating contract hashes.
@@ -77,6 +79,11 @@ func TestNameServiceRecordType(t *testing.T) {
 	require.EqualValues(t, native.RecordTypeAAAA, nameservice.TypeAAAA)
 }
 
+func TestCryptoLibNamedCurve(t *testing.T) {
+	require.EqualValues(t, native.Secp256k1, crypto.Secp256k1)
+	require.EqualValues(t, native.Secp256r1, crypto.Secp256r1)
+}
+
 type nativeTestCase struct {
 	method string
 	params []string
@@ -88,6 +95,7 @@ func TestNativeHelpersCompile(t *testing.T) {
 	u160 := `interop.Hash160("aaaaaaaaaaaaaaaaaaaa")`
 	u256 := `interop.Hash256("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")`
 	pub := `interop.PublicKey("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")`
+	sig := `interop.Signature("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")`
 	nep17TestCases := []nativeTestCase{
 		{"balanceOf", []string{u160}},
 		{"decimals", nil},
@@ -175,6 +183,11 @@ func TestNativeHelpersCompile(t *testing.T) {
 		{"setMinimumDeploymentFee", []string{"42"}},
 		{"update", []string{"nil", "nil"}},
 		{"updateWithData", []string{"nil", "nil", "123"}},
+	})
+	runNativeTestCases(t, cs.Crypto.ContractMD, "crypto", []nativeTestCase{
+		{"sha256", []string{"[]byte{1, 2, 3}"}},
+		{"ripemd160", []string{"[]byte{1, 2, 3}"}},
+		{"verifyWithECDsa", []string{"[]byte{1, 2, 3}", pub, sig, "crypto.Secp256k1"}},
 	})
 }
 

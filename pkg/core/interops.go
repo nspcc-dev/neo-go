@@ -93,8 +93,6 @@ var neoInterops = []interop.Function{
 		Price: fee.ECDSAVerifyPrice, ParamCount: 3},
 	{Name: interopnames.NeoCryptoCheckMultisigWithECDsaSecp256r1, Func: crypto.ECDSASecp256r1CheckMultisig, Price: 0, ParamCount: 3},
 	{Name: interopnames.NeoCryptoCheckMultisigWithECDsaSecp256k1, Func: crypto.ECDSASecp256k1CheckMultisig, Price: 0, ParamCount: 3},
-	{Name: interopnames.NeoCryptoSHA256, Func: crypto.Sha256, Price: 1 << 15, ParamCount: 1},
-	{Name: interopnames.NeoCryptoRIPEMD160, Func: crypto.RipeMD160, Price: 1 << 15, ParamCount: 1},
 }
 
 // initIDinInteropsSlice initializes IDs from names in one given

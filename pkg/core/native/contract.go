@@ -24,6 +24,7 @@ type Contracts struct {
 	Designate   *Designate
 	NameService *NameService
 	Notary      *Notary
+	Crypto      *Crypto
 	Contracts   []interop.Contract
 	// persistScript is vm script which executes "onPersist" method of every native contract.
 	persistScript []byte
@@ -60,6 +61,10 @@ func NewContracts(p2pSigExtensionsEnabled bool) *Contracts {
 	mgmt := newManagement()
 	cs.Management = mgmt
 	cs.Contracts = append(cs.Contracts, mgmt)
+
+	c := newCrypto()
+	cs.Crypto = c
+	cs.Contracts = append(cs.Contracts, c)
 
 	ledger := newLedger()
 	cs.Ledger = ledger

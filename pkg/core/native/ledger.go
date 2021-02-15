@@ -26,7 +26,7 @@ type Ledger struct {
 }
 
 const (
-	ledgerContractID = -2
+	ledgerContractID = -4
 
 	prefixBlockHash    = 9
 	prefixCurrentBlock = 12

@@ -11,4 +11,5 @@ const (
 	Designation = "RoleManagement"
 	Notary      = "Notary"
 	NameService = "NameService"
+	CryptoLib   = "CryptoLib"
 )

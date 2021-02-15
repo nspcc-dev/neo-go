@@ -183,7 +183,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 			check: func(t *testing.T, e *executor, cs interface{}) {
 				res, ok := cs.(*state.Contract)
 				require.True(t, ok)
-				assert.Equal(t, int32(-5), res.ID)
+				assert.Equal(t, int32(-7), res.ID)
 			},
 		},
 		{

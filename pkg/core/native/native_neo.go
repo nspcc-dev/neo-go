@@ -50,7 +50,7 @@ type NEO struct {
 }
 
 const (
-	neoContractID = -3
+	neoContractID = -5
 	// NEOTotalSupply is the total amount of NEO in the system.
 	NEOTotalSupply = 100000000
 	// prefixCandidate is a prefix used to store validator's data.
