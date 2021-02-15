@@ -20,7 +20,7 @@ func NewTxOutput(out *transaction.Output) *TransactionOutput {
 
 	return &TransactionOutput{
 		N:       out.Position,
-		Asset:   "0x" + out.AssetID.String(),
+		Asset:   "0x" + out.AssetID.StringLE(),
 		Value:   out.Amount,
 		Address: addr,
 	}

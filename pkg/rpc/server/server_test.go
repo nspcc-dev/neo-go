@@ -1213,7 +1213,7 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 		err := json.Unmarshal(res, &txOut)
 		require.NoErrorf(t, err, "could not parse response: %s", res)
 		assert.Equal(t, 1, txOut.N)
-		assert.Equal(t, "0x9b7cffdaa674beae0f930ebe6085af9093e5fe56b34a5c220ccdcf6efc336fc5", txOut.Asset)
+		assert.Equal(t, "0xc56f33fc6ecfcd0c225c4ab356fee59390af8560be0e930faebe74a6daff7c9b", txOut.Asset)
 		assert.Equal(t, util.Fixed8FromInt64(1000), txOut.Value)
 		assert.Equal(t, "AZ81H31DMWzbSnFDLFkzh9vHwaDLayV7fU", txOut.Address)
 	})
