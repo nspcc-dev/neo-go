@@ -551,9 +551,9 @@ func (bc *Blockchain) processHeader(h *block.Header, batch storage.Batch, header
 	return nil
 }
 
-// bc.GetHeaderHash(int(endHeight)) returns sum of all system fees for blocks up to h.
+// GetSystemFeeAmount returns sum of all system fees for blocks up to h.
 // and 0 if no such block exists.
-func (bc *Blockchain) getSystemFeeAmount(h util.Uint256) uint32 {
+func (bc *Blockchain) GetSystemFeeAmount(h util.Uint256) uint32 {
 	_, sf, _ := bc.dao.GetBlock(h)
 	return sf
 }
@@ -582,7 +582,7 @@ func (bc *Blockchain) GetStateRoot(height uint32) (*state.MPTRootState, error) {
 func (bc *Blockchain) storeBlock(block *block.Block) error {
 	cache := dao.NewCached(bc.dao)
 	appExecResults := make([]*state.AppExecResult, 0, len(block.Transactions))
-	fee := bc.getSystemFeeAmount(block.PrevHash)
+	fee := bc.GetSystemFeeAmount(block.PrevHash)
 	for _, tx := range block.Transactions {
 		fee += uint32(bc.SystemFee(tx).IntegralValue())
 	}
@@ -1503,9 +1503,9 @@ func (bc *Blockchain) CalculateClaimable(value util.Fixed8, startHeight, endHeig
 		startHeight++
 	}
 	h := bc.GetHeaderHash(int(startHeight - 1))
-	feeStart := bc.getSystemFeeAmount(h)
+	feeStart := bc.GetSystemFeeAmount(h)
 	h = bc.GetHeaderHash(int(endHeight - 1))
-	feeEnd := bc.getSystemFeeAmount(h)
+	feeEnd := bc.GetSystemFeeAmount(h)
 
 	sysFeeTotal := util.Fixed8(feeEnd - feeStart)
 	ratio := value / 100000000

@@ -548,13 +548,9 @@ var rpcTestCases = map[string][]rpcTestCase{
 			name:   "positive",
 			params: "[1]",
 			result: func(e *executor) interface{} {
-				block, _ := e.chain.GetBlock(e.chain.GetHeaderHash(1))
-
-				var expectedBlockSysFee util.Fixed8
-				for _, tx := range block.Transactions {
-					expectedBlockSysFee += e.chain.SystemFee(tx)
-				}
-				return &expectedBlockSysFee
+				sf := e.chain.GetSystemFeeAmount(e.chain.GetHeaderHash(1))
+				r := util.Fixed8FromInt64(int64(sf))
+				return &r
 			},
 		},
 		{

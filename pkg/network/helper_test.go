@@ -123,6 +123,9 @@ func (chain testChain) GetStateRoot(height uint32) (*state.MPTRootState, error) 
 func (chain testChain) GetStorageItem(scripthash util.Uint160, key []byte) *state.StorageItem {
 	panic("TODO")
 }
+func (chain testChain) GetSystemFeeAmount(h util.Uint256) uint32 {
+	panic("TODO")
+}
 func (chain testChain) GetTestVM(tx *transaction.Transaction) *vm.VM {
 	panic("TODO")
 }

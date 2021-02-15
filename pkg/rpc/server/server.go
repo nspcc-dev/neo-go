@@ -1356,17 +1356,8 @@ func (s *Server) getBlockSysFee(reqParams request.Params) (interface{}, *respons
 	}
 
 	headerHash := s.chain.GetHeaderHash(num)
-	block, errBlock := s.chain.GetBlock(headerHash)
-	if errBlock != nil {
-		return 0, response.NewRPCError(errBlock.Error(), "", nil)
-	}
 
-	var blockSysFee util.Fixed8
-	for _, tx := range block.Transactions {
-		blockSysFee += s.chain.SystemFee(tx)
-	}
-
-	return blockSysFee, nil
+	return util.Fixed8FromInt64(int64(s.chain.GetSystemFeeAmount(headerHash))), nil
 }
 
 // getBlockHeader returns the corresponding block header information according to the specified script hash.
