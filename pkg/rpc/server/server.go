@@ -461,7 +461,7 @@ func (s *Server) getBlockHash(reqParams request.Params) (interface{}, *response.
 	}
 	num, err := s.blockHeightFromParam(param)
 	if err != nil {
-		return nil, response.ErrInvalidParams
+		return nil, err
 	}
 
 	return s.chain.GetHeaderHash(num), nil
