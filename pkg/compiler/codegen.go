@@ -31,6 +31,8 @@ type codegen struct {
 
 	// Type information.
 	typeInfo *types.Info
+	// pkgInfoInline is stack of type information for packages containing inline functions.
+	pkgInfoInline []*loader.PackageInfo
 
 	// A mapping of func identifiers with their scope.
 	funcs map[string]*funcScope
@@ -192,20 +194,21 @@ func (c *codegen) emitStoreStructField(i int) {
 
 // getVarIndex returns variable type and position in corresponding slot,
 // according to current scope.
-func (c *codegen) getVarIndex(pkg string, name string) (varType, int) {
+func (c *codegen) getVarIndex(pkg string, name string) *varInfo {
 	if pkg == "" {
 		if c.scope != nil {
-			vt, val := c.scope.vars.getVarIndex(name)
-			if val >= 0 {
-				return vt, val
+			vi := c.scope.vars.getVarInfo(name)
+			if vi != nil {
+				return vi
 			}
 		}
 	}
 	if i, ok := c.globals[c.getIdentName(pkg, name)]; ok {
-		return varGlobal, i
+		return &varInfo{refType: varGlobal, index: i}
 	}
 
-	return varLocal, c.scope.newVariable(varLocal, name)
+	c.scope.newVariable(varLocal, name)
+	return c.scope.vars.getVarInfo(name)
 }
 
 func getBaseOpcode(t varType) (opcode.Opcode, opcode.Opcode) {
@@ -223,8 +226,15 @@ func getBaseOpcode(t varType) (opcode.Opcode, opcode.Opcode) {
 
 // emitLoadVar loads specified variable to the evaluation stack.
 func (c *codegen) emitLoadVar(pkg string, name string) {
-	t, i := c.getVarIndex(pkg, name)
-	c.emitLoadByIndex(t, i)
+	vi := c.getVarIndex(pkg, name)
+	if vi.tv.Value != nil {
+		c.emitLoadConst(vi.tv)
+		return
+	} else if vi.index == unspecifiedVarIndex {
+		emit.Opcodes(c.prog.BinWriter, opcode.PUSHNULL)
+		return
+	}
+	c.emitLoadByIndex(vi.refType, vi.index)
 }
 
 // emitLoadByIndex loads specified variable type with index i.
@@ -243,8 +253,8 @@ func (c *codegen) emitStoreVar(pkg string, name string) {
 		emit.Opcodes(c.prog.BinWriter, opcode.DROP)
 		return
 	}
-	t, i := c.getVarIndex(pkg, name)
-	c.emitStoreByIndex(t, i)
+	vi := c.getVarIndex(pkg, name)
+	c.emitStoreByIndex(vi.refType, vi.index)
 }
 
 // emitLoadByIndex stores top value in the specified variable type with index i.
@@ -320,7 +330,7 @@ func (c *codegen) convertInitFuncs(f *ast.File, pkg *types.Package, seenBefore b
 		case *ast.FuncDecl:
 			if isInitFunc(n) {
 				if seenBefore {
-					cnt, _ := countLocals(n)
+					cnt, _ := c.countLocals(n)
 					c.clearSlots(cnt)
 					seenBefore = true
 				}
@@ -352,7 +362,7 @@ func (c *codegen) convertDeployFuncs() {
 			case *ast.FuncDecl:
 				if isDeployFunc(n) {
 					if seenBefore {
-						cnt, _ := countLocals(n)
+						cnt, _ := c.countLocals(n)
 						c.clearSlots(cnt)
 					}
 					c.convertFuncDecl(f, n, pkg)
@@ -398,7 +408,7 @@ func (c *codegen) convertFuncDecl(file ast.Node, decl *ast.FuncDecl, pkg *types.
 	// All globals copied into the scope of the function need to be added
 	// to the stack size of the function.
 	if !isInit && !isDeploy {
-		sizeLoc := f.countLocals()
+		sizeLoc := c.countLocalsWithDefer(f)
 		if sizeLoc > 255 {
 			c.prog.Err = errors.New("maximum of 255 local variables is allowed")
 		}
@@ -440,7 +450,7 @@ func (c *codegen) convertFuncDecl(file ast.Node, decl *ast.FuncDecl, pkg *types.
 	// If we have reached the end of the function without encountering `return` statement,
 	// we should clean alt.stack manually.
 	// This can be the case with void and named-return functions.
-	if !isInit && !isDeploy && !lastStmtIsReturn(decl) {
+	if !isInit && !isDeploy && !lastStmtIsReturn(decl.Body) {
 		c.saveSequencePoint(decl.Body)
 		emit.Opcodes(c.prog.BinWriter, opcode.RET)
 	}
@@ -623,7 +633,9 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		c.processDefers()
 
 		c.saveSequencePoint(n)
-		emit.Opcodes(c.prog.BinWriter, opcode.RET)
+		if len(c.pkgInfoInline) == 0 {
+			emit.Opcodes(c.prog.BinWriter, opcode.RET)
+		}
 		return nil
 
 	case *ast.IfStmt:
@@ -800,7 +812,12 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 
 		switch fun := n.Fun.(type) {
 		case *ast.Ident:
-			f, ok = c.funcs[c.getIdentName("", fun.Name)]
+			var pkgName string
+			if len(c.pkgInfoInline) != 0 {
+				pkgName = c.pkgInfoInline[len(c.pkgInfoInline)-1].Pkg.Path()
+			}
+			f, ok = c.funcs[c.getIdentName(pkgName, fun.Name)]
+
 			isBuiltin = isGoBuiltin(fun.Name)
 			if !ok && !isBuiltin {
 				name = fun.Name
@@ -808,6 +825,10 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			// distinguish lambda invocations from type conversions
 			if fun.Obj != nil && fun.Obj.Kind == ast.Var {
 				isFunc = true
+			}
+			if ok && canInline(f.pkg.Path()) {
+				c.inlineCall(f, n)
+				return nil
 			}
 		case *ast.SelectorExpr:
 			// If this is a method call we need to walk the AST to load the struct locally.
@@ -824,6 +845,10 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			if ok {
 				f.selector = fun.X.(*ast.Ident)
 				isBuiltin = isCustomBuiltin(f)
+				if canInline(f.pkg.Path()) {
+					c.inlineCall(f, n)
+					return nil
+				}
 			} else {
 				typ := c.typeOf(fun)
 				if _, ok := typ.(*types.Signature); ok {
@@ -867,10 +892,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			typ, ok := c.typeOf(n.Fun).(*types.Signature)
 			if ok && typ.Variadic() && !n.Ellipsis.IsValid() {
 				// pack variadic args into an array only if last argument is not of form `...`
-				varSize := len(n.Args) - typ.Params().Len() + 1
-				c.emitReverse(varSize)
-				emit.Int(c.prog.BinWriter, int64(varSize))
-				emit.Opcodes(c.prog.BinWriter, opcode.PACK)
+				varSize := c.packVarArgs(n, typ)
 				numArgs -= varSize - 1
 			}
 			c.emitReverse(numArgs)
@@ -1205,6 +1227,16 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		return nil
 	}
 	return c
+}
+
+// packVarArgs packs variadic arguments into an array
+// and returns amount of arguments packed.
+func (c *codegen) packVarArgs(n *ast.CallExpr, typ *types.Signature) int {
+	varSize := len(n.Args) - typ.Params().Len() + 1
+	c.emitReverse(varSize)
+	emit.Int(c.prog.BinWriter, int64(varSize))
+	emit.Opcodes(c.prog.BinWriter, opcode.PACK)
+	return varSize
 }
 
 // processDefers emits code for `defer` statements.
@@ -1919,7 +1951,7 @@ func (c *codegen) compile(info *buildInfo, pkg *loader.PackageInfo) error {
 				// of bytecode space.
 				name := c.getFuncNameFromDecl(pkg.Path(), n)
 				if !isInitFunc(n) && !isDeployFunc(n) && funUsage.funcUsed(name) &&
-					(!isInteropPath(pkg.Path()) || isNativeHelpersPath(pkg.Path())) {
+					(!isInteropPath(pkg.Path()) && !canInline(pkg.Path())) {
 					c.convertFuncDecl(f, n, pkg)
 				}
 			}
@@ -1970,7 +2002,8 @@ func (c *codegen) resolveFuncDecls(f *ast.File, pkg *types.Package) {
 	for _, decl := range f.Decls {
 		switch n := decl.(type) {
 		case *ast.FuncDecl:
-			c.newFunc(n)
+			fs := c.newFunc(n)
+			fs.file = f
 		}
 	}
 }

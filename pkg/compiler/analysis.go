@@ -55,14 +55,14 @@ func (c *codegen) traverseGlobals() (int, int, int) {
 				switch n := node.(type) {
 				case *ast.FuncDecl:
 					if isInitFunc(n) {
-						c, _ := countLocals(n)
-						if c > initLocals {
-							initLocals = c
+						num, _ := c.countLocals(n)
+						if num > initLocals {
+							initLocals = num
 						}
 					} else if isDeployFunc(n) {
-						c, _ := countLocals(n)
-						if c > deployLocals {
-							deployLocals = c
+						num, _ := c.countLocals(n)
+						if num > deployLocals {
+							deployLocals = num
 						}
 					}
 					return !hasDefer
@@ -175,10 +175,16 @@ func (f funcUsage) funcUsed(name string) bool {
 }
 
 // lastStmtIsReturn checks if last statement of the declaration was return statement..
-func lastStmtIsReturn(decl *ast.FuncDecl) (b bool) {
-	if l := len(decl.Body.List); l != 0 {
-		_, ok := decl.Body.List[l-1].(*ast.ReturnStmt)
-		return ok
+func lastStmtIsReturn(body *ast.BlockStmt) (b bool) {
+	if l := len(body.List); l != 0 {
+		switch inner := body.List[l-1].(type) {
+		case *ast.BlockStmt:
+			return lastStmtIsReturn(inner)
+		case *ast.ReturnStmt:
+			return true
+		default:
+			return false
+		}
 	}
 	return false
 }
@@ -297,4 +303,12 @@ func canConvert(s string) bool {
 			s != "/native/management.Contract"
 	}
 	return true
+}
+
+// canInline returns true if function is to be inlined.
+// Currently there is a static list of function which are inlined,
+// this may change in future.
+func canInline(s string) bool {
+	return isNativeHelpersPath(s) ||
+		strings.HasPrefix(s, "github.com/nspcc-dev/neo-go/pkg/compiler/testdata/inline")
 }

@@ -8,6 +8,11 @@ import (
 )
 
 func (c *codegen) typeAndValueOf(e ast.Expr) types.TypeAndValue {
+	for i := len(c.pkgInfoInline) - 1; i >= 0; i-- {
+		if tv, ok := c.pkgInfoInline[i].Types[e]; ok {
+			return tv
+		}
+	}
 	return c.typeInfo.Types[e]
 }
 

@@ -22,6 +22,8 @@ type funcScope struct {
 	// Package where the function is defined.
 	pkg *types.Package
 
+	file *ast.File
+
 	// Program label of the scope
 	label uint16
 
@@ -100,11 +102,47 @@ func (c *funcScope) analyzeVoidCalls(node ast.Node) bool {
 	return true
 }
 
-func countLocals(decl *ast.FuncDecl) (int, bool) {
+func (c *codegen) countLocals(decl *ast.FuncDecl) (int, bool) {
+	return c.countLocalsInline(decl, nil, nil)
+}
+
+func (c *codegen) countLocalsInline(decl *ast.FuncDecl, pkg *types.Package, f *funcScope) (int, bool) {
+	oldMap := c.importMap
+	if pkg != nil {
+		c.fillImportMap(f.file, pkg)
+	}
+
 	size := 0
 	hasDefer := false
 	ast.Inspect(decl, func(n ast.Node) bool {
 		switch n := n.(type) {
+		case *ast.CallExpr:
+			var name string
+			switch fun := n.Fun.(type) {
+			case *ast.Ident:
+				var pkgName string
+				if pkg != nil {
+					pkgName = pkg.Path()
+				}
+				name = c.getIdentName(pkgName, fun.Name)
+			case *ast.SelectorExpr:
+				name, _ = c.getFuncNameFromSelector(fun)
+			default:
+				return false
+			}
+			if inner, ok := c.funcs[name]; ok && canInline(name) {
+				for i := range n.Args {
+					switch n.Args[i].(type) {
+					case *ast.Ident:
+					case *ast.BasicLit:
+					default:
+						size++
+					}
+				}
+				innerSz, _ := c.countLocalsInline(inner.decl, inner.pkg, inner)
+				size += innerSz
+			}
+			return false
 		case *ast.FuncType:
 			num := n.Results.NumFields()
 			if num != 0 && len(n.Results.List[0].Names) != 0 {
@@ -117,7 +155,11 @@ func countLocals(decl *ast.FuncDecl) (int, bool) {
 		case *ast.DeferStmt:
 			hasDefer = true
 			return false
-		case *ast.ReturnStmt, *ast.IfStmt:
+		case *ast.ReturnStmt:
+			if pkg == nil {
+				size++
+			}
+		case *ast.IfStmt:
 			size++
 		// This handles the inline GenDecl like "var x = 2"
 		case *ast.ValueSpec:
@@ -134,13 +176,16 @@ func countLocals(decl *ast.FuncDecl) (int, bool) {
 		}
 		return true
 	})
+	if pkg != nil {
+		c.importMap = oldMap
+	}
 	return size, hasDefer
 }
 
-func (c *funcScope) countLocals() int {
-	size, hasDefer := countLocals(c.decl)
+func (c *codegen) countLocalsWithDefer(f *funcScope) int {
+	size, hasDefer := c.countLocals(f.decl)
 	if hasDefer {
-		c.finallyProcessedIndex = size
+		f.finallyProcessedIndex = size
 		size++
 	}
 	return size
@@ -152,12 +197,6 @@ func (c *funcScope) countArgs() int {
 		n += c.decl.Recv.NumFields()
 	}
 	return n
-}
-
-func (c *funcScope) stackSize() int64 {
-	size := c.countLocals()
-	numArgs := c.countArgs()
-	return int64(size + numArgs)
 }
 
 // newVariable creates a new local variable or argument in the scope of the function.
