@@ -163,6 +163,7 @@ func TestLoad(t *testing.T) {
 		}
 	}`
 	tmpDir := path.Join(os.TempDir(), "vmcliloadtest")
+	os.RemoveAll(tmpDir)
 	require.NoError(t, os.Mkdir(tmpDir, os.ModePerm))
 	t.Cleanup(func() {
 		os.RemoveAll(tmpDir)
@@ -171,6 +172,8 @@ func TestLoad(t *testing.T) {
 	t.Run("loadgo", func(t *testing.T) {
 		filename := path.Join(tmpDir, "vmtestcontract.go")
 		require.NoError(t, ioutil.WriteFile(filename, []byte(src), os.ModePerm))
+		filenameRussian := path.Join(tmpDir, "тестовый_контракт.go")
+		require.NoError(t, ioutil.WriteFile(filenameRussian, []byte(src), os.ModePerm))
 		filenameErr := path.Join(tmpDir, "vmtestcontract_err.go")
 		require.NoError(t, ioutil.WriteFile(filenameErr, []byte(src+"invalid_token"), os.ModePerm))
 
@@ -179,10 +182,16 @@ func TestLoad(t *testing.T) {
 			"loadgo",
 			"loadgo "+filenameErr,
 			"loadgo "+filename,
-			"run main add 3 5")
+			"run main add 3 5",
+			//"loadgo "+filenameRussian, FIXME
+			"loadgo "+`"`+filenameRussian+`"`,
+			"run main add 3 5",
+		)
 
 		e.checkError(t, ErrMissingParameter)
 		e.checkNextLine(t, "Error:")
+		e.checkNextLine(t, "READY: loaded \\d* instructions")
+		e.checkStack(t, 8)
 		e.checkNextLine(t, "READY: loaded \\d* instructions")
 		e.checkStack(t, 8)
 	})
