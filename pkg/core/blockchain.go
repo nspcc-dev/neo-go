@@ -1767,7 +1767,7 @@ func (bc *Blockchain) initVerificationVM(ic *interop.Context, hash util.Uint160,
 		if err != nil {
 			return fmt.Errorf("%w: %v", ErrInvalidVerification, err)
 		}
-		v.LoadScriptWithFlags(witness.VerificationScript, callflag.ReadStates)
+		v.LoadScriptWithFlags(witness.VerificationScript, callflag.ReadOnly)
 	} else {
 		cs, err := ic.GetContract(hash)
 		if err != nil {
@@ -1778,7 +1778,7 @@ func (bc *Blockchain) initVerificationVM(ic *interop.Context, hash util.Uint160,
 			return ErrInvalidVerificationContract
 		}
 		initMD := cs.Manifest.ABI.GetMethod(manifest.MethodInit, 0)
-		v.LoadScriptWithHash(cs.NEF.Script, hash, callflag.ReadStates)
+		v.LoadScriptWithHash(cs.NEF.Script, hash, callflag.ReadOnly)
 		v.Context().NEF = &cs.NEF
 		v.Jump(v.Context(), md.Offset)
 
