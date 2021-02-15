@@ -2266,22 +2266,13 @@ func (bc *Blockchain) GetEnrollments() ([]*state.Validator, error) {
 	for _, validator := range validators {
 		if validator.Registered {
 			result = append(result, validator)
+			continue
 		}
-	}
-	for _, sBValidator := range uniqueSBValidators {
-		isAdded := false
-		for _, v := range result {
-			if v.PublicKey == sBValidator {
-				isAdded = true
+		for _, sbValidator := range uniqueSBValidators {
+			if validator.PublicKey.Equal(sbValidator) {
+				result = append(result, validator)
 				break
 			}
-		}
-		if !isAdded {
-			result = append(result, &state.Validator{
-				PublicKey:  sBValidator,
-				Registered: false,
-				Votes:      0,
-			})
 		}
 	}
 	return result, nil
