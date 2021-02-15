@@ -6,7 +6,7 @@ import (
 )
 
 // Hash represents Oracle contract hash.
-const Hash = "\xee\x80\x4c\x14\x29\x68\xd4\x78\x8b\x8a\xff\x51\xda\xde\xdf\xcb\x42\xe7\xc0\x8d"
+const Hash = "\x58\x87\x17\x11\x7e\x0a\xa8\x10\x72\xaf\xab\x71\xd2\xdd\x89\xfe\x7c\x4b\x92\xfe"
 
 // Request represents `request` method of Oracle native contract.
 func Request(url string, filter []byte, cb string, userData interface{}, gasForResponse int) {

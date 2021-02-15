@@ -75,6 +75,7 @@ var (
 
 func newOracle() *Oracle {
 	o := &Oracle{ContractMD: *interop.NewContractMD(nativenames.Oracle, oracleContractID)}
+	defer o.UpdateHash()
 
 	w := io.NewBufBinWriter()
 	emit.Opcodes(w.BinWriter, opcode.NEWARRAY0)

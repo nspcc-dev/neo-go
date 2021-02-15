@@ -58,6 +58,7 @@ type (
 		URIValidator    URIValidator
 		OracleScript    []byte
 		OracleResponse  []byte
+		VerifyOffset    int
 		OracleHash      util.Uint160
 	}
 

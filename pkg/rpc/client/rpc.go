@@ -685,7 +685,7 @@ func (c *Client) CalculateNotaryFee(nKeys uint8) (int64, error) {
 	return int64((nKeys+1))*transaction.NotaryServiceFeePerKey + // fee for NotaryAssisted attribute
 			fee.Opcode(baseExecFee, // Notary node witness
 				opcode.PUSHDATA1, opcode.RET, // invocation script
-				opcode.PUSHINT8, opcode.SYSCALL, opcode.RET) + // System.Contract.CallNative
+				opcode.PUSH0, opcode.SYSCALL, opcode.RET) + // System.Contract.CallNative
 			native.NotaryVerificationPrice + // Notary witness verification price
 			feePerByte*int64(io.GetVarSize(make([]byte, 66))) + // invocation script per-byte fee
 			feePerByte*int64(io.GetVarSize([]byte{})), // verification script per-byte fee

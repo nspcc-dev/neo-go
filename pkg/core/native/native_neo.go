@@ -94,6 +94,8 @@ func makeValidatorKey(key *keys.PublicKey) []byte {
 // newNEO returns NEO native contract.
 func newNEO() *NEO {
 	n := &NEO{}
+	defer n.UpdateHash()
+
 	nep17 := newNEP17Native(nativenames.Neo, neoContractID)
 	nep17.symbol = "NEO"
 	nep17.decimals = 0

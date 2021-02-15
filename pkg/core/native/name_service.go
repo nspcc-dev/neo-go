@@ -100,6 +100,7 @@ func newNameService() *NameService {
 	}
 
 	n := &NameService{nonfungible: *nf}
+	defer n.UpdateHash()
 
 	desc := newDescriptor("addRoot", smartcontract.VoidType,
 		manifest.NewParameter("root", smartcontract.StringType))

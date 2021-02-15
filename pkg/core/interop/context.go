@@ -4,19 +4,24 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
+	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto"
+	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
+	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
+	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"go.uber.org/zap"
 )
@@ -86,6 +91,7 @@ type MethodAndPrice struct {
 	Func          Method
 	MD            *manifest.Method
 	Price         int64
+	SyscallOffset int
 	RequiredFlags callflag.CallFlag
 }
 
@@ -101,21 +107,12 @@ type Contract interface {
 type ContractMD struct {
 	state.NativeContract
 	Name    string
-	Methods map[MethodAndArgCount]MethodAndPrice
-}
-
-// MethodAndArgCount represents method's signature.
-type MethodAndArgCount struct {
-	Name     string
-	ArgCount int
+	Methods []MethodAndPrice
 }
 
 // NewContractMD returns Contract with the specified list of methods.
 func NewContractMD(name string, id int32) *ContractMD {
-	c := &ContractMD{
-		Name:    name,
-		Methods: make(map[MethodAndArgCount]MethodAndPrice),
-	}
+	c := &ContractMD{Name: name}
 
 	c.ID = id
 
@@ -123,12 +120,30 @@ func NewContractMD(name string, id int32) *ContractMD {
 	// Therefore values are taken from C# node.
 	c.NEF.Header.Compiler = "neo-core-v3.0"
 	c.NEF.Header.Magic = nef.Magic
-	c.NEF.Script = state.CreateNativeContractScript(id)
-	c.NEF.Checksum = c.NEF.CalculateChecksum()
-	c.Hash = state.CreateContractHash(util.Uint160{}, c.NEF.Checksum, name)
+	c.Hash = state.CreateContractHash(util.Uint160{}, 0, c.Name)
 	c.Manifest = *manifest.DefaultManifest(name)
 
 	return c
+}
+
+// UpdateHash creates native contract script and updates hash.
+func (c *ContractMD) UpdateHash() {
+	w := io.NewBufBinWriter()
+	for i := range c.Methods {
+		offset := w.Len()
+		c.Methods[i].MD.Offset = offset
+		c.Manifest.ABI.Methods[i].Offset = offset
+		emit.Int(w.BinWriter, 0)
+		c.Methods[i].SyscallOffset = w.Len()
+		emit.Syscall(w.BinWriter, interopnames.SystemContractCallNative)
+		emit.Opcodes(w.BinWriter, opcode.RET)
+	}
+	if w.Err != nil {
+		panic(fmt.Errorf("can't create native contract script: %w", w.Err))
+	}
+
+	c.NEF.Script = w.Bytes()
+	c.NEF.Checksum = c.NEF.CalculateChecksum()
 }
 
 // AddMethod adds new method to a native contract.
@@ -147,21 +162,42 @@ func (c *ContractMD) AddMethod(md *MethodAndPrice, desc *manifest.Method) {
 	copy(c.Manifest.ABI.Methods[index+1:], c.Manifest.ABI.Methods[index:])
 	c.Manifest.ABI.Methods[index] = *desc
 
-	key := MethodAndArgCount{
-		Name:     desc.Name,
-		ArgCount: len(desc.Parameters),
+	// Cache follows the same order.
+	c.Methods = append(c.Methods, MethodAndPrice{})
+	copy(c.Methods[index+1:], c.Methods[index:])
+	c.Methods[index] = *md
+}
+
+// GetMethodByOffset returns with the provided offset.
+// Offset is offset of `System.Contract.CallNative` syscall.
+func (c *ContractMD) GetMethodByOffset(offset int) (MethodAndPrice, bool) {
+	for k := range c.Methods {
+		if c.Methods[k].SyscallOffset == offset {
+			return c.Methods[k], true
+		}
 	}
-	c.Methods[key] = *md
+	return MethodAndPrice{}, false
 }
 
 // GetMethod returns method `name` with specified number of parameters.
 func (c *ContractMD) GetMethod(name string, paramCount int) (MethodAndPrice, bool) {
-	key := MethodAndArgCount{
-		Name:     name,
-		ArgCount: paramCount,
+	index := sort.Search(len(c.Methods), func(i int) bool {
+		md := c.Methods[i]
+		res := strings.Compare(name, md.MD.Name)
+		switch res {
+		case -1, 1:
+			return res == -1
+		default:
+			return paramCount <= len(md.MD.Parameters)
+		}
+	})
+	if index < len(c.Methods) {
+		md := c.Methods[index]
+		if md.MD.Name == name && (paramCount == -1 || len(md.MD.Parameters) == paramCount) {
+			return md, true
+		}
 	}
-	mp, ok := c.Methods[key]
-	return mp, ok
+	return MethodAndPrice{}, false
 }
 
 // AddEvent adds new event to a native contract.

@@ -1753,7 +1753,6 @@ var (
 
 // initVerificationVM initializes VM for witness check.
 func (bc *Blockchain) initVerificationVM(ic *interop.Context, hash util.Uint160, witness *transaction.Witness) error {
-	isNative := false
 	v := ic.VM
 	if len(witness.VerificationScript) != 0 {
 		if witness.ScriptHash() != hash {
@@ -1781,8 +1780,7 @@ func (bc *Blockchain) initVerificationVM(ic *interop.Context, hash util.Uint160,
 		v.Context().NEF = &cs.NEF
 		v.Jump(v.Context(), md.Offset)
 
-		isNative = cs.ID <= 0
-		if !isNative && initMD != nil {
+		if initMD != nil {
 			v.Call(v.Context(), initMD.Offset)
 		}
 	}
@@ -1792,14 +1790,6 @@ func (bc *Blockchain) initVerificationVM(ic *interop.Context, hash util.Uint160,
 			return fmt.Errorf("%w: %v", ErrInvalidInvocation, err)
 		}
 		v.LoadScript(witness.InvocationScript)
-		if isNative {
-			if err := v.StepOut(); err != nil {
-				return err
-			}
-		}
-	}
-	if isNative {
-		v.Estack().PushVal(manifest.MethodVerify)
 	}
 	return nil
 }

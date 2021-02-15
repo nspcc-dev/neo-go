@@ -11,7 +11,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
-	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"go.uber.org/zap"
@@ -137,8 +136,8 @@ func (o *Oracle) CreateResponseTx(gasForResponse int64, height uint32, resp *tra
 func (o *Oracle) testVerify(tx *transaction.Transaction) (int64, bool) {
 	v := o.Chain.GetTestVM(trigger.Verification, tx, nil)
 	v.GasLimit = o.Chain.GetPolicer().GetMaxVerificationGAS()
-	v.LoadScriptWithHash(o.OracleScript, o.OracleHash, callflag.ReadStates)
-	v.Estack().PushVal(manifest.MethodVerify)
+	v.LoadScriptWithHash(o.OracleScript, o.OracleHash, callflag.ReadOnly)
+	v.Jump(v.Context(), o.VerifyOffset)
 
 	ok := isVerifyOk(v)
 	return v.GasConsumed(), ok

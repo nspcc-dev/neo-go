@@ -19,6 +19,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/services/oracle"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/stretchr/testify/assert"
@@ -29,6 +30,7 @@ import (
 const oracleModulePath = "../services/oracle/"
 
 func getOracleConfig(t *testing.T, bc *Blockchain, w, pass string) oracle.Config {
+	m := bc.contracts.Oracle.Manifest.ABI.GetMethod(manifest.MethodVerify, 0)
 	return oracle.Config{
 		Log:     zaptest.NewLogger(t),
 		Network: netmode.UnitTestNet,
@@ -44,6 +46,7 @@ func getOracleConfig(t *testing.T, bc *Blockchain, w, pass string) oracle.Config
 		OracleScript:   bc.contracts.Oracle.NEF.Script,
 		OracleResponse: bc.contracts.Oracle.GetOracleResponseScript(),
 		OracleHash:     bc.contracts.Oracle.Hash,
+		VerifyOffset:   m.Offset,
 	}
 }
 

@@ -65,6 +65,7 @@ func newManagement() *Management {
 		ContractMD: *interop.NewContractMD(nativenames.Management, managementContractID),
 		contracts:  make(map[util.Uint160]*state.Contract),
 	}
+	defer m.UpdateHash()
 
 	desc := newDescriptor("getContract", smartcontract.ArrayType,
 		manifest.NewParameter("hash", smartcontract.Hash160Type))
