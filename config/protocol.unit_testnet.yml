@@ -46,6 +46,11 @@ ApplicationConfiguration:
   MaxPeers: 50
   AttemptConnPeers: 5
   MinPeers: 1
+  P2PNotary:
+    Enabled: false
+    UnlockWallet:
+      Path: "/notary_wallet.json"
+      Password: "pass"
   RPC:
     Address: 127.0.0.1
     MaxGasInvoke: 15
