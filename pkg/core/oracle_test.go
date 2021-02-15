@@ -30,7 +30,6 @@ import (
 const oracleModulePath = "../services/oracle/"
 
 func getOracleConfig(t *testing.T, bc *Blockchain, w, pass string) oracle.Config {
-	m := bc.contracts.Oracle.Manifest.ABI.GetMethod(manifest.MethodVerify, 0)
 	return oracle.Config{
 		Log:     zaptest.NewLogger(t),
 		Network: netmode.UnitTestNet,
@@ -41,12 +40,8 @@ func getOracleConfig(t *testing.T, bc *Blockchain, w, pass string) oracle.Config
 				Password: pass,
 			},
 		},
-		Chain:          bc,
-		Client:         newDefaultHTTPClient(),
-		OracleScript:   bc.contracts.Oracle.NEF.Script,
-		OracleResponse: bc.contracts.Oracle.GetOracleResponseScript(),
-		OracleHash:     bc.contracts.Oracle.Hash,
-		VerifyOffset:   m.Offset,
+		Chain:  bc,
+		Client: newDefaultHTTPClient(),
 	}
 }
 
@@ -100,6 +95,7 @@ func TestCreateResponseTx(t *testing.T) {
 	}
 	require.NoError(t, bc.contracts.Oracle.PutRequestInternal(1, req, bc.dao))
 	orc.UpdateOracleNodes(keys.PublicKeys{acc.PrivateKey().PublicKey()})
+	bc.SetOracle(orc)
 	tx, err := orc.CreateResponseTx(int64(req.GasForResponse), 1, resp)
 	require.NoError(t, err)
 	assert.Equal(t, 167, tx.Size())
@@ -129,6 +125,12 @@ func TestOracle(t *testing.T) {
 	bc.setNodesByRole(t, true, native.RoleOracle, oracleNodes)
 	orc1.UpdateOracleNodes(oracleNodes.Copy())
 	orc2.UpdateOracleNodes(oracleNodes.Copy())
+
+	orcNative := bc.contracts.Oracle
+	md, ok := orcNative.GetMethod(manifest.MethodVerify, -1)
+	require.True(t, ok)
+	orc1.UpdateNativeContract(orcNative.NEF.Script, orcNative.GetOracleResponseScript(), orcNative.Hash, md.MD.Offset)
+	orc2.UpdateNativeContract(orcNative.NEF.Script, orcNative.GetOracleResponseScript(), orcNative.Hash, md.MD.Offset)
 
 	cs := getOracleContractState(bc.contracts.Oracle.Hash)
 	require.NoError(t, bc.contracts.Management.PutContractState(bc.dao, cs))

@@ -197,7 +197,14 @@ func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration, log *zap.L
 // SetOracle sets oracle module. It doesn't protected by mutex and
 // must be called before `bc.Run()` to avoid data race.
 func (bc *Blockchain) SetOracle(mod services.Oracle) {
-	bc.contracts.Oracle.Module.Store(mod)
+	orc := bc.contracts.Oracle
+	md, ok := orc.GetMethod(manifest.MethodVerify, -1)
+	if !ok {
+		panic(fmt.Errorf("%s method not found", manifest.MethodVerify))
+	}
+	mod.UpdateNativeContract(orc.NEF.Script, orc.GetOracleResponseScript(),
+		orc.Hash, md.MD.Offset)
+	orc.Module.Store(mod)
 	bc.contracts.Designate.OracleService.Store(mod)
 }
 

@@ -24,6 +24,12 @@ type (
 	Oracle struct {
 		Config
 
+		// This fields are readonly thus not protected by mutex.
+		oracleHash     util.Uint160
+		oracleResponse []byte
+		oracleScript   []byte
+		verifyOffset   int
+
 		// mtx protects setting callbacks.
 		mtx sync.RWMutex
 
@@ -56,10 +62,6 @@ type (
 		ResponseHandler Broadcaster
 		OnTransaction   TxCallback
 		URIValidator    URIValidator
-		OracleScript    []byte
-		OracleResponse  []byte
-		VerifyOffset    int
-		OracleHash      util.Uint160
 	}
 
 	// HTTPClient is an interface capable of doing oracle requests.
@@ -201,6 +203,18 @@ func (o *Oracle) Run() {
 			}
 		}
 	}
+}
+
+// UpdateNativeContract updates native oracle contract info for tx verification.
+func (o *Oracle) UpdateNativeContract(script, resp []byte, h util.Uint160, verifyOffset int) {
+	o.oracleScript = make([]byte, len(script))
+	copy(o.oracleScript, script)
+
+	o.oracleResponse = make([]byte, len(resp))
+	copy(o.oracleResponse, resp)
+
+	o.oracleHash = h
+	o.verifyOffset = verifyOffset
 }
 
 func (o *Oracle) getOnTransaction() TxCallback {
