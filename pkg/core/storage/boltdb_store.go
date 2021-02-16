@@ -2,7 +2,6 @@ package storage
 
 import (
 	"bytes"
-	"fmt"
 	"os"
 
 	"github.com/nspcc-dev/neo-go/pkg/io"
@@ -14,9 +13,6 @@ import (
 type BoltDBOptions struct {
 	FilePath string `yaml:"FilePath"`
 }
-
-// Bucket represents bucket used in boltdb to store all the data.
-var Bucket = []byte("DB")
 
 // BoltDBStore it is the storage implementation for storing and retrieving
 // blockchain data.
@@ -37,21 +33,57 @@ func NewBoltDBStore(cfg BoltDBOptions) (*BoltDBStore, error) {
 		return nil, err
 	}
 	err = db.Update(func(tx *bbolt.Tx) error {
-		_, err = tx.CreateBucketIfNotExists(Bucket)
-		if err != nil {
-			return fmt.Errorf("could not create root bucket: %w", err)
+		prefixes := []KeyPrefix{
+			DataBlock,
+			DataTransaction,
+			DataMPT,
+			STAccount,
+			STNotification,
+			STContractID,
+			STStorage,
+			STNEP17Transfers,
+			STNEP17Balances,
+			IXHeaderHashList,
+			SYSCurrentBlock,
+			SYSCurrentHeader,
+			SYSVersion,
 		}
+		for _, p := range prefixes {
+			_, err = tx.CreateBucketIfNotExists([]byte{byte(p)})
+			if err != nil {
+				return err
+			}
+		}
+		//key := make([]byte, 5)
+		//key[0] = byte(STStorage)
+		//for _, id := range []int32{-3, -4} {
+		//	binary.LittleEndian.PutUint32(key[1:], uint32(id))
+		//	_, err := tx.CreateBucketIfNotExists(key)
+		//	if err != nil {
+		//		return err
+		//	}
+		//}
 		return nil
 	})
 
-	return &BoltDBStore{db: db}, nil
+	return &BoltDBStore{db: db}, err
+}
+
+func split(key []byte) ([]byte, []byte) {
+	switch KeyPrefix(key[0]) {
+	case DataMPT:
+		return key[:1], key
+	default:
+		return key[:1], key
+	}
 }
 
 // Put implements the Store interface.
 func (s *BoltDBStore) Put(key, value []byte) error {
 	return s.db.Update(func(tx *bbolt.Tx) error {
-		b := tx.Bucket(Bucket)
-		err := b.Put(key, value)
+		k1, k2 := split(key)
+		b := tx.Bucket(k1)
+		err := b.Put(k2, value)
 		return err
 	})
 }
@@ -59,8 +91,9 @@ func (s *BoltDBStore) Put(key, value []byte) error {
 // Get implements the Store interface.
 func (s *BoltDBStore) Get(key []byte) (val []byte, err error) {
 	err = s.db.View(func(tx *bbolt.Tx) error {
-		b := tx.Bucket(Bucket)
-		val = b.Get(key)
+		k1, k2 := split(key)
+		b := tx.Bucket(k1)
+		val = b.Get(k2)
 		// Value from Get is only valid for the lifetime of transaction, #1482
 		if val != nil {
 			var valcopy = make([]byte, len(val))
@@ -78,23 +111,25 @@ func (s *BoltDBStore) Get(key []byte) (val []byte, err error) {
 // Delete implements the Store interface.
 func (s *BoltDBStore) Delete(key []byte) error {
 	return s.db.Update(func(tx *bbolt.Tx) error {
-		b := tx.Bucket(Bucket)
-		return b.Delete(key)
+		k1, k2 := split(key)
+		b := tx.Bucket(k1)
+		return b.Delete(k2)
 	})
 }
 
 // PutBatch implements the Store interface.
 func (s *BoltDBStore) PutBatch(batch Batch) error {
 	return s.db.Batch(func(tx *bbolt.Tx) error {
-		b := tx.Bucket(Bucket)
 		for k, v := range batch.(*MemoryBatch).mem {
-			err := b.Put([]byte(k), v)
+			k1, k2 := split([]byte(k))
+			err := tx.Bucket(k1).Put(k2, v)
 			if err != nil {
 				return err
 			}
 		}
 		for k := range batch.(*MemoryBatch).del {
-			err := b.Delete([]byte(k))
+			k1, k2 := split([]byte(k))
+			err := tx.Bucket(k1).Delete(k2)
 			if err != nil {
 				return err
 			}
@@ -106,8 +141,9 @@ func (s *BoltDBStore) PutBatch(batch Batch) error {
 // Seek implements the Store interface.
 func (s *BoltDBStore) Seek(key []byte, f func(k, v []byte)) {
 	err := s.db.View(func(tx *bbolt.Tx) error {
-		c := tx.Bucket(Bucket).Cursor()
-		prefix := util.BytesPrefix(key)
+		k1, k2 := split([]byte(key))
+		c := tx.Bucket(k1).Cursor()
+		prefix := util.BytesPrefix(k2)
 		for k, v := c.Seek(prefix.Start); k != nil && bytes.Compare(k, prefix.Limit) <= 0; k, v = c.Next() {
 			f(k, v)
 		}
