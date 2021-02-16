@@ -19,40 +19,29 @@ import (
 
 func TestWallet(t *testing.T) {
 	bc := fakechain.NewFakeChain()
-
+	mainCfg := config.P2PNotary{Enabled: true}
+	cfg := Config{
+		MainCfg: mainCfg,
+		Chain:   bc,
+		Log:     zaptest.NewLogger(t),
+	}
 	t.Run("unexisting wallet", func(t *testing.T) {
-		bc.ProtocolConfiguration.P2PNotary = config.P2PNotary{
-			Enabled: true,
-			UnlockWallet: config.Wallet{
-				Path:     "./testdata/does_not_exists.json",
-				Password: "one",
-			},
-		}
-		_, err := NewNotary(bc, mempool.New(1, 1, true), zaptest.NewLogger(t), nil)
+		cfg.MainCfg.UnlockWallet.Path = "./testdata/does_not_exists.json"
+		_, err := NewNotary(cfg, mempool.New(1, 1, true), nil)
 		require.Error(t, err)
 	})
 
 	t.Run("bad password", func(t *testing.T) {
-		bc.ProtocolConfiguration.P2PNotary = config.P2PNotary{
-			Enabled: true,
-			UnlockWallet: config.Wallet{
-				Path:     "./testdata/notary1.json",
-				Password: "invalid",
-			},
-		}
-		_, err := NewNotary(bc, mempool.New(1, 1, true), zaptest.NewLogger(t), nil)
+		cfg.MainCfg.UnlockWallet.Path = "./testdata/notary1.json"
+		cfg.MainCfg.UnlockWallet.Password = "invalid"
+		_, err := NewNotary(cfg, mempool.New(1, 1, true), nil)
 		require.Error(t, err)
 	})
 
 	t.Run("good", func(t *testing.T) {
-		bc.ProtocolConfiguration.P2PNotary = config.P2PNotary{
-			Enabled: true,
-			UnlockWallet: config.Wallet{
-				Path:     "./testdata/notary1.json",
-				Password: "one",
-			},
-		}
-		_, err := NewNotary(bc, mempool.New(1, 1, true), zaptest.NewLogger(t), nil)
+		cfg.MainCfg.UnlockWallet.Path = "./testdata/notary1.json"
+		cfg.MainCfg.UnlockWallet.Password = "one"
+		_, err := NewNotary(cfg, mempool.New(1, 1, true), nil)
 		require.NoError(t, err)
 	})
 }

@@ -80,9 +80,8 @@ type request struct {
 }
 
 // NewNotary returns new Notary module.
-func NewNotary(bc blockchainer.Blockchainer, mp *mempool.Pool, log *zap.Logger, onTransaction func(tx *transaction.Transaction) error) (*Notary, error) {
-	cfg := bc.GetConfig().P2PNotary
-	w := cfg.UnlockWallet
+func NewNotary(cfg Config, mp *mempool.Pool, onTransaction func(tx *transaction.Transaction) error) (*Notary, error) {
+	w := cfg.MainCfg.UnlockWallet
 	wallet, err := wallet.NewWalletFromFile(w.Path)
 	if err != nil {
 		return nil, err
@@ -100,12 +99,8 @@ func NewNotary(bc blockchainer.Blockchainer, mp *mempool.Pool, log *zap.Logger, 
 	}
 
 	return &Notary{
-		requests: make(map[util.Uint256]*request),
-		Config: Config{
-			MainCfg: cfg,
-			Chain:   bc,
-			Log:     log,
-		},
+		requests:      make(map[util.Uint256]*request),
+		Config:        cfg,
 		wallet:        wallet,
 		onTransaction: onTransaction,
 		mp:            mp,
