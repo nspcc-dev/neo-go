@@ -339,9 +339,6 @@ func (n *Notary) verifyIncompleteWitnesses(tx *transaction.Transaction, nKeys ui
 	if len(tx.Signers) < 2 {
 		return Unknown, 0, nil, errors.New("transaction should have at least 2 signers")
 	}
-	if len(tx.Signers) != len(tx.Scripts) {
-		return Unknown, 0, nil, fmt.Errorf("transaction should have %d witnesses attached (completed + dummy)", len(tx.Signers))
-	}
 	if !tx.HasSigner(n.Config.Chain.GetNotaryContractScriptHash()) {
 		return Unknown, 0, nil, fmt.Errorf("P2PNotary contract should be a signer of the transaction")
 	}
