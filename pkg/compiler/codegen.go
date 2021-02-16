@@ -783,7 +783,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			ln := len(n.Elts)
 			// ByteArrays needs a different approach than normal arrays.
 			if isByteSlice(typ) {
-				c.convertByteArray(n)
+				c.convertByteArray(n.Elts)
 				return nil
 			}
 			for i := ln - 1; i >= 0; i-- {
@@ -1621,20 +1621,24 @@ func (c *codegen) convertBuiltin(expr *ast.CallExpr) {
 	case "append":
 		arg := expr.Args[0]
 		typ := c.typeInfo.Types[arg].Type
-		c.emitReverse(len(expr.Args))
+		ast.Walk(c, arg)
 		emit.Opcodes(c.prog.BinWriter, opcode.DUP, opcode.ISNULL)
-		emit.Instruction(c.prog.BinWriter, opcode.JMPIFNOT, []byte{2 + 3})
 		if isByteSlice(typ) {
-			emit.Opcodes(c.prog.BinWriter, opcode.DROP, opcode.PUSH0, opcode.NEWBUFFER)
-		} else {
-			emit.Opcodes(c.prog.BinWriter, opcode.DROP, opcode.NEWARRAY0, opcode.NOP)
-		}
-		// Jump target.
-		for range expr.Args[1:] {
-			if isByteSlice(typ) {
-				emit.Opcodes(c.prog.BinWriter, opcode.SWAP, opcode.CAT)
+			emit.Instruction(c.prog.BinWriter, opcode.JMPIFNOT, []byte{2 + 3})
+			emit.Opcodes(c.prog.BinWriter, opcode.DROP, opcode.PUSHDATA1, 0)
+			if expr.Ellipsis.IsValid() {
+				ast.Walk(c, expr.Args[1])
 			} else {
-				emit.Opcodes(c.prog.BinWriter, opcode.DUP, opcode.ROT, opcode.APPEND)
+				c.convertByteArray(expr.Args[1:])
+			}
+			emit.Opcodes(c.prog.BinWriter, opcode.CAT)
+		} else {
+			emit.Instruction(c.prog.BinWriter, opcode.JMPIFNOT, []byte{2 + 2})
+			emit.Opcodes(c.prog.BinWriter, opcode.DROP, opcode.NEWARRAY0)
+			for _, e := range expr.Args[1:] {
+				emit.Opcodes(c.prog.BinWriter, opcode.DUP)
+				ast.Walk(c, e)
+				emit.Opcodes(c.prog.BinWriter, opcode.APPEND)
 			}
 		}
 	case "panic":
@@ -1696,7 +1700,7 @@ func transformArgs(fun ast.Expr, args []ast.Expr) []ast.Expr {
 		}
 	case *ast.Ident:
 		switch f.Name {
-		case "make", "copy":
+		case "make", "copy", "append":
 			return nil
 		}
 	}
@@ -1709,11 +1713,11 @@ func (c *codegen) emitConvert(typ stackitem.Type) {
 	emit.Instruction(c.prog.BinWriter, opcode.CONVERT, []byte{byte(typ)})
 }
 
-func (c *codegen) convertByteArray(lit *ast.CompositeLit) {
-	buf := make([]byte, len(lit.Elts))
+func (c *codegen) convertByteArray(elems []ast.Expr) {
+	buf := make([]byte, len(elems))
 	varIndices := []int{}
-	for i := 0; i < len(lit.Elts); i++ {
-		t := c.typeAndValueOf(lit.Elts[i])
+	for i := 0; i < len(elems); i++ {
+		t := c.typeAndValueOf(elems[i])
 		if t.Value != nil {
 			val, _ := constant.Int64Val(t.Value)
 			buf[i] = byte(val)
@@ -1726,7 +1730,7 @@ func (c *codegen) convertByteArray(lit *ast.CompositeLit) {
 	for _, i := range varIndices {
 		emit.Opcodes(c.prog.BinWriter, opcode.DUP)
 		emit.Int(c.prog.BinWriter, int64(i))
-		ast.Walk(c, lit.Elts[i])
+		ast.Walk(c, elems[i])
 		emit.Opcodes(c.prog.BinWriter, opcode.SETITEM)
 	}
 }

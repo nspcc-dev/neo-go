@@ -336,6 +336,74 @@ func TestSliceOperations(t *testing.T) {
 	runTestCases(t, sliceTestCases)
 }
 
+func TestByteSlices(t *testing.T) {
+	testCases := []testCase{
+		{
+			"append bytes bigger than 0x79",
+			`package foo
+			func Main() []byte {
+				var z []byte
+				z = append(z, 0x78, 0x79, 0x80, 0x81, 0xFF)
+				return z
+			}`,
+			[]byte{0x78, 0x79, 0x80, 0x81, 0xFF},
+		},
+		{
+			"append bytes bigger than 0x79, not nil",
+			`package foo
+			func Main() []byte {
+				z := []byte{0x78}
+				z = append(z, 0x79, 0x80, 0x81, 0xFF)
+				return z
+			}`,
+			[]byte{0x78, 0x79, 0x80, 0x81, 0xFF},
+		},
+		{
+			"append bytes bigger than 0x79, function return",
+			`package foo
+			func getByte() byte { return 0x80 }
+			func Main() []byte {
+				var z []byte
+				z = append(z, 0x78, 0x79, getByte(), 0x81, 0xFF)
+				return z
+			}`,
+			[]byte{0x78, 0x79, 0x80, 0x81, 0xFF},
+		},
+		{
+			"append ints bigger than 0x79, function return byte",
+			`package foo
+			func getByte() byte { return 0x80 }
+			func Main() []int {
+				var z []int
+				z = append(z, 0x78, int(getByte()))
+				return z
+			}`,
+			[]stackitem.Item{stackitem.Make(0x78), stackitem.Make(0x80)},
+		},
+		{
+			"slice literal, bytes bigger than 0x79, function return",
+			`package foo
+			func getByte() byte { return 0x80 }
+			func Main() []byte {
+				z := []byte{0x79, getByte(), 0x81}
+				return z
+			}`,
+			[]byte{0x79, 0x80, 0x81},
+		},
+		{
+			"compare bytes as integers",
+			`package foo
+				func getByte1() byte { return 0x79 }
+				func getByte2() byte { return 0x80 }
+				func Main() bool {
+					return getByte1() < getByte2()
+				}`,
+			true,
+		},
+	}
+	runTestCases(t, testCases)
+}
+
 func TestSubsliceCompound(t *testing.T) {
 	src := `package foo
 	func Main() []int {
