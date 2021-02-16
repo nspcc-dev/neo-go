@@ -182,6 +182,23 @@ var sliceTestCases = []testCase{
 		},
 	},
 	{
+		"int slice, append slice",
+		`package foo
+			func getByte() byte { return 0x80 }
+			func Main() []int {
+				x := []int{1}
+				y := []int{2, 3}
+				x = append(x, y...)
+				x = append(x, y...)
+				return x
+			}`,
+		[]stackitem.Item{
+			stackitem.Make(1),
+			stackitem.Make(2), stackitem.Make(3),
+			stackitem.Make(2), stackitem.Make(3),
+		},
+	},
+	{
 		"declare compound slice",
 		`package foo
 		func Main() []string {

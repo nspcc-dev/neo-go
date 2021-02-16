@@ -1635,10 +1635,32 @@ func (c *codegen) convertBuiltin(expr *ast.CallExpr) {
 		} else {
 			emit.Instruction(c.prog.BinWriter, opcode.JMPIFNOT, []byte{2 + 2})
 			emit.Opcodes(c.prog.BinWriter, opcode.DROP, opcode.NEWARRAY0)
-			for _, e := range expr.Args[1:] {
-				emit.Opcodes(c.prog.BinWriter, opcode.DUP)
-				ast.Walk(c, e)
-				emit.Opcodes(c.prog.BinWriter, opcode.APPEND)
+			if expr.Ellipsis.IsValid() {
+				ast.Walk(c, expr.Args[1])                    // x y
+				emit.Opcodes(c.prog.BinWriter, opcode.PUSH0) // x y cnt=0
+				start := c.newLabel()
+				c.setLabel(start)
+				emit.Opcodes(c.prog.BinWriter, opcode.PUSH2, opcode.PICK) // x y cnt x
+				emit.Opcodes(c.prog.BinWriter, opcode.PUSH2, opcode.PICK) // x y cnt x y
+				emit.Opcodes(c.prog.BinWriter, opcode.DUP, opcode.SIZE)   // x y cnt x y len(y)
+				emit.Opcodes(c.prog.BinWriter, opcode.PUSH3, opcode.PICK) // x y cnt x y len(y) cnt
+				after := c.newLabel()
+				emit.Jmp(c.prog.BinWriter, opcode.JMPEQL, after)          // x y cnt x y
+				emit.Opcodes(c.prog.BinWriter, opcode.PUSH2, opcode.PICK, // x y cnt x y cnt
+					opcode.PICKITEM, // x y cnt x y[cnt]
+					opcode.APPEND,   // x=append(x, y[cnt]) y cnt
+					opcode.INC)      // x y cnt+1
+				emit.Jmp(c.prog.BinWriter, opcode.JMPL, start)
+				c.setLabel(after)
+				for i := 0; i < 4; i++ { // leave x on stack
+					emit.Opcodes(c.prog.BinWriter, opcode.DROP)
+				}
+			} else {
+				for _, e := range expr.Args[1:] {
+					emit.Opcodes(c.prog.BinWriter, opcode.DUP)
+					ast.Walk(c, e)
+					emit.Opcodes(c.prog.BinWriter, opcode.APPEND)
+				}
 			}
 		}
 	case "panic":
