@@ -945,8 +945,12 @@ func (bc *Blockchain) processNEP5Transfer(cache *dao.Cached, transfer *state.NEP
 		}
 		bs := balances.Trackers[transfer.Asset]
 		bs.Balance -= transfer.Amount
-		bs.LastUpdatedBlock = transfer.Block
-		balances.Trackers[transfer.Asset] = bs
+		if bs.Balance != 0 {
+			bs.LastUpdatedBlock = transfer.Block
+			balances.Trackers[transfer.Asset] = bs
+		} else {
+			delete(balances.Trackers, transfer.Asset)
+		}
 
 		transfer.Amount = -transfer.Amount
 		isBig, err := cache.AppendNEP5Transfer(transfer.From, balances.NextTransferBatch, transfer)
