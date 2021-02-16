@@ -604,17 +604,17 @@ func (s *nameState) FromStackItem(item stackitem.Item) error {
 		return err
 	}
 	elems := item.Value().([]stackitem.Item)
-	if len(elems) < 5 {
+	if len(elems) < 4 {
 		return errors.New("invalid stack item")
 	}
-	bi, err := elems[3].TryInteger()
+	bi, err := elems[2].TryInteger()
 	if err != nil || !bi.IsUint64() {
 		return errors.New("invalid stack item")
 	}
 
-	_, isNull := elems[4].(stackitem.Null)
+	_, isNull := elems[3].(stackitem.Null)
 	if !isNull {
-		bs, err := elems[4].TryBytes()
+		bs, err := elems[3].TryBytes()
 		if err != nil {
 			return err
 		}

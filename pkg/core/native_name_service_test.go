@@ -159,7 +159,6 @@ func TestRegisterAndRenew(t *testing.T) {
 
 	props := stackitem.NewMap()
 	props.Add(stackitem.Make("name"), stackitem.Make("neo.com"))
-	props.Add(stackitem.Make("description"), stackitem.Make(""))
 	props.Add(stackitem.Make("expiration"), stackitem.Make(expectedExpiration))
 	testNameServiceInvoke(t, bc, "properties", props, "neo.com")
 	testNameServiceInvoke(t, bc, "balanceOf", 1, testchain.CommitteeScriptHash())

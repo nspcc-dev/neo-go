@@ -13,9 +13,8 @@ import (
 
 // NFTTokenState represents state of nonfungible token.
 type NFTTokenState struct {
-	Owner       util.Uint160
-	Name        string
-	Description string
+	Owner util.Uint160
+	Name  string
 }
 
 // NFTAccountState represents state of nonfunglible account.
@@ -35,7 +34,6 @@ func (s *NFTTokenState) ToStackItem() stackitem.Item {
 	return stackitem.NewStruct([]stackitem.Item{
 		stackitem.NewByteArray(owner.BytesBE()),
 		stackitem.NewByteArray([]byte(s.Name)),
-		stackitem.NewByteArray([]byte(s.Description)),
 	})
 }
 
@@ -47,7 +45,7 @@ func (s *NFTTokenState) EncodeBinary(w *io.BinWriter) {
 // FromStackItem converts stackitem to NFTTokenState.
 func (s *NFTTokenState) FromStackItem(item stackitem.Item) error {
 	arr, ok := item.Value().([]stackitem.Item)
-	if !ok || len(arr) < 3 {
+	if !ok || len(arr) < 2 {
 		return errors.New("invalid stack item")
 	}
 
@@ -63,14 +61,9 @@ func (s *NFTTokenState) FromStackItem(item stackitem.Item) error {
 	if err != nil {
 		return err
 	}
-	desc, err := stackitem.ToString(arr[2])
-	if err != nil {
-		return err
-	}
 
 	s.Owner = owner
 	s.Name = name
-	s.Description = desc
 	return nil
 }
 
@@ -88,10 +81,6 @@ func (s *NFTTokenState) ToMap() *stackitem.Map {
 		{
 			Key:   stackitem.NewByteArray([]byte("name")),
 			Value: stackitem.NewByteArray([]byte(s.Name)),
-		},
-		{
-			Key:   stackitem.NewByteArray([]byte("description")),
-			Value: stackitem.NewByteArray([]byte(s.Description)),
 		},
 	})
 }
