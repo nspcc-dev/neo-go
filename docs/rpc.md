@@ -46,11 +46,15 @@ which would yield the response:
 | `getclaimable` |
 | `getconnectioncount` |
 | `getcontractstate` |
+| `getminimumnetworkfee` |
 | `getnep5balances` |
 | `getnep5transfers` |
 | `getpeers` |
+| `getproof` |
 | `getrawmempool` |
 | `getrawtransaction` |
+| `getstateheight` |
+| `getstateroot` |
 | `getstorage` |
 | `gettransactionheight` |
 | `gettxout` |
@@ -65,8 +69,77 @@ which would yield the response:
 | `sendrawtransaction` |
 | `submitblock` |
 | `validateaddress` |
+| `verifyproof` |
 
 #### Implementation notices
+
+##### `getaccountstate`
+
+The order of assets in `balances` section may differ from the one returned by
+C# implementation. Assets can still be identified by their hashes so it
+shouldn't be an issue.
+
+##### `getapplicationlog`
+
+Error handling for incorrect stack items differs with C# implementation. C#
+implementation substitutes `stack` and `state` arrays with "error: recursive
+reference" string if there are any invalid items. NeoGo never does this, for
+bad `state` items it uses byte array susbstitute with message "bad
+notification: ..." (may vary depending on the problem), for incorrect `stack`
+items it just omits them (still returning valid ones).
+
+##### `getassetstate`
+
+It returns "NEO" for NEO and "NEOGas" for GAS in the `name` field instead of
+language-aware JSON structures.
+
+##### `getblock` and `getrawtransaction`
+
+In their verbose outputs neo-go can omit some fields with default values for
+transactions, this includes:
+ * zero "nonce" for Miner transactions (usually nonce is not zero)
+ * zero "gas" for Invocation transactions (most of the time it is zero).
+
+##### `getclaimable`
+
+`claimable` array ordering differs, neo-go orders entries there by the
+`end_height` field, while C# implementation orders by `txid`.
+
+##### `getcontractstate`
+
+C# implementation doesn't return `Payable` flag in its output, neo-go has
+`is_payable` field in `properties` for that.
+
+##### `getnep5transfers`
+
+`received` and `sent` entries are sorted differently, C# node uses
+chronological order and neo-go uses reverse chronological order (which is
+important for paging support, see Extensions section down below).
+
+##### `getrawmempool`
+
+neo-go doesn't support boolean parameter to `getrawmempool` for unverified
+transactions request because neo-go actually never stores unverified
+transactions in the mempool.
+
+##### `getunclaimed`
+
+Numeric results are wrapped into strings in neo-go (the same way fees are
+encoded) to prevent floating point rounding errors.
+
+##### `getunspents`
+
+neo-go uses standard "0xhash" syntax for `txid` and `asset_hash` fields
+whereas C# module doesn't add "0x" prefix. The order of `balance` or `unspent`
+entries can differ. neo-go returns all UTXO assets while C# module only tracks
+and returns NEO and GAS.
+
+##### `getutxotransfers`
+
+`transactions` are sorted differently, C# node uses chronological order and
+neo-go uses reverse chronological order (which is important for paging
+support, see Extensions section down below).
+
 
 ##### `invokefunction` and `invoke`
 
