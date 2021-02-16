@@ -3,6 +3,7 @@ package core
 import (
 	"fmt"
 	"math"
+	"math/big"
 	"sort"
 	"sync"
 	"sync/atomic"
@@ -944,20 +945,23 @@ func (bc *Blockchain) processNEP5Transfer(cache *dao.Cached, transfer *state.NEP
 			return
 		}
 		bs := balances.Trackers[transfer.Asset]
-		bs.Balance -= transfer.Amount
-		if bs.Balance != 0 {
+		if bs.Balance == nil {
+			return
+		}
+		bs.Balance.Sub(bs.Balance, transfer.Amount)
+		if bs.Balance.Sign() > 0 {
 			bs.LastUpdatedBlock = transfer.Block
 			balances.Trackers[transfer.Asset] = bs
 		} else {
 			delete(balances.Trackers, transfer.Asset)
 		}
 
-		transfer.Amount = -transfer.Amount
+		transfer.Amount.Neg(transfer.Amount)
 		isBig, err := cache.AppendNEP5Transfer(transfer.From, balances.NextTransferBatch, transfer)
 		if err != nil {
 			return
 		}
-		transfer.Amount = -transfer.Amount
+		transfer.Amount.Neg(transfer.Amount)
 		if isBig {
 			balances.NextTransferBatch++
 		}
@@ -971,7 +975,10 @@ func (bc *Blockchain) processNEP5Transfer(cache *dao.Cached, transfer *state.NEP
 			return
 		}
 		bs := balances.Trackers[transfer.Asset]
-		bs.Balance += transfer.Amount
+		if bs.Balance == nil {
+			bs.Balance = new(big.Int)
+		}
+		bs.Balance.Add(bs.Balance, transfer.Amount)
 		bs.LastUpdatedBlock = transfer.Block
 		balances.Trackers[transfer.Asset] = bs
 
