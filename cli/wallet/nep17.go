@@ -260,7 +260,7 @@ func importNEP17Token(ctx *cli.Context) error {
 	}
 	defer wall.Close()
 
-	tokenHash, err := util.Uint160DecodeStringLE(ctx.String("token"))
+	tokenHash, err := flags.ParseAddress(ctx.String("token"))
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("invalid token contract hash: %w", err), 1)
 	}

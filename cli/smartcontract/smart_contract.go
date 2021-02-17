@@ -459,15 +459,9 @@ func contractCompile(ctx *cli.Context) error {
 
 func calcHash(ctx *cli.Context) error {
 	s := ctx.String("sender")
-	u, err := address.StringToUint160(s)
+	u, err := flags.ParseAddress(s)
 	if err != nil {
-		if strings.HasPrefix(s, "0x") {
-			s = s[2:]
-		}
-		u, err = util.Uint160DecodeStringLE(s)
-		if err != nil {
-			return cli.NewExitError(errors.New("invalid sender: must be either address or Uint160 in LE form"), 1)
-		}
+		return cli.NewExitError(errors.New("invalid sender: must be either address or Uint160 in LE form"), 1)
 	}
 
 	p := ctx.String("in")
@@ -524,7 +518,7 @@ func invokeInternal(ctx *cli.Context, signAndPush bool) error {
 	if !args.Present() {
 		return cli.NewExitError(errNoScriptHash, 1)
 	}
-	script, err := util.Uint160DecodeStringLE(args[0])
+	script, err := flags.ParseAddress(args[0])
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("incorrect script hash: %w", err), 1)
 	}
@@ -885,14 +879,7 @@ func parseCosigner(c string) (transaction.Signer, error) {
 	)
 	data := strings.SplitN(c, ":", 2)
 	s := data[0]
-	if len(s) == 2*util.Uint160Size+2 && s[0:2] == "0x" {
-		s = s[2:]
-	}
-	if len(s) == util.Uint160Size*2 {
-		res.Account, err = util.Uint160DecodeStringLE(s)
-	} else {
-		res.Account, err = address.StringToUint160(s)
-	}
+	res.Account, err = flags.ParseAddress(s)
 	if err != nil {
 		return res, err
 	}
