@@ -39,7 +39,7 @@ func getUnitTestChain(t *testing.T, enableOracle bool, enableNotary bool) (*core
 	if enableNotary {
 		cfg.ProtocolConfiguration.P2PSigExtensions = true
 		cfg.ProtocolConfiguration.P2PNotaryRequestPayloadPoolSize = 1000
-		cfg.ProtocolConfiguration.P2PNotary = config.P2PNotary{
+		cfg.ApplicationConfiguration.P2PNotary = config.P2PNotary{
 			Enabled: true,
 			UnlockWallet: config.Wallet{
 				Path:     notaryPath,
@@ -47,7 +47,7 @@ func getUnitTestChain(t *testing.T, enableOracle bool, enableNotary bool) (*core
 			},
 		}
 	} else {
-		cfg.ProtocolConfiguration.P2PNotary.Enabled = false
+		cfg.ApplicationConfiguration.P2PNotary.Enabled = false
 	}
 	chain, err := core.NewBlockchain(memoryStore, cfg.ProtocolConfiguration, logger)
 	require.NoError(t, err, "could not create chain")

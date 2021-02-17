@@ -14,7 +14,7 @@ import (
 )
 
 func getTestNotary(t *testing.T, bc blockchainer.Blockchainer, walletPath, pass string) (*wallet.Account, *Notary, *mempool.Pool) {
-	bc.(*fakechain.FakeChain).ProtocolConfiguration.P2PNotary = config.P2PNotary{
+	mainCfg := config.P2PNotary{
 		Enabled: true,
 		UnlockWallet: config.Wallet{
 			Path:     walletPath,
@@ -22,7 +22,12 @@ func getTestNotary(t *testing.T, bc blockchainer.Blockchainer, walletPath, pass 
 		},
 	}
 	mp := mempool.New(10, 1, true)
-	ntr, err := NewNotary(bc, mp, zaptest.NewLogger(t), nil)
+	cfg := Config{
+		MainCfg: mainCfg,
+		Chain:   bc,
+		Log:     zaptest.NewLogger(t),
+	}
+	ntr, err := NewNotary(cfg, mp, nil)
 	require.NoError(t, err)
 
 	w, err := wallet.NewWalletFromFile(walletPath)

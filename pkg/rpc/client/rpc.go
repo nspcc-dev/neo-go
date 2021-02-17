@@ -573,12 +573,13 @@ func getSigners(sender util.Uint160, cosigners []transaction.Signer) []transacti
 // Main transaction should be constructed by the user. Several rules need to be met for
 // successful main transaction acceptance:
 // 1. Native Notary contract should be a signer of the main transaction.
-// 2. Main transaction should have dummy contract witness for Notary signer.
-// 3. Main transaction should have NotaryAssisted attribute with NKeys specified.
-// 4. NotaryAssisted attribute and dummy Notary witness (as long as the other incomplete witnesses)
+// 2. Notary signer should have None scope.
+// 3. Main transaction should have dummy contract witness for Notary signer.
+// 4. Main transaction should have NotaryAssisted attribute with NKeys specified.
+// 5. NotaryAssisted attribute and dummy Notary witness (as long as the other incomplete witnesses)
 //    should be paid for. Use CalculateNotaryWitness to calculate the amount of network fee to pay
 //    for the attribute and Notary witness.
-// 5. Main transaction either shouldn't have all witnesses attached (in this case none of them
+// 6. Main transaction either shouldn't have all witnesses attached (in this case none of them
 //	  can be multisignature), or it only should have a partial multisignature.
 // Note: client should be initialized before SignAndPushP2PNotaryRequest call.
 func (c *Client) SignAndPushP2PNotaryRequest(mainTx *transaction.Transaction, fallbackScript []byte, fallbackSysFee int64, fallbackNetFee int64, fallbackValidFor uint32, acc *wallet.Account) (*payload.P2PNotaryRequest, error) {

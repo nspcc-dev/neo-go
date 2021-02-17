@@ -20,6 +20,7 @@ ProtocolConfiguration:
   - seed5.neo.org:10333
   VerifyBlocks: true
   VerifyTransactions: false
+  P2PSigExtensions: false
 
 ApplicationConfiguration:
   # LogPath could be set up in case you need stdout logs to some proper file.
@@ -50,6 +51,11 @@ ApplicationConfiguration:
   MinPeers: 5
   Oracle:
     Enabled: false
+  P2PNotary:
+    Enabled: false
+    UnlockWallet:
+      Path: "/notary_wallet.json"
+      Password: "pass"
 
   RPC:
     Enabled: true

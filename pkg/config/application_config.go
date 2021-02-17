@@ -27,4 +27,5 @@ type ApplicationConfiguration struct {
 	RPC               rpc.Config              `yaml:"RPC"`
 	UnlockWallet      Wallet                  `yaml:"UnlockWallet"`
 	Oracle            OracleConfiguration     `yaml:"Oracle"`
+	P2PNotary         P2PNotary               `yaml:"P2PNotary"`
 }

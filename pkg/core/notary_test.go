@@ -34,15 +34,20 @@ import (
 const notaryModulePath = "../services/notary/"
 
 func getTestNotary(t *testing.T, bc *Blockchain, walletPath, pass string, onTx func(tx *transaction.Transaction) error) (*wallet.Account, *notary.Notary, *mempool.Pool) {
-	bc.config.P2PNotary = config.P2PNotary{
+	mainCfg := config.P2PNotary{
 		Enabled: true,
 		UnlockWallet: config.Wallet{
 			Path:     path.Join(notaryModulePath, walletPath),
 			Password: pass,
 		},
 	}
+	cfg := notary.Config{
+		MainCfg: mainCfg,
+		Chain:   bc,
+		Log:     zaptest.NewLogger(t),
+	}
 	mp := mempool.New(10, 1, true)
-	ntr, err := notary.NewNotary(bc, mp, zaptest.NewLogger(t), onTx)
+	ntr, err := notary.NewNotary(cfg, mp, onTx)
 	require.NoError(t, err)
 
 	w, err := wallet.NewWalletFromFile(path.Join(notaryModulePath, walletPath))

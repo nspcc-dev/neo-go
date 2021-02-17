@@ -20,8 +20,6 @@ type (
 		RemoveUntraceableBlocks bool `yaml:"RemoveUntraceableBlocks"`
 		// MaxTraceableBlocks is the length of the chain accessible to smart contracts.
 		MaxTraceableBlocks uint32 `yaml:"MaxTraceableBlocks"`
-		// P2PNotary stores configuration for P2P notary node service
-		P2PNotary P2PNotary `yaml:"P2PNotary"`
 		// P2PSigExtensions enables additional signature-related logic.
 		P2PSigExtensions bool `yaml:"P2PSigExtensions"`
 		// ReservedAttributes allows to have reserved attributes range for experimental or private purposes.

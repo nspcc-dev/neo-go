@@ -139,17 +139,22 @@ func newServerFromConstructors(config ServerConfig, chain blockchainer.Blockchai
 	}
 	if chain.P2PSigExtensionsEnabled() {
 		s.notaryFeer = NewNotaryFeer(chain)
-		s.notaryRequestPool = mempool.New(chain.GetConfig().P2PNotaryRequestPayloadPoolSize, 1, chain.GetConfig().P2PNotary.Enabled)
+		s.notaryRequestPool = mempool.New(chain.GetConfig().P2PNotaryRequestPayloadPoolSize, 1, config.P2PNotaryCfg.Enabled)
 		chain.RegisterPostBlock(func(bc blockchainer.Blockchainer, txpool *mempool.Pool, _ *block.Block) {
 			s.notaryRequestPool.RemoveStale(func(t *transaction.Transaction) bool {
 				return bc.IsTxStillRelevant(t, txpool, true)
 			}, s.notaryFeer)
 		})
-		if chain.GetConfig().P2PNotary.Enabled {
-			n, err := notary.NewNotary(chain, s.notaryRequestPool, s.log, func(tx *transaction.Transaction) error {
+		if config.P2PNotaryCfg.Enabled {
+			cfg := notary.Config{
+				MainCfg: config.P2PNotaryCfg,
+				Chain:   chain,
+				Log:     log,
+			}
+			n, err := notary.NewNotary(cfg, s.notaryRequestPool, func(tx *transaction.Transaction) error {
 				r := s.RelayTxn(tx)
 				if r != RelaySucceed {
-					return fmt.Errorf("can't pool notary tx: hash %s, reason: %d", tx.Hash().StringLE(), byte(r))
+					return fmt.Errorf("can't relay completed notary transaction: hash %s, reason: %s", tx.Hash().StringLE(), r.String())
 				}
 				return nil
 			})
@@ -159,7 +164,7 @@ func newServerFromConstructors(config ServerConfig, chain blockchainer.Blockchai
 			s.notaryModule = n
 			chain.SetNotary(n)
 		}
-	} else if chain.GetConfig().P2PNotary.Enabled {
+	} else if config.P2PNotaryCfg.Enabled {
 		return nil, errors.New("P2PSigExtensions are disabled, but Notary service is enable")
 	}
 	s.bQueue = newBlockQueue(maxBlockBatch, chain, log, func(b *block.Block) {

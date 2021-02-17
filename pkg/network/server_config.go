@@ -69,6 +69,9 @@ type (
 
 		// OracleCfg is oracle module configuration.
 		OracleCfg config.OracleConfiguration
+
+		// P2PNotaryCfg is notary module configuration.
+		P2PNotaryCfg config.P2PNotary
 	}
 )
 
@@ -100,5 +103,6 @@ func NewServerConfig(cfg config.Config) ServerConfig {
 		Wallet:            wc,
 		TimePerBlock:      time.Duration(protoConfig.SecondsPerBlock) * time.Second,
 		OracleCfg:         appConfig.Oracle,
+		P2PNotaryCfg:      appConfig.P2PNotary,
 	}
 }
