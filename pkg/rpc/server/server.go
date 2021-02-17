@@ -1266,24 +1266,20 @@ func (s *Server) submitNotaryRequest(ps request.Params) (interface{}, *response.
 }
 
 // getRelayResult returns successful relay result or an error.
-func getRelayResult(relayReason network.RelayReason, hash util.Uint256) (interface{}, *response.Error) {
-	switch relayReason {
-	case network.RelaySucceed:
+func getRelayResult(err error, hash util.Uint256) (interface{}, *response.Error) {
+	switch {
+	case err == nil:
 		return result.RelayResult{
 			Hash: hash,
 		}, nil
-	case network.RelayAlreadyExists:
+	case errors.Is(err, core.ErrAlreadyExists):
 		return nil, response.ErrAlreadyExists
-	case network.RelayOutOfMemory:
+	case errors.Is(err, core.ErrOOM):
 		return nil, response.ErrOutOfMemory
-	case network.RelayUnableToVerify:
-		return nil, response.ErrUnableToVerify
-	case network.RelayInvalid:
-		return nil, response.ErrValidationFailed
-	case network.RelayPolicyFail:
+	case errors.Is(err, core.ErrPolicy):
 		return nil, response.ErrPolicyFail
 	default:
-		return nil, response.ErrUnknown
+		return nil, response.ErrValidationFailed
 	}
 }
 
