@@ -207,10 +207,8 @@ func (t *Trie) newSubTrieMany(prefix []byte, kv []keyValue, value []byte) (Node,
 	if len(kv[0].key) == 0 {
 		if len(kv[0].value) == 0 {
 			if len(kv) == 1 {
-				if len(value) != 0 {
-					return new(HashNode), 1, nil
-				}
-				return new(HashNode), 0, ErrNotFound
+				return new(HashNode), 1, nil
+
 			}
 			node, n, err := t.newSubTrieMany(prefix, kv[1:], nil)
 			return node, n + 1, err

@@ -1591,3 +1591,15 @@ func TestInvalidNotification(t *testing.T) {
 	require.Nil(t, aer.Stack[0])
 	require.Equal(t, stackitem.InteropT, aer.Stack[1].Type())
 }
+
+// Test that deletion of non-existent doesn't result in error in tx or block addition.
+func TestMPTDeleteNoKey(t *testing.T) {
+	bc := newTestChain(t)
+	defer bc.Close()
+
+	cs, _ := getTestContractState(bc)
+	require.NoError(t, bc.contracts.Management.PutContractState(bc.dao, cs))
+	aer, err := invokeContractMethod(bc, 1_00000000, cs.Hash, "delValue", "non-existent-key")
+	require.NoError(t, err)
+	require.Equal(t, vm.HaltState, aer.VMState)
+}

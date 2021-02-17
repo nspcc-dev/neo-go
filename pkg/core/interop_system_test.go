@@ -342,6 +342,10 @@ func getTestContractState(bc *Blockchain) (*state.Contract, *state.Contract) {
 	emit.Syscall(w.BinWriter, interopnames.SystemStorageGetContext)
 	emit.Syscall(w.BinWriter, interopnames.SystemStorageGet)
 	emit.Opcodes(w.BinWriter, opcode.RET)
+	delValOff := w.Len()
+	emit.Syscall(w.BinWriter, interopnames.SystemStorageGetContext)
+	emit.Syscall(w.BinWriter, interopnames.SystemStorageDelete)
+	emit.Opcodes(w.BinWriter, opcode.RET)
 	onNEP17PaymentOff := w.Len()
 	emit.Syscall(w.BinWriter, interopnames.SystemRuntimeGetCallingScriptHash)
 	emit.Int(w.BinWriter, 4)
@@ -461,6 +465,14 @@ func getTestContractState(bc *Blockchain) (*state.Contract, *state.Contract) {
 			Offset: putValOff,
 			Parameters: []manifest.Parameter{
 				manifest.NewParameter("value", smartcontract.StringType),
+			},
+			ReturnType: smartcontract.VoidType,
+		},
+		{
+			Name:   "delValue",
+			Offset: delValOff,
+			Parameters: []manifest.Parameter{
+				manifest.NewParameter("key", smartcontract.StringType),
 			},
 			ReturnType: smartcontract.VoidType,
 		},

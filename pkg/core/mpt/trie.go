@@ -290,7 +290,7 @@ func (t *Trie) deleteFromBranch(b *BranchNode, path []byte) (Node, error) {
 
 func (t *Trie) deleteFromExtension(n *ExtensionNode, path []byte) (Node, error) {
 	if !bytes.HasPrefix(path, n.key) {
-		return nil, ErrNotFound
+		return n, nil
 	}
 	h := n.Hash()
 	bs := n.bytes
@@ -325,14 +325,14 @@ func (t *Trie) deleteFromNode(curr Node, path []byte) (Node, error) {
 			t.removeRef(curr.Hash(), curr.Bytes())
 			return new(HashNode), nil
 		}
-		return nil, ErrNotFound
+		return curr, nil
 	case *BranchNode:
 		return t.deleteFromBranch(n, path)
 	case *ExtensionNode:
 		return t.deleteFromExtension(n, path)
 	case *HashNode:
 		if n.IsEmpty() {
-			return nil, ErrNotFound
+			return n, nil
 		}
 		newNode, err := t.getFromStore(n.Hash())
 		if err != nil {
