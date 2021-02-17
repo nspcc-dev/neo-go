@@ -164,16 +164,6 @@ func (chain *FakeChain) P2PSigExtensionsEnabled() bool {
 	return true
 }
 
-// GetMaxBlockSystemFee implements Policer interface.
-func (chain *FakeChain) GetMaxBlockSystemFee() int64 {
-	panic("TODO")
-}
-
-// GetMaxBlockSize implements Policer interface.
-func (chain *FakeChain) GetMaxBlockSize() uint32 {
-	panic("TODO")
-}
-
 // AddHeaders implements Blockchainer interface.
 func (chain *FakeChain) AddHeaders(...*block.Header) error {
 	panic("TODO")

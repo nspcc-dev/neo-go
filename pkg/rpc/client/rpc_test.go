@@ -431,18 +431,6 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 			},
 		},
 	},
-	"getMaxBlockSize": {
-		{
-			name: "positive",
-			invoke: func(c *Client) (interface{}, error) {
-				return c.GetMaxBlockSize()
-			},
-			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"state":"HALT","gasconsumed":"2007390","script":"EMAMD2dldE1heEJsb2NrU2l6ZQwUmmGkbuyXuJMG186B8VtGIJHQCTJBYn1bUg==","stack":[{"type":"Integer","value":"262144"}],"tx":null}}`,
-			result: func(c *Client) interface{} {
-				return int64(262144)
-			},
-		},
-	},
 	"getMaxNotValidBeforeDelta": {
 		{
 			name: "positive",

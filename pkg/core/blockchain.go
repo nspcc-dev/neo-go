@@ -1357,21 +1357,6 @@ func (bc *Blockchain) ApplyPolicyToTxSet(txes []*transaction.Transaction) []*tra
 	if maxTx != 0 && len(txes) > int(maxTx) {
 		txes = txes[:maxTx]
 	}
-	maxBlockSize := bc.contracts.Policy.GetMaxBlockSizeInternal(bc.dao)
-	maxBlockSysFee := bc.contracts.Policy.GetMaxBlockSystemFeeInternal(bc.dao)
-	var (
-		blockSize uint32
-		sysFee    int64
-	)
-	blockSize = uint32(io.GetVarSize(new(block.Block)) + io.GetVarSize(len(txes)+1))
-	for i, tx := range txes {
-		blockSize += uint32(tx.Size())
-		sysFee += tx.SystemFee
-		if blockSize > maxBlockSize || sysFee > maxBlockSysFee {
-			txes = txes[:i]
-			break
-		}
-	}
 	return txes
 }
 
@@ -1947,16 +1932,6 @@ func (bc *Blockchain) GetPolicer() blockchainer.Policer {
 // GetBaseExecFee return execution price for `NOP`.
 func (bc *Blockchain) GetBaseExecFee() int64 {
 	return bc.contracts.Policy.GetExecFeeFactorInternal(bc.dao)
-}
-
-// GetMaxBlockSize returns maximum allowed block size from native Policy contract.
-func (bc *Blockchain) GetMaxBlockSize() uint32 {
-	return bc.contracts.Policy.GetMaxBlockSizeInternal(bc.dao)
-}
-
-// GetMaxBlockSystemFee returns maximum block system fee from native Policy contract.
-func (bc *Blockchain) GetMaxBlockSystemFee() int64 {
-	return bc.contracts.Policy.GetMaxBlockSystemFeeInternal(bc.dao)
 }
 
 // GetMaxVerificationGAS returns maximum verification GAS Policy limit.
