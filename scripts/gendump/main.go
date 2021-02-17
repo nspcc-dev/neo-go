@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/nspcc-dev/neo-go/internal/random"
 	"github.com/nspcc-dev/neo-go/internal/testchain"
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
@@ -22,6 +23,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
+	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -92,16 +94,33 @@ func main() {
 		txs := make([]*transaction.Transaction, txNum)
 		for j := 0; j < txNum; j++ {
 			nonce++
-			rand.Read(key)
-			rand.Read(value)
+			var tx *transaction.Transaction
+			if j%3 == 0 {
+				rand.Read(key)
+				rand.Read(value)
 
-			w := io.NewBufBinWriter()
-			emit.AppCall(w.BinWriter, contractHash, "put", callflag.All, key, value)
-			handleError("can't create transaction", w.Err)
+				w := io.NewBufBinWriter()
+				emit.AppCall(w.BinWriter, contractHash, "put", callflag.All, key, value)
+				handleError("can't create transaction", w.Err)
 
-			tx := transaction.New(netmode.UnitTestNet, w.Bytes(), 4_000_000)
+				tx = transaction.New(netmode.UnitTestNet, w.Bytes(), 4_000_000)
+				tx.NetworkFee = 4_000_000
+			} else {
+				w := io.NewBufBinWriter()
+				token := bc.GoverningTokenHash()
+				if j%3 == 2 {
+					token = bc.UtilityTokenHash()
+				}
+				emit.AppCall(w.BinWriter, token, "transfer", callflag.All,
+					h, random.Uint160(), int64(1), nil)
+				emit.Opcodes(w.BinWriter, opcode.ASSERT)
+				handleError("can't create transaction", w.Err)
+
+				script := w.Bytes()
+				tx = transaction.New(netmode.UnitTestNet, script, 11_000_000)
+				tx.NetworkFee = 4_000_000
+			}
 			tx.ValidUntilBlock = i + 1
-			tx.NetworkFee = 4_000_000
 			tx.Nonce = nonce
 			tx.Signers = []transaction.Signer{{
 				Account: h,
