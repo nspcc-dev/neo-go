@@ -431,18 +431,6 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 			},
 		},
 	},
-	"getMaxTransacctionsPerBlock": {
-		{
-			name: "positive",
-			invoke: func(c *Client) (interface{}, error) {
-				return c.GetMaxTransactionsPerBlock()
-			},
-			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"state":"HALT","gasconsumed":"2007390","script":"EMAMGmdldE1heFRyYW5zYWN0aW9uc1BlckJsb2NrDBSaYaRu7Je4kwbXzoHxW0YgkdAJMkFifVtS","stack":[{"type":"Integer","value":"512"}],"tx":null}}`,
-			result: func(c *Client) interface{} {
-				return int64(512)
-			},
-		},
-	},
 	"getMaxBlockSize": {
 		{
 			name: "positive",

@@ -5,7 +5,6 @@ import (
 
 	"github.com/nspcc-dev/neo-go/internal/random"
 	"github.com/nspcc-dev/neo-go/internal/testchain"
-	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/network/payload"
@@ -74,17 +73,6 @@ func testGetSet(t *testing.T, chain *Blockchain, hash util.Uint160, name string,
 		checkResult(t, res, stackitem.Make(defaultValue+1))
 		require.NoError(t, chain.persist())
 	})
-}
-
-func TestMaxTransactionsPerBlock(t *testing.T) {
-	chain := newTestChain(t)
-
-	t.Run("get, internal method", func(t *testing.T) {
-		n := chain.contracts.Policy.GetMaxTransactionsPerBlockInternal(chain.dao)
-		require.Equal(t, 512, int(n))
-	})
-
-	testGetSet(t, chain, chain.contracts.Policy.Hash, "MaxTransactionsPerBlock", 512, 0, block.MaxTransactionsPerBlock)
 }
 
 func TestMaxBlockSize(t *testing.T) {

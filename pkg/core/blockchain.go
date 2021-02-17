@@ -46,7 +46,8 @@ const (
 
 	defaultMemPoolSize                     = 50000
 	defaultP2PNotaryRequestPayloadPoolSize = 1000
-	defaultMaxTraceableBlocks              = 2102400   // 1 year of 15s blocks
+	defaultMaxTraceableBlocks              = 2102400 // 1 year of 15s blocks
+	defaultMaxTransactionsPerBlock         = 512
 	verificationGasLimit                   = 100000000 // 1 GAS
 )
 
@@ -167,6 +168,11 @@ func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration, log *zap.L
 	if cfg.MaxTraceableBlocks == 0 {
 		cfg.MaxTraceableBlocks = defaultMaxTraceableBlocks
 		log.Info("MaxTraceableBlocks is not set or wrong, using default value", zap.Uint32("MaxTraceableBlocks", cfg.MaxTraceableBlocks))
+	}
+	if cfg.MaxTransactionsPerBlock == 0 {
+		cfg.MaxTransactionsPerBlock = defaultMaxTransactionsPerBlock
+		log.Info("MaxTransactionsPerBlock is not set or wrong, using default value",
+			zap.Uint16("MaxTransactionsPerBlock", cfg.MaxTransactionsPerBlock))
 	}
 	committee, err := committeeFromConfig(cfg)
 	if err != nil {
@@ -1347,7 +1353,7 @@ func (bc *Blockchain) GetMemPool() *mempool.Pool {
 // ApplyPolicyToTxSet applies configured policies to given transaction set. It
 // expects slice to be ordered by fee and returns a subslice of it.
 func (bc *Blockchain) ApplyPolicyToTxSet(txes []*transaction.Transaction) []*transaction.Transaction {
-	maxTx := bc.contracts.Policy.GetMaxTransactionsPerBlockInternal(bc.dao)
+	maxTx := bc.config.MaxTransactionsPerBlock
 	if maxTx != 0 && len(txes) > int(maxTx) {
 		txes = txes[:maxTx]
 	}

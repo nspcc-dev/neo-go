@@ -9,12 +9,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
-// GetMaxTransactionsPerBlock invokes `getMaxTransactionsPerBlock` method on a
-// native Policy contract.
-func (c *Client) GetMaxTransactionsPerBlock() (int64, error) {
-	return c.invokeNativePolicyMethod("getMaxTransactionsPerBlock")
-}
-
 // GetMaxBlockSize invokes `getMaxBlockSize` method on a native Policy contract.
 func (c *Client) GetMaxBlockSize() (int64, error) {
 	return c.invokeNativePolicyMethod("getMaxBlockSize")

@@ -6,7 +6,6 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
@@ -23,12 +22,11 @@ import (
 const (
 	policyContractID = -5
 
-	defaultMaxBlockSize            = 1024 * 256
-	defaultMaxTransactionsPerBlock = 512
-	defaultExecFeeFactor           = interop.DefaultBaseExecFee
-	defaultFeePerByte              = 1000
-	defaultMaxVerificationGas      = 50000000
-	defaultMaxBlockSystemFee       = 9000 * GASFactor
+	defaultMaxBlockSize       = 1024 * 256
+	defaultExecFeeFactor      = interop.DefaultBaseExecFee
+	defaultFeePerByte         = 1000
+	defaultMaxVerificationGas = 50000000
+	defaultMaxBlockSystemFee  = 9000 * GASFactor
 	// DefaultStoragePrice is the price to pay for 1 byte of storage.
 	DefaultStoragePrice = 100000
 
@@ -46,9 +44,6 @@ const (
 )
 
 var (
-	// maxTransactionsPerBlockKey is a key used to store the maximum number of
-	// transactions allowed in block.
-	maxTransactionsPerBlockKey = []byte{23}
 	// execFeeFactorKey is a key used to store execution fee factor.
 	execFeeFactorKey = []byte{18}
 	// feePerByteKey is a key used to store the minimum fee per byte for
@@ -70,15 +65,14 @@ type Policy struct {
 	// isValid defies whether cached values were changed during the current
 	// consensus iteration. If false, these values will be updated after
 	// blockchain DAO persisting. If true, we can safely use cached values.
-	isValid                 bool
-	maxTransactionsPerBlock uint32
-	maxBlockSize            uint32
-	execFeeFactor           uint32
-	feePerByte              int64
-	maxBlockSystemFee       int64
-	maxVerificationGas      int64
-	storagePrice            uint32
-	blockedAccounts         []util.Uint160
+	isValid            bool
+	maxBlockSize       uint32
+	execFeeFactor      uint32
+	feePerByte         int64
+	maxBlockSystemFee  int64
+	maxVerificationGas int64
+	storagePrice       uint32
+	blockedAccounts    []util.Uint160
 }
 
 var _ interop.Contract = (*Policy)(nil)
@@ -88,12 +82,8 @@ func newPolicy() *Policy {
 	p := &Policy{ContractMD: *interop.NewContractMD(nativenames.Policy, policyContractID)}
 	defer p.UpdateHash()
 
-	desc := newDescriptor("getMaxTransactionsPerBlock", smartcontract.IntegerType)
-	md := newMethodAndPrice(p.getMaxTransactionsPerBlock, 1000000, callflag.ReadStates)
-	p.AddMethod(md, desc)
-
-	desc = newDescriptor("getMaxBlockSize", smartcontract.IntegerType)
-	md = newMethodAndPrice(p.getMaxBlockSize, 1000000, callflag.ReadStates)
+	desc := newDescriptor("getMaxBlockSize", smartcontract.IntegerType)
+	md := newMethodAndPrice(p.getMaxBlockSize, 1000000, callflag.ReadStates)
 	p.AddMethod(md, desc)
 
 	desc = newDescriptor("getFeePerByte", smartcontract.IntegerType)
@@ -132,11 +122,6 @@ func newPolicy() *Policy {
 	md = newMethodAndPrice(p.setMaxBlockSize, 3000000, callflag.States)
 	p.AddMethod(md, desc)
 
-	desc = newDescriptor("setMaxTransactionsPerBlock", smartcontract.VoidType,
-		manifest.NewParameter("value", smartcontract.IntegerType))
-	md = newMethodAndPrice(p.setMaxTransactionsPerBlock, 3000000, callflag.States)
-	p.AddMethod(md, desc)
-
 	desc = newDescriptor("setFeePerByte", smartcontract.VoidType,
 		manifest.NewParameter("value", smartcontract.IntegerType))
 	md = newMethodAndPrice(p.setFeePerByte, 3000000, callflag.States)
@@ -167,9 +152,6 @@ func (p *Policy) Metadata() *interop.ContractMD {
 
 // Initialize initializes Policy native contract and implements Contract interface.
 func (p *Policy) Initialize(ic *interop.Context) error {
-	if err := setIntWithKey(p.ID, ic.DAO, maxTransactionsPerBlockKey, defaultMaxTransactionsPerBlock); err != nil {
-		return err
-	}
 	if err := setIntWithKey(p.ID, ic.DAO, feePerByteKey, defaultFeePerByte); err != nil {
 		return err
 	}
@@ -187,7 +169,6 @@ func (p *Policy) Initialize(ic *interop.Context) error {
 	}
 
 	p.isValid = true
-	p.maxTransactionsPerBlock = defaultMaxTransactionsPerBlock
 	p.maxBlockSize = defaultMaxBlockSize
 	p.execFeeFactor = defaultExecFeeFactor
 	p.feePerByte = defaultFeePerByte
@@ -212,7 +193,6 @@ func (p *Policy) PostPersist(ic *interop.Context) error {
 		return nil
 	}
 
-	p.maxTransactionsPerBlock = uint32(getIntWithKey(p.ID, ic.DAO, maxTransactionsPerBlockKey))
 	p.maxBlockSize = uint32(getIntWithKey(p.ID, ic.DAO, maxBlockSizeKey))
 	p.execFeeFactor = uint32(getIntWithKey(p.ID, ic.DAO, execFeeFactorKey))
 	p.feePerByte = getIntWithKey(p.ID, ic.DAO, feePerByteKey)
@@ -238,23 +218,6 @@ func (p *Policy) PostPersist(ic *interop.Context) error {
 
 	p.isValid = true
 	return nil
-}
-
-// getMaxTransactionsPerBlock is Policy contract method and returns the upper
-// limit of transactions per block.
-func (p *Policy) getMaxTransactionsPerBlock(ic *interop.Context, _ []stackitem.Item) stackitem.Item {
-	return stackitem.NewBigInteger(big.NewInt(int64(p.GetMaxTransactionsPerBlockInternal(ic.DAO))))
-}
-
-// GetMaxTransactionsPerBlockInternal returns the upper limit of transactions per
-// block.
-func (p *Policy) GetMaxTransactionsPerBlockInternal(dao dao.DAO) uint32 {
-	p.lock.RLock()
-	defer p.lock.RUnlock()
-	if p.isValid {
-		return p.maxTransactionsPerBlock
-	}
-	return uint32(getIntWithKey(p.ID, dao, maxTransactionsPerBlockKey))
 }
 
 // getMaxBlockSize is Policy contract method and returns maximum block size.
@@ -393,26 +356,6 @@ func (p *Policy) setStoragePrice(ic *interop.Context, args []stackitem.Item) sta
 	p.lock.Lock()
 	defer p.lock.Unlock()
 	err := setIntWithKey(p.ID, ic.DAO, storagePriceKey, int64(value))
-	if err != nil {
-		panic(err)
-	}
-	p.isValid = false
-	return stackitem.Null{}
-}
-
-// setMaxTransactionsPerBlock is Policy contract method and  sets the upper limit
-// of transactions per block.
-func (p *Policy) setMaxTransactionsPerBlock(ic *interop.Context, args []stackitem.Item) stackitem.Item {
-	value := uint32(toBigInt(args[0]).Int64())
-	if value > block.MaxTransactionsPerBlock {
-		panic(fmt.Errorf("MaxTransactionsPerBlock cannot exceed the maximum allowed transactions per block = %d", block.MaxTransactionsPerBlock))
-	}
-	if !p.NEO.checkCommittee(ic) {
-		panic("invalid committee signature")
-	}
-	p.lock.Lock()
-	defer p.lock.Unlock()
-	err := setIntWithKey(p.ID, ic.DAO, maxTransactionsPerBlockKey, int64(value))
 	if err != nil {
 		panic(err)
 	}
