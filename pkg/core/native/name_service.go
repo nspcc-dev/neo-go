@@ -429,7 +429,7 @@ func (n *NameService) setRecord(ic *interop.Context, args []stackitem.Item) stac
 	name := toName(args[0])
 	rt := toRecordType(args[1])
 	data := toString(args[2])
-	n.checkName(rt, data)
+	checkName(rt, data)
 
 	domain := toDomain(name)
 	token, _, err := n.tokenState(ic.DAO, []byte(domain))
@@ -447,7 +447,7 @@ func (n *NameService) setRecord(ic *interop.Context, args []stackitem.Item) stac
 	return stackitem.Null{}
 }
 
-func (n *NameService) checkName(rt RecordType, name string) {
+func checkName(rt RecordType, name string) {
 	var valid bool
 	switch rt {
 	case RecordTypeA:
