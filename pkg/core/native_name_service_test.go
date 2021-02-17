@@ -205,7 +205,7 @@ func TestSetGetRecord(t *testing.T) {
 	testNameServiceInvoke(t, bc, "getRecord", "1.2.3.4", "neo.com", int64(native.RecordTypeA))
 	testNameServiceInvoke(t, bc, "setRecord", stackitem.Null{}, "neo.com", int64(native.RecordTypeA), "1.2.3.4")
 	testNameServiceInvoke(t, bc, "getRecord", "1.2.3.4", "neo.com", int64(native.RecordTypeA))
-	testNameServiceInvoke(t, bc, "setRecord", stackitem.Null{}, "neo.com", int64(native.RecordTypeAAAA), "2001:0000:1F1F:0000:0000:0100:11A0:ADDF")
+	testNameServiceInvoke(t, bc, "setRecord", stackitem.Null{}, "neo.com", int64(native.RecordTypeAAAA), "2001:0000:1f1f:0000:0000:0100:11a0:addf")
 	testNameServiceInvoke(t, bc, "setRecord", stackitem.Null{}, "neo.com", int64(native.RecordTypeCNAME), "nspcc.ru")
 	testNameServiceInvoke(t, bc, "setRecord", stackitem.Null{}, "neo.com", int64(native.RecordTypeTXT), "sometext")
 
