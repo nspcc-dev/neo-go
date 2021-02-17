@@ -16,6 +16,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
@@ -138,6 +139,9 @@ func (n *Notary) OnPersist(ic *interop.Context) error {
 			if tx.Sender() == n.Hash {
 				payer := tx.Signers[1]
 				balance := n.GetDepositFor(ic.DAO, payer.Account)
+				if balance == nil {
+					return fmt.Errorf("no deposit found for the account %s", address.Uint160ToString(payer.Account))
+				}
 				balance.Amount.Sub(balance.Amount, big.NewInt(tx.SystemFee+tx.NetworkFee))
 				if balance.Amount.Sign() == 0 {
 					err := n.removeDepositFor(ic.DAO, payer.Account)
