@@ -170,7 +170,7 @@ func TestTrie_PutBatchBranch(t *testing.T) {
 			{[]byte{0x20, 2}, nil},
 			{[]byte{0x30, 3}, []byte("won't be put")},
 		}
-		testIncompletePut(t, ps, 1, tr1, tr2)
+		testIncompletePut(t, ps, 3, tr1, tr2)
 	})
 	t.Run("incomplete put, transform to empty", func(t *testing.T) {
 		tr1, tr2 := prepareBranch(t)
@@ -180,7 +180,7 @@ func TestTrie_PutBatchBranch(t *testing.T) {
 			{[]byte{0x20, 2}, nil},
 			{[]byte{0x30, 3}, []byte("won't be put")},
 		}
-		testIncompletePut(t, ps, 2, tr1, tr2)
+		testIncompletePut(t, ps, 4, tr1, tr2)
 	})
 	t.Run("remove 2, become empty", func(t *testing.T) {
 		tr1, tr2 := prepareBranch(t)
@@ -247,7 +247,7 @@ func TestTrie_PutBatchEmpty(t *testing.T) {
 		}
 		tr1 := NewTrie(new(HashNode), false, newTestStore())
 		tr2 := NewTrie(new(HashNode), false, newTestStore())
-		testIncompletePut(t, ps, 2, tr1, tr2)
+		testIncompletePut(t, ps, 4, tr1, tr2)
 	})
 }
 

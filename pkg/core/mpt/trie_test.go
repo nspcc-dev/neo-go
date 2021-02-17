@@ -62,8 +62,8 @@ func testTrieRefcount(t *testing.T, key1, key2 []byte) {
 	tr.testHas(t, key1, nil)
 	tr.testHas(t, key2, []byte{1})
 
-	// error on delete, refcount should not be updated
-	require.Error(t, tr.Delete(key1))
+	// delete non-existent, refcount should not be updated
+	require.NoError(t, tr.Delete(key1))
 	tr.Flush()
 	tr.testHas(t, key1, nil)
 	tr.testHas(t, key2, []byte{1})
@@ -316,7 +316,7 @@ func testTrieDelete(t *testing.T, enableGC bool) {
 
 		t.Run("Empty", func(t *testing.T) {
 			tr := NewTrie(nil, enableGC, newTestStore())
-			require.Error(t, tr.Delete([]byte{}))
+			require.NoError(t, tr.Delete([]byte{}))
 		})
 	})
 
@@ -324,7 +324,7 @@ func testTrieDelete(t *testing.T, enableGC bool) {
 		l := NewLeafNode([]byte{0x12, 0x34})
 		tr := NewTrie(l, enableGC, newTestStore())
 		t.Run("NonExistentKey", func(t *testing.T) {
-			require.Error(t, tr.Delete([]byte{0x12}))
+			require.NoError(t, tr.Delete([]byte{0x12}))
 			tr.testHas(t, []byte{}, []byte{0x12, 0x34})
 		})
 		require.NoError(t, tr.Delete([]byte{}))
@@ -338,7 +338,7 @@ func testTrieDelete(t *testing.T, enableGC bool) {
 			tr := NewTrie(e, enableGC, newTestStore())
 
 			t.Run("NonExistentKey", func(t *testing.T) {
-				require.Error(t, tr.Delete([]byte{}))
+				require.NoError(t, tr.Delete([]byte{}))
 				tr.testHas(t, []byte{0xAB}, []byte{0x12, 0x34})
 			})
 
