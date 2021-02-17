@@ -2,8 +2,10 @@ package core
 
 import (
 	"errors"
+	"fmt"
 	"math/big"
 	"math/rand"
+	"strings"
 	"testing"
 	"time"
 
@@ -1195,7 +1197,6 @@ func TestIsTxStillRelevant(t *testing.T) {
 		require.NoError(t, bc.AddBlock(bc.newBlock()))
 		require.True(t, bc.IsTxStillRelevant(tx3, nil, false))
 	})
-	/* // neo-project/neo#2289
 	t.Run("contract witness check fails", func(t *testing.T) {
 		src := fmt.Sprintf(`package verify
 		import (
@@ -1226,7 +1227,6 @@ func TestIsTxStillRelevant(t *testing.T) {
 		require.NoError(t, bc.AddBlock(bc.newBlock()))
 		require.False(t, bc.IsTxStillRelevant(tx, mp, false))
 	})
-	*/
 }
 
 func TestMemPoolRemoval(t *testing.T) {
