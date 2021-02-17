@@ -31,6 +31,9 @@ const (
 	DummyVersion = 255
 )
 
+// ErrInvalidWitnessNum returns when the number of witnesses does not match signers.
+var ErrInvalidWitnessNum = errors.New("number of signers doesn't match witnesses")
+
 // Transaction is a process recorded in the NEO blockchain.
 type Transaction struct {
 	// The trading version which is currently 0.
@@ -170,7 +173,11 @@ func (t *Transaction) DecodeBinary(br *io.BinReader) {
 	if br.Err != nil {
 		return
 	}
-	br.ReadArray(&t.Scripts)
+	br.ReadArray(&t.Scripts, len(t.Signers))
+	if len(t.Signers) != len(t.Scripts) {
+		br.Err = fmt.Errorf("%w: %d vs %d", ErrInvalidWitnessNum, len(t.Signers), len(t.Scripts))
+		return
+	}
 
 	// Create the hash of the transaction at decode, so we dont need
 	// to do it anymore.

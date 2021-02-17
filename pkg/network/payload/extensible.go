@@ -65,7 +65,7 @@ func (e *Extensible) decodeBinaryUnsigned(r *io.BinReader) {
 	e.ValidBlockStart = r.ReadU32LE()
 	e.ValidBlockEnd = r.ReadU32LE()
 	r.ReadBytes(e.Sender[:])
-	e.Data = r.ReadVarBytes(maxExtensibleDataSize)
+	e.Data = r.ReadVarBytes(MaxSize)
 }
 
 // DecodeBinary implements io.Serializable.

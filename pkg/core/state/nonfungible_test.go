@@ -22,9 +22,8 @@ func newStruct(args ...interface{}) *stackitem.Struct {
 func TestNFTTokenState_Serializable(t *testing.T) {
 	t.Run("valid", func(t *testing.T) {
 		s := &NFTTokenState{
-			Owner:       random.Uint160(),
-			Name:        "random name",
-			Description: "random description",
+			Owner: random.Uint160(),
+			Name:  "random name",
 		}
 		id := s.ID()
 		actual := new(NFTTokenState)
@@ -42,8 +41,6 @@ func TestNFTTokenState_Serializable(t *testing.T) {
 			{"invalid owner uint160", newStruct("123", "name", "desc")},
 			{"invalid name",
 				newStruct(random.Uint160().BytesBE(), []byte{0x80}, "desc")},
-			{"invalid description",
-				newStruct(random.Uint160().BytesBE(), "name", []byte{0x80})},
 		}
 
 		for _, tc := range errCases {
@@ -59,9 +56,8 @@ func TestNFTTokenState_Serializable(t *testing.T) {
 
 func TestNFTTokenState_ToMap(t *testing.T) {
 	s := &NFTTokenState{
-		Owner:       random.Uint160(),
-		Name:        "random name",
-		Description: "random description",
+		Owner: random.Uint160(),
+		Name:  "random name",
 	}
 	m := s.ToMap()
 
@@ -69,10 +65,6 @@ func TestNFTTokenState_ToMap(t *testing.T) {
 	i := m.Index(stackitem.Make("name"))
 	require.True(t, i < len(elems))
 	require.Equal(t, []byte("random name"), elems[i].Value.Value())
-
-	i = m.Index(stackitem.Make("description"))
-	require.True(t, i < len(elems))
-	require.Equal(t, []byte("random description"), elems[i].Value.Value())
 }
 
 func TestNFTAccountState_Serializable(t *testing.T) {

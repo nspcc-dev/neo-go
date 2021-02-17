@@ -75,8 +75,8 @@ var (
 	// Lookahead is not supported by Go, but it is simple `(?=.{3,255}$)`,
 	// so we check name length explicitly.
 	nameRegex = regexp.MustCompile("^([a-z0-9]{1,62}\\.)+[a-z][a-z0-9]{0,15}$")
-	ipv4Regex = regexp.MustCompile("^(2(5[0-5]|[0-4]\\d))|1?\\d{1,2}(\\.((2(5[0-5]|[0-4]\\d))|1?\\d{1,2})){3}$")
-	ipv6Regex = regexp.MustCompile("^([a-f0-9A-F]{1,4}:){7}[a-f0-9A-F]{1,4}$")
+	ipv4Regex = regexp.MustCompile("^(?:(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9][0-9]|[0-9])\\.){3}(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9][0-9]|[0-9])$")
+	ipv6Regex = regexp.MustCompile("(?:^)(([0-9a-f]{1,4}:){7,7}[0-9a-f]{1,4}|([0-9a-f]{1,4}:){1,7}:|([0-9a-f]{1,4}:){1,6}:[0-9a-f]{1,4}|([0-9a-f]{1,4}:){1,5}(:[0-9a-f]{1,4}){1,2}|([0-9a-f]{1,4}:){1,4}(:[0-9a-f]{1,4}){1,3}|([0-9a-f]{1,4}:){1,3}(:[0-9a-f]{1,4}){1,4}|([0-9a-f]{1,4}:){1,2}(:[0-9a-f]{1,4}){1,5}|[0-9a-f]{1,4}:((:[0-9a-f]{1,4}){1,6})|:((:[0-9a-f]{1,4}){1,7}|:))$")
 	rootRegex = regexp.MustCompile("^[a-z][a-z0-9]{0,15}$")
 )
 
@@ -429,7 +429,7 @@ func (n *NameService) setRecord(ic *interop.Context, args []stackitem.Item) stac
 	name := toName(args[0])
 	rt := toRecordType(args[1])
 	data := toString(args[2])
-	n.checkName(rt, data)
+	checkName(rt, data)
 
 	domain := toDomain(name)
 	token, _, err := n.tokenState(ic.DAO, []byte(domain))
@@ -447,7 +447,7 @@ func (n *NameService) setRecord(ic *interop.Context, args []stackitem.Item) stac
 	return stackitem.Null{}
 }
 
-func (n *NameService) checkName(rt RecordType, name string) {
+func checkName(rt RecordType, name string) {
 	var valid bool
 	switch rt {
 	case RecordTypeA:
@@ -604,17 +604,17 @@ func (s *nameState) FromStackItem(item stackitem.Item) error {
 		return err
 	}
 	elems := item.Value().([]stackitem.Item)
-	if len(elems) < 5 {
+	if len(elems) < 4 {
 		return errors.New("invalid stack item")
 	}
-	bi, err := elems[3].TryInteger()
+	bi, err := elems[2].TryInteger()
 	if err != nil || !bi.IsUint64() {
 		return errors.New("invalid stack item")
 	}
 
-	_, isNull := elems[4].(stackitem.Null)
+	_, isNull := elems[3].(stackitem.Null)
 	if !isNull {
-		bs, err := elems[4].TryBytes()
+		bs, err := elems[3].TryBytes()
 		if err != nil {
 			return err
 		}

@@ -41,6 +41,14 @@ func TestExtensible_Serializable(t *testing.T) {
 			err := testserdes.DecodeBinary(append(unsigned, 42), new(Extensible))
 			require.True(t, errors.Is(err, errInvalidPadding))
 		})
+		t.Run("too large data size", func(t *testing.T) {
+			expected.Data = make([]byte, MaxSize+1)
+			w := io.NewBufBinWriter()
+			expected.encodeBinaryUnsigned(w.BinWriter)
+			unsigned = w.Bytes()
+			err := testserdes.DecodeBinary(unsigned, new(Extensible))
+			require.NotNil(t, err)
+		})
 	})
 }
 

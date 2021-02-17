@@ -306,6 +306,7 @@ func newDummyBlock(height uint32, txCount int) *block.Block {
 func newDummyTx() *transaction.Transaction {
 	tx := transaction.New(netmode.UnitTestNet, random.Bytes(100), 123)
 	tx.Signers = []transaction.Signer{{Account: random.Uint160()}}
+	tx.Scripts = []transaction.Witness{{InvocationScript: []byte{}, VerificationScript: []byte{}}}
 	tx.Size()
 	tx.Hash()
 	return tx

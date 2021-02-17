@@ -94,12 +94,6 @@ func TestVerifyIncompleteRequest(t *testing.T) {
 				Scripts: []transaction.Witness{{}},
 			},
 		},
-		"signers count and witnesses count mismatch": {
-			tx: &transaction.Transaction{
-				Signers: []transaction.Signer{{Account: notaryContractHash}, {}},
-				Scripts: []transaction.Witness{{}, {}, {}},
-			},
-		},
 		"missing Notary witness": {
 			tx: &transaction.Transaction{
 				Signers: []transaction.Signer{{Account: acc1.GetScriptHash()}, {Account: acc2.GetScriptHash()}},

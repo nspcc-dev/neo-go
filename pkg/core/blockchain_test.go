@@ -2,8 +2,10 @@ package core
 
 import (
 	"errors"
+	"fmt"
 	"math/big"
 	"math/rand"
+	"strings"
 	"testing"
 	"time"
 
@@ -438,10 +440,6 @@ func TestVerifyTx(t *testing.T) {
 		require.NoError(t, accs[0].SignTx(tx2))
 		err := bc.PoolTx(tx2)
 		require.True(t, errors.Is(err, ErrMemPoolConflict))
-	})
-	t.Run("NotEnoughWitnesses", func(t *testing.T) {
-		tx := bc.newTestTx(h, testScript)
-		checkErr(t, ErrTxInvalidWitnessNum, tx)
 	})
 	t.Run("InvalidWitnessHash", func(t *testing.T) {
 		tx := bc.newTestTx(h, testScript)
@@ -1199,7 +1197,6 @@ func TestIsTxStillRelevant(t *testing.T) {
 		require.NoError(t, bc.AddBlock(bc.newBlock()))
 		require.True(t, bc.IsTxStillRelevant(tx3, nil, false))
 	})
-	/* // neo-project/neo#2289
 	t.Run("contract witness check fails", func(t *testing.T) {
 		src := fmt.Sprintf(`package verify
 		import (
@@ -1230,7 +1227,6 @@ func TestIsTxStillRelevant(t *testing.T) {
 		require.NoError(t, bc.AddBlock(bc.newBlock()))
 		require.False(t, bc.IsTxStillRelevant(tx, mp, false))
 	})
-	*/
 }
 
 func TestMemPoolRemoval(t *testing.T) {
