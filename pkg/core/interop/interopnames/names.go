@@ -16,6 +16,7 @@ const (
 	SystemCallbackInvoke                     = "System.Callback.Invoke"
 	SystemContractCall                       = "System.Contract.Call"
 	SystemContractCallNative                 = "System.Contract.CallNative"
+	SystemContractCreateMultisigAccount      = "System.Contract.CreateMultisigAccount"
 	SystemContractCreateStandardAccount      = "System.Contract.CreateStandardAccount"
 	SystemContractIsStandard                 = "System.Contract.IsStandard"
 	SystemContractGetCallFlags               = "System.Contract.GetCallFlags"
@@ -70,6 +71,7 @@ var names = []string{
 	SystemCallbackInvoke,
 	SystemContractCall,
 	SystemContractCallNative,
+	SystemContractCreateMultisigAccount,
 	SystemContractCreateStandardAccount,
 	SystemContractIsStandard,
 	SystemContractGetCallFlags,
