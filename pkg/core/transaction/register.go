@@ -56,10 +56,10 @@ func (tx *RegisterTX) EncodeBinary(bw *io.BinWriter) {
 
 // registeredAsset is a wrapper for RegisterTransaction
 type registeredAsset struct {
-	AssetType AssetType       `json:"type,omitempty"`
-	Name      json.RawMessage `json:"name,omitempty"`
-	Amount    util.Fixed8     `json:"amount,omitempty"`
-	Precision uint8           `json:"precision,omitempty"`
-	Owner     keys.PublicKey  `json:"owner,omitempty"`
-	Admin     string          `json:"admin,omitempty"`
+	AssetType AssetType       `json:"type"`
+	Name      json.RawMessage `json:"name"`
+	Amount    util.Fixed8     `json:"amount"`
+	Precision uint8           `json:"precision"`
+	Owner     keys.PublicKey  `json:"owner"`
+	Admin     string          `json:"admin"`
 }
