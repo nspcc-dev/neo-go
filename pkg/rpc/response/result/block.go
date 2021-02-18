@@ -48,7 +48,7 @@ func NewBlock(b *block.Block, chain core.Blockchainer) Block {
 		Base: &b.Base,
 		BlockMetadataAndTx: BlockMetadataAndTx{
 			Size:          io.GetVarSize(b),
-			Confirmations: chain.BlockHeight() - b.Index - 1,
+			Confirmations: chain.BlockHeight() - b.Index + 1,
 			Tx:            make([]Tx, 0, len(b.Transactions)),
 		},
 	}
