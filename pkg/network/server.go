@@ -13,7 +13,6 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/consensus"
-	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
 	"github.com/nspcc-dev/neo-go/pkg/core/mempool"
@@ -152,9 +151,8 @@ func newServerFromConstructors(config ServerConfig, chain blockchainer.Blockchai
 				Log:     log,
 			}
 			n, err := notary.NewNotary(cfg, s.notaryRequestPool, func(tx *transaction.Transaction) error {
-				r := s.RelayTxn(tx)
-				if r != RelaySucceed {
-					return fmt.Errorf("can't relay completed notary transaction: hash %s, reason: %s", tx.Hash().StringLE(), r.String())
+				if err := s.RelayTxn(tx); err != nil {
+					return fmt.Errorf("can't relay completed notary transaction: hash %s, error: %w", tx.Hash().StringLE(), err)
 				}
 				return nil
 			})
@@ -185,11 +183,10 @@ func newServerFromConstructors(config ServerConfig, chain blockchainer.Blockchai
 			return nil, fmt.Errorf("can't initialize Oracle module: %w", err)
 		}
 		orc.SetOnTransaction(func(tx *transaction.Transaction) {
-			r := s.RelayTxn(tx)
-			if r != RelaySucceed {
+			if err := s.RelayTxn(tx); err != nil {
 				orc.Log.Error("can't pool oracle tx",
 					zap.String("hash", tx.Hash().StringLE()),
-					zap.Uint8("reason", byte(r)))
+					zap.Error(err))
 			}
 		})
 		s.oracle = orc
@@ -825,7 +822,7 @@ func (s *Server) handleExtensibleCmd(e *payload.Extensible) error {
 func (s *Server) handleTxCmd(tx *transaction.Transaction) error {
 	// It's OK for it to fail for various reasons like tx already existing
 	// in the pool.
-	if s.verifyAndPoolTX(tx) == RelaySucceed {
+	if s.verifyAndPoolTX(tx) == nil {
 		s.consensus.OnTransaction(tx)
 		s.broadcastTX(tx, nil)
 	}
@@ -837,35 +834,25 @@ func (s *Server) handleP2PNotaryRequestCmd(r *payload.P2PNotaryRequest) error {
 	if !s.chain.P2PSigExtensionsEnabled() {
 		return errors.New("P2PNotaryRequestCMD was received, but P2PSignatureExtensions are disabled")
 	}
+	// It's OK for it to fail for various reasons like request already existing
+	// in the pool.
 	s.RelayP2PNotaryRequest(r)
 	return nil
 }
 
 // RelayP2PNotaryRequest adds given request to the pool and relays. It does not check
 // P2PSigExtensions enabled.
-func (s *Server) RelayP2PNotaryRequest(r *payload.P2PNotaryRequest) RelayReason {
-	ret := s.verifyAndPoolNotaryRequest(r)
-	if ret == RelaySucceed {
+func (s *Server) RelayP2PNotaryRequest(r *payload.P2PNotaryRequest) error {
+	err := s.verifyAndPoolNotaryRequest(r)
+	if err == nil {
 		s.broadcastP2PNotaryRequestPayload(nil, r)
 	}
-	return ret
+	return err
 }
 
 // verifyAndPoolNotaryRequest verifies NotaryRequest payload and adds it to the payload mempool.
-func (s *Server) verifyAndPoolNotaryRequest(r *payload.P2PNotaryRequest) RelayReason {
-	if err := s.chain.PoolTxWithData(r.FallbackTransaction, r, s.notaryRequestPool, s.notaryFeer, verifyNotaryRequest); err != nil {
-		switch {
-		case errors.Is(err, core.ErrAlreadyExists):
-			return RelayAlreadyExists
-		case errors.Is(err, core.ErrOOM):
-			return RelayOutOfMemory
-		case errors.Is(err, core.ErrPolicy):
-			return RelayPolicyFail
-		default:
-			return RelayInvalid
-		}
-	}
-	return RelaySucceed
+func (s *Server) verifyAndPoolNotaryRequest(r *payload.P2PNotaryRequest) error {
+	return s.chain.PoolTxWithData(r.FallbackTransaction, r, s.notaryRequestPool, s.notaryFeer, verifyNotaryRequest)
 }
 
 // verifyNotaryRequest is a function for state-dependant P2PNotaryRequest payload verification which is executed before ordinary blockchain's verification.
@@ -1163,30 +1150,18 @@ func (s *Server) relayBlocksLoop() {
 }
 
 // verifyAndPoolTX verifies the TX and adds it to the local mempool.
-func (s *Server) verifyAndPoolTX(t *transaction.Transaction) RelayReason {
-	if err := s.chain.PoolTx(t); err != nil {
-		switch {
-		case errors.Is(err, core.ErrAlreadyExists):
-			return RelayAlreadyExists
-		case errors.Is(err, core.ErrOOM):
-			return RelayOutOfMemory
-		case errors.Is(err, core.ErrPolicy):
-			return RelayPolicyFail
-		default:
-			return RelayInvalid
-		}
-	}
-	return RelaySucceed
+func (s *Server) verifyAndPoolTX(t *transaction.Transaction) error {
+	return s.chain.PoolTx(t)
 }
 
 // RelayTxn a new transaction to the local node and the connected peers.
 // Reference: the method OnRelay in C#: https://github.com/neo-project/neo/blob/master/neo/Network/P2P/LocalNode.cs#L159
-func (s *Server) RelayTxn(t *transaction.Transaction) RelayReason {
-	ret := s.verifyAndPoolTX(t)
-	if ret == RelaySucceed {
+func (s *Server) RelayTxn(t *transaction.Transaction) error {
+	err := s.verifyAndPoolTX(t)
+	if err == nil {
 		s.broadcastTX(t, nil)
 	}
-	return ret
+	return err
 }
 
 // broadcastTX broadcasts an inventory message about new transaction.
