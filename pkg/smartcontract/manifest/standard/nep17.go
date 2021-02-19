@@ -42,8 +42,3 @@ var nep17 = &Standard{
 		},
 	},
 }
-
-// IsNEP17 checks if m is NEP-17 compliant.
-func IsNEP17(m *manifest.Manifest) error {
-	return Comply(m, nep17)
-}
