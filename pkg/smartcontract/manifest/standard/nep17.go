@@ -13,7 +13,7 @@ var nep17 = &Standard{
 				{
 					Name: "balanceOf",
 					Parameters: []manifest.Parameter{
-						{Type: smartcontract.Hash160Type},
+						{Name: "account", Type: smartcontract.Hash160Type},
 					},
 					ReturnType: smartcontract.IntegerType,
 					Safe:       true,
@@ -21,10 +21,10 @@ var nep17 = &Standard{
 				{
 					Name: "transfer",
 					Parameters: []manifest.Parameter{
-						{Type: smartcontract.Hash160Type},
-						{Type: smartcontract.Hash160Type},
-						{Type: smartcontract.IntegerType},
-						{Type: smartcontract.AnyType},
+						{Name: "from", Type: smartcontract.Hash160Type},
+						{Name: "to", Type: smartcontract.Hash160Type},
+						{Name: "amount", Type: smartcontract.IntegerType},
+						{Name: "data", Type: smartcontract.AnyType},
 					},
 					ReturnType: smartcontract.BoolType,
 				},
@@ -33,9 +33,9 @@ var nep17 = &Standard{
 				{
 					Name: "Transfer",
 					Parameters: []manifest.Parameter{
-						{Type: smartcontract.Hash160Type},
-						{Type: smartcontract.Hash160Type},
-						{Type: smartcontract.IntegerType},
+						{Name: "from", Type: smartcontract.Hash160Type},
+						{Name: "to", Type: smartcontract.Hash160Type},
+						{Name: "amount", Type: smartcontract.IntegerType},
 					},
 				},
 			},

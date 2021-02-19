@@ -227,7 +227,7 @@ func CompileAndSave(src string, o *Options) ([]byte, error) {
 			return b, fmt.Errorf("failed to convert debug info to manifest: %w", err)
 		}
 		if !o.NoStandardCheck {
-			if err := standard.Check(m, o.ContractSupportedStandards...); err != nil {
+			if err := standard.CheckABI(m, o.ContractSupportedStandards...); err != nil {
 				return b, err
 			}
 		}

@@ -81,6 +81,25 @@ func TestComplyParameterType(t *testing.T) {
 	})
 }
 
+func TestComplyParameterName(t *testing.T) {
+	t.Run("Method", func(t *testing.T) {
+		m := fooMethodBarEvent()
+		m.ABI.GetMethod("foo", -1).Parameters[0].Name = "hehe"
+		s := &Standard{Manifest: *fooMethodBarEvent()}
+		err := Comply(m, s)
+		require.True(t, errors.Is(err, ErrInvalidParameterName))
+		require.NoError(t, ComplyABI(m, s))
+	})
+	t.Run("Event", func(t *testing.T) {
+		m := fooMethodBarEvent()
+		m.ABI.GetEvent("bar").Parameters[0].Name = "hehe"
+		s := &Standard{Manifest: *fooMethodBarEvent()}
+		err := Comply(m, s)
+		require.True(t, errors.Is(err, ErrInvalidParameterName))
+		require.NoError(t, ComplyABI(m, s))
+	})
+}
+
 func TestMissingEvent(t *testing.T) {
 	m := fooMethodBarEvent()
 	m.ABI.GetEvent("bar").Name = "notabar"
@@ -120,6 +139,7 @@ func TestCheck(t *testing.T) {
 	m.ABI.Methods = append(m.ABI.Methods, nep17.ABI.Methods...)
 	m.ABI.Events = append(m.ABI.Events, nep17.ABI.Events...)
 	require.NoError(t, Check(m, manifest.NEP17StandardName))
+	require.NoError(t, CheckABI(m, manifest.NEP17StandardName))
 }
 
 func TestOptional(t *testing.T) {

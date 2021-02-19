@@ -13,7 +13,7 @@ var nep11Base = &Standard{
 				{
 					Name: "balanceOf",
 					Parameters: []manifest.Parameter{
-						{Type: smartcontract.Hash160Type},
+						{Name: "owner", Type: smartcontract.Hash160Type},
 					},
 					ReturnType: smartcontract.IntegerType,
 					Safe:       true,
@@ -22,15 +22,15 @@ var nep11Base = &Standard{
 					Name:       "tokensOf",
 					ReturnType: smartcontract.AnyType, // Iterator
 					Parameters: []manifest.Parameter{
-						{Type: smartcontract.Hash160Type},
+						{Name: "owner", Type: smartcontract.Hash160Type},
 					},
 					Safe: true,
 				},
 				{
 					Name: "transfer",
 					Parameters: []manifest.Parameter{
-						{Type: smartcontract.Hash160Type},
-						{Type: smartcontract.ByteArrayType},
+						{Name: "to", Type: smartcontract.Hash160Type},
+						{Name: "tokenId", Type: smartcontract.ByteArrayType},
 					},
 					ReturnType: smartcontract.BoolType,
 				},
@@ -39,10 +39,10 @@ var nep11Base = &Standard{
 				{
 					Name: "Transfer",
 					Parameters: []manifest.Parameter{
-						{Type: smartcontract.Hash160Type},
-						{Type: smartcontract.Hash160Type},
-						{Type: smartcontract.IntegerType},
-						{Type: smartcontract.ByteArrayType},
+						{Name: "from", Type: smartcontract.Hash160Type},
+						{Name: "to", Type: smartcontract.Hash160Type},
+						{Name: "amount", Type: smartcontract.IntegerType},
+						{Name: "tokenId", Type: smartcontract.ByteArrayType},
 					},
 				},
 			},
@@ -52,7 +52,7 @@ var nep11Base = &Standard{
 		{
 			Name: "properties",
 			Parameters: []manifest.Parameter{
-				{Type: smartcontract.ByteArrayType},
+				{Name: "tokenId", Type: smartcontract.ByteArrayType},
 			},
 			ReturnType: smartcontract.MapType,
 			Safe:       true,
@@ -73,7 +73,7 @@ var nep11NonDivisible = &Standard{
 				{
 					Name: "ownerOf",
 					Parameters: []manifest.Parameter{
-						{Type: smartcontract.ByteArrayType},
+						{Name: "tokenId", Type: smartcontract.ByteArrayType},
 					},
 					ReturnType: smartcontract.Hash160Type,
 					Safe:       true,
@@ -91,8 +91,8 @@ var nep11Divisible = &Standard{
 				{
 					Name: "balanceOf",
 					Parameters: []manifest.Parameter{
-						{Type: smartcontract.Hash160Type},
-						{Type: smartcontract.ByteArrayType},
+						{Name: "owner", Type: smartcontract.Hash160Type},
+						{Name: "tokenId", Type: smartcontract.ByteArrayType},
 					},
 					ReturnType: smartcontract.IntegerType,
 					Safe:       true,
@@ -100,7 +100,7 @@ var nep11Divisible = &Standard{
 				{
 					Name: "ownerOf",
 					Parameters: []manifest.Parameter{
-						{Type: smartcontract.ByteArrayType},
+						{Name: "tokenId", Type: smartcontract.ByteArrayType},
 					},
 					ReturnType: smartcontract.AnyType,
 					Safe:       true,
@@ -108,10 +108,10 @@ var nep11Divisible = &Standard{
 				{
 					Name: "transfer",
 					Parameters: []manifest.Parameter{
-						{Type: smartcontract.Hash160Type},
-						{Type: smartcontract.Hash160Type},
-						{Type: smartcontract.IntegerType},
-						{Type: smartcontract.ByteArrayType},
+						{Name: "from", Type: smartcontract.Hash160Type},
+						{Name: "to", Type: smartcontract.Hash160Type},
+						{Name: "amount", Type: smartcontract.IntegerType},
+						{Name: "tokenId", Type: smartcontract.ByteArrayType},
 					},
 					ReturnType: smartcontract.BoolType,
 				},
