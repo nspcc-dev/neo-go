@@ -229,6 +229,7 @@ func (s *service) eventLoop() {
 				s.log.Debug("new block in the chain",
 					zap.Uint32("dbft index", s.dbft.BlockIndex),
 					zap.Uint32("chain index", s.Chain.BlockHeight()))
+				s.lastProposal = nil
 				s.dbft.InitializeConsensus(0)
 			}
 		}
@@ -492,6 +493,7 @@ func (s *service) processBlock(b block.Block) {
 			s.log.Warn("error on add block", zap.Error(err))
 		}
 	}
+	s.lastProposal = nil
 }
 
 func (s *service) getBlockWitness(_ *coreb.Block) *transaction.Witness {
@@ -553,7 +555,7 @@ func (s *service) getVerifiedTx() []block.Transaction {
 
 	var txx []mempool.TxWithFee
 
-	if s.dbft.ViewNumber > 0 {
+	if s.dbft.ViewNumber > 0 && len(s.lastProposal) > 0 {
 		txx = make([]mempool.TxWithFee, 0, len(s.lastProposal))
 		for i := range s.lastProposal {
 			if tx, fee, ok := pool.TryGetValue(s.lastProposal[i]); ok {

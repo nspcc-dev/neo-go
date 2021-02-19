@@ -138,6 +138,19 @@ func TestFixed8UnmarshalJSON(t *testing.T) {
 	}
 }
 
+func TestFixed8_Unmarshal(t *testing.T) {
+	var expected = Fixed8(223719420)
+	var cases = []string{"2.2371942", `"2.2371942"`} // this easily gives 223719419 if interpreted as float
+
+	for _, c := range cases {
+		var u1, u2 Fixed8
+		assert.Nil(t, json.Unmarshal([]byte(c), &u1))
+		assert.Equal(t, expected, u1)
+		assert.Nil(t, yaml.Unmarshal([]byte(c), &u2))
+		assert.Equal(t, expected, u2)
+	}
+}
+
 func TestFixed8_MarshalJSON(t *testing.T) {
 	u, err := Fixed8FromString("123.4")
 	assert.NoError(t, err)

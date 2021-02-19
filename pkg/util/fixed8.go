@@ -1,7 +1,6 @@
 package util
 
 import (
-	"encoding/json"
 	"errors"
 	"math"
 	"strconv"
@@ -106,34 +105,30 @@ func FixedNFromString(s string, precision int) (int64, error) {
 
 // UnmarshalJSON implements the json unmarshaller interface.
 func (f *Fixed8) UnmarshalJSON(data []byte) error {
-	return f.unmarshalHelper(func(v interface{}) error {
-		return json.Unmarshal(data, v)
-	})
+	if len(data) > 2 {
+		if data[0] == '"' && data[len(data)-1] == '"' {
+			data = data[1 : len(data)-1]
+		}
+	}
+	return f.setFromString(string(data))
 }
 
 // UnmarshalYAML implements the yaml unmarshaler interface.
 func (f *Fixed8) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	return f.unmarshalHelper(unmarshal)
-}
-
-// unmarshalHelper is an underlying unmarshaller func for JSON and YAML.
-func (f *Fixed8) unmarshalHelper(unmarshal func(interface{}) error) error {
 	var s string
-	if err := unmarshal(&s); err == nil {
-		p, err := Fixed8FromString(s)
-		if err != nil {
-			return err
-		}
-		*f = p
-		return nil
-	}
-
-	var fl float64
-	if err := unmarshal(&fl); err != nil {
+	err := unmarshal(&s)
+	if err != nil {
 		return err
 	}
+	return f.setFromString(s)
+}
 
-	*f = Fixed8(decimals * fl)
+func (f *Fixed8) setFromString(s string) error {
+	p, err := Fixed8FromString(s)
+	if err != nil {
+		return err
+	}
+	*f = p
 	return nil
 }
 

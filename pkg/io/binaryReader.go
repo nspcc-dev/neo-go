@@ -193,7 +193,7 @@ func (r *BinReader) ReadBytes(buf []byte) {
 }
 
 // ReadString calls ReadVarBytes and casts the results as a string.
-func (r *BinReader) ReadString() string {
-	b := r.ReadVarBytes()
+func (r *BinReader) ReadString(maxSize ...int) string {
+	b := r.ReadVarBytes(maxSize...)
 	return string(b)
 }
