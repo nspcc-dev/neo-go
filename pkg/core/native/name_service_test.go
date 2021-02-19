@@ -3,6 +3,8 @@ package native
 import (
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest/standard"
 	"github.com/stretchr/testify/require"
 )
 
@@ -85,4 +87,9 @@ func TestNameService_CheckName(t *testing.T) {
 			})
 		}
 	}
+}
+
+func TestNameService_NEP11(t *testing.T) {
+	ns := newNameService()
+	require.NoError(t, standard.Check(&ns.Manifest, manifest.NEP11StandardName))
 }
