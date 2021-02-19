@@ -461,7 +461,7 @@ func (s *Server) getBlockHash(reqParams request.Params) (interface{}, *response.
 	}
 	num, err := s.blockHeightFromParam(param)
 	if err != nil {
-		return nil, response.ErrInvalidParams
+		return nil, err
 	}
 
 	return s.chain.GetHeaderHash(num), nil
@@ -771,7 +771,7 @@ func (s *Server) getNEP5Balances(ps request.Params) (interface{}, *response.Erro
 	}
 	if as != nil {
 		for h, bal := range as.Trackers {
-			amount := strconv.FormatInt(bal.Balance, 10)
+			amount := bal.Balance.String()
 			bs.Balances = append(bs.Balances, result.NEP5Balance{
 				Asset:       h,
 				Amount:      amount,
@@ -824,14 +824,15 @@ func (s *Server) getNEP5Transfers(ps request.Params) (interface{}, *response.Err
 
 			NotifyIndex: tr.Index,
 		}
-		if tr.Amount > 0 { // token was received
-			transfer.Amount = strconv.FormatInt(tr.Amount, 10)
+		if tr.Amount.Sign() > 0 { // token was received
+			transfer.Amount = tr.Amount.String()
 			if !tr.From.Equals(util.Uint160{}) {
 				transfer.Address = address.Uint160ToString(tr.From)
 			}
 			bs.Received = append(bs.Received, transfer)
 		} else {
-			transfer.Amount = strconv.FormatInt(-tr.Amount, 10)
+			tr.Amount.Neg(tr.Amount)
+			transfer.Amount = tr.Amount.String()
 			if !tr.To.Equals(util.Uint160{}) {
 				transfer.Address = address.Uint160ToString(tr.To)
 			}
@@ -888,12 +889,14 @@ func uint160ToString(u util.Uint160) string {
 func appendNEP5ToTransferTx(transfer *result.TransferTx, nepTr *state.NEP5Transfer) {
 	var event result.TransferTxEvent
 	event.Asset = nepTr.Asset.StringLE()
-	if nepTr.Amount > 0 { // token was received
-		event.Value = strconv.FormatInt(nepTr.Amount, 10)
+	if nepTr.Amount.Sign() > 0 { // token was received
+		event.Value = nepTr.Amount.String()
 		event.Type = "receive"
 		event.Address = uint160ToString(nepTr.From)
 	} else {
-		event.Value = strconv.FormatInt(-nepTr.Amount, 10)
+		nepTr.Amount.Neg(nepTr.Amount)
+		event.Value = nepTr.Amount.String()
+		nepTr.Amount.Neg(nepTr.Amount)
 		event.Type = "send"
 		event.Address = uint160ToString(nepTr.To)
 	}
@@ -1327,7 +1330,7 @@ func (s *Server) getBlockTransferTx(ps request.Params) (interface{}, *response.E
 					Asset: nepTr.Asset.StringLE(),
 					From:  uint160ToString(nepTr.From),
 					To:    uint160ToString(nepTr.To),
-					Value: strconv.FormatInt(nepTr.Amount, 10),
+					Value: nepTr.Amount.String(),
 				})
 				index++
 			}
@@ -1356,24 +1359,15 @@ func (s *Server) getBlockSysFee(reqParams request.Params) (interface{}, *respons
 	}
 
 	headerHash := s.chain.GetHeaderHash(num)
-	block, errBlock := s.chain.GetBlock(headerHash)
-	if errBlock != nil {
-		return 0, response.NewRPCError(errBlock.Error(), "", nil)
-	}
 
-	var blockSysFee util.Fixed8
-	for _, tx := range block.Transactions {
-		blockSysFee += s.chain.SystemFee(tx)
-	}
-
-	return blockSysFee, nil
+	return util.Fixed8FromInt64(int64(s.chain.GetSystemFeeAmount(headerHash))), nil
 }
 
 // getBlockHeader returns the corresponding block header information according to the specified script hash.
 func (s *Server) getBlockHeader(reqParams request.Params) (interface{}, *response.Error) {
-	hash, err := reqParams.ValueWithType(0, request.StringT).GetUint256()
-	if err != nil {
-		return nil, response.ErrInvalidParams
+	hash, respErr := s.getBlockHashFromParam(reqParams.Value(0))
+	if respErr != nil {
+		return nil, respErr
 	}
 
 	verbose := reqParams.Value(1).GetBoolean()

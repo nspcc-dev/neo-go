@@ -178,7 +178,7 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 			invoke: func(c *Client) (interface{}, error) {
 				return c.GetAssetState(util.Uint256{})
 			},
-			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"id":"0xc56f33fc6ecfcd0c225c4ab356fee59390af8560be0e930faebe74a6daff7c9b","type":0,"name":"NEO","amount":"100000000","available":"100000000","precision":0,"owner":"00","admin":"Abf2qMs1pzQb8kYk9RuxtUb9jtRKJVuBJt","issuer":"AFmseVrdL9f9oyCzZefL9tG6UbvhPbdYzM","expiration":4000000,"is_frozen":false}}`,
+			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"id":"0xc56f33fc6ecfcd0c225c4ab356fee59390af8560be0e930faebe74a6daff7c9b","type":"GoverningToken","name":"NEO","amount":"100000000","available":"100000000","precision":0,"owner":"00","admin":"Abf2qMs1pzQb8kYk9RuxtUb9jtRKJVuBJt","issuer":"AFmseVrdL9f9oyCzZefL9tG6UbvhPbdYzM","expiration":4000000,"frozen":false}}`,
 			result: func(c *Client) interface{} {
 				return &result.AssetState{
 					ID:         core.GoverningTokenID(),
@@ -517,25 +517,25 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 			invoke: func(c *Client) (interface{}, error) {
 				return c.GetPeers()
 			},
-			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"unconnected":[{"address":"172.200.0.1","port":"20333"}],"connected":[{"address":"127.0.0.1","port":"20335"}],"bad":[{"address":"172.200.0.254","port":"20332"}]}}`,
+			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"unconnected":[{"address":"172.200.0.1","port":20333}],"connected":[{"address":"127.0.0.1","port":20335}],"bad":[{"address":"172.200.0.254","port":20332}]}}`,
 			result: func(c *Client) interface{} {
 				return &result.GetPeers{
 					Unconnected: result.Peers{
 						{
 							Address: "172.200.0.1",
-							Port:    "20333",
+							Port:    20333,
 						},
 					},
 					Connected: result.Peers{
 						{
 							Address: "127.0.0.1",
-							Port:    "20335",
+							Port:    20335,
 						},
 					},
 					Bad: result.Peers{
 						{
 							Address: "172.200.0.254",
-							Port:    "20332",
+							Port:    20332,
 						},
 					},
 				}

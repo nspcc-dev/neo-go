@@ -20,7 +20,7 @@ func TestGetPeers(t *testing.T) {
 	require.Equal(t, 1, len(gp.Connected))
 	require.Equal(t, 1, len(gp.Bad))
 	require.Equal(t, "192.168.0.1", gp.Connected[0].Address)
-	require.Equal(t, "10333", gp.Connected[0].Port)
+	require.Equal(t, uint16(10333), gp.Connected[0].Port)
 	require.Equal(t, "127.0.0.1", gp.Bad[0].Address)
-	require.Equal(t, "20333", gp.Bad[0].Port)
+	require.Equal(t, uint16(20333), gp.Bad[0].Port)
 }

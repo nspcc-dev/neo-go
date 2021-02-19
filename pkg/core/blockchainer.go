@@ -44,6 +44,7 @@ type Blockchainer interface {
 	GetStateRoot(height uint32) (*state.MPTRootState, error)
 	GetStorageItem(scripthash util.Uint160, key []byte) *state.StorageItem
 	GetStorageItems(hash util.Uint160) (map[string]*state.StorageItem, error)
+	GetSystemFeeAmount(h util.Uint256) uint32
 	GetTestVM(tx *transaction.Transaction) *vm.VM
 	GetTransaction(util.Uint256) (*transaction.Transaction, uint32, error)
 	GetUnspentCoinState(util.Uint256) *state.UnspentCoin

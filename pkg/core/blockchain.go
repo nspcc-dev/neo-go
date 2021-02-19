@@ -3,6 +3,7 @@ package core
 import (
 	"fmt"
 	"math"
+	"math/big"
 	"sort"
 	"sync"
 	"sync/atomic"
@@ -31,7 +32,7 @@ import (
 // Tuning parameters.
 const (
 	headerBatchCount = 2000
-	version          = "0.0.9"
+	version          = "0.0.10"
 
 	// This one comes from C# code and it's different from the constant used
 	// when creating an asset with Neo.Asset.Create interop call. It looks
@@ -551,9 +552,9 @@ func (bc *Blockchain) processHeader(h *block.Header, batch storage.Batch, header
 	return nil
 }
 
-// bc.GetHeaderHash(int(endHeight)) returns sum of all system fees for blocks up to h.
+// GetSystemFeeAmount returns sum of all system fees for blocks up to h.
 // and 0 if no such block exists.
-func (bc *Blockchain) getSystemFeeAmount(h util.Uint256) uint32 {
+func (bc *Blockchain) GetSystemFeeAmount(h util.Uint256) uint32 {
 	_, sf, _ := bc.dao.GetBlock(h)
 	return sf
 }
@@ -582,7 +583,7 @@ func (bc *Blockchain) GetStateRoot(height uint32) (*state.MPTRootState, error) {
 func (bc *Blockchain) storeBlock(block *block.Block) error {
 	cache := dao.NewCached(bc.dao)
 	appExecResults := make([]*state.AppExecResult, 0, len(block.Transactions))
-	fee := bc.getSystemFeeAmount(block.PrevHash)
+	fee := bc.GetSystemFeeAmount(block.PrevHash)
 	for _, tx := range block.Transactions {
 		fee += uint32(bc.SystemFee(tx).IntegralValue())
 	}
@@ -688,6 +689,7 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 				Precision:  t.Precision,
 				Owner:      t.Owner,
 				Admin:      t.Admin,
+				Issuer:     t.Admin,
 				Expiration: bc.BlockHeight() + registeredAssetLifetime,
 			})
 			if err != nil {
@@ -943,16 +945,23 @@ func (bc *Blockchain) processNEP5Transfer(cache *dao.Cached, transfer *state.NEP
 			return
 		}
 		bs := balances.Trackers[transfer.Asset]
-		bs.Balance -= transfer.Amount
-		bs.LastUpdatedBlock = transfer.Block
-		balances.Trackers[transfer.Asset] = bs
+		if bs.Balance == nil {
+			return
+		}
+		bs.Balance.Sub(bs.Balance, transfer.Amount)
+		if bs.Balance.Sign() > 0 {
+			bs.LastUpdatedBlock = transfer.Block
+			balances.Trackers[transfer.Asset] = bs
+		} else {
+			delete(balances.Trackers, transfer.Asset)
+		}
 
-		transfer.Amount = -transfer.Amount
+		transfer.Amount.Neg(transfer.Amount)
 		isBig, err := cache.AppendNEP5Transfer(transfer.From, balances.NextTransferBatch, transfer)
 		if err != nil {
 			return
 		}
-		transfer.Amount = -transfer.Amount
+		transfer.Amount.Neg(transfer.Amount)
 		if isBig {
 			balances.NextTransferBatch++
 		}
@@ -966,7 +975,10 @@ func (bc *Blockchain) processNEP5Transfer(cache *dao.Cached, transfer *state.NEP
 			return
 		}
 		bs := balances.Trackers[transfer.Asset]
-		bs.Balance += transfer.Amount
+		if bs.Balance == nil {
+			bs.Balance = new(big.Int)
+		}
+		bs.Balance.Add(bs.Balance, transfer.Amount)
 		bs.LastUpdatedBlock = transfer.Block
 		balances.Trackers[transfer.Asset] = bs
 
@@ -1502,9 +1514,9 @@ func (bc *Blockchain) CalculateClaimable(value util.Fixed8, startHeight, endHeig
 		startHeight++
 	}
 	h := bc.GetHeaderHash(int(startHeight - 1))
-	feeStart := bc.getSystemFeeAmount(h)
+	feeStart := bc.GetSystemFeeAmount(h)
 	h = bc.GetHeaderHash(int(endHeight - 1))
-	feeEnd := bc.getSystemFeeAmount(h)
+	feeEnd := bc.GetSystemFeeAmount(h)
 
 	sysFeeTotal := util.Fixed8(feeEnd - feeStart)
 	ratio := value / 100000000
@@ -1576,11 +1588,44 @@ func (bc *Blockchain) NetworkFee(t *transaction.Transaction) util.Fixed8 {
 
 // SystemFee returns system fee.
 func (bc *Blockchain) SystemFee(t *transaction.Transaction) util.Fixed8 {
-	if t.Type == transaction.InvocationType {
+	switch t.Type {
+	case transaction.InvocationType:
 		inv := t.Data.(*transaction.InvocationTX)
-		if inv.Version >= 1 {
-			return inv.Gas
+		return inv.Gas
+	case transaction.IssueType:
+		if t.Version >= 1 {
+			return util.Fixed8(0)
 		}
+		var iszero = true
+		for i := range t.Outputs {
+			asset := t.Outputs[i].AssetID
+			if asset != UtilityTokenID() && asset != GoverningTokenID() {
+				iszero = false
+				break
+			}
+		}
+		if iszero {
+			return util.Fixed8(0)
+		}
+	case transaction.RegisterType:
+		reg := t.Data.(*transaction.RegisterTX)
+		if reg.AssetType == transaction.GoverningToken || reg.AssetType == transaction.UtilityToken {
+			return util.Fixed8(0)
+		}
+	case transaction.StateType:
+		res := util.Fixed8(0)
+		st := t.Data.(*transaction.StateTX)
+		for _, desc := range st.Descriptors {
+			if desc.Type == transaction.Validator && desc.Field == "Registered" {
+				for i := range desc.Value {
+					if desc.Value[i] != 0 {
+						res += util.Fixed8FromInt64(1000)
+						break
+					}
+				}
+			}
+		}
+		return res
 	}
 	return bc.GetConfig().SystemFee.TryGetValue(t.Type)
 }
@@ -2232,22 +2277,13 @@ func (bc *Blockchain) GetEnrollments() ([]*state.Validator, error) {
 	for _, validator := range validators {
 		if validator.Registered {
 			result = append(result, validator)
+			continue
 		}
-	}
-	for _, sBValidator := range uniqueSBValidators {
-		isAdded := false
-		for _, v := range result {
-			if v.PublicKey == sBValidator {
-				isAdded = true
+		for _, sbValidator := range uniqueSBValidators {
+			if validator.PublicKey.Equal(sbValidator) {
+				result = append(result, validator)
 				break
 			}
-		}
-		if !isAdded {
-			result = append(result, &state.Validator{
-				PublicKey:  sBValidator,
-				Registered: false,
-				Votes:      0,
-			})
 		}
 	}
 	return result, nil

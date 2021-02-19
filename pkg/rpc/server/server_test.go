@@ -548,13 +548,9 @@ var rpcTestCases = map[string][]rpcTestCase{
 			name:   "positive",
 			params: "[1]",
 			result: func(e *executor) interface{} {
-				block, _ := e.chain.GetBlock(e.chain.GetHeaderHash(1))
-
-				var expectedBlockSysFee util.Fixed8
-				for _, tx := range block.Transactions {
-					expectedBlockSysFee += e.chain.SystemFee(tx)
-				}
-				return &expectedBlockSysFee
+				sf := e.chain.GetSystemFeeAmount(e.chain.GetHeaderHash(1))
+				r := util.Fixed8FromInt64(int64(sf))
+				return &r
 			},
 		},
 		{
@@ -727,12 +723,12 @@ var rpcTestCases = map[string][]rpcTestCase{
 			},
 			check: func(t *testing.T, e *executor, validators interface{}) {
 				var expected []result.Validator
-				sBValidators, err := e.chain.GetStandByValidators()
+				enrolls, err := e.chain.GetEnrollments()
 				require.NoError(t, err)
-				for _, sbValidator := range sBValidators {
+				for _, validator := range enrolls {
 					expected = append(expected, result.Validator{
-						PublicKey: *sbValidator,
-						Votes:     0,
+						PublicKey: *validator.PublicKey,
+						Votes:     validator.Votes,
 						Active:    true,
 					})
 				}
@@ -1217,7 +1213,7 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 		err := json.Unmarshal(res, &txOut)
 		require.NoErrorf(t, err, "could not parse response: %s", res)
 		assert.Equal(t, 1, txOut.N)
-		assert.Equal(t, "0x9b7cffdaa674beae0f930ebe6085af9093e5fe56b34a5c220ccdcf6efc336fc5", txOut.Asset)
+		assert.Equal(t, "0xc56f33fc6ecfcd0c225c4ab356fee59390af8560be0e930faebe74a6daff7c9b", txOut.Asset)
 		assert.Equal(t, util.Fixed8FromInt64(1000), txOut.Value)
 		assert.Equal(t, "AZ81H31DMWzbSnFDLFkzh9vHwaDLayV7fU", txOut.Address)
 	})

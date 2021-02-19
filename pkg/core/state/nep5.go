@@ -13,7 +13,7 @@ import (
 // NEP5Tracker contains info about a single account in a NEP5 contract.
 type NEP5Tracker struct {
 	// Balance is the current balance of the account.
-	Balance int64
+	Balance *big.Int
 	// LastUpdatedBlock is a number of block when last `transfer` to or from the
 	// account occured.
 	LastUpdatedBlock uint32
@@ -25,7 +25,7 @@ type TransferLog struct {
 }
 
 // NEP5TransferSize is a size of a marshaled NEP5Transfer struct in bytes.
-const NEP5TransferSize = util.Uint160Size*3 + 8 + 4 + 4 + util.Uint256Size + 4
+const NEP5TransferSize = util.Uint160Size*3 + amountSize + 4 + 4 + util.Uint256Size + 4
 
 // NEP5Transfer represents a single NEP5 Transfer event.
 type NEP5Transfer struct {
@@ -37,7 +37,7 @@ type NEP5Transfer struct {
 	To util.Uint160
 	// Amount is the amount of tokens transferred.
 	// It is negative when tokens are sent and positive if they are received.
-	Amount int64
+	Amount *big.Int
 	// Block is a number of block when the event occured.
 	Block uint32
 	// Timestamp is the timestamp of the block where transfer occured.
@@ -47,6 +47,8 @@ type NEP5Transfer struct {
 	// Index is the index of this transfer in the corresponding tx.
 	Index uint32
 }
+
+const amountSize = 32
 
 // NEP5Balances is a map of the NEP5 contract hashes
 // to the corresponding structures.
@@ -143,13 +145,13 @@ func (lg *TransferLog) Size() int {
 
 // EncodeBinary implements io.Serializable interface.
 func (t *NEP5Tracker) EncodeBinary(w *io.BinWriter) {
-	w.WriteU64LE(uint64(t.Balance))
+	w.WriteVarBytes(emit.IntToBytes(t.Balance))
 	w.WriteU32LE(t.LastUpdatedBlock)
 }
 
 // DecodeBinary implements io.Serializable interface.
 func (t *NEP5Tracker) DecodeBinary(r *io.BinReader) {
-	t.Balance = int64(r.ReadU64LE())
+	t.Balance = emit.BytesToInt(r.ReadVarBytes(amountSize))
 	t.LastUpdatedBlock = r.ReadU32LE()
 }
 
@@ -194,7 +196,7 @@ func NEP5TransferFromNotification(ne NotificationEvent, txHash util.Uint256, hei
 		Asset:     ne.ScriptHash,
 		From:      fromAddr,
 		To:        toAddr,
-		Amount:    amount.Int64(),
+		Amount:    amount,
 		Block:     height,
 		Timestamp: time,
 		Tx:        txHash,
@@ -212,7 +214,19 @@ func (t *NEP5Transfer) EncodeBinary(w *io.BinWriter) {
 	w.WriteBytes(t.To[:])
 	w.WriteU32LE(t.Block)
 	w.WriteU32LE(t.Timestamp)
-	w.WriteU64LE(uint64(t.Amount))
+	am := emit.IntToBytes(t.Amount)
+	if len(am) > amountSize {
+		panic("bad integer length")
+	}
+	fillerLen := amountSize - len(am)
+	w.WriteBytes(am)
+	var filler byte
+	if t.Amount.Sign() < 0 {
+		filler = 0xff
+	}
+	for i := 0; i < fillerLen; i++ {
+		w.WriteB(filler)
+	}
 	w.WriteU32LE(t.Index)
 }
 
@@ -224,6 +238,8 @@ func (t *NEP5Transfer) DecodeBinary(r *io.BinReader) {
 	r.ReadBytes(t.To[:])
 	t.Block = r.ReadU32LE()
 	t.Timestamp = r.ReadU32LE()
-	t.Amount = int64(r.ReadU64LE())
+	amount := make([]byte, amountSize)
+	r.ReadBytes(amount)
+	t.Amount = emit.BytesToInt(amount)
 	t.Index = r.ReadU32LE()
 }

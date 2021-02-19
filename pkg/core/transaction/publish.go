@@ -67,18 +67,18 @@ func (tx *PublishTX) EncodeBinary(bw *io.BinWriter) {
 // publishedContract is a JSON wrapper for PublishTransaction
 type publishedContract struct {
 	Code        publishedCode `json:"code"`
-	NeedStorage bool          `json:"needstorage,omitempty"`
-	Name        string        `json:"name,omitempty"`
-	CodeVersion string        `json:"version,omitempty"`
-	Author      string        `json:"author,omitempty"`
-	Email       string        `json:"email,omitempty"`
-	Description string        `json:"description,omitempty"`
+	NeedStorage bool          `json:"needstorage"`
+	Name        string        `json:"name"`
+	CodeVersion string        `json:"version"`
+	Author      string        `json:"author"`
+	Email       string        `json:"email"`
+	Description string        `json:"description"`
 }
 
 // publishedCode is a JSON wrapper for PublishTransaction Code
 type publishedCode struct {
-	Hash       util.Uint160              `json:"hash,omitempty"`
-	Script     string                    `json:"script,omitempty"`
-	ParamList  []smartcontract.ParamType `json:"parameters,omitempty"`
-	ReturnType smartcontract.ParamType   `json:"returntype,omitempty"`
+	Hash       util.Uint160              `json:"hash"`
+	Script     string                    `json:"script"`
+	ParamList  []smartcontract.ParamType `json:"parameters"`
+	ReturnType smartcontract.ParamType   `json:"returntype"`
 }
