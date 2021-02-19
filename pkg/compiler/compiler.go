@@ -222,36 +222,9 @@ func CompileAndSave(src string, o *Options) ([]byte, error) {
 	}
 
 	if o.ManifestFile != "" {
-		m, err := di.ConvertToManifest(o)
+		m, err := CreateManifest(di, o)
 		if err != nil {
-			return b, fmt.Errorf("failed to convert debug info to manifest: %w", err)
-		}
-		if !o.NoStandardCheck {
-			if err := standard.CheckABI(m, o.ContractSupportedStandards...); err != nil {
-				return b, err
-			}
-		}
-		if !o.NoEventsCheck {
-			for name := range di.EmittedEvents {
-				ev := m.ABI.GetEvent(name)
-				if ev == nil {
-					return nil, fmt.Errorf("event '%s' is emitted but not specified in manifest", name)
-				}
-				argsList := di.EmittedEvents[name]
-				for i := range argsList {
-					if len(argsList[i]) != len(ev.Parameters) {
-						return nil, fmt.Errorf("event '%s' should have %d parameters but has %d",
-							name, len(ev.Parameters), len(argsList[i]))
-					}
-					for j := range ev.Parameters {
-						expected := ev.Parameters[j].Type.String()
-						if argsList[i][j] != expected {
-							return nil, fmt.Errorf("event '%s' should have '%s' as type of %d parameter, "+
-								"got: %s", name, expected, j+1, argsList[i][j])
-						}
-					}
-				}
-			}
+			return b, err
 		}
 		mData, err := json.Marshal(m)
 		if err != nil {
@@ -261,4 +234,50 @@ func CompileAndSave(src string, o *Options) ([]byte, error) {
 	}
 
 	return b, nil
+}
+
+// CreateManifest creates manifest and checks that is is valid.
+func CreateManifest(di *DebugInfo, o *Options) (*manifest.Manifest, error) {
+	m, err := di.ConvertToManifest(o)
+	if err != nil {
+		return m, fmt.Errorf("failed to convert debug info to manifest: %w", err)
+	}
+	if !o.NoStandardCheck {
+		if err := standard.CheckABI(m, o.ContractSupportedStandards...); err != nil {
+			return m, err
+		}
+		if m.ABI.GetMethod(manifest.MethodOnNEP11Payment, -1) != nil {
+			if err := standard.CheckABI(m, manifest.NEP11Payable); err != nil {
+				return m, err
+			}
+		}
+		if m.ABI.GetMethod(manifest.MethodOnNEP17Payment, -1) != nil {
+			if err := standard.CheckABI(m, manifest.NEP17Payable); err != nil {
+				return m, err
+			}
+		}
+	}
+	if !o.NoEventsCheck {
+		for name := range di.EmittedEvents {
+			ev := m.ABI.GetEvent(name)
+			if ev == nil {
+				return nil, fmt.Errorf("event '%s' is emitted but not specified in manifest", name)
+			}
+			argsList := di.EmittedEvents[name]
+			for i := range argsList {
+				if len(argsList[i]) != len(ev.Parameters) {
+					return nil, fmt.Errorf("event '%s' should have %d parameters but has %d",
+						name, len(ev.Parameters), len(argsList[i]))
+				}
+				for j := range ev.Parameters {
+					expected := ev.Parameters[j].Type.String()
+					if argsList[i][j] != expected {
+						return nil, fmt.Errorf("event '%s' should have '%s' as type of %d parameter, "+
+							"got: %s", name, expected, j+1, argsList[i][j])
+					}
+				}
+			}
+		}
+	}
+	return m, nil
 }

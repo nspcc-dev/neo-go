@@ -20,6 +20,10 @@ const (
 	NEP11StandardName = "NEP-11"
 	// NEP17StandardName represents the name of NEP17 smartcontract standard.
 	NEP17StandardName = "NEP-17"
+	// NEP11Payable represents the name of contract interface which can receive NEP-11 tokens.
+	NEP11Payable = "NEP-11-Payable"
+	// NEP17Payable represents the name of contract interface which can receive NEP-17 tokens.
+	NEP17Payable = "NEP-17-Payable"
 )
 
 // Manifest represens contract metadata.

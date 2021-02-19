@@ -4,6 +4,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"strings"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/compiler"
@@ -89,4 +90,38 @@ func filterFilename(infos []os.FileInfo) string {
 func compileFile(src string) error {
 	_, err := compiler.Compile(src, nil)
 	return err
+}
+
+func TestOnPayableChecks(t *testing.T) {
+	compileAndCheck := func(t *testing.T, src string) error {
+		_, di, err := compiler.CompileWithDebugInfo("payable", strings.NewReader(src))
+		require.NoError(t, err)
+		_, err = compiler.CreateManifest(di, &compiler.Options{})
+		return err
+	}
+
+	t.Run("NEP-11, good", func(t *testing.T) {
+		src := `package payable
+		import "github.com/nspcc-dev/neo-go/pkg/interop"
+		func OnNEP11Payment(from interop.Hash160, amount int, tokenID []byte) {}`
+		require.NoError(t, compileAndCheck(t, src))
+	})
+	t.Run("NEP-11, bad", func(t *testing.T) {
+		src := `package payable
+		import "github.com/nspcc-dev/neo-go/pkg/interop"
+		func OnNEP11Payment(from interop.Hash160, amount int, oldParam string, tokenID []byte) {}`
+		require.Error(t, compileAndCheck(t, src))
+	})
+	t.Run("NEP-17, good", func(t *testing.T) {
+		src := `package payable
+		import "github.com/nspcc-dev/neo-go/pkg/interop"
+		func OnNEP17Payment(from interop.Hash160, amount int, data interface{}) {}`
+		require.NoError(t, compileAndCheck(t, src))
+	})
+	t.Run("NEP-17, bad", func(t *testing.T) {
+		src := `package payable
+		import "github.com/nspcc-dev/neo-go/pkg/interop"
+		func OnNEP17Payment(from interop.Hash160, amount int, data interface{}, extra int) {}`
+		require.Error(t, compileAndCheck(t, src))
+	})
 }
