@@ -5,10 +5,41 @@ import (
 	"io/ioutil"
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/internal/random"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/stretchr/testify/require"
 )
+
+func TestParseAddress(t *testing.T) {
+	expected := random.Uint160()
+	t.Run("simple LE", func(t *testing.T) {
+		u, err := ParseAddress(expected.StringLE())
+		require.NoError(t, err)
+		require.Equal(t, expected, u)
+	})
+	t.Run("with prefix", func(t *testing.T) {
+		u, err := ParseAddress("0x" + expected.StringLE())
+		require.NoError(t, err)
+		require.Equal(t, expected, u)
+
+		t.Run("bad", func(t *testing.T) {
+			_, err := ParseAddress("0s" + expected.StringLE())
+			require.Error(t, err)
+		})
+	})
+	t.Run("address", func(t *testing.T) {
+		addr := address.Uint160ToString(expected)
+		u, err := ParseAddress(addr)
+		require.NoError(t, err)
+		require.Equal(t, expected, u)
+
+		t.Run("bad", func(t *testing.T) {
+			_, err := ParseAddress(addr[1:])
+			require.Error(t, err)
+		})
+	})
+}
 
 func TestAddress_String(t *testing.T) {
 	value := util.Uint160{1, 2, 3}

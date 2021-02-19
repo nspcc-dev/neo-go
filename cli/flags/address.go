@@ -35,7 +35,7 @@ func (a Address) String() string {
 
 // Set implements flag.Value interface.
 func (a *Address) Set(s string) error {
-	addr, err := address.StringToUint160(s)
+	addr, err := ParseAddress(s)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -88,4 +88,15 @@ func (f AddressFlag) Apply(set *flag.FlagSet) {
 	eachName(f.Name, func(name string) {
 		set.Var(&f.Value, name, f.Usage)
 	})
+}
+
+// ParseAddress parses Uint160 form either LE string or address.
+func ParseAddress(s string) (util.Uint160, error) {
+	const uint160size = 2 * util.Uint160Size
+	switch len(s) {
+	case uint160size, uint160size + 2:
+		return util.Uint160DecodeStringLE(strings.TrimPrefix(s, "0x"))
+	default:
+		return address.StringToUint160(s)
+	}
 }

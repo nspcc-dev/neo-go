@@ -15,7 +15,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
-	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/urfave/cli"
 )
@@ -397,8 +396,8 @@ func importDeployed(ctx *cli.Context) error {
 
 	defer wall.Close()
 
-	rawHash := strings.TrimPrefix(ctx.String("contract"), "0x")
-	h, err := util.Uint160DecodeStringLE(rawHash)
+	rawHash := ctx.String("contract")
+	h, err := flags.ParseAddress(rawHash)
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("invalid contract hash: %w", err), 1)
 	}
