@@ -35,6 +35,9 @@ const (
 	VoidType             ParamType = 0xff
 )
 
+// fileBytesParamType is a string representation of `filebytes` parameter type used in cli.
+const fileBytesParamType string = "filebytes"
+
 // validParamTypes contains a map of known ParamTypes
 var validParamTypes = map[ParamType]bool{
 	UnknownType:          true,
@@ -142,7 +145,7 @@ func (pt *ParamType) DecodeBinary(r *io.BinReader) {
 //     int, integer -> IntegerType
 //     hash160 -> Hash160Type
 //     hash256 -> Hash256Type
-//     bytes, bytearray -> ByteArrayType
+//     bytes, bytearray, filebytes -> ByteArrayType
 //     key, publickey -> PublicKeyType
 //     string -> StringType
 //     array, struct -> ArrayType
@@ -162,7 +165,7 @@ func ParseParamType(typ string) (ParamType, error) {
 		return Hash160Type, nil
 	case "hash256":
 		return Hash256Type, nil
-	case "bytes", "bytearray", "bytestring":
+	case "bytes", "bytearray", "bytestring", fileBytesParamType:
 		return ByteArrayType, nil
 	case "key", "publickey":
 		return PublicKeyType, nil
@@ -223,11 +226,7 @@ func adjustValToType(typ ParamType, val string) (interface{}, error) {
 		}
 		return u, nil
 	case ByteArrayType:
-		b, err := hex.DecodeString(val)
-		if err != nil {
-			return nil, err
-		}
-		return b, nil
+		return hex.DecodeString(val)
 	case PublicKeyType:
 		pub, err := keys.NewPublicKeyFromString(val)
 		if err != nil {

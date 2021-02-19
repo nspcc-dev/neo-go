@@ -210,6 +210,10 @@ func NewCommands() []cli.Command {
    symbols around array values to denote array bounds. Nested arrays are also 
    supported.
 
+   There is ability to provide an argument of 'bytearray' type via file. Use a 
+   special 'filebytes' argument type for this with a filepath specified after
+   the colon, e.g. 'filebytes:my_file.txt'.
+
    Given values are type-checked against given types with the following
    restrictions applied:
     * 'signature' type values should be hex-encoded and have a (decoded)
@@ -222,6 +226,7 @@ func NewCommands() []cli.Command {
     * 'hash256' type values should be hex-encoded and have a (decoded)
       length of 32 bytes.
     * 'bytes' type values are any hex-encoded things.
+    * 'filebytes' type values are filenames with the argument value inside.
     * 'key' type values are hex-encoded marshalled public keys.
     * 'string' type values are any valid UTF-8 strings. In the value's part of
       the string the colon looses it's special meaning as a separator between
@@ -250,6 +255,7 @@ func NewCommands() []cli.Command {
     * 'bad' is a string with a value of 'bad'
     * 'dead' is a byte array with a value of 'dead'
     * 'string:dead' is a string with a value of 'dead'
+    * 'filebytes:my_data.txt' is bytes decoded from a content of my_data.txt
     * 'AK2nJJpJr6o664CWJKi1QRXjqeic2zRp8y' is a hash160 with a value
       of '23ba2703c53263e8d6e522dc32203339dcd8eee9'
     * '\4\2' is an integer with a value of 42

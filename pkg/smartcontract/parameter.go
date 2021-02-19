@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"math"
 	"math/bits"
 	"strconv"
@@ -387,6 +388,7 @@ func NewParameterFromString(in string) (*Parameter, error) {
 		escaped bool
 		hadType bool
 		res     = &Parameter{}
+		typStr  string
 	)
 	r = strings.NewReader(in)
 	for char, _, err = r.ReadRune(); err == nil && char != utf8.RuneError; char, _, err = r.ReadRune() {
@@ -395,7 +397,7 @@ func NewParameterFromString(in string) (*Parameter, error) {
 			continue
 		}
 		if char == ':' && !escaped && !hadType {
-			typStr := buf.String()
+			typStr = buf.String()
 			res.Type, err = ParseParamType(typStr)
 			if err != nil {
 				return nil, err
@@ -421,6 +423,13 @@ func NewParameterFromString(in string) (*Parameter, error) {
 	val = buf.String()
 	if !hadType {
 		res.Type = inferParamType(val)
+	}
+	if res.Type == ByteArrayType && typStr == fileBytesParamType {
+		res.Value, err = ioutil.ReadFile(val)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read '%s' parameter from file '%s': %w", fileBytesParamType, val, err)
+		}
+		return res, nil
 	}
 	res.Value, err = adjustValToType(res.Type, val)
 	if err != nil {

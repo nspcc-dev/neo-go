@@ -481,6 +481,12 @@ func TestNewParameterFromString(t *testing.T) {
 	}, {
 		in:  `Map:[]`,
 		err: true,
+	}, {
+		in:  "filebytes:./testdata/adjustValToType_filebytes_good.txt",
+		out: Parameter{Type: ByteArrayType, Value: []byte{0x30, 0x31, 0x30, 0x32, 0x30, 0x33, 0x65, 0x66}},
+	}, {
+		in:  "filebytes:./testdata/does_not_exists.txt",
+		err: true,
 	}}
 	for _, inout := range inouts {
 		out, err := NewParameterFromString(inout.in)

@@ -59,7 +59,11 @@ func TestParseParamType(t *testing.T) {
 	}, {
 		in:  "qwerty",
 		err: true,
-	}}
+	}, {
+		in:  "filebytes",
+		out: ByteArrayType,
+	},
+	}
 	for _, inout := range inouts {
 		out, err := ParseParamType(inout.in)
 		if inout.err {
