@@ -27,6 +27,13 @@ func IsStandard(h interop.Hash160) bool {
 	return false
 }
 
+// CreateMultisigAccount calculates script hash of an m out of n multisignature
+// script using given m and a set of public keys bytes. This function uses
+// `System.Contract.CreateMultisigAccount` syscall.
+func CreateMultisigAccount(m int, pubs []interop.PublicKey) []byte {
+	return nil
+}
+
 // CreateStandardAccount calculates script hash of a given public key.
 // This function uses `System.Contract.CreateStandardAccount` syscall.
 func CreateStandardAccount(pub interop.PublicKey) []byte {

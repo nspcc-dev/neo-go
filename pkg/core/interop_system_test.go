@@ -2,6 +2,7 @@ package core
 
 import (
 	"errors"
+	"math"
 	"math/big"
 	"testing"
 
@@ -107,6 +108,53 @@ func TestContractCreateAccount(t *testing.T) {
 	t.Run("InvalidKey", func(t *testing.T) {
 		v.Estack().PushVal([]byte{1, 2, 3})
 		require.Error(t, contractCreateStandardAccount(ic))
+	})
+}
+
+func TestContractCreateMultisigAccount(t *testing.T) {
+	v, ic, chain := createVM(t)
+	defer chain.Close()
+	t.Run("Good", func(t *testing.T) {
+		m, n := 3, 5
+		pubs := make(keys.PublicKeys, n)
+		arr := make([]stackitem.Item, n)
+		for i := range pubs {
+			pk, err := keys.NewPrivateKey()
+			require.NoError(t, err)
+			pubs[i] = pk.PublicKey()
+			arr[i] = stackitem.Make(pubs[i].Bytes())
+		}
+		v.Estack().PushVal(stackitem.Make(arr))
+		v.Estack().PushVal(m)
+		require.NoError(t, contractCreateMultisigAccount(ic))
+
+		expected, err := smartcontract.CreateMultiSigRedeemScript(m, pubs)
+		require.NoError(t, err)
+		value := v.Estack().Pop().Bytes()
+		u, err := util.Uint160DecodeBytesBE(value)
+		require.NoError(t, err)
+		require.Equal(t, hash.Hash160(expected), u)
+	})
+	t.Run("InvalidKey", func(t *testing.T) {
+		v.Estack().PushVal(stackitem.Make([]stackitem.Item{stackitem.Make([]byte{1, 2, 3})}))
+		v.Estack().PushVal(1)
+		require.Error(t, contractCreateMultisigAccount(ic))
+	})
+	t.Run("Invalid m", func(t *testing.T) {
+		pk, err := keys.NewPrivateKey()
+		require.NoError(t, err)
+		v.Estack().PushVal(stackitem.Make([]stackitem.Item{stackitem.Make(pk.PublicKey().Bytes())}))
+		v.Estack().PushVal(2)
+		require.Error(t, contractCreateMultisigAccount(ic))
+	})
+	t.Run("m overflows int64", func(t *testing.T) {
+		pk, err := keys.NewPrivateKey()
+		require.NoError(t, err)
+		v.Estack().PushVal(stackitem.Make([]stackitem.Item{stackitem.Make(pk.PublicKey().Bytes())}))
+		m := big.NewInt(math.MaxInt64)
+		m.Add(m, big.NewInt(1))
+		v.Estack().PushVal(stackitem.NewBigInteger(m))
+		require.Error(t, contractCreateMultisigAccount(ic))
 	})
 }
 

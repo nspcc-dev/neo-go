@@ -4,13 +4,16 @@ import (
 	"crypto/elliptic"
 	"errors"
 	"fmt"
+	"math"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
@@ -218,6 +221,30 @@ func contractIsStandard(ic *interop.Context) error {
 		}
 	}
 	ic.VM.Estack().PushVal(result)
+	return nil
+}
+
+// contractCreateMultisigAccount calculates multisig contract scripthash for a
+// given m and a set of public keys.
+func contractCreateMultisigAccount(ic *interop.Context) error {
+	m := ic.VM.Estack().Pop().BigInt()
+	if !m.IsInt64() || m.Int64() > math.MaxInt32 {
+		return errors.New("m should fit int32")
+	}
+	arr := ic.VM.Estack().Pop().Array()
+	pubs := make(keys.PublicKeys, len(arr))
+	for i, pk := range arr {
+		p, err := keys.NewPublicKeyFromBytes(pk.Value().([]byte), elliptic.P256())
+		if err != nil {
+			return err
+		}
+		pubs[i] = p
+	}
+	script, err := smartcontract.CreateMultiSigRedeemScript(int(m.Int64()), pubs)
+	if err != nil {
+		return err
+	}
+	ic.VM.Estack().PushVal(hash.Hash160(script).BytesBE())
 	return nil
 }
 
