@@ -121,3 +121,39 @@ func TestCheck(t *testing.T) {
 	m.ABI.Events = append(m.ABI.Events, nep17.ABI.Events...)
 	require.NoError(t, Check(m, manifest.NEP17StandardName))
 }
+
+func TestOptional(t *testing.T) {
+	var m Standard
+	m.Optional = []manifest.Method{{
+		Name:       "optMet",
+		Parameters: []manifest.Parameter{{Type: smartcontract.ByteArrayType}},
+		ReturnType: smartcontract.IntegerType,
+	}}
+
+	t.Run("wrong parameter count, do not check", func(t *testing.T) {
+		var actual manifest.Manifest
+		actual.ABI.Methods = []manifest.Method{{
+			Name:       "optMet",
+			ReturnType: smartcontract.IntegerType,
+		}}
+		require.NoError(t, Comply(&actual, &m))
+	})
+	t.Run("good parameter count, bad return", func(t *testing.T) {
+		var actual manifest.Manifest
+		actual.ABI.Methods = []manifest.Method{{
+			Name:       "optMet",
+			Parameters: []manifest.Parameter{{Type: smartcontract.ArrayType}},
+			ReturnType: smartcontract.IntegerType,
+		}}
+		require.Error(t, Comply(&actual, &m))
+	})
+	t.Run("good parameter count, good return", func(t *testing.T) {
+		var actual manifest.Manifest
+		actual.ABI.Methods = []manifest.Method{{
+			Name:       "optMet",
+			Parameters: []manifest.Parameter{{Type: smartcontract.ByteArrayType}},
+			ReturnType: smartcontract.IntegerType,
+		}}
+		require.NoError(t, Comply(&actual, &m))
+	})
+}
