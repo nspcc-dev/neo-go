@@ -81,6 +81,9 @@ type (
 
 		// ExtensiblePoolSize is size of the pool for extensible payloads from a single sender.
 		ExtensiblePoolSize int
+
+		// EnableBatching is true if CMDTxBatch should be enabled.
+		EnableBatching bool
 	}
 )
 
@@ -116,5 +119,6 @@ func NewServerConfig(cfg config.Config) ServerConfig {
 		P2PNotaryCfg:       appConfig.P2PNotary,
 		StateRootCfg:       appConfig.StateRoot,
 		ExtensiblePoolSize: appConfig.ExtensiblePoolSize,
+		EnableBatching:     protoConfig.NetworkBatchingEnabled,
 	}
 }

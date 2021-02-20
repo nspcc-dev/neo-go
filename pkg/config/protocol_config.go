@@ -36,6 +36,8 @@ type (
 		MaxValidUntilBlockIncrement uint32 `yaml:"MaxValidUntilBlockIncrement"`
 		// NativeUpdateHistories is the list of histories of native contracts updates.
 		NativeUpdateHistories map[string][]uint32 `yaml:"NativeActivations"`
+		// NetworkBatchingEnabled enables additional P2P commands for batching transactions.
+		NetworkBatchingEnabled bool `yaml:"NetworkBatchingEnabled"`
 		// P2PSigExtensions enables additional signature-related logic.
 		P2PSigExtensions bool `yaml:"P2PSigExtensions"`
 		// P2PStateExchangeExtensions enables additional P2P MPT state data exchange logic.
