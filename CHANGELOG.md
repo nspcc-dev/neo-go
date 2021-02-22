@@ -2,6 +2,65 @@
 
 This document outlines major changes between releases.
 
+## 0.78.3 "Calcification" (22 February 2021)
+
+We're updating NeoGo node for Neo 2 network with this release bringing a
+number of fixes for various problems. Some were found during our internal RPC
+compatibility audit and some are just backports from Neo 3 development
+branch. There are no new features introduced, but it's an important
+upgrade. Unfortunately we had to change the DB format to fix some problems, so
+add some time for resynchronization to your node maintenance plan.
+
+Improvements:
+ * RPC documentation was updated mentioning all known differences with C#
+   implementation that are considered to be not worth fixing (#1760)
+
+Bufs fixed:
+ * when mempool is full new transaction's hash could still be added into it
+   even if transaction is to be rejected afterwards (#1623)
+ * `gettxout` RPC API was returning data for already spent outputs, although it
+   shouldn't (C# node doesn't do that, #1649)
+ * `getrawtransaction` RPC call returned metadata for pooled (not yet accepted)
+   transactions (#1648)
+ * `gettransactionheight` RPC call returned zero height for pooled (not yet
+   accepted) transactions (#1648)
+ * VM CLI set breakpoints after target instructions, although it should set
+   them before execution (#1648)
+ * a peer could be disconnected and not reconnected again properly in some
+   cases (#1648)
+ * missing write timeout could lead to broadcasting stalls (#1648)
+ * CN transaction requests could try to ask for more transactions from peers
+   than it is allowed to by the protocol (#1648)
+ * CN transaction requests could be trimmed unnecessarily (#1648)
+ * FP Fixed8 values (GAS usually) could be unmarshalled from JSON/YAML
+   incorrectly in some cases (#1761)
+ * previous proposal reuse could lead to empty blocks accepted even if there
+   are transactions in the mempool (#1761)
+ * UTXO asset issuer wasn't properly stored by the node (#1760)
+ * `getassetstate` RPC call answer used wrong field name for "frozen" data
+   (#1760)
+ * UTXO asset type was serialized as numeric code instead of a string in
+   `getrawtransaction` and getassetstate RPC call results (#1760)
+ * `getblockheader` RPC call didn't support block numbers in parameters (#1760)
+ * `getblocksystemfee` RPC call returned block's system fee while it should
+   return cumulative system fee from genesis block to the one requested
+   (#1760)
+ * system fee calculation was wrong for some types of transactions (#1760)
+ * `gettxout` RPC call implementation was returning asset hash in wrong byte
+   order (#1760)
+ * `getpeers` RPC call implementation returned port numbers wrapped into
+   strings (#1760)
+ * `getenrollments` RPC call implementation returned duplicate wrong records
+   along with proper ones (#1760)
+ * NEP5 tracking code wasn't deleting entries with zero balance leading to
+   excessive getnep5balances request outputs for some addresses (#1760)
+ * NEP5 tracking code wasn't able to handle tokens overflowing int64 in
+   transfer and balance amounts (like pnWETH, #1760)
+ * `confirmations` value in `getblock` RPC call response was shifted by two
+   (#1760)
+ * some fields with default values were omitted for `getrawtransaction` and
+   `getblock` RPC call answers with Register and Publish transactions (#1760)
+
 ## 0.78.2 "Colorization" (03 December 2020)
 
 Release 0.78.2 adds some minor features to the node while still being
