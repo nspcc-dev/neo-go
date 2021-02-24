@@ -13,6 +13,11 @@ executors:
       - image: circleci/golang:1.14
         environment:
           GO111MODULE: "on"
+  go1_15:
+    docker:
+      - image: circleci/golang:1.15
+        environment:
+          GO111MODULE: "on"
 
 commands:
   gomod:
@@ -29,7 +34,7 @@ commands:
 jobs:
   lint:
     working_directory: /go/src/github.com/nspcc-dev/neo-go
-    executor: go1_14
+    executor: go1_15
     steps:
       - checkout
       - gomod
@@ -41,7 +46,7 @@ jobs:
 
   vet:
     working_directory: /go/src/github.com/nspcc-dev/neo-go
-    executor: go1_14
+    executor: go1_15
     steps:
       - checkout
       - gomod
@@ -71,7 +76,7 @@ jobs:
 
   test_cover:
     working_directory: /go/src/github.com/nspcc-dev/neo-go
-    executor: go1_14
+    executor: go1_15
     environment:
         CGO_ENABLED: 0
     steps:
@@ -85,7 +90,7 @@ jobs:
 
   build_cli:
     working_directory: /go/src/github.com/nspcc-dev/neo-go
-    executor: go1_14
+    executor: go1_15
     steps:
       - checkout
       - gomod
@@ -96,7 +101,7 @@ jobs:
 
   build_image:
     working_directory: /go/src/github.com/nspcc-dev/neo-go
-    executor: go1_14
+    executor: go1_15
     docker:
       - image: golang:1-alpine
     steps:
