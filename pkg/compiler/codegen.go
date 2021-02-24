@@ -872,7 +872,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 
 		c.saveSequencePoint(n)
 
-		args := transformArgs(n.Fun, n.Args)
+		args := transformArgs(f, n.Fun, n.Args)
 
 		// Handle the arguments
 		for _, arg := range args {
@@ -888,7 +888,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			}
 		}
 		// Do not swap for builtin functions.
-		if !isBuiltin {
+		if !isBuiltin && (f != nil && !isSyscall(f)) {
 			typ, ok := c.typeOf(n.Fun).(*types.Signature)
 			if ok && typ.Variadic() && !n.Ellipsis.IsValid() {
 				// pack variadic args into an array only if last argument is not of form `...`
@@ -932,7 +932,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 					c.emittedEvents[name] = append(c.emittedEvents[name], params)
 				}
 			}
-			c.convertSyscall(n, f.pkg.Name(), f.name)
+			c.convertSyscall(n)
 		default:
 			emit.Call(c.prog.BinWriter, opcode.CALLL, f.label)
 		}
@@ -1523,12 +1523,13 @@ func (c *codegen) getByteArray(expr ast.Expr) []byte {
 	}
 }
 
-func (c *codegen) convertSyscall(expr *ast.CallExpr, api, name string) {
-	syscall, ok := syscalls[api][name]
-	if !ok {
-		c.prog.Err = fmt.Errorf("unknown VM syscall api: %s.%s", api, name)
-		return
+func (c *codegen) convertSyscall(expr *ast.CallExpr) {
+	for _, arg := range expr.Args[1:] {
+		ast.Walk(c, arg)
 	}
+	c.emitReverse(len(expr.Args) - 1)
+	tv := c.typeAndValueOf(expr.Args[0])
+	syscall := constant.StringVal(tv.Value)
 	emit.Syscall(c.prog.BinWriter, syscall)
 
 	// This NOP instruction is basically not needed, but if we do, we have a
@@ -1714,11 +1715,14 @@ func (c *codegen) convertBuiltin(expr *ast.CallExpr) {
 //    so there is no need to push parameters on stack and perform an actual call
 // 2. With panic, generated code depends on if argument was nil or a string so
 //    it should be handled accordingly.
-func transformArgs(fun ast.Expr, args []ast.Expr) []ast.Expr {
+func transformArgs(fs *funcScope, fun ast.Expr, args []ast.Expr) []ast.Expr {
 	switch f := fun.(type) {
 	case *ast.SelectorExpr:
 		if f.Sel.Name == "FromAddress" {
 			return args[1:]
+		}
+		if fs != nil && isSyscall(fs) {
+			return nil
 		}
 	case *ast.Ident:
 		switch f.Name {

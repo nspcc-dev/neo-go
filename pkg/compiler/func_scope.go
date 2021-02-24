@@ -131,6 +131,11 @@ func (c *codegen) countLocalsInline(decl *ast.FuncDecl, pkg *types.Package, f *f
 				return false
 			}
 			if inner, ok := c.funcs[name]; ok && canInline(name) {
+				sig, ok := c.typeOf(n.Fun).(*types.Signature)
+				if !ok {
+					info := c.buildInfo.program.Package(pkg.Path())
+					sig = info.Types[n.Fun].Type.(*types.Signature)
+				}
 				for i := range n.Args {
 					switch n.Args[i].(type) {
 					case *ast.Ident:
@@ -138,6 +143,10 @@ func (c *codegen) countLocalsInline(decl *ast.FuncDecl, pkg *types.Package, f *f
 					default:
 						size++
 					}
+				}
+				// Variadic with direct var args.
+				if sig.Variadic() && !n.Ellipsis.IsValid() {
+					size++
 				}
 				innerSz, _ := c.countLocalsInline(inner.decl, inner.pkg, inner)
 				size += innerSz

@@ -277,8 +277,7 @@ func isSyscall(fun *funcScope) bool {
 	if fun.selector == nil || fun.pkg == nil || !isInteropPath(fun.pkg.Path()) {
 		return false
 	}
-	_, ok := syscalls[fun.pkg.Name()][fun.name]
-	return ok
+	return fun.pkg.Name() == "neogointernal" && strings.HasPrefix(fun.name, "Syscall")
 }
 
 const interopPrefix = "github.com/nspcc-dev/neo-go/pkg/interop"
@@ -309,6 +308,13 @@ func canConvert(s string) bool {
 // Currently there is a static list of function which are inlined,
 // this may change in future.
 func canInline(s string) bool {
-	return isNativeHelpersPath(s) ||
-		strings.HasPrefix(s, "github.com/nspcc-dev/neo-go/pkg/compiler/testdata/inline")
+	if strings.HasPrefix(s, "github.com/nspcc-dev/neo-go/pkg/compiler/testdata/inline") {
+		return true
+	}
+	if !isInteropPath(s) {
+		return false
+	}
+	return !strings.HasPrefix(s[len(interopPrefix):], "/neogointernal") &&
+		!strings.HasPrefix(s[len(interopPrefix):], "/util") &&
+		!strings.HasPrefix(s[len(interopPrefix):], "/convert")
 }
