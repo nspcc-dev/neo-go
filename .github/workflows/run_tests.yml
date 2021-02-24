@@ -1,0 +1,192 @@
+name: Tests
+
+on:
+  pull_request:
+    branches:
+      - master
+    types: [opened, synchronize]
+    paths-ignore:
+      - 'scripts/**'
+      - '**/*.md'
+  workflow_dispatch:
+
+env:
+  GO111MODULE: "on"
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-18.04
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.15
+
+      - name: Restore Go modules from cache
+        uses: actions/cache@v2
+        with:
+          path: /home/runner/go/pkg/mod
+          key: deps-${{ hashFiles('go.sum') }}
+
+      - name: Update Go modules
+        run: go mod download -json
+
+      - name: Run linter
+        run: |
+          go get -u -v golang.org/x/lint/golint
+          make lint
+
+  vet:
+    name: Vet
+    runs-on: ubuntu-18.04
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.15
+
+      - name: Restore Go modules from cache
+        uses: actions/cache@v2
+        with:
+          path: /home/runner/go/pkg/mod
+          key: deps-${{ hashFiles('go.sum') }}
+
+      - name: Update Go modules
+        run: go mod download -json
+
+      - name: Run vet
+        run: go vet ./...
+
+  test_cover:
+    name: Coverage
+    runs-on: ubuntu-18.04
+
+    env:
+      CGO_ENABLED: 0
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: Sync VM submodule
+        run: |
+          git submodule sync
+          git submodule update --init
+
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.15
+
+      - name: Restore Go modules from cache
+        uses: actions/cache@v2
+        with:
+          path: /home/runner/go/pkg/mod
+          key: deps-${{ hashFiles('go.sum') }}
+
+      - name: Update Go modules
+        run: go mod download -json
+
+      - name: Write coverage profile
+        run: go test -v ./... -coverprofile=./coverage.txt -covermode=atomic -coverpkg=./pkg...,./cli/...
+
+      - name: Upload coverage results to Codecov
+        uses: codecov/codecov-action@v1
+        with:
+          fail_ci_if_error: false
+          path_to_write_report: ./coverage.txt
+          verbose: true
+
+  tests:
+    name: Go
+    runs-on: ubuntu-18.04
+    strategy:
+      matrix:
+        go_versions: [ '1.13', '1.14', '1.15' ]
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: '${{ matrix.go_versions }}'
+
+      - name: Restore Go modules from cache
+        uses: actions/cache@v2
+        with:
+          path: /home/runner/go/pkg/mod
+          key: deps-${{ hashFiles('go.sum') }}
+
+      - name: Update Go modules
+        run: go mod download -json
+
+      - name: Sync VM submodule
+        run: |
+          git submodule sync
+          git submodule update --init
+
+      - name: Run tests
+        run: go test -v -race ./...
+
+  build_cli:
+    name: Build CLI
+    runs-on: ubuntu-18.04
+
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.15
+
+      - name: Restore Go modules from cache
+        uses: actions/cache@v2
+        with:
+          path: /home/runner/go/pkg/mod
+          key: deps-${{ hashFiles('go.sum') }}
+
+      - name: Update Go modules
+        run: go mod download -json
+
+      - name: Build CLI
+        run: make build
+
+  build_image:
+    needs: build_cli
+    name: Build Docker image
+    runs-on: ubuntu-18.04
+
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.15
+
+      - name: Restore Go modules from cache
+        uses: actions/cache@v2
+        with:
+          path: /home/runner/go/pkg/mod
+          key: deps-${{ hashFiles('go.sum') }}
+
+      - name: Update Go modules
+        run: go mod download -json
+
+      - name: Build Docker image
+        run: make image
