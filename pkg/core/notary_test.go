@@ -20,6 +20,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/network/payload"
 	"github.com/nspcc-dev/neo-go/pkg/services/notary"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
@@ -184,12 +185,18 @@ func TestNotary(t *testing.T) {
 			}
 			scripts[i].InvocationScript = append([]byte{byte(opcode.PUSHDATA1), 64}, requesters[i].PrivateKey().Sign(main.GetSignedPart())...)
 			main.Scripts = scripts
+
+			_ = main.Size() // for size update test
+
 			var fallback *transaction.Transaction
 			if len(NVBincrements) == len(requesters) {
 				fallback = createFallbackTx(requesters[i], main, NVBincrements[i])
 			} else {
 				fallback = createFallbackTx(requesters[i], main)
 			}
+
+			_ = fallback.Size() // for size update test
+
 			payloads[i] = &payload.P2PNotaryRequest{
 				MainTransaction:     main,
 				FallbackTransaction: fallback,
@@ -255,6 +262,10 @@ func TestNotary(t *testing.T) {
 			require.NotNil(t, completedTx, errors.New("main transaction expected to be completed"))
 			require.Equal(t, nKeys+1, len(completedTx.Signers))
 			require.Equal(t, nKeys+1, len(completedTx.Scripts))
+
+			// check that tx size was updated
+			require.Equal(t, io.GetVarSize(completedTx), completedTx.Size())
+
 			interopCtx := bc.newInteropContext(trigger.Verification, bc.dao, nil, completedTx)
 			for i, req := range requests {
 				require.Equal(t, req.MainTransaction.Scripts[i], completedTx.Scripts[i])
@@ -305,6 +316,10 @@ func TestNotary(t *testing.T) {
 					InvocationScript:   append([]byte{byte(opcode.PUSHDATA1), 64}, acc1.PrivateKey().Sign(req.FallbackTransaction.GetSignedPart())...),
 					VerificationScript: []byte{},
 				}, completedTx.Scripts[0])
+
+				// check that tx size was updated
+				require.Equal(t, io.GetVarSize(completedTx), completedTx.Size())
+
 				interopCtx := bc.newInteropContext(trigger.Verification, bc.dao, nil, completedTx)
 				_, err := bc.verifyHashAgainstScript(completedTx.Signers[1].Account, &completedTx.Scripts[1], interopCtx, -1)
 				require.NoError(t, err)

@@ -15,6 +15,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/network/payload"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
@@ -316,7 +317,22 @@ func (n *Notary) finalize(tx *transaction.Transaction) error {
 			break
 		}
 	}
-	return n.onTransaction(tx)
+	newTx, err := updateTxSize(tx)
+	if err != nil {
+		return fmt.Errorf("failed to update completed transaction's size: %w", err)
+	}
+
+	return n.onTransaction(newTx)
+}
+
+// updateTxSize returns transaction with re-calculated size and an error.
+func updateTxSize(tx *transaction.Transaction) (*transaction.Transaction, error) {
+	bw := io.NewBufBinWriter()
+	tx.EncodeBinary(bw.BinWriter)
+	if bw.Err != nil {
+		return nil, fmt.Errorf("encode binary: %w", bw.Err)
+	}
+	return transaction.NewTransactionFromBytes(tx.Network, tx.Bytes())
 }
 
 // verifyIncompleteWitnesses checks that tx either doesn't have all witnesses attached (in this case none of them
