@@ -18,7 +18,7 @@ IMAGE_REPO=nspccdev/neo-go
 
 # All of the targets are phony here because we don't really use make dependency
 # tracking for files
-.PHONY: build deps image check-version clean-cluster push-tag push-to-registry \
+.PHONY: build deps image image-latest image-push image-push-latest check-version clean-cluster push-tag push-to-registry \
 	run run-cluster test vet lint fmt cover
 
 build: deps
@@ -50,13 +50,19 @@ postinst: install
 
 image: deps
 	@echo "=> Building image"
-	@docker build -t $(IMAGE_REPO):latest --build-arg REPO=$(REPO) --build-arg VERSION=$(VERSION) .
 	@docker build -t $(IMAGE_REPO):$(VERSION) --build-arg REPO=$(REPO) --build-arg VERSION=$(VERSION) .
+
+image-latest: deps
+	@echo "=> Building image with 'latest' tag"
+	@docker build -t $(IMAGE_REPO):latest --build-arg REPO=$(REPO) --build-arg VERSION=$(VERSION) .
 
 image-push:
 	@echo "=> Publish image"
-	@docker push $(IMAGE_REPO):latest
 	@docker push $(IMAGE_REPO):$(VERSION)
+
+image-push-latest:
+	@echo "=> Publish image with 'latest' tag"
+	@docker push $(IMAGE_REPO):latest
 
 check-version:
 	git fetch && (! git rev-list ${VERSION})
