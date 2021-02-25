@@ -85,5 +85,6 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_PASSWORD }}
 
-      - name: Push images to registry
+      - name: Push released images to registry
+        if: ${{ github.event_name == 'release' }}
         run: make image-push
