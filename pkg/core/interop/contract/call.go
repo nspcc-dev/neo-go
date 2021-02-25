@@ -19,6 +19,9 @@ import (
 func LoadToken(ic *interop.Context) func(id int32) error {
 	return func(id int32) error {
 		ctx := ic.VM.Context()
+		if !ctx.GetCallFlags().Has(callflag.ReadStates | callflag.AllowCall) {
+			return errors.New("invalid call flags")
+		}
 		tok := ctx.NEF.Tokens[id]
 		if int(tok.ParamCount) > ctx.Estack().Len() {
 			return errors.New("stack is too small")
