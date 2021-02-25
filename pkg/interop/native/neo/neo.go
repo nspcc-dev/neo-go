@@ -56,22 +56,22 @@ func GetGASPerBlock() int {
 
 // SetGASPerBlock represents `setGasPerBlock` method of NEO native contract.
 func SetGASPerBlock(amount int) {
-	contract.Call(interop.Hash160(Hash), "setGasPerBlock", contract.WriteStates, amount)
+	contract.Call(interop.Hash160(Hash), "setGasPerBlock", contract.States, amount)
 }
 
 // RegisterCandidate represents `registerCandidate` method of NEO native contract.
 func RegisterCandidate(pub interop.PublicKey) bool {
-	return contract.Call(interop.Hash160(Hash), "registerCandidate", contract.WriteStates, pub).(bool)
+	return contract.Call(interop.Hash160(Hash), "registerCandidate", contract.States, pub).(bool)
 }
 
 // UnregisterCandidate represents `unregisterCandidate` method of NEO native contract.
 func UnregisterCandidate(pub interop.PublicKey) bool {
-	return contract.Call(interop.Hash160(Hash), "unregisterCandidate", contract.WriteStates, pub).(bool)
+	return contract.Call(interop.Hash160(Hash), "unregisterCandidate", contract.States, pub).(bool)
 }
 
 // Vote represents `vote` method of NEO native contract.
 func Vote(addr interop.Hash160, pub interop.PublicKey) bool {
-	return contract.Call(interop.Hash160(Hash), "vote", contract.WriteStates, addr, pub).(bool)
+	return contract.Call(interop.Hash160(Hash), "vote", contract.States, addr, pub).(bool)
 }
 
 // UnclaimedGAS represents `unclaimedGas` method of NEO native contract.

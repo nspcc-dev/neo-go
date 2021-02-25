@@ -65,17 +65,17 @@ func TokensOf(addr interop.Hash160) iterator.Iterator {
 // Transfer represents `transfer` method of NameService native contract.
 func Transfer(to interop.Hash160, tokenID string) bool {
 	return contract.Call(interop.Hash160(Hash), "transfer",
-		contract.ReadStates|contract.WriteStates|contract.AllowNotify, to, tokenID).(bool)
+		contract.ReadStates|contract.States|contract.AllowNotify, to, tokenID).(bool)
 }
 
 // AddRoot represents `addRoot` method of NameService native contract.
 func AddRoot(root string) {
-	contract.Call(interop.Hash160(Hash), "addRoot", contract.WriteStates, root)
+	contract.Call(interop.Hash160(Hash), "addRoot", contract.States, root)
 }
 
 // SetPrice represents `setPrice` method of NameService native contract.
 func SetPrice(price int) {
-	contract.Call(interop.Hash160(Hash), "setPrice", contract.WriteStates, price)
+	contract.Call(interop.Hash160(Hash), "setPrice", contract.States, price)
 }
 
 // GetPrice represents `getPrice` method of NameService native contract.
@@ -90,22 +90,22 @@ func IsAvailable(name string) bool {
 
 // Register represents `register` method of NameService native contract.
 func Register(name string, owner interop.Hash160) bool {
-	return contract.Call(interop.Hash160(Hash), "register", contract.WriteStates, name, owner).(bool)
+	return contract.Call(interop.Hash160(Hash), "register", contract.States, name, owner).(bool)
 }
 
 // Renew represents `renew` method of NameService native contract.
 func Renew(name string) int {
-	return contract.Call(interop.Hash160(Hash), "renew", contract.WriteStates, name).(int)
+	return contract.Call(interop.Hash160(Hash), "renew", contract.States, name).(int)
 }
 
 // SetAdmin represents `setAdmin` method of NameService native contract.
 func SetAdmin(name string, admin interop.Hash160) {
-	contract.Call(interop.Hash160(Hash), "setAdmin", contract.WriteStates, name, admin)
+	contract.Call(interop.Hash160(Hash), "setAdmin", contract.States, name, admin)
 }
 
 // SetRecord represents `setRecord` method of NameService native contract.
 func SetRecord(name string, recType RecordType, data string) {
-	contract.Call(interop.Hash160(Hash), "setRecord", contract.WriteStates, name, recType, data)
+	contract.Call(interop.Hash160(Hash), "setRecord", contract.States, name, recType, data)
 }
 
 // GetRecord represents `getRecord` method of NameService native contract.
@@ -116,7 +116,7 @@ func GetRecord(name string, recType RecordType) []byte {
 
 // DeleteRecord represents `deleteRecord` method of NameService native contract.
 func DeleteRecord(name string, recType RecordType) {
-	contract.Call(interop.Hash160(Hash), "deleteRecord", contract.WriteStates, name, recType)
+	contract.Call(interop.Hash160(Hash), "deleteRecord", contract.States, name, recType)
 }
 
 // Resolve represents `resolve` method of NameService native contract.
