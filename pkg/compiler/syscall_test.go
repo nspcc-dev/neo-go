@@ -4,10 +4,12 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	istorage "github.com/nspcc-dev/neo-go/pkg/core/interop/storage"
 	"github.com/nspcc-dev/neo-go/pkg/interop/contract"
 	"github.com/nspcc-dev/neo-go/pkg/interop/storage"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
+	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -71,4 +73,22 @@ func TestNotify(t *testing.T) {
 	assert.Equal(t, exp0, s.events[0].Item.Value())
 	assert.Equal(t, "single", s.events[1].Name)
 	assert.Equal(t, []stackitem.Item{}, s.events[1].Item.Value())
+}
+
+func TestSyscallInGlobalInit(t *testing.T) {
+	src := `package foo
+		import "github.com/nspcc-dev/neo-go/pkg/interop/binary"
+		var a = binary.Base58Decode([]byte("5T"))
+		func Main() []byte {
+			return a
+		}`
+	v, s := vmAndCompileInterop(t, src)
+	s.interops[interopnames.ToID([]byte(interopnames.SystemBinaryBase58Decode))] = func(v *vm.VM) error {
+		s := v.Estack().Pop().Value().([]byte)
+		require.Equal(t, "5T", string(s))
+		v.Estack().PushVal([]byte{1, 2})
+		return nil
+	}
+	require.NoError(t, v.Run())
+	require.Equal(t, []byte{1, 2}, v.Estack().Pop().Value())
 }

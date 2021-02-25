@@ -42,7 +42,7 @@ func Base58Encode(b []byte) string {
 // Base58Decode decodes given base58 string represented as a byte slice into
 // a new byte slice. It uses `System.Binary.Base58Decode` syscall.
 func Base58Decode(b []byte) []byte {
-	return neogointernal.Syscall1("System.Binary.Base64Decode", b).([]byte)
+	return neogointernal.Syscall1("System.Binary.Base58Decode", b).([]byte)
 }
 
 // Itoa converts num in a given base to string. Base should be either 10 or 16.

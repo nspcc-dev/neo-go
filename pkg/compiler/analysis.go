@@ -46,13 +46,24 @@ func (c *codegen) traverseGlobals() (int, int, int) {
 	var n, nConst int
 	initLocals := -1
 	deployLocals := -1
-	c.ForEachFile(func(f *ast.File, _ *types.Package) {
+	c.ForEachFile(func(f *ast.File, pkg *types.Package) {
 		nv, nc := countGlobals(f)
 		n += nv
 		nConst += nc
 		if initLocals == -1 || deployLocals == -1 || !hasDefer {
 			ast.Inspect(f, func(node ast.Node) bool {
 				switch n := node.(type) {
+				case *ast.GenDecl:
+					if n.Tok == token.VAR {
+						for i := range n.Specs {
+							for _, v := range n.Specs[i].(*ast.ValueSpec).Values {
+								num := c.countLocalsCall(v, pkg)
+								if num > initLocals {
+									initLocals = num
+								}
+							}
+						}
+					}
 				case *ast.FuncDecl:
 					if isInitFunc(n) {
 						num, _ := c.countLocals(n)

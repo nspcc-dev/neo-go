@@ -115,6 +115,32 @@ func TestInline(t *testing.T) {
 	})
 }
 
+func TestInlineGlobalVariable(t *testing.T) {
+	t.Run("simple", func(t *testing.T) {
+		src := `package foo
+		import "github.com/nspcc-dev/neo-go/pkg/compiler/testdata/inline"
+		var a = inline.Sum(1, 2)
+		func Main() int {
+			return a
+		}`
+		eval(t, src, big.NewInt(3))
+	})
+	t.Run("complex", func(t *testing.T) {
+		src := `package foo
+		import "github.com/nspcc-dev/neo-go/pkg/compiler/testdata/inline"
+		var a = inline.Sum(3, 4)
+		var b = inline.SumSquared(1, 2) 
+		var c = a + b
+		func init() {
+			c--
+		}
+		func Main() int {
+			return c
+		}`
+		eval(t, src, big.NewInt(15))
+	})
+}
+
 func TestInlineConversion(t *testing.T) {
 	src1 := `package foo
 	import "github.com/nspcc-dev/neo-go/pkg/compiler/testdata/inline"
