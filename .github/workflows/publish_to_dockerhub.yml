@@ -1,0 +1,90 @@
+name: Push images to DockerHub
+
+# Controls when the action will run.
+on:
+  push:
+    # Publish `master` as Docker `latest` and `git_revision` images.
+    branches:
+      - master
+  release:
+    # Publish released commit as Docker `latest` and `git_revision` images.
+    types:
+      - published
+
+  # Allows to run this workflow manually from the Actions tab.
+  workflow_dispatch:
+
+# Environment variables.
+env:
+  GO111MODULE: "on"
+
+# A workflow run.
+jobs:
+  test:
+    name: Run tests before publishing
+    runs-on: ubuntu-18.04
+
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: Sync VM submodule
+        run: |
+          git submodule sync
+          git submodule update --init
+
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.15
+
+      - name: Restore go modules from cache
+        uses: actions/cache@v2
+        with:
+          path: /go/pkg/mod
+          key: deps-${{ hashFiles('go.sum') }}
+
+      - name: Update Go modules
+        run: go mod download
+
+      - name: Run tests
+        run: make test
+  publish:
+    # Ensure test job passes before pushing image.
+    needs: test
+    name: Publish image to DockerHub
+    runs-on: ubuntu-18.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          # Allows to fetch all history for all branches and tags. Need this for proper versioning.
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.15
+
+      - name: Restore go modules from cache
+        uses: actions/cache@v2
+        with:
+          path: /go/pkg/mod
+          key: deps-${{ hashFiles('go.sum') }}
+
+      - name: Update Go modules
+        run: go mod download
+
+      - name: Build images
+        run: make image
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v1
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD }}
+
+      - name: Push released images to registry
+        if: ${{ github.event_name == 'release' }}
+        run: make image-push

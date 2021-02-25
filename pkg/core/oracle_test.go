@@ -280,7 +280,7 @@ func TestOracleFull(t *testing.T) {
 	putOracleRequest(t, cs.Hash, bc, "http://get.1234", new(string), "handle", []byte{}, 10_000_000)
 
 	require.Eventually(t, func() bool { return mp.Count() == 1 },
-		time.Second*2, time.Millisecond*200)
+		time.Second*3, time.Millisecond*200)
 
 	txes := mp.GetVerifiedTransactions()
 	require.Len(t, txes, 1)
