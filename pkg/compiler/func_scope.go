@@ -102,6 +102,50 @@ func (c *funcScope) analyzeVoidCalls(node ast.Node) bool {
 	return true
 }
 
+func (c *codegen) countLocalsCall(n ast.Expr, pkg *types.Package) int {
+	ce, ok := n.(*ast.CallExpr)
+	if !ok {
+		return -1
+	}
+
+	var size int
+	var name string
+	switch fun := ce.Fun.(type) {
+	case *ast.Ident:
+		var pkgName string
+		if pkg != nil {
+			pkgName = pkg.Path()
+		}
+		name = c.getIdentName(pkgName, fun.Name)
+	case *ast.SelectorExpr:
+		name, _ = c.getFuncNameFromSelector(fun)
+	default:
+		return 0
+	}
+	if inner, ok := c.funcs[name]; ok && canInline(name) {
+		sig, ok := c.typeOf(ce.Fun).(*types.Signature)
+		if !ok {
+			info := c.buildInfo.program.Package(pkg.Path())
+			sig = info.Types[ce.Fun].Type.(*types.Signature)
+		}
+		for i := range ce.Args {
+			switch ce.Args[i].(type) {
+			case *ast.Ident:
+			case *ast.BasicLit:
+			default:
+				size++
+			}
+		}
+		// Variadic with direct var args.
+		if sig.Variadic() && !ce.Ellipsis.IsValid() {
+			size++
+		}
+		innerSz, _ := c.countLocalsInline(inner.decl, inner.pkg, inner)
+		size += innerSz
+	}
+	return size
+}
+
 func (c *codegen) countLocals(decl *ast.FuncDecl) (int, bool) {
 	return c.countLocalsInline(decl, nil, nil)
 }
@@ -117,40 +161,7 @@ func (c *codegen) countLocalsInline(decl *ast.FuncDecl, pkg *types.Package, f *f
 	ast.Inspect(decl, func(n ast.Node) bool {
 		switch n := n.(type) {
 		case *ast.CallExpr:
-			var name string
-			switch fun := n.Fun.(type) {
-			case *ast.Ident:
-				var pkgName string
-				if pkg != nil {
-					pkgName = pkg.Path()
-				}
-				name = c.getIdentName(pkgName, fun.Name)
-			case *ast.SelectorExpr:
-				name, _ = c.getFuncNameFromSelector(fun)
-			default:
-				return false
-			}
-			if inner, ok := c.funcs[name]; ok && canInline(name) {
-				sig, ok := c.typeOf(n.Fun).(*types.Signature)
-				if !ok {
-					info := c.buildInfo.program.Package(pkg.Path())
-					sig = info.Types[n.Fun].Type.(*types.Signature)
-				}
-				for i := range n.Args {
-					switch n.Args[i].(type) {
-					case *ast.Ident:
-					case *ast.BasicLit:
-					default:
-						size++
-					}
-				}
-				// Variadic with direct var args.
-				if sig.Variadic() && !n.Ellipsis.IsValid() {
-					size++
-				}
-				innerSz, _ := c.countLocalsInline(inner.decl, inner.pkg, inner)
-				size += innerSz
-			}
+			size += c.countLocalsCall(n, pkg)
 			return false
 		case *ast.FuncType:
 			num := n.Results.NumFields()

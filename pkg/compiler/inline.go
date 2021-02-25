@@ -19,6 +19,14 @@ func (c *codegen) inlineCall(f *funcScope, n *ast.CallExpr) {
 	pkg := c.buildInfo.program.Package(f.pkg.Path())
 	sig := c.typeOf(n.Fun).(*types.Signature)
 
+	// When inlined call is used during global initialization
+	// there is no func scope, thus this if.
+	if c.scope == nil {
+		c.scope = &funcScope{}
+		c.scope.vars.newScope()
+		defer func() { c.scope = nil }()
+	}
+
 	// Arguments need to be walked with the current scope,
 	// while stored in the new.
 	oldScope := c.scope.vars.locals
