@@ -197,7 +197,7 @@ func TestAppCall(t *testing.T) {
 	})
 
 	t.Run("callEx, valid", func(t *testing.T) {
-		src := getCallExScript(fmt.Sprintf("%#v", ih.BytesBE()), "contract.AllowCall")
+		src := getCallExScript(fmt.Sprintf("%#v", ih.BytesBE()), "contract.ReadStates|contract.AllowCall")
 		v := spawnVM(t, ic, src)
 		require.NoError(t, v.Run())
 

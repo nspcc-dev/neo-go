@@ -115,18 +115,18 @@ func newNEO() *NEO {
 
 	desc = newDescriptor("registerCandidate", smartcontract.BoolType,
 		manifest.NewParameter("pubkey", smartcontract.ByteArrayType))
-	md = newMethodAndPrice(n.registerCandidate, 1000_00000000, callflag.WriteStates)
+	md = newMethodAndPrice(n.registerCandidate, 1000_00000000, callflag.States)
 	n.AddMethod(md, desc)
 
 	desc = newDescriptor("unregisterCandidate", smartcontract.BoolType,
 		manifest.NewParameter("pubkey", smartcontract.ByteArrayType))
-	md = newMethodAndPrice(n.unregisterCandidate, 5000000, callflag.WriteStates)
+	md = newMethodAndPrice(n.unregisterCandidate, 5000000, callflag.States)
 	n.AddMethod(md, desc)
 
 	desc = newDescriptor("vote", smartcontract.BoolType,
 		manifest.NewParameter("account", smartcontract.Hash160Type),
 		manifest.NewParameter("voteTo", smartcontract.ByteArrayType))
-	md = newMethodAndPrice(n.vote, 5000000, callflag.WriteStates)
+	md = newMethodAndPrice(n.vote, 5000000, callflag.States)
 	n.AddMethod(md, desc)
 
 	desc = newDescriptor("getCandidates", smartcontract.ArrayType)
@@ -147,7 +147,7 @@ func newNEO() *NEO {
 
 	desc = newDescriptor("setGasPerBlock", smartcontract.VoidType,
 		manifest.NewParameter("gasPerBlock", smartcontract.IntegerType))
-	md = newMethodAndPrice(n.setGASPerBlock, 500_0000, callflag.WriteStates)
+	md = newMethodAndPrice(n.setGASPerBlock, 500_0000, callflag.States)
 	n.AddMethod(md, desc)
 
 	return n

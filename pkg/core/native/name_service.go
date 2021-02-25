@@ -103,12 +103,12 @@ func newNameService() *NameService {
 
 	desc := newDescriptor("addRoot", smartcontract.VoidType,
 		manifest.NewParameter("root", smartcontract.StringType))
-	md := newMethodAndPrice(n.addRoot, 3000000, callflag.WriteStates)
+	md := newMethodAndPrice(n.addRoot, 3000000, callflag.States)
 	n.AddMethod(md, desc)
 
 	desc = newDescriptor("setPrice", smartcontract.VoidType,
 		manifest.NewParameter("price", smartcontract.IntegerType))
-	md = newMethodAndPrice(n.setPrice, 3000000, callflag.WriteStates)
+	md = newMethodAndPrice(n.setPrice, 3000000, callflag.States)
 	n.AddMethod(md, desc)
 
 	desc = newDescriptor("getPrice", smartcontract.IntegerType)
@@ -123,25 +123,25 @@ func newNameService() *NameService {
 	desc = newDescriptor("register", smartcontract.BoolType,
 		manifest.NewParameter("name", smartcontract.StringType),
 		manifest.NewParameter("owner", smartcontract.Hash160Type))
-	md = newMethodAndPrice(n.register, 1000000, callflag.WriteStates)
+	md = newMethodAndPrice(n.register, 1000000, callflag.States)
 	n.AddMethod(md, desc)
 
 	desc = newDescriptor("renew", smartcontract.IntegerType,
 		manifest.NewParameter("name", smartcontract.StringType))
-	md = newMethodAndPrice(n.renew, 0, callflag.WriteStates)
+	md = newMethodAndPrice(n.renew, 0, callflag.States)
 	n.AddMethod(md, desc)
 
 	desc = newDescriptor("setAdmin", smartcontract.VoidType,
 		manifest.NewParameter("name", smartcontract.StringType),
 		manifest.NewParameter("admin", smartcontract.Hash160Type))
-	md = newMethodAndPrice(n.setAdmin, 3000000, callflag.WriteStates)
+	md = newMethodAndPrice(n.setAdmin, 3000000, callflag.States)
 	n.AddMethod(md, desc)
 
 	desc = newDescriptor("setRecord", smartcontract.VoidType,
 		manifest.NewParameter("name", smartcontract.StringType),
 		manifest.NewParameter("type", smartcontract.IntegerType),
 		manifest.NewParameter("data", smartcontract.StringType))
-	md = newMethodAndPrice(n.setRecord, 30000000, callflag.WriteStates)
+	md = newMethodAndPrice(n.setRecord, 30000000, callflag.States)
 	n.AddMethod(md, desc)
 
 	desc = newDescriptor("getRecord", smartcontract.StringType,
@@ -153,7 +153,7 @@ func newNameService() *NameService {
 	desc = newDescriptor("deleteRecord", smartcontract.VoidType,
 		manifest.NewParameter("name", smartcontract.StringType),
 		manifest.NewParameter("type", smartcontract.IntegerType))
-	md = newMethodAndPrice(n.deleteRecord, 1000000, callflag.WriteStates)
+	md = newMethodAndPrice(n.deleteRecord, 1000000, callflag.States)
 	n.AddMethod(md, desc)
 
 	desc = newDescriptor("resolve", smartcontract.StringType,

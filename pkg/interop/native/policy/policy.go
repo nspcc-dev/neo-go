@@ -15,7 +15,7 @@ func GetMaxTransactionsPerBlock() int {
 
 // SetMaxTransactionsPerBlock represents `setMaxTransactionsPerBlock` method of Policy native contract.
 func SetMaxTransactionsPerBlock(value int) {
-	contract.Call(interop.Hash160(Hash), "setMaxTransactionsPerBlock", contract.WriteStates, value)
+	contract.Call(interop.Hash160(Hash), "setMaxTransactionsPerBlock", contract.States, value)
 }
 
 // GetMaxBlockSize represents `getMaxBlockSize` method of Policy native contract.
@@ -25,7 +25,7 @@ func GetMaxBlockSize() int {
 
 // SetMaxBlockSize represents `setMaxBlockSize` method of Policy native contract.
 func SetMaxBlockSize(value int) {
-	contract.Call(interop.Hash160(Hash), "setMaxBlockSize", contract.WriteStates, value)
+	contract.Call(interop.Hash160(Hash), "setMaxBlockSize", contract.States, value)
 }
 
 // GetFeePerByte represents `getFeePerByte` method of Policy native contract.
@@ -35,7 +35,7 @@ func GetFeePerByte() int {
 
 // SetFeePerByte represents `setFeePerByte` method of Policy native contract.
 func SetFeePerByte(value int) {
-	contract.Call(interop.Hash160(Hash), "setFeePerByte", contract.WriteStates, value)
+	contract.Call(interop.Hash160(Hash), "setFeePerByte", contract.States, value)
 }
 
 // GetMaxBlockSystemFee represents `getMaxBlockSystemFee` method of Policy native contract.
@@ -45,7 +45,7 @@ func GetMaxBlockSystemFee() int {
 
 // SetMaxBlockSystemFee represents `setMaxBlockSystemFee` method of Policy native contract.
 func SetMaxBlockSystemFee(value int) {
-	contract.Call(interop.Hash160(Hash), "setMaxBlockSystemFee", contract.WriteStates, value)
+	contract.Call(interop.Hash160(Hash), "setMaxBlockSystemFee", contract.States, value)
 }
 
 // GetExecFeeFactor represents `getExecFeeFactor` method of Policy native contract.
@@ -55,7 +55,7 @@ func GetExecFeeFactor() int {
 
 // SetExecFeeFactor represents `setExecFeeFactor` method of Policy native contract.
 func SetExecFeeFactor(value int) {
-	contract.Call(interop.Hash160(Hash), "setExecFeeFactor", contract.WriteStates, value)
+	contract.Call(interop.Hash160(Hash), "setExecFeeFactor", contract.States, value)
 }
 
 // GetStoragePrice represents `getStoragePrice` method of Policy native contract.
@@ -65,7 +65,7 @@ func GetStoragePrice() int {
 
 // SetStoragePrice represents `setStoragePrice` method of Policy native contract.
 func SetStoragePrice(value int) {
-	contract.Call(interop.Hash160(Hash), "setStoragePrice", contract.WriteStates, value)
+	contract.Call(interop.Hash160(Hash), "setStoragePrice", contract.States, value)
 }
 
 // IsBlocked represents `isBlocked` method of Policy native contract.
@@ -75,10 +75,10 @@ func IsBlocked(addr interop.Hash160) bool {
 
 // BlockAccount represents `blockAccount` method of Policy native contract.
 func BlockAccount(addr interop.Hash160) bool {
-	return contract.Call(interop.Hash160(Hash), "blockAccount", contract.WriteStates, addr).(bool)
+	return contract.Call(interop.Hash160(Hash), "blockAccount", contract.States, addr).(bool)
 }
 
 // UnblockAccount represents `unblockAccount` method of Policy native contract.
 func UnblockAccount(addr interop.Hash160) bool {
-	return contract.Call(interop.Hash160(Hash), "unblockAccount", contract.WriteStates, addr).(bool)
+	return contract.Call(interop.Hash160(Hash), "unblockAccount", contract.States, addr).(bool)
 }

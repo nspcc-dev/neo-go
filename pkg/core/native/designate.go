@@ -91,7 +91,7 @@ func newDesignate(p2pSigExtensionsEnabled bool) *Designate {
 	desc = newDescriptor("designateAsRole", smartcontract.VoidType,
 		manifest.NewParameter("role", smartcontract.IntegerType),
 		manifest.NewParameter("nodes", smartcontract.ArrayType))
-	md = newMethodAndPrice(s.designateAsRole, 0, callflag.WriteStates)
+	md = newMethodAndPrice(s.designateAsRole, 0, callflag.States)
 	s.AddMethod(md, desc)
 
 	return s
