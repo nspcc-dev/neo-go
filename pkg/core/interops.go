@@ -41,7 +41,7 @@ var systemInterops = []interop.Function{
 	{Name: interopnames.SystemBinaryItoa, Func: binary.Itoa, Price: 1 << 12, ParamCount: 2},
 	{Name: interopnames.SystemBinarySerialize, Func: binary.Serialize, Price: 1 << 12, ParamCount: 1},
 	{Name: interopnames.SystemContractCall, Func: contract.Call, Price: 1 << 15,
-		RequiredFlags: callflag.AllowCall, ParamCount: 4},
+		RequiredFlags: callflag.ReadStates | callflag.AllowCall, ParamCount: 4},
 	{Name: interopnames.SystemContractCallNative, Func: native.Call, Price: 0, ParamCount: 1},
 	{Name: interopnames.SystemContractCreateMultisigAccount, Func: contractCreateMultisigAccount, Price: 1 << 8, ParamCount: 1},
 	{Name: interopnames.SystemContractCreateStandardAccount, Func: contractCreateStandardAccount, Price: 1 << 8, ParamCount: 1},
