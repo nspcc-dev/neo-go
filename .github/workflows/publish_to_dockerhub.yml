@@ -13,6 +13,15 @@ on:
 
   # Allows to run this workflow manually from the Actions tab.
   workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Ref to build Docker image [default: latest master; examples: v0.92.0, 0a4ff9d3e4a9ab432fd5812eb18c98e03b5a7432]'
+        required: false
+        default: ''
+      push_image:
+        description: 'Push image to DockerHub [default: false; examples: true, false]'
+        required: false
+        default: 'false'
 
 # Environment variables.
 env:
@@ -25,8 +34,19 @@ jobs:
     runs-on: ubuntu-18.04
 
     steps:
-      - uses: actions/checkout@v2
+      - name: Checkout (manual run)
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        uses: actions/checkout@v2
         with:
+          ref: ${{ github.event.inputs.ref }}
+          # Allows to fetch all history for all branches and tags. Need this for proper versioning.
+          fetch-depth: 0
+
+      - name: Checkout (automatical run)
+        if: ${{ github.event_name != 'workflow_dispatch' }}
+        uses: actions/checkout@v2
+        with:
+          # Allows to fetch all history for all branches and tags. Need this for proper versioning.
           fetch-depth: 0
 
       - name: Sync VM submodule
@@ -56,7 +76,16 @@ jobs:
     name: Publish image to DockerHub
     runs-on: ubuntu-18.04
     steps:
-      - name: Checkout
+      - name: Checkout (manual run)
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        uses: actions/checkout@v2
+        with:
+          ref: ${{ github.event.inputs.ref }}
+          # Allows to fetch all history for all branches and tags. Need this for proper versioning.
+          fetch-depth: 0
+
+      - name: Checkout (automatical run)
+        if: ${{ github.event_name != 'workflow_dispatch' }}
         uses: actions/checkout@v2
         with:
           # Allows to fetch all history for all branches and tags. Need this for proper versioning.
@@ -86,5 +115,5 @@ jobs:
           password: ${{ secrets.DOCKERHUB_PASSWORD }}
 
       - name: Push released images to registry
-        if: ${{ github.event_name == 'release' }}
+        if: ${{ github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && github.event.inputs.push_image == 'true') }}
         run: make image-push
