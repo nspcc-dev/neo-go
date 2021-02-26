@@ -115,6 +115,56 @@ func TestInline(t *testing.T) {
 	})
 }
 
+func TestInlineInLoop(t *testing.T) {
+	t.Run("simple", func(t *testing.T) {
+		src := `package foo
+		import "github.com/nspcc-dev/neo-go/pkg/interop/binary"
+		import "github.com/nspcc-dev/neo-go/pkg/compiler/testdata/inline"
+		func Main() int {
+			sum := 0
+			values := []int{10, 11}
+			for _, v := range values {
+				binary.Itoa(v, 10)
+				sum += inline.VarSum(1, 2, 3, 4)
+			}
+			return sum
+		}`
+		eval(t, src, big.NewInt(20))
+	})
+	t.Run("check clean stack on return", func(t *testing.T) {
+		src := `package foo
+		import "github.com/nspcc-dev/neo-go/pkg/interop/binary"
+		import "github.com/nspcc-dev/neo-go/pkg/compiler/testdata/inline"
+		func Main() int {
+			values := []int{10, 11, 12}
+			for _, v := range values {
+				binary.Itoa(v, 10)
+				if v == 11 {
+					return inline.VarSum(2, 20, 200)
+				}
+			}
+			return 0
+		}`
+		eval(t, src, big.NewInt(222))
+	})
+}
+
+func TestInlineInSwitch(t *testing.T) {
+	src := `package foo
+	import "github.com/nspcc-dev/neo-go/pkg/compiler/testdata/inline"
+	func Main() int {
+		switch inline.VarSum(1, 2) {
+		case inline.VarSum(3, 1):
+			return 10
+		case inline.VarSum(4, -1):
+			return 11
+		default:
+			return 12
+		}
+	}`
+	eval(t, src, big.NewInt(11))
+}
+
 func TestInlineGlobalVariable(t *testing.T) {
 	t.Run("simple", func(t *testing.T) {
 		src := `package foo

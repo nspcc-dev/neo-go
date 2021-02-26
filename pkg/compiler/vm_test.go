@@ -107,6 +107,7 @@ func newStoragePlugin() *storagePlugin {
 	s.interops[interopnames.ToID([]byte(interopnames.SystemStoragePut))] = s.Put
 	s.interops[interopnames.ToID([]byte(interopnames.SystemStorageGetContext))] = s.GetContext
 	s.interops[interopnames.ToID([]byte(interopnames.SystemRuntimeNotify))] = s.Notify
+	s.interops[interopnames.ToID([]byte(interopnames.SystemBinaryItoa))] = s.Itoa
 	return s
 
 }
@@ -120,6 +121,13 @@ func (s *storagePlugin) syscallHandler(v *vm.VM, id uint32) error {
 		return f(v)
 	}
 	return errors.New("syscall not found")
+}
+
+func (s *storagePlugin) Itoa(v *vm.VM) error {
+	n := v.Estack().Pop().BigInt()
+	base := v.Estack().Pop().BigInt()
+	v.Estack().PushVal(n.Text(int(base.Int64())))
+	return nil
 }
 
 func (s *storagePlugin) Notify(v *vm.VM) error {
