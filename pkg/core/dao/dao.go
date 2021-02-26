@@ -31,7 +31,7 @@ var (
 // DAO is a data access object.
 type DAO interface {
 	AppendAppExecResult(aer *state.AppExecResult, buf *io.BufBinWriter) error
-	AppendNEP17Transfer(acc util.Uint160, index uint32, tr *state.NEP17Transfer) (bool, error)
+	AppendNEP17Transfer(acc util.Uint160, index uint32, isNew bool, tr *state.NEP17Transfer) (bool, error)
 	DeleteBlock(h util.Uint256, buf *io.BufBinWriter) error
 	DeleteContractID(id int32) error
 	DeleteStorageItem(id int32, key []byte) error
@@ -205,13 +205,16 @@ func (dao *Simple) PutNEP17TransferLog(acc util.Uint160, index uint32, lg *state
 
 // AppendNEP17Transfer appends a single NEP17 transfer to a log.
 // First return value signalizes that log size has exceeded batch size.
-func (dao *Simple) AppendNEP17Transfer(acc util.Uint160, index uint32, tr *state.NEP17Transfer) (bool, error) {
-	lg, err := dao.GetNEP17TransferLog(acc, index)
-	if err != nil {
-		if err != storage.ErrKeyNotFound {
+func (dao *Simple) AppendNEP17Transfer(acc util.Uint160, index uint32, isNew bool, tr *state.NEP17Transfer) (bool, error) {
+	var lg *state.NEP17TransferLog
+	if isNew {
+		lg = new(state.NEP17TransferLog)
+	} else {
+		var err error
+		lg, err = dao.GetNEP17TransferLog(acc, index)
+		if err != nil {
 			return false, err
 		}
-		lg = new(state.NEP17TransferLog)
 	}
 	if err := lg.Append(tr); err != nil {
 		return false, err

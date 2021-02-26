@@ -61,10 +61,16 @@ func (cd *Cached) PutNEP17TransferLog(acc util.Uint160, index uint32, bs *state.
 }
 
 // AppendNEP17Transfer appends new transfer to a transfer event log.
-func (cd *Cached) AppendNEP17Transfer(acc util.Uint160, index uint32, tr *state.NEP17Transfer) (bool, error) {
-	lg, err := cd.GetNEP17TransferLog(acc, index)
-	if err != nil {
-		return false, err
+func (cd *Cached) AppendNEP17Transfer(acc util.Uint160, index uint32, isNew bool, tr *state.NEP17Transfer) (bool, error) {
+	var lg *state.NEP17TransferLog
+	if isNew {
+		lg = new(state.NEP17TransferLog)
+	} else {
+		var err error
+		lg, err = cd.GetNEP17TransferLog(acc, index)
+		if err != nil {
+			return false, err
+		}
 	}
 	if err := lg.Append(tr); err != nil {
 		return false, err

@@ -50,6 +50,8 @@ type NEP17Balances struct {
 	Trackers map[int32]NEP17Tracker
 	// NextTransferBatch stores an index of the next transfer batch.
 	NextTransferBatch uint32
+	// NewBatch is true if batch with the `NextTransferBatch` index should be created.
+	NewBatch bool
 }
 
 // NewNEP17Balances returns new NEP17Balances.
@@ -62,6 +64,7 @@ func NewNEP17Balances() *NEP17Balances {
 // DecodeBinary implements io.Serializable interface.
 func (bs *NEP17Balances) DecodeBinary(r *io.BinReader) {
 	bs.NextTransferBatch = r.ReadU32LE()
+	bs.NewBatch = r.ReadBool()
 	lenBalances := r.ReadVarUint()
 	m := make(map[int32]NEP17Tracker, lenBalances)
 	for i := 0; i < int(lenBalances); i++ {
@@ -76,6 +79,7 @@ func (bs *NEP17Balances) DecodeBinary(r *io.BinReader) {
 // EncodeBinary implements io.Serializable interface.
 func (bs *NEP17Balances) EncodeBinary(w *io.BinWriter) {
 	w.WriteU32LE(bs.NextTransferBatch)
+	w.WriteBool(bs.NewBatch)
 	w.WriteVarUint(uint64(len(bs.Trackers)))
 	for k, v := range bs.Trackers {
 		w.WriteU32LE(uint32(k))
