@@ -50,15 +50,15 @@ make deps
 
 ### Docker
 
-Each tagged build is built to docker hub and the `:latest` tag pointing at the latest tagged build.
+Each tagged build is published to docker hub and the `:latest` tag pointing at the latest tagged master build.
 
-By default the `CMD` is set to run a node on `testnet`, so to do this simply run:
+By default the `CMD` is set to run a node on `privnet`, so to do this simply run:
 
 ```bash
- docker run -d --name neo-go -p 20332:20332 -p 20333:20333 cityofzion/neo-go
+docker run -d --name neo-go -p 20332:20332 -p 20331:20331 nspccdev/neo-go
 ```
 
-Which will start a node on `testnet` and expose the nodes port `20333` and `20332` for the `JSON-RPC` server.
+Which will start a node on `privnet` and expose the nodes port `20332` and `20331` for the `JSON-RPC` server.
 
 
 ### Building
@@ -71,8 +71,14 @@ make build
 
 ### Running
 
-Quick start a NEO node on the private network. This requires the [neo-privatenet](https://hub.docker.com/r/cityofzion/neo-privatenet/) Docker image running on your machine.
+Quick start a NEO node on the private network.
+To build and run the private network image locally, use:
+```
+make env_image
+make env_up
+```
 
+To start a NEO node on the private network:
 ```
 make run
 ```
@@ -83,7 +89,7 @@ To run the binary directly:
 ./bin/neo-go node
 ```
 
-By default the node will run on the `private network`, to change his:
+By default the node will run on the private network, to change this:
 
 ```
 ./bin/neo-go node --mainnet

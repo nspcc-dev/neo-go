@@ -18,7 +18,7 @@ IMAGE_REPO=nspccdev/neo-go
 
 # All of the targets are phony here because we don't really use make dependency
 # tracking for files
-.PHONY: build deps image check-version clean-cluster push-tag push-to-registry \
+.PHONY: build deps image image-latest image-push image-push-latest check-version clean-cluster push-tag \
 	run run-cluster test vet lint fmt cover
 
 build: deps
@@ -50,13 +50,19 @@ postinst: install
 
 image: deps
 	@echo "=> Building image"
-	@docker build -t $(IMAGE_REPO):latest --build-arg REPO=$(REPO) --build-arg VERSION=$(VERSION) .
 	@docker build -t $(IMAGE_REPO):$(VERSION) --build-arg REPO=$(REPO) --build-arg VERSION=$(VERSION) .
+
+image-latest: deps
+	@echo "=> Building image with 'latest' tag"
+	@docker build -t $(IMAGE_REPO):latest --build-arg REPO=$(REPO) --build-arg VERSION=$(VERSION) .
 
 image-push:
 	@echo "=> Publish image"
-	@docker push $(IMAGE_REPO):latest
 	@docker push $(IMAGE_REPO):$(VERSION)
+
+image-push-latest:
+	@echo "=> Publish image with 'latest' tag"
+	@docker push $(IMAGE_REPO):latest
 
 check-version:
 	git fetch && (! git rev-list ${VERSION})
@@ -70,12 +76,6 @@ push-tag:
 	git pull origin ${BRANCH}
 	git tag ${VERSION}
 	git push origin ${VERSION}
-
-push-to-registry:
-	@docker login -e ${DOCKER_EMAIL} -u ${DOCKER_USER} -p ${DOCKER_PASS}
-	@docker tag CityOfZion/${REPONAME}:latest CityOfZion/${REPONAME}:${CIRCLE_TAG}
-	@docker push CityOfZion/${REPONAME}:${CIRCLE_TAG}
-	@docker push CityOfZion/${REPONAME}
 
 run: build
 	${BINARY} node -config-path ./config -${NETMODE}
