@@ -1235,9 +1235,9 @@ func (s *Server) submitBlock(reqParams request.Params) (interface{}, *response.E
 	if err != nil {
 		switch {
 		case errors.Is(err, core.ErrInvalidBlockIndex) || errors.Is(err, core.ErrAlreadyExists):
-			return nil, response.ErrAlreadyExists
+			return nil, response.WrapErrorWithData(response.ErrAlreadyExists, err)
 		default:
-			return nil, response.ErrValidationFailed
+			return nil, response.WrapErrorWithData(response.ErrValidationFailed, err)
 		}
 	}
 	return &result.RelayResult{
@@ -1273,13 +1273,13 @@ func getRelayResult(err error, hash util.Uint256) (interface{}, *response.Error)
 			Hash: hash,
 		}, nil
 	case errors.Is(err, core.ErrAlreadyExists):
-		return nil, response.ErrAlreadyExists
+		return nil, response.WrapErrorWithData(response.ErrAlreadyExists, err)
 	case errors.Is(err, core.ErrOOM):
-		return nil, response.ErrOutOfMemory
+		return nil, response.WrapErrorWithData(response.ErrOutOfMemory, err)
 	case errors.Is(err, core.ErrPolicy):
-		return nil, response.ErrPolicyFail
+		return nil, response.WrapErrorWithData(response.ErrPolicyFail, err)
 	default:
-		return nil, response.ErrValidationFailed
+		return nil, response.WrapErrorWithData(response.ErrValidationFailed, err)
 	}
 }
 

@@ -93,3 +93,9 @@ func NewSubmitError(code int64, message string) *Error {
 func (e *Error) Error() string {
 	return fmt.Sprintf("%s (%d) - %s - %s", e.Message, e.Code, e.Data, e.Cause)
 }
+
+// WrapErrorWithData returns copy of the given error with specified data and cause.
+// It does not modify the source error.
+func WrapErrorWithData(e *Error, data error) *Error {
+	return NewError(e.Code, e.HTTPCode, e.Message, data.Error(), data)
+}
