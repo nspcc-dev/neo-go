@@ -39,7 +39,8 @@ func (c *codegen) inlineCall(f *funcScope, n *ast.CallExpr) {
 	// while stored in the new.
 	oldScope := c.scope.vars.locals
 	c.scope.vars.newScope()
-	newScope := c.scope.vars.locals
+	newScope := make([]map[string]varInfo, len(c.scope.vars.locals))
+	copy(newScope, c.scope.vars.locals)
 	defer c.scope.vars.dropScope()
 
 	hasVarArgs := !n.Ellipsis.IsValid()

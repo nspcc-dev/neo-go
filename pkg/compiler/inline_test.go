@@ -131,6 +131,21 @@ func TestInlineInLoop(t *testing.T) {
 		}`
 		eval(t, src, big.NewInt(20))
 	})
+	t.Run("inlined argument", func(t *testing.T) {
+		src := `package foo
+		import "github.com/nspcc-dev/neo-go/pkg/interop/binary"
+		import "github.com/nspcc-dev/neo-go/pkg/compiler/testdata/inline"
+		func Main() int {
+			sum := 0
+			values := []int{10, 11}
+			for _, v := range values {
+				binary.Itoa(v, 10)
+				sum += inline.VarSum(1, 2, 3, binary.Atoi("4", 10))
+			}
+			return sum
+		}`
+		eval(t, src, big.NewInt(20))
+	})
 	t.Run("check clean stack on return", func(t *testing.T) {
 		src := `package foo
 		import "github.com/nspcc-dev/neo-go/pkg/interop/binary"
