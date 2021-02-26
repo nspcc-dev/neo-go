@@ -15,7 +15,7 @@ Improvements:
  * RPC documentation was updated mentioning all known differences with C#
    implementation that are considered to be not worth fixing (#1760)
 
-Bufs fixed:
+Bugs fixed:
  * when mempool is full new transaction's hash could still be added into it
    even if transaction is to be rejected afterwards (#1623)
  * `gettxout` RPC API was returning data for already spent outputs, although it
