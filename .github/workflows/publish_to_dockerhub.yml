@@ -62,11 +62,11 @@ jobs:
       - name: Restore go modules from cache
         uses: actions/cache@v2
         with:
-          path: /go/pkg/mod
+          path: /home/runner/go/pkg/mod
           key: deps-${{ hashFiles('go.sum') }}
 
       - name: Update Go modules
-        run: go mod download
+        run: go mod download -json
 
       - name: Run tests
         run: make test
@@ -99,11 +99,11 @@ jobs:
       - name: Restore go modules from cache
         uses: actions/cache@v2
         with:
-          path: /go/pkg/mod
+          path: /home/runner/go/pkg/mod
           key: deps-${{ hashFiles('go.sum') }}
 
       - name: Update Go modules
-        run: go mod download
+        run: go mod download -json
 
       - name: Build images
         run: make image
