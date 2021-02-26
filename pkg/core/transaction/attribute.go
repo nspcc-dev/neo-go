@@ -46,7 +46,9 @@ func (attr *Attribute) DecodeBinary(br *io.BinReader) {
 			attr.Value = new(Reserved)
 			break
 		}
-		br.Err = fmt.Errorf("failed decoding TX attribute usage: 0x%2x", int(attr.Type))
+		if br.Err == nil {
+			br.Err = fmt.Errorf("failed decoding TX attribute usage: 0x%2x", int(attr.Type))
+		}
 		return
 	}
 	attr.Value.DecodeBinary(br)
