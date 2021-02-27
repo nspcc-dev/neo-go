@@ -54,7 +54,11 @@ var (
 	}
 	gasFlag = flags.Fixed8Flag{
 		Name:  "gas, g",
-		Usage: "gas to add to the transaction",
+		Usage: "gas to add to the transaction (network fee)",
+	}
+	sysGasFlag = flags.Fixed8Flag{
+		Name:  "sysgas, s",
+		Usage: "system fee to add to invocation transaction",
 	}
 )
 
@@ -138,7 +142,7 @@ func NewCommands() []cli.Command {
 			{
 				Name:      "invoke",
 				Usage:     "invoke deployed contract on the blockchain",
-				UsageText: "neo-go contract invoke -e endpoint -w wallet [-a address] [-g gas] scripthash [arguments...]",
+				UsageText: "neo-go contract invoke -e endpoint -w wallet [-a address] [-g gas] [-s sysgas] scripthash [arguments...]",
 				Description: `Executes given (as a script hash) deployed script with the given arguments.
    See testinvoke documentation for the details about parameters. It differs
    from testinvoke in that this command sends an invocation transaction to
@@ -150,12 +154,13 @@ func NewCommands() []cli.Command {
 					walletFlag,
 					addressFlag,
 					gasFlag,
+					sysGasFlag,
 				},
 			},
 			{
 				Name:      "invokefunction",
 				Usage:     "invoke deployed contract on the blockchain",
-				UsageText: "neo-go contract invokefunction -e endpoint -w wallet [-a address] [-g gas] scripthash [method] [arguments...]",
+				UsageText: "neo-go contract invokefunction -e endpoint -w wallet [-a address] [-g gas] [-s sysgas] scripthash [method] [arguments...]",
 				Description: `Executes given (as a script hash) deployed script with the given method and
    and arguments. See testinvokefunction documentation for the details about
    parameters. It differs from testinvokefunction in that this command sends an
@@ -167,6 +172,7 @@ func NewCommands() []cli.Command {
 					walletFlag,
 					addressFlag,
 					gasFlag,
+					sysGasFlag,
 				},
 			},
 			{
@@ -424,6 +430,7 @@ func invokeInternal(ctx *cli.Context, withMethod bool, signAndPush bool) error {
 	var (
 		err                     error
 		gas                     util.Fixed8
+		sysGas                  util.Fixed8
 		operation               string
 		params                  = make([]smartcontract.Parameter, 0)
 		paramsStart             = 1
@@ -479,6 +486,7 @@ func invokeInternal(ctx *cli.Context, withMethod bool, signAndPush bool) error {
 
 	if signAndPush {
 		gas = flags.Fixed8FromContext(ctx, "gas")
+		sysGas = flags.Fixed8FromContext(ctx, "sysgas")
 		acc, err = getAccFromContext(ctx)
 		if err != nil {
 			return err
@@ -505,7 +513,7 @@ func invokeInternal(ctx *cli.Context, withMethod bool, signAndPush bool) error {
 		if err != nil {
 			return cli.NewExitError(fmt.Errorf("bad script returned from the RPC node: %v", err), 1)
 		}
-		txHash, err := c.SignAndPushInvocationTx(script, acc, 0, gas)
+		txHash, err := c.SignAndPushInvocationTx(script, acc, sysGas, gas)
 		if err != nil {
 			return cli.NewExitError(fmt.Errorf("failed to push invocation tx: %v", err), 1)
 		}
