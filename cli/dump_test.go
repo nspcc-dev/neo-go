@@ -14,7 +14,9 @@ import (
 func TestDBRestore(t *testing.T) {
 	tmpDir := path.Join(os.TempDir(), "neogo.restoretest")
 	require.NoError(t, os.Mkdir(tmpDir, os.ModePerm))
-	defer os.RemoveAll(tmpDir)
+	t.Cleanup(func() {
+		os.RemoveAll(tmpDir)
+	})
 
 	chainPath := path.Join(tmpDir, "neogotestchain")
 	cfg, err := config.LoadFile("../config/protocol.unit_testnet.yml")
@@ -31,7 +33,6 @@ func TestDBRestore(t *testing.T) {
 	// generated via `go run ./scripts/gendump/main.go --out ./cli/testdata/chain50x2.acc --blocks 50 --txs 2`
 	const inDump = "./testdata/chain50x2.acc"
 	e := newExecutor(t, false)
-	defer e.Close(t)
 	stateDump := path.Join(tmpDir, "neogo.teststate")
 	baseArgs := []string{"neo-go", "db", "restore", "--unittest",
 		"--config-path", tmpDir, "--in", inDump, "--dump", stateDump}

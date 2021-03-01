@@ -11,10 +11,10 @@ import (
 func newBoltStoreForTesting(t *testing.T) Store {
 	testFileName := "test_bolt_db"
 	file, err := ioutil.TempFile("", testFileName)
-	defer func() {
+	t.Cleanup(func() {
 		err := os.RemoveAll(testFileName)
 		require.NoError(t, err)
-	}()
+	})
 	require.NoError(t, err)
 	require.NoError(t, file.Close())
 	boltDBStore, err := NewBoltDBStore(BoltDBOptions{FilePath: testFileName})

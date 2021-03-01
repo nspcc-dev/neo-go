@@ -78,7 +78,6 @@ func testGetSet(t *testing.T, chain *Blockchain, hash util.Uint160, name string,
 
 func TestMaxTransactionsPerBlock(t *testing.T) {
 	chain := newTestChain(t)
-	defer chain.Close()
 
 	t.Run("get, internal method", func(t *testing.T) {
 		n := chain.contracts.Policy.GetMaxTransactionsPerBlockInternal(chain.dao)
@@ -90,7 +89,6 @@ func TestMaxTransactionsPerBlock(t *testing.T) {
 
 func TestMaxBlockSize(t *testing.T) {
 	chain := newTestChain(t)
-	defer chain.Close()
 
 	t.Run("get, internal method", func(t *testing.T) {
 		n := chain.contracts.Policy.GetMaxBlockSizeInternal(chain.dao)
@@ -102,7 +100,6 @@ func TestMaxBlockSize(t *testing.T) {
 
 func TestFeePerByte(t *testing.T) {
 	chain := newTestChain(t)
-	defer chain.Close()
 
 	t.Run("get, internal method", func(t *testing.T) {
 		n := chain.contracts.Policy.GetFeePerByteInternal(chain.dao)
@@ -114,7 +111,6 @@ func TestFeePerByte(t *testing.T) {
 
 func TestExecFeeFactor(t *testing.T) {
 	chain := newTestChain(t)
-	defer chain.Close()
 
 	t.Run("get, internal method", func(t *testing.T) {
 		n := chain.contracts.Policy.GetExecFeeFactorInternal(chain.dao)
@@ -126,7 +122,6 @@ func TestExecFeeFactor(t *testing.T) {
 
 func TestBlockSystemFee(t *testing.T) {
 	chain := newTestChain(t)
-	defer chain.Close()
 
 	t.Run("get, internal method", func(t *testing.T) {
 		n := chain.contracts.Policy.GetMaxBlockSystemFeeInternal(chain.dao)
@@ -138,7 +133,6 @@ func TestBlockSystemFee(t *testing.T) {
 
 func TestStoragePrice(t *testing.T) {
 	chain := newTestChain(t)
-	defer chain.Close()
 
 	t.Run("get, internal method", func(t *testing.T) {
 		n := chain.contracts.Policy.GetStoragePriceInternal(chain.dao)
@@ -150,7 +144,6 @@ func TestStoragePrice(t *testing.T) {
 
 func TestBlockedAccounts(t *testing.T) {
 	chain := newTestChain(t)
-	defer chain.Close()
 	account := util.Uint160{1, 2, 3}
 	policyHash := chain.contracts.Policy.Metadata().Hash
 

@@ -59,7 +59,6 @@ func getTestNotary(t *testing.T, bc *Blockchain, walletPath, pass string, onTx f
 
 func TestNotary(t *testing.T) {
 	bc := newTestChain(t)
-	defer bc.Close()
 	var (
 		nonce           uint32
 		nvbDiffFallback uint32 = 20
@@ -641,10 +640,10 @@ func TestNotary(t *testing.T) {
 	// Subscriptions test
 	mp1.RunSubscriptions()
 	go ntr1.Run()
-	defer func() {
+	t.Cleanup(func() {
 		ntr1.Stop()
 		mp1.StopSubscriptions()
-	}()
+	})
 	finalizeWithError = false
 	requester1, _ := wallet.NewAccount()
 	requester2, _ := wallet.NewAccount()
@@ -662,6 +661,6 @@ func TestNotary(t *testing.T) {
 		mtx.RLock()
 		defer mtx.RUnlock()
 		return completedTxes[requests[0].MainTransaction.Hash()] != nil
-	}, time.Second, time.Millisecond)
+	}, 2*time.Second, 10*time.Millisecond)
 	checkFallbackTxs(t, requests, false)
 }

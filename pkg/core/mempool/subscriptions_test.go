@@ -29,7 +29,7 @@ func TestSubscriptions(t *testing.T) {
 		subChan1 := make(chan Event, 3)
 		subChan2 := make(chan Event, 3)
 		mp.SubscribeForTransactions(subChan1)
-		defer mp.StopSubscriptions()
+		t.Cleanup(mp.StopSubscriptions)
 
 		txs := make([]*transaction.Transaction, 4)
 		for i := range txs {

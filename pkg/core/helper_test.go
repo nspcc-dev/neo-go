@@ -59,6 +59,7 @@ func newTestChainWithCustomCfg(t *testing.T, f func(*config.Config)) *Blockchain
 func newTestChainWithCustomCfgAndStore(t *testing.T, st storage.Store, f func(*config.Config)) *Blockchain {
 	chain := initTestChain(t, st, f)
 	go chain.Run()
+	t.Cleanup(chain.Close)
 	return chain
 }
 
@@ -174,7 +175,6 @@ func TestBug1728(t *testing.T) {
 	require.NoError(t, err)
 
 	bc := newTestChain(t)
-	defer bc.Close()
 
 	aer, err := invokeContractMethod(bc, 10000000000,
 		bc.contracts.Management.Hash, "deploy", rawNef, rawManifest)
@@ -242,13 +242,14 @@ func TestCreateBasicChain(t *testing.T) {
 	const prefix = "../rpc/server/testdata/"
 
 	bc := newTestChain(t)
-	defer bc.Close()
 	initBasicChain(t, bc)
 
 	if saveChain {
 		outStream, err := os.Create(prefix + "testblocks.acc")
 		require.NoError(t, err)
-		defer outStream.Close()
+		t.Cleanup(func() {
+			outStream.Close()
+		})
 
 		writer := io.NewBinWriterFromIO(outStream)
 		writer.WriteU32LE(bc.BlockHeight())

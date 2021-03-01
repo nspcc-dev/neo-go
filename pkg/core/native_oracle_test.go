@@ -115,7 +115,6 @@ func putOracleRequest(t *testing.T, h util.Uint160, bc *Blockchain,
 
 func TestOracle_Request(t *testing.T) {
 	bc := newTestChain(t)
-	defer bc.Close()
 
 	orc := bc.contracts.Oracle
 	cs := getOracleContractState(orc.Hash)

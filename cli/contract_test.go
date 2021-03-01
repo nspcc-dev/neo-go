@@ -27,7 +27,6 @@ import (
 
 func TestCalcHash(t *testing.T) {
 	e := newExecutor(t, false)
-	defer e.Close(t)
 
 	nefPath := "./testdata/verify.nef"
 	src, err := ioutil.ReadFile(nefPath)
@@ -58,7 +57,9 @@ func TestCalcHash(t *testing.T) {
 	})
 	t.Run("invalid file", func(t *testing.T) {
 		p := path.Join(os.TempDir(), "neogo.calchash.verify.nef")
-		defer os.Remove(p)
+		t.Cleanup(func() {
+			os.Remove(p)
+		})
 		require.NoError(t, ioutil.WriteFile(p, src[:4], os.ModePerm))
 		e.RunWithError(t, append(cmd, "--sender", sender.StringLE(), "--in", p, "--manifest", manifestPath)...)
 	})
@@ -82,10 +83,11 @@ func TestCalcHash(t *testing.T) {
 func TestContractInitAndCompile(t *testing.T) {
 	tmpDir := path.Join(os.TempDir(), "neogo.inittest")
 	require.NoError(t, os.Mkdir(tmpDir, os.ModePerm))
-	defer os.RemoveAll(tmpDir)
+	t.Cleanup(func() {
+		os.RemoveAll(tmpDir)
+	})
 
 	e := newExecutor(t, false)
-	defer e.Close(t)
 
 	t.Run("no path is provided", func(t *testing.T) {
 		e.RunWithError(t, "neo-go", "contract", "init")
@@ -140,14 +142,15 @@ func TestDeployBigContract(t *testing.T) {
 	e := newExecutorWithConfig(t, true, func(c *config.Config) {
 		c.ApplicationConfiguration.RPC.MaxGasInvoke = fixedn.Fixed8(1)
 	})
-	defer e.Close(t)
 
 	// For proper nef generation.
 	config.Version = "0.90.0-test"
 
 	tmpDir := path.Join(os.TempDir(), "neogo.test.deployfail")
 	require.NoError(t, os.Mkdir(tmpDir, os.ModePerm))
-	defer os.RemoveAll(tmpDir)
+	t.Cleanup(func() {
+		os.RemoveAll(tmpDir)
+	})
 
 	nefName := path.Join(tmpDir, "deploy.nef")
 	manifestName := path.Join(tmpDir, "deploy.manifest.json")
@@ -165,14 +168,15 @@ func TestDeployBigContract(t *testing.T) {
 
 func TestComlileAndInvokeFunction(t *testing.T) {
 	e := newExecutor(t, true)
-	defer e.Close(t)
 
 	// For proper nef generation.
 	config.Version = "0.90.0-test"
 
 	tmpDir := path.Join(os.TempDir(), "neogo.test.compileandinvoke")
 	require.NoError(t, os.Mkdir(tmpDir, os.ModePerm))
-	defer os.RemoveAll(tmpDir)
+	t.Cleanup(func() {
+		os.RemoveAll(tmpDir)
+	})
 
 	nefName := path.Join(tmpDir, "deploy.nef")
 	manifestName := path.Join(tmpDir, "deploy.manifest.json")
@@ -314,10 +318,10 @@ func TestComlileAndInvokeFunction(t *testing.T) {
 			"--in", "testdata/deploy/", // compile all files in dir
 			"--out", nefName, "--manifest", manifestName)
 
-		defer func() {
+		t.Cleanup(func() {
 			os.Remove(nefName)
 			os.Remove(manifestName)
-		}()
+		})
 
 		rawNef, err := ioutil.ReadFile(nefName)
 		require.NoError(t, err)
@@ -349,7 +353,6 @@ func TestComlileAndInvokeFunction(t *testing.T) {
 
 func TestContractInspect(t *testing.T) {
 	e := newExecutor(t, false)
-	defer e.Close(t)
 
 	// For proper nef generation.
 	config.Version = "0.90.0-test"
@@ -357,7 +360,9 @@ func TestContractInspect(t *testing.T) {
 
 	tmpDir := path.Join(os.TempDir(), "neogo.test.contract.inspect")
 	require.NoError(t, os.Mkdir(tmpDir, os.ModePerm))
-	defer os.RemoveAll(tmpDir)
+	t.Cleanup(func() {
+		os.RemoveAll(tmpDir)
+	})
 
 	nefName := path.Join(tmpDir, "deploy.nef")
 	manifestName := path.Join(tmpDir, "deploy.manifest.json")
@@ -394,7 +399,6 @@ func TestCompileExamples(t *testing.T) {
 	tmpDir := os.TempDir()
 
 	e := newExecutor(t, false)
-	defer e.Close(t)
 
 	for _, info := range infos {
 		t.Run(info.Name(), func(t *testing.T) {
@@ -404,10 +408,10 @@ func TestCompileExamples(t *testing.T) {
 
 			outPath := path.Join(tmpDir, info.Name()+".nef")
 			manifestPath := path.Join(tmpDir, info.Name()+".manifest.json")
-			defer func() {
+			t.Cleanup(func() {
 				os.Remove(outPath)
 				os.Remove(manifestPath)
-			}()
+			})
 
 			cfgName := filterFilename(infos, ".yml")
 			opts := []string{
@@ -426,10 +430,10 @@ func TestCompileExamples(t *testing.T) {
 		for _, name := range []string{"invalid1", "invalid2", "invalid3"} {
 			outPath := path.Join(tmpDir, name+".nef")
 			manifestPath := path.Join(tmpDir, name+".manifest.json")
-			defer func() {
+			t.Cleanup(func() {
 				os.Remove(outPath)
 				os.Remove(manifestPath)
-			}()
+			})
 			e.RunWithError(t, "neo-go", "contract", "compile",
 				"--in", path.Join(dir, name),
 				"--out", outPath,

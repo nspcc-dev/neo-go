@@ -11,7 +11,6 @@ import (
 
 func TestGetRPCClient(t *testing.T) {
 	e := newExecutor(t, true)
-	defer e.Close(t)
 
 	t.Run("no endpoint", func(t *testing.T) {
 		set := flag.NewFlagSet("flagSet", flag.ExitOnError)

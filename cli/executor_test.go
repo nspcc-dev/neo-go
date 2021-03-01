@@ -102,6 +102,9 @@ func newExecutorWithConfig(t *testing.T, needChain bool, f func(*config.Config))
 	if needChain {
 		e.Chain, e.RPC, e.NetSrv = newTestChain(t, f)
 	}
+	t.Cleanup(func() {
+		e.Close(t)
+	})
 	return e
 }
 

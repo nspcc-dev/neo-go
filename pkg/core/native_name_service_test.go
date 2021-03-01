@@ -21,7 +21,6 @@ import (
 
 func TestNameService_Price(t *testing.T) {
 	bc := newTestChain(t)
-	defer bc.Close()
 
 	testGetSet(t, bc, bc.contracts.NameService.Hash, "Price",
 		native.DefaultDomainPrice, 1, 10000_00000000)
@@ -29,7 +28,6 @@ func TestNameService_Price(t *testing.T) {
 
 func TestNonfungible(t *testing.T) {
 	bc := newTestChain(t)
-	defer bc.Close()
 
 	acc := newAccountWithGAS(t, bc)
 	testNameServiceInvokeAux(t, bc, defaultNameServiceSysfee, acc, "symbol", "NNS")
@@ -39,7 +37,6 @@ func TestNonfungible(t *testing.T) {
 
 func TestAddRoot(t *testing.T) {
 	bc := newTestChain(t)
-	defer bc.Close()
 
 	transferFundsToCommittee(t, bc)
 	nsHash := bc.contracts.NameService.Hash
@@ -61,7 +58,6 @@ func TestAddRoot(t *testing.T) {
 
 func TestExpiration(t *testing.T) {
 	bc := newTestChain(t)
-	defer bc.Close()
 
 	transferFundsToCommittee(t, bc)
 	acc := newAccountWithGAS(t, bc)
@@ -130,7 +126,6 @@ const secondsInYear = 365 * 24 * 3600
 
 func TestRegisterAndRenew(t *testing.T) {
 	bc := newTestChain(t)
-	defer bc.Close()
 
 	transferFundsToCommittee(t, bc)
 
@@ -181,7 +176,6 @@ func TestRegisterAndRenew(t *testing.T) {
 
 func TestSetGetRecord(t *testing.T) {
 	bc := newTestChain(t)
-	defer bc.Close()
 
 	transferFundsToCommittee(t, bc)
 	acc := newAccountWithGAS(t, bc)
@@ -222,7 +216,6 @@ func TestSetGetRecord(t *testing.T) {
 
 func TestSetAdmin(t *testing.T) {
 	bc := newTestChain(t)
-	defer bc.Close()
 
 	transferFundsToCommittee(t, bc)
 	owner := newAccountWithGAS(t, bc)
@@ -265,7 +258,6 @@ func TestSetAdmin(t *testing.T) {
 
 func TestTransfer(t *testing.T) {
 	bc := newTestChain(t)
-	defer bc.Close()
 
 	transferFundsToCommittee(t, bc)
 	from := newAccountWithGAS(t, bc)
@@ -299,7 +291,6 @@ func TestTransfer(t *testing.T) {
 
 func TestTokensOf(t *testing.T) {
 	bc := newTestChain(t)
-	defer bc.Close()
 
 	transferFundsToCommittee(t, bc)
 	acc1 := newAccountWithGAS(t, bc)
@@ -356,7 +347,6 @@ func testTokensOf(t *testing.T, bc *Blockchain, signer *wallet.Account, result [
 
 func TestResolve(t *testing.T) {
 	bc := newTestChain(t)
-	defer bc.Close()
 
 	transferFundsToCommittee(t, bc)
 	acc := newAccountWithGAS(t, bc)

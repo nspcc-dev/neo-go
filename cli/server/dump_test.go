@@ -11,10 +11,10 @@ import (
 func TestGetPath(t *testing.T) {
 	testPath, err := ioutil.TempDir("./", "")
 	require.NoError(t, err)
-	defer func() {
+	t.Cleanup(func() {
 		err := os.RemoveAll(testPath)
 		require.NoError(t, err)
-	}()
+	})
 	path, err := getPath(testPath, 123)
 	require.NoError(t, err)
 	require.Equal(t, testPath+"/BlockStorage_100000/dump-block-1000.json", path)

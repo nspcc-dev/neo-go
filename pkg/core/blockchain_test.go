@@ -41,7 +41,6 @@ import (
 
 func TestVerifyHeader(t *testing.T) {
 	bc := newTestChain(t)
-	defer bc.Close()
 	prev := bc.topBlock.Load().(*block.Block).Header()
 	t.Run("Invalid", func(t *testing.T) {
 		t.Run("Hash", func(t *testing.T) {
@@ -68,7 +67,6 @@ func TestVerifyHeader(t *testing.T) {
 
 func TestAddHeaders(t *testing.T) {
 	bc := newTestChain(t)
-	defer bc.Close()
 	lastBlock := bc.topBlock.Load().(*block.Block)
 	h1 := newBlock(bc.config, 1, lastBlock.Hash()).Header()
 	h2 := newBlock(bc.config, 2, h1.Hash()).Header()
@@ -132,7 +130,6 @@ func TestAddBlockStateRoot(t *testing.T) {
 	bc := newTestChainWithCustomCfg(t, func(c *config.Config) {
 		c.ProtocolConfiguration.StateRootInHeader = true
 	})
-	defer bc.Close()
 
 	sr, err := bc.GetStateRoot(bc.BlockHeight())
 	require.NoError(t, err)
@@ -159,7 +156,6 @@ func TestAddBlockStateRoot(t *testing.T) {
 
 func TestAddBadBlock(t *testing.T) {
 	bc := newTestChain(t)
-	defer bc.Close()
 	// It has ValidUntilBlock == 0, which is wrong
 	tx := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
 	tx.Signers = []transaction.Signer{{
@@ -250,7 +246,6 @@ func (bc *Blockchain) newTestTx(h util.Uint160, script []byte) *transaction.Tran
 
 func TestVerifyTx(t *testing.T) {
 	bc := newTestChain(t)
-	defer bc.Close()
 
 	accs := make([]*wallet.Account, 5)
 	for i := range accs {
@@ -1063,7 +1058,6 @@ func TestVerifyTx(t *testing.T) {
 
 func TestVerifyHashAgainstScript(t *testing.T) {
 	bc := newTestChain(t)
-	defer bc.Close()
 
 	cs, csInvalid := getTestContractState(bc)
 	ic := bc.newInteropContext(trigger.Verification, bc.dao, nil, nil)
@@ -1137,7 +1131,6 @@ func TestVerifyHashAgainstScript(t *testing.T) {
 
 func TestIsTxStillRelevant(t *testing.T) {
 	bc := newTestChain(t)
-	defer bc.Close()
 
 	mp := bc.GetMemPool()
 	newTx := func(t *testing.T) *transaction.Transaction {
@@ -1233,7 +1226,6 @@ func TestMemPoolRemoval(t *testing.T) {
 	const added = 16
 	const notAdded = 32
 	bc := newTestChain(t)
-	defer bc.Close()
 	addedTxes := make([]*transaction.Transaction, added)
 	notAddedTxes := make([]*transaction.Transaction, notAdded)
 	for i := range addedTxes {
@@ -1310,7 +1302,6 @@ func TestGetTransaction(t *testing.T) {
 
 func TestGetClaimable(t *testing.T) {
 	bc := newTestChain(t)
-	defer bc.Close()
 
 	_, err := bc.genBlocks(10)
 	require.NoError(t, err)
@@ -1327,7 +1318,8 @@ func TestClose(t *testing.T) {
 		r := recover()
 		assert.NotNil(t, r)
 	}()
-	bc := newTestChain(t)
+	bc := initTestChain(t, nil, nil)
+	go bc.Run()
 	_, err := bc.genBlocks(10)
 	require.NoError(t, err)
 	bc.Close()
@@ -1350,7 +1342,6 @@ func TestSubscriptions(t *testing.T) {
 	executionCh := make(chan *state.AppExecResult, chBufSize)
 
 	bc := newTestChain(t)
-	defer bc.Close()
 	bc.SubscribeForBlocks(blockCh)
 	bc.SubscribeForTransactions(txCh)
 	bc.SubscribeForNotifications(notificationCh)
@@ -1473,7 +1464,6 @@ func testDumpAndRestore(t *testing.T, dumpF, restoreF func(c *config.Config)) {
 	}
 
 	bc := newTestChainWithCustomCfg(t, dumpF)
-	defer bc.Close()
 
 	initBasicChain(t, bc)
 	require.True(t, bc.BlockHeight() > 5) // ensure that test is valid
@@ -1485,14 +1475,12 @@ func testDumpAndRestore(t *testing.T, dumpF, restoreF func(c *config.Config)) {
 	buf := w.Bytes()
 	t.Run("invalid start", func(t *testing.T) {
 		bc2 := newTestChainWithCustomCfg(t, restoreF)
-		defer bc2.Close()
 
 		r := io.NewBinReaderFromBuf(buf)
 		require.Error(t, chaindump.Restore(bc2, r, 2, 1, nil))
 	})
 	t.Run("good", func(t *testing.T) {
 		bc2 := newTestChainWithCustomCfg(t, restoreF)
-		defer bc2.Close()
 
 		r := io.NewBinReaderFromBuf(buf)
 		require.NoError(t, chaindump.Restore(bc2, r, 0, 2, nil))
@@ -1547,7 +1535,6 @@ func TestRemoveUntraceable(t *testing.T) {
 		c.ProtocolConfiguration.MaxTraceableBlocks = 2
 		c.ProtocolConfiguration.RemoveUntraceableBlocks = true
 	})
-	defer bc.Close()
 
 	tx1, err := testchain.NewTransferFromOwner(bc, bc.contracts.NEO.Hash, util.Uint160{}, 1, 0, bc.BlockHeight()+1)
 	require.NoError(t, err)
@@ -1576,7 +1563,6 @@ func TestRemoveUntraceable(t *testing.T) {
 
 func TestInvalidNotification(t *testing.T) {
 	bc := newTestChain(t)
-	defer bc.Close()
 
 	cs, _ := getTestContractState(bc)
 	require.NoError(t, bc.contracts.Management.PutContractState(bc.dao, cs))
@@ -1591,7 +1577,6 @@ func TestInvalidNotification(t *testing.T) {
 // Test that deletion of non-existent doesn't result in error in tx or block addition.
 func TestMPTDeleteNoKey(t *testing.T) {
 	bc := newTestChain(t)
-	defer bc.Close()
 
 	cs, _ := getTestContractState(bc)
 	require.NoError(t, bc.contracts.Management.PutContractState(bc.dao, cs))

@@ -53,7 +53,6 @@ func TestNewServer(t *testing.T) {
 
 	t.Run("set defaults", func(t *testing.T) {
 		s = newTestServer(t, ServerConfig{MinPeers: -1})
-		defer s.discovery.Close()
 
 		require.True(t, s.ID() != 0)
 		require.Equal(t, defaultMinPeers, s.ServerConfig.MinPeers)
@@ -67,7 +66,6 @@ func TestNewServer(t *testing.T) {
 			AttemptConnPeers: 3,
 		}
 		s = newTestServer(t, cfg)
-		defer s.discovery.Close()
 
 		require.True(t, s.ID() != 0)
 		require.Equal(t, 1, s.ServerConfig.MinPeers)
@@ -140,10 +138,10 @@ func TestServerRegisterPeer(t *testing.T) {
 	}
 
 	ch := startWithChannel(s)
-	defer func() {
+	t.Cleanup(func() {
 		s.Shutdown()
 		<-ch
-	}()
+	})
 
 	s.register <- ps[0]
 	require.Eventually(t, func() bool { return 1 == s.PeerCount() }, time.Second, time.Millisecond*10)
@@ -317,11 +315,11 @@ func TestServerNotSendsVerack(t *testing.T) {
 		s.run()
 		close(finished)
 	}()
-	defer func() {
+	t.Cleanup(func() {
 		// close via quit as server was started via `run()`, not `Start()`
 		close(s.quit)
 		<-finished
-	}()
+	})
 
 	na, _ := net.ResolveTCPAddr("tcp", "0.0.0.0:3000")
 	p.netaddr = *na
@@ -379,18 +377,18 @@ func (s *Server) testHandleMessage(t *testing.T, p Peer, cmd CommandType, pl pay
 	return s
 }
 
-func startTestServer(t *testing.T) (*Server, func()) {
+func startTestServer(t *testing.T) *Server {
 	s := newTestServer(t, ServerConfig{Port: 0, UserAgent: "/test/"})
 	ch := startWithChannel(s)
-	return s, func() {
+	t.Cleanup(func() {
 		s.Shutdown()
 		<-ch
-	}
+	})
+	return s
 }
 
 func TestBlock(t *testing.T) {
-	s, shutdown := startTestServer(t)
-	defer shutdown()
+	s := startTestServer(t)
 
 	atomic2.StoreUint32(&s.chain.(*fakechain.FakeChain).Blockheight, 12344)
 	require.Equal(t, uint32(12344), s.chain.BlockHeight())
@@ -402,8 +400,7 @@ func TestBlock(t *testing.T) {
 }
 
 func TestConsensus(t *testing.T) {
-	s, shutdown := startTestServer(t)
-	defer shutdown()
+	s := startTestServer(t)
 
 	atomic2.StoreUint32(&s.chain.(*fakechain.FakeChain).Blockheight, 4)
 	p := newLocalPeer(t, s)
@@ -450,8 +447,7 @@ func TestConsensus(t *testing.T) {
 }
 
 func TestTransaction(t *testing.T) {
-	s, shutdown := startTestServer(t)
-	defer shutdown()
+	s := startTestServer(t)
 
 	t.Run("good", func(t *testing.T) {
 		tx := newDummyTx()
@@ -503,8 +499,7 @@ func (s *Server) testHandleGetData(t *testing.T, invType payload.InventoryType, 
 }
 
 func TestGetData(t *testing.T) {
-	s, shutdown := startTestServer(t)
-	defer shutdown()
+	s := startTestServer(t)
 	s.chain.(*fakechain.FakeChain).UtilityTokenBalance = big.NewInt(1000000)
 
 	t.Run("block", func(t *testing.T) {
@@ -563,8 +558,8 @@ func TestGetData(t *testing.T) {
 	})
 }
 
-func initGetBlocksTest(t *testing.T) (*Server, func(), []*block.Block) {
-	s, shutdown := startTestServer(t)
+func initGetBlocksTest(t *testing.T) (*Server, []*block.Block) {
+	s := startTestServer(t)
 
 	var blocks []*block.Block
 	for i := uint32(12); i <= 15; i++ {
@@ -572,12 +567,11 @@ func initGetBlocksTest(t *testing.T) (*Server, func(), []*block.Block) {
 		s.chain.(*fakechain.FakeChain).PutBlock(b)
 		blocks = append(blocks, b)
 	}
-	return s, shutdown, blocks
+	return s, blocks
 }
 
 func TestGetBlocks(t *testing.T) {
-	s, shutdown, blocks := initGetBlocksTest(t)
-	defer shutdown()
+	s, blocks := initGetBlocksTest(t)
 
 	expected := make([]util.Uint256, len(blocks))
 	for i := range blocks {
@@ -608,8 +602,7 @@ func TestGetBlocks(t *testing.T) {
 }
 
 func TestGetBlockByIndex(t *testing.T) {
-	s, shutdown, blocks := initGetBlocksTest(t)
-	defer shutdown()
+	s, blocks := initGetBlocksTest(t)
 
 	var expected []*block.Block
 	var actual []*block.Block
@@ -643,8 +636,7 @@ func TestGetBlockByIndex(t *testing.T) {
 }
 
 func TestGetHeaders(t *testing.T) {
-	s, shutdown, blocks := initGetBlocksTest(t)
-	defer shutdown()
+	s, blocks := initGetBlocksTest(t)
 
 	expected := make([]*block.Header, len(blocks))
 	for i := range blocks {
@@ -683,8 +675,7 @@ func TestGetHeaders(t *testing.T) {
 }
 
 func TestInv(t *testing.T) {
-	s, shutdown := startTestServer(t)
-	defer shutdown()
+	s := startTestServer(t)
 	s.chain.(*fakechain.FakeChain).UtilityTokenBalance = big.NewInt(10000000)
 
 	var actual []util.Uint256
@@ -749,8 +740,7 @@ func TestInv(t *testing.T) {
 }
 
 func TestRequestTx(t *testing.T) {
-	s, shutdown := startTestServer(t)
-	defer shutdown()
+	s := startTestServer(t)
 
 	var actual []util.Uint256
 	p := newLocalPeer(t, s)
@@ -795,8 +785,7 @@ func TestRequestTx(t *testing.T) {
 }
 
 func TestAddrs(t *testing.T) {
-	s, shutdown := startTestServer(t)
-	defer shutdown()
+	s := startTestServer(t)
 
 	ips := make([][16]byte, 4)
 	copy(ips[0][:], net.IPv4(1, 2, 3, 4))
@@ -855,8 +844,7 @@ func (f feerStub) P2PSigExtensionsEnabled() bool                { return false }
 func (f feerStub) GetBaseExecFee() int64                        { return interop.DefaultBaseExecFee }
 
 func TestMemPool(t *testing.T) {
-	s, shutdown := startTestServer(t)
-	defer shutdown()
+	s := startTestServer(t)
 
 	var actual []util.Uint256
 	p := newLocalPeer(t, s)

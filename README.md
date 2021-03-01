@@ -36,7 +36,7 @@ Neo 3 code (0.90.0 being compatible with Neo 3 preview2).
 
 ## Installation
 
-Go: 1.13+
+Go: 1.14+
 
 Install dependencies.
 

@@ -23,7 +23,6 @@ func TestRecoveryMessageSetters(t *testing.T) {
 
 func testRecoveryMessageSetters(t *testing.T, enableStateRoot bool) {
 	srv := newTestServiceWithState(t, enableStateRoot)
-	defer srv.Chain.Close()
 	privs := make([]*privateKey, testchain.Size())
 	pubs := make([]crypto.PublicKey, testchain.Size())
 	for i := 0; i < testchain.Size(); i++ {

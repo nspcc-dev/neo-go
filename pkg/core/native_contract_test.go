@@ -166,7 +166,6 @@ func (tn *testNative) callOtherContractWithReturn(ic *interop.Context, args []st
 
 func TestNativeContract_Invoke(t *testing.T) {
 	chain := newTestChain(t)
-	defer chain.Close()
 
 	tn := newTestNative()
 	chain.registerNative(tn)
@@ -206,7 +205,6 @@ func TestNativeContract_Invoke(t *testing.T) {
 
 func TestNativeContract_InvokeInternal(t *testing.T) {
 	chain := newTestChain(t)
-	defer chain.Close()
 
 	tn := newTestNative()
 	chain.registerNative(tn)
@@ -251,7 +249,6 @@ func TestNativeContract_InvokeInternal(t *testing.T) {
 
 func TestNativeContract_InvokeOtherContract(t *testing.T) {
 	chain := newTestChain(t)
-	defer chain.Close()
 
 	tn := newTestNative()
 	chain.registerNative(tn)

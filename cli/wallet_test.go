@@ -22,10 +22,11 @@ import (
 func TestWalletInit(t *testing.T) {
 	tmpDir := path.Join(os.TempDir(), "neogo.test.walletinit")
 	require.NoError(t, os.Mkdir(tmpDir, os.ModePerm))
-	defer os.RemoveAll(tmpDir)
+	t.Cleanup(func() {
+		os.RemoveAll(tmpDir)
+	})
 
 	e := newExecutor(t, false)
-	defer e.Close(t)
 
 	walletPath := path.Join(tmpDir, "wallet.json")
 	e.Run(t, "neo-go", "wallet", "init", "--wallet", walletPath)
@@ -90,7 +91,7 @@ func TestWalletInit(t *testing.T) {
 
 			w, err := wallet.NewWalletFromFile(walletPath)
 			require.NoError(t, err)
-			defer w.Close()
+			t.Cleanup(w.Close)
 			acc := w.GetAccount(priv.GetScriptHash())
 			require.NotNil(t, acc)
 			require.Equal(t, "test_account", acc.Label)
@@ -121,7 +122,7 @@ func TestWalletInit(t *testing.T) {
 
 			w, err := wallet.NewWalletFromFile(walletPath)
 			require.NoError(t, err)
-			defer w.Close()
+			t.Cleanup(w.Close)
 			actual := w.GetAccount(acc.PrivateKey().GetScriptHash())
 			require.NotNil(t, actual)
 			require.NoError(t, actual.Decrypt("somepass"))
@@ -157,7 +158,7 @@ func TestWalletInit(t *testing.T) {
 
 			w, err := wallet.NewWalletFromFile(walletPath)
 			require.NoError(t, err)
-			defer w.Close()
+			t.Cleanup(w.Close)
 			actual := w.GetAccount(hash.Hash160(script))
 			require.NotNil(t, actual)
 			require.NoError(t, actual.Decrypt("multipass"))
@@ -168,7 +169,6 @@ func TestWalletInit(t *testing.T) {
 
 func TestWalletExport(t *testing.T) {
 	e := newExecutor(t, false)
-	defer e.Close(t)
 
 	t.Run("Encrypted", func(t *testing.T) {
 		e.Run(t, "neo-go", "wallet", "export",
@@ -195,12 +195,11 @@ func TestWalletExport(t *testing.T) {
 
 func TestClaimGas(t *testing.T) {
 	e := newExecutor(t, true)
-	defer e.Close(t)
 
 	const walletPath = "testdata/testwallet.json"
 	w, err := wallet.NewWalletFromFile(walletPath)
 	require.NoError(t, err)
-	defer w.Close()
+	t.Cleanup(w.Close)
 
 	args := []string{
 		"neo-go", "wallet", "nep17", "multitransfer",
@@ -243,7 +242,6 @@ func TestClaimGas(t *testing.T) {
 
 func TestImportDeployed(t *testing.T) {
 	e := newExecutor(t, true)
-	defer e.Close(t)
 
 	e.In.WriteString("one\r")
 	e.Run(t, "neo-go", "contract", "deploy",
@@ -262,7 +260,9 @@ func TestImportDeployed(t *testing.T) {
 	tmpDir := os.TempDir()
 	walletPath := path.Join(tmpDir, "wallet.json")
 	e.Run(t, "neo-go", "wallet", "init", "--wallet", walletPath)
-	defer os.Remove(walletPath)
+	t.Cleanup(func() {
+		os.Remove(walletPath)
+	})
 
 	priv, err := keys.NewPrivateKey()
 	require.NoError(t, err)
@@ -274,7 +274,9 @@ func TestImportDeployed(t *testing.T) {
 		"--contract", h.StringLE())
 
 	w, err := wallet.NewWalletFromFile(walletPath)
-	defer w.Close()
+	t.Cleanup(func() {
+		w.Close()
+	})
 	require.NoError(t, err)
 	require.Equal(t, 1, len(w.Accounts))
 	contractAddr := w.Accounts[0].Address
@@ -309,7 +311,6 @@ func TestImportDeployed(t *testing.T) {
 
 func TestWalletDump(t *testing.T) {
 	e := newExecutor(t, false)
-	defer e.Close(t)
 
 	cmd := []string{"neo-go", "wallet", "dump", "--wallet", "testdata/testwallet.json"}
 	e.Run(t, cmd...)
@@ -340,10 +341,11 @@ func TestWalletDump(t *testing.T) {
 func TestWalletConvert(t *testing.T) {
 	tmpDir := path.Join(os.TempDir(), "neogo.test.convert")
 	require.NoError(t, os.Mkdir(tmpDir, os.ModePerm))
-	defer os.RemoveAll(tmpDir)
+	t.Cleanup(func() {
+		os.RemoveAll(tmpDir)
+	})
 
 	e := newExecutor(t, false)
-	defer e.Close(t)
 
 	outPath := path.Join(tmpDir, "wallet.json")
 	cmd := []string{"neo-go", "wallet", "convert"}
