@@ -30,6 +30,7 @@ func TestFromToJSON(t *testing.T) {
 	t.Run("ByteString", func(t *testing.T) {
 		t.Run("Empty", getTestDecodeFunc(`""`, []byte{}))
 		t.Run("Base64", getTestDecodeFunc(`"test"`, "test"))
+		t.Run("Escape", getTestDecodeFunc(`"\"quotes\""`, `"quotes"`))
 	})
 	t.Run("BigInteger", func(t *testing.T) {
 		t.Run("ZeroFloat", getTestDecodeFunc(`12.000`, 12, nil))
@@ -58,6 +59,10 @@ func TestFromToJSON(t *testing.T) {
 		t.Run("Empty", getTestDecodeFunc(`{}`, NewMap()))
 		t.Run("Small", getTestDecodeFunc(`{"a":3}`, small))
 		t.Run("Big", getTestDecodeFunc(`{"3":{"a":3},"arr":["test"]}`, large))
+
+		m := NewMap()
+		m.Add(NewByteArray([]byte("\t")), NewBool(true))
+		t.Run("escape keys", getTestDecodeFunc(`{"\t":true}`, m))
 	})
 	t.Run("Invalid", func(t *testing.T) {
 		t.Run("Empty", getTestDecodeFunc(``, nil))

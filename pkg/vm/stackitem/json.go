@@ -66,16 +66,8 @@ func toJSON(buf *io.BufBinWriter, item Item) {
 		for i := range it.value {
 			// map key can always be converted to []byte
 			// but are not always a valid UTF-8.
-			key, err := ToString(it.value[i].Key)
-			if err != nil {
-				if buf.Err == nil {
-					buf.Err = err
-				}
-				return
-			}
-			w.WriteB('"')
-			w.WriteBytes([]byte(key))
-			w.WriteBytes([]byte(`":`))
+			writeJSONString(buf.BinWriter, it.value[i].Key)
+			w.WriteBytes([]byte(`:`))
 			toJSON(buf, it.value[i].Value)
 			if i < len(it.value)-1 {
 				w.WriteB(',')
@@ -89,16 +81,7 @@ func toJSON(buf *io.BufBinWriter, item Item) {
 		}
 		w.WriteBytes([]byte(it.value.String()))
 	case *ByteArray, *Buffer:
-		w.WriteB('"')
-		s, err := ToString(it)
-		if err != nil {
-			if buf.Err == nil {
-				buf.Err = err
-			}
-			return
-		}
-		w.WriteBytes([]byte(s))
-		w.WriteB('"')
+		writeJSONString(w, it)
 	case *Bool:
 		if it.value {
 			w.WriteBytes([]byte("true"))
@@ -114,6 +97,21 @@ func toJSON(buf *io.BufBinWriter, item Item) {
 	if w.Err == nil && buf.Len() > MaxSize {
 		w.Err = errors.New("item is too big")
 	}
+}
+
+// writeJSONString converts it to string and writes it to w as JSON value
+// surrounded in quotes with control characters escaped.
+func writeJSONString(w *io.BinWriter, it Item) {
+	if w.Err != nil {
+		return
+	}
+	s, err := ToString(it)
+	if err != nil {
+		w.Err = err
+		return
+	}
+	data, _ := json.Marshal(s) // error never occurs because `ToString` checks for validity
+	w.WriteBytes(data)
 }
 
 // FromJSON decodes Item from JSON.
