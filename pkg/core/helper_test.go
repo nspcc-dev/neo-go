@@ -113,10 +113,6 @@ func newBlockCustom(cfg config.ProtocolConfiguration, f func(b *block.Block),
 			NextConsensus: witness.ScriptHash(),
 			Script:        witness,
 		},
-		ConsensusData: block.ConsensusData{
-			PrimaryIndex: 0,
-			Nonce:        1111,
-		},
 		Transactions: txs,
 	}
 	f(b)
@@ -221,10 +217,6 @@ func newDumbBlock() *block.Block {
 				VerificationScript: []byte{0x51}, // PUSH1
 				InvocationScript:   []byte{0x61}, // NOP
 			},
-		},
-		ConsensusData: block.ConsensusData{
-			PrimaryIndex: 0,
-			Nonce:        1111,
 		},
 		Transactions: []*transaction.Transaction{
 			transaction.New(testchain.Network(), []byte{byte(opcode.PUSH1)}, 0),

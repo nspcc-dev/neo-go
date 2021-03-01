@@ -168,10 +168,6 @@ func newBlock(bc *core.Blockchain, lastBlock *block.Block, script []byte, txs ..
 			NextConsensus: witness.ScriptHash(),
 			Script:        witness,
 		},
-		ConsensusData: block.ConsensusData{
-			PrimaryIndex: 0,
-			Nonce:        1111,
-		},
 		Transactions: txs,
 	}
 	if bc.GetConfig().StateRootInHeader {

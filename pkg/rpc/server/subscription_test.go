@@ -306,8 +306,7 @@ func TestFilteredBlockSubscriptions(t *testing.T) {
 
 		require.Equal(t, response.BlockEventID, resp.Event)
 		rmap := resp.Payload[0].(map[string]interface{})
-		cd := rmap["consensusdata"].(map[string]interface{})
-		primary := cd["primary"].(float64)
+		primary := rmap["primary"].(float64)
 		require.Equal(t, 3, int(primary))
 
 	}

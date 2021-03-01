@@ -17,7 +17,7 @@ func TestGenesisBlockMainNet(t *testing.T) {
 	block, err := createGenesisBlock(cfg.ProtocolConfiguration)
 	require.NoError(t, err)
 
-	expect := "00c6803707b564153d444bfcdf3a13325fc96dda55cc8a740bbd543a1d752fda"
+	expect := "d71dfebcc59d42b2f3b3f0e0d6b3b77a4880276db1df92c08c7c1bac94bece35"
 	assert.Equal(t, expect, block.Hash().StringLE())
 }
 

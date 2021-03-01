@@ -34,9 +34,6 @@ func TestNeoBlock_Setters(t *testing.T) {
 	// 777ms -> 777000000ns
 	require.EqualValues(t, 777000000, b.Timestamp())
 
-	b.Block.ConsensusData.Nonce = 456
-	require.EqualValues(t, 456, b.ConsensusData())
-
 	b.Block.MerkleRoot = util.Uint256{1, 2, 3, 4}
 	require.Equal(t, util.Uint256{1, 2, 3, 4}, b.MerkleRoot())
 

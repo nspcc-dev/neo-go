@@ -54,10 +54,6 @@ func createGenesisBlock(cfg config.ProtocolConfiguration) (*block.Block, error) 
 	b := &block.Block{
 		Base:         base,
 		Transactions: []*transaction.Transaction{},
-		ConsensusData: block.ConsensusData{
-			PrimaryIndex: 0,
-			Nonce:        2083236893,
-		},
 	}
 	b.RebuildMerkleRoot()
 

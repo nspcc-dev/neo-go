@@ -47,6 +47,8 @@ type Base struct {
 	StateRootEnabled bool
 	// PrevStateRoot is state root of the previous block.
 	PrevStateRoot util.Uint256
+	// PrimaryIndex is the index of primary consensus node for this block.
+	PrimaryIndex byte
 
 	// Hash of this block, created when binary encoded (double SHA256).
 	hash util.Uint256
@@ -66,6 +68,7 @@ type baseAux struct {
 	Timestamp     uint64                `json:"time"`
 	Index         uint32                `json:"index"`
 	NextConsensus string                `json:"nextconsensus"`
+	PrimaryIndex  byte                  `json:"primary"`
 	PrevStateRoot *util.Uint256         `json:"previousstateroot,omitempty"`
 	Witnesses     []transaction.Witness `json:"witnesses"`
 }
@@ -135,6 +138,7 @@ func (b *Base) encodeHashableFields(bw *io.BinWriter) {
 	bw.WriteBytes(b.MerkleRoot[:])
 	bw.WriteU64LE(b.Timestamp)
 	bw.WriteU32LE(b.Index)
+	bw.WriteB(b.PrimaryIndex)
 	bw.WriteBytes(b.NextConsensus[:])
 	if b.StateRootEnabled {
 		bw.WriteBytes(b.PrevStateRoot[:])
@@ -149,6 +153,7 @@ func (b *Base) decodeHashableFields(br *io.BinReader) {
 	br.ReadBytes(b.MerkleRoot[:])
 	b.Timestamp = br.ReadU64LE()
 	b.Index = br.ReadU32LE()
+	b.PrimaryIndex = br.ReadB()
 	br.ReadBytes(b.NextConsensus[:])
 	if b.StateRootEnabled {
 		br.ReadBytes(b.PrevStateRoot[:])
@@ -170,6 +175,7 @@ func (b Base) MarshalJSON() ([]byte, error) {
 		MerkleRoot:    b.MerkleRoot,
 		Timestamp:     b.Timestamp,
 		Index:         b.Index,
+		PrimaryIndex:  b.PrimaryIndex,
 		NextConsensus: address.Uint160ToString(b.NextConsensus),
 		Witnesses:     []transaction.Witness{b.Script},
 	}
@@ -201,6 +207,7 @@ func (b *Base) UnmarshalJSON(data []byte) error {
 	b.MerkleRoot = aux.MerkleRoot
 	b.Timestamp = aux.Timestamp
 	b.Index = aux.Index
+	b.PrimaryIndex = aux.PrimaryIndex
 	b.NextConsensus = nextC
 	b.Script = aux.Witnesses[0]
 	if b.StateRootEnabled {

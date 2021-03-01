@@ -54,7 +54,7 @@ func (f *feed) Matches(r *response.Notification) bool {
 	case response.BlockEventID:
 		filt := f.filter.(request.BlockFilter)
 		b := r.Payload[0].(*block.Block)
-		return int(b.ConsensusData.PrimaryIndex) == filt.Primary
+		return int(b.PrimaryIndex) == filt.Primary
 	case response.TransactionEventID:
 		filt := f.filter.(request.TxFilter)
 		tx := r.Payload[0].(*transaction.Transaction)

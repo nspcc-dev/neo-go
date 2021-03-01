@@ -71,7 +71,7 @@ func (n *neoBlock) Timestamp() uint64 { return n.Block.Timestamp * nsInMs }
 func (n *neoBlock) Index() uint32 { return n.Block.Index }
 
 // ConsensusData implements block.Block interface.
-func (n *neoBlock) ConsensusData() uint64 { return n.Block.ConsensusData.Nonce }
+func (n *neoBlock) ConsensusData() uint64 { return 0 }
 
 // NextConsensus implements block.Block interface.
 func (n *neoBlock) NextConsensus() util.Uint160 { return n.Block.NextConsensus }
