@@ -46,8 +46,8 @@ func TestMerkleBlock_EncodeDecodeBinary(t *testing.T) {
 		_ = b.Hash()
 		expected := &MerkleBlock{
 			Base:    b,
-			TxCount: block.MaxContentsPerBlock + 1,
-			Hashes:  make([]util.Uint256, block.MaxContentsPerBlock),
+			TxCount: block.MaxTransactionsPerBlock + 1,
+			Hashes:  make([]util.Uint256, block.MaxTransactionsPerBlock),
 			Flags:   []byte{},
 		}
 		data, err := testserdes.EncodeBinary(expected)

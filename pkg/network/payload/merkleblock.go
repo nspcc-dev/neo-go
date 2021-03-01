@@ -24,7 +24,7 @@ func (m *MerkleBlock) DecodeBinary(br *io.BinReader) {
 	m.Base.DecodeBinary(br)
 
 	txCount := int(br.ReadVarUint())
-	if txCount > block.MaxContentsPerBlock {
+	if txCount > block.MaxTransactionsPerBlock {
 		br.Err = block.ErrMaxContentsPerBlock
 		return
 	}

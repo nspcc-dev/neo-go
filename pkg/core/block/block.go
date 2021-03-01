@@ -14,10 +14,8 @@ import (
 )
 
 const (
-	// MaxContentsPerBlock is the maximum number of contents (transactions + consensus data) per block.
-	MaxContentsPerBlock = math.MaxUint16
 	// MaxTransactionsPerBlock is the maximum number of transactions per block.
-	MaxTransactionsPerBlock = MaxContentsPerBlock
+	MaxTransactionsPerBlock = math.MaxUint16
 )
 
 // ErrMaxContentsPerBlock is returned when the maximum number of contents per block is reached.
@@ -88,7 +86,7 @@ func NewBlockFromTrimmedBytes(network netmode.Magic, stateRootEnabled bool, b []
 	block.Script.DecodeBinary(br)
 
 	lenHashes := br.ReadVarUint()
-	if lenHashes > MaxContentsPerBlock {
+	if lenHashes > MaxTransactionsPerBlock {
 		return nil, ErrMaxContentsPerBlock
 	}
 	if lenHashes > 0 {
@@ -140,7 +138,7 @@ func (b *Block) Trim() ([]byte, error) {
 func (b *Block) DecodeBinary(br *io.BinReader) {
 	b.Base.DecodeBinary(br)
 	contentsCount := br.ReadVarUint()
-	if contentsCount > MaxContentsPerBlock {
+	if contentsCount > MaxTransactionsPerBlock {
 		br.Err = ErrMaxContentsPerBlock
 		return
 	}

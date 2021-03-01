@@ -221,7 +221,7 @@ func TestBlockEncodeDecode(t *testing.T) {
 
 	t.Run("bad contents count", func(t *testing.T) {
 		b := newDumbBlock()
-		b.Transactions = make([]*transaction.Transaction, MaxContentsPerBlock+1)
+		b.Transactions = make([]*transaction.Transaction, MaxTransactionsPerBlock+1)
 		for i := range b.Transactions {
 			b.Transactions[i] = &transaction.Transaction{
 				Script: []byte("my_pretty_script"),
