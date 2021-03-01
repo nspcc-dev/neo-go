@@ -13,7 +13,7 @@ import (
 )
 
 func testHeaderEncodeDecode(t *testing.T, stateRootEnabled bool) {
-	header := Header{Base: Base{
+	header := Header{
 		Version:       0,
 		PrevHash:      hash.Sha256([]byte("prevhash")),
 		MerkleRoot:    hash.Sha256([]byte("merkleroot")),
@@ -24,14 +24,14 @@ func testHeaderEncodeDecode(t *testing.T, stateRootEnabled bool) {
 			InvocationScript:   []byte{0x10},
 			VerificationScript: []byte{0x11},
 		},
-	}}
+	}
 	if stateRootEnabled {
 		header.StateRootEnabled = stateRootEnabled
 		header.PrevStateRoot = random.Uint256()
 	}
 
 	_ = header.Hash()
-	headerDecode := &Header{Base: Base{StateRootEnabled: stateRootEnabled}}
+	headerDecode := &Header{StateRootEnabled: stateRootEnabled}
 	testserdes.EncodeDecodeBinary(t, &header, headerDecode)
 
 	assert.Equal(t, header.Version, headerDecode.Version, "expected both versions to be equal")

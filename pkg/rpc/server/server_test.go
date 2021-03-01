@@ -1506,7 +1506,7 @@ func (e *executor) getHeader(s string) *block.Header {
 	if err != nil {
 		panic("unknown block (update block hash)")
 	}
-	return block.Header()
+	return &block.Header
 }
 
 func encodeBlock(t *testing.T, b *block.Block) string {

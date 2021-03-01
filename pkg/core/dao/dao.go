@@ -538,7 +538,8 @@ func (dao *Simple) DeleteBlock(h util.Uint256, w *io.BufBinWriter) error {
 	if w == nil {
 		w = io.NewBufBinWriter()
 	}
-	b.Header().EncodeBinary(w.BinWriter)
+	b.Header.EncodeBinary(w.BinWriter)
+	w.BinWriter.WriteB(0)
 	if w.Err != nil {
 		return w.Err
 	}

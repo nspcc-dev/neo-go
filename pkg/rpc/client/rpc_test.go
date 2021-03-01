@@ -246,7 +246,7 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 			serverResponse: `{"id":1,"jsonrpc":"2.0","result":"` + base64Header1 + `"}`,
 			result: func(c *Client) interface{} {
 				b := getResultBlock1()
-				return b.Header()
+				return &b.Header
 			},
 		},
 		{
@@ -884,7 +884,7 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 			name: "positive",
 			invoke: func(c *Client) (interface{}, error) {
 				return c.SubmitBlock(block.Block{
-					Base:         block.Base{},
+					Header:       block.Header{},
 					Transactions: nil,
 					Trimmed:      false,
 				})
@@ -1011,7 +1011,7 @@ var rpcClientErrorCases = map[string][]rpcClientErrorCase{
 			name: "submitblock_bad_server_answer",
 			invoke: func(c *Client) (interface{}, error) {
 				return c.SubmitBlock(block.Block{
-					Base:         block.Base{},
+					Header:       block.Header{},
 					Transactions: nil,
 					Trimmed:      false,
 				})
@@ -1372,7 +1372,7 @@ var rpcClientErrorCases = map[string][]rpcClientErrorCase{
 			name: "submitblock_unmarshalling_error",
 			invoke: func(c *Client) (interface{}, error) {
 				return c.SubmitBlock(block.Block{
-					Base:         block.Base{},
+					Header:       block.Header{},
 					Transactions: nil,
 					Trimmed:      false,
 				})

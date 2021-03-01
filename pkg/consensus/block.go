@@ -20,7 +20,7 @@ var _ block.Block = (*neoBlock)(nil)
 
 // Sign implements block.Block interface.
 func (n *neoBlock) Sign(key crypto.PrivateKey) error {
-	data := n.Base.GetSignedPart()
+	data := n.Header.GetSignedPart()
 	sig, err := key.Sign(data[:])
 	if err != nil {
 		return err
@@ -33,7 +33,7 @@ func (n *neoBlock) Sign(key crypto.PrivateKey) error {
 
 // Verify implements block.Block interface.
 func (n *neoBlock) Verify(key crypto.PublicKey, sign []byte) error {
-	data := n.Base.GetSignedPart()
+	data := n.Header.GetSignedPart()
 	return key.Verify(data, sign)
 }
 

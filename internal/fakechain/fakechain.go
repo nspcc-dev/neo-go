@@ -236,7 +236,7 @@ func (chain *FakeChain) GetHeader(hash util.Uint256) (*block.Header, error) {
 	if err != nil {
 		return nil, err
 	}
-	return b.Header(), nil
+	return &b.Header, nil
 }
 
 // GetNextBlockValidators implements Blockchainer interface.

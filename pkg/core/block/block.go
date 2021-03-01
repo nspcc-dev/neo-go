@@ -24,7 +24,7 @@ var ErrMaxContentsPerBlock = errors.New("the number of contents exceeds the maxi
 // Block represents one block in the chain.
 type Block struct {
 	// The base of the block.
-	Base
+	Header
 
 	// Transaction list.
 	Transactions []*transaction.Transaction
@@ -41,13 +41,6 @@ type auxBlockOut struct {
 // auxBlockIn is used for JSON i/o.
 type auxBlockIn struct {
 	Transactions []json.RawMessage `json:"tx"`
-}
-
-// Header returns the Header of the Block.
-func (b *Block) Header() *Header {
-	return &Header{
-		Base: b.Base,
-	}
 }
 
 // ComputeMerkleRoot computes Merkle tree root hash based on actual block's data.
@@ -71,7 +64,7 @@ func (b *Block) RebuildMerkleRoot() {
 // set to true.
 func NewBlockFromTrimmedBytes(network netmode.Magic, stateRootEnabled bool, b []byte) (*Block, error) {
 	block := &Block{
-		Base: Base{
+		Header: Header{
 			Network:          network,
 			StateRootEnabled: stateRootEnabled,
 		},
@@ -79,12 +72,7 @@ func NewBlockFromTrimmedBytes(network netmode.Magic, stateRootEnabled bool, b []
 	}
 
 	br := io.NewBinReaderFromBuf(b)
-	block.decodeHashableFields(br)
-
-	_ = br.ReadB()
-
-	block.Script.DecodeBinary(br)
-
+	block.Header.DecodeBinary(br)
 	lenHashes := br.ReadVarUint()
 	if lenHashes > MaxTransactionsPerBlock {
 		return nil, ErrMaxContentsPerBlock
@@ -104,7 +92,7 @@ func NewBlockFromTrimmedBytes(network netmode.Magic, stateRootEnabled bool, b []
 // New creates a new blank block tied to the specific network.
 func New(network netmode.Magic, stateRootEnabled bool) *Block {
 	return &Block{
-		Base: Base{
+		Header: Header{
 			Network:          network,
 			StateRootEnabled: stateRootEnabled,
 		},
@@ -116,9 +104,7 @@ func New(network netmode.Magic, stateRootEnabled bool) *Block {
 // Notice that only the hashes of the transactions are stored.
 func (b *Block) Trim() ([]byte, error) {
 	buf := io.NewBufBinWriter()
-	b.encodeHashableFields(buf.BinWriter)
-	buf.WriteB(1)
-	b.Script.EncodeBinary(buf.BinWriter)
+	b.Header.EncodeBinary(buf.BinWriter)
 
 	buf.WriteVarUint(uint64(len(b.Transactions)))
 	for _, tx := range b.Transactions {
@@ -136,7 +122,7 @@ func (b *Block) Trim() ([]byte, error) {
 // DecodeBinary decodes the block from the given BinReader, implementing
 // Serializable interface.
 func (b *Block) DecodeBinary(br *io.BinReader) {
-	b.Base.DecodeBinary(br)
+	b.Header.DecodeBinary(br)
 	contentsCount := br.ReadVarUint()
 	if contentsCount > MaxTransactionsPerBlock {
 		br.Err = ErrMaxContentsPerBlock
@@ -157,7 +143,7 @@ func (b *Block) DecodeBinary(br *io.BinReader) {
 // EncodeBinary encodes the block to the given BinWriter, implementing
 // Serializable interface.
 func (b *Block) EncodeBinary(bw *io.BinWriter) {
-	b.Base.EncodeBinary(bw)
+	b.Header.EncodeBinary(bw)
 	bw.WriteVarUint(uint64(len(b.Transactions)))
 	for i := 0; i < len(b.Transactions); i++ {
 		b.Transactions[i].EncodeBinary(bw)
@@ -185,7 +171,7 @@ func (b Block) MarshalJSON() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	baseBytes, err := json.Marshal(b.Base)
+	baseBytes, err := json.Marshal(b.Header)
 	if err != nil {
 		return nil, err
 	}
@@ -208,7 +194,7 @@ func (b *Block) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		return err
 	}
-	err = json.Unmarshal(data, &b.Base)
+	err = json.Unmarshal(data, &b.Header)
 	if err != nil {
 		return err
 	}

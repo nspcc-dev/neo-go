@@ -108,7 +108,7 @@ func newBlockCustom(cfg config.ProtocolConfiguration, f func(b *block.Block),
 		VerificationScript: valScript,
 	}
 	b := &block.Block{
-		Base: block.Base{
+		Header: block.Header{
 			Network:       testchain.Network(),
 			NextConsensus: witness.ScriptHash(),
 			Script:        witness,
@@ -205,7 +205,7 @@ func getBlockData(i int) (map[string]interface{}, error) {
 
 func newDumbBlock() *block.Block {
 	return &block.Block{
-		Base: block.Base{
+		Header: block.Header{
 			Network:       testchain.Network(),
 			Version:       0,
 			PrevHash:      hash.Sha256([]byte("a")),
@@ -325,7 +325,7 @@ func initBasicChain(t *testing.T, bc *Blockchain) {
 	// info for getblockheader rpc tests
 	t.Logf("header hash: %s", b.Hash().StringLE())
 	buf := io.NewBufBinWriter()
-	b.Header().EncodeBinary(buf.BinWriter)
+	b.Header.EncodeBinary(buf.BinWriter)
 	t.Logf("header: %s", hex.EncodeToString(buf.Bytes()))
 
 	acc0 := wallet.NewAccountFromPrivateKey(priv0)

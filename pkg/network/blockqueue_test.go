@@ -16,7 +16,7 @@ func TestBlockQueue(t *testing.T) {
 	bq := newBlockQueue(0, chain, zaptest.NewLogger(t), nil)
 	blocks := make([]*block.Block, 11)
 	for i := 1; i < 11; i++ {
-		blocks[i] = &block.Block{Base: block.Base{Index: uint32(i)}}
+		blocks[i] = &block.Block{Header: block.Header{Index: uint32(i)}}
 	}
 	// not the ones expected currently
 	for i := 3; i < 5; i++ {
@@ -33,7 +33,7 @@ func TestBlockQueue(t *testing.T) {
 	assert.Equal(t, uint32(0), chain.BlockHeight())
 	assert.Equal(t, 4, bq.length())
 	// block with too big index is dropped
-	assert.NoError(t, bq.putBlock(&block.Block{Base: block.Base{Index: bq.chain.BlockHeight() + blockCacheSize + 1}}))
+	assert.NoError(t, bq.putBlock(&block.Block{Header: block.Header{Index: bq.chain.BlockHeight() + blockCacheSize + 1}}))
 	assert.Equal(t, 4, bq.length())
 	go bq.run()
 	// run() is asynchronous, so we need some kind of timeout anyway and this is the simplest one

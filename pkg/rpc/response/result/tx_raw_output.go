@@ -35,7 +35,7 @@ func NewTransactionOutputRaw(tx *transaction.Transaction, header *block.Header, 
 		return result
 	}
 	// confirmations formula
-	confirmations := int(chain.BlockHeight() - header.Base.Index + 1)
+	confirmations := int(chain.BlockHeight() - header.Index + 1)
 	result.TransactionMetadata = TransactionMetadata{
 		Blockhash:     header.Hash(),
 		Confirmations: confirmations,

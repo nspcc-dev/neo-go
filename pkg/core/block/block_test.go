@@ -79,7 +79,7 @@ func TestTrimmedBlock(t *testing.T) {
 
 func newDumbBlock() *Block {
 	return &Block{
-		Base: Base{
+		Header: Header{
 			Version:       0,
 			PrevHash:      hash.Sha256([]byte("a")),
 			MerkleRoot:    hash.Sha256([]byte("b")),
@@ -100,7 +100,7 @@ func newDumbBlock() *Block {
 func TestHashBlockEqualsHashHeader(t *testing.T) {
 	block := newDumbBlock()
 
-	assert.Equal(t, block.Hash(), block.Header().Hash())
+	assert.Equal(t, block.Hash(), block.Header.Hash())
 }
 
 func TestBinBlockDecodeEncode(t *testing.T) {
@@ -203,9 +203,9 @@ func TestBlockSizeCalculation(t *testing.T) {
 }
 
 func TestBlockCompare(t *testing.T) {
-	b1 := Block{Base: Base{Index: 1}}
-	b2 := Block{Base: Base{Index: 2}}
-	b3 := Block{Base: Base{Index: 3}}
+	b1 := Block{Header: Header{Index: 1}}
+	b2 := Block{Header: Header{Index: 2}}
+	b3 := Block{Header: Header{Index: 3}}
 	assert.Equal(t, 1, b2.Compare(&b1))
 	assert.Equal(t, 0, b2.Compare(&b2))
 	assert.Equal(t, -1, b2.Compare(&b3))

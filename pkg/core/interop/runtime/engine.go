@@ -92,7 +92,6 @@ func Log(ic *interop.Context) error {
 // GetTime returns timestamp of the block being verified, or the latest
 // one in the blockchain if no block is given to Context.
 func GetTime(ic *interop.Context) error {
-	header := ic.Block.Header()
-	ic.VM.Estack().PushVal(header.Timestamp)
+	ic.VM.Estack().PushVal(ic.Block.Timestamp)
 	return nil
 }

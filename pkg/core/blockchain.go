@@ -491,7 +491,7 @@ func (bc *Blockchain) AddBlock(block *block.Block) error {
 	}
 
 	if block.Index == bc.HeaderHeight()+1 {
-		err := bc.addHeaders(bc.config.VerifyBlocks, block.Header())
+		err := bc.addHeaders(bc.config.VerifyBlocks, &block.Header)
 		if err != nil {
 			return err
 		}
@@ -576,6 +576,7 @@ func (bc *Blockchain) addHeaders(verify bool, headers ...*block.Header) error {
 		}
 		bc.headerHashes = append(bc.headerHashes, h.Hash())
 		h.EncodeBinary(buf.BinWriter)
+		buf.BinWriter.WriteB(0)
 		if buf.Err != nil {
 			return buf.Err
 		}
@@ -1137,14 +1138,14 @@ func (bc *Blockchain) GetHeader(hash util.Uint256) (*block.Header, error) {
 	if topBlock != nil {
 		tb := topBlock.(*block.Block)
 		if tb.Hash().Equals(hash) {
-			return tb.Header(), nil
+			return &tb.Header, nil
 		}
 	}
 	block, err := bc.dao.GetBlock(hash)
 	if err != nil {
 		return nil, err
 	}
-	return block.Header(), nil
+	return &block.Header, nil
 }
 
 // HasTransaction returns true if the blockchain contains he given

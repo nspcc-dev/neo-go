@@ -42,63 +42,63 @@ import (
 
 func TestVerifyHeader(t *testing.T) {
 	bc := newTestChain(t)
-	prev := bc.topBlock.Load().(*block.Block).Header()
+	prev := bc.topBlock.Load().(*block.Block).Header
 	t.Run("Invalid", func(t *testing.T) {
 		t.Run("Hash", func(t *testing.T) {
 			h := prev.Hash()
 			h[0] = ^h[0]
-			hdr := newBlock(bc.config, 1, h).Header()
-			require.True(t, errors.Is(bc.verifyHeader(hdr, prev), ErrHdrHashMismatch))
+			hdr := newBlock(bc.config, 1, h).Header
+			require.True(t, errors.Is(bc.verifyHeader(&hdr, &prev), ErrHdrHashMismatch))
 		})
 		t.Run("Index", func(t *testing.T) {
-			hdr := newBlock(bc.config, 3, prev.Hash()).Header()
-			require.True(t, errors.Is(bc.verifyHeader(hdr, prev), ErrHdrIndexMismatch))
+			hdr := newBlock(bc.config, 3, prev.Hash()).Header
+			require.True(t, errors.Is(bc.verifyHeader(&hdr, &prev), ErrHdrIndexMismatch))
 		})
 		t.Run("Timestamp", func(t *testing.T) {
-			hdr := newBlock(bc.config, 1, prev.Hash()).Header()
+			hdr := newBlock(bc.config, 1, prev.Hash()).Header
 			hdr.Timestamp = 0
-			require.True(t, errors.Is(bc.verifyHeader(hdr, prev), ErrHdrInvalidTimestamp))
+			require.True(t, errors.Is(bc.verifyHeader(&hdr, &prev), ErrHdrInvalidTimestamp))
 		})
 	})
 	t.Run("Valid", func(t *testing.T) {
-		hdr := newBlock(bc.config, 1, prev.Hash()).Header()
-		require.NoError(t, bc.verifyHeader(hdr, prev))
+		hdr := newBlock(bc.config, 1, prev.Hash()).Header
+		require.NoError(t, bc.verifyHeader(&hdr, &prev))
 	})
 }
 
 func TestAddHeaders(t *testing.T) {
 	bc := newTestChain(t)
 	lastBlock := bc.topBlock.Load().(*block.Block)
-	h1 := newBlock(bc.config, 1, lastBlock.Hash()).Header()
-	h2 := newBlock(bc.config, 2, h1.Hash()).Header()
-	h3 := newBlock(bc.config, 3, h2.Hash()).Header()
+	h1 := newBlock(bc.config, 1, lastBlock.Hash()).Header
+	h2 := newBlock(bc.config, 2, h1.Hash()).Header
+	h3 := newBlock(bc.config, 3, h2.Hash()).Header
 
 	require.NoError(t, bc.AddHeaders())
-	require.NoError(t, bc.AddHeaders(h1, h2))
-	require.NoError(t, bc.AddHeaders(h2, h3))
+	require.NoError(t, bc.AddHeaders(&h1, &h2))
+	require.NoError(t, bc.AddHeaders(&h2, &h3))
 
 	assert.Equal(t, h3.Index, bc.HeaderHeight())
 	assert.Equal(t, uint32(0), bc.BlockHeight())
 	assert.Equal(t, h3.Hash(), bc.CurrentHeaderHash())
 
 	// Add them again, they should not be added.
-	require.NoError(t, bc.AddHeaders(h3, h2, h1))
+	require.NoError(t, bc.AddHeaders(&h3, &h2, &h1))
 
 	assert.Equal(t, h3.Index, bc.HeaderHeight())
 	assert.Equal(t, uint32(0), bc.BlockHeight())
 	assert.Equal(t, h3.Hash(), bc.CurrentHeaderHash())
 
-	h4 := newBlock(bc.config, 4, h3.Hash().Reverse()).Header()
-	h5 := newBlock(bc.config, 5, h4.Hash()).Header()
+	h4 := newBlock(bc.config, 4, h3.Hash().Reverse()).Header
+	h5 := newBlock(bc.config, 5, h4.Hash()).Header
 
-	assert.Error(t, bc.AddHeaders(h4, h5))
+	assert.Error(t, bc.AddHeaders(&h4, &h5))
 	assert.Equal(t, h3.Index, bc.HeaderHeight())
 	assert.Equal(t, uint32(0), bc.BlockHeight())
 	assert.Equal(t, h3.Hash(), bc.CurrentHeaderHash())
 
-	h6 := newBlock(bc.config, 4, h3.Hash()).Header()
+	h6 := newBlock(bc.config, 4, h3.Hash()).Header
 	h6.Script.InvocationScript = nil
-	assert.Error(t, bc.AddHeaders(h6))
+	assert.Error(t, bc.AddHeaders(&h6))
 	assert.Equal(t, h3.Index, bc.HeaderHeight())
 	assert.Equal(t, uint32(0), bc.BlockHeight())
 	assert.Equal(t, h3.Hash(), bc.CurrentHeaderHash())
@@ -206,7 +206,7 @@ func TestGetHeader(t *testing.T) {
 		hash := block.Hash()
 		header, err := bc.GetHeader(hash)
 		require.NoError(t, err)
-		assert.Equal(t, block.Header(), header)
+		assert.Equal(t, &block.Header, header)
 
 		b2 := bc.newBlock()
 		_, err = bc.GetHeader(b2.Hash())

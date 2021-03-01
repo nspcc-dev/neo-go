@@ -95,7 +95,7 @@ func TestGetBlock_NotExists(t *testing.T) {
 func TestPutGetBlock(t *testing.T) {
 	dao := NewSimple(storage.NewMemoryStore(), netmode.UnitTestNet, false)
 	b := &block.Block{
-		Base: block.Base{
+		Header: block.Header{
 			Script: transaction.Witness{
 				VerificationScript: []byte{byte(opcode.PUSH1)},
 				InvocationScript:   []byte{byte(opcode.NOP)},
@@ -136,7 +136,7 @@ func TestGetCurrentHeaderHeight_NoHeader(t *testing.T) {
 func TestGetCurrentHeaderHeight_Store(t *testing.T) {
 	dao := NewSimple(storage.NewMemoryStore(), netmode.UnitTestNet, false)
 	b := &block.Block{
-		Base: block.Base{
+		Header: block.Header{
 			Script: transaction.Witness{
 				VerificationScript: []byte{byte(opcode.PUSH1)},
 				InvocationScript:   []byte{byte(opcode.NOP)},

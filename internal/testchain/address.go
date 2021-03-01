@@ -163,7 +163,7 @@ func NewBlock(t *testing.T, bc blockchainer.Blockchainer, offset uint32, primary
 	hdr, err := bc.GetHeader(h)
 	require.NoError(t, err)
 	b := &block.Block{
-		Base: block.Base{
+		Header: block.Header{
 			PrevHash:      hdr.Hash(),
 			Timestamp:     (uint64(time.Now().UTC().Unix()) + uint64(hdr.Index)) * 1000,
 			Index:         hdr.Index + offset,
