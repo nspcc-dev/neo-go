@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"math"
 	"math/big"
 	"math/rand"
 	"testing"
@@ -933,6 +934,16 @@ func TestSUBBigResult(t *testing.T) {
 	bi := getBigInt(stackitem.MaxBigIntegerSizeBits-1, -1)
 	runWithArgs(t, prog, new(big.Int).Sub(big.NewInt(-1), bi), -1, bi)
 	runWithArgs(t, prog, nil, -2, bi)
+}
+
+func TestPOW(t *testing.T) {
+	prog := makeProgram(opcode.POW)
+	t.Run("good, positive", getTestFuncForVM(prog, 9, 3, 2))
+	t.Run("good, negative, even", getTestFuncForVM(prog, 4, -2, 2))
+	t.Run("good, negative, odd", getTestFuncForVM(prog, -8, -2, 3))
+	t.Run("zero", getTestFuncForVM(prog, 1, 3, 0))
+	t.Run("negative exponent", getTestFuncForVM(prog, nil, 3, -1))
+	t.Run("too big exponent", getTestFuncForVM(prog, nil, 1, math.MaxInt32+1))
 }
 
 func TestSHR(t *testing.T) {
