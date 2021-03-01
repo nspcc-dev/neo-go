@@ -3,11 +3,6 @@ orbs:
   codecov: codecov/codecov@1.0.5
 
 executors:
-  go1_13:
-    docker:
-      - image: circleci/golang:1.13
-        environment:
-          GO111MODULE: "on"
   go1_14:
     docker:
       - image: circleci/golang:1.14
@@ -53,16 +48,6 @@ jobs:
       - run:
           name: go-vet
           command: go vet ./...
-
-  test_1_13:
-    working_directory: /go/src/github.com/nspcc-dev/neo-go
-    executor: go1_13
-    steps:
-      - checkout
-      - run: git submodule sync
-      - run: git submodule update --init
-      - gomod
-      - run: go test -v -race ./...
 
   test_1_14:
     working_directory: /go/src/github.com/nspcc-dev/neo-go
@@ -129,10 +114,6 @@ workflows:
             tags:
               only: v/[0-9]+\.[0-9]+\.[0-9]+/
       - lint:
-          filters:
-            tags:
-              only: v/[0-9]+\.[0-9]+\.[0-9]+/
-      - test_1_13:
           filters:
             tags:
               only: v/[0-9]+\.[0-9]+\.[0-9]+/
