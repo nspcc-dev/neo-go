@@ -29,9 +29,9 @@ func TestGetConfigFromContext(t *testing.T) {
 func TestHandleLoggingParams(t *testing.T) {
 	testLog, err := ioutil.TempFile("./", "*.log")
 	require.NoError(t, err)
-	defer func() {
+	t.Cleanup(func() {
 		require.NoError(t, os.Remove(testLog.Name()))
-	}()
+	})
 
 	t.Run("default", func(t *testing.T) {
 		set := flag.NewFlagSet("flagSet", flag.ExitOnError)
@@ -63,10 +63,10 @@ func TestInitBCWithMetrics(t *testing.T) {
 	d, err := ioutil.TempDir("./", "")
 	require.NoError(t, err)
 	os.Chdir(d)
-	defer func() {
+	t.Cleanup(func() {
 		os.Chdir("..")
 		os.RemoveAll(d)
-	}()
+	})
 
 	set := flag.NewFlagSet("flagSet", flag.ExitOnError)
 	set.String("config-path", "../../../config", "")
@@ -79,9 +79,11 @@ func TestInitBCWithMetrics(t *testing.T) {
 	require.NoError(t, err)
 	chain, prometheus, pprof, err := initBCWithMetrics(cfg, logger)
 	require.NoError(t, err)
-	defer chain.Close()
-	defer prometheus.ShutDown()
-	defer pprof.ShutDown()
+	t.Cleanup(func() {
+		chain.Close()
+		prometheus.ShutDown()
+		pprof.ShutDown()
+	})
 	require.Equal(t, netmode.TestNet, chain.GetConfig().Magic)
 }
 
@@ -90,10 +92,10 @@ func TestDumpDB(t *testing.T) {
 		d, err := ioutil.TempDir("./", "")
 		require.NoError(t, err)
 		os.Chdir(d)
-		defer func() {
+		t.Cleanup(func() {
 			os.Chdir("..")
 			os.RemoveAll(d)
-		}()
+		})
 		testDump := "file.acc"
 		set := flag.NewFlagSet("flagSet", flag.ExitOnError)
 		set.String("config-path", "../../../config", "")
@@ -111,10 +113,10 @@ func TestDumpDB(t *testing.T) {
 		d, err := ioutil.TempDir("./", "")
 		require.NoError(t, err)
 		os.Chdir(d)
-		defer func() {
+		t.Cleanup(func() {
 			os.Chdir("..")
 			os.RemoveAll(d)
-		}()
+		})
 		testDump := "file.acc"
 		set := flag.NewFlagSet("flagSet", flag.ExitOnError)
 		set.String("config-path", "../../../config", "")
@@ -135,10 +137,10 @@ func TestRestoreDB(t *testing.T) {
 	testDump := "file1.acc"
 	saveDump := "file2.acc"
 	os.Chdir(d)
-	defer func() {
+	t.Cleanup(func() {
 		os.Chdir("..")
 		os.RemoveAll(d)
-	}()
+	})
 
 	//dump first
 	set := flag.NewFlagSet("flagSet", flag.ExitOnError)

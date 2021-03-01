@@ -13,7 +13,6 @@ import (
 // stop working after validator will change.
 func TestRegisterCandidate(t *testing.T) {
 	e := newExecutor(t, true)
-	defer e.Close(t)
 
 	e.In.WriteString("one\r")
 	e.Run(t, "neo-go", "wallet", "nep17", "multitransfer",

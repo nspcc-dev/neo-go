@@ -80,7 +80,6 @@ func (bc *Blockchain) getNodesByRole(t *testing.T, ok bool, r native.Role, index
 
 func TestDesignate_DesignateAsRoleTx(t *testing.T) {
 	bc := newTestChain(t)
-	defer bc.Close()
 
 	priv, err := keys.NewPrivateKey()
 	require.NoError(t, err)
@@ -104,7 +103,6 @@ func TestDesignate_DesignateAsRoleTx(t *testing.T) {
 
 func TestDesignate_DesignateAsRole(t *testing.T) {
 	bc := newTestChain(t)
-	defer bc.Close()
 
 	des := bc.contracts.Designate
 	tx := transaction.New(netmode.UnitTestNet, []byte{}, 0)

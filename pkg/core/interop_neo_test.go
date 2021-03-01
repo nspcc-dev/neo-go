@@ -36,7 +36,6 @@ import (
 
 func TestStorageFind(t *testing.T) {
 	v, contractState, context, chain := createVMAndContractState(t)
-	defer chain.Close()
 
 	arr := []stackitem.Item{
 		stackitem.NewBigInteger(big.NewInt(42)),

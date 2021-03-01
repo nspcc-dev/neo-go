@@ -38,7 +38,6 @@ func checkTxHalt(t *testing.T, bc *Blockchain, h util.Uint256) {
 
 func TestNEO_Vote(t *testing.T) {
 	bc := newTestChain(t)
-	defer bc.Close()
 
 	neo := bc.contracts.NEO
 	tx := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
@@ -195,7 +194,6 @@ func TestNEO_Vote(t *testing.T) {
 
 func TestNEO_SetGasPerBlock(t *testing.T) {
 	bc := newTestChain(t)
-	defer bc.Close()
 
 	testGetSet(t, bc, bc.contracts.NEO.Hash, "GasPerBlock",
 		5*native.GASFactor, 0, 10*native.GASFactor)
@@ -203,7 +201,6 @@ func TestNEO_SetGasPerBlock(t *testing.T) {
 
 func TestNEO_CalculateBonus(t *testing.T) {
 	bc := newTestChain(t)
-	defer bc.Close()
 
 	neo := bc.contracts.NEO
 	tx := transaction.New(netmode.UnitTestNet, []byte{}, 0)
@@ -233,7 +230,6 @@ func TestNEO_CalculateBonus(t *testing.T) {
 
 func TestNEO_CommitteeBountyOnPersist(t *testing.T) {
 	bc := newTestChain(t)
-	defer bc.Close()
 
 	hs := make([]util.Uint160, testchain.CommitteeSize())
 	for i := range hs {
@@ -256,7 +252,6 @@ func TestNEO_CommitteeBountyOnPersist(t *testing.T) {
 
 func TestNEO_TransferOnPayment(t *testing.T) {
 	bc := newTestChain(t)
-	defer bc.Close()
 
 	cs, _ := getTestContractState(bc)
 	require.NoError(t, bc.contracts.Management.PutContractState(bc.dao, cs))

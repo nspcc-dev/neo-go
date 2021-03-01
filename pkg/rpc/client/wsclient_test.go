@@ -17,7 +17,6 @@ import (
 
 func TestWSClientClose(t *testing.T) {
 	srv := initTestServer(t, "")
-	defer srv.Close()
 	wsc, err := NewWS(context.TODO(), httpURLtoWS(srv.URL), Options{})
 	require.NoError(t, err)
 	wsc.Close()
@@ -42,7 +41,6 @@ func TestWSClientSubscription(t *testing.T) {
 		for name, f := range cases {
 			t.Run(name, func(t *testing.T) {
 				srv := initTestServer(t, `{"jsonrpc": "2.0", "id": 1, "result": "55aaff00"}`)
-				defer srv.Close()
 				wsc, err := NewWS(context.TODO(), httpURLtoWS(srv.URL), Options{})
 				require.NoError(t, err)
 				require.NoError(t, wsc.Init())
@@ -56,7 +54,6 @@ func TestWSClientSubscription(t *testing.T) {
 		for name, f := range cases {
 			t.Run(name, func(t *testing.T) {
 				srv := initTestServer(t, `{"jsonrpc": "2.0", "id": 1, "error":{"code":-32602,"message":"Invalid Params"}}`)
-				defer srv.Close()
 				wsc, err := NewWS(context.TODO(), httpURLtoWS(srv.URL), Options{})
 				require.NoError(t, err)
 				require.NoError(t, wsc.Init())
@@ -106,7 +103,6 @@ func TestWSClientUnsubscription(t *testing.T) {
 	for name, rc := range cases {
 		t.Run(name, func(t *testing.T) {
 			srv := initTestServer(t, rc.response)
-			defer srv.Close()
 			wsc, err := NewWS(context.TODO(), httpURLtoWS(srv.URL), Options{})
 			require.NoError(t, err)
 			require.NoError(t, wsc.Init())
@@ -165,7 +161,6 @@ func TestWSClientEvents(t *testing.T) {
 func TestWSExecutionVMStateCheck(t *testing.T) {
 	// Will answer successfully if request slips through.
 	srv := initTestServer(t, `{"jsonrpc": "2.0", "id": 1, "result": "55aaff00"}`)
-	defer srv.Close()
 	wsc, err := NewWS(context.TODO(), httpURLtoWS(srv.URL), Options{})
 	require.NoError(t, err)
 	require.NoError(t, wsc.Init())
@@ -330,7 +325,6 @@ func TestWSFilteredSubscriptions(t *testing.T) {
 					ws.Close()
 				}
 			}))
-			defer srv.Close()
 			wsc, err := NewWS(context.TODO(), httpURLtoWS(srv.URL), Options{})
 			require.NoError(t, err)
 			wsc.network = netmode.UnitTestNet
@@ -342,7 +336,6 @@ func TestWSFilteredSubscriptions(t *testing.T) {
 
 func TestNewWS(t *testing.T) {
 	srv := initTestServer(t, "")
-	defer srv.Close()
 
 	t.Run("good", func(t *testing.T) {
 		c, err := NewWS(context.TODO(), httpURLtoWS(srv.URL), Options{})

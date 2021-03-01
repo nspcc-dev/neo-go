@@ -44,7 +44,6 @@ func TestNewService(t *testing.T) {
 	require.NotPanics(t, func() { txx = srv.getVerifiedTx() })
 	require.Len(t, txx, 1)
 	require.Equal(t, tx, txx[0])
-	srv.Chain.Close()
 }
 
 func initServiceNextConsensus(t *testing.T, newAcc *wallet.Account, offset uint32) (*service, *wallet.Account) {
@@ -129,7 +128,6 @@ func TestService_NextConsensus(t *testing.T) {
 	t.Run("vote 1 block before update", func(t *testing.T) { // voting occurs every block in SingleTestChain
 		srv, acc := initServiceNextConsensus(t, newAcc, 1)
 		bc := srv.Chain.(*core.Blockchain)
-		defer bc.Close()
 
 		height := bc.BlockHeight()
 		checkNextConsensus(t, bc, height, acc.Contract.ScriptHash())
@@ -219,7 +217,6 @@ func TestService_GetVerified(t *testing.T) {
 		require.Contains(t, txx, txs[1])
 		require.NotContains(t, txx, txs[2])
 	})
-	srv.Chain.Close()
 }
 
 func TestService_ValidatePayload(t *testing.T) {
@@ -257,7 +254,6 @@ func TestService_ValidatePayload(t *testing.T) {
 		require.NoError(t, p.Sign(priv))
 		require.True(t, srv.validatePayload(p))
 	})
-	srv.Chain.Close()
 }
 
 func TestService_getTx(t *testing.T) {
@@ -294,13 +290,12 @@ func TestService_getTx(t *testing.T) {
 		require.NotNil(t, got)
 		require.Equal(t, h, got.Hash())
 	})
-	srv.Chain.Close()
 }
 
 func TestService_PrepareRequest(t *testing.T) {
 	srv := newTestServiceWithState(t, true)
 	srv.dbft.Start()
-	defer srv.dbft.Timer.Stop()
+	t.Cleanup(srv.dbft.Timer.Stop)
 
 	priv, _ := getTestValidator(1)
 	p := new(Payload)
@@ -359,12 +354,10 @@ func TestService_OnPayload(t *testing.T) {
 	require.NoError(t, p.Sign(priv))
 	srv.OnPayload(&p.Extensible)
 	shouldReceive(t, srv.messages)
-	srv.Chain.Close()
 }
 
 func TestVerifyBlock(t *testing.T) {
 	srv := newTestService(t)
-	defer srv.Chain.Close()
 
 	srv.lastTimestamp = 1
 	t.Run("good empty", func(t *testing.T) {
@@ -513,7 +506,7 @@ func newTestChain(t *testing.T, stateRootInHeader bool) *core.Blockchain {
 	require.NoError(t, err)
 
 	go chain.Run()
-
+	t.Cleanup(chain.Close)
 	return chain
 }
 

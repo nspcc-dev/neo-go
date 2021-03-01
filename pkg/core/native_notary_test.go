@@ -22,7 +22,6 @@ import (
 
 func TestNotaryContractPipeline(t *testing.T) {
 	chain := newTestChain(t)
-	defer chain.Close()
 
 	notaryHash := chain.contracts.Notary.Hash
 	gasHash := chain.contracts.GAS.Hash
@@ -249,7 +248,6 @@ func TestNotaryContractPipeline(t *testing.T) {
 func TestNotaryNodesReward(t *testing.T) {
 	checkReward := func(nKeys int, nNotaryNodes int, spendFullDeposit bool) {
 		chain := newTestChain(t)
-		defer chain.Close()
 		notaryHash := chain.contracts.Notary.Hash
 		gasHash := chain.contracts.GAS.Hash
 		signer := testchain.MultisigScriptHash()
@@ -326,7 +324,6 @@ func TestNotaryNodesReward(t *testing.T) {
 
 func TestMaxNotValidBeforeDelta(t *testing.T) {
 	chain := newTestChain(t)
-	defer chain.Close()
 
 	testGetSet(t, chain, chain.contracts.Notary.Hash, "MaxNotValidBeforeDelta",
 		140, int64(chain.GetConfig().ValidatorsCount), transaction.MaxValidUntilBlockIncrement/2)

@@ -89,7 +89,9 @@ func TestSave(t *testing.T) {
 		Default:      false,
 	})
 
-	defer removeWallet(t, file.Name())
+	t.Cleanup(func() {
+		removeWallet(t, file.Name())
+	})
 	errForSave := wallet.Save()
 	require.NoError(t, errForSave)
 
@@ -129,7 +131,9 @@ func checkWalletConstructor(t *testing.T) *Wallet {
 	file, err := ioutil.TempFile("", walletTemplate)
 	require.NoError(t, err)
 	wallet, err := NewWallet(file.Name())
-	defer removeWallet(t, file.Name())
+	t.Cleanup(func() {
+		removeWallet(t, file.Name())
+	})
 	require.NoError(t, err)
 	return wallet
 }

@@ -76,7 +76,6 @@ func getTestOracle(t *testing.T, bc *Blockchain, walletPath, pass string) (
 // https://github.com/neo-project/neo-modules/blob/master/tests/Neo.Plugins.OracleService.Tests/UT_OracleService.cs#L61
 func TestCreateResponseTx(t *testing.T) {
 	bc := newTestChain(t)
-	defer bc.Close()
 
 	require.Equal(t, int64(30), bc.GetBaseExecFee())
 	require.Equal(t, int64(1000), bc.FeePerByte())
@@ -116,7 +115,6 @@ func TestOracle_InvalidWallet(t *testing.T) {
 
 func TestOracle(t *testing.T) {
 	bc := newTestChain(t)
-	defer bc.Close()
 
 	oracleCtr := bc.contracts.Oracle
 	acc1, orc1, m1, ch1 := getTestOracle(t, bc, "./testdata/oracle1.json", "one")
@@ -272,9 +270,8 @@ func TestOracleFull(t *testing.T) {
 	require.NoError(t, bc.contracts.Management.PutContractState(bc.dao, cs))
 
 	go bc.Run()
-	defer bc.Close()
 	go orc.Run()
-	defer orc.Shutdown()
+	t.Cleanup(orc.Shutdown)
 
 	bc.setNodesByRole(t, true, native.RoleOracle, keys.PublicKeys{acc.PrivateKey().PublicKey()})
 	putOracleRequest(t, cs.Hash, bc, "http://get.1234", new(string), "handle", []byte{}, 10_000_000)

@@ -192,5 +192,6 @@ func newTestServer(t *testing.T, serverConfig ServerConfig) *Server {
 	s, err := newServerFromConstructors(serverConfig, fakechain.NewFakeChain(), zaptest.NewLogger(t),
 		newFakeTransp, newFakeConsensus, newTestDiscovery)
 	require.NoError(t, err)
+	t.Cleanup(s.discovery.Close)
 	return s
 }

@@ -20,7 +20,6 @@ import (
 // 2. Transfer from multisig to another account.
 func TestSignMultisigTx(t *testing.T) {
 	e := newExecutor(t, true)
-	defer e.Close(t)
 
 	privs, pubs := generateKeys(t, 3)
 	script, err := smartcontract.CreateMultiSigRedeemScript(2, pubs)
@@ -31,9 +30,11 @@ func TestSignMultisigTx(t *testing.T) {
 	// Create 2 wallets participating in multisig.
 	tmpDir := os.TempDir()
 	wallet1Path := path.Join(tmpDir, "multiWallet1.json")
-	defer os.Remove(wallet1Path)
 	wallet2Path := path.Join(tmpDir, "multiWallet2.json")
-	defer os.Remove(wallet2Path)
+	t.Cleanup(func() {
+		os.Remove(wallet1Path)
+		os.Remove(wallet2Path)
+	})
 
 	addAccount := func(w string, wif string) {
 		e.Run(t, "neo-go", "wallet", "init", "--wallet", w)
@@ -64,7 +65,9 @@ func TestSignMultisigTx(t *testing.T) {
 	require.NoError(t, err)
 
 	txPath := path.Join(tmpDir, "multisigtx.json")
-	defer os.Remove(txPath)
+	t.Cleanup(func() {
+		os.Remove(txPath)
+	})
 	e.In.WriteString("pass\r")
 	e.Run(t, "neo-go", "wallet", "nep17", "transfer",
 		"--rpc-endpoint", "http://"+e.RPC.Addr,

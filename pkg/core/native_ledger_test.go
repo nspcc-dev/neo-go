@@ -12,7 +12,6 @@ import (
 
 func TestLedgerGetTransactionHeight(t *testing.T) {
 	_, tx, _, chain := createVMAndTX(t)
-	defer chain.Close()
 
 	ledger := chain.contracts.ByName(nativenames.Ledger).Metadata().Hash
 
@@ -39,7 +38,6 @@ func TestLedgerGetTransactionHeight(t *testing.T) {
 
 func TestLedgerGetTransaction(t *testing.T) {
 	_, tx, _, chain := createVMAndTX(t)
-	defer chain.Close()
 	ledger := chain.contracts.ByName(nativenames.Ledger).Metadata().Hash
 
 	t.Run("success", func(t *testing.T) {
@@ -80,7 +78,6 @@ func TestLedgerGetTransaction(t *testing.T) {
 
 func TestLedgerGetTransactionFromBlock(t *testing.T) {
 	chain := newTestChain(t)
-	defer chain.Close()
 	ledger := chain.contracts.ByName(nativenames.Ledger).Metadata().Hash
 
 	res, err := invokeContractMethod(chain, 100000000, ledger, "currentIndex") // adds a block
@@ -132,7 +129,6 @@ func TestLedgerGetTransactionFromBlock(t *testing.T) {
 
 func TestLedgerGetBlock(t *testing.T) {
 	chain := newTestChain(t)
-	defer chain.Close()
 	ledger := chain.contracts.ByName(nativenames.Ledger).Metadata().Hash
 
 	bhash := chain.GetHeaderHash(0)

@@ -262,7 +262,6 @@ func TestPayload_Sign(t *testing.T) {
 	p := randomPayload(t, prepareRequestType)
 	h := priv.PublicKey().GetScriptHash()
 	bc := newTestChain(t, false)
-	defer bc.Close()
 	require.Error(t, bc.VerifyWitness(h, p, &p.Witness, payloadGasLimit))
 	require.NoError(t, p.Sign(priv))
 	require.NoError(t, bc.VerifyWitness(h, p, &p.Witness, payloadGasLimit))

@@ -18,7 +18,6 @@ import (
 
 func TestNEP17Balance(t *testing.T) {
 	e := newExecutor(t, true)
-	defer e.Close(t)
 	cmdbalance := []string{"neo-go", "wallet", "nep17", "balance"}
 	cmdbase := append(cmdbalance,
 		"--rpc-endpoint", "http://"+e.RPC.Addr,
@@ -106,7 +105,6 @@ func TestNEP17Transfer(t *testing.T) {
 	defer w.Close()
 
 	e := newExecutor(t, true)
-	defer e.Close(t)
 	args := []string{
 		"neo-go", "wallet", "nep17", "transfer",
 		"--rpc-endpoint", "http://" + e.RPC.Addr,
@@ -164,7 +162,6 @@ func TestNEP17MultiTransfer(t *testing.T) {
 	privs, _ := generateKeys(t, 3)
 
 	e := newExecutor(t, true)
-	defer e.Close(t)
 	neoContractHash, err := e.Chain.GetNativeContractScriptHash(nativenames.Neo)
 	require.NoError(t, err)
 	args := []string{
@@ -191,7 +188,6 @@ func TestNEP17MultiTransfer(t *testing.T) {
 
 func TestNEP17ImportToken(t *testing.T) {
 	e := newExecutor(t, true)
-	defer e.Close(t)
 
 	tmpDir := os.TempDir()
 	walletPath := path.Join(tmpDir, "walletForImport.json")

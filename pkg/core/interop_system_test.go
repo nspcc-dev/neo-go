@@ -32,7 +32,6 @@ import (
 
 func TestContractIsStandard(t *testing.T) {
 	v, ic, chain := createVM(t)
-	defer chain.Close()
 
 	t.Run("contract not stored", func(t *testing.T) {
 		priv, err := keys.NewPrivateKey()
@@ -91,8 +90,7 @@ func TestContractIsStandard(t *testing.T) {
 }
 
 func TestContractCreateAccount(t *testing.T) {
-	v, ic, chain := createVM(t)
-	defer chain.Close()
+	v, ic, _ := createVM(t)
 	t.Run("Good", func(t *testing.T) {
 		priv, err := keys.NewPrivateKey()
 		require.NoError(t, err)
@@ -112,8 +110,7 @@ func TestContractCreateAccount(t *testing.T) {
 }
 
 func TestContractCreateMultisigAccount(t *testing.T) {
-	v, ic, chain := createVM(t)
-	defer chain.Close()
+	v, ic, _ := createVM(t)
 	t.Run("Good", func(t *testing.T) {
 		m, n := 3, 5
 		pubs := make(keys.PublicKeys, n)
@@ -159,8 +156,7 @@ func TestContractCreateMultisigAccount(t *testing.T) {
 }
 
 func TestRuntimeGasLeft(t *testing.T) {
-	v, ic, chain := createVM(t)
-	defer chain.Close()
+	v, ic, _ := createVM(t)
 
 	v.GasLimit = 100
 	v.AddGas(58)
@@ -169,8 +165,7 @@ func TestRuntimeGasLeft(t *testing.T) {
 }
 
 func TestRuntimeGetNotifications(t *testing.T) {
-	v, ic, chain := createVM(t)
-	defer chain.Close()
+	v, ic, _ := createVM(t)
 
 	ic.Notifications = []state.NotificationEvent{
 		{ScriptHash: util.Uint160{1}, Name: "Event1", Item: stackitem.NewArray([]stackitem.Item{stackitem.NewByteArray([]byte{11})})},
@@ -211,8 +206,7 @@ func TestRuntimeGetNotifications(t *testing.T) {
 }
 
 func TestRuntimeGetInvocationCounter(t *testing.T) {
-	v, ic, chain := createVM(t)
-	defer chain.Close()
+	v, ic, _ := createVM(t)
 
 	ic.VM.Invocations[hash.Hash160([]byte{2})] = 42
 
@@ -231,7 +225,6 @@ func TestRuntimeGetInvocationCounter(t *testing.T) {
 
 func TestStoragePut(t *testing.T) {
 	_, cs, ic, bc := createVMAndContractState(t)
-	defer bc.Close()
 
 	require.NoError(t, bc.contracts.Management.PutContractState(ic.DAO, cs))
 
@@ -304,7 +297,6 @@ func TestStoragePut(t *testing.T) {
 
 func TestStorageDelete(t *testing.T) {
 	v, cs, ic, bc := createVMAndContractState(t)
-	defer bc.Close()
 
 	require.NoError(t, bc.contracts.Management.PutContractState(ic.DAO, cs))
 	v.LoadScriptWithHash(cs.NEF.Script, cs.Hash, callflag.All)
@@ -675,7 +667,6 @@ func loadScriptWithHashAndFlags(ic *interop.Context, script []byte, hash util.Ui
 
 func TestContractCall(t *testing.T) {
 	_, ic, bc := createVM(t)
-	defer bc.Close()
 
 	cs, currCs := getTestContractState(bc)
 	require.NoError(t, bc.contracts.Management.PutContractState(ic.DAO, cs))
@@ -805,8 +796,7 @@ func TestContractCall(t *testing.T) {
 }
 
 func TestContractGetCallFlags(t *testing.T) {
-	v, ic, bc := createVM(t)
-	defer bc.Close()
+	v, ic, _ := createVM(t)
 
 	v.LoadScriptWithHash([]byte{byte(opcode.RET)}, util.Uint160{1, 2, 3}, callflag.All)
 	require.NoError(t, contractGetCallFlags(ic))
@@ -815,7 +805,6 @@ func TestContractGetCallFlags(t *testing.T) {
 
 func TestRuntimeCheckWitness(t *testing.T) {
 	_, ic, bc := createVM(t)
-	defer bc.Close()
 
 	script := []byte{byte(opcode.RET)}
 	scriptHash := hash.Hash160(script)
@@ -1008,7 +997,6 @@ func TestRuntimeCheckWitness(t *testing.T) {
 
 func TestLoadToken(t *testing.T) {
 	bc := newTestChain(t)
-	defer bc.Close()
 
 	cs, _ := getTestContractState(bc)
 	require.NoError(t, bc.contracts.Management.PutContractState(bc.dao, cs))

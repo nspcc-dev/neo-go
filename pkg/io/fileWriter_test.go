@@ -15,7 +15,9 @@ func TestMakeDirForFile_HappyPath(t *testing.T) {
 
 	filePath := tempDir + "/testDir/testFile.test"
 	err = MakeDirForFile(filePath, "test")
-	defer removeDir(t, tempDir)
+	t.Cleanup(func() {
+		removeDir(t, tempDir)
+	})
 	require.NoError(t, err)
 
 	_, errChDir := os.Create(filePath)
@@ -34,6 +36,8 @@ func TestMakeDirForFile_Negative(t *testing.T) {
 	filePath := file.Name() + "/error"
 	dir := path.Dir(filePath)
 	err = MakeDirForFile(filePath, "test")
-	defer removeDir(t, dir)
+	t.Cleanup(func() {
+		removeDir(t, dir)
+	})
 	require.Errorf(t, err, "could not create dir for test: mkdir %s : not a directory", filePath)
 }

@@ -164,7 +164,9 @@ func TestLoad(t *testing.T) {
 	}`
 	tmpDir := path.Join(os.TempDir(), "vmcliloadtest")
 	require.NoError(t, os.Mkdir(tmpDir, os.ModePerm))
-	defer os.RemoveAll(tmpDir)
+	t.Cleanup(func() {
+		os.RemoveAll(tmpDir)
+	})
 
 	t.Run("loadgo", func(t *testing.T) {
 		filename := path.Join(tmpDir, "vmtestcontract.go")
@@ -244,7 +246,9 @@ func TestRunWithDifferentArguments(t *testing.T) {
 
 	filename := path.Join(os.TempDir(), "run_vmtestcontract.go")
 	require.NoError(t, ioutil.WriteFile(filename, []byte(src), os.ModePerm))
-	defer os.Remove(filename)
+	t.Cleanup(func() {
+		os.Remove(filename)
+	})
 
 	e := newTestVMCLI(t)
 	e.runProg(t,

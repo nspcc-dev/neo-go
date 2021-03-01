@@ -1439,7 +1439,6 @@ func testRPCClient(t *testing.T, newClient func(context.Context, string, Options
 			for _, testCase := range testBatch {
 				t.Run(testCase.name, func(t *testing.T) {
 					srv := initTestServer(t, testCase.serverResponse)
-					defer srv.Close()
 
 					endpoint := srv.URL
 					opts := Options{}
@@ -1467,7 +1466,6 @@ func testRPCClient(t *testing.T, newClient func(context.Context, string, Options
 	}
 	for serverResponse, testBatch := range rpcClientErrorCases {
 		srv := initTestServer(t, serverResponse)
-		defer srv.Close()
 
 		endpoint := srv.URL
 		opts := Options{}
@@ -1523,6 +1521,8 @@ func initTestServer(t *testing.T, resp string) *httptest.Server {
 		}
 		requestHandler(t, r.In, w, resp)
 	}))
+
+	t.Cleanup(srv.Close)
 
 	return srv
 }
@@ -1582,7 +1582,7 @@ func TestCalculateValidUntilBlock(t *testing.T) {
 		}
 		requestHandler(t, r.In, w, response)
 	}))
-	defer srv.Close()
+	t.Cleanup(srv.Close)
 
 	endpoint := srv.URL
 	opts := Options{}
@@ -1616,7 +1616,7 @@ func TestGetNetwork(t *testing.T) {
 		// request handler already have `getversion` response wrapper
 		requestHandler(t, r.In, w, "")
 	}))
-	defer srv.Close()
+	t.Cleanup(srv.Close)
 	endpoint := srv.URL
 	opts := Options{}
 
@@ -1648,7 +1648,7 @@ func TestUninitedClient(t *testing.T) {
 		// request handler already have `getversion` response wrapper
 		requestHandler(t, r.In, w, "")
 	}))
-	defer srv.Close()
+	t.Cleanup(srv.Close)
 	endpoint := srv.URL
 	opts := Options{}
 

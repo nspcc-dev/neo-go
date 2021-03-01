@@ -30,7 +30,6 @@ import (
 // leads to tx deserialization failure.
 func TestRestoreAfterDeploy(t *testing.T) {
 	bc := newTestChain(t)
-	defer bc.Close()
 
 	// nef.NewFile() cares about version a lot.
 	config.Version = "0.90.0-test"
@@ -61,7 +60,6 @@ func TestStartFromHeight(t *testing.T) {
 	bc := newTestChainWithCustomCfgAndStore(t, st, nil)
 	cs1, _ := getTestContractState(bc)
 	func() {
-		defer bc.Close()
 		require.NoError(t, bc.contracts.Management.PutContractState(bc.dao, cs1))
 		checkContractState(t, bc, cs1.Hash, cs1)
 		_, err := bc.dao.Store.Persist()
@@ -74,7 +72,6 @@ func TestStartFromHeight(t *testing.T) {
 
 func TestContractDeployAndUpdateWithParameter(t *testing.T) {
 	bc := newTestChain(t)
-	defer bc.Close()
 
 	// nef.NewFile() cares about version a lot.
 	config.Version = "0.90.0-test"
@@ -125,7 +122,6 @@ func TestContractDeployAndUpdateWithParameter(t *testing.T) {
 
 func TestContractDeploy(t *testing.T) {
 	bc := newTestChain(t)
-	defer bc.Close()
 
 	// nef.NewFile() cares about version a lot.
 	config.Version = "0.90.0-test"
@@ -277,7 +273,6 @@ func TestContractDeploy(t *testing.T) {
 
 			r := io.NewBinReaderFromBuf(w.Bytes())
 			bc2 := newTestChain(t)
-			defer bc2.Close()
 
 			require.NoError(t, chaindump.Restore(bc2, r, 0, bc.BlockHeight()+1, nil))
 			require.NoError(t, r.Err)
@@ -364,7 +359,6 @@ func checkContractState(t *testing.T, bc *Blockchain, h util.Uint160, cs *state.
 
 func TestContractUpdate(t *testing.T) {
 	bc := newTestChain(t)
-	defer bc.Close()
 
 	// nef.NewFile() cares about version a lot.
 	config.Version = "0.90.0-test"
@@ -526,7 +520,6 @@ func TestContractUpdate(t *testing.T) {
 
 func TestGetContract(t *testing.T) {
 	bc := newTestChain(t)
-	defer bc.Close()
 
 	mgmtHash := bc.ManagementContractHash()
 	cs1, _ := getTestContractState(bc)
@@ -553,7 +546,6 @@ func TestGetContract(t *testing.T) {
 
 func TestContractDestroy(t *testing.T) {
 	bc := newTestChain(t)
-	defer bc.Close()
 
 	mgmtHash := bc.ManagementContractHash()
 	cs1, _ := getTestContractState(bc)
@@ -607,7 +599,6 @@ func compareContractStates(t *testing.T, expected *state.Contract, actual stacki
 
 func TestMinimumDeploymentFee(t *testing.T) {
 	chain := newTestChain(t)
-	defer chain.Close()
 
 	t.Run("get, internal method", func(t *testing.T) {
 		n := chain.contracts.Management.GetMinimumDeploymentFee(chain.dao)
