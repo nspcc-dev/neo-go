@@ -918,6 +918,14 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		}
 		v.estack.PushVal(new(big.Int).Exp(a, exp, nil))
 
+	case opcode.SQRT:
+		a := v.estack.Pop().BigInt()
+		if a.Sign() == -1 {
+			panic("negative value")
+		}
+
+		v.estack.PushVal(new(big.Int).Sqrt(a))
+
 	case opcode.SHL, opcode.SHR:
 		b := v.estack.Pop().BigInt().Int64()
 		if b == 0 {

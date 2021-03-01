@@ -178,6 +178,7 @@ const (
 	DIV         Opcode = 0xA1
 	MOD         Opcode = 0xA2
 	POW         Opcode = 0xA3
+	SQRT        Opcode = 0xA4
 	SHL         Opcode = 0xA8
 	SHR         Opcode = 0xA9
 	NOT         Opcode = 0xAA

@@ -946,6 +946,15 @@ func TestPOW(t *testing.T) {
 	t.Run("too big exponent", getTestFuncForVM(prog, nil, 1, math.MaxInt32+1))
 }
 
+func TestSQRT(t *testing.T) {
+	prog := makeProgram(opcode.SQRT)
+	t.Run("good, positive", getTestFuncForVM(prog, 3, 9))
+	t.Run("good, round down", getTestFuncForVM(prog, 2, 8))
+	t.Run("one", getTestFuncForVM(prog, 1, 1))
+	t.Run("zero", getTestFuncForVM(prog, 0, 0))
+	t.Run("negative value", getTestFuncForVM(prog, nil, -1))
+}
+
 func TestSHR(t *testing.T) {
 	prog := makeProgram(opcode.SHR)
 	t.Run("Good", getTestFuncForVM(prog, 1, 4, 2))
