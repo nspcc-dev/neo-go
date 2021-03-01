@@ -49,6 +49,9 @@ type codegen struct {
 	labels map[labelWithType]uint16
 	// A list of nested label names together with evaluation stack depth.
 	labelList []labelWithStackSize
+	// inlineLabelOffsets contains size of labelList at the start of inline call processing.
+	// For such calls we need to drop only newly created part of stack.
+	inlineLabelOffsets []int
 
 	// A label for the for-loop being currently visited.
 	currentFor string
@@ -607,7 +610,11 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		c.setLabel(l)
 
 		cnt := 0
-		for i := range c.labelList {
+		start := 0
+		if len(c.inlineLabelOffsets) > 0 {
+			start = c.inlineLabelOffsets[len(c.inlineLabelOffsets)-1]
+		}
+		for i := start; i < len(c.labelList); i++ {
 			cnt += c.labelList[i].sz
 		}
 		c.dropItems(cnt)

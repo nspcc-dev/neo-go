@@ -16,6 +16,14 @@ import (
 //    <inline body of f directly>
 // }
 func (c *codegen) inlineCall(f *funcScope, n *ast.CallExpr) {
+	labelSz := len(c.labelList)
+	offSz := len(c.inlineLabelOffsets)
+	c.inlineLabelOffsets = append(c.inlineLabelOffsets, labelSz)
+	defer func() {
+		c.inlineLabelOffsets = c.inlineLabelOffsets[:offSz]
+		c.labelList = c.labelList[:labelSz]
+	}()
+
 	pkg := c.buildInfo.program.Package(f.pkg.Path())
 	sig := c.typeOf(n.Fun).(*types.Signature)
 
@@ -31,7 +39,8 @@ func (c *codegen) inlineCall(f *funcScope, n *ast.CallExpr) {
 	// while stored in the new.
 	oldScope := c.scope.vars.locals
 	c.scope.vars.newScope()
-	newScope := c.scope.vars.locals
+	newScope := make([]map[string]varInfo, len(c.scope.vars.locals))
+	copy(newScope, c.scope.vars.locals)
 	defer c.scope.vars.dropScope()
 
 	hasVarArgs := !n.Ellipsis.IsValid()
