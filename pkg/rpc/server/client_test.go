@@ -203,10 +203,15 @@ func TestSignAndPushInvocationTx(t *testing.T) {
 
 	priv := testchain.PrivateKey(0)
 	acc := wallet.NewAccountFromPrivateKey(priv)
-	h, err := c.SignAndPushInvocationTx([]byte{byte(opcode.PUSH1)}, acc, 30, 0, []transaction.Signer{{
-		Account: priv.GetScriptHash(),
-		Scopes:  transaction.CalledByEntry,
-	}})
+	h, err := c.SignAndPushInvocationTx([]byte{byte(opcode.PUSH1)}, acc, 30, 0, []client.SignerAccount{
+		{
+			Signer: transaction.Signer{
+				Account: priv.GetScriptHash(),
+				Scopes:  transaction.CalledByEntry,
+			},
+			Account: acc,
+		},
+	})
 	require.NoError(t, err)
 
 	mp := chain.GetMemPool()

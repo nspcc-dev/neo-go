@@ -14,6 +14,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/fixedn"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result"
@@ -22,6 +23,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
+	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/stretchr/testify/require"
 )
 
@@ -272,6 +274,78 @@ func TestComlileAndInvokeFunction(t *testing.T) {
 
 			e.In.WriteString("one\r")
 			e.Run(t, append(cmd, "--force", h.StringLE(), "fail")...)
+		})
+	})
+
+	t.Run("real invoke and save tx", func(t *testing.T) {
+		txout := path.Join(tmpDir, "test_contract_tx.json")
+
+		nefName = path.Join(tmpDir, "verify.nef")
+		manifestName = path.Join(tmpDir, "verify.manifest.json")
+		e.Run(t, "neo-go", "contract", "compile",
+			"--in", "testdata/verify.go",
+			"--config", "testdata/verify.yml",
+			"--out", nefName, "--manifest", manifestName)
+
+		e.In.WriteString("one\r")
+		e.Run(t, "neo-go", "contract", "deploy",
+			"--rpc-endpoint", "http://"+e.RPC.Addr,
+			"--wallet", validatorWallet, "--address", validatorAddr,
+			"--in", nefName, "--manifest", manifestName)
+
+		line, err := e.Out.ReadString('\n')
+		require.NoError(t, err)
+		line = strings.TrimSpace(strings.TrimPrefix(line, "Contract: "))
+		hVerify, err := util.Uint160DecodeStringLE(line)
+		require.NoError(t, err)
+		e.checkTxPersisted(t)
+
+		cmd = []string{"neo-go", "contract", "invokefunction",
+			"--rpc-endpoint", "http://" + e.RPC.Addr,
+			"--out", txout,
+			"--wallet", validatorWallet, "--address", validatorAddr,
+		}
+
+		t.Run("without cosigner", func(t *testing.T) {
+			e.In.WriteString("one\r")
+			e.Run(t, append(cmd, hVerify.StringLE(), "verify")...)
+		})
+
+		t.Run("with cosigner", func(t *testing.T) {
+			t.Run("cosigner is sender", func(t *testing.T) {
+				e.In.WriteString("one\r")
+				e.Run(t, append(cmd, hVerify.StringLE(), "verify", "--", validatorAddr+":Global")...)
+			})
+
+			acc, err := wallet.NewAccount()
+			require.NoError(t, err)
+			pk, err := keys.NewPrivateKey()
+			require.NoError(t, err)
+			acc.ConvertMultisig(2, keys.PublicKeys{acc.PrivateKey().PublicKey(), pk.PublicKey()})
+
+			t.Run("cosigner is multisig account", func(t *testing.T) {
+				t.Run("missing in the wallet", func(t *testing.T) {
+					e.In.WriteString("one\r")
+					e.RunWithError(t, append(cmd, hVerify.StringLE(), "verify", "--", acc.Address)...)
+				})
+
+				t.Run("good", func(t *testing.T) {
+					e.In.WriteString("one\r")
+					e.Run(t, append(cmd, hVerify.StringLE(), "verify", "--", multisigAddr)...)
+				})
+			})
+
+			t.Run("cosigner is deployed contract", func(t *testing.T) {
+				t.Run("missing in the wallet", func(t *testing.T) {
+					e.In.WriteString("one\r")
+					e.RunWithError(t, append(cmd, hVerify.StringLE(), "verify", "--", h.StringLE())...)
+				})
+
+				t.Run("good", func(t *testing.T) {
+					e.In.WriteString("one\r")
+					e.Run(t, append(cmd, hVerify.StringLE(), "verify", "--", hVerify.StringLE())...)
+				})
+			})
 		})
 	})
 
