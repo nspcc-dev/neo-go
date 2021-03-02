@@ -6,7 +6,7 @@ import (
 )
 
 // Hash represents Policy contract hash.
-const Hash = "\xf2\xe2\x08\xed\xcd\x14\x6c\xbe\xe4\x67\x6e\xdf\x79\xb7\x5e\x50\x98\xd3\xbc\x79"
+const Hash = "\x7b\xc6\x81\xc0\xa1\xf7\x1d\x54\x34\x57\xb6\x8b\xba\x8d\x5f\x9f\xdd\x4e\x5e\xcc"
 
 // GetMaxTransactionsPerBlock represents `getMaxTransactionsPerBlock` method of Policy native contract.
 func GetMaxTransactionsPerBlock() int {

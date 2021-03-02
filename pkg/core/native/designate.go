@@ -81,6 +81,7 @@ func (s *Designate) isValidRole(r Role) bool {
 func newDesignate(p2pSigExtensionsEnabled bool) *Designate {
 	s := &Designate{ContractMD: *interop.NewContractMD(nativenames.Designation, designateContractID)}
 	s.p2pSigExtensionsEnabled = p2pSigExtensionsEnabled
+	defer s.UpdateHash()
 
 	desc := newDescriptor("getDesignatedByRole", smartcontract.ArrayType,
 		manifest.NewParameter("role", smartcontract.IntegerType),

@@ -12,28 +12,27 @@ import (
 
 // Call calls specified native contract method.
 func Call(ic *interop.Context) error {
-	id := int32(ic.VM.Estack().Pop().BigInt().Int64())
+	version := ic.VM.Estack().Pop().BigInt().Int64()
+	if version != 0 {
+		return fmt.Errorf("native contract of version %d is not active", version)
+	}
 	var c interop.Contract
 	for _, ctr := range ic.Natives {
-		if ctr.Metadata().ID == id {
+		if ctr.Metadata().Hash == ic.VM.GetCurrentScriptHash() {
 			c = ctr
 			break
 		}
 	}
 	if c == nil {
-		return fmt.Errorf("native contract %d not found", id)
+		return fmt.Errorf("native contract %d not found", version)
 	}
-	h := ic.VM.GetCurrentScriptHash()
-	if !h.Equals(c.Metadata().Hash) {
-		return errors.New("it is not allowed to use Neo.Native.Call directly to call native contracts. System.Contract.Call should be used")
-	}
-	operation := ic.VM.Estack().Pop().String()
-	m, ok := c.Metadata().GetMethod(operation, ic.VM.Estack().Len())
+	m, ok := c.Metadata().GetMethodByOffset(ic.VM.Context().IP())
 	if !ok {
-		return fmt.Errorf("method %s not found", operation)
+		return fmt.Errorf("method not found")
 	}
 	if !ic.VM.Context().GetCallFlags().Has(m.RequiredFlags) {
-		return fmt.Errorf("missing call flags for native %d `%s` operation call: %05b vs %05b", id, operation, ic.VM.Context().GetCallFlags(), m.RequiredFlags)
+		return fmt.Errorf("missing call flags for native %d `%s` operation call: %05b vs %05b",
+			version, m.MD.Name, ic.VM.Context().GetCallFlags(), m.RequiredFlags)
 	}
 	// Native contract prices are not multiplied by `BaseExecFee`.
 	if !ic.VM.AddGas(m.Price) {

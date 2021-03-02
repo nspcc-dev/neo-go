@@ -27,6 +27,8 @@ const initialGAS = 30000000
 // newGAS returns GAS native contract.
 func newGAS() *GAS {
 	g := &GAS{}
+	defer g.UpdateHash()
+
 	nep17 := newNEP17Native(nativenames.Gas, gasContractID)
 	nep17.symbol = "GAS"
 	nep17.decimals = 8

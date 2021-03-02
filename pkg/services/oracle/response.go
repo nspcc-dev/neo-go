@@ -11,7 +11,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
-	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"go.uber.org/zap"
@@ -83,7 +82,7 @@ func readResponse(rc gio.ReadCloser, limit int) ([]byte, error) {
 
 // CreateResponseTx creates unsigned oracle response transaction.
 func (o *Oracle) CreateResponseTx(gasForResponse int64, height uint32, resp *transaction.OracleResponse) (*transaction.Transaction, error) {
-	tx := transaction.New(o.Network, o.OracleResponse, 0)
+	tx := transaction.New(o.Network, o.oracleResponse, 0)
 	tx.Nonce = uint32(resp.ID)
 	tx.ValidUntilBlock = height + transaction.MaxValidUntilBlockIncrement
 	tx.Attributes = []transaction.Attribute{{
@@ -94,7 +93,7 @@ func (o *Oracle) CreateResponseTx(gasForResponse int64, height uint32, resp *tra
 	oracleSignContract := o.getOracleSignContract()
 	tx.Signers = []transaction.Signer{
 		{
-			Account: o.OracleHash,
+			Account: o.oracleHash,
 			Scopes:  transaction.None,
 		},
 		{
@@ -137,8 +136,8 @@ func (o *Oracle) CreateResponseTx(gasForResponse int64, height uint32, resp *tra
 func (o *Oracle) testVerify(tx *transaction.Transaction) (int64, bool) {
 	v := o.Chain.GetTestVM(trigger.Verification, tx, nil)
 	v.GasLimit = o.Chain.GetPolicer().GetMaxVerificationGAS()
-	v.LoadScriptWithHash(o.OracleScript, o.OracleHash, callflag.ReadStates)
-	v.Estack().PushVal(manifest.MethodVerify)
+	v.LoadScriptWithHash(o.oracleScript, o.oracleHash, callflag.ReadOnly)
+	v.Jump(v.Context(), o.verifyOffset)
 
 	ok := isVerifyOk(v)
 	return v.GasConsumed(), ok

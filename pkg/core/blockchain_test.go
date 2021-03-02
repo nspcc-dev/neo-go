@@ -25,6 +25,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
@@ -586,7 +587,7 @@ func TestVerifyTx(t *testing.T) {
 						w := io.NewBufBinWriter()
 						emit.Opcodes(w.BinWriter, opcode.ABORT)
 						emit.Bytes(w.BinWriter, util.Uint160{}.BytesBE())
-						emit.Int(w.BinWriter, int64(orc.NEF.Checksum))
+						emit.Int(w.BinWriter, 0)
 						emit.String(w.BinWriter, orc.Manifest.Name)
 						tx.Scripts[len(tx.Scripts)-1].VerificationScript = w.Bytes()
 						err := bc.VerifyTx(tx)
@@ -1000,7 +1001,7 @@ func TestVerifyTx(t *testing.T) {
 				transaction.NotaryServiceFeePerKey + // fee for Notary attribute
 				fee.Opcode(bc.GetBaseExecFee(), // Notary verification script
 					opcode.PUSHDATA1, opcode.RET, // invocation script
-					opcode.PUSHINT8, opcode.SYSCALL, opcode.RET) + // Neo.Native.Call
+					opcode.PUSH0, opcode.SYSCALL, opcode.RET) + // Neo.Native.Call
 				native.NotaryVerificationPrice // Notary witness verification price
 			tx.Scripts = []transaction.Witness{
 				{
@@ -1197,7 +1198,8 @@ func TestIsTxStillRelevant(t *testing.T) {
 			"github.com/nspcc-dev/neo-go/pkg/interop/util"
 		)
 		func Verify() bool {
-			currentHeight := contract.Call(util.FromAddress("NV5WuMGkwhQexQ4afTwuRojMeWwfWrEAdv"), "currentIndex", contract.ReadStates)
+			addr := util.FromAddress("`+address.Uint160ToString(bc.contracts.Ledger.Hash)+`")
+			currentHeight := contract.Call(addr, "currentIndex", contract.ReadStates)
 			return currentHeight.(int) < %d
 		}`, bc.BlockHeight()+2) // deploy + next block
 		txDeploy, h, err := testchain.NewDeployTx(bc, "TestVerify", neoOwner, strings.NewReader(src))

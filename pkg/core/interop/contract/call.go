@@ -98,24 +98,13 @@ func callExFromNative(ic *interop.Context, caller util.Uint160, cs *state.Contra
 	}
 
 	ic.VM.Invocations[cs.Hash]++
-	ic.VM.LoadScriptWithCallingHash(caller, cs.NEF.Script, cs.Hash, ic.VM.Context().GetCallFlags()&f, true, uint16(len(args)))
+	ic.VM.LoadScriptWithCallingHash(caller, cs.NEF.Script, cs.Hash, ic.VM.Context().GetCallFlags()&f, hasReturn, uint16(len(args)))
 	ic.VM.Context().NEF = &cs.NEF
-	var isNative bool
-	for i := range ic.Natives {
-		if ic.Natives[i].Metadata().Hash.Equals(cs.Hash) {
-			isNative = true
-			break
-		}
-	}
 	for i := len(args) - 1; i >= 0; i-- {
 		ic.VM.Estack().PushVal(args[i])
 	}
-	if isNative {
-		ic.VM.Estack().PushVal(name)
-	} else {
-		// use Jump not Call here because context was loaded in LoadScript above.
-		ic.VM.Jump(ic.VM.Context(), md.Offset)
-	}
+	// use Jump not Call here because context was loaded in LoadScript above.
+	ic.VM.Jump(ic.VM.Context(), md.Offset)
 	if hasReturn {
 		ic.VM.Context().RetCount = 1
 	} else {

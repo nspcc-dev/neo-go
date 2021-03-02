@@ -5,7 +5,6 @@ import (
 	"math"
 	"math/big"
 
-	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
@@ -134,15 +133,4 @@ func CreateContractHash(sender util.Uint160, checksum uint32, name string) util.
 		panic(w.Err)
 	}
 	return hash.Hash160(w.Bytes())
-}
-
-// CreateNativeContractScript returns script for the native contract.
-func CreateNativeContractScript(id int32) []byte {
-	w := io.NewBufBinWriter()
-	emit.Int(w.BinWriter, int64(id))
-	emit.Syscall(w.BinWriter, interopnames.SystemContractCallNative)
-	if w.Err != nil {
-		panic(w.Err)
-	}
-	return w.Bytes()
 }

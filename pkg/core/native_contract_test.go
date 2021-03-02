@@ -10,7 +10,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/fee"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/contract"
-	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
@@ -64,6 +63,8 @@ func newTestNative() *testNative {
 		meta:   *interop.NewContractMD("Test.Native.Sum", 0),
 		blocks: make(chan uint32, 1),
 	}
+	defer tn.meta.UpdateHash()
+
 	desc := &manifest.Method{
 		Name: "sum",
 		Parameters: []manifest.Parameter{
@@ -220,27 +221,33 @@ func TestNativeContract_InvokeInternal(t *testing.T) {
 
 	d := dao.NewSimple(storage.NewMemoryStore(), netmode.UnitTestNet, chain.config.StateRootInHeader)
 	ic := chain.newInteropContext(trigger.Application, d, nil, nil)
-	v := ic.SpawnVM()
+
+	sumOffset := 0
+	for _, md := range tn.Metadata().Methods {
+		if md.MD.Name == "sum" {
+			sumOffset = md.MD.Offset
+			break
+		}
+	}
 
 	t.Run("fail, bad current script hash", func(t *testing.T) {
-		v.LoadScriptWithHash([]byte{1}, util.Uint160{1, 2, 3}, callflag.All)
+		v := ic.SpawnVM()
+		v.LoadScriptWithHash(tn.Metadata().NEF.Script, util.Uint160{1, 2, 3}, callflag.All)
 		v.Estack().PushVal(14)
 		v.Estack().PushVal(28)
-		v.Estack().PushVal("sum")
-		v.Estack().PushVal(tn.Metadata().Name)
+		v.Jump(v.Context(), sumOffset)
 
 		// it's prohibited to call natives directly
-		require.Error(t, native.Call(ic))
+		require.Error(t, v.Run())
 	})
 
 	t.Run("success", func(t *testing.T) {
-		v.LoadScriptWithHash([]byte{1}, tn.Metadata().Hash, callflag.All)
+		v := ic.SpawnVM()
+		v.LoadScriptWithHash(tn.Metadata().NEF.Script, tn.Metadata().Hash, callflag.All)
 		v.Estack().PushVal(14)
 		v.Estack().PushVal(28)
-		v.Estack().PushVal("sum")
-		v.Estack().PushVal(tn.Metadata().ID)
-
-		require.NoError(t, native.Call(ic))
+		v.Jump(v.Context(), sumOffset)
+		require.NoError(t, v.Run())
 
 		value := v.Estack().Pop().BigInt()
 		require.Equal(t, int64(42), value.Int64())

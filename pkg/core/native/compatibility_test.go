@@ -12,8 +12,8 @@ func TestNamesASCII(t *testing.T) {
 	cs := NewContracts(true)
 	for _, c := range cs.Contracts {
 		require.True(t, isASCII(c.Metadata().Name))
-		for m := range c.Metadata().Methods {
-			require.True(t, isASCII(m.Name))
+		for _, m := range c.Metadata().Methods {
+			require.True(t, isASCII(m.MD.Name))
 		}
 		for _, e := range c.Metadata().Manifest.ABI.Events {
 			require.True(t, isASCII(e.Name))

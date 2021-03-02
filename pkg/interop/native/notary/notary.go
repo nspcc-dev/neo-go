@@ -6,7 +6,7 @@ import (
 )
 
 // Hash represents Notary contract hash.
-const Hash = "\x0c\xcf\x26\x94\x3f\xb5\xc9\xb6\x05\xe2\x06\xd2\xa2\x75\xbe\x3e\xa6\xa4\x75\xf4"
+const Hash = "\x3b\xec\x35\x31\x11\x9b\xba\xd7\x6d\xd0\x44\x92\x0b\x0d\xe6\xc3\x19\x4f\xe1\xc1"
 
 // LockDepositUntil represents `lockDepositUntil` method of Notary native contract.
 func LockDepositUntil(addr interop.Hash160, till int) bool {

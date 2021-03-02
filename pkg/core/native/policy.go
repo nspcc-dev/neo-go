@@ -86,6 +86,7 @@ var _ interop.Contract = (*Policy)(nil)
 // newPolicy returns Policy native contract.
 func newPolicy() *Policy {
 	p := &Policy{ContractMD: *interop.NewContractMD(nativenames.Policy, policyContractID)}
+	defer p.UpdateHash()
 
 	desc := newDescriptor("getMaxTransactionsPerBlock", smartcontract.IntegerType)
 	md := newMethodAndPrice(p.getMaxTransactionsPerBlock, 1000000, callflag.ReadStates)

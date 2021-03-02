@@ -39,6 +39,8 @@ func newLedger() *Ledger {
 	var l = &Ledger{
 		ContractMD: *interop.NewContractMD(nativenames.Ledger, ledgerContractID),
 	}
+	defer l.UpdateHash()
+
 	desc := newDescriptor("currentHash", smartcontract.Hash256Type)
 	md := newMethodAndPrice(l.currentHash, 1000000, callflag.ReadStates)
 	l.AddMethod(md, desc)
