@@ -140,17 +140,17 @@ func (c *Client) CreateNEP17MultiTransferTx(acc *wallet.Account, gas int64, reci
 	if err != nil {
 		return nil, fmt.Errorf("bad account address: %v", err)
 	}
-	return c.CreateTxFromScript(w.Bytes(), acc, -1, gas, transaction.Signer{
+	return c.CreateTxFromScript(w.Bytes(), acc, -1, gas, []transaction.Signer{{
 		Account: accAddr,
 		Scopes:  transaction.CalledByEntry,
-	})
+	}})
 }
 
 // CreateTxFromScript creates transaction and properly sets cosigners and NetworkFee.
 // If sysFee <= 0, it is determined via result of `invokescript` RPC. You should
 // initialize network magic with Init before calling CreateTxFromScript.
 func (c *Client) CreateTxFromScript(script []byte, acc *wallet.Account, sysFee, netFee int64,
-	cosigners ...transaction.Signer) (*transaction.Transaction, error) {
+	cosigners []transaction.Signer) (*transaction.Transaction, error) {
 	from, err := address.StringToUint160(acc.Address)
 	if err != nil {
 		return nil, fmt.Errorf("bad account address: %v", err)

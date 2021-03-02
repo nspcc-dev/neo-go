@@ -579,7 +579,7 @@ func invokeInternal(ctx *cli.Context, signAndPush bool) error {
 		fmt.Fprintln(ctx.App.Writer, errText+". Sending transaction...")
 	}
 	if out := ctx.String("out"); out != "" {
-		tx, err := c.CreateTxFromScript(resp.Script, acc, resp.GasConsumed, int64(gas), cosigners...)
+		tx, err := c.CreateTxFromScript(resp.Script, acc, resp.GasConsumed, int64(gas), cosigners)
 		if err != nil {
 			return cli.NewExitError(fmt.Errorf("failed to create tx: %w", err), 1)
 		}

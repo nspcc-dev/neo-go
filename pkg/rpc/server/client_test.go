@@ -347,7 +347,7 @@ func TestCreateTxFromScript(t *testing.T) {
 	priv := testchain.PrivateKey(0)
 	acc := wallet.NewAccountFromPrivateKey(priv)
 	t.Run("NoSystemFee", func(t *testing.T) {
-		tx, err := c.CreateTxFromScript([]byte{byte(opcode.PUSH1)}, acc, -1, 10)
+		tx, err := c.CreateTxFromScript([]byte{byte(opcode.PUSH1)}, acc, -1, 10, nil)
 		require.NoError(t, err)
 		require.True(t, tx.ValidUntilBlock > chain.BlockHeight())
 		require.EqualValues(t, 30, tx.SystemFee) // PUSH1
@@ -355,7 +355,7 @@ func TestCreateTxFromScript(t *testing.T) {
 		require.Equal(t, acc.PrivateKey().GetScriptHash(), tx.Signers[0].Account)
 	})
 	t.Run("ProvideSystemFee", func(t *testing.T) {
-		tx, err := c.CreateTxFromScript([]byte{byte(opcode.PUSH1)}, acc, 123, 10)
+		tx, err := c.CreateTxFromScript([]byte{byte(opcode.PUSH1)}, acc, 123, 10, nil)
 		require.NoError(t, err)
 		require.True(t, tx.ValidUntilBlock > chain.BlockHeight())
 		require.EqualValues(t, 123, tx.SystemFee)
