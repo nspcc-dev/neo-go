@@ -1226,6 +1226,10 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 	// not the assertion type.
 	case *ast.TypeAssertExpr:
 		ast.Walk(c, n.X)
+		if c.isCallExprSyscall(n.X) {
+			return nil
+		}
+
 		goTyp := c.typeOf(n.Type)
 		if canConvert(goTyp.String()) {
 			typ := toNeoType(goTyp)
@@ -1244,6 +1248,20 @@ func (c *codegen) packVarArgs(n *ast.CallExpr, typ *types.Signature) int {
 	emit.Int(c.prog.BinWriter, int64(varSize))
 	emit.Opcodes(c.prog.BinWriter, opcode.PACK)
 	return varSize
+}
+
+func (c *codegen) isCallExprSyscall(e ast.Expr) bool {
+	ce, ok := e.(*ast.CallExpr)
+	if !ok {
+		return false
+	}
+	sel, ok := ce.Fun.(*ast.SelectorExpr)
+	if !ok {
+		return false
+	}
+	name, _ := c.getFuncNameFromSelector(sel)
+	f, ok := c.funcs[name]
+	return ok && isSyscall(f)
 }
 
 // processDefers emits code for `defer` statements.
