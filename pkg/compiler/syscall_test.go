@@ -92,3 +92,29 @@ func TestSyscallInGlobalInit(t *testing.T) {
 	require.NoError(t, v.Run())
 	require.Equal(t, []byte{1, 2}, v.Estack().Pop().Value())
 }
+
+func TestOpcode(t *testing.T) {
+	t.Run("1 argument", func(t *testing.T) {
+		src := `package foo
+		import "github.com/nspcc-dev/neo-go/pkg/interop/neogointernal"
+		func abs(a int) int {
+			return neogointernal.Opcode1("ABS", a).(int)
+		}
+		func Main() int {
+			return abs(-42)
+		}`
+		eval(t, src, big.NewInt(42))
+	})
+	t.Run("2 arguments", func(t *testing.T) {
+		src := `package foo
+		import "github.com/nspcc-dev/neo-go/pkg/interop/neogointernal"
+		func add3(a, b, c int) int {
+			return neogointernal.Opcode2("SUB", a,
+				neogointernal.Opcode2("SUB", b, c).(int)).(int)
+		}
+		func Main() int {
+			return add3(53, 12, 1)
+		}`
+		eval(t, src, big.NewInt(42))
+	})
+}

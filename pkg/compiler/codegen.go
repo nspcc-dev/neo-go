@@ -939,7 +939,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 					c.emittedEvents[name] = append(c.emittedEvents[name], params)
 				}
 			}
-			c.convertSyscall(n)
+			c.convertSyscall(f, n)
 		default:
 			emit.Call(c.prog.BinWriter, opcode.CALLL, f.label)
 		}
@@ -1530,18 +1530,27 @@ func (c *codegen) getByteArray(expr ast.Expr) []byte {
 	}
 }
 
-func (c *codegen) convertSyscall(expr *ast.CallExpr) {
+func (c *codegen) convertSyscall(f *funcScope, expr *ast.CallExpr) {
 	for _, arg := range expr.Args[1:] {
 		ast.Walk(c, arg)
 	}
-	c.emitReverse(len(expr.Args) - 1)
 	tv := c.typeAndValueOf(expr.Args[0])
-	syscall := constant.StringVal(tv.Value)
-	emit.Syscall(c.prog.BinWriter, syscall)
+	name := constant.StringVal(tv.Value)
+	if strings.HasPrefix(f.name, "Syscall") {
+		c.emitReverse(len(expr.Args) - 1)
+		emit.Syscall(c.prog.BinWriter, name)
 
-	// This NOP instruction is basically not needed, but if we do, we have a
-	// one to one matching avm file with neo-python which is very nice for debugging.
-	emit.Opcodes(c.prog.BinWriter, opcode.NOP)
+		// This NOP instruction is basically not needed, but if we do, we have a
+		// one to one matching avm file with neo-python which is very nice for debugging.
+		emit.Opcodes(c.prog.BinWriter, opcode.NOP)
+	} else {
+		op, err := opcode.FromString(name)
+		if err != nil {
+			c.prog.Err = fmt.Errorf("invalid opcode: %s", op)
+			return
+		}
+		emit.Opcodes(c.prog.BinWriter, op)
+	}
 }
 
 // emitSliceHelper emits 3 items on stack: slice, its first index, and its size.
