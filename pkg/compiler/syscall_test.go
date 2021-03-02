@@ -117,4 +117,20 @@ func TestOpcode(t *testing.T) {
 		}`
 		eval(t, src, big.NewInt(42))
 	})
+	t.Run("POW", func(t *testing.T) {
+		src := `package foo
+		import "github.com/nspcc-dev/neo-go/pkg/interop/math"
+		func Main() int {
+			return math.Pow(2, math.Pow(3, 2))
+		}`
+		eval(t, src, big.NewInt(512))
+	})
+	t.Run("SRQT", func(t *testing.T) {
+		src := `package foo
+		import "github.com/nspcc-dev/neo-go/pkg/interop/math"
+		func Main() int {
+			return math.Sqrt(math.Sqrt(101)) // == sqrt(10) == 3
+		}`
+		eval(t, src, big.NewInt(3))
+	})
 }
