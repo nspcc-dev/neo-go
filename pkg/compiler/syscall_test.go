@@ -133,4 +133,64 @@ func TestOpcode(t *testing.T) {
 		}`
 		eval(t, src, big.NewInt(3))
 	})
+	t.Run("SIGN", func(t *testing.T) {
+		src := `package foo
+		import "github.com/nspcc-dev/neo-go/pkg/interop/math"
+		func Main() []int {
+			signs := make([]int, 3)
+			signs[0] = math.Sign(-123)
+			signs[1] = math.Sign(0)
+			signs[2] = math.Sign(42)
+			return signs
+		}`
+		eval(t, src, []stackitem.Item{
+			stackitem.Make(-1),
+			stackitem.Make(0),
+			stackitem.Make(1),
+		})
+	})
+	t.Run("ABS", func(t *testing.T) {
+		src := `package foo
+		import "github.com/nspcc-dev/neo-go/pkg/interop/math"
+		func Main() int {
+			return math.Abs(-3)
+		}`
+		eval(t, src, big.NewInt(3))
+	})
+	t.Run("MAX", func(t *testing.T) {
+		src := `package foo
+		import "github.com/nspcc-dev/neo-go/pkg/interop/math"
+		func Main() int {
+			return math.Max(1, 2) + math.Max(8, 3)
+		}`
+		eval(t, src, big.NewInt(10))
+	})
+	t.Run("MIN", func(t *testing.T) {
+		src := `package foo
+		import "github.com/nspcc-dev/neo-go/pkg/interop/math"
+		func Main() int {
+			return math.Min(1, 2) + math.Min(8, 3)
+		}`
+		eval(t, src, big.NewInt(4))
+	})
+	t.Run("WITHIN", func(t *testing.T) {
+		src := `package foo
+		import "github.com/nspcc-dev/neo-go/pkg/interop/math"
+		func Main() []bool {
+			r := make([]bool, 5)
+			r[0] = math.Within(2, 3, 5)
+			r[1] = math.Within(3, 3, 5)
+			r[2] = math.Within(4, 3, 5)
+			r[3] = math.Within(5, 3, 5)
+			r[4] = math.Within(6, 3, 5)
+			return r
+		}`
+		eval(t, src, []stackitem.Item{
+			stackitem.Make(false),
+			stackitem.Make(true),
+			stackitem.Make(true),
+			stackitem.Make(false),
+			stackitem.Make(false),
+		})
+	})
 }

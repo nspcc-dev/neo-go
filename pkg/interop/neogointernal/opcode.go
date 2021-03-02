@@ -9,3 +9,8 @@ func Opcode1(op string, arg interface{}) interface{} {
 func Opcode2(op string, arg1, arg2 interface{}) interface{} {
 	return nil
 }
+
+// Opcode3 emits opcode with 3 arguments.
+func Opcode3(op string, arg1, arg2, arg3 interface{}) interface{} {
+	return nil
+}
