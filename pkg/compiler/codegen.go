@@ -1708,15 +1708,6 @@ func (c *codegen) convertBuiltin(expr *ast.CallExpr) {
 		c.emitStoreByIndex(varGlobal, c.exceptionIndex)
 	case "delete":
 		emit.Opcodes(c.prog.BinWriter, opcode.REMOVE)
-	case "ToInteger", "ToByteArray", "ToBool":
-		typ := stackitem.IntegerT
-		switch name {
-		case "ToByteArray":
-			typ = stackitem.ByteArrayT
-		case "ToBool":
-			typ = stackitem.BooleanT
-		}
-		c.emitConvert(typ)
 	case "Remove":
 		if !isCompoundSlice(c.typeOf(expr.Args[0])) {
 			c.prog.Err = errors.New("`Remove` supports only non-byte slices")

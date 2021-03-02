@@ -327,6 +327,5 @@ func canInline(s string) bool {
 		return false
 	}
 	return !strings.HasPrefix(s[len(interopPrefix):], "/neogointernal") &&
-		!strings.HasPrefix(s[len(interopPrefix):], "/util") &&
-		!strings.HasPrefix(s[len(interopPrefix):], "/convert")
+		!strings.HasPrefix(s[len(interopPrefix):], "/util")
 }
