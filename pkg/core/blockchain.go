@@ -953,11 +953,12 @@ func (bc *Blockchain) processNEP17Transfer(cache *dao.Cached, h util.Uint256, b 
 		bs.LastUpdatedBlock = b.Index
 		balances.Trackers[id] = bs
 		transfer.Amount = *new(big.Int).Sub(&transfer.Amount, amount)
-		isBig, err := cache.AppendNEP17Transfer(fromAddr, balances.NextTransferBatch, transfer)
+		balances.NewBatch, err = cache.AppendNEP17Transfer(fromAddr,
+			balances.NextTransferBatch, balances.NewBatch, transfer)
 		if err != nil {
 			return
 		}
-		if isBig {
+		if balances.NewBatch {
 			balances.NextTransferBatch++
 		}
 		if err := cache.PutNEP17Balances(fromAddr, balances); err != nil {
@@ -975,11 +976,12 @@ func (bc *Blockchain) processNEP17Transfer(cache *dao.Cached, h util.Uint256, b 
 		balances.Trackers[id] = bs
 
 		transfer.Amount = *amount
-		isBig, err := cache.AppendNEP17Transfer(toAddr, balances.NextTransferBatch, transfer)
+		balances.NewBatch, err = cache.AppendNEP17Transfer(toAddr,
+			balances.NextTransferBatch, balances.NewBatch, transfer)
 		if err != nil {
 			return
 		}
-		if isBig {
+		if balances.NewBatch {
 			balances.NextTransferBatch++
 		}
 		if err := cache.PutNEP17Balances(toAddr, balances); err != nil {
