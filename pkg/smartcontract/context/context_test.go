@@ -2,6 +2,7 @@ package context
 
 import (
 	"encoding/hex"
+	"encoding/json"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/internal/testserdes"
@@ -131,7 +132,7 @@ func TestParameterContext_MarshalJSON(t *testing.T) {
 		Verifiable: tx,
 		Items: map[util.Uint160]*Item{
 			priv.GetScriptHash(): {
-				Script: priv.GetScriptHash(),
+				Script: priv.PublicKey().GetVerificationScript(),
 				Parameters: []smartcontract.Parameter{{
 					Type:  smartcontract.SignatureType,
 					Value: sign,
@@ -144,6 +145,22 @@ func TestParameterContext_MarshalJSON(t *testing.T) {
 	}
 
 	testserdes.MarshalUnmarshalJSON(t, expected, new(ParameterContext))
+
+	t.Run("invalid script", func(t *testing.T) {
+		js := `{
+ 			"script": "AQID",
+ 			"parameters": [
+  				{
+   					"type": "Signature",
+   					"value": "QfOZLLqjMyPWMzRxMAKw7fcd8leLcpwiiTV2pUyC0pth/y7Iw7o7WzNpxeAJm5bmExmlF7g5pMhXz1xVT6KK3g=="
+  				}
+			],
+ 			"signatures": {
+				"025c210bde738e0e646929ee04ec2ccb42a700356083f55386b5347b9b725c10b9": "a6c6d8a2334791888df559419f07209ee39e2f20688af8cc38010854b98abf77194e37f173bbc86b77dce4afa8ce3ae5170dd346b5265bcb9b723d83299a6f0f",
+  				"035d4da640b3a39f19ed88855aeddd97725422b4230ccae56bd5544419d0056ea9": "058e577f23395f382194eebb83f66bb8903c8f3c5b6afd759c20f2518466124dcd9cbccfc029a42e9a7d5a3a060b091edc73dcac949fd894d7a9d10678296ac6"
+		}`
+		require.Error(t, json.Unmarshal([]byte(js), new(ParameterContext)))
+	})
 }
 
 func getPrivateKeys(t *testing.T, n int) ([]*keys.PrivateKey, []*keys.PublicKey) {

@@ -135,7 +135,7 @@ func (c *ParameterContext) getItemForContract(ctr *wallet.Contract) *Item {
 		params[i].Type = ctr.Parameters[i].Type
 	}
 	item := &Item{
-		Script:     h,
+		Script:     ctr.Script,
 		Parameters: params,
 		Signatures: make(map[string][]byte),
 	}
