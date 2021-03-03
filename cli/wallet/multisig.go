@@ -10,29 +10,7 @@ import (
 	"github.com/urfave/cli"
 )
 
-func newMultisigCommands() []cli.Command {
-	signFlags := []cli.Flag{
-		walletPathFlag,
-		outFlag,
-		inFlag,
-		cli.StringFlag{
-			Name:  "address, a",
-			Usage: "Address to use",
-		},
-	}
-	signFlags = append(signFlags, options.RPC...)
-	return []cli.Command{
-		{
-			Name:      "sign",
-			Usage:     "sign a transaction",
-			UsageText: "multisig sign --wallet <path> --address <address> --in <file.in> --out <file.out>",
-			Action:    signMultisig,
-			Flags:     signFlags,
-		},
-	}
-}
-
-func signMultisig(ctx *cli.Context) error {
+func signStoredTransaction(ctx *cli.Context) error {
 	wall, err := openWallet(ctx.String("wallet"))
 	if err != nil {
 		return cli.NewExitError(err, 1)

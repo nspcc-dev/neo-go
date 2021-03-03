@@ -76,7 +76,7 @@ func TestSignMultisigTx(t *testing.T) {
 		"--out", txPath)
 
 	e.In.WriteString("pass\r")
-	e.Run(t, "neo-go", "wallet", "multisig", "sign",
+	e.Run(t, "neo-go", "wallet", "sign",
 		"--rpc-endpoint", "http://"+e.RPC.Addr,
 		"--wallet", wallet2Path, "--address", multisigAddr,
 		"--in", txPath, "--out", txPath)
@@ -100,7 +100,7 @@ func TestSignMultisigTx(t *testing.T) {
 			"--", strings.Join([]string{multisigHash.StringLE(), ":", "Global"}, ""))
 
 		e.In.WriteString("pass\r")
-		e.Run(t, "neo-go", "wallet", "multisig", "sign",
+		e.Run(t, "neo-go", "wallet", "sign",
 			"--rpc-endpoint", "http://"+e.RPC.Addr,
 			"--wallet", wallet2Path, "--address", multisigAddr,
 			"--in", txPath, "--out", txPath)
