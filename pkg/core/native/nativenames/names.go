@@ -12,4 +12,5 @@ const (
 	Notary      = "Notary"
 	NameService = "NameService"
 	CryptoLib   = "CryptoLib"
+	StdLib      = "StdLib"
 )
