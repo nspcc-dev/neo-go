@@ -12,6 +12,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/stretchr/testify/require"
 )
 
@@ -103,6 +104,26 @@ func TestSignMultisigTx(t *testing.T) {
 	require.Equal(t, big.NewInt(3), b)
 
 	t.Run("via invokefunction", func(t *testing.T) {
+		e.In.WriteString("one\r")
+		e.Run(t, "neo-go", "contract", "deploy",
+			"--rpc-endpoint", "http://"+e.RPC.Addr,
+			"--wallet", validatorWallet, "--address", validatorAddr,
+			"--in", "testdata/verify.nef", "--manifest", "testdata/verify.manifest.json")
+
+		line, err := e.Out.ReadString('\n')
+		require.NoError(t, err)
+		line = strings.TrimSpace(strings.TrimPrefix(line, "Contract: "))
+		h, err := util.Uint160DecodeStringLE(line)
+		require.NoError(t, err)
+
+		e.checkTxPersisted(t)
+
+		e.In.WriteString("acc\rpass\rpass\r")
+		e.Run(t, "neo-go", "wallet", "import-deployed",
+			"--rpc-endpoint", "http://"+e.RPC.Addr,
+			"--wallet", wallet1Path, "--wif", simplePriv.WIF(),
+			"--contract", h.StringLE())
+
 		e.In.WriteString("pass\r")
 		e.Run(t, "neo-go", "contract", "invokefunction",
 			"--rpc-endpoint", "http://"+e.RPC.Addr,
@@ -112,14 +133,30 @@ func TestSignMultisigTx(t *testing.T) {
 			"bytes:"+multisigHash.StringBE(),
 			"bytes:"+priv.GetScriptHash().StringBE(),
 			"int:1", "bytes:",
-			"--", strings.Join([]string{multisigHash.StringLE(), ":", "Global"}, ""))
+			"--", multisigHash.StringLE()+":"+"Global",
+			h.StringLE(),
+			simplePriv.GetScriptHash().StringLE(),
+		)
 
 		e.In.WriteString("pass\r")
 		e.Run(t, "neo-go", "wallet", "sign",
-			"--rpc-endpoint", "http://"+e.RPC.Addr,
 			"--wallet", wallet2Path, "--address", multisigAddr,
 			"--in", txPath, "--out", txPath)
-		e.checkTxPersisted(t)
+
+		// Simple signer, not in signers.
+		e.In.WriteString("pass\r")
+		e.Run(t, "neo-go", "wallet", "sign",
+			"--wallet", wallet1Path, "--address", simplePriv.Address(),
+			"--in", txPath, "--out", txPath)
+
+		// Contract.
+		e.In.WriteString("pass\r")
+		e.Run(t, "neo-go", "wallet", "sign",
+			"--rpc-endpoint", "http://"+e.RPC.Addr,
+			"--wallet", wallet1Path, "--address", address.Uint160ToString(h),
+			"--in", txPath, "--out", txPath)
+		tx, _ := e.checkTxPersisted(t)
+		require.Equal(t, 3, len(tx.Signers))
 
 		b, _ := e.Chain.GetGoverningTokenBalance(priv.GetScriptHash())
 		require.Equal(t, big.NewInt(2), b)
