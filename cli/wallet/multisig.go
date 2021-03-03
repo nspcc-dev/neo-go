@@ -47,15 +47,18 @@ func signStoredTransaction(ctx *cli.Context) error {
 		}
 	}
 	if len(ctx.String(options.RPCEndpointFlag)) != 0 {
-		w, err := c.GetWitness(acc.Contract.ScriptHash())
-		if err != nil {
-			return cli.NewExitError(err, 1)
+		for i := range tx.Signers {
+			w, err := c.GetWitness(tx.Signers[i].Account)
+			if err != nil {
+				return cli.NewExitError(err, 1)
+			}
+			tx.Scripts = append(tx.Scripts, *w)
 		}
-		tx.Scripts = append(tx.Scripts, *w)
 
 		gctx, cancel := options.GetTimeoutContext(ctx)
 		defer cancel()
 
+		var err error // `GetRPCClient` returns specialized type.
 		c, err := options.GetRPCClient(gctx, ctx)
 		if err != nil {
 			return cli.NewExitError(err, 1)
