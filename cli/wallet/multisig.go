@@ -47,7 +47,7 @@ func signStoredTransaction(ctx *cli.Context) error {
 		}
 	}
 	if len(ctx.String(options.RPCEndpointFlag)) != 0 {
-		w, err := c.GetWitness(acc.Contract)
+		w, err := c.GetWitness(acc.Contract.ScriptHash())
 		if err != nil {
 			return cli.NewExitError(err, 1)
 		}

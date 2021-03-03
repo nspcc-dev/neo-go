@@ -58,12 +58,20 @@ func TestParameterContext_AddSignatureSimpleContract(t *testing.T) {
 	require.Equal(t, sig, item.Parameters[0].Value)
 
 	t.Run("GetWitness", func(t *testing.T) {
-		w, err := c.GetWitness(ctr)
+		w, err := c.GetWitness(ctr.ScriptHash())
 		require.NoError(t, err)
 		v := newTestVM(w, tx)
 		require.NoError(t, v.Run())
 		require.Equal(t, 1, v.Estack().Len())
 		require.Equal(t, true, v.Estack().Pop().Value())
+	})
+	t.Run("not found", func(t *testing.T) {
+		ctr := &wallet.Contract{
+			Script:     []byte{byte(opcode.DROP), byte(opcode.PUSHT)},
+			Parameters: []wallet.ContractParam{newParam(smartcontract.SignatureType, "parameter0")},
+		}
+		_, err := c.GetWitness(ctr.ScriptHash())
+		require.Error(t, err)
 	})
 }
 
@@ -101,7 +109,7 @@ func TestParameterContext_AddSignatureMultisig(t *testing.T) {
 	}
 
 	t.Run("GetWitness", func(t *testing.T) {
-		w, err := c.GetWitness(ctr)
+		w, err := c.GetWitness(ctr.ScriptHash())
 		require.NoError(t, err)
 		v := newTestVM(w, tx)
 		require.NoError(t, v.Run())
