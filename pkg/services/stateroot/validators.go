@@ -6,7 +6,35 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/network/payload"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
+	"go.uber.org/zap"
 )
+
+// Run runs service instance in a separate goroutine.
+func (s *service) Run() {
+	s.chain.SubscribeForBlocks(s.blockCh)
+	go s.run()
+}
+
+func (s *service) run() {
+	for {
+		select {
+		case b := <-s.blockCh:
+			r, err := s.GetStateRoot(b.Index)
+			if err != nil {
+				s.log.Error("can't get state root for new block", zap.Error(err))
+			} else if err := s.signAndSend(r); err != nil {
+				s.log.Error("can't sign or send state root", zap.Error(err))
+			}
+		case <-s.done:
+			return
+		}
+	}
+}
+
+// Shutdown stops the service.
+func (s *service) Shutdown() {
+	close(s.done)
+}
 
 func (s *service) signAndSend(r *state.MPTRoot) error {
 	if !s.MainCfg.Enabled {

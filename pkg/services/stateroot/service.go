@@ -6,6 +6,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
+	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
@@ -23,25 +24,31 @@ type (
 		AddSignature(height uint32, validatorIndex int32, sig []byte) error
 		GetConfig() config.StateRoot
 		SetRelayCallback(RelayCallback)
+		Run()
+		Shutdown()
 	}
 
 	service struct {
 		blockchainer.StateRoot
+		chain blockchainer.Blockchainer
 
 		MainCfg config.StateRoot
 		Network netmode.Magic
 
-		log     *zap.Logger
-		accMtx  sync.RWMutex
-		myIndex byte
-		wallet  *wallet.Wallet
-		acc     *wallet.Account
+		log       *zap.Logger
+		accMtx    sync.RWMutex
+		accHeight uint32
+		myIndex   byte
+		wallet    *wallet.Wallet
+		acc       *wallet.Account
 
 		srMtx           sync.Mutex
 		incompleteRoots map[uint32]*incompleteRoot
 
 		cbMtx           sync.RWMutex
 		onValidatedRoot RelayCallback
+		blockCh         chan *block.Block
+		done            chan struct{}
 	}
 )
 
@@ -51,11 +58,14 @@ const (
 )
 
 // New returns new state root service instance using underlying module.
-func New(cfg config.StateRoot, log *zap.Logger, mod blockchainer.StateRoot) (Service, error) {
+func New(cfg config.StateRoot, log *zap.Logger, bc blockchainer.Blockchainer) (Service, error) {
 	s := &service{
-		StateRoot:       mod,
+		StateRoot:       bc.GetStateModule(),
+		chain:           bc,
 		log:             log,
 		incompleteRoots: make(map[uint32]*incompleteRoot),
+		blockCh:         make(chan *block.Block),
+		done:            make(chan struct{}),
 	}
 
 	s.MainCfg = cfg
@@ -78,7 +88,6 @@ func New(cfg config.StateRoot, log *zap.Logger, mod blockchainer.StateRoot) (Ser
 		}
 
 		s.SetUpdateValidatorsCallback(s.updateValidators)
-		s.SetSignAndSendCallback(s.signAndSend)
 	}
 	return s, nil
 }
@@ -105,7 +114,7 @@ func (s *service) OnPayload(ep *payload.Extensible) error {
 	return nil
 }
 
-func (s *service) updateValidators(pubs keys.PublicKeys) {
+func (s *service) updateValidators(height uint32, pubs keys.PublicKeys) {
 	s.accMtx.Lock()
 	defer s.accMtx.Unlock()
 
@@ -115,6 +124,7 @@ func (s *service) updateValidators(pubs keys.PublicKeys) {
 			err := acc.Decrypt(s.MainCfg.UnlockWallet.Password)
 			if err == nil {
 				s.acc = acc
+				s.accHeight = height
 				s.myIndex = byte(i)
 				break
 			}

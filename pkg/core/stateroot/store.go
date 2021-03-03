@@ -31,9 +31,6 @@ func (s *Module) addLocalStateRoot(sr *state.MPTRoot) error {
 		s.validatedHeight.Store(sr.Index)
 		updateStateHeightMetric(sr.Index)
 	}
-	if s.signAndSendCb != nil {
-		return s.signAndSendCb(sr)
-	}
 	return nil
 }
 

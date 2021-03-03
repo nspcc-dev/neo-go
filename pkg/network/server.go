@@ -177,7 +177,7 @@ func newServerFromConstructors(config ServerConfig, chain blockchainer.Blockchai
 		return nil, errors.New("`StateRootInHeader` should be disabled when state service is enabled")
 	}
 
-	sr, err := stateroot.New(config.StateRootCfg, s.log, chain.GetStateModule())
+	sr, err := stateroot.New(config.StateRootCfg, s.log, chain)
 	if err != nil {
 		return nil, fmt.Errorf("can't initialize StateRoot service: %w", err)
 	}
@@ -277,6 +277,9 @@ func (s *Server) Start(errChan chan error) {
 		s.notaryRequestPool.RunSubscriptions()
 		go s.notaryModule.Run()
 	}
+	if s.StateRootCfg.Enabled {
+		s.stateRoot.Run()
+	}
 	go s.relayBlocksLoop()
 	go s.bQueue.run()
 	go s.transport.Accept()
@@ -296,6 +299,9 @@ func (s *Server) Shutdown() {
 		p.Disconnect(errServerShutdown)
 	}
 	s.bQueue.discard()
+	if s.StateRootCfg.Enabled {
+		s.stateRoot.Shutdown()
+	}
 	if s.oracle != nil {
 		s.oracle.Shutdown()
 	}

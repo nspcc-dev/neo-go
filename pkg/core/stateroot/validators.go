@@ -13,7 +13,7 @@ func (s *Module) UpdateStateValidators(height uint32, pubs keys.PublicKeys) {
 
 	s.mtx.Lock()
 	if s.updateValidatorsCb != nil {
-		s.updateValidatorsCb(pubs)
+		s.updateValidatorsCb(height, pubs)
 	}
 	kc := s.getKeyCacheForHeight(height)
 	if kc.validatorsHash != h {

@@ -6,6 +6,7 @@ import (
 	"path"
 	"sort"
 	"testing"
+	"time"
 
 	"github.com/nspcc-dev/neo-go/internal/testserdes"
 	"github.com/nspcc-dev/neo-go/pkg/config"
@@ -23,6 +24,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/atomic"
 	"go.uber.org/zap/zaptest"
 )
 
@@ -80,7 +82,7 @@ func TestStateRoot(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 	w := createAndWriteWallet(t, accs[0], path.Join(tmpDir, "w"), "pass")
 	cfg := createStateRootConfig(w.Path(), "pass")
-	srv, err := stateroot.New(cfg, zaptest.NewLogger(t), bc.GetStateModule())
+	srv, err := stateroot.New(cfg, zaptest.NewLogger(t), bc)
 	require.NoError(t, err)
 	require.EqualValues(t, 0, srv.CurrentValidatedHeight())
 	r, err := srv.GetStateRoot(bc.BlockHeight())
@@ -150,7 +152,7 @@ func TestStateRootInitNonZeroHeight(t *testing.T) {
 		defer os.RemoveAll(tmpDir)
 		w := createAndWriteWallet(t, accs[0], path.Join(tmpDir, "w"), "pass")
 		cfg := createStateRootConfig(w.Path(), "pass")
-		srv, err := stateroot.New(cfg, zaptest.NewLogger(t), bc.GetStateModule())
+		srv, err := stateroot.New(cfg, zaptest.NewLogger(t), bc)
 		require.NoError(t, err)
 		r, err := srv.GetStateRoot(2)
 		require.NoError(t, err)
@@ -196,27 +198,33 @@ func TestStateRootFull(t *testing.T) {
 	h, pubs, accs := newMajorityMultisigWithGAS(t, 2)
 	w := createAndWriteWallet(t, accs[1], path.Join(tmpDir, "wallet2"), "two")
 	cfg := createStateRootConfig(w.Path(), "two")
-	srv, err := stateroot.New(cfg, zaptest.NewLogger(t), bc.GetStateModule())
+	srv, err := stateroot.New(cfg, zaptest.NewLogger(t), bc)
 	require.NoError(t, err)
+	srv.Run()
+	t.Cleanup(srv.Shutdown)
 
-	var lastValidated *payload.Extensible
+	var lastValidated atomic.Value
+	var lastHeight atomic.Uint32
 	srv.SetRelayCallback(func(ep *payload.Extensible) {
-		lastValidated = ep
+		lastHeight.Store(ep.ValidBlockStart)
+		lastValidated.Store(ep)
 	})
 
 	bc.setNodesByRole(t, true, native.RoleStateValidator, pubs)
 	transferTokenFromMultisigAccount(t, bc, h, bc.contracts.GAS.Hash, 1_0000_0000)
-	checkVoteBroadcasted(t, bc, lastValidated, 2, 1)
+	require.Eventually(t, func() bool { return lastHeight.Load() == 2 }, time.Second, time.Millisecond)
+	checkVoteBroadcasted(t, bc, lastValidated.Load().(*payload.Extensible), 2, 1)
 	_, err = persistBlock(bc)
-	checkVoteBroadcasted(t, bc, lastValidated, 3, 1)
+	require.Eventually(t, func() bool { return lastHeight.Load() == 3 }, time.Second, time.Millisecond)
+	checkVoteBroadcasted(t, bc, lastValidated.Load().(*payload.Extensible), 3, 1)
 
 	r, err := srv.GetStateRoot(2)
 	require.NoError(t, err)
 	require.NoError(t, srv.AddSignature(2, 0, accs[0].PrivateKey().SignHash(r.GetSignedHash())))
-	require.NotNil(t, lastValidated)
+	require.NotNil(t, lastValidated.Load().(*payload.Extensible))
 
 	msg := new(stateroot.Message)
-	require.NoError(t, testserdes.DecodeBinary(lastValidated.Data, msg))
+	require.NoError(t, testserdes.DecodeBinary(lastValidated.Load().(*payload.Extensible).Data, msg))
 	require.Equal(t, stateroot.RootT, msg.Type)
 
 	actual := msg.Payload.(*state.MPTRoot)
