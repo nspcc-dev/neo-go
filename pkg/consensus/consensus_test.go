@@ -494,6 +494,7 @@ func newSingleTestChain(t *testing.T) *core.Blockchain {
 	require.NoError(t, err, "could not create chain")
 
 	go chain.Run()
+	t.Cleanup(chain.Close)
 	return chain
 }
 
