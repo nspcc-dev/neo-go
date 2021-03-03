@@ -75,6 +75,21 @@ func TestSignMultisigTx(t *testing.T) {
 		"--to", priv.Address(), "--token", "NEO", "--amount", "1",
 		"--out", txPath)
 
+	simplePriv, err := keys.NewPrivateKey()
+	require.NoError(t, err)
+	{ // Simple signer, not in signers.
+		e.In.WriteString("acc\rpass\rpass\r")
+		e.Run(t, "neo-go", "wallet", "import",
+			"--wallet", wallet1Path,
+			"--wif", simplePriv.WIF())
+		t.Run("sign with missing signer", func(t *testing.T) {
+			e.In.WriteString("pass\r")
+			e.RunWithError(t, "neo-go", "wallet", "sign",
+				"--wallet", wallet1Path, "--address", simplePriv.Address(),
+				"--in", txPath, "--out", txPath)
+		})
+	}
+
 	e.In.WriteString("pass\r")
 	e.Run(t, "neo-go", "wallet", "sign",
 		"--rpc-endpoint", "http://"+e.RPC.Addr,

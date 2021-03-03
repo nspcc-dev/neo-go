@@ -36,6 +36,17 @@ func signStoredTransaction(ctx *cli.Context) error {
 		return cli.NewExitError("verifiable item is not a transaction", 1)
 	}
 
+	signerFound := false
+	for i := range tx.Signers {
+		if tx.Signers[i].Account == acc.Contract.ScriptHash() {
+			signerFound = true
+			break
+		}
+	}
+	if !signerFound {
+		return cli.NewExitError("tx signers don't contain provided account", 1)
+	}
+
 	priv := acc.PrivateKey()
 	sign := priv.Sign(tx.GetSignedPart())
 	if err := c.AddSignature(acc.Contract, priv.PublicKey(), sign); err != nil {
