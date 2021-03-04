@@ -34,7 +34,7 @@ func IsStandard(h interop.Hash160) bool {
 // script using given m and a set of public keys bytes. This function uses
 // `System.Contract.CreateMultisigAccount` syscall.
 func CreateMultisigAccount(m int, pubs []interop.PublicKey) []byte {
-	return neogointernal.Syscall1("System.Contract.CreateMultisigAccount", pubs).([]byte)
+	return neogointernal.Syscall2("System.Contract.CreateMultisigAccount", m, pubs).([]byte)
 }
 
 // CreateStandardAccount calculates script hash of a given public key.
