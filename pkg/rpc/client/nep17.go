@@ -24,6 +24,13 @@ type TransferTarget struct {
 	Amount  int64
 }
 
+// SignerAccount represents combination of the transaction.Signer and the
+// corresponding wallet.Account.
+type SignerAccount struct {
+	Signer  transaction.Signer
+	Account *wallet.Account
+}
+
 // NEP17Decimals invokes `decimals` NEP17 method on a specified contract.
 func (c *Client) NEP17Decimals(tokenHash util.Uint160) (int64, error) {
 	result, err := c.InvokeFunction(tokenHash, "decimals", []smartcontract.Parameter{}, nil)
@@ -140,23 +147,24 @@ func (c *Client) CreateNEP17MultiTransferTx(acc *wallet.Account, gas int64, reci
 	if err != nil {
 		return nil, fmt.Errorf("bad account address: %v", err)
 	}
-	return c.CreateTxFromScript(w.Bytes(), acc, -1, gas, transaction.Signer{
-		Account: accAddr,
-		Scopes:  transaction.CalledByEntry,
-	})
+	return c.CreateTxFromScript(w.Bytes(), acc, -1, gas, []SignerAccount{{
+		Signer: transaction.Signer{
+			Account: accAddr,
+			Scopes:  transaction.CalledByEntry,
+		},
+		Account: acc,
+	}})
 }
 
 // CreateTxFromScript creates transaction and properly sets cosigners and NetworkFee.
 // If sysFee <= 0, it is determined via result of `invokescript` RPC. You should
 // initialize network magic with Init before calling CreateTxFromScript.
 func (c *Client) CreateTxFromScript(script []byte, acc *wallet.Account, sysFee, netFee int64,
-	cosigners ...transaction.Signer) (*transaction.Transaction, error) {
-	from, err := address.StringToUint160(acc.Address)
+	cosigners []SignerAccount) (*transaction.Transaction, error) {
+	signers, accounts, err := getSigners(acc, cosigners)
 	if err != nil {
-		return nil, fmt.Errorf("bad account address: %v", err)
+		return nil, fmt.Errorf("failed to construct tx signers: %w", err)
 	}
-
-	signers := getSigners(from, cosigners)
 	if sysFee < 0 {
 		result, err := c.InvokeScript(script, signers)
 		if err != nil {
@@ -179,7 +187,7 @@ func (c *Client) CreateTxFromScript(script []byte, acc *wallet.Account, sysFee, 
 		return nil, fmt.Errorf("failed to add validUntilBlock to transaction: %w", err)
 	}
 
-	err = c.AddNetworkFee(tx, netFee, acc)
+	err = c.AddNetworkFee(tx, netFee, accounts...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to add network fee: %w", err)
 	}

@@ -522,11 +522,11 @@ func (c *Client) SubmitRawOracleResponse(ps request.RawParams) error {
 // SignAndPushInvocationTx signs and pushes given script as an invocation
 // transaction  using given wif to sign it and spending the amount of gas
 // specified. It returns a hash of the invocation transaction and an error.
-func (c *Client) SignAndPushInvocationTx(script []byte, acc *wallet.Account, sysfee int64, netfee fixedn.Fixed8, cosigners []transaction.Signer) (util.Uint256, error) {
+func (c *Client) SignAndPushInvocationTx(script []byte, acc *wallet.Account, sysfee int64, netfee fixedn.Fixed8, cosigners []SignerAccount) (util.Uint256, error) {
 	var txHash util.Uint256
 	var err error
 
-	tx, err := c.CreateTxFromScript(script, acc, sysfee, int64(netfee), cosigners...)
+	tx, err := c.CreateTxFromScript(script, acc, sysfee, int64(netfee), cosigners)
 	if err != nil {
 		return txHash, fmt.Errorf("failed to create tx: %w", err)
 	}
@@ -544,25 +544,33 @@ func (c *Client) SignAndPushInvocationTx(script []byte, acc *wallet.Account, sys
 	return txHash, nil
 }
 
-// getSigners returns an array of transaction signers from given sender and cosigners.
-// If cosigners list already contains sender, the sender will be placed at the start of
-// the list.
-func getSigners(sender util.Uint160, cosigners []transaction.Signer) []transaction.Signer {
+// getSigners returns an array of transaction signers and corresponding accounts from
+// given sender and cosigners. If cosigners list already contains sender, the sender
+// will be placed at the start of the list.
+func getSigners(sender *wallet.Account, cosigners []SignerAccount) ([]transaction.Signer, []*wallet.Account, error) {
+	var (
+		signers  []transaction.Signer
+		accounts []*wallet.Account
+	)
+	from, err := address.StringToUint160(sender.Address)
+	if err != nil {
+		return nil, nil, fmt.Errorf("bad sender account address: %v", err)
+	}
 	s := transaction.Signer{
-		Account: sender,
+		Account: from,
 		Scopes:  transaction.None,
 	}
-	for i, c := range cosigners {
-		if c.Account == sender {
-			if i == 0 {
-				return cosigners
-			}
-			s.Scopes = c.Scopes
-			cosigners = append(cosigners[:i], cosigners[i+1:]...)
-			break
+	for _, c := range cosigners {
+		if c.Signer.Account == from {
+			s.Scopes = c.Signer.Scopes
+			continue
 		}
+		signers = append(signers, c.Signer)
+		accounts = append(accounts, c.Account)
 	}
-	return append([]transaction.Signer{s}, cosigners...)
+	signers = append([]transaction.Signer{s}, signers...)
+	accounts = append([]*wallet.Account{sender}, accounts...)
+	return signers, accounts, nil
 }
 
 // SignAndPushP2PNotaryRequest creates and pushes P2PNotary request constructed from the main

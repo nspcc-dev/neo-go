@@ -22,6 +22,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/fixedn"
 	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/rpc/client"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
@@ -509,15 +510,17 @@ func invokeFunction(ctx *cli.Context) error {
 
 func invokeInternal(ctx *cli.Context, signAndPush bool) error {
 	var (
-		err             error
-		gas             fixedn.Fixed8
-		operation       string
-		params          = make([]smartcontract.Parameter, 0)
-		paramsStart     = 1
-		cosigners       []transaction.Signer
-		cosignersOffset = 0
-		resp            *result.Invoke
-		acc             *wallet.Account
+		err               error
+		gas               fixedn.Fixed8
+		operation         string
+		params            = make([]smartcontract.Parameter, 0)
+		paramsStart       = 1
+		cosigners         []transaction.Signer
+		cosignersAccounts []client.SignerAccount
+		cosignersOffset   = 0
+		resp              *result.Invoke
+		acc               *wallet.Account
+		wall              *wallet.Wallet
 	)
 
 	args := ctx.Args()
@@ -554,9 +557,19 @@ func invokeInternal(ctx *cli.Context, signAndPush bool) error {
 
 	if signAndPush {
 		gas = flags.Fixed8FromContext(ctx, "gas")
-		acc, err = getAccFromContext(ctx)
+		acc, wall, err = getAccFromContext(ctx)
 		if err != nil {
 			return err
+		}
+		for i := range cosigners {
+			cosignerAcc := wall.GetAccount(cosigners[i].Account)
+			if cosignerAcc == nil {
+				return cli.NewExitError(fmt.Errorf("can't calculate network fee: no account was found in the wallet for cosigner #%d", i), 1)
+			}
+			cosignersAccounts = append(cosignersAccounts, client.SignerAccount{
+				Signer:  cosigners[i],
+				Account: cosignerAcc,
+			})
 		}
 	}
 	gctx, cancel := options.GetTimeoutContext(ctx)
@@ -579,7 +592,7 @@ func invokeInternal(ctx *cli.Context, signAndPush bool) error {
 		fmt.Fprintln(ctx.App.Writer, errText+". Sending transaction...")
 	}
 	if out := ctx.String("out"); out != "" {
-		tx, err := c.CreateTxFromScript(resp.Script, acc, resp.GasConsumed, int64(gas), cosigners...)
+		tx, err := c.CreateTxFromScript(resp.Script, acc, resp.GasConsumed, int64(gas), cosignersAccounts)
 		if err != nil {
 			return cli.NewExitError(fmt.Errorf("failed to create tx: %w", err), 1)
 		}
@@ -593,7 +606,7 @@ func invokeInternal(ctx *cli.Context, signAndPush bool) error {
 		if len(resp.Script) == 0 {
 			return cli.NewExitError(errors.New("no script returned from the RPC node"), 1)
 		}
-		txHash, err := c.SignAndPushInvocationTx(resp.Script, acc, resp.GasConsumed, gas, cosigners)
+		txHash, err := c.SignAndPushInvocationTx(resp.Script, acc, resp.GasConsumed, gas, cosignersAccounts)
 		if err != nil {
 			return cli.NewExitError(fmt.Errorf("failed to push invocation tx: %w", err), 1)
 		}
@@ -747,17 +760,17 @@ func inspect(ctx *cli.Context) error {
 	return nil
 }
 
-func getAccFromContext(ctx *cli.Context) (*wallet.Account, error) {
+func getAccFromContext(ctx *cli.Context) (*wallet.Account, *wallet.Wallet, error) {
 	var addr util.Uint160
 
 	wPath := ctx.String("wallet")
 	if len(wPath) == 0 {
-		return nil, cli.NewExitError(errNoWallet, 1)
+		return nil, nil, cli.NewExitError(errNoWallet, 1)
 	}
 
 	wall, err := wallet.NewWalletFromFile(wPath)
 	if err != nil {
-		return nil, cli.NewExitError(err, 1)
+		return nil, nil, cli.NewExitError(err, 1)
 	}
 	addrFlag := ctx.Generic("address").(*flags.Address)
 	if addrFlag.IsSet {
@@ -767,20 +780,20 @@ func getAccFromContext(ctx *cli.Context) (*wallet.Account, error) {
 	}
 	acc := wall.GetAccount(addr)
 	if acc == nil {
-		return nil, cli.NewExitError(fmt.Errorf("wallet contains no account for '%s'", address.Uint160ToString(addr)), 1)
+		return nil, nil, cli.NewExitError(fmt.Errorf("wallet contains no account for '%s'", address.Uint160ToString(addr)), 1)
 	}
 
 	rawPass, err := input.ReadPassword(
 		fmt.Sprintf("Enter account %s password > ", address.Uint160ToString(addr)))
 	if err != nil {
-		return nil, cli.NewExitError(err, 1)
+		return nil, nil, cli.NewExitError(err, 1)
 	}
 	pass := strings.TrimRight(string(rawPass), "\n")
 	err = acc.Decrypt(pass)
 	if err != nil {
-		return nil, cli.NewExitError(err, 1)
+		return nil, nil, cli.NewExitError(err, 1)
 	}
-	return acc, nil
+	return acc, wall, nil
 }
 
 // contractDeploy deploys contract.
@@ -795,7 +808,7 @@ func contractDeploy(ctx *cli.Context) error {
 	}
 	gas := flags.Fixed8FromContext(ctx, "gas")
 
-	acc, err := getAccFromContext(ctx)
+	acc, _, err := getAccFromContext(ctx)
 	if err != nil {
 		return err
 	}
