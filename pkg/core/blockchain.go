@@ -46,7 +46,8 @@ const (
 
 	defaultMemPoolSize                     = 50000
 	defaultP2PNotaryRequestPayloadPoolSize = 1000
-	defaultMaxTraceableBlocks              = 2102400   // 1 year of 15s blocks
+	defaultMaxTraceableBlocks              = 2102400 // 1 year of 15s blocks
+	defaultMaxTransactionsPerBlock         = 512
 	verificationGasLimit                   = 100000000 // 1 GAS
 )
 
@@ -167,6 +168,11 @@ func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration, log *zap.L
 	if cfg.MaxTraceableBlocks == 0 {
 		cfg.MaxTraceableBlocks = defaultMaxTraceableBlocks
 		log.Info("MaxTraceableBlocks is not set or wrong, using default value", zap.Uint32("MaxTraceableBlocks", cfg.MaxTraceableBlocks))
+	}
+	if cfg.MaxTransactionsPerBlock == 0 {
+		cfg.MaxTransactionsPerBlock = defaultMaxTransactionsPerBlock
+		log.Info("MaxTransactionsPerBlock is not set or wrong, using default value",
+			zap.Uint16("MaxTransactionsPerBlock", cfg.MaxTransactionsPerBlock))
 	}
 	committee, err := committeeFromConfig(cfg)
 	if err != nil {
@@ -1347,24 +1353,9 @@ func (bc *Blockchain) GetMemPool() *mempool.Pool {
 // ApplyPolicyToTxSet applies configured policies to given transaction set. It
 // expects slice to be ordered by fee and returns a subslice of it.
 func (bc *Blockchain) ApplyPolicyToTxSet(txes []*transaction.Transaction) []*transaction.Transaction {
-	maxTx := bc.contracts.Policy.GetMaxTransactionsPerBlockInternal(bc.dao)
+	maxTx := bc.config.MaxTransactionsPerBlock
 	if maxTx != 0 && len(txes) > int(maxTx) {
 		txes = txes[:maxTx]
-	}
-	maxBlockSize := bc.contracts.Policy.GetMaxBlockSizeInternal(bc.dao)
-	maxBlockSysFee := bc.contracts.Policy.GetMaxBlockSystemFeeInternal(bc.dao)
-	var (
-		blockSize uint32
-		sysFee    int64
-	)
-	blockSize = uint32(io.GetVarSize(new(block.Block)) + io.GetVarSize(len(txes)+1))
-	for i, tx := range txes {
-		blockSize += uint32(tx.Size())
-		sysFee += tx.SystemFee
-		if blockSize > maxBlockSize || sysFee > maxBlockSysFee {
-			txes = txes[:i]
-			break
-		}
 	}
 	return txes
 }
@@ -1941,16 +1932,6 @@ func (bc *Blockchain) GetPolicer() blockchainer.Policer {
 // GetBaseExecFee return execution price for `NOP`.
 func (bc *Blockchain) GetBaseExecFee() int64 {
 	return bc.contracts.Policy.GetExecFeeFactorInternal(bc.dao)
-}
-
-// GetMaxBlockSize returns maximum allowed block size from native Policy contract.
-func (bc *Blockchain) GetMaxBlockSize() uint32 {
-	return bc.contracts.Policy.GetMaxBlockSizeInternal(bc.dao)
-}
-
-// GetMaxBlockSystemFee returns maximum block system fee from native Policy contract.
-func (bc *Blockchain) GetMaxBlockSystemFee() int64 {
-	return bc.contracts.Policy.GetMaxBlockSystemFeeInternal(bc.dao)
 }
 
 // GetMaxVerificationGAS returns maximum verification GAS Policy limit.

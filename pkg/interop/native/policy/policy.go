@@ -8,26 +8,6 @@ import (
 // Hash represents Policy contract hash.
 const Hash = "\x7b\xc6\x81\xc0\xa1\xf7\x1d\x54\x34\x57\xb6\x8b\xba\x8d\x5f\x9f\xdd\x4e\x5e\xcc"
 
-// GetMaxTransactionsPerBlock represents `getMaxTransactionsPerBlock` method of Policy native contract.
-func GetMaxTransactionsPerBlock() int {
-	return contract.Call(interop.Hash160(Hash), "getMaxTransactionsPerBlock", contract.ReadStates).(int)
-}
-
-// SetMaxTransactionsPerBlock represents `setMaxTransactionsPerBlock` method of Policy native contract.
-func SetMaxTransactionsPerBlock(value int) {
-	contract.Call(interop.Hash160(Hash), "setMaxTransactionsPerBlock", contract.States, value)
-}
-
-// GetMaxBlockSize represents `getMaxBlockSize` method of Policy native contract.
-func GetMaxBlockSize() int {
-	return contract.Call(interop.Hash160(Hash), "getMaxBlockSize", contract.ReadStates).(int)
-}
-
-// SetMaxBlockSize represents `setMaxBlockSize` method of Policy native contract.
-func SetMaxBlockSize(value int) {
-	contract.Call(interop.Hash160(Hash), "setMaxBlockSize", contract.States, value)
-}
-
 // GetFeePerByte represents `getFeePerByte` method of Policy native contract.
 func GetFeePerByte() int {
 	return contract.Call(interop.Hash160(Hash), "getFeePerByte", contract.ReadStates).(int)
@@ -36,16 +16,6 @@ func GetFeePerByte() int {
 // SetFeePerByte represents `setFeePerByte` method of Policy native contract.
 func SetFeePerByte(value int) {
 	contract.Call(interop.Hash160(Hash), "setFeePerByte", contract.States, value)
-}
-
-// GetMaxBlockSystemFee represents `getMaxBlockSystemFee` method of Policy native contract.
-func GetMaxBlockSystemFee() int {
-	return contract.Call(interop.Hash160(Hash), "getMaxBlockSystemFee", contract.ReadStates).(int)
-}
-
-// SetMaxBlockSystemFee represents `setMaxBlockSystemFee` method of Policy native contract.
-func SetMaxBlockSystemFee(value int) {
-	contract.Call(interop.Hash160(Hash), "setMaxBlockSystemFee", contract.States, value)
 }
 
 // GetExecFeeFactor represents `getExecFeeFactor` method of Policy native contract.

@@ -5,10 +5,8 @@ import (
 
 	"github.com/nspcc-dev/neo-go/internal/random"
 	"github.com/nspcc-dev/neo-go/internal/testchain"
-	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
-	"github.com/nspcc-dev/neo-go/pkg/network/payload"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
@@ -76,28 +74,6 @@ func testGetSet(t *testing.T, chain *Blockchain, hash util.Uint160, name string,
 	})
 }
 
-func TestMaxTransactionsPerBlock(t *testing.T) {
-	chain := newTestChain(t)
-
-	t.Run("get, internal method", func(t *testing.T) {
-		n := chain.contracts.Policy.GetMaxTransactionsPerBlockInternal(chain.dao)
-		require.Equal(t, 512, int(n))
-	})
-
-	testGetSet(t, chain, chain.contracts.Policy.Hash, "MaxTransactionsPerBlock", 512, 0, block.MaxTransactionsPerBlock)
-}
-
-func TestMaxBlockSize(t *testing.T) {
-	chain := newTestChain(t)
-
-	t.Run("get, internal method", func(t *testing.T) {
-		n := chain.contracts.Policy.GetMaxBlockSizeInternal(chain.dao)
-		require.Equal(t, 1024*256, int(n))
-	})
-
-	testGetSet(t, chain, chain.contracts.Policy.Hash, "MaxBlockSize", 1024*256, 0, payload.MaxSize)
-}
-
 func TestFeePerByte(t *testing.T) {
 	chain := newTestChain(t)
 
@@ -118,17 +94,6 @@ func TestExecFeeFactor(t *testing.T) {
 	})
 
 	testGetSet(t, chain, chain.contracts.Policy.Hash, "ExecFeeFactor", interop.DefaultBaseExecFee, 1, 1000)
-}
-
-func TestBlockSystemFee(t *testing.T) {
-	chain := newTestChain(t)
-
-	t.Run("get, internal method", func(t *testing.T) {
-		n := chain.contracts.Policy.GetMaxBlockSystemFeeInternal(chain.dao)
-		require.Equal(t, 9000*native.GASFactor, int(n))
-	})
-
-	testGetSet(t, chain, chain.contracts.Policy.Hash, "MaxBlockSystemFee", 9000*native.GASFactor, 4007600, 0)
 }
 
 func TestStoragePrice(t *testing.T) {

@@ -20,6 +20,8 @@ type (
 		RemoveUntraceableBlocks bool `yaml:"RemoveUntraceableBlocks"`
 		// MaxTraceableBlocks is the length of the chain accessible to smart contracts.
 		MaxTraceableBlocks uint32 `yaml:"MaxTraceableBlocks"`
+		// MaxTransactionsPerBlock is the maximum amount of transactions per block.
+		MaxTransactionsPerBlock uint16 `yaml:"MaxTransactionsPerBlock"`
 		// P2PSigExtensions enables additional signature-related logic.
 		P2PSigExtensions bool `yaml:"P2PSigExtensions"`
 		// ReservedAttributes allows to have reserved attributes range for experimental or private purposes.
