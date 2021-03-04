@@ -43,7 +43,7 @@ const (
 // using this new Context. If Context is already read-only this function is a
 // no-op. It uses `System.Storage.AsReadOnly` syscall.
 func ConvertContextToReadOnly(ctx Context) Context {
-	return neogointernal.Syscall0("System.Storage.AsReadOnly").(Context)
+	return neogointernal.Syscall1("System.Storage.AsReadOnly", ctx).(Context)
 }
 
 // GetContext returns current contract's (that invokes this function) storage
