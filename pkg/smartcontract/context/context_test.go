@@ -35,13 +35,13 @@ func TestParameterContext_AddSignatureSimpleContract(t *testing.T) {
 				newParam(smartcontract.SignatureType, "parameter1"),
 			},
 		}
-		require.Error(t, c.AddSignature(ctr, pub, sig))
+		require.Error(t, c.AddSignature(ctr.ScriptHash(), ctr, pub, sig))
 		if item := c.Items[ctr.ScriptHash()]; item != nil {
 			require.Nil(t, item.Parameters[0].Value)
 		}
 
 		ctr.Parameters = ctr.Parameters[:0]
-		require.Error(t, c.AddSignature(ctr, pub, sig))
+		require.Error(t, c.AddSignature(ctr.ScriptHash(), ctr, pub, sig))
 		if item := c.Items[ctr.ScriptHash()]; item != nil {
 			require.Nil(t, item.Parameters[0].Value)
 		}
@@ -52,7 +52,7 @@ func TestParameterContext_AddSignatureSimpleContract(t *testing.T) {
 		Script:     pub.GetVerificationScript(),
 		Parameters: []wallet.ContractParam{newParam(smartcontract.SignatureType, "parameter0")},
 	}
-	require.NoError(t, c.AddSignature(ctr, pub, sig))
+	require.NoError(t, c.AddSignature(ctr.ScriptHash(), ctr, pub, sig))
 	item := c.Items[ctr.ScriptHash()]
 	require.NotNil(t, item)
 	require.Equal(t, sig, item.Parameters[0].Value)
@@ -95,13 +95,13 @@ func TestParameterContext_AddSignatureMultisig(t *testing.T) {
 	priv, err := keys.NewPrivateKey()
 	require.NoError(t, err)
 	sig := priv.Sign(data)
-	require.Error(t, c.AddSignature(ctr, priv.PublicKey(), sig))
+	require.Error(t, c.AddSignature(ctr.ScriptHash(), ctr, priv.PublicKey(), sig))
 
 	indices := []int{2, 3, 0} // random order
 	for _, i := range indices {
 		sig := privs[i].Sign(data)
-		require.NoError(t, c.AddSignature(ctr, pubs[i], sig))
-		require.Error(t, c.AddSignature(ctr, pubs[i], sig))
+		require.NoError(t, c.AddSignature(ctr.ScriptHash(), ctr, pubs[i], sig))
+		require.Error(t, c.AddSignature(ctr.ScriptHash(), ctr, pubs[i], sig))
 
 		item := c.Items[ctr.ScriptHash()]
 		require.NotNil(t, item)

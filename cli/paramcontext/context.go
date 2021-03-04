@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
+	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/context"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 )
@@ -22,7 +23,11 @@ func InitAndSave(tx *transaction.Transaction, acc *wallet.Account, filename stri
 	pub := priv.PublicKey()
 	sign := priv.Sign(tx.GetSignedPart())
 	scCtx := context.NewParameterContext("Neo.Core.ContractTransaction", tx)
-	if err := scCtx.AddSignature(acc.Contract, pub, sign); err != nil {
+	h, err := address.StringToUint160(acc.Address)
+	if err != nil {
+		return fmt.Errorf("invalid address: %s", acc.Address)
+	}
+	if err := scCtx.AddSignature(h, acc.Contract, pub, sign); err != nil {
 		return fmt.Errorf("can't add signature: %w", err)
 	}
 	return Save(scCtx, filename)

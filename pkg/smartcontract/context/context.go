@@ -72,8 +72,8 @@ func (c *ParameterContext) GetWitness(h util.Uint160) (*transaction.Witness, err
 }
 
 // AddSignature adds a signature for the specified contract and public key.
-func (c *ParameterContext) AddSignature(ctr *wallet.Contract, pub *keys.PublicKey, sig []byte) error {
-	item := c.getItemForContract(ctr.ScriptHash(), ctr)
+func (c *ParameterContext) AddSignature(h util.Uint160, ctr *wallet.Contract, pub *keys.PublicKey, sig []byte) error {
+	item := c.getItemForContract(h, ctr)
 	if _, pubs, ok := vm.ParseMultiSigContract(ctr.Script); ok {
 		if item.GetSignature(pub) != nil {
 			return errors.New("signature is already added")
@@ -121,10 +121,11 @@ func (c *ParameterContext) AddSignature(ctr *wallet.Contract, pub *keys.PublicKe
 			index = i
 		}
 	}
-	if index == -1 {
+	if index != -1 {
+		item.Parameters[index].Value = sig
+	} else if !ctr.Deployed {
 		return errors.New("missing signature parameter")
 	}
-	item.Parameters[index].Value = sig
 	return nil
 }
 
@@ -137,8 +138,12 @@ func (c *ParameterContext) getItemForContract(h util.Uint160, ctr *wallet.Contra
 	for i := range params {
 		params[i].Type = ctr.Parameters[i].Type
 	}
+	script := ctr.Script
+	if ctr.Deployed {
+		script = nil
+	}
 	item = &Item{
-		Script:     ctr.Script,
+		Script:     script,
 		Parameters: params,
 		Signatures: make(map[string][]byte),
 	}

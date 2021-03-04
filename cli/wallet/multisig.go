@@ -36,9 +36,13 @@ func signStoredTransaction(ctx *cli.Context) error {
 		return cli.NewExitError("verifiable item is not a transaction", 1)
 	}
 
+	ch, err := address.StringToUint160(acc.Address)
+	if err != nil {
+		return cli.NewExitError(fmt.Errorf("wallet contains invalid account: %s", acc.Address), 1)
+	}
 	signerFound := false
 	for i := range tx.Signers {
-		if tx.Signers[i].Account == acc.Contract.ScriptHash() {
+		if tx.Signers[i].Account == ch {
 			signerFound = true
 			break
 		}
@@ -49,7 +53,7 @@ func signStoredTransaction(ctx *cli.Context) error {
 
 	priv := acc.PrivateKey()
 	sign := priv.Sign(tx.GetSignedPart())
-	if err := c.AddSignature(acc.Contract, priv.PublicKey(), sign); err != nil {
+	if err := c.AddSignature(ch, acc.Contract, priv.PublicKey(), sign); err != nil {
 		return cli.NewExitError(fmt.Errorf("can't add signature: %w", err), 1)
 	}
 	if out := ctx.String("out"); out != "" {
