@@ -2,10 +2,6 @@ package interopnames
 
 // Names of all used interops.
 const (
-	SystemBinaryBase58Decode                 = "System.Binary.Base58Decode"
-	SystemBinaryBase58Encode                 = "System.Binary.Base58Encode"
-	SystemBinaryBase64Decode                 = "System.Binary.Base64Decode"
-	SystemBinaryBase64Encode                 = "System.Binary.Base64Encode"
 	SystemBinaryDeserialize                  = "System.Binary.Deserialize"
 	SystemBinarySerialize                    = "System.Binary.Serialize"
 	SystemCallbackCreate                     = "System.Callback.Create"
@@ -50,10 +46,6 @@ const (
 )
 
 var names = []string{
-	SystemBinaryBase58Decode,
-	SystemBinaryBase58Encode,
-	SystemBinaryBase64Decode,
-	SystemBinaryBase64Encode,
 	SystemBinaryDeserialize,
 	SystemBinarySerialize,
 	SystemCallbackCreate,

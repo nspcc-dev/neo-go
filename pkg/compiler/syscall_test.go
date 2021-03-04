@@ -61,10 +61,6 @@ func TestSyscallExecution(t *testing.T) {
 	sigs := "[]interop.Signature{" + sig + "}"
 	sctx := "storage.Context{}"
 	interops := map[string]syscallTestCase{
-		"binary.Base58Decode":                {interopnames.SystemBinaryBase58Decode, []string{b}, false},
-		"binary.Base58Encode":                {interopnames.SystemBinaryBase58Encode, []string{b}, false},
-		"binary.Base64Decode":                {interopnames.SystemBinaryBase64Decode, []string{b}, false},
-		"binary.Base64Encode":                {interopnames.SystemBinaryBase64Encode, []string{b}, false},
 		"binary.Deserialize":                 {interopnames.SystemBinaryDeserialize, []string{b}, false},
 		"binary.Serialize":                   {interopnames.SystemBinarySerialize, []string{"10"}, false},
 		"contract.Call":                      {interopnames.SystemContractCall, []string{u160, `"m"`, "1", "3"}, false},
@@ -203,20 +199,20 @@ func TestNotify(t *testing.T) {
 
 func TestSyscallInGlobalInit(t *testing.T) {
 	src := `package foo
-		import "github.com/nspcc-dev/neo-go/pkg/interop/binary"
-		var a = binary.Base58Decode([]byte("5T"))
-		func Main() []byte {
+		import "github.com/nspcc-dev/neo-go/pkg/interop/runtime"
+		var a = runtime.CheckWitness([]byte("5T"))
+		func Main() bool {
 			return a
 		}`
 	v, s := vmAndCompileInterop(t, src)
-	s.interops[interopnames.ToID([]byte(interopnames.SystemBinaryBase58Decode))] = func(v *vm.VM) error {
+	s.interops[interopnames.ToID([]byte(interopnames.SystemRuntimeCheckWitness))] = func(v *vm.VM) error {
 		s := v.Estack().Pop().Value().([]byte)
 		require.Equal(t, "5T", string(s))
-		v.Estack().PushVal([]byte{1, 2})
+		v.Estack().PushVal(true)
 		return nil
 	}
 	require.NoError(t, v.Run())
-	require.Equal(t, []byte{1, 2}, v.Estack().Pop().Value())
+	require.Equal(t, true, v.Estack().Pop().Value())
 }
 
 func TestOpcode(t *testing.T) {

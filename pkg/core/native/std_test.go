@@ -1,10 +1,12 @@
 package native
 
 import (
+	"encoding/base64"
 	"math"
 	"math/big"
 	"testing"
 
+	"github.com/mr-tron/base58"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
@@ -135,6 +137,56 @@ func TestStdLibJSON(t *testing.T) {
 			require.Panics(t, func() {
 				_ = s.jsonDeserialize(ic, []stackitem.Item{stackitem.NewInterop(nil)})
 			})
+		})
+	})
+}
+
+func TestStdLibEncodeDecode(t *testing.T) {
+	s := newStd()
+	original := []byte("my pretty string")
+	encoded64 := base64.StdEncoding.EncodeToString(original)
+	encoded58 := base58.Encode(original)
+	ic := &interop.Context{VM: vm.New()}
+	var actual stackitem.Item
+
+	t.Run("Encode64", func(t *testing.T) {
+		require.NotPanics(t, func() {
+			actual = s.base64Encode(ic, []stackitem.Item{stackitem.Make(original)})
+		})
+		require.Equal(t, stackitem.Make(encoded64), actual)
+	})
+	t.Run("Encode58", func(t *testing.T) {
+		require.NotPanics(t, func() {
+			actual = s.base58Encode(ic, []stackitem.Item{stackitem.Make(original)})
+		})
+		require.Equal(t, stackitem.Make(encoded58), actual)
+	})
+	t.Run("Decode64/positive", func(t *testing.T) {
+		require.NotPanics(t, func() {
+			actual = s.base64Decode(ic, []stackitem.Item{stackitem.Make(encoded64)})
+		})
+		require.Equal(t, stackitem.Make(original), actual)
+	})
+	t.Run("Decode64/error", func(t *testing.T) {
+		require.Panics(t, func() {
+			_ = s.base64Decode(ic, []stackitem.Item{stackitem.Make(encoded64 + "%")})
+		})
+		require.Panics(t, func() {
+			_ = s.base64Decode(ic, []stackitem.Item{stackitem.NewInterop(nil)})
+		})
+	})
+	t.Run("Decode58/positive", func(t *testing.T) {
+		require.NotPanics(t, func() {
+			actual = s.base58Decode(ic, []stackitem.Item{stackitem.Make(encoded58)})
+		})
+		require.Equal(t, stackitem.Make(original), actual)
+	})
+	t.Run("Decode58/error", func(t *testing.T) {
+		require.Panics(t, func() {
+			_ = s.base58Decode(ic, []stackitem.Item{stackitem.Make(encoded58 + "%")})
+		})
+		require.Panics(t, func() {
+			_ = s.base58Decode(ic, []stackitem.Item{stackitem.NewInterop(nil)})
 		})
 	})
 }

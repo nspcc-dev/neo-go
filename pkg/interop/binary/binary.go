@@ -20,27 +20,3 @@ func Serialize(item interface{}) []byte {
 func Deserialize(b []byte) interface{} {
 	return neogointernal.Syscall1("System.Binary.Deserialize", b)
 }
-
-// Base64Encode encodes given byte slice into a base64 string and returns byte
-// representation of this string. It uses `System.Binary.Base64Encode` interop.
-func Base64Encode(b []byte) string {
-	return neogointernal.Syscall1("System.Binary.Base64Encode", b).(string)
-}
-
-// Base64Decode decodes given base64 string represented as a byte slice into
-// byte slice. It uses `System.Binary.Base64Decode` interop.
-func Base64Decode(b []byte) []byte {
-	return neogointernal.Syscall1("System.Binary.Base64Decode", b).([]byte)
-}
-
-// Base58Encode encodes given byte slice into a base58 string and returns byte
-// representation of this string. It uses `System.Binary.Base58Encode` syscall.
-func Base58Encode(b []byte) string {
-	return neogointernal.Syscall1("System.Binary.Base58Encode", b).(string)
-}
-
-// Base58Decode decodes given base58 string represented as a byte slice into
-// a new byte slice. It uses `System.Binary.Base58Decode` syscall.
-func Base58Decode(b []byte) []byte {
-	return neogointernal.Syscall1("System.Binary.Base58Decode", b).([]byte)
-}
