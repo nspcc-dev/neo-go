@@ -62,8 +62,8 @@ func GetTrigger() byte {
 
 // GasLeft returns the amount of gas available for the current execution.
 // This function uses `System.Runtime.GasLeft` syscall.
-func GasLeft() int64 {
-	return neogointernal.Syscall0("System.Runtime.GasLeft").(int64)
+func GasLeft() int {
+	return neogointernal.Syscall0("System.Runtime.GasLeft").(int)
 }
 
 // GetNotifications returns notifications emitted by contract h.

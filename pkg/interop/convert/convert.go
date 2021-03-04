@@ -2,8 +2,8 @@
 package convert
 
 // ToInteger converts it's argument to an Integer.
-func ToInteger(v interface{}) int64 {
-	return v.(int64)
+func ToInteger(v interface{}) int {
+	return v.(int)
 }
 
 // ToByteArray converts it's argument to a ByteArray.
