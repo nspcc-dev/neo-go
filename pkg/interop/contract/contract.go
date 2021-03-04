@@ -45,8 +45,8 @@ func CreateStandardAccount(pub interop.PublicKey) []byte {
 
 // GetCallFlags returns calling flags which execution context was created with.
 // This function uses `System.Contract.GetCallFlags` syscall.
-func GetCallFlags() int64 {
-	return neogointernal.Syscall0("System.Contract.GetFlags").(int64)
+func GetCallFlags() CallFlag {
+	return neogointernal.Syscall0("System.Contract.GetFlags").(CallFlag)
 }
 
 // Call executes previously deployed blockchain contract with specified hash
