@@ -246,7 +246,11 @@ func (c *codegen) analyzeFuncUsage() funcUsage {
 			case *ast.CallExpr:
 				switch t := n.Fun.(type) {
 				case *ast.Ident:
-					usage[c.getIdentName("", t.Name)] = true
+					var pkgPath string
+					if !isMain {
+						pkgPath = pkg.Path()
+					}
+					usage[c.getIdentName(pkgPath, t.Name)] = true
 				case *ast.SelectorExpr:
 					name, _ := c.getFuncNameFromSelector(t)
 					usage[name] = true
@@ -254,7 +258,7 @@ func (c *codegen) analyzeFuncUsage() funcUsage {
 			case *ast.FuncDecl:
 				// exported functions are always assumed to be used
 				if isMain && n.Name.IsExported() {
-					usage[c.getFuncNameFromDecl(pkg.Path(), n)] = true
+					usage[c.getFuncNameFromDecl("", n)] = true
 				}
 			}
 			return true

@@ -48,3 +48,16 @@ func TestMultipleDirFileImport(t *testing.T) {
 	`
 	eval(t, src, big.NewInt(1))
 }
+
+func TestImportNameSameAsOwn(t *testing.T) {
+	src := `package foo
+	import "github.com/nspcc-dev/neo-go/pkg/compiler/testdata/foo"
+	func get3() int { return 3 }
+	func Main() int {
+		return get3()
+	}
+	func unused() int {
+		return foo.Bar()
+	}`
+	eval(t, src, big.NewInt(3))
+}
