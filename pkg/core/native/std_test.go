@@ -2,14 +2,17 @@ package native
 
 import (
 	"encoding/base64"
+	"encoding/hex"
 	"math"
 	"math/big"
 	"testing"
 
 	"github.com/mr-tron/base58"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
+	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -187,6 +190,139 @@ func TestStdLibEncodeDecode(t *testing.T) {
 		})
 		require.Panics(t, func() {
 			_ = s.base58Decode(ic, []stackitem.Item{stackitem.NewInterop(nil)})
+		})
+	})
+}
+
+func TestStdLibSerialize(t *testing.T) {
+	s := newStd()
+	ic := &interop.Context{VM: vm.New()}
+
+	t.Run("recursive", func(t *testing.T) {
+		arr := stackitem.NewArray(nil)
+		arr.Append(arr)
+		require.Panics(t, func() {
+			_ = s.serialize(ic, []stackitem.Item{arr})
+		})
+	})
+	t.Run("big item", func(t *testing.T) {
+		require.Panics(t, func() {
+			_ = s.serialize(ic, []stackitem.Item{stackitem.NewByteArray(make([]byte, stackitem.MaxSize))})
+		})
+	})
+	t.Run("good", func(t *testing.T) {
+		var (
+			actualSerialized   stackitem.Item
+			actualDeserialized stackitem.Item
+		)
+		require.NotPanics(t, func() {
+			actualSerialized = s.serialize(ic, []stackitem.Item{stackitem.Make(42)})
+		})
+
+		w := io.NewBufBinWriter()
+		stackitem.EncodeBinaryStackItem(stackitem.Make(42), w.BinWriter)
+		require.NoError(t, w.Err)
+
+		encoded := w.Bytes()
+		require.Equal(t, stackitem.Make(encoded), actualSerialized)
+
+		require.NotPanics(t, func() {
+			actualDeserialized = s.deserialize(ic, []stackitem.Item{actualSerialized})
+		})
+		require.Equal(t, stackitem.Make(42), actualDeserialized)
+
+		t.Run("bad", func(t *testing.T) {
+			encoded[0] ^= 0xFF
+			require.Panics(t, func() {
+				_ = s.deserialize(ic, []stackitem.Item{stackitem.Make(encoded)})
+			})
+		})
+	})
+}
+
+func TestStdLibSerializeDeserialize(t *testing.T) {
+	s := newStd()
+	ic := &interop.Context{VM: vm.New()}
+	var actual stackitem.Item
+
+	checkSerializeDeserialize := func(t *testing.T, value interface{}, expected stackitem.Item) {
+		require.NotPanics(t, func() {
+			actual = s.serialize(ic, []stackitem.Item{stackitem.Make(value)})
+		})
+		require.NotPanics(t, func() {
+			actual = s.deserialize(ic, []stackitem.Item{actual})
+		})
+		require.Equal(t, expected, actual)
+	}
+
+	t.Run("Bool", func(t *testing.T) {
+		checkSerializeDeserialize(t, true, stackitem.NewBool(true))
+	})
+	t.Run("ByteArray", func(t *testing.T) {
+		checkSerializeDeserialize(t, []byte{1, 2, 3}, stackitem.NewByteArray([]byte{1, 2, 3}))
+	})
+	t.Run("Integer", func(t *testing.T) {
+		checkSerializeDeserialize(t, 48, stackitem.NewBigInteger(big.NewInt(48)))
+	})
+	t.Run("Array", func(t *testing.T) {
+		arr := stackitem.NewArray([]stackitem.Item{
+			stackitem.Make(true),
+			stackitem.Make(123),
+			stackitem.NewMap()})
+		checkSerializeDeserialize(t, arr, arr)
+	})
+	t.Run("Struct", func(t *testing.T) {
+		st := stackitem.NewStruct([]stackitem.Item{
+			stackitem.Make(true),
+			stackitem.Make(123),
+			stackitem.NewMap(),
+		})
+		checkSerializeDeserialize(t, st, st)
+	})
+	t.Run("Map", func(t *testing.T) {
+		item := stackitem.NewMap()
+		item.Add(stackitem.Make(true), stackitem.Make([]byte{1, 2, 3}))
+		item.Add(stackitem.Make([]byte{0}), stackitem.Make(false))
+		checkSerializeDeserialize(t, item, item)
+	})
+	t.Run("Serialize MapCompat", func(t *testing.T) {
+		resHex := "480128036b6579280576616c7565"
+		res, err := hex.DecodeString(resHex)
+		require.NoError(t, err)
+
+		item := stackitem.NewMap()
+		item.Add(stackitem.Make([]byte("key")), stackitem.Make([]byte("value")))
+		require.NotPanics(t, func() {
+			actual = s.serialize(ic, []stackitem.Item{stackitem.Make(item)})
+		})
+		bytes, err := actual.TryBytes()
+		require.NoError(t, err)
+		assert.Equal(t, res, bytes)
+	})
+	t.Run("Serialize Interop", func(t *testing.T) {
+		require.Panics(t, func() {
+			actual = s.serialize(ic, []stackitem.Item{stackitem.NewInterop("kek")})
+		})
+	})
+	t.Run("Serialize Array bad", func(t *testing.T) {
+		item := stackitem.NewArray([]stackitem.Item{stackitem.NewBool(true), stackitem.NewBool(true)})
+		item.Value().([]stackitem.Item)[1] = item
+		require.Panics(t, func() {
+			actual = s.serialize(ic, []stackitem.Item{item})
+		})
+	})
+	t.Run("Deserialize unknown", func(t *testing.T) {
+		data, err := stackitem.SerializeItem(stackitem.NewBigInteger(big.NewInt(123)))
+		require.NoError(t, err)
+
+		data[0] = 0xFF
+		require.Panics(t, func() {
+			actual = s.deserialize(ic, []stackitem.Item{stackitem.Make(data)})
+		})
+	})
+	t.Run("Deserialize not a byte array", func(t *testing.T) {
+		require.Panics(t, func() {
+			actual = s.deserialize(ic, []stackitem.Item{stackitem.NewInterop(nil)})
 		})
 	})
 }

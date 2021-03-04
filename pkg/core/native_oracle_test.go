@@ -29,7 +29,7 @@ import (
 )
 
 // getTestContractState returns test contract which uses oracles.
-func getOracleContractState(h util.Uint160) *state.Contract {
+func getOracleContractState(h util.Uint160, stdHash util.Uint160) *state.Contract {
 	w := io.NewBufBinWriter()
 	emit.Int(w.BinWriter, 5)
 	emit.Opcodes(w.BinWriter, opcode.PACK)
@@ -49,7 +49,9 @@ func getOracleContractState(h util.Uint160) *state.Contract {
 	emit.Opcodes(w.BinWriter, opcode.ABORT)
 	emit.Int(w.BinWriter, 4) // url, userData, code, result
 	emit.Opcodes(w.BinWriter, opcode.PACK)
-	emit.Syscall(w.BinWriter, interopnames.SystemBinarySerialize)
+	emit.Int(w.BinWriter, 1)                                            // 1 byte (args count for `serialize`)
+	emit.Opcodes(w.BinWriter, opcode.PACK)                              // 1 byte (pack args into array for `serialize`)
+	emit.AppCallNoArgs(w.BinWriter, stdHash, "serialize", callflag.All) // 39 bytes
 	emit.String(w.BinWriter, "lastOracleResponse")
 	emit.Syscall(w.BinWriter, interopnames.SystemStorageGetContext)
 	emit.Syscall(w.BinWriter, interopnames.SystemStoragePut)
@@ -117,7 +119,7 @@ func TestOracle_Request(t *testing.T) {
 	bc := newTestChain(t)
 
 	orc := bc.contracts.Oracle
-	cs := getOracleContractState(orc.Hash)
+	cs := getOracleContractState(orc.Hash, bc.contracts.Std.Hash)
 	require.NoError(t, bc.contracts.Management.PutContractState(bc.dao, cs))
 
 	gasForResponse := int64(2000_1234)

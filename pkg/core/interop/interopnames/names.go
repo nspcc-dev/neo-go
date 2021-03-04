@@ -2,8 +2,6 @@ package interopnames
 
 // Names of all used interops.
 const (
-	SystemBinaryDeserialize                  = "System.Binary.Deserialize"
-	SystemBinarySerialize                    = "System.Binary.Serialize"
 	SystemCallbackCreate                     = "System.Callback.Create"
 	SystemCallbackCreateFromMethod           = "System.Callback.CreateFromMethod"
 	SystemCallbackCreateFromSyscall          = "System.Callback.CreateFromSyscall"
@@ -46,8 +44,6 @@ const (
 )
 
 var names = []string{
-	SystemBinaryDeserialize,
-	SystemBinarySerialize,
 	SystemCallbackCreate,
 	SystemCallbackCreateFromMethod,
 	SystemCallbackCreateFromSyscall,

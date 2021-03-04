@@ -316,6 +316,7 @@ func TestStorageDelete(t *testing.T) {
 // getTestContractState returns 2 contracts second of which is allowed to call the first.
 func getTestContractState(bc *Blockchain) (*state.Contract, *state.Contract) {
 	mgmtHash := bc.ManagementContractHash()
+	stdHash := bc.contracts.Std.Hash
 
 	w := io.NewBufBinWriter()
 	emit.Opcodes(w.BinWriter, opcode.ABORT)
@@ -339,16 +340,20 @@ func getTestContractState(bc *Blockchain) (*state.Contract, *state.Contract) {
 	emit.Opcodes(w.BinWriter, opcode.LDSFLD0, opcode.SUB,
 		opcode.CONVERT, opcode.Opcode(stackitem.BooleanT), opcode.RET)
 	deployOff := w.Len()
-	emit.Opcodes(w.BinWriter, opcode.SWAP, opcode.JMPIF, 2+8+1+1+5+3)
-	emit.String(w.BinWriter, "create")                            // 8 bytes
-	emit.Int(w.BinWriter, 2)                                      // 1 byte
-	emit.Opcodes(w.BinWriter, opcode.PACK)                        // 1 byte
-	emit.Syscall(w.BinWriter, interopnames.SystemBinarySerialize) // 5 bytes
-	emit.Opcodes(w.BinWriter, opcode.CALL, 3+8+1+1+5+3, opcode.RET)
-	emit.String(w.BinWriter, "update")                            // 8 bytes
-	emit.Int(w.BinWriter, 2)                                      // 1 byte
-	emit.Opcodes(w.BinWriter, opcode.PACK)                        // 1 byte
-	emit.Syscall(w.BinWriter, interopnames.SystemBinarySerialize) // 5 bytes
+	emit.Opcodes(w.BinWriter, opcode.SWAP, opcode.JMPIF, 2+8+1+1+1+1+39+3)
+	emit.String(w.BinWriter, "create")                                  // 8 bytes
+	emit.Int(w.BinWriter, 2)                                            // 1 byte
+	emit.Opcodes(w.BinWriter, opcode.PACK)                              // 1 byte
+	emit.Int(w.BinWriter, 1)                                            // 1 byte (args count for `serialize`)
+	emit.Opcodes(w.BinWriter, opcode.PACK)                              // 1 byte (pack args into array for `serialize`)
+	emit.AppCallNoArgs(w.BinWriter, stdHash, "serialize", callflag.All) // 39 bytes
+	emit.Opcodes(w.BinWriter, opcode.CALL, 3+8+1+1+1+1+39+3, opcode.RET)
+	emit.String(w.BinWriter, "update")                                  // 8 bytes
+	emit.Int(w.BinWriter, 2)                                            // 1 byte
+	emit.Opcodes(w.BinWriter, opcode.PACK)                              // 1 byte
+	emit.Int(w.BinWriter, 1)                                            // 1 byte (args count for `serialize`)
+	emit.Opcodes(w.BinWriter, opcode.PACK)                              // 1 byte (pack args into array for `serialize`)
+	emit.AppCallNoArgs(w.BinWriter, stdHash, "serialize", callflag.All) // 39 bytes
 	emit.Opcodes(w.BinWriter, opcode.CALL, 3, opcode.RET)
 	putValOff := w.Len()
 	emit.String(w.BinWriter, "initial")

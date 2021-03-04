@@ -10,7 +10,6 @@ package core
 import (
 	"github.com/nspcc-dev/neo-go/pkg/core/fee"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
-	"github.com/nspcc-dev/neo-go/pkg/core/interop/binary"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/contract"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/crypto"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
@@ -31,8 +30,6 @@ func SpawnVM(ic *interop.Context) *vm.VM {
 
 // All lists are sorted, keep 'em this way, please.
 var systemInterops = []interop.Function{
-	{Name: interopnames.SystemBinaryDeserialize, Func: binary.Deserialize, Price: 1 << 14, ParamCount: 1},
-	{Name: interopnames.SystemBinarySerialize, Func: binary.Serialize, Price: 1 << 12, ParamCount: 1},
 	{Name: interopnames.SystemContractCall, Func: contract.Call, Price: 1 << 15,
 		RequiredFlags: callflag.ReadStates | callflag.AllowCall, ParamCount: 4},
 	{Name: interopnames.SystemContractCallNative, Func: native.Call, Price: 0, ParamCount: 1},

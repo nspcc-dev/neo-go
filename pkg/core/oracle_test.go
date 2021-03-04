@@ -130,7 +130,7 @@ func TestOracle(t *testing.T) {
 	orc1.UpdateNativeContract(orcNative.NEF.Script, orcNative.GetOracleResponseScript(), orcNative.Hash, md.MD.Offset)
 	orc2.UpdateNativeContract(orcNative.NEF.Script, orcNative.GetOracleResponseScript(), orcNative.Hash, md.MD.Offset)
 
-	cs := getOracleContractState(bc.contracts.Oracle.Hash)
+	cs := getOracleContractState(bc.contracts.Oracle.Hash, bc.contracts.Std.Hash)
 	require.NoError(t, bc.contracts.Management.PutContractState(bc.dao, cs))
 
 	putOracleRequest(t, cs.Hash, bc, "http://get.1234", nil, "handle", []byte{}, 10_000_000)
@@ -271,7 +271,7 @@ func TestOracleFull(t *testing.T) {
 	orc.OnTransaction = func(tx *transaction.Transaction) { _ = mp.Add(tx, bc) }
 	bc.SetOracle(orc)
 
-	cs := getOracleContractState(bc.contracts.Oracle.Hash)
+	cs := getOracleContractState(bc.contracts.Oracle.Hash, bc.contracts.Std.Hash)
 	require.NoError(t, bc.contracts.Management.PutContractState(bc.dao, cs))
 
 	go bc.Run()

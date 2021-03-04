@@ -19,10 +19,6 @@ type interopIDFuncPrice struct {
 }
 
 var defaultVMInterops = []interopIDFuncPrice{
-	{ID: interopnames.ToID([]byte(interopnames.SystemBinaryDeserialize)),
-		Func: RuntimeDeserialize, Price: 1 << 14},
-	{ID: interopnames.ToID([]byte(interopnames.SystemBinarySerialize)),
-		Func: RuntimeSerialize, Price: 1 << 12},
 	{ID: interopnames.ToID([]byte(interopnames.SystemRuntimeLog)),
 		Func: runtimeLog, Price: 1 << 15, RequiredFlags: callflag.AllowNotify},
 	{ID: interopnames.ToID([]byte(interopnames.SystemRuntimeNotify)),
@@ -65,35 +61,6 @@ func runtimeNotify(vm *VM) error {
 	name := vm.Estack().Pop().String()
 	item := vm.Estack().Pop()
 	fmt.Printf("NEO-GO-VM (notify) > [%s] %s\n", name, item.Value())
-	return nil
-}
-
-// RuntimeSerialize handles System.Binary.Serialize syscall.
-func RuntimeSerialize(vm *VM) error {
-	item := vm.Estack().Pop()
-	data, err := stackitem.SerializeItem(item.value)
-	if err != nil {
-		return err
-	} else if len(data) > stackitem.MaxSize {
-		return errors.New("too big item")
-	}
-
-	vm.Estack().PushVal(data)
-
-	return nil
-}
-
-// RuntimeDeserialize handles System.Binary.Deserialize syscall.
-func RuntimeDeserialize(vm *VM) error {
-	data := vm.Estack().Pop().Bytes()
-
-	item, err := stackitem.DeserializeItem(data)
-	if err != nil {
-		return err
-	}
-
-	vm.Estack().Push(&Element{value: item})
-
 	return nil
 }
 

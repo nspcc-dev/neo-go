@@ -299,8 +299,8 @@ func TestRunWithDifferentArguments(t *testing.T) {
 
 func TestPrintOps(t *testing.T) {
 	w := io.NewBufBinWriter()
-	emit.Opcodes(w.BinWriter, opcode.PUSH1)
-	emit.Syscall(w.BinWriter, interopnames.SystemBinarySerialize)
+	emit.String(w.BinWriter, "log")
+	emit.Syscall(w.BinWriter, interopnames.SystemRuntimeLog)
 	emit.Instruction(w.BinWriter, opcode.PUSHDATA1, []byte{3, 1, 2, 3})
 	script := w.Bytes()
 	e := newTestVMCLI(t)
@@ -312,9 +312,9 @@ func TestPrintOps(t *testing.T) {
 	e.checkNextLine(t, ".*no program loaded")
 	e.checkNextLine(t, fmt.Sprintf("READY: loaded %d instructions", len(script)))
 	e.checkNextLine(t, "INDEX.*OPCODE.*PARAMETER")
-	e.checkNextLine(t, "0.*PUSH1")
-	e.checkNextLine(t, "1.*SYSCALL.*System\\.Binary\\.Serialize")
-	e.checkNextLine(t, "6.*PUSHDATA1.*010203")
+	e.checkNextLine(t, "0.*PUSHDATA1.*6c6f67")
+	e.checkNextLine(t, "5.*SYSCALL.*System\\.Runtime\\.Log")
+	e.checkNextLine(t, "10.*PUSHDATA1.*010203")
 }
 
 func TestLoadAbort(t *testing.T) {
