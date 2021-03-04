@@ -23,8 +23,6 @@ const (
 	SystemIteratorCreate                     = "System.Iterator.Create"
 	SystemIteratorNext                       = "System.Iterator.Next"
 	SystemIteratorValue                      = "System.Iterator.Value"
-	SystemJSONDeserialize                    = "System.Json.Deserialize"
-	SystemJSONSerialize                      = "System.Json.Serialize"
 	SystemRuntimeCheckWitness                = "System.Runtime.CheckWitness"
 	SystemRuntimeGasLeft                     = "System.Runtime.GasLeft"
 	SystemRuntimeGetCallingScriptHash        = "System.Runtime.GetCallingScriptHash"
@@ -73,8 +71,6 @@ var names = []string{
 	SystemIteratorCreate,
 	SystemIteratorNext,
 	SystemIteratorValue,
-	SystemJSONDeserialize,
-	SystemJSONSerialize,
 	SystemRuntimeCheckWitness,
 	SystemRuntimeGasLeft,
 	SystemRuntimeGetCallingScriptHash,

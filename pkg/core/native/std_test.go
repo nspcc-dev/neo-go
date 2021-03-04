@@ -94,3 +94,47 @@ func TestStdLibItoaAtoi(t *testing.T) {
 		}
 	})
 }
+
+func TestStdLibJSON(t *testing.T) {
+	s := newStd()
+	ic := &interop.Context{VM: vm.New()}
+	var actual stackitem.Item
+
+	t.Run("JSONSerialize", func(t *testing.T) {
+		t.Run("Good", func(t *testing.T) {
+			require.NotPanics(t, func() {
+				actual = s.jsonSerialize(ic, []stackitem.Item{stackitem.Make(42)})
+			})
+
+			require.Equal(t, stackitem.Make([]byte("42")), actual)
+		})
+
+		t.Run("Bad", func(t *testing.T) {
+			arr := stackitem.NewArray([]stackitem.Item{
+				stackitem.NewByteArray(make([]byte, stackitem.MaxSize/2)),
+				stackitem.NewByteArray(make([]byte, stackitem.MaxSize/2)),
+			})
+			require.Panics(t, func() {
+				_ = s.jsonSerialize(ic, []stackitem.Item{arr})
+			})
+		})
+	})
+
+	t.Run("JSONDeserialize", func(t *testing.T) {
+		t.Run("Good", func(t *testing.T) {
+			require.NotPanics(t, func() {
+				actual = s.jsonDeserialize(ic, []stackitem.Item{stackitem.Make("42")})
+			})
+
+			require.Equal(t, stackitem.Make(42), actual)
+		})
+		t.Run("Bad", func(t *testing.T) {
+			require.Panics(t, func() {
+				_ = s.jsonDeserialize(ic, []stackitem.Item{stackitem.Make("{]")})
+			})
+			require.Panics(t, func() {
+				_ = s.jsonDeserialize(ic, []stackitem.Item{stackitem.NewInterop(nil)})
+			})
+		})
+	})
+}
