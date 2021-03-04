@@ -38,6 +38,16 @@ const (
 	PickField1 FindFlags = 1 << 5
 )
 
+// PutFlags represents flag of `PutEx` syscall.
+type PutFlags byte
+
+const (
+	// PutDefault is a storage flag for non-constant items.
+	PutDefault PutFlags = 0
+	// PutConstant is a storage flag for constant items.
+	PutConstant PutFlags = 0x01
+)
+
 // ConvertContextToReadOnly returns new context from the given one, but with
 // writing capability turned off, so that you could only invoke Get and Find
 // using this new Context. If Context is already read-only this function is a
@@ -74,7 +84,7 @@ func Put(ctx Context, key interface{}, value interface{}) {
 // can either be odd for constant storage items or even for variable storage items.
 // Refer to Put function description for details on how to pass the remaining
 // arguments. This function uses `System.Storage.PutEx` syscall.
-func PutEx(ctx Context, key interface{}, value interface{}, flag int64) {
+func PutEx(ctx Context, key interface{}, value interface{}, flag PutFlags) {
 	neogointernal.Syscall4NoReturn("System.Storage.PutEx", ctx, key, value, flag)
 }
 
