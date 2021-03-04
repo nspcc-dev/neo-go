@@ -939,7 +939,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 					c.emittedEvents[name] = append(c.emittedEvents[name], params)
 				}
 			}
-			c.convertSyscall(n)
+			c.convertSyscall(f, n)
 		default:
 			emit.Call(c.prog.BinWriter, opcode.CALLL, f.label)
 		}
@@ -1226,6 +1226,10 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 	// not the assertion type.
 	case *ast.TypeAssertExpr:
 		ast.Walk(c, n.X)
+		if c.isCallExprSyscall(n.X) {
+			return nil
+		}
+
 		goTyp := c.typeOf(n.Type)
 		if canConvert(goTyp.String()) {
 			typ := toNeoType(goTyp)
@@ -1244,6 +1248,20 @@ func (c *codegen) packVarArgs(n *ast.CallExpr, typ *types.Signature) int {
 	emit.Int(c.prog.BinWriter, int64(varSize))
 	emit.Opcodes(c.prog.BinWriter, opcode.PACK)
 	return varSize
+}
+
+func (c *codegen) isCallExprSyscall(e ast.Expr) bool {
+	ce, ok := e.(*ast.CallExpr)
+	if !ok {
+		return false
+	}
+	sel, ok := ce.Fun.(*ast.SelectorExpr)
+	if !ok {
+		return false
+	}
+	name, _ := c.getFuncNameFromSelector(sel)
+	f, ok := c.funcs[name]
+	return ok && isSyscall(f)
 }
 
 // processDefers emits code for `defer` statements.
@@ -1530,18 +1548,27 @@ func (c *codegen) getByteArray(expr ast.Expr) []byte {
 	}
 }
 
-func (c *codegen) convertSyscall(expr *ast.CallExpr) {
+func (c *codegen) convertSyscall(f *funcScope, expr *ast.CallExpr) {
 	for _, arg := range expr.Args[1:] {
 		ast.Walk(c, arg)
 	}
-	c.emitReverse(len(expr.Args) - 1)
 	tv := c.typeAndValueOf(expr.Args[0])
-	syscall := constant.StringVal(tv.Value)
-	emit.Syscall(c.prog.BinWriter, syscall)
+	name := constant.StringVal(tv.Value)
+	if strings.HasPrefix(f.name, "Syscall") {
+		c.emitReverse(len(expr.Args) - 1)
+		emit.Syscall(c.prog.BinWriter, name)
 
-	// This NOP instruction is basically not needed, but if we do, we have a
-	// one to one matching avm file with neo-python which is very nice for debugging.
-	emit.Opcodes(c.prog.BinWriter, opcode.NOP)
+		// This NOP instruction is basically not needed, but if we do, we have a
+		// one to one matching avm file with neo-python which is very nice for debugging.
+		emit.Opcodes(c.prog.BinWriter, opcode.NOP)
+	} else {
+		op, err := opcode.FromString(name)
+		if err != nil {
+			c.prog.Err = fmt.Errorf("invalid opcode: %s", op)
+			return
+		}
+		emit.Opcodes(c.prog.BinWriter, op)
+	}
 }
 
 // emitSliceHelper emits 3 items on stack: slice, its first index, and its size.
@@ -1681,15 +1708,6 @@ func (c *codegen) convertBuiltin(expr *ast.CallExpr) {
 		c.emitStoreByIndex(varGlobal, c.exceptionIndex)
 	case "delete":
 		emit.Opcodes(c.prog.BinWriter, opcode.REMOVE)
-	case "ToInteger", "ToByteArray", "ToBool":
-		typ := stackitem.IntegerT
-		switch name {
-		case "ToByteArray":
-			typ = stackitem.ByteArrayT
-		case "ToBool":
-			typ = stackitem.BooleanT
-		}
-		c.emitConvert(typ)
 	case "Remove":
 		if !isCompoundSlice(c.typeOf(expr.Args[0])) {
 			c.prog.Err = errors.New("`Remove` supports only non-byte slices")

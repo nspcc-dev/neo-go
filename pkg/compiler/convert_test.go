@@ -18,7 +18,7 @@ func getFunctionName(typ string) string {
 		return "Bool"
 	case "[]byte":
 		return "ByteArray"
-	case "int64":
+	case "int":
 		return "Integer"
 	}
 	panic("invalid type")
@@ -40,12 +40,12 @@ func TestConvert(t *testing.T) {
 		{"bool", "[]byte{0, 1, 0}", true},
 		{"bool", "[]byte{0}", true},
 		{"bool", `""`, false},
-		{"int64", "true", big.NewInt(1)},
-		{"int64", "false", big.NewInt(0)},
-		{"int64", "12", big.NewInt(12)},
-		{"int64", "0", big.NewInt(0)},
-		{"int64", "[]byte{0, 1, 0}", big.NewInt(256)},
-		{"int64", "[]byte{0}", big.NewInt(0)},
+		{"int", "true", big.NewInt(1)},
+		{"int", "false", big.NewInt(0)},
+		{"int", "12", big.NewInt(12)},
+		{"int", "0", big.NewInt(0)},
+		{"int", "[]byte{0, 1, 0}", big.NewInt(256)},
+		{"int", "[]byte{0}", big.NewInt(0)},
 		{"[]byte", "true", []byte{1}},
 		{"[]byte", "false", []byte{0}},
 		{"[]byte", "12", []byte{0x0C}},

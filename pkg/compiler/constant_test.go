@@ -40,7 +40,7 @@ func TestByteConstant(t *testing.T) {
 	src := `package foo
 	import "github.com/nspcc-dev/neo-go/pkg/interop/convert"
 	const a byte = 0xFF
-	func Main() int64 {
+	func Main() int {
 		x := convert.ToInteger(a)
 		return x+1
 	}`
