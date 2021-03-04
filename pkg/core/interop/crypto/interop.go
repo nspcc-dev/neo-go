@@ -10,6 +10,7 @@ var (
 	ecdsaSecp256k1VerifyID        = interopnames.ToID([]byte(interopnames.NeoCryptoVerifyWithECDsaSecp256k1))
 	ecdsaSecp256r1CheckMultisigID = interopnames.ToID([]byte(interopnames.NeoCryptoCheckMultisigWithECDsaSecp256r1))
 	ecdsaSecp256k1CheckMultisigID = interopnames.ToID([]byte(interopnames.NeoCryptoCheckMultisigWithECDsaSecp256k1))
+	neoCryptoCheckSigID           = interopnames.ToID([]byte(interopnames.NeoCryptoCheckSig))
 )
 
 var cryptoInterops = []interop.Function{
@@ -17,6 +18,7 @@ var cryptoInterops = []interop.Function{
 	{ID: ecdsaSecp256k1VerifyID, Func: ECDSASecp256k1Verify},
 	{ID: ecdsaSecp256r1CheckMultisigID, Func: ECDSASecp256r1CheckMultisig},
 	{ID: ecdsaSecp256k1CheckMultisigID, Func: ECDSASecp256k1CheckMultisig},
+	{ID: neoCryptoCheckSigID, Func: ECDSASecp256r1CheckSig},
 }
 
 func init() {

@@ -279,3 +279,64 @@ func testCurveCHECKMULTISIGBad(t *testing.T, isR1 bool) {
 		require.Error(t, v.Run())
 	})
 }
+
+func TestCheckSig(t *testing.T) {
+	priv, err := keys.NewPrivateKey()
+	require.NoError(t, err)
+
+	verifyFunc := ECDSASecp256r1CheckSig
+	d := dao.NewSimple(storage.NewMemoryStore(), netmode.UnitTestNet, false)
+	ic := &interop.Context{DAO: dao.NewCached(d)}
+	runCase := func(t *testing.T, isErr bool, result interface{}, args ...interface{}) {
+		ic.SpawnVM()
+		for i := range args {
+			ic.VM.Estack().PushVal(args[i])
+		}
+
+		var err error
+		func() {
+			defer func() {
+				if r := recover(); r != nil {
+					err = fmt.Errorf("panic: %v", r)
+				}
+			}()
+			err = verifyFunc(ic)
+		}()
+
+		if isErr {
+			require.Error(t, err)
+			return
+		}
+		require.NoError(t, err)
+		require.Equal(t, 1, ic.VM.Estack().Len())
+		require.Equal(t, result, ic.VM.Estack().Pop().Value().(bool))
+	}
+
+	tx := transaction.New(netmode.UnitTestNet, []byte{0, 1, 2}, 1)
+	msg := tx.GetSignedPart()
+	ic.Container = tx
+
+	t.Run("success", func(t *testing.T) {
+		sign := priv.Sign(msg)
+		runCase(t, false, true, sign, priv.PublicKey().Bytes())
+	})
+
+	t.Run("missing argument", func(t *testing.T) {
+		runCase(t, true, false)
+		sign := priv.Sign(msg)
+		runCase(t, true, false, sign)
+	})
+
+	t.Run("invalid signature", func(t *testing.T) {
+		sign := priv.Sign(msg)
+		sign[0] = ^sign[0]
+		runCase(t, false, false, sign, priv.PublicKey().Bytes())
+	})
+
+	t.Run("invalid public key", func(t *testing.T) {
+		sign := priv.Sign(msg)
+		pub := priv.PublicKey().Bytes()
+		pub[0] = 0xFF // invalid prefix
+		runCase(t, true, false, sign, pub)
+	})
+}

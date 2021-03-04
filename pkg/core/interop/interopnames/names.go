@@ -41,6 +41,7 @@ const (
 	NeoCryptoVerifyWithECDsaSecp256k1        = "Neo.Crypto.VerifyWithECDsaSecp256k1"
 	NeoCryptoCheckMultisigWithECDsaSecp256r1 = "Neo.Crypto.CheckMultisigWithECDsaSecp256r1"
 	NeoCryptoCheckMultisigWithECDsaSecp256k1 = "Neo.Crypto.CheckMultisigWithECDsaSecp256k1"
+	NeoCryptoCheckSig                        = "Neo.Crypto.CheckSig"
 )
 
 var names = []string{
@@ -83,4 +84,5 @@ var names = []string{
 	NeoCryptoVerifyWithECDsaSecp256k1,
 	NeoCryptoCheckMultisigWithECDsaSecp256r1,
 	NeoCryptoCheckMultisigWithECDsaSecp256k1,
+	NeoCryptoCheckSig,
 }

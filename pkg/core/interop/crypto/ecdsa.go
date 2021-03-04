@@ -99,3 +99,17 @@ func getMessageHash(ic *interop.Context, item stackitem.Item) (util.Uint256, err
 	}
 	return hash.Sha256(msg), nil
 }
+
+// ECDSASecp256r1CheckSig checks ECDSA signature using Secp256r1 elliptic curve.
+func ECDSASecp256r1CheckSig(ic *interop.Context) error {
+	hashToCheck := ic.Container.GetSignedHash()
+	keyb := ic.VM.Estack().Pop().Bytes()
+	signature := ic.VM.Estack().Pop().Bytes()
+	pkey, err := keys.NewPublicKeyFromBytes(keyb, elliptic.P256())
+	if err != nil {
+		return err
+	}
+	res := pkey.Verify(signature, hashToCheck.BytesBE())
+	ic.VM.Estack().PushVal(res)
+	return nil
+}
