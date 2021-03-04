@@ -3,8 +3,6 @@ package compiler_test
 import (
 	"errors"
 	"fmt"
-	"math/big"
-	"strconv"
 	"strings"
 	"testing"
 
@@ -109,8 +107,7 @@ func newStoragePlugin() *storagePlugin {
 	s.interops[interopnames.ToID([]byte(interopnames.SystemStoragePut))] = s.Put
 	s.interops[interopnames.ToID([]byte(interopnames.SystemStorageGetContext))] = s.GetContext
 	s.interops[interopnames.ToID([]byte(interopnames.SystemRuntimeNotify))] = s.Notify
-	s.interops[interopnames.ToID([]byte(interopnames.SystemBinaryAtoi))] = s.Atoi
-	s.interops[interopnames.ToID([]byte(interopnames.SystemBinaryItoa))] = s.Itoa
+	s.interops[interopnames.ToID([]byte(interopnames.SystemRuntimeGetTime))] = s.GetTime
 	return s
 
 }
@@ -124,24 +121,6 @@ func (s *storagePlugin) syscallHandler(v *vm.VM, id uint32) error {
 		return f(v)
 	}
 	return errors.New("syscall not found")
-}
-
-func (s *storagePlugin) Atoi(v *vm.VM) error {
-	str := v.Estack().Pop().String()
-	base := v.Estack().Pop().BigInt().Int64()
-	n, err := strconv.ParseInt(str, int(base), 64)
-	if err != nil {
-		return err
-	}
-	v.Estack().PushVal(big.NewInt(n))
-	return nil
-}
-
-func (s *storagePlugin) Itoa(v *vm.VM) error {
-	n := v.Estack().Pop().BigInt()
-	base := v.Estack().Pop().BigInt()
-	v.Estack().PushVal(n.Text(int(base.Int64())))
-	return nil
 }
 
 func (s *storagePlugin) Notify(v *vm.VM) error {
@@ -183,5 +162,12 @@ func (s *storagePlugin) GetContext(vm *vm.VM) error {
 	// Pushing anything on the stack here will work. This is just to satisfy
 	// the compiler, thinking it has pushed the context ^^.
 	vm.Estack().PushVal(10)
+	return nil
+}
+
+func (s *storagePlugin) GetTime(vm *vm.VM) error {
+	// Pushing anything on the stack here will work. This is just to satisfy
+	// the compiler, thinking it has pushed the context ^^.
+	vm.Estack().PushVal(4)
 	return nil
 }

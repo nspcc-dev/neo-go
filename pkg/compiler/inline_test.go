@@ -118,13 +118,14 @@ func TestInline(t *testing.T) {
 func TestInlineInLoop(t *testing.T) {
 	t.Run("simple", func(t *testing.T) {
 		src := `package foo
-		import "github.com/nspcc-dev/neo-go/pkg/interop/binary"
+		import "github.com/nspcc-dev/neo-go/pkg/interop/storage"
 		import "github.com/nspcc-dev/neo-go/pkg/compiler/testdata/inline"
 		func Main() int {
 			sum := 0
 			values := []int{10, 11}
 			for _, v := range values {
-				binary.Itoa(v, 10)
+				_ = v // use 'v'
+				storage.GetContext() // push something on stack to check it's dropped
 				sum += inline.VarSum(1, 2, 3, 4)
 			}
 			return sum
@@ -133,14 +134,16 @@ func TestInlineInLoop(t *testing.T) {
 	})
 	t.Run("inlined argument", func(t *testing.T) {
 		src := `package foo
-		import "github.com/nspcc-dev/neo-go/pkg/interop/binary"
+		import "github.com/nspcc-dev/neo-go/pkg/interop/runtime"
+		import "github.com/nspcc-dev/neo-go/pkg/interop/storage"
 		import "github.com/nspcc-dev/neo-go/pkg/compiler/testdata/inline"
 		func Main() int {
 			sum := 0
 			values := []int{10, 11}
 			for _, v := range values {
-				binary.Itoa(v, 10)
-				sum += inline.VarSum(1, 2, 3, binary.Atoi("4", 10))
+				_  = v // use 'v'
+				storage.GetContext() // push something on stack to check it's dropped
+				sum += inline.VarSum(1, 2, 3, runtime.GetTime()) // runtime.GetTime always returns 4 in these tests
 			}
 			return sum
 		}`
@@ -148,12 +151,12 @@ func TestInlineInLoop(t *testing.T) {
 	})
 	t.Run("check clean stack on return", func(t *testing.T) {
 		src := `package foo
-		import "github.com/nspcc-dev/neo-go/pkg/interop/binary"
+		import "github.com/nspcc-dev/neo-go/pkg/interop/storage"
 		import "github.com/nspcc-dev/neo-go/pkg/compiler/testdata/inline"
 		func Main() int {
 			values := []int{10, 11, 12}
 			for _, v := range values {
-				binary.Itoa(v, 10)
+				storage.GetContext() // push something on stack to check it's dropped
 				if v == 11 {
 					return inline.VarSum(2, 20, 200)
 				}

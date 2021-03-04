@@ -32,13 +32,11 @@ func SpawnVM(ic *interop.Context) *vm.VM {
 
 // All lists are sorted, keep 'em this way, please.
 var systemInterops = []interop.Function{
-	{Name: interopnames.SystemBinaryAtoi, Func: binary.Atoi, Price: 1 << 12, ParamCount: 2},
 	{Name: interopnames.SystemBinaryBase58Decode, Func: binary.DecodeBase58, Price: 1 << 12, ParamCount: 1},
 	{Name: interopnames.SystemBinaryBase58Encode, Func: binary.EncodeBase58, Price: 1 << 12, ParamCount: 1},
 	{Name: interopnames.SystemBinaryBase64Decode, Func: binary.DecodeBase64, Price: 1 << 12, ParamCount: 1},
 	{Name: interopnames.SystemBinaryBase64Encode, Func: binary.EncodeBase64, Price: 1 << 12, ParamCount: 1},
 	{Name: interopnames.SystemBinaryDeserialize, Func: binary.Deserialize, Price: 1 << 14, ParamCount: 1},
-	{Name: interopnames.SystemBinaryItoa, Func: binary.Itoa, Price: 1 << 12, ParamCount: 2},
 	{Name: interopnames.SystemBinarySerialize, Func: binary.Serialize, Price: 1 << 12, ParamCount: 1},
 	{Name: interopnames.SystemContractCall, Func: contract.Call, Price: 1 << 15,
 		RequiredFlags: callflag.ReadStates | callflag.AllowCall, ParamCount: 4},

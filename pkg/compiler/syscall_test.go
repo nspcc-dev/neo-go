@@ -61,13 +61,11 @@ func TestSyscallExecution(t *testing.T) {
 	sigs := "[]interop.Signature{" + sig + "}"
 	sctx := "storage.Context{}"
 	interops := map[string]syscallTestCase{
-		"binary.Atoi":                        {interopnames.SystemBinaryAtoi, []string{`"123"`, "10"}, false},
 		"binary.Base58Decode":                {interopnames.SystemBinaryBase58Decode, []string{b}, false},
 		"binary.Base58Encode":                {interopnames.SystemBinaryBase58Encode, []string{b}, false},
 		"binary.Base64Decode":                {interopnames.SystemBinaryBase64Decode, []string{b}, false},
 		"binary.Base64Encode":                {interopnames.SystemBinaryBase64Encode, []string{b}, false},
 		"binary.Deserialize":                 {interopnames.SystemBinaryDeserialize, []string{b}, false},
-		"binary.Itoa":                        {interopnames.SystemBinaryItoa, []string{"123", "10"}, false},
 		"binary.Serialize":                   {interopnames.SystemBinarySerialize, []string{"10"}, false},
 		"contract.Call":                      {interopnames.SystemContractCall, []string{u160, `"m"`, "1", "3"}, false},
 		"contract.CreateMultisigAccount":     {interopnames.SystemContractCreateMultisigAccount, []string{"1", pubs}, false},

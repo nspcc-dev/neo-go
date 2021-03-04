@@ -44,15 +44,3 @@ func Base58Encode(b []byte) string {
 func Base58Decode(b []byte) []byte {
 	return neogointernal.Syscall1("System.Binary.Base58Decode", b).([]byte)
 }
-
-// Itoa converts num in a given base to string. Base should be either 10 or 16.
-// It uses `System.Binary.Itoa` syscall.
-func Itoa(num int, base int) string {
-	return neogointernal.Syscall2("System.Binary.Itoa", num, base).(string)
-}
-
-// Atoi converts string to a number in a given base. Base should be either 10 or 16.
-// It uses `System.Binary.Atoi` syscall.
-func Atoi(s string, base int) int {
-	return neogointernal.Syscall2("System.Binary.Atoi", s, base).(int)
-}
