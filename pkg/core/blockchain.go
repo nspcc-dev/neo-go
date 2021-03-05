@@ -1124,12 +1124,12 @@ func (bc *Blockchain) GetAppExecResults(hash util.Uint256, trig trigger.Type) ([
 }
 
 // GetStorageItem returns an item from storage.
-func (bc *Blockchain) GetStorageItem(id int32, key []byte) *state.StorageItem {
+func (bc *Blockchain) GetStorageItem(id int32, key []byte) state.StorageItem {
 	return bc.dao.GetStorageItem(id, key)
 }
 
 // GetStorageItems returns all storage items for a given contract id.
-func (bc *Blockchain) GetStorageItems(id int32) (map[string]*state.StorageItem, error) {
+func (bc *Blockchain) GetStorageItems(id int32) (map[string]state.StorageItem, error) {
 	return bc.dao.GetStorageItems(id)
 }
 

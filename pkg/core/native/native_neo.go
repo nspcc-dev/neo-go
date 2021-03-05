@@ -172,7 +172,7 @@ func (n *NEO) Initialize(ic *interop.Context) error {
 		return err
 	}
 
-	err = ic.DAO.PutStorageItem(n.ID, prefixCommittee, &state.StorageItem{Value: cvs.Bytes()})
+	err = ic.DAO.PutStorageItem(n.ID, prefixCommittee, cvs.Bytes())
 	if err != nil {
 		return err
 	}
@@ -192,7 +192,7 @@ func (n *NEO) Initialize(ic *interop.Context) error {
 	gr := &gasRecord{{Index: index, GASPerBlock: *value}}
 	n.gasPerBlock.Store(*gr)
 	n.gasPerBlockChanged.Store(false)
-	err = ic.DAO.PutStorageItem(n.ID, []byte{prefixVotersCount}, &state.StorageItem{Value: []byte{}})
+	err = ic.DAO.PutStorageItem(n.ID, []byte{prefixVotersCount}, state.StorageItem{})
 	if err != nil {
 		return err
 	}
@@ -206,7 +206,7 @@ func (n *NEO) Initialize(ic *interop.Context) error {
 func (n *NEO) InitializeCache(bc blockchainer.Blockchainer, d dao.DAO) error {
 	var committee = keysWithVotes{}
 	si := d.GetStorageItem(n.ID, prefixCommittee)
-	if err := committee.DecodeBytes(si.Value); err != nil {
+	if err := committee.DecodeBytes(si); err != nil {
 		return err
 	}
 	if err := n.updateCache(committee, bc); err != nil {
@@ -244,8 +244,7 @@ func (n *NEO) updateCommittee(ic *interop.Context) error {
 	if !votesChanged {
 		// We need to put in storage anyway, as it affects dumps
 		committee := n.committee.Load().(keysWithVotes)
-		si := &state.StorageItem{Value: committee.Bytes()}
-		return ic.DAO.PutStorageItem(n.ID, prefixCommittee, si)
+		return ic.DAO.PutStorageItem(n.ID, prefixCommittee, committee.Bytes())
 	}
 
 	_, cvs, err := n.computeCommitteeMembers(ic.Chain, ic.DAO)
@@ -256,8 +255,7 @@ func (n *NEO) updateCommittee(ic *interop.Context) error {
 		return err
 	}
 	n.votesChanged.Store(false)
-	si := &state.StorageItem{Value: cvs.Bytes()}
-	return ic.DAO.PutStorageItem(n.ID, prefixCommittee, si)
+	return ic.DAO.PutStorageItem(n.ID, prefixCommittee, cvs.Bytes())
 }
 
 // ShouldUpdateCommittee returns true if committee is updated at block h.
@@ -295,7 +293,6 @@ func (n *NEO) PostPersist(ic *interop.Context) error {
 		voterReward.Div(voterReward, big.NewInt(100))
 
 		var cs = n.committee.Load().(keysWithVotes)
-		var si = new(state.StorageItem)
 		var key = make([]byte, 38)
 		for i := range cs {
 			if cs[i].Votes.Sign() > 0 {
@@ -312,8 +309,7 @@ func (n *NEO) PostPersist(ic *interop.Context) error {
 
 				binary.BigEndian.PutUint32(key[34:], ic.Block.Index+1)
 
-				si.Value = bigint.ToBytes(tmp)
-				if err := ic.DAO.PutStorageItem(n.ID, key, si); err != nil {
+				if err := ic.DAO.PutStorageItem(n.ID, key, bigint.ToBytes(tmp)); err != nil {
 					return err
 				}
 			}
@@ -346,7 +342,7 @@ func (n *NEO) getGASPerVote(d dao.DAO, key []byte, index ...uint32) []big.Int {
 					if r.Err != nil {
 						return
 					}
-					reward[i] = *bigint.FromBytes(si.Value)
+					reward[i] = *bigint.FromBytes(si)
 				}
 			}
 		}
@@ -355,7 +351,7 @@ func (n *NEO) getGASPerVote(d dao.DAO, key []byte, index ...uint32) []big.Int {
 }
 
 func (n *NEO) increaseBalance(ic *interop.Context, h util.Uint160, si *state.StorageItem, amount *big.Int) error {
-	acc, err := state.NEOBalanceStateFromBytes(si.Value)
+	acc, err := state.NEOBalanceStateFromBytes(*si)
 	if err != nil {
 		return err
 	}
@@ -366,7 +362,7 @@ func (n *NEO) increaseBalance(ic *interop.Context, h util.Uint160, si *state.Sto
 		return err
 	}
 	if amount.Sign() == 0 {
-		si.Value = acc.Bytes()
+		*si = acc.Bytes()
 		return nil
 	}
 	if err := n.ModifyAccountVotes(acc, ic.DAO, amount, false); err != nil {
@@ -379,9 +375,9 @@ func (n *NEO) increaseBalance(ic *interop.Context, h util.Uint160, si *state.Sto
 	}
 	acc.Balance.Add(&acc.Balance, amount)
 	if acc.Balance.Sign() != 0 {
-		si.Value = acc.Bytes()
+		*si = acc.Bytes()
 	} else {
-		si.Value = nil
+		*si = nil
 	}
 	return nil
 }
@@ -426,7 +422,7 @@ func (n *NEO) getSortedGASRecordFromDAO(d dao.DAO) (gasRecord, error) {
 	for indexBytes, gasValue := range grMap {
 		gr[i] = gasIndexPair{
 			Index:       binary.BigEndian.Uint32([]byte(indexBytes)),
-			GASPerBlock: *bigint.FromBytes(gasValue.Value),
+			GASPerBlock: *bigint.FromBytes(gasValue),
 		}
 		i++
 	}
@@ -533,7 +529,7 @@ func (n *NEO) CalculateBonus(d dao.DAO, acc util.Uint160, end uint32) (*big.Int,
 	if si == nil {
 		return nil, storage.ErrKeyNotFound
 	}
-	st, err := state.NEOBalanceStateFromBytes(si.Value)
+	st, err := state.NEOBalanceStateFromBytes(si)
 	if err != nil {
 		return nil, err
 	}
@@ -611,15 +607,14 @@ func (n *NEO) registerCandidate(ic *interop.Context, args []stackitem.Item) stac
 func (n *NEO) RegisterCandidateInternal(ic *interop.Context, pub *keys.PublicKey) error {
 	key := makeValidatorKey(pub)
 	si := ic.DAO.GetStorageItem(n.ID, key)
+	var c *candidate
 	if si == nil {
-		c := &candidate{Registered: true}
-		si = &state.StorageItem{Value: c.Bytes()}
+		c = &candidate{Registered: true}
 	} else {
-		c := new(candidate).FromBytes(si.Value)
+		c = new(candidate).FromBytes(si)
 		c.Registered = true
-		si.Value = c.Bytes()
 	}
-	return ic.DAO.PutStorageItem(n.ID, key, si)
+	return ic.DAO.PutStorageItem(n.ID, key, c.Bytes())
 }
 
 func (n *NEO) unregisterCandidate(ic *interop.Context, args []stackitem.Item) stackitem.Item {
@@ -642,14 +637,13 @@ func (n *NEO) UnregisterCandidateInternal(ic *interop.Context, pub *keys.PublicK
 		return nil
 	}
 	n.validators.Store(keys.PublicKeys(nil))
-	c := new(candidate).FromBytes(si.Value)
+	c := new(candidate).FromBytes(si)
 	c.Registered = false
 	ok, err := n.dropCandidateIfZero(ic.DAO, pub, c)
 	if ok {
 		return err
 	}
-	si.Value = c.Bytes()
-	return ic.DAO.PutStorageItem(n.ID, key, si)
+	return ic.DAO.PutStorageItem(n.ID, key, c.Bytes())
 }
 
 func (n *NEO) vote(ic *interop.Context, args []stackitem.Item) stackitem.Item {
@@ -675,7 +669,7 @@ func (n *NEO) VoteInternal(ic *interop.Context, h util.Uint160, pub *keys.Public
 	if si == nil {
 		return errors.New("invalid account")
 	}
-	acc, err := state.NEOBalanceStateFromBytes(si.Value)
+	acc, err := state.NEOBalanceStateFromBytes(si)
 	if err != nil {
 		return err
 	}
@@ -698,8 +692,7 @@ func (n *NEO) VoteInternal(ic *interop.Context, h util.Uint160, pub *keys.Public
 	if err := n.ModifyAccountVotes(acc, ic.DAO, &acc.Balance, true); err != nil {
 		return err
 	}
-	si.Value = acc.Bytes()
-	return ic.DAO.PutStorageItem(n.ID, key, si)
+	return ic.DAO.PutStorageItem(n.ID, key, acc.Bytes())
 }
 
 // ModifyAccountVotes modifies votes of the specified account by value (can be negative).
@@ -712,7 +705,7 @@ func (n *NEO) ModifyAccountVotes(acc *state.NEOBalanceState, d dao.DAO, value *b
 		if si == nil {
 			return errors.New("invalid validator")
 		}
-		cd := new(candidate).FromBytes(si.Value)
+		cd := new(candidate).FromBytes(si)
 		cd.Votes.Add(&cd.Votes, value)
 		if !isNewVote {
 			ok, err := n.dropCandidateIfZero(d, acc.VoteTo, cd)
@@ -723,8 +716,7 @@ func (n *NEO) ModifyAccountVotes(acc *state.NEOBalanceState, d dao.DAO, value *b
 			return errors.New("validator must be registered")
 		}
 		n.validators.Store(keys.PublicKeys(nil))
-		si.Value = cd.Bytes()
-		return d.PutStorageItem(n.ID, key, si)
+		return d.PutStorageItem(n.ID, key, cd.Bytes())
 	}
 	return nil
 }
@@ -736,7 +728,7 @@ func (n *NEO) getCandidates(d dao.DAO, sortByKey bool) ([]keyWithVotes, error) {
 	}
 	arr := make([]keyWithVotes, 0, len(siMap))
 	for key, si := range siMap {
-		c := new(candidate).FromBytes(si.Value)
+		c := new(candidate).FromBytes(si)
 		if c.Registered {
 			arr = append(arr, keyWithVotes{Key: key, Votes: &c.Votes})
 		}
@@ -817,9 +809,9 @@ func (n *NEO) modifyVoterTurnout(d dao.DAO, amount *big.Int) error {
 	if si == nil {
 		return errors.New("voters count not found")
 	}
-	votersCount := bigint.FromBytes(si.Value)
+	votersCount := bigint.FromBytes(si)
 	votersCount.Add(votersCount, amount)
-	si.Value = bigint.ToBytes(votersCount)
+	si = bigint.ToBytes(votersCount)
 	return d.PutStorageItem(n.ID, key, si)
 }
 
@@ -854,7 +846,7 @@ func (n *NEO) computeCommitteeMembers(bc blockchainer.Blockchainer, d dao.DAO) (
 	if si == nil {
 		return nil, nil, errors.New("voters count not found")
 	}
-	votersCount := bigint.FromBytes(si.Value)
+	votersCount := bigint.FromBytes(si)
 	// votersCount / totalSupply must be >= 0.2
 	votersCount.Mul(votersCount, big.NewInt(effectiveVoterTurnout))
 	voterTurnout := votersCount.Div(votersCount, n.getTotalSupply(d))
@@ -926,6 +918,5 @@ func (n *NEO) putGASRecord(dao dao.DAO, index uint32, value *big.Int) error {
 	key := make([]byte, 5)
 	key[0] = prefixGASPerBlock
 	binary.BigEndian.PutUint32(key[1:], index)
-	si := &state.StorageItem{Value: bigint.ToBytes(value)}
-	return dao.PutStorageItem(n.ID, key, si)
+	return dao.PutStorageItem(n.ID, key, bigint.ToBytes(value))
 }

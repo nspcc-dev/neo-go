@@ -48,9 +48,9 @@ type DAO interface {
 	GetNEP17TransferLog(acc util.Uint160, index uint32) (*state.NEP17TransferLog, error)
 	GetStateRoot(height uint32) (*state.MPTRootState, error)
 	PutStateRoot(root *state.MPTRootState) error
-	GetStorageItem(id int32, key []byte) *state.StorageItem
-	GetStorageItems(id int32) (map[string]*state.StorageItem, error)
-	GetStorageItemsWithPrefix(id int32, prefix []byte) (map[string]*state.StorageItem, error)
+	GetStorageItem(id int32, key []byte) state.StorageItem
+	GetStorageItems(id int32) (map[string]state.StorageItem, error)
+	GetStorageItemsWithPrefix(id int32, prefix []byte) (map[string]state.StorageItem, error)
 	GetTransaction(hash util.Uint256) (*transaction.Transaction, uint32, error)
 	GetVersion() (string, error)
 	GetWrapped() DAO
@@ -61,7 +61,7 @@ type DAO interface {
 	PutCurrentHeader(hashAndIndex []byte) error
 	PutNEP17Balances(acc util.Uint160, bs *state.NEP17Balances) error
 	PutNEP17TransferLog(acc util.Uint160, index uint32, lg *state.NEP17TransferLog) error
-	PutStorageItem(id int32, key []byte, si *state.StorageItem) error
+	PutStorageItem(id int32, key []byte, si state.StorageItem) error
 	PutVersion(v string) error
 	Seek(id int32, prefix []byte, f func(k, v []byte))
 	StoreAsBlock(block *block.Block, buf *io.BufBinWriter) error
@@ -359,14 +359,14 @@ func (dao *Simple) PutStateRoot(r *state.MPTRootState) error {
 }
 
 // GetStorageItem returns StorageItem if it exists in the given store.
-func (dao *Simple) GetStorageItem(id int32, key []byte) *state.StorageItem {
+func (dao *Simple) GetStorageItem(id int32, key []byte) state.StorageItem {
 	b, err := dao.Store.Get(makeStorageItemKey(id, key))
 	if err != nil {
 		return nil
 	}
 	r := io.NewBinReaderFromBuf(b)
 
-	si := &state.StorageItem{}
+	si := state.StorageItem{}
 	si.DecodeBinary(r)
 	if r.Err != nil {
 		return nil
@@ -377,7 +377,7 @@ func (dao *Simple) GetStorageItem(id int32, key []byte) *state.StorageItem {
 
 // PutStorageItem puts given StorageItem for given id with given
 // key into the given store.
-func (dao *Simple) PutStorageItem(id int32, key []byte, si *state.StorageItem) error {
+func (dao *Simple) PutStorageItem(id int32, key []byte, si state.StorageItem) error {
 	stKey := makeStorageItemKey(id, key)
 	buf := io.NewBufBinWriter()
 	si.EncodeBinary(buf.BinWriter)
@@ -396,14 +396,14 @@ func (dao *Simple) DeleteStorageItem(id int32, key []byte) error {
 }
 
 // GetStorageItems returns all storage items for a given id.
-func (dao *Simple) GetStorageItems(id int32) (map[string]*state.StorageItem, error) {
+func (dao *Simple) GetStorageItems(id int32) (map[string]state.StorageItem, error) {
 	return dao.GetStorageItemsWithPrefix(id, nil)
 }
 
 // GetStorageItemsWithPrefix returns all storage items with given id for a
 // given scripthash.
-func (dao *Simple) GetStorageItemsWithPrefix(id int32, prefix []byte) (map[string]*state.StorageItem, error) {
-	var siMap = make(map[string]*state.StorageItem)
+func (dao *Simple) GetStorageItemsWithPrefix(id int32, prefix []byte) (map[string]state.StorageItem, error) {
+	var siMap = make(map[string]state.StorageItem)
 	var err error
 
 	saveToMap := func(k, v []byte) {
@@ -411,7 +411,7 @@ func (dao *Simple) GetStorageItemsWithPrefix(id int32, prefix []byte) (map[strin
 			return
 		}
 		r := io.NewBinReaderFromBuf(v)
-		si := &state.StorageItem{}
+		si := state.StorageItem{}
 		si.DecodeBinary(r)
 		if r.Err != nil {
 			err = r.Err

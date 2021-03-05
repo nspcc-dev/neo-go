@@ -868,7 +868,7 @@ func (s *Server) verifyProof(ps request.Params) (interface{}, *response.Error) {
 		if r.Err != nil {
 			return nil, response.NewInternalServerError("invalid item in trie", r.Err)
 		}
-		vp.Value = si.Value
+		vp.Value = si
 	}
 	return vp, nil
 }
@@ -927,7 +927,7 @@ func (s *Server) getStorage(ps request.Params) (interface{}, *response.Error) {
 		return "", nil
 	}
 
-	return item.Value, nil
+	return []byte(item), nil
 }
 
 func (s *Server) getrawtransaction(reqParams request.Params) (interface{}, *response.Error) {

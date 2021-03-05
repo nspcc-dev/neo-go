@@ -257,7 +257,7 @@ func (s *Designate) GetDesignatedByRole(d dao.DAO, r Role, index uint32) (keys.P
 	}
 	var ns NodeList
 	var bestIndex uint32
-	var resSi *state.StorageItem
+	var resSi state.StorageItem
 	for k, si := range kvs {
 		if len(k) < 4 {
 			continue
@@ -269,7 +269,7 @@ func (s *Designate) GetDesignatedByRole(d dao.DAO, r Role, index uint32) (keys.P
 		}
 	}
 	if resSi != nil {
-		reader := io.NewBinReaderFromBuf(resSi.Value)
+		reader := io.NewBinReaderFromBuf(resSi)
 		ns.DecodeBinary(reader)
 		if reader.Err != nil {
 			return nil, 0, reader.Err
@@ -324,8 +324,7 @@ func (s *Designate) DesignateAsRole(ic *interop.Context, r Role, pubs keys.Publi
 	}
 	sort.Sort(pubs)
 	s.rolesChangedFlag.Store(true)
-	si = &state.StorageItem{Value: NodeList(pubs).Bytes()}
-	return ic.DAO.PutStorageItem(s.ID, key, si)
+	return ic.DAO.PutStorageItem(s.ID, key, NodeList(pubs).Bytes())
 }
 
 func (s *Designate) getRole(item stackitem.Item) (Role, bool) {

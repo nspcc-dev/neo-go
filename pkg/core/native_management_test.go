@@ -553,7 +553,7 @@ func TestContractDestroy(t *testing.T) {
 	cs1.Manifest.Permissions = []manifest.Permission{*manifest.NewPermission(manifest.PermissionWildcard)}
 	err := bc.contracts.Management.PutContractState(bc.dao, cs1)
 	require.NoError(t, err)
-	err = bc.dao.PutStorageItem(cs1.ID, []byte{1, 2, 3}, &state.StorageItem{Value: []byte{3, 2, 1}})
+	err = bc.dao.PutStorageItem(cs1.ID, []byte{1, 2, 3}, state.StorageItem{3, 2, 1})
 	require.NoError(t, err)
 	require.NoError(t, bc.dao.UpdateMPT())
 

@@ -180,7 +180,7 @@ func TestOracle_Request(t *testing.T) {
 
 	si := ic.DAO.GetStorageItem(cs.ID, []byte("lastOracleResponse"))
 	require.NotNil(t, si)
-	item, err := stackitem.DeserializeItem(si.Value)
+	item, err := stackitem.DeserializeItem(si)
 	require.NoError(t, err)
 	arr, ok := item.Value().([]stackitem.Item)
 	require.True(t, ok)

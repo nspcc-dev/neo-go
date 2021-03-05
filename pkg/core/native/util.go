@@ -22,7 +22,7 @@ func getSerializableFromDAO(id int32, d dao.DAO, key []byte, item io.Serializabl
 	if si == nil {
 		return storage.ErrKeyNotFound
 	}
-	r := io.NewBinReaderFromBuf(si.Value)
+	r := io.NewBinReaderFromBuf(si)
 	item.DecodeBinary(r)
 	return r.Err
 }
@@ -33,9 +33,7 @@ func putSerializableToDAO(id int32, d dao.DAO, key []byte, item io.Serializable)
 	if w.Err != nil {
 		return w.Err
 	}
-	return d.PutStorageItem(id, key, &state.StorageItem{
-		Value: w.Bytes(),
-	})
+	return d.PutStorageItem(id, key, w.Bytes())
 }
 
 func getInt64WithKey(id int32, d dao.DAO, key []byte, defaultValue int64) int64 {
@@ -43,14 +41,12 @@ func getInt64WithKey(id int32, d dao.DAO, key []byte, defaultValue int64) int64 
 	if si == nil {
 		return defaultValue
 	}
-	return int64(binary.LittleEndian.Uint64(si.Value))
+	return int64(binary.LittleEndian.Uint64(si))
 }
 
 func setInt64WithKey(id int32, dao dao.DAO, key []byte, value int64) error {
-	si := &state.StorageItem{
-		Value: make([]byte, 8),
-	}
-	binary.LittleEndian.PutUint64(si.Value, uint64(value))
+	si := make(state.StorageItem, 8)
+	binary.LittleEndian.PutUint64(si, uint64(value))
 	return dao.PutStorageItem(id, key, si)
 }
 
@@ -59,20 +55,17 @@ func getUint32WithKey(id int32, dao dao.DAO, key []byte, defaultValue uint32) ui
 	if si == nil {
 		return defaultValue
 	}
-	return binary.LittleEndian.Uint32(si.Value)
+	return binary.LittleEndian.Uint32(si)
 }
 
 func setUint32WithKey(id int32, dao dao.DAO, key []byte, value uint32) error {
-	si := &state.StorageItem{
-		Value: make([]byte, 4),
-	}
-	binary.LittleEndian.PutUint32(si.Value, value)
+	si := make(state.StorageItem, 4)
+	binary.LittleEndian.PutUint32(si, value)
 	return dao.PutStorageItem(id, key, si)
 }
 
 func setIntWithKey(id int32, dao dao.DAO, key []byte, value int64) error {
-	si := &state.StorageItem{Value: bigint.ToBytes(big.NewInt(value))}
-	return dao.PutStorageItem(id, key, si)
+	return dao.PutStorageItem(id, key, bigint.ToBytes(big.NewInt(value)))
 }
 
 func getIntWithKey(id int32, dao dao.DAO, key []byte) int64 {
@@ -81,7 +74,7 @@ func getIntWithKey(id int32, dao dao.DAO, key []byte) int64 {
 		panic(fmt.Errorf("item with id = %d and key = %s is not initialized", id, hex.EncodeToString(key)))
 
 	}
-	return bigint.FromBytes(si.Value).Int64()
+	return bigint.FromBytes(si).Int64()
 }
 
 // makeUint160Key creates a key from account script hash.

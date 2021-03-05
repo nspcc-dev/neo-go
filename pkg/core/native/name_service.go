@@ -259,8 +259,7 @@ func (n *NameService) setPrice(ic *interop.Context, args []stackitem.Item) stack
 	}
 
 	n.checkCommittee(ic)
-	si := &state.StorageItem{Value: bigint.ToBytes(price)}
-	err := ic.DAO.PutStorageItem(n.ID, []byte{prefixDomainPrice}, si)
+	err := ic.DAO.PutStorageItem(n.ID, []byte{prefixDomainPrice}, bigint.ToBytes(price))
 	if err != nil {
 		panic(err)
 	}
@@ -273,7 +272,7 @@ func (n *NameService) getPrice(ic *interop.Context, _ []stackitem.Item) stackite
 
 func (n *NameService) getPriceInternal(d dao.DAO) *big.Int {
 	si := d.GetStorageItem(n.ID, []byte{prefixDomainPrice})
-	return bigint.FromBytes(si.Value)
+	return bigint.FromBytes(si)
 }
 
 func (n *NameService) parseName(item stackitem.Item) (string, []string, []byte) {
@@ -337,7 +336,7 @@ func (n *NameService) register(ic *interop.Context, args []stackitem.Item) stack
 	n.mint(ic, token)
 	err := ic.DAO.PutStorageItem(n.ID,
 		makeExpirationKey(token.Expiration, token.ID()),
-		&state.StorageItem{Value: []byte{0}})
+		state.StorageItem{0})
 	if err != nil {
 		panic(err)
 	}
@@ -367,8 +366,7 @@ func (n *NameService) renew(ic *interop.Context, args []stackitem.Item) stackite
 	}
 
 	binary.BigEndian.PutUint32(key[1:], token.Expiration)
-	si := &state.StorageItem{Value: []byte{0}}
-	err = ic.DAO.PutStorageItem(n.ID, key, si)
+	err = ic.DAO.PutStorageItem(n.ID, key, state.StorageItem{0})
 	if err != nil {
 		panic(err)
 	}
@@ -441,7 +439,7 @@ func (n *NameService) setRecord(ic *interop.Context, args []stackitem.Item) stac
 		panic("not witnessed by admin")
 	}
 	key := makeRecordKey(domain, name, rt)
-	si := &state.StorageItem{Value: []byte(data)}
+	si := state.StorageItem(data)
 	if err := ic.DAO.PutStorageItem(n.ID, key, si); err != nil {
 		panic(err)
 	}
@@ -478,7 +476,7 @@ func (n *NameService) getRecord(ic *interop.Context, args []stackitem.Item) stac
 	if si == nil {
 		return stackitem.Null{}
 	}
-	return stackitem.NewByteArray(si.Value)
+	return stackitem.NewByteArray(si)
 }
 
 func (n *NameService) deleteRecord(ic *interop.Context, args []stackitem.Item) stackitem.Item {
@@ -541,7 +539,7 @@ func (n *NameService) getRecordsInternal(d dao.DAO, name string) map[RecordType]
 		if r.Err != nil {
 			panic(r.Err)
 		}
-		res[rt] = string(si.Value)
+		res[rt] = string(si)
 	})
 	return res
 }

@@ -5,16 +5,14 @@ import (
 )
 
 // StorageItem is the value to be stored with read-only flag.
-type StorageItem struct {
-	Value []byte
-}
+type StorageItem []byte
 
 // EncodeBinary implements Serializable interface.
 func (si *StorageItem) EncodeBinary(w *io.BinWriter) {
-	w.WriteVarBytes(si.Value)
+	w.WriteVarBytes(*si)
 }
 
 // DecodeBinary implements Serializable interface.
 func (si *StorageItem) DecodeBinary(r *io.BinReader) {
-	si.Value = r.ReadVarBytes()
+	*si = r.ReadVarBytes()
 }

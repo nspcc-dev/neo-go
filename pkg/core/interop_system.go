@@ -85,8 +85,8 @@ func storageGet(ic *interop.Context) error {
 	}
 	key := ic.VM.Estack().Pop().Bytes()
 	si := ic.DAO.GetStorageItem(stc.ID, key)
-	if si != nil && si.Value != nil {
-		ic.VM.Estack().PushVal(si.Value)
+	if si != nil {
+		ic.VM.Estack().PushVal([]byte(si))
 	} else {
 		ic.VM.Estack().PushVal(stackitem.Null{})
 	}
@@ -131,20 +131,19 @@ func putWithContext(ic *interop.Context, stc *StorageContext, key []byte, value 
 	si := ic.DAO.GetStorageItem(stc.ID, key)
 	sizeInc := len(value)
 	if si == nil {
-		si = &state.StorageItem{}
+		si = state.StorageItem{}
 		sizeInc = len(key) + len(value)
 	} else if len(value) != 0 {
-		if len(value) <= len(si.Value) {
+		if len(value) <= len(si) {
 			sizeInc = (len(value)-1)/4 + 1
-		} else if len(si.Value) != 0 {
-			sizeInc = (len(si.Value)-1)/4 + 1 + len(value) - len(si.Value)
+		} else if len(si) != 0 {
+			sizeInc = (len(si)-1)/4 + 1 + len(value) - len(si)
 		}
 	}
 	if !ic.VM.AddGas(int64(sizeInc) * ic.Chain.GetPolicer().GetStoragePrice()) {
 		return errGasLimitExceeded
 	}
-	si.Value = value
-	return ic.DAO.PutStorageItem(stc.ID, key, si)
+	return ic.DAO.PutStorageItem(stc.ID, key, value)
 }
 
 // storagePut puts key-value pair into the storage.

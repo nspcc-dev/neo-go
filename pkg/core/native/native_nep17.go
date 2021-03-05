@@ -100,12 +100,11 @@ func (c *nep17TokenNative) getTotalSupply(d dao.DAO) *big.Int {
 	if si == nil {
 		return big.NewInt(0)
 	}
-	return bigint.FromBytes(si.Value)
+	return bigint.FromBytes(si)
 }
 
 func (c *nep17TokenNative) saveTotalSupply(d dao.DAO, supply *big.Int) error {
-	si := &state.StorageItem{Value: bigint.ToBytes(supply)}
-	return d.PutStorageItem(c.ID, totalSupplyKey, si)
+	return d.PutStorageItem(c.ID, totalSupplyKey, bigint.ToBytes(supply))
 }
 
 func (c *nep17TokenNative) Transfer(ic *interop.Context, args []stackitem.Item) stackitem.Item {
@@ -168,14 +167,14 @@ func (c *nep17TokenNative) updateAccBalance(ic *interop.Context, acc util.Uint16
 		if amount.Sign() <= 0 {
 			return errors.New("insufficient funds")
 		}
-		si = new(state.StorageItem)
+		si = state.StorageItem{}
 	}
 
-	err := c.incBalance(ic, acc, si, amount)
+	err := c.incBalance(ic, acc, &si, amount)
 	if err != nil {
 		return err
 	}
-	if si.Value == nil {
+	if si == nil {
 		err = ic.DAO.DeleteStorageItem(c.ID, key)
 	} else {
 		err = ic.DAO.PutStorageItem(c.ID, key, si)
@@ -253,13 +252,13 @@ func (c *nep17TokenNative) addTokens(ic *interop.Context, h util.Uint160, amount
 	key := makeAccountKey(h)
 	si := ic.DAO.GetStorageItem(c.ID, key)
 	if si == nil {
-		si = new(state.StorageItem)
+		si = state.StorageItem{}
 	}
-	if err := c.incBalance(ic, h, si, amount); err != nil {
+	if err := c.incBalance(ic, h, &si, amount); err != nil {
 		panic(err)
 	}
 	var err error
-	if si.Value == nil {
+	if si == nil {
 		err = ic.DAO.DeleteStorageItem(c.ID, key)
 	} else {
 		err = ic.DAO.PutStorageItem(c.ID, key, si)
