@@ -105,24 +105,32 @@ func ParseMultiSigContract(script []byte) (int, [][]byte, bool) {
 // IsSignatureContract checks whether the passed script is a signature check
 // contract.
 func IsSignatureContract(script []byte) bool {
+	_, ok := ParseSignatureContract(script)
+	return ok
+}
+
+// ParseSignatureContract parses simple signature contract and returns
+// public key.
+func ParseSignatureContract(script []byte) ([]byte, bool) {
 	if len(script) != 41 {
-		return false
+		return nil, false
 	}
 
 	ctx := NewContext(script)
 	instr, param, err := ctx.Next()
 	if err != nil || instr != opcode.PUSHDATA1 || len(param) != 33 {
-		return false
+		return nil, false
 	}
+	pub := param
 	instr, _, err = ctx.Next()
 	if err != nil || instr != opcode.PUSHNULL {
-		return false
+		return nil, false
 	}
 	instr, param, err = ctx.Next()
 	if err != nil || instr != opcode.SYSCALL || binary.LittleEndian.Uint32(param) != verifyInteropID {
-		return false
+		return nil, false
 	}
-	return true
+	return pub, true
 }
 
 // IsStandardContract checks whether the passed script is a signature or
