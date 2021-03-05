@@ -2,6 +2,7 @@ package core
 
 import (
 	"errors"
+	"math"
 	"math/big"
 	"testing"
 
@@ -247,4 +248,10 @@ func TestOracle_Request(t *testing.T) {
 			doBadRequest(t, cs.Hash, "url", nil, "_deploy", nil, 1000_0000)
 		})
 	})
+}
+
+func TestGetSetPrice(t *testing.T) {
+	bc := newTestChain(t)
+	testGetSet(t, bc, bc.contracts.Oracle.Hash, "Price",
+		native.DefaultOracleRequestPrice, 1, math.MaxInt64)
 }
