@@ -75,7 +75,7 @@ func main() {
 	handleError("can't tranfser GAS", err)
 	lastBlock = addBlock(bc, lastBlock, valScript, txMoveNeo, txMoveGas)
 
-	tx, contractHash, err := testchain.NewDeployTx(bc, "DumpContract", h, strings.NewReader(contract))
+	tx, contractHash, _, err := testchain.NewDeployTx(bc, "DumpContract", h, strings.NewReader(contract))
 	handleError("can't create deploy tx", err)
 	tx.NetworkFee = 10_000_000
 	tx.ValidUntilBlock = bc.BlockHeight() + 1

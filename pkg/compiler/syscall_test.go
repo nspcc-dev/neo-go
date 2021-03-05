@@ -89,8 +89,6 @@ func TestSyscallExecution(t *testing.T) {
 		"storage.GetReadOnlyContext":         {interopnames.SystemStorageGetReadOnlyContext, nil, false},
 		"storage.Put":                        {interopnames.SystemStoragePut, []string{sctx, b, b}, true},
 		"storage.ConvertContextToReadOnly":   {interopnames.SystemStorageAsReadOnly, []string{sctx}, false},
-		"crypto.ECDsaSecp256r1Verify":        {interopnames.NeoCryptoVerifyWithECDsaSecp256r1, []string{b, pub, sig}, false},
-		"crypto.ECDsaSecp256k1Verify":        {interopnames.NeoCryptoVerifyWithECDsaSecp256k1, []string{b, pub, sig}, false},
 		"crypto.ECDSASecp256r1CheckMultisig": {interopnames.NeoCryptoCheckMultisigWithECDsaSecp256r1, []string{b, pubs, sigs}, false},
 		"crypto.ECDSASecp256k1CheckMultisig": {interopnames.NeoCryptoCheckMultisigWithECDsaSecp256k1, []string{b, pubs, sigs}, false},
 		"crypto.CheckSig":                    {interopnames.NeoCryptoCheckSig, []string{pub, sig}, false},

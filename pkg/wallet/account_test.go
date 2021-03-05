@@ -135,11 +135,11 @@ func convertPubs(t *testing.T, hexKeys []string) []*keys.PublicKey {
 
 func compareFields(t *testing.T, tk keytestcases.Ktype, acc *Account) {
 	want, have := tk.Address, acc.Address
-	require.Equalf(t, want, have, "expected %s got %s", want, have)
+	require.Equalf(t, want, have, "expected address %s got %s", want, have)
 	want, have = tk.Wif, acc.wif
-	require.Equalf(t, want, have, "expected %s got %s", want, have)
+	require.Equalf(t, want, have, "expected wif %s got %s", want, have)
 	want, have = tk.PublicKey, hex.EncodeToString(acc.publicKey)
-	require.Equalf(t, want, have, "expected %s got %s", want, have)
+	require.Equalf(t, want, have, "expected pub key %s got %s", want, have)
 	want, have = tk.PrivateKey, acc.privateKey.String()
-	require.Equalf(t, want, have, "expected %s got %s", want, have)
+	require.Equalf(t, want, have, "expected priv key %s got %s", want, have)
 }

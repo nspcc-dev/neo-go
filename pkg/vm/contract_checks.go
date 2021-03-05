@@ -13,7 +13,7 @@ import (
 )
 
 var (
-	verifyInteropID   = interopnames.ToID([]byte(interopnames.NeoCryptoVerifyWithECDsaSecp256r1))
+	verifyInteropID   = interopnames.ToID([]byte(interopnames.NeoCryptoCheckSig))
 	multisigInteropID = interopnames.ToID([]byte(interopnames.NeoCryptoCheckMultisigWithECDsaSecp256r1))
 )
 
@@ -112,7 +112,7 @@ func IsSignatureContract(script []byte) bool {
 // ParseSignatureContract parses simple signature contract and returns
 // public key.
 func ParseSignatureContract(script []byte) ([]byte, bool) {
-	if len(script) != 41 {
+	if len(script) != 40 {
 		return nil, false
 	}
 
@@ -122,10 +122,6 @@ func ParseSignatureContract(script []byte) ([]byte, bool) {
 		return nil, false
 	}
 	pub := param
-	instr, _, err = ctx.Next()
-	if err != nil || instr != opcode.PUSHNULL {
-		return nil, false
-	}
 	instr, param, err = ctx.Next()
 	if err != nil || instr != opcode.SYSCALL || binary.LittleEndian.Uint32(param) != verifyInteropID {
 		return nil, false

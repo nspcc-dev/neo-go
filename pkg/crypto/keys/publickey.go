@@ -18,7 +18,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
-	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 )
 
 // coordLen is the number of bytes in serialized X or Y coordinate.
@@ -317,8 +316,7 @@ func (p *PublicKey) GetVerificationScript() []byte {
 		return buf.Bytes()
 	}
 	emit.Bytes(buf.BinWriter, b)
-	emit.Opcodes(buf.BinWriter, opcode.PUSHNULL)
-	emit.Syscall(buf.BinWriter, interopnames.NeoCryptoVerifyWithECDsaSecp256r1)
+	emit.Syscall(buf.BinWriter, interopnames.NeoCryptoCheckSig)
 
 	return buf.Bytes()
 }

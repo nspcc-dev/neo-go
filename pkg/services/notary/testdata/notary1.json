@@ -1,1 +1,65 @@
-{"version":"3.0","accounts":[{"address":"NSbjd7dSePTZ6QpADAuM5722QpBmL5124W","key":"6PYVWTfkNCYvyQhyFLHH5dyRyT6jSi8u8Z8kn122PACfsDWi4QgkGm8FyW","label":"NotaryNode1","contract":{"script":"DCEDm5PmbOfVPmYXTSVW903XnOhhNBTsF9oDlVYusIH/ui0LQZVEDXg=","parameters":[{"name":"parameter0","type":"Signature"}],"deployed":false},"lock":false,"isdefault":false},{"address":"NisSvmSd2Lp28tjr8EqCZB5ahHDvBExo2j","key":"6PYLvgnZNwhiiZPiSCw3B3bHSFwbSXgh3MkGt4gL69MD8Sw7LMnuUgM9KQ","label":"three","contract":{"script":"DCEDHRWEIGXHCwUU2Fc7B0qrYPezXR0sfdEduRExyzIKVC8LQZVEDXg=","parameters":[{"name":"parameter0","type":"Signature"}],"deployed":false},"lock":false,"isdefault":false},{"address":"NRCCdGifyUWKnFotZhcgKpmxhhVJSJb94r","key":"6PYKXkuJ7G6bTj62bjy8fsBLF5okYNdAEBhKPCv8nmcALCtk2yPtBo835p","label":"four","contract":{"script":"DCECmUfs/gqKHd3AdJm5+Ev6zkubV8pP8DZzgu8+t5WdphILQZVEDXg=","parameters":[{"name":"parameter0","type":"Signature"}],"deployed":false},"lock":false,"isdefault":false}],"scrypt":{"n":16384,"r":8,"p":8},"extra":{"Tokens":null}}
+{
+  "scrypt" : {
+    "n" : 16384,
+    "r" : 8,
+    "p" : 8
+  },
+  "accounts" : [
+    {
+      "contract" : {
+        "parameters" : [
+          {
+            "type" : "Signature",
+            "name" : "parameter0"
+          }
+        ],
+        "deployed" : false,
+        "script" : "DCEDm5PmbOfVPmYXTSVW903XnOhhNBTsF9oDlVYusIH/ui1BdHR2qg=="
+      },
+      "label" : "NotaryNode1",
+      "address" : "NS6vb4uE8wdQfcQbFcRY7yquSbwbVcMSV3",
+      "isdefault" : false,
+      "lock" : false,
+      "key" : "6PYMGBef95jMZJTQcH9ZP5PuecWa2H86HFbdnfe7VQs8uPZ3S6pu4D5NpP"
+    },
+    {
+      "contract" : {
+        "script" : "DCEDHRWEIGXHCwUU2Fc7B0qrYPezXR0sfdEduRExyzIKVC9BdHR2qg==",
+        "deployed" : false,
+        "parameters" : [
+          {
+            "name" : "parameter0",
+            "type" : "Signature"
+          }
+        ]
+      },
+      "label" : "three",
+      "address" : "NakELwR1i6brB7EmYLc6yPbvk78Qi5Qbpi",
+      "isdefault" : false,
+      "lock" : false,
+      "key" : "6PYLm6kse9FVpKoBbhYYSFHhFUUL2bZYePU95x7Ncknu798WEHYmTuUijR"
+    },
+    {
+      "contract" : {
+        "parameters" : [
+          {
+            "name" : "parameter0",
+            "type" : "Signature"
+          }
+        ],
+        "deployed" : false,
+        "script" : "DCECmUfs/gqKHd3AdJm5+Ev6zkubV8pP8DZzgu8+t5WdphJBdHR2qg=="
+      },
+      "key" : "6PYWBWehojbBn8U2XWcXxuWqPrnp9qwQ5rD3RKQza1iR5ZBCPHXxCQonYm",
+      "isdefault" : false,
+      "lock" : false,
+      "address" : "NLWXE5CMEqJzEVtscF4BoTvSbiBr1FwtBb",
+      "label" : "four"
+    }
+  ],
+  "extra" : {
+    "Tokens" : null
+  },
+  "version" : "3.0"
+}
+

@@ -16,34 +16,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
-// ECDSASecp256r1Verify checks ECDSA signature using Secp256r1 elliptic curve.
-func ECDSASecp256r1Verify(ic *interop.Context) error {
-	return ecdsaVerify(ic, elliptic.P256())
-}
-
-// ECDSASecp256k1Verify checks ECDSA signature using Secp256k1 elliptic curve
-func ECDSASecp256k1Verify(ic *interop.Context) error {
-	return ecdsaVerify(ic, btcec.S256())
-}
-
-// ecdsaVerify is internal representation of ECDSASecp256k1Verify and
-// ECDSASecp256r1Verify.
-func ecdsaVerify(ic *interop.Context, curve elliptic.Curve) error {
-	hashToCheck, err := getMessageHash(ic, ic.VM.Estack().Pop().Item())
-	if err != nil {
-		return err
-	}
-	keyb := ic.VM.Estack().Pop().Bytes()
-	signature := ic.VM.Estack().Pop().Bytes()
-	pkey, err := keys.NewPublicKeyFromBytes(keyb, curve)
-	if err != nil {
-		return err
-	}
-	res := pkey.Verify(signature, hashToCheck.BytesBE())
-	ic.VM.Estack().PushVal(res)
-	return nil
-}
-
 // ECDSASecp256r1CheckMultisig checks multiple ECDSA signatures at once using
 // Secp256r1 elliptic curve.
 func ECDSASecp256r1CheckMultisig(ic *interop.Context) error {

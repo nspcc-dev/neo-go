@@ -49,44 +49,44 @@ func NewTransferFromOwner(bc blockchainer.Blockchainer, contractHash, to util.Ui
 }
 
 // NewDeployTx returns new deployment tx for contract with name with Go code read from r.
-func NewDeployTx(bc blockchainer.Blockchainer, name string, sender util.Uint160, r gio.Reader) (*transaction.Transaction, util.Uint160, error) {
+func NewDeployTx(bc blockchainer.Blockchainer, name string, sender util.Uint160, r gio.Reader) (*transaction.Transaction, util.Uint160, []byte, error) {
 	// nef.NewFile() cares about version a lot.
 	config.Version = "0.90.0-test"
 
 	avm, di, err := compiler.CompileWithDebugInfo(name, r)
 	if err != nil {
-		return nil, util.Uint160{}, err
+		return nil, util.Uint160{}, nil, err
 	}
 
 	ne, err := nef.NewFile(avm)
 	if err != nil {
-		return nil, util.Uint160{}, err
+		return nil, util.Uint160{}, nil, err
 	}
 
 	m, err := di.ConvertToManifest(&compiler.Options{Name: name})
 	if err != nil {
-		return nil, util.Uint160{}, err
+		return nil, util.Uint160{}, nil, err
 	}
 
 	rawManifest, err := json.Marshal(m)
 	if err != nil {
-		return nil, util.Uint160{}, err
+		return nil, util.Uint160{}, nil, err
 	}
 	neb, err := ne.Bytes()
 	if err != nil {
-		return nil, util.Uint160{}, err
+		return nil, util.Uint160{}, nil, err
 	}
 	buf := io.NewBufBinWriter()
 	emit.AppCall(buf.BinWriter, bc.ManagementContractHash(), "deploy", callflag.All, neb, rawManifest)
 	if buf.Err != nil {
-		return nil, util.Uint160{}, buf.Err
+		return nil, util.Uint160{}, nil, buf.Err
 	}
 
 	tx := transaction.New(Network(), buf.Bytes(), 100*native.GASFactor)
 	tx.Signers = []transaction.Signer{{Account: sender}}
 	h := state.CreateContractHash(tx.Sender(), ne.Checksum, name)
 
-	return tx, h, nil
+	return tx, h, avm, nil
 }
 
 // SignTx signs provided transactions with validator keys.

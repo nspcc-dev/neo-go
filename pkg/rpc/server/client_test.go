@@ -2,7 +2,7 @@ package server
 
 import (
 	"context"
-	"encoding/hex"
+	"encoding/base64"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/internal/testchain"
@@ -139,8 +139,10 @@ func TestAddNetworkFee(t *testing.T) {
 		priv := testchain.PrivateKeyByID(0)
 		acc1 := wallet.NewAccountFromPrivateKey(priv)
 		acc1.Contract.Deployed = true
-		acc1.Contract.Script, _ = hex.DecodeString(verifyContractAVM)
-		h, _ := util.Uint160DecodeStringLE(verifyContractHash)
+		acc1.Contract.Script, err = base64.StdEncoding.DecodeString(verifyContractAVM)
+		require.NoError(t, err)
+		h, err := util.Uint160DecodeStringLE(verifyContractHash)
+		require.NoError(t, err)
 		tx.ValidUntilBlock = chain.BlockHeight() + 10
 
 		t.Run("Valid", func(t *testing.T) {
