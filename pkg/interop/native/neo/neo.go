@@ -59,6 +59,16 @@ func SetGASPerBlock(amount int) {
 	contract.Call(interop.Hash160(Hash), "setGasPerBlock", contract.States, amount)
 }
 
+// GetRegisterPrice represents `getRegisterPrice` method of NEO native contract.
+func GetRegisterPrice() int {
+	return contract.Call(interop.Hash160(Hash), "getRegisterPrice", contract.ReadStates).(int)
+}
+
+// SetRegisterPrice represents `setRegisterPrice` method of NEO native contract.
+func SetRegisterPrice(amount int) {
+	contract.Call(interop.Hash160(Hash), "setRegisterPrice", contract.States, amount)
+}
+
 // RegisterCandidate represents `registerCandidate` method of NEO native contract.
 func RegisterCandidate(pub interop.PublicKey) bool {
 	return contract.Call(interop.Hash160(Hash), "registerCandidate", contract.States, pub).(bool)

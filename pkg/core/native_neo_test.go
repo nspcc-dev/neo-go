@@ -1,6 +1,7 @@
 package core
 
 import (
+	"math"
 	"math/big"
 	"sort"
 	"testing"
@@ -289,4 +290,10 @@ func TestNEO_TransferOnPayment(t *testing.T) {
 	require.Equal(t, bc.contracts.NEO.Hash.BytesBE(), arr[0].Value())
 	require.Equal(t, neoOwner.BytesBE(), arr[1].Value())
 	require.Equal(t, big.NewInt(amount), arr[2].Value())
+}
+
+func TestRegisterPrice(t *testing.T) {
+	bc := newTestChain(t)
+	testGetSet(t, bc, bc.contracts.NEO.Hash, "RegisterPrice",
+		native.DefaultRegisterPrice, 1, math.MaxInt64)
 }

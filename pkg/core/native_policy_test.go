@@ -1,6 +1,7 @@
 package core
 
 import (
+	"math/big"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/internal/random"
@@ -46,7 +47,10 @@ func testGetSet(t *testing.T, chain *Blockchain, hash util.Uint160, name string,
 
 	if maxValue != 0 {
 		t.Run("set, too large value", func(t *testing.T) {
-			res, err := invokeContractMethodGeneric(chain, 100000000, hash, setName, true, maxValue+1)
+			// use big.Int because max can be `math.MaxInt64`
+			max := big.NewInt(maxValue)
+			max.Add(max, big.NewInt(1))
+			res, err := invokeContractMethodGeneric(chain, 100000000, hash, setName, true, max)
 			require.NoError(t, err)
 			checkFAULTState(t, res)
 		})
