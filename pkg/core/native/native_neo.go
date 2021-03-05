@@ -804,7 +804,7 @@ func (n *NEO) modifyVoterTurnout(d dao.DAO, amount *big.Int) error {
 	}
 	votersCount := bigint.FromBytes(si)
 	votersCount.Add(votersCount, amount)
-	si = bigint.ToBytes(votersCount)
+	si = bigint.ToPreallocatedBytes(votersCount, si)
 	return d.PutStorageItem(n.ID, key, si)
 }
 
