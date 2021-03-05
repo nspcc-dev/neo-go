@@ -62,7 +62,7 @@ const (
 	// voterRewardFactor is a factor by which voter reward per committee is multiplied
 	// to make calculations more precise.
 	voterRewardFactor = 100_000_000
-	// prefixGasPerBlock is a prefix for storing amount of GAS generated per block.
+	// prefixGASPerBlock is a prefix for storing amount of GAS generated per block.
 	prefixGASPerBlock = 29
 	// effectiveVoterTurnout represents minimal ratio of total supply to total amount voted value
 	// which is require to use non-standby validators.
