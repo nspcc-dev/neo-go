@@ -19,12 +19,12 @@ var nep11Base = &Standard{
 					Safe:       true,
 				},
 				{
-					Name:       "tokensOf",
-					ReturnType: smartcontract.AnyType, // Iterator
+					Name: "tokensOf",
 					Parameters: []manifest.Parameter{
 						{Name: "owner", Type: smartcontract.Hash160Type},
 					},
-					Safe: true,
+					ReturnType: smartcontract.InteropInterfaceType,
+					Safe:       true,
 				},
 				{
 					Name: "transfer",
@@ -59,7 +59,7 @@ var nep11Base = &Standard{
 		},
 		{
 			Name:       "tokens",
-			ReturnType: smartcontract.AnyType,
+			ReturnType: smartcontract.InteropInterfaceType,
 			Safe:       true,
 		},
 	},

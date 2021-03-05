@@ -95,11 +95,11 @@ func newNonFungible(name string, id int32, symbol string, decimals byte) *nonfun
 	md = newMethodAndPrice(n.Properties, 1<<15, callflag.ReadStates)
 	n.AddMethod(md, desc)
 
-	desc = newDescriptor("tokens", smartcontract.AnyType)
+	desc = newDescriptor("tokens", smartcontract.InteropInterfaceType)
 	md = newMethodAndPrice(n.tokens, 1<<15, callflag.ReadStates)
 	n.AddMethod(md, desc)
 
-	desc = newDescriptor("tokensOf", smartcontract.AnyType,
+	desc = newDescriptor("tokensOf", smartcontract.InteropInterfaceType,
 		manifest.NewParameter("owner", smartcontract.Hash160Type))
 	md = newMethodAndPrice(n.tokensOf, 1<<15, callflag.ReadStates)
 	n.AddMethod(md, desc)
