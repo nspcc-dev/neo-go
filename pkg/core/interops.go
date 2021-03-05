@@ -73,7 +73,7 @@ var systemInterops = []interop.Function{
 	{Name: interopnames.SystemStorageDelete, Func: storageDelete, Price: 0,
 		RequiredFlags: callflag.WriteStates, ParamCount: 2},
 	{Name: interopnames.SystemStorageFind, Func: storageFind, Price: 1 << 15, RequiredFlags: callflag.ReadStates,
-		ParamCount: 2},
+		ParamCount: 3},
 	{Name: interopnames.SystemStorageGet, Func: storageGet, Price: 1 << 15, RequiredFlags: callflag.ReadStates,
 		ParamCount: 2},
 	{Name: interopnames.SystemStorageGetContext, Func: storageGetContext, Price: 1 << 4,
