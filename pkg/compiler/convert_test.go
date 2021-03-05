@@ -17,7 +17,7 @@ func getFunctionName(typ string) string {
 	case "bool":
 		return "Bool"
 	case "[]byte":
-		return "ByteArray"
+		return "Bytes"
 	case "int":
 		return "Integer"
 	}

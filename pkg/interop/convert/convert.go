@@ -6,9 +6,14 @@ func ToInteger(v interface{}) int {
 	return v.(int)
 }
 
-// ToByteArray converts it's argument to a ByteArray.
-func ToByteArray(v interface{}) []byte {
+// ToBytes converts it's argument to a Buffer VM type.
+func ToBytes(v interface{}) []byte {
 	return v.([]byte)
+}
+
+// ToString converts it's argument to a ByteString VM type.
+func ToString(v interface{}) string {
+	return v.(string)
 }
 
 // ToBool converts it's argument to a Boolean.
