@@ -926,9 +926,6 @@ func (n *NEO) putGASRecord(dao dao.DAO, index uint32, value *big.Int) error {
 	key := make([]byte, 5)
 	key[0] = prefixGASPerBlock
 	binary.BigEndian.PutUint32(key[1:], index)
-	si := &state.StorageItem{
-		Value:   bigint.ToBytes(value),
-		IsConst: false,
-	}
+	si := &state.StorageItem{Value: bigint.ToBytes(value)}
 	return dao.PutStorageItem(n.ID, key, si)
 }

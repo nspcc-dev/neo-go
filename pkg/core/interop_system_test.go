@@ -277,21 +277,6 @@ func TestStoragePut(t *testing.T) {
 			initVM(t, []byte{1}, make([]byte, MaxStorageValueLen+1), -1)
 			require.Error(t, storagePut(ic))
 		})
-		t.Run("item exists and is const", func(t *testing.T) {
-			v := ic.SpawnVM()
-			v.LoadScript(cs.NEF.Script)
-			v.GasLimit = -1
-			v.Estack().PushVal(1)
-			v.Estack().PushVal("value")
-			v.Estack().PushVal("key")
-			require.NoError(t, storageGetContext(ic))
-			require.NoError(t, storagePutEx(ic))
-
-			v.Estack().PushVal("new")
-			v.Estack().PushVal("key")
-			require.NoError(t, storageGetContext(ic))
-			require.Error(t, storagePut(ic))
-		})
 	})
 }
 
@@ -301,16 +286,14 @@ func TestStorageDelete(t *testing.T) {
 	require.NoError(t, bc.contracts.Management.PutContractState(ic.DAO, cs))
 	v.LoadScriptWithHash(cs.NEF.Script, cs.Hash, callflag.All)
 	put := func(key, value string, flag int) {
-		v.Estack().PushVal(flag)
 		v.Estack().PushVal(value)
 		v.Estack().PushVal(key)
 		require.NoError(t, storageGetContext(ic))
-		require.NoError(t, storagePutEx(ic))
+		require.NoError(t, storagePut(ic))
 	}
 	put("key1", "value1", 0)
 	put("key2", "value2", 0)
 	put("key3", "value3", 0)
-	put("key4", "value4", 1)
 
 	t.Run("good", func(t *testing.T) {
 		v.Estack().PushVal("key1")
@@ -326,11 +309,6 @@ func TestStorageDelete(t *testing.T) {
 		v.Estack().PushVal("key3")
 		require.NoError(t, storageGetContext(ic))
 		require.NoError(t, storageContextAsReadOnly(ic))
-		require.Error(t, storageDelete(ic))
-	})
-	t.Run("constant item", func(t *testing.T) {
-		v.Estack().PushVal("key4")
-		require.NoError(t, storageGetContext(ic))
 		require.Error(t, storageDelete(ic))
 	})
 }

@@ -8,8 +8,7 @@ import (
 
 func TestEncodeDecodeStorageItem(t *testing.T) {
 	storageItem := &StorageItem{
-		Value:   []byte{},
-		IsConst: false,
+		Value: []byte{1, 2, 3},
 	}
 
 	testserdes.EncodeDecodeBinary(t, storageItem, new(StorageItem))
