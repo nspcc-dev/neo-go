@@ -108,6 +108,7 @@ func newNonFungible(name string, id int32, symbol string, decimals byte) *nonfun
 		manifest.NewParameter("to", smartcontract.Hash160Type),
 		manifest.NewParameter("tokenId", smartcontract.ByteArrayType))
 	md = newMethodAndPrice(n.transfer, 1<<17, callflag.States|callflag.AllowNotify)
+	md.StorageFee = 50
 	n.AddMethod(md, desc)
 
 	n.AddEvent("Transfer",

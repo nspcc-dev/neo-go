@@ -56,7 +56,10 @@ func (bc *Blockchain) registerNative(c interop.Contract) {
 	bc.contracts.Contracts = append(bc.contracts.Contracts, c)
 }
 
-const testSumCPUFee = 1 << 15 // same as contract.Call
+const (
+	testSumCPUFee     = 1 << 15 // same as contract.Call
+	testSumStorageFee = 200
+)
 
 func newTestNative() *testNative {
 	tn := &testNative{
@@ -77,6 +80,7 @@ func newTestNative() *testNative {
 	md := &interop.MethodAndPrice{
 		Func:          tn.sum,
 		CPUFee:        testSumCPUFee,
+		StorageFee:    testSumStorageFee,
 		RequiredFlags: callflag.NoneFlag,
 	}
 	tn.meta.AddMethod(md, desc)
@@ -183,6 +187,7 @@ func TestNativeContract_Invoke(t *testing.T) {
 
 	// System.Contract.Call + "sum" itself + opcodes for pushing arguments.
 	price := int64(testSumCPUFee * chain.GetBaseExecFee() * 2)
+	price += testSumStorageFee * chain.GetStoragePrice()
 	price += 3 * fee.Opcode(chain.GetBaseExecFee(), opcode.PUSHINT8)
 	price += 2 * fee.Opcode(chain.GetBaseExecFee(), opcode.SYSCALL, opcode.PUSHDATA1, opcode.PUSHINT8)
 	price += fee.Opcode(chain.GetBaseExecFee(), opcode.PACK)

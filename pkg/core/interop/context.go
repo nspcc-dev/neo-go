@@ -91,6 +91,7 @@ type MethodAndPrice struct {
 	Func          Method
 	MD            *manifest.Method
 	CPUFee        int64
+	StorageFee    int64
 	SyscallOffset int
 	RequiredFlags callflag.CallFlag
 }

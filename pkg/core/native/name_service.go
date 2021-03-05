@@ -136,6 +136,7 @@ func newNameService() *NameService {
 		manifest.NewParameter("name", smartcontract.StringType),
 		manifest.NewParameter("admin", smartcontract.Hash160Type))
 	md = newMethodAndPrice(n.setAdmin, 1<<15, callflag.States)
+	md.StorageFee = 20
 	n.AddMethod(md, desc)
 
 	desc = newDescriptor("setRecord", smartcontract.VoidType,
@@ -143,6 +144,7 @@ func newNameService() *NameService {
 		manifest.NewParameter("type", smartcontract.IntegerType),
 		manifest.NewParameter("data", smartcontract.StringType))
 	md = newMethodAndPrice(n.setRecord, 1<<15, callflag.States)
+	md.StorageFee = 200
 	n.AddMethod(md, desc)
 
 	desc = newDescriptor("getRecord", smartcontract.StringType,
