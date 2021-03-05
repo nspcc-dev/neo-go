@@ -98,8 +98,8 @@ func TestCreateResponseTx(t *testing.T) {
 	tx, err := orc.CreateResponseTx(int64(req.GasForResponse), 1, resp)
 	require.NoError(t, err)
 	assert.Equal(t, 166, tx.Size())
-	assert.Equal(t, int64(2215610), tx.NetworkFee)
-	assert.Equal(t, int64(97784390), tx.SystemFee)
+	assert.Equal(t, int64(2198650), tx.NetworkFee)
+	assert.Equal(t, int64(97801350), tx.SystemFee)
 }
 
 func TestOracle_InvalidWallet(t *testing.T) {

@@ -77,37 +77,37 @@ func newNonFungible(name string, id int32, symbol string, decimals byte) *nonfun
 	n.AddMethod(md, desc)
 
 	desc = newDescriptor("totalSupply", smartcontract.IntegerType)
-	md = newMethodAndPrice(n.totalSupply, 1000000, callflag.ReadStates)
+	md = newMethodAndPrice(n.totalSupply, 1<<15, callflag.ReadStates)
 	n.AddMethod(md, desc)
 
 	desc = newDescriptor("ownerOf", smartcontract.Hash160Type,
 		manifest.NewParameter("tokenId", smartcontract.ByteArrayType))
-	md = newMethodAndPrice(n.OwnerOf, 1000000, callflag.ReadStates)
+	md = newMethodAndPrice(n.OwnerOf, 1<<15, callflag.ReadStates)
 	n.AddMethod(md, desc)
 
 	desc = newDescriptor("balanceOf", smartcontract.IntegerType,
 		manifest.NewParameter("owner", smartcontract.Hash160Type))
-	md = newMethodAndPrice(n.BalanceOf, 1000000, callflag.ReadStates)
+	md = newMethodAndPrice(n.BalanceOf, 1<<15, callflag.ReadStates)
 	n.AddMethod(md, desc)
 
 	desc = newDescriptor("properties", smartcontract.MapType,
 		manifest.NewParameter("tokenId", smartcontract.ByteArrayType))
-	md = newMethodAndPrice(n.Properties, 1000000, callflag.ReadStates)
+	md = newMethodAndPrice(n.Properties, 1<<15, callflag.ReadStates)
 	n.AddMethod(md, desc)
 
 	desc = newDescriptor("tokens", smartcontract.AnyType)
-	md = newMethodAndPrice(n.tokens, 1000000, callflag.ReadStates)
+	md = newMethodAndPrice(n.tokens, 1<<15, callflag.ReadStates)
 	n.AddMethod(md, desc)
 
 	desc = newDescriptor("tokensOf", smartcontract.AnyType,
 		manifest.NewParameter("owner", smartcontract.Hash160Type))
-	md = newMethodAndPrice(n.tokensOf, 1000000, callflag.ReadStates)
+	md = newMethodAndPrice(n.tokensOf, 1<<15, callflag.ReadStates)
 	n.AddMethod(md, desc)
 
 	desc = newDescriptor("transfer", smartcontract.BoolType,
 		manifest.NewParameter("to", smartcontract.Hash160Type),
 		manifest.NewParameter("tokenId", smartcontract.ByteArrayType))
-	md = newMethodAndPrice(n.transfer, 9000000, callflag.States|callflag.AllowNotify)
+	md = newMethodAndPrice(n.transfer, 1<<17, callflag.States|callflag.AllowNotify)
 	n.AddMethod(md, desc)
 
 	n.AddEvent("Transfer",

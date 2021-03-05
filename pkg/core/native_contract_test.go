@@ -56,7 +56,7 @@ func (bc *Blockchain) registerNative(c interop.Contract) {
 	bc.contracts.Contracts = append(bc.contracts.Contracts, c)
 }
 
-const testSumPrice = 1 << 15 * interop.DefaultBaseExecFee // same as contract.Call
+const testSumCPUFee = 1 << 15 // same as contract.Call
 
 func newTestNative() *testNative {
 	tn := &testNative{
@@ -76,7 +76,7 @@ func newTestNative() *testNative {
 	}
 	md := &interop.MethodAndPrice{
 		Func:          tn.sum,
-		Price:         testSumPrice,
+		CPUFee:        testSumCPUFee,
 		RequiredFlags: callflag.NoneFlag,
 	}
 	tn.meta.AddMethod(md, desc)
@@ -93,7 +93,7 @@ func newTestNative() *testNative {
 	}
 	md = &interop.MethodAndPrice{
 		Func:          tn.callOtherContractNoReturn,
-		Price:         testSumPrice,
+		CPUFee:        testSumCPUFee,
 		RequiredFlags: callflag.NoneFlag}
 	tn.meta.AddMethod(md, desc)
 
@@ -108,7 +108,7 @@ func newTestNative() *testNative {
 	}
 	md = &interop.MethodAndPrice{
 		Func:          tn.callOtherContractWithReturn,
-		Price:         testSumPrice,
+		CPUFee:        testSumCPUFee,
 		RequiredFlags: callflag.NoneFlag}
 	tn.meta.AddMethod(md, desc)
 
@@ -182,7 +182,7 @@ func TestNativeContract_Invoke(t *testing.T) {
 	require.NoError(t, err)
 
 	// System.Contract.Call + "sum" itself + opcodes for pushing arguments.
-	price := int64(testSumPrice * 2)
+	price := int64(testSumCPUFee * chain.GetBaseExecFee() * 2)
 	price += 3 * fee.Opcode(chain.GetBaseExecFee(), opcode.PUSHINT8)
 	price += 2 * fee.Opcode(chain.GetBaseExecFee(), opcode.SYSCALL, opcode.PUSHDATA1, opcode.PUSHINT8)
 	price += fee.Opcode(chain.GetBaseExecFee(), opcode.PACK)
@@ -281,15 +281,16 @@ func TestNativeContract_InvokeOtherContract(t *testing.T) {
 	cs, _ := getTestContractState(chain)
 	require.NoError(t, chain.contracts.Management.PutContractState(chain.dao, cs))
 
+	baseFee := chain.GetBaseExecFee()
 	t.Run("non-native, no return", func(t *testing.T) {
-		res, err := invokeContractMethod(chain, testSumPrice*4+10000, tn.Metadata().Hash, "callOtherContractNoReturn", cs.Hash, "justReturn", []interface{}{})
+		res, err := invokeContractMethod(chain, testSumCPUFee*baseFee*4+10000, tn.Metadata().Hash, "callOtherContractNoReturn", cs.Hash, "justReturn", []interface{}{})
 		require.NoError(t, err)
 		drainTN(t)
 		require.Equal(t, vm.HaltState, res.VMState, res.FaultException)
 		checkResult(t, res, stackitem.Null{}) // simple call is done with EnsureNotEmpty
 	})
 	t.Run("non-native, with return", func(t *testing.T) {
-		res, err := invokeContractMethod(chain, testSumPrice*4+10000, tn.Metadata().Hash,
+		res, err := invokeContractMethod(chain, testSumCPUFee*baseFee*4+10000, tn.Metadata().Hash,
 			"callOtherContractWithReturn", cs.Hash, "ret7", []interface{}{})
 		require.NoError(t, err)
 		drainTN(t)

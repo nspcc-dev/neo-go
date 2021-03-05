@@ -104,27 +104,27 @@ func newNameService() *NameService {
 
 	desc := newDescriptor("addRoot", smartcontract.VoidType,
 		manifest.NewParameter("root", smartcontract.StringType))
-	md := newMethodAndPrice(n.addRoot, 3000000, callflag.States)
+	md := newMethodAndPrice(n.addRoot, 1<<15, callflag.States)
 	n.AddMethod(md, desc)
 
 	desc = newDescriptor("setPrice", smartcontract.VoidType,
 		manifest.NewParameter("price", smartcontract.IntegerType))
-	md = newMethodAndPrice(n.setPrice, 3000000, callflag.States)
+	md = newMethodAndPrice(n.setPrice, 1<<15, callflag.States)
 	n.AddMethod(md, desc)
 
 	desc = newDescriptor("getPrice", smartcontract.IntegerType)
-	md = newMethodAndPrice(n.getPrice, 1000000, callflag.ReadStates)
+	md = newMethodAndPrice(n.getPrice, 1<<15, callflag.ReadStates)
 	n.AddMethod(md, desc)
 
 	desc = newDescriptor("isAvailable", smartcontract.BoolType,
 		manifest.NewParameter("name", smartcontract.StringType))
-	md = newMethodAndPrice(n.isAvailable, 1000000, callflag.ReadStates)
+	md = newMethodAndPrice(n.isAvailable, 1<<15, callflag.ReadStates)
 	n.AddMethod(md, desc)
 
 	desc = newDescriptor("register", smartcontract.BoolType,
 		manifest.NewParameter("name", smartcontract.StringType),
 		manifest.NewParameter("owner", smartcontract.Hash160Type))
-	md = newMethodAndPrice(n.register, 1000000, callflag.States)
+	md = newMethodAndPrice(n.register, 1<<15, callflag.States)
 	n.AddMethod(md, desc)
 
 	desc = newDescriptor("renew", smartcontract.IntegerType,
@@ -135,32 +135,32 @@ func newNameService() *NameService {
 	desc = newDescriptor("setAdmin", smartcontract.VoidType,
 		manifest.NewParameter("name", smartcontract.StringType),
 		manifest.NewParameter("admin", smartcontract.Hash160Type))
-	md = newMethodAndPrice(n.setAdmin, 3000000, callflag.States)
+	md = newMethodAndPrice(n.setAdmin, 1<<15, callflag.States)
 	n.AddMethod(md, desc)
 
 	desc = newDescriptor("setRecord", smartcontract.VoidType,
 		manifest.NewParameter("name", smartcontract.StringType),
 		manifest.NewParameter("type", smartcontract.IntegerType),
 		manifest.NewParameter("data", smartcontract.StringType))
-	md = newMethodAndPrice(n.setRecord, 30000000, callflag.States)
+	md = newMethodAndPrice(n.setRecord, 1<<15, callflag.States)
 	n.AddMethod(md, desc)
 
 	desc = newDescriptor("getRecord", smartcontract.StringType,
 		manifest.NewParameter("name", smartcontract.StringType),
 		manifest.NewParameter("type", smartcontract.IntegerType))
-	md = newMethodAndPrice(n.getRecord, 1000000, callflag.ReadStates)
+	md = newMethodAndPrice(n.getRecord, 1<<15, callflag.ReadStates)
 	n.AddMethod(md, desc)
 
 	desc = newDescriptor("deleteRecord", smartcontract.VoidType,
 		manifest.NewParameter("name", smartcontract.StringType),
 		manifest.NewParameter("type", smartcontract.IntegerType))
-	md = newMethodAndPrice(n.deleteRecord, 1000000, callflag.States)
+	md = newMethodAndPrice(n.deleteRecord, 1<<15, callflag.States)
 	n.AddMethod(md, desc)
 
 	desc = newDescriptor("resolve", smartcontract.StringType,
 		manifest.NewParameter("name", smartcontract.StringType),
 		manifest.NewParameter("type", smartcontract.IntegerType))
-	md = newMethodAndPrice(n.resolve, 3000000, callflag.ReadStates)
+	md = newMethodAndPrice(n.resolve, 1<<17, callflag.ReadStates)
 	n.AddMethod(md, desc)
 
 	return n

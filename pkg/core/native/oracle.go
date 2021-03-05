@@ -91,7 +91,7 @@ func newOracle() *Oracle {
 		manifest.NewParameter("callback", smartcontract.StringType),
 		manifest.NewParameter("userData", smartcontract.AnyType),
 		manifest.NewParameter("gasForResponse", smartcontract.IntegerType))
-	md := newMethodAndPrice(o.request, oracleRequestPrice, callflag.States|callflag.AllowNotify)
+	md := newMethodAndPrice(o.request, 0, callflag.States|callflag.AllowNotify)
 	o.AddMethod(md, desc)
 
 	desc = newDescriptor("finish", smartcontract.VoidType)
@@ -99,7 +99,7 @@ func newOracle() *Oracle {
 	o.AddMethod(md, desc)
 
 	desc = newDescriptor("verify", smartcontract.BoolType)
-	md = newMethodAndPrice(o.verify, 100_0000, callflag.NoneFlag)
+	md = newMethodAndPrice(o.verify, 1<<15, callflag.NoneFlag)
 	o.AddMethod(md, desc)
 
 	o.AddEvent("OracleRequest", manifest.NewParameter("Id", smartcontract.IntegerType),

@@ -42,32 +42,32 @@ func newLedger() *Ledger {
 	defer l.UpdateHash()
 
 	desc := newDescriptor("currentHash", smartcontract.Hash256Type)
-	md := newMethodAndPrice(l.currentHash, 1000000, callflag.ReadStates)
+	md := newMethodAndPrice(l.currentHash, 1<<15, callflag.ReadStates)
 	l.AddMethod(md, desc)
 
 	desc = newDescriptor("currentIndex", smartcontract.IntegerType)
-	md = newMethodAndPrice(l.currentIndex, 1000000, callflag.ReadStates)
+	md = newMethodAndPrice(l.currentIndex, 1<<15, callflag.ReadStates)
 	l.AddMethod(md, desc)
 
 	desc = newDescriptor("getBlock", smartcontract.ArrayType,
 		manifest.NewParameter("indexOrHash", smartcontract.ByteArrayType))
-	md = newMethodAndPrice(l.getBlock, 1000000, callflag.ReadStates)
+	md = newMethodAndPrice(l.getBlock, 1<<15, callflag.ReadStates)
 	l.AddMethod(md, desc)
 
 	desc = newDescriptor("getTransaction", smartcontract.ArrayType,
 		manifest.NewParameter("hash", smartcontract.Hash256Type))
-	md = newMethodAndPrice(l.getTransaction, 1000000, callflag.ReadStates)
+	md = newMethodAndPrice(l.getTransaction, 1<<15, callflag.ReadStates)
 	l.AddMethod(md, desc)
 
 	desc = newDescriptor("getTransactionHeight", smartcontract.IntegerType,
 		manifest.NewParameter("hash", smartcontract.Hash256Type))
-	md = newMethodAndPrice(l.getTransactionHeight, 1000000, callflag.ReadStates)
+	md = newMethodAndPrice(l.getTransactionHeight, 1<<15, callflag.ReadStates)
 	l.AddMethod(md, desc)
 
 	desc = newDescriptor("getTransactionFromBlock", smartcontract.ArrayType,
 		manifest.NewParameter("blockIndexOrHash", smartcontract.ByteArrayType),
 		manifest.NewParameter("txIndex", smartcontract.IntegerType))
-	md = newMethodAndPrice(l.getTransactionFromBlock, 2000000, callflag.ReadStates)
+	md = newMethodAndPrice(l.getTransactionFromBlock, 1<<16, callflag.ReadStates)
 	l.AddMethod(md, desc)
 
 	return l
