@@ -15,6 +15,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
+	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/urfave/cli"
 )
@@ -118,6 +119,18 @@ func NewCommands() []cli.Command {
 				Flags: []cli.Flag{
 					walletPathFlag,
 					decryptFlag,
+				},
+			},
+			{
+				Name:   "dump-keys",
+				Usage:  "dump public keys for account",
+				Action: dumpKeys,
+				Flags: []cli.Flag{
+					walletPathFlag,
+					cli.StringFlag{
+						Name:  "address, a",
+						Usage: "address to print public keys for",
+					},
 				},
 			},
 			{
@@ -534,6 +547,56 @@ func dumpWallet(ctx *cli.Context) error {
 		}
 	}
 	fmtPrintWallet(ctx.App.Writer, wall)
+	return nil
+}
+
+func dumpKeys(ctx *cli.Context) error {
+	wall, err := openWallet(ctx.String("wallet"))
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
+	accounts := wall.Accounts
+	addr := ctx.String("address")
+	if addr != "" {
+		u, err := flags.ParseAddress(addr)
+		if err != nil {
+			return cli.NewExitError(fmt.Errorf("invalid address: %w", err), 1)
+		}
+		acc := wall.GetAccount(u)
+		if acc == nil {
+			return cli.NewExitError("account is missing", 1)
+		}
+		accounts = []*wallet.Account{acc}
+	}
+
+	hasPrinted := false
+	for _, acc := range accounts {
+		pub, ok := vm.ParseSignatureContract(acc.Contract.Script)
+		if ok {
+			if hasPrinted {
+				fmt.Fprintln(ctx.App.Writer)
+			}
+			fmt.Fprintf(ctx.App.Writer, "%s (simple signature contract):\n", acc.Address)
+			fmt.Fprintln(ctx.App.Writer, hex.EncodeToString(pub))
+			hasPrinted = true
+			continue
+		}
+		n, bs, ok := vm.ParseMultiSigContract(acc.Contract.Script)
+		if ok {
+			if hasPrinted {
+				fmt.Fprintln(ctx.App.Writer)
+			}
+			fmt.Fprintf(ctx.App.Writer, "%s (%d out of %d multisig contract):\n", acc.Address, n, len(bs))
+			for i := range bs {
+				fmt.Fprintln(ctx.App.Writer, hex.EncodeToString(bs[i]))
+			}
+			hasPrinted = true
+			continue
+		}
+		if addr != "" {
+			return cli.NewExitError(fmt.Errorf("Unknown script type for address %s", addr), 1)
+		}
+	}
 	return nil
 }
 
