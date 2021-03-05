@@ -31,6 +31,7 @@ type Designate struct {
 	rolesChangedFlag atomic.Value
 	oracles          atomic.Value
 	stateVals        atomic.Value
+	neofsAlphabet    atomic.Value
 	notaries         atomic.Value
 
 	// p2pSigExtensionsEnabled defines whether the P2P signature extensions logic is relevant.
@@ -61,6 +62,7 @@ type Role byte
 const (
 	RoleStateValidator Role = 4
 	RoleOracle         Role = 8
+	RoleNeoFSAlphabet  Role = 16
 	RoleP2PNotary      Role = 128
 )
 
@@ -75,7 +77,8 @@ var (
 )
 
 func (s *Designate) isValidRole(r Role) bool {
-	return r == RoleOracle || r == RoleStateValidator || (s.p2pSigExtensionsEnabled && r == RoleP2PNotary)
+	return r == RoleOracle || r == RoleStateValidator ||
+		r == RoleNeoFSAlphabet || (s.p2pSigExtensionsEnabled && r == RoleP2PNotary)
 }
 
 func newDesignate(p2pSigExtensionsEnabled bool) *Designate {
@@ -118,6 +121,9 @@ func (s *Designate) PostPersist(ic *interop.Context) error {
 		return err
 	}
 	if err := s.updateCachedRoleData(&s.stateVals, ic.DAO, RoleStateValidator); err != nil {
+		return err
+	}
+	if err := s.updateCachedRoleData(&s.neofsAlphabet, ic.DAO, RoleNeoFSAlphabet); err != nil {
 		return err
 	}
 	if s.p2pSigExtensionsEnabled {
@@ -166,7 +172,7 @@ func (s *Designate) hashFromNodes(r Role, nodes keys.PublicKeys) util.Uint160 {
 	}
 	var script []byte
 	switch r {
-	case RoleOracle:
+	case RoleOracle, RoleNeoFSAlphabet:
 		script, _ = smartcontract.CreateDefaultMultiSigRedeemScript(nodes.Copy())
 	case RoleP2PNotary:
 		script, _ = smartcontract.CreateMultiSigRedeemScript(1, nodes.Copy())
@@ -206,6 +212,8 @@ func (s *Designate) getCachedRoleData(r Role) *roleData {
 		val = s.oracles.Load()
 	case RoleStateValidator:
 		val = s.stateVals.Load()
+	case RoleNeoFSAlphabet:
+		val = s.neofsAlphabet.Load()
 	case RoleP2PNotary:
 		val = s.notaries.Load()
 	}

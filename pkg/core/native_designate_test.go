@@ -99,6 +99,14 @@ func TestDesignate_DesignateAsRoleTx(t *testing.T) {
 	bc.setNodesByRole(t, true, native.RoleStateValidator, pubs)
 	bc.getNodesByRole(t, true, native.RoleStateValidator, bc.BlockHeight()+1, 1)
 
+	t.Run("neofs", func(t *testing.T) {
+		priv, err := keys.NewPrivateKey()
+		require.NoError(t, err)
+		pubs = keys.PublicKeys{priv.PublicKey()}
+		bc.setNodesByRole(t, true, native.RoleNeoFSAlphabet, pubs)
+		bc.getNodesByRole(t, true, native.RoleNeoFSAlphabet, bc.BlockHeight()+1, 1)
+	})
+
 }
 
 func TestDesignate_DesignateAsRole(t *testing.T) {
