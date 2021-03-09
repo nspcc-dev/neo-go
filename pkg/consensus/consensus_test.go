@@ -323,6 +323,13 @@ func TestService_PrepareRequest(t *testing.T) {
 
 	sr, err := srv.Chain.GetStateModule().GetStateRoot(srv.dbft.BlockIndex - 1)
 	require.NoError(t, err)
+
+	checkRequest(t, errInvalidTransactionsCount, &prepareRequest{stateRootEnabled: true,
+		prevHash:          prevHash,
+		stateRoot:         sr.Root,
+		transactionHashes: make([]util.Uint256, srv.ProtocolConfiguration.MaxTransactionsPerBlock+1),
+	})
+
 	checkRequest(t, nil, &prepareRequest{
 		stateRootEnabled: true,
 		prevHash:         prevHash,

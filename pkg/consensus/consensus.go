@@ -466,9 +466,10 @@ func (s *service) verifyBlock(b block.Block) bool {
 }
 
 var (
-	errInvalidPrevHash  = errors.New("invalid PrevHash")
-	errInvalidVersion   = errors.New("invalid Version")
-	errInvalidStateRoot = errors.New("state root mismatch")
+	errInvalidPrevHash          = errors.New("invalid PrevHash")
+	errInvalidVersion           = errors.New("invalid Version")
+	errInvalidStateRoot         = errors.New("state root mismatch")
+	errInvalidTransactionsCount = errors.New("invalid transactions count")
 )
 
 func (s *service) verifyRequest(p payload.ConsensusPayload) error {
@@ -486,6 +487,9 @@ func (s *service) verifyRequest(p payload.ConsensusPayload) error {
 		} else if sr.Root != req.stateRoot {
 			return fmt.Errorf("%w: %s != %s", errInvalidStateRoot, sr.Root, req.stateRoot)
 		}
+	}
+	if len(req.TransactionHashes()) > int(s.ProtocolConfiguration.MaxTransactionsPerBlock) {
+		return fmt.Errorf("%w: max = %d, got %d", errInvalidTransactionsCount, s.ProtocolConfiguration.MaxTransactionsPerBlock, len(req.TransactionHashes()))
 	}
 	// Save lastProposal for getVerified().
 	s.lastProposal = req.transactionHashes
