@@ -9,6 +9,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -151,15 +152,17 @@ func TestEmitArray(t *testing.T) {
 		assert.EqualValues(t, 2, res[1])
 		assert.EqualValues(t, []byte{0xCA, 0xFE}, res[2:4])
 		assert.EqualValues(t, opcode.PUSHT, res[4])
-		assert.EqualValues(t, opcode.PUSHDATA1, res[5])
-		assert.EqualValues(t, 3, res[6])
-		assert.EqualValues(t, []byte("str"), res[7:10])
-		assert.EqualValues(t, opcode.PUSH1, res[10])
-		assert.EqualValues(t, opcode.PUSHNULL, res[11])
-		assert.EqualValues(t, opcode.PUSH2, res[12])
-		assert.EqualValues(t, opcode.PUSH1, res[13])
+		assert.EqualValues(t, opcode.CONVERT, res[5])
+		assert.EqualValues(t, stackitem.BooleanT, res[6])
+		assert.EqualValues(t, opcode.PUSHDATA1, res[7])
+		assert.EqualValues(t, 3, res[8])
+		assert.EqualValues(t, []byte("str"), res[9:12])
+		assert.EqualValues(t, opcode.PUSH1, res[12])
+		assert.EqualValues(t, opcode.PUSHNULL, res[13])
 		assert.EqualValues(t, opcode.PUSH2, res[14])
-		assert.EqualValues(t, opcode.PACK, res[15])
+		assert.EqualValues(t, opcode.PUSH1, res[15])
+		assert.EqualValues(t, opcode.PUSH2, res[16])
+		assert.EqualValues(t, opcode.PACK, res[17])
 	})
 
 	t.Run("empty", func(t *testing.T) {
@@ -181,8 +184,12 @@ func TestEmitBool(t *testing.T) {
 	Bool(buf.BinWriter, true)
 	Bool(buf.BinWriter, false)
 	result := buf.Bytes()
-	assert.Equal(t, opcode.Opcode(result[0]), opcode.PUSH1)
-	assert.Equal(t, opcode.Opcode(result[1]), opcode.PUSH0)
+	assert.EqualValues(t, opcode.PUSH1, result[0])
+	assert.EqualValues(t, opcode.CONVERT, result[1])
+	assert.EqualValues(t, stackitem.BooleanT, result[2])
+	assert.EqualValues(t, opcode.PUSH0, result[3])
+	assert.EqualValues(t, opcode.CONVERT, result[4])
+	assert.EqualValues(t, stackitem.BooleanT, result[5])
 }
 
 func TestEmitOpcode(t *testing.T) {

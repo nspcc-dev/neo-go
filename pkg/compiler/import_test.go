@@ -46,7 +46,7 @@ func TestMultipleDirFileImport(t *testing.T) {
 			return ok
 		}
 	`
-	eval(t, src, big.NewInt(1))
+	eval(t, src, true)
 }
 
 func TestImportNameSameAsOwn(t *testing.T) {
