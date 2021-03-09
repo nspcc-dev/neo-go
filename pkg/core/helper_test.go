@@ -304,6 +304,7 @@ func initBasicChain(t *testing.T, bc *Blockchain) {
 	t.Logf("native NEO hash: %v", neoHash)
 	t.Logf("native Policy hash: %v", policyHash)
 	t.Logf("native Notary hash: %v", notaryHash)
+	t.Logf("Block0 hash: %s", bc.GetHeaderHash(0).StringLE())
 
 	priv0 := testchain.PrivateKeyByID(0)
 	priv0ScriptHash := priv0.GetScriptHash()
