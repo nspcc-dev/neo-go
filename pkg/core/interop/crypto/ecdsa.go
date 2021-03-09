@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/btcsuite/btcd/btcec"
 	"github.com/nspcc-dev/neo-go/pkg/core/fee"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/crypto"
@@ -19,18 +18,6 @@ import (
 // ECDSASecp256r1CheckMultisig checks multiple ECDSA signatures at once using
 // Secp256r1 elliptic curve.
 func ECDSASecp256r1CheckMultisig(ic *interop.Context) error {
-	return ecdsaCheckMultisig(ic, elliptic.P256())
-}
-
-// ECDSASecp256k1CheckMultisig checks multiple ECDSA signatures at once using
-// Secp256k1 elliptic curve.
-func ECDSASecp256k1CheckMultisig(ic *interop.Context) error {
-	return ecdsaCheckMultisig(ic, btcec.S256())
-}
-
-// ecdsaCheckMultisig is internal representation of ECDSASecp256r1CheckMultisig and
-// ECDSASecp256k1CheckMultisig
-func ecdsaCheckMultisig(ic *interop.Context, curve elliptic.Curve) error {
 	hashToCheck, err := getMessageHash(ic, ic.VM.Estack().Pop().Item())
 	if err != nil {
 		return err
@@ -51,7 +38,7 @@ func ecdsaCheckMultisig(ic *interop.Context, curve elliptic.Curve) error {
 	if len(pkeys) < len(sigs) {
 		return errors.New("more signatures than there are keys")
 	}
-	sigok := vm.CheckMultisigPar(ic.VM, curve, hashToCheck.BytesBE(), pkeys, sigs)
+	sigok := vm.CheckMultisigPar(ic.VM, elliptic.P256(), hashToCheck.BytesBE(), pkeys, sigs)
 	ic.VM.Estack().PushVal(sigok)
 	return nil
 }

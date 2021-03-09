@@ -90,7 +90,6 @@ func TestSyscallExecution(t *testing.T) {
 		"storage.Put":                        {interopnames.SystemStoragePut, []string{sctx, b, b}, true},
 		"storage.ConvertContextToReadOnly":   {interopnames.SystemStorageAsReadOnly, []string{sctx}, false},
 		"crypto.ECDSASecp256r1CheckMultisig": {interopnames.NeoCryptoCheckMultisigWithECDsaSecp256r1, []string{b, pubs, sigs}, false},
-		"crypto.ECDSASecp256k1CheckMultisig": {interopnames.NeoCryptoCheckMultisigWithECDsaSecp256k1, []string{b, pubs, sigs}, false},
 		"crypto.CheckSig":                    {interopnames.NeoCryptoCheckSig, []string{pub, sig}, false},
 	}
 	ic := &interop.Context{}
