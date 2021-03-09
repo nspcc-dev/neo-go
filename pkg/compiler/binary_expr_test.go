@@ -361,3 +361,15 @@ func TestShortCircuit(t *testing.T) {
 		eval(t, src, big.NewInt(17))
 	})
 }
+
+func TestEmitBoolean(t *testing.T) {
+	src := `package foo
+	func Main() int {
+		a := true
+		if (a == true) == true {
+			return 42
+		}
+		return 11
+	}`
+	eval(t, src, big.NewInt(42))
+}

@@ -209,7 +209,7 @@ func TestBoolAssign(t *testing.T) {
 			return x
 		}
 	`
-	eval(t, src, big.NewInt(1))
+	eval(t, src, true)
 }
 
 func TestBoolCompare(t *testing.T) {

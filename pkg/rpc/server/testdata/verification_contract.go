@@ -1,7 +1,6 @@
 package testdata
 
 import (
-	"github.com/nspcc-dev/neo-go/pkg/interop/convert"
 	"github.com/nspcc-dev/neo-go/pkg/interop/runtime"
 	"github.com/nspcc-dev/neo-go/pkg/interop/util"
 )
@@ -11,5 +10,5 @@ import (
 func Verify() bool {
 	tx := runtime.GetScriptContainer()
 	addr := util.FromAddress("NbTiM6h8r99kpRtb428XcsUk1TzKed2gTc")
-	return util.Equals(convert.ToByteArray(tx.Sender), convert.ToByteArray(addr))
+	return util.Equals(string(tx.Sender), string(addr))
 }

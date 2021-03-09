@@ -33,9 +33,9 @@ func Opcodes(w *io.BinWriter, ops ...opcode.Opcode) {
 func Bool(w *io.BinWriter, ok bool) {
 	if ok {
 		Opcodes(w, opcode.PUSHT)
-		return
+	} else {
+		Opcodes(w, opcode.PUSHF)
 	}
-	Opcodes(w, opcode.PUSHF)
 	Instruction(w, opcode.CONVERT, []byte{byte(stackitem.BooleanT)})
 }
 
