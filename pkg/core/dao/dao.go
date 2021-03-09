@@ -364,28 +364,14 @@ func (dao *Simple) GetStorageItem(id int32, key []byte) state.StorageItem {
 	if err != nil {
 		return nil
 	}
-	r := io.NewBinReaderFromBuf(b)
-
-	si := state.StorageItem{}
-	si.DecodeBinary(r)
-	if r.Err != nil {
-		return nil
-	}
-
-	return si
+	return b
 }
 
 // PutStorageItem puts given StorageItem for given id with given
 // key into the given store.
 func (dao *Simple) PutStorageItem(id int32, key []byte, si state.StorageItem) error {
 	stKey := makeStorageItemKey(id, key)
-	buf := io.NewBufBinWriter()
-	si.EncodeBinary(buf.BinWriter)
-	if buf.Err != nil {
-		return buf.Err
-	}
-	v := buf.Bytes()
-	return dao.Store.Put(stKey, v)
+	return dao.Store.Put(stKey, si)
 }
 
 // DeleteStorageItem drops storage item for the given id with the
@@ -404,23 +390,14 @@ func (dao *Simple) GetStorageItems(id int32) (map[string]state.StorageItem, erro
 // given scripthash.
 func (dao *Simple) GetStorageItemsWithPrefix(id int32, prefix []byte) (map[string]state.StorageItem, error) {
 	var siMap = make(map[string]state.StorageItem)
-	var err error
 
 	saveToMap := func(k, v []byte) {
-		if err != nil {
-			return
-		}
-		r := io.NewBinReaderFromBuf(v)
-		si := state.StorageItem{}
-		si.DecodeBinary(r)
-		if r.Err != nil {
-			err = r.Err
-			return
-		}
 		// Cut prefix and hash.
 		// Must copy here, #1468.
 		key := make([]byte, len(k))
 		copy(key, k)
+		si := make(state.StorageItem, len(v))
+		copy(si, v)
 		siMap[string(key)] = si
 	}
 	dao.Seek(id, prefix, saveToMap)

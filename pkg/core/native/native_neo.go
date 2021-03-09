@@ -20,7 +20,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
-	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
@@ -330,19 +329,13 @@ func (n *NEO) PostPersist(ic *interop.Context) error {
 func (n *NEO) getGASPerVote(d dao.DAO, key []byte, index ...uint32) []big.Int {
 	var max = make([]uint32, len(index))
 	var reward = make([]big.Int, len(index))
-	var si state.StorageItem
 	d.Seek(n.ID, key, func(k, v []byte) {
 		if len(k) == 4 {
 			num := binary.BigEndian.Uint32(k)
 			for i, ind := range index {
 				if max[i] < num && num <= ind {
 					max[i] = num
-					r := io.NewBinReaderFromBuf(v)
-					si.DecodeBinary(r)
-					if r.Err != nil {
-						return
-					}
-					reward[i] = *bigint.FromBytes(si)
+					reward[i] = *bigint.FromBytes(v)
 				}
 			}
 		}

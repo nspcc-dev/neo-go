@@ -862,13 +862,7 @@ func (s *Server) verifyProof(ps request.Params) (interface{}, *response.Error) {
 	vp := new(result.VerifyProof)
 	val, ok := mpt.VerifyProof(root, p.Key, p.Proof)
 	if ok {
-		var si state.StorageItem
-		r := io.NewBinReaderFromBuf(val)
-		si.DecodeBinary(r)
-		if r.Err != nil {
-			return nil, response.NewInternalServerError("invalid item in trie", r.Err)
-		}
-		vp.Value = si
+		vp.Value = val
 	}
 	return vp, nil
 }

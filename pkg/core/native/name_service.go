@@ -533,13 +533,7 @@ func (n *NameService) getRecordsInternal(d dao.DAO, name string) map[RecordType]
 	res := make(map[RecordType]string)
 	d.Seek(n.ID, key, func(k, v []byte) {
 		rt := RecordType(k[len(k)-1])
-		var si state.StorageItem
-		r := io.NewBinReaderFromBuf(v)
-		si.DecodeBinary(r)
-		if r.Err != nil {
-			panic(r.Err)
-		}
-		res[rt] = string(si)
+		res[rt] = string(v)
 	})
 	return res
 }

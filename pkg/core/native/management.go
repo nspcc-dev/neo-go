@@ -480,16 +480,8 @@ func (m *Management) InitializeCache(d dao.DAO) error {
 
 	var initErr error
 	d.Seek(m.ID, []byte{prefixContract}, func(_, v []byte) {
-		var r = io.NewBinReaderFromBuf(v)
-		var si state.StorageItem
-		si.DecodeBinary(r)
-		if r.Err != nil {
-			initErr = r.Err
-			return
-		}
-
 		var cs state.Contract
-		r = io.NewBinReaderFromBuf(si)
+		r := io.NewBinReaderFromBuf(v)
 		cs.DecodeBinary(r)
 		if r.Err != nil {
 			initErr = r.Err
