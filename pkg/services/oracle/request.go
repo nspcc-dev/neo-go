@@ -1,6 +1,7 @@
 package oracle
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"net/url"
@@ -10,6 +11,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/services/oracle/neofs"
 	"go.uber.org/zap"
 )
 
@@ -133,6 +135,17 @@ func (o *Oracle) processRequest(priv *keys.PrivateKey, req request) error {
 			resp.Code = transaction.Timeout
 		default:
 			resp.Code = transaction.Error
+		}
+	} else if err == nil && u.Scheme == neofs.URIScheme {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(o.MainCfg.NeoFS.Timeout)*time.Millisecond)
+		defer cancel()
+		index := (int(req.ID) + incTx.attempts) % len(o.MainCfg.NeoFS.Nodes)
+		res, err := neofs.Get(ctx, priv, u, o.MainCfg.NeoFS.Nodes[index])
+		if err != nil {
+			resp.Code = transaction.Error
+		} else {
+			resp.Code = transaction.Success
+			resp.Result = res
 		}
 	}
 
