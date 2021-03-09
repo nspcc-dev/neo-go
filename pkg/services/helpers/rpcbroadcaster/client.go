@@ -1,4 +1,4 @@
-package broadcaster
+package rpcbroadcaster
 
 import (
 	"context"
@@ -9,26 +9,33 @@ import (
 	"go.uber.org/zap"
 )
 
-type oracleClient struct {
+// RPCClient represent rpc client for a single node.
+type RPCClient struct {
 	client      *client.Client
 	addr        string
 	close       chan struct{}
 	responses   chan request.RawParams
 	log         *zap.Logger
 	sendTimeout time.Duration
+	method      SendMethod
 }
 
-func (r *rpcBroascaster) newOracleClient(addr string, timeout time.Duration, ch chan request.RawParams) *oracleClient {
-	return &oracleClient{
+// SendMethod represents rpc method for sending data to other nodes.
+type SendMethod func(*client.Client, request.RawParams) error
+
+// NewRPCClient returns new rpc client for provided address and method.
+func (r *RPCBroadcaster) NewRPCClient(addr string, method SendMethod, timeout time.Duration, ch chan request.RawParams) *RPCClient {
+	return &RPCClient{
 		addr:        addr,
 		close:       r.close,
 		responses:   ch,
-		log:         r.log.With(zap.String("address", addr)),
+		log:         r.Log.With(zap.String("address", addr)),
 		sendTimeout: timeout,
+		method:      method,
 	}
 }
 
-func (c *oracleClient) run() {
+func (c *RPCClient) run() {
 	// We ignore error as not every node can be available on startup.
 	c.client, _ = client.New(context.Background(), "http://"+c.addr, client.Options{
 		DialTimeout:    c.sendTimeout,
@@ -49,7 +56,7 @@ func (c *oracleClient) run() {
 					continue
 				}
 			}
-			err := c.client.SubmitRawOracleResponse(ps)
+			err := c.method(c.client, ps)
 			if err != nil {
 				c.log.Error("error while submitting oracle response", zap.Error(err))
 			}

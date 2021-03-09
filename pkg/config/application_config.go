@@ -28,4 +28,5 @@ type ApplicationConfiguration struct {
 	UnlockWallet      Wallet                  `yaml:"UnlockWallet"`
 	Oracle            OracleConfiguration     `yaml:"Oracle"`
 	P2PNotary         P2PNotary               `yaml:"P2PNotary"`
+	StateRoot         StateRoot               `yaml:"StateRoot"`
 }

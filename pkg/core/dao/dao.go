@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
-	"fmt"
 	iocore "io"
 	"sort"
 
@@ -42,12 +41,9 @@ type DAO interface {
 	GetContractScriptHash(id int32) (util.Uint160, error)
 	GetCurrentBlockHeight() (uint32, error)
 	GetCurrentHeaderHeight() (i uint32, h util.Uint256, err error)
-	GetCurrentStateRootHeight() (uint32, error)
 	GetHeaderHashes() ([]util.Uint256, error)
 	GetNEP17Balances(acc util.Uint160) (*state.NEP17Balances, error)
 	GetNEP17TransferLog(acc util.Uint160, index uint32) (*state.NEP17TransferLog, error)
-	GetStateRoot(height uint32) (*state.MPTRootState, error)
-	PutStateRoot(root *state.MPTRootState) error
 	GetStorageItem(id int32, key []byte) state.StorageItem
 	GetStorageItems(id int32) (map[string]state.StorageItem, error)
 	GetStorageItemsWithPrefix(id int32, prefix []byte) (map[string]state.StorageItem, error)
@@ -72,7 +68,6 @@ type DAO interface {
 
 // Simple is memCached wrapper around DB, simple DAO implementation.
 type Simple struct {
-	MPT     *mpt.Trie
 	Store   *storage.MemCachedStore
 	network netmode.Magic
 	// stateRootInHeader specifies if block header contains state root.
@@ -94,7 +89,6 @@ func (dao *Simple) GetBatch() *storage.MemBatch {
 // MemCachedStore around the current DAO Store.
 func (dao *Simple) GetWrapped() DAO {
 	d := NewSimple(dao.Store, dao.network, dao.stateRootInHeader)
-	d.MPT = dao.MPT
 	return d
 }
 
@@ -288,75 +282,6 @@ func (dao *Simple) PutAppExecResult(aer *state.AppExecResult, buf *io.BufBinWrit
 // -- end notification event.
 
 // -- start storage item.
-
-func makeStateRootKey(height uint32) []byte {
-	key := make([]byte, 5)
-	key[0] = byte(storage.DataMPT)
-	binary.LittleEndian.PutUint32(key[1:], height)
-	return key
-}
-
-// InitMPT initializes MPT at the given height.
-func (dao *Simple) InitMPT(height uint32, enableRefCount bool) error {
-	var gcKey = []byte{byte(storage.DataMPT), 1}
-	if height == 0 {
-		dao.MPT = mpt.NewTrie(nil, enableRefCount, dao.Store)
-		var val byte
-		if enableRefCount {
-			val = 1
-		}
-		return dao.Store.Put(gcKey, []byte{val})
-	}
-	var hasRefCount bool
-	if v, err := dao.Store.Get(gcKey); err == nil {
-		hasRefCount = v[0] != 0
-	}
-	if hasRefCount != enableRefCount {
-		return fmt.Errorf("KeepOnlyLatestState setting mismatch: old=%v, new=%v", hasRefCount, enableRefCount)
-	}
-	r, err := dao.GetStateRoot(height)
-	if err != nil {
-		return err
-	}
-	dao.MPT = mpt.NewTrie(mpt.NewHashNode(r.Root), enableRefCount, dao.Store)
-	return nil
-}
-
-// GetCurrentStateRootHeight returns current state root height.
-func (dao *Simple) GetCurrentStateRootHeight() (uint32, error) {
-	key := []byte{byte(storage.DataMPT)}
-	val, err := dao.Store.Get(key)
-	if err != nil {
-		if err == storage.ErrKeyNotFound {
-			err = nil
-		}
-		return 0, err
-	}
-	return binary.LittleEndian.Uint32(val), nil
-}
-
-// PutCurrentStateRootHeight updates current state root height.
-func (dao *Simple) PutCurrentStateRootHeight(height uint32) error {
-	key := []byte{byte(storage.DataMPT)}
-	val := make([]byte, 4)
-	binary.LittleEndian.PutUint32(val, height)
-	return dao.Store.Put(key, val)
-}
-
-// GetStateRoot returns state root of a given height.
-func (dao *Simple) GetStateRoot(height uint32) (*state.MPTRootState, error) {
-	r := new(state.MPTRootState)
-	err := dao.GetAndDecode(r, makeStateRootKey(height))
-	if err != nil {
-		return nil, err
-	}
-	return r, nil
-}
-
-// PutStateRoot puts state root of a given height into the store.
-func (dao *Simple) PutStateRoot(r *state.MPTRootState) error {
-	return dao.Put(r, makeStateRootKey(r.Index))
-}
 
 // GetStorageItem returns StorageItem if it exists in the given store.
 func (dao *Simple) GetStorageItem(id int32, key []byte) state.StorageItem {
@@ -672,12 +597,11 @@ func (dao *Simple) Persist() (int, error) {
 	return dao.Store.Persist()
 }
 
-// UpdateMPT updates MPT using storage items from the underlying memcached store.
-func (dao *Simple) UpdateMPT() error {
+// GetMPTBatch storage changes to be applied to MPT.
+func (dao *Simple) GetMPTBatch() mpt.Batch {
 	var b mpt.Batch
 	dao.Store.MemoryStore.SeekAll([]byte{byte(storage.STStorage)}, func(k, v []byte) {
 		b.Add(k[1:], v)
 	})
-	_, err := dao.MPT.PutBatch(b)
-	return err
+	return b
 }

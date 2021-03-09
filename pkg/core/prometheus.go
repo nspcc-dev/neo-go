@@ -30,14 +30,6 @@ var (
 			Namespace: "neogo",
 		},
 	)
-	//stateHeight prometheus metric.
-	stateHeight = prometheus.NewGauge(
-		prometheus.GaugeOpts{
-			Help:      "Current verified state height",
-			Name:      "current_state_height",
-			Namespace: "neogo",
-		},
-	)
 )
 
 func init() {
@@ -58,8 +50,4 @@ func updateHeaderHeightMetric(hHeight int) {
 
 func updateBlockHeightMetric(bHeight uint32) {
 	blockHeight.Set(float64(bHeight))
-}
-
-func updateStateHeightMetric(sHeight uint32) {
-	stateHeight.Set(float64(sHeight))
 }

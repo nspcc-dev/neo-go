@@ -7,6 +7,7 @@ import (
 	"sort"
 	"sync/atomic"
 
+	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
 	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer/services"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
@@ -40,6 +41,8 @@ type Designate struct {
 	OracleService atomic.Value
 	// NotaryService represents Notary node module.
 	NotaryService atomic.Value
+	// StateRootService represents StateRoot node module.
+	StateRootService blockchainer.StateRoot
 }
 
 type roleData struct {
@@ -172,12 +175,10 @@ func (s *Designate) hashFromNodes(r Role, nodes keys.PublicKeys) util.Uint160 {
 	}
 	var script []byte
 	switch r {
-	case RoleOracle, RoleNeoFSAlphabet:
-		script, _ = smartcontract.CreateDefaultMultiSigRedeemScript(nodes.Copy())
 	case RoleP2PNotary:
 		script, _ = smartcontract.CreateMultiSigRedeemScript(1, nodes.Copy())
 	default:
-		script, _ = smartcontract.CreateMajorityMultiSigRedeemScript(nodes.Copy())
+		script, _ = smartcontract.CreateDefaultMultiSigRedeemScript(nodes.Copy())
 	}
 	return hash.Hash160(script)
 }
@@ -200,6 +201,10 @@ func (s *Designate) updateCachedRoleData(v *atomic.Value, d dao.DAO, r Role) err
 	case RoleP2PNotary:
 		if ntr, _ := s.NotaryService.Load().(services.Notary); ntr != nil {
 			ntr.UpdateNotaryNodes(nodeKeys.Copy())
+		}
+	case RoleStateValidator:
+		if s.StateRootService != nil {
+			s.StateRootService.UpdateStateValidators(height, nodeKeys.Copy())
 		}
 	}
 	return nil

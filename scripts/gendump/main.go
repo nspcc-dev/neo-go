@@ -175,7 +175,7 @@ func newBlock(bc *core.Blockchain, lastBlock *block.Block, script []byte, txs ..
 		Transactions: txs,
 	}
 	if bc.GetConfig().StateRootInHeader {
-		sr, err := bc.GetStateRoot(bc.BlockHeight())
+		sr, err := bc.GetStateModule().GetStateRoot(bc.BlockHeight())
 		if err != nil {
 			return nil, err
 		}

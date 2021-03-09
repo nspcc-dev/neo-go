@@ -833,7 +833,7 @@ func (s *Server) getProof(ps request.Params) (interface{}, *response.Error) {
 		return nil, response.ErrInvalidParams
 	}
 	skey := makeStorageKey(cs.ID, key)
-	proof, err := s.chain.GetStateProof(root, skey)
+	proof, err := s.chain.GetStateModule().GetStateProof(root, skey)
 	return &result.GetProof{
 		Result: result.ProofWithKey{
 			Key:   skey,
@@ -869,7 +869,7 @@ func (s *Server) verifyProof(ps request.Params) (interface{}, *response.Error) {
 
 func (s *Server) getStateHeight(_ request.Params) (interface{}, *response.Error) {
 	var height = s.chain.BlockHeight()
-	var stateHeight uint32
+	var stateHeight = s.chain.GetStateModule().CurrentValidatedHeight()
 	if s.chain.GetConfig().StateRootInHeader {
 		stateHeight = height - 1
 	}
@@ -884,16 +884,16 @@ func (s *Server) getStateRoot(ps request.Params) (interface{}, *response.Error) 
 	if p == nil {
 		return nil, response.NewRPCError("Invalid parameter.", "", nil)
 	}
-	var rt *state.MPTRootState
+	var rt *state.MPTRoot
 	var h util.Uint256
 	height, err := p.GetInt()
 	if err == nil {
-		rt, err = s.chain.GetStateRoot(uint32(height))
+		rt, err = s.chain.GetStateModule().GetStateRoot(uint32(height))
 	} else if h, err = p.GetUint256(); err == nil {
 		var hdr *block.Header
 		hdr, err = s.chain.GetHeader(h)
 		if err == nil {
-			rt, err = s.chain.GetStateRoot(hdr.Index)
+			rt, err = s.chain.GetStateModule().GetStateRoot(hdr.Index)
 		}
 	}
 	if err != nil {

@@ -87,7 +87,7 @@ func (bc *Blockchain) newBlock(txs ...*transaction.Transaction) *block.Block {
 		}
 	}
 	if bc.config.StateRootInHeader {
-		sr, err := bc.GetStateRoot(bc.BlockHeight())
+		sr, err := bc.GetStateModule().GetStateRoot(bc.BlockHeight())
 		if err != nil {
 			panic(err)
 		}

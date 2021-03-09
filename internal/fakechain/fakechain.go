@@ -177,11 +177,6 @@ func (chain *FakeChain) AddBlock(block *block.Block) error {
 	return nil
 }
 
-// AddStateRoot implements Blockchainer interface.
-func (chain *FakeChain) AddStateRoot(r *state.MPTRoot) error {
-	panic("TODO")
-}
-
 // BlockHeight implements Feer interface.
 func (chain *FakeChain) BlockHeight() uint32 {
 	return atomic.LoadUint32(&chain.Blockheight)
@@ -279,14 +274,9 @@ func (chain *FakeChain) GetEnrollments() ([]state.Validator, error) {
 	panic("TODO")
 }
 
-// GetStateProof implements Blockchainer interface.
-func (chain *FakeChain) GetStateProof(util.Uint256, []byte) ([][]byte, error) {
-	panic("TODO")
-}
-
-// GetStateRoot implements Blockchainer interface.
-func (chain *FakeChain) GetStateRoot(height uint32) (*state.MPTRootState, error) {
-	panic("TODO")
+// GetStateModule implements Blockchainer interface.
+func (chain *FakeChain) GetStateModule() blockchainer.StateRoot {
+	return nil
 }
 
 // GetStorageItem implements Blockchainer interface.

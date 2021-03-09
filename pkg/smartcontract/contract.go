@@ -49,7 +49,7 @@ func CreateDefaultMultiSigRedeemScript(publicKeys keys.PublicKeys) ([]byte, erro
 // using publicKeys length with m set to majority.
 func CreateMajorityMultiSigRedeemScript(publicKeys keys.PublicKeys) ([]byte, error) {
 	n := len(publicKeys)
-	m := n - (n-1)/2
+	m := GetMajorityHonestNodeCount(n)
 	return CreateMultiSigRedeemScript(m, publicKeys)
 }
 
@@ -57,4 +57,10 @@ func CreateMajorityMultiSigRedeemScript(publicKeys keys.PublicKeys) ([]byte, err
 // required for network of size n.
 func GetDefaultHonestNodeCount(n int) int {
 	return n - (n-1)/3
+}
+
+// GetMajorityHonestNodeCount returns minimum number of honest nodes
+// required for majority-style agreement.
+func GetMajorityHonestNodeCount(n int) int {
+	return n - (n-1)/2
 }

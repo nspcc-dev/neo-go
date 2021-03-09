@@ -22,6 +22,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/network/payload"
 	"github.com/nspcc-dev/neo-go/pkg/services/notary"
 	"github.com/nspcc-dev/neo-go/pkg/services/oracle"
+	"github.com/nspcc-dev/neo-go/pkg/services/stateroot"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"go.uber.org/atomic"
 	"go.uber.org/zap"
@@ -87,7 +88,8 @@ type (
 		consensusStarted *atomic.Bool
 		canHandleExtens  *atomic.Bool
 
-		oracle *oracle.Oracle
+		oracle    *oracle.Oracle
+		stateRoot stateroot.Service
 
 		log *zap.Logger
 	}
@@ -171,6 +173,16 @@ func newServerFromConstructors(config ServerConfig, chain blockchainer.Blockchai
 		}
 	})
 
+	if config.StateRootCfg.Enabled && chain.GetConfig().StateRootInHeader {
+		return nil, errors.New("`StateRootInHeader` should be disabled when state service is enabled")
+	}
+
+	sr, err := stateroot.New(config.StateRootCfg, s.log, chain)
+	if err != nil {
+		return nil, fmt.Errorf("can't initialize StateRoot service: %w", err)
+	}
+	s.stateRoot = sr
+
 	if config.OracleCfg.Enabled {
 		orcCfg := oracle.Config{
 			Log:     log,
@@ -207,6 +219,10 @@ func newServerFromConstructors(config ServerConfig, chain blockchainer.Blockchai
 	}
 
 	s.consensus = srv
+
+	if config.StateRootCfg.Enabled {
+		s.stateRoot.SetRelayCallback(s.handleNewPayload)
+	}
 
 	if s.MinPeers < 0 {
 		s.log.Info("bad MinPeers configured, using the default value",
@@ -261,6 +277,9 @@ func (s *Server) Start(errChan chan error) {
 		s.notaryRequestPool.RunSubscriptions()
 		go s.notaryModule.Run()
 	}
+	if s.StateRootCfg.Enabled {
+		s.stateRoot.Run()
+	}
 	go s.relayBlocksLoop()
 	go s.bQueue.run()
 	go s.transport.Accept()
@@ -280,6 +299,9 @@ func (s *Server) Shutdown() {
 		p.Disconnect(errServerShutdown)
 	}
 	s.bQueue.discard()
+	if s.StateRootCfg.Enabled {
+		s.stateRoot.Shutdown()
+	}
 	if s.oracle != nil {
 		s.oracle.Shutdown()
 	}
@@ -293,6 +315,11 @@ func (s *Server) Shutdown() {
 // GetOracle returns oracle module instance.
 func (s *Server) GetOracle() *oracle.Oracle {
 	return s.oracle
+}
+
+// GetStateRoot returns state root service instance.
+func (s *Server) GetStateRoot() stateroot.Service {
+	return s.stateRoot
 }
 
 // UnconnectedPeers returns a list of peers that are in the discovery peer list
@@ -803,7 +830,11 @@ func (s *Server) handleExtensibleCmd(e *payload.Extensible) error {
 	switch e.Category {
 	case consensus.Category:
 		s.consensus.OnPayload(e)
-	case "StateService": // no-op for now
+	case stateroot.Category:
+		err := s.stateRoot.OnPayload(e)
+		if err != nil {
+			return err
+		}
 	default:
 		return errors.New("invalid category")
 	}
@@ -1035,9 +1066,14 @@ func (s *Server) handleNewPayload(p *payload.Extensible) {
 	}
 
 	msg := NewMessage(CMDInv, payload.NewInventory(payload.ExtensibleType, []util.Uint256{p.Hash()}))
-	// It's high priority because it directly affects consensus process,
-	// even though it's just an inv.
-	s.broadcastHPMessage(msg)
+	switch p.Category {
+	case consensus.Category:
+		// It's high priority because it directly affects consensus process,
+		// even though it's just an inv.
+		s.broadcastHPMessage(msg)
+	default:
+		s.broadcastMessage(msg)
+	}
 }
 
 func (s *Server) requestTx(hashes ...util.Uint256) {
