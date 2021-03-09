@@ -60,8 +60,8 @@ type rpcTestCase struct {
 }
 
 const testContractHash = "1e1c3024bd955ff3baf7cb92e3b7608c7bb3712b"
-const deploymentTxHash = "9b14d575ae0f45a4e2765929a28a118693428edb8143615cc2ae58d5039d1c38"
-const genesisBlockHash = "9e7cf6fcfc8d0d6831fac75fa895535a5f1960f45a34754b57bff4d4929635c5"
+const deploymentTxHash = "7cf43b182dee2e8bd2c5209cd230799aeba1b5b13000db682d917c89eacd1eae"
+const genesisBlockHash = "d237e3500d8b4cf0df3fd9c4c053016afae141207a6c732303bdd91aff444ecc"
 
 const verifyContractHash = "5bb4bac40e961e334ba7bd36d2496010f67e246e"
 const verifyContractAVM = "VwMAQS1RCDAhcAwUVVQtU+0PVUb61E1umZEoZwIvzl7bMHFoE87bKGnbKJdA"

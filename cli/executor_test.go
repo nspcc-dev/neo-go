@@ -31,8 +31,8 @@ import (
 
 const (
 	validatorWIF  = "KxyjQ8eUa4FHt3Gvioyt1Wz29cTUrE4eTqX3yFSk1YFCsPL8uNsY"
-	validatorAddr = "NVNvVRW5Q5naSx2k2iZm7xRgtRNGuZppAK"
-	multisigAddr  = "NUVPACMnKFhpuHjsRjhUvXz1XhqfGZYVtY"
+	validatorAddr = "NNudMSGzEoktFzdYGYoNb3bzHzbmM1genF"
+	multisigAddr  = "NgEisvCqr2h8wpRxQb7bVPWUZdbVCY8Uo6"
 
 	validatorWallet = "testdata/wallet1_solo.json"
 )

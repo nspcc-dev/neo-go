@@ -60,12 +60,12 @@ func TestNEP17Balance(t *testing.T) {
 		e.checkNextLine(t, "^\\s*Updated:")
 		e.checkNextLine(t, "^\\s*$")
 
-		addr2, err := address.StringToUint160("NUVPACMnKFhpuHjsRjhUvXz1XhqfGZYVtY")
+		addr2, err := address.StringToUint160("NgEisvCqr2h8wpRxQb7bVPWUZdbVCY8Uo6")
 		require.NoError(t, err)
 		e.checkNextLine(t, "^Account "+address.Uint160ToString(addr2))
 		e.checkNextLine(t, "^\\s*$")
 
-		addr3, err := address.StringToUint160("NVNvVRW5Q5naSx2k2iZm7xRgtRNGuZppAK")
+		addr3, err := address.StringToUint160("NNudMSGzEoktFzdYGYoNb3bzHzbmM1genF")
 		require.NoError(t, err)
 		e.checkNextLine(t, "^Account "+address.Uint160ToString(addr3))
 		// The order of assets is undefined.
@@ -85,7 +85,7 @@ func TestNEP17Balance(t *testing.T) {
 		}
 
 		e.checkNextLine(t, "^\\s*$")
-		addr4, err := address.StringToUint160("NWTDxsHVde5qSjRkTRUAg6i8xC3JSWEC9k") // deployed verify.go contract
+		addr4, err := address.StringToUint160("NTe3yHH5zsaEGvEHTsFRpCjTef6Aod4yb6") // deployed verify.go contract
 		require.NoError(t, err)
 		e.checkNextLine(t, "^Account "+address.Uint160ToString(addr4))
 		e.checkEOF(t)

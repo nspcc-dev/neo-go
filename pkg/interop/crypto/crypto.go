@@ -8,14 +8,15 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/interop/neogointernal"
 )
 
-// ECDSASecp256r1CheckMultisig checks multiple ECDSA signatures at once. It uses
-// `Neo.Crypto.CheckMultisigWithECDsaSecp256r1` syscall.
-func ECDSASecp256r1CheckMultisig(msg []byte, pubs []interop.PublicKey, sigs []interop.Signature) bool {
-	return neogointernal.Syscall3("Neo.Crypto.CheckMultisigWithECDsaSecp256r1", msg, pubs, sigs).(bool)
+// CheckMultisig checks that script container (transaction) is signed by multiple
+// ECDSA keys at once. It uses `Neo.Crypto.CheckMultisig` syscall.
+func CheckMultisig(pubs []interop.PublicKey, sigs []interop.Signature) bool {
+	return neogointernal.Syscall2("Neo.Crypto.CheckMultisig", pubs, sigs).(bool)
 }
 
-// CheckSig checks that sig is correct script-container's signature for a given pub
-// (serialized public key). It uses `Neo.Crypto.CheckSig` syscall.
+// CheckSig checks that sig is correct signature of the script container
+// (transaction) for a given pub (serialized public key). It uses
+// `Neo.Crypto.CheckSig` syscall.
 func CheckSig(pub interop.PublicKey, sig interop.Signature) bool {
 	return neogointernal.Syscall2("Neo.Crypto.CheckSig", pub, sig).(bool)
 }

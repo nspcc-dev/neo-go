@@ -14,7 +14,7 @@ import (
 
 var (
 	verifyInteropID   = interopnames.ToID([]byte(interopnames.NeoCryptoCheckSig))
-	multisigInteropID = interopnames.ToID([]byte(interopnames.NeoCryptoCheckMultisigWithECDsaSecp256r1))
+	multisigInteropID = interopnames.ToID([]byte(interopnames.NeoCryptoCheckMultisig))
 )
 
 func getNumOfThingsFromInstr(instr opcode.Opcode, param []byte) (int, bool) {
@@ -49,6 +49,9 @@ func IsMultiSigContract(script []byte) bool {
 // from the verification script of the contract.
 func ParseMultiSigContract(script []byte) (int, [][]byte, bool) {
 	var nsigs, nkeys int
+	if len(script) < 42 {
+		return nsigs, nil, false
+	}
 
 	ctx := NewContext(script)
 	instr, param, err := ctx.Next()
@@ -85,10 +88,6 @@ func ParseMultiSigContract(script []byte) (int, [][]byte, bool) {
 		return nsigs, nil, false
 	}
 	if nkeys2 != nkeys {
-		return nsigs, nil, false
-	}
-	instr, _, err = ctx.Next()
-	if err != nil || instr != opcode.PUSHNULL {
 		return nsigs, nil, false
 	}
 	instr, param, err = ctx.Next()

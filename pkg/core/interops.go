@@ -75,7 +75,7 @@ var systemInterops = []interop.Function{
 }
 
 var neoInterops = []interop.Function{
-	{Name: interopnames.NeoCryptoCheckMultisigWithECDsaSecp256r1, Func: crypto.ECDSASecp256r1CheckMultisig, Price: 0, ParamCount: 3},
+	{Name: interopnames.NeoCryptoCheckMultisig, Func: crypto.ECDSASecp256r1CheckMultisig, Price: 0, ParamCount: 2},
 	{Name: interopnames.NeoCryptoCheckSig, Func: crypto.ECDSASecp256r1CheckSig, Price: fee.ECDSAVerifyPrice, ParamCount: 2},
 }
 

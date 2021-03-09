@@ -13,6 +13,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
+	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
@@ -60,12 +61,15 @@ func subSlice(arr []stackitem.Item, indices []int) []stackitem.Item {
 	return result
 }
 
-func initCheckMultisigVMNoArgs() *vm.VM {
+func initCheckMultisigVMNoArgs(container *transaction.Transaction) *vm.VM {
 	buf := make([]byte, 5)
 	buf[0] = byte(opcode.SYSCALL)
-	binary.LittleEndian.PutUint32(buf[1:], ecdsaSecp256r1CheckMultisigID)
+	binary.LittleEndian.PutUint32(buf[1:], neoCryptoCheckMultisigID)
 
-	ic := &interop.Context{Trigger: trigger.Verification}
+	ic := &interop.Context{
+		Trigger:   trigger.Verification,
+		Container: container,
+	}
 	Register(ic)
 	v := ic.SpawnVM()
 	v.LoadScript(buf)
@@ -73,10 +77,13 @@ func initCheckMultisigVMNoArgs() *vm.VM {
 }
 
 func initCHECKMULTISIGVM(t *testing.T, n int, ik, is []int) *vm.VM {
-	v := initCheckMultisigVMNoArgs()
-	msg := []byte("NEO - An Open Network For Smart Economy")
+	tx := transaction.New(netmode.UnitTestNet, []byte("NEO - An Open Network For Smart Economy"), 10)
+	tx.Signers = []transaction.Signer{{Account: util.Uint160{1, 2, 3}}}
+	tx.Scripts = []transaction.Witness{{}}
 
-	pubs, sigs, _, err := initCHECKMULTISIG(msg, n)
+	v := initCheckMultisigVMNoArgs(tx)
+
+	pubs, sigs, _, err := initCHECKMULTISIG(tx.GetSignedPart(), n)
 	require.NoError(t, err)
 
 	pubs = subSlice(pubs, ik)
@@ -84,7 +91,6 @@ func initCHECKMULTISIGVM(t *testing.T, n int, ik, is []int) *vm.VM {
 
 	v.Estack().PushVal(sigs)
 	v.Estack().PushVal(pubs)
-	v.Estack().PushVal(msg)
 
 	return v
 }
@@ -142,26 +148,20 @@ func testCurveCHECKMULTISIGBad(t *testing.T) {
 	pubs, sigs, _, err := initCHECKMULTISIG(msg, 1)
 	require.NoError(t, err)
 	arr := stackitem.NewArray([]stackitem.Item{stackitem.NewArray(nil)})
+	tx := transaction.New(netmode.UnitTestNet, []byte("NEO - An Open Network For Smart Economy"), 10)
+	tx.Signers = []transaction.Signer{{Account: util.Uint160{1, 2, 3}}}
+	tx.Scripts = []transaction.Witness{{}}
 
-	t.Run("invalid message type", func(t *testing.T) {
-		v := initCheckMultisigVMNoArgs()
-		v.Estack().PushVal(sigs)
-		v.Estack().PushVal(pubs)
-		v.Estack().PushVal(stackitem.NewArray(nil))
-		require.Error(t, v.Run())
-	})
 	t.Run("invalid public keys", func(t *testing.T) {
-		v := initCheckMultisigVMNoArgs()
+		v := initCheckMultisigVMNoArgs(tx)
 		v.Estack().PushVal(sigs)
 		v.Estack().PushVal(arr)
-		v.Estack().PushVal(msg)
 		require.Error(t, v.Run())
 	})
 	t.Run("invalid signatures", func(t *testing.T) {
-		v := initCheckMultisigVMNoArgs()
+		v := initCheckMultisigVMNoArgs(tx)
 		v.Estack().PushVal(arr)
 		v.Estack().PushVal(pubs)
-		v.Estack().PushVal(msg)
 		require.Error(t, v.Run())
 	})
 }

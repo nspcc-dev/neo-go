@@ -346,12 +346,12 @@ func TestDumpKeys(t *testing.T) {
 		e.checkNextLine(t, "NTh9TnZTstvAePEYWDGLLxidBikJE24uTo")
 		e.checkNextLine(t, pubRegex)
 		e.checkNextLine(t, "^\\s*$")
-		e.checkNextLine(t, "NUVPACMnKFhpuHjsRjhUvXz1XhqfGZYVtY")
+		e.checkNextLine(t, "NgEisvCqr2h8wpRxQb7bVPWUZdbVCY8Uo6")
 		for i := 0; i < 4; i++ {
 			e.checkNextLine(t, pubRegex)
 		}
 		e.checkNextLine(t, "^\\s*$")
-		e.checkNextLine(t, "NVNvVRW5Q5naSx2k2iZm7xRgtRNGuZppAK")
+		e.checkNextLine(t, "NNudMSGzEoktFzdYGYoNb3bzHzbmM1genF")
 		e.checkNextLine(t, pubRegex)
 		e.checkEOF(t)
 	})
@@ -363,7 +363,7 @@ func TestDumpKeys(t *testing.T) {
 		e.checkEOF(t)
 	})
 	t.Run("3/4 multisig", func(t *testing.T) {
-		cmd := append(cmd, "-a", "NUVPACMnKFhpuHjsRjhUvXz1XhqfGZYVtY")
+		cmd := append(cmd, "-a", "NgEisvCqr2h8wpRxQb7bVPWUZdbVCY8Uo6")
 		e.Run(t, cmd...)
 		e.checkNextLine(t, "3 out of 4 multisig contract")
 		for i := 0; i < 4; i++ {
@@ -372,7 +372,7 @@ func TestDumpKeys(t *testing.T) {
 		e.checkEOF(t)
 	})
 	t.Run("1/1 multisig", func(t *testing.T) {
-		cmd := append(cmd, "--address", "NVNvVRW5Q5naSx2k2iZm7xRgtRNGuZppAK")
+		cmd := append(cmd, "--address", "NNudMSGzEoktFzdYGYoNb3bzHzbmM1genF")
 		e.Run(t, cmd...)
 		e.checkNextLine(t, "1 out of 1 multisig contract")
 		e.checkNextLine(t, pubRegex)

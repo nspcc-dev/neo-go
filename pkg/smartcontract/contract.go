@@ -8,7 +8,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
-	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 )
 
 // CreateMultiSigRedeemScript creates an "m out of n" type verification script
@@ -31,8 +30,7 @@ func CreateMultiSigRedeemScript(m int, publicKeys keys.PublicKeys) ([]byte, erro
 		emit.Bytes(buf.BinWriter, pubKey.Bytes())
 	}
 	emit.Int(buf.BinWriter, int64(len(publicKeys)))
-	emit.Opcodes(buf.BinWriter, opcode.PUSHNULL)
-	emit.Syscall(buf.BinWriter, interopnames.NeoCryptoCheckMultisigWithECDsaSecp256r1)
+	emit.Syscall(buf.BinWriter, interopnames.NeoCryptoCheckMultisig)
 
 	return buf.Bytes(), nil
 }

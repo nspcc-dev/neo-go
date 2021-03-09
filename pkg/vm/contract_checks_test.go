@@ -102,15 +102,9 @@ func TestIsMultiSigContract(t *testing.T) {
 		assert.False(t, IsMultiSigContract(prog))
 	})
 
-	t.Run("no PUSHNULL", func(t *testing.T) {
-		prog := testMultisigContract(t, 2, 2)
-		prog[len(prog)-6] ^= 0xFF
-		assert.False(t, IsMultiSigContract(prog))
-	})
-
 	t.Run("invalid keys number", func(t *testing.T) {
 		prog := testMultisigContract(t, 2, 2)
-		prog[len(prog)-7] = byte(opcode.PUSH3)
+		prog[len(prog)-6] = byte(opcode.PUSH3)
 		assert.False(t, IsMultiSigContract(prog))
 	})
 
