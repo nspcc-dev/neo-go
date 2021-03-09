@@ -19,6 +19,9 @@ func FromBytes(data []byte) *big.Int {
 	n := new(big.Int)
 	size := len(data)
 	if size == 0 {
+		if data == nil {
+			panic("nil slice provided to `FromBytes`")
+		}
 		return big.NewInt(0)
 	}
 

@@ -73,10 +73,6 @@ func storageDelete(ic *interop.Context) error {
 	}
 	ic.VM.AddGas(ic.Chain.GetPolicer().GetStoragePrice())
 	key := ic.VM.Estack().Pop().Bytes()
-	si := ic.DAO.GetStorageItem(stc.ID, key)
-	if si != nil && si.IsConst {
-		return errors.New("storage item is constant")
-	}
 	return ic.DAO.DeleteStorageItem(stc.ID, key)
 }
 
@@ -89,8 +85,8 @@ func storageGet(ic *interop.Context) error {
 	}
 	key := ic.VM.Estack().Pop().Bytes()
 	si := ic.DAO.GetStorageItem(stc.ID, key)
-	if si != nil && si.Value != nil {
-		ic.VM.Estack().PushVal(si.Value)
+	if si != nil {
+		ic.VM.Estack().PushVal([]byte(si))
 	} else {
 		ic.VM.Estack().PushVal(stackitem.Null{})
 	}
@@ -122,7 +118,7 @@ func storageGetContextInternal(ic *interop.Context, isReadOnly bool) error {
 	return nil
 }
 
-func putWithContextAndFlags(ic *interop.Context, stc *StorageContext, key []byte, value []byte, isConst bool) error {
+func putWithContext(ic *interop.Context, stc *StorageContext, key []byte, value []byte) error {
 	if len(key) > MaxStorageKeyLen {
 		return errors.New("key is too big")
 	}
@@ -133,30 +129,25 @@ func putWithContextAndFlags(ic *interop.Context, stc *StorageContext, key []byte
 		return errors.New("StorageContext is read only")
 	}
 	si := ic.DAO.GetStorageItem(stc.ID, key)
-	if si != nil && si.IsConst {
-		return errors.New("storage item exists and is read-only")
-	}
-	sizeInc := 1
+	sizeInc := len(value)
 	if si == nil {
-		si = &state.StorageItem{}
+		si = state.StorageItem{}
 		sizeInc = len(key) + len(value)
 	} else if len(value) != 0 {
-		if len(value) <= len(si.Value) {
+		if len(value) <= len(si) {
 			sizeInc = (len(value)-1)/4 + 1
-		} else {
-			sizeInc = (len(si.Value)-1)/4 + 1 + len(value) - len(si.Value)
+		} else if len(si) != 0 {
+			sizeInc = (len(si)-1)/4 + 1 + len(value) - len(si)
 		}
 	}
 	if !ic.VM.AddGas(int64(sizeInc) * ic.Chain.GetPolicer().GetStoragePrice()) {
 		return errGasLimitExceeded
 	}
-	si.Value = value
-	si.IsConst = isConst
-	return ic.DAO.PutStorageItem(stc.ID, key, si)
+	return ic.DAO.PutStorageItem(stc.ID, key, value)
 }
 
-// storagePutInternal is a unified implementation of storagePut and storagePutEx.
-func storagePutInternal(ic *interop.Context, getFlag bool) error {
+// storagePut puts key-value pair into the storage.
+func storagePut(ic *interop.Context) error {
 	stcInterface := ic.VM.Estack().Pop().Value()
 	stc, ok := stcInterface.(*StorageContext)
 	if !ok {
@@ -164,21 +155,7 @@ func storagePutInternal(ic *interop.Context, getFlag bool) error {
 	}
 	key := ic.VM.Estack().Pop().Bytes()
 	value := ic.VM.Estack().Pop().Bytes()
-	var flag int
-	if getFlag {
-		flag = int(ic.VM.Estack().Pop().BigInt().Int64())
-	}
-	return putWithContextAndFlags(ic, stc, key, value, int(Constant)&flag != 0)
-}
-
-// storagePut puts key-value pair into the storage.
-func storagePut(ic *interop.Context) error {
-	return storagePutInternal(ic, false)
-}
-
-// storagePutEx puts key-value pair with given flags into the storage.
-func storagePutEx(ic *interop.Context) error {
-	return storagePutInternal(ic, true)
+	return putWithContext(ic, stc, key, value)
 }
 
 // storageContextAsReadOnly sets given context to read-only mode.

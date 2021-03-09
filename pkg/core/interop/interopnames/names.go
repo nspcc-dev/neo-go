@@ -46,7 +46,6 @@ const (
 	SystemStorageGetContext                  = "System.Storage.GetContext"
 	SystemStorageGetReadOnlyContext          = "System.Storage.GetReadOnlyContext"
 	SystemStoragePut                         = "System.Storage.Put"
-	SystemStoragePutEx                       = "System.Storage.PutEx"
 	SystemStorageAsReadOnly                  = "System.Storage.AsReadOnly"
 	NeoCryptoVerifyWithECDsaSecp256r1        = "Neo.Crypto.VerifyWithECDsaSecp256r1"
 	NeoCryptoVerifyWithECDsaSecp256k1        = "Neo.Crypto.VerifyWithECDsaSecp256k1"
@@ -101,7 +100,6 @@ var names = []string{
 	SystemStorageGetContext,
 	SystemStorageGetReadOnlyContext,
 	SystemStoragePut,
-	SystemStoragePutEx,
 	SystemStorageAsReadOnly,
 	NeoCryptoVerifyWithECDsaSecp256r1,
 	NeoCryptoVerifyWithECDsaSecp256k1,

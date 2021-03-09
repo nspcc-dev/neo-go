@@ -166,8 +166,7 @@ func (o *Oracle) PostPersist(ic *interop.Context) error {
 		if len(*idList) == 0 {
 			err = ic.DAO.DeleteStorageItem(o.ID, idKey)
 		} else {
-			si := &state.StorageItem{Value: idList.Bytes()}
-			err = ic.DAO.PutStorageItem(o.ID, idKey, si)
+			err = ic.DAO.PutStorageItem(o.ID, idKey, idList.Bytes())
 		}
 		if err != nil {
 			return err
@@ -303,10 +302,10 @@ func (o *Oracle) RequestInternal(ic *interop.Context, url string, filter *string
 	callingHash := ic.VM.GetCallingScriptHash()
 	o.GAS.mint(ic, o.Hash, gas, false)
 	si := ic.DAO.GetStorageItem(o.ID, prefixRequestID)
-	itemID := bigint.FromBytes(si.Value)
+	itemID := bigint.FromBytes(si)
 	id := itemID.Uint64()
 	itemID.Add(itemID, intOne)
-	si.Value = bigint.ToPreallocatedBytes(itemID, si.Value)
+	si = bigint.ToPreallocatedBytes(itemID, si)
 	if err := ic.DAO.PutStorageItem(o.ID, prefixRequestID, si); err != nil {
 		return err
 	}
@@ -357,9 +356,8 @@ func (o *Oracle) RequestInternal(ic *interop.Context, url string, filter *string
 
 // PutRequestInternal puts oracle request with the specified id to d.
 func (o *Oracle) PutRequestInternal(id uint64, req *state.OracleRequest, d dao.DAO) error {
-	reqItem := &state.StorageItem{Value: req.Bytes()}
 	reqKey := makeRequestKey(id)
-	if err := d.PutStorageItem(o.ID, reqKey, reqItem); err != nil {
+	if err := d.PutStorageItem(o.ID, reqKey, req.Bytes()); err != nil {
 		return err
 	}
 	o.newRequests[id] = req
@@ -374,8 +372,7 @@ func (o *Oracle) PutRequestInternal(id uint64, req *state.OracleRequest, d dao.D
 		return fmt.Errorf("there are too many pending requests for %s url", req.URL)
 	}
 	*lst = append(*lst, id)
-	si := &state.StorageItem{Value: lst.Bytes()}
-	return d.PutStorageItem(o.ID, key, si)
+	return d.PutStorageItem(o.ID, key, lst.Bytes())
 }
 
 // GetScriptHash returns script hash or oracle nodes.
@@ -429,7 +426,7 @@ func (o *Oracle) getRequests(d dao.DAO) (map[uint64]*state.OracleRequest, error)
 		if len(k) != 8 {
 			return nil, errors.New("invalid request ID")
 		}
-		r := io.NewBinReaderFromBuf(si.Value)
+		r := io.NewBinReaderFromBuf(si)
 		req := new(state.OracleRequest)
 		req.DecodeBinary(r)
 		if r.Err != nil {

@@ -41,7 +41,7 @@ func newGAS() *GAS {
 }
 
 func (g *GAS) increaseBalance(_ *interop.Context, _ util.Uint160, si *state.StorageItem, amount *big.Int) error {
-	acc, err := state.NEP17BalanceStateFromBytes(si.Value)
+	acc, err := state.NEP17BalanceStateFromBytes(*si)
 	if err != nil {
 		return err
 	}
@@ -52,9 +52,9 @@ func (g *GAS) increaseBalance(_ *interop.Context, _ util.Uint160, si *state.Stor
 	}
 	acc.Balance.Add(&acc.Balance, amount)
 	if acc.Balance.Sign() != 0 {
-		si.Value = acc.Bytes()
+		*si = acc.Bytes()
 	} else {
-		si.Value = nil
+		*si = nil
 	}
 	return nil
 }

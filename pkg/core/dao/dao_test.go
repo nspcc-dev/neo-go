@@ -64,7 +64,7 @@ func TestPutGetStorageItem(t *testing.T) {
 	dao := NewSimple(storage.NewMemoryStore(), netmode.UnitTestNet, false)
 	id := int32(random.Int(0, 1024))
 	key := []byte{0}
-	storageItem := &state.StorageItem{Value: []uint8{}}
+	storageItem := state.StorageItem{}
 	err := dao.PutStorageItem(id, key, storageItem)
 	require.NoError(t, err)
 	gotStorageItem := dao.GetStorageItem(id, key)
@@ -75,7 +75,7 @@ func TestDeleteStorageItem(t *testing.T) {
 	dao := NewSimple(storage.NewMemoryStore(), netmode.UnitTestNet, false)
 	id := int32(random.Int(0, 1024))
 	key := []byte{0}
-	storageItem := &state.StorageItem{Value: []uint8{}}
+	storageItem := state.StorageItem{}
 	err := dao.PutStorageItem(id, key, storageItem)
 	require.NoError(t, err)
 	err = dao.DeleteStorageItem(id, key)

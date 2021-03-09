@@ -51,31 +51,15 @@ func TestStorageFind(t *testing.T) {
 
 	skeys := [][]byte{{0x01, 0x02}, {0x02, 0x01}, {0x01, 0x01},
 		{0x04, 0x00}, {0x05, 0x00}, {0x06}, {0x07}, {0x08}}
-	items := []*state.StorageItem{
-		{
-			Value: []byte{0x01, 0x02, 0x03, 0x04},
-		},
-		{
-			Value: []byte{0x04, 0x03, 0x02, 0x01},
-		},
-		{
-			Value: []byte{0x03, 0x04, 0x05, 0x06},
-		},
-		{
-			Value: []byte{byte(stackitem.ByteArrayT), 2, 0xCA, 0xFE},
-		},
-		{
-			Value: []byte{0xFF, 0xFF},
-		},
-		{
-			Value: rawArr,
-		},
-		{
-			Value: rawArr0,
-		},
-		{
-			Value: rawArr1,
-		},
+	items := []state.StorageItem{
+		[]byte{0x01, 0x02, 0x03, 0x04},
+		[]byte{0x04, 0x03, 0x02, 0x01},
+		[]byte{0x03, 0x04, 0x05, 0x06},
+		[]byte{byte(stackitem.ByteArrayT), 2, 0xCA, 0xFE},
+		[]byte{0xFF, 0xFF},
+		rawArr,
+		rawArr0,
+		rawArr1,
 	}
 
 	require.NoError(t, chain.contracts.Management.PutContractState(chain.dao, contractState))
@@ -121,11 +105,11 @@ func TestStorageFind(t *testing.T) {
 		testFind(t, 0x01, istorage.FindDefault, []stackitem.Item{
 			stackitem.NewStruct([]stackitem.Item{
 				stackitem.NewByteArray(skeys[2]),
-				stackitem.NewByteArray(items[2].Value),
+				stackitem.NewByteArray(items[2]),
 			}),
 			stackitem.NewStruct([]stackitem.Item{
 				stackitem.NewByteArray(skeys[0]),
-				stackitem.NewByteArray(items[0].Value),
+				stackitem.NewByteArray(items[0]),
 			}),
 		})
 	})
@@ -144,13 +128,13 @@ func TestStorageFind(t *testing.T) {
 	})
 	t.Run("values only", func(t *testing.T) {
 		testFind(t, 0x01, istorage.FindValuesOnly, []stackitem.Item{
-			stackitem.NewByteArray(items[2].Value),
-			stackitem.NewByteArray(items[0].Value),
+			stackitem.NewByteArray(items[2]),
+			stackitem.NewByteArray(items[0]),
 		})
 	})
 	t.Run("deserialize values", func(t *testing.T) {
 		testFind(t, 0x04, istorage.FindValuesOnly|istorage.FindDeserialize, []stackitem.Item{
-			stackitem.NewByteArray(items[3].Value[2:]),
+			stackitem.NewByteArray(items[3][2:]),
 		})
 		t.Run("invalid", func(t *testing.T) {
 			v.Estack().PushVal(istorage.FindDeserialize)

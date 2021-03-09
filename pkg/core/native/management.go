@@ -480,16 +480,8 @@ func (m *Management) InitializeCache(d dao.DAO) error {
 
 	var initErr error
 	d.Seek(m.ID, []byte{prefixContract}, func(_, v []byte) {
-		var r = io.NewBinReaderFromBuf(v)
-		var si state.StorageItem
-		si.DecodeBinary(r)
-		if r.Err != nil {
-			initErr = r.Err
-			return
-		}
-
 		var cs state.Contract
-		r = io.NewBinReaderFromBuf(si.Value)
+		r := io.NewBinReaderFromBuf(v)
 		cs.DecodeBinary(r)
 		if r.Err != nil {
 			initErr = r.Err
@@ -546,10 +538,10 @@ func (m *Management) getNextContractID(d dao.DAO) (int32, error) {
 		return 0, errors.New("nextAvailableID is not initialized")
 
 	}
-	id := bigint.FromBytes(si.Value)
+	id := bigint.FromBytes(si)
 	ret := int32(id.Int64())
 	id.Add(id, intOne)
-	si.Value = bigint.ToPreallocatedBytes(id, si.Value)
+	si = bigint.ToPreallocatedBytes(id, si)
 	return ret, d.PutStorageItem(m.ID, keyNextAvailableID, si)
 }
 

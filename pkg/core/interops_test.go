@@ -39,7 +39,6 @@ func TestUnexpectedNonInterops(t *testing.T) {
 		storageFind,
 		storageGet,
 		storagePut,
-		storagePutEx,
 	}
 	for _, f := range funcs {
 		for k, v := range vals {

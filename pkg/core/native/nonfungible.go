@@ -141,12 +141,11 @@ func (n *nonfungible) TotalSupply(d dao.DAO) *big.Int {
 	if si == nil {
 		panic(errors.New("total supply is not initialized"))
 	}
-	return bigint.FromBytes(si.Value)
+	return bigint.FromBytes(si)
 }
 
 func (n *nonfungible) setTotalSupply(d dao.DAO, ts *big.Int) {
-	si := &state.StorageItem{Value: bigint.ToBytes(ts)}
-	err := d.PutStorageItem(n.ID, nftTotalSupplyKey, si)
+	err := d.PutStorageItem(n.ID, nftTotalSupplyKey, bigint.ToBytes(ts))
 	if err != nil {
 		panic(err)
 	}
@@ -222,7 +221,7 @@ func (n *nonfungible) tokens(ic *interop.Context, args []stackitem.Item) stackit
 	}
 	filteredMap := stackitem.NewMap()
 	for k, v := range siMap {
-		filteredMap.Add(stackitem.NewByteArray(append(prefix, []byte(k)...)), stackitem.NewByteArray(v.Value))
+		filteredMap.Add(stackitem.NewByteArray(append(prefix, []byte(k)...)), stackitem.NewByteArray(v))
 	}
 	sort.Slice(filteredMap.Value().([]stackitem.MapElement), func(i, j int) bool {
 		return bytes.Compare(filteredMap.Value().([]stackitem.MapElement)[i].Key.Value().([]byte),
