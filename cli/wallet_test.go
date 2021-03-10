@@ -318,7 +318,7 @@ func TestWalletDump(t *testing.T) {
 	w := new(wallet.Wallet)
 	require.NoError(t, json.Unmarshal([]byte(rawStr), w))
 	require.Equal(t, 1, len(w.Accounts))
-	require.Equal(t, "NNuJqXDnRqvwgzhSzhH4jnVFWB1DyZ34EM", w.Accounts[0].Address)
+	require.Equal(t, "NUSEsqon6PikQA5mDFaV4njemF9Su8JEmf", w.Accounts[0].Address)
 
 	t.Run("with decrypt", func(t *testing.T) {
 		cmd = append(cmd, "--decrypt")
@@ -333,7 +333,7 @@ func TestWalletDump(t *testing.T) {
 		w := new(wallet.Wallet)
 		require.NoError(t, json.Unmarshal([]byte(rawStr), w))
 		require.Equal(t, 1, len(w.Accounts))
-		require.Equal(t, "NNuJqXDnRqvwgzhSzhH4jnVFWB1DyZ34EM", w.Accounts[0].Address)
+		require.Equal(t, "NUSEsqon6PikQA5mDFaV4njemF9Su8JEmf", w.Accounts[0].Address)
 	})
 }
 
@@ -343,27 +343,27 @@ func TestDumpKeys(t *testing.T) {
 	pubRegex := "^0[23][a-hA-H0-9]{64}$"
 	t.Run("all", func(t *testing.T) {
 		e.Run(t, cmd...)
-		e.checkNextLine(t, "NbTiM6h8r99kpRtb428XcsUk1TzKed2gTc")
+		e.checkNextLine(t, "NTh9TnZTstvAePEYWDGLLxidBikJE24uTo")
 		e.checkNextLine(t, pubRegex)
 		e.checkNextLine(t, "^\\s*$")
-		e.checkNextLine(t, "NUVPACMnKFhpuHjsRjhUvXz1XhqfGZYVtY")
+		e.checkNextLine(t, "NgEisvCqr2h8wpRxQb7bVPWUZdbVCY8Uo6")
 		for i := 0; i < 4; i++ {
 			e.checkNextLine(t, pubRegex)
 		}
 		e.checkNextLine(t, "^\\s*$")
-		e.checkNextLine(t, "NVNvVRW5Q5naSx2k2iZm7xRgtRNGuZppAK")
+		e.checkNextLine(t, "NNudMSGzEoktFzdYGYoNb3bzHzbmM1genF")
 		e.checkNextLine(t, pubRegex)
 		e.checkEOF(t)
 	})
 	t.Run("simple signature", func(t *testing.T) {
-		cmd := append(cmd, "--address", "NbTiM6h8r99kpRtb428XcsUk1TzKed2gTc")
+		cmd := append(cmd, "--address", "NTh9TnZTstvAePEYWDGLLxidBikJE24uTo")
 		e.Run(t, cmd...)
 		e.checkNextLine(t, "simple signature contract")
 		e.checkNextLine(t, pubRegex)
 		e.checkEOF(t)
 	})
 	t.Run("3/4 multisig", func(t *testing.T) {
-		cmd := append(cmd, "-a", "NUVPACMnKFhpuHjsRjhUvXz1XhqfGZYVtY")
+		cmd := append(cmd, "-a", "NgEisvCqr2h8wpRxQb7bVPWUZdbVCY8Uo6")
 		e.Run(t, cmd...)
 		e.checkNextLine(t, "3 out of 4 multisig contract")
 		for i := 0; i < 4; i++ {
@@ -372,7 +372,7 @@ func TestDumpKeys(t *testing.T) {
 		e.checkEOF(t)
 	})
 	t.Run("1/1 multisig", func(t *testing.T) {
-		cmd := append(cmd, "--address", "NVNvVRW5Q5naSx2k2iZm7xRgtRNGuZppAK")
+		cmd := append(cmd, "--address", "NNudMSGzEoktFzdYGYoNb3bzHzbmM1genF")
 		e.Run(t, cmd...)
 		e.checkNextLine(t, "1 out of 1 multisig contract")
 		e.checkNextLine(t, pubRegex)

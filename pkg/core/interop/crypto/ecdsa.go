@@ -5,64 +5,16 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/btcsuite/btcd/btcec"
 	"github.com/nspcc-dev/neo-go/pkg/core/fee"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
-	"github.com/nspcc-dev/neo-go/pkg/crypto"
-	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
-	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
-	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
-
-// ECDSASecp256r1Verify checks ECDSA signature using Secp256r1 elliptic curve.
-func ECDSASecp256r1Verify(ic *interop.Context) error {
-	return ecdsaVerify(ic, elliptic.P256())
-}
-
-// ECDSASecp256k1Verify checks ECDSA signature using Secp256k1 elliptic curve
-func ECDSASecp256k1Verify(ic *interop.Context) error {
-	return ecdsaVerify(ic, btcec.S256())
-}
-
-// ecdsaVerify is internal representation of ECDSASecp256k1Verify and
-// ECDSASecp256r1Verify.
-func ecdsaVerify(ic *interop.Context, curve elliptic.Curve) error {
-	hashToCheck, err := getMessageHash(ic, ic.VM.Estack().Pop().Item())
-	if err != nil {
-		return err
-	}
-	keyb := ic.VM.Estack().Pop().Bytes()
-	signature := ic.VM.Estack().Pop().Bytes()
-	pkey, err := keys.NewPublicKeyFromBytes(keyb, curve)
-	if err != nil {
-		return err
-	}
-	res := pkey.Verify(signature, hashToCheck.BytesBE())
-	ic.VM.Estack().PushVal(res)
-	return nil
-}
 
 // ECDSASecp256r1CheckMultisig checks multiple ECDSA signatures at once using
 // Secp256r1 elliptic curve.
 func ECDSASecp256r1CheckMultisig(ic *interop.Context) error {
-	return ecdsaCheckMultisig(ic, elliptic.P256())
-}
-
-// ECDSASecp256k1CheckMultisig checks multiple ECDSA signatures at once using
-// Secp256k1 elliptic curve.
-func ECDSASecp256k1CheckMultisig(ic *interop.Context) error {
-	return ecdsaCheckMultisig(ic, btcec.S256())
-}
-
-// ecdsaCheckMultisig is internal representation of ECDSASecp256r1CheckMultisig and
-// ECDSASecp256k1CheckMultisig
-func ecdsaCheckMultisig(ic *interop.Context, curve elliptic.Curve) error {
-	hashToCheck, err := getMessageHash(ic, ic.VM.Estack().Pop().Item())
-	if err != nil {
-		return err
-	}
+	hashToCheck := ic.Container.GetSignedHash()
 	pkeys, err := ic.VM.Estack().PopSigElements()
 	if err != nil {
 		return fmt.Errorf("wrong parameters: %w", err)
@@ -79,23 +31,21 @@ func ecdsaCheckMultisig(ic *interop.Context, curve elliptic.Curve) error {
 	if len(pkeys) < len(sigs) {
 		return errors.New("more signatures than there are keys")
 	}
-	sigok := vm.CheckMultisigPar(ic.VM, curve, hashToCheck.BytesBE(), pkeys, sigs)
+	sigok := vm.CheckMultisigPar(ic.VM, elliptic.P256(), hashToCheck.BytesBE(), pkeys, sigs)
 	ic.VM.Estack().PushVal(sigok)
 	return nil
 }
 
-func getMessageHash(ic *interop.Context, item stackitem.Item) (util.Uint256, error) {
-	var msg []byte
-	switch val := item.(type) {
-	case *stackitem.Interop:
-		return val.Value().(crypto.Verifiable).GetSignedHash(), nil
-	case stackitem.Null:
-		return ic.Container.GetSignedHash(), nil
-	default:
-		var err error
-		if msg, err = val.TryBytes(); err != nil {
-			return util.Uint256{}, err
-		}
+// ECDSASecp256r1CheckSig checks ECDSA signature using Secp256r1 elliptic curve.
+func ECDSASecp256r1CheckSig(ic *interop.Context) error {
+	hashToCheck := ic.Container.GetSignedHash()
+	keyb := ic.VM.Estack().Pop().Bytes()
+	signature := ic.VM.Estack().Pop().Bytes()
+	pkey, err := keys.NewPublicKeyFromBytes(keyb, elliptic.P256())
+	if err != nil {
+		return err
 	}
-	return hash.Sha256(msg), nil
+	res := pkey.Verify(signature, hashToCheck.BytesBE())
+	ic.VM.Estack().PushVal(res)
+	return nil
 }

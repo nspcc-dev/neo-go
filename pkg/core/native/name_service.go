@@ -54,7 +54,7 @@ const (
 )
 
 const (
-	nameServiceID = -8
+	nameServiceID = -10
 
 	prefixRoots       = 10
 	prefixDomainPrice = 22

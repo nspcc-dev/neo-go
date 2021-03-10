@@ -113,13 +113,13 @@ func TestAccount_ConvertMultisig(t *testing.T) {
 	t.Run("1/1 multisig", func(t *testing.T) {
 		pubs := convertPubs(t, hexs[:1])
 		require.NoError(t, a.ConvertMultisig(1, pubs))
-		require.Equal(t, "NVNvVRW5Q5naSx2k2iZm7xRgtRNGuZppAK", a.Address)
+		require.Equal(t, "NNudMSGzEoktFzdYGYoNb3bzHzbmM1genF", a.Address)
 	})
 
 	t.Run("3/4 multisig", func(t *testing.T) {
 		pubs := convertPubs(t, hexs)
 		require.NoError(t, a.ConvertMultisig(3, pubs))
-		require.Equal(t, "NUVPACMnKFhpuHjsRjhUvXz1XhqfGZYVtY", a.Address)
+		require.Equal(t, "NgEisvCqr2h8wpRxQb7bVPWUZdbVCY8Uo6", a.Address)
 	})
 }
 
@@ -135,11 +135,11 @@ func convertPubs(t *testing.T, hexKeys []string) []*keys.PublicKey {
 
 func compareFields(t *testing.T, tk keytestcases.Ktype, acc *Account) {
 	want, have := tk.Address, acc.Address
-	require.Equalf(t, want, have, "expected %s got %s", want, have)
+	require.Equalf(t, want, have, "expected address %s got %s", want, have)
 	want, have = tk.Wif, acc.wif
-	require.Equalf(t, want, have, "expected %s got %s", want, have)
+	require.Equalf(t, want, have, "expected wif %s got %s", want, have)
 	want, have = tk.PublicKey, hex.EncodeToString(acc.publicKey)
-	require.Equalf(t, want, have, "expected %s got %s", want, have)
+	require.Equalf(t, want, have, "expected pub key %s got %s", want, have)
 	want, have = tk.PrivateKey, acc.privateKey.String()
-	require.Equalf(t, want, have, "expected %s got %s", want, have)
+	require.Equalf(t, want, have, "expected priv key %s got %s", want, have)
 }

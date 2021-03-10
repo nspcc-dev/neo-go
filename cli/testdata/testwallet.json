@@ -1,1 +1,31 @@
-{"version":"3.0","accounts":[{"address":"NNuJqXDnRqvwgzhSzhH4jnVFWB1DyZ34EM","key":"6PYT6enT6eh4gu4ew3Mx58pFFDQNhuR1qQPuU594Eo5u4sA2ZvE4MqJV12","label":"kek","contract":{"script":"DCECl3UyEIq6T5RRIXS6z4tNdZPTzQ7NvXyx7FwK05d9UyYLQZVEDXg=","parameters":[{"name":"parameter0","type":"Signature"}],"deployed":false},"lock":false,"isdefault":false}],"scrypt":{"n":16384,"r":8,"p":8},"extra":{"Tokens":null}}
+{
+  "version" : "3.0",
+  "extra" : {
+    "Tokens" : null
+  },
+  "accounts" : [
+    {
+      "lock" : false,
+      "isdefault" : false,
+      "key" : "6PYRjaxsdSrW8zBzPynkC9uJRHpkhFHiQTuYY33gNL1wTimTbpN8S8eCNc",
+      "address" : "NUSEsqon6PikQA5mDFaV4njemF9Su8JEmf",
+      "contract" : {
+        "parameters" : [
+          {
+            "type" : "Signature",
+            "name" : "parameter0"
+          }
+        ],
+        "script" : "DCECl3UyEIq6T5RRIXS6z4tNdZPTzQ7NvXyx7FwK05d9UyZBdHR2qg==",
+        "deployed" : false
+      },
+      "label" : "kek"
+    }
+  ],
+  "scrypt" : {
+    "r" : 8,
+    "p" : 8,
+    "n" : 16384
+  }
+}
+

@@ -61,50 +61,36 @@ func TestSyscallExecution(t *testing.T) {
 	sigs := "[]interop.Signature{" + sig + "}"
 	sctx := "storage.Context{}"
 	interops := map[string]syscallTestCase{
-		"binary.Atoi":                        {interopnames.SystemBinaryAtoi, []string{`"123"`, "10"}, false},
-		"binary.Base58Decode":                {interopnames.SystemBinaryBase58Decode, []string{b}, false},
-		"binary.Base58Encode":                {interopnames.SystemBinaryBase58Encode, []string{b}, false},
-		"binary.Base64Decode":                {interopnames.SystemBinaryBase64Decode, []string{b}, false},
-		"binary.Base64Encode":                {interopnames.SystemBinaryBase64Encode, []string{b}, false},
-		"binary.Deserialize":                 {interopnames.SystemBinaryDeserialize, []string{b}, false},
-		"binary.Itoa":                        {interopnames.SystemBinaryItoa, []string{"123", "10"}, false},
-		"binary.Serialize":                   {interopnames.SystemBinarySerialize, []string{"10"}, false},
-		"contract.Call":                      {interopnames.SystemContractCall, []string{u160, `"m"`, "1", "3"}, false},
-		"contract.CreateMultisigAccount":     {interopnames.SystemContractCreateMultisigAccount, []string{"1", pubs}, false},
-		"contract.CreateStandardAccount":     {interopnames.SystemContractCreateStandardAccount, []string{pub}, false},
-		"contract.IsStandard":                {interopnames.SystemContractIsStandard, []string{b}, false},
-		"contract.GetCallFlags":              {interopnames.SystemContractGetCallFlags, nil, false},
-		"iterator.Create":                    {interopnames.SystemIteratorCreate, []string{pubs}, false},
-		"iterator.Next":                      {interopnames.SystemIteratorNext, []string{"iterator.Iterator{}"}, false},
-		"iterator.Value":                     {interopnames.SystemIteratorValue, []string{"iterator.Iterator{}"}, false},
-		"json.FromJSON":                      {interopnames.SystemJSONDeserialize, []string{b}, false},
-		"json.ToJSON":                        {interopnames.SystemJSONSerialize, []string{b}, false},
-		"runtime.CheckWitness":               {interopnames.SystemRuntimeCheckWitness, []string{b}, false},
-		"runtime.GasLeft":                    {interopnames.SystemRuntimeGasLeft, nil, false},
-		"runtime.GetCallingScriptHash":       {interopnames.SystemRuntimeGetCallingScriptHash, nil, false},
-		"runtime.GetEntryScriptHash":         {interopnames.SystemRuntimeGetEntryScriptHash, nil, false},
-		"runtime.GetExecutingScriptHash":     {interopnames.SystemRuntimeGetExecutingScriptHash, nil, false},
-		"runtime.GetInvocationCounter":       {interopnames.SystemRuntimeGetInvocationCounter, nil, false},
-		"runtime.GetNotifications":           {interopnames.SystemRuntimeGetNotifications, []string{u160}, false},
-		"runtime.GetScriptContainer":         {interopnames.SystemRuntimeGetScriptContainer, nil, false},
-		"runtime.GetTime":                    {interopnames.SystemRuntimeGetTime, nil, false},
-		"runtime.GetTrigger":                 {interopnames.SystemRuntimeGetTrigger, nil, false},
-		"runtime.Log":                        {interopnames.SystemRuntimeLog, []string{`"msg"`}, true},
-		"runtime.Notify":                     {interopnames.SystemRuntimeNotify, []string{`"ev"`, "1"}, true},
-		"runtime.Platform":                   {interopnames.SystemRuntimePlatform, nil, false},
-		"storage.Delete":                     {interopnames.SystemStorageDelete, []string{sctx, b}, true},
-		"storage.Find":                       {interopnames.SystemStorageFind, []string{sctx, b, "storage.None"}, false},
-		"storage.Get":                        {interopnames.SystemStorageGet, []string{sctx, b}, false},
-		"storage.GetContext":                 {interopnames.SystemStorageGetContext, nil, false},
-		"storage.GetReadOnlyContext":         {interopnames.SystemStorageGetReadOnlyContext, nil, false},
-		"storage.Put":                        {interopnames.SystemStoragePut, []string{sctx, b, b}, true},
-		"storage.ConvertContextToReadOnly":   {interopnames.SystemStorageAsReadOnly, []string{sctx}, false},
-		"crypto.ECDsaSecp256r1Verify":        {interopnames.NeoCryptoVerifyWithECDsaSecp256r1, []string{b, pub, sig}, false},
-		"crypto.ECDsaSecp256k1Verify":        {interopnames.NeoCryptoVerifyWithECDsaSecp256k1, []string{b, pub, sig}, false},
-		"crypto.ECDSASecp256r1CheckMultisig": {interopnames.NeoCryptoCheckMultisigWithECDsaSecp256r1, []string{b, pubs, sigs}, false},
-		"crypto.ECDSASecp256k1CheckMultisig": {interopnames.NeoCryptoCheckMultisigWithECDsaSecp256k1, []string{b, pubs, sigs}, false},
-		"crypto.SHA256":                      {interopnames.NeoCryptoSHA256, []string{b}, false},
-		"crypto.RIPEMD160":                   {interopnames.NeoCryptoRIPEMD160, []string{b}, false},
+		"contract.Call":                    {interopnames.SystemContractCall, []string{u160, `"m"`, "1", "3"}, false},
+		"contract.CreateMultisigAccount":   {interopnames.SystemContractCreateMultisigAccount, []string{"1", pubs}, false},
+		"contract.CreateStandardAccount":   {interopnames.SystemContractCreateStandardAccount, []string{pub}, false},
+		"contract.IsStandard":              {interopnames.SystemContractIsStandard, []string{u160}, false},
+		"contract.GetCallFlags":            {interopnames.SystemContractGetCallFlags, nil, false},
+		"iterator.Create":                  {interopnames.SystemIteratorCreate, []string{pubs}, false},
+		"iterator.Next":                    {interopnames.SystemIteratorNext, []string{"iterator.Iterator{}"}, false},
+		"iterator.Value":                   {interopnames.SystemIteratorValue, []string{"iterator.Iterator{}"}, false},
+		"runtime.CheckWitness":             {interopnames.SystemRuntimeCheckWitness, []string{b}, false},
+		"runtime.GasLeft":                  {interopnames.SystemRuntimeGasLeft, nil, false},
+		"runtime.GetCallingScriptHash":     {interopnames.SystemRuntimeGetCallingScriptHash, nil, false},
+		"runtime.GetEntryScriptHash":       {interopnames.SystemRuntimeGetEntryScriptHash, nil, false},
+		"runtime.GetExecutingScriptHash":   {interopnames.SystemRuntimeGetExecutingScriptHash, nil, false},
+		"runtime.GetInvocationCounter":     {interopnames.SystemRuntimeGetInvocationCounter, nil, false},
+		"runtime.GetNotifications":         {interopnames.SystemRuntimeGetNotifications, []string{u160}, false},
+		"runtime.GetScriptContainer":       {interopnames.SystemRuntimeGetScriptContainer, nil, false},
+		"runtime.GetTime":                  {interopnames.SystemRuntimeGetTime, nil, false},
+		"runtime.GetTrigger":               {interopnames.SystemRuntimeGetTrigger, nil, false},
+		"runtime.Log":                      {interopnames.SystemRuntimeLog, []string{`"msg"`}, true},
+		"runtime.Notify":                   {interopnames.SystemRuntimeNotify, []string{`"ev"`, "1"}, true},
+		"runtime.Platform":                 {interopnames.SystemRuntimePlatform, nil, false},
+		"storage.Delete":                   {interopnames.SystemStorageDelete, []string{sctx, b}, true},
+		"storage.Find":                     {interopnames.SystemStorageFind, []string{sctx, b, "storage.None"}, false},
+		"storage.Get":                      {interopnames.SystemStorageGet, []string{sctx, b}, false},
+		"storage.GetContext":               {interopnames.SystemStorageGetContext, nil, false},
+		"storage.GetReadOnlyContext":       {interopnames.SystemStorageGetReadOnlyContext, nil, false},
+		"storage.Put":                      {interopnames.SystemStoragePut, []string{sctx, b, b}, true},
+		"storage.ConvertContextToReadOnly": {interopnames.SystemStorageAsReadOnly, []string{sctx}, false},
+		"crypto.CheckMultisig":             {interopnames.NeoCryptoCheckMultisig, []string{pubs, sigs}, false},
+		"crypto.CheckSig":                  {interopnames.NeoCryptoCheckSig, []string{pub, sig}, false},
 	}
 	ic := &interop.Context{}
 	core.SpawnVM(ic) // set Functions field
@@ -209,20 +195,20 @@ func TestNotify(t *testing.T) {
 
 func TestSyscallInGlobalInit(t *testing.T) {
 	src := `package foo
-		import "github.com/nspcc-dev/neo-go/pkg/interop/binary"
-		var a = binary.Base58Decode([]byte("5T"))
-		func Main() []byte {
+		import "github.com/nspcc-dev/neo-go/pkg/interop/runtime"
+		var a = runtime.CheckWitness([]byte("5T"))
+		func Main() bool {
 			return a
 		}`
 	v, s := vmAndCompileInterop(t, src)
-	s.interops[interopnames.ToID([]byte(interopnames.SystemBinaryBase58Decode))] = func(v *vm.VM) error {
+	s.interops[interopnames.ToID([]byte(interopnames.SystemRuntimeCheckWitness))] = func(v *vm.VM) error {
 		s := v.Estack().Pop().Value().([]byte)
 		require.Equal(t, "5T", string(s))
-		v.Estack().PushVal([]byte{1, 2})
+		v.Estack().PushVal(true)
 		return nil
 	}
 	require.NoError(t, v.Run())
-	require.Equal(t, []byte{1, 2}, v.Estack().Pop().Value())
+	require.Equal(t, true, v.Estack().Pop().Value())
 }
 
 func TestOpcode(t *testing.T) {

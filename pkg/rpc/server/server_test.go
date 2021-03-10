@@ -59,13 +59,13 @@ type rpcTestCase struct {
 	check  func(t *testing.T, e *executor, result interface{})
 }
 
-const testContractHash = "500858b96054d3c302078882c30e76915aac1c83"
-const deploymentTxHash = "e5503038c2cd602c100690e266b75e2a9d3dda90a63791fd5ab3008ff053eaae"
-const genesisBlockHash = "9e7cf6fcfc8d0d6831fac75fa895535a5f1960f45a34754b57bff4d4929635c5"
+const testContractHash = "1e1c3024bd955ff3baf7cb92e3b7608c7bb3712b"
+const deploymentTxHash = "7cf43b182dee2e8bd2c5209cd230799aeba1b5b13000db682d917c89eacd1eae"
+const genesisBlockHash = "d237e3500d8b4cf0df3fd9c4c053016afae141207a6c732303bdd91aff444ecc"
 
-const verifyContractHash = "03ffc0897543b9b709e0f8cab4a7682dae0ba943"
-const verifyContractAVM = "570300412d51083021700c14aa8acf859d4fe402b34e673f2156821796a488ebdb30716813cedb2869db289740"
-const testVerifyContractAVM = "VwcADBQBDAMOBQYMDQIODw0DDgcJAAAAANswcGgRVUH4J+yMIaonBwAAABFADBQNDwMCCQACAQMHAwQFAgEADgYMCdswcWkRVUH4J+yMIaonBwAAABJAE0A="
+const verifyContractHash = "5bb4bac40e961e334ba7bd36d2496010f67e246e"
+const verifyContractAVM = "VwMAQS1RCDAhcAwUVVQtU+0PVUb61E1umZEoZwIvzl7bMHFoE87bKGnbKJdA"
+const invokescriptContractAVM = "VwcADBQBDAMOBQYMDQIODw0DDgcJAAAAANswcGhB+CfsjCGqJgQRQAwUDQ8DAgkAAgEDBwMEBQIBAA4GDAnbMHFpQfgn7IwhqiYEEkATQA=="
 
 var rpcTestCases = map[string][]rpcTestCase{
 	"getapplicationlog": {
@@ -183,7 +183,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 			check: func(t *testing.T, e *executor, cs interface{}) {
 				res, ok := cs.(*state.Contract)
 				require.True(t, ok)
-				assert.Equal(t, int32(-5), res.ID)
+				assert.Equal(t, int32(-7), res.ID)
 			},
 		},
 		{
@@ -743,8 +743,8 @@ var rpcTestCases = map[string][]rpcTestCase{
 		},
 		{
 			name: "positive, good witness",
-			// script is base64-encoded `test_verify.avm` representation, hashes are hex-encoded LE bytes of hashes used in the contract with `0x` prefix
-			params: fmt.Sprintf(`["%s",["0x0000000009070e030d0f0e020d0c06050e030c01","0x090c060e00010205040307030102000902030f0d"]]`, testVerifyContractAVM),
+			// script is base64-encoded `invokescript_contract.avm` representation, hashes are hex-encoded LE bytes of hashes used in the contract with `0x` prefix
+			params: fmt.Sprintf(`["%s",["0x0000000009070e030d0f0e020d0c06050e030c01","0x090c060e00010205040307030102000902030f0d"]]`, invokescriptContractAVM),
 			result: func(e *executor) interface{} { return &result.Invoke{} },
 			check: func(t *testing.T, e *executor, inv interface{}) {
 				res, ok := inv.(*result.Invoke)
@@ -756,7 +756,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 		},
 		{
 			name:   "positive, bad witness of second hash",
-			params: fmt.Sprintf(`["%s",["0x0000000009070e030d0f0e020d0c06050e030c01"]]`, testVerifyContractAVM),
+			params: fmt.Sprintf(`["%s",["0x0000000009070e030d0f0e020d0c06050e030c01"]]`, invokescriptContractAVM),
 			result: func(e *executor) interface{} { return &result.Invoke{} },
 			check: func(t *testing.T, e *executor, inv interface{}) {
 				res, ok := inv.(*result.Invoke)
@@ -768,7 +768,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 		},
 		{
 			name:   "positive, no good hashes",
-			params: fmt.Sprintf(`["%s"]`, testVerifyContractAVM),
+			params: fmt.Sprintf(`["%s"]`, invokescriptContractAVM),
 			result: func(e *executor) interface{} { return &result.Invoke{} },
 			check: func(t *testing.T, e *executor, inv interface{}) {
 				res, ok := inv.(*result.Invoke)
@@ -780,7 +780,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 		},
 		{
 			name:   "positive, bad hashes witness",
-			params: fmt.Sprintf(`["%s",["0x0000000009070e030d0f0e020d0c06050e030c02"]]`, testVerifyContractAVM),
+			params: fmt.Sprintf(`["%s",["0x0000000009070e030d0f0e020d0c06050e030c02"]]`, invokescriptContractAVM),
 			result: func(e *executor) interface{} { return &result.Invoke{} },
 			check: func(t *testing.T, e *executor, inv interface{}) {
 				res, ok := inv.(*result.Invoke)
@@ -817,7 +817,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 				assert.NotNil(t, res.Script)
 				assert.Equal(t, "HALT", res.State)
 				assert.NotEqual(t, 0, res.GasConsumed)
-				assert.Equal(t, true, res.Stack[0].Value().(bool))
+				assert.Equal(t, true, res.Stack[0].Value().(bool), fmt.Sprintf("check address in verification_contract.go: expected %s", testchain.PrivateKeyByID(0).Address()))
 			},
 		},
 		{
@@ -865,12 +865,12 @@ var rpcTestCases = map[string][]rpcTestCase{
 	"sendrawtransaction": {
 		{
 			name:   "positive",
-			params: `["AAsAAACAlpgAAAAAACYcEwAAAAAAsAQAAAGqis+FnU/kArNOZz8hVoIXlqSI6wEAXQMA6HZIFwAAAAwUeLpMJACf5RDhNsmZWi4FIV4b5NwMFKqKz4WdT+QCs05nPyFWgheWpIjrE8AMCHRyYW5zZmVyDBQlBZ7LSHjTqHX5HFHO3tMw1Fdf3kFifVtSOAFCDEDqL1as9/ZGKdySLWWmAXbzljr9S3wlnyAXo6UTk0b46lRwRiRZCDKst3lAaaspg93IYrA7ajPUQozUxFy8CUHCKQwhArNiK/QBe9/jF8WK7V9MdT8ga324lgRvp9d0u8S/f43CC0GVRA14"]`,
+			params: `["ADQSAADA2KcAAAAAABDiEgAAAAAAgBYAAAFVVC1T7Q9VRvrUTW6ZkShnAi/OXgEAYBDAAwDodkgXAAAADBRdSe/t0S4+BgGLRljbEKiXX8gLTgwUVVQtU+0PVUb61E1umZEoZwIvzl4UwB8MCHRyYW5zZmVyDBT1Y+pAvCg9TQ4FxI6jBbPyoHNA70FifVtSOQFCDEAppqgOf7RZvrS+uOVzVNlcQAQnyujtzHzv9/Za+FFkxWFd8mZ6AvWnFXAL0W5NafW4xyP7Kp/qgWCmZrHINaLkKAwhArNiK/QBe9/jF8WK7V9MdT8ga324lgRvp9d0u8S/f43CQXR0dqo="]`,
 			result: func(e *executor) interface{} { return &result.RelayResult{} },
 			check: func(t *testing.T, e *executor, inv interface{}) {
 				res, ok := inv.(*result.RelayResult)
 				require.True(t, ok)
-				expectedHash, err := util.Uint256DecodeStringLE("ab5573cfc8d70774f04aa7d5521350cfc1aa1239c44c24e490e139408cd46a57")
+				expectedHash, err := util.Uint256DecodeStringLE("3b133d0c2912da4f99680ae3a5f0e178bc761f2c360662a1fabbe1a8dbe309ea")
 				require.NoError(t, err)
 				assert.Equal(t, expectedHash, res.Hash)
 			},
@@ -1598,7 +1598,7 @@ func checkNep17Balances(t *testing.T, e *executor, acc interface{}) {
 			},
 			{
 				Asset:       e.chain.UtilityTokenHash(),
-				Amount:      "78994294100",
+				Amount:      "78994302340",
 				LastUpdated: 8,
 			}},
 		Address: testchain.PrivateKeyByID(0).GetScriptHash().StringLE(),

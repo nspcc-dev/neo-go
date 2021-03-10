@@ -16,12 +16,11 @@ import (
 )
 
 func testSignatureContract() []byte {
-	prog := make([]byte, 41)
+	prog := make([]byte, 40)
 	prog[0] = byte(opcode.PUSHDATA1)
 	prog[1] = 33
-	prog[35] = byte(opcode.PUSHNULL)
-	prog[36] = byte(opcode.SYSCALL)
-	binary.LittleEndian.PutUint32(prog[37:], verifyInteropID)
+	prog[35] = byte(opcode.SYSCALL)
+	binary.LittleEndian.PutUint32(prog[36:], verifyInteropID)
 	return prog
 }
 
@@ -43,7 +42,7 @@ func TestIsSignatureContract(t *testing.T) {
 
 	t.Run("invalid interop ID", func(t *testing.T) {
 		prog := testSignatureContract()
-		binary.LittleEndian.PutUint32(prog[37:], ^verifyInteropID)
+		binary.LittleEndian.PutUint32(prog[36:], ^verifyInteropID)
 		assert.False(t, IsSignatureContract(prog))
 		assert.False(t, IsStandardContract(prog))
 	})
@@ -51,13 +50,6 @@ func TestIsSignatureContract(t *testing.T) {
 	t.Run("invalid pubkey size", func(t *testing.T) {
 		prog := testSignatureContract()
 		prog[1] = 32
-		assert.False(t, IsSignatureContract(prog))
-		assert.False(t, IsStandardContract(prog))
-	})
-
-	t.Run("no PUSHNULL", func(t *testing.T) {
-		prog := testSignatureContract()
-		prog[35] = byte(opcode.PUSH1)
 		assert.False(t, IsSignatureContract(prog))
 		assert.False(t, IsStandardContract(prog))
 	})
@@ -110,15 +102,9 @@ func TestIsMultiSigContract(t *testing.T) {
 		assert.False(t, IsMultiSigContract(prog))
 	})
 
-	t.Run("no PUSHNULL", func(t *testing.T) {
-		prog := testMultisigContract(t, 2, 2)
-		prog[len(prog)-6] ^= 0xFF
-		assert.False(t, IsMultiSigContract(prog))
-	})
-
 	t.Run("invalid keys number", func(t *testing.T) {
 		prog := testMultisigContract(t, 2, 2)
-		prog[len(prog)-7] = byte(opcode.PUSH3)
+		prog[len(prog)-6] = byte(opcode.PUSH3)
 		assert.False(t, IsMultiSigContract(prog))
 	})
 

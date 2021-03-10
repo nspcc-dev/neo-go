@@ -10,12 +10,10 @@ package core
 import (
 	"github.com/nspcc-dev/neo-go/pkg/core/fee"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
-	"github.com/nspcc-dev/neo-go/pkg/core/interop/binary"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/contract"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/crypto"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/iterator"
-	"github.com/nspcc-dev/neo-go/pkg/core/interop/json"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/runtime"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
@@ -32,14 +30,6 @@ func SpawnVM(ic *interop.Context) *vm.VM {
 
 // All lists are sorted, keep 'em this way, please.
 var systemInterops = []interop.Function{
-	{Name: interopnames.SystemBinaryAtoi, Func: binary.Atoi, Price: 1 << 12, ParamCount: 2},
-	{Name: interopnames.SystemBinaryBase58Decode, Func: binary.DecodeBase58, Price: 1 << 12, ParamCount: 1},
-	{Name: interopnames.SystemBinaryBase58Encode, Func: binary.EncodeBase58, Price: 1 << 12, ParamCount: 1},
-	{Name: interopnames.SystemBinaryBase64Decode, Func: binary.DecodeBase64, Price: 1 << 12, ParamCount: 1},
-	{Name: interopnames.SystemBinaryBase64Encode, Func: binary.EncodeBase64, Price: 1 << 12, ParamCount: 1},
-	{Name: interopnames.SystemBinaryDeserialize, Func: binary.Deserialize, Price: 1 << 14, ParamCount: 1},
-	{Name: interopnames.SystemBinaryItoa, Func: binary.Itoa, Price: 1 << 12, ParamCount: 2},
-	{Name: interopnames.SystemBinarySerialize, Func: binary.Serialize, Price: 1 << 12, ParamCount: 1},
 	{Name: interopnames.SystemContractCall, Func: contract.Call, Price: 1 << 15,
 		RequiredFlags: callflag.ReadStates | callflag.AllowCall, ParamCount: 4},
 	{Name: interopnames.SystemContractCallNative, Func: native.Call, Price: 0, ParamCount: 1},
@@ -52,8 +42,6 @@ var systemInterops = []interop.Function{
 	{Name: interopnames.SystemIteratorCreate, Func: iterator.Create, Price: 1 << 4, ParamCount: 1},
 	{Name: interopnames.SystemIteratorNext, Func: iterator.Next, Price: 1 << 15, ParamCount: 1},
 	{Name: interopnames.SystemIteratorValue, Func: iterator.Value, Price: 1 << 4, ParamCount: 1},
-	{Name: interopnames.SystemJSONDeserialize, Func: json.Deserialize, Price: 1 << 14, ParamCount: 1},
-	{Name: interopnames.SystemJSONSerialize, Func: json.Serialize, Price: 1 << 12, ParamCount: 1},
 	{Name: interopnames.SystemRuntimeCheckWitness, Func: runtime.CheckWitness, Price: 1 << 10,
 		RequiredFlags: callflag.NoneFlag, ParamCount: 1},
 	{Name: interopnames.SystemRuntimeGasLeft, Func: runtime.GasLeft, Price: 1 << 4},
@@ -87,14 +75,8 @@ var systemInterops = []interop.Function{
 }
 
 var neoInterops = []interop.Function{
-	{Name: interopnames.NeoCryptoVerifyWithECDsaSecp256r1, Func: crypto.ECDSASecp256r1Verify,
-		Price: fee.ECDSAVerifyPrice, ParamCount: 3},
-	{Name: interopnames.NeoCryptoVerifyWithECDsaSecp256k1, Func: crypto.ECDSASecp256k1Verify,
-		Price: fee.ECDSAVerifyPrice, ParamCount: 3},
-	{Name: interopnames.NeoCryptoCheckMultisigWithECDsaSecp256r1, Func: crypto.ECDSASecp256r1CheckMultisig, Price: 0, ParamCount: 3},
-	{Name: interopnames.NeoCryptoCheckMultisigWithECDsaSecp256k1, Func: crypto.ECDSASecp256k1CheckMultisig, Price: 0, ParamCount: 3},
-	{Name: interopnames.NeoCryptoSHA256, Func: crypto.Sha256, Price: 1 << 15, ParamCount: 1},
-	{Name: interopnames.NeoCryptoRIPEMD160, Func: crypto.RipeMD160, Price: 1 << 15, ParamCount: 1},
+	{Name: interopnames.NeoCryptoCheckMultisig, Func: crypto.ECDSASecp256r1CheckMultisig, Price: 0, ParamCount: 2},
+	{Name: interopnames.NeoCryptoCheckSig, Func: crypto.ECDSASecp256r1CheckSig, Price: fee.ECDSAVerifyPrice, ParamCount: 2},
 }
 
 // initIDinInteropsSlice initializes IDs from names in one given

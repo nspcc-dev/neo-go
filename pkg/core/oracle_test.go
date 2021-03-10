@@ -97,9 +97,9 @@ func TestCreateResponseTx(t *testing.T) {
 	bc.SetOracle(orc)
 	tx, err := orc.CreateResponseTx(int64(req.GasForResponse), 1, resp)
 	require.NoError(t, err)
-	assert.Equal(t, 167, tx.Size())
-	assert.Equal(t, int64(2216640), tx.NetworkFee)
-	assert.Equal(t, int64(97783360), tx.SystemFee)
+	assert.Equal(t, 166, tx.Size())
+	assert.Equal(t, int64(2215610), tx.NetworkFee)
+	assert.Equal(t, int64(97784390), tx.SystemFee)
 }
 
 func TestOracle_InvalidWallet(t *testing.T) {
@@ -130,7 +130,7 @@ func TestOracle(t *testing.T) {
 	orc1.UpdateNativeContract(orcNative.NEF.Script, orcNative.GetOracleResponseScript(), orcNative.Hash, md.MD.Offset)
 	orc2.UpdateNativeContract(orcNative.NEF.Script, orcNative.GetOracleResponseScript(), orcNative.Hash, md.MD.Offset)
 
-	cs := getOracleContractState(bc.contracts.Oracle.Hash)
+	cs := getOracleContractState(bc.contracts.Oracle.Hash, bc.contracts.Std.Hash)
 	require.NoError(t, bc.contracts.Management.PutContractState(bc.dao, cs))
 
 	putOracleRequest(t, cs.Hash, bc, "http://get.1234", nil, "handle", []byte{}, 10_000_000)
@@ -271,7 +271,7 @@ func TestOracleFull(t *testing.T) {
 	orc.OnTransaction = func(tx *transaction.Transaction) { _ = mp.Add(tx, bc) }
 	bc.SetOracle(orc)
 
-	cs := getOracleContractState(bc.contracts.Oracle.Hash)
+	cs := getOracleContractState(bc.contracts.Oracle.Hash, bc.contracts.Std.Hash)
 	require.NoError(t, bc.contracts.Management.PutContractState(bc.dao, cs))
 
 	go bc.Run()

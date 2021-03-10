@@ -9,6 +9,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
+	"github.com/nspcc-dev/neo-go/pkg/interop/native/crypto"
 	"github.com/nspcc-dev/neo-go/pkg/interop/native/gas"
 	"github.com/nspcc-dev/neo-go/pkg/interop/native/ledger"
 	"github.com/nspcc-dev/neo-go/pkg/interop/native/management"
@@ -18,6 +19,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/interop/native/oracle"
 	"github.com/nspcc-dev/neo-go/pkg/interop/native/policy"
 	"github.com/nspcc-dev/neo-go/pkg/interop/native/roles"
+	"github.com/nspcc-dev/neo-go/pkg/interop/native/std"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -37,6 +39,8 @@ func TestContractHashes(t *testing.T) {
 	require.Equal(t, []byte(ledger.Hash), cs.Ledger.Hash.BytesBE())
 	require.Equal(t, []byte(management.Hash), cs.Management.Hash.BytesBE())
 	require.Equal(t, []byte(notary.Hash), cs.Notary.Hash.BytesBE())
+	require.Equal(t, []byte(crypto.Hash), cs.Crypto.Hash.BytesBE())
+	require.Equal(t, []byte(std.Hash), cs.Std.Hash.BytesBE())
 }
 
 // testPrintHash is a helper for updating contract hashes.
@@ -77,6 +81,11 @@ func TestNameServiceRecordType(t *testing.T) {
 	require.EqualValues(t, native.RecordTypeAAAA, nameservice.TypeAAAA)
 }
 
+func TestCryptoLibNamedCurve(t *testing.T) {
+	require.EqualValues(t, native.Secp256k1, crypto.Secp256k1)
+	require.EqualValues(t, native.Secp256r1, crypto.Secp256r1)
+}
+
 type nativeTestCase struct {
 	method string
 	params []string
@@ -88,6 +97,7 @@ func TestNativeHelpersCompile(t *testing.T) {
 	u160 := `interop.Hash160("aaaaaaaaaaaaaaaaaaaa")`
 	u256 := `interop.Hash256("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")`
 	pub := `interop.PublicKey("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")`
+	sig := `interop.Signature("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")`
 	nep17TestCases := []nativeTestCase{
 		{"balanceOf", []string{u160}},
 		{"decimals", nil},
@@ -176,6 +186,23 @@ func TestNativeHelpersCompile(t *testing.T) {
 		{"update", []string{"nil", "nil"}},
 		{"updateWithData", []string{"nil", "nil", "123"}},
 	})
+	runNativeTestCases(t, cs.Crypto.ContractMD, "crypto", []nativeTestCase{
+		{"sha256", []string{"[]byte{1, 2, 3}"}},
+		{"ripemd160", []string{"[]byte{1, 2, 3}"}},
+		{"verifyWithECDsa", []string{"[]byte{1, 2, 3}", pub, sig, "crypto.Secp256k1"}},
+	})
+	runNativeTestCases(t, cs.Std.ContractMD, "std", []nativeTestCase{
+		{"serialize", []string{"[]byte{1, 2, 3}"}},
+		{"deserialize", []string{"[]byte{1, 2, 3}"}},
+		{"jsonSerialize", []string{"[]byte{1, 2, 3}"}},
+		{"jsonDeserialize", []string{"[]byte{1, 2, 3}"}},
+		{"base64Encode", []string{"[]byte{1, 2, 3}"}},
+		{"base64Decode", []string{"[]byte{1, 2, 3}"}},
+		{"base58Encode", []string{"[]byte{1, 2, 3}"}},
+		{"base58Decode", []string{"[]byte{1, 2, 3}"}},
+		{"itoa", []string{"4", "10"}},
+		{"atoi", []string{`"4"`, "10"}},
+	})
 }
 
 func runNativeTestCases(t *testing.T, ctr interop.ContractMD, name string, testCases []nativeTestCase) {
@@ -205,6 +232,7 @@ func runNativeTestCase(t *testing.T, ctr interop.ContractMD, name, method string
 	}
 	methodUpper := strings.ToUpper(method[:1]) + method[1:] // ASCII only
 	methodUpper = strings.ReplaceAll(methodUpper, "Gas", "GAS")
+	methodUpper = strings.ReplaceAll(methodUpper, "Json", "JSON")
 	src := fmt.Sprintf(srcTmpl, name, name, methodUpper, strings.Join(params, ","))
 
 	v, s := vmAndCompileInterop(t, src)

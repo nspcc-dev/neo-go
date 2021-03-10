@@ -1,1 +1,30 @@
-{"version":"3.0","accounts":[{"address":"NfFcJvWcHe8SSS92hNZhyQUJ6cg3pb36Tf","key":"6PYU2QoD52Xt9Z6QmNGUJWn89qUD1W6QqAL4Y8nfTWtTKvmVpQh8wsH6qY","label":"NotaryNode2","contract":{"script":"DCECIcKj0GFdv4b1NZrw9X6zLNLWzmNKAxtw6olIMZxpPRQLQZVEDXg=","parameters":[{"name":"parameter0","type":"Signature"}],"deployed":false},"lock":false,"isdefault":false}],"scrypt":{"n":16384,"r":8,"p":8},"extra":{"Tokens":null}}
+{
+  "scrypt" : {
+    "r" : 8,
+    "p" : 8,
+    "n" : 16384
+  },
+  "version" : "3.0",
+  "extra" : {
+    "Tokens" : null
+  },
+  "accounts" : [
+    {
+      "address" : "NYt1oLCMMvqxnAVMJCSk87kZTP693GxK11",
+      "key" : "6PYWejAoqoF4JT5P9N3EcqC5tRC1MXx2gZ1R2WWryjDUH1bMAo3Bd68nCo",
+      "lock" : false,
+      "isdefault" : false,
+      "contract" : {
+        "parameters" : [
+          {
+            "name" : "parameter0",
+            "type" : "Signature"
+          }
+        ],
+        "deployed" : false,
+        "script" : "DCECIcKj0GFdv4b1NZrw9X6zLNLWzmNKAxtw6olIMZxpPRRBdHR2qg=="
+      },
+      "label" : "NotaryNode2"
+    }
+  ]
+}

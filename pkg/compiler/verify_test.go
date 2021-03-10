@@ -16,11 +16,10 @@ import (
 func TestVerifyGood(t *testing.T) {
 	msg := []byte("test message")
 	pub, sig := signMessage(t, msg)
-	src := getVerifyProg(pub, sig, msg)
+	src := getVerifyProg(pub, sig)
 
 	v, p := vmAndCompileInterop(t, src)
-	p.interops[interopnames.ToID([]byte(interopnames.NeoCryptoVerifyWithECDsaSecp256r1))] = func(v *vm.VM) error {
-		assert.Equal(t, msg, v.Estack().Pop().Bytes())
+	p.interops[interopnames.ToID([]byte(interopnames.NeoCryptoCheckSig))] = func(v *vm.VM) error {
 		assert.Equal(t, pub, v.Estack().Pop().Bytes())
 		assert.Equal(t, sig, v.Estack().Pop().Bytes())
 		v.Estack().PushVal(true)
@@ -40,10 +39,9 @@ func signMessage(t *testing.T, msg []byte) ([]byte, []byte) {
 	return pub, sig
 }
 
-func getVerifyProg(pub, sig, msg []byte) string {
+func getVerifyProg(pub, sig []byte) string {
 	pubS := fmt.Sprintf("%#v", pub)
 	sigS := fmt.Sprintf("%#v", sig)
-	msgS := fmt.Sprintf("%#v", msg)
 
 	return `
 		package hello
@@ -53,8 +51,7 @@ func getVerifyProg(pub, sig, msg []byte) string {
 		func Main() bool {
 			pub := ` + pubS + `
 			sig := ` + sigS + `
-			msg := ` + msgS + `
-			return crypto.ECDsaSecp256r1Verify(msg, pub, sig)
+			return crypto.CheckSig(pub, sig)
 		}
 	`
 }

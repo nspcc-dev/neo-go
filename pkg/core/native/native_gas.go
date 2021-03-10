@@ -18,7 +18,7 @@ type GAS struct {
 	NEO *NEO
 }
 
-const gasContractID = -4
+const gasContractID = -6
 
 // GASFactor is a divisor for finding GAS integral value.
 const GASFactor = NEOTotalSupply

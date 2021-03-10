@@ -2,6 +2,7 @@ package core
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -268,7 +269,7 @@ func TestCreateBasicChain(t *testing.T) {
 	require.NoError(t, acc0.SignTx(txSendRaw))
 	bw := io.NewBufBinWriter()
 	txSendRaw.EncodeBinary(bw.BinWriter)
-	t.Logf("sendrawtransaction: %s", hex.EncodeToString(bw.Bytes()))
+	t.Logf("sendrawtransaction: %s", base64.StdEncoding.EncodeToString(bw.Bytes()))
 	require.False(t, saveChain)
 }
 
@@ -449,6 +450,9 @@ func initBasicChain(t *testing.T, bc *Blockchain) {
 	require.NoError(t, ntr.Accounts[0].Decrypt("one"))
 	bc.setNodesByRole(t, true, native.RoleP2PNotary, keys.PublicKeys{ntr.Accounts[0].PrivateKey().PublicKey()})
 	t.Logf("Designated Notary node: %s", hex.EncodeToString(ntr.Accounts[0].PrivateKey().PublicKey().Bytes()))
+
+	// Compile contract to test `invokescript` RPC call
+	_, _ = newDeployTx(t, bc, priv0ScriptHash, prefix+"invokescript_contract.go", "ContractForInvokescriptTest")
 }
 
 func newNEP17Transfer(sc, from, to util.Uint160, amount int64, additionalArgs ...interface{}) *transaction.Transaction {
@@ -466,9 +470,9 @@ func newNEP17Transfer(sc, from, to util.Uint160, amount int64, additionalArgs ..
 func newDeployTx(t *testing.T, bc *Blockchain, sender util.Uint160, name, ctrName string) (*transaction.Transaction, util.Uint160) {
 	c, err := ioutil.ReadFile(name)
 	require.NoError(t, err)
-	tx, h, err := testchain.NewDeployTx(bc, ctrName, sender, bytes.NewReader(c))
+	tx, h, avm, err := testchain.NewDeployTx(bc, ctrName, sender, bytes.NewReader(c))
 	require.NoError(t, err)
-	t.Logf("contractHash (%s): %s", name, h.StringLE())
+	t.Logf("contract (%s): \n\tHash: %s\n\tAVM: %s", name, h.StringLE(), base64.StdEncoding.EncodeToString(avm))
 	return tx, h
 }
 

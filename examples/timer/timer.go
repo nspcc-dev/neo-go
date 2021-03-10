@@ -2,8 +2,8 @@ package timer
 
 import (
 	"github.com/nspcc-dev/neo-go/pkg/interop"
-	"github.com/nspcc-dev/neo-go/pkg/interop/binary"
 	"github.com/nspcc-dev/neo-go/pkg/interop/contract"
+	"github.com/nspcc-dev/neo-go/pkg/interop/native/std"
 	"github.com/nspcc-dev/neo-go/pkg/interop/runtime"
 	"github.com/nspcc-dev/neo-go/pkg/interop/storage"
 	"github.com/nspcc-dev/neo-go/pkg/interop/util"
@@ -35,7 +35,7 @@ func _deploy(_ interface{}, isUpdate bool) {
 	sh := runtime.GetCallingScriptHash()
 	storage.Put(ctx, mgmtKey, sh)
 	storage.Put(ctx, ticksKey, defaultTicks)
-	i := binary.Itoa(defaultTicks, 10)
+	i := std.Itoa(defaultTicks, 10)
 	runtime.Log("Timer set to " + i + " ticks.")
 }
 
@@ -61,7 +61,7 @@ func Tick() bool {
 		return contract.Call(runtime.GetExecutingScriptHash(), "selfDestroy", contract.All).(bool)
 	}
 	storage.Put(ctx, ticksKey, ticksLeft)
-	i := binary.Itoa(ticksLeft.(int), 10)
+	i := std.Itoa(ticksLeft.(int), 10)
 	runtime.Log(i + " ticks left.")
 	return true
 }
