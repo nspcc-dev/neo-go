@@ -25,6 +25,15 @@ func testSignatureContract() []byte {
 	return prog
 }
 
+func TestParseSignatureContract(t *testing.T) {
+	prog := testSignatureContract()
+	pub := randomBytes(33)
+	copy(prog[2:], pub)
+	actual, ok := ParseSignatureContract(prog)
+	require.True(t, ok)
+	require.Equal(t, pub, actual)
+}
+
 func TestIsSignatureContract(t *testing.T) {
 	t.Run("valid contract", func(t *testing.T) {
 		prog := testSignatureContract()

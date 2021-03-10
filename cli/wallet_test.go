@@ -337,6 +337,49 @@ func TestWalletDump(t *testing.T) {
 	})
 }
 
+func TestDumpKeys(t *testing.T) {
+	e := newExecutor(t, false)
+	cmd := []string{"neo-go", "wallet", "dump-keys", "--wallet", validatorWallet}
+	pubRegex := "^0[23][a-hA-H0-9]{64}$"
+	t.Run("all", func(t *testing.T) {
+		e.Run(t, cmd...)
+		e.checkNextLine(t, "NbTiM6h8r99kpRtb428XcsUk1TzKed2gTc")
+		e.checkNextLine(t, pubRegex)
+		e.checkNextLine(t, "^\\s*$")
+		e.checkNextLine(t, "NUVPACMnKFhpuHjsRjhUvXz1XhqfGZYVtY")
+		for i := 0; i < 4; i++ {
+			e.checkNextLine(t, pubRegex)
+		}
+		e.checkNextLine(t, "^\\s*$")
+		e.checkNextLine(t, "NVNvVRW5Q5naSx2k2iZm7xRgtRNGuZppAK")
+		e.checkNextLine(t, pubRegex)
+		e.checkEOF(t)
+	})
+	t.Run("simple signature", func(t *testing.T) {
+		cmd := append(cmd, "--address", "NbTiM6h8r99kpRtb428XcsUk1TzKed2gTc")
+		e.Run(t, cmd...)
+		e.checkNextLine(t, "simple signature contract")
+		e.checkNextLine(t, pubRegex)
+		e.checkEOF(t)
+	})
+	t.Run("3/4 multisig", func(t *testing.T) {
+		cmd := append(cmd, "-a", "NUVPACMnKFhpuHjsRjhUvXz1XhqfGZYVtY")
+		e.Run(t, cmd...)
+		e.checkNextLine(t, "3 out of 4 multisig contract")
+		for i := 0; i < 4; i++ {
+			e.checkNextLine(t, pubRegex)
+		}
+		e.checkEOF(t)
+	})
+	t.Run("1/1 multisig", func(t *testing.T) {
+		cmd := append(cmd, "--address", "NVNvVRW5Q5naSx2k2iZm7xRgtRNGuZppAK")
+		e.Run(t, cmd...)
+		e.checkNextLine(t, "1 out of 1 multisig contract")
+		e.checkNextLine(t, pubRegex)
+		e.checkEOF(t)
+	})
+}
+
 // Testcase is the wallet of privnet validator.
 func TestWalletConvert(t *testing.T) {
 	tmpDir := path.Join(os.TempDir(), "neogo.test.convert")
