@@ -451,6 +451,15 @@ func initBasicChain(t *testing.T, bc *Blockchain) {
 	bc.setNodesByRole(t, true, native.RoleP2PNotary, keys.PublicKeys{ntr.Accounts[0].PrivateKey().PublicKey()})
 	t.Logf("Designated Notary node: %s", hex.EncodeToString(ntr.Accounts[0].PrivateKey().PublicKey().Bytes()))
 
+	// Push verification contract with arguments into the chain.
+	txDeploy3, _ := newDeployTx(t, bc, priv0ScriptHash, prefix+"verification_with_args_contract.go", "VerifyWithArgs")
+	txDeploy3.Nonce = getNextNonce()
+	txDeploy3.ValidUntilBlock = validUntilBlock
+	require.NoError(t, addNetworkFee(bc, txDeploy3, acc0))
+	require.NoError(t, acc0.SignTx(txDeploy3))
+	b = bc.newBlock(txDeploy3)
+	require.NoError(t, bc.AddBlock(b))
+
 	// Compile contract to test `invokescript` RPC call
 	_, _ = newDeployTx(t, bc, priv0ScriptHash, prefix+"invokescript_contract.go", "ContractForInvokescriptTest")
 }

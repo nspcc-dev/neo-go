@@ -36,9 +36,9 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/services/oracle"
 	"github.com/nspcc-dev/neo-go/pkg/services/oracle/broadcaster"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
-	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"go.uber.org/zap"
 )
 
@@ -1118,7 +1118,7 @@ func (s *Server) invokeFunction(reqParams request.Params) (interface{}, *respons
 		return nil, response.NewInternalServerError("can't create invocation script", err)
 	}
 	tx.Script = script
-	return s.runScriptInVM(trigger.Application, script, tx)
+	return s.runScriptInVM(trigger.Application, script, util.Uint160{}, tx)
 }
 
 // invokescript implements the `invokescript` RPC call.
@@ -1144,7 +1144,7 @@ func (s *Server) invokescript(reqParams request.Params) (interface{}, *response.
 		tx.Signers = []transaction.Signer{{Account: util.Uint160{}, Scopes: transaction.None}}
 	}
 	tx.Script = script
-	return s.runScriptInVM(trigger.Application, script, tx)
+	return s.runScriptInVM(trigger.Application, script, util.Uint160{}, tx)
 }
 
 // invokeContractVerify implements the `invokecontractverify` RPC call.
@@ -1154,36 +1154,43 @@ func (s *Server) invokeContractVerify(reqParams request.Params) (interface{}, *r
 		return nil, responseErr
 	}
 
-	args := reqParams[1:2]
-	var tx *transaction.Transaction
+	bw := io.NewBufBinWriter()
+	if len(reqParams) > 1 {
+		args, err := reqParams[1].GetArray() // second `invokecontractverify` parameter is an array of arguments for `verify` method
+		if err != nil {
+			return nil, response.WrapErrorWithData(response.ErrInvalidParams, err)
+		}
+		if len(args) > 0 {
+			err := request.ExpandArrayIntoScript(bw.BinWriter, args)
+			if err != nil {
+				return nil, response.NewRPCError("can't create witness invocation script", err.Error(), err)
+			}
+		}
+	}
+	invocationScript := bw.Bytes()
+
+	tx := &transaction.Transaction{Script: []byte{byte(opcode.RET)}} // need something in script
 	if len(reqParams) > 2 {
 		signers, witnesses, err := reqParams[2].GetSignersWithWitnesses()
 		if err != nil {
 			return nil, response.ErrInvalidParams
 		}
-		tx = &transaction.Transaction{
-			Signers: signers,
-			Scripts: witnesses,
-		}
+		tx.Signers = signers
+		tx.Scripts = witnesses
+	} else { // fill the only known signer - the contract with `verify` method
+		tx.Signers = []transaction.Signer{{Account: scriptHash}}
+		tx.Scripts = []transaction.Witness{{InvocationScript: invocationScript, VerificationScript: []byte{}}}
 	}
 
-	cs := s.chain.GetContractState(scriptHash)
-	if cs == nil {
-		return nil, response.NewRPCError("unknown contract", scriptHash.StringBE(), nil)
-	}
-	script, err := request.CreateFunctionInvocationScript(cs.Hash, manifest.MethodVerify, args)
-	if err != nil {
-		return nil, response.NewInternalServerError("can't create invocation script", err)
-	}
-	if tx != nil {
-		tx.Script = script
-	}
-	return s.runScriptInVM(trigger.Verification, script, tx)
+	return s.runScriptInVM(trigger.Verification, invocationScript, scriptHash, tx)
 }
 
 // runScriptInVM runs given script in a new test VM and returns the invocation
-// result.
-func (s *Server) runScriptInVM(t trigger.Type, script []byte, tx *transaction.Transaction) (*result.Invoke, *response.Error) {
+// result. The script is either a simple script in case of `application` trigger
+// witness invocation script in case of `verification` trigger (it pushes `verify`
+// arguments on stack before verification). In case of contract verification
+// contractScriptHash should be specified.
+func (s *Server) runScriptInVM(t trigger.Type, script []byte, contractScriptHash util.Uint160, tx *transaction.Transaction) (*result.Invoke, *response.Error) {
 	// When transferring funds, script execution does no auto GAS claim,
 	// because it depends on persisting tx height.
 	// This is why we provide block here.
@@ -1197,7 +1204,27 @@ func (s *Server) runScriptInVM(t trigger.Type, script []byte, tx *transaction.Tr
 
 	vm := s.chain.GetTestVM(t, tx, b)
 	vm.GasLimit = int64(s.config.MaxGasInvoke)
-	vm.LoadScriptWithFlags(script, callflag.All)
+	if t == trigger.Verification {
+		// We need this special case because witnesses verification is not the simple System.Contract.Call,
+		// and we need to define exactly the amount of gas consumed for a contract witness verification.
+		gasPolicy := s.chain.GetPolicer().GetMaxVerificationGAS()
+		if vm.GasLimit > gasPolicy {
+			vm.GasLimit = gasPolicy
+		}
+
+		err := s.chain.InitVerificationVM(vm, func(h util.Uint160) (*state.Contract, error) {
+			res := s.chain.GetContractState(h)
+			if res == nil {
+				return nil, fmt.Errorf("unknown contract: %s", h.StringBE())
+			}
+			return res, nil
+		}, contractScriptHash, &transaction.Witness{InvocationScript: script, VerificationScript: []byte{}})
+		if err != nil {
+			return nil, response.NewInternalServerError("can't prepare verification VM", err)
+		}
+	} else {
+		vm.LoadScriptWithFlags(script, callflag.All)
+	}
 	err = vm.Run()
 	var faultException string
 	if err != nil {

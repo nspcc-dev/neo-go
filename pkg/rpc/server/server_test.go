@@ -35,6 +35,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
+	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/stretchr/testify/assert"
@@ -60,11 +61,13 @@ type rpcTestCase struct {
 }
 
 const testContractHash = "1e1c3024bd955ff3baf7cb92e3b7608c7bb3712b"
-const deploymentTxHash = "b67eb38f1e6805d60b68cbec9cf8db7e4a71313b6f53ff8545c578b51ce874c5"
+const deploymentTxHash = "298092d1619585b2fcd3045c8e5a749ddbe14a6fe41569a69b50f47b812112d9"
 const genesisBlockHash = "5b60644c6c6f58faca72c70689d7ed1f40c2e795772bd0de5a88e983ad55080c"
 
 const verifyContractHash = "5bb4bac40e961e334ba7bd36d2496010f67e246e"
 const verifyContractAVM = "VwMAQS1RCDAhcAwUVVQtU+0PVUb61E1umZEoZwIvzl7bMHFoE87bKGnbKJdA"
+const verifyWithArgsContractHash = "59b08e81dcf94f6ddbef5c2d84a4c1a098b9a984"
+const verifyWithArgsContractAVM = "VwIDeAwLZ29vZF9zdHJpbmeXJA15FSgJehHbIJciBRHbIHBoQA=="
 const invokescriptContractAVM = "VwcADBQBDAMOBQYMDQIODw0DDgcJAAAAANswcGhB+CfsjCGqJgQRQAwUDQ8DAgkAAgEDBwMEBQIBAA4GDAnbMHFpQfgn7IwhqiYEEkATQA=="
 
 var rpcTestCases = map[string][]rpcTestCase{
@@ -651,7 +654,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 				require.True(t, ok)
 				expected := result.UnclaimedGas{
 					Address:   testchain.MultisigScriptHash(),
-					Unclaimed: *big.NewInt(4500),
+					Unclaimed: *big.NewInt(5000),
 				}
 				assert.Equal(t, expected, *actual)
 			},
@@ -814,7 +817,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 			check: func(t *testing.T, e *executor, inv interface{}) {
 				res, ok := inv.(*result.Invoke)
 				require.True(t, ok)
-				assert.NotNil(t, res.Script)
+				assert.Nil(t, res.Script) // empty witness invocation script (pushes args of `verify` on stack, but this `verify` don't have args)
 				assert.Equal(t, "HALT", res.State)
 				assert.NotEqual(t, 0, res.GasConsumed)
 				assert.Equal(t, true, res.Stack[0].Value().(bool), fmt.Sprintf("check address in verification_contract.go: expected %s", testchain.PrivateKeyByID(0).Address()))
@@ -827,23 +830,72 @@ var rpcTestCases = map[string][]rpcTestCase{
 			check: func(t *testing.T, e *executor, inv interface{}) {
 				res, ok := inv.(*result.Invoke)
 				require.True(t, ok)
-				assert.NotNil(t, res.Script)
+				assert.Nil(t, res.Script)
 				assert.Equal(t, "HALT", res.State, res.FaultException)
 				assert.NotEqual(t, 0, res.GasConsumed)
 				assert.Equal(t, false, res.Stack[0].Value().(bool))
 			},
 		},
 		{
-			name:   "positive, with scripts",
+			name:   "positive, no arguments",
+			params: fmt.Sprintf(`["%s"]`, verifyContractHash),
+			result: func(e *executor) interface{} { return &result.Invoke{} },
+			check: func(t *testing.T, e *executor, inv interface{}) {
+				res, ok := inv.(*result.Invoke)
+				require.True(t, ok)
+				assert.Nil(t, res.Script)
+				assert.Equal(t, "HALT", res.State, res.FaultException)
+				assert.NotEqual(t, 0, res.GasConsumed)
+				assert.Equal(t, false, res.Stack[0].Value().(bool))
+			},
+		},
+		{
+			name:   "positive, with signers and scripts",
 			params: fmt.Sprintf(`["%s", [], [{"account":"%s", "invocation":"MQo=", "verification": ""}]]`, verifyContractHash, testchain.PrivateKeyByID(0).PublicKey().GetScriptHash().StringLE()),
 			result: func(e *executor) interface{} { return &result.Invoke{} },
 			check: func(t *testing.T, e *executor, inv interface{}) {
 				res, ok := inv.(*result.Invoke)
 				require.True(t, ok)
-				assert.NotNil(t, res.Script)
+				assert.Nil(t, res.Script)
 				assert.Equal(t, "HALT", res.State)
 				assert.NotEqual(t, 0, res.GasConsumed)
 				assert.Equal(t, true, res.Stack[0].Value().(bool))
+			},
+		},
+		{
+			name:   "positive, with arguments, result=true",
+			params: fmt.Sprintf(`["%s", [{"type": "String", "value": "good_string"}, {"type": "Integer", "value": "4"}, {"type":"Boolean", "value": "false"}]]`, verifyWithArgsContractHash),
+			result: func(e *executor) interface{} { return &result.Invoke{} },
+			check: func(t *testing.T, e *executor, inv interface{}) {
+				res, ok := inv.(*result.Invoke)
+				require.True(t, ok)
+				expectedInvScript := io.NewBufBinWriter()
+				emit.Int(expectedInvScript.BinWriter, 0)
+				emit.Int(expectedInvScript.BinWriter, int64(4))
+				emit.String(expectedInvScript.BinWriter, "good_string")
+				require.NoError(t, expectedInvScript.Err)
+				assert.Equal(t, expectedInvScript.Bytes(), res.Script) // witness invocation script (pushes args of `verify` on stack)
+				assert.Equal(t, "HALT", res.State, res.FaultException)
+				assert.NotEqual(t, 0, res.GasConsumed)
+				assert.Equal(t, true, res.Stack[0].Value().(bool))
+			},
+		},
+		{
+			name:   "positive, with arguments, result=false",
+			params: fmt.Sprintf(`["%s", [{"type": "String", "value": "invalid_string"}, {"type": "Integer", "value": "4"}, {"type":"Boolean", "value": "false"}]]`, verifyWithArgsContractHash),
+			result: func(e *executor) interface{} { return &result.Invoke{} },
+			check: func(t *testing.T, e *executor, inv interface{}) {
+				res, ok := inv.(*result.Invoke)
+				require.True(t, ok)
+				expectedInvScript := io.NewBufBinWriter()
+				emit.Int(expectedInvScript.BinWriter, 0)
+				emit.Int(expectedInvScript.BinWriter, int64(4))
+				emit.String(expectedInvScript.BinWriter, "invalid_string")
+				require.NoError(t, expectedInvScript.Err)
+				assert.Equal(t, expectedInvScript.Bytes(), res.Script)
+				assert.Equal(t, "HALT", res.State, res.FaultException)
+				assert.NotEqual(t, 0, res.GasConsumed)
+				assert.Equal(t, false, res.Stack[0].Value().(bool))
 			},
 		},
 		{
@@ -1369,7 +1421,7 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 		require.NoErrorf(t, err, "could not parse response: %s", txOut)
 
 		assert.Equal(t, *block.Transactions[0], actual.Transaction)
-		assert.Equal(t, 10, actual.Confirmations)
+		assert.Equal(t, 11, actual.Confirmations)
 		assert.Equal(t, TXHash, actual.Transaction.Hash())
 	})
 
@@ -1487,12 +1539,12 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 			require.NoError(t, json.Unmarshal(res, actual))
 			checkNep17TransfersAux(t, e, actual, sent, rcvd)
 		}
-		t.Run("time frame only", func(t *testing.T) { testNEP17T(t, 4, 5, 0, 0, []int{5, 6, 7, 8}, []int{1, 2}) })
+		t.Run("time frame only", func(t *testing.T) { testNEP17T(t, 4, 5, 0, 0, []int{6, 7, 8, 9}, []int{1, 2}) })
 		t.Run("no res", func(t *testing.T) { testNEP17T(t, 100, 100, 0, 0, []int{}, []int{}) })
-		t.Run("limit", func(t *testing.T) { testNEP17T(t, 1, 7, 3, 0, []int{2, 3}, []int{0}) })
-		t.Run("limit 2", func(t *testing.T) { testNEP17T(t, 4, 5, 2, 0, []int{5}, []int{1}) })
-		t.Run("limit with page", func(t *testing.T) { testNEP17T(t, 1, 7, 3, 1, []int{4, 5}, []int{1}) })
-		t.Run("limit with page 2", func(t *testing.T) { testNEP17T(t, 1, 7, 3, 2, []int{6, 7}, []int{2}) })
+		t.Run("limit", func(t *testing.T) { testNEP17T(t, 1, 7, 3, 0, []int{3, 4}, []int{0}) })
+		t.Run("limit 2", func(t *testing.T) { testNEP17T(t, 4, 5, 2, 0, []int{6}, []int{1}) })
+		t.Run("limit with page", func(t *testing.T) { testNEP17T(t, 1, 7, 3, 1, []int{5, 6}, []int{1}) })
+		t.Run("limit with page 2", func(t *testing.T) { testNEP17T(t, 1, 7, 3, 2, []int{7, 8}, []int{2}) })
 	})
 }
 
@@ -1597,8 +1649,8 @@ func checkNep17Balances(t *testing.T, e *executor, acc interface{}) {
 			},
 			{
 				Asset:       e.chain.UtilityTokenHash(),
-				Amount:      "78994302340",
-				LastUpdated: 8,
+				Amount:      "68992647820",
+				LastUpdated: 10,
 			}},
 		Address: testchain.PrivateKeyByID(0).GetScriptHash().StringLE(),
 	}
@@ -1607,7 +1659,7 @@ func checkNep17Balances(t *testing.T, e *executor, acc interface{}) {
 }
 
 func checkNep17Transfers(t *testing.T, e *executor, acc interface{}) {
-	checkNep17TransfersAux(t, e, acc, []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10}, []int{0, 1, 2, 3, 4, 5, 6})
+	checkNep17TransfersAux(t, e, acc, []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11}, []int{0, 1, 2, 3, 4, 5, 6})
 }
 
 func checkNep17TransfersAux(t *testing.T, e *executor, acc interface{}, sent, rcvd []int) {
@@ -1616,12 +1668,17 @@ func checkNep17TransfersAux(t *testing.T, e *executor, acc interface{}, sent, rc
 	rublesHash, err := util.Uint160DecodeStringLE(testContractHash)
 	require.NoError(t, err)
 
+	blockDeploy3, err := e.chain.GetBlock(e.chain.GetHeaderHash(10)) // deploy verification_with_args_contract.go
+	require.NoError(t, err)
+	require.Equal(t, 1, len(blockDeploy3.Transactions))
+	txDeploy3 := blockDeploy3.Transactions[0]
+
 	blockDepositGAS, err := e.chain.GetBlock(e.chain.GetHeaderHash(8))
 	require.NoError(t, err)
 	require.Equal(t, 1, len(blockDepositGAS.Transactions))
 	txDepositGAS := blockDepositGAS.Transactions[0]
 
-	blockDeploy2, err := e.chain.GetBlock(e.chain.GetHeaderHash(7))
+	blockDeploy2, err := e.chain.GetBlock(e.chain.GetHeaderHash(7)) // deploy verification_contract.go
 	require.NoError(t, err)
 	require.Equal(t, 1, len(blockDeploy2.Transactions))
 	txDeploy2 := blockDeploy2.Transactions[0]
@@ -1669,6 +1726,14 @@ func checkNep17TransfersAux(t *testing.T, e *executor, acc interface{}, sent, rc
 	// duplicate the Server method.
 	expected := result.NEP17Transfers{
 		Sent: []result.NEP17Transfer{
+			{
+				Timestamp: blockDeploy3.Timestamp,
+				Asset:     e.chain.UtilityTokenHash(),
+				Address:   "", // burn
+				Amount:    big.NewInt(txDeploy3.SystemFee + txDeploy3.NetworkFee).String(),
+				Index:     10,
+				TxHash:    blockDeploy3.Hash(),
+			},
 			{
 				Timestamp:   blockDepositGAS.Timestamp,
 				Asset:       e.chain.UtilityTokenHash(),

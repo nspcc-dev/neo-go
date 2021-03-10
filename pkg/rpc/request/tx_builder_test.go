@@ -105,7 +105,7 @@ func TestExpandArrayIntoScript(t *testing.T) {
 	}
 	for _, c := range testCases {
 		script := io.NewBufBinWriter()
-		err := expandArrayIntoScript(script.BinWriter, c.Input)
+		err := ExpandArrayIntoScript(script.BinWriter, c.Input)
 		require.NoError(t, err)
 		require.Equal(t, c.Expected, script.Bytes())
 	}
@@ -119,7 +119,7 @@ func TestExpandArrayIntoScript(t *testing.T) {
 	}
 	for _, c := range errorCases {
 		script := io.NewBufBinWriter()
-		err := expandArrayIntoScript(script.BinWriter, c)
+		err := ExpandArrayIntoScript(script.BinWriter, c)
 		require.Error(t, err)
 	}
 }

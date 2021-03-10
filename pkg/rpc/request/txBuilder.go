@@ -14,9 +14,9 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 )
 
-// expandArrayIntoScript pushes all FuncParam parameters from the given array
+// ExpandArrayIntoScript pushes all FuncParam parameters from the given array
 // into the given buffer in reverse order.
-func expandArrayIntoScript(script *io.BinWriter, slice []Param) error {
+func ExpandArrayIntoScript(script *io.BinWriter, slice []Param) error {
 	for j := len(slice) - 1; j >= 0; j-- {
 		fp, err := slice[j].GetFuncParam()
 		if err != nil {
@@ -87,7 +87,7 @@ func expandArrayIntoScript(script *io.BinWriter, slice []Param) error {
 			if err != nil {
 				return err
 			}
-			err = expandArrayIntoScript(script, val)
+			err = ExpandArrayIntoScript(script, val)
 			if err != nil {
 				return err
 			}
@@ -119,7 +119,7 @@ func CreateFunctionInvocationScript(contract util.Uint160, method string, params
 			if err != nil {
 				return nil, err
 			}
-			err = expandArrayIntoScript(script.BinWriter, slice)
+			err = ExpandArrayIntoScript(script.BinWriter, slice)
 			if err != nil {
 				return nil, err
 			}
