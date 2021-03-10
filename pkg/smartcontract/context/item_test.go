@@ -8,7 +8,6 @@ import (
 	"github.com/nspcc-dev/neo-go/internal/testserdes"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
-	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/stretchr/testify/require"
 )
 
@@ -41,7 +40,7 @@ func TestContextItem_MarshalJSON(t *testing.T) {
 	require.NoError(t, err)
 
 	expected := &Item{
-		Script: util.Uint160{1, 2, 3},
+		Script: []byte{1, 2, 3},
 		Parameters: []smartcontract.Parameter{{
 			Type:  smartcontract.SignatureType,
 			Value: random.Bytes(64),

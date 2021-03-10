@@ -51,8 +51,11 @@ func NewParameterContext(typ string, verif crypto.VerifiableDecodable) *Paramete
 }
 
 // GetWitness returns invocation and verification scripts for the specified contract.
-func (c *ParameterContext) GetWitness(ctr *wallet.Contract) (*transaction.Witness, error) {
-	item := c.getItemForContract(ctr)
+func (c *ParameterContext) GetWitness(h util.Uint160) (*transaction.Witness, error) {
+	item, ok := c.Items[h]
+	if !ok {
+		return nil, errors.New("witness not found")
+	}
 	bw := io.NewBufBinWriter()
 	for i := range item.Parameters {
 		if item.Parameters[i].Type != smartcontract.SignatureType {
@@ -64,13 +67,13 @@ func (c *ParameterContext) GetWitness(ctr *wallet.Contract) (*transaction.Witnes
 	}
 	return &transaction.Witness{
 		InvocationScript:   bw.Bytes(),
-		VerificationScript: ctr.Script,
+		VerificationScript: item.Script,
 	}, nil
 }
 
 // AddSignature adds a signature for the specified contract and public key.
-func (c *ParameterContext) AddSignature(ctr *wallet.Contract, pub *keys.PublicKey, sig []byte) error {
-	item := c.getItemForContract(ctr)
+func (c *ParameterContext) AddSignature(h util.Uint160, ctr *wallet.Contract, pub *keys.PublicKey, sig []byte) error {
+	item := c.getItemForContract(h, ctr)
 	if _, pubs, ok := vm.ParseMultiSigContract(ctr.Script); ok {
 		if item.GetSignature(pub) != nil {
 			return errors.New("signature is already added")
@@ -118,24 +121,29 @@ func (c *ParameterContext) AddSignature(ctr *wallet.Contract, pub *keys.PublicKe
 			index = i
 		}
 	}
-	if index == -1 {
+	if index != -1 {
+		item.Parameters[index].Value = sig
+	} else if !ctr.Deployed {
 		return errors.New("missing signature parameter")
 	}
-	item.Parameters[index].Value = sig
 	return nil
 }
 
-func (c *ParameterContext) getItemForContract(ctr *wallet.Contract) *Item {
-	h := ctr.ScriptHash()
-	if item, ok := c.Items[h]; ok {
+func (c *ParameterContext) getItemForContract(h util.Uint160, ctr *wallet.Contract) *Item {
+	item, ok := c.Items[ctr.ScriptHash()]
+	if ok {
 		return item
 	}
 	params := make([]smartcontract.Parameter, len(ctr.Parameters))
 	for i := range params {
 		params[i].Type = ctr.Parameters[i].Type
 	}
-	item := &Item{
-		Script:     h,
+	script := ctr.Script
+	if ctr.Deployed {
+		script = nil
+	}
+	item = &Item{
+		Script:     script,
 		Parameters: params,
 		Signatures: make(map[string][]byte),
 	}

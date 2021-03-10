@@ -70,6 +70,16 @@ func NewCommands() []cli.Command {
 		},
 	}
 	claimFlags = append(claimFlags, options.RPC...)
+	signFlags := []cli.Flag{
+		walletPathFlag,
+		outFlag,
+		inFlag,
+		cli.StringFlag{
+			Name:  "address, a",
+			Usage: "Address to use",
+		},
+	}
+	signFlags = append(signFlags, options.RPC...)
 	return []cli.Command{{
 		Name:  "wallet",
 		Usage: "create, open and manage a NEO wallet",
@@ -204,9 +214,11 @@ func NewCommands() []cli.Command {
 				},
 			},
 			{
-				Name:        "multisig",
-				Usage:       "work with multisig address",
-				Subcommands: newMultisigCommands(),
+				Name:      "sign",
+				Usage:     "cosign transaction with multisig/contract/additional account",
+				UsageText: "sign --wallet <path> --address <address> --in <file.in> --out <file.out>",
+				Action:    signStoredTransaction,
+				Flags:     signFlags,
 			},
 			{
 				Name:        "nep17",

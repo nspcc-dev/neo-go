@@ -1,23 +1,23 @@
 package context
 
 import (
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
-	"github.com/nspcc-dev/neo-go/pkg/util"
 )
 
 // Item represents a transaction context item.
 type Item struct {
-	Script     util.Uint160
+	Script     []byte
 	Parameters []smartcontract.Parameter
 	Signatures map[string][]byte
 }
 
 type itemAux struct {
-	Script     util.Uint160              `json:"script"`
+	Script     string                    `json:"script"`
 	Parameters []smartcontract.Parameter `json:"parameters"`
 	Signatures map[string]string         `json:"signatures"`
 }
@@ -36,7 +36,7 @@ func (it *Item) AddSignature(pub *keys.PublicKey, sig []byte) {
 // MarshalJSON implements json.Marshaler interface.
 func (it Item) MarshalJSON() ([]byte, error) {
 	ci := itemAux{
-		Script:     it.Script,
+		Script:     base64.StdEncoding.EncodeToString(it.Script),
 		Parameters: it.Parameters,
 		Signatures: make(map[string]string, len(it.Signatures)),
 	}
@@ -55,6 +55,11 @@ func (it *Item) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
+	script, err := base64.StdEncoding.DecodeString(ci.Script)
+	if err != nil {
+		return err
+	}
+
 	sigs := make(map[string][]byte, len(ci.Signatures))
 	for keyHex, sigHex := range ci.Signatures {
 		_, err := keys.NewPublicKeyFromString(keyHex)
@@ -69,7 +74,7 @@ func (it *Item) UnmarshalJSON(data []byte) error {
 	}
 
 	it.Signatures = sigs
-	it.Script = ci.Script
+	it.Script = script
 	it.Parameters = ci.Parameters
 	return nil
 }

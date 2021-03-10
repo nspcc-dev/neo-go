@@ -10,29 +10,7 @@ import (
 	"github.com/urfave/cli"
 )
 
-func newMultisigCommands() []cli.Command {
-	signFlags := []cli.Flag{
-		walletPathFlag,
-		outFlag,
-		inFlag,
-		cli.StringFlag{
-			Name:  "address, a",
-			Usage: "Address to use",
-		},
-	}
-	signFlags = append(signFlags, options.RPC...)
-	return []cli.Command{
-		{
-			Name:      "sign",
-			Usage:     "sign a transaction",
-			UsageText: "multisig sign --wallet <path> --address <address> --in <file.in> --out <file.out>",
-			Action:    signMultisig,
-			Flags:     signFlags,
-		},
-	}
-}
-
-func signMultisig(ctx *cli.Context) error {
+func signStoredTransaction(ctx *cli.Context) error {
 	wall, err := openWallet(ctx.String("wallet"))
 	if err != nil {
 		return cli.NewExitError(err, 1)
@@ -58,9 +36,24 @@ func signMultisig(ctx *cli.Context) error {
 		return cli.NewExitError("verifiable item is not a transaction", 1)
 	}
 
+	ch, err := address.StringToUint160(acc.Address)
+	if err != nil {
+		return cli.NewExitError(fmt.Errorf("wallet contains invalid account: %s", acc.Address), 1)
+	}
+	signerFound := false
+	for i := range tx.Signers {
+		if tx.Signers[i].Account == ch {
+			signerFound = true
+			break
+		}
+	}
+	if !signerFound {
+		return cli.NewExitError("tx signers don't contain provided account", 1)
+	}
+
 	priv := acc.PrivateKey()
 	sign := priv.Sign(tx.GetSignedPart())
-	if err := c.AddSignature(acc.Contract, priv.PublicKey(), sign); err != nil {
+	if err := c.AddSignature(ch, acc.Contract, priv.PublicKey(), sign); err != nil {
 		return cli.NewExitError(fmt.Errorf("can't add signature: %w", err), 1)
 	}
 	if out := ctx.String("out"); out != "" {
@@ -69,15 +62,18 @@ func signMultisig(ctx *cli.Context) error {
 		}
 	}
 	if len(ctx.String(options.RPCEndpointFlag)) != 0 {
-		w, err := c.GetWitness(acc.Contract)
-		if err != nil {
-			return cli.NewExitError(err, 1)
+		for i := range tx.Signers {
+			w, err := c.GetWitness(tx.Signers[i].Account)
+			if err != nil {
+				return cli.NewExitError(err, 1)
+			}
+			tx.Scripts = append(tx.Scripts, *w)
 		}
-		tx.Scripts = append(tx.Scripts, *w)
 
 		gctx, cancel := options.GetTimeoutContext(ctx)
 		defer cancel()
 
+		var err error // `GetRPCClient` returns specialized type.
 		c, err := options.GetRPCClient(gctx, ctx)
 		if err != nil {
 			return cli.NewExitError(err, 1)
