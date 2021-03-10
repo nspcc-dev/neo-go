@@ -230,6 +230,33 @@ func TestGetBlock(t *testing.T) {
 		}
 		assert.NoError(t, bc.persist())
 	}
+
+	t.Run("store only header", func(t *testing.T) {
+		t.Run("non-empty block", func(t *testing.T) {
+			tx, err := testchain.NewTransferFromOwner(bc, bc.contracts.NEO.Hash,
+				random.Uint160(), 1, 1, 1000)
+			b := bc.newBlock(tx)
+			require.NoError(t, bc.AddHeaders(&b.Header))
+
+			_, err = bc.GetBlock(b.Hash())
+			require.Error(t, err)
+
+			_, err = bc.GetHeader(b.Hash())
+			require.NoError(t, err)
+
+			require.NoError(t, bc.AddBlock(b))
+
+			_, err = bc.GetBlock(b.Hash())
+			require.NoError(t, err)
+		})
+		t.Run("empty block", func(t *testing.T) {
+			b := bc.newBlock()
+			require.NoError(t, bc.AddHeaders(&b.Header))
+
+			_, err = bc.GetBlock(b.Hash())
+			require.NoError(t, err)
+		})
+	})
 }
 
 func (bc *Blockchain) newTestTx(h util.Uint160, script []byte) *transaction.Transaction {
@@ -1558,9 +1585,10 @@ func TestRemoveUntraceable(t *testing.T) {
 	require.Error(t, err)
 	_, err = bc.GetAppExecResults(tx1.Hash(), trigger.Application)
 	require.Error(t, err)
-	b, err := bc.GetBlock(b1.Hash())
+	_, err = bc.GetBlock(b1.Hash())
+	require.Error(t, err)
+	_, err = bc.GetHeader(b1.Hash())
 	require.NoError(t, err)
-	require.Len(t, b.Transactions, 0)
 }
 
 func TestInvalidNotification(t *testing.T) {

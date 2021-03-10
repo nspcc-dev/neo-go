@@ -1122,6 +1122,9 @@ func (bc *Blockchain) GetBlock(hash util.Uint256) (*block.Block, error) {
 	if err != nil {
 		return nil, err
 	}
+	if !block.MerkleRoot.Equals(util.Uint256{}) && len(block.Transactions) == 0 {
+		return nil, errors.New("only header is found")
+	}
 	for _, tx := range block.Transactions {
 		stx, _, err := bc.dao.GetTransaction(tx.Hash())
 		if err != nil {
