@@ -75,7 +75,7 @@ func buildMerkleTree(leaves []*MerkleTreeNode) *MerkleTreeNode {
 // panic.
 func CalcMerkleRoot(hashes []util.Uint256) util.Uint256 {
 	if len(hashes) == 0 {
-		panic("length of the hashes cannot be zero")
+		return util.Uint256{}
 	}
 	if len(hashes) == 1 {
 		return hashes[0]

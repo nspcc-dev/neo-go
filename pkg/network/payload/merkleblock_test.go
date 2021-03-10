@@ -13,8 +13,8 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/util"
 )
 
-func newDumbBlock() *block.Base {
-	return &block.Base{
+func newDumbBlock() *block.Header {
+	return &block.Header{
 		Version:       0,
 		PrevHash:      hash.Sha256([]byte("a")),
 		MerkleRoot:    hash.Sha256([]byte("b")),
@@ -33,7 +33,7 @@ func TestMerkleBlock_EncodeDecodeBinary(t *testing.T) {
 		b := newDumbBlock()
 		_ = b.Hash()
 		expected := &MerkleBlock{
-			Base:    b,
+			Header:  b,
 			TxCount: 0,
 			Hashes:  []util.Uint256{},
 			Flags:   []byte{},
@@ -45,9 +45,9 @@ func TestMerkleBlock_EncodeDecodeBinary(t *testing.T) {
 		b := newDumbBlock()
 		_ = b.Hash()
 		expected := &MerkleBlock{
-			Base:    b,
-			TxCount: block.MaxContentsPerBlock + 1,
-			Hashes:  make([]util.Uint256, block.MaxContentsPerBlock),
+			Header:  b,
+			TxCount: block.MaxTransactionsPerBlock + 1,
+			Hashes:  make([]util.Uint256, block.MaxTransactionsPerBlock),
 			Flags:   []byte{},
 		}
 		data, err := testserdes.EncodeBinary(expected)
@@ -59,7 +59,7 @@ func TestMerkleBlock_EncodeDecodeBinary(t *testing.T) {
 		b := newDumbBlock()
 		_ = b.Hash()
 		expected := &MerkleBlock{
-			Base:    b,
+			Header:  b,
 			TxCount: 0,
 			Hashes:  []util.Uint256{},
 			Flags:   []byte{1, 2, 3, 4, 5},

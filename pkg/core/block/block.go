@@ -14,10 +14,8 @@ import (
 )
 
 const (
-	// MaxContentsPerBlock is the maximum number of contents (transactions + consensus data) per block.
-	MaxContentsPerBlock = math.MaxUint16
 	// MaxTransactionsPerBlock is the maximum number of transactions per block.
-	MaxTransactionsPerBlock = MaxContentsPerBlock - 1
+	MaxTransactionsPerBlock = math.MaxUint16
 )
 
 // ErrMaxContentsPerBlock is returned when the maximum number of contents per block is reached.
@@ -26,10 +24,7 @@ var ErrMaxContentsPerBlock = errors.New("the number of contents exceeds the maxi
 // Block represents one block in the chain.
 type Block struct {
 	// The base of the block.
-	Base
-
-	// Primary index and nonce
-	ConsensusData ConsensusData `json:"consensusdata"`
+	Header
 
 	// Transaction list.
 	Transactions []*transaction.Transaction
@@ -40,29 +35,19 @@ type Block struct {
 
 // auxBlockOut is used for JSON i/o.
 type auxBlockOut struct {
-	ConsensusData ConsensusData              `json:"consensusdata"`
-	Transactions  []*transaction.Transaction `json:"tx"`
+	Transactions []*transaction.Transaction `json:"tx"`
 }
 
 // auxBlockIn is used for JSON i/o.
 type auxBlockIn struct {
-	ConsensusData ConsensusData     `json:"consensusdata"`
-	Transactions  []json.RawMessage `json:"tx"`
-}
-
-// Header returns the Header of the Block.
-func (b *Block) Header() *Header {
-	return &Header{
-		Base: b.Base,
-	}
+	Transactions []json.RawMessage `json:"tx"`
 }
 
 // ComputeMerkleRoot computes Merkle tree root hash based on actual block's data.
 func (b *Block) ComputeMerkleRoot() util.Uint256 {
-	hashes := make([]util.Uint256, len(b.Transactions)+1)
-	hashes[0] = b.ConsensusData.Hash()
+	hashes := make([]util.Uint256, len(b.Transactions))
 	for i, tx := range b.Transactions {
-		hashes[i+1] = tx.Hash()
+		hashes[i] = tx.Hash()
 	}
 
 	return hash.CalcMerkleRoot(hashes)
@@ -79,7 +64,7 @@ func (b *Block) RebuildMerkleRoot() {
 // set to true.
 func NewBlockFromTrimmedBytes(network netmode.Magic, stateRootEnabled bool, b []byte) (*Block, error) {
 	block := &Block{
-		Base: Base{
+		Header: Header{
 			Network:          network,
 			StateRootEnabled: stateRootEnabled,
 		},
@@ -87,27 +72,18 @@ func NewBlockFromTrimmedBytes(network netmode.Magic, stateRootEnabled bool, b []
 	}
 
 	br := io.NewBinReaderFromBuf(b)
-	block.decodeHashableFields(br)
-
-	_ = br.ReadB()
-
-	block.Script.DecodeBinary(br)
-
+	block.Header.DecodeBinary(br)
 	lenHashes := br.ReadVarUint()
-	if lenHashes > MaxContentsPerBlock {
+	if lenHashes > MaxTransactionsPerBlock {
 		return nil, ErrMaxContentsPerBlock
 	}
 	if lenHashes > 0 {
-		var consensusDataHash util.Uint256
-		consensusDataHash.DecodeBinary(br)
-		lenTX := lenHashes - 1
-		block.Transactions = make([]*transaction.Transaction, lenTX)
-		for i := 0; i < int(lenTX); i++ {
+		block.Transactions = make([]*transaction.Transaction, lenHashes)
+		for i := 0; i < int(lenHashes); i++ {
 			var hash util.Uint256
 			hash.DecodeBinary(br)
 			block.Transactions[i] = transaction.NewTrimmedTX(hash)
 		}
-		block.ConsensusData.DecodeBinary(br)
 	}
 
 	return block, br.Err
@@ -116,7 +92,7 @@ func NewBlockFromTrimmedBytes(network netmode.Magic, stateRootEnabled bool, b []
 // New creates a new blank block tied to the specific network.
 func New(network netmode.Magic, stateRootEnabled bool) *Block {
 	return &Block{
-		Base: Base{
+		Header: Header{
 			Network:          network,
 			StateRootEnabled: stateRootEnabled,
 		},
@@ -128,20 +104,14 @@ func New(network netmode.Magic, stateRootEnabled bool) *Block {
 // Notice that only the hashes of the transactions are stored.
 func (b *Block) Trim() ([]byte, error) {
 	buf := io.NewBufBinWriter()
-	b.encodeHashableFields(buf.BinWriter)
-	buf.WriteB(1)
-	b.Script.EncodeBinary(buf.BinWriter)
+	b.Header.EncodeBinary(buf.BinWriter)
 
-	buf.WriteVarUint(uint64(len(b.Transactions)) + 1)
-	hash := b.ConsensusData.Hash()
-	hash.EncodeBinary(buf.BinWriter)
-
+	buf.WriteVarUint(uint64(len(b.Transactions)))
 	for _, tx := range b.Transactions {
 		h := tx.Hash()
 		h.EncodeBinary(buf.BinWriter)
 	}
 
-	b.ConsensusData.EncodeBinary(buf.BinWriter)
 	if buf.Err != nil {
 		return nil, buf.Err
 	}
@@ -152,19 +122,14 @@ func (b *Block) Trim() ([]byte, error) {
 // DecodeBinary decodes the block from the given BinReader, implementing
 // Serializable interface.
 func (b *Block) DecodeBinary(br *io.BinReader) {
-	b.Base.DecodeBinary(br)
+	b.Header.DecodeBinary(br)
 	contentsCount := br.ReadVarUint()
-	if contentsCount == 0 {
-		br.Err = errors.New("invalid block format")
-		return
-	}
-	if contentsCount > MaxContentsPerBlock {
+	if contentsCount > MaxTransactionsPerBlock {
 		br.Err = ErrMaxContentsPerBlock
 		return
 	}
-	b.ConsensusData.DecodeBinary(br)
-	txes := make([]*transaction.Transaction, contentsCount-1)
-	for i := 0; i < int(contentsCount)-1; i++ {
+	txes := make([]*transaction.Transaction, contentsCount)
+	for i := 0; i < int(contentsCount); i++ {
 		tx := &transaction.Transaction{Network: b.Network}
 		tx.DecodeBinary(br)
 		txes[i] = tx
@@ -178,9 +143,8 @@ func (b *Block) DecodeBinary(br *io.BinReader) {
 // EncodeBinary encodes the block to the given BinWriter, implementing
 // Serializable interface.
 func (b *Block) EncodeBinary(bw *io.BinWriter) {
-	b.Base.EncodeBinary(bw)
-	bw.WriteVarUint(uint64(len(b.Transactions) + 1))
-	b.ConsensusData.EncodeBinary(bw)
+	b.Header.EncodeBinary(bw)
+	bw.WriteVarUint(uint64(len(b.Transactions)))
 	for i := 0; i < len(b.Transactions); i++ {
 		b.Transactions[i].EncodeBinary(bw)
 	}
@@ -202,13 +166,12 @@ func (b *Block) Compare(item queue.Item) int {
 // MarshalJSON implements json.Marshaler interface.
 func (b Block) MarshalJSON() ([]byte, error) {
 	auxb, err := json.Marshal(auxBlockOut{
-		ConsensusData: b.ConsensusData,
-		Transactions:  b.Transactions,
+		Transactions: b.Transactions,
 	})
 	if err != nil {
 		return nil, err
 	}
-	baseBytes, err := json.Marshal(b.Base)
+	baseBytes, err := json.Marshal(b.Header)
 	if err != nil {
 		return nil, err
 	}
@@ -231,7 +194,7 @@ func (b *Block) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		return err
 	}
-	err = json.Unmarshal(data, &b.Base)
+	err = json.Unmarshal(data, &b.Header)
 	if err != nil {
 		return err
 	}
@@ -246,9 +209,5 @@ func (b *Block) UnmarshalJSON(data []byte) error {
 			b.Transactions = append(b.Transactions, tx)
 		}
 	}
-	b.ConsensusData = auxb.ConsensusData
-	// Some tests rely on hash presence and we're usually precomputing
-	// other hashes upon deserialization.
-	_ = b.ConsensusData.Hash()
 	return nil
 }

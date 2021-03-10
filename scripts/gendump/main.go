@@ -160,17 +160,13 @@ func addBlock(bc *core.Blockchain, lastBlock *block.Block, script []byte, txs ..
 func newBlock(bc *core.Blockchain, lastBlock *block.Block, script []byte, txs ...*transaction.Transaction) (*block.Block, error) {
 	witness := transaction.Witness{VerificationScript: script}
 	b := &block.Block{
-		Base: block.Base{
+		Header: block.Header{
 			Network:       netmode.UnitTestNet,
 			PrevHash:      lastBlock.Hash(),
 			Timestamp:     uint64(time.Now().UTC().Unix())*1000 + uint64(lastBlock.Index),
 			Index:         lastBlock.Index + 1,
 			NextConsensus: witness.ScriptHash(),
 			Script:        witness,
-		},
-		ConsensusData: block.ConsensusData{
-			PrimaryIndex: 0,
-			Nonce:        1111,
 		},
 		Transactions: txs,
 	}

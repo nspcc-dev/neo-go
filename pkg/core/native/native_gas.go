@@ -85,7 +85,7 @@ func (g *GAS) OnPersist(ic *interop.Context) error {
 		g.burn(ic, tx.Sender(), absAmount)
 	}
 	validators := g.NEO.GetNextBlockValidatorsInternal()
-	primary := validators[ic.Block.ConsensusData.PrimaryIndex].GetScriptHash()
+	primary := validators[ic.Block.PrimaryIndex].GetScriptHash()
 	var netFee int64
 	for _, tx := range ic.Block.Transactions {
 		netFee += tx.NetworkFee

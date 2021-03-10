@@ -11,7 +11,7 @@ import (
 
 // MerkleBlock represents a merkle block packet payload.
 type MerkleBlock struct {
-	*block.Base
+	*block.Header
 	Network netmode.Magic
 	TxCount int
 	Hashes  []util.Uint256
@@ -20,11 +20,11 @@ type MerkleBlock struct {
 
 // DecodeBinary implements Serializable interface.
 func (m *MerkleBlock) DecodeBinary(br *io.BinReader) {
-	m.Base = &block.Base{Network: m.Network}
-	m.Base.DecodeBinary(br)
+	m.Header = &block.Header{Network: m.Network}
+	m.Header.DecodeBinary(br)
 
 	txCount := int(br.ReadVarUint())
-	if txCount > block.MaxContentsPerBlock {
+	if txCount > block.MaxTransactionsPerBlock {
 		br.Err = block.ErrMaxContentsPerBlock
 		return
 	}
@@ -38,7 +38,7 @@ func (m *MerkleBlock) DecodeBinary(br *io.BinReader) {
 
 // EncodeBinary implements Serializable interface.
 func (m *MerkleBlock) EncodeBinary(bw *io.BinWriter) {
-	m.Base.EncodeBinary(bw)
+	m.Header.EncodeBinary(bw)
 
 	bw.WriteVarUint(uint64(m.TxCount))
 	bw.WriteArray(m.Hashes)

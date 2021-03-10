@@ -108,14 +108,10 @@ func newBlockCustom(cfg config.ProtocolConfiguration, f func(b *block.Block),
 		VerificationScript: valScript,
 	}
 	b := &block.Block{
-		Base: block.Base{
+		Header: block.Header{
 			Network:       testchain.Network(),
 			NextConsensus: witness.ScriptHash(),
 			Script:        witness,
-		},
-		ConsensusData: block.ConsensusData{
-			PrimaryIndex: 0,
-			Nonce:        1111,
 		},
 		Transactions: txs,
 	}
@@ -209,7 +205,7 @@ func getBlockData(i int) (map[string]interface{}, error) {
 
 func newDumbBlock() *block.Block {
 	return &block.Block{
-		Base: block.Base{
+		Header: block.Header{
 			Network:       testchain.Network(),
 			Version:       0,
 			PrevHash:      hash.Sha256([]byte("a")),
@@ -221,10 +217,6 @@ func newDumbBlock() *block.Block {
 				VerificationScript: []byte{0x51}, // PUSH1
 				InvocationScript:   []byte{0x61}, // NOP
 			},
-		},
-		ConsensusData: block.ConsensusData{
-			PrimaryIndex: 0,
-			Nonce:        1111,
 		},
 		Transactions: []*transaction.Transaction{
 			transaction.New(testchain.Network(), []byte{byte(opcode.PUSH1)}, 0),
@@ -333,7 +325,7 @@ func initBasicChain(t *testing.T, bc *Blockchain) {
 	// info for getblockheader rpc tests
 	t.Logf("header hash: %s", b.Hash().StringLE())
 	buf := io.NewBufBinWriter()
-	b.Header().EncodeBinary(buf.BinWriter)
+	b.Header.EncodeBinary(buf.BinWriter)
 	t.Logf("header: %s", hex.EncodeToString(buf.Bytes()))
 
 	acc0 := wallet.NewAccountFromPrivateKey(priv0)

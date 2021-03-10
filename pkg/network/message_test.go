@@ -57,12 +57,10 @@ func TestEncodeDecodeHeaders(t *testing.T) {
 	headers := &payload.Headers{Hdrs: make([]*block.Header, CompressionMinSize)}
 	for i := range headers.Hdrs {
 		h := &block.Header{
-			Base: block.Base{
-				Index: uint32(i + 1),
-				Script: transaction.Witness{
-					InvocationScript:   []byte{0x0},
-					VerificationScript: []byte{0x1},
-				},
+			Index: uint32(i + 1),
+			Script: transaction.Witness{
+				InvocationScript:   []byte{0x0},
+				VerificationScript: []byte{0x1},
 			},
 		}
 		h.Hash()
@@ -199,7 +197,7 @@ func TestEncodeDecodeTransaction(t *testing.T) {
 }
 
 func TestEncodeDecodeMerkleBlock(t *testing.T) {
-	base := &block.Base{
+	base := &block.Header{
 		PrevHash:  random.Uint256(),
 		Timestamp: rand.Uint64(),
 		Script: transaction.Witness{
@@ -212,7 +210,7 @@ func TestEncodeDecodeMerkleBlock(t *testing.T) {
 	t.Run("good", func(t *testing.T) {
 		testEncodeDecode(t, CMDMerkleBlock, &payload.MerkleBlock{
 			Network: netmode.UnitTestNet,
-			Base:    base,
+			Header:  base,
 			TxCount: 1,
 			Hashes:  []util.Uint256{random.Uint256()},
 			Flags:   []byte{0},
@@ -220,7 +218,7 @@ func TestEncodeDecodeMerkleBlock(t *testing.T) {
 	})
 	t.Run("bad, invalid TxCount", func(t *testing.T) {
 		testEncodeDecodeFail(t, CMDMerkleBlock, &payload.MerkleBlock{
-			Base:    base,
+			Header:  base,
 			TxCount: 2,
 			Hashes:  []util.Uint256{random.Uint256()},
 			Flags:   []byte{0},

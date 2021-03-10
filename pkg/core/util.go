@@ -37,7 +37,7 @@ func createGenesisBlock(cfg config.ProtocolConfiguration) (*block.Block, error) 
 		return nil, err
 	}
 
-	base := block.Base{
+	base := block.Header{
 		Version:       0,
 		PrevHash:      util.Uint256{},
 		Timestamp:     uint64(time.Date(2016, 7, 15, 15, 8, 21, 0, time.UTC).Unix()) * 1000, // Milliseconds.
@@ -52,12 +52,8 @@ func createGenesisBlock(cfg config.ProtocolConfiguration) (*block.Block, error) 
 	}
 
 	b := &block.Block{
-		Base:         base,
+		Header:       base,
 		Transactions: []*transaction.Transaction{},
-		ConsensusData: block.ConsensusData{
-			PrimaryIndex: 0,
-			Nonce:        2083236893,
-		},
 	}
 	b.RebuildMerkleRoot()
 

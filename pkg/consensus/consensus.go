@@ -662,14 +662,12 @@ func (s *service) newBlockFromContext(ctx *dbft.Context) block.Block {
 	block.Block.NextConsensus = crypto.Hash160(script)
 	block.Block.PrevHash = ctx.PrevHash
 	block.Block.Version = ctx.Version
-	block.Block.ConsensusData.Nonce = ctx.Nonce
 
-	primaryIndex := uint32(ctx.PrimaryIndex)
-	block.Block.ConsensusData.PrimaryIndex = primaryIndex
+	primaryIndex := byte(ctx.PrimaryIndex)
+	block.Block.PrimaryIndex = primaryIndex
 
-	hashes := make([]util.Uint256, len(ctx.TransactionHashes)+1)
-	hashes[0] = block.Block.ConsensusData.Hash()
-	copy(hashes[1:], ctx.TransactionHashes)
+	hashes := make([]util.Uint256, len(ctx.TransactionHashes))
+	copy(hashes, ctx.TransactionHashes)
 	block.Block.MerkleRoot = hash.CalcMerkleRoot(hashes)
 
 	return block

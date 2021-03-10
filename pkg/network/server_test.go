@@ -640,7 +640,7 @@ func TestGetHeaders(t *testing.T) {
 
 	expected := make([]*block.Header, len(blocks))
 	for i := range blocks {
-		expected[i] = blocks[i].Header()
+		expected[i] = &blocks[i].Header
 	}
 
 	var actual *payload.Headers
