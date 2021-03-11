@@ -14,3 +14,13 @@ func Request(url string, filter []byte, cb string, userData interface{}, gasForR
 		contract.States|contract.AllowNotify,
 		url, filter, cb, userData, gasForResponse)
 }
+
+// GetPrice represents `getPrice` method of Oracle native contract.
+func GetPrice() int {
+	return contract.Call(interop.Hash160(Hash), "getPrice", contract.ReadStates).(int)
+}
+
+// SetPrice represents `setPrice` method of Oracle native contract.
+func SetPrice(amount int) {
+	contract.Call(interop.Hash160(Hash), "setPrice", contract.States, amount)
+}

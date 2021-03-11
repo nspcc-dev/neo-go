@@ -90,7 +90,8 @@ type Method = func(ic *Context, args []stackitem.Item) stackitem.Item
 type MethodAndPrice struct {
 	Func          Method
 	MD            *manifest.Method
-	Price         int64
+	CPUFee        int64
+	StorageFee    int64
 	SyscallOffset int
 	RequiredFlags callflag.CallFlag
 }

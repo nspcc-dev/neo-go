@@ -110,15 +110,19 @@ func TestNativeHelpersCompile(t *testing.T) {
 		{"getCommittee", nil},
 		{"getGasPerBlock", nil},
 		{"getNextBlockValidators", nil},
+		{"getRegisterPrice", nil},
 		{"registerCandidate", []string{pub}},
 		{"setGasPerBlock", []string{"1"}},
+		{"setRegisterPrice", []string{"10"}},
 		{"vote", []string{u160, pub}},
 		{"unclaimedGas", []string{u160, "123"}},
 		{"unregisterCandidate", []string{pub}},
 	}, nep17TestCases...))
 	runNativeTestCases(t, cs.GAS.ContractMD, "gas", nep17TestCases)
 	runNativeTestCases(t, cs.Oracle.ContractMD, "oracle", []nativeTestCase{
+		{"getPrice", nil},
 		{"request", []string{`"url"`, "nil", `"callback"`, "nil", "123"}},
+		{"setPrice", []string{"10"}},
 	})
 	runNativeTestCases(t, cs.Designate.ContractMD, "roles", []nativeTestCase{
 		{"designateAsRole", []string{"1", "[]interop.PublicKey{}"}},

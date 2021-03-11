@@ -69,7 +69,7 @@ func newManagement() *Management {
 
 	desc := newDescriptor("getContract", smartcontract.ArrayType,
 		manifest.NewParameter("hash", smartcontract.Hash160Type))
-	md := newMethodAndPrice(m.getContract, 1000000, callflag.ReadStates)
+	md := newMethodAndPrice(m.getContract, 1<<15, callflag.ReadStates)
 	m.AddMethod(md, desc)
 
 	desc = newDescriptor("deploy", smartcontract.ArrayType,
@@ -99,16 +99,16 @@ func newManagement() *Management {
 	m.AddMethod(md, desc)
 
 	desc = newDescriptor("destroy", smartcontract.VoidType)
-	md = newMethodAndPrice(m.destroy, 1000000, callflag.States|callflag.AllowNotify)
+	md = newMethodAndPrice(m.destroy, 1<<15, callflag.States|callflag.AllowNotify)
 	m.AddMethod(md, desc)
 
 	desc = newDescriptor("getMinimumDeploymentFee", smartcontract.IntegerType)
-	md = newMethodAndPrice(m.getMinimumDeploymentFee, 100_0000, callflag.ReadStates)
+	md = newMethodAndPrice(m.getMinimumDeploymentFee, 1<<15, callflag.ReadStates)
 	m.AddMethod(md, desc)
 
 	desc = newDescriptor("setMinimumDeploymentFee", smartcontract.VoidType,
 		manifest.NewParameter("value", smartcontract.IntegerType))
-	md = newMethodAndPrice(m.setMinimumDeploymentFee, 300_0000, callflag.States)
+	md = newMethodAndPrice(m.setMinimumDeploymentFee, 1<<15, callflag.States)
 	m.AddMethod(md, desc)
 
 	hashParam := manifest.NewParameter("Hash", smartcontract.Hash160Type)

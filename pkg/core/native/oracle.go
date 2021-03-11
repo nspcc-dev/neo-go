@@ -40,6 +40,9 @@ type Oracle struct {
 	Desig        *Designate
 	oracleScript []byte
 
+	requestPrice        atomic.Value
+	requestPriceChanged atomic.Value
+
 	// Module is an oracle module capable of talking with the external world.
 	Module atomic.Value
 	// newRequests contains new requests created during current block.
@@ -55,13 +58,15 @@ const (
 	// maxRequestsCount is the maximum number of requests per URL
 	maxRequestsCount = 256
 
-	oracleRequestPrice = 5000_0000
+	// DefaultOracleRequestPrice is default amount GAS needed for oracle request.
+	DefaultOracleRequestPrice = 5000_0000
 )
 
 var (
-	prefixIDList    = []byte{6}
-	prefixRequest   = []byte{7}
-	prefixRequestID = []byte{9}
+	prefixRequestPrice = []byte{5}
+	prefixIDList       = []byte{6}
+	prefixRequest      = []byte{7}
+	prefixRequestID    = []byte{9}
 )
 
 // Various validation errors.
@@ -91,7 +96,7 @@ func newOracle() *Oracle {
 		manifest.NewParameter("callback", smartcontract.StringType),
 		manifest.NewParameter("userData", smartcontract.AnyType),
 		manifest.NewParameter("gasForResponse", smartcontract.IntegerType))
-	md := newMethodAndPrice(o.request, oracleRequestPrice, callflag.States|callflag.AllowNotify)
+	md := newMethodAndPrice(o.request, 0, callflag.States|callflag.AllowNotify)
 	o.AddMethod(md, desc)
 
 	desc = newDescriptor("finish", smartcontract.VoidType)
@@ -99,7 +104,7 @@ func newOracle() *Oracle {
 	o.AddMethod(md, desc)
 
 	desc = newDescriptor("verify", smartcontract.BoolType)
-	md = newMethodAndPrice(o.verify, 100_0000, callflag.NoneFlag)
+	md = newMethodAndPrice(o.verify, 1<<15, callflag.NoneFlag)
 	o.AddMethod(md, desc)
 
 	o.AddEvent("OracleRequest", manifest.NewParameter("Id", smartcontract.IntegerType),
@@ -108,6 +113,17 @@ func newOracle() *Oracle {
 		manifest.NewParameter("Filter", smartcontract.StringType))
 	o.AddEvent("OracleResponse", manifest.NewParameter("Id", smartcontract.IntegerType),
 		manifest.NewParameter("OriginalTx", smartcontract.Hash256Type))
+
+	desc = newDescriptor("getPrice", smartcontract.IntegerType)
+	md = newMethodAndPrice(o.getPrice, 1<<15, callflag.ReadStates)
+	o.AddMethod(md, desc)
+
+	desc = newDescriptor("setPrice", smartcontract.VoidType,
+		manifest.NewParameter("price", smartcontract.IntegerType))
+	md = newMethodAndPrice(o.setPrice, 1<<15, callflag.States)
+	o.AddMethod(md, desc)
+
+	o.requestPriceChanged.Store(true)
 
 	return o
 }
@@ -130,9 +146,15 @@ func (o *Oracle) OnPersist(ic *interop.Context) error {
 
 // PostPersist represents `postPersist` method.
 func (o *Oracle) PostPersist(ic *interop.Context) error {
+	p := o.getPriceInternal(ic.DAO)
+	if o.requestPriceChanged.Load().(bool) {
+		o.requestPrice.Store(p)
+		o.requestPriceChanged.Store(false)
+	}
+
 	var nodes keys.PublicKeys
 	var reward []big.Int
-	single := new(big.Int).SetUint64(oracleRequestPrice)
+	single := big.NewInt(p)
 	var removedIDs []uint64
 
 	orc, _ := o.Module.Load().(services.Oracle)
@@ -202,7 +224,15 @@ func (o *Oracle) Metadata() *interop.ContractMD {
 
 // Initialize initializes Oracle contract.
 func (o *Oracle) Initialize(ic *interop.Context) error {
-	return setIntWithKey(o.ID, ic.DAO, prefixRequestID, 0)
+	if err := setIntWithKey(o.ID, ic.DAO, prefixRequestID, 0); err != nil {
+		return err
+	}
+	if err := setIntWithKey(o.ID, ic.DAO, prefixRequestPrice, DefaultOracleRequestPrice); err != nil {
+		return err
+	}
+	o.requestPrice.Store(int64(DefaultOracleRequestPrice))
+	o.requestPriceChanged.Store(false)
+	return nil
 }
 
 func getResponse(tx *transaction.Transaction) *transaction.OracleResponse {
@@ -280,6 +310,9 @@ func (o *Oracle) request(ic *interop.Context, args []stackitem.Item) stackitem.I
 	gas, err := args[4].TryInteger()
 	if err != nil {
 		panic(err)
+	}
+	if !ic.VM.AddGas(o.getPriceInternal(ic.DAO)) {
+		panic("insufficient gas")
 	}
 	if err := o.RequestInternal(ic, url, filter, cb, userData, gas); err != nil {
 		panic(err)
@@ -402,6 +435,32 @@ func (o *Oracle) GetIDListInternal(d dao.DAO, url string) (*IDList, error) {
 
 func (o *Oracle) verify(ic *interop.Context, _ []stackitem.Item) stackitem.Item {
 	return stackitem.NewBool(ic.Tx.HasAttribute(transaction.OracleResponseT))
+}
+
+func (o *Oracle) getPrice(ic *interop.Context, _ []stackitem.Item) stackitem.Item {
+	return stackitem.NewBigInteger(big.NewInt(o.getPriceInternal(ic.DAO)))
+}
+
+func (o *Oracle) getPriceInternal(d dao.DAO) int64 {
+	if !o.requestPriceChanged.Load().(bool) {
+		return o.requestPrice.Load().(int64)
+	}
+	return getIntWithKey(o.ID, d, prefixRequestPrice)
+}
+
+func (o *Oracle) setPrice(ic *interop.Context, args []stackitem.Item) stackitem.Item {
+	price := toBigInt(args[0])
+	if price.Sign() <= 0 || !price.IsInt64() {
+		panic("invalid register price")
+	}
+	if !o.NEO.checkCommittee(ic) {
+		panic("invalid committee signature")
+	}
+	if err := setIntWithKey(o.ID, ic.DAO, prefixRequestPrice, price.Int64()); err != nil {
+		panic(err)
+	}
+	o.requestPriceChanged.Store(true)
+	return stackitem.Null{}
 }
 
 func (o *Oracle) getOriginalTxID(d dao.DAO, tx *transaction.Transaction) util.Uint256 {

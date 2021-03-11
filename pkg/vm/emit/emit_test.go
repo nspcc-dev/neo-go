@@ -3,6 +3,8 @@ package emit
 import (
 	"encoding/binary"
 	"errors"
+	"math"
+	"math/big"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
@@ -144,7 +146,10 @@ func TestBytes(t *testing.T) {
 func TestEmitArray(t *testing.T) {
 	t.Run("good", func(t *testing.T) {
 		buf := io.NewBufBinWriter()
-		Array(buf.BinWriter, []interface{}{int64(1), int64(2)}, nil, int64(1), "str", true, []byte{0xCA, 0xFE})
+		veryBig := new(big.Int).SetUint64(math.MaxUint64)
+		veryBig.Add(veryBig, big.NewInt(1))
+		Array(buf.BinWriter, big.NewInt(0), veryBig,
+			[]interface{}{int64(1), int64(2)}, nil, int64(1), "str", true, []byte{0xCA, 0xFE})
 		require.NoError(t, buf.Err)
 
 		res := buf.Bytes()
@@ -163,6 +168,9 @@ func TestEmitArray(t *testing.T) {
 		assert.EqualValues(t, opcode.PUSH1, res[15])
 		assert.EqualValues(t, opcode.PUSH2, res[16])
 		assert.EqualValues(t, opcode.PACK, res[17])
+		assert.EqualValues(t, opcode.PUSHINT128, res[18])
+		assert.EqualValues(t, veryBig, bigint.FromBytes(res[19:35]))
+		assert.EqualValues(t, opcode.PUSH0, res[35])
 	})
 
 	t.Run("empty", func(t *testing.T) {

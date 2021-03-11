@@ -37,6 +37,9 @@ type NEO struct {
 	gasPerBlock        atomic.Value
 	gasPerBlockChanged atomic.Value
 
+	registerPrice        atomic.Value
+	registerPriceChanged atomic.Value
+
 	votesChanged   atomic.Value
 	nextValidators atomic.Value
 	validators     atomic.Value
@@ -53,6 +56,8 @@ const (
 	neoContractID = -5
 	// NEOTotalSupply is the total amount of NEO in the system.
 	NEOTotalSupply = 100000000
+	// DefaultRegisterPrice is default price for candidate register.
+	DefaultRegisterPrice = 1000 * GASFactor
 	// prefixCandidate is a prefix used to store validator's data.
 	prefixCandidate = 33
 	// prefixVotersCount is a prefix for storing total amount of NEO of voters.
@@ -62,8 +67,10 @@ const (
 	// voterRewardFactor is a factor by which voter reward per committee is multiplied
 	// to make calculations more precise.
 	voterRewardFactor = 100_000_000
-	// prefixGasPerBlock is a prefix for storing amount of GAS generated per block.
+	// prefixGASPerBlock is a prefix for storing amount of GAS generated per block.
 	prefixGASPerBlock = 29
+	// prefixRegisterPrice is a prefix for storing candidate register price.
+	prefixRegisterPrice = 13
 	// effectiveVoterTurnout represents minimal ratio of total supply to total amount voted value
 	// which is require to use non-standby validators.
 	effectiveVoterTurnout = 5
@@ -107,48 +114,58 @@ func newNEO() *NEO {
 	n.validators.Store(keys.PublicKeys(nil))
 	n.committee.Store(keysWithVotes(nil))
 	n.committeeHash.Store(util.Uint160{})
+	n.registerPriceChanged.Store(true)
 
 	desc := newDescriptor("unclaimedGas", smartcontract.IntegerType,
 		manifest.NewParameter("account", smartcontract.Hash160Type),
 		manifest.NewParameter("end", smartcontract.IntegerType))
-	md := newMethodAndPrice(n.unclaimedGas, 3000000, callflag.ReadStates)
+	md := newMethodAndPrice(n.unclaimedGas, 1<<17, callflag.ReadStates)
 	n.AddMethod(md, desc)
 
 	desc = newDescriptor("registerCandidate", smartcontract.BoolType,
 		manifest.NewParameter("pubkey", smartcontract.ByteArrayType))
-	md = newMethodAndPrice(n.registerCandidate, 1000_00000000, callflag.States)
+	md = newMethodAndPrice(n.registerCandidate, 0, callflag.States)
 	n.AddMethod(md, desc)
 
 	desc = newDescriptor("unregisterCandidate", smartcontract.BoolType,
 		manifest.NewParameter("pubkey", smartcontract.ByteArrayType))
-	md = newMethodAndPrice(n.unregisterCandidate, 5000000, callflag.States)
+	md = newMethodAndPrice(n.unregisterCandidate, 1<<16, callflag.States)
 	n.AddMethod(md, desc)
 
 	desc = newDescriptor("vote", smartcontract.BoolType,
 		manifest.NewParameter("account", smartcontract.Hash160Type),
 		manifest.NewParameter("voteTo", smartcontract.ByteArrayType))
-	md = newMethodAndPrice(n.vote, 5000000, callflag.States)
+	md = newMethodAndPrice(n.vote, 1<<16, callflag.States)
 	n.AddMethod(md, desc)
 
 	desc = newDescriptor("getCandidates", smartcontract.ArrayType)
-	md = newMethodAndPrice(n.getCandidatesCall, 100000000, callflag.ReadStates)
+	md = newMethodAndPrice(n.getCandidatesCall, 1<<22, callflag.ReadStates)
 	n.AddMethod(md, desc)
 
 	desc = newDescriptor("getCommittee", smartcontract.ArrayType)
-	md = newMethodAndPrice(n.getCommittee, 100000000, callflag.ReadStates)
+	md = newMethodAndPrice(n.getCommittee, 1<<22, callflag.ReadStates)
 	n.AddMethod(md, desc)
 
 	desc = newDescriptor("getNextBlockValidators", smartcontract.ArrayType)
-	md = newMethodAndPrice(n.getNextBlockValidators, 100000000, callflag.ReadStates)
+	md = newMethodAndPrice(n.getNextBlockValidators, 1<<22, callflag.ReadStates)
 	n.AddMethod(md, desc)
 
 	desc = newDescriptor("getGasPerBlock", smartcontract.IntegerType)
-	md = newMethodAndPrice(n.getGASPerBlock, 100_0000, callflag.ReadStates)
+	md = newMethodAndPrice(n.getGASPerBlock, 1<<15, callflag.ReadStates)
 	n.AddMethod(md, desc)
 
 	desc = newDescriptor("setGasPerBlock", smartcontract.VoidType,
 		manifest.NewParameter("gasPerBlock", smartcontract.IntegerType))
-	md = newMethodAndPrice(n.setGASPerBlock, 500_0000, callflag.States)
+	md = newMethodAndPrice(n.setGASPerBlock, 1<<15, callflag.States)
+	n.AddMethod(md, desc)
+
+	desc = newDescriptor("getRegisterPrice", smartcontract.IntegerType)
+	md = newMethodAndPrice(n.getRegisterPrice, 1<<15, callflag.ReadStates)
+	n.AddMethod(md, desc)
+
+	desc = newDescriptor("setRegisterPrice", smartcontract.VoidType,
+		manifest.NewParameter("registerPrice", smartcontract.IntegerType))
+	md = newMethodAndPrice(n.setRegisterPrice, 1<<15, callflag.States)
 	n.AddMethod(md, desc)
 
 	return n
@@ -196,6 +213,12 @@ func (n *NEO) Initialize(ic *interop.Context) error {
 		return err
 	}
 
+	err = setIntWithKey(n.ID, ic.DAO, []byte{prefixRegisterPrice}, DefaultRegisterPrice)
+	if err != nil {
+		return err
+	}
+	n.registerPrice.Store(int64(DefaultRegisterPrice))
+	n.registerPriceChanged.Store(false)
 	return nil
 }
 
@@ -322,6 +345,12 @@ func (n *NEO) PostPersist(ic *interop.Context) error {
 		}
 		n.gasPerBlock.Store(gr)
 		n.gasPerBlockChanged.Store(false)
+	}
+
+	if n.registerPriceChanged.Load().(bool) {
+		p := getIntWithKey(n.ID, ic.DAO, []byte{prefixRegisterPrice})
+		n.registerPrice.Store(p)
+		n.registerPriceChanged.Store(false)
 	}
 	return nil
 }
@@ -482,6 +511,34 @@ func (n *NEO) SetGASPerBlock(ic *interop.Context, index uint32, gas *big.Int) er
 	return n.putGASRecord(ic.DAO, index, gas)
 }
 
+func (n *NEO) getRegisterPrice(ic *interop.Context, _ []stackitem.Item) stackitem.Item {
+	return stackitem.NewBigInteger(big.NewInt(n.getRegisterPriceInternal(ic.DAO)))
+}
+
+func (n *NEO) getRegisterPriceInternal(d dao.DAO) int64 {
+	if !n.registerPriceChanged.Load().(bool) {
+		return n.registerPrice.Load().(int64)
+	}
+	return getIntWithKey(n.ID, d, []byte{prefixRegisterPrice})
+}
+
+func (n *NEO) setRegisterPrice(ic *interop.Context, args []stackitem.Item) stackitem.Item {
+	price := toBigInt(args[0])
+	if price.Sign() <= 0 || !price.IsInt64() {
+		panic("invalid register price")
+	}
+	if !n.checkCommittee(ic) {
+		panic("invalid committee signature")
+	}
+
+	err := setIntWithKey(n.ID, ic.DAO, []byte{prefixRegisterPrice}, price.Int64())
+	if err != nil {
+		panic(err)
+	}
+	n.registerPriceChanged.Store(true)
+	return stackitem.Null{}
+}
+
 func (n *NEO) dropCandidateIfZero(d dao.DAO, pub *keys.PublicKey, c *candidate) (bool, error) {
 	if c.Registered || c.Votes.Sign() != 0 {
 		return false, nil
@@ -591,6 +648,9 @@ func (n *NEO) registerCandidate(ic *interop.Context, args []stackitem.Item) stac
 		panic(err)
 	} else if !ok {
 		return stackitem.NewBool(false)
+	}
+	if !ic.VM.AddGas(n.getRegisterPriceInternal(ic.DAO)) {
+		panic("insufficient gas")
 	}
 	err = n.RegisterCandidateInternal(ic, pub)
 	return stackitem.NewBool(err == nil)

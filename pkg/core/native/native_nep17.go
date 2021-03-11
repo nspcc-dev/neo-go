@@ -55,12 +55,12 @@ func newNEP17Native(name string, id int32) *nep17TokenNative {
 	n.AddMethod(md, desc)
 
 	desc = newDescriptor("totalSupply", smartcontract.IntegerType)
-	md = newMethodAndPrice(n.TotalSupply, 1000000, callflag.ReadStates)
+	md = newMethodAndPrice(n.TotalSupply, 1<<15, callflag.ReadStates)
 	n.AddMethod(md, desc)
 
 	desc = newDescriptor("balanceOf", smartcontract.IntegerType,
 		manifest.NewParameter("account", smartcontract.Hash160Type))
-	md = newMethodAndPrice(n.balanceOf, 1000000, callflag.ReadStates)
+	md = newMethodAndPrice(n.balanceOf, 1<<15, callflag.ReadStates)
 	n.AddMethod(md, desc)
 
 	transferParams := []manifest.Parameter{
@@ -71,7 +71,8 @@ func newNEP17Native(name string, id int32) *nep17TokenNative {
 	desc = newDescriptor("transfer", smartcontract.BoolType,
 		append(transferParams, manifest.NewParameter("data", smartcontract.AnyType))...,
 	)
-	md = newMethodAndPrice(n.Transfer, 9000000, callflag.States|callflag.AllowCall|callflag.AllowNotify)
+	md = newMethodAndPrice(n.Transfer, 1<<17, callflag.States|callflag.AllowCall|callflag.AllowNotify)
+	md.StorageFee = 50
 	n.AddMethod(md, desc)
 
 	n.AddEvent("Transfer", transferParams...)
@@ -283,10 +284,10 @@ func newDescriptor(name string, ret smartcontract.ParamType, ps ...manifest.Para
 	}
 }
 
-func newMethodAndPrice(f interop.Method, price int64, flags callflag.CallFlag) *interop.MethodAndPrice {
+func newMethodAndPrice(f interop.Method, cpuFee int64, flags callflag.CallFlag) *interop.MethodAndPrice {
 	return &interop.MethodAndPrice{
 		Func:          f,
-		Price:         price,
+		CPUFee:        cpuFee,
 		RequiredFlags: flags,
 	}
 }

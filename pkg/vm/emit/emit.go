@@ -59,12 +59,19 @@ func Int(w *io.BinWriter, i int64) {
 		val := opcode.Opcode(int(opcode.PUSH1) - 1 + int(i))
 		Opcodes(w, val)
 	default:
-		buf := bigint.ToPreallocatedBytes(big.NewInt(i), make([]byte, 0, 32))
-		// l != 0 becase of switch
-		padSize := byte(8 - bits.LeadingZeros8(byte(len(buf)-1)))
-		Opcodes(w, opcode.PUSHINT8+opcode.Opcode(padSize))
-		w.WriteBytes(padRight(1<<padSize, buf))
+		bigInt(w, big.NewInt(i))
 	}
+}
+
+func bigInt(w *io.BinWriter, n *big.Int) {
+	buf := bigint.ToPreallocatedBytes(n, make([]byte, 0, 32))
+	if len(buf) == 0 {
+		Opcodes(w, opcode.PUSH0)
+		return
+	}
+	padSize := byte(8 - bits.LeadingZeros8(byte(len(buf)-1)))
+	Opcodes(w, opcode.PUSHINT8+opcode.Opcode(padSize))
+	w.WriteBytes(padRight(1<<padSize, buf))
 }
 
 // Array emits array of elements to the given buffer.
@@ -75,6 +82,8 @@ func Array(w *io.BinWriter, es ...interface{}) {
 			Array(w, e...)
 		case int64:
 			Int(w, e)
+		case *big.Int:
+			bigInt(w, e)
 		case string:
 			String(w, e)
 		case util.Uint160:

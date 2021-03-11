@@ -1029,7 +1029,7 @@ func TestVerifyTx(t *testing.T) {
 				fee.Opcode(bc.GetBaseExecFee(), // Notary verification script
 					opcode.PUSHDATA1, opcode.RET, // invocation script
 					opcode.PUSH0, opcode.SYSCALL, opcode.RET) + // Neo.Native.Call
-				native.NotaryVerificationPrice // Notary witness verification price
+				native.NotaryVerificationPrice*bc.GetBaseExecFee() // Notary witness verification price
 			tx.Scripts = []transaction.Witness{
 				{
 					InvocationScript:   append([]byte{byte(opcode.PUSHDATA1), 64}, make([]byte, 64, 64)...),
