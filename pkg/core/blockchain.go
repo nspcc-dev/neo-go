@@ -1655,9 +1655,8 @@ var (
 	ErrInvalidVerificationContract = errors.New("verification contract is missing `verify` method")
 )
 
-// initVerificationVM initializes VM for witness check.
-func (bc *Blockchain) initVerificationVM(ic *interop.Context, hash util.Uint160, witness *transaction.Witness) error {
-	v := ic.VM
+// InitVerificationVM initializes VM for witness check.
+func (bc *Blockchain) InitVerificationVM(v *vm.VM, getContract func(util.Uint160) (*state.Contract, error), hash util.Uint160, witness *transaction.Witness) error {
 	if len(witness.VerificationScript) != 0 {
 		if witness.ScriptHash() != hash {
 			return ErrWitnessHashMismatch
@@ -1671,7 +1670,7 @@ func (bc *Blockchain) initVerificationVM(ic *interop.Context, hash util.Uint160,
 		}
 		v.LoadScriptWithFlags(witness.VerificationScript, callflag.ReadOnly)
 	} else {
-		cs, err := ic.GetContract(hash)
+		cs, err := getContract(hash)
 		if err != nil {
 			return ErrUnknownVerificationContract
 		}
@@ -1717,7 +1716,7 @@ func (bc *Blockchain) verifyHashAgainstScript(hash util.Uint160, witness *transa
 	vm.SetPriceGetter(interopCtx.GetPrice)
 	vm.LoadToken = contract.LoadToken(interopCtx)
 	vm.GasLimit = gas
-	if err := bc.initVerificationVM(interopCtx, hash, witness); err != nil {
+	if err := bc.InitVerificationVM(vm, interopCtx.GetContract, hash, witness); err != nil {
 		return 0, err
 	}
 	err := vm.Run()
