@@ -10,7 +10,7 @@ import (
 
 func TestNativenamesIsValid(t *testing.T) {
 	// test that all native names has been added to IsValid
-	contracts := NewContracts(true)
+	contracts := NewContracts(true, map[string][]uint32{})
 	for _, c := range contracts.Contracts {
 		require.True(t, nativenames.IsValid(c.Metadata().Name), fmt.Errorf("add %s to nativenames.IsValid(...)", c))
 	}

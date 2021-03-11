@@ -9,6 +9,17 @@ ProtocolConfiguration:
   VerifyBlocks: true
   VerifyTransactions: true
   P2PSigExtensions: false
+  NativeActivations:
+    ContractManagement: [0]
+    StdLib: [0]
+    CryptoLib: [0]
+    LedgerContract: [0]
+    NeoToken: [0]
+    GasToken: [0]
+    PolicyContract: [0]
+    RoleManagement: [0]
+    OracleContract: [0]
+    NameService: [0]
 
 ApplicationConfiguration:
   # LogPath could be set up in case you need stdout logs to some proper file.

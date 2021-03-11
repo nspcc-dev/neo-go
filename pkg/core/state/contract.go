@@ -32,7 +32,7 @@ type ContractBase struct {
 // NativeContract holds information about native contract.
 type NativeContract struct {
 	ContractBase
-	ActiveBlockIndex uint32 `json:"activeblockindex"`
+	UpdateHistory []uint32 `json:"updatehistory"`
 }
 
 // DecodeBinary implements Serializable interface.

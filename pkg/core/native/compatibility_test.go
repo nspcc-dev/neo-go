@@ -9,7 +9,7 @@ import (
 
 // "C" and "O" can easily be typed by accident.
 func TestNamesASCII(t *testing.T) {
-	cs := NewContracts(true)
+	cs := NewContracts(true, map[string][]uint32{})
 	for _, c := range cs.Contracts {
 		require.True(t, isASCII(c.Metadata().Name))
 		for _, m := range c.Metadata().Methods {

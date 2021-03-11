@@ -26,6 +26,13 @@ func Call(ic *interop.Context) error {
 	if c == nil {
 		return fmt.Errorf("native contract %d not found", version)
 	}
+	history := c.Metadata().UpdateHistory
+	if len(history) == 0 {
+		return fmt.Errorf("native contract %s is disabled", c.Metadata().Name)
+	}
+	if history[0] > ic.Chain.BlockHeight() {
+		return fmt.Errorf("native contract %s is active after height = %d", c.Metadata().Name, history[0])
+	}
 	m, ok := c.Metadata().GetMethodByOffset(ic.VM.Context().IP())
 	if !ok {
 		return fmt.Errorf("method not found")
@@ -57,6 +64,9 @@ func OnPersist(ic *interop.Context) error {
 		return errors.New("onPersist must be trigered by system")
 	}
 	for _, c := range ic.Natives {
+		if !c.Metadata().IsActive(ic.Block.Index) {
+			continue
+		}
 		err := c.OnPersist(ic)
 		if err != nil {
 			return err
@@ -71,6 +81,9 @@ func PostPersist(ic *interop.Context) error {
 		return errors.New("postPersist must be trigered by system")
 	}
 	for _, c := range ic.Natives {
+		if !c.Metadata().IsActive(ic.Block.Index) {
+			continue
+		}
 		err := c.PostPersist(ic)
 		if err != nil {
 			return err

@@ -446,12 +446,12 @@ func (m *Management) Metadata() *interop.ContractMD {
 
 // OnPersist implements Contract interface.
 func (m *Management) OnPersist(ic *interop.Context) error {
-	if ic.Block.Index != 0 { // We're only deploying at 0 at the moment.
-		return nil
-	}
-
 	for _, native := range ic.Natives {
 		md := native.Metadata()
+		history := md.UpdateHistory
+		if len(history) == 0 || history[0] != ic.Block.Index {
+			continue
+		}
 
 		cs := &state.Contract{
 			ContractBase: md.ContractBase,

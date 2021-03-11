@@ -54,6 +54,7 @@ var _ interop.Contract = (*testNative)(nil)
 // registerNative registers native contract in the blockchain.
 func (bc *Blockchain) registerNative(c interop.Contract) {
 	bc.contracts.Contracts = append(bc.contracts.Contracts, c)
+	bc.config.NativeUpdateHistories[c.Metadata().Name] = c.Metadata().UpdateHistory
 }
 
 const (
@@ -62,8 +63,10 @@ const (
 )
 
 func newTestNative() *testNative {
+	cMD := interop.NewContractMD("Test.Native.Sum", 0)
+	cMD.UpdateHistory = []uint32{0}
 	tn := &testNative{
-		meta:   *interop.NewContractMD("Test.Native.Sum", 0),
+		meta:   *cMD,
 		blocks: make(chan uint32, 1),
 	}
 	defer tn.meta.UpdateHash()
@@ -244,6 +247,21 @@ func TestNativeContract_InvokeInternal(t *testing.T) {
 
 		// it's prohibited to call natives directly
 		require.Error(t, v.Run())
+	})
+
+	t.Run("fail, bad NativeUpdateHistory height", func(t *testing.T) {
+		tn.Metadata().UpdateHistory = []uint32{chain.blockHeight + 1}
+		v := ic.SpawnVM()
+		v.LoadScriptWithHash(tn.Metadata().NEF.Script, tn.Metadata().Hash, callflag.All)
+		v.Estack().PushVal(14)
+		v.Estack().PushVal(28)
+		v.Jump(v.Context(), sumOffset)
+
+		// it's prohibited to call natives before NativeUpdateHistory[0] height
+		require.Error(t, v.Run())
+
+		// set the value back to 0
+		tn.Metadata().UpdateHistory = []uint32{0}
 	})
 
 	t.Run("success", func(t *testing.T) {

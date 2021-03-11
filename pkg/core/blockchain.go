@@ -180,6 +180,10 @@ func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration, log *zap.L
 	if err != nil {
 		return nil, err
 	}
+	if len(cfg.NativeUpdateHistories) == 0 {
+		cfg.NativeUpdateHistories = map[string][]uint32{}
+		log.Info("NativeActivations are not set, using default values")
+	}
 	bc := &Blockchain{
 		config:      cfg,
 		dao:         dao.NewSimple(s, cfg.Magic, cfg.StateRootInHeader),
@@ -192,7 +196,7 @@ func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration, log *zap.L
 		subCh:       make(chan interface{}),
 		unsubCh:     make(chan interface{}),
 
-		contracts: *native.NewContracts(cfg.P2PSigExtensions),
+		contracts: *native.NewContracts(cfg.P2PSigExtensions, cfg.NativeUpdateHistories),
 	}
 
 	bc.stateRoot = stateroot.NewModule(bc, bc.log, bc.dao.Store)

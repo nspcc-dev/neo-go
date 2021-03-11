@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/big"
 	"math/rand"
+	"path"
 	"strings"
 	"testing"
 	"time"
@@ -1613,4 +1614,41 @@ func TestMPTDeleteNoKey(t *testing.T) {
 	aer, err := invokeContractMethod(bc, 1_00000000, cs.Hash, "delValue", "non-existent-key")
 	require.NoError(t, err)
 	require.Equal(t, vm.HaltState, aer.VMState)
+}
+
+// Test that UpdateHistory is added to ProtocolConfiguration for all native contracts
+// for all default configurations. If UpdateHistory is not added to config, then
+// native contract is disabled. It's easy to forget about config while adding new
+// native contract.
+func TestConfigNativeUpdateHistory(t *testing.T) {
+	const prefixPath = "../../config"
+	check := func(t *testing.T, cfgFileSuffix interface{}) {
+		cfgPath := path.Join(prefixPath, fmt.Sprintf("protocol.%s.yml", cfgFileSuffix))
+		cfg, err := config.LoadFile(cfgPath)
+		require.NoError(t, err, fmt.Errorf("failed to load %s", cfgPath))
+		natives := native.NewContracts(cfg.ProtocolConfiguration.P2PSigExtensions, map[string][]uint32{})
+		assert.Equal(t, len(natives.Contracts),
+			len(cfg.ProtocolConfiguration.NativeUpdateHistories),
+			fmt.Errorf("protocol configuration file %s: extra or missing NativeUpdateHistory in NativeActivations section", cfgPath))
+		for _, c := range natives.Contracts {
+			assert.NotNil(t, cfg.ProtocolConfiguration.NativeUpdateHistories[c.Metadata().Name],
+				fmt.Errorf("protocol configuration file %s: configuration for %s native contract is missing in NativeActivations section; "+
+					"edit the test if the contract should be disabled", cfgPath, c.Metadata().Name))
+		}
+	}
+	testCases := []interface{}{
+		netmode.MainNet,
+		netmode.PrivNet,
+		netmode.TestNet,
+		netmode.UnitTestNet,
+		"privnet.docker.one",
+		"privnet.docker.two",
+		"privnet.docker.three",
+		"privnet.docker.four",
+		"privnet.docker.single",
+		"unit_testnet.single",
+	}
+	for _, tc := range testCases {
+		check(t, tc)
+	}
 }
