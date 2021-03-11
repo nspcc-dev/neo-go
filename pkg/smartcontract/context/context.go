@@ -32,7 +32,7 @@ type ParameterContext struct {
 
 type paramContext struct {
 	Type  string                     `json:"type"`
-	Hex   string                     `json:"hex"`
+	Hex   []byte                     `json:"hex"`
 	Items map[string]json.RawMessage `json:"items"`
 }
 
@@ -164,7 +164,7 @@ func (c ParameterContext) MarshalJSON() ([]byte, error) {
 	}
 	pc := &paramContext{
 		Type:  c.Type,
-		Hex:   hex.EncodeToString(verif),
+		Hex:   verif,
 		Items: items,
 	}
 	return json.Marshal(pc)
@@ -176,10 +176,6 @@ func (c *ParameterContext) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, pc); err != nil {
 		return err
 	}
-	data, err := hex.DecodeString(pc.Hex)
-	if err != nil {
-		return err
-	}
 
 	var verif crypto.VerifiableDecodable
 	switch pc.Type {
@@ -188,7 +184,7 @@ func (c *ParameterContext) UnmarshalJSON(data []byte) error {
 	default:
 		return fmt.Errorf("unsupported type: %s", c.Type)
 	}
-	err = verif.DecodeSignedPart(data)
+	err := verif.DecodeSignedPart(pc.Hex)
 	if err != nil {
 		return err
 	}
