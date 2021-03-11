@@ -179,8 +179,8 @@ var coefficients = map[opcode.Opcode]int64{
 	opcode.MIN:          1 << 3,
 	opcode.MAX:          1 << 3,
 	opcode.WITHIN:       1 << 3,
-	opcode.PACK:         1 << 9,
-	opcode.UNPACK:       1 << 9,
+	opcode.PACK:         1 << 11,
+	opcode.UNPACK:       1 << 11,
 	opcode.NEWARRAY0:    1 << 4,
 	opcode.NEWARRAY:     1 << 9,
 	opcode.NEWARRAYT:    1 << 9,
@@ -200,5 +200,5 @@ var coefficients = map[opcode.Opcode]int64{
 	opcode.POPITEM:      1 << 4,
 	opcode.ISNULL:       1 << 1,
 	opcode.ISTYPE:       1 << 1,
-	opcode.CONVERT:      1 << 11,
+	opcode.CONVERT:      1 << 13,
 }
