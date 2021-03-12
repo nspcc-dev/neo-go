@@ -6,7 +6,6 @@ import (
 	"github.com/nspcc-dev/neo-go/internal/random"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
-	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/stretchr/testify/require"
@@ -182,8 +181,8 @@ func TestNotaryRequestBytesFromBytes(t *testing.T) {
 			VerificationScript: []byte{7, 8, 9},
 		},
 	}
-	require.Equal(t, hash.Sha256(p.GetSignedHash().BytesBE()), p.Hash())
 
+	_ = p.Hash() // initialize hash caches
 	bytes, err := p.Bytes()
 	require.NoError(t, err)
 	actual, err := NewP2PNotaryRequestFromBytes(netmode.UnitTestNet, bytes)

@@ -22,7 +22,7 @@ func InitAndSave(tx *transaction.Transaction, acc *wallet.Account, filename stri
 	priv := acc.PrivateKey()
 	pub := priv.PublicKey()
 	sign := priv.Sign(tx.GetSignedPart())
-	scCtx := context.NewParameterContext("Neo.Core.ContractTransaction", tx)
+	scCtx := context.NewParameterContext("Neo.Core.ContractTransaction", tx.Network, tx)
 	h, err := address.StringToUint160(acc.Address)
 	if err != nil {
 		return fmt.Errorf("invalid address: %s", acc.Address)

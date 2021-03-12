@@ -212,6 +212,17 @@ func (t *Transaction) encodeHashableFields(bw *io.BinWriter) {
 
 // createHash creates the hash of the transaction.
 func (t *Transaction) createHash() error {
+	buf := io.NewBufBinWriter()
+	t.encodeHashableFields(buf.BinWriter)
+	if buf.Err != nil {
+		return buf.Err
+	}
+
+	t.hash = hash.Sha256(buf.Bytes())
+	buf.Reset()
+	t.writeSignedPart(buf)
+	t.verificationHash = hash.Sha256(buf.Bytes())
+
 	b := t.GetSignedPart()
 	if b == nil {
 		return errors.New("failed to serialize hashable data")
@@ -230,7 +241,6 @@ func (t *Transaction) updateHashes(b []byte) {
 // GetSignedPart returns a part of the transaction which must be signed.
 func (t *Transaction) GetSignedPart() []byte {
 	buf := io.NewBufBinWriter()
-	buf.WriteU32LE(uint32(t.Network))
 	t.encodeHashableFields(buf.BinWriter)
 	if buf.Err != nil {
 		return nil
@@ -238,10 +248,14 @@ func (t *Transaction) GetSignedPart() []byte {
 	return buf.Bytes()
 }
 
+func (t *Transaction) writeSignedPart(buf *io.BufBinWriter) {
+	buf.WriteU32LE(uint32(t.Network))
+	buf.WriteBytes(t.hash[:])
+}
+
 // DecodeSignedPart decodes a part of transaction from GetSignedPart data.
 func (t *Transaction) DecodeSignedPart(buf []byte) error {
 	r := io.NewBinReaderFromBuf(buf)
-	t.Network = netmode.Magic(r.ReadU32LE())
 	t.decodeHashableFields(r)
 	if r.Err != nil {
 		return r.Err

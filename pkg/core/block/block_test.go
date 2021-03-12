@@ -112,7 +112,7 @@ func TestBinBlockDecodeEncode(t *testing.T) {
 
 	assert.NoError(t, testserdes.DecodeBinary(rawblockBytes, b))
 	expected := map[string]bool{ // 1 trans
-		"affad44bb6acacabc058db0bf1e12ab1239ae5e04007b4d4a2ea0cda868e284a": false,
+		"6fcc0c48c5d1b28bb5c2effa1e5b7bb054d22a8c30d409a6a7a3527845229056": false,
 	}
 
 	var hashes []string
@@ -165,7 +165,7 @@ func TestBlockSizeCalculation(t *testing.T) {
 		AttributesLen int
 		WitnessesLen  int
 	}{ // 1 trans
-		{ID: "affad44bb6acacabc058db0bf1e12ab1239ae5e04007b4d4a2ea0cda868e284a", Size: 864, Version: 0, SignersLen: 2, AttributesLen: 0, WitnessesLen: 2},
+		{ID: "6fcc0c48c5d1b28bb5c2effa1e5b7bb054d22a8c30d409a6a7a3527845229056", Size: 864, Version: 0, SignersLen: 2, AttributesLen: 0, WitnessesLen: 2},
 	}
 
 	for i, tx := range b.Transactions {
@@ -193,7 +193,7 @@ func TestBlockSizeCalculation(t *testing.T) {
 
 	assert.Equal(t, "DEAZyIVwKWzpgvm8bSzWuVF1awS0QBguORR682YoVfkJ05KGG7pz9OsLBZ9/F1BHO7TCIcEcc8Sr9AcqbonrSRoCDEDhhZnqTUi8tXYbrTBrVj8i9Yxl8NraAMID4DJryWdD6u42OzAHr0of27qc5nojujhLffBfljuBSyQpyeQcUOpyDEAZr7sLz6n4TgNApkwATGXiP/DZ8AummAGDtznrW6Y8XWHngB7F0j3NKvUQ7lyRt11rT+zNjz5R5vIbBrs8C2ktDEDgNW0xGP/OB8CRHXX/l/+0tPO3drkyCddpG9PKCgyd4oEhQu8cwbSv4Q0V1Y0dZcJBoxUB5Qus/U+Xli7jb6OJDEADaXZxdEb56jlYhF4oM8I8KnthEzGw1Q7pfeI97fehTm78ZOJXWIxESThZzI3D2ndVz0Rcdr5MeA/espG6J2ao", base64.StdEncoding.EncodeToString(b.Script.InvocationScript))
 	assert.Equal(t, "FQwhAwCbdUDhDyVi5f2PrJ6uwlFmpYsm5BI0j/WoaSe/rCKiDCEDAgXpzvrqWh38WAryDI1aokaLsBSPGl5GBfxiLIDmBLoMIQIUuvDO6jpm8X5+HoOeol/YvtbNgua7bmglAYkGX0T/AQwhAj6bMuqJuU0GbmSbEk/VDjlu6RNp6OKmrhsRwXDQIiVtDCEDQI3NQWOW9keDrFh+oeFZPFfZ/qiAyKahkg6SollHeAYMIQKng0vpsy4pgdFXy1u9OstCz9EepcOxAiTXpE6YxZEPGwwhAroscPWZbzV6QxmHBYWfriz+oT4RcpYoAHcrPViKnUq9FwtBE43vrw==", base64.StdEncoding.EncodeToString(b.Script.VerificationScript))
-	assert.Equal(t, "63d18734a3edbe92a9480b690734b85aaf9c24361d034afbea37d749cfc62d6a", b.Hash().StringLE())
+	assert.Equal(t, "53b3d970ccb235bef785633817f2a947f63bac1f7fa23103f7d080a53f0361f4", b.Hash().StringLE())
 
 	benc, err := testserdes.EncodeBinary(b)
 	assert.NoError(t, err)

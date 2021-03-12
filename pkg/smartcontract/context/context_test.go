@@ -27,7 +27,7 @@ func TestParameterContext_AddSignatureSimpleContract(t *testing.T) {
 	sig := priv.Sign(tx.GetSignedPart())
 
 	t.Run("invalid contract", func(t *testing.T) {
-		c := NewParameterContext("Neo.Core.ContractTransaction", tx)
+		c := NewParameterContext("Neo.Core.ContractTransaction", netmode.UnitTestNet, tx)
 		ctr := &wallet.Contract{
 			Script: pub.GetVerificationScript(),
 			Parameters: []wallet.ContractParam{
@@ -47,7 +47,7 @@ func TestParameterContext_AddSignatureSimpleContract(t *testing.T) {
 		}
 	})
 
-	c := NewParameterContext("Neo.Core.ContractTransaction", tx)
+	c := NewParameterContext("Neo.Core.ContractTransaction", netmode.UnitTestNet, tx)
 	ctr := &wallet.Contract{
 		Script:     pub.GetVerificationScript(),
 		Parameters: []wallet.ContractParam{newParam(smartcontract.SignatureType, "parameter0")},
@@ -77,7 +77,7 @@ func TestParameterContext_AddSignatureSimpleContract(t *testing.T) {
 
 func TestParameterContext_AddSignatureMultisig(t *testing.T) {
 	tx := getContractTx()
-	c := NewParameterContext("Neo.Core.ContractTransaction", tx)
+	c := NewParameterContext("Neo.Core.ContractTransaction", netmode.UnitTestNet, tx)
 	privs, pubs := getPrivateKeys(t, 4)
 	pubsCopy := keys.PublicKeys(pubs).Copy()
 	script, err := smartcontract.CreateMultiSigRedeemScript(3, pubsCopy)
@@ -137,6 +137,7 @@ func TestParameterContext_MarshalJSON(t *testing.T) {
 
 	expected := &ParameterContext{
 		Type:       "Neo.Core.ContractTransaction",
+		Network:    netmode.UnitTestNet,
 		Verifiable: tx,
 		Items: map[util.Uint160]*Item{
 			priv.GetScriptHash(): {
