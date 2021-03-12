@@ -71,30 +71,25 @@ func (r *P2PNotaryRequest) GetSignedHash() util.Uint256 {
 
 // GetSignedPart returns a part of the payload which must be signed.
 func (r *P2PNotaryRequest) GetSignedPart() []byte {
+	if r.hash.Equals(util.Uint256{}) {
+		if r.createHash() != nil {
+			panic("failed to compute hash!")
+		}
+	}
 	buf := io.NewBufBinWriter()
 	buf.WriteU32LE(uint32(r.Network))
-	r.encodeHashableFields(buf.BinWriter)
-	if buf.Err != nil {
-		return nil
-	}
+	buf.WriteBytes(r.hash[:])
 	return buf.Bytes()
 }
 
 // createHash creates hash of the payload.
 func (r *P2PNotaryRequest) createHash() error {
-	b := r.GetSignedPart()
-	if b == nil {
-		return errors.New("failed to serialize hashable data")
-	}
-	r.updateHashes(b)
+	buf := io.NewBufBinWriter()
+	r.encodeHashableFields(buf.BinWriter)
+	r.hash = hash.Sha256(buf.Bytes())
+	signed := r.GetSignedPart()
+	r.signedHash = hash.Sha256(signed)
 	return nil
-}
-
-// updateHashes updates Payload's hashes based on the given buffer which should
-// be a signable data slice.
-func (r *P2PNotaryRequest) updateHashes(b []byte) {
-	r.signedHash = hash.Sha256(b)
-	r.hash = hash.Sha256(r.signedHash.BytesBE())
 }
 
 // DecodeBinaryUnsigned reads payload from w excluding signature.
