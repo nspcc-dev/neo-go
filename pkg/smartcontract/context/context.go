@@ -36,7 +36,7 @@ type ParameterContext struct {
 type paramContext struct {
 	Type  string                     `json:"type"`
 	Net   uint32                     `json:"network"`
-	Hex   []byte                     `json:"hex"`
+	Data  []byte                     `json:"data"`
 	Items map[string]json.RawMessage `json:"items"`
 }
 
@@ -170,7 +170,7 @@ func (c ParameterContext) MarshalJSON() ([]byte, error) {
 	pc := &paramContext{
 		Type:  c.Type,
 		Net:   uint32(c.Network),
-		Hex:   verif,
+		Data:  verif,
 		Items: items,
 	}
 	return json.Marshal(pc)
@@ -192,7 +192,7 @@ func (c *ParameterContext) UnmarshalJSON(data []byte) error {
 	default:
 		return fmt.Errorf("unsupported type: %s", c.Type)
 	}
-	err := verif.DecodeSignedPart(pc.Hex)
+	err := verif.DecodeSignedPart(pc.Data)
 	if err != nil {
 		return err
 	}
