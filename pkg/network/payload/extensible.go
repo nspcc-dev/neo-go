@@ -84,7 +84,7 @@ func (e *Extensible) DecodeBinary(r *io.BinReader) {
 // GetSignedPart implements crypto.Verifiable.
 func (e *Extensible) GetSignedPart() []byte {
 	if e.signedpart == nil {
-		e.updateSignedPart()
+		e.createHash()
 	}
 	return e.signedpart
 }
@@ -107,21 +107,17 @@ func (e *Extensible) Hash() util.Uint256 {
 
 // createHash creates hashes of the payload.
 func (e *Extensible) createHash() {
-	b := e.GetSignedPart()
-	e.updateHashes(b)
-}
-
-// updateHashes updates hashes based on the given buffer which should
-// be a signable data slice.
-func (e *Extensible) updateHashes(b []byte) {
-	e.signedHash = hash.Sha256(b)
-	e.hash = hash.Sha256(e.signedHash.BytesBE())
+	buf := io.NewBufBinWriter()
+	e.encodeBinaryUnsigned(buf.BinWriter)
+	e.hash = hash.Sha256(buf.Bytes())
+	e.updateSignedPart()
+	e.signedHash = hash.Sha256(e.signedpart)
 }
 
 // updateSignedPart updates serialized message if needed.
 func (e *Extensible) updateSignedPart() {
-	w := io.NewBufBinWriter()
-	w.WriteU32LE(uint32(e.Network))
-	e.encodeBinaryUnsigned(w.BinWriter)
-	e.signedpart = w.Bytes()
+	buf := io.NewBufBinWriter()
+	buf.WriteU32LE(uint32(e.Network))
+	buf.WriteBytes(e.hash[:])
+	e.signedpart = buf.Bytes()
 }

@@ -50,7 +50,7 @@ func TestDecodeEncodeInvocationTX(t *testing.T) {
 	assert.Equal(t, int64(9999540), tx.SystemFee)
 	assert.Equal(t, int64(8731800), tx.NetworkFee)
 	assert.Equal(t, uint32(6015), tx.ValidUntilBlock)
-	assert.Equal(t, "affad44bb6acacabc058db0bf1e12ab1239ae5e04007b4d4a2ea0cda868e284a", tx.Hash().StringLE())
+	assert.Equal(t, "6fcc0c48c5d1b28bb5c2effa1e5b7bb054d22a8c30d409a6a7a3527845229056", tx.Hash().StringLE())
 
 	assert.Equal(t, 2, len(tx.Signers))
 	assert.Equal(t, None, tx.Signers[0].Scopes)
@@ -133,7 +133,7 @@ func TestDecodingTxWithInvalidWitnessesNumber(t *testing.T) {
 func TestUnmarshalNeoFSTX(t *testing.T) {
 	txjson := []byte(`
 {
-  "hash": "0x635a3624bbe6cf99aee70e9cbd6473d913b6712cad6e717647f3ddf0fd13bfbb",
+  "hash": "0xb229ff232b2adf62ffdae21d892c3e8a71301530ec06037f98f1c6ba77989a09",
   "size": 232,
   "version": 0,
   "nonce": 737880259,

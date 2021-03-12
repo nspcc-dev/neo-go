@@ -180,7 +180,9 @@ func (c *ParameterContext) UnmarshalJSON(data []byte) error {
 	var verif crypto.VerifiableDecodable
 	switch pc.Type {
 	case "Neo.Core.ContractTransaction":
-		verif = new(transaction.Transaction)
+		tx := new(transaction.Transaction)
+		tx.Network = 42 // temporary, neo-project/neo#2393
+		verif = tx
 	default:
 		return fmt.Errorf("unsupported type: %s", c.Type)
 	}

@@ -60,8 +60,8 @@ type rpcTestCase struct {
 }
 
 const testContractHash = "1e1c3024bd955ff3baf7cb92e3b7608c7bb3712b"
-const deploymentTxHash = "7cf43b182dee2e8bd2c5209cd230799aeba1b5b13000db682d917c89eacd1eae"
-const genesisBlockHash = "d237e3500d8b4cf0df3fd9c4c053016afae141207a6c732303bdd91aff444ecc"
+const deploymentTxHash = "b67eb38f1e6805d60b68cbec9cf8db7e4a71313b6f53ff8545c578b51ce874c5"
+const genesisBlockHash = "5b60644c6c6f58faca72c70689d7ed1f40c2e795772bd0de5a88e983ad55080c"
 
 const verifyContractHash = "5bb4bac40e961e334ba7bd36d2496010f67e246e"
 const verifyContractAVM = "VwMAQS1RCDAhcAwUVVQtU+0PVUb61E1umZEoZwIvzl7bMHFoE87bKGnbKJdA"
@@ -865,13 +865,12 @@ var rpcTestCases = map[string][]rpcTestCase{
 	"sendrawtransaction": {
 		{
 			name:   "positive",
-			params: `["ADQSAADA2KcAAAAAABDiEgAAAAAAgBYAAAFVVC1T7Q9VRvrUTW6ZkShnAi/OXgEAYBDAAwDodkgXAAAADBRdSe/t0S4+BgGLRljbEKiXX8gLTgwUVVQtU+0PVUb61E1umZEoZwIvzl4UwB8MCHRyYW5zZmVyDBT1Y+pAvCg9TQ4FxI6jBbPyoHNA70FifVtSOQFCDEAppqgOf7RZvrS+uOVzVNlcQAQnyujtzHzv9/Za+FFkxWFd8mZ6AvWnFXAL0W5NafW4xyP7Kp/qgWCmZrHINaLkKAwhArNiK/QBe9/jF8WK7V9MdT8ga324lgRvp9d0u8S/f43CQXR0dqo="]`,
+			params: `["ADQSAADA2KcAAAAAABDiEgAAAAAAgBYAAAFVVC1T7Q9VRvrUTW6ZkShnAi/OXgEAYBDAAwDodkgXAAAADBRdSe/t0S4+BgGLRljbEKiXX8gLTgwUVVQtU+0PVUb61E1umZEoZwIvzl4UwB8MCHRyYW5zZmVyDBT1Y+pAvCg9TQ4FxI6jBbPyoHNA70FifVtSOQFCDEAOJpFi9vI44kaLJcBvEyqSO9Q76XluNyozh0lBueRwXMijYJa1Zlp5jLkqCsmNsEaF1kCpIQ+2wtpDT+HHZGI4KAwhArNiK/QBe9/jF8WK7V9MdT8ga324lgRvp9d0u8S/f43CQXR0dqo="]`,
 			result: func(e *executor) interface{} { return &result.RelayResult{} },
 			check: func(t *testing.T, e *executor, inv interface{}) {
 				res, ok := inv.(*result.RelayResult)
 				require.True(t, ok)
-				expectedHash, err := util.Uint256DecodeStringLE("3b133d0c2912da4f99680ae3a5f0e178bc761f2c360662a1fabbe1a8dbe309ea")
-				require.NoError(t, err)
+				expectedHash := util.Uint256{0x6c, 0x8d, 0x40, 0xba, 0x91, 0xde, 0xe8, 0x74, 0xf0, 0x24, 0xc3, 0xbc, 0xb6, 0x8e, 0x7e, 0xf4, 0xf5, 0x77, 0xd7, 0x6c, 0x9f, 0x10, 0x66, 0xb7, 0xc3, 0xab, 0x71, 0xd, 0x19, 0x1a, 0xeb, 0xac}
 				assert.Equal(t, expectedHash, res.Hash)
 			},
 		},

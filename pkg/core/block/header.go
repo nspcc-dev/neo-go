@@ -110,12 +110,17 @@ func (b *Header) EncodeBinary(bw *io.BinWriter) {
 
 // GetSignedPart returns serialized hashable data of the block.
 func (b *Header) GetSignedPart() []byte {
+	if b.hash.Equals(util.Uint256{}) {
+		b.createHash()
+	}
 	buf := io.NewBufBinWriter()
-	buf.WriteU32LE(uint32(b.Network))
-	// No error can occure while encoding hashable fields.
-	b.encodeHashableFields(buf.BinWriter)
-
+	b.writeSignedPart(buf)
 	return buf.Bytes()
+}
+
+func (b *Header) writeSignedPart(buf *io.BufBinWriter) {
+	buf.WriteU32LE(uint32(b.Network))
+	buf.WriteBytes(b.hash[:])
 }
 
 // createHash creates the hash of the block.
@@ -125,9 +130,14 @@ func (b *Header) GetSignedPart() []byte {
 // Since MerkleRoot already contains the hash value of all transactions,
 // the modification of transaction will influence the hash value of the block.
 func (b *Header) createHash() {
-	bb := b.GetSignedPart()
-	b.verificationHash = hash.Sha256(bb)
-	b.hash = hash.Sha256(b.verificationHash.BytesBE())
+	buf := io.NewBufBinWriter()
+	// No error can occur while encoding hashable fields.
+	b.encodeHashableFields(buf.BinWriter)
+
+	b.hash = hash.Sha256(buf.Bytes())
+	buf.Reset()
+	b.writeSignedPart(buf)
+	b.verificationHash = hash.Sha256(buf.Bytes())
 }
 
 // encodeHashableFields will only encode the fields used for hashing.
