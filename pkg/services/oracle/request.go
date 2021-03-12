@@ -117,16 +117,7 @@ func (o *Oracle) processRequest(priv *keys.PrivateKey, req request) error {
 				}
 				break
 			}
-			if req.Req.Filter != nil {
-				res, err := filter(result, *req.Req.Filter)
-				if err != nil {
-					resp.Code = transaction.Error
-					break
-				}
-				result = res
-			}
-			resp.Code = transaction.Success
-			resp.Result = result
+			resp.Code, resp.Result = filterRequest(result, req.Req)
 		case r.StatusCode == http.StatusForbidden:
 			resp.Code = transaction.Forbidden
 		case r.StatusCode == http.StatusNotFound:
@@ -144,8 +135,7 @@ func (o *Oracle) processRequest(priv *keys.PrivateKey, req request) error {
 		if err != nil {
 			resp.Code = transaction.Error
 		} else {
-			resp.Code = transaction.Success
-			resp.Result = res
+			resp.Code, resp.Result = filterRequest(res, req.Req)
 		}
 	}
 

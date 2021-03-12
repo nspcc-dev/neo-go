@@ -6,6 +6,8 @@ import (
 	"unicode/utf8"
 
 	"github.com/PaesslerAG/jsonpath"
+	"github.com/nspcc-dev/neo-go/pkg/core/state"
+	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 )
 
 func filter(value []byte, path string) ([]byte, error) {
@@ -21,4 +23,15 @@ func filter(value []byte, path string) ([]byte, error) {
 		return nil, err
 	}
 	return json.Marshal([]interface{}{result})
+}
+
+func filterRequest(result []byte, req *state.OracleRequest) (transaction.OracleResponseCode, []byte) {
+	if req.Filter != nil {
+		var err error
+		result, err = filter(result, *req.Filter)
+		if err != nil {
+			return transaction.Error, nil
+		}
+	}
+	return transaction.Success, result
 }
