@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
@@ -24,6 +25,8 @@ import (
 type ParameterContext struct {
 	// Type is a type of a verifiable item.
 	Type string
+	// Network is a network this context belongs to.
+	Network netmode.Magic
 	// Verifiable is an object which can be (de-)serialized.
 	Verifiable crypto.VerifiableDecodable
 	// Items is a map from script hashes to context items.
@@ -32,6 +35,7 @@ type ParameterContext struct {
 
 type paramContext struct {
 	Type  string                     `json:"type"`
+	Net   uint32                     `json:"network"`
 	Hex   []byte                     `json:"hex"`
 	Items map[string]json.RawMessage `json:"items"`
 }
@@ -42,9 +46,10 @@ type sigWithIndex struct {
 }
 
 // NewParameterContext returns ParameterContext with the specified type and item to sign.
-func NewParameterContext(typ string, verif crypto.VerifiableDecodable) *ParameterContext {
+func NewParameterContext(typ string, network netmode.Magic, verif crypto.VerifiableDecodable) *ParameterContext {
 	return &ParameterContext{
 		Type:       typ,
+		Network:    network,
 		Verifiable: verif,
 		Items:      make(map[util.Uint160]*Item),
 	}
@@ -164,6 +169,7 @@ func (c ParameterContext) MarshalJSON() ([]byte, error) {
 	}
 	pc := &paramContext{
 		Type:  c.Type,
+		Net:   uint32(c.Network),
 		Hex:   verif,
 		Items: items,
 	}
@@ -181,7 +187,7 @@ func (c *ParameterContext) UnmarshalJSON(data []byte) error {
 	switch pc.Type {
 	case "Neo.Core.ContractTransaction":
 		tx := new(transaction.Transaction)
-		tx.Network = 42 // temporary, neo-project/neo#2393
+		tx.Network = netmode.Magic(pc.Net)
 		verif = tx
 	default:
 		return fmt.Errorf("unsupported type: %s", c.Type)
@@ -203,6 +209,7 @@ func (c *ParameterContext) UnmarshalJSON(data []byte) error {
 		items[u] = item
 	}
 	c.Type = pc.Type
+	c.Network = netmode.Magic(pc.Net)
 	c.Verifiable = verif
 	c.Items = items
 	return nil
