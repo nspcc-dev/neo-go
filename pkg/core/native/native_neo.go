@@ -143,11 +143,11 @@ func newNEO() *NEO {
 	n.AddMethod(md, desc)
 
 	desc = newDescriptor("getCommittee", smartcontract.ArrayType)
-	md = newMethodAndPrice(n.getCommittee, 1<<22, callflag.ReadStates)
+	md = newMethodAndPrice(n.getCommittee, 1<<16, callflag.ReadStates)
 	n.AddMethod(md, desc)
 
 	desc = newDescriptor("getNextBlockValidators", smartcontract.ArrayType)
-	md = newMethodAndPrice(n.getNextBlockValidators, 1<<22, callflag.ReadStates)
+	md = newMethodAndPrice(n.getNextBlockValidators, 1<<16, callflag.ReadStates)
 	n.AddMethod(md, desc)
 
 	desc = newDescriptor("getGasPerBlock", smartcontract.IntegerType)
