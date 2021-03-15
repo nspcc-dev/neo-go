@@ -433,6 +433,17 @@ func TestVerifyBlock(t *testing.T) {
 		b := testchain.NewBlock(t, srv.Chain, 1, 0, tx)
 		require.False(t, srv.verifyBlock(&neoBlock{Block: *b}))
 	})
+	t.Run("bad big sys fee", func(t *testing.T) {
+		txes := make([]*transaction.Transaction, 2)
+		for i := range txes {
+			txes[i] = transaction.New(netmode.UnitTestNet, []byte{byte(opcode.RET)}, srv.ProtocolConfiguration.MaxBlockSystemFee/2+1)
+			txes[i].ValidUntilBlock = 1
+			addSender(t, txes[i])
+			signTx(t, srv.Chain, txes[i])
+		}
+		b := testchain.NewBlock(t, srv.Chain, 1, 0, txes...)
+		require.False(t, srv.verifyBlock(&neoBlock{Block: *b}))
+	})
 }
 
 func shouldReceive(t *testing.T, ch chan Payload) {

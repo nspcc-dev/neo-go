@@ -445,11 +445,13 @@ func (s *service) verifyBlock(b block.Block) bool {
 		return false
 	}
 
+	var fee int64
 	var pool = mempool.New(len(coreb.Transactions), 0, false)
 	var mainPool = s.Chain.GetMemPool()
 	for _, tx := range coreb.Transactions {
 		var err error
 
+		fee += tx.SystemFee
 		if mainPool.ContainsKey(tx.Hash()) {
 			err = pool.Add(tx, s.Chain)
 			if err == nil {
@@ -468,6 +470,14 @@ func (s *service) verifyBlock(b block.Block) bool {
 			s.log.Warn("proposed block has already outdated")
 			return false
 		}
+	}
+
+	maxBlockSysFee := s.ProtocolConfiguration.MaxBlockSystemFee
+	if fee > maxBlockSysFee {
+		s.log.Warn("proposed block system fee exceeds config MaxBlockSystemFee",
+			zap.Int("max system fee allowed", int(maxBlockSysFee)),
+			zap.Int("block system fee", int(fee)))
+		return false
 	}
 
 	return true

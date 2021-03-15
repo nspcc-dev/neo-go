@@ -47,6 +47,7 @@ const (
 	defaultMemPoolSize                     = 50000
 	defaultP2PNotaryRequestPayloadPoolSize = 1000
 	defaultMaxBlockSize                    = 262144
+	defaultMaxBlockSystemFee               = 900000000000
 	defaultMaxTraceableBlocks              = 2102400 // 1 year of 15s blocks
 	defaultMaxTransactionsPerBlock         = 512
 	verificationGasLimit                   = 100000000 // 1 GAS
@@ -175,6 +176,10 @@ func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration, log *zap.L
 	if cfg.MaxBlockSize == 0 {
 		cfg.MaxBlockSize = defaultMaxBlockSize
 		log.Info("MaxBlockSize is not set or wrong, setting default value", zap.Uint32("MaxBlockSize", cfg.MaxBlockSize))
+	}
+	if cfg.MaxBlockSystemFee <= 0 {
+		cfg.MaxBlockSystemFee = defaultMaxBlockSystemFee
+		log.Info("MaxBlockSystemFee is not set or wrong, setting default value", zap.Int64("MaxBlockSystemFee", cfg.MaxBlockSystemFee))
 	}
 	if cfg.MaxTraceableBlocks == 0 {
 		cfg.MaxTraceableBlocks = defaultMaxTraceableBlocks
@@ -1345,6 +1350,7 @@ func (bc *Blockchain) ApplyPolicyToTxSet(txes []*transaction.Transaction) []*tra
 		txes = txes[:maxTx]
 	}
 	maxBlockSize := bc.GetConfig().MaxBlockSize
+	maxBlockSysFee := bc.GetConfig().MaxBlockSystemFee
 	defaultWitness := bc.defaultBlockWitness.Load()
 	if defaultWitness == nil {
 		m := smartcontract.GetDefaultHonestNodeCount(bc.config.ValidatorsCount)
@@ -1356,12 +1362,14 @@ func (bc *Blockchain) ApplyPolicyToTxSet(txes []*transaction.Transaction) []*tra
 		bc.defaultBlockWitness.Store(defaultWitness)
 	}
 	var (
-		b         = &block.Block{Header: block.Header{Script: defaultWitness.(transaction.Witness)}}
-		blockSize = uint32(b.GetExpectedBlockSizeWithoutTransactions(len(txes)))
+		b           = &block.Block{Header: block.Header{Script: defaultWitness.(transaction.Witness)}}
+		blockSize   = uint32(b.GetExpectedBlockSizeWithoutTransactions(len(txes)))
+		blockSysFee int64
 	)
 	for i, tx := range txes {
 		blockSize += uint32(tx.Size())
-		if blockSize > maxBlockSize {
+		blockSysFee += tx.SystemFee
+		if blockSize > maxBlockSize || blockSysFee > maxBlockSysFee {
 			txes = txes[:i]
 			break
 		}
