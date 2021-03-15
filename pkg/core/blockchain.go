@@ -46,6 +46,7 @@ const (
 
 	defaultMemPoolSize                     = 50000
 	defaultP2PNotaryRequestPayloadPoolSize = 1000
+	defaultMaxBlockSize                    = 262144
 	defaultMaxTraceableBlocks              = 2102400 // 1 year of 15s blocks
 	defaultMaxTransactionsPerBlock         = 512
 	verificationGasLimit                   = 100000000 // 1 GAS
@@ -134,6 +135,10 @@ type Blockchain struct {
 
 	extensible atomic.Value
 
+	// defaultBlockWitness stores transaction.Witness with m out of n multisig,
+	// where n = ValidatorsCount.
+	defaultBlockWitness atomic.Value
+
 	stateRoot *stateroot.Module
 
 	// Notification subsystem.
@@ -166,6 +171,10 @@ func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration, log *zap.L
 	if cfg.P2PSigExtensions && cfg.P2PNotaryRequestPayloadPoolSize <= 0 {
 		cfg.P2PNotaryRequestPayloadPoolSize = defaultP2PNotaryRequestPayloadPoolSize
 		log.Info("P2PNotaryRequestPayloadPool size is not set or wrong, setting default value", zap.Int("P2PNotaryRequestPayloadPoolSize", cfg.P2PNotaryRequestPayloadPoolSize))
+	}
+	if cfg.MaxBlockSize == 0 {
+		cfg.MaxBlockSize = defaultMaxBlockSize
+		log.Info("MaxBlockSize is not set or wrong, setting default value", zap.Uint32("MaxBlockSize", cfg.MaxBlockSize))
 	}
 	if cfg.MaxTraceableBlocks == 0 {
 		cfg.MaxTraceableBlocks = defaultMaxTraceableBlocks
@@ -1334,6 +1343,28 @@ func (bc *Blockchain) ApplyPolicyToTxSet(txes []*transaction.Transaction) []*tra
 	maxTx := bc.config.MaxTransactionsPerBlock
 	if maxTx != 0 && len(txes) > int(maxTx) {
 		txes = txes[:maxTx]
+	}
+	maxBlockSize := bc.GetConfig().MaxBlockSize
+	defaultWitness := bc.defaultBlockWitness.Load()
+	if defaultWitness == nil {
+		m := smartcontract.GetDefaultHonestNodeCount(bc.config.ValidatorsCount)
+		verification, _ := smartcontract.CreateDefaultMultiSigRedeemScript(bc.contracts.NEO.GetNextBlockValidatorsInternal())
+		defaultWitness = transaction.Witness{
+			InvocationScript:   make([]byte, 66*m),
+			VerificationScript: verification,
+		}
+		bc.defaultBlockWitness.Store(defaultWitness)
+	}
+	var (
+		b         = &block.Block{Header: block.Header{Script: defaultWitness.(transaction.Witness)}}
+		blockSize = uint32(b.GetExpectedBlockSizeWithoutTransactions(len(txes)))
+	)
+	for i, tx := range txes {
+		blockSize += uint32(tx.Size())
+		if blockSize > maxBlockSize {
+			txes = txes[:i]
+			break
+		}
 	}
 	return txes
 }

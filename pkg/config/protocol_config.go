@@ -18,6 +18,8 @@ type (
 		KeepOnlyLatestState bool `yaml:"KeepOnlyLatestState"`
 		// RemoveUntraceableBlocks specifies if old blocks should be removed.
 		RemoveUntraceableBlocks bool `yaml:"RemoveUntraceableBlocks"`
+		// MaxBlockSize is the maximum block size in bytes.
+		MaxBlockSize uint32 `yaml:"MaxBlockSize"`
 		// MaxTraceableBlocks is the length of the chain accessible to smart contracts.
 		MaxTraceableBlocks uint32 `yaml:"MaxTraceableBlocks"`
 		// MaxTransactionsPerBlock is the maximum amount of transactions per block.
