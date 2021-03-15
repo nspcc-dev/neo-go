@@ -444,11 +444,12 @@ func newTestService(t *testing.T) *service {
 
 func newTestServiceWithChain(t *testing.T, bc *core.Blockchain) *service {
 	srv, err := NewService(Config{
-		Logger:       zaptest.NewLogger(t),
-		Broadcast:    func(*npayload.Extensible) {},
-		Chain:        bc,
-		RequestTx:    func(...util.Uint256) {},
-		TimePerBlock: time.Duration(bc.GetConfig().SecondsPerBlock) * time.Second,
+		Logger:                zaptest.NewLogger(t),
+		Broadcast:             func(*npayload.Extensible) {},
+		Chain:                 bc,
+		ProtocolConfiguration: bc.GetConfig(),
+		RequestTx:             func(...util.Uint256) {},
+		TimePerBlock:          time.Duration(bc.GetConfig().SecondsPerBlock) * time.Second,
 		Wallet: &config.Wallet{
 			Path:     "./testdata/wallet1.json",
 			Password: "one",

@@ -206,11 +206,12 @@ func newServerFromConstructors(config ServerConfig, chain blockchainer.Blockchai
 	}
 
 	srv, err := newConsensus(consensus.Config{
-		Logger:    log,
-		Broadcast: s.handleNewPayload,
-		Chain:     chain,
-		RequestTx: s.requestTx,
-		Wallet:    config.Wallet,
+		Logger:                log,
+		Broadcast:             s.handleNewPayload,
+		Chain:                 chain,
+		ProtocolConfiguration: chain.GetConfig(),
+		RequestTx:             s.requestTx,
+		Wallet:                config.Wallet,
 
 		TimePerBlock: config.TimePerBlock,
 	})
