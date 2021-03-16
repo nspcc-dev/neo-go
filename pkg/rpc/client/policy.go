@@ -25,6 +25,14 @@ func (c *Client) GetExecFeeFactor() (int64, error) {
 	return c.invokeNativePolicyMethod("getExecFeeFactor")
 }
 
+// GetStoragePrice invokes `getStoragePrice` method on a native Policy contract.
+func (c *Client) GetStoragePrice() (int64, error) {
+	if !c.initDone {
+		return 0, errNetworkNotInitialized
+	}
+	return c.invokeNativePolicyMethod("getStoragePrice")
+}
+
 // GetMaxNotValidBeforeDelta invokes `getMaxNotValidBeforeDelta` method on a native Notary contract.
 func (c *Client) GetMaxNotValidBeforeDelta() (int64, error) {
 	notaryHash, err := c.GetNativeContractHash(nativenames.Notary)
