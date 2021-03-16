@@ -29,7 +29,7 @@ import (
 )
 
 func TestContractHashes(t *testing.T) {
-	cs := native.NewContracts(true)
+	cs := native.NewContracts(true, map[string][]uint32{})
 	require.Equal(t, []byte(neo.Hash), cs.NEO.Hash.BytesBE())
 	require.Equal(t, []byte(gas.Hash), cs.GAS.Hash.BytesBE())
 	require.Equal(t, []byte(oracle.Hash), cs.Oracle.Hash.BytesBE())
@@ -93,7 +93,7 @@ type nativeTestCase struct {
 
 // Here we test that corresponding method does exist, is invoked and correct value is returned.
 func TestNativeHelpersCompile(t *testing.T) {
-	cs := native.NewContracts(true)
+	cs := native.NewContracts(true, map[string][]uint32{})
 	u160 := `interop.Hash160("aaaaaaaaaaaaaaaaaaaa")`
 	u256 := `interop.Hash256("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")`
 	pub := `interop.PublicKey("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")`

@@ -1,0 +1,4 @@
+ProtocolConfiguration:
+  NativeActivations:
+    ContractManagement: [0]
+    UnexpectedContractName: [0]

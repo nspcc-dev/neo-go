@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"gopkg.in/yaml.v2"
 )
 
@@ -54,6 +55,12 @@ func LoadFile(configPath string) (Config, error) {
 	err = yaml.Unmarshal(configData, &config)
 	if err != nil {
 		return Config{}, fmt.Errorf("failed to unmarshal config YAML: %w", err)
+	}
+
+	for name := range config.ProtocolConfiguration.NativeUpdateHistories {
+		if !nativenames.IsValid(name) {
+			return Config{}, fmt.Errorf("NativeActivations configuration section contains unexpected native contract name: %s", name)
+		}
 	}
 
 	return config, nil

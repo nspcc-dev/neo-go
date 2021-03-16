@@ -209,6 +209,12 @@ func (c *ContractMD) AddEvent(name string, ps ...manifest.Parameter) {
 	})
 }
 
+// IsActive returns true iff the contract was deployed by the specified height.
+func (c *ContractMD) IsActive(height uint32) bool {
+	history := c.UpdateHistory
+	return len(history) != 0 && history[0] <= height
+}
+
 // Sort sorts interop functions by id.
 func Sort(fs []Function) {
 	sort.Slice(fs, func(i, j int) bool { return fs[i].ID < fs[j].ID })

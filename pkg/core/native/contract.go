@@ -56,7 +56,7 @@ func (cs *Contracts) ByName(name string) interop.Contract {
 
 // NewContracts returns new set of native contracts with new GAS, NEO, Policy, Oracle,
 // Designate and (optional) Notary contracts.
-func NewContracts(p2pSigExtensionsEnabled bool) *Contracts {
+func NewContracts(p2pSigExtensionsEnabled bool, nativeUpdateHistories map[string][]uint32) *Contracts {
 	cs := new(Contracts)
 
 	mgmt := newManagement()
@@ -117,6 +117,13 @@ func NewContracts(p2pSigExtensionsEnabled bool) *Contracts {
 		cs.Contracts = append(cs.Contracts, notary)
 	}
 
+	setDefaultHistory := len(nativeUpdateHistories) == 0
+	for _, c := range cs.Contracts {
+		if setDefaultHistory {
+			nativeUpdateHistories[c.Metadata().Name] = []uint32{0}
+		}
+		c.Metadata().NativeContract.UpdateHistory = nativeUpdateHistories[c.Metadata().Name]
+	}
 	return cs
 }
 

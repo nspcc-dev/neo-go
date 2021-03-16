@@ -14,3 +14,18 @@ const (
 	CryptoLib   = "CryptoLib"
 	StdLib      = "StdLib"
 )
+
+// IsValid checks that name is a valid native contract's name.
+func IsValid(name string) bool {
+	return name == Management ||
+		name == Ledger ||
+		name == Neo ||
+		name == Gas ||
+		name == Policy ||
+		name == Oracle ||
+		name == Designation ||
+		name == Notary ||
+		name == NameService ||
+		name == CryptoLib ||
+		name == StdLib
+}
