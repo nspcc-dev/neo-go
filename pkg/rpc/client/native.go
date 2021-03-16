@@ -25,3 +25,12 @@ func (c *Client) GetNNSPrice() (int64, error) {
 	}
 	return c.invokeNativeGetMethod(nnsHash, "getPrice")
 }
+
+// GetGasPerBlock invokes `getGasPerBlock` method on a native NEO contract.
+func (c *Client) GetGasPerBlock() (int64, error) {
+	neoHash, err := c.GetNativeContractHash(nativenames.Neo)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get native NEO hash: %w", err)
+	}
+	return c.invokeNativeGetMethod(neoHash, "getGasPerBlock")
+}
