@@ -854,7 +854,7 @@ func (bc *Blockchain) IsExtensibleAllowed(u util.Uint160) bool {
 func (bc *Blockchain) runPersist(script []byte, block *block.Block, cache *dao.Cached, trig trigger.Type) (*state.AppExecResult, error) {
 	systemInterop := bc.newInteropContext(trig, cache, block, nil)
 	v := systemInterop.SpawnVM()
-	v.LoadScriptWithFlags(script, callflag.WriteStates|callflag.AllowCall)
+	v.LoadScriptWithFlags(script, callflag.All)
 	v.SetPriceGetter(systemInterop.GetPrice)
 	if err := v.Run(); err != nil {
 		return nil, fmt.Errorf("VM has failed: %w", err)
