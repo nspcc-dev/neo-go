@@ -16,3 +16,12 @@ func (c *Client) GetOraclePrice() (int64, error) {
 	}
 	return c.invokeNativeGetMethod(oracleHash, "getPrice")
 }
+
+// GetNNSPrice invokes `getPrice` method on a native NameService contract.
+func (c *Client) GetNNSPrice() (int64, error) {
+	nnsHash, err := c.GetNativeContractHash(nativenames.NameService)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get native NameService hash: %w", err)
+	}
+	return c.invokeNativeGetMethod(nnsHash, "getPrice")
+}
