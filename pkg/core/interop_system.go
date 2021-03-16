@@ -14,8 +14,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
-	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
@@ -173,31 +171,6 @@ func storageContextAsReadOnly(ic *interop.Context) error {
 		stc = stx
 	}
 	ic.VM.Estack().PushVal(stackitem.NewInterop(stc))
-	return nil
-}
-
-// contractIsStandard checks if contract is standard (sig or multisig) contract.
-func contractIsStandard(ic *interop.Context) error {
-	h := ic.VM.Estack().Pop().Bytes()
-	u, err := util.Uint160DecodeBytesBE(h)
-	if err != nil {
-		return err
-	}
-	var result bool
-	cs, _ := ic.GetContract(u)
-	if cs != nil {
-		result = vm.IsStandardContract(cs.NEF.Script)
-	} else {
-		if tx, ok := ic.Container.(*transaction.Transaction); ok {
-			for _, witness := range tx.Scripts {
-				if witness.ScriptHash() == u {
-					result = vm.IsStandardContract(witness.VerificationScript)
-					break
-				}
-			}
-		}
-	}
-	ic.VM.Estack().PushVal(result)
 	return nil
 }
 

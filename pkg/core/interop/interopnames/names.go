@@ -10,7 +10,6 @@ const (
 	SystemContractCallNative            = "System.Contract.CallNative"
 	SystemContractCreateMultisigAccount = "System.Contract.CreateMultisigAccount"
 	SystemContractCreateStandardAccount = "System.Contract.CreateStandardAccount"
-	SystemContractIsStandard            = "System.Contract.IsStandard"
 	SystemContractGetCallFlags          = "System.Contract.GetCallFlags"
 	SystemContractNativeOnPersist       = "System.Contract.NativeOnPersist"
 	SystemContractNativePostPersist     = "System.Contract.NativePostPersist"
@@ -50,7 +49,6 @@ var names = []string{
 	SystemContractCallNative,
 	SystemContractCreateMultisigAccount,
 	SystemContractCreateStandardAccount,
-	SystemContractIsStandard,
 	SystemContractGetCallFlags,
 	SystemContractNativeOnPersist,
 	SystemContractNativePostPersist,

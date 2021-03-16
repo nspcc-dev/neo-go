@@ -24,12 +24,6 @@ const (
 	NoneFlag CallFlag = 0
 )
 
-// IsStandard checks if contract with provided hash is a standard signature/multisig contract.
-// This function uses `System.Contract.IsStandard` syscall.
-func IsStandard(h interop.Hash160) bool {
-	return neogointernal.Syscall1("System.Contract.IsStandard", h).(bool)
-}
-
 // CreateMultisigAccount calculates script hash of an m out of n multisignature
 // script using given m and a set of public keys bytes. This function uses
 // `System.Contract.CreateMultisigAccount` syscall.

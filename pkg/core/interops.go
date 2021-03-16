@@ -35,7 +35,6 @@ var systemInterops = []interop.Function{
 	{Name: interopnames.SystemContractCallNative, Func: native.Call, Price: 0, ParamCount: 1},
 	{Name: interopnames.SystemContractCreateMultisigAccount, Func: contractCreateMultisigAccount, Price: 1 << 8, ParamCount: 2},
 	{Name: interopnames.SystemContractCreateStandardAccount, Func: contractCreateStandardAccount, Price: 1 << 8, ParamCount: 1},
-	{Name: interopnames.SystemContractIsStandard, Func: contractIsStandard, Price: 1 << 10, RequiredFlags: callflag.ReadStates, ParamCount: 1},
 	{Name: interopnames.SystemContractGetCallFlags, Func: contractGetCallFlags, Price: 1 << 10},
 	{Name: interopnames.SystemContractNativeOnPersist, Func: native.OnPersist, Price: 0, RequiredFlags: callflag.WriteStates},
 	{Name: interopnames.SystemContractNativePostPersist, Func: native.PostPersist, Price: 0, RequiredFlags: callflag.WriteStates},
