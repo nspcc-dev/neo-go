@@ -13,6 +13,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -232,5 +233,48 @@ func TestBlockEncodeDecode(t *testing.T) {
 		require.NoError(t, err)
 
 		require.True(t, errors.Is(testserdes.DecodeBinary(data, new(Block)), ErrMaxContentsPerBlock))
+	})
+}
+
+func TestGetExpectedBlockSize(t *testing.T) {
+	check := func(t *testing.T, stateRootEnabled bool) {
+
+		t.Run("without transactions", func(t *testing.T) {
+			b := newDumbBlock()
+			b.StateRootEnabled = stateRootEnabled
+			b.Transactions = []*transaction.Transaction{}
+			require.Equal(t, io.GetVarSize(b), b.GetExpectedBlockSize())
+			require.Equal(t, io.GetVarSize(b), b.GetExpectedBlockSizeWithoutTransactions(0))
+		})
+		t.Run("with one transaction", func(t *testing.T) {
+			b := newDumbBlock()
+			b.StateRootEnabled = stateRootEnabled
+			expected := io.GetVarSize(b)
+			require.Equal(t, expected, b.GetExpectedBlockSize())
+			require.Equal(t, expected-b.Transactions[0].Size(), b.GetExpectedBlockSizeWithoutTransactions(len(b.Transactions)))
+		})
+		t.Run("with multiple transactions", func(t *testing.T) {
+			b := newDumbBlock()
+			b.StateRootEnabled = stateRootEnabled
+			b.Transactions = make([]*transaction.Transaction, 123)
+			for i := range b.Transactions {
+				tx := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.RET)}, int64(i))
+				tx.Signers = []transaction.Signer{{Account: util.Uint160{1, 2, 3}}}
+				tx.Scripts = []transaction.Witness{{}}
+				b.Transactions[i] = tx
+			}
+			expected := io.GetVarSize(b)
+			require.Equal(t, expected, b.GetExpectedBlockSize())
+			for _, tx := range b.Transactions {
+				expected -= tx.Size()
+			}
+			require.Equal(t, expected, b.GetExpectedBlockSizeWithoutTransactions(len(b.Transactions)))
+		})
+	}
+	t.Run("StateRoot enabled", func(t *testing.T) {
+		check(t, true)
+	})
+	t.Run("StateRoot disabled", func(t *testing.T) {
+		check(t, false)
 	})
 }

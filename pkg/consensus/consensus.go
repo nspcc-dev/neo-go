@@ -73,9 +73,6 @@ type service struct {
 	blockEvents  chan *coreb.Block
 	lastProposal []util.Uint256
 	wallet       *wallet.Wallet
-	network      netmode.Magic
-	// stateRootEnabled specifies if state root should be exchanged and checked during consensus.
-	stateRootEnabled bool
 	// started is a flag set with Start method that runs an event handling
 	// goroutine.
 	started  *atomic.Bool
@@ -97,6 +94,8 @@ type Config struct {
 	Broadcast func(p *npayload.Extensible)
 	// Chain is a core.Blockchainer instance.
 	Chain blockchainer.Blockchainer
+	// ProtocolConfiguration contains protocol settings.
+	ProtocolConfiguration config.ProtocolConfiguration
 	// RequestTx is a callback to which will be called
 	// when a node lacks transactions present in a block.
 	RequestTx func(h ...util.Uint256)
@@ -123,13 +122,11 @@ func NewService(cfg Config) (Service, error) {
 		txx:      newFIFOCache(cacheMaxCapacity),
 		messages: make(chan Payload, 100),
 
-		transactions:     make(chan *transaction.Transaction, 100),
-		blockEvents:      make(chan *coreb.Block, 1),
-		network:          cfg.Chain.GetConfig().Magic,
-		stateRootEnabled: cfg.Chain.GetConfig().StateRootInHeader,
-		started:          atomic.NewBool(false),
-		quit:             make(chan struct{}),
-		finished:         make(chan struct{}),
+		transactions: make(chan *transaction.Transaction, 100),
+		blockEvents:  make(chan *coreb.Block, 1),
+		started:      atomic.NewBool(false),
+		quit:         make(chan struct{}),
+		finished:     make(chan struct{}),
 	}
 
 	if cfg.Wallet == nil {
@@ -182,7 +179,7 @@ func NewService(cfg Config) (Service, error) {
 		dbft.WithNewCommit(func() payload.Commit { return new(commit) }),
 		dbft.WithNewRecoveryRequest(func() payload.RecoveryRequest { return new(recoveryRequest) }),
 		dbft.WithNewRecoveryMessage(func() payload.RecoveryMessage {
-			return &recoveryMessage{stateRootEnabled: srv.stateRootEnabled}
+			return &recoveryMessage{stateRootEnabled: srv.ProtocolConfiguration.StateRootInHeader}
 		}),
 		dbft.WithVerifyPrepareRequest(srv.verifyRequest),
 		dbft.WithVerifyPrepareResponse(func(_ payload.ConsensusPayload) error { return nil }),
@@ -214,7 +211,7 @@ func NewPayload(m netmode.Magic, stateRootEnabled bool) *Payload {
 }
 
 func (s *service) newPayload(c *dbft.Context, t payload.MessageType, msg interface{}) payload.ConsensusPayload {
-	cp := NewPayload(s.network, s.stateRootEnabled)
+	cp := NewPayload(s.ProtocolConfiguration.Magic, s.ProtocolConfiguration.StateRootInHeader)
 	cp.SetHeight(c.BlockIndex)
 	cp.SetValidatorIndex(uint16(c.MyIndex))
 	cp.SetViewNumber(c.ViewNumber)
@@ -234,7 +231,7 @@ func (s *service) newPayload(c *dbft.Context, t payload.MessageType, msg interfa
 
 func (s *service) newPrepareRequest() payload.PrepareRequest {
 	r := new(prepareRequest)
-	if s.stateRootEnabled {
+	if s.ProtocolConfiguration.StateRootInHeader {
 		r.stateRootEnabled = true
 		if sr, err := s.Chain.GetStateModule().GetStateRoot(s.dbft.BlockIndex - 1); err == nil {
 			r.stateRoot = sr.Root
@@ -364,7 +361,7 @@ func (s *service) payloadFromExtensible(ep *npayload.Extensible) *Payload {
 	return &Payload{
 		Extensible: *ep,
 		message: message{
-			stateRootEnabled: s.stateRootEnabled,
+			stateRootEnabled: s.ProtocolConfiguration.StateRootInHeader,
 		},
 	}
 }
@@ -440,11 +437,21 @@ func (s *service) verifyBlock(b block.Block) bool {
 		return false
 	}
 
+	size := coreb.GetExpectedBlockSize()
+	if size > int(s.ProtocolConfiguration.MaxBlockSize) {
+		s.log.Warn("proposed block size exceeds config MaxBlockSize",
+			zap.Uint32("max size allowed", s.ProtocolConfiguration.MaxBlockSize),
+			zap.Int("block size", size))
+		return false
+	}
+
+	var fee int64
 	var pool = mempool.New(len(coreb.Transactions), 0, false)
 	var mainPool = s.Chain.GetMemPool()
 	for _, tx := range coreb.Transactions {
 		var err error
 
+		fee += tx.SystemFee
 		if mainPool.ContainsKey(tx.Hash()) {
 			err = pool.Add(tx, s.Chain)
 			if err == nil {
@@ -465,13 +472,22 @@ func (s *service) verifyBlock(b block.Block) bool {
 		}
 	}
 
+	maxBlockSysFee := s.ProtocolConfiguration.MaxBlockSystemFee
+	if fee > maxBlockSysFee {
+		s.log.Warn("proposed block system fee exceeds config MaxBlockSystemFee",
+			zap.Int("max system fee allowed", int(maxBlockSysFee)),
+			zap.Int("block system fee", int(fee)))
+		return false
+	}
+
 	return true
 }
 
 var (
-	errInvalidPrevHash  = errors.New("invalid PrevHash")
-	errInvalidVersion   = errors.New("invalid Version")
-	errInvalidStateRoot = errors.New("state root mismatch")
+	errInvalidPrevHash          = errors.New("invalid PrevHash")
+	errInvalidVersion           = errors.New("invalid Version")
+	errInvalidStateRoot         = errors.New("state root mismatch")
+	errInvalidTransactionsCount = errors.New("invalid transactions count")
 )
 
 func (s *service) verifyRequest(p payload.ConsensusPayload) error {
@@ -482,13 +498,16 @@ func (s *service) verifyRequest(p payload.ConsensusPayload) error {
 	if req.version != s.dbft.Version {
 		return errInvalidVersion
 	}
-	if s.stateRootEnabled {
+	if s.ProtocolConfiguration.StateRootInHeader {
 		sr, err := s.Chain.GetStateModule().GetStateRoot(s.dbft.BlockIndex - 1)
 		if err != nil {
 			return err
 		} else if sr.Root != req.stateRoot {
 			return fmt.Errorf("%w: %s != %s", errInvalidStateRoot, sr.Root, req.stateRoot)
 		}
+	}
+	if len(req.TransactionHashes()) > int(s.ProtocolConfiguration.MaxTransactionsPerBlock) {
+		return fmt.Errorf("%w: max = %d, got %d", errInvalidTransactionsCount, s.ProtocolConfiguration.MaxTransactionsPerBlock, len(req.TransactionHashes()))
 	}
 	// Save lastProposal for getVerified().
 	s.lastProposal = req.transactionHashes
@@ -633,10 +652,10 @@ func (s *service) newBlockFromContext(ctx *dbft.Context) block.Block {
 		return nil
 	}
 
-	block.Block.Network = s.network
+	block.Block.Network = s.ProtocolConfiguration.Magic
 	block.Block.Timestamp = ctx.Timestamp / nsInMs
 	block.Block.Index = ctx.BlockIndex
-	if s.stateRootEnabled {
+	if s.ProtocolConfiguration.StateRootInHeader {
 		sr, err := s.Chain.GetStateModule().GetStateRoot(ctx.BlockIndex - 1)
 		if err != nil {
 			return nil

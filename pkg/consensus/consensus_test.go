@@ -323,6 +323,13 @@ func TestService_PrepareRequest(t *testing.T) {
 
 	sr, err := srv.Chain.GetStateModule().GetStateRoot(srv.dbft.BlockIndex - 1)
 	require.NoError(t, err)
+
+	checkRequest(t, errInvalidTransactionsCount, &prepareRequest{stateRootEnabled: true,
+		prevHash:          prevHash,
+		stateRoot:         sr.Root,
+		transactionHashes: make([]util.Uint256, srv.ProtocolConfiguration.MaxTransactionsPerBlock+1),
+	})
+
 	checkRequest(t, nil, &prepareRequest{
 		stateRootEnabled: true,
 		prevHash:         prevHash,
@@ -402,6 +409,16 @@ func TestVerifyBlock(t *testing.T) {
 		b.Index = srv.Chain.BlockHeight()
 		require.False(t, srv.verifyBlock(&neoBlock{Block: *b}))
 	})
+	t.Run("bad big size", func(t *testing.T) {
+		script := make([]byte, int(srv.ProtocolConfiguration.MaxBlockSize))
+		script[0] = byte(opcode.RET)
+		tx := transaction.New(netmode.UnitTestNet, script, 100000)
+		tx.ValidUntilBlock = 1
+		addSender(t, tx)
+		signTx(t, srv.Chain, tx)
+		b := testchain.NewBlock(t, srv.Chain, 1, 0, tx)
+		require.False(t, srv.verifyBlock(&neoBlock{Block: *b}))
+	})
 	t.Run("bad timestamp", func(t *testing.T) {
 		b := testchain.NewBlock(t, srv.Chain, 1, 0)
 		b.Timestamp = srv.lastTimestamp - 1
@@ -414,6 +431,17 @@ func TestVerifyBlock(t *testing.T) {
 		signTx(t, srv.Chain, tx)
 		tx.Scripts[0].InvocationScript[16] = ^tx.Scripts[0].InvocationScript[16]
 		b := testchain.NewBlock(t, srv.Chain, 1, 0, tx)
+		require.False(t, srv.verifyBlock(&neoBlock{Block: *b}))
+	})
+	t.Run("bad big sys fee", func(t *testing.T) {
+		txes := make([]*transaction.Transaction, 2)
+		for i := range txes {
+			txes[i] = transaction.New(netmode.UnitTestNet, []byte{byte(opcode.RET)}, srv.ProtocolConfiguration.MaxBlockSystemFee/2+1)
+			txes[i].ValidUntilBlock = 1
+			addSender(t, txes[i])
+			signTx(t, srv.Chain, txes[i])
+		}
+		b := testchain.NewBlock(t, srv.Chain, 1, 0, txes...)
 		require.False(t, srv.verifyBlock(&neoBlock{Block: *b}))
 	})
 }
@@ -444,11 +472,12 @@ func newTestService(t *testing.T) *service {
 
 func newTestServiceWithChain(t *testing.T, bc *core.Blockchain) *service {
 	srv, err := NewService(Config{
-		Logger:       zaptest.NewLogger(t),
-		Broadcast:    func(*npayload.Extensible) {},
-		Chain:        bc,
-		RequestTx:    func(...util.Uint256) {},
-		TimePerBlock: time.Duration(bc.GetConfig().SecondsPerBlock) * time.Second,
+		Logger:                zaptest.NewLogger(t),
+		Broadcast:             func(*npayload.Extensible) {},
+		Chain:                 bc,
+		ProtocolConfiguration: bc.GetConfig(),
+		RequestTx:             func(...util.Uint256) {},
+		TimePerBlock:          time.Duration(bc.GetConfig().SecondsPerBlock) * time.Second,
 		Wallet: &config.Wallet{
 			Path:     "./testdata/wallet1.json",
 			Password: "one",

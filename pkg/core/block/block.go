@@ -21,6 +21,12 @@ const (
 // ErrMaxContentsPerBlock is returned when the maximum number of contents per block is reached.
 var ErrMaxContentsPerBlock = errors.New("the number of contents exceeds the maximum number of contents per block")
 
+var expectedHeaderSizeWithEmptyWitness int
+
+func init() {
+	expectedHeaderSizeWithEmptyWitness = io.GetVarSize(new(Header))
+}
+
 // Block represents one block in the chain.
 type Block struct {
 	// The base of the block.
@@ -210,4 +216,24 @@ func (b *Block) UnmarshalJSON(data []byte) error {
 		}
 	}
 	return nil
+}
+
+// GetExpectedBlockSize returns expected block size which should be equal to io.GetVarSize(b)
+func (b *Block) GetExpectedBlockSize() int {
+	var transactionsSize int
+	for _, tx := range b.Transactions {
+		transactionsSize += tx.Size()
+	}
+	return b.GetExpectedBlockSizeWithoutTransactions(len(b.Transactions)) + transactionsSize
+}
+
+// GetExpectedBlockSizeWithoutTransactions returns expected block size without transactions size.
+func (b *Block) GetExpectedBlockSizeWithoutTransactions(txCount int) int {
+	size := expectedHeaderSizeWithEmptyWitness - 1 - 1 + // 1 is for the zero-length (new(Header)).Script.Invocation/Verification
+		io.GetVarSize(&b.Script) +
+		io.GetVarSize(txCount)
+	if b.StateRootEnabled {
+		size += util.Uint256Size
+	}
+	return size
 }
