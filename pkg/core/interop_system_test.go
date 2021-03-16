@@ -6,9 +6,7 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/nspcc-dev/dbft/crypto"
 	"github.com/nspcc-dev/neo-go/internal/random"
-	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/contract"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
@@ -29,65 +27,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/stretchr/testify/require"
 )
-
-func TestContractIsStandard(t *testing.T) {
-	v, ic, chain := createVM(t)
-
-	t.Run("contract not stored", func(t *testing.T) {
-		priv, err := keys.NewPrivateKey()
-		require.NoError(t, err)
-
-		pub := priv.PublicKey()
-		tx := transaction.New(netmode.TestNet, []byte{1, 2, 3}, 1)
-		tx.Scripts = []transaction.Witness{
-			{
-				InvocationScript:   []byte{1, 2, 3},
-				VerificationScript: pub.GetVerificationScript(),
-			},
-		}
-		ic.Container = tx
-
-		t.Run("true", func(t *testing.T) {
-			v.Estack().PushVal(pub.GetScriptHash().BytesBE())
-			require.NoError(t, contractIsStandard(ic))
-			require.True(t, v.Estack().Pop().Bool())
-		})
-
-		t.Run("false", func(t *testing.T) {
-			tx.Scripts[0].VerificationScript = []byte{9, 8, 7}
-			v.Estack().PushVal(pub.GetScriptHash().BytesBE())
-			require.NoError(t, contractIsStandard(ic))
-			require.False(t, v.Estack().Pop().Bool())
-		})
-	})
-
-	t.Run("contract stored, true", func(t *testing.T) {
-		priv, err := keys.NewPrivateKey()
-		require.NoError(t, err)
-
-		pub := priv.PublicKey()
-		ne, err := nef.NewFile(pub.GetVerificationScript())
-		require.NoError(t, err)
-		err = chain.contracts.Management.PutContractState(ic.DAO,
-			&state.Contract{ContractBase: state.ContractBase{ID: 42, Hash: pub.GetScriptHash(), NEF: *ne}})
-		require.NoError(t, err)
-
-		v.Estack().PushVal(pub.GetScriptHash().BytesBE())
-		require.NoError(t, contractIsStandard(ic))
-		require.True(t, v.Estack().Pop().Bool())
-	})
-	t.Run("contract stored, false", func(t *testing.T) {
-		script := []byte{byte(opcode.PUSHT)}
-		ne, err := nef.NewFile(script)
-		require.NoError(t, err)
-		require.NoError(t, chain.contracts.Management.PutContractState(ic.DAO,
-			&state.Contract{ContractBase: state.ContractBase{ID: 24, Hash: hash.Hash160(script), NEF: *ne}}))
-
-		v.Estack().PushVal(crypto.Hash160(script).BytesBE())
-		require.NoError(t, contractIsStandard(ic))
-		require.False(t, v.Estack().Pop().Bool())
-	})
-}
 
 func TestContractCreateAccount(t *testing.T) {
 	v, ic, _ := createVM(t)

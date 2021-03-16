@@ -64,7 +64,6 @@ func TestSyscallExecution(t *testing.T) {
 		"contract.Call":                    {interopnames.SystemContractCall, []string{u160, `"m"`, "1", "3"}, false},
 		"contract.CreateMultisigAccount":   {interopnames.SystemContractCreateMultisigAccount, []string{"1", pubs}, false},
 		"contract.CreateStandardAccount":   {interopnames.SystemContractCreateStandardAccount, []string{pub}, false},
-		"contract.IsStandard":              {interopnames.SystemContractIsStandard, []string{u160}, false},
 		"contract.GetCallFlags":            {interopnames.SystemContractGetCallFlags, nil, false},
 		"iterator.Create":                  {interopnames.SystemIteratorCreate, []string{pubs}, false},
 		"iterator.Next":                    {interopnames.SystemIteratorNext, []string{"iterator.Iterator{}"}, false},
