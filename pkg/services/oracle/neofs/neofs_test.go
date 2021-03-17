@@ -81,3 +81,13 @@ func TestParseNeoFSURL(t *testing.T) {
 
 	}
 }
+
+func Test_checkUTF8(t *testing.T) {
+	_, err := checkUTF8([]byte{0xFF})
+	require.Error(t, err)
+
+	a := []byte{1, 2, 3}
+	b, err := checkUTF8(a)
+	require.NoError(t, err)
+	require.Equal(t, a, b)
+}

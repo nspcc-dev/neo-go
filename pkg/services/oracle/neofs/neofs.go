@@ -9,9 +9,11 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/gogo/protobuf/jsonpb"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neofs-api-go/pkg/client"
 	"github.com/nspcc-dev/neofs-api-go/pkg/container"
 	"github.com/nspcc-dev/neofs-api-go/pkg/object"
@@ -104,7 +106,7 @@ func getPayload(ctx context.Context, c *client.Client, addr *object.Address) ([]
 	if err != nil {
 		return nil, err
 	}
-	return obj.Payload(), nil
+	return checkUTF8(obj.Payload())
 }
 
 func getRange(ctx context.Context, c *client.Client, addr *object.Address, ps ...string) ([]byte, error) {
@@ -115,7 +117,11 @@ func getRange(ctx context.Context, c *client.Client, addr *object.Address, ps ..
 	if err != nil {
 		return nil, err
 	}
-	return c.ObjectPayloadRangeData(ctx, new(client.RangeDataParams).WithAddress(addr).WithRange(r))
+	data, err := c.ObjectPayloadRangeData(ctx, new(client.RangeDataParams).WithAddress(addr).WithRange(r))
+	if err != nil {
+		return nil, err
+	}
+	return checkUTF8(data)
 }
 
 func getHeader(ctx context.Context, c *client.Client, addr *object.Address) ([]byte, error) {
@@ -149,7 +155,7 @@ func getHash(ctx context.Context, c *client.Client, addr *object.Address, ps ...
 	if len(hashes) == 0 {
 		return nil, fmt.Errorf("%w: empty response", ErrInvalidRange)
 	}
-	return hashes[0][:], nil
+	return util.Uint256(hashes[0]).MarshalJSON()
 }
 
 func parseRange(s string) (*object.Range, error) {
@@ -170,4 +176,11 @@ func parseRange(s string) (*object.Range, error) {
 	r.SetOffset(offset)
 	r.SetLength(length)
 	return r, nil
+}
+
+func checkUTF8(v []byte) ([]byte, error) {
+	if !utf8.Valid(v) {
+		return nil, errors.New("invalid UTF-8")
+	}
+	return v, nil
 }
