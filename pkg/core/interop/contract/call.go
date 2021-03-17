@@ -73,7 +73,7 @@ func callInternal(ic *interop.Context, cs *state.Contract, name string, f callfl
 	hasReturn bool, args []stackitem.Item) error {
 	md := cs.Manifest.ABI.GetMethod(name, len(args))
 	if md.Safe {
-		f &^= callflag.WriteStates
+		f &^= (callflag.WriteStates | callflag.AllowNotify)
 	} else if ctx := ic.VM.Context(); ctx != nil && ctx.IsDeployed() {
 		curr, err := ic.GetContract(ic.VM.GetCurrentScriptHash())
 		if err == nil {
