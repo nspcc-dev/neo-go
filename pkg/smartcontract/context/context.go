@@ -158,7 +158,10 @@ func (c *ParameterContext) getItemForContract(h util.Uint160, ctr *wallet.Contra
 
 // MarshalJSON implements json.Marshaler interface.
 func (c ParameterContext) MarshalJSON() ([]byte, error) {
-	verif := c.Verifiable.GetSignedPart()
+	verif, err := c.Verifiable.EncodeHashableFields()
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode hashable fields")
+	}
 	items := make(map[string]json.RawMessage, len(c.Items))
 	for u := range c.Items {
 		data, err := json.Marshal(c.Items[u])
@@ -192,7 +195,7 @@ func (c *ParameterContext) UnmarshalJSON(data []byte) error {
 	default:
 		return fmt.Errorf("unsupported type: %s", c.Type)
 	}
-	err := verif.DecodeSignedPart(pc.Data)
+	err := verif.DecodeHashableFields(pc.Data)
 	if err != nil {
 		return err
 	}

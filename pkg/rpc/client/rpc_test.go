@@ -46,17 +46,17 @@ type rpcClientTestCase struct {
 	check          func(t *testing.T, c *Client, result interface{})
 }
 
-const base64B1 = "AAAAAMU1lpLU9L9XS3U0WvRgGV9aU5WoX8f6MWgNjfz89nyeomtq7Iw0SoX9caDTvpAT4ulAxcy/vWK7q9GH0raCqQfxbcftdwEAAAEAAAAAXhK+qHrrlViE9vnOeEWMzLl8MJUBxgxAVLK3uK5qryZv+jBuH0dBn7VU+sYztObj1sj65/az1v2XCrlLlL2z2LeHccRnn7jAXUE0m80q7QAxEWyhzJPA/QxAOCcAytavTTPv0uQ+rhoBRXvyxaaEdSCZq0VDJCNtI4O9iFXq+Q++GJjzA04z4QZo7KCB8KD8aruBc69i6PoqwwxAR7dzN1DAk9G1RCuSZx7X7U/qqJfT7Wa4Us9kq/40AVpJgwr0RNUGWf1Xh8K53f+tzw1UtHZMoI5YZyJtMEiQY5QTDCECEDp/fdAWVYWX95YNJ8UWpDlP2Wi55lFV60sBPkBAQG4MIQKnvFX+hoTgEZdo0QS6MHlb3MhmGehkrdJhVnI+0YXNYgwhArNiK/QBe9/jF8WK7V9MdT8ga324lgRvp9d0u8S/f43CDCED2QwH32PmkM53kS4Qq1GsyUS2aGAje2CMT4+DCece5pkUC0ETje+vAgACAAAAwNinAAAAAAASfUMAAAAAALAEAAABXhK+qHrrlViE9vnOeEWMzLl8MJUBAFsLAhjd9QUMFKqKz4WdT+QCs05nPyFWgheWpIjrDBReEr6oeuuVWIT2+c54RYzMuXwwlRTAHwwIdHJhbnNmZXIMFIOrBnmtVcBQoTrUP1k26nP16x72QWJ9W1I5AcYMQIoQAeuRy5Lgj4MYiuF9tLhAeYhKf6PrczcbKGeWmz+KNWULI+mQbeDPFWG3mGwPkSBELVqVMrUNqigZLflJhNwMQBuqOk8xrVlAx5A5Va9FlMhu3io+wIrubPoWNr0sklBKh48H9w3WHPfTFBSAW8M9ePou/TVXM40X+U07fy+s+8MMQIlw1AKX/fk1rn1GqjZOqNmhVjQPm6Tk7Cb1fzeBa4baIEy5DmaaM8ayh0tm8N3Vc8JNSwnK91vIXPG/A9RKTKuUEwwhAhA6f33QFlWFl/eWDSfFFqQ5T9loueZRVetLAT5AQEBuDCECp7xV/oaE4BGXaNEEujB5W9zIZhnoZK3SYVZyPtGFzWIMIQKzYiv0AXvf4xfFiu1fTHU/IGt9uJYEb6fXdLvEv3+NwgwhA9kMB99j5pDOd5EuEKtRrMlEtmhgI3tgjE+PgwnnHuaZFAtBE43vrwADAAAAwNinAAAAAACyjEMAAAAAALAEAAABXhK+qHrrlViE9vnOeEWMzLl8MJUBAF8LAwDodkgXAAAADBSqis+FnU/kArNOZz8hVoIXlqSI6wwUXhK+qHrrlViE9vnOeEWMzLl8MJUUwB8MCHRyYW5zZmVyDBQos62rcmn5whgds8t0Hr9VGTDicEFifVtSOQHGDEA7aJyGTIq0pV20LzVWOCreh6XIxLUCWHVgUFsCTxPOPdqtZBHKnejng3d2BRm/lecTyPLeq7KpRCD9awRvadFWDEBjVZRvSGtGcOEjtUxl4AH5XelYlIUG5k+x3QyYKZtWQc96lUX1hohrNkCmWeWNwC2l8eJGpUxicM+WZGODCVp8DEDbQxvmqRTQ+flc6JetmaqHyw8rfoeQNtmEFpw2cNhyAo5L5Ilp2wbVtJNOJPfw72J7E6FhTK8slIKRqXzpdnyKlBMMIQIQOn990BZVhZf3lg0nxRakOU/ZaLnmUVXrSwE+QEBAbgwhAqe8Vf6GhOARl2jRBLoweVvcyGYZ6GSt0mFWcj7Rhc1iDCECs2Ir9AF73+MXxYrtX0x1PyBrfbiWBG+n13S7xL9/jcIMIQPZDAffY+aQzneRLhCrUazJRLZoYCN7YIxPj4MJ5x7mmRQLQRON768="
+const base64B1 = "AAAAAAwIVa2D6Yha3tArd5XnwkAf7deJBsdyyvpYb2xMZGBb/YwjvRiYdH/LL9atXcWbYsXLHqkKEutiil4zsK7lKrFxU6tEeAEAAAEAAAAA3u55wYnzAJiwumouuQs6klimx/8BxgxAUfn6Pu/yxlYcuGzwM7RzacB9z9YG7J77DR/j9NfrNR7leWUd0qTqnqiD1H9Vydj401smVWnTg/XAisjZTFpT+gxAAT3EbjC87Gb5UEe+Pvx3AP31lJeIuQL1gKcm6SfJBMaHon2g1dAah3xrKXrj3nGRypvWTKCVEXXDFzEL3ZndswxA/eGxm/DUde1jWbvi+avLdId0VH2roTyqJScLblo5xtRRHm0uKf6NObl6cNJLnSjcumrOQbMVgruDb7WIaOl0E5MTDCECEDp/fdAWVYWX95YNJ8UWpDlP2Wi55lFV60sBPkBAQG4MIQKnvFX+hoTgEZdo0QS6MHlb3MhmGehkrdJhVnI+0YXNYgwhArNiK/QBe9/jF8WK7V9MdT8ga324lgRvp9d0u8S/f43CDCED2QwH32PmkM53kS4Qq1GsyUS2aGAje2CMT4+DCece5pkUQXvObKUCAAIAAADA2KcAAAAAAAx5QwAAAAAAsAQAAAHe7nnBifMAmLC6ai65CzqSWKbH/wEAWwsCGN31BQwUVVQtU+0PVUb61E1umZEoZwIvzl4MFN7uecGJ8wCYsLpqLrkLOpJYpsf/FMAfDAh0cmFuc2ZlcgwU9WPqQLwoPU0OBcSOowWz8qBzQO9BYn1bUjkBxgxATIm2/0zMxdiM7XnPfK71cV4fd0elAZwc7YH+0St3IWmPKYSMYfidX9xgLc98wLi8Ikp9cEmp7PUTyqoHqYmrqAxAbxxWY+bt2me1JH8pTHNMIfcnSLr7ZVW92P+jjp/Bzd0QrO1Sy4J2k990Z9YFgci0AcwJXY6yZw38Q0hqn0po3wxAhDKcmR3uZX5Egc5T6D/Ywttnw0vu01LewZMemWX+Wg7tPSBa1sz4rcZL8+EqwMoAnSXczJAV2GT1GrZDvNvBTJMTDCECEDp/fdAWVYWX95YNJ8UWpDlP2Wi55lFV60sBPkBAQG4MIQKnvFX+hoTgEZdo0QS6MHlb3MhmGehkrdJhVnI+0YXNYgwhArNiK/QBe9/jF8WK7V9MdT8ga324lgRvp9d0u8S/f43CDCED2QwH32PmkM53kS4Qq1GsyUS2aGAje2CMT4+DCece5pkUQXvObKUAAwAAAMDYpwAAAAAArIhDAAAAAACwBAAAAd7uecGJ8wCYsLpqLrkLOpJYpsf/AQBfCwMA6HZIFwAAAAwUVVQtU+0PVUb61E1umZEoZwIvzl4MFN7uecGJ8wCYsLpqLrkLOpJYpsf/FMAfDAh0cmFuc2ZlcgwUz3bii9AGLEpHjuNVYQETGfPPpNJBYn1bUjkBxgxA1E8pqjQrEDsUL7B2U+u2h95Jr6yvObCHbWif6tRx6cpNqy7VFJ/5A5T6W5NLLIZBD9os5ZQq+rRIgOliQOWRiwxAysxPLL6wVsETJZm2vcVQ3ZBH7IHa82wjQoyKGrhQH+rygFF/TmVH6E5oEOz/bsQwudk60CWJKcrFyXzfXlK5KAxAjH0w9It2Tlax1xv3T5xstaSl9le2fyYDa+smDwR+ytnmGRkSNn3oWsHdS8B7A1TzP76W3Dixn2NFFp9/j3D3cpMTDCECEDp/fdAWVYWX95YNJ8UWpDlP2Wi55lFV60sBPkBAQG4MIQKnvFX+hoTgEZdo0QS6MHlb3MhmGehkrdJhVnI+0YXNYgwhArNiK/QBe9/jF8WK7V9MdT8ga324lgRvp9d0u8S/f43CDCED2QwH32PmkM53kS4Qq1GsyUS2aGAje2CMT4+DCece5pkUQXvObKU="
 
-const base64TxMoveNeo = "AAIAAADA2KcAAAAAABJ9QwAAAAAAsAQAAAFeEr6oeuuVWIT2+c54RYzMuXwwlQEAWwsCGN31BQwUqorPhZ1P5AKzTmc/IVaCF5akiOsMFF4Svqh665VYhPb5znhFjMy5fDCVFMAfDAh0cmFuc2ZlcgwUg6sGea1VwFChOtQ/WTbqc/XrHvZBYn1bUjkBxgxAihAB65HLkuCPgxiK4X20uEB5iEp/o+tzNxsoZ5abP4o1ZQsj6ZBt4M8VYbeYbA+RIEQtWpUytQ2qKBkt+UmE3AxAG6o6TzGtWUDHkDlVr0WUyG7eKj7Aiu5s+hY2vSySUEqHjwf3DdYc99MUFIBbwz14+i79NVczjRf5TTt/L6z7wwxAiXDUApf9+TWufUaqNk6o2aFWNA+bpOTsJvV/N4FrhtogTLkOZpozxrKHS2bw3dVzwk1LCcr3W8hc8b8D1EpMq5QTDCECEDp/fdAWVYWX95YNJ8UWpDlP2Wi55lFV60sBPkBAQG4MIQKnvFX+hoTgEZdo0QS6MHlb3MhmGehkrdJhVnI+0YXNYgwhArNiK/QBe9/jF8WK7V9MdT8ga324lgRvp9d0u8S/f43CDCED2QwH32PmkM53kS4Qq1GsyUS2aGAje2CMT4+DCece5pkUC0ETje+v"
+const base64TxMoveNeo = "AAIAAADA2KcAAAAAAAx5QwAAAAAAsAQAAAHe7nnBifMAmLC6ai65CzqSWKbH/wEAWwsCGN31BQwUVVQtU+0PVUb61E1umZEoZwIvzl4MFN7uecGJ8wCYsLpqLrkLOpJYpsf/FMAfDAh0cmFuc2ZlcgwU9WPqQLwoPU0OBcSOowWz8qBzQO9BYn1bUjkBxgxATIm2/0zMxdiM7XnPfK71cV4fd0elAZwc7YH+0St3IWmPKYSMYfidX9xgLc98wLi8Ikp9cEmp7PUTyqoHqYmrqAxAbxxWY+bt2me1JH8pTHNMIfcnSLr7ZVW92P+jjp/Bzd0QrO1Sy4J2k990Z9YFgci0AcwJXY6yZw38Q0hqn0po3wxAhDKcmR3uZX5Egc5T6D/Ywttnw0vu01LewZMemWX+Wg7tPSBa1sz4rcZL8+EqwMoAnSXczJAV2GT1GrZDvNvBTJMTDCECEDp/fdAWVYWX95YNJ8UWpDlP2Wi55lFV60sBPkBAQG4MIQKnvFX+hoTgEZdo0QS6MHlb3MhmGehkrdJhVnI+0YXNYgwhArNiK/QBe9/jF8WK7V9MdT8ga324lgRvp9d0u8S/f43CDCED2QwH32PmkM53kS4Qq1GsyUS2aGAje2CMT4+DCece5pkUQXvObKU="
 
-const b1Verbose = `{"id":5,"jsonrpc":"2.0","result":{"size":1433,"nextblockhash":"0x85ab779bc19247aa504c36879ce75cb7f662b4e8067fbc83e5d24ef0afd9a84f","confirmations":6,"hash":"0x5097754aca68e5db86070db369ae4c18bbd021a86dc88fafc5c809afe15e819e","version":0,"previousblockhash":"0x9e7cf6fcfc8d0d6831fac75fa895535a5f1960f45a34754b57bff4d4929635c5","merkleroot":"0x07a982b6d287d1abbb62bdbfccc540e9e21390bed3a071fd854a348cec6a6ba2","time":1614602006001,"index":1,"nextconsensus":"NUVPACMnKFhpuHjsRjhUvXz1XhqfGZYVtY","primary":0,"witnesses":[{"invocation":"DEBUsre4rmqvJm/6MG4fR0GftVT6xjO05uPWyPrn9rPW/ZcKuUuUvbPYt4dxxGefuMBdQTSbzSrtADERbKHMk8D9DEA4JwDK1q9NM+/S5D6uGgFFe/LFpoR1IJmrRUMkI20jg72IVer5D74YmPMDTjPhBmjsoIHwoPxqu4Fzr2Lo+irDDEBHt3M3UMCT0bVEK5JnHtftT+qol9PtZrhSz2Sr/jQBWkmDCvRE1QZZ/VeHwrnd/63PDVS0dkygjlhnIm0wSJBj","verification":"EwwhAhA6f33QFlWFl/eWDSfFFqQ5T9loueZRVetLAT5AQEBuDCECp7xV/oaE4BGXaNEEujB5W9zIZhnoZK3SYVZyPtGFzWIMIQKzYiv0AXvf4xfFiu1fTHU/IGt9uJYEb6fXdLvEv3+NwgwhA9kMB99j5pDOd5EuEKtRrMlEtmhgI3tgjE+PgwnnHuaZFAtBE43vrw=="}],"tx":[{"hash":"0xa10e7ff4103b5fbe57137012e7060760b7b7caffb4dfe70fb45d1cf8a5045b09","size":489,"version":0,"nonce":2,"sender":"NUVPACMnKFhpuHjsRjhUvXz1XhqfGZYVtY","sysfee":"11000000","netfee":"4422930","validuntilblock":1200,"attributes":[],"signers":[{"account":"0x95307cb9cc8c4578cef9f6845895eb7aa8be125e","scopes":"CalledByEntry"}],"script":"CwIY3fUFDBSqis+FnU/kArNOZz8hVoIXlqSI6wwUXhK+qHrrlViE9vnOeEWMzLl8MJUUwB8MCHRyYW5zZmVyDBSDqwZ5rVXAUKE61D9ZNupz9ese9kFifVtSOQ==","witnesses":[{"invocation":"DECKEAHrkcuS4I+DGIrhfbS4QHmISn+j63M3Gyhnlps/ijVlCyPpkG3gzxVht5hsD5EgRC1alTK1DaooGS35SYTcDEAbqjpPMa1ZQMeQOVWvRZTIbt4qPsCK7mz6Fja9LJJQSoePB/cN1hz30xQUgFvDPXj6Lv01VzONF/lNO38vrPvDDECJcNQCl/35Na59Rqo2TqjZoVY0D5uk5Owm9X83gWuG2iBMuQ5mmjPGsodLZvDd1XPCTUsJyvdbyFzxvwPUSkyr","verification":"EwwhAhA6f33QFlWFl/eWDSfFFqQ5T9loueZRVetLAT5AQEBuDCECp7xV/oaE4BGXaNEEujB5W9zIZhnoZK3SYVZyPtGFzWIMIQKzYiv0AXvf4xfFiu1fTHU/IGt9uJYEb6fXdLvEv3+NwgwhA9kMB99j5pDOd5EuEKtRrMlEtmhgI3tgjE+PgwnnHuaZFAtBE43vrw=="}]},{"hash":"0xcebbbdbd35faeb3d15e9c6e804efdf250fc23685e324bf31c1c142a1b78be5e7","size":493,"version":0,"nonce":3,"sender":"NUVPACMnKFhpuHjsRjhUvXz1XhqfGZYVtY","sysfee":"11000000","netfee":"4426930","validuntilblock":1200,"attributes":[],"signers":[{"account":"0x95307cb9cc8c4578cef9f6845895eb7aa8be125e","scopes":"CalledByEntry"}],"script":"CwMA6HZIFwAAAAwUqorPhZ1P5AKzTmc/IVaCF5akiOsMFF4Svqh665VYhPb5znhFjMy5fDCVFMAfDAh0cmFuc2ZlcgwUKLOtq3Jp+cIYHbPLdB6/VRkw4nBBYn1bUjk=","witnesses":[{"invocation":"DEA7aJyGTIq0pV20LzVWOCreh6XIxLUCWHVgUFsCTxPOPdqtZBHKnejng3d2BRm/lecTyPLeq7KpRCD9awRvadFWDEBjVZRvSGtGcOEjtUxl4AH5XelYlIUG5k+x3QyYKZtWQc96lUX1hohrNkCmWeWNwC2l8eJGpUxicM+WZGODCVp8DEDbQxvmqRTQ+flc6JetmaqHyw8rfoeQNtmEFpw2cNhyAo5L5Ilp2wbVtJNOJPfw72J7E6FhTK8slIKRqXzpdnyK","verification":"EwwhAhA6f33QFlWFl/eWDSfFFqQ5T9loueZRVetLAT5AQEBuDCECp7xV/oaE4BGXaNEEujB5W9zIZhnoZK3SYVZyPtGFzWIMIQKzYiv0AXvf4xfFiu1fTHU/IGt9uJYEb6fXdLvEv3+NwgwhA9kMB99j5pDOd5EuEKtRrMlEtmhgI3tgjE+PgwnnHuaZFAtBE43vrw=="}]}]}}`
+const b1Verbose = `{"size":1430,"nextblockhash":"0xe03cb7e00a1e04b75f9acd56f22af5f15877a18f4a1cf69991319c4fba0b2fee","confirmations":10,"hash":"0x81a439175d3bdd8961b6223a9b6f6d234f996824c5cfce6af17e6fc14cd84355","version":0,"previousblockhash":"0x5b60644c6c6f58faca72c70689d7ed1f40c2e795772bd0de5a88e983ad55080c","merkleroot":"0xb12ae5aeb0335e8a62eb120aa91ecbc5629bc55dadd62fcb7f749818bd238cfd","time":1616059782001,"index":1,"nextconsensus":"NgEisvCqr2h8wpRxQb7bVPWUZdbVCY8Uo6","primary":0,"witnesses":[{"invocation":"DEBR+fo+7/LGVhy4bPAztHNpwH3P1gbsnvsNH+P01+s1HuV5ZR3SpOqeqIPUf1XJ2PjTWyZVadOD9cCKyNlMWlP6DEABPcRuMLzsZvlQR74+/HcA/fWUl4i5AvWApybpJ8kExoeifaDV0BqHfGspeuPecZHKm9ZMoJURdcMXMQvdmd2zDED94bGb8NR17WNZu+L5q8t0h3RUfauhPKolJwtuWjnG1FEebS4p/o05uXpw0kudKNy6as5BsxWCu4NvtYho6XQT","verification":"EwwhAhA6f33QFlWFl/eWDSfFFqQ5T9loueZRVetLAT5AQEBuDCECp7xV/oaE4BGXaNEEujB5W9zIZhnoZK3SYVZyPtGFzWIMIQKzYiv0AXvf4xfFiu1fTHU/IGt9uJYEb6fXdLvEv3+NwgwhA9kMB99j5pDOd5EuEKtRrMlEtmhgI3tgjE+PgwnnHuaZFEF7zmyl"}],"tx":[{"hash":"0xf5fbd303799f24ba247529d7544d4276cca54ea79f4b98095f2b0557313c5275","size":488,"version":0,"nonce":2,"sender":"NgEisvCqr2h8wpRxQb7bVPWUZdbVCY8Uo6","sysfee":"11000000","netfee":"4421900","validuntilblock":1200,"attributes":[],"signers":[{"account":"0xffc7a658923a0bb92e6abab09800f389c179eede","scopes":"CalledByEntry"}],"script":"CwIY3fUFDBRVVC1T7Q9VRvrUTW6ZkShnAi/OXgwU3u55wYnzAJiwumouuQs6klimx/8UwB8MCHRyYW5zZmVyDBT1Y+pAvCg9TQ4FxI6jBbPyoHNA70FifVtSOQ==","witnesses":[{"invocation":"DEBMibb/TMzF2Iztec98rvVxXh93R6UBnBztgf7RK3chaY8phIxh+J1f3GAtz3zAuLwiSn1wSans9RPKqgepiauoDEBvHFZj5u3aZ7UkfylMc0wh9ydIuvtlVb3Y/6OOn8HN3RCs7VLLgnaT33Rn1gWByLQBzAldjrJnDfxDSGqfSmjfDECEMpyZHe5lfkSBzlPoP9jC22fDS+7TUt7Bkx6ZZf5aDu09IFrWzPitxkvz4SrAygCdJdzMkBXYZPUatkO828FM","verification":"EwwhAhA6f33QFlWFl/eWDSfFFqQ5T9loueZRVetLAT5AQEBuDCECp7xV/oaE4BGXaNEEujB5W9zIZhnoZK3SYVZyPtGFzWIMIQKzYiv0AXvf4xfFiu1fTHU/IGt9uJYEb6fXdLvEv3+NwgwhA9kMB99j5pDOd5EuEKtRrMlEtmhgI3tgjE+PgwnnHuaZFEF7zmyl"}]},{"hash":"0xfe60f7f4c720a7b0fde52f285ca173a3493bbb15eae9f5c44c1f71b493d5693c","size":492,"version":0,"nonce":3,"sender":"NgEisvCqr2h8wpRxQb7bVPWUZdbVCY8Uo6","sysfee":"11000000","netfee":"4425900","validuntilblock":1200,"attributes":[],"signers":[{"account":"0xffc7a658923a0bb92e6abab09800f389c179eede","scopes":"CalledByEntry"}],"script":"CwMA6HZIFwAAAAwUVVQtU+0PVUb61E1umZEoZwIvzl4MFN7uecGJ8wCYsLpqLrkLOpJYpsf/FMAfDAh0cmFuc2ZlcgwUz3bii9AGLEpHjuNVYQETGfPPpNJBYn1bUjk=","witnesses":[{"invocation":"DEDUTymqNCsQOxQvsHZT67aH3kmvrK85sIdtaJ/q1HHpyk2rLtUUn/kDlPpbk0sshkEP2izllCr6tEiA6WJA5ZGLDEDKzE8svrBWwRMlmba9xVDdkEfsgdrzbCNCjIoauFAf6vKAUX9OZUfoTmgQ7P9uxDC52TrQJYkpysXJfN9eUrkoDECMfTD0i3ZOVrHXG/dPnGy1pKX2V7Z/JgNr6yYPBH7K2eYZGRI2fehawd1LwHsDVPM/vpbcOLGfY0UWn3+PcPdy","verification":"EwwhAhA6f33QFlWFl/eWDSfFFqQ5T9loueZRVetLAT5AQEBuDCECp7xV/oaE4BGXaNEEujB5W9zIZhnoZK3SYVZyPtGFzWIMIQKzYiv0AXvf4xfFiu1fTHU/IGt9uJYEb6fXdLvEv3+NwgwhA9kMB99j5pDOd5EuEKtRrMlEtmhgI3tgjE+PgwnnHuaZFEF7zmyl"}]}]}`
 
-const base64Header1 = "AAAAAMU1lpLU9L9XS3U0WvRgGV9aU5WoX8f6MWgNjfz89nyeomtq7Iw0SoX9caDTvpAT4ulAxcy/vWK7q9GH0raCqQfxbcftdwEAAAEAAAAAXhK+qHrrlViE9vnOeEWMzLl8MJUBxgxAVLK3uK5qryZv+jBuH0dBn7VU+sYztObj1sj65/az1v2XCrlLlL2z2LeHccRnn7jAXUE0m80q7QAxEWyhzJPA/QxAOCcAytavTTPv0uQ+rhoBRXvyxaaEdSCZq0VDJCNtI4O9iFXq+Q++GJjzA04z4QZo7KCB8KD8aruBc69i6PoqwwxAR7dzN1DAk9G1RCuSZx7X7U/qqJfT7Wa4Us9kq/40AVpJgwr0RNUGWf1Xh8K53f+tzw1UtHZMoI5YZyJtMEiQY5QTDCECEDp/fdAWVYWX95YNJ8UWpDlP2Wi55lFV60sBPkBAQG4MIQKnvFX+hoTgEZdo0QS6MHlb3MhmGehkrdJhVnI+0YXNYgwhArNiK/QBe9/jF8WK7V9MdT8ga324lgRvp9d0u8S/f43CDCED2QwH32PmkM53kS4Qq1GsyUS2aGAje2CMT4+DCece5pkUC0ETje+vAA=="
+const base64Header1 = "AAAAAAwIVa2D6Yha3tArd5XnwkAf7deJBsdyyvpYb2xMZGBb/YwjvRiYdH/LL9atXcWbYsXLHqkKEutiil4zsK7lKrFxU6tEeAEAAAEAAAAA3u55wYnzAJiwumouuQs6klimx/8BxgxAUfn6Pu/yxlYcuGzwM7RzacB9z9YG7J77DR/j9NfrNR7leWUd0qTqnqiD1H9Vydj401smVWnTg/XAisjZTFpT+gxAAT3EbjC87Gb5UEe+Pvx3AP31lJeIuQL1gKcm6SfJBMaHon2g1dAah3xrKXrj3nGRypvWTKCVEXXDFzEL3ZndswxA/eGxm/DUde1jWbvi+avLdId0VH2roTyqJScLblo5xtRRHm0uKf6NObl6cNJLnSjcumrOQbMVgruDb7WIaOl0E5MTDCECEDp/fdAWVYWX95YNJ8UWpDlP2Wi55lFV60sBPkBAQG4MIQKnvFX+hoTgEZdo0QS6MHlb3MhmGehkrdJhVnI+0YXNYgwhArNiK/QBe9/jF8WK7V9MdT8ga324lgRvp9d0u8S/f43CDCED2QwH32PmkM53kS4Qq1GsyUS2aGAje2CMT4+DCece5pkUQXvObKU="
 
-const header1Verbose = `{"id":5,"jsonrpc":"2.0","result":{"hash":"0x5097754aca68e5db86070db369ae4c18bbd021a86dc88fafc5c809afe15e819e","size":451,"version":0,"previousblockhash":"0x9e7cf6fcfc8d0d6831fac75fa895535a5f1960f45a34754b57bff4d4929635c5","merkleroot":"0x07a982b6d287d1abbb62bdbfccc540e9e21390bed3a071fd854a348cec6a6ba2","time":1614602006001,"index":1,"nextconsensus":"NUVPACMnKFhpuHjsRjhUvXz1XhqfGZYVtY","witnesses":[{"invocation":"DEBUsre4rmqvJm/6MG4fR0GftVT6xjO05uPWyPrn9rPW/ZcKuUuUvbPYt4dxxGefuMBdQTSbzSrtADERbKHMk8D9DEA4JwDK1q9NM+/S5D6uGgFFe/LFpoR1IJmrRUMkI20jg72IVer5D74YmPMDTjPhBmjsoIHwoPxqu4Fzr2Lo+irDDEBHt3M3UMCT0bVEK5JnHtftT+qol9PtZrhSz2Sr/jQBWkmDCvRE1QZZ/VeHwrnd/63PDVS0dkygjlhnIm0wSJBj","verification":"EwwhAhA6f33QFlWFl/eWDSfFFqQ5T9loueZRVetLAT5AQEBuDCECp7xV/oaE4BGXaNEEujB5W9zIZhnoZK3SYVZyPtGFzWIMIQKzYiv0AXvf4xfFiu1fTHU/IGt9uJYEb6fXdLvEv3+NwgwhA9kMB99j5pDOd5EuEKtRrMlEtmhgI3tgjE+PgwnnHuaZFAtBE43vrw=="}],"confirmations":6,"nextblockhash":"0x85ab779bc19247aa504c36879ce75cb7f662b4e8067fbc83e5d24ef0afd9a84f"}}`
+const header1Verbose = `{"hash":"0x81a439175d3bdd8961b6223a9b6f6d234f996824c5cfce6af17e6fc14cd84355","size":449,"version":0,"previousblockhash":"0x5b60644c6c6f58faca72c70689d7ed1f40c2e795772bd0de5a88e983ad55080c","merkleroot":"0xb12ae5aeb0335e8a62eb120aa91ecbc5629bc55dadd62fcb7f749818bd238cfd","time":1616059782001,"index":1,"nextconsensus":"NgEisvCqr2h8wpRxQb7bVPWUZdbVCY8Uo6","witnesses":[{"invocation":"DEBR+fo+7/LGVhy4bPAztHNpwH3P1gbsnvsNH+P01+s1HuV5ZR3SpOqeqIPUf1XJ2PjTWyZVadOD9cCKyNlMWlP6DEABPcRuMLzsZvlQR74+/HcA/fWUl4i5AvWApybpJ8kExoeifaDV0BqHfGspeuPecZHKm9ZMoJURdcMXMQvdmd2zDED94bGb8NR17WNZu+L5q8t0h3RUfauhPKolJwtuWjnG1FEebS4p/o05uXpw0kudKNy6as5BsxWCu4NvtYho6XQT","verification":"EwwhAhA6f33QFlWFl/eWDSfFFqQ5T9loueZRVetLAT5AQEBuDCECp7xV/oaE4BGXaNEEujB5W9zIZhnoZK3SYVZyPtGFzWIMIQKzYiv0AXvf4xfFiu1fTHU/IGt9uJYEb6fXdLvEv3+NwgwhA9kMB99j5pDOd5EuEKtRrMlEtmhgI3tgjE+PgwnnHuaZFEF7zmyl"}],"confirmations":10,"nextblockhash":"0xe03cb7e00a1e04b75f9acd56f22af5f15877a18f4a1cf69991319c4fba0b2fee"}`
 
-const txMoveNeoVerbose = `{"id":5,"jsonrpc":"2.0","result":{"blockhash":"0x5097754aca68e5db86070db369ae4c18bbd021a86dc88fafc5c809afe15e819e","confirmations":6,"blocktime":1614602006001,"vmstate":"HALT","hash":"0xa10e7ff4103b5fbe57137012e7060760b7b7caffb4dfe70fb45d1cf8a5045b09","size":489,"version":0,"nonce":2,"sender":"NUVPACMnKFhpuHjsRjhUvXz1XhqfGZYVtY","sysfee":"11000000","netfee":"4422930","validuntilblock":1200,"attributes":[],"signers":[{"account":"0x95307cb9cc8c4578cef9f6845895eb7aa8be125e","scopes":"CalledByEntry"}],"script":"CwIY3fUFDBSqis+FnU/kArNOZz8hVoIXlqSI6wwUXhK+qHrrlViE9vnOeEWMzLl8MJUUwB8MCHRyYW5zZmVyDBSDqwZ5rVXAUKE61D9ZNupz9ese9kFifVtSOQ==","witnesses":[{"invocation":"DECKEAHrkcuS4I+DGIrhfbS4QHmISn+j63M3Gyhnlps/ijVlCyPpkG3gzxVht5hsD5EgRC1alTK1DaooGS35SYTcDEAbqjpPMa1ZQMeQOVWvRZTIbt4qPsCK7mz6Fja9LJJQSoePB/cN1hz30xQUgFvDPXj6Lv01VzONF/lNO38vrPvDDECJcNQCl/35Na59Rqo2TqjZoVY0D5uk5Owm9X83gWuG2iBMuQ5mmjPGsodLZvDd1XPCTUsJyvdbyFzxvwPUSkyr","verification":"EwwhAhA6f33QFlWFl/eWDSfFFqQ5T9loueZRVetLAT5AQEBuDCECp7xV/oaE4BGXaNEEujB5W9zIZhnoZK3SYVZyPtGFzWIMIQKzYiv0AXvf4xfFiu1fTHU/IGt9uJYEb6fXdLvEv3+NwgwhA9kMB99j5pDOd5EuEKtRrMlEtmhgI3tgjE+PgwnnHuaZFAtBE43vrw=="}]}}`
+const txMoveNeoVerbose = `{"blockhash":"0x81a439175d3bdd8961b6223a9b6f6d234f996824c5cfce6af17e6fc14cd84355","confirmations":10,"blocktime":1616059782001,"vmstate":"HALT","hash":"0xf5fbd303799f24ba247529d7544d4276cca54ea79f4b98095f2b0557313c5275","size":488,"version":0,"nonce":2,"sender":"NgEisvCqr2h8wpRxQb7bVPWUZdbVCY8Uo6","sysfee":"11000000","netfee":"4421900","validuntilblock":1200,"attributes":[],"signers":[{"account":"0xffc7a658923a0bb92e6abab09800f389c179eede","scopes":"CalledByEntry"}],"script":"CwIY3fUFDBRVVC1T7Q9VRvrUTW6ZkShnAi/OXgwU3u55wYnzAJiwumouuQs6klimx/8UwB8MCHRyYW5zZmVyDBT1Y+pAvCg9TQ4FxI6jBbPyoHNA70FifVtSOQ==","witnesses":[{"invocation":"DEBMibb/TMzF2Iztec98rvVxXh93R6UBnBztgf7RK3chaY8phIxh+J1f3GAtz3zAuLwiSn1wSans9RPKqgepiauoDEBvHFZj5u3aZ7UkfylMc0wh9ydIuvtlVb3Y/6OOn8HN3RCs7VLLgnaT33Rn1gWByLQBzAldjrJnDfxDSGqfSmjfDECEMpyZHe5lfkSBzlPoP9jC22fDS+7TUt7Bkx6ZZf5aDu09IFrWzPitxkvz4SrAygCdJdzMkBXYZPUatkO828FM","verification":"EwwhAhA6f33QFlWFl/eWDSfFFqQ5T9loueZRVetLAT5AQEBuDCECp7xV/oaE4BGXaNEEujB5W9zIZhnoZK3SYVZyPtGFzWIMIQKzYiv0AXvf4xfFiu1fTHU/IGt9uJYEb6fXdLvEv3+NwgwhA9kMB99j5pDOd5EuEKtRrMlEtmhgI3tgjE+PgwnnHuaZFEF7zmyl"}]}`
 
 // getResultBlock1 returns data for block number 1 which is used by several tests.
 func getResultBlock1() *result.Block {
@@ -69,16 +69,16 @@ func getResultBlock1() *result.Block {
 	if err != nil {
 		panic(err)
 	}
-	b2Hash, err := util.Uint256DecodeStringLE("85ab779bc19247aa504c36879ce75cb7f662b4e8067fbc83e5d24ef0afd9a84f")
+	b2Hash, err := util.Uint256DecodeStringLE("e03cb7e00a1e04b75f9acd56f22af5f15877a18f4a1cf69991319c4fba0b2fee")
 	if err != nil {
 		panic(err)
 	}
 	return &result.Block{
 		Block: *b,
 		BlockMetadata: result.BlockMetadata{
-			Size:          1433,
+			Size:          1430,
 			NextBlockHash: &b2Hash,
-			Confirmations: 6,
+			Confirmations: 10,
 		},
 	}
 }
@@ -168,7 +168,7 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 			invoke: func(c *Client) (i interface{}, err error) {
 				return c.GetBlockByIndexVerbose(1)
 			},
-			serverResponse: b1Verbose,
+			serverResponse: `{"id":1,"jsonrpc":"2.0","result":` + b1Verbose + `}`,
 			result: func(c *Client) interface{} {
 				res := getResultBlock1()
 				return res
@@ -198,7 +198,7 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 				}
 				return c.GetBlockByHashVerbose(hash)
 			},
-			serverResponse: b1Verbose,
+			serverResponse: `{"id":1,"jsonrpc":"2.0","result":` + b1Verbose + `}`,
 			result: func(c *Client) interface{} {
 				res := getResultBlock1()
 				return res
@@ -258,12 +258,12 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 				}
 				return c.GetBlockHeaderVerbose(hash)
 			},
-			serverResponse: header1Verbose,
+			serverResponse: `{"id":1,"jsonrpc":"2.0","result":` + header1Verbose + `}`,
 			result: func(c *Client) interface{} {
 				b := getResultBlock1()
 				return &result.Header{
 					Hash:          b.Hash(),
-					Size:          451,
+					Size:          449,
 					Version:       b.Version,
 					NextBlockHash: b.NextBlockHash,
 					PrevBlockHash: b.PrevHash,
@@ -272,7 +272,7 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 					Index:         b.Index,
 					NextConsensus: address.Uint160ToString(b.NextConsensus),
 					Witnesses:     []transaction.Witness{b.Script},
-					Confirmations: 6,
+					Confirmations: b.Confirmations,
 				}
 			},
 		},
@@ -612,7 +612,7 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 		{
 			name: "positive",
 			invoke: func(c *Client) (i interface{}, err error) {
-				hash, err := util.Uint256DecodeStringLE("ca23bd5df3249836849309ca2afe972bfd288b0a7ae61302c8fd545daa8bffd6")
+				hash, err := util.Uint256DecodeStringLE("f5fbd303799f24ba247529d7544d4276cca54ea79f4b98095f2b0557313c5275")
 				if err != nil {
 					panic(err)
 				}
@@ -627,7 +627,7 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 		{
 			name: "verbose_positive",
 			invoke: func(c *Client) (interface{}, error) {
-				hash, err := util.Uint256DecodeStringLE("7c10b90077bddfe9095b2db96bb4ac33994ed1ca99c805410f55c771eee0b77b")
+				hash, err := util.Uint256DecodeStringLE("f5fbd303799f24ba247529d7544d4276cca54ea79f4b98095f2b0557313c5275")
 				if err != nil {
 					panic(err)
 				}
@@ -638,7 +638,7 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 				out.Transaction.FeePerByte() // set fee per byte
 				return out, nil
 			},
-			serverResponse: txMoveNeoVerbose,
+			serverResponse: `{"id":1,"jsonrpc":"2.0","result":` + txMoveNeoVerbose + `}`,
 			result: func(c *Client) interface{} {
 				return getTxMoveNeo()
 			},

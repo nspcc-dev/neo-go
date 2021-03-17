@@ -61,7 +61,7 @@ type rpcTestCase struct {
 }
 
 const testContractHash = "1e1c3024bd955ff3baf7cb92e3b7608c7bb3712b"
-const deploymentTxHash = "298092d1619585b2fcd3045c8e5a749ddbe14a6fe41569a69b50f47b812112d9"
+const deploymentTxHash = "9218bba2a6e145aab5dc21c4bb16a650efdf0b9b16b0d69bd754278363a1d1c2"
 const genesisBlockHash = "5b60644c6c6f58faca72c70689d7ed1f40c2e795772bd0de5a88e983ad55080c"
 
 const verifyContractHash = "5bb4bac40e961e334ba7bd36d2496010f67e246e"
@@ -918,12 +918,12 @@ var rpcTestCases = map[string][]rpcTestCase{
 	"sendrawtransaction": {
 		{
 			name:   "positive",
-			params: `["ADQSAADA2KcAAAAAABDiEgAAAAAAgBYAAAFVVC1T7Q9VRvrUTW6ZkShnAi/OXgEAYBDAAwDodkgXAAAADBRdSe/t0S4+BgGLRljbEKiXX8gLTgwUVVQtU+0PVUb61E1umZEoZwIvzl4UwB8MCHRyYW5zZmVyDBT1Y+pAvCg9TQ4FxI6jBbPyoHNA70FifVtSOQFCDEAOJpFi9vI44kaLJcBvEyqSO9Q76XluNyozh0lBueRwXMijYJa1Zlp5jLkqCsmNsEaF1kCpIQ+2wtpDT+HHZGI4KAwhArNiK/QBe9/jF8WK7V9MdT8ga324lgRvp9d0u8S/f43CQXR0dqo="]`,
+			params: `["ADQSAADA2KcAAAAAABDiEgAAAAAAgBYAAAFVVC1T7Q9VRvrUTW6ZkShnAi/OXgEAYBDAAwDodkgXAAAADBRdSe/t0S4+BgGLRljbEKiXX8gLTgwUVVQtU+0PVUb61E1umZEoZwIvzl4UwB8MCHRyYW5zZmVyDBT1Y+pAvCg9TQ4FxI6jBbPyoHNA70FifVtSOQFCDEA0sZMiszaJ/YkG3ZzyFKbE+qujQif0RrlplXpBc5IMzxyM4sPBwvpfGTtDtY9NI8gzR1lVL/O6nzPJG9m8XKjxKAwhArNiK/QBe9/jF8WK7V9MdT8ga324lgRvp9d0u8S/f43CQXR0dqo="]`,
 			result: func(e *executor) interface{} { return &result.RelayResult{} },
 			check: func(t *testing.T, e *executor, inv interface{}) {
 				res, ok := inv.(*result.RelayResult)
 				require.True(t, ok)
-				expectedHash := util.Uint256{0x6c, 0x8d, 0x40, 0xba, 0x91, 0xde, 0xe8, 0x74, 0xf0, 0x24, 0xc3, 0xbc, 0xb6, 0x8e, 0x7e, 0xf4, 0xf5, 0x77, 0xd7, 0x6c, 0x9f, 0x10, 0x66, 0xb7, 0xc3, 0xab, 0x71, 0xd, 0x19, 0x1a, 0xeb, 0xac}
+				expectedHash := util.Uint256{0xaf, 0x80, 0x44, 0x52, 0x49, 0xac, 0xa7, 0xa9, 0x47, 0x11, 0x8, 0xac, 0xdb, 0x59, 0x29, 0xb, 0x3d, 0xac, 0xf2, 0xe9, 0xf7, 0xde, 0x45, 0x79, 0x73, 0x66, 0xe9, 0xb0, 0xd4, 0xc5, 0x6b, 0x97}
 				assert.Equal(t, expectedHash, res.Hash)
 			},
 		},

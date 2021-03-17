@@ -585,7 +585,7 @@ func TestVerifyTx(t *testing.T) {
 				checkErr(t, ErrInvalidAttribute, tx)
 			})
 
-			txSetOracle := transaction.New(netmode.UnitTestNet, []byte{}, 0)
+			txSetOracle := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.RET)}, 0) // it's a hack, so we don't need a real script
 			setSigner(txSetOracle, testchain.CommitteeScriptHash())
 			txSetOracle.Scripts = []transaction.Witness{{
 				InvocationScript:   testchain.SignCommittee(txSetOracle.GetSignedPart()),
@@ -796,7 +796,7 @@ func TestVerifyTx(t *testing.T) {
 		t.Run("NotaryAssisted", func(t *testing.T) {
 			notary, err := wallet.NewAccount()
 			require.NoError(t, err)
-			txSetNotary := transaction.New(netmode.UnitTestNet, []byte{}, 0)
+			txSetNotary := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.RET)}, 0)
 			setSigner(txSetNotary, testchain.CommitteeScriptHash())
 			txSetNotary.Scripts = []transaction.Witness{{
 				InvocationScript:   testchain.SignCommittee(txSetNotary.GetSignedPart()),
