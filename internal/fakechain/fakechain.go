@@ -80,6 +80,11 @@ func (chain *FakeChain) IsTxStillRelevant(t *transaction.Transaction, txpool *me
 	panic("TODO")
 }
 
+// InitVerificationVM initializes VM for witness check.
+func (chain *FakeChain) InitVerificationVM(v *vm.VM, getContract func(util.Uint160) (*state.Contract, error), hash util.Uint160, witness *transaction.Witness) error {
+	panic("TODO")
+}
+
 // IsExtensibleAllowed implements Blockchainer interface.
 func (*FakeChain) IsExtensibleAllowed(uint160 util.Uint160) bool {
 	return true
