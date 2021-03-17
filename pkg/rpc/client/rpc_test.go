@@ -428,6 +428,54 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 			},
 		},
 	},
+	"getStoragePrice": {
+		{
+			name: "positive",
+			invoke: func(c *Client) (interface{}, error) {
+				return c.GetStoragePrice()
+			},
+			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"state":"HALT","gasconsumed":"2007390","script":"EMAMDWdldEZlZVBlckJ5dGUMFJphpG7sl7iTBtfOgfFbRiCR0AkyQWJ9W1I=","stack":[{"type":"Integer","value":"100000"}],"tx":null}}`,
+			result: func(c *Client) interface{} {
+				return int64(100000)
+			},
+		},
+	},
+	"getOraclePrice": {
+		{
+			name: "positive",
+			invoke: func(c *Client) (interface{}, error) {
+				return c.GetOraclePrice()
+			},
+			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"state":"HALT","gasconsumed":"2007390","script":"EMAMDWdldEZlZVBlckJ5dGUMFJphpG7sl7iTBtfOgfFbRiCR0AkyQWJ9W1I=","stack":[{"type":"Integer","value":"10000000"}],"tx":null}}`,
+			result: func(c *Client) interface{} {
+				return int64(10000000)
+			},
+		},
+	},
+	"getNNSPrice": {
+		{
+			name: "positive",
+			invoke: func(c *Client) (interface{}, error) {
+				return c.GetNNSPrice()
+			},
+			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"state":"HALT","gasconsumed":"2007390","script":"EMAMDWdldEZlZVBlckJ5dGUMFJphpG7sl7iTBtfOgfFbRiCR0AkyQWJ9W1I=","stack":[{"type":"Integer","value":"1000000"}],"tx":null}}`,
+			result: func(c *Client) interface{} {
+				return int64(1000000)
+			},
+		},
+	},
+	"getGasPerBlock": {
+		{
+			name: "positive",
+			invoke: func(c *Client) (interface{}, error) {
+				return c.GetGasPerBlock()
+			},
+			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"state":"HALT","gasconsumed":"2007390","script":"EMAMDWdldEZlZVBlckJ5dGUMFJphpG7sl7iTBtfOgfFbRiCR0AkyQWJ9W1I=","stack":[{"type":"Integer","value":"500000000"}],"tx":null}}`,
+			result: func(c *Client) interface{} {
+				return int64(500000000)
+			},
+		},
+	},
 	"getMaxNotValidBeforeDelta": {
 		{
 			name: "positive",
