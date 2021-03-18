@@ -36,60 +36,38 @@ Neo 3 code (0.90.0 being compatible with Neo 3 preview2).
 
 ## Installation
 
-Go: 1.14+
-
-Install dependencies.
-
-`neo-go` uses [GoModules](https://github.com/golang/go/wiki/Modules) as dependency manager:
-
-```
-make deps
-```
-
-## How to setup a node
-
-### Docker
-
-Each tagged build is published to docker hub and the `:latest` tag pointing at the latest tagged master build.
-
-By default the `CMD` is set to run a node on `privnet`, so to do this simply run:
-
-```bash
-docker run -d --name neo-go -p 20332:20332 -p 20331:20331 nspccdev/neo-go
-```
-
-Which will start a node on `privnet` and expose the nodes port `20332` and `20331` for the `JSON-RPC` server.
-
+NeoGo is distributed as a single binary that includes all the functionality
+provided (but smart contract compiler requires Go compiler to operate). You
+can grab it from [releases
+page](https://github.com/nspcc-dev/neo-go/releases), use a Docker image (see
+[Docker Hub](https://hub.docker.com/r/nspccdev/neo-go) for various releases of
+NeoGo, `:latest` points to the latest release) or build yourself.
 
 ### Building
 
-Build the **neo-go** CLI:
+To build NeoGo you need Go 1.14+ and `make`:
 
 ```
 make build
 ```
 
-### Running
+The resulting binary is `bin/neo-go`.
 
-Quick start a NEO node on the private network.
-To build and run the private network image locally, use:
-```
-make env_image
-make env_up
-```
+## Running a node
 
-To start a NEO node on the private network:
-```
-make run
-```
+A node needs to connect to some network, either local one (usually referred to
+as `privnet`) or public (like `mainnet` or `testnet`). Network configuration
+is stored in a file and NeoGo allows you to store multiple files in one
+directory (`./config` by default) and easily switch between them using network
+flags.
 
-To run the binary directly:
+To start Neo node on private network use:
 
 ```
 ./bin/neo-go node
 ```
 
-By default the node will run on the private network, to change this:
+Or specify a different network with appropriate flag like this:
 
 ```
 ./bin/neo-go node --mainnet
@@ -100,7 +78,18 @@ Available network flags:
 - `--privnet, -p`
 - `--testnet, -t`
 
-#### Importing mainnet/testnet dump files
+### Docker
+
+By default the `CMD` is set to run a node on `privnet`, so to do this simply run:
+
+```bash
+docker run -d --name neo-go -p 20332:20332 -p 20331:20331 nspccdev/neo-go
+```
+
+Which will start a node on `privnet` and expose node's ports `20332` (P2P
+protocol) and `20331` (JSON-RPC server).
+
+### Importing mainnet/testnet dump files
 
 If you want to jump-start your mainnet or testnet node with [chain archives
 provided by NGD](https://sync.ngd.network/) follow these instructions (when
@@ -113,6 +102,10 @@ $ ./bin/neo-go db restore -m -i chain.acc # for testnet use '-t' flag instead of
 
 The process differs from the C# node in that block importing is a separate
 mode, after it ends the node can be started normally.
+
+## Running a private network
+
+Refer to [consensus node documentation](docs/consensus.md).
 
 ## Smart contract development
 
