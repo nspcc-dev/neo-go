@@ -6,33 +6,32 @@ It uses pure Go dBFT implementation from [nspcc-dev/dbft](https://github.com/nsp
 ## How to start your own privnet with neo-go nodes
 ### Using existing Dockerfile
 
-neo-go comes with a preconfigured private network setup that consists of four
-consensus nodes and 6000 blocks to make it more usable out of the box. Nodes
-are packed into Docker containers with one shared volume for chain data (they
-don't share actual DB, each node has its own DB in this volume). They use ports
-20333-20336 for P2P communication and ports 30333-30336 for RPC (Prometheus
-monitoring is also available at ports 20001-20004).
+neo-go comes with two preconfigured private network setups, the first one has
+four consensus nodes and the second one uses single node. Nodes are packed
+into Docker containers and four-node setup shares a volume for chain data.
 
-On the first container start they import 6K of blocks from a file, these
-blocks contain several transactions that transfer all NEO into one address and
-claim some GAS for it. NEO/GAS owner is:
- * address: AK2nJJpJr6o664CWJKi1QRXjqeic2zRp8y
- * wif: KxDgvEKzgSBPPfuVfw67oPQBSjidEiqTHURKSDL1R7yGaGYAeYnr
+Four-node setup uses ports 20333-20336 for P2P communication and ports
+30333-30336 for RPC (Prometheus monitoring is also available at ports
+20001-20004). Single-node is on ports 20333/30333/20001 for
+P2P/RPC/Prometheus.
 
-and you can use it to make some transactions of your own on this privnet.
+NeoGo default privnet configuration is made to work with four node consensus,
+you have to modify it if you're to use single consensus node.
 
-Basically, this setup is closely resembling the one `neo-local` had for C# nodes
-before the switch to single-node mode.
+Node wallets are located in the `.docker/wallets` directory where
+`wallet1_solo.json` is used for single-node setup and all the other ones for
+four-node setup.
 
 #### Prerequisites
 - `docker`
 - `docker-compose`
 - `go` compiler
+
 #### Instructions
 You can use existing docker-compose file located in `.docker/docker-compose.yml`:
 ```bash
 make env_image # build image
-make env_up    # start containers
+make env_up    # start containers, use "make env_single" for single CN
 ```
 To monitor logs:
 ```bash
