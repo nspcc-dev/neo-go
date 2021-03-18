@@ -116,6 +116,17 @@ and private network. For details on how Go code is translated to Neo VM
 bytecode and what you can and can not do in smart contract please refer to the
 [compiler documentation](docs/compiler.md).
 
+## Wallets
+
+NeoGo differs substantially from C# implementation in its approach to
+wallets. NeoGo wallet is just a
+[NEP-6](https://github.com/neo-project/proposals/blob/68398d28b6932b8dd2b377d5d51bca7b0442f532/nep-6.mediawiki)
+file that is used by CLI commands to sign various things. There is no database
+behind it, the blockchain is the database and CLI commands use RPC to query
+data from it. At the same time it's not required to open the wallet on RPC
+node to perform various actions (unless your node is providing some service
+for the network like consensus or oracle nodes).
+
 # Developer notes
 Nodes have such features as [Prometheus](https://prometheus.io/docs/guides/go-application) and 
 [Pprof](https://golang.org/pkg/net/http/pprof/) in order to have additional information about them for debugging.
