@@ -12,7 +12,6 @@ type prepareRequest struct {
 	version           uint32
 	prevHash          util.Uint256
 	timestamp         uint64
-	nonce             uint64
 	transactionHashes []util.Uint256
 	stateRootEnabled  bool
 	stateRoot         util.Uint256
@@ -25,7 +24,6 @@ func (p *prepareRequest) EncodeBinary(w *io.BinWriter) {
 	w.WriteU32LE(p.version)
 	w.WriteBytes(p.prevHash[:])
 	w.WriteU64LE(p.timestamp)
-	w.WriteU64LE(p.nonce)
 	w.WriteArray(p.transactionHashes)
 	if p.stateRootEnabled {
 		w.WriteBytes(p.stateRoot[:])
@@ -37,7 +35,6 @@ func (p *prepareRequest) DecodeBinary(r *io.BinReader) {
 	p.version = r.ReadU32LE()
 	r.ReadBytes(p.prevHash[:])
 	p.timestamp = r.ReadU64LE()
-	p.nonce = r.ReadU64LE()
 	r.ReadArray(&p.transactionHashes, block.MaxTransactionsPerBlock)
 	if p.stateRootEnabled {
 		r.ReadBytes(p.stateRoot[:])
@@ -71,10 +68,10 @@ func (p *prepareRequest) Timestamp() uint64 { return p.timestamp * nsInMs }
 func (p *prepareRequest) SetTimestamp(ts uint64) { p.timestamp = ts / nsInMs }
 
 // Nonce implements payload.PrepareRequest interface.
-func (p *prepareRequest) Nonce() uint64 { return p.nonce }
+func (p *prepareRequest) Nonce() uint64 { return 0 }
 
 // SetNonce implements payload.PrepareRequest interface.
-func (p *prepareRequest) SetNonce(nonce uint64) { p.nonce = nonce }
+func (p *prepareRequest) SetNonce(nonce uint64) {}
 
 // TransactionHashes implements payload.PrepareRequest interface.
 func (p *prepareRequest) TransactionHashes() []util.Uint256 { return p.transactionHashes }

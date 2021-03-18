@@ -201,7 +201,6 @@ func randomPrepareRequest(t *testing.T) *prepareRequest {
 
 	req := &prepareRequest{
 		timestamp:         rand.Uint64(),
-		nonce:             rand.Uint64(),
 		transactionHashes: make([]util.Uint256, txCount),
 	}
 
