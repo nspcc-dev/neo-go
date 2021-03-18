@@ -24,9 +24,6 @@ func TestPrepareRequest_Setters(t *testing.T) {
 	p.SetNextConsensus(util.Uint160{5, 6, 7})
 	require.Equal(t, util.Uint160{}, p.NextConsensus())
 
-	p.SetNonce(8765)
-	require.EqualValues(t, 8765, p.Nonce())
-
 	hashes := [2]util.Uint256{random.Uint256(), random.Uint256()}
 
 	p.SetTransactionHashes(hashes[:])
@@ -37,7 +34,6 @@ func TestPrepareRequest_EncodeDecodeBinary(t *testing.T) {
 	t.Run("positive", func(t *testing.T) {
 		expected := &prepareRequest{
 			timestamp: 112,
-			nonce:     1325,
 			transactionHashes: []util.Uint256{
 				random.Uint256(),
 				random.Uint256(),
@@ -53,7 +49,6 @@ func TestPrepareRequest_EncodeDecodeBinary(t *testing.T) {
 		}
 		expected := &prepareRequest{
 			timestamp:         112,
-			nonce:             1325,
 			transactionHashes: hashes,
 		}
 		data, err := testserdes.EncodeBinary(expected)

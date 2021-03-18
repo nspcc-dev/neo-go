@@ -41,7 +41,6 @@ func testRecoveryMessageSetters(t *testing.T, enableStateRoot bool) {
 
 	req := &prepareRequest{
 		timestamp:         87,
-		nonce:             321,
 		transactionHashes: []util.Uint256{{1}},
 		stateRootEnabled:  enableStateRoot,
 	}
