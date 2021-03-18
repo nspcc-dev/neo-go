@@ -648,9 +648,6 @@ func convertKeys(validators []crypto.PublicKey) (pubs []*keys.PublicKey) {
 
 func (s *service) newBlockFromContext(ctx *dbft.Context) block.Block {
 	block := new(neoBlock)
-	if ctx.TransactionHashes == nil {
-		return nil
-	}
 
 	block.Block.Network = s.ProtocolConfiguration.Magic
 	block.Block.Timestamp = ctx.Timestamp / nsInMs
@@ -658,7 +655,7 @@ func (s *service) newBlockFromContext(ctx *dbft.Context) block.Block {
 	if s.ProtocolConfiguration.StateRootInHeader {
 		sr, err := s.Chain.GetStateModule().GetStateRoot(ctx.BlockIndex - 1)
 		if err != nil {
-			return nil
+			s.log.Fatal(fmt.Sprintf("failed to get state root: %s", err.Error()))
 		}
 		block.StateRootEnabled = true
 		block.PrevStateRoot = sr.Root
@@ -672,11 +669,11 @@ func (s *service) newBlockFromContext(ctx *dbft.Context) block.Block {
 		validators, err = s.Chain.GetNextBlockValidators()
 	}
 	if err != nil {
-		return nil
+		s.log.Fatal(fmt.Sprintf("failed to get validators: %s", err.Error()))
 	}
 	script, err := smartcontract.CreateMultiSigRedeemScript(s.dbft.Context.M(), validators)
 	if err != nil {
-		return nil
+		s.log.Fatal(fmt.Sprintf("failed to create multisignature script: %s", err.Error()))
 	}
 	block.Block.NextConsensus = crypto.Hash160(script)
 	block.Block.PrevHash = ctx.PrevHash
@@ -685,6 +682,7 @@ func (s *service) newBlockFromContext(ctx *dbft.Context) block.Block {
 	primaryIndex := byte(ctx.PrimaryIndex)
 	block.Block.PrimaryIndex = primaryIndex
 
+	// it's OK to have ctx.TransactionsHashes == nil here
 	hashes := make([]util.Uint256, len(ctx.TransactionHashes))
 	copy(hashes, ctx.TransactionHashes)
 	block.Block.MerkleRoot = hash.CalcMerkleRoot(hashes)
