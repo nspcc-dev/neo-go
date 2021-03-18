@@ -8,9 +8,10 @@ type Verifiable interface {
 	GetSignedHash() util.Uint256
 }
 
-// VerifiableDecodable represents an object which can be both verified and
-// decoded from given data.
+// VerifiableDecodable represents an object which can be verified and
+// those hashable part can be encoded/decoded.
 type VerifiableDecodable interface {
 	Verifiable
-	DecodeSignedPart([]byte) error
+	EncodeHashableFields() ([]byte, error)
+	DecodeHashableFields([]byte) error
 }

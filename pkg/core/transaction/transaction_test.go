@@ -44,34 +44,28 @@ func TestWitnessEncodeDecode(t *testing.T) {
 func TestDecodeEncodeInvocationTX(t *testing.T) {
 	tx := decodeTransaction(rawInvocationTX, t)
 
-	script := "CwMA5AtUAgAAAAwU9u2YbY9keLZH3a4ggwacpM/bI0AMFOCjxVytcgKPtZAXSLGaJ74h9lQEFMAfDAh0cmFuc2ZlcgwUKLOtq3Jp+cIYHbPLdB6/VRkw4nBBYn1bUjk="
+	script := "CwMAQNndiE0KAAwUgM7HtvW1b1BXj3N/Fi06sU1GZQ0MFN7uecGJ8wCYsLpqLrkLOpJYpsf/FMAfDAh0cmFuc2ZlcgwUz3bii9AGLEpHjuNVYQETGfPPpNJBYn1bUjk="
 	assert.Equal(t, script, base64.StdEncoding.EncodeToString(tx.Script))
-	assert.Equal(t, uint32(1274905416), tx.Nonce)
-	assert.Equal(t, int64(9999540), tx.SystemFee)
-	assert.Equal(t, int64(8731800), tx.NetworkFee)
-	assert.Equal(t, uint32(6015), tx.ValidUntilBlock)
-	assert.Equal(t, "6fcc0c48c5d1b28bb5c2effa1e5b7bb054d22a8c30d409a6a7a3527845229056", tx.Hash().StringLE())
+	assert.Equal(t, uint32(431760600), tx.Nonce)
+	assert.Equal(t, int64(11000000), tx.SystemFee)
+	assert.Equal(t, int64(4500000), tx.NetworkFee)
+	assert.Equal(t, uint32(1000), tx.ValidUntilBlock)
+	assert.Equal(t, "25426643feed564cd3e57f346d6c68692f5622b3063da11c5572d99ee1a5b49a", tx.Hash().StringLE())
 
-	assert.Equal(t, 2, len(tx.Signers))
-	assert.Equal(t, None, tx.Signers[0].Scopes)
-	assert.Equal(t, "fda6b709107296b2e408af72279b4adf033c4d57", tx.Signers[0].Account.StringLE())
-	assert.Equal(t, CalledByEntry, tx.Signers[1].Scopes)
-	assert.Equal(t, "0454f621be279ab1481790b58f0272ad5cc5a3e0", tx.Signers[1].Account.StringLE())
+	assert.Equal(t, 1, len(tx.Signers))
+	assert.Equal(t, CalledByEntry, tx.Signers[0].Scopes)
+	assert.Equal(t, "ffc7a658923a0bb92e6abab09800f389c179eede", tx.Signers[0].Account.StringLE())
 
 	assert.Equal(t, 0, len(tx.Attributes))
-	invoc1 := "DEABqOtwntx2RZGvhG57+6EKkIV3rVc2W1kFk6T4HqWoasBGueGsae057DDLl8LH71OPAPwQUCd1hFSyvt6UzTvv"
-	verif1 := "DCECp4NL6bMuKYHRV8tbvTrLQs/RHqXDsQIk16ROmMWRDxsLQZVEDXg="
-	invoc2 := "DEDiVGE6wrO9dW2QeTKxUnjmKwlKPquQ7/WqLFa1mBYYUndcvXYHasAf5Ir9+JcHeEXEFbPKeIRmjpQ5Zxm222bjDECnQn481SOOOl1Ks7Q2GjeHKvPdi+M2ufHxnwvUly7bh5t4HQxF3GhNp7IguNOZvqGUjB/pJNql7buN8ReJQTBTDECZoVFnkjJgg+UNmdSpdCWzHEKRNpSWiAgWGQhEA+AGXGuldqCkWJ2RFePPcchDxS5Ha2L/Q0nHODiywss59sQ9DECewTwxXkhVA86NHIIbDtQc4/OekUNSlz7I7h/v0CThBucJYQv51QD1bsDnLAnkJ82P0KaL2e87IRduiv2Aqu9xDEAi0z3DIXvkuyIUTZhVLvNfI7HxA2eSS0xr6nHWwoDPKi//FfPJ8jXNViC/MQcJqlPWQD5tL+bQfxPYOAOiwTp/"
-	verif2 := "FQwhAwCbdUDhDyVi5f2PrJ6uwlFmpYsm5BI0j/WoaSe/rCKiDCEDAgXpzvrqWh38WAryDI1aokaLsBSPGl5GBfxiLIDmBLoMIQIUuvDO6jpm8X5+HoOeol/YvtbNgua7bmglAYkGX0T/AQwhAj6bMuqJuU0GbmSbEk/VDjlu6RNp6OKmrhsRwXDQIiVtDCEDQI3NQWOW9keDrFh+oeFZPFfZ/qiAyKahkg6SollHeAYMIQKng0vpsy4pgdFXy1u9OstCz9EepcOxAiTXpE6YxZEPGwwhAroscPWZbzV6QxmHBYWfriz+oT4RcpYoAHcrPViKnUq9FwtBE43vrw=="
-	assert.Equal(t, 2, len(tx.Scripts))
+	invoc1 := "DEDWn0D7z2ELqpN8ghcM/PtfFwo56/BfEasfHuSKECJMYxvU47r2ZtSihg59lGxSZzHsvxTy6nsyvJ22ycNhINdJDECl61cg937N/HujKsLMu2wJMS7C54bzJ3q22Czqllvw3Yp809USgKDs+W+3QD7rI+SFs0OhIn0gooCUU6f/13WjDEDr9XdeT5CGTO8CL0JigzcTcucs0GBcqHs8fToO6zPuuCfS7Wh6dyxSCijT4A4S+7BUdW3dsO7828ke1fj8oNxm"
+	verif1 := "EwwhAhA6f33QFlWFl/eWDSfFFqQ5T9loueZRVetLAT5AQEBuDCECp7xV/oaE4BGXaNEEujB5W9zIZhnoZK3SYVZyPtGFzWIMIQKzYiv0AXvf4xfFiu1fTHU/IGt9uJYEb6fXdLvEv3+NwgwhA9kMB99j5pDOd5EuEKtRrMlEtmhgI3tgjE+PgwnnHuaZFEF7zmyl"
+	assert.Equal(t, 1, len(tx.Scripts))
 	assert.Equal(t, invoc1, base64.StdEncoding.EncodeToString(tx.Scripts[0].InvocationScript))
 	assert.Equal(t, verif1, base64.StdEncoding.EncodeToString(tx.Scripts[0].VerificationScript))
-	assert.Equal(t, invoc2, base64.StdEncoding.EncodeToString(tx.Scripts[1].InvocationScript))
-	assert.Equal(t, verif2, base64.StdEncoding.EncodeToString(tx.Scripts[1].VerificationScript))
 
 	data, err := testserdes.EncodeBinary(tx)
 	assert.NoError(t, err)
-	assert.Equal(t, rawInvocationTX, hex.EncodeToString(data))
+	assert.Equal(t, rawInvocationTX, base64.StdEncoding.EncodeToString(data))
 }
 
 func TestNew(t *testing.T) {
@@ -133,7 +127,7 @@ func TestDecodingTxWithInvalidWitnessesNumber(t *testing.T) {
 func TestUnmarshalNeoFSTX(t *testing.T) {
 	txjson := []byte(`
 {
-  "hash": "0xb229ff232b2adf62ffdae21d892c3e8a71301530ec06037f98f1c6ba77989a09",
+  "hash": "0xc90c77d6c17fbb959b16df820370204a534ca13826cbd9fc027beb1b55d31e5a",
   "size": 232,
   "version": 0,
   "nonce": 737880259,

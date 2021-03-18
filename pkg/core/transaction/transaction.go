@@ -210,6 +210,16 @@ func (t *Transaction) encodeHashableFields(bw *io.BinWriter) {
 	bw.WriteVarBytes(t.Script)
 }
 
+// EncodeHashableFields returns serialized transaction's fields which are hashed.
+func (t *Transaction) EncodeHashableFields() ([]byte, error) {
+	bw := io.NewBufBinWriter()
+	t.encodeHashableFields(bw.BinWriter)
+	if bw.Err != nil {
+		return nil, bw.Err
+	}
+	return bw.Bytes(), nil
+}
+
 // createHash creates the hash of the transaction.
 func (t *Transaction) createHash() error {
 	buf := io.NewBufBinWriter()
@@ -222,26 +232,18 @@ func (t *Transaction) createHash() error {
 	buf.Reset()
 	t.writeSignedPart(buf)
 	t.verificationHash = hash.Sha256(buf.Bytes())
-
-	b := t.GetSignedPart()
-	if b == nil {
-		return errors.New("failed to serialize hashable data")
-	}
-	t.updateHashes(b)
 	return nil
-}
-
-// updateHashes updates Transaction's hashes based on the given buffer which should
-// be a signable data slice.
-func (t *Transaction) updateHashes(b []byte) {
-	t.verificationHash = hash.Sha256(b)
-	t.hash = hash.Sha256(t.verificationHash.BytesBE())
 }
 
 // GetSignedPart returns a part of the transaction which must be signed.
 func (t *Transaction) GetSignedPart() []byte {
+	if t.hash.Equals(util.Uint256{}) {
+		if err := t.createHash(); err != nil {
+			panic(fmt.Errorf("failed to compute hash: %w", err))
+		}
+	}
 	buf := io.NewBufBinWriter()
-	t.encodeHashableFields(buf.BinWriter)
+	t.writeSignedPart(buf)
 	if buf.Err != nil {
 		return nil
 	}
@@ -253,8 +255,8 @@ func (t *Transaction) writeSignedPart(buf *io.BufBinWriter) {
 	buf.WriteBytes(t.hash[:])
 }
 
-// DecodeSignedPart decodes a part of transaction from GetSignedPart data.
-func (t *Transaction) DecodeSignedPart(buf []byte) error {
+// DecodeHashableFields decodes a part of transaction which should be hashed.
+func (t *Transaction) DecodeHashableFields(buf []byte) error {
 	r := io.NewBinReaderFromBuf(buf)
 	t.decodeHashableFields(r)
 	if r.Err != nil {
@@ -266,7 +268,11 @@ func (t *Transaction) DecodeSignedPart(buf []byte) error {
 		return errors.New("additional data after the signed part")
 	}
 	t.Scripts = make([]Witness, 0)
-	t.updateHashes(buf)
+
+	t.hash = hash.Sha256(buf)
+	b := io.NewBufBinWriter()
+	t.writeSignedPart(b)
+	t.verificationHash = hash.Sha256(b.Bytes())
 	return nil
 }
 
