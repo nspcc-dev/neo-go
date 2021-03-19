@@ -7,8 +7,13 @@ functionality.
 ## Versions 0.7X.Y (as needed)
 * Neo 2.0 support (bug fixes, minor functionality additions)
 
-## Version 0.94.0 (TBD, aligned with 3.0.0-RC1 release)
-* Neo 3.0.0-rc1 compatible version.
+## Version 0.94.1 (end of March 2021)
+* documentation update
+* more smart contract examples
+* small fixes if any
 
-## Version 1.0 (2021, aligned with NEO 3.0 release)
-* full NEO 3.0 support
+## Version 0.95.0 (TBD)
+* Neo N3 RC2-compatible version.
+
+## Version 1.0 (2021, aligned with NEO N3 release)
+* full NEO N3 support

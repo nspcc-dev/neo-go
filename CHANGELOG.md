@@ -2,6 +2,116 @@
 
 This document outlines major changes between releases.
 
+## 0.94.0 "Tsessebe" (19 Mar 2021)
+
+N3 RC1-compatible release is here. We've implemented all Neo protocol changes
+(including state validation service and NeoFS support for oracles) and are
+ready for testnet launch now, so that you could play with new native
+contracts, VM instructions and other goodies RC1 brings with it. Some
+usability improvements and documentation updates also went into this release
+as well as a number of fixes stabilizing Notary subsystem (which is
+NeoGo-specific protocol extension).
+
+Please note that this release is incompatible with 0.93.0. We do plan to make
+an update soon (with more examples and documentation), but there won't be
+long-term support provided, Neo N3 is still on its way to mainnet (although
+RC1 and testnet are major milestones on this route).
+
+New features:
+ * Compiler:
+   - ellipsis support for append() to non-byte slices (#1750)
+   - NEP-11 standard conformance check (#1722)
+   - onNEP*Payable compliance checks (#1722)
+ * you can pass files as contract arguments now with `filebytes` CLI parameter
+   (#1762)
+ * CLI now supports specifying addresses everywhere script hashes are accepted
+   (#1758)
+ * System.Contract.CreateMultisigAccount interop function (#1763)
+ * SQRT and POW VM instructions (#1789, #1796)
+ * new NeoFSAlphabet node role added to RoleManagement contract (#1812)
+ * node can serve as state validator node (#1701)
+ * oracles now support NeoFS (#1484, #1830)
+ * CLI can be used to dump wallet's public keys (#1811)
+ * storage fee, candidate register price and oracle request price can now be
+   adjusted by committee (#1818, #1850)
+ * native contracts can now be versioned (#1827)
+ * RPC client was extended with price getters for native contracts (#1838)
+
+Behavior changes:
+ * NFTs no longer have "description" field (#1751)
+ * P2P Notary service configuration moved to ApplicationConfiguration section
+   (#1747)
+ * native contract methods requiring write permission in call flags now also
+   require read permission (#1777, #1837)
+ * System.Contract.Call interop function now requires state read permission
+   (#1777)
+ * NeoGo no longer supports Go 1.13 (#1791)
+ * native contract calls are now contract version aware (#1744)
+ * interop wrappers for smart contracts now use `int` type for all integers
+   (#1796)
+ * MaxTransactionsPerBlock, MaxBlockSize, MaxBlockSystemFee settings are now a
+   part of node configuration and no longer are available in Policy contract
+   (#1759, #1832)
+ * storage items can no longer be constant (#1819)
+ * state root handling is now conformant with C# implementation (with state
+   validators and vote/stateroot messages, #1701)
+ * blocks no longer have ConsensusData section, primary index is now a part of
+   the header (#1792, #1840, #1841)
+ * `wallet multisign sign` command was renamed to `wallet sign`, it now works
+   not just for multisignature contract signing, but also for multiple regular
+   signers as well as contract verification signing
+ * conversion interops were moved to StdLib native contract (#1824)
+ * crypto interops (except basic `CheckSig` and `CheckMultiSig`) were moved to
+   CryptoLib native contract (#1824)
+ * PACK, UNPACK and CONVERT instructions now cost more (#1826)
+ * some native contract types were adjusted (#1820)
+ * native Neo's `getCommittee` and `getNextBlockValidators` methods now cost
+   less (#1828)
+ * block/transaction/payload hashing and signing scheme has changed (#1829,
+   #1839)
+ * signing context is now serialized to JSON using base64 for data (#1829)
+ * System.Contract.IsStandard interop was removed (#1834)
+ * notifications are no longer allowed for safe contract methods (#1837)
+
+Improvements:
+ * verification script are now allowed to make contract calls (#1751)
+ * extensible payloads now have the same size limit as other P2P messages
+   (#1751)
+ * error logging is more helpful now in some cases (#1747, #1757)
+ * function inlining support in compiler for internal intrinsics, interop
+   refactoring (#1711, #1720, #1774, #1785, #1804, #1805, #1806, #1796, #1809)
+ * documentation updates (#1778, #1843)
+ * `sendrawtransaction` and `submitblock` RPC calls now return more detailed
+   information about errors for failed submissions (#1773)
+ * NeoGo now supports Go 1.16 (#1771, #1795)
+ * NEP-17 transfer tracking was optimized to avoid some DB accesses (#1782)
+ * interop wrappers added for SIGN/ABS/MAX/MIN/WITHIN instructions (#1796)
+
+Bugs fixed:
+ * `designateAsRole` method returned value while it shouldn't (#1746)
+ * deleting non-existent key could lead to node panic during MPT calculation
+   (#1754)
+ * some invalid IPv4 were accepted by name service contract (#1741)
+ * some legitimate IPv6 addresses were rejected by name service (#1741)
+ * compiler: append() to byte array produced wrong results for bytes with
+   >0x80 values (#1750)
+ * wrong notary-signed transaction size in notifications leading to client
+   disconnects (#1766)
+ * CALLT wasn't checking permission to read states and make calls in call
+   flags (#1777)
+ * proper escaping wasn't done in some cases on VM stack item conversion to
+   JSON (#1794)
+ * improper network fee calculation for complex multi-signed transactions in
+   some cases (#1797)
+ * importing package with the same name as compiled one could lead to
+   incorrect compiler behavior (#1808)
+ * boolean values were emitted as integers by compiler leading to some
+   comparison failures (#1822)
+ * `invokecontractverify` wasn't calculating proper GAS price of verification
+   using contract (#1825)
+ * ContractManagement contract wasn't returning NULL value from `getContract`
+   method if contract is missing (#1851)
+
 ## 0.93.0 "Hyperproduction" (12 Feb 2021)
 
 This is a 3.0.0-preview5 compatible release with important protocol changes,
