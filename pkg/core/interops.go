@@ -67,8 +67,8 @@ var systemInterops = []interop.Function{
 		RequiredFlags: callflag.ReadStates},
 	{Name: interopnames.SystemStorageGetReadOnlyContext, Func: storageGetReadOnlyContext, Price: 1 << 4,
 		RequiredFlags: callflag.ReadStates},
-	{Name: interopnames.SystemStoragePut, Func: storagePut, Price: 0, RequiredFlags: callflag.WriteStates,
-		ParamCount: 3}, // These don't have static price in C# code.
+	{Name: interopnames.SystemStoragePut, Func: storagePut, Price: 1 << 15, RequiredFlags: callflag.WriteStates,
+		ParamCount: 3},
 	{Name: interopnames.SystemStorageAsReadOnly, Func: storageContextAsReadOnly, Price: 1 << 4,
 		RequiredFlags: callflag.ReadStates, ParamCount: 1},
 }
