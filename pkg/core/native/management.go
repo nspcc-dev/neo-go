@@ -131,6 +131,9 @@ func (m *Management) getContract(ic *interop.Context, args []stackitem.Item) sta
 	}
 	ctr, err := m.GetContract(ic.DAO, hash)
 	if err != nil {
+		if err == storage.ErrKeyNotFound {
+			return stackitem.Null{}
+		}
 		panic(err)
 	}
 	return contractToStack(ctr)

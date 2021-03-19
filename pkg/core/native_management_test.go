@@ -349,13 +349,13 @@ func checkContractState(t *testing.T, bc *Blockchain, h util.Uint160, cs *state.
 	mgmtHash := bc.contracts.Management.Hash
 	res, err := invokeContractMethod(bc, 1_00000000, mgmtHash, "getContract", h.BytesBE())
 	require.NoError(t, err)
-	if cs == nil {
-		require.Equal(t, vm.FaultState, res.VMState)
-		return
-	}
 	require.Equal(t, vm.HaltState, res.VMState)
 	require.Equal(t, 1, len(res.Stack))
-	compareContractStates(t, cs, res.Stack[0])
+	if cs == nil {
+		require.Equal(t, stackitem.Null{}, res.Stack[0])
+	} else {
+		compareContractStates(t, cs, res.Stack[0])
+	}
 }
 
 func TestContractUpdate(t *testing.T) {
@@ -574,9 +574,7 @@ func TestContractDestroy(t *testing.T) {
 			Item:       stackitem.NewArray([]stackitem.Item{stackitem.NewByteArray(cs1.Hash.BytesBE())}),
 		}})
 		t.Run("check contract", func(t *testing.T) {
-			res, err := invokeContractMethod(bc, 1_00000000, mgmtHash, "getContract", cs1.Hash.BytesBE())
-			require.NoError(t, err)
-			checkFAULTState(t, res)
+			checkContractState(t, bc, cs1.Hash, nil)
 		})
 
 	})
