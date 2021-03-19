@@ -1,3 +1,8 @@
+/*
+Package notary provides interface to Notary native contract.
+This contract is a NeoGo extension and is not available on regular Neo
+networks. To use it you need to have this extension enabled on the network.
+*/
 package notary
 
 import (

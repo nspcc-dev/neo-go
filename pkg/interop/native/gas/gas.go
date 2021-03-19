@@ -1,3 +1,7 @@
+/*
+Package gas provides interface to GasToken native contract.
+It implements regular NEP-17 functions for GAS token.
+*/
 package gas
 
 import (

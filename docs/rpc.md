@@ -41,31 +41,37 @@ which would yield the response:
 | `getblockhash` |
 | `getblockheader` |
 | `getblockheadercount` |
-| `getblocksysfee` |
+| `getcommittee` |
 | `getconnectioncount` |
 | `getcontractstate` |
+| `getnativecontracts` |
 | `getnep17balances` |
 | `getnep17transfers` |
+| `getnextblockvalidators` |
 | `getpeers` |
+| `getproof` |
 | `getrawmempool` |
 | `getrawtransaction` |
+| `getstateheight` |
+| `getstateroot` |
 | `getstorage` |
 | `gettransactionheight` |
 | `getunclaimedgas` |
-| `getvalidators` |
 | `getversion` |
-| `invoke` |
+| `invokecontractverify` |
 | `invokefunction` |
 | `invokescript` |
 | `sendrawtransaction` |
 | `submitblock` |
+| `submitoracleresponse` |
 | `validateaddress` |
+| `verifyproof` |
 
 #### Implementation notices
 
-##### `invokefunction` and `invoke`
+##### `invokefunction`
 
-neo-go's implementation of `invokefunction` and `invoke` does not return `tx`
+neo-go's implementation of `invokefunction` does not return `tx`
 field in the answer because that requires signing the transaction with some
 key in the server which doesn't fit the model of our node-client interactions.
 Lacking this signature the transaction is almost useless, so there is no point
@@ -97,22 +103,34 @@ and we're not accepting issues related to them.
 
 | Method  | Reason |
 | ------- | ------------|
-| `claimgas` | Doesn't fit neo-go wallet model, use CLI to do that |
-| `dumpprivkey` | Shouldn't exist for security reasons, see `claimgas` comment also |
-| `getbalance` | To be implemented |
-| `getmetricblocktimestamp` | Not really useful, use other means for node monitoring |
-| `getnewaddress` | See `claimgas` comment |
-| `getwalletheight` | Not applicable to neo-go, see `claimgas` comment |
-| `importprivkey` | Not applicable to neo-go, see `claimgas` comment |
-| `listaddress` | Not applicable to neo-go, see `claimgas` comment |
+| `closewallet` | Doesn't fit neo-go wallet model |
+| `dumpprivkey` | Shouldn't exist for security reasons, see `closewallet` comment also |
+| `getnewaddress` | See `closewallet` comment, use CLI to do that |
+| `getwalletbalance` | See `closewallet` comment, use `getnep17balances` for that |
+| `getwalletunclaimedgas` | See `closewallet` comment, use `getunclaimedgas` for that |
+| `importprivkey` | Not applicable to neo-go, see `closewallet` comment |
+| `listaddress` | Not applicable to neo-go, see `closewallet` comment |
 | `listplugins` | neo-go doesn't have any plugins, so it makes no sense |
-| `sendfrom` | Not applicable to neo-go, see `claimgas` comment |
-| `sendmany` | Not applicable to neo-go, see `claimgas` comment |
+| `openwallet` | Doesn't fit neo-go wallet model |
+| `sendfrom` | Not applicable to neo-go, see `openwallet` comment |
+| `sendmany` | Not applicable to neo-go, see `openwallet` comment |
 | `sendtoaddress` | Not applicable to neo-go, see `claimgas` comment |
 
 ### Extensions
 
 Some additional extensions are implemented as a part of this RPC server.
+
+#### `getblocksysfee` call
+
+This method returns cumulative system fee for all transactions included in a
+block. It can be removed in future versions, but at the moment you can use it
+to see how much GAS is burned with particular block (because system fees are
+burned).
+
+#### `submitnotaryrequest` call
+
+This method can be used on P2P Notary enabled networks to submit new notary
+payloads to be relayed from RPC to P2P.
 
 #### Limits and paging for getnep17transfers
 

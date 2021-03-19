@@ -1,3 +1,7 @@
+/*
+Package policy provides interface to PolicyContract native contract.
+This contract holds various network-wide settings.
+*/
 package policy
 
 import (

@@ -1,3 +1,8 @@
+/*
+Package oracle provides interface to OracleContract native contract.
+Oracles allow you to get external (non-blockchain) data using HTTPS or NeoFS
+protocols.
+*/
 package oracle
 
 import (

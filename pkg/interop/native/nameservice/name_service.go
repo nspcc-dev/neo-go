@@ -1,3 +1,7 @@
+/*
+Package nameservice provides interface to NameService native contract.
+It's a NEP-11 contract implementing a domain name service.
+*/
 package nameservice
 
 import (

@@ -71,6 +71,7 @@ func TestContractParameterTypes(t *testing.T) {
 func TestRoleManagementRole(t *testing.T) {
 	require.EqualValues(t, native.RoleOracle, roles.Oracle)
 	require.EqualValues(t, native.RoleStateValidator, roles.StateValidator)
+	require.EqualValues(t, native.RoleNeoFSAlphabet, roles.NeoFSAlphabet)
 	require.EqualValues(t, native.RoleP2PNotary, roles.P2PNotary)
 }
 

@@ -1,3 +1,7 @@
+/*
+Package std provides interface to StdLib native contract.
+It implements various useful conversion functions.
+*/
 package std
 
 import (
