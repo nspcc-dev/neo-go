@@ -1,3 +1,9 @@
+/*
+Package neo provides interface to NeoToken native contract.
+NEO token is special, it's not just a regular NEP-17 contract, it also
+provides access to chain-specific settings and implements commmittee
+voting system.
+*/
 package neo
 
 import (

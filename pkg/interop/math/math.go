@@ -1,3 +1,6 @@
+/*
+Package math provides access to useful numeric functions available in Neo VM.
+*/
 package math
 
 import "github.com/nspcc-dev/neo-go/pkg/interop/neogointernal"

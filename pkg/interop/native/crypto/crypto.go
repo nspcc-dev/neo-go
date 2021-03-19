@@ -1,3 +1,7 @@
+/*
+Package crypto provides interface to CryptoLib native contract.
+It implements some cryptographic functions.
+*/
 package crypto
 
 import (
