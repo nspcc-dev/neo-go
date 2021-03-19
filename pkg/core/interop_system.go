@@ -9,7 +9,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
-	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
@@ -128,7 +127,6 @@ func putWithContext(ic *interop.Context, stc *StorageContext, key []byte, value 
 	si := ic.DAO.GetStorageItem(stc.ID, key)
 	sizeInc := len(value)
 	if si == nil {
-		si = state.StorageItem{}
 		sizeInc = len(key) + len(value)
 	} else if len(value) != 0 {
 		if len(value) <= len(si) {
