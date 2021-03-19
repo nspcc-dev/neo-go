@@ -19,7 +19,7 @@ IMAGE_REPO=nspccdev/neo-go
 # All of the targets are phony here because we don't really use make dependency
 # tracking for files
 .PHONY: build deps image image-latest image-push image-push-latest check-version clean-cluster push-tag \
-	run run-cluster test vet lint fmt cover
+	test vet lint fmt cover
 
 build: deps
 	@echo "=> Building binary"
@@ -76,9 +76,6 @@ push-tag:
 	git pull origin ${BRANCH}
 	git tag ${VERSION}
 	git push origin ${VERSION}
-
-run: build
-	${BINARY} node -config-path ./config -${NETMODE}
 
 test:
 	@go test ./... -cover
