@@ -15,5 +15,5 @@ func TestNativenamesIsValid(t *testing.T) {
 		require.True(t, nativenames.IsValid(c.Metadata().Name), fmt.Errorf("add %s to nativenames.IsValid(...)", c))
 	}
 
-	require.False(t, nativenames.IsValid("unkonwn"))
+	require.False(t, nativenames.IsValid("unknown"))
 }

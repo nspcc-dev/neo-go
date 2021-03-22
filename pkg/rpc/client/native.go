@@ -1,6 +1,6 @@
 package client
 
-// Various non-policy things from native contracs.
+// Various non-policy things from native contracts.
 
 import (
 	"fmt"
