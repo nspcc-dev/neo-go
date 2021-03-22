@@ -313,6 +313,8 @@ func initBasicChain(t *testing.T, bc *Blockchain) {
 
 	b := bc.newBlock(txMoveNeo, txMoveGas)
 	require.NoError(t, bc.AddBlock(b))
+	checkTxHalt(t, bc, txMoveGas.Hash())
+	checkTxHalt(t, bc, txMoveNeo.Hash())
 	t.Logf("Block1 hash: %s", b.Hash().StringLE())
 	bw := io.NewBufBinWriter()
 	b.EncodeBinary(bw.BinWriter)
@@ -353,6 +355,7 @@ func initBasicChain(t *testing.T, bc *Blockchain) {
 	require.NoError(t, acc0.SignTx(txDeploy))
 	b = bc.newBlock(txDeploy)
 	require.NoError(t, bc.AddBlock(b))
+	checkTxHalt(t, bc, txDeploy.Hash())
 	t.Logf("txDeploy: %s", txDeploy.Hash().StringLE())
 	t.Logf("Block2 hash: %s", b.Hash().StringLE())
 
@@ -368,6 +371,7 @@ func initBasicChain(t *testing.T, bc *Blockchain) {
 	require.NoError(t, acc0.SignTx(txInv))
 	b = bc.newBlock(txInv)
 	require.NoError(t, bc.AddBlock(b))
+	checkTxHalt(t, bc, txInv.Hash())
 	t.Logf("txInv: %s", txInv.Hash().StringLE())
 
 	priv1 := testchain.PrivateKeyByID(1)
@@ -386,6 +390,7 @@ func initBasicChain(t *testing.T, bc *Blockchain) {
 	require.NoError(t, acc0.SignTx(txNeo0to1))
 	b = bc.newBlock(txNeo0to1)
 	require.NoError(t, bc.AddBlock(b))
+	checkTxHalt(t, bc, txNeo0to1.Hash())
 
 	w := io.NewBufBinWriter()
 	emit.AppCall(w.BinWriter, cHash, "init", callflag.All)
@@ -411,6 +416,8 @@ func initBasicChain(t *testing.T, bc *Blockchain) {
 
 	b = bc.newBlock(initTx, transferTx)
 	require.NoError(t, bc.AddBlock(b))
+	checkTxHalt(t, bc, initTx.Hash())
+	checkTxHalt(t, bc, transferTx.Hash())
 	t.Logf("recieveRublesTx: %v", transferTx.Hash().StringLE())
 
 	transferTx = newNEP17Transfer(cHash, priv0.GetScriptHash(), priv1.GetScriptHash(), 123)
@@ -429,6 +436,7 @@ func initBasicChain(t *testing.T, bc *Blockchain) {
 
 	b = bc.newBlock(transferTx)
 	require.NoError(t, bc.AddBlock(b))
+	checkTxHalt(t, bc, transferTx.Hash())
 	t.Logf("sendRublesTx: %v", transferTx.Hash().StringLE())
 
 	// Push verification contract into the chain.
@@ -439,6 +447,7 @@ func initBasicChain(t *testing.T, bc *Blockchain) {
 	require.NoError(t, acc0.SignTx(txDeploy2))
 	b = bc.newBlock(txDeploy2)
 	require.NoError(t, bc.AddBlock(b))
+	checkTxHalt(t, bc, txDeploy2.Hash())
 
 	// Deposit some GAS to notary contract for priv0
 	transferTx = newNEP17Transfer(gasHash, priv0.GetScriptHash(), notaryHash, 10_0000_0000, priv0.GetScriptHash(), int64(bc.BlockHeight()+1000))
@@ -456,6 +465,7 @@ func initBasicChain(t *testing.T, bc *Blockchain) {
 
 	b = bc.newBlock(transferTx)
 	require.NoError(t, bc.AddBlock(b))
+	checkTxHalt(t, bc, transferTx.Hash())
 	t.Logf("notaryDepositTxPriv0: %v", transferTx.Hash().StringLE())
 
 	// Designate new Notary node
@@ -473,6 +483,7 @@ func initBasicChain(t *testing.T, bc *Blockchain) {
 	require.NoError(t, acc0.SignTx(txDeploy3))
 	b = bc.newBlock(txDeploy3)
 	require.NoError(t, bc.AddBlock(b))
+	checkTxHalt(t, bc, txDeploy3.Hash())
 
 	// Compile contract to test `invokescript` RPC call
 	_, _ = newDeployTx(t, bc, priv0ScriptHash, prefix+"invokescript_contract.go", "ContractForInvokescriptTest", nil)
