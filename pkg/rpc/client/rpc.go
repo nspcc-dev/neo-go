@@ -6,7 +6,6 @@ import (
 	"fmt"
 
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
-	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/fee"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
@@ -781,8 +780,11 @@ func (c *Client) AddNetworkFee(tx *transaction.Transaction, extraFee int64, accs
 				return fmt.Errorf("result stack length should be equal to 1, got %d", l)
 			}
 			r, err := topIntFromStack(res.Stack)
-			if err != nil || r == 0 {
-				return core.ErrVerificationFailed
+			if err != nil {
+				return fmt.Errorf("signer #%d: failed to get `verify` result from stack: %w", i, err)
+			}
+			if r == 0 {
+				return fmt.Errorf("signer #%d: `verify` returned `false`", i)
 			}
 			tx.NetworkFee += res.GasConsumed
 			size += io.GetVarSize([]byte{}) * 2 // both scripts are empty
