@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"os"
+	"path"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
@@ -196,4 +197,21 @@ func TestWalletGetChangeAddress(t *testing.T) {
 	expected, err = address.StringToUint160("NUREbqw2kfbPgDeEz8Dac2QxntGGqqFMm7")
 	require.NoError(t, err)
 	require.Equal(t, expected, sh)
+}
+
+func TestWalletForExamples(t *testing.T) {
+	const (
+		examplesDir  = "../../examples"
+		walletFile   = "my_wallet.json"
+		walletPass   = "qwerty"
+		accountLabel = "my_account"
+	)
+	w, err := NewWalletFromFile(path.Join(examplesDir, walletFile))
+	require.NoError(t, err)
+	require.Equal(t, 1, len(w.Accounts))
+	require.Equal(t, accountLabel, w.Accounts[0].Label)
+	require.NoError(t, w.Accounts[0].Decrypt(walletPass))
+
+	// we need to keep the owner of the example contracts the same as the wallet account
+	require.Equal(t, "NX1yL5wDx3inK2qUVLRVaqCLUxYnAbv85S", w.Accounts[0].Address, "need to change `owner` in the example contracts")
 }
