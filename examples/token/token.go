@@ -13,7 +13,7 @@ const (
 )
 
 var (
-	owner = util.FromAddress("NULwe3UAHckN2fzNdcVg31tDiaYtMDwANt")
+	owner = util.FromAddress("NX1yL5wDx3inK2qUVLRVaqCLUxYnAbv85S")
 	token nep17.Token
 	ctx   storage.Context
 )
