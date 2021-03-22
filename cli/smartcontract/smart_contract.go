@@ -443,7 +443,7 @@ func contractCompile(ctx *cli.Context) error {
 	}
 
 	if len(confFile) != 0 {
-		conf, err := parseContractConfig(confFile)
+		conf, err := ParseContractConfig(confFile)
 		if err != nil {
 			return err
 		}
@@ -875,7 +875,8 @@ func contractDeploy(ctx *cli.Context) error {
 	return nil
 }
 
-func parseContractConfig(confFile string) (ProjectConfig, error) {
+// ParseContractConfig reads contract configuration file (.yaml) and returns unmarshalled ProjectConfig.
+func ParseContractConfig(confFile string) (ProjectConfig, error) {
 	conf := ProjectConfig{}
 	confBytes, err := ioutil.ReadFile(confFile)
 	if err != nil {

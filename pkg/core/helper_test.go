@@ -345,7 +345,8 @@ func initBasicChain(t *testing.T, bc *Blockchain) {
 	acc0 := wallet.NewAccountFromPrivateKey(priv0)
 
 	// Push some contract into the chain.
-	txDeploy, cHash := newDeployTx(t, bc, priv0ScriptHash, prefix+"test_contract.go", "Rubl")
+	cfgPath := prefix + "test_contract.yml"
+	txDeploy, cHash := newDeployTx(t, bc, priv0ScriptHash, prefix+"test_contract.go", "Rubl", &cfgPath)
 	txDeploy.Nonce = getNextNonce()
 	txDeploy.ValidUntilBlock = validUntilBlock
 	require.NoError(t, addNetworkFee(bc, txDeploy, acc0))
@@ -431,7 +432,7 @@ func initBasicChain(t *testing.T, bc *Blockchain) {
 	t.Logf("sendRublesTx: %v", transferTx.Hash().StringLE())
 
 	// Push verification contract into the chain.
-	txDeploy2, _ := newDeployTx(t, bc, priv0ScriptHash, prefix+"verification_contract.go", "Verify")
+	txDeploy2, _ := newDeployTx(t, bc, priv0ScriptHash, prefix+"verification_contract.go", "Verify", nil)
 	txDeploy2.Nonce = getNextNonce()
 	txDeploy2.ValidUntilBlock = validUntilBlock
 	require.NoError(t, addNetworkFee(bc, txDeploy2, acc0))
@@ -465,7 +466,7 @@ func initBasicChain(t *testing.T, bc *Blockchain) {
 	t.Logf("Designated Notary node: %s", hex.EncodeToString(ntr.Accounts[0].PrivateKey().PublicKey().Bytes()))
 
 	// Push verification contract with arguments into the chain.
-	txDeploy3, _ := newDeployTx(t, bc, priv0ScriptHash, prefix+"verification_with_args_contract.go", "VerifyWithArgs")
+	txDeploy3, _ := newDeployTx(t, bc, priv0ScriptHash, prefix+"verification_with_args_contract.go", "VerifyWithArgs", nil)
 	txDeploy3.Nonce = getNextNonce()
 	txDeploy3.ValidUntilBlock = validUntilBlock
 	require.NoError(t, addNetworkFee(bc, txDeploy3, acc0))
@@ -474,7 +475,7 @@ func initBasicChain(t *testing.T, bc *Blockchain) {
 	require.NoError(t, bc.AddBlock(b))
 
 	// Compile contract to test `invokescript` RPC call
-	_, _ = newDeployTx(t, bc, priv0ScriptHash, prefix+"invokescript_contract.go", "ContractForInvokescriptTest")
+	_, _ = newDeployTx(t, bc, priv0ScriptHash, prefix+"invokescript_contract.go", "ContractForInvokescriptTest", nil)
 }
 
 func newNEP17Transfer(sc, from, to util.Uint160, amount int64, additionalArgs ...interface{}) *transaction.Transaction {
@@ -489,10 +490,10 @@ func newNEP17Transfer(sc, from, to util.Uint160, amount int64, additionalArgs ..
 	return transaction.New(testchain.Network(), script, 11000000)
 }
 
-func newDeployTx(t *testing.T, bc *Blockchain, sender util.Uint160, name, ctrName string) (*transaction.Transaction, util.Uint160) {
+func newDeployTx(t *testing.T, bc *Blockchain, sender util.Uint160, name, ctrName string, cfgName *string) (*transaction.Transaction, util.Uint160) {
 	c, err := ioutil.ReadFile(name)
 	require.NoError(t, err)
-	tx, h, avm, err := testchain.NewDeployTx(bc, ctrName, sender, bytes.NewReader(c))
+	tx, h, avm, err := testchain.NewDeployTx(bc, ctrName, sender, bytes.NewReader(c), cfgName)
 	require.NoError(t, err)
 	t.Logf("contract (%s): \n\tHash: %s\n\tAVM: %s", name, h.StringLE(), base64.StdEncoding.EncodeToString(avm))
 	return tx, h

@@ -2,8 +2,10 @@ package testchain
 
 import (
 	"encoding/json"
+	"fmt"
 	gio "io"
 
+	"github.com/nspcc-dev/neo-go/cli/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/compiler"
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
@@ -49,7 +51,7 @@ func NewTransferFromOwner(bc blockchainer.Blockchainer, contractHash, to util.Ui
 }
 
 // NewDeployTx returns new deployment tx for contract with name with Go code read from r.
-func NewDeployTx(bc blockchainer.Blockchainer, name string, sender util.Uint160, r gio.Reader) (*transaction.Transaction, util.Uint160, []byte, error) {
+func NewDeployTx(bc blockchainer.Blockchainer, name string, sender util.Uint160, r gio.Reader, confFile *string) (*transaction.Transaction, util.Uint160, []byte, error) {
 	// nef.NewFile() cares about version a lot.
 	config.Version = "0.90.0-test"
 
@@ -63,9 +65,25 @@ func NewDeployTx(bc blockchainer.Blockchainer, name string, sender util.Uint160,
 		return nil, util.Uint160{}, nil, err
 	}
 
-	m, err := di.ConvertToManifest(&compiler.Options{Name: name})
+	o := &compiler.Options{
+		Name:            name,
+		NoStandardCheck: true,
+		NoEventsCheck:   true,
+	}
+	if confFile != nil {
+		conf, err := smartcontract.ParseContractConfig(*confFile)
+		if err != nil {
+			return nil, util.Uint160{}, nil, fmt.Errorf("failed to parse configuration: %w", err)
+		}
+		o.Name = conf.Name
+		o.ContractEvents = conf.Events
+		o.ContractSupportedStandards = conf.SupportedStandards
+		o.SafeMethods = conf.SafeMethods
+
+	}
+	m, err := compiler.CreateManifest(di, o)
 	if err != nil {
-		return nil, util.Uint160{}, nil, err
+		return nil, util.Uint160{}, nil, fmt.Errorf("failed to create manifest: %w", err)
 	}
 
 	rawManifest, err := json.Marshal(m)
