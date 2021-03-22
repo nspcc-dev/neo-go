@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"crypto/elliptic"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
@@ -17,6 +18,7 @@ import (
 	"github.com/nspcc-dev/neo-go/internal/testserdes"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/noderoles"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
@@ -473,6 +475,28 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"state":"HALT","gasconsumed":"2007390","script":"EMAMDWdldEZlZVBlckJ5dGUMFJphpG7sl7iTBtfOgfFbRiCR0AkyQWJ9W1I=","stack":[{"type":"Integer","value":"500000000"}],"tx":null}}`,
 			result: func(c *Client) interface{} {
 				return int64(500000000)
+			},
+		},
+	},
+	"getDesignatedByRole": {
+		{
+			name: "positive",
+			invoke: func(c *Client) (interface{}, error) {
+				return c.GetDesignatedByRole(noderoles.P2PNotary, 10)
+			},
+			serverResponse: `{"id" : 1,"result" : {"stack" : [{"value" : [{"type":"ByteString","value":"Aw0WkQoDc8WqpG18xPMTEgfHO6gRTVtMN0Mw6zw06fzl"},{"type":"ByteString","value":"A+bmJ9wIaj96Ygr+uQQvQ0AaUrQmj2b3AGnztAOkU3/L"}],"type" : "Array"}],"exception" : null,"script" : "ERQSwB8ME2dldERlc2lnbmF0ZWRCeVJvbGUMFOKV45FUTBeK2U8D7E3N/3hTTs9JQWJ9W1I=","gasconsumed" : "2028150","state" : "HALT"}, "jsonrpc" : "2.0"}`,
+			result: func(c *Client) interface{} {
+				pk1Bytes, _ := base64.StdEncoding.DecodeString("Aw0WkQoDc8WqpG18xPMTEgfHO6gRTVtMN0Mw6zw06fzl")
+				pk1, err := keys.NewPublicKeyFromBytes(pk1Bytes, elliptic.P256())
+				if err != nil {
+					panic("invalid pub key #1 bytes")
+				}
+				pk2Bytes, _ := base64.StdEncoding.DecodeString("A+bmJ9wIaj96Ygr+uQQvQ0AaUrQmj2b3AGnztAOkU3/L")
+				pk2, err := keys.NewPublicKeyFromBytes(pk2Bytes, elliptic.P256())
+				if err != nil {
+					panic("invalid pub key #2 bytes")
+				}
+				return keys.PublicKeys{pk1, pk2}
 			},
 		},
 	},
