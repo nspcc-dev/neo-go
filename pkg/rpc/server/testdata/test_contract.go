@@ -1,6 +1,9 @@
 package testdata
 
 import (
+	"github.com/nspcc-dev/neo-go/pkg/interop"
+	"github.com/nspcc-dev/neo-go/pkg/interop/contract"
+	"github.com/nspcc-dev/neo-go/pkg/interop/native/management"
 	"github.com/nspcc-dev/neo-go/pkg/interop/runtime"
 	"github.com/nspcc-dev/neo-go/pkg/interop/storage"
 )
@@ -19,7 +22,7 @@ func Init() bool {
 	return true
 }
 
-func Transfer(from, to []byte, amount int, data interface{}) bool {
+func Transfer(from, to interop.Hash160, amount int, data interface{}) bool {
 	ctx := storage.GetContext()
 	if len(from) != 20 {
 		runtime.Log("invalid 'from' address")
@@ -55,22 +58,22 @@ func Transfer(from, to []byte, amount int, data interface{}) bool {
 	storage.Put(ctx, to, toBalance)
 
 	runtime.Notify("Transfer", from, to, amount)
-
+	if management.GetContract(to) != nil {
+		contract.Call(to, "onNEP17Payment", contract.All, from, amount, data)
+	}
 	return true
 }
 
-func BalanceOf(addr []byte) int {
+func BalanceOf(account interop.Hash160) int {
 	ctx := storage.GetContext()
-	if len(addr) != 20 {
-		runtime.Log("invalid address")
-		return 0
+	if len(account) != 20 {
+		panic("invalid address")
 	}
 	var amount int
-	val := storage.Get(ctx, addr)
+	val := storage.Get(ctx, account)
 	if val != nil {
 		amount = val.(int)
 	}
-	runtime.Notify("balanceOf", addr, amount)
 	return amount
 }
 
