@@ -21,6 +21,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/core/mempool"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nativeprices"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/noderoles"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
@@ -1031,7 +1032,7 @@ func TestVerifyTx(t *testing.T) {
 				fee.Opcode(bc.GetBaseExecFee(), // Notary verification script
 					opcode.PUSHDATA1, opcode.RET, // invocation script
 					opcode.PUSH0, opcode.SYSCALL, opcode.RET) + // Neo.Native.Call
-				native.NotaryVerificationPrice*bc.GetBaseExecFee() // Notary witness verification price
+				nativeprices.NotaryVerificationPrice*bc.GetBaseExecFee() // Notary witness verification price
 			tx.Scripts = []transaction.Witness{
 				{
 					InvocationScript:   append([]byte{byte(opcode.PUSHDATA1), 64}, make([]byte, 64, 64)...),

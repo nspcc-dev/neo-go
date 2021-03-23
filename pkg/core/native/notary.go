@@ -12,6 +12,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/contract"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/runtime"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nativeprices"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/noderoles"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
@@ -41,9 +42,6 @@ type Notary struct {
 
 const (
 	notaryContractID = reservedContractID - 1
-	// NotaryVerificationPrice is the price of `verify` Notary method.
-	NotaryVerificationPrice = 1 << 15
-
 	// prefixDeposit is a prefix for storing Notary deposits.
 	prefixDeposit                 = 1
 	defaultDepositDeltaTill       = 5760
@@ -88,7 +86,7 @@ func newNotary() *Notary {
 
 	desc = newDescriptor("verify", smartcontract.BoolType,
 		manifest.NewParameter("signature", smartcontract.SignatureType))
-	md = newMethodAndPrice(n.verify, NotaryVerificationPrice, callflag.ReadStates)
+	md = newMethodAndPrice(n.verify, nativeprices.NotaryVerificationPrice, callflag.ReadStates)
 	n.AddMethod(md, desc)
 
 	desc = newDescriptor("getMaxNotValidBeforeDelta", smartcontract.IntegerType)
