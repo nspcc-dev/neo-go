@@ -13,6 +13,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/runtime"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/noderoles"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
@@ -58,17 +59,6 @@ const (
 	maxNodeCount = 32
 )
 
-// Role represents type of participant.
-type Role byte
-
-// Role enumeration.
-const (
-	RoleStateValidator Role = 4
-	RoleOracle         Role = 8
-	RoleNeoFSAlphabet  Role = 16
-	RoleP2PNotary      Role = 128
-)
-
 // Various errors.
 var (
 	ErrAlreadyDesignated = errors.New("already designated given role at current block")
@@ -79,9 +69,9 @@ var (
 	ErrNoBlock           = errors.New("no persisting block in the context")
 )
 
-func (s *Designate) isValidRole(r Role) bool {
-	return r == RoleOracle || r == RoleStateValidator ||
-		r == RoleNeoFSAlphabet || (s.p2pSigExtensionsEnabled && r == RoleP2PNotary)
+func (s *Designate) isValidRole(r noderoles.Role) bool {
+	return r == noderoles.Oracle || r == noderoles.StateValidator ||
+		r == noderoles.NeoFSAlphabet || (s.p2pSigExtensionsEnabled && r == noderoles.P2PNotary)
 }
 
 func newDesignate(p2pSigExtensionsEnabled bool) *Designate {
@@ -120,17 +110,17 @@ func (s *Designate) PostPersist(ic *interop.Context) error {
 		return nil
 	}
 
-	if err := s.updateCachedRoleData(&s.oracles, ic.DAO, RoleOracle); err != nil {
+	if err := s.updateCachedRoleData(&s.oracles, ic.DAO, noderoles.Oracle); err != nil {
 		return err
 	}
-	if err := s.updateCachedRoleData(&s.stateVals, ic.DAO, RoleStateValidator); err != nil {
+	if err := s.updateCachedRoleData(&s.stateVals, ic.DAO, noderoles.StateValidator); err != nil {
 		return err
 	}
-	if err := s.updateCachedRoleData(&s.neofsAlphabet, ic.DAO, RoleNeoFSAlphabet); err != nil {
+	if err := s.updateCachedRoleData(&s.neofsAlphabet, ic.DAO, noderoles.NeoFSAlphabet); err != nil {
 		return err
 	}
 	if s.p2pSigExtensionsEnabled {
-		if err := s.updateCachedRoleData(&s.notaries, ic.DAO, RoleP2PNotary); err != nil {
+		if err := s.updateCachedRoleData(&s.notaries, ic.DAO, noderoles.P2PNotary); err != nil {
 			return err
 		}
 	}
@@ -169,13 +159,13 @@ func (s *Designate) rolesChanged() bool {
 	return rc == nil || rc.(bool)
 }
 
-func (s *Designate) hashFromNodes(r Role, nodes keys.PublicKeys) util.Uint160 {
+func (s *Designate) hashFromNodes(r noderoles.Role, nodes keys.PublicKeys) util.Uint160 {
 	if len(nodes) == 0 {
 		return util.Uint160{}
 	}
 	var script []byte
 	switch r {
-	case RoleP2PNotary:
+	case noderoles.P2PNotary:
 		script, _ = smartcontract.CreateMultiSigRedeemScript(1, nodes.Copy())
 	default:
 		script, _ = smartcontract.CreateDefaultMultiSigRedeemScript(nodes.Copy())
@@ -183,7 +173,7 @@ func (s *Designate) hashFromNodes(r Role, nodes keys.PublicKeys) util.Uint160 {
 	return hash.Hash160(script)
 }
 
-func (s *Designate) updateCachedRoleData(v *atomic.Value, d dao.DAO, r Role) error {
+func (s *Designate) updateCachedRoleData(v *atomic.Value, d dao.DAO, r noderoles.Role) error {
 	nodeKeys, height, err := s.GetDesignatedByRole(d, r, math.MaxUint32)
 	if err != nil {
 		return err
@@ -194,15 +184,15 @@ func (s *Designate) updateCachedRoleData(v *atomic.Value, d dao.DAO, r Role) err
 		height: height,
 	})
 	switch r {
-	case RoleOracle:
+	case noderoles.Oracle:
 		if orc, _ := s.OracleService.Load().(services.Oracle); orc != nil {
 			orc.UpdateOracleNodes(nodeKeys.Copy())
 		}
-	case RoleP2PNotary:
+	case noderoles.P2PNotary:
 		if ntr, _ := s.NotaryService.Load().(services.Notary); ntr != nil {
 			ntr.UpdateNotaryNodes(nodeKeys.Copy())
 		}
-	case RoleStateValidator:
+	case noderoles.StateValidator:
 		if s.StateRootService != nil {
 			s.StateRootService.UpdateStateValidators(height, nodeKeys.Copy())
 		}
@@ -210,16 +200,16 @@ func (s *Designate) updateCachedRoleData(v *atomic.Value, d dao.DAO, r Role) err
 	return nil
 }
 
-func (s *Designate) getCachedRoleData(r Role) *roleData {
+func (s *Designate) getCachedRoleData(r noderoles.Role) *roleData {
 	var val interface{}
 	switch r {
-	case RoleOracle:
+	case noderoles.Oracle:
 		val = s.oracles.Load()
-	case RoleStateValidator:
+	case noderoles.StateValidator:
 		val = s.stateVals.Load()
-	case RoleNeoFSAlphabet:
+	case noderoles.NeoFSAlphabet:
 		val = s.neofsAlphabet.Load()
-	case RoleP2PNotary:
+	case noderoles.P2PNotary:
 		val = s.notaries.Load()
 	}
 	if val != nil {
@@ -229,7 +219,7 @@ func (s *Designate) getCachedRoleData(r Role) *roleData {
 }
 
 // GetLastDesignatedHash returns last designated hash of a given role.
-func (s *Designate) GetLastDesignatedHash(d dao.DAO, r Role) (util.Uint160, error) {
+func (s *Designate) GetLastDesignatedHash(d dao.DAO, r noderoles.Role) (util.Uint160, error) {
 	if !s.isValidRole(r) {
 		return util.Uint160{}, ErrInvalidRole
 	}
@@ -247,7 +237,7 @@ func (s *Designate) GetLastDesignatedHash(d dao.DAO, r Role) (util.Uint160, erro
 }
 
 // GetDesignatedByRole returns nodes for role r.
-func (s *Designate) GetDesignatedByRole(d dao.DAO, r Role, index uint32) (keys.PublicKeys, uint32, error) {
+func (s *Designate) GetDesignatedByRole(d dao.DAO, r noderoles.Role, index uint32) (keys.PublicKeys, uint32, error) {
 	if !s.isValidRole(r) {
 		return nil, 0, ErrInvalidRole
 	}
@@ -301,7 +291,7 @@ func (s *Designate) designateAsRole(ic *interop.Context, args []stackitem.Item) 
 }
 
 // DesignateAsRole sets nodes for role r.
-func (s *Designate) DesignateAsRole(ic *interop.Context, r Role, pubs keys.PublicKeys) error {
+func (s *Designate) DesignateAsRole(ic *interop.Context, r noderoles.Role, pubs keys.PublicKeys) error {
 	length := len(pubs)
 	if length == 0 {
 		return ErrEmptyNodeList
@@ -332,7 +322,7 @@ func (s *Designate) DesignateAsRole(ic *interop.Context, r Role, pubs keys.Publi
 	return ic.DAO.PutStorageItem(s.ID, key, NodeList(pubs).Bytes())
 }
 
-func (s *Designate) getRole(item stackitem.Item) (Role, bool) {
+func (s *Designate) getRole(item stackitem.Item) (noderoles.Role, bool) {
 	bi, err := item.TryInteger()
 	if err != nil {
 		return 0, false
@@ -341,5 +331,5 @@ func (s *Designate) getRole(item stackitem.Item) (Role, bool) {
 		return 0, false
 	}
 	u := bi.Uint64()
-	return Role(u), u <= math.MaxUint8 && s.isValidRole(Role(u))
+	return noderoles.Role(u), u <= math.MaxUint8 && s.isValidRole(noderoles.Role(u))
 }

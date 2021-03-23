@@ -14,7 +14,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
-	"github.com/nspcc-dev/neo-go/pkg/core/native"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/noderoles"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
@@ -120,7 +120,7 @@ func TestOracle(t *testing.T) {
 	acc2, orc2, m2, ch2 := getTestOracle(t, bc, "./testdata/oracle2.json", "two")
 	oracleNodes := keys.PublicKeys{acc1.PrivateKey().PublicKey(), acc2.PrivateKey().PublicKey()}
 	// Must be set in native contract for tx verification.
-	bc.setNodesByRole(t, true, native.RoleOracle, oracleNodes)
+	bc.setNodesByRole(t, true, noderoles.Oracle, oracleNodes)
 	orc1.UpdateOracleNodes(oracleNodes.Copy())
 	orc2.UpdateOracleNodes(oracleNodes.Copy())
 
@@ -278,7 +278,7 @@ func TestOracleFull(t *testing.T) {
 	go orc.Run()
 	t.Cleanup(orc.Shutdown)
 
-	bc.setNodesByRole(t, true, native.RoleOracle, keys.PublicKeys{acc.PrivateKey().PublicKey()})
+	bc.setNodesByRole(t, true, noderoles.Oracle, keys.PublicKeys{acc.PrivateKey().PublicKey()})
 	putOracleRequest(t, cs.Hash, bc, "http://get.1234", new(string), "handle", []byte{}, 10_000_000)
 
 	require.Eventually(t, func() bool { return mp.Count() == 1 },

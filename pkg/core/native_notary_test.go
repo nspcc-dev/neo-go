@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/internal/testchain"
-	"github.com/nspcc-dev/neo-go/pkg/core/native"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/noderoles"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/io"
@@ -261,7 +261,7 @@ func TestNotaryNodesReward(t *testing.T) {
 			require.NoError(t, err)
 			notaryNodesPublicKeys[i] = notaryNodes[i].PublicKey()
 		}
-		chain.setNodesByRole(t, true, native.RoleP2PNotary, notaryNodesPublicKeys)
+		chain.setNodesByRole(t, true, noderoles.P2PNotary, notaryNodesPublicKeys)
 		for _, notaryNode := range notaryNodesPublicKeys {
 			checkBalanceOf(t, chain, notaryNode.GetScriptHash(), 0)
 		}

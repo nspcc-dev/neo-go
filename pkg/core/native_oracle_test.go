@@ -11,6 +11,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/noderoles"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
@@ -154,7 +155,7 @@ func TestOracle_Request(t *testing.T) {
 	ic := bc.newInteropContext(trigger.Application, bc.dao, bl, tx)
 	ic.SpawnVM()
 	ic.VM.LoadScript([]byte{byte(opcode.RET)})
-	err = bc.contracts.Designate.DesignateAsRole(ic, native.RoleOracle, keys.PublicKeys{pub})
+	err = bc.contracts.Designate.DesignateAsRole(ic, noderoles.Oracle, keys.PublicKeys{pub})
 	require.NoError(t, err)
 
 	tx = transaction.New(netmode.UnitTestNet, orc.GetOracleResponseScript(), 0)

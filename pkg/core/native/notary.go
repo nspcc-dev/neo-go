@@ -12,6 +12,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/contract"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/runtime"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/noderoles"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
@@ -370,7 +371,7 @@ func (n *Notary) verify(ic *interop.Context, args []stackitem.Item) stackitem.It
 
 // GetNotaryNodes returns public keys of notary nodes.
 func (n *Notary) GetNotaryNodes(d dao.DAO) (keys.PublicKeys, error) {
-	nodes, _, err := n.Desig.GetDesignatedByRole(d, RoleP2PNotary, math.MaxUint32)
+	nodes, _, err := n.Desig.GetDesignatedByRole(d, noderoles.P2PNotary, math.MaxUint32)
 	return nodes, err
 }
 

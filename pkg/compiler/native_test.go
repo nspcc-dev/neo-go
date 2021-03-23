@@ -9,6 +9,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/noderoles"
 	"github.com/nspcc-dev/neo-go/pkg/interop/native/crypto"
 	"github.com/nspcc-dev/neo-go/pkg/interop/native/gas"
 	"github.com/nspcc-dev/neo-go/pkg/interop/native/ledger"
@@ -69,10 +70,10 @@ func TestContractParameterTypes(t *testing.T) {
 }
 
 func TestRoleManagementRole(t *testing.T) {
-	require.EqualValues(t, native.RoleOracle, roles.Oracle)
-	require.EqualValues(t, native.RoleStateValidator, roles.StateValidator)
-	require.EqualValues(t, native.RoleNeoFSAlphabet, roles.NeoFSAlphabet)
-	require.EqualValues(t, native.RoleP2PNotary, roles.P2PNotary)
+	require.EqualValues(t, noderoles.Oracle, roles.Oracle)
+	require.EqualValues(t, noderoles.StateValidator, roles.StateValidator)
+	require.EqualValues(t, noderoles.NeoFSAlphabet, roles.NeoFSAlphabet)
+	require.EqualValues(t, noderoles.P2PNotary, roles.P2PNotary)
 }
 
 func TestNameServiceRecordType(t *testing.T) {

@@ -23,6 +23,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/chaindump"
 	"github.com/nspcc-dev/neo-go/pkg/core/fee"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/noderoles"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
@@ -472,7 +473,7 @@ func initBasicChain(t *testing.T, bc *Blockchain) {
 	ntr, err := wallet.NewWalletFromFile(path.Join(notaryModulePath, "./testdata/notary1.json"))
 	require.NoError(t, err)
 	require.NoError(t, ntr.Accounts[0].Decrypt("one"))
-	bc.setNodesByRole(t, true, native.RoleP2PNotary, keys.PublicKeys{ntr.Accounts[0].PrivateKey().PublicKey()})
+	bc.setNodesByRole(t, true, noderoles.P2PNotary, keys.PublicKeys{ntr.Accounts[0].PrivateKey().PublicKey()})
 	t.Logf("Designated Notary node: %s", hex.EncodeToString(ntr.Accounts[0].PrivateKey().PublicKey().Bytes()))
 
 	// Push verification contract with arguments into the chain.

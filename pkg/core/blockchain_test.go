@@ -21,6 +21,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/core/mempool"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/noderoles"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
@@ -596,7 +597,7 @@ func TestVerifyTx(t *testing.T) {
 			ic := bc.newInteropContext(trigger.All, bc.dao, bl, txSetOracle)
 			ic.SpawnVM()
 			ic.VM.LoadScript([]byte{byte(opcode.RET)})
-			require.NoError(t, bc.contracts.Designate.DesignateAsRole(ic, native.RoleOracle, oraclePubs))
+			require.NoError(t, bc.contracts.Designate.DesignateAsRole(ic, noderoles.Oracle, oraclePubs))
 			_, err = ic.DAO.Persist()
 			require.NoError(t, err)
 
@@ -807,7 +808,7 @@ func TestVerifyTx(t *testing.T) {
 			ic := bc.newInteropContext(trigger.All, bc.dao, bl, txSetNotary)
 			ic.SpawnVM()
 			ic.VM.LoadScript([]byte{byte(opcode.RET)})
-			require.NoError(t, bc.contracts.Designate.DesignateAsRole(ic, native.RoleP2PNotary, keys.PublicKeys{notary.PrivateKey().PublicKey()}))
+			require.NoError(t, bc.contracts.Designate.DesignateAsRole(ic, noderoles.P2PNotary, keys.PublicKeys{notary.PrivateKey().PublicKey()}))
 			_, err = ic.DAO.Persist()
 			require.NoError(t, err)
 			getNotaryAssistedTx := func(signaturesCount uint8, serviceFee int64) *transaction.Transaction {

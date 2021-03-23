@@ -8,6 +8,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/noderoles"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/io"
@@ -20,7 +21,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func (bc *Blockchain) setNodesByRole(t *testing.T, ok bool, r native.Role, nodes keys.PublicKeys) {
+func (bc *Blockchain) setNodesByRole(t *testing.T, ok bool, r noderoles.Role, nodes keys.PublicKeys) {
 	w := io.NewBufBinWriter()
 	for _, pub := range nodes {
 		emit.Bytes(w.BinWriter, pub.Bytes())
@@ -63,7 +64,7 @@ func (bc *Blockchain) setNodesByRole(t *testing.T, ok bool, r native.Role, nodes
 	}
 }
 
-func (bc *Blockchain) getNodesByRole(t *testing.T, ok bool, r native.Role, index uint32, resLen int) {
+func (bc *Blockchain) getNodesByRole(t *testing.T, ok bool, r noderoles.Role, index uint32, resLen int) {
 	res, err := invokeContractMethod(bc, 10_000_000, bc.contracts.Designate.Hash, "getDesignatedByRole", int64(r), int64(index))
 	require.NoError(t, err)
 	if ok {
@@ -86,25 +87,25 @@ func TestDesignate_DesignateAsRoleTx(t *testing.T) {
 	pubs := keys.PublicKeys{priv.PublicKey()}
 
 	bc.setNodesByRole(t, false, 0xFF, pubs)
-	bc.setNodesByRole(t, true, native.RoleOracle, pubs)
+	bc.setNodesByRole(t, true, noderoles.Oracle, pubs)
 	index := bc.BlockHeight() + 1
 	bc.getNodesByRole(t, false, 0xFF, 0, 0)
-	bc.getNodesByRole(t, false, native.RoleOracle, 100500, 0)
-	bc.getNodesByRole(t, true, native.RoleOracle, 0, 0)     // returns an empty list
-	bc.getNodesByRole(t, true, native.RoleOracle, index, 1) // returns pubs
+	bc.getNodesByRole(t, false, noderoles.Oracle, 100500, 0)
+	bc.getNodesByRole(t, true, noderoles.Oracle, 0, 0)     // returns an empty list
+	bc.getNodesByRole(t, true, noderoles.Oracle, index, 1) // returns pubs
 
 	priv1, err := keys.NewPrivateKey()
 	require.NoError(t, err)
 	pubs = keys.PublicKeys{priv1.PublicKey()}
-	bc.setNodesByRole(t, true, native.RoleStateValidator, pubs)
-	bc.getNodesByRole(t, true, native.RoleStateValidator, bc.BlockHeight()+1, 1)
+	bc.setNodesByRole(t, true, noderoles.StateValidator, pubs)
+	bc.getNodesByRole(t, true, noderoles.StateValidator, bc.BlockHeight()+1, 1)
 
 	t.Run("neofs", func(t *testing.T) {
 		priv, err := keys.NewPrivateKey()
 		require.NoError(t, err)
 		pubs = keys.PublicKeys{priv.PublicKey()}
-		bc.setNodesByRole(t, true, native.RoleNeoFSAlphabet, pubs)
-		bc.getNodesByRole(t, true, native.RoleNeoFSAlphabet, bc.BlockHeight()+1, 1)
+		bc.setNodesByRole(t, true, noderoles.NeoFSAlphabet, pubs)
+		bc.getNodesByRole(t, true, noderoles.NeoFSAlphabet, bc.BlockHeight()+1, 1)
 	})
 
 }
@@ -123,15 +124,15 @@ func TestDesignate_DesignateAsRole(t *testing.T) {
 	pubs, index, err := des.GetDesignatedByRole(bc.dao, 0xFF, 255)
 	require.True(t, errors.Is(err, native.ErrInvalidRole), "got: %v", err)
 
-	pubs, index, err = des.GetDesignatedByRole(bc.dao, native.RoleOracle, 255)
+	pubs, index, err = des.GetDesignatedByRole(bc.dao, noderoles.Oracle, 255)
 	require.NoError(t, err)
 	require.Equal(t, 0, len(pubs))
 	require.Equal(t, uint32(0), index)
 
-	err = des.DesignateAsRole(ic, native.RoleOracle, keys.PublicKeys{})
+	err = des.DesignateAsRole(ic, noderoles.Oracle, keys.PublicKeys{})
 	require.True(t, errors.Is(err, native.ErrEmptyNodeList), "got: %v", err)
 
-	err = des.DesignateAsRole(ic, native.RoleOracle, make(keys.PublicKeys, 32+1))
+	err = des.DesignateAsRole(ic, noderoles.Oracle, make(keys.PublicKeys, 32+1))
 	require.True(t, errors.Is(err, native.ErrLargeNodeList), "got: %v", err)
 
 	priv, err := keys.NewPrivateKey()
@@ -141,19 +142,19 @@ func TestDesignate_DesignateAsRole(t *testing.T) {
 	err = des.DesignateAsRole(ic, 0xFF, keys.PublicKeys{pub})
 	require.True(t, errors.Is(err, native.ErrInvalidRole), "got: %v", err)
 
-	err = des.DesignateAsRole(ic, native.RoleOracle, keys.PublicKeys{pub})
+	err = des.DesignateAsRole(ic, noderoles.Oracle, keys.PublicKeys{pub})
 	require.True(t, errors.Is(err, native.ErrInvalidWitness), "got: %v", err)
 
 	setSigner(tx, testchain.CommitteeScriptHash())
-	err = des.DesignateAsRole(ic, native.RoleOracle, keys.PublicKeys{pub})
+	err = des.DesignateAsRole(ic, noderoles.Oracle, keys.PublicKeys{pub})
 	require.NoError(t, err)
 
-	pubs, index, err = des.GetDesignatedByRole(ic.DAO, native.RoleOracle, bl.Index+1)
+	pubs, index, err = des.GetDesignatedByRole(ic.DAO, noderoles.Oracle, bl.Index+1)
 	require.NoError(t, err)
 	require.Equal(t, keys.PublicKeys{pub}, pubs)
 	require.Equal(t, bl.Index+1, index)
 
-	pubs, index, err = des.GetDesignatedByRole(ic.DAO, native.RoleStateValidator, 255)
+	pubs, index, err = des.GetDesignatedByRole(ic.DAO, noderoles.StateValidator, 255)
 	require.NoError(t, err)
 	require.Equal(t, 0, len(pubs))
 	require.Equal(t, uint32(0), index)
@@ -162,29 +163,29 @@ func TestDesignate_DesignateAsRole(t *testing.T) {
 	_, err = keys.NewPrivateKey()
 	require.NoError(t, err)
 	pub1 := priv.PublicKey()
-	err = des.DesignateAsRole(ic, native.RoleStateValidator, keys.PublicKeys{pub1})
+	err = des.DesignateAsRole(ic, noderoles.StateValidator, keys.PublicKeys{pub1})
 	require.NoError(t, err)
 
-	pubs, index, err = des.GetDesignatedByRole(ic.DAO, native.RoleOracle, 255)
+	pubs, index, err = des.GetDesignatedByRole(ic.DAO, noderoles.Oracle, 255)
 	require.NoError(t, err)
 	require.Equal(t, keys.PublicKeys{pub}, pubs)
 	require.Equal(t, bl.Index+1, index)
 
-	pubs, index, err = des.GetDesignatedByRole(ic.DAO, native.RoleStateValidator, 255)
+	pubs, index, err = des.GetDesignatedByRole(ic.DAO, noderoles.StateValidator, 255)
 	require.NoError(t, err)
 	require.Equal(t, keys.PublicKeys{pub1}, pubs)
 	require.Equal(t, bl.Index+1, index)
 
 	// Set P2PNotary role.
-	pubs, index, err = des.GetDesignatedByRole(ic.DAO, native.RoleP2PNotary, 255)
+	pubs, index, err = des.GetDesignatedByRole(ic.DAO, noderoles.P2PNotary, 255)
 	require.NoError(t, err)
 	require.Equal(t, 0, len(pubs))
 	require.Equal(t, uint32(0), index)
 
-	err = des.DesignateAsRole(ic, native.RoleP2PNotary, keys.PublicKeys{pub1})
+	err = des.DesignateAsRole(ic, noderoles.P2PNotary, keys.PublicKeys{pub1})
 	require.NoError(t, err)
 
-	pubs, index, err = des.GetDesignatedByRole(ic.DAO, native.RoleP2PNotary, 255)
+	pubs, index, err = des.GetDesignatedByRole(ic.DAO, noderoles.P2PNotary, 255)
 	require.NoError(t, err)
 	require.Equal(t, keys.PublicKeys{pub1}, pubs)
 	require.Equal(t, bl.Index+1, index)
