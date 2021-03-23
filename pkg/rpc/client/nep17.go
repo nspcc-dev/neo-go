@@ -6,7 +6,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/io"
-	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
@@ -30,61 +29,22 @@ type SignerAccount struct {
 
 // NEP17Decimals invokes `decimals` NEP17 method on a specified contract.
 func (c *Client) NEP17Decimals(tokenHash util.Uint160) (int64, error) {
-	result, err := c.InvokeFunction(tokenHash, "decimals", []smartcontract.Parameter{}, nil)
-	if err != nil {
-		return 0, err
-	}
-	err = getInvocationError(result)
-	if err != nil {
-		return 0, fmt.Errorf("failed to get NEP17 decimals: %w", err)
-	}
-
-	return topIntFromStack(result.Stack)
+	return c.nepDecimals(tokenHash)
 }
 
 // NEP17Symbol invokes `symbol` NEP17 method on a specified contract.
 func (c *Client) NEP17Symbol(tokenHash util.Uint160) (string, error) {
-	result, err := c.InvokeFunction(tokenHash, "symbol", []smartcontract.Parameter{}, nil)
-	if err != nil {
-		return "", err
-	}
-	err = getInvocationError(result)
-	if err != nil {
-		return "", fmt.Errorf("failed to get NEP17 symbol: %w", err)
-	}
-
-	return topStringFromStack(result.Stack)
+	return c.nepSymbol(tokenHash)
 }
 
 // NEP17TotalSupply invokes `totalSupply` NEP17 method on a specified contract.
 func (c *Client) NEP17TotalSupply(tokenHash util.Uint160) (int64, error) {
-	result, err := c.InvokeFunction(tokenHash, "totalSupply", []smartcontract.Parameter{}, nil)
-	if err != nil {
-		return 0, err
-	}
-	err = getInvocationError(result)
-	if err != nil {
-		return 0, fmt.Errorf("failed to get NEP17 total supply: %w", err)
-	}
-
-	return topIntFromStack(result.Stack)
+	return c.nepTotalSupply(tokenHash)
 }
 
 // NEP17BalanceOf invokes `balanceOf` NEP17 method on a specified contract.
 func (c *Client) NEP17BalanceOf(tokenHash, acc util.Uint160) (int64, error) {
-	result, err := c.InvokeFunction(tokenHash, "balanceOf", []smartcontract.Parameter{{
-		Type:  smartcontract.Hash160Type,
-		Value: acc,
-	}}, nil)
-	if err != nil {
-		return 0, err
-	}
-	err = getInvocationError(result)
-	if err != nil {
-		return 0, fmt.Errorf("failed to get NEP17 balance: %w", err)
-	}
-
-	return topIntFromStack(result.Stack)
+	return c.nepBalanceOf(tokenHash, acc, nil)
 }
 
 // NEP17TokenInfo returns full NEP17 token info.

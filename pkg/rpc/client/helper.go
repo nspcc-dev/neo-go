@@ -7,6 +7,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result"
+	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
@@ -74,4 +75,23 @@ func topStringFromStack(st []stackitem.Item) (string, error) {
 		return "", err
 	}
 	return string(bs), nil
+}
+
+// topUint160FromStack returns the top util.Uint160 from stack.
+func topUint160FromStack(st []stackitem.Item) (util.Uint160, error) {
+	index := len(st) - 1 // top stack element is last in the array
+	bs, err := st[index].TryBytes()
+	if err != nil {
+		return util.Uint160{}, err
+	}
+	return util.Uint160DecodeBytesBE(bs)
+}
+
+// topMapFromStack returns the top stackitem.Map from stack.
+func topMapFromStack(st []stackitem.Item) (*stackitem.Map, error) {
+	index := len(st) - 1 // top stack element is last in the array
+	if t := st[index].Type(); t != stackitem.MapT {
+		return nil, fmt.Errorf("invalid return stackitem type: %s", t.String())
+	}
+	return st[index].(*stackitem.Map), nil
 }
