@@ -3,14 +3,12 @@ package client
 // Various non-policy things from native contracts.
 
 import (
-	"crypto/elliptic"
 	"fmt"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/noderoles"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
-	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
 // GetOraclePrice invokes `getPrice` method on a native Oracle contract.
@@ -64,29 +62,4 @@ func (c *Client) GetDesignatedByRole(role noderoles.Role, index uint32) (keys.Pu
 		return nil, fmt.Errorf("`getDesignatedByRole`: %w", err)
 	}
 	return topPublicKeysFromStack(result.Stack)
-}
-
-// topPublicKeysFromStack returns the top array of public keys from stack.
-func topPublicKeysFromStack(st []stackitem.Item) (keys.PublicKeys, error) {
-	index := len(st) - 1 // top stack element is last in the array
-	var (
-		pks keys.PublicKeys
-		err error
-	)
-	items, ok := st[index].Value().([]stackitem.Item)
-	if !ok {
-		return nil, fmt.Errorf("invalid stack item type: %s", st[index].Type())
-	}
-	pks = make(keys.PublicKeys, len(items))
-	for i, item := range items {
-		val, ok := item.Value().([]byte)
-		if !ok {
-			return nil, fmt.Errorf("invalid array element #%d: %s", i, item.Type())
-		}
-		pks[i], err = keys.NewPublicKeyFromBytes(val, elliptic.P256())
-		if err != nil {
-			return nil, err
-		}
-	}
-	return pks, nil
 }

@@ -1,19 +1,16 @@
 package client
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/io"
-	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
-	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 )
 
@@ -220,33 +217,4 @@ func (c *Client) MultiTransferNEP17(acc *wallet.Account, gas int64, recipients [
 	}
 
 	return c.SendRawTransaction(tx)
-}
-
-func topIntFromStack(st []stackitem.Item) (int64, error) {
-	index := len(st) - 1 // top stack element is last in the array
-	bi, err := st[index].TryInteger()
-	if err != nil {
-		return 0, err
-	}
-	return bi.Int64(), nil
-}
-
-func topStringFromStack(st []stackitem.Item) (string, error) {
-	index := len(st) - 1 // top stack element is last in the array
-	bs, err := st[index].TryBytes()
-	if err != nil {
-		return "", err
-	}
-	return string(bs), nil
-}
-
-// getInvocationError returns an error in case of bad VM state or empty stack.
-func getInvocationError(result *result.Invoke) error {
-	if result.State != "HALT" {
-		return fmt.Errorf("invocation failed: %s", result.FaultException)
-	}
-	if len(result.Stack) == 0 {
-		return errors.New("result stack is empty")
-	}
-	return nil
 }

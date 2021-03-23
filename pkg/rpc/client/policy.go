@@ -6,7 +6,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
 // GetFeePerByte invokes `getFeePerByte` method on a native Policy contract.
@@ -79,14 +78,4 @@ func (c *Client) IsBlocked(hash util.Uint160) (bool, error) {
 		return false, fmt.Errorf("failed to check if account is blocked: %w", err)
 	}
 	return topBoolFromStack(result.Stack)
-}
-
-// topBoolFromStack returns the top boolean value from stack
-func topBoolFromStack(st []stackitem.Item) (bool, error) {
-	index := len(st) - 1 // top stack element is last in the array
-	result, ok := st[index].Value().(bool)
-	if !ok {
-		return false, fmt.Errorf("invalid stack item type: %s", st[index].Type())
-	}
-	return result, nil
 }
