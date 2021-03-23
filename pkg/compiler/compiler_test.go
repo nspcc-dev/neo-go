@@ -45,6 +45,11 @@ func TestCompiler(t *testing.T) {
 				infos, err := ioutil.ReadDir(examplePath)
 				require.NoError(t, err)
 				for _, info := range infos {
+					if !info.IsDir() {
+						// example smart contracts are located in the `examplePath` subdirectories, but
+						// there are also a couple of files inside the `examplePath` which doesn't need to be compiled
+						continue
+					}
 					infos, err := ioutil.ReadDir(path.Join(examplePath, info.Name()))
 					require.NoError(t, err)
 					require.False(t, len(infos) == 0, "detected smart contract folder with no contract in it")

@@ -475,6 +475,11 @@ func TestCompileExamples(t *testing.T) {
 	e := newExecutor(t, false)
 
 	for _, info := range infos {
+		if !info.IsDir() {
+			// example smart contracts are located in the `/examples` subdirectories, but
+			// there are also a couple of files inside the `/examples` which doesn't need to be compiled
+			continue
+		}
 		t.Run(info.Name(), func(t *testing.T) {
 			infos, err := ioutil.ReadDir(path.Join(examplePath, info.Name()))
 			require.NoError(t, err)

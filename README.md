@@ -24,6 +24,7 @@ A complete toolkit for the NEO blockchain, including:
 - [CLI tool](docs/cli.md)
 - [Smart contract compiler](docs/compiler.md)
 - [NEO virtual machine](docs/vm.md)
+- [Smart contract examples](examples/README.md)
 
 This branch (**master**) is under active development now (read: won't work
 out of the box) and aims to be compatible with Neo 3. For the current stable
@@ -115,6 +116,9 @@ simple contracts that can be compiled/deployed/run using neo-go compiler, SDK
 and private network. For details on how Go code is translated to Neo VM
 bytecode and what you can and can not do in smart contract please refer to the
 [compiler documentation](docs/compiler.md).
+
+Refer to [examples](examples/README.md) for more NEO smart contract examples 
+written in Go.
 
 ## Wallets
 
