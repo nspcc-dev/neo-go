@@ -143,13 +143,9 @@ func (c *Client) CreateNEP17MultiTransferTx(acc *wallet.Account, gas int64, reci
 	if w.Err != nil {
 		return nil, fmt.Errorf("failed to create transfer script: %w", w.Err)
 	}
-	accAddr, err := address.StringToUint160(acc.Address)
-	if err != nil {
-		return nil, fmt.Errorf("bad account address: %v", err)
-	}
 	return c.CreateTxFromScript(w.Bytes(), acc, -1, gas, []SignerAccount{{
 		Signer: transaction.Signer{
-			Account: accAddr,
+			Account: from,
 			Scopes:  transaction.CalledByEntry,
 		},
 		Account: acc,
