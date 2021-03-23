@@ -10,7 +10,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/internal/testserdes"
 	"github.com/nspcc-dev/neo-go/pkg/config"
-	"github.com/nspcc-dev/neo-go/pkg/core/native"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/noderoles"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
@@ -73,7 +73,7 @@ func TestStateRoot(t *testing.T) {
 	bc := newTestChain(t)
 
 	h, pubs, accs := newMajorityMultisigWithGAS(t, 2)
-	bc.setNodesByRole(t, true, native.RoleStateValidator, pubs)
+	bc.setNodesByRole(t, true, noderoles.StateValidator, pubs)
 	updateIndex := bc.BlockHeight()
 	transferTokenFromMultisigAccount(t, bc, h, bc.contracts.GAS.Hash, 1_0000_0000)
 
@@ -142,7 +142,7 @@ func TestStateRootInitNonZeroHeight(t *testing.T) {
 	var root util.Uint256
 	t.Run("init", func(t *testing.T) { // this is in a separate test to do proper cleanup
 		bc := newTestChainWithCustomCfgAndStore(t, st, nil)
-		bc.setNodesByRole(t, true, native.RoleStateValidator, pubs)
+		bc.setNodesByRole(t, true, noderoles.StateValidator, pubs)
 		transferTokenFromMultisigAccount(t, bc, h, bc.contracts.GAS.Hash, 1_0000_0000)
 
 		_, err := persistBlock(bc)
@@ -210,7 +210,7 @@ func TestStateRootFull(t *testing.T) {
 		lastValidated.Store(ep)
 	})
 
-	bc.setNodesByRole(t, true, native.RoleStateValidator, pubs)
+	bc.setNodesByRole(t, true, noderoles.StateValidator, pubs)
 	transferTokenFromMultisigAccount(t, bc, h, bc.contracts.GAS.Hash, 1_0000_0000)
 	require.Eventually(t, func() bool { return lastHeight.Load() == 2 }, time.Second, time.Millisecond)
 	checkVoteBroadcasted(t, bc, lastValidated.Load().(*payload.Extensible), 2, 1)
@@ -247,7 +247,7 @@ func checkVoteBroadcasted(t *testing.T, bc *Blockchain, p *payload.Extensible,
 	require.Equal(t, height, vote.Height)
 	require.Equal(t, int32(valIndex), vote.ValidatorIndex)
 
-	pubs, _, err := bc.contracts.Designate.GetDesignatedByRole(bc.dao, native.RoleStateValidator, bc.BlockHeight())
+	pubs, _, err := bc.contracts.Designate.GetDesignatedByRole(bc.dao, noderoles.StateValidator, bc.BlockHeight())
 	require.True(t, len(pubs) > int(valIndex))
 	require.True(t, pubs[valIndex].Verify(vote.Signature, r.GetSignedHash().BytesBE()))
 }

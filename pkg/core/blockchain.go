@@ -20,6 +20,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/contract"
 	"github.com/nspcc-dev/neo-go/pkg/core/mempool"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/noderoles"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/stateroot"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
@@ -791,11 +792,11 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 
 func (bc *Blockchain) updateExtensibleWhitelist(height uint32) error {
 	updateCommittee := native.ShouldUpdateCommittee(height, bc)
-	oracles, oh, err := bc.contracts.Designate.GetDesignatedByRole(bc.dao, native.RoleOracle, height)
+	oracles, oh, err := bc.contracts.Designate.GetDesignatedByRole(bc.dao, noderoles.Oracle, height)
 	if err != nil {
 		return err
 	}
-	stateVals, sh, err := bc.contracts.Designate.GetDesignatedByRole(bc.dao, native.RoleStateValidator, height)
+	stateVals, sh, err := bc.contracts.Designate.GetDesignatedByRole(bc.dao, noderoles.StateValidator, height)
 	if err != nil {
 		return err
 	}
@@ -814,7 +815,7 @@ func (bc *Blockchain) updateExtensibleWhitelist(height uint32) error {
 	bc.updateExtensibleList(&newList, bc.contracts.NEO.GetNextBlockValidatorsInternal())
 
 	if len(oracles) > 0 {
-		h, err := bc.contracts.Designate.GetLastDesignatedHash(bc.dao, native.RoleOracle)
+		h, err := bc.contracts.Designate.GetLastDesignatedHash(bc.dao, noderoles.Oracle)
 		if err != nil {
 			return err
 		}
@@ -823,7 +824,7 @@ func (bc *Blockchain) updateExtensibleWhitelist(height uint32) error {
 	}
 
 	if len(stateVals) > 0 {
-		h, err := bc.contracts.Designate.GetLastDesignatedHash(bc.dao, native.RoleStateValidator)
+		h, err := bc.contracts.Designate.GetLastDesignatedHash(bc.dao, noderoles.StateValidator)
 		if err != nil {
 			return err
 		}

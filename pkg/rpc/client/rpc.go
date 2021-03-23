@@ -8,8 +8,8 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/fee"
-	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nativeprices"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
@@ -693,7 +693,7 @@ func (c *Client) CalculateNotaryFee(nKeys uint8) (int64, error) {
 			fee.Opcode(baseExecFee, // Notary node witness
 				opcode.PUSHDATA1, opcode.RET, // invocation script
 				opcode.PUSH0, opcode.SYSCALL, opcode.RET) + // System.Contract.CallNative
-			native.NotaryVerificationPrice*baseExecFee + // Notary witness verification price
+			nativeprices.NotaryVerificationPrice*baseExecFee + // Notary witness verification price
 			feePerByte*int64(io.GetVarSize(make([]byte, 66))) + // invocation script per-byte fee
 			feePerByte*int64(io.GetVarSize([]byte{})), // verification script per-byte fee
 		nil

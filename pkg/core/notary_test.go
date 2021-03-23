@@ -16,7 +16,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
 	"github.com/nspcc-dev/neo-go/pkg/core/mempool"
-	"github.com/nspcc-dev/neo-go/pkg/core/native"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/noderoles"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
@@ -104,7 +104,7 @@ func TestNotary(t *testing.T) {
 	})
 
 	notaryNodes := keys.PublicKeys{acc1.PrivateKey().PublicKey(), acc2.PrivateKey().PublicKey()}
-	bc.setNodesByRole(t, true, native.RoleP2PNotary, notaryNodes)
+	bc.setNodesByRole(t, true, noderoles.P2PNotary, notaryNodes)
 
 	createFallbackTx := func(requester *wallet.Account, mainTx *transaction.Transaction, nvbIncrement ...uint32) *transaction.Transaction {
 		fallback := transaction.New(testchain.Network(), []byte{byte(opcode.RET)}, 2000_0000)

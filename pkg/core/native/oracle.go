@@ -15,6 +15,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/contract"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/noderoles"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
@@ -410,12 +411,12 @@ func (o *Oracle) PutRequestInternal(id uint64, req *state.OracleRequest, d dao.D
 
 // GetScriptHash returns script hash or oracle nodes.
 func (o *Oracle) GetScriptHash(d dao.DAO) (util.Uint160, error) {
-	return o.Desig.GetLastDesignatedHash(d, RoleOracle)
+	return o.Desig.GetLastDesignatedHash(d, noderoles.Oracle)
 }
 
 // GetOracleNodes returns public keys of oracle nodes.
 func (o *Oracle) GetOracleNodes(d dao.DAO) (keys.PublicKeys, error) {
-	nodes, _, err := o.Desig.GetDesignatedByRole(d, RoleOracle, math.MaxUint32)
+	nodes, _, err := o.Desig.GetDesignatedByRole(d, noderoles.Oracle, math.MaxUint32)
 	return nodes, err
 }
 
