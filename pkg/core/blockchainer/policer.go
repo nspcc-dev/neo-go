@@ -5,4 +5,5 @@ type Policer interface {
 	GetBaseExecFee() int64
 	GetMaxVerificationGAS() int64
 	GetStoragePrice() int64
+	FeePerByte() int64
 }

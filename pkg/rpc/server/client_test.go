@@ -66,7 +66,7 @@ func TestClient_NEP17(t *testing.T) {
 	})
 }
 
-func TestAddNetworkFee(t *testing.T) {
+func TestAddNetworkFeeCalculateNetworkFee(t *testing.T) {
 	chain, rpcSrv, httpSrv := initServerWithInMemoryChain(t)
 	defer chain.Close()
 	defer rpcSrv.Shutdown()
@@ -110,6 +110,13 @@ func TestAddNetworkFee(t *testing.T) {
 			tx.Nonce = nonce
 			nonce++
 
+			tx.Scripts = []transaction.Witness{
+				{VerificationScript: acc0.GetVerificationScript()},
+			}
+			actualCalculatedNetFee, err := c.CalculateNetworkFee(tx)
+			require.NoError(t, err)
+
+			tx.Scripts = nil
 			require.NoError(t, c.AddNetworkFee(tx, extraFee, acc0))
 			actual := tx.NetworkFee
 
@@ -118,7 +125,8 @@ func TestAddNetworkFee(t *testing.T) {
 			expected := int64(io.GetVarSize(tx))*feePerByte + cFee + extraFee
 
 			require.Equal(t, expected, actual)
-			err := chain.VerifyTx(tx)
+			require.Equal(t, expected, actualCalculatedNetFee+extraFee)
+			err = chain.VerifyTx(tx)
 			if extraFee < 0 {
 				require.Error(t, err)
 			} else {
@@ -165,6 +173,15 @@ func TestAddNetworkFee(t *testing.T) {
 			tx.Nonce = nonce
 			nonce++
 
+			tx.Scripts = []transaction.Witness{
+				{VerificationScript: acc0.GetVerificationScript()},
+				{VerificationScript: acc1.GetVerificationScript()},
+			}
+			actualCalculatedNetFee, err := c.CalculateNetworkFee(tx)
+			require.NoError(t, err)
+
+			tx.Scripts = nil
+
 			require.NoError(t, c.AddNetworkFee(tx, extraFee, acc0, acc1))
 			actual := tx.NetworkFee
 
@@ -178,7 +195,8 @@ func TestAddNetworkFee(t *testing.T) {
 			expected := int64(io.GetVarSize(tx))*feePerByte + cFee + cFeeM + extraFee
 
 			require.Equal(t, expected, actual)
-			err := chain.VerifyTx(tx)
+			require.Equal(t, expected, actualCalculatedNetFee+extraFee)
+			err = chain.VerifyTx(tx)
 			if extraFee < 0 {
 				require.Error(t, err)
 			} else {
@@ -228,9 +246,19 @@ func TestAddNetworkFee(t *testing.T) {
 						Scopes:  transaction.Global,
 					},
 				}
+				// we need to fill standard verification scripts to use CalculateNetworkFee.
+				tx.Scripts = []transaction.Witness{
+					{VerificationScript: acc0.GetVerificationScript()},
+					{},
+				}
+				actual, err := c.CalculateNetworkFee(tx)
+				require.NoError(t, err)
+				tx.Scripts = nil
+
 				require.NoError(t, c.AddNetworkFee(tx, extraFee, acc0, acc1))
 				require.NoError(t, acc0.SignTx(testchain.Network(), tx))
 				tx.Scripts = append(tx.Scripts, transaction.Witness{})
+				require.Equal(t, tx.NetworkFee, actual+extraFee)
 				err = chain.VerifyTx(tx)
 				if extraFee < 0 {
 					require.Error(t, err)
