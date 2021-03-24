@@ -9,6 +9,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nnsrecords"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/noderoles"
 	"github.com/nspcc-dev/neo-go/pkg/interop/native/crypto"
 	"github.com/nspcc-dev/neo-go/pkg/interop/native/gas"
@@ -77,10 +78,10 @@ func TestRoleManagementRole(t *testing.T) {
 }
 
 func TestNameServiceRecordType(t *testing.T) {
-	require.EqualValues(t, native.RecordTypeA, nameservice.TypeA)
-	require.EqualValues(t, native.RecordTypeCNAME, nameservice.TypeCNAME)
-	require.EqualValues(t, native.RecordTypeTXT, nameservice.TypeTXT)
-	require.EqualValues(t, native.RecordTypeAAAA, nameservice.TypeAAAA)
+	require.EqualValues(t, nnsrecords.A, nameservice.TypeA)
+	require.EqualValues(t, nnsrecords.CNAME, nameservice.TypeCNAME)
+	require.EqualValues(t, nnsrecords.TXT, nameservice.TypeTXT)
+	require.EqualValues(t, nnsrecords.AAAA, nameservice.TypeAAAA)
 }
 
 func TestCryptoLibNamedCurve(t *testing.T) {
