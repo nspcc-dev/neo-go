@@ -60,7 +60,7 @@ type rpcTestCase struct {
 }
 
 const testContractHash = "c6ca2347bb84b99807221365c900ec069a265e7c"
-const deploymentTxHash = "fdd4f9252cde778010d14e9710efeeb80796fd38d778e9943c1d5bb2dc656c99"
+const deploymentTxHash = "26692315f71f4790263160c0f570828be77c6927493ae6657a6e5a6a09229eb9"
 const genesisBlockHash = "5b60644c6c6f58faca72c70689d7ed1f40c2e795772bd0de5a88e983ad55080c"
 
 const verifyContractHash = "5bb4bac40e961e334ba7bd36d2496010f67e246e"
@@ -654,7 +654,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 				require.True(t, ok)
 				expected := result.UnclaimedGas{
 					Address:   testchain.MultisigScriptHash(),
-					Unclaimed: *big.NewInt(5000),
+					Unclaimed: *big.NewInt(7000),
 				}
 				assert.Equal(t, expected, *actual)
 			},
@@ -1415,7 +1415,7 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 		require.NoErrorf(t, err, "could not parse response: %s", txOut)
 
 		assert.Equal(t, *block.Transactions[0], actual.Transaction)
-		assert.Equal(t, 11, actual.Confirmations)
+		assert.Equal(t, 15, actual.Confirmations)
 		assert.Equal(t, TXHash, actual.Transaction.Hash())
 	})
 
@@ -1533,12 +1533,12 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 			require.NoError(t, json.Unmarshal(res, actual))
 			checkNep17TransfersAux(t, e, actual, sent, rcvd)
 		}
-		t.Run("time frame only", func(t *testing.T) { testNEP17T(t, 4, 5, 0, 0, []int{6, 7, 8, 9}, []int{1, 2}) })
+		t.Run("time frame only", func(t *testing.T) { testNEP17T(t, 4, 5, 0, 0, []int{8, 9, 10, 11}, []int{2, 3}) })
 		t.Run("no res", func(t *testing.T) { testNEP17T(t, 100, 100, 0, 0, []int{}, []int{}) })
-		t.Run("limit", func(t *testing.T) { testNEP17T(t, 1, 7, 3, 0, []int{3, 4}, []int{0}) })
-		t.Run("limit 2", func(t *testing.T) { testNEP17T(t, 4, 5, 2, 0, []int{6}, []int{1}) })
-		t.Run("limit with page", func(t *testing.T) { testNEP17T(t, 1, 7, 3, 1, []int{5, 6}, []int{1}) })
-		t.Run("limit with page 2", func(t *testing.T) { testNEP17T(t, 1, 7, 3, 2, []int{7, 8}, []int{2}) })
+		t.Run("limit", func(t *testing.T) { testNEP17T(t, 1, 7, 3, 0, []int{5, 6}, []int{1}) })
+		t.Run("limit 2", func(t *testing.T) { testNEP17T(t, 4, 5, 2, 0, []int{8}, []int{2}) })
+		t.Run("limit with page", func(t *testing.T) { testNEP17T(t, 1, 7, 3, 1, []int{7, 8}, []int{2}) })
+		t.Run("limit with page 2", func(t *testing.T) { testNEP17T(t, 1, 7, 3, 2, []int{9, 10}, []int{3}) })
 	})
 }
 
@@ -1639,8 +1639,8 @@ func checkNep17Balances(t *testing.T, e *executor, acc interface{}) {
 			},
 			{
 				Asset:       e.chain.UtilityTokenHash(),
-				Amount:      "68992456820",
-				LastUpdated: 10,
+				Amount:      "67960042780",
+				LastUpdated: 14,
 			}},
 		Address: testchain.PrivateKeyByID(0).GetScriptHash().StringLE(),
 	}
@@ -1649,13 +1649,26 @@ func checkNep17Balances(t *testing.T, e *executor, acc interface{}) {
 }
 
 func checkNep17Transfers(t *testing.T, e *executor, acc interface{}) {
-	checkNep17TransfersAux(t, e, acc, []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11}, []int{0, 1, 2, 3, 4, 5, 6})
+	checkNep17TransfersAux(t, e, acc, []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13}, []int{0, 1, 2, 3, 4, 5, 6, 7})
 }
 
 func checkNep17TransfersAux(t *testing.T, e *executor, acc interface{}, sent, rcvd []int) {
 	res, ok := acc.(*result.NEP17Transfers)
 	require.True(t, ok)
 	rublesHash, err := util.Uint160DecodeStringLE(testContractHash)
+	require.NoError(t, err)
+
+	blockSetRecord, err := e.chain.GetBlock(e.chain.GetHeaderHash(14)) // add type A record to `neo.com` domain via NNS
+	require.NoError(t, err)
+	require.Equal(t, 1, len(blockSetRecord.Transactions))
+	txSetRecord := blockSetRecord.Transactions[0]
+
+	blockRegisterDomain, err := e.chain.GetBlock(e.chain.GetHeaderHash(13)) // register `neo.com` domain via NNS
+	require.NoError(t, err)
+	require.Equal(t, 1, len(blockRegisterDomain.Transactions))
+	txRegisterDomain := blockRegisterDomain.Transactions[0]
+
+	blockGASBounty2, err := e.chain.GetBlock(e.chain.GetHeaderHash(12)) // size of committee = 6
 	require.NoError(t, err)
 
 	blockDeploy3, err := e.chain.GetBlock(e.chain.GetHeaderHash(10)) // deploy verification_with_args_contract.go
@@ -1677,7 +1690,7 @@ func checkNep17TransfersAux(t *testing.T, e *executor, acc interface{}, sent, rc
 	require.NoError(t, err)
 	require.Equal(t, 1, len(blockSendRubles.Transactions))
 	txSendRubles := blockSendRubles.Transactions[0]
-	blockGASBounty := blockSendRubles // index 6 = size of committee
+	blockGASBounty1 := blockSendRubles // index 6 = size of committee
 
 	blockReceiveRubles, err := e.chain.GetBlock(e.chain.GetHeaderHash(5))
 	require.NoError(t, err)
@@ -1716,6 +1729,22 @@ func checkNep17TransfersAux(t *testing.T, e *executor, acc interface{}, sent, rc
 	// duplicate the Server method.
 	expected := result.NEP17Transfers{
 		Sent: []result.NEP17Transfer{
+			{
+				Timestamp: blockSetRecord.Timestamp,
+				Asset:     e.chain.UtilityTokenHash(),
+				Address:   "", // burn
+				Amount:    big.NewInt(txSetRecord.SystemFee + txSetRecord.NetworkFee).String(),
+				Index:     14,
+				TxHash:    blockSetRecord.Hash(),
+			},
+			{
+				Timestamp: blockRegisterDomain.Timestamp,
+				Asset:     e.chain.UtilityTokenHash(),
+				Address:   "", // burn
+				Amount:    big.NewInt(txRegisterDomain.SystemFee + txRegisterDomain.NetworkFee).String(),
+				Index:     13,
+				TxHash:    blockRegisterDomain.Hash(),
+			},
 			{
 				Timestamp: blockDeploy3.Timestamp,
 				Asset:     e.chain.UtilityTokenHash(),
@@ -1818,13 +1847,22 @@ func checkNep17TransfersAux(t *testing.T, e *executor, acc interface{}, sent, rc
 		},
 		Received: []result.NEP17Transfer{
 			{
-				Timestamp:   blockGASBounty.Timestamp,
+				Timestamp:   blockGASBounty2.Timestamp,
+				Asset:       e.chain.UtilityTokenHash(),
+				Address:     "",
+				Amount:      "50000000",
+				Index:       12,
+				NotifyIndex: 0,
+				TxHash:      blockGASBounty2.Hash(),
+			},
+			{
+				Timestamp:   blockGASBounty1.Timestamp,
 				Asset:       e.chain.UtilityTokenHash(),
 				Address:     "",
 				Amount:      "50000000",
 				Index:       6,
 				NotifyIndex: 0,
-				TxHash:      blockGASBounty.Hash(),
+				TxHash:      blockGASBounty1.Hash(),
 			},
 			{
 				Timestamp:   blockReceiveRubles.Timestamp,

@@ -23,6 +23,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/chaindump"
 	"github.com/nspcc-dev/neo-go/pkg/core/fee"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nnsrecords"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/noderoles"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
@@ -483,6 +484,21 @@ func initBasicChain(t *testing.T, bc *Blockchain) {
 	b = bc.newBlock(txDeploy3)
 	require.NoError(t, bc.AddBlock(b))
 	checkTxHalt(t, bc, txDeploy3.Hash())
+
+	// register `neo.com` with A record type and priv0 owner via NNS
+	transferFundsToCommittee(t, bc) // block #11
+	res, err := invokeContractMethodGeneric(bc, defaultNameServiceSysfee,
+		bc.contracts.NameService.Hash, "addRoot", true, "com") // block #12
+	require.NoError(t, err)
+	checkResult(t, res, stackitem.Null{})
+	res, err = invokeContractMethodGeneric(bc, native.DefaultDomainPrice+defaultNameServiceSysfee,
+		bc.contracts.NameService.Hash, "register", acc0, "neo.com", priv0ScriptHash) // block #13
+	require.NoError(t, err)
+	checkResult(t, res, stackitem.NewBool(true))
+	res, err = invokeContractMethodGeneric(bc, defaultNameServiceSysfee, bc.contracts.NameService.Hash,
+		"setRecord", acc0, "neo.com", int64(nnsrecords.A), "1.2.3.4") // block #14
+	require.NoError(t, err)
+	checkResult(t, res, stackitem.Null{})
 
 	// Compile contract to test `invokescript` RPC call
 	_, _ = newDeployTx(t, bc, priv0ScriptHash, prefix+"invokescript_contract.go", "ContractForInvokescriptTest", nil)
