@@ -129,9 +129,6 @@ func (c *Client) CreateTxFromScript(script []byte, acc *wallet.Account, sysFee, 
 		sysFee = result.GasConsumed
 	}
 
-	if !c.initDone {
-		return nil, errNetworkNotInitialized
-	}
 	tx := transaction.New(script, sysFee)
 	tx.Signers = signers
 
@@ -153,6 +150,10 @@ func (c *Client) CreateTxFromScript(script []byte, acc *wallet.Account, sysFee, 
 // using contract's number of decimals) to given account with data specified and
 // sends it to the network returning just a hash of it.
 func (c *Client) TransferNEP17(acc *wallet.Account, to util.Uint160, token util.Uint160, amount int64, gas int64, data interface{}) (util.Uint256, error) {
+	if !c.initDone {
+		return util.Uint256{}, errNetworkNotInitialized
+	}
+
 	tx, err := c.CreateNEP17TransferTx(acc, to, token, amount, gas, data)
 	if err != nil {
 		return util.Uint256{}, err
@@ -167,6 +168,10 @@ func (c *Client) TransferNEP17(acc *wallet.Account, to util.Uint160, token util.
 
 // MultiTransferNEP17 is similar to TransferNEP17, buf allows to have multiple recipients.
 func (c *Client) MultiTransferNEP17(acc *wallet.Account, gas int64, recipients []TransferTarget, data []interface{}) (util.Uint256, error) {
+	if !c.initDone {
+		return util.Uint256{}, errNetworkNotInitialized
+	}
+
 	tx, err := c.CreateNEP17MultiTransferTx(acc, gas, recipients, data)
 	if err != nil {
 		return util.Uint256{}, err
