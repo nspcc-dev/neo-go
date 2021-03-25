@@ -1368,7 +1368,7 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 			body := doRPCCall(rpc, httpSrv.URL, t)
 			rawRes := checkErrGetResult(t, body, false)
 
-			res := new(state.MPTRoot)
+			res := &state.MPTRoot{Network: netmode.UnitTestNet}
 			require.NoError(t, json.Unmarshal(rawRes, res))
 			require.NotEqual(t, util.Uint256{}, res.Root) // be sure this test uses valid height
 

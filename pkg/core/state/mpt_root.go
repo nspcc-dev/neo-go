@@ -1,6 +1,9 @@
 package state
 
 import (
+	"encoding/binary"
+
+	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/io"
@@ -9,6 +12,7 @@ import (
 
 // MPTRoot represents storage state root together with sign info.
 type MPTRoot struct {
+	Network netmode.Magic        `json:"-"`
 	Version byte                 `json:"version"`
 	Index   uint32               `json:"index"`
 	Root    util.Uint256         `json:"stateroot"`
@@ -17,9 +21,11 @@ type MPTRoot struct {
 
 // GetSignedPart returns part of MPTRootBase which needs to be signed.
 func (s *MPTRoot) GetSignedPart() []byte {
-	buf := io.NewBufBinWriter()
-	s.EncodeBinaryUnsigned(buf.BinWriter)
-	return buf.Bytes()
+	b := make([]byte, 4+32)
+	binary.LittleEndian.PutUint32(b, uint32(s.Network))
+	h := s.Hash()
+	copy(b[4:], h[:])
+	return b
 }
 
 // GetSignedHash returns hash of MPTRootBase which needs to be signed.
@@ -29,7 +35,9 @@ func (s *MPTRoot) GetSignedHash() util.Uint256 {
 
 // Hash returns hash of s.
 func (s *MPTRoot) Hash() util.Uint256 {
-	return hash.DoubleSha256(s.GetSignedPart())
+	buf := io.NewBufBinWriter()
+	s.EncodeBinaryUnsigned(buf.BinWriter)
+	return hash.Sha256(buf.Bytes())
 }
 
 // DecodeBinaryUnsigned decodes hashable part of state root.

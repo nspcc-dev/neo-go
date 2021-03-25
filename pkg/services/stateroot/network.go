@@ -72,7 +72,7 @@ func (s *service) getIncompleteRoot(height uint32) *incompleteRoot {
 
 func (s *service) sendValidatedRoot(r *state.MPTRoot) {
 	w := io.NewBufBinWriter()
-	m := NewMessage(RootT, r)
+	m := NewMessage(s.Network, RootT, r)
 	m.EncodeBinary(w.BinWriter)
 	ep := &payload.Extensible{
 		Network:         s.Network,

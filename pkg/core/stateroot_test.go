@@ -10,6 +10,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/internal/testserdes"
 	"github.com/nspcc-dev/neo-go/pkg/config"
+	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/noderoles"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
@@ -43,7 +44,7 @@ func testSignStateRoot(t *testing.T, r *state.MPTRoot, pubs keys.PublicKeys, acc
 		VerificationScript: script,
 		InvocationScript:   w.Bytes(),
 	}
-	data, err := testserdes.EncodeBinary(stateroot.NewMessage(stateroot.RootT, r))
+	data, err := testserdes.EncodeBinary(stateroot.NewMessage(netmode.UnitTestNet, stateroot.RootT, r))
 	require.NoError(t, err)
 	return data
 }
@@ -96,7 +97,7 @@ func TestStateRoot(t *testing.T) {
 	t.Run("drop zero index", func(t *testing.T) {
 		r, err := srv.GetStateRoot(0)
 		require.NoError(t, err)
-		data, err := testserdes.EncodeBinary(stateroot.NewMessage(stateroot.RootT, r))
+		data, err := testserdes.EncodeBinary(stateroot.NewMessage(netmode.UnitTestNet, stateroot.RootT, r))
 		require.NoError(t, err)
 		require.NoError(t, srv.OnPayload(&payload.Extensible{Data: data}))
 		require.EqualValues(t, 0, srv.CurrentValidatedHeight())

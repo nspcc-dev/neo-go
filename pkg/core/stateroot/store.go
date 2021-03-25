@@ -46,7 +46,7 @@ func (s *Module) getStateRoot(key []byte) (*state.MPTRoot, error) {
 		return nil, err
 	}
 
-	sr := new(state.MPTRoot)
+	sr := &state.MPTRoot{Network: s.network}
 	r := io.NewBinReaderFromBuf(data)
 	sr.DecodeBinary(r)
 	return sr, r.Err

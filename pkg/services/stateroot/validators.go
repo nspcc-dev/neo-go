@@ -55,7 +55,7 @@ func (s *service) signAndSend(r *state.MPTRoot) error {
 	s.accMtx.RLock()
 	myIndex := s.myIndex
 	s.accMtx.RUnlock()
-	msg := NewMessage(VoteT, &Vote{
+	msg := NewMessage(s.Network, VoteT, &Vote{
 		ValidatorIndex: int32(myIndex),
 		Height:         r.Index,
 		Signature:      sig,

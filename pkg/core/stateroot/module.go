@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
 	"github.com/nspcc-dev/neo-go/pkg/core/mpt"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
@@ -19,10 +20,11 @@ import (
 type (
 	// Module represents module for local processing of state roots.
 	Module struct {
-		Store *storage.MemCachedStore
-		mpt   *mpt.Trie
-		bc    blockchainer.Blockchainer
-		log   *zap.Logger
+		Store   *storage.MemCachedStore
+		network netmode.Magic
+		mpt     *mpt.Trie
+		bc      blockchainer.Blockchainer
+		log     *zap.Logger
 
 		currentLocal    atomic.Value
 		localHeight     atomic.Uint32
@@ -45,9 +47,10 @@ type (
 // NewModule returns new instance of stateroot module.
 func NewModule(bc blockchainer.Blockchainer, log *zap.Logger, s *storage.MemCachedStore) *Module {
 	return &Module{
-		bc:    bc,
-		log:   log,
-		Store: s,
+		network: bc.GetConfig().Magic,
+		bc:      bc,
+		log:     log,
+		Store:   s,
 	}
 }
 
@@ -113,8 +116,9 @@ func (s *Module) AddMPTBatch(index uint32, b mpt.Batch) error {
 	}
 	s.mpt.Flush()
 	err := s.addLocalStateRoot(&state.MPTRoot{
-		Index: index,
-		Root:  s.mpt.StateRoot(),
+		Network: s.network,
+		Index:   index,
+		Root:    s.mpt.StateRoot(),
 	})
 	if err != nil {
 		return err
