@@ -67,6 +67,7 @@ func initCheckMultisigVMNoArgs(container *transaction.Transaction) *vm.VM {
 	binary.LittleEndian.PutUint32(buf[1:], neoCryptoCheckMultisigID)
 
 	ic := &interop.Context{
+		Network:   uint32(netmode.UnitTestNet),
 		Trigger:   trigger.Verification,
 		Container: container,
 	}
@@ -172,7 +173,7 @@ func TestCheckSig(t *testing.T) {
 
 	verifyFunc := ECDSASecp256r1CheckSig
 	d := dao.NewSimple(storage.NewMemoryStore(), netmode.UnitTestNet, false)
-	ic := &interop.Context{DAO: dao.NewCached(d)}
+	ic := &interop.Context{Network: uint32(netmode.UnitTestNet), DAO: dao.NewCached(d)}
 	runCase := func(t *testing.T, isErr bool, result interface{}, args ...interface{}) {
 		ic.SpawnVM()
 		for i := range args {

@@ -25,7 +25,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/stateroot"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
-	"github.com/nspcc-dev/neo-go/pkg/crypto"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
@@ -1742,7 +1741,7 @@ func (bc *Blockchain) InitVerificationVM(v *vm.VM, getContract func(util.Uint160
 }
 
 // VerifyWitness checks that w is a correct witness for c signed by h.
-func (bc *Blockchain) VerifyWitness(h util.Uint160, c crypto.Verifiable, w *transaction.Witness, gas int64) error {
+func (bc *Blockchain) VerifyWitness(h util.Uint160, c hash.Hashable, w *transaction.Witness, gas int64) error {
 	ic := bc.newInteropContext(trigger.Verification, bc.dao, nil, nil)
 	ic.Container = c
 	_, err := bc.verifyHashAgainstScript(h, w, ic, gas)

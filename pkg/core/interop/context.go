@@ -12,7 +12,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
-	"github.com/nspcc-dev/neo-go/pkg/crypto"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
@@ -34,7 +34,8 @@ const (
 // Context represents context in which interops are executed.
 type Context struct {
 	Chain         blockchainer.Blockchainer
-	Container     crypto.Verifiable
+	Container     hash.Hashable
+	Network       uint32
 	Natives       []Contract
 	Trigger       trigger.Type
 	Block         *block.Block
@@ -55,6 +56,7 @@ func NewContext(trigger trigger.Type, bc blockchainer.Blockchainer, d dao.DAO,
 	nes := make([]state.NotificationEvent, 0)
 	return &Context{
 		Chain:         bc,
+		Network:       uint32(bc.GetConfig().Magic),
 		Natives:       natives,
 		Trigger:       trigger,
 		Block:         block,

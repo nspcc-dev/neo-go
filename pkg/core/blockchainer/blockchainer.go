@@ -9,7 +9,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/mempool"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
-	"github.com/nspcc-dev/neo-go/pkg/crypto"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -71,7 +71,7 @@ type Blockchainer interface {
 	SubscribeForNotifications(ch chan<- *state.NotificationEvent)
 	SubscribeForTransactions(ch chan<- *transaction.Transaction)
 	VerifyTx(*transaction.Transaction) error
-	VerifyWitness(util.Uint160, crypto.Verifiable, *transaction.Witness, int64) error
+	VerifyWitness(util.Uint160, hash.Hashable, *transaction.Witness, int64) error
 	GetMemPool() *mempool.Pool
 	UnsubscribeFromBlocks(ch chan<- *block.Block)
 	UnsubscribeFromExecutions(ch chan<- *state.AppExecResult)

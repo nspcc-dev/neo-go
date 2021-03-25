@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/internal/fakechain"
 	"github.com/nspcc-dev/neo-go/pkg/compiler"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core"
@@ -186,7 +187,8 @@ func TestAppCall(t *testing.T) {
 		return nil, errors.New("not found")
 	}
 
-	ic := interop.NewContext(trigger.Application, nil, dao.NewSimple(storage.NewMemoryStore(), netmode.UnitTestNet, false), contractGetter, nil, nil, nil, zaptest.NewLogger(t))
+	fc := fakechain.NewFakeChain()
+	ic := interop.NewContext(trigger.Application, fc, dao.NewSimple(storage.NewMemoryStore(), netmode.UnitTestNet, false), contractGetter, nil, nil, nil, zaptest.NewLogger(t))
 
 	t.Run("valid script", func(t *testing.T) {
 		src := getAppCallScript(fmt.Sprintf("%#v", ih.BytesBE()))

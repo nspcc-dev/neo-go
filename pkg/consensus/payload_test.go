@@ -79,7 +79,7 @@ func TestConsensusPayload_Setters(t *testing.T) {
 func TestConsensusPayload_Serializable(t *testing.T) {
 	for _, mt := range messageTypes {
 		p := randomPayload(t, mt)
-		actual := new(Payload)
+		actual := &Payload{Extensible: npayload.Extensible{Network: netmode.UnitTestNet}}
 		data, err := testserdes.EncodeBinary(p)
 		require.NoError(t, err)
 		require.NoError(t, testserdes.DecodeBinary(data, &actual.Extensible))
@@ -158,6 +158,7 @@ func randomPayload(t *testing.T, mt messageType) *Payload {
 			payload:        randomMessage(t, mt),
 		},
 		Extensible: npayload.Extensible{
+			Network: netmode.UnitTestNet,
 			Witness: transaction.Witness{
 				InvocationScript:   random.Bytes(3),
 				VerificationScript: []byte{byte(opcode.PUSH0)},
