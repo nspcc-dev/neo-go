@@ -34,7 +34,7 @@ import (
 
 func TestNewService(t *testing.T) {
 	srv := newTestService(t)
-	tx := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 100000)
+	tx := transaction.New([]byte{byte(opcode.PUSH1)}, 100000)
 	tx.ValidUntilBlock = 1
 	addSender(t, tx)
 	signTx(t, srv.Chain, tx)
@@ -65,11 +65,11 @@ func initServiceNextConsensus(t *testing.T, newAcc *wallet.Account, offset uint3
 	emit.Opcodes(w.BinWriter, opcode.ASSERT)
 	require.NoError(t, w.Err)
 
-	tx := transaction.New(netmode.UnitTestNet, w.Bytes(), 21_000_000)
+	tx := transaction.New(w.Bytes(), 21_000_000)
 	tx.ValidUntilBlock = bc.BlockHeight() + 1
 	tx.NetworkFee = 10_000_000
 	tx.Signers = []transaction.Signer{{Scopes: transaction.Global, Account: acc.Contract.ScriptHash()}}
-	require.NoError(t, acc.SignTx(tx))
+	require.NoError(t, acc.SignTx(netmode.UnitTestNet, tx))
 	require.NoError(t, bc.PoolTx(tx))
 
 	srv := newTestServiceWithChain(t, bc)
@@ -80,11 +80,11 @@ func initServiceNextConsensus(t *testing.T, newAcc *wallet.Account, offset uint3
 	emit.AppCall(w.BinWriter, bc.GoverningTokenHash(), "registerCandidate", callflag.All, newPriv.PublicKey().Bytes())
 	require.NoError(t, w.Err)
 
-	tx = transaction.New(netmode.UnitTestNet, w.Bytes(), 1001_00000000)
+	tx = transaction.New(w.Bytes(), 1001_00000000)
 	tx.ValidUntilBlock = bc.BlockHeight() + 1
 	tx.NetworkFee = 20_000_000
 	tx.Signers = []transaction.Signer{{Scopes: transaction.Global, Account: newPriv.GetScriptHash()}}
-	require.NoError(t, newAcc.SignTx(tx))
+	require.NoError(t, newAcc.SignTx(netmode.UnitTestNet, tx))
 
 	require.NoError(t, bc.PoolTx(tx))
 	srv.dbft.OnTimeout(timer.HV{Height: srv.dbft.Context.BlockIndex})
@@ -100,11 +100,11 @@ func initServiceNextConsensus(t *testing.T, newAcc *wallet.Account, offset uint3
 	emit.Opcodes(w.BinWriter, opcode.ASSERT)
 	require.NoError(t, w.Err)
 
-	tx = transaction.New(netmode.UnitTestNet, w.Bytes(), 20_000_000)
+	tx = transaction.New(w.Bytes(), 20_000_000)
 	tx.ValidUntilBlock = bc.BlockHeight() + 1
 	tx.NetworkFee = 20_000_000
 	tx.Signers = []transaction.Signer{{Scopes: transaction.Global, Account: newPriv.GetScriptHash()}}
-	require.NoError(t, newAcc.SignTx(tx))
+	require.NoError(t, newAcc.SignTx(netmode.UnitTestNet, tx))
 
 	require.NoError(t, bc.PoolTx(tx))
 	srv.dbft.OnTimeout(timer.HV{Height: srv.dbft.BlockIndex})
@@ -167,7 +167,7 @@ func TestService_GetVerified(t *testing.T) {
 	srv.dbft.Start()
 	var txs []*transaction.Transaction
 	for i := 0; i < 4; i++ {
-		tx := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 100000)
+		tx := transaction.New([]byte{byte(opcode.PUSH1)}, 100000)
 		tx.Nonce = 123 + uint32(i)
 		tx.ValidUntilBlock = 1
 		txs = append(txs, tx)
@@ -260,7 +260,7 @@ func TestService_getTx(t *testing.T) {
 	srv := newTestService(t)
 
 	t.Run("transaction in mempool", func(t *testing.T) {
-		tx := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
+		tx := transaction.New([]byte{byte(opcode.PUSH1)}, 0)
 		tx.Nonce = 1234
 		tx.ValidUntilBlock = 1
 		addSender(t, tx)
@@ -277,7 +277,7 @@ func TestService_getTx(t *testing.T) {
 	})
 
 	t.Run("transaction in local cache", func(t *testing.T) {
-		tx := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
+		tx := transaction.New([]byte{byte(opcode.PUSH1)}, 0)
 		tx.Nonce = 4321
 		tx.ValidUntilBlock = 1
 		h := tx.Hash()
@@ -372,7 +372,7 @@ func TestVerifyBlock(t *testing.T) {
 		require.True(t, srv.verifyBlock(&neoBlock{Block: *b}))
 	})
 	t.Run("good pooled tx", func(t *testing.T) {
-		tx := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.RET)}, 100000)
+		tx := transaction.New([]byte{byte(opcode.RET)}, 100000)
 		tx.ValidUntilBlock = 1
 		addSender(t, tx)
 		signTx(t, srv.Chain, tx)
@@ -381,7 +381,7 @@ func TestVerifyBlock(t *testing.T) {
 		require.True(t, srv.verifyBlock(&neoBlock{Block: *b}))
 	})
 	t.Run("good non-pooled tx", func(t *testing.T) {
-		tx := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.RET)}, 100000)
+		tx := transaction.New([]byte{byte(opcode.RET)}, 100000)
 		tx.ValidUntilBlock = 1
 		addSender(t, tx)
 		signTx(t, srv.Chain, tx)
@@ -389,12 +389,12 @@ func TestVerifyBlock(t *testing.T) {
 		require.True(t, srv.verifyBlock(&neoBlock{Block: *b}))
 	})
 	t.Run("good conflicting tx", func(t *testing.T) {
-		tx1 := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.RET)}, 100000)
+		tx1 := transaction.New([]byte{byte(opcode.RET)}, 100000)
 		tx1.NetworkFee = 20_000_000 * native.GASFactor
 		tx1.ValidUntilBlock = 1
 		addSender(t, tx1)
 		signTx(t, srv.Chain, tx1)
-		tx2 := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.RET)}, 100000)
+		tx2 := transaction.New([]byte{byte(opcode.RET)}, 100000)
 		tx2.NetworkFee = 20_000_000 * native.GASFactor
 		tx2.ValidUntilBlock = 1
 		addSender(t, tx2)
@@ -412,7 +412,7 @@ func TestVerifyBlock(t *testing.T) {
 	t.Run("bad big size", func(t *testing.T) {
 		script := make([]byte, int(srv.ProtocolConfiguration.MaxBlockSize))
 		script[0] = byte(opcode.RET)
-		tx := transaction.New(netmode.UnitTestNet, script, 100000)
+		tx := transaction.New(script, 100000)
 		tx.ValidUntilBlock = 1
 		addSender(t, tx)
 		signTx(t, srv.Chain, tx)
@@ -425,7 +425,7 @@ func TestVerifyBlock(t *testing.T) {
 		require.False(t, srv.verifyBlock(&neoBlock{Block: *b}))
 	})
 	t.Run("bad tx", func(t *testing.T) {
-		tx := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.RET)}, 100000)
+		tx := transaction.New([]byte{byte(opcode.RET)}, 100000)
 		tx.ValidUntilBlock = 1
 		addSender(t, tx)
 		signTx(t, srv.Chain, tx)
@@ -436,7 +436,7 @@ func TestVerifyBlock(t *testing.T) {
 	t.Run("bad big sys fee", func(t *testing.T) {
 		txes := make([]*transaction.Transaction, 2)
 		for i := range txes {
-			txes[i] = transaction.New(netmode.UnitTestNet, []byte{byte(opcode.RET)}, srv.ProtocolConfiguration.MaxBlockSystemFee/2+1)
+			txes[i] = transaction.New([]byte{byte(opcode.RET)}, srv.ProtocolConfiguration.MaxBlockSystemFee/2+1)
 			txes[i].ValidUntilBlock = 1
 			addSender(t, txes[i])
 			signTx(t, srv.Chain, txes[i])
@@ -547,11 +547,10 @@ func signTx(t *testing.T, bc blockchainer.Blockchainer, txs ...*transaction.Tran
 		tx.NetworkFee += +netFee
 		size += sizeDelta
 		tx.NetworkFee += int64(size) * bc.FeePerByte()
-		data := tx.GetSignedPart()
 
 		buf := io.NewBufBinWriter()
 		for _, key := range privNetKeys {
-			signature := key.Sign(data)
+			signature := key.SignHashable(uint32(testchain.Network()), tx)
 			emit.Bytes(buf.BinWriter, signature)
 		}
 

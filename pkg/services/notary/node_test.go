@@ -5,6 +5,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/internal/fakechain"
 	"github.com/nspcc-dev/neo-go/pkg/config"
+	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
 	"github.com/nspcc-dev/neo-go/pkg/core/mempool"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
@@ -27,7 +28,7 @@ func getTestNotary(t *testing.T, bc blockchainer.Blockchainer, walletPath, pass 
 		Chain:   bc,
 		Log:     zaptest.NewLogger(t),
 	}
-	ntr, err := NewNotary(cfg, mp, nil)
+	ntr, err := NewNotary(cfg, netmode.UnitTestNet, mp, nil)
 	require.NoError(t, err)
 
 	w, err := wallet.NewWalletFromFile(walletPath)

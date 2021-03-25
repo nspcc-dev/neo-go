@@ -91,7 +91,7 @@ func getTxMoveNeo() *result.TransactionOutputRaw {
 	if err != nil {
 		panic(err)
 	}
-	tx, err := transaction.NewTransactionFromBytes(netmode.UnitTestNet, txBin)
+	tx, err := transaction.NewTransactionFromBytes(txBin)
 	if err != nil {
 		panic(err)
 	}
@@ -939,7 +939,7 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 		{
 			name: "positive",
 			invoke: func(c *Client) (interface{}, error) {
-				return c.SendRawTransaction(transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0))
+				return c.SendRawTransaction(transaction.New([]byte{byte(opcode.PUSH1)}, 0))
 			},
 			serverResponse: `{"jsonrpc":"2.0","id":1,"result":{"hash":"0x72159b0cf1221110daad6e1df6ef4ff03012173b63c86910bd7134deb659c875"}}`,
 			result: func(c *Client) interface{} {
@@ -1076,7 +1076,7 @@ var rpcClientErrorCases = map[string][]rpcClientErrorCase{
 		{
 			name: "sendrawtransaction_bad_server_answer",
 			invoke: func(c *Client) (interface{}, error) {
-				return c.SendRawTransaction(transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0))
+				return c.SendRawTransaction(transaction.New([]byte{byte(opcode.PUSH1)}, 0))
 			},
 		},
 		{
@@ -1437,7 +1437,7 @@ var rpcClientErrorCases = map[string][]rpcClientErrorCase{
 		{
 			name: "sendrawtransaction_unmarshalling_error",
 			invoke: func(c *Client) (interface{}, error) {
-				return c.SendRawTransaction(transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0))
+				return c.SendRawTransaction(transaction.New([]byte{byte(opcode.PUSH1)}, 0))
 			},
 		},
 		{

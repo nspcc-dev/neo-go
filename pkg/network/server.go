@@ -152,7 +152,7 @@ func newServerFromConstructors(config ServerConfig, chain blockchainer.Blockchai
 				Chain:   chain,
 				Log:     log,
 			}
-			n, err := notary.NewNotary(cfg, s.notaryRequestPool, func(tx *transaction.Transaction) error {
+			n, err := notary.NewNotary(cfg, s.network, s.notaryRequestPool, func(tx *transaction.Transaction) error {
 				if err := s.RelayTxn(tx); err != nil {
 					return fmt.Errorf("can't relay completed notary transaction: hash %s, error: %w", tx.Hash().StringLE(), err)
 				}

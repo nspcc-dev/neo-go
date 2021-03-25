@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
+	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
 	"github.com/nspcc-dev/neo-go/pkg/core/mempool"
@@ -28,6 +29,8 @@ type (
 	// Notary represents Notary module.
 	Notary struct {
 		Config Config
+
+		Network netmode.Magic
 
 		// onTransaction is a callback for completed transactions (mains or fallbacks) sending.
 		onTransaction func(tx *transaction.Transaction) error
@@ -81,7 +84,7 @@ type request struct {
 }
 
 // NewNotary returns new Notary module.
-func NewNotary(cfg Config, mp *mempool.Pool, onTransaction func(tx *transaction.Transaction) error) (*Notary, error) {
+func NewNotary(cfg Config, net netmode.Magic, mp *mempool.Pool, onTransaction func(tx *transaction.Transaction) error) (*Notary, error) {
 	w := cfg.MainCfg.UnlockWallet
 	wallet, err := wallet.NewWalletFromFile(w.Path)
 	if err != nil {
@@ -102,6 +105,7 @@ func NewNotary(cfg Config, mp *mempool.Pool, onTransaction func(tx *transaction.
 	return &Notary{
 		requests:      make(map[util.Uint256]*request),
 		Config:        cfg,
+		Network:       net,
 		wallet:        wallet,
 		onTransaction: onTransaction,
 		mp:            mp,
@@ -203,7 +207,7 @@ func (n *Notary) OnNewRequest(payload *payload.P2PNotaryRequest) {
 						r.sigs = make(map[*keys.PublicKey][]byte)
 					}
 
-					hash := r.main.GetSignedHash().BytesBE()
+					hash := hash.NetSha256(uint32(n.Network), r.main).BytesBE()
 					for _, pub := range pubs {
 						if r.sigs[pub] != nil {
 							continue // signature for this pub has already been added
@@ -308,7 +312,7 @@ func (n *Notary) finalize(tx *transaction.Transaction) error {
 		panic(errors.New("no available Notary account")) // unreachable code, because all callers of `finalize` check that acc != nil
 	}
 	notaryWitness := transaction.Witness{
-		InvocationScript:   append([]byte{byte(opcode.PUSHDATA1), 64}, acc.PrivateKey().Sign(tx.GetSignedPart())...),
+		InvocationScript:   append([]byte{byte(opcode.PUSHDATA1), 64}, acc.PrivateKey().SignHashable(uint32(n.Network), tx)...),
 		VerificationScript: []byte{},
 	}
 	for i, signer := range tx.Signers {
@@ -332,7 +336,7 @@ func updateTxSize(tx *transaction.Transaction) (*transaction.Transaction, error)
 	if bw.Err != nil {
 		return nil, fmt.Errorf("encode binary: %w", bw.Err)
 	}
-	return transaction.NewTransactionFromBytes(tx.Network, tx.Bytes())
+	return transaction.NewTransactionFromBytes(tx.Bytes())
 }
 
 // verifyIncompleteWitnesses checks that tx either doesn't have all witnesses attached (in this case none of them

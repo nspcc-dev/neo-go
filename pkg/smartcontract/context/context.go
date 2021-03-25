@@ -190,7 +190,6 @@ func (c *ParameterContext) UnmarshalJSON(data []byte) error {
 	switch pc.Type {
 	case "Neo.Core.ContractTransaction":
 		tx := new(transaction.Transaction)
-		tx.Network = netmode.Magic(pc.Net)
 		verif = tx
 	default:
 		return fmt.Errorf("unsupported type: %s", c.Type)

@@ -79,7 +79,7 @@ func main() {
 	handleError("can't create deploy tx", err)
 	tx.NetworkFee = 10_000_000
 	tx.ValidUntilBlock = bc.BlockHeight() + 1
-	handleError("can't sign deploy tx", acc.SignTx(tx))
+	handleError("can't sign deploy tx", acc.SignTx(netmode.UnitTestNet, tx))
 	lastBlock = addBlock(bc, lastBlock, valScript, tx)
 
 	key := make([]byte, 10)
@@ -99,7 +99,7 @@ func main() {
 			emit.AppCall(w.BinWriter, contractHash, "put", callflag.All, key, value)
 			handleError("can't create transaction", w.Err)
 
-			tx := transaction.New(netmode.UnitTestNet, w.Bytes(), 4_000_000)
+			tx := transaction.New(w.Bytes(), 4_000_000)
 			tx.ValidUntilBlock = i + 1
 			tx.NetworkFee = 4_000_000
 			tx.Nonce = nonce
@@ -107,7 +107,7 @@ func main() {
 				Account: h,
 				Scopes:  transaction.CalledByEntry,
 			}}
-			handleError("can't sign tx", acc.SignTx(tx))
+			handleError("can't sign tx", acc.SignTx(netmode.UnitTestNet, tx))
 
 			txs[j] = tx
 		}
@@ -179,6 +179,6 @@ func newBlock(bc *core.Blockchain, lastBlock *block.Block, script []byte, txs ..
 		b.PrevStateRoot = sr.Root
 	}
 	b.RebuildMerkleRoot()
-	b.Script.InvocationScript = testchain.Sign(b.GetSignedPart())
+	b.Script.InvocationScript = testchain.Sign(b)
 	return b, nil
 }

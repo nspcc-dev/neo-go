@@ -144,7 +144,6 @@ func TestNotaryRequestIsValid(t *testing.T) {
 
 func TestNotaryRequestBytesFromBytes(t *testing.T) {
 	mainTx := &transaction.Transaction{
-		Network:         netmode.UnitTestNet,
 		Attributes:      []transaction.Attribute{{Type: transaction.NotaryAssistedT, Value: &transaction.NotaryAssisted{NKeys: 1}}},
 		Script:          []byte{0, 1, 2},
 		ValidUntilBlock: 123,
@@ -157,7 +156,6 @@ func TestNotaryRequestBytesFromBytes(t *testing.T) {
 	_ = mainTx.Hash()
 	_ = mainTx.Size()
 	fallbackTx := &transaction.Transaction{
-		Network:         netmode.UnitTestNet,
 		Script:          []byte{3, 2, 1},
 		ValidUntilBlock: 123,
 		Attributes: []transaction.Attribute{

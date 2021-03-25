@@ -136,7 +136,7 @@ func (b *Block) DecodeBinary(br *io.BinReader) {
 	}
 	txes := make([]*transaction.Transaction, contentsCount)
 	for i := 0; i < int(contentsCount); i++ {
-		tx := &transaction.Transaction{Network: b.Network}
+		tx := &transaction.Transaction{}
 		tx.DecodeBinary(br)
 		txes[i] = tx
 	}
@@ -207,7 +207,7 @@ func (b *Block) UnmarshalJSON(data []byte) error {
 	if len(auxb.Transactions) != 0 {
 		b.Transactions = make([]*transaction.Transaction, 0, len(auxb.Transactions))
 		for _, txBytes := range auxb.Transactions {
-			tx := &transaction.Transaction{Network: b.Network}
+			tx := &transaction.Transaction{}
 			err = tx.UnmarshalJSON(txBytes)
 			if err != nil {
 				return err

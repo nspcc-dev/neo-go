@@ -24,7 +24,7 @@ func TestParameterContext_AddSignatureSimpleContract(t *testing.T) {
 	priv, err := keys.NewPrivateKey()
 	require.NoError(t, err)
 	pub := priv.PublicKey()
-	sig := priv.Sign(tx.GetSignedPart())
+	sig := priv.SignHashable(uint32(netmode.UnitTestNet), tx)
 
 	t.Run("invalid contract", func(t *testing.T) {
 		c := NewParameterContext("Neo.Core.ContractTransaction", netmode.UnitTestNet, tx)
@@ -91,15 +91,14 @@ func TestParameterContext_AddSignatureMultisig(t *testing.T) {
 			newParam(smartcontract.SignatureType, "parameter2"),
 		},
 	}
-	data := tx.GetSignedPart()
 	priv, err := keys.NewPrivateKey()
 	require.NoError(t, err)
-	sig := priv.Sign(data)
+	sig := priv.SignHashable(uint32(c.Network), tx)
 	require.Error(t, c.AddSignature(ctr.ScriptHash(), ctr, priv.PublicKey(), sig))
 
 	indices := []int{2, 3, 0} // random order
 	for _, i := range indices {
-		sig := privs[i].Sign(data)
+		sig := privs[i].SignHashable(uint32(c.Network), tx)
 		require.NoError(t, c.AddSignature(ctr.ScriptHash(), ctr, pubs[i], sig))
 		require.Error(t, c.AddSignature(ctr.ScriptHash(), ctr, pubs[i], sig))
 
@@ -132,8 +131,7 @@ func TestParameterContext_MarshalJSON(t *testing.T) {
 	require.NoError(t, err)
 
 	tx := getContractTx()
-	data := tx.GetSignedPart()
-	sign := priv.Sign(data)
+	sign := priv.SignHashable(uint32(netmode.UnitTestNet), tx)
 
 	expected := &ParameterContext{
 		Type:       "Neo.Core.ContractTransaction",
@@ -192,7 +190,7 @@ func newParam(typ smartcontract.ParamType, name string) wallet.ContractParam {
 }
 
 func getContractTx() *transaction.Transaction {
-	tx := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
+	tx := transaction.New([]byte{byte(opcode.PUSH1)}, 0)
 	tx.Attributes = make([]transaction.Attribute, 0)
 	tx.Scripts = make([]transaction.Witness, 0)
 	tx.Signers = []transaction.Signer{{Account: util.Uint160{1, 2, 3}}}

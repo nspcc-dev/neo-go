@@ -4,7 +4,6 @@ import (
 	"encoding/base64"
 	"testing"
 
-	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -16,7 +15,7 @@ var (
 func decodeTransaction(rawTX string, t *testing.T) *Transaction {
 	b, err1 := base64.StdEncoding.DecodeString(rawTX)
 	assert.Nil(t, err1)
-	tx, err := NewTransactionFromBytes(netmode.PrivNet, b)
+	tx, err := NewTransactionFromBytes(b)
 	assert.NoError(t, err)
 	return tx
 }

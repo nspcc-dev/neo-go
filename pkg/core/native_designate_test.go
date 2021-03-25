@@ -33,7 +33,7 @@ func (bc *Blockchain) setNodesByRole(t *testing.T, ok bool, r noderoles.Role, no
 	emit.Opcodes(w.BinWriter, opcode.PACK)
 	emit.AppCallNoArgs(w.BinWriter, bc.contracts.Designate.Hash, "designateAsRole", callflag.All)
 	require.NoError(t, w.Err)
-	tx := transaction.New(netmode.UnitTestNet, w.Bytes(), 0)
+	tx := transaction.New(w.Bytes(), 0)
 	tx.NetworkFee = 10_000_000
 	tx.SystemFee = 10_000_000
 	tx.ValidUntilBlock = 100
@@ -49,7 +49,7 @@ func (bc *Blockchain) setNodesByRole(t *testing.T, ok bool, r noderoles.Role, no
 	}
 	require.NoError(t, testchain.SignTx(bc, tx))
 	tx.Scripts = append(tx.Scripts, transaction.Witness{
-		InvocationScript:   testchain.SignCommittee(tx.GetSignedPart()),
+		InvocationScript:   testchain.SignCommittee(tx),
 		VerificationScript: testchain.CommitteeVerificationScript(),
 	})
 	require.NoError(t, bc.AddBlock(bc.newBlock(tx)))
@@ -114,7 +114,7 @@ func TestDesignate_DesignateAsRole(t *testing.T) {
 	bc := newTestChain(t)
 
 	des := bc.contracts.Designate
-	tx := transaction.New(netmode.UnitTestNet, []byte{}, 0)
+	tx := transaction.New([]byte{}, 0)
 	bl := block.New(netmode.UnitTestNet, bc.config.StateRootInHeader)
 	bl.Index = bc.BlockHeight() + 1
 	ic := bc.newInteropContext(trigger.OnPersist, bc.dao, bl, tx)

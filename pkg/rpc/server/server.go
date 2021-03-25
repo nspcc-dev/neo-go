@@ -1344,7 +1344,7 @@ func (s *Server) sendrawtransaction(reqParams request.Params) (interface{}, *res
 	if err != nil {
 		return nil, response.ErrInvalidParams
 	}
-	tx, err := transaction.NewTransactionFromBytes(s.network, byteTx)
+	tx, err := transaction.NewTransactionFromBytes(byteTx)
 	if err != nil {
 		return nil, response.ErrInvalidParams
 	}

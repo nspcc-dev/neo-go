@@ -448,7 +448,7 @@ func (dao *Simple) GetTransaction(hash util.Uint256) (*transaction.Transaction, 
 
 	var height = r.ReadU32LE()
 
-	tx := &transaction.Transaction{Network: dao.network}
+	tx := &transaction.Transaction{}
 	tx.DecodeBinary(r)
 	if r.Err != nil {
 		return nil, 0, r.Err

@@ -141,7 +141,7 @@ readloop:
 			case response.BlockEventID:
 				val = block.New(c.GetNetwork(), c.StateRootInHeader())
 			case response.TransactionEventID:
-				val = &transaction.Transaction{Network: c.GetNetwork()}
+				val = &transaction.Transaction{}
 			case response.NotificationEventID:
 				val = new(state.NotificationEvent)
 			case response.ExecutionEventID:

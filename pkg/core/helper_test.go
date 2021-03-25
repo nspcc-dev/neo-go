@@ -120,7 +120,7 @@ func newBlockCustom(cfg config.ProtocolConfiguration, f func(b *block.Block),
 	f(b)
 
 	b.RebuildMerkleRoot()
-	b.Script.InvocationScript = testchain.Sign(b.GetSignedPart())
+	b.Script.InvocationScript = testchain.Sign(b)
 	return b
 }
 
@@ -221,7 +221,7 @@ func newDumbBlock() *block.Block {
 			},
 		},
 		Transactions: []*transaction.Transaction{
-			transaction.New(testchain.Network(), []byte{byte(opcode.PUSH1)}, 0),
+			transaction.New([]byte{byte(opcode.PUSH1)}, 0),
 		},
 	}
 }
@@ -267,7 +267,7 @@ func TestCreateBasicChain(t *testing.T) {
 		AllowedGroups:    nil,
 	}}
 	require.NoError(t, addNetworkFee(bc, txSendRaw, acc0))
-	require.NoError(t, acc0.SignTx(txSendRaw))
+	require.NoError(t, acc0.SignTx(testchain.Network(), txSendRaw))
 	bw := io.NewBufBinWriter()
 	txSendRaw.EncodeBinary(bw.BinWriter)
 	t.Logf("sendrawtransaction: %s", base64.StdEncoding.EncodeToString(bw.Bytes()))
@@ -353,7 +353,7 @@ func initBasicChain(t *testing.T, bc *Blockchain) {
 	txDeploy.Nonce = getNextNonce()
 	txDeploy.ValidUntilBlock = validUntilBlock
 	require.NoError(t, addNetworkFee(bc, txDeploy, acc0))
-	require.NoError(t, acc0.SignTx(txDeploy))
+	require.NoError(t, acc0.SignTx(testchain.Network(), txDeploy))
 	b = bc.newBlock(txDeploy)
 	require.NoError(t, bc.AddBlock(b))
 	checkTxHalt(t, bc, txDeploy.Hash())
@@ -364,12 +364,12 @@ func initBasicChain(t *testing.T, bc *Blockchain) {
 	script := io.NewBufBinWriter()
 	emit.AppCall(script.BinWriter, cHash, "putValue", callflag.All, "testkey", "testvalue")
 
-	txInv := transaction.New(testchain.Network(), script.Bytes(), 1*native.GASFactor)
+	txInv := transaction.New(script.Bytes(), 1*native.GASFactor)
 	txInv.Nonce = getNextNonce()
 	txInv.ValidUntilBlock = validUntilBlock
 	txInv.Signers = []transaction.Signer{{Account: priv0ScriptHash}}
 	require.NoError(t, addNetworkFee(bc, txInv, acc0))
-	require.NoError(t, acc0.SignTx(txInv))
+	require.NoError(t, acc0.SignTx(testchain.Network(), txInv))
 	b = bc.newBlock(txInv)
 	require.NoError(t, bc.AddBlock(b))
 	checkTxHalt(t, bc, txInv.Hash())
@@ -388,19 +388,19 @@ func initBasicChain(t *testing.T, bc *Blockchain) {
 		},
 	}
 	require.NoError(t, addNetworkFee(bc, txNeo0to1, acc0))
-	require.NoError(t, acc0.SignTx(txNeo0to1))
+	require.NoError(t, acc0.SignTx(testchain.Network(), txNeo0to1))
 	b = bc.newBlock(txNeo0to1)
 	require.NoError(t, bc.AddBlock(b))
 	checkTxHalt(t, bc, txNeo0to1.Hash())
 
 	w := io.NewBufBinWriter()
 	emit.AppCall(w.BinWriter, cHash, "init", callflag.All)
-	initTx := transaction.New(testchain.Network(), w.Bytes(), 1*native.GASFactor)
+	initTx := transaction.New(w.Bytes(), 1*native.GASFactor)
 	initTx.Nonce = getNextNonce()
 	initTx.ValidUntilBlock = validUntilBlock
 	initTx.Signers = []transaction.Signer{{Account: priv0ScriptHash}}
 	require.NoError(t, addNetworkFee(bc, initTx, acc0))
-	require.NoError(t, acc0.SignTx(initTx))
+	require.NoError(t, acc0.SignTx(testchain.Network(), initTx))
 	transferTx := newNEP17Transfer(cHash, cHash, priv0.GetScriptHash(), 1000)
 	transferTx.Nonce = getNextNonce()
 	transferTx.ValidUntilBlock = validUntilBlock
@@ -413,7 +413,7 @@ func initBasicChain(t *testing.T, bc *Blockchain) {
 		},
 	}
 	require.NoError(t, addNetworkFee(bc, transferTx, acc0))
-	require.NoError(t, acc0.SignTx(transferTx))
+	require.NoError(t, acc0.SignTx(testchain.Network(), transferTx))
 
 	b = bc.newBlock(initTx, transferTx)
 	require.NoError(t, bc.AddBlock(b))
@@ -433,7 +433,7 @@ func initBasicChain(t *testing.T, bc *Blockchain) {
 		},
 	}
 	require.NoError(t, addNetworkFee(bc, transferTx, acc0))
-	require.NoError(t, acc0.SignTx(transferTx))
+	require.NoError(t, acc0.SignTx(testchain.Network(), transferTx))
 
 	b = bc.newBlock(transferTx)
 	require.NoError(t, bc.AddBlock(b))
@@ -445,7 +445,7 @@ func initBasicChain(t *testing.T, bc *Blockchain) {
 	txDeploy2.Nonce = getNextNonce()
 	txDeploy2.ValidUntilBlock = validUntilBlock
 	require.NoError(t, addNetworkFee(bc, txDeploy2, acc0))
-	require.NoError(t, acc0.SignTx(txDeploy2))
+	require.NoError(t, acc0.SignTx(testchain.Network(), txDeploy2))
 	b = bc.newBlock(txDeploy2)
 	require.NoError(t, bc.AddBlock(b))
 	checkTxHalt(t, bc, txDeploy2.Hash())
@@ -462,7 +462,7 @@ func initBasicChain(t *testing.T, bc *Blockchain) {
 	}
 	require.NoError(t, addNetworkFee(bc, transferTx, acc0))
 	transferTx.SystemFee += 10_0000
-	require.NoError(t, acc0.SignTx(transferTx))
+	require.NoError(t, acc0.SignTx(testchain.Network(), transferTx))
 
 	b = bc.newBlock(transferTx)
 	require.NoError(t, bc.AddBlock(b))
@@ -481,7 +481,7 @@ func initBasicChain(t *testing.T, bc *Blockchain) {
 	txDeploy3.Nonce = getNextNonce()
 	txDeploy3.ValidUntilBlock = validUntilBlock
 	require.NoError(t, addNetworkFee(bc, txDeploy3, acc0))
-	require.NoError(t, acc0.SignTx(txDeploy3))
+	require.NoError(t, acc0.SignTx(testchain.Network(), txDeploy3))
 	b = bc.newBlock(txDeploy3)
 	require.NoError(t, bc.AddBlock(b))
 	checkTxHalt(t, bc, txDeploy3.Hash())
@@ -499,7 +499,7 @@ func newNEP17Transfer(sc, from, to util.Uint160, amount int64, additionalArgs ..
 	}
 
 	script := w.Bytes()
-	return transaction.New(testchain.Network(), script, 11000000)
+	return transaction.New(script, 11000000)
 }
 
 func newDeployTx(t *testing.T, bc *Blockchain, sender util.Uint160, name, ctrName string, cfgName *string) (*transaction.Transaction, util.Uint160) {
@@ -549,7 +549,7 @@ func prepareContractMethodInvokeGeneric(chain *Blockchain, sysfee int64,
 		return nil, w.Err
 	}
 	script := w.Bytes()
-	tx := transaction.New(chain.GetConfig().Magic, script, sysfee)
+	tx := transaction.New(script, sysfee)
 	tx.ValidUntilBlock = chain.blockHeight + 1
 	var err error
 	switch s := signer.(type) {
@@ -592,7 +592,7 @@ func signTxWithAccounts(chain *Blockchain, tx *transaction.Transaction, accs ...
 	tx.NetworkFee += int64(size) * chain.FeePerByte()
 
 	for _, acc := range accs {
-		if err := acc.SignTx(tx); err != nil {
+		if err := acc.SignTx(testchain.Network(), tx); err != nil {
 			panic(err)
 		}
 	}

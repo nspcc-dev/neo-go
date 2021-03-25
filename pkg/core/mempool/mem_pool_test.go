@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/nspcc-dev/neo-go/internal/random"
-	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/network/payload"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -46,7 +45,7 @@ func (fs *FeerStub) P2PSigExtensionsEnabled() bool {
 
 func testMemPoolAddRemoveWithFeer(t *testing.T, fs Feer) {
 	mp := New(10, 0, false)
-	tx := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
+	tx := transaction.New([]byte{byte(opcode.PUSH1)}, 0)
 	tx.Nonce = 0
 	tx.Signers = []transaction.Signer{{Account: util.Uint160{1, 2, 3}}}
 	_, ok := mp.TryGetValue(tx.Hash())
@@ -69,7 +68,7 @@ func TestMemPoolRemoveStale(t *testing.T) {
 	mp := New(5, 0, false)
 	txs := make([]*transaction.Transaction, 5)
 	for i := range txs {
-		txs[i] = transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
+		txs[i] = transaction.New([]byte{byte(opcode.PUSH1)}, 0)
 		txs[i].Nonce = uint32(i)
 		txs[i].Signers = []transaction.Signer{{Account: util.Uint160{1, 2, 3}}}
 		require.NoError(t, mp.Add(txs[i], &FeerStub{blockHeight: uint32(i)}))
@@ -120,7 +119,7 @@ func TestOverCapacity(t *testing.T) {
 	mp := New(mempoolSize, 0, false)
 
 	for i := 0; i < mempoolSize; i++ {
-		tx := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
+		tx := transaction.New([]byte{byte(opcode.PUSH1)}, 0)
 		tx.Nonce = uint32(i)
 		tx.Signers = []transaction.Signer{{Account: util.Uint160{1, 2, 3}}}
 		require.NoError(t, mp.Add(tx, fs))
@@ -134,7 +133,7 @@ func TestOverCapacity(t *testing.T) {
 	bigScript[1] = byte(opcode.RET)
 	// Fees are also prioritized.
 	for i := 0; i < mempoolSize; i++ {
-		tx := transaction.New(netmode.UnitTestNet, bigScript, 0)
+		tx := transaction.New(bigScript, 0)
 		tx.NetworkFee = 10000
 		tx.Nonce = txcnt
 		tx.Signers = []transaction.Signer{{Account: util.Uint160{1, 2, 3}}}
@@ -145,7 +144,7 @@ func TestOverCapacity(t *testing.T) {
 		require.Equal(t, true, sort.IsSorted(sort.Reverse(mp.verifiedTxes)))
 	}
 	// Less prioritized txes are not allowed anymore.
-	tx := transaction.New(netmode.UnitTestNet, bigScript, 0)
+	tx := transaction.New(bigScript, 0)
 	tx.NetworkFee = 100
 	tx.Nonce = txcnt
 	tx.Signers = []transaction.Signer{{Account: util.Uint160{1, 2, 3}}}
@@ -158,7 +157,7 @@ func TestOverCapacity(t *testing.T) {
 	require.Equal(t, true, sort.IsSorted(sort.Reverse(mp.verifiedTxes)))
 
 	// Low net fee, but higher per-byte fee is still a better combination.
-	tx = transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
+	tx = transaction.New([]byte{byte(opcode.PUSH1)}, 0)
 	tx.Nonce = txcnt
 	tx.NetworkFee = 7000
 	tx.Signers = []transaction.Signer{{Account: util.Uint160{1, 2, 3}}}
@@ -171,7 +170,7 @@ func TestOverCapacity(t *testing.T) {
 
 	// High priority always wins over low priority.
 	for i := 0; i < mempoolSize; i++ {
-		tx := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
+		tx := transaction.New([]byte{byte(opcode.PUSH1)}, 0)
 		tx.NetworkFee = 8000
 		tx.Nonce = txcnt
 		tx.Signers = []transaction.Signer{{Account: util.Uint160{1, 2, 3}}}
@@ -181,7 +180,7 @@ func TestOverCapacity(t *testing.T) {
 		require.Equal(t, true, sort.IsSorted(sort.Reverse(mp.verifiedTxes)))
 	}
 	// Good luck with low priority now.
-	tx = transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
+	tx = transaction.New([]byte{byte(opcode.PUSH1)}, 0)
 	tx.Nonce = txcnt
 	tx.NetworkFee = 7000
 	tx.Signers = []transaction.Signer{{Account: util.Uint160{1, 2, 3}}}
@@ -197,7 +196,7 @@ func TestGetVerified(t *testing.T) {
 
 	txes := make([]*transaction.Transaction, 0, mempoolSize)
 	for i := 0; i < mempoolSize; i++ {
-		tx := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
+		tx := transaction.New([]byte{byte(opcode.PUSH1)}, 0)
 		tx.Nonce = uint32(i)
 		tx.Signers = []transaction.Signer{{Account: util.Uint160{1, 2, 3}}}
 		txes = append(txes, tx)
@@ -222,7 +221,7 @@ func TestRemoveStale(t *testing.T) {
 	txes1 := make([]*transaction.Transaction, 0, mempoolSize/2)
 	txes2 := make([]*transaction.Transaction, 0, mempoolSize/2)
 	for i := 0; i < mempoolSize; i++ {
-		tx := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
+		tx := transaction.New([]byte{byte(opcode.PUSH1)}, 0)
 		tx.Nonce = uint32(i)
 		tx.Signers = []transaction.Signer{{Account: util.Uint160{1, 2, 3}}}
 		if i%2 == 0 {
@@ -253,7 +252,7 @@ func TestMemPoolFees(t *testing.T) {
 	mp := New(10, 0, false)
 	fs := &FeerStub{balance: 10000000}
 	sender0 := util.Uint160{1, 2, 3}
-	tx0 := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
+	tx0 := transaction.New([]byte{byte(opcode.PUSH1)}, 0)
 	tx0.NetworkFee = fs.balance + 1
 	tx0.Signers = []transaction.Signer{{Account: sender0}}
 	// insufficient funds to add transaction, and balance shouldn't be stored
@@ -263,7 +262,7 @@ func TestMemPoolFees(t *testing.T) {
 
 	balancePart := new(big.Int).Div(big.NewInt(fs.balance), big.NewInt(4))
 	// no problems with adding another transaction with lower fee
-	tx1 := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
+	tx1 := transaction.New([]byte{byte(opcode.PUSH1)}, 0)
 	tx1.NetworkFee = balancePart.Int64()
 	tx1.Signers = []transaction.Signer{{Account: sender0}}
 	require.NoError(t, mp.Add(tx1, fs))
@@ -274,7 +273,7 @@ func TestMemPoolFees(t *testing.T) {
 	}, mp.fees[sender0])
 
 	// balance shouldn't change after adding one more transaction
-	tx2 := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
+	tx2 := transaction.New([]byte{byte(opcode.PUSH1)}, 0)
 	tx2.NetworkFee = new(big.Int).Sub(big.NewInt(fs.balance), balancePart).Int64()
 	tx2.Signers = []transaction.Signer{{Account: sender0}}
 	require.NoError(t, mp.Add(tx2, fs))
@@ -286,7 +285,7 @@ func TestMemPoolFees(t *testing.T) {
 	}, mp.fees[sender0])
 
 	// can't add more transactions as we don't have enough GAS
-	tx3 := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
+	tx3 := transaction.New([]byte{byte(opcode.PUSH1)}, 0)
 	tx3.NetworkFee = 1
 	tx3.Signers = []transaction.Signer{{Account: sender0}}
 	require.Equal(t, false, mp.Verify(tx3, fs))
@@ -324,24 +323,24 @@ func TestMempoolItemsOrder(t *testing.T) {
 	sender0 := util.Uint160{1, 2, 3}
 	balance := big.NewInt(10000000)
 
-	tx1 := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
+	tx1 := transaction.New([]byte{byte(opcode.PUSH1)}, 0)
 	tx1.NetworkFee = new(big.Int).Div(balance, big.NewInt(8)).Int64()
 	tx1.Signers = []transaction.Signer{{Account: sender0}}
 	tx1.Attributes = []transaction.Attribute{{Type: transaction.HighPriority}}
 	item1 := item{txn: tx1}
 
-	tx2 := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
+	tx2 := transaction.New([]byte{byte(opcode.PUSH1)}, 0)
 	tx2.NetworkFee = new(big.Int).Div(balance, big.NewInt(16)).Int64()
 	tx2.Signers = []transaction.Signer{{Account: sender0}}
 	tx2.Attributes = []transaction.Attribute{{Type: transaction.HighPriority}}
 	item2 := item{txn: tx2}
 
-	tx3 := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
+	tx3 := transaction.New([]byte{byte(opcode.PUSH1)}, 0)
 	tx3.NetworkFee = new(big.Int).Div(balance, big.NewInt(2)).Int64()
 	tx3.Signers = []transaction.Signer{{Account: sender0}}
 	item3 := item{txn: tx3}
 
-	tx4 := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
+	tx4 := transaction.New([]byte{byte(opcode.PUSH1)}, 0)
 	tx4.NetworkFee = new(big.Int).Div(balance, big.NewInt(4)).Int64()
 	tx4.Signers = []transaction.Signer{{Account: sender0}}
 	item4 := item{txn: tx4}
@@ -365,7 +364,7 @@ func TestMempoolAddRemoveOracleResponse(t *testing.T) {
 	nonce := uint32(0)
 	fs := &FeerStub{balance: 10000}
 	newTx := func(netFee int64, id uint64) *transaction.Transaction {
-		tx := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
+		tx := transaction.New([]byte{byte(opcode.PUSH1)}, 0)
 		tx.NetworkFee = netFee
 		tx.Nonce = nonce
 		nonce++
@@ -437,7 +436,7 @@ func TestMempoolAddRemoveConflicts(t *testing.T) {
 		nonce uint32 = 1
 	)
 	getConflictsTx := func(netFee int64, hashes ...util.Uint256) *transaction.Transaction {
-		tx := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
+		tx := transaction.New([]byte{byte(opcode.PUSH1)}, 0)
 		tx.NetworkFee = netFee
 		tx.Nonce = nonce
 		nonce++
@@ -535,7 +534,7 @@ func TestMempoolAddRemoveConflicts(t *testing.T) {
 	assert.Equal(t, []util.Uint256{tx3.Hash(), tx2.Hash()}, mp.conflicts[tx1.Hash()])
 
 	// tx13 conflicts with tx2, but is not signed by tx2.Sender
-	tx13 := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
+	tx13 := transaction.New([]byte{byte(opcode.PUSH1)}, 0)
 	tx13.NetworkFee = smallNetFee
 	tx13.Nonce = uint32(random.Int(0, 1e4))
 	tx13.Signers = []transaction.Signer{{Account: util.Uint160{3, 2, 1}}}
@@ -563,7 +562,7 @@ func TestMempoolAddWithDataGetData(t *testing.T) {
 	}
 	mp := New(10, 1, false)
 	newTx := func(t *testing.T, netFee int64) *transaction.Transaction {
-		tx := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.RET)}, 0)
+		tx := transaction.New([]byte{byte(opcode.RET)}, 0)
 		tx.Signers = []transaction.Signer{{}, {}}
 		tx.NetworkFee = netFee
 		nonce++

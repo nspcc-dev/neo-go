@@ -179,7 +179,7 @@ func (c *Client) CreateTxFromScript(script []byte, acc *wallet.Account, sysFee, 
 	if !c.initDone {
 		return nil, errNetworkNotInitialized
 	}
-	tx := transaction.New(c.GetNetwork(), script, sysFee)
+	tx := transaction.New(script, sysFee)
 	tx.Signers = signers
 
 	tx.ValidUntilBlock, err = c.CalculateValidUntilBlock()
@@ -205,7 +205,7 @@ func (c *Client) TransferNEP17(acc *wallet.Account, to util.Uint160, token util.
 		return util.Uint256{}, err
 	}
 
-	if err := acc.SignTx(tx); err != nil {
+	if err := acc.SignTx(c.GetNetwork(), tx); err != nil {
 		return util.Uint256{}, fmt.Errorf("can't sign tx: %w", err)
 	}
 
@@ -219,7 +219,7 @@ func (c *Client) MultiTransferNEP17(acc *wallet.Account, gas int64, recipients [
 		return util.Uint256{}, err
 	}
 
-	if err := acc.SignTx(tx); err != nil {
+	if err := acc.SignTx(c.GetNetwork(), tx); err != nil {
 		return util.Uint256{}, fmt.Errorf("can't sign tx: %w", err)
 	}
 

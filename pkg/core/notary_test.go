@@ -48,7 +48,7 @@ func getTestNotary(t *testing.T, bc *Blockchain, walletPath, pass string, onTx f
 		Log:     zaptest.NewLogger(t),
 	}
 	mp := mempool.New(10, 1, true)
-	ntr, err := notary.NewNotary(cfg, mp, onTx)
+	ntr, err := notary.NewNotary(cfg, testchain.Network(), mp, onTx)
 	require.NoError(t, err)
 
 	w, err := wallet.NewWalletFromFile(path.Join(notaryModulePath, walletPath))
@@ -107,7 +107,7 @@ func TestNotary(t *testing.T) {
 	bc.setNodesByRole(t, true, noderoles.P2PNotary, notaryNodes)
 
 	createFallbackTx := func(requester *wallet.Account, mainTx *transaction.Transaction, nvbIncrement ...uint32) *transaction.Transaction {
-		fallback := transaction.New(testchain.Network(), []byte{byte(opcode.RET)}, 2000_0000)
+		fallback := transaction.New([]byte{byte(opcode.RET)}, 2000_0000)
 		fallback.Nonce = nonce
 		nonce++
 		fallback.SystemFee = 1_0000_0000
@@ -146,12 +146,12 @@ func TestNotary(t *testing.T) {
 				VerificationScript: []byte{},
 			},
 		}
-		requester.SignTx(fallback)
+		requester.SignTx(testchain.Network(), fallback)
 		return fallback
 	}
 
 	createStandardRequest := func(requesters []*wallet.Account, NVBincrements ...uint32) []*payload.P2PNotaryRequest {
-		mainTx := *transaction.New(testchain.Network(), []byte{byte(opcode.RET)}, 11000000)
+		mainTx := *transaction.New([]byte{byte(opcode.RET)}, 11000000)
 		mainTx.Nonce = nonce
 		nonce++
 		mainTx.SystemFee = 100000000
@@ -182,7 +182,7 @@ func TestNotary(t *testing.T) {
 			for j := range requesters {
 				scripts[j].VerificationScript = requesters[j].PrivateKey().PublicKey().GetVerificationScript()
 			}
-			scripts[i].InvocationScript = append([]byte{byte(opcode.PUSHDATA1), 64}, requesters[i].PrivateKey().Sign(main.GetSignedPart())...)
+			scripts[i].InvocationScript = append([]byte{byte(opcode.PUSHDATA1), 64}, requesters[i].PrivateKey().SignHashable(uint32(testchain.Network()), main)...)
 			main.Scripts = scripts
 
 			_ = main.Size() // for size update test
@@ -205,7 +205,7 @@ func TestNotary(t *testing.T) {
 		return payloads
 	}
 	createMultisigRequest := func(m int, requesters []*wallet.Account) []*payload.P2PNotaryRequest {
-		mainTx := *transaction.New(testchain.Network(), []byte{byte(opcode.RET)}, 11000000)
+		mainTx := *transaction.New([]byte{byte(opcode.RET)}, 11000000)
 		mainTx.Nonce = nonce
 		nonce++
 		mainTx.SystemFee = 100000000
@@ -240,7 +240,7 @@ func TestNotary(t *testing.T) {
 			main := &cp
 			main.Scripts = []transaction.Witness{
 				{
-					InvocationScript:   append([]byte{byte(opcode.PUSHDATA1), 64}, requesters[i].PrivateKey().Sign(main.GetSignedPart())...),
+					InvocationScript:   append([]byte{byte(opcode.PUSHDATA1), 64}, requesters[i].PrivateKey().SignHashable(uint32(testchain.Network()), main)...),
 					VerificationScript: script,
 				},
 				{}, // empty Notary witness
@@ -272,7 +272,7 @@ func TestNotary(t *testing.T) {
 				require.NoError(t, err)
 			}
 			require.Equal(t, transaction.Witness{
-				InvocationScript:   append([]byte{byte(opcode.PUSHDATA1), 64}, acc1.PrivateKey().Sign(requests[0].MainTransaction.GetSignedPart())...),
+				InvocationScript:   append([]byte{byte(opcode.PUSHDATA1), 64}, acc1.PrivateKey().SignHashable(uint32(testchain.Network()), requests[0].MainTransaction)...),
 				VerificationScript: []byte{},
 			}, completedTx.Scripts[nKeys])
 		} else {
@@ -289,7 +289,7 @@ func TestNotary(t *testing.T) {
 			_, err := bc.verifyHashAgainstScript(completedTx.Signers[0].Account, &completedTx.Scripts[0], interopCtx, -1)
 			require.NoError(t, err)
 			require.Equal(t, transaction.Witness{
-				InvocationScript:   append([]byte{byte(opcode.PUSHDATA1), 64}, acc1.PrivateKey().Sign(requests[0].MainTransaction.GetSignedPart())...),
+				InvocationScript:   append([]byte{byte(opcode.PUSHDATA1), 64}, acc1.PrivateKey().SignHashable(uint32(testchain.Network()), requests[0].MainTransaction)...),
 				VerificationScript: []byte{},
 			}, completedTx.Scripts[1])
 			// check that only nSigs out of nKeys signatures are presented in the invocation script
@@ -312,7 +312,7 @@ func TestNotary(t *testing.T) {
 				require.Equal(t, 2, len(completedTx.Signers))
 				require.Equal(t, 2, len(completedTx.Scripts))
 				require.Equal(t, transaction.Witness{
-					InvocationScript:   append([]byte{byte(opcode.PUSHDATA1), 64}, acc1.PrivateKey().Sign(req.FallbackTransaction.GetSignedPart())...),
+					InvocationScript:   append([]byte{byte(opcode.PUSHDATA1), 64}, acc1.PrivateKey().SignHashable(uint32(testchain.Network()), req.FallbackTransaction)...),
 					VerificationScript: []byte{},
 				}, completedTx.Scripts[0])
 

@@ -17,6 +17,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
@@ -356,10 +357,10 @@ func (n *Notary) verify(ic *interop.Context, args []stackitem.Item) stackitem.It
 	if err != nil {
 		panic(fmt.Errorf("failed to get notary nodes: %w", err))
 	}
-	hash := tx.GetSignedHash().BytesBE()
+	shash := hash.NetSha256(uint32(ic.Network), tx)
 	var verified bool
 	for _, n := range notaries {
-		if n.Verify(sig, hash) {
+		if n.Verify(sig, shash[:]) {
 			verified = true
 			break
 		}

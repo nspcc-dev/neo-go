@@ -127,11 +127,11 @@ func CommitteeAddress() string {
 }
 
 // Sign signs data by all consensus nodes and returns invocation script.
-func Sign(data []byte) []byte {
+func Sign(h hash.Hashable) []byte {
 	buf := io.NewBufBinWriter()
 	for i := 0; i < 3; i++ {
 		pKey := PrivateKey(i)
-		sig := pKey.Sign(data)
+		sig := pKey.SignHashable(uint32(Network()), h)
 		if len(sig) != 64 {
 			panic("wrong signature length")
 		}
@@ -141,11 +141,11 @@ func Sign(data []byte) []byte {
 }
 
 // SignCommittee signs data by a majority of committee members.
-func SignCommittee(data []byte) []byte {
+func SignCommittee(h hash.Hashable) []byte {
 	buf := io.NewBufBinWriter()
 	for i := 0; i < CommitteeSize()/2+1; i++ {
 		pKey := PrivateKey(i)
-		sig := pKey.Sign(data)
+		sig := pKey.SignHashable(uint32(Network()), h)
 		if len(sig) != 64 {
 			panic("wrong signature length")
 		}
@@ -176,6 +176,6 @@ func NewBlock(t *testing.T, bc blockchainer.Blockchainer, offset uint32, primary
 	}
 	b.RebuildMerkleRoot()
 
-	b.Script.InvocationScript = Sign(b.GetSignedPart())
+	b.Script.InvocationScript = Sign(b)
 	return b
 }

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 
+	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/context"
@@ -16,13 +17,13 @@ const validUntilBlockIncrement = 50
 
 // InitAndSave creates incompletely signed transaction which can used
 // as input to `multisig sign`.
-func InitAndSave(tx *transaction.Transaction, acc *wallet.Account, filename string) error {
+func InitAndSave(net netmode.Magic, tx *transaction.Transaction, acc *wallet.Account, filename string) error {
 	// avoid fast transaction expiration
 	tx.ValidUntilBlock += validUntilBlockIncrement
 	priv := acc.PrivateKey()
 	pub := priv.PublicKey()
-	sign := priv.Sign(tx.GetSignedPart())
-	scCtx := context.NewParameterContext("Neo.Core.ContractTransaction", tx.Network, tx)
+	sign := priv.SignHashable(uint32(net), tx)
+	scCtx := context.NewParameterContext("Neo.Core.ContractTransaction", net, tx)
 	h, err := address.StringToUint160(acc.Address)
 	if err != nil {
 		return fmt.Errorf("invalid address: %s", acc.Address)

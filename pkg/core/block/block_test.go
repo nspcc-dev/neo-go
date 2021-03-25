@@ -93,7 +93,7 @@ func newDumbBlock() *Block {
 			},
 		},
 		Transactions: []*transaction.Transaction{
-			transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0),
+			transaction.New([]byte{byte(opcode.PUSH1)}, 0),
 		},
 	}
 }
@@ -260,7 +260,7 @@ func TestGetExpectedBlockSize(t *testing.T) {
 			b.StateRootEnabled = stateRootEnabled
 			b.Transactions = make([]*transaction.Transaction, 123)
 			for i := range b.Transactions {
-				tx := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.RET)}, int64(i))
+				tx := transaction.New([]byte{byte(opcode.RET)}, int64(i))
 				tx.Signers = []transaction.Signer{{Account: util.Uint160{1, 2, 3}}}
 				tx.Scripts = []transaction.Witness{{}}
 				b.Transactions[i] = tx

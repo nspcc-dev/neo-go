@@ -178,7 +178,7 @@ func TestNotaryContractPipeline(t *testing.T) {
 		testchain.MultisigScriptHash(), acc.PrivateKey().PublicKey().GetScriptHash())
 	require.NoError(t, w.Err)
 	script := w.Bytes()
-	withdrawTx := transaction.New(chain.GetConfig().Magic, script, 10000000)
+	withdrawTx := transaction.New(script, 10000000)
 	withdrawTx.ValidUntilBlock = chain.blockHeight + 1
 	withdrawTx.NetworkFee = 10000000
 	withdrawTx.Signers = []transaction.Signer{
@@ -187,7 +187,7 @@ func TestNotaryContractPipeline(t *testing.T) {
 			Scopes:  transaction.None,
 		},
 	}
-	err = acc.SignTx(withdrawTx)
+	err = acc.SignTx(chain.GetConfig().Magic, withdrawTx)
 	require.NoError(t, err)
 	b := chain.newBlock(withdrawTx)
 	err = chain.AddBlock(b)
@@ -291,13 +291,12 @@ func TestNotaryNodesReward(t *testing.T) {
 				Scopes:  transaction.None,
 			},
 		}
-		data := tx.GetSignedPart()
 		tx.Scripts = []transaction.Witness{
 			{
-				InvocationScript: append([]byte{byte(opcode.PUSHDATA1), 64}, notaryNodes[0].Sign(data)...),
+				InvocationScript: append([]byte{byte(opcode.PUSHDATA1), 64}, notaryNodes[0].SignHashable(uint32(testchain.Network()), tx)...),
 			},
 			{
-				InvocationScript:   testchain.Sign(data),
+				InvocationScript:   testchain.Sign(tx),
 				VerificationScript: testchain.MultisigVerificationScript(),
 			},
 		}

@@ -4,7 +4,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
@@ -33,7 +32,7 @@ func TestSubscriptions(t *testing.T) {
 
 		txs := make([]*transaction.Transaction, 4)
 		for i := range txs {
-			txs[i] = transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
+			txs[i] = transaction.New([]byte{byte(opcode.PUSH1)}, 0)
 			txs[i].Nonce = uint32(i)
 			txs[i].Signers = []transaction.Signer{{Account: util.Uint160{1, 2, 3}}}
 			txs[i].NetworkFee = int64(i)

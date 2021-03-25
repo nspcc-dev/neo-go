@@ -148,7 +148,7 @@ func TestOracle_Request(t *testing.T) {
 	require.NoError(t, err)
 	pub := priv.PublicKey()
 
-	tx := transaction.New(netmode.UnitTestNet, []byte{}, 0)
+	tx := transaction.New([]byte{}, 0)
 	bl := block.New(netmode.UnitTestNet, bc.config.StateRootInHeader)
 	bl.Index = bc.BlockHeight() + 1
 	setSigner(tx, testchain.CommitteeScriptHash())
@@ -158,7 +158,7 @@ func TestOracle_Request(t *testing.T) {
 	err = bc.contracts.Designate.DesignateAsRole(ic, noderoles.Oracle, keys.PublicKeys{pub})
 	require.NoError(t, err)
 
-	tx = transaction.New(netmode.UnitTestNet, orc.GetOracleResponseScript(), 0)
+	tx = transaction.New(orc.GetOracleResponseScript(), 0)
 	ic.Tx = tx
 	ic.Block = bc.newBlock(tx)
 
@@ -208,7 +208,7 @@ func TestOracle_Request(t *testing.T) {
 		_, err := orc.GetRequestInternal(bc.dao, reqID) // ensure ID is 1
 		require.NoError(t, err)
 
-		tx = transaction.New(netmode.UnitTestNet, orc.GetOracleResponseScript(), 0)
+		tx = transaction.New(orc.GetOracleResponseScript(), 0)
 		tx.Attributes = []transaction.Attribute{{
 			Type: transaction.OracleResponseT,
 			Value: &transaction.OracleResponse{

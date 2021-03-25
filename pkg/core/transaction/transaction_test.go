@@ -10,7 +10,6 @@ import (
 
 	"github.com/nspcc-dev/neo-go/internal/random"
 	"github.com/nspcc-dev/neo-go/internal/testserdes"
-	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/fixedn"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
@@ -70,7 +69,7 @@ func TestDecodeEncodeInvocationTX(t *testing.T) {
 
 func TestNew(t *testing.T) {
 	script := []byte{0x51}
-	tx := New(netmode.UnitTestNet, script, 1)
+	tx := New(script, 1)
 	tx.Signers = []Signer{{Account: util.Uint160{1, 2, 3}}}
 	tx.Scripts = []Witness{{InvocationScript: []byte{}, VerificationScript: []byte{}}}
 	assert.Equal(t, int64(1), tx.SystemFee)
@@ -78,12 +77,12 @@ func TestNew(t *testing.T) {
 	// Update hash fields to match tx2 that is gonna autoupdate them on decode.
 	_ = tx.Hash()
 	_ = tx.Size()
-	testserdes.EncodeDecodeBinary(t, tx, &Transaction{Network: netmode.UnitTestNet})
+	testserdes.EncodeDecodeBinary(t, tx, &Transaction{})
 }
 
 func TestNewTransactionFromBytes(t *testing.T) {
 	script := []byte{0x51}
-	tx := New(netmode.UnitTestNet, script, 1)
+	tx := New(script, 1)
 	tx.NetworkFee = 123
 	tx.Signers = []Signer{{Account: util.Uint160{1, 2, 3}}}
 	tx.Scripts = []Witness{{InvocationScript: []byte{}, VerificationScript: []byte{}}}
@@ -94,12 +93,12 @@ func TestNewTransactionFromBytes(t *testing.T) {
 	tx.Hash()
 	tx.FeePerByte()
 
-	tx1, err := NewTransactionFromBytes(netmode.UnitTestNet, data)
+	tx1, err := NewTransactionFromBytes(data)
 	require.NoError(t, err)
 	require.Equal(t, tx, tx1)
 
 	data = append(data, 42)
-	_, err = NewTransactionFromBytes(netmode.UnitTestNet, data)
+	_, err = NewTransactionFromBytes(data)
 	require.Error(t, err)
 }
 
@@ -116,7 +115,7 @@ func TestDecodingTXWithNoScript(t *testing.T) {
 }
 
 func TestDecodingTxWithInvalidWitnessesNumber(t *testing.T) {
-	tx := New(netmode.UnitTestNet, []byte{byte(opcode.RET)}, 1)
+	tx := New([]byte{byte(opcode.RET)}, 1)
 	tx.Signers = []Signer{{Account: util.Uint160{1, 2, 3}}}
 	tx.Scripts = []Witness{{InvocationScript: []byte{}, VerificationScript: []byte{}}, {InvocationScript: []byte{}, VerificationScript: []byte{}}}
 	data, err := testserdes.EncodeBinary(tx)
@@ -151,7 +150,6 @@ func TestUnmarshalNeoFSTX(t *testing.T) {
   ]
 }`)
 	tx := new(Transaction)
-	tx.Network = 56753
 	require.NoError(t, json.Unmarshal(txjson, tx))
 }
 
@@ -171,7 +169,7 @@ func TestMarshalUnmarshalJSONInvocationTX(t *testing.T) {
 }
 
 func TestTransaction_HasAttribute(t *testing.T) {
-	tx := New(netmode.UnitTestNet, []byte{1}, 0)
+	tx := New([]byte{1}, 0)
 	require.False(t, tx.HasAttribute(HighPriority))
 	tx.Attributes = append(tx.Attributes, Attribute{Type: HighPriority})
 	require.True(t, tx.HasAttribute(HighPriority))

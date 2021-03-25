@@ -159,7 +159,7 @@ func (m *Message) decodePayload() error {
 	case CMDHeaders:
 		p = &payload.Headers{Network: m.Network, StateRootInHeader: m.StateRootInHeader}
 	case CMDTX:
-		p = &transaction.Transaction{Network: m.Network}
+		p = &transaction.Transaction{}
 	case CMDMerkleBlock:
 		p = &payload.MerkleBlock{Network: m.Network}
 	case CMDPing, CMDPong:

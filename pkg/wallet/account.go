@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
@@ -94,7 +95,7 @@ func NewAccount() (*Account, error) {
 }
 
 // SignTx signs transaction t and updates it's Witnesses.
-func (a *Account) SignTx(t *transaction.Transaction) error {
+func (a *Account) SignTx(net netmode.Magic, t *transaction.Transaction) error {
 	if a.privateKey == nil {
 		return errors.New("account is not unlocked")
 	}
@@ -102,11 +103,7 @@ func (a *Account) SignTx(t *transaction.Transaction) error {
 		t.Scripts = append(t.Scripts, transaction.Witness{})
 		return nil
 	}
-	data := t.GetSignedPart()
-	if data == nil {
-		return errors.New("failed to get transaction's signed part")
-	}
-	sign := a.privateKey.Sign(data)
+	sign := a.privateKey.SignHashable(uint32(net), t)
 
 	verif := a.GetVerificationScript()
 	invoc := append([]byte{byte(opcode.PUSHDATA1), 64}, sign...)
