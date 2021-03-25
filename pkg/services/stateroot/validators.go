@@ -5,6 +5,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/network/payload"
+	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"go.uber.org/zap"
 )
@@ -66,13 +67,21 @@ func (s *service) signAndSend(r *state.MPTRoot) error {
 	if w.Err != nil {
 		return w.Err
 	}
-	s.getRelayCallback()(&payload.Extensible{
+	e := &payload.Extensible{
 		Network:         s.Network,
 		ValidBlockStart: r.Index,
 		ValidBlockEnd:   r.Index + transaction.MaxValidUntilBlockIncrement,
 		Sender:          s.getAccount().PrivateKey().GetScriptHash(),
 		Data:            w.Bytes(),
-	})
+		Witness: transaction.Witness{
+			VerificationScript: s.getAccount().GetVerificationScript(),
+		},
+	}
+	sig = acc.PrivateKey().SignHash(e.GetSignedHash())
+	buf := io.NewBufBinWriter()
+	emit.Bytes(buf.BinWriter, sig)
+	e.Witness.InvocationScript = buf.Bytes()
+	s.getRelayCallback()(e)
 	return nil
 }
 

@@ -7,8 +7,10 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/network/payload"
+	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"go.uber.org/zap"
 )
 
@@ -18,6 +20,10 @@ type RelayCallback = func(*payload.Extensible)
 // AddSignature adds state root signature.
 func (s *service) AddSignature(height uint32, validatorIndex int32, sig []byte) error {
 	if !s.MainCfg.Enabled {
+		return nil
+	}
+	acc := s.getAccount()
+	if acc == nil {
 		return nil
 	}
 
@@ -49,7 +55,7 @@ func (s *service) AddSignature(height uint32, validatorIndex int32, sig []byte) 
 		if err != nil {
 			s.log.Error("can't add validated state root", zap.Error(err))
 		}
-		s.sendValidatedRoot(sr)
+		s.sendValidatedRoot(sr, acc.PrivateKey())
 	}
 	return nil
 }
@@ -70,7 +76,7 @@ func (s *service) getIncompleteRoot(height uint32) *incompleteRoot {
 	return incRoot
 }
 
-func (s *service) sendValidatedRoot(r *state.MPTRoot) {
+func (s *service) sendValidatedRoot(r *state.MPTRoot, priv *keys.PrivateKey) {
 	w := io.NewBufBinWriter()
 	m := NewMessage(s.Network, RootT, r)
 	m.EncodeBinary(w.BinWriter)
@@ -78,9 +84,16 @@ func (s *service) sendValidatedRoot(r *state.MPTRoot) {
 		Network:         s.Network,
 		ValidBlockStart: r.Index,
 		ValidBlockEnd:   r.Index + transaction.MaxValidUntilBlockIncrement,
-		Sender:          s.getAccount().PrivateKey().GetScriptHash(),
+		Sender:          priv.GetScriptHash(),
 		Data:            w.Bytes(),
+		Witness: transaction.Witness{
+			VerificationScript: s.getAccount().GetVerificationScript(),
+		},
 	}
+	sig := priv.SignHash(ep.GetSignedHash())
+	buf := io.NewBufBinWriter()
+	emit.Bytes(buf.BinWriter, sig)
+	ep.Witness.InvocationScript = buf.Bytes()
 	s.getRelayCallback()(ep)
 }
 
