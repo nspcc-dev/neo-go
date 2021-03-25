@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/internal/testserdes"
-	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
@@ -32,7 +31,7 @@ func TestDecodeBlock1(t *testing.T) {
 	b, err := hex.DecodeString(data["raw"].(string))
 	require.NoError(t, err)
 
-	block := New(netmode.TestNet, false)
+	block := New(false)
 	assert.NoError(t, testserdes.DecodeBinary(b, block))
 
 	assert.Equal(t, uint32(data["index"].(float64)), block.Index)
@@ -59,7 +58,7 @@ func TestTrimmedBlock(t *testing.T) {
 	b, err := block.Trim()
 	require.NoError(t, err)
 
-	trimmedBlock, err := NewBlockFromTrimmedBytes(netmode.TestNet, false, b)
+	trimmedBlock, err := NewBlockFromTrimmedBytes(false, b)
 	require.NoError(t, err)
 
 	assert.True(t, trimmedBlock.Trimmed)
@@ -109,7 +108,7 @@ func TestBinBlockDecodeEncode(t *testing.T) {
 	rawblock := "AAAAAAwIVa2D6Yha3tArd5XnwkAf7deJBsdyyvpYb2xMZGBbkOUNHAsfre0rKA/F+Ox05/bQSXmcRZnzK3M6Z+/TxJUh0MNFeAEAAAEAAAAA3u55wYnzAJiwumouuQs6klimx/8BxgxA4MAnF5HGhcOTBjqdXKZIAKcw019v0cSpZj3l04FmLXxAPIPbL1Em2QOE3qBslr1/C4jdLSSq82o3TBr01RqlZgxA6ejwZmZkcfQsbMLS4beqFmtlKuK5eXYj7C7al2XmXqTJcVEm2gnZRUwe4lkBvcil1keYXNLEnHr77lcMLFGHZQxA8JYcGaz9OxOXxECrbVTGAIi+3nXf3ltsqDBmXukPeYO8l0OvXnVR30G+tXwcNw4wqTA2eZbMadwYM14JScDEipMTDCECEDp/fdAWVYWX95YNJ8UWpDlP2Wi55lFV60sBPkBAQG4MIQKnvFX+hoTgEZdo0QS6MHlb3MhmGehkrdJhVnI+0YXNYgwhArNiK/QBe9/jF8WK7V9MdT8ga324lgRvp9d0u8S/f43CDCED2QwH32PmkM53kS4Qq1GsyUS2aGAje2CMT4+DCece5pkUQXvObKUCAFjQuwvA2KcAAAAAACCqRAAAAAAA6AMAAAHe7nnBifMAmLC6ai65CzqSWKbH/wEAWwsCAOH1BQwUgM7HtvW1b1BXj3N/Fi06sU1GZQ0MFN7uecGJ8wCYsLpqLrkLOpJYpsf/FMAfDAh0cmFuc2ZlcgwU9WPqQLwoPU0OBcSOowWz8qBzQO9BYn1bUjkBxgxAuFCM0+tRmD8dC3ZLKxegtoqGGoun28KY79wRgKosmoMYqJmBmUS3l2cg+uzuRSfOqV0RbUm1WLtmAxvk+SAiIAxA85v8JfgZx70F2h0Naxi7XVDHONcDeiOPJDzzOxdt4C/bFcRs4kCDES56U21h6582lPUstH15LyK3SctSgAZEkAxAwcLgblSvp7Gb59aALHD4+ndxSYlBivcYh6V/SKaf+Y0510QQMs8hnPCGTAVapeFkvJMBXuqIwP/QbxW+Xll5xJMTDCECEDp/fdAWVYWX95YNJ8UWpDlP2Wi55lFV60sBPkBAQG4MIQKnvFX+hoTgEZdo0QS6MHlb3MhmGehkrdJhVnI+0YXNYgwhArNiK/QBe9/jF8WK7V9MdT8ga324lgRvp9d0u8S/f43CDCED2QwH32PmkM53kS4Qq1GsyUS2aGAje2CMT4+DCece5pkUQXvObKUA2CS8GcDYpwAAAAAAIKpEAAAAAADoAwAAAd7uecGJ8wCYsLpqLrkLOpJYpsf/AQBfCwMAQNndiE0KAAwUgM7HtvW1b1BXj3N/Fi06sU1GZQ0MFN7uecGJ8wCYsLpqLrkLOpJYpsf/FMAfDAh0cmFuc2ZlcgwUz3bii9AGLEpHjuNVYQETGfPPpNJBYn1bUjkBxgxA1p9A+89hC6qTfIIXDPz7XxcKOevwXxGrHx7kihAiTGMb1OO69mbUooYOfZRsUmcx7L8U8up7MrydtsnDYSDXSQxApetXIPd+zfx7oyrCzLtsCTEuwueG8yd6ttgs6pZb8N2KfNPVEoCg7Plvt0A+6yPkhbNDoSJ9IKKAlFOn/9d1owxA6/V3Xk+QhkzvAi9CYoM3E3LnLNBgXKh7PH06Dusz7rgn0u1oencsUgoo0+AOEvuwVHVt3bDu/NvJHtX4/KDcZpMTDCECEDp/fdAWVYWX95YNJ8UWpDlP2Wi55lFV60sBPkBAQG4MIQKnvFX+hoTgEZdo0QS6MHlb3MhmGehkrdJhVnI+0YXNYgwhArNiK/QBe9/jF8WK7V9MdT8ga324lgRvp9d0u8S/f43CDCED2QwH32PmkM53kS4Qq1GsyUS2aGAje2CMT4+DCece5pkUQXvObKU="
 	rawblockBytes, _ := base64.StdEncoding.DecodeString(rawblock)
 
-	b := New(netmode.PrivNet, false)
+	b := New(false)
 
 	assert.NoError(t, testserdes.DecodeBinary(rawblockBytes, b))
 	expected := map[string]bool{ // 1 trans
@@ -143,7 +142,7 @@ func TestBinBlockDecodeEncode(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, rawblock, base64.StdEncoding.EncodeToString(data))
 
-	testserdes.MarshalUnmarshalJSON(t, b, New(netmode.PrivNet, false))
+	testserdes.MarshalUnmarshalJSON(t, b, New(false))
 }
 
 func TestBlockSizeCalculation(t *testing.T) {
@@ -156,7 +155,7 @@ func TestBlockSizeCalculation(t *testing.T) {
 	rawBlock := "AAAAAAwIVa2D6Yha3tArd5XnwkAf7deJBsdyyvpYb2xMZGBbkOUNHAsfre0rKA/F+Ox05/bQSXmcRZnzK3M6Z+/TxJUh0MNFeAEAAAEAAAAA3u55wYnzAJiwumouuQs6klimx/8BxgxA4MAnF5HGhcOTBjqdXKZIAKcw019v0cSpZj3l04FmLXxAPIPbL1Em2QOE3qBslr1/C4jdLSSq82o3TBr01RqlZgxA6ejwZmZkcfQsbMLS4beqFmtlKuK5eXYj7C7al2XmXqTJcVEm2gnZRUwe4lkBvcil1keYXNLEnHr77lcMLFGHZQxA8JYcGaz9OxOXxECrbVTGAIi+3nXf3ltsqDBmXukPeYO8l0OvXnVR30G+tXwcNw4wqTA2eZbMadwYM14JScDEipMTDCECEDp/fdAWVYWX95YNJ8UWpDlP2Wi55lFV60sBPkBAQG4MIQKnvFX+hoTgEZdo0QS6MHlb3MhmGehkrdJhVnI+0YXNYgwhArNiK/QBe9/jF8WK7V9MdT8ga324lgRvp9d0u8S/f43CDCED2QwH32PmkM53kS4Qq1GsyUS2aGAje2CMT4+DCece5pkUQXvObKUCAFjQuwvA2KcAAAAAACCqRAAAAAAA6AMAAAHe7nnBifMAmLC6ai65CzqSWKbH/wEAWwsCAOH1BQwUgM7HtvW1b1BXj3N/Fi06sU1GZQ0MFN7uecGJ8wCYsLpqLrkLOpJYpsf/FMAfDAh0cmFuc2ZlcgwU9WPqQLwoPU0OBcSOowWz8qBzQO9BYn1bUjkBxgxAuFCM0+tRmD8dC3ZLKxegtoqGGoun28KY79wRgKosmoMYqJmBmUS3l2cg+uzuRSfOqV0RbUm1WLtmAxvk+SAiIAxA85v8JfgZx70F2h0Naxi7XVDHONcDeiOPJDzzOxdt4C/bFcRs4kCDES56U21h6582lPUstH15LyK3SctSgAZEkAxAwcLgblSvp7Gb59aALHD4+ndxSYlBivcYh6V/SKaf+Y0510QQMs8hnPCGTAVapeFkvJMBXuqIwP/QbxW+Xll5xJMTDCECEDp/fdAWVYWX95YNJ8UWpDlP2Wi55lFV60sBPkBAQG4MIQKnvFX+hoTgEZdo0QS6MHlb3MhmGehkrdJhVnI+0YXNYgwhArNiK/QBe9/jF8WK7V9MdT8ga324lgRvp9d0u8S/f43CDCED2QwH32PmkM53kS4Qq1GsyUS2aGAje2CMT4+DCece5pkUQXvObKUA2CS8GcDYpwAAAAAAIKpEAAAAAADoAwAAAd7uecGJ8wCYsLpqLrkLOpJYpsf/AQBfCwMAQNndiE0KAAwUgM7HtvW1b1BXj3N/Fi06sU1GZQ0MFN7uecGJ8wCYsLpqLrkLOpJYpsf/FMAfDAh0cmFuc2ZlcgwUz3bii9AGLEpHjuNVYQETGfPPpNJBYn1bUjkBxgxA1p9A+89hC6qTfIIXDPz7XxcKOevwXxGrHx7kihAiTGMb1OO69mbUooYOfZRsUmcx7L8U8up7MrydtsnDYSDXSQxApetXIPd+zfx7oyrCzLtsCTEuwueG8yd6ttgs6pZb8N2KfNPVEoCg7Plvt0A+6yPkhbNDoSJ9IKKAlFOn/9d1owxA6/V3Xk+QhkzvAi9CYoM3E3LnLNBgXKh7PH06Dusz7rgn0u1oencsUgoo0+AOEvuwVHVt3bDu/NvJHtX4/KDcZpMTDCECEDp/fdAWVYWX95YNJ8UWpDlP2Wi55lFV60sBPkBAQG4MIQKnvFX+hoTgEZdo0QS6MHlb3MhmGehkrdJhVnI+0YXNYgwhArNiK/QBe9/jF8WK7V9MdT8ga324lgRvp9d0u8S/f43CDCED2QwH32PmkM53kS4Qq1GsyUS2aGAje2CMT4+DCece5pkUQXvObKU="
 	rawBlockBytes, _ := base64.StdEncoding.DecodeString(rawBlock)
 
-	b := New(netmode.TestNet, false)
+	b := New(false)
 	assert.NoError(t, testserdes.DecodeBinary(rawBlockBytes, b))
 
 	expected := []struct {

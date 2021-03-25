@@ -1194,7 +1194,7 @@ func (s *Server) runScriptInVM(t trigger.Type, script []byte, contractScriptHash
 	// When transferring funds, script execution does no auto GAS claim,
 	// because it depends on persisting tx height.
 	// This is why we provide block here.
-	b := block.New(s.network, s.stateRootEnabled)
+	b := block.New(s.stateRootEnabled)
 	b.Index = s.chain.BlockHeight() + 1
 	hdr, err := s.chain.GetHeader(s.chain.GetHeaderHash(int(s.chain.BlockHeight())))
 	if err != nil {
@@ -1246,7 +1246,7 @@ func (s *Server) submitBlock(reqParams request.Params) (interface{}, *response.E
 	if err != nil {
 		return nil, response.ErrInvalidParams
 	}
-	b := block.New(s.network, s.stateRootEnabled)
+	b := block.New(s.stateRootEnabled)
 	r := io.NewBinReaderFromBuf(blockBytes)
 	b.DecodeBinary(r)
 	if r.Err != nil {

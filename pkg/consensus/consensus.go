@@ -576,7 +576,7 @@ func (s *service) getBlock(h util.Uint256) block.Block {
 		return nil
 	}
 
-	return &neoBlock{Block: *b}
+	return &neoBlock{network: s.ProtocolConfiguration.Magic, Block: *b}
 }
 
 func (s *service) getVerifiedTx() []block.Transaction {
@@ -647,9 +647,8 @@ func convertKeys(validators []crypto.PublicKey) (pubs []*keys.PublicKey) {
 }
 
 func (s *service) newBlockFromContext(ctx *dbft.Context) block.Block {
-	block := new(neoBlock)
+	block := &neoBlock{network: s.ProtocolConfiguration.Magic}
 
-	block.Block.Network = s.ProtocolConfiguration.Magic
 	block.Block.Timestamp = ctx.Timestamp / nsInMs
 	block.Block.Index = ctx.BlockIndex
 	if s.ProtocolConfiguration.StateRootInHeader {

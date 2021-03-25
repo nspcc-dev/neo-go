@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/internal/testchain"
-	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
@@ -149,7 +148,7 @@ func TestOracle_Request(t *testing.T) {
 	pub := priv.PublicKey()
 
 	tx := transaction.New([]byte{}, 0)
-	bl := block.New(netmode.UnitTestNet, bc.config.StateRootInHeader)
+	bl := block.New(bc.config.StateRootInHeader)
 	bl.Index = bc.BlockHeight() + 1
 	setSigner(tx, testchain.CommitteeScriptHash())
 	ic := bc.newInteropContext(trigger.Application, bc.dao, bl, tx)

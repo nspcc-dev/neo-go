@@ -86,7 +86,7 @@ func (c *Client) getBlock(params request.RawParams) (*block.Block, error) {
 		return nil, err
 	}
 	r := io.NewBinReaderFromBuf(resp)
-	b = block.New(c.GetNetwork(), c.StateRootInHeader())
+	b = block.New(c.StateRootInHeader())
 	b.DecodeBinary(r)
 	if r.Err != nil {
 		return nil, r.Err
@@ -115,7 +115,6 @@ func (c *Client) getBlockVerbose(params request.RawParams) (*result.Block, error
 	if !c.initDone {
 		return nil, errNetworkNotInitialized
 	}
-	resp.Network = c.GetNetwork()
 	if err = c.performRequest("getblock", params, resp); err != nil {
 		return nil, err
 	}
@@ -151,7 +150,6 @@ func (c *Client) GetBlockHeader(hash util.Uint256) (*block.Header, error) {
 	}
 	r := io.NewBinReaderFromBuf(resp)
 	h = new(block.Header)
-	h.Network = c.GetNetwork()
 	h.DecodeBinary(r)
 	if r.Err != nil {
 		return nil, r.Err

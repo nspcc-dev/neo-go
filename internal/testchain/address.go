@@ -170,7 +170,6 @@ func NewBlock(t *testing.T, bc blockchainer.Blockchainer, offset uint32, primary
 			PrimaryIndex:  byte(primary),
 			NextConsensus: witness.ScriptHash(),
 			Script:        witness,
-			Network:       bc.GetConfig().Magic,
 		},
 		Transactions: txs,
 	}

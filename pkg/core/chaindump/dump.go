@@ -47,7 +47,6 @@ func Restore(bc blockchainer.Blockchainer, r *io.BinReader, skip, count uint32, 
 		}
 	}
 
-	magic := bc.GetConfig().Magic
 	stateRootInHeader := bc.GetConfig().StateRootInHeader
 
 	for ; i < skip+count; i++ {
@@ -55,7 +54,7 @@ func Restore(bc blockchainer.Blockchainer, r *io.BinReader, skip, count uint32, 
 		if err != nil {
 			return err
 		}
-		b := block.New(magic, stateRootInHeader)
+		b := block.New(stateRootInHeader)
 		r := io.NewBinReaderFromBuf(buf)
 		b.DecodeBinary(r)
 		if r.Err != nil {

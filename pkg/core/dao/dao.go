@@ -363,7 +363,7 @@ func (dao *Simple) GetBlock(hash util.Uint256) (*block.Block, error) {
 		return nil, err
 	}
 
-	block, err := block.NewBlockFromTrimmedBytes(dao.network, dao.stateRootInHeader, b)
+	block, err := block.NewBlockFromTrimmedBytes(dao.stateRootInHeader, b)
 	if err != nil {
 		return nil, err
 	}
@@ -530,7 +530,7 @@ func (dao *Simple) DeleteBlock(h util.Uint256, w *io.BufBinWriter) error {
 		return err
 	}
 
-	b, err := block.NewBlockFromTrimmedBytes(dao.network, dao.stateRootInHeader, bs)
+	b, err := block.NewBlockFromTrimmedBytes(dao.stateRootInHeader, bs)
 	if err != nil {
 		return err
 	}

@@ -1568,10 +1568,6 @@ func (tc rpcTestCase) getResultPair(e *executor) (expected interface{}, res inte
 	expected = tc.result(e)
 	resVal := reflect.New(reflect.TypeOf(expected).Elem())
 	res = resVal.Interface()
-	switch r := res.(type) {
-	case *result.Block:
-		r.Network = testchain.Network()
-	}
 	return expected, res
 }
 

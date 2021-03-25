@@ -3,7 +3,6 @@ package payload
 import (
 	"errors"
 
-	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -12,7 +11,6 @@ import (
 // MerkleBlock represents a merkle block packet payload.
 type MerkleBlock struct {
 	*block.Header
-	Network netmode.Magic
 	TxCount int
 	Hashes  []util.Uint256
 	Flags   []byte
@@ -20,7 +18,7 @@ type MerkleBlock struct {
 
 // DecodeBinary implements Serializable interface.
 func (m *MerkleBlock) DecodeBinary(br *io.BinReader) {
-	m.Header = &block.Header{Network: m.Network}
+	m.Header = &block.Header{}
 	m.Header.DecodeBinary(br)
 
 	txCount := int(br.ReadVarUint())

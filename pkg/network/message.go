@@ -145,7 +145,7 @@ func (m *Message) decodePayload() error {
 	case CMDAddr:
 		p = &payload.AddressList{}
 	case CMDBlock:
-		p = block.New(m.Network, m.StateRootInHeader)
+		p = block.New(m.StateRootInHeader)
 	case CMDExtensible:
 		p = payload.NewExtensible(m.Network)
 	case CMDP2PNotaryRequest:
@@ -157,11 +157,11 @@ func (m *Message) decodePayload() error {
 	case CMDGetBlockByIndex:
 		p = &payload.GetBlockByIndex{}
 	case CMDHeaders:
-		p = &payload.Headers{Network: m.Network, StateRootInHeader: m.StateRootInHeader}
+		p = &payload.Headers{StateRootInHeader: m.StateRootInHeader}
 	case CMDTX:
 		p = &transaction.Transaction{}
 	case CMDMerkleBlock:
-		p = &payload.MerkleBlock{Network: m.Network}
+		p = &payload.MerkleBlock{}
 	case CMDPing, CMDPong:
 		p = &payload.Ping{}
 	case CMDNotFound:

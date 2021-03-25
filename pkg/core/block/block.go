@@ -6,7 +6,6 @@ import (
 	"math"
 
 	"github.com/Workiva/go-datastructures/queue"
-	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/io"
@@ -68,10 +67,9 @@ func (b *Block) RebuildMerkleRoot() {
 // This is commonly used to create a block from stored data.
 // Blocks created from trimmed data will have their Trimmed field
 // set to true.
-func NewBlockFromTrimmedBytes(network netmode.Magic, stateRootEnabled bool, b []byte) (*Block, error) {
+func NewBlockFromTrimmedBytes(stateRootEnabled bool, b []byte) (*Block, error) {
 	block := &Block{
 		Header: Header{
-			Network:          network,
 			StateRootEnabled: stateRootEnabled,
 		},
 		Trimmed: true,
@@ -95,11 +93,10 @@ func NewBlockFromTrimmedBytes(network netmode.Magic, stateRootEnabled bool, b []
 	return block, br.Err
 }
 
-// New creates a new blank block tied to the specific network.
-func New(network netmode.Magic, stateRootEnabled bool) *Block {
+// New creates a new blank block with proper state root setting.
+func New(stateRootEnabled bool) *Block {
 	return &Block{
 		Header: Header{
-			Network:          network,
 			StateRootEnabled: stateRootEnabled,
 		},
 	}

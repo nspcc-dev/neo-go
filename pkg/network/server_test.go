@@ -393,7 +393,7 @@ func TestBlock(t *testing.T) {
 	atomic2.StoreUint32(&s.chain.(*fakechain.FakeChain).Blockheight, 12344)
 	require.Equal(t, uint32(12344), s.chain.BlockHeight())
 
-	b := block.New(netmode.UnitTestNet, false)
+	b := block.New(false)
 	b.Index = 12345
 	s.testHandleMessage(t, nil, CMDBlock, b)
 	require.Eventually(t, func() bool { return s.chain.BlockHeight() == 12345 }, time.Second, time.Millisecond*500)

@@ -592,7 +592,7 @@ func TestVerifyTx(t *testing.T) {
 				InvocationScript:   testchain.SignCommittee(txSetOracle),
 				VerificationScript: testchain.CommitteeVerificationScript(),
 			}}
-			bl := block.New(netmode.UnitTestNet, bc.config.StateRootInHeader)
+			bl := block.New(bc.config.StateRootInHeader)
 			bl.Index = bc.BlockHeight() + 1
 			ic := bc.newInteropContext(trigger.All, bc.dao, bl, txSetOracle)
 			ic.SpawnVM()
@@ -800,7 +800,7 @@ func TestVerifyTx(t *testing.T) {
 				InvocationScript:   testchain.SignCommittee(txSetNotary),
 				VerificationScript: testchain.CommitteeVerificationScript(),
 			}}
-			bl := block.New(netmode.UnitTestNet, false)
+			bl := block.New(false)
 			bl.Index = bc.BlockHeight() + 1
 			ic := bc.newInteropContext(trigger.All, bc.dao, bl, txSetNotary)
 			ic.SpawnVM()

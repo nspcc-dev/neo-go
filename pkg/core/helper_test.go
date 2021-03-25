@@ -111,7 +111,6 @@ func newBlockCustom(cfg config.ProtocolConfiguration, f func(b *block.Block),
 	}
 	b := &block.Block{
 		Header: block.Header{
-			Network:       testchain.Network(),
 			NextConsensus: witness.ScriptHash(),
 			Script:        witness,
 		},
@@ -187,7 +186,7 @@ func getDecodedBlock(t *testing.T, i int) *block.Block {
 	b, err := hex.DecodeString(data["raw"].(string))
 	require.NoError(t, err)
 
-	block := block.New(testchain.Network(), false)
+	block := block.New(false)
 	require.NoError(t, testserdes.DecodeBinary(b, block))
 
 	return block
@@ -208,7 +207,6 @@ func getBlockData(i int) (map[string]interface{}, error) {
 func newDumbBlock() *block.Block {
 	return &block.Block{
 		Header: block.Header{
-			Network:       testchain.Network(),
 			Version:       0,
 			PrevHash:      hash.Sha256([]byte("a")),
 			MerkleRoot:    hash.Sha256([]byte("b")),

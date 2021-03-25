@@ -204,12 +204,10 @@ func TestEncodeDecodeMerkleBlock(t *testing.T) {
 			InvocationScript:   random.Bytes(10),
 			VerificationScript: random.Bytes(11),
 		},
-		Network: netmode.UnitTestNet,
 	}
 	base.Hash()
 	t.Run("good", func(t *testing.T) {
 		testEncodeDecode(t, CMDMerkleBlock, &payload.MerkleBlock{
-			Network: netmode.UnitTestNet,
 			Header:  base,
 			TxCount: 1,
 			Hashes:  []util.Uint256{random.Uint256()},
@@ -287,7 +285,7 @@ func (f failSer) EncodeBinary(r *io.BinWriter) {
 func (failSer) DecodeBinary(w *io.BinReader) {}
 
 func newDummyBlock(height uint32, txCount int) *block.Block {
-	b := block.New(netmode.UnitTestNet, false)
+	b := block.New(false)
 	b.Index = height
 	b.PrevHash = random.Uint256()
 	b.Timestamp = rand.Uint64()
