@@ -130,10 +130,9 @@ func TestEncodeDecodeBlock(t *testing.T) {
 	})
 	t.Run("invalid state root enabled setting", func(t *testing.T) {
 		expected := NewMessage(CMDBlock, newDummyBlock(31, 1))
-		expected.Network = netmode.UnitTestNet
 		data, err := testserdes.Encode(expected)
 		require.NoError(t, err)
-		require.Error(t, testserdes.Decode(data, &Message{Network: netmode.UnitTestNet, StateRootInHeader: true}))
+		require.Error(t, testserdes.Decode(data, &Message{StateRootInHeader: true}))
 	})
 }
 
@@ -241,7 +240,7 @@ func TestInvalidMessages(t *testing.T) {
 		require.NoError(t, err)
 		require.True(t, m.Flags&Compressed == 0)
 		data[0] |= byte(Compressed)
-		require.Error(t, testserdes.Decode(data, &Message{Network: netmode.UnitTestNet}))
+		require.Error(t, testserdes.Decode(data, &Message{}))
 	})
 	t.Run("invalid command", func(t *testing.T) {
 		testEncodeDecodeFail(t, CommandType(0xFF), &payload.Version{Magic: netmode.UnitTestNet})
@@ -253,7 +252,7 @@ func TestInvalidMessages(t *testing.T) {
 		w.WriteB(byte(m.Command))
 		w.WriteVarBytes(make([]byte, payload.MaxSize+1))
 		require.NoError(t, w.Err)
-		require.Error(t, testserdes.Decode(w.Bytes(), &Message{Network: netmode.UnitTestNet}))
+		require.Error(t, testserdes.Decode(w.Bytes(), &Message{}))
 	})
 	t.Run("fail to encode message if payload can't be serialized", func(t *testing.T) {
 		m := NewMessage(CMDBlock, failSer(true))
@@ -270,7 +269,7 @@ func TestInvalidMessages(t *testing.T) {
 		data, err := testserdes.Encode(m)
 		require.NoError(t, err)
 		data = data[:len(data)-1]
-		require.Error(t, testserdes.Decode(data, &Message{Network: netmode.UnitTestNet}))
+		require.Error(t, testserdes.Decode(data, &Message{}))
 	})
 }
 
@@ -310,19 +309,17 @@ func newDummyTx() *transaction.Transaction {
 
 func testEncodeDecode(t *testing.T, cmd CommandType, p payload.Payload) *Message {
 	expected := NewMessage(cmd, p)
-	expected.Network = netmode.UnitTestNet
-	actual := &Message{Network: netmode.UnitTestNet}
+	actual := &Message{}
 	testserdes.EncodeDecode(t, expected, actual)
 	return actual
 }
 
 func testEncodeDecodeFail(t *testing.T, cmd CommandType, p payload.Payload) *Message {
 	expected := NewMessage(cmd, p)
-	expected.Network = netmode.UnitTestNet
 	data, err := testserdes.Encode(expected)
 	require.NoError(t, err)
 
-	actual := &Message{Network: netmode.UnitTestNet}
+	actual := &Message{}
 	require.Error(t, testserdes.Decode(data, actual))
 	return actual
 }

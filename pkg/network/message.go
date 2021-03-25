@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/io"
@@ -30,9 +29,6 @@ type Message struct {
 	// Compressed message payload.
 	compressedPayload []byte
 
-	// Network this message comes from, it has to be set upon Message
-	// creation for correct decoding.
-	Network netmode.Magic
 	// StateRootInHeader specifies if state root is included in block header.
 	// This is needed for correct decoding.
 	StateRootInHeader bool
@@ -87,8 +83,7 @@ const (
 	CMDAlert CommandType = 0x40
 )
 
-// NewMessage returns a new message with the given payload. It's intended to be
-// used for messages to be sent, thus it doesn't care much about the Network.
+// NewMessage returns a new message with the given payload.
 func NewMessage(cmd CommandType, p payload.Payload) *Message {
 	return &Message{
 		Command: cmd,

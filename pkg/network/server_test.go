@@ -12,7 +12,6 @@ import (
 	"github.com/nspcc-dev/neo-go/internal/fakechain"
 	"github.com/nspcc-dev/neo-go/internal/random"
 	"github.com/nspcc-dev/neo-go/pkg/config"
-	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/consensus"
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
@@ -372,7 +371,6 @@ func (s *Server) testHandleMessage(t *testing.T, p Peer, cmd CommandType, pl pay
 		p.(*localPeer).handshaked = true
 	}
 	msg := NewMessage(cmd, pl)
-	msg.Network = netmode.UnitTestNet
 	require.NoError(t, s.handleMessage(p, msg))
 	return s
 }
@@ -593,7 +591,6 @@ func TestGetBlocks(t *testing.T) {
 	})
 	t.Run("invalid start", func(t *testing.T) {
 		msg := NewMessage(CMDGetBlocks, &payload.GetBlocks{HashStart: util.Uint256{}, Count: -1})
-		msg.Network = netmode.UnitTestNet
 		require.Error(t, s.handleMessage(p, msg))
 	})
 }
@@ -824,7 +821,6 @@ func TestAddrs(t *testing.T) {
 
 	t.Run("CMDAddr not requested", func(t *testing.T) {
 		msg := NewMessage(CMDAddr, pl)
-		msg.Network = netmode.UnitTestNet
 		require.Error(t, s.handleMessage(p, msg))
 	})
 }

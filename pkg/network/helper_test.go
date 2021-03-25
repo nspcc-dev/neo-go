@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/nspcc-dev/neo-go/internal/fakechain"
-	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/network/capability"
 	"github.com/nspcc-dev/neo-go/pkg/network/payload"
@@ -122,7 +121,7 @@ func (p *localPeer) EnqueueP2PPacket(m []byte) error {
 	return p.EnqueueHPPacket(true, m)
 }
 func (p *localPeer) EnqueueHPPacket(_ bool, m []byte) error {
-	msg := &Message{Network: netmode.UnitTestNet}
+	msg := &Message{}
 	r := io.NewBinReaderFromBuf(m)
 	err := msg.Decode(r)
 	if err == nil {
