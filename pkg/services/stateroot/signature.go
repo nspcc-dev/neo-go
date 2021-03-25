@@ -3,6 +3,7 @@ package stateroot
 import (
 	"sync"
 
+	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
@@ -38,11 +39,10 @@ func newIncompleteRoot() *incompleteRoot {
 	}
 }
 
-func (r *incompleteRoot) reverify() {
-	txHash := r.root.GetSignedHash()
+func (r *incompleteRoot) reverify(net netmode.Magic) {
 	for _, sig := range r.sigs {
 		if !sig.ok {
-			sig.ok = sig.pub.Verify(sig.sig, txHash.BytesBE())
+			sig.ok = sig.pub.VerifyHashable(sig.sig, uint32(net), r.root)
 		}
 	}
 }

@@ -3,7 +3,6 @@ package stateroot
 import (
 	"fmt"
 
-	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 )
@@ -14,7 +13,6 @@ type (
 
 	// Message represents state-root related message.
 	Message struct {
-		Network netmode.Magic
 		Type    MessageType
 		Payload io.Serializable
 	}
@@ -27,9 +25,8 @@ const (
 )
 
 // NewMessage creates new message of specified type.
-func NewMessage(net netmode.Magic, typ MessageType, p io.Serializable) *Message {
+func NewMessage(typ MessageType, p io.Serializable) *Message {
 	return &Message{
-		Network: net,
 		Type:    typ,
 		Payload: p,
 	}
@@ -47,7 +44,7 @@ func (m *Message) DecodeBinary(r *io.BinReader) {
 	case VoteT:
 		m.Payload = new(Vote)
 	case RootT:
-		m.Payload = &state.MPTRoot{Network: m.Network}
+		m.Payload = new(state.MPTRoot)
 	default:
 		r.Err = fmt.Errorf("invalid type: %x", m.Type)
 		return

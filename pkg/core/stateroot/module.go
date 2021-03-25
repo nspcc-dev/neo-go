@@ -116,9 +116,8 @@ func (s *Module) AddMPTBatch(index uint32, b mpt.Batch) error {
 	}
 	s.mpt.Flush()
 	err := s.addLocalStateRoot(&state.MPTRoot{
-		Network: s.network,
-		Index:   index,
-		Root:    s.mpt.StateRoot(),
+		Index: index,
+		Root:  s.mpt.StateRoot(),
 	})
 	if err != nil {
 		return err

@@ -47,16 +47,16 @@ func (s *service) signAndSend(r *state.MPTRoot) error {
 		return nil
 	}
 
-	sig := acc.PrivateKey().SignHash(r.GetSignedHash())
+	sig := acc.PrivateKey().SignHashable(uint32(s.Network), r)
 	incRoot := s.getIncompleteRoot(r.Index)
 	incRoot.root = r
 	incRoot.addSignature(acc.PrivateKey().PublicKey(), sig)
-	incRoot.reverify()
+	incRoot.reverify(s.Network)
 
 	s.accMtx.RLock()
 	myIndex := s.myIndex
 	s.accMtx.RUnlock()
-	msg := NewMessage(s.Network, VoteT, &Vote{
+	msg := NewMessage(VoteT, &Vote{
 		ValidatorIndex: int32(myIndex),
 		Height:         r.Index,
 		Signature:      sig,

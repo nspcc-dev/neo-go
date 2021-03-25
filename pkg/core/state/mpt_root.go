@@ -1,9 +1,6 @@
 package state
 
 import (
-	"encoding/binary"
-
-	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/io"
@@ -12,25 +9,10 @@ import (
 
 // MPTRoot represents storage state root together with sign info.
 type MPTRoot struct {
-	Network netmode.Magic        `json:"-"`
 	Version byte                 `json:"version"`
 	Index   uint32               `json:"index"`
 	Root    util.Uint256         `json:"stateroot"`
 	Witness *transaction.Witness `json:"witness,omitempty"`
-}
-
-// GetSignedPart returns part of MPTRootBase which needs to be signed.
-func (s *MPTRoot) GetSignedPart() []byte {
-	b := make([]byte, 4+32)
-	binary.LittleEndian.PutUint32(b, uint32(s.Network))
-	h := s.Hash()
-	copy(b[4:], h[:])
-	return b
-}
-
-// GetSignedHash returns hash of MPTRootBase which needs to be signed.
-func (s *MPTRoot) GetSignedHash() util.Uint256 {
-	return hash.Sha256(s.GetSignedPart())
 }
 
 // Hash returns hash of s.

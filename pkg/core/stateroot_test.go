@@ -33,7 +33,7 @@ func testSignStateRoot(t *testing.T, r *state.MPTRoot, pubs keys.PublicKeys, acc
 	n := smartcontract.GetMajorityHonestNodeCount(len(accs))
 	w := io.NewBufBinWriter()
 	for i := 0; i < n; i++ {
-		sig := accs[i].PrivateKey().SignHash(r.GetSignedHash())
+		sig := accs[i].PrivateKey().SignHashable(uint32(netmode.UnitTestNet), r)
 		emit.Bytes(w.BinWriter, sig)
 	}
 	require.NoError(t, w.Err)
@@ -44,7 +44,7 @@ func testSignStateRoot(t *testing.T, r *state.MPTRoot, pubs keys.PublicKeys, acc
 		VerificationScript: script,
 		InvocationScript:   w.Bytes(),
 	}
-	data, err := testserdes.EncodeBinary(stateroot.NewMessage(netmode.UnitTestNet, stateroot.RootT, r))
+	data, err := testserdes.EncodeBinary(stateroot.NewMessage(stateroot.RootT, r))
 	require.NoError(t, err)
 	return data
 }
@@ -97,7 +97,7 @@ func TestStateRoot(t *testing.T) {
 	t.Run("drop zero index", func(t *testing.T) {
 		r, err := srv.GetStateRoot(0)
 		require.NoError(t, err)
-		data, err := testserdes.EncodeBinary(stateroot.NewMessage(netmode.UnitTestNet, stateroot.RootT, r))
+		data, err := testserdes.EncodeBinary(stateroot.NewMessage(stateroot.RootT, r))
 		require.NoError(t, err)
 		require.NoError(t, srv.OnPayload(&payload.Extensible{Data: data}))
 		require.EqualValues(t, 0, srv.CurrentValidatedHeight())
@@ -221,7 +221,7 @@ func TestStateRootFull(t *testing.T) {
 
 	r, err := srv.GetStateRoot(2)
 	require.NoError(t, err)
-	require.NoError(t, srv.AddSignature(2, 0, accs[0].PrivateKey().SignHash(r.GetSignedHash())))
+	require.NoError(t, srv.AddSignature(2, 0, accs[0].PrivateKey().SignHashable(uint32(netmode.UnitTestNet), r)))
 	require.NotNil(t, lastValidated.Load().(*payload.Extensible))
 
 	msg := new(stateroot.Message)
@@ -250,5 +250,5 @@ func checkVoteBroadcasted(t *testing.T, bc *Blockchain, p *payload.Extensible,
 
 	pubs, _, err := bc.contracts.Designate.GetDesignatedByRole(bc.dao, noderoles.StateValidator, bc.BlockHeight())
 	require.True(t, len(pubs) > int(valIndex))
-	require.True(t, pubs[valIndex].Verify(vote.Signature, r.GetSignedHash().BytesBE()))
+	require.True(t, pubs[valIndex].VerifyHashable(vote.Signature, uint32(netmode.UnitTestNet), r))
 }
