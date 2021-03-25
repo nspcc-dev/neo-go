@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/internal/random"
-	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
@@ -171,7 +170,6 @@ func TestNotaryRequestBytesFromBytes(t *testing.T) {
 	_ = fallbackTx.Hash()
 	_ = fallbackTx.Size()
 	p := &P2PNotaryRequest{
-		Network:             netmode.UnitTestNet,
 		MainTransaction:     mainTx,
 		FallbackTransaction: fallbackTx,
 		Witness: transaction.Witness{
@@ -183,7 +181,7 @@ func TestNotaryRequestBytesFromBytes(t *testing.T) {
 	_ = p.Hash() // initialize hash caches
 	bytes, err := p.Bytes()
 	require.NoError(t, err)
-	actual, err := NewP2PNotaryRequestFromBytes(netmode.UnitTestNet, bytes)
+	actual, err := NewP2PNotaryRequestFromBytes(bytes)
 	require.NoError(t, err)
 	require.Equal(t, p, actual)
 }

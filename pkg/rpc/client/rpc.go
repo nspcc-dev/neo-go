@@ -659,10 +659,9 @@ func (c *Client) SignAndPushP2PNotaryRequest(mainTx *transaction.Transaction, fa
 	req := &payload.P2PNotaryRequest{
 		MainTransaction:     mainTx,
 		FallbackTransaction: fallbackTx,
-		Network:             c.GetNetwork(),
 	}
 	req.Witness = transaction.Witness{
-		InvocationScript:   append([]byte{byte(opcode.PUSHDATA1), 64}, acc.PrivateKey().Sign(req.GetSignedPart())...),
+		InvocationScript:   append([]byte{byte(opcode.PUSHDATA1), 64}, acc.PrivateKey().SignHashable(uint32(c.GetNetwork()), req)...),
 		VerificationScript: acc.GetVerificationScript(),
 	}
 	actualHash, err := c.SubmitP2PNotaryRequest(req)

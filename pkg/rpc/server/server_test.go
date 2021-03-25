@@ -19,7 +19,6 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/nspcc-dev/neo-go/internal/testchain"
 	"github.com/nspcc-dev/neo-go/internal/testserdes"
-	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/fee"
@@ -1099,7 +1098,6 @@ func TestSubmitNotaryRequest(t *testing.T) {
 				{InvocationScript: []byte{1, 2, 3}, VerificationScript: []byte{1, 2, 3}}},
 		}
 		p := &payload.P2PNotaryRequest{
-			Network:             netmode.UnitTestNet,
 			MainTransaction:     mainTx,
 			FallbackTransaction: fallbackTx,
 			Witness: transaction.Witness{
@@ -1143,7 +1141,6 @@ func TestSubmitNotaryRequest(t *testing.T) {
 			VerificationScript: sender.PublicKey().GetVerificationScript(),
 		})
 		p := &payload.P2PNotaryRequest{
-			Network:             netmode.UnitTestNet,
 			MainTransaction:     mainTx,
 			FallbackTransaction: fallbackTx,
 		}

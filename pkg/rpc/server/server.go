@@ -1279,7 +1279,7 @@ func (s *Server) submitNotaryRequest(ps request.Params) (interface{}, *response.
 	if err != nil {
 		return nil, response.ErrInvalidParams
 	}
-	r, err := payload.NewP2PNotaryRequestFromBytes(s.network, bytePayload)
+	r, err := payload.NewP2PNotaryRequestFromBytes(bytePayload)
 	if err != nil {
 		return nil, response.ErrInvalidParams
 	}

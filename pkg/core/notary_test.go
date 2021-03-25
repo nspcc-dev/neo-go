@@ -12,7 +12,6 @@ import (
 
 	"github.com/nspcc-dev/neo-go/internal/testchain"
 	"github.com/nspcc-dev/neo-go/pkg/config"
-	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
 	"github.com/nspcc-dev/neo-go/pkg/core/mempool"
@@ -199,7 +198,6 @@ func TestNotary(t *testing.T) {
 			payloads[i] = &payload.P2PNotaryRequest{
 				MainTransaction:     main,
 				FallbackTransaction: fallback,
-				Network:             netmode.UnitTestNet,
 			}
 		}
 		return payloads
@@ -249,7 +247,6 @@ func TestNotary(t *testing.T) {
 			payloads[i] = &payload.P2PNotaryRequest{
 				MainTransaction:     main,
 				FallbackTransaction: fallback,
-				Network:             netmode.UnitTestNet,
 			}
 		}
 		return payloads

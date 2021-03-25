@@ -149,7 +149,7 @@ func (m *Message) decodePayload() error {
 	case CMDExtensible:
 		p = payload.NewExtensible()
 	case CMDP2PNotaryRequest:
-		p = &payload.P2PNotaryRequest{Network: m.Network}
+		p = &payload.P2PNotaryRequest{}
 	case CMDGetBlocks:
 		p = &payload.GetBlocks{}
 	case CMDGetHeaders:

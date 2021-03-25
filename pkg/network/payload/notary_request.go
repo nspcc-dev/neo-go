@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"errors"
 
-	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/io"
@@ -16,17 +15,15 @@ import (
 type P2PNotaryRequest struct {
 	MainTransaction     *transaction.Transaction
 	FallbackTransaction *transaction.Transaction
-	Network             netmode.Magic
 
 	Witness transaction.Witness
 
-	hash       util.Uint256
-	signedHash util.Uint256
+	hash util.Uint256
 }
 
 // NewP2PNotaryRequestFromBytes decodes P2PNotaryRequest from the given bytes.
-func NewP2PNotaryRequestFromBytes(network netmode.Magic, b []byte) (*P2PNotaryRequest, error) {
-	req := &P2PNotaryRequest{Network: network}
+func NewP2PNotaryRequestFromBytes(b []byte) (*P2PNotaryRequest, error) {
+	req := &P2PNotaryRequest{}
 	br := io.NewBinReaderFromBuf(b)
 	req.DecodeBinary(br)
 	if br.Err != nil {
@@ -59,36 +56,11 @@ func (r *P2PNotaryRequest) Hash() util.Uint256 {
 	return r.hash
 }
 
-// GetSignedHash returns a hash of the payload used to verify it.
-func (r *P2PNotaryRequest) GetSignedHash() util.Uint256 {
-	if r.signedHash.Equals(util.Uint256{}) {
-		if r.createHash() != nil {
-			panic("failed to compute hash!")
-		}
-	}
-	return r.signedHash
-}
-
-// GetSignedPart returns a part of the payload which must be signed.
-func (r *P2PNotaryRequest) GetSignedPart() []byte {
-	if r.hash.Equals(util.Uint256{}) {
-		if r.createHash() != nil {
-			panic("failed to compute hash!")
-		}
-	}
-	buf := io.NewBufBinWriter()
-	buf.WriteU32LE(uint32(r.Network))
-	buf.WriteBytes(r.hash[:])
-	return buf.Bytes()
-}
-
 // createHash creates hash of the payload.
 func (r *P2PNotaryRequest) createHash() error {
 	buf := io.NewBufBinWriter()
 	r.encodeHashableFields(buf.BinWriter)
 	r.hash = hash.Sha256(buf.Bytes())
-	signed := r.GetSignedPart()
-	r.signedHash = hash.Sha256(signed)
 	return nil
 }
 

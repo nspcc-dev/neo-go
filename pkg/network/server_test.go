@@ -542,7 +542,6 @@ func TestGetData(t *testing.T) {
 		r := &payload.P2PNotaryRequest{
 			MainTransaction:     mainTx,
 			FallbackTransaction: fallbackTx,
-			Network:             netmode.UnitTestNet,
 			Witness: transaction.Witness{
 				InvocationScript:   []byte{1, 2, 3},
 				VerificationScript: []byte{1, 2, 3},
@@ -725,7 +724,6 @@ func TestInv(t *testing.T) {
 		r := &payload.P2PNotaryRequest{
 			MainTransaction:     newDummyTx(),
 			FallbackTransaction: fallbackTx,
-			Network:             netmode.UnitTestNet,
 		}
 		require.NoError(t, s.notaryRequestPool.Add(r.FallbackTransaction, s.chain, r))
 		hs := []util.Uint256{random.Uint256(), r.FallbackTransaction.Hash(), random.Uint256()}
