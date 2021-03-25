@@ -68,7 +68,6 @@ func (s *service) signAndSend(r *state.MPTRoot) error {
 		return w.Err
 	}
 	e := &payload.Extensible{
-		Network:         s.Network,
 		ValidBlockStart: r.Index,
 		ValidBlockEnd:   r.Index + transaction.MaxValidUntilBlockIncrement,
 		Sender:          s.getAccount().PrivateKey().GetScriptHash(),
@@ -77,7 +76,7 @@ func (s *service) signAndSend(r *state.MPTRoot) error {
 			VerificationScript: s.getAccount().GetVerificationScript(),
 		},
 	}
-	sig = acc.PrivateKey().SignHash(e.GetSignedHash())
+	sig = acc.PrivateKey().SignHashable(uint32(s.Network), e)
 	buf := io.NewBufBinWriter()
 	emit.Bytes(buf.BinWriter, sig)
 	e.Witness.InvocationScript = buf.Bytes()

@@ -4,7 +4,6 @@ import (
 	"errors"
 	"math"
 
-	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/io"
@@ -18,8 +17,6 @@ const (
 
 // Extensible represents payload containing arbitrary data.
 type Extensible struct {
-	// Network represents network magic.
-	Network netmode.Magic
 	// Category is payload type.
 	Category string
 	// ValidBlockStart is starting height for payload to be valid.
@@ -33,16 +30,14 @@ type Extensible struct {
 	// Witness is payload witness.
 	Witness transaction.Witness
 
-	hash       util.Uint256
-	signedHash util.Uint256
-	signedpart []byte
+	hash util.Uint256
 }
 
 var errInvalidPadding = errors.New("invalid padding")
 
 // NewExtensible creates new extensible payload.
-func NewExtensible(network netmode.Magic) *Extensible {
-	return &Extensible{Network: network}
+func NewExtensible() *Extensible {
+	return &Extensible{}
 }
 
 func (e *Extensible) encodeBinaryUnsigned(w *io.BinWriter) {
@@ -81,22 +76,6 @@ func (e *Extensible) DecodeBinary(r *io.BinReader) {
 	e.Witness.DecodeBinary(r)
 }
 
-// GetSignedPart implements crypto.Verifiable.
-func (e *Extensible) GetSignedPart() []byte {
-	if e.signedpart == nil {
-		e.createHash()
-	}
-	return e.signedpart
-}
-
-// GetSignedHash implements crypto.Verifiable.
-func (e *Extensible) GetSignedHash() util.Uint256 {
-	if e.signedHash.Equals(util.Uint256{}) {
-		e.createHash()
-	}
-	return e.signedHash
-}
-
 // Hash returns payload hash.
 func (e *Extensible) Hash() util.Uint256 {
 	if e.hash.Equals(util.Uint256{}) {
@@ -110,14 +89,4 @@ func (e *Extensible) createHash() {
 	buf := io.NewBufBinWriter()
 	e.encodeBinaryUnsigned(buf.BinWriter)
 	e.hash = hash.Sha256(buf.Bytes())
-	e.updateSignedPart()
-	e.signedHash = hash.Sha256(e.signedpart)
-}
-
-// updateSignedPart updates serialized message if needed.
-func (e *Extensible) updateSignedPart() {
-	buf := io.NewBufBinWriter()
-	buf.WriteU32LE(uint32(e.Network))
-	buf.WriteBytes(e.hash[:])
-	e.signedpart = buf.Bytes()
 }

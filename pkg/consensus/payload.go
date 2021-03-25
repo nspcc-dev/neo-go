@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/nspcc-dev/dbft/payload"
+	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	npayload "github.com/nspcc-dev/neo-go/pkg/network/payload"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -28,6 +29,7 @@ type (
 	Payload struct {
 		npayload.Extensible
 		message
+		network netmode.Magic
 	}
 )
 
@@ -128,7 +130,7 @@ func (p *Payload) EncodeBinary(w *io.BinWriter) {
 // It also sets corresponding verification and invocation scripts.
 func (p *Payload) Sign(key *privateKey) error {
 	p.encodeData()
-	sig := key.SignHash(p.GetSignedHash())
+	sig := key.PrivateKey.SignHashable(uint32(p.network), &p.Extensible)
 
 	buf := io.NewBufBinWriter()
 	emit.Bytes(buf.BinWriter, sig)
@@ -136,22 +138,6 @@ func (p *Payload) Sign(key *privateKey) error {
 	p.Witness.VerificationScript = key.PublicKey().GetVerificationScript()
 
 	return nil
-}
-
-// GetSignedPart implements crypto.Verifiable interface.
-func (p *Payload) GetSignedPart() []byte {
-	if p.Extensible.Data == nil {
-		p.encodeData()
-	}
-	return p.Extensible.GetSignedPart()
-}
-
-// GetSignedHash returns a hash of the payload used to verify it.
-func (p *Payload) GetSignedHash() util.Uint256 {
-	if p.Extensible.Data == nil {
-		p.encodeData()
-	}
-	return p.Extensible.GetSignedHash()
 }
 
 // Hash implements payload.ConsensusPayload interface.

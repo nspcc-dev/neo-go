@@ -147,7 +147,7 @@ func (m *Message) decodePayload() error {
 	case CMDBlock:
 		p = block.New(m.StateRootInHeader)
 	case CMDExtensible:
-		p = payload.NewExtensible(m.Network)
+		p = payload.NewExtensible()
 	case CMDP2PNotaryRequest:
 		p = &payload.P2PNotaryRequest{Network: m.Network}
 	case CMDGetBlocks:

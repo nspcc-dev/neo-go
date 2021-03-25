@@ -407,7 +407,7 @@ func TestConsensus(t *testing.T) {
 	p.handshaked = true
 
 	newConsensusMessage := func(start, end uint32) *Message {
-		pl := payload.NewExtensible(netmode.UnitTestNet)
+		pl := payload.NewExtensible()
 		pl.Category = consensus.Category
 		pl.ValidBlockStart = start
 		pl.ValidBlockEnd = end
@@ -438,7 +438,7 @@ func TestConsensus(t *testing.T) {
 		require.Error(t, s.handleMessage(p, msg))
 	})
 	t.Run("invalid category", func(t *testing.T) {
-		pl := payload.NewExtensible(netmode.UnitTestNet)
+		pl := payload.NewExtensible()
 		pl.Category = "invalid"
 		pl.ValidBlockEnd = s.chain.BlockHeight() + 1
 		msg := NewMessage(CMDExtensible, pl)
@@ -706,7 +706,7 @@ func TestInv(t *testing.T) {
 		require.Equal(t, []util.Uint256{hs[0], hs[2]}, actual)
 	})
 	t.Run("extensible", func(t *testing.T) {
-		ep := payload.NewExtensible(netmode.UnitTestNet)
+		ep := payload.NewExtensible()
 		s.chain.(*fakechain.FakeChain).VerifyWitnessF = func() error { return nil }
 		ep.ValidBlockEnd = s.chain.(*fakechain.FakeChain).BlockHeight() + 1
 		ok, err := s.extensiblePool.Add(ep)

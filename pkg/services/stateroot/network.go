@@ -81,7 +81,6 @@ func (s *service) sendValidatedRoot(r *state.MPTRoot, priv *keys.PrivateKey) {
 	m := NewMessage(s.Network, RootT, r)
 	m.EncodeBinary(w.BinWriter)
 	ep := &payload.Extensible{
-		Network:         s.Network,
 		ValidBlockStart: r.Index,
 		ValidBlockEnd:   r.Index + transaction.MaxValidUntilBlockIncrement,
 		Sender:          priv.GetScriptHash(),
@@ -90,7 +89,7 @@ func (s *service) sendValidatedRoot(r *state.MPTRoot, priv *keys.PrivateKey) {
 			VerificationScript: s.getAccount().GetVerificationScript(),
 		},
 	}
-	sig := priv.SignHash(ep.GetSignedHash())
+	sig := priv.SignHashable(uint32(s.Network), ep)
 	buf := io.NewBufBinWriter()
 	emit.Bytes(buf.BinWriter, sig)
 	ep.Witness.InvocationScript = buf.Bytes()

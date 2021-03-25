@@ -201,12 +201,12 @@ var (
 func NewPayload(m netmode.Magic, stateRootEnabled bool) *Payload {
 	return &Payload{
 		Extensible: npayload.Extensible{
-			Network:  m,
 			Category: Category,
 		},
 		message: message{
 			stateRootEnabled: stateRootEnabled,
 		},
+		network: m,
 	}
 }
 
