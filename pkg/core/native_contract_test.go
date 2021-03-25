@@ -2,6 +2,7 @@ package core
 
 import (
 	"errors"
+	"fmt"
 	"math/big"
 	"testing"
 
@@ -11,6 +12,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/contract"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
@@ -19,6 +21,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -318,4 +321,13 @@ func TestNativeContract_InvokeOtherContract(t *testing.T) {
 		drainTN(t)
 		checkResult(t, res, stackitem.Make(8))
 	})
+}
+
+func TestCreateContractHashableScript(t *testing.T) {
+	chain := newTestChain(t)
+	for _, c := range chain.contracts.Contracts {
+		assert.Equal(t, c.Metadata().Hash, hash.Hash160(state.CreateContractHashableScript(util.Uint160{}, 0, c.Metadata().Name)),
+			fmt.Errorf("fix all usages of state.CreateContractHashableScript for contract %s: "+
+				"contract hash expected to match hash160(state.CreateContractHashableScript(...))", c.Metadata().Name))
+	}
 }

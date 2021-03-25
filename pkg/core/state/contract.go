@@ -121,9 +121,9 @@ func (c *Contract) FromStackItem(item stackitem.Item) error {
 	return nil
 }
 
-// CreateContractHash creates deployed contract hash from transaction sender
-// and contract script.
-func CreateContractHash(sender util.Uint160, checksum uint32, name string) util.Uint160 {
+// CreateContractHashableScript creates deployed contract script from transaction sender
+// and contract script which should be hashed.
+func CreateContractHashableScript(sender util.Uint160, checksum uint32, name string) []byte {
 	w := io.NewBufBinWriter()
 	emit.Opcodes(w.BinWriter, opcode.ABORT)
 	emit.Bytes(w.BinWriter, sender.BytesBE())
@@ -132,5 +132,11 @@ func CreateContractHash(sender util.Uint160, checksum uint32, name string) util.
 	if w.Err != nil {
 		panic(w.Err)
 	}
-	return hash.Hash160(w.Bytes())
+	return w.Bytes()
+}
+
+// CreateContractHash creates deployed contract hash from transaction sender
+// and contract script.
+func CreateContractHash(sender util.Uint160, checksum uint32, name string) util.Uint160 {
+	return hash.Hash160(CreateContractHashableScript(sender, checksum, name))
 }
