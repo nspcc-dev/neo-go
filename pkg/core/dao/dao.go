@@ -7,7 +7,6 @@ import (
 	iocore "io"
 	"sort"
 
-	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/mpt"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
@@ -68,16 +67,15 @@ type DAO interface {
 
 // Simple is memCached wrapper around DB, simple DAO implementation.
 type Simple struct {
-	Store   *storage.MemCachedStore
-	network netmode.Magic
+	Store *storage.MemCachedStore
 	// stateRootInHeader specifies if block header contains state root.
 	stateRootInHeader bool
 }
 
 // NewSimple creates new simple dao using provided backend store.
-func NewSimple(backend storage.Store, network netmode.Magic, stateRootInHeader bool) *Simple {
+func NewSimple(backend storage.Store, stateRootInHeader bool) *Simple {
 	st := storage.NewMemCachedStore(backend)
-	return &Simple{Store: st, network: network, stateRootInHeader: stateRootInHeader}
+	return &Simple{Store: st, stateRootInHeader: stateRootInHeader}
 }
 
 // GetBatch returns currently accumulated DB changeset.
@@ -88,7 +86,7 @@ func (dao *Simple) GetBatch() *storage.MemBatch {
 // GetWrapped returns new DAO instance with another layer of wrapped
 // MemCachedStore around the current DAO Store.
 func (dao *Simple) GetWrapped() DAO {
-	d := NewSimple(dao.Store, dao.network, dao.stateRootInHeader)
+	d := NewSimple(dao.Store, dao.stateRootInHeader)
 	return d
 }
 

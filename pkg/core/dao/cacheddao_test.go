@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/internal/random"
-	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/stretchr/testify/assert"
@@ -14,7 +13,7 @@ import (
 func TestCachedCachedDao(t *testing.T) {
 	store := storage.NewMemoryStore()
 	// Persistent DAO to check for backing storage.
-	pdao := NewSimple(store, netmode.UnitTestNet, false)
+	pdao := NewSimple(store, false)
 	assert.NotEqual(t, store, pdao.Store)
 	// Cached DAO.
 	cdao := NewCached(pdao)

@@ -200,7 +200,7 @@ func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration, log *zap.L
 	}
 	bc := &Blockchain{
 		config:      cfg,
-		dao:         dao.NewSimple(s, cfg.Magic, cfg.StateRootInHeader),
+		dao:         dao.NewSimple(s, cfg.StateRootInHeader),
 		stopCh:      make(chan struct{}),
 		runToExitCh: make(chan struct{}),
 		memPool:     mempool.New(cfg.MemPoolSize, 0, false),

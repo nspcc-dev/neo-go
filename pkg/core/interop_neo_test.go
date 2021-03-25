@@ -4,7 +4,6 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
@@ -213,7 +212,7 @@ func TestStorageFind(t *testing.T) {
 func createVM(t *testing.T) (*vm.VM, *interop.Context, *Blockchain) {
 	chain := newTestChain(t)
 	context := chain.newInteropContext(trigger.Application,
-		dao.NewSimple(storage.NewMemoryStore(), netmode.UnitTestNet, chain.config.StateRootInHeader), nil, nil)
+		dao.NewSimple(storage.NewMemoryStore(), chain.config.StateRootInHeader), nil, nil)
 	v := context.SpawnVM()
 	return v, context, chain
 }
@@ -227,7 +226,7 @@ func createVMAndPushBlock(t *testing.T) (*vm.VM, *block.Block, *interop.Context,
 func createVMAndBlock(t *testing.T) (*vm.VM, *block.Block, *interop.Context, *Blockchain) {
 	block := newDumbBlock()
 	chain := newTestChain(t)
-	d := dao.NewSimple(storage.NewMemoryStore(), netmode.UnitTestNet, chain.GetConfig().StateRootInHeader)
+	d := dao.NewSimple(storage.NewMemoryStore(), chain.GetConfig().StateRootInHeader)
 	context := chain.newInteropContext(trigger.Application, d, block, nil)
 	v := context.SpawnVM()
 	return v, block, context, chain
@@ -254,7 +253,7 @@ func createVMAndContractState(t *testing.T) (*vm.VM, *state.Contract, *interop.C
 	}
 
 	chain := newTestChain(t)
-	d := dao.NewSimple(storage.NewMemoryStore(), netmode.UnitTestNet, chain.config.StateRootInHeader)
+	d := dao.NewSimple(storage.NewMemoryStore(), chain.config.StateRootInHeader)
 	context := chain.newInteropContext(trigger.Application, d, nil, nil)
 	v := context.SpawnVM()
 	return v, contractState, context, chain
@@ -266,7 +265,7 @@ func createVMAndTX(t *testing.T) (*vm.VM, *transaction.Transaction, *interop.Con
 	tx.Signers = []transaction.Signer{{Account: util.Uint160{1, 2, 3, 4}}}
 	tx.Scripts = []transaction.Witness{{InvocationScript: []byte{}, VerificationScript: []byte{}}}
 	chain := newTestChain(t)
-	d := dao.NewSimple(storage.NewMemoryStore(), netmode.UnitTestNet, chain.config.StateRootInHeader)
+	d := dao.NewSimple(storage.NewMemoryStore(), chain.config.StateRootInHeader)
 	context := chain.newInteropContext(trigger.Application, d, nil, tx)
 	v := context.SpawnVM()
 	return v, tx, context, chain

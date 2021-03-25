@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/internal/random"
-	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
@@ -18,7 +17,7 @@ import (
 )
 
 func TestPutGetAndDecode(t *testing.T) {
-	dao := NewSimple(storage.NewMemoryStore(), netmode.UnitTestNet, false)
+	dao := NewSimple(storage.NewMemoryStore(), false)
 	serializable := &TestSerializable{field: random.String(4)}
 	hash := []byte{1}
 	err := dao.Put(serializable, hash)
@@ -43,7 +42,7 @@ func (t *TestSerializable) DecodeBinary(reader *io.BinReader) {
 }
 
 func TestPutGetAppExecResult(t *testing.T) {
-	dao := NewSimple(storage.NewMemoryStore(), netmode.UnitTestNet, false)
+	dao := NewSimple(storage.NewMemoryStore(), false)
 	hash := random.Uint256()
 	appExecResult := &state.AppExecResult{
 		Container: hash,
@@ -61,7 +60,7 @@ func TestPutGetAppExecResult(t *testing.T) {
 }
 
 func TestPutGetStorageItem(t *testing.T) {
-	dao := NewSimple(storage.NewMemoryStore(), netmode.UnitTestNet, false)
+	dao := NewSimple(storage.NewMemoryStore(), false)
 	id := int32(random.Int(0, 1024))
 	key := []byte{0}
 	storageItem := state.StorageItem{}
@@ -72,7 +71,7 @@ func TestPutGetStorageItem(t *testing.T) {
 }
 
 func TestDeleteStorageItem(t *testing.T) {
-	dao := NewSimple(storage.NewMemoryStore(), netmode.UnitTestNet, false)
+	dao := NewSimple(storage.NewMemoryStore(), false)
 	id := int32(random.Int(0, 1024))
 	key := []byte{0}
 	storageItem := state.StorageItem{}
@@ -85,7 +84,7 @@ func TestDeleteStorageItem(t *testing.T) {
 }
 
 func TestGetBlock_NotExists(t *testing.T) {
-	dao := NewSimple(storage.NewMemoryStore(), netmode.UnitTestNet, false)
+	dao := NewSimple(storage.NewMemoryStore(), false)
 	hash := random.Uint256()
 	block, err := dao.GetBlock(hash)
 	require.Error(t, err)
@@ -93,7 +92,7 @@ func TestGetBlock_NotExists(t *testing.T) {
 }
 
 func TestPutGetBlock(t *testing.T) {
-	dao := NewSimple(storage.NewMemoryStore(), netmode.UnitTestNet, false)
+	dao := NewSimple(storage.NewMemoryStore(), false)
 	b := &block.Block{
 		Header: block.Header{
 			Script: transaction.Witness{
@@ -111,14 +110,14 @@ func TestPutGetBlock(t *testing.T) {
 }
 
 func TestGetVersion_NoVersion(t *testing.T) {
-	dao := NewSimple(storage.NewMemoryStore(), netmode.UnitTestNet, false)
+	dao := NewSimple(storage.NewMemoryStore(), false)
 	version, err := dao.GetVersion()
 	require.Error(t, err)
 	require.Equal(t, "", version)
 }
 
 func TestGetVersion(t *testing.T) {
-	dao := NewSimple(storage.NewMemoryStore(), netmode.UnitTestNet, false)
+	dao := NewSimple(storage.NewMemoryStore(), false)
 	err := dao.PutVersion("testVersion")
 	require.NoError(t, err)
 	version, err := dao.GetVersion()
@@ -127,14 +126,14 @@ func TestGetVersion(t *testing.T) {
 }
 
 func TestGetCurrentHeaderHeight_NoHeader(t *testing.T) {
-	dao := NewSimple(storage.NewMemoryStore(), netmode.UnitTestNet, false)
+	dao := NewSimple(storage.NewMemoryStore(), false)
 	height, err := dao.GetCurrentBlockHeight()
 	require.Error(t, err)
 	require.Equal(t, uint32(0), height)
 }
 
 func TestGetCurrentHeaderHeight_Store(t *testing.T) {
-	dao := NewSimple(storage.NewMemoryStore(), netmode.UnitTestNet, false)
+	dao := NewSimple(storage.NewMemoryStore(), false)
 	b := &block.Block{
 		Header: block.Header{
 			Script: transaction.Witness{
@@ -151,7 +150,7 @@ func TestGetCurrentHeaderHeight_Store(t *testing.T) {
 }
 
 func TestStoreAsTransaction(t *testing.T) {
-	dao := NewSimple(storage.NewMemoryStore(), netmode.UnitTestNet, false)
+	dao := NewSimple(storage.NewMemoryStore(), false)
 	tx := transaction.New([]byte{byte(opcode.PUSH1)}, 1)
 	hash := tx.Hash()
 	err := dao.StoreAsTransaction(tx, 0, nil)

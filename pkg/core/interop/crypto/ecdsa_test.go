@@ -173,7 +173,7 @@ func TestCheckSig(t *testing.T) {
 	require.NoError(t, err)
 
 	verifyFunc := ECDSASecp256r1CheckSig
-	d := dao.NewSimple(storage.NewMemoryStore(), netmode.UnitTestNet, false)
+	d := dao.NewSimple(storage.NewMemoryStore(), false)
 	ic := &interop.Context{Network: uint32(netmode.UnitTestNet), DAO: dao.NewCached(d)}
 	runCase := func(t *testing.T, isErr bool, result interface{}, args ...interface{}) {
 		ic.SpawnVM()
