@@ -584,7 +584,7 @@ func (s *Server) calculateNetworkFee(reqParams request.Params) (interface{}, *re
 		}
 		if verificationScript == nil { // then it still might be a contract-based verification
 			verificationErr := fmt.Sprintf("contract verification for signer #%d failed", i)
-			res, respErr := s.runScriptInVM(trigger.Verification, []byte{}, signer.Account, tx)
+			res, respErr := s.runScriptInVM(trigger.Verification, tx.Scripts[i].InvocationScript, signer.Account, tx)
 			if respErr != nil && errors.Is(respErr.Cause, core.ErrUnknownVerificationContract) {
 				// it's neither a contract-based verification script nor a standard witness attached to
 				// the tx, so the user did not provide enough data to calculate fee for that witness =>
@@ -612,7 +612,8 @@ func (s *Server) calculateNetworkFee(reqParams request.Params) (interface{}, *re
 				return 0, response.NewRPCError(verificationErr, cause.Error(), cause)
 			}
 			netFee += res.GasConsumed
-			size += io.GetVarSize([]byte{}) * 2 // both scripts are empty
+			size += io.GetVarSize([]byte{}) + // verification script is empty (contract-based witness)
+				io.GetVarSize(tx.Scripts[i].InvocationScript) // invocation script might not be empty (args for `verify`)
 			continue
 		}
 

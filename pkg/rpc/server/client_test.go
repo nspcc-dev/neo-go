@@ -18,6 +18,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
+	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/stretchr/testify/require"
@@ -314,6 +315,76 @@ func TestAddNetworkFeeCalculateNetworkFee(t *testing.T) {
 	})
 }
 
+func TestCalculateNetworkFee(t *testing.T) {
+	chain, rpcSrv, httpSrv := initServerWithInMemoryChain(t)
+	defer chain.Close()
+	defer rpcSrv.Shutdown()
+	const extraFee = 10
+
+	c, err := client.New(context.Background(), httpSrv.URL, client.Options{})
+	require.NoError(t, err)
+	require.NoError(t, c.Init())
+
+	t.Run("ContractWithArgs", func(t *testing.T) {
+		check := func(t *testing.T, extraFee int64) {
+			h, err := util.Uint160DecodeStringLE(verifyWithArgsContractHash)
+			require.NoError(t, err)
+			priv := testchain.PrivateKeyByID(0)
+			acc0 := wallet.NewAccountFromPrivateKey(priv)
+			tx := transaction.New([]byte{byte(opcode.PUSH1)}, 0)
+			require.NoError(t, err)
+			tx.ValidUntilBlock = chain.BlockHeight() + 10
+			tx.Signers = []transaction.Signer{
+				{
+					Account: acc0.PrivateKey().GetScriptHash(),
+					Scopes:  transaction.CalledByEntry,
+				},
+				{
+					Account: h,
+					Scopes:  transaction.Global,
+				},
+			}
+
+			bw := io.NewBufBinWriter()
+			emit.Bool(bw.BinWriter, false)
+			emit.Int(bw.BinWriter, int64(4))
+			emit.String(bw.BinWriter, "good_string") // contract's `verify` return `true` with this string
+			require.NoError(t, bw.Err)
+			contractInv := bw.Bytes()
+			// we need to fill standard verification scripts to use CalculateNetworkFee.
+			tx.Scripts = []transaction.Witness{
+				{VerificationScript: acc0.GetVerificationScript()},
+				{InvocationScript: contractInv},
+			}
+			tx.NetworkFee, err = c.CalculateNetworkFee(tx)
+			require.NoError(t, err)
+			tx.NetworkFee += extraFee
+			tx.Scripts = nil
+
+			require.NoError(t, acc0.SignTx(testchain.Network(), tx))
+			tx.Scripts = append(tx.Scripts, transaction.Witness{InvocationScript: contractInv})
+			err = chain.VerifyTx(tx)
+			if extraFee < 0 {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+		}
+
+		t.Run("with extra fee", func(t *testing.T) {
+			// check that calculated network fee with extra value is enough
+			check(t, extraFee)
+		})
+		t.Run("without extra fee", func(t *testing.T) {
+			// check that calculated network fee without extra value is enough
+			check(t, 0)
+		})
+		t.Run("exactFee-1", func(t *testing.T) {
+			// check that we don't add unexpected extra GAS
+			check(t, -1)
+		})
+	})
+}
 func TestSignAndPushInvocationTx(t *testing.T) {
 	chain, rpcSrv, httpSrv := initServerWithInMemoryChain(t)
 	defer chain.Close()
