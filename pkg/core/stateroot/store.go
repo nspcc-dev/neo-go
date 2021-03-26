@@ -2,10 +2,18 @@ package stateroot
 
 import (
 	"encoding/binary"
+	"errors"
+	"fmt"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/io"
+)
+
+var (
+	// ErrStateMismatch means that local state root doesn't match the one
+	// signed by state validators.
+	ErrStateMismatch = errors.New("stateroot mismatch")
 )
 
 const (
@@ -59,6 +67,9 @@ func (s *Module) AddStateRoot(sr *state.MPTRoot) error {
 	local, err := s.getStateRoot(key)
 	if err != nil {
 		return err
+	}
+	if !local.Root.Equals(sr.Root) {
+		return fmt.Errorf("%w at block %d: %v vs %v", ErrStateMismatch, sr.Index, local.Root, sr.Root)
 	}
 	if len(local.Witness) != 0 {
 		return nil
