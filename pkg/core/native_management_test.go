@@ -557,7 +557,8 @@ func TestContractDestroy(t *testing.T) {
 	err = bc.dao.PutStorageItem(cs1.ID, []byte{1, 2, 3}, state.StorageItem{3, 2, 1})
 	require.NoError(t, err)
 	b := bc.dao.GetMPTBatch()
-	require.NoError(t, bc.GetStateModule().(*stateroot.Module).AddMPTBatch(bc.BlockHeight(), b))
+	_, _, err = bc.GetStateModule().(*stateroot.Module).AddMPTBatch(bc.BlockHeight(), b, bc.dao.Store)
+	require.NoError(t, err)
 
 	t.Run("no contract", func(t *testing.T) {
 		res, err := invokeContractMethod(bc, 1_00000000, mgmtHash, "destroy")

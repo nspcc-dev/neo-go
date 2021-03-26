@@ -731,7 +731,8 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 
 	d := cache.DAO.(*dao.Simple)
 	b := d.GetMPTBatch()
-	if err := bc.stateRoot.AddMPTBatch(block.Index, b); err != nil {
+	mpt, sr, err := bc.stateRoot.AddMPTBatch(block.Index, b, d.Store)
+	if err != nil {
 		// Here MPT can be left in a half-applied state.
 		// However if this error occurs, this is a bug somewhere in code
 		// because changes applied are the ones from HALTed transactions.
@@ -761,6 +762,8 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 		return err
 	}
 
+	mpt.Store = bc.dao.Store
+	bc.stateRoot.UpdateCurrentLocal(mpt, sr)
 	bc.topBlock.Store(block)
 	atomic.StoreUint32(&bc.blockHeight, block.Index)
 	bc.memPool.RemoveStale(func(tx *transaction.Transaction) bool { return bc.IsTxStillRelevant(tx, txpool, false) }, bc)
