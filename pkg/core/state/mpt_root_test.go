@@ -17,6 +17,7 @@ func testStateRoot() *MPTRoot {
 		Version: byte(rand.Uint32()),
 		Index:   rand.Uint32(),
 		Root:    random.Uint256(),
+		Witness: []transaction.Witness{},
 	}
 }
 
@@ -25,10 +26,10 @@ func TestStateRoot_Serializable(t *testing.T) {
 	testserdes.EncodeDecodeBinary(t, r, new(MPTRoot))
 
 	t.Run("WithWitness", func(t *testing.T) {
-		r.Witness = &transaction.Witness{
+		r.Witness = []transaction.Witness{{
 			InvocationScript:   random.Bytes(10),
 			VerificationScript: random.Bytes(11),
-		}
+		}}
 		testserdes.EncodeDecodeBinary(t, r, new(MPTRoot))
 	})
 }
@@ -43,7 +44,7 @@ func TestMPTRoot_MarshalJSON(t *testing.T) {
 		js := []byte(`{
             "version": 1,
             "index": 3000000,
-            "stateroot": "0xb2fd7e368a848ef70d27cf44940a35237333ed05f1d971c9408f0eb285e0b6f3"
+            "roothash": "0xb2fd7e368a848ef70d27cf44940a35237333ed05f1d971c9408f0eb285e0b6f3"
         }`)
 
 		rs := new(MPTRoot)
@@ -51,7 +52,7 @@ func TestMPTRoot_MarshalJSON(t *testing.T) {
 
 		require.EqualValues(t, 1, rs.Version)
 		require.EqualValues(t, 3000000, rs.Index)
-		require.Nil(t, rs.Witness)
+		require.Equal(t, 0, len(rs.Witness))
 
 		u, err := util.Uint256DecodeStringLE("b2fd7e368a848ef70d27cf44940a35237333ed05f1d971c9408f0eb285e0b6f3")
 		require.NoError(t, err)

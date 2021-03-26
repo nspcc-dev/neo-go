@@ -81,8 +81,8 @@ func (r *incompleteRoot) finalize(stateValidators keys.PublicKeys) (*state.MPTRo
 	for i := range sigs {
 		emit.Bytes(w.BinWriter, sigs[i])
 	}
-	r.root.Witness = &transaction.Witness{
+	r.root.Witness = []transaction.Witness{{
 		InvocationScript: w.Bytes(),
-	}
+	}}
 	return r.root, true
 }

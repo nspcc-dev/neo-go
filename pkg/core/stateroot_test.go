@@ -40,10 +40,10 @@ func testSignStateRoot(t *testing.T, r *state.MPTRoot, pubs keys.PublicKeys, acc
 
 	script, err := smartcontract.CreateMajorityMultiSigRedeemScript(pubs.Copy())
 	require.NoError(t, err)
-	r.Witness = &transaction.Witness{
+	r.Witness = []transaction.Witness{{
 		VerificationScript: script,
 		InvocationScript:   w.Bytes(),
-	}
+	}}
 	data, err := testserdes.EncodeBinary(stateroot.NewMessage(stateroot.RootT, r))
 	require.NoError(t, err)
 	return data
@@ -132,8 +132,8 @@ func TestStateRoot(t *testing.T) {
 
 	r, err = srv.GetStateRoot(updateIndex + 1)
 	require.NoError(t, err)
-	require.NotNil(t, r.Witness)
-	require.Equal(t, h, r.Witness.ScriptHash())
+	require.NotEqual(t, 0, len(r.Witness))
+	require.Equal(t, h, r.Witness[0].ScriptHash())
 }
 
 func TestStateRootInitNonZeroHeight(t *testing.T) {

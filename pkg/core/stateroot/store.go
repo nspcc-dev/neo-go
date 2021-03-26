@@ -69,7 +69,7 @@ func (s *Module) AddStateRoot(sr *state.MPTRoot) error {
 	if err != nil {
 		return err
 	}
-	if local.Witness != nil {
+	if len(local.Witness) != 0 {
 		return nil
 	}
 	if err := s.putStateRoot(key, sr); err != nil {

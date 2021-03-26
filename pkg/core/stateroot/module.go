@@ -132,6 +132,9 @@ func (s *Module) VerifyStateRoot(r *state.MPTRoot) error {
 	if err != nil {
 		return errors.New("can't get previous state root")
 	}
+	if len(r.Witness) != 1 {
+		return errors.New("no witness")
+	}
 	return s.verifyWitness(r)
 }
 
@@ -142,5 +145,5 @@ func (s *Module) verifyWitness(r *state.MPTRoot) error {
 	s.mtx.Lock()
 	h := s.getKeyCacheForHeight(r.Index).validatorsHash
 	s.mtx.Unlock()
-	return s.bc.VerifyWitness(h, r, r.Witness, maxVerificationGAS)
+	return s.bc.VerifyWitness(h, r, &r.Witness[0], maxVerificationGAS)
 }
