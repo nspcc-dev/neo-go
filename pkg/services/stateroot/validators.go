@@ -68,6 +68,7 @@ func (s *service) signAndSend(r *state.MPTRoot) error {
 		return w.Err
 	}
 	e := &payload.Extensible{
+		Category:        Category,
 		ValidBlockStart: r.Index,
 		ValidBlockEnd:   r.Index + transaction.MaxValidUntilBlockIncrement,
 		Sender:          s.getAccount().PrivateKey().GetScriptHash(),
