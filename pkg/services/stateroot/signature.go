@@ -33,12 +33,6 @@ type (
 	}
 )
 
-func newIncompleteRoot() *incompleteRoot {
-	return &incompleteRoot{
-		sigs: make(map[string]*rootSig),
-	}
-}
-
 func (r *incompleteRoot) reverify(net netmode.Magic) {
 	for _, sig := range r.sigs {
 		if !sig.ok {
