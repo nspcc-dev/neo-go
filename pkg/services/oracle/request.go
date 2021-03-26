@@ -164,12 +164,12 @@ func (o *Oracle) processRequest(priv *keys.PrivateKey, req request) error {
 	incTx.request = req.Req
 	incTx.tx = tx
 	incTx.backupTx = backupTx
-	incTx.reverifyTx()
+	incTx.reverifyTx(o.Network)
 
-	txSig := priv.Sign(tx.GetSignedPart())
+	txSig := priv.SignHashable(uint32(o.Network), tx)
 	incTx.addResponse(priv.PublicKey(), txSig, false)
 
-	backupSig := priv.Sign(backupTx.GetSignedPart())
+	backupSig := priv.SignHashable(uint32(o.Network), backupTx)
 	incTx.addResponse(priv.PublicKey(), backupSig, true)
 
 	readyTx, ready := incTx.finalize(o.getOracleNodes(), false)

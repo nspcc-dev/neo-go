@@ -52,7 +52,7 @@ func signStoredTransaction(ctx *cli.Context) error {
 	}
 
 	priv := acc.PrivateKey()
-	sign := priv.Sign(tx.GetSignedPart())
+	sign := priv.SignHashable(uint32(c.Network), tx)
 	if err := c.AddSignature(ch, acc.Contract, priv.PublicKey(), sign); err != nil {
 		return cli.NewExitError(fmt.Errorf("can't add signature: %w", err), 1)
 	}

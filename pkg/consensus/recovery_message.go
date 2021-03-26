@@ -298,7 +298,6 @@ func fromPayload(t messageType, recovery *Payload, p io.Serializable) *Payload {
 	return &Payload{
 		Extensible: npayload.Extensible{
 			Category:      Category,
-			Network:       recovery.Network,
 			ValidBlockEnd: recovery.BlockIndex,
 		},
 		message: message{
@@ -308,5 +307,6 @@ func fromPayload(t messageType, recovery *Payload, p io.Serializable) *Payload {
 			payload:          p,
 			stateRootEnabled: recovery.stateRootEnabled,
 		},
+		network: recovery.network,
 	}
 }

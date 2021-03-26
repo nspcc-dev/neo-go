@@ -9,27 +9,17 @@ import (
 
 // MPTRoot represents storage state root together with sign info.
 type MPTRoot struct {
-	Version byte                 `json:"version"`
-	Index   uint32               `json:"index"`
-	Root    util.Uint256         `json:"stateroot"`
-	Witness *transaction.Witness `json:"witness,omitempty"`
-}
-
-// GetSignedPart returns part of MPTRootBase which needs to be signed.
-func (s *MPTRoot) GetSignedPart() []byte {
-	buf := io.NewBufBinWriter()
-	s.EncodeBinaryUnsigned(buf.BinWriter)
-	return buf.Bytes()
-}
-
-// GetSignedHash returns hash of MPTRootBase which needs to be signed.
-func (s *MPTRoot) GetSignedHash() util.Uint256 {
-	return hash.Sha256(s.GetSignedPart())
+	Version byte                  `json:"version"`
+	Index   uint32                `json:"index"`
+	Root    util.Uint256          `json:"roothash"`
+	Witness []transaction.Witness `json:"witnesses"`
 }
 
 // Hash returns hash of s.
 func (s *MPTRoot) Hash() util.Uint256 {
-	return hash.DoubleSha256(s.GetSignedPart())
+	buf := io.NewBufBinWriter()
+	s.EncodeBinaryUnsigned(buf.BinWriter)
+	return hash.Sha256(buf.Bytes())
 }
 
 // DecodeBinaryUnsigned decodes hashable part of state root.
@@ -49,20 +39,11 @@ func (s *MPTRoot) EncodeBinaryUnsigned(w *io.BinWriter) {
 // DecodeBinary implements io.Serializable.
 func (s *MPTRoot) DecodeBinary(r *io.BinReader) {
 	s.DecodeBinaryUnsigned(r)
-
-	var ws []transaction.Witness
-	r.ReadArray(&ws, 1)
-	if len(ws) == 1 {
-		s.Witness = &ws[0]
-	}
+	r.ReadArray(&s.Witness, 1)
 }
 
 // EncodeBinary implements io.Serializable.
 func (s *MPTRoot) EncodeBinary(w *io.BinWriter) {
 	s.EncodeBinaryUnsigned(w)
-	if s.Witness == nil {
-		w.WriteVarUint(0)
-	} else {
-		w.WriteArray([]*transaction.Witness{s.Witness})
-	}
+	w.WriteArray(s.Witness)
 }

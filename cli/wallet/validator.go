@@ -119,7 +119,7 @@ func handleCandidate(ctx *cli.Context, method string, sysGas int64) error {
 	})
 	if err != nil {
 		return cli.NewExitError(err, 1)
-	} else if err = acc.SignTx(tx); err != nil {
+	} else if err = acc.SignTx(c.GetNetwork(), tx); err != nil {
 		return cli.NewExitError(fmt.Errorf("can't sign tx: %v", err), 1)
 	}
 
@@ -187,7 +187,7 @@ func handleVote(ctx *cli.Context) error {
 		return cli.NewExitError(err, 1)
 	}
 
-	if err = acc.SignTx(tx); err != nil {
+	if err = acc.SignTx(c.GetNetwork(), tx); err != nil {
 		return cli.NewExitError(fmt.Errorf("can't sign tx: %v", err), 1)
 	}
 

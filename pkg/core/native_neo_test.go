@@ -41,7 +41,7 @@ func TestNEO_Vote(t *testing.T) {
 	bc := newTestChain(t)
 
 	neo := bc.contracts.NEO
-	tx := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
+	tx := transaction.New([]byte{byte(opcode.PUSH1)}, 0)
 	ic := bc.newInteropContext(trigger.Application, bc.dao, nil, tx)
 	ic.SpawnVM()
 	ic.Block = bc.newBlock(tx)
@@ -85,7 +85,7 @@ func TestNEO_Vote(t *testing.T) {
 			int64(1_000_000_000), nil)
 		emit.Opcodes(w.BinWriter, opcode.ASSERT)
 		require.NoError(t, w.Err)
-		tx := transaction.New(netmode.UnitTestNet, w.Bytes(), 1000_000_000)
+		tx := transaction.New(w.Bytes(), 1000_000_000)
 		tx.ValidUntilBlock = bc.BlockHeight() + 1
 		setSigner(tx, testchain.MultisigScriptHash())
 		require.NoError(t, testchain.SignTx(bc, tx))
@@ -146,12 +146,12 @@ func TestNEO_Vote(t *testing.T) {
 				h.BytesBE(), h.BytesBE(), int64(1), nil)
 			emit.Opcodes(w.BinWriter, opcode.ASSERT)
 			require.NoError(t, w.Err)
-			tx := transaction.New(netmode.UnitTestNet, w.Bytes(), 0)
+			tx := transaction.New(w.Bytes(), 0)
 			tx.ValidUntilBlock = bc.BlockHeight() + 1
 			tx.NetworkFee = 2_000_000
 			tx.SystemFee = 11_000_000
 			setSigner(tx, h)
-			require.NoError(t, accs[i].SignTx(tx))
+			require.NoError(t, accs[i].SignTx(netmode.UnitTestNet, tx))
 			txs = append(txs, tx)
 		}
 		require.NoError(t, bc.AddBlock(bc.newBlock(txs...)))
@@ -204,7 +204,7 @@ func TestNEO_CalculateBonus(t *testing.T) {
 	bc := newTestChain(t)
 
 	neo := bc.contracts.NEO
-	tx := transaction.New(netmode.UnitTestNet, []byte{}, 0)
+	tx := transaction.New([]byte{}, 0)
 	ic := bc.newInteropContext(trigger.Application, bc.dao, nil, tx)
 	ic.SpawnVM()
 	ic.VM.LoadScript([]byte{byte(opcode.RET)})

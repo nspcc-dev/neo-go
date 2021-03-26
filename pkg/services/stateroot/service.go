@@ -61,6 +61,7 @@ const (
 func New(cfg config.StateRoot, log *zap.Logger, bc blockchainer.Blockchainer) (Service, error) {
 	s := &service{
 		StateRoot:       bc.GetStateModule(),
+		Network:         bc.GetConfig().Magic,
 		chain:           bc,
 		log:             log,
 		incompleteRoots: make(map[uint32]*incompleteRoot),
@@ -94,7 +95,7 @@ func New(cfg config.StateRoot, log *zap.Logger, bc blockchainer.Blockchainer) (S
 
 // OnPayload implements Service interface.
 func (s *service) OnPayload(ep *payload.Extensible) error {
-	m := new(Message)
+	m := &Message{}
 	r := io.NewBinReaderFromBuf(ep.Data)
 	m.DecodeBinary(r)
 	if r.Err != nil {

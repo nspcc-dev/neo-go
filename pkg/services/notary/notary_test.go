@@ -5,6 +5,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/internal/fakechain"
 	"github.com/nspcc-dev/neo-go/pkg/config"
+	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/mempool"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
@@ -27,21 +28,21 @@ func TestWallet(t *testing.T) {
 	}
 	t.Run("unexisting wallet", func(t *testing.T) {
 		cfg.MainCfg.UnlockWallet.Path = "./testdata/does_not_exists.json"
-		_, err := NewNotary(cfg, mempool.New(1, 1, true), nil)
+		_, err := NewNotary(cfg, netmode.UnitTestNet, mempool.New(1, 1, true), nil)
 		require.Error(t, err)
 	})
 
 	t.Run("bad password", func(t *testing.T) {
 		cfg.MainCfg.UnlockWallet.Path = "./testdata/notary1.json"
 		cfg.MainCfg.UnlockWallet.Password = "invalid"
-		_, err := NewNotary(cfg, mempool.New(1, 1, true), nil)
+		_, err := NewNotary(cfg, netmode.UnitTestNet, mempool.New(1, 1, true), nil)
 		require.Error(t, err)
 	})
 
 	t.Run("good", func(t *testing.T) {
 		cfg.MainCfg.UnlockWallet.Path = "./testdata/notary1.json"
 		cfg.MainCfg.UnlockWallet.Password = "one"
-		_, err := NewNotary(cfg, mempool.New(1, 1, true), nil)
+		_, err := NewNotary(cfg, netmode.UnitTestNet, mempool.New(1, 1, true), nil)
 		require.NoError(t, err)
 	})
 }

@@ -6,6 +6,7 @@ import (
 	"sync/atomic"
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
+	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
 	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer/services"
@@ -14,7 +15,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
-	"github.com/nspcc-dev/neo-go/pkg/crypto"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -49,7 +50,7 @@ func NewFakeChain() *FakeChain {
 		blocks:                make(map[util.Uint256]*block.Block),
 		hdrHashes:             make(map[uint32]util.Uint256),
 		txs:                   make(map[util.Uint256]*transaction.Transaction),
-		ProtocolConfiguration: config.ProtocolConfiguration{P2PNotaryRequestPayloadPoolSize: 10},
+		ProtocolConfiguration: config.ProtocolConfiguration{Magic: netmode.UnitTestNet, P2PNotaryRequestPayloadPoolSize: 10},
 	}
 }
 
@@ -393,7 +394,7 @@ func (chain *FakeChain) VerifyTx(*transaction.Transaction) error {
 }
 
 // VerifyWitness implements Blockchainer interface.
-func (chain *FakeChain) VerifyWitness(util.Uint160, crypto.Verifiable, *transaction.Witness, int64) error {
+func (chain *FakeChain) VerifyWitness(util.Uint160, hash.Hashable, *transaction.Witness, int64) error {
 	if chain.VerifyWitnessF != nil {
 		return chain.VerifyWitnessF()
 	}

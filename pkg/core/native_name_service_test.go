@@ -329,7 +329,7 @@ func testTokensOf(t *testing.T, bc *Blockchain, signer *wallet.Account, result [
 	emit.Opcodes(w.BinWriter, opcode.PACK)
 	require.NoError(t, w.Err)
 	script := w.Bytes()
-	tx := transaction.New(bc.GetConfig().Magic, script, defaultNameServiceSysfee)
+	tx := transaction.New(script, defaultNameServiceSysfee)
 	tx.ValidUntilBlock = bc.BlockHeight() + 1
 	signTxWithAccounts(bc, tx, signer)
 	aers, err := persistBlock(bc, tx)

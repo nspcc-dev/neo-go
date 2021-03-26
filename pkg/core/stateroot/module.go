@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
 	"github.com/nspcc-dev/neo-go/pkg/core/mpt"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
@@ -19,10 +20,11 @@ import (
 type (
 	// Module represents module for local processing of state roots.
 	Module struct {
-		Store *storage.MemCachedStore
-		mpt   *mpt.Trie
-		bc    blockchainer.Blockchainer
-		log   *zap.Logger
+		Store   *storage.MemCachedStore
+		network netmode.Magic
+		mpt     *mpt.Trie
+		bc      blockchainer.Blockchainer
+		log     *zap.Logger
 
 		currentLocal    atomic.Value
 		localHeight     atomic.Uint32
@@ -45,9 +47,10 @@ type (
 // NewModule returns new instance of stateroot module.
 func NewModule(bc blockchainer.Blockchainer, log *zap.Logger, s *storage.MemCachedStore) *Module {
 	return &Module{
-		bc:    bc,
-		log:   log,
-		Store: s,
+		network: bc.GetConfig().Magic,
+		bc:      bc,
+		log:     log,
+		Store:   s,
 	}
 }
 
@@ -129,6 +132,9 @@ func (s *Module) VerifyStateRoot(r *state.MPTRoot) error {
 	if err != nil {
 		return errors.New("can't get previous state root")
 	}
+	if len(r.Witness) != 1 {
+		return errors.New("no witness")
+	}
 	return s.verifyWitness(r)
 }
 
@@ -139,5 +145,5 @@ func (s *Module) verifyWitness(r *state.MPTRoot) error {
 	s.mtx.Lock()
 	h := s.getKeyCacheForHeight(r.Index).validatorsHash
 	s.mtx.Unlock()
-	return s.bc.VerifyWitness(h, r, r.Witness, maxVerificationGAS)
+	return s.bc.VerifyWitness(h, r, &r.Witness[0], maxVerificationGAS)
 }

@@ -48,7 +48,6 @@ func createGenesisBlock(cfg config.ProtocolConfiguration) (*block.Block, error) 
 			VerificationScript: []byte{byte(opcode.PUSH1)},
 		},
 		StateRootEnabled: cfg.StateRootInHeader,
-		Network:          cfg.Magic,
 	}
 
 	b := &block.Block{

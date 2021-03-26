@@ -474,11 +474,11 @@ func signAndSendTransfer(ctx *cli.Context, c *client.Client, acc *wallet.Account
 	}
 
 	if outFile := ctx.String("out"); outFile != "" {
-		if err := paramcontext.InitAndSave(tx, acc, outFile); err != nil {
+		if err := paramcontext.InitAndSave(c.GetNetwork(), tx, acc, outFile); err != nil {
 			return cli.NewExitError(err, 1)
 		}
 	} else {
-		_ = acc.SignTx(tx)
+		_ = acc.SignTx(c.GetNetwork(), tx)
 		res, err := c.SendRawTransaction(tx)
 		if err != nil {
 			return cli.NewExitError(err, 1)

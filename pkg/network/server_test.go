@@ -12,7 +12,6 @@ import (
 	"github.com/nspcc-dev/neo-go/internal/fakechain"
 	"github.com/nspcc-dev/neo-go/internal/random"
 	"github.com/nspcc-dev/neo-go/pkg/config"
-	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/consensus"
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
@@ -372,7 +371,6 @@ func (s *Server) testHandleMessage(t *testing.T, p Peer, cmd CommandType, pl pay
 		p.(*localPeer).handshaked = true
 	}
 	msg := NewMessage(cmd, pl)
-	msg.Network = netmode.UnitTestNet
 	require.NoError(t, s.handleMessage(p, msg))
 	return s
 }
@@ -393,7 +391,7 @@ func TestBlock(t *testing.T) {
 	atomic2.StoreUint32(&s.chain.(*fakechain.FakeChain).Blockheight, 12344)
 	require.Equal(t, uint32(12344), s.chain.BlockHeight())
 
-	b := block.New(netmode.UnitTestNet, false)
+	b := block.New(false)
 	b.Index = 12345
 	s.testHandleMessage(t, nil, CMDBlock, b)
 	require.Eventually(t, func() bool { return s.chain.BlockHeight() == 12345 }, time.Second, time.Millisecond*500)
@@ -407,7 +405,7 @@ func TestConsensus(t *testing.T) {
 	p.handshaked = true
 
 	newConsensusMessage := func(start, end uint32) *Message {
-		pl := payload.NewExtensible(netmode.UnitTestNet)
+		pl := payload.NewExtensible()
 		pl.Category = consensus.Category
 		pl.ValidBlockStart = start
 		pl.ValidBlockEnd = end
@@ -438,7 +436,7 @@ func TestConsensus(t *testing.T) {
 		require.Error(t, s.handleMessage(p, msg))
 	})
 	t.Run("invalid category", func(t *testing.T) {
-		pl := payload.NewExtensible(netmode.UnitTestNet)
+		pl := payload.NewExtensible()
 		pl.Category = "invalid"
 		pl.ValidBlockEnd = s.chain.BlockHeight() + 1
 		msg := NewMessage(CMDExtensible, pl)
@@ -518,7 +516,6 @@ func TestGetData(t *testing.T) {
 	})
 	t.Run("p2pNotaryRequest", func(t *testing.T) {
 		mainTx := &transaction.Transaction{
-			Network:         netmode.UnitTestNet,
 			Attributes:      []transaction.Attribute{{Type: transaction.NotaryAssistedT, Value: &transaction.NotaryAssisted{NKeys: 1}}},
 			Script:          []byte{0, 1, 2},
 			ValidUntilBlock: 123,
@@ -528,7 +525,6 @@ func TestGetData(t *testing.T) {
 		mainTx.Size()
 		mainTx.Hash()
 		fallbackTx := &transaction.Transaction{
-			Network:         netmode.UnitTestNet,
 			Script:          []byte{1, 2, 3},
 			ValidUntilBlock: 123,
 			Attributes: []transaction.Attribute{
@@ -544,7 +540,6 @@ func TestGetData(t *testing.T) {
 		r := &payload.P2PNotaryRequest{
 			MainTransaction:     mainTx,
 			FallbackTransaction: fallbackTx,
-			Network:             netmode.UnitTestNet,
 			Witness: transaction.Witness{
 				InvocationScript:   []byte{1, 2, 3},
 				VerificationScript: []byte{1, 2, 3},
@@ -596,7 +591,6 @@ func TestGetBlocks(t *testing.T) {
 	})
 	t.Run("invalid start", func(t *testing.T) {
 		msg := NewMessage(CMDGetBlocks, &payload.GetBlocks{HashStart: util.Uint256{}, Count: -1})
-		msg.Network = netmode.UnitTestNet
 		require.Error(t, s.handleMessage(p, msg))
 	})
 }
@@ -708,7 +702,7 @@ func TestInv(t *testing.T) {
 		require.Equal(t, []util.Uint256{hs[0], hs[2]}, actual)
 	})
 	t.Run("extensible", func(t *testing.T) {
-		ep := payload.NewExtensible(netmode.UnitTestNet)
+		ep := payload.NewExtensible()
 		s.chain.(*fakechain.FakeChain).VerifyWitnessF = func() error { return nil }
 		ep.ValidBlockEnd = s.chain.(*fakechain.FakeChain).BlockHeight() + 1
 		ok, err := s.extensiblePool.Add(ep)
@@ -720,14 +714,13 @@ func TestInv(t *testing.T) {
 		})
 	})
 	t.Run("p2pNotaryRequest", func(t *testing.T) {
-		fallbackTx := transaction.New(netmode.UnitTestNet, random.Bytes(100), 123)
+		fallbackTx := transaction.New(random.Bytes(100), 123)
 		fallbackTx.Signers = []transaction.Signer{{Account: random.Uint160()}, {Account: random.Uint160()}}
 		fallbackTx.Size()
 		fallbackTx.Hash()
 		r := &payload.P2PNotaryRequest{
 			MainTransaction:     newDummyTx(),
 			FallbackTransaction: fallbackTx,
-			Network:             netmode.UnitTestNet,
 		}
 		require.NoError(t, s.notaryRequestPool.Add(r.FallbackTransaction, s.chain, r))
 		hs := []util.Uint256{random.Uint256(), r.FallbackTransaction.Hash(), random.Uint256()}
@@ -828,7 +821,6 @@ func TestAddrs(t *testing.T) {
 
 	t.Run("CMDAddr not requested", func(t *testing.T) {
 		msg := NewMessage(CMDAddr, pl)
-		msg.Network = netmode.UnitTestNet
 		require.Error(t, s.handleMessage(p, msg))
 	})
 }

@@ -7,7 +7,6 @@ import (
 
 	"github.com/nspcc-dev/neo-go/internal/random"
 	"github.com/nspcc-dev/neo-go/internal/testserdes"
-	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/stretchr/testify/require"
@@ -54,23 +53,13 @@ func TestExtensible_Serializable(t *testing.T) {
 
 func TestExtensible_Hashes(t *testing.T) {
 	getExtensiblePair := func() (*Extensible, *Extensible) {
-		p1 := NewExtensible(netmode.UnitTestNet)
+		p1 := NewExtensible()
 		p1.Data = []byte{1, 2, 3}
-		p2 := NewExtensible(netmode.UnitTestNet)
+		p2 := NewExtensible()
 		p2.Data = []byte{3, 2, 1}
 		return p1, p2
 	}
 
-	t.Run("GetSignedPart", func(t *testing.T) {
-		p1, p2 := getExtensiblePair()
-		require.NotEqual(t, p1.GetSignedPart(), p2.GetSignedPart())
-		require.NotEqual(t, p1.GetSignedPart(), p2.GetSignedPart())
-	})
-	t.Run("GetSignedHash", func(t *testing.T) {
-		p1, p2 := getExtensiblePair()
-		require.NotEqual(t, p1.GetSignedHash(), p2.GetSignedHash())
-		require.NotEqual(t, p1.GetSignedHash(), p2.GetSignedHash())
-	})
 	t.Run("Hash", func(t *testing.T) {
 		p1, p2 := getExtensiblePair()
 		require.NotEqual(t, p1.Hash(), p2.Hash())

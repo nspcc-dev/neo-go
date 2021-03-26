@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/internal/testchain"
-	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
@@ -148,8 +147,8 @@ func TestOracle_Request(t *testing.T) {
 	require.NoError(t, err)
 	pub := priv.PublicKey()
 
-	tx := transaction.New(netmode.UnitTestNet, []byte{}, 0)
-	bl := block.New(netmode.UnitTestNet, bc.config.StateRootInHeader)
+	tx := transaction.New([]byte{}, 0)
+	bl := block.New(bc.config.StateRootInHeader)
 	bl.Index = bc.BlockHeight() + 1
 	setSigner(tx, testchain.CommitteeScriptHash())
 	ic := bc.newInteropContext(trigger.Application, bc.dao, bl, tx)
@@ -158,7 +157,7 @@ func TestOracle_Request(t *testing.T) {
 	err = bc.contracts.Designate.DesignateAsRole(ic, noderoles.Oracle, keys.PublicKeys{pub})
 	require.NoError(t, err)
 
-	tx = transaction.New(netmode.UnitTestNet, orc.GetOracleResponseScript(), 0)
+	tx = transaction.New(orc.GetOracleResponseScript(), 0)
 	ic.Tx = tx
 	ic.Block = bc.newBlock(tx)
 
@@ -208,7 +207,7 @@ func TestOracle_Request(t *testing.T) {
 		_, err := orc.GetRequestInternal(bc.dao, reqID) // ensure ID is 1
 		require.NoError(t, err)
 
-		tx = transaction.New(netmode.UnitTestNet, orc.GetOracleResponseScript(), 0)
+		tx = transaction.New(orc.GetOracleResponseScript(), 0)
 		tx.Attributes = []transaction.Attribute{{
 			Type: transaction.OracleResponseT,
 			Value: &transaction.OracleResponse{

@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/internal/random"
-	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
@@ -45,7 +44,7 @@ func TestPlatform(t *testing.T) {
 }
 
 func TestGetTime(t *testing.T) {
-	b := block.New(netmode.UnitTestNet, false)
+	b := block.New(false)
 	b.Timestamp = rand.Uint64()
 	ic := &interop.Context{VM: vm.New(), Block: b}
 	require.NoError(t, GetTime(ic))

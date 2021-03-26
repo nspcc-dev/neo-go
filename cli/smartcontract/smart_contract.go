@@ -596,7 +596,7 @@ func invokeInternal(ctx *cli.Context, signAndPush bool) error {
 		if err != nil {
 			return cli.NewExitError(fmt.Errorf("failed to create tx: %w", err), 1)
 		}
-		if err := paramcontext.InitAndSave(tx, acc, out); err != nil {
+		if err := paramcontext.InitAndSave(c.GetNetwork(), tx, acc, out); err != nil {
 			return cli.NewExitError(err, 1)
 		}
 		fmt.Fprintln(ctx.App.Writer, tx.Hash().StringLE())

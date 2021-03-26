@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 
-	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
@@ -38,11 +37,6 @@ type Header struct {
 	// Script used to validate the block
 	Script transaction.Witness
 
-	// Network magic number this block belongs to. This one actually is not
-	// a part of the wire-representation of Block, but it's absolutely
-	// necessary for correct signing/verification.
-	Network netmode.Magic
-
 	// StateRootEnabled specifies if header contains state root.
 	StateRootEnabled bool
 	// PrevStateRoot is state root of the previous block.
@@ -52,9 +46,6 @@ type Header struct {
 
 	// Hash of this block, created when binary encoded (double SHA256).
 	hash util.Uint256
-
-	// Hash of the block used to verify it (single SHA256).
-	verificationHash util.Uint256
 }
 
 // baseAux is used to marshal/unmarshal to/from JSON, it's almost the same
@@ -81,14 +72,6 @@ func (b *Header) Hash() util.Uint256 {
 	return b.hash
 }
 
-// GetSignedHash returns a hash of the block used to verify it.
-func (b *Header) GetSignedHash() util.Uint256 {
-	if b.verificationHash.Equals(util.Uint256{}) {
-		b.createHash()
-	}
-	return b.verificationHash
-}
-
 // DecodeBinary implements Serializable interface.
 func (b *Header) DecodeBinary(br *io.BinReader) {
 	b.decodeHashableFields(br)
@@ -108,21 +91,6 @@ func (b *Header) EncodeBinary(bw *io.BinWriter) {
 	b.Script.EncodeBinary(bw)
 }
 
-// GetSignedPart returns serialized hashable data of the block.
-func (b *Header) GetSignedPart() []byte {
-	if b.hash.Equals(util.Uint256{}) {
-		b.createHash()
-	}
-	buf := io.NewBufBinWriter()
-	b.writeSignedPart(buf)
-	return buf.Bytes()
-}
-
-func (b *Header) writeSignedPart(buf *io.BufBinWriter) {
-	buf.WriteU32LE(uint32(b.Network))
-	buf.WriteBytes(b.hash[:])
-}
-
 // createHash creates the hash of the block.
 // When calculating the hash value of the block, instead of calculating the entire block,
 // only first seven fields in the block head will be calculated, which are
@@ -135,9 +103,6 @@ func (b *Header) createHash() {
 	b.encodeHashableFields(buf.BinWriter)
 
 	b.hash = hash.Sha256(buf.Bytes())
-	buf.Reset()
-	b.writeSignedPart(buf)
-	b.verificationHash = hash.Sha256(buf.Bytes())
 }
 
 // encodeHashableFields will only encode the fields used for hashing.

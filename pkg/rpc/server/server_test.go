@@ -19,7 +19,6 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/nspcc-dev/neo-go/internal/testchain"
 	"github.com/nspcc-dev/neo-go/internal/testserdes"
-	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/fee"
@@ -1076,7 +1075,6 @@ func TestSubmitNotaryRequest(t *testing.T) {
 	t.Run("invalid request bytes", runCase(t, true, `"not-a-request"`))
 	t.Run("invalid request", func(t *testing.T) {
 		mainTx := &transaction.Transaction{
-			Network:         netmode.UnitTestNet,
 			Attributes:      []transaction.Attribute{{Type: transaction.NotaryAssistedT, Value: &transaction.NotaryAssisted{NKeys: 1}}},
 			Script:          []byte{byte(opcode.RET)},
 			ValidUntilBlock: 123,
@@ -1087,7 +1085,6 @@ func TestSubmitNotaryRequest(t *testing.T) {
 			}},
 		}
 		fallbackTx := &transaction.Transaction{
-			Network:         netmode.UnitTestNet,
 			Script:          []byte{byte(opcode.RET)},
 			ValidUntilBlock: 123,
 			Attributes: []transaction.Attribute{
@@ -1101,7 +1098,6 @@ func TestSubmitNotaryRequest(t *testing.T) {
 				{InvocationScript: []byte{1, 2, 3}, VerificationScript: []byte{1, 2, 3}}},
 		}
 		p := &payload.P2PNotaryRequest{
-			Network:             netmode.UnitTestNet,
 			MainTransaction:     mainTx,
 			FallbackTransaction: fallbackTx,
 			Witness: transaction.Witness{
@@ -1117,7 +1113,6 @@ func TestSubmitNotaryRequest(t *testing.T) {
 	t.Run("valid request", func(t *testing.T) {
 		sender := testchain.PrivateKeyByID(0) // owner of the deposit in testchain
 		mainTx := &transaction.Transaction{
-			Network:         netmode.UnitTestNet,
 			Attributes:      []transaction.Attribute{{Type: transaction.NotaryAssistedT, Value: &transaction.NotaryAssisted{NKeys: 1}}},
 			Script:          []byte{byte(opcode.RET)},
 			ValidUntilBlock: 123,
@@ -1128,7 +1123,6 @@ func TestSubmitNotaryRequest(t *testing.T) {
 			}},
 		}
 		fallbackTx := &transaction.Transaction{
-			Network:         netmode.UnitTestNet,
 			Script:          []byte{byte(opcode.RET)},
 			ValidUntilBlock: 123,
 			Attributes: []transaction.Attribute{
@@ -1143,16 +1137,15 @@ func TestSubmitNotaryRequest(t *testing.T) {
 			NetworkFee: 2_0000_0000,
 		}
 		fallbackTx.Scripts = append(fallbackTx.Scripts, transaction.Witness{
-			InvocationScript:   append([]byte{byte(opcode.PUSHDATA1), 64}, sender.Sign(fallbackTx.GetSignedPart())...),
+			InvocationScript:   append([]byte{byte(opcode.PUSHDATA1), 64}, sender.SignHashable(uint32(testchain.Network()), fallbackTx)...),
 			VerificationScript: sender.PublicKey().GetVerificationScript(),
 		})
 		p := &payload.P2PNotaryRequest{
-			Network:             netmode.UnitTestNet,
 			MainTransaction:     mainTx,
 			FallbackTransaction: fallbackTx,
 		}
 		p.Witness = transaction.Witness{
-			InvocationScript:   append([]byte{byte(opcode.PUSHDATA1), 64}, sender.Sign(p.GetSignedPart())...),
+			InvocationScript:   append([]byte{byte(opcode.PUSHDATA1), 64}, sender.SignHashable(uint32(testchain.Network()), p)...),
 			VerificationScript: sender.PublicKey().GetVerificationScript(),
 		}
 		bytes, err := p.Bytes()
@@ -1314,12 +1307,12 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 
 		newTx := func() *transaction.Transaction {
 			height := chain.BlockHeight()
-			tx := transaction.New(testchain.Network(), []byte{byte(opcode.PUSH1)}, 0)
+			tx := transaction.New([]byte{byte(opcode.PUSH1)}, 0)
 			tx.Nonce = height + 1
 			tx.ValidUntilBlock = height + 10
 			tx.Signers = []transaction.Signer{{Account: acc0.PrivateKey().GetScriptHash()}}
 			addNetworkFee(tx)
-			require.NoError(t, acc0.SignTx(tx))
+			require.NoError(t, acc0.SignTx(testchain.Network(), tx))
 			return tx
 		}
 
@@ -1368,7 +1361,7 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 			body := doRPCCall(rpc, httpSrv.URL, t)
 			rawRes := checkErrGetResult(t, body, false)
 
-			res := new(state.MPTRoot)
+			res := &state.MPTRoot{}
 			require.NoError(t, json.Unmarshal(rawRes, res))
 			require.NotEqual(t, util.Uint256{}, res.Root) // be sure this test uses valid height
 
@@ -1417,7 +1410,7 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 		rpc := fmt.Sprintf(`{"jsonrpc": "2.0", "id": 1, "method": "getrawtransaction", "params": ["%s", 1]}"`, TXHash.StringLE())
 		body := doRPCCall(rpc, httpSrv.URL, t)
 		txOut := checkErrGetResult(t, body, false)
-		actual := result.TransactionOutputRaw{Transaction: transaction.Transaction{Network: testchain.Network()}}
+		actual := result.TransactionOutputRaw{Transaction: transaction.Transaction{}}
 		err := json.Unmarshal(txOut, &actual)
 		require.NoErrorf(t, err, "could not parse response: %s", txOut)
 
@@ -1486,7 +1479,7 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 			expected = append(expected, tx.Hash())
 		}
 		for i := 0; i < 5; i++ {
-			tx := transaction.New(testchain.Network(), []byte{byte(opcode.PUSH1)}, 0)
+			tx := transaction.New([]byte{byte(opcode.PUSH1)}, 0)
 			tx.Signers = []transaction.Signer{{Account: util.Uint160{1, 2, 3}}}
 			assert.NoError(t, mp.Add(tx, &FeerStub{}))
 			expected = append(expected, tx.Hash())
@@ -1572,10 +1565,6 @@ func (tc rpcTestCase) getResultPair(e *executor) (expected interface{}, res inte
 	expected = tc.result(e)
 	resVal := reflect.New(reflect.TypeOf(expected).Elem())
 	res = resVal.Interface()
-	switch r := res.(type) {
-	case *result.Block:
-		r.Network = testchain.Network()
-	}
 	return expected, res
 }
 

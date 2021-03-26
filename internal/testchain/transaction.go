@@ -8,12 +8,12 @@ import (
 	"github.com/nspcc-dev/neo-go/cli/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/compiler"
 	"github.com/nspcc-dev/neo-go/pkg/config"
-	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
 	"github.com/nspcc-dev/neo-go/pkg/core/fee"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
@@ -38,7 +38,7 @@ func NewTransferFromOwner(bc blockchainer.Blockchainer, contractHash, to util.Ui
 	}
 
 	script := w.Bytes()
-	tx := transaction.New(netmode.UnitTestNet, script, 11000000)
+	tx := transaction.New(script, 11000000)
 	tx.ValidUntilBlock = validUntil
 	tx.Nonce = nonce
 	tx.Signers = []transaction.Signer{{
@@ -100,7 +100,7 @@ func NewDeployTx(bc blockchainer.Blockchainer, name string, sender util.Uint160,
 		return nil, util.Uint160{}, nil, buf.Err
 	}
 
-	tx := transaction.New(Network(), buf.Bytes(), 100*native.GASFactor)
+	tx := transaction.New(buf.Bytes(), 100*native.GASFactor)
 	tx.Signers = []transaction.Signer{{Account: sender}}
 	h := state.CreateContractHash(tx.Sender(), ne.Checksum, name)
 
@@ -119,16 +119,15 @@ func SignTxCommittee(bc blockchainer.Blockchainer, txs ...*transaction.Transacti
 	return nil
 }
 
-func signTxGeneric(bc blockchainer.Blockchainer, sign func([]byte) []byte, verif []byte, txs ...*transaction.Transaction) {
+func signTxGeneric(bc blockchainer.Blockchainer, sign func(hash.Hashable) []byte, verif []byte, txs ...*transaction.Transaction) {
 	for _, tx := range txs {
 		size := io.GetVarSize(tx)
 		netFee, sizeDelta := fee.Calculate(bc.GetPolicer().GetBaseExecFee(), verif)
 		tx.NetworkFee += netFee
 		size += sizeDelta
 		tx.NetworkFee += int64(size) * bc.FeePerByte()
-		data := tx.GetSignedPart()
 		tx.Scripts = []transaction.Witness{{
-			InvocationScript:   sign(data),
+			InvocationScript:   sign(tx),
 			VerificationScript: verif,
 		}}
 	}

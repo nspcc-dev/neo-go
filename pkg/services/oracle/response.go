@@ -38,9 +38,9 @@ func (o *Oracle) AddResponse(pub *keys.PublicKey, reqID uint64, txSig []byte) {
 	incTx.Lock()
 	isBackup := false
 	if incTx.tx != nil {
-		ok := pub.Verify(txSig, incTx.tx.GetSignedHash().BytesBE())
+		ok := pub.VerifyHashable(txSig, uint32(o.Network), incTx.tx)
 		if !ok {
-			ok = pub.Verify(txSig, incTx.backupTx.GetSignedHash().BytesBE())
+			ok = pub.VerifyHashable(txSig, uint32(o.Network), incTx.backupTx)
 			if !ok {
 				o.Log.Debug("invalid response signature",
 					zap.String("pub", hex.EncodeToString(pub.Bytes())))
@@ -82,7 +82,7 @@ func readResponse(rc gio.ReadCloser, limit int) ([]byte, error) {
 
 // CreateResponseTx creates unsigned oracle response transaction.
 func (o *Oracle) CreateResponseTx(gasForResponse int64, height uint32, resp *transaction.OracleResponse) (*transaction.Transaction, error) {
-	tx := transaction.New(o.Network, o.oracleResponse, 0)
+	tx := transaction.New(o.oracleResponse, 0)
 	tx.Nonce = uint32(resp.ID)
 	tx.ValidUntilBlock = height + transaction.MaxValidUntilBlockIncrement
 	tx.Attributes = []transaction.Attribute{{

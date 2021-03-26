@@ -5,7 +5,6 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/fee"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
@@ -227,7 +226,7 @@ func TestNativeContract_InvokeInternal(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	d := dao.NewSimple(storage.NewMemoryStore(), netmode.UnitTestNet, chain.config.StateRootInHeader)
+	d := dao.NewSimple(storage.NewMemoryStore(), chain.config.StateRootInHeader)
 	ic := chain.newInteropContext(trigger.Application, d, nil, nil)
 
 	sumOffset := 0

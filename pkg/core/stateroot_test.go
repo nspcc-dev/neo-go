@@ -10,6 +10,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/internal/testserdes"
 	"github.com/nspcc-dev/neo-go/pkg/config"
+	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/noderoles"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
@@ -32,17 +33,17 @@ func testSignStateRoot(t *testing.T, r *state.MPTRoot, pubs keys.PublicKeys, acc
 	n := smartcontract.GetMajorityHonestNodeCount(len(accs))
 	w := io.NewBufBinWriter()
 	for i := 0; i < n; i++ {
-		sig := accs[i].PrivateKey().SignHash(r.GetSignedHash())
+		sig := accs[i].PrivateKey().SignHashable(uint32(netmode.UnitTestNet), r)
 		emit.Bytes(w.BinWriter, sig)
 	}
 	require.NoError(t, w.Err)
 
 	script, err := smartcontract.CreateMajorityMultiSigRedeemScript(pubs.Copy())
 	require.NoError(t, err)
-	r.Witness = &transaction.Witness{
+	r.Witness = []transaction.Witness{{
 		VerificationScript: script,
 		InvocationScript:   w.Bytes(),
-	}
+	}}
 	data, err := testserdes.EncodeBinary(stateroot.NewMessage(stateroot.RootT, r))
 	require.NoError(t, err)
 	return data
@@ -131,8 +132,8 @@ func TestStateRoot(t *testing.T) {
 
 	r, err = srv.GetStateRoot(updateIndex + 1)
 	require.NoError(t, err)
-	require.NotNil(t, r.Witness)
-	require.Equal(t, h, r.Witness.ScriptHash())
+	require.NotEqual(t, 0, len(r.Witness))
+	require.Equal(t, h, r.Witness[0].ScriptHash())
 }
 
 func TestStateRootInitNonZeroHeight(t *testing.T) {
@@ -220,7 +221,7 @@ func TestStateRootFull(t *testing.T) {
 
 	r, err := srv.GetStateRoot(2)
 	require.NoError(t, err)
-	require.NoError(t, srv.AddSignature(2, 0, accs[0].PrivateKey().SignHash(r.GetSignedHash())))
+	require.NoError(t, srv.AddSignature(2, 0, accs[0].PrivateKey().SignHashable(uint32(netmode.UnitTestNet), r)))
 	require.NotNil(t, lastValidated.Load().(*payload.Extensible))
 
 	msg := new(stateroot.Message)
@@ -249,5 +250,5 @@ func checkVoteBroadcasted(t *testing.T, bc *Blockchain, p *payload.Extensible,
 
 	pubs, _, err := bc.contracts.Designate.GetDesignatedByRole(bc.dao, noderoles.StateValidator, bc.BlockHeight())
 	require.True(t, len(pubs) > int(valIndex))
-	require.True(t, pubs[valIndex].Verify(vote.Signature, r.GetSignedHash().BytesBE()))
+	require.True(t, pubs[valIndex].VerifyHashable(vote.Signature, uint32(netmode.UnitTestNet), r))
 }

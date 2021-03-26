@@ -3,7 +3,6 @@ package native
 import (
 	"testing"
 
-	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
@@ -18,7 +17,7 @@ import (
 
 func TestDeployGetUpdateDestroyContract(t *testing.T) {
 	mgmt := newManagement()
-	d := dao.NewCached(dao.NewSimple(storage.NewMemoryStore(), netmode.UnitTestNet, false))
+	d := dao.NewCached(dao.NewSimple(storage.NewMemoryStore(), false))
 	mgmt.Initialize(&interop.Context{DAO: d})
 	script := []byte{byte(opcode.RET)}
 	sender := util.Uint160{1, 2, 3}
@@ -72,12 +71,12 @@ func TestDeployGetUpdateDestroyContract(t *testing.T) {
 
 func TestManagement_Initialize(t *testing.T) {
 	t.Run("good", func(t *testing.T) {
-		d := dao.NewSimple(storage.NewMemoryStore(), netmode.UnitTestNet, false)
+		d := dao.NewSimple(storage.NewMemoryStore(), false)
 		mgmt := newManagement()
 		require.NoError(t, mgmt.InitializeCache(d))
 	})
 	t.Run("invalid contract state", func(t *testing.T) {
-		d := dao.NewSimple(storage.NewMemoryStore(), netmode.UnitTestNet, false)
+		d := dao.NewSimple(storage.NewMemoryStore(), false)
 		mgmt := newManagement()
 		require.NoError(t, d.PutStorageItem(mgmt.ID, []byte{prefixContract}, state.StorageItem{0xFF}))
 		require.Error(t, mgmt.InitializeCache(d))

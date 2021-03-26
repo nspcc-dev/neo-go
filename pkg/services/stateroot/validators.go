@@ -5,6 +5,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/network/payload"
+	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"go.uber.org/zap"
 )
@@ -46,11 +47,11 @@ func (s *service) signAndSend(r *state.MPTRoot) error {
 		return nil
 	}
 
-	sig := acc.PrivateKey().SignHash(r.GetSignedHash())
+	sig := acc.PrivateKey().SignHashable(uint32(s.Network), r)
 	incRoot := s.getIncompleteRoot(r.Index)
 	incRoot.root = r
 	incRoot.addSignature(acc.PrivateKey().PublicKey(), sig)
-	incRoot.reverify()
+	incRoot.reverify(s.Network)
 
 	s.accMtx.RLock()
 	myIndex := s.myIndex
@@ -66,13 +67,20 @@ func (s *service) signAndSend(r *state.MPTRoot) error {
 	if w.Err != nil {
 		return w.Err
 	}
-	s.getRelayCallback()(&payload.Extensible{
-		Network:         s.Network,
+	e := &payload.Extensible{
 		ValidBlockStart: r.Index,
 		ValidBlockEnd:   r.Index + transaction.MaxValidUntilBlockIncrement,
 		Sender:          s.getAccount().PrivateKey().GetScriptHash(),
 		Data:            w.Bytes(),
-	})
+		Witness: transaction.Witness{
+			VerificationScript: s.getAccount().GetVerificationScript(),
+		},
+	}
+	sig = acc.PrivateKey().SignHashable(uint32(s.Network), e)
+	buf := io.NewBufBinWriter()
+	emit.Bytes(buf.BinWriter, sig)
+	e.Witness.InvocationScript = buf.Bytes()
+	s.getRelayCallback()(e)
 	return nil
 }
 

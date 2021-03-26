@@ -6,7 +6,6 @@ import (
 	"math"
 
 	"github.com/Workiva/go-datastructures/queue"
-	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/io"
@@ -68,10 +67,9 @@ func (b *Block) RebuildMerkleRoot() {
 // This is commonly used to create a block from stored data.
 // Blocks created from trimmed data will have their Trimmed field
 // set to true.
-func NewBlockFromTrimmedBytes(network netmode.Magic, stateRootEnabled bool, b []byte) (*Block, error) {
+func NewBlockFromTrimmedBytes(stateRootEnabled bool, b []byte) (*Block, error) {
 	block := &Block{
 		Header: Header{
-			Network:          network,
 			StateRootEnabled: stateRootEnabled,
 		},
 		Trimmed: true,
@@ -95,11 +93,10 @@ func NewBlockFromTrimmedBytes(network netmode.Magic, stateRootEnabled bool, b []
 	return block, br.Err
 }
 
-// New creates a new blank block tied to the specific network.
-func New(network netmode.Magic, stateRootEnabled bool) *Block {
+// New creates a new blank block with proper state root setting.
+func New(stateRootEnabled bool) *Block {
 	return &Block{
 		Header: Header{
-			Network:          network,
 			StateRootEnabled: stateRootEnabled,
 		},
 	}
@@ -136,7 +133,7 @@ func (b *Block) DecodeBinary(br *io.BinReader) {
 	}
 	txes := make([]*transaction.Transaction, contentsCount)
 	for i := 0; i < int(contentsCount); i++ {
-		tx := &transaction.Transaction{Network: b.Network}
+		tx := &transaction.Transaction{}
 		tx.DecodeBinary(br)
 		txes[i] = tx
 	}
@@ -207,7 +204,7 @@ func (b *Block) UnmarshalJSON(data []byte) error {
 	if len(auxb.Transactions) != 0 {
 		b.Transactions = make([]*transaction.Transaction, 0, len(auxb.Transactions))
 		for _, txBytes := range auxb.Transactions {
-			tx := &transaction.Transaction{Network: b.Network}
+			tx := &transaction.Transaction{}
 			err = tx.UnmarshalJSON(txBytes)
 			if err != nil {
 				return err

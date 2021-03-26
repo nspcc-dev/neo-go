@@ -5,7 +5,6 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
@@ -18,7 +17,7 @@ func testNonInterop(t *testing.T, value interface{}, f func(*interop.Context) er
 	v := vm.New()
 	v.Estack().PushVal(value)
 	chain := newTestChain(t)
-	d := dao.NewSimple(storage.NewMemoryStore(), netmode.UnitTestNet, chain.config.StateRootInHeader)
+	d := dao.NewSimple(storage.NewMemoryStore(), chain.config.StateRootInHeader)
 	context := chain.newInteropContext(trigger.Application, d, nil, nil)
 	context.VM = v
 	require.Error(t, f(context))

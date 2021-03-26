@@ -7,7 +7,6 @@ import (
 	iocore "io"
 	"sort"
 
-	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/mpt"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
@@ -68,16 +67,15 @@ type DAO interface {
 
 // Simple is memCached wrapper around DB, simple DAO implementation.
 type Simple struct {
-	Store   *storage.MemCachedStore
-	network netmode.Magic
+	Store *storage.MemCachedStore
 	// stateRootInHeader specifies if block header contains state root.
 	stateRootInHeader bool
 }
 
 // NewSimple creates new simple dao using provided backend store.
-func NewSimple(backend storage.Store, network netmode.Magic, stateRootInHeader bool) *Simple {
+func NewSimple(backend storage.Store, stateRootInHeader bool) *Simple {
 	st := storage.NewMemCachedStore(backend)
-	return &Simple{Store: st, network: network, stateRootInHeader: stateRootInHeader}
+	return &Simple{Store: st, stateRootInHeader: stateRootInHeader}
 }
 
 // GetBatch returns currently accumulated DB changeset.
@@ -88,7 +86,7 @@ func (dao *Simple) GetBatch() *storage.MemBatch {
 // GetWrapped returns new DAO instance with another layer of wrapped
 // MemCachedStore around the current DAO Store.
 func (dao *Simple) GetWrapped() DAO {
-	d := NewSimple(dao.Store, dao.network, dao.stateRootInHeader)
+	d := NewSimple(dao.Store, dao.stateRootInHeader)
 	return d
 }
 
@@ -363,7 +361,7 @@ func (dao *Simple) GetBlock(hash util.Uint256) (*block.Block, error) {
 		return nil, err
 	}
 
-	block, err := block.NewBlockFromTrimmedBytes(dao.network, dao.stateRootInHeader, b)
+	block, err := block.NewBlockFromTrimmedBytes(dao.stateRootInHeader, b)
 	if err != nil {
 		return nil, err
 	}
@@ -448,7 +446,7 @@ func (dao *Simple) GetTransaction(hash util.Uint256) (*transaction.Transaction, 
 
 	var height = r.ReadU32LE()
 
-	tx := &transaction.Transaction{Network: dao.network}
+	tx := &transaction.Transaction{}
 	tx.DecodeBinary(r)
 	if r.Err != nil {
 		return nil, 0, r.Err
@@ -530,7 +528,7 @@ func (dao *Simple) DeleteBlock(h util.Uint256, w *io.BufBinWriter) error {
 		return err
 	}
 
-	b, err := block.NewBlockFromTrimmedBytes(dao.network, dao.stateRootInHeader, bs)
+	b, err := block.NewBlockFromTrimmedBytes(dao.stateRootInHeader, bs)
 	if err != nil {
 		return err
 	}

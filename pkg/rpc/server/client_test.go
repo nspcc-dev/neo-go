@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/internal/testchain"
-	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/fee"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
@@ -90,7 +89,7 @@ func TestAddNetworkFee(t *testing.T) {
 	feePerByte := chain.FeePerByte()
 
 	t.Run("Invalid", func(t *testing.T) {
-		tx := transaction.New(testchain.Network(), []byte{byte(opcode.PUSH1)}, 0)
+		tx := transaction.New([]byte{byte(opcode.PUSH1)}, 0)
 		accs := getAccounts(t, 2)
 		tx.Signers = []transaction.Signer{{
 			Account: accs[0].PrivateKey().GetScriptHash(),
@@ -99,20 +98,20 @@ func TestAddNetworkFee(t *testing.T) {
 		require.Error(t, c.AddNetworkFee(tx, extraFee, accs[0], accs[1]))
 	})
 	t.Run("Simple", func(t *testing.T) {
-		tx := transaction.New(testchain.Network(), []byte{byte(opcode.PUSH1)}, 0)
+		tx := transaction.New([]byte{byte(opcode.PUSH1)}, 0)
 		accs := getAccounts(t, 1)
 		tx.Signers = []transaction.Signer{{
 			Account: accs[0].PrivateKey().GetScriptHash(),
 			Scopes:  transaction.CalledByEntry,
 		}}
 		require.NoError(t, c.AddNetworkFee(tx, 10, accs[0]))
-		require.NoError(t, accs[0].SignTx(tx))
+		require.NoError(t, accs[0].SignTx(testchain.Network(), tx))
 		cFee, _ := fee.Calculate(chain.GetBaseExecFee(), accs[0].Contract.Script)
 		require.Equal(t, int64(io.GetVarSize(tx))*feePerByte+cFee+extraFee, tx.NetworkFee)
 	})
 
 	t.Run("Multi", func(t *testing.T) {
-		tx := transaction.New(testchain.Network(), []byte{byte(opcode.PUSH1)}, 0)
+		tx := transaction.New([]byte{byte(opcode.PUSH1)}, 0)
 		accs := getAccounts(t, 4)
 		pubs := keys.PublicKeys{accs[1].PrivateKey().PublicKey(), accs[2].PrivateKey().PublicKey(), accs[3].PrivateKey().PublicKey()}
 		require.NoError(t, accs[1].ConvertMultisig(2, pubs))
@@ -128,9 +127,9 @@ func TestAddNetworkFee(t *testing.T) {
 			},
 		}
 		require.NoError(t, c.AddNetworkFee(tx, extraFee, accs[0], accs[1]))
-		require.NoError(t, accs[0].SignTx(tx))
-		require.NoError(t, accs[1].SignTx(tx))
-		require.NoError(t, accs[2].SignTx(tx))
+		require.NoError(t, accs[0].SignTx(testchain.Network(), tx))
+		require.NoError(t, accs[1].SignTx(testchain.Network(), tx))
+		require.NoError(t, accs[2].SignTx(testchain.Network(), tx))
 		cFee, _ := fee.Calculate(chain.GetBaseExecFee(), accs[0].Contract.Script)
 		cFeeM, _ := fee.Calculate(chain.GetBaseExecFee(), accs[1].Contract.Script)
 		require.Equal(t, int64(io.GetVarSize(tx))*feePerByte+cFee+cFeeM+extraFee, tx.NetworkFee)
@@ -145,7 +144,7 @@ func TestAddNetworkFee(t *testing.T) {
 		acc1.Contract.Script, err = base64.StdEncoding.DecodeString(verifyContractAVM)
 
 		newTx := func(t *testing.T) *transaction.Transaction {
-			tx := transaction.New(testchain.Network(), []byte{byte(opcode.PUSH1)}, 0)
+			tx := transaction.New([]byte{byte(opcode.PUSH1)}, 0)
 			require.NoError(t, err)
 			tx.ValidUntilBlock = chain.BlockHeight() + 10
 			return tx
@@ -170,21 +169,21 @@ func TestAddNetworkFee(t *testing.T) {
 
 			// check that network fee with extra value is enough
 			tx1 := completeTx(t)
-			require.NoError(t, acc0.SignTx(tx1))
+			require.NoError(t, acc0.SignTx(testchain.Network(), tx1))
 			tx1.Scripts = append(tx1.Scripts, transaction.Witness{})
 			require.NoError(t, chain.VerifyTx(tx1))
 
 			// check that network fee without extra value is enough
 			tx2 := completeTx(t)
 			tx2.NetworkFee -= extraFee
-			require.NoError(t, acc0.SignTx(tx2))
+			require.NoError(t, acc0.SignTx(testchain.Network(), tx2))
 			tx2.Scripts = append(tx2.Scripts, transaction.Witness{})
 			require.NoError(t, chain.VerifyTx(tx2))
 
 			// check that we don't add unexpected extra GAS
 			tx3 := completeTx(t)
 			tx3.NetworkFee -= extraFee + 1
-			require.NoError(t, acc0.SignTx(tx3))
+			require.NoError(t, acc0.SignTx(testchain.Network(), tx3))
 			tx3.Scripts = append(tx3.Scripts, transaction.Witness{})
 			require.Error(t, chain.VerifyTx(tx3))
 		})
@@ -286,7 +285,6 @@ func TestSignAndPushP2PNotaryRequest(t *testing.T) {
 		sender := testchain.PrivateKeyByID(0) // owner of the deposit in testchain
 		acc := wallet.NewAccountFromPrivateKey(sender)
 		expected := transaction.Transaction{
-			Network:         netmode.UnitTestNet,
 			Attributes:      []transaction.Attribute{{Type: transaction.NotaryAssistedT, Value: &transaction.NotaryAssisted{NKeys: 1}}},
 			Script:          []byte{byte(opcode.RET)},
 			ValidUntilBlock: chain.BlockHeight() + 5,
@@ -328,7 +326,7 @@ func TestSignAndPushP2PNotaryRequest(t *testing.T) {
 		ntr := w.Accounts[0]
 		ntr.Decrypt(notaryPass)
 		req.FallbackTransaction.Scripts[0] = transaction.Witness{
-			InvocationScript:   append([]byte{byte(opcode.PUSHDATA1), 64}, ntr.PrivateKey().Sign(req.FallbackTransaction.GetSignedPart())...),
+			InvocationScript:   append([]byte{byte(opcode.PUSHDATA1), 64}, ntr.PrivateKey().SignHashable(uint32(testchain.Network()), req.FallbackTransaction)...),
 			VerificationScript: []byte{},
 		}
 		b := testchain.NewBlock(t, chain, 1, 0, req.FallbackTransaction)
@@ -416,7 +414,7 @@ func TestCreateNEP17TransferTx(t *testing.T) {
 
 	tx, err := c.CreateNEP17TransferTx(acc, util.Uint160{}, gasContractHash, 1000, 0, nil)
 	require.NoError(t, err)
-	require.NoError(t, acc.SignTx(tx))
+	require.NoError(t, acc.SignTx(testchain.Network(), tx))
 	require.NoError(t, chain.VerifyTx(tx))
 	v := chain.GetTestVM(trigger.Application, tx, nil)
 	v.LoadScriptWithFlags(tx.Script, callflag.All)

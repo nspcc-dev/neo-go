@@ -11,6 +11,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -21,7 +22,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func initCHECKMULTISIG(msg []byte, n int) ([]stackitem.Item, []stackitem.Item, map[string]*keys.PublicKey, error) {
+func initCHECKMULTISIG(msgHash util.Uint256, n int) ([]stackitem.Item, []stackitem.Item, map[string]*keys.PublicKey, error) {
 	var err error
 
 	keyMap := make(map[string]*keys.PublicKey)
@@ -41,7 +42,7 @@ func initCHECKMULTISIG(msg []byte, n int) ([]stackitem.Item, []stackitem.Item, m
 
 	sigs := make([]stackitem.Item, n)
 	for i := range sigs {
-		sig := pkeys[i].Sign(msg)
+		sig := pkeys[i].SignHash(msgHash)
 		sigs[i] = stackitem.NewByteArray(sig)
 	}
 
@@ -67,6 +68,7 @@ func initCheckMultisigVMNoArgs(container *transaction.Transaction) *vm.VM {
 	binary.LittleEndian.PutUint32(buf[1:], neoCryptoCheckMultisigID)
 
 	ic := &interop.Context{
+		Network:   uint32(netmode.UnitTestNet),
 		Trigger:   trigger.Verification,
 		Container: container,
 	}
@@ -77,13 +79,13 @@ func initCheckMultisigVMNoArgs(container *transaction.Transaction) *vm.VM {
 }
 
 func initCHECKMULTISIGVM(t *testing.T, n int, ik, is []int) *vm.VM {
-	tx := transaction.New(netmode.UnitTestNet, []byte("NEO - An Open Network For Smart Economy"), 10)
+	tx := transaction.New([]byte("NEO - An Open Network For Smart Economy"), 10)
 	tx.Signers = []transaction.Signer{{Account: util.Uint160{1, 2, 3}}}
 	tx.Scripts = []transaction.Witness{{}}
 
 	v := initCheckMultisigVMNoArgs(tx)
 
-	pubs, sigs, _, err := initCHECKMULTISIG(tx.GetSignedPart(), n)
+	pubs, sigs, _, err := initCHECKMULTISIG(hash.NetSha256(uint32(netmode.UnitTestNet), tx), n)
 	require.NoError(t, err)
 
 	pubs = subSlice(pubs, ik)
@@ -145,10 +147,10 @@ func testCurveCHECKMULTISIGBad(t *testing.T) {
 	})
 
 	msg := []byte("NEO - An Open Network For Smart Economy")
-	pubs, sigs, _, err := initCHECKMULTISIG(msg, 1)
+	pubs, sigs, _, err := initCHECKMULTISIG(hash.Sha256(msg), 1)
 	require.NoError(t, err)
 	arr := stackitem.NewArray([]stackitem.Item{stackitem.NewArray(nil)})
-	tx := transaction.New(netmode.UnitTestNet, []byte("NEO - An Open Network For Smart Economy"), 10)
+	tx := transaction.New([]byte("NEO - An Open Network For Smart Economy"), 10)
 	tx.Signers = []transaction.Signer{{Account: util.Uint160{1, 2, 3}}}
 	tx.Scripts = []transaction.Witness{{}}
 
@@ -171,8 +173,8 @@ func TestCheckSig(t *testing.T) {
 	require.NoError(t, err)
 
 	verifyFunc := ECDSASecp256r1CheckSig
-	d := dao.NewSimple(storage.NewMemoryStore(), netmode.UnitTestNet, false)
-	ic := &interop.Context{DAO: dao.NewCached(d)}
+	d := dao.NewSimple(storage.NewMemoryStore(), false)
+	ic := &interop.Context{Network: uint32(netmode.UnitTestNet), DAO: dao.NewCached(d)}
 	runCase := func(t *testing.T, isErr bool, result interface{}, args ...interface{}) {
 		ic.SpawnVM()
 		for i := range args {
@@ -198,29 +200,28 @@ func TestCheckSig(t *testing.T) {
 		require.Equal(t, result, ic.VM.Estack().Pop().Value().(bool))
 	}
 
-	tx := transaction.New(netmode.UnitTestNet, []byte{0, 1, 2}, 1)
-	msg := tx.GetSignedPart()
+	tx := transaction.New([]byte{0, 1, 2}, 1)
 	ic.Container = tx
 
 	t.Run("success", func(t *testing.T) {
-		sign := priv.Sign(msg)
+		sign := priv.SignHashable(uint32(netmode.UnitTestNet), tx)
 		runCase(t, false, true, sign, priv.PublicKey().Bytes())
 	})
 
 	t.Run("missing argument", func(t *testing.T) {
 		runCase(t, true, false)
-		sign := priv.Sign(msg)
+		sign := priv.SignHashable(uint32(netmode.UnitTestNet), tx)
 		runCase(t, true, false, sign)
 	})
 
 	t.Run("invalid signature", func(t *testing.T) {
-		sign := priv.Sign(msg)
+		sign := priv.SignHashable(uint32(netmode.UnitTestNet), tx)
 		sign[0] = ^sign[0]
 		runCase(t, false, false, sign, priv.PublicKey().Bytes())
 	})
 
 	t.Run("invalid public key", func(t *testing.T) {
-		sign := priv.Sign(msg)
+		sign := priv.SignHashable(uint32(netmode.UnitTestNet), tx)
 		pub := priv.PublicKey().Bytes()
 		pub[0] = 0xFF // invalid prefix
 		runCase(t, true, false, sign, pub)

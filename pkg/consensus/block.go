@@ -1,8 +1,11 @@
 package consensus
 
 import (
+	"errors"
+
 	"github.com/nspcc-dev/dbft/block"
 	"github.com/nspcc-dev/dbft/crypto"
+	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	coreb "github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -13,6 +16,7 @@ import (
 type neoBlock struct {
 	coreb.Block
 
+	network   netmode.Magic
 	signature []byte
 }
 
@@ -20,21 +24,19 @@ var _ block.Block = (*neoBlock)(nil)
 
 // Sign implements block.Block interface.
 func (n *neoBlock) Sign(key crypto.PrivateKey) error {
-	data := n.Header.GetSignedPart()
-	sig, err := key.Sign(data[:])
-	if err != nil {
-		return err
-	}
-
+	k := key.(*privateKey)
+	sig := k.PrivateKey.SignHashable(uint32(n.network), &n.Block)
 	n.signature = sig
-
 	return nil
 }
 
 // Verify implements block.Block interface.
 func (n *neoBlock) Verify(key crypto.PublicKey, sign []byte) error {
-	data := n.Header.GetSignedPart()
-	return key.Verify(data, sign)
+	k := key.(*publicKey)
+	if k.PublicKey.VerifyHashable(sign, uint32(n.network), &n.Block) {
+		return nil
+	}
+	return errors.New("verification failed")
 }
 
 // Transactions implements block.Block interface.

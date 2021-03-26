@@ -7,7 +7,6 @@ import (
 	"math"
 	"math/rand"
 
-	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/io"
@@ -66,19 +65,11 @@ type Transaction struct {
 	// and invocation script.
 	Scripts []Witness
 
-	// Network magic number. This one actually is not a part of the
-	// wire-representation of Transaction, but it's absolutely necessary
-	// for correct signing/verification.
-	Network netmode.Magic
-
 	// size is transaction's serialized size.
 	size int
 
 	// Hash of the transaction (double SHA256).
 	hash util.Uint256
-
-	// Hash of the transaction used to verify it (single SHA256).
-	verificationHash util.Uint256
 
 	// Trimmed indicates this is a transaction from trimmed
 	// data.
@@ -96,7 +87,7 @@ func NewTrimmedTX(hash util.Uint256) *Transaction {
 
 // New returns a new transaction to execute given script and pay given system
 // fee.
-func New(network netmode.Magic, script []byte, gas int64) *Transaction {
+func New(script []byte, gas int64) *Transaction {
 	return &Transaction{
 		Version:    0,
 		Nonce:      rand.Uint32(),
@@ -105,7 +96,6 @@ func New(network netmode.Magic, script []byte, gas int64) *Transaction {
 		Attributes: []Attribute{},
 		Signers:    []Signer{},
 		Scripts:    []Witness{},
-		Network:    network,
 	}
 }
 
@@ -117,16 +107,6 @@ func (t *Transaction) Hash() util.Uint256 {
 		}
 	}
 	return t.hash
-}
-
-// GetSignedHash returns a hash of the transaction used to verify it.
-func (t *Transaction) GetSignedHash() util.Uint256 {
-	if t.verificationHash.Equals(util.Uint256{}) {
-		if t.createHash() != nil {
-			panic("failed to compute hash!")
-		}
-	}
-	return t.verificationHash
 }
 
 // HasAttribute returns true iff t has an attribute of type typ.
@@ -229,30 +209,7 @@ func (t *Transaction) createHash() error {
 	}
 
 	t.hash = hash.Sha256(buf.Bytes())
-	buf.Reset()
-	t.writeSignedPart(buf)
-	t.verificationHash = hash.Sha256(buf.Bytes())
 	return nil
-}
-
-// GetSignedPart returns a part of the transaction which must be signed.
-func (t *Transaction) GetSignedPart() []byte {
-	if t.hash.Equals(util.Uint256{}) {
-		if err := t.createHash(); err != nil {
-			panic(fmt.Errorf("failed to compute hash: %w", err))
-		}
-	}
-	buf := io.NewBufBinWriter()
-	t.writeSignedPart(buf)
-	if buf.Err != nil {
-		return nil
-	}
-	return buf.Bytes()
-}
-
-func (t *Transaction) writeSignedPart(buf *io.BufBinWriter) {
-	buf.WriteU32LE(uint32(t.Network))
-	buf.WriteBytes(t.hash[:])
 }
 
 // DecodeHashableFields decodes a part of transaction which should be hashed.
@@ -270,9 +227,6 @@ func (t *Transaction) DecodeHashableFields(buf []byte) error {
 	t.Scripts = make([]Witness, 0)
 
 	t.hash = hash.Sha256(buf)
-	b := io.NewBufBinWriter()
-	t.writeSignedPart(b)
-	t.verificationHash = hash.Sha256(b.Bytes())
 	return nil
 }
 
@@ -287,8 +241,8 @@ func (t *Transaction) Bytes() []byte {
 }
 
 // NewTransactionFromBytes decodes byte array into *Transaction
-func NewTransactionFromBytes(network netmode.Magic, b []byte) (*Transaction, error) {
-	tx := &Transaction{Network: network}
+func NewTransactionFromBytes(b []byte) (*Transaction, error) {
+	tx := &Transaction{}
 	r := io.NewBinReaderFromBuf(b)
 	tx.DecodeBinary(r)
 	if r.Err != nil {

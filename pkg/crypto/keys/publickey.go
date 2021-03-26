@@ -343,6 +343,13 @@ func (p *PublicKey) Verify(signature []byte, hash []byte) bool {
 	return ecdsa.Verify(&pk, hash, rBytes, sBytes)
 }
 
+// VerifyHashable returns true if the signature is valid and corresponds
+// to the hash and public key.
+func (p *PublicKey) VerifyHashable(signature []byte, net uint32, hh hash.Hashable) bool {
+	var digest = hash.NetSha256(net, hh)
+	return p.Verify(signature, digest[:])
+}
+
 // IsInfinity checks if the key is infinite (null, basically).
 func (p *PublicKey) IsInfinity() bool {
 	return p.X == nil && p.Y == nil

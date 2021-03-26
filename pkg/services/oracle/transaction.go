@@ -4,8 +4,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
@@ -50,9 +52,9 @@ func newIncompleteTx() *incompleteTx {
 	}
 }
 
-func (t *incompleteTx) reverifyTx() {
-	txHash := t.tx.GetSignedHash()
-	backupHash := t.backupTx.GetSignedHash()
+func (t *incompleteTx) reverifyTx(net netmode.Magic) {
+	txHash := hash.NetSha256(uint32(net), t.tx)
+	backupHash := hash.NetSha256(uint32(net), t.backupTx)
 	for pub, sig := range t.sigs {
 		if !sig.ok {
 			sig.ok = sig.pub.Verify(sig.sig, txHash.BytesBE())

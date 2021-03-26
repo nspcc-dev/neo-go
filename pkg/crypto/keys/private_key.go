@@ -11,6 +11,7 @@ import (
 	"math/big"
 
 	"github.com/btcsuite/btcd/btcec"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/rfc6979"
 )
@@ -152,6 +153,12 @@ func (p *PrivateKey) Sign(data []byte) []byte {
 func (p *PrivateKey) SignHash(digest util.Uint256) []byte {
 	r, s := rfc6979.SignECDSA(&p.PrivateKey, digest[:], sha256.New)
 	return getSignatureSlice(p.PrivateKey.Curve, r, s)
+}
+
+// SignHashable signs some Hashable item for the network specified using
+// hash.NetSha256() with the private key.
+func (p *PrivateKey) SignHashable(net uint32, hh hash.Hashable) []byte {
+	return p.SignHash(hash.NetSha256(net, hh))
 }
 
 func getSignatureSlice(curve elliptic.Curve, r, s *big.Int) []byte {

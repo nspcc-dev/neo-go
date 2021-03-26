@@ -2,10 +2,33 @@ package hash
 
 import (
 	"crypto/sha256"
+	"encoding/binary"
 
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"golang.org/x/crypto/ripemd160"
 )
+
+// Hashable represents an object which can be hashed. Usually these objects
+// are io.Serializable and signable. They tend to cache the hash inside for
+// effectiveness, providing this accessor method. Anything that can be
+// identified with a hash can then be signed and verified.
+type Hashable interface {
+	Hash() util.Uint256
+}
+
+func getSignedData(net uint32, hh Hashable) []byte {
+	var b = make([]byte, 4+32)
+	binary.LittleEndian.PutUint32(b, net)
+	h := hh.Hash()
+	copy(b[4:], h[:])
+	return b
+}
+
+// NetSha256 calculates network-specific hash of Hashable item that can then
+// be signed/verified.
+func NetSha256(net uint32, hh Hashable) util.Uint256 {
+	return Sha256(getSignedData(net, hh))
+}
 
 // Sha256 hashes the incoming byte slice
 // using the sha256 algorithm.

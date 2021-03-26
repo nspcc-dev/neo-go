@@ -86,7 +86,7 @@ func (c *Client) getBlock(params request.RawParams) (*block.Block, error) {
 		return nil, err
 	}
 	r := io.NewBinReaderFromBuf(resp)
-	b = block.New(c.GetNetwork(), c.StateRootInHeader())
+	b = block.New(c.StateRootInHeader())
 	b.DecodeBinary(r)
 	if r.Err != nil {
 		return nil, r.Err
@@ -115,7 +115,6 @@ func (c *Client) getBlockVerbose(params request.RawParams) (*result.Block, error
 	if !c.initDone {
 		return nil, errNetworkNotInitialized
 	}
-	resp.Network = c.GetNetwork()
 	if err = c.performRequest("getblock", params, resp); err != nil {
 		return nil, err
 	}
@@ -151,7 +150,6 @@ func (c *Client) GetBlockHeader(hash util.Uint256) (*block.Header, error) {
 	}
 	r := io.NewBinReaderFromBuf(resp)
 	h = new(block.Header)
-	h.Network = c.GetNetwork()
 	h.DecodeBinary(r)
 	if r.Err != nil {
 		return nil, r.Err
@@ -336,7 +334,7 @@ func (c *Client) GetRawTransaction(hash util.Uint256) (*transaction.Transaction,
 	if err = c.performRequest("getrawtransaction", params, &resp); err != nil {
 		return nil, err
 	}
-	tx, err := transaction.NewTransactionFromBytes(c.GetNetwork(), resp)
+	tx, err := transaction.NewTransactionFromBytes(resp)
 	if err != nil {
 		return nil, err
 	}
@@ -356,7 +354,6 @@ func (c *Client) GetRawTransactionVerbose(hash util.Uint256) (*result.Transactio
 	if !c.initDone {
 		return nil, errNetworkNotInitialized
 	}
-	resp.Network = c.GetNetwork()
 	if err = c.performRequest("getrawtransaction", params, resp); err != nil {
 		return nil, err
 	}
@@ -529,7 +526,7 @@ func (c *Client) SignAndPushInvocationTx(script []byte, acc *wallet.Account, sys
 	if err != nil {
 		return txHash, fmt.Errorf("failed to create tx: %w", err)
 	}
-	if err = acc.SignTx(tx); err != nil {
+	if err = acc.SignTx(c.GetNetwork(), tx); err != nil {
 		return txHash, fmt.Errorf("failed to sign tx: %w", err)
 	}
 	txHash = tx.Hash()
@@ -621,7 +618,7 @@ func (c *Client) SignAndPushP2PNotaryRequest(mainTx *transaction.Transaction, fa
 	if int64(fallbackValidFor) > maxNVBDelta {
 		return nil, fmt.Errorf("fallback transaction should be valid for not more than %d blocks", maxNVBDelta)
 	}
-	fallbackTx := transaction.New(c.GetNetwork(), fallbackScript, fallbackSysFee)
+	fallbackTx := transaction.New(fallbackScript, fallbackSysFee)
 	fallbackTx.Signers = signers
 	fallbackTx.ValidUntilBlock = mainTx.ValidUntilBlock
 	fallbackTx.Attributes = []transaction.Attribute{
@@ -655,17 +652,16 @@ func (c *Client) SignAndPushP2PNotaryRequest(mainTx *transaction.Transaction, fa
 			VerificationScript: []byte{},
 		},
 	}
-	if err = acc.SignTx(fallbackTx); err != nil {
+	if err = acc.SignTx(c.GetNetwork(), fallbackTx); err != nil {
 		return nil, fmt.Errorf("failed to sign fallback tx: %w", err)
 	}
 	fallbackHash := fallbackTx.Hash()
 	req := &payload.P2PNotaryRequest{
 		MainTransaction:     mainTx,
 		FallbackTransaction: fallbackTx,
-		Network:             c.GetNetwork(),
 	}
 	req.Witness = transaction.Witness{
-		InvocationScript:   append([]byte{byte(opcode.PUSHDATA1), 64}, acc.PrivateKey().Sign(req.GetSignedPart())...),
+		InvocationScript:   append([]byte{byte(opcode.PUSHDATA1), 64}, acc.PrivateKey().SignHashable(uint32(c.GetNetwork()), req)...),
 		VerificationScript: acc.GetVerificationScript(),
 	}
 	actualHash, err := c.SubmitP2PNotaryRequest(req)
