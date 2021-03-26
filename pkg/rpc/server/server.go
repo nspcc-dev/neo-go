@@ -509,10 +509,11 @@ func (s *Server) getVersion(_ request.Params) (interface{}, *response.Error) {
 		return nil, response.NewInternalServerError("Cannot fetch tcp port", err)
 	}
 	return result.Version{
-		Magic:     s.network,
-		TCPPort:   port,
-		Nonce:     s.coreServer.ID(),
-		UserAgent: s.coreServer.UserAgent,
+		Magic:             s.network,
+		TCPPort:           port,
+		Nonce:             s.coreServer.ID(),
+		UserAgent:         s.coreServer.UserAgent,
+		StateRootInHeader: s.chain.GetConfig().StateRootInHeader,
 	}, nil
 }
 
