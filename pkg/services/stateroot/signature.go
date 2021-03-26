@@ -77,12 +77,17 @@ func (r *incompleteRoot) finalize(stateValidators keys.PublicKeys) (*state.MPTRo
 		return nil, false
 	}
 
+	verif, err := smartcontract.CreateDefaultMultiSigRedeemScript(stateValidators)
+	if err != nil {
+		return nil, false
+	}
 	w := io.NewBufBinWriter()
 	for i := range sigs {
 		emit.Bytes(w.BinWriter, sigs[i])
 	}
 	r.root.Witness = []transaction.Witness{{
-		InvocationScript: w.Bytes(),
+		InvocationScript:   w.Bytes(),
+		VerificationScript: verif,
 	}}
 	return r.root, true
 }
