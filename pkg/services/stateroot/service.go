@@ -9,6 +9,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
+	"github.com/nspcc-dev/neo-go/pkg/core/stateroot"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/network/payload"
@@ -107,7 +108,12 @@ func (s *service) OnPayload(ep *payload.Extensible) error {
 		if sr.Index == 0 {
 			return nil
 		}
-		return s.AddStateRoot(sr)
+		err := s.AddStateRoot(sr)
+		if errors.Is(err, stateroot.ErrStateMismatch) {
+			s.log.Error("can't add SV-signed state root", zap.Error(err))
+			return nil
+		}
+		return err
 	case VoteT:
 		v := m.Payload.(*Vote)
 		return s.AddSignature(v.Height, v.ValidatorIndex, v.Signature)

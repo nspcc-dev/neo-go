@@ -81,6 +81,7 @@ func (s *service) sendValidatedRoot(r *state.MPTRoot, priv *keys.PrivateKey) {
 	m := NewMessage(RootT, r)
 	m.EncodeBinary(w.BinWriter)
 	ep := &payload.Extensible{
+		Category:        Category,
 		ValidBlockStart: r.Index,
 		ValidBlockEnd:   r.Index + transaction.MaxValidUntilBlockIncrement,
 		Sender:          priv.GetScriptHash(),

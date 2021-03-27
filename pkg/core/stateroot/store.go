@@ -2,10 +2,18 @@ package stateroot
 
 import (
 	"encoding/binary"
+	"errors"
+	"fmt"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/io"
+)
+
+var (
+	// ErrStateMismatch means that local state root doesn't match the one
+	// signed by state validators.
+	ErrStateMismatch = errors.New("stateroot mismatch")
 )
 
 const (
@@ -14,30 +22,21 @@ const (
 	prefixValidated = 0x03
 )
 
-func (s *Module) addLocalStateRoot(sr *state.MPTRoot) error {
+func (s *Module) addLocalStateRoot(store *storage.MemCachedStore, sr *state.MPTRoot) error {
 	key := makeStateRootKey(sr.Index)
-	if err := s.putStateRoot(key, sr); err != nil {
+	if err := putStateRoot(store, key, sr); err != nil {
 		return err
 	}
 
 	data := make([]byte, 4)
 	binary.LittleEndian.PutUint32(data, sr.Index)
-	if err := s.Store.Put([]byte{byte(storage.DataMPT), prefixLocal}, data); err != nil {
-		return err
-	}
-	s.currentLocal.Store(sr.Root)
-	s.localHeight.Store(sr.Index)
-	if s.bc.GetConfig().StateRootInHeader {
-		s.validatedHeight.Store(sr.Index)
-		updateStateHeightMetric(sr.Index)
-	}
-	return nil
+	return store.Put([]byte{byte(storage.DataMPT), prefixLocal}, data)
 }
 
-func (s *Module) putStateRoot(key []byte, sr *state.MPTRoot) error {
+func putStateRoot(store *storage.MemCachedStore, key []byte, sr *state.MPTRoot) error {
 	w := io.NewBufBinWriter()
 	sr.EncodeBinary(w.BinWriter)
-	return s.Store.Put(key, w.Bytes())
+	return store.Put(key, w.Bytes())
 }
 
 func (s *Module) getStateRoot(key []byte) (*state.MPTRoot, error) {
@@ -69,10 +68,13 @@ func (s *Module) AddStateRoot(sr *state.MPTRoot) error {
 	if err != nil {
 		return err
 	}
+	if !local.Root.Equals(sr.Root) {
+		return fmt.Errorf("%w at block %d: %v vs %v", ErrStateMismatch, sr.Index, local.Root, sr.Root)
+	}
 	if len(local.Witness) != 0 {
 		return nil
 	}
-	if err := s.putStateRoot(key, sr); err != nil {
+	if err := putStateRoot(s.Store, key, sr); err != nil {
 		return err
 	}
 

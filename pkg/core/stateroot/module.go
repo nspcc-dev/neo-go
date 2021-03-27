@@ -110,20 +110,33 @@ func (s *Module) Init(height uint32, enableRefCount bool) error {
 }
 
 // AddMPTBatch updates using provided batch.
-func (s *Module) AddMPTBatch(index uint32, b mpt.Batch) error {
-	if _, err := s.mpt.PutBatch(b); err != nil {
-		return err
+func (s *Module) AddMPTBatch(index uint32, b mpt.Batch, cache *storage.MemCachedStore) (*mpt.Trie, *state.MPTRoot, error) {
+	mpt := *s.mpt
+	mpt.Store = cache
+	if _, err := mpt.PutBatch(b); err != nil {
+		return nil, nil, err
 	}
-	s.mpt.Flush()
-	err := s.addLocalStateRoot(&state.MPTRoot{
+	mpt.Flush()
+	sr := &state.MPTRoot{
 		Index: index,
-		Root:  s.mpt.StateRoot(),
-	})
-	if err != nil {
-		return err
+		Root:  mpt.StateRoot(),
 	}
-	_, err = s.Store.Persist()
-	return err
+	err := s.addLocalStateRoot(cache, sr)
+	if err != nil {
+		return nil, nil, err
+	}
+	return &mpt, sr, err
+}
+
+// UpdateCurrentLocal updates local caches using provided state root.
+func (s *Module) UpdateCurrentLocal(mpt *mpt.Trie, sr *state.MPTRoot) {
+	s.mpt = mpt
+	s.currentLocal.Store(sr.Root)
+	s.localHeight.Store(sr.Index)
+	if s.bc.GetConfig().StateRootInHeader {
+		s.validatedHeight.Store(sr.Index)
+		updateStateHeightMetric(sr.Index)
+	}
 }
 
 // VerifyStateRoot checks if state root is valid.

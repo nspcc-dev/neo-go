@@ -501,12 +501,6 @@ func (bc *Blockchain) AddBlock(block *block.Block) error {
 		return fmt.Errorf("%w: %v != %v",
 			ErrHdrStateRootSetting, bc.config.StateRootInHeader, block.StateRootEnabled)
 	}
-	if bc.config.StateRootInHeader {
-		if sr := bc.stateRoot.CurrentLocalStateRoot(); block.PrevStateRoot != sr {
-			return fmt.Errorf("%w: %s != %s",
-				ErrHdrInvalidStateRoot, block.PrevStateRoot.StringLE(), sr.StringLE())
-		}
-	}
 
 	if block.Index == bc.HeaderHeight()+1 {
 		err := bc.addHeaders(bc.config.VerifyBlocks, &block.Header)
@@ -737,7 +731,8 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 
 	d := cache.DAO.(*dao.Simple)
 	b := d.GetMPTBatch()
-	if err := bc.stateRoot.AddMPTBatch(block.Index, b); err != nil {
+	mpt, sr, err := bc.stateRoot.AddMPTBatch(block.Index, b, d.Store)
+	if err != nil {
 		// Here MPT can be left in a half-applied state.
 		// However if this error occurs, this is a bug somewhere in code
 		// because changes applied are the ones from HALTed transactions.
@@ -767,6 +762,8 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 		return err
 	}
 
+	mpt.Store = bc.dao.Store
+	bc.stateRoot.UpdateCurrentLocal(mpt, sr)
 	bc.topBlock.Store(block)
 	atomic.StoreUint32(&bc.blockHeight, block.Index)
 	bc.memPool.RemoveStale(func(tx *transaction.Transaction) bool { return bc.IsTxStillRelevant(tx, txpool, false) }, bc)
@@ -1391,6 +1388,12 @@ var (
 )
 
 func (bc *Blockchain) verifyHeader(currHeader, prevHeader *block.Header) error {
+	if bc.config.StateRootInHeader {
+		if sr := bc.stateRoot.CurrentLocalStateRoot(); currHeader.PrevStateRoot != sr {
+			return fmt.Errorf("%w: %s != %s",
+				ErrHdrInvalidStateRoot, currHeader.PrevStateRoot.StringLE(), sr.StringLE())
+		}
+	}
 	if prevHeader.Hash() != currHeader.PrevHash {
 		return ErrHdrHashMismatch
 	}
