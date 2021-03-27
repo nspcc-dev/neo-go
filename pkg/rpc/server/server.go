@@ -20,6 +20,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
+	"github.com/nspcc-dev/neo-go/pkg/core/fee"
 	"github.com/nspcc-dev/neo-go/pkg/core/mpt"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
@@ -93,6 +94,7 @@ const (
 )
 
 var rpcHandlers = map[string]func(*Server, request.Params) (interface{}, *response.Error){
+	"calculatenetworkfee":    (*Server).calculateNetworkFee,
 	"getapplicationlog":      (*Server).getApplicationLog,
 	"getbestblockhash":       (*Server).getBestBlockHash,
 	"getblock":               (*Server).getBlock,
@@ -547,6 +549,84 @@ func (s *Server) validateAddress(reqParams request.Params) (interface{}, *respon
 		return nil, response.ErrInvalidParams
 	}
 	return validateAddress(param.Value), nil
+}
+
+// calculateNetworkFee calculates network fee for the transaction.
+func (s *Server) calculateNetworkFee(reqParams request.Params) (interface{}, *response.Error) {
+	if len(reqParams) < 1 {
+		return 0, response.ErrInvalidParams
+	}
+	byteTx, err := reqParams[0].GetBytesBase64()
+	if err != nil {
+		return 0, response.WrapErrorWithData(response.ErrInvalidParams, err)
+	}
+	tx, err := transaction.NewTransactionFromBytes(byteTx)
+	if err != nil {
+		return 0, response.WrapErrorWithData(response.ErrInvalidParams, err)
+	}
+	hashablePart, err := tx.EncodeHashableFields()
+	if err != nil {
+		return 0, response.WrapErrorWithData(response.ErrInvalidParams, fmt.Errorf("failed to compute tx size: %w", err))
+	}
+	size := len(hashablePart) + io.GetVarSize(len(tx.Signers))
+	var (
+		ef     int64
+		netFee int64
+	)
+	for i, signer := range tx.Signers {
+		var verificationScript []byte
+		for _, w := range tx.Scripts {
+			if w.VerificationScript != nil && hash.Hash160(w.VerificationScript).Equals(signer.Account) {
+				// then it's a standard sig/multisig witness
+				verificationScript = w.VerificationScript
+				break
+			}
+		}
+		if verificationScript == nil { // then it still might be a contract-based verification
+			verificationErr := fmt.Sprintf("contract verification for signer #%d failed", i)
+			res, respErr := s.runScriptInVM(trigger.Verification, tx.Scripts[i].InvocationScript, signer.Account, tx)
+			if respErr != nil && errors.Is(respErr.Cause, core.ErrUnknownVerificationContract) {
+				// it's neither a contract-based verification script nor a standard witness attached to
+				// the tx, so the user did not provide enough data to calculate fee for that witness =>
+				// it's a user error
+				return 0, response.NewRPCError(verificationErr, respErr.Cause.Error(), respErr.Cause)
+			}
+			if respErr != nil {
+				return 0, respErr
+			}
+			if res.State != "HALT" {
+				cause := fmt.Errorf("invalid VM state %s due to an error: %s", res.State, res.FaultException)
+				return 0, response.NewRPCError(verificationErr, cause.Error(), cause)
+			}
+			if l := len(res.Stack); l != 1 {
+				cause := fmt.Errorf("result stack length should be equal to 1, got %d", l)
+				return 0, response.NewRPCError(verificationErr, cause.Error(), cause)
+			}
+			isOK, err := res.Stack[0].TryBool()
+			if err != nil {
+				cause := fmt.Errorf("resulting stackitem cannot be converted to Boolean: %w", err)
+				return 0, response.NewRPCError(verificationErr, cause.Error(), cause)
+			}
+			if !isOK {
+				cause := errors.New("`verify` method returned `false` on stack")
+				return 0, response.NewRPCError(verificationErr, cause.Error(), cause)
+			}
+			netFee += res.GasConsumed
+			size += io.GetVarSize([]byte{}) + // verification script is empty (contract-based witness)
+				io.GetVarSize(tx.Scripts[i].InvocationScript) // invocation script might not be empty (args for `verify`)
+			continue
+		}
+
+		if ef == 0 {
+			ef = s.chain.GetPolicer().GetBaseExecFee()
+		}
+		fee, sizeDelta := fee.Calculate(ef, verificationScript)
+		netFee += fee
+		size += sizeDelta
+	}
+	fee := s.chain.GetPolicer().FeePerByte()
+	netFee += int64(size) * fee
+	return netFee, nil
 }
 
 // getApplicationLog returns the contract log based on the specified txid or blockid.

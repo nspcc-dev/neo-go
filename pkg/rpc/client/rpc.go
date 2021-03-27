@@ -28,6 +28,20 @@ import (
 
 var errNetworkNotInitialized = errors.New("RPC client network is not initialized")
 
+// CalculateNetworkFee calculates network fee for transaction. The transaction may
+// have empty witnesses for contract signers and may have only verification scripts
+// filled for standard sig/multisig signers.
+func (c *Client) CalculateNetworkFee(tx *transaction.Transaction) (int64, error) {
+	var (
+		params = request.NewRawParams(tx.Bytes())
+		resp   int64
+	)
+	if err := c.performRequest("calculatenetworkfee", params, &resp); err != nil {
+		return 0, err
+	}
+	return resp, nil
+}
+
 // GetApplicationLog returns the contract log based on the specified txid.
 func (c *Client) GetApplicationLog(hash util.Uint256, trig *trigger.Type) (*result.ApplicationLog, error) {
 	var (

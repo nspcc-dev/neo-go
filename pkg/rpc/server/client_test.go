@@ -18,6 +18,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
+	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/stretchr/testify/require"
@@ -66,11 +67,12 @@ func TestClient_NEP17(t *testing.T) {
 	})
 }
 
-func TestAddNetworkFee(t *testing.T) {
+func TestAddNetworkFeeCalculateNetworkFee(t *testing.T) {
 	chain, rpcSrv, httpSrv := initServerWithInMemoryChain(t)
 	defer chain.Close()
 	defer rpcSrv.Shutdown()
 	const extraFee = 10
+	var nonce uint32
 
 	c, err := client.New(context.Background(), httpSrv.URL, client.Options{})
 	require.NoError(t, err)
@@ -98,41 +100,123 @@ func TestAddNetworkFee(t *testing.T) {
 		require.Error(t, c.AddNetworkFee(tx, extraFee, accs[0], accs[1]))
 	})
 	t.Run("Simple", func(t *testing.T) {
-		tx := transaction.New([]byte{byte(opcode.PUSH1)}, 0)
-		accs := getAccounts(t, 1)
-		tx.Signers = []transaction.Signer{{
-			Account: accs[0].PrivateKey().GetScriptHash(),
-			Scopes:  transaction.CalledByEntry,
-		}}
-		require.NoError(t, c.AddNetworkFee(tx, 10, accs[0]))
-		require.NoError(t, accs[0].SignTx(testchain.Network(), tx))
-		cFee, _ := fee.Calculate(chain.GetBaseExecFee(), accs[0].Contract.Script)
-		require.Equal(t, int64(io.GetVarSize(tx))*feePerByte+cFee+extraFee, tx.NetworkFee)
+		acc0 := wallet.NewAccountFromPrivateKey(testchain.PrivateKeyByID(0))
+		check := func(t *testing.T, extraFee int64) {
+			tx := transaction.New([]byte{byte(opcode.PUSH1)}, 0)
+			tx.ValidUntilBlock = 20
+			tx.Signers = []transaction.Signer{{
+				Account: acc0.PrivateKey().GetScriptHash(),
+				Scopes:  transaction.CalledByEntry,
+			}}
+			tx.Nonce = nonce
+			nonce++
+
+			tx.Scripts = []transaction.Witness{
+				{VerificationScript: acc0.GetVerificationScript()},
+			}
+			actualCalculatedNetFee, err := c.CalculateNetworkFee(tx)
+			require.NoError(t, err)
+
+			tx.Scripts = nil
+			require.NoError(t, c.AddNetworkFee(tx, extraFee, acc0))
+			actual := tx.NetworkFee
+
+			require.NoError(t, acc0.SignTx(testchain.Network(), tx))
+			cFee, _ := fee.Calculate(chain.GetBaseExecFee(), acc0.Contract.Script)
+			expected := int64(io.GetVarSize(tx))*feePerByte + cFee + extraFee
+
+			require.Equal(t, expected, actual)
+			require.Equal(t, expected, actualCalculatedNetFee+extraFee)
+			err = chain.VerifyTx(tx)
+			if extraFee < 0 {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+		}
+
+		t.Run("with extra fee", func(t *testing.T) {
+			// check that calculated network fee with extra value is enough
+			check(t, extraFee)
+		})
+		t.Run("without extra fee", func(t *testing.T) {
+			// check that calculated network fee without extra value is enough
+			check(t, 0)
+		})
+		t.Run("exactFee-1", func(t *testing.T) {
+			// check that we don't add unexpected extra GAS
+			check(t, -1)
+		})
 	})
 
 	t.Run("Multi", func(t *testing.T) {
-		tx := transaction.New([]byte{byte(opcode.PUSH1)}, 0)
-		accs := getAccounts(t, 4)
-		pubs := keys.PublicKeys{accs[1].PrivateKey().PublicKey(), accs[2].PrivateKey().PublicKey(), accs[3].PrivateKey().PublicKey()}
-		require.NoError(t, accs[1].ConvertMultisig(2, pubs))
-		require.NoError(t, accs[2].ConvertMultisig(2, pubs))
-		tx.Signers = []transaction.Signer{
-			{
-				Account: accs[0].PrivateKey().GetScriptHash(),
-				Scopes:  transaction.CalledByEntry,
-			},
-			{
-				Account: hash.Hash160(accs[1].Contract.Script),
-				Scopes:  transaction.Global,
-			},
+		acc0 := wallet.NewAccountFromPrivateKey(testchain.PrivateKeyByID(0))
+		acc1 := wallet.NewAccountFromPrivateKey(testchain.PrivateKeyByID(0))
+		acc1.ConvertMultisig(3, keys.PublicKeys{
+			testchain.PrivateKeyByID(0).PublicKey(),
+			testchain.PrivateKeyByID(1).PublicKey(),
+			testchain.PrivateKeyByID(2).PublicKey(),
+			testchain.PrivateKeyByID(3).PublicKey(),
+		})
+		check := func(t *testing.T, extraFee int64) {
+			tx := transaction.New([]byte{byte(opcode.PUSH1)}, 0)
+			tx.ValidUntilBlock = 20
+			tx.Signers = []transaction.Signer{
+				{
+					Account: acc0.PrivateKey().GetScriptHash(),
+					Scopes:  transaction.CalledByEntry,
+				},
+				{
+					Account: hash.Hash160(acc1.Contract.Script),
+					Scopes:  transaction.Global,
+				},
+			}
+			tx.Nonce = nonce
+			nonce++
+
+			tx.Scripts = []transaction.Witness{
+				{VerificationScript: acc0.GetVerificationScript()},
+				{VerificationScript: acc1.GetVerificationScript()},
+			}
+			actualCalculatedNetFee, err := c.CalculateNetworkFee(tx)
+			require.NoError(t, err)
+
+			tx.Scripts = nil
+
+			require.NoError(t, c.AddNetworkFee(tx, extraFee, acc0, acc1))
+			actual := tx.NetworkFee
+
+			require.NoError(t, acc0.SignTx(testchain.Network(), tx))
+			tx.Scripts = append(tx.Scripts, transaction.Witness{
+				InvocationScript:   testchain.Sign(tx),
+				VerificationScript: acc1.Contract.Script,
+			})
+			cFee, _ := fee.Calculate(chain.GetBaseExecFee(), acc0.Contract.Script)
+			cFeeM, _ := fee.Calculate(chain.GetBaseExecFee(), acc1.Contract.Script)
+			expected := int64(io.GetVarSize(tx))*feePerByte + cFee + cFeeM + extraFee
+
+			require.Equal(t, expected, actual)
+			require.Equal(t, expected, actualCalculatedNetFee+extraFee)
+			err = chain.VerifyTx(tx)
+			if extraFee < 0 {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
 		}
-		require.NoError(t, c.AddNetworkFee(tx, extraFee, accs[0], accs[1]))
-		require.NoError(t, accs[0].SignTx(testchain.Network(), tx))
-		require.NoError(t, accs[1].SignTx(testchain.Network(), tx))
-		require.NoError(t, accs[2].SignTx(testchain.Network(), tx))
-		cFee, _ := fee.Calculate(chain.GetBaseExecFee(), accs[0].Contract.Script)
-		cFeeM, _ := fee.Calculate(chain.GetBaseExecFee(), accs[1].Contract.Script)
-		require.Equal(t, int64(io.GetVarSize(tx))*feePerByte+cFee+cFeeM+extraFee, tx.NetworkFee)
+
+		t.Run("with extra fee", func(t *testing.T) {
+			// check that calculated network fee with extra value is enough
+			check(t, extraFee)
+		})
+		t.Run("without extra fee", func(t *testing.T) {
+			// check that calculated network fee without extra value is enough
+			check(t, 0)
+		})
+		t.Run("exactFee-1", func(t *testing.T) {
+			// check that we don't add unexpected extra GAS
+			check(t, -1)
+		})
 	})
 	t.Run("Contract", func(t *testing.T) {
 		h, err := util.Uint160DecodeStringLE(verifyContractHash)
@@ -142,16 +226,16 @@ func TestAddNetworkFee(t *testing.T) {
 		acc1 := wallet.NewAccountFromPrivateKey(priv) // contract account
 		acc1.Contract.Deployed = true
 		acc1.Contract.Script, err = base64.StdEncoding.DecodeString(verifyContractAVM)
+		require.NoError(t, err)
 
 		newTx := func(t *testing.T) *transaction.Transaction {
 			tx := transaction.New([]byte{byte(opcode.PUSH1)}, 0)
-			require.NoError(t, err)
 			tx.ValidUntilBlock = chain.BlockHeight() + 10
 			return tx
 		}
 
 		t.Run("Valid", func(t *testing.T) {
-			completeTx := func(t *testing.T) *transaction.Transaction {
+			check := func(t *testing.T, extraFee int64) {
 				tx := newTx(t)
 				tx.Signers = []transaction.Signer{
 					{
@@ -163,29 +247,39 @@ func TestAddNetworkFee(t *testing.T) {
 						Scopes:  transaction.Global,
 					},
 				}
+				// we need to fill standard verification scripts to use CalculateNetworkFee.
+				tx.Scripts = []transaction.Witness{
+					{VerificationScript: acc0.GetVerificationScript()},
+					{},
+				}
+				actual, err := c.CalculateNetworkFee(tx)
+				require.NoError(t, err)
+				tx.Scripts = nil
+
 				require.NoError(t, c.AddNetworkFee(tx, extraFee, acc0, acc1))
-				return tx
+				require.NoError(t, acc0.SignTx(testchain.Network(), tx))
+				tx.Scripts = append(tx.Scripts, transaction.Witness{})
+				require.Equal(t, tx.NetworkFee, actual+extraFee)
+				err = chain.VerifyTx(tx)
+				if extraFee < 0 {
+					require.Error(t, err)
+				} else {
+					require.NoError(t, err)
+				}
 			}
 
-			// check that network fee with extra value is enough
-			tx1 := completeTx(t)
-			require.NoError(t, acc0.SignTx(testchain.Network(), tx1))
-			tx1.Scripts = append(tx1.Scripts, transaction.Witness{})
-			require.NoError(t, chain.VerifyTx(tx1))
-
-			// check that network fee without extra value is enough
-			tx2 := completeTx(t)
-			tx2.NetworkFee -= extraFee
-			require.NoError(t, acc0.SignTx(testchain.Network(), tx2))
-			tx2.Scripts = append(tx2.Scripts, transaction.Witness{})
-			require.NoError(t, chain.VerifyTx(tx2))
-
-			// check that we don't add unexpected extra GAS
-			tx3 := completeTx(t)
-			tx3.NetworkFee -= extraFee + 1
-			require.NoError(t, acc0.SignTx(testchain.Network(), tx3))
-			tx3.Scripts = append(tx3.Scripts, transaction.Witness{})
-			require.Error(t, chain.VerifyTx(tx3))
+			t.Run("with extra fee", func(t *testing.T) {
+				// check that calculated network fee with extra value is enough
+				check(t, extraFee)
+			})
+			t.Run("without extra fee", func(t *testing.T) {
+				// check that calculated network fee without extra value is enough
+				check(t, 0)
+			})
+			t.Run("exactFee-1", func(t *testing.T) {
+				// check that we don't add unexpected extra GAS
+				check(t, -1)
+			})
 		})
 		t.Run("Invalid", func(t *testing.T) {
 			tx := newTx(t)
@@ -221,6 +315,76 @@ func TestAddNetworkFee(t *testing.T) {
 	})
 }
 
+func TestCalculateNetworkFee(t *testing.T) {
+	chain, rpcSrv, httpSrv := initServerWithInMemoryChain(t)
+	defer chain.Close()
+	defer rpcSrv.Shutdown()
+	const extraFee = 10
+
+	c, err := client.New(context.Background(), httpSrv.URL, client.Options{})
+	require.NoError(t, err)
+	require.NoError(t, c.Init())
+
+	t.Run("ContractWithArgs", func(t *testing.T) {
+		check := func(t *testing.T, extraFee int64) {
+			h, err := util.Uint160DecodeStringLE(verifyWithArgsContractHash)
+			require.NoError(t, err)
+			priv := testchain.PrivateKeyByID(0)
+			acc0 := wallet.NewAccountFromPrivateKey(priv)
+			tx := transaction.New([]byte{byte(opcode.PUSH1)}, 0)
+			require.NoError(t, err)
+			tx.ValidUntilBlock = chain.BlockHeight() + 10
+			tx.Signers = []transaction.Signer{
+				{
+					Account: acc0.PrivateKey().GetScriptHash(),
+					Scopes:  transaction.CalledByEntry,
+				},
+				{
+					Account: h,
+					Scopes:  transaction.Global,
+				},
+			}
+
+			bw := io.NewBufBinWriter()
+			emit.Bool(bw.BinWriter, false)
+			emit.Int(bw.BinWriter, int64(4))
+			emit.String(bw.BinWriter, "good_string") // contract's `verify` return `true` with this string
+			require.NoError(t, bw.Err)
+			contractInv := bw.Bytes()
+			// we need to fill standard verification scripts to use CalculateNetworkFee.
+			tx.Scripts = []transaction.Witness{
+				{VerificationScript: acc0.GetVerificationScript()},
+				{InvocationScript: contractInv},
+			}
+			tx.NetworkFee, err = c.CalculateNetworkFee(tx)
+			require.NoError(t, err)
+			tx.NetworkFee += extraFee
+			tx.Scripts = nil
+
+			require.NoError(t, acc0.SignTx(testchain.Network(), tx))
+			tx.Scripts = append(tx.Scripts, transaction.Witness{InvocationScript: contractInv})
+			err = chain.VerifyTx(tx)
+			if extraFee < 0 {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+		}
+
+		t.Run("with extra fee", func(t *testing.T) {
+			// check that calculated network fee with extra value is enough
+			check(t, extraFee)
+		})
+		t.Run("without extra fee", func(t *testing.T) {
+			// check that calculated network fee without extra value is enough
+			check(t, 0)
+		})
+		t.Run("exactFee-1", func(t *testing.T) {
+			// check that we don't add unexpected extra GAS
+			check(t, -1)
+		})
+	})
+}
 func TestSignAndPushInvocationTx(t *testing.T) {
 	chain, rpcSrv, httpSrv := initServerWithInMemoryChain(t)
 	defer chain.Close()
