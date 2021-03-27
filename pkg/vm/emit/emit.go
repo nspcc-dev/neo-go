@@ -94,7 +94,7 @@ func Array(w *io.BinWriter, es ...interface{}) {
 			Bool(w, e)
 		default:
 			if es[i] != nil {
-				w.Err = errors.New("unsupported type")
+				w.Err = fmt.Errorf("unsupported type: %v", e)
 				return
 			}
 			Opcodes(w, opcode.PUSHNULL)

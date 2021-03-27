@@ -8,6 +8,7 @@ import (
 	"github.com/nspcc-dev/neo-go/internal/testchain"
 	"github.com/nspcc-dev/neo-go/pkg/core/fee"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nnsrecords"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
@@ -20,6 +21,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/stretchr/testify/require"
 )
@@ -639,4 +641,93 @@ func TestClient_GetNativeContracts(t *testing.T) {
 	cs, err := c.GetNativeContracts()
 	require.NoError(t, err)
 	require.Equal(t, chain.GetNatives(), cs)
+}
+
+func TestClient_NEP11(t *testing.T) {
+	chain, rpcSrv, httpSrv := initServerWithInMemoryChain(t)
+	defer chain.Close()
+	defer rpcSrv.Shutdown()
+
+	c, err := client.New(context.Background(), httpSrv.URL, client.Options{})
+	require.NoError(t, err)
+	require.NoError(t, c.Init())
+
+	h, err := chain.GetNativeContractScriptHash(nativenames.NameService)
+	require.NoError(t, err)
+	acc := testchain.PrivateKeyByID(0).GetScriptHash()
+
+	t.Run("Decimals", func(t *testing.T) {
+		d, err := c.NEP11Decimals(h)
+		require.NoError(t, err)
+		require.EqualValues(t, 0, d) // non-divisible
+	})
+	t.Run("TotalSupply", func(t *testing.T) {
+		s, err := c.NEP11TotalSupply(h)
+		require.NoError(t, err)
+		require.EqualValues(t, 1, s) // the only `neo.com` of acc0
+	})
+	t.Run("Symbol", func(t *testing.T) {
+		sym, err := c.NEP11Symbol(h)
+		require.NoError(t, err)
+		require.Equal(t, "NNS", sym)
+	})
+	t.Run("BalanceOf", func(t *testing.T) {
+		b, err := c.NEP11BalanceOf(h, acc)
+		require.NoError(t, err)
+		require.EqualValues(t, 1, b)
+	})
+	t.Run("OwnerOf", func(t *testing.T) {
+		b, err := c.NEP11NDOwnerOf(h, "neo.com")
+		require.NoError(t, err)
+		require.EqualValues(t, acc, b)
+	})
+	t.Run("Properties", func(t *testing.T) {
+		p, err := c.NEP11Properties(h, "neo.com")
+		require.NoError(t, err)
+		blockRegisterDomain, err := chain.GetBlock(chain.GetHeaderHash(13)) // `neo.com` domain was registered in 13th block
+		require.NoError(t, err)
+		require.Equal(t, 1, len(blockRegisterDomain.Transactions))
+		expected := stackitem.NewMap()
+		expected.Add(stackitem.Make([]byte("name")), stackitem.Make([]byte("neo.com")))
+		expected.Add(stackitem.Make([]byte("expiration")), stackitem.Make(blockRegisterDomain.Timestamp/1000+365*24*3600)) // expiration formula
+		require.EqualValues(t, expected, p)
+	})
+	t.Run("Transfer", func(t *testing.T) {
+		_, err := c.TransferNEP11(wallet.NewAccountFromPrivateKey(testchain.PrivateKeyByID(0)), testchain.PrivateKeyByID(1).GetScriptHash(), h, "neo.com", 0)
+		require.NoError(t, err)
+	})
+}
+
+func TestClient_NNS(t *testing.T) {
+	chain, rpcSrv, httpSrv := initServerWithInMemoryChain(t)
+	defer chain.Close()
+	defer rpcSrv.Shutdown()
+
+	c, err := client.New(context.Background(), httpSrv.URL, client.Options{})
+	require.NoError(t, err)
+	require.NoError(t, c.Init())
+
+	t.Run("NNSIsAvailable, false", func(t *testing.T) {
+		b, err := c.NNSIsAvailable("neo.com")
+		require.NoError(t, err)
+		require.Equal(t, false, b)
+	})
+	t.Run("NNSIsAvailable, true", func(t *testing.T) {
+		b, err := c.NNSIsAvailable("neogo.com")
+		require.NoError(t, err)
+		require.Equal(t, true, b)
+	})
+	t.Run("NNSResolve, good", func(t *testing.T) {
+		b, err := c.NNSResolve("neo.com", nnsrecords.A)
+		require.NoError(t, err)
+		require.Equal(t, "1.2.3.4", b)
+	})
+	t.Run("NNSResolve, bad", func(t *testing.T) {
+		_, err := c.NNSResolve("neogo.com", nnsrecords.A)
+		require.Error(t, err)
+	})
+	t.Run("NNSResolve, forbidden", func(t *testing.T) {
+		_, err := c.NNSResolve("neogo.com", nnsrecords.CNAME)
+		require.Error(t, err)
+	})
 }

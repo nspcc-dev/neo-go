@@ -15,6 +15,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/runtime"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nnsrecords"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
@@ -41,17 +42,6 @@ type nameState struct {
 	// Admin is token admin.
 	Admin util.Uint160
 }
-
-// RecordType represents name record type.
-type RecordType byte
-
-// Pre-defined record types.
-const (
-	RecordTypeA     RecordType = 1
-	RecordTypeCNAME RecordType = 5
-	RecordTypeTXT   RecordType = 16
-	RecordTypeAAAA  RecordType = 28
-)
 
 const (
 	nameServiceID = -10
@@ -448,19 +438,19 @@ func (n *NameService) setRecord(ic *interop.Context, args []stackitem.Item) stac
 	return stackitem.Null{}
 }
 
-func checkName(rt RecordType, name string) {
+func checkName(rt nnsrecords.Type, name string) {
 	var valid bool
 	switch rt {
-	case RecordTypeA:
+	case nnsrecords.A:
 		// We can't rely on `len(ip) == net.IPv4len` because
 		// IPv4 can be parsed to mapped representation.
 		valid = ipv4Regex.MatchString(name) &&
 			net.ParseIP(name) != nil
-	case RecordTypeCNAME:
+	case nnsrecords.CNAME:
 		valid = matchName(name)
-	case RecordTypeTXT:
+	case nnsrecords.TXT:
 		valid = utf8.RuneCountInString(name) <= 255
-	case RecordTypeAAAA:
+	case nnsrecords.AAAA:
 		valid = ipv6Regex.MatchString(name) &&
 			net.ParseIP(name) != nil
 	}
@@ -513,7 +503,7 @@ func (n *NameService) resolve(ic *interop.Context, args []stackitem.Item) stacki
 	return stackitem.NewByteArray([]byte(result))
 }
 
-func (n *NameService) resolveInternal(ic *interop.Context, name string, t RecordType, redirect int) (string, bool) {
+func (n *NameService) resolveInternal(ic *interop.Context, name string, t nnsrecords.Type, redirect int) (string, bool) {
 	if redirect < 0 {
 		panic("invalid redirect")
 	}
@@ -521,26 +511,26 @@ func (n *NameService) resolveInternal(ic *interop.Context, name string, t Record
 	if data, ok := records[t]; ok {
 		return data, true
 	}
-	data, ok := records[RecordTypeCNAME]
+	data, ok := records[nnsrecords.CNAME]
 	if !ok {
 		return "", false
 	}
 	return n.resolveInternal(ic, data, t, redirect-1)
 }
 
-func (n *NameService) getRecordsInternal(d dao.DAO, name string) map[RecordType]string {
+func (n *NameService) getRecordsInternal(d dao.DAO, name string) map[nnsrecords.Type]string {
 	domain := toDomain(name)
 	key := makeRecordKey(domain, name, 0)
 	key = key[:len(key)-1]
-	res := make(map[RecordType]string)
+	res := make(map[nnsrecords.Type]string)
 	d.Seek(n.ID, key, func(k, v []byte) {
-		rt := RecordType(k[len(k)-1])
+		rt := nnsrecords.Type(k[len(k)-1])
 		res[rt] = string(v)
 	})
 	return res
 }
 
-func makeRecordKey(domain, name string, rt RecordType) []byte {
+func makeRecordKey(domain, name string, rt nnsrecords.Type) []byte {
 	key := make([]byte, 1+util.Uint160Size+util.Uint160Size+1)
 	key[0] = prefixRecord
 	i := 1
@@ -647,7 +637,7 @@ func toDomain(name string) string {
 	return domain
 }
 
-func toRecordType(item stackitem.Item) RecordType {
+func toRecordType(item stackitem.Item) nnsrecords.Type {
 	bi, err := item.TryInteger()
 	if err != nil || !bi.IsInt64() {
 		panic("invalid record type")
@@ -656,8 +646,8 @@ func toRecordType(item stackitem.Item) RecordType {
 	if val > math.MaxUint8 {
 		panic("invalid record type")
 	}
-	switch rt := RecordType(val); rt {
-	case RecordTypeA, RecordTypeCNAME, RecordTypeTXT, RecordTypeAAAA:
+	switch rt := nnsrecords.Type(val); rt {
+	case nnsrecords.A, nnsrecords.CNAME, nnsrecords.TXT, nnsrecords.AAAA:
 		return rt
 	default:
 		panic("invalid record type")

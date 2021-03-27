@@ -7,6 +7,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nnsrecords"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
@@ -67,7 +68,7 @@ func TestExpiration(t *testing.T) {
 		true, "first.com", acc.Contract.ScriptHash())
 
 	testNameServiceInvokeAux(t, bc, defaultNameServiceSysfee, acc,
-		"setRecord", stackitem.Null{}, "first.com", int64(native.RecordTypeTXT), "sometext")
+		"setRecord", stackitem.Null{}, "first.com", int64(nnsrecords.TXT), "sometext")
 	b1 := bc.topBlock.Load().(*block.Block)
 
 	tx, err := prepareContractMethodInvokeGeneric(bc, defaultRegisterSysfee, bc.contracts.NameService.Hash,
@@ -108,7 +109,7 @@ func TestExpiration(t *testing.T) {
 	checkResult(t, &aer[0], stackitem.NewBool(false))
 
 	tx, err = prepareContractMethodInvokeGeneric(bc, defaultNameServiceSysfee, bc.contracts.NameService.Hash,
-		"getRecord", acc, "first.com", int64(native.RecordTypeTXT))
+		"getRecord", acc, "first.com", int64(nnsrecords.TXT))
 	require.NoError(t, err)
 	b5 := newBlockCustom(bc.GetConfig(), func(b *block.Block) {
 		b.Index = b4.Index + 1
@@ -182,36 +183,36 @@ func TestSetGetRecord(t *testing.T) {
 	testNameServiceInvoke(t, bc, "addRoot", stackitem.Null{}, "com")
 
 	t.Run("set before register", func(t *testing.T) {
-		testNameServiceInvoke(t, bc, "setRecord", nil, "neo.com", int64(native.RecordTypeTXT), "sometext")
+		testNameServiceInvoke(t, bc, "setRecord", nil, "neo.com", int64(nnsrecords.TXT), "sometext")
 	})
 	testNameServiceInvokeAux(t, bc, defaultRegisterSysfee, true, "register",
 		true, "neo.com", testchain.CommitteeScriptHash())
 	t.Run("invalid parameters", func(t *testing.T) {
 		testNameServiceInvoke(t, bc, "setRecord", nil, "neo.com", int64(0xFF), "1.2.3.4")
-		testNameServiceInvoke(t, bc, "setRecord", nil, "neo.com", int64(native.RecordTypeA), "not.an.ip.address")
+		testNameServiceInvoke(t, bc, "setRecord", nil, "neo.com", int64(nnsrecords.A), "not.an.ip.address")
 	})
 	t.Run("invalid witness", func(t *testing.T) {
 		testNameServiceInvokeAux(t, bc, defaultNameServiceSysfee, acc, "setRecord", nil,
-			"neo.com", int64(native.RecordTypeA), "1.2.3.4")
+			"neo.com", int64(nnsrecords.A), "1.2.3.4")
 	})
-	testNameServiceInvoke(t, bc, "getRecord", stackitem.Null{}, "neo.com", int64(native.RecordTypeA))
-	testNameServiceInvoke(t, bc, "setRecord", stackitem.Null{}, "neo.com", int64(native.RecordTypeA), "1.2.3.4")
-	testNameServiceInvoke(t, bc, "getRecord", "1.2.3.4", "neo.com", int64(native.RecordTypeA))
-	testNameServiceInvoke(t, bc, "setRecord", stackitem.Null{}, "neo.com", int64(native.RecordTypeA), "1.2.3.4")
-	testNameServiceInvoke(t, bc, "getRecord", "1.2.3.4", "neo.com", int64(native.RecordTypeA))
-	testNameServiceInvoke(t, bc, "setRecord", stackitem.Null{}, "neo.com", int64(native.RecordTypeAAAA), "2001:0000:1f1f:0000:0000:0100:11a0:addf")
-	testNameServiceInvoke(t, bc, "setRecord", stackitem.Null{}, "neo.com", int64(native.RecordTypeCNAME), "nspcc.ru")
-	testNameServiceInvoke(t, bc, "setRecord", stackitem.Null{}, "neo.com", int64(native.RecordTypeTXT), "sometext")
+	testNameServiceInvoke(t, bc, "getRecord", stackitem.Null{}, "neo.com", int64(nnsrecords.A))
+	testNameServiceInvoke(t, bc, "setRecord", stackitem.Null{}, "neo.com", int64(nnsrecords.A), "1.2.3.4")
+	testNameServiceInvoke(t, bc, "getRecord", "1.2.3.4", "neo.com", int64(nnsrecords.A))
+	testNameServiceInvoke(t, bc, "setRecord", stackitem.Null{}, "neo.com", int64(nnsrecords.A), "1.2.3.4")
+	testNameServiceInvoke(t, bc, "getRecord", "1.2.3.4", "neo.com", int64(nnsrecords.A))
+	testNameServiceInvoke(t, bc, "setRecord", stackitem.Null{}, "neo.com", int64(nnsrecords.AAAA), "2001:0000:1f1f:0000:0000:0100:11a0:addf")
+	testNameServiceInvoke(t, bc, "setRecord", stackitem.Null{}, "neo.com", int64(nnsrecords.CNAME), "nspcc.ru")
+	testNameServiceInvoke(t, bc, "setRecord", stackitem.Null{}, "neo.com", int64(nnsrecords.TXT), "sometext")
 
 	// Delete record.
 	t.Run("invalid witness", func(t *testing.T) {
 		testNameServiceInvokeAux(t, bc, defaultNameServiceSysfee, acc, "setRecord", nil,
-			"neo.com", int64(native.RecordTypeCNAME))
+			"neo.com", int64(nnsrecords.CNAME))
 	})
-	testNameServiceInvoke(t, bc, "getRecord", "nspcc.ru", "neo.com", int64(native.RecordTypeCNAME))
-	testNameServiceInvoke(t, bc, "deleteRecord", stackitem.Null{}, "neo.com", int64(native.RecordTypeCNAME))
-	testNameServiceInvoke(t, bc, "getRecord", stackitem.Null{}, "neo.com", int64(native.RecordTypeCNAME))
-	testNameServiceInvoke(t, bc, "getRecord", "1.2.3.4", "neo.com", int64(native.RecordTypeA))
+	testNameServiceInvoke(t, bc, "getRecord", "nspcc.ru", "neo.com", int64(nnsrecords.CNAME))
+	testNameServiceInvoke(t, bc, "deleteRecord", stackitem.Null{}, "neo.com", int64(nnsrecords.CNAME))
+	testNameServiceInvoke(t, bc, "getRecord", stackitem.Null{}, "neo.com", int64(nnsrecords.CNAME))
+	testNameServiceInvoke(t, bc, "getRecord", "1.2.3.4", "neo.com", int64(nnsrecords.A))
 }
 
 func TestSetAdmin(t *testing.T) {
@@ -239,20 +240,20 @@ func TestSetAdmin(t *testing.T) {
 
 	t.Run("set and delete by admin", func(t *testing.T) {
 		testNameServiceInvokeAux(t, bc, defaultNameServiceSysfee, admin, "setRecord", stackitem.Null{},
-			"neo.com", int64(native.RecordTypeTXT), "sometext")
+			"neo.com", int64(nnsrecords.TXT), "sometext")
 		testNameServiceInvokeAux(t, bc, defaultNameServiceSysfee, guest, "deleteRecord", nil,
-			"neo.com", int64(native.RecordTypeTXT))
+			"neo.com", int64(nnsrecords.TXT))
 		testNameServiceInvokeAux(t, bc, defaultNameServiceSysfee, admin, "deleteRecord", stackitem.Null{},
-			"neo.com", int64(native.RecordTypeTXT))
+			"neo.com", int64(nnsrecords.TXT))
 	})
 
 	t.Run("set admin to null", func(t *testing.T) {
 		testNameServiceInvokeAux(t, bc, defaultNameServiceSysfee, admin, "setRecord", stackitem.Null{},
-			"neo.com", int64(native.RecordTypeTXT), "sometext")
+			"neo.com", int64(nnsrecords.TXT), "sometext")
 		testNameServiceInvokeAux(t, bc, defaultNameServiceSysfee, owner, "setAdmin", stackitem.Null{},
 			"neo.com", nil)
 		testNameServiceInvokeAux(t, bc, defaultNameServiceSysfee, admin, "deleteRecord", nil,
-			"neo.com", int64(native.RecordTypeTXT))
+			"neo.com", int64(nnsrecords.TXT))
 	})
 }
 
@@ -267,7 +268,7 @@ func TestTransfer(t *testing.T) {
 	testNameServiceInvokeAux(t, bc, defaultRegisterSysfee, from, "register",
 		true, "neo.com", from.PrivateKey().GetScriptHash())
 	testNameServiceInvokeAux(t, bc, defaultNameServiceSysfee, from, "setRecord", stackitem.Null{},
-		"neo.com", int64(native.RecordTypeA), "1.2.3.4")
+		"neo.com", int64(nnsrecords.A), "1.2.3.4")
 	testNameServiceInvokeAux(t, bc, defaultRegisterSysfee, from, "transfer",
 		nil, to.Contract.ScriptHash().BytesBE(), []byte("not.exists"))
 	testNameServiceInvokeAux(t, bc, defaultRegisterSysfee, true, "transfer",
@@ -355,23 +356,23 @@ func TestResolve(t *testing.T) {
 	testNameServiceInvokeAux(t, bc, defaultRegisterSysfee, acc, "register",
 		true, "neo.com", acc.PrivateKey().GetScriptHash())
 	testNameServiceInvokeAux(t, bc, defaultNameServiceSysfee, acc, "setRecord", stackitem.Null{},
-		"neo.com", int64(native.RecordTypeA), "1.2.3.4")
+		"neo.com", int64(nnsrecords.A), "1.2.3.4")
 	testNameServiceInvokeAux(t, bc, defaultNameServiceSysfee, acc, "setRecord", stackitem.Null{},
-		"neo.com", int64(native.RecordTypeCNAME), "alias.com")
+		"neo.com", int64(nnsrecords.CNAME), "alias.com")
 
 	testNameServiceInvokeAux(t, bc, defaultRegisterSysfee, acc, "register",
 		true, "alias.com", acc.PrivateKey().GetScriptHash())
 	testNameServiceInvokeAux(t, bc, defaultNameServiceSysfee, acc, "setRecord", stackitem.Null{},
-		"alias.com", int64(native.RecordTypeTXT), "sometxt")
+		"alias.com", int64(nnsrecords.TXT), "sometxt")
 
 	testNameServiceInvoke(t, bc, "resolve", "1.2.3.4",
-		"neo.com", int64(native.RecordTypeA))
+		"neo.com", int64(nnsrecords.A))
 	testNameServiceInvoke(t, bc, "resolve", "alias.com",
-		"neo.com", int64(native.RecordTypeCNAME))
+		"neo.com", int64(nnsrecords.CNAME))
 	testNameServiceInvoke(t, bc, "resolve", "sometxt",
-		"neo.com", int64(native.RecordTypeTXT))
+		"neo.com", int64(nnsrecords.TXT))
 	testNameServiceInvoke(t, bc, "resolve", stackitem.Null{},
-		"neo.com", int64(native.RecordTypeAAAA))
+		"neo.com", int64(nnsrecords.AAAA))
 }
 
 const (
