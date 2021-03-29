@@ -15,7 +15,7 @@ import (
 	"github.com/urfave/cli"
 )
 
-var ledgerContractID = -2
+var ledgerContractID = -4
 
 type dump []blockDump
 
