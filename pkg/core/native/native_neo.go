@@ -726,6 +726,11 @@ func (n *NEO) VoteInternal(ic *interop.Context, h util.Uint160, pub *keys.Public
 	if err != nil {
 		return err
 	}
+	// we should put it in storage anyway as it affects dumps
+	err = ic.DAO.PutStorageItem(n.ID, key, si)
+	if err != nil {
+		return err
+	}
 	if pub != nil {
 		valKey := makeValidatorKey(pub)
 		valSi := ic.DAO.GetStorageItem(n.ID, valKey)
