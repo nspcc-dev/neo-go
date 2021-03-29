@@ -738,6 +738,11 @@ func (n *NEO) VoteInternal(ic *interop.Context, h util.Uint160, pub *keys.Public
 			return errors.New("unknown validator")
 		}
 		cd := new(candidate).FromBytes(valSi)
+		// we should put it in storage anyway as it affects dumps
+		err = ic.DAO.PutStorageItem(n.ID, valKey, valSi)
+		if err != nil {
+			return err
+		}
 		if !cd.Registered {
 			return errors.New("validator must be registered")
 		}
