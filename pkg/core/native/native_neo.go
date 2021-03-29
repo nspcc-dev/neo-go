@@ -726,6 +726,28 @@ func (n *NEO) VoteInternal(ic *interop.Context, h util.Uint160, pub *keys.Public
 	if err != nil {
 		return err
 	}
+	// we should put it in storage anyway as it affects dumps
+	err = ic.DAO.PutStorageItem(n.ID, key, si)
+	if err != nil {
+		return err
+	}
+	if pub != nil {
+		valKey := makeValidatorKey(pub)
+		valSi := ic.DAO.GetStorageItem(n.ID, valKey)
+		if valSi == nil {
+			return errors.New("unknown validator")
+		}
+		cd := new(candidate).FromBytes(valSi)
+		// we should put it in storage anyway as it affects dumps
+		err = ic.DAO.PutStorageItem(n.ID, valKey, valSi)
+		if err != nil {
+			return err
+		}
+		if !cd.Registered {
+			return errors.New("validator must be registered")
+		}
+	}
+
 	if (acc.VoteTo == nil) != (pub == nil) {
 		val := &acc.Balance
 		if pub == nil {
@@ -765,8 +787,6 @@ func (n *NEO) ModifyAccountVotes(acc *state.NEOBalanceState, d dao.DAO, value *b
 			if ok {
 				return err
 			}
-		} else if !cd.Registered {
-			return errors.New("validator must be registered")
 		}
 		n.validators.Store(keys.PublicKeys(nil))
 		return d.PutStorageItem(n.ID, key, cd.Bytes())
