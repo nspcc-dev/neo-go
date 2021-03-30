@@ -5,12 +5,13 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 )
 
 // MaxValueLength is a max length of a leaf node value.
-const MaxValueLength = 1024 * 1024
+const MaxValueLength = 3 + storage.MaxStorageValueLen + 1
 
 // LeafNode represents MPT's leaf node.
 type LeafNode struct {
