@@ -13,6 +13,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/runtime"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
+	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
@@ -198,7 +199,7 @@ func TestStoragePut(t *testing.T) {
 	})
 
 	t.Run("check limits", func(t *testing.T) {
-		initVM(t, make([]byte, MaxStorageKeyLen), make([]byte, MaxStorageValueLen), -1)
+		initVM(t, make([]byte, storage.MaxStorageKeyLen), make([]byte, storage.MaxStorageValueLen), -1)
 		require.NoError(t, storagePut(ic))
 	})
 
@@ -209,11 +210,11 @@ func TestStoragePut(t *testing.T) {
 			require.Error(t, storagePut(ic))
 		})
 		t.Run("big key", func(t *testing.T) {
-			initVM(t, make([]byte, MaxStorageKeyLen+1), []byte{1}, -1)
+			initVM(t, make([]byte, storage.MaxStorageKeyLen+1), []byte{1}, -1)
 			require.Error(t, storagePut(ic))
 		})
 		t.Run("big value", func(t *testing.T) {
-			initVM(t, []byte{1}, make([]byte, MaxStorageValueLen+1), -1)
+			initVM(t, []byte{1}, make([]byte, storage.MaxStorageValueLen+1), -1)
 			require.Error(t, storagePut(ic))
 		})
 	})

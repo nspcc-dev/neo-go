@@ -23,6 +23,14 @@ const (
 	SYSVersion       KeyPrefix = 0xf0
 )
 
+const (
+	// MaxStorageKeyLen is the maximum length of a key for storage items.
+	MaxStorageKeyLen = 64
+	// MaxStorageValueLen is the maximum length of a value for storage items.
+	// It is set to be the maximum value for uint16.
+	MaxStorageValueLen = 65535
+)
+
 // ErrKeyNotFound is an error returned by Store implementations
 // when a certain key is not found.
 var ErrKeyNotFound = errors.New("key not found")

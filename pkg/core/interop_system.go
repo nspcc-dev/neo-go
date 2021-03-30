@@ -9,19 +9,12 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
+	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
-)
-
-const (
-	// MaxStorageKeyLen is the maximum length of a key for storage items.
-	MaxStorageKeyLen = 64
-	// MaxStorageValueLen is the maximum length of a value for storage items.
-	// It is set to be the maximum value for uint16.
-	MaxStorageValueLen = 65535
 )
 
 // StorageContext contains storing id and read/write flag, it's used as
@@ -104,10 +97,10 @@ func storageGetContextInternal(ic *interop.Context, isReadOnly bool) error {
 }
 
 func putWithContext(ic *interop.Context, stc *StorageContext, key []byte, value []byte) error {
-	if len(key) > MaxStorageKeyLen {
+	if len(key) > storage.MaxStorageKeyLen {
 		return errors.New("key is too big")
 	}
-	if len(value) > MaxStorageValueLen {
+	if len(value) > storage.MaxStorageValueLen {
 		return errors.New("value is too big")
 	}
 	if stc.ReadOnly {
