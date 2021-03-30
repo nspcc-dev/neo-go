@@ -2,9 +2,8 @@ package result
 
 import (
 	"bytes"
-	"encoding/hex"
+	"encoding/base64"
 	"encoding/json"
-	"errors"
 
 	"github.com/nspcc-dev/neo-go/pkg/io"
 )
@@ -21,12 +20,6 @@ type ProofWithKey struct {
 	Proof [][]byte
 }
 
-// GetProof is a result of getproof RPC.
-type GetProof struct {
-	Result  ProofWithKey `json:"proof"`
-	Success bool         `json:"success"`
-}
-
 // VerifyProof is a result of verifyproof RPC.
 // nil Value is considered invalid.
 type VerifyProof struct {
@@ -40,7 +33,7 @@ func (p *ProofWithKey) MarshalJSON() ([]byte, error) {
 	if w.Err != nil {
 		return nil, w.Err
 	}
-	return []byte(`"` + hex.EncodeToString(w.Bytes()) + `"`), nil
+	return []byte(`"` + base64.StdEncoding.EncodeToString(w.Bytes()) + `"`), nil
 }
 
 // EncodeBinary implements io.Serializable.
@@ -74,12 +67,12 @@ func (p *ProofWithKey) UnmarshalJSON(data []byte) error {
 func (p *ProofWithKey) String() string {
 	w := io.NewBufBinWriter()
 	p.EncodeBinary(w.BinWriter)
-	return hex.EncodeToString(w.Bytes())
+	return base64.StdEncoding.EncodeToString(w.Bytes())
 }
 
 // FromString decodes p from hex-encoded string.
 func (p *ProofWithKey) FromString(s string) error {
-	rawProof, err := hex.DecodeString(s)
+	rawProof, err := base64.StdEncoding.DecodeString(s)
 	if err != nil {
 		return err
 	}
@@ -93,7 +86,7 @@ func (p *VerifyProof) MarshalJSON() ([]byte, error) {
 	if p.Value == nil {
 		return []byte(`"invalid"`), nil
 	}
-	return []byte(`{"value":"` + hex.EncodeToString(p.Value) + `"}`), nil
+	return []byte(`"` + base64.StdEncoding.EncodeToString(p.Value) + `"`), nil
 }
 
 // UnmarshalJSON implements json.Unmarshaler.
@@ -102,18 +95,11 @@ func (p *VerifyProof) UnmarshalJSON(data []byte) error {
 		p.Value = nil
 		return nil
 	}
-	var m map[string]string
+	var m string
 	if err := json.Unmarshal(data, &m); err != nil {
 		return err
 	}
-	if len(m) != 1 {
-		return errors.New("must have single key")
-	}
-	v, ok := m["value"]
-	if !ok {
-		return errors.New("invalid json")
-	}
-	b, err := hex.DecodeString(v)
+	b, err := base64.StdEncoding.DecodeString(m)
 	if err != nil {
 		return err
 	}

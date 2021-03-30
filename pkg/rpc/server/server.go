@@ -905,7 +905,7 @@ func (s *Server) getProof(ps request.Params) (interface{}, *response.Error) {
 	if err != nil {
 		return nil, response.ErrInvalidParams
 	}
-	key, err := ps.Value(2).GetBytesHex()
+	key, err := ps.Value(2).GetBytesBase64()
 	if err != nil {
 		return nil, response.ErrInvalidParams
 	}
@@ -915,12 +915,9 @@ func (s *Server) getProof(ps request.Params) (interface{}, *response.Error) {
 	}
 	skey := makeStorageKey(cs.ID, key)
 	proof, err := s.chain.GetStateModule().GetStateProof(root, skey)
-	return &result.GetProof{
-		Result: result.ProofWithKey{
-			Key:   skey,
-			Proof: proof,
-		},
-		Success: err == nil,
+	return &result.ProofWithKey{
+		Key:   skey,
+		Proof: proof,
 	}, nil
 }
 
