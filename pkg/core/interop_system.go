@@ -31,17 +31,6 @@ type StorageContext struct {
 	ReadOnly bool
 }
 
-// StorageFlag represents storage flag which denotes whether the stored value is
-// a constant.
-type StorageFlag byte
-
-const (
-	// None is a storage flag for non-constant items.
-	None StorageFlag = 0
-	// Constant is a storage flag for constant items.
-	Constant StorageFlag = 0x01
-)
-
 // engineGetScriptContainer returns transaction or block that contains the script
 // being run.
 func engineGetScriptContainer(ic *interop.Context) error {
