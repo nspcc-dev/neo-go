@@ -151,6 +151,6 @@ func TestRootHash(t *testing.T) {
 	b.Children[9] = l2
 
 	r1 := NewExtensionNode([]byte{0x0A, 0x0C, 0x00, 0x01}, v1)
-	require.Equal(t, "dea3ab46e9461e885ed7091c1e533e0a8030b248d39cbc638962394eaca0fbb3", r1.Hash().StringLE())
-	require.Equal(t, "93e8e1ffe2f83dd92fca67330e273bcc811bf64b8f8d9d1b25d5e7366b47d60d", r.Hash().StringLE())
+	require.Equal(t, "30769d6b3ceba98430fc91c03d2a210a3bfe9521248179586ad9f613a4b6fba9", r1.Hash().StringLE())
+	require.Equal(t, "593e356475fd0130eb20cc1f6585bb02ea7b7bd0935748192152a935da9b8d83", r.Hash().StringLE())
 }
