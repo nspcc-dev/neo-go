@@ -1,10 +1,13 @@
 package result
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/internal/random"
 	"github.com/nspcc-dev/neo-go/internal/testserdes"
+	"github.com/nspcc-dev/neo-go/pkg/core/mpt"
+	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/stretchr/testify/require"
 )
 
@@ -19,7 +22,6 @@ func testProofWithKey() *ProofWithKey {
 	}
 }
 
-/*
 func TestGetProof_MarshalJSON(t *testing.T) {
 	t.Run("Good", func(t *testing.T) {
 		p := testProofWithKey()
@@ -40,7 +42,7 @@ func TestGetProof_MarshalJSON(t *testing.T) {
 		}
 	})
 }
-*/
+
 func TestProofWithKey_EncodeString(t *testing.T) {
 	expected := testProofWithKey()
 	var actual ProofWithKey
