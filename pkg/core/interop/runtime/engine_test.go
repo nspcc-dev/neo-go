@@ -142,7 +142,7 @@ func TestNotify(t *testing.T) {
 		return ic
 	}
 	t.Run("big name", func(t *testing.T) {
-		ic := newIC(string(make([]byte, MaxEventNameLen+1)), []byte{42})
+		ic := newIC(string(make([]byte, MaxEventNameLen+1)), stackitem.NewArray([]stackitem.Item{stackitem.Null{}}))
 		require.Error(t, Notify(ic))
 	})
 	t.Run("recursive struct", func(t *testing.T) {
