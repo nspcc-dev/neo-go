@@ -52,11 +52,11 @@ func GetTrigger(ic *interop.Context) error {
 // in neo-go the only meaningful thing to do here is to log.
 func Notify(ic *interop.Context) error {
 	name := ic.VM.Estack().Pop().String()
+	elem := ic.VM.Estack().Pop()
+	args := elem.Array()
 	if len(name) > MaxEventNameLen {
 		return fmt.Errorf("event name must be less than %d", MaxEventNameLen)
 	}
-	elem := ic.VM.Estack().Pop()
-	args := elem.Array()
 	// But it has to be serializable, otherwise we either have some broken
 	// (recursive) structure inside or an interop item that can't be used
 	// outside of the interop subsystem anyway.
