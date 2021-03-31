@@ -1602,8 +1602,32 @@ func (v *VM) handleException() {
 		}
 		pop++
 		ictxv = ictxv.Next()
+		if ictxv == nil {
+			break
+		}
 		ictx = ictxv.Value().(*Context)
 	}
+	throwUnhandledException(v.uncaughtException)
+}
+
+// throwUnhandledException gets exception message from the provided stackitem and panics.
+func throwUnhandledException(item stackitem.Item) {
+	msg := "unhandled exception"
+	switch item.Type() {
+	case stackitem.ArrayT:
+		if arr := item.Value().([]stackitem.Item); len(arr) > 0 {
+			data, err := arr[0].TryBytes()
+			if err == nil {
+				msg = fmt.Sprintf("%s: %q", msg, string(data))
+			}
+		}
+	default:
+		data, err := item.TryBytes()
+		if err == nil {
+			msg = fmt.Sprintf("%s: %q", msg, string(data))
+		}
+	}
+	panic(msg)
 }
 
 // CheckMultisigPar checks if sigs contains sufficient valid signatures.
