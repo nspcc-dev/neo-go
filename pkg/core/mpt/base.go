@@ -23,6 +23,7 @@ type BaseNodeIface interface {
 	Hash() util.Uint256
 	Type() NodeType
 	Bytes() []byte
+	EncodeBinaryAsChild(w *io.BinWriter)
 }
 
 type flushedNode interface {

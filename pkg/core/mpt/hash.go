@@ -67,6 +67,12 @@ func (h HashNode) EncodeBinary(w *io.BinWriter) {
 	w.WriteVarBytes(h.hash[:])
 }
 
+// EncodeBinaryAsChild implements BaseNode interface.
+func (h *HashNode) EncodeBinaryAsChild(w *io.BinWriter) {
+	no := &NodeObject{Node: h} // with type
+	no.EncodeBinary(w)
+}
+
 // MarshalJSON implements json.Marshaler.
 func (h *HashNode) MarshalJSON() ([]byte, error) {
 	if !h.hashValid {
