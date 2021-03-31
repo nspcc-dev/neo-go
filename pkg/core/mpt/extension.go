@@ -6,12 +6,13 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 )
 
 // MaxKeyLength is the max length of the extension node key.
-const MaxKeyLength = 1125
+const MaxKeyLength = (storage.MaxStorageKeyLen + 4) * 2
 
 // ExtensionNode represents MPT's extension node.
 type ExtensionNode struct {
