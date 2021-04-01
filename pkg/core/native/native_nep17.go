@@ -2,6 +2,7 @@ package native
 
 import (
 	"errors"
+	"fmt"
 	"math"
 	"math/big"
 
@@ -29,10 +30,11 @@ func makeAccountKey(h util.Uint160) []byte {
 // nep17TokenNative represents NEP-17 token contract.
 type nep17TokenNative struct {
 	interop.ContractMD
-	symbol     string
-	decimals   int64
-	factor     int64
-	incBalance func(*interop.Context, util.Uint160, *state.StorageItem, *big.Int) error
+	symbol       string
+	decimals     int64
+	factor       int64
+	incBalance   func(*interop.Context, util.Uint160, *state.StorageItem, *big.Int) error
+	balFromBytes func(item *state.StorageItem) (*big.Int, error)
 }
 
 // totalSupplyKey is the key used to store totalSupply value.
@@ -221,12 +223,16 @@ func (c *nep17TokenNative) TransferInternal(ic *interop.Context, from, to util.U
 
 func (c *nep17TokenNative) balanceOf(ic *interop.Context, args []stackitem.Item) stackitem.Item {
 	h := toUint160(args[0])
-	bs, err := ic.DAO.GetNEP17Balances(h)
-	if err != nil {
-		panic(err)
+	key := makeAccountKey(h)
+	si := ic.DAO.GetStorageItem(c.ID, key)
+	if si == nil {
+		return stackitem.NewBigInteger(big.NewInt(0))
 	}
-	balance := bs.Trackers[c.ID].Balance
-	return stackitem.NewBigInteger(&balance)
+	balance, err := c.balFromBytes(&si)
+	if err != nil {
+		panic(fmt.Errorf("can not deserialize balance state: %w", err))
+	}
+	return stackitem.NewBigInteger(balance)
 }
 
 func (c *nep17TokenNative) mint(ic *interop.Context, h util.Uint160, amount *big.Int, callOnPayment bool) {
