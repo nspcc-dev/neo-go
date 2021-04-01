@@ -34,6 +34,7 @@ func newGAS() *GAS {
 	nep17.decimals = 8
 	nep17.factor = GASFactor
 	nep17.incBalance = g.increaseBalance
+	nep17.balFromBytes = g.balanceFromBytes
 
 	g.nep17TokenNative = *nep17
 
@@ -57,6 +58,14 @@ func (g *GAS) increaseBalance(_ *interop.Context, _ util.Uint160, si *state.Stor
 		*si = nil
 	}
 	return nil
+}
+
+func (g *GAS) balanceFromBytes(si *state.StorageItem) (*big.Int, error) {
+	acc, err := state.NEP17BalanceStateFromBytes(*si)
+	if err != nil {
+		return nil, err
+	}
+	return &acc.Balance, err
 }
 
 // Initialize initializes GAS contract.

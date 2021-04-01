@@ -107,6 +107,7 @@ func newNEO() *NEO {
 	nep17.decimals = 0
 	nep17.factor = 1
 	nep17.incBalance = n.increaseBalance
+	nep17.balFromBytes = n.balanceFromBytes
 
 	n.nep17TokenNative = *nep17
 	n.votesChanged.Store(true)
@@ -402,6 +403,14 @@ func (n *NEO) increaseBalance(ic *interop.Context, h util.Uint160, si *state.Sto
 		*si = nil
 	}
 	return nil
+}
+
+func (n *NEO) balanceFromBytes(si *state.StorageItem) (*big.Int, error) {
+	acc, err := state.NEOBalanceStateFromBytes(*si)
+	if err != nil {
+		return nil, err
+	}
+	return &acc.Balance, err
 }
 
 func (n *NEO) distributeGas(ic *interop.Context, h util.Uint160, acc *state.NEOBalanceState) error {
