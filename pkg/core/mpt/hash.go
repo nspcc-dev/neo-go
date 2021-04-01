@@ -2,7 +2,6 @@ package mpt
 
 import (
 	"errors"
-	"fmt"
 
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -46,25 +45,23 @@ func (h *HashNode) Bytes() []byte {
 
 // DecodeBinary implements io.Serializable.
 func (h *HashNode) DecodeBinary(r *io.BinReader) {
-	sz := r.ReadVarUint()
-	switch sz {
-	case 0:
-		h.hashValid = false
-	case util.Uint256Size:
-		h.hashValid = true
-		r.ReadBytes(h.hash[:])
-	default:
-		r.Err = fmt.Errorf("invalid hash node size: %d", sz)
+	if h.hashValid {
+		h.hash.DecodeBinary(r)
 	}
 }
 
 // EncodeBinary implements io.Serializable.
 func (h HashNode) EncodeBinary(w *io.BinWriter) {
 	if !h.hashValid {
-		w.WriteVarUint(0)
 		return
 	}
-	w.WriteVarBytes(h.hash[:])
+	w.WriteBytes(h.hash[:])
+}
+
+// EncodeBinaryAsChild implements BaseNode interface.
+func (h *HashNode) EncodeBinaryAsChild(w *io.BinWriter) {
+	no := &NodeObject{Node: h} // with type
+	no.EncodeBinary(w)
 }
 
 // MarshalJSON implements json.Marshaler.

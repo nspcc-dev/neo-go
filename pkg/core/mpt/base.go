@@ -23,6 +23,7 @@ type BaseNodeIface interface {
 	Hash() util.Uint256
 	Type() NodeType
 	Bytes() []byte
+	EncodeBinaryAsChild(w *io.BinWriter)
 }
 
 type flushedNode interface {
@@ -77,7 +78,17 @@ func (b *BaseNode) invalidateCache() {
 
 // encodeNodeWithType encodes node together with it's type.
 func encodeNodeWithType(n Node, w *io.BinWriter) {
-	w.WriteB(byte(n.Type()))
+	switch t := n.Type(); t {
+	case HashT:
+		hn := n.(*HashNode)
+		if !hn.hashValid {
+			w.WriteB(byte(EmptyT))
+			break
+		}
+		fallthrough
+	default:
+		w.WriteB(byte(t))
+	}
 	n.EncodeBinary(w)
 }
 
@@ -93,9 +104,19 @@ func DecodeNodeWithType(r *io.BinReader) Node {
 	case ExtensionT:
 		n = new(ExtensionNode)
 	case HashT:
-		n = new(HashNode)
+		n = &HashNode{
+			BaseNode: BaseNode{
+				hashValid: true,
+			},
+		}
 	case LeafT:
 		n = new(LeafNode)
+	case EmptyT:
+		n = &HashNode{
+			BaseNode: BaseNode{
+				hashValid: false,
+			},
+		}
 	default:
 		r.Err = fmt.Errorf("invalid node type: %x", typ)
 		return nil

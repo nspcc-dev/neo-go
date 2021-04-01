@@ -16,8 +16,9 @@ type NodeType byte
 const (
 	BranchT    NodeType = 0x00
 	ExtensionT NodeType = 0x01
-	HashT      NodeType = 0x02
-	LeafT      NodeType = 0x03
+	LeafT      NodeType = 0x02
+	HashT      NodeType = 0x03
+	EmptyT     NodeType = 0x04
 )
 
 // NodeObject represents Node together with it's type.

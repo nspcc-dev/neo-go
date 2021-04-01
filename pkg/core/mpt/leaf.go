@@ -5,12 +5,13 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 )
 
 // MaxValueLength is a max length of a leaf node value.
-const MaxValueLength = 1024 * 1024
+const MaxValueLength = 3 + storage.MaxStorageValueLen + 1
 
 // LeafNode represents MPT's leaf node.
 type LeafNode struct {
@@ -53,6 +54,12 @@ func (n *LeafNode) DecodeBinary(r *io.BinReader) {
 // EncodeBinary implements io.Serializable.
 func (n LeafNode) EncodeBinary(w *io.BinWriter) {
 	w.WriteVarBytes(n.value)
+}
+
+// EncodeBinaryAsChild implements BaseNode interface.
+func (n *LeafNode) EncodeBinaryAsChild(w *io.BinWriter) {
+	no := &NodeObject{Node: NewHashNode(n.Hash())} // with type
+	no.EncodeBinary(w)
 }
 
 // MarshalJSON implements json.Marshaler.

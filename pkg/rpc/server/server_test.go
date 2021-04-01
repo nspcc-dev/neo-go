@@ -1335,20 +1335,19 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 		r, err := chain.GetStateModule().GetStateRoot(3)
 		require.NoError(t, err)
 
-		rpc := fmt.Sprintf(`{"jsonrpc": "2.0", "id": 1, "method": "getproof", "params": ["%s", "%s", "%x"]}`,
-			r.Root.StringLE(), testContractHash, []byte("testkey"))
+		rpc := fmt.Sprintf(`{"jsonrpc": "2.0", "id": 1, "method": "getproof", "params": ["%s", "%s", "%s"]}`,
+			r.Root.StringLE(), testContractHash, base64.StdEncoding.EncodeToString([]byte("testkey")))
 		body := doRPCCall(rpc, httpSrv.URL, t)
 		rawRes := checkErrGetResult(t, body, false)
-		res := new(result.GetProof)
+		res := new(result.ProofWithKey)
 		require.NoError(t, json.Unmarshal(rawRes, res))
-		require.True(t, res.Success)
 		h, _ := util.Uint160DecodeStringLE(testContractHash)
 		skey := makeStorageKey(chain.GetContractState(h).ID, []byte("testkey"))
-		require.Equal(t, skey, res.Result.Key)
-		require.True(t, len(res.Result.Proof) > 0)
+		require.Equal(t, skey, res.Key)
+		require.True(t, len(res.Proof) > 0)
 
 		rpc = fmt.Sprintf(`{"jsonrpc": "2.0", "id": 1, "method": "verifyproof", "params": ["%s", "%s"]}`,
-			r.Root.StringLE(), res.Result.String())
+			r.Root.StringLE(), res.String())
 		body = doRPCCall(rpc, httpSrv.URL, t)
 		rawRes = checkErrGetResult(t, body, false)
 		vp := new(result.VerifyProof)

@@ -16,6 +16,9 @@ func getTestFuncEncode(ok bool, expected, actual Node) func(t *testing.T) {
 		t.Run("IO", func(t *testing.T) {
 			bs, err := testserdes.EncodeBinary(expected)
 			require.NoError(t, err)
+			if hn, ok := actual.(*HashNode); ok {
+				hn.hashValid = true // this field is set during NodeObject decoding
+			}
 			err = testserdes.DecodeBinary(bs, actual)
 			if !ok {
 				require.Error(t, err)
@@ -80,8 +83,8 @@ func TestNode_Serializable(t *testing.T) {
 		})
 		t.Run("InvalidSize", func(t *testing.T) {
 			buf := io.NewBufBinWriter()
-			buf.BinWriter.WriteVarBytes(make([]byte, 13))
-			require.Error(t, testserdes.DecodeBinary(buf.Bytes(), new(HashNode)))
+			buf.BinWriter.WriteBytes(make([]byte, 13))
+			require.Error(t, testserdes.DecodeBinary(buf.Bytes(), &HashNode{BaseNode: BaseNode{hashValid: true}}))
 		})
 	})
 
@@ -151,6 +154,6 @@ func TestRootHash(t *testing.T) {
 	b.Children[9] = l2
 
 	r1 := NewExtensionNode([]byte{0x0A, 0x0C, 0x00, 0x01}, v1)
-	require.Equal(t, "dea3ab46e9461e885ed7091c1e533e0a8030b248d39cbc638962394eaca0fbb3", r1.Hash().StringLE())
-	require.Equal(t, "93e8e1ffe2f83dd92fca67330e273bcc811bf64b8f8d9d1b25d5e7366b47d60d", r.Hash().StringLE())
+	require.Equal(t, "cedd9897dd1559fbd5dfe5cfb223464da6de438271028afb8d647e950cbd18e0", r1.Hash().StringLE())
+	require.Equal(t, "1037e779c8a0313bd0d99c4151fa70a277c43c53a549b6444079f2e67e8ffb7b", r.Hash().StringLE())
 }
