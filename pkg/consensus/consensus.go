@@ -244,6 +244,7 @@ func (s *service) newPrepareRequest() payload.PrepareRequest {
 
 func (s *service) Start() {
 	if s.started.CAS(false, true) {
+		s.log.Info("starting consensus service")
 		s.dbft.Start()
 		s.Chain.SubscribeForBlocks(s.blockEvents)
 		go s.eventLoop()
@@ -252,8 +253,10 @@ func (s *service) Start() {
 
 // Shutdown implements Service interface.
 func (s *service) Shutdown() {
-	close(s.quit)
-	<-s.finished
+	if s.started.Load() {
+		close(s.quit)
+		<-s.finished
+	}
 }
 
 func (s *service) eventLoop() {

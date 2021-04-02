@@ -94,18 +94,5 @@ func (s *service) sendValidatedRoot(r *state.MPTRoot, priv *keys.PrivateKey) {
 	buf := io.NewBufBinWriter()
 	emit.Bytes(buf.BinWriter, sig)
 	ep.Witness.InvocationScript = buf.Bytes()
-	s.getRelayCallback()(ep)
-}
-
-func (s *service) getRelayCallback() RelayCallback {
-	s.cbMtx.RLock()
-	defer s.cbMtx.RUnlock()
-	return s.onValidatedRoot
-}
-
-// SetRelayCallback sets callback to pool and broadcast tx.
-func (s *service) SetRelayCallback(cb RelayCallback) {
-	s.cbMtx.Lock()
-	defer s.cbMtx.Unlock()
-	s.onValidatedRoot = cb
+	s.onValidatedRoot(ep)
 }

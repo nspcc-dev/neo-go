@@ -37,7 +37,7 @@ func (r *RPCBroadcaster) NewRPCClient(addr string, method SendMethod, timeout ti
 
 func (c *RPCClient) run() {
 	// We ignore error as not every node can be available on startup.
-	c.client, _ = client.New(context.Background(), "http://"+c.addr, client.Options{
+	c.client, _ = client.New(context.Background(), c.addr, client.Options{
 		DialTimeout:    c.sendTimeout,
 		RequestTimeout: c.sendTimeout,
 	})
@@ -48,7 +48,7 @@ func (c *RPCClient) run() {
 		case ps := <-c.responses:
 			if c.client == nil {
 				var err error
-				c.client, err = client.New(context.Background(), "http://"+c.addr, client.Options{
+				c.client, err = client.New(context.Background(), c.addr, client.Options{
 					DialTimeout:    c.sendTimeout,
 					RequestTimeout: c.sendTimeout,
 				})

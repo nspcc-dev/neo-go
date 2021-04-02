@@ -83,7 +83,7 @@ func TestStateRoot(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 	w := createAndWriteWallet(t, accs[0], path.Join(tmpDir, "w"), "pass")
 	cfg := createStateRootConfig(w.Path(), "pass")
-	srv, err := stateroot.New(cfg, zaptest.NewLogger(t), bc)
+	srv, err := stateroot.New(cfg, zaptest.NewLogger(t), bc, nil)
 	require.NoError(t, err)
 	require.EqualValues(t, 0, srv.CurrentValidatedHeight())
 	r, err := srv.GetStateRoot(bc.BlockHeight())
@@ -153,7 +153,7 @@ func TestStateRootInitNonZeroHeight(t *testing.T) {
 		defer os.RemoveAll(tmpDir)
 		w := createAndWriteWallet(t, accs[0], path.Join(tmpDir, "w"), "pass")
 		cfg := createStateRootConfig(w.Path(), "pass")
-		srv, err := stateroot.New(cfg, zaptest.NewLogger(t), bc)
+		srv, err := stateroot.New(cfg, zaptest.NewLogger(t), bc, nil)
 		require.NoError(t, err)
 		r, err := srv.GetStateRoot(2)
 		require.NoError(t, err)
@@ -199,17 +199,16 @@ func TestStateRootFull(t *testing.T) {
 	h, pubs, accs := newMajorityMultisigWithGAS(t, 2)
 	w := createAndWriteWallet(t, accs[1], path.Join(tmpDir, "wallet2"), "two")
 	cfg := createStateRootConfig(w.Path(), "two")
-	srv, err := stateroot.New(cfg, zaptest.NewLogger(t), bc)
-	require.NoError(t, err)
-	srv.Run()
-	t.Cleanup(srv.Shutdown)
 
 	var lastValidated atomic.Value
 	var lastHeight atomic.Uint32
-	srv.SetRelayCallback(func(ep *payload.Extensible) {
+	srv, err := stateroot.New(cfg, zaptest.NewLogger(t), bc, func(ep *payload.Extensible) {
 		lastHeight.Store(ep.ValidBlockStart)
 		lastValidated.Store(ep)
 	})
+	require.NoError(t, err)
+	srv.Run()
+	t.Cleanup(srv.Shutdown)
 
 	bc.setNodesByRole(t, true, noderoles.StateValidator, pubs)
 	transferTokenFromMultisigAccount(t, bc, h, bc.contracts.GAS.Hash, 1_0000_0000)

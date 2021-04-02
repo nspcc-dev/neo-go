@@ -117,6 +117,7 @@ func NewNotary(cfg Config, net netmode.Magic, mp *mempool.Pool, onTransaction fu
 
 // Run runs Notary module and should be called in a separate goroutine.
 func (n *Notary) Run() {
+	n.Config.Log.Info("starting notary service")
 	n.Config.Chain.SubscribeForBlocks(n.blocksCh)
 	n.mp.SubscribeForTransactions(n.reqCh)
 	for {
