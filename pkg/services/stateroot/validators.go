@@ -17,6 +17,7 @@ func (s *service) Run() {
 }
 
 func (s *service) run() {
+runloop:
 	for {
 		select {
 		case b := <-s.blockCh:
@@ -27,13 +28,22 @@ func (s *service) run() {
 				s.log.Error("can't sign or send state root", zap.Error(err))
 			}
 		case <-s.done:
-			return
+			break runloop
+		}
+	}
+drainloop:
+	for {
+		select {
+		case <-s.blockCh:
+		default:
+			break drainloop
 		}
 	}
 }
 
 // Shutdown stops the service.
 func (s *service) Shutdown() {
+	s.chain.UnsubscribeFromBlocks(s.blockCh)
 	close(s.done)
 }
 
