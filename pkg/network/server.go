@@ -265,16 +265,6 @@ func (s *Server) Start(errChan chan error) {
 	s.initStaleMemPools()
 
 	go s.broadcastTxLoop()
-	if s.oracle != nil {
-		go s.oracle.Run()
-	}
-	if s.notaryModule != nil {
-		s.notaryRequestPool.RunSubscriptions()
-		go s.notaryModule.Run()
-	}
-	if s.StateRootCfg.Enabled {
-		s.stateRoot.Run()
-	}
 	go s.relayBlocksLoop()
 	go s.bQueue.run()
 	go s.transport.Accept()
@@ -448,6 +438,16 @@ func (s *Server) tryStartServices() {
 		s.log.Info("node reached synchronized state, starting services")
 		if s.Wallet != nil {
 			s.consensus.Start()
+		}
+		if s.StateRootCfg.Enabled {
+			s.stateRoot.Run()
+		}
+		if s.oracle != nil {
+			go s.oracle.Run()
+		}
+		if s.notaryModule != nil {
+			s.notaryRequestPool.RunSubscriptions()
+			go s.notaryModule.Run()
 		}
 	}
 }
