@@ -105,7 +105,7 @@ func TestServerStartAndShutdown(t *testing.T) {
 		<-ch
 
 		require.True(t, s.transport.(*fakeTransp).closed.Load())
-		require.False(t, s.consensus.(*fakeConsensus).stopped.Load())
+		require.True(t, s.consensus.(*fakeConsensus).stopped.Load())
 		err, ok := p.droppedWith.Load().(error)
 		require.True(t, ok)
 		require.True(t, errors.Is(err, errServerShutdown))
@@ -403,6 +403,8 @@ func TestConsensus(t *testing.T) {
 	atomic2.StoreUint32(&s.chain.(*fakechain.FakeChain).Blockheight, 4)
 	p := newLocalPeer(t, s)
 	p.handshaked = true
+	s.register <- p
+	require.Eventually(t, func() bool { return 1 == s.PeerCount() }, time.Second, time.Millisecond*10)
 
 	newConsensusMessage := func(start, end uint32) *Message {
 		pl := payload.NewExtensible()
