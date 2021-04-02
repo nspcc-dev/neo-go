@@ -244,6 +244,7 @@ func (s *service) newPrepareRequest() payload.PrepareRequest {
 
 func (s *service) Start() {
 	if s.started.CAS(false, true) {
+		s.log.Info("starting consensus service")
 		s.dbft.Start()
 		s.Chain.SubscribeForBlocks(s.blockEvents)
 		go s.eventLoop()

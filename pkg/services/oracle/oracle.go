@@ -162,6 +162,7 @@ func (o *Oracle) Shutdown() {
 
 // Run runs must be executed in a separate goroutine.
 func (o *Oracle) Run() {
+	o.Log.Info("starting oracle service")
 	for i := 0; i < o.MainCfg.MaxConcurrentRequests; i++ {
 		go o.runRequestWorker()
 	}

@@ -12,6 +12,7 @@ import (
 
 // Run runs service instance in a separate goroutine.
 func (s *service) Run() {
+	s.log.Info("starting state validation service")
 	s.chain.SubscribeForBlocks(s.blockCh)
 	go s.run()
 }
