@@ -252,8 +252,10 @@ func (s *service) Start() {
 
 // Shutdown implements Service interface.
 func (s *service) Shutdown() {
-	close(s.quit)
-	<-s.finished
+	if s.started.Load() {
+		close(s.quit)
+		<-s.finished
+	}
 }
 
 func (s *service) eventLoop() {
