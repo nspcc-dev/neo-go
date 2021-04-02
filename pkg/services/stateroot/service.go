@@ -24,7 +24,6 @@ type (
 		OnPayload(p *payload.Extensible) error
 		AddSignature(height uint32, validatorIndex int32, sig []byte) error
 		GetConfig() config.StateRoot
-		SetRelayCallback(RelayCallback)
 		Run()
 		Shutdown()
 	}
@@ -46,7 +45,6 @@ type (
 		srMtx           sync.Mutex
 		incompleteRoots map[uint32]*incompleteRoot
 
-		cbMtx           sync.RWMutex
 		onValidatedRoot RelayCallback
 		blockCh         chan *block.Block
 		done            chan struct{}
@@ -59,7 +57,7 @@ const (
 )
 
 // New returns new state root service instance using underlying module.
-func New(cfg config.StateRoot, log *zap.Logger, bc blockchainer.Blockchainer) (Service, error) {
+func New(cfg config.StateRoot, log *zap.Logger, bc blockchainer.Blockchainer, cb RelayCallback) (Service, error) {
 	s := &service{
 		StateRoot:       bc.GetStateModule(),
 		Network:         bc.GetConfig().Magic,
@@ -68,6 +66,7 @@ func New(cfg config.StateRoot, log *zap.Logger, bc blockchainer.Blockchainer) (S
 		incompleteRoots: make(map[uint32]*incompleteRoot),
 		blockCh:         make(chan *block.Block),
 		done:            make(chan struct{}),
+		onValidatedRoot: cb,
 	}
 
 	s.MainCfg = cfg

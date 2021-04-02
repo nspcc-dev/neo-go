@@ -91,7 +91,7 @@ func (s *service) signAndSend(r *state.MPTRoot) error {
 	buf := io.NewBufBinWriter()
 	emit.Bytes(buf.BinWriter, sig)
 	e.Witness.InvocationScript = buf.Bytes()
-	s.getRelayCallback()(e)
+	s.onValidatedRoot(e)
 	return nil
 }
 

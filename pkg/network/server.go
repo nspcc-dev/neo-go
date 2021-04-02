@@ -177,7 +177,7 @@ func newServerFromConstructors(config ServerConfig, chain blockchainer.Blockchai
 		return nil, errors.New("`StateRootInHeader` should be disabled when state service is enabled")
 	}
 
-	sr, err := stateroot.New(config.StateRootCfg, s.log, chain)
+	sr, err := stateroot.New(config.StateRootCfg, s.log, chain, s.handleNewPayload)
 	if err != nil {
 		return nil, fmt.Errorf("can't initialize StateRoot service: %w", err)
 	}
@@ -220,10 +220,6 @@ func newServerFromConstructors(config ServerConfig, chain blockchainer.Blockchai
 	}
 
 	s.consensus = srv
-
-	if config.StateRootCfg.Enabled {
-		s.stateRoot.SetRelayCallback(s.handleNewPayload)
-	}
 
 	if s.MinPeers < 0 {
 		s.log.Info("bad MinPeers configured, using the default value",
