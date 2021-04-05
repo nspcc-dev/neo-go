@@ -162,7 +162,6 @@ func (c *codegen) countLocalsInline(decl *ast.FuncDecl, pkg *types.Package, f *f
 		switch n := n.(type) {
 		case *ast.CallExpr:
 			size += c.countLocalsCall(n, pkg)
-			return false
 		case *ast.FuncType:
 			num := n.Results.NumFields()
 			if num != 0 && len(n.Results.List[0].Names) != 0 {
