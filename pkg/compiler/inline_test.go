@@ -264,3 +264,13 @@ func TestInlineConversionQualified(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, b2, b1)
 }
+
+func TestPackageVarsInInlinedCalls(t *testing.T) {
+	src := `package foo
+		import "github.com/nspcc-dev/neo-go/pkg/compiler/testdata/inline"
+		import "github.com/nspcc-dev/neo-go/pkg/compiler/testdata/inline/b"
+		func Main() int {
+			return inline.Sum(inline.A, b.A)
+		}`
+	eval(t, src, big.NewInt(13))
+}
