@@ -44,7 +44,7 @@ func TestParseNeoFSURL(t *testing.T) {
 	oid := object.NewID()
 	require.NoError(t, oid.Parse(oStr))
 
-	validPrefix := "neofs://" + cStr + "/" + oStr
+	validPrefix := "neofs:" + cStr + "/" + oStr
 	objectAddr := object.NewAddress()
 	objectAddr.SetContainerID(cid)
 	objectAddr.SetObjectID(oid)
@@ -57,10 +57,10 @@ func TestParseNeoFSURL(t *testing.T) {
 		{validPrefix, nil, nil},
 		{validPrefix + "/", []string{""}, nil},
 		{validPrefix + "/range/1|2", []string{"range", "1|2"}, nil},
-		{"neoffs://" + cStr + "/" + oStr, nil, ErrInvalidScheme},
-		{"neofs://" + cStr, nil, ErrMissingObject},
-		{"neofs://" + cStr + "ooo/" + oStr, nil, ErrInvalidContainer},
-		{"neofs://" + cStr + "/ooo" + oStr, nil, ErrInvalidObject},
+		{"neoffs:" + cStr + "/" + oStr, nil, ErrInvalidScheme},
+		{"neofs:" + cStr, nil, ErrMissingObject},
+		{"neofs:" + cStr + "ooo/" + oStr, nil, ErrInvalidContainer},
+		{"neofs:" + cStr + "/ooo" + oStr, nil, ErrInvalidObject},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.url, func(t *testing.T) {
