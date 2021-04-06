@@ -140,7 +140,7 @@ func (o *Oracle) processRequest(priv *keys.PrivateKey, req request) error {
 				resp.Code = transaction.Error
 			}
 		case neofs.URIScheme:
-			ctx, cancel := context.WithTimeout(context.Background(), time.Duration(o.MainCfg.NeoFS.Timeout)*time.Millisecond)
+			ctx, cancel := context.WithTimeout(context.Background(), o.MainCfg.NeoFS.Timeout)
 			defer cancel()
 			index := (int(req.ID) + incTx.attempts) % len(o.MainCfg.NeoFS.Nodes)
 			res, err := neofs.Get(ctx, priv, u, o.MainCfg.NeoFS.Nodes[index])

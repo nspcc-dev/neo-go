@@ -108,6 +108,9 @@ func NewOracle(cfg Config) (*Oracle, error) {
 	if o.MainCfg.RequestTimeout == 0 {
 		o.MainCfg.RequestTimeout = defaultRequestTimeout
 	}
+	if o.MainCfg.NeoFS.Timeout == 0 {
+		o.MainCfg.NeoFS.Timeout = defaultRequestTimeout
+	}
 	if o.MainCfg.MaxConcurrentRequests == 0 {
 		o.MainCfg.MaxConcurrentRequests = defaultMaxConcurrentRequests
 	}
