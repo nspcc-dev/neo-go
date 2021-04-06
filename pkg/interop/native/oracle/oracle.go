@@ -10,6 +10,21 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/interop/contract"
 )
 
+// These are potential response codes you get in your callback completing
+// oracle request. Resulting data is only passed with Success code, it's
+// nil otherwise.
+const (
+	Success              = 0x00
+	ProtocolNotSupported = 0x10
+	ConsensusUnreachable = 0x12
+	NotFound             = 0x14
+	Timeout              = 0x16
+	Forbidden            = 0x18
+	ResponseTooLarge     = 0x1a
+	InsufficientFunds    = 0x1c
+	Error                = 0xff
+)
+
 // Hash represents Oracle contract hash.
 const Hash = "\x58\x87\x17\x11\x7e\x0a\xa8\x10\x72\xaf\xab\x71\xd2\xdd\x89\xfe\x7c\x4b\x92\xfe"
 
