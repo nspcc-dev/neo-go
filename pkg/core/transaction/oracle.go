@@ -1,11 +1,15 @@
 package transaction
 
 import (
+	"encoding/json"
 	"errors"
 	"math"
+	"strings"
 
 	"github.com/nspcc-dev/neo-go/pkg/io"
 )
+
+//go:generate stringer -type=OracleResponseCode
 
 // OracleResponseCode represents result code of oracle response.
 type OracleResponseCode byte
@@ -44,6 +48,43 @@ func (c OracleResponseCode) IsValid() bool {
 	return c == Success || c == ProtocolNotSupported || c == ConsensusUnreachable || c == NotFound ||
 		c == Timeout || c == Forbidden || c == ResponseTooLarge ||
 		c == InsufficientFunds || c == Error
+}
+
+// MarshalJSON implements json.Marshaler interface.
+func (c OracleResponseCode) MarshalJSON() ([]byte, error) {
+	return []byte(`"` + c.String() + `"`), nil
+}
+
+// UnmarshalJSON implements json.Unmarshaler interface.
+func (c *OracleResponseCode) UnmarshalJSON(data []byte) error {
+	var js string
+	if err := json.Unmarshal(data, &js); err != nil {
+		return err
+	}
+	js = strings.ToLower(js)
+	switch js {
+	case "success":
+		*c = Success
+	case "protocolnotsupported":
+		*c = ProtocolNotSupported
+	case "consensusunreachable":
+		*c = ConsensusUnreachable
+	case "notfound":
+		*c = NotFound
+	case "timeout":
+		*c = Timeout
+	case "forbidden":
+		*c = Forbidden
+	case "responsetoolarge":
+		*c = ResponseTooLarge
+	case "insufficientfunds":
+		*c = InsufficientFunds
+	case "error":
+		*c = Error
+	default:
+		return errors.New("invalid oracle response code")
+	}
+	return nil
 }
 
 // DecodeBinary implements io.Serializable interface.
