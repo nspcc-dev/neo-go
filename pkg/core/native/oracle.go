@@ -61,6 +61,9 @@ const (
 
 	// DefaultOracleRequestPrice is default amount GAS needed for oracle request.
 	DefaultOracleRequestPrice = 5000_0000
+
+	// MinimumResponseGas is the minimum response fee permitted for request.
+	MinimumResponseGas = 10_000_000
 )
 
 var (
@@ -74,6 +77,7 @@ var (
 var (
 	ErrBigArgument      = errors.New("some of the arguments are invalid")
 	ErrInvalidWitness   = errors.New("witness check failed")
+	ErrLowResponseGas   = errors.New("not enough gas for response")
 	ErrNotEnoughGas     = errors.New("gas limit exceeded")
 	ErrRequestNotFound  = errors.New("oracle request not found")
 	ErrResponseNotFound = errors.New("oracle response not found")
@@ -323,8 +327,11 @@ func (o *Oracle) request(ic *interop.Context, args []stackitem.Item) stackitem.I
 
 // RequestInternal processes oracle request.
 func (o *Oracle) RequestInternal(ic *interop.Context, url string, filter *string, cb string, userData stackitem.Item, gas *big.Int) error {
-	if len(url) > maxURLLength || (filter != nil && len(*filter) > maxFilterLength) || len(cb) > maxCallbackLength || gas.Uint64() < 1000_0000 {
+	if len(url) > maxURLLength || (filter != nil && len(*filter) > maxFilterLength) || len(cb) > maxCallbackLength {
 		return ErrBigArgument
+	}
+	if gas.Uint64() < MinimumResponseGas {
+		return ErrLowResponseGas
 	}
 	if strings.HasPrefix(cb, "_") {
 		return errors.New("disallowed callback method (starts with '_')")
