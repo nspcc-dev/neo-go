@@ -102,7 +102,7 @@ func (o *Oracle) processRequest(priv *keys.PrivateKey, req request) error {
 	}
 	if err != nil {
 		resp.Code = transaction.Forbidden
-	} else if u.Scheme == "http" {
+	} else if u.Scheme == "https" {
 		r, err := o.Client.Get(req.Req.URL)
 		switch {
 		case err != nil:

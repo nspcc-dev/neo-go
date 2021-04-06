@@ -133,19 +133,19 @@ func TestOracle(t *testing.T) {
 	cs := getOracleContractState(bc.contracts.Oracle.Hash, bc.contracts.Std.Hash)
 	require.NoError(t, bc.contracts.Management.PutContractState(bc.dao, cs))
 
-	putOracleRequest(t, cs.Hash, bc, "http://get.1234", nil, "handle", []byte{}, 10_000_000)
-	putOracleRequest(t, cs.Hash, bc, "http://get.1234", nil, "handle", []byte{}, 10_000_000)
-	putOracleRequest(t, cs.Hash, bc, "http://get.timeout", nil, "handle", []byte{}, 10_000_000)
-	putOracleRequest(t, cs.Hash, bc, "http://get.notfound", nil, "handle", []byte{}, 10_000_000)
-	putOracleRequest(t, cs.Hash, bc, "http://get.forbidden", nil, "handle", []byte{}, 10_000_000)
-	putOracleRequest(t, cs.Hash, bc, "http://private.url", nil, "handle", []byte{}, 10_000_000)
-	putOracleRequest(t, cs.Hash, bc, "http://get.big", nil, "handle", []byte{}, 10_000_000)
-	putOracleRequest(t, cs.Hash, bc, "http://get.maxallowed", nil, "handle", []byte{}, 10_000_000)
-	putOracleRequest(t, cs.Hash, bc, "http://get.maxallowed", nil, "handle", []byte{}, 100_000_000)
+	putOracleRequest(t, cs.Hash, bc, "https://get.1234", nil, "handle", []byte{}, 10_000_000)
+	putOracleRequest(t, cs.Hash, bc, "https://get.1234", nil, "handle", []byte{}, 10_000_000)
+	putOracleRequest(t, cs.Hash, bc, "https://get.timeout", nil, "handle", []byte{}, 10_000_000)
+	putOracleRequest(t, cs.Hash, bc, "https://get.notfound", nil, "handle", []byte{}, 10_000_000)
+	putOracleRequest(t, cs.Hash, bc, "https://get.forbidden", nil, "handle", []byte{}, 10_000_000)
+	putOracleRequest(t, cs.Hash, bc, "https://private.url", nil, "handle", []byte{}, 10_000_000)
+	putOracleRequest(t, cs.Hash, bc, "https://get.big", nil, "handle", []byte{}, 10_000_000)
+	putOracleRequest(t, cs.Hash, bc, "https://get.maxallowed", nil, "handle", []byte{}, 10_000_000)
+	putOracleRequest(t, cs.Hash, bc, "https://get.maxallowed", nil, "handle", []byte{}, 100_000_000)
 
 	flt := "Values[1]"
-	putOracleRequest(t, cs.Hash, bc, "http://get.filter", &flt, "handle", []byte{}, 10_000_000)
-	putOracleRequest(t, cs.Hash, bc, "http://get.filterinv", &flt, "handle", []byte{}, 10_000_000)
+	putOracleRequest(t, cs.Hash, bc, "https://get.filter", &flt, "handle", []byte{}, 10_000_000)
+	putOracleRequest(t, cs.Hash, bc, "https://get.filterinv", &flt, "handle", []byte{}, 10_000_000)
 
 	checkResp := func(t *testing.T, id uint64, resp *transaction.OracleResponse) *state.OracleRequest {
 		req, err := oracleCtr.GetRequestInternal(bc.dao, id)
@@ -279,7 +279,7 @@ func TestOracleFull(t *testing.T) {
 	t.Cleanup(orc.Shutdown)
 
 	bc.setNodesByRole(t, true, noderoles.Oracle, keys.PublicKeys{acc.PrivateKey().PublicKey()})
-	putOracleRequest(t, cs.Hash, bc, "http://get.1234", new(string), "handle", []byte{}, 10_000_000)
+	putOracleRequest(t, cs.Hash, bc, "https://get.1234", new(string), "handle", []byte{}, 10_000_000)
 
 	require.Eventually(t, func() bool { return mp.Count() == 1 },
 		time.Second*3, time.Millisecond*200)
@@ -341,43 +341,43 @@ func (c *httpClient) Get(url string) (*http.Response, error) {
 func newDefaultHTTPClient() oracle.HTTPClient {
 	return &httpClient{
 		responses: map[string]testResponse{
-			"http://get.1234": {
+			"https://get.1234": {
 				code: http.StatusOK,
 				body: []byte{1, 2, 3, 4},
 			},
-			"http://get.4321": {
+			"https://get.4321": {
 				code: http.StatusOK,
 				body: []byte{4, 3, 2, 1},
 			},
-			"http://get.timeout": {
+			"https://get.timeout": {
 				code: http.StatusRequestTimeout,
 				body: []byte{},
 			},
-			"http://get.notfound": {
+			"https://get.notfound": {
 				code: http.StatusNotFound,
 				body: []byte{},
 			},
-			"http://get.forbidden": {
+			"https://get.forbidden": {
 				code: http.StatusForbidden,
 				body: []byte{},
 			},
-			"http://private.url": {
+			"https://private.url": {
 				code: http.StatusOK,
 				body: []byte("passwords"),
 			},
-			"http://get.big": {
+			"https://get.big": {
 				code: http.StatusOK,
 				body: make([]byte, transaction.MaxOracleResultSize+1),
 			},
-			"http://get.maxallowed": {
+			"https://get.maxallowed": {
 				code: http.StatusOK,
 				body: make([]byte, transaction.MaxOracleResultSize),
 			},
-			"http://get.filter": {
+			"https://get.filter": {
 				code: http.StatusOK,
 				body: []byte(`{"Values":["one", 2, 3],"Another":null}`),
 			},
-			"http://get.filterinv": {
+			"https://get.filterinv": {
 				code: http.StatusOK,
 				body: []byte{0xFF},
 			},
