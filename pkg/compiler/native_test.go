@@ -90,7 +90,7 @@ func TestCryptoLibNamedCurve(t *testing.T) {
 	require.EqualValues(t, native.Secp256r1, crypto.Secp256r1)
 }
 
-func TestOracleResponseCodes(t *testing.T) {
+func TestOracleContractValues(t *testing.T) {
 	require.EqualValues(t, oracle.Success, transaction.Success)
 	require.EqualValues(t, oracle.ProtocolNotSupported, transaction.ProtocolNotSupported)
 	require.EqualValues(t, oracle.ConsensusUnreachable, transaction.ConsensusUnreachable)
@@ -100,6 +100,8 @@ func TestOracleResponseCodes(t *testing.T) {
 	require.EqualValues(t, oracle.ResponseTooLarge, transaction.ResponseTooLarge)
 	require.EqualValues(t, oracle.InsufficientFunds, transaction.InsufficientFunds)
 	require.EqualValues(t, oracle.Error, transaction.Error)
+
+	require.EqualValues(t, oracle.MinimumResponseGas, native.MinimumResponseGas)
 }
 
 type nativeTestCase struct {

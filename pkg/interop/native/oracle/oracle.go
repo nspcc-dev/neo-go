@@ -28,6 +28,10 @@ const (
 // Hash represents Oracle contract hash.
 const Hash = "\x58\x87\x17\x11\x7e\x0a\xa8\x10\x72\xaf\xab\x71\xd2\xdd\x89\xfe\x7c\x4b\x92\xfe"
 
+// MinimumResponseGas is the minimum response fee permitted for request (that is
+// you can't attach less than that to your request). It's 0.1 GAS at the moment.
+const MinimumResponseGas = 10_000_000
+
 // Request makes an oracle request. It can only be successfully invoked by
 // deployed contract and it takes the following parameters:
 //
