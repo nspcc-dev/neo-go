@@ -47,7 +47,7 @@ var (
 )
 
 // Get returns neofs object from the provided url.
-// URI scheme is "neofs://<Container-ID>/<Object-ID/<Command>/<Params>".
+// URI scheme is "neofs:<Container-ID>/<Object-ID/<Command>/<Params>".
 // If Command is not provided, full object is requested.
 func Get(ctx context.Context, priv *keys.PrivateKey, u *url.URL, addr string) ([]byte, error) {
 	objectAddr, ps, err := parseNeoFSURL(u)
@@ -80,25 +80,25 @@ func parseNeoFSURL(u *url.URL) (*object.Address, []string, error) {
 		return nil, nil, ErrInvalidScheme
 	}
 
-	ps := strings.Split(strings.TrimPrefix(u.Path, "/"), "/")
-	if len(ps) == 0 || ps[0] == "" {
+	ps := strings.Split(u.Opaque, "/")
+	if len(ps) < 2 {
 		return nil, nil, ErrMissingObject
 	}
 
 	containerID := container.NewID()
-	if err := containerID.Parse(u.Hostname()); err != nil {
+	if err := containerID.Parse(ps[0]); err != nil {
 		return nil, nil, fmt.Errorf("%w: %v", ErrInvalidContainer, err)
 	}
 
 	objectID := object.NewID()
-	if err := objectID.Parse(ps[0]); err != nil {
+	if err := objectID.Parse(ps[1]); err != nil {
 		return nil, nil, fmt.Errorf("%w: %v", ErrInvalidObject, err)
 	}
 
 	objectAddr := object.NewAddress()
 	objectAddr.SetContainerID(containerID)
 	objectAddr.SetObjectID(objectID)
-	return objectAddr, ps[1:], nil
+	return objectAddr, ps[2:], nil
 }
 
 func getPayload(ctx context.Context, c *client.Client, addr *object.Address) ([]byte, error) {

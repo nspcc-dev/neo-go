@@ -18,6 +18,6 @@ type OracleConfiguration struct {
 
 // NeoFSConfiguration is a config for the NeoFS service.
 type NeoFSConfiguration struct {
-	Nodes   []string `yaml:"Nodes"`
-	Timeout int      `yaml:"Timeout"`
+	Nodes   []string      `yaml:"Nodes"`
+	Timeout time.Duration `yaml:"Timeout"`
 }
