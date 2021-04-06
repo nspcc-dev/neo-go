@@ -209,6 +209,15 @@ func TestInlineGlobalVariable(t *testing.T) {
 	})
 }
 
+func TestInlineVariadicInInlinedCall(t *testing.T) {
+	src := `package foo
+		import "github.com/nspcc-dev/neo-go/pkg/compiler/testdata/inline"
+		func Main() int {
+			return inline.SumSquared(inline.SumVar(3, 4) - 2, 3)
+		}`
+	eval(t, src, big.NewInt(64))
+}
+
 func TestInlineConversion(t *testing.T) {
 	src1 := `package foo
 	import "github.com/nspcc-dev/neo-go/pkg/compiler/testdata/inline"
@@ -254,4 +263,14 @@ func TestInlineConversionQualified(t *testing.T) {
 	b2, err := compiler.Compile("foo.go", strings.NewReader(src2))
 	require.NoError(t, err)
 	require.Equal(t, b2, b1)
+}
+
+func TestPackageVarsInInlinedCalls(t *testing.T) {
+	src := `package foo
+		import "github.com/nspcc-dev/neo-go/pkg/compiler/testdata/inline"
+		import "github.com/nspcc-dev/neo-go/pkg/compiler/testdata/inline/b"
+		func Main() int {
+			return inline.Sum(inline.A, b.A)
+		}`
+	eval(t, src, big.NewInt(13))
 }
