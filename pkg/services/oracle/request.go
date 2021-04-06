@@ -97,35 +97,40 @@ func (o *Oracle) processRequest(priv *keys.PrivateKey, req request) error {
 	}
 	resp := &transaction.OracleResponse{ID: req.ID}
 	u, err := url.ParseRequestURI(req.Req.URL)
-	if err == nil && !o.MainCfg.AllowPrivateHost {
-		err = o.URIValidator(u)
-	}
 	if err != nil {
 		resp.Code = transaction.Forbidden
 	} else if u.Scheme == "https" {
-		r, err := o.Client.Get(req.Req.URL)
-		switch {
-		case err != nil:
-			resp.Code = transaction.Error
-		case r.StatusCode == http.StatusOK:
-			result, err := readResponse(r.Body, transaction.MaxOracleResultSize)
+		if !o.MainCfg.AllowPrivateHost {
+			err = o.URIValidator(u)
 			if err != nil {
-				if errors.Is(err, ErrResponseTooLarge) {
-					resp.Code = transaction.ResponseTooLarge
-				} else {
-					resp.Code = transaction.Error
-				}
-				break
+				resp.Code = transaction.Forbidden
 			}
-			resp.Code, resp.Result = filterRequest(result, req.Req)
-		case r.StatusCode == http.StatusForbidden:
-			resp.Code = transaction.Forbidden
-		case r.StatusCode == http.StatusNotFound:
-			resp.Code = transaction.NotFound
-		case r.StatusCode == http.StatusRequestTimeout:
-			resp.Code = transaction.Timeout
-		default:
-			resp.Code = transaction.Error
+		}
+		if err == nil {
+			r, err := o.Client.Get(req.Req.URL)
+			switch {
+			case err != nil:
+				resp.Code = transaction.Error
+			case r.StatusCode == http.StatusOK:
+				result, err := readResponse(r.Body, transaction.MaxOracleResultSize)
+				if err != nil {
+					if errors.Is(err, ErrResponseTooLarge) {
+						resp.Code = transaction.ResponseTooLarge
+					} else {
+						resp.Code = transaction.Error
+					}
+					break
+				}
+				resp.Code, resp.Result = filterRequest(result, req.Req)
+			case r.StatusCode == http.StatusForbidden:
+				resp.Code = transaction.Forbidden
+			case r.StatusCode == http.StatusNotFound:
+				resp.Code = transaction.NotFound
+			case r.StatusCode == http.StatusRequestTimeout:
+				resp.Code = transaction.Timeout
+			default:
+				resp.Code = transaction.Error
+			}
 		}
 	} else if err == nil && u.Scheme == neofs.URIScheme {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(o.MainCfg.NeoFS.Timeout)*time.Millisecond)
