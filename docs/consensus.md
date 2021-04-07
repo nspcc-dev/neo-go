@@ -54,8 +54,8 @@ place corresponding config named `protocol.privnet.yml` there.
 
 2. Edit configuration file for every node.
 Examples can be found at `config/protocol.privnet.docker.one.yml` (`two`, `three` etc.).
-    1. Note that it differs a bit from C# NEO node json config: our `UnlockWallet` contains
-       an encrypted WIF instead of the path to the wallet. 
+    1. Add `UnlockWallet` section with `Path` and `Password` strings for NEP-6
+       wallet path and password for the account to be used for consensus node.
     2. Make sure that your `MinPeers` setting is equal to
        the number of nodes participating in consensus.
        This requirement is needed for nodes to correctly
