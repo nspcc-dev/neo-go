@@ -754,6 +754,13 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 			writeBuf.Reset()
 		}
 	}
+	// Every persist cycle we also compact our in-memory MPT. It's flushed
+	// already in AddMPTBatch, so collapsing it is safe.
+	persistedHeight := atomic.LoadUint32(&bc.persistedHeight)
+	if persistedHeight == block.Index-1 {
+		// 10 is good and roughly estimated to fit remaining trie into 1M of memory.
+		mpt.Collapse(10)
+	}
 
 	bc.lock.Lock()
 	_, err = cache.Persist()
