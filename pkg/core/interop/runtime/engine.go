@@ -82,10 +82,14 @@ func Log(ic *interop.Context) error {
 	if len(state) > MaxNotificationSize {
 		return fmt.Errorf("message length shouldn't exceed %v", MaxNotificationSize)
 	}
-	msg := fmt.Sprintf("%q", state)
+	var txHash string
+	if ic.Tx != nil {
+		txHash = ic.Tx.Hash().StringLE()
+	}
 	ic.Log.Info("runtime log",
-		zap.Stringer("script", ic.VM.GetCurrentScriptHash()),
-		zap.String("logs", msg))
+		zap.String("tx", txHash),
+		zap.String("script", ic.VM.GetCurrentScriptHash().StringLE()),
+		zap.String("msg", state))
 	return nil
 }
 

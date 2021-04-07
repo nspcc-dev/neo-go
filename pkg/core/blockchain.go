@@ -1092,9 +1092,9 @@ func (bc *Blockchain) persist() error {
 		if err != nil {
 			return err
 		}
-		bc.log.Info("blockchain persist completed",
-			zap.Uint32("persistedBlocks", diff),
-			zap.Int("persistedKeys", persisted),
+		bc.log.Info("persisted to disk",
+			zap.Uint32("blocks", diff),
+			zap.Int("keys", persisted),
 			zap.Uint32("headerHeight", storedHeaderHeight),
 			zap.Uint32("blockHeight", bHeight),
 			zap.Duration("took", time.Since(start)))
