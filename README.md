@@ -26,6 +26,7 @@ A complete toolkit for the NEO blockchain, including:
 - [NEO virtual machine](docs/vm.md)
 - [Smart contract examples](examples/README.md)
 - [Oracle service](docs/oracle.md)
+- [State validation service](docs/stateroots.md)
 
 This branch (**master**) is under active development now (read: won't work
 out of the box) and aims to be compatible with Neo 3. For the current stable
