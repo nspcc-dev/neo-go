@@ -113,6 +113,7 @@ func NewCommands() []cli.Command {
 		},
 		walletFlag,
 		addressFlag,
+		outFlag,
 		gasFlag,
 	}
 	deployFlags = append(deployFlags, options.RPC...)
@@ -865,9 +866,21 @@ func contractDeploy(ctx *cli.Context) error {
 		return cli.NewExitError(fmt.Errorf("failed to test-invoke deployment script: %w", err), 1)
 	}
 
-	txHash, err := c.SignAndPushInvocationTx(txScript, acc, invRes.GasConsumed, gas, nil)
-	if err != nil {
-		return cli.NewExitError(fmt.Errorf("failed to push invocation tx: %w", err), 1)
+	var txHash util.Uint256
+	if out := ctx.String("out"); out != "" {
+		tx, err := c.CreateTxFromScript(txScript, acc, invRes.GasConsumed, int64(gas), nil)
+		if err != nil {
+			return cli.NewExitError(fmt.Errorf("failed to create tx: %w", err), 1)
+		}
+		if err := paramcontext.InitAndSave(c.GetNetwork(), tx, acc, out); err != nil {
+			return cli.NewExitError(err, 1)
+		}
+		txHash = tx.Hash()
+	} else {
+		txHash, err = c.SignAndPushInvocationTx(txScript, acc, invRes.GasConsumed, gas, nil)
+		if err != nil {
+			return cli.NewExitError(fmt.Errorf("failed to push invocation tx: %w", err), 1)
+		}
 	}
 	hash := state.CreateContractHash(sender, nefFile.Checksum, m.Name)
 	fmt.Fprintf(ctx.App.Writer, "Contract: %s\n", hash.StringLE())
