@@ -125,10 +125,8 @@ func TestLog(t *testing.T) {
 		var logMsg map[string]interface{}
 		require.NoError(t, json.Unmarshal([]byte(ls[0]), &logMsg))
 		require.Equal(t, "info", logMsg["level"])
-		require.Equal(t, "runtime log", logMsg["msg"])
-		require.Equal(t, h.StringBE(), logMsg["script"])
-		require.Equal(t, `"hello"`, logMsg["logs"])
-
+		require.Equal(t, "hello", logMsg["msg"])
+		require.Equal(t, h.StringLE(), logMsg["script"])
 	})
 }
 
