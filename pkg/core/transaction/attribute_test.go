@@ -29,6 +29,18 @@ func TestAttribute_EncodeBinary(t *testing.T) {
 			},
 		}
 		testserdes.EncodeDecodeBinary(t, attr, new(Attribute))
+		for _, code := range []OracleResponseCode{ProtocolNotSupported, ConsensusUnreachable,
+			NotFound, Timeout, Forbidden, ResponseTooLarge, InsufficientFunds, Error} {
+			attr = &Attribute{
+				Type: OracleResponseT,
+				Value: &OracleResponse{
+					ID:     42,
+					Code:   code,
+					Result: []byte{},
+				},
+			}
+			testserdes.EncodeDecodeBinary(t, attr, new(Attribute))
+		}
 	})
 	t.Run("NotValidBefore", func(t *testing.T) {
 		t.Run("positive", func(t *testing.T) {
@@ -144,7 +156,7 @@ func TestAttribute_MarshalJSON(t *testing.T) {
 		require.JSONEq(t, `{
 			"type":"OracleResponse",
 			"id": 123,
-			"code": 0,
+			"code": "Success",
 			"result": "`+base64.StdEncoding.EncodeToString(res)+`"}`, string(data))
 
 		actual := new(Attribute)

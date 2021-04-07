@@ -39,3 +39,7 @@ chain/
 # Coverage
 coverage.txt
 coverage.html
+
+# Compiler output
+examples/*/*.nef
+examples/*/*.json

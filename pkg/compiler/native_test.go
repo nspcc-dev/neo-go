@@ -11,6 +11,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nnsrecords"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/noderoles"
+	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/interop/native/crypto"
 	"github.com/nspcc-dev/neo-go/pkg/interop/native/gas"
 	"github.com/nspcc-dev/neo-go/pkg/interop/native/ledger"
@@ -87,6 +88,20 @@ func TestNameServiceRecordType(t *testing.T) {
 func TestCryptoLibNamedCurve(t *testing.T) {
 	require.EqualValues(t, native.Secp256k1, crypto.Secp256k1)
 	require.EqualValues(t, native.Secp256r1, crypto.Secp256r1)
+}
+
+func TestOracleContractValues(t *testing.T) {
+	require.EqualValues(t, oracle.Success, transaction.Success)
+	require.EqualValues(t, oracle.ProtocolNotSupported, transaction.ProtocolNotSupported)
+	require.EqualValues(t, oracle.ConsensusUnreachable, transaction.ConsensusUnreachable)
+	require.EqualValues(t, oracle.NotFound, transaction.NotFound)
+	require.EqualValues(t, oracle.Timeout, transaction.Timeout)
+	require.EqualValues(t, oracle.Forbidden, transaction.Forbidden)
+	require.EqualValues(t, oracle.ResponseTooLarge, transaction.ResponseTooLarge)
+	require.EqualValues(t, oracle.InsufficientFunds, transaction.InsufficientFunds)
+	require.EqualValues(t, oracle.Error, transaction.Error)
+
+	require.EqualValues(t, oracle.MinimumResponseGas, native.MinimumResponseGas)
 }
 
 type nativeTestCase struct {
