@@ -49,7 +49,10 @@ func storageFind(ic *interop.Context) error {
 
 	filteredMap := stackitem.NewMap()
 	for k, v := range siMap {
-		filteredMap.Add(stackitem.NewByteArray(append(prefix, []byte(k)...)), stackitem.NewByteArray(v))
+		key := append(prefix, []byte(k)...)
+		keycopy := make([]byte, len(key))
+		copy(keycopy, key)
+		filteredMap.Add(stackitem.NewByteArray(keycopy), stackitem.NewByteArray(v))
 	}
 	sort.Slice(filteredMap.Value().([]stackitem.MapElement), func(i, j int) bool {
 		return bytes.Compare(filteredMap.Value().([]stackitem.MapElement)[i].Key.Value().([]byte),
