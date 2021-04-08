@@ -34,6 +34,7 @@ which would yield the response:
 
 | Method  |
 | ------- |
+| `calculatenetworkfee` |
 | `getapplicationlog` |
 | `getbestblockhash` |
 | `getblock` |
