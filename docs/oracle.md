@@ -46,7 +46,7 @@ Parameters:
   Oracle:
     Enabled: true
     AllowPrivateHost: false
-    MaxTaskTimeout: 432000000
+    MaxTaskTimeout: 432000000s
     Nodes:
       - http://oracle1.example.com:20332
       - http://oracle2.example.com:20332
