@@ -15,7 +15,7 @@ import (
 func TestInvoke_MarshalJSON(t *testing.T) {
 	tx := transaction.New([]byte{1, 2, 3, 4}, 0)
 	tx.Signers = []transaction.Signer{{Account: util.Uint160{1, 2, 3}}}
-	tx.Scripts = []transaction.Witness{transaction.Witness{InvocationScript: []byte{}, VerificationScript: []byte{}}}
+	tx.Scripts = []transaction.Witness{{InvocationScript: []byte{}, VerificationScript: []byte{}}}
 	_ = tx.Size()
 	tx.Hash()
 
