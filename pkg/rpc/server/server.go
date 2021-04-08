@@ -915,6 +915,9 @@ func (s *Server) getProof(ps request.Params) (interface{}, *response.Error) {
 	}
 	skey := makeStorageKey(cs.ID, key)
 	proof, err := s.chain.GetStateModule().GetStateProof(root, skey)
+	if err != nil {
+		return nil, response.NewInternalServerError("failed to get proof", err)
+	}
 	return &result.ProofWithKey{
 		Key:   skey,
 		Proof: proof,
