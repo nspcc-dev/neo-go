@@ -1419,15 +1419,15 @@ func (s *Server) submitOracleResponse(ps request.Params) (interface{}, *response
 
 func (s *Server) sendrawtransaction(reqParams request.Params) (interface{}, *response.Error) {
 	if len(reqParams) < 1 {
-		return nil, response.ErrInvalidParams
+		return nil, response.NewInvalidParamsError("not enough parameters", nil)
 	}
 	byteTx, err := reqParams[0].GetBytesBase64()
 	if err != nil {
-		return nil, response.ErrInvalidParams
+		return nil, response.NewInvalidParamsError("not base64", err)
 	}
 	tx, err := transaction.NewTransactionFromBytes(byteTx)
 	if err != nil {
-		return nil, response.ErrInvalidParams
+		return nil, response.NewInvalidParamsError("can't decode transaction", err)
 	}
 	return getRelayResult(s.coreServer.RelayTxn(tx), tx.Hash())
 }
