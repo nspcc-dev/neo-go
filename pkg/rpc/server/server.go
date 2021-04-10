@@ -1325,13 +1325,13 @@ func (s *Server) runScriptInVM(t trigger.Type, script []byte, contractScriptHash
 func (s *Server) submitBlock(reqParams request.Params) (interface{}, *response.Error) {
 	blockBytes, err := reqParams.ValueWithType(0, request.StringT).GetBytesBase64()
 	if err != nil {
-		return nil, response.ErrInvalidParams
+		return nil, response.NewInvalidParamsError("missing parameter or not base64", err)
 	}
 	b := block.New(s.stateRootEnabled)
 	r := io.NewBinReaderFromBuf(blockBytes)
 	b.DecodeBinary(r)
 	if r.Err != nil {
-		return nil, response.ErrInvalidParams
+		return nil, response.NewInvalidParamsError("can't decode block", r.Err)
 	}
 	err = s.chain.AddBlock(b)
 	if err != nil {
@@ -1354,15 +1354,15 @@ func (s *Server) submitNotaryRequest(ps request.Params) (interface{}, *response.
 	}
 
 	if len(ps) < 1 {
-		return nil, response.ErrInvalidParams
+		return nil, response.NewInvalidParamsError("not enough parameters", nil)
 	}
 	bytePayload, err := ps[0].GetBytesBase64()
 	if err != nil {
-		return nil, response.ErrInvalidParams
+		return nil, response.NewInvalidParamsError("not base64", err)
 	}
 	r, err := payload.NewP2PNotaryRequestFromBytes(bytePayload)
 	if err != nil {
-		return nil, response.ErrInvalidParams
+		return nil, response.NewInvalidParamsError("can't decode notary payload", err)
 	}
 	return getRelayResult(s.coreServer.RelayP2PNotaryRequest(r), r.FallbackTransaction.Hash())
 }
