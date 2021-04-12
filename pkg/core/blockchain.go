@@ -912,6 +912,9 @@ func (bc *Blockchain) handleNotification(note *state.NotificationEvent, d *dao.C
 		if !ok {
 			return
 		}
+		if len(bs) > bigint.MaxBytesLen {
+			return // Not a proper number.
+		}
 		amount = bigint.FromBytes(bs)
 	}
 	bc.processNEP17Transfer(d, h, b, note.ScriptHash, from, to, amount)
