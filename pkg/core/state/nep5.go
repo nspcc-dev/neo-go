@@ -188,6 +188,9 @@ func NEP5TransferFromNotification(ne NotificationEvent, txHash util.Uint256, hei
 		if !ok {
 			return nil, errors.New("wrong amount type")
 		}
+		if len(bs) > amountSize {
+			return nil, errors.New("integer overflow")
+		}
 		amount = emit.BytesToInt(bs)
 	}
 	toAddr := parseUint160(to)

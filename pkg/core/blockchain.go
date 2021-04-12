@@ -945,15 +945,14 @@ func (bc *Blockchain) processNEP5Transfer(cache *dao.Cached, transfer *state.NEP
 			return
 		}
 		bs := balances.Trackers[transfer.Asset]
-		if bs.Balance == nil {
-			return
-		}
-		bs.Balance.Sub(bs.Balance, transfer.Amount)
-		if bs.Balance.Sign() > 0 {
-			bs.LastUpdatedBlock = transfer.Block
-			balances.Trackers[transfer.Asset] = bs
-		} else {
-			delete(balances.Trackers, transfer.Asset)
+		if bs.Balance != nil {
+			bs.Balance.Sub(bs.Balance, transfer.Amount)
+			if bs.Balance.Sign() > 0 {
+				bs.LastUpdatedBlock = transfer.Block
+				balances.Trackers[transfer.Asset] = bs
+			} else {
+				delete(balances.Trackers, transfer.Asset)
+			}
 		}
 
 		transfer.Amount.Neg(transfer.Amount)
