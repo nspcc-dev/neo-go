@@ -267,6 +267,11 @@ func TestImportDeployed(t *testing.T) {
 	priv, err := keys.NewPrivateKey()
 	require.NoError(t, err)
 
+	// missing contract sh
+	e.RunWithError(t, "neo-go", "wallet", "import-deployed",
+		"--rpc-endpoint", "http://"+e.RPC.Addr,
+		"--wallet", walletPath, "--wif", priv.WIF())
+
 	e.In.WriteString("acc\rpass\rpass\r")
 	e.Run(t, "neo-go", "wallet", "import-deployed",
 		"--rpc-endpoint", "http://"+e.RPC.Addr,
