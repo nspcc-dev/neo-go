@@ -9,7 +9,10 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/internal/testserdes"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -516,4 +519,86 @@ func TestEncodeDecodeBinary(t *testing.T) {
 func hexToBase64(s string) string {
 	b, _ := hex.DecodeString(s)
 	return base64.StdEncoding.EncodeToString(b)
+}
+
+func TestExpandParameterToEmitable(t *testing.T) {
+	pk, _ := keys.NewPrivateKey()
+	testCases := []struct {
+		In       Parameter
+		Expected interface{}
+	}{
+		{
+			In:       Parameter{Type: BoolType, Value: true},
+			Expected: true,
+		},
+		{
+			In:       Parameter{Type: IntegerType, Value: int64(123)},
+			Expected: int64(123),
+		},
+		{
+			In:       Parameter{Type: ByteArrayType, Value: []byte{1, 2, 3}},
+			Expected: []byte{1, 2, 3},
+		},
+		{
+			In:       Parameter{Type: StringType, Value: "writing's on the wall"},
+			Expected: "writing's on the wall",
+		},
+		{
+			In:       Parameter{Type: Hash160Type, Value: util.Uint160{1, 2, 3}},
+			Expected: util.Uint160{1, 2, 3},
+		},
+		{
+			In:       Parameter{Type: Hash256Type, Value: util.Uint256{1, 2, 3}},
+			Expected: util.Uint256{1, 2, 3},
+		},
+		{
+			In:       Parameter{Type: PublicKeyType, Value: pk.PublicKey()},
+			Expected: pk.PublicKey().Bytes(),
+		},
+		{
+			In:       Parameter{Type: SignatureType, Value: []byte{1, 2, 3}},
+			Expected: []byte{1, 2, 3},
+		},
+		{
+			In: Parameter{Type: ArrayType, Value: []Parameter{
+				{
+					Type:  IntegerType,
+					Value: int64(123),
+				},
+				{
+					Type:  ByteArrayType,
+					Value: []byte{1, 2, 3},
+				},
+				{
+					Type: ArrayType,
+					Value: []Parameter{
+						{
+							Type:  BoolType,
+							Value: true,
+						},
+					},
+				},
+			}},
+			Expected: []interface{}{int64(123), []byte{1, 2, 3}, []interface{}{true}},
+		},
+	}
+	bw := io.NewBufBinWriter()
+	for _, testCase := range testCases {
+		actual, err := ExpandParameterToEmitable(testCase.In)
+		require.NoError(t, err)
+		require.Equal(t, testCase.Expected, actual)
+
+		emit.Array(bw.BinWriter, actual)
+		require.NoError(t, bw.Err)
+	}
+	errCases := []Parameter{
+		{Type: AnyType},
+		{Type: UnknownType},
+		{Type: MapType},
+		{Type: InteropInterfaceType},
+	}
+	for _, errCase := range errCases {
+		_, err := ExpandParameterToEmitable(errCase)
+		require.Error(t, err)
+	}
 }
