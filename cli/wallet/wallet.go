@@ -74,7 +74,7 @@ func NewCommands() []cli.Command {
 		walletPathFlag,
 		outFlag,
 		inFlag,
-		cli.StringFlag{
+		flags.AddressFlag{
 			Name:  "address, a",
 			Usage: "Address to use",
 		},
