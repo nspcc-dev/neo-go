@@ -87,6 +87,9 @@ func handleCandidate(ctx *cli.Context, method string, sysGas int64) error {
 	defer wall.Close()
 
 	addrFlag := ctx.Generic("address").(*flags.Address)
+	if !addrFlag.IsSet {
+		return cli.NewExitError("address was not provided", 1)
+	}
 	addr := addrFlag.Uint160()
 	acc, err := getDecryptedAccount(ctx, wall, addr)
 	if err != nil {
@@ -139,6 +142,9 @@ func handleVote(ctx *cli.Context) error {
 	defer wall.Close()
 
 	addrFlag := ctx.Generic("address").(*flags.Address)
+	if !addrFlag.IsSet {
+		return cli.NewExitError("address was not provided", 1)
+	}
 	addr := addrFlag.Uint160()
 	acc, err := getDecryptedAccount(ctx, wall, addr)
 	if err != nil {

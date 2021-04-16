@@ -23,6 +23,11 @@ func TestRegisterCandidate(t *testing.T) {
 		"GAS:"+validatorPriv.Address()+":10000")
 	e.checkTxPersisted(t)
 
+	// missing address
+	e.RunWithError(t, "neo-go", "wallet", "candidate", "register",
+		"--rpc-endpoint", "http://"+e.RPC.Addr,
+		"--wallet", validatorWallet)
+
 	e.In.WriteString("one\r")
 	e.Run(t, "neo-go", "wallet", "candidate", "register",
 		"--rpc-endpoint", "http://"+e.RPC.Addr,
@@ -51,6 +56,11 @@ func TestRegisterCandidate(t *testing.T) {
 		b, _ := e.Chain.GetGoverningTokenBalance(validatorPriv.GetScriptHash())
 		require.Equal(t, b, vs[0].Votes)
 	})
+
+	// missing address
+	e.RunWithError(t, "neo-go", "wallet", "candidate", "unregister",
+		"--rpc-endpoint", "http://"+e.RPC.Addr,
+		"--wallet", validatorWallet)
 
 	e.In.WriteString("one\r")
 	e.Run(t, "neo-go", "wallet", "candidate", "unregister",
