@@ -539,7 +539,7 @@ func invokeInternal(ctx *cli.Context, signAndPush bool) error {
 	paramsStart++
 
 	if len(args) > paramsStart {
-		cosignersOffset, params, err = parseParams(args[paramsStart:], true)
+		cosignersOffset, params, err = ParseParams(args[paramsStart:], true)
 		if err != nil {
 			return cli.NewExitError(err, 1)
 		}
@@ -624,12 +624,12 @@ func invokeInternal(ctx *cli.Context, signAndPush bool) error {
 	return nil
 }
 
-// parseParams extracts array of smartcontract.Parameter from the given args and
+// ParseParams extracts array of smartcontract.Parameter from the given args and
 // returns the number of handled words, the array itself and an error.
 // `calledFromMain` denotes whether the method was called from the outside or
 // recursively and used to check if cosignersSeparator and closing bracket are
 // allowed to be in `args` sequence.
-func parseParams(args []string, calledFromMain bool) (int, []smartcontract.Parameter, error) {
+func ParseParams(args []string, calledFromMain bool) (int, []smartcontract.Parameter, error) {
 	res := []smartcontract.Parameter{}
 	for k := 0; k < len(args); {
 		s := args[k]
@@ -640,7 +640,7 @@ func parseParams(args []string, calledFromMain bool) (int, []smartcontract.Param
 			}
 			return 0, []smartcontract.Parameter{}, errors.New("invalid array syntax: missing closing bracket")
 		case arrayStartSeparator:
-			numWordsRead, array, err := parseParams(args[k+1:], false)
+			numWordsRead, array, err := ParseParams(args[k+1:], false)
 			if err != nil {
 				return 0, nil, fmt.Errorf("failed to parse array: %w", err)
 			}
@@ -886,6 +886,26 @@ func contractDeploy(ctx *cli.Context) error {
 	fmt.Fprintf(ctx.App.Writer, "Contract: %s\n", hash.StringLE())
 	fmt.Fprintln(ctx.App.Writer, txHash.StringLE())
 	return nil
+}
+
+// GetDataFromContext returns data parameter from context args.
+func GetDataFromContext(ctx *cli.Context) (interface{}, *cli.ExitError) {
+	var data interface{}
+	args := ctx.Args()
+	if args.Present() {
+		_, params, err := ParseParams(args, true)
+		if err != nil {
+			return nil, cli.NewExitError(fmt.Errorf("unable to parse 'data' parameter: %w", err), 1)
+		}
+		if len(params) != 1 {
+			return nil, cli.NewExitError("'data' should be represented as a single parameter", 1)
+		}
+		data, err = smartcontract.ExpandParameterToEmitable(params[0])
+		if err != nil {
+			return nil, cli.NewExitError(fmt.Sprintf("failed to convert 'data' to emitable type: %s", err.Error()), 1)
+		}
+	}
+	return data, nil
 }
 
 // ParseContractConfig reads contract configuration file (.yaml) and returns unmarshalled ProjectConfig.

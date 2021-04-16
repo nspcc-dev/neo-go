@@ -9,6 +9,7 @@ import (
 	"github.com/nspcc-dev/neo-go/cli/flags"
 	"github.com/nspcc-dev/neo-go/cli/options"
 	"github.com/nspcc-dev/neo-go/cli/paramcontext"
+	smartcontractcli "github.com/nspcc-dev/neo-go/cli/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/fixedn"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/client"
@@ -111,9 +112,12 @@ func newNEP17Commands() []cli.Command {
 		{
 			Name:      "transfer",
 			Usage:     "transfer NEP17 tokens",
-			UsageText: "transfer --wallet <path> --rpc-endpoint <node> --timeout <time> --from <addr> --to <addr> --token <hash> --amount string",
+			UsageText: "transfer --wallet <path> --rpc-endpoint <node> --timeout <time> --from <addr> --to <addr> --token <hash> --amount string [data]",
 			Action:    transferNEP17,
 			Flags:     transferFlags,
+			Description: `Transfers specified NEP17 token amount with optional 'data' parameter attached to the transfer.
+   See 'contract testinvokefunction' documentation for the details about 'data'
+   parameter. If no 'data' is given then default nil value will be used`,
 		},
 		{
 			Name:  "multitransfer",
@@ -459,11 +463,16 @@ func transferNEP17(ctx *cli.Context) error {
 		return cli.NewExitError(fmt.Errorf("invalid amount: %w", err), 1)
 	}
 
+	data, extErr := smartcontractcli.GetDataFromContext(ctx)
+	if extErr != nil {
+		return extErr
+	}
+
 	return signAndSendTransfer(ctx, c, acc, []client.TransferTarget{{
 		Token:   token.Hash,
 		Address: to,
 		Amount:  amount.Int64(),
-		Data:    nil,
+		Data:    data,
 	}})
 }
 

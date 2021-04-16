@@ -161,6 +161,22 @@ func TestNEP17Transfer(t *testing.T) {
 		b, _ = e.Chain.GetGoverningTokenBalance(sh)
 		require.Equal(t, big.NewInt(41), b)
 	})
+
+	t.Run("with data", func(t *testing.T) {
+		e.In.WriteString("one\r")
+		validTil := e.Chain.BlockHeight() + 100
+		e.Run(t, []string{
+			"neo-go", "wallet", "nep17", "transfer",
+			"--rpc-endpoint", "http://" + e.RPC.Addr,
+			"--wallet", validatorWallet,
+			"--to", address.Uint160ToString(e.Chain.GetNotaryContractScriptHash()),
+			"--token", "GAS",
+			"--amount", "1",
+			"--from", validatorAddr,
+			"[", validatorAddr, strconv.Itoa(int(validTil)), "]",
+		}...)
+		e.checkTxPersisted(t)
+	})
 }
 
 func TestNEP17MultiTransfer(t *testing.T) {
