@@ -169,8 +169,9 @@ func NewCommands() []cli.Command {
 				},
 			},
 			{
-				Name:  "deploy",
-				Usage: "deploy a smart contract (.nef with description)",
+				Name:      "deploy",
+				Usage:     "deploy a smart contract (.nef with description)",
+				UsageText: "neo-go contract deploy -r endpoint -w wallet [-a address] [-g gas] --in contract.nef --manifest contract.manifest.json [--out file]",
 				Description: `Deploys given contract into the chain. The gas parameter is for additional
    gas to be added as a network fee to prioritize the transaction.
 `,
