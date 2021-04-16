@@ -348,7 +348,7 @@ func NewCommands() []cli.Command {
 				Usage:  "calculates hash of a contract after deployment",
 				Action: calcHash,
 				Flags: []cli.Flag{
-					cli.StringFlag{
+					flags.AddressFlag{
 						Name:  "sender, s",
 						Usage: "sender script hash or address",
 					},
@@ -466,10 +466,9 @@ func contractCompile(ctx *cli.Context) error {
 }
 
 func calcHash(ctx *cli.Context) error {
-	s := ctx.String("sender")
-	u, err := flags.ParseAddress(s)
-	if err != nil {
-		return cli.NewExitError(errors.New("invalid sender: must be either address or Uint160 in LE form"), 1)
+	sender := ctx.Generic("sender").(*flags.Address)
+	if !sender.IsSet {
+		return cli.NewExitError("sender is not set", 1)
 	}
 
 	p := ctx.String("in")
@@ -497,7 +496,7 @@ func calcHash(ctx *cli.Context) error {
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("failed to restore manifest file: %w", err), 1)
 	}
-	fmt.Fprintln(ctx.App.Writer, "Contract hash:", state.CreateContractHash(u, nefFile.Checksum, m.Name).StringLE())
+	fmt.Fprintln(ctx.App.Writer, "Contract hash:", state.CreateContractHash(sender.Uint160(), nefFile.Checksum, m.Name).StringLE())
 	return nil
 }
 

@@ -211,6 +211,11 @@ func TestComlileAndInvokeFunction(t *testing.T) {
 	e.checkTxPersisted(t)
 
 	t.Run("check calc hash", func(t *testing.T) {
+		// missing sender
+		e.RunWithError(t, "neo-go", "contract", "calc-hash",
+			"--in", nefName,
+			"--manifest", manifestName)
+
 		e.Run(t, "neo-go", "contract", "calc-hash",
 			"--sender", validatorAddr, "--in", nefName,
 			"--manifest", manifestName)
