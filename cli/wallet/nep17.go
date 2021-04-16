@@ -32,7 +32,7 @@ func newNEP17Commands() []cli.Command {
 	balanceFlags := []cli.Flag{
 		walletPathFlag,
 		tokenFlag,
-		cli.StringFlag{
+		flags.AddressFlag{
 			Name:  "address, a",
 			Usage: "Address to use",
 		},
@@ -40,9 +40,9 @@ func newNEP17Commands() []cli.Command {
 	balanceFlags = append(balanceFlags, options.RPC...)
 	importFlags := []cli.Flag{
 		walletPathFlag,
-		cli.StringFlag{
+		flags.AddressFlag{
 			Name:  "token",
-			Usage: "Token contract hash in LE",
+			Usage: "Token contract address or hash in LE",
 		},
 	}
 	importFlags = append(importFlags, options.RPC...)
@@ -135,15 +135,12 @@ func getNEP17Balance(ctx *cli.Context) error {
 	}
 	defer wall.Close()
 
-	addr := ctx.String("address")
-	if addr != "" {
-		addrHash, err := address.StringToUint160(addr)
-		if err != nil {
-			return cli.NewExitError(fmt.Errorf("invalid address: %w", err), 1)
-		}
+	addrFlag := ctx.Generic("address").(*flags.Address)
+	if addrFlag.IsSet {
+		addrHash := addrFlag.Uint160()
 		acc := wall.GetAccount(addrHash)
 		if acc == nil {
-			return cli.NewExitError(fmt.Errorf("can't find account for the address: %s", addr), 1)
+			return cli.NewExitError(fmt.Errorf("can't find account for the address: %s", address.Uint160ToString(addrHash)), 1)
 		}
 		accounts = append(accounts, acc)
 	} else {
@@ -260,10 +257,11 @@ func importNEP17Token(ctx *cli.Context) error {
 	}
 	defer wall.Close()
 
-	tokenHash, err := flags.ParseAddress(ctx.String("token"))
-	if err != nil {
-		return cli.NewExitError(fmt.Errorf("invalid token contract hash: %w", err), 1)
+	tokenHashFlag := ctx.Generic("token").(*flags.Address)
+	if !tokenHashFlag.IsSet {
+		return cli.NewExitError("token contract hash was not set", 1)
 	}
+	tokenHash := tokenHashFlag.Uint160()
 
 	for _, t := range wall.Extra.Tokens {
 		if t.Hash.Equals(tokenHash) {

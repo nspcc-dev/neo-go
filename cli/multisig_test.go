@@ -91,6 +91,12 @@ func TestSignMultisigTx(t *testing.T) {
 		})
 	}
 
+	// missing address
+	e.RunWithError(t, "neo-go", "wallet", "sign",
+		"--rpc-endpoint", "http://"+e.RPC.Addr,
+		"--wallet", wallet2Path,
+		"--in", txPath, "--out", txPath)
+
 	e.In.WriteString("pass\r")
 	e.Run(t, "neo-go", "wallet", "sign",
 		"--rpc-endpoint", "http://"+e.RPC.Addr,
@@ -127,7 +133,7 @@ func TestSignMultisigTx(t *testing.T) {
 		e.In.WriteString("pass\r")
 		e.Run(t, "neo-go", "contract", "invokefunction",
 			"--rpc-endpoint", "http://"+e.RPC.Addr,
-			"--wallet", wallet1Path, "--address", multisigAddr,
+			"--wallet", wallet1Path, "--address", multisigHash.StringLE(), // test with scripthash instead of address
 			"--out", txPath,
 			e.Chain.GoverningTokenHash().StringLE(), "transfer",
 			"bytes:"+multisigHash.StringBE(),

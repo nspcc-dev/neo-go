@@ -3,6 +3,7 @@ package wallet
 import (
 	"fmt"
 
+	"github.com/nspcc-dev/neo-go/cli/flags"
 	"github.com/nspcc-dev/neo-go/cli/options"
 	"github.com/nspcc-dev/neo-go/cli/paramcontext"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
@@ -21,12 +22,11 @@ func signStoredTransaction(ctx *cli.Context) error {
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
-	addr := ctx.String("address")
-	sh, err := address.StringToUint160(addr)
-	if err != nil {
-		return cli.NewExitError(fmt.Errorf("invalid address: %w", err), 1)
+	addrFlag := ctx.Generic("address").(*flags.Address)
+	if !addrFlag.IsSet {
+		return cli.NewExitError("address was not provided", 1)
 	}
-	acc, err := getDecryptedAccount(ctx, wall, sh)
+	acc, err := getDecryptedAccount(ctx, wall, addrFlag.Uint160())
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}

@@ -74,7 +74,7 @@ func NewCommands() []cli.Command {
 		walletPathFlag,
 		outFlag,
 		inFlag,
-		cli.StringFlag{
+		flags.AddressFlag{
 			Name:  "address, a",
 			Usage: "Address to use",
 		},
@@ -137,7 +137,7 @@ func NewCommands() []cli.Command {
 				Action: dumpKeys,
 				Flags: []cli.Flag{
 					walletPathFlag,
-					cli.StringFlag{
+					flags.AddressFlag{
 						Name:  "address, a",
 						Usage: "address to print public keys for",
 					},
@@ -197,9 +197,9 @@ func NewCommands() []cli.Command {
 				Flags: append([]cli.Flag{
 					walletPathFlag,
 					wifFlag,
-					cli.StringFlag{
+					flags.AddressFlag{
 						Name:  "contract, c",
-						Usage: "Contract hash",
+						Usage: "Contract hash or address",
 					},
 				}, options.RPC...),
 			},
@@ -421,10 +421,9 @@ func importDeployed(ctx *cli.Context) error {
 
 	defer wall.Close()
 
-	rawHash := ctx.String("contract")
-	h, err := flags.ParseAddress(rawHash)
-	if err != nil {
-		return cli.NewExitError(fmt.Errorf("invalid contract hash: %w", err), 1)
+	rawHash := ctx.Generic("contract").(*flags.Address)
+	if !rawHash.IsSet {
+		return cli.NewExitError("contract hash was not provided", 1)
 	}
 
 	acc, err := newAccountFromWIF(ctx.App.Writer, ctx.String("wif"))
@@ -440,7 +439,7 @@ func importDeployed(ctx *cli.Context) error {
 		return cli.NewExitError(err, 1)
 	}
 
-	cs, err := c.GetContractStateByHash(h)
+	cs, err := c.GetContractStateByHash(rawHash.Uint160())
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("can't fetch contract info: %w", err), 1)
 	}
@@ -568,13 +567,10 @@ func dumpKeys(ctx *cli.Context) error {
 		return cli.NewExitError(err, 1)
 	}
 	accounts := wall.Accounts
-	addr := ctx.String("address")
-	if addr != "" {
-		u, err := flags.ParseAddress(addr)
-		if err != nil {
-			return cli.NewExitError(fmt.Errorf("invalid address: %w", err), 1)
-		}
-		acc := wall.GetAccount(u)
+
+	addrFlag := ctx.Generic("address").(*flags.Address)
+	if addrFlag.IsSet {
+		acc := wall.GetAccount(addrFlag.Uint160())
 		if acc == nil {
 			return cli.NewExitError("account is missing", 1)
 		}
@@ -605,8 +601,8 @@ func dumpKeys(ctx *cli.Context) error {
 			hasPrinted = true
 			continue
 		}
-		if addr != "" {
-			return cli.NewExitError(fmt.Errorf("Unknown script type for address %s", addr), 1)
+		if addrFlag.IsSet {
+			return cli.NewExitError(fmt.Errorf("unknown script type for address %s", address.Uint160ToString(addrFlag.Uint160())), 1)
 		}
 	}
 	return nil
