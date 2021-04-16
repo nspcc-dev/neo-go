@@ -411,6 +411,7 @@ func multiTransferNEP17(ctx *cli.Context) error {
 			Token:   token.Hash,
 			Address: addr,
 			Amount:  amount.Int64(),
+			Data:    nil,
 		})
 	}
 
@@ -462,13 +463,14 @@ func transferNEP17(ctx *cli.Context) error {
 		Token:   token.Hash,
 		Address: to,
 		Amount:  amount.Int64(),
+		Data:    nil,
 	}})
 }
 
 func signAndSendTransfer(ctx *cli.Context, c *client.Client, acc *wallet.Account, recipients []client.TransferTarget) error {
 	gas := flags.Fixed8FromContext(ctx, "gas")
 
-	tx, err := c.CreateNEP17MultiTransferTx(acc, int64(gas), recipients, nil)
+	tx, err := c.CreateNEP17MultiTransferTx(acc, int64(gas), recipients)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}

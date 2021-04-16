@@ -13,11 +13,12 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 )
 
-// TransferTarget represents target address and token amount for transfer.
+// TransferTarget represents target address, token amount and data for transfer.
 type TransferTarget struct {
 	Token   util.Uint160
 	Address util.Uint160
 	Amount  int64
+	Data    interface{}
 }
 
 // SignerAccount represents combination of the transaction.Signer and the
@@ -73,28 +74,22 @@ func (c *Client) CreateNEP17TransferTx(acc *wallet.Account, to util.Uint160, tok
 		{Token: token,
 			Address: to,
 			Amount:  amount,
+			Data:    data,
 		},
-	}, []interface{}{data})
+	})
 }
 
 // CreateNEP17MultiTransferTx creates an invocation transaction for performing NEP17 transfers
 // from a single sender to multiple recipients with the given data.
-func (c *Client) CreateNEP17MultiTransferTx(acc *wallet.Account, gas int64, recipients []TransferTarget, data []interface{}) (*transaction.Transaction, error) {
+func (c *Client) CreateNEP17MultiTransferTx(acc *wallet.Account, gas int64, recipients []TransferTarget) (*transaction.Transaction, error) {
 	from, err := address.StringToUint160(acc.Address)
 	if err != nil {
 		return nil, fmt.Errorf("bad account address: %w", err)
 	}
-	if data == nil {
-		data = make([]interface{}, len(recipients))
-	} else {
-		if len(data) != len(recipients) {
-			return nil, fmt.Errorf("data and recipients number mismatch: %d vs %d", len(data), len(recipients))
-		}
-	}
 	w := io.NewBufBinWriter()
 	for i := range recipients {
 		emit.AppCall(w.BinWriter, recipients[i].Token, "transfer", callflag.All,
-			from, recipients[i].Address, recipients[i].Amount, data[i])
+			from, recipients[i].Address, recipients[i].Amount, recipients[i].Data)
 		emit.Opcodes(w.BinWriter, opcode.ASSERT)
 	}
 	if w.Err != nil {
@@ -167,12 +162,12 @@ func (c *Client) TransferNEP17(acc *wallet.Account, to util.Uint160, token util.
 }
 
 // MultiTransferNEP17 is similar to TransferNEP17, buf allows to have multiple recipients.
-func (c *Client) MultiTransferNEP17(acc *wallet.Account, gas int64, recipients []TransferTarget, data []interface{}) (util.Uint256, error) {
+func (c *Client) MultiTransferNEP17(acc *wallet.Account, gas int64, recipients []TransferTarget) (util.Uint256, error) {
 	if !c.initDone {
 		return util.Uint256{}, errNetworkNotInitialized
 	}
 
-	tx, err := c.CreateNEP17MultiTransferTx(acc, gas, recipients, data)
+	tx, err := c.CreateNEP17MultiTransferTx(acc, gas, recipients)
 	if err != nil {
 		return util.Uint256{}, err
 	}
