@@ -98,9 +98,6 @@ func TestNEP17Balance(t *testing.T) {
 	t.Run("Bad wallet", func(t *testing.T) {
 		e.RunWithError(t, append(cmdbalance, "--wallet", "/dev/null")...)
 	})
-	t.Run("Bad address", func(t *testing.T) {
-		e.RunWithError(t, append(cmdbalance, "--rpc-endpoint", "http://"+e.RPC.Addr, "--wallet", validatorWallet, "--address", "xxx")...)
-	})
 	return
 }
 

@@ -32,7 +32,7 @@ func newNEP17Commands() []cli.Command {
 	balanceFlags := []cli.Flag{
 		walletPathFlag,
 		tokenFlag,
-		cli.StringFlag{
+		flags.AddressFlag{
 			Name:  "address, a",
 			Usage: "Address to use",
 		},
@@ -135,15 +135,12 @@ func getNEP17Balance(ctx *cli.Context) error {
 	}
 	defer wall.Close()
 
-	addr := ctx.String("address")
-	if addr != "" {
-		addrHash, err := address.StringToUint160(addr)
-		if err != nil {
-			return cli.NewExitError(fmt.Errorf("invalid address: %w", err), 1)
-		}
+	addrFlag := ctx.Generic("address").(*flags.Address)
+	if addrFlag.IsSet {
+		addrHash := addrFlag.Uint160()
 		acc := wall.GetAccount(addrHash)
 		if acc == nil {
-			return cli.NewExitError(fmt.Errorf("can't find account for the address: %s", addr), 1)
+			return cli.NewExitError(fmt.Errorf("can't find account for the address: %s", address.Uint160ToString(addrHash)), 1)
 		}
 		accounts = append(accounts, acc)
 	} else {
