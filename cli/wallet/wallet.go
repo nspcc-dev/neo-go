@@ -137,7 +137,7 @@ func NewCommands() []cli.Command {
 				Action: dumpKeys,
 				Flags: []cli.Flag{
 					walletPathFlag,
-					cli.StringFlag{
+					flags.AddressFlag{
 						Name:  "address, a",
 						Usage: "address to print public keys for",
 					},
@@ -568,13 +568,10 @@ func dumpKeys(ctx *cli.Context) error {
 		return cli.NewExitError(err, 1)
 	}
 	accounts := wall.Accounts
-	addr := ctx.String("address")
-	if addr != "" {
-		u, err := flags.ParseAddress(addr)
-		if err != nil {
-			return cli.NewExitError(fmt.Errorf("invalid address: %w", err), 1)
-		}
-		acc := wall.GetAccount(u)
+
+	addrFlag := ctx.Generic("address").(*flags.Address)
+	if addrFlag.IsSet {
+		acc := wall.GetAccount(addrFlag.Uint160())
 		if acc == nil {
 			return cli.NewExitError("account is missing", 1)
 		}
@@ -605,8 +602,8 @@ func dumpKeys(ctx *cli.Context) error {
 			hasPrinted = true
 			continue
 		}
-		if addr != "" {
-			return cli.NewExitError(fmt.Errorf("Unknown script type for address %s", addr), 1)
+		if addrFlag.IsSet {
+			return cli.NewExitError(fmt.Errorf("Unknown script type for address %s", address.Uint160ToString(addrFlag.Uint160())), 1)
 		}
 	}
 	return nil
