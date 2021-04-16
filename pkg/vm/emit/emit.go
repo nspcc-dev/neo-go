@@ -88,6 +88,8 @@ func Array(w *io.BinWriter, es ...interface{}) {
 			String(w, e)
 		case util.Uint160:
 			Bytes(w, e.BytesBE())
+		case util.Uint256:
+			Bytes(w, e.BytesBE())
 		case []byte:
 			Bytes(w, e)
 		case bool:
