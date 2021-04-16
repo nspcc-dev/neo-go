@@ -603,7 +603,7 @@ func dumpKeys(ctx *cli.Context) error {
 			continue
 		}
 		if addrFlag.IsSet {
-			return cli.NewExitError(fmt.Errorf("Unknown script type for address %s", address.Uint160ToString(addrFlag.Uint160())), 1)
+			return cli.NewExitError(fmt.Errorf("unknown script type for address %s", address.Uint160ToString(addrFlag.Uint160())), 1)
 		}
 	}
 	return nil
