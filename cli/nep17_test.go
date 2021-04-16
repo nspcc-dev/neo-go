@@ -200,6 +200,12 @@ func TestNEP17ImportToken(t *testing.T) {
 	gasContractHash, err := e.Chain.GetNativeContractScriptHash(nativenames.Gas)
 	require.NoError(t, err)
 	e.Run(t, "neo-go", "wallet", "init", "--wallet", walletPath)
+
+	// missing token hash
+	e.RunWithError(t, "neo-go", "wallet", "nep17", "import",
+		"--rpc-endpoint", "http://"+e.RPC.Addr,
+		"--wallet", walletPath)
+
 	e.Run(t, "neo-go", "wallet", "nep17", "import",
 		"--rpc-endpoint", "http://"+e.RPC.Addr,
 		"--wallet", walletPath,
@@ -207,7 +213,7 @@ func TestNEP17ImportToken(t *testing.T) {
 	e.Run(t, "neo-go", "wallet", "nep17", "import",
 		"--rpc-endpoint", "http://"+e.RPC.Addr,
 		"--wallet", walletPath,
-		"--token", neoContractHash.StringLE())
+		"--token", address.Uint160ToString(neoContractHash)) // try address instead of sh
 
 	t.Run("Info", func(t *testing.T) {
 		checkGASInfo := func(t *testing.T) {
