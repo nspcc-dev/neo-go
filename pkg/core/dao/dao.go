@@ -531,7 +531,11 @@ func (dao *Simple) InitMPT(height uint32, enableRefCount bool) error {
 	if err != nil {
 		return err
 	}
-	dao.MPT = mpt.NewTrie(mpt.NewHashNode(r.Root), enableRefCount, dao.Store)
+	var rootnode mpt.Node
+	if !r.Root.Equals(util.Uint256{}) { // some initial blocks can have root == 0 and it's not a valid root
+		rootnode = mpt.NewHashNode(r.Root)
+	}
+	dao.MPT = mpt.NewTrie(rootnode, enableRefCount, dao.Store)
 	return nil
 }
 
