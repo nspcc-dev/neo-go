@@ -169,10 +169,12 @@ func NewCommands() []cli.Command {
 				},
 			},
 			{
-				Name:  "deploy",
-				Usage: "deploy a smart contract (.nef with description)",
+				Name:      "deploy",
+				Usage:     "deploy a smart contract (.nef with description)",
+				UsageText: "neo-go contract deploy -r endpoint -w wallet [-a address] [-g gas] --in contract.nef --manifest contract.manifest.json [--out file] [data]",
 				Description: `Deploys given contract into the chain. The gas parameter is for additional
-   gas to be added as a network fee to prioritize the transaction.
+   gas to be added as a network fee to prioritize the transaction. The data 
+   parameter is an optional parameter to be passed to '_deploy' method.
 `,
 				Action: contractDeploy,
 				Flags:  deployFlags,
@@ -836,6 +838,15 @@ func contractDeploy(ctx *cli.Context) error {
 		return cli.NewExitError(fmt.Errorf("failed to restore manifest file: %w", err), 1)
 	}
 
+	data, extErr := GetDataFromContext(ctx)
+	if extErr != nil {
+		return extErr
+	}
+	appCallParams := []interface{}{f, manifestBytes}
+	if data != nil {
+		appCallParams = append(appCallParams, data)
+	}
+
 	gctx, cancel := options.GetTimeoutContext(ctx)
 	defer cancel()
 
@@ -851,7 +862,7 @@ func contractDeploy(ctx *cli.Context) error {
 	buf := io.NewBufBinWriter()
 	emit.AppCall(buf.BinWriter, mgmtHash, "deploy",
 		callflag.ReadStates|callflag.WriteStates|callflag.AllowNotify,
-		f, manifestBytes)
+		appCallParams...)
 	if buf.Err != nil {
 		return cli.NewExitError(fmt.Errorf("failed to create deployment script: %w", buf.Err), 1)
 	}

@@ -168,6 +168,64 @@ func TestDeployBigContract(t *testing.T) {
 		"--in", nefName, "--manifest", manifestName)
 }
 
+func TestContractDeployWithData(t *testing.T) {
+	e := newExecutor(t, true)
+
+	// For proper nef generation.
+	config.Version = "0.90.0-test"
+
+	tmpDir := path.Join(os.TempDir(), "neogo.test.deployfail")
+	require.NoError(t, os.Mkdir(tmpDir, os.ModePerm))
+	t.Cleanup(func() {
+		os.RemoveAll(tmpDir)
+	})
+
+	nefName := path.Join(tmpDir, "deploy.nef")
+	manifestName := path.Join(tmpDir, "deploy.manifest.json")
+	e.Run(t, "neo-go", "contract", "compile",
+		"--in", "testdata/deploy/main.go", // compile single file
+		"--config", "testdata/deploy/neo-go.yml",
+		"--out", nefName, "--manifest", manifestName)
+
+	e.In.WriteString("one\r")
+	e.Run(t, "neo-go", "contract", "deploy",
+		"--rpc-endpoint", "http://"+e.RPC.Addr,
+		"--wallet", validatorWallet, "--address", validatorAddr,
+		"--in", nefName, "--manifest", manifestName,
+		"[", "key1", "12", "key2", "take_me_to_church", "]")
+
+	line, err := e.Out.ReadString('\n')
+	require.NoError(t, err)
+	line = strings.TrimSpace(strings.TrimPrefix(line, "Contract: "))
+	h, err := util.Uint160DecodeStringLE(line)
+	require.NoError(t, err)
+	e.checkTxPersisted(t)
+
+	e.Run(t, "neo-go", "contract", "testinvokefunction",
+		"--rpc-endpoint", "http://"+e.RPC.Addr,
+		h.StringLE(),
+		"getValueWithKey", "key1",
+	)
+
+	res := new(result.Invoke)
+	require.NoError(t, json.Unmarshal(e.Out.Bytes(), res))
+	require.Equal(t, vm.HaltState.String(), res.State, res.FaultException)
+	require.Len(t, res.Stack, 1)
+	require.Equal(t, []byte{12}, res.Stack[0].Value())
+
+	e.Run(t, "neo-go", "contract", "testinvokefunction",
+		"--rpc-endpoint", "http://"+e.RPC.Addr,
+		h.StringLE(),
+		"getValueWithKey", "key2",
+	)
+
+	res = new(result.Invoke)
+	require.NoError(t, json.Unmarshal(e.Out.Bytes(), res))
+	require.Equal(t, vm.HaltState.String(), res.State, res.FaultException)
+	require.Len(t, res.Stack, 1)
+	require.Equal(t, []byte("take_me_to_church"), res.Stack[0].Value())
+}
+
 func TestComlileAndInvokeFunction(t *testing.T) {
 	e := newExecutor(t, true)
 

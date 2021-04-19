@@ -23,6 +23,13 @@ func _deploy(data interface{}, isUpdate bool) {
 		value = "on create"
 		sh := runtime.GetCallingScriptHash()
 		storage.Put(ctx, mgmtKey, sh)
+
+		if data != nil {
+			arr := data.([]interface{})
+			for i := 0; i < len(arr)-1; i += 2 {
+				storage.Put(ctx, arr[i], arr[i+1])
+			}
+		}
 	}
 
 	storage.Put(ctx, key, value)
@@ -46,6 +53,12 @@ func GetValue() string {
 	val1 := storage.Get(ctx, key)
 	val2 := storage.Get(ctx, sub.Key)
 	return val1.(string) + "|" + val2.(string)
+}
+
+// GetValueWithKey returns stored value with the specified key.
+func GetValueWithKey(key string) string {
+	ctx := storage.GetReadOnlyContext()
+	return storage.Get(ctx, key).(string)
 }
 
 // TestFind finds items with the specified prefix.
