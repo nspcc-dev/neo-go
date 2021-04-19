@@ -154,9 +154,10 @@ func NewCommands() []cli.Command {
 				},
 			},
 			{
-				Name:   "import",
-				Usage:  "import WIF",
-				Action: importWallet,
+				Name:      "import",
+				Usage:     "import WIF of a standard signature contract",
+				UsageText: "import --wallet <path> --wif <wif> [--name <account_name>]",
+				Action:    importWallet,
 				Flags: []cli.Flag{
 					walletPathFlag,
 					wifFlag,
