@@ -206,11 +206,15 @@ func NewCommands() []cli.Command {
 			{
 				Name:      "remove",
 				Usage:     "remove an account from the wallet",
-				UsageText: "remove --wallet <path> [--force] <addr>",
+				UsageText: "remove --wallet <path> [--force] --address <addr>",
 				Action:    removeAccount,
 				Flags: []cli.Flag{
 					walletPathFlag,
 					forceFlag,
+					flags.AddressFlag{
+						Name:  "address, a",
+						Usage: "Account address or hash in LE form to be removed",
+					},
 				},
 			},
 			{
@@ -502,18 +506,17 @@ func removeAccount(ctx *cli.Context) error {
 	}
 	defer wall.Close()
 
-	addrArg := ctx.Args().First()
-	addr, err := address.StringToUint160(addrArg)
-	if err != nil {
-		return cli.NewExitError("valid address must be provided", 1)
+	addr := ctx.Generic("address").(*flags.Address)
+	if !addr.IsSet {
+		cli.NewExitError("valid account address must be provided", 1)
 	}
-	acc := wall.GetAccount(addr)
+	acc := wall.GetAccount(addr.Uint160())
 	if acc == nil {
 		return cli.NewExitError("account wasn't found", 1)
 	}
 
 	if !ctx.Bool("force") {
-		fmt.Fprintf(ctx.App.Writer, "Account %s will be removed. This action is irreversible.\n", addrArg)
+		fmt.Fprintf(ctx.App.Writer, "Account %s will be removed. This action is irreversible.\n", addr.Uint160())
 		if ok := askForConsent(ctx.App.Writer); !ok {
 			return nil
 		}
