@@ -2,6 +2,7 @@ package fakechain
 
 import (
 	"errors"
+	"math"
 	"math/big"
 	"sync/atomic"
 
@@ -233,6 +234,9 @@ func (chain *FakeChain) GetNativeContractScriptHash(name string) (util.Uint160, 
 
 // GetHeaderHash implements Blockchainer interface.
 func (chain *FakeChain) GetHeaderHash(n int) util.Uint256 {
+	if n < 0 || n > math.MaxUint32 {
+		return util.Uint256{}
+	}
 	return chain.hdrHashes[uint32(n)]
 }
 
