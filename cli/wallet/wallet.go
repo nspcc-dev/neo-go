@@ -173,7 +173,7 @@ func NewCommands() []cli.Command {
 			{
 				Name:  "import-multisig",
 				Usage: "import multisig contract",
-				UsageText: "import-multisig --wallet <path> --wif <wif> --min <n>" +
+				UsageText: "import-multisig --wallet <path> --wif <wif> [--name <account_name>] --min <n>" +
 					" [<pubkey1> [<pubkey2> [...]]]",
 				Action: importMultisig,
 				Flags: []cli.Flag{
@@ -410,6 +410,9 @@ func importMultisig(ctx *cli.Context) error {
 		return cli.NewExitError(err, 1)
 	}
 
+	if acc.Label == "" {
+		acc.Label = ctx.String("name")
+	}
 	if err := addAccountAndSave(wall, acc); err != nil {
 		return cli.NewExitError(err, 1)
 	}
