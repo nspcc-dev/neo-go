@@ -318,7 +318,7 @@ func addAccount(ctx *cli.Context) error {
 
 	defer wall.Close()
 
-	if err := createAccount(ctx, wall); err != nil {
+	if err := createAccount(wall); err != nil {
 		return cli.NewExitError(err, 1)
 	}
 
@@ -636,7 +636,7 @@ func createWallet(ctx *cli.Context) error {
 	}
 
 	if ctx.Bool("account") {
-		if err := createAccount(ctx, wall); err != nil {
+		if err := createAccount(wall); err != nil {
 			return cli.NewExitError(err, 1)
 		}
 	}
@@ -646,7 +646,7 @@ func createWallet(ctx *cli.Context) error {
 	return nil
 }
 
-func readAccountInfo(w io.Writer) (string, string, error) {
+func readAccountInfo() (string, string, error) {
 	rawName, _ := input.ReadLine("Enter the name of the account > ")
 	phrase, err := input.ReadPassword("Enter passphrase > ")
 	if err != nil {
@@ -661,12 +661,12 @@ func readAccountInfo(w io.Writer) (string, string, error) {
 		return "", "", errPhraseMismatch
 	}
 
-	name := strings.TrimRight(string(rawName), "\n")
+	name := strings.TrimRight(rawName, "\n")
 	return name, phrase, nil
 }
 
-func createAccount(ctx *cli.Context, wall *wallet.Wallet) error {
-	name, phrase, err := readAccountInfo(ctx.App.Writer)
+func createAccount(wall *wallet.Wallet) error {
+	name, phrase, err := readAccountInfo()
 	if err != nil {
 		return err
 	}
@@ -698,7 +698,7 @@ func newAccountFromWIF(w io.Writer, wif string) (*wallet.Account, error) {
 	}
 
 	fmt.Fprintln(w, "Provided WIF was unencrypted. Wallet can contain only encrypted keys.")
-	name, pass, err := readAccountInfo(w)
+	name, pass, err := readAccountInfo()
 	if err != nil {
 		return nil, err
 	}
