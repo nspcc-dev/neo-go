@@ -224,9 +224,9 @@ func (p Param) GetSignerWithWitness() (SignerWithWitness, error) {
 	return c, nil
 }
 
-// GetSignersWithWitnesses returns a slice of SignerWithWitness with global scope from
-// array of Uint160 or array of serialized transaction.Signer stored in the
-// parameter.
+// GetSignersWithWitnesses returns a slice of SignerWithWitness with CalledByEntry
+// scope from array of Uint160 or array of serialized transaction.Signer stored
+// in the parameter.
 func (p Param) GetSignersWithWitnesses() ([]transaction.Signer, []transaction.Witness, error) {
 	hashes, err := p.GetArray()
 	if err != nil {
@@ -243,7 +243,7 @@ func (p Param) GetSignersWithWitnesses() ([]transaction.Signer, []transaction.Wi
 		}
 		signers[i] = transaction.Signer{
 			Account: u,
-			Scopes:  transaction.Global,
+			Scopes:  transaction.CalledByEntry,
 		}
 	}
 	if err != nil {
