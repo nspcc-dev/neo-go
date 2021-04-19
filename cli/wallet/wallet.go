@@ -192,7 +192,7 @@ func NewCommands() []cli.Command {
 			{
 				Name:      "import-deployed",
 				Usage:     "import deployed contract",
-				UsageText: "import-multisig --wallet <path> --wif <wif> --contract <hash>",
+				UsageText: "import-deployed --wallet <path> --wif <wif> --contract <hash>",
 				Action:    importDeployed,
 				Flags: append([]cli.Flag{
 					walletPathFlag,
