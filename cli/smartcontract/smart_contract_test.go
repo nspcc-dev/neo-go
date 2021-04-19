@@ -202,7 +202,7 @@ func TestParseParams_CalledFromItself(t *testing.T) {
 
 	for str, expected := range testCases {
 		input := strings.Split(str, " ")
-		offset, actual, err := parseParams(input, false)
+		offset, actual, err := ParseParams(input, false)
 		require.NoError(t, err)
 		require.Equal(t, expected.WordsRead, offset)
 		require.Equal(t, expected.Value, actual)
@@ -218,7 +218,7 @@ func TestParseParams_CalledFromItself(t *testing.T) {
 
 	for _, str := range errorCases {
 		input := strings.Split(str, " ")
-		_, _, err := parseParams(input, false)
+		_, _, err := ParseParams(input, false)
 		require.Error(t, err)
 	}
 }
@@ -400,7 +400,7 @@ func TestParseParams_CalledFromOutside(t *testing.T) {
 	}
 	for str, expected := range testCases {
 		input := strings.Split(str, " ")
-		offset, arr, err := parseParams(input, true)
+		offset, arr, err := ParseParams(input, true)
 		require.NoError(t, err)
 		require.Equal(t, expected.WordsRead, offset)
 		require.Equal(t, expected.Parameters, arr)
@@ -415,7 +415,7 @@ func TestParseParams_CalledFromOutside(t *testing.T) {
 	}
 	for _, str := range errorCases {
 		input := strings.Split(str, " ")
-		_, _, err := parseParams(input, true)
+		_, _, err := ParseParams(input, true)
 		require.Error(t, err)
 	}
 }

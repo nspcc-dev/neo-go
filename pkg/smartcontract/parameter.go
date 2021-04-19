@@ -14,6 +14,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 )
@@ -436,4 +437,29 @@ func NewParameterFromString(in string) (*Parameter, error) {
 		return nil, err
 	}
 	return res, nil
+}
+
+// ExpandParameterToEmitable converts parameter to a type which can be handled as
+// an array item by emit.Array. It correlates with the way RPC server handles
+// FuncParams for invoke* calls inside the request.ExpandArrayIntoScript function.
+func ExpandParameterToEmitable(param Parameter) (interface{}, error) {
+	var err error
+	switch t := param.Type; t {
+	case PublicKeyType:
+		return param.Value.(*keys.PublicKey).Bytes(), nil
+	case ArrayType:
+		arr := param.Value.([]Parameter)
+		res := make([]interface{}, len(arr))
+		for i := range arr {
+			res[i], err = ExpandParameterToEmitable(arr[i])
+			if err != nil {
+				return nil, err
+			}
+		}
+		return res, nil
+	case MapType, InteropInterfaceType, UnknownType, AnyType, VoidType:
+		return nil, fmt.Errorf("unsupported parameter type: %s", t.String())
+	default:
+		return param.Value, nil
+	}
 }

@@ -8,7 +8,7 @@ ProtocolConfiguration:
   ValidatorsCount: 1
   VerifyBlocks: true
   VerifyTransactions: true
-  P2PSigExtensions: false
+  P2PSigExtensions: true
   NativeActivations:
     ContractManagement: [0]
     StdLib: [0]
@@ -20,6 +20,7 @@ ProtocolConfiguration:
     RoleManagement: [0]
     OracleContract: [0]
     NameService: [0]
+    Notary: [0]
 
 ApplicationConfiguration:
   # LogPath could be set up in case you need stdout logs to some proper file.
