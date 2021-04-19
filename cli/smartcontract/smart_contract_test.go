@@ -74,11 +74,11 @@ func TestParseCosigner(t *testing.T) {
 	testCases := map[string]transaction.Signer{
 		acc.StringLE(): {
 			Account: acc,
-			Scopes:  transaction.Global,
+			Scopes:  transaction.CalledByEntry,
 		},
 		"0x" + acc.StringLE(): {
 			Account: acc,
-			Scopes:  transaction.Global,
+			Scopes:  transaction.CalledByEntry,
 		},
 		acc.StringLE() + ":Global": {
 			Account: acc,

@@ -291,7 +291,7 @@ func NewCommands() []cli.Command {
         - 'CustomContracts' - define valid custom contract hashes for witness check.
         - 'CustomGroups' - define custom pubkey for group members.
 
-   If no scopes were specified, 'Global' used as default. If no signers were
+   If no scopes were specified, 'CalledByEntry' used as default. If no signers were
    specified, no array is passed. Note that scopes are properly handled by 
    neo-go RPC server only. C# implementation does not support scopes capability.
 
@@ -937,7 +937,7 @@ func parseCosigner(c string) (transaction.Signer, error) {
 	var (
 		err error
 		res = transaction.Signer{
-			Scopes: transaction.Global,
+			Scopes: transaction.CalledByEntry,
 		}
 	)
 	data := strings.SplitN(c, ":", 2)
