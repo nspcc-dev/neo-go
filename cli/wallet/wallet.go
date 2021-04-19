@@ -193,11 +193,15 @@ func NewCommands() []cli.Command {
 			{
 				Name:      "import-deployed",
 				Usage:     "import deployed contract",
-				UsageText: "import-deployed --wallet <path> --wif <wif> --contract <hash>",
+				UsageText: "import-deployed --wallet <path> --wif <wif> --contract <hash> [--name <account_name>]",
 				Action:    importDeployed,
 				Flags: append([]cli.Flag{
 					walletPathFlag,
 					wifFlag,
+					cli.StringFlag{
+						Name:  "name, n",
+						Usage: "Optional account name",
+					},
 					flags.AddressFlag{
 						Name:  "contract, c",
 						Usage: "Contract hash or address",
@@ -466,6 +470,9 @@ func importDeployed(ctx *cli.Context) error {
 	}
 	acc.Contract.Deployed = true
 
+	if acc.Label == "" {
+		acc.Label = ctx.String("name")
+	}
 	if err := addAccountAndSave(wall, acc); err != nil {
 		return cli.NewExitError(err, 1)
 	}
