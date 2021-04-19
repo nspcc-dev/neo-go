@@ -841,6 +841,9 @@ func (s *Server) contractIDFromParam(param *request.Param) (int32, *response.Err
 		if err != nil {
 			return 0, response.ErrInvalidParams
 		}
+		if err := checkInt32(id); err != nil {
+			return 0, response.WrapErrorWithData(response.ErrInvalidParams, err)
+		}
 		result = int32(id)
 	default:
 		return 0, response.ErrInvalidParams
@@ -873,6 +876,9 @@ func (s *Server) contractScriptHashFromParam(param *request.Param) (util.Uint160
 		id, err := param.GetInt()
 		if err != nil {
 			return result, response.ErrInvalidParams
+		}
+		if err := checkInt32(id); err != nil {
+			return result, response.WrapErrorWithData(response.ErrInvalidParams, err)
 		}
 		result, err = s.chain.GetContractScriptHash(int32(id))
 		if err != nil {
@@ -969,6 +975,9 @@ func (s *Server) getStateRoot(ps request.Params) (interface{}, *response.Error) 
 	var h util.Uint256
 	height, err := p.GetInt()
 	if err == nil {
+		if err := checkUint32(height); err != nil {
+			return nil, response.WrapErrorWithData(response.ErrInvalidParams, err)
+		}
 		rt, err = s.chain.GetStateModule().GetStateRoot(uint32(height))
 	} else if h, err = p.GetUint256(); err == nil {
 		var hdr *block.Header
