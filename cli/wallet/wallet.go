@@ -225,7 +225,7 @@ func NewCommands() []cli.Command {
 			{
 				Name:      "sign",
 				Usage:     "cosign transaction with multisig/contract/additional account",
-				UsageText: "sign --wallet <path> --address <address> --in <file.in> --out <file.out>",
+				UsageText: "sign --wallet <path> --address <address> --in <file.in> --out <file.out> [-r <endpoint>]",
 				Action:    signStoredTransaction,
 				Flags:     signFlags,
 			},
