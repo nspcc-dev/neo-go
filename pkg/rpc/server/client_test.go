@@ -12,6 +12,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/client"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
@@ -396,24 +397,152 @@ func TestSignAndPushInvocationTx(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, c.Init())
 
-	priv := testchain.PrivateKey(0)
-	acc := wallet.NewAccountFromPrivateKey(priv)
-	h, err := c.SignAndPushInvocationTx([]byte{byte(opcode.PUSH1)}, acc, 30, 0, []client.SignerAccount{
-		{
-			Signer: transaction.Signer{
-				Account: priv.GetScriptHash(),
-				Scopes:  transaction.CalledByEntry,
-			},
-			Account: acc,
-		},
-	})
-	require.NoError(t, err)
+	priv0 := testchain.PrivateKeyByID(0)
+	acc0 := wallet.NewAccountFromPrivateKey(priv0)
 
-	mp := chain.GetMemPool()
-	tx, ok := mp.TryGetValue(h)
-	require.True(t, ok)
-	require.Equal(t, h, tx.Hash())
-	require.EqualValues(t, 30, tx.SystemFee)
+	verifyWithoutParamsCtr, err := util.Uint160DecodeStringLE(verifyContractHash)
+	require.NoError(t, err)
+	acc1 := &wallet.Account{
+		Address: address.Uint160ToString(verifyWithoutParamsCtr),
+		Contract: &wallet.Contract{
+			Parameters: []wallet.ContractParam{},
+			Deployed:   true,
+		},
+		Locked:  true,
+		Default: false,
+	}
+
+	verifyWithParamsCtr, err := util.Uint160DecodeStringLE(verifyWithArgsContractHash)
+	require.NoError(t, err)
+	acc2 := &wallet.Account{
+		Address: address.Uint160ToString(verifyWithParamsCtr),
+		Contract: &wallet.Contract{
+			Parameters: []wallet.ContractParam{
+				{Name: "argString", Type: smartcontract.StringType},
+				{Name: "argInt", Type: smartcontract.IntegerType},
+				{Name: "argBool", Type: smartcontract.BoolType},
+			},
+			Deployed: true,
+		},
+		Locked:  true,
+		Default: false,
+	}
+
+	priv3 := testchain.PrivateKeyByID(3)
+	acc3 := wallet.NewAccountFromPrivateKey(priv3)
+
+	check := func(t *testing.T, h util.Uint256) {
+		mp := chain.GetMemPool()
+		tx, ok := mp.TryGetValue(h)
+		require.True(t, ok)
+		require.Equal(t, h, tx.Hash())
+		require.EqualValues(t, 30, tx.SystemFee)
+	}
+
+	t.Run("good", func(t *testing.T) {
+		t.Run("signer0: sig", func(t *testing.T) {
+			h, err := c.SignAndPushInvocationTx([]byte{byte(opcode.PUSH1)}, acc0, 30, 0, []client.SignerAccount{
+				{
+					Signer: transaction.Signer{
+						Account: priv0.GetScriptHash(),
+						Scopes:  transaction.CalledByEntry,
+					},
+					Account: acc0,
+				},
+			})
+			require.NoError(t, err)
+			check(t, h)
+		})
+		t.Run("signer0: sig; signer1: sig", func(t *testing.T) {
+			h, err := c.SignAndPushInvocationTx([]byte{byte(opcode.PUSH1)}, acc0, 30, 0, []client.SignerAccount{
+				{
+					Signer: transaction.Signer{
+						Account: priv0.GetScriptHash(),
+						Scopes:  transaction.CalledByEntry,
+					},
+					Account: acc0,
+				},
+				{
+					Signer: transaction.Signer{
+						Account: priv3.GetScriptHash(),
+						Scopes:  transaction.CalledByEntry,
+					},
+					Account: acc3,
+				},
+			})
+			require.NoError(t, err)
+			check(t, h)
+		})
+		t.Run("signer0: sig; signer1: contract-based paramless", func(t *testing.T) {
+			h, err := c.SignAndPushInvocationTx([]byte{byte(opcode.PUSH1)}, acc0, 30, 0, []client.SignerAccount{
+				{
+					Signer: transaction.Signer{
+						Account: priv0.GetScriptHash(),
+						Scopes:  transaction.CalledByEntry,
+					},
+					Account: acc0,
+				},
+				{
+					Signer: transaction.Signer{
+						Account: verifyWithoutParamsCtr,
+						Scopes:  transaction.CalledByEntry,
+					},
+					Account: acc1,
+				},
+			})
+			require.NoError(t, err)
+			check(t, h)
+		})
+	})
+	t.Run("error", func(t *testing.T) {
+		t.Run("signer0: sig; signer1: contract-based with params", func(t *testing.T) {
+			_, err := c.SignAndPushInvocationTx([]byte{byte(opcode.PUSH1)}, acc0, 30, 0, []client.SignerAccount{
+				{
+					Signer: transaction.Signer{
+						Account: priv0.GetScriptHash(),
+						Scopes:  transaction.CalledByEntry,
+					},
+					Account: acc0,
+				},
+				{
+					Signer: transaction.Signer{
+						Account: verifyWithParamsCtr,
+						Scopes:  transaction.CalledByEntry,
+					},
+					Account: acc2,
+				},
+			})
+			require.Error(t, err)
+		})
+		t.Run("signer0: sig; signer1: locked sig", func(t *testing.T) {
+			pk, err := keys.NewPrivateKey()
+			require.NoError(t, err)
+			acc4 := &wallet.Account{
+				Address: address.Uint160ToString(pk.GetScriptHash()),
+				Contract: &wallet.Contract{
+					Script:     pk.PublicKey().GetVerificationScript(),
+					Parameters: []wallet.ContractParam{{Name: "parameter0", Type: smartcontract.SignatureType}},
+				},
+			}
+			_, err = c.SignAndPushInvocationTx([]byte{byte(opcode.PUSH1)}, acc0, 30, 0, []client.SignerAccount{
+				{
+					Signer: transaction.Signer{
+						Account: priv0.GetScriptHash(),
+						Scopes:  transaction.CalledByEntry,
+					},
+					Account: acc0,
+				},
+				{
+					Signer: transaction.Signer{
+						Account: util.Uint160{1, 2, 3},
+						Scopes:  transaction.CalledByEntry,
+					},
+					Account: acc4,
+				},
+			})
+			require.Error(t, err)
+		})
+	})
 }
 
 func TestSignAndPushP2PNotaryRequest(t *testing.T) {
