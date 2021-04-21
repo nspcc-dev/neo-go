@@ -314,6 +314,25 @@ func TestComlileAndInvokeFunction(t *testing.T) {
 	require.Len(t, res.Stack, 1)
 	require.Equal(t, []byte("on create|sub create"), res.Stack[0].Value())
 
+	// deploy verification contract
+	nefName = path.Join(tmpDir, "verify.nef")
+	manifestName = path.Join(tmpDir, "verify.manifest.json")
+	e.Run(t, "neo-go", "contract", "compile",
+		"--in", "testdata/verify.go",
+		"--config", "testdata/verify.yml",
+		"--out", nefName, "--manifest", manifestName)
+	e.In.WriteString("one\r")
+	e.Run(t, "neo-go", "contract", "deploy",
+		"--rpc-endpoint", "http://"+e.RPC.Addr,
+		"--wallet", validatorWallet, "--address", validatorAddr,
+		"--in", nefName, "--manifest", manifestName)
+	line, err = e.Out.ReadString('\n')
+	require.NoError(t, err)
+	line = strings.TrimSpace(strings.TrimPrefix(line, "Contract: "))
+	hVerify, err := util.Uint160DecodeStringLE(line)
+	require.NoError(t, err)
+	e.checkTxPersisted(t)
+
 	t.Run("real invoke", func(t *testing.T) {
 		cmd := []string{"neo-go", "contract", "invokefunction",
 			"--rpc-endpoint", "http://" + e.RPC.Addr}
@@ -338,30 +357,16 @@ func TestComlileAndInvokeFunction(t *testing.T) {
 			e.In.WriteString("one\r")
 			e.Run(t, append(cmd, "--force", h.StringLE(), "fail")...)
 		})
+
+		t.Run("cosigner is deployed contract", func(t *testing.T) {
+			e.In.WriteString("one\r")
+			e.Run(t, append(cmd, h.StringLE(), "getValue",
+				"--", validatorAddr, hVerify.StringLE())...)
+		})
 	})
 
 	t.Run("real invoke and save tx", func(t *testing.T) {
 		txout := path.Join(tmpDir, "test_contract_tx.json")
-
-		nefName = path.Join(tmpDir, "verify.nef")
-		manifestName = path.Join(tmpDir, "verify.manifest.json")
-		e.Run(t, "neo-go", "contract", "compile",
-			"--in", "testdata/verify.go",
-			"--config", "testdata/verify.yml",
-			"--out", nefName, "--manifest", manifestName)
-
-		e.In.WriteString("one\r")
-		e.Run(t, "neo-go", "contract", "deploy",
-			"--rpc-endpoint", "http://"+e.RPC.Addr,
-			"--wallet", validatorWallet, "--address", validatorAddr,
-			"--in", nefName, "--manifest", manifestName)
-
-		line, err := e.Out.ReadString('\n')
-		require.NoError(t, err)
-		line = strings.TrimSpace(strings.TrimPrefix(line, "Contract: "))
-		hVerify, err := util.Uint160DecodeStringLE(line)
-		require.NoError(t, err)
-		e.checkTxPersisted(t)
 
 		cmd = []string{"neo-go", "contract", "invokefunction",
 			"--rpc-endpoint", "http://" + e.RPC.Addr,

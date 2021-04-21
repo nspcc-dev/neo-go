@@ -96,12 +96,12 @@ func NewAccount() (*Account, error) {
 
 // SignTx signs transaction t and updates it's Witnesses.
 func (a *Account) SignTx(net netmode.Magic, t *transaction.Transaction) error {
-	if a.privateKey == nil {
-		return errors.New("account is not unlocked")
-	}
 	if len(a.Contract.Parameters) == 0 {
 		t.Scripts = append(t.Scripts, transaction.Witness{})
 		return nil
+	}
+	if a.privateKey == nil {
+		return errors.New("account is not unlocked")
 	}
 	sign := a.privateKey.SignHashable(uint32(net), t)
 

@@ -530,8 +530,10 @@ func (c *Client) SubmitRawOracleResponse(ps request.RawParams) error {
 }
 
 // SignAndPushInvocationTx signs and pushes given script as an invocation
-// transaction  using given wif to sign it and spending the amount of gas
-// specified. It returns a hash of the invocation transaction and an error.
+// transaction using given wif to sign it and given cosigners to cosign it if
+// possible. It spends the amount of gas specified. It returns a hash of the
+// invocation transaction and an error. If one of the cosigners accounts is
+// neither contract-based nor unlocked an error is returned.
 func (c *Client) SignAndPushInvocationTx(script []byte, acc *wallet.Account, sysfee int64, netfee fixedn.Fixed8, cosigners []SignerAccount) (util.Uint256, error) {
 	var txHash util.Uint256
 	var err error
@@ -542,6 +544,28 @@ func (c *Client) SignAndPushInvocationTx(script []byte, acc *wallet.Account, sys
 	}
 	if err = acc.SignTx(c.GetNetwork(), tx); err != nil {
 		return txHash, fmt.Errorf("failed to sign tx: %w", err)
+	}
+	// try to add witnesses for the rest of the signers
+	for i, signer := range tx.Signers[1:] {
+		var isOk bool
+		for _, cosigner := range cosigners {
+			if signer.Account == cosigner.Signer.Account {
+				err = cosigner.Account.SignTx(c.GetNetwork(), tx)
+				if err != nil { // then account is non-contract-based and locked, but let's provide more detailed error
+					if paramNum := len(cosigner.Account.Contract.Parameters); paramNum != 0 && cosigner.Account.Contract.Deployed {
+						return txHash, fmt.Errorf("failed to add contract-based witness for signer #%d (%s): "+
+							"%d parameters must be provided to construct invocation script", i, address.Uint160ToString(signer.Account), paramNum)
+					}
+					return txHash, fmt.Errorf("failed to add witness for signer #%d (%s): account should be unlocked to add the signature. "+
+						"Store partially-signed transaction and then use 'wallet sign' command to cosign it", i, address.Uint160ToString(signer.Account))
+				}
+				isOk = true
+				break
+			}
+		}
+		if !isOk {
+			return txHash, fmt.Errorf("failed to add witness for signer #%d (%s): account wasn't provided", i, address.Uint160ToString(signer.Account))
+		}
 	}
 	txHash = tx.Hash()
 	actualHash, err := c.SendRawTransaction(tx)
