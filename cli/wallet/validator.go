@@ -174,24 +174,14 @@ func handleVote(ctx *cli.Context) error {
 	emit.AppCall(w.BinWriter, neoContractHash, "vote", callflag.States, addr.BytesBE(), pubArg)
 	emit.Opcodes(w.BinWriter, opcode.ASSERT)
 
-	tx, err := c.CreateTxFromScript(w.Bytes(), acc, -1, int64(gas), []client.SignerAccount{{
+	res, err := c.SignAndPushInvocationTx(w.Bytes(), acc, -1, gas, []client.SignerAccount{{
 		Signer: transaction.Signer{
 			Account: acc.Contract.ScriptHash(),
 			Scopes:  transaction.CalledByEntry,
 		},
-		Account: acc,
-	}})
+		Account: acc}})
 	if err != nil {
-		return cli.NewExitError(err, 1)
-	}
-
-	if err = acc.SignTx(c.GetNetwork(), tx); err != nil {
-		return cli.NewExitError(fmt.Errorf("can't sign tx: %v", err), 1)
-	}
-
-	res, err := c.SendRawTransaction(tx)
-	if err != nil {
-		return cli.NewExitError(err, 1)
+		return cli.NewExitError(fmt.Errorf("failed to push invocation transaction: %w", err), 1)
 	}
 	fmt.Fprintln(ctx.App.Writer, res.StringLE())
 	return nil
