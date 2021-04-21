@@ -154,9 +154,10 @@ func NewCommands() []cli.Command {
 				},
 			},
 			{
-				Name:   "import",
-				Usage:  "import WIF",
-				Action: importWallet,
+				Name:      "import",
+				Usage:     "import WIF of a standard signature contract",
+				UsageText: "import --wallet <path> --wif <wif> [--name <account_name>]",
+				Action:    importWallet,
 				Flags: []cli.Flag{
 					walletPathFlag,
 					wifFlag,
@@ -173,7 +174,7 @@ func NewCommands() []cli.Command {
 			{
 				Name:  "import-multisig",
 				Usage: "import multisig contract",
-				UsageText: "import-multisig --wallet <path> --wif <wif> --min <n>" +
+				UsageText: "import-multisig --wallet <path> --wif <wif> [--name <account_name>] --min <n>" +
 					" [<pubkey1> [<pubkey2> [...]]]",
 				Action: importMultisig,
 				Flags: []cli.Flag{
@@ -192,11 +193,15 @@ func NewCommands() []cli.Command {
 			{
 				Name:      "import-deployed",
 				Usage:     "import deployed contract",
-				UsageText: "import-multisig --wallet <path> --wif <wif> --contract <hash>",
+				UsageText: "import-deployed --wallet <path> --wif <wif> --contract <hash> [--name <account_name>]",
 				Action:    importDeployed,
 				Flags: append([]cli.Flag{
 					walletPathFlag,
 					wifFlag,
+					cli.StringFlag{
+						Name:  "name, n",
+						Usage: "Optional account name",
+					},
 					flags.AddressFlag{
 						Name:  "contract, c",
 						Usage: "Contract hash or address",
@@ -206,17 +211,21 @@ func NewCommands() []cli.Command {
 			{
 				Name:      "remove",
 				Usage:     "remove an account from the wallet",
-				UsageText: "remove --wallet <path> [--force] <addr>",
+				UsageText: "remove --wallet <path> [--force] --address <addr>",
 				Action:    removeAccount,
 				Flags: []cli.Flag{
 					walletPathFlag,
 					forceFlag,
+					flags.AddressFlag{
+						Name:  "address, a",
+						Usage: "Account address or hash in LE form to be removed",
+					},
 				},
 			},
 			{
 				Name:      "sign",
 				Usage:     "cosign transaction with multisig/contract/additional account",
-				UsageText: "sign --wallet <path> --address <address> --in <file.in> --out <file.out>",
+				UsageText: "sign --wallet <path> --address <address> --in <file.in> --out <file.out> [-r <endpoint>]",
 				Action:    signStoredTransaction,
 				Flags:     signFlags,
 			},
@@ -309,7 +318,7 @@ func addAccount(ctx *cli.Context) error {
 
 	defer wall.Close()
 
-	if err := createAccount(ctx, wall); err != nil {
+	if err := createAccount(wall); err != nil {
 		return cli.NewExitError(err, 1)
 	}
 
@@ -406,6 +415,9 @@ func importMultisig(ctx *cli.Context) error {
 		return cli.NewExitError(err, 1)
 	}
 
+	if acc.Label == "" {
+		acc.Label = ctx.String("name")
+	}
 	if err := addAccountAndSave(wall, acc); err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -458,6 +470,9 @@ func importDeployed(ctx *cli.Context) error {
 	}
 	acc.Contract.Deployed = true
 
+	if acc.Label == "" {
+		acc.Label = ctx.String("name")
+	}
 	if err := addAccountAndSave(wall, acc); err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -502,18 +517,17 @@ func removeAccount(ctx *cli.Context) error {
 	}
 	defer wall.Close()
 
-	addrArg := ctx.Args().First()
-	addr, err := address.StringToUint160(addrArg)
-	if err != nil {
-		return cli.NewExitError("valid address must be provided", 1)
+	addr := ctx.Generic("address").(*flags.Address)
+	if !addr.IsSet {
+		cli.NewExitError("valid account address must be provided", 1)
 	}
-	acc := wall.GetAccount(addr)
+	acc := wall.GetAccount(addr.Uint160())
 	if acc == nil {
 		return cli.NewExitError("account wasn't found", 1)
 	}
 
 	if !ctx.Bool("force") {
-		fmt.Fprintf(ctx.App.Writer, "Account %s will be removed. This action is irreversible.\n", addrArg)
+		fmt.Fprintf(ctx.App.Writer, "Account %s will be removed. This action is irreversible.\n", addr.Uint160())
 		if ok := askForConsent(ctx.App.Writer); !ok {
 			return nil
 		}
@@ -622,7 +636,7 @@ func createWallet(ctx *cli.Context) error {
 	}
 
 	if ctx.Bool("account") {
-		if err := createAccount(ctx, wall); err != nil {
+		if err := createAccount(wall); err != nil {
 			return cli.NewExitError(err, 1)
 		}
 	}
@@ -632,7 +646,7 @@ func createWallet(ctx *cli.Context) error {
 	return nil
 }
 
-func readAccountInfo(w io.Writer) (string, string, error) {
+func readAccountInfo() (string, string, error) {
 	rawName, _ := input.ReadLine("Enter the name of the account > ")
 	phrase, err := input.ReadPassword("Enter passphrase > ")
 	if err != nil {
@@ -647,12 +661,12 @@ func readAccountInfo(w io.Writer) (string, string, error) {
 		return "", "", errPhraseMismatch
 	}
 
-	name := strings.TrimRight(string(rawName), "\n")
+	name := strings.TrimRight(rawName, "\n")
 	return name, phrase, nil
 }
 
-func createAccount(ctx *cli.Context, wall *wallet.Wallet) error {
-	name, phrase, err := readAccountInfo(ctx.App.Writer)
+func createAccount(wall *wallet.Wallet) error {
+	name, phrase, err := readAccountInfo()
 	if err != nil {
 		return err
 	}
@@ -684,7 +698,7 @@ func newAccountFromWIF(w io.Writer, wif string) (*wallet.Account, error) {
 	}
 
 	fmt.Fprintln(w, "Provided WIF was unencrypted. Wallet can contain only encrypted keys.")
-	name, pass, err := readAccountInfo(w)
+	name, pass, err := readAccountInfo()
 	if err != nil {
 		return nil, err
 	}

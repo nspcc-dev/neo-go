@@ -71,7 +71,7 @@ func TestWalletInit(t *testing.T) {
 			addr := w.Accounts[0].Address
 			e.In.WriteString("y\r")
 			e.Run(t, "neo-go", "wallet", "remove",
-				"--wallet", walletPath, addr)
+				"--wallet", walletPath, "--address", addr)
 			w, err := wallet.NewWalletFromFile(walletPath)
 			require.NoError(t, err)
 			require.Nil(t, w.GetAccount(sh))
