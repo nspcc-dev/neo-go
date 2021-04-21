@@ -112,23 +112,15 @@ func handleCandidate(ctx *cli.Context, method string, sysGas int64) error {
 	w := io.NewBufBinWriter()
 	emit.AppCall(w.BinWriter, neoContractHash, method, callflag.States, acc.PrivateKey().PublicKey().Bytes())
 	emit.Opcodes(w.BinWriter, opcode.ASSERT)
-	tx, err := c.CreateTxFromScript(w.Bytes(), acc, sysGas, int64(gas), []client.SignerAccount{{
+	res, err := c.SignAndPushInvocationTx(w.Bytes(), acc, sysGas, gas, []client.SignerAccount{{
 		Signer: transaction.Signer{
 			Account: acc.Contract.ScriptHash(),
 			Scopes:  transaction.CalledByEntry,
 		},
 		Account: acc,
-	},
-	})
+	}})
 	if err != nil {
-		return cli.NewExitError(err, 1)
-	} else if err = acc.SignTx(c.GetNetwork(), tx); err != nil {
-		return cli.NewExitError(fmt.Errorf("can't sign tx: %v", err), 1)
-	}
-
-	res, err := c.SendRawTransaction(tx)
-	if err != nil {
-		return cli.NewExitError(err, 1)
+		return cli.NewExitError(fmt.Errorf("failed to push transaction: %w", err), 1)
 	}
 	fmt.Fprintln(ctx.App.Writer, res.StringLE())
 	return nil
