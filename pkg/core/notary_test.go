@@ -658,6 +658,6 @@ func TestNotary(t *testing.T) {
 		mtx.RLock()
 		defer mtx.RUnlock()
 		return completedTxes[requests[0].MainTransaction.Hash()] != nil
-	}, 2*time.Second, 10*time.Millisecond)
+	}, 3*time.Second, 100*time.Millisecond)
 	checkFallbackTxs(t, requests, false)
 }
