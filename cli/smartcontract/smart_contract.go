@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/nspcc-dev/neo-go/cli/cmdargs"
 	"github.com/nspcc-dev/neo-go/cli/flags"
 	"github.com/nspcc-dev/neo-go/cli/input"
 	"github.com/nspcc-dev/neo-go/cli/options"
@@ -513,6 +514,7 @@ func invokeFunction(ctx *cli.Context) error {
 func invokeInternal(ctx *cli.Context, signAndPush bool) error {
 	var (
 		err               error
+		exitErr           *cli.ExitError
 		gas               fixedn.Fixed8
 		operation         string
 		params            = make([]smartcontract.Parameter, 0)
@@ -547,14 +549,9 @@ func invokeInternal(ctx *cli.Context, signAndPush bool) error {
 	}
 
 	cosignersStart := paramsStart + cosignersOffset
-	if len(args) > cosignersStart {
-		for i, c := range args[cosignersStart:] {
-			cosigner, err := parseCosigner(c)
-			if err != nil {
-				return cli.NewExitError(fmt.Errorf("failed to parse cosigner #%d: %w", i+1, err), 1)
-			}
-			cosigners = append(cosigners, cosigner)
-		}
+	cosigners, exitErr = cmdargs.GetSignersFromContext(ctx, cosignersStart)
+	if exitErr != nil {
+		return exitErr
 	}
 
 	if signAndPush {
@@ -686,16 +683,9 @@ func testInvokeScript(ctx *cli.Context) error {
 		return cli.NewExitError(fmt.Errorf("failed to restore .nef file: %w", err), 1)
 	}
 
-	args := ctx.Args()
-	var signers []transaction.Signer
-	if args.Present() {
-		for i, c := range args[:] {
-			cosigner, err := parseCosigner(c)
-			if err != nil {
-				return cli.NewExitError(fmt.Errorf("failed to parse signer #%d: %w", i+1, err), 1)
-			}
-			signers = append(signers, cosigner)
-		}
+	signers, exitErr := cmdargs.GetSignersFromContext(ctx, 0)
+	if exitErr != nil {
+		return exitErr
 	}
 
 	gctx, cancel := options.GetTimeoutContext(ctx)
@@ -931,26 +921,4 @@ func ParseContractConfig(confFile string) (ProjectConfig, error) {
 		return conf, cli.NewExitError(fmt.Errorf("bad config: %w", err), 1)
 	}
 	return conf, nil
-}
-
-func parseCosigner(c string) (transaction.Signer, error) {
-	var (
-		err error
-		res = transaction.Signer{
-			Scopes: transaction.CalledByEntry,
-		}
-	)
-	data := strings.SplitN(c, ":", 2)
-	s := data[0]
-	res.Account, err = flags.ParseAddress(s)
-	if err != nil {
-		return res, err
-	}
-	if len(data) > 1 {
-		res.Scopes, err = transaction.ScopesFromString(data[1])
-		if err != nil {
-			return transaction.Signer{}, err
-		}
-	}
-	return res, nil
 }
