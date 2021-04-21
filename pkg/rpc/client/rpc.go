@@ -535,13 +535,22 @@ func (c *Client) SubmitRawOracleResponse(ps request.RawParams) error {
 // invocation transaction and an error. If one of the cosigners accounts is
 // neither contract-based nor unlocked an error is returned.
 func (c *Client) SignAndPushInvocationTx(script []byte, acc *wallet.Account, sysfee int64, netfee fixedn.Fixed8, cosigners []SignerAccount) (util.Uint256, error) {
-	var txHash util.Uint256
-	var err error
-
 	tx, err := c.CreateTxFromScript(script, acc, sysfee, int64(netfee), cosigners)
 	if err != nil {
-		return txHash, fmt.Errorf("failed to create tx: %w", err)
+		return util.Uint256{}, fmt.Errorf("failed to create tx: %w", err)
 	}
+	return c.SignAndPushTx(tx, acc, cosigners)
+}
+
+// SignAndPushTx signs given transaction using given wif and cosigners and pushes
+// it to the chain. It returns a hash of the transaction and an error. If one of
+// the cosigners accounts is neither contract-based nor unlocked an error is
+// returned.
+func (c *Client) SignAndPushTx(tx *transaction.Transaction, acc *wallet.Account, cosigners []SignerAccount) (util.Uint256, error) {
+	var (
+		txHash util.Uint256
+		err    error
+	)
 	if err = acc.SignTx(c.GetNetwork(), tx); err != nil {
 		return txHash, fmt.Errorf("failed to sign tx: %w", err)
 	}
