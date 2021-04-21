@@ -6,10 +6,10 @@ import (
 	"math/big"
 	"strings"
 
+	"github.com/nspcc-dev/neo-go/cli/cmdargs"
 	"github.com/nspcc-dev/neo-go/cli/flags"
 	"github.com/nspcc-dev/neo-go/cli/options"
 	"github.com/nspcc-dev/neo-go/cli/paramcontext"
-	smartcontractcli "github.com/nspcc-dev/neo-go/cli/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/fixedn"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/client"
@@ -461,7 +461,7 @@ func transferNEP17(ctx *cli.Context) error {
 		return cli.NewExitError(fmt.Errorf("invalid amount: %w", err), 1)
 	}
 
-	_, data, extErr := smartcontractcli.GetDataFromContext(ctx)
+	_, data, extErr := cmdargs.GetDataFromContext(ctx)
 	if extErr != nil {
 		return extErr
 	}
