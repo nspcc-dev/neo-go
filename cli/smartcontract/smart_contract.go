@@ -555,15 +555,9 @@ func invokeInternal(ctx *cli.Context, signAndPush bool) error {
 		if err != nil {
 			return err
 		}
-		for i := range cosigners {
-			cosignerAcc := wall.GetAccount(cosigners[i].Account)
-			if cosignerAcc == nil {
-				return cli.NewExitError(fmt.Errorf("can't calculate network fee: no account was found in the wallet for cosigner #%d", i), 1)
-			}
-			cosignersAccounts = append(cosignersAccounts, client.SignerAccount{
-				Signer:  cosigners[i],
-				Account: cosignerAcc,
-			})
+		cosignersAccounts, err = cmdargs.GetSignersAccounts(wall, cosigners)
+		if err != nil {
+			return cli.NewExitError(fmt.Errorf("failed to calculate network fee: %w", err), 1)
 		}
 	}
 	gctx, cancel := options.GetTimeoutContext(ctx)
