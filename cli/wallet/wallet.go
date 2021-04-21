@@ -272,7 +272,7 @@ func claimGas(ctx *cli.Context) error {
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
-	hash, err := c.TransferNEP17(acc, scriptHash, neoContractHash, 0, 0, nil)
+	hash, err := c.TransferNEP17(acc, scriptHash, neoContractHash, 0, 0, nil, nil)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}

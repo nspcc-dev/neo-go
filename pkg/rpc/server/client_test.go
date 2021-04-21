@@ -707,7 +707,7 @@ func TestCreateNEP17TransferTx(t *testing.T) {
 	gasContractHash, err := c.GetNativeContractHash(nativenames.Gas)
 	require.NoError(t, err)
 
-	tx, err := c.CreateNEP17TransferTx(acc, util.Uint160{}, gasContractHash, 1000, 0, nil)
+	tx, err := c.CreateNEP17TransferTx(acc, util.Uint160{}, gasContractHash, 1000, 0, nil, nil)
 	require.NoError(t, err)
 	require.NoError(t, acc.SignTx(testchain.Network(), tx))
 	require.NoError(t, chain.VerifyTx(tx))
