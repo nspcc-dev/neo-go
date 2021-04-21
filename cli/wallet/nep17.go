@@ -126,7 +126,7 @@ func newNEP17Commands() []cli.Command {
 			Name:  "multitransfer",
 			Usage: "transfer NEP17 tokens to multiple recipients",
 			UsageText: `multitransfer --wallet <path> --rpc-endpoint <node> --timeout <time> --from <addr>` +
-				` <token1>:<addr1>:<amount1> [<token2>:<addr2>:<amount2> [...]]`,
+				` <token1>:<addr1>:<amount1> [<token2>:<addr2>:<amount2> [...]] [-- <cosigner1:Scope> [<cosigner2> [...]]]`,
 			Action: multiTransferNEP17,
 			Flags:  multiTransferFlags,
 		},
@@ -384,10 +384,17 @@ func multiTransferNEP17(ctx *cli.Context) error {
 	if ctx.NArg() == 0 {
 		return cli.NewExitError("empty recipients list", 1)
 	}
-	var recipients []client.TransferTarget
+	var (
+		recipients      []client.TransferTarget
+		cosignersOffset = ctx.NArg()
+	)
 	cache := make(map[string]*wallet.Token)
 	for i := 0; i < ctx.NArg(); i++ {
 		arg := ctx.Args().Get(i)
+		if arg == cmdargs.CosignersSeparator {
+			cosignersOffset = i + 1
+			break
+		}
 		ss := strings.SplitN(arg, ":", 3)
 		if len(ss) != 3 {
 			return cli.NewExitError("send format must be '<token>:<addr>:<amount>", 1)
@@ -420,7 +427,16 @@ func multiTransferNEP17(ctx *cli.Context) error {
 		})
 	}
 
-	return signAndSendTransfer(ctx, c, acc, recipients, nil)
+	cosigners, extErr := cmdargs.GetSignersFromContext(ctx, cosignersOffset)
+	if extErr != nil {
+		return extErr
+	}
+	cosignersAccounts, err := cmdargs.GetSignersAccounts(wall, cosigners)
+	if err != nil {
+		return cli.NewExitError(fmt.Errorf("failed to create NEP17 multitransfer transaction: %w", err), 1)
+	}
+
+	return signAndSendTransfer(ctx, c, acc, recipients, cosignersAccounts)
 }
 
 func transferNEP17(ctx *cli.Context) error {
