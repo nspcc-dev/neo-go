@@ -132,6 +132,8 @@ func TestNEP17Transfer(t *testing.T) {
 	b, _ := e.Chain.GetGoverningTokenBalance(sh)
 	require.Equal(t, big.NewInt(1), b)
 
+	hVerify := deployVerifyContract(t, e)
+
 	t.Run("default address", func(t *testing.T) {
 		const validatorDefault = "NTh9TnZTstvAePEYWDGLLxidBikJE24uTo"
 		e.In.WriteString("one\r")
@@ -159,20 +161,38 @@ func TestNEP17Transfer(t *testing.T) {
 		require.Equal(t, big.NewInt(41), b)
 	})
 
+	validTil := e.Chain.BlockHeight() + 100
+	cmd := []string{
+		"neo-go", "wallet", "nep17", "transfer",
+		"--rpc-endpoint", "http://" + e.RPC.Addr,
+		"--wallet", validatorWallet,
+		"--to", address.Uint160ToString(e.Chain.GetNotaryContractScriptHash()),
+		"--token", "GAS",
+		"--amount", "1",
+		"--from", validatorAddr,
+		"[", validatorAddr, strconv.Itoa(int(validTil)), "]"}
+
 	t.Run("with data", func(t *testing.T) {
 		e.In.WriteString("one\r")
-		validTil := e.Chain.BlockHeight() + 100
-		e.Run(t, []string{
-			"neo-go", "wallet", "nep17", "transfer",
-			"--rpc-endpoint", "http://" + e.RPC.Addr,
-			"--wallet", validatorWallet,
-			"--to", address.Uint160ToString(e.Chain.GetNotaryContractScriptHash()),
-			"--token", "GAS",
-			"--amount", "1",
-			"--from", validatorAddr,
-			"[", validatorAddr, strconv.Itoa(int(validTil)), "]",
-		}...)
+		e.Run(t, cmd...)
 		e.checkTxPersisted(t)
+	})
+
+	t.Run("with data and signers", func(t *testing.T) {
+		t.Run("invalid sender's scope", func(t *testing.T) {
+			e.In.WriteString("one\r")
+			e.RunWithError(t, append(cmd, "--", validatorAddr+":None")...)
+		})
+		t.Run("good", func(t *testing.T) {
+			e.In.WriteString("one\r")
+			e.Run(t, append(cmd, "--", validatorAddr+":Global")...) // CalledByEntry is enough, but it's the default value, so check something else
+			e.checkTxPersisted(t)
+		})
+		t.Run("several signers", func(t *testing.T) {
+			e.In.WriteString("one\r")
+			e.Run(t, append(cmd, "--", validatorAddr, hVerify.StringLE())...)
+			e.checkTxPersisted(t)
+		})
 	})
 }
 
