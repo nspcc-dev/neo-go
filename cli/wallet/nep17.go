@@ -461,7 +461,7 @@ func transferNEP17(ctx *cli.Context) error {
 		return cli.NewExitError(fmt.Errorf("invalid amount: %w", err), 1)
 	}
 
-	data, extErr := smartcontractcli.GetDataFromContext(ctx)
+	_, data, extErr := smartcontractcli.GetDataFromContext(ctx)
 	if extErr != nil {
 		return extErr
 	}

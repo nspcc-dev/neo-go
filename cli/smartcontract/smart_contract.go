@@ -828,7 +828,7 @@ func contractDeploy(ctx *cli.Context) error {
 		return cli.NewExitError(fmt.Errorf("failed to restore manifest file: %w", err), 1)
 	}
 
-	data, extErr := GetDataFromContext(ctx)
+	_, data, extErr := GetDataFromContext(ctx)
 	if extErr != nil {
 		return extErr
 	}
@@ -889,23 +889,28 @@ func contractDeploy(ctx *cli.Context) error {
 }
 
 // GetDataFromContext returns data parameter from context args.
-func GetDataFromContext(ctx *cli.Context) (interface{}, *cli.ExitError) {
-	var data interface{}
+func GetDataFromContext(ctx *cli.Context) (int, interface{}, *cli.ExitError) {
+	var (
+		data   interface{}
+		offset int
+		params []smartcontract.Parameter
+		err    error
+	)
 	args := ctx.Args()
 	if args.Present() {
-		_, params, err := ParseParams(args, true)
+		offset, params, err = ParseParams(args, true)
 		if err != nil {
-			return nil, cli.NewExitError(fmt.Errorf("unable to parse 'data' parameter: %w", err), 1)
+			return offset, nil, cli.NewExitError(fmt.Errorf("unable to parse 'data' parameter: %w", err), 1)
 		}
 		if len(params) != 1 {
-			return nil, cli.NewExitError("'data' should be represented as a single parameter", 1)
+			return offset, nil, cli.NewExitError("'data' should be represented as a single parameter", 1)
 		}
 		data, err = smartcontract.ExpandParameterToEmitable(params[0])
 		if err != nil {
-			return nil, cli.NewExitError(fmt.Sprintf("failed to convert 'data' to emitable type: %s", err.Error()), 1)
+			return offset, nil, cli.NewExitError(fmt.Sprintf("failed to convert 'data' to emitable type: %s", err.Error()), 1)
 		}
 	}
-	return data, nil
+	return offset, data, nil
 }
 
 // ParseContractConfig reads contract configuration file (.yaml) and returns unmarshalled ProjectConfig.
