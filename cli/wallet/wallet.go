@@ -235,6 +235,11 @@ func NewCommands() []cli.Command {
 				Subcommands: newNEP17Commands(),
 			},
 			{
+				Name:        "nep11",
+				Usage:       "work with NEP11 contracts",
+				Subcommands: newNEP11Commands(),
+			},
+			{
 				Name:        "candidate",
 				Usage:       "work with candidates",
 				Subcommands: newValidatorCommands(),

@@ -242,19 +242,23 @@ func getMatchingTokenAux(ctx *cli.Context, get func(i int) *wallet.Token, n int,
 			if count == 1 {
 				printTokenInfo(ctx, token)
 				printTokenInfo(ctx, t)
-				return nil, errors.New("multiple matching tokens found")
+				return nil, fmt.Errorf("multiple matching %s tokens found", standard)
 			}
 			count++
 			token = t
 		}
 	}
 	if count == 0 {
-		return nil, errors.New("token was not found")
+		return nil, fmt.Errorf("%s token was not found", standard)
 	}
 	return token, nil
 }
 
 func importNEP17Token(ctx *cli.Context) error {
+	return importNEPToken(ctx, manifest.NEP17StandardName)
+}
+
+func importNEPToken(ctx *cli.Context, standard string) error {
 	wall, err := openWallet(ctx.String("wallet"))
 	if err != nil {
 		return cli.NewExitError(err, 1)
@@ -268,9 +272,9 @@ func importNEP17Token(ctx *cli.Context) error {
 	tokenHash := tokenHashFlag.Uint160()
 
 	for _, t := range wall.Extra.Tokens {
-		if t.Hash.Equals(tokenHash) {
+		if t.Hash.Equals(tokenHash) && t.Standard == standard {
 			printTokenInfo(ctx, t)
-			return cli.NewExitError("token already exists", 1)
+			return cli.NewExitError(fmt.Errorf("%s token already exists", standard), 1)
 		}
 	}
 
@@ -282,7 +286,15 @@ func importNEP17Token(ctx *cli.Context) error {
 		return cli.NewExitError(err, 1)
 	}
 
-	tok, err := c.NEP17TokenInfo(tokenHash)
+	var tok *wallet.Token
+	switch standard {
+	case manifest.NEP17StandardName:
+		tok, err = c.NEP17TokenInfo(tokenHash)
+	case manifest.NEP11StandardName:
+		tok, err = c.NEP11TokenInfo(tokenHash)
+	default:
+		return cli.NewExitError(fmt.Sprintf("unsupported token standard: %s", standard), 1)
+	}
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("can't receive token info: %w", err), 1)
 	}
