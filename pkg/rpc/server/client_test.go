@@ -800,6 +800,16 @@ func TestClient_NEP11(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, "NNS", sym)
 	})
+	t.Run("TokenInfo", func(t *testing.T) {
+		tok, err := c.NEP11TokenInfo(h)
+		require.NoError(t, err)
+		require.Equal(t, &wallet.Token{
+			Name:     nativenames.NameService,
+			Hash:     h,
+			Decimals: 0,
+			Symbol:   "NNS",
+		}, tok)
+	})
 	t.Run("BalanceOf", func(t *testing.T) {
 		b, err := c.NEP11BalanceOf(h, acc)
 		require.NoError(t, err)

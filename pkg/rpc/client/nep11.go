@@ -35,6 +35,11 @@ func (c *Client) NEP11BalanceOf(tokenHash, owner util.Uint160) (int64, error) {
 	return c.nepBalanceOf(tokenHash, owner, nil)
 }
 
+// NEP11TokenInfo returns full NEP11 token info.
+func (c *Client) NEP11TokenInfo(tokenHash util.Uint160) (*wallet.Token, error) {
+	return c.nepTokenInfo(tokenHash)
+}
+
 // TransferNEP11 creates an invocation transaction that invokes 'transfer' method
 // on a given token to move the whole NEP11 token with the specified token ID to
 // given account and sends it to the network returning just a hash of it.

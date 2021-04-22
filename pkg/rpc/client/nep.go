@@ -3,6 +3,7 @@ package client
 import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/wallet"
 )
 
 // nepDecimals invokes `decimals` NEP* method on a specified contract.
@@ -69,4 +70,21 @@ func (c *Client) nepBalanceOf(tokenHash, acc util.Uint160, tokenID *string) (int
 	}
 
 	return topIntFromStack(result.Stack)
+}
+
+// nepTokenInfo returns full NEP* token info.
+func (c *Client) nepTokenInfo(tokenHash util.Uint160) (*wallet.Token, error) {
+	cs, err := c.GetContractStateByHash(tokenHash)
+	if err != nil {
+		return nil, err
+	}
+	symbol, err := c.nepSymbol(tokenHash)
+	if err != nil {
+		return nil, err
+	}
+	decimals, err := c.nepDecimals(tokenHash)
+	if err != nil {
+		return nil, err
+	}
+	return wallet.NewToken(tokenHash, cs.Manifest.Name, symbol, decimals), nil
 }
