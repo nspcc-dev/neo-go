@@ -1,7 +1,6 @@
 module github.com/nspcc-dev/neo-go
 
 require (
-	github.com/PaesslerAG/jsonpath v0.1.1
 	github.com/Workiva/go-datastructures v1.0.50
 	github.com/abiosoft/readline v0.0.0-20180607040430-155bce2042db
 	github.com/alicebob/miniredis v2.5.0+incompatible

@@ -29,10 +29,12 @@ func TestFilter(t *testing.T) {
 	testCases := []struct {
 		result, path string
 	}{
-		{`["Acme Co"]`, "Manufacturers[0].Name"},
-		{`[50]`, "Manufacturers[0].Products[0].Price"},
-		{`["Elbow Grease"]`, "Manufacturers[1].Products[0].Name"},
-		{`[{"Name":"Elbow Grease","Price":99.95}]`, "Manufacturers[1].Products[0]"},
+		{"[]", "$.Name"},
+		{`["Acme Co"]`, "$.Manufacturers[0].Name"},
+		{`["Acme Co"]`, "$..Manufacturers[0].Name"},
+		{`[50]`, "$.Manufacturers[0].Products[0].Price"},
+		{`["Elbow Grease"]`, "$.Manufacturers[1].Products[0].Name"},
+		{`[{"Name":"Elbow Grease","Price":99.95}]`, "$.Manufacturers[1].Products[0]"},
 	}
 
 	for _, tc := range testCases {
