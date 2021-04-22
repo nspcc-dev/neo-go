@@ -86,10 +86,7 @@ func newNEP17Commands() []cli.Command {
 			Action:    printNEP17Info,
 			Flags: []cli.Flag{
 				walletPathFlag,
-				cli.StringFlag{
-					Name:  "token",
-					Usage: "Token name or hash",
-				},
+				tokenFlag,
 			},
 		},
 		{
@@ -99,10 +96,7 @@ func newNEP17Commands() []cli.Command {
 			Action:    removeNEP17Token,
 			Flags: []cli.Flag{
 				walletPathFlag,
-				cli.StringFlag{
-					Name:  "token",
-					Usage: "Token name or hash",
-				},
+				tokenFlag,
 				forceFlag,
 			},
 		},
