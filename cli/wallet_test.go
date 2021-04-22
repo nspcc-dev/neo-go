@@ -14,7 +14,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
-	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/stretchr/testify/require"
 )
@@ -243,20 +242,7 @@ func TestClaimGas(t *testing.T) {
 func TestImportDeployed(t *testing.T) {
 	e := newExecutor(t, true)
 
-	e.In.WriteString("one\r")
-	e.Run(t, "neo-go", "contract", "deploy",
-		"--rpc-endpoint", "http://"+e.RPC.Addr,
-		"--wallet", validatorWallet, "--address", validatorAddr,
-		"--in", "testdata/verify.nef", "--manifest", "testdata/verify.manifest.json")
-
-	line, err := e.Out.ReadString('\n')
-	require.NoError(t, err)
-	line = strings.TrimSpace(strings.TrimPrefix(line, "Contract: "))
-	h, err := util.Uint160DecodeStringLE(line)
-	require.NoError(t, err)
-
-	e.checkTxPersisted(t)
-
+	h := deployVerifyContract(t, e)
 	tmpDir := os.TempDir()
 	walletPath := path.Join(tmpDir, "wallet.json")
 	e.Run(t, "neo-go", "wallet", "init", "--wallet", walletPath)
