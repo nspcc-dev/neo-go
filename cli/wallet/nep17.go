@@ -28,14 +28,14 @@ var (
 		Name:  "gas",
 		Usage: "Amount of GAS to attach to a tx",
 	}
-	balanceFlags = append([]cli.Flag{
+	baseBalanceFlags = []cli.Flag{
 		walletPathFlag,
 		tokenFlag,
 		flags.AddressFlag{
 			Name:  "address, a",
 			Usage: "Address to use",
 		},
-	}, options.RPC...)
+	}
 	importFlags = append([]cli.Flag{
 		walletPathFlag,
 		flags.AddressFlag{
@@ -64,6 +64,9 @@ var (
 )
 
 func newNEP17Commands() []cli.Command {
+	balanceFlags := make([]cli.Flag, len(baseBalanceFlags))
+	copy(balanceFlags, baseBalanceFlags)
+	balanceFlags = append(balanceFlags, options.RPC...)
 	return []cli.Command{
 		{
 			Name:      "balance",
