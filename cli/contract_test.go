@@ -194,12 +194,12 @@ func TestContractDeployWithData(t *testing.T) {
 		"--in", nefName, "--manifest", manifestName,
 		"[", "key1", "12", "key2", "take_me_to_church", "]")
 
+	e.checkTxPersisted(t, "Sent invocation transaction ")
 	line, err := e.Out.ReadString('\n')
 	require.NoError(t, err)
 	line = strings.TrimSpace(strings.TrimPrefix(line, "Contract: "))
 	h, err := util.Uint160DecodeStringLE(line)
 	require.NoError(t, err)
-	e.checkTxPersisted(t)
 
 	e.Run(t, "neo-go", "contract", "testinvokefunction",
 		"--rpc-endpoint", "http://"+e.RPC.Addr,
@@ -244,12 +244,12 @@ func deployVerifyContract(t *testing.T, e *executor) util.Uint160 {
 		"--rpc-endpoint", "http://"+e.RPC.Addr,
 		"--wallet", validatorWallet, "--address", validatorAddr,
 		"--in", nefName, "--manifest", manifestName)
+	e.checkTxPersisted(t, "Sent invocation transaction ")
 	line, err := e.Out.ReadString('\n')
 	require.NoError(t, err)
 	line = strings.TrimSpace(strings.TrimPrefix(line, "Contract: "))
 	hVerify, err := util.Uint160DecodeStringLE(line)
 	require.NoError(t, err)
-	e.checkTxPersisted(t)
 	return hVerify
 }
 
@@ -288,12 +288,12 @@ func TestComlileAndInvokeFunction(t *testing.T) {
 		"--wallet", validatorWallet, "--address", validatorAddr,
 		"--in", nefName, "--manifest", manifestName)
 
+	e.checkTxPersisted(t, "Sent invocation transaction ")
 	line, err := e.Out.ReadString('\n')
 	require.NoError(t, err)
 	line = strings.TrimSpace(strings.TrimPrefix(line, "Contract: "))
 	h, err := util.Uint160DecodeStringLE(line)
 	require.NoError(t, err)
-	e.checkTxPersisted(t)
 
 	t.Run("check calc hash", func(t *testing.T) {
 		// missing sender

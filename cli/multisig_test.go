@@ -5,14 +5,12 @@ import (
 	"math/big"
 	"os"
 	"path"
-	"strings"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
-	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/stretchr/testify/require"
 )
 
@@ -110,19 +108,7 @@ func TestSignMultisigTx(t *testing.T) {
 	require.Equal(t, big.NewInt(3), b)
 
 	t.Run("via invokefunction", func(t *testing.T) {
-		e.In.WriteString("one\r")
-		e.Run(t, "neo-go", "contract", "deploy",
-			"--rpc-endpoint", "http://"+e.RPC.Addr,
-			"--wallet", validatorWallet, "--address", validatorAddr,
-			"--in", "testdata/verify.nef", "--manifest", "testdata/verify.manifest.json")
-
-		line, err := e.Out.ReadString('\n')
-		require.NoError(t, err)
-		line = strings.TrimSpace(strings.TrimPrefix(line, "Contract: "))
-		h, err := util.Uint160DecodeStringLE(line)
-		require.NoError(t, err)
-
-		e.checkTxPersisted(t)
+		h := deployVerifyContract(t, e)
 
 		e.In.WriteString("acc\rpass\rpass\r")
 		e.Run(t, "neo-go", "wallet", "import-deployed",

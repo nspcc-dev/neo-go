@@ -22,16 +22,13 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/fixedn"
-	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/client"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
-	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
-	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/urfave/cli"
 	"gopkg.in/yaml.v2"
@@ -98,21 +95,6 @@ func NewCommands() []cli.Command {
 		},
 	}
 	testInvokeScriptFlags = append(testInvokeScriptFlags, options.RPC...)
-	deployFlags := []cli.Flag{
-		cli.StringFlag{
-			Name:  "in, i",
-			Usage: "Input file for the smart contract (*.nef)",
-		},
-		cli.StringFlag{
-			Name:  "manifest, m",
-			Usage: "Manifest input file (*.manifest.json)",
-		},
-		walletFlag,
-		addressFlag,
-		outFlag,
-		gasFlag,
-	}
-	deployFlags = append(deployFlags, options.RPC...)
 	invokeFunctionFlags := []cli.Flag{
 		walletFlag,
 		addressFlag,
@@ -121,6 +103,16 @@ func NewCommands() []cli.Command {
 		forceFlag,
 	}
 	invokeFunctionFlags = append(invokeFunctionFlags, options.RPC...)
+	deployFlags := append(invokeFunctionFlags, []cli.Flag{
+		cli.StringFlag{
+			Name:  "in, i",
+			Usage: "Input file for the smart contract (*.nef)",
+		},
+		cli.StringFlag{
+			Name:  "manifest, m",
+			Usage: "Manifest input file (*.manifest.json)",
+		},
+	}...)
 	return []cli.Command{{
 		Name:  "contract",
 		Usage: "compile - debug - deploy smart contracts",
@@ -167,7 +159,7 @@ func NewCommands() []cli.Command {
 			{
 				Name:      "deploy",
 				Usage:     "deploy a smart contract (.nef with description)",
-				UsageText: "neo-go contract deploy -r endpoint -w wallet [-a address] [-g gas] --in contract.nef --manifest contract.manifest.json [--out file] [data]",
+				UsageText: "neo-go contract deploy -r endpoint -w wallet [-a address] [-g gas] --in contract.nef --manifest contract.manifest.json [--out file] [--force] [data]",
 				Description: `Deploys given contract into the chain. The gas parameter is for additional
    gas to be added as a network fee to prioritize the transaction. The data 
    parameter is an optional parameter to be passed to '_deploy' method.
@@ -178,7 +170,7 @@ func NewCommands() []cli.Command {
 			{
 				Name:      "invokefunction",
 				Usage:     "invoke deployed contract on the blockchain",
-				UsageText: "neo-go contract invokefunction -r endpoint -w wallet [-a address] [-g gas] [--out file] scripthash [method] [arguments...] [--] [signers...]",
+				UsageText: "neo-go contract invokefunction -r endpoint -w wallet [-a address] [-g gas] [--out file] [--force] scripthash [method] [arguments...] [--] [signers...]",
 				Description: `Executes given (as a script hash) deployed script with the given method,
    arguments and signers. Sender is included in the list of signers by default
    with None witness scope. If you'd like to change default sender's scope, 
@@ -508,18 +500,13 @@ func invokeFunction(ctx *cli.Context) error {
 
 func invokeInternal(ctx *cli.Context, signAndPush bool) error {
 	var (
-		err               error
-		exitErr           *cli.ExitError
-		gas               fixedn.Fixed8
-		operation         string
-		params            = make([]smartcontract.Parameter, 0)
-		paramsStart       = 1
-		cosigners         []transaction.Signer
-		cosignersAccounts []client.SignerAccount
-		cosignersOffset   = 0
-		resp              *result.Invoke
-		acc               *wallet.Account
-		wall              *wallet.Wallet
+		err             error
+		exitErr         *cli.ExitError
+		operation       string
+		params          = make([]smartcontract.Parameter, 0)
+		paramsStart     = 1
+		cosigners       []transaction.Signer
+		cosignersOffset = 0
 	)
 
 	args := ctx.Args()
@@ -549,15 +536,33 @@ func invokeInternal(ctx *cli.Context, signAndPush bool) error {
 		return exitErr
 	}
 
+	_, err = invokeWithArgs(ctx, signAndPush, script, operation, params, cosigners)
+	return err
+}
+
+func invokeWithArgs(ctx *cli.Context, signAndPush bool, script util.Uint160, operation string, params []smartcontract.Parameter, cosigners []transaction.Signer) (util.Uint160, error) {
+	var (
+		err               error
+		gas               fixedn.Fixed8
+		cosignersAccounts []client.SignerAccount
+		resp              *result.Invoke
+		acc               *wallet.Account
+		wall              *wallet.Wallet
+		sender            util.Uint160
+	)
 	if signAndPush {
 		gas = flags.Fixed8FromContext(ctx, "gas")
 		acc, wall, err = getAccFromContext(ctx)
 		if err != nil {
-			return err
+			return sender, err
+		}
+		sender, err = address.StringToUint160(acc.Address)
+		if err != nil {
+			return sender, err
 		}
 		cosignersAccounts, err = cmdargs.GetSignersAccounts(wall, cosigners)
 		if err != nil {
-			return cli.NewExitError(fmt.Errorf("failed to calculate network fee: %w", err), 1)
+			return sender, cli.NewExitError(fmt.Errorf("failed to calculate network fee: %w", err), 1)
 		}
 	}
 	gctx, cancel := options.GetTimeoutContext(ctx)
@@ -565,50 +570,50 @@ func invokeInternal(ctx *cli.Context, signAndPush bool) error {
 
 	c, err := options.GetRPCClient(gctx, ctx)
 	if err != nil {
-		return err
+		return sender, err
 	}
 
 	resp, err = c.InvokeFunction(script, operation, params, cosigners)
 	if err != nil {
-		return cli.NewExitError(err, 1)
+		return sender, cli.NewExitError(err, 1)
 	}
 	if signAndPush && resp.State != "HALT" {
 		errText := fmt.Sprintf("Warning: %s VM state returned from the RPC node: %s\n", resp.State, resp.FaultException)
 		if !ctx.Bool("force") {
-			return cli.NewExitError(errText+". Use --force flag to send the transaction anyway.", 1)
+			return sender, cli.NewExitError(errText+". Use --force flag to send the transaction anyway.", 1)
 		}
 		fmt.Fprintln(ctx.App.Writer, errText+". Sending transaction...")
 	}
 	if out := ctx.String("out"); out != "" {
 		tx, err := c.CreateTxFromScript(resp.Script, acc, resp.GasConsumed, int64(gas), cosignersAccounts)
 		if err != nil {
-			return cli.NewExitError(fmt.Errorf("failed to create tx: %w", err), 1)
+			return sender, cli.NewExitError(fmt.Errorf("failed to create tx: %w", err), 1)
 		}
 		if err := paramcontext.InitAndSave(c.GetNetwork(), tx, acc, out); err != nil {
-			return cli.NewExitError(err, 1)
+			return sender, cli.NewExitError(err, 1)
 		}
 		fmt.Fprintln(ctx.App.Writer, tx.Hash().StringLE())
-		return nil
+		return sender, nil
 	}
 	if signAndPush {
 		if len(resp.Script) == 0 {
-			return cli.NewExitError(errors.New("no script returned from the RPC node"), 1)
+			return sender, cli.NewExitError(errors.New("no script returned from the RPC node"), 1)
 		}
 		txHash, err := c.SignAndPushInvocationTx(resp.Script, acc, resp.GasConsumed, gas, cosignersAccounts)
 		if err != nil {
-			return cli.NewExitError(fmt.Errorf("failed to push invocation tx: %w", err), 1)
+			return sender, cli.NewExitError(fmt.Errorf("failed to push invocation tx: %w", err), 1)
 		}
 		fmt.Fprintf(ctx.App.Writer, "Sent invocation transaction %s\n", txHash.StringLE())
 	} else {
 		b, err := json.MarshalIndent(resp, "", "  ")
 		if err != nil {
-			return cli.NewExitError(err, 1)
+			return sender, cli.NewExitError(err, 1)
 		}
 
 		fmt.Fprintln(ctx.App.Writer, string(b))
 	}
 
-	return nil
+	return sender, nil
 }
 
 func testInvokeScript(ctx *cli.Context) error {
@@ -741,16 +746,7 @@ func contractDeploy(ctx *cli.Context) error {
 	if len(manifestFile) == 0 {
 		return cli.NewExitError(errNoManifestFile, 1)
 	}
-	gas := flags.Fixed8FromContext(ctx, "gas")
 
-	acc, _, err := getAccFromContext(ctx)
-	if err != nil {
-		return err
-	}
-	sender, err := address.StringToUint160(acc.Address)
-	if err != nil {
-		return cli.NewExitError(err, 1)
-	}
 	f, err := ioutil.ReadFile(in)
 	if err != nil {
 		return cli.NewExitError(err, 1)
@@ -771,13 +767,25 @@ func contractDeploy(ctx *cli.Context) error {
 		return cli.NewExitError(fmt.Errorf("failed to restore manifest file: %w", err), 1)
 	}
 
-	_, data, extErr := cmdargs.GetDataFromContext(ctx)
-	if extErr != nil {
-		return extErr
+	appCallParams := []smartcontract.Parameter{
+		{
+			Type:  smartcontract.ByteArrayType,
+			Value: f,
+		},
+		{
+			Type:  smartcontract.ByteArrayType,
+			Value: manifestBytes,
+		},
 	}
-	appCallParams := []interface{}{f, manifestBytes}
-	if data != nil {
-		appCallParams = append(appCallParams, data)
+	_, data, err := cmdargs.ParseParams(ctx.Args(), true)
+	if err != nil {
+		return cli.NewExitError(fmt.Errorf("unable to parse 'data' parameter: %w", err), 1)
+	}
+	if len(data) > 1 {
+		return cli.NewExitError("'data' should be represented as a single parameter", 1)
+	}
+	if len(data) != 0 {
+		appCallParams = append(appCallParams, data[0])
 	}
 
 	gctx, cancel := options.GetTimeoutContext(ctx)
@@ -792,42 +800,13 @@ func contractDeploy(ctx *cli.Context) error {
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("failed to get management contract's hash: %w", err), 1)
 	}
-	buf := io.NewBufBinWriter()
-	emit.AppCall(buf.BinWriter, mgmtHash, "deploy",
-		callflag.ReadStates|callflag.WriteStates|callflag.AllowNotify,
-		appCallParams...)
-	if buf.Err != nil {
-		return cli.NewExitError(fmt.Errorf("failed to create deployment script: %w", buf.Err), 1)
-	}
-	txScript := buf.Bytes()
-	// It doesn't require any signers.
-	invRes, err := c.InvokeScript(txScript, nil)
-	if err == nil && invRes.FaultException != "" {
-		err = errors.New(invRes.FaultException)
-	}
-	if err != nil {
-		return cli.NewExitError(fmt.Errorf("failed to test-invoke deployment script: %w", err), 1)
+	sender, extErr := invokeWithArgs(ctx, true, mgmtHash, "deploy", appCallParams, nil)
+	if extErr != nil {
+		return extErr
 	}
 
-	var txHash util.Uint256
-	if out := ctx.String("out"); out != "" {
-		tx, err := c.CreateTxFromScript(txScript, acc, invRes.GasConsumed, int64(gas), nil)
-		if err != nil {
-			return cli.NewExitError(fmt.Errorf("failed to create tx: %w", err), 1)
-		}
-		if err := paramcontext.InitAndSave(c.GetNetwork(), tx, acc, out); err != nil {
-			return cli.NewExitError(err, 1)
-		}
-		txHash = tx.Hash()
-	} else {
-		txHash, err = c.SignAndPushInvocationTx(txScript, acc, invRes.GasConsumed, gas, nil)
-		if err != nil {
-			return cli.NewExitError(fmt.Errorf("failed to push invocation tx: %w", err), 1)
-		}
-	}
 	hash := state.CreateContractHash(sender, nefFile.Checksum, m.Name)
 	fmt.Fprintf(ctx.App.Writer, "Contract: %s\n", hash.StringLE())
-	fmt.Fprintln(ctx.App.Writer, txHash.StringLE())
 	return nil
 }
 
