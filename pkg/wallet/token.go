@@ -11,15 +11,17 @@ type Token struct {
 	Hash     util.Uint160 `json:"script_hash"`
 	Decimals int64        `json:"decimals"`
 	Symbol   string       `json:"symbol"`
+	Standard string       `json:"standard"`
 }
 
 // NewToken returns new token contract info.
-func NewToken(tokenHash util.Uint160, name, symbol string, decimals int64) *Token {
+func NewToken(tokenHash util.Uint160, name, symbol string, decimals int64, standardName string) *Token {
 	return &Token{
 		Name:     name,
 		Hash:     tokenHash,
 		Decimals: decimals,
 		Symbol:   symbol,
+		Standard: standardName,
 	}
 }
 

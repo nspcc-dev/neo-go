@@ -73,7 +73,7 @@ func (c *Client) nepBalanceOf(tokenHash, acc util.Uint160, tokenID *string) (int
 }
 
 // nepTokenInfo returns full NEP* token info.
-func (c *Client) nepTokenInfo(tokenHash util.Uint160) (*wallet.Token, error) {
+func (c *Client) nepTokenInfo(tokenHash util.Uint160, standard string) (*wallet.Token, error) {
 	cs, err := c.GetContractStateByHash(tokenHash)
 	if err != nil {
 		return nil, err
@@ -86,5 +86,5 @@ func (c *Client) nepTokenInfo(tokenHash util.Uint160) (*wallet.Token, error) {
 	if err != nil {
 		return nil, err
 	}
-	return wallet.NewToken(tokenHash, cs.Manifest.Name, symbol, decimals), nil
+	return wallet.NewToken(tokenHash, cs.Manifest.Name, symbol, decimals, standard), nil
 }

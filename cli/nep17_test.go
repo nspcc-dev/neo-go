@@ -12,6 +12,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/fixedn"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/stretchr/testify/require"
 )
@@ -279,6 +280,7 @@ func TestNEP17ImportToken(t *testing.T) {
 			e.checkNextLine(t, "^Hash:\\s*"+gasContractHash.StringLE())
 			e.checkNextLine(t, "^Decimals:\\s*8")
 			e.checkNextLine(t, "^Address:\\s*"+address.Uint160ToString(gasContractHash))
+			e.checkNextLine(t, "^Standard:\\s*"+manifest.NEP17StandardName)
 		}
 		t.Run("WithToken", func(t *testing.T) {
 			e.Run(t, "neo-go", "wallet", "nep17", "info",
@@ -296,6 +298,7 @@ func TestNEP17ImportToken(t *testing.T) {
 			e.checkNextLine(t, "^Hash:\\s*"+neoContractHash.StringLE())
 			e.checkNextLine(t, "^Decimals:\\s*0")
 			e.checkNextLine(t, "^Address:\\s*"+address.Uint160ToString(neoContractHash))
+			e.checkNextLine(t, "^Standard:\\s*"+manifest.NEP17StandardName)
 		})
 		t.Run("Remove", func(t *testing.T) {
 			e.In.WriteString("y\r")

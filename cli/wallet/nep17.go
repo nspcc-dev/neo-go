@@ -13,6 +13,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/fixedn"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/client"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/urfave/cli"
@@ -186,7 +187,7 @@ func getNEP17Balance(ctx *cli.Context) error {
 			var tokenName, tokenSymbol string
 			tokenDecimals := 0
 			asset := balances.Balances[i].Asset
-			token, err := getMatchingToken(ctx, wall, asset.StringLE())
+			token, err := getMatchingToken(ctx, wall, asset.StringLE(), manifest.NEP17StandardName)
 			if err != nil {
 				token, err = c.NEP17TokenInfo(asset)
 			}
@@ -218,10 +219,10 @@ func getNEP17Balance(ctx *cli.Context) error {
 	return nil
 }
 
-func getMatchingToken(ctx *cli.Context, w *wallet.Wallet, name string) (*wallet.Token, error) {
+func getMatchingToken(ctx *cli.Context, w *wallet.Wallet, name string, standard string) (*wallet.Token, error) {
 	return getMatchingTokenAux(ctx, func(i int) *wallet.Token {
 		return w.Extra.Tokens[i]
-	}, len(w.Extra.Tokens), name)
+	}, len(w.Extra.Tokens), name, standard)
 }
 
 func getMatchingTokenRPC(ctx *cli.Context, c *client.Client, addr util.Uint160, name string) (*wallet.Token, error) {
@@ -233,15 +234,15 @@ func getMatchingTokenRPC(ctx *cli.Context, c *client.Client, addr util.Uint160, 
 		t, _ := c.NEP17TokenInfo(bs.Balances[i].Asset)
 		return t
 	}
-	return getMatchingTokenAux(ctx, get, len(bs.Balances), name)
+	return getMatchingTokenAux(ctx, get, len(bs.Balances), name, manifest.NEP17StandardName)
 }
 
-func getMatchingTokenAux(ctx *cli.Context, get func(i int) *wallet.Token, n int, name string) (*wallet.Token, error) {
+func getMatchingTokenAux(ctx *cli.Context, get func(i int) *wallet.Token, n int, name string, standard string) (*wallet.Token, error) {
 	var token *wallet.Token
 	var count int
 	for i := 0; i < n; i++ {
 		t := get(i)
-		if t != nil && (t.Hash.StringLE() == name || t.Address() == name || t.Symbol == name || t.Name == name) {
+		if t != nil && (t.Hash.StringLE() == name || t.Address() == name || t.Symbol == name || t.Name == name) && t.Standard == standard {
 			if count == 1 {
 				printTokenInfo(ctx, token)
 				printTokenInfo(ctx, t)
@@ -305,6 +306,7 @@ func printTokenInfo(ctx *cli.Context, tok *wallet.Token) {
 	fmt.Fprintf(w, "Hash:\t%s\n", tok.Hash.StringLE())
 	fmt.Fprintf(w, "Decimals: %d\n", tok.Decimals)
 	fmt.Fprintf(w, "Address: %s\n", tok.Address())
+	fmt.Fprintf(w, "Standard:\t%s\n", tok.Standard)
 }
 
 func printNEP17Info(ctx *cli.Context) error {
@@ -315,7 +317,7 @@ func printNEP17Info(ctx *cli.Context) error {
 	defer wall.Close()
 
 	if name := ctx.String("token"); name != "" {
-		token, err := getMatchingToken(ctx, wall, name)
+		token, err := getMatchingToken(ctx, wall, name, manifest.NEP17StandardName)
 		if err != nil {
 			return cli.NewExitError(err, 1)
 		}
@@ -339,7 +341,7 @@ func removeNEP17Token(ctx *cli.Context) error {
 	}
 	defer wall.Close()
 
-	token, err := getMatchingToken(ctx, wall, ctx.String("token"))
+	token, err := getMatchingToken(ctx, wall, ctx.String("token"), manifest.NEP17StandardName)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -401,7 +403,7 @@ func multiTransferNEP17(ctx *cli.Context) error {
 		}
 		token, ok := cache[ss[0]]
 		if !ok {
-			token, err = getMatchingToken(ctx, wall, ss[0])
+			token, err = getMatchingToken(ctx, wall, ss[0], manifest.NEP17StandardName)
 			if err != nil {
 				fmt.Fprintln(ctx.App.ErrWriter, "Can't find matching token in the wallet. Querying RPC-node for balances.")
 				token, err = getMatchingTokenRPC(ctx, c, from, ss[0])
@@ -466,7 +468,7 @@ func transferNEP17(ctx *cli.Context) error {
 
 	toFlag := ctx.Generic("to").(*flags.Address)
 	to := toFlag.Uint160()
-	token, err := getMatchingToken(ctx, wall, ctx.String("token"))
+	token, err := getMatchingToken(ctx, wall, ctx.String("token"), manifest.NEP17StandardName)
 	if err != nil {
 		fmt.Fprintln(ctx.App.ErrWriter, "Can't find matching token in the wallet. Querying RPC-node for balances.")
 		token, err = getMatchingTokenRPC(ctx, c, from, ctx.String("token"))

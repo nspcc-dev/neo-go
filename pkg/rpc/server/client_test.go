@@ -17,6 +17,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/rpc/client"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
@@ -808,6 +809,7 @@ func TestClient_NEP11(t *testing.T) {
 			Hash:     h,
 			Decimals: 0,
 			Symbol:   "NNS",
+			Standard: manifest.NEP11StandardName,
 		}, tok)
 	})
 	t.Run("BalanceOf", func(t *testing.T) {

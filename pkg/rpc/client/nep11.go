@@ -8,6 +8,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
@@ -37,7 +38,7 @@ func (c *Client) NEP11BalanceOf(tokenHash, owner util.Uint160) (int64, error) {
 
 // NEP11TokenInfo returns full NEP11 token info.
 func (c *Client) NEP11TokenInfo(tokenHash util.Uint160) (*wallet.Token, error) {
-	return c.nepTokenInfo(tokenHash)
+	return c.nepTokenInfo(tokenHash, manifest.NEP11StandardName)
 }
 
 // TransferNEP11 creates an invocation transaction that invokes 'transfer' method
