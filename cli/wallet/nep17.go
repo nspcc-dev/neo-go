@@ -312,6 +312,10 @@ func printTokenInfo(ctx *cli.Context, tok *wallet.Token) {
 }
 
 func printNEP17Info(ctx *cli.Context) error {
+	return printNEPInfo(ctx, manifest.NEP17StandardName)
+}
+
+func printNEPInfo(ctx *cli.Context, standard string) error {
 	wall, err := openWallet(ctx.String("wallet"))
 	if err != nil {
 		return cli.NewExitError(err, 1)
@@ -319,7 +323,7 @@ func printNEP17Info(ctx *cli.Context) error {
 	defer wall.Close()
 
 	if name := ctx.String("token"); name != "" {
-		token, err := getMatchingToken(ctx, wall, name, manifest.NEP17StandardName)
+		token, err := getMatchingToken(ctx, wall, name, standard)
 		if err != nil {
 			return cli.NewExitError(err, 1)
 		}
@@ -327,11 +331,15 @@ func printNEP17Info(ctx *cli.Context) error {
 		return nil
 	}
 
-	for i, t := range wall.Extra.Tokens {
-		if i > 0 {
+	var count int
+	for _, t := range wall.Extra.Tokens {
+		if count > 0 {
 			fmt.Fprintln(ctx.App.Writer)
 		}
-		printTokenInfo(ctx, t)
+		if t.Standard == standard {
+			printTokenInfo(ctx, t)
+			count++
+		}
 	}
 	return nil
 }
