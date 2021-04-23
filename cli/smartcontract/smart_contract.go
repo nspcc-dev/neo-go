@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/nspcc-dev/neo-go/cli/cmdargs"
 	"github.com/nspcc-dev/neo-go/cli/flags"
 	"github.com/nspcc-dev/neo-go/cli/input"
 	"github.com/nspcc-dev/neo-go/cli/options"
@@ -86,11 +87,6 @@ func init() {
 func RuntimeNotify(args []interface{}) {
     runtime.Notify(notificationName, args)
 }`
-	// cosignersSeparator is a special value which is used to distinguish
-	// parameters and cosigners for invoke* commands
-	cosignersSeparator  = "--"
-	arrayStartSeparator = "["
-	arrayEndSeparator   = "]"
 )
 
 // NewCommands returns 'contract' command.
@@ -513,6 +509,7 @@ func invokeFunction(ctx *cli.Context) error {
 func invokeInternal(ctx *cli.Context, signAndPush bool) error {
 	var (
 		err               error
+		exitErr           *cli.ExitError
 		gas               fixedn.Fixed8
 		operation         string
 		params            = make([]smartcontract.Parameter, 0)
@@ -540,21 +537,16 @@ func invokeInternal(ctx *cli.Context, signAndPush bool) error {
 	paramsStart++
 
 	if len(args) > paramsStart {
-		cosignersOffset, params, err = ParseParams(args[paramsStart:], true)
+		cosignersOffset, params, err = cmdargs.ParseParams(args[paramsStart:], true)
 		if err != nil {
 			return cli.NewExitError(err, 1)
 		}
 	}
 
 	cosignersStart := paramsStart + cosignersOffset
-	if len(args) > cosignersStart {
-		for i, c := range args[cosignersStart:] {
-			cosigner, err := parseCosigner(c)
-			if err != nil {
-				return cli.NewExitError(fmt.Errorf("failed to parse cosigner #%d: %w", i+1, err), 1)
-			}
-			cosigners = append(cosigners, cosigner)
-		}
+	cosigners, exitErr = cmdargs.GetSignersFromContext(ctx, cosignersStart)
+	if exitErr != nil {
+		return exitErr
 	}
 
 	if signAndPush {
@@ -563,15 +555,9 @@ func invokeInternal(ctx *cli.Context, signAndPush bool) error {
 		if err != nil {
 			return err
 		}
-		for i := range cosigners {
-			cosignerAcc := wall.GetAccount(cosigners[i].Account)
-			if cosignerAcc == nil {
-				return cli.NewExitError(fmt.Errorf("can't calculate network fee: no account was found in the wallet for cosigner #%d", i), 1)
-			}
-			cosignersAccounts = append(cosignersAccounts, client.SignerAccount{
-				Signer:  cosigners[i],
-				Account: cosignerAcc,
-			})
+		cosignersAccounts, err = cmdargs.GetSignersAccounts(wall, cosigners)
+		if err != nil {
+			return cli.NewExitError(fmt.Errorf("failed to calculate network fee: %w", err), 1)
 		}
 	}
 	gctx, cancel := options.GetTimeoutContext(ctx)
@@ -625,52 +611,6 @@ func invokeInternal(ctx *cli.Context, signAndPush bool) error {
 	return nil
 }
 
-// ParseParams extracts array of smartcontract.Parameter from the given args and
-// returns the number of handled words, the array itself and an error.
-// `calledFromMain` denotes whether the method was called from the outside or
-// recursively and used to check if cosignersSeparator and closing bracket are
-// allowed to be in `args` sequence.
-func ParseParams(args []string, calledFromMain bool) (int, []smartcontract.Parameter, error) {
-	res := []smartcontract.Parameter{}
-	for k := 0; k < len(args); {
-		s := args[k]
-		switch s {
-		case cosignersSeparator:
-			if calledFromMain {
-				return k + 1, res, nil // `1` to convert index to numWordsRead
-			}
-			return 0, []smartcontract.Parameter{}, errors.New("invalid array syntax: missing closing bracket")
-		case arrayStartSeparator:
-			numWordsRead, array, err := ParseParams(args[k+1:], false)
-			if err != nil {
-				return 0, nil, fmt.Errorf("failed to parse array: %w", err)
-			}
-			res = append(res, smartcontract.Parameter{
-				Type:  smartcontract.ArrayType,
-				Value: array,
-			})
-			k += 1 + numWordsRead // `1` for opening bracket
-		case arrayEndSeparator:
-			if calledFromMain {
-				return 0, nil, errors.New("invalid array syntax: missing opening bracket")
-			}
-			return k + 1, res, nil // `1`to convert index to numWordsRead
-		default:
-			param, err := smartcontract.NewParameterFromString(s)
-			if err != nil {
-				return 0, nil, fmt.Errorf("failed to parse argument #%d: %w", k+1, err)
-			}
-			res = append(res, *param)
-			k++
-		}
-	}
-	if calledFromMain {
-		return len(args), res, nil
-	}
-	return 0, []smartcontract.Parameter{}, errors.New("invalid array syntax: missing closing bracket")
-
-}
-
 func testInvokeScript(ctx *cli.Context) error {
 	src := ctx.String("in")
 	if len(src) == 0 {
@@ -686,16 +626,9 @@ func testInvokeScript(ctx *cli.Context) error {
 		return cli.NewExitError(fmt.Errorf("failed to restore .nef file: %w", err), 1)
 	}
 
-	args := ctx.Args()
-	var signers []transaction.Signer
-	if args.Present() {
-		for i, c := range args[:] {
-			cosigner, err := parseCosigner(c)
-			if err != nil {
-				return cli.NewExitError(fmt.Errorf("failed to parse signer #%d: %w", i+1, err), 1)
-			}
-			signers = append(signers, cosigner)
-		}
+	signers, exitErr := cmdargs.GetSignersFromContext(ctx, 0)
+	if exitErr != nil {
+		return exitErr
 	}
 
 	gctx, cancel := options.GetTimeoutContext(ctx)
@@ -838,7 +771,7 @@ func contractDeploy(ctx *cli.Context) error {
 		return cli.NewExitError(fmt.Errorf("failed to restore manifest file: %w", err), 1)
 	}
 
-	data, extErr := GetDataFromContext(ctx)
+	_, data, extErr := cmdargs.GetDataFromContext(ctx)
 	if extErr != nil {
 		return extErr
 	}
@@ -898,26 +831,6 @@ func contractDeploy(ctx *cli.Context) error {
 	return nil
 }
 
-// GetDataFromContext returns data parameter from context args.
-func GetDataFromContext(ctx *cli.Context) (interface{}, *cli.ExitError) {
-	var data interface{}
-	args := ctx.Args()
-	if args.Present() {
-		_, params, err := ParseParams(args, true)
-		if err != nil {
-			return nil, cli.NewExitError(fmt.Errorf("unable to parse 'data' parameter: %w", err), 1)
-		}
-		if len(params) != 1 {
-			return nil, cli.NewExitError("'data' should be represented as a single parameter", 1)
-		}
-		data, err = smartcontract.ExpandParameterToEmitable(params[0])
-		if err != nil {
-			return nil, cli.NewExitError(fmt.Sprintf("failed to convert 'data' to emitable type: %s", err.Error()), 1)
-		}
-	}
-	return data, nil
-}
-
 // ParseContractConfig reads contract configuration file (.yaml) and returns unmarshalled ProjectConfig.
 func ParseContractConfig(confFile string) (ProjectConfig, error) {
 	conf := ProjectConfig{}
@@ -931,26 +844,4 @@ func ParseContractConfig(confFile string) (ProjectConfig, error) {
 		return conf, cli.NewExitError(fmt.Errorf("bad config: %w", err), 1)
 	}
 	return conf, nil
-}
-
-func parseCosigner(c string) (transaction.Signer, error) {
-	var (
-		err error
-		res = transaction.Signer{
-			Scopes: transaction.CalledByEntry,
-		}
-	)
-	data := strings.SplitN(c, ":", 2)
-	s := data[0]
-	res.Account, err = flags.ParseAddress(s)
-	if err != nil {
-		return res, err
-	}
-	if len(data) > 1 {
-		res.Scopes, err = transaction.ScopesFromString(data[1])
-		if err != nil {
-			return transaction.Signer{}, err
-		}
-	}
-	return res, nil
 }

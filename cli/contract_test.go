@@ -226,6 +226,33 @@ func TestContractDeployWithData(t *testing.T) {
 	require.Equal(t, []byte("take_me_to_church"), res.Stack[0].Value())
 }
 
+func deployVerifyContract(t *testing.T, e *executor) util.Uint160 {
+	tmpDir := path.Join(os.TempDir(), "neogo.test.deployverifycontract")
+	require.NoError(t, os.Mkdir(tmpDir, os.ModePerm))
+	t.Cleanup(func() {
+		os.RemoveAll(tmpDir)
+	})
+	// deploy verification contract
+	nefName := path.Join(tmpDir, "verify.nef")
+	manifestName := path.Join(tmpDir, "verify.manifest.json")
+	e.Run(t, "neo-go", "contract", "compile",
+		"--in", "testdata/verify.go",
+		"--config", "testdata/verify.yml",
+		"--out", nefName, "--manifest", manifestName)
+	e.In.WriteString("one\r")
+	e.Run(t, "neo-go", "contract", "deploy",
+		"--rpc-endpoint", "http://"+e.RPC.Addr,
+		"--wallet", validatorWallet, "--address", validatorAddr,
+		"--in", nefName, "--manifest", manifestName)
+	line, err := e.Out.ReadString('\n')
+	require.NoError(t, err)
+	line = strings.TrimSpace(strings.TrimPrefix(line, "Contract: "))
+	hVerify, err := util.Uint160DecodeStringLE(line)
+	require.NoError(t, err)
+	e.checkTxPersisted(t)
+	return hVerify
+}
+
 func TestComlileAndInvokeFunction(t *testing.T) {
 	e := newExecutor(t, true)
 
@@ -315,23 +342,7 @@ func TestComlileAndInvokeFunction(t *testing.T) {
 	require.Equal(t, []byte("on create|sub create"), res.Stack[0].Value())
 
 	// deploy verification contract
-	nefName = path.Join(tmpDir, "verify.nef")
-	manifestName = path.Join(tmpDir, "verify.manifest.json")
-	e.Run(t, "neo-go", "contract", "compile",
-		"--in", "testdata/verify.go",
-		"--config", "testdata/verify.yml",
-		"--out", nefName, "--manifest", manifestName)
-	e.In.WriteString("one\r")
-	e.Run(t, "neo-go", "contract", "deploy",
-		"--rpc-endpoint", "http://"+e.RPC.Addr,
-		"--wallet", validatorWallet, "--address", validatorAddr,
-		"--in", nefName, "--manifest", manifestName)
-	line, err = e.Out.ReadString('\n')
-	require.NoError(t, err)
-	line = strings.TrimSpace(strings.TrimPrefix(line, "Contract: "))
-	hVerify, err := util.Uint160DecodeStringLE(line)
-	require.NoError(t, err)
-	e.checkTxPersisted(t)
+	hVerify := deployVerifyContract(t, e)
 
 	t.Run("real invoke", func(t *testing.T) {
 		cmd := []string{"neo-go", "contract", "invokefunction",

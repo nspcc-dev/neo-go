@@ -39,20 +39,16 @@ func (c *Client) NEP11BalanceOf(tokenHash, owner util.Uint160) (int64, error) {
 // on a given token to move the whole NEP11 token with the specified token ID to
 // given account and sends it to the network returning just a hash of it.
 func (c *Client) TransferNEP11(acc *wallet.Account, to util.Uint160,
-	tokenHash util.Uint160, tokenID string, gas int64) (util.Uint256, error) {
+	tokenHash util.Uint160, tokenID string, gas int64, cosigners []SignerAccount) (util.Uint256, error) {
 	if !c.initDone {
 		return util.Uint256{}, errNetworkNotInitialized
 	}
-	tx, err := c.createNEP11TransferTx(acc, tokenHash, gas, to, tokenID)
+	tx, err := c.createNEP11TransferTx(acc, tokenHash, gas, cosigners, to, tokenID)
 	if err != nil {
 		return util.Uint256{}, err
 	}
 
-	if err := acc.SignTx(c.GetNetwork(), tx); err != nil {
-		return util.Uint256{}, fmt.Errorf("can't sign NEP11 transfer tx: %w", err)
-	}
-
-	return c.SendRawTransaction(tx)
+	return c.SignAndPushTx(tx, acc, cosigners)
 }
 
 // createNEP11TransferTx is an internal helper for TransferNEP11 and
@@ -63,7 +59,7 @@ func (c *Client) TransferNEP11(acc *wallet.Account, to util.Uint160,
 // `args` for TransferNEP11:  to util.Uint160, tokenID string;
 // `args` for TransferNEP11D: from, to util.Uint160, amount int64, tokenID string.
 func (c *Client) createNEP11TransferTx(acc *wallet.Account, tokenHash util.Uint160,
-	gas int64, args ...interface{}) (*transaction.Transaction, error) {
+	gas int64, cosigners []SignerAccount, args ...interface{}) (*transaction.Transaction, error) {
 	w := io.NewBufBinWriter()
 	emit.AppCall(w.BinWriter, tokenHash, "transfer", callflag.All, args...)
 	emit.Opcodes(w.BinWriter, opcode.ASSERT)
@@ -74,13 +70,13 @@ func (c *Client) createNEP11TransferTx(acc *wallet.Account, tokenHash util.Uint1
 	if err != nil {
 		return nil, fmt.Errorf("bad account address: %w", err)
 	}
-	return c.CreateTxFromScript(w.Bytes(), acc, -1, gas, []SignerAccount{{
+	return c.CreateTxFromScript(w.Bytes(), acc, -1, gas, append([]SignerAccount{{
 		Signer: transaction.Signer{
 			Account: from,
 			Scopes:  transaction.CalledByEntry,
 		},
 		Account: acc,
-	}})
+	}}, cosigners...))
 }
 
 // Non-divisible NFT methods section start.
@@ -114,7 +110,7 @@ func (c *Client) NEP11NDOwnerOf(tokenHash util.Uint160, tokenID string) (util.Ui
 // (in FixedN format using contract's number of decimals) to given account and
 // sends it to the network returning just a hash of it.
 func (c *Client) TransferNEP11D(acc *wallet.Account, to util.Uint160,
-	tokenHash util.Uint160, amount int64, tokenID string, gas int64) (util.Uint256, error) {
+	tokenHash util.Uint160, amount int64, tokenID string, gas int64, cosigners []SignerAccount) (util.Uint256, error) {
 	if !c.initDone {
 		return util.Uint256{}, errNetworkNotInitialized
 	}
@@ -122,16 +118,12 @@ func (c *Client) TransferNEP11D(acc *wallet.Account, to util.Uint160,
 	if err != nil {
 		return util.Uint256{}, fmt.Errorf("bad account address: %w", err)
 	}
-	tx, err := c.createNEP11TransferTx(acc, tokenHash, gas, acc.Address, from, to, amount, tokenID)
+	tx, err := c.createNEP11TransferTx(acc, tokenHash, gas, cosigners, acc.Address, from, to, amount, tokenID)
 	if err != nil {
 		return util.Uint256{}, err
 	}
 
-	if err := acc.SignTx(c.GetNetwork(), tx); err != nil {
-		return util.Uint256{}, fmt.Errorf("can't sign NEP11 divisible transfer tx: %w", err)
-	}
-
-	return c.SendRawTransaction(tx)
+	return c.SignAndPushTx(tx, acc, cosigners)
 }
 
 // NEP11DBalanceOf invokes `balanceOf` divisible NEP11 method on a

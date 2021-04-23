@@ -6,10 +6,10 @@ import (
 	"math/big"
 	"strings"
 
+	"github.com/nspcc-dev/neo-go/cli/cmdargs"
 	"github.com/nspcc-dev/neo-go/cli/flags"
 	"github.com/nspcc-dev/neo-go/cli/options"
 	"github.com/nspcc-dev/neo-go/cli/paramcontext"
-	smartcontractcli "github.com/nspcc-dev/neo-go/cli/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/fixedn"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/client"
@@ -112,18 +112,21 @@ func newNEP17Commands() []cli.Command {
 		{
 			Name:      "transfer",
 			Usage:     "transfer NEP17 tokens",
-			UsageText: "transfer --wallet <path> --rpc-endpoint <node> --timeout <time> --from <addr> --to <addr> --token <hash> --amount string [data]",
+			UsageText: "transfer --wallet <path> --rpc-endpoint <node> --timeout <time> --from <addr> --to <addr> --token <hash> --amount string [data] [-- <cosigner1:Scope> [<cosigner2> [...]]]",
 			Action:    transferNEP17,
 			Flags:     transferFlags,
-			Description: `Transfers specified NEP17 token amount with optional 'data' parameter attached to the transfer.
-   See 'contract testinvokefunction' documentation for the details about 'data'
-   parameter. If no 'data' is given then default nil value will be used`,
+			Description: `Transfers specified NEP17 token amount with optional 'data' parameter and cosigners
+   list attached to the transfer. See 'contract testinvokefunction' documentation
+   for the details about 'data' parameter and cosigners syntax. If no 'data' is
+   given then default nil value will be used. If no cosigners are given then the
+   sender with CalledByEntry scope will be used as the only signer.
+`,
 		},
 		{
 			Name:  "multitransfer",
 			Usage: "transfer NEP17 tokens to multiple recipients",
 			UsageText: `multitransfer --wallet <path> --rpc-endpoint <node> --timeout <time> --from <addr>` +
-				` <token1>:<addr1>:<amount1> [<token2>:<addr2>:<amount2> [...]]`,
+				` <token1>:<addr1>:<amount1> [<token2>:<addr2>:<amount2> [...]] [-- <cosigner1:Scope> [<cosigner2> [...]]]`,
 			Action: multiTransferNEP17,
 			Flags:  multiTransferFlags,
 		},
@@ -381,10 +384,17 @@ func multiTransferNEP17(ctx *cli.Context) error {
 	if ctx.NArg() == 0 {
 		return cli.NewExitError("empty recipients list", 1)
 	}
-	var recipients []client.TransferTarget
+	var (
+		recipients      []client.TransferTarget
+		cosignersOffset = ctx.NArg()
+	)
 	cache := make(map[string]*wallet.Token)
 	for i := 0; i < ctx.NArg(); i++ {
 		arg := ctx.Args().Get(i)
+		if arg == cmdargs.CosignersSeparator {
+			cosignersOffset = i + 1
+			break
+		}
 		ss := strings.SplitN(arg, ":", 3)
 		if len(ss) != 3 {
 			return cli.NewExitError("send format must be '<token>:<addr>:<amount>", 1)
@@ -417,7 +427,16 @@ func multiTransferNEP17(ctx *cli.Context) error {
 		})
 	}
 
-	return signAndSendTransfer(ctx, c, acc, recipients)
+	cosigners, extErr := cmdargs.GetSignersFromContext(ctx, cosignersOffset)
+	if extErr != nil {
+		return extErr
+	}
+	cosignersAccounts, err := cmdargs.GetSignersAccounts(wall, cosigners)
+	if err != nil {
+		return cli.NewExitError(fmt.Errorf("failed to create NEP17 multitransfer transaction: %w", err), 1)
+	}
+
+	return signAndSendTransfer(ctx, c, acc, recipients, cosignersAccounts)
 }
 
 func transferNEP17(ctx *cli.Context) error {
@@ -461,9 +480,18 @@ func transferNEP17(ctx *cli.Context) error {
 		return cli.NewExitError(fmt.Errorf("invalid amount: %w", err), 1)
 	}
 
-	data, extErr := smartcontractcli.GetDataFromContext(ctx)
+	cosignersOffset, data, extErr := cmdargs.GetDataFromContext(ctx)
 	if extErr != nil {
 		return extErr
+	}
+
+	cosigners, extErr := cmdargs.GetSignersFromContext(ctx, cosignersOffset)
+	if extErr != nil {
+		return extErr
+	}
+	cosignersAccounts, err := cmdargs.GetSignersAccounts(wall, cosigners)
+	if err != nil {
+		return cli.NewExitError(fmt.Errorf("failed to create NEP17 transfer transaction: %w", err), 1)
 	}
 
 	return signAndSendTransfer(ctx, c, acc, []client.TransferTarget{{
@@ -471,13 +499,13 @@ func transferNEP17(ctx *cli.Context) error {
 		Address: to,
 		Amount:  amount.Int64(),
 		Data:    data,
-	}})
+	}}, cosignersAccounts)
 }
 
-func signAndSendTransfer(ctx *cli.Context, c *client.Client, acc *wallet.Account, recipients []client.TransferTarget) error {
+func signAndSendTransfer(ctx *cli.Context, c *client.Client, acc *wallet.Account, recipients []client.TransferTarget, cosigners []client.SignerAccount) error {
 	gas := flags.Fixed8FromContext(ctx, "gas")
 
-	tx, err := c.CreateNEP17MultiTransferTx(acc, int64(gas), recipients)
+	tx, err := c.CreateNEP17MultiTransferTx(acc, int64(gas), recipients, cosigners)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -487,13 +515,10 @@ func signAndSendTransfer(ctx *cli.Context, c *client.Client, acc *wallet.Account
 			return cli.NewExitError(err, 1)
 		}
 	} else {
-		_ = acc.SignTx(c.GetNetwork(), tx)
-		res, err := c.SendRawTransaction(tx)
+		_, err := c.SignAndPushTx(tx, acc, cosigners)
 		if err != nil {
 			return cli.NewExitError(err, 1)
 		}
-		fmt.Fprintln(ctx.App.Writer, res.StringLE())
-		return nil
 	}
 
 	fmt.Fprintln(ctx.App.Writer, tx.Hash().StringLE())

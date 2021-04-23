@@ -69,19 +69,23 @@ func (c *Client) NEP17TokenInfo(tokenHash util.Uint160) (*wallet.Token, error) {
 // method of a given contract (token) to move specified amount of NEP17 assets
 // (in FixedN format using contract's number of decimals) to given account and
 // returns it. The returned transaction is not signed.
-func (c *Client) CreateNEP17TransferTx(acc *wallet.Account, to util.Uint160, token util.Uint160, amount int64, gas int64, data interface{}) (*transaction.Transaction, error) {
+func (c *Client) CreateNEP17TransferTx(acc *wallet.Account, to util.Uint160,
+	token util.Uint160, amount int64, gas int64, data interface{}, cosigners []SignerAccount) (*transaction.Transaction, error) {
 	return c.CreateNEP17MultiTransferTx(acc, gas, []TransferTarget{
 		{Token: token,
 			Address: to,
 			Amount:  amount,
 			Data:    data,
 		},
-	})
+	}, cosigners)
 }
 
-// CreateNEP17MultiTransferTx creates an invocation transaction for performing NEP17 transfers
-// from a single sender to multiple recipients with the given data.
-func (c *Client) CreateNEP17MultiTransferTx(acc *wallet.Account, gas int64, recipients []TransferTarget) (*transaction.Transaction, error) {
+// CreateNEP17MultiTransferTx creates an invocation transaction for performing
+// NEP17 transfers from a single sender to multiple recipients with the given
+// data and cosigners. Transaction's sender is included with the CalledByEntry
+// scope by default.
+func (c *Client) CreateNEP17MultiTransferTx(acc *wallet.Account, gas int64,
+	recipients []TransferTarget, cosigners []SignerAccount) (*transaction.Transaction, error) {
 	from, err := address.StringToUint160(acc.Address)
 	if err != nil {
 		return nil, fmt.Errorf("bad account address: %w", err)
@@ -95,13 +99,13 @@ func (c *Client) CreateNEP17MultiTransferTx(acc *wallet.Account, gas int64, reci
 	if w.Err != nil {
 		return nil, fmt.Errorf("failed to create transfer script: %w", w.Err)
 	}
-	return c.CreateTxFromScript(w.Bytes(), acc, -1, gas, []SignerAccount{{
+	return c.CreateTxFromScript(w.Bytes(), acc, -1, gas, append([]SignerAccount{{
 		Signer: transaction.Signer{
 			Account: from,
 			Scopes:  transaction.CalledByEntry,
 		},
 		Account: acc,
-	}})
+	}}, cosigners...))
 }
 
 // CreateTxFromScript creates transaction and properly sets cosigners and NetworkFee.
@@ -143,38 +147,34 @@ func (c *Client) CreateTxFromScript(script []byte, acc *wallet.Account, sysFee, 
 // TransferNEP17 creates an invocation transaction that invokes 'transfer' method
 // on a given token to move specified amount of NEP17 assets (in FixedN format
 // using contract's number of decimals) to given account with data specified and
-// sends it to the network returning just a hash of it.
-func (c *Client) TransferNEP17(acc *wallet.Account, to util.Uint160, token util.Uint160, amount int64, gas int64, data interface{}) (util.Uint256, error) {
+// sends it to the network returning just a hash of it. Cosigners argument
+// specifies a set of the transaction cosigners (may be nil or may include sender)
+// with proper scope and accounts to cosign the transaction. If cosigning is
+// impossible (e.g. due to locked cosigner's account) an error is returned.
+func (c *Client) TransferNEP17(acc *wallet.Account, to util.Uint160, token util.Uint160,
+	amount int64, gas int64, data interface{}, cosigners []SignerAccount) (util.Uint256, error) {
 	if !c.initDone {
 		return util.Uint256{}, errNetworkNotInitialized
 	}
 
-	tx, err := c.CreateNEP17TransferTx(acc, to, token, amount, gas, data)
+	tx, err := c.CreateNEP17TransferTx(acc, to, token, amount, gas, data, cosigners)
 	if err != nil {
 		return util.Uint256{}, err
 	}
 
-	if err := acc.SignTx(c.GetNetwork(), tx); err != nil {
-		return util.Uint256{}, fmt.Errorf("can't sign tx: %w", err)
-	}
-
-	return c.SendRawTransaction(tx)
+	return c.SignAndPushTx(tx, acc, cosigners)
 }
 
 // MultiTransferNEP17 is similar to TransferNEP17, buf allows to have multiple recipients.
-func (c *Client) MultiTransferNEP17(acc *wallet.Account, gas int64, recipients []TransferTarget) (util.Uint256, error) {
+func (c *Client) MultiTransferNEP17(acc *wallet.Account, gas int64, recipients []TransferTarget, cosigners []SignerAccount) (util.Uint256, error) {
 	if !c.initDone {
 		return util.Uint256{}, errNetworkNotInitialized
 	}
 
-	tx, err := c.CreateNEP17MultiTransferTx(acc, gas, recipients)
+	tx, err := c.CreateNEP17MultiTransferTx(acc, gas, recipients, cosigners)
 	if err != nil {
 		return util.Uint256{}, err
 	}
 
-	if err := acc.SignTx(c.GetNetwork(), tx); err != nil {
-		return util.Uint256{}, fmt.Errorf("can't sign tx: %w", err)
-	}
-
-	return c.SendRawTransaction(tx)
+	return c.SignAndPushTx(tx, acc, cosigners)
 }
