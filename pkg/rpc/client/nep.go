@@ -1,6 +1,8 @@
 package client
 
 import (
+	"fmt"
+
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
@@ -77,6 +79,16 @@ func (c *Client) nepTokenInfo(tokenHash util.Uint160, standard string) (*wallet.
 	cs, err := c.GetContractStateByHash(tokenHash)
 	if err != nil {
 		return nil, err
+	}
+	var isStandardOK bool
+	for _, st := range cs.Manifest.SupportedStandards {
+		if st == standard {
+			isStandardOK = true
+			break
+		}
+	}
+	if !isStandardOK {
+		return nil, fmt.Errorf("token %s does not support %s standard", tokenHash.StringLE(), standard)
 	}
 	symbol, err := c.nepSymbol(tokenHash)
 	if err != nil {
