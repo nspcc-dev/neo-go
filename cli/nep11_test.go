@@ -1,6 +1,7 @@
 package main
 
 import (
+	"io"
 	"os"
 	"path"
 	"testing"
@@ -60,5 +61,15 @@ func TestNEP11Import(t *testing.T) {
 				"--wallet", walletPath)
 			checkNNSInfo(t)
 		})
+	})
+
+	t.Run("Remove", func(t *testing.T) {
+		e.In.WriteString("y\r")
+		e.Run(t, "neo-go", "wallet", "nep11", "remove",
+			"--wallet", walletPath, "--token", nnsContractHash.StringLE())
+		e.Run(t, "neo-go", "wallet", "nep11", "info",
+			"--wallet", walletPath)
+		_, err := e.Out.ReadString('\n')
+		require.Equal(t, err, io.EOF)
 	})
 }

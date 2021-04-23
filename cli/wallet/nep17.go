@@ -345,13 +345,17 @@ func printNEPInfo(ctx *cli.Context, standard string) error {
 }
 
 func removeNEP17Token(ctx *cli.Context) error {
+	return removeNEPToken(ctx, manifest.NEP17StandardName)
+}
+
+func removeNEPToken(ctx *cli.Context, standard string) error {
 	wall, err := openWallet(ctx.String("wallet"))
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
 	defer wall.Close()
 
-	token, err := getMatchingToken(ctx, wall, ctx.String("token"), manifest.NEP17StandardName)
+	token, err := getMatchingToken(ctx, wall, ctx.String("token"), standard)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}

@@ -24,6 +24,17 @@ func newNEP11Commands() []cli.Command {
 				tokenFlag,
 			},
 		},
+		{
+			Name:      "remove",
+			Usage:     "remove NEP11 token from the wallet",
+			UsageText: "remove --wallet <path> --token <hash-or-name>",
+			Action:    removeNEP11Token,
+			Flags: []cli.Flag{
+				walletPathFlag,
+				tokenFlag,
+				forceFlag,
+			},
+		},
 	}
 }
 
@@ -33,4 +44,8 @@ func importNEP11Token(ctx *cli.Context) error {
 
 func printNEP11Info(ctx *cli.Context) error {
 	return printNEPInfo(ctx, manifest.NEP11StandardName)
+}
+
+func removeNEP11Token(ctx *cli.Context) error {
+	return removeNEPToken(ctx, manifest.NEP11StandardName)
 }
