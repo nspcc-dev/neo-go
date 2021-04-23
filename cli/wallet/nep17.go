@@ -43,7 +43,7 @@ var (
 			Usage: "Token contract address or hash in LE",
 		},
 	}, options.RPC...)
-	transferFlags = append([]cli.Flag{
+	baseTransferFlags = []cli.Flag{
 		walletPathFlag,
 		outFlag,
 		fromAddrFlag,
@@ -54,7 +54,7 @@ var (
 			Name:  "amount",
 			Usage: "Amount of asset to send",
 		},
-	}, options.RPC...)
+	}
 	multiTransferFlags = append([]cli.Flag{
 		walletPathFlag,
 		outFlag,
@@ -67,6 +67,9 @@ func newNEP17Commands() []cli.Command {
 	balanceFlags := make([]cli.Flag, len(baseBalanceFlags))
 	copy(balanceFlags, baseBalanceFlags)
 	balanceFlags = append(balanceFlags, options.RPC...)
+	transferFlags := make([]cli.Flag, len(baseTransferFlags))
+	copy(transferFlags, baseTransferFlags)
+	transferFlags = append(transferFlags, options.RPC...)
 	return []cli.Command{
 		{
 			Name:      "balance",
@@ -218,16 +221,31 @@ func getMatchingToken(ctx *cli.Context, w *wallet.Wallet, name string, standard 
 	}, len(w.Extra.Tokens), name, standard)
 }
 
-func getMatchingTokenRPC(ctx *cli.Context, c *client.Client, addr util.Uint160, name string) (*wallet.Token, error) {
-	bs, err := c.GetNEP17Balances(addr)
-	if err != nil {
-		return nil, err
+func getMatchingTokenRPC(ctx *cli.Context, c *client.Client, addr util.Uint160, name string, standard string) (*wallet.Token, error) {
+	switch standard {
+	case manifest.NEP17StandardName:
+		bs, err := c.GetNEP17Balances(addr)
+		if err != nil {
+			return nil, err
+		}
+		get := func(i int) *wallet.Token {
+			t, _ := c.NEP17TokenInfo(bs.Balances[i].Asset)
+			return t
+		}
+		return getMatchingTokenAux(ctx, get, len(bs.Balances), name, standard)
+	case manifest.NEP11StandardName:
+		tokenHash, err := flags.ParseAddress(name)
+		if err != nil {
+			return nil, fmt.Errorf("valid token adress or hash in LE should be specified for %s RPC-node request: %s", standard, err.Error())
+		}
+		get := func(i int) *wallet.Token {
+			t, _ := c.NEP11TokenInfo(tokenHash)
+			return t
+		}
+		return getMatchingTokenAux(ctx, get, 1, name, standard)
+	default:
+		return nil, fmt.Errorf("unsupported %s token", standard)
 	}
-	get := func(i int) *wallet.Token {
-		t, _ := c.NEP17TokenInfo(bs.Balances[i].Asset)
-		return t
-	}
-	return getMatchingTokenAux(ctx, get, len(bs.Balances), name, manifest.NEP17StandardName)
 }
 
 func getMatchingTokenAux(ctx *cli.Context, get func(i int) *wallet.Token, n int, name string, standard string) (*wallet.Token, error) {
@@ -423,7 +441,7 @@ func multiTransferNEP17(ctx *cli.Context) error {
 			token, err = getMatchingToken(ctx, wall, ss[0], manifest.NEP17StandardName)
 			if err != nil {
 				fmt.Fprintln(ctx.App.ErrWriter, "Can't find matching token in the wallet. Querying RPC-node for balances.")
-				token, err = getMatchingTokenRPC(ctx, c, from, ss[0])
+				token, err = getMatchingTokenRPC(ctx, c, from, ss[0], manifest.NEP17StandardName)
 				if err != nil {
 					return cli.NewExitError(err, 1)
 				}
@@ -455,10 +473,14 @@ func multiTransferNEP17(ctx *cli.Context) error {
 		return cli.NewExitError(fmt.Errorf("failed to create NEP17 multitransfer transaction: %w", err), 1)
 	}
 
-	return signAndSendTransfer(ctx, c, acc, recipients, cosignersAccounts)
+	return signAndSendNEP17Transfer(ctx, c, acc, recipients, cosignersAccounts)
 }
 
 func transferNEP17(ctx *cli.Context) error {
+	return transferNEP(ctx, manifest.NEP17StandardName)
+}
+
+func transferNEP(ctx *cli.Context, standard string) error {
 	wall, err := openWallet(ctx.String("wallet"))
 	if err != nil {
 		return cli.NewExitError(err, 1)
@@ -485,18 +507,13 @@ func transferNEP17(ctx *cli.Context) error {
 
 	toFlag := ctx.Generic("to").(*flags.Address)
 	to := toFlag.Uint160()
-	token, err := getMatchingToken(ctx, wall, ctx.String("token"), manifest.NEP17StandardName)
+	token, err := getMatchingToken(ctx, wall, ctx.String("token"), standard)
 	if err != nil {
 		fmt.Fprintln(ctx.App.ErrWriter, "Can't find matching token in the wallet. Querying RPC-node for balances.")
-		token, err = getMatchingTokenRPC(ctx, c, from, ctx.String("token"))
+		token, err = getMatchingTokenRPC(ctx, c, from, ctx.String("token"), standard)
 		if err != nil {
 			return cli.NewExitError(fmt.Errorf("failed to get matching token: %w", err), 1)
 		}
-	}
-
-	amount, err := fixedn.FromString(ctx.String("amount"), int(token.Decimals))
-	if err != nil {
-		return cli.NewExitError(fmt.Errorf("invalid amount: %w", err), 1)
 	}
 
 	cosignersOffset, data, extErr := cmdargs.GetDataFromContext(ctx)
@@ -513,15 +530,38 @@ func transferNEP17(ctx *cli.Context) error {
 		return cli.NewExitError(fmt.Errorf("failed to create NEP17 transfer transaction: %w", err), 1)
 	}
 
-	return signAndSendTransfer(ctx, c, acc, []client.TransferTarget{{
-		Token:   token.Hash,
-		Address: to,
-		Amount:  amount.Int64(),
-		Data:    data,
-	}}, cosignersAccounts)
+	amountArg := ctx.String("amount")
+	switch standard {
+	case manifest.NEP17StandardName:
+		amount, err := fixedn.FromString(amountArg, int(token.Decimals))
+		if err != nil {
+			return cli.NewExitError(fmt.Errorf("invalid amount: %w", err), 1)
+		}
+		return signAndSendNEP17Transfer(ctx, c, acc, []client.TransferTarget{{
+			Token:   token.Hash,
+			Address: to,
+			Amount:  amount.Int64(),
+			Data:    data,
+		}}, cosignersAccounts)
+	case manifest.NEP11StandardName:
+		tokenID := ctx.String("id")
+		if tokenID == "" {
+			return cli.NewExitError(errors.New("token ID should be specified"), 1)
+		}
+		if amountArg == "" {
+			return signAndSendNEP11Transfer(ctx, c, acc, token.Hash, to, tokenID, nil, cosignersAccounts)
+		}
+		amount, err := fixedn.FromString(amountArg, int(token.Decimals))
+		if err != nil {
+			return cli.NewExitError(fmt.Errorf("invalid amount: %w", err), 1)
+		}
+		return signAndSendNEP11Transfer(ctx, c, acc, token.Hash, to, tokenID, amount, cosignersAccounts)
+	default:
+		return cli.NewExitError(fmt.Errorf("unsupported token standard %s", standard), 1)
+	}
 }
 
-func signAndSendTransfer(ctx *cli.Context, c *client.Client, acc *wallet.Account, recipients []client.TransferTarget, cosigners []client.SignerAccount) error {
+func signAndSendNEP17Transfer(ctx *cli.Context, c *client.Client, acc *wallet.Account, recipients []client.TransferTarget, cosigners []client.SignerAccount) error {
 	gas := flags.Fixed8FromContext(ctx, "gas")
 
 	tx, err := c.CreateNEP17MultiTransferTx(acc, int64(gas), recipients, cosigners)

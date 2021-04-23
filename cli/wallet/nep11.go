@@ -7,9 +7,13 @@ import (
 
 	"github.com/nspcc-dev/neo-go/cli/flags"
 	"github.com/nspcc-dev/neo-go/cli/options"
+	"github.com/nspcc-dev/neo-go/cli/paramcontext"
+	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/fixedn"
+	"github.com/nspcc-dev/neo-go/pkg/rpc/client"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
+	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/urfave/cli"
 )
@@ -24,6 +28,10 @@ func newNEP11Commands() []cli.Command {
 	copy(balanceFlags, baseBalanceFlags)
 	balanceFlags = append(balanceFlags, tokenID)
 	balanceFlags = append(balanceFlags, options.RPC...)
+	transferFlags := make([]cli.Flag, len(baseTransferFlags))
+	copy(transferFlags, baseTransferFlags)
+	transferFlags = append(transferFlags, tokenID)
+	transferFlags = append(transferFlags, options.RPC...)
 	return []cli.Command{
 		{
 			Name:      "balance",
@@ -59,6 +67,21 @@ func newNEP11Commands() []cli.Command {
 				tokenFlag,
 				forceFlag,
 			},
+		},
+		{
+			Name:      "transfer",
+			Usage:     "transfer NEP11 tokens",
+			UsageText: "transfer --wallet <path> --rpc-endpoint <node> --timeout <time> --from <addr> --to <addr> --token <hash-or-name> --id <token-id> [--amount string] [-- <cosigner1:Scope> [<cosigner2> [...]]]",
+			Action:    transferNEP11,
+			Flags:     transferFlags,
+			Description: `Transfers specified NEP11 token with optional cosigners list attached to 
+   the transfer. Amount should be specified for divisible NEP11
+   tokens and omitted for non-divisible NEP11 tokens. See
+   'contract testinvokefunction' documentation for the details
+   about cosigners syntax. If no cosigners are given then the
+   sender with CalledByEntry scope will be used as the only
+   signer.
+`,
 		},
 	}
 }
@@ -157,5 +180,44 @@ func getNEP11Balance(ctx *cli.Context) error {
 		fmt.Fprintf(ctx.App.Writer, "\tAmount : %s\n", amountStr)
 
 	}
+	return nil
+}
+
+func transferNEP11(ctx *cli.Context) error {
+	return transferNEP(ctx, manifest.NEP11StandardName)
+}
+
+func signAndSendNEP11Transfer(ctx *cli.Context, c *client.Client, acc *wallet.Account, token, to util.Uint160, tokenID string, amount *big.Int, cosigners []client.SignerAccount) error {
+	gas := flags.Fixed8FromContext(ctx, "gas")
+
+	var (
+		tx  *transaction.Transaction
+		err error
+	)
+	if amount != nil {
+		from, err := address.StringToUint160(acc.Address)
+		if err != nil {
+			return cli.NewExitError(fmt.Errorf("bad account address: %w", err), 1)
+		}
+		tx, err = c.CreateNEP11TransferTx(acc, token, int64(gas), cosigners, from, to, amount, tokenID)
+	} else {
+		tx, err = c.CreateNEP11TransferTx(acc, token, int64(gas), cosigners, to, tokenID)
+	}
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
+
+	if outFile := ctx.String("out"); outFile != "" {
+		if err := paramcontext.InitAndSave(c.GetNetwork(), tx, acc, outFile); err != nil {
+			return cli.NewExitError(err, 1)
+		}
+	} else {
+		_, err := c.SignAndPushTx(tx, acc, cosigners)
+		if err != nil {
+			return cli.NewExitError(err, 1)
+		}
+	}
+
+	fmt.Fprintln(ctx.App.Writer, tx.Hash().StringLE())
 	return nil
 }
