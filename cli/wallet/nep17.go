@@ -109,7 +109,7 @@ func newNEP17Commands() []cli.Command {
 		{
 			Name:      "transfer",
 			Usage:     "transfer NEP17 tokens",
-			UsageText: "transfer --wallet <path> --rpc-endpoint <node> --timeout <time> --from <addr> --to <addr> --token <hash> --amount string [data] [-- <cosigner1:Scope> [<cosigner2> [...]]]",
+			UsageText: "transfer --wallet <path> --rpc-endpoint <node> --timeout <time> --from <addr> --to <addr> --token <hash-or-name> --amount string [data] [-- <cosigner1:Scope> [<cosigner2> [...]]]",
 			Action:    transferNEP17,
 			Flags:     transferFlags,
 			Description: `Transfers specified NEP17 token amount with optional 'data' parameter and cosigners
