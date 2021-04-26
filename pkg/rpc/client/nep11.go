@@ -49,7 +49,7 @@ func (c *Client) TransferNEP11(acc *wallet.Account, to util.Uint160,
 	if !c.initDone {
 		return util.Uint256{}, errNetworkNotInitialized
 	}
-	tx, err := c.createNEP11TransferTx(acc, tokenHash, gas, cosigners, to, tokenID)
+	tx, err := c.CreateNEP11TransferTx(acc, tokenHash, gas, cosigners, to, tokenID)
 	if err != nil {
 		return util.Uint256{}, err
 	}
@@ -57,14 +57,14 @@ func (c *Client) TransferNEP11(acc *wallet.Account, to util.Uint160,
 	return c.SignAndPushTx(tx, acc, cosigners)
 }
 
-// createNEP11TransferTx is an internal helper for TransferNEP11 and
-// TransferNEP11D which creates an invocation transaction for the
-// 'transfer' method of a given contract (token) to move the whole (or the
-// specified amount of) NEP11 token with the specified token ID to given account
-// and returns it. The returned transaction is not signed.
+// CreateNEP11TransferTx creates an invocation transaction for the 'transfer'
+// method of a given contract (token) to move the whole (or the specified amount
+// of) NEP11 token with the specified token ID to given account and returns it.
+// The returned transaction is not signed. CreateNEP11TransferTx is also a
+// helper for TransferNEP11 and TransferNEP11D.
 // `args` for TransferNEP11:  to util.Uint160, tokenID string;
 // `args` for TransferNEP11D: from, to util.Uint160, amount int64, tokenID string.
-func (c *Client) createNEP11TransferTx(acc *wallet.Account, tokenHash util.Uint160,
+func (c *Client) CreateNEP11TransferTx(acc *wallet.Account, tokenHash util.Uint160,
 	gas int64, cosigners []SignerAccount, args ...interface{}) (*transaction.Transaction, error) {
 	w := io.NewBufBinWriter()
 	emit.AppCall(w.BinWriter, tokenHash, "transfer", callflag.All, args...)
@@ -124,7 +124,7 @@ func (c *Client) TransferNEP11D(acc *wallet.Account, to util.Uint160,
 	if err != nil {
 		return util.Uint256{}, fmt.Errorf("bad account address: %w", err)
 	}
-	tx, err := c.createNEP11TransferTx(acc, tokenHash, gas, cosigners, from, to, amount, tokenID)
+	tx, err := c.CreateNEP11TransferTx(acc, tokenHash, gas, cosigners, from, to, amount, tokenID)
 	if err != nil {
 		return util.Uint256{}, err
 	}
