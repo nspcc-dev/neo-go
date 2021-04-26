@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
@@ -210,6 +211,22 @@ func TestNEP11_OwnerOf_BalanceOf_Transfer(t *testing.T) {
 	// tokensOf: good
 	e.Run(t, cmdTokensOf...)
 	e.checkNextLine(t, string(tokenID))
+
+	// properties: no contract
+	cmdProperties := []string{
+		"neo-go", "wallet", "nep11", "properties",
+		"--rpc-endpoint", "http://" + e.RPC.Addr,
+	}
+	e.RunWithError(t, cmdProperties...)
+	cmdProperties = append(cmdProperties, "--token", h.StringLE())
+
+	// properties: no token ID
+	e.RunWithError(t, cmdProperties...)
+	cmdProperties = append(cmdProperties, "--id", string(tokenID))
+
+	// properties: ok
+	e.Run(t, cmdProperties...)
+	e.checkNextLine(t, fmt.Sprintf(`{"name":"HASHY %s"}`, string(tokenID)))
 
 	// tokensOf: good, several tokens
 	tokenID1 := mint(t)

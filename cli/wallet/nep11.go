@@ -14,6 +14,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/rpc/client"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/urfave/cli"
 )
@@ -90,6 +91,16 @@ func newNEP11Commands() []cli.Command {
    sender with CalledByEntry scope will be used as the only
    signer.
 `,
+		},
+		{
+			Name:      "properties",
+			Usage:     "print properties of NEP11 token",
+			UsageText: "properties --rpc-endpoint <node> --timeout <time> --token <hash> --id <token-id>",
+			Action:    printNEP11Properties,
+			Flags: append([]cli.Flag{
+				tokenAddressFlag,
+				tokenID,
+			}, options.RPC...),
 		},
 		{
 			Name:      "ownerOf",
@@ -342,5 +353,38 @@ func printNEP11Tokens(ctx *cli.Context) error {
 	for i := range result {
 		fmt.Fprintln(ctx.App.Writer, result[i])
 	}
+	return nil
+}
+
+func printNEP11Properties(ctx *cli.Context) error {
+	var err error
+	tokenHash := ctx.Generic("token").(*flags.Address)
+	if !tokenHash.IsSet {
+		return cli.NewExitError("token contract hash was not set", 1)
+	}
+
+	tokenID := ctx.String("id")
+	if tokenID == "" {
+		return cli.NewExitError(errors.New("token ID should be specified"), 1)
+	}
+
+	gctx, cancel := options.GetTimeoutContext(ctx)
+	defer cancel()
+
+	c, err := options.GetRPCClient(gctx, ctx)
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
+
+	result, err := c.NEP11Properties(tokenHash.Uint160(), tokenID)
+	if err != nil {
+		return cli.NewExitError(fmt.Sprintf("failed to call NEP11 `properties` method: %s", err.Error()), 1)
+	}
+
+	bytes, err := stackitem.ToJSON(result)
+	if err != nil {
+		return cli.NewExitError(fmt.Sprintf("failed to convert result to JSON: %s", err), 1)
+	}
+	fmt.Fprintln(ctx.App.Writer, string(bytes))
 	return nil
 }

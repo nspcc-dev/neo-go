@@ -284,3 +284,28 @@ func Update(nef, manifest []byte) {
 	}
 	management.Update(nef, manifest)
 }
+
+// Properties returns properties of the given NFT.
+func Properties(id []byte) map[string]string {
+	ctx := storage.GetReadOnlyContext()
+	var tokens = []string{}
+	key := mkTokensKey()
+	val := storage.Get(ctx, key)
+	if val != nil {
+		tokens = std.Deserialize(val.([]byte)).([]string)
+	}
+	var exists bool
+	for i := 0; i < len(tokens); i++ {
+		if util.Equals(tokens[i], id) {
+			exists = true
+			break
+		}
+	}
+	if !exists {
+		panic("unknown token")
+	}
+	result := map[string]string{
+		"name": "HASHY " + string(id),
+	}
+	return result
+}
