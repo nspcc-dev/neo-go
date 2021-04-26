@@ -134,9 +134,9 @@ func TestNEP17Transfer(t *testing.T) {
 	require.Equal(t, big.NewInt(1), b)
 
 	hVerify := deployVerifyContract(t, e)
+	const validatorDefault = "NTh9TnZTstvAePEYWDGLLxidBikJE24uTo"
 
 	t.Run("default address", func(t *testing.T) {
-		const validatorDefault = "NTh9TnZTstvAePEYWDGLLxidBikJE24uTo"
 		e.In.WriteString("one\r")
 		e.Run(t, "neo-go", "wallet", "nep17", "multitransfer",
 			"--rpc-endpoint", "http://"+e.RPC.Addr,
@@ -160,6 +160,18 @@ func TestNEP17Transfer(t *testing.T) {
 		require.NoError(t, err)
 		b, _ = e.Chain.GetGoverningTokenBalance(sh)
 		require.Equal(t, big.NewInt(41), b)
+	})
+
+	t.Run("with signers", func(t *testing.T) {
+		e.In.WriteString("one\r")
+		e.Run(t, "neo-go", "wallet", "nep17", "multitransfer",
+			"--rpc-endpoint", "http://"+e.RPC.Addr,
+			"--wallet", validatorWallet,
+			"--from", validatorAddr,
+			"NEO:"+validatorDefault+":42",
+			"GAS:"+validatorDefault+":7",
+			"--", validatorAddr+":Global")
+		e.checkTxPersisted(t)
 	})
 
 	validTil := e.Chain.BlockHeight() + 100

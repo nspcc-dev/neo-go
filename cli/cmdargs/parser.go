@@ -76,12 +76,14 @@ func GetDataFromContext(ctx *cli.Context) (int, interface{}, *cli.ExitError) {
 		if err != nil {
 			return offset, nil, cli.NewExitError(fmt.Errorf("unable to parse 'data' parameter: %w", err), 1)
 		}
-		if len(params) != 1 {
+		if len(params) > 1 {
 			return offset, nil, cli.NewExitError("'data' should be represented as a single parameter", 1)
 		}
-		data, err = smartcontract.ExpandParameterToEmitable(params[0])
-		if err != nil {
-			return offset, nil, cli.NewExitError(fmt.Sprintf("failed to convert 'data' to emitable type: %s", err.Error()), 1)
+		if len(params) != 0 {
+			data, err = smartcontract.ExpandParameterToEmitable(params[0])
+			if err != nil {
+				return offset, nil, cli.NewExitError(fmt.Sprintf("failed to convert 'data' to emitable type: %s", err.Error()), 1)
+			}
 		}
 	}
 	return offset, data, nil
