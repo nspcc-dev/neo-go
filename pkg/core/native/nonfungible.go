@@ -67,6 +67,7 @@ func newNonFungible(name string, id int32, symbol string, decimals byte) *nonfun
 			return new(state.NFTTokenState)
 		},
 	}
+	n.Manifest.SupportedStandards = []string{manifest.NEP11StandardName}
 
 	desc := newDescriptor("symbol", smartcontract.StringType)
 	md := newMethodAndPrice(n.symbol, 0, callflag.NoneFlag)
