@@ -28,27 +28,22 @@ var (
 		Name:  "gas",
 		Usage: "Amount of GAS to attach to a tx",
 	}
-)
-
-func newNEP17Commands() []cli.Command {
-	balanceFlags := []cli.Flag{
+	balanceFlags = append([]cli.Flag{
 		walletPathFlag,
 		tokenFlag,
 		flags.AddressFlag{
 			Name:  "address, a",
 			Usage: "Address to use",
 		},
-	}
-	balanceFlags = append(balanceFlags, options.RPC...)
-	importFlags := []cli.Flag{
+	}, options.RPC...)
+	importFlags = append([]cli.Flag{
 		walletPathFlag,
 		flags.AddressFlag{
 			Name:  "token",
 			Usage: "Token contract address or hash in LE",
 		},
-	}
-	importFlags = append(importFlags, options.RPC...)
-	transferFlags := []cli.Flag{
+	}, options.RPC...)
+	transferFlags = append([]cli.Flag{
 		walletPathFlag,
 		outFlag,
 		fromAddrFlag,
@@ -59,15 +54,16 @@ func newNEP17Commands() []cli.Command {
 			Name:  "amount",
 			Usage: "Amount of asset to send",
 		},
-	}
-	transferFlags = append(transferFlags, options.RPC...)
-	multiTransferFlags := []cli.Flag{
+	}, options.RPC...)
+	multiTransferFlags = append([]cli.Flag{
 		walletPathFlag,
 		outFlag,
 		fromAddrFlag,
 		gasFlag,
-	}
-	multiTransferFlags = append(multiTransferFlags, options.RPC...)
+	}, options.RPC...)
+)
+
+func newNEP17Commands() []cli.Command {
 	return []cli.Command{
 		{
 			Name:      "balance",
