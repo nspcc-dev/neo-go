@@ -85,7 +85,7 @@ func TestNEP11Import(t *testing.T) {
 	})
 }
 
-func TestNEP11_BalanceOf_Transfer(t *testing.T) {
+func TestNEP11_OwnerOf_BalanceOf_Transfer(t *testing.T) {
 	e := newExecutor(t, true)
 
 	tmpDir, err := ioutil.TempDir(os.TempDir(), "neogo.test.nftwallet*")
@@ -175,6 +175,21 @@ func TestNEP11_BalanceOf_Transfer(t *testing.T) {
 	e.In.WriteString("y\r")
 	e.Run(t, "neo-go", "wallet", "nep11", "remove",
 		"--wallet", wall, "--token", h.StringLE())
+
+	// ownerOf: missing contract hash
+	cmdOwnerOf := []string{"neo-go", "wallet", "nep11", "ownerOf",
+		"--rpc-endpoint", "http://" + e.RPC.Addr,
+	}
+	e.RunWithError(t, cmdOwnerOf...)
+	cmdOwnerOf = append(cmdOwnerOf, "--token", h.StringLE())
+
+	// ownerOf: missing token ID
+	e.RunWithError(t, cmdOwnerOf...)
+	cmdOwnerOf = append(cmdOwnerOf, "--id", string(tokenID))
+
+	// ownerOf: good
+	e.Run(t, cmdOwnerOf...)
+	e.checkNextLine(t, nftOwnerAddr)
 
 	cmdTransfer := []string{
 		"neo-go", "wallet", "nep11", "transfer",

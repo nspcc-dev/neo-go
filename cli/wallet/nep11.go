@@ -19,6 +19,10 @@ import (
 )
 
 func newNEP11Commands() []cli.Command {
+	tokenAddressFlag := flags.AddressFlag{
+		Name:  "token",
+		Usage: "Token contract address or hash in LE",
+	}
 	tokenID := cli.StringFlag{
 		Name:  "id",
 		Usage: "Token ID",
@@ -82,6 +86,16 @@ func newNEP11Commands() []cli.Command {
    sender with CalledByEntry scope will be used as the only
    signer.
 `,
+		},
+		{
+			Name:      "ownerOf",
+			Usage:     "print owner of non-divisible NEP11 token with the specified ID",
+			UsageText: "ownerOf --rpc-endpoint <node> --timeout <time> --token <hash> --id <token-id>",
+			Action:    printNEP11Owner,
+			Flags: append([]cli.Flag{
+				tokenAddressFlag,
+				tokenID,
+			}, options.RPC...),
 		},
 	}
 }
@@ -219,5 +233,34 @@ func signAndSendNEP11Transfer(ctx *cli.Context, c *client.Client, acc *wallet.Ac
 	}
 
 	fmt.Fprintln(ctx.App.Writer, tx.Hash().StringLE())
+	return nil
+}
+
+func printNEP11Owner(ctx *cli.Context) error {
+	var err error
+	tokenHash := ctx.Generic("token").(*flags.Address)
+	if !tokenHash.IsSet {
+		return cli.NewExitError("token contract hash was not set", 1)
+	}
+
+	tokenID := ctx.String("id")
+	if tokenID == "" {
+		return cli.NewExitError(errors.New("token ID should be specified"), 1)
+	}
+
+	gctx, cancel := options.GetTimeoutContext(ctx)
+	defer cancel()
+
+	c, err := options.GetRPCClient(gctx, ctx)
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
+
+	result, err := c.NEP11NDOwnerOf(tokenHash.Uint160(), tokenID)
+	if err != nil {
+		return cli.NewExitError(fmt.Sprintf("failed to call NEP11 `ownerOf` method: %s", err.Error()), 1)
+	}
+
+	fmt.Fprintln(ctx.App.Writer, address.Uint160ToString(result))
 	return nil
 }
