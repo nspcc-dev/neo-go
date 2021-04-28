@@ -1296,7 +1296,9 @@ func (c *codegen) processDefers() {
 		c.setLabel(stmt.catchLabel)
 		c.emitStoreByIndex(varGlobal, c.exceptionIndex)
 		emit.Int(c.prog.BinWriter, 1)
-		c.emitStoreByIndex(varLocal, c.scope.finallyProcessedIndex)
+
+		finalIndex := c.getVarIndex("", finallyVarName).index
+		c.emitStoreByIndex(varLocal, finalIndex)
 		ast.Walk(c, stmt.expr)
 		if i == 0 {
 			// After panic, default values must be returns, except for named returns,
@@ -1309,12 +1311,12 @@ func (c *codegen) processDefers() {
 
 		c.setLabel(stmt.finallyLabel)
 		before := c.newLabel()
-		c.emitLoadByIndex(varLocal, c.scope.finallyProcessedIndex)
+		c.emitLoadByIndex(varLocal, finalIndex)
 		emit.Jmp(c.prog.BinWriter, opcode.JMPIFL, before)
 		ast.Walk(c, stmt.expr)
 		c.setLabel(before)
 		emit.Int(c.prog.BinWriter, 0)
-		c.emitStoreByIndex(varLocal, c.scope.finallyProcessedIndex)
+		c.emitStoreByIndex(varLocal, finalIndex)
 		emit.Opcodes(c.prog.BinWriter, opcode.ENDFINALLY)
 		c.setLabel(after)
 	}

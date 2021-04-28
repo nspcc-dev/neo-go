@@ -121,7 +121,7 @@ func (c *codegen) traverseGlobals() (int, int, int) {
 		// store auxiliary variables after all others.
 		if hasDefer {
 			c.exceptionIndex = len(c.globals)
-			c.globals["<exception>"] = c.exceptionIndex
+			c.globals[exceptionVarName] = c.exceptionIndex
 		}
 	}
 	return n, initLocals, deployLocals

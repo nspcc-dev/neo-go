@@ -34,9 +34,6 @@ type funcScope struct {
 
 	// deferStack is a stack containing encountered `defer` statements.
 	deferStack []deferInfo
-	// finallyProcessed is a index of static slot with boolean flag determining
-	// if `defer` statement was already processed.
-	finallyProcessedIndex int
 
 	// Local variables
 	vars varScope
@@ -58,6 +55,11 @@ type deferInfo struct {
 	finallyLabel uint16
 	expr         *ast.CallExpr
 }
+
+const (
+	finallyVarName   = "<finally>"
+	exceptionVarName = "<exception>"
+)
 
 func (c *codegen) newFuncScope(decl *ast.FuncDecl, label uint16) *funcScope {
 	var name string
@@ -204,7 +206,6 @@ func (c *codegen) countLocalsInline(decl *ast.FuncDecl, pkg *types.Package, f *f
 func (c *codegen) countLocalsWithDefer(f *funcScope) int {
 	size, hasDefer := c.countLocals(f.decl)
 	if hasDefer {
-		f.finallyProcessedIndex = size
 		size++
 	}
 	return size
