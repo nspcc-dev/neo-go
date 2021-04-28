@@ -766,7 +766,7 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 			invoke: func(c *Client) (interface{}, error) {
 				return c.GetVersion()
 			},
-			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"magic":42,"tcpport":20332,"wsport":20342,"nonce":2153672787,"useragent":"/NEO-GO:0.73.1-pre-273-ge381358/"}}`,
+			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"network":42,"tcpport":20332,"wsport":20342,"nonce":2153672787,"useragent":"/NEO-GO:0.73.1-pre-273-ge381358/"}}`,
 			result: func(c *Client) interface{} {
 				return &result.Version{
 					Magic:     netmode.UnitTestNet,
@@ -1585,7 +1585,7 @@ func wrapInitResponse(r *request.In, resp string) string {
 	var response string
 	switch r.Method {
 	case "getversion":
-		response = `{"id":1,"jsonrpc":"2.0","result":{"magic":42,"tcpport":20332,"wsport":20342,"nonce":2153672787,"useragent":"/NEO-GO:0.73.1-pre-273-ge381358/"}}`
+		response = `{"id":1,"jsonrpc":"2.0","result":{"network":42,"tcpport":20332,"wsport":20342,"nonce":2153672787,"useragent":"/NEO-GO:0.73.1-pre-273-ge381358/"}}`
 	case "getcontractstate":
 		p, _ := r.Params()
 		name, _ := p.ValueWithType(0, request.StringT).GetString()
