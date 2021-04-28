@@ -85,6 +85,33 @@ func (c *Client) CreateNEP11TransferTx(acc *wallet.Account, tokenHash util.Uint1
 	}}, cosigners...))
 }
 
+// NEP11TokensOf returns an array of token IDs for the specified owner of the specified NFT token.
+func (c *Client) NEP11TokensOf(tokenHash util.Uint160, owner util.Uint160) ([]string, error) {
+	result, err := c.InvokeFunction(tokenHash, "tokensOf", []smartcontract.Parameter{
+		{
+			Type:  smartcontract.Hash160Type,
+			Value: owner,
+		},
+	}, nil)
+	if err != nil {
+		return nil, err
+	}
+	err = getInvocationError(result)
+	if err != nil {
+		return nil, err
+	}
+
+	arr, err := topIterableFromStack(result.Stack, string(""))
+	if err != nil {
+		return nil, fmt.Errorf("failed to get token IDs from stack: %w", err)
+	}
+	ids := make([]string, len(arr))
+	for i := range ids {
+		ids[i] = arr[i].(string)
+	}
+	return ids, nil
+}
+
 // Non-divisible NFT methods section start.
 
 // NEP11NDOwnerOf invokes `ownerOf` non-devisible NEP11 method with the
@@ -138,6 +165,33 @@ func (c *Client) NEP11DBalanceOf(tokenHash, owner util.Uint160, tokenID string) 
 	return c.nepBalanceOf(tokenHash, owner, &tokenID)
 }
 
+// NEP11DOwnerOf returns list of the specified NEP11 divisible token owners.
+func (c *Client) NEP11DOwnerOf(tokenHash util.Uint160, tokenID string) ([]util.Uint160, error) {
+	result, err := c.InvokeFunction(tokenHash, "ownerOf", []smartcontract.Parameter{
+		{
+			Type:  smartcontract.StringType,
+			Value: tokenID,
+		},
+	}, nil)
+	if err != nil {
+		return nil, err
+	}
+	err = getInvocationError(result)
+	if err != nil {
+		return nil, err
+	}
+
+	arr, err := topIterableFromStack(result.Stack, util.Uint160{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get token IDs from stack: %w", err)
+	}
+	owners := make([]util.Uint160, len(arr))
+	for i := range owners {
+		owners[i] = arr[i].(util.Uint160)
+	}
+	return owners, nil
+}
+
 // Divisible NFT methods section end.
 
 // Optional NFT methods section start.
@@ -158,6 +212,28 @@ func (c *Client) NEP11Properties(tokenHash util.Uint160, tokenID string) (*stack
 	}
 
 	return topMapFromStack(result.Stack)
+}
+
+// NEP11Tokens returns list of the tokens minted by the contract.
+func (c *Client) NEP11Tokens(tokenHash util.Uint160) ([]string, error) {
+	result, err := c.InvokeFunction(tokenHash, "tokens", []smartcontract.Parameter{}, nil)
+	if err != nil {
+		return nil, err
+	}
+	err = getInvocationError(result)
+	if err != nil {
+		return nil, err
+	}
+
+	arr, err := topIterableFromStack(result.Stack, string(""))
+	if err != nil {
+		return nil, fmt.Errorf("failed to get token IDs from stack: %w", err)
+	}
+	tokens := make([]string, len(arr))
+	for i := range tokens {
+		tokens[i] = arr[i].(string)
+	}
+	return tokens, nil
 }
 
 // Optional NFT methods section end.

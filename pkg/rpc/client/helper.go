@@ -95,3 +95,38 @@ func topMapFromStack(st []stackitem.Item) (*stackitem.Map, error) {
 	}
 	return st[index].(*stackitem.Map), nil
 }
+
+// topIterableFromStack returns top list of elements of `resultItemType` type from stack.
+func topIterableFromStack(st []stackitem.Item, resultItemType interface{}) ([]interface{}, error) {
+	index := len(st) - 1 // top stack element is last in the array
+	if t := st[index].Type(); t != stackitem.InteropT {
+		return nil, fmt.Errorf("invalid return stackitem type: %s (InteropInterface expected)", t.String())
+	}
+	iter, ok := st[index].Value().(result.Iterator)
+	if !ok {
+		return nil, fmt.Errorf("failed to deserialize iterable from interop stackitem: invalid value type (Array expected)")
+	}
+	result := make([]interface{}, len(iter.Values))
+	for i := range iter.Values {
+		switch resultItemType.(type) {
+		case string:
+			bytes, err := iter.Values[i].TryBytes()
+			if err != nil {
+				return nil, fmt.Errorf("failed to deserialize string from stackitem #%d: %w", i, err)
+			}
+			result[i] = string(bytes)
+		case util.Uint160:
+			bytes, err := iter.Values[i].TryBytes()
+			if err != nil {
+				return nil, fmt.Errorf("failed to deserialize uint160 from stackitem #%d: %w", i, err)
+			}
+			result[i], err = util.Uint160DecodeBytesBE(bytes)
+			if err != nil {
+				return nil, fmt.Errorf("failed to decode uint160 from stackitem #%d: %w", i, err)
+			}
+		default:
+			return nil, errors.New("unsupported iterable type")
+		}
+	}
+	return result, nil
+}

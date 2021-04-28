@@ -1,6 +1,6 @@
 name: "HASHY NFT"
 supportedstandards: ["NEP-11"]
-safemethods: ["balanceOf", "decimals", "symbol", "totalSupply", "tokensOf", "ownerOf"]
+safemethods: ["balanceOf", "decimals", "symbol", "totalSupply", "tokensOf", "ownerOf", "tokens"]
 events:
   - name: Transfer
     parameters:
