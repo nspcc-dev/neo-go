@@ -14,8 +14,6 @@ const (
 	// MaxManifestSize is a max length for a valid contract manifest.
 	MaxManifestSize = math.MaxUint16
 
-	// NEP10StandardName represents the name of NEP10 smartcontract standard.
-	NEP10StandardName = "NEP-10"
 	// NEP11StandardName represents the name of NEP11 smartcontract standard.
 	NEP11StandardName = "NEP-11"
 	// NEP17StandardName represents the name of NEP17 smartcontract standard.
