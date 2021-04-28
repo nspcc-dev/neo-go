@@ -27,6 +27,9 @@ func TestInvocationScriptCreationGood(t *testing.T) {
 		ps:     Params{{Type: NumberT, Value: 42}},
 		script: "1f0c0234320c146f459162ceeb248b071ec157d9e4f6fd26fdbe5041627d5b52",
 	}, {
+		ps:     Params{{Type: StringT, Value: "m"}, {Type: BooleanT, Value: true}},
+		script: "11db201f0c016d0c146f459162ceeb248b071ec157d9e4f6fd26fdbe5041627d5b52",
+	}, {
 		ps:     Params{{Type: StringT, Value: "a"}, {Type: ArrayT, Value: []Param{}}},
 		script: "10c01f0c01610c146f459162ceeb248b071ec157d9e4f6fd26fdbe5041627d5b52",
 	}, {
@@ -79,6 +82,7 @@ func TestInvocationScriptCreationBad(t *testing.T) {
 		{{Type: ArrayT, Value: []Param{{Type: FuncParamT, Value: FuncParam{Type: smartcontract.PublicKeyType, Value: Param{Type: NumberT, Value: 42}}}}}},
 		{{Type: ArrayT, Value: []Param{{Type: FuncParamT, Value: FuncParam{Type: smartcontract.PublicKeyType, Value: Param{Type: StringT, Value: "qwerty"}}}}}},
 		{{Type: ArrayT, Value: []Param{{Type: FuncParamT, Value: FuncParam{Type: smartcontract.IntegerType, Value: Param{Type: StringT, Value: "qwerty"}}}}}},
+		{{Type: ArrayT, Value: []Param{{Type: FuncParamT, Value: FuncParam{Type: smartcontract.IntegerType, Value: Param{Type: BooleanT, Value: true}}}}}},
 		{{Type: ArrayT, Value: []Param{{Type: FuncParamT, Value: FuncParam{Type: smartcontract.BoolType, Value: Param{Type: NumberT, Value: 42}}}}}},
 		{{Type: ArrayT, Value: []Param{{Type: FuncParamT, Value: FuncParam{Type: smartcontract.BoolType, Value: Param{Type: StringT, Value: "qwerty"}}}}}},
 		{{Type: ArrayT, Value: []Param{{Type: FuncParamT, Value: FuncParam{Type: smartcontract.UnknownType, Value: Param{}}}}}},

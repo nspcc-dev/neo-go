@@ -69,6 +69,7 @@ const (
 	defaultT paramType = iota
 	StringT
 	NumberT
+	BooleanT
 	ArrayT
 	FuncParamT
 	BlockFilterT
@@ -106,6 +107,8 @@ func (p *Param) GetBoolean() bool {
 		return p.Value != 0
 	case StringT:
 		return p.Value != ""
+	case BooleanT:
+		return p.Value == true
 	default:
 		return true
 	}
@@ -263,9 +266,11 @@ func (p Param) GetSignersWithWitnesses() ([]transaction.Signer, []transaction.Wi
 func (p *Param) UnmarshalJSON(data []byte) error {
 	var s string
 	var num float64
+	var b bool
 	// To unmarshal correctly we need to pass pointers into the decoder.
 	var attempts = [...]Param{
 		{NumberT, &num},
+		{BooleanT, &b},
 		{StringT, &s},
 		{FuncParamT, &FuncParam{}},
 		{BlockFilterT, &BlockFilter{}},
@@ -292,6 +297,8 @@ func (p *Param) UnmarshalJSON(data []byte) error {
 			case *float64:
 				p.Value = int(*val)
 			case *string:
+				p.Value = *val
+			case *bool:
 				p.Value = *val
 			case *FuncParam:
 				p.Value = *val

@@ -114,6 +114,9 @@ func CreateFunctionInvocationScript(contract util.Uint160, method string, params
 				return nil, err
 			}
 			emit.String(script.BinWriter, strconv.Itoa(num))
+		case BooleanT:
+			val := params[i].GetBoolean()
+			emit.Bool(script.BinWriter, val)
 		case ArrayT:
 			slice, err := params[i].GetArray()
 			if err != nil {
