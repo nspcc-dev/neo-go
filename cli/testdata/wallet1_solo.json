@@ -63,9 +63,9 @@
       "key" : "6PYM8VdX2BSm7BSXKzV4Fz6S3R9cDLLWNrD9nMjxW352jEv3fsC8N3wNLY"
     },
     {
-      "address" : "NQKpygA5oG8KRivZeYjXVU2T1ZPmUmaqQF",
+      "address" : "NU4CTk9H2fgNCuC3ZPqX4LjUX3MHt3Rh6p",
       "contract" : {
-        "script" : "VwEAEdsgQFcAA0BXAQR4eXp7VBTAcAwOT25ORVAxMVBheW1lbnRoUEGVAW9hIUA=",
+        "script" : "EdsgQFcAA0BXAQR4eXp7VBTAcAwOT25ORVAxMVBheW1lbnRoUEGVAW9hIUA=",
         "parameters" : [],
         "deployed" : true
       },

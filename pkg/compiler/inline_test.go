@@ -30,7 +30,7 @@ func checkCallCount(t *testing.T, src string, expectedCall, expectedInitSlot int
 		}
 	}
 	require.Equal(t, expectedCall, actualCall)
-	require.Equal(t, expectedInitSlot, actualInitSlot)
+	require.True(t, expectedInitSlot == actualInitSlot)
 }
 
 func TestInline(t *testing.T) {
@@ -47,34 +47,34 @@ func TestInline(t *testing.T) {
 	t.Run("no return", func(t *testing.T) {
 		src := fmt.Sprintf(srcTmpl, `inline.NoArgsNoReturn()
 			return 1`)
-		checkCallCount(t, src, 0, 1)
+		checkCallCount(t, src, 0, 0)
 		eval(t, src, big.NewInt(1))
 	})
 	t.Run("has return, dropped", func(t *testing.T) {
 		src := fmt.Sprintf(srcTmpl, `inline.NoArgsReturn1()
 			return 2`)
-		checkCallCount(t, src, 0, 1)
+		checkCallCount(t, src, 0, 0)
 		eval(t, src, big.NewInt(2))
 	})
 	t.Run("drop twice", func(t *testing.T) {
 		src := fmt.Sprintf(srcTmpl, `inline.DropInsideInline()
 			return 42`)
-		checkCallCount(t, src, 0, 1)
+		checkCallCount(t, src, 0, 0)
 		eval(t, src, big.NewInt(42))
 	})
 	t.Run("no args return 1", func(t *testing.T) {
 		src := fmt.Sprintf(srcTmpl, `return inline.NoArgsReturn1()`)
-		checkCallCount(t, src, 0, 1)
+		checkCallCount(t, src, 0, 0)
 		eval(t, src, big.NewInt(1))
 	})
 	t.Run("sum", func(t *testing.T) {
 		src := fmt.Sprintf(srcTmpl, `return inline.Sum(1, 2)`)
-		checkCallCount(t, src, 0, 1)
+		checkCallCount(t, src, 0, 0)
 		eval(t, src, big.NewInt(3))
 	})
 	t.Run("sum squared (nested inline)", func(t *testing.T) {
 		src := fmt.Sprintf(srcTmpl, `return inline.SumSquared(1, 2)`)
-		checkCallCount(t, src, 0, 1)
+		checkCallCount(t, src, 0, 0)
 		eval(t, src, big.NewInt(9))
 	})
 	t.Run("inline function in inline function parameter", func(t *testing.T) {
@@ -84,7 +84,7 @@ func TestInline(t *testing.T) {
 	})
 	t.Run("global name clash", func(t *testing.T) {
 		src := fmt.Sprintf(srcTmpl, `return inline.GetSumSameName()`)
-		checkCallCount(t, src, 0, 1)
+		checkCallCount(t, src, 0, 0)
 		eval(t, src, big.NewInt(42))
 	})
 	t.Run("local name clash", func(t *testing.T) {
@@ -110,7 +110,7 @@ func TestInline(t *testing.T) {
 	})
 	t.Run("globals", func(t *testing.T) {
 		src := fmt.Sprintf(srcTmpl, `return inline.Concat(Num)`)
-		checkCallCount(t, src, 0, 1)
+		checkCallCount(t, src, 0, 0)
 		eval(t, src, big.NewInt(221))
 	})
 }

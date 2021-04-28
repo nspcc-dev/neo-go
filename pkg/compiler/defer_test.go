@@ -137,3 +137,14 @@ func TestRecover(t *testing.T) {
 		eval(t, src, big.NewInt(5))
 	})
 }
+
+func TestDeferNoGlobals(t *testing.T) {
+	src := `package foo
+	func Main() int {
+		a := 1
+		defer func() { recover() }()
+		panic("msg")
+		return a
+	}`
+	eval(t, src, big.NewInt(0))
+}

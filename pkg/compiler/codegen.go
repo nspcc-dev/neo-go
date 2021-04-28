@@ -40,6 +40,9 @@ type codegen struct {
 	// A mapping of lambda functions into their scope.
 	lambda map[string]*funcScope
 
+	// reverseOffsetMap maps function offsets to a local variable count.
+	reverseOffsetMap map[int]nameWithLocals
+
 	// Current funcScope being converted.
 	scope *funcScope
 
@@ -122,6 +125,11 @@ type labelWithType struct {
 type labelWithStackSize struct {
 	name string
 	sz   int
+}
+
+type nameWithLocals struct {
+	name  string
+	count int
 }
 
 type varType int
@@ -333,24 +341,30 @@ func (c *codegen) clearSlots(n int) {
 	}
 }
 
-func (c *codegen) convertInitFuncs(f *ast.File, pkg *types.Package, seenBefore bool) bool {
+// convertInitFuncs converts `init()` functions in file f and returns
+// number of locals in last processed definition as well as maximum locals number encountered.
+func (c *codegen) convertInitFuncs(f *ast.File, pkg *types.Package, lastCount int) (int, int) {
+	maxCount := -1
 	ast.Inspect(f, func(node ast.Node) bool {
 		switch n := node.(type) {
 		case *ast.FuncDecl:
 			if isInitFunc(n) {
-				if seenBefore {
-					cnt, _ := c.countLocals(n)
-					c.clearSlots(cnt)
-					seenBefore = true
+				if lastCount != -1 {
+					c.clearSlots(lastCount)
 				}
-				c.convertFuncDecl(f, n, pkg)
+
+				f := c.convertFuncDecl(f, n, pkg)
+				lastCount = f.vars.localsCnt
+				if lastCount > maxCount {
+					maxCount = lastCount
+				}
 			}
 		case *ast.GenDecl:
 			return false
 		}
 		return true
 	})
-	return seenBefore
+	return lastCount, maxCount
 }
 
 func isDeployFunc(decl *ast.FuncDecl) bool {
@@ -363,19 +377,22 @@ func isDeployFunc(decl *ast.FuncDecl) bool {
 	return ok && typ.Name == "bool"
 }
 
-func (c *codegen) convertDeployFuncs() {
-	seenBefore := false
+func (c *codegen) convertDeployFuncs() int {
+	maxCount, lastCount := 0, -1
 	c.ForEachFile(func(f *ast.File, pkg *types.Package) {
 		ast.Inspect(f, func(node ast.Node) bool {
 			switch n := node.(type) {
 			case *ast.FuncDecl:
 				if isDeployFunc(n) {
-					if seenBefore {
-						cnt, _ := c.countLocals(n)
-						c.clearSlots(cnt)
+					if lastCount != -1 {
+						c.clearSlots(lastCount)
 					}
-					c.convertFuncDecl(f, n, pkg)
-					seenBefore = true
+
+					f := c.convertFuncDecl(f, n, pkg)
+					lastCount = f.vars.localsCnt
+					if lastCount > maxCount {
+						maxCount = lastCount
+					}
 				}
 			case *ast.GenDecl:
 				return false
@@ -383,9 +400,10 @@ func (c *codegen) convertDeployFuncs() {
 			return true
 		})
 	})
+	return maxCount
 }
 
-func (c *codegen) convertFuncDecl(file ast.Node, decl *ast.FuncDecl, pkg *types.Package) {
+func (c *codegen) convertFuncDecl(file ast.Node, decl *ast.FuncDecl, pkg *types.Package) *funcScope {
 	var (
 		f            *funcScope
 		ok, isLambda bool
@@ -399,7 +417,7 @@ func (c *codegen) convertFuncDecl(file ast.Node, decl *ast.FuncDecl, pkg *types.
 		if ok {
 			// If this function is a syscall or builtin we will not convert it to bytecode.
 			if isSyscall(f) || isCustomBuiltin(f) {
-				return
+				return f
 			}
 			c.setLabel(f.label)
 		} else if f, ok = c.lambda[c.getIdentName("", decl.Name.Name)]; ok {
@@ -417,17 +435,11 @@ func (c *codegen) convertFuncDecl(file ast.Node, decl *ast.FuncDecl, pkg *types.
 	// All globals copied into the scope of the function need to be added
 	// to the stack size of the function.
 	if !isInit && !isDeploy {
-		sizeLoc := c.countLocalsWithDefer(f)
-		if sizeLoc > 255 {
-			c.prog.Err = errors.New("maximum of 255 local variables is allowed")
-		}
 		sizeArg := f.countArgs()
 		if sizeArg > 255 {
 			c.prog.Err = errors.New("maximum of 255 local variables is allowed")
 		}
-		if sizeLoc != 0 || sizeArg != 0 {
-			emit.Instruction(c.prog.BinWriter, opcode.INITSLOT, []byte{byte(sizeLoc), byte(sizeArg)})
-		}
+		emit.Instruction(c.prog.BinWriter, opcode.INITSLOT, []byte{byte(0), byte(sizeArg)})
 	}
 
 	f.vars.newScope()
@@ -478,6 +490,14 @@ func (c *codegen) convertFuncDecl(file ast.Node, decl *ast.FuncDecl, pkg *types.
 		}
 		c.lambda = make(map[string]*funcScope)
 	}
+
+	if !isInit && !isDeploy {
+		c.reverseOffsetMap[int(f.rng.Start)] = nameWithLocals{
+			name:  f.name,
+			count: f.vars.localsCnt,
+		}
+	}
+	return f
 }
 
 func (c *codegen) Visit(node ast.Node) ast.Visitor {
@@ -1961,17 +1981,16 @@ func (c *codegen) compile(info *buildInfo, pkg *loader.PackageInfo) error {
 	// Bring all imported functions into scope.
 	c.ForEachFile(c.resolveFuncDecls)
 
-	n, initLocals, deployLocals := c.traverseGlobals()
-	hasInit := initLocals > -1
-	if n > 0 || hasInit {
-		c.initEndOffset = c.prog.Len()
-		emit.Opcodes(c.prog.BinWriter, opcode.RET)
-	}
+	hasDeploy := c.traverseGlobals()
 
-	hasDeploy := deployLocals > -1
 	if hasDeploy {
-		emit.Instruction(c.prog.BinWriter, opcode.INITSLOT, []byte{byte(deployLocals), 2})
-		c.convertDeployFuncs()
+		deployOffset := c.prog.Len()
+		emit.Instruction(c.prog.BinWriter, opcode.INITSLOT, []byte{0, 2})
+		locCount := c.convertDeployFuncs()
+		c.reverseOffsetMap[deployOffset] = nameWithLocals{
+			name:  "_deploy",
+			count: locCount,
+		}
 		c.deployEndOffset = c.prog.Len()
 		emit.Opcodes(c.prog.BinWriter, opcode.RET)
 	}
@@ -2008,16 +2027,17 @@ func (c *codegen) compile(info *buildInfo, pkg *loader.PackageInfo) error {
 
 func newCodegen(info *buildInfo, pkg *loader.PackageInfo) *codegen {
 	return &codegen{
-		buildInfo: info,
-		prog:      io.NewBufBinWriter(),
-		l:         []int{},
-		funcs:     map[string]*funcScope{},
-		lambda:    map[string]*funcScope{},
-		globals:   map[string]int{},
-		labels:    map[labelWithType]uint16{},
-		typeInfo:  &pkg.Info,
-		constMap:  map[string]types.TypeAndValue{},
-		docIndex:  map[string]int{},
+		buildInfo:        info,
+		prog:             io.NewBufBinWriter(),
+		l:                []int{},
+		funcs:            map[string]*funcScope{},
+		lambda:           map[string]*funcScope{},
+		reverseOffsetMap: map[int]nameWithLocals{},
+		globals:          map[string]int{},
+		labels:           map[labelWithType]uint16{},
+		typeInfo:         &pkg.Info,
+		constMap:         map[string]types.TypeAndValue{},
+		docIndex:         map[string]int{},
 
 		initEndOffset:   -1,
 		deployEndOffset: -1,
@@ -2087,6 +2107,18 @@ func (c *codegen) writeJumps(b []byte) ([]byte, error) {
 			if op != opcode.PUSHA && math.MinInt8 <= offset && offset <= math.MaxInt8 {
 				offsets = append(offsets, ctx.IP())
 			}
+		case opcode.INITSLOT:
+			nextIP := ctx.NextIP()
+			info := c.reverseOffsetMap[ctx.IP()]
+			if argCount := b[nextIP-1]; info.count == 0 && argCount == 0 {
+				offsets = append(offsets, ctx.IP())
+				continue
+			}
+
+			if info.count > 255 {
+				return nil, fmt.Errorf("func '%s' has %d local variables (maximum is 255)", info.name, info.count)
+			}
+			b[nextIP-2] = byte(info.count)
 		}
 	}
 
@@ -2139,6 +2171,7 @@ func (c *codegen) replaceLabelWithOffset(ip int, arg []byte) (int, error) {
 }
 
 // longToShortRemoveCount is a difference between short and long instruction sizes in bytes.
+// By pure coincidence, this is also the size of `INITSLOT` instruction.
 const longToShortRemoveCount = 3
 
 // shortenJumps returns converts b to a program where all long JMP*/CALL* specified by absolute offsets,
@@ -2196,13 +2229,22 @@ func shortenJumps(b []byte, offsets []int) []byte {
 	// 2. Convert instructions.
 	copyOffset := 0
 	l := len(offsets)
-	b[offsets[0]] = byte(toShortForm(opcode.Opcode(b[offsets[0]])))
+	if op := opcode.Opcode(b[offsets[0]]); op != opcode.INITSLOT {
+		b[offsets[0]] = byte(toShortForm(op))
+	}
 	for i := 0; i < l; i++ {
 		start := offsets[i] + 2
+		if b[offsets[i]] == byte(opcode.INITSLOT) {
+			start = offsets[i]
+		}
+
 		end := len(b)
 		if i != l-1 {
-			end = offsets[i+1] + 2
-			b[offsets[i+1]] = byte(toShortForm(opcode.Opcode(b[offsets[i+1]])))
+			end = offsets[i+1]
+			if op := opcode.Opcode(b[offsets[i+1]]); op != opcode.INITSLOT {
+				end += 2
+				b[offsets[i+1]] = byte(toShortForm(op))
+			}
 		}
 		copy(b[start-copyOffset:], b[start+3:end])
 		copyOffset += longToShortRemoveCount
