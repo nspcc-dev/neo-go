@@ -98,6 +98,10 @@ func (c *codegen) traverseGlobals() bool {
 		c.scope = nil
 	})
 
+	if c.globalInlineCount > maxCnt {
+		maxCnt = c.globalInlineCount
+	}
+
 	// Here we remove `INITSLOT` if no code was emitted for `init` function.
 	// Note that the `INITSSLOT` must stay in place.
 	hasNoInit := initOffset+3 == c.prog.Len()

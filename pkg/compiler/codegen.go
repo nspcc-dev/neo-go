@@ -61,6 +61,9 @@ type codegen struct {
 	// inlineLabelOffsets contains size of labelList at the start of inline call processing.
 	// For such calls we need to drop only newly created part of stack.
 	inlineLabelOffsets []int
+	// globalInlineCount contains amount of auxiliary variables introduced by
+	// function inlining during global variables initialization.
+	globalInlineCount int
 
 	// A label for the for-loop being currently visited.
 	currentFor string

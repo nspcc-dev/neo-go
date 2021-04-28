@@ -32,7 +32,12 @@ func (c *codegen) inlineCall(f *funcScope, n *ast.CallExpr) {
 	if c.scope == nil {
 		c.scope = &funcScope{}
 		c.scope.vars.newScope()
-		defer func() { c.scope = nil }()
+		defer func() {
+			if cnt := c.scope.vars.localsCnt; cnt > c.globalInlineCount {
+				c.globalInlineCount = cnt
+			}
+			c.scope = nil
+		}()
 	}
 
 	// Arguments need to be walked with the current scope,
