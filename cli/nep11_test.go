@@ -115,27 +115,32 @@ func TestNEP11_OwnerOf_BalanceOf_Transfer(t *testing.T) {
 	// deploy NFT HASHY contract
 	h := deployNFTContract(t, e)
 
-	// mint 1 HASHY token by transferring 10 GAS to HASHY contract
-	e.In.WriteString(nftOwnerPass + "\r")
-	e.Run(t, "neo-go", "wallet", "nep17", "transfer",
-		"--rpc-endpoint", "http://"+e.RPC.Addr,
-		"--wallet", wall,
-		"--to", h.StringLE(),
-		"--token", "GAS",
-		"--amount", "10",
-		"--from", nftOwnerAddr)
-	txMint, _ := e.checkTxPersisted(t)
+	mint := func(t *testing.T) []byte {
+		// mint 1 HASHY token by transferring 10 GAS to HASHY contract
+		e.In.WriteString(nftOwnerPass + "\r")
+		e.Run(t, "neo-go", "wallet", "nep17", "transfer",
+			"--rpc-endpoint", "http://"+e.RPC.Addr,
+			"--wallet", wall,
+			"--to", h.StringLE(),
+			"--token", "GAS",
+			"--amount", "10",
+			"--from", nftOwnerAddr)
+		txMint, _ := e.checkTxPersisted(t)
 
-	// get NFT ID from AER
-	aer, err := e.Chain.GetAppExecResults(txMint.Hash(), trigger.Application)
-	require.NoError(t, err)
-	require.Equal(t, 1, len(aer))
-	require.Equal(t, 2, len(aer[0].Events))
-	hashyMintEvent := aer[0].Events[1]
-	require.Equal(t, "Transfer", hashyMintEvent.Name)
-	tokenID, err := hashyMintEvent.Item.Value().([]stackitem.Item)[3].TryBytes()
-	require.NoError(t, err)
-	require.NotNil(t, tokenID)
+		// get NFT ID from AER
+		aer, err := e.Chain.GetAppExecResults(txMint.Hash(), trigger.Application)
+		require.NoError(t, err)
+		require.Equal(t, 1, len(aer))
+		require.Equal(t, 2, len(aer[0].Events))
+		hashyMintEvent := aer[0].Events[1]
+		require.Equal(t, "Transfer", hashyMintEvent.Name)
+		tokenID, err := hashyMintEvent.Item.Value().([]stackitem.Item)[3].TryBytes()
+		require.NoError(t, err)
+		require.NotNil(t, tokenID)
+		return tokenID
+	}
+
+	tokenID := mint(t)
 
 	// check the balance
 	cmdCheckBalance := []string{"neo-go", "wallet", "nep11", "balance",
@@ -191,6 +196,43 @@ func TestNEP11_OwnerOf_BalanceOf_Transfer(t *testing.T) {
 	e.Run(t, cmdOwnerOf...)
 	e.checkNextLine(t, nftOwnerAddr)
 
+	// tokensOf: missing contract hash
+	cmdTokensOf := []string{"neo-go", "wallet", "nep11", "tokensOf",
+		"--rpc-endpoint", "http://" + e.RPC.Addr,
+	}
+	e.RunWithError(t, cmdTokensOf...)
+	cmdTokensOf = append(cmdTokensOf, "--token", h.StringLE())
+
+	// tokensOf: missing owner address
+	e.RunWithError(t, cmdTokensOf...)
+	cmdTokensOf = append(cmdTokensOf, "--address", nftOwnerAddr)
+
+	// tokensOf: good
+	e.Run(t, cmdTokensOf...)
+	e.checkNextLine(t, string(tokenID))
+
+	// tokensOf: good, several tokens
+	tokenID1 := mint(t)
+	e.Run(t, cmdTokensOf...)
+	e.checkNextLine(t, string(tokenID))
+	e.checkNextLine(t, string(tokenID1))
+
+	// tokens: missing contract hash
+	cmdTokens := []string{"neo-go", "wallet", "nep11", "tokens",
+		"--rpc-endpoint", "http://" + e.RPC.Addr,
+	}
+	e.RunWithError(t, cmdTokens...)
+	cmdTokens = append(cmdTokens, "--token", h.StringLE())
+
+	// tokens: good, several tokens
+	e.Run(t, cmdTokens...)
+	e.checkNextLine(t, string(tokenID))
+	e.checkNextLine(t, string(tokenID1))
+
+	// balance check: several tokens, ok
+	e.Run(t, append(cmdCheckBalance, "--token", h.StringLE())...)
+	checkBalanceResult(t, nftOwnerAddr, "2")
+
 	cmdTransfer := []string{
 		"neo-go", "wallet", "nep11", "transfer",
 		"--rpc-endpoint", "http://" + e.RPC.Addr,
@@ -217,7 +259,7 @@ func TestNEP11_OwnerOf_BalanceOf_Transfer(t *testing.T) {
 
 	// check balance after transfer
 	e.Run(t, append(cmdCheckBalance, "--token", h.StringLE())...)
-	checkBalanceResult(t, nftOwnerAddr, "0")
+	checkBalanceResult(t, nftOwnerAddr, "1") // tokenID1
 }
 
 func deployNFTContract(t *testing.T, e *executor) util.Uint160 {

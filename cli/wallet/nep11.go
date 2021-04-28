@@ -23,6 +23,10 @@ func newNEP11Commands() []cli.Command {
 		Name:  "token",
 		Usage: "Token contract address or hash in LE",
 	}
+	ownerAddressFlag := flags.AddressFlag{
+		Name:  "address",
+		Usage: "NFT owner address or hash in LE",
+	}
 	tokenID := cli.StringFlag{
 		Name:  "id",
 		Usage: "Token ID",
@@ -95,6 +99,25 @@ func newNEP11Commands() []cli.Command {
 			Flags: append([]cli.Flag{
 				tokenAddressFlag,
 				tokenID,
+			}, options.RPC...),
+		},
+		{
+			Name:      "tokensOf",
+			Usage:     "print list of tokens IDs for the specified divisible NFT owner",
+			UsageText: "tokensOf --rpc-endpoint <node> --timeout <time> --token <hash> --address <addr>",
+			Action:    printNEP11TokensOf,
+			Flags: append([]cli.Flag{
+				tokenAddressFlag,
+				ownerAddressFlag,
+			}, options.RPC...),
+		},
+		{
+			Name:      "tokens",
+			Usage:     "print list of tokens IDs minted by the specified NFT (optional method)",
+			UsageText: "tokens --rpc-endpoint <node> --timeout <time> --token <hash>",
+			Action:    printNEP11Tokens,
+			Flags: append([]cli.Flag{
+				tokenAddressFlag,
 			}, options.RPC...),
 		},
 	}
@@ -262,5 +285,62 @@ func printNEP11Owner(ctx *cli.Context) error {
 	}
 
 	fmt.Fprintln(ctx.App.Writer, address.Uint160ToString(result))
+	return nil
+}
+
+func printNEP11TokensOf(ctx *cli.Context) error {
+	var err error
+	tokenHash := ctx.Generic("token").(*flags.Address)
+	if !tokenHash.IsSet {
+		return cli.NewExitError("token contract hash was not set", 1)
+	}
+
+	acc := ctx.Generic("address").(*flags.Address)
+	if !acc.IsSet {
+		return cli.NewExitError("owner address flag was not set", 1)
+	}
+
+	gctx, cancel := options.GetTimeoutContext(ctx)
+	defer cancel()
+
+	c, err := options.GetRPCClient(gctx, ctx)
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
+
+	result, err := c.NEP11TokensOf(tokenHash.Uint160(), acc.Uint160())
+	if err != nil {
+		return cli.NewExitError(fmt.Sprintf("failed to call NEP11 `tokensOf` method: %s", err.Error()), 1)
+	}
+
+	for i := range result {
+		fmt.Fprintln(ctx.App.Writer, result[i])
+	}
+	return nil
+}
+
+func printNEP11Tokens(ctx *cli.Context) error {
+	var err error
+	tokenHash := ctx.Generic("token").(*flags.Address)
+	if !tokenHash.IsSet {
+		return cli.NewExitError("token contract hash was not set", 1)
+	}
+
+	gctx, cancel := options.GetTimeoutContext(ctx)
+	defer cancel()
+
+	c, err := options.GetRPCClient(gctx, ctx)
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
+
+	result, err := c.NEP11Tokens(tokenHash.Uint160())
+	if err != nil {
+		return cli.NewExitError(fmt.Sprintf("failed to call optional NEP11 `tokens` method: %s", err.Error()), 1)
+	}
+
+	for i := range result {
+		fmt.Fprintln(ctx.App.Writer, result[i])
+	}
 	return nil
 }
