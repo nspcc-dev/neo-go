@@ -6,7 +6,7 @@ type (
 	// Version model used for reporting server version
 	// info.
 	Version struct {
-		Magic     netmode.Magic `json:"magic"`
+		Magic     netmode.Magic `json:"network"`
 		TCPPort   uint16        `json:"tcpport"`
 		WSPort    uint16        `json:"wsport,omitempty"`
 		Nonce     uint32        `json:"nonce"`
