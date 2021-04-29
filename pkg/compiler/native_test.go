@@ -136,7 +136,9 @@ func TestNativeHelpersCompile(t *testing.T) {
 		{"unclaimedGas", []string{u160, "123"}},
 		{"unregisterCandidate", []string{pub}},
 	}, nep17TestCases...))
-	runNativeTestCases(t, cs.GAS.ContractMD, "gas", nep17TestCases)
+	runNativeTestCases(t, cs.GAS.ContractMD, "gas", append([]nativeTestCase{
+		{"refuel", []string{u160, "123"}},
+	}, nep17TestCases...))
 	runNativeTestCases(t, cs.Oracle.ContractMD, "oracle", []nativeTestCase{
 		{"getPrice", nil},
 		{"request", []string{`"url"`, "nil", `"callback"`, "nil", "123"}},

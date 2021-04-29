@@ -37,3 +37,10 @@ func Transfer(from, to interop.Hash160, amount int, data interface{}) bool {
 	return contract.Call(interop.Hash160(Hash), "transfer",
 		contract.All, from, to, amount, data).(bool)
 }
+
+// Refuel makes some GAS from the provided account available
+// for the current execution. It represents `refuel` method of GAS native contract.
+func Refuel(from interop.Hash160, amount int) {
+	contract.Call(interop.Hash160(Hash), "refuel",
+		contract.States|contract.AllowNotify, from, amount)
+}
