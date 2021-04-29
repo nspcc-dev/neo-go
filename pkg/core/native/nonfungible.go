@@ -229,7 +229,7 @@ func (n *nonfungible) tokens(ic *interop.Context, args []stackitem.Item) stackit
 		return bytes.Compare(filteredMap.Value().([]stackitem.MapElement)[i].Key.Value().([]byte),
 			filteredMap.Value().([]stackitem.MapElement)[j].Key.Value().([]byte)) == -1
 	})
-	iter := istorage.NewIterator(filteredMap, istorage.FindValuesOnly|istorage.FindDeserialize|istorage.FindPick1)
+	iter := istorage.NewIterator(filteredMap, 1, istorage.FindValuesOnly|istorage.FindDeserialize|istorage.FindPick1)
 	return stackitem.NewInterop(iter)
 }
 

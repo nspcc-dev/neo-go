@@ -18,17 +18,19 @@ const (
 
 // Iterator is an iterator state representation.
 type Iterator struct {
-	m     []stackitem.MapElement
-	opts  int64
-	index int
+	m          []stackitem.MapElement
+	opts       int64
+	index      int
+	prefixSize int
 }
 
 // NewIterator creates a new Iterator with given options for a given map.
-func NewIterator(m *stackitem.Map, opts int64) *Iterator {
+func NewIterator(m *stackitem.Map, prefix int, opts int64) *Iterator {
 	return &Iterator{
-		m:     m.Value().([]stackitem.MapElement),
-		opts:  opts,
-		index: -1,
+		m:          m.Value().([]stackitem.MapElement),
+		opts:       opts,
+		index:      -1,
+		prefixSize: prefix,
 	}
 }
 
@@ -46,7 +48,7 @@ func (s *Iterator) Next() bool {
 func (s *Iterator) Value() stackitem.Item {
 	key := s.m[s.index].Key.Value().([]byte)
 	if s.opts&FindRemovePrefix != 0 {
-		key = key[1:]
+		key = key[s.prefixSize:]
 	}
 	if s.opts&FindKeysOnly != 0 {
 		return stackitem.NewByteArray(key)
