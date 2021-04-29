@@ -58,8 +58,18 @@ func (bc *Blockchain) setNodesByRole(t *testing.T, ok bool, r noderoles.Role, no
 	require.Equal(t, 1, len(aer))
 	if ok {
 		require.Equal(t, vm.HaltState, aer[0].VMState)
+		require.Equal(t, 1, len(aer[0].Events))
+
+		ev := aer[0].Events[0]
+		require.Equal(t, bc.contracts.Designate.Hash, ev.ScriptHash)
+		require.Equal(t, native.DesignationEventName, ev.Name)
+		require.Equal(t, []stackitem.Item{
+			stackitem.Make(int64(r)),
+			stackitem.Make(bc.BlockHeight()),
+		}, ev.Item.Value().([]stackitem.Item))
 	} else {
 		require.Equal(t, vm.FaultState, aer[0].VMState)
+		require.Equal(t, 0, len(aer[0].Events))
 	}
 }
 

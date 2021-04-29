@@ -34,5 +34,5 @@ func GetDesignatedByRole(r Role, height uint32) []interop.PublicKey {
 // DesignateAsRole represents `designateAsRole` method of RoleManagement native contract.
 func DesignateAsRole(r Role, pubs []interop.PublicKey) {
 	contract.Call(interop.Hash160(Hash), "designateAsRole",
-		contract.States, r, pubs)
+		contract.States|contract.AllowNotify, r, pubs)
 }

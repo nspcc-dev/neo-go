@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"math"
+	"math/big"
 	"sort"
 	"sync/atomic"
 
@@ -57,6 +58,9 @@ const (
 
 	// maxNodeCount is the maximum number of nodes to set the role for.
 	maxNodeCount = 32
+
+	// DesignationEventName is the name of a designation event.
+	DesignationEventName = "Designation"
 )
 
 // Various errors.
@@ -88,8 +92,12 @@ func newDesignate(p2pSigExtensionsEnabled bool) *Designate {
 	desc = newDescriptor("designateAsRole", smartcontract.VoidType,
 		manifest.NewParameter("role", smartcontract.IntegerType),
 		manifest.NewParameter("nodes", smartcontract.ArrayType))
-	md = newMethodAndPrice(s.designateAsRole, 1<<15, callflag.States)
+	md = newMethodAndPrice(s.designateAsRole, 1<<15, callflag.States|callflag.AllowNotify)
 	s.AddMethod(md, desc)
+
+	s.AddEvent(DesignationEventName,
+		manifest.NewParameter("Role", smartcontract.IntegerType),
+		manifest.NewParameter("BlockIndex", smartcontract.IntegerType))
 
 	return s
 }
@@ -319,7 +327,20 @@ func (s *Designate) DesignateAsRole(ic *interop.Context, r noderoles.Role, pubs 
 	}
 	sort.Sort(pubs)
 	s.rolesChangedFlag.Store(true)
-	return ic.DAO.PutStorageItem(s.ID, key, NodeList(pubs).Bytes())
+	err := ic.DAO.PutStorageItem(s.ID, key, NodeList(pubs).Bytes())
+	if err != nil {
+		return err
+	}
+
+	ic.Notifications = append(ic.Notifications, state.NotificationEvent{
+		ScriptHash: s.Hash,
+		Name:       DesignationEventName,
+		Item: stackitem.NewArray([]stackitem.Item{
+			stackitem.NewBigInteger(big.NewInt(int64(r))),
+			stackitem.NewBigInteger(big.NewInt(int64(ic.Block.Index))),
+		}),
+	})
+	return nil
 }
 
 func (s *Designate) getRole(item stackitem.Item) (noderoles.Role, bool) {
