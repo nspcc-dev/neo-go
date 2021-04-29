@@ -571,7 +571,7 @@ func BenchmarkOpcodes(t *testing.B) {
 	}
 	binaries := []opcode.Opcode{opcode.AND, opcode.OR, opcode.XOR, opcode.ADD, opcode.SUB,
 		opcode.BOOLAND, opcode.BOOLOR, opcode.NUMEQUAL, opcode.NUMNOTEQUAL,
-		opcode.LT, opcode.LTE, opcode.GT, opcode.GTE, opcode.MIN, opcode.MAX}
+		opcode.LT, opcode.LE, opcode.GT, opcode.GE, opcode.MIN, opcode.MAX}
 	for _, op := range binaries {
 		t.Run(op.String(), func(t *testing.B) {
 			t.Run("0+0", func(t *testing.B) { benchOpcode(t, opParamPushVM(op, nil, 0, 0)) })

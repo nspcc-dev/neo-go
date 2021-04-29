@@ -977,7 +977,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		a := v.estack.Pop().BigInt()
 		v.estack.PushVal(a.Cmp(b) == -1)
 
-	case opcode.LTE:
+	case opcode.LE:
 		b := v.estack.Pop().BigInt()
 		a := v.estack.Pop().BigInt()
 		v.estack.PushVal(a.Cmp(b) <= 0)
@@ -987,7 +987,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		a := v.estack.Pop().BigInt()
 		v.estack.PushVal(a.Cmp(b) == 1)
 
-	case opcode.GTE:
+	case opcode.GE:
 		b := v.estack.Pop().BigInt()
 		a := v.estack.Pop().BigInt()
 		v.estack.PushVal(a.Cmp(b) >= 0)

@@ -812,8 +812,8 @@ func TestLT(t *testing.T) {
 	runWithArgs(t, prog, false, 4, 3)
 }
 
-func TestLTE(t *testing.T) {
-	prog := makeProgram(opcode.LTE)
+func TestLE(t *testing.T) {
+	prog := makeProgram(opcode.LE)
 	runWithArgs(t, prog, true, 2, 3)
 }
 
@@ -822,8 +822,8 @@ func TestGT(t *testing.T) {
 	runWithArgs(t, prog, true, 9, 3)
 }
 
-func TestGTE(t *testing.T) {
-	prog := makeProgram(opcode.GTE)
+func TestGE(t *testing.T) {
+	prog := makeProgram(opcode.GE)
 	runWithArgs(t, prog, true, 3, 3)
 }
 
