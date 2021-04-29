@@ -19,7 +19,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
@@ -244,8 +243,8 @@ func (n *nonfungible) tokensOf(ic *interop.Context, args []stackitem.Item) stack
 	for i := range arr {
 		arr[i] = stackitem.NewByteArray(s.Tokens[i])
 	}
-	iter, _ := vm.NewIterator(stackitem.NewArray(arr))
-	return iter
+	iter := newArrayIterator(arr)
+	return stackitem.NewInterop(iter)
 }
 
 func (n *nonfungible) mint(ic *interop.Context, s nftTokenState) {
@@ -381,4 +380,29 @@ func (n *nonfungible) transfer(ic *interop.Context, args []stackitem.Item) stack
 
 func makeNFTAccountKey(owner util.Uint160) []byte {
 	return append([]byte{prefixNFTAccount}, owner.BytesBE()...)
+}
+
+type arrayWrapper struct {
+	index int
+	value []stackitem.Item
+}
+
+func newArrayIterator(arr []stackitem.Item) *arrayWrapper {
+	return &arrayWrapper{
+		index: -1,
+		value: arr,
+	}
+}
+
+func (a *arrayWrapper) Next() bool {
+	if next := a.index + 1; next < len(a.value) {
+		a.index = next
+		return true
+	}
+
+	return false
+}
+
+func (a *arrayWrapper) Value() stackitem.Item {
+	return a.value[a.index]
 }

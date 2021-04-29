@@ -38,7 +38,6 @@ var systemInterops = []interop.Function{
 	{Name: interopnames.SystemContractGetCallFlags, Func: contractGetCallFlags, Price: 1 << 10},
 	{Name: interopnames.SystemContractNativeOnPersist, Func: native.OnPersist, Price: 0, RequiredFlags: callflag.States},
 	{Name: interopnames.SystemContractNativePostPersist, Func: native.PostPersist, Price: 0, RequiredFlags: callflag.States},
-	{Name: interopnames.SystemIteratorCreate, Func: iterator.Create, Price: 1 << 4, ParamCount: 1},
 	{Name: interopnames.SystemIteratorNext, Func: iterator.Next, Price: 1 << 15, ParamCount: 1},
 	{Name: interopnames.SystemIteratorValue, Func: iterator.Value, Price: 1 << 4, ParamCount: 1},
 	{Name: interopnames.SystemRuntimeBurnGas, Func: runtime.BurnGas, Price: 1 << 4, ParamCount: 1},
