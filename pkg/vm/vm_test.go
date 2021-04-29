@@ -807,13 +807,25 @@ func TestSHL(t *testing.T) {
 	t.Run("BigResult", getTestFuncForVM(prog, nil, getBigInt(stackitem.MaxBigIntegerSizeBits/2, 0), stackitem.MaxBigIntegerSizeBits/2))
 }
 
+func TestArithNullArg(t *testing.T) {
+	for _, op := range []opcode.Opcode{opcode.LT, opcode.LE, opcode.GT, opcode.GE} {
+		prog := makeProgram(op)
+		t.Run(op.String(), func(t *testing.T) {
+			runWithArgs(t, prog, false, stackitem.Null{}, 0)
+			runWithArgs(t, prog, false, 0, stackitem.Null{})
+			runWithArgs(t, prog, nil, stackitem.NewInterop(nil), 1) // also has `.Value() == nil`
+		})
+
+	}
+}
+
 func TestLT(t *testing.T) {
 	prog := makeProgram(opcode.LT)
 	runWithArgs(t, prog, false, 4, 3)
 }
 
-func TestLTE(t *testing.T) {
-	prog := makeProgram(opcode.LTE)
+func TestLE(t *testing.T) {
+	prog := makeProgram(opcode.LE)
 	runWithArgs(t, prog, true, 2, 3)
 }
 
@@ -822,8 +834,8 @@ func TestGT(t *testing.T) {
 	runWithArgs(t, prog, true, 9, 3)
 }
 
-func TestGTE(t *testing.T) {
-	prog := makeProgram(opcode.GTE)
+func TestGE(t *testing.T) {
+	prog := makeProgram(opcode.GE)
 	runWithArgs(t, prog, true, 3, 3)
 }
 

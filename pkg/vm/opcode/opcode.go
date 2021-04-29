@@ -188,9 +188,9 @@ const (
 	NUMEQUAL    Opcode = 0xB3
 	NUMNOTEQUAL Opcode = 0xB4
 	LT          Opcode = 0xB5
-	LTE         Opcode = 0xB6
+	LE          Opcode = 0xB6
 	GT          Opcode = 0xB7
-	GTE         Opcode = 0xB8
+	GE          Opcode = 0xB8
 	MIN         Opcode = 0xB9
 	MAX         Opcode = 0xBA
 	WITHIN      Opcode = 0xBB

@@ -1901,11 +1901,11 @@ func convertToken(tok token.Token, typ types.Type) (opcode.Opcode, error) {
 	case token.LSS:
 		return opcode.LT, nil
 	case token.LEQ:
-		return opcode.LTE, nil
+		return opcode.LE, nil
 	case token.GTR:
 		return opcode.GT, nil
 	case token.GEQ:
-		return opcode.GTE, nil
+		return opcode.GE, nil
 	case token.EQL:
 		// VM has separate opcodes for number and string equality
 		if isNumber(typ) {
