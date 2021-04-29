@@ -972,25 +972,27 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		a := v.estack.Pop().BigInt()
 		v.estack.PushVal(a.Cmp(b) != 0)
 
-	case opcode.LT:
-		b := v.estack.Pop().BigInt()
-		a := v.estack.Pop().BigInt()
-		v.estack.PushVal(a.Cmp(b) == -1)
+	case opcode.LT, opcode.LE, opcode.GT, opcode.GE:
+		eb := v.estack.Pop()
+		ea := v.estack.Pop()
+		_, aNil := ea.Item().(stackitem.Null)
+		_, bNil := eb.Item().(stackitem.Null)
 
-	case opcode.LE:
-		b := v.estack.Pop().BigInt()
-		a := v.estack.Pop().BigInt()
-		v.estack.PushVal(a.Cmp(b) <= 0)
-
-	case opcode.GT:
-		b := v.estack.Pop().BigInt()
-		a := v.estack.Pop().BigInt()
-		v.estack.PushVal(a.Cmp(b) == 1)
-
-	case opcode.GE:
-		b := v.estack.Pop().BigInt()
-		a := v.estack.Pop().BigInt()
-		v.estack.PushVal(a.Cmp(b) >= 0)
+		res := !aNil && !bNil
+		if res {
+			cmp := ea.BigInt().Cmp(eb.BigInt())
+			switch op {
+			case opcode.LT:
+				res = cmp == -1
+			case opcode.LE:
+				res = cmp <= 0
+			case opcode.GT:
+				res = cmp == 1
+			case opcode.GE:
+				res = cmp >= 0
+			}
+		}
+		v.estack.PushVal(res)
 
 	case opcode.MIN:
 		b := v.estack.Pop().BigInt()
