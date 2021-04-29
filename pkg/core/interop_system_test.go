@@ -23,6 +23,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
@@ -346,6 +347,9 @@ func getTestContractState(bc *Blockchain) (*state.Contract, *state.Contract) {
 	emit.Opcodes(w.BinWriter, opcode.CALLT, 1, 0, opcode.RET)
 	callT2Off := w.Len()
 	emit.Opcodes(w.BinWriter, opcode.CALLT, 0, 0, opcode.RET)
+	burnGasOff := w.Len()
+	emit.Syscall(w.BinWriter, interopnames.SystemRuntimeBurnGas)
+	emit.Opcodes(w.BinWriter, opcode.RET)
 
 	script := w.Bytes()
 	h := hash.Hash160(script)
@@ -505,6 +509,14 @@ func getTestContractState(bc *Blockchain) (*state.Contract, *state.Contract) {
 			Name:       "callT2",
 			Offset:     callT2Off,
 			ReturnType: smartcontract.IntegerType,
+		},
+		{
+			Name:   "burnGas",
+			Offset: burnGasOff,
+			Parameters: []manifest.Parameter{
+				manifest.NewParameter("amount", smartcontract.IntegerType),
+			},
+			ReturnType: smartcontract.VoidType,
 		},
 	}
 	m.Permissions = make([]manifest.Permission, 2)
@@ -937,6 +949,40 @@ func TestLoadToken(t *testing.T) {
 	})
 	t.Run("invalid contract", func(t *testing.T) {
 		aer, err := invokeContractMethod(bc, 1_00000000, cs.Hash, "callT1")
+		require.NoError(t, err)
+		checkFAULTState(t, aer)
+	})
+}
+
+func TestRuntimeBurnGas(t *testing.T) {
+	bc := newTestChain(t)
+
+	cs, _ := getTestContractState(bc)
+	require.NoError(t, bc.contracts.Management.PutContractState(bc.dao, cs))
+
+	const sysFee = 2_000000
+
+	t.Run("good", func(t *testing.T) {
+		aer, err := invokeContractMethod(bc, sysFee, cs.Hash, "burnGas", int64(1))
+		require.NoError(t, err)
+		require.Equal(t, vm.HaltState, aer.VMState)
+
+		t.Run("gas limit exceeded", func(t *testing.T) {
+			aer, err = invokeContractMethod(bc, aer.GasConsumed, cs.Hash, "burnGas", int64(2))
+			require.NoError(t, err)
+			require.Equal(t, vm.FaultState, aer.VMState)
+		})
+	})
+	t.Run("too big integer", func(t *testing.T) {
+		gas := big.NewInt(math.MaxInt64)
+		gas.Add(gas, big.NewInt(1))
+
+		aer, err := invokeContractMethod(bc, sysFee, cs.Hash, "burnGas", gas)
+		require.NoError(t, err)
+		checkFAULTState(t, aer)
+	})
+	t.Run("zero GAS", func(t *testing.T) {
+		aer, err := invokeContractMethod(bc, sysFee, cs.Hash, "burnGas", int64(0))
 		require.NoError(t, err)
 		checkFAULTState(t, aer)
 	})

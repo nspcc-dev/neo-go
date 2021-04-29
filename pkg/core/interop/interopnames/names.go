@@ -16,6 +16,7 @@ const (
 	SystemIteratorCreate                = "System.Iterator.Create"
 	SystemIteratorNext                  = "System.Iterator.Next"
 	SystemIteratorValue                 = "System.Iterator.Value"
+	SystemRuntimeBurnGas                = "System.Runtime.BurnGas"
 	SystemRuntimeCheckWitness           = "System.Runtime.CheckWitness"
 	SystemRuntimeGasLeft                = "System.Runtime.GasLeft"
 	SystemRuntimeGetCallingScriptHash   = "System.Runtime.GetCallingScriptHash"
@@ -55,6 +56,7 @@ var names = []string{
 	SystemIteratorCreate,
 	SystemIteratorNext,
 	SystemIteratorValue,
+	SystemRuntimeBurnGas,
 	SystemRuntimeCheckWitness,
 	SystemRuntimeGasLeft,
 	SystemRuntimeGetCallingScriptHash,

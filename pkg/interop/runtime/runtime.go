@@ -17,6 +17,11 @@ const (
 	Verification byte = 0x20
 )
 
+// BurnGas burns provided amount of GAS. It uses `System.Runtime.BurnGas` syscall.
+func BurnGas(gas int) {
+	neogointernal.Syscall1NoReturn("System.Runtime.BurnGas", gas)
+}
+
 // CheckWitness verifies if the given script hash (160-bit BE value in a 20 byte
 // slice) or key (compressed serialized 33-byte form) is one of the signers of
 // this invocation. It uses `System.Runtime.CheckWitness` syscall.
