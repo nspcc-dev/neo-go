@@ -49,7 +49,9 @@ func TestStorageFind(t *testing.T) {
 	require.NoError(t, err)
 
 	skeys := [][]byte{{0x01, 0x02}, {0x02, 0x01}, {0x01, 0x01},
-		{0x04, 0x00}, {0x05, 0x00}, {0x06}, {0x07}, {0x08}}
+		{0x04, 0x00}, {0x05, 0x00}, {0x06}, {0x07}, {0x08},
+		{0x09, 0x12, 0x34}, {0x09, 0x12, 0x56},
+	}
 	items := []state.StorageItem{
 		[]byte{0x01, 0x02, 0x03, 0x04},
 		[]byte{0x04, 0x03, 0x02, 0x01},
@@ -59,6 +61,8 @@ func TestStorageFind(t *testing.T) {
 		rawArr,
 		rawArr0,
 		rawArr1,
+		[]byte{111},
+		[]byte{222},
 	}
 
 	require.NoError(t, chain.contracts.Management.PutContractState(chain.dao, contractState))
@@ -70,9 +74,9 @@ func TestStorageFind(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	testFind := func(t *testing.T, prefix byte, opts int64, expected []stackitem.Item) {
+	testFind := func(t *testing.T, prefix []byte, opts int64, expected []stackitem.Item) {
 		v.Estack().PushVal(opts)
-		v.Estack().PushVal([]byte{prefix})
+		v.Estack().PushVal(prefix)
 		v.Estack().PushVal(stackitem.NewInterop(&StorageContext{ID: id}))
 
 		err := storageFind(context)
@@ -101,7 +105,7 @@ func TestStorageFind(t *testing.T) {
 	}
 
 	t.Run("normal invocation", func(t *testing.T) {
-		testFind(t, 0x01, istorage.FindDefault, []stackitem.Item{
+		testFind(t, []byte{0x01}, istorage.FindDefault, []stackitem.Item{
 			stackitem.NewStruct([]stackitem.Item{
 				stackitem.NewByteArray(skeys[2]),
 				stackitem.NewByteArray(items[2]),
@@ -114,25 +118,29 @@ func TestStorageFind(t *testing.T) {
 	})
 
 	t.Run("keys only", func(t *testing.T) {
-		testFind(t, 0x01, istorage.FindKeysOnly, []stackitem.Item{
+		testFind(t, []byte{0x01}, istorage.FindKeysOnly, []stackitem.Item{
 			stackitem.NewByteArray(skeys[2]),
 			stackitem.NewByteArray(skeys[0]),
 		})
 	})
 	t.Run("remove prefix", func(t *testing.T) {
-		testFind(t, 0x01, istorage.FindKeysOnly|istorage.FindRemovePrefix, []stackitem.Item{
+		testFind(t, []byte{0x01}, istorage.FindKeysOnly|istorage.FindRemovePrefix, []stackitem.Item{
 			stackitem.NewByteArray(skeys[2][1:]),
 			stackitem.NewByteArray(skeys[0][1:]),
 		})
+		testFind(t, []byte{0x09, 0x12}, istorage.FindKeysOnly|istorage.FindRemovePrefix, []stackitem.Item{
+			stackitem.NewByteArray(skeys[8][2:]),
+			stackitem.NewByteArray(skeys[9][2:]),
+		})
 	})
 	t.Run("values only", func(t *testing.T) {
-		testFind(t, 0x01, istorage.FindValuesOnly, []stackitem.Item{
+		testFind(t, []byte{0x01}, istorage.FindValuesOnly, []stackitem.Item{
 			stackitem.NewByteArray(items[2]),
 			stackitem.NewByteArray(items[0]),
 		})
 	})
 	t.Run("deserialize values", func(t *testing.T) {
-		testFind(t, 0x04, istorage.FindValuesOnly|istorage.FindDeserialize, []stackitem.Item{
+		testFind(t, []byte{0x04}, istorage.FindValuesOnly|istorage.FindDeserialize, []stackitem.Item{
 			stackitem.NewByteArray(items[3][2:]),
 		})
 		t.Run("invalid", func(t *testing.T) {
@@ -153,21 +161,21 @@ func TestStorageFind(t *testing.T) {
 		})
 	})
 	t.Run("PickN", func(t *testing.T) {
-		testFind(t, 0x06, istorage.FindPick0|istorage.FindValuesOnly|istorage.FindDeserialize, arr[:1])
-		testFind(t, 0x06, istorage.FindPick1|istorage.FindValuesOnly|istorage.FindDeserialize, arr[1:2])
+		testFind(t, []byte{0x06}, istorage.FindPick0|istorage.FindValuesOnly|istorage.FindDeserialize, arr[:1])
+		testFind(t, []byte{0x06}, istorage.FindPick1|istorage.FindValuesOnly|istorage.FindDeserialize, arr[1:2])
 		// Array with 0 elements.
-		testFind(t, 0x07, istorage.FindPick0|istorage.FindValuesOnly|istorage.FindDeserialize,
+		testFind(t, []byte{0x07}, istorage.FindPick0|istorage.FindValuesOnly|istorage.FindDeserialize,
 			[]stackitem.Item{nil})
 		// Array with 1 element.
-		testFind(t, 0x08, istorage.FindPick1|istorage.FindValuesOnly|istorage.FindDeserialize,
+		testFind(t, []byte{0x08}, istorage.FindPick1|istorage.FindValuesOnly|istorage.FindDeserialize,
 			[]stackitem.Item{nil})
 		// Not an array, but serialized ByteArray.
-		testFind(t, 0x04, istorage.FindPick1|istorage.FindValuesOnly|istorage.FindDeserialize,
+		testFind(t, []byte{0x04}, istorage.FindPick1|istorage.FindValuesOnly|istorage.FindDeserialize,
 			[]stackitem.Item{nil})
 	})
 
 	t.Run("normal invocation, empty result", func(t *testing.T) {
-		testFind(t, 0x03, istorage.FindDefault, nil)
+		testFind(t, []byte{0x03}, istorage.FindDefault, nil)
 	})
 
 	t.Run("invalid options", func(t *testing.T) {

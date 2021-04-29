@@ -59,7 +59,7 @@ func storageFind(ic *interop.Context) error {
 			filteredMap.Value().([]stackitem.MapElement)[j].Key.Value().([]byte)) == -1
 	})
 
-	item := storage.NewIterator(filteredMap, opts)
+	item := storage.NewIterator(filteredMap, len(prefix), opts)
 	ic.VM.Estack().PushVal(stackitem.NewInterop(item))
 
 	return nil
