@@ -123,7 +123,7 @@ func (c *Client) TransferNEP11D(acc *wallet.Account, to util.Uint160,
 	if err != nil {
 		return util.Uint256{}, fmt.Errorf("bad account address: %w", err)
 	}
-	tx, err := c.createNEP11TransferTx(acc, tokenHash, gas, cosigners, acc.Address, from, to, amount, tokenID)
+	tx, err := c.createNEP11TransferTx(acc, tokenHash, gas, cosigners, from, to, amount, tokenID)
 	if err != nil {
 		return util.Uint256{}, err
 	}
