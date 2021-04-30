@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"syscall"
 
 	"github.com/nspcc-dev/neo-go/cli/options"
 	"github.com/nspcc-dev/neo-go/pkg/config"
@@ -325,6 +326,9 @@ func startServer(ctx *cli.Context) error {
 	go serv.Start(errChan)
 	rpcServer.Start(errChan)
 
+	sighupCh := make(chan os.Signal, 1)
+	signal.Notify(sighupCh, syscall.SIGHUP)
+
 	fmt.Fprintln(ctx.App.Writer, logo())
 	fmt.Fprintln(ctx.App.Writer, serv.UserAgent)
 	fmt.Fprintln(ctx.App.Writer)
@@ -336,8 +340,20 @@ Main:
 		case err := <-errChan:
 			shutdownErr = fmt.Errorf("server error: %w", err)
 			cancel()
-
+		case sig := <-sighupCh:
+			switch sig {
+			case syscall.SIGHUP:
+				log.Info("SIGHUP received, restarting rpc-server")
+				serverErr := rpcServer.Shutdown()
+				if serverErr != nil {
+					errChan <- fmt.Errorf("error while restarting rpc-server: %w", serverErr)
+					break
+				}
+				rpcServer = server.New(chain, cfg.ApplicationConfiguration.RPC, serv, serv.GetOracle(), log)
+				rpcServer.Start(errChan)
+			}
 		case <-grace.Done():
+			signal.Stop(sighupCh)
 			serv.Shutdown()
 			if serverErr := rpcServer.Shutdown(); serverErr != nil {
 				shutdownErr = fmt.Errorf("error on shutdown: %w", serverErr)
