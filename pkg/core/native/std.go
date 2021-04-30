@@ -1,6 +1,7 @@
 package native
 
 import (
+	"bytes"
 	"encoding/base64"
 	"encoding/hex"
 	"errors"
@@ -102,6 +103,12 @@ func newStd() *Std {
 	desc = newDescriptor("base58Decode", smartcontract.ByteArrayType,
 		manifest.NewParameter("s", smartcontract.StringType))
 	md = newMethodAndPrice(s.base58Decode, 1<<10, callflag.NoneFlag)
+	s.AddMethod(md, desc)
+
+	desc = newDescriptor("memoryCompare", smartcontract.IntegerType,
+		manifest.NewParameter("str1", smartcontract.ByteArrayType),
+		manifest.NewParameter("str2", smartcontract.ByteArrayType))
+	md = newMethodAndPrice(s.memoryCompare, 1<<5, callflag.NoneFlag)
 	s.AddMethod(md, desc)
 
 	return s
@@ -276,6 +283,12 @@ func (s *Std) base58Decode(_ *interop.Context, args []stackitem.Item) stackitem.
 	}
 
 	return stackitem.NewByteArray(result)
+}
+
+func (s *Std) memoryCompare(_ *interop.Context, args []stackitem.Item) stackitem.Item {
+	s1 := s.toLimitedBytes(args[0])
+	s2 := s.toLimitedBytes(args[1])
+	return stackitem.NewBigInteger(big.NewInt(int64(bytes.Compare(s1, s2))))
 }
 
 // Metadata implements Contract interface.

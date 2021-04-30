@@ -354,3 +354,38 @@ func TestStdLibSerializeDeserialize(t *testing.T) {
 		})
 	})
 }
+
+func TestMemoryCompare(t *testing.T) {
+	s := newStd()
+	ic := &interop.Context{VM: vm.New()}
+
+	check := func(t *testing.T, result int64, s1, s2 string) {
+		actual := s.memoryCompare(ic, []stackitem.Item{stackitem.Make(s1), stackitem.Make(s2)})
+		require.Equal(t, big.NewInt(result), actual.Value())
+	}
+
+	check(t, -1, "a", "ab")
+	check(t, 1, "ab", "a")
+	check(t, 0, "ab", "ab")
+	check(t, -1, "", "a")
+	check(t, 0, "", "")
+
+	t.Run("C# compatibility", func(t *testing.T) {
+		// These tests are taken from C# node.
+		check(t, -1, "abc", "c")
+		check(t, -1, "abc", "d")
+		check(t, 0, "abc", "abc")
+		check(t, -1, "abc", "abcd")
+	})
+
+	t.Run("big arguments", func(t *testing.T) {
+		s1 := stackitem.Make(strings.Repeat("x", stdMaxInputLength+1))
+		s2 := stackitem.Make("xxx")
+
+		require.PanicsWithError(t, ErrTooBigInput.Error(),
+			func() { s.memoryCompare(ic, []stackitem.Item{s1, s2}) })
+
+		require.PanicsWithError(t, ErrTooBigInput.Error(),
+			func() { s.memoryCompare(ic, []stackitem.Item{s2, s1}) })
+	})
+}

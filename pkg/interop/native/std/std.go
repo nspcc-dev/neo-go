@@ -113,3 +113,11 @@ func Atoi10(s string) int {
 	return contract.Call(interop.Hash160(Hash), "atoi", contract.NoneFlag,
 		s).(int)
 }
+
+// MemoryCompare is similar to bytes.Compare:
+// The result will be 0 if a==b, -1 if a < b, and +1 if a > b.
+// It uses `memoryCompare` method of StdLib native contract.
+func MemoryCompare(s1, s2 []byte) int {
+	return contract.Call(interop.Hash160(Hash), "memoryCompare", contract.NoneFlag,
+		s1, s2).(int)
+}

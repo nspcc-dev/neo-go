@@ -228,6 +228,7 @@ func TestNativeHelpersCompile(t *testing.T) {
 		{"itoa10", []string{"4"}},
 		{"atoi", []string{`"4"`, "10"}},
 		{"atoi10", []string{`"4"`}},
+		{"memoryCompare", []string{"[]byte{1}", "[]byte{2}"}},
 	})
 }
 
