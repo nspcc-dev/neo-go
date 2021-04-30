@@ -1278,8 +1278,14 @@ func (s *Server) broadcastTxLoop() {
 	}
 }
 
-// Port returns actual server port. It may differs from that of server.Config.
+// Port returns a server port that should be used in P2P version exchange. In
+// case if `AnnouncedPort` is set in the server.Config, the announced node port
+// will be returned (e.g. consider the node running behind NAT). If `AnnouncedPort`
+// isn't set, the port returned may still differs from that of server.Config.
 func (s *Server) Port() (uint16, error) {
+	if s.AnnouncedPort != 0 {
+		return s.ServerConfig.AnnouncedPort, nil
+	}
 	var port uint16
 	_, portStr, err := net.SplitHostPort(s.transport.Address())
 	if err != nil {

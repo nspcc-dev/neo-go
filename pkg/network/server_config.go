@@ -31,7 +31,10 @@ type (
 		// Address. Example: "127.0.0.1".
 		Address string
 
-		// Port. Example: 20332.
+		// AnnouncedPort is an announced node port for P2P version exchange.
+		AnnouncedPort uint16
+
+		// Port is the actual node port it is bound to. Example: 20332.
 		Port uint16
 
 		// The network mode the server will operate on.
@@ -92,6 +95,7 @@ func NewServerConfig(cfg config.Config) ServerConfig {
 	return ServerConfig{
 		UserAgent:         cfg.GenerateUserAgent(),
 		Address:           appConfig.Address,
+		AnnouncedPort:     appConfig.AnnouncedNodePort,
 		Port:              appConfig.NodePort,
 		Net:               protoConfig.Magic,
 		Relay:             appConfig.Relay,
