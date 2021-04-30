@@ -1320,14 +1320,7 @@ func (s *Server) runScriptInVM(t trigger.Type, script []byte, contractScriptHash
 	if err != nil {
 		faultException = err.Error()
 	}
-	result := &result.Invoke{
-		State:          vm.State().String(),
-		GasConsumed:    vm.GasConsumed(),
-		Script:         script,
-		Stack:          vm.Estack().ToArray(),
-		FaultException: faultException,
-	}
-	return result, nil
+	return result.NewInvoke(vm, script, faultException, s.config.MaxIteratorResultItems), nil
 }
 
 // submitBlock broadcasts a raw block over the NEO network.

@@ -71,6 +71,12 @@ func init() {
 	})
 }
 
+// IsIterator returns whether stackitem implements iterator interface.
+func IsIterator(item stackitem.Item) bool {
+	_, ok := item.Value().(iterator)
+	return ok
+}
+
 // IteratorNext handles syscall System.Enumerator.Next.
 func IteratorNext(v *VM) error {
 	iop := v.Estack().Pop().Interop()
@@ -87,6 +93,18 @@ func IteratorValue(v *VM) error {
 	v.Estack().Push(&Element{value: arr.Value()})
 
 	return nil
+}
+
+// IteratorValues returns an array of up to `max` iterator values. The second
+// return parameter denotes whether iterator is truncated.
+func IteratorValues(item stackitem.Item, max int) ([]stackitem.Item, bool) {
+	var result []stackitem.Item
+	arr := item.Value().(iterator)
+	for arr.Next() && max > 0 {
+		result = append(result, arr.Value())
+		max--
+	}
+	return result, arr.Next()
 }
 
 // NewIterator creates new iterator from the provided stack item.

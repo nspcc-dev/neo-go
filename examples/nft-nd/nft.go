@@ -25,6 +25,7 @@ const (
 	totalSupplyPrefix = "s"
 	accountPrefix     = "a"
 	tokenPrefix       = "t"
+	tokensPrefix      = "ts"
 )
 
 var (
@@ -76,6 +77,10 @@ func mkTokenKey(token []byte) []byte {
 	return append(res, token...)
 }
 
+func mkTokensKey() []byte {
+	return []byte(tokensPrefix)
+}
+
 // BalanceOf returns the number of tokens owned by specified address.
 func BalanceOf(holder interop.Hash160) int {
 	if len(holder) != 20 {
@@ -110,6 +115,36 @@ func setTokensOf(ctx storage.Context, holder interop.Hash160, tokens []string) {
 	} else {
 		storage.Delete(ctx, key)
 	}
+}
+
+// setTokens saves minted token if it is not saved yet.
+func setTokens(ctx storage.Context, newToken string) {
+	key := mkTokensKey()
+	var tokens = []string{}
+	val := storage.Get(ctx, key)
+	if val != nil {
+		tokens = std.Deserialize(val.([]byte)).([]string)
+	}
+	for i := 0; i < len(tokens); i++ {
+		if util.Equals(tokens[i], newToken) {
+			return
+		}
+	}
+	tokens = append(tokens, newToken)
+	val = std.Serialize(tokens)
+	storage.Put(ctx, key, val)
+}
+
+// Tokens returns an iterator that contains all of the tokens minted by the contract.
+func Tokens() iterator.Iterator {
+	ctx := storage.GetReadOnlyContext()
+	var arr = []string{}
+	key := mkTokensKey()
+	val := storage.Get(ctx, key)
+	if val != nil {
+		arr = std.Deserialize(val.([]byte)).([]string)
+	}
+	return iterator.Create(arr)
 }
 
 // TokensOf returns an iterator with all tokens held by specified address.
@@ -219,6 +254,7 @@ func OnNEP17Payment(from interop.Hash160, amount int, data interface{}) {
 	toksOf = append(toksOf, token)
 	setTokensOf(ctx, from, toksOf)
 	setOwnerOf(ctx, []byte(token), from)
+	setTokens(ctx, token)
 
 	total++
 	storage.Put(ctx, []byte(totalSupplyPrefix), total)
@@ -247,4 +283,29 @@ func Update(nef, manifest []byte) {
 		panic("only owner can update")
 	}
 	management.Update(nef, manifest)
+}
+
+// Properties returns properties of the given NFT.
+func Properties(id []byte) map[string]string {
+	ctx := storage.GetReadOnlyContext()
+	var tokens = []string{}
+	key := mkTokensKey()
+	val := storage.Get(ctx, key)
+	if val != nil {
+		tokens = std.Deserialize(val.([]byte)).([]string)
+	}
+	var exists bool
+	for i := 0; i < len(tokens); i++ {
+		if util.Equals(tokens[i], id) {
+			exists = true
+			break
+		}
+	}
+	if !exists {
+		panic("unknown token")
+	}
+	result := map[string]string{
+		"name": "HASHY " + string(id),
+	}
+	return result
 }

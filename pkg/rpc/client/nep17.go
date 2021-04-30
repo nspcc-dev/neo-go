@@ -7,6 +7,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
@@ -50,19 +51,7 @@ func (c *Client) NEP17BalanceOf(tokenHash, acc util.Uint160) (int64, error) {
 
 // NEP17TokenInfo returns full NEP17 token info.
 func (c *Client) NEP17TokenInfo(tokenHash util.Uint160) (*wallet.Token, error) {
-	cs, err := c.GetContractStateByHash(tokenHash)
-	if err != nil {
-		return nil, err
-	}
-	symbol, err := c.NEP17Symbol(tokenHash)
-	if err != nil {
-		return nil, err
-	}
-	decimals, err := c.NEP17Decimals(tokenHash)
-	if err != nil {
-		return nil, err
-	}
-	return wallet.NewToken(tokenHash, cs.Manifest.Name, symbol, decimals), nil
+	return c.nepTokenInfo(tokenHash, manifest.NEP17StandardName)
 }
 
 // CreateNEP17TransferTx creates an invocation transaction for the 'transfer'

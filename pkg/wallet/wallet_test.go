@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -146,7 +147,7 @@ func removeWallet(t *testing.T, walletPath string) {
 
 func TestWallet_AddToken(t *testing.T) {
 	w := checkWalletConstructor(t)
-	tok := NewToken(util.Uint160{1, 2, 3}, "Rubl", "RUB", 2)
+	tok := NewToken(util.Uint160{1, 2, 3}, "Rubl", "RUB", 2, manifest.NEP17StandardName)
 	require.Equal(t, 0, len(w.Extra.Tokens))
 	w.AddToken(tok)
 	require.Equal(t, 1, len(w.Extra.Tokens))

@@ -227,30 +227,33 @@ func TestContractDeployWithData(t *testing.T) {
 }
 
 func deployVerifyContract(t *testing.T, e *executor) util.Uint160 {
-	tmpDir := path.Join(os.TempDir(), "neogo.test.deployverifycontract")
-	require.NoError(t, os.Mkdir(tmpDir, os.ModePerm))
+	return deployContract(t, e, "testdata/verify.go", "testdata/verify.yml", validatorWallet, validatorAddr, "one")
+}
+
+func deployContract(t *testing.T, e *executor, inPath, configPath, wallet, address, pass string) util.Uint160 {
+	tmpDir, err := ioutil.TempDir(os.TempDir(), "neogo.test.deploycontract*")
+	require.NoError(t, err)
 	t.Cleanup(func() {
 		os.RemoveAll(tmpDir)
 	})
-	// deploy verification contract
-	nefName := path.Join(tmpDir, "verify.nef")
-	manifestName := path.Join(tmpDir, "verify.manifest.json")
+	nefName := path.Join(tmpDir, "contract.nef")
+	manifestName := path.Join(tmpDir, "contract.manifest.json")
 	e.Run(t, "neo-go", "contract", "compile",
-		"--in", "testdata/verify.go",
-		"--config", "testdata/verify.yml",
+		"--in", inPath,
+		"--config", configPath,
 		"--out", nefName, "--manifest", manifestName)
-	e.In.WriteString("one\r")
+	e.In.WriteString(pass + "\r")
 	e.Run(t, "neo-go", "contract", "deploy",
 		"--rpc-endpoint", "http://"+e.RPC.Addr,
-		"--wallet", validatorWallet, "--address", validatorAddr,
+		"--wallet", wallet, "--address", address,
 		"--in", nefName, "--manifest", manifestName)
 	e.checkTxPersisted(t, "Sent invocation transaction ")
 	line, err := e.Out.ReadString('\n')
 	require.NoError(t, err)
 	line = strings.TrimSpace(strings.TrimPrefix(line, "Contract: "))
-	hVerify, err := util.Uint160DecodeStringLE(line)
+	h, err := util.Uint160DecodeStringLE(line)
 	require.NoError(t, err)
-	return hVerify
+	return h
 }
 
 func TestComlileAndInvokeFunction(t *testing.T) {

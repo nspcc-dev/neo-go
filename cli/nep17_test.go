@@ -12,6 +12,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/fixedn"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/stretchr/testify/require"
 )
@@ -133,9 +134,9 @@ func TestNEP17Transfer(t *testing.T) {
 	require.Equal(t, big.NewInt(1), b)
 
 	hVerify := deployVerifyContract(t, e)
+	const validatorDefault = "NTh9TnZTstvAePEYWDGLLxidBikJE24uTo"
 
 	t.Run("default address", func(t *testing.T) {
-		const validatorDefault = "NTh9TnZTstvAePEYWDGLLxidBikJE24uTo"
 		e.In.WriteString("one\r")
 		e.Run(t, "neo-go", "wallet", "nep17", "multitransfer",
 			"--rpc-endpoint", "http://"+e.RPC.Addr,
@@ -159,6 +160,18 @@ func TestNEP17Transfer(t *testing.T) {
 		require.NoError(t, err)
 		b, _ = e.Chain.GetGoverningTokenBalance(sh)
 		require.Equal(t, big.NewInt(41), b)
+	})
+
+	t.Run("with signers", func(t *testing.T) {
+		e.In.WriteString("one\r")
+		e.Run(t, "neo-go", "wallet", "nep17", "multitransfer",
+			"--rpc-endpoint", "http://"+e.RPC.Addr,
+			"--wallet", validatorWallet,
+			"--from", validatorAddr,
+			"NEO:"+validatorDefault+":42",
+			"GAS:"+validatorDefault+":7",
+			"--", validatorAddr+":Global")
+		e.checkTxPersisted(t)
 	})
 
 	validTil := e.Chain.BlockHeight() + 100
@@ -256,6 +269,8 @@ func TestNEP17ImportToken(t *testing.T) {
 	require.NoError(t, err)
 	gasContractHash, err := e.Chain.GetNativeContractScriptHash(nativenames.Gas)
 	require.NoError(t, err)
+	nnsContractHash, err := e.Chain.GetNativeContractScriptHash(nativenames.NameService)
+	require.NoError(t, err)
 	e.Run(t, "neo-go", "wallet", "init", "--wallet", walletPath)
 
 	// missing token hash
@@ -272,6 +287,12 @@ func TestNEP17ImportToken(t *testing.T) {
 		"--wallet", walletPath,
 		"--token", address.Uint160ToString(neoContractHash)) // try address instead of sh
 
+	// not a NEP17 token
+	e.RunWithError(t, "neo-go", "wallet", "nep17", "import",
+		"--rpc-endpoint", "http://"+e.RPC.Addr,
+		"--wallet", walletPath,
+		"--token", nnsContractHash.StringLE())
+
 	t.Run("Info", func(t *testing.T) {
 		checkGASInfo := func(t *testing.T) {
 			e.checkNextLine(t, "^Name:\\s*GasToken")
@@ -279,6 +300,7 @@ func TestNEP17ImportToken(t *testing.T) {
 			e.checkNextLine(t, "^Hash:\\s*"+gasContractHash.StringLE())
 			e.checkNextLine(t, "^Decimals:\\s*8")
 			e.checkNextLine(t, "^Address:\\s*"+address.Uint160ToString(gasContractHash))
+			e.checkNextLine(t, "^Standard:\\s*"+string(manifest.NEP17StandardName))
 		}
 		t.Run("WithToken", func(t *testing.T) {
 			e.Run(t, "neo-go", "wallet", "nep17", "info",
@@ -296,6 +318,7 @@ func TestNEP17ImportToken(t *testing.T) {
 			e.checkNextLine(t, "^Hash:\\s*"+neoContractHash.StringLE())
 			e.checkNextLine(t, "^Decimals:\\s*0")
 			e.checkNextLine(t, "^Address:\\s*"+address.Uint160ToString(neoContractHash))
+			e.checkNextLine(t, "^Standard:\\s*"+string(manifest.NEP17StandardName))
 		})
 		t.Run("Remove", func(t *testing.T) {
 			e.In.WriteString("y\r")

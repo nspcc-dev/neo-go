@@ -12,9 +12,10 @@ type (
 		EnableCORSWorkaround bool   `yaml:"EnableCORSWorkaround"`
 		// MaxGasInvoke is a maximum amount of gas which
 		// can be spent during RPC call.
-		MaxGasInvoke fixedn.Fixed8 `yaml:"MaxGasInvoke"`
-		Port         uint16        `yaml:"Port"`
-		TLSConfig    TLSConfig     `yaml:"TLSConfig"`
+		MaxGasInvoke           fixedn.Fixed8 `yaml:"MaxGasInvoke"`
+		MaxIteratorResultItems int           `yaml:"MaxIteratorResultItems"`
+		Port                   uint16        `yaml:"Port"`
+		TLSConfig              TLSConfig     `yaml:"TLSConfig"`
 	}
 
 	// TLSConfig describes SSL/TLS configuration.
