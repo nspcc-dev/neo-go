@@ -132,6 +132,19 @@ func newStd() *Std {
 	md = newMethodAndPrice(s.memorySearch4, 1<<6, callflag.NoneFlag)
 	s.AddMethod(md, desc)
 
+	desc = newDescriptor("stringSplit", smartcontract.ArrayType,
+		manifest.NewParameter("str", smartcontract.StringType),
+		manifest.NewParameter("separator", smartcontract.StringType))
+	md = newMethodAndPrice(s.stringSplit2, 1<<8, callflag.NoneFlag)
+	s.AddMethod(md, desc)
+
+	desc = newDescriptor("stringSplit", smartcontract.ArrayType,
+		manifest.NewParameter("str", smartcontract.StringType),
+		manifest.NewParameter("separator", smartcontract.StringType),
+		manifest.NewParameter("removeEmptyEntries", smartcontract.BoolType))
+	md = newMethodAndPrice(s.stringSplit3, 1<<8, callflag.NoneFlag)
+	s.AddMethod(md, desc)
+
 	return s
 }
 
@@ -353,6 +366,36 @@ func (s *Std) memorySearchAux(mem, val []byte, start int, backward bool) int {
 		return -1
 	}
 	return index + start
+}
+
+func (s *Std) stringSplit2(_ *interop.Context, args []stackitem.Item) stackitem.Item {
+	str := s.toLimitedString(args[0])
+	sep := toString(args[1])
+	return stackitem.NewArray(s.stringSplitAux(str, sep, false))
+}
+
+func (s *Std) stringSplit3(_ *interop.Context, args []stackitem.Item) stackitem.Item {
+	str := s.toLimitedString(args[0])
+	sep := toString(args[1])
+	removeEmpty, err := args[2].TryBool()
+	if err != nil {
+		panic(err)
+	}
+
+	return stackitem.NewArray(s.stringSplitAux(str, sep, removeEmpty))
+}
+
+func (s *Std) stringSplitAux(str, sep string, removeEmpty bool) []stackitem.Item {
+	var result []stackitem.Item
+
+	arr := strings.Split(str, sep)
+	for i := range arr {
+		if !removeEmpty || len(arr[i]) != 0 {
+			result = append(result, stackitem.Make(arr[i]))
+		}
+	}
+
+	return result
 }
 
 // Metadata implements Contract interface.

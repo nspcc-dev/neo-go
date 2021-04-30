@@ -232,6 +232,8 @@ func TestNativeHelpersCompile(t *testing.T) {
 		{"memorySearch", []string{"[]byte{1}", "[]byte{2}"}},
 		{"memorySearchIndex", []string{"[]byte{1}", "[]byte{2}", "3"}},
 		{"memorySearchLastIndex", []string{"[]byte{1}", "[]byte{2}", "3"}},
+		{"stringSplit", []string{`"a,b"`, `","`}},
+		{"stringSplitNonEmpty", []string{`"a,b"`, `","`}},
 	})
 }
 
@@ -256,6 +258,11 @@ func getMethod(t *testing.T, ctr interop.ContractMD, name string, params []strin
 			paramLen += 1 // true should be appended inside of an interop
 		}
 		name = "memorySearch"
+	case strings.HasPrefix(name, "stringSplit"):
+		if strings.HasSuffix(name, "NonEmpty") {
+			paramLen += 1 // true should be appended inside of an interop
+		}
+		name = "stringSplit"
 	default:
 		name = strings.TrimSuffix(name, "WithData")
 	}

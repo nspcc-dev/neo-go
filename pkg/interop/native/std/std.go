@@ -142,3 +142,17 @@ func MemorySearchLastIndex(mem, pattern []byte, start int) int {
 	return contract.Call(interop.Hash160(Hash), "memorySearch", contract.NoneFlag,
 		mem, pattern, start, true).(int)
 }
+
+// StringSplit splits s by occurrences of sep.
+// It uses `stringSplit` method of StdLib native contract.
+func StringSplit(s, sep string) []string {
+	return contract.Call(interop.Hash160(Hash), "stringSplit", contract.NoneFlag,
+		s, sep).([]string)
+}
+
+// StringSplitNonEmpty splits s by occurrences of sep and returns a list of non-empty items.
+// It uses `stringSplit` method of StdLib native contract.
+func StringSplitNonEmpty(s, sep string) []string {
+	return contract.Call(interop.Hash160(Hash), "stringSplit", contract.NoneFlag,
+		s, sep, true).([]string)
+}

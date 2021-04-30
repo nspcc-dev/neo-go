@@ -481,3 +481,47 @@ func TestMemorySearch(t *testing.T) {
 			func() { s.memorySearch4(ic, []stackitem.Item{s2, s1, start, b}) })
 	})
 }
+
+func TestStringSplit(t *testing.T) {
+	s := newStd()
+	ic := &interop.Context{VM: vm.New()}
+
+	check := func(t *testing.T, result []string, str, sep string, remove interface{}) {
+		args := []stackitem.Item{stackitem.Make(str), stackitem.Make(sep)}
+		var actual stackitem.Item
+		if remove == nil {
+			actual = s.stringSplit2(ic, args)
+		} else {
+			args = append(args, stackitem.NewBool(remove.(bool)))
+			actual = s.stringSplit3(ic, args)
+		}
+
+		arr, ok := actual.Value().([]stackitem.Item)
+		require.True(t, ok)
+		require.Equal(t, len(result), len(arr))
+		for i := range result {
+			require.Equal(t, stackitem.Make(result[i]), arr[i])
+		}
+	}
+
+	check(t, []string{"a", "b", "c"}, "abc", "", nil)
+	check(t, []string{"a", "b", "c"}, "abc", "", true)
+	check(t, []string{"a", "c", "", "", "d"}, "abcbbbd", "b", nil)
+	check(t, []string{"a", "c", "", "", "d"}, "abcbbbd", "b", false)
+	check(t, []string{"a", "c", "d"}, "abcbbbd", "b", true)
+	check(t, []string{""}, "", "abc", nil)
+	check(t, []string{}, "", "abc", true)
+
+	t.Run("C# compatibility", func(t *testing.T) {
+		// These tests are taken from C# node.
+		check(t, []string{"a", "b"}, "a,b", ",", nil)
+	})
+
+	t.Run("big arguments", func(t *testing.T) {
+		s1 := stackitem.Make(strings.Repeat("x", stdMaxInputLength+1))
+		s2 := stackitem.Make("xxx")
+
+		require.PanicsWithError(t, ErrTooBigInput.Error(),
+			func() { s.stringSplit2(ic, []stackitem.Item{s1, s2}) })
+	})
+}
