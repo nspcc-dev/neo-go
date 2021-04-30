@@ -35,6 +35,7 @@ const (
 type Manifest struct {
 	Name               string
 	Groups             []Group
+	Features           map[string]string
 	SupportedStandards []string
 	ABI                ABI
 	Permissions        []Permission

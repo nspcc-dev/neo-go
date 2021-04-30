@@ -16,33 +16,33 @@ import (
 // https://github.com/neo-project/neo/blob/master/tests/neo.UnitTests/SmartContract/Manifest/UT_ContractManifest.cs#L10
 func TestManifest_MarshalJSON(t *testing.T) {
 	t.Run("default", func(t *testing.T) {
-		s := `{"groups":[],"supportedstandards":[],"name":"Test","abi":{"methods":[],"events":[]},"permissions":[{"contract":"*","methods":"*"}],"trusts":[],"extra":null}`
+		s := `{"groups":[],"features":{},"supportedstandards":[],"name":"Test","abi":{"methods":[],"events":[]},"permissions":[{"contract":"*","methods":"*"}],"trusts":[],"extra":null}`
 		m := testUnmarshalMarshalManifest(t, s)
 		require.Equal(t, DefaultManifest("Test"), m)
 	})
 
 	t.Run("permissions", func(t *testing.T) {
-		s := `{"groups":[],"supportedstandards":[],"name":"Test","abi":{"methods":[],"events":[]},"permissions":[{"contract":"0x0000000000000000000000000000000000000000","methods":["method1","method2"]}],"trusts":[],"extra":null}`
+		s := `{"groups":[],"features":{},"supportedstandards":[],"name":"Test","abi":{"methods":[],"events":[]},"permissions":[{"contract":"0x0000000000000000000000000000000000000000","methods":["method1","method2"]}],"trusts":[],"extra":null}`
 		testUnmarshalMarshalManifest(t, s)
 	})
 
 	t.Run("safe methods", func(t *testing.T) {
-		s := `{"groups":[],"supportedstandards":[],"name":"Test","abi":{"methods":[{"name":"safeMet","offset":123,"parameters":[],"returntype":"Integer","safe":true}],"events":[]},"permissions":[{"contract":"*","methods":"*"}],"trusts":[],"extra":null}`
+		s := `{"groups":[],"features":{},"supportedstandards":[],"name":"Test","abi":{"methods":[{"name":"safeMet","offset":123,"parameters":[],"returntype":"Integer","safe":true}],"events":[]},"permissions":[{"contract":"*","methods":"*"}],"trusts":[],"extra":null}`
 		testUnmarshalMarshalManifest(t, s)
 	})
 
 	t.Run("trust", func(t *testing.T) {
-		s := `{"groups":[],"supportedstandards":[],"name":"Test","abi":{"methods":[],"events":[]},"permissions":[{"contract":"*","methods":"*"}],"trusts":["0x0000000000000000000000000000000000000001"],"extra":null}`
+		s := `{"groups":[],"features":{},"supportedstandards":[],"name":"Test","abi":{"methods":[],"events":[]},"permissions":[{"contract":"*","methods":"*"}],"trusts":["0x0000000000000000000000000000000000000001"],"extra":null}`
 		testUnmarshalMarshalManifest(t, s)
 	})
 
 	t.Run("groups", func(t *testing.T) {
-		s := `{"groups":[{"pubkey":"03b209fd4f53a7170ea4444e0cb0a6bb6a53c2bd016926989cf85f9b0fba17a70c","signature":"QUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQQ=="}],"supportedstandards":[],"name":"Test","abi":{"methods":[],"events":[]},"permissions":[{"contract":"*","methods":"*"}],"trusts":[],"extra":null}`
+		s := `{"groups":[{"pubkey":"03b209fd4f53a7170ea4444e0cb0a6bb6a53c2bd016926989cf85f9b0fba17a70c","signature":"QUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQQ=="}],"features":{},"supportedstandards":[],"name":"Test","abi":{"methods":[],"events":[]},"permissions":[{"contract":"*","methods":"*"}],"trusts":[],"extra":null}`
 		testUnmarshalMarshalManifest(t, s)
 	})
 
 	t.Run("extra", func(t *testing.T) {
-		s := `{"groups":[],"supportedstandards":[],"name":"Test","abi":{"methods":[],"events":[]},"permissions":[{"contract":"*","methods":"*"}],"trusts":[],"extra":{"key":"value"}}`
+		s := `{"groups":[],"features":{},"supportedstandards":[],"name":"Test","abi":{"methods":[],"events":[]},"permissions":[{"contract":"*","methods":"*"}],"trusts":[],"extra":{"key":"value"}}`
 		testUnmarshalMarshalManifest(t, s)
 	})
 }
@@ -269,6 +269,7 @@ func TestManifestToStackItem(t *testing.T) {
 					}},
 				}},
 			},
+			Features: json.RawMessage("{}"),
 			Groups: []Group{{
 				PublicKey: pk.PublicKey(),
 				Signature: make([]byte, keys.SignatureLen),
