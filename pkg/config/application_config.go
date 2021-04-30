@@ -11,6 +11,7 @@ import (
 // ApplicationConfiguration config specific to the node.
 type ApplicationConfiguration struct {
 	Address           string                  `yaml:"Address"`
+	AnnouncedNodePort uint16                  `yaml:"AnnouncedPort"`
 	AttemptConnPeers  int                     `yaml:"AttemptConnPeers"`
 	DBConfiguration   storage.DBConfiguration `yaml:"DBConfiguration"`
 	DialTimeout       time.Duration           `yaml:"DialTimeout"`
