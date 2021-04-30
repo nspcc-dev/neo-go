@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"math"
 	"math/big"
+	"strings"
 	"testing"
 
 	"github.com/mr-tron/base58"
@@ -102,6 +103,7 @@ func TestStdLibItoaAtoi(t *testing.T) {
 			{"1_000", big.NewInt(10), ErrInvalidFormat},
 			{"FE", big.NewInt(10), ErrInvalidFormat},
 			{"XD", big.NewInt(16), ErrInvalidFormat},
+			{strings.Repeat("0", stdMaxInputLength+1), big.NewInt(10), ErrTooBigInput},
 		}
 
 		for _, tc := range testCases {
@@ -164,17 +166,27 @@ func TestStdLibEncodeDecode(t *testing.T) {
 	ic := &interop.Context{VM: vm.New()}
 	var actual stackitem.Item
 
+	bigInputArgs := []stackitem.Item{stackitem.Make(strings.Repeat("6", stdMaxInputLength+1))}
+
 	t.Run("Encode64", func(t *testing.T) {
 		require.NotPanics(t, func() {
 			actual = s.base64Encode(ic, []stackitem.Item{stackitem.Make(original)})
 		})
 		require.Equal(t, stackitem.Make(encoded64), actual)
 	})
+	t.Run("Encode64/error", func(t *testing.T) {
+		require.PanicsWithError(t, ErrTooBigInput.Error(),
+			func() { s.base64Encode(ic, bigInputArgs) })
+	})
 	t.Run("Encode58", func(t *testing.T) {
 		require.NotPanics(t, func() {
 			actual = s.base58Encode(ic, []stackitem.Item{stackitem.Make(original)})
 		})
 		require.Equal(t, stackitem.Make(encoded58), actual)
+	})
+	t.Run("Encode58/error", func(t *testing.T) {
+		require.PanicsWithError(t, ErrTooBigInput.Error(),
+			func() { s.base58Encode(ic, bigInputArgs) })
 	})
 	t.Run("Decode64/positive", func(t *testing.T) {
 		require.NotPanics(t, func() {
@@ -189,6 +201,8 @@ func TestStdLibEncodeDecode(t *testing.T) {
 		require.Panics(t, func() {
 			_ = s.base64Decode(ic, []stackitem.Item{stackitem.NewInterop(nil)})
 		})
+		require.PanicsWithError(t, ErrTooBigInput.Error(),
+			func() { s.base64Decode(ic, bigInputArgs) })
 	})
 	t.Run("Decode58/positive", func(t *testing.T) {
 		require.NotPanics(t, func() {
@@ -203,6 +217,8 @@ func TestStdLibEncodeDecode(t *testing.T) {
 		require.Panics(t, func() {
 			_ = s.base58Decode(ic, []stackitem.Item{stackitem.NewInterop(nil)})
 		})
+		require.PanicsWithError(t, ErrTooBigInput.Error(),
+			func() { s.base58Decode(ic, bigInputArgs) })
 	})
 }
 

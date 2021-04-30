@@ -22,13 +22,20 @@ type Std struct {
 	interop.ContractMD
 }
 
-const stdContractID = -2
+const (
+	stdContractID = -2
+
+	// stdMaxInputLength is the maximum input length for string-related methods.
+	stdMaxInputLength = 1024
+)
 
 var (
 	// ErrInvalidBase is returned when base is invalid.
 	ErrInvalidBase = errors.New("invalid base")
 	// ErrInvalidFormat is returned when string is not a number.
 	ErrInvalidFormat = errors.New("invalid format")
+	// ErrTooBigInput is returned when input exceeds size limit.
+	ErrTooBigInput = errors.New("input is too big")
 )
 
 func newStd() *Std {
@@ -69,32 +76,32 @@ func newStd() *Std {
 	desc = newDescriptor("atoi", smartcontract.IntegerType,
 		manifest.NewParameter("value", smartcontract.StringType),
 		manifest.NewParameter("base", smartcontract.IntegerType))
-	md = newMethodAndPrice(s.atoi, 1<<12, callflag.NoneFlag)
+	md = newMethodAndPrice(s.atoi, 1<<6, callflag.NoneFlag)
 	s.AddMethod(md, desc)
 
 	desc = newDescriptor("atoi", smartcontract.IntegerType,
 		manifest.NewParameter("value", smartcontract.StringType))
-	md = newMethodAndPrice(s.atoi10, 1<<12, callflag.NoneFlag)
+	md = newMethodAndPrice(s.atoi10, 1<<6, callflag.NoneFlag)
 	s.AddMethod(md, desc)
 
 	desc = newDescriptor("base64Encode", smartcontract.StringType,
 		manifest.NewParameter("data", smartcontract.ByteArrayType))
-	md = newMethodAndPrice(s.base64Encode, 1<<12, callflag.NoneFlag)
+	md = newMethodAndPrice(s.base64Encode, 1<<5, callflag.NoneFlag)
 	s.AddMethod(md, desc)
 
 	desc = newDescriptor("base64Decode", smartcontract.ByteArrayType,
 		manifest.NewParameter("s", smartcontract.StringType))
-	md = newMethodAndPrice(s.base64Decode, 1<<12, callflag.NoneFlag)
+	md = newMethodAndPrice(s.base64Decode, 1<<5, callflag.NoneFlag)
 	s.AddMethod(md, desc)
 
 	desc = newDescriptor("base58Encode", smartcontract.StringType,
 		manifest.NewParameter("data", smartcontract.ByteArrayType))
-	md = newMethodAndPrice(s.base58Encode, 1<<12, callflag.NoneFlag)
+	md = newMethodAndPrice(s.base58Encode, 1<<13, callflag.NoneFlag)
 	s.AddMethod(md, desc)
 
 	desc = newDescriptor("base58Decode", smartcontract.ByteArrayType,
 		manifest.NewParameter("s", smartcontract.StringType))
-	md = newMethodAndPrice(s.base58Decode, 1<<12, callflag.NoneFlag)
+	md = newMethodAndPrice(s.base58Decode, 1<<10, callflag.NoneFlag)
 	s.AddMethod(md, desc)
 
 	return s
@@ -186,7 +193,7 @@ func (s *Std) itoa(_ *interop.Context, args []stackitem.Item) stackitem.Item {
 }
 
 func (s *Std) atoi10(_ *interop.Context, args []stackitem.Item) stackitem.Item {
-	num := toString(args[0])
+	num := s.toLimitedString(args[0])
 	res := s.atoi10Aux(num)
 	return stackitem.NewBigInteger(res)
 }
@@ -200,7 +207,7 @@ func (s *Std) atoi10Aux(num string) *big.Int {
 }
 
 func (s *Std) atoi(_ *interop.Context, args []stackitem.Item) stackitem.Item {
-	num := toString(args[0])
+	num := s.toLimitedString(args[0])
 	base := toBigInt(args[1])
 	if !base.IsInt64() {
 		panic(ErrInvalidBase)
@@ -238,17 +245,14 @@ func reverse(b []byte) {
 }
 
 func (s *Std) base64Encode(_ *interop.Context, args []stackitem.Item) stackitem.Item {
-	src, err := args[0].TryBytes()
-	if err != nil {
-		panic(err)
-	}
+	src := s.toLimitedBytes(args[0])
 	result := base64.StdEncoding.EncodeToString(src)
 
 	return stackitem.NewByteArray([]byte(result))
 }
 
 func (s *Std) base64Decode(_ *interop.Context, args []stackitem.Item) stackitem.Item {
-	src := toString(args[0])
+	src := s.toLimitedString(args[0])
 	result, err := base64.StdEncoding.DecodeString(src)
 	if err != nil {
 		panic(err)
@@ -258,17 +262,14 @@ func (s *Std) base64Decode(_ *interop.Context, args []stackitem.Item) stackitem.
 }
 
 func (s *Std) base58Encode(_ *interop.Context, args []stackitem.Item) stackitem.Item {
-	src, err := args[0].TryBytes()
-	if err != nil {
-		panic(err)
-	}
+	src := s.toLimitedBytes(args[0])
 	result := base58.Encode(src)
 
 	return stackitem.NewByteArray([]byte(result))
 }
 
 func (s *Std) base58Decode(_ *interop.Context, args []stackitem.Item) stackitem.Item {
-	src := toString(args[0])
+	src := s.toLimitedString(args[0])
 	result, err := base58.Decode(src)
 	if err != nil {
 		panic(err)
@@ -295,4 +296,23 @@ func (s *Std) OnPersist(ic *interop.Context) error {
 // PostPersist implements Contract interface.
 func (s *Std) PostPersist(ic *interop.Context) error {
 	return nil
+}
+
+func (s *Std) toLimitedBytes(item stackitem.Item) []byte {
+	src, err := item.TryBytes()
+	if err != nil {
+		panic(err)
+	}
+	if len(src) > stdMaxInputLength {
+		panic(ErrTooBigInput)
+	}
+	return src
+}
+
+func (s *Std) toLimitedString(item stackitem.Item) string {
+	src := toString(item)
+	if len(src) > stdMaxInputLength {
+		panic(ErrTooBigInput)
+	}
+	return src
 }
