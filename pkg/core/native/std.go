@@ -111,6 +111,27 @@ func newStd() *Std {
 	md = newMethodAndPrice(s.memoryCompare, 1<<5, callflag.NoneFlag)
 	s.AddMethod(md, desc)
 
+	desc = newDescriptor("memorySearch", smartcontract.IntegerType,
+		manifest.NewParameter("mem", smartcontract.ByteArrayType),
+		manifest.NewParameter("value", smartcontract.ByteArrayType))
+	md = newMethodAndPrice(s.memorySearch2, 1<<6, callflag.NoneFlag)
+	s.AddMethod(md, desc)
+
+	desc = newDescriptor("memorySearch", smartcontract.IntegerType,
+		manifest.NewParameter("mem", smartcontract.ByteArrayType),
+		manifest.NewParameter("value", smartcontract.ByteArrayType),
+		manifest.NewParameter("start", smartcontract.IntegerType))
+	md = newMethodAndPrice(s.memorySearch3, 1<<6, callflag.NoneFlag)
+	s.AddMethod(md, desc)
+
+	desc = newDescriptor("memorySearch", smartcontract.IntegerType,
+		manifest.NewParameter("mem", smartcontract.ByteArrayType),
+		manifest.NewParameter("value", smartcontract.ByteArrayType),
+		manifest.NewParameter("start", smartcontract.IntegerType),
+		manifest.NewParameter("backward", smartcontract.BoolType))
+	md = newMethodAndPrice(s.memorySearch4, 1<<6, callflag.NoneFlag)
+	s.AddMethod(md, desc)
+
 	return s
 }
 
@@ -289,6 +310,49 @@ func (s *Std) memoryCompare(_ *interop.Context, args []stackitem.Item) stackitem
 	s1 := s.toLimitedBytes(args[0])
 	s2 := s.toLimitedBytes(args[1])
 	return stackitem.NewBigInteger(big.NewInt(int64(bytes.Compare(s1, s2))))
+}
+
+func (s *Std) memorySearch2(_ *interop.Context, args []stackitem.Item) stackitem.Item {
+	mem := s.toLimitedBytes(args[0])
+	val := s.toLimitedBytes(args[1])
+	index := s.memorySearchAux(mem, val, 0, false)
+	return stackitem.NewBigInteger(big.NewInt(int64(index)))
+}
+
+func (s *Std) memorySearch3(_ *interop.Context, args []stackitem.Item) stackitem.Item {
+	mem := s.toLimitedBytes(args[0])
+	val := s.toLimitedBytes(args[1])
+	start := toUint32(args[2])
+	index := s.memorySearchAux(mem, val, int(start), false)
+	return stackitem.NewBigInteger(big.NewInt(int64(index)))
+}
+
+func (s *Std) memorySearch4(_ *interop.Context, args []stackitem.Item) stackitem.Item {
+	mem := s.toLimitedBytes(args[0])
+	val := s.toLimitedBytes(args[1])
+	start := toUint32(args[2])
+	backward, err := args[3].TryBool()
+	if err != nil {
+		panic(err)
+	}
+
+	index := s.memorySearchAux(mem, val, int(start), backward)
+	return stackitem.NewBigInteger(big.NewInt(int64(index)))
+}
+
+func (s *Std) memorySearchAux(mem, val []byte, start int, backward bool) int {
+	if backward {
+		if start > len(mem) { // panic in case if cap(mem) > len(mem) for some reasons
+			panic("invalid start index")
+		}
+		return bytes.LastIndex(mem[:start], val)
+	}
+
+	index := bytes.Index(mem[start:], val)
+	if index < 0 {
+		return -1
+	}
+	return index + start
 }
 
 // Metadata implements Contract interface.

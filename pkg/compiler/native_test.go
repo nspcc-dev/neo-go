@@ -229,6 +229,9 @@ func TestNativeHelpersCompile(t *testing.T) {
 		{"atoi", []string{`"4"`, "10"}},
 		{"atoi10", []string{`"4"`}},
 		{"memoryCompare", []string{"[]byte{1}", "[]byte{2}"}},
+		{"memorySearch", []string{"[]byte{1}", "[]byte{2}"}},
+		{"memorySearchIndex", []string{"[]byte{1}", "[]byte{2}", "3"}},
+		{"memorySearchLastIndex", []string{"[]byte{1}", "[]byte{2}", "3"}},
 	})
 }
 
@@ -243,14 +246,21 @@ func runNativeTestCases(t *testing.T, ctr interop.ContractMD, name string, testC
 }
 
 func getMethod(t *testing.T, ctr interop.ContractMD, name string, params []string) interop.MethodAndPrice {
+	paramLen := len(params)
+
 	switch {
 	case name == "itoa10" || name == "atoi10":
 		name = name[:4]
+	case strings.HasPrefix(name, "memorySearch"):
+		if strings.HasSuffix(name, "LastIndex") {
+			paramLen += 1 // true should be appended inside of an interop
+		}
+		name = "memorySearch"
 	default:
 		name = strings.TrimSuffix(name, "WithData")
 	}
 
-	md, ok := ctr.GetMethod(name, len(params))
+	md, ok := ctr.GetMethod(name, paramLen)
 	require.True(t, ok)
 	return md
 }

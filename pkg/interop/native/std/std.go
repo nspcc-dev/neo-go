@@ -121,3 +121,24 @@ func MemoryCompare(s1, s2 []byte) int {
 	return contract.Call(interop.Hash160(Hash), "memoryCompare", contract.NoneFlag,
 		s1, s2).(int)
 }
+
+// MemorySearch returns index of the first occurrence of val in mem.
+// If not found, -1 is returned. It uses `memorySearch` method of StdLib native contract.
+func MemorySearch(mem, pattern []byte) int {
+	return contract.Call(interop.Hash160(Hash), "memorySearch", contract.NoneFlag,
+		mem, pattern).(int)
+}
+
+// MemorySearchIndex returns index of the first occurrence of val in mem starting from start.
+// If not found, -1 is returned. It uses `memorySearch` method of StdLib native contract.
+func MemorySearchIndex(mem, pattern []byte, start int) int {
+	return contract.Call(interop.Hash160(Hash), "memorySearch", contract.NoneFlag,
+		mem, pattern, start).(int)
+}
+
+// MemorySearchLastIndex returns index of the last occurrence of val in mem ending before start.
+// If not found, -1 is returned. It uses `memorySearch` method of StdLib native contract.
+func MemorySearchLastIndex(mem, pattern []byte, start int) int {
+	return contract.Call(interop.Hash160(Hash), "memorySearch", contract.NoneFlag,
+		mem, pattern, start, true).(int)
+}
