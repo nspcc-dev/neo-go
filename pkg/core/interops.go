@@ -41,6 +41,7 @@ var systemInterops = []interop.Function{
 	{Name: interopnames.SystemIteratorCreate, Func: iterator.Create, Price: 1 << 4, ParamCount: 1},
 	{Name: interopnames.SystemIteratorNext, Func: iterator.Next, Price: 1 << 15, ParamCount: 1},
 	{Name: interopnames.SystemIteratorValue, Func: iterator.Value, Price: 1 << 4, ParamCount: 1},
+	{Name: interopnames.SystemRuntimeBurnGas, Func: runtime.BurnGas, Price: 1 << 4, ParamCount: 1},
 	{Name: interopnames.SystemRuntimeCheckWitness, Func: runtime.CheckWitness, Price: 1 << 10,
 		RequiredFlags: callflag.NoneFlag, ParamCount: 1},
 	{Name: interopnames.SystemRuntimeGasLeft, Func: runtime.GasLeft, Price: 1 << 4},

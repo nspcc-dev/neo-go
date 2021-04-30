@@ -2,14 +2,19 @@ package native
 
 import (
 	"errors"
+	"fmt"
 	"math/big"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
+	"github.com/nspcc-dev/neo-go/pkg/core/interop/runtime"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
 // GAS represents GAS native contract.
@@ -37,6 +42,12 @@ func newGAS() *GAS {
 	nep17.balFromBytes = g.balanceFromBytes
 
 	g.nep17TokenNative = *nep17
+
+	desc := newDescriptor("refuel", smartcontract.VoidType,
+		manifest.NewParameter("account", smartcontract.Hash160Type),
+		manifest.NewParameter("amount", smartcontract.IntegerType))
+	md := newMethodAndPrice(g.refuel, 1<<15, callflag.States|callflag.AllowNotify)
+	g.AddMethod(md, desc)
 
 	return g
 }
@@ -66,6 +77,24 @@ func (g *GAS) balanceFromBytes(si *state.StorageItem) (*big.Int, error) {
 		return nil, err
 	}
 	return &acc.Balance, err
+}
+
+func (g *GAS) refuel(ic *interop.Context, args []stackitem.Item) stackitem.Item {
+	acc := toUint160(args[0])
+	gas := toBigInt(args[1])
+
+	if !gas.IsInt64() || gas.Sign() == -1 {
+		panic("invalid GAS value")
+	}
+
+	ok, err := runtime.CheckHashedWitness(ic, acc)
+	if !ok || err != nil {
+		panic(fmt.Errorf("%w: %v", ErrInvalidWitness, err))
+	}
+
+	g.burn(ic, acc, gas)
+	ic.VM.GasLimit += gas.Int64()
+	return stackitem.Null{}
 }
 
 // Initialize initializes GAS contract.

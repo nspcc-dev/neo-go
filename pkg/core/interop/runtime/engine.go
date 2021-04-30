@@ -1,6 +1,7 @@
 package runtime
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
@@ -97,5 +98,23 @@ func Log(ic *interop.Context) error {
 // one in the blockchain if no block is given to Context.
 func GetTime(ic *interop.Context) error {
 	ic.VM.Estack().PushVal(ic.Block.Timestamp)
+	return nil
+}
+
+// BurnGas burns GAS to benefit NEO ecosystem.
+func BurnGas(ic *interop.Context) error {
+	gas := ic.VM.Estack().Pop().BigInt()
+	if !gas.IsInt64() {
+		return errors.New("invalid GAS value")
+	}
+
+	g := gas.Int64()
+	if g <= 0 {
+		return errors.New("GAS must be positive")
+	}
+
+	if !ic.VM.AddGas(g) {
+		return errors.New("GAS limit exceeded")
+	}
 	return nil
 }
