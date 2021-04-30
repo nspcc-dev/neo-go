@@ -98,7 +98,6 @@ func TestDescendByIdent(t *testing.T) {
 		{"$.*.name", `["small","big"]`},
 		{"$..store.name", `["big"]`},
 		{"$.store..name", `["big","ppp","sub1","sub2"]`},
-		{"$..sub[*].name", `["sub1","sub2"]`},
 		{"$..sub.name", `[]`},
 		{"$..sub..name", `["sub1","sub2"]`},
 	}
@@ -107,6 +106,28 @@ func TestDescendByIdent(t *testing.T) {
 			tc.testUnmarshalGet(t, js)
 		})
 	}
+
+	t.Run("big depth", func(t *testing.T) {
+		js := `{"a":{"b":{"c":{"d":{"e":{"f":{"g":1}}}}}}}`
+		t.Run("single field", func(t *testing.T) {
+			t.Run("max", func(t *testing.T) {
+				p := pathTestCase{"$.a.b.c.d.e.f", `[{"g":1}]`}
+				p.testUnmarshalGet(t, js)
+			})
+
+			_, ok := unmarshalGet(t, js, "$.a.b.c.d.e.f.g")
+			require.False(t, ok)
+		})
+		t.Run("wildcard", func(t *testing.T) {
+			t.Run("max", func(t *testing.T) {
+				p := pathTestCase{"$.*.*.*.*.*.*", `[{"g":1}]`}
+				p.testUnmarshalGet(t, js)
+			})
+
+			_, ok := unmarshalGet(t, js, "$.*.*.*.*.*.*.*")
+			require.False(t, ok)
+		})
+	})
 }
 
 func TestDescendByIndex(t *testing.T) {
@@ -130,6 +151,28 @@ func TestDescendByIndex(t *testing.T) {
 			tc.testUnmarshalGet(t, js)
 		})
 	}
+
+	t.Run("big depth", func(t *testing.T) {
+		js := `[[[[[[[1]]]]]]]`
+		t.Run("single index", func(t *testing.T) {
+			t.Run("max", func(t *testing.T) {
+				p := pathTestCase{"$[0][0][0][0][0][0]", "[[1]]"}
+				p.testUnmarshalGet(t, js)
+			})
+
+			_, ok := unmarshalGet(t, js, "$[0][0][0][0][0][0][0]")
+			require.False(t, ok)
+		})
+		t.Run("slice", func(t *testing.T) {
+			t.Run("max", func(t *testing.T) {
+				p := pathTestCase{"$[0:][0:][0:][0:][0:][0:]", "[[1]]"}
+				p.testUnmarshalGet(t, js)
+			})
+
+			_, ok := unmarshalGet(t, js, "$[0:][0:][0:][0:][0:][0:][0:]")
+			require.False(t, ok)
+		})
+	})
 
 	t.Run("$[:][1], skip wrong types", func(t *testing.T) {
 		js := `[[1,2],{"1":"4"},[5,6]]`
@@ -227,4 +270,9 @@ func TestCSharpCompat(t *testing.T) {
 			tc.testUnmarshalGet(t, js)
 		})
 	}
+
+	t.Run("bad cases", func(t *testing.T) {
+		_, ok := unmarshalGet(t, js, `$..book[*].author"`)
+		require.False(t, ok)
+	})
 }

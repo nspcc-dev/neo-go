@@ -13,8 +13,9 @@ type (
 
 	// pathParser combines JSONPath and a position to start parsing from.
 	pathParser struct {
-		s string
-		i int
+		s     string
+		i     int
+		depth int
 	}
 )
 
@@ -32,10 +33,15 @@ const (
 	pathNumber
 )
 
+const maxNestingDepth = 6
+
 // Get returns substructures of value selected by path.
 // The result is always non-nil unless path is invalid.
 func Get(path string, value interface{}) ([]interface{}, bool) {
-	p := pathParser{s: path}
+	p := pathParser{
+		depth: maxNestingDepth,
+		s:     path,
+	}
 
 	typ, _ := p.nextToken()
 	if typ != pathRoot {
@@ -177,6 +183,11 @@ func (p *pathParser) processDot(objs []interface{}) ([]interface{}, bool) {
 // descend descends 1 level down.
 // It flattens arrays and returns map values for maps.
 func (p *pathParser) descend(objs []interface{}) ([]interface{}, bool) {
+	if p.depth <= 0 {
+		return nil, false
+	}
+	p.depth--
+
 	var values []interface{}
 	for i := range objs {
 		switch obj := objs[i].(type) {
@@ -209,7 +220,7 @@ func (p *pathParser) descendRecursive(objs []interface{}) ([]interface{}, bool) 
 	var values []interface{}
 
 	for len(objs) > 0 {
-		newObjs, _ := p.descendByIdent(objs, val)
+		newObjs, _ := p.descendByIdentAux(objs, false, val)
 		values = append(values, newObjs...)
 		objs, _ = p.descend(objs)
 	}
@@ -219,6 +230,17 @@ func (p *pathParser) descendRecursive(objs []interface{}) ([]interface{}, bool) 
 
 // descendByIdent performs map's field access by name.
 func (p *pathParser) descendByIdent(objs []interface{}, names ...string) ([]interface{}, bool) {
+	return p.descendByIdentAux(objs, true, names...)
+}
+
+func (p *pathParser) descendByIdentAux(objs []interface{}, checkDepth bool, names ...string) ([]interface{}, bool) {
+	if checkDepth {
+		if p.depth <= 0 {
+			return nil, false
+		}
+		p.depth--
+	}
+
 	var values []interface{}
 	for i := range objs {
 		obj, ok := objs[i].(map[string]interface{})
@@ -237,6 +259,11 @@ func (p *pathParser) descendByIdent(objs []interface{}, names ...string) ([]inte
 
 // descendByIndex performs array access by index.
 func (p *pathParser) descendByIndex(objs []interface{}, indices ...int) ([]interface{}, bool) {
+	if p.depth <= 0 {
+		return nil, false
+	}
+	p.depth--
+
 	var values []interface{}
 	for i := range objs {
 		obj, ok := objs[i].([]interface{})
@@ -382,6 +409,11 @@ func (p *pathParser) processSlice(objs []interface{}, start int) ([]interface{},
 
 // descendByRange is similar to descend but skips maps and returns sub-slices for arrays.
 func (p *pathParser) descendByRange(objs []interface{}, start, end int) ([]interface{}, bool) {
+	if p.depth <= 0 {
+		return nil, false
+	}
+	p.depth--
+
 	var values []interface{}
 	for i := range objs {
 		arr, ok := objs[i].([]interface{})
