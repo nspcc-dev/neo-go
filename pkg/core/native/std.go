@@ -61,10 +61,20 @@ func newStd() *Std {
 	md = newMethodAndPrice(s.itoa, 1<<12, callflag.NoneFlag)
 	s.AddMethod(md, desc)
 
+	desc = newDescriptor("itoa", smartcontract.StringType,
+		manifest.NewParameter("value", smartcontract.IntegerType))
+	md = newMethodAndPrice(s.itoa10, 1<<12, callflag.NoneFlag)
+	s.AddMethod(md, desc)
+
 	desc = newDescriptor("atoi", smartcontract.IntegerType,
 		manifest.NewParameter("value", smartcontract.StringType),
 		manifest.NewParameter("base", smartcontract.IntegerType))
 	md = newMethodAndPrice(s.atoi, 1<<12, callflag.NoneFlag)
+	s.AddMethod(md, desc)
+
+	desc = newDescriptor("atoi", smartcontract.IntegerType,
+		manifest.NewParameter("value", smartcontract.StringType))
+	md = newMethodAndPrice(s.atoi10, 1<<12, callflag.NoneFlag)
 	s.AddMethod(md, desc)
 
 	desc = newDescriptor("base64Encode", smartcontract.StringType,
@@ -142,6 +152,11 @@ func (s *Std) jsonDeserialize(_ *interop.Context, args []stackitem.Item) stackit
 	return item
 }
 
+func (s *Std) itoa10(_ *interop.Context, args []stackitem.Item) stackitem.Item {
+	num := toBigInt(args[0])
+	return stackitem.NewByteArray([]byte(num.Text(10)))
+}
+
 func (s *Std) itoa(_ *interop.Context, args []stackitem.Item) stackitem.Item {
 	num := toBigInt(args[0])
 	base := toBigInt(args[1])
@@ -170,6 +185,20 @@ func (s *Std) itoa(_ *interop.Context, args []stackitem.Item) stackitem.Item {
 	return stackitem.NewByteArray([]byte(str))
 }
 
+func (s *Std) atoi10(_ *interop.Context, args []stackitem.Item) stackitem.Item {
+	num := toString(args[0])
+	res := s.atoi10Aux(num)
+	return stackitem.NewBigInteger(res)
+}
+
+func (s *Std) atoi10Aux(num string) *big.Int {
+	bi, ok := new(big.Int).SetString(num, 10)
+	if !ok {
+		panic(ErrInvalidFormat)
+	}
+	return bi
+}
+
 func (s *Std) atoi(_ *interop.Context, args []stackitem.Item) stackitem.Item {
 	num := toString(args[0])
 	base := toBigInt(args[1])
@@ -179,11 +208,7 @@ func (s *Std) atoi(_ *interop.Context, args []stackitem.Item) stackitem.Item {
 	var bi *big.Int
 	switch b := base.Int64(); b {
 	case 10:
-		var ok bool
-		bi, ok = new(big.Int).SetString(num, int(b))
-		if !ok {
-			panic(ErrInvalidFormat)
-		}
+		bi = s.atoi10Aux(num)
 	case 16:
 		changed := len(num)%2 != 0
 		if changed {

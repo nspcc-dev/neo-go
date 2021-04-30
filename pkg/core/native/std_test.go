@@ -49,6 +49,18 @@ func TestStdLibItoaAtoi(t *testing.T) {
 				actual = s.atoi(ic, []stackitem.Item{stackitem.Make(tc.result), stackitem.Make(tc.base)})
 			})
 			require.Equal(t, stackitem.Make(tc.num), actual)
+
+			if tc.base.Int64() == 10 {
+				require.NotPanics(t, func() {
+					actual = s.itoa10(ic, []stackitem.Item{stackitem.Make(tc.num)})
+				})
+				require.Equal(t, stackitem.Make(tc.result), actual)
+
+				require.NotPanics(t, func() {
+					actual = s.atoi10(ic, []stackitem.Item{stackitem.Make(tc.result)})
+				})
+				require.Equal(t, stackitem.Make(tc.num), actual)
+			}
 		}
 
 		t.Run("-1", func(t *testing.T) {

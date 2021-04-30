@@ -93,9 +93,23 @@ func Itoa(num int, base int) string {
 		num, base).(string)
 }
 
+// Itoa10 converts num in a base 10 to string.
+// It uses `itoa` method of StdLib native contract.
+func Itoa10(num int) string {
+	return contract.Call(interop.Hash160(Hash), "itoa", contract.NoneFlag,
+		num).(string)
+}
+
 // Atoi converts string to a number in a given base. Base should be either 10 or 16.
 // It uses `atoi` method of StdLib native contract.
 func Atoi(s string, base int) int {
 	return contract.Call(interop.Hash160(Hash), "atoi", contract.NoneFlag,
 		s, base).(int)
+}
+
+// Atoi10 converts string to a number in a base 10.
+// It uses `atoi` method of StdLib native contract.
+func Atoi10(s string) int {
+	return contract.Call(interop.Hash160(Hash), "atoi", contract.NoneFlag,
+		s).(int)
 }
