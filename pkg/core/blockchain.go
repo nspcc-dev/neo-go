@@ -795,16 +795,12 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 
 func (bc *Blockchain) updateExtensibleWhitelist(height uint32) error {
 	updateCommittee := native.ShouldUpdateCommittee(height, bc)
-	oracles, oh, err := bc.contracts.Designate.GetDesignatedByRole(bc.dao, noderoles.Oracle, height)
-	if err != nil {
-		return err
-	}
 	stateVals, sh, err := bc.contracts.Designate.GetDesignatedByRole(bc.dao, noderoles.StateValidator, height)
 	if err != nil {
 		return err
 	}
 
-	if bc.extensible.Load() != nil && !updateCommittee && oh != height && sh != height {
+	if bc.extensible.Load() != nil && !updateCommittee && sh != height {
 		return nil
 	}
 
@@ -816,15 +812,6 @@ func (bc *Blockchain) updateExtensibleWhitelist(height uint32) error {
 	}
 	newList = append(newList, hash.Hash160(script))
 	bc.updateExtensibleList(&newList, bc.contracts.NEO.GetNextBlockValidatorsInternal())
-
-	if len(oracles) > 0 {
-		h, err := bc.contracts.Designate.GetLastDesignatedHash(bc.dao, noderoles.Oracle)
-		if err != nil {
-			return err
-		}
-		newList = append(newList, h)
-		bc.updateExtensibleList(&newList, oracles)
-	}
 
 	if len(stateVals) > 0 {
 		h, err := bc.contracts.Designate.GetLastDesignatedHash(bc.dao, noderoles.StateValidator)
