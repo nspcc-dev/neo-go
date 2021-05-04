@@ -30,4 +30,6 @@ type ApplicationConfiguration struct {
 	Oracle            OracleConfiguration     `yaml:"Oracle"`
 	P2PNotary         P2PNotary               `yaml:"P2PNotary"`
 	StateRoot         StateRoot               `yaml:"StateRoot"`
+	// ExtensiblePoolSize is the maximum amount of the extensible payloads from a single sender.
+	ExtensiblePoolSize int `yaml:"ExtensiblePoolSize"`
 }
