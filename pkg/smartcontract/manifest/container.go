@@ -7,8 +7,6 @@ package manifest
 import (
 	"bytes"
 	"encoding/json"
-
-	"github.com/nspcc-dev/neo-go/pkg/util"
 )
 
 // WildStrings represents string set which can be wildcard.
@@ -16,9 +14,9 @@ type WildStrings struct {
 	Value []string
 }
 
-// WildUint160s represents Uint160 set which can be wildcard.
-type WildUint160s struct {
-	Value []util.Uint160
+// WildPermissionDescs represents PermissionDescriptor set which can be wildcard.
+type WildPermissionDescs struct {
+	Value []PermissionDesc
 }
 
 // Contains checks if v is in the container.
@@ -35,7 +33,7 @@ func (c *WildStrings) Contains(v string) bool {
 }
 
 // Contains checks if v is in the container.
-func (c *WildUint160s) Contains(v util.Uint160) bool {
+func (c *WildPermissionDescs) Contains(v PermissionDesc) bool {
 	if c.IsWildcard() {
 		return true
 	}
@@ -51,19 +49,19 @@ func (c *WildUint160s) Contains(v util.Uint160) bool {
 func (c *WildStrings) IsWildcard() bool { return c.Value == nil }
 
 // IsWildcard returns true iff container is wildcard.
-func (c *WildUint160s) IsWildcard() bool { return c.Value == nil }
+func (c *WildPermissionDescs) IsWildcard() bool { return c.Value == nil }
 
 // Restrict transforms container into an empty one.
 func (c *WildStrings) Restrict() { c.Value = []string{} }
 
 // Restrict transforms container into an empty one.
-func (c *WildUint160s) Restrict() { c.Value = []util.Uint160{} }
+func (c *WildPermissionDescs) Restrict() { c.Value = []PermissionDesc{} }
 
 // Add adds v to the container.
 func (c *WildStrings) Add(v string) { c.Value = append(c.Value, v) }
 
 // Add adds v to the container.
-func (c *WildUint160s) Add(v util.Uint160) { c.Value = append(c.Value, v) }
+func (c *WildPermissionDescs) Add(v PermissionDesc) { c.Value = append(c.Value, v) }
 
 // MarshalJSON implements json.Marshaler interface.
 func (c WildStrings) MarshalJSON() ([]byte, error) {
@@ -74,7 +72,7 @@ func (c WildStrings) MarshalJSON() ([]byte, error) {
 }
 
 // MarshalJSON implements json.Marshaler interface.
-func (c WildUint160s) MarshalJSON() ([]byte, error) {
+func (c WildPermissionDescs) MarshalJSON() ([]byte, error) {
 	if c.IsWildcard() {
 		return []byte(`"*"`), nil
 	}
@@ -94,9 +92,9 @@ func (c *WildStrings) UnmarshalJSON(data []byte) error {
 }
 
 // UnmarshalJSON implements json.Unmarshaler interface.
-func (c *WildUint160s) UnmarshalJSON(data []byte) error {
+func (c *WildPermissionDescs) UnmarshalJSON(data []byte) error {
 	if !bytes.Equal(data, []byte(`"*"`)) {
-		us := []util.Uint160{}
+		us := []PermissionDesc{}
 		if err := json.Unmarshal(data, &us); err != nil {
 			return err
 		}

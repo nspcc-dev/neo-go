@@ -104,3 +104,32 @@ func stringsHaveDups(strings []string) bool {
 	}
 	return false
 }
+
+// permissionDescsHaveDups checks given set of strings for duplicates. It modifies the slice given!
+func permissionDescsHaveDups(descs []PermissionDesc) bool {
+	sort.Slice(descs, func(i, j int) bool {
+		return descs[i].Less(descs[j])
+	})
+	for i := range descs {
+		if i == 0 {
+			continue
+		}
+		j := i - 1
+		if descs[i].Type != descs[j].Type {
+			continue
+		}
+		switch descs[i].Type {
+		case PermissionWildcard:
+			return true
+		case PermissionHash:
+			if descs[i].Hash() == descs[j].Hash() {
+				return true
+			}
+		case PermissionGroup:
+			if descs[i].Group().Cmp(descs[j].Group()) == 0 {
+				return true
+			}
+		}
+	}
+	return false
+}

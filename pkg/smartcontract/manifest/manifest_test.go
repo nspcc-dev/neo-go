@@ -181,17 +181,18 @@ func TestIsValid(t *testing.T) {
 	})
 	m.SupportedStandards = m.SupportedStandards[:1]
 
-	m.Trusts.Add(util.Uint160{1, 2, 3})
+	d := PermissionDesc{Type: PermissionHash, Value: util.Uint160{1, 2, 3}}
+	m.Trusts.Add(d)
 	t.Run("valid, with trust", func(t *testing.T) {
 		require.NoError(t, m.IsValid(contractHash))
 	})
 
-	m.Trusts.Add(util.Uint160{3, 2, 1})
+	m.Trusts.Add(PermissionDesc{Type: PermissionHash, Value: util.Uint160{3, 2, 1}})
 	t.Run("valid, with trusts", func(t *testing.T) {
 		require.NoError(t, m.IsValid(contractHash))
 	})
 
-	m.Trusts.Add(util.Uint160{1, 2, 3})
+	m.Trusts.Add(d)
 	t.Run("invalid, with trusts", func(t *testing.T) {
 		require.Error(t, m.IsValid(contractHash))
 	})
@@ -276,8 +277,17 @@ func TestManifestToStackItem(t *testing.T) {
 			}},
 			Permissions:        []Permission{*NewPermission(PermissionWildcard)},
 			SupportedStandards: []string{"NEP-17"},
-			Trusts: WildUint160s{
-				Value: []util.Uint160{{1, 2, 3}},
+			Trusts: WildPermissionDescs{
+				Value: []PermissionDesc{
+					{
+						Type:  PermissionHash,
+						Value: util.Uint160{1, 2, 3},
+					},
+					{
+						Type:  PermissionGroup,
+						Value: pk.PublicKey(),
+					},
+				},
 			},
 			Extra: []byte(`even not a json allowed`),
 		}
