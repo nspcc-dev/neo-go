@@ -30,6 +30,8 @@ type Manifest struct {
 	Name string `json:"name"`
 	// ABI is a contract's ABI.
 	ABI ABI `json:"abi"`
+	// Features is a set of contract features. Currently unused.
+	Features json.RawMessage `json:"features"`
 	// Groups is a set of groups to which a contract belongs.
 	Groups      []Group      `json:"groups"`
 	Permissions []Permission `json:"permissions"`
@@ -49,6 +51,7 @@ func NewManifest(name string) *Manifest {
 			Methods: []Method{},
 			Events:  []Event{},
 		},
+		Features:           json.RawMessage("{}"),
 		Groups:             []Group{},
 		Permissions:        []Permission{},
 		SupportedStandards: []string{},
@@ -153,6 +156,7 @@ func (m *Manifest) ToStackItem() (stackitem.Item, error) {
 	return stackitem.NewStruct([]stackitem.Item{
 		stackitem.Make(m.Name),
 		stackitem.Make(groups),
+		stackitem.NewMap(),
 		stackitem.Make(supportedStandards),
 		abi,
 		stackitem.Make(permissions),
@@ -168,7 +172,7 @@ func (m *Manifest) FromStackItem(item stackitem.Item) error {
 		return errors.New("invalid Manifest stackitem type")
 	}
 	str := item.Value().([]stackitem.Item)
-	if len(str) != 7 {
+	if len(str) != 8 {
 		return errors.New("invalid stackitem length")
 	}
 	m.Name, err = stackitem.ToString(str[0])
@@ -188,10 +192,14 @@ func (m *Manifest) FromStackItem(item stackitem.Item) error {
 		}
 		m.Groups[i] = *group
 	}
-	if str[2].Type() != stackitem.ArrayT {
+	if str[2].Type() != stackitem.MapT || str[2].(*stackitem.Map).Len() != 0 {
+		return errors.New("invalid Features stackitem")
+	}
+	m.Features = json.RawMessage("{}")
+	if str[3].Type() != stackitem.ArrayT {
 		return errors.New("invalid SupportedStandards stackitem type")
 	}
-	supportedStandards := str[2].Value().([]stackitem.Item)
+	supportedStandards := str[3].Value().([]stackitem.Item)
 	m.SupportedStandards = make([]string, len(supportedStandards))
 	for i := range supportedStandards {
 		m.SupportedStandards[i], err = stackitem.ToString(supportedStandards[i])
@@ -200,14 +208,14 @@ func (m *Manifest) FromStackItem(item stackitem.Item) error {
 		}
 	}
 	abi := new(ABI)
-	if err := abi.FromStackItem(str[3]); err != nil {
+	if err := abi.FromStackItem(str[4]); err != nil {
 		return err
 	}
 	m.ABI = *abi
-	if str[4].Type() != stackitem.ArrayT {
+	if str[5].Type() != stackitem.ArrayT {
 		return errors.New("invalid Permissions stackitem type")
 	}
-	permissions := str[4].Value().([]stackitem.Item)
+	permissions := str[5].Value().([]stackitem.Item)
 	m.Permissions = make([]Permission, len(permissions))
 	for i := range permissions {
 		p := new(Permission)
@@ -216,13 +224,13 @@ func (m *Manifest) FromStackItem(item stackitem.Item) error {
 		}
 		m.Permissions[i] = *p
 	}
-	if _, ok := str[5].(stackitem.Null); ok {
+	if _, ok := str[6].(stackitem.Null); ok {
 		m.Trusts.Restrict()
 	} else {
-		if str[5].Type() != stackitem.ArrayT {
+		if str[6].Type() != stackitem.ArrayT {
 			return errors.New("invalid Trusts stackitem type")
 		}
-		trusts := str[5].Value().([]stackitem.Item)
+		trusts := str[6].Value().([]stackitem.Item)
 		m.Trusts = WildUint160s{Value: make([]util.Uint160, len(trusts))}
 		for i := range trusts {
 			bytes, err := trusts[i].TryBytes()
@@ -235,7 +243,7 @@ func (m *Manifest) FromStackItem(item stackitem.Item) error {
 			}
 		}
 	}
-	extra, err := str[6].TryBytes()
+	extra, err := str[7].TryBytes()
 	if err != nil {
 		return err
 	}
