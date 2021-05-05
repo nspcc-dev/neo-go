@@ -52,6 +52,15 @@ Or specify a different network with appropriate flag like this:
 By default the node will run in foreground using current standard output for
 logging.
 
+### Restarting node services
+
+To restart some of the node services without full node restart, send the SIGHUP 
+signal. List of the services to be restarted on SIGHUP receiving:
+
+| Service | Action |
+| --- | --- |
+| RPC server | Restarting with the old configuration and updated TLS certificates |
+
 ### DB import/exports
 
 Node operates using some database as a backend to store blockchain data. NeoGo
