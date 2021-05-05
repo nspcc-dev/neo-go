@@ -549,13 +549,13 @@ func transferNEP(ctx *cli.Context, standard string) error {
 			return cli.NewExitError(errors.New("token ID should be specified"), 1)
 		}
 		if amountArg == "" {
-			return signAndSendNEP11Transfer(ctx, c, acc, token.Hash, to, tokenID, nil, cosignersAccounts)
+			return signAndSendNEP11Transfer(ctx, c, acc, token.Hash, to, tokenID, nil, data, cosignersAccounts)
 		}
 		amount, err := fixedn.FromString(amountArg, int(token.Decimals))
 		if err != nil {
 			return cli.NewExitError(fmt.Errorf("invalid amount: %w", err), 1)
 		}
-		return signAndSendNEP11Transfer(ctx, c, acc, token.Hash, to, tokenID, amount, cosignersAccounts)
+		return signAndSendNEP11Transfer(ctx, c, acc, token.Hash, to, tokenID, amount, data, cosignersAccounts)
 	default:
 		return cli.NewExitError(fmt.Errorf("unsupported token standard %s", standard), 1)
 	}

@@ -181,10 +181,9 @@ func OwnerOf(token []byte) interop.Hash160 {
 	return getOwnerOf(ctx, token)
 }
 
-// Transfer token from its owner to another user, notice that it only has two
-// parameters because token owner can be deduced from token ID itself and RC1
-// implementation doesn't yet have 'data' parameter as in NEP-17 Transfer.
-func Transfer(to interop.Hash160, token []byte) bool {
+// Transfer token from its owner to another user, notice that it only has three
+// parameters because token owner can be deduced from token ID itself.
+func Transfer(to interop.Hash160, token []byte, data interface{}) bool {
 	if len(to) != 20 {
 		panic("invalid 'to' address")
 	}
@@ -212,15 +211,15 @@ func Transfer(to interop.Hash160, token []byte) bool {
 		setTokensOf(ctx, to, toksTo)
 		setOwnerOf(ctx, token, to)
 	}
-	postTransfer(owner, to, token)
+	postTransfer(owner, to, token, data)
 	return true
 }
 
 // postTransfer emits Transfer event and calls onNEP11Payment if needed.
-func postTransfer(from interop.Hash160, to interop.Hash160, token []byte) {
+func postTransfer(from interop.Hash160, to interop.Hash160, token []byte, data interface{}) {
 	runtime.Notify("Transfer", from, to, 1, token)
 	if management.GetContract(to) != nil {
-		contract.Call(to, "onNEP11Payment", contract.All, from, 1, token)
+		contract.Call(to, "onNEP11Payment", contract.All, from, 1, token, data)
 	}
 }
 
@@ -259,7 +258,7 @@ func OnNEP17Payment(from interop.Hash160, amount int, data interface{}) {
 	total++
 	storage.Put(ctx, []byte(totalSupplyPrefix), total)
 
-	postTransfer(nil, from, []byte(token))
+	postTransfer(nil, from, []byte(token), nil) // no `data` during minting
 }
 
 // Verify allows owner to manage contract's address, including earned GAS

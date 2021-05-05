@@ -31,6 +31,7 @@ var nep11Base = &Standard{
 					Parameters: []manifest.Parameter{
 						{Name: "to", Type: smartcontract.Hash160Type},
 						{Name: "tokenId", Type: smartcontract.ByteArrayType},
+						{Name: "data", Type: smartcontract.AnyType},
 					},
 					ReturnType: smartcontract.BoolType,
 				},
@@ -112,6 +113,7 @@ var nep11Divisible = &Standard{
 						{Name: "to", Type: smartcontract.Hash160Type},
 						{Name: "amount", Type: smartcontract.IntegerType},
 						{Name: "tokenId", Type: smartcontract.ByteArrayType},
+						{Name: "data", Type: smartcontract.AnyType},
 					},
 					ReturnType: smartcontract.BoolType,
 				},

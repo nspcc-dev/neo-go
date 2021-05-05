@@ -108,13 +108,13 @@ func TestOnPayableChecks(t *testing.T) {
 	t.Run("NEP-11, good", func(t *testing.T) {
 		src := `package payable
 		import "github.com/nspcc-dev/neo-go/pkg/interop"
-		func OnNEP11Payment(from interop.Hash160, amount int, tokenID []byte) {}`
+		func OnNEP11Payment(from interop.Hash160, amount int, tokenID []byte, data interface{}) {}`
 		require.NoError(t, compileAndCheck(t, src))
 	})
 	t.Run("NEP-11, bad", func(t *testing.T) {
 		src := `package payable
 		import "github.com/nspcc-dev/neo-go/pkg/interop"
-		func OnNEP11Payment(from interop.Hash160, amount int, oldParam string, tokenID []byte) {}`
+		func OnNEP11Payment(from interop.Hash160, amount int, oldParam string, tokenID []byte, data interface{}) {}`
 		require.Error(t, compileAndCheck(t, src))
 	})
 	t.Run("NEP-17, good", func(t *testing.T) {

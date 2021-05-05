@@ -319,7 +319,7 @@ func getTestContractState(bc *Blockchain) (*state.Contract, *state.Contract) {
 	emit.Opcodes(w.BinWriter, opcode.RET)
 	onNEP11PaymentOff := w.Len()
 	emit.Syscall(w.BinWriter, interopnames.SystemRuntimeGetCallingScriptHash)
-	emit.Int(w.BinWriter, 4)
+	emit.Int(w.BinWriter, 5)
 	emit.Opcodes(w.BinWriter, opcode.PACK)
 	emit.String(w.BinWriter, "LostPayment")
 	emit.Syscall(w.BinWriter, interopnames.SystemRuntimeNotify)
@@ -454,6 +454,7 @@ func getTestContractState(bc *Blockchain) (*state.Contract, *state.Contract) {
 				manifest.NewParameter("from", smartcontract.Hash160Type),
 				manifest.NewParameter("amount", smartcontract.IntegerType),
 				manifest.NewParameter("tokenid", smartcontract.ByteArrayType),
+				manifest.NewParameter("data", smartcontract.AnyType),
 			},
 			ReturnType: smartcontract.VoidType,
 		},

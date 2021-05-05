@@ -67,9 +67,9 @@ func TokensOf(addr interop.Hash160) iterator.Iterator {
 }
 
 // Transfer represents `transfer` method of NameService native contract.
-func Transfer(to interop.Hash160, tokenID string) bool {
+func Transfer(to interop.Hash160, tokenID string, data interface{}) bool {
 	return contract.Call(interop.Hash160(Hash), "transfer",
-		contract.ReadStates|contract.States|contract.AllowNotify, to, tokenID).(bool)
+		contract.ReadStates|contract.States|contract.AllowNotify, to, tokenID, data).(bool)
 }
 
 // AddRoot represents `addRoot` method of NameService native contract.
