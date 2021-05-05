@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"sort"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -89,6 +88,37 @@ func (d *PermissionDesc) Group() *keys.PublicKey {
 	return d.Value.(*keys.PublicKey)
 }
 
+// Less returns true if this value is less than given PermissionDesc value.
+func (d *PermissionDesc) Less(d1 PermissionDesc) bool {
+	if d.Type < d1.Type {
+		return true
+	}
+	if d.Type != d1.Type {
+		return false
+	}
+	switch d.Type {
+	case PermissionHash:
+		return d.Hash().Less(d1.Hash())
+	case PermissionGroup:
+		return d.Group().Cmp(d1.Group()) < 0
+	}
+	return false
+}
+
+// Equals returns true if both PermissionDesc values are the same.
+func (d *PermissionDesc) Equals(v PermissionDesc) bool {
+	if d.Type != v.Type {
+		return false
+	}
+	switch d.Type {
+	case PermissionHash:
+		return d.Hash().Equals(v.Hash())
+	case PermissionGroup:
+		return d.Group().Cmp(v.Group()) == 0
+	}
+	return false
+}
+
 // IsValid checks if Permission is correct.
 func (p *Permission) IsValid() error {
 	for i := range p.Methods.Value {
@@ -122,45 +152,8 @@ func (ps Permissions) AreValid() error {
 	for i := range ps {
 		contracts = append(contracts, ps[i].Contract)
 	}
-	sort.Slice(contracts, func(i, j int) bool {
-		if contracts[i].Type < contracts[j].Type {
-			return true
-		}
-		if contracts[i].Type != contracts[j].Type {
-			return false
-		}
-		switch contracts[i].Type {
-		case PermissionHash:
-			return contracts[i].Hash().Less(contracts[j].Hash())
-		case PermissionGroup:
-			return contracts[i].Group().Cmp(contracts[j].Group()) < 0
-		}
-		return false
-	})
-	for i := range contracts {
-		if i == 0 {
-			continue
-		}
-		j := i - 1
-		if contracts[i].Type != contracts[j].Type {
-			continue
-		}
-		var bad bool
-		switch contracts[i].Type {
-		case PermissionWildcard:
-			bad = true
-		case PermissionHash:
-			if contracts[i].Hash() == contracts[j].Hash() {
-				bad = true
-			}
-		case PermissionGroup:
-			if contracts[i].Group().Cmp(contracts[j].Group()) == 0 {
-				bad = true
-			}
-		}
-		if bad {
-			return errors.New("duplicate contracts")
-		}
+	if permissionDescsHaveDups(contracts) {
+		return errors.New("contracts have duplicates")
 	}
 	return nil
 }
@@ -254,20 +247,55 @@ func (d *PermissionDesc) UnmarshalJSON(data []byte) error {
 	return errors.New("unknown permission")
 }
 
+// ToStackItem converts PermissionDesc to stackitem.Item.
+func (d *PermissionDesc) ToStackItem() stackitem.Item {
+	switch d.Type {
+	case PermissionWildcard:
+		return stackitem.Null{}
+	case PermissionHash:
+		return stackitem.NewByteArray(d.Hash().BytesBE())
+	case PermissionGroup:
+		return stackitem.NewByteArray(d.Group().Bytes())
+	default:
+		panic("unsupported PermissionDesc type")
+	}
+}
+
+// FromStackItem converts stackitem.Item to PermissionDesc.
+func (d *PermissionDesc) FromStackItem(item stackitem.Item) error {
+	if _, ok := item.(stackitem.Null); ok {
+		d.Type = PermissionWildcard
+		return nil
+	}
+	if item.Type() != stackitem.ByteArrayT {
+		return fmt.Errorf("unsupported permission descriptor type: %s", item.Type())
+	}
+	byteArr, err := item.TryBytes()
+	if err != nil {
+		return err
+	}
+	switch len(byteArr) {
+	case util.Uint160Size:
+		hash, _ := util.Uint160DecodeBytesBE(byteArr)
+		d.Type = PermissionHash
+		d.Value = hash
+	case 33:
+		pKey, err := keys.NewPublicKeyFromBytes(byteArr, elliptic.P256())
+		if err != nil {
+			return err
+		}
+		d.Type = PermissionGroup
+		d.Value = pKey
+	default:
+		return errors.New("invalid ByteArray length")
+	}
+	return nil
+}
+
 // ToStackItem converts Permission to stackitem.Item.
 func (p *Permission) ToStackItem() stackitem.Item {
-	var (
-		contract stackitem.Item
-		methods  stackitem.Item
-	)
-	switch p.Contract.Type {
-	case PermissionWildcard:
-		contract = stackitem.Null{}
-	case PermissionHash:
-		contract = stackitem.NewByteArray(p.Contract.Hash().BytesBE())
-	case PermissionGroup:
-		contract = stackitem.NewByteArray(p.Contract.Group().Bytes())
-	}
+	var methods stackitem.Item
+	contract := p.Contract.ToStackItem()
 	if p.Methods.IsWildcard() {
 		methods = stackitem.Null{}
 	} else {
@@ -293,35 +321,12 @@ func (p *Permission) FromStackItem(item stackitem.Item) error {
 	if len(str) != 2 {
 		return errors.New("invalid Permission stackitem length")
 	}
-	if _, ok := str[0].(stackitem.Null); ok {
-		p.Contract = PermissionDesc{
-			Type: PermissionWildcard,
-		}
-	} else {
-		byteArr, err := str[0].TryBytes()
-		if err != nil {
-			return err
-		}
-		switch len(byteArr) {
-		case util.Uint160Size:
-			hash, _ := util.Uint160DecodeBytesBE(byteArr)
-			p.Contract = PermissionDesc{
-				Type:  PermissionHash,
-				Value: hash,
-			}
-		case 33:
-			pKey, err := keys.NewPublicKeyFromBytes(byteArr, elliptic.P256())
-			if err != nil {
-				return err
-			}
-			p.Contract = PermissionDesc{
-				Type:  PermissionGroup,
-				Value: pKey,
-			}
-		default:
-			return errors.New("invalid Contract ByteArray length")
-		}
+	desc := new(PermissionDesc)
+	err = desc.FromStackItem(str[0])
+	if err != nil {
+		return fmt.Errorf("invalid Contract stackitem: %w", err)
 	}
+	p.Contract = *desc
 	if _, ok := str[1].(stackitem.Null); ok {
 		p.Methods = WildStrings{Value: nil}
 	} else {

@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"math"
-	"sort"
 
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
@@ -38,7 +37,7 @@ type Manifest struct {
 	// SupportedStandards is a list of standards supported by the contract.
 	SupportedStandards []string `json:"supportedstandards"`
 	// Trusts is a set of hashes to a which contract trusts.
-	Trusts WildUint160s `json:"trusts"`
+	Trusts WildPermissionDescs `json:"trusts"`
 	// Extra is an implementation-defined user data.
 	Extra json.RawMessage `json:"extra"`
 }
@@ -109,18 +108,10 @@ func (m *Manifest) IsValid(hash util.Uint160) error {
 		return err
 	}
 	if len(m.Trusts.Value) > 1 {
-		hashes := make([]util.Uint160, len(m.Trusts.Value))
+		hashes := make([]PermissionDesc, len(m.Trusts.Value))
 		copy(hashes, m.Trusts.Value)
-		sort.Slice(hashes, func(i, j int) bool {
-			return hashes[i].Less(hashes[j])
-		})
-		for i := range hashes {
-			if i == 0 {
-				continue
-			}
-			if hashes[i] == hashes[i-1] {
-				return errors.New("duplicate trusted contracts")
-			}
+		if permissionDescsHaveDups(hashes) {
+			return errors.New("duplicate trusted contracts")
 		}
 	}
 	return Permissions(m.Permissions).AreValid()
@@ -144,8 +135,8 @@ func (m *Manifest) ToStackItem() (stackitem.Item, error) {
 	trusts := stackitem.Item(stackitem.Null{})
 	if !m.Trusts.IsWildcard() {
 		tItems := make([]stackitem.Item, len(m.Trusts.Value))
-		for i := range m.Trusts.Value {
-			tItems[i] = stackitem.NewByteArray(m.Trusts.Value[i].BytesBE())
+		for i, v := range m.Trusts.Value {
+			tItems[i] = v.ToStackItem()
 		}
 		trusts = stackitem.Make(tItems)
 	}
@@ -231,16 +222,14 @@ func (m *Manifest) FromStackItem(item stackitem.Item) error {
 			return errors.New("invalid Trusts stackitem type")
 		}
 		trusts := str[6].Value().([]stackitem.Item)
-		m.Trusts = WildUint160s{Value: make([]util.Uint160, len(trusts))}
+		m.Trusts = WildPermissionDescs{Value: make([]PermissionDesc, len(trusts))}
 		for i := range trusts {
-			bytes, err := trusts[i].TryBytes()
+			v := new(PermissionDesc)
+			err = v.FromStackItem(trusts[i])
 			if err != nil {
 				return err
 			}
-			m.Trusts.Value[i], err = util.Uint160DecodeBytesBE(bytes)
-			if err != nil {
-				return err
-			}
+			m.Trusts.Value[i] = *v
 		}
 	}
 	extra, err := str[7].TryBytes()
