@@ -296,56 +296,36 @@ func TestManifestToStackItem(t *testing.T) {
 }
 
 func TestManifest_FromStackItemErrors(t *testing.T) {
+	name := stackitem.NewByteArray([]byte{})
+	groups := stackitem.NewArray([]stackitem.Item{})
+	features := stackitem.NewMap()
+	sStandards := stackitem.NewArray([]stackitem.Item{})
+	abi := stackitem.NewStruct([]stackitem.Item{stackitem.NewArray([]stackitem.Item{}), stackitem.NewArray([]stackitem.Item{})})
+	permissions := stackitem.NewArray([]stackitem.Item{})
+	trusts := stackitem.NewArray([]stackitem.Item{})
+	extra := stackitem.NewByteArray([]byte{})
+
+	// check OK
+	goodSI := []stackitem.Item{name, groups, features, sStandards, abi, permissions, trusts, extra}
+	m := new(Manifest)
+	require.NoError(t, m.FromStackItem(stackitem.NewStruct(goodSI)))
+
 	errCases := map[string]stackitem.Item{
 		"not a struct":                     stackitem.NewArray([]stackitem.Item{}),
 		"invalid length":                   stackitem.NewStruct([]stackitem.Item{}),
-		"invalid name type":                stackitem.NewStruct([]stackitem.Item{stackitem.NewInterop(nil), stackitem.Null{}, stackitem.Null{}, stackitem.Null{}, stackitem.Null{}, stackitem.Null{}, stackitem.Null{}}),
-		"invalid groups type":              stackitem.NewStruct([]stackitem.Item{stackitem.NewByteArray([]byte{}), stackitem.Null{}, stackitem.Null{}, stackitem.Null{}, stackitem.Null{}, stackitem.Null{}, stackitem.Null{}}),
-		"invalid group":                    stackitem.NewStruct([]stackitem.Item{stackitem.NewByteArray([]byte{}), stackitem.NewArray([]stackitem.Item{stackitem.Null{}}), stackitem.Null{}, stackitem.Null{}, stackitem.Null{}, stackitem.Null{}, stackitem.Null{}}),
-		"invalid supported standards type": stackitem.NewStruct([]stackitem.Item{stackitem.NewByteArray([]byte{}), stackitem.NewArray([]stackitem.Item{}), stackitem.Null{}, stackitem.Null{}, stackitem.Null{}, stackitem.Null{}, stackitem.Null{}}),
-		"invalid supported standard":       stackitem.NewStruct([]stackitem.Item{stackitem.NewByteArray([]byte{}), stackitem.NewArray([]stackitem.Item{}), stackitem.NewArray([]stackitem.Item{stackitem.Null{}}), stackitem.Null{}, stackitem.Null{}, stackitem.Null{}, stackitem.Null{}}),
-		"invalid ABI":                      stackitem.NewStruct([]stackitem.Item{stackitem.NewByteArray([]byte{}), stackitem.NewArray([]stackitem.Item{}), stackitem.NewArray([]stackitem.Item{}), stackitem.Null{}, stackitem.Null{}, stackitem.Null{}, stackitem.Null{}}),
-		"invalid Permissions type": stackitem.NewStruct([]stackitem.Item{
-			stackitem.NewByteArray([]byte{}),
-			stackitem.NewArray([]stackitem.Item{}),
-			stackitem.NewArray([]stackitem.Item{}),
-			stackitem.NewStruct([]stackitem.Item{stackitem.NewArray([]stackitem.Item{}), stackitem.NewArray([]stackitem.Item{})}),
-			stackitem.Null{}, stackitem.Null{}, stackitem.Null{}}),
-		"invalid permission": stackitem.NewStruct([]stackitem.Item{
-			stackitem.NewByteArray([]byte{}),
-			stackitem.NewArray([]stackitem.Item{}),
-			stackitem.NewArray([]stackitem.Item{}),
-			stackitem.NewStruct([]stackitem.Item{stackitem.NewArray([]stackitem.Item{}), stackitem.NewArray([]stackitem.Item{})}),
-			stackitem.NewArray([]stackitem.Item{stackitem.Null{}}), stackitem.Null{}, stackitem.Null{}}),
-		"invalid Trusts type": stackitem.NewStruct([]stackitem.Item{
-			stackitem.NewByteArray([]byte{}),
-			stackitem.NewArray([]stackitem.Item{}),
-			stackitem.NewArray([]stackitem.Item{}),
-			stackitem.NewStruct([]stackitem.Item{stackitem.NewArray([]stackitem.Item{}), stackitem.NewArray([]stackitem.Item{})}),
-			stackitem.NewArray([]stackitem.Item{}),
-			stackitem.NewInterop(nil), stackitem.Null{}}),
-		"invalid trust": stackitem.NewStruct([]stackitem.Item{
-			stackitem.NewByteArray([]byte{}),
-			stackitem.NewArray([]stackitem.Item{}),
-			stackitem.NewArray([]stackitem.Item{}),
-			stackitem.NewStruct([]stackitem.Item{stackitem.NewArray([]stackitem.Item{}), stackitem.NewArray([]stackitem.Item{})}),
-			stackitem.NewArray([]stackitem.Item{}),
-			stackitem.NewArray([]stackitem.Item{stackitem.Null{}}), stackitem.Null{}}),
-		"invalid Uint160 trust": stackitem.NewStruct([]stackitem.Item{
-			stackitem.NewByteArray([]byte{}),
-			stackitem.NewArray([]stackitem.Item{}),
-			stackitem.NewArray([]stackitem.Item{}),
-			stackitem.NewStruct([]stackitem.Item{stackitem.NewArray([]stackitem.Item{}), stackitem.NewArray([]stackitem.Item{})}),
-			stackitem.NewArray([]stackitem.Item{}),
-			stackitem.NewArray([]stackitem.Item{stackitem.NewByteArray([]byte{1, 2, 3})}), stackitem.Null{}}),
-		"invalid extra type": stackitem.NewStruct([]stackitem.Item{
-			stackitem.NewByteArray([]byte{}),
-			stackitem.NewArray([]stackitem.Item{}),
-			stackitem.NewArray([]stackitem.Item{}),
-			stackitem.NewStruct([]stackitem.Item{stackitem.NewArray([]stackitem.Item{}), stackitem.NewArray([]stackitem.Item{})}),
-			stackitem.NewArray([]stackitem.Item{}),
-			stackitem.NewArray([]stackitem.Item{}),
-			stackitem.Null{}}),
+		"invalid name type":                stackitem.NewStruct(append([]stackitem.Item{stackitem.NewInterop(nil)}, goodSI[1:]...)),
+		"invalid Groups type":              stackitem.NewStruct(append([]stackitem.Item{name, stackitem.Null{}}, goodSI[2:]...)),
+		"invalid group":                    stackitem.NewStruct(append([]stackitem.Item{name, stackitem.NewArray([]stackitem.Item{stackitem.Null{}})}, goodSI[2:]...)),
+		"invalid Features type":            stackitem.NewStruct(append([]stackitem.Item{name, groups, stackitem.Null{}}, goodSI[3:]...)),
+		"invalid supported standards type": stackitem.NewStruct(append([]stackitem.Item{name, groups, features, stackitem.Null{}}, goodSI[4:]...)),
+		"invalid supported standard":       stackitem.NewStruct(append([]stackitem.Item{name, groups, features, stackitem.NewArray([]stackitem.Item{stackitem.Null{}})}, goodSI[4:]...)),
+		"invalid ABI":                      stackitem.NewStruct(append([]stackitem.Item{name, groups, features, sStandards, stackitem.Null{}}, goodSI[5:]...)),
+		"invalid Permissions type":         stackitem.NewStruct(append([]stackitem.Item{name, groups, features, sStandards, abi, stackitem.Null{}}, goodSI[6:]...)),
+		"invalid permission":               stackitem.NewStruct(append([]stackitem.Item{name, groups, features, sStandards, abi, stackitem.NewArray([]stackitem.Item{stackitem.Null{}})}, goodSI[6:]...)),
+		"invalid Trusts type":              stackitem.NewStruct(append([]stackitem.Item{name, groups, features, sStandards, abi, permissions, stackitem.NewInterop(nil)}, goodSI[7:]...)),
+		"invalid trust":                    stackitem.NewStruct(append([]stackitem.Item{name, groups, features, sStandards, abi, permissions, stackitem.NewArray([]stackitem.Item{stackitem.NewInterop(nil)})}, goodSI[7:]...)),
+		"invalid Uint160 trust":            stackitem.NewStruct(append([]stackitem.Item{name, groups, features, sStandards, abi, permissions, stackitem.NewArray([]stackitem.Item{stackitem.NewByteArray([]byte{1, 2, 3})})}, goodSI[7:]...)),
+		"invalid extra type":               stackitem.NewStruct([]stackitem.Item{name, groups, features, sStandards, abi, permissions, trusts, stackitem.Null{}}),
 	}
 	for name, errCase := range errCases {
 		t.Run(name, func(t *testing.T) {
