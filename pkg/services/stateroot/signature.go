@@ -15,6 +15,8 @@ import (
 type (
 	incompleteRoot struct {
 		sync.RWMutex
+		// svList is a list of state validator keys for this stateroot.
+		svList keys.PublicKeys
 		// isSent is true state root was already broadcasted.
 		isSent bool
 		// request is oracle request.
@@ -51,14 +53,14 @@ func (r *incompleteRoot) addSignature(pub *keys.PublicKey, sig []byte) {
 
 // finalize checks is either main or backup tx has sufficient number of signatures and returns
 // tx and bool value indicating if it is ready to be broadcasted.
-func (r *incompleteRoot) finalize(stateValidators keys.PublicKeys) (*state.MPTRoot, bool) {
+func (r *incompleteRoot) finalize() (*state.MPTRoot, bool) {
 	if r.root == nil {
 		return nil, false
 	}
 
-	m := smartcontract.GetDefaultHonestNodeCount(len(stateValidators))
+	m := smartcontract.GetDefaultHonestNodeCount(len(r.svList))
 	sigs := make([][]byte, 0, m)
-	for _, pub := range stateValidators {
+	for _, pub := range r.svList {
 		sig, ok := r.sigs[string(pub.Bytes())]
 		if ok && sig.ok {
 			sigs = append(sigs, sig.sig)
@@ -71,7 +73,7 @@ func (r *incompleteRoot) finalize(stateValidators keys.PublicKeys) (*state.MPTRo
 		return nil, false
 	}
 
-	verif, err := smartcontract.CreateDefaultMultiSigRedeemScript(stateValidators)
+	verif, err := smartcontract.CreateDefaultMultiSigRedeemScript(r.svList)
 	if err != nil {
 		return nil, false
 	}

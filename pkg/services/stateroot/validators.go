@@ -64,6 +64,7 @@ func (s *service) signAndSend(r *state.MPTRoot) error {
 	incRoot.root = r
 	incRoot.addSignature(acc.PrivateKey().PublicKey(), sig)
 	incRoot.reverify(s.Network)
+	s.trySendRoot(incRoot, acc)
 	incRoot.Unlock()
 
 	msg := NewMessage(VoteT, &Vote{

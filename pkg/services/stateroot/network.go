@@ -27,36 +27,27 @@ func (s *service) AddSignature(height uint32, validatorIndex int32, sig []byte) 
 		return nil
 	}
 
-	pubs := s.GetStateValidators(height)
-	if validatorIndex < 0 || int(validatorIndex) >= len(pubs) {
-		return errors.New("invalid validator index")
-	}
-	pub := pubs[validatorIndex]
-
 	incRoot := s.getIncompleteRoot(height)
 	if incRoot == nil {
 		return nil
 	}
 
 	incRoot.Lock()
+	defer incRoot.Unlock()
+
+	if validatorIndex < 0 || int(validatorIndex) >= len(incRoot.svList) {
+		return errors.New("invalid validator index")
+	}
+
+	pub := incRoot.svList[validatorIndex]
 	if incRoot.root != nil {
 		ok := pub.VerifyHashable(sig, uint32(s.Network), incRoot.root)
 		if !ok {
-			incRoot.Unlock()
 			return fmt.Errorf("invalid state root signature for %d", validatorIndex)
 		}
 	}
 	incRoot.addSignature(pub, sig)
-	sr, ready := incRoot.finalize(pubs)
-	incRoot.Unlock()
-
-	if ready {
-		err := s.AddStateRoot(sr)
-		if err != nil {
-			s.log.Error("can't add validated state root", zap.Error(err))
-		}
-		s.sendValidatedRoot(sr, acc)
-	}
+	s.trySendRoot(incRoot, acc)
 	return nil
 }
 
@@ -71,9 +62,25 @@ func (s *service) getIncompleteRoot(height uint32) *incompleteRoot {
 	if incRoot, ok := s.incompleteRoots[height]; ok {
 		return incRoot
 	}
-	incRoot := &incompleteRoot{sigs: make(map[string]*rootSig)}
+	incRoot := &incompleteRoot{svList: s.GetStateValidators(height), sigs: make(map[string]*rootSig)}
 	s.incompleteRoots[height] = incRoot
 	return incRoot
+}
+
+// trySendRoot attempts to finalize and send MPTRoot, it must be called with ir locked.
+func (s *service) trySendRoot(ir *incompleteRoot, acc *wallet.Account) {
+	if ir.isSent {
+		return
+	}
+	sr, ready := ir.finalize()
+	if ready {
+		err := s.AddStateRoot(sr)
+		if err != nil {
+			s.log.Error("can't add validated state root", zap.Error(err))
+		}
+		s.sendValidatedRoot(sr, acc)
+		ir.isSent = true
+	}
 }
 
 func (s *service) sendValidatedRoot(r *state.MPTRoot, acc *wallet.Account) {
