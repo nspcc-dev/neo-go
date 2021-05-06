@@ -95,5 +95,5 @@ func (s *service) sendValidatedRoot(r *state.MPTRoot, acc *wallet.Account) {
 	buf := io.NewBufBinWriter()
 	emit.Bytes(buf.BinWriter, sig)
 	ep.Witness.InvocationScript = buf.Bytes()
-	s.onValidatedRoot(ep)
+	s.relayExtensible(ep)
 }

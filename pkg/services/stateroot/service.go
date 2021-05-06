@@ -45,7 +45,7 @@ type (
 		srMtx           sync.Mutex
 		incompleteRoots map[uint32]*incompleteRoot
 
-		onValidatedRoot RelayCallback
+		relayExtensible RelayCallback
 		blockCh         chan *block.Block
 		done            chan struct{}
 	}
@@ -66,7 +66,7 @@ func New(cfg config.StateRoot, log *zap.Logger, bc blockchainer.Blockchainer, cb
 		incompleteRoots: make(map[uint32]*incompleteRoot),
 		blockCh:         make(chan *block.Block),
 		done:            make(chan struct{}),
-		onValidatedRoot: cb,
+		relayExtensible: cb,
 	}
 
 	s.MainCfg = cfg
