@@ -270,11 +270,11 @@ func TestTransfer(t *testing.T) {
 	testNameServiceInvokeAux(t, bc, defaultNameServiceSysfee, from, "setRecord", stackitem.Null{},
 		"neo.com", int64(nnsrecords.A), "1.2.3.4")
 	testNameServiceInvokeAux(t, bc, defaultRegisterSysfee, from, "transfer",
-		nil, to.Contract.ScriptHash().BytesBE(), []byte("not.exists"))
+		nil, to.Contract.ScriptHash().BytesBE(), []byte("not.exists"), nil)
 	testNameServiceInvokeAux(t, bc, defaultRegisterSysfee, true, "transfer",
-		false, to.Contract.ScriptHash().BytesBE(), []byte("neo.com"))
+		false, to.Contract.ScriptHash().BytesBE(), []byte("neo.com"), nil)
 	testNameServiceInvokeAux(t, bc, defaultRegisterSysfee, from, "transfer",
-		true, to.Contract.ScriptHash().BytesBE(), []byte("neo.com"))
+		true, to.Contract.ScriptHash().BytesBE(), []byte("neo.com"), nil)
 	testNameServiceInvokeAux(t, bc, defaultNameServiceSysfee, from, "totalSupply", 1)
 	testNameServiceInvokeAux(t, bc, defaultNameServiceSysfee, from, "ownerOf",
 		to.Contract.ScriptHash().BytesBE(), []byte("neo.com"))
@@ -282,9 +282,9 @@ func TestTransfer(t *testing.T) {
 	require.NoError(t, bc.contracts.Management.PutContractState(bc.dao, cs))
 	require.NoError(t, bc.contracts.Management.PutContractState(bc.dao, cs2))
 	testNameServiceInvokeAux(t, bc, defaultRegisterSysfee, to, "transfer",
-		nil, cs2.Hash.BytesBE(), []byte("neo.com"))
+		nil, cs2.Hash.BytesBE(), []byte("neo.com"), nil)
 	testNameServiceInvokeAux(t, bc, defaultRegisterSysfee, to, "transfer",
-		true, cs.Hash.BytesBE(), []byte("neo.com"))
+		true, cs.Hash.BytesBE(), []byte("neo.com"), nil)
 	testNameServiceInvokeAux(t, bc, defaultNameServiceSysfee, from, "totalSupply", 1)
 	testNameServiceInvokeAux(t, bc, defaultNameServiceSysfee, from, "ownerOf",
 		cs.Hash.BytesBE(), []byte("neo.com"))

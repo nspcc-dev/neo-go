@@ -80,7 +80,7 @@ func newNEP11Commands() []cli.Command {
 		{
 			Name:      "transfer",
 			Usage:     "transfer NEP11 tokens",
-			UsageText: "transfer --wallet <path> --rpc-endpoint <node> --timeout <time> --from <addr> --to <addr> --token <hash-or-name> --id <token-id> [--amount string] [-- <cosigner1:Scope> [<cosigner2> [...]]]",
+			UsageText: "transfer --wallet <path> --rpc-endpoint <node> --timeout <time> --from <addr> --to <addr> --token <hash-or-name> --id <token-id> [--amount string] [data] [-- <cosigner1:Scope> [<cosigner2> [...]]]",
 			Action:    transferNEP11,
 			Flags:     transferFlags,
 			Description: `Transfers specified NEP11 token with optional cosigners list attached to 
@@ -235,7 +235,7 @@ func transferNEP11(ctx *cli.Context) error {
 	return transferNEP(ctx, manifest.NEP11StandardName)
 }
 
-func signAndSendNEP11Transfer(ctx *cli.Context, c *client.Client, acc *wallet.Account, token, to util.Uint160, tokenID string, amount *big.Int, cosigners []client.SignerAccount) error {
+func signAndSendNEP11Transfer(ctx *cli.Context, c *client.Client, acc *wallet.Account, token, to util.Uint160, tokenID string, amount *big.Int, data interface{}, cosigners []client.SignerAccount) error {
 	gas := flags.Fixed8FromContext(ctx, "gas")
 
 	var (
@@ -247,9 +247,9 @@ func signAndSendNEP11Transfer(ctx *cli.Context, c *client.Client, acc *wallet.Ac
 		if err != nil {
 			return cli.NewExitError(fmt.Errorf("bad account address: %w", err), 1)
 		}
-		tx, err = c.CreateNEP11TransferTx(acc, token, int64(gas), cosigners, from, to, amount, tokenID)
+		tx, err = c.CreateNEP11TransferTx(acc, token, int64(gas), cosigners, from, to, amount, tokenID, data)
 	} else {
-		tx, err = c.CreateNEP11TransferTx(acc, token, int64(gas), cosigners, to, tokenID)
+		tx, err = c.CreateNEP11TransferTx(acc, token, int64(gas), cosigners, to, tokenID, data)
 	}
 	if err != nil {
 		return cli.NewExitError(err, 1)

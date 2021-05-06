@@ -14,6 +14,7 @@ var nep11payable = &Standard{
 					{Name: "from", Type: smartcontract.Hash160Type},
 					{Name: "amount", Type: smartcontract.IntegerType},
 					{Name: "tokenid", Type: smartcontract.ByteArrayType},
+					{Name: "data", Type: smartcontract.AnyType},
 				},
 				ReturnType: smartcontract.VoidType,
 			}},

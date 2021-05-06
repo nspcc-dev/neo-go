@@ -834,7 +834,7 @@ func TestClient_NEP11(t *testing.T) {
 		require.EqualValues(t, expected, p)
 	})
 	t.Run("Transfer", func(t *testing.T) {
-		_, err := c.TransferNEP11(wallet.NewAccountFromPrivateKey(testchain.PrivateKeyByID(0)), testchain.PrivateKeyByID(1).GetScriptHash(), h, "neo.com", 0, nil)
+		_, err := c.TransferNEP11(wallet.NewAccountFromPrivateKey(testchain.PrivateKeyByID(0)), testchain.PrivateKeyByID(1).GetScriptHash(), h, "neo.com", nil, 0, nil)
 		require.NoError(t, err)
 	})
 }

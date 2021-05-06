@@ -107,7 +107,8 @@ func newNonFungible(name string, id int32, symbol string, decimals byte) *nonfun
 
 	desc = newDescriptor("transfer", smartcontract.BoolType,
 		manifest.NewParameter("to", smartcontract.Hash160Type),
-		manifest.NewParameter("tokenId", smartcontract.ByteArrayType))
+		manifest.NewParameter("tokenId", smartcontract.ByteArrayType),
+		manifest.NewParameter("data", smartcontract.AnyType))
 	md = newMethodAndPrice(n.transfer, 1<<17, callflag.States|callflag.AllowNotify)
 	md.StorageFee = 50
 	n.AddMethod(md, desc)
@@ -267,10 +268,10 @@ func (n *nonfungible) mint(ic *interop.Context, s nftTokenState) {
 	ts := n.TotalSupply(ic.DAO)
 	ts.Add(ts, intOne)
 	n.setTotalSupply(ic.DAO, ts)
-	n.postTransfer(ic, nil, &owner, s.ID())
+	n.postTransfer(ic, nil, &owner, s.ID(), stackitem.Null{})
 }
 
-func (n *nonfungible) postTransfer(ic *interop.Context, from, to *util.Uint160, tokenID []byte) {
+func (n *nonfungible) postTransfer(ic *interop.Context, from, to *util.Uint160, tokenID []byte, data stackitem.Item) {
 	ne := state.NotificationEvent{
 		ScriptHash: n.Hash,
 		Name:       "Transfer",
@@ -298,6 +299,7 @@ func (n *nonfungible) postTransfer(ic *interop.Context, from, to *util.Uint160, 
 		fromArg,
 		stackitem.NewBigInteger(intOne),
 		stackitem.NewByteArray(tokenID),
+		data,
 	}
 	if err := contract.CallFromNative(ic, n.Hash, cs, manifest.MethodOnNEP11Payment, args, false); err != nil {
 		panic(err)
@@ -332,7 +334,7 @@ func (n *nonfungible) burnByKey(ic *interop.Context, key []byte) {
 	ts := n.TotalSupply(ic.DAO)
 	ts.Sub(ts, intOne)
 	n.setTotalSupply(ic.DAO, ts)
-	n.postTransfer(ic, &owner, nil, id)
+	n.postTransfer(ic, &owner, nil, id, stackitem.Null{})
 }
 
 func (n *nonfungible) transfer(ic *interop.Context, args []stackitem.Item) stackitem.Item {
@@ -373,7 +375,7 @@ func (n *nonfungible) transfer(ic *interop.Context, args []stackitem.Item) stack
 		acc.Add(tokenID)
 		n.putAccountState(ic.DAO, key, acc)
 	}
-	n.postTransfer(ic, &from, &to, tokenID)
+	n.postTransfer(ic, &from, &to, tokenID, args[2])
 	return stackitem.NewBool(true)
 }
 

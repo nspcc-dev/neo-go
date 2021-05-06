@@ -169,7 +169,7 @@ func TestNativeHelpersCompile(t *testing.T) {
 		{"properties", []string{`"neo.com"`}},
 		{"tokens", nil},
 		{"tokensOf", []string{u160}},
-		{"transfer", []string{u160, `"neo.com"`}},
+		{"transfer", []string{u160, `"neo.com"`, "nil"}},
 
 		// name service
 		{"addRoot", []string{`"com"`}},

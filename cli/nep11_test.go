@@ -4,11 +4,13 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"math/big"
 	"os"
 	"path"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
+	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
@@ -267,16 +269,51 @@ func TestNEP11_OwnerOf_BalanceOf_Transfer(t *testing.T) {
 	// transfer: no id specified
 	e.In.WriteString(nftOwnerPass + "\r")
 	e.RunWithError(t, cmdTransfer...)
-	cmdTransfer = append(cmdTransfer, "--id", string(tokenID))
 
 	// transfer: good
 	e.In.WriteString(nftOwnerPass + "\r")
-	e.Run(t, cmdTransfer...)
+	e.Run(t, append(cmdTransfer, "--id", string(tokenID))...)
 	e.checkTxPersisted(t)
 
 	// check balance after transfer
 	e.Run(t, append(cmdCheckBalance, "--token", h.StringLE())...)
 	checkBalanceResult(t, nftOwnerAddr, "1") // tokenID1
+
+	// transfer: good, to NEP11-Payable contract, with data
+	verifyH := deployVerifyContract(t, e)
+	cmdTransfer = []string{
+		"neo-go", "wallet", "nep11", "transfer",
+		"--rpc-endpoint", "http://" + e.RPC.Addr,
+		"--wallet", wall,
+		"--to", verifyH.StringLE(),
+		"--from", nftOwnerAddr,
+		"--token", h.StringLE(),
+		"--id", string(tokenID1),
+		"string:some_data",
+	}
+	e.In.WriteString(nftOwnerPass + "\r")
+	e.Run(t, cmdTransfer...)
+	tx, _ := e.checkTxPersisted(t)
+	// check OnNEP11Payment event
+	aer, err := e.Chain.GetAppExecResults(tx.Hash(), trigger.Application)
+	require.NoError(t, err)
+	require.Equal(t, 2, len(aer[0].Events))
+	nftOwnerHash, err := address.StringToUint160(nftOwnerAddr)
+	require.NoError(t, err)
+	require.Equal(t, state.NotificationEvent{
+		ScriptHash: verifyH,
+		Name:       "OnNEP11Payment",
+		Item: stackitem.NewArray([]stackitem.Item{
+			stackitem.NewByteArray(nftOwnerHash.BytesBE()),
+			stackitem.NewBigInteger(big.NewInt(1)),
+			stackitem.NewByteArray(tokenID1),
+			stackitem.NewByteArray([]byte("some_data")),
+		}),
+	}, aer[0].Events[1])
+
+	// check balance after transfer
+	e.Run(t, append(cmdCheckBalance, "--token", h.StringLE())...)
+	checkBalanceResult(t, nftOwnerAddr, "0")
 }
 
 func deployNFTContract(t *testing.T, e *executor) util.Uint160 {
