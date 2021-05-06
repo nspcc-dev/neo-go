@@ -53,7 +53,7 @@ func (s *service) signAndSend(r *state.MPTRoot) error {
 		return nil
 	}
 
-	acc := s.getAccount()
+	myIndex, acc := s.getAccount()
 	if acc == nil {
 		return nil
 	}
@@ -66,9 +66,6 @@ func (s *service) signAndSend(r *state.MPTRoot) error {
 	incRoot.reverify(s.Network)
 	incRoot.Unlock()
 
-	s.accMtx.RLock()
-	myIndex := s.myIndex
-	s.accMtx.RUnlock()
 	msg := NewMessage(VoteT, &Vote{
 		ValidatorIndex: int32(myIndex),
 		Height:         r.Index,
@@ -84,10 +81,10 @@ func (s *service) signAndSend(r *state.MPTRoot) error {
 		Category:        Category,
 		ValidBlockStart: r.Index,
 		ValidBlockEnd:   r.Index + transaction.MaxValidUntilBlockIncrement,
-		Sender:          s.getAccount().PrivateKey().GetScriptHash(),
+		Sender:          acc.PrivateKey().GetScriptHash(),
 		Data:            w.Bytes(),
 		Witness: transaction.Witness{
-			VerificationScript: s.getAccount().GetVerificationScript(),
+			VerificationScript: acc.GetVerificationScript(),
 		},
 	}
 	sig = acc.PrivateKey().SignHashable(uint32(s.Network), e)
@@ -98,8 +95,9 @@ func (s *service) signAndSend(r *state.MPTRoot) error {
 	return nil
 }
 
-func (s *service) getAccount() *wallet.Account {
+// getAccount returns current index and account for the node running this service.
+func (s *service) getAccount() (byte, *wallet.Account) {
 	s.accMtx.RLock()
 	defer s.accMtx.RUnlock()
-	return s.acc
+	return s.myIndex, s.acc
 }

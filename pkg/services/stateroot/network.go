@@ -7,10 +7,10 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
-	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/network/payload"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
+	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"go.uber.org/zap"
 )
 
@@ -22,7 +22,7 @@ func (s *service) AddSignature(height uint32, validatorIndex int32, sig []byte) 
 	if !s.MainCfg.Enabled {
 		return nil
 	}
-	acc := s.getAccount()
+	_, acc := s.getAccount()
 	if acc == nil {
 		return nil
 	}
@@ -55,7 +55,7 @@ func (s *service) AddSignature(height uint32, validatorIndex int32, sig []byte) 
 		if err != nil {
 			s.log.Error("can't add validated state root", zap.Error(err))
 		}
-		s.sendValidatedRoot(sr, acc.PrivateKey())
+		s.sendValidatedRoot(sr, acc)
 	}
 	return nil
 }
@@ -76,7 +76,8 @@ func (s *service) getIncompleteRoot(height uint32) *incompleteRoot {
 	return incRoot
 }
 
-func (s *service) sendValidatedRoot(r *state.MPTRoot, priv *keys.PrivateKey) {
+func (s *service) sendValidatedRoot(r *state.MPTRoot, acc *wallet.Account) {
+	priv := acc.PrivateKey()
 	w := io.NewBufBinWriter()
 	m := NewMessage(RootT, r)
 	m.EncodeBinary(w.BinWriter)
@@ -87,7 +88,7 @@ func (s *service) sendValidatedRoot(r *state.MPTRoot, priv *keys.PrivateKey) {
 		Sender:          priv.GetScriptHash(),
 		Data:            w.Bytes(),
 		Witness: transaction.Witness{
-			VerificationScript: s.getAccount().GetVerificationScript(),
+			VerificationScript: acc.GetVerificationScript(),
 		},
 	}
 	sig := priv.SignHashable(uint32(s.Network), ep)
