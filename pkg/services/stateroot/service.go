@@ -3,6 +3,7 @@ package stateroot
 import (
 	"errors"
 	"sync"
+	"time"
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
@@ -45,6 +46,8 @@ type (
 		srMtx           sync.Mutex
 		incompleteRoots map[uint32]*incompleteRoot
 
+		timePerBlock    time.Duration
+		maxRetries      int
 		relayExtensible RelayCallback
 		blockCh         chan *block.Block
 		done            chan struct{}
@@ -58,14 +61,17 @@ const (
 
 // New returns new state root service instance using underlying module.
 func New(cfg config.StateRoot, log *zap.Logger, bc blockchainer.Blockchainer, cb RelayCallback) (Service, error) {
+	bcConf := bc.GetConfig()
 	s := &service{
 		StateRoot:       bc.GetStateModule(),
-		Network:         bc.GetConfig().Magic,
+		Network:         bcConf.Magic,
 		chain:           bc,
 		log:             log,
 		incompleteRoots: make(map[uint32]*incompleteRoot),
 		blockCh:         make(chan *block.Block),
 		done:            make(chan struct{}),
+		timePerBlock:    time.Duration(bcConf.SecondsPerBlock) * time.Second,
+		maxRetries:      bcConf.ValidatorsCount + 1,
 		relayExtensible: cb,
 	}
 

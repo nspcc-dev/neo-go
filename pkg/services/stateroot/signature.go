@@ -8,6 +8,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/network/payload"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 )
@@ -23,6 +24,10 @@ type (
 		root *state.MPTRoot
 		// sigs contains signature from every oracle node.
 		sigs map[string]*rootSig
+		// myVote is an extensible message containing node's vote.
+		myVote *payload.Extensible
+		// retries is a counter of send attempts.
+		retries int
 	}
 
 	rootSig struct {

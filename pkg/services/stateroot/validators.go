@@ -1,6 +1,8 @@
 package stateroot
 
 import (
+	"time"
+
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/io"
@@ -9,6 +11,8 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"go.uber.org/zap"
 )
+
+const firstVoteResendDelay = 3 * time.Second
 
 // Run runs service instance in a separate goroutine.
 func (s *service) Run() {
@@ -61,11 +65,11 @@ func (s *service) signAndSend(r *state.MPTRoot) error {
 	sig := acc.PrivateKey().SignHashable(uint32(s.Network), r)
 	incRoot := s.getIncompleteRoot(r.Index)
 	incRoot.Lock()
+	defer incRoot.Unlock()
 	incRoot.root = r
 	incRoot.addSignature(acc.PrivateKey().PublicKey(), sig)
 	incRoot.reverify(s.Network)
 	s.trySendRoot(incRoot, acc)
-	incRoot.Unlock()
 
 	msg := NewMessage(VoteT, &Vote{
 		ValidatorIndex: int32(myIndex),
@@ -92,8 +96,30 @@ func (s *service) signAndSend(r *state.MPTRoot) error {
 	buf := io.NewBufBinWriter()
 	emit.Bytes(buf.BinWriter, sig)
 	e.Witness.InvocationScript = buf.Bytes()
-	s.relayExtensible(e)
+	incRoot.myVote = e
+	incRoot.retries = -1
+	s.sendVote(incRoot)
 	return nil
+}
+
+// sendVote attempts to send vote if it's still valid and if stateroot message
+// was not sent yet. It must be called with ir locked.
+func (s *service) sendVote(ir *incompleteRoot) {
+	if ir.isSent || ir.retries >= s.maxRetries ||
+		s.chain.HeaderHeight() >= ir.myVote.ValidBlockEnd {
+		return
+	}
+	s.relayExtensible(ir.myVote)
+	delay := firstVoteResendDelay
+	if ir.retries > 0 {
+		delay = s.timePerBlock << ir.retries
+	}
+	_ = time.AfterFunc(delay, func() {
+		ir.Lock()
+		s.sendVote(ir)
+		ir.Unlock()
+	})
+	ir.retries++
 }
 
 // getAccount returns current index and account for the node running this service.
