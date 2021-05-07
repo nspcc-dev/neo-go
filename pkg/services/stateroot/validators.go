@@ -35,6 +35,9 @@ runloop:
 			} else if err := s.signAndSend(r); err != nil {
 				s.log.Error("can't sign or send state root", zap.Error(err))
 			}
+			s.srMtx.Lock()
+			delete(s.incompleteRoots, b.Index-voteValidEndInc)
+			s.srMtx.Unlock()
 		case <-s.done:
 			break runloop
 		}
