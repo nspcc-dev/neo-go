@@ -55,7 +55,7 @@ func TestRemoveStale(t *testing.T) {
 	for i := range eps {
 		p.testAdd(t, true, nil, eps[i])
 	}
-	bc.verifyWitness = func(u util.Uint160) bool { println("call"); return u[0] != 0x12 }
+	bc.verifyWitness = func(u util.Uint160) bool { return u[0] != 0x12 }
 	bc.isAllowed = func(u util.Uint160) bool { return u[0] != 0x11 }
 	p.RemoveStale(11)
 	require.Nil(t, p.Get(eps[0].Hash()))
