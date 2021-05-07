@@ -1,6 +1,8 @@
 package stateroot
 
 import (
+	"time"
+
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/io"
@@ -8,6 +10,11 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"go.uber.org/zap"
+)
+
+const (
+	voteValidEndInc      = 10
+	firstVoteResendDelay = 3 * time.Second
 )
 
 // Run runs service instance in a separate goroutine.
@@ -28,6 +35,9 @@ runloop:
 			} else if err := s.signAndSend(r); err != nil {
 				s.log.Error("can't sign or send state root", zap.Error(err))
 			}
+			s.srMtx.Lock()
+			delete(s.incompleteRoots, b.Index-voteValidEndInc)
+			s.srMtx.Unlock()
 		case <-s.done:
 			break runloop
 		}
@@ -53,20 +63,20 @@ func (s *service) signAndSend(r *state.MPTRoot) error {
 		return nil
 	}
 
-	acc := s.getAccount()
+	myIndex, acc := s.getAccount()
 	if acc == nil {
 		return nil
 	}
 
 	sig := acc.PrivateKey().SignHashable(uint32(s.Network), r)
-	incRoot := s.getIncompleteRoot(r.Index)
+	incRoot := s.getIncompleteRoot(r.Index, myIndex)
+	incRoot.Lock()
+	defer incRoot.Unlock()
 	incRoot.root = r
 	incRoot.addSignature(acc.PrivateKey().PublicKey(), sig)
 	incRoot.reverify(s.Network)
+	s.trySendRoot(incRoot, acc)
 
-	s.accMtx.RLock()
-	myIndex := s.myIndex
-	s.accMtx.RUnlock()
 	msg := NewMessage(VoteT, &Vote{
 		ValidatorIndex: int32(myIndex),
 		Height:         r.Index,
@@ -81,23 +91,46 @@ func (s *service) signAndSend(r *state.MPTRoot) error {
 	e := &payload.Extensible{
 		Category:        Category,
 		ValidBlockStart: r.Index,
-		ValidBlockEnd:   r.Index + transaction.MaxValidUntilBlockIncrement,
-		Sender:          s.getAccount().PrivateKey().GetScriptHash(),
+		ValidBlockEnd:   r.Index + voteValidEndInc,
+		Sender:          acc.PrivateKey().GetScriptHash(),
 		Data:            w.Bytes(),
 		Witness: transaction.Witness{
-			VerificationScript: s.getAccount().GetVerificationScript(),
+			VerificationScript: acc.GetVerificationScript(),
 		},
 	}
 	sig = acc.PrivateKey().SignHashable(uint32(s.Network), e)
 	buf := io.NewBufBinWriter()
 	emit.Bytes(buf.BinWriter, sig)
 	e.Witness.InvocationScript = buf.Bytes()
-	s.onValidatedRoot(e)
+	incRoot.myVote = e
+	incRoot.retries = -1
+	s.sendVote(incRoot)
 	return nil
 }
 
-func (s *service) getAccount() *wallet.Account {
+// sendVote attempts to send vote if it's still valid and if stateroot message
+// was not sent yet. It must be called with ir locked.
+func (s *service) sendVote(ir *incompleteRoot) {
+	if ir.isSent || ir.retries >= s.maxRetries ||
+		s.chain.HeaderHeight() >= ir.myVote.ValidBlockEnd {
+		return
+	}
+	s.relayExtensible(ir.myVote)
+	delay := firstVoteResendDelay
+	if ir.retries > 0 {
+		delay = s.timePerBlock << ir.retries
+	}
+	_ = time.AfterFunc(delay, func() {
+		ir.Lock()
+		s.sendVote(ir)
+		ir.Unlock()
+	})
+	ir.retries++
+}
+
+// getAccount returns current index and account for the node running this service.
+func (s *service) getAccount() (byte, *wallet.Account) {
 	s.accMtx.RLock()
 	defer s.accMtx.RUnlock()
-	return s.acc
+	return s.myIndex, s.acc
 }

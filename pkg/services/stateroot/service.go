@@ -3,6 +3,7 @@ package stateroot
 import (
 	"errors"
 	"sync"
+	"time"
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
@@ -45,7 +46,9 @@ type (
 		srMtx           sync.Mutex
 		incompleteRoots map[uint32]*incompleteRoot
 
-		onValidatedRoot RelayCallback
+		timePerBlock    time.Duration
+		maxRetries      int
+		relayExtensible RelayCallback
 		blockCh         chan *block.Block
 		done            chan struct{}
 	}
@@ -58,15 +61,18 @@ const (
 
 // New returns new state root service instance using underlying module.
 func New(cfg config.StateRoot, log *zap.Logger, bc blockchainer.Blockchainer, cb RelayCallback) (Service, error) {
+	bcConf := bc.GetConfig()
 	s := &service{
 		StateRoot:       bc.GetStateModule(),
-		Network:         bc.GetConfig().Magic,
+		Network:         bcConf.Magic,
 		chain:           bc,
 		log:             log,
 		incompleteRoots: make(map[uint32]*incompleteRoot),
 		blockCh:         make(chan *block.Block),
 		done:            make(chan struct{}),
-		onValidatedRoot: cb,
+		timePerBlock:    time.Duration(bcConf.SecondsPerBlock) * time.Second,
+		maxRetries:      voteValidEndInc,
+		relayExtensible: cb,
 	}
 
 	s.MainCfg = cfg
@@ -111,6 +117,14 @@ func (s *service) OnPayload(ep *payload.Extensible) error {
 		if errors.Is(err, stateroot.ErrStateMismatch) {
 			s.log.Error("can't add SV-signed state root", zap.Error(err))
 			return nil
+		}
+		s.srMtx.Lock()
+		ir, ok := s.incompleteRoots[sr.Index]
+		s.srMtx.Unlock()
+		if ok {
+			ir.Lock()
+			ir.isSent = true
+			ir.Unlock()
 		}
 		return err
 	case VoteT:
