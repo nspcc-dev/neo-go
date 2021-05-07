@@ -66,7 +66,7 @@ type (
 
 	// HTTPClient is an interface capable of doing oracle requests.
 	HTTPClient interface {
-		Get(string) (*http.Response, error)
+		Do(*http.Request) (*http.Response, error)
 	}
 
 	// Broadcaster broadcasts oracle responses.

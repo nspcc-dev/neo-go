@@ -327,8 +327,8 @@ type (
 )
 
 // Get implements oracle.HTTPClient interface.
-func (c *httpClient) Get(url string) (*http.Response, error) {
-	resp, ok := c.responses[url]
+func (c *httpClient) Do(req *http.Request) (*http.Response, error) {
+	resp, ok := c.responses[req.URL.String()]
 	if ok {
 		return &http.Response{
 			StatusCode: resp.code,

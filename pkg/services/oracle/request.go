@@ -111,7 +111,14 @@ func (o *Oracle) processRequest(priv *keys.PrivateKey, req request) error {
 					break
 				}
 			}
-			r, err := o.Client.Get(req.Req.URL)
+			httpReq, err := http.NewRequest("GET", req.Req.URL, nil)
+			if err != nil {
+				o.Log.Warn("failed to create http request", zap.String("url", req.Req.URL), zap.Error(err))
+				resp.Code = transaction.Error
+				break
+			}
+			httpReq.Header.Set("User-Agent", "NeoOracleService/3.0")
+			r, err := o.Client.Do(httpReq)
 			if err != nil {
 				o.Log.Warn("oracle request failed", zap.String("url", req.Req.URL), zap.Error(err))
 				resp.Code = transaction.Error
