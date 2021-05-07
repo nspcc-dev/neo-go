@@ -1,10 +1,10 @@
 package jsonpath
 
 import (
-	"encoding/json"
-	"sort"
 	"strconv"
 	"strings"
+
+	json "github.com/virtuald/go-ordered-json"
 )
 
 type (
@@ -193,16 +193,9 @@ func (p *pathParser) descend(objs []interface{}) ([]interface{}, bool) {
 		switch obj := objs[i].(type) {
 		case []interface{}:
 			values = append(values, obj...)
-		case map[string]interface{}:
-			keys := make([]string, 0, len(obj))
-			for k := range obj {
-				keys = append(keys, k)
-			}
-
-			sort.Strings(keys)
-
-			for _, k := range keys {
-				values = append(values, obj[k])
+		case json.OrderedObject:
+			for i := range obj {
+				values = append(values, obj[i].Value)
 			}
 		}
 	}
@@ -243,14 +236,17 @@ func (p *pathParser) descendByIdentAux(objs []interface{}, checkDepth bool, name
 
 	var values []interface{}
 	for i := range objs {
-		obj, ok := objs[i].(map[string]interface{})
+		obj, ok := objs[i].(json.OrderedObject)
 		if !ok {
 			continue
 		}
 
 		for j := range names {
-			if v, ok := obj[names[j]]; ok {
-				values = append(values, v)
+			for k := range obj {
+				if obj[k].Key == names[j] {
+					values = append(values, obj[k].Value)
+					break
+				}
 			}
 		}
 	}
