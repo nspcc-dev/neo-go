@@ -118,6 +118,14 @@ func (s *service) OnPayload(ep *payload.Extensible) error {
 			s.log.Error("can't add SV-signed state root", zap.Error(err))
 			return nil
 		}
+		s.srMtx.Lock()
+		ir, ok := s.incompleteRoots[sr.Index]
+		s.srMtx.Unlock()
+		if ok {
+			ir.Lock()
+			ir.isSent = true
+			ir.Unlock()
+		}
 		return err
 	case VoteT:
 		v := m.Payload.(*Vote)

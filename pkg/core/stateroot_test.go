@@ -225,6 +225,15 @@ func TestStateRootFull(t *testing.T) {
 
 	msg := new(stateroot.Message)
 	require.NoError(t, testserdes.DecodeBinary(lastValidated.Load().(*payload.Extensible).Data, msg))
+	require.NotEqual(t, stateroot.RootT, msg.Type) // not a sender for this root
+
+	r, err = srv.GetStateRoot(3)
+	require.NoError(t, err)
+	require.Error(t, srv.AddSignature(2, 0, accs[0].PrivateKey().SignHashable(uint32(netmode.UnitTestNet), r)))
+	require.NoError(t, srv.AddSignature(3, 0, accs[0].PrivateKey().SignHashable(uint32(netmode.UnitTestNet), r)))
+	require.NotNil(t, lastValidated.Load().(*payload.Extensible))
+
+	require.NoError(t, testserdes.DecodeBinary(lastValidated.Load().(*payload.Extensible).Data, msg))
 	require.Equal(t, stateroot.RootT, msg.Type)
 
 	actual := msg.Payload.(*state.MPTRoot)

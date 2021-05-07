@@ -24,6 +24,8 @@ type (
 		root *state.MPTRoot
 		// sigs contains signature from every oracle node.
 		sigs map[string]*rootSig
+		// myIndex is the index of validator for this root.
+		myIndex int
 		// myVote is an extensible message containing node's vote.
 		myVote *payload.Extensible
 		// retries is a counter of send attempts.
@@ -54,6 +56,21 @@ func (r *incompleteRoot) addSignature(pub *keys.PublicKey, sig []byte) {
 		ok:  r.root != nil,
 		sig: sig,
 	}
+}
+
+func (r *incompleteRoot) isSenderNow() bool {
+	if r.root == nil || r.isSent || len(r.svList) == 0 {
+		return false
+	}
+	retries := r.retries
+	if retries < 0 {
+		retries = 0
+	}
+	ind := (int(r.root.Index) - retries) % len(r.svList)
+	if ind < 0 {
+		ind += len(r.svList)
+	}
+	return ind == r.myIndex
 }
 
 // finalize checks is either main or backup tx has sufficient number of signatures and returns

@@ -66,7 +66,7 @@ func (s *service) signAndSend(r *state.MPTRoot) error {
 	}
 
 	sig := acc.PrivateKey().SignHashable(uint32(s.Network), r)
-	incRoot := s.getIncompleteRoot(r.Index)
+	incRoot := s.getIncompleteRoot(r.Index, myIndex)
 	incRoot.Lock()
 	defer incRoot.Unlock()
 	incRoot.root = r

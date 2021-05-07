@@ -24,12 +24,12 @@ func (s *service) AddSignature(height uint32, validatorIndex int32, sig []byte) 
 	if !s.MainCfg.Enabled {
 		return nil
 	}
-	_, acc := s.getAccount()
+	myIndex, acc := s.getAccount()
 	if acc == nil {
 		return nil
 	}
 
-	incRoot := s.getIncompleteRoot(height)
+	incRoot := s.getIncompleteRoot(height, myIndex)
 	if incRoot == nil {
 		return nil
 	}
@@ -58,20 +58,24 @@ func (s *service) GetConfig() config.StateRoot {
 	return s.MainCfg
 }
 
-func (s *service) getIncompleteRoot(height uint32) *incompleteRoot {
+func (s *service) getIncompleteRoot(height uint32, myIndex byte) *incompleteRoot {
 	s.srMtx.Lock()
 	defer s.srMtx.Unlock()
 	if incRoot, ok := s.incompleteRoots[height]; ok {
 		return incRoot
 	}
-	incRoot := &incompleteRoot{svList: s.GetStateValidators(height), sigs: make(map[string]*rootSig)}
+	incRoot := &incompleteRoot{
+		myIndex: int(myIndex),
+		svList:  s.GetStateValidators(height),
+		sigs:    make(map[string]*rootSig),
+	}
 	s.incompleteRoots[height] = incRoot
 	return incRoot
 }
 
 // trySendRoot attempts to finalize and send MPTRoot, it must be called with ir locked.
 func (s *service) trySendRoot(ir *incompleteRoot, acc *wallet.Account) {
-	if ir.isSent {
+	if !ir.isSenderNow() {
 		return
 	}
 	sr, ready := ir.finalize()
