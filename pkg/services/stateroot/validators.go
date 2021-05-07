@@ -12,7 +12,10 @@ import (
 	"go.uber.org/zap"
 )
 
-const firstVoteResendDelay = 3 * time.Second
+const (
+	voteValidEndInc      = 10
+	firstVoteResendDelay = 3 * time.Second
+)
 
 // Run runs service instance in a separate goroutine.
 func (s *service) Run() {
@@ -85,7 +88,7 @@ func (s *service) signAndSend(r *state.MPTRoot) error {
 	e := &payload.Extensible{
 		Category:        Category,
 		ValidBlockStart: r.Index,
-		ValidBlockEnd:   r.Index + transaction.MaxValidUntilBlockIncrement,
+		ValidBlockEnd:   r.Index + voteValidEndInc,
 		Sender:          acc.PrivateKey().GetScriptHash(),
 		Data:            w.Bytes(),
 		Witness: transaction.Witness{

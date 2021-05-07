@@ -71,7 +71,7 @@ func New(cfg config.StateRoot, log *zap.Logger, bc blockchainer.Blockchainer, cb
 		blockCh:         make(chan *block.Block),
 		done:            make(chan struct{}),
 		timePerBlock:    time.Duration(bcConf.SecondsPerBlock) * time.Second,
-		maxRetries:      bcConf.ValidatorsCount + 1,
+		maxRetries:      voteValidEndInc,
 		relayExtensible: cb,
 	}
 

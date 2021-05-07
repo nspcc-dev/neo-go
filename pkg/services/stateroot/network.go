@@ -14,6 +14,8 @@ import (
 	"go.uber.org/zap"
 )
 
+const rootValidEndInc = 100
+
 // RelayCallback represents callback for sending validated state roots.
 type RelayCallback = func(*payload.Extensible)
 
@@ -91,7 +93,7 @@ func (s *service) sendValidatedRoot(r *state.MPTRoot, acc *wallet.Account) {
 	ep := &payload.Extensible{
 		Category:        Category,
 		ValidBlockStart: r.Index,
-		ValidBlockEnd:   r.Index + transaction.MaxValidUntilBlockIncrement,
+		ValidBlockEnd:   r.Index + rootValidEndInc,
 		Sender:          priv.GetScriptHash(),
 		Data:            w.Bytes(),
 		Witness: transaction.Witness{
