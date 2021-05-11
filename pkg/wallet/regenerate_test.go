@@ -56,13 +56,7 @@ func TestRegenerateSoloWallet(t *testing.T) {
 	acc3 := getAccount(t, wif, "one")
 	require.NoError(t, acc3.ConvertMultisig(1, keys.PublicKeys{getKeys(t)[0]}))
 
-	w, err := NewWallet(walletPath)
-	require.NoError(t, err)
-	w.AddAccount(acc1)
-	w.AddAccount(acc2)
-	w.AddAccount(acc3)
-	require.NoError(t, w.savePretty())
-	w.Close()
+	createWallet(t, walletPath, acc1, acc2, acc3)
 }
 
 func regenerateWallets(t *testing.T, dir string) {
@@ -72,12 +66,7 @@ func regenerateWallets(t *testing.T, dir string) {
 		acc2 := getAccount(t, privnetWIFs[i], passwords[i])
 		require.NoError(t, acc2.ConvertMultisig(3, pubs))
 
-		w, err := NewWallet(path.Join(dir, fmt.Sprintf("wallet%d.json", i+1)))
-		require.NoError(t, err)
-		w.AddAccount(acc1)
-		w.AddAccount(acc2)
-		require.NoError(t, w.savePretty())
-		w.Close()
+		createWallet(t, path.Join(dir, fmt.Sprintf("wallet%d.json", i+1)), acc1, acc2)
 	}
 }
 
@@ -108,20 +97,9 @@ func TestRegenerateWalletTestdata(t *testing.T) {
 	acc3 := getAccount(t, privnetWIFs[1], "two")
 	acc3.Default = true
 
-	w, err := NewWallet(path.Join(walletDir, "wallet1.json"))
-	require.NoError(t, err)
-	w.AddAccount(acc1)
-	w.AddAccount(acc2)
-	require.NoError(t, w.savePretty())
-	w.Close()
+	createWallet(t, path.Join(walletDir, "wallet1.json"), acc1, acc2)
 
-	w, err = NewWallet(path.Join(walletDir, "wallet2.json"))
-	require.NoError(t, err)
-	w.AddAccount(acc1)
-	w.AddAccount(acc2)
-	w.AddAccount(acc3)
-	require.NoError(t, w.savePretty())
-	w.Close()
+	createWallet(t, path.Join(walletDir, "wallet2.json"), acc1, acc2, acc3)
 }
 
 func TestRegenerateNotaryWallets(t *testing.T) {
@@ -139,21 +117,10 @@ func TestRegenerateNotaryWallets(t *testing.T) {
 	acc1 := getAccount(t, acc1WIF, "one")
 	acc2 := getAccount(t, acc2WIF, "one")
 	acc3 := getAccount(t, acc3WIF, "four")
-
-	w, err := NewWallet(path.Join(walletDir, "notary1.json"))
-	require.NoError(t, err)
-	w.AddAccount(acc1)
-	w.AddAccount(acc2)
-	w.AddAccount(acc3)
-	require.NoError(t, w.savePretty())
-	w.Close()
+	createWallet(t, path.Join(walletDir, "notary1.json"), acc1, acc2, acc3)
 
 	acc4 := getAccount(t, acc4WIF, "two")
-	w, err = NewWallet(path.Join(walletDir, "notary2.json"))
-	require.NoError(t, err)
-	w.AddAccount(acc4)
-	require.NoError(t, w.savePretty())
-	w.Close()
+	createWallet(t, path.Join(walletDir, "notary2.json"), acc4)
 }
 
 func TestRegenerateOracleWallets(t *testing.T) {
@@ -167,16 +134,18 @@ func TestRegenerateOracleWallets(t *testing.T) {
 	)
 
 	acc1 := getAccount(t, acc1WIF, "one")
-	w, err := NewWallet(path.Join(walletDir, "oracle1.json"))
-	require.NoError(t, err)
-	w.AddAccount(acc1)
-	require.NoError(t, w.savePretty())
-	w.Close()
+	createWallet(t, path.Join(walletDir, "oracle1.json"), acc1)
 
 	acc2 := getAccount(t, acc2WIF, "two")
-	w, err = NewWallet(path.Join(walletDir, "oracle2.json"))
+	createWallet(t, path.Join(walletDir, "oracle2.json"), acc2)
+}
+
+func createWallet(t *testing.T, path string, accs ...*Account) {
+	w, err := NewWallet(path)
 	require.NoError(t, err)
-	w.AddAccount(acc2)
+	for _, acc := range accs {
+		w.AddAccount(acc)
+	}
 	require.NoError(t, w.savePretty())
 	w.Close()
 }
