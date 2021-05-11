@@ -168,6 +168,19 @@ func TestRegenerateCLITestwallet(t *testing.T) {
 	createWallet(t, walletPath, acc)
 }
 
+func TestRegenerateCLITestwallet_NEO3(t *testing.T) {
+	if !regenerate {
+		return
+	}
+	const walletPath = "../../cli/testdata/wallets/testwallet_NEO3.json"
+
+	pubs := getKeys(t)
+	acc1 := getAccount(t, privnetWIFs[0], passwords[0])
+	acc2 := getAccount(t, privnetWIFs[0], passwords[0])
+	require.NoError(t, acc2.ConvertMultisig(3, pubs))
+	createWallet(t, walletPath, acc1, acc2)
+}
+
 func createWallet(t *testing.T, path string, accs ...*Account) {
 	w, err := NewWallet(path)
 	require.NoError(t, err)
