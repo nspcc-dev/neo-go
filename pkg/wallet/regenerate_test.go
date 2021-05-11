@@ -155,3 +155,28 @@ func TestRegenerateNotaryWallets(t *testing.T) {
 	require.NoError(t, w.savePretty())
 	w.Close()
 }
+
+func TestRegenerateOracleWallets(t *testing.T) {
+	if !regenerate {
+		return
+	}
+	const (
+		walletDir = "../services/oracle/testdata/"
+		acc1WIF   = "L38E2tRktb2kWc5j3Kx6Cg3ifVoi4DHhpVZrQormEFTT92C4iSUa"
+		acc2WIF   = "KyA8z2MyLCSjJFG3F4SUp85CZ4WJm4qgWihFJZFEDYGEyw8oGcEP"
+	)
+
+	acc1 := getAccount(t, acc1WIF, "one")
+	w, err := NewWallet(path.Join(walletDir, "oracle1.json"))
+	require.NoError(t, err)
+	w.AddAccount(acc1)
+	require.NoError(t, w.savePretty())
+	w.Close()
+
+	acc2 := getAccount(t, acc2WIF, "two")
+	w, err = NewWallet(path.Join(walletDir, "oracle2.json"))
+	require.NoError(t, err)
+	w.AddAccount(acc2)
+	require.NoError(t, w.savePretty())
+	w.Close()
+}
