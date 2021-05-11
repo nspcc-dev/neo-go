@@ -154,6 +154,20 @@ func TestRegenerateExamplesWallet(t *testing.T) {
 	createWallet(t, walletPath, acc1)
 }
 
+func TestRegenerateCLITestwallet(t *testing.T) {
+	if !regenerate {
+		return
+	}
+	const (
+		walletPath = "../../cli/testdata/testwallet.json"
+		accWIF     = "L23LrQNWELytYLvb5c6dXBDdF2DNPL9RRNWPqppv3roxacSnn8CN"
+	)
+
+	acc := getAccount(t, accWIF, "testpass")
+	acc.Label = "kek"
+	createWallet(t, walletPath, acc)
+}
+
 func createWallet(t *testing.T, path string, accs ...*Account) {
 	w, err := NewWallet(path)
 	require.NoError(t, err)
