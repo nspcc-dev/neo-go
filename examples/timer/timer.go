@@ -16,7 +16,7 @@ var (
 	// ctx holds storage context for contract methods
 	ctx storage.Context
 	// Check if the invoker of the contract is the specified owner
-	owner = util.FromAddress("NX1yL5wDx3inK2qUVLRVaqCLUxYnAbv85S")
+	owner = util.FromAddress("NbrUYaZgyhSkNoRo9ugRyEMdUZxrhkNaWB")
 	// ticksKey is a storage key for ticks counter
 	ticksKey = []byte("ticks")
 )

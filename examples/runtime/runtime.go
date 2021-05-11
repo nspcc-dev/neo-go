@@ -7,7 +7,7 @@ import (
 
 var (
 	// Check if the invoker of the contract is the specified owner
-	owner   = util.FromAddress("NX1yL5wDx3inK2qUVLRVaqCLUxYnAbv85S")
+	owner   = util.FromAddress("NbrUYaZgyhSkNoRo9ugRyEMdUZxrhkNaWB")
 	trigger byte
 )
 

@@ -22,7 +22,7 @@ import (
 
 const (
 	// nftOwnerAddr is the owner of NFT-ND HASHY token (../examples/nft-nd/nft.go)
-	nftOwnerAddr   = "NX1yL5wDx3inK2qUVLRVaqCLUxYnAbv85S"
+	nftOwnerAddr   = "NbrUYaZgyhSkNoRo9ugRyEMdUZxrhkNaWB"
 	nftOwnerWallet = "../examples/my_wallet.json"
 	nftOwnerPass   = "qwerty"
 )

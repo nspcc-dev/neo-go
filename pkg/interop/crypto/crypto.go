@@ -16,7 +16,7 @@ func CheckMultisig(pubs []interop.PublicKey, sigs []interop.Signature) bool {
 
 // CheckSig checks that sig is correct signature of the script container
 // (transaction) for a given pub (serialized public key). It uses
-// `Neo.Crypto.CheckSig` syscall.
+// `System.Crypto.CheckSig` syscall.
 func CheckSig(pub interop.PublicKey, sig interop.Signature) bool {
-	return neogointernal.Syscall2("Neo.Crypto.CheckSig", pub, sig).(bool)
+	return neogointernal.Syscall2("System.Crypto.CheckSig", pub, sig).(bool)
 }

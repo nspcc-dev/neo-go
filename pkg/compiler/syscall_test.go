@@ -89,7 +89,7 @@ func TestSyscallExecution(t *testing.T) {
 		"storage.Put":                      {interopnames.SystemStoragePut, []string{sctx, b, b}, true},
 		"storage.ConvertContextToReadOnly": {interopnames.SystemStorageAsReadOnly, []string{sctx}, false},
 		"crypto.CheckMultisig":             {interopnames.NeoCryptoCheckMultisig, []string{pubs, sigs}, false},
-		"crypto.CheckSig":                  {interopnames.NeoCryptoCheckSig, []string{pub, sig}, false},
+		"crypto.CheckSig":                  {interopnames.SystemCryptoCheckSig, []string{pub, sig}, false},
 	}
 	ic := &interop.Context{}
 	core.SpawnVM(ic) // set Functions field

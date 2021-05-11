@@ -13,7 +13,7 @@ import (
 )
 
 var (
-	verifyInteropID   = interopnames.ToID([]byte(interopnames.NeoCryptoCheckSig))
+	verifyInteropID   = interopnames.ToID([]byte(interopnames.SystemCryptoCheckSig))
 	multisigInteropID = interopnames.ToID([]byte(interopnames.NeoCryptoCheckMultisig))
 )
 

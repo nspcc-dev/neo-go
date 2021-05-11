@@ -52,7 +52,7 @@ func TestNEP17Balance(t *testing.T) {
 	})
 	t.Run("all accounts", func(t *testing.T) {
 		e.Run(t, cmdbase...)
-		addr1, err := address.StringToUint160("NTh9TnZTstvAePEYWDGLLxidBikJE24uTo")
+		addr1, err := address.StringToUint160("Nhfg3TbpwogLvDGVvAvqyThbsHgoSUKwtn")
 		require.NoError(t, err)
 		e.checkNextLine(t, "^Account "+address.Uint160ToString(addr1))
 		e.checkNextLine(t, "^\\s*GAS:\\s+GasToken \\("+e.Chain.UtilityTokenHash().StringLE()+"\\)")
@@ -134,7 +134,7 @@ func TestNEP17Transfer(t *testing.T) {
 	require.Equal(t, big.NewInt(1), b)
 
 	hVerify := deployVerifyContract(t, e)
-	const validatorDefault = "NTh9TnZTstvAePEYWDGLLxidBikJE24uTo"
+	const validatorDefault = "Nhfg3TbpwogLvDGVvAvqyThbsHgoSUKwtn"
 
 	t.Run("default address", func(t *testing.T) {
 		e.In.WriteString("one\r")

@@ -35,7 +35,7 @@ var (
 	// contractOwner is a special address that can perform some management
 	// functions on this contract like updating/destroying it and can also
 	// be used for contract address verification.
-	contractOwner = util.FromAddress("NX1yL5wDx3inK2qUVLRVaqCLUxYnAbv85S")
+	contractOwner = util.FromAddress("NbrUYaZgyhSkNoRo9ugRyEMdUZxrhkNaWB")
 )
 
 // Symbol returns token symbol, it's HASHY.

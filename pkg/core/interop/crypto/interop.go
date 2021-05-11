@@ -7,7 +7,7 @@ import (
 
 var (
 	neoCryptoCheckMultisigID = interopnames.ToID([]byte(interopnames.NeoCryptoCheckMultisig))
-	neoCryptoCheckSigID      = interopnames.ToID([]byte(interopnames.NeoCryptoCheckSig))
+	neoCryptoCheckSigID      = interopnames.ToID([]byte(interopnames.SystemCryptoCheckSig))
 )
 
 var cryptoInterops = []interop.Function{

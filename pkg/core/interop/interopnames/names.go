@@ -13,6 +13,7 @@ const (
 	SystemContractGetCallFlags          = "System.Contract.GetCallFlags"
 	SystemContractNativeOnPersist       = "System.Contract.NativeOnPersist"
 	SystemContractNativePostPersist     = "System.Contract.NativePostPersist"
+	SystemCryptoCheckSig                = "System.Crypto.CheckSig"
 	SystemIteratorNext                  = "System.Iterator.Next"
 	SystemIteratorValue                 = "System.Iterator.Value"
 	SystemRuntimeBurnGas                = "System.Runtime.BurnGas"
@@ -37,7 +38,6 @@ const (
 	SystemStoragePut                    = "System.Storage.Put"
 	SystemStorageAsReadOnly             = "System.Storage.AsReadOnly"
 	NeoCryptoCheckMultisig              = "Neo.Crypto.CheckMultisig"
-	NeoCryptoCheckSig                   = "Neo.Crypto.CheckSig"
 )
 
 var names = []string{
@@ -76,5 +76,5 @@ var names = []string{
 	SystemStoragePut,
 	SystemStorageAsReadOnly,
 	NeoCryptoCheckMultisig,
-	NeoCryptoCheckSig,
+	SystemCryptoCheckSig,
 }
