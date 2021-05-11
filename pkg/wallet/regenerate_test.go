@@ -123,3 +123,35 @@ func TestRegenerateWalletTestdata(t *testing.T) {
 	require.NoError(t, w.savePretty())
 	w.Close()
 }
+
+func TestRegenerateNotaryWallets(t *testing.T) {
+	if !regenerate {
+		return
+	}
+	const (
+		walletDir = "../services/notary/testdata/"
+		acc1WIF   = "L1MstxuD8SvS9HuFcV5oYzcdA1xX8D9bD9qPwg8fU5SSywYBecg3"
+		acc2WIF   = "L2iGxPvxbyWpYEbCZk2L3PgT7sCQaSDAbBC4MRLAjhs1s2JZ1xs5"
+		acc3WIF   = "L1xD2yiUyARX8DAkWa8qGpWpwjqW2u717VzUJyByk6s7HinhRVZv"
+		acc4WIF   = "L1ioz93TNt6Nu1aoMpZQ4zgdtgC8ZvJMC6pyHFkrovdR3SFwbn6n"
+	)
+
+	acc1 := getAccount(t, acc1WIF, "one")
+	acc2 := getAccount(t, acc2WIF, "one")
+	acc3 := getAccount(t, acc3WIF, "four")
+
+	w, err := NewWallet(path.Join(walletDir, "notary1.json"))
+	require.NoError(t, err)
+	w.AddAccount(acc1)
+	w.AddAccount(acc2)
+	w.AddAccount(acc3)
+	require.NoError(t, w.savePretty())
+	w.Close()
+
+	acc4 := getAccount(t, acc4WIF, "two")
+	w, err = NewWallet(path.Join(walletDir, "notary2.json"))
+	require.NoError(t, err)
+	w.AddAccount(acc4)
+	require.NoError(t, w.savePretty())
+	w.Close()
+}
