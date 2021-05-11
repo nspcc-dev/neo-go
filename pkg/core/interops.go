@@ -24,7 +24,7 @@ import (
 // up for current blockchain.
 func SpawnVM(ic *interop.Context) *vm.VM {
 	vm := ic.SpawnVM()
-	ic.Functions = [][]interop.Function{systemInterops, neoInterops}
+	ic.Functions = systemInterops
 	return vm
 }
 
@@ -38,6 +38,8 @@ var systemInterops = []interop.Function{
 	{Name: interopnames.SystemContractGetCallFlags, Func: contractGetCallFlags, Price: 1 << 10},
 	{Name: interopnames.SystemContractNativeOnPersist, Func: native.OnPersist, Price: 0, RequiredFlags: callflag.States},
 	{Name: interopnames.SystemContractNativePostPersist, Func: native.PostPersist, Price: 0, RequiredFlags: callflag.States},
+	{Name: interopnames.SystemCryptoCheckMultisig, Func: crypto.ECDSASecp256r1CheckMultisig, Price: 0, ParamCount: 2},
+	{Name: interopnames.SystemCryptoCheckSig, Func: crypto.ECDSASecp256r1CheckSig, Price: fee.ECDSAVerifyPrice, ParamCount: 2},
 	{Name: interopnames.SystemIteratorNext, Func: iterator.Next, Price: 1 << 15, ParamCount: 1},
 	{Name: interopnames.SystemIteratorValue, Func: iterator.Value, Price: 1 << 4, ParamCount: 1},
 	{Name: interopnames.SystemRuntimeBurnGas, Func: runtime.BurnGas, Price: 1 << 4, ParamCount: 1},
@@ -73,22 +75,10 @@ var systemInterops = []interop.Function{
 		RequiredFlags: callflag.ReadStates, ParamCount: 1},
 }
 
-var neoInterops = []interop.Function{
-	{Name: interopnames.SystemCryptoCheckMultisig, Func: crypto.ECDSASecp256r1CheckMultisig, Price: 0, ParamCount: 2},
-	{Name: interopnames.SystemCryptoCheckSig, Func: crypto.ECDSASecp256r1CheckSig, Price: fee.ECDSAVerifyPrice, ParamCount: 2},
-}
-
-// initIDinInteropsSlice initializes IDs from names in one given
-// Function slice and then sorts it.
-func initIDinInteropsSlice(iops []interop.Function) {
-	for i := range iops {
-		iops[i].ID = interopnames.ToID([]byte(iops[i].Name))
-	}
-	interop.Sort(iops)
-}
-
 // init initializes IDs in the global interop slices.
 func init() {
-	initIDinInteropsSlice(systemInterops)
-	initIDinInteropsSlice(neoInterops)
+	for i := range systemInterops {
+		systemInterops[i].ID = interopnames.ToID([]byte(systemInterops[i].Name))
+	}
+	interop.Sort(systemInterops)
 }

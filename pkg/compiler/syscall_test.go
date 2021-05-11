@@ -94,10 +94,8 @@ func TestSyscallExecution(t *testing.T) {
 	ic := &interop.Context{}
 	core.SpawnVM(ic) // set Functions field
 	for _, fs := range ic.Functions {
-		for i := range fs {
-			// It will be set in test and we want to fail if calling invalid syscall.
-			fs[i].Func = nil
-		}
+		// It will be set in test and we want to fail if calling invalid syscall.
+		fs.Func = nil
 	}
 	for goName, tc := range interops {
 		t.Run(goName, func(t *testing.T) {
