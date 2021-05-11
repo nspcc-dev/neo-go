@@ -30,7 +30,7 @@ func CreateMultiSigRedeemScript(m int, publicKeys keys.PublicKeys) ([]byte, erro
 		emit.Bytes(buf.BinWriter, pubKey.Bytes())
 	}
 	emit.Int(buf.BinWriter, int64(len(publicKeys)))
-	emit.Syscall(buf.BinWriter, interopnames.NeoCryptoCheckMultisig)
+	emit.Syscall(buf.BinWriter, interopnames.SystemCryptoCheckMultisig)
 
 	return buf.Bytes(), nil
 }

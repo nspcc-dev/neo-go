@@ -113,13 +113,13 @@ func TestAccount_ConvertMultisig(t *testing.T) {
 	t.Run("1/1 multisig", func(t *testing.T) {
 		pubs := convertPubs(t, hexs[:1])
 		require.NoError(t, a.ConvertMultisig(1, pubs))
-		require.Equal(t, "NNudMSGzEoktFzdYGYoNb3bzHzbmM1genF", a.Address)
+		require.Equal(t, "NfgHwwTi3wHAS8aFAN243C5vGbkYDpqLHP", a.Address)
 	})
 
 	t.Run("3/4 multisig", func(t *testing.T) {
 		pubs := convertPubs(t, hexs)
 		require.NoError(t, a.ConvertMultisig(3, pubs))
-		require.Equal(t, "NgEisvCqr2h8wpRxQb7bVPWUZdbVCY8Uo6", a.Address)
+		require.Equal(t, "NVTiAjNgagDkTr5HTzDmQP9kPwPHN5BgVq", a.Address)
 	})
 }
 

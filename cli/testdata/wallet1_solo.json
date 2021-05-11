@@ -2,14 +2,52 @@
   "extra" : {
     "Tokens" : null
   },
-  "scrypt" : {
-    "p" : 8,
-    "r" : 8,
-    "n" : 16384
-  },
-  "version" : "3.0",
   "accounts" : [
     {
+      "label" : "",
+      "key" : "6PYM8VdX2BSm7BSXKzV4Fz6S3R9cDLLWNrD9nMjxW352jEv3fsC8N3wNLY",
+      "lock" : false,
+      "isdefault" : true,
+      "contract" : {
+        "script" : "DCECs2Ir9AF73+MXxYrtX0x1PyBrfbiWBG+n13S7xL9/jcJBVuezJw==",
+        "deployed" : false,
+        "parameters" : [
+          {
+            "name" : "parameter0",
+            "type" : "Signature"
+          }
+        ]
+      },
+      "address" : "Nhfg3TbpwogLvDGVvAvqyThbsHgoSUKwtn"
+    },
+    {
+      "lock" : false,
+      "isdefault" : false,
+      "contract" : {
+        "script" : "EwwhAhA6f33QFlWFl/eWDSfFFqQ5T9loueZRVetLAT5AQEBuDCECp7xV/oaE4BGXaNEEujB5W9zIZhnoZK3SYVZyPtGFzWIMIQKzYiv0AXvf4xfFiu1fTHU/IGt9uJYEb6fXdLvEv3+NwgwhA9kMB99j5pDOd5EuEKtRrMlEtmhgI3tgjE+PgwnnHuaZFEGe0Nw6",
+        "parameters" : [
+          {
+            "name" : "parameter0",
+            "type" : "Signature"
+          },
+          {
+            "name" : "parameter1",
+            "type" : "Signature"
+          },
+          {
+            "type" : "Signature",
+            "name" : "parameter2"
+          }
+        ],
+        "deployed" : false
+      },
+      "address" : "NVTiAjNgagDkTr5HTzDmQP9kPwPHN5BgVq",
+      "label" : "",
+      "key" : "6PYM8VdX2BSm7BSXKzV4Fz6S3R9cDLLWNrD9nMjxW352jEv3fsC8N3wNLY"
+    },
+    {
+      "lock" : false,
+      "isdefault" : false,
       "contract" : {
         "parameters" : [
           {
@@ -18,67 +56,29 @@
           }
         ],
         "deployed" : false,
-        "script" : "DCECs2Ir9AF73+MXxYrtX0x1PyBrfbiWBG+n13S7xL9/jcJBVuezJw=="
+        "script" : "EQwhArNiK/QBe9/jF8WK7V9MdT8ga324lgRvp9d0u8S/f43CEUGe0Nw6"
       },
-      "lock" : false,
-      "key" : "6PYM8VdX2BSm7BSXKzV4Fz6S3R9cDLLWNrD9nMjxW352jEv3fsC8N3wNLY",
-      "label" : "",
-      "isdefault" : true,
-      "address" : "Nhfg3TbpwogLvDGVvAvqyThbsHgoSUKwtn"
-    },
-    {
-      "isdefault" : false,
-      "address" : "NgEisvCqr2h8wpRxQb7bVPWUZdbVCY8Uo6",
-      "lock" : false,
-      "contract" : {
-        "deployed" : false,
-        "script" : "EwwhAhA6f33QFlWFl/eWDSfFFqQ5T9loueZRVetLAT5AQEBuDCECp7xV/oaE4BGXaNEEujB5W9zIZhnoZK3SYVZyPtGFzWIMIQKzYiv0AXvf4xfFiu1fTHU/IGt9uJYEb6fXdLvEv3+NwgwhA9kMB99j5pDOd5EuEKtRrMlEtmhgI3tgjE+PgwnnHuaZFEF7zmyl",
-        "parameters" : [
-          {
-            "name" : "parameter0",
-            "type" : "Signature"
-          },
-          {
-            "type" : "Signature",
-            "name" : "parameter1"
-          },
-          {
-            "type" : "Signature",
-            "name" : "parameter2"
-          }
-        ]
-      },
+      "address" : "NfgHwwTi3wHAS8aFAN243C5vGbkYDpqLHP",
       "label" : "",
       "key" : "6PYM8VdX2BSm7BSXKzV4Fz6S3R9cDLLWNrD9nMjxW352jEv3fsC8N3wNLY"
     },
     {
-      "key" : "6PYM8VdX2BSm7BSXKzV4Fz6S3R9cDLLWNrD9nMjxW352jEv3fsC8N3wNLY",
-      "label" : "",
+      "address" : "NQKpygA5oG8KRivZeYjXVU2T1ZPmUmaqQF",
       "contract" : {
-        "script" : "EQwhArNiK/QBe9/jF8WK7V9MdT8ga324lgRvp9d0u8S/f43CEUF7zmyl",
-        "deployed" : false,
-        "parameters" : [
-          {
-            "name" : "parameter0",
-            "type" : "Signature"
-          }
-        ]
-      },
-      "lock" : false,
-      "address" : "NNudMSGzEoktFzdYGYoNb3bzHzbmM1genF",
-      "isdefault" : false
-    },
-    {
-      "label" : "acc",
-      "key" : "6PYUFXrqXyKKPYeG8y3GcjSi9VcJec8E6nHmREbVjCUnrtbJbB3pEfTiLx",
-      "lock" : false,
-      "contract" : {
+        "script" : "VwEAEdsgQFcAA0BXAQR4eXp7VBTAcAwOT25ORVAxMVBheW1lbnRoUEGVAW9hIUA=",
         "parameters" : [],
-        "deployed" : true,
-        "script" : "VwEAEdsgQFcAA0BXAQR4eXp7VBTAcAwOT25ORVAxMVBheW1lbnRoUEGVAW9hIUA="
+        "deployed" : true
       },
-      "address" : "NaZjSxmRZ4ErG2QEXCQMjjJfvAxMPiutmi",
-      "isdefault" : false
+      "lock" : false,
+      "isdefault" : false,
+      "key" : "6PYSATFzuRXXUeq7tMDyA1AGxWdVcm7ftbkqtGBt69WJBapT1tkwjp1zpx",
+      "label" : "acc"
     }
-  ]
+  ],
+  "version" : "3.0",
+  "scrypt" : {
+    "r" : 8,
+    "n" : 16384,
+    "p" : 8
+  }
 }

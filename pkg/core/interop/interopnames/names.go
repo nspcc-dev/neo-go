@@ -14,6 +14,7 @@ const (
 	SystemContractNativeOnPersist       = "System.Contract.NativeOnPersist"
 	SystemContractNativePostPersist     = "System.Contract.NativePostPersist"
 	SystemCryptoCheckSig                = "System.Crypto.CheckSig"
+	SystemCryptoCheckMultisig           = "System.Crypto.CheckMultisig"
 	SystemIteratorNext                  = "System.Iterator.Next"
 	SystemIteratorValue                 = "System.Iterator.Value"
 	SystemRuntimeBurnGas                = "System.Runtime.BurnGas"
@@ -37,7 +38,6 @@ const (
 	SystemStorageGetReadOnlyContext     = "System.Storage.GetReadOnlyContext"
 	SystemStoragePut                    = "System.Storage.Put"
 	SystemStorageAsReadOnly             = "System.Storage.AsReadOnly"
-	NeoCryptoCheckMultisig              = "Neo.Crypto.CheckMultisig"
 )
 
 var names = []string{
@@ -75,6 +75,6 @@ var names = []string{
 	SystemStorageGetReadOnlyContext,
 	SystemStoragePut,
 	SystemStorageAsReadOnly,
-	NeoCryptoCheckMultisig,
+	SystemCryptoCheckMultisig,
 	SystemCryptoCheckSig,
 }

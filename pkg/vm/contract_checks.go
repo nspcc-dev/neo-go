@@ -14,7 +14,7 @@ import (
 
 var (
 	verifyInteropID   = interopnames.ToID([]byte(interopnames.SystemCryptoCheckSig))
-	multisigInteropID = interopnames.ToID([]byte(interopnames.NeoCryptoCheckMultisig))
+	multisigInteropID = interopnames.ToID([]byte(interopnames.SystemCryptoCheckMultisig))
 )
 
 func getNumOfThingsFromInstr(instr opcode.Opcode, param []byte) (int, bool) {
