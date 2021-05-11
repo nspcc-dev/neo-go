@@ -99,7 +99,7 @@ func main() {
 			emit.AppCall(w.BinWriter, contractHash, "put", callflag.All, key, value)
 			handleError("can't create transaction", w.Err)
 
-			tx := transaction.New(w.Bytes(), 4_000_000)
+			tx := transaction.New(w.Bytes(), 4_040_000)
 			tx.ValidUntilBlock = i + 1
 			tx.NetworkFee = 4_000_000
 			tx.Nonce = nonce
