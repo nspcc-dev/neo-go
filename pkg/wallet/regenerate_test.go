@@ -140,6 +140,20 @@ func TestRegenerateOracleWallets(t *testing.T) {
 	createWallet(t, path.Join(walletDir, "oracle2.json"), acc2)
 }
 
+func TestRegenerateExamplesWallet(t *testing.T) {
+	if !regenerate {
+		return
+	}
+	const (
+		walletPath = "../../examples/my_wallet.json"
+		acc1WIF    = "L46dn46AMZY7NQGZHemAdgcMabKon85eme45hgQkAUQBiRacY8MB"
+	)
+
+	acc1 := getAccount(t, acc1WIF, "qwerty")
+	acc1.Label = "my_account"
+	createWallet(t, walletPath, acc1)
+}
+
 func createWallet(t *testing.T, path string, accs ...*Account) {
 	w, err := NewWallet(path)
 	require.NoError(t, err)
