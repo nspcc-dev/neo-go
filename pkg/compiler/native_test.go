@@ -225,7 +225,15 @@ func TestNativeHelpersCompile(t *testing.T) {
 		{"base58Encode", []string{"[]byte{1, 2, 3}"}},
 		{"base58Decode", []string{"[]byte{1, 2, 3}"}},
 		{"itoa", []string{"4", "10"}},
+		{"itoa10", []string{"4"}},
 		{"atoi", []string{`"4"`, "10"}},
+		{"atoi10", []string{`"4"`}},
+		{"memoryCompare", []string{"[]byte{1}", "[]byte{2}"}},
+		{"memorySearch", []string{"[]byte{1}", "[]byte{2}"}},
+		{"memorySearchIndex", []string{"[]byte{1}", "[]byte{2}", "3"}},
+		{"memorySearchLastIndex", []string{"[]byte{1}", "[]byte{2}", "3"}},
+		{"stringSplit", []string{`"a,b"`, `","`}},
+		{"stringSplitNonEmpty", []string{`"a,b"`, `","`}},
 	})
 }
 
@@ -239,10 +247,33 @@ func runNativeTestCases(t *testing.T, ctr interop.ContractMD, name string, testC
 	})
 }
 
-func runNativeTestCase(t *testing.T, ctr interop.ContractMD, name, method string, params ...string) {
-	md, ok := ctr.GetMethod(strings.TrimSuffix(method, "WithData"), len(params))
-	require.True(t, ok)
+func getMethod(t *testing.T, ctr interop.ContractMD, name string, params []string) interop.MethodAndPrice {
+	paramLen := len(params)
 
+	switch {
+	case name == "itoa10" || name == "atoi10":
+		name = name[:4]
+	case strings.HasPrefix(name, "memorySearch"):
+		if strings.HasSuffix(name, "LastIndex") {
+			paramLen += 1 // true should be appended inside of an interop
+		}
+		name = "memorySearch"
+	case strings.HasPrefix(name, "stringSplit"):
+		if strings.HasSuffix(name, "NonEmpty") {
+			paramLen += 1 // true should be appended inside of an interop
+		}
+		name = "stringSplit"
+	default:
+		name = strings.TrimSuffix(name, "WithData")
+	}
+
+	md, ok := ctr.GetMethod(name, paramLen)
+	require.True(t, ok)
+	return md
+}
+
+func runNativeTestCase(t *testing.T, ctr interop.ContractMD, name, method string, params ...string) {
+	md := getMethod(t, ctr, method, params)
 	isVoid := md.MD.ReturnType == smartcontract.VoidType
 	srcTmpl := `package foo
 		import "github.com/nspcc-dev/neo-go/pkg/interop/native/%s"

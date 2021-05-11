@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"math"
 	"math/big"
+	"strings"
 	"testing"
 
 	"github.com/mr-tron/base58"
@@ -49,6 +50,18 @@ func TestStdLibItoaAtoi(t *testing.T) {
 				actual = s.atoi(ic, []stackitem.Item{stackitem.Make(tc.result), stackitem.Make(tc.base)})
 			})
 			require.Equal(t, stackitem.Make(tc.num), actual)
+
+			if tc.base.Int64() == 10 {
+				require.NotPanics(t, func() {
+					actual = s.itoa10(ic, []stackitem.Item{stackitem.Make(tc.num)})
+				})
+				require.Equal(t, stackitem.Make(tc.result), actual)
+
+				require.NotPanics(t, func() {
+					actual = s.atoi10(ic, []stackitem.Item{stackitem.Make(tc.result)})
+				})
+				require.Equal(t, stackitem.Make(tc.num), actual)
+			}
 		}
 
 		t.Run("-1", func(t *testing.T) {
@@ -90,6 +103,7 @@ func TestStdLibItoaAtoi(t *testing.T) {
 			{"1_000", big.NewInt(10), ErrInvalidFormat},
 			{"FE", big.NewInt(10), ErrInvalidFormat},
 			{"XD", big.NewInt(16), ErrInvalidFormat},
+			{strings.Repeat("0", stdMaxInputLength+1), big.NewInt(10), ErrTooBigInput},
 		}
 
 		for _, tc := range testCases {
@@ -152,17 +166,27 @@ func TestStdLibEncodeDecode(t *testing.T) {
 	ic := &interop.Context{VM: vm.New()}
 	var actual stackitem.Item
 
+	bigInputArgs := []stackitem.Item{stackitem.Make(strings.Repeat("6", stdMaxInputLength+1))}
+
 	t.Run("Encode64", func(t *testing.T) {
 		require.NotPanics(t, func() {
 			actual = s.base64Encode(ic, []stackitem.Item{stackitem.Make(original)})
 		})
 		require.Equal(t, stackitem.Make(encoded64), actual)
 	})
+	t.Run("Encode64/error", func(t *testing.T) {
+		require.PanicsWithError(t, ErrTooBigInput.Error(),
+			func() { s.base64Encode(ic, bigInputArgs) })
+	})
 	t.Run("Encode58", func(t *testing.T) {
 		require.NotPanics(t, func() {
 			actual = s.base58Encode(ic, []stackitem.Item{stackitem.Make(original)})
 		})
 		require.Equal(t, stackitem.Make(encoded58), actual)
+	})
+	t.Run("Encode58/error", func(t *testing.T) {
+		require.PanicsWithError(t, ErrTooBigInput.Error(),
+			func() { s.base58Encode(ic, bigInputArgs) })
 	})
 	t.Run("Decode64/positive", func(t *testing.T) {
 		require.NotPanics(t, func() {
@@ -177,6 +201,8 @@ func TestStdLibEncodeDecode(t *testing.T) {
 		require.Panics(t, func() {
 			_ = s.base64Decode(ic, []stackitem.Item{stackitem.NewInterop(nil)})
 		})
+		require.PanicsWithError(t, ErrTooBigInput.Error(),
+			func() { s.base64Decode(ic, bigInputArgs) })
 	})
 	t.Run("Decode58/positive", func(t *testing.T) {
 		require.NotPanics(t, func() {
@@ -191,6 +217,8 @@ func TestStdLibEncodeDecode(t *testing.T) {
 		require.Panics(t, func() {
 			_ = s.base58Decode(ic, []stackitem.Item{stackitem.NewInterop(nil)})
 		})
+		require.PanicsWithError(t, ErrTooBigInput.Error(),
+			func() { s.base58Decode(ic, bigInputArgs) })
 	})
 }
 
@@ -324,5 +352,176 @@ func TestStdLibSerializeDeserialize(t *testing.T) {
 		require.Panics(t, func() {
 			actual = s.deserialize(ic, []stackitem.Item{stackitem.NewInterop(nil)})
 		})
+	})
+}
+
+func TestMemoryCompare(t *testing.T) {
+	s := newStd()
+	ic := &interop.Context{VM: vm.New()}
+
+	check := func(t *testing.T, result int64, s1, s2 string) {
+		actual := s.memoryCompare(ic, []stackitem.Item{stackitem.Make(s1), stackitem.Make(s2)})
+		require.Equal(t, big.NewInt(result), actual.Value())
+	}
+
+	check(t, -1, "a", "ab")
+	check(t, 1, "ab", "a")
+	check(t, 0, "ab", "ab")
+	check(t, -1, "", "a")
+	check(t, 0, "", "")
+
+	t.Run("C# compatibility", func(t *testing.T) {
+		// These tests are taken from C# node.
+		check(t, -1, "abc", "c")
+		check(t, -1, "abc", "d")
+		check(t, 0, "abc", "abc")
+		check(t, -1, "abc", "abcd")
+	})
+
+	t.Run("big arguments", func(t *testing.T) {
+		s1 := stackitem.Make(strings.Repeat("x", stdMaxInputLength+1))
+		s2 := stackitem.Make("xxx")
+
+		require.PanicsWithError(t, ErrTooBigInput.Error(),
+			func() { s.memoryCompare(ic, []stackitem.Item{s1, s2}) })
+
+		require.PanicsWithError(t, ErrTooBigInput.Error(),
+			func() { s.memoryCompare(ic, []stackitem.Item{s2, s1}) })
+	})
+}
+
+func TestMemorySearch(t *testing.T) {
+	s := newStd()
+	ic := &interop.Context{VM: vm.New()}
+
+	check := func(t *testing.T, result int64, args ...interface{}) {
+		items := make([]stackitem.Item, len(args))
+		for i := range args {
+			items[i] = stackitem.Make(args[i])
+		}
+
+		var actual stackitem.Item
+		switch len(items) {
+		case 2:
+			actual = s.memorySearch2(ic, items)
+		case 3:
+			actual = s.memorySearch3(ic, items)
+		case 4:
+			actual = s.memorySearch4(ic, items)
+		default:
+			panic("invalid args length")
+		}
+		require.Equal(t, big.NewInt(result), actual.Value())
+	}
+
+	t.Run("C# compatibility", func(t *testing.T) {
+		// These tests are taken from C# node.
+		check(t, 2, "abc", "c", 0)
+		check(t, 2, "abc", "c", 1)
+		check(t, 2, "abc", "c", 2)
+		check(t, -1, "abc", "c", 3)
+		check(t, -1, "abc", "d", 0)
+
+		check(t, 2, "abc", "c", 0, false)
+		check(t, 2, "abc", "c", 1, false)
+		check(t, 2, "abc", "c", 2, false)
+		check(t, -1, "abc", "c", 3, false)
+		check(t, -1, "abc", "d", 0, false)
+
+		check(t, -1, "abc", "c", 0, true)
+		check(t, -1, "abc", "c", 1, true)
+		check(t, -1, "abc", "c", 2, true)
+		check(t, 2, "abc", "c", 3, true)
+		check(t, -1, "abc", "d", 0, true)
+	})
+
+	t.Run("boundary indices", func(t *testing.T) {
+		arg := stackitem.Make("aaa")
+		require.Panics(t, func() {
+			s.memorySearch3(ic, []stackitem.Item{arg, arg, stackitem.Make(-1)})
+		})
+		require.Panics(t, func() {
+			s.memorySearch3(ic, []stackitem.Item{arg, arg, stackitem.Make(4)})
+		})
+		t.Run("still in capacity", func(t *testing.T) {
+			require.Panics(t, func() {
+				arr := stackitem.NewByteArray(make([]byte, 5, 10))
+				s.memorySearch3(ic, []stackitem.Item{arr, arg, stackitem.Make(7)})
+			})
+			require.Panics(t, func() {
+				arr := stackitem.NewByteArray(make([]byte, 5, 10))
+				s.memorySearch4(ic, []stackitem.Item{arr, arg,
+					stackitem.Make(7), stackitem.Make(true)})
+			})
+		})
+	})
+
+	t.Run("big arguments", func(t *testing.T) {
+		s1 := stackitem.Make(strings.Repeat("x", stdMaxInputLength+1))
+		s2 := stackitem.Make("xxx")
+		start := stackitem.Make(1)
+		b := stackitem.Make(true)
+
+		require.PanicsWithError(t, ErrTooBigInput.Error(),
+			func() { s.memorySearch2(ic, []stackitem.Item{s1, s2}) })
+
+		require.PanicsWithError(t, ErrTooBigInput.Error(),
+			func() { s.memorySearch2(ic, []stackitem.Item{s2, s1}) })
+
+		require.PanicsWithError(t, ErrTooBigInput.Error(),
+			func() { s.memorySearch3(ic, []stackitem.Item{s1, s2, start}) })
+
+		require.PanicsWithError(t, ErrTooBigInput.Error(),
+			func() { s.memorySearch3(ic, []stackitem.Item{s2, s1, start}) })
+
+		require.PanicsWithError(t, ErrTooBigInput.Error(),
+			func() { s.memorySearch4(ic, []stackitem.Item{s1, s2, start, b}) })
+
+		require.PanicsWithError(t, ErrTooBigInput.Error(),
+			func() { s.memorySearch4(ic, []stackitem.Item{s2, s1, start, b}) })
+	})
+}
+
+func TestStringSplit(t *testing.T) {
+	s := newStd()
+	ic := &interop.Context{VM: vm.New()}
+
+	check := func(t *testing.T, result []string, str, sep string, remove interface{}) {
+		args := []stackitem.Item{stackitem.Make(str), stackitem.Make(sep)}
+		var actual stackitem.Item
+		if remove == nil {
+			actual = s.stringSplit2(ic, args)
+		} else {
+			args = append(args, stackitem.NewBool(remove.(bool)))
+			actual = s.stringSplit3(ic, args)
+		}
+
+		arr, ok := actual.Value().([]stackitem.Item)
+		require.True(t, ok)
+		require.Equal(t, len(result), len(arr))
+		for i := range result {
+			require.Equal(t, stackitem.Make(result[i]), arr[i])
+		}
+	}
+
+	check(t, []string{"a", "b", "c"}, "abc", "", nil)
+	check(t, []string{"a", "b", "c"}, "abc", "", true)
+	check(t, []string{"a", "c", "", "", "d"}, "abcbbbd", "b", nil)
+	check(t, []string{"a", "c", "", "", "d"}, "abcbbbd", "b", false)
+	check(t, []string{"a", "c", "d"}, "abcbbbd", "b", true)
+	check(t, []string{""}, "", "abc", nil)
+	check(t, []string{}, "", "abc", true)
+
+	t.Run("C# compatibility", func(t *testing.T) {
+		// These tests are taken from C# node.
+		check(t, []string{"a", "b"}, "a,b", ",", nil)
+	})
+
+	t.Run("big arguments", func(t *testing.T) {
+		s1 := stackitem.Make(strings.Repeat("x", stdMaxInputLength+1))
+		s2 := stackitem.Make("xxx")
+
+		require.PanicsWithError(t, ErrTooBigInput.Error(),
+			func() { s.stringSplit2(ic, []stackitem.Item{s1, s2}) })
 	})
 }

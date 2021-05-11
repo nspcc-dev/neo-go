@@ -93,9 +93,66 @@ func Itoa(num int, base int) string {
 		num, base).(string)
 }
 
+// Itoa10 converts num in a base 10 to string.
+// It uses `itoa` method of StdLib native contract.
+func Itoa10(num int) string {
+	return contract.Call(interop.Hash160(Hash), "itoa", contract.NoneFlag,
+		num).(string)
+}
+
 // Atoi converts string to a number in a given base. Base should be either 10 or 16.
 // It uses `atoi` method of StdLib native contract.
 func Atoi(s string, base int) int {
 	return contract.Call(interop.Hash160(Hash), "atoi", contract.NoneFlag,
 		s, base).(int)
+}
+
+// Atoi10 converts string to a number in a base 10.
+// It uses `atoi` method of StdLib native contract.
+func Atoi10(s string) int {
+	return contract.Call(interop.Hash160(Hash), "atoi", contract.NoneFlag,
+		s).(int)
+}
+
+// MemoryCompare is similar to bytes.Compare:
+// The result will be 0 if a==b, -1 if a < b, and +1 if a > b.
+// It uses `memoryCompare` method of StdLib native contract.
+func MemoryCompare(s1, s2 []byte) int {
+	return contract.Call(interop.Hash160(Hash), "memoryCompare", contract.NoneFlag,
+		s1, s2).(int)
+}
+
+// MemorySearch returns index of the first occurrence of val in mem.
+// If not found, -1 is returned. It uses `memorySearch` method of StdLib native contract.
+func MemorySearch(mem, pattern []byte) int {
+	return contract.Call(interop.Hash160(Hash), "memorySearch", contract.NoneFlag,
+		mem, pattern).(int)
+}
+
+// MemorySearchIndex returns index of the first occurrence of val in mem starting from start.
+// If not found, -1 is returned. It uses `memorySearch` method of StdLib native contract.
+func MemorySearchIndex(mem, pattern []byte, start int) int {
+	return contract.Call(interop.Hash160(Hash), "memorySearch", contract.NoneFlag,
+		mem, pattern, start).(int)
+}
+
+// MemorySearchLastIndex returns index of the last occurrence of val in mem ending before start.
+// If not found, -1 is returned. It uses `memorySearch` method of StdLib native contract.
+func MemorySearchLastIndex(mem, pattern []byte, start int) int {
+	return contract.Call(interop.Hash160(Hash), "memorySearch", contract.NoneFlag,
+		mem, pattern, start, true).(int)
+}
+
+// StringSplit splits s by occurrences of sep.
+// It uses `stringSplit` method of StdLib native contract.
+func StringSplit(s, sep string) []string {
+	return contract.Call(interop.Hash160(Hash), "stringSplit", contract.NoneFlag,
+		s, sep).([]string)
+}
+
+// StringSplitNonEmpty splits s by occurrences of sep and returns a list of non-empty items.
+// It uses `stringSplit` method of StdLib native contract.
+func StringSplitNonEmpty(s, sep string) []string {
+	return contract.Call(interop.Hash160(Hash), "stringSplit", contract.NoneFlag,
+		s, sep, true).([]string)
 }
