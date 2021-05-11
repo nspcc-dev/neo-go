@@ -1,13 +1,16 @@
 package core
 
 import (
+	"bytes"
 	"crypto/elliptic"
 	"errors"
 	"fmt"
 	"math"
+	"sort"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
+	istorage "github.com/nspcc-dev/neo-go/pkg/core/interop/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
@@ -15,6 +18,11 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
+)
+
+var (
+	errGasLimitExceeded   = errors.New("gas limit exceeded")
+	errFindInvalidOptions = errors.New("invalid Find options")
 )
 
 // StorageContext contains storing id and read/write flag, it's used as
@@ -150,6 +158,55 @@ func storageContextAsReadOnly(ic *interop.Context) error {
 		stc = stx
 	}
 	ic.VM.Estack().PushVal(stackitem.NewInterop(stc))
+	return nil
+}
+
+// storageFind finds stored key-value pair.
+func storageFind(ic *interop.Context) error {
+	stcInterface := ic.VM.Estack().Pop().Value()
+	stc, ok := stcInterface.(*StorageContext)
+	if !ok {
+		return fmt.Errorf("%T is not a StorageContext", stcInterface)
+	}
+	prefix := ic.VM.Estack().Pop().Bytes()
+	opts := ic.VM.Estack().Pop().BigInt().Int64()
+	if opts&^istorage.FindAll != 0 {
+		return fmt.Errorf("%w: unknown flag", errFindInvalidOptions)
+	}
+	if opts&istorage.FindKeysOnly != 0 &&
+		opts&(istorage.FindDeserialize|istorage.FindPick0|istorage.FindPick1) != 0 {
+		return fmt.Errorf("%w KeysOnly conflicts with other options", errFindInvalidOptions)
+	}
+	if opts&istorage.FindValuesOnly != 0 &&
+		opts&(istorage.FindKeysOnly|istorage.FindRemovePrefix) != 0 {
+		return fmt.Errorf("%w: KeysOnly conflicts with ValuesOnly", errFindInvalidOptions)
+	}
+	if opts&istorage.FindPick0 != 0 && opts&istorage.FindPick1 != 0 {
+		return fmt.Errorf("%w: Pick0 conflicts with Pick1", errFindInvalidOptions)
+	}
+	if opts&istorage.FindDeserialize == 0 && (opts&istorage.FindPick0 != 0 || opts&istorage.FindPick1 != 0) {
+		return fmt.Errorf("%w: PickN is specified without Deserialize", errFindInvalidOptions)
+	}
+	siMap, err := ic.DAO.GetStorageItemsWithPrefix(stc.ID, prefix)
+	if err != nil {
+		return err
+	}
+
+	filteredMap := stackitem.NewMap()
+	for k, v := range siMap {
+		key := append(prefix, []byte(k)...)
+		keycopy := make([]byte, len(key))
+		copy(keycopy, key)
+		filteredMap.Add(stackitem.NewByteArray(keycopy), stackitem.NewByteArray(v))
+	}
+	sort.Slice(filteredMap.Value().([]stackitem.MapElement), func(i, j int) bool {
+		return bytes.Compare(filteredMap.Value().([]stackitem.MapElement)[i].Key.Value().([]byte),
+			filteredMap.Value().([]stackitem.MapElement)[j].Key.Value().([]byte)) == -1
+	})
+
+	item := istorage.NewIterator(filteredMap, len(prefix), opts)
+	ic.VM.Estack().PushVal(stackitem.NewInterop(item))
+
 	return nil
 }
 
