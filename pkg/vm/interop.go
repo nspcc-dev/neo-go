@@ -7,7 +7,6 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
-	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
 // interopIDFuncPrice adds an ID to the InteropFuncPrice.
@@ -23,12 +22,6 @@ var defaultVMInterops = []interopIDFuncPrice{
 		Func: runtimeLog, Price: 1 << 15, RequiredFlags: callflag.AllowNotify},
 	{ID: interopnames.ToID([]byte(interopnames.SystemRuntimeNotify)),
 		Func: runtimeNotify, Price: 1 << 15, RequiredFlags: callflag.AllowNotify},
-	{ID: interopnames.ToID([]byte(interopnames.SystemIteratorCreate)),
-		Func: IteratorCreate, Price: 1 << 4},
-	{ID: interopnames.ToID([]byte(interopnames.SystemIteratorNext)),
-		Func: IteratorNext, Price: 1 << 15},
-	{ID: interopnames.ToID([]byte(interopnames.SystemIteratorValue)),
-		Func: IteratorValue, Price: 1 << 4},
 }
 
 func init() {
@@ -68,83 +61,5 @@ func runtimeNotify(vm *VM) error {
 func init() {
 	sort.Slice(defaultVMInterops, func(i, j int) bool {
 		return defaultVMInterops[i].ID < defaultVMInterops[j].ID
-	})
-}
-
-// IsIterator returns whether stackitem implements iterator interface.
-func IsIterator(item stackitem.Item) bool {
-	_, ok := item.Value().(iterator)
-	return ok
-}
-
-// IteratorNext handles syscall System.Enumerator.Next.
-func IteratorNext(v *VM) error {
-	iop := v.Estack().Pop().Interop()
-	arr := iop.Value().(iterator)
-	v.Estack().PushVal(arr.Next())
-
-	return nil
-}
-
-// IteratorValue handles syscall System.Enumerator.Value.
-func IteratorValue(v *VM) error {
-	iop := v.Estack().Pop().Interop()
-	arr := iop.Value().(iterator)
-	v.Estack().Push(&Element{value: arr.Value()})
-
-	return nil
-}
-
-// IteratorValues returns an array of up to `max` iterator values. The second
-// return parameter denotes whether iterator is truncated.
-func IteratorValues(item stackitem.Item, max int) ([]stackitem.Item, bool) {
-	var result []stackitem.Item
-	arr := item.Value().(iterator)
-	for arr.Next() && max > 0 {
-		result = append(result, arr.Value())
-		max--
-	}
-	return result, arr.Next()
-}
-
-// NewIterator creates new iterator from the provided stack item.
-func NewIterator(item stackitem.Item) (stackitem.Item, error) {
-	switch t := item.(type) {
-	case *stackitem.Array, *stackitem.Struct:
-		return stackitem.NewInterop(&arrayWrapper{
-			index: -1,
-			value: t.Value().([]stackitem.Item),
-		}), nil
-	case *stackitem.Map:
-		return NewMapIterator(t), nil
-	default:
-		data, err := t.TryBytes()
-		if err != nil {
-			return nil, fmt.Errorf("non-iterable type %s", t.Type())
-		}
-		return stackitem.NewInterop(&byteArrayWrapper{
-			index: -1,
-			value: data,
-		}), nil
-	}
-}
-
-// IteratorCreate handles syscall System.Iterator.Create.
-func IteratorCreate(v *VM) error {
-	data := v.Estack().Pop().Item()
-	item, err := NewIterator(data)
-	if err != nil {
-		return err
-	}
-
-	v.Estack().Push(&Element{value: item})
-	return nil
-}
-
-// NewMapIterator returns new interop item containing iterator over m.
-func NewMapIterator(m *stackitem.Map) *stackitem.Interop {
-	return stackitem.NewInterop(&mapWrapper{
-		index: -1,
-		m:     m.Value().([]stackitem.MapElement),
 	})
 }

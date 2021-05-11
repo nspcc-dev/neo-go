@@ -338,8 +338,8 @@ func getTestContractState(bc *Blockchain) (*state.Contract, *state.Contract) {
 	emit.Opcodes(w.BinWriter, opcode.DROP)
 	emit.Opcodes(w.BinWriter, opcode.RET)
 	invalidStackOff := w.Len()
-	emit.Opcodes(w.BinWriter, opcode.NEWARRAY0, opcode.DUP, opcode.DUP, opcode.APPEND, opcode.NEWMAP)
-	emit.Syscall(w.BinWriter, interopnames.SystemIteratorCreate)
+	emit.Opcodes(w.BinWriter, opcode.NEWARRAY0, opcode.DUP, opcode.DUP, opcode.APPEND) // recursive array
+	emit.Syscall(w.BinWriter, interopnames.SystemStorageGetReadOnlyContext)            // interop item
 	emit.Opcodes(w.BinWriter, opcode.RET)
 	callT0Off := w.Len()
 	emit.Opcodes(w.BinWriter, opcode.CALLT, 0, 0, opcode.PUSH1, opcode.ADD, opcode.RET)

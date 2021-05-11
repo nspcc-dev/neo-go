@@ -23,9 +23,12 @@ import (
 // Prefixes used for contract data storage.
 const (
 	totalSupplyPrefix = "s"
-	accountPrefix     = "a"
-	tokenPrefix       = "t"
-	tokensPrefix      = "ts"
+	// balancePrefix contains map from addresses to balances.
+	balancePrefix = "b"
+	// accountPrefix contains map from address + token id to tokens
+	accountPrefix = "a"
+	// tokenPrefix contains map from token id to it's owner.
+	tokenPrefix = "t"
 )
 
 var (
@@ -63,22 +66,25 @@ func totalSupply(ctx storage.Context) int {
 	return res
 }
 
-// mkAccountKey creates DB key for account specified by concatenating accountPrefix
-// and account address.
-func mkAccountKey(holder interop.Hash160) []byte {
+// mkAccountPrefix creates DB key-prefix for account tokens specified
+// by concatenating accountPrefix and account address.
+func mkAccountPrefix(holder interop.Hash160) []byte {
 	res := []byte(accountPrefix)
 	return append(res, holder...)
 }
 
-// mkStringKey creates DB key for token specified by concatenating tokenPrefix
-// and token ID.
-func mkTokenKey(token []byte) []byte {
-	res := []byte(tokenPrefix)
-	return append(res, token...)
+// mkBalanceKey creates DB key for account specified by concatenating balancePrefix
+// and account address.
+func mkBalanceKey(holder interop.Hash160) []byte {
+	res := []byte(balancePrefix)
+	return append(res, holder...)
 }
 
-func mkTokensKey() []byte {
-	return []byte(tokensPrefix)
+// mkTokenKey creates DB key for token specified by concatenating tokenPrefix
+// and token ID.
+func mkTokenKey(tokenID []byte) []byte {
+	res := []byte(tokenPrefix)
+	return append(res, tokenID...)
 }
 
 // BalanceOf returns the number of tokens owned by specified address.
@@ -87,64 +93,48 @@ func BalanceOf(holder interop.Hash160) int {
 		panic("bad owner address")
 	}
 	ctx := storage.GetReadOnlyContext()
-	tokens := getTokensOf(ctx, holder)
-	return len(tokens)
+	return getBalanceOf(ctx, mkBalanceKey(holder))
 }
 
-// getTokensOf is an internal implementation of TokensOf, tokens are stored
-// as a serialized slice of strings in the DB, so it gets and unwraps them
-// (or returns an empty slice).
-func getTokensOf(ctx storage.Context, holder interop.Hash160) []string {
-	var res = []string{}
-
-	key := mkAccountKey(holder)
-	val := storage.Get(ctx, key)
+// getBalanceOf returns balance of the account using database key.
+func getBalanceOf(ctx storage.Context, balanceKey []byte) int {
+	val := storage.Get(ctx, balanceKey)
 	if val != nil {
-		res = std.Deserialize(val.([]byte)).([]string)
+		return val.(int)
 	}
-	return res
+	return 0
 }
 
-// setTokensOf saves current tokens owned by account if there are any,
-// otherwise it just drops the appropriate key from the DB.
-func setTokensOf(ctx storage.Context, holder interop.Hash160, tokens []string) {
-	key := mkAccountKey(holder)
-	if len(tokens) != 0 {
-		val := std.Serialize(tokens)
-		storage.Put(ctx, key, val)
+// addToBalance adds amount to the account balance. Amount can be negative.
+func addToBalance(ctx storage.Context, holder interop.Hash160, amount int) {
+	key := mkBalanceKey(holder)
+	old := getBalanceOf(ctx, key)
+	old += amount
+	if old > 0 {
+		storage.Put(ctx, key, old)
 	} else {
 		storage.Delete(ctx, key)
 	}
 }
 
-// setTokens saves minted token if it is not saved yet.
-func setTokens(ctx storage.Context, newToken string) {
-	key := mkTokensKey()
-	var tokens = []string{}
-	val := storage.Get(ctx, key)
-	if val != nil {
-		tokens = std.Deserialize(val.([]byte)).([]string)
-	}
-	for i := 0; i < len(tokens); i++ {
-		if util.Equals(tokens[i], newToken) {
-			return
-		}
-	}
-	tokens = append(tokens, newToken)
-	val = std.Serialize(tokens)
-	storage.Put(ctx, key, val)
+// addToken adds token to the account.
+func addToken(ctx storage.Context, holder interop.Hash160, token []byte) {
+	key := mkAccountPrefix(holder)
+	storage.Put(ctx, append(key, token...), token)
+}
+
+// removeToken removes token from the account.
+func removeToken(ctx storage.Context, holder interop.Hash160, token []byte) {
+	key := mkAccountPrefix(holder)
+	storage.Delete(ctx, append(key, token...))
 }
 
 // Tokens returns an iterator that contains all of the tokens minted by the contract.
 func Tokens() iterator.Iterator {
 	ctx := storage.GetReadOnlyContext()
-	var arr = []string{}
-	key := mkTokensKey()
-	val := storage.Get(ctx, key)
-	if val != nil {
-		arr = std.Deserialize(val.([]byte)).([]string)
-	}
-	return iterator.Create(arr)
+	key := []byte(tokenPrefix)
+	iter := storage.Find(ctx, key, storage.RemovePrefix|storage.KeysOnly)
+	return iter
 }
 
 // TokensOf returns an iterator with all tokens held by specified address.
@@ -153,9 +143,9 @@ func TokensOf(holder interop.Hash160) iterator.Iterator {
 		panic("bad owner address")
 	}
 	ctx := storage.GetReadOnlyContext()
-	tokens := getTokensOf(ctx, holder)
-
-	return iterator.Create(tokens)
+	key := mkAccountPrefix(holder)
+	iter := storage.Find(ctx, key, storage.ValuesOnly)
+	return iter
 }
 
 // getOwnerOf returns current owner of the specified token or panics if token
@@ -197,18 +187,11 @@ func Transfer(to interop.Hash160, token []byte, data interface{}) bool {
 	}
 
 	if string(owner) != string(to) {
-		toksOwner := getTokensOf(ctx, owner)
-		toksTo := getTokensOf(ctx, to)
+		addToBalance(ctx, owner, -1)
+		removeToken(ctx, owner, token)
 
-		var newToksOwner = []string{}
-		for _, tok := range toksOwner {
-			if tok != string(token) {
-				newToksOwner = append(newToksOwner, tok)
-			}
-		}
-		toksTo = append(toksTo, string(token))
-		setTokensOf(ctx, owner, newToksOwner)
-		setTokensOf(ctx, to, toksTo)
+		addToBalance(ctx, to, 1)
+		addToken(ctx, to, token)
 		setOwnerOf(ctx, token, to)
 	}
 	postTransfer(owner, to, token, data)
@@ -246,14 +229,12 @@ func OnNEP17Payment(from interop.Hash160, amount int, data interface{}) {
 		tokIn = append(tokIn, std.Serialize(data)...)
 	}
 
-	tokenHash := crypto.Sha256(tokIn)
+	tokenHash := crypto.Ripemd160(tokIn)
 	token := std.Base58Encode(tokenHash)
 
-	toksOf := getTokensOf(ctx, from)
-	toksOf = append(toksOf, token)
-	setTokensOf(ctx, from, toksOf)
+	addToken(ctx, from, []byte(token))
 	setOwnerOf(ctx, []byte(token), from)
-	setTokens(ctx, token)
+	addToBalance(ctx, from, 1)
 
 	total++
 	storage.Put(ctx, []byte(totalSupplyPrefix), total)
@@ -287,20 +268,8 @@ func Update(nef, manifest []byte) {
 // Properties returns properties of the given NFT.
 func Properties(id []byte) map[string]string {
 	ctx := storage.GetReadOnlyContext()
-	var tokens = []string{}
-	key := mkTokensKey()
-	val := storage.Get(ctx, key)
-	if val != nil {
-		tokens = std.Deserialize(val.([]byte)).([]string)
-	}
-	var exists bool
-	for i := 0; i < len(tokens); i++ {
-		if util.Equals(tokens[i], id) {
-			exists = true
-			break
-		}
-	}
-	if !exists {
+	owner := storage.Get(ctx, mkTokenKey(id)).(interop.Hash160)
+	if owner == nil {
 		panic("unknown token")
 	}
 	result := map[string]string{

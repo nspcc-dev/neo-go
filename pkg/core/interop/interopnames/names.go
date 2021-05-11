@@ -13,7 +13,6 @@ const (
 	SystemContractGetCallFlags          = "System.Contract.GetCallFlags"
 	SystemContractNativeOnPersist       = "System.Contract.NativeOnPersist"
 	SystemContractNativePostPersist     = "System.Contract.NativePostPersist"
-	SystemIteratorCreate                = "System.Iterator.Create"
 	SystemIteratorNext                  = "System.Iterator.Next"
 	SystemIteratorValue                 = "System.Iterator.Value"
 	SystemRuntimeBurnGas                = "System.Runtime.BurnGas"
@@ -53,7 +52,6 @@ var names = []string{
 	SystemContractGetCallFlags,
 	SystemContractNativeOnPersist,
 	SystemContractNativePostPersist,
-	SystemIteratorCreate,
 	SystemIteratorNext,
 	SystemIteratorValue,
 	SystemRuntimeBurnGas,

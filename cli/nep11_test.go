@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -233,8 +234,13 @@ func TestNEP11_OwnerOf_BalanceOf_Transfer(t *testing.T) {
 	// tokensOf: good, several tokens
 	tokenID1 := mint(t)
 	e.Run(t, cmdTokensOf...)
-	e.checkNextLine(t, string(tokenID))
-	e.checkNextLine(t, string(tokenID1))
+	fst, snd := tokenID, tokenID1
+	if bytes.Compare(tokenID, tokenID1) == 1 {
+		fst, snd = snd, fst
+	}
+
+	e.checkNextLine(t, string(fst))
+	e.checkNextLine(t, string(snd))
 
 	// tokens: missing contract hash
 	cmdTokens := []string{"neo-go", "wallet", "nep11", "tokens",
@@ -245,8 +251,8 @@ func TestNEP11_OwnerOf_BalanceOf_Transfer(t *testing.T) {
 
 	// tokens: good, several tokens
 	e.Run(t, cmdTokens...)
-	e.checkNextLine(t, string(tokenID))
-	e.checkNextLine(t, string(tokenID1))
+	e.checkNextLine(t, string(fst))
+	e.checkNextLine(t, string(snd))
 
 	// balance check: several tokens, ok
 	e.Run(t, append(cmdCheckBalance, "--token", h.StringLE())...)

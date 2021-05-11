@@ -6,15 +6,31 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/stretchr/testify/require"
 )
+
+type testIter struct {
+	index int
+	arr   []int
+}
+
+func (t *testIter) Next() bool {
+	if t.index < len(t.arr) {
+		t.index++
+	}
+	return t.index < len(t.arr)
+}
+
+func (t testIter) Value() stackitem.Item {
+	return stackitem.NewBigInteger(big.NewInt(int64(t.arr[t.index])))
+}
 
 // Iterator is thoroughly tested in VM package, these are smoke tests.
 func TestIterator(t *testing.T) {
 	ic := &interop.Context{VM: vm.New()}
-	full := []byte{4, 8, 15}
-	ic.VM.Estack().PushVal(full)
-	require.NoError(t, Create(ic))
+	full := []int{4, 8, 15}
+	ic.VM.Estack().PushVal(stackitem.NewInterop(&testIter{index: -1, arr: full}))
 
 	res := ic.VM.Estack().Pop().Item()
 	for i := range full {

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/nspcc-dev/neo-go/pkg/core/interop/iterator"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
@@ -63,8 +64,8 @@ func (r Invoke) MarshalJSON() ([]byte, error) {
 			data []byte
 			err  error
 		)
-		if (r.Stack[i].Type() == stackitem.InteropT) && vm.IsIterator(r.Stack[i]) {
-			iteratorValues, truncated := vm.IteratorValues(r.Stack[i], r.maxIteratorResultItems)
+		if (r.Stack[i].Type() == stackitem.InteropT) && iterator.IsIterator(r.Stack[i]) {
+			iteratorValues, truncated := iterator.Values(r.Stack[i], r.maxIteratorResultItems)
 			value := make([]json.RawMessage, len(iteratorValues))
 			for j := range iteratorValues {
 				value[j], err = stackitem.ToJSONWithTypes(iteratorValues[j])

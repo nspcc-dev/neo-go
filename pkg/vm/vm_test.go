@@ -468,68 +468,6 @@ func TestPushData4BigN(t *testing.T) {
 	checkVMFailed(t, vm)
 }
 
-func getIteratorProg(n int) (prog []byte) {
-	prog = []byte{byte(opcode.INITSSLOT), 1, byte(opcode.STSFLD0)}
-	for i := 0; i < n; i++ {
-		prog = append(prog, byte(opcode.LDSFLD0))
-		prog = append(prog, getSyscallProg(interopnames.SystemIteratorNext)...)
-		prog = append(prog, byte(opcode.LDSFLD0))
-		prog = append(prog, getSyscallProg(interopnames.SystemIteratorValue)...)
-	}
-	prog = append(prog, byte(opcode.LDSFLD0))
-	prog = append(prog, getSyscallProg(interopnames.SystemIteratorNext)...)
-
-	return
-}
-
-func checkEnumeratorStack(t *testing.T, vm *VM, arr []stackitem.Item) {
-	require.Equal(t, len(arr)+1, vm.estack.Len())
-	require.Equal(t, stackitem.NewBool(false), vm.estack.Peek(0).value)
-	for i := 0; i < len(arr); i++ {
-		require.Equal(t, arr[i], vm.estack.Peek(i+1).value, "pos: %d", i+1)
-	}
-}
-
-func testIterableCreate(t *testing.T, isByteArray bool) {
-	prog := getSyscallProg(interopnames.SystemIteratorCreate)
-	prog = append(prog, getIteratorProg(2)...)
-
-	vm := load(prog)
-	arr := []stackitem.Item{
-		stackitem.NewBigInteger(big.NewInt(42)),
-		stackitem.NewByteArray([]byte{3, 2, 1}),
-	}
-	if isByteArray {
-		arr[1] = stackitem.Make(7)
-		vm.estack.PushVal([]byte{42, 7})
-	} else {
-		vm.estack.Push(&Element{value: stackitem.NewArray(arr)})
-	}
-
-	runVM(t, vm)
-	checkEnumeratorStack(t, vm, []stackitem.Item{
-		arr[1], stackitem.NewBool(true),
-		arr[0], stackitem.NewBool(true),
-	})
-}
-
-func TestIteratorCreate(t *testing.T) {
-	t.Run("Array", func(t *testing.T) { testIterableCreate(t, false) })
-	t.Run("ByteArray", func(t *testing.T) { testIterableCreate(t, true) })
-	t.Run("Map", func(f *testing.T) {})
-	t.Run("Interop", func(t *testing.T) {
-		v := New()
-		v.Estack().PushVal(stackitem.NewInterop([]byte{42}))
-		require.Error(t, IteratorCreate(v))
-	})
-}
-
-func getSyscallProg(name string) (prog []byte) {
-	buf := io.NewBufBinWriter()
-	emit.Syscall(buf.BinWriter, name)
-	return buf.Bytes()
-}
-
 func getTestCallFlagsFunc(syscall []byte, flags callflag.CallFlag, result interface{}) func(t *testing.T) {
 	return func(t *testing.T) {
 		script := append([]byte{byte(opcode.SYSCALL)}, syscall...)
