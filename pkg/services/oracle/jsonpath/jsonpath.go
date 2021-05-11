@@ -38,6 +38,10 @@ const maxNestingDepth = 6
 // Get returns substructures of value selected by path.
 // The result is always non-nil unless path is invalid.
 func Get(path string, value interface{}) ([]interface{}, bool) {
+	if path == "" {
+		return []interface{}{value}, true
+	}
+
 	p := pathParser{
 		depth: maxNestingDepth,
 		s:     path,
