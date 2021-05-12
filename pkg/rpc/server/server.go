@@ -59,7 +59,6 @@ type (
 
 		subsLock         sync.RWMutex
 		subscribers      map[*subscriber]bool
-		subsGroup        sync.WaitGroup
 		blockSubs        int
 		executionSubs    int
 		notificationSubs int

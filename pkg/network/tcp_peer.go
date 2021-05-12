@@ -58,8 +58,6 @@ type TCPPeer struct {
 	p2pSendQ chan []byte
 	hpSendQ  chan []byte
 
-	wg sync.WaitGroup
-
 	// track outstanding getaddr requests.
 	getAddrSent atomic.Int32
 
