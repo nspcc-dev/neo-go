@@ -158,14 +158,12 @@ func _deploy(data interface{}, isUpdate bool) {}
 	t.Run("convert to Manifest", func(t *testing.T) {
 		actual, err := d.ConvertToManifest(&Options{Name: "MyCTR", SafeMethods: []string{"methodInt", "methodString"}})
 		require.NoError(t, err)
-		// note: offsets are hard to predict, so we just take them from the output
 		expected := &manifest.Manifest{
 			Name: "MyCTR",
 			ABI: manifest.ABI{
 				Methods: []manifest.Method{
 					{
-						Name:   "_deploy",
-						Offset: 0,
+						Name: "_deploy",
 						Parameters: []manifest.Parameter{
 							manifest.NewParameter("data", smartcontract.AnyType),
 							manifest.NewParameter("isUpdate", smartcontract.BoolType),
@@ -173,16 +171,14 @@ func _deploy(data interface{}, isUpdate bool) {}
 						ReturnType: smartcontract.VoidType,
 					},
 					{
-						Name:   "main",
-						Offset: 4,
+						Name: "main",
 						Parameters: []manifest.Parameter{
 							manifest.NewParameter("op", smartcontract.StringType),
 						},
 						ReturnType: smartcontract.BoolType,
 					},
 					{
-						Name:   "methodInt",
-						Offset: 70,
+						Name: "methodInt",
 						Parameters: []manifest.Parameter{
 							{
 								Name: "a",
@@ -194,32 +190,27 @@ func _deploy(data interface{}, isUpdate bool) {}
 					},
 					{
 						Name:       "methodString",
-						Offset:     101,
 						Parameters: []manifest.Parameter{},
 						ReturnType: smartcontract.StringType,
 						Safe:       true,
 					},
 					{
 						Name:       "methodByteArray",
-						Offset:     107,
 						Parameters: []manifest.Parameter{},
 						ReturnType: smartcontract.ByteArrayType,
 					},
 					{
 						Name:       "methodArray",
-						Offset:     112,
 						Parameters: []manifest.Parameter{},
 						ReturnType: smartcontract.ArrayType,
 					},
 					{
 						Name:       "methodStruct",
-						Offset:     117,
 						Parameters: []manifest.Parameter{},
 						ReturnType: smartcontract.ArrayType,
 					},
 					{
-						Name:   "methodConcat",
-						Offset: 92,
+						Name: "methodConcat",
 						Parameters: []manifest.Parameter{
 							{
 								Name: "a",
@@ -237,8 +228,7 @@ func _deploy(data interface{}, isUpdate bool) {}
 						ReturnType: smartcontract.StringType,
 					},
 					{
-						Name:   "methodParams",
-						Offset: 129,
+						Name: "methodParams",
 						Parameters: []manifest.Parameter{
 							manifest.NewParameter("addr", smartcontract.Hash160Type),
 							manifest.NewParameter("h", smartcontract.Hash256Type),
@@ -267,7 +257,15 @@ func _deploy(data interface{}, isUpdate bool) {}
 			},
 			Extra: json.RawMessage("null"),
 		}
-		require.ElementsMatch(t, expected.ABI.Methods, actual.ABI.Methods)
+		require.Equal(t, len(expected.ABI.Methods), len(actual.ABI.Methods))
+		for _, exp := range expected.ABI.Methods {
+			md := actual.ABI.GetMethod(exp.Name, len(exp.Parameters))
+			require.NotNil(t, md)
+			require.Equal(t, exp.Name, md.Name)
+			require.Equal(t, exp.Parameters, md.Parameters)
+			require.Equal(t, exp.ReturnType, md.ReturnType)
+			require.Equal(t, exp.Safe, md.Safe)
+		}
 		require.Equal(t, expected.ABI.Events, actual.ABI.Events)
 		require.Equal(t, expected.Groups, actual.Groups)
 		require.Equal(t, expected.Permissions, actual.Permissions)
