@@ -130,10 +130,10 @@ func TestDesignate_DesignateAsRole(t *testing.T) {
 	ic.SpawnVM()
 	ic.VM.LoadScript([]byte{byte(opcode.RET)})
 
-	pubs, index, err := des.GetDesignatedByRole(bc.dao, 0xFF, 255)
+	_, _, err := des.GetDesignatedByRole(bc.dao, 0xFF, 255)
 	require.True(t, errors.Is(err, native.ErrInvalidRole), "got: %v", err)
 
-	pubs, index, err = des.GetDesignatedByRole(bc.dao, noderoles.Oracle, 255)
+	pubs, index, err := des.GetDesignatedByRole(bc.dao, noderoles.Oracle, 255)
 	require.NoError(t, err)
 	require.Equal(t, 0, len(pubs))
 	require.Equal(t, uint32(0), index)

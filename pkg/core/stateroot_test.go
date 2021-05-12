@@ -215,6 +215,7 @@ func TestStateRootFull(t *testing.T) {
 	require.Eventually(t, func() bool { return lastHeight.Load() == 2 }, time.Second, time.Millisecond)
 	checkVoteBroadcasted(t, bc, lastValidated.Load().(*payload.Extensible), 2, 1)
 	_, err = persistBlock(bc)
+	require.NoError(t, err)
 	require.Eventually(t, func() bool { return lastHeight.Load() == 3 }, time.Second, time.Millisecond)
 	checkVoteBroadcasted(t, bc, lastValidated.Load().(*payload.Extensible), 3, 1)
 
@@ -257,6 +258,7 @@ func checkVoteBroadcasted(t *testing.T, bc *Blockchain, p *payload.Extensible,
 	require.Equal(t, int32(valIndex), vote.ValidatorIndex)
 
 	pubs, _, err := bc.contracts.Designate.GetDesignatedByRole(bc.dao, noderoles.StateValidator, bc.BlockHeight())
+	require.NoError(t, err)
 	require.True(t, len(pubs) > int(valIndex))
 	require.True(t, pubs[valIndex].VerifyHashable(vote.Signature, uint32(netmode.UnitTestNet), r))
 }

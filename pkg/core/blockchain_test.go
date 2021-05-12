@@ -238,6 +238,7 @@ func TestGetBlock(t *testing.T) {
 		t.Run("non-empty block", func(t *testing.T) {
 			tx, err := testchain.NewTransferFromOwner(bc, bc.contracts.NEO.Hash,
 				random.Uint160(), 1, 1, 1000)
+			require.NoError(t, err)
 			b := bc.newBlock(tx)
 			require.NoError(t, bc.AddHeaders(&b.Header))
 
