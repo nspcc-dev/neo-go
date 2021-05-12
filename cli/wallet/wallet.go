@@ -524,7 +524,7 @@ func removeAccount(ctx *cli.Context) error {
 
 	addr := ctx.Generic("address").(*flags.Address)
 	if !addr.IsSet {
-		cli.NewExitError("valid account address must be provided", 1)
+		return cli.NewExitError("valid account address must be provided", 1)
 	}
 	acc := wall.GetAccount(addr.Uint160())
 	if acc == nil {
