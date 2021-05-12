@@ -71,8 +71,8 @@ func initCheckMultisigVMNoArgs(container *transaction.Transaction) *vm.VM {
 		Network:   uint32(netmode.UnitTestNet),
 		Trigger:   trigger.Verification,
 		Container: container,
+		Functions: Interops,
 	}
-	Register(ic)
 	v := ic.SpawnVM()
 	v.LoadScript(buf)
 	return v

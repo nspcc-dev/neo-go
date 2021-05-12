@@ -1847,7 +1847,7 @@ func hashAndIndexToBytes(h util.Uint256, index uint32) []byte {
 
 func (bc *Blockchain) newInteropContext(trigger trigger.Type, d dao.DAO, block *block.Block, tx *transaction.Transaction) *interop.Context {
 	ic := interop.NewContext(trigger, bc, d, bc.contracts.Management.GetContract, bc.contracts.Contracts, block, tx, bc.log)
-	ic.Functions = [][]interop.Function{systemInterops, neoInterops}
+	ic.Functions = systemInterops
 	switch {
 	case tx != nil:
 		ic.Container = tx

@@ -52,7 +52,7 @@ func TestNEP17Balance(t *testing.T) {
 	})
 	t.Run("all accounts", func(t *testing.T) {
 		e.Run(t, cmdbase...)
-		addr1, err := address.StringToUint160("NTh9TnZTstvAePEYWDGLLxidBikJE24uTo")
+		addr1, err := address.StringToUint160("Nhfg3TbpwogLvDGVvAvqyThbsHgoSUKwtn")
 		require.NoError(t, err)
 		e.checkNextLine(t, "^Account "+address.Uint160ToString(addr1))
 		e.checkNextLine(t, "^\\s*GAS:\\s+GasToken \\("+e.Chain.UtilityTokenHash().StringLE()+"\\)")
@@ -61,12 +61,12 @@ func TestNEP17Balance(t *testing.T) {
 		e.checkNextLine(t, "^\\s*Updated:")
 		e.checkNextLine(t, "^\\s*$")
 
-		addr2, err := address.StringToUint160("NgEisvCqr2h8wpRxQb7bVPWUZdbVCY8Uo6")
+		addr2, err := address.StringToUint160("NVTiAjNgagDkTr5HTzDmQP9kPwPHN5BgVq")
 		require.NoError(t, err)
 		e.checkNextLine(t, "^Account "+address.Uint160ToString(addr2))
 		e.checkNextLine(t, "^\\s*$")
 
-		addr3, err := address.StringToUint160("NNudMSGzEoktFzdYGYoNb3bzHzbmM1genF")
+		addr3, err := address.StringToUint160("NfgHwwTi3wHAS8aFAN243C5vGbkYDpqLHP")
 		require.NoError(t, err)
 		e.checkNextLine(t, "^Account "+address.Uint160ToString(addr3))
 		// The order of assets is undefined.
@@ -86,7 +86,7 @@ func TestNEP17Balance(t *testing.T) {
 		}
 
 		e.checkNextLine(t, "^\\s*$")
-		addr4, err := address.StringToUint160("NaZjSxmRZ4ErG2QEXCQMjjJfvAxMPiutmi") // deployed verify.go contract
+		addr4, err := address.StringToUint160("NQKpygA5oG8KRivZeYjXVU2T1ZPmUmaqQF") // deployed verify.go contract
 		require.NoError(t, err)
 		e.checkNextLine(t, "^Account "+address.Uint160ToString(addr4))
 		e.checkEOF(t)
@@ -134,7 +134,7 @@ func TestNEP17Transfer(t *testing.T) {
 	require.Equal(t, big.NewInt(1), b)
 
 	hVerify := deployVerifyContract(t, e)
-	const validatorDefault = "NTh9TnZTstvAePEYWDGLLxidBikJE24uTo"
+	const validatorDefault = "Nhfg3TbpwogLvDGVvAvqyThbsHgoSUKwtn"
 
 	t.Run("default address", func(t *testing.T) {
 		e.In.WriteString("one\r")

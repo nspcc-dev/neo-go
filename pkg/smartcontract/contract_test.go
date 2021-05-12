@@ -33,7 +33,7 @@ func TestCreateMultiSigRedeemScript(t *testing.T) {
 
 	assert.Equal(t, opcode.PUSH3, opcode.Opcode(br.ReadB()))
 	assert.Equal(t, opcode.SYSCALL, opcode.Opcode(br.ReadB()))
-	assert.Equal(t, interopnames.ToID([]byte(interopnames.NeoCryptoCheckMultisig)), br.ReadU32LE())
+	assert.Equal(t, interopnames.ToID([]byte(interopnames.SystemCryptoCheckMultisig)), br.ReadU32LE())
 }
 
 func TestCreateDefaultMultiSigRedeemScript(t *testing.T) {

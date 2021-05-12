@@ -316,7 +316,7 @@ func (p *PublicKey) GetVerificationScript() []byte {
 		return buf.Bytes()
 	}
 	emit.Bytes(buf.BinWriter, b)
-	emit.Syscall(buf.BinWriter, interopnames.NeoCryptoCheckSig)
+	emit.Syscall(buf.BinWriter, interopnames.SystemCryptoCheckSig)
 
 	return buf.Bytes()
 }

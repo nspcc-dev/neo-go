@@ -269,7 +269,7 @@ func TestCreateBasicChain(t *testing.T) {
 	require.NoError(t, acc0.SignTx(testchain.Network(), txSendRaw))
 	bw := io.NewBufBinWriter()
 	txSendRaw.EncodeBinary(bw.BinWriter)
-	t.Logf("sendrawtransaction: %s", base64.StdEncoding.EncodeToString(bw.Bytes()))
+	t.Logf("sendrawtransaction: \n\tbase64: %s\n\tHash LE: %s", base64.StdEncoding.EncodeToString(bw.Bytes()), txSendRaw.Hash().StringLE())
 	require.False(t, saveChain)
 }
 

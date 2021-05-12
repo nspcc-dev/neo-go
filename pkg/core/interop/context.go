@@ -44,7 +44,7 @@ type Context struct {
 	Notifications []state.NotificationEvent
 	Log           *zap.Logger
 	VM            *vm.VM
-	Functions     [][]Function
+	Functions     []Function
 	getContract   func(dao.DAO, util.Uint160) (*state.Contract, error)
 }
 
@@ -64,8 +64,8 @@ func NewContext(trigger trigger.Type, bc blockchainer.Blockchainer, d dao.DAO,
 		DAO:           dao,
 		Notifications: nes,
 		Log:           log,
-		// Functions is a slice of slices of interops sorted by ID.
-		Functions:   [][]Function{},
+		// Functions is a slice of interops sorted by ID.
+		Functions:   []Function{},
 		getContract: getContract,
 	}
 }
@@ -229,13 +229,11 @@ func (ic *Context) GetContract(hash util.Uint160) (*state.Contract, error) {
 
 // GetFunction returns metadata for interop with the specified id.
 func (ic *Context) GetFunction(id uint32) *Function {
-	for _, slice := range ic.Functions {
-		n := sort.Search(len(slice), func(i int) bool {
-			return slice[i].ID >= id
-		})
-		if n < len(slice) && slice[n].ID == id {
-			return &slice[n]
-		}
+	n := sort.Search(len(ic.Functions), func(i int) bool {
+		return ic.Functions[i].ID >= id
+	})
+	if n < len(ic.Functions) && ic.Functions[n].ID == id {
+		return &ic.Functions[n]
 	}
 	return nil
 }

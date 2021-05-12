@@ -6,9 +6,9 @@ import (
 )
 
 // Verify is a verification contract method.
-// It returns true iff it is signed by NTh9TnZTstvAePEYWDGLLxidBikJE24uTo (id-0 private key from testchain).
+// It returns true iff it is signed by Nhfg3TbpwogLvDGVvAvqyThbsHgoSUKwtn (id-0 private key from testchain).
 func Verify() bool {
 	tx := runtime.GetScriptContainer()
-	addr := util.FromAddress("NTh9TnZTstvAePEYWDGLLxidBikJE24uTo")
+	addr := util.FromAddress("Nhfg3TbpwogLvDGVvAvqyThbsHgoSUKwtn")
 	return util.Equals(string(tx.Sender), string(addr))
 }

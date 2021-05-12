@@ -111,7 +111,7 @@ func TestPubkeyToAddress(t *testing.T) {
 	pubKey, err := NewPublicKeyFromString("031ee4e73a17d8f76dc02532e2620bcb12425b33c0c9f9694cc2caa8226b68cad4")
 	require.NoError(t, err)
 	actual := pubKey.Address()
-	expected := "NWmVWWvFA6RxvTs4kgY1NnwTXeLYwWxPb1"
+	expected := "NdxG5MZQy8h2qseawfSt8tTYG2iQPTwsn9"
 	require.Equal(t, expected, actual)
 }
 

@@ -118,8 +118,7 @@ func TestParameterContext_AddSignatureMultisig(t *testing.T) {
 }
 
 func newTestVM(w *transaction.Witness, tx *transaction.Transaction) *vm.VM {
-	ic := &interop.Context{Network: uint32(netmode.UnitTestNet), Container: tx}
-	crypto.Register(ic)
+	ic := &interop.Context{Network: uint32(netmode.UnitTestNet), Container: tx, Functions: crypto.Interops}
 	v := ic.SpawnVM()
 	v.LoadScript(w.VerificationScript)
 	v.LoadScript(w.InvocationScript)

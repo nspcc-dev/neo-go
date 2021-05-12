@@ -17,14 +17,14 @@ func TestGenesisBlockMainNet(t *testing.T) {
 	block, err := createGenesisBlock(cfg.ProtocolConfiguration)
 	require.NoError(t, err)
 
-	expect := "5816ac116af288777c4c454425fb687981f508826ec474810ff9e6b24202fd9a"
+	expect := "c3db4ba50ede4f9e749bd97e1499953ae17e65a415c6bf9e38c01cf92b03d156"
 	assert.Equal(t, expect, block.Hash().StringLE())
 }
 
 func TestGetConsensusAddressMainNet(t *testing.T) {
 	var (
-		consensusAddr   = "NSX179gdoQmF8nu34rQdL4dYAfdCQhHtQS"
-		consensusScript = "4870eaa62eee7c76b76d2ae933d4c027f5f5c77d"
+		consensusAddr   = "NVg7LjGcUSrgxgjX3zEgqaksfMaiS8Z6e1"
+		consensusScript = "6b123dd8bec718648852bbc78595e3536a058f9f"
 	)
 
 	cfg, err := config.Load("../../config", netmode.MainNet)

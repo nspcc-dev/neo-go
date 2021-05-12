@@ -88,16 +88,14 @@ func TestSyscallExecution(t *testing.T) {
 		"storage.GetReadOnlyContext":       {interopnames.SystemStorageGetReadOnlyContext, nil, false},
 		"storage.Put":                      {interopnames.SystemStoragePut, []string{sctx, b, b}, true},
 		"storage.ConvertContextToReadOnly": {interopnames.SystemStorageAsReadOnly, []string{sctx}, false},
-		"crypto.CheckMultisig":             {interopnames.NeoCryptoCheckMultisig, []string{pubs, sigs}, false},
-		"crypto.CheckSig":                  {interopnames.NeoCryptoCheckSig, []string{pub, sig}, false},
+		"crypto.CheckMultisig":             {interopnames.SystemCryptoCheckMultisig, []string{pubs, sigs}, false},
+		"crypto.CheckSig":                  {interopnames.SystemCryptoCheckSig, []string{pub, sig}, false},
 	}
 	ic := &interop.Context{}
 	core.SpawnVM(ic) // set Functions field
 	for _, fs := range ic.Functions {
-		for i := range fs {
-			// It will be set in test and we want to fail if calling invalid syscall.
-			fs[i].Func = nil
-		}
+		// It will be set in test and we want to fail if calling invalid syscall.
+		fs.Func = nil
 	}
 	for goName, tc := range interops {
 		t.Run(goName, func(t *testing.T) {

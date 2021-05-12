@@ -59,13 +59,13 @@ type rpcTestCase struct {
 	check  func(t *testing.T, e *executor, result interface{})
 }
 
-const testContractHash = "c6ca2347bb84b99807221365c900ec069a265e7c"
-const deploymentTxHash = "26692315f71f4790263160c0f570828be77c6927493ae6657a6e5a6a09229eb9"
-const genesisBlockHash = "5b60644c6c6f58faca72c70689d7ed1f40c2e795772bd0de5a88e983ad55080c"
+const testContractHash = "63cc6571e990dd3f345f699fc9c2a6e49edb89af"
+const deploymentTxHash = "4450d0047d4b6a20e85176c709df44fae4c63cfa9a698acb11871554b93016df"
+const genesisBlockHash = "73fe50b5564d57118296cbab0a78fe7cb11c97b7699d07a9a21fab60e79bb8fc"
 
-const verifyContractHash = "5bb4bac40e961e334ba7bd36d2496010f67e246e"
-const verifyContractAVM = "VwMAQS1RCDAhcAwUVVQtU+0PVUb61E1umZEoZwIvzl7bMHFoE87bKGnbKJdA"
-const verifyWithArgsContractHash = "59b08e81dcf94f6ddbef5c2d84a4c1a098b9a984"
+const verifyContractHash = "c50082e0d8364d61ce6933bd24027a3363474dce"
+const verifyContractAVM = "VwMAQS1RCDAhcAwU7p6iLCfjS9AUj8QQjgj3To9QSLLbMHFoE87bKGnbKJdA"
+const verifyWithArgsContractHash = "8744ffdd07af8e9f18ab90685c8c2ebfd37c6415"
 const verifyWithArgsContractAVM = "VwIDeAwLZ29vZF9zdHJpbmeXJA15FSgJehHbIJciBRHbIHBoQA=="
 const invokescriptContractAVM = "VwcADBQBDAMOBQYMDQIODw0DDgcJAAAAANswcGhB+CfsjCGqJgQRQAwUDQ8DAgkAAgEDBwMEBQIBAA4GDAnbMHFpQfgn7IwhqiYEEkATQA=="
 
@@ -917,13 +917,13 @@ var rpcTestCases = map[string][]rpcTestCase{
 	"sendrawtransaction": {
 		{
 			name:   "positive",
-			params: `["ADQSAADA2KcAAAAAABDiEgAAAAAAgBYAAAFVVC1T7Q9VRvrUTW6ZkShnAi/OXgEAYBDAAwDodkgXAAAADBRdSe/t0S4+BgGLRljbEKiXX8gLTgwUVVQtU+0PVUb61E1umZEoZwIvzl4UwB8MCHRyYW5zZmVyDBT1Y+pAvCg9TQ4FxI6jBbPyoHNA70FifVtSOQFCDEA0sZMiszaJ/YkG3ZzyFKbE+qujQif0RrlplXpBc5IMzxyM4sPBwvpfGTtDtY9NI8gzR1lVL/O6nzPJG9m8XKjxKAwhArNiK/QBe9/jF8WK7V9MdT8ga324lgRvp9d0u8S/f43CQXR0dqo="]`,
+			params: `["ADQSAADA2KcAAAAAABDiEgAAAAAAgBYAAAHunqIsJ+NL0BSPxBCOCPdOj1BIsgEAYBDAAwDodkgXAAAADBQRJlu0FyUAQb4E6PokDjj1fB5WmwwU7p6iLCfjS9AUj8QQjgj3To9QSLIUwB8MCHRyYW5zZmVyDBT1Y+pAvCg9TQ4FxI6jBbPyoHNA70FifVtSOQFCDEBRp0p08GFA2rYC/Xrol8DIhXEMfVMbUJEYer1RqZSatmTjUJE9fnZtDGkQEX/zQ7yOhbnIPAZIrllUTuUBskhUKAwhArNiK/QBe9/jF8WK7V9MdT8ga324lgRvp9d0u8S/f43CQVbnsyc="]`,
 			result: func(e *executor) interface{} { return &result.RelayResult{} },
 			check: func(t *testing.T, e *executor, inv interface{}) {
 				res, ok := inv.(*result.RelayResult)
 				require.True(t, ok)
-				expectedHash := util.Uint256{0xaf, 0x80, 0x44, 0x52, 0x49, 0xac, 0xa7, 0xa9, 0x47, 0x11, 0x8, 0xac, 0xdb, 0x59, 0x29, 0xb, 0x3d, 0xac, 0xf2, 0xe9, 0xf7, 0xde, 0x45, 0x79, 0x73, 0x66, 0xe9, 0xb0, 0xd4, 0xc5, 0x6b, 0x97}
-				assert.Equal(t, expectedHash, res.Hash)
+				expectedHash := "8ea251d812fbbdecaebfc164fb6afbd78b7db94f7dacb69421cd5d4e364522d2"
+				assert.Equal(t, expectedHash, res.Hash.StringLE())
 			},
 		},
 		{
@@ -1638,7 +1638,7 @@ func checkNep17Balances(t *testing.T, e *executor, acc interface{}) {
 			},
 			{
 				Asset:       e.chain.UtilityTokenHash(),
-				Amount:      "67960042780",
+				Amount:      "67960000780",
 				LastUpdated: 14,
 			}},
 		Address: testchain.PrivateKeyByID(0).GetScriptHash().StringLE(),

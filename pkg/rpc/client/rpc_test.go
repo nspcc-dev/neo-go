@@ -1185,7 +1185,7 @@ var rpcClientErrorCases = map[string][]rpcClientErrorCase{
 			name: "getnep17transfers_invalid_params_error 2",
 			invoke: func(c *Client) (interface{}, error) {
 				var stop uint32
-				return c.GetNEP17Transfers("NTh9TnZTstvAePEYWDGLLxidBikJE24uTo", nil, &stop, nil, nil)
+				return c.GetNEP17Transfers("Nhfg3TbpwogLvDGVvAvqyThbsHgoSUKwtn", nil, &stop, nil, nil)
 			},
 		},
 		{
@@ -1193,7 +1193,7 @@ var rpcClientErrorCases = map[string][]rpcClientErrorCase{
 			invoke: func(c *Client) (interface{}, error) {
 				var start uint32
 				var limit int
-				return c.GetNEP17Transfers("NTh9TnZTstvAePEYWDGLLxidBikJE24uTo", &start, nil, &limit, nil)
+				return c.GetNEP17Transfers("Nhfg3TbpwogLvDGVvAvqyThbsHgoSUKwtn", &start, nil, &limit, nil)
 			},
 		},
 		{
@@ -1201,7 +1201,7 @@ var rpcClientErrorCases = map[string][]rpcClientErrorCase{
 			invoke: func(c *Client) (interface{}, error) {
 				var start, stop uint32
 				var page int
-				return c.GetNEP17Transfers("NTh9TnZTstvAePEYWDGLLxidBikJE24uTo", &start, &stop, nil, &page)
+				return c.GetNEP17Transfers("Nhfg3TbpwogLvDGVvAvqyThbsHgoSUKwtn", &start, &stop, nil, &page)
 			},
 		},
 		{

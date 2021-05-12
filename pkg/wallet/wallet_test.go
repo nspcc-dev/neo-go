@@ -188,16 +188,12 @@ func TestWalletGetChangeAddress(t *testing.T) {
 	require.NoError(t, err)
 	sh := w1.GetChangeAddress()
 	// No default address, the first one is used.
-	expected, err := address.StringToUint160("NTh9TnZTstvAePEYWDGLLxidBikJE24uTo")
-	require.NoError(t, err)
-	require.Equal(t, expected, sh)
+	require.Equal(t, "Nhfg3TbpwogLvDGVvAvqyThbsHgoSUKwtn", address.Uint160ToString(sh))
 	w2, err := NewWalletFromFile("testdata/wallet2.json")
 	require.NoError(t, err)
 	sh = w2.GetChangeAddress()
 	// Default address.
-	expected, err = address.StringToUint160("NUREbqw2kfbPgDeEz8Dac2QxntGGqqFMm7")
-	require.NoError(t, err)
-	require.Equal(t, expected, sh)
+	require.Equal(t, "NMUedC8TSV2rE17wGguSvPk9XcmHSaT275", address.Uint160ToString(sh))
 }
 
 func TestWalletForExamples(t *testing.T) {
@@ -214,5 +210,5 @@ func TestWalletForExamples(t *testing.T) {
 	require.NoError(t, w.Accounts[0].Decrypt(walletPass))
 
 	// we need to keep the owner of the example contracts the same as the wallet account
-	require.Equal(t, "NX1yL5wDx3inK2qUVLRVaqCLUxYnAbv85S", w.Accounts[0].Address, "need to change `owner` in the example contracts")
+	require.Equal(t, "NbrUYaZgyhSkNoRo9ugRyEMdUZxrhkNaWB", w.Accounts[0].Address, "need to change `owner` in the example contracts")
 }

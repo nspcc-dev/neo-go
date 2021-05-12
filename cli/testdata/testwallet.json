@@ -1,31 +1,30 @@
 {
-  "version" : "3.0",
-  "extra" : {
-    "Tokens" : null
-  },
-  "accounts" : [
+  "version": "3.0",
+  "accounts": [
     {
-      "lock" : false,
-      "isdefault" : false,
-      "key" : "6PYRjaxsdSrW8zBzPynkC9uJRHpkhFHiQTuYY33gNL1wTimTbpN8S8eCNc",
-      "address" : "NUSEsqon6PikQA5mDFaV4njemF9Su8JEmf",
-      "contract" : {
-        "parameters" : [
+      "address": "Nfyz4KcsgYepRJw1W5C2uKCi6QWKf7v6gG",
+      "key": "6PYVjvHy8n4suq81uxkWqriiffKWFpTFPve57HdzWdDhpYUUYRUTai1jZS",
+      "label": "kek",
+      "contract": {
+        "script": "DCECl3UyEIq6T5RRIXS6z4tNdZPTzQ7NvXyx7FwK05d9UyZBVuezJw==",
+        "parameters": [
           {
-            "type" : "Signature",
-            "name" : "parameter0"
+            "name": "parameter0",
+            "type": "Signature"
           }
         ],
-        "script" : "DCECl3UyEIq6T5RRIXS6z4tNdZPTzQ7NvXyx7FwK05d9UyZBdHR2qg==",
-        "deployed" : false
+        "deployed": false
       },
-      "label" : "kek"
+      "lock": false,
+      "isdefault": false
     }
   ],
-  "scrypt" : {
-    "r" : 8,
-    "p" : 8,
-    "n" : 16384
+  "scrypt": {
+    "n": 16384,
+    "r": 8,
+    "p": 8
+  },
+  "extra": {
+    "Tokens": null
   }
 }
-

@@ -56,13 +56,7 @@ func TestRegenerateSoloWallet(t *testing.T) {
 	acc3 := getAccount(t, wif, "one")
 	require.NoError(t, acc3.ConvertMultisig(1, keys.PublicKeys{getKeys(t)[0]}))
 
-	w, err := NewWallet(walletPath)
-	require.NoError(t, err)
-	w.AddAccount(acc1)
-	w.AddAccount(acc2)
-	w.AddAccount(acc3)
-	require.NoError(t, w.savePretty())
-	w.Close()
+	createWallet(t, walletPath, acc1, acc2, acc3)
 }
 
 func regenerateWallets(t *testing.T, dir string) {
@@ -72,12 +66,7 @@ func regenerateWallets(t *testing.T, dir string) {
 		acc2 := getAccount(t, privnetWIFs[i], passwords[i])
 		require.NoError(t, acc2.ConvertMultisig(3, pubs))
 
-		w, err := NewWallet(path.Join(dir, fmt.Sprintf("wallet%d.json", i+1)))
-		require.NoError(t, err)
-		w.AddAccount(acc1)
-		w.AddAccount(acc2)
-		require.NoError(t, w.savePretty())
-		w.Close()
+		createWallet(t, path.Join(dir, fmt.Sprintf("wallet%d.json", i+1)), acc1, acc2)
 	}
 }
 
@@ -108,18 +97,96 @@ func TestRegenerateWalletTestdata(t *testing.T) {
 	acc3 := getAccount(t, privnetWIFs[1], "two")
 	acc3.Default = true
 
-	w, err := NewWallet(path.Join(walletDir, "wallet1.json"))
-	require.NoError(t, err)
-	w.AddAccount(acc1)
-	w.AddAccount(acc2)
-	require.NoError(t, w.savePretty())
-	w.Close()
+	createWallet(t, path.Join(walletDir, "wallet1.json"), acc1, acc2)
 
-	w, err = NewWallet(path.Join(walletDir, "wallet2.json"))
+	createWallet(t, path.Join(walletDir, "wallet2.json"), acc1, acc2, acc3)
+}
+
+func TestRegenerateNotaryWallets(t *testing.T) {
+	if !regenerate {
+		return
+	}
+	const (
+		walletDir = "../services/notary/testdata/"
+		acc1WIF   = "L1MstxuD8SvS9HuFcV5oYzcdA1xX8D9bD9qPwg8fU5SSywYBecg3"
+		acc2WIF   = "L2iGxPvxbyWpYEbCZk2L3PgT7sCQaSDAbBC4MRLAjhs1s2JZ1xs5"
+		acc3WIF   = "L1xD2yiUyARX8DAkWa8qGpWpwjqW2u717VzUJyByk6s7HinhRVZv"
+		acc4WIF   = "L1ioz93TNt6Nu1aoMpZQ4zgdtgC8ZvJMC6pyHFkrovdR3SFwbn6n"
+	)
+
+	acc1 := getAccount(t, acc1WIF, "one")
+	acc2 := getAccount(t, acc2WIF, "one")
+	acc3 := getAccount(t, acc3WIF, "four")
+	createWallet(t, path.Join(walletDir, "notary1.json"), acc1, acc2, acc3)
+
+	acc4 := getAccount(t, acc4WIF, "two")
+	createWallet(t, path.Join(walletDir, "notary2.json"), acc4)
+}
+
+func TestRegenerateOracleWallets(t *testing.T) {
+	if !regenerate {
+		return
+	}
+	const (
+		walletDir = "../services/oracle/testdata/"
+		acc1WIF   = "L38E2tRktb2kWc5j3Kx6Cg3ifVoi4DHhpVZrQormEFTT92C4iSUa"
+		acc2WIF   = "KyA8z2MyLCSjJFG3F4SUp85CZ4WJm4qgWihFJZFEDYGEyw8oGcEP"
+	)
+
+	acc1 := getAccount(t, acc1WIF, "one")
+	createWallet(t, path.Join(walletDir, "oracle1.json"), acc1)
+
+	acc2 := getAccount(t, acc2WIF, "two")
+	createWallet(t, path.Join(walletDir, "oracle2.json"), acc2)
+}
+
+func TestRegenerateExamplesWallet(t *testing.T) {
+	if !regenerate {
+		return
+	}
+	const (
+		walletPath = "../../examples/my_wallet.json"
+		acc1WIF    = "L46dn46AMZY7NQGZHemAdgcMabKon85eme45hgQkAUQBiRacY8MB"
+	)
+
+	acc1 := getAccount(t, acc1WIF, "qwerty")
+	acc1.Label = "my_account"
+	createWallet(t, walletPath, acc1)
+}
+
+func TestRegenerateCLITestwallet(t *testing.T) {
+	if !regenerate {
+		return
+	}
+	const (
+		walletPath = "../../cli/testdata/testwallet.json"
+		accWIF     = "L23LrQNWELytYLvb5c6dXBDdF2DNPL9RRNWPqppv3roxacSnn8CN"
+	)
+
+	acc := getAccount(t, accWIF, "testpass")
+	acc.Label = "kek"
+	createWallet(t, walletPath, acc)
+}
+
+func TestRegenerateCLITestwallet_NEO3(t *testing.T) {
+	if !regenerate {
+		return
+	}
+	const walletPath = "../../cli/testdata/wallets/testwallet_NEO3.json"
+
+	pubs := getKeys(t)
+	acc1 := getAccount(t, privnetWIFs[0], passwords[0])
+	acc2 := getAccount(t, privnetWIFs[0], passwords[0])
+	require.NoError(t, acc2.ConvertMultisig(3, pubs))
+	createWallet(t, walletPath, acc1, acc2)
+}
+
+func createWallet(t *testing.T, path string, accs ...*Account) {
+	w, err := NewWallet(path)
 	require.NoError(t, err)
-	w.AddAccount(acc1)
-	w.AddAccount(acc2)
-	w.AddAccount(acc3)
+	for _, acc := range accs {
+		w.AddAccount(acc)
+	}
 	require.NoError(t, w.savePretty())
 	w.Close()
 }
