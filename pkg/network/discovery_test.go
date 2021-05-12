@@ -197,12 +197,10 @@ func TestSeedDiscovery(t *testing.T) {
 	d := NewDefaultDiscovery(seeds, time.Second/10, ts)
 
 	d.RequestRemote(len(seeds))
-	dialled := make([]string, 0)
 	for i := 0; i < connRetries*2; i++ {
 		for range seeds {
 			select {
-			case a := <-ts.dialCh:
-				dialled = append(dialled, a)
+			case <-ts.dialCh:
 			case <-time.After(time.Second):
 				t.Fatalf("timeout expecting for transport dial")
 			}
