@@ -44,16 +44,6 @@ jobs:
             curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.40.0
             make lint
 
-  vet:
-    working_directory: /go/src/github.com/nspcc-dev/neo-go
-    executor: go1_16
-    steps:
-      - checkout
-      - gomod
-      - run:
-          name: go-vet
-          command: go vet ./...
-
   test_1_14:
     working_directory: /go/src/github.com/nspcc-dev/neo-go
     executor: go1_14
@@ -123,10 +113,6 @@ workflows:
   version: 2
   workflow:
     jobs:
-      - vet:
-          filters:
-            tags:
-              only: v/[0-9]+\.[0-9]+\.[0-9]+/
       - lint:
           filters:
             tags:
