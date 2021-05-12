@@ -226,7 +226,6 @@ func getNEP11Balance(ctx *cli.Context) error {
 		}
 		fmt.Fprintf(ctx.App.Writer, format, formatArgs...)
 		fmt.Fprintf(ctx.App.Writer, "\tAmount : %s\n", amountStr)
-
 	}
 	return nil
 }

@@ -1600,7 +1600,6 @@ func (bc *Blockchain) IsTxStillRelevant(t *transaction.Transaction, txpool *memp
 		return bc.verifyTxWitnesses(t, nil, isPartialTx) == nil
 	}
 	return true
-
 }
 
 // VerifyTx verifies whether transaction is bonafide or not relative to the

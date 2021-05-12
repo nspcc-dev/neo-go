@@ -753,7 +753,6 @@ func TestArithNullArg(t *testing.T) {
 			runWithArgs(t, prog, false, 0, stackitem.Null{})
 			runWithArgs(t, prog, nil, stackitem.NewInterop(nil), 1) // also has `.Value() == nil`
 		})
-
 	}
 }
 

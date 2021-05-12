@@ -156,7 +156,6 @@ func parseMultisigContract(script []byte) (int, keys.PublicKeys, bool) {
 			return 0, nil, false
 		}
 		ret[i] = pub
-
 	}
 	return nsigs, ret, true
 }

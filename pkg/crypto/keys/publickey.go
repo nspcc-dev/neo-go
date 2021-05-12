@@ -161,7 +161,6 @@ func (p *PublicKey) getBytes(compressed bool) []byte {
 		prefix = 0x04
 		yBytes := p.Y.Bytes()
 		copy(res[1+coordLen+coordLen-len(yBytes):], yBytes)
-
 	}
 	res[0] = prefix
 

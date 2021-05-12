@@ -409,7 +409,6 @@ func (s *Server) run() {
 				// because we have two goroutines sending signals here
 				s.lock.Unlock()
 			}
-
 		}
 	}
 }

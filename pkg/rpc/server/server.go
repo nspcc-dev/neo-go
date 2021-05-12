@@ -421,7 +421,6 @@ requestloop:
 			break requestloop
 		case resChan <- res:
 		}
-
 	}
 	s.subsLock.Lock()
 	delete(s.subscribers, subscr)

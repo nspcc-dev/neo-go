@@ -539,7 +539,6 @@ func (m *Management) getNextContractID(d dao.DAO) (int32, error) {
 	si := d.GetStorageItem(m.ID, keyNextAvailableID)
 	if si == nil {
 		return 0, errors.New("nextAvailableID is not initialized")
-
 	}
 	id := bigint.FromBytes(si)
 	ret := int32(id.Int64())

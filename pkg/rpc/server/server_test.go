@@ -1261,7 +1261,6 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 						tc.check(t, e, res)
 					}
 				}
-
 			})
 		}
 	})

@@ -1529,7 +1529,6 @@ func testDumpAndRestore(t *testing.T, dumpF, restoreF func(c *config.Config)) {
 			require.Equal(t, bc.BlockHeight()-1, lastIndex)
 		})
 	})
-
 }
 
 func TestDumpAndRestore(t *testing.T) {

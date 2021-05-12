@@ -79,7 +79,6 @@ func NewDeployTx(bc blockchainer.Blockchainer, name string, sender util.Uint160,
 		o.ContractEvents = conf.Events
 		o.ContractSupportedStandards = conf.SupportedStandards
 		o.SafeMethods = conf.SafeMethods
-
 	}
 	m, err := compiler.CreateManifest(di, o)
 	if err != nil {

@@ -79,7 +79,6 @@ func (t *incompleteTx) addResponse(pub *keys.PublicKey, sig []byte, isBackup boo
 		ok:  tx != nil,
 		sig: sig,
 	}
-
 }
 
 // finalize checks is either main or backup tx has sufficient number of signatures and returns

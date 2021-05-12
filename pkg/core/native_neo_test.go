@@ -226,7 +226,6 @@ func TestNEO_CalculateBonus(t *testing.T) {
 		res, err := neo.CalculateNEOHolderReward(ic.DAO, big.NewInt(100), 5, 15)
 		require.NoError(t, err)
 		require.EqualValues(t, (100*5*5/10)+(100*5*1/10), res.Int64())
-
 	})
 }
 

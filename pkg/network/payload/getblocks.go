@@ -34,7 +34,6 @@ func (p *GetBlocks) DecodeBinary(br *io.BinReader) {
 	if p.Count < -1 || p.Count == 0 {
 		br.Err = errors.New("invalid count")
 	}
-
 }
 
 // EncodeBinary implements Serializable interface.

@@ -42,7 +42,6 @@ func getIntWithKey(id int32, dao dao.DAO, key []byte) int64 {
 	si := dao.GetStorageItem(id, key)
 	if si == nil {
 		panic(fmt.Errorf("item with id = %d and key = %s is not initialized", id, hex.EncodeToString(key)))
-
 	}
 	return bigint.FromBytes(si).Int64()
 }

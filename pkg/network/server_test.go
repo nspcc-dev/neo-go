@@ -178,7 +178,6 @@ func TestServerRegisterPeer(t *testing.T) {
 		}
 		return false
 	}, time.Second, time.Millisecond*50)
-
 }
 
 func TestGetBlocksByIndex(t *testing.T) {

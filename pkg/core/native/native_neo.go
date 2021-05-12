@@ -337,7 +337,6 @@ func (n *NEO) PostPersist(ic *interop.Context) error {
 				}
 			}
 		}
-
 	}
 	if n.gasPerBlockChanged.Load().(bool) {
 		gr, err := n.getSortedGASRecordFromDAO(ic.DAO)

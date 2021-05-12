@@ -311,7 +311,6 @@ func TestFilteredBlockSubscriptions(t *testing.T) {
 		rmap := resp.Payload[0].(map[string]interface{})
 		primary := rmap["primary"].(float64)
 		require.Equal(t, 3, int(primary))
-
 	}
 	callUnsubscribe(t, c, respMsgs, blockSubID)
 	finishedFlag.CAS(false, true)

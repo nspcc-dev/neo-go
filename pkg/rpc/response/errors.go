@@ -44,7 +44,6 @@ func NewError(code int64, httpCode int, message string, data string, cause error
 		Message:  message,
 		Data:     data,
 	}
-
 }
 
 // NewParseError creates a new error with code

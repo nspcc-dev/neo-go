@@ -473,7 +473,6 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		return nil
 	}
 	switch n := node.(type) {
-
 	// General declarations.
 	// var (
 	//     x = 2

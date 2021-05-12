@@ -209,7 +209,6 @@ func (c *WSClient) wsWriter() {
 			}
 		}
 	}
-
 }
 
 func (c *WSClient) makeWsRequest(r *request.Raw) (*response.Raw, error) {

@@ -626,7 +626,6 @@ func domainFromString(name string) (string, bool) {
 		return name, true
 	}
 	return name[i+1:], true
-
 }
 
 func toDomain(name string) string {

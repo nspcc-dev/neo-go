@@ -78,7 +78,6 @@ func TestParseNeoFSURL(t *testing.T) {
 				require.Equal(t, tc.params, ps)
 			}
 		})
-
 	}
 }
 

@@ -309,7 +309,6 @@ events:
 			s.handleChainBlock(b)
 		default:
 		}
-
 	}
 	close(s.finished)
 }

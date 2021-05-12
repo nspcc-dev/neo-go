@@ -116,7 +116,6 @@ func TestDesignate_DesignateAsRoleTx(t *testing.T) {
 		bc.setNodesByRole(t, true, noderoles.NeoFSAlphabet, pubs)
 		bc.getNodesByRole(t, true, noderoles.NeoFSAlphabet, bc.BlockHeight()+1, 1)
 	})
-
 }
 
 func TestDesignate_DesignateAsRole(t *testing.T) {

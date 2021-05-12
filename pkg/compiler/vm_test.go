@@ -109,7 +109,6 @@ func newStoragePlugin() *storagePlugin {
 	s.interops[interopnames.ToID([]byte(interopnames.SystemRuntimeNotify))] = s.Notify
 	s.interops[interopnames.ToID([]byte(interopnames.SystemRuntimeGetTime))] = s.GetTime
 	return s
-
 }
 
 func (s *storagePlugin) syscallHandler(v *vm.VM, id uint32) error {
