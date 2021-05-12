@@ -25,9 +25,9 @@ func Calculate(base int64, script []byte) (int64, int) {
 		size += io.GetVarSize(sizeInv) + sizeInv + io.GetVarSize(script)
 		netFee += calculateMultisig(base, m) + calculateMultisig(base, n)
 		netFee += base * ECDSAVerifyPrice * int64(n)
-	} else {
+	} /*else {
 		// We can support more contract types in the future.
-	}
+	}*/
 	return netFee, size
 }
 

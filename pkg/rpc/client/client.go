@@ -91,8 +91,8 @@ func New(ctx context.Context, endpoint string, opts Options) (*Client, error) {
 	}
 
 	// TODO(@antdm): Enable SSL.
-	if opts.Cert != "" && opts.Key != "" {
-	}
+	//	if opts.Cert != "" && opts.Key != "" {
+	//	}
 
 	cl := &Client{
 		ctx:      ctx,
