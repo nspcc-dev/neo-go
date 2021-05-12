@@ -114,12 +114,15 @@ func (c *WSClient) Close() {
 
 func (c *WSClient) wsReader() {
 	c.ws.SetReadLimit(wsReadLimit)
-	c.ws.SetPongHandler(func(string) error { c.ws.SetReadDeadline(time.Now().Add(wsPongLimit)); return nil })
+	c.ws.SetPongHandler(func(string) error { return c.ws.SetReadDeadline(time.Now().Add(wsPongLimit)) })
 readloop:
 	for {
 		rr := new(requestResponse)
-		c.ws.SetReadDeadline(time.Now().Add(wsPongLimit))
-		err := c.ws.ReadJSON(rr)
+		err := c.ws.SetReadDeadline(time.Now().Add(wsPongLimit))
+		if err != nil {
+			break
+		}
+		err = c.ws.ReadJSON(rr)
 		if err != nil {
 			// Timeout/connection loss/malformed response.
 			break
@@ -191,12 +194,16 @@ func (c *WSClient) wsWriter() {
 			if !ok {
 				return
 			}
-			c.ws.SetWriteDeadline(time.Now().Add(c.opts.RequestTimeout))
+			if err := c.ws.SetWriteDeadline(time.Now().Add(c.opts.RequestTimeout)); err != nil {
+				return
+			}
 			if err := c.ws.WriteJSON(req); err != nil {
 				return
 			}
 		case <-pingTicker.C:
-			c.ws.SetWriteDeadline(time.Now().Add(wsWriteLimit))
+			if err := c.ws.SetWriteDeadline(time.Now().Add(wsWriteLimit)); err != nil {
+				return
+			}
 			if err := c.ws.WriteMessage(websocket.PingMessage, []byte{}); err != nil {
 				return
 			}

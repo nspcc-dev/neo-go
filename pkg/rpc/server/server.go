@@ -359,7 +359,9 @@ eventloop:
 			if !ok {
 				break eventloop
 			}
-			ws.SetWriteDeadline(time.Now().Add(wsWriteLimit))
+			if err := ws.SetWriteDeadline(time.Now().Add(wsWriteLimit)); err != nil {
+				break eventloop
+			}
 			if err := ws.WritePreparedMessage(event); err != nil {
 				break eventloop
 			}
@@ -367,12 +369,16 @@ eventloop:
 			if !ok {
 				break eventloop
 			}
-			ws.SetWriteDeadline(time.Now().Add(wsWriteLimit))
+			if err := ws.SetWriteDeadline(time.Now().Add(wsWriteLimit)); err != nil {
+				break eventloop
+			}
 			if err := ws.WriteJSON(res); err != nil {
 				break eventloop
 			}
 		case <-pingTicker.C:
-			ws.SetWriteDeadline(time.Now().Add(wsWriteLimit))
+			if err := ws.SetWriteDeadline(time.Now().Add(wsWriteLimit)); err != nil {
+				break eventloop
+			}
 			if err := ws.WriteMessage(websocket.PingMessage, []byte{}); err != nil {
 				break eventloop
 			}
@@ -397,10 +403,10 @@ drainloop:
 
 func (s *Server) handleWsReads(ws *websocket.Conn, resChan chan<- response.AbstractResult, subscr *subscriber) {
 	ws.SetReadLimit(wsReadLimit)
-	ws.SetReadDeadline(time.Now().Add(wsPongLimit))
-	ws.SetPongHandler(func(string) error { ws.SetReadDeadline(time.Now().Add(wsPongLimit)); return nil })
+	err := ws.SetReadDeadline(time.Now().Add(wsPongLimit))
+	ws.SetPongHandler(func(string) error { return ws.SetReadDeadline(time.Now().Add(wsPongLimit)) })
 requestloop:
-	for {
+	for err == nil {
 		req := request.NewRequest()
 		err := ws.ReadJSON(req)
 		if err != nil {
