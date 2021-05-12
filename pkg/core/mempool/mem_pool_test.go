@@ -298,10 +298,7 @@ func TestMemPoolFees(t *testing.T) {
 
 	// check whether sender's fee updates correctly
 	mp.RemoveStale(func(t *transaction.Transaction) bool {
-		if t == tx2 {
-			return true
-		}
-		return false
+		return t == tx2
 	}, fs)
 	require.Equal(t, 1, len(mp.fees))
 	require.Equal(t, utilityBalanceAndFees{
@@ -311,10 +308,7 @@ func TestMemPoolFees(t *testing.T) {
 
 	// there should be nothing left
 	mp.RemoveStale(func(t *transaction.Transaction) bool {
-		if t == tx3 {
-			return true
-		}
-		return false
+		return t == tx3
 	}, fs)
 	require.Equal(t, 0, len(mp.fees))
 }
