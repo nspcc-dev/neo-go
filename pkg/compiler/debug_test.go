@@ -17,6 +17,7 @@ func TestCodeGen_DebugInfo(t *testing.T) {
 	import "github.com/nspcc-dev/neo-go/pkg/interop"
 	import "github.com/nspcc-dev/neo-go/pkg/interop/storage"
 	import "github.com/nspcc-dev/neo-go/pkg/interop/native/ledger"
+var staticVar int
 func Main(op string) bool {
 	var s string
 	_ = s
@@ -79,6 +80,7 @@ func _deploy(data interface{}, isUpdate bool) {}
 			"MethodOnPointerToStruct": "Void",
 			"MethodParams":            "Boolean",
 			"_deploy":                 "Void",
+			manifest.MethodInit:       "Void",
 		}
 		for i := range d.Methods {
 			name := d.Methods[i].ID
@@ -96,6 +98,10 @@ func _deploy(data interface{}, isUpdate bool) {}
 				require.Equal(t, v, d.Methods[i].Variables)
 			}
 		}
+	})
+
+	t.Run("static variables", func(t *testing.T) {
+		require.Equal(t, []string{"staticVar,Integer"}, d.StaticVariables)
 	})
 
 	t.Run("param types", func(t *testing.T) {
@@ -162,6 +168,11 @@ func _deploy(data interface{}, isUpdate bool) {}
 			Name: "MyCTR",
 			ABI: manifest.ABI{
 				Methods: []manifest.Method{
+					{
+						Name:       manifest.MethodInit,
+						Parameters: []manifest.Parameter{},
+						ReturnType: smartcontract.VoidType,
+					},
 					{
 						Name: "_deploy",
 						Parameters: []manifest.Parameter{

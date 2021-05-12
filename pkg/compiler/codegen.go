@@ -44,6 +44,8 @@ type codegen struct {
 	scope *funcScope
 
 	globals map[string]int
+	// staticVariables contains global (static in NDX-DN11) variable names and types.
+	staticVariables []string
 
 	// A mapping from label's names to their ids.
 	labels map[labelWithType]uint16
