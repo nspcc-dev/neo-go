@@ -454,8 +454,6 @@ func decodeBytes(data []byte) ([]byte, error) {
 }
 
 func decodeHex(s string) ([]byte, error) {
-	if strings.HasPrefix(s, "0x") {
-		s = s[2:]
-	}
+	s = strings.TrimPrefix(s, "0x")
 	return hex.DecodeString(s)
 }
