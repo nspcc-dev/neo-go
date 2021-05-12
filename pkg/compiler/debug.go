@@ -169,6 +169,7 @@ func (c *codegen) emitDebugInfo(contract []byte) *DebugInfo {
 			ReturnType:   "Void",
 			ReturnTypeSC: smartcontract.VoidType,
 			SeqPoints:    c.sequencePoints[manifest.MethodDeploy],
+			Variables:    c.deployVariables,
 		})
 	}
 	for name, scope := range c.funcs {

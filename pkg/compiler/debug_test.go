@@ -63,7 +63,7 @@ func MethodParams(addr interop.Hash160, h interop.Hash256,
 type MyStruct struct {}
 func (ms MyStruct) MethodOnStruct() { }
 func (ms *MyStruct) MethodOnPointerToStruct() { }
-func _deploy(data interface{}, isUpdate bool) {}
+func _deploy(data interface{}, isUpdate bool) { x := 1; _ = x }
 `
 
 	info, err := getBuildInfo("foo.go", src)
@@ -99,8 +99,9 @@ func _deploy(data interface{}, isUpdate bool) {}
 
 	t.Run("variables", func(t *testing.T) {
 		vars := map[string][]string{
-			"Main":              {"s,ByteString", "res,Integer"},
-			manifest.MethodInit: {"a,Integer", "x,ByteString"},
+			"Main":                {"s,ByteString", "res,Integer"},
+			manifest.MethodInit:   {"a,Integer", "x,ByteString"},
+			manifest.MethodDeploy: {"x,Integer"},
 		}
 		for i := range d.Methods {
 			v, ok := vars[d.Methods[i].ID]

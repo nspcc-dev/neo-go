@@ -48,6 +48,8 @@ type codegen struct {
 	staticVariables []string
 	// initVariables contains variables local to `_initialize` method.
 	initVariables []string
+	// deployVariables contains variables local to `_initialize` method.
+	deployVariables []string
 
 	// A mapping from label's names to their ids.
 	labels map[labelWithType]uint16
@@ -464,6 +466,8 @@ func (c *codegen) convertFuncDecl(file ast.Node, decl *ast.FuncDecl, pkg *types.
 
 	if isInit {
 		c.initVariables = append(c.initVariables, f.variables...)
+	} else if isDeploy {
+		c.deployVariables = append(c.deployVariables, f.variables...)
 	}
 
 	f.rng.End = uint16(c.prog.Len() - 1)
