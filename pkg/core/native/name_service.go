@@ -565,7 +565,7 @@ func (s *nameState) EncodeBinary(w *io.BinWriter) {
 func (s *nameState) DecodeBinary(r *io.BinReader) {
 	item := stackitem.DecodeBinaryStackItem(r)
 	if r.Err == nil {
-		s.FromStackItem(item)
+		r.Err = s.FromStackItem(item)
 	}
 }
 
@@ -700,7 +700,7 @@ func (sl stringList) EncodeBinary(w *io.BinWriter) {
 func (sl *stringList) DecodeBinary(r *io.BinReader) {
 	item := stackitem.DecodeBinaryStackItem(r)
 	if r.Err == nil {
-		sl.FromStackItem(item)
+		r.Err = sl.FromStackItem(item)
 	}
 }
 
