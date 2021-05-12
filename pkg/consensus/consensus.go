@@ -373,7 +373,12 @@ func (s *service) payloadFromExtensible(ep *npayload.Extensible) *Payload {
 func (s *service) OnPayload(cp *npayload.Extensible) {
 	log := s.log.With(zap.Stringer("hash", cp.Hash()))
 	p := s.payloadFromExtensible(cp)
-	p.decodeData()
+	// decode payload data into message
+	if err := p.decodeData(); err != nil {
+		log.Info("can't decode payload data", zap.Error(err))
+		return
+	}
+
 	if !s.validatePayload(p) {
 		log.Info("can't validate payload")
 		return
@@ -382,14 +387,6 @@ func (s *service) OnPayload(cp *npayload.Extensible) {
 	if s.dbft == nil || !s.started.Load() {
 		log.Debug("dbft is inactive or not started yet")
 		return
-	}
-
-	// decode payload data into message
-	if p.message.payload == nil {
-		if err := p.decodeData(); err != nil {
-			log.Info("can't decode payload data")
-			return
-		}
 	}
 
 	s.messages <- *p
