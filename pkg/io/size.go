@@ -59,7 +59,7 @@ func GetVarSize(value interface{}) int {
 	case reflect.Ptr:
 		vser, ok := v.Interface().(Serializable)
 		if !ok {
-			panic(fmt.Sprintf("unable to calculate GetVarSize for a non-Serializable pointer"))
+			panic("unable to calculate GetVarSize for a non-Serializable pointer")
 		}
 		cw := counterWriter{}
 		w := NewBinWriterFromIO(&cw)
