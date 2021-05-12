@@ -208,7 +208,8 @@ func TestNotaryContractPipeline(t *testing.T) {
 	checkResult(t, balance, stackitem.Make(3*transaction.NotaryServiceFeePerKey))
 
 	// `withdraw`: unlock deposit and transfer GAS back to owner
-	chain.genBlocks(depositLock)
+	_, err = chain.genBlocks(depositLock)
+	require.NoError(t, err)
 	withdrawRes, err = invokeContractMethod(chain, 100000000, notaryHash, "withdraw", testchain.MultisigScriptHash(), testchain.MultisigScriptHash())
 	require.NoError(t, err)
 	checkResult(t, withdrawRes, stackitem.NewBool(true))

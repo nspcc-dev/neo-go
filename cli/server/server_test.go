@@ -62,9 +62,11 @@ func TestHandleLoggingParams(t *testing.T) {
 func TestInitBCWithMetrics(t *testing.T) {
 	d, err := ioutil.TempDir("./", "")
 	require.NoError(t, err)
-	os.Chdir(d)
+	err = os.Chdir(d)
+	require.NoError(t, err)
 	t.Cleanup(func() {
-		os.Chdir("..")
+		err = os.Chdir("..")
+		require.NoError(t, err)
 		os.RemoveAll(d)
 	})
 
@@ -91,9 +93,11 @@ func TestDumpDB(t *testing.T) {
 	t.Run("too low chain", func(t *testing.T) {
 		d, err := ioutil.TempDir("./", "")
 		require.NoError(t, err)
-		os.Chdir(d)
+		err = os.Chdir(d)
+		require.NoError(t, err)
 		t.Cleanup(func() {
-			os.Chdir("..")
+			err = os.Chdir("..")
+			require.NoError(t, err)
 			os.RemoveAll(d)
 		})
 		testDump := "file.acc"
@@ -112,9 +116,11 @@ func TestDumpDB(t *testing.T) {
 	t.Run("positive", func(t *testing.T) {
 		d, err := ioutil.TempDir("./", "")
 		require.NoError(t, err)
-		os.Chdir(d)
+		err = os.Chdir(d)
+		require.NoError(t, err)
 		t.Cleanup(func() {
-			os.Chdir("..")
+			err = os.Chdir("..")
+			require.NoError(t, err)
 			os.RemoveAll(d)
 		})
 		testDump := "file.acc"
@@ -136,9 +142,11 @@ func TestRestoreDB(t *testing.T) {
 	require.NoError(t, err)
 	testDump := "file1.acc"
 	saveDump := "file2.acc"
-	os.Chdir(d)
+	err = os.Chdir(d)
+	require.NoError(t, err)
 	t.Cleanup(func() {
-		os.Chdir("..")
+		err = os.Chdir("..")
+		require.NoError(t, err)
 		os.RemoveAll(d)
 	})
 

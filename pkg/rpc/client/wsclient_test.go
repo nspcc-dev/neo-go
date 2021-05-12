@@ -128,7 +128,8 @@ func TestWSClientEvents(t *testing.T) {
 			ws, err := upgrader.Upgrade(w, req, nil)
 			require.NoError(t, err)
 			for _, event := range events {
-				ws.SetWriteDeadline(time.Now().Add(2 * time.Second))
+				err = ws.SetWriteDeadline(time.Now().Add(2 * time.Second))
+				require.NoError(t, err)
 				err = ws.WriteMessage(1, []byte(event))
 				if err != nil {
 					break
@@ -313,14 +314,16 @@ func TestWSFilteredSubscriptions(t *testing.T) {
 					var upgrader = websocket.Upgrader{}
 					ws, err := upgrader.Upgrade(w, req, nil)
 					require.NoError(t, err)
-					ws.SetReadDeadline(time.Now().Add(2 * time.Second))
+					err = ws.SetReadDeadline(time.Now().Add(2 * time.Second))
+					require.NoError(t, err)
 					req := request.In{}
 					err = ws.ReadJSON(&req)
 					require.NoError(t, err)
 					params, err := req.Params()
 					require.NoError(t, err)
 					c.serverCode(t, params)
-					ws.SetWriteDeadline(time.Now().Add(2 * time.Second))
+					err = ws.SetWriteDeadline(time.Now().Add(2 * time.Second))
+					require.NoError(t, err)
 					err = ws.WriteMessage(1, []byte(`{"jsonrpc": "2.0", "id": 1, "result": "0"}`))
 					require.NoError(t, err)
 					ws.Close()

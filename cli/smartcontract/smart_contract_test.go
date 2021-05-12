@@ -13,9 +13,11 @@ import (
 func TestInitSmartContract(t *testing.T) {
 	d, err := ioutil.TempDir("./", "")
 	require.NoError(t, err)
-	os.Chdir(d)
+	err = os.Chdir(d)
+	require.NoError(t, err)
 	t.Cleanup(func() {
-		os.Chdir("..")
+		err = os.Chdir("..")
+		require.NoError(t, err)
 		os.RemoveAll(d)
 	})
 	contractName := "testContract"

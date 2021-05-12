@@ -1010,7 +1010,7 @@ func TestRPC(t *testing.T) {
 func TestSubmitOracle(t *testing.T) {
 	chain, rpcSrv, httpSrv := initClearServerWithServices(t, true, false)
 	defer chain.Close()
-	defer rpcSrv.Shutdown()
+	defer func() { _ = rpcSrv.Shutdown() }()
 
 	rpc := `{"jsonrpc": "2.0", "id": 1, "method": "submitoracleresponse", "params": %s}`
 	runCase := func(t *testing.T, fail bool, params ...string) func(t *testing.T) {
@@ -1046,7 +1046,7 @@ func TestSubmitNotaryRequest(t *testing.T) {
 	t.Run("disabled P2PSigExtensions", func(t *testing.T) {
 		chain, rpcSrv, httpSrv := initClearServerWithServices(t, false, false)
 		defer chain.Close()
-		defer rpcSrv.Shutdown()
+		defer func() { _ = rpcSrv.Shutdown() }()
 		req := fmt.Sprintf(rpc, "[]")
 		body := doRPCCallOverHTTP(req, httpSrv.URL, t)
 		checkErrGetResult(t, body, true)
@@ -1054,7 +1054,7 @@ func TestSubmitNotaryRequest(t *testing.T) {
 
 	chain, rpcSrv, httpSrv := initServerWithInMemoryChainAndServices(t, false, true)
 	defer chain.Close()
-	defer rpcSrv.Shutdown()
+	defer func() { _ = rpcSrv.Shutdown() }()
 
 	runCase := func(t *testing.T, fail bool, params ...string) func(t *testing.T) {
 		return func(t *testing.T) {
@@ -1156,7 +1156,7 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 	chain, rpcSrv, httpSrv := initServerWithInMemoryChain(t)
 
 	defer chain.Close()
-	defer rpcSrv.Shutdown()
+	defer func() { _ = rpcSrv.Shutdown() }()
 
 	e := &executor{chain: chain, httpSrv: httpSrv}
 	t.Run("single request", func(t *testing.T) {
@@ -1595,9 +1595,11 @@ func doRPCCallOverWS(rpcCall string, url string, t *testing.T) []byte {
 	url = "ws" + strings.TrimPrefix(url, "http")
 	c, _, err := dialer.Dial(url+"/ws", nil)
 	require.NoError(t, err)
-	c.SetWriteDeadline(time.Now().Add(time.Second))
+	err = c.SetWriteDeadline(time.Now().Add(time.Second))
+	require.NoError(t, err)
 	require.NoError(t, c.WriteMessage(1, []byte(rpcCall)))
-	c.SetReadDeadline(time.Now().Add(time.Second))
+	err = c.SetReadDeadline(time.Now().Add(time.Second))
+	require.NoError(t, err)
 	_, body, err := c.ReadMessage()
 	require.NoError(t, err)
 	require.NoError(t, c.Close())

@@ -145,7 +145,8 @@ func TestNotary(t *testing.T) {
 				VerificationScript: []byte{},
 			},
 		}
-		requester.SignTx(testchain.Network(), fallback)
+		err = requester.SignTx(testchain.Network(), fallback)
+		require.NoError(t, err)
 		return fallback
 	}
 

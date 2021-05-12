@@ -122,7 +122,8 @@ func TestNEO_Vote(t *testing.T) {
 	ic.VM.Load(priv.PublicKey().GetVerificationScript())
 	require.NoError(t, neo.VoteInternal(ic, h, candidates[0]))
 
-	ic.DAO.Persist()
+	_, err = ic.DAO.Persist()
+	require.NoError(t, err)
 	advanceChain(t)
 	pubs, err = neo.ComputeNextBlockValidators(bc, ic.DAO)
 	require.NoError(t, err)
