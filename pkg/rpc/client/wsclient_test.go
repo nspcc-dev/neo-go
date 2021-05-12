@@ -344,7 +344,7 @@ func TestNewWS(t *testing.T) {
 		require.NoError(t, c.Init())
 	})
 	t.Run("bad URL", func(t *testing.T) {
-		_, err := NewWS(context.TODO(), strings.Trim(srv.URL, "http://"), Options{})
+		_, err := NewWS(context.TODO(), strings.TrimPrefix(srv.URL, "http://"), Options{})
 		require.Error(t, err)
 	})
 }
