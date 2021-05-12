@@ -16,6 +16,8 @@ import (
 	"go.uber.org/atomic"
 )
 
+const testOverflow = false
+
 func wsReader(t *testing.T, ws *websocket.Conn, msgCh chan<- []byte, isFinished *atomic.Bool) {
 	for {
 		ws.SetReadDeadline(time.Now().Add(time.Second))
@@ -428,7 +430,10 @@ func TestWSClientsLimit(t *testing.T) {
 // that's going to happen because of network-level buffering, typical
 // number seen in tests is around ~3500 events, but it's not reliable enough,
 // thus this test is disabled.
-func testSubscriptionOverflow(t *testing.T) {
+func TestSubscriptionOverflow(t *testing.T) {
+	if !testOverflow {
+		return
+	}
 	const blockCnt = notificationBufSize * 5
 	var receivedMiss bool
 
