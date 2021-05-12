@@ -25,7 +25,7 @@ func NewToken(tokenHash util.Uint160, name, symbol string, decimals int64, stand
 	}
 }
 
-// Address returns token address from hash
+// Address returns token address from hash.
 func (t *Token) Address() string {
 	return address.Uint160ToString(t.Hash)
 }

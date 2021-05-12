@@ -203,7 +203,7 @@ func NewPublicKeyFromASN1(data []byte) (*PublicKey, error) {
 // 1. Secp256k1 (Koblitz curve): y² = x³ + b,
 // 2. Secp256r1 (Random curve): y² = x³ - 3x + b.
 // To decode compressed curve point we perform the following operation: y = sqrt(x³ + ax + b mod p)
-// where `p` denotes the order of the underlying curve field
+// where `p` denotes the order of the underlying curve field.
 func decodeCompressedY(x *big.Int, ylsb uint, curve elliptic.Curve) (*big.Int, error) {
 	var a *big.Int
 	switch curve.(type) {

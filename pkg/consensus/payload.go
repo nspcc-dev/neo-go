@@ -233,7 +233,7 @@ func (p *Payload) encodeData() {
 	}
 }
 
-// decode data of payload into it's message
+// decode data of payload into its message.
 func (p *Payload) decodeData() error {
 	br := io.NewBinReaderFromBuf(p.Extensible.Data)
 	p.message.DecodeBinary(br)

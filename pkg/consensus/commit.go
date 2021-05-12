@@ -11,7 +11,7 @@ type commit struct {
 }
 
 // signatureSize is an rfc6989 signature size in bytes
-// without leading byte (0x04, uncompressed)
+// without leading byte (0x04, uncompressed).
 const signatureSize = 64
 
 var _ payload.Commit = (*commit)(nil)

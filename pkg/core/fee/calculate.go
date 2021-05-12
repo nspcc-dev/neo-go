@@ -10,7 +10,7 @@ import (
 // ECDSAVerifyPrice is a gas price of a single verification.
 const ECDSAVerifyPrice = 1 << 15
 
-// Calculate returns network fee for transaction
+// Calculate returns network fee for transaction.
 func Calculate(base int64, script []byte) (int64, int) {
 	var (
 		netFee int64

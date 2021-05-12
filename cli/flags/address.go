@@ -16,7 +16,7 @@ type Address struct {
 	Value util.Uint160
 }
 
-// AddressFlag is a flag with type string
+// AddressFlag is a flag with type string.
 type AddressFlag struct {
 	Name  string
 	Usage string
@@ -60,7 +60,7 @@ func (f AddressFlag) IsSet() bool {
 }
 
 // String returns a readable representation of this value
-// (for usage defaults)
+// (for usage defaults).
 func (f AddressFlag) String() string {
 	var names []string
 	eachName(f.Name, func(name string) {
@@ -77,13 +77,13 @@ func getNameHelp(name string) string {
 	return fmt.Sprintf("--%s value", name)
 }
 
-// GetName returns the name of the flag
+// GetName returns the name of the flag.
 func (f AddressFlag) GetName() string {
 	return f.Name
 }
 
 // Apply populates the flag given the flag set and environment
-// Ignores errors
+// Ignores errors.
 func (f AddressFlag) Apply(set *flag.FlagSet) {
 	eachName(f.Name, func(name string) {
 		set.Var(&f.Value, name, f.Usage)

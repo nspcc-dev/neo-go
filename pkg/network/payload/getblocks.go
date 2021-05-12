@@ -12,9 +12,9 @@ const (
 	MaxHashesCount = 500
 )
 
-// GetBlocks contains fields and methods to be shared with the
+// GetBlocks contains getblocks message payload fields.
 type GetBlocks struct {
-	// hash of latest block that node requests
+	// Hash of the latest block that node requests.
 	HashStart util.Uint256
 	Count     int16
 }

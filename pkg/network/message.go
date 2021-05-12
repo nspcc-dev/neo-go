@@ -34,10 +34,10 @@ type Message struct {
 	StateRootInHeader bool
 }
 
-// MessageFlag represents compression level of message payload
+// MessageFlag represents compression level of message payload.
 type MessageFlag byte
 
-// Possible message flags
+// Possible message flags.
 const (
 	Compressed MessageFlag = 1 << iota
 	None       MessageFlag = 0
@@ -48,17 +48,17 @@ type CommandType byte
 
 // Valid protocol commands used to send between nodes.
 const (
-	// handshaking
+	// Handshaking.
 	CMDVersion CommandType = 0x00
 	CMDVerack  CommandType = 0x01
 
-	// connectivity
+	// Connectivity.
 	CMDGetAddr CommandType = 0x10
 	CMDAddr    CommandType = 0x11
 	CMDPing    CommandType = 0x18
 	CMDPong    CommandType = 0x19
 
-	// synchronization
+	// Synchronization.
 	CMDGetHeaders       CommandType = 0x20
 	CMDHeaders          CommandType = 0x21
 	CMDGetBlocks        CommandType = 0x24
@@ -73,13 +73,13 @@ const (
 	CMDP2PNotaryRequest             = CommandType(payload.P2PNotaryRequestType)
 	CMDReject           CommandType = 0x2f
 
-	// SPV protocol
+	// SPV protocol.
 	CMDFilterLoad  CommandType = 0x30
 	CMDFilterAdd   CommandType = 0x31
 	CMDFilterClear CommandType = 0x32
 	CMDMerkleBlock CommandType = 0x38
 
-	// others
+	// Others.
 	CMDAlert CommandType = 0x40
 )
 
@@ -197,7 +197,7 @@ func (m *Message) Bytes() ([]byte, error) {
 }
 
 // tryCompressPayload sets message's compressed payload to serialized
-// payload and compresses it in case if its size exceeds CompressionMinSize
+// payload and compresses it in case if its size exceeds CompressionMinSize.
 func (m *Message) tryCompressPayload() error {
 	if m.Payload == nil {
 		return nil

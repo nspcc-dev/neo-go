@@ -9,13 +9,13 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/util"
 )
 
-// UnclaimedGas response wrapper
+// UnclaimedGas response wrapper.
 type UnclaimedGas struct {
 	Address   util.Uint160
 	Unclaimed big.Int
 }
 
-// unclaimedGas is an auxiliary struct for JSON marhsalling
+// unclaimedGas is an auxiliary struct for JSON marhsalling.
 type unclaimedGas struct {
 	Address   string `json:"address"`
 	Unclaimed string `json:"unclaimed"`

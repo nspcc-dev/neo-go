@@ -8,7 +8,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/util"
 )
 
-// The maximum number of AllowedContracts or AllowedGroups
+// The maximum number of AllowedContracts or AllowedGroups.
 const maxSubitems = 16
 
 // Signer implements a Transaction signer.

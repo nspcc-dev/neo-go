@@ -149,7 +149,7 @@ var stringCases = []struct {
 
 // this cases are from stdlib
 // https://github.com/dotnet/runtime/blob/master/src/libraries/System.Runtime.Numerics/tests/BigInteger/ToByteArray.cs#L96
-// note that they are in big-endian
+// note that they are in big-endian.
 var stdlibCases = []struct {
 	numStr string
 	buf    []byte

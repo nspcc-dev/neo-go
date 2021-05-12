@@ -5,7 +5,7 @@ import (
 )
 
 type (
-	// Config is an RPC service configuration information
+	// Config is an RPC service configuration information.
 	Config struct {
 		Address              string `yaml:"Address"`
 		Enabled              bool   `yaml:"Enabled"`

@@ -230,7 +230,7 @@ func (t *Transaction) DecodeHashableFields(buf []byte) error {
 	return nil
 }
 
-// Bytes converts the transaction to []byte
+// Bytes converts the transaction to []byte.
 func (t *Transaction) Bytes() []byte {
 	buf := io.NewBufBinWriter()
 	t.EncodeBinary(buf.BinWriter)
@@ -240,7 +240,7 @@ func (t *Transaction) Bytes() []byte {
 	return buf.Bytes()
 }
 
-// NewTransactionFromBytes decodes byte array into *Transaction
+// NewTransactionFromBytes decodes byte array into *Transaction.
 func NewTransactionFromBytes(b []byte) (*Transaction, error) {
 	tx := &Transaction{}
 	r := io.NewBinReaderFromBuf(b)
@@ -257,7 +257,7 @@ func NewTransactionFromBytes(b []byte) (*Transaction, error) {
 }
 
 // FeePerByte returns NetworkFee of the transaction divided by
-// its size
+// its size.
 func (t *Transaction) FeePerByte() int64 {
 	return t.NetworkFee / int64(t.Size())
 }
@@ -280,7 +280,7 @@ func (t *Transaction) Sender() util.Uint160 {
 }
 
 // transactionJSON is a wrapper for Transaction and
-// used for correct marhalling of transaction.Data
+// used for correct marhalling of transaction.Data.
 type transactionJSON struct {
 	TxID            util.Uint256 `json:"hash"`
 	Size            int          `json:"size"`

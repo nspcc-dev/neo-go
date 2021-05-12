@@ -17,7 +17,7 @@ type ReadWriter struct {
 	io.Writer
 }
 
-// ReadLine reads line from the input without trailing '\n'
+// ReadLine reads line from the input without trailing '\n'.
 func ReadLine(prompt string) (string, error) {
 	trm := Terminal
 	if trm == nil {

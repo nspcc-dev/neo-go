@@ -68,7 +68,7 @@ var (
 
 const (
 	// smartContractTmpl is written to a file when used with `init` command.
-	// %s is parsed to be the smartContractName
+	// %s is parsed to be the smartContractName.
 	smartContractTmpl = `package %s
 
 import "github.com/nspcc-dev/neo-go/pkg/interop/runtime"

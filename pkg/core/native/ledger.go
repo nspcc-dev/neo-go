@@ -192,7 +192,7 @@ func getTransactionAndHeight(cd *dao.Cached, item stackitem.Item) (*transaction.
 	return cd.GetTransaction(hash)
 }
 
-// BlockToStackItem converts block.Block to stackitem.Item
+// BlockToStackItem converts block.Block to stackitem.Item.
 func BlockToStackItem(b *block.Block) stackitem.Item {
 	return stackitem.NewArray([]stackitem.Item{
 		stackitem.NewByteArray(b.Hash().BytesBE()),
@@ -206,7 +206,7 @@ func BlockToStackItem(b *block.Block) stackitem.Item {
 	})
 }
 
-// TransactionToStackItem converts transaction.Transaction to stackitem.Item
+// TransactionToStackItem converts transaction.Transaction to stackitem.Item.
 func TransactionToStackItem(t *transaction.Transaction) stackitem.Item {
 	return stackitem.NewArray([]stackitem.Item{
 		stackitem.NewByteArray(t.Hash().BytesBE()),

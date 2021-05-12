@@ -11,7 +11,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/util"
 )
 
-// Header holds the base info of a block
+// Header holds the base info of a block.
 type Header struct {
 	// Version of the block.
 	Version uint32
@@ -84,7 +84,7 @@ func (b *Header) DecodeBinary(br *io.BinReader) {
 	b.Script.DecodeBinary(br)
 }
 
-// EncodeBinary implements Serializable interface
+// EncodeBinary implements Serializable interface.
 func (b *Header) EncodeBinary(bw *io.BinWriter) {
 	b.encodeHashableFields(bw)
 	bw.WriteVarUint(1)

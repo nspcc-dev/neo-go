@@ -20,17 +20,17 @@ type (
 var (
 	// ErrInvalidParams represents a generic 'invalid parameters' error.
 	ErrInvalidParams = NewInvalidParamsError("", nil)
-	// ErrAlreadyExists represents SubmitError with code -501
+	// ErrAlreadyExists represents SubmitError with code -501.
 	ErrAlreadyExists = NewSubmitError(-501, "Block or transaction already exists and cannot be sent repeatedly.")
-	// ErrOutOfMemory represents SubmitError with code -502
+	// ErrOutOfMemory represents SubmitError with code -502.
 	ErrOutOfMemory = NewSubmitError(-502, "The memory pool is full and no more transactions can be sent.")
-	// ErrUnableToVerify represents SubmitError with code -503
+	// ErrUnableToVerify represents SubmitError with code -503.
 	ErrUnableToVerify = NewSubmitError(-503, "The block cannot be validated.")
-	// ErrValidationFailed represents SubmitError with code -504
+	// ErrValidationFailed represents SubmitError with code -504.
 	ErrValidationFailed = NewSubmitError(-504, "Block or transaction validation failed.")
-	// ErrPolicyFail represents SubmitError with code -505
+	// ErrPolicyFail represents SubmitError with code -505.
 	ErrPolicyFail = NewSubmitError(-505, "One of the Policy filters failed.")
-	// ErrUnknown represents SubmitError with code -500
+	// ErrUnknown represents SubmitError with code -500.
 	ErrUnknown = NewSubmitError(-500, "Unknown error.")
 )
 
@@ -47,7 +47,7 @@ func NewError(code int64, httpCode int, message string, data string, cause error
 }
 
 // NewParseError creates a new error with code
-// -32700.:%s
+// -32700.
 func NewParseError(data string, cause error) *Error {
 	return NewError(-32700, http.StatusBadRequest, "Parse Error", data, cause)
 }
@@ -77,13 +77,13 @@ func NewInternalServerError(data string, cause error) *Error {
 }
 
 // NewRPCError creates a new error with
-// code -100
+// code -100.
 func NewRPCError(message string, data string, cause error) *Error {
 	return NewError(-100, http.StatusUnprocessableEntity, message, data, cause)
 }
 
 // NewSubmitError creates a new error with
-// specified error code and error message
+// specified error code and error message.
 func NewSubmitError(code int64, message string) *Error {
 	return NewError(code, http.StatusUnprocessableEntity, message, "", nil)
 }

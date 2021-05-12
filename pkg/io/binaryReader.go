@@ -167,7 +167,7 @@ func (r *BinReader) ReadVarUint() uint64 {
 }
 
 // ReadVarBytes reads the next set of bytes from the underlying reader.
-// ReadVarUInt() is used to determine how large that slice is
+// ReadVarUInt() is used to determine how large that slice is.
 func (r *BinReader) ReadVarBytes(maxSize ...int) []byte {
 	n := r.ReadVarUint()
 	ms := MaxArraySize

@@ -47,7 +47,7 @@ type item struct {
 type items []item
 
 // utilityBalanceAndFees stores sender's balance and overall fees of
-// sender's transactions which are currently in mempool
+// sender's transactions which are currently in mempool.
 type utilityBalanceAndFees struct {
 	balance *big.Int
 	feeSum  *big.Int
@@ -158,7 +158,7 @@ func (mp *Pool) HasConflicts(t *transaction.Transaction, fee Feer) bool {
 }
 
 // tryAddSendersFee tries to add system fee and network fee to the total sender`s fee in mempool
-// and returns false if both balance check is required and sender has not enough GAS to pay
+// and returns false if both balance check is required and sender has not enough GAS to pay.
 func (mp *Pool) tryAddSendersFee(tx *transaction.Transaction, feer Feer, needCheck bool) bool {
 	payer := tx.Signers[mp.payerIndex].Account
 	senderFee, ok := mp.fees[payer]
@@ -304,7 +304,7 @@ func (mp *Pool) Remove(hash util.Uint256, feer Feer) {
 	mp.lock.Unlock()
 }
 
-// removeInternal is an internal unlocked representation of Remove
+// removeInternal is an internal unlocked representation of Remove.
 func (mp *Pool) removeInternal(hash util.Uint256, feer Feer) {
 	if tx, ok := mp.verifiedMap[hash]; ok {
 		var num int

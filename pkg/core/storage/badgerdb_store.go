@@ -17,12 +17,12 @@ type BadgerDBStore struct {
 	db *badger.DB
 }
 
-// BadgerDBBatch is a wrapper around badger.WriteBatch, compatible with Batch interface
+// BadgerDBBatch is a wrapper around badger.WriteBatch, compatible with Batch interface.
 type BadgerDBBatch struct {
 	batch *badger.WriteBatch
 }
 
-// Delete implements the Batch interface
+// Delete implements the Batch interface.
 func (b *BadgerDBBatch) Delete(key []byte) {
 	err := b.batch.Delete(key)
 	if err != nil {
@@ -30,7 +30,7 @@ func (b *BadgerDBBatch) Delete(key []byte) {
 	}
 }
 
-// Put implements the Batch interface
+// Put implements the Batch interface.
 func (b *BadgerDBBatch) Put(key, value []byte) {
 	keycopy := make([]byte, len(key))
 	copy(keycopy, key)

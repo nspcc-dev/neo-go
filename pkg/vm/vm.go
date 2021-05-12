@@ -1487,7 +1487,7 @@ func getTryParams(op opcode.Opcode, p []byte) ([]byte, []byte) {
 	return p[:i], p[i:]
 }
 
-// getJumpCondition performs opcode specific comparison of a and b
+// getJumpCondition performs opcode specific comparison of a and b.
 func getJumpCondition(op opcode.Opcode, a, b *big.Int) bool {
 	cmp := a.Cmp(b)
 	switch op {
@@ -1790,17 +1790,17 @@ func bytesToPublicKey(b []byte, curve elliptic.Curve) *keys.PublicKey {
 	return pkey
 }
 
-// GetCallingScriptHash implements ScriptHashGetter interface
+// GetCallingScriptHash implements ScriptHashGetter interface.
 func (v *VM) GetCallingScriptHash() util.Uint160 {
 	return v.Context().callingScriptHash
 }
 
-// GetEntryScriptHash implements ScriptHashGetter interface
+// GetEntryScriptHash implements ScriptHashGetter interface.
 func (v *VM) GetEntryScriptHash() util.Uint160 {
 	return v.getContextScriptHash(v.Istack().Len() - 1)
 }
 
-// GetCurrentScriptHash implements ScriptHashGetter interface
+// GetCurrentScriptHash implements ScriptHashGetter interface.
 func (v *VM) GetCurrentScriptHash() util.Uint160 {
 	return v.getContextScriptHash(0)
 }

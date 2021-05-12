@@ -1179,7 +1179,7 @@ func (s *Server) getNextBlockValidators(_ request.Params) (interface{}, *respons
 	return res, nil
 }
 
-// getCommittee returns the current list of NEO committee members
+// getCommittee returns the current list of NEO committee members.
 func (s *Server) getCommittee(_ request.Params) (interface{}, *response.Error) {
 	keys, err := s.chain.GetCommittee()
 	if err != nil {

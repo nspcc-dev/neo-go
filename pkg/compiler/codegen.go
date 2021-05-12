@@ -126,7 +126,7 @@ const (
 	varArgument
 )
 
-// newLabel creates a new label to jump to
+// newLabel creates a new label to jump to.
 func (c *codegen) newLabel() (l uint16) {
 	li := len(c.l)
 	if li > math.MaxUint16 {
@@ -1498,7 +1498,7 @@ func (c *codegen) getLabelOffset(typ labelOffsetType, name string) uint16 {
 }
 
 // For `&&` and `||` it return an opcode which jumps only if result is known:
-// false && .. == false, true || .. = true
+// false && .. == false, true || .. = true.
 func getJumpForToken(tok token.Token, typ types.Type) (opcode.Opcode, bool) {
 	switch tok {
 	case token.GTR:

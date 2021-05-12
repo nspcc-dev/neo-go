@@ -10,11 +10,11 @@ import (
 
 // inlineCall inlines call of n for function represented by f.
 // Call `f(a,b)` for definition `func f(x,y int)` is translated to block:
-// {
-//    x := a
-//    y := b
-//    <inline body of f directly>
-// }
+//   {
+//      x := a
+//      y := b
+//      <inline body of f directly>
+//   }
 func (c *codegen) inlineCall(f *funcScope, n *ast.CallExpr) {
 	labelSz := len(c.labelList)
 	offSz := len(c.inlineLabelOffsets)

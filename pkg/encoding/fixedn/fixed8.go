@@ -65,7 +65,7 @@ func Fixed8FromFloat(val float64) Fixed8 {
 }
 
 // Fixed8FromString parses s which must be a fixed point number
-// with precision up to 10^-8
+// with precision up to 10^-8.
 func Fixed8FromString(s string) (Fixed8, error) {
 	num, err := FromString(s, precision)
 	if err != nil {

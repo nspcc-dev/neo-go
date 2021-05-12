@@ -35,6 +35,7 @@ linters:
     - deadcode
     - errcheck
     - gosimple
+    - godot
     - ineffassign
     - staticcheck
     - structcheck

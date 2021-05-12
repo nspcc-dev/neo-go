@@ -44,7 +44,7 @@ import (
 	"go.uber.org/zap/zaptest"
 )
 
-// multisig address which possess all NEO
+// multisig address which possess all NEO.
 var neoOwner = testchain.MultisigScriptHash()
 
 // newTestChain should be called before newBlock invocation to properly setup
