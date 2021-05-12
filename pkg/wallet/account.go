@@ -61,18 +61,6 @@ type Contract struct {
 	Deployed bool `json:"deployed"`
 }
 
-// contract is an intermediate struct used for json unmarshalling.
-type contract struct {
-	// Script is a hex-encoded script of the contract.
-	Script string `json:"script"`
-
-	// A list of parameters used deploying this contract.
-	Parameters []ContractParam `json:"parameters"`
-
-	// Indicates whether the contract has been deployed to the blockchain.
-	Deployed bool `json:"deployed"`
-}
-
 // ContractParam is a descriptor of a contract parameter
 // containing type and optional name.
 type ContractParam struct {

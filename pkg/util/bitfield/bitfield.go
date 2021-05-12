@@ -10,7 +10,6 @@ type Field []uint64
 
 // Bits and bytes count in a basic element of Field.
 const elemBits = 64
-const elemBytes = 8
 
 // New creates a new bit field of specified length. Actual field length
 // can be rounded to the next multiple of 64, so it's a responsibility

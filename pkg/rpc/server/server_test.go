@@ -46,11 +46,6 @@ type executor struct {
 	httpSrv *httptest.Server
 }
 
-const (
-	defaultJSONRPC = "2.0"
-	defaultID      = 1
-)
-
 type rpcTestCase struct {
 	name   string
 	params string
@@ -66,7 +61,6 @@ const genesisBlockHash = "73fe50b5564d57118296cbab0a78fe7cb11c97b7699d07a9a21fab
 const verifyContractHash = "c50082e0d8364d61ce6933bd24027a3363474dce"
 const verifyContractAVM = "VwMAQS1RCDAhcAwU7p6iLCfjS9AUj8QQjgj3To9QSLLbMHFoE87bKGnbKJdA"
 const verifyWithArgsContractHash = "8744ffdd07af8e9f18ab90685c8c2ebfd37c6415"
-const verifyWithArgsContractAVM = "VwIDeAwLZ29vZF9zdHJpbmeXJA15FSgJehHbIJciBRHbIHBoQA=="
 const invokescriptContractAVM = "VwcADBQBDAMOBQYMDQIODw0DDgcJAAAAANswcGhB+CfsjCGqJgQRQAwUDQ8DAgkAAgEDBwMEBQIBAA4GDAnbMHFpQfgn7IwhqiYEEkATQA=="
 
 var rpcTestCases = map[string][]rpcTestCase{

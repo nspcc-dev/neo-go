@@ -2,7 +2,6 @@ package payload
 
 import (
 	"errors"
-	"math"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
@@ -10,10 +9,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/util"
 )
 
-const (
-	maxExtensibleCategorySize = 32
-	maxExtensibleDataSize     = math.MaxUint16
-)
+const maxExtensibleCategorySize = 32
 
 // Extensible represents payload containing arbitrary data.
 type Extensible struct {

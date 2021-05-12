@@ -41,12 +41,10 @@ const (
 var (
 	errAlreadyConnected = errors.New("already connected")
 	errIdenticalID      = errors.New("identical node id")
-	errInvalidHandshake = errors.New("invalid handshake")
 	errInvalidNetwork   = errors.New("invalid network")
 	errMaxPeers         = errors.New("max peers reached")
 	errServerShutdown   = errors.New("server shutdown")
 	errInvalidInvType   = errors.New("invalid inventory type")
-	errInvalidHashStart = errors.New("invalid requested HashStart")
 )
 
 type (

@@ -15,7 +15,6 @@ import (
 	"time"
 
 	"github.com/nspcc-dev/neo-go/internal/testchain"
-	"github.com/nspcc-dev/neo-go/internal/testserdes"
 	"github.com/nspcc-dev/neo-go/pkg/compiler"
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
@@ -28,7 +27,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
-	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/fixedn"
 	"github.com/nspcc-dev/neo-go/pkg/io"
@@ -178,51 +176,6 @@ func TestBug1728(t *testing.T) {
 		bc.contracts.Management.Hash, "deploy", rawNef, rawManifest)
 	require.NoError(t, err)
 	require.Equal(t, aer.VMState, vm.HaltState)
-}
-
-func getDecodedBlock(t *testing.T, i int) *block.Block {
-	data, err := getBlockData(i)
-	require.NoError(t, err)
-
-	b, err := hex.DecodeString(data["raw"].(string))
-	require.NoError(t, err)
-
-	block := block.New(false)
-	require.NoError(t, testserdes.DecodeBinary(b, block))
-
-	return block
-}
-
-func getBlockData(i int) (map[string]interface{}, error) {
-	b, err := ioutil.ReadFile(fmt.Sprintf("test_data/block_%d.json", i))
-	if err != nil {
-		return nil, err
-	}
-	var data map[string]interface{}
-	if err := json.Unmarshal(b, &data); err != nil {
-		return nil, err
-	}
-	return data, err
-}
-
-func newDumbBlock() *block.Block {
-	return &block.Block{
-		Header: block.Header{
-			Version:       0,
-			PrevHash:      hash.Sha256([]byte("a")),
-			MerkleRoot:    hash.Sha256([]byte("b")),
-			Timestamp:     100500,
-			Index:         1,
-			NextConsensus: hash.Hash160([]byte("a")),
-			Script: transaction.Witness{
-				VerificationScript: []byte{0x51}, // PUSH1
-				InvocationScript:   []byte{0x61}, // NOP
-			},
-		},
-		Transactions: []*transaction.Transaction{
-			transaction.New([]byte{byte(opcode.PUSH1)}, 0),
-		},
-	}
 }
 
 // This function generates "../rpc/testdata/testblocks.acc" file which contains data

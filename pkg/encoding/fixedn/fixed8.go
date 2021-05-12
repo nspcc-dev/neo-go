@@ -1,7 +1,6 @@
 package fixedn
 
 import (
-	"errors"
 	"strconv"
 	"strings"
 
@@ -12,8 +11,6 @@ const (
 	precision = 8
 	decimals  = 100000000
 )
-
-var errInvalidString = errors.New("fixed8 must satisfy following regex \\d+(\\.\\d{1,8})?")
 
 // Fixed8 represents a fixed-point number with precision 10^-8.
 type Fixed8 int64

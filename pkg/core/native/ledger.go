@@ -25,14 +25,7 @@ type Ledger struct {
 	interop.ContractMD
 }
 
-const (
-	ledgerContractID = -4
-
-	prefixBlockHash    = 9
-	prefixCurrentBlock = 12
-	prefixBlock        = 5
-	prefixTransaction  = 11
-)
+const ledgerContractID = -4
 
 // newLedger creates new Ledger native contract.
 func newLedger() *Ledger {

@@ -14,17 +14,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 )
 
-var (
-	// governingTokenTX represents transaction that is used to create
-	// governing (NEO) token. It's a part of the genesis block.
-	governingTokenTX transaction.Transaction
-
-	// utilityTokenTX represents transaction that is used to create
-	// utility (GAS) token. It's a part of the genesis block. It's mostly
-	// useful for its hash that represents GAS asset ID.
-	utilityTokenTX transaction.Transaction
-)
-
 // createGenesisBlock creates a genesis block based on the given configuration.
 func createGenesisBlock(cfg config.ProtocolConfiguration) (*block.Block, error) {
 	validators, err := validatorsFromConfig(cfg)

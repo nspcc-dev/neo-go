@@ -21,7 +21,6 @@ import (
 const (
 	defaultDialTimeout    = 4 * time.Second
 	defaultRequestTimeout = 4 * time.Second
-	defaultClientVersion  = "2.0"
 	// number of blocks after which cache is expired
 	cacheTimeout = 100
 )
