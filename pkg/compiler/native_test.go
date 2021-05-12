@@ -246,12 +246,12 @@ func getMethod(t *testing.T, ctr interop.ContractMD, name string, params []strin
 		name = name[:4]
 	case strings.HasPrefix(name, "memorySearch"):
 		if strings.HasSuffix(name, "LastIndex") {
-			paramLen += 1 // true should be appended inside of an interop
+			paramLen++ // true should be appended inside of an interop
 		}
 		name = "memorySearch"
 	case strings.HasPrefix(name, "stringSplit"):
 		if strings.HasSuffix(name, "NonEmpty") {
-			paramLen += 1 // true should be appended inside of an interop
+			paramLen++ // true should be appended inside of an interop
 		}
 		name = "stringSplit"
 	default:
