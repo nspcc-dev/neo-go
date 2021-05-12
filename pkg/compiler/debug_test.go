@@ -18,6 +18,15 @@ func TestCodeGen_DebugInfo(t *testing.T) {
 	import "github.com/nspcc-dev/neo-go/pkg/interop/storage"
 	import "github.com/nspcc-dev/neo-go/pkg/interop/native/ledger"
 var staticVar int
+func init() {
+	a := 1
+	_ = a
+}
+func init() {
+	x := ""
+	_ = x
+	staticVar = 1
+}
 func Main(op string) bool {
 	var s string
 	_ = s
@@ -90,7 +99,8 @@ func _deploy(data interface{}, isUpdate bool) {}
 
 	t.Run("variables", func(t *testing.T) {
 		vars := map[string][]string{
-			"Main": {"s,ByteString", "res,Integer"},
+			"Main":              {"s,ByteString", "res,Integer"},
+			manifest.MethodInit: {"a,Integer", "x,ByteString"},
 		}
 		for i := range d.Methods {
 			v, ok := vars[d.Methods[i].ID]

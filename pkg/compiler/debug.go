@@ -138,6 +138,7 @@ func (c *codegen) emitDebugInfo(contract []byte) *DebugInfo {
 			ReturnType:   "Void",
 			ReturnTypeSC: smartcontract.VoidType,
 			SeqPoints:    c.sequencePoints["init"],
+			Variables:    c.initVariables,
 		})
 	}
 	if c.deployEndOffset >= 0 {
