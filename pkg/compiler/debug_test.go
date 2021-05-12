@@ -17,6 +17,16 @@ func TestCodeGen_DebugInfo(t *testing.T) {
 	import "github.com/nspcc-dev/neo-go/pkg/interop"
 	import "github.com/nspcc-dev/neo-go/pkg/interop/storage"
 	import "github.com/nspcc-dev/neo-go/pkg/interop/native/ledger"
+var staticVar int
+func init() {
+	a := 1
+	_ = a
+}
+func init() {
+	x := ""
+	_ = x
+	staticVar = 1
+}
 func Main(op string) bool {
 	var s string
 	_ = s
@@ -53,7 +63,7 @@ func MethodParams(addr interop.Hash160, h interop.Hash256,
 type MyStruct struct {}
 func (ms MyStruct) MethodOnStruct() { }
 func (ms *MyStruct) MethodOnPointerToStruct() { }
-func _deploy(data interface{}, isUpdate bool) {}
+func _deploy(data interface{}, isUpdate bool) { x := 1; _ = x }
 `
 
 	info, err := getBuildInfo("foo.go", src)
@@ -79,6 +89,7 @@ func _deploy(data interface{}, isUpdate bool) {}
 			"MethodOnPointerToStruct": "Void",
 			"MethodParams":            "Boolean",
 			"_deploy":                 "Void",
+			manifest.MethodInit:       "Void",
 		}
 		for i := range d.Methods {
 			name := d.Methods[i].ID
@@ -88,7 +99,9 @@ func _deploy(data interface{}, isUpdate bool) {}
 
 	t.Run("variables", func(t *testing.T) {
 		vars := map[string][]string{
-			"Main": {"s,ByteString", "res,Integer"},
+			"Main":                {"s,ByteString", "res,Integer"},
+			manifest.MethodInit:   {"a,Integer", "x,ByteString"},
+			manifest.MethodDeploy: {"x,Integer"},
 		}
 		for i := range d.Methods {
 			v, ok := vars[d.Methods[i].ID]
@@ -96,6 +109,10 @@ func _deploy(data interface{}, isUpdate bool) {}
 				require.Equal(t, v, d.Methods[i].Variables)
 			}
 		}
+	})
+
+	t.Run("static variables", func(t *testing.T) {
+		require.Equal(t, []string{"staticVar,Integer"}, d.StaticVariables)
 	})
 
 	t.Run("param types", func(t *testing.T) {
@@ -158,14 +175,17 @@ func _deploy(data interface{}, isUpdate bool) {}
 	t.Run("convert to Manifest", func(t *testing.T) {
 		actual, err := d.ConvertToManifest(&Options{Name: "MyCTR", SafeMethods: []string{"methodInt", "methodString"}})
 		require.NoError(t, err)
-		// note: offsets are hard to predict, so we just take them from the output
 		expected := &manifest.Manifest{
 			Name: "MyCTR",
 			ABI: manifest.ABI{
 				Methods: []manifest.Method{
 					{
-						Name:   "_deploy",
-						Offset: 0,
+						Name:       manifest.MethodInit,
+						Parameters: []manifest.Parameter{},
+						ReturnType: smartcontract.VoidType,
+					},
+					{
+						Name: "_deploy",
 						Parameters: []manifest.Parameter{
 							manifest.NewParameter("data", smartcontract.AnyType),
 							manifest.NewParameter("isUpdate", smartcontract.BoolType),
@@ -173,16 +193,14 @@ func _deploy(data interface{}, isUpdate bool) {}
 						ReturnType: smartcontract.VoidType,
 					},
 					{
-						Name:   "main",
-						Offset: 4,
+						Name: "main",
 						Parameters: []manifest.Parameter{
 							manifest.NewParameter("op", smartcontract.StringType),
 						},
 						ReturnType: smartcontract.BoolType,
 					},
 					{
-						Name:   "methodInt",
-						Offset: 70,
+						Name: "methodInt",
 						Parameters: []manifest.Parameter{
 							{
 								Name: "a",
@@ -194,32 +212,27 @@ func _deploy(data interface{}, isUpdate bool) {}
 					},
 					{
 						Name:       "methodString",
-						Offset:     101,
 						Parameters: []manifest.Parameter{},
 						ReturnType: smartcontract.StringType,
 						Safe:       true,
 					},
 					{
 						Name:       "methodByteArray",
-						Offset:     107,
 						Parameters: []manifest.Parameter{},
 						ReturnType: smartcontract.ByteArrayType,
 					},
 					{
 						Name:       "methodArray",
-						Offset:     112,
 						Parameters: []manifest.Parameter{},
 						ReturnType: smartcontract.ArrayType,
 					},
 					{
 						Name:       "methodStruct",
-						Offset:     117,
 						Parameters: []manifest.Parameter{},
 						ReturnType: smartcontract.ArrayType,
 					},
 					{
-						Name:   "methodConcat",
-						Offset: 92,
+						Name: "methodConcat",
 						Parameters: []manifest.Parameter{
 							{
 								Name: "a",
@@ -237,8 +250,7 @@ func _deploy(data interface{}, isUpdate bool) {}
 						ReturnType: smartcontract.StringType,
 					},
 					{
-						Name:   "methodParams",
-						Offset: 129,
+						Name: "methodParams",
 						Parameters: []manifest.Parameter{
 							manifest.NewParameter("addr", smartcontract.Hash160Type),
 							manifest.NewParameter("h", smartcontract.Hash256Type),
@@ -267,7 +279,15 @@ func _deploy(data interface{}, isUpdate bool) {}
 			},
 			Extra: json.RawMessage("null"),
 		}
-		require.ElementsMatch(t, expected.ABI.Methods, actual.ABI.Methods)
+		require.Equal(t, len(expected.ABI.Methods), len(actual.ABI.Methods))
+		for _, exp := range expected.ABI.Methods {
+			md := actual.ABI.GetMethod(exp.Name, len(exp.Parameters))
+			require.NotNil(t, md)
+			require.Equal(t, exp.Name, md.Name)
+			require.Equal(t, exp.Parameters, md.Parameters)
+			require.Equal(t, exp.ReturnType, md.ReturnType)
+			require.Equal(t, exp.Safe, md.Safe)
+		}
 		require.Equal(t, expected.ABI.Events, actual.ABI.Events)
 		require.Equal(t, expected.Groups, actual.Groups)
 		require.Equal(t, expected.Permissions, actual.Permissions)

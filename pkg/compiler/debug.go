@@ -24,6 +24,8 @@ type DebugInfo struct {
 	Events    []EventDebugInfo  `json:"events"`
 	// EmittedEvents contains events occurring in code.
 	EmittedEvents map[string][][]string `json:"-"`
+	// StaticVariables contains list of static variable names and types.
+	StaticVariables []string `json:"static-variables"`
 }
 
 // MethodDebugInfo represents smart-contract's method debug information.
@@ -115,9 +117,10 @@ func (c *codegen) saveSequencePoint(n ast.Node) {
 
 func (c *codegen) emitDebugInfo(contract []byte) *DebugInfo {
 	d := &DebugInfo{
-		MainPkg:   c.mainPkg.Pkg.Name(),
-		Events:    []EventDebugInfo{},
-		Documents: c.documents,
+		MainPkg:         c.mainPkg.Pkg.Name(),
+		Events:          []EventDebugInfo{},
+		Documents:       c.documents,
+		StaticVariables: c.staticVariables,
 	}
 	if c.initEndOffset > 0 {
 		d.Methods = append(d.Methods, MethodDebugInfo{
@@ -135,6 +138,7 @@ func (c *codegen) emitDebugInfo(contract []byte) *DebugInfo {
 			ReturnType:   "Void",
 			ReturnTypeSC: smartcontract.VoidType,
 			SeqPoints:    c.sequencePoints["init"],
+			Variables:    c.initVariables,
 		})
 	}
 	if c.deployEndOffset >= 0 {
@@ -165,6 +169,7 @@ func (c *codegen) emitDebugInfo(contract []byte) *DebugInfo {
 			ReturnType:   "Void",
 			ReturnTypeSC: smartcontract.VoidType,
 			SeqPoints:    c.sequencePoints[manifest.MethodDeploy],
+			Variables:    c.deployVariables,
 		})
 	}
 	for name, scope := range c.funcs {
@@ -179,11 +184,11 @@ func (c *codegen) emitDebugInfo(contract []byte) *DebugInfo {
 }
 
 func (c *codegen) registerDebugVariable(name string, expr ast.Expr) {
+	_, vt := c.scAndVMTypeFromExpr(expr)
 	if c.scope == nil {
-		// do not save globals for now
+		c.staticVariables = append(c.staticVariables, name+","+vt.String())
 		return
 	}
-	_, vt := c.scAndVMTypeFromExpr(expr)
 	c.scope.variables = append(c.scope.variables, name+","+vt.String())
 }
 
