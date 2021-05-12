@@ -5,7 +5,7 @@ import (
 	"encoding/binary"
 
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"golang.org/x/crypto/ripemd160"
+	"golang.org/x/crypto/ripemd160" //nolint:staticcheck // SA1019: package golang.org/x/crypto/ripemd160 is deprecated
 )
 
 // Hashable represents an object which can be hashed. Usually these objects
