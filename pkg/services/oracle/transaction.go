@@ -117,15 +117,3 @@ func finalizeTx(oracleNodes keys.PublicKeys, tx *transaction.Transaction, txSigs
 	tx.Scripts[1].InvocationScript = w.Bytes()
 	return true
 }
-
-func (t *incompleteTx) getRequest() *state.OracleRequest {
-	t.RLock()
-	defer t.RUnlock()
-	return t.request
-}
-
-func (t *incompleteTx) getTime() time.Time {
-	t.RLock()
-	defer t.RUnlock()
-	return t.time
-}

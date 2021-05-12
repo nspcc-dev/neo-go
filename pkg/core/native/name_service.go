@@ -711,17 +711,6 @@ func (sl stringList) index(s string) (int, bool) {
 	return index, index < len(sl) && sl[index] == s
 }
 
-func (sl *stringList) remove(s string) bool {
-	index, has := sl.index(s)
-	if !has {
-		return false
-	}
-
-	copy((*sl)[index:], (*sl)[index+1:])
-	*sl = (*sl)[:len(*sl)-1]
-	return true
-}
-
 func (sl *stringList) add(s string) bool {
 	index, has := sl.index(s)
 	if has {
