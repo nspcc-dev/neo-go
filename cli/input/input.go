@@ -25,7 +25,7 @@ func ReadLine(prompt string) (string, error) {
 		if err != nil {
 			panic(err)
 		}
-		defer term.Restore(syscall.Stdin, s)
+		defer func() { _ = term.Restore(syscall.Stdin, s) }()
 		trm = term.NewTerminal(ReadWriter{
 			Reader: os.Stdin,
 			Writer: os.Stdout,
@@ -50,7 +50,7 @@ func ReadPassword(prompt string) (string, error) {
 		if err != nil {
 			panic(err)
 		}
-		defer term.Restore(syscall.Stdin, s)
+		defer func() { _ = term.Restore(syscall.Stdin, s) }()
 		trm = term.NewTerminal(ReadWriter{os.Stdin, os.Stdout}, prompt)
 	}
 	return trm.ReadPassword(prompt)
