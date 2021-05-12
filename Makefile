@@ -84,7 +84,7 @@ vet:
 	@go vet ./...
 
 lint:
-	@go list ./... | xargs -L1 golint -set_exit_status
+	@golangci-lint run
 
 fmt:
 	@gofmt -l -w -s $$(find . -type f -name '*.go'| grep -v "/vendor/")

@@ -41,8 +41,8 @@ jobs:
       - run:
           name: go-lint
           command: |
-            go get -u -v golang.org/x/lint/golint
-            golint -set_exit_status ./...
+            curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.40.0
+            make lint
 
   vet:
     working_directory: /go/src/github.com/nspcc-dev/neo-go

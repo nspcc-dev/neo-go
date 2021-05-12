@@ -16,29 +16,14 @@ env:
 jobs:
   lint:
     name: Lint
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v2
-
-      - name: Set up Go
-        uses: actions/setup-go@v2
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v2
         with:
-          go-version: 1.16
-
-      - name: Restore Go modules from cache
-        uses: actions/cache@v2
-        with:
-          path: /home/runner/go/pkg/mod
-          key: deps-${{ hashFiles('go.sum') }}
-
-      - name: Update Go modules
-        run: go mod download -json
-
-      - name: Run linter
-        run: |
-          go get -u -v golang.org/x/lint/golint
-          make lint
+          version: latest
 
   vet:
     name: Vet
