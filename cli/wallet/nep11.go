@@ -243,7 +243,9 @@ func signAndSendNEP11Transfer(ctx *cli.Context, c *client.Client, acc *wallet.Ac
 		err error
 	)
 	if amount != nil {
-		from, err := address.StringToUint160(acc.Address)
+		var from util.Uint160
+
+		from, err = address.StringToUint160(acc.Address)
 		if err != nil {
 			return cli.NewExitError(fmt.Errorf("bad account address: %w", err), 1)
 		}
