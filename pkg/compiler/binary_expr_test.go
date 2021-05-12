@@ -339,7 +339,6 @@ func TestBooleanExprs(t *testing.T) {
 			t.Run(triple[i].s, getBoolExprTestFunc(triple[i].val, triple[i].s))
 		}
 	})
-	return
 }
 
 func TestShortCircuit(t *testing.T) {

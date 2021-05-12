@@ -99,7 +99,6 @@ func TestNEP17Balance(t *testing.T) {
 	t.Run("Bad wallet", func(t *testing.T) {
 		e.RunWithError(t, append(cmdbalance, "--wallet", "/dev/null")...)
 	})
-	return
 }
 
 func TestNEP17Transfer(t *testing.T) {
