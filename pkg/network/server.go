@@ -862,7 +862,7 @@ func (s *Server) handleP2PNotaryRequestCmd(r *payload.P2PNotaryRequest) error {
 	}
 	// It's OK for it to fail for various reasons like request already existing
 	// in the pool.
-	s.RelayP2PNotaryRequest(r)
+	_ = s.RelayP2PNotaryRequest(r)
 	return nil
 }
 
