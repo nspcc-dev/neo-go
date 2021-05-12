@@ -1024,7 +1024,7 @@ func TestVerifyTx(t *testing.T) {
 				nativeprices.NotaryVerificationPrice*bc.GetBaseExecFee() // Notary witness verification price
 			tx.Scripts = []transaction.Witness{
 				{
-					InvocationScript:   append([]byte{byte(opcode.PUSHDATA1), 64}, make([]byte, 64, 64)...),
+					InvocationScript:   append([]byte{byte(opcode.PUSHDATA1), 64}, make([]byte, 64)...),
 					VerificationScript: []byte{},
 				},
 				{
@@ -1051,7 +1051,7 @@ func TestVerifyTx(t *testing.T) {
 			tx.NetworkFee-- // to check that NetworkFee was set correctly in getPartiallyFilledTx
 			tx.Scripts = []transaction.Witness{
 				{
-					InvocationScript:   append([]byte{byte(opcode.PUSHDATA1), 64}, make([]byte, 64, 64)...),
+					InvocationScript:   append([]byte{byte(opcode.PUSHDATA1), 64}, make([]byte, 64)...),
 					VerificationScript: []byte{},
 				},
 				{

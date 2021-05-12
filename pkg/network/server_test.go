@@ -535,7 +535,7 @@ func TestGetData(t *testing.T) {
 				{Type: transaction.NotaryAssistedT, Value: &transaction.NotaryAssisted{NKeys: 0}},
 			},
 			Signers: []transaction.Signer{{Account: random.Uint160()}, {Account: random.Uint160()}},
-			Scripts: []transaction.Witness{{InvocationScript: append([]byte{byte(opcode.PUSHDATA1), 64}, make([]byte, 64, 64)...), VerificationScript: make([]byte, 0)}, {InvocationScript: []byte{}, VerificationScript: []byte{}}},
+			Scripts: []transaction.Witness{{InvocationScript: append([]byte{byte(opcode.PUSHDATA1), 64}, make([]byte, 64)...), VerificationScript: make([]byte, 0)}, {InvocationScript: []byte{}, VerificationScript: []byte{}}},
 		}
 		fallbackTx.Size()
 		fallbackTx.Hash()
