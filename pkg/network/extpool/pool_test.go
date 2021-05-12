@@ -16,7 +16,7 @@ func TestAddGet(t *testing.T) {
 	bc := newTestChain()
 	bc.height = 10
 
-	p := New(bc)
+	p := New(bc, 100)
 	t.Run("invalid witness", func(t *testing.T) {
 		ep := &payload.Extensible{ValidBlockEnd: 100, Sender: util.Uint160{0x42}}
 		p.testAdd(t, false, errVerification, ep)
@@ -41,11 +41,52 @@ func TestAddGet(t *testing.T) {
 	})
 }
 
+func TestCapacityLimit(t *testing.T) {
+	bc := newTestChain()
+	bc.height = 10
+
+	t.Run("invalid capacity", func(t *testing.T) {
+		require.Panics(t, func() { New(bc, 0) })
+	})
+
+	p := New(bc, 3)
+
+	first := &payload.Extensible{ValidBlockEnd: 11}
+	p.testAdd(t, true, nil, first)
+
+	for _, height := range []uint32{12, 13} {
+		ep := &payload.Extensible{ValidBlockEnd: height}
+		p.testAdd(t, true, nil, ep)
+	}
+
+	require.NotNil(t, p.Get(first.Hash()))
+
+	ok, err := p.Add(&payload.Extensible{ValidBlockEnd: 14})
+	require.True(t, ok)
+	require.NoError(t, err)
+
+	require.Nil(t, p.Get(first.Hash()))
+}
+
+// This test checks that sender count is updated
+// when oldest payload is removed during `Add`.
+func TestDecreaseSenderOnEvict(t *testing.T) {
+	bc := newTestChain()
+	bc.height = 10
+
+	p := New(bc, 2)
+	senders := []util.Uint160{{1}, {2}, {3}}
+	for i := uint32(11); i < 17; i++ {
+		ep := &payload.Extensible{Sender: senders[i%3], ValidBlockEnd: i}
+		p.testAdd(t, true, nil, ep)
+	}
+}
+
 func TestRemoveStale(t *testing.T) {
 	bc := newTestChain()
 	bc.height = 10
 
-	p := New(bc)
+	p := New(bc, 100)
 	eps := []*payload.Extensible{
 		{ValidBlockEnd: 11},                             // small height
 		{ValidBlockEnd: 12},                             // good
@@ -55,7 +96,7 @@ func TestRemoveStale(t *testing.T) {
 	for i := range eps {
 		p.testAdd(t, true, nil, eps[i])
 	}
-	bc.verifyWitness = func(u util.Uint160) bool { println("call"); return u[0] != 0x12 }
+	bc.verifyWitness = func(u util.Uint160) bool { return u[0] != 0x12 }
 	bc.isAllowed = func(u util.Uint160) bool { return u[0] != 0x11 }
 	p.RemoveStale(11)
 	require.Nil(t, p.Get(eps[0].Hash()))

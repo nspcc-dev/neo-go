@@ -30,11 +30,12 @@ import (
 
 const (
 	// peer numbers are arbitrary at the moment.
-	defaultMinPeers         = 5
-	defaultAttemptConnPeers = 20
-	defaultMaxPeers         = 100
-	maxBlockBatch           = 200
-	minPoolCount            = 30
+	defaultMinPeers           = 5
+	defaultAttemptConnPeers   = 20
+	defaultMaxPeers           = 100
+	defaultExtensiblePoolSize = 20
+	maxBlockBatch             = 200
+	minPoolCount              = 30
 )
 
 var (
@@ -121,6 +122,12 @@ func newServerFromConstructors(config ServerConfig, chain blockchainer.Blockchai
 		return nil, errors.New("logger is a required parameter")
 	}
 
+	if config.ExtensiblePoolSize <= 0 {
+		config.ExtensiblePoolSize = defaultExtensiblePoolSize
+		log.Info("ExtensiblePoolSize is not set or wrong, using default value",
+			zap.Int("ExtensiblePoolSize", config.ExtensiblePoolSize))
+	}
+
 	s := &Server{
 		ServerConfig:      config,
 		chain:             chain,
@@ -132,7 +139,7 @@ func newServerFromConstructors(config ServerConfig, chain blockchainer.Blockchai
 		unregister:        make(chan peerDrop),
 		peers:             make(map[Peer]bool),
 		syncReached:       atomic.NewBool(false),
-		extensiblePool:    extpool.New(chain),
+		extensiblePool:    extpool.New(chain, config.ExtensiblePoolSize),
 		log:               log,
 		transactions:      make(chan *transaction.Transaction, 64),
 	}
