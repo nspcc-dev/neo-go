@@ -351,7 +351,7 @@ func (p *pathParser) processUnion(objs []interface{}, firstTyp pathTokenType, fi
 		}
 
 		items = append(items, val)
-		typ, val = p.nextToken()
+		typ, _ = p.nextToken()
 		if typ == pathRightBracket {
 			break
 		} else if typ != pathComma {
