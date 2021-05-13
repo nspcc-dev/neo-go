@@ -26,7 +26,7 @@ build: deps
 	@set -x \
 		&& export GOGC=off \
 		&& export CGO_ENABLED=0 \
-		&& go build -trimpath -v -mod=vendor -ldflags $(BUILD_FLAGS) -o ${BINARY} ./cli/main.go
+		&& go build -trimpath -v -ldflags $(BUILD_FLAGS) -o ${BINARY} ./cli/main.go
 
 neo-go.service: neo-go.service.template
 	@sed -r -e 's_BINDIR_$(BINDIR)_' -e 's_UNITWORKDIR_$(UNITWORKDIR)_' -e 's_SYSCONFIGDIR_$(SYSCONFIGDIR)_' $< >$@
@@ -68,8 +68,10 @@ check-version:
 	git fetch && (! git rev-list ${VERSION})
 
 deps:
-	@go mod tidy -v
-	@go mod vendor
+	@CGO_ENABLED=0 \
+	go mod download
+	@CGO_ENABLED=0 \
+	go mod tidy -v
 
 push-tag:
 	git checkout ${BRANCH}
@@ -94,13 +96,7 @@ cover:
 	@go tool cover -html=coverage.txt -o coverage.html
 
 # --- Environment ---
-env_vendor:
-	@echo "=> Update vendor"
-	@go mod tidy
-	@go mod download
-	@go mod vendor
-
-env_image: env_vendor
+env_image:
 	@echo "=> Building env image"
 	@docker build \
 		-t env_neo_go_image \
