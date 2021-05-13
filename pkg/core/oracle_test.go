@@ -143,7 +143,7 @@ func TestOracle(t *testing.T) {
 	putOracleRequest(t, cs.Hash, bc, "https://get.maxallowed", nil, "handle", []byte{}, 10_000_000)
 	putOracleRequest(t, cs.Hash, bc, "https://get.maxallowed", nil, "handle", []byte{}, 100_000_000)
 
-	flt := "Values[1]"
+	flt := "$.Values[1]"
 	putOracleRequest(t, cs.Hash, bc, "https://get.filter", &flt, "handle", []byte{}, 10_000_000)
 	putOracleRequest(t, cs.Hash, bc, "https://get.filterinv", &flt, "handle", []byte{}, 10_000_000)
 

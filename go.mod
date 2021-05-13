@@ -1,7 +1,6 @@
 module github.com/nspcc-dev/neo-go
 
 require (
-	github.com/PaesslerAG/jsonpath v0.1.1
 	github.com/Workiva/go-datastructures v1.0.50
 	github.com/abiosoft/readline v0.0.0-20180607040430-155bce2042db
 	github.com/alicebob/miniredis v2.5.0+incompatible
@@ -20,6 +19,7 @@ require (
 	github.com/stretchr/testify v1.6.1
 	github.com/syndtr/goleveldb v0.0.0-20180307113352-169b1b37be73
 	github.com/urfave/cli v1.20.0
+	github.com/virtuald/go-ordered-json v0.0.0-20170621173500-b18e6e673d74
 	go.etcd.io/bbolt v1.3.4
 	go.uber.org/atomic v1.4.0
 	go.uber.org/zap v1.10.0
