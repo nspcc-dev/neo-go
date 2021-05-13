@@ -120,7 +120,6 @@ func TestExpiration(t *testing.T) {
 	aer, err = bc.GetAppExecResults(tx.Hash(), trigger.Application)
 	require.NoError(t, err)
 	checkResult(t, &aer[0], stackitem.Null{})
-
 }
 
 const secondsInYear = 365 * 24 * 3600

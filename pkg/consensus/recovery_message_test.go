@@ -7,7 +7,6 @@ import (
 	"github.com/nspcc-dev/dbft/payload"
 	"github.com/nspcc-dev/neo-go/internal/testchain"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
-	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/stretchr/testify/require"
 )
@@ -157,16 +156,3 @@ func TestRecoveryMessage_Decode(t *testing.T) {
 	require.Equal(t, gio.EOF, buf.Err)
 }
 */
-
-func getKeys(t *testing.T, n int) []*privateKey {
-	privs := make([]*privateKey, 0, n)
-	for i := 0; i < n; i++ {
-		priv, err := keys.NewPrivateKey()
-		require.NoError(t, err)
-		require.NotNil(t, priv)
-
-		privs = append(privs, &privateKey{PrivateKey: priv})
-	}
-
-	return privs
-}

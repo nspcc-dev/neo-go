@@ -31,7 +31,6 @@ func TestFixed8Add(t *testing.T) {
 }
 
 func TestFixed8Sub(t *testing.T) {
-
 	a := Fixed8FromInt64(42)
 	b := Fixed8FromInt64(34)
 

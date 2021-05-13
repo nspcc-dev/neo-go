@@ -3,7 +3,6 @@ package neofs
 import (
 	"bytes"
 	"context"
-	"crypto/sha256"
 	"errors"
 	"fmt"
 	"net/url"
@@ -24,10 +23,6 @@ const (
 	// URIScheme is the name of neofs URI scheme.
 	URIScheme = "neofs"
 
-	// containerIDSize is the size of container id in bytes.
-	containerIDSize = sha256.Size
-	// objectIDSize is the size of container id in bytes.
-	objectIDSize = sha256.Size
 	// rangeSep is a separator between offset and length.
 	rangeSep = '|'
 

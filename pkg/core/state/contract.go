@@ -54,7 +54,7 @@ func (c *Contract) EncodeBinary(w *io.BinWriter) {
 	stackitem.EncodeBinaryStackItem(si, w)
 }
 
-// ToStackItem converts state.Contract to stackitem.Item
+// ToStackItem converts state.Contract to stackitem.Item.
 func (c *Contract) ToStackItem() (stackitem.Item, error) {
 	rawNef, err := c.NEF.Bytes()
 	if err != nil {

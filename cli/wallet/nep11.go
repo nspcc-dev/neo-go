@@ -226,7 +226,6 @@ func getNEP11Balance(ctx *cli.Context) error {
 		}
 		fmt.Fprintf(ctx.App.Writer, format, formatArgs...)
 		fmt.Fprintf(ctx.App.Writer, "\tAmount : %s\n", amountStr)
-
 	}
 	return nil
 }
@@ -243,7 +242,9 @@ func signAndSendNEP11Transfer(ctx *cli.Context, c *client.Client, acc *wallet.Ac
 		err error
 	)
 	if amount != nil {
-		from, err := address.StringToUint160(acc.Address)
+		var from util.Uint160
+
+		from, err = address.StringToUint160(acc.Address)
 		if err != nil {
 			return cli.NewExitError(fmt.Errorf("bad account address: %w", err), 1)
 		}

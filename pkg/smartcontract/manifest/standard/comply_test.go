@@ -60,7 +60,7 @@ func TestComplyMethodParameterCount(t *testing.T) {
 	t.Run("Event", func(t *testing.T) {
 		m := fooMethodBarEvent()
 		ev := m.ABI.GetEvent("bar")
-		ev.Parameters = append(ev.Parameters[:0])
+		ev.Parameters = ev.Parameters[:0]
 		err := Comply(m, &Standard{Manifest: *fooMethodBarEvent()})
 		require.True(t, errors.Is(err, ErrInvalidParameterCount))
 	})

@@ -10,7 +10,7 @@ import (
 )
 
 // The specification is following C# code:
-// string domain = string.Join('.', name.Split('.')[^2..]);
+//   string domain = string.Join('.', name.Split('.')[^2..]);
 func TestParseDomain(t *testing.T) {
 	testCases := []struct {
 		name   string

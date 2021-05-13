@@ -305,6 +305,8 @@ func (n *nonfungible) postTransfer(ic *interop.Context, from, to *util.Uint160, 
 	}
 }
 
+var _ = (*nonfungible).burn // fix unused warning
+
 func (n *nonfungible) burn(ic *interop.Context, tokenID []byte) {
 	key := n.getTokenKey(tokenID)
 	n.burnByKey(ic, key)

@@ -6,10 +6,10 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/io"
 )
 
-// MaxCapabilities is the maximum number of capabilities per payload
+// MaxCapabilities is the maximum number of capabilities per payload.
 const MaxCapabilities = 32
 
-// Capabilities is a list of Capability
+// Capabilities is a list of Capability.
 type Capabilities []Capability
 
 // DecodeBinary implements Serializable interface.
@@ -49,7 +49,7 @@ func (cs Capabilities) checkUniqueCapabilities() error {
 	return nil
 }
 
-// Capability describes network service available for node
+// Capability describes network service available for node.
 type Capability struct {
 	Type Type
 	Data io.Serializable
@@ -80,7 +80,7 @@ func (c *Capability) EncodeBinary(bw *io.BinWriter) {
 	c.Data.EncodeBinary(bw)
 }
 
-// Node represents full node capability with start height
+// Node represents full node capability with start height.
 type Node struct {
 	StartHeight uint32
 }
@@ -95,9 +95,9 @@ func (n *Node) EncodeBinary(bw *io.BinWriter) {
 	bw.WriteU32LE(n.StartHeight)
 }
 
-// Server represents TCP or WS server capability with port
+// Server represents TCP or WS server capability with port.
 type Server struct {
-	// Port is the port this server is listening on
+	// Port is the port this server is listening on.
 	Port uint16
 }
 

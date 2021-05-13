@@ -40,7 +40,7 @@ const (
 	All Type = OnPersist | PostPersist | Verification | Application
 )
 
-// FromString converts string to trigger Type
+// FromString converts string to trigger Type.
 func FromString(str string) (Type, error) {
 	triggers := []Type{OnPersist, PostPersist, Verification, Application, All}
 	str = strings.ToLower(str)

@@ -6,7 +6,6 @@ import (
 
 type varScope struct {
 	localsCnt int
-	argCnt    int
 	arguments map[string]int
 	locals    []map[string]varInfo
 }

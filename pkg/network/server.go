@@ -41,12 +41,10 @@ const (
 var (
 	errAlreadyConnected = errors.New("already connected")
 	errIdenticalID      = errors.New("identical node id")
-	errInvalidHandshake = errors.New("invalid handshake")
 	errInvalidNetwork   = errors.New("invalid network")
 	errMaxPeers         = errors.New("max peers reached")
 	errServerShutdown   = errors.New("server shutdown")
 	errInvalidInvType   = errors.New("invalid inventory type")
-	errInvalidHashStart = errors.New("invalid requested HashStart")
 )
 
 type (
@@ -411,7 +409,6 @@ func (s *Server) run() {
 				// because we have two goroutines sending signals here
 				s.lock.Unlock()
 			}
-
 		}
 	}
 }
@@ -864,7 +861,7 @@ func (s *Server) handleP2PNotaryRequestCmd(r *payload.P2PNotaryRequest) error {
 	}
 	// It's OK for it to fail for various reasons like request already existing
 	// in the pool.
-	s.RelayP2PNotaryRequest(r)
+	_ = s.RelayP2PNotaryRequest(r)
 	return nil
 }
 

@@ -1,13 +1,11 @@
 package native
 
 import (
-	"encoding/binary"
 	"encoding/hex"
 	"fmt"
 	"math/big"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
-	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
 	"github.com/nspcc-dev/neo-go/pkg/io"
@@ -36,34 +34,6 @@ func putSerializableToDAO(id int32, d dao.DAO, key []byte, item io.Serializable)
 	return d.PutStorageItem(id, key, w.Bytes())
 }
 
-func getInt64WithKey(id int32, d dao.DAO, key []byte, defaultValue int64) int64 {
-	si := d.GetStorageItem(id, key)
-	if si == nil {
-		return defaultValue
-	}
-	return int64(binary.LittleEndian.Uint64(si))
-}
-
-func setInt64WithKey(id int32, dao dao.DAO, key []byte, value int64) error {
-	si := make(state.StorageItem, 8)
-	binary.LittleEndian.PutUint64(si, uint64(value))
-	return dao.PutStorageItem(id, key, si)
-}
-
-func getUint32WithKey(id int32, dao dao.DAO, key []byte, defaultValue uint32) uint32 {
-	si := dao.GetStorageItem(id, key)
-	if si == nil {
-		return defaultValue
-	}
-	return binary.LittleEndian.Uint32(si)
-}
-
-func setUint32WithKey(id int32, dao dao.DAO, key []byte, value uint32) error {
-	si := make(state.StorageItem, 4)
-	binary.LittleEndian.PutUint32(si, value)
-	return dao.PutStorageItem(id, key, si)
-}
-
 func setIntWithKey(id int32, dao dao.DAO, key []byte, value int64) error {
 	return dao.PutStorageItem(id, key, bigint.ToBytes(big.NewInt(value)))
 }
@@ -72,7 +42,6 @@ func getIntWithKey(id int32, dao dao.DAO, key []byte) int64 {
 	si := dao.GetStorageItem(id, key)
 	if si == nil {
 		panic(fmt.Errorf("item with id = %d and key = %s is not initialized", id, hex.EncodeToString(key)))
-
 	}
 	return bigint.FromBytes(si).Int64()
 }

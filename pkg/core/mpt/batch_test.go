@@ -277,9 +277,11 @@ func TestTrie_PutBatch(t *testing.T) {
 	testPut(t, ps, tr1, tr2)
 }
 
+var _ = printNode
+
 // This function is unused, but is helpful for debugging
 // as it provides more readable Trie representation compared to
-// `spew.Dump()`
+// `spew.Dump()`.
 func printNode(prefix string, n Node) {
 	switch tn := n.(type) {
 	case *HashNode:

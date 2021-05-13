@@ -463,7 +463,7 @@ func (c *Client) InvokeContractVerify(contract util.Uint160, params []smartcontr
 	return c.invokeSomething("invokecontractverify", p, signers, witnesses...)
 }
 
-// invokeSomething is an inner wrapper for Invoke* functions
+// invokeSomething is an inner wrapper for Invoke* functions.
 func (c *Client) invokeSomething(method string, p request.RawParams, signers []transaction.Signer, witnesses ...transaction.Witness) (*result.Invoke, error) {
 	var resp = new(result.Invoke)
 	if signers != nil {

@@ -641,7 +641,7 @@ func TestNOT(t *testing.T) {
 	t.Run("Buffer1", getTestFuncForVM(prog, false, stackitem.NewBuffer([]byte{1})))
 }
 
-// getBigInt returns 2^a+b
+// getBigInt returns 2^a+b.
 func getBigInt(a, b int64) *big.Int {
 	p := new(big.Int).Exp(big.NewInt(2), big.NewInt(a), nil)
 	p.Add(p, big.NewInt(b))
@@ -753,7 +753,6 @@ func TestArithNullArg(t *testing.T) {
 			runWithArgs(t, prog, false, 0, stackitem.Null{})
 			runWithArgs(t, prog, nil, stackitem.NewInterop(nil), 1) // also has `.Value() == nil`
 		})
-
 	}
 }
 

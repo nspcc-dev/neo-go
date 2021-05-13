@@ -94,7 +94,6 @@ func TestParseMultisigContract(t *testing.T) {
 			}
 		})
 	})
-
 }
 
 func fromHex(t *testing.T, s string) []byte {

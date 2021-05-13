@@ -132,7 +132,7 @@ const (
 	varArgument
 )
 
-// newLabel creates a new label to jump to
+// newLabel creates a new label to jump to.
 func (c *codegen) newLabel() (l uint16) {
 	li := len(c.l)
 	if li > math.MaxUint16 {
@@ -485,7 +485,6 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		return nil
 	}
 	switch n := node.(type) {
-
 	// General declarations.
 	// var (
 	//     x = 2
@@ -1511,7 +1510,7 @@ func (c *codegen) getLabelOffset(typ labelOffsetType, name string) uint16 {
 }
 
 // For `&&` and `||` it return an opcode which jumps only if result is known:
-// false && .. == false, true || .. = true
+// false && .. == false, true || .. = true.
 func getJumpForToken(tok token.Token, typ types.Type) (opcode.Opcode, bool) {
 	switch tok {
 	case token.GTR:
@@ -1531,33 +1530,6 @@ func getJumpForToken(tok token.Token, typ types.Type) (opcode.Opcode, bool) {
 		}
 	}
 	return 0, false
-}
-
-// getByteArray returns byte array value from constant expr.
-// Only literals are supported.
-func (c *codegen) getByteArray(expr ast.Expr) []byte {
-	switch t := expr.(type) {
-	case *ast.CompositeLit:
-		if !isByteSlice(c.typeOf(t.Type)) {
-			return nil
-		}
-		buf := make([]byte, len(t.Elts))
-		for i := 0; i < len(t.Elts); i++ {
-			t := c.typeAndValueOf(t.Elts[i])
-			val, _ := constant.Int64Val(t.Value)
-			buf[i] = byte(val)
-		}
-		return buf
-	case *ast.CallExpr:
-		if tv := c.typeAndValueOf(t.Args[0]); tv.Value != nil {
-			val := constant.StringVal(tv.Value)
-			return []byte(val)
-		}
-
-		return nil
-	default:
-		return nil
-	}
 }
 
 func (c *codegen) convertSyscall(f *funcScope, expr *ast.CallExpr) {

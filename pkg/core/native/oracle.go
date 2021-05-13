@@ -56,7 +56,7 @@ const (
 	maxFilterLength   = 128
 	maxCallbackLength = 32
 	maxUserDataLength = 512
-	// maxRequestsCount is the maximum number of requests per URL
+	// maxRequestsCount is the maximum number of requests per URL.
 	maxRequestsCount = 256
 
 	// DefaultOracleRequestPrice is default amount GAS needed for oracle request.
@@ -520,7 +520,7 @@ func (o *Oracle) getSerializableFromDAO(d dao.DAO, key []byte, item io.Serializa
 	return getSerializableFromDAO(o.ID, d, key, item)
 }
 
-// updateCache updates cached Oracle values if they've been changed
+// updateCache updates cached Oracle values if they've been changed.
 func (o *Oracle) updateCache(d dao.DAO) error {
 	orc, _ := o.Module.Load().(services.Oracle)
 	if orc == nil {

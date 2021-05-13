@@ -9,7 +9,6 @@ import (
 
 func TestNEP2Encrypt(t *testing.T) {
 	for _, testCase := range keytestcases.Arr {
-
 		privKey, err := NewPrivateKeyFromHex(testCase.PrivateKey)
 		if testCase.Invalid {
 			assert.Error(t, err)

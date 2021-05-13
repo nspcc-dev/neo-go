@@ -409,14 +409,14 @@ func (m *Management) GetMinimumDeploymentFee(dao dao.DAO) int64 {
 }
 
 func (m *Management) setMinimumDeploymentFee(ic *interop.Context, args []stackitem.Item) stackitem.Item {
-	value := toUint32(args[0])
-	if value < 0 {
-		panic(fmt.Errorf("MinimumDeploymentFee cannot be negative"))
+	value := toBigInt(args[0])
+	if value.Sign() < 0 {
+		panic("MinimumDeploymentFee cannot be negative")
 	}
 	if !m.NEO.checkCommittee(ic) {
 		panic("invalid committee signature")
 	}
-	err := setIntWithKey(m.ID, ic.DAO, keyMinimumDeploymentFee, int64(value))
+	err := ic.DAO.PutStorageItem(m.ID, keyMinimumDeploymentFee, bigint.ToBytes(value))
 	if err != nil {
 		panic(err)
 	}
@@ -539,7 +539,6 @@ func (m *Management) getNextContractID(d dao.DAO) (int32, error) {
 	si := d.GetStorageItem(m.ID, keyNextAvailableID)
 	if si == nil {
 		return 0, errors.New("nextAvailableID is not initialized")
-
 	}
 	id := bigint.FromBytes(si)
 	ret := int32(id.Int64())

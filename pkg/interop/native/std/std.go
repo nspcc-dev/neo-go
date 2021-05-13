@@ -46,11 +46,11 @@ func JSONSerialize(item interface{}) []byte {
 // JSONDeserialize deserializes value from json. It uses `jsonDeserialize` method of StdLib
 // native contract.
 // It performs deserialization as follows:
-// strings -> []byte (string) from base64
-// integers -> (u)int* types
-// null -> interface{}(nil)
-// arrays -> []interface{}
-// maps -> map[string]interface{}
+//   strings -> []byte (string) from base64
+//   integers -> (u)int* types
+//   null -> interface{}(nil)
+//   arrays -> []interface{}
+//   maps -> map[string]interface{}
 func JSONDeserialize(data []byte) interface{} {
 	return contract.Call(interop.Hash160(Hash), "jsonDeserialize", contract.NoneFlag,
 		data)

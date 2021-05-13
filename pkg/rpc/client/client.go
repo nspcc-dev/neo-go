@@ -21,8 +21,7 @@ import (
 const (
 	defaultDialTimeout    = 4 * time.Second
 	defaultRequestTimeout = 4 * time.Second
-	defaultClientVersion  = "2.0"
-	// number of blocks after which cache is expired
+	// Number of blocks after which cache is expired.
 	cacheTimeout = 100
 )
 
@@ -53,14 +52,14 @@ type Options struct {
 	RequestTimeout time.Duration
 }
 
-// cache stores cache values for the RPC client methods
+// cache stores cache values for the RPC client methods.
 type cache struct {
 	calculateValidUntilBlock calculateValidUntilBlockCache
 	nativeHashes             map[string]util.Uint160
 }
 
 // calculateValidUntilBlockCache stores cached number of validators and
-// cache expiration value in blocks
+// cache expiration value in blocks.
 type calculateValidUntilBlockCache struct {
 	validatorsCount uint32
 	expiresAt       uint32
@@ -92,8 +91,8 @@ func New(ctx context.Context, endpoint string, opts Options) (*Client, error) {
 	}
 
 	// TODO(@antdm): Enable SSL.
-	if opts.Cert != "" && opts.Key != "" {
-	}
+	//	if opts.Cert != "" && opts.Key != "" {
+	//	}
 
 	cl := &Client{
 		ctx:      ctx,

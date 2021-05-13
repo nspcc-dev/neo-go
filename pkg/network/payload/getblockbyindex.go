@@ -6,13 +6,13 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/io"
 )
 
-// GetBlockByIndex payload
+// GetBlockByIndex payload.
 type GetBlockByIndex struct {
 	IndexStart uint32
 	Count      int16
 }
 
-// NewGetBlockByIndex returns GetBlockByIndex payload with specified start index and count
+// NewGetBlockByIndex returns GetBlockByIndex payload with specified start index and count.
 func NewGetBlockByIndex(indexStart uint32, count int16) *GetBlockByIndex {
 	return &GetBlockByIndex{
 		IndexStart: indexStart,

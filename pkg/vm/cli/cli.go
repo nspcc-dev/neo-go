@@ -589,7 +589,7 @@ func Parse(args []string) (string, error) {
 	if err := w.Flush(); err != nil {
 		return "", err
 	}
-	return string(buf.Bytes()), nil
+	return buf.String(), nil
 }
 
 func parseArgs(args []string) ([]stackitem.Item, error) {

@@ -17,7 +17,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/util"
 )
 
-// HasTransaction errors
+// HasTransaction errors.
 var (
 	// ErrAlreadyExists is returned when transaction exists in dao.
 	ErrAlreadyExists = errors.New("transaction already exists")

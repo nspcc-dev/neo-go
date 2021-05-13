@@ -19,7 +19,6 @@ import (
 type testDiscovery struct {
 	sync.Mutex
 	bad          []string
-	good         []string
 	connected    []string
 	unregistered []string
 	backfill     []string

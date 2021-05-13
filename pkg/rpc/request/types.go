@@ -61,7 +61,7 @@ type In struct {
 // batch: https://www.jsonrpc.org/specification#batch.
 type Batch []In
 
-// MarshalJSON implements json.Marshaler interface
+// MarshalJSON implements json.Marshaler interface.
 func (r Request) MarshalJSON() ([]byte, error) {
 	if r.In != nil {
 		return json.Marshal(r.In)

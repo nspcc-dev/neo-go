@@ -54,7 +54,7 @@ func NewWallet(location string) (*Wallet, error) {
 	return newWallet(file), nil
 }
 
-// NewWalletFromFile creates a Wallet from the given wallet file path
+// NewWalletFromFile creates a Wallet from the given wallet file path.
 func NewWalletFromFile(path string) (*Wallet, error) {
 	file, err := os.OpenFile(path, os.O_RDWR, os.ModeAppend)
 	if err != nil {

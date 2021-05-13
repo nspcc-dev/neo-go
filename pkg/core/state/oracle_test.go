@@ -76,5 +76,4 @@ func TestOracleRequest_EncodeBinary(t *testing.T) {
 		t.Run("Method", runInvalid(5, stackitem.NewMap()))
 		t.Run("UserData", runInvalid(6, stackitem.NewMap()))
 	})
-
 }

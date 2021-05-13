@@ -151,7 +151,9 @@ func (p *Payload) Hash() util.Uint256 {
 // DecodeBinary implements io.Serializable interface.
 func (p *Payload) DecodeBinary(r *io.BinReader) {
 	p.Extensible.DecodeBinary(r)
-	p.decodeData()
+	if r.Err == nil {
+		r.Err = p.decodeData()
+	}
 }
 
 // EncodeBinary implements io.Serializable interface.
@@ -231,7 +233,7 @@ func (p *Payload) encodeData() {
 	}
 }
 
-// decode data of payload into it's message
+// decode data of payload into its message.
 func (p *Payload) decodeData() error {
 	br := io.NewBinReaderFromBuf(p.Extensible.Data)
 	p.message.DecodeBinary(br)

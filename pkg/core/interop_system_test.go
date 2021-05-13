@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/internal/random"
-	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/contract"
@@ -449,27 +448,6 @@ func createVM(t *testing.T) (*vm.VM, *interop.Context, *Blockchain) {
 		dao.NewSimple(storage.NewMemoryStore(), chain.config.StateRootInHeader), nil, nil)
 	v := context.SpawnVM()
 	return v, context, chain
-}
-
-func createVMAndPushBlock(t *testing.T) (*vm.VM, *block.Block, *interop.Context, *Blockchain) {
-	v, block, context, chain := createVMAndBlock(t)
-	v.Estack().PushVal(stackitem.NewInterop(block))
-	return v, block, context, chain
-}
-
-func createVMAndBlock(t *testing.T) (*vm.VM, *block.Block, *interop.Context, *Blockchain) {
-	block := newDumbBlock()
-	chain := newTestChain(t)
-	d := dao.NewSimple(storage.NewMemoryStore(), chain.GetConfig().StateRootInHeader)
-	context := chain.newInteropContext(trigger.Application, d, block, nil)
-	v := context.SpawnVM()
-	return v, block, context, chain
-}
-
-func createVMAndPushTX(t *testing.T) (*vm.VM, *transaction.Transaction, *interop.Context, *Blockchain) {
-	v, tx, context, chain := createVMAndTX(t)
-	v.Estack().PushVal(stackitem.NewInterop(tx))
-	return v, tx, context, chain
 }
 
 func createVMAndContractState(t *testing.T) (*vm.VM, *state.Contract, *interop.Context, *Blockchain) {

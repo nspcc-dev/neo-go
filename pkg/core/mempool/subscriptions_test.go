@@ -75,10 +75,7 @@ func TestSubscriptions(t *testing.T) {
 
 		// remove stale
 		mp.RemoveStale(func(tx *transaction.Transaction) bool {
-			if tx.Hash().Equals(txs[2].Hash()) {
-				return false
-			}
-			return true
+			return !tx.Hash().Equals(txs[2].Hash())
 		}, fs)
 		require.Eventually(t, func() bool { return len(subChan1) == 1 && len(subChan2) == 1 }, time.Second, time.Millisecond*100)
 		event1 = <-subChan1

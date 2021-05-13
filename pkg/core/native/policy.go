@@ -243,7 +243,7 @@ func (p *Policy) isBlocked(ic *interop.Context, args []stackitem.Item) stackitem
 	return stackitem.NewBool(p.IsBlockedInternal(ic.DAO, hash))
 }
 
-// IsBlockedInternal checks whether provided account is blocked
+// IsBlockedInternal checks whether provided account is blocked.
 func (p *Policy) IsBlockedInternal(dao dao.DAO, hash util.Uint160) bool {
 	p.lock.RLock()
 	defer p.lock.RUnlock()

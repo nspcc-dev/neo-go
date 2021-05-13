@@ -63,7 +63,7 @@ func (u Uint256) BytesBE() []byte {
 	return u[:]
 }
 
-// Reverse reverses the Uint256 object
+// Reverse reverses the Uint256 object.
 func (u Uint256) Reverse() Uint256 {
 	res, _ := Uint256DecodeBytesLE(u.BytesBE())
 	return res

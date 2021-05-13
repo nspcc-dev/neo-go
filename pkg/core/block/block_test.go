@@ -239,7 +239,6 @@ func TestBlockEncodeDecode(t *testing.T) {
 
 func TestGetExpectedBlockSize(t *testing.T) {
 	check := func(t *testing.T, stateRootEnabled bool) {
-
 		t.Run("without transactions", func(t *testing.T) {
 			b := newDumbBlock()
 			b.StateRootEnabled = stateRootEnabled

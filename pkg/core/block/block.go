@@ -215,7 +215,7 @@ func (b *Block) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// GetExpectedBlockSize returns expected block size which should be equal to io.GetVarSize(b)
+// GetExpectedBlockSize returns expected block size which should be equal to io.GetVarSize(b).
 func (b *Block) GetExpectedBlockSize() int {
 	var transactionsSize int
 	for _, tx := range b.Transactions {

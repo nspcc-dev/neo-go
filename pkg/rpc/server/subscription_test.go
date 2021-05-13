@@ -16,9 +16,12 @@ import (
 	"go.uber.org/atomic"
 )
 
+const testOverflow = false
+
 func wsReader(t *testing.T, ws *websocket.Conn, msgCh chan<- []byte, isFinished *atomic.Bool) {
 	for {
-		ws.SetReadDeadline(time.Now().Add(time.Second))
+		err := ws.SetReadDeadline(time.Now().Add(time.Second))
+		require.NoError(t, err)
 		_, body, err := ws.ReadMessage()
 		if isFinished.Load() {
 			require.Error(t, err)
@@ -32,7 +35,7 @@ func wsReader(t *testing.T, ws *websocket.Conn, msgCh chan<- []byte, isFinished 
 func callWSGetRaw(t *testing.T, ws *websocket.Conn, msg string, respCh <-chan []byte) *response.Raw {
 	var resp = new(response.Raw)
 
-	ws.SetWriteDeadline(time.Now().Add(time.Second))
+	require.NoError(t, ws.SetWriteDeadline(time.Now().Add(time.Second)))
 	require.NoError(t, ws.WriteMessage(websocket.TextMessage, []byte(msg)))
 
 	body := <-respCh
@@ -88,7 +91,7 @@ func TestSubscriptions(t *testing.T) {
 	chain, rpcSrv, c, respMsgs, finishedFlag := initCleanServerAndWSClient(t)
 
 	defer chain.Close()
-	defer rpcSrv.Shutdown()
+	defer func() { _ = rpcSrv.Shutdown() }()
 
 	for _, feed := range subFeeds {
 		s := callSubscribe(t, c, respMsgs, fmt.Sprintf(`["%s"]`, feed))
@@ -241,7 +244,7 @@ func TestFilteredSubscriptions(t *testing.T) {
 			chain, rpcSrv, c, respMsgs, finishedFlag := initCleanServerAndWSClient(t)
 
 			defer chain.Close()
-			defer rpcSrv.Shutdown()
+			defer func() { _ = rpcSrv.Shutdown() }()
 
 			// It's used as an end-of-event-stream, so it's always present.
 			blockSubID := callSubscribe(t, c, respMsgs, `["block_added"]`)
@@ -281,7 +284,7 @@ func TestFilteredBlockSubscriptions(t *testing.T) {
 	chain, rpcSrv, c, respMsgs, finishedFlag := initCleanServerAndWSClient(t)
 
 	defer chain.Close()
-	defer rpcSrv.Shutdown()
+	defer func() { _ = rpcSrv.Shutdown() }()
 
 	blockSubID := callSubscribe(t, c, respMsgs, `["block_added", {"primary":3}]`)
 
@@ -308,7 +311,6 @@ func TestFilteredBlockSubscriptions(t *testing.T) {
 		rmap := resp.Payload[0].(map[string]interface{})
 		primary := rmap["primary"].(float64)
 		require.Equal(t, 3, int(primary))
-
 	}
 	callUnsubscribe(t, c, respMsgs, blockSubID)
 	finishedFlag.CAS(false, true)
@@ -320,7 +322,7 @@ func TestMaxSubscriptions(t *testing.T) {
 	chain, rpcSrv, c, respMsgs, finishedFlag := initCleanServerAndWSClient(t)
 
 	defer chain.Close()
-	defer rpcSrv.Shutdown()
+	defer func() { _ = rpcSrv.Shutdown() }()
 
 	for i := 0; i < maxFeeds+1; i++ {
 		var s string
@@ -366,7 +368,7 @@ func TestBadSubUnsub(t *testing.T) {
 	chain, rpcSrv, c, respMsgs, finishedFlag := initCleanServerAndWSClient(t)
 
 	defer chain.Close()
-	defer rpcSrv.Shutdown()
+	defer func() { _ = rpcSrv.Shutdown() }()
 
 	testF := func(t *testing.T, cases map[string]string) func(t *testing.T) {
 		return func(t *testing.T) {
@@ -387,19 +389,20 @@ func TestBadSubUnsub(t *testing.T) {
 }
 
 func doSomeWSRequest(t *testing.T, ws *websocket.Conn) {
-	ws.SetWriteDeadline(time.Now().Add(time.Second))
+	require.NoError(t, ws.SetWriteDeadline(time.Now().Add(time.Second)))
 	// It could be just about anything including invalid request,
 	// we only care about server handling being active.
 	require.NoError(t, ws.WriteMessage(websocket.TextMessage, []byte(`{"jsonrpc": "2.0", "method": "getversion", "params": [], "id": 1}`)))
-	ws.SetReadDeadline(time.Now().Add(time.Second))
-	_, _, err := ws.ReadMessage()
+	err := ws.SetReadDeadline(time.Now().Add(time.Second))
+	require.NoError(t, err)
+	_, _, err = ws.ReadMessage()
 	require.NoError(t, err)
 }
 
 func TestWSClientsLimit(t *testing.T) {
 	chain, rpcSrv, httpSrv := initClearServerWithInMemoryChain(t)
 	defer chain.Close()
-	defer rpcSrv.Shutdown()
+	defer func() { _ = rpcSrv.Shutdown() }()
 
 	dialer := websocket.Dialer{HandshakeTimeout: time.Second}
 	url := "ws" + strings.TrimPrefix(httpSrv.URL, "http") + "/ws"
@@ -428,14 +431,17 @@ func TestWSClientsLimit(t *testing.T) {
 // that's going to happen because of network-level buffering, typical
 // number seen in tests is around ~3500 events, but it's not reliable enough,
 // thus this test is disabled.
-func testSubscriptionOverflow(t *testing.T) {
+func TestSubscriptionOverflow(t *testing.T) {
+	if !testOverflow {
+		return
+	}
 	const blockCnt = notificationBufSize * 5
 	var receivedMiss bool
 
 	chain, rpcSrv, c, respMsgs, finishedFlag := initCleanServerAndWSClient(t)
 
 	defer chain.Close()
-	defer rpcSrv.Shutdown()
+	defer func() { _ = rpcSrv.Shutdown() }()
 
 	resp := callWSGetRaw(t, c, `{"jsonrpc": "2.0","method": "subscribe","params": ["block_added"],"id": 1}`, respMsgs)
 	require.Nil(t, resp.Error)

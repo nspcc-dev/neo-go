@@ -116,7 +116,6 @@ func TestMarshalUnmarshalJSONNotificationEvent(t *testing.T) {
 			err := json.Unmarshal([]byte(errCase), new(NotificationEvent))
 			require.Error(t, err)
 		}
-
 	})
 }
 

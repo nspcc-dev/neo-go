@@ -64,8 +64,8 @@ const (
 var (
 	// Lookahead is not supported by Go, but it is simple `(?=.{3,255}$)`,
 	// so we check name length explicitly.
-	nameRegex = regexp.MustCompile("^([a-z0-9]{1,62}\\.)+[a-z][a-z0-9]{0,15}$")
-	ipv4Regex = regexp.MustCompile("^(?:(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9][0-9]|[0-9])\\.){3}(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9][0-9]|[0-9])$")
+	nameRegex = regexp.MustCompile(`^([a-z0-9]{1,62}\.)+[a-z][a-z0-9]{0,15}$`)
+	ipv4Regex = regexp.MustCompile(`^(?:(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9][0-9]|[0-9])\.){3}(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9][0-9]|[0-9])$`)
 	ipv6Regex = regexp.MustCompile("(?:^)(([0-9a-f]{1,4}:){7,7}[0-9a-f]{1,4}|([0-9a-f]{1,4}:){1,7}:|([0-9a-f]{1,4}:){1,6}:[0-9a-f]{1,4}|([0-9a-f]{1,4}:){1,5}(:[0-9a-f]{1,4}){1,2}|([0-9a-f]{1,4}:){1,4}(:[0-9a-f]{1,4}){1,3}|([0-9a-f]{1,4}:){1,3}(:[0-9a-f]{1,4}){1,4}|([0-9a-f]{1,4}:){1,2}(:[0-9a-f]{1,4}){1,5}|[0-9a-f]{1,4}:((:[0-9a-f]{1,4}){1,6})|:((:[0-9a-f]{1,4}){1,7}|:))$")
 	rootRegex = regexp.MustCompile("^[a-z][a-z0-9]{0,15}$")
 )
@@ -565,7 +565,7 @@ func (s *nameState) EncodeBinary(w *io.BinWriter) {
 func (s *nameState) DecodeBinary(r *io.BinReader) {
 	item := stackitem.DecodeBinaryStackItem(r)
 	if r.Err == nil {
-		s.FromStackItem(item)
+		r.Err = s.FromStackItem(item)
 	}
 }
 
@@ -626,7 +626,6 @@ func domainFromString(name string) (string, bool) {
 		return name, true
 	}
 	return name[i+1:], true
-
 }
 
 func toDomain(name string) string {
@@ -700,7 +699,7 @@ func (sl stringList) EncodeBinary(w *io.BinWriter) {
 func (sl *stringList) DecodeBinary(r *io.BinReader) {
 	item := stackitem.DecodeBinaryStackItem(r)
 	if r.Err == nil {
-		sl.FromStackItem(item)
+		r.Err = sl.FromStackItem(item)
 	}
 }
 
@@ -709,17 +708,6 @@ func (sl stringList) index(s string) (int, bool) {
 		return sl[i] >= s
 	})
 	return index, index < len(sl) && sl[index] == s
-}
-
-func (sl *stringList) remove(s string) bool {
-	index, has := sl.index(s)
-	if !has {
-		return false
-	}
-
-	copy((*sl)[index:], (*sl)[index+1:])
-	*sl = (*sl)[:len(*sl)-1]
-	return true
 }
 
 func (sl *stringList) add(s string) bool {

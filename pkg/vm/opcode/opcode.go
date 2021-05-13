@@ -7,7 +7,7 @@ type Opcode byte
 
 // Viable list of supported instruction constants.
 const (
-	// Constants
+	// Constants.
 	PUSHINT8   Opcode = 0x00
 	PUSHINT16  Opcode = 0x01
 	PUSHINT32  Opcode = 0x02
@@ -43,7 +43,7 @@ const (
 	PUSH15 Opcode = 0x1F
 	PUSH16 Opcode = 0x20
 
-	// Flow control
+	// Flow control.
 	NOP       Opcode = 0x21
 	JMP       Opcode = 0x22
 	JMPL      Opcode = 0x23 // JMP_L
@@ -68,7 +68,7 @@ const (
 	CALLA     Opcode = 0x36
 	CALLT     Opcode = 0x37
 
-	// Exceptions
+	// Exceptions.
 	ABORT      Opcode = 0x38
 	ASSERT     Opcode = 0x39
 	THROW      Opcode = 0x3A
@@ -81,7 +81,7 @@ const (
 	RET     Opcode = 0x40
 	SYSCALL Opcode = 0x41
 
-	// Stack
+	// Stack.
 	DEPTH    Opcode = 0x43
 	DROP     Opcode = 0x45
 	NIP      Opcode = 0x46
@@ -98,7 +98,7 @@ const (
 	REVERSE4 Opcode = 0x54
 	REVERSEN Opcode = 0x55
 
-	// Slots
+	// Slots.
 	INITSSLOT Opcode = 0x56
 	INITSLOT  Opcode = 0x57
 	LDSFLD0   Opcode = 0x58
@@ -150,7 +150,7 @@ const (
 	STARG6    Opcode = 0x86
 	STARG     Opcode = 0x87
 
-	// Splice
+	// Splice.
 	NEWBUFFER Opcode = 0x88
 	MEMCPY    Opcode = 0x89
 	CAT       Opcode = 0x8B
@@ -158,7 +158,7 @@ const (
 	LEFT      Opcode = 0x8D
 	RIGHT     Opcode = 0x8E
 
-	// Bitwise logic
+	// Bitwise logic.
 	INVERT   Opcode = 0x90
 	AND      Opcode = 0x91
 	OR       Opcode = 0x92
@@ -166,7 +166,7 @@ const (
 	EQUAL    Opcode = 0x97
 	NOTEQUAL Opcode = 0x98
 
-	// Arithmetic
+	// Arithmetic.
 	SIGN        Opcode = 0x99
 	ABS         Opcode = 0x9A
 	NEGATE      Opcode = 0x9B
@@ -195,7 +195,7 @@ const (
 	MAX         Opcode = 0xBA
 	WITHIN      Opcode = 0xBB
 
-	// Advanced data structures (arrays, structures, maps)
+	// Advanced data structures (arrays, structures, maps).
 	PACK         Opcode = 0xC0
 	UNPACK       Opcode = 0xC1
 	NEWARRAY0    Opcode = 0xC2
@@ -216,7 +216,7 @@ const (
 	CLEARITEMS   Opcode = 0xD3
 	POPITEM      Opcode = 0xD4
 
-	// Types
+	// Types.
 	ISNULL  Opcode = 0xD8
 	ISTYPE  Opcode = 0xD9
 	CONVERT Opcode = 0xDB

@@ -38,7 +38,7 @@ const (
 // fileBytesParamType is a string representation of `filebytes` parameter type used in cli.
 const fileBytesParamType string = "filebytes"
 
-// validParamTypes contains a map of known ParamTypes
+// validParamTypes contains a map of known ParamTypes.
 var validParamTypes = map[ParamType]bool{
 	UnknownType:          true,
 	AnyType:              true,

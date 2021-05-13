@@ -345,7 +345,7 @@ func (d *DebugParam) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// ToManifestParameter converts DebugParam to manifest.Parameter
+// ToManifestParameter converts DebugParam to manifest.Parameter.
 func (d *DebugParam) ToManifestParameter() manifest.Parameter {
 	return manifest.Parameter{
 		Name: d.Name,
@@ -353,7 +353,7 @@ func (d *DebugParam) ToManifestParameter() manifest.Parameter {
 	}
 }
 
-// ToManifestMethod converts MethodDebugInfo to manifest.Method
+// ToManifestMethod converts MethodDebugInfo to manifest.Method.
 func (m *MethodDebugInfo) ToManifestMethod() manifest.Method {
 	var (
 		result manifest.Method

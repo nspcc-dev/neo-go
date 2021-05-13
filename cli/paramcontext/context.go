@@ -12,7 +12,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 )
 
-// validUntilBlockIncrement is the number of extra blocks to add to an exported transaction
+// validUntilBlockIncrement is the number of extra blocks to add to an exported transaction.
 const validUntilBlockIncrement = 50
 
 // InitAndSave creates incompletely signed transaction which can used

@@ -46,11 +46,6 @@ type executor struct {
 	httpSrv *httptest.Server
 }
 
-const (
-	defaultJSONRPC = "2.0"
-	defaultID      = 1
-)
-
 type rpcTestCase struct {
 	name   string
 	params string
@@ -66,7 +61,6 @@ const genesisBlockHash = "73fe50b5564d57118296cbab0a78fe7cb11c97b7699d07a9a21fab
 const verifyContractHash = "c50082e0d8364d61ce6933bd24027a3363474dce"
 const verifyContractAVM = "VwMAQS1RCDAhcAwU7p6iLCfjS9AUj8QQjgj3To9QSLLbMHFoE87bKGnbKJdA"
 const verifyWithArgsContractHash = "8744ffdd07af8e9f18ab90685c8c2ebfd37c6415"
-const verifyWithArgsContractAVM = "VwIDeAwLZ29vZF9zdHJpbmeXJA15FSgJehHbIJciBRHbIHBoQA=="
 const invokescriptContractAVM = "VwcADBQBDAMOBQYMDQIODw0DDgcJAAAAANswcGhB+CfsjCGqJgQRQAwUDQ8DAgkAAgEDBwMEBQIBAA4GDAnbMHFpQfgn7IwhqiYEEkATQA=="
 
 var rpcTestCases = map[string][]rpcTestCase{
@@ -1016,7 +1010,7 @@ func TestRPC(t *testing.T) {
 func TestSubmitOracle(t *testing.T) {
 	chain, rpcSrv, httpSrv := initClearServerWithServices(t, true, false)
 	defer chain.Close()
-	defer rpcSrv.Shutdown()
+	defer func() { _ = rpcSrv.Shutdown() }()
 
 	rpc := `{"jsonrpc": "2.0", "id": 1, "method": "submitoracleresponse", "params": %s}`
 	runCase := func(t *testing.T, fail bool, params ...string) func(t *testing.T) {
@@ -1052,7 +1046,7 @@ func TestSubmitNotaryRequest(t *testing.T) {
 	t.Run("disabled P2PSigExtensions", func(t *testing.T) {
 		chain, rpcSrv, httpSrv := initClearServerWithServices(t, false, false)
 		defer chain.Close()
-		defer rpcSrv.Shutdown()
+		defer func() { _ = rpcSrv.Shutdown() }()
 		req := fmt.Sprintf(rpc, "[]")
 		body := doRPCCallOverHTTP(req, httpSrv.URL, t)
 		checkErrGetResult(t, body, true)
@@ -1060,7 +1054,7 @@ func TestSubmitNotaryRequest(t *testing.T) {
 
 	chain, rpcSrv, httpSrv := initServerWithInMemoryChainAndServices(t, false, true)
 	defer chain.Close()
-	defer rpcSrv.Shutdown()
+	defer func() { _ = rpcSrv.Shutdown() }()
 
 	runCase := func(t *testing.T, fail bool, params ...string) func(t *testing.T) {
 		return func(t *testing.T) {
@@ -1094,7 +1088,7 @@ func TestSubmitNotaryRequest(t *testing.T) {
 			},
 			Signers: []transaction.Signer{{Account: util.Uint160{1, 4, 7}}, {Account: util.Uint160{9, 8, 7}}},
 			Scripts: []transaction.Witness{
-				{InvocationScript: append([]byte{byte(opcode.PUSHDATA1), 64}, make([]byte, 64, 64)...), VerificationScript: make([]byte, 0)},
+				{InvocationScript: append([]byte{byte(opcode.PUSHDATA1), 64}, make([]byte, 64)...), VerificationScript: make([]byte, 0)},
 				{InvocationScript: []byte{1, 2, 3}, VerificationScript: []byte{1, 2, 3}}},
 		}
 		p := &payload.P2PNotaryRequest{
@@ -1132,7 +1126,7 @@ func TestSubmitNotaryRequest(t *testing.T) {
 			},
 			Signers: []transaction.Signer{{Account: chain.GetNotaryContractScriptHash()}, {Account: sender.GetScriptHash()}},
 			Scripts: []transaction.Witness{
-				{InvocationScript: append([]byte{byte(opcode.PUSHDATA1), 64}, make([]byte, 64, 64)...), VerificationScript: []byte{}},
+				{InvocationScript: append([]byte{byte(opcode.PUSHDATA1), 64}, make([]byte, 64)...), VerificationScript: []byte{}},
 			},
 			NetworkFee: 2_0000_0000,
 		}
@@ -1162,7 +1156,7 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 	chain, rpcSrv, httpSrv := initServerWithInMemoryChain(t)
 
 	defer chain.Close()
-	defer rpcSrv.Shutdown()
+	defer func() { _ = rpcSrv.Shutdown() }()
 
 	e := &executor{chain: chain, httpSrv: httpSrv}
 	t.Run("single request", func(t *testing.T) {
@@ -1267,7 +1261,6 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 						tc.check(t, e, res)
 					}
 				}
-
 			})
 		}
 	})
@@ -1601,9 +1594,11 @@ func doRPCCallOverWS(rpcCall string, url string, t *testing.T) []byte {
 	url = "ws" + strings.TrimPrefix(url, "http")
 	c, _, err := dialer.Dial(url+"/ws", nil)
 	require.NoError(t, err)
-	c.SetWriteDeadline(time.Now().Add(time.Second))
+	err = c.SetWriteDeadline(time.Now().Add(time.Second))
+	require.NoError(t, err)
 	require.NoError(t, c.WriteMessage(1, []byte(rpcCall)))
-	c.SetReadDeadline(time.Now().Add(time.Second))
+	err = c.SetReadDeadline(time.Now().Add(time.Second))
+	require.NoError(t, err)
 	_, body, err := c.ReadMessage()
 	require.NoError(t, err)
 	require.NoError(t, c.Close())

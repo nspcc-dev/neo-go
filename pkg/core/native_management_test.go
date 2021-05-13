@@ -577,7 +577,6 @@ func TestContractDestroy(t *testing.T) {
 		t.Run("check contract", func(t *testing.T) {
 			checkContractState(t, bc, cs1.Hash, nil)
 		})
-
 	})
 }
 

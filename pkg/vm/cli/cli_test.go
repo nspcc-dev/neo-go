@@ -324,7 +324,7 @@ func TestLoadAbort(t *testing.T) {
 		"run",
 	)
 
-	e.checkNextLine(t, fmt.Sprintf("READY: loaded 2 instructions"))
+	e.checkNextLine(t, "READY: loaded 2 instructions")
 	e.checkNextLine(t, "Error:.*at instruction 1.*ABORT")
 }
 
@@ -349,7 +349,7 @@ func TestBreakpoint(t *testing.T) {
 	e.checkNextLine(t, "no program loaded")
 	e.checkNextLine(t, "no program loaded")
 	e.checkNextLine(t, "no program loaded")
-	e.checkNextLine(t, fmt.Sprintf("READY: loaded 5 instructions"))
+	e.checkNextLine(t, "READY: loaded 5 instructions")
 	e.checkError(t, ErrMissingParameter)
 	e.checkError(t, ErrInvalidParameter)
 	e.checkNextLine(t, "breakpoint added at instruction 2")
@@ -415,19 +415,19 @@ func TestStepIntoOverOut(t *testing.T) {
 		"loadhex "+script,
 		"step", "stepinto", "stepout", "run")
 
-	e.checkNextLine(t, fmt.Sprintf("READY: loaded \\d+ instructions"))
+	e.checkNextLine(t, "READY: loaded 8 instructions")
 	e.checkNextLine(t, "at breakpoint 1.*CALL")
 	e.checkNextLine(t, "instruction pointer at.*NOP")
 	e.checkStack(t, 5)
 
-	e.checkNextLine(t, fmt.Sprintf("READY: loaded \\d+ instructions"))
+	e.checkNextLine(t, "READY: loaded 8 instructions")
 	e.checkNextLine(t, "at breakpoint.*CALL")
 	e.checkNextLine(t, "instruction pointer at.*PUSH3")
 	e.checkNextLine(t, "at breakpoint.*ADD")
 	e.checkStack(t, 2, 3)
 	e.checkStack(t, 5)
 
-	e.checkNextLine(t, fmt.Sprintf("READY: loaded \\d+ instructions"))
+	e.checkNextLine(t, "READY: loaded 8 instructions")
 	e.checkNextLine(t, "at breakpoint 1.*CALL")
 	e.checkNextLine(t, "instruction pointer at.*PUSH3")
 	e.checkNextLine(t, "instruction pointer at.*NOP")

@@ -31,7 +31,7 @@ import (
 func TestClient_NEP17(t *testing.T) {
 	chain, rpcSrv, httpSrv := initServerWithInMemoryChain(t)
 	defer chain.Close()
-	defer rpcSrv.Shutdown()
+	defer func() { _ = rpcSrv.Shutdown() }()
 
 	c, err := client.New(context.Background(), httpSrv.URL, client.Options{})
 	require.NoError(t, err)
@@ -74,7 +74,7 @@ func TestClient_NEP17(t *testing.T) {
 func TestAddNetworkFeeCalculateNetworkFee(t *testing.T) {
 	chain, rpcSrv, httpSrv := initServerWithInMemoryChain(t)
 	defer chain.Close()
-	defer rpcSrv.Shutdown()
+	defer func() { _ = rpcSrv.Shutdown() }()
 	const extraFee = 10
 	var nonce uint32
 
@@ -156,12 +156,13 @@ func TestAddNetworkFeeCalculateNetworkFee(t *testing.T) {
 	t.Run("Multi", func(t *testing.T) {
 		acc0 := wallet.NewAccountFromPrivateKey(testchain.PrivateKeyByID(0))
 		acc1 := wallet.NewAccountFromPrivateKey(testchain.PrivateKeyByID(0))
-		acc1.ConvertMultisig(3, keys.PublicKeys{
+		err = acc1.ConvertMultisig(3, keys.PublicKeys{
 			testchain.PrivateKeyByID(0).PublicKey(),
 			testchain.PrivateKeyByID(1).PublicKey(),
 			testchain.PrivateKeyByID(2).PublicKey(),
 			testchain.PrivateKeyByID(3).PublicKey(),
 		})
+		require.NoError(t, err)
 		check := func(t *testing.T, extraFee int64) {
 			tx := transaction.New([]byte{byte(opcode.PUSH1)}, 0)
 			tx.ValidUntilBlock = 20
@@ -322,7 +323,7 @@ func TestAddNetworkFeeCalculateNetworkFee(t *testing.T) {
 func TestCalculateNetworkFee(t *testing.T) {
 	chain, rpcSrv, httpSrv := initServerWithInMemoryChain(t)
 	defer chain.Close()
-	defer rpcSrv.Shutdown()
+	defer func() { _ = rpcSrv.Shutdown() }()
 	const extraFee = 10
 
 	c, err := client.New(context.Background(), httpSrv.URL, client.Options{})
@@ -392,7 +393,7 @@ func TestCalculateNetworkFee(t *testing.T) {
 func TestSignAndPushInvocationTx(t *testing.T) {
 	chain, rpcSrv, httpSrv := initServerWithInMemoryChain(t)
 	defer chain.Close()
-	defer rpcSrv.Shutdown()
+	defer func() { _ = rpcSrv.Shutdown() }()
 
 	c, err := client.New(context.Background(), httpSrv.URL, client.Options{})
 	require.NoError(t, err)
@@ -549,7 +550,7 @@ func TestSignAndPushInvocationTx(t *testing.T) {
 func TestSignAndPushP2PNotaryRequest(t *testing.T) {
 	chain, rpcSrv, httpSrv := initServerWithInMemoryChainAndServices(t, false, true)
 	defer chain.Close()
-	defer rpcSrv.Shutdown()
+	defer func() { _ = rpcSrv.Shutdown() }()
 
 	c, err := client.New(context.Background(), httpSrv.URL, client.Options{})
 	require.NoError(t, err)
@@ -620,7 +621,8 @@ func TestSignAndPushP2PNotaryRequest(t *testing.T) {
 		w, err := wallet.NewWalletFromFile(notaryPath)
 		require.NoError(t, err)
 		ntr := w.Accounts[0]
-		ntr.Decrypt(notaryPass)
+		err = ntr.Decrypt(notaryPass)
+		require.NoError(t, err)
 		req.FallbackTransaction.Scripts[0] = transaction.Witness{
 			InvocationScript:   append([]byte{byte(opcode.PUSHDATA1), 64}, ntr.PrivateKey().SignHashable(uint32(testchain.Network()), req.FallbackTransaction)...),
 			VerificationScript: []byte{},
@@ -639,7 +641,7 @@ func TestSignAndPushP2PNotaryRequest(t *testing.T) {
 func TestCalculateNotaryFee(t *testing.T) {
 	chain, rpcSrv, httpSrv := initServerWithInMemoryChain(t)
 	defer chain.Close()
-	defer rpcSrv.Shutdown()
+	defer func() { _ = rpcSrv.Shutdown() }()
 
 	c, err := client.New(context.Background(), httpSrv.URL, client.Options{})
 	require.NoError(t, err)
@@ -667,7 +669,7 @@ func TestPing(t *testing.T) {
 func TestCreateTxFromScript(t *testing.T) {
 	chain, rpcSrv, httpSrv := initServerWithInMemoryChain(t)
 	defer chain.Close()
-	defer rpcSrv.Shutdown()
+	defer func() { _ = rpcSrv.Shutdown() }()
 
 	c, err := client.New(context.Background(), httpSrv.URL, client.Options{})
 	require.NoError(t, err)
@@ -696,7 +698,7 @@ func TestCreateTxFromScript(t *testing.T) {
 func TestCreateNEP17TransferTx(t *testing.T) {
 	chain, rpcSrv, httpSrv := initServerWithInMemoryChain(t)
 	defer chain.Close()
-	defer rpcSrv.Shutdown()
+	defer func() { _ = rpcSrv.Shutdown() }()
 
 	c, err := client.New(context.Background(), httpSrv.URL, client.Options{})
 	require.NoError(t, err)
@@ -720,7 +722,7 @@ func TestCreateNEP17TransferTx(t *testing.T) {
 func TestInvokeVerify(t *testing.T) {
 	chain, rpcSrv, httpSrv := initServerWithInMemoryChain(t)
 	defer chain.Close()
-	defer rpcSrv.Shutdown()
+	defer func() { _ = rpcSrv.Shutdown() }()
 
 	c, err := client.New(context.Background(), httpSrv.URL, client.Options{})
 	require.NoError(t, err)
@@ -762,7 +764,7 @@ func TestInvokeVerify(t *testing.T) {
 func TestClient_GetNativeContracts(t *testing.T) {
 	chain, rpcSrv, httpSrv := initServerWithInMemoryChain(t)
 	defer chain.Close()
-	defer rpcSrv.Shutdown()
+	defer func() { _ = rpcSrv.Shutdown() }()
 
 	c, err := client.New(context.Background(), httpSrv.URL, client.Options{})
 	require.NoError(t, err)
@@ -776,7 +778,7 @@ func TestClient_GetNativeContracts(t *testing.T) {
 func TestClient_NEP11(t *testing.T) {
 	chain, rpcSrv, httpSrv := initServerWithInMemoryChain(t)
 	defer chain.Close()
-	defer rpcSrv.Shutdown()
+	defer func() { _ = rpcSrv.Shutdown() }()
 
 	c, err := client.New(context.Background(), httpSrv.URL, client.Options{})
 	require.NoError(t, err)
@@ -842,7 +844,7 @@ func TestClient_NEP11(t *testing.T) {
 func TestClient_NNS(t *testing.T) {
 	chain, rpcSrv, httpSrv := initServerWithInMemoryChain(t)
 	defer chain.Close()
-	defer rpcSrv.Shutdown()
+	defer func() { _ = rpcSrv.Shutdown() }()
 
 	c, err := client.New(context.Background(), httpSrv.URL, client.Options{})
 	require.NoError(t, err)

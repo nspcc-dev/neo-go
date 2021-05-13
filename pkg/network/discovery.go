@@ -28,7 +28,7 @@ type Discoverer interface {
 	GoodPeers() []AddressWithCapabilities
 }
 
-// AddressWithCapabilities represents node address with its capabilities
+// AddressWithCapabilities represents node address with its capabilities.
 type AddressWithCapabilities struct {
 	Address      string
 	Capabilities capability.Capabilities
@@ -94,7 +94,7 @@ func (d *DefaultDiscovery) PoolCount() int {
 }
 
 // pushToPoolOrDrop tries to push address given into the pool, but if the pool
-// is already full, it just drops it
+// is already full, it just drops it.
 func (d *DefaultDiscovery) pushToPoolOrDrop(addr string) {
 	select {
 	case d.pool <- addr:

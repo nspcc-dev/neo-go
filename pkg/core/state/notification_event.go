@@ -129,7 +129,7 @@ func (ne *NotificationEvent) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// appExecResultAux is an auxiliary struct for JSON marshalling
+// appExecResultAux is an auxiliary struct for JSON marshalling.
 type appExecResultAux struct {
 	Container util.Uint256 `json:"container"`
 }

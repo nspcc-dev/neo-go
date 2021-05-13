@@ -238,6 +238,7 @@ func TestGetBlock(t *testing.T) {
 		t.Run("non-empty block", func(t *testing.T) {
 			tx, err := testchain.NewTransferFromOwner(bc, bc.contracts.NEO.Hash,
 				random.Uint160(), 1, 1, 1000)
+			require.NoError(t, err)
 			b := bc.newBlock(tx)
 			require.NoError(t, bc.AddHeaders(&b.Header))
 
@@ -1024,7 +1025,7 @@ func TestVerifyTx(t *testing.T) {
 				nativeprices.NotaryVerificationPrice*bc.GetBaseExecFee() // Notary witness verification price
 			tx.Scripts = []transaction.Witness{
 				{
-					InvocationScript:   append([]byte{byte(opcode.PUSHDATA1), 64}, make([]byte, 64, 64)...),
+					InvocationScript:   append([]byte{byte(opcode.PUSHDATA1), 64}, make([]byte, 64)...),
 					VerificationScript: []byte{},
 				},
 				{
@@ -1051,7 +1052,7 @@ func TestVerifyTx(t *testing.T) {
 			tx.NetworkFee-- // to check that NetworkFee was set correctly in getPartiallyFilledTx
 			tx.Scripts = []transaction.Witness{
 				{
-					InvocationScript:   append([]byte{byte(opcode.PUSHDATA1), 64}, make([]byte, 64, 64)...),
+					InvocationScript:   append([]byte{byte(opcode.PUSHDATA1), 64}, make([]byte, 64)...),
 					VerificationScript: []byte{},
 				},
 				{
@@ -1528,7 +1529,6 @@ func testDumpAndRestore(t *testing.T, dumpF, restoreF func(c *config.Config)) {
 			require.Equal(t, bc.BlockHeight()-1, lastIndex)
 		})
 	})
-
 }
 
 func TestDumpAndRestore(t *testing.T) {

@@ -7,7 +7,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
-// ParameterFromStackItem converts stackitem.Item to Parameter
+// ParameterFromStackItem converts stackitem.Item to Parameter.
 func ParameterFromStackItem(i stackitem.Item, seen map[stackitem.Item]bool) Parameter {
 	switch t := i.(type) {
 	case stackitem.Null, *stackitem.Pointer:

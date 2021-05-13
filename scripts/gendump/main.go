@@ -92,8 +92,10 @@ func main() {
 		txs := make([]*transaction.Transaction, txNum)
 		for j := 0; j < txNum; j++ {
 			nonce++
-			rand.Read(key)
-			rand.Read(value)
+			_, err = rand.Read(key)
+			handleError("can't get random data for key", err)
+			_, err = rand.Read(value)
+			handleError("can't get random data for value", err)
 
 			w := io.NewBufBinWriter()
 			emit.AppCall(w.BinWriter, contractHash, "put", callflag.All, key, value)

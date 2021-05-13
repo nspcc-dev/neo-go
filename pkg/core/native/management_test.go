@@ -18,7 +18,8 @@ import (
 func TestDeployGetUpdateDestroyContract(t *testing.T) {
 	mgmt := newManagement()
 	d := dao.NewCached(dao.NewSimple(storage.NewMemoryStore(), false))
-	mgmt.Initialize(&interop.Context{DAO: d})
+	err := mgmt.Initialize(&interop.Context{DAO: d})
+	require.NoError(t, err)
 	script := []byte{byte(opcode.RET)}
 	sender := util.Uint160{1, 2, 3}
 	ne, err := nef.NewFile(script)

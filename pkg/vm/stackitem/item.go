@@ -980,12 +980,12 @@ func (p *Pointer) Convert(typ Type) (Item, error) {
 	}
 }
 
-// ScriptHash returns pointer item hash
+// ScriptHash returns pointer item hash.
 func (p *Pointer) ScriptHash() util.Uint160 {
 	return p.hash
 }
 
-// Position returns pointer item position
+// Position returns pointer item position.
 func (p *Pointer) Position() int {
 	return p.pos
 }

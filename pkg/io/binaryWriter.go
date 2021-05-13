@@ -119,7 +119,6 @@ func (w *BinWriter) WriteVarUint(val uint64) {
 		w.WriteB(byte(0xfe))
 		w.WriteU32LE(uint32(val))
 		return
-
 	}
 
 	w.WriteB(byte(0xff))

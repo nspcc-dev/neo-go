@@ -13,5 +13,5 @@ type Hash256 []byte
 type PublicKey []byte
 
 // Interface represents interop interface type which is needed for
-// transparent handling of VM-internal types (e.g. storage.Context)
+// transparent handling of VM-internal types (e.g. storage.Context).
 type Interface interface{}

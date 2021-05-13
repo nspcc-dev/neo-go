@@ -8,7 +8,6 @@ list for a new release.
 These should run successfuly:
  * build
  * unit-tests
- * vet
  * lint
  * privnet with consensus nodes
 

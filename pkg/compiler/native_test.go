@@ -33,26 +33,17 @@ import (
 
 func TestContractHashes(t *testing.T) {
 	cs := native.NewContracts(true, map[string][]uint32{})
-	require.Equal(t, []byte(neo.Hash), cs.NEO.Hash.BytesBE())
-	require.Equal(t, []byte(gas.Hash), cs.GAS.Hash.BytesBE())
-	require.Equal(t, []byte(oracle.Hash), cs.Oracle.Hash.BytesBE())
-	require.Equal(t, []byte(roles.Hash), cs.Designate.Hash.BytesBE())
-	require.Equal(t, []byte(policy.Hash), cs.Policy.Hash.BytesBE())
-	require.Equal(t, []byte(nameservice.Hash), cs.NameService.Hash.BytesBE())
-	require.Equal(t, []byte(ledger.Hash), cs.Ledger.Hash.BytesBE())
-	require.Equal(t, []byte(management.Hash), cs.Management.Hash.BytesBE())
-	require.Equal(t, []byte(notary.Hash), cs.Notary.Hash.BytesBE())
-	require.Equal(t, []byte(crypto.Hash), cs.Crypto.Hash.BytesBE())
-	require.Equal(t, []byte(std.Hash), cs.Std.Hash.BytesBE())
-}
-
-// testPrintHash is a helper for updating contract hashes.
-func testPrintHash(u util.Uint160) {
-	fmt.Print(`"`)
-	for _, b := range u.BytesBE() {
-		fmt.Printf("\\x%02x", b)
-	}
-	fmt.Println(`"`)
+	require.Equalf(t, []byte(neo.Hash), cs.NEO.Hash.BytesBE(), "%q", string(cs.NEO.Hash.BytesBE()))
+	require.Equalf(t, []byte(gas.Hash), cs.GAS.Hash.BytesBE(), "%q", string(cs.GAS.Hash.BytesBE()))
+	require.Equalf(t, []byte(oracle.Hash), cs.Oracle.Hash.BytesBE(), "%q", string(cs.Oracle.Hash.BytesBE()))
+	require.Equalf(t, []byte(roles.Hash), cs.Designate.Hash.BytesBE(), "%q", string(cs.Designate.Hash.BytesBE()))
+	require.Equalf(t, []byte(policy.Hash), cs.Policy.Hash.BytesBE(), "%q", string(cs.Policy.Hash.BytesBE()))
+	require.Equalf(t, []byte(nameservice.Hash), cs.NameService.Hash.BytesBE(), "%q", string(cs.NameService.Hash.BytesBE()))
+	require.Equalf(t, []byte(ledger.Hash), cs.Ledger.Hash.BytesBE(), "%q", string(cs.Ledger.Hash.BytesBE()))
+	require.Equalf(t, []byte(management.Hash), cs.Management.Hash.BytesBE(), "%q", string(cs.Management.Hash.BytesBE()))
+	require.Equalf(t, []byte(notary.Hash), cs.Notary.Hash.BytesBE(), "%q", string(cs.Notary.Hash.BytesBE()))
+	require.Equalf(t, []byte(crypto.Hash), cs.Crypto.Hash.BytesBE(), "%q", string(cs.Crypto.Hash.BytesBE()))
+	require.Equalf(t, []byte(std.Hash), cs.Std.Hash.BytesBE(), "%q", string(cs.Std.Hash.BytesBE()))
 }
 
 func TestContractParameterTypes(t *testing.T) {
@@ -255,12 +246,12 @@ func getMethod(t *testing.T, ctr interop.ContractMD, name string, params []strin
 		name = name[:4]
 	case strings.HasPrefix(name, "memorySearch"):
 		if strings.HasSuffix(name, "LastIndex") {
-			paramLen += 1 // true should be appended inside of an interop
+			paramLen++ // true should be appended inside of an interop
 		}
 		name = "memorySearch"
 	case strings.HasPrefix(name, "stringSplit"):
 		if strings.HasSuffix(name, "NonEmpty") {
-			paramLen += 1 // true should be appended inside of an interop
+			paramLen++ // true should be appended inside of an interop
 		}
 		name = "stringSplit"
 	default:

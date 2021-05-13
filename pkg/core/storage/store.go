@@ -69,7 +69,7 @@ func (k KeyPrefix) Bytes() []byte {
 }
 
 // AppendPrefix appends byteslice b to the given KeyPrefix.
-// AppendKeyPrefix(SYSVersion, []byte{0x00, 0x01})
+// AppendKeyPrefix(SYSVersion, []byte{0x00, 0x01}).
 func AppendPrefix(k KeyPrefix, b []byte) []byte {
 	dest := make([]byte, len(b)+1)
 	dest[0] = byte(k)
@@ -78,7 +78,7 @@ func AppendPrefix(k KeyPrefix, b []byte) []byte {
 }
 
 // AppendPrefixInt append int n to the given KeyPrefix.
-//AppendPrefixInt(SYSCurrentHeader, 10001)
+//   AppendPrefixInt(SYSCurrentHeader, 10001)
 func AppendPrefixInt(k KeyPrefix, n int) []byte {
 	b := make([]byte, 4)
 	binary.LittleEndian.PutUint32(b, uint32(n))
