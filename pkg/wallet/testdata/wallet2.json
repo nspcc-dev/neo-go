@@ -16,7 +16,7 @@
         "deployed": false
       },
       "lock": false,
-      "isdefault": false
+      "isDefault": false
     },
     {
       "address": "NVTiAjNgagDkTr5HTzDmQP9kPwPHN5BgVq",
@@ -41,7 +41,7 @@
         "deployed": false
       },
       "lock": false,
-      "isdefault": false
+      "isDefault": false
     },
     {
       "address": "NMUedC8TSV2rE17wGguSvPk9XcmHSaT275",
@@ -58,7 +58,7 @@
         "deployed": false
       },
       "lock": false,
-      "isdefault": true
+      "isDefault": true
     }
   ],
   "scrypt": {

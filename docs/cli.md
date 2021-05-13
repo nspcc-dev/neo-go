@@ -132,7 +132,7 @@ Confirm passphrase >
                                 "deployed": false
                         },
                         "lock": false,
-                        "isdefault": false
+                        "isDefault": false
                 }
         ],
         "scrypt": {
@@ -191,7 +191,7 @@ Enter wallet password >
                                 "deployed": false
                         },
                         "lock": false,
-                        "isdefault": false
+                        "isDefault": false
                 }
         ],
         "scrypt": {
