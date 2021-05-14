@@ -227,7 +227,10 @@ func TestCreateBasicChain(t *testing.T) {
 }
 
 func initBasicChain(t *testing.T, bc *Blockchain) {
-	const prefix = "../rpc/server/testdata/"
+	const (
+		prefix         = "../rpc/server/testdata/"
+		examplesPrefix = "../../examples/"
+	)
 	// Increase in case if you need more blocks
 	const validUntilBlock = 1200
 
@@ -435,21 +438,36 @@ func initBasicChain(t *testing.T, bc *Blockchain) {
 	require.NoError(t, addNetworkFee(bc, txDeploy3, acc0))
 	require.NoError(t, acc0.SignTx(testchain.Network(), txDeploy3))
 	b = bc.newBlock(txDeploy3)
-	require.NoError(t, bc.AddBlock(b))
+	require.NoError(t, bc.AddBlock(b)) // block #10
 	checkTxHalt(t, bc, txDeploy3.Hash())
 
-	// register `neo.com` with A record type and priv0 owner via NNS
-	transferFundsToCommittee(t, bc) // block #11
+	// Push NameService contract into the chain.
+	nsPath := examplesPrefix + "nft-nd-nns/"
+	nsConfigPath := nsPath + "nns.yml"
+	txDeploy4, _ := newDeployTx(t, bc, priv0ScriptHash, nsPath, nsPath, &nsConfigPath)
+	txDeploy4.Nonce = getNextNonce()
+	txDeploy4.ValidUntilBlock = validUntilBlock
+	require.NoError(t, addNetworkFee(bc, txDeploy4, acc0))
+	require.NoError(t, acc0.SignTx(testchain.Network(), txDeploy4))
+	b = bc.newBlock(txDeploy4)
+	require.NoError(t, bc.AddBlock(b)) // block #11
+	checkTxHalt(t, bc, txDeploy4.Hash())
+	nsHash, err := bc.GetContractScriptHash(4)
+	require.NoError(t, err)
+	t.Logf("contract (%s): \n\tHash: %s\n", nsPath, nsHash.StringLE())
+
+	// register `neo.com` with A record type and priv0 owner via NS
+	transferFundsToCommittee(t, bc) // block #12
 	res, err := invokeContractMethodGeneric(bc, defaultNameServiceSysfee,
-		bc.contracts.NameService.Hash, "addRoot", true, "com") // block #12
+		nsHash, "addRoot", true, "com") // block #13
 	require.NoError(t, err)
 	checkResult(t, res, stackitem.Null{})
-	res, err = invokeContractMethodGeneric(bc, native.DefaultDomainPrice+defaultNameServiceSysfee,
-		bc.contracts.NameService.Hash, "register", acc0, "neo.com", priv0ScriptHash) // block #13
+	res, err = invokeContractMethodGeneric(bc, defaultNameServiceDomainPrice+defaultNameServiceSysfee+1_0000_000,
+		nsHash, "register", acc0, "neo.com", priv0ScriptHash) // block #14
 	require.NoError(t, err)
 	checkResult(t, res, stackitem.NewBool(true))
-	res, err = invokeContractMethodGeneric(bc, defaultNameServiceSysfee, bc.contracts.NameService.Hash,
-		"setRecord", acc0, "neo.com", int64(nnsrecords.A), "1.2.3.4") // block #14
+	res, err = invokeContractMethodGeneric(bc, defaultNameServiceSysfee, nsHash,
+		"setRecord", acc0, "neo.com", int64(nnsrecords.A), "1.2.3.4") // block #15
 	require.NoError(t, err)
 	checkResult(t, res, stackitem.Null{})
 
@@ -471,8 +489,16 @@ func newNEP17Transfer(sc, from, to util.Uint160, amount int64, additionalArgs ..
 
 func newDeployTx(t *testing.T, bc *Blockchain, sender util.Uint160, name, ctrName string, cfgName *string) (*transaction.Transaction, util.Uint160) {
 	c, err := ioutil.ReadFile(name)
-	require.NoError(t, err)
-	tx, h, avm, err := testchain.NewDeployTx(bc, ctrName, sender, bytes.NewReader(c), cfgName)
+	var (
+		tx  *transaction.Transaction
+		h   util.Uint160
+		avm []byte
+	)
+	if err == nil {
+		tx, h, avm, err = testchain.NewDeployTx(bc, ctrName, sender, bytes.NewReader(c), cfgName)
+	} else {
+		tx, h, avm, err = testchain.NewDeployTx(bc, ctrName, sender, nil, cfgName)
+	}
 	require.NoError(t, err)
 	t.Logf("contract (%s): \n\tHash: %s\n\tAVM: %s", name, h.StringLE(), base64.StdEncoding.EncodeToString(avm))
 	return tx, h

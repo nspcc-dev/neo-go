@@ -11,6 +11,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/native/noderoles"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/util"
 )
 
 // GetOraclePrice invokes `getPrice` method on a native Oracle contract.
@@ -22,12 +23,8 @@ func (c *Client) GetOraclePrice() (int64, error) {
 	return c.invokeNativeGetMethod(oracleHash, "getPrice")
 }
 
-// GetNNSPrice invokes `getPrice` method on a native NameService contract.
-func (c *Client) GetNNSPrice() (int64, error) {
-	nnsHash, err := c.GetNativeContractHash(nativenames.NameService)
-	if err != nil {
-		return 0, fmt.Errorf("failed to get native NameService hash: %w", err)
-	}
+// GetNNSPrice invokes `getPrice` method on a NeoNameService contract with the specified hash.
+func (c *Client) GetNNSPrice(nnsHash util.Uint160) (int64, error) {
 	return c.invokeNativeGetMethod(nnsHash, "getPrice")
 }
 
@@ -66,16 +63,12 @@ func (c *Client) GetDesignatedByRole(role noderoles.Role, index uint32) (keys.Pu
 	return topPublicKeysFromStack(result.Stack)
 }
 
-// NNSResolve invokes `resolve` method on a native NameService contract.
-func (c *Client) NNSResolve(name string, typ nnsrecords.Type) (string, error) {
+// NNSResolve invokes `resolve` method on a NameService contract with the specified hash.
+func (c *Client) NNSResolve(nnsHash util.Uint160, name string, typ nnsrecords.Type) (string, error) {
 	if typ == nnsrecords.CNAME {
 		return "", errors.New("can't resolve CNAME record type")
 	}
-	rmHash, err := c.GetNativeContractHash(nativenames.NameService)
-	if err != nil {
-		return "", fmt.Errorf("failed to get native NameService hash: %w", err)
-	}
-	result, err := c.InvokeFunction(rmHash, "resolve", []smartcontract.Parameter{
+	result, err := c.InvokeFunction(nnsHash, "resolve", []smartcontract.Parameter{
 		{
 			Type:  smartcontract.StringType,
 			Value: name,
@@ -95,13 +88,9 @@ func (c *Client) NNSResolve(name string, typ nnsrecords.Type) (string, error) {
 	return topStringFromStack(result.Stack)
 }
 
-// NNSIsAvailable invokes `isAvailable` method on a native NameService contract.
-func (c *Client) NNSIsAvailable(name string) (bool, error) {
-	rmHash, err := c.GetNativeContractHash(nativenames.NameService)
-	if err != nil {
-		return false, fmt.Errorf("failed to get native NameService hash: %w", err)
-	}
-	result, err := c.InvokeFunction(rmHash, "isAvailable", []smartcontract.Parameter{
+// NNSIsAvailable invokes `isAvailable` method on a NeoNameService contract with the specified hash.
+func (c *Client) NNSIsAvailable(nnsHash util.Uint160, name string) (bool, error) {
+	result, err := c.InvokeFunction(nnsHash, "isAvailable", []smartcontract.Parameter{
 		{
 			Type:  smartcontract.StringType,
 			Value: name,

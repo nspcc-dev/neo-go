@@ -6,7 +6,6 @@ import (
 	"github.com/nspcc-dev/neo-go/internal/testchain"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
-	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nnsrecords"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/io"
@@ -24,7 +23,7 @@ func TestNameService_Price(t *testing.T) {
 	bc := newTestChain(t)
 
 	testGetSet(t, bc, bc.contracts.NameService.Hash, "Price",
-		native.DefaultDomainPrice, 1, 10000_00000000)
+		defaultNameServiceDomainPrice, 1, 10000_00000000)
 }
 
 func TestNonfungible(t *testing.T) {
@@ -139,7 +138,7 @@ func TestRegisterAndRenew(t *testing.T) {
 	testNameServiceInvoke(t, bc, "register", nil, "\nneo.com'", testchain.CommitteeScriptHash())
 	testNameServiceInvoke(t, bc, "register", nil, "neo.com\n", testchain.CommitteeScriptHash())
 	testNameServiceInvoke(t, bc, "register", nil, "neo.com", testchain.CommitteeScriptHash())
-	testNameServiceInvokeAux(t, bc, native.DefaultDomainPrice, true, "register",
+	testNameServiceInvokeAux(t, bc, defaultNameServiceDomainPrice, true, "register",
 		nil, "neo.com", testchain.CommitteeScriptHash())
 
 	testNameServiceInvoke(t, bc, "isAvailable", true, "neo.com")
@@ -375,8 +374,9 @@ func TestResolve(t *testing.T) {
 }
 
 const (
-	defaultNameServiceSysfee = 4000_0000
-	defaultRegisterSysfee    = 10_0000_0000 + native.DefaultDomainPrice
+	defaultNameServiceDomainPrice = 10_0000_0000
+	defaultNameServiceSysfee      = 4000_0000
+	defaultRegisterSysfee         = 10_0000_0000 + defaultNameServiceDomainPrice
 )
 
 func testNameServiceInvoke(t *testing.T, bc *Blockchain, method string, result interface{}, args ...interface{}) {
