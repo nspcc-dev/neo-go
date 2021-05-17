@@ -190,6 +190,13 @@ func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration, log *zap.L
 		log.Info("MaxTransactionsPerBlock is not set or wrong, using default value",
 			zap.Uint16("MaxTransactionsPerBlock", cfg.MaxTransactionsPerBlock))
 	}
+	if cfg.MaxValidUntilBlockIncrement == 0 {
+		const secondsPerDay = int(24 * time.Hour / time.Second)
+
+		cfg.MaxValidUntilBlockIncrement = uint32(secondsPerDay / cfg.SecondsPerBlock)
+		log.Info("MaxValidUntilBlockIncrement is not set or wrong, using default value",
+			zap.Uint32("MaxValidUntilBlockIncrement", cfg.MaxValidUntilBlockIncrement))
+	}
 	committee, err := committeeFromConfig(cfg)
 	if err != nil {
 		return nil, err
@@ -1426,7 +1433,7 @@ func (bc *Blockchain) verifyAndPoolTx(t *transaction.Transaction, pool *mempool.
 
 	height := bc.BlockHeight()
 	isPartialTx := data != nil
-	if t.ValidUntilBlock <= height || !isPartialTx && t.ValidUntilBlock > height+transaction.MaxValidUntilBlockIncrement {
+	if t.ValidUntilBlock <= height || !isPartialTx && t.ValidUntilBlock > height+bc.config.MaxValidUntilBlockIncrement {
 		return fmt.Errorf("%w: ValidUntilBlock = %d, current height = %d", ErrTxExpired, t.ValidUntilBlock, height)
 	}
 	// Policying.
