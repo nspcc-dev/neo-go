@@ -3,10 +3,10 @@ package core
 import (
 	"testing"
 
+	nns "github.com/nspcc-dev/neo-go/examples/nft-nd-nns"
 	"github.com/nspcc-dev/neo-go/internal/testchain"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
-	"github.com/nspcc-dev/neo-go/pkg/core/native/nnsrecords"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
@@ -66,7 +66,7 @@ func TestExpiration(t *testing.T) {
 		true, "first.com", acc.Contract.ScriptHash())
 
 	testNameServiceInvokeAux(t, bc, nsHash, defaultNameServiceSysfee, acc,
-		"setRecord", stackitem.Null{}, "first.com", int64(nnsrecords.TXT), "sometext")
+		"setRecord", stackitem.Null{}, "first.com", int64(nns.TXT), "sometext")
 	b1 := bc.topBlock.Load().(*block.Block)
 
 	tx, err := prepareContractMethodInvokeGeneric(bc, defaultRegisterSysfee, nsHash,
@@ -107,7 +107,7 @@ func TestExpiration(t *testing.T) {
 	checkResult(t, &aer[0], stackitem.NewBool(false))
 
 	tx, err = prepareContractMethodInvokeGeneric(bc, defaultNameServiceSysfee, nsHash,
-		"getRecord", acc, "first.com", int64(nnsrecords.TXT))
+		"getRecord", acc, "first.com", int64(nns.TXT))
 	require.NoError(t, err)
 	b5 := newBlockCustom(bc.GetConfig(), func(b *block.Block) {
 		b.Index = b4.Index + 1
@@ -180,88 +180,88 @@ func TestSetGetRecord(t *testing.T) {
 	testNameServiceInvoke(t, bc, nsHash, "addRoot", stackitem.Null{}, "com")
 
 	t.Run("set before register", func(t *testing.T) {
-		testNameServiceInvoke(t, bc, nsHash, "setRecord", nil, "neo.com", int64(nnsrecords.TXT), "sometext")
+		testNameServiceInvoke(t, bc, nsHash, "setRecord", nil, "neo.com", int64(nns.TXT), "sometext")
 	})
 	testNameServiceInvokeAux(t, bc, nsHash, defaultRegisterSysfee, true, "register",
 		true, "neo.com", testchain.CommitteeScriptHash())
 	t.Run("invalid parameters", func(t *testing.T) {
 		testNameServiceInvoke(t, bc, nsHash, "setRecord", nil, "neo.com", int64(0xFF), "1.2.3.4")
-		testNameServiceInvoke(t, bc, nsHash, "setRecord", nil, "neo.com", int64(nnsrecords.A), "not.an.ip.address")
+		testNameServiceInvoke(t, bc, nsHash, "setRecord", nil, "neo.com", int64(nns.A), "not.an.ip.address")
 	})
 	t.Run("invalid witness", func(t *testing.T) {
 		testNameServiceInvokeAux(t, bc, nsHash, defaultNameServiceSysfee, acc, "setRecord", nil,
-			"neo.com", int64(nnsrecords.A), "1.2.3.4")
+			"neo.com", int64(nns.A), "1.2.3.4")
 	})
-	testNameServiceInvoke(t, bc, nsHash, "getRecord", stackitem.Null{}, "neo.com", int64(nnsrecords.A))
-	testNameServiceInvoke(t, bc, nsHash, "setRecord", stackitem.Null{}, "neo.com", int64(nnsrecords.A), "1.2.3.4")
-	testNameServiceInvoke(t, bc, nsHash, "getRecord", "1.2.3.4", "neo.com", int64(nnsrecords.A))
-	testNameServiceInvoke(t, bc, nsHash, "setRecord", stackitem.Null{}, "neo.com", int64(nnsrecords.A), "1.2.3.4")
-	testNameServiceInvoke(t, bc, nsHash, "getRecord", "1.2.3.4", "neo.com", int64(nnsrecords.A))
-	testNameServiceInvoke(t, bc, nsHash, "setRecord", stackitem.Null{}, "neo.com", int64(nnsrecords.AAAA), "2002:0000:1f1f:0000:0000:0100:11a0:addf")
-	testNameServiceInvoke(t, bc, nsHash, "setRecord", stackitem.Null{}, "neo.com", int64(nnsrecords.CNAME), "nspcc.ru")
-	testNameServiceInvoke(t, bc, nsHash, "setRecord", stackitem.Null{}, "neo.com", int64(nnsrecords.TXT), "sometext")
+	testNameServiceInvoke(t, bc, nsHash, "getRecord", stackitem.Null{}, "neo.com", int64(nns.A))
+	testNameServiceInvoke(t, bc, nsHash, "setRecord", stackitem.Null{}, "neo.com", int64(nns.A), "1.2.3.4")
+	testNameServiceInvoke(t, bc, nsHash, "getRecord", "1.2.3.4", "neo.com", int64(nns.A))
+	testNameServiceInvoke(t, bc, nsHash, "setRecord", stackitem.Null{}, "neo.com", int64(nns.A), "1.2.3.4")
+	testNameServiceInvoke(t, bc, nsHash, "getRecord", "1.2.3.4", "neo.com", int64(nns.A))
+	testNameServiceInvoke(t, bc, nsHash, "setRecord", stackitem.Null{}, "neo.com", int64(nns.AAAA), "2002:0000:1f1f:0000:0000:0100:11a0:addf")
+	testNameServiceInvoke(t, bc, nsHash, "setRecord", stackitem.Null{}, "neo.com", int64(nns.CNAME), "nspcc.ru")
+	testNameServiceInvoke(t, bc, nsHash, "setRecord", stackitem.Null{}, "neo.com", int64(nns.TXT), "sometext")
 
 	// Delete record.
 	t.Run("invalid witness", func(t *testing.T) {
 		testNameServiceInvokeAux(t, bc, nsHash, defaultNameServiceSysfee, acc, "setRecord", nil,
-			"neo.com", int64(nnsrecords.CNAME))
+			"neo.com", int64(nns.CNAME))
 	})
-	testNameServiceInvoke(t, bc, nsHash, "getRecord", "nspcc.ru", "neo.com", int64(nnsrecords.CNAME))
-	testNameServiceInvoke(t, bc, nsHash, "deleteRecord", stackitem.Null{}, "neo.com", int64(nnsrecords.CNAME))
-	testNameServiceInvoke(t, bc, nsHash, "getRecord", stackitem.Null{}, "neo.com", int64(nnsrecords.CNAME))
-	testNameServiceInvoke(t, bc, nsHash, "getRecord", "1.2.3.4", "neo.com", int64(nnsrecords.A))
+	testNameServiceInvoke(t, bc, nsHash, "getRecord", "nspcc.ru", "neo.com", int64(nns.CNAME))
+	testNameServiceInvoke(t, bc, nsHash, "deleteRecord", stackitem.Null{}, "neo.com", int64(nns.CNAME))
+	testNameServiceInvoke(t, bc, nsHash, "getRecord", stackitem.Null{}, "neo.com", int64(nns.CNAME))
+	testNameServiceInvoke(t, bc, nsHash, "getRecord", "1.2.3.4", "neo.com", int64(nns.A))
 
 	t.Run("SetRecord_compatibility", func(t *testing.T) {
 		// tests are got from the NNS C# implementation and changed accordingly to non-native implementation behaviour
 		testCases := []struct {
-			Type       nnsrecords.Type
+			Type       nns.RecordType
 			Name       string
 			ShouldFail bool
 		}{
-			{Type: nnsrecords.A, Name: "0.0.0.0", ShouldFail: true},
-			{Type: nnsrecords.A, Name: "1.1.0.1"},
-			{Type: nnsrecords.A, Name: "10.10.10.10", ShouldFail: true},
-			{Type: nnsrecords.A, Name: "255.255.255.255", ShouldFail: true},
-			{Type: nnsrecords.A, Name: "192.168.1.1", ShouldFail: true},
-			{Type: nnsrecords.A, Name: "1a", ShouldFail: true},
-			{Type: nnsrecords.A, Name: "256.0.0.0", ShouldFail: true},
-			{Type: nnsrecords.A, Name: "01.01.01.01", ShouldFail: true},
-			{Type: nnsrecords.A, Name: "00.0.0.0", ShouldFail: true},
-			{Type: nnsrecords.A, Name: "0.0.0.-1", ShouldFail: true},
-			{Type: nnsrecords.A, Name: "0.0.0.0.1", ShouldFail: true},
-			{Type: nnsrecords.A, Name: "11111111.11111111.11111111.11111111", ShouldFail: true},
-			{Type: nnsrecords.A, Name: "11111111.11111111.11111111.11111111", ShouldFail: true},
-			{Type: nnsrecords.A, Name: "ff.ff.ff.ff", ShouldFail: true},
-			{Type: nnsrecords.A, Name: "0.0.256", ShouldFail: true},
-			{Type: nnsrecords.A, Name: "0.0.0", ShouldFail: true},
-			{Type: nnsrecords.A, Name: "0.257", ShouldFail: true},
-			{Type: nnsrecords.A, Name: "1.1", ShouldFail: true},
-			{Type: nnsrecords.A, Name: "257", ShouldFail: true},
-			{Type: nnsrecords.A, Name: "1", ShouldFail: true},
-			{Type: nnsrecords.AAAA, Name: "2001:db8::8:800:200c:417a", ShouldFail: true},
-			{Type: nnsrecords.AAAA, Name: "ff01:db8::8:800:200c:417a"},
-			{Type: nnsrecords.AAAA, Name: "ff01::101"},
-			{Type: nnsrecords.AAAA, Name: "::1"},
-			{Type: nnsrecords.AAAA, Name: "::"},
-			{Type: nnsrecords.AAAA, Name: "2001:db8:0:0:8:800:200c:417a", ShouldFail: true},
-			{Type: nnsrecords.AAAA, Name: "ff01:db8:0:0:8:800:200c:417a"},
-			{Type: nnsrecords.AAAA, Name: "ff01:0:0:0:0:0:0:101"},
-			{Type: nnsrecords.AAAA, Name: "2001:0:0:0:0:0:0:101", ShouldFail: true},
-			{Type: nnsrecords.AAAA, Name: "ff01:0:0:0:0:0:0:101"},
-			{Type: nnsrecords.AAAA, Name: "0:0:0:0:0:0:0:1"},
-			{Type: nnsrecords.AAAA, Name: "2001:0:0:0:0:0:0:1", ShouldFail: true},
-			{Type: nnsrecords.AAAA, Name: "0:0:0:0:0:0:0:0"},
-			{Type: nnsrecords.AAAA, Name: "2001:0:0:0:0:0:0:0", ShouldFail: true},
-			{Type: nnsrecords.AAAA, Name: "2001:DB8::8:800:200C:417A", ShouldFail: true},
-			{Type: nnsrecords.AAAA, Name: "FF01:DB8::8:800:200C:417A"},
-			{Type: nnsrecords.AAAA, Name: "FF01::101"},
-			{Type: nnsrecords.AAAA, Name: "fF01::101"},
-			{Type: nnsrecords.AAAA, Name: "2001:DB8:0:0:8:800:200C:417A", ShouldFail: true},
-			{Type: nnsrecords.AAAA, Name: "FF01:DB8:0:0:8:800:200C:417A"},
-			{Type: nnsrecords.AAAA, Name: "FF01:0:0:0:0:0:0:101"},
-			{Type: nnsrecords.AAAA, Name: "::ffff:1.01.1.01", ShouldFail: true},
-			{Type: nnsrecords.AAAA, Name: "2001:DB8:0:0:8:800:200C:4Z", ShouldFail: true},
-			{Type: nnsrecords.AAAA, Name: "::13.1.68.3", ShouldFail: true},
+			{Type: nns.A, Name: "0.0.0.0", ShouldFail: true},
+			{Type: nns.A, Name: "1.1.0.1"},
+			{Type: nns.A, Name: "10.10.10.10", ShouldFail: true},
+			{Type: nns.A, Name: "255.255.255.255", ShouldFail: true},
+			{Type: nns.A, Name: "192.168.1.1", ShouldFail: true},
+			{Type: nns.A, Name: "1a", ShouldFail: true},
+			{Type: nns.A, Name: "256.0.0.0", ShouldFail: true},
+			{Type: nns.A, Name: "01.01.01.01", ShouldFail: true},
+			{Type: nns.A, Name: "00.0.0.0", ShouldFail: true},
+			{Type: nns.A, Name: "0.0.0.-1", ShouldFail: true},
+			{Type: nns.A, Name: "0.0.0.0.1", ShouldFail: true},
+			{Type: nns.A, Name: "11111111.11111111.11111111.11111111", ShouldFail: true},
+			{Type: nns.A, Name: "11111111.11111111.11111111.11111111", ShouldFail: true},
+			{Type: nns.A, Name: "ff.ff.ff.ff", ShouldFail: true},
+			{Type: nns.A, Name: "0.0.256", ShouldFail: true},
+			{Type: nns.A, Name: "0.0.0", ShouldFail: true},
+			{Type: nns.A, Name: "0.257", ShouldFail: true},
+			{Type: nns.A, Name: "1.1", ShouldFail: true},
+			{Type: nns.A, Name: "257", ShouldFail: true},
+			{Type: nns.A, Name: "1", ShouldFail: true},
+			{Type: nns.AAAA, Name: "2001:db8::8:800:200c:417a", ShouldFail: true},
+			{Type: nns.AAAA, Name: "ff01:db8::8:800:200c:417a"},
+			{Type: nns.AAAA, Name: "ff01::101"},
+			{Type: nns.AAAA, Name: "::1"},
+			{Type: nns.AAAA, Name: "::"},
+			{Type: nns.AAAA, Name: "2001:db8:0:0:8:800:200c:417a", ShouldFail: true},
+			{Type: nns.AAAA, Name: "ff01:db8:0:0:8:800:200c:417a"},
+			{Type: nns.AAAA, Name: "ff01:0:0:0:0:0:0:101"},
+			{Type: nns.AAAA, Name: "2001:0:0:0:0:0:0:101", ShouldFail: true},
+			{Type: nns.AAAA, Name: "ff01:0:0:0:0:0:0:101"},
+			{Type: nns.AAAA, Name: "0:0:0:0:0:0:0:1"},
+			{Type: nns.AAAA, Name: "2001:0:0:0:0:0:0:1", ShouldFail: true},
+			{Type: nns.AAAA, Name: "0:0:0:0:0:0:0:0"},
+			{Type: nns.AAAA, Name: "2001:0:0:0:0:0:0:0", ShouldFail: true},
+			{Type: nns.AAAA, Name: "2001:DB8::8:800:200C:417A", ShouldFail: true},
+			{Type: nns.AAAA, Name: "FF01:DB8::8:800:200C:417A"},
+			{Type: nns.AAAA, Name: "FF01::101"},
+			{Type: nns.AAAA, Name: "fF01::101"},
+			{Type: nns.AAAA, Name: "2001:DB8:0:0:8:800:200C:417A", ShouldFail: true},
+			{Type: nns.AAAA, Name: "FF01:DB8:0:0:8:800:200C:417A"},
+			{Type: nns.AAAA, Name: "FF01:0:0:0:0:0:0:101"},
+			{Type: nns.AAAA, Name: "::ffff:1.01.1.01", ShouldFail: true},
+			{Type: nns.AAAA, Name: "2001:DB8:0:0:8:800:200C:4Z", ShouldFail: true},
+			{Type: nns.AAAA, Name: "::13.1.68.3", ShouldFail: true},
 		}
 		for _, testCase := range testCases {
 			var expected interface{}
@@ -302,20 +302,20 @@ func TestSetAdmin(t *testing.T) {
 
 	t.Run("set and delete by admin", func(t *testing.T) {
 		testNameServiceInvokeAux(t, bc, nsHash, defaultNameServiceSysfee, admin, "setRecord", stackitem.Null{},
-			"neo.com", int64(nnsrecords.TXT), "sometext")
+			"neo.com", int64(nns.TXT), "sometext")
 		testNameServiceInvokeAux(t, bc, nsHash, defaultNameServiceSysfee, guest, "deleteRecord", nil,
-			"neo.com", int64(nnsrecords.TXT))
+			"neo.com", int64(nns.TXT))
 		testNameServiceInvokeAux(t, bc, nsHash, defaultNameServiceSysfee, admin, "deleteRecord", stackitem.Null{},
-			"neo.com", int64(nnsrecords.TXT))
+			"neo.com", int64(nns.TXT))
 	})
 
 	t.Run("set admin to null", func(t *testing.T) {
 		testNameServiceInvokeAux(t, bc, nsHash, defaultNameServiceSysfee, admin, "setRecord", stackitem.Null{},
-			"neo.com", int64(nnsrecords.TXT), "sometext")
+			"neo.com", int64(nns.TXT), "sometext")
 		testNameServiceInvokeAux(t, bc, nsHash, defaultNameServiceSysfee, owner, "setAdmin", stackitem.Null{},
 			"neo.com", nil)
 		testNameServiceInvokeAux(t, bc, nsHash, defaultNameServiceSysfee, admin, "deleteRecord", nil,
-			"neo.com", int64(nnsrecords.TXT))
+			"neo.com", int64(nns.TXT))
 	})
 }
 
@@ -330,7 +330,7 @@ func TestTransfer(t *testing.T) {
 	testNameServiceInvokeAux(t, bc, nsHash, defaultRegisterSysfee, from, "register",
 		true, "neo.com", from.PrivateKey().GetScriptHash())
 	testNameServiceInvokeAux(t, bc, nsHash, defaultNameServiceSysfee, from, "setRecord", stackitem.Null{},
-		"neo.com", int64(nnsrecords.A), "1.2.3.4")
+		"neo.com", int64(nns.A), "1.2.3.4")
 	testNameServiceInvokeAux(t, bc, nsHash, defaultRegisterSysfee, from, "transfer",
 		nil, to.Contract.ScriptHash().BytesBE(), []byte("not.exists"), nil)
 	testNameServiceInvokeAux(t, bc, nsHash, defaultRegisterSysfee, true, "transfer",
@@ -418,23 +418,23 @@ func TestResolve(t *testing.T) {
 	testNameServiceInvokeAux(t, bc, nsHash, defaultRegisterSysfee, acc, "register",
 		true, "neo.com", acc.PrivateKey().GetScriptHash())
 	testNameServiceInvokeAux(t, bc, nsHash, defaultNameServiceSysfee, acc, "setRecord", stackitem.Null{},
-		"neo.com", int64(nnsrecords.A), "1.2.3.4")
+		"neo.com", int64(nns.A), "1.2.3.4")
 	testNameServiceInvokeAux(t, bc, nsHash, defaultNameServiceSysfee, acc, "setRecord", stackitem.Null{},
-		"neo.com", int64(nnsrecords.CNAME), "alias.com")
+		"neo.com", int64(nns.CNAME), "alias.com")
 
 	testNameServiceInvokeAux(t, bc, nsHash, defaultRegisterSysfee, acc, "register",
 		true, "alias.com", acc.PrivateKey().GetScriptHash())
 	testNameServiceInvokeAux(t, bc, nsHash, defaultNameServiceSysfee, acc, "setRecord", stackitem.Null{},
-		"alias.com", int64(nnsrecords.TXT), "sometxt")
+		"alias.com", int64(nns.TXT), "sometxt")
 
 	testNameServiceInvoke(t, bc, nsHash, "resolve", "1.2.3.4",
-		"neo.com", int64(nnsrecords.A))
+		"neo.com", int64(nns.A))
 	testNameServiceInvoke(t, bc, nsHash, "resolve", "alias.com",
-		"neo.com", int64(nnsrecords.CNAME))
+		"neo.com", int64(nns.CNAME))
 	testNameServiceInvoke(t, bc, nsHash, "resolve", "sometxt",
-		"neo.com", int64(nnsrecords.TXT))
+		"neo.com", int64(nns.TXT))
 	testNameServiceInvoke(t, bc, nsHash, "resolve", stackitem.Null{},
-		"neo.com", int64(nnsrecords.AAAA))
+		"neo.com", int64(nns.AAAA))
 }
 
 const (

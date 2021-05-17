@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	nns "github.com/nspcc-dev/neo-go/examples/nft-nd-nns"
 	"github.com/nspcc-dev/neo-go/internal/testchain"
 	"github.com/nspcc-dev/neo-go/pkg/compiler"
 	"github.com/nspcc-dev/neo-go/pkg/config"
@@ -22,7 +23,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/chaindump"
 	"github.com/nspcc-dev/neo-go/pkg/core/fee"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
-	"github.com/nspcc-dev/neo-go/pkg/core/native/nnsrecords"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/noderoles"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
@@ -489,7 +489,7 @@ func initBasicChain(t *testing.T, bc *Blockchain) {
 	require.NoError(t, err)
 	checkResult(t, res, stackitem.NewBool(true))
 	res, err = invokeContractMethodGeneric(bc, defaultNameServiceSysfee, nsHash,
-		"setRecord", acc0, "neo.com", int64(nnsrecords.A), "1.2.3.4") // block #15
+		"setRecord", acc0, "neo.com", int64(nns.A), "1.2.3.4") // block #15
 	require.NoError(t, err)
 	checkResult(t, res, stackitem.Null{})
 

@@ -6,8 +6,8 @@ import (
 	"errors"
 	"fmt"
 
+	nns "github.com/nspcc-dev/neo-go/examples/nft-nd-nns"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
-	"github.com/nspcc-dev/neo-go/pkg/core/native/nnsrecords"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/noderoles"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
@@ -64,8 +64,8 @@ func (c *Client) GetDesignatedByRole(role noderoles.Role, index uint32) (keys.Pu
 }
 
 // NNSResolve invokes `resolve` method on a NameService contract with the specified hash.
-func (c *Client) NNSResolve(nnsHash util.Uint160, name string, typ nnsrecords.Type) (string, error) {
-	if typ == nnsrecords.CNAME {
+func (c *Client) NNSResolve(nnsHash util.Uint160, name string, typ nns.RecordType) (string, error) {
+	if typ == nns.CNAME {
 		return "", errors.New("can't resolve CNAME record type")
 	}
 	result, err := c.InvokeFunction(nnsHash, "resolve", []smartcontract.Parameter{

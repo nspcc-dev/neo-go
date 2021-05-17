@@ -5,10 +5,10 @@ import (
 	"encoding/base64"
 	"testing"
 
+	nns "github.com/nspcc-dev/neo-go/examples/nft-nd-nns"
 	"github.com/nspcc-dev/neo-go/internal/testchain"
 	"github.com/nspcc-dev/neo-go/pkg/core/fee"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
-	"github.com/nspcc-dev/neo-go/pkg/core/native/nnsrecords"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
@@ -864,16 +864,16 @@ func TestClient_NNS(t *testing.T) {
 		require.Equal(t, true, b)
 	})
 	t.Run("NNSResolve, good", func(t *testing.T) {
-		b, err := c.NNSResolve(nsHash, "neo.com", nnsrecords.A)
+		b, err := c.NNSResolve(nsHash, "neo.com", nns.A)
 		require.NoError(t, err)
 		require.Equal(t, "1.2.3.4", b)
 	})
 	t.Run("NNSResolve, bad", func(t *testing.T) {
-		_, err := c.NNSResolve(nsHash, "neogo.com", nnsrecords.A)
+		_, err := c.NNSResolve(nsHash, "neogo.com", nns.A)
 		require.Error(t, err)
 	})
 	t.Run("NNSResolve, forbidden", func(t *testing.T) {
-		_, err := c.NNSResolve(nsHash, "neogo.com", nnsrecords.CNAME)
+		_, err := c.NNSResolve(nsHash, "neogo.com", nns.CNAME)
 		require.Error(t, err)
 	})
 }
