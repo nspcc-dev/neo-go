@@ -210,6 +210,71 @@ func TestSetGetRecord(t *testing.T) {
 	testNameServiceInvoke(t, bc, nsHash, "deleteRecord", stackitem.Null{}, "neo.com", int64(nnsrecords.CNAME))
 	testNameServiceInvoke(t, bc, nsHash, "getRecord", stackitem.Null{}, "neo.com", int64(nnsrecords.CNAME))
 	testNameServiceInvoke(t, bc, nsHash, "getRecord", "1.2.3.4", "neo.com", int64(nnsrecords.A))
+
+	t.Run("SetRecord_compatibility", func(t *testing.T) {
+		// tests are got from the NNS C# implementation and changed accordingly to non-native implementation behaviour
+		testCases := []struct {
+			Type       nnsrecords.Type
+			Name       string
+			ShouldFail bool
+		}{
+			{Type: nnsrecords.A, Name: "0.0.0.0", ShouldFail: true},
+			{Type: nnsrecords.A, Name: "1.1.0.1"},
+			{Type: nnsrecords.A, Name: "10.10.10.10", ShouldFail: true},
+			{Type: nnsrecords.A, Name: "255.255.255.255", ShouldFail: true},
+			{Type: nnsrecords.A, Name: "192.168.1.1", ShouldFail: true},
+			{Type: nnsrecords.A, Name: "1a", ShouldFail: true},
+			{Type: nnsrecords.A, Name: "256.0.0.0", ShouldFail: true},
+			{Type: nnsrecords.A, Name: "01.01.01.01", ShouldFail: true},
+			{Type: nnsrecords.A, Name: "00.0.0.0", ShouldFail: true},
+			{Type: nnsrecords.A, Name: "0.0.0.-1", ShouldFail: true},
+			{Type: nnsrecords.A, Name: "0.0.0.0.1", ShouldFail: true},
+			{Type: nnsrecords.A, Name: "11111111.11111111.11111111.11111111", ShouldFail: true},
+			{Type: nnsrecords.A, Name: "11111111.11111111.11111111.11111111", ShouldFail: true},
+			{Type: nnsrecords.A, Name: "ff.ff.ff.ff", ShouldFail: true},
+			{Type: nnsrecords.A, Name: "0.0.256", ShouldFail: true},
+			{Type: nnsrecords.A, Name: "0.0.0", ShouldFail: true},
+			{Type: nnsrecords.A, Name: "0.257", ShouldFail: true},
+			{Type: nnsrecords.A, Name: "1.1", ShouldFail: true},
+			{Type: nnsrecords.A, Name: "257", ShouldFail: true},
+			{Type: nnsrecords.A, Name: "1", ShouldFail: true},
+			{Type: nnsrecords.AAAA, Name: "2001:db8::8:800:200c:417a", ShouldFail: true},
+			{Type: nnsrecords.AAAA, Name: "ff01:db8::8:800:200c:417a"},
+			{Type: nnsrecords.AAAA, Name: "ff01::101"},
+			{Type: nnsrecords.AAAA, Name: "::1"},
+			{Type: nnsrecords.AAAA, Name: "::"},
+			{Type: nnsrecords.AAAA, Name: "2001:db8:0:0:8:800:200c:417a", ShouldFail: true},
+			{Type: nnsrecords.AAAA, Name: "ff01:db8:0:0:8:800:200c:417a"},
+			{Type: nnsrecords.AAAA, Name: "ff01:0:0:0:0:0:0:101"},
+			{Type: nnsrecords.AAAA, Name: "2001:0:0:0:0:0:0:101", ShouldFail: true},
+			{Type: nnsrecords.AAAA, Name: "ff01:0:0:0:0:0:0:101"},
+			{Type: nnsrecords.AAAA, Name: "0:0:0:0:0:0:0:1"},
+			{Type: nnsrecords.AAAA, Name: "2001:0:0:0:0:0:0:1", ShouldFail: true},
+			{Type: nnsrecords.AAAA, Name: "0:0:0:0:0:0:0:0"},
+			{Type: nnsrecords.AAAA, Name: "2001:0:0:0:0:0:0:0", ShouldFail: true},
+			{Type: nnsrecords.AAAA, Name: "2001:DB8::8:800:200C:417A", ShouldFail: true},
+			{Type: nnsrecords.AAAA, Name: "FF01:DB8::8:800:200C:417A"},
+			{Type: nnsrecords.AAAA, Name: "FF01::101"},
+			{Type: nnsrecords.AAAA, Name: "fF01::101"},
+			{Type: nnsrecords.AAAA, Name: "2001:DB8:0:0:8:800:200C:417A", ShouldFail: true},
+			{Type: nnsrecords.AAAA, Name: "FF01:DB8:0:0:8:800:200C:417A"},
+			{Type: nnsrecords.AAAA, Name: "FF01:0:0:0:0:0:0:101"},
+			{Type: nnsrecords.AAAA, Name: "::ffff:1.01.1.01", ShouldFail: true},
+			{Type: nnsrecords.AAAA, Name: "2001:DB8:0:0:8:800:200C:4Z", ShouldFail: true},
+			{Type: nnsrecords.AAAA, Name: "::13.1.68.3", ShouldFail: true},
+		}
+		for _, testCase := range testCases {
+			var expected interface{}
+			if testCase.ShouldFail {
+				expected = nil
+			} else {
+				expected = stackitem.Null{}
+			}
+			t.Run(testCase.Name, func(t *testing.T) {
+				testNameServiceInvoke(t, bc, nsHash, "setRecord", expected, "neo.com", int64(testCase.Type), testCase.Name)
+			})
+		}
+	})
 }
 
 func TestSetAdmin(t *testing.T) {
