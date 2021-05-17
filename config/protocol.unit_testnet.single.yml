@@ -19,7 +19,6 @@ ProtocolConfiguration:
     PolicyContract: [0]
     RoleManagement: [0]
     OracleContract: [0]
-    NameService: [0]
     Notary: [0]
 
 ApplicationConfiguration:

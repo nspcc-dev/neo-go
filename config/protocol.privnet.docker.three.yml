@@ -27,7 +27,6 @@ ProtocolConfiguration:
     PolicyContract: [0]
     RoleManagement: [0]
     OracleContract: [0]
-    NameService: [0]
 
 ApplicationConfiguration:
   # LogPath could be set up in case you need stdout logs to some proper file.

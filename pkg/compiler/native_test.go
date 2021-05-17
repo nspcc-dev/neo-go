@@ -9,14 +9,12 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
-	"github.com/nspcc-dev/neo-go/pkg/core/native/nnsrecords"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/noderoles"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/interop/native/crypto"
 	"github.com/nspcc-dev/neo-go/pkg/interop/native/gas"
 	"github.com/nspcc-dev/neo-go/pkg/interop/native/ledger"
 	"github.com/nspcc-dev/neo-go/pkg/interop/native/management"
-	"github.com/nspcc-dev/neo-go/pkg/interop/native/nameservice"
 	"github.com/nspcc-dev/neo-go/pkg/interop/native/neo"
 	"github.com/nspcc-dev/neo-go/pkg/interop/native/notary"
 	"github.com/nspcc-dev/neo-go/pkg/interop/native/oracle"
@@ -38,7 +36,6 @@ func TestContractHashes(t *testing.T) {
 	require.Equalf(t, []byte(oracle.Hash), cs.Oracle.Hash.BytesBE(), "%q", string(cs.Oracle.Hash.BytesBE()))
 	require.Equalf(t, []byte(roles.Hash), cs.Designate.Hash.BytesBE(), "%q", string(cs.Designate.Hash.BytesBE()))
 	require.Equalf(t, []byte(policy.Hash), cs.Policy.Hash.BytesBE(), "%q", string(cs.Policy.Hash.BytesBE()))
-	require.Equalf(t, []byte(nameservice.Hash), cs.NameService.Hash.BytesBE(), "%q", string(cs.NameService.Hash.BytesBE()))
 	require.Equalf(t, []byte(ledger.Hash), cs.Ledger.Hash.BytesBE(), "%q", string(cs.Ledger.Hash.BytesBE()))
 	require.Equalf(t, []byte(management.Hash), cs.Management.Hash.BytesBE(), "%q", string(cs.Management.Hash.BytesBE()))
 	require.Equalf(t, []byte(notary.Hash), cs.Notary.Hash.BytesBE(), "%q", string(cs.Notary.Hash.BytesBE()))
@@ -67,13 +64,6 @@ func TestRoleManagementRole(t *testing.T) {
 	require.EqualValues(t, noderoles.StateValidator, roles.StateValidator)
 	require.EqualValues(t, noderoles.NeoFSAlphabet, roles.NeoFSAlphabet)
 	require.EqualValues(t, noderoles.P2PNotary, roles.P2PNotary)
-}
-
-func TestNameServiceRecordType(t *testing.T) {
-	require.EqualValues(t, nnsrecords.A, nameservice.TypeA)
-	require.EqualValues(t, nnsrecords.CNAME, nameservice.TypeCNAME)
-	require.EqualValues(t, nnsrecords.TXT, nameservice.TypeTXT)
-	require.EqualValues(t, nnsrecords.AAAA, nameservice.TypeAAAA)
 }
 
 func TestCryptoLibNamedCurve(t *testing.T) {
@@ -149,31 +139,6 @@ func TestNativeHelpersCompile(t *testing.T) {
 		{"setFeePerByte", []string{"42"}},
 		{"setStoragePrice", []string{"42"}},
 		{"unblockAccount", []string{u160}},
-	})
-	runNativeTestCases(t, cs.NameService.ContractMD, "nameservice", []nativeTestCase{
-		// nonfungible
-		{"symbol", nil},
-		{"decimals", nil},
-		{"totalSupply", nil},
-		{"ownerOf", []string{`"neo.com"`}},
-		{"balanceOf", []string{u160}},
-		{"properties", []string{`"neo.com"`}},
-		{"tokens", nil},
-		{"tokensOf", []string{u160}},
-		{"transfer", []string{u160, `"neo.com"`, "nil"}},
-
-		// name service
-		{"addRoot", []string{`"com"`}},
-		{"deleteRecord", []string{`"neo.com"`, "nameservice.TypeA"}},
-		{"isAvailable", []string{`"neo.com"`}},
-		{"getPrice", nil},
-		{"getRecord", []string{`"neo.com"`, "nameservice.TypeA"}},
-		{"register", []string{`"neo.com"`, u160}},
-		{"renew", []string{`"neo.com"`}},
-		{"resolve", []string{`"neo.com"`, "nameservice.TypeA"}},
-		{"setPrice", []string{"42"}},
-		{"setAdmin", []string{`"neo.com"`, u160}},
-		{"setRecord", []string{`"neo.com"`, "nameservice.TypeA", `"1.1.1.1"`}},
 	})
 	runNativeTestCases(t, cs.Ledger.ContractMD, "ledger", []nativeTestCase{
 		{"currentHash", nil},

@@ -34,8 +34,8 @@ func TestNEP11Import(t *testing.T) {
 	walletPath := path.Join(tmpDir, "walletForImport.json")
 	defer os.Remove(walletPath)
 
-	nnsContractHash, err := e.Chain.GetNativeContractScriptHash(nativenames.NameService)
-	require.NoError(t, err)
+	// deploy NFT NeoNameService contract
+	nnsContractHash := deployNNSContract(t, e)
 	neoContractHash, err := e.Chain.GetNativeContractScriptHash(nativenames.Neo)
 	require.NoError(t, err)
 	e.Run(t, "neo-go", "wallet", "init", "--wallet", walletPath)
@@ -324,4 +324,8 @@ func TestNEP11_OwnerOf_BalanceOf_Transfer(t *testing.T) {
 
 func deployNFTContract(t *testing.T, e *executor) util.Uint160 {
 	return deployContract(t, e, "../examples/nft-nd/nft.go", "../examples/nft-nd/nft.yml", nftOwnerWallet, nftOwnerAddr, nftOwnerPass)
+}
+
+func deployNNSContract(t *testing.T, e *executor) util.Uint160 {
+	return deployContract(t, e, "../examples/nft-nd-nns/", "../examples/nft-nd-nns/nns.yml", validatorWallet, validatorAddr, "one")
 }

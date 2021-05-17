@@ -32,7 +32,7 @@ func LoadToken(ic *interop.Context) func(id int32) error {
 		}
 		cs, err := ic.GetContract(tok.Hash)
 		if err != nil {
-			return fmt.Errorf("contract not found: %w", err)
+			return fmt.Errorf("token contract %s not found: %w", tok.Hash.StringLE(), err)
 		}
 		return callInternal(ic, cs, tok.Method, tok.CallFlag, tok.HasReturn, args)
 	}
@@ -53,7 +53,7 @@ func Call(ic *interop.Context) error {
 	}
 	cs, err := ic.GetContract(u)
 	if err != nil {
-		return fmt.Errorf("contract not found: %w", err)
+		return fmt.Errorf("called contract %s not found: %w", u.StringLE(), err)
 	}
 	if strings.HasPrefix(method, "_") {
 		return errors.New("invalid method name (starts with '_')")

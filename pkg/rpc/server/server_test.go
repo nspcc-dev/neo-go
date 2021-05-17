@@ -55,13 +55,14 @@ type rpcTestCase struct {
 }
 
 const testContractHash = "63cc6571e990dd3f345f699fc9c2a6e49edb89af"
-const deploymentTxHash = "4450d0047d4b6a20e85176c709df44fae4c63cfa9a698acb11871554b93016df"
+const deploymentTxHash = "9b0c586eb07f8c9b6fc46b05c78d87651d50af8e1f44478827848d826f8cd174"
 const genesisBlockHash = "73fe50b5564d57118296cbab0a78fe7cb11c97b7699d07a9a21fab60e79bb8fc"
 
 const verifyContractHash = "c50082e0d8364d61ce6933bd24027a3363474dce"
 const verifyContractAVM = "VwMAQS1RCDAhcAwU7p6iLCfjS9AUj8QQjgj3To9QSLLbMHFoE87bKGnbKJdA"
 const verifyWithArgsContractHash = "8744ffdd07af8e9f18ab90685c8c2ebfd37c6415"
 const invokescriptContractAVM = "VwcADBQBDAMOBQYMDQIODw0DDgcJAAAAANswcGhB+CfsjCGqJgQRQAwUDQ8DAgkAAgEDBwMEBQIBAA4GDAnbMHFpQfgn7IwhqiYEEkATQA=="
+const nameServiceContractHash = "60d78a0fc048399438c3764f8a67d0fc86d6e0e6"
 
 var rpcTestCases = map[string][]rpcTestCase{
 	"getapplicationlog": {
@@ -648,7 +649,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 				require.True(t, ok)
 				expected := result.UnclaimedGas{
 					Address:   testchain.MultisigScriptHash(),
-					Unclaimed: *big.NewInt(7000),
+					Unclaimed: *big.NewInt(7500),
 				}
 				assert.Equal(t, expected, *actual)
 			},
@@ -1407,7 +1408,7 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 		require.NoErrorf(t, err, "could not parse response: %s", txOut)
 
 		assert.Equal(t, *block.Transactions[0], actual.Transaction)
-		assert.Equal(t, 15, actual.Confirmations)
+		assert.Equal(t, 16, actual.Confirmations)
 		assert.Equal(t, TXHash, actual.Transaction.Hash())
 	})
 
@@ -1525,12 +1526,12 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 			require.NoError(t, json.Unmarshal(res, actual))
 			checkNep17TransfersAux(t, e, actual, sent, rcvd)
 		}
-		t.Run("time frame only", func(t *testing.T) { testNEP17T(t, 4, 5, 0, 0, []int{8, 9, 10, 11}, []int{2, 3}) })
+		t.Run("time frame only", func(t *testing.T) { testNEP17T(t, 4, 5, 0, 0, []int{9, 10, 11, 12}, []int{2, 3}) })
 		t.Run("no res", func(t *testing.T) { testNEP17T(t, 100, 100, 0, 0, []int{}, []int{}) })
-		t.Run("limit", func(t *testing.T) { testNEP17T(t, 1, 7, 3, 0, []int{5, 6}, []int{1}) })
-		t.Run("limit 2", func(t *testing.T) { testNEP17T(t, 4, 5, 2, 0, []int{8}, []int{2}) })
-		t.Run("limit with page", func(t *testing.T) { testNEP17T(t, 1, 7, 3, 1, []int{7, 8}, []int{2}) })
-		t.Run("limit with page 2", func(t *testing.T) { testNEP17T(t, 1, 7, 3, 2, []int{9, 10}, []int{3}) })
+		t.Run("limit", func(t *testing.T) { testNEP17T(t, 1, 7, 3, 0, []int{6, 7}, []int{1}) })
+		t.Run("limit 2", func(t *testing.T) { testNEP17T(t, 4, 5, 2, 0, []int{9}, []int{2}) })
+		t.Run("limit with page", func(t *testing.T) { testNEP17T(t, 1, 7, 3, 1, []int{8, 9}, []int{2}) })
+		t.Run("limit with page 2", func(t *testing.T) { testNEP17T(t, 1, 7, 3, 2, []int{10, 11}, []int{3}) })
 	})
 }
 
@@ -1633,8 +1634,8 @@ func checkNep17Balances(t *testing.T, e *executor, acc interface{}) {
 			},
 			{
 				Asset:       e.chain.UtilityTokenHash(),
-				Amount:      "67960000780",
-				LastUpdated: 14,
+				Amount:      "57941360260",
+				LastUpdated: 15,
 			}},
 		Address: testchain.PrivateKeyByID(0).GetScriptHash().StringLE(),
 	}
@@ -1643,7 +1644,7 @@ func checkNep17Balances(t *testing.T, e *executor, acc interface{}) {
 }
 
 func checkNep17Transfers(t *testing.T, e *executor, acc interface{}) {
-	checkNep17TransfersAux(t, e, acc, []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13}, []int{0, 1, 2, 3, 4, 5, 6, 7})
+	checkNep17TransfersAux(t, e, acc, []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14}, []int{0, 1, 2, 3, 4, 5, 6, 7})
 }
 
 func checkNep17TransfersAux(t *testing.T, e *executor, acc interface{}, sent, rcvd []int) {
@@ -1652,18 +1653,23 @@ func checkNep17TransfersAux(t *testing.T, e *executor, acc interface{}, sent, rc
 	rublesHash, err := util.Uint160DecodeStringLE(testContractHash)
 	require.NoError(t, err)
 
-	blockSetRecord, err := e.chain.GetBlock(e.chain.GetHeaderHash(14)) // add type A record to `neo.com` domain via NNS
+	blockSetRecord, err := e.chain.GetBlock(e.chain.GetHeaderHash(15)) // add type A record to `neo.com` domain via NNS
 	require.NoError(t, err)
 	require.Equal(t, 1, len(blockSetRecord.Transactions))
 	txSetRecord := blockSetRecord.Transactions[0]
 
-	blockRegisterDomain, err := e.chain.GetBlock(e.chain.GetHeaderHash(13)) // register `neo.com` domain via NNS
+	blockRegisterDomain, err := e.chain.GetBlock(e.chain.GetHeaderHash(14)) // register `neo.com` domain via NNS
 	require.NoError(t, err)
 	require.Equal(t, 1, len(blockRegisterDomain.Transactions))
 	txRegisterDomain := blockRegisterDomain.Transactions[0]
 
 	blockGASBounty2, err := e.chain.GetBlock(e.chain.GetHeaderHash(12)) // size of committee = 6
 	require.NoError(t, err)
+
+	blockDeploy4, err := e.chain.GetBlock(e.chain.GetHeaderHash(11)) // deploy ns.go (non-native neo name service contract)
+	require.NoError(t, err)
+	require.Equal(t, 1, len(blockDeploy4.Transactions))
+	txDeploy4 := blockDeploy4.Transactions[0]
 
 	blockDeploy3, err := e.chain.GetBlock(e.chain.GetHeaderHash(10)) // deploy verification_with_args_contract.go
 	require.NoError(t, err)
@@ -1728,7 +1734,7 @@ func checkNep17TransfersAux(t *testing.T, e *executor, acc interface{}, sent, rc
 				Asset:     e.chain.UtilityTokenHash(),
 				Address:   "", // burn
 				Amount:    big.NewInt(txSetRecord.SystemFee + txSetRecord.NetworkFee).String(),
-				Index:     14,
+				Index:     15,
 				TxHash:    blockSetRecord.Hash(),
 			},
 			{
@@ -1736,8 +1742,16 @@ func checkNep17TransfersAux(t *testing.T, e *executor, acc interface{}, sent, rc
 				Asset:     e.chain.UtilityTokenHash(),
 				Address:   "", // burn
 				Amount:    big.NewInt(txRegisterDomain.SystemFee + txRegisterDomain.NetworkFee).String(),
-				Index:     13,
+				Index:     14,
 				TxHash:    blockRegisterDomain.Hash(),
+			},
+			{
+				Timestamp: blockDeploy4.Timestamp,
+				Asset:     e.chain.UtilityTokenHash(),
+				Address:   "", // burn
+				Amount:    big.NewInt(txDeploy4.SystemFee + txDeploy4.NetworkFee).String(),
+				Index:     11,
+				TxHash:    blockDeploy4.Hash(),
 			},
 			{
 				Timestamp: blockDeploy3.Timestamp,

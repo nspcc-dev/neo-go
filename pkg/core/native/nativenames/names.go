@@ -10,7 +10,6 @@ const (
 	Oracle      = "OracleContract"
 	Designation = "RoleManagement"
 	Notary      = "Notary"
-	NameService = "NameService"
 	CryptoLib   = "CryptoLib"
 	StdLib      = "StdLib"
 )
@@ -25,7 +24,6 @@ func IsValid(name string) bool {
 		name == Oracle ||
 		name == Designation ||
 		name == Notary ||
-		name == NameService ||
 		name == CryptoLib ||
 		name == StdLib
 }
