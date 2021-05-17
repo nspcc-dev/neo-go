@@ -210,7 +210,7 @@ func TestCreateBasicChain(t *testing.T) {
 
 	// Prepare some transaction for future submission.
 	txSendRaw := newNEP17Transfer(bc.contracts.NEO.Hash, priv0ScriptHash, priv1.GetScriptHash(), int64(fixedn.Fixed8FromInt64(1000)))
-	txSendRaw.ValidUntilBlock = transaction.MaxValidUntilBlockIncrement
+	txSendRaw.ValidUntilBlock = bc.config.MaxValidUntilBlockIncrement
 	txSendRaw.Nonce = 0x1234
 	txSendRaw.Signers = []transaction.Signer{{
 		Account:          priv0ScriptHash,

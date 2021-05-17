@@ -19,10 +19,6 @@ const (
 	// MaxTransactionSize is the upper limit size in bytes that a transaction can reach. It is
 	// set to be 102400.
 	MaxTransactionSize = 102400
-	// MaxValidUntilBlockIncrement is the upper increment size of blockhain height in blocks
-	// exceeding that a transaction should fail validation. It is set to estimated daily number
-	// of blocks with 15s interval.
-	MaxValidUntilBlockIncrement = 5760
 	// MaxAttributes is maximum number of attributes including signers that can be contained
 	// within a transaction. It is set to be 16.
 	MaxAttributes = 16

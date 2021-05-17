@@ -326,5 +326,5 @@ func TestMaxNotValidBeforeDelta(t *testing.T) {
 	chain := newTestChain(t)
 
 	testGetSet(t, chain, chain.contracts.Notary.Hash, "MaxNotValidBeforeDelta",
-		140, int64(chain.GetConfig().ValidatorsCount), transaction.MaxValidUntilBlockIncrement/2)
+		140, int64(chain.GetConfig().ValidatorsCount), int64(chain.config.MaxValidUntilBlockIncrement/2))
 }

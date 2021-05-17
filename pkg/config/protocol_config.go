@@ -26,6 +26,10 @@ type (
 		MaxTraceableBlocks uint32 `yaml:"MaxTraceableBlocks"`
 		// MaxTransactionsPerBlock is the maximum amount of transactions per block.
 		MaxTransactionsPerBlock uint16 `yaml:"MaxTransactionsPerBlock"`
+		// MaxValidUntilBlockIncrement is the upper increment size of blockchain height in blocks
+		// exceeding that a transaction should fail validation. It is set to estimated daily number
+		// of blocks with 15s interval.
+		MaxValidUntilBlockIncrement uint32 `yaml:"MaxValidUntilBlockIncrement"`
 		// NativeUpdateHistories is the list of histories of native contracts updates.
 		NativeUpdateHistories map[string][]uint32 `yaml:"NativeActivations"`
 		// P2PSigExtensions enables additional signature-related logic.

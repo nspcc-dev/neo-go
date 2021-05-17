@@ -84,7 +84,7 @@ func readResponse(rc gio.ReadCloser, limit int) ([]byte, error) {
 func (o *Oracle) CreateResponseTx(gasForResponse int64, height uint32, resp *transaction.OracleResponse) (*transaction.Transaction, error) {
 	tx := transaction.New(o.oracleResponse, 0)
 	tx.Nonce = uint32(resp.ID)
-	tx.ValidUntilBlock = height + transaction.MaxValidUntilBlockIncrement
+	tx.ValidUntilBlock = height + o.Chain.GetConfig().MaxValidUntilBlockIncrement
 	tx.Attributes = []transaction.Attribute{{
 		Type:  transaction.OracleResponseT,
 		Value: resp,
