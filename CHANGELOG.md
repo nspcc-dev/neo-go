@@ -59,7 +59,7 @@ Behavior changes:
 
 Improvements:
  * RPC errors reported by server are now more verbose for `submitblock`,
-   `sendrawtransaction` calls (#1899, )
+   `sendrawtransaction` calls (#1899)
  * all CLI commands that accept addresses now also accept hashes and vice
    versa (#1905)
  * code cleanup based on a number of static analysis tools (#1908, #1958)
@@ -76,7 +76,7 @@ Improvements:
  * user documentation for configuration options (#1968)
 
 Bugs fixed:
- * `getproof` RPC request returned successful results in some cases where is
+ * `getproof` RPC request returned successful results in some cases where it
    should fail
  * `Transfer` events with invalid numbers were not rejected by NEP17 tracking
    code (#1902)
