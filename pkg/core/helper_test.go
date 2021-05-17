@@ -47,6 +47,31 @@ import (
 // multisig address which possess all NEO.
 var neoOwner = testchain.MultisigScriptHash()
 
+// examplesPrefix is a prefix of the example smart-contracts.
+const examplesPrefix = "../../examples/"
+
+// newTestChainWithNS should be called before newBlock invocation to properly setup
+// global state.
+func newTestChainWithNS(t *testing.T) (*Blockchain, util.Uint160) {
+	bc := newTestChainWithCustomCfg(t, nil)
+	acc := newAccountWithGAS(t, bc)
+	// Push NameService contract into the chain.
+	nsPath := examplesPrefix + "nft-nd-nns/"
+	nsConfigPath := nsPath + "nns.yml"
+	txDeploy4, _ := newDeployTx(t, bc, acc.PrivateKey().GetScriptHash(), nsPath, nsPath, &nsConfigPath)
+	txDeploy4.Nonce = 123
+	txDeploy4.ValidUntilBlock = bc.BlockHeight() + 1
+	require.NoError(t, addNetworkFee(bc, txDeploy4, acc))
+	require.NoError(t, acc.SignTx(testchain.Network(), txDeploy4))
+	b := bc.newBlock(txDeploy4)
+	require.NoError(t, bc.AddBlock(b))
+	checkTxHalt(t, bc, txDeploy4.Hash())
+
+	h, err := bc.GetContractScriptHash(1)
+	require.NoError(t, err)
+	return bc, h
+}
+
 // newTestChain should be called before newBlock invocation to properly setup
 // global state.
 func newTestChain(t *testing.T) *Blockchain {
@@ -227,10 +252,7 @@ func TestCreateBasicChain(t *testing.T) {
 }
 
 func initBasicChain(t *testing.T, bc *Blockchain) {
-	const (
-		prefix         = "../rpc/server/testdata/"
-		examplesPrefix = "../../examples/"
-	)
+	const prefix = "../rpc/server/testdata/"
 	// Increase in case if you need more blocks
 	const validUntilBlock = 1200
 
