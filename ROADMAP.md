@@ -7,8 +7,8 @@ functionality.
 ## Versions 0.7X.Y (as needed)
 * Neo 2.0 support (bug fixes, minor functionality additions)
 
-## Version 0.95.0 (TBD)
-* Neo N3 RC2-compatible version.
+## Version 0.96.0 (TBD)
+* Neo N3 RC3-compatible version.
 
 ## Version 1.0 (2021, aligned with NEO N3 release)
 * full NEO N3 support

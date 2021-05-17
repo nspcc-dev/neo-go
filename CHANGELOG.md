@@ -2,6 +2,93 @@
 
 This document outlines major changes between releases.
 
+## 0.95.0 "Sharpness" (17 May 2021)
+
+This version mostly implements N3 RC2 protocol changes (and is fully
+RC2-compatible), but also brings NEP11 CLI support and small improvements for
+node operators.
+
+Please note that this release is incompatible with 0.94.1 and there won't be
+long-term support provided for it.
+
+New features:
+ * CLI command for NEP17 transfers now accepts `data` parameter for the
+   transfer (#1906)
+ * contract deployment CLI comand now also accepts `data` parameter for
+   `_deploy` method (#1907)
+ * NEP11 and NEP17 transfers from CLI can now have multiple signers (#1914)
+ * `System.Runtime.BurnGas` interop was added to burn some GAS as well as
+   `refuel` GAS contract method to add GAS to current execution environment
+   (#1937)
+ * port number announced via P2P can now differ from actual port node is bound
+   to if new option is used (#1942)
+ * CLI now supports full set of NEP11 commands, including balance and
+   transfers (#1918)
+ * string split, memory search and compare functions added to stdlib (#1943)
+ * MaxValidUntilBlockIncrement can now be configured (#1963)
+
+Behavior changes:
+ * `data` parameter is now passed in a different way to NEP17 RPC client
+   methods (#1906)
+ * default (used if nothing else specified) signer scope is now
+   `CalledByEntry` in CLI and RPC (#1909)
+ * `SignAndPushInvocationTx` RPC client method now adds as many signatures as
+   it can with the wallet given which in some cases allows CLI to create
+   complete transaction without going through multisignature procedure (#1912)
+ * `getversion` RPC call now returns network magic number in `network` field
+   (#1927)
+ * RoleManagement native contract now emits `Designation` event in
+   `designateAsRole` method (#1938)
+ * `System.Storage.Find` syscall now strips full prefix given when
+   `FindRemovePrefix` option is used (#1941)
+ * LT, LE, GT, GE VM opcodes now accept Null parameters (#1939)
+ * `features` field was re-added to contract manifests, though it's not
+   currently used (#1944)
+ * node will reread TLS certificates (if any configured) on SIGHUP (#1945)
+ * contract trusts are now expressed with permission descriptors in manifest
+   (#1946)
+ * NEP11 transfers now also support `data` parameter (#1950)
+ * N3 RC2 testnet magic differs from N2 RC1 testnet (#1951, #1954)
+ * stdlib encoding/decoding methods now only accept inputs no longer than 1024
+   bytes (#1943)
+ * `System.Iterator.Create` interop was removed with all associated logic (#1947)
+ * `Neo.Crypto.CheckSig` and `Neo.Crypto.CheckMultisig` interops were renamed
+   to `System.Crypto.CheckSig` and `System.Crypto.CheckMultisig` (#1956)
+ * oracle requests now use Neo-specific JSONPath implementation (#1916)
+ * native NNS contract was removed and replaced by non-native version (#1965)
+
+Improvements:
+ * RPC errors reported by server are now more verbose for `submitblock`,
+   `sendrawtransaction` calls (#1899, )
+ * all CLI commands that accept addresses now also accept hashes and vice
+   versa (#1905)
+ * code cleanup based on a number of static analysis tools (#1908, #1958)
+ * CLI implementation refactoring (#1905, #1911, #1914, #1915, #1918)
+ * only one state validator now sends complete stateroot message normally
+   (#1953)
+ * oracle HTTPS requests are now sent with User-Agent header (#1955)
+ * stdlib `itoa` and `atoi` methods can now be called with one parameter
+   (#1943)
+ * oracle nodes are no longer on extensible payload whitelist (#1948)
+ * extensible message pool is now per-sender with configurable size (#1948)
+ * `static-variables` field support for debugger as well as debug data for
+   `init` and `_deploy` functions (#1957)
+ * user documentation for configuration options (#1968)
+
+Bugs fixed:
+ * `getproof` RPC request returned successful results in some cases where is
+   should fail
+ * `Transfer` events with invalid numbers were not rejected by NEP17 tracking
+   code (#1902)
+ * boolean function parameters were not accepted by `invokefunction` RPC call
+   implementation (#1920)
+ * potential races in state validation service (#1953)
+ * single state validator couldn't ever complete stateroot signature (#1953)
+ * SV vote resending was missing (#1953)
+ * SV vote messages used invalid (too big) ValidBlockEnd increment (#1953)
+ * memory leak in state validation service (#1953)
+ * NEP-6 wallets have `isDefault` field, not `isdefault` (#1961)
+
 ## 0.94.1 "Channelization" (08 Apr 2021)
 
 This is the second and much improved N3 RC1-compatible release. We've mostly
