@@ -247,6 +247,8 @@ func (n *nonfungible) tokensOf(ic *interop.Context, args []stackitem.Item) stack
 	return stackitem.NewInterop(iter)
 }
 
+var _ = (*nonfungible).mint // fix unused warning
+
 func (n *nonfungible) mint(ic *interop.Context, s nftTokenState) {
 	key := n.getTokenKey(s.ID())
 	if ic.DAO.GetStorageItem(n.ID, key) != nil {

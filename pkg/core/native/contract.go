@@ -15,18 +15,17 @@ const reservedContractID = -100
 
 // Contracts is a set of registered native contracts.
 type Contracts struct {
-	Management  *Management
-	Ledger      *Ledger
-	NEO         *NEO
-	GAS         *GAS
-	Policy      *Policy
-	Oracle      *Oracle
-	Designate   *Designate
-	NameService *NameService
-	Notary      *Notary
-	Crypto      *Crypto
-	Std         *Std
-	Contracts   []interop.Contract
+	Management *Management
+	Ledger     *Ledger
+	NEO        *NEO
+	GAS        *GAS
+	Policy     *Policy
+	Oracle     *Oracle
+	Designate  *Designate
+	Notary     *Notary
+	Crypto     *Crypto
+	Std        *Std
+	Contracts  []interop.Contract
 	// persistScript is vm script which executes "onPersist" method of every native contract.
 	persistScript []byte
 	// postPersistScript is vm script which executes "postPersist" method of every native contract.
@@ -102,11 +101,6 @@ func NewContracts(p2pSigExtensionsEnabled bool, nativeUpdateHistories map[string
 	oracle.Desig = desig
 	cs.Oracle = oracle
 	cs.Contracts = append(cs.Contracts, oracle)
-
-	ns := newNameService()
-	ns.NEO = neo
-	cs.NameService = ns
-	cs.Contracts = append(cs.Contracts, ns)
 
 	if p2pSigExtensionsEnabled {
 		notary := newNotary()
