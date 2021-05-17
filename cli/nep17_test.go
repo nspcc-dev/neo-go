@@ -268,8 +268,7 @@ func TestNEP17ImportToken(t *testing.T) {
 	require.NoError(t, err)
 	gasContractHash, err := e.Chain.GetNativeContractScriptHash(nativenames.Gas)
 	require.NoError(t, err)
-	nnsContractHash, err := e.Chain.GetNativeContractScriptHash(nativenames.NameService)
-	require.NoError(t, err)
+	nnsContractHash := deployNNSContract(t, e)
 	e.Run(t, "neo-go", "wallet", "init", "--wallet", walletPath)
 
 	// missing token hash
