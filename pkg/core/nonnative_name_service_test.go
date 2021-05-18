@@ -197,7 +197,7 @@ func TestSetGetRecord(t *testing.T) {
 	testNameServiceInvoke(t, bc, nsHash, "getRecord", "1.2.3.4", "neo.com", int64(nns.A))
 	testNameServiceInvoke(t, bc, nsHash, "setRecord", stackitem.Null{}, "neo.com", int64(nns.A), "1.2.3.4")
 	testNameServiceInvoke(t, bc, nsHash, "getRecord", "1.2.3.4", "neo.com", int64(nns.A))
-	testNameServiceInvoke(t, bc, nsHash, "setRecord", stackitem.Null{}, "neo.com", int64(nns.AAAA), "2002:0000:1f1f:0000:0000:0100:11a0:addf")
+	testNameServiceInvoke(t, bc, nsHash, "setRecord", stackitem.Null{}, "neo.com", int64(nns.AAAA), "2001:0201:1f1f:0000:0000:0100:11a0:11df")
 	testNameServiceInvoke(t, bc, nsHash, "setRecord", stackitem.Null{}, "neo.com", int64(nns.CNAME), "nspcc.ru")
 	testNameServiceInvoke(t, bc, nsHash, "setRecord", stackitem.Null{}, "neo.com", int64(nns.TXT), "sometext")
 
@@ -238,30 +238,32 @@ func TestSetGetRecord(t *testing.T) {
 			{Type: nns.A, Name: "1.1", ShouldFail: true},
 			{Type: nns.A, Name: "257", ShouldFail: true},
 			{Type: nns.A, Name: "1", ShouldFail: true},
-			{Type: nns.AAAA, Name: "2001:db8::8:800:200c:417a", ShouldFail: true},
-			{Type: nns.AAAA, Name: "ff01:db8::8:800:200c:417a"},
-			{Type: nns.AAAA, Name: "ff01::101"},
-			{Type: nns.AAAA, Name: "::1"},
-			{Type: nns.AAAA, Name: "::"},
-			{Type: nns.AAAA, Name: "2001:db8:0:0:8:800:200c:417a", ShouldFail: true},
-			{Type: nns.AAAA, Name: "ff01:db8:0:0:8:800:200c:417a"},
-			{Type: nns.AAAA, Name: "ff01:0:0:0:0:0:0:101"},
-			{Type: nns.AAAA, Name: "2001:0:0:0:0:0:0:101", ShouldFail: true},
-			{Type: nns.AAAA, Name: "ff01:0:0:0:0:0:0:101"},
-			{Type: nns.AAAA, Name: "0:0:0:0:0:0:0:1"},
-			{Type: nns.AAAA, Name: "2001:0:0:0:0:0:0:1", ShouldFail: true},
-			{Type: nns.AAAA, Name: "0:0:0:0:0:0:0:0"},
-			{Type: nns.AAAA, Name: "2001:0:0:0:0:0:0:0", ShouldFail: true},
-			{Type: nns.AAAA, Name: "2001:DB8::8:800:200C:417A", ShouldFail: true},
-			{Type: nns.AAAA, Name: "FF01:DB8::8:800:200C:417A"},
-			{Type: nns.AAAA, Name: "FF01::101"},
-			{Type: nns.AAAA, Name: "fF01::101"},
-			{Type: nns.AAAA, Name: "2001:DB8:0:0:8:800:200C:417A", ShouldFail: true},
-			{Type: nns.AAAA, Name: "FF01:DB8:0:0:8:800:200C:417A"},
-			{Type: nns.AAAA, Name: "FF01:0:0:0:0:0:0:101"},
-			{Type: nns.AAAA, Name: "::ffff:1.01.1.01", ShouldFail: true},
+			// {2000} & {2001} & ]2002, 3ffe[ & {3fff} are valid values for IPv6 fragment0
+			{Type: nns.AAAA, Name: "2002:db8::8:800:200c:417a", ShouldFail: true},
+			{Type: nns.AAAA, Name: "3ffd:1b8::8:800:200c:417a"},
+			{Type: nns.AAAA, Name: "3ffd::101"},
+			{Type: nns.AAAA, Name: "2003::1"},
+			{Type: nns.AAAA, Name: "2003::"},
+			{Type: nns.AAAA, Name: "2002:db8:0:0:8:800:200c:417a", ShouldFail: true},
+			{Type: nns.AAAA, Name: "3ffd:db8:0:0:8:800:200c:417a"},
+			{Type: nns.AAAA, Name: "3ffd:0:0:0:0:0:0:101"},
+			{Type: nns.AAAA, Name: "2002:0:0:0:0:0:0:101", ShouldFail: true},
+			{Type: nns.AAAA, Name: "3ffd:0:0:0:0:0:0:101"},
+			{Type: nns.AAAA, Name: "2001:200:0:0:0:0:0:1"},
+			{Type: nns.AAAA, Name: "0:0:0:0:0:0:0:1", ShouldFail: true},
+			{Type: nns.AAAA, Name: "2002:0:0:0:0:0:0:1", ShouldFail: true},
+			{Type: nns.AAAA, Name: "2001:200:0:0:0:0:0:0"},
+			{Type: nns.AAAA, Name: "2002:0:0:0:0:0:0:0", ShouldFail: true},
+			{Type: nns.AAAA, Name: "2002:DB8::8:800:200C:417A", ShouldFail: true},
+			{Type: nns.AAAA, Name: "3FFD:1B8::8:800:200C:417A"},
+			{Type: nns.AAAA, Name: "3FFD::101"},
+			{Type: nns.AAAA, Name: "3fFD::101"},
+			{Type: nns.AAAA, Name: "2002:DB8:0:0:8:800:200C:417A", ShouldFail: true},
+			{Type: nns.AAAA, Name: "3FFD:DB8:0:0:8:800:200C:417A"},
+			{Type: nns.AAAA, Name: "3FFD:0:0:0:0:0:0:101"},
+			{Type: nns.AAAA, Name: "3FFD::ffff:1.01.1.01", ShouldFail: true},
 			{Type: nns.AAAA, Name: "2001:DB8:0:0:8:800:200C:4Z", ShouldFail: true},
-			{Type: nns.AAAA, Name: "::13.1.68.3", ShouldFail: true},
+			{Type: nns.AAAA, Name: "2001::13.1.68.3", ShouldFail: true},
 		}
 		for _, testCase := range testCases {
 			var expected interface{}

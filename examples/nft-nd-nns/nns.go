@@ -581,23 +581,47 @@ func checkIPv6(data string) bool {
 	if l < 3 || 8 < l {
 		return false
 	}
-	if fragments[0] == "2001" { // example addresses prefix
+	var hasEmpty bool
+	nums := make([]int, 8)
+	for i, f := range fragments {
+		if len(f) == 0 {
+			if i == 0 {
+				nums[i] = 0
+			} else if i == l-1 {
+				nums[7] = 0
+			} else if hasEmpty {
+				return false
+			} else {
+				hasEmpty = true
+				endIndex := 9 - l + i
+				for j := i; j < endIndex; j++ {
+					nums[j] = 0
+				}
+			}
+		} else {
+			if len(f) > 4 {
+				return false
+			}
+			n := std.Atoi(f, 16)
+			if 65535 < n {
+				panic("fragment overflows uint16: " + f)
+			}
+			idx := i
+			if hasEmpty {
+				idx = i + 8 - l
+			}
+			nums[idx] = n
+		}
+	}
+
+	f0 := nums[0]
+	if f0 < 0x2000 || f0 == 0x2002 || f0 == 0x3ffe || f0 > 0x3fff { // IPv6 Global Unicast https://www.iana.org/assignments/ipv6-address-space/ipv6-address-space.xhtml
 		return false
 	}
-	var hasEmpty bool
-	for i := 1; i < l; i++ {
-		f := fragments[i]
-		fLen := len(f)
-		if fLen == 0 {
-			if i < l-1 && hasEmpty {
-				return false
-			}
-			hasEmpty = true
-		} else {
-			if fLen > 4 {
-				return false
-			}
-			_ = std.Atoi(f, 16) // check it won't panic
+	if f0 == 0x2001 {
+		f1 := nums[1]
+		if f1 < 0x200 || f1 == 0xdb8 {
+			return false
 		}
 	}
 	return true
