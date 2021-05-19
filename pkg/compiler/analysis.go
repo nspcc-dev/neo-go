@@ -37,46 +37,20 @@ func (c *codegen) getIdentName(pkg string, name string) string {
 }
 
 // traverseGlobals visits and initializes global variables.
-// and returns number of variables initialized.
-// Second return value is -1 if no `init()` functions were encountered
-// and number of maximum amount of locals in any of init functions otherwise.
-// Same for `_deploy()` functions (see docs/compiler.md).
-func (c *codegen) traverseGlobals() (int, int, int) {
+// It returns `true` if contract has `_deploy` function.
+func (c *codegen) traverseGlobals() bool {
 	var hasDefer bool
 	var n, nConst int
-	initLocals := -1
-	deployLocals := -1
+	var hasDeploy bool
 	c.ForEachFile(func(f *ast.File, pkg *types.Package) {
 		nv, nc := countGlobals(f)
 		n += nv
 		nConst += nc
-		if initLocals == -1 || deployLocals == -1 || !hasDefer {
+		if !hasDeploy || !hasDefer {
 			ast.Inspect(f, func(node ast.Node) bool {
 				switch n := node.(type) {
-				case *ast.GenDecl:
-					if n.Tok == token.VAR {
-						for i := range n.Specs {
-							for _, v := range n.Specs[i].(*ast.ValueSpec).Values {
-								num := c.countLocalsCall(v, pkg)
-								if num > initLocals {
-									initLocals = num
-								}
-							}
-						}
-					}
 				case *ast.FuncDecl:
-					if isInitFunc(n) {
-						num, _ := c.countLocals(n)
-						if num > initLocals {
-							initLocals = num
-						}
-					} else if isDeployFunc(n) {
-						num, _ := c.countLocals(n)
-						if num > deployLocals {
-							deployLocals = num
-						}
-					}
-					return !hasDefer
+					hasDeploy = hasDeploy || isDeployFunc(n)
 				case *ast.DeferStmt:
 					hasDefer = true
 					return false
@@ -88,43 +62,74 @@ func (c *codegen) traverseGlobals() (int, int, int) {
 	if hasDefer {
 		n++
 	}
-	if n+nConst != 0 || initLocals > -1 {
-		if n > 255 {
-			c.prog.BinWriter.Err = errors.New("too many global variables")
-			return 0, initLocals, deployLocals
-		}
-		if n != 0 {
-			emit.Instruction(c.prog.BinWriter, opcode.INITSSLOT, []byte{byte(n)})
-		}
-		if initLocals > 0 {
-			emit.Instruction(c.prog.BinWriter, opcode.INITSLOT, []byte{byte(initLocals), 0})
-		}
-		seenBefore := false
-		c.ForEachPackage(func(pkg *loader.PackageInfo) {
-			if n+nConst > 0 {
-				for _, f := range pkg.Files {
-					c.fillImportMap(f, pkg.Pkg)
-					c.convertGlobals(f, pkg.Pkg)
-				}
+
+	if n > 255 {
+		c.prog.BinWriter.Err = errors.New("too many global variables")
+		return hasDeploy
+	}
+
+	if n != 0 {
+		emit.Instruction(c.prog.BinWriter, opcode.INITSSLOT, []byte{byte(n)})
+	}
+
+	initOffset := c.prog.Len()
+	emit.Instruction(c.prog.BinWriter, opcode.INITSLOT, []byte{0, 0})
+
+	lastCnt, maxCnt := -1, -1
+	c.ForEachPackage(func(pkg *loader.PackageInfo) {
+		if n+nConst > 0 {
+			for _, f := range pkg.Files {
+				c.fillImportMap(f, pkg.Pkg)
+				c.convertGlobals(f, pkg.Pkg)
 			}
-			if initLocals > -1 {
-				for _, f := range pkg.Files {
-					c.fillImportMap(f, pkg.Pkg)
-					seenBefore = c.convertInitFuncs(f, pkg.Pkg, seenBefore) || seenBefore
-				}
+		}
+		for _, f := range pkg.Files {
+			c.fillImportMap(f, pkg.Pkg)
+
+			var currMax int
+			lastCnt, currMax = c.convertInitFuncs(f, pkg.Pkg, lastCnt)
+			if currMax > maxCnt {
+				maxCnt = currMax
 			}
-			// because we reuse `convertFuncDecl` for init funcs,
-			// we need to cleare scope, so that global variables
-			// encountered after will be recognized as globals.
-			c.scope = nil
-		})
-		// store auxiliary variables after all others.
-		if hasDefer {
-			c.exceptionIndex = len(c.globals)
-			c.globals["<exception>"] = c.exceptionIndex
+		}
+		// because we reuse `convertFuncDecl` for init funcs,
+		// we need to cleare scope, so that global variables
+		// encountered after will be recognized as globals.
+		c.scope = nil
+	})
+
+	if c.globalInlineCount > maxCnt {
+		maxCnt = c.globalInlineCount
+	}
+
+	// Here we remove `INITSLOT` if no code was emitted for `init` function.
+	// Note that the `INITSSLOT` must stay in place.
+	hasNoInit := initOffset+3 == c.prog.Len()
+	if hasNoInit {
+		buf := c.prog.Bytes()
+		c.prog.Reset()
+		c.prog.WriteBytes(buf[:initOffset])
+	}
+
+	if initOffset != 0 || !hasNoInit { // if there are some globals or `init()`.
+		c.initEndOffset = c.prog.Len()
+		emit.Opcodes(c.prog.BinWriter, opcode.RET)
+
+		if maxCnt >= 0 {
+			c.reverseOffsetMap[initOffset] = nameWithLocals{
+				name:  "init",
+				count: maxCnt,
+			}
 		}
 	}
-	return n, initLocals, deployLocals
+
+	// store auxiliary variables after all others.
+	if hasDefer {
+		c.exceptionIndex = len(c.globals)
+		c.globals[exceptionVarName] = c.exceptionIndex
+	}
+
+	return hasDeploy
 }
 
 // countGlobals counts the global variables in the program to add

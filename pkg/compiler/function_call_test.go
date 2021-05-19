@@ -306,7 +306,10 @@ func TestJumpOptimize(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 6, len(di.Methods))
 	for _, mi := range di.Methods {
-		require.Equal(t, b[mi.Range.Start], byte(opcode.INITSLOT))
+		// only _deploy and init have locals here
+		if mi.Name.Name == "_deploy" || mi.Name.Name == "init" {
+			require.Equal(t, b[mi.Range.Start], byte(opcode.INITSLOT))
+		}
 		require.Equal(t, b[mi.Range.End], byte(opcode.RET))
 	}
 }

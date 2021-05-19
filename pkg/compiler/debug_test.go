@@ -73,7 +73,9 @@ func _deploy(data interface{}, isUpdate bool) { x := 1; _ = x }
 	c := newCodegen(info, pkg)
 	require.NoError(t, c.compile(info, pkg))
 
-	buf := c.prog.Bytes()
+	buf, err := c.writeJumps(c.prog.Bytes())
+	require.NoError(t, err)
+
 	d := c.emitDebugInfo(buf)
 	require.NotNil(t, d)
 
