@@ -113,6 +113,11 @@ func TestInline(t *testing.T) {
 		checkCallCount(t, src, 0, 0)
 		eval(t, src, big.NewInt(221))
 	})
+	t.Run("locals, alias", func(t *testing.T) {
+		src := fmt.Sprintf(srcTmpl, `num := 1; return inline.Concat(num)`)
+		checkCallCount(t, src, 0, 1)
+		eval(t, src, big.NewInt(221))
+	})
 }
 
 func TestInlineInLoop(t *testing.T) {
