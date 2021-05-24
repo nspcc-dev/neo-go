@@ -1,10 +1,13 @@
 package cmdargs
 
 import (
+	"encoding/hex"
 	"strings"
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/internal/random"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/stretchr/testify/require"
@@ -12,6 +15,10 @@ import (
 
 func TestParseCosigner(t *testing.T) {
 	acc := util.Uint160{1, 3, 5, 7}
+	c1, c2 := random.Uint160(), random.Uint160()
+	priv, err := keys.NewPrivateKey()
+	require.NoError(t, err)
+
 	testCases := map[string]transaction.Signer{
 		acc.StringLE(): {
 			Account: acc,
@@ -33,25 +40,36 @@ func TestParseCosigner(t *testing.T) {
 			Account: acc,
 			Scopes:  transaction.None,
 		},
-		acc.StringLE() + ":CalledByEntry,CustomContracts": {
-			Account: acc,
-			Scopes:  transaction.CalledByEntry | transaction.CustomContracts,
+		acc.StringLE() + ":CalledByEntry,CustomContracts:" + c1.StringLE() + ":0x" + c2.StringLE(): {
+			Account:          acc,
+			Scopes:           transaction.CalledByEntry | transaction.CustomContracts,
+			AllowedContracts: []util.Uint160{c1, c2},
+		},
+		acc.StringLE() + ":CustomGroups:" + hex.EncodeToString(priv.PublicKey().Bytes()): {
+			Account:       acc,
+			Scopes:        transaction.CustomGroups,
+			AllowedGroups: keys.PublicKeys{priv.PublicKey()},
 		},
 	}
 	for s, expected := range testCases {
 		actual, err := parseCosigner(s)
 		require.NoError(t, err)
-		require.Equal(t, expected, actual)
+		require.Equal(t, expected, actual, s)
 	}
 	errorCases := []string{
 		acc.StringLE() + "0",
 		acc.StringLE() + ":Unknown",
 		acc.StringLE() + ":Global,CustomContracts",
 		acc.StringLE() + ":Global,None",
+		acc.StringLE() + ":CustomContracts:" + acc.StringLE() + ",Global",
+		acc.StringLE() + ":CustomContracts",
+		acc.StringLE() + ":CustomContracts:xxx",
+		acc.StringLE() + ":CustomGroups",
+		acc.StringLE() + ":CustomGroups:xxx",
 	}
 	for _, s := range errorCases {
 		_, err := parseCosigner(s)
-		require.Error(t, err)
+		require.Error(t, err, s)
 	}
 }
 
