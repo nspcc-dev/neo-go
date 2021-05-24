@@ -48,6 +48,11 @@ func checkCallCount(t *testing.T, src string, expectedCall, expectedInitSlot, ex
 func TestInline(t *testing.T) {
 	srcTmpl := `package foo
 	import "github.com/nspcc-dev/neo-go/pkg/compiler/testdata/inline"
+	type pair struct { a, b int }
+	type triple struct {
+		a int
+		b pair
+	}
 	// local alias
 	func sum(a, b int) int {
 		return 42
@@ -129,6 +134,28 @@ func TestInline(t *testing.T) {
 		src := fmt.Sprintf(srcTmpl, `num := 1; return inline.Concat(num)`)
 		checkCallCount(t, src, 0, 1, 1)
 		eval(t, src, big.NewInt(221))
+	})
+	t.Run("selector, global", func(t *testing.T) {
+		src := fmt.Sprintf(srcTmpl, `return inline.Sum(inline.A, 2)`)
+		checkCallCount(t, src, 0, 1, 1)
+		eval(t, src, big.NewInt(3))
+	})
+	t.Run("selector, struct, simple", func(t *testing.T) {
+		src := fmt.Sprintf(srcTmpl, `x := pair{a: 1, b: 2}; return inline.Sum(x.b, 1)`)
+		checkCallCount(t, src, 0, 1, 2)
+		eval(t, src, big.NewInt(3))
+	})
+	t.Run("selector, struct, complex", func(t *testing.T) {
+		src := fmt.Sprintf(srcTmpl, `x := triple{a: 1, b: pair{a: 2, b: 3}}
+				return inline.Sum(x.b.a, 1)`)
+		checkCallCount(t, src, 0, 1, 2)
+		eval(t, src, big.NewInt(3))
+	})
+	t.Run("expression", func(t *testing.T) {
+		src := fmt.Sprintf(srcTmpl, `x, y := 1, 2
+				return inline.Sum(x+y, y*2)`)
+		checkCallCount(t, src, 0, 1, 4)
+		eval(t, src, big.NewInt(7))
 	})
 }
 
