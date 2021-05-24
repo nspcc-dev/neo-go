@@ -69,6 +69,7 @@ func vmAndCompileInterop(t *testing.T, src string) (*vm.VM, *storagePlugin) {
 	b, di, err := compiler.CompileWithDebugInfo("foo.go", strings.NewReader(src))
 	require.NoError(t, err)
 
+	storePlugin.info = di
 	invokeMethod(t, testMainIdent, b, vm, di)
 	return vm, storePlugin
 }
@@ -93,6 +94,7 @@ func invokeMethod(t *testing.T, method string, script []byte, v *vm.VM, di *comp
 }
 
 type storagePlugin struct {
+	info     *compiler.DebugInfo
 	mem      map[string][]byte
 	interops map[uint32]func(v *vm.VM) error
 	events   []state.NotificationEvent
