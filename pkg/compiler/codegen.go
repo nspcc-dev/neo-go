@@ -247,8 +247,24 @@ func getBaseOpcode(t varType) (opcode.Opcode, opcode.Opcode) {
 // emitLoadVar loads specified variable to the evaluation stack.
 func (c *codegen) emitLoadVar(pkg string, name string) {
 	vi := c.getVarIndex(pkg, name)
-	if vi.tv.Value != nil {
-		c.emitLoadConst(vi.tv)
+	if vi.ctx != nil && c.typeAndValueOf(vi.ctx.expr).Value != nil {
+		c.emitLoadConst(c.typeAndValueOf(vi.ctx.expr))
+		return
+	} else if vi.ctx != nil {
+		var oldScope []map[string]varInfo
+		oldMap := c.importMap
+		c.importMap = vi.ctx.importMap
+		if c.scope != nil {
+			oldScope = c.scope.vars.locals
+			c.scope.vars.locals = vi.ctx.scope
+		}
+
+		ast.Walk(c, vi.ctx.expr)
+
+		if c.scope != nil {
+			c.scope.vars.locals = oldScope
+		}
+		c.importMap = oldMap
 		return
 	} else if vi.index == unspecifiedVarIndex {
 		emit.Opcodes(c.prog.BinWriter, opcode.PUSHNULL)

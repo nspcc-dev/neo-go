@@ -137,24 +137,24 @@ func TestInline(t *testing.T) {
 	})
 	t.Run("selector, global", func(t *testing.T) {
 		src := fmt.Sprintf(srcTmpl, `return inline.Sum(inline.A, 2)`)
-		checkCallCount(t, src, 0, 1, 1)
+		checkCallCount(t, src, 0, 0, 0)
 		eval(t, src, big.NewInt(3))
 	})
 	t.Run("selector, struct, simple", func(t *testing.T) {
 		src := fmt.Sprintf(srcTmpl, `x := pair{a: 1, b: 2}; return inline.Sum(x.b, 1)`)
-		checkCallCount(t, src, 0, 1, 2)
+		checkCallCount(t, src, 0, 1, 1)
 		eval(t, src, big.NewInt(3))
 	})
 	t.Run("selector, struct, complex", func(t *testing.T) {
 		src := fmt.Sprintf(srcTmpl, `x := triple{a: 1, b: pair{a: 2, b: 3}}
 				return inline.Sum(x.b.a, 1)`)
-		checkCallCount(t, src, 0, 1, 2)
+		checkCallCount(t, src, 0, 1, 1)
 		eval(t, src, big.NewInt(3))
 	})
 	t.Run("expression", func(t *testing.T) {
 		src := fmt.Sprintf(srcTmpl, `x, y := 1, 2
 				return inline.Sum(x+y, y*2)`)
-		checkCallCount(t, src, 0, 1, 4)
+		checkCallCount(t, src, 0, 1, 2)
 		eval(t, src, big.NewInt(7))
 	})
 }
