@@ -10,6 +10,7 @@ import (
 
 	"github.com/mr-tron/base58"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
+	base58neogo "github.com/nspcc-dev/neo-go/pkg/encoding/base58"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
@@ -163,6 +164,7 @@ func TestStdLibEncodeDecode(t *testing.T) {
 	original := []byte("my pretty string")
 	encoded64 := base64.StdEncoding.EncodeToString(original)
 	encoded58 := base58.Encode(original)
+	encoded58Check := base58neogo.CheckEncode(original)
 	ic := &interop.Context{VM: vm.New()}
 	var actual stackitem.Item
 
@@ -187,6 +189,16 @@ func TestStdLibEncodeDecode(t *testing.T) {
 	t.Run("Encode58/error", func(t *testing.T) {
 		require.PanicsWithError(t, ErrTooBigInput.Error(),
 			func() { s.base58Encode(ic, bigInputArgs) })
+	})
+	t.Run("CheckEncode58", func(t *testing.T) {
+		require.NotPanics(t, func() {
+			actual = s.base58CheckEncode(ic, []stackitem.Item{stackitem.Make(original)})
+		})
+		require.Equal(t, stackitem.Make(encoded58Check), actual)
+	})
+	t.Run("CheckEncode58/error", func(t *testing.T) {
+		require.PanicsWithError(t, ErrTooBigInput.Error(),
+			func() { s.base58CheckEncode(ic, bigInputArgs) })
 	})
 	t.Run("Decode64/positive", func(t *testing.T) {
 		require.NotPanics(t, func() {
@@ -219,6 +231,22 @@ func TestStdLibEncodeDecode(t *testing.T) {
 		})
 		require.PanicsWithError(t, ErrTooBigInput.Error(),
 			func() { s.base58Decode(ic, bigInputArgs) })
+	})
+	t.Run("CheckDecode58/positive", func(t *testing.T) {
+		require.NotPanics(t, func() {
+			actual = s.base58CheckDecode(ic, []stackitem.Item{stackitem.Make(encoded58Check)})
+		})
+		require.Equal(t, stackitem.Make(original), actual)
+	})
+	t.Run("CheckDecode58/error", func(t *testing.T) {
+		require.Panics(t, func() {
+			_ = s.base58CheckDecode(ic, []stackitem.Item{stackitem.Make(encoded58 + "%")})
+		})
+		require.Panics(t, func() {
+			_ = s.base58CheckDecode(ic, []stackitem.Item{stackitem.NewInterop(nil)})
+		})
+		require.PanicsWithError(t, ErrTooBigInput.Error(),
+			func() { s.base58CheckDecode(ic, bigInputArgs) })
 	})
 }
 
