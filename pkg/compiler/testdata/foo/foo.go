@@ -5,6 +5,9 @@ func NewBar() int {
 	return 10
 }
 
+// Dummy is dummy constant.
+var Dummy = 1
+
 // Foo is a type.
 type Foo struct{}
 

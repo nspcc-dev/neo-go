@@ -140,9 +140,22 @@ func (c *codegen) processNotify(f *funcScope, args []ast.Expr) {
 func (c *codegen) hasCalls(expr ast.Expr) bool {
 	var has bool
 	ast.Inspect(expr, func(n ast.Node) bool {
-		_, ok := n.(*ast.CallExpr)
-		if ok {
-			has = true
+		ce, ok := n.(*ast.CallExpr)
+		if !has && ok {
+			isFunc := true
+			fun, ok := ce.Fun.(*ast.Ident)
+			if ok {
+				_, isFunc = c.getFuncFromIdent(fun)
+			} else {
+				var sel *ast.SelectorExpr
+				sel, ok = ce.Fun.(*ast.SelectorExpr)
+				if ok {
+					name, _ := c.getFuncNameFromSelector(sel)
+					_, isFunc = c.funcs[name]
+					fun = sel.Sel
+				}
+			}
+			has = isFunc || fun.Obj != nil && (fun.Obj.Kind == ast.Var || fun.Obj.Kind == ast.Fun)
 		}
 		return !has
 	})

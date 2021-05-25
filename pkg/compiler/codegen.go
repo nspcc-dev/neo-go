@@ -869,12 +869,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 
 		switch fun := n.Fun.(type) {
 		case *ast.Ident:
-			var pkgName string
-			if len(c.pkgInfoInline) != 0 {
-				pkgName = c.pkgInfoInline[len(c.pkgInfoInline)-1].Pkg.Path()
-			}
-			f, ok = c.funcs[c.getIdentName(pkgName, fun.Name)]
-
+			f, ok = c.getFuncFromIdent(fun)
 			isBuiltin = isGoBuiltin(fun.Name)
 			if !ok && !isBuiltin {
 				name = fun.Name
@@ -1954,6 +1949,16 @@ func (c *codegen) newFunc(decl *ast.FuncDecl) *funcScope {
 	f := c.newFuncScope(decl, c.newLabel())
 	c.funcs[c.getFuncNameFromDecl("", decl)] = f
 	return f
+}
+
+func (c *codegen) getFuncFromIdent(fun *ast.Ident) (*funcScope, bool) {
+	var pkgName string
+	if len(c.pkgInfoInline) != 0 {
+		pkgName = c.pkgInfoInline[len(c.pkgInfoInline)-1].Pkg.Path()
+	}
+
+	f, ok := c.funcs[c.getIdentName(pkgName, fun.Name)]
+	return f, ok
 }
 
 // getFuncNameFromSelector returns fully-qualified function name from the selector expression.

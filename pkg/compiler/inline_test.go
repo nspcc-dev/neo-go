@@ -48,6 +48,8 @@ func checkCallCount(t *testing.T, src string, expectedCall, expectedInitSlot, ex
 func TestInline(t *testing.T) {
 	srcTmpl := `package foo
 	import "github.com/nspcc-dev/neo-go/pkg/compiler/testdata/inline"
+	import "github.com/nspcc-dev/neo-go/pkg/compiler/testdata/foo"
+	var _ = foo.Dummy
 	type pair struct { a, b int }
 	type triple struct {
 		a int
@@ -157,6 +159,22 @@ func TestInline(t *testing.T) {
 		checkCallCount(t, src, 0, 1, 2)
 		eval(t, src, big.NewInt(7))
 	})
+	t.Run("foreign package call", func(t *testing.T) {
+		src := fmt.Sprintf(srcTmpl, `return inline.Sum(foo.Bar(), foo.Dummy+1)`)
+		checkCallCount(t, src, 1, 1, 1)
+		eval(t, src, big.NewInt(3))
+	})
+}
+
+func TestIssue1879(t *testing.T) {
+	src := `package foo
+	import "github.com/nspcc-dev/neo-go/pkg/interop/runtime"
+	func Main() int {
+		data := "main is called"
+		runtime.Log("log " + string(data))
+		return 42
+	}`
+	checkCallCount(t, src, 0, 1, 1)
 }
 
 func TestInlineInLoop(t *testing.T) {
