@@ -20,6 +20,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
+	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
@@ -141,6 +142,11 @@ func newNEO() *NEO {
 
 	desc = newDescriptor("getCandidates", smartcontract.ArrayType)
 	md = newMethodAndPrice(n.getCandidatesCall, 1<<22, callflag.ReadStates)
+	n.AddMethod(md, desc)
+
+	desc = newDescriptor("getAccountState", smartcontract.ArrayType,
+		manifest.NewParameter("account", smartcontract.Hash160Type))
+	md = newMethodAndPrice(n.getAccountState, 1<<15, callflag.ReadStates)
 	n.AddMethod(md, desc)
 
 	desc = newDescriptor("getCommittee", smartcontract.ArrayType)
@@ -861,6 +867,21 @@ func (n *NEO) getCandidatesCall(ic *interop.Context, _ []stackitem.Item) stackit
 		})
 	}
 	return stackitem.NewArray(arr)
+}
+
+func (n *NEO) getAccountState(ic *interop.Context, args []stackitem.Item) stackitem.Item {
+	key := makeAccountKey(toUint160(args[0]))
+	si := ic.DAO.GetStorageItem(n.ID, key)
+	if len(si) == 0 {
+		return stackitem.Null{}
+	}
+
+	r := io.NewBinReaderFromBuf(si)
+	item := stackitem.DecodeBinaryStackItem(r)
+	if r.Err != nil {
+		panic(r.Err) // no errors are expected but we better be sure
+	}
+	return item
 }
 
 // ComputeNextBlockValidators returns an actual list of current validators.
