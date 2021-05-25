@@ -54,10 +54,10 @@ func TestInvocationScriptCreationGood(t *testing.T) {
 		ps:     Params{{Type: StringT, Value: "a"}, {Type: ArrayT, Value: []Param{{Type: FuncParamT, Value: FuncParam{Type: smartcontract.IntegerType, Value: Param{Type: NumberT, Value: 42}}}}}},
 		script: "002a11c01f0c01610c146f459162ceeb248b071ec157d9e4f6fd26fdbe5041627d5b52",
 	}, {
-		ps:     Params{{Type: StringT, Value: "a"}, {Type: ArrayT, Value: []Param{{Type: FuncParamT, Value: FuncParam{Type: smartcontract.BoolType, Value: Param{Type: StringT, Value: "true"}}}}}},
+		ps:     Params{{Type: StringT, Value: "a"}, {Type: ArrayT, Value: []Param{{Type: FuncParamT, Value: FuncParam{Type: smartcontract.BoolType, Value: Param{Type: BooleanT, Value: true}}}}}},
 		script: "1111c01f0c01610c146f459162ceeb248b071ec157d9e4f6fd26fdbe5041627d5b52",
 	}, {
-		ps:     Params{{Type: StringT, Value: "a"}, {Type: ArrayT, Value: []Param{{Type: FuncParamT, Value: FuncParam{Type: smartcontract.BoolType, Value: Param{Type: StringT, Value: "false"}}}}}},
+		ps:     Params{{Type: StringT, Value: "a"}, {Type: ArrayT, Value: []Param{{Type: FuncParamT, Value: FuncParam{Type: smartcontract.BoolType, Value: Param{Type: BooleanT, Value: false}}}}}},
 		script: "1011c01f0c01610c146f459162ceeb248b071ec157d9e4f6fd26fdbe5041627d5b52",
 	}}
 	for _, ps := range paramScripts {
