@@ -11,6 +11,7 @@ import (
 	"github.com/mr-tron/base58"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
+	base58neogo "github.com/nspcc-dev/neo-go/pkg/encoding/base58"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
@@ -103,6 +104,16 @@ func newStd() *Std {
 	desc = newDescriptor("base58Decode", smartcontract.ByteArrayType,
 		manifest.NewParameter("s", smartcontract.StringType))
 	md = newMethodAndPrice(s.base58Decode, 1<<10, callflag.NoneFlag)
+	s.AddMethod(md, desc)
+
+	desc = newDescriptor("base58CheckEncode", smartcontract.StringType,
+		manifest.NewParameter("data", smartcontract.ByteArrayType))
+	md = newMethodAndPrice(s.base58CheckEncode, 1<<16, callflag.NoneFlag)
+	s.AddMethod(md, desc)
+
+	desc = newDescriptor("base58CheckDecode", smartcontract.ByteArrayType,
+		manifest.NewParameter("s", smartcontract.StringType))
+	md = newMethodAndPrice(s.base58CheckDecode, 1<<16, callflag.NoneFlag)
 	s.AddMethod(md, desc)
 
 	desc = newDescriptor("memoryCompare", smartcontract.IntegerType,
@@ -312,6 +323,23 @@ func (s *Std) base58Encode(_ *interop.Context, args []stackitem.Item) stackitem.
 func (s *Std) base58Decode(_ *interop.Context, args []stackitem.Item) stackitem.Item {
 	src := s.toLimitedString(args[0])
 	result, err := base58.Decode(src)
+	if err != nil {
+		panic(err)
+	}
+
+	return stackitem.NewByteArray(result)
+}
+
+func (s *Std) base58CheckEncode(_ *interop.Context, args []stackitem.Item) stackitem.Item {
+	src := s.toLimitedBytes(args[0])
+	result := base58neogo.CheckEncode(src)
+
+	return stackitem.NewByteArray([]byte(result))
+}
+
+func (s *Std) base58CheckDecode(_ *interop.Context, args []stackitem.Item) stackitem.Item {
+	src := s.toLimitedString(args[0])
+	result, err := base58neogo.CheckDecode(src)
 	if err != nil {
 		panic(err)
 	}
