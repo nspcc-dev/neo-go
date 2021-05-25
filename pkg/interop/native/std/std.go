@@ -86,6 +86,21 @@ func Base58Decode(b []byte) []byte {
 		b).([]byte)
 }
 
+// Base58CheckEncode calls `base58CheckEncode` method of StdLib native contract and encodes
+// given byte slice into a base58 string with checksum and returns byte representation of this
+// string.
+func Base58CheckEncode(b []byte) string {
+	return contract.Call(interop.Hash160(Hash), "base58CheckEncode", contract.NoneFlag,
+		b).(string)
+}
+
+// Base58CheckDecode calls `base58CheckDecode` method of StdLib native contract and decodes
+// given base58 string with a checksum represented as a byte slice into a new byte slice.
+func Base58CheckDecode(b []byte) []byte {
+	return contract.Call(interop.Hash160(Hash), "base58CheckDecode", contract.NoneFlag,
+		b).([]byte)
+}
+
 // Itoa converts num in a given base to string. Base should be either 10 or 16.
 // It uses `itoa` method of StdLib native contract.
 func Itoa(num int, base int) string {
