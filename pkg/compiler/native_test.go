@@ -180,6 +180,8 @@ func TestNativeHelpersCompile(t *testing.T) {
 		{"base64Decode", []string{"[]byte{1, 2, 3}"}},
 		{"base58Encode", []string{"[]byte{1, 2, 3}"}},
 		{"base58Decode", []string{"[]byte{1, 2, 3}"}},
+		{"base58CheckEncode", []string{"[]byte{1, 2, 3}"}},
+		{"base58CheckDecode", []string{"[]byte{1, 2, 3}"}},
 		{"itoa", []string{"4", "10"}},
 		{"itoa10", []string{"4"}},
 		{"atoi", []string{`"4"`, "10"}},
