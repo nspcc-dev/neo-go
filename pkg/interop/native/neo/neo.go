@@ -11,6 +11,13 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/interop/contract"
 )
 
+// AccountState contains info about NEO holder.
+type AccountState struct {
+	Balance int
+	Height  int
+	VoteTo  interop.PublicKey
+}
+
 // Hash represents NEO contract hash.
 const Hash = "\xf5\x63\xea\x40\xbc\x28\x3d\x4d\x0e\x05\xc4\x8e\xa3\x05\xb3\xf2\xa0\x73\x40\xef"
 
@@ -93,4 +100,9 @@ func Vote(addr interop.Hash160, pub interop.PublicKey) bool {
 // UnclaimedGAS represents `unclaimedGas` method of NEO native contract.
 func UnclaimedGAS(addr interop.Hash160, end int) int {
 	return contract.Call(interop.Hash160(Hash), "unclaimedGas", contract.ReadStates, addr, end).(int)
+}
+
+// GetAccountState represents `getAccountState` method of NEO native contract.
+func GetAccountState(addr interop.Hash160) *AccountState {
+	return contract.Call(interop.Hash160(Hash), "getAccountState", contract.ReadStates, addr).(*AccountState)
 }

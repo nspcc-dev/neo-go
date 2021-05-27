@@ -229,6 +229,34 @@ func TestNEO_CalculateBonus(t *testing.T) {
 	})
 }
 
+func TestNEO_GetAccountState(t *testing.T) {
+	bc := newTestChain(t)
+
+	acc, err := wallet.NewAccount()
+	require.NoError(t, err)
+
+	h := acc.Contract.ScriptHash()
+	t.Run("empty", func(t *testing.T) {
+		res, err := invokeContractMethod(bc, 1_0000000, bc.contracts.NEO.Hash, "getAccountState", h)
+		require.NoError(t, err)
+		checkResult(t, res, stackitem.Null{})
+	})
+
+	const amount = 123
+	transferTokenFromMultisigAccountCheckOK(t, bc, h, bc.GoverningTokenHash(), int64(amount))
+
+	t.Run("with funds", func(t *testing.T) {
+		bs := stackitem.NewStruct([]stackitem.Item{
+			stackitem.Make(123),
+			stackitem.Make(bc.BlockHeight()),
+			stackitem.Null{},
+		})
+		res, err := invokeContractMethod(bc, 1_0000000, bc.contracts.NEO.Hash, "getAccountState", h)
+		require.NoError(t, err)
+		checkResult(t, res, bs)
+	})
+}
+
 func TestNEO_CommitteeBountyOnPersist(t *testing.T) {
 	bc := newTestChain(t)
 

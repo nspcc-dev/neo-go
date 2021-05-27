@@ -116,6 +116,7 @@ func TestNativeHelpersCompile(t *testing.T) {
 		{"vote", []string{u160, pub}},
 		{"unclaimedGas", []string{u160, "123"}},
 		{"unregisterCandidate", []string{pub}},
+		{"getAccountState", []string{u160}},
 	}, nep17TestCases...))
 	runNativeTestCases(t, cs.GAS.ContractMD, "gas", append([]nativeTestCase{
 		{"refuel", []string{u160, "123"}},

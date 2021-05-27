@@ -316,7 +316,7 @@ func canConvert(s string) bool {
 		s = s[len(interopPrefix):]
 		return s != "/iterator.Iterator" && s != "/storage.Context" &&
 			s != "/native/ledger.Block" && s != "/native/ledger.Transaction" &&
-			s != "/native/management.Contract"
+			s != "/native/management.Contract" && s != "/native/neo.AccountState"
 	}
 	return true
 }
