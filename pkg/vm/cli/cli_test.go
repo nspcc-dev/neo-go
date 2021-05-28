@@ -186,6 +186,24 @@ func TestLoad(t *testing.T) {
 		e.checkNextLine(t, "READY: loaded \\d* instructions")
 		e.checkStack(t, 8)
 	})
+	t.Run("loadgo, check calling flags", func(t *testing.T) {
+		srcAllowNotify := `package kek
+		import "github.com/nspcc-dev/neo-go/pkg/interop/runtime"		
+		func Main() int {
+			runtime.Log("Hello, world!")
+			return 1
+		}
+`
+		filename := path.Join(tmpDir, "vmtestcontract.go")
+		require.NoError(t, ioutil.WriteFile(filename, []byte(srcAllowNotify), os.ModePerm))
+
+		e := newTestVMCLI(t)
+		e.runProg(t,
+			"loadgo "+filename,
+			"run main")
+		e.checkNextLine(t, "READY: loaded \\d* instructions")
+		e.checkStack(t, 1)
+	})
 	t.Run("loadnef", func(t *testing.T) {
 		config.Version = "0.92.0-test"
 
