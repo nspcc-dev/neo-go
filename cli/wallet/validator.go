@@ -53,8 +53,11 @@ func newValidatorCommands() []cli.Command {
 		{
 			Name:      "vote",
 			Usage:     "vote for a validator",
-			UsageText: "vote -w <path> -r <rpc> [-s <timeout>] [-g gas] -a <addr> -c <public key>",
-			Action:    handleVote,
+			UsageText: "vote -w <path> -r <rpc> [-s <timeout>] [-g gas] -a <addr> [-c <public key>]",
+			Description: `Votes for a validator by calling "vote" method of a NEO native
+   contract. Do not provide candidate argument to perform unvoting.
+`,
+			Action: handleVote,
 			Flags: append([]cli.Flag{
 				walletPathFlag,
 				gasFlag,
