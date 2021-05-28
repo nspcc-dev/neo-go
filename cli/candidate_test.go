@@ -41,7 +41,7 @@ func TestRegisterCandidate(t *testing.T) {
 	require.Equal(t, validatorPriv.PublicKey(), vs[0].Key)
 	require.Equal(t, big.NewInt(0), vs[0].Votes)
 
-	t.Run("Vote", func(t *testing.T) {
+	t.Run("VoteUnvote", func(t *testing.T) {
 		e.In.WriteString("one\r")
 		e.Run(t, "neo-go", "wallet", "candidate", "vote",
 			"--rpc-endpoint", "http://"+e.RPC.Addr,
@@ -55,6 +55,19 @@ func TestRegisterCandidate(t *testing.T) {
 		require.Equal(t, validatorPriv.PublicKey(), vs[0].Key)
 		b, _ := e.Chain.GetGoverningTokenBalance(validatorPriv.GetScriptHash())
 		require.Equal(t, b, vs[0].Votes)
+
+		// unvote
+		e.In.WriteString("one\r")
+		e.Run(t, "neo-go", "wallet", "candidate", "vote",
+			"--rpc-endpoint", "http://"+e.RPC.Addr,
+			"--wallet", validatorWallet,
+			"--address", validatorPriv.Address())
+		e.checkTxPersisted(t)
+
+		vs, err = e.Chain.GetEnrollments()
+		require.Equal(t, 1, len(vs))
+		require.Equal(t, validatorPriv.PublicKey(), vs[0].Key)
+		require.Equal(t, big.NewInt(0), vs[0].Votes)
 	})
 
 	// missing address
