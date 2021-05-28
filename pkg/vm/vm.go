@@ -247,28 +247,33 @@ func (v *VM) AddBreakPointRel(n int) {
 	v.AddBreakPoint(ctx.nextip + n)
 }
 
-// LoadFile loads a program in NEF format from the given path, ready to execute it.
-func (v *VM) LoadFile(path string) error {
+// LoadFileWithFlags loads a program in NEF format from the given path, ready to execute it.
+func (v *VM) LoadFileWithFlags(path string, f callflag.CallFlag) error {
 	b, err := ioutil.ReadFile(path)
 	if err != nil {
 		return err
 	}
-	f, err := nef.FileFromBytes(b)
+	nef, err := nef.FileFromBytes(b)
 	if err != nil {
 		return err
 	}
-	v.Load(f.Script)
+	v.Load(nef.Script)
 	return nil
 }
 
 // Load initializes the VM with the program given.
 func (v *VM) Load(prog []byte) {
+	v.LoadWithFlags(prog, callflag.NoneFlag)
+}
+
+// LoadWithFlags initializes the VM with the program and flags given.
+func (v *VM) LoadWithFlags(prog []byte, f callflag.CallFlag) {
 	// Clear all stacks and state, it could be a reload.
 	v.istack.Clear()
 	v.estack.Clear()
 	v.state = NoneState
 	v.gasConsumed = 0
-	v.LoadScript(prog)
+	v.LoadScriptWithFlags(prog, f)
 }
 
 // LoadScript loads a script from the internal script table. It

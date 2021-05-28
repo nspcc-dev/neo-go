@@ -18,6 +18,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/compiler"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
@@ -294,7 +295,7 @@ func handleLoadNEF(c *ishell.Context) {
 		c.Err(fmt.Errorf("%w: <file> <manifest>", ErrMissingParameter))
 		return
 	}
-	if err := v.LoadFile(c.Args[0]); err != nil {
+	if err := v.LoadFileWithFlags(c.Args[0], callflag.All); err != nil {
 		c.Err(err)
 		return
 	}
@@ -319,7 +320,7 @@ func handleLoadBase64(c *ishell.Context) {
 		c.Err(fmt.Errorf("%w: %v", ErrInvalidParameter, err))
 		return
 	}
-	v.Load(b)
+	v.LoadWithFlags(b, callflag.All)
 	c.Printf("READY: loaded %d instructions\n", v.Context().LenInstr())
 	changePrompt(c, v)
 }
@@ -335,7 +336,7 @@ func handleLoadHex(c *ishell.Context) {
 		c.Err(fmt.Errorf("%w: %v", ErrInvalidParameter, err))
 		return
 	}
-	v.Load(b)
+	v.LoadWithFlags(b, callflag.All)
 	c.Printf("READY: loaded %d instructions\n", v.Context().LenInstr())
 	changePrompt(c, v)
 }
@@ -360,7 +361,7 @@ func handleLoadGo(c *ishell.Context) {
 	}
 	setManifestInContext(c, m)
 
-	v.Load(b)
+	v.LoadWithFlags(b, callflag.All)
 	c.Printf("READY: loaded %d instructions\n", v.Context().LenInstr())
 	changePrompt(c, v)
 }
