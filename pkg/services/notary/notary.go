@@ -13,6 +13,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
 	"github.com/nspcc-dev/neo-go/pkg/core/mempool"
+	"github.com/nspcc-dev/neo-go/pkg/core/mempoolevent"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
@@ -48,7 +49,7 @@ type (
 
 		mp *mempool.Pool
 		// requests channel
-		reqCh    chan mempool.Event
+		reqCh    chan mempoolevent.Event
 		blocksCh chan *block.Block
 		stopCh   chan struct{}
 	}
@@ -109,7 +110,7 @@ func NewNotary(cfg Config, net netmode.Magic, mp *mempool.Pool, onTransaction fu
 		wallet:        wallet,
 		onTransaction: onTransaction,
 		mp:            mp,
-		reqCh:         make(chan mempool.Event),
+		reqCh:         make(chan mempoolevent.Event),
 		blocksCh:      make(chan *block.Block),
 		stopCh:        make(chan struct{}),
 	}, nil
@@ -129,9 +130,9 @@ func (n *Notary) Run() {
 		case event := <-n.reqCh:
 			if req, ok := event.Data.(*payload.P2PNotaryRequest); ok {
 				switch event.Type {
-				case mempool.TransactionAdded:
+				case mempoolevent.TransactionAdded:
 					n.OnNewRequest(req)
-				case mempool.TransactionRemoved:
+				case mempoolevent.TransactionRemoved:
 					n.OnRequestRemoval(req)
 				}
 			}

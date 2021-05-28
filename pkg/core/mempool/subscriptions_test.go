@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/nspcc-dev/neo-go/pkg/core/mempoolevent"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
@@ -25,8 +26,8 @@ func TestSubscriptions(t *testing.T) {
 		fs := &FeerStub{balance: 100}
 		mp := New(2, 0, true)
 		mp.RunSubscriptions()
-		subChan1 := make(chan Event, 3)
-		subChan2 := make(chan Event, 3)
+		subChan1 := make(chan mempoolevent.Event, 3)
+		subChan2 := make(chan mempoolevent.Event, 3)
 		mp.SubscribeForTransactions(subChan1)
 		t.Cleanup(mp.StopSubscriptions)
 
@@ -42,7 +43,7 @@ func TestSubscriptions(t *testing.T) {
 		require.NoError(t, mp.Add(txs[0], fs))
 		require.Eventually(t, func() bool { return len(subChan1) == 1 }, time.Second, time.Millisecond*100)
 		event := <-subChan1
-		require.Equal(t, Event{Type: TransactionAdded, Tx: txs[0]}, event)
+		require.Equal(t, mempoolevent.Event{Type: mempoolevent.TransactionAdded, Tx: txs[0]}, event)
 
 		// severak subscribers
 		mp.SubscribeForTransactions(subChan2)
@@ -50,28 +51,28 @@ func TestSubscriptions(t *testing.T) {
 		require.Eventually(t, func() bool { return len(subChan1) == 1 && len(subChan2) == 1 }, time.Second, time.Millisecond*100)
 		event1 := <-subChan1
 		event2 := <-subChan2
-		require.Equal(t, Event{Type: TransactionAdded, Tx: txs[1]}, event1)
-		require.Equal(t, Event{Type: TransactionAdded, Tx: txs[1]}, event2)
+		require.Equal(t, mempoolevent.Event{Type: mempoolevent.TransactionAdded, Tx: txs[1]}, event1)
+		require.Equal(t, mempoolevent.Event{Type: mempoolevent.TransactionAdded, Tx: txs[1]}, event2)
 
 		// reach capacity
 		require.NoError(t, mp.Add(txs[2], &FeerStub{}))
 		require.Eventually(t, func() bool { return len(subChan1) == 2 && len(subChan2) == 2 }, time.Second, time.Millisecond*100)
 		event1 = <-subChan1
 		event2 = <-subChan2
-		require.Equal(t, Event{Type: TransactionRemoved, Tx: txs[0]}, event1)
-		require.Equal(t, Event{Type: TransactionRemoved, Tx: txs[0]}, event2)
+		require.Equal(t, mempoolevent.Event{Type: mempoolevent.TransactionRemoved, Tx: txs[0]}, event1)
+		require.Equal(t, mempoolevent.Event{Type: mempoolevent.TransactionRemoved, Tx: txs[0]}, event2)
 		event1 = <-subChan1
 		event2 = <-subChan2
-		require.Equal(t, Event{Type: TransactionAdded, Tx: txs[2]}, event1)
-		require.Equal(t, Event{Type: TransactionAdded, Tx: txs[2]}, event2)
+		require.Equal(t, mempoolevent.Event{Type: mempoolevent.TransactionAdded, Tx: txs[2]}, event1)
+		require.Equal(t, mempoolevent.Event{Type: mempoolevent.TransactionAdded, Tx: txs[2]}, event2)
 
 		// remove tx
 		mp.Remove(txs[1].Hash(), fs)
 		require.Eventually(t, func() bool { return len(subChan1) == 1 && len(subChan2) == 1 }, time.Second, time.Millisecond*100)
 		event1 = <-subChan1
 		event2 = <-subChan2
-		require.Equal(t, Event{Type: TransactionRemoved, Tx: txs[1]}, event1)
-		require.Equal(t, Event{Type: TransactionRemoved, Tx: txs[1]}, event2)
+		require.Equal(t, mempoolevent.Event{Type: mempoolevent.TransactionRemoved, Tx: txs[1]}, event1)
+		require.Equal(t, mempoolevent.Event{Type: mempoolevent.TransactionRemoved, Tx: txs[1]}, event2)
 
 		// remove stale
 		mp.RemoveStale(func(tx *transaction.Transaction) bool {
@@ -80,8 +81,8 @@ func TestSubscriptions(t *testing.T) {
 		require.Eventually(t, func() bool { return len(subChan1) == 1 && len(subChan2) == 1 }, time.Second, time.Millisecond*100)
 		event1 = <-subChan1
 		event2 = <-subChan2
-		require.Equal(t, Event{Type: TransactionRemoved, Tx: txs[2]}, event1)
-		require.Equal(t, Event{Type: TransactionRemoved, Tx: txs[2]}, event2)
+		require.Equal(t, mempoolevent.Event{Type: mempoolevent.TransactionRemoved, Tx: txs[2]}, event1)
+		require.Equal(t, mempoolevent.Event{Type: mempoolevent.TransactionRemoved, Tx: txs[2]}, event2)
 
 		// unsubscribe
 		mp.UnsubscribeFromTransactions(subChan1)
@@ -89,6 +90,6 @@ func TestSubscriptions(t *testing.T) {
 		require.Eventually(t, func() bool { return len(subChan2) == 1 }, time.Second, time.Millisecond*100)
 		event2 = <-subChan2
 		require.Equal(t, 0, len(subChan1))
-		require.Equal(t, Event{Type: TransactionAdded, Tx: txs[3]}, event2)
+		require.Equal(t, mempoolevent.Event{Type: mempoolevent.TransactionAdded, Tx: txs[3]}, event2)
 	})
 }

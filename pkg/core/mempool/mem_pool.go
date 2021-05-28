@@ -8,6 +8,7 @@ import (
 	"sort"
 	"sync"
 
+	"github.com/nspcc-dev/neo-go/pkg/core/mempoolevent"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"go.uber.org/atomic"
@@ -75,9 +76,9 @@ type Pool struct {
 	subscriptionsEnabled bool
 	subscriptionsOn      atomic.Bool
 	stopCh               chan struct{}
-	events               chan Event
-	subCh                chan chan<- Event // there are no other events in mempool except Event, so no need in generic subscribers type
-	unsubCh              chan chan<- Event
+	events               chan mempoolevent.Event
+	subCh                chan chan<- mempoolevent.Event // there are no other events in mempool except Event, so no need in generic subscribers type
+	unsubCh              chan chan<- mempoolevent.Event
 }
 
 func (p items) Len() int           { return len(p) }
@@ -259,8 +260,8 @@ func (mp *Pool) Add(t *transaction.Transaction, fee Feer, data ...interface{}) e
 		}
 		mp.verifiedTxes[len(mp.verifiedTxes)-1] = pItem
 		if mp.subscriptionsOn.Load() {
-			mp.events <- Event{
-				Type: TransactionRemoved,
+			mp.events <- mempoolevent.Event{
+				Type: mempoolevent.TransactionRemoved,
 				Tx:   unlucky.txn,
 				Data: unlucky.data,
 			}
@@ -287,8 +288,8 @@ func (mp *Pool) Add(t *transaction.Transaction, fee Feer, data ...interface{}) e
 	mp.lock.Unlock()
 
 	if mp.subscriptionsOn.Load() {
-		mp.events <- Event{
-			Type: TransactionAdded,
+		mp.events <- mempoolevent.Event{
+			Type: mempoolevent.TransactionAdded,
 			Tx:   pItem.txn,
 			Data: pItem.data,
 		}
@@ -332,8 +333,8 @@ func (mp *Pool) removeInternal(hash util.Uint256, feer Feer) {
 			delete(mp.oracleResp, attrs[0].Value.(*transaction.OracleResponse).ID)
 		}
 		if mp.subscriptionsOn.Load() {
-			mp.events <- Event{
-				Type: TransactionRemoved,
+			mp.events <- mempoolevent.Event{
+				Type: mempoolevent.TransactionRemoved,
 				Tx:   itm.txn,
 				Data: itm.data,
 			}
@@ -382,8 +383,8 @@ func (mp *Pool) RemoveStale(isOK func(*transaction.Transaction) bool, feer Feer)
 				delete(mp.oracleResp, attrs[0].Value.(*transaction.OracleResponse).ID)
 			}
 			if mp.subscriptionsOn.Load() {
-				mp.events <- Event{
-					Type: TransactionRemoved,
+				mp.events <- mempoolevent.Event{
+					Type: mempoolevent.TransactionRemoved,
 					Tx:   itm.txn,
 					Data: itm.data,
 				}
@@ -428,9 +429,9 @@ func New(capacity int, payerIndex int, enableSubscriptions bool) *Pool {
 		oracleResp:           make(map[uint64]util.Uint256),
 		subscriptionsEnabled: enableSubscriptions,
 		stopCh:               make(chan struct{}),
-		events:               make(chan Event),
-		subCh:                make(chan chan<- Event),
-		unsubCh:              make(chan chan<- Event),
+		events:               make(chan mempoolevent.Event),
+		subCh:                make(chan chan<- mempoolevent.Event),
+		unsubCh:              make(chan chan<- mempoolevent.Event),
 	}
 	mp.subscriptionsOn.Store(false)
 	return mp
