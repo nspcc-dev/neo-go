@@ -277,7 +277,13 @@ func NewCommands() []cli.Command {
                             entering deeper internal invokes. This can be default
                             safe choice for native NEO/GAS.
         - 'CustomContracts' - define valid custom contract hashes for witness check.
-        - 'CustomGroups' - define custom pubkey for group members.
+                              Hashes are be provided as hex-encoded LE value string.
+                              At lest one hash must be provided. Multiple hashes
+                              are separated by ':'.
+        - 'CustomGroups' - define custom public keys for group members. Public keys are
+                           provided as short-form (1-byte prefix + 32 bytes) hex-encoded
+                           values. At least one key must be provided. Multiple keys
+                           are separated by ':'.
 
    If no scopes were specified, 'CalledByEntry' used as default. If no signers were
    specified, no array is passed. Note that scopes are properly handled by 
@@ -287,7 +293,10 @@ func NewCommands() []cli.Command {
     * 'NNQk4QXsxvsrr3GSozoWBUxEmfag7B6hz5'
     * 'NVquyZHoPirw6zAEPvY1ZezxM493zMWQqs:Global'
     * '0x0000000009070e030d0f0e020d0c06050e030c02'
-    * '0000000009070e030d0f0e020d0c06050e030c02:CalledByEntry,CustomGroups'   
+    * '0000000009070e030d0f0e020d0c06050e030c02:CalledByEntry,` +
+					`CustomGroups:0206d7495ceb34c197093b5fc1cccf1996ada05e69ef67e765462a7f5d88ee14d0'
+    * '0000000009070e030d0f0e020d0c06050e030c02:CalledByEntry,` +
+					`CustomContracts:1011120009070e030d0f0e020d0c06050e030c02:0x1211100009070e030d0f0e020d0c06050e030c02'
 `,
 				Action: testInvokeFunction,
 				Flags:  options.RPC,

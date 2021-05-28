@@ -7,6 +7,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/cli/flags"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/client"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
@@ -53,10 +54,51 @@ func parseCosigner(c string) (transaction.Signer, error) {
 	if err != nil {
 		return res, err
 	}
-	if len(data) > 1 {
-		res.Scopes, err = transaction.ScopesFromString(data[1])
+
+	if len(data) == 1 {
+		return res, nil
+	}
+
+	res.Scopes = 0
+	scopes := strings.Split(data[1], ",")
+	for _, s := range scopes {
+		sub := strings.Split(s, ":")
+		scope, err := transaction.ScopesFromString(sub[0])
 		if err != nil {
 			return transaction.Signer{}, err
+		}
+		if scope == transaction.Global && res.Scopes&^transaction.Global != 0 ||
+			scope != transaction.Global && res.Scopes&transaction.Global != 0 {
+			return transaction.Signer{}, errors.New("Global scope can not be combined with other scopes")
+		}
+
+		res.Scopes |= scope
+
+		switch scope {
+		case transaction.CustomContracts:
+			if len(sub) == 1 {
+				return transaction.Signer{}, errors.New("CustomContracts scope must refer to at least one contract")
+			}
+			for _, s := range sub[1:] {
+				addr, err := flags.ParseAddress(s)
+				if err != nil {
+					return transaction.Signer{}, err
+				}
+
+				res.AllowedContracts = append(res.AllowedContracts, addr)
+			}
+		case transaction.CustomGroups:
+			if len(sub) == 1 {
+				return transaction.Signer{}, errors.New("CustomGroups scope must refer to at least one group")
+			}
+			for _, s := range sub[1:] {
+				pub, err := keys.NewPublicKeyFromString(s)
+				if err != nil {
+					return transaction.Signer{}, err
+				}
+
+				res.AllowedGroups = append(res.AllowedGroups, pub)
+			}
 		}
 	}
 	return res, nil
