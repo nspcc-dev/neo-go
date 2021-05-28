@@ -80,6 +80,21 @@ func (f *feed) Matches(r *response.Notification) bool {
 		filt := f.filter.(request.ExecutionFilter)
 		applog := r.Payload[0].(*state.AppExecResult)
 		return applog.VMState.String() == filt.State
+	case response.NotaryRequestEventID:
+		filt := f.filter.(request.TxFilter)
+		req := r.Payload[0].(*response.NotaryRequestEvent)
+		senderOk := filt.Sender == nil || req.NotaryRequest.FallbackTransaction.Signers[1].Account == *filt.Sender
+		signerOK := true
+		if filt.Signer != nil {
+			signerOK = false
+			for _, signer := range req.NotaryRequest.MainTransaction.Signers {
+				if signer.Account.Equals(*filt.Signer) {
+					signerOK = true
+					break
+				}
+			}
+		}
+		return senderOk && signerOK
 	}
 	return false
 }

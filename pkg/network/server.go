@@ -16,6 +16,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
 	"github.com/nspcc-dev/neo-go/pkg/core/mempool"
+	"github.com/nspcc-dev/neo-go/pkg/core/mempoolevent"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/network/capability"
 	"github.com/nspcc-dev/neo-go/pkg/network/extpool"
@@ -143,7 +144,7 @@ func newServerFromConstructors(config ServerConfig, chain blockchainer.Blockchai
 	}
 	if chain.P2PSigExtensionsEnabled() {
 		s.notaryFeer = NewNotaryFeer(chain)
-		s.notaryRequestPool = mempool.New(chain.GetConfig().P2PNotaryRequestPayloadPoolSize, 1, config.P2PNotaryCfg.Enabled)
+		s.notaryRequestPool = mempool.New(chain.GetConfig().P2PNotaryRequestPayloadPoolSize, 1, true)
 		chain.RegisterPostBlock(func(bc blockchainer.Blockchainer, txpool *mempool.Pool, _ *block.Block) {
 			s.notaryRequestPool.RemoveStale(func(t *transaction.Transaction) bool {
 				return bc.IsTxStillRelevant(t, txpool, true)
@@ -295,6 +296,8 @@ func (s *Server) Shutdown() {
 	}
 	if s.notaryModule != nil {
 		s.notaryModule.Stop()
+	}
+	if s.chain.P2PSigExtensionsEnabled() {
 		s.notaryRequestPool.StopSubscriptions()
 	}
 	close(s.quit)
@@ -449,11 +452,37 @@ func (s *Server) tryStartServices() {
 		if s.oracle != nil {
 			go s.oracle.Run()
 		}
+		if s.chain.P2PSigExtensionsEnabled() {
+			s.notaryRequestPool.RunSubscriptions() // WSClient is also a subscriber.
+		}
 		if s.notaryModule != nil {
-			s.notaryRequestPool.RunSubscriptions()
 			go s.notaryModule.Run()
 		}
 	}
+}
+
+// SubscribeForNotaryRequests adds given channel to a notary request event
+// broadcasting, so when a new P2PNotaryRequest is received or an existing
+// P2PNotaryRequest is removed from pool you'll receive it via this channel.
+// Make sure it's read from regularly as not reading these events might affect
+// other Server functions.
+// Ensure that P2PSigExtensions are enabled before calling this method.
+func (s *Server) SubscribeForNotaryRequests(ch chan<- mempoolevent.Event) {
+	if !s.chain.P2PSigExtensionsEnabled() {
+		panic("P2PSigExtensions are disabled")
+	}
+	s.notaryRequestPool.SubscribeForTransactions(ch)
+}
+
+// UnsubscribeFromNotaryRequests unsubscribes given channel from notary request
+// notifications, you can close it afterwards. Passing non-subscribed channel
+// is a no-op.
+// Ensure that P2PSigExtensions are enabled before calling this method.
+func (s *Server) UnsubscribeFromNotaryRequests(ch chan<- mempoolevent.Event) {
+	if !s.chain.P2PSigExtensionsEnabled() {
+		panic("P2PSigExtensions are disabled")
+	}
+	s.notaryRequestPool.UnsubscribeFromTransactions(ch)
 }
 
 // Peers returns the current list of peers connected to

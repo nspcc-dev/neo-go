@@ -86,10 +86,12 @@ func callUnsubscribe(t *testing.T, ws *websocket.Conn, msgs <-chan []byte, id st
 
 func TestSubscriptions(t *testing.T) {
 	var subIDs = make([]string, 0)
-	var subFeeds = []string{"block_added", "transaction_added", "notification_from_execution", "transaction_executed"}
+	var subFeeds = []string{"block_added", "transaction_added", "notification_from_execution", "transaction_executed", "notary_request_event"}
 
 	chain, rpcSrv, c, respMsgs, finishedFlag := initCleanServerAndWSClient(t)
 
+	go rpcSrv.coreServer.Start(make(chan error))
+	defer rpcSrv.coreServer.Shutdown()
 	defer chain.Close()
 	defer func() { _ = rpcSrv.Shutdown() }()
 
@@ -131,6 +133,17 @@ func TestSubscriptions(t *testing.T) {
 			}
 		}
 		require.Equal(t, response.BlockEventID, resp.Event)
+	}
+
+	// We should manually add NotaryRequest to test notification.
+	sender := testchain.PrivateKeyByID(0)
+	err := rpcSrv.coreServer.RelayP2PNotaryRequest(createValidNotaryRequest(chain, sender, 1))
+	require.NoError(t, err)
+	for {
+		resp := getNotification(t, respMsgs)
+		if resp.Event == response.NotaryRequestEventID {
+			break
+		}
 	}
 
 	for _, id := range subIDs {
@@ -275,6 +288,100 @@ func TestFilteredSubscriptions(t *testing.T) {
 			c.Close()
 		})
 	}
+}
+
+func TestFilteredNotaryRequestSubscriptions(t *testing.T) {
+	// We can't fit this into TestFilteredSubscriptions, because notary requests
+	// event doesn't depend on blocks events.
+	priv0 := testchain.PrivateKeyByID(0)
+	var goodSender = priv0.GetScriptHash()
+
+	var cases = map[string]struct {
+		params string
+		check  func(*testing.T, *response.Notification)
+	}{
+		"matching sender": {
+			params: `["notary_request_event", {"sender":"` + goodSender.StringLE() + `"}]`,
+			check: func(t *testing.T, resp *response.Notification) {
+				rmap := resp.Payload[0].(map[string]interface{})
+				require.Equal(t, response.NotaryRequestEventID, resp.Event)
+				require.Equal(t, "added", rmap["type"].(string))
+				req := rmap["notaryrequest"].(map[string]interface{})
+				fbTx := req["fallbacktx"].(map[string]interface{})
+				sender := fbTx["signers"].([]interface{})[1].(map[string]interface{})["account"].(string)
+				require.Equal(t, "0x"+goodSender.StringLE(), sender)
+			},
+		},
+		"matching signer": {
+			params: `["notary_request_event", {"signer":"` + goodSender.StringLE() + `"}]`,
+			check: func(t *testing.T, resp *response.Notification) {
+				rmap := resp.Payload[0].(map[string]interface{})
+				require.Equal(t, response.NotaryRequestEventID, resp.Event)
+				require.Equal(t, "added", rmap["type"].(string))
+				req := rmap["notaryrequest"].(map[string]interface{})
+				mainTx := req["maintx"].(map[string]interface{})
+				signers := mainTx["signers"].([]interface{})
+				signer0 := signers[0].(map[string]interface{})
+				signer0acc := signer0["account"].(string)
+				require.Equal(t, "0x"+goodSender.StringLE(), signer0acc)
+			},
+		},
+		"matching sender and signer": {
+			params: `["notary_request_event", {"sender":"` + goodSender.StringLE() + `", "signer":"` + goodSender.StringLE() + `"}]`,
+			check: func(t *testing.T, resp *response.Notification) {
+				rmap := resp.Payload[0].(map[string]interface{})
+				require.Equal(t, response.NotaryRequestEventID, resp.Event)
+				require.Equal(t, "added", rmap["type"].(string))
+				req := rmap["notaryrequest"].(map[string]interface{})
+				mainTx := req["maintx"].(map[string]interface{})
+				fbTx := req["fallbacktx"].(map[string]interface{})
+				sender := fbTx["signers"].([]interface{})[1].(map[string]interface{})["account"].(string)
+				require.Equal(t, "0x"+goodSender.StringLE(), sender)
+				signers := mainTx["signers"].([]interface{})
+				signer0 := signers[0].(map[string]interface{})
+				signer0acc := signer0["account"].(string)
+				require.Equal(t, "0x"+goodSender.StringLE(), signer0acc)
+			},
+		},
+	}
+
+	chain, rpcSrv, c, respMsgs, finishedFlag := initCleanServerAndWSClient(t)
+	go rpcSrv.coreServer.Start(make(chan error, 1))
+
+	defer chain.Close()
+	defer func() { _ = rpcSrv.Shutdown() }()
+
+	// blocks are needed to make GAS deposit for priv0
+	blocks := getTestBlocks(t)
+	for _, b := range blocks {
+		require.NoError(t, chain.AddBlock(b))
+	}
+
+	var nonce uint32 = 100
+	for name, this := range cases {
+		t.Run(name, func(t *testing.T) {
+			subID := callSubscribe(t, c, respMsgs, this.params)
+
+			err := rpcSrv.coreServer.RelayP2PNotaryRequest(createValidNotaryRequest(chain, priv0, nonce))
+			require.NoError(t, err)
+			nonce++
+
+			var resp = new(response.Notification)
+			select {
+			case body := <-respMsgs:
+				require.NoError(t, json.Unmarshal(body, resp))
+			case <-time.After(time.Second):
+				t.Fatal("timeout waiting for event")
+			}
+
+			require.Equal(t, response.NotaryRequestEventID, resp.Event)
+			this.check(t, resp)
+
+			callUnsubscribe(t, c, respMsgs, subID)
+		})
+	}
+	finishedFlag.CAS(false, true)
+	c.Close()
 }
 
 func TestFilteredBlockSubscriptions(t *testing.T) {

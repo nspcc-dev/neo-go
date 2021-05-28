@@ -149,6 +149,8 @@ readloop:
 				val = new(state.NotificationEvent)
 			case response.ExecutionEventID:
 				val = new(state.AppExecResult)
+			case response.NotaryRequestEventID:
+				val = new(response.NotaryRequestEvent)
 			case response.MissedEventID:
 				// No value.
 			default:
@@ -296,6 +298,18 @@ func (c *WSClient) SubscribeForTransactionExecutions(state *string) (string, err
 			return "", errors.New("bad state parameter")
 		}
 		params.Values = append(params.Values, request.ExecutionFilter{State: *state})
+	}
+	return c.performSubscription(params)
+}
+
+// SubscribeForNotaryRequests adds subscription for notary request payloads
+// addition or removal events to this instance of client. It can be filtered by
+// request sender's hash, or main tx signer's hash, nil value puts no such
+// restrictions.
+func (c *WSClient) SubscribeForNotaryRequests(sender *util.Uint160, mainSigner *util.Uint160) (string, error) {
+	params := request.NewRawParams("notary_request_event")
+	if sender != nil {
+		params.Values = append(params.Values, request.TxFilter{Sender: sender, Signer: mainSigner})
 	}
 	return c.performSubscription(params)
 }
