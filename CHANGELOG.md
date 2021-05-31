@@ -2,6 +2,34 @@
 
 This document outlines major changes between releases.
 
+## 0.95.1 "Shiftiness" (31 May 2021)
+
+Bringing NeoGo up to date with N3 RC3 changes this release also improves
+compiler and CLI a bit.
+
+This release is mostly compatible with 0.95.0, but you need to resynchronize
+your chains to have proper stateroot data and to make new methods available to
+contracts. At the same time there won't be long-term support provided for it,
+just as with all previous previews and RC.
+
+New features:
+ * base58CheckEncode/base58CheckDecode methods in StdLib native contract
+   (#1977, #1979)
+ * getAccountState method in NeoToken native contract (#1978, #1986)
+ * custom contracts and groups can now be specified for witness scopes in
+   invocations from CLI (#1973)
+
+Improvements:
+ * local variable handling was refactored in the compiler, removing some
+   duplicate code and improving robustness (#1921)
+ * CLI help now describes how "unvote" can be done (#1985)
+
+Bugs fixed:
+ * boolean parameters to function invocations via RPC were not processed
+   correctly (#1976)
+ * VM CLI used too restrictive default call flags for loaded scripts (#1981)
+ * IPv6 check in NNS contract was out of date wrt C# implementation (#1969)
+
 ## 0.95.0 "Sharpness" (17 May 2021)
 
 This version mostly implements N3 RC2 protocol changes (and is fully
