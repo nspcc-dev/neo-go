@@ -2,6 +2,8 @@ package state
 
 import (
 	"crypto/elliptic"
+	"errors"
+	"fmt"
 	"math/big"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
@@ -105,7 +107,7 @@ func (s *NEOBalanceState) DecodeBinary(r *io.BinReader) {
 	if r.Err != nil {
 		return
 	}
-	r.Err = s.fromStackItem(si)
+	r.Err = s.FromStackItem(si)
 }
 
 func (s *NEOBalanceState) toStackItem() stackitem.Item {
@@ -119,21 +121,33 @@ func (s *NEOBalanceState) toStackItem() stackitem.Item {
 	return result
 }
 
-func (s *NEOBalanceState) fromStackItem(item stackitem.Item) error {
-	structItem := item.Value().([]stackitem.Item)
-	s.Balance = *structItem[0].Value().(*big.Int)
-	s.BalanceHeight = uint32(structItem[1].Value().(*big.Int).Int64())
+// FromStackItem converts stackitem.Item to NEOBalanceState.
+func (s *NEOBalanceState) FromStackItem(item stackitem.Item) error {
+	structItem, ok := item.Value().([]stackitem.Item)
+	if !ok || len(structItem) < 3 {
+		return errors.New("invalid stackitem length")
+	}
+	balance, err := structItem[0].TryInteger()
+	if err != nil {
+		return fmt.Errorf("invalid balance stackitem: %w", err)
+	}
+	s.Balance = *balance
+	h, err := structItem[1].TryInteger()
+	if err != nil {
+		return fmt.Errorf("invalid heigh stackitem")
+	}
+	s.BalanceHeight = uint32(h.Int64())
 	if _, ok := structItem[2].(stackitem.Null); ok {
 		s.VoteTo = nil
 		return nil
 	}
 	bs, err := structItem[2].TryBytes()
 	if err != nil {
-		return err
+		return fmt.Errorf("invalid public key stackitem: %w", err)
 	}
 	pub, err := keys.NewPublicKeyFromBytes(bs, elliptic.P256())
 	if err != nil {
-		return err
+		return fmt.Errorf("invalid public key bytes: %w", err)
 	}
 	s.VoteTo = pub
 	return nil
