@@ -87,7 +87,7 @@ func (e *executor) runProg(t *testing.T, commands ...string) {
 	}()
 	select {
 	case <-e.ch:
-	case <-time.After(time.Second):
+	case <-time.After(2 * time.Second):
 		require.Fail(t, "command took too long time")
 	}
 }
