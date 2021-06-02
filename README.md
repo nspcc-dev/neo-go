@@ -8,7 +8,7 @@
 <hr />
 
 [![codecov](https://codecov.io/gh/nspcc-dev/neo-go/branch/master/graph/badge.svg)](https://codecov.io/gh/nspcc-dev/neo-go)
-[![CircleCI](https://circleci.com/gh/nspcc-dev/neo-go/tree/master.svg?style=svg)](https://circleci.com/gh/nspcc-dev/neo-go/tree/master)
+[![CircleCI](https://circleci.com/gh/nspcc-dev/neo-go/tree/master.svg?style=shield)](https://circleci.com/gh/nspcc-dev/neo-go/tree/master)
 [![GithubWorkflows Tests](https://github.com/nspcc-dev/neo-go/actions/workflows/run_tests.yml/badge.svg)](https://github.com/nspcc-dev/neo-go/actions/workflows/run_tests.yml)
 [![GithubWorkflows CodeQL](https://github.com/nspcc-dev/neo-go/actions/workflows/codeql-analysis.yml/badge.svg)](https://github.com/nspcc-dev/neo-go/actions/workflows/codeql-analysis.yml)
 [![Report](https://goreportcard.com/badge/github.com/nspcc-dev/neo-go)](https://goreportcard.com/report/github.com/nspcc-dev/neo-go)
