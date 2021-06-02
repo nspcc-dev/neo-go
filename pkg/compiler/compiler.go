@@ -54,6 +54,9 @@ type Options struct {
 
 	// SafeMethods contains list of methods which will be marked as safe in manifest.
 	SafeMethods []string
+
+	// Permissions is a list of permissions for every contract method.
+	Permissions []manifest.Permission
 }
 
 type buildInfo struct {

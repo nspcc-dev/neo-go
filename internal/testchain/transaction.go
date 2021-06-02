@@ -16,6 +16,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
@@ -78,6 +79,10 @@ func NewDeployTx(bc blockchainer.Blockchainer, name string, sender util.Uint160,
 		o.Name = conf.Name
 		o.ContractEvents = conf.Events
 		o.ContractSupportedStandards = conf.SupportedStandards
+		o.Permissions = make([]manifest.Permission, len(conf.Permissions))
+		for i := range conf.Permissions {
+			o.Permissions[i] = manifest.Permission(conf.Permissions[i])
+		}
 		o.SafeMethods = conf.SafeMethods
 	}
 	m, err := compiler.CreateManifest(di, o)

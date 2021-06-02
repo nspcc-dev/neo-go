@@ -175,7 +175,14 @@ func _deploy(data interface{}, isUpdate bool) { x := 1; _ = x }
 	}
 
 	t.Run("convert to Manifest", func(t *testing.T) {
-		actual, err := d.ConvertToManifest(&Options{Name: "MyCTR", SafeMethods: []string{"methodInt", "methodString"}})
+		p := manifest.NewPermission(manifest.PermissionWildcard)
+		p.Methods.Add("randomMethod")
+
+		actual, err := d.ConvertToManifest(&Options{
+			Name:        "MyCTR",
+			SafeMethods: []string{"methodInt", "methodString"},
+			Permissions: []manifest.Permission{*p},
+		})
 		require.NoError(t, err)
 		expected := &manifest.Manifest{
 			Name: "MyCTR",
@@ -267,15 +274,8 @@ func _deploy(data interface{}, isUpdate bool) { x := 1; _ = x }
 				},
 				Events: []manifest.Event{},
 			},
-			Groups: []manifest.Group{},
-			Permissions: []manifest.Permission{
-				{
-					Contract: manifest.PermissionDesc{
-						Type: manifest.PermissionWildcard,
-					},
-					Methods: manifest.WildStrings{},
-				},
-			},
+			Groups:      []manifest.Group{},
+			Permissions: []manifest.Permission{*p},
 			Trusts: manifest.WildPermissionDescs{
 				Value: []manifest.PermissionDesc{},
 			},

@@ -401,6 +401,7 @@ func initSmartContract(ctx *cli.Context) error {
 				},
 			},
 		},
+		Permissions: []permission{permission(*manifest.NewPermission(manifest.PermissionWildcard))},
 	}
 	b, err := yaml.Marshal(m)
 	if err != nil {
@@ -450,6 +451,10 @@ func contractCompile(ctx *cli.Context) error {
 		o.Name = conf.Name
 		o.ContractEvents = conf.Events
 		o.ContractSupportedStandards = conf.SupportedStandards
+		o.Permissions = make([]manifest.Permission, len(conf.Permissions))
+		for i := range conf.Permissions {
+			o.Permissions[i] = manifest.Permission(conf.Permissions[i])
+		}
 		o.SafeMethods = conf.SafeMethods
 	}
 
@@ -674,6 +679,7 @@ type ProjectConfig struct {
 	SafeMethods        []string
 	SupportedStandards []string
 	Events             []manifest.Event
+	Permissions        []permission
 }
 
 func inspect(ctx *cli.Context) error {
