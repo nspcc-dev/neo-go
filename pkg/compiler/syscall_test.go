@@ -188,6 +188,17 @@ func TestNotify(t *testing.T) {
 	assert.Equal(t, exp0, s.events[0].Item.Value())
 	assert.Equal(t, "single", s.events[1].Name)
 	assert.Equal(t, []stackitem.Item{}, s.events[1].Item.Value())
+
+	t.Run("long event name", func(t *testing.T) {
+		src := `package foo
+		import "github.com/nspcc-dev/neo-go/pkg/interop/runtime"
+		func Main(arg int) {
+			runtime.Notify("long event12345678901234567890123")
+		}`
+
+		_, _, err := compiler.CompileWithDebugInfo("foo.go", strings.NewReader(src))
+		require.Error(t, err)
+	})
 }
 
 func TestSyscallInGlobalInit(t *testing.T) {

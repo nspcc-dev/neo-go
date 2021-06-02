@@ -1,10 +1,12 @@
 package compiler
 
 import (
+	"fmt"
 	"go/ast"
 	"go/constant"
 	"go/types"
 
+	"github.com/nspcc-dev/neo-go/pkg/core/interop/runtime"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 )
@@ -134,6 +136,11 @@ func (c *codegen) processNotify(f *funcScope, args []ast.Expr) {
 		}
 
 		name := constant.StringVal(tv.Value)
+		if len(name) > runtime.MaxEventNameLen {
+			c.prog.Err = fmt.Errorf("event name '%s' should be less than %d",
+				name, runtime.MaxEventNameLen)
+			return
+		}
 		c.emittedEvents[name] = append(c.emittedEvents[name], params)
 	}
 }
