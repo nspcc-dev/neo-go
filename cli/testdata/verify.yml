@@ -1,5 +1,5 @@
 name: Test verify
-Events:
+events:
   - name: OnNEP11Payment
     parameters:
       - name: from
