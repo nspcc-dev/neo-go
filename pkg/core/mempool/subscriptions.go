@@ -1,25 +1,6 @@
 package mempool
 
-import (
-	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
-)
-
-// EventType represents mempool event type.
-type EventType byte
-
-const (
-	// TransactionAdded marks transaction addition mempool event.
-	TransactionAdded EventType = 0x01
-	// TransactionRemoved marks transaction removal mempool event.
-	TransactionRemoved EventType = 0x02
-)
-
-// Event represents one of mempool events: transaction was added or removed from mempool.
-type Event struct {
-	Type EventType
-	Tx   *transaction.Transaction
-	Data interface{}
-}
+import "github.com/nspcc-dev/neo-go/pkg/core/mempoolevent"
 
 // RunSubscriptions runs subscriptions goroutine if mempool subscriptions are enabled.
 // You should manually free the resources by calling StopSubscriptions on mempool shutdown.
@@ -47,7 +28,7 @@ func (mp *Pool) StopSubscriptions() {
 // SubscribeForTransactions adds given channel to new mempool event broadcasting, so when
 // there is a new transactions added to mempool or an existing transaction removed from
 // mempool you'll receive it via this channel.
-func (mp *Pool) SubscribeForTransactions(ch chan<- Event) {
+func (mp *Pool) SubscribeForTransactions(ch chan<- mempoolevent.Event) {
 	if mp.subscriptionsOn.Load() {
 		mp.subCh <- ch
 	}
@@ -55,7 +36,7 @@ func (mp *Pool) SubscribeForTransactions(ch chan<- Event) {
 
 // UnsubscribeFromTransactions unsubscribes given channel from new mempool notifications,
 // you can close it afterwards. Passing non-subscribed channel is a no-op.
-func (mp *Pool) UnsubscribeFromTransactions(ch chan<- Event) {
+func (mp *Pool) UnsubscribeFromTransactions(ch chan<- mempoolevent.Event) {
 	if mp.subscriptionsOn.Load() {
 		mp.unsubCh <- ch
 	}
@@ -67,7 +48,7 @@ func (mp *Pool) notificationDispatcher() {
 		// These are just sets of subscribers, though modelled as maps
 		// for ease of management (not a lot of subscriptions is really
 		// expected, but maps are convenient for adding/deleting elements).
-		txFeed = make(map[chan<- Event]bool)
+		txFeed = make(map[chan<- mempoolevent.Event]bool)
 	)
 	for {
 		select {

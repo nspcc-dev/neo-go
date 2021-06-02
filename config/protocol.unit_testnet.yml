@@ -56,7 +56,7 @@ ApplicationConfiguration:
   PingTimeout: 90
   MaxPeers: 50
   AttemptConnPeers: 5
-  MinPeers: 1
+  MinPeers: 0
   P2PNotary:
     Enabled: false
     UnlockWallet:

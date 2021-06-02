@@ -1107,47 +1107,56 @@ func TestSubmitNotaryRequest(t *testing.T) {
 	})
 	t.Run("valid request", func(t *testing.T) {
 		sender := testchain.PrivateKeyByID(0) // owner of the deposit in testchain
-		mainTx := &transaction.Transaction{
-			Attributes:      []transaction.Attribute{{Type: transaction.NotaryAssistedT, Value: &transaction.NotaryAssisted{NKeys: 1}}},
-			Script:          []byte{byte(opcode.RET)},
-			ValidUntilBlock: 123,
-			Signers:         []transaction.Signer{{Account: util.Uint160{1, 5, 9}}},
-			Scripts: []transaction.Witness{{
-				InvocationScript:   []byte{1, 4, 7},
-				VerificationScript: []byte{3, 6, 9},
-			}},
-		}
-		fallbackTx := &transaction.Transaction{
-			Script:          []byte{byte(opcode.RET)},
-			ValidUntilBlock: 123,
-			Attributes: []transaction.Attribute{
-				{Type: transaction.NotValidBeforeT, Value: &transaction.NotValidBefore{Height: 123}},
-				{Type: transaction.ConflictsT, Value: &transaction.Conflicts{Hash: mainTx.Hash()}},
-				{Type: transaction.NotaryAssistedT, Value: &transaction.NotaryAssisted{NKeys: 0}},
-			},
-			Signers: []transaction.Signer{{Account: chain.GetNotaryContractScriptHash()}, {Account: sender.GetScriptHash()}},
-			Scripts: []transaction.Witness{
-				{InvocationScript: append([]byte{byte(opcode.PUSHDATA1), 64}, make([]byte, 64)...), VerificationScript: []byte{}},
-			},
-			NetworkFee: 2_0000_0000,
-		}
-		fallbackTx.Scripts = append(fallbackTx.Scripts, transaction.Witness{
-			InvocationScript:   append([]byte{byte(opcode.PUSHDATA1), 64}, sender.SignHashable(uint32(testchain.Network()), fallbackTx)...),
-			VerificationScript: sender.PublicKey().GetVerificationScript(),
-		})
-		p := &payload.P2PNotaryRequest{
-			MainTransaction:     mainTx,
-			FallbackTransaction: fallbackTx,
-		}
-		p.Witness = transaction.Witness{
-			InvocationScript:   append([]byte{byte(opcode.PUSHDATA1), 64}, sender.SignHashable(uint32(testchain.Network()), p)...),
-			VerificationScript: sender.PublicKey().GetVerificationScript(),
-		}
+		p := createValidNotaryRequest(chain, sender, 1)
 		bytes, err := p.Bytes()
 		require.NoError(t, err)
 		str := fmt.Sprintf(`"%s"`, base64.StdEncoding.EncodeToString(bytes))
 		runCase(t, false, str)(t)
 	})
+}
+
+// createValidNotaryRequest creates and signs P2PNotaryRequest payload which can
+// pass verification.
+func createValidNotaryRequest(chain *core.Blockchain, sender *keys.PrivateKey, nonce uint32) *payload.P2PNotaryRequest {
+	h := chain.BlockHeight()
+	mainTx := &transaction.Transaction{
+		Nonce:           nonce,
+		Attributes:      []transaction.Attribute{{Type: transaction.NotaryAssistedT, Value: &transaction.NotaryAssisted{NKeys: 1}}},
+		Script:          []byte{byte(opcode.RET)},
+		ValidUntilBlock: h + 100,
+		Signers:         []transaction.Signer{{Account: sender.GetScriptHash()}},
+		Scripts: []transaction.Witness{{
+			InvocationScript:   []byte{1, 4, 7},
+			VerificationScript: []byte{3, 6, 9},
+		}},
+	}
+	fallbackTx := &transaction.Transaction{
+		Script:          []byte{byte(opcode.RET)},
+		ValidUntilBlock: h + 100,
+		Attributes: []transaction.Attribute{
+			{Type: transaction.NotValidBeforeT, Value: &transaction.NotValidBefore{Height: h + 50}},
+			{Type: transaction.ConflictsT, Value: &transaction.Conflicts{Hash: mainTx.Hash()}},
+			{Type: transaction.NotaryAssistedT, Value: &transaction.NotaryAssisted{NKeys: 0}},
+		},
+		Signers: []transaction.Signer{{Account: chain.GetNotaryContractScriptHash()}, {Account: sender.GetScriptHash()}},
+		Scripts: []transaction.Witness{
+			{InvocationScript: append([]byte{byte(opcode.PUSHDATA1), 64}, make([]byte, 64)...), VerificationScript: []byte{}},
+		},
+		NetworkFee: 2_0000_0000,
+	}
+	fallbackTx.Scripts = append(fallbackTx.Scripts, transaction.Witness{
+		InvocationScript:   append([]byte{byte(opcode.PUSHDATA1), 64}, sender.SignHashable(uint32(testchain.Network()), fallbackTx)...),
+		VerificationScript: sender.PublicKey().GetVerificationScript(),
+	})
+	p := &payload.P2PNotaryRequest{
+		MainTransaction:     mainTx,
+		FallbackTransaction: fallbackTx,
+	}
+	p.Witness = transaction.Witness{
+		InvocationScript:   append([]byte{byte(opcode.PUSHDATA1), 64}, sender.SignHashable(uint32(testchain.Network()), p)...),
+		VerificationScript: sender.PublicKey().GetVerificationScript(),
+	}
+	return p
 }
 
 // testRPCProtocol runs a full set of tests using given callback to make actual

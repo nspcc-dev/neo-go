@@ -13,8 +13,8 @@ import (
 
 // P2PNotaryRequest contains main and fallback transactions for the Notary service.
 type P2PNotaryRequest struct {
-	MainTransaction     *transaction.Transaction
-	FallbackTransaction *transaction.Transaction
+	MainTransaction     *transaction.Transaction `json:"maintx"`
+	FallbackTransaction *transaction.Transaction `json:"fallbacktx"`
 
 	Witness transaction.Witness
 
