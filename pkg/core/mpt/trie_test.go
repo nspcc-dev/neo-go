@@ -85,10 +85,6 @@ func TestTrie_PutIntoBranchNode(t *testing.T) {
 	b.Children[0x8] = NewHashNode(random.Uint256())
 	tr := NewTrie(b, false, newTestStore())
 
-	// next
-	require.NoError(t, tr.Put([]byte{}, []byte{0x12, 0x34}))
-	tr.testHas(t, []byte{}, []byte{0x12, 0x34})
-
 	// empty hash node child
 	require.NoError(t, tr.Put([]byte{0x66}, []byte{0x56}))
 	tr.testHas(t, []byte{0x66}, []byte{0x56})
@@ -159,6 +155,9 @@ func TestTrie_Put(t *testing.T) {
 func TestTrie_PutInvalid(t *testing.T) {
 	tr := NewTrie(nil, false, newTestStore())
 	key, value := []byte("key"), []byte("value")
+
+	// empty key
+	require.Error(t, tr.Put(nil, value))
 
 	// big key
 	require.Error(t, tr.Put(make([]byte, maxPathLength+1), value))
@@ -271,7 +270,7 @@ func TestTrie_Get(t *testing.T) {
 
 func TestTrie_Flush(t *testing.T) {
 	pairs := map[string][]byte{
-		"":     []byte("value0"),
+		"x":    []byte("value0"),
 		"key1": []byte("value1"),
 		"key2": []byte("value2"),
 	}

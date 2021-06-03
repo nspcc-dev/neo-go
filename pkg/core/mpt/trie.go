@@ -97,7 +97,9 @@ func (t *Trie) getWithPath(curr Node, path []byte) (Node, []byte, error) {
 
 // Put puts key-value pair in t.
 func (t *Trie) Put(key, value []byte) error {
-	if len(key) > MaxKeyLength {
+	if len(key) == 0 {
+		return errors.New("key is empty")
+	} else if len(key) > MaxKeyLength {
 		return errors.New("key is too big")
 	} else if len(value) > MaxValueLength {
 		return errors.New("value is too big")
