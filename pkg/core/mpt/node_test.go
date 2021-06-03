@@ -61,7 +61,7 @@ func TestNode_Serializable(t *testing.T) {
 			t.Run("WithType", getTestFuncEncode(true, &NodeObject{e}, new(NodeObject)))
 		})
 		t.Run("BigKey", getTestFuncEncode(false,
-			NewExtensionNode(random.Bytes(MaxKeyLength+1), NewLeafNode(random.Bytes(10))), new(ExtensionNode)))
+			NewExtensionNode(random.Bytes(maxPathLength+1), NewLeafNode(random.Bytes(10))), new(ExtensionNode)))
 	})
 
 	t.Run("Branch", func(t *testing.T) {

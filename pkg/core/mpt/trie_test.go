@@ -161,7 +161,7 @@ func TestTrie_PutInvalid(t *testing.T) {
 	key, value := []byte("key"), []byte("value")
 
 	// big key
-	require.Error(t, tr.Put(make([]byte, MaxKeyLength+1), value))
+	require.Error(t, tr.Put(make([]byte, maxPathLength+1), value))
 
 	// big value
 	require.Error(t, tr.Put(key, make([]byte, MaxValueLength+1)))
