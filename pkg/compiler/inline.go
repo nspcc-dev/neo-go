@@ -1,9 +1,12 @@
 package compiler
 
 import (
+	"fmt"
 	"go/ast"
+	"go/constant"
 	"go/types"
 
+	"github.com/nspcc-dev/neo-go/pkg/core/interop/runtime"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 )
@@ -26,6 +29,8 @@ func (c *codegen) inlineCall(f *funcScope, n *ast.CallExpr) {
 
 	pkg := c.buildInfo.program.Package(f.pkg.Path())
 	sig := c.typeOf(n.Fun).(*types.Signature)
+
+	c.processNotify(f, n.Args)
 
 	// When inlined call is used during global initialization
 	// there is no func scope, thus this if.
@@ -113,4 +118,29 @@ func (c *codegen) inlineCall(f *funcScope, n *ast.CallExpr) {
 	}
 	c.importMap = oldMap
 	c.pkgInfoInline = c.pkgInfoInline[:len(c.pkgInfoInline)-1]
+}
+
+func (c *codegen) processNotify(f *funcScope, args []ast.Expr) {
+	if f != nil && f.pkg.Path() == interopPrefix+"/runtime" && f.name == "Notify" {
+		// Sometimes event name is stored in a var.
+		// Skip in this case.
+		tv := c.typeAndValueOf(args[0])
+		if tv.Value == nil {
+			return
+		}
+
+		params := make([]string, 0, len(args[1:]))
+		for _, p := range args[1:] {
+			st, _ := c.scAndVMTypeFromExpr(p)
+			params = append(params, st.String())
+		}
+
+		name := constant.StringVal(tv.Value)
+		if len(name) > runtime.MaxEventNameLen {
+			c.prog.Err = fmt.Errorf("event name '%s' should be less than %d",
+				name, runtime.MaxEventNameLen)
+			return
+		}
+		c.emittedEvents[name] = append(c.emittedEvents[name], params)
+	}
 }

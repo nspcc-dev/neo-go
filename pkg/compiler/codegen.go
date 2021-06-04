@@ -959,20 +959,6 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			ast.Walk(c, n.Fun)
 			emit.Opcodes(c.prog.BinWriter, opcode.CALLA)
 		case isSyscall(f):
-			if f.pkg.Name() == "runtime" && f.name == "Notify" {
-				tv := c.typeAndValueOf(n.Args[0])
-				params := make([]string, 0, len(n.Args[1:]))
-				for _, p := range n.Args[1:] {
-					st, _ := c.scAndVMTypeFromExpr(p)
-					params = append(params, st.String())
-				}
-				// Sometimes event name is stored in a var.
-				// Skip in this case.
-				if tv.Value != nil {
-					name := constant.StringVal(tv.Value)
-					c.emittedEvents[name] = append(c.emittedEvents[name], params)
-				}
-			}
 			c.convertSyscall(f, n)
 		default:
 			emit.Call(c.prog.BinWriter, opcode.CALLL, f.label)

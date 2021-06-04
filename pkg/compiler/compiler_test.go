@@ -9,6 +9,8 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/compiler"
 	"github.com/nspcc-dev/neo-go/pkg/config"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/stretchr/testify/require"
 )
 
@@ -128,5 +130,48 @@ func TestOnPayableChecks(t *testing.T) {
 		import "github.com/nspcc-dev/neo-go/pkg/interop"
 		func OnNEP17Payment(from interop.Hash160, amount int, data interface{}, extra int) {}`
 		require.Error(t, compileAndCheck(t, src))
+	})
+}
+
+func TestEventWarnings(t *testing.T) {
+	src := `package payable
+		import "github.com/nspcc-dev/neo-go/pkg/interop/runtime"
+		func Main() { runtime.Notify("Event", 1) }`
+
+	_, di, err := compiler.CompileWithDebugInfo("eventTest", strings.NewReader(src))
+	require.NoError(t, err)
+
+	t.Run("event it missing from config", func(t *testing.T) {
+		_, err = compiler.CreateManifest(di, &compiler.Options{})
+		require.Error(t, err)
+
+		t.Run("suppress", func(t *testing.T) {
+			_, err = compiler.CreateManifest(di, &compiler.Options{NoEventsCheck: true})
+			require.NoError(t, err)
+		})
+	})
+	t.Run("wrong parameter number", func(t *testing.T) {
+		_, err = compiler.CreateManifest(di, &compiler.Options{
+			ContractEvents: []manifest.Event{{Name: "Event"}},
+		})
+		require.Error(t, err)
+	})
+	t.Run("wrong parameter type", func(t *testing.T) {
+		_, err = compiler.CreateManifest(di, &compiler.Options{
+			ContractEvents: []manifest.Event{{
+				Name:       "Event",
+				Parameters: []manifest.Parameter{manifest.NewParameter("number", smartcontract.StringType)},
+			}},
+		})
+		require.Error(t, err)
+	})
+	t.Run("good", func(t *testing.T) {
+		_, err = compiler.CreateManifest(di, &compiler.Options{
+			ContractEvents: []manifest.Event{{
+				Name:       "Event",
+				Parameters: []manifest.Parameter{manifest.NewParameter("number", smartcontract.IntegerType)},
+			}},
+		})
+		require.NoError(t, err)
 	})
 }
