@@ -1,7 +1,7 @@
 package compiler
 
 import (
-	"go/types"
+	"go/ast"
 )
 
 type varScope struct {
@@ -10,10 +10,18 @@ type varScope struct {
 	locals    []map[string]varInfo
 }
 
+type varContext struct {
+	importMap map[string]string
+	expr      ast.Expr
+	scope     []map[string]varInfo
+}
+
 type varInfo struct {
 	refType varType
 	index   int
-	tv      types.TypeAndValue
+	// ctx is set for inline arguments and contains
+	// context for expression traversal.
+	ctx *varContext
 }
 
 const unspecifiedVarIndex = -1
@@ -32,11 +40,11 @@ func (c *varScope) dropScope() {
 	c.locals = c.locals[:len(c.locals)-1]
 }
 
-func (c *varScope) addAlias(name string, vt varType, index int, tv types.TypeAndValue) {
+func (c *varScope) addAlias(name string, vt varType, index int, ctx *varContext) {
 	c.locals[len(c.locals)-1][name] = varInfo{
 		refType: vt,
 		index:   index,
-		tv:      tv,
+		ctx:     ctx,
 	}
 }
 

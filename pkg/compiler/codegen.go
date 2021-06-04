@@ -247,8 +247,24 @@ func getBaseOpcode(t varType) (opcode.Opcode, opcode.Opcode) {
 // emitLoadVar loads specified variable to the evaluation stack.
 func (c *codegen) emitLoadVar(pkg string, name string) {
 	vi := c.getVarIndex(pkg, name)
-	if vi.tv.Value != nil {
-		c.emitLoadConst(vi.tv)
+	if vi.ctx != nil && c.typeAndValueOf(vi.ctx.expr).Value != nil {
+		c.emitLoadConst(c.typeAndValueOf(vi.ctx.expr))
+		return
+	} else if vi.ctx != nil {
+		var oldScope []map[string]varInfo
+		oldMap := c.importMap
+		c.importMap = vi.ctx.importMap
+		if c.scope != nil {
+			oldScope = c.scope.vars.locals
+			c.scope.vars.locals = vi.ctx.scope
+		}
+
+		ast.Walk(c, vi.ctx.expr)
+
+		if c.scope != nil {
+			c.scope.vars.locals = oldScope
+		}
+		c.importMap = oldMap
 		return
 	} else if vi.index == unspecifiedVarIndex {
 		emit.Opcodes(c.prog.BinWriter, opcode.PUSHNULL)
@@ -853,12 +869,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 
 		switch fun := n.Fun.(type) {
 		case *ast.Ident:
-			var pkgName string
-			if len(c.pkgInfoInline) != 0 {
-				pkgName = c.pkgInfoInline[len(c.pkgInfoInline)-1].Pkg.Path()
-			}
-			f, ok = c.funcs[c.getIdentName(pkgName, fun.Name)]
-
+			f, ok = c.getFuncFromIdent(fun)
 			isBuiltin = isGoBuiltin(fun.Name)
 			if !ok && !isBuiltin {
 				name = fun.Name
@@ -1938,6 +1949,16 @@ func (c *codegen) newFunc(decl *ast.FuncDecl) *funcScope {
 	f := c.newFuncScope(decl, c.newLabel())
 	c.funcs[c.getFuncNameFromDecl("", decl)] = f
 	return f
+}
+
+func (c *codegen) getFuncFromIdent(fun *ast.Ident) (*funcScope, bool) {
+	var pkgName string
+	if len(c.pkgInfoInline) != 0 {
+		pkgName = c.pkgInfoInline[len(c.pkgInfoInline)-1].Pkg.Path()
+	}
+
+	f, ok := c.funcs[c.getIdentName(pkgName, fun.Name)]
+	return f, ok
 }
 
 // getFuncNameFromSelector returns fully-qualified function name from the selector expression.

@@ -63,29 +63,18 @@ func (c *codegen) inlineCall(f *funcScope, n *ast.CallExpr) {
 			break
 		}
 		name := sig.Params().At(i).Name()
-		if tv := c.typeAndValueOf(n.Args[i]); tv.Value != nil {
+		if !c.hasCalls(n.Args[i]) {
+			// If argument contains no calls, we save context and traverse the expression
+			// when argument is emitted.
 			c.scope.vars.locals = newScope
-			c.scope.vars.addAlias(name, varLocal, unspecifiedVarIndex, tv)
+			c.scope.vars.addAlias(name, -1, unspecifiedVarIndex, &varContext{
+				importMap: c.importMap,
+				expr:      n.Args[i],
+				scope:     oldScope,
+			})
 			continue
 		}
-		if arg, ok := n.Args[i].(*ast.Ident); ok {
-			// When function argument is variable or const, we may avoid
-			// introducing additional variables for parameters.
-			// This is done by providing additional alias to variable.
-			if vi := c.scope.vars.getVarInfo(arg.Name); vi != nil {
-				c.scope.vars.locals = newScope
-				c.scope.vars.addAlias(name, vi.refType, vi.index, vi.tv)
-				continue
-			} else if arg.Name == "nil" {
-				c.scope.vars.locals = newScope
-				c.scope.vars.addAlias(name, varLocal, unspecifiedVarIndex, types.TypeAndValue{})
-				continue
-			} else if index, ok := c.globals[c.getIdentName("", arg.Name)]; ok {
-				c.scope.vars.locals = newScope
-				c.scope.vars.addAlias(name, varGlobal, index, types.TypeAndValue{})
-				continue
-			}
-		}
+
 		ast.Walk(c, n.Args[i])
 		c.scope.vars.locals = newScope
 		c.scope.newLocal(name)
@@ -143,4 +132,32 @@ func (c *codegen) processNotify(f *funcScope, args []ast.Expr) {
 		}
 		c.emittedEvents[name] = append(c.emittedEvents[name], params)
 	}
+}
+
+// hasCalls returns true if expression contains any calls.
+// We uses this as a rough heuristic to determine if expression calculation
+// has any side-effects.
+func (c *codegen) hasCalls(expr ast.Expr) bool {
+	var has bool
+	ast.Inspect(expr, func(n ast.Node) bool {
+		ce, ok := n.(*ast.CallExpr)
+		if !has && ok {
+			isFunc := true
+			fun, ok := ce.Fun.(*ast.Ident)
+			if ok {
+				_, isFunc = c.getFuncFromIdent(fun)
+			} else {
+				var sel *ast.SelectorExpr
+				sel, ok = ce.Fun.(*ast.SelectorExpr)
+				if ok {
+					name, _ := c.getFuncNameFromSelector(sel)
+					_, isFunc = c.funcs[name]
+					fun = sel.Sel
+				}
+			}
+			has = isFunc || fun.Obj != nil && (fun.Obj.Kind == ast.Var || fun.Obj.Kind == ast.Fun)
+		}
+		return !has
+	})
+	return has
 }
