@@ -52,7 +52,7 @@ func getTestNotary(t *testing.T, bc *Blockchain, walletPath, pass string, onTx f
 
 	w, err := wallet.NewWalletFromFile(path.Join(notaryModulePath, walletPath))
 	require.NoError(t, err)
-	require.NoError(t, w.Accounts[0].Decrypt(pass))
+	require.NoError(t, w.Accounts[0].Decrypt(pass, w.Scrypt))
 	return w.Accounts[0], ntr, mp
 }
 

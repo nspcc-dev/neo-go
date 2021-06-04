@@ -33,7 +33,7 @@ func getTestNotary(t *testing.T, bc blockchainer.Blockchainer, walletPath, pass 
 
 	w, err := wallet.NewWalletFromFile(walletPath)
 	require.NoError(t, err)
-	require.NoError(t, w.Accounts[0].Decrypt(pass))
+	require.NoError(t, w.Accounts[0].Decrypt(pass, w.Scrypt))
 	return w.Accounts[0], ntr, mp
 }
 
@@ -57,14 +57,14 @@ func TestUpdateNotaryNodes(t *testing.T) {
 		t.Run("good config password", func(t *testing.T) {
 			w, err := wallet.NewWalletFromFile("./testdata/notary1.json")
 			require.NoError(t, err)
-			require.NoError(t, w.Accounts[1].Decrypt("one"))
+			require.NoError(t, w.Accounts[1].Decrypt("one", w.Scrypt))
 			ntr.UpdateNotaryNodes(keys.PublicKeys{w.Accounts[1].PrivateKey().PublicKey()})
 			require.Equal(t, w.Accounts[1], ntr.currAccount)
 		})
 		t.Run("bad config password", func(t *testing.T) {
 			w, err := wallet.NewWalletFromFile("./testdata/notary1.json")
 			require.NoError(t, err)
-			require.NoError(t, w.Accounts[2].Decrypt("four"))
+			require.NoError(t, w.Accounts[2].Decrypt("four", w.Scrypt))
 			ntr.UpdateNotaryNodes(keys.PublicKeys{w.Accounts[2].PrivateKey().PublicKey()})
 			require.Nil(t, ntr.currAccount)
 		})

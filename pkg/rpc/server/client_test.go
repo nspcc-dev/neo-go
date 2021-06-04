@@ -621,7 +621,7 @@ func TestSignAndPushP2PNotaryRequest(t *testing.T) {
 		w, err := wallet.NewWalletFromFile(notaryPath)
 		require.NoError(t, err)
 		ntr := w.Accounts[0]
-		err = ntr.Decrypt(notaryPass)
+		err = ntr.Decrypt(notaryPass, w.Scrypt)
 		require.NoError(t, err)
 		req.FallbackTransaction.Scripts[0] = transaction.Witness{
 			InvocationScript:   append([]byte{byte(opcode.PUSHDATA1), 64}, ntr.PrivateKey().SignHashable(uint32(testchain.Network()), req.FallbackTransaction)...),

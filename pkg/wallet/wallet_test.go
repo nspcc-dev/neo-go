@@ -108,7 +108,7 @@ func TestSave(t *testing.T) {
 		w2, err := NewWalletFromFile(openedWallet.path)
 		require.NoError(t, err)
 		require.Equal(t, 2, len(w2.Accounts))
-		require.NoError(t, w2.Accounts[1].Decrypt("pass"))
+		require.NoError(t, w2.Accounts[1].Decrypt("pass", w2.Scrypt))
 		require.Equal(t, openedWallet.Accounts, w2.Accounts)
 	})
 }
@@ -207,7 +207,7 @@ func TestWalletForExamples(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 1, len(w.Accounts))
 	require.Equal(t, accountLabel, w.Accounts[0].Label)
-	require.NoError(t, w.Accounts[0].Decrypt(walletPass))
+	require.NoError(t, w.Accounts[0].Decrypt(walletPass, w.Scrypt))
 
 	// we need to keep the owner of the example contracts the same as the wallet account
 	require.Equal(t, "NbrUYaZgyhSkNoRo9ugRyEMdUZxrhkNaWB", w.Accounts[0].Address, "need to change `owner` in the example contracts")

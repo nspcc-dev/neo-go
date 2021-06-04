@@ -48,7 +48,7 @@ func TestWalletInit(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, w.Accounts, 1)
 		require.Equal(t, "букandmore", w.Accounts[0].Label)
-		require.NoError(t, w.Accounts[0].Decrypt("пароль"))
+		require.NoError(t, w.Accounts[0].Decrypt("пароль", w.Scrypt))
 		w.Close()
 	})
 
@@ -62,7 +62,7 @@ func TestWalletInit(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, w.Accounts, 1)
 		require.Equal(t, w.Accounts[0].Label, "testname")
-		require.NoError(t, w.Accounts[0].Decrypt("testpass"))
+		require.NoError(t, w.Accounts[0].Decrypt("testpass", w.Scrypt))
 		w.Close()
 
 		t.Run("RemoveAccount", func(t *testing.T) {
@@ -94,7 +94,7 @@ func TestWalletInit(t *testing.T) {
 			acc := w.GetAccount(priv.GetScriptHash())
 			require.NotNil(t, acc)
 			require.Equal(t, "test_account", acc.Label)
-			require.NoError(t, acc.Decrypt("qwerty"))
+			require.NoError(t, acc.Decrypt("qwerty", w.Scrypt))
 
 			t.Run("AlreadyExists", func(t *testing.T) {
 				e.In.WriteString("test_account_2\r")
@@ -107,7 +107,7 @@ func TestWalletInit(t *testing.T) {
 		t.Run("EncryptedWIF", func(t *testing.T) {
 			acc, err := wallet.NewAccount()
 			require.NoError(t, err)
-			require.NoError(t, acc.Encrypt("somepass"))
+			require.NoError(t, acc.Encrypt("somepass", keys.NEP2ScryptParams()))
 
 			t.Run("InvalidPassword", func(t *testing.T) {
 				e.In.WriteString("password1\r")
@@ -124,7 +124,7 @@ func TestWalletInit(t *testing.T) {
 			t.Cleanup(w.Close)
 			actual := w.GetAccount(acc.PrivateKey().GetScriptHash())
 			require.NotNil(t, actual)
-			require.NoError(t, actual.Decrypt("somepass"))
+			require.NoError(t, actual.Decrypt("somepass", w.Scrypt))
 		})
 		t.Run("Multisig", func(t *testing.T) {
 			privs, pubs := generateKeys(t, 4)
@@ -160,7 +160,7 @@ func TestWalletInit(t *testing.T) {
 			t.Cleanup(w.Close)
 			actual := w.GetAccount(hash.Hash160(script))
 			require.NotNil(t, actual)
-			require.NoError(t, actual.Decrypt("multipass"))
+			require.NoError(t, actual.Decrypt("multipass", w.Scrypt))
 			require.Equal(t, script, actual.Contract.Script)
 		})
 	})
@@ -174,7 +174,7 @@ func TestWalletExport(t *testing.T) {
 			"--wallet", validatorWallet, validatorAddr)
 		line, err := e.Out.ReadString('\n')
 		require.NoError(t, err)
-		enc, err := keys.NEP2Encrypt(validatorPriv, "one")
+		enc, err := keys.NEP2Encrypt(validatorPriv, "one", keys.NEP2ScryptParams())
 		require.NoError(t, err)
 		require.Equal(t, enc, strings.TrimSpace(line))
 	})

@@ -142,7 +142,7 @@ func NewService(cfg Config) (Service, error) {
 	// Check that wallet password is correct for at least one account.
 	var ok bool
 	for _, acc := range srv.wallet.Accounts {
-		err := acc.Decrypt(srv.Config.Wallet.Password)
+		err := acc.Decrypt(srv.Config.Wallet.Password, srv.wallet.Scrypt)
 		if err == nil {
 			ok = true
 			break
@@ -345,7 +345,7 @@ func (s *service) getKeyPair(pubs []crypto.PublicKey) (int, crypto.PrivateKey, c
 
 		key := acc.PrivateKey()
 		if acc.PrivateKey() == nil {
-			err := acc.Decrypt(s.Config.Wallet.Password)
+			err := acc.Decrypt(s.Config.Wallet.Password, s.wallet.Scrypt)
 			if err != nil {
 				s.log.Fatal("can't unlock account", zap.String("address", address.Uint160ToString(sh)))
 				break

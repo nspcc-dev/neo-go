@@ -130,7 +130,7 @@ func NewOracle(cfg Config) (*Oracle, error) {
 
 	haveAccount := false
 	for _, acc := range o.wallet.Accounts {
-		if err := acc.Decrypt(w.Password); err == nil {
+		if err := acc.Decrypt(w.Password, o.wallet.Scrypt); err == nil {
 			haveAccount = true
 			break
 		}

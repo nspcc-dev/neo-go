@@ -119,13 +119,13 @@ func (a *Account) GetVerificationScript() []byte {
 
 // Decrypt decrypts the EncryptedWIF with the given passphrase returning error
 // if anything goes wrong.
-func (a *Account) Decrypt(passphrase string) error {
+func (a *Account) Decrypt(passphrase string, scrypt keys.ScryptParams) error {
 	var err error
 
 	if a.EncryptedWIF == "" {
 		return errors.New("no encrypted wif in the account")
 	}
-	a.privateKey, err = keys.NEP2Decrypt(a.EncryptedWIF, passphrase)
+	a.privateKey, err = keys.NEP2Decrypt(a.EncryptedWIF, passphrase, scrypt)
 	if err != nil {
 		return err
 	}
@@ -138,8 +138,8 @@ func (a *Account) Decrypt(passphrase string) error {
 
 // Encrypt encrypts the wallet's PrivateKey with the given passphrase
 // under the NEP-2 standard.
-func (a *Account) Encrypt(passphrase string) error {
-	wif, err := keys.NEP2Encrypt(a.privateKey, passphrase)
+func (a *Account) Encrypt(passphrase string, scrypt keys.ScryptParams) error {
+	wif, err := keys.NEP2Encrypt(a.privateKey, passphrase, scrypt)
 	if err != nil {
 		return err
 	}
@@ -162,8 +162,8 @@ func NewAccountFromWIF(wif string) (*Account, error) {
 }
 
 // NewAccountFromEncryptedWIF creates a new Account from the given encrypted WIF.
-func NewAccountFromEncryptedWIF(wif string, pass string) (*Account, error) {
-	priv, err := keys.NEP2Decrypt(wif, pass)
+func NewAccountFromEncryptedWIF(wif string, pass string, scrypt keys.ScryptParams) (*Account, error) {
+	priv, err := keys.NEP2Decrypt(wif, pass, scrypt)
 	if err != nil {
 		return nil, err
 	}

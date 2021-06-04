@@ -39,7 +39,7 @@ func getKeys(t *testing.T) []*keys.PublicKey {
 func getAccount(t *testing.T, wif, pass string) *Account {
 	acc, err := NewAccountFromWIF(wif)
 	require.NoError(t, err)
-	require.NoError(t, acc.Encrypt(pass))
+	require.NoError(t, acc.Encrypt(pass, keys.NEP2ScryptParams()))
 	return acc
 }
 

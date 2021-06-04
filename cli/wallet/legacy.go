@@ -50,9 +50,9 @@ func newWalletV2FromFile(path string) (*walletV2, error) {
 
 const simpleSigLen = 35
 
-func (a *accountV2) convert(pass string) (*wallet.Account, error) {
+func (a *accountV2) convert(pass string, scrypt keys.ScryptParams) (*wallet.Account, error) {
 	address.Prefix = address.NEO2Prefix
-	priv, err := keys.NEP2Decrypt(a.EncryptedWIF, pass)
+	priv, err := keys.NEP2Decrypt(a.EncryptedWIF, pass, scrypt)
 	if err != nil {
 		return nil, err
 	}
@@ -83,7 +83,7 @@ func (a *accountV2) convert(pass string) (*wallet.Account, error) {
 	newAcc.Default = a.Default
 	newAcc.Label = a.Label
 	newAcc.Locked = a.Locked
-	return newAcc, newAcc.Encrypt(pass)
+	return newAcc, newAcc.Encrypt(pass, scrypt)
 }
 
 const (

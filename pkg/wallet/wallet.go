@@ -92,7 +92,7 @@ func (w *Wallet) CreateAccount(name, passphrase string) error {
 		return err
 	}
 	acc.Label = name
-	if err := acc.Encrypt(passphrase); err != nil {
+	if err := acc.Encrypt(passphrase, w.Scrypt); err != nil {
 		return err
 	}
 	w.AddAccount(acc)

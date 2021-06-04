@@ -94,7 +94,7 @@ func NewNotary(cfg Config, net netmode.Magic, mp *mempool.Pool, onTransaction fu
 
 	haveAccount := false
 	for _, acc := range wallet.Accounts {
-		if err := acc.Decrypt(w.Password); err == nil {
+		if err := acc.Decrypt(w.Password, wallet.Scrypt); err == nil {
 			haveAccount = true
 			break
 		}

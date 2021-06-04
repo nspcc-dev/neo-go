@@ -22,7 +22,7 @@ func TestDecryptAccount(t *testing.T) {
 	for _, testCase := range keytestcases.Arr {
 		acc := &Account{EncryptedWIF: testCase.EncryptedWif}
 		assert.Nil(t, acc.PrivateKey())
-		err := acc.Decrypt(testCase.Passphrase)
+		err := acc.Decrypt(testCase.Passphrase, keys.NEP2ScryptParams())
 		if testCase.Invalid {
 			assert.Error(t, err)
 			continue
@@ -34,7 +34,7 @@ func TestDecryptAccount(t *testing.T) {
 	}
 	// No encrypted key.
 	acc := &Account{}
-	require.Error(t, acc.Decrypt("qwerty"))
+	require.Error(t, acc.Decrypt("qwerty", keys.NEP2ScryptParams()))
 }
 
 func TestNewFromWif(t *testing.T) {
@@ -52,7 +52,7 @@ func TestNewFromWif(t *testing.T) {
 
 func TestNewAccountFromEncryptedWIF(t *testing.T) {
 	for _, tc := range keytestcases.Arr {
-		acc, err := NewAccountFromEncryptedWIF(tc.EncryptedWif, tc.Passphrase)
+		acc, err := NewAccountFromEncryptedWIF(tc.EncryptedWif, tc.Passphrase, keys.NEP2ScryptParams())
 		if tc.Invalid {
 			assert.Error(t, err)
 			continue
