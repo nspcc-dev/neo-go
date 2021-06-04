@@ -121,7 +121,21 @@ func (c *codegen) inlineCall(f *funcScope, n *ast.CallExpr) {
 }
 
 func (c *codegen) processNotify(f *funcScope, args []ast.Expr) {
-	if f != nil && f.pkg.Path() == interopPrefix+"/runtime" && f.name == "Notify" {
+	if f != nil && f.pkg.Path() == interopPrefix+"/runtime" {
+		if f.name != "Notify" && f.name != "Log" {
+			return
+		}
+
+		if c.scope != nil && c.isVerifyFunc(c.scope.decl) &&
+			c.scope.pkg == c.mainPkg.Pkg && !c.buildInfo.options.NoEventsCheck {
+			c.prog.Err = fmt.Errorf("runtime.%s is not allowed in `Verify`", f.name)
+			return
+		}
+
+		if f.name == "Log" {
+			return
+		}
+
 		// Sometimes event name is stored in a var.
 		// Skip in this case.
 		tv := c.typeAndValueOf(args[0])

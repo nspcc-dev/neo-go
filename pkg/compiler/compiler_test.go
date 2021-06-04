@@ -1,6 +1,7 @@
 package compiler_test
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path"
@@ -174,4 +175,25 @@ func TestEventWarnings(t *testing.T) {
 		})
 		require.NoError(t, err)
 	})
+}
+
+func TestNotifyInVerify(t *testing.T) {
+	srcTmpl := `package payable
+		import "github.com/nspcc-dev/neo-go/pkg/interop/runtime"
+		func Verify() bool { runtime.%s("Event"); return true }`
+
+	for _, name := range []string{"Notify", "Log"} {
+		t.Run(name, func(t *testing.T) {
+			src := fmt.Sprintf(srcTmpl, name)
+			_, _, err := compiler.CompileWithOptions("eventTest", strings.NewReader(src),
+				&compiler.Options{ContractEvents: []manifest.Event{{Name: "Event"}}})
+			require.Error(t, err)
+
+			t.Run("suppress", func(t *testing.T) {
+				_, _, err := compiler.CompileWithOptions("eventTest", strings.NewReader(src),
+					&compiler.Options{NoEventsCheck: true})
+				require.NoError(t, err)
+			})
+		})
+	}
 }

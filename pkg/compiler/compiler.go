@@ -59,6 +59,7 @@ type Options struct {
 type buildInfo struct {
 	initialPackage string
 	program        *loader.Program
+	options        *Options
 }
 
 // ForEachPackage executes fn on each package used in the current program
@@ -153,10 +154,18 @@ func Compile(name string, r io.Reader) ([]byte, error) {
 
 // CompileWithDebugInfo compiles a Go program into bytecode and emits debug info.
 func CompileWithDebugInfo(name string, r io.Reader) ([]byte, *DebugInfo, error) {
+	return CompileWithOptions(name, r, &Options{
+		NoEventsCheck: true,
+	})
+}
+
+// CompileWithOptions compiles a Go program into bytecode with provided compiler options.
+func CompileWithOptions(name string, r io.Reader, o *Options) ([]byte, *DebugInfo, error) {
 	ctx, err := getBuildInfo(name, r)
 	if err != nil {
 		return nil, nil, err
 	}
+	ctx.options = o
 	return CodeGen(ctx)
 }
 
@@ -173,7 +182,7 @@ func CompileAndSave(src string, o *Options) ([]byte, error) {
 	if len(o.Ext) == 0 {
 		o.Ext = fileExt
 	}
-	b, di, err := CompileWithDebugInfo(src, nil)
+	b, di, err := CompileWithOptions(src, nil, o)
 	if err != nil {
 		return nil, fmt.Errorf("error while trying to compile smart contract file: %w", err)
 	}
