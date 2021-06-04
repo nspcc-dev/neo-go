@@ -34,12 +34,12 @@ var errNetworkNotInitialized = errors.New("RPC client network is not initialized
 func (c *Client) CalculateNetworkFee(tx *transaction.Transaction) (int64, error) {
 	var (
 		params = request.NewRawParams(tx.Bytes())
-		resp   int64
+		resp   = new(result.NetworkFee)
 	)
-	if err := c.performRequest("calculatenetworkfee", params, &resp); err != nil {
+	if err := c.performRequest("calculatenetworkfee", params, resp); err != nil {
 		return 0, err
 	}
-	return resp, nil
+	return resp.Value, nil
 }
 
 // GetApplicationLog returns the contract log based on the specified txid.
