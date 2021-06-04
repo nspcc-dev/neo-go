@@ -172,9 +172,7 @@ func newServerFromConstructors(config ServerConfig, chain blockchainer.Blockchai
 		return nil, errors.New("P2PSigExtensions are disabled, but Notary service is enable")
 	}
 	s.bQueue = newBlockQueue(maxBlockBatch, chain, log, func(b *block.Block) {
-		if !s.syncReached.Load() {
-			s.tryStartServices()
-		}
+		s.tryStartServices()
 	})
 
 	if config.StateRootCfg.Enabled && chain.GetConfig().StateRootInHeader {
