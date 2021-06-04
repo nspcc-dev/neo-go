@@ -174,7 +174,7 @@ func TestWalletExport(t *testing.T) {
 			"--wallet", validatorWallet, validatorAddr)
 		line, err := e.Out.ReadString('\n')
 		require.NoError(t, err)
-		enc, err := keys.NEP2Encrypt(validatorPriv, "one", keys.NEP2ScryptParams())
+		enc, err := keys.NEP2Encrypt(validatorPriv, "one", keys.ScryptParams{N: 2, R: 1, P: 1}) // these params used in validator wallet for better resources consumption
 		require.NoError(t, err)
 		require.Equal(t, enc, strings.TrimSpace(line))
 	})

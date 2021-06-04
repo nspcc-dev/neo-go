@@ -1,11 +1,17 @@
 package wallet
 
 import (
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"path"
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
 	"github.com/stretchr/testify/require"
 )
 
@@ -37,9 +43,13 @@ func getKeys(t *testing.T) []*keys.PublicKey {
 }
 
 func getAccount(t *testing.T, wif, pass string) *Account {
+	return getAccountWithScrypt(t, wif, pass, keys.NEP2ScryptParams())
+}
+
+func getAccountWithScrypt(t *testing.T, wif, pass string, scrypt keys.ScryptParams) *Account {
 	acc, err := NewAccountFromWIF(wif)
 	require.NoError(t, err)
-	require.NoError(t, acc.Encrypt(pass, keys.NEP2ScryptParams()))
+	require.NoError(t, acc.Encrypt(pass, scrypt))
 	return acc
 }
 
@@ -114,12 +124,13 @@ func TestRegenerateNotaryWallets(t *testing.T) {
 		acc4WIF   = "L1ioz93TNt6Nu1aoMpZQ4zgdtgC8ZvJMC6pyHFkrovdR3SFwbn6n"
 	)
 
-	acc1 := getAccount(t, acc1WIF, "one")
-	acc2 := getAccount(t, acc2WIF, "one")
-	acc3 := getAccount(t, acc3WIF, "four")
+	scryptParams := keys.ScryptParams{N: 2, R: 1, P: 1}
+	acc1 := getAccountWithScrypt(t, acc1WIF, "one", scryptParams)
+	acc2 := getAccountWithScrypt(t, acc2WIF, "one", scryptParams)
+	acc3 := getAccountWithScrypt(t, acc3WIF, "four", scryptParams)
 	createWallet(t, path.Join(walletDir, "notary1.json"), acc1, acc2, acc3)
 
-	acc4 := getAccount(t, acc4WIF, "two")
+	acc4 := getAccountWithScrypt(t, acc4WIF, "two", scryptParams)
 	createWallet(t, path.Join(walletDir, "notary2.json"), acc4)
 }
 
@@ -163,7 +174,7 @@ func TestRegenerateCLITestwallet(t *testing.T) {
 		accWIF     = "L23LrQNWELytYLvb5c6dXBDdF2DNPL9RRNWPqppv3roxacSnn8CN"
 	)
 
-	acc := getAccount(t, accWIF, "testpass")
+	acc := getAccountWithScrypt(t, accWIF, "testpass", keys.ScryptParams{N: 2, R: 1, P: 1})
 	acc.Label = "kek"
 	createWallet(t, walletPath, acc)
 }
@@ -184,9 +195,53 @@ func TestRegenerateCLITestwallet_NEO3(t *testing.T) {
 func createWallet(t *testing.T, path string, accs ...*Account) {
 	w, err := NewWallet(path)
 	require.NoError(t, err)
+	if len(accs) == 0 {
+		t.Fatal("provide at least 1 account")
+	}
 	for _, acc := range accs {
 		w.AddAccount(acc)
 	}
 	require.NoError(t, w.savePretty())
 	w.Close()
+}
+
+func TestRegenerateCLIWallet1_solo(t *testing.T) {
+	if !regenerate {
+		return
+	}
+	const (
+		walletPath         = "../../cli/testdata/wallet1_solo.json"
+		verifyWIF          = "L3W8gi36Y3KPqyR54VJaE1agH9yPvW2hALNZy1BerDwWce9P9xEy"
+		verifyNEFPath      = "../../cli/testdata/verify.nef"
+		verifyManifestPath = "../../cli/testdata/verify.manifest.json"
+	)
+
+	scrypt := keys.ScryptParams{N: 2, R: 1, P: 1}
+	wif := privnetWIFs[0]
+	acc1 := getAccountWithScrypt(t, wif, "one", scrypt)
+	acc1.Default = true
+	acc2 := getAccountWithScrypt(t, wif, "one", scrypt)
+	require.NoError(t, acc2.ConvertMultisig(3, getKeys(t)))
+
+	acc3 := getAccountWithScrypt(t, wif, "one", scrypt)
+	require.NoError(t, acc3.ConvertMultisig(1, keys.PublicKeys{getKeys(t)[0]}))
+
+	acc4 := getAccountWithScrypt(t, verifyWIF, "pass", scrypt) // deployed verify.go contract
+	f, err := ioutil.ReadFile(verifyNEFPath)
+	require.NoError(t, err)
+	nefFile, err := nef.FileFromBytes(f)
+	require.NoError(t, err)
+	manifestBytes, err := ioutil.ReadFile(verifyManifestPath)
+	require.NoError(t, err)
+	m := &manifest.Manifest{}
+	require.NoError(t, json.Unmarshal(manifestBytes, m))
+	hash := state.CreateContractHash(acc3.PrivateKey().GetScriptHash(), nefFile.Checksum, m.Name)
+	acc4.Address = address.Uint160ToString(hash)
+	acc4.Contract = &Contract{
+		Script:     nefFile.Script,
+		Deployed:   true,
+		Parameters: []ContractParam{},
+	}
+	acc4.Label = "verify"
+	createWallet(t, walletPath, acc1, acc2, acc3, acc4)
 }

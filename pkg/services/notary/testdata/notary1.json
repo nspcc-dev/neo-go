@@ -3,7 +3,7 @@
   "accounts": [
     {
       "address": "Nbruchf1SGfar3sN4cPr1UG1bWqADrN5sh",
-      "key": "6PYRC8sNNB5rVx96ezh6Eefw8JcdQPRBfHx7hfe251m4bwHQnH2cZbcRk8",
+      "key": "6PYRC8sNMsyDRf8wVvQEpBJa5JXKbQ1SXGaXTvzW8u8mcpBTYs6E6kk1a6",
       "label": "",
       "contract": {
         "script": "DCEDm5PmbOfVPmYXTSVW903XnOhhNBTsF9oDlVYusIH/ui1BVuezJw==",
@@ -20,7 +20,7 @@
     },
     {
       "address": "NiYvEoR2FTD8FmGXtg1WMhkaTS9A6VH7YV",
-      "key": "6PYMecvacj5qTSB771Q9k4wfqTRK4SXSQhmDsDAxZxBgEVJf4BsnrgrQYS",
+      "key": "6PYMecvacKctbTeqApPGuukViQ2bbvFG4qNNm7VJS4oGzTF3rpptsbDaKd",
       "label": "",
       "contract": {
         "script": "DCEDHRWEIGXHCwUU2Fc7B0qrYPezXR0sfdEduRExyzIKVC9BVuezJw==",
@@ -37,7 +37,7 @@
     },
     {
       "address": "NcPWfiU7bJkUpBruEQcGRyo91bTWijcUXY",
-      "key": "6PYWH6sS2JVshBA5ijMAT1CtFbs9LcLuthYoR4eZMD8TyXShD1c2zLsfjC",
+      "key": "6PYWH6sS3VzGWq6K8oSoiRKDKSKkHHWhjHn9zQ8Qs2Zn9KboqWzseieXj2",
       "label": "",
       "contract": {
         "script": "DCECmUfs/gqKHd3AdJm5+Ev6zkubV8pP8DZzgu8+t5WdphJBVuezJw==",
@@ -54,9 +54,9 @@
     }
   ],
   "scrypt": {
-    "n": 16384,
-    "r": 8,
-    "p": 8
+    "n": 2,
+    "r": 1,
+    "p": 1
   },
   "extra": {
     "Tokens": null
