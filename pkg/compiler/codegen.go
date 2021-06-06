@@ -353,6 +353,12 @@ func isInitFunc(decl *ast.FuncDecl) bool {
 		decl.Type.Results.NumFields() == 0
 }
 
+func (c *codegen) isVerifyFunc(decl *ast.FuncDecl) bool {
+	return decl.Name.Name == "Verify" && decl.Recv == nil &&
+		decl.Type.Results.NumFields() == 1 &&
+		isBool(c.typeOf(decl.Type.Results.List[0].Type))
+}
+
 func (c *codegen) clearSlots(n int) {
 	for i := 0; i < n; i++ {
 		emit.Opcodes(c.prog.BinWriter, opcode.PUSHNULL)
