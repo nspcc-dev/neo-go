@@ -634,7 +634,7 @@ func (s *Server) calculateNetworkFee(reqParams request.Params) (interface{}, *re
 	}
 	fee := s.chain.GetPolicer().FeePerByte()
 	netFee += int64(size) * fee
-	return netFee, nil
+	return result.NetworkFee{Value: netFee}, nil
 }
 
 // getApplicationLog returns the contract log based on the specified txid or blockid.
