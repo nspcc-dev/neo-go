@@ -1,13 +1,18 @@
 package smartcontract
 
 import (
+	"encoding/hex"
 	"flag"
 	"io/ioutil"
 	"os"
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/internal/random"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/stretchr/testify/require"
 	"github.com/urfave/cli"
+	"gopkg.in/yaml.v2"
 )
 
 func TestInitSmartContract(t *testing.T) {
@@ -64,5 +69,73 @@ events:
   parameters:
   - name: args
     type: Array
+permissions:
+- methods: '*'
 `, string(manifest))
+}
+
+func testPermissionMarshal(t *testing.T, p *manifest.Permission, expected string) {
+	out, err := yaml.Marshal((*permission)(p))
+	require.NoError(t, err)
+	require.Equal(t, expected, string(out))
+
+	t.Run("Unmarshal", func(t *testing.T) {
+		actual := new(permission)
+		require.NoError(t, yaml.Unmarshal(out, actual))
+		require.Equal(t, p, (*manifest.Permission)(actual))
+	})
+}
+
+func TestPermissionMarshal(t *testing.T) {
+	t.Run("Wildcard", func(t *testing.T) {
+		p := manifest.NewPermission(manifest.PermissionWildcard)
+		testPermissionMarshal(t, p, "methods: '*'\n")
+	})
+	t.Run("no allowed methods", func(t *testing.T) {
+		p := manifest.NewPermission(manifest.PermissionWildcard)
+		p.Methods.Restrict()
+		testPermissionMarshal(t, p, "methods: []\n")
+	})
+	t.Run("hash", func(t *testing.T) {
+		h := random.Uint160()
+		p := manifest.NewPermission(manifest.PermissionHash, h)
+		testPermissionMarshal(t, p,
+			"hash: "+h.StringLE()+"\n"+
+				"methods: '*'\n")
+	})
+	t.Run("group with some methods", func(t *testing.T) {
+		priv, err := keys.NewPrivateKey()
+		require.NoError(t, err)
+
+		p := manifest.NewPermission(manifest.PermissionGroup, priv.PublicKey())
+		p.Methods.Add("abc")
+		p.Methods.Add("lamao")
+		testPermissionMarshal(t, p,
+			"group: "+hex.EncodeToString(priv.PublicKey().Bytes())+"\n"+
+				"methods:\n- abc\n- lamao\n")
+	})
+}
+
+func TestPermissionUnmarshalInvalid(t *testing.T) {
+	priv, err := keys.NewPrivateKey()
+	require.NoError(t, err)
+
+	pub := hex.EncodeToString(priv.PublicKey().Bytes())
+	u160 := random.Uint160().StringLE()
+	testCases := []string{
+		"hash: []\nmethods: '*'\n",                             // invalid hash type
+		"hash: notahex\nmethods: '*'\n",                        // invalid hash
+		"group: []\nmethods: '*'\n",                            // invalid group type
+		"group: notahex\nmethods: '*'\n",                       // invalid group
+		"hash: " + u160 + "\n",                                 // missing methods
+		"group: " + pub + "\nhash: " + u160 + "\nmethods: '*'", // hash/group conflict
+		"hash: " + u160 + "\nmethods:\n  a: b\n",               // invalid methods type
+		"hash: " + u160 + "\nmethods:\n- []\n",                 // methods array, invalid single
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc, func(t *testing.T) {
+			require.Error(t, yaml.Unmarshal([]byte(tc), new(permission)))
+		})
+	}
 }

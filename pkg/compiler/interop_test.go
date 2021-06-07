@@ -18,6 +18,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	cinterop "github.com/nspcc-dev/neo-go/pkg/interop"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -157,7 +158,12 @@ func TestAppCall(t *testing.T) {
 
 	inner, di, err := compiler.CompileWithDebugInfo("foo.go", strings.NewReader(srcInner))
 	require.NoError(t, err)
-	m, err := di.ConvertToManifest(&compiler.Options{Name: "Foo"})
+	m, err := di.ConvertToManifest(&compiler.Options{
+		Name: "Foo",
+		Permissions: []manifest.Permission{
+			*manifest.NewPermission(manifest.PermissionWildcard),
+		},
+	})
 	require.NoError(t, err)
 
 	ih := hash.Hash160(inner)

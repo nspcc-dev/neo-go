@@ -13,3 +13,5 @@ events:
         type: Integer
       - name: tokenId
         type: ByteArray
+permissions:
+  - methods: ["onNEP11Transfer"]

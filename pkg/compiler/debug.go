@@ -441,13 +441,6 @@ func (di *DebugInfo) ConvertToManifest(o *Options) (*manifest.Manifest, error) {
 	if result.ABI.Events == nil {
 		result.ABI.Events = make([]manifest.Event, 0)
 	}
-	result.Permissions = []manifest.Permission{
-		{
-			Contract: manifest.PermissionDesc{
-				Type: manifest.PermissionWildcard,
-			},
-			Methods: manifest.WildStrings{},
-		},
-	}
+	result.Permissions = o.Permissions
 	return result, nil
 }
