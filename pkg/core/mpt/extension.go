@@ -11,8 +11,14 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/util"
 )
 
-// MaxKeyLength is the max length of the extension node key.
-const MaxKeyLength = (storage.MaxStorageKeyLen + 4) * 2
+const (
+	// maxPathLength is the max length of the extension node key.
+	maxPathLength = (storage.MaxStorageKeyLen + 4) * 2
+
+	// MaxKeyLength is the max length of the key to put in trie
+	// before transforming to nibbles.
+	MaxKeyLength = maxPathLength / 2
+)
 
 // ExtensionNode represents MPT's extension node.
 type ExtensionNode struct {
@@ -48,7 +54,7 @@ func (e *ExtensionNode) Bytes() []byte {
 // DecodeBinary implements io.Serializable.
 func (e *ExtensionNode) DecodeBinary(r *io.BinReader) {
 	sz := r.ReadVarUint()
-	if sz > MaxKeyLength {
+	if sz > maxPathLength {
 		r.Err = fmt.Errorf("extension node key is too big: %d", sz)
 		return
 	}

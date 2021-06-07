@@ -70,26 +70,26 @@ func TestTrie_PutBatchLeaf(t *testing.T) {
 	prepareLeaf := func(t *testing.T) (*Trie, *Trie) {
 		tr1 := NewTrie(new(HashNode), false, newTestStore())
 		tr2 := NewTrie(new(HashNode), false, newTestStore())
-		require.NoError(t, tr1.Put([]byte{}, []byte("value")))
-		require.NoError(t, tr2.Put([]byte{}, []byte("value")))
+		require.NoError(t, tr1.Put([]byte{0}, []byte("value")))
+		require.NoError(t, tr2.Put([]byte{0}, []byte("value")))
 		return tr1, tr2
 	}
 
 	t.Run("remove", func(t *testing.T) {
 		tr1, tr2 := prepareLeaf(t)
-		var ps = pairs{{[]byte{}, nil}}
+		var ps = pairs{{[]byte{0}, nil}}
 		testPut(t, ps, tr1, tr2)
 	})
 	t.Run("replace", func(t *testing.T) {
 		tr1, tr2 := prepareLeaf(t)
-		var ps = pairs{{[]byte{}, []byte("replace")}}
+		var ps = pairs{{[]byte{0}, []byte("replace")}}
 		testPut(t, ps, tr1, tr2)
 	})
 	t.Run("remove and replace", func(t *testing.T) {
 		tr1, tr2 := prepareLeaf(t)
 		var ps = pairs{
-			{[]byte{}, nil},
-			{[]byte{2}, []byte("replace2")},
+			{[]byte{0}, nil},
+			{[]byte{0, 2}, []byte("replace2")},
 		}
 		testPut(t, ps, tr1, tr2)
 	})
@@ -122,7 +122,7 @@ func TestTrie_PutBatchExtension(t *testing.T) {
 	t.Run("add to next with leaf", func(t *testing.T) {
 		tr1, tr2 := prepareExtension(t)
 		var ps = pairs{
-			{[]byte{}, []byte("value3")},
+			{[]byte{0}, []byte("value3")},
 			{[]byte{1, 2, 3}, []byte("value2")},
 		}
 		testPut(t, ps, tr1, tr2)
@@ -232,7 +232,7 @@ func TestTrie_PutBatchEmpty(t *testing.T) {
 		tr1 := NewTrie(new(HashNode), false, newTestStore())
 		tr2 := NewTrie(new(HashNode), false, newTestStore())
 		var ps = pairs{
-			{[]byte{}, []byte("value0")},
+			{[]byte{0}, []byte("value0")},
 			{[]byte{1}, []byte("value1")},
 			{[]byte{3}, []byte("value3")},
 		}
@@ -240,7 +240,7 @@ func TestTrie_PutBatchEmpty(t *testing.T) {
 	})
 	t.Run("incomplete", func(t *testing.T) {
 		var ps = pairs{
-			{[]byte{}, []byte("replace0")},
+			{[]byte{0}, []byte("replace0")},
 			{[]byte{1}, []byte("replace1")},
 			{[]byte{2}, nil},
 			{[]byte{3}, []byte("replace3")},

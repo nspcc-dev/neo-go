@@ -96,7 +96,7 @@ func (n *NodeObject) UnmarshalJSON(data []byte) error {
 		key, err := unmarshalHex(keyRaw)
 		if err != nil {
 			return err
-		} else if len(key) > MaxKeyLength {
+		} else if len(key) > maxPathLength {
 			return errors.New("extension key is too big")
 		}
 
