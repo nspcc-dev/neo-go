@@ -65,6 +65,7 @@ var coefficients = map[opcode.Opcode]int64{
 	opcode.CALL:         1 << 9,
 	opcode.CALLL:        1 << 9,
 	opcode.CALLA:        1 << 9,
+	opcode.CALLT:        1 << 15,
 	opcode.ABORT:        0,
 	opcode.ASSERT:       1 << 0,
 	opcode.THROW:        1 << 9,
