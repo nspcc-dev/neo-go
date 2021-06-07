@@ -1,7 +1,6 @@
 package neofs
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -10,13 +9,11 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/gogo/protobuf/jsonpb"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neofs-api-go/pkg/client"
 	"github.com/nspcc-dev/neofs-api-go/pkg/container"
 	"github.com/nspcc-dev/neofs-api-go/pkg/object"
-	objectv2 "github.com/nspcc-dev/neofs-api-go/v2/object"
 )
 
 const (
@@ -50,7 +47,7 @@ func Get(ctx context.Context, priv *keys.PrivateKey, u *url.URL, addr string) ([
 		return nil, err
 	}
 
-	c, err := client.New(&priv.PrivateKey, client.WithAddress(addr))
+	c, err := client.New(client.WithDefaultPrivateKey(&priv.PrivateKey), client.WithURIAddress(addr, nil))
 	if err != nil {
 		return nil, err
 	}
@@ -96,7 +93,7 @@ func parseNeoFSURL(u *url.URL) (*object.Address, []string, error) {
 	return objectAddr, ps[2:], nil
 }
 
-func getPayload(ctx context.Context, c *client.Client, addr *object.Address) ([]byte, error) {
+func getPayload(ctx context.Context, c client.Client, addr *object.Address) ([]byte, error) {
 	obj, err := c.GetObject(ctx, new(client.GetObjectParams).WithAddress(addr))
 	if err != nil {
 		return nil, err
@@ -104,7 +101,7 @@ func getPayload(ctx context.Context, c *client.Client, addr *object.Address) ([]
 	return checkUTF8(obj.Payload())
 }
 
-func getRange(ctx context.Context, c *client.Client, addr *object.Address, ps ...string) ([]byte, error) {
+func getRange(ctx context.Context, c client.Client, addr *object.Address, ps ...string) ([]byte, error) {
 	if len(ps) == 0 {
 		return nil, ErrInvalidRange
 	}
@@ -119,18 +116,15 @@ func getRange(ctx context.Context, c *client.Client, addr *object.Address, ps ..
 	return checkUTF8(data)
 }
 
-func getHeader(ctx context.Context, c *client.Client, addr *object.Address) ([]byte, error) {
+func getHeader(ctx context.Context, c client.Client, addr *object.Address) ([]byte, error) {
 	obj, err := c.GetObjectHeader(ctx, new(client.ObjectHeaderParams).WithAddress(addr))
 	if err != nil {
 		return nil, err
 	}
-	msg := objectv2.ObjectToGRPCMessage(obj.ToV2()).Header
-	b := bytes.NewBuffer(nil)
-	err = new(jsonpb.Marshaler).Marshal(b, msg)
-	return b.Bytes(), err
+	return obj.MarshalHeaderJSON()
 }
 
-func getHash(ctx context.Context, c *client.Client, addr *object.Address, ps ...string) ([]byte, error) {
+func getHash(ctx context.Context, c client.Client, addr *object.Address, ps ...string) ([]byte, error) {
 	if len(ps) == 0 || ps[0] == "" { // hash of the full payload
 		obj, err := c.GetObjectHeader(ctx, new(client.ObjectHeaderParams).WithAddress(addr))
 		if err != nil {
