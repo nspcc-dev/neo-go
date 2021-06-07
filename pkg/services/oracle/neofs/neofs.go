@@ -12,7 +12,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neofs-api-go/pkg/client"
-	"github.com/nspcc-dev/neofs-api-go/pkg/container"
+	cid "github.com/nspcc-dev/neofs-api-go/pkg/container/id"
 	"github.com/nspcc-dev/neofs-api-go/pkg/object"
 )
 
@@ -77,7 +77,7 @@ func parseNeoFSURL(u *url.URL) (*object.Address, []string, error) {
 		return nil, nil, ErrMissingObject
 	}
 
-	containerID := container.NewID()
+	containerID := cid.New()
 	if err := containerID.Parse(ps[0]); err != nil {
 		return nil, nil, fmt.Errorf("%w: %v", ErrInvalidContainer, err)
 	}
