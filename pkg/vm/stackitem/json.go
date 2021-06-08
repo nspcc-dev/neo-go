@@ -111,6 +111,10 @@ func writeJSONString(w *io.BinWriter, it Item) {
 		return
 	}
 	data, _ := json.Marshal(s) // error never occurs because `ToString` checks for validity
+
+	// ref https://github.com/neo-project/neo-modules/issues/375 and https://github.com/dotnet/runtime/issues/35281
+	data = bytes.Replace(data, []byte{'+'}, []byte("\\u002B"), -1)
+
 	w.WriteBytes(data)
 }
 
