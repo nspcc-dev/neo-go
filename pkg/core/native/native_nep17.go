@@ -163,7 +163,9 @@ func (c *nep17TokenNative) emitTransfer(ic *interop.Context, from, to *util.Uint
 	ic.Notifications = append(ic.Notifications, ne)
 }
 
-func (c *nep17TokenNative) updateAccBalance(ic *interop.Context, acc util.Uint160, amount *big.Int) error {
+// updateAccBalance adds specified amount to the acc's balance. If requiredBalance
+// is set and amount is 0, then acc's balance is checked against requiredBalance.
+func (c *nep17TokenNative) updateAccBalance(ic *interop.Context, acc util.Uint160, amount *big.Int, requiredBalance *big.Int) error {
 	key := makeAccountKey(acc)
 	si := ic.DAO.GetStorageItem(c.ID, key)
 	if si == nil {
@@ -171,6 +173,24 @@ func (c *nep17TokenNative) updateAccBalance(ic *interop.Context, acc util.Uint16
 			return errors.New("insufficient funds")
 		}
 		si = state.StorageItem{}
+	} else if amount.Sign() == 0 && requiredBalance != nil {
+		// If amount == 0 then it's either a roundtrip or an empty transfer. In
+		// case of a roundtrip account's balance may still be less than actual
+		// transfer's amount, so we need to check it. Other cases are handled by
+		// `incBalance` method.
+		balance, err := c.balFromBytes(&si)
+		if err != nil {
+			return fmt.Errorf("failed to deserialise balance: %w", err)
+		}
+		if balance.Cmp(requiredBalance) < 0 {
+			// Firstly, need to put it back to storage as it affects dumps.
+			err = ic.DAO.PutStorageItem(c.ID, key, si)
+			if err != nil {
+				return err
+			}
+			// Finally, return an error.
+			return errors.New("insufficient funds")
+		}
 	}
 
 	err := c.incBalance(ic, acc, &si, amount)
@@ -207,12 +227,12 @@ func (c *nep17TokenNative) TransferInternal(ic *interop.Context, from, to util.U
 	} else {
 		inc = new(big.Int).Neg(inc)
 	}
-	if err := c.updateAccBalance(ic, from, inc); err != nil {
+	if err := c.updateAccBalance(ic, from, inc, amount); err != nil {
 		return err
 	}
 
 	if !isEmpty {
-		if err := c.updateAccBalance(ic, to, amount); err != nil {
+		if err := c.updateAccBalance(ic, to, amount, nil); err != nil {
 			return err
 		}
 	}
