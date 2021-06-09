@@ -498,9 +498,15 @@ func initBasicChain(t *testing.T, bc *Blockchain) {
 }
 
 func newNEP17Transfer(sc, from, to util.Uint160, amount int64, additionalArgs ...interface{}) *transaction.Transaction {
+	return newNEP17TransferWithAssert(sc, from, to, amount, true, additionalArgs...)
+}
+
+func newNEP17TransferWithAssert(sc, from, to util.Uint160, amount int64, needAssert bool, additionalArgs ...interface{}) *transaction.Transaction {
 	w := io.NewBufBinWriter()
 	emit.AppCall(w.BinWriter, sc, "transfer", callflag.All, from, to, amount, additionalArgs)
-	emit.Opcodes(w.BinWriter, opcode.ASSERT)
+	if needAssert {
+		emit.Opcodes(w.BinWriter, opcode.ASSERT)
+	}
 	if w.Err != nil {
 		panic(fmt.Errorf("failed to create nep17 transfer transaction: %w", w.Err))
 	}
@@ -677,7 +683,11 @@ func transferTokenFromMultisigAccountCheckOK(t *testing.T, chain *Blockchain, to
 }
 
 func transferTokenFromMultisigAccount(t *testing.T, chain *Blockchain, to, tokenHash util.Uint160, amount int64, additionalArgs ...interface{}) *transaction.Transaction {
-	transferTx := newNEP17Transfer(tokenHash, testchain.MultisigScriptHash(), to, amount, additionalArgs...)
+	return transferTokenFromMultisigAccountWithAssert(t, chain, to, tokenHash, amount, true, additionalArgs...)
+}
+
+func transferTokenFromMultisigAccountWithAssert(t *testing.T, chain *Blockchain, to, tokenHash util.Uint160, amount int64, needAssert bool, additionalArgs ...interface{}) *transaction.Transaction {
+	transferTx := newNEP17TransferWithAssert(tokenHash, testchain.MultisigScriptHash(), to, amount, needAssert, additionalArgs...)
 	transferTx.SystemFee = 100000000
 	transferTx.ValidUntilBlock = chain.BlockHeight() + 1
 	addSigners(neoOwner, transferTx)
