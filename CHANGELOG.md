@@ -2,6 +2,41 @@
 
 This document outlines major changes between releases.
 
+## 0.95.2 "Echolocation" (10 Jun 2021)
+
+This is another N3 RC3-compatible release and it's better in its RC3
+compatiblity than the previous one because we've fixed some state mismatches
+wrt C# implementation that were found on testnet. It is confirmed to have the
+same state up to 126K height (which is current), but to get proper state you
+need to resynchronize your node from the genesis.
+
+New features:
+ * RPC notification subsystem was extended to support notary pool events, so
+   clients can now react on request additions (#1984)
+ * compiler now checks notification event name length to fit into the limit
+   (#1989)
+ * compiler now also checks for runtime.Notify() calls from Verify method
+   (which won't work anyway, #1995)
+
+Improvements:
+ * codegeneration improvements removing some unnecessary store/loads and type
+   conversions (#1881, #1879)
+ * additional MPT tests added ensuring compatibility with C# implementation
+   (#1993)
+ * additional consistency check added to prevent node running with native
+   contracts differing from the ones saved in DB (#2010)
+
+Bugs fixed:
+ * `calculatenetworkfee` RPC result used format different from C# node (#1998)
+ * `CALLT` opcode was missing any price leading to wrong GAS calculations and
+   different state wrt C# node (#2004)
+ * '+' character was emitted directly by `jsonSerialize` method which is fine
+   wrt JSON itself, but differs from C# node behavior leading to node state
+   difference (#2006)
+ * NEO self-transfers were not checking the amount transferred (they didn't
+   change balance, but they succeeded) leading to state difference wrt C#
+   implementation (#2007)
+
 ## 0.95.1 "Shiftiness" (31 May 2021)
 
 Bringing NeoGo up to date with N3 RC3 changes this release also improves
