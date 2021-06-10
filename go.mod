@@ -7,7 +7,6 @@ require (
 	github.com/btcsuite/btcd v0.20.1-beta
 	github.com/dgraph-io/badger/v2 v2.0.3
 	github.com/go-redis/redis v6.10.2+incompatible
-	github.com/gogo/protobuf v1.1.1
 	github.com/gorilla/websocket v1.4.2
 	github.com/hashicorp/golang-lru v0.5.4
 	github.com/mr-tron/base58 v1.1.2
