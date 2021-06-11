@@ -125,7 +125,6 @@ func TestNEP11_OwnerOf_BalanceOf_Transfer(t *testing.T) {
 		e.Run(t, "neo-go", "wallet", "nep17", "transfer",
 			"--rpc-endpoint", "http://"+e.RPC.Addr,
 			"--wallet", wall,
-			"--gas", "0.001", // test fails sometimes running out of GAS
 			"--to", h.StringLE(),
 			"--token", "GAS",
 			"--amount", "10",
