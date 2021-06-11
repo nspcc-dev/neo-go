@@ -125,7 +125,6 @@ func TestNEP11_OwnerOf_BalanceOf_Transfer(t *testing.T) {
 		e.Run(t, "neo-go", "wallet", "nep17", "transfer",
 			"--rpc-endpoint", "http://"+e.RPC.Addr,
 			"--wallet", wall,
-			"--gas", "0.001", // test fails sometimes running out of GAS
 			"--to", h.StringLE(),
 			"--token", "GAS",
 			"--amount", "10",
@@ -214,7 +213,7 @@ func TestNEP11_OwnerOf_BalanceOf_Transfer(t *testing.T) {
 
 	// tokensOf: good
 	e.Run(t, cmdTokensOf...)
-	e.checkNextLine(t, string(tokenID))
+	require.Equal(t, string(tokenID), e.getNextLine(t))
 
 	// properties: no contract
 	cmdProperties := []string{
@@ -240,8 +239,8 @@ func TestNEP11_OwnerOf_BalanceOf_Transfer(t *testing.T) {
 		fst, snd = snd, fst
 	}
 
-	e.checkNextLine(t, string(fst))
-	e.checkNextLine(t, string(snd))
+	require.Equal(t, string(fst), e.getNextLine(t))
+	require.Equal(t, string(snd), e.getNextLine(t))
 
 	// tokens: missing contract hash
 	cmdTokens := []string{"neo-go", "wallet", "nep11", "tokens",
@@ -252,8 +251,8 @@ func TestNEP11_OwnerOf_BalanceOf_Transfer(t *testing.T) {
 
 	// tokens: good, several tokens
 	e.Run(t, cmdTokens...)
-	e.checkNextLine(t, string(fst))
-	e.checkNextLine(t, string(snd))
+	require.Equal(t, string(fst), e.getNextLine(t))
+	require.Equal(t, string(snd), e.getNextLine(t))
 
 	// balance check: several tokens, ok
 	e.Run(t, append(cmdCheckBalance, "--token", h.StringLE())...)
