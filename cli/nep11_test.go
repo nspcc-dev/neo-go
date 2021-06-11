@@ -8,6 +8,7 @@ import (
 	"math/big"
 	"os"
 	"path"
+	"strings"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
@@ -229,7 +230,8 @@ func TestNEP11_OwnerOf_BalanceOf_Transfer(t *testing.T) {
 
 	// properties: ok
 	e.Run(t, cmdProperties...)
-	e.checkNextLine(t, fmt.Sprintf(`{"name":"HASHY %s"}`, string(tokenID)))
+	marshalledID := strings.Replace(string(tokenID), "+", "\\u002B", -1)
+	require.Equal(t, fmt.Sprintf(`{"name":"HASHY %s"}`, marshalledID), e.getNextLine(t))
 
 	// tokensOf: good, several tokens
 	tokenID1 := mint(t)
