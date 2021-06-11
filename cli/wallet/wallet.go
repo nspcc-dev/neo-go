@@ -297,13 +297,14 @@ func convertWallet(ctx *cli.Context) error {
 		return cli.NewExitError(err, 1)
 	}
 	defer newWallet.Close()
+	newWallet.Scrypt = wall.Scrypt
 
 	for _, acc := range wall.Accounts {
 		pass, err := input.ReadPassword(fmt.Sprintf("Enter passphrase for account %s (label '%s') > ", acc.Address, acc.Label))
 		if err != nil {
 			return cli.NewExitError(err, 1)
 		}
-		newAcc, err := acc.convert(pass)
+		newAcc, err := acc.convert(pass, wall.Scrypt)
 		if err != nil {
 			return cli.NewExitError(err, 1)
 		}
@@ -374,7 +375,7 @@ loop:
 				return cli.NewExitError(err, 1)
 			}
 
-			pk, err := keys.NEP2Decrypt(wif, pass)
+			pk, err := keys.NEP2Decrypt(wif, pass, wall.Scrypt)
 			if err != nil {
 				return cli.NewExitError(err, 1)
 			}
@@ -411,7 +412,7 @@ func importMultisig(ctx *cli.Context) error {
 		}
 	}
 
-	acc, err := newAccountFromWIF(ctx.App.Writer, ctx.String("wif"))
+	acc, err := newAccountFromWIF(ctx.App.Writer, ctx.String("wif"), wall.Scrypt)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -443,7 +444,7 @@ func importDeployed(ctx *cli.Context) error {
 		return cli.NewExitError("contract hash was not provided", 1)
 	}
 
-	acc, err := newAccountFromWIF(ctx.App.Writer, ctx.String("wif"))
+	acc, err := newAccountFromWIF(ctx.App.Writer, ctx.String("wif"), wall.Scrypt)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -492,7 +493,7 @@ func importWallet(ctx *cli.Context) error {
 	}
 	defer wall.Close()
 
-	acc, err := newAccountFromWIF(ctx.App.Writer, ctx.String("wif"))
+	acc, err := newAccountFromWIF(ctx.App.Writer, ctx.String("wif"), wall.Scrypt)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -570,7 +571,7 @@ func dumpWallet(ctx *cli.Context) error {
 		}
 		for i := range wall.Accounts {
 			// Just testing the decryption here.
-			err := wall.Accounts[i].Decrypt(pass)
+			err := wall.Accounts[i].Decrypt(pass, wall.Scrypt)
 			if err != nil {
 				return cli.NewExitError(err, 1)
 			}
@@ -685,7 +686,7 @@ func openWallet(path string) (*wallet.Wallet, error) {
 	return wallet.NewWalletFromFile(path)
 }
 
-func newAccountFromWIF(w io.Writer, wif string) (*wallet.Account, error) {
+func newAccountFromWIF(w io.Writer, wif string, scrypt keys.ScryptParams) (*wallet.Account, error) {
 	// note: NEP2 strings always have length of 58 even though
 	// base58 strings can have different lengths even if slice lengths are equal
 	if len(wif) == 58 {
@@ -694,7 +695,7 @@ func newAccountFromWIF(w io.Writer, wif string) (*wallet.Account, error) {
 			return nil, err
 		}
 
-		return wallet.NewAccountFromEncryptedWIF(wif, pass)
+		return wallet.NewAccountFromEncryptedWIF(wif, pass, scrypt)
 	}
 
 	acc, err := wallet.NewAccountFromWIF(wif)
@@ -709,7 +710,7 @@ func newAccountFromWIF(w io.Writer, wif string) (*wallet.Account, error) {
 	}
 
 	acc.Label = name
-	if err := acc.Encrypt(pass); err != nil {
+	if err := acc.Encrypt(pass, scrypt); err != nil {
 		return nil, err
 	}
 

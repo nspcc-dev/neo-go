@@ -744,7 +744,7 @@ func getAccFromContext(ctx *cli.Context) (*wallet.Account, *wallet.Wallet, error
 		return nil, nil, cli.NewExitError(err, 1)
 	}
 	pass := strings.TrimRight(string(rawPass), "\n")
-	err = acc.Decrypt(pass)
+	err = acc.Decrypt(pass, wall.Scrypt)
 	if err != nil {
 		return nil, nil, cli.NewExitError(err, 1)
 	}

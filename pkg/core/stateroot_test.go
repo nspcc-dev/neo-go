@@ -172,7 +172,7 @@ func TestStateRootInitNonZeroHeight(t *testing.T) {
 func createAndWriteWallet(t *testing.T, acc *wallet.Account, path, password string) *wallet.Wallet {
 	w, err := wallet.NewWallet(path)
 	require.NoError(t, err)
-	require.NoError(t, acc.Encrypt(password))
+	require.NoError(t, acc.Encrypt(password, w.Scrypt))
 	w.AddAccount(acc)
 	require.NoError(t, w.Save())
 	w.Close()

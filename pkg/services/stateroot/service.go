@@ -85,7 +85,7 @@ func New(cfg config.StateRoot, log *zap.Logger, bc blockchainer.Blockchainer, cb
 
 		haveAccount := false
 		for _, acc := range s.wallet.Accounts {
-			if err := acc.Decrypt(w.Password); err == nil {
+			if err := acc.Decrypt(w.Password, s.wallet.Scrypt); err == nil {
 				haveAccount = true
 				break
 			}
@@ -141,7 +141,7 @@ func (s *service) updateValidators(height uint32, pubs keys.PublicKeys) {
 	s.acc = nil
 	for i := range pubs {
 		if acc := s.wallet.GetAccount(pubs[i].GetScriptHash()); acc != nil {
-			err := acc.Decrypt(s.MainCfg.UnlockWallet.Password)
+			err := acc.Decrypt(s.MainCfg.UnlockWallet.Password, s.wallet.Scrypt)
 			if err == nil {
 				s.acc = acc
 				s.accHeight = height

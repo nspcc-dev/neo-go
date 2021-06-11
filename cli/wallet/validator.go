@@ -214,7 +214,7 @@ func getDecryptedAccount(ctx *cli.Context, wall *wallet.Wallet, addr util.Uint16
 	if pass, err := input.ReadPassword("Password > "); err != nil {
 		fmt.Println("ERROR", pass, err)
 		return nil, err
-	} else if err := acc.Decrypt(pass); err != nil {
+	} else if err := acc.Decrypt(pass, wall.Scrypt); err != nil {
 		return nil, err
 	}
 	return acc, nil

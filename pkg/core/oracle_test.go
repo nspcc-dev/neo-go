@@ -66,7 +66,7 @@ func getTestOracle(t *testing.T, bc *Blockchain, walletPath, pass string) (
 
 	w, err := wallet.NewWalletFromFile(path.Join(oracleModulePath, walletPath))
 	require.NoError(t, err)
-	require.NoError(t, w.Accounts[0].Decrypt(pass))
+	require.NoError(t, w.Accounts[0].Decrypt(pass, w.Scrypt))
 	return w.Accounts[0], orc, m, ch
 }
 

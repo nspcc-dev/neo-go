@@ -28,7 +28,7 @@ func (n *Notary) UpdateNotaryNodes(notaryNodes keys.PublicKeys) {
 			if acc.PrivateKey() != nil {
 				break
 			}
-			err := acc.Decrypt(n.Config.MainCfg.UnlockWallet.Password)
+			err := acc.Decrypt(n.Config.MainCfg.UnlockWallet.Password, n.wallet.Scrypt)
 			if err != nil {
 				n.Config.Log.Warn("can't unlock notary node account",
 					zap.String("address", address.Uint160ToString(acc.Contract.ScriptHash())),

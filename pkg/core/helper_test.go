@@ -449,7 +449,7 @@ func initBasicChain(t *testing.T, bc *Blockchain) {
 	// Designate new Notary node
 	ntr, err := wallet.NewWalletFromFile(path.Join(notaryModulePath, "./testdata/notary1.json"))
 	require.NoError(t, err)
-	require.NoError(t, ntr.Accounts[0].Decrypt("one"))
+	require.NoError(t, ntr.Accounts[0].Decrypt("one", ntr.Scrypt))
 	bc.setNodesByRole(t, true, noderoles.P2PNotary, keys.PublicKeys{ntr.Accounts[0].PrivateKey().PublicKey()})
 	t.Logf("Designated Notary node: %s", hex.EncodeToString(ntr.Accounts[0].PrivateKey().PublicKey().Bytes()))
 

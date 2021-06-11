@@ -42,13 +42,13 @@ func NEP2ScryptParams() ScryptParams {
 
 // NEP2Encrypt encrypts a the PrivateKey using a given passphrase
 // under the NEP-2 standard.
-func NEP2Encrypt(priv *PrivateKey, passphrase string) (s string, err error) {
+func NEP2Encrypt(priv *PrivateKey, passphrase string, params ScryptParams) (s string, err error) {
 	address := priv.Address()
 
 	addrHash := hash.Checksum([]byte(address))
 	// Normalize the passphrase according to the NFC standard.
 	phraseNorm := norm.NFC.Bytes([]byte(passphrase))
-	derivedKey, err := scrypt.Key(phraseNorm, addrHash, n, r, p, keyLen)
+	derivedKey, err := scrypt.Key(phraseNorm, addrHash, params.N, params.R, params.P, keyLen)
 	if err != nil {
 		return s, err
 	}
@@ -77,7 +77,7 @@ func NEP2Encrypt(priv *PrivateKey, passphrase string) (s string, err error) {
 
 // NEP2Decrypt decrypts an encrypted key using a given passphrase
 // under the NEP-2 standard.
-func NEP2Decrypt(key, passphrase string) (*PrivateKey, error) {
+func NEP2Decrypt(key, passphrase string, params ScryptParams) (*PrivateKey, error) {
 	b, err := base58.CheckDecode(key)
 	if err != nil {
 		return nil, err
@@ -89,7 +89,7 @@ func NEP2Decrypt(key, passphrase string) (*PrivateKey, error) {
 	addrHash := b[3:7]
 	// Normalize the passphrase according to the NFC standard.
 	phraseNorm := norm.NFC.Bytes([]byte(passphrase))
-	derivedKey, err := scrypt.Key(phraseNorm, addrHash, n, r, p, keyLen)
+	derivedKey, err := scrypt.Key(phraseNorm, addrHash, params.N, params.R, params.P, keyLen)
 	if err != nil {
 		return nil, err
 	}
