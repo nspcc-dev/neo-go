@@ -2,7 +2,7 @@
 Package nft contains non-divisible non-fungible NEP11-compatible token
 implementation. This token can be minted with GAS transfer to contract address,
 it will hash some data (including data provided in transfer) and produce
-base58-encoded string that is your NFT. Since it's based on hashing and basically
+base64-encoded string that is your NFT. Since it's based on hashing and basically
 you own a hash it's HASHY.
 */
 package nft
@@ -230,7 +230,7 @@ func OnNEP17Payment(from interop.Hash160, amount int, data interface{}) {
 	}
 
 	tokenHash := crypto.Ripemd160(tokIn)
-	token := std.Base58Encode(tokenHash)
+	token := std.Base64Encode(tokenHash)
 
 	addToken(ctx, from, []byte(token))
 	setOwnerOf(ctx, []byte(token), from)
