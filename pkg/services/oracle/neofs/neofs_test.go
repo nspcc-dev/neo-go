@@ -5,7 +5,7 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/nspcc-dev/neofs-api-go/pkg/container"
+	cid "github.com/nspcc-dev/neofs-api-go/pkg/container/id"
 	"github.com/nspcc-dev/neofs-api-go/pkg/object"
 	"github.com/stretchr/testify/require"
 )
@@ -37,8 +37,8 @@ func TestParseRange(t *testing.T) {
 
 func TestParseNeoFSURL(t *testing.T) {
 	cStr := "C3swfg8MiMJ9bXbeFG6dWJTCoHp9hAEZkHezvbSwK1Cc"
-	cid := container.NewID()
-	require.NoError(t, cid.Parse(cStr))
+	containerID := cid.New()
+	require.NoError(t, containerID.Parse(cStr))
 
 	oStr := "3nQH1L8u3eM9jt2mZCs6MyjzdjerdSzBkXCYYj4M4Znk"
 	oid := object.NewID()
@@ -46,7 +46,7 @@ func TestParseNeoFSURL(t *testing.T) {
 
 	validPrefix := "neofs:" + cStr + "/" + oStr
 	objectAddr := object.NewAddress()
-	objectAddr.SetContainerID(cid)
+	objectAddr.SetContainerID(containerID)
 	objectAddr.SetObjectID(oid)
 
 	testCases := []struct {
