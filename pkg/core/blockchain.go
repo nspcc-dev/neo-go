@@ -50,6 +50,7 @@ const (
 	defaultMaxBlockSystemFee               = 900000000000
 	defaultMaxTraceableBlocks              = 2102400 // 1 year of 15s blocks
 	defaultMaxTransactionsPerBlock         = 512
+	defaultStateSyncInterval               = 40000
 	headerVerificationGasLimit             = 3_00000000 // 3 GAS
 )
 
@@ -196,6 +197,11 @@ func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration, log *zap.L
 		cfg.MaxValidUntilBlockIncrement = uint32(secondsPerDay / cfg.SecondsPerBlock)
 		log.Info("MaxValidUntilBlockIncrement is not set or wrong, using default value",
 			zap.Uint32("MaxValidUntilBlockIncrement", cfg.MaxValidUntilBlockIncrement))
+	}
+	if cfg.P2PStateExchangeExtensions && cfg.StateSyncInterval <= 0 {
+		cfg.StateSyncInterval = defaultStateSyncInterval
+		log.Info("StateSyncInterval is not set or wrong, using default value",
+			zap.Int("StateSyncInterval", cfg.StateSyncInterval))
 	}
 	committee, err := committeeFromConfig(cfg)
 	if err != nil {
