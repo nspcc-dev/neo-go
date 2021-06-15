@@ -71,6 +71,8 @@ const (
 	CMDBlock                        = CommandType(payload.BlockType)
 	CMDExtensible                   = CommandType(payload.ExtensibleType)
 	CMDP2PNotaryRequest             = CommandType(payload.P2PNotaryRequestType)
+	CMDGetMPTData       CommandType = 0x51 // 0x5.. commands are used for extensions (P2PNotary, state exchange cmds)
+	CMDMPTData          CommandType = 0x52
 	CMDReject           CommandType = 0x2f
 
 	// SPV protocol.
@@ -137,6 +139,10 @@ func (m *Message) decodePayload() error {
 		p = &payload.Version{}
 	case CMDInv, CMDGetData:
 		p = &payload.Inventory{}
+	case CMDGetMPTData:
+		p = &payload.MPTInventory{}
+	case CMDMPTData:
+		p = &payload.MPTData{}
 	case CMDAddr:
 		p = &payload.AddressList{}
 	case CMDBlock:
@@ -211,7 +217,7 @@ func (m *Message) tryCompressPayload() error {
 	if m.Flags&Compressed == 0 {
 		switch m.Payload.(type) {
 		case *payload.Headers, *payload.MerkleBlock, payload.NullPayload,
-			*payload.Inventory:
+			*payload.Inventory, *payload.MPTInventory:
 			break
 		default:
 			size := len(compressedPayload)

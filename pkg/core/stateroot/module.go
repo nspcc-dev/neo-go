@@ -17,11 +17,17 @@ import (
 	"go.uber.org/zap"
 )
 
+// CollapseDepth is a good and roughly estimated value of MPT collapse depth to fit
+// in-memory MPT into 1M of memory.
+const CollapseDepth = 10
+
 type (
 	// Module represents module for local processing of state roots.
 	Module struct {
 		Store   *storage.MemCachedStore
 		network netmode.Magic
+		// mptLock locks MPT for the sync time to avoid concurrent refCount access
+		mptLock sync.RWMutex
 		mpt     *mpt.Trie
 		bc      blockchainer.Blockchainer
 		log     *zap.Logger
@@ -164,4 +170,21 @@ func (s *Module) verifyWitness(r *state.MPTRoot) error {
 	h := s.getKeyCacheForHeight(r.Index).validatorsHash
 	s.mtx.Unlock()
 	return s.bc.VerifyWitness(h, r, &r.Witness[0], maxVerificationGAS)
+}
+
+// Traverse traverses local MPT nodes starting from the specified root down to its
+// children calling `process` for each serialised node until stop condition is satisfied.
+func (s *Module) Traverse(root util.Uint256, process func(node []byte) bool) error {
+	tr := mpt.NewTrie(mpt.NewHashNode(root), false, storage.NewMemCachedStore(s.Store))
+	return tr.Traverse(process)
+}
+
+// RestoreMPTNode tries to replace HashNode specified by the path to its "unhashed"
+// counterpart and stores it. An error is returned if the path doesn't point to a
+// missing HashNode or provided counterpart has invalid hash.
+func (s *Module) RestoreMPTNode(path []byte, node mpt.Node) error {
+	s.mptLock.Lock()
+	err := s.mpt.RestoreHashNode(path, node)
+	s.mptLock.Unlock()
+	return err
 }

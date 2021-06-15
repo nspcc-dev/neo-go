@@ -46,7 +46,10 @@ func (f *fakeConsensus) OnTransaction(tx *transaction.Transaction)     { f.txs =
 func (f *fakeConsensus) GetPayload(h util.Uint256) *payload.Extensible { panic("implement me") }
 
 func TestNewServer(t *testing.T) {
-	bc := &fakechain.FakeChain{}
+	bc := &fakechain.FakeChain{ProtocolConfiguration: config.ProtocolConfiguration{
+		P2PStateExchangeExtensions: true,
+		StateRootInHeader:          true,
+	}}
 	s, err := newServerFromConstructors(ServerConfig{}, bc, nil, newFakeTransp, newFakeConsensus, newTestDiscovery)
 	require.Error(t, err)
 
@@ -77,6 +80,14 @@ func TestNewServer(t *testing.T) {
 			func(consensus.Config) (consensus.Service, error) { return nil, errConsensus },
 			newTestDiscovery)
 		require.True(t, errors.Is(err, errConsensus), "got: %#v", err)
+	})
+	t.Run("StateExchangeExtensions enabled with StateRootInHeader off", func(t *testing.T) {
+		bc.ProtocolConfiguration = config.ProtocolConfiguration{
+			P2PStateExchangeExtensions: true,
+			StateRootInHeader:          false,
+		}
+		_, err := newServerFromConstructors(ServerConfig{}, bc, zaptest.NewLogger(t), newFakeTransp, newFakeConsensus, newTestDiscovery)
+		require.Error(t, err)
 	})
 }
 
@@ -775,6 +786,55 @@ func TestRequestTx(t *testing.T) {
 		}
 		s.requestTx(expected...)
 		require.Equal(t, expected, actual)
+	})
+}
+
+func TestRequestMPTData(t *testing.T) {
+	s := startTestServer(t)
+
+	var actual []util.Uint256
+	p := newLocalPeer(t, s)
+	p.handshaked = true
+	p.messageHandler = func(t *testing.T, msg *Message) {
+		if msg.Command == CMDGetMPTData {
+			actual = append(actual, msg.Payload.(*payload.MPTInventory).Hashes...)
+		}
+	}
+	s.register <- p
+	s.register <- p // ensure previous send was handled
+
+	check := func(t *testing.T, expected []util.Uint256) {
+		actual = nil
+		request := make(map[util.Uint256]bool)
+		for _, h := range expected {
+			request[h] = true
+		}
+		require.NoError(t, s.requestMPTNodes(p, request))
+		require.ElementsMatch(t, expected, actual)
+
+	}
+	t.Run("no hashes, no message", func(t *testing.T) {
+		actual = nil
+		require.NoError(t, s.requestMPTNodes(p, nil))
+		require.Nil(t, actual)
+	})
+	t.Run("good, small", func(t *testing.T) {
+		expected := []util.Uint256{random.Uint256(), random.Uint256()}
+		check(t, expected)
+	})
+	t.Run("good, exactly one chunk", func(t *testing.T) {
+		expected := make([]util.Uint256, payload.MaxMPTHashesCount)
+		for i := range expected {
+			expected[i] = random.Uint256()
+		}
+		check(t, expected)
+	})
+	t.Run("good, multiple chunks", func(t *testing.T) {
+		expected := make([]util.Uint256, payload.MaxMPTHashesCount*2+payload.MaxMPTHashesCount/2)
+		for i := range expected {
+			expected[i] = random.Uint256()
+		}
+		check(t, expected)
 	})
 }
 

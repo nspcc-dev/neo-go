@@ -811,8 +811,7 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 	// already in AddMPTBatch, so collapsing it is safe.
 	persistedHeight := atomic.LoadUint32(&bc.persistedHeight)
 	if persistedHeight == block.Index-1 {
-		// 10 is good and roughly estimated to fit remaining trie into 1M of memory.
-		mpt.Collapse(10)
+		mpt.Collapse(stateroot.CollapseDepth)
 	}
 
 	bc.lock.Lock()
