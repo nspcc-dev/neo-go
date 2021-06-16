@@ -821,7 +821,8 @@ func (n *NEO) getCandidates(d dao.DAO, sortByKey bool) ([]keyWithVotes, error) {
 		}
 	}
 	if sortByKey {
-		sort.Slice(arr, func(i, j int) bool { return strings.Compare(arr[i].Key[1:], arr[j].Key[1:]) == -1 })
+		// Sort by serialized key bytes (that's the way keys are stored and retrieved from the storage by default).
+		sort.Slice(arr, func(i, j int) bool { return strings.Compare(arr[i].Key, arr[j].Key) == -1 })
 	} else {
 		sort.Slice(arr, func(i, j int) bool {
 			// The most-voted validators should end up in the front of the list.
@@ -829,8 +830,17 @@ func (n *NEO) getCandidates(d dao.DAO, sortByKey bool) ([]keyWithVotes, error) {
 			if cmp != 0 {
 				return cmp > 0
 			}
-			// Ties are broken with public keys.
-			return strings.Compare(arr[i].Key[1:], arr[j].Key[1:]) == -1
+			// Ties are broken with deserialized public keys.
+			// Sort by ECPoint's (X, Y) components: compare X first, and then compare Y.
+			cmpX := strings.Compare(arr[i].Key[1:], arr[j].Key[1:])
+			if cmpX != 0 {
+				return cmpX == -1
+			}
+			// The case when X components are the same is extremely rare, thus we perform
+			// key deserialization only if needed. No error can occur.
+			ki, _ := keys.NewPublicKeyFromBytes([]byte(arr[i].Key), elliptic.P256())
+			kj, _ := keys.NewPublicKeyFromBytes([]byte(arr[j].Key), elliptic.P256())
+			return ki.Y.Cmp(kj.Y) == -1
 		})
 	}
 	return arr, nil
