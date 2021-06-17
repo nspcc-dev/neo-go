@@ -34,20 +34,11 @@ func NewSecp256k1PrivateKey() (*PrivateKey, error) {
 
 // newPrivateKeyOnCurve creates a new random private key using curve c.
 func newPrivateKeyOnCurve(c elliptic.Curve) (*PrivateKey, error) {
-	priv, x, y, err := elliptic.GenerateKey(c, rand.Reader)
+	pk, err := ecdsa.GenerateKey(c, rand.Reader)
 	if err != nil {
 		return nil, err
 	}
-	return &PrivateKey{
-		ecdsa.PrivateKey{
-			PublicKey: ecdsa.PublicKey{
-				Curve: c,
-				X:     x,
-				Y:     y,
-			},
-			D: new(big.Int).SetBytes(priv),
-		},
-	}, nil
+	return &PrivateKey{*pk}, nil
 }
 
 // NewPrivateKeyFromHex returns a Secp256k1 PrivateKey created from the
