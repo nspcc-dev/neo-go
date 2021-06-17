@@ -440,10 +440,9 @@ func multiTransferNEP17(ctx *cli.Context) error {
 		if !ok {
 			token, err = getMatchingToken(ctx, wall, ss[0], manifest.NEP17StandardName)
 			if err != nil {
-				fmt.Fprintln(ctx.App.ErrWriter, "Can't find matching token in the wallet. Querying RPC-node for balances.")
 				token, err = getMatchingTokenRPC(ctx, c, from, ss[0], manifest.NEP17StandardName)
 				if err != nil {
-					return cli.NewExitError(err, 1)
+					return cli.NewExitError(fmt.Errorf("can't fetch matching token from RPC-node: %w", err), 1)
 				}
 			}
 		}
@@ -509,10 +508,9 @@ func transferNEP(ctx *cli.Context, standard string) error {
 	to := toFlag.Uint160()
 	token, err := getMatchingToken(ctx, wall, ctx.String("token"), standard)
 	if err != nil {
-		fmt.Fprintln(ctx.App.ErrWriter, "Can't find matching token in the wallet. Querying RPC-node for balances.")
 		token, err = getMatchingTokenRPC(ctx, c, from, ctx.String("token"), standard)
 		if err != nil {
-			return cli.NewExitError(fmt.Errorf("failed to get matching token: %w", err), 1)
+			return cli.NewExitError(fmt.Errorf("can't fetch matching token from RPC-node: %w", err), 1)
 		}
 	}
 
