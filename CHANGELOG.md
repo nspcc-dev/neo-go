@@ -2,6 +2,25 @@
 
 This document outlines major changes between releases.
 
+## 0.95.3 "Yuppification" (17 Jun 2021)
+
+One more N3 RC3-compatible release that fixes testnet state difference at
+block 151376. Please resynchronize to get proper testnet state.
+
+Behavior changes:
+ * NEP2-related functions in `crypto/keys` package changed a bit to allow
+   Scrypt parameters overriding, standard parameters are available via
+   `NEP2ScryptParams` function (#2001)
+
+Improvements:
+ * better unit test stability (#2011, #2001)
+ * updated neofs-api-go dependency (with support for TLS-enabled NeoFS node
+   connections, #2003)
+ * removed annoying token matching warning (#2018)
+
+Bugs fixed:
+ * state mismatch resulting from different committee candidate sorting (#2017)
+
 ## 0.95.2 "Echolocation" (10 Jun 2021)
 
 This is another N3 RC3-compatible release and it's better in its RC3
