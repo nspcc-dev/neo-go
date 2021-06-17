@@ -184,10 +184,9 @@ func getNEP11Balance(ctx *cli.Context) error {
 	}
 	token, err := getMatchingToken(ctx, wall, name, manifest.NEP11StandardName)
 	if err != nil {
-		fmt.Fprintln(ctx.App.ErrWriter, "Can't find matching token in the wallet. Querying RPC-node for token info.")
 		tokenHash, err := flags.ParseAddress(name)
 		if err != nil {
-			return cli.NewExitError(fmt.Sprintf("valid token adress or hash in LE should be specified for RPC-node request: %s", err.Error()), 1)
+			return cli.NewExitError(fmt.Errorf("can't fetch matching token from RPC-node: %w", err), 1)
 		}
 		token, err = c.NEP11TokenInfo(tokenHash)
 		if err != nil {
