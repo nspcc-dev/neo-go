@@ -37,6 +37,7 @@ type DefaultDiscovery struct {
 	connectedAddrs   map[string]bool
 	goodAddrs        map[string]bool
 	unconnectedAddrs map[string]int
+	attempted        map[string]bool
 	isDead           bool
 	requestCh        chan int
 	pool             chan string
@@ -52,6 +53,7 @@ func NewDefaultDiscovery(addrs []string, dt time.Duration, ts Transporter) *Defa
 		connectedAddrs:   make(map[string]bool),
 		goodAddrs:        make(map[string]bool),
 		unconnectedAddrs: make(map[string]int),
+		attempted:        make(map[string]bool),
 		requestCh:        make(chan int),
 		pool:             make(chan string, maxPoolSize),
 	}
@@ -174,11 +176,13 @@ func (d *DefaultDiscovery) RegisterConnectedAddr(addr string) {
 }
 
 func (d *DefaultDiscovery) tryAddress(addr string) {
-	if err := d.transport.Dial(addr, d.dialTimeout); err != nil {
+	err := d.transport.Dial(addr, d.dialTimeout)
+	d.lock.Lock()
+	delete(d.attempted, addr)
+	d.lock.Unlock()
+	if err != nil {
 		d.RegisterBadAddr(addr)
 		d.RequestRemote(1)
-	} else {
-		d.RegisterConnectedAddr(addr)
 	}
 }
 
@@ -212,24 +216,31 @@ func (d *DefaultDiscovery) run() {
 					requested = r
 				}
 			case addr := <-d.pool:
-				d.lock.RLock()
-				addrIsConnected := d.connectedAddrs[addr]
-				d.lock.RUnlock()
 				updatePoolCountMetric(d.PoolCount())
-				if !addrIsConnected {
+				d.lock.Lock()
+				if !d.connectedAddrs[addr] && !d.attempted[addr] {
+					d.attempted[addr] = true
 					go d.tryAddress(addr)
 					requested--
 				}
+				d.lock.Unlock()
 			default: // Empty pool
+				var added int
 				d.lock.Lock()
 				for _, addr := range d.seeds {
 					if !d.connectedAddrs[addr] {
 						delete(d.badAddrs, addr)
 						d.unconnectedAddrs[addr] = connRetries
 						d.pushToPoolOrDrop(addr)
+						added++
 					}
 				}
 				d.lock.Unlock()
+				// The pool is empty, but all seed nodes are already connected,
+				// we can end up in an infinite loop here, so drop the request.
+				if added == 0 {
+					requested = 0
+				}
 			}
 		}
 		if !ok {
