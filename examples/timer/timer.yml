@@ -1,3 +1,5 @@
 name: "Timer example"
 supportedstandards: []
 events: []
+permissions:
+  - methods: '*'

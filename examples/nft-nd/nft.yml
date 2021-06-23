@@ -13,4 +13,6 @@ events:
       - name: tokenId
         type: ByteArray
 permissions:
+  - hash: fffdc93764dbaddd97c48f252a53ea4643faa3fd
+    methods: ["update", "destroy"]
   - methods: ["onNEP11Payment"]

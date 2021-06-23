@@ -10,3 +10,5 @@ events:
         type: Hash160
       - name: amount
         type: Integer
+permissions:
+  - methods: ["onNEP17Payment"]
