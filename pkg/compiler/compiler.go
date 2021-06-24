@@ -43,6 +43,11 @@ type Options struct {
 	// This setting has effect only if manifest is emitted.
 	NoStandardCheck bool
 
+	// NoPermissionsCheck specifies if permissions in YAML config need to be checked
+	// against invocations performed by the contract.
+	// This setting has effect only if manifest is emitted.
+	NoPermissionsCheck bool
+
 	// Name is contract's name to be written to manifest.
 	Name string
 
@@ -288,6 +293,32 @@ func CreateManifest(di *DebugInfo, o *Options) (*manifest.Manifest, error) {
 							"got: %s", name, expected, j+1, argsList[i][j])
 					}
 				}
+			}
+		}
+	}
+
+	if !o.NoPermissionsCheck {
+		// We can't perform full check for 2 reasons:
+		// 1. Contract hash may not be available at compile time.
+		// 2. Permission may be specified for a group of contracts by public key.
+		// Thus only basic checks are performed.
+
+		for h, methods := range di.InvokedContracts {
+		methodLoop:
+			for _, m := range methods {
+				for _, p := range o.Permissions {
+					// Group or wildcard permission is ok to try.
+					if p.Contract.Type == manifest.PermissionHash && !p.Contract.Hash().Equals(h) {
+						continue
+					}
+
+					if p.Methods.Contains(m) {
+						continue methodLoop
+					}
+				}
+
+				return nil, fmt.Errorf("method '%s' of contract %s is invoked but"+
+					" corresponding permission is missing", m, h.StringLE())
 			}
 		}
 	}

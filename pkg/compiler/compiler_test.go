@@ -10,8 +10,11 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/compiler"
 	"github.com/nspcc-dev/neo-go/pkg/config"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/interop/native/neo"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
+	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/stretchr/testify/require"
 )
 
@@ -196,4 +199,106 @@ func TestNotifyInVerify(t *testing.T) {
 			})
 		})
 	}
+}
+
+func TestInvokedContractsPermissons(t *testing.T) {
+	testCompile := func(t *testing.T, di *compiler.DebugInfo, disable bool, ps ...manifest.Permission) error {
+		o := &compiler.Options{
+			NoPermissionsCheck: disable,
+			Permissions:        ps,
+		}
+
+		_, err := compiler.CreateManifest(di, o)
+		return err
+	}
+
+	t.Run("native", func(t *testing.T) {
+		src := `package test
+			import "github.com/nspcc-dev/neo-go/pkg/interop/native/neo"
+			import "github.com/nspcc-dev/neo-go/pkg/interop/native/management"
+			func Main() int {
+				neo.Transfer(nil, nil, 10, nil)
+				management.GetContract(nil) // skip read-only
+				return 0
+			}`
+
+		_, di, err := compiler.CompileWithOptions("permissionTest", strings.NewReader(src), &compiler.Options{})
+		require.NoError(t, err)
+
+		var nh util.Uint160
+
+		p := manifest.NewPermission(manifest.PermissionHash, nh)
+		require.Error(t, testCompile(t, di, false, *p))
+		require.NoError(t, testCompile(t, di, true, *p))
+
+		copy(nh[:], neo.Hash)
+		p.Contract.Value = nh
+		require.NoError(t, testCompile(t, di, false, *p))
+
+		p.Methods.Restrict()
+		require.Error(t, testCompile(t, di, false, *p))
+		require.NoError(t, testCompile(t, di, true, *p))
+	})
+
+	t.Run("custom", func(t *testing.T) {
+		hashStr := "aaaaaaaaaaaaaaaaaaaa"
+		src := fmt.Sprintf(`package test
+			import "github.com/nspcc-dev/neo-go/pkg/interop/contract"
+			import "github.com/nspcc-dev/neo-go/pkg/interop"
+			import "github.com/nspcc-dev/neo-go/pkg/compiler/testdata/runh"
+
+			const hash = "%s"
+			var runtimeHash interop.Hash160
+			var runtimeMethod string
+			func invoke(h string) interop.Hash160 { return nil }
+			func Main() {
+				contract.Call(interop.Hash160(hash), "method1", contract.All)
+				contract.Call(interop.Hash160(hash), "method2", contract.All)
+				contract.Call(interop.Hash160(hash), "method2", contract.All)
+
+				// skip read-only
+				contract.Call(interop.Hash160(hash), "method3", contract.ReadStates)
+
+				// skip this
+				contract.Call(interop.Hash160(hash), runtimeMethod, contract.All)
+				contract.Call(runtimeHash, "someMethod", contract.All)
+				contract.Call(interop.Hash160(runtimeHash), "someMethod", contract.All)
+				contract.Call(runh.RuntimeHash(), "method3", contract.All)
+				contract.Call(runh.RuntimeHashArgs(hash), "method3", contract.All)
+				contract.Call(invoke(hash), "method3", contract.All)
+			}`, hashStr)
+
+		_, di, err := compiler.CompileWithOptions("permissionTest", strings.NewReader(src), &compiler.Options{})
+		require.NoError(t, err)
+
+		var h util.Uint160
+		copy(h[:], hashStr)
+
+		p := manifest.NewPermission(manifest.PermissionHash, h)
+		require.NoError(t, testCompile(t, di, false, *p))
+
+		p.Methods.Add("method1")
+		require.Error(t, testCompile(t, di, false, *p))
+		require.NoError(t, testCompile(t, di, true, *p))
+
+		t.Run("wildcard", func(t *testing.T) {
+			pw := manifest.NewPermission(manifest.PermissionWildcard)
+			require.NoError(t, testCompile(t, di, false, *p, *pw))
+
+			pw.Methods.Add("method2")
+			require.NoError(t, testCompile(t, di, false, *p, *pw))
+		})
+
+		t.Run("group", func(t *testing.T) {
+			priv, _ := keys.NewPrivateKey()
+			pw := manifest.NewPermission(manifest.PermissionGroup, priv.PublicKey())
+			require.NoError(t, testCompile(t, di, false, *p, *pw))
+
+			pw.Methods.Add("invalid")
+			require.Error(t, testCompile(t, di, false, *p, *pw))
+
+			pw.Methods.Add("method2")
+			require.NoError(t, testCompile(t, di, false, *p, *pw))
+		})
+	})
 }

@@ -7,6 +7,8 @@ import (
 	"go/types"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/runtime"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
+	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 )
@@ -30,7 +32,7 @@ func (c *codegen) inlineCall(f *funcScope, n *ast.CallExpr) {
 	pkg := c.buildInfo.program.Package(f.pkg.Path())
 	sig := c.typeOf(n.Fun).(*types.Signature)
 
-	c.processNotify(f, n.Args)
+	c.processStdlibCall(f, n.Args)
 
 	// When inlined call is used during global initialization
 	// there is no func scope, thus this if.
@@ -109,42 +111,102 @@ func (c *codegen) inlineCall(f *funcScope, n *ast.CallExpr) {
 	c.pkgInfoInline = c.pkgInfoInline[:len(c.pkgInfoInline)-1]
 }
 
+func (c *codegen) processStdlibCall(f *funcScope, args []ast.Expr) {
+	if f == nil {
+		return
+	}
+
+	if f.pkg.Path() == interopPrefix+"/runtime" && (f.name == "Notify" || f.name == "Log") {
+		c.processNotify(f, args)
+	}
+
+	if f.pkg.Path() == interopPrefix+"/contract" && f.name == "Call" {
+		c.processContractCall(f, args)
+	}
+}
+
 func (c *codegen) processNotify(f *funcScope, args []ast.Expr) {
-	if f != nil && f.pkg.Path() == interopPrefix+"/runtime" {
-		if f.name != "Notify" && f.name != "Log" {
+	if c.scope != nil && c.isVerifyFunc(c.scope.decl) &&
+		c.scope.pkg == c.mainPkg.Pkg && !c.buildInfo.options.NoEventsCheck {
+		c.prog.Err = fmt.Errorf("runtime.%s is not allowed in `Verify`", f.name)
+		return
+	}
+
+	if f.name == "Log" {
+		return
+	}
+
+	// Sometimes event name is stored in a var.
+	// Skip in this case.
+	tv := c.typeAndValueOf(args[0])
+	if tv.Value == nil {
+		return
+	}
+
+	params := make([]string, 0, len(args[1:]))
+	for _, p := range args[1:] {
+		st, _ := c.scAndVMTypeFromExpr(p)
+		params = append(params, st.String())
+	}
+
+	name := constant.StringVal(tv.Value)
+	if len(name) > runtime.MaxEventNameLen {
+		c.prog.Err = fmt.Errorf("event name '%s' should be less than %d",
+			name, runtime.MaxEventNameLen)
+		return
+	}
+	c.emittedEvents[name] = append(c.emittedEvents[name], params)
+}
+
+func (c *codegen) processContractCall(f *funcScope, args []ast.Expr) {
+	// For stdlib calls it is `interop.Hash160(constHash)`
+	// so we can determine hash at compile-time.
+	ce, ok := args[0].(*ast.CallExpr)
+	if !ok || len(ce.Args) != 1 {
+		return
+	}
+
+	// Ensure this is a type conversion, not a simple invoke.
+	se, ok := ce.Fun.(*ast.SelectorExpr)
+	if !ok {
+		return
+	}
+
+	name, _ := c.getFuncNameFromSelector(se)
+	if _, ok := c.funcs[name]; ok {
+		return
+	}
+
+	value := c.typeAndValueOf(ce.Args[0]).Value
+	if value == nil {
+		return
+	}
+
+	s := constant.StringVal(value)
+	var u util.Uint160
+	copy(u[:], s) // constant must be big-endian
+
+	value = c.typeAndValueOf(args[1]).Value
+	if value == nil {
+		return
+	}
+
+	method := constant.StringVal(value)
+	currLst := c.invokedContracts[u]
+	for _, m := range currLst {
+		if m == method {
 			return
 		}
+	}
 
-		if c.scope != nil && c.isVerifyFunc(c.scope.decl) &&
-			c.scope.pkg == c.mainPkg.Pkg && !c.buildInfo.options.NoEventsCheck {
-			c.prog.Err = fmt.Errorf("runtime.%s is not allowed in `Verify`", f.name)
-			return
-		}
+	value = c.typeAndValueOf(args[2]).Value
+	if value == nil {
+		return
+	}
 
-		if f.name == "Log" {
-			return
-		}
-
-		// Sometimes event name is stored in a var.
-		// Skip in this case.
-		tv := c.typeAndValueOf(args[0])
-		if tv.Value == nil {
-			return
-		}
-
-		params := make([]string, 0, len(args[1:]))
-		for _, p := range args[1:] {
-			st, _ := c.scAndVMTypeFromExpr(p)
-			params = append(params, st.String())
-		}
-
-		name := constant.StringVal(tv.Value)
-		if len(name) > runtime.MaxEventNameLen {
-			c.prog.Err = fmt.Errorf("event name '%s' should be less than %d",
-				name, runtime.MaxEventNameLen)
-			return
-		}
-		c.emittedEvents[name] = append(c.emittedEvents[name], params)
+	flag, _ := constant.Uint64Val(value)
+	if flag&uint64(callflag.WriteStates|callflag.AllowNotify) != 0 {
+		c.invokedContracts[u] = append(currLst, method)
 	}
 }
 
