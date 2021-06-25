@@ -1579,35 +1579,92 @@ func TestDumpAndRestore(t *testing.T) {
 }
 
 func TestRemoveUntraceable(t *testing.T) {
-	bc := newTestChainWithCustomCfg(t, func(c *config.Config) {
-		c.ProtocolConfiguration.MaxTraceableBlocks = 2
-		c.ProtocolConfiguration.RemoveUntraceableBlocks = true
+	check := func(t *testing.T, bc *Blockchain, tHash, bHash util.Uint256, errorExpected bool) {
+		_, _, err := bc.GetTransaction(tHash)
+		if errorExpected {
+			require.Error(t, err)
+		} else {
+			require.NoError(t, err)
+		}
+		_, err = bc.GetAppExecResults(tHash, trigger.Application)
+		if errorExpected {
+			require.Error(t, err)
+		} else {
+			require.NoError(t, err)
+		}
+		_, err = bc.GetBlock(bHash)
+		if errorExpected {
+			require.Error(t, err)
+		} else {
+			require.NoError(t, err)
+		}
+		_, err = bc.GetHeader(bHash)
+		require.NoError(t, err)
+	}
+	t.Run("P2PStateExchangeExtensions off", func(t *testing.T) {
+		bc := newTestChainWithCustomCfg(t, func(c *config.Config) {
+			c.ProtocolConfiguration.MaxTraceableBlocks = 2
+			c.ProtocolConfiguration.RemoveUntraceableBlocks = true
+		})
+
+		tx1, err := testchain.NewTransferFromOwner(bc, bc.contracts.NEO.Hash, util.Uint160{}, 1, 0, bc.BlockHeight()+1)
+		require.NoError(t, err)
+		b1 := bc.newBlock(tx1)
+		require.NoError(t, bc.AddBlock(b1))
+		tx1Height := bc.BlockHeight()
+
+		tx2, err := testchain.NewTransferFromOwner(bc, bc.contracts.NEO.Hash, util.Uint160{}, 1, 0, bc.BlockHeight()+1)
+		require.NoError(t, err)
+		require.NoError(t, bc.AddBlock(bc.newBlock(tx2)))
+
+		_, h1, err := bc.GetTransaction(tx1.Hash())
+		require.NoError(t, err)
+		require.Equal(t, tx1Height, h1)
+
+		require.NoError(t, bc.AddBlock(bc.newBlock()))
+
+		check(t, bc, tx1.Hash(), b1.Hash(), true)
 	})
+	t.Run("P2PStateExchangeExtensions on", func(t *testing.T) {
+		bc := newTestChainWithCustomCfg(t, func(c *config.Config) {
+			c.ProtocolConfiguration.MaxTraceableBlocks = 2
+			c.ProtocolConfiguration.RemoveUntraceableBlocks = true
+			c.ProtocolConfiguration.P2PStateExchangeExtensions = true
+			c.ProtocolConfiguration.StateSyncInterval = 2
+			c.ProtocolConfiguration.StateRootInHeader = true
+		})
 
-	tx1, err := testchain.NewTransferFromOwner(bc, bc.contracts.NEO.Hash, util.Uint160{}, 1, 0, bc.BlockHeight()+1)
-	require.NoError(t, err)
-	b1 := bc.newBlock(tx1)
-	require.NoError(t, bc.AddBlock(b1))
-	tx1Height := bc.BlockHeight()
+		tx1, err := testchain.NewTransferFromOwner(bc, bc.contracts.NEO.Hash, util.Uint160{}, 1, 0, bc.BlockHeight()+1)
+		require.NoError(t, err)
+		b1 := bc.newBlock(tx1)
+		require.NoError(t, bc.AddBlock(b1))
+		tx1Height := bc.BlockHeight()
 
-	tx2, err := testchain.NewTransferFromOwner(bc, bc.contracts.NEO.Hash, util.Uint160{}, 1, 0, bc.BlockHeight()+1)
-	require.NoError(t, err)
-	require.NoError(t, bc.AddBlock(bc.newBlock(tx2)))
+		tx2, err := testchain.NewTransferFromOwner(bc, bc.contracts.NEO.Hash, util.Uint160{}, 1, 0, bc.BlockHeight()+1)
+		require.NoError(t, err)
+		b2 := bc.newBlock(tx2)
+		require.NoError(t, bc.AddBlock(b2))
+		tx2Height := bc.BlockHeight()
 
-	_, h1, err := bc.GetTransaction(tx1.Hash())
-	require.NoError(t, err)
-	require.Equal(t, tx1Height, h1)
+		_, h1, err := bc.GetTransaction(tx1.Hash())
+		require.NoError(t, err)
+		require.Equal(t, tx1Height, h1)
 
-	require.NoError(t, bc.AddBlock(bc.newBlock()))
+		require.NoError(t, bc.AddBlock(bc.newBlock()))
+		require.NoError(t, bc.AddBlock(bc.newBlock()))
+		require.NoError(t, bc.AddBlock(bc.newBlock()))
 
-	_, _, err = bc.GetTransaction(tx1.Hash())
-	require.Error(t, err)
-	_, err = bc.GetAppExecResults(tx1.Hash(), trigger.Application)
-	require.Error(t, err)
-	_, err = bc.GetBlock(b1.Hash())
-	require.Error(t, err)
-	_, err = bc.GetHeader(b1.Hash())
-	require.NoError(t, err)
+		check(t, bc, tx1.Hash(), b1.Hash(), false)
+		check(t, bc, tx2.Hash(), b2.Hash(), false)
+
+		require.NoError(t, bc.AddBlock(bc.newBlock()))
+
+		check(t, bc, tx1.Hash(), b1.Hash(), true)
+		check(t, bc, tx2.Hash(), b2.Hash(), false)
+		_, h2, err := bc.GetTransaction(tx2.Hash())
+		require.NoError(t, err)
+		require.Equal(t, tx2Height, h2)
+	})
 }
 
 func TestInvalidNotification(t *testing.T) {
