@@ -16,6 +16,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest/standard"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
+	"github.com/nspcc-dev/neo-go/pkg/util"
 	"golang.org/x/tools/go/loader"
 )
 
@@ -304,11 +305,13 @@ func CreateManifest(di *DebugInfo, o *Options) (*manifest.Manifest, error) {
 		// Thus only basic checks are performed.
 
 		for h, methods := range di.InvokedContracts {
+			knownHash := !h.Equals(util.Uint160{})
+
 		methodLoop:
 			for _, m := range methods {
 				for _, p := range o.Permissions {
 					// Group or wildcard permission is ok to try.
-					if p.Contract.Type == manifest.PermissionHash && !p.Contract.Hash().Equals(h) {
+					if knownHash && p.Contract.Type == manifest.PermissionHash && !p.Contract.Hash().Equals(h) {
 						continue
 					}
 
@@ -317,8 +320,12 @@ func CreateManifest(di *DebugInfo, o *Options) (*manifest.Manifest, error) {
 					}
 				}
 
-				return nil, fmt.Errorf("method '%s' of contract %s is invoked but"+
-					" corresponding permission is missing", m, h.StringLE())
+				if knownHash {
+					return nil, fmt.Errorf("method '%s' of contract %s is invoked but"+
+						" corresponding permission is missing", m, h.StringLE())
+				}
+				return nil, fmt.Errorf("method '%s' is invoked but"+
+					" corresponding permission is missing", m)
 			}
 		}
 	}

@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/internal/random"
 	"github.com/nspcc-dev/neo-go/pkg/compiler"
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
@@ -263,9 +264,7 @@ func TestInvokedContractsPermissons(t *testing.T) {
 				contract.Call(interop.Hash160(hash), runtimeMethod, contract.All)
 				contract.Call(runtimeHash, "someMethod", contract.All)
 				contract.Call(interop.Hash160(runtimeHash), "someMethod", contract.All)
-				contract.Call(runh.RuntimeHash(), "method3", contract.All)
-				contract.Call(runh.RuntimeHashArgs(hash), "method3", contract.All)
-				contract.Call(invoke(hash), "method3", contract.All)
+				contract.Call(runh.RuntimeHash(), "method4", contract.All)
 			}`, hashStr)
 
 		_, di, err := compiler.CompileWithOptions("permissionTest", strings.NewReader(src), &compiler.Options{})
@@ -281,12 +280,17 @@ func TestInvokedContractsPermissons(t *testing.T) {
 		require.Error(t, testCompile(t, di, false, *p))
 		require.NoError(t, testCompile(t, di, true, *p))
 
+		pr := manifest.NewPermission(manifest.PermissionHash, random.Uint160())
+		pr.Methods.Add("someMethod")
+		pr.Methods.Add("method4")
+
 		t.Run("wildcard", func(t *testing.T) {
 			pw := manifest.NewPermission(manifest.PermissionWildcard)
 			require.NoError(t, testCompile(t, di, false, *p, *pw))
 
 			pw.Methods.Add("method2")
-			require.NoError(t, testCompile(t, di, false, *p, *pw))
+			require.Error(t, testCompile(t, di, false, *p, *pw))
+			require.NoError(t, testCompile(t, di, false, *p, *pw, *pr))
 		})
 
 		t.Run("group", func(t *testing.T) {
@@ -295,10 +299,11 @@ func TestInvokedContractsPermissons(t *testing.T) {
 			require.NoError(t, testCompile(t, di, false, *p, *pw))
 
 			pw.Methods.Add("invalid")
-			require.Error(t, testCompile(t, di, false, *p, *pw))
+			require.Error(t, testCompile(t, di, false, *p, *pw, *pr))
 
 			pw.Methods.Add("method2")
-			require.NoError(t, testCompile(t, di, false, *p, *pw))
+			require.Error(t, testCompile(t, di, false, *p, *pw))
+			require.NoError(t, testCompile(t, di, false, *p, *pw, *pr))
 		})
 	})
 }

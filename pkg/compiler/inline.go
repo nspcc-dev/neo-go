@@ -159,34 +159,27 @@ func (c *codegen) processNotify(f *funcScope, args []ast.Expr) {
 }
 
 func (c *codegen) processContractCall(f *funcScope, args []ast.Expr) {
+	var u util.Uint160
+
 	// For stdlib calls it is `interop.Hash160(constHash)`
 	// so we can determine hash at compile-time.
 	ce, ok := args[0].(*ast.CallExpr)
-	if !ok || len(ce.Args) != 1 {
-		return
+	if ok && len(ce.Args) == 1 {
+		// Ensure this is a type conversion, not a simple invoke.
+		se, ok := ce.Fun.(*ast.SelectorExpr)
+		if ok {
+			name, _ := c.getFuncNameFromSelector(se)
+			if _, ok := c.funcs[name]; !ok {
+				value := c.typeAndValueOf(ce.Args[0]).Value
+				if value != nil {
+					s := constant.StringVal(value)
+					copy(u[:], s) // constant must be big-endian
+				}
+			}
+		}
 	}
 
-	// Ensure this is a type conversion, not a simple invoke.
-	se, ok := ce.Fun.(*ast.SelectorExpr)
-	if !ok {
-		return
-	}
-
-	name, _ := c.getFuncNameFromSelector(se)
-	if _, ok := c.funcs[name]; ok {
-		return
-	}
-
-	value := c.typeAndValueOf(ce.Args[0]).Value
-	if value == nil {
-		return
-	}
-
-	s := constant.StringVal(value)
-	var u util.Uint160
-	copy(u[:], s) // constant must be big-endian
-
-	value = c.typeAndValueOf(args[1]).Value
+	value := c.typeAndValueOf(args[1]).Value
 	if value == nil {
 		return
 	}
