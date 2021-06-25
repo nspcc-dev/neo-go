@@ -57,12 +57,8 @@ func TestCompiler(t *testing.T) {
 						// there are also a couple of files inside the `examplePath` which doesn't need to be compiled
 						continue
 					}
-					infos, err := ioutil.ReadDir(path.Join(examplePath, info.Name()))
-					require.NoError(t, err)
-					require.False(t, len(infos) == 0, "detected smart contract folder with no contract in it")
 
-					filename := filterFilename(infos)
-					targetPath := path.Join(examplePath, info.Name(), filename)
+					targetPath := path.Join(examplePath, info.Name())
 					require.NoError(t, compileFile(targetPath))
 				}
 			},
@@ -88,15 +84,6 @@ func TestCompiler(t *testing.T) {
 	for _, tcase := range testCases {
 		t.Run(tcase.name, tcase.function)
 	}
-}
-
-func filterFilename(infos []os.FileInfo) string {
-	for _, info := range infos {
-		if !info.IsDir() {
-			return info.Name()
-		}
-	}
-	return ""
 }
 
 func compileFile(src string) error {
