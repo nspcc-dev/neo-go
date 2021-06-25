@@ -1,3 +1,5 @@
 name: "Oracle example"
 supportedstandards: []
 events:
+permissions:
+  - methods: ["request"]
