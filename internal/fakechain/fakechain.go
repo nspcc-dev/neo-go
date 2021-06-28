@@ -29,6 +29,7 @@ type FakeChain struct {
 	*mempool.Pool
 	blocksCh                 []chan<- *block.Block
 	Blockheight              uint32
+	Headerheight             uint32
 	PoolTxF                  func(*transaction.Transaction) error
 	poolTxWithData           func(*transaction.Transaction, interface{}, *mempool.Pool) error
 	blocks                   map[util.Uint256]*block.Block
@@ -60,11 +61,17 @@ func (chain *FakeChain) PutBlock(b *block.Block) {
 	chain.blocks[b.Hash()] = b
 	chain.hdrHashes[b.Index] = b.Hash()
 	atomic.StoreUint32(&chain.Blockheight, b.Index)
+	if atomic.LoadUint32(&chain.Headerheight) < b.Index {
+		atomic.StoreUint32(&chain.Headerheight, b.Index)
+	}
 }
 
 // PutHeader implements Blockchainer interface.
 func (chain *FakeChain) PutHeader(b *block.Block) {
 	chain.hdrHashes[b.Index] = b.Hash()
+	if b.Index > chain.Headerheight {
+		atomic.StoreUint32(&chain.Headerheight, b.Index)
+	}
 }
 
 // PutTx implements Blockchainer interface.
@@ -172,8 +179,14 @@ func (chain *FakeChain) P2PSigExtensionsEnabled() bool {
 }
 
 // AddHeaders implements Blockchainer interface.
-func (chain *FakeChain) AddHeaders(...*block.Header) error {
-	panic("TODO")
+func (chain *FakeChain) AddHeaders(headers ...*block.Header) error {
+	for _, h := range headers {
+		if atomic.LoadUint32(&chain.Headerheight)+1 == h.Index {
+			chain.hdrHashes[h.Index] = h.Hash()
+			atomic.StoreUint32(&chain.Headerheight, h.Index)
+		}
+	}
+	return nil
 }
 
 // AddBlock implements Blockchainer interface.
@@ -196,7 +209,7 @@ func (chain *FakeChain) Close() {
 
 // HeaderHeight implements Blockchainer interface.
 func (chain *FakeChain) HeaderHeight() uint32 {
-	return atomic.LoadUint32(&chain.Blockheight)
+	return atomic.LoadUint32(&chain.Headerheight)
 }
 
 // GetAppExecResults implements Blockchainer interface.

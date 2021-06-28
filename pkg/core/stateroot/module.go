@@ -86,8 +86,18 @@ func (s *Module) CurrentValidatedHeight() uint32 {
 	return s.validatedHeight.Load()
 }
 
+// InitOnRestore initializes state root module at the given height with the given
+// stateroot when synchronizing MPT from the specified height.
+func (s *Module) InitOnRestore(root *state.MPTRoot, enableRefCount bool) error {
+	return s.init(root.Index, enableRefCount, root)
+}
+
 // Init initializes state root module at the given height.
 func (s *Module) Init(height uint32, enableRefCount bool) error {
+	return s.init(height, enableRefCount, nil)
+}
+
+func (s *Module) init(height uint32, enableRefCount bool, root *state.MPTRoot) error {
 	data, err := s.Store.Get([]byte{byte(storage.DataMPT), prefixValidated})
 	if err == nil {
 		s.validatedHeight.Store(binary.LittleEndian.Uint32(data))
@@ -112,7 +122,18 @@ func (s *Module) Init(height uint32, enableRefCount bool) error {
 	}
 	r, err := s.getStateRoot(makeStateRootKey(height))
 	if err != nil {
-		return err
+		if errors.Is(err, storage.ErrKeyNotFound) && root == nil {
+			return err
+		}
+		r = root
+		err := s.addLocalStateRoot(s.Store, r)
+		if err != nil {
+			return err
+		}
+	} else {
+		if root != nil && !r.Hash().Equals(root.Hash()) {
+			return errors.New("stateroot already exists")
+		}
 	}
 	s.currentLocal.Store(r.Root)
 	s.localHeight.Store(r.Index)

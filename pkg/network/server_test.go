@@ -407,6 +407,51 @@ func TestBlock(t *testing.T) {
 	require.Eventually(t, func() bool { return s.chain.BlockHeight() == 12345 }, time.Second, time.Millisecond*500)
 }
 
+func startTestServerWithStateExchange(t *testing.T) *Server {
+	chain := fakechain.NewFakeChain()
+	chain.P2PStateExchangeExtensions = true
+	chain.StateRootInHeader = true
+	chain.RemoveUntraceableBlocks = true
+	s := newTestServerWithChain(t, ServerConfig{Port: 0, UserAgent: "/test/"}, chain)
+	ch := startWithChannel(s)
+	t.Cleanup(func() {
+		s.Shutdown()
+		<-ch
+	})
+	return s
+}
+
+func TestHeaders(t *testing.T) {
+	check := func(t *testing.T, s *Server, shouldBeIncremented bool) {
+		var (
+			height   uint32 = 12344
+			expected        = height
+		)
+		atomic2.StoreUint32(&s.chain.(*fakechain.FakeChain).Headerheight, 12344)
+		require.Equal(t, height, s.chain.HeaderHeight())
+
+		b := block.New(false)
+		b.Index = height + 1
+
+		s.testHandleMessage(t, nil, CMDHeaders, &payload.Headers{
+			Hdrs:              []*block.Header{&b.Header},
+			StateRootInHeader: true,
+		})
+		if shouldBeIncremented {
+			expected++
+		}
+		require.Equal(t, expected, s.chain.HeaderHeight())
+	}
+	t.Run("state exchange is off", func(t *testing.T) {
+		s := startTestServer(t)
+		check(t, s, false)
+	})
+	t.Run("state exchange is on", func(t *testing.T) {
+		s := startTestServerWithStateExchange(t)
+		check(t, s, true)
+	})
+}
+
 func TestConsensus(t *testing.T) {
 	s := startTestServer(t)
 

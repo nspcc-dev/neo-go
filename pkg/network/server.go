@@ -3,10 +3,12 @@ package network
 import (
 	"crypto/rand"
 	"encoding/binary"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	mrand "math/rand"
 	"net"
+	"sort"
 	"strconv"
 	"sync"
 	"time"
@@ -18,6 +20,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/mempool"
 	"github.com/nspcc-dev/neo-go/pkg/core/mempoolevent"
 	"github.com/nspcc-dev/neo-go/pkg/core/mpt"
+	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/network/capability"
@@ -90,6 +93,16 @@ type (
 		transactions chan *transaction.Transaction
 
 		syncReached *atomic.Bool
+		// canStartSync denotes whether node has collected all data to start sync process
+		// using standard sync mechanism while restoring from the latest state sync point P.
+		// The data includes:
+		// 1. Headers starting from height 0 up to P+1
+		// 2. MPT state for height P
+		// 3. Blocks starting from height P-MaxTraceableBlocks up to P (performing in parallel
+		//    with 2-nd step)
+		canStartSync *atomic.Bool
+		// p represents the latest state sync point P.
+		p *atomic.Uint32
 
 		oracle    *oracle.Oracle
 		stateRoot stateroot.Service
@@ -142,6 +155,8 @@ func newServerFromConstructors(config ServerConfig, chain blockchainer.Blockchai
 		unregister:        make(chan peerDrop),
 		peers:             make(map[Peer]bool),
 		syncReached:       atomic.NewBool(false),
+		canStartSync:      atomic.NewBool(false),
+		p:                 atomic.NewUint32(0),
 		extensiblePool:    extpool.New(chain, config.ExtensiblePoolSize),
 		log:               log,
 		transactions:      make(chan *transaction.Transaction, 64),
@@ -187,6 +202,13 @@ func newServerFromConstructors(config ServerConfig, chain blockchainer.Blockchai
 			return nil, errors.New("`StateRootInHeader` should be enabled when state exchange extensions are enabled")
 		}
 		s.mptPool = mptpool.New()
+		if !chain.GetConfig().RemoveUntraceableBlocks {
+			// then it's an archival node, need to sync from genesis
+			s.canStartSync.Store(true)
+		}
+	} else {
+		// state exchange is off, so the only option is to sync from the genesis
+		s.canStartSync.Store(true)
 	}
 
 	sr, err := stateroot.New(config.StateRootCfg, s.log, chain, s.handleNewPayload)
@@ -574,26 +596,53 @@ func (s *Server) IsInSync() bool {
 	var peersNumber int
 	var notHigher int
 
-	if s.MinPeers == 0 {
+	ourLastBlock := s.chain.BlockHeight()
+	if !s.canStartSync.Load() { // TODO: should be removed, `canStartSync` should be updated during BlockCMD/MPTDataCMD processing
+		p := s.p.Load()
+		if p != 0 && ourLastBlock >= p && s.mptPool.Count() == 0 {
+			s.canStartSync.CAS(false, true)
+		}
+	}
+	if s.MinPeers == 0 && s.canStartSync.Load() {
 		return true
 	}
 
-	ourLastBlock := s.chain.BlockHeight()
-
 	s.lock.RLock()
+	heights := make([]uint32, 0)
 	for p := range s.peers {
 		if p.Handshaked() {
 			peersNumber++
-			if ourLastBlock >= p.LastBlockIndex() {
+			peerLastBlock := p.LastBlockIndex()
+			if ourLastBlock >= peerLastBlock {
 				notHigher++
+			}
+			i := sort.Search(len(heights), func(i int) bool {
+				return heights[i] >= peerLastBlock
+			})
+			heights = append(heights, peerLastBlock)
+			if i != len(heights)-1 {
+				copy(heights[i+1:], heights[i:])
+				heights[i] = peerLastBlock
 			}
 		}
 	}
 	s.lock.RUnlock()
 
+	if !s.canStartSync.Load() && s.p.Load() == 0 && peersNumber >= s.MinPeers && len(heights) > 0 {
+		syncInterval := uint32(s.chain.GetConfig().StateSyncInterval)
+		// choose the height of the median peer as current chain's height
+		p1 := (heights[len(heights)/2] / syncInterval) * syncInterval
+		if p1 < 2*syncInterval {
+			// chain is too low to start state exchange process, use the standard sync mechanism
+			s.canStartSync.CAS(false, true)
+		} else if s.p.CAS(0, p1) {
+			s.log.Info("try to sync state for latest state synchronization point", zap.Uint32("height", p1))
+		}
+	}
+
 	// Checking bQueue would also be nice, but it can be filled with garbage
 	// easily at the moment.
-	return peersNumber >= s.MinPeers && (3*notHigher > 2*peersNumber) // && s.bQueue.length() == 0
+	return s.canStartSync.Load() && peersNumber >= s.MinPeers && (3*notHigher > 2*peersNumber) // && s.bQueue.length() == 0
 }
 
 // When a peer sends out his version we reply with verack after validating
@@ -641,7 +690,7 @@ func (s *Server) handlePing(p Peer, ping *payload.Ping) error {
 		return err
 	}
 	if s.chain.BlockHeight() < ping.LastBlockIndex {
-		err = s.requestBlocks(p)
+		err = s.requestBlocksOrHeaders(p)
 		if err != nil {
 			return err
 		}
@@ -656,7 +705,7 @@ func (s *Server) handlePong(p Peer, pong *payload.Ping) error {
 		return err
 	}
 	if s.chain.BlockHeight() < pong.LastBlockIndex {
-		return s.requestBlocks(p)
+		return s.requestBlocksOrHeaders(p)
 	}
 	return nil
 }
@@ -805,6 +854,9 @@ func (s *Server) handleMPTDataCmd(p Peer, data *payload.MPTData) error {
 	if !s.chain.GetConfig().P2PStateExchangeExtensions {
 		return errors.New("MPTDataCMD was received, but P2PStateExchangeExtensions are disabled")
 	}
+	if s.canStartSync.Load() || s.mptPool.Count() == 0 || s.p.Load() == 0 {
+		return nil
+	}
 	toBeRequested := make(map[util.Uint256]bool)
 	for _, nBytes := range data.Nodes {
 		var n mpt.NodeObject
@@ -822,7 +874,7 @@ func (s *Server) handleMPTDataCmd(p Peer, data *payload.MPTData) error {
 		for _, path := range nPaths {
 			err := s.chain.GetStateModule().RestoreMPTNode(path, n.Node)
 			if err != nil {
-				return fmt.Errorf("failed to add MPT node: %w", err)
+				return fmt.Errorf("failed to add MPT node with hash %s and path %s: %w", n.Hash().StringBE(), hex.EncodeToString(path), err)
 			}
 			nChildrenPaths := mpt.GetChildrenPaths(path, n.Node)
 			for h, paths := range nChildrenPaths {
@@ -838,6 +890,12 @@ func (s *Server) handleMPTDataCmd(p Peer, data *payload.MPTData) error {
 		_ = s.requestMPTNodes(p, toBeRequested)
 	} else if s.mptPool.Count() == 0 {
 		// there are no Nodes we need to fetch, thus MPT sync process considered to be ended
+		s.log.Info("MPT successfully synced",
+			zap.Uint32("height", s.chain.GetStateModule().CurrentLocalHeight()),
+			zap.String("state root", s.chain.GetStateModule().CurrentLocalStateRoot().StringBE()))
+		if s.chain.BlockHeight() == s.p.Load() && s.canStartSync.CAS(false, true) {
+			s.log.Info("state sync for the latest state synchronization point is reached", zap.Uint32("height", s.p.Load()))
+		}
 	}
 	return nil
 }
@@ -939,6 +997,47 @@ func (s *Server) handleGetHeadersCmd(p Peer, gh *payload.GetBlockByIndex) error 
 	}
 	msg := NewMessage(CMDHeaders, &resp)
 	return p.EnqueueP2PMessage(msg)
+}
+
+// handleHeadersCmd processes headers payload.
+func (s *Server) handleHeadersCmd(p Peer, h *payload.Headers) error {
+	if s.canStartSync.Load() {
+		// we don't handle headers during standard sync process
+		return nil
+	}
+	err := s.chain.AddHeaders(h.Hdrs...)
+	if err != nil {
+		return err
+	}
+	if pSync := s.p.Load(); pSync != 0 && s.chain.GetStateModule().CurrentLocalHeight() != pSync && s.chain.HeaderHeight() > pSync {
+		header, err := s.chain.GetHeader(s.chain.GetHeaderHash(int(pSync) + 1))
+		if err != nil {
+			s.log.Fatal("failed to get header to init MPT",
+				zap.Uint32("height", pSync+1),
+				zap.Error(err))
+		}
+		err = s.chain.GetStateModule().InitOnRestore(&state.MPTRoot{
+			Index: pSync,
+			Root:  header.PrevStateRoot,
+		}, s.chain.GetConfig().KeepOnlyLatestState)
+		if err != nil {
+			s.log.Fatal("failed to initialize state module to start state exchange",
+				zap.Error(err))
+		}
+		s.mptPool.Add(header.PrevStateRoot, []byte{})
+		s.log.Info("MPT initialized",
+			zap.Uint32("height", pSync),
+			zap.String("state root", header.PrevStateRoot.StringBE()))
+		err = s.requestMPTNodes(p, map[util.Uint256]bool{header.PrevStateRoot: true})
+		if err != nil {
+			s.log.Warn("failed to request MPT root",
+				zap.Uint32("height", pSync),
+				zap.String("state root", header.PrevStateRoot.StringBE()),
+				zap.Error(err))
+			return err
+		}
+	}
+	return nil
 }
 
 // handleExtensibleCmd processes received extensible payload.
@@ -1068,6 +1167,18 @@ func (s *Server) handleGetAddrCmd(p Peer) error {
 	return p.EnqueueP2PMessage(NewMessage(CMDAddr, alist))
 }
 
+func (s *Server) requestBlocksOrHeaders(p Peer) error {
+	if !s.canStartSync.Load() && s.p.Load() == 0 {
+		// then need to request headers first, but P1 is not set yet, wait for more peers
+		return nil
+	}
+	// if restoring node state, then fetch headers up to P1+1 height first
+	if !s.canStartSync.Load() && s.chain.HeaderHeight() <= s.p.Load() {
+		return s.requestHeaders(p)
+	}
+	return s.requestBlocks(p)
+}
+
 // requestBlocks sends a CMDGetBlockByIndex message to the peer
 // to sync up in blocks. A maximum of maxBlockBatch will
 // send at once. Two things we need to take care of:
@@ -1108,6 +1219,15 @@ func (s *Server) requestBlocks(p Peer) error {
 	return p.EnqueueP2PMessage(NewMessage(CMDGetBlockByIndex, payload))
 }
 
+// requestHeaders sends a CMDGetHeaders message to the peer to sync up in headers.
+func (s *Server) requestHeaders(p Peer) error {
+	// TODO: optimize
+	currHeight := s.chain.HeaderHeight()
+	needHeight := currHeight + 1
+	payload := payload.NewGetBlockByIndex(needHeight, -1)
+	return p.EnqueueP2PMessage(NewMessage(CMDGetHeaders, payload))
+}
+
 // handleMessage processes the given message.
 func (s *Server) handleMessage(peer Peer, msg *Message) error {
 	s.log.Debug("got msg",
@@ -1145,6 +1265,9 @@ func (s *Server) handleMessage(peer Peer, msg *Message) error {
 		case CMDGetHeaders:
 			gh := msg.Payload.(*payload.GetBlockByIndex)
 			return s.handleGetHeadersCmd(peer, gh)
+		case CMDHeaders:
+			h := msg.Payload.(*payload.Headers)
+			return s.handleHeadersCmd(peer, h)
 		case CMDInv:
 			inventory := msg.Payload.(*payload.Inventory)
 			return s.handleInvCmd(peer, inventory)
