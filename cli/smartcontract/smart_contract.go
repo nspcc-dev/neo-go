@@ -154,6 +154,10 @@ func NewCommands() []cli.Command {
 						Name:  "no-events",
 						Usage: "do not check emitted events with the manifest",
 					},
+					cli.BoolFlag{
+						Name:  "no-permissions",
+						Usage: "do not check if invoked contracts are allowed in manifest",
+					},
 				},
 			},
 			{
@@ -439,8 +443,9 @@ func contractCompile(ctx *cli.Context) error {
 		DebugInfo:    debugFile,
 		ManifestFile: manifestFile,
 
-		NoStandardCheck: ctx.Bool("no-standards"),
-		NoEventsCheck:   ctx.Bool("no-events"),
+		NoStandardCheck:    ctx.Bool("no-standards"),
+		NoEventsCheck:      ctx.Bool("no-events"),
+		NoPermissionsCheck: ctx.Bool("no-permissions"),
 	}
 
 	if len(confFile) != 0 {

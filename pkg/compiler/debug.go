@@ -13,6 +13,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
+	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
@@ -24,6 +25,8 @@ type DebugInfo struct {
 	Events    []EventDebugInfo  `json:"events"`
 	// EmittedEvents contains events occurring in code.
 	EmittedEvents map[string][][]string `json:"-"`
+	// InvokedContracts contains foreign contract invocations.
+	InvokedContracts map[util.Uint160][]string `json:"-"`
 	// StaticVariables contains list of static variable names and types.
 	StaticVariables []string `json:"static-variables"`
 }
@@ -180,6 +183,7 @@ func (c *codegen) emitDebugInfo(contract []byte) *DebugInfo {
 		d.Methods = append(d.Methods, *m)
 	}
 	d.EmittedEvents = c.emittedEvents
+	d.InvokedContracts = c.invokedContracts
 	return d
 }
 

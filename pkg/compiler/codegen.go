@@ -15,6 +15,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
@@ -107,6 +108,9 @@ type codegen struct {
 
 	// emittedEvents contains all events emitted by contract.
 	emittedEvents map[string][][]string
+
+	// invokedContracts contains invoked methods of other contracts.
+	invokedContracts map[util.Uint160][]string
 
 	// Label table for recording jump destinations.
 	l []int
@@ -2058,8 +2062,9 @@ func newCodegen(info *buildInfo, pkg *loader.PackageInfo) *codegen {
 		initEndOffset:   -1,
 		deployEndOffset: -1,
 
-		emittedEvents:  make(map[string][][]string),
-		sequencePoints: make(map[string][]DebugSeqPoint),
+		emittedEvents:    make(map[string][][]string),
+		invokedContracts: make(map[util.Uint160][]string),
+		sequencePoints:   make(map[string][]DebugSeqPoint),
 	}
 }
 
