@@ -1,12 +1,14 @@
 package manifest
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"math"
 
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
+	ojson "github.com/virtuald/go-ordered-json"
 )
 
 const (
@@ -140,10 +142,7 @@ func (m *Manifest) ToStackItem() (stackitem.Item, error) {
 		}
 		trusts = stackitem.Make(tItems)
 	}
-	extra := stackitem.Make("null")
-	if m.Extra != nil {
-		extra = stackitem.NewByteArray(m.Extra)
-	}
+	extra := extraToStackItem(m.Extra)
 	return stackitem.NewStruct([]stackitem.Item{
 		stackitem.Make(m.Name),
 		stackitem.Make(groups),
@@ -154,6 +153,29 @@ func (m *Manifest) ToStackItem() (stackitem.Item, error) {
 		trusts,
 		extra,
 	}), nil
+}
+
+// extraToStackItem removes indentation from `Extra` field in JSON and
+// converts it to a byte-array stack item.
+func extraToStackItem(rawExtra []byte) stackitem.Item {
+	extra := stackitem.Make("null")
+	if rawExtra == nil || string(rawExtra) == "null" {
+		return extra
+	}
+
+	d := ojson.NewDecoder(bytes.NewReader(rawExtra))
+	// The result is put directly in the database and affects state-root calculation,
+	// thus use ordered map to stay compatible with C# implementation.
+	d.UseOrderedObject()
+	// Prevent accidental precision loss.
+	d.UseNumber()
+
+	var obj interface{}
+
+	// The error can't really occur because `json.RawMessage` is already a valid json.
+	_ = d.Decode(&obj)
+	res, _ := ojson.Marshal(obj)
+	return stackitem.NewByteArray(res)
 }
 
 // FromStackItem converts stackitem.Item to Manifest.
