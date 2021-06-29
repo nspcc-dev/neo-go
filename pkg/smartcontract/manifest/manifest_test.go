@@ -289,7 +289,7 @@ func TestManifestToStackItem(t *testing.T) {
 					},
 				},
 			},
-			Extra: []byte(`even not a json allowed`),
+			Extra: []byte(`"even string allowed"`),
 		}
 		check(t, expected)
 	})
@@ -393,5 +393,27 @@ func TestABI_FromStackItemErrors(t *testing.T) {
 			p := new(ABI)
 			require.Error(t, p.FromStackItem(errCase))
 		})
+	}
+}
+
+func TestExtraToStackItem(t *testing.T) {
+	testCases := []struct {
+		raw, expected string
+	}{
+		{"null", "null"},
+		{"1", "1"},
+		{"1.23456789101112131415", "1.23456789101112131415"},
+		{`"string with space"`, `"string with space"`},
+		{`{ "a":1, "sss" : {"m" : 1, "a" : 2} , "x"  :  2  ,"c" :3,"z":4,  "s":"5"}`,
+			`{"a":1,"sss":{"m":1,"a":2},"x":2,"c":3,"z":4,"s":"5"}`},
+		{`  [ 1, "array", { "d": "z", "a":"x",  "c" : "y",  "b":3}]`,
+			`[1,"array",{"d":"z","a":"x","c":"y","b":3}]`},
+	}
+
+	for _, tc := range testCases {
+		res := extraToStackItem([]byte(tc.raw))
+		actual, ok := res.Value().([]byte)
+		require.True(t, ok)
+		require.Equal(t, tc.expected, string(actual))
 	}
 }

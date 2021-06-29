@@ -129,7 +129,10 @@ func decodeBinaryStackItem(r *io.BinReader, allowInvalid bool) Item {
 	switch t {
 	case ByteArrayT, BufferT:
 		data := r.ReadVarBytes(MaxSize)
-		return NewByteArray(data)
+		if t == ByteArrayT {
+			return NewByteArray(data)
+		}
+		return NewBuffer(data)
 	case BooleanT:
 		var b = r.ReadBool()
 		return NewBool(b)
