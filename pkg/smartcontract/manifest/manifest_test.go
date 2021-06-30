@@ -106,13 +106,16 @@ func TestPermission_IsAllowed(t *testing.T) {
 	t.Run("group", func(t *testing.T) {
 		perm := NewPermission(PermissionGroup, priv.PublicKey())
 		require.True(t, perm.IsAllowed(util.Uint160{}, manifest, "AAA"))
-	})
 
-	t.Run("invalid group", func(t *testing.T) {
 		priv2, err := keys.NewPrivateKey()
 		require.NoError(t, err)
-		perm := NewPermission(PermissionGroup, priv2.PublicKey())
+
+		perm = NewPermission(PermissionGroup, priv2.PublicKey())
 		require.False(t, perm.IsAllowed(util.Uint160{}, manifest, "AAA"))
+
+		manifest.Groups = append(manifest.Groups, Group{PublicKey: priv2.PublicKey()})
+		perm = NewPermission(PermissionGroup, priv2.PublicKey())
+		require.True(t, perm.IsAllowed(util.Uint160{}, manifest, "AAA"))
 	})
 }
 
