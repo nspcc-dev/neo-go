@@ -70,6 +70,11 @@ func (s *Module) CurrentLocalStateRoot() util.Uint256 {
 	return s.currentLocal.Load().(util.Uint256)
 }
 
+// CurrentLocalHeight returns height of the local state root.
+func (s *Module) CurrentLocalHeight() uint32 {
+	return s.localHeight.Load()
+}
+
 // CurrentValidatedHeight returns current state root validated height.
 func (s *Module) CurrentValidatedHeight() uint32 {
 	return s.validatedHeight.Load()

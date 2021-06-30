@@ -782,6 +782,15 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 		// because changes applied are the ones from HALTed transactions.
 		return fmt.Errorf("error while trying to apply MPT changes: %w", err)
 	}
+	if bc.config.StateRootInHeader && bc.HeaderHeight() > sr.Index {
+		h, err := bc.GetHeader(bc.GetHeaderHash(int(sr.Index) + 1))
+		if err != nil {
+			return fmt.Errorf("failed to get next header: %w", err)
+		}
+		if h.PrevStateRoot != sr.Root {
+			return fmt.Errorf("local stateroot and next header's PrevStateRoot mismatch: %s vs %s", sr.Root.StringBE(), h.PrevStateRoot.StringBE())
+		}
+	}
 
 	if bc.config.SaveStorageBatch {
 		bc.lastBatch = cache.DAO.GetBatch()
@@ -1430,9 +1439,11 @@ var (
 
 func (bc *Blockchain) verifyHeader(currHeader, prevHeader *block.Header) error {
 	if bc.config.StateRootInHeader {
-		if sr := bc.stateRoot.CurrentLocalStateRoot(); currHeader.PrevStateRoot != sr {
-			return fmt.Errorf("%w: %s != %s",
-				ErrHdrInvalidStateRoot, currHeader.PrevStateRoot.StringLE(), sr.StringLE())
+		if bc.stateRoot.CurrentLocalHeight() == prevHeader.Index {
+			if sr := bc.stateRoot.CurrentLocalStateRoot(); currHeader.PrevStateRoot != sr {
+				return fmt.Errorf("%w: %s != %s",
+					ErrHdrInvalidStateRoot, currHeader.PrevStateRoot.StringLE(), sr.StringLE())
+			}
 		}
 	}
 	if prevHeader.Hash() != currHeader.PrevHash {

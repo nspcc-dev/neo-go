@@ -158,6 +158,28 @@ func TestAddBlockStateRoot(t *testing.T) {
 	require.NoError(t, bc.AddBlock(b))
 }
 
+func TestAddHeadersStateRoot(t *testing.T) {
+	bc := newTestChainWithCustomCfg(t, func(c *config.Config) {
+		c.ProtocolConfiguration.StateRootInHeader = true
+	})
+
+	r := bc.stateRoot.CurrentLocalStateRoot()
+	h1 := bc.newBlock().Header
+
+	// invalid stateroot
+	h1.PrevStateRoot[0] ^= 0xFF
+	require.True(t, errors.Is(bc.AddHeaders(&h1), ErrHdrInvalidStateRoot))
+
+	// valid stateroot
+	h1.PrevStateRoot = r
+	require.NoError(t, bc.AddHeaders(&h1))
+
+	// unable to verify stateroot (stateroot is computed for block #0 only => can
+	// verify stateroot of header #1 only) => just store the header
+	h2 := newBlockWithState(bc.config, 2, h1.Hash(), nil).Header
+	require.NoError(t, bc.AddHeaders(&h2))
+}
+
 func TestAddBadBlock(t *testing.T) {
 	bc := newTestChain(t)
 	// It has ValidUntilBlock == 0, which is wrong
