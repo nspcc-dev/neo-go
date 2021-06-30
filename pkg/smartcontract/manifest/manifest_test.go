@@ -5,6 +5,7 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/internal/random"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -69,8 +70,16 @@ func TestPermission_IsAllowed(t *testing.T) {
 	manifest := DefaultManifest("Test")
 
 	t.Run("wildcard", func(t *testing.T) {
+		h := random.Uint160()
+
 		perm := NewPermission(PermissionWildcard)
-		require.True(t, perm.IsAllowed(util.Uint160{}, manifest, "AAA"))
+		require.True(t, perm.IsAllowed(h, manifest, "AAA"))
+
+		perm.Methods.Restrict()
+		require.False(t, perm.IsAllowed(h, manifest, "AAA"))
+
+		perm.Methods.Add("AAA")
+		require.True(t, perm.IsAllowed(h, manifest, "AAA"))
 	})
 
 	t.Run("hash", func(t *testing.T) {
@@ -97,13 +106,16 @@ func TestPermission_IsAllowed(t *testing.T) {
 	t.Run("group", func(t *testing.T) {
 		perm := NewPermission(PermissionGroup, priv.PublicKey())
 		require.True(t, perm.IsAllowed(util.Uint160{}, manifest, "AAA"))
-	})
 
-	t.Run("invalid group", func(t *testing.T) {
 		priv2, err := keys.NewPrivateKey()
 		require.NoError(t, err)
-		perm := NewPermission(PermissionGroup, priv2.PublicKey())
+
+		perm = NewPermission(PermissionGroup, priv2.PublicKey())
 		require.False(t, perm.IsAllowed(util.Uint160{}, manifest, "AAA"))
+
+		manifest.Groups = append(manifest.Groups, Group{PublicKey: priv2.PublicKey()})
+		perm = NewPermission(PermissionGroup, priv2.PublicKey())
+		require.True(t, perm.IsAllowed(util.Uint160{}, manifest, "AAA"))
 	})
 }
 

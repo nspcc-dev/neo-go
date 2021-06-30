@@ -162,17 +162,21 @@ func (ps Permissions) AreValid() error {
 func (p *Permission) IsAllowed(hash util.Uint160, m *Manifest, method string) bool {
 	switch p.Contract.Type {
 	case PermissionWildcard:
-		return true
 	case PermissionHash:
 		if !p.Contract.Hash().Equals(hash) {
 			return false
 		}
 	case PermissionGroup:
+		has := false
 		g := p.Contract.Group()
 		for i := range m.Groups {
-			if !g.Equal(m.Groups[i].PublicKey) {
-				return false
+			if g.Equal(m.Groups[i].PublicKey) {
+				has = true
+				break
 			}
+		}
+		if !has {
+			return false
 		}
 	default:
 		panic(fmt.Sprintf("unexpected permission: %d", p.Contract.Type))
