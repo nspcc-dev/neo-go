@@ -5,6 +5,7 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/internal/random"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -69,8 +70,16 @@ func TestPermission_IsAllowed(t *testing.T) {
 	manifest := DefaultManifest("Test")
 
 	t.Run("wildcard", func(t *testing.T) {
+		h := random.Uint160()
+
 		perm := NewPermission(PermissionWildcard)
-		require.True(t, perm.IsAllowed(util.Uint160{}, manifest, "AAA"))
+		require.True(t, perm.IsAllowed(h, manifest, "AAA"))
+
+		perm.Methods.Restrict()
+		require.False(t, perm.IsAllowed(h, manifest, "AAA"))
+
+		perm.Methods.Add("AAA")
+		require.True(t, perm.IsAllowed(h, manifest, "AAA"))
 	})
 
 	t.Run("hash", func(t *testing.T) {

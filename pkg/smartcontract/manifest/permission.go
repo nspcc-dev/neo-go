@@ -162,7 +162,6 @@ func (ps Permissions) AreValid() error {
 func (p *Permission) IsAllowed(hash util.Uint160, m *Manifest, method string) bool {
 	switch p.Contract.Type {
 	case PermissionWildcard:
-		return true
 	case PermissionHash:
 		if !p.Contract.Hash().Equals(hash) {
 			return false
