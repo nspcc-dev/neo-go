@@ -195,6 +195,9 @@ func (c *nep17TokenNative) updateAccBalance(ic *interop.Context, acc util.Uint16
 
 	err := c.incBalance(ic, acc, &si, amount)
 	if err != nil {
+		if si != nil && amount.Sign() < 0 {
+			_ = ic.DAO.PutStorageItem(c.ID, key, si)
+		}
 		return err
 	}
 	if si == nil {
