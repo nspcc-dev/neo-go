@@ -597,12 +597,6 @@ func (s *Server) IsInSync() bool {
 	var notHigher int
 
 	ourLastBlock := s.chain.BlockHeight()
-	if !s.canStartSync.Load() { // TODO: should be removed, `canStartSync` should be updated during BlockCMD/MPTDataCMD processing
-		p := s.p.Load()
-		if p != 0 && ourLastBlock >= p && s.mptPool.Count() == 0 {
-			s.canStartSync.CAS(false, true)
-		}
-	}
 	if s.MinPeers == 0 && s.canStartSync.Load() {
 		return true
 	}
@@ -1028,6 +1022,10 @@ func (s *Server) handleHeadersCmd(p Peer, h *payload.Headers) error {
 		s.log.Info("MPT initialized",
 			zap.Uint32("height", pSync),
 			zap.String("state root", header.PrevStateRoot.StringBE()))
+		err = s.chain.InitOnRestore(pSync)
+		if err != nil {
+			s.log.Fatal("failed to init Blockchain for state sync", zap.Error(err))
+		}
 		err = s.requestMPTNodes(p, map[util.Uint256]bool{header.PrevStateRoot: true})
 		if err != nil {
 			s.log.Warn("failed to request MPT root",
@@ -1431,6 +1429,9 @@ func (s *Server) relayBlocksLoop() {
 			s.chain.UnsubscribeFromBlocks(ch)
 			return
 		case b := <-ch:
+			if !s.canStartSync.Load() && b.Index == s.p.Load() && s.mptPool.Count() == 0 && s.canStartSync.CAS(false, true) {
+				s.log.Info("state sync for the latest state synchronization point is reached", zap.Uint32("height", s.p.Load()))
+			}
 			msg := NewMessage(CMDInv, payload.NewInventory(payload.BlockType, []util.Uint256{b.Hash()}))
 			// Filter out nodes that are more current (avoid spamming the network
 			// during initial sync).
