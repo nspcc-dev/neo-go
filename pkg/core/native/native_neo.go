@@ -51,6 +51,11 @@ type NEO struct {
 	committee atomic.Value
 	// committeeHash contains script hash of the committee.
 	committeeHash atomic.Value
+
+	// gasPerVoteCache contains last updated value of GAS per vote reward for candidates.
+	// It is set in state-modifying methods only and read in `PostPersist` thus is not protected
+	// by any mutex.
+	gasPerVoteCache map[string]big.Int
 }
 
 const (
@@ -117,6 +122,7 @@ func newNEO() *NEO {
 	n.committee.Store(keysWithVotes(nil))
 	n.committeeHash.Store(util.Uint160{})
 	n.registerPriceChanged.Store(true)
+	n.gasPerVoteCache = make(map[string]big.Int)
 
 	desc := newDescriptor("unclaimedGas", smartcontract.IntegerType,
 		manifest.NewParameter("account", smartcontract.Hash160Type),
@@ -333,10 +339,18 @@ func (n *NEO) PostPersist(ic *interop.Context) error {
 				tmp.Div(tmp, cs[i].Votes)
 
 				key = makeVoterKey([]byte(cs[i].Key), key)
-				var reward = n.getGASPerVote(ic.DAO, key[:34], ic.Block.Index+1)
-				tmp.Add(tmp, &reward[0])
+
+				var r *big.Int
+				if g, ok := n.gasPerVoteCache[cs[i].Key]; ok {
+					r = &g
+				} else {
+					reward := n.getGASPerVote(ic.DAO, key[:34], ic.Block.Index+1)
+					r = &reward[0]
+				}
+				tmp.Add(tmp, r)
 
 				binary.BigEndian.PutUint32(key[34:], ic.Block.Index+1)
+				n.gasPerVoteCache[cs[i].Key] = *tmp
 
 				if err := ic.DAO.PutStorageItem(n.ID, key, bigint.ToBytes(tmp)); err != nil {
 					return err
@@ -562,7 +576,8 @@ func (n *NEO) dropCandidateIfZero(d dao.DAO, pub *keys.PublicKey, c *candidate) 
 	}
 
 	var toRemove []string
-	d.Seek(n.ID, makeVoterKey(pub.Bytes()), func(k, v []byte) {
+	voterKey := makeVoterKey(pub.Bytes())
+	d.Seek(n.ID, voterKey, func(k, v []byte) {
 		toRemove = append(toRemove, string(k))
 	})
 	for i := range toRemove {
@@ -570,6 +585,8 @@ func (n *NEO) dropCandidateIfZero(d dao.DAO, pub *keys.PublicKey, c *candidate) 
 			return true, err
 		}
 	}
+	delete(n.gasPerVoteCache, string(voterKey))
+
 	return true, nil
 }
 
