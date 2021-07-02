@@ -235,6 +235,7 @@ func transferNEP11(ctx *cli.Context) error {
 
 func signAndSendNEP11Transfer(ctx *cli.Context, c *client.Client, acc *wallet.Account, token, to util.Uint160, tokenID string, amount *big.Int, data interface{}, cosigners []client.SignerAccount) error {
 	gas := flags.Fixed8FromContext(ctx, "gas")
+	sysgas := flags.Fixed8FromContext(ctx, "sysgas")
 
 	var (
 		tx  *transaction.Transaction
@@ -254,6 +255,7 @@ func signAndSendNEP11Transfer(ctx *cli.Context, c *client.Client, acc *wallet.Ac
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
+	tx.SystemFee += int64(sysgas)
 
 	if outFile := ctx.String("out"); outFile != "" {
 		if err := paramcontext.InitAndSave(c.GetNetwork(), tx, acc, outFile); err != nil {

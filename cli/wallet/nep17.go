@@ -25,8 +25,12 @@ var (
 		Usage: "Token to use (hash or name (for NEO/GAS or imported tokens))",
 	}
 	gasFlag = flags.Fixed8Flag{
-		Name:  "gas",
-		Usage: "Amount of GAS to attach to a tx",
+		Name:  "gas, g",
+		Usage: "network fee to add to the transaction (prioritizing it)",
+	}
+	sysGasFlag = flags.Fixed8Flag{
+		Name:  "sysgas, e",
+		Usage: "system fee to add to transaction (compensating for execution)",
 	}
 	baseBalanceFlags = []cli.Flag{
 		walletPathFlag,
@@ -50,6 +54,7 @@ var (
 		toAddrFlag,
 		tokenFlag,
 		gasFlag,
+		sysGasFlag,
 		cli.StringFlag{
 			Name:  "amount",
 			Usage: "Amount of asset to send",
@@ -60,6 +65,7 @@ var (
 		outFlag,
 		fromAddrFlag,
 		gasFlag,
+		sysGasFlag,
 	}, options.RPC...)
 )
 
@@ -561,11 +567,13 @@ func transferNEP(ctx *cli.Context, standard string) error {
 
 func signAndSendNEP17Transfer(ctx *cli.Context, c *client.Client, acc *wallet.Account, recipients []client.TransferTarget, cosigners []client.SignerAccount) error {
 	gas := flags.Fixed8FromContext(ctx, "gas")
+	sysgas := flags.Fixed8FromContext(ctx, "sysgas")
 
 	tx, err := c.CreateNEP17MultiTransferTx(acc, int64(gas), recipients, cosigners)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
+	tx.SystemFee += int64(sysgas)
 
 	if outFile := ctx.String("out"); outFile != "" {
 		if err := paramcontext.InitAndSave(c.GetNetwork(), tx, acc, outFile); err != nil {
