@@ -162,6 +162,18 @@ func TestTrie_PutBatchBranch(t *testing.T) {
 		tr1, tr2 := prepareBranch(t)
 		var ps = pairs{{[]byte{0x00, 2}, nil}}
 		testPut(t, ps, tr1, tr2)
+
+		t.Run("non-empty child is hash node", func(t *testing.T) {
+			tr1, tr2 := prepareBranch(t)
+			tr1.Flush()
+			tr1.Collapse(1)
+			tr2.Flush()
+			tr2.Collapse(1)
+
+			var ps = pairs{{[]byte{0x00, 2}, nil}}
+			testPut(t, ps, tr1, tr2)
+			require.IsType(t, (*ExtensionNode)(nil), tr1.root)
+		})
 	})
 	t.Run("incomplete put, transform to extension", func(t *testing.T) {
 		tr1, tr2 := prepareBranch(t)
