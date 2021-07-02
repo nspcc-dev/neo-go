@@ -54,7 +54,11 @@ var (
 	}
 	gasFlag = flags.Fixed8Flag{
 		Name:  "gas, g",
-		Usage: "gas to add to the transaction",
+		Usage: "network fee to add to the transaction (prioritizing it)",
+	}
+	sysGasFlag = flags.Fixed8Flag{
+		Name:  "sysgas, e",
+		Usage: "system fee to add to transaction (compensating for execution)",
 	}
 	outFlag = cli.StringFlag{
 		Name:  "out",
@@ -99,6 +103,7 @@ func NewCommands() []cli.Command {
 		walletFlag,
 		addressFlag,
 		gasFlag,
+		sysGasFlag,
 		outFlag,
 		forceFlag,
 	}
@@ -163,7 +168,7 @@ func NewCommands() []cli.Command {
 			{
 				Name:      "deploy",
 				Usage:     "deploy a smart contract (.nef with description)",
-				UsageText: "neo-go contract deploy -r endpoint -w wallet [-a address] [-g gas] --in contract.nef --manifest contract.manifest.json [--out file] [--force] [data]",
+				UsageText: "neo-go contract deploy -r endpoint -w wallet [-a address] [-g gas] [-e sysgas] --in contract.nef --manifest contract.manifest.json [--out file] [--force] [data]",
 				Description: `Deploys given contract into the chain. The gas parameter is for additional
    gas to be added as a network fee to prioritize the transaction. The data 
    parameter is an optional parameter to be passed to '_deploy' method.
@@ -174,7 +179,7 @@ func NewCommands() []cli.Command {
 			{
 				Name:      "invokefunction",
 				Usage:     "invoke deployed contract on the blockchain",
-				UsageText: "neo-go contract invokefunction -r endpoint -w wallet [-a address] [-g gas] [--out file] [--force] scripthash [method] [arguments...] [--] [signers...]",
+				UsageText: "neo-go contract invokefunction -r endpoint -w wallet [-a address] [-g gas] [-e sysgas] [--out file] [--force] scripthash [method] [arguments...] [--] [signers...]",
 				Description: `Executes given (as a script hash) deployed script with the given method,
    arguments and signers. Sender is included in the list of signers by default
    with None witness scope. If you'd like to change default sender's scope, 
@@ -562,7 +567,7 @@ func invokeInternal(ctx *cli.Context, signAndPush bool) error {
 func invokeWithArgs(ctx *cli.Context, signAndPush bool, script util.Uint160, operation string, params []smartcontract.Parameter, cosigners []transaction.Signer) (util.Uint160, error) {
 	var (
 		err               error
-		gas               fixedn.Fixed8
+		gas, sysgas       fixedn.Fixed8
 		cosignersAccounts []client.SignerAccount
 		resp              *result.Invoke
 		acc               *wallet.Account
@@ -571,6 +576,7 @@ func invokeWithArgs(ctx *cli.Context, signAndPush bool, script util.Uint160, ope
 	)
 	if signAndPush {
 		gas = flags.Fixed8FromContext(ctx, "gas")
+		sysgas = flags.Fixed8FromContext(ctx, "sysgas")
 		acc, wall, err = getAccFromContext(ctx)
 		if err != nil {
 			return sender, err
@@ -604,7 +610,7 @@ func invokeWithArgs(ctx *cli.Context, signAndPush bool, script util.Uint160, ope
 		fmt.Fprintln(ctx.App.Writer, errText+". Sending transaction...")
 	}
 	if out := ctx.String("out"); out != "" {
-		tx, err := c.CreateTxFromScript(resp.Script, acc, resp.GasConsumed, int64(gas), cosignersAccounts)
+		tx, err := c.CreateTxFromScript(resp.Script, acc, resp.GasConsumed+int64(sysgas), int64(gas), cosignersAccounts)
 		if err != nil {
 			return sender, cli.NewExitError(fmt.Errorf("failed to create tx: %w", err), 1)
 		}
@@ -618,7 +624,7 @@ func invokeWithArgs(ctx *cli.Context, signAndPush bool, script util.Uint160, ope
 		if len(resp.Script) == 0 {
 			return sender, cli.NewExitError(errors.New("no script returned from the RPC node"), 1)
 		}
-		txHash, err := c.SignAndPushInvocationTx(resp.Script, acc, resp.GasConsumed, gas, cosignersAccounts)
+		txHash, err := c.SignAndPushInvocationTx(resp.Script, acc, resp.GasConsumed+int64(sysgas), gas, cosignersAccounts)
 		if err != nil {
 			return sender, cli.NewExitError(fmt.Errorf("failed to push invocation tx: %w", err), 1)
 		}
