@@ -593,9 +593,24 @@ func (bc *Blockchain) AddBlock(block *block.Block) error {
 		}
 	}
 	canStartSync := bc.blockHeight >= bc.p
-	if canStartSync && !bc.stateRoot.IsInSync() {
-		// unable to process blocks without full MPT state synchronisation, thus need to wait until MPT is synced
-		return nil
+	if canStartSync {
+		if !bc.stateRoot.IsInSync() {
+			// unable to process blocks without full MPT state synchronisation, thus need to wait until MPT is synced
+			return nil
+		}
+		if bc.blockHeight == bc.p && bc.p != 0 {
+			// MPT sync and blocks sync are reached, need to clean cache of native contracts before sync process
+			// can be started.
+			err := bc.contracts.NEO.InitializeCache(bc, bc.dao)
+			if err != nil {
+				return fmt.Errorf("can't init cache for NEO native contract: %w", err)
+			}
+			err = bc.contracts.Management.InitializeCache(bc.dao)
+			if err != nil {
+				return fmt.Errorf("can't init cache for Management native contract: %w", err)
+			}
+			bc.contracts.Designate.InitializeCache()
+		}
 	}
 	if bc.config.VerifyBlocks {
 		merkle := block.ComputeMerkleRoot()
