@@ -194,10 +194,6 @@ func (e Execution) MarshalJSON() ([]byte, error) {
 	var errRecursive = []byte(`"error: recursive reference"`)
 	arr := make([]json.RawMessage, len(e.Stack))
 	for i := range arr {
-		if e.Stack[i] == nil {
-			arr[i] = errRecursive
-			continue
-		}
 		data, err := stackitem.ToJSONWithTypes(e.Stack[i])
 		if err != nil {
 			data = errRecursive

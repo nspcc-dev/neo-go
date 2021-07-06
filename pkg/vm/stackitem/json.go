@@ -232,10 +232,6 @@ func toJSONWithTypes(item Item, seen map[Item]bool) (interface{}, error) {
 	if len(seen) > MaxJSONDepth {
 		return "", ErrTooDeep
 	}
-	typ := item.Type()
-	result := map[string]interface{}{
-		"type": typ.String(),
-	}
 	var value interface{}
 	switch it := item.(type) {
 	case *Array, *Struct:
@@ -281,6 +277,11 @@ func toJSONWithTypes(item Item, seen map[Item]bool) (interface{}, error) {
 		delete(seen, item)
 	case *Pointer:
 		value = it.pos
+	case nil:
+		return "", fmt.Errorf("%w: nil", ErrUnserializable)
+	}
+	result := map[string]interface{}{
+		"type": item.Type().String(),
 	}
 	if value != nil {
 		result["value"] = value
