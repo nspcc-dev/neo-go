@@ -39,6 +39,9 @@ func EncodeBinaryStackItemAppExec(item Item, w *io.BinWriter) {
 }
 
 func serializeItemTo(item Item, w *io.BinWriter, allowInvalid bool, seen map[Item]bool) {
+	if w.Err != nil {
+		return
+	}
 	if seen[item] {
 		w.Err = errors.New("recursive structures can't be serialized")
 		return
