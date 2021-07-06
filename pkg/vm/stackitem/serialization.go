@@ -9,6 +9,14 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/io"
 )
 
+// ErrRecursive is returned on attempts to serialize some recursive stack item
+// (like array including an item with reference to the same array).
+var ErrRecursive = errors.New("recursive item")
+
+// ErrUnserializable is returned on attempt to serialize some item that can't
+// be serialized (like Interop item or Pointer).
+var ErrUnserializable = errors.New("unserializable")
+
 // serContext is an internal serialization context.
 type serContext struct {
 	*io.BinWriter
@@ -71,7 +79,7 @@ func (w *serContext) serialize(item Item) {
 		return
 	}
 	if w.seen[item] {
-		w.Err = errors.New("recursive structures can't be serialized")
+		w.Err = ErrRecursive
 		return
 	}
 
@@ -92,7 +100,7 @@ func (w *serContext) serialize(item Item) {
 		if w.allowInvalid {
 			w.WriteBytes([]byte{byte(InteropT)})
 		} else {
-			w.Err = errors.New("interop item can't be serialized")
+			w.Err = fmt.Errorf("%w: Interop", ErrUnserializable)
 		}
 	case *Array, *Struct:
 		w.seen[item] = true
@@ -126,12 +134,12 @@ func (w *serContext) serialize(item Item) {
 		if w.allowInvalid {
 			w.WriteBytes([]byte{byte(InvalidT)})
 		} else {
-			w.Err = errors.New("invalid stack item")
+			w.Err = fmt.Errorf("%w: nil", ErrUnserializable)
 		}
 	}
 
 	if w.Err == nil && w.buf != nil && w.buf.Len() > MaxSize {
-		w.Err = errors.New("too big item")
+		w.Err = errTooBigSize
 	}
 }
 
@@ -213,7 +221,7 @@ func decodeBinary(r *io.BinReader, allowInvalid bool) Item {
 		if t == InvalidT && allowInvalid {
 			return nil
 		}
-		r.Err = fmt.Errorf("unknown type: %v", t)
+		r.Err = fmt.Errorf("%w: %v", ErrInvalidType, t)
 		return nil
 	}
 }
