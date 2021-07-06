@@ -119,6 +119,7 @@ func (o *Oracle) processRequest(priv *keys.PrivateKey, req request) error {
 				break
 			}
 			httpReq.Header.Set("User-Agent", "NeoOracleService/3.0")
+			httpReq.Header.Set("Content-Type", "application/json")
 			r, err := o.Client.Do(httpReq)
 			if err != nil {
 				o.Log.Warn("oracle request failed", zap.String("url", req.Req.URL), zap.Error(err))
