@@ -241,6 +241,7 @@ func toJSONWithTypes(item Item, seen map[Item]bool) (interface{}, error) {
 			arr = append(arr, s)
 		}
 		value = arr
+		delete(seen, item)
 	case *Bool:
 		value = it.value
 	case *Buffer, *ByteArray:
@@ -266,6 +267,7 @@ func toJSONWithTypes(item Item, seen map[Item]bool) (interface{}, error) {
 			})
 		}
 		value = arr
+		delete(seen, item)
 	case *Pointer:
 		value = it.pos
 	}

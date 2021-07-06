@@ -82,6 +82,7 @@ func serializeItemTo(item Item, w *io.BinWriter, allowInvalid bool, seen map[Ite
 		for i := range arr {
 			serializeItemTo(arr[i], w, allowInvalid, seen)
 		}
+		delete(seen, item)
 	case *Map:
 		seen[item] = true
 
@@ -91,6 +92,7 @@ func serializeItemTo(item Item, w *io.BinWriter, allowInvalid bool, seen map[Ite
 			serializeItemTo(t.Value().([]MapElement)[i].Key, w, allowInvalid, seen)
 			serializeItemTo(t.Value().([]MapElement)[i].Value, w, allowInvalid, seen)
 		}
+		delete(seen, item)
 	case Null:
 		w.WriteB(byte(AnyT))
 	}
