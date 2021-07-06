@@ -221,6 +221,9 @@ func ToJSONWithTypes(item Item) ([]byte, error) {
 }
 
 func toJSONWithTypes(item Item, seen map[Item]bool) (interface{}, error) {
+	if len(seen) > maxJSONDepth {
+		return "", errors.New("too deep structure")
+	}
 	typ := item.Type()
 	result := map[string]interface{}{
 		"type": typ.String(),
