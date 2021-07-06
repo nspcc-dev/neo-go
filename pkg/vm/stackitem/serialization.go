@@ -12,6 +12,7 @@ import (
 // serContext is an internal serialization context.
 type serContext struct {
 	*io.BinWriter
+	buf          *io.BufBinWriter
 	allowInvalid bool
 	seen         map[Item]bool
 }
@@ -21,6 +22,7 @@ func SerializeItem(item Item) ([]byte, error) {
 	w := io.NewBufBinWriter()
 	sc := serContext{
 		BinWriter:    w.BinWriter,
+		buf:          w,
 		allowInvalid: false,
 		seen:         make(map[Item]bool),
 	}
@@ -49,6 +51,7 @@ func EncodeBinaryStackItemAppExec(item Item, w *io.BinWriter) {
 	bw := io.NewBufBinWriter()
 	sc := serContext{
 		BinWriter:    bw.BinWriter,
+		buf:          bw,
 		allowInvalid: true,
 		seen:         make(map[Item]bool),
 	}
@@ -66,10 +69,6 @@ func (w *serContext) serialize(item Item) {
 	}
 	if w.seen[item] {
 		w.Err = errors.New("recursive structures can't be serialized")
-		return
-	}
-	if item == nil && w.allowInvalid {
-		w.WriteBytes([]byte{byte(InvalidT)})
 		return
 	}
 
@@ -120,6 +119,16 @@ func (w *serContext) serialize(item Item) {
 		delete(w.seen, item)
 	case Null:
 		w.WriteB(byte(AnyT))
+	case nil:
+		if w.allowInvalid {
+			w.WriteBytes([]byte{byte(InvalidT)})
+		} else {
+			w.Err = errors.New("invalid stack item")
+		}
+	}
+
+	if w.Err == nil && w.buf != nil && w.buf.Len() > MaxSize {
+		w.Err = errors.New("too big item")
 	}
 }
 
