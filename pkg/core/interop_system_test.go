@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/internal/random"
+	"github.com/nspcc-dev/neo-go/internal/testchain"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/contract"
@@ -1200,6 +1201,25 @@ func TestLoadToken(t *testing.T) {
 		require.NoError(t, err)
 		checkFAULTState(t, aer)
 	})
+}
+
+func TestRuntimeGetNetwork(t *testing.T) {
+	bc := newTestChain(t)
+
+	w := io.NewBufBinWriter()
+	emit.Syscall(w.BinWriter, interopnames.SystemRuntimeGetNetwork)
+	require.NoError(t, w.Err)
+
+	tx := transaction.New(w.Bytes(), 10_000)
+	tx.ValidUntilBlock = bc.BlockHeight() + 1
+	addSigners(neoOwner, tx)
+	require.NoError(t, testchain.SignTx(bc, tx))
+
+	require.NoError(t, bc.AddBlock(bc.newBlock(tx)))
+
+	aer, err := bc.GetAppExecResults(tx.Hash(), trigger.Application)
+	require.NoError(t, err)
+	checkResult(t, &aer[0], stackitem.Make(uint32(bc.config.Magic)))
 }
 
 func TestRuntimeBurnGas(t *testing.T) {

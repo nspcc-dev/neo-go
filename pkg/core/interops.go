@@ -50,6 +50,7 @@ var systemInterops = []interop.Function{
 	{Name: interopnames.SystemRuntimeGetEntryScriptHash, Func: runtime.GetEntryScriptHash, Price: 1 << 4},
 	{Name: interopnames.SystemRuntimeGetExecutingScriptHash, Func: runtime.GetExecutingScriptHash, Price: 1 << 4},
 	{Name: interopnames.SystemRuntimeGetInvocationCounter, Func: runtime.GetInvocationCounter, Price: 1 << 4},
+	{Name: interopnames.SystemRuntimeGetNetwork, Func: runtime.GetNetwork, Price: 1 << 3},
 	{Name: interopnames.SystemRuntimeGetNotifications, Func: runtime.GetNotifications, Price: 1 << 8, ParamCount: 1},
 	{Name: interopnames.SystemRuntimeGetScriptContainer, Func: engineGetScriptContainer, Price: 1 << 3},
 	{Name: interopnames.SystemRuntimeGetTime, Func: runtime.GetTime, Price: 1 << 3, RequiredFlags: callflag.ReadStates},
