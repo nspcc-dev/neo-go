@@ -16,6 +16,7 @@ func _() {
 	_ = x[Forbidden-24]
 	_ = x[ResponseTooLarge-26]
 	_ = x[InsufficientFunds-28]
+	_ = x[ContentTypeNotSupported-31]
 	_ = x[Error-255]
 }
 
@@ -28,7 +29,8 @@ const (
 	_OracleResponseCode_name_5 = "Forbidden"
 	_OracleResponseCode_name_6 = "ResponseTooLarge"
 	_OracleResponseCode_name_7 = "InsufficientFunds"
-	_OracleResponseCode_name_8 = "Error"
+	_OracleResponseCode_name_8 = "ContentTypeNotSupported"
+	_OracleResponseCode_name_9 = "Error"
 )
 
 func (i OracleResponseCode) String() string {
@@ -49,8 +51,10 @@ func (i OracleResponseCode) String() string {
 		return _OracleResponseCode_name_6
 	case i == 28:
 		return _OracleResponseCode_name_7
-	case i == 255:
+	case i == 31:
 		return _OracleResponseCode_name_8
+	case i == 255:
+		return _OracleResponseCode_name_9
 	default:
 		return "OracleResponseCode(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
