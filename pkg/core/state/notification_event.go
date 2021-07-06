@@ -101,7 +101,7 @@ type notificationEventAux struct {
 func (ne NotificationEvent) MarshalJSON() ([]byte, error) {
 	item, err := stackitem.ToJSONWithTypes(ne.Item)
 	if err != nil {
-		item = []byte(`"error: recursive reference"`)
+		item = []byte(fmt.Sprintf(`"error: %v"`, err))
 	}
 	return json.Marshal(&notificationEventAux{
 		ScriptHash: ne.ScriptHash,
@@ -191,12 +191,11 @@ type executionAux struct {
 
 // MarshalJSON implements implements json.Marshaler interface.
 func (e Execution) MarshalJSON() ([]byte, error) {
-	var errRecursive = []byte(`"error: recursive reference"`)
 	arr := make([]json.RawMessage, len(e.Stack))
 	for i := range arr {
 		data, err := stackitem.ToJSONWithTypes(e.Stack[i])
 		if err != nil {
-			data = errRecursive
+			data = []byte(fmt.Sprintf(`"error: %v"`, err))
 		}
 		arr[i] = data
 	}
