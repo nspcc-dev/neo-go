@@ -147,7 +147,7 @@ func TestMarshalUnmarshalJSON(t *testing.T) {
 	"method": "someMethod",
 	"paramcount": 3,
 	"hasreturnvalue": true,
-	"callflags": `+strconv.FormatInt(int64(expected.Tokens[0].CallFlag), 10)+`
+	"callflags": "`+expected.Tokens[0].CallFlag.String()+`"
 			}
 		],
 		"script": "`+base64.StdEncoding.EncodeToString(expected.Script)+`",
