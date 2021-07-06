@@ -174,8 +174,8 @@ func (c *nep17TokenNative) updateAccBalance(ic *interop.Context, acc util.Uint16
 		}
 		si = state.StorageItem{}
 	} else if amount.Sign() == 0 && requiredBalance != nil {
-		// If amount == 0 then it's either a roundtrip or an empty transfer. In
-		// case of a roundtrip account's balance may still be less than actual
+		// If amount == 0 then it's either a round trip or an empty transfer. In
+		// case of a round trip account's balance may still be less than actual
 		// transfer's amount, so we need to check it. Other cases are handled by
 		// `incBalance` method.
 		balance, err := c.balFromBytes(&si)
@@ -195,6 +195,9 @@ func (c *nep17TokenNative) updateAccBalance(ic *interop.Context, acc util.Uint16
 
 	err := c.incBalance(ic, acc, &si, amount)
 	if err != nil {
+		if si != nil && amount.Sign() < 0 {
+			_ = ic.DAO.PutStorageItem(c.ID, key, si)
+		}
 		return err
 	}
 	if si == nil {
