@@ -13,9 +13,9 @@ func TestSerializationMaxErr(t *testing.T) {
 	arr := []Item{item, item.Dup()}
 	aitem := Make(arr)
 
-	_, err := SerializeItem(item)
+	_, err := Serialize(item)
 	require.NoError(t, err)
 
-	_, err = SerializeItem(aitem)
+	_, err = Serialize(aitem)
 	require.Error(t, err)
 }

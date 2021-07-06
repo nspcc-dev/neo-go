@@ -17,8 +17,8 @@ type serContext struct {
 	seen         map[Item]bool
 }
 
-// SerializeItem encodes given Item into the byte slice.
-func SerializeItem(item Item) ([]byte, error) {
+// Serialize encodes given Item into the byte slice.
+func Serialize(item Item) ([]byte, error) {
 	w := io.NewBufBinWriter()
 	sc := serContext{
 		BinWriter:    w.BinWriter,
@@ -33,10 +33,10 @@ func SerializeItem(item Item) ([]byte, error) {
 	return w.Bytes(), nil
 }
 
-// EncodeBinaryStackItem encodes given Item into the given BinWriter. It's
+// EncodeBinary encodes given Item into the given BinWriter. It's
 // similar to io.Serializable's EncodeBinary, but works with Item
 // interface.
-func EncodeBinaryStackItem(item Item, w *io.BinWriter) {
+func EncodeBinary(item Item, w *io.BinWriter) {
 	sc := serContext{
 		BinWriter:    w,
 		allowInvalid: false,
@@ -45,9 +45,12 @@ func EncodeBinaryStackItem(item Item, w *io.BinWriter) {
 	sc.serialize(item)
 }
 
-// EncodeBinaryStackItemAppExec encodes given Item into the given BinWriter. It's
-// similar to EncodeBinaryStackItem but allows to encode interop (only type, value is lost).
-func EncodeBinaryStackItemAppExec(item Item, w *io.BinWriter) {
+// EncodeBinaryProtected encodes given Item into the given BinWriter. It's
+// similar to EncodeBinary but allows to encode interop items (only type,
+// value is lost) and doesn't return any errors in w, instead if error
+// (like recursive array) is encountered it just writes special InvalidT
+// type of element to w.
+func EncodeBinaryProtected(item Item, w *io.BinWriter) {
 	bw := io.NewBufBinWriter()
 	sc := serContext{
 		BinWriter:    bw.BinWriter,
@@ -132,31 +135,31 @@ func (w *serContext) serialize(item Item) {
 	}
 }
 
-// DeserializeItem decodes Item from the given byte slice.
-func DeserializeItem(data []byte) (Item, error) {
+// Deserialize decodes Item from the given byte slice.
+func Deserialize(data []byte) (Item, error) {
 	r := io.NewBinReaderFromBuf(data)
-	item := DecodeBinaryStackItem(r)
+	item := DecodeBinary(r)
 	if r.Err != nil {
 		return nil, r.Err
 	}
 	return item, nil
 }
 
-// DecodeBinaryStackItem decodes previously serialized Item from the given
+// DecodeBinary decodes previously serialized Item from the given
 // reader. It's similar to the io.Serializable's DecodeBinary(), but implemented
 // as a function because Item itself is an interface. Caveat: always check
 // reader's error value before using the returned Item.
-func DecodeBinaryStackItem(r *io.BinReader) Item {
-	return decodeBinaryStackItem(r, false)
+func DecodeBinary(r *io.BinReader) Item {
+	return decodeBinary(r, false)
 }
 
-// DecodeBinaryStackItemAppExec is similar to DecodeBinaryStackItem
-// but allows Interop values to be present.
-func DecodeBinaryStackItemAppExec(r *io.BinReader) Item {
-	return decodeBinaryStackItem(r, true)
+// DecodeBinaryProtected is similar to DecodeBinary but allows Interop and
+// Invalid values to be present (making it symmetric to EncodeBinaryProtected).
+func DecodeBinaryProtected(r *io.BinReader) Item {
+	return decodeBinary(r, true)
 }
 
-func decodeBinaryStackItem(r *io.BinReader, allowInvalid bool) Item {
+func decodeBinary(r *io.BinReader, allowInvalid bool) Item {
 	var t = Type(r.ReadB())
 	if r.Err != nil {
 		return nil
@@ -180,7 +183,7 @@ func decodeBinaryStackItem(r *io.BinReader, allowInvalid bool) Item {
 		size := int(r.ReadVarUint())
 		arr := make([]Item, size)
 		for i := 0; i < size; i++ {
-			arr[i] = DecodeBinaryStackItem(r)
+			arr[i] = DecodeBinary(r)
 		}
 
 		if t == ArrayT {
@@ -191,8 +194,8 @@ func decodeBinaryStackItem(r *io.BinReader, allowInvalid bool) Item {
 		size := int(r.ReadVarUint())
 		m := NewMap()
 		for i := 0; i < size; i++ {
-			key := DecodeBinaryStackItem(r)
-			value := DecodeBinaryStackItem(r)
+			key := DecodeBinary(r)
+			value := DecodeBinary(r)
 			if r.Err != nil {
 				break
 			}

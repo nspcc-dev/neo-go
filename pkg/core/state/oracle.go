@@ -30,12 +30,12 @@ func (o *OracleRequest) Bytes() []byte {
 
 // EncodeBinary implements io.Serializable.
 func (o *OracleRequest) EncodeBinary(w *io.BinWriter) {
-	stackitem.EncodeBinaryStackItem(o.toStackItem(), w)
+	stackitem.EncodeBinary(o.toStackItem(), w)
 }
 
 // DecodeBinary implements io.Serializable.
 func (o *OracleRequest) DecodeBinary(r *io.BinReader) {
-	item := stackitem.DecodeBinaryStackItem(r)
+	item := stackitem.DecodeBinary(r)
 	if r.Err != nil || item == nil {
 		return
 	}

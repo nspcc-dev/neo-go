@@ -58,12 +58,12 @@ func (s *NEP17BalanceState) fromStackItem(item stackitem.Item) {
 // EncodeBinary implements io.Serializable interface.
 func (s *NEP17BalanceState) EncodeBinary(w *io.BinWriter) {
 	si := s.toStackItem()
-	stackitem.EncodeBinaryStackItem(si, w)
+	stackitem.EncodeBinary(si, w)
 }
 
 // DecodeBinary implements io.Serializable interface.
 func (s *NEP17BalanceState) DecodeBinary(r *io.BinReader) {
-	si := stackitem.DecodeBinaryStackItem(r)
+	si := stackitem.DecodeBinary(r)
 	if r.Err != nil {
 		return
 	}
@@ -98,12 +98,12 @@ func (s *NEOBalanceState) Bytes() []byte {
 // EncodeBinary implements io.Serializable interface.
 func (s *NEOBalanceState) EncodeBinary(w *io.BinWriter) {
 	si := s.toStackItem()
-	stackitem.EncodeBinaryStackItem(si, w)
+	stackitem.EncodeBinary(si, w)
 }
 
 // DecodeBinary implements io.Serializable interface.
 func (s *NEOBalanceState) DecodeBinary(r *io.BinReader) {
-	si := stackitem.DecodeBinaryStackItem(r)
+	si := stackitem.DecodeBinary(r)
 	if r.Err != nil {
 		return
 	}

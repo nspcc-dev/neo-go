@@ -57,7 +57,7 @@ func (s *Iterator) Value() stackitem.Item {
 	if s.opts&FindDeserialize != 0 {
 		bs := s.m[s.index].Value.Value().([]byte)
 		var err error
-		value, err = stackitem.DeserializeItem(bs)
+		value, err = stackitem.Deserialize(bs)
 		if err != nil {
 			panic(err)
 		}

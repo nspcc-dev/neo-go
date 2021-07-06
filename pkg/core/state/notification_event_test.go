@@ -77,7 +77,7 @@ func TestEncodeDecodeAppExecResult(t *testing.T) {
 		w.WriteB(byte(aer.Trigger))
 		w.WriteB(byte(aer.VMState))
 		w.WriteU64LE(uint64(aer.GasConsumed))
-		stackitem.EncodeBinaryStackItem(stackitem.NewBool(true), w.BinWriter)
+		stackitem.EncodeBinary(stackitem.NewBool(true), w.BinWriter)
 		require.NoError(t, w.Err)
 		require.Error(t, testserdes.DecodeBinary(w.Bytes(), new(AppExecResult)))
 	})

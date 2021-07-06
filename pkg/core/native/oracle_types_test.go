@@ -14,7 +14,7 @@ func getInvalidTestFunc(actual io.Serializable, value interface{}) func(t *testi
 	return func(t *testing.T) {
 		w := io.NewBufBinWriter()
 		it := stackitem.Make(value)
-		stackitem.EncodeBinaryStackItem(it, w.BinWriter)
+		stackitem.EncodeBinary(it, w.BinWriter)
 		require.NoError(t, w.Err)
 		require.Error(t, testserdes.DecodeBinary(w.Bytes(), actual))
 	}

@@ -276,7 +276,7 @@ func TestStdLibSerialize(t *testing.T) {
 		})
 
 		w := io.NewBufBinWriter()
-		stackitem.EncodeBinaryStackItem(stackitem.Make(42), w.BinWriter)
+		stackitem.EncodeBinary(stackitem.Make(42), w.BinWriter)
 		require.NoError(t, w.Err)
 
 		encoded := w.Bytes()
@@ -368,7 +368,7 @@ func TestStdLibSerializeDeserialize(t *testing.T) {
 		})
 	})
 	t.Run("Deserialize unknown", func(t *testing.T) {
-		data, err := stackitem.SerializeItem(stackitem.NewBigInteger(big.NewInt(123)))
+		data, err := stackitem.Serialize(stackitem.NewBigInteger(big.NewInt(123)))
 		require.NoError(t, err)
 
 		data[0] = 0xFF

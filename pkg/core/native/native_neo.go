@@ -904,7 +904,7 @@ func (n *NEO) getAccountState(ic *interop.Context, args []stackitem.Item) stacki
 	}
 
 	r := io.NewBinReaderFromBuf(si)
-	item := stackitem.DecodeBinaryStackItem(r)
+	item := stackitem.DecodeBinary(r)
 	if r.Err != nil {
 		panic(r.Err) // no errors are expected but we better be sure
 	}

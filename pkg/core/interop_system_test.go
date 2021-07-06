@@ -266,11 +266,11 @@ func TestStorageFind(t *testing.T) {
 		stackitem.NewByteArray([]byte("second")),
 		stackitem.Null{},
 	}
-	rawArr, err := stackitem.SerializeItem(stackitem.NewArray(arr))
+	rawArr, err := stackitem.Serialize(stackitem.NewArray(arr))
 	require.NoError(t, err)
-	rawArr0, err := stackitem.SerializeItem(stackitem.NewArray(arr[:0]))
+	rawArr0, err := stackitem.Serialize(stackitem.NewArray(arr[:0]))
 	require.NoError(t, err)
-	rawArr1, err := stackitem.SerializeItem(stackitem.NewArray(arr[:1]))
+	rawArr1, err := stackitem.Serialize(stackitem.NewArray(arr[:1]))
 	require.NoError(t, err)
 
 	skeys := [][]byte{{0x01, 0x02}, {0x02, 0x01}, {0x01, 0x01},

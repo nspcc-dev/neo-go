@@ -160,7 +160,7 @@ func newStd() *Std {
 }
 
 func (s *Std) serialize(_ *interop.Context, args []stackitem.Item) stackitem.Item {
-	data, err := stackitem.SerializeItem(args[0])
+	data, err := stackitem.Serialize(args[0])
 	if err != nil {
 		panic(err)
 	}
@@ -177,7 +177,7 @@ func (s *Std) deserialize(_ *interop.Context, args []stackitem.Item) stackitem.I
 		panic(err)
 	}
 
-	item, err := stackitem.DeserializeItem(data)
+	item, err := stackitem.Deserialize(data)
 	if err != nil {
 		panic(err)
 	}

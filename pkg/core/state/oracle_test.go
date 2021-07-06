@@ -34,7 +34,7 @@ func TestOracleRequest_EncodeBinary(t *testing.T) {
 		t.Run("NotArray", func(t *testing.T) {
 			w.Reset()
 			it := stackitem.NewByteArray([]byte{})
-			stackitem.EncodeBinaryStackItem(it, w.BinWriter)
+			stackitem.EncodeBinary(it, w.BinWriter)
 			require.Error(t, testserdes.DecodeBinary(w.Bytes(), new(OracleRequest)))
 		})
 		t.Run("NotStackItem", func(t *testing.T) {
@@ -57,7 +57,7 @@ func TestOracleRequest_EncodeBinary(t *testing.T) {
 				w.Reset()
 				before := items[i]
 				items[i] = elem
-				stackitem.EncodeBinaryStackItem(arrItem, w.BinWriter)
+				stackitem.EncodeBinary(arrItem, w.BinWriter)
 				items[i] = before
 				require.Error(t, testserdes.DecodeBinary(w.Bytes(), new(OracleRequest)))
 			}
