@@ -68,6 +68,7 @@ check-version:
 	git fetch && (! git rev-list ${VERSION})
 
 deps:
+	echo something
 	ls
 	CGO_ENABLED=0 \
 	go mod download
