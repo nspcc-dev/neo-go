@@ -310,6 +310,7 @@ func (t *Trie) deleteFromExtension(n *ExtensionNode, path []byte) (Node, error) 
 		if nxt.IsEmpty() {
 			return nxt, nil
 		}
+		n.next = nxt
 	default:
 		n.next = r
 	}
