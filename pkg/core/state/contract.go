@@ -37,7 +37,7 @@ type NativeContract struct {
 
 // DecodeBinary implements Serializable interface.
 func (c *Contract) DecodeBinary(r *io.BinReader) {
-	si := stackitem.DecodeBinaryStackItem(r)
+	si := stackitem.DecodeBinary(r)
 	if r.Err != nil {
 		return
 	}
@@ -51,7 +51,7 @@ func (c *Contract) EncodeBinary(w *io.BinWriter) {
 		w.Err = err
 		return
 	}
-	stackitem.EncodeBinaryStackItem(si, w)
+	stackitem.EncodeBinary(si, w)
 }
 
 // ToStackItem converts state.Contract to stackitem.Item.

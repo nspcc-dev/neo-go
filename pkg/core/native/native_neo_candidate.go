@@ -15,14 +15,14 @@ type candidate struct {
 // Bytes marshals c to byte array.
 func (c *candidate) Bytes() []byte {
 	w := io.NewBufBinWriter()
-	stackitem.EncodeBinaryStackItem(c.toStackItem(), w.BinWriter)
+	stackitem.EncodeBinary(c.toStackItem(), w.BinWriter)
 	return w.Bytes()
 }
 
 // FromBytes unmarshals candidate from byte array.
 func (c *candidate) FromBytes(data []byte) *candidate {
 	r := io.NewBinReaderFromBuf(data)
-	item := stackitem.DecodeBinaryStackItem(r)
+	item := stackitem.DecodeBinary(r)
 	if r.Err != nil {
 		panic(r.Err)
 	}

@@ -53,9 +53,27 @@ type Item interface {
 }
 
 var (
-	errInvalidConversion          = errors.New("invalid conversion type")
-	errExceedingMaxComparableSize = errors.New("the operand exceeds the maximum comparable size")
+	// ErrInvalidConversion is returned on attempt to make an incorrect
+	// conversion between item types.
+	ErrInvalidConversion = errors.New("invalid conversion")
+
+	// ErrTooBig is returned when item exceeds some size constraints like
+	// maximum allowed integer value of number of elements in array. It
+	// can also be returned by serialization functions if resulting
+	// value exceeds MaxSize.
+	ErrTooBig = errors.New("too big")
+
+	errTooBigComparable = fmt.Errorf("%w: uncomparable", ErrTooBig)
+	errTooBigInteger    = fmt.Errorf("%w: integer", ErrTooBig)
+	errTooBigKey        = fmt.Errorf("%w: map key", ErrTooBig)
+	errTooBigSize       = fmt.Errorf("%w: size", ErrTooBig)
 )
+
+// mkInvConversion creates conversion error with additional metadata (from and
+// to types).
+func mkInvConversion(from Item, to Type) error {
+	return fmt.Errorf("%w: %s/%s", ErrInvalidConversion, from, to)
+}
 
 // Make tries to make appropriate stack item from provided value.
 // It will panic if it's not possible.
@@ -138,7 +156,7 @@ func ToString(item Item) (string, error) {
 		return "", err
 	}
 	if !utf8.Valid(bs) {
-		return "", errors.New("not a valid UTF-8")
+		return "", fmt.Errorf("%w: not UTF-8", ErrInvalidValue)
 	}
 	return string(bs), nil
 }
@@ -174,7 +192,7 @@ func convertPrimitive(item Item, typ Type) (Item, error) {
 		}
 		return NewBool(b), nil
 	default:
-		return nil, errInvalidConversion
+		return nil, mkInvConversion(item, typ)
 	}
 }
 
@@ -232,12 +250,12 @@ func (i *Struct) TryBool() (bool, error) { return true, nil }
 
 // TryBytes implements Item interface.
 func (i *Struct) TryBytes() ([]byte, error) {
-	return nil, errors.New("can't convert Struct to ByteString")
+	return nil, mkInvConversion(i, ByteArrayT)
 }
 
 // TryInteger implements Item interface.
 func (i *Struct) TryInteger() (*big.Int, error) {
-	return nil, errors.New("can't convert Struct to Integer")
+	return nil, mkInvConversion(i, IntegerT)
 }
 
 // Equals implements Item interface.
@@ -274,7 +292,7 @@ func (i *Struct) Convert(typ Type) (Item, error) {
 	case BooleanT:
 		return NewBool(true), nil
 	default:
-		return nil, errInvalidConversion
+		return nil, mkInvConversion(i, typ)
 	}
 }
 
@@ -318,12 +336,12 @@ func (i Null) TryBool() (bool, error) { return false, nil }
 
 // TryBytes implements Item interface.
 func (i Null) TryBytes() ([]byte, error) {
-	return nil, errors.New("can't convert Null to ByteString")
+	return nil, mkInvConversion(i, ByteArrayT)
 }
 
 // TryInteger implements Item interface.
 func (i Null) TryInteger() (*big.Int, error) {
-	return nil, errors.New("can't convert Null to Integer")
+	return nil, mkInvConversion(i, IntegerT)
 }
 
 // Equals implements Item interface.
@@ -338,7 +356,7 @@ func (i Null) Type() Type { return AnyT }
 // Convert implements Item interface.
 func (i Null) Convert(typ Type) (Item, error) {
 	if typ == AnyT || !typ.IsValid() {
-		return nil, errInvalidConversion
+		return nil, mkInvConversion(i, typ)
 	}
 	return i, nil
 }
@@ -350,18 +368,16 @@ type BigInteger struct {
 
 // NewBigInteger returns an new BigInteger object.
 func NewBigInteger(value *big.Int) *BigInteger {
-	const tooBigErrMsg = "integer is too big"
-
 	// There are 2 cases, when `BitLen` differs from actual size:
 	// 1. Positive integer with highest bit on byte boundary = 1.
 	// 2. Negative integer with highest bit on byte boundary = 1
 	//    minus some value. (-0x80 -> 0x80, -0x7F -> 0x81, -0x81 -> 0x7FFF).
 	sz := value.BitLen()
 	if sz > MaxBigIntegerSizeBits {
-		panic(tooBigErrMsg)
+		panic(errTooBigInteger)
 	} else if sz == MaxBigIntegerSizeBits {
 		if value.Sign() == 1 || value.TrailingZeroBits() != MaxBigIntegerSizeBits-1 {
-			panic(tooBigErrMsg)
+			panic(errTooBigInteger)
 		}
 	}
 	return &BigInteger{
@@ -531,7 +547,7 @@ func (i *ByteArray) String() string {
 // TryBool implements Item interface.
 func (i *ByteArray) TryBool() (bool, error) {
 	if len(i.value) > MaxBigIntegerSizeBits/8 {
-		return false, errors.New("too big byte string")
+		return false, errTooBigInteger
 	}
 	for _, b := range i.value {
 		if b != 0 {
@@ -549,7 +565,7 @@ func (i *ByteArray) TryBytes() ([]byte, error) {
 // TryInteger implements Item interface.
 func (i *ByteArray) TryInteger() (*big.Int, error) {
 	if len(i.value) > MaxBigIntegerSizeBits/8 {
-		return nil, errors.New("integer is too big")
+		return nil, errTooBigInteger
 	}
 	return bigint.FromBytes(i.value), nil
 }
@@ -557,7 +573,7 @@ func (i *ByteArray) TryInteger() (*big.Int, error) {
 // Equals implements Item interface.
 func (i *ByteArray) Equals(s Item) bool {
 	if len(i.value) > MaxByteArrayComparableSize {
-		panic(errExceedingMaxComparableSize)
+		panic(errTooBigComparable)
 	}
 	if i == s {
 		return true
@@ -569,7 +585,7 @@ func (i *ByteArray) Equals(s Item) bool {
 		return false
 	}
 	if len(val.value) > MaxByteArrayComparableSize {
-		panic(errExceedingMaxComparableSize)
+		panic(errTooBigComparable)
 	}
 	return bytes.Equal(i.value, val.value)
 }
@@ -641,12 +657,12 @@ func (i *Array) TryBool() (bool, error) { return true, nil }
 
 // TryBytes implements Item interface.
 func (i *Array) TryBytes() ([]byte, error) {
-	return nil, errors.New("can't convert Array to ByteString")
+	return nil, mkInvConversion(i, ByteArrayT)
 }
 
 // TryInteger implements Item interface.
 func (i *Array) TryInteger() (*big.Int, error) {
-	return nil, errors.New("can't convert Array to Integer")
+	return nil, mkInvConversion(i, IntegerT)
 }
 
 // Equals implements Item interface.
@@ -675,7 +691,7 @@ func (i *Array) Convert(typ Type) (Item, error) {
 	case BooleanT:
 		return NewBool(true), nil
 	default:
-		return nil, errInvalidConversion
+		return nil, mkInvConversion(i, typ)
 	}
 }
 
@@ -731,12 +747,12 @@ func (i *Map) TryBool() (bool, error) { return true, nil }
 
 // TryBytes implements Item interface.
 func (i *Map) TryBytes() ([]byte, error) {
-	return nil, errors.New("can't convert Map to ByteString")
+	return nil, mkInvConversion(i, ByteArrayT)
 }
 
 // TryInteger implements Item interface.
 func (i *Map) TryInteger() (*big.Int, error) {
-	return nil, errors.New("can't convert Map to Integer")
+	return nil, mkInvConversion(i, IntegerT)
 }
 
 // Equals implements Item interface.
@@ -780,7 +796,7 @@ func (i *Map) Convert(typ Type) (Item, error) {
 	case BooleanT:
 		return NewBool(true), nil
 	default:
-		return nil, errInvalidConversion
+		return nil, mkInvConversion(i, typ)
 	}
 }
 
@@ -812,11 +828,11 @@ func IsValidMapKey(key Item) error {
 	case *ByteArray:
 		size := len(key.Value().([]byte))
 		if size > MaxKeySize {
-			return fmt.Errorf("invalid map key size: %d", size)
+			return errTooBigKey
 		}
 		return nil
 	default:
-		return fmt.Errorf("invalid map key of type %s", key.Type())
+		return fmt.Errorf("%w: %s map key", ErrInvalidType, key.Type())
 	}
 }
 
@@ -853,12 +869,12 @@ func (i *Interop) TryBool() (bool, error) { return true, nil }
 
 // TryBytes implements Item interface.
 func (i *Interop) TryBytes() ([]byte, error) {
-	return nil, errors.New("can't convert Interop to ByteString")
+	return nil, mkInvConversion(i, ByteArrayT)
 }
 
 // TryInteger implements Item interface.
 func (i *Interop) TryInteger() (*big.Int, error) {
-	return nil, errors.New("can't convert Interop to Integer")
+	return nil, mkInvConversion(i, IntegerT)
 }
 
 // Equals implements Item interface.
@@ -883,7 +899,7 @@ func (i *Interop) Convert(typ Type) (Item, error) {
 	case BooleanT:
 		return NewBool(true), nil
 	default:
-		return nil, errInvalidConversion
+		return nil, mkInvConversion(i, typ)
 	}
 }
 
@@ -946,12 +962,12 @@ func (p *Pointer) TryBool() (bool, error) {
 
 // TryBytes implements Item interface.
 func (p *Pointer) TryBytes() ([]byte, error) {
-	return nil, errors.New("can't convert Pointer to ByteString")
+	return nil, mkInvConversion(p, ByteArrayT)
 }
 
 // TryInteger implements Item interface.
 func (p *Pointer) TryInteger() (*big.Int, error) {
-	return nil, errors.New("can't convert Pointer to Integer")
+	return nil, mkInvConversion(p, IntegerT)
 }
 
 // Equals implements Item interface.
@@ -976,7 +992,7 @@ func (p *Pointer) Convert(typ Type) (Item, error) {
 	case BooleanT:
 		return NewBool(true), nil
 	default:
-		return nil, errInvalidConversion
+		return nil, mkInvConversion(p, typ)
 	}
 }
 
@@ -1024,7 +1040,7 @@ func (i *Buffer) TryBytes() ([]byte, error) {
 
 // TryInteger implements Item interface.
 func (i *Buffer) TryInteger() (*big.Int, error) {
-	return nil, errors.New("can't convert Buffer to Integer")
+	return nil, mkInvConversion(i, IntegerT)
 }
 
 // Equals implements Item interface.
@@ -1058,11 +1074,11 @@ func (i *Buffer) Convert(typ Type) (Item, error) {
 		return NewByteArray(val), nil
 	case IntegerT:
 		if len(i.value) > MaxBigIntegerSizeBits/8 {
-			return nil, errInvalidConversion
+			return nil, errTooBigInteger
 		}
 		return NewBigInteger(bigint.FromBytes(i.value)), nil
 	default:
-		return nil, errInvalidConversion
+		return nil, mkInvConversion(i, typ)
 	}
 }
 

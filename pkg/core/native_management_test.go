@@ -94,7 +94,7 @@ func TestContractDeployAndUpdateWithParameter(t *testing.T) {
 		res, err := invokeContractMethod(bc, 1_00000000, cs1.Hash, "getValue")
 		require.NoError(t, err)
 		require.Equal(t, 1, len(res.Stack))
-		item, err := stackitem.DeserializeItem(res.Stack[0].Value().([]byte))
+		item, err := stackitem.Deserialize(res.Stack[0].Value().([]byte))
 		require.NoError(t, err)
 		expected := []stackitem.Item{stackitem.Make("create"), stackitem.Make(42)}
 		require.Equal(t, stackitem.NewArray(expected), item)
@@ -114,7 +114,7 @@ func TestContractDeployAndUpdateWithParameter(t *testing.T) {
 		res, err := invokeContractMethod(bc, 1_00000000, cs1.Hash, "getValue")
 		require.NoError(t, err)
 		require.Equal(t, 1, len(res.Stack))
-		item, err := stackitem.DeserializeItem(res.Stack[0].Value().([]byte))
+		item, err := stackitem.Deserialize(res.Stack[0].Value().([]byte))
 		require.NoError(t, err)
 		expected := []stackitem.Item{stackitem.Make("update"), stackitem.Make("new data")}
 		require.Equal(t, stackitem.NewArray(expected), item)
@@ -259,7 +259,7 @@ func TestContractDeploy(t *testing.T) {
 			res, err := invokeContractMethod(bc, 1_00000000, cs1.Hash, "getValue")
 			require.NoError(t, err)
 			require.Equal(t, 1, len(res.Stack))
-			item, err := stackitem.DeserializeItem(res.Stack[0].Value().([]byte))
+			item, err := stackitem.Deserialize(res.Stack[0].Value().([]byte))
 			require.NoError(t, err)
 			expected := []stackitem.Item{stackitem.Make("create"), stackitem.Null{}}
 			require.Equal(t, stackitem.NewArray(expected), item)
@@ -466,7 +466,7 @@ func TestContractUpdate(t *testing.T) {
 			res, err := invokeContractMethod(bc, 1_00000000, cs1.Hash, "getValue")
 			require.NoError(t, err)
 			require.Equal(t, 1, len(res.Stack))
-			item, err := stackitem.DeserializeItem(res.Stack[0].Value().([]byte))
+			item, err := stackitem.Deserialize(res.Stack[0].Value().([]byte))
 			require.NoError(t, err)
 			expected := []stackitem.Item{stackitem.Make("update"), stackitem.Null{}}
 			require.Equal(t, stackitem.NewArray(expected), item)

@@ -31,14 +31,14 @@ type AppExecResult struct {
 func (ne *NotificationEvent) EncodeBinary(w *io.BinWriter) {
 	ne.ScriptHash.EncodeBinary(w)
 	w.WriteString(ne.Name)
-	stackitem.EncodeBinaryStackItem(ne.Item, w)
+	stackitem.EncodeBinary(ne.Item, w)
 }
 
 // DecodeBinary implements the Serializable interface.
 func (ne *NotificationEvent) DecodeBinary(r *io.BinReader) {
 	ne.ScriptHash.DecodeBinary(r)
 	ne.Name = r.ReadString()
-	item := stackitem.DecodeBinaryStackItem(r)
+	item := stackitem.DecodeBinary(r)
 	if r.Err != nil {
 		return
 	}
@@ -59,7 +59,7 @@ func (aer *AppExecResult) EncodeBinary(w *io.BinWriter) {
 	// Stack items are expected to be marshaled one by one.
 	w.WriteVarUint(uint64(len(aer.Stack)))
 	for _, it := range aer.Stack {
-		stackitem.EncodeBinaryStackItemAppExec(it, w)
+		stackitem.EncodeBinaryProtected(it, w)
 	}
 	w.WriteArray(aer.Events)
 	w.WriteVarBytes([]byte(aer.FaultException))
@@ -80,7 +80,7 @@ func (aer *AppExecResult) DecodeBinary(r *io.BinReader) {
 	}
 	arr := make([]stackitem.Item, sz)
 	for i := 0; i < int(sz); i++ {
-		arr[i] = stackitem.DecodeBinaryStackItemAppExec(r)
+		arr[i] = stackitem.DecodeBinaryProtected(r)
 		if r.Err != nil {
 			return
 		}
@@ -101,7 +101,7 @@ type notificationEventAux struct {
 func (ne NotificationEvent) MarshalJSON() ([]byte, error) {
 	item, err := stackitem.ToJSONWithTypes(ne.Item)
 	if err != nil {
-		item = []byte(`"error: recursive reference"`)
+		item = []byte(fmt.Sprintf(`"error: %v"`, err))
 	}
 	return json.Marshal(&notificationEventAux{
 		ScriptHash: ne.ScriptHash,
@@ -191,16 +191,11 @@ type executionAux struct {
 
 // MarshalJSON implements implements json.Marshaler interface.
 func (e Execution) MarshalJSON() ([]byte, error) {
-	var errRecursive = []byte(`"error: recursive reference"`)
 	arr := make([]json.RawMessage, len(e.Stack))
 	for i := range arr {
-		if e.Stack[i] == nil {
-			arr[i] = errRecursive
-			continue
-		}
 		data, err := stackitem.ToJSONWithTypes(e.Stack[i])
 		if err != nil {
-			data = errRecursive
+			data = []byte(fmt.Sprintf(`"error: %v"`, err))
 		}
 		arr[i] = data
 	}

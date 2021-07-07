@@ -2,6 +2,9 @@ package stackitem
 
 import "errors"
 
+// ErrInvalidType is returned on attempts to deserialize some unknown item type.
+var ErrInvalidType = errors.New("invalid type")
+
 // Type represents type of the stack item.
 type Type byte
 
@@ -82,6 +85,6 @@ func FromString(s string) (Type, error) {
 	case "Interop":
 		return InteropT, nil
 	default:
-		return 0xFF, errors.New("invalid type")
+		return 0xFF, ErrInvalidType
 	}
 }

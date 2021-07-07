@@ -23,8 +23,16 @@ type decoder struct {
 // MaxAllowedInteger is the maximum integer allowed to be encoded.
 const MaxAllowedInteger = 2<<53 - 1
 
-// maxJSONDepth is a maximum allowed depth-level of decoded JSON.
-const maxJSONDepth = 10
+// MaxJSONDepth is the maximum allowed nesting level of encoded/decoded JSON.
+const MaxJSONDepth = 10
+
+// ErrInvalidValue is returned when item value doesn't fit some constraints
+// during serialization or deserialization.
+var ErrInvalidValue = errors.New("invalid value")
+
+// ErrTooDeep is returned when JSON encoder/decoder goes beyond MaxJSONDepth in
+// its processing.
+var ErrTooDeep = errors.New("too deep")
 
 // ToJSON encodes Item to JSON.
 // It behaves as following:
@@ -48,7 +56,7 @@ func toJSON(buf *io.BufBinWriter, item Item) {
 	if w.Err != nil {
 		return
 	} else if buf.Len() > MaxSize {
-		w.Err = errors.New("item is too big")
+		w.Err = errTooBigSize
 	}
 	switch it := item.(type) {
 	case *Array, *Struct:
@@ -76,7 +84,7 @@ func toJSON(buf *io.BufBinWriter, item Item) {
 		w.WriteB('}')
 	case *BigInteger:
 		if it.value.CmpAbs(big.NewInt(MaxAllowedInteger)) == 1 {
-			w.Err = errors.New("too big integer")
+			w.Err = fmt.Errorf("%w (MaxAllowedInteger)", ErrInvalidValue)
 			return
 		}
 		w.WriteBytes([]byte(it.value.String()))
@@ -91,11 +99,11 @@ func toJSON(buf *io.BufBinWriter, item Item) {
 	case Null:
 		w.WriteBytes([]byte("null"))
 	default:
-		w.Err = fmt.Errorf("invalid item: %s", it.String())
+		w.Err = fmt.Errorf("%w: %s", ErrUnserializable, it.String())
 		return
 	}
 	if w.Err == nil && buf.Len() > MaxSize {
-		w.Err = errors.New("item is too big")
+		w.Err = errTooBigSize
 	}
 }
 
@@ -131,7 +139,7 @@ func FromJSON(data []byte) (Item, error) {
 	if item, err := d.decode(); err != nil {
 		return nil, err
 	} else if _, err := d.Token(); err != gio.EOF {
-		return nil, errors.New("unexpected items")
+		return nil, fmt.Errorf("%w: unexpected items", ErrInvalidValue)
 	} else {
 		return item, nil
 	}
@@ -146,8 +154,8 @@ func (d *decoder) decode() (Item, error) {
 	case json.Delim:
 		switch t {
 		case json.Delim('{'), json.Delim('['):
-			if d.depth == maxJSONDepth {
-				return nil, errors.New("JSON depth limit exceeded")
+			if d.depth == MaxJSONDepth {
+				return nil, ErrTooDeep
 			}
 			d.depth++
 			var item Item
@@ -167,7 +175,7 @@ func (d *decoder) decode() (Item, error) {
 		return NewByteArray([]byte(t)), nil
 	case float64:
 		if math.Floor(t) != t {
-			return nil, fmt.Errorf("real value is not allowed: %v", t)
+			return nil, fmt.Errorf("%w (real value for int)", ErrInvalidValue)
 		}
 		return NewBigInteger(big.NewInt(int64(t))), nil
 	case bool:
@@ -221,15 +229,14 @@ func ToJSONWithTypes(item Item) ([]byte, error) {
 }
 
 func toJSONWithTypes(item Item, seen map[Item]bool) (interface{}, error) {
-	typ := item.Type()
-	result := map[string]interface{}{
-		"type": typ.String(),
+	if len(seen) > MaxJSONDepth {
+		return "", ErrTooDeep
 	}
 	var value interface{}
 	switch it := item.(type) {
 	case *Array, *Struct:
 		if seen[item] {
-			return "", errors.New("recursive structures can't be serialized to json")
+			return "", ErrRecursive
 		}
 		seen[item] = true
 		arr := []interface{}{}
@@ -241,6 +248,7 @@ func toJSONWithTypes(item Item, seen map[Item]bool) (interface{}, error) {
 			arr = append(arr, s)
 		}
 		value = arr
+		delete(seen, item)
 	case *Bool:
 		value = it.value
 	case *Buffer, *ByteArray:
@@ -249,7 +257,7 @@ func toJSONWithTypes(item Item, seen map[Item]bool) (interface{}, error) {
 		value = it.value.String()
 	case *Map:
 		if seen[item] {
-			return "", errors.New("recursive structures can't be serialized to json")
+			return "", ErrRecursive
 		}
 		seen[item] = true
 		arr := []interface{}{}
@@ -266,8 +274,14 @@ func toJSONWithTypes(item Item, seen map[Item]bool) (interface{}, error) {
 			})
 		}
 		value = arr
+		delete(seen, item)
 	case *Pointer:
 		value = it.pos
+	case nil:
+		return "", fmt.Errorf("%w: nil", ErrUnserializable)
+	}
+	result := map[string]interface{}{
+		"type": item.Type().String(),
 	}
 	if value != nil {
 		result["value"] = value
@@ -287,6 +301,10 @@ type (
 	}
 )
 
+func mkErrValue(err error) error {
+	return fmt.Errorf("%w: %v", ErrInvalidValue, err)
+}
+
 // FromJSONWithTypes deserializes an item from typed-json representation.
 func FromJSONWithTypes(data []byte) (Item, error) {
 	raw := new(rawItem)
@@ -295,7 +313,7 @@ func FromJSONWithTypes(data []byte) (Item, error) {
 	}
 	typ, err := FromString(raw.Type)
 	if err != nil {
-		return nil, errors.New("invalid type")
+		return nil, fmt.Errorf("%w: %v", ErrInvalidType, raw.Type)
 	}
 	switch typ {
 	case AnyT:
@@ -303,33 +321,33 @@ func FromJSONWithTypes(data []byte) (Item, error) {
 	case PointerT:
 		var pos int
 		if err := json.Unmarshal(raw.Value, &pos); err != nil {
-			return nil, err
+			return nil, mkErrValue(err)
 		}
 		return NewPointer(pos, nil), nil
 	case BooleanT:
 		var b bool
 		if err := json.Unmarshal(raw.Value, &b); err != nil {
-			return nil, err
+			return nil, mkErrValue(err)
 		}
 		return NewBool(b), nil
 	case IntegerT:
 		var s string
 		if err := json.Unmarshal(raw.Value, &s); err != nil {
-			return nil, err
+			return nil, mkErrValue(err)
 		}
 		val, ok := new(big.Int).SetString(s, 10)
 		if !ok {
-			return nil, errors.New("invalid integer")
+			return nil, mkErrValue(errors.New("not an integer"))
 		}
 		return NewBigInteger(val), nil
 	case ByteArrayT, BufferT:
 		var s string
 		if err := json.Unmarshal(raw.Value, &s); err != nil {
-			return nil, err
+			return nil, mkErrValue(err)
 		}
 		val, err := base64.StdEncoding.DecodeString(s)
 		if err != nil {
-			return nil, err
+			return nil, mkErrValue(err)
 		}
 		if typ == ByteArrayT {
 			return NewByteArray(val), nil
@@ -338,7 +356,7 @@ func FromJSONWithTypes(data []byte) (Item, error) {
 	case ArrayT, StructT:
 		var arr []json.RawMessage
 		if err := json.Unmarshal(raw.Value, &arr); err != nil {
-			return nil, err
+			return nil, mkErrValue(err)
 		}
 		items := make([]Item, len(arr))
 		for i := range arr {
@@ -355,7 +373,7 @@ func FromJSONWithTypes(data []byte) (Item, error) {
 	case MapT:
 		var arr []rawMapElement
 		if err := json.Unmarshal(raw.Value, &arr); err != nil {
-			return nil, err
+			return nil, mkErrValue(err)
 		}
 		m := NewMap()
 		for i := range arr {
@@ -375,6 +393,6 @@ func FromJSONWithTypes(data []byte) (Item, error) {
 	case InteropT:
 		return NewInterop(nil), nil
 	default:
-		return nil, errors.New("unexpected type")
+		return nil, fmt.Errorf("%w: %v", ErrInvalidType, typ)
 	}
 }

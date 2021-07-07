@@ -77,7 +77,7 @@ func TestEncodeDecodeAppExecResult(t *testing.T) {
 		w.WriteB(byte(aer.Trigger))
 		w.WriteB(byte(aer.VMState))
 		w.WriteU64LE(uint64(aer.GasConsumed))
-		stackitem.EncodeBinaryStackItem(stackitem.NewBool(true), w.BinWriter)
+		stackitem.EncodeBinary(stackitem.NewBool(true), w.BinWriter)
 		require.NoError(t, w.Err)
 		require.Error(t, testserdes.DecodeBinary(w.Bytes(), new(AppExecResult)))
 	})
@@ -184,7 +184,13 @@ func TestMarshalUnmarshalJSONAppExecResult(t *testing.T) {
 
 		bs1, err := json.Marshal(actual)
 		require.NoError(t, err)
-		require.Equal(t, bs, bs1)
+		require.NotEqual(t, bs, bs1) // recursive ref error vs. unserializable nil
+
+		actual2 := new(AppExecResult)
+		require.NoError(t, json.Unmarshal(bs, actual2))
+		bs2, err := json.Marshal(actual2)
+		require.NoError(t, err)
+		require.Equal(t, bs1, bs2) // unserializable nil in both cases
 	})
 
 	t.Run("UnmarshalJSON error", func(t *testing.T) {

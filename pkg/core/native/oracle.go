@@ -278,7 +278,7 @@ func (o *Oracle) FinishInternal(ic *interop.Context) error {
 	})
 
 	r := io.NewBinReaderFromBuf(req.UserData)
-	userData := stackitem.DecodeBinaryStackItem(r)
+	userData := stackitem.DecodeBinary(r)
 	args := []stackitem.Item{
 		stackitem.Make(req.URL),
 		stackitem.Make(userData),
@@ -358,7 +358,7 @@ func (o *Oracle) RequestInternal(ic *interop.Context, url string, filter *string
 	}
 
 	w := io.NewBufBinWriter()
-	stackitem.EncodeBinaryStackItem(userData, w.BinWriter)
+	stackitem.EncodeBinary(userData, w.BinWriter)
 	if w.Err != nil {
 		return w.Err
 	}

@@ -25,12 +25,12 @@ func (l IDList) Bytes() []byte {
 
 // EncodeBinary implements io.Serializable.
 func (l IDList) EncodeBinary(w *io.BinWriter) {
-	stackitem.EncodeBinaryStackItem(l.toStackItem(), w)
+	stackitem.EncodeBinary(l.toStackItem(), w)
 }
 
 // DecodeBinary implements io.Serializable.
 func (l *IDList) DecodeBinary(r *io.BinReader) {
-	item := stackitem.DecodeBinaryStackItem(r)
+	item := stackitem.DecodeBinary(r)
 	if r.Err != nil || item == nil {
 		return
 	}
@@ -84,12 +84,12 @@ func (l NodeList) Bytes() []byte {
 
 // EncodeBinary implements io.Serializable.
 func (l NodeList) EncodeBinary(w *io.BinWriter) {
-	stackitem.EncodeBinaryStackItem(l.toStackItem(), w)
+	stackitem.EncodeBinary(l.toStackItem(), w)
 }
 
 // DecodeBinary implements io.Serializable.
 func (l *NodeList) DecodeBinary(r *io.BinReader) {
-	item := stackitem.DecodeBinaryStackItem(r)
+	item := stackitem.DecodeBinary(r)
 	if r.Err != nil || item == nil {
 		return
 	}

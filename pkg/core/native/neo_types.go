@@ -86,7 +86,7 @@ func (k *keysWithVotes) fromStackItem(item stackitem.Item) error {
 func (k keysWithVotes) Bytes() []byte {
 	var it = k.toStackItem()
 	var w = io.NewBufBinWriter()
-	stackitem.EncodeBinaryStackItem(it, w.BinWriter)
+	stackitem.EncodeBinary(it, w.BinWriter)
 	if w.Err != nil {
 		panic(w.Err)
 	}
@@ -96,7 +96,7 @@ func (k keysWithVotes) Bytes() []byte {
 // DecodeBytes deserializes keys and votes slice.
 func (k *keysWithVotes) DecodeBytes(data []byte) error {
 	var r = io.NewBinReaderFromBuf(data)
-	var it = stackitem.DecodeBinaryStackItem(r)
+	var it = stackitem.DecodeBinary(r)
 	if r.Err != nil {
 		return r.Err
 	}
