@@ -56,7 +56,7 @@ func (ft *fakeTransp) Close() {
 func TestDefaultDiscoverer(t *testing.T) {
 	ts := &fakeTransp{}
 	ts.dialCh = make(chan string)
-	d := NewDefaultDiscovery(nil, time.Second/2, ts)
+	d := NewDefaultDiscovery(nil, time.Second/16, ts)
 
 	var set1 = []string{"1.1.1.1:10333", "2.2.2.2:10333"}
 	sort.Strings(set1)
