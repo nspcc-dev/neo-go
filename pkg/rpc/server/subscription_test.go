@@ -21,6 +21,10 @@ const testOverflow = false
 func wsReader(t *testing.T, ws *websocket.Conn, msgCh chan<- []byte, isFinished *atomic.Bool) {
 	for {
 		err := ws.SetReadDeadline(time.Now().Add(time.Second))
+		if isFinished.Load() {
+			require.Error(t, err)
+			break
+		}
 		require.NoError(t, err)
 		_, body, err := ws.ReadMessage()
 		if isFinished.Load() {
