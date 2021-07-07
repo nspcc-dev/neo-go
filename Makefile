@@ -68,9 +68,10 @@ check-version:
 	git fetch && (! git rev-list ${VERSION})
 
 deps:
-	@CGO_ENABLED=0 \
+	ls
+	CGO_ENABLED=0 \
 	go mod download
-	@CGO_ENABLED=0 \
+	CGO_ENABLED=0 \
 	go mod tidy -v
 
 push-tag:
