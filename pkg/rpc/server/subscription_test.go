@@ -89,11 +89,11 @@ func TestSubscriptions(t *testing.T) {
 	var subFeeds = []string{"block_added", "transaction_added", "notification_from_execution", "transaction_executed", "notary_request_event"}
 
 	chain, rpcSrv, c, respMsgs, finishedFlag := initCleanServerAndWSClient(t)
+	defer chain.Close()
+	defer func() { _ = rpcSrv.Shutdown() }()
 
 	go rpcSrv.coreServer.Start(make(chan error))
 	defer rpcSrv.coreServer.Shutdown()
-	defer chain.Close()
-	defer func() { _ = rpcSrv.Shutdown() }()
 
 	for _, feed := range subFeeds {
 		s := callSubscribe(t, c, respMsgs, fmt.Sprintf(`["%s"]`, feed))
