@@ -174,6 +174,22 @@ func TestTrie_PutBatchBranch(t *testing.T) {
 			testPut(t, ps, tr1, tr2)
 			require.IsType(t, (*ExtensionNode)(nil), tr1.root)
 		})
+		t.Run("non-empty child is last node", func(t *testing.T) {
+			tr1 := NewTrie(new(HashNode), false, newTestStore())
+			tr2 := NewTrie(new(HashNode), false, newTestStore())
+			require.NoError(t, tr1.Put([]byte{0x00, 2}, []byte("value1")))
+			require.NoError(t, tr2.Put([]byte{0x00, 2}, []byte("value1")))
+			require.NoError(t, tr1.Put([]byte{0x00}, []byte("value2")))
+			require.NoError(t, tr2.Put([]byte{0x00}, []byte("value2")))
+
+			tr1.Flush()
+			tr1.Collapse(1)
+			tr2.Flush()
+			tr2.Collapse(1)
+
+			var ps = pairs{{[]byte{0x00, 2}, nil}}
+			testPut(t, ps, tr1, tr2)
+		})
 	})
 	t.Run("incomplete put, transform to extension", func(t *testing.T) {
 		tr1, tr2 := prepareBranch(t)
