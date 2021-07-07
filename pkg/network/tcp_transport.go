@@ -16,6 +16,7 @@ type TCPTransport struct {
 	listener net.Listener
 	bindAddr string
 	lock     sync.RWMutex
+	quit     bool
 }
 
 var reClosedNetwork = regexp.MustCompile(".* use of closed network connection")
@@ -50,16 +51,24 @@ func (t *TCPTransport) Accept() {
 	}
 
 	t.lock.Lock()
+	if t.quit {
+		t.lock.Unlock()
+		l.Close()
+		return
+	}
 	t.listener = l
 	t.lock.Unlock()
 
 	for {
 		conn, err := l.Accept()
 		if err != nil {
-			t.log.Warn("TCP accept error", zap.Error(err))
-			if t.isCloseError(err) {
+			t.lock.Lock()
+			quit := t.quit
+			t.lock.Unlock()
+			if t.isCloseError(err) && quit {
 				break
 			}
+			t.log.Warn("TCP accept error", zap.Error(err))
 			continue
 		}
 		p := NewTCPPeer(conn, t.server)
@@ -83,6 +92,7 @@ func (t *TCPTransport) Close() {
 	if t.listener != nil {
 		t.listener.Close()
 	}
+	t.quit = true
 	t.lock.Unlock()
 }
 
