@@ -99,7 +99,7 @@ func (p *Pool) Get(h util.Uint256) *payload.Extensible {
 	return elem.Value.(*payload.Extensible)
 }
 
-const extensibleVerifyMaxGAS = 2000000
+const extensibleVerifyMaxGAS = 6000000
 
 // RemoveStale removes invalid payloads after block processing.
 func (p *Pool) RemoveStale(index uint32) {

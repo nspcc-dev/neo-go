@@ -50,7 +50,7 @@ const (
 	defaultMaxBlockSystemFee               = 900000000000
 	defaultMaxTraceableBlocks              = 2102400 // 1 year of 15s blocks
 	defaultMaxTransactionsPerBlock         = 512
-	verificationGasLimit                   = 100000000 // 1 GAS
+	headerVerificationGasLimit             = 3_00000000 // 3 GAS
 )
 
 var (
@@ -1874,7 +1874,7 @@ func (bc *Blockchain) verifyHeaderWitnesses(currHeader, prevHeader *block.Header
 	} else {
 		hash = prevHeader.NextConsensus
 	}
-	return bc.VerifyWitness(hash, currHeader, &currHeader.Script, verificationGasLimit)
+	return bc.VerifyWitness(hash, currHeader, &currHeader.Script, headerVerificationGasLimit)
 }
 
 // GoverningTokenHash returns the governing token (NEO) native contract hash.
