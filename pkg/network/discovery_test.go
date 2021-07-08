@@ -27,12 +27,13 @@ func newFakeTransp(s *Server) Transporter {
 }
 
 func (ft *fakeTransp) Dial(addr string, timeout time.Duration) error {
+	var ret error
+	if atomic.LoadInt32(&ft.retFalse) > 0 {
+		ret = errors.New("smth bad happened")
+	}
 	ft.dialCh <- addr
 
-	if atomic.LoadInt32(&ft.retFalse) > 0 {
-		return errors.New("smth bad happened")
-	}
-	return nil
+	return ret
 }
 func (ft *fakeTransp) Accept() {
 	if ft.started.Load() {
