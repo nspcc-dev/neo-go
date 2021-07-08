@@ -28,7 +28,7 @@ const (
 	DefaultStoragePrice = 100000
 
 	// maxExecFeeFactor is the maximum allowed execution fee factor.
-	maxExecFeeFactor = 1000
+	maxExecFeeFactor = 100
 	// maxFeePerByte is the maximum allowed fee per byte value.
 	maxFeePerByte = 100_000_000
 	// maxStoragePrice is the maximum allowed price for a byte of storage.
