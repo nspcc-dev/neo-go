@@ -87,13 +87,9 @@ func TestDefaultDiscoverer(t *testing.T) {
 			t.Fatalf("timeout expecting for transport dial")
 		}
 	}
-	// Updated asynchronously.
-	if len(d.UnconnectedPeers()) != 0 {
-		time.Sleep(time.Second)
-	}
+	require.Eventually(t, func() bool { return len(d.UnconnectedPeers()) == 0 }, 2*time.Second, 50*time.Millisecond)
 	sort.Strings(dialled)
 	assert.Equal(t, 0, d.PoolCount())
-	assert.Equal(t, 0, len(d.UnconnectedPeers()))
 	assert.Equal(t, 0, len(d.BadPeers()))
 	assert.Equal(t, 0, len(d.GoodPeers()))
 	require.Equal(t, set1, dialled)
@@ -168,11 +164,7 @@ func TestDefaultDiscoverer(t *testing.T) {
 			assert.Equal(t, set1[i], dialledBad[i*connRetries+j])
 		}
 	}
-	// Updated asynchronously.
-	if len(d.BadPeers()) != len(set1) {
-		time.Sleep(time.Second)
-	}
-	assert.Equal(t, len(set1), len(d.BadPeers()))
+	require.Eventually(t, func() bool { return len(d.BadPeers()) == len(set1) }, 2*time.Second, 50*time.Millisecond)
 	assert.Equal(t, 0, len(d.GoodPeers()))
 	assert.Equal(t, 0, len(d.UnconnectedPeers()))
 
