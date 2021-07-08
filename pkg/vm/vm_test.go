@@ -2050,6 +2050,18 @@ func TestDupInt(t *testing.T) {
 	assert.Equal(t, int64(-1), vm.estack.Pop().BigInt().Int64())
 }
 
+func TestNegateCopy(t *testing.T) {
+	prog := makeProgram(opcode.NEGATE)
+	v := load(prog)
+	bi := stackitem.Make(-1)
+	v.estack.PushVal(bi)
+	v.estack.PushVal(bi)
+	runVM(t, v)
+	assert.Equal(t, 2, v.estack.Len())
+	assert.Equal(t, int64(1), v.estack.Pop().BigInt().Int64())
+	assert.Equal(t, int64(-1), v.estack.Pop().BigInt().Int64())
+}
+
 func TestDupByteArray(t *testing.T) {
 	prog := makeProgram(opcode.PUSHDATA1, 2, 1, 0,
 		opcode.DUP,

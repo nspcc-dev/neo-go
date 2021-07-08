@@ -831,7 +831,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		// inplace
 		e := v.estack.Peek(0)
 		i := e.BigInt()
-		e.value = stackitem.Make(i.Not(i))
+		e.value = stackitem.Make(new(big.Int).Not(i))
 
 	case opcode.AND:
 		b := v.estack.Pop().BigInt()
@@ -866,11 +866,11 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 
 	case opcode.ABS:
 		x := v.estack.Pop().BigInt()
-		v.estack.PushVal(x.Abs(x))
+		v.estack.PushVal(new(big.Int).Abs(x))
 
 	case opcode.NEGATE:
 		x := v.estack.Pop().BigInt()
-		v.estack.PushVal(x.Neg(x))
+		v.estack.PushVal(new(big.Int).Neg(x))
 
 	case opcode.INC:
 		x := v.estack.Pop().BigInt()
