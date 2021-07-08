@@ -27,12 +27,13 @@ func newFakeTransp(s *Server) Transporter {
 }
 
 func (ft *fakeTransp) Dial(addr string, timeout time.Duration) error {
+	var ret error
+	if atomic.LoadInt32(&ft.retFalse) > 0 {
+		ret = errors.New("smth bad happened")
+	}
 	ft.dialCh <- addr
 
-	if atomic.LoadInt32(&ft.retFalse) > 0 {
-		return errors.New("smth bad happened")
-	}
-	return nil
+	return ret
 }
 func (ft *fakeTransp) Accept() {
 	if ft.started.Load() {
@@ -56,7 +57,7 @@ func (ft *fakeTransp) Close() {
 func TestDefaultDiscoverer(t *testing.T) {
 	ts := &fakeTransp{}
 	ts.dialCh = make(chan string)
-	d := NewDefaultDiscovery(nil, time.Second/2, ts)
+	d := NewDefaultDiscovery(nil, time.Second/16, ts)
 
 	var set1 = []string{"1.1.1.1:10333", "2.2.2.2:10333"}
 	sort.Strings(set1)
@@ -86,13 +87,9 @@ func TestDefaultDiscoverer(t *testing.T) {
 			t.Fatalf("timeout expecting for transport dial")
 		}
 	}
-	// Updated asynchronously.
-	if len(d.UnconnectedPeers()) != 0 {
-		time.Sleep(time.Second)
-	}
+	require.Eventually(t, func() bool { return len(d.UnconnectedPeers()) == 0 }, 2*time.Second, 50*time.Millisecond)
 	sort.Strings(dialled)
 	assert.Equal(t, 0, d.PoolCount())
-	assert.Equal(t, 0, len(d.UnconnectedPeers()))
 	assert.Equal(t, 0, len(d.BadPeers()))
 	assert.Equal(t, 0, len(d.GoodPeers()))
 	require.Equal(t, set1, dialled)
@@ -167,11 +164,7 @@ func TestDefaultDiscoverer(t *testing.T) {
 			assert.Equal(t, set1[i], dialledBad[i*connRetries+j])
 		}
 	}
-	// Updated asynchronously.
-	if len(d.BadPeers()) != len(set1) {
-		time.Sleep(time.Second)
-	}
-	assert.Equal(t, len(set1), len(d.BadPeers()))
+	require.Eventually(t, func() bool { return len(d.BadPeers()) == len(set1) }, 2*time.Second, 50*time.Millisecond)
 	assert.Equal(t, 0, len(d.GoodPeers()))
 	assert.Equal(t, 0, len(d.UnconnectedPeers()))
 

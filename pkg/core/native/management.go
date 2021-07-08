@@ -325,10 +325,14 @@ func (m *Management) updateWithData(ic *interop.Context, args []stackitem.Item) 
 // Update updates contract's script and/or manifest in the given DAO.
 // It doesn't run _deploy method and doesn't emit notification.
 func (m *Management) Update(d dao.DAO, hash util.Uint160, neff *nef.File, manif *manifest.Manifest) (*state.Contract, error) {
-	contract, err := m.GetContract(d, hash)
+	var contract state.Contract
+
+	oldcontract, err := m.GetContract(d, hash)
 	if err != nil {
 		return nil, errors.New("contract doesn't exist")
 	}
+
+	contract = *oldcontract // Make a copy, don't ruin (potentially) cached contract.
 	// if NEF was provided, update the contract script
 	if neff != nil {
 		m.markUpdated(hash)
@@ -351,11 +355,11 @@ func (m *Management) Update(d dao.DAO, hash util.Uint160, neff *nef.File, manif 
 		return nil, err
 	}
 	contract.UpdateCounter++
-	err = m.PutContractState(d, contract)
+	err = m.PutContractState(d, &contract)
 	if err != nil {
 		return nil, err
 	}
-	return contract, nil
+	return &contract, nil
 }
 
 // destroy is an implementation of destroy update method, it's run under
