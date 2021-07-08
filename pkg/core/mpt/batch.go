@@ -192,7 +192,10 @@ func (t *Trie) stripBranch(b *BranchNode) (Node, error) {
 	case n == 0:
 		return new(HashNode), nil
 	case n == 1:
-		return t.mergeExtension([]byte{lastIndex}, b.Children[lastIndex])
+		if lastIndex != lastChild {
+			return t.mergeExtension([]byte{lastIndex}, b.Children[lastIndex])
+		}
+		return b.Children[lastIndex], nil
 	default:
 		t.addRef(b.Hash(), b.bytes)
 		return b, nil

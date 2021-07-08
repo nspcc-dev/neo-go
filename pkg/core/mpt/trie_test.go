@@ -395,6 +395,24 @@ func testTrieDelete(t *testing.T, enableGC bool) {
 					tr.testHas(t, []byte{}, nil)
 					tr.testHas(t, []byte{0x56}, []byte{0x34})
 					require.IsType(t, (*ExtensionNode)(nil), tr.root)
+
+					t.Run("WithHash, branch node replaced", func(t *testing.T) {
+						ch := NewLeafNode([]byte{5, 6})
+						h := ch.Hash()
+
+						b := NewBranchNode()
+						b.Children[3] = NewExtensionNode([]byte{4}, NewLeafNode([]byte{1, 2, 3}))
+						b.Children[lastChild] = NewHashNode(h)
+
+						tr := NewTrie(NewExtensionNode([]byte{1, 2}, b), enableGC, newTestStore())
+						tr.putToStore(ch)
+
+						require.NoError(t, tr.Delete([]byte{0x12, 0x34}))
+						tr.testHas(t, []byte{0x12, 0x34}, nil)
+						tr.testHas(t, []byte{0x12}, []byte{5, 6})
+						require.IsType(t, (*ExtensionNode)(nil), tr.root)
+						require.Equal(t, h, tr.root.(*ExtensionNode).next.Hash())
+					})
 				})
 
 				t.Run("LeaveLeaf", func(t *testing.T) {
