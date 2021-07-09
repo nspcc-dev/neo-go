@@ -1400,8 +1400,8 @@ func (bc *Blockchain) ApplyPolicyToTxSet(txes []*transaction.Transaction) []*tra
 	if maxTx != 0 && len(txes) > int(maxTx) {
 		txes = txes[:maxTx]
 	}
-	maxBlockSize := bc.GetConfig().MaxBlockSize
-	maxBlockSysFee := bc.GetConfig().MaxBlockSystemFee
+	maxBlockSize := bc.config.MaxBlockSize
+	maxBlockSysFee := bc.config.MaxBlockSystemFee
 	defaultWitness := bc.defaultBlockWitness.Load()
 	if defaultWitness == nil {
 		m := smartcontract.GetDefaultHonestNodeCount(bc.config.ValidatorsCount)
