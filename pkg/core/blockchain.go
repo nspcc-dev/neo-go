@@ -296,7 +296,20 @@ func (bc *Blockchain) init() error {
 	}
 	bc.blockHeight = bHeight
 	bc.persistedHeight = bHeight
-	if err = bc.stateRoot.Init(bHeight, bc.config.KeepOnlyLatestState); err != nil {
+
+	p, err := bc.dao.GetStateSyncPoint()
+	if err != nil && !errors.Is(err, storage.ErrKeyNotFound) {
+		return fmt.Errorf("can't retrieve state synchronisation point: %w", err)
+	}
+	if err == nil && !(bc.config.P2PStateExchangeExtensions && bc.config.RemoveUntraceableBlocks) {
+		return errors.New("state sync point found in the storage: enable P2PStateExchangeExtensions and RemoveUntraceableBlocks or clean the storage")
+	}
+	if p <= bHeight {
+		p = bHeight
+	} else {
+		bc.p = p
+	}
+	if err = bc.stateRoot.Init(p, bc.config.KeepOnlyLatestState); err != nil {
 		return fmt.Errorf("can't init MPT at height %d: %w", bHeight, err)
 	}
 
@@ -404,6 +417,10 @@ func (bc *Blockchain) InitOnRestore(p uint32) error {
 	bc.lock.Lock()
 	defer bc.lock.Unlock()
 	bc.p = p
+	err := bc.dao.PutStateSyncPoint(p)
+	if err != nil {
+		return fmt.Errorf("failed to store state synchronization point: %w", err)
+	}
 	if height > bc.blockHeight {
 		// Need to provide proper (bc).BlockHeight() to external users while syncing.
 		bc.blockHeight = height

@@ -397,6 +397,15 @@ func (dao *Simple) GetCurrentHeaderHeight() (i uint32, h util.Uint256, err error
 	return
 }
 
+// GetStateSyncPoint returns current state synchronisation point P.
+func (dao *Simple) GetStateSyncPoint() (uint32, error) {
+	b, err := dao.Store.Get(storage.SYSStateSyncPoint.Bytes())
+	if err != nil {
+		return 0, err
+	}
+	return binary.LittleEndian.Uint32(b), nil
+}
+
 // GetHeaderHashes returns a sorted list of header hashes retrieved from
 // the given underlying store.
 func (dao *Simple) GetHeaderHashes() ([]util.Uint256, error) {
@@ -462,6 +471,13 @@ func (dao *Simple) PutVersion(v string) error {
 // PutCurrentHeader stores current header.
 func (dao *Simple) PutCurrentHeader(hashAndIndex []byte) error {
 	return dao.Store.Put(storage.SYSCurrentHeader.Bytes(), hashAndIndex)
+}
+
+// PutStateSyncPoint stores current state synchronisation point P.
+func (dao *Simple) PutStateSyncPoint(p uint32) error {
+	buf := make([]byte, 4)
+	binary.LittleEndian.PutUint32(buf, p)
+	return dao.Store.Put(storage.SYSStateSyncPoint.Bytes(), buf)
 }
 
 // read2000Uint256Hashes attempts to read 2000 Uint256 hashes from

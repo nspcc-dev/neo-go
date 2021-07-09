@@ -88,7 +88,7 @@ func TestTraverse(t *testing.T) {
 			nodes    [][]byte
 			maxBytes = maxSize
 		)
-		stop := func(node []byte) bool {
+		stop := func(_ Node, node []byte) bool {
 			if len(node)+io.GetVarSize(len(node)) > maxBytes {
 				return true
 			}
@@ -96,7 +96,7 @@ func TestTraverse(t *testing.T) {
 			maxBytes -= len(node) + io.GetVarSize(len(node))
 			return false
 		}
-		err := tr.Traverse(stop)
+		err := tr.Traverse(stop, false)
 		require.NoError(t, err)
 
 		var size int
@@ -108,8 +108,8 @@ func TestTraverse(t *testing.T) {
 	})
 
 	t.Run("Good, no restrictions", func(t *testing.T) {
-		stop := func(node []byte) bool { return false }
-		err := tr.Traverse(stop)
+		stop := func(_ Node, node []byte) bool { return false }
+		err := tr.Traverse(stop, false)
 		require.NoError(t, err)
 		require.Equal(t, expectedRoot, tr.StateRoot())
 	})
@@ -118,11 +118,11 @@ func TestTraverse(t *testing.T) {
 func TestTraverseAndRestore(t *testing.T) {
 	expected := newProofTrie(t, false)
 	var nodes [][]byte
-	stop := func(node []byte) bool {
+	stop := func(_ Node, node []byte) bool {
 		nodes = append(nodes, node)
 		return false
 	}
-	err := expected.Traverse(stop)
+	err := expected.Traverse(stop, false)
 	require.NoError(t, err)
 
 	// Start from known state root with an empty path

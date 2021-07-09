@@ -8,19 +8,20 @@ import (
 
 // KeyPrefix constants.
 const (
-	DataBlock        KeyPrefix = 0x01
-	DataTransaction  KeyPrefix = 0x02
-	DataMPT          KeyPrefix = 0x03
-	STAccount        KeyPrefix = 0x40
-	STNotification   KeyPrefix = 0x4d
-	STContractID     KeyPrefix = 0x51
-	STStorage        KeyPrefix = 0x70
-	STNEP17Transfers KeyPrefix = 0x72
-	STNEP17Balances  KeyPrefix = 0x73
-	IXHeaderHashList KeyPrefix = 0x80
-	SYSCurrentBlock  KeyPrefix = 0xc0
-	SYSCurrentHeader KeyPrefix = 0xc1
-	SYSVersion       KeyPrefix = 0xf0
+	DataBlock         KeyPrefix = 0x01
+	DataTransaction   KeyPrefix = 0x02
+	DataMPT           KeyPrefix = 0x03
+	STAccount         KeyPrefix = 0x40
+	STNotification    KeyPrefix = 0x4d
+	STContractID      KeyPrefix = 0x51
+	STStorage         KeyPrefix = 0x70
+	STNEP17Transfers  KeyPrefix = 0x72
+	STNEP17Balances   KeyPrefix = 0x73
+	IXHeaderHashList  KeyPrefix = 0x80
+	SYSCurrentBlock   KeyPrefix = 0xc0
+	SYSCurrentHeader  KeyPrefix = 0xc1
+	SYSStateSyncPoint KeyPrefix = 0xc2
+	SYSVersion        KeyPrefix = 0xf0
 )
 
 const (

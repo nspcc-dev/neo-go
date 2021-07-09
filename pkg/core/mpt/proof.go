@@ -81,8 +81,8 @@ func VerifyProof(rh util.Uint256, key []byte, proofs [][]byte) ([]byte, bool) {
 // to its children calling `process` for each serialised node until true is
 // returned from `process` function. It also replaces all HashNodes to their
 // "unhashed" counterparts until the stop condition is satisfied.
-func (t *Trie) Traverse(process func(node []byte) bool) error {
-	r, err := t.traverse(t.root, process)
+func (t *Trie) Traverse(process func(node Node, nodeBytes []byte) bool, ignoreStorageErr bool) error {
+	r, err := t.traverse(t.root, process, ignoreStorageErr)
 	if err != nil && !errors.Is(err, errStop) {
 		return err
 	}
@@ -90,21 +90,24 @@ func (t *Trie) Traverse(process func(node []byte) bool) error {
 	return nil
 }
 
-func (t *Trie) traverse(curr Node, process func(node []byte) bool) (Node, error) {
+func (t *Trie) traverse(curr Node, process func(node Node, nodeBytes []byte) bool, ignoreStorageErr bool) (Node, error) {
 	if hn, ok := curr.(*HashNode); ok {
 		if !hn.IsEmpty() {
 			r, err := t.getFromStore(hn.Hash())
 			if err != nil {
+				if ignoreStorageErr && errors.Is(err, storage.ErrKeyNotFound) {
+					return hn, nil
+				}
 				return hn, err
 			}
-			return t.traverse(r, process)
+			return t.traverse(r, process, ignoreStorageErr)
 		}
 		// We're not interested in empty HashNodes and they do not affect the
 		// traversal process, thus remain them untouched.
 		return hn, nil
 	}
 	bytes := slice.Copy(curr.Bytes())
-	if process(bytes) {
+	if process(curr, bytes) {
 		return curr, errStop
 	}
 	switch n := curr.(type) {
@@ -112,7 +115,7 @@ func (t *Trie) traverse(curr Node, process func(node []byte) bool) (Node, error)
 		return n, nil
 	case *BranchNode:
 		for i := range n.Children {
-			r, err := t.traverse(n.Children[i], process)
+			r, err := t.traverse(n.Children[i], process, ignoreStorageErr)
 			if err != nil {
 				if !errors.Is(err, errStop) {
 					return nil, err
@@ -124,7 +127,7 @@ func (t *Trie) traverse(curr Node, process func(node []byte) bool) (Node, error)
 		}
 		return n, nil
 	case *ExtensionNode:
-		r, err := t.traverse(n.next, process)
+		r, err := t.traverse(n.next, process, ignoreStorageErr)
 		if err != nil && !errors.Is(err, errStop) {
 			return nil, err
 		}

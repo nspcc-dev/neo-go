@@ -19,6 +19,6 @@ type StateRoot interface {
 	GetStateValidators(height uint32) keys.PublicKeys
 	RestoreMPTNode(path []byte, node mpt.Node) error
 	SetUpdateValidatorsCallback(func(uint32, keys.PublicKeys))
-	Traverse(root util.Uint256, stop func(node []byte) bool) error
+	Traverse(root util.Uint256, stop func(node mpt.Node, nodeBytes []byte) bool, ignoreStorageErr bool) error
 	UpdateStateValidators(height uint32, pubs keys.PublicKeys)
 }
