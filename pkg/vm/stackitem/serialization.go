@@ -22,14 +22,14 @@ type serContext struct {
 	uv           [9]byte
 	data         []byte
 	allowInvalid bool
-	seen         map[Item]bool
+	seen         map[Item]sliceNoPointer
 }
 
 // Serialize encodes given Item into the byte slice.
 func Serialize(item Item) ([]byte, error) {
 	sc := serContext{
 		allowInvalid: false,
-		seen:         make(map[Item]bool),
+		seen:         make(map[Item]sliceNoPointer),
 	}
 	err := sc.serialize(item)
 	if err != nil {
@@ -58,7 +58,7 @@ func EncodeBinary(item Item, w *io.BinWriter) {
 func EncodeBinaryProtected(item Item, w *io.BinWriter) {
 	sc := serContext{
 		allowInvalid: true,
-		seen:         make(map[Item]bool),
+		seen:         make(map[Item]sliceNoPointer),
 	}
 	err := sc.serialize(item)
 	if err != nil {
@@ -69,10 +69,18 @@ func EncodeBinaryProtected(item Item, w *io.BinWriter) {
 }
 
 func (w *serContext) serialize(item Item) error {
-	if w.seen[item] {
-		return ErrRecursive
+	if v, ok := w.seen[item]; ok {
+		if v.start == v.end {
+			return ErrRecursive
+		}
+		if len(w.data)+v.end-v.start > MaxSize {
+			return ErrTooBig
+		}
+		w.data = append(w.data, w.data[v.start:v.end]...)
+		return nil
 	}
 
+	start := len(w.data)
 	switch t := item.(type) {
 	case *ByteArray:
 		w.data = append(w.data, byte(ByteArrayT))
@@ -103,7 +111,7 @@ func (w *serContext) serialize(item Item) error {
 			return fmt.Errorf("%w: Interop", ErrUnserializable)
 		}
 	case *Array, *Struct:
-		w.seen[item] = true
+		w.seen[item] = sliceNoPointer{}
 
 		_, isArray := t.(*Array)
 		if isArray {
@@ -119,9 +127,9 @@ func (w *serContext) serialize(item Item) error {
 				return err
 			}
 		}
-		delete(w.seen, item)
+		w.seen[item] = sliceNoPointer{start, len(w.data)}
 	case *Map:
-		w.seen[item] = true
+		w.seen[item] = sliceNoPointer{}
 
 		elems := t.Value().([]MapElement)
 		w.data = append(w.data, byte(MapT))
@@ -134,7 +142,7 @@ func (w *serContext) serialize(item Item) error {
 				return err
 			}
 		}
-		delete(w.seen, item)
+		w.seen[item] = sliceNoPointer{start, len(w.data)}
 	case Null:
 		w.data = append(w.data, byte(AnyT))
 	case nil:
