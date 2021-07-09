@@ -2,6 +2,78 @@
 
 This document outlines major changes between releases.
 
+## 0.95.4 "Yatter" (09 Jul 2021)
+
+Making a fully compliant Neo node is not easy, there are lots of minuscule
+details that could be done in a little different way where both ways are
+technically correct but at the same time just different which is enough to
+create some interoperability problems. We've seen that with Legacy node
+implementation where we were functionally complete with 0.74.0 release but
+some fixes kept coming up to the most recent 0.78.3 version. It was a bit
+easier with Legacy because we already had some years-long chains to test the
+node against while N3 is a completely new territory.
+
+So we'd like to thank all RC3 hackathon participants as well as all other
+people playing with N3 RC3 network, your joint efforts gave enough material
+to keep us busy fixing things for some time. The chain moving forward hit more
+and more edge cases with every block and this is actually very helpful, we saw
+a lot of things that could be improved in our node and we improved them.
+
+Now we're releasing 0.95.4 with all of these fixes which is still
+RC3-compatible and it's stateroot-compatible with C# implementation up to 281K
+blocks. Please resynchronize to get identic testnet state. And most likely
+that's the last RC3-compatible release as we're moving forward to the official
+3.0.0 release of C# version NeoGo will be updated with appropriate changes
+(some of which are not compatible with RC3).
+
+New features:
+ * 'sysgas' parameter for invocation and transfer CLI commands to manually add
+   some system fee GAS (#2033)
+
+Behavior changes:
+ * contract calls are now checked against specified permissions by the
+   compiler (#2025)
+ * stack items with nesting levels of 10 and more won't be serialized to JSON
+   for purposes like including them into RPC call reply (#2045)
+
+Improvements:
+ * AddHeaders() with multiple headers added at the same time now works with
+   StateRootInHeader option (#2028)
+ * cached GAS per vote value leads to substantially improved block processing
+   speed (#2032)
+ * failed native NEP17 transfers now still re-save the old value to the
+   storage making state dumps compatible with C# (#2034)
+ * refactored and renamed some stackitem package functions, added proper error
+   values in all cases (#2045)
+ * RPC calls (and application logs) can now return real serialization errors
+   if there are any (previously all errors were reported as "recursive
+   reference", #2045)
+ * better tests (#2039, #2050)
+
+Bugs fixed:
+ * wrong onNEP11Payment name in contract configuration examples (#2023)
+ * missing permission sections in contract configuration examples (#2023)
+ * buffer stack item deserialization created byte string (#2026)
+ * Extra contract manifest field serialization was reworked to match C#
+   implementation more closely (#2021)
+ * wildcard permission in manifest allowed any methods, while it shouldn't
+   (#2030)
+ * group permission in manifest worked incorrectly for a set of groups (#2030)
+ * call flags were JSONized in incompatible way (#2041)
+ * MPT update left branch nodes with 1 child in some cases (#2034, #2047)
+ * JSON marshalling code for stack items detected item recursion in some cases
+   where no actual recursion was present (#2045)
+ * binary serialization code for stack items could overwrite old errors in
+   some cases (#2045)
+ * binary serialization code for stack items wasn't ensuring maximum size
+   limit during serialization which could lead to OOM (#2045)
+ * batched MPT update create excessive extension nodes for the last child of
+   branch node in some cases (#2047)
+ * in some cases "TCP accept error" was logged during node shutdown (#2050)
+ * contract updating code was updating caches before they should've been
+   updated (#2050)
+ * INVERT/ABS/NEGATE unary operations were not copying their arguments (#2052)
+
 ## 0.95.3 "Yuppification" (17 Jun 2021)
 
 One more N3 RC3-compatible release that fixes testnet state difference at
