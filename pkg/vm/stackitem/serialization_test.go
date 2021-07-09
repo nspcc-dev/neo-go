@@ -4,6 +4,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/stretchr/testify/require"
 )
 
@@ -20,4 +21,20 @@ func TestSerializationMaxErr(t *testing.T) {
 
 	_, err = Serialize(aitem)
 	require.True(t, errors.Is(err, ErrTooBig), err)
+}
+
+func BenchmarkEncodeBinary(b *testing.B) {
+	arr := getBigArray(15)
+
+	w := io.NewBufBinWriter()
+
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		w.Reset()
+		EncodeBinary(arr, w.BinWriter)
+		if w.Err != nil {
+			b.FailNow()
+		}
+	}
 }

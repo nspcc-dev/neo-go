@@ -105,6 +105,28 @@ func TestFromToJSON(t *testing.T) {
 	})
 }
 
+// getBigArray returns array takes up a lot of storage when serialized.
+func getBigArray(depth int) *Array {
+	arr := NewArray([]Item{})
+	for i := 0; i < depth; i++ {
+		arr = NewArray([]Item{arr, arr})
+	}
+	return arr
+}
+
+func BenchmarkToJSON(b *testing.B) {
+	arr := getBigArray(15)
+
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		_, err := ToJSON(arr)
+		if err != nil {
+			b.FailNow()
+		}
+	}
+}
+
 // This test is taken from the C# code
 // https://github.com/neo-project/neo/blob/master/tests/neo.UnitTests/VM/UT_Helper.cs#L30
 func TestToJSONWithTypeCompat(t *testing.T) {
