@@ -68,8 +68,14 @@ func toJSON(data []byte, seen map[Item]sliceNoPointer, item Item) ([]byte, error
 
 	switch it := item.(type) {
 	case *Array, *Struct:
+		var items []Item
+		if a, ok := it.(*Array); ok {
+			items = a.value
+		} else {
+			items = it.(*Struct).value
+		}
+
 		data = append(data, '[')
-		items := it.Value().([]Item)
 		for i, v := range items {
 			data, err = toJSON(data, seen, v)
 			if err != nil {
