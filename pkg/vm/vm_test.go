@@ -2440,6 +2440,8 @@ func TestNestedStructClone(t *testing.T) {
 		"5601c2c501fe0360589d604a12c0db415824f7cf45",
 		// VALUES for map with deeply nested struct.
 		"5601c84a11c501fe0060589d604a12c0db415824f7d0cd45",
+		// VALUES for a lot of not-so-deep nested structs.
+		"5601c5000a60589d604a12c0db415824f701fe03504a519d4a102afa01ff03c0cd45",
 	}
 	for _, h := range progs {
 		prog, err := hex.DecodeString(h)

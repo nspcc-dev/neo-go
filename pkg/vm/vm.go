@@ -1056,7 +1056,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		itemElem := v.estack.Pop()
 		arrElem := v.estack.Pop()
 
-		val, err := cloneIfStruct(itemElem.value)
+		val, err := cloneIfStruct(itemElem.value, MaxStackSize-v.refs.size)
 		if err != nil {
 			panic(err)
 		}
@@ -1373,7 +1373,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			src := t.Value().([]stackitem.Item)
 			arr = make([]stackitem.Item, len(src))
 			for i := range src {
-				arr[i], err = cloneIfStruct(src[i])
+				arr[i], err = cloneIfStruct(src[i], MaxStackSize-v.refs.size)
 				if err != nil {
 					panic(err)
 				}
@@ -1381,7 +1381,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		case *stackitem.Map:
 			arr = make([]stackitem.Item, 0, t.Len())
 			for k := range t.Value().([]stackitem.MapElement) {
-				elem, err := cloneIfStruct(t.Value().([]stackitem.MapElement)[k].Value)
+				elem, err := cloneIfStruct(t.Value().([]stackitem.MapElement)[k].Value, MaxStackSize-v.refs.size)
 				if err != nil {
 					panic(err)
 				}
@@ -1751,10 +1751,10 @@ func checkMultisig1(v *VM, curve elliptic.Curve, h []byte, pkeys [][]byte, sig [
 	return false
 }
 
-func cloneIfStruct(item stackitem.Item) (stackitem.Item, error) {
+func cloneIfStruct(item stackitem.Item, limit int) (stackitem.Item, error) {
 	switch it := item.(type) {
 	case *stackitem.Struct:
-		return it.Clone(MaxStackSize)
+		return it.Clone(limit)
 	default:
 		return it, nil
 	}
