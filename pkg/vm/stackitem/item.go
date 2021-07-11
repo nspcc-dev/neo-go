@@ -298,17 +298,30 @@ func (i *Struct) Convert(typ Type) (Item, error) {
 
 // Clone returns a Struct with all Struct fields copied by value.
 // Array fields are still copied by reference.
-func (i *Struct) Clone() *Struct {
+func (i *Struct) Clone(limit int) (*Struct, error) {
+	return i.clone(&limit)
+}
+
+func (i *Struct) clone(limit *int) (*Struct, error) {
 	ret := &Struct{make([]Item, len(i.value))}
 	for j := range i.value {
 		switch t := i.value[j].(type) {
 		case *Struct:
-			ret.value[j] = t.Clone()
+			var err error
+
+			ret.value[j], err = t.clone(limit)
+			if err != nil {
+				return nil, err
+			}
+			*limit--
 		default:
 			ret.value[j] = t
 		}
+		if *limit < 0 {
+			return nil, ErrTooBig
+		}
 	}
-	return ret
+	return ret, nil
 }
 
 // Null represents null on the stack.

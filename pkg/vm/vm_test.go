@@ -3,6 +3,7 @@ package vm
 import (
 	"bytes"
 	"encoding/binary"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"math"
@@ -2429,6 +2430,23 @@ func TestSLOTOpcodes(t *testing.T) {
 		)
 		runWithArgs(t, prog, 12)
 	})
+}
+
+func TestNestedStructClone(t *testing.T) {
+	progs := []string{
+		// VALUES for deeply nested structs, see neo-project/neo#2534.
+		"5601c501fe0360589d604a12c0db415824f7cd45",
+		// APPEND of deeply nested struct to empty array.
+		"5601c2c501fe0360589d604a12c0db415824f7cf45",
+		// VALUES for map with deeply nested struct.
+		"5601c84a11c501fe0060589d604a12c0db415824f7d0cd45",
+	}
+	for _, h := range progs {
+		prog, err := hex.DecodeString(h)
+		require.NoError(t, err)
+		vm := load(prog)
+		checkVMFailed(t, vm)
+	}
 }
 
 func makeProgram(opcodes ...opcode.Opcode) []byte {
