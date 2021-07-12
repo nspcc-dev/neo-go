@@ -192,18 +192,23 @@ func storageFind(ic *interop.Context) error {
 		return err
 	}
 
-	filteredMap := stackitem.NewMap()
+	arr := make([]stackitem.MapElement, 0, len(siMap))
 	for k, v := range siMap {
-		key := append(prefix, []byte(k)...)
-		keycopy := make([]byte, len(key))
-		copy(keycopy, key)
-		filteredMap.Add(stackitem.NewByteArray(keycopy), stackitem.NewByteArray(v))
+		keycopy := make([]byte, len(k)+len(prefix))
+		copy(keycopy, prefix)
+		copy(keycopy[len(prefix):], k)
+		arr = append(arr, stackitem.MapElement{
+			Key:   stackitem.NewByteArray(keycopy),
+			Value: stackitem.NewByteArray(v),
+		})
 	}
-	sort.Slice(filteredMap.Value().([]stackitem.MapElement), func(i, j int) bool {
-		return bytes.Compare(filteredMap.Value().([]stackitem.MapElement)[i].Key.Value().([]byte),
-			filteredMap.Value().([]stackitem.MapElement)[j].Key.Value().([]byte)) == -1
+	sort.Slice(arr, func(i, j int) bool {
+		k1 := arr[i].Key.Value().([]byte)
+		k2 := arr[j].Key.Value().([]byte)
+		return bytes.Compare(k1, k2) == -1
 	})
 
+	filteredMap := stackitem.NewMapWithValue(arr)
 	item := istorage.NewIterator(filteredMap, len(prefix), opts)
 	ic.VM.Estack().PushVal(stackitem.NewInterop(item))
 
