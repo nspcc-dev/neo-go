@@ -465,6 +465,15 @@ func TestNewVeryBigInteger(t *testing.T) {
 	check(false, new(big.Int).Mul(maxBitSet, big.NewInt(2)))
 }
 
+func TestStructClone(t *testing.T) {
+	st0 := Struct{}
+	st := Struct{value: []Item{&st0}}
+	_, err := st.Clone(1)
+	require.NoError(t, err)
+	_, err = st.Clone(0)
+	require.Error(t, err)
+}
+
 func TestDeepCopy(t *testing.T) {
 	testCases := []struct {
 		name string
