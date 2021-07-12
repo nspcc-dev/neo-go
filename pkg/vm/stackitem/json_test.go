@@ -1,6 +1,7 @@
 package stackitem
 
 import (
+	"errors"
 	"math/big"
 	"testing"
 
@@ -102,6 +103,42 @@ func TestFromToJSON(t *testing.T) {
 				require.Error(t, err)
 			})
 		})
+	})
+}
+
+func testToJSON(t *testing.T, expectedErr error, item Item) {
+	data, err := ToJSON(item)
+	if expectedErr != nil {
+		require.True(t, errors.Is(err, expectedErr), err)
+		return
+	}
+	require.NoError(t, err)
+
+	actual, err := FromJSON(data)
+	require.NoError(t, err)
+	require.Equal(t, item, actual)
+}
+
+func TestToJSONCornerCases(t *testing.T) {
+	// base64 encoding increases size by a factor of ~256/64 = 4
+	const maxSize = MaxSize / 4
+
+	bigByteArray := NewByteArray(make([]byte, maxSize/2))
+	smallByteArray := NewByteArray(make([]byte, maxSize/4))
+	t.Run("Array", func(t *testing.T) {
+		arr := NewArray([]Item{bigByteArray})
+		testToJSON(t, ErrTooBig, NewArray([]Item{arr, arr}))
+
+		arr.value[0] = smallByteArray
+		testToJSON(t, nil, NewArray([]Item{arr, arr}))
+	})
+	t.Run("big ByteArray", func(t *testing.T) {
+		testToJSON(t, ErrTooBig, NewByteArray(make([]byte, maxSize+4)))
+	})
+	t.Run("invalid Map key", func(t *testing.T) {
+		m := NewMap()
+		m.Add(Make([]byte{0xe9}), Make(true))
+		testToJSON(t, ErrInvalidValue, m)
 	})
 }
 

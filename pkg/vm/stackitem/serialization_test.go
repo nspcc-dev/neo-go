@@ -23,6 +23,112 @@ func TestSerializationMaxErr(t *testing.T) {
 	require.True(t, errors.Is(err, ErrTooBig), err)
 }
 
+func testSerialize(t *testing.T, expectedErr error, item Item) {
+	data, err := Serialize(item)
+	if expectedErr != nil {
+		require.True(t, errors.Is(err, expectedErr), err)
+		return
+	}
+	require.NoError(t, err)
+
+	actual, err := Deserialize(data)
+	require.NoError(t, err)
+	require.Equal(t, item, actual)
+}
+
+func TestSerialize(t *testing.T) {
+	bigByteArray := NewByteArray(make([]byte, MaxSize/2))
+	smallByteArray := NewByteArray(make([]byte, MaxSize/4))
+	testArray := func(t *testing.T, newItem func([]Item) Item) {
+		arr := newItem([]Item{bigByteArray})
+		testSerialize(t, nil, arr)
+		testSerialize(t, ErrTooBig, newItem([]Item{bigByteArray, bigByteArray}))
+		testSerialize(t, ErrTooBig, newItem([]Item{arr, arr}))
+
+		arr.Value().([]Item)[0] = smallByteArray
+		testSerialize(t, nil, newItem([]Item{arr, arr}))
+
+		arr.Value().([]Item)[0] = arr
+		testSerialize(t, ErrRecursive, arr)
+	}
+	t.Run("array", func(t *testing.T) {
+		testArray(t, func(items []Item) Item { return NewArray(items) })
+	})
+	t.Run("struct", func(t *testing.T) {
+		testArray(t, func(items []Item) Item { return NewStruct(items) })
+	})
+	t.Run("buffer", func(t *testing.T) {
+		testSerialize(t, nil, NewBuffer(make([]byte, MaxSize/2)))
+		testSerialize(t, errTooBigSize, NewBuffer(make([]byte, MaxSize)))
+	})
+	t.Run("invalid", func(t *testing.T) {
+		testSerialize(t, ErrUnserializable, NewInterop(42))
+		testSerialize(t, ErrUnserializable, nil)
+
+		t.Run("protected interop", func(t *testing.T) {
+			w := io.NewBufBinWriter()
+			EncodeBinaryProtected(NewInterop(42), w.BinWriter)
+			require.NoError(t, w.Err)
+
+			data := w.Bytes()
+			r := io.NewBinReaderFromBuf(data)
+			DecodeBinary(r)
+			require.Error(t, r.Err)
+
+			r = io.NewBinReaderFromBuf(data)
+			item := DecodeBinaryProtected(r)
+			require.NoError(t, r.Err)
+			require.IsType(t, (*Interop)(nil), item)
+		})
+		t.Run("protected nil", func(t *testing.T) {
+			w := io.NewBufBinWriter()
+			EncodeBinaryProtected(nil, w.BinWriter)
+			require.NoError(t, w.Err)
+
+			data := w.Bytes()
+			r := io.NewBinReaderFromBuf(data)
+			DecodeBinary(r)
+			require.Error(t, r.Err)
+
+			r = io.NewBinReaderFromBuf(data)
+			item := DecodeBinaryProtected(r)
+			require.NoError(t, r.Err)
+			require.Nil(t, item)
+		})
+	})
+	t.Run("bool", func(t *testing.T) {
+		testSerialize(t, nil, NewBool(true))
+		testSerialize(t, nil, NewBool(false))
+	})
+	t.Run("null", func(t *testing.T) {
+		testSerialize(t, nil, Null{})
+	})
+	t.Run("integer", func(t *testing.T) {
+		testSerialize(t, nil, Make(0xF))          // 1-byte
+		testSerialize(t, nil, Make(0xFAB))        // 2-byte
+		testSerialize(t, nil, Make(0xFABCD))      // 4-byte
+		testSerialize(t, nil, Make(0xFABCDEFEDC)) // 8-byte
+	})
+	t.Run("map", func(t *testing.T) {
+		one := Make(1)
+		m := NewMap()
+		m.Add(one, m)
+		testSerialize(t, ErrRecursive, m)
+
+		m.Add(one, bigByteArray)
+		testSerialize(t, nil, m)
+
+		m.Add(Make(2), bigByteArray)
+		testSerialize(t, ErrTooBig, m)
+
+		// Cover code path when result becomes too big after key encode.
+		m = NewMap()
+		m.Add(Make(0), NewByteArray(make([]byte, MaxSize-MaxKeySize)))
+		m.Add(NewByteArray(make([]byte, MaxKeySize)), Make(1))
+		testSerialize(t, ErrTooBig, m)
+	})
+}
+
 func BenchmarkEncodeBinary(b *testing.B) {
 	arr := getBigArray(15)
 
