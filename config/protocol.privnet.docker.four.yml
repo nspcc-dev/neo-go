@@ -57,6 +57,8 @@ ApplicationConfiguration:
   MinPeers: 3
   Oracle:
     Enabled: false
+    AllowedContentTypes:
+      - application/json
     Nodes:
       - 172.200.0.1:30333
       - 172.200.0.2:30334

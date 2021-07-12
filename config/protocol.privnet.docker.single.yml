@@ -51,6 +51,8 @@ ApplicationConfiguration:
   MinPeers: 0
   Oracle:
     Enabled: false
+    AllowedContentTypes:
+      - application/json
     Nodes:
       - 172.200.0.1:30333
     RequestTimeout: 5s
