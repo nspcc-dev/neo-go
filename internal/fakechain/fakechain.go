@@ -13,6 +13,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer/services"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/mempool"
+	"github.com/nspcc-dev/neo-go/pkg/core/mpt"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
@@ -41,6 +42,11 @@ type FakeChain struct {
 	NotaryDepositExpiration  uint32
 	PostBlock                []func(blockchainer.Blockchainer, *mempool.Pool, *block.Block)
 	UtilityTokenBalance      *big.Int
+	stateModule              *FakeStateModule
+}
+
+// FakeStateModule implements StateRoot interface, but does not provide real functionality.
+type FakeStateModule struct {
 }
 
 // NewFakeChain returns new FakeChain structure.
@@ -53,6 +59,7 @@ func NewFakeChain() *FakeChain {
 		hdrHashes:             make(map[uint32]util.Uint256),
 		txs:                   make(map[util.Uint256]*transaction.Transaction),
 		ProtocolConfiguration: config.ProtocolConfiguration{Magic: netmode.UnitTestNet, P2PNotaryRequestPayloadPoolSize: 10},
+		stateModule:           &FakeStateModule{},
 	}
 }
 
@@ -304,7 +311,7 @@ func (chain *FakeChain) GetEnrollments() ([]state.Validator, error) {
 
 // GetStateModule implements Blockchainer interface.
 func (chain *FakeChain) GetStateModule() blockchainer.StateRoot {
-	return nil
+	return chain.stateModule
 }
 
 // GetStorageItem implements Blockchainer interface.
@@ -449,3 +456,48 @@ func (chain *FakeChain) UnsubscribeFromNotifications(ch chan<- *state.Notificati
 func (chain *FakeChain) UnsubscribeFromTransactions(ch chan<- *transaction.Transaction) {
 	panic("TODO")
 }
+
+// AddStateRoot implements StateRoot interface.
+func (m *FakeStateModule) AddStateRoot(root *state.MPTRoot) error { panic("TODO") }
+
+// CurrentLocalHeight implements StateRoot interface.
+func (m *FakeStateModule) CurrentLocalHeight() uint32 { panic("TODO") }
+
+// CurrentLocalStateRoot implements StateRoot interface.
+func (m *FakeStateModule) CurrentLocalStateRoot() util.Uint256 { panic("TODO") }
+
+// CurrentValidatedHeight implements StateRoot interface.
+func (m *FakeStateModule) CurrentValidatedHeight() uint32 { panic("TODO") }
+
+// InitOnRestore implements StateRoot interface.
+func (m *FakeStateModule) InitOnRestore(root *state.MPTRoot, enableRefCount bool) error {
+	panic("TODO")
+}
+
+// GetStateProof implements StateRoot interface.
+func (m *FakeStateModule) GetStateProof(root util.Uint256, key []byte) ([][]byte, error) {
+	panic("TODO")
+}
+
+// GetStateRoot implements StateRoot interface.
+func (m *FakeStateModule) GetStateRoot(height uint32) (*state.MPTRoot, error) { panic("TODO") }
+
+// GetStateValidators implements StateRoot interface.
+func (m *FakeStateModule) GetStateValidators(height uint32) keys.PublicKeys { panic("TODO") }
+
+// OnSyncReached implements StateRoot interface.
+func (m *FakeStateModule) OnSyncReached() {}
+
+// RestoreMPTNode implements StateRoot interface.
+func (m *FakeStateModule) RestoreMPTNode(path []byte, node mpt.Node) error { panic("TODO") }
+
+// SetUpdateValidatorsCallback implements StateRoot interface.
+func (m *FakeStateModule) SetUpdateValidatorsCallback(func(uint32, keys.PublicKeys)) { panic("TODO") }
+
+// Traverse implements StateRoot interface.
+func (m *FakeStateModule) Traverse(root util.Uint256, stop func(node mpt.Node, nodeBytes []byte) bool, ignoreStorageErr bool) error {
+	panic("TODO")
+}
+
+// UpdateStateValidators implements StateRoot interface.
+func (m *FakeStateModule) UpdateStateValidators(height uint32, pubs keys.PublicKeys) { panic("TODO") }

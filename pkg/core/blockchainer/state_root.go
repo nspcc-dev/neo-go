@@ -17,6 +17,7 @@ type StateRoot interface {
 	GetStateProof(root util.Uint256, key []byte) ([][]byte, error)
 	GetStateRoot(height uint32) (*state.MPTRoot, error)
 	GetStateValidators(height uint32) keys.PublicKeys
+	OnSyncReached()
 	RestoreMPTNode(path []byte, node mpt.Node) error
 	SetUpdateValidatorsCallback(func(uint32, keys.PublicKeys))
 	Traverse(root util.Uint256, stop func(node mpt.Node, nodeBytes []byte) bool, ignoreStorageErr bool) error

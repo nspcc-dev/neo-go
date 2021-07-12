@@ -35,6 +35,7 @@ type (
 		currentLocal    atomic.Value
 		localHeight     atomic.Uint32
 		validatedHeight atomic.Uint32
+		isInSync        atomic.Bool
 
 		mtx  sync.RWMutex
 		keys []keyCache
@@ -89,11 +90,13 @@ func (s *Module) CurrentValidatedHeight() uint32 {
 // InitOnRestore initializes state root module at the given height with the given
 // stateroot when synchronizing MPT from the specified height.
 func (s *Module) InitOnRestore(root *state.MPTRoot, enableRefCount bool) error {
+	s.isInSync.Store(false)
 	return s.init(root.Index, enableRefCount, root)
 }
 
 // Init initializes state root module at the given height.
 func (s *Module) Init(height uint32, enableRefCount bool) error {
+	s.isInSync.Store(true)
 	return s.init(height, enableRefCount, nil)
 }
 
@@ -208,4 +211,17 @@ func (s *Module) RestoreMPTNode(path []byte, node mpt.Node) error {
 	err := s.mpt.RestoreHashNode(path, node)
 	s.mptLock.Unlock()
 	return err
+}
+
+// IsInSync denotes whether MPT state synchronisation for the latest state synchronisation point is reached.
+func (s *Module) IsInSync() bool {
+	return s.isInSync.Load()
+}
+
+// OnSyncReached is a callback to be called after MPT state synchronisation is completed.
+func (s *Module) OnSyncReached() {
+	if s.isInSync.CAS(false, true) {
+		// TODO: хитрый коллапс
+		s.mpt.Collapse(CollapseDepth)
+	}
 }

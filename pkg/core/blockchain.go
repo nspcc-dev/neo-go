@@ -592,7 +592,11 @@ func (bc *Blockchain) AddBlock(block *block.Block) error {
 			return err
 		}
 	}
-	canStartSync := bc.blockHeight >= bc.p // TODO:  need to check that MPT is in sync (no unknown hashnodes left)
+	canStartSync := bc.blockHeight >= bc.p
+	if canStartSync && !bc.stateRoot.IsInSync() {
+		// unable to process blocks without full MPT state synchronisation, thus need to wait until MPT is synced
+		return nil
+	}
 	if bc.config.VerifyBlocks {
 		merkle := block.ComputeMerkleRoot()
 		if !block.MerkleRoot.Equals(merkle) {
