@@ -41,6 +41,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
 	"go.uber.org/zap/zaptest"
 )
 
@@ -74,22 +75,22 @@ func newTestChainWithNS(t *testing.T) (*Blockchain, util.Uint160) {
 
 // newTestChain should be called before newBlock invocation to properly setup
 // global state.
-func newTestChain(t *testing.T) *Blockchain {
+func newTestChain(t testing.TB) *Blockchain {
 	return newTestChainWithCustomCfg(t, nil)
 }
 
-func newTestChainWithCustomCfg(t *testing.T, f func(*config.Config)) *Blockchain {
+func newTestChainWithCustomCfg(t testing.TB, f func(*config.Config)) *Blockchain {
 	return newTestChainWithCustomCfgAndStore(t, nil, f)
 }
 
-func newTestChainWithCustomCfgAndStore(t *testing.T, st storage.Store, f func(*config.Config)) *Blockchain {
+func newTestChainWithCustomCfgAndStore(t testing.TB, st storage.Store, f func(*config.Config)) *Blockchain {
 	chain := initTestChain(t, st, f)
 	go chain.Run()
 	t.Cleanup(chain.Close)
 	return chain
 }
 
-func initTestChain(t *testing.T, st storage.Store, f func(*config.Config)) *Blockchain {
+func initTestChain(t testing.TB, st storage.Store, f func(*config.Config)) *Blockchain {
 	unitTestNetCfg, err := config.Load("../../config", testchain.Network())
 	require.NoError(t, err)
 	if f != nil {
@@ -98,7 +99,11 @@ func initTestChain(t *testing.T, st storage.Store, f func(*config.Config)) *Bloc
 	if st == nil {
 		st = storage.NewMemoryStore()
 	}
-	chain, err := NewBlockchain(st, unitTestNetCfg.ProtocolConfiguration, zaptest.NewLogger(t))
+	log := zaptest.NewLogger(t)
+	if _, ok := t.(*testing.B); ok {
+		log = zap.NewNop()
+	}
+	chain, err := NewBlockchain(st, unitTestNetCfg.ProtocolConfiguration, log)
 	require.NoError(t, err)
 	return chain
 }

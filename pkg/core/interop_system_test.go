@@ -450,7 +450,7 @@ func createVM(t *testing.T) (*vm.VM, *interop.Context, *Blockchain) {
 	return v, context, chain
 }
 
-func createVMAndContractState(t *testing.T) (*vm.VM, *state.Contract, *interop.Context, *Blockchain) {
+func createVMAndContractState(t testing.TB) (*vm.VM, *state.Contract, *interop.Context, *Blockchain) {
 	script := []byte("testscript")
 	m := manifest.NewManifest("Test")
 	ne, err := nef.NewFile(script)
