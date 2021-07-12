@@ -54,25 +54,34 @@ func TestNewServer(t *testing.T) {
 	require.Error(t, err)
 
 	t.Run("set defaults", func(t *testing.T) {
-		s = newTestServer(t, ServerConfig{MinPeers: -1})
+		s, err = newServerFromConstructors(ServerConfig{MinPeers: -1, MPTPoolResendThreshold: -1}, bc, zaptest.NewLogger(t),
+			newFakeTransp, newFakeConsensus, newTestDiscovery)
+		require.NoError(t, err)
+		t.Cleanup(s.discovery.Close)
 
 		require.True(t, s.ID() != 0)
 		require.Equal(t, defaultMinPeers, s.ServerConfig.MinPeers)
 		require.Equal(t, defaultMaxPeers, s.ServerConfig.MaxPeers)
 		require.Equal(t, defaultAttemptConnPeers, s.ServerConfig.AttemptConnPeers)
+		require.Equal(t, defaultMPTPoolResendThreshold*time.Second, s.ServerConfig.MPTPoolResendThreshold)
 	})
 	t.Run("don't defaults", func(t *testing.T) {
 		cfg := ServerConfig{
-			MinPeers:         1,
-			MaxPeers:         2,
-			AttemptConnPeers: 3,
+			MinPeers:               1,
+			MaxPeers:               2,
+			AttemptConnPeers:       3,
+			MPTPoolResendThreshold: 4,
 		}
-		s = newTestServer(t, cfg)
+		s, err = newServerFromConstructors(cfg, bc, zaptest.NewLogger(t),
+			newFakeTransp, newFakeConsensus, newTestDiscovery)
+		require.NoError(t, err)
+		t.Cleanup(s.discovery.Close)
 
 		require.True(t, s.ID() != 0)
 		require.Equal(t, 1, s.ServerConfig.MinPeers)
 		require.Equal(t, 2, s.ServerConfig.MaxPeers)
 		require.Equal(t, 3, s.ServerConfig.AttemptConnPeers)
+		require.Equal(t, 4*time.Nanosecond, s.ServerConfig.MPTPoolResendThreshold)
 	})
 	t.Run("consensus error is not dropped", func(t *testing.T) {
 		errConsensus := errors.New("can't create consensus")

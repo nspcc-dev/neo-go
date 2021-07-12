@@ -37,12 +37,13 @@ import (
 
 const (
 	// peer numbers are arbitrary at the moment.
-	defaultMinPeers           = 5
-	defaultAttemptConnPeers   = 20
-	defaultMaxPeers           = 100
-	defaultExtensiblePoolSize = 20
-	maxBlockBatch             = 200
-	minPoolCount              = 30
+	defaultMinPeers               = 5
+	defaultAttemptConnPeers       = 20
+	defaultMaxPeers               = 100
+	defaultExtensiblePoolSize     = 20
+	defaultMPTPoolResendThreshold = 2
+	maxBlockBatch                 = 200
+	minPoolCount                  = 30
 )
 
 var (
@@ -142,6 +143,11 @@ func newServerFromConstructors(config ServerConfig, chain blockchainer.Blockchai
 		config.ExtensiblePoolSize = defaultExtensiblePoolSize
 		log.Info("ExtensiblePoolSize is not set or wrong, using default value",
 			zap.Int("ExtensiblePoolSize", config.ExtensiblePoolSize))
+	}
+	if chain.GetConfig().P2PStateExchangeExtensions && config.MPTPoolResendThreshold <= 0 {
+		config.MPTPoolResendThreshold = defaultMPTPoolResendThreshold * time.Second
+		log.Info("MPTPoolResendThreshold is not set or wrong, using default value",
+			zap.Duration("MPTPoolResendThreshold", config.MPTPoolResendThreshold))
 	}
 
 	s := &Server{
@@ -1592,8 +1598,7 @@ func (s *Server) initStaleMemPools() {
 		s.notaryRequestPool.SetResendThreshold(uint32(threshold), s.broadcastP2PNotaryRequestPayload)
 	}
 	if cfg.P2PStateExchangeExtensions {
-		// TODO: add config option for resend threshold
-		s.mptPool.SetResendThreshold(2*time.Second, func(items map[util.Uint256]bool) {
+		s.mptPool.SetResendThreshold(s.ServerConfig.MPTPoolResendThreshold, func(items map[util.Uint256]bool) {
 			_ = s.requestMPTNodes(nil, items)
 		})
 	}
