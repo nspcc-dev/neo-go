@@ -836,17 +836,30 @@ func TestRequestTx(t *testing.T) {
 
 func TestRequestMPTData(t *testing.T) {
 	s := startTestServer(t)
+	var lastBlockIndex uint32 = 5
+	s.p.Store(lastBlockIndex)
 
 	var actual []util.Uint256
-	p := newLocalPeer(t, s)
-	p.handshaked = true
-	p.messageHandler = func(t *testing.T, msg *Message) {
-		if msg.Command == CMDGetMPTData {
-			actual = append(actual, msg.Payload.(*payload.MPTInventory).Hashes...)
+	var p1 Peer
+	for i := 0; i < 3; i++ {
+		p := newLocalPeer(t, s)
+		p.handshaked = true
+		p.messageHandler = func(t *testing.T, msg *Message) {
+			if msg.Command == CMDGetMPTData {
+				actual = append(actual, msg.Payload.(*payload.MPTInventory).Hashes...)
+			}
+		}
+		s.register <- p
+		s.register <- p // ensure previous send was handled
+
+		// one peer is lower; two peers are at the same height P
+		if i == 0 {
+			p.lastBlockIndex = lastBlockIndex - 1
+			p1 = p
+		} else {
+			p.lastBlockIndex = lastBlockIndex
 		}
 	}
-	s.register <- p
-	s.register <- p // ensure previous send was handled
 
 	check := func(t *testing.T, expected []util.Uint256) {
 		actual = nil
@@ -854,13 +867,20 @@ func TestRequestMPTData(t *testing.T) {
 		for _, h := range expected {
 			request[h] = true
 		}
-		require.NoError(t, s.requestMPTNodes(p, request))
+		// single peer
+		require.NoError(t, s.requestMPTNodes(p1, request))
 		require.ElementsMatch(t, expected, actual)
 
+		// multiple peers
+		actual = nil
+		require.NoError(t, s.requestMPTNodes(nil, request))
+		require.NotEqual(t, 0, len(actual))
+		expectedMultiple := append(expected, expected...)
+		require.ElementsMatch(t, expectedMultiple, actual)
 	}
 	t.Run("no hashes, no message", func(t *testing.T) {
 		actual = nil
-		require.NoError(t, s.requestMPTNodes(p, nil))
+		require.NoError(t, s.requestMPTNodes(p1, nil))
 		require.Nil(t, actual)
 	})
 	t.Run("good, small", func(t *testing.T) {
