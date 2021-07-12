@@ -64,6 +64,10 @@ func NewCommands() []cli.Command {
 			Name:  "dump",
 			Usage: "directory for storing JSON dumps",
 		},
+		cli.BoolFlag{
+			Name:  "incremental, n",
+			Usage: "use if dump is incremental",
+		},
 	)
 	return []cli.Command{
 		{
@@ -239,6 +243,16 @@ func restoreDB(ctx *cli.Context) error {
 	defer chain.Close()
 	defer prometheus.ShutDown()
 	defer pprof.ShutDown()
+
+	var start uint32
+	if ctx.Bool("incremental") {
+		start = reader.ReadU32LE()
+		if chain.BlockHeight()+1 < start {
+			return cli.NewExitError(fmt.Errorf("expected height: %d, dump starts at %d",
+				chain.BlockHeight()+1, start), 1)
+		}
+		skip = chain.BlockHeight() + 1 - start
+	}
 
 	var allBlocks = reader.ReadU32LE()
 	if reader.Err != nil {
