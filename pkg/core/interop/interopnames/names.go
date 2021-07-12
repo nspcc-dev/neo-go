@@ -24,6 +24,7 @@ const (
 	SystemRuntimeGetEntryScriptHash     = "System.Runtime.GetEntryScriptHash"
 	SystemRuntimeGetExecutingScriptHash = "System.Runtime.GetExecutingScriptHash"
 	SystemRuntimeGetInvocationCounter   = "System.Runtime.GetInvocationCounter"
+	SystemRuntimeGetNetwork             = "System.Runtime.GetNetwork"
 	SystemRuntimeGetNotifications       = "System.Runtime.GetNotifications"
 	SystemRuntimeGetScriptContainer     = "System.Runtime.GetScriptContainer"
 	SystemRuntimeGetTime                = "System.Runtime.GetTime"
@@ -61,6 +62,7 @@ var names = []string{
 	SystemRuntimeGetEntryScriptHash,
 	SystemRuntimeGetExecutingScriptHash,
 	SystemRuntimeGetInvocationCounter,
+	SystemRuntimeGetNetwork,
 	SystemRuntimeGetNotifications,
 	SystemRuntimeGetScriptContainer,
 	SystemRuntimeGetTime,

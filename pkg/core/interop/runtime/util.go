@@ -67,3 +67,10 @@ func GetInvocationCounter(ic *interop.Context) error {
 	ic.VM.Estack().PushVal(count)
 	return nil
 }
+
+// GetNetwork returns chain network number.
+func GetNetwork(ic *interop.Context) error {
+	m := ic.Chain.GetConfig().Magic
+	ic.VM.Estack().PushVal(uint32(m))
+	return nil
+}

@@ -46,6 +46,12 @@ func Notify(name string, args ...interface{}) {
 	neogointernal.Syscall2NoReturn("System.Runtime.Notify", name, args)
 }
 
+// GetNetwork returns network magic number. This function uses
+// `System.Runtime.GetNetwork` syscall.
+func GetNetwork() int {
+	return neogointernal.Syscall0("System.Runtime.GetNetwork").(int)
+}
+
 // GetTime returns the timestamp of the most recent block. Note that when running
 // script in test mode this would be the last accepted (persisted) block in the
 // chain, but when running as a part of the new block the time returned is the

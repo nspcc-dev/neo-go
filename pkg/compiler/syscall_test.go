@@ -74,6 +74,7 @@ func TestSyscallExecution(t *testing.T) {
 		"runtime.GetEntryScriptHash":       {interopnames.SystemRuntimeGetEntryScriptHash, nil, false},
 		"runtime.GetExecutingScriptHash":   {interopnames.SystemRuntimeGetExecutingScriptHash, nil, false},
 		"runtime.GetInvocationCounter":     {interopnames.SystemRuntimeGetInvocationCounter, nil, false},
+		"runtime.GetNetwork":               {interopnames.SystemRuntimeGetNetwork, nil, false},
 		"runtime.GetNotifications":         {interopnames.SystemRuntimeGetNotifications, []string{u160}, false},
 		"runtime.GetScriptContainer":       {interopnames.SystemRuntimeGetScriptContainer, nil, false},
 		"runtime.GetTime":                  {interopnames.SystemRuntimeGetTime, nil, false},
