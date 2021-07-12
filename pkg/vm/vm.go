@@ -1056,10 +1056,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		itemElem := v.estack.Pop()
 		arrElem := v.estack.Pop()
 
-		val, err := cloneIfStruct(itemElem.value, MaxStackSize-v.refs.size)
-		if err != nil {
-			panic(err)
-		}
+		val := cloneIfStruct(itemElem.value, MaxStackSize-v.refs.size)
 
 		switch t := arrElem.value.(type) {
 		case *stackitem.Array:
@@ -1373,19 +1370,12 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			src := t.Value().([]stackitem.Item)
 			arr = make([]stackitem.Item, len(src))
 			for i := range src {
-				arr[i], err = cloneIfStruct(src[i], MaxStackSize-v.refs.size)
-				if err != nil {
-					panic(err)
-				}
+				arr[i] = cloneIfStruct(src[i], MaxStackSize-v.refs.size)
 			}
 		case *stackitem.Map:
 			arr = make([]stackitem.Item, 0, t.Len())
 			for k := range t.Value().([]stackitem.MapElement) {
-				elem, err := cloneIfStruct(t.Value().([]stackitem.MapElement)[k].Value, MaxStackSize-v.refs.size)
-				if err != nil {
-					panic(err)
-				}
-				arr = append(arr, elem)
+				arr = append(arr, cloneIfStruct(t.Value().([]stackitem.MapElement)[k].Value, MaxStackSize-v.refs.size))
 			}
 		default:
 			panic("not a Map, Array or Struct")
@@ -1751,12 +1741,16 @@ func checkMultisig1(v *VM, curve elliptic.Curve, h []byte, pkeys [][]byte, sig [
 	return false
 }
 
-func cloneIfStruct(item stackitem.Item, limit int) (stackitem.Item, error) {
+func cloneIfStruct(item stackitem.Item, limit int) stackitem.Item {
 	switch it := item.(type) {
 	case *stackitem.Struct:
-		return it.Clone(limit)
+		ret, err := it.Clone(limit)
+		if err != nil {
+			panic(err)
+		}
+		return ret
 	default:
-		return it, nil
+		return it
 	}
 }
 
