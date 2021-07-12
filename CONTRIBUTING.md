@@ -7,6 +7,14 @@ follow the guidelines:
 [pull requests](https://github.com/nspcc-dev/neo-go/pulls) for existing discussions.
 1. Open an issue first, to discuss a new feature or enhancement.
 1. Write tests, and make sure the test suite passes locally and on CI.
+1. When optimizing something, write benchmarks and attach results:
+   ```
+   go test -run - -bench BenchmarkYourFeature -count=10 ./... >old // on master
+   go test -run - -bench BenchmarkYourFeature -count=10 ./... >new // on your branch
+   benchstat old new
+   ```
+   `benchstat` is described here https://godocs.io/golang.org/x/perf/cmd/benchstat.
+
 1. Open a pull request, and reference the relevant issue(s).
 1. Make sure your commits are logically separated and have good comments
    explaining the details of your change. Add a package/file prefix to your
