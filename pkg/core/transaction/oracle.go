@@ -26,15 +26,16 @@ const MaxOracleResultSize = math.MaxUint16
 
 // Enumeration of possible oracle response types.
 const (
-	Success              OracleResponseCode = 0x00
-	ProtocolNotSupported OracleResponseCode = 0x10
-	ConsensusUnreachable OracleResponseCode = 0x12
-	NotFound             OracleResponseCode = 0x14
-	Timeout              OracleResponseCode = 0x16
-	Forbidden            OracleResponseCode = 0x18
-	ResponseTooLarge     OracleResponseCode = 0x1a
-	InsufficientFunds    OracleResponseCode = 0x1c
-	Error                OracleResponseCode = 0xff
+	Success                 OracleResponseCode = 0x00
+	ProtocolNotSupported    OracleResponseCode = 0x10
+	ConsensusUnreachable    OracleResponseCode = 0x12
+	NotFound                OracleResponseCode = 0x14
+	Timeout                 OracleResponseCode = 0x16
+	Forbidden               OracleResponseCode = 0x18
+	ResponseTooLarge        OracleResponseCode = 0x1a
+	InsufficientFunds       OracleResponseCode = 0x1c
+	ContentTypeNotSupported OracleResponseCode = 0x1f
+	Error                   OracleResponseCode = 0xff
 )
 
 // Various validation errors.

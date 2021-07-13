@@ -34,7 +34,8 @@ func getOracleConfig(t *testing.T, bc *Blockchain, w, pass string) oracle.Config
 		Log:     zaptest.NewLogger(t),
 		Network: netmode.UnitTestNet,
 		MainCfg: config.OracleConfiguration{
-			RefreshInterval: time.Second,
+			RefreshInterval:     time.Second,
+			AllowedContentTypes: []string{"application/json"},
 			UnlockWallet: config.Wallet{
 				Path:     path.Join(oracleModulePath, w),
 				Password: pass,
@@ -146,6 +147,8 @@ func TestOracle(t *testing.T) {
 	flt := "$.Values[1]"
 	putOracleRequest(t, cs.Hash, bc, "https://get.filter", &flt, "handle", []byte{}, 10_000_000)
 	putOracleRequest(t, cs.Hash, bc, "https://get.filterinv", &flt, "handle", []byte{}, 10_000_000)
+
+	putOracleRequest(t, cs.Hash, bc, "https://get.invalidcontent", nil, "handle", []byte{}, 10_000_000)
 
 	checkResp := func(t *testing.T, id uint64, resp *transaction.OracleResponse) *state.OracleRequest {
 		req, err := oracleCtr.GetRequestInternal(bc.dao, id)
@@ -262,6 +265,12 @@ func TestOracle(t *testing.T) {
 			})
 		})
 	})
+	t.Run("InvalidContentType", func(t *testing.T) {
+		checkResp(t, 11, &transaction.OracleResponse{
+			ID:   11,
+			Code: transaction.ContentTypeNotSupported,
+		})
+	})
 }
 
 func TestOracleFull(t *testing.T) {
@@ -322,6 +331,7 @@ type (
 
 	testResponse struct {
 		code int
+		ct   string
 		body []byte
 	}
 )
@@ -332,7 +342,10 @@ func (c *httpClient) Do(req *http.Request) (*http.Response, error) {
 	if ok {
 		return &http.Response{
 			StatusCode: resp.code,
-			Body:       newResponseBody(resp.body),
+			Header: http.Header{
+				"Content-Type": {resp.ct},
+			},
+			Body: newResponseBody(resp.body),
 		}, nil
 	}
 	return nil, errors.New("error during request")
@@ -343,43 +356,58 @@ func newDefaultHTTPClient() oracle.HTTPClient {
 		responses: map[string]testResponse{
 			"https://get.1234": {
 				code: http.StatusOK,
+				ct:   "application/json",
 				body: []byte{1, 2, 3, 4},
 			},
 			"https://get.4321": {
 				code: http.StatusOK,
+				ct:   "application/json",
 				body: []byte{4, 3, 2, 1},
 			},
 			"https://get.timeout": {
 				code: http.StatusRequestTimeout,
+				ct:   "application/json",
 				body: []byte{},
 			},
 			"https://get.notfound": {
 				code: http.StatusNotFound,
+				ct:   "application/json",
 				body: []byte{},
 			},
 			"https://get.forbidden": {
 				code: http.StatusForbidden,
+				ct:   "application/json",
 				body: []byte{},
 			},
 			"https://private.url": {
 				code: http.StatusOK,
+				ct:   "application/json",
 				body: []byte("passwords"),
 			},
 			"https://get.big": {
 				code: http.StatusOK,
+				ct:   "application/json",
 				body: make([]byte, transaction.MaxOracleResultSize+1),
 			},
 			"https://get.maxallowed": {
 				code: http.StatusOK,
+				ct:   "application/json",
 				body: make([]byte, transaction.MaxOracleResultSize),
 			},
 			"https://get.filter": {
 				code: http.StatusOK,
+				ct:   "application/json",
 				body: []byte(`{"Values":["one", 2, 3],"Another":null}`),
 			},
 			"https://get.filterinv": {
 				code: http.StatusOK,
+				ct:   "application/json",
 				body: []byte{0xFF},
+			},
+			"https://get.invalidcontent": {
+				code: http.StatusOK,
+				ct:   "image/gif",
+				body: []byte{1, 2, 3},
 			},
 		},
 	}

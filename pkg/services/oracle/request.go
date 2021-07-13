@@ -3,6 +3,7 @@ package oracle
 import (
 	"context"
 	"errors"
+	"mime"
 	"net/http"
 	"net/url"
 	"time"
@@ -118,6 +119,7 @@ func (o *Oracle) processRequest(priv *keys.PrivateKey, req request) error {
 				break
 			}
 			httpReq.Header.Set("User-Agent", "NeoOracleService/3.0")
+			httpReq.Header.Set("Content-Type", "application/json")
 			r, err := o.Client.Do(httpReq)
 			if err != nil {
 				o.Log.Warn("oracle request failed", zap.String("url", req.Req.URL), zap.Error(err))
@@ -126,6 +128,11 @@ func (o *Oracle) processRequest(priv *keys.PrivateKey, req request) error {
 			}
 			switch r.StatusCode {
 			case http.StatusOK:
+				if !checkMediaType(r.Header.Get("Content-Type"), o.MainCfg.AllowedContentTypes) {
+					resp.Code = transaction.ContentTypeNotSupported
+					break
+				}
+
 				result, err := readResponse(r.Body, transaction.MaxOracleResultSize)
 				if err != nil {
 					if errors.Is(err, ErrResponseTooLarge) {
@@ -241,4 +248,22 @@ func (o *Oracle) processFailedRequest(priv *keys.PrivateKey, req request) {
 	if ready {
 		o.getOnTransaction()(readyTx)
 	}
+}
+
+func checkMediaType(hdr string, allowed []string) bool {
+	if len(allowed) == 0 {
+		return true
+	}
+
+	typ, _, err := mime.ParseMediaType(hdr)
+	if err != nil {
+		return false
+	}
+
+	for _, ct := range allowed {
+		if ct == typ {
+			return true
+		}
+	}
+	return false
 }

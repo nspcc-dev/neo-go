@@ -6,6 +6,7 @@ import "time"
 type OracleConfiguration struct {
 	Enabled               bool               `yaml:"Enabled"`
 	AllowPrivateHost      bool               `yaml:"AllowPrivateHost"`
+	AllowedContentTypes   []string           `yaml:"AllowedContentTypes"`
 	Nodes                 []string           `yaml:"Nodes"`
 	NeoFS                 NeoFSConfiguration `yaml:"NeoFS"`
 	MaxTaskTimeout        time.Duration      `yaml:"MaxTaskTimeout"`

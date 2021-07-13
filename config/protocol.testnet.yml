@@ -61,6 +61,8 @@ ApplicationConfiguration:
   MinPeers: 5
   Oracle:
     Enabled: false
+    AllowedContentTypes:
+      - application/json
   P2PNotary:
     Enabled: false
     UnlockWallet:
