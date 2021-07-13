@@ -11,6 +11,7 @@ import (
 // from a struct with many fields.
 type BinWriter struct {
 	w   io.Writer
+	uv  []byte
 	u64 []byte
 	u32 []byte
 	u16 []byte
@@ -20,11 +21,12 @@ type BinWriter struct {
 
 // NewBinWriterFromIO makes a BinWriter from io.Writer.
 func NewBinWriterFromIO(iow io.Writer) *BinWriter {
-	u64 := make([]byte, 8)
+	uv := make([]byte, 9)
+	u64 := uv[:8]
 	u32 := u64[:4]
 	u16 := u64[:2]
 	u8 := u64[:1]
-	return &BinWriter{w: iow, u64: u64, u32: u32, u16: u16, u8: u8}
+	return &BinWriter{w: iow, uv: uv, u64: u64, u32: u32, u16: u16, u8: u8}
 }
 
 // WriteU64LE writes an uint64 value into the underlying io.Writer in
@@ -106,23 +108,31 @@ func (w *BinWriter) WriteVarUint(val uint64) {
 		return
 	}
 
+	n := PutVarUint(w.uv, val)
+	w.WriteBytes(w.uv[:n])
+}
+
+// PutVarUint puts val in varint form to the pre-allocated buffer.
+func PutVarUint(data []byte, val uint64) int {
+	_ = data[8]
 	if val < 0xfd {
-		w.WriteB(byte(val))
-		return
+		data[0] = byte(val)
+		return 1
 	}
 	if val < 0xFFFF {
-		w.WriteB(byte(0xfd))
-		w.WriteU16LE(uint16(val))
-		return
+		data[0] = byte(0xfd)
+		binary.LittleEndian.PutUint16(data[1:], uint16(val))
+		return 3
 	}
 	if val < 0xFFFFFFFF {
-		w.WriteB(byte(0xfe))
-		w.WriteU32LE(uint32(val))
-		return
+		data[0] = byte(0xfe)
+		binary.LittleEndian.PutUint32(data[1:], uint32(val))
+		return 5
 	}
 
-	w.WriteB(byte(0xff))
-	w.WriteU64LE(val)
+	data[0] = byte(0xff)
+	binary.LittleEndian.PutUint64(data[1:], val)
+	return 9
 }
 
 // WriteBytes writes a variable byte into the underlying io.Writer without prefix.

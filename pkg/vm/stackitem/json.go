@@ -9,8 +9,6 @@ import (
 	gio "io"
 	"math"
 	"math/big"
-
-	"github.com/nspcc-dev/neo-go/pkg/io"
 )
 
 // decoder is a wrapper around json.Decoder helping to mimic C# json decoder behaviour.
@@ -43,87 +41,112 @@ var ErrTooDeep = errors.New("too deep")
 //   Array, Struct -> array
 //   Map -> map with keys as UTF-8 bytes
 func ToJSON(item Item) ([]byte, error) {
-	buf := io.NewBufBinWriter()
-	toJSON(buf, item)
-	if buf.Err != nil {
-		return nil, buf.Err
-	}
-	return buf.Bytes(), nil
+	seen := make(map[Item]sliceNoPointer)
+	return toJSON(nil, seen, item)
 }
 
-func toJSON(buf *io.BufBinWriter, item Item) {
-	w := buf.BinWriter
-	if w.Err != nil {
-		return
-	} else if buf.Len() > MaxSize {
-		w.Err = errTooBigSize
+// sliceNoPointer represents sub-slice of a known slice.
+// It doesn't contain pointer and uses less memory than `[]byte`.
+type sliceNoPointer struct {
+	start, end int
+}
+
+func toJSON(data []byte, seen map[Item]sliceNoPointer, item Item) ([]byte, error) {
+	if len(data) > MaxSize {
+		return nil, errTooBigSize
 	}
+
+	if old, ok := seen[item]; ok {
+		if len(data)+old.end-old.start > MaxSize {
+			return nil, errTooBigSize
+		}
+		return append(data, data[old.start:old.end]...), nil
+	}
+
+	start := len(data)
+	var err error
+
 	switch it := item.(type) {
 	case *Array, *Struct:
-		w.WriteB('[')
-		items := it.Value().([]Item)
+		var items []Item
+		if a, ok := it.(*Array); ok {
+			items = a.value
+		} else {
+			items = it.(*Struct).value
+		}
+
+		data = append(data, '[')
 		for i, v := range items {
-			toJSON(buf, v)
+			data, err = toJSON(data, seen, v)
+			if err != nil {
+				return nil, err
+			}
 			if i < len(items)-1 {
-				w.WriteB(',')
+				data = append(data, ',')
 			}
 		}
-		w.WriteB(']')
+		data = append(data, ']')
+		seen[item] = sliceNoPointer{start, len(data)}
 	case *Map:
-		w.WriteB('{')
+		data = append(data, '{')
 		for i := range it.value {
 			// map key can always be converted to []byte
 			// but are not always a valid UTF-8.
-			writeJSONString(buf.BinWriter, it.value[i].Key)
-			w.WriteBytes([]byte(`:`))
-			toJSON(buf, it.value[i].Value)
+			raw, err := itemToJSONString(it.value[i].Key)
+			if err != nil {
+				return nil, err
+			}
+			data = append(data, raw...)
+			data = append(data, ':')
+			data, err = toJSON(data, seen, it.value[i].Value)
+			if err != nil {
+				return nil, err
+			}
 			if i < len(it.value)-1 {
-				w.WriteB(',')
+				data = append(data, ',')
 			}
 		}
-		w.WriteB('}')
+		data = append(data, '}')
+		seen[item] = sliceNoPointer{start, len(data)}
 	case *BigInteger:
 		if it.value.CmpAbs(big.NewInt(MaxAllowedInteger)) == 1 {
-			w.Err = fmt.Errorf("%w (MaxAllowedInteger)", ErrInvalidValue)
-			return
+			return nil, fmt.Errorf("%w (MaxAllowedInteger)", ErrInvalidValue)
 		}
-		w.WriteBytes([]byte(it.value.String()))
+		data = append(data, it.value.String()...)
 	case *ByteArray, *Buffer:
-		writeJSONString(w, it)
+		raw, err := itemToJSONString(it)
+		if err != nil {
+			return nil, err
+		}
+		data = append(data, raw...)
 	case *Bool:
 		if it.value {
-			w.WriteBytes([]byte("true"))
+			data = append(data, "true"...)
 		} else {
-			w.WriteBytes([]byte("false"))
+			data = append(data, "false"...)
 		}
 	case Null:
-		w.WriteBytes([]byte("null"))
+		data = append(data, "null"...)
 	default:
-		w.Err = fmt.Errorf("%w: %s", ErrUnserializable, it.String())
-		return
+		return nil, fmt.Errorf("%w: %s", ErrUnserializable, it.String())
 	}
-	if w.Err == nil && buf.Len() > MaxSize {
-		w.Err = errTooBigSize
+	if len(data) > MaxSize {
+		return nil, errTooBigSize
 	}
+	return data, nil
 }
 
-// writeJSONString converts it to string and writes it to w as JSON value
+// itemToJSONString converts it to string
 // surrounded in quotes with control characters escaped.
-func writeJSONString(w *io.BinWriter, it Item) {
-	if w.Err != nil {
-		return
-	}
+func itemToJSONString(it Item) ([]byte, error) {
 	s, err := ToString(it)
 	if err != nil {
-		w.Err = err
-		return
+		return nil, err
 	}
 	data, _ := json.Marshal(s) // error never occurs because `ToString` checks for validity
 
 	// ref https://github.com/neo-project/neo-modules/issues/375 and https://github.com/dotnet/runtime/issues/35281
-	data = bytes.Replace(data, []byte{'+'}, []byte("\\u002B"), -1)
-
-	w.WriteBytes(data)
+	return bytes.Replace(data, []byte{'+'}, []byte("\\u002B"), -1), nil
 }
 
 // FromJSON decodes Item from JSON.
