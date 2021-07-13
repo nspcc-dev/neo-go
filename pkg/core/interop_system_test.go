@@ -259,6 +259,36 @@ func TestStorageDelete(t *testing.T) {
 	})
 }
 
+func BenchmarkStorageFind(b *testing.B) {
+	v, contractState, context, chain := createVMAndContractState(b)
+	require.NoError(b, chain.contracts.Management.PutContractState(chain.dao, contractState))
+
+	const count = 100
+
+	items := make(map[string]state.StorageItem)
+	for i := 0; i < count; i++ {
+		items["abc"+random.String(10)] = random.Bytes(10)
+	}
+	for k, v := range items {
+		require.NoError(b, context.DAO.PutStorageItem(contractState.ID, []byte(k), v))
+		require.NoError(b, context.DAO.PutStorageItem(contractState.ID+1, []byte(k), v))
+	}
+
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		b.StopTimer()
+		v.Estack().PushVal(istorage.FindDefault)
+		v.Estack().PushVal("abc")
+		v.Estack().PushVal(stackitem.NewInterop(&StorageContext{ID: contractState.ID}))
+		b.StartTimer()
+		err := storageFind(context)
+		if err != nil {
+			b.FailNow()
+		}
+	}
+}
+
 func TestStorageFind(t *testing.T) {
 	v, contractState, context, chain := createVMAndContractState(t)
 
@@ -451,7 +481,7 @@ func createVM(t *testing.T) (*vm.VM, *interop.Context, *Blockchain) {
 	return v, context, chain
 }
 
-func createVMAndContractState(t *testing.T) (*vm.VM, *state.Contract, *interop.Context, *Blockchain) {
+func createVMAndContractState(t testing.TB) (*vm.VM, *state.Contract, *interop.Context, *Blockchain) {
 	script := []byte("testscript")
 	m := manifest.NewManifest("Test")
 	ne, err := nef.NewFile(script)

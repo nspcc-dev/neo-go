@@ -121,8 +121,9 @@ func (s *MemoryStore) SeekAll(key []byte, f func(k, v []byte)) {
 
 // seek is an internal unlocked implementation of Seek.
 func (s *MemoryStore) seek(key []byte, f func(k, v []byte)) {
+	sk := string(key)
 	for k, v := range s.mem {
-		if strings.HasPrefix(k, string(key)) {
+		if strings.HasPrefix(k, sk) {
 			f([]byte(k), v)
 		}
 	}
