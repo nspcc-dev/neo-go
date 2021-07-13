@@ -35,6 +35,9 @@ type (
 
 		// onTransaction is a callback for completed transactions (mains or fallbacks) sending.
 		onTransaction func(tx *transaction.Transaction) error
+		// newTxs is a channel where new transactions are sent
+		// to be processed in a `onTransaction` callback.
+		newTxs chan txHashPair
 
 		// reqMtx protects requests list.
 		reqMtx sync.RWMutex
@@ -61,6 +64,8 @@ type (
 		Log     *zap.Logger
 	}
 )
+
+const defaultTxChannelCapacity = 100
 
 // request represents Notary service request.
 type request struct {
@@ -109,6 +114,7 @@ func NewNotary(cfg Config, net netmode.Magic, mp *mempool.Pool, onTransaction fu
 		Network:       net,
 		wallet:        wallet,
 		onTransaction: onTransaction,
+		newTxs:        make(chan txHashPair, defaultTxChannelCapacity),
 		mp:            mp,
 		reqCh:         make(chan mempoolevent.Event),
 		blocksCh:      make(chan *block.Block),
@@ -121,6 +127,7 @@ func (n *Notary) Run() {
 	n.Config.Log.Info("starting notary service")
 	n.Config.Chain.SubscribeForBlocks(n.blocksCh)
 	n.mp.SubscribeForTransactions(n.reqCh)
+	go n.newTxCallbackLoop()
 	for {
 		select {
 		case <-n.stopCh:
@@ -236,10 +243,8 @@ func (n *Notary) OnNewRequest(payload *payload.P2PNotaryRequest) {
 		}
 	}
 	if r.typ != Unknown && r.nSigsCollected == nSigs && r.minNotValidBefore > n.Config.Chain.BlockHeight() {
-		if err := n.finalize(r.main); err != nil {
+		if err := n.finalize(r.main, payload.MainTransaction.Hash()); err != nil {
 			n.Config.Log.Error("failed to finalize main transaction", zap.Error(err))
-		} else {
-			r.isSent = true
 		}
 	}
 }
@@ -280,35 +285,24 @@ func (n *Notary) PostPersist() {
 	currHeight := n.Config.Chain.BlockHeight()
 	for h, r := range n.requests {
 		if !r.isSent && r.typ != Unknown && r.nSigs == r.nSigsCollected && r.minNotValidBefore > currHeight {
-			if err := n.finalize(r.main); err != nil {
+			if err := n.finalize(r.main, h); err != nil {
 				n.Config.Log.Error("failed to finalize main transaction", zap.Error(err))
-			} else {
-				r.isSent = true
 			}
 			continue
 		}
 		if r.minNotValidBefore <= currHeight { // then at least one of the fallbacks can already be sent.
-			newFallbacks := r.fallbacks[:0]
 			for _, fb := range r.fallbacks {
 				if nvb := fb.GetAttributes(transaction.NotValidBeforeT)[0].Value.(*transaction.NotValidBefore).Height; nvb <= currHeight {
-					if err := n.finalize(fb); err != nil {
-						newFallbacks = append(newFallbacks, fb) // wait for the next block to resend them
-					}
-				} else {
-					newFallbacks = append(newFallbacks, fb)
+					// Ignore the error, wait for the next block to resend them
+					_ = n.finalize(fb, h)
 				}
-			}
-			if len(newFallbacks) == 0 {
-				delete(n.requests, h)
-			} else {
-				r.fallbacks = newFallbacks
 			}
 		}
 	}
 }
 
 // finalize adds missing Notary witnesses to the transaction (main or fallback) and pushes it to the network.
-func (n *Notary) finalize(tx *transaction.Transaction) error {
+func (n *Notary) finalize(tx *transaction.Transaction, h util.Uint256) error {
 	acc := n.getAccount()
 	if acc == nil {
 		panic(errors.New("no available Notary account")) // unreachable code, because all callers of `finalize` check that acc != nil
@@ -328,7 +322,76 @@ func (n *Notary) finalize(tx *transaction.Transaction) error {
 		return fmt.Errorf("failed to update completed transaction's size: %w", err)
 	}
 
-	return n.onTransaction(newTx)
+	n.pushNewTx(newTx, h)
+
+	return nil
+}
+
+type txHashPair struct {
+	tx       *transaction.Transaction
+	mainHash util.Uint256
+}
+
+func (n *Notary) pushNewTx(tx *transaction.Transaction, h util.Uint256) {
+	select {
+	case n.newTxs <- txHashPair{tx, h}:
+	default:
+	}
+}
+
+func (n *Notary) newTxCallbackLoop() {
+	for {
+		select {
+		case tx := <-n.newTxs:
+			isMain := tx.tx.Hash() == tx.mainHash
+
+			n.reqMtx.Lock()
+			r, ok := n.requests[tx.mainHash]
+			if !ok || isMain && (r.isSent || r.minNotValidBefore <= n.Config.Chain.BlockHeight()) {
+				n.reqMtx.Unlock()
+				continue
+			}
+			if !isMain {
+				// Ensure that fallback was not already completed.
+				var isPending bool
+				for _, fb := range r.fallbacks {
+					if fb.Hash() == tx.tx.Hash() {
+						isPending = true
+						break
+					}
+				}
+				if !isPending {
+					n.reqMtx.Unlock()
+					continue
+				}
+			}
+
+			n.reqMtx.Unlock()
+			err := n.onTransaction(tx.tx)
+			if err != nil {
+				n.Config.Log.Error("new transaction callback finished with error", zap.Error(err))
+				continue
+			}
+
+			n.reqMtx.Lock()
+			if isMain {
+				r.isSent = true
+			} else {
+				for i := range r.fallbacks {
+					if r.fallbacks[i].Hash() == tx.tx.Hash() {
+						r.fallbacks = append(r.fallbacks[:i], r.fallbacks[i+1:]...)
+						break
+					}
+				}
+				if len(r.fallbacks) == 0 {
+					delete(n.requests, tx.mainHash)
+				}
+			}
+			n.reqMtx.Unlock()
+		case <-n.stopCh:
+			return
+		}
+	}
 }
 
 // updateTxSize returns transaction with re-calculated size and an error.
