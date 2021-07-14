@@ -147,7 +147,7 @@ func TestOracle_Request(t *testing.T) {
 	require.NoError(t, err)
 	pub := priv.PublicKey()
 
-	tx := transaction.New([]byte{}, 0)
+	tx := transaction.New([]byte{byte(opcode.PUSH1)}, 0)
 	bl := block.New(bc.config.StateRootInHeader)
 	bl.Index = bc.BlockHeight() + 1
 	setSigner(tx, testchain.CommitteeScriptHash())
