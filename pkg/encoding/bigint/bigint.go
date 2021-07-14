@@ -4,6 +4,8 @@ import (
 	"encoding/binary"
 	"math/big"
 	"math/bits"
+
+	"github.com/nspcc-dev/neo-go/pkg/util"
 )
 
 const (
@@ -12,6 +14,12 @@ const (
 	// wordSizeBytes is a size of a big.Word (uint) in bytes.
 	wordSizeBytes = bits.UintSize / 8
 )
+
+// FromBytesUnsigned converts data in little-endian format to an unsigned integer.
+func FromBytesUnsigned(data []byte) *big.Int {
+	bs := util.ArrayReverse(data)
+	return new(big.Int).SetBytes(bs)
+}
 
 // FromBytes converts data in little-endian format to
 // an integer.

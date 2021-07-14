@@ -122,6 +122,31 @@ func TestBytesToInt(t *testing.T) {
 	})
 }
 
+var unsignedCases = []struct {
+	number int64
+	buf    []byte
+}{
+	{0xff00000000, []byte{0x00, 0x00, 0x00, 0x00, 0xff}},
+	{0xfd00000000, []byte{0x00, 0x00, 0x00, 0x00, 0xfd}},
+	{0x8000000000, []byte{0x00, 0x00, 0x00, 0x00, 0x80}},
+	{0xff0200000000, []byte{0x00, 0x00, 0x00, 0x00, 0x02, 0xff}},
+	{0xff0100000000, []byte{0x00, 0x00, 0x00, 0x00, 0x01, 0xff}},
+	{0xff0100000000, []byte{0x00, 0x00, 0x00, 0x00, 0x01, 0xff, 0x00}},
+}
+
+func TestBytesToUnsigned(t *testing.T) {
+	for _, tc := range testCases {
+		if tc.number > 0 {
+			num := FromBytesUnsigned(tc.buf)
+			assert.Equal(t, tc.number, num.Int64(), "expected %x, got %x", tc.number, num.Int64())
+		}
+	}
+	for _, tc := range unsignedCases {
+		num := FromBytesUnsigned(tc.buf)
+		assert.Equal(t, tc.number, num.Int64(), "expected %x, got %x", tc.number, num.Int64())
+	}
+}
+
 func TestEquivalentRepresentations(t *testing.T) {
 	for _, tc := range testCases {
 		buf := tc.buf
