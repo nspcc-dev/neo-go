@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"math"
 	"math/big"
 	"math/rand"
 	"testing"
@@ -719,7 +718,7 @@ func TestPOW(t *testing.T) {
 	t.Run("good, negative, odd", getTestFuncForVM(prog, -8, -2, 3))
 	t.Run("zero", getTestFuncForVM(prog, 1, 3, 0))
 	t.Run("negative exponent", getTestFuncForVM(prog, nil, 3, -1))
-	t.Run("too big exponent", getTestFuncForVM(prog, nil, 1, math.MaxInt32+1))
+	t.Run("too big exponent", getTestFuncForVM(prog, nil, 1, maxSHLArg+1))
 }
 
 func TestSQRT(t *testing.T) {
