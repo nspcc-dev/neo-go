@@ -54,15 +54,15 @@ type rpcTestCase struct {
 	check  func(t *testing.T, e *executor, result interface{})
 }
 
-const testContractHash = "63cc6571e990dd3f345f699fc9c2a6e49edb89af"
-const deploymentTxHash = "9b0c586eb07f8c9b6fc46b05c78d87651d50af8e1f44478827848d826f8cd174"
-const genesisBlockHash = "73fe50b5564d57118296cbab0a78fe7cb11c97b7699d07a9a21fab60e79bb8fc"
+const testContractHash = "bb6a679438ce0fc6cb0ed1aa85ce83cf96cd3aeb"
+const deploymentTxHash = "1f8792e07f223e5e83f86cda3327cbe78c15ea382a1c350101c9119747682ce2"
+const genesisBlockHash = "0f8fb4e17d2ab9f3097af75ca7fd16064160fb8043db94909e00dd4e257b9dc4"
 
-const verifyContractHash = "c50082e0d8364d61ce6933bd24027a3363474dce"
-const verifyContractAVM = "VwMAQS1RCDAhcAwU7p6iLCfjS9AUj8QQjgj3To9QSLLbMHFoE87bKGnbKJdA"
-const verifyWithArgsContractHash = "8744ffdd07af8e9f18ab90685c8c2ebfd37c6415"
-const invokescriptContractAVM = "VwcADBQBDAMOBQYMDQIODw0DDgcJAAAAANswcGhB+CfsjCGqJgQRQAwUDQ8DAgkAAgEDBwMEBQIBAA4GDAnbMHFpQfgn7IwhqiYEEkATQA=="
-const nameServiceContractHash = "60d78a0fc048399438c3764f8a67d0fc86d6e0e6"
+const verifyContractHash = "f68822e4ecd93de334bdf1f7c409eda3431bcbd0"
+const verifyContractAVM = "VwIAQS1RCDAhcAwU7p6iLCfjS9AUj8QQjgj3To9QSLLbMHFoE87bKGnbKJdA"
+const verifyWithArgsContractHash = "947c780f45b2a3d32e946355ee5cb57faf4decb7"
+const invokescriptContractAVM = "VwIADBQBDAMOBQYMDQIODw0DDgcJAAAAANswcGhB+CfsjCGqJgQRQAwUDQ8DAgkAAgEDBwMEBQIBAA4GDAnbMHFpQfgn7IwhqiYEEkATQA=="
+const nameServiceContractHash = "66206eb850818ec862a9332e0da10b9b7826cb0b"
 
 var rpcTestCases = map[string][]rpcTestCase{
 	"getapplicationlog": {
@@ -1643,7 +1643,7 @@ func checkNep17Balances(t *testing.T, e *executor, acc interface{}) {
 			},
 			{
 				Asset:       e.chain.UtilityTokenHash(),
-				Amount:      "57941360260",
+				Amount:      "57941227260",
 				LastUpdated: 15,
 			}},
 		Address: testchain.PrivateKeyByID(0).GetScriptHash().StringLE(),
