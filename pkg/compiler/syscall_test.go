@@ -76,6 +76,7 @@ func TestSyscallExecution(t *testing.T) {
 		"runtime.GetInvocationCounter":     {interopnames.SystemRuntimeGetInvocationCounter, nil, false},
 		"runtime.GetNetwork":               {interopnames.SystemRuntimeGetNetwork, nil, false},
 		"runtime.GetNotifications":         {interopnames.SystemRuntimeGetNotifications, []string{u160}, false},
+		"runtime.GetRandom":                {interopnames.SystemRuntimeGetRandom, nil, false},
 		"runtime.GetScriptContainer":       {interopnames.SystemRuntimeGetScriptContainer, nil, false},
 		"runtime.GetTime":                  {interopnames.SystemRuntimeGetTime, nil, false},
 		"runtime.GetTrigger":               {interopnames.SystemRuntimeGetTrigger, nil, false},
