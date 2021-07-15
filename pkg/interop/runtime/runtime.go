@@ -96,3 +96,10 @@ func GetInvocationCounter() int {
 func Platform() []byte {
 	return neogointernal.Syscall0("System.Runtime.Platform").([]byte)
 }
+
+// GetRandom returns pseudo-random number which depends on block nonce and tx hash.
+// Each invocation will return a different number. This function uses
+// `System.Runtime.GetRandom` syscall.
+func GetRandom() int {
+	return neogointernal.Syscall0("System.Runtime.GetRandom").(int)
+}

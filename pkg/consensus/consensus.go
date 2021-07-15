@@ -1,6 +1,8 @@
 package consensus
 
 import (
+	"crypto/rand"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"sort"
@@ -239,7 +241,17 @@ func (s *service) newPrepareRequest() payload.PrepareRequest {
 			panic(err)
 		}
 	}
+	r.nonce = s.getNonce()
 	return r
+}
+
+func (s *service) getNonce() uint64 {
+	b := make([]byte, 8)
+	_, err := rand.Read(b)
+	if err != nil {
+		panic(err)
+	}
+	return binary.LittleEndian.Uint64(b)
 }
 
 func (s *service) Start() {
@@ -649,6 +661,7 @@ func (s *service) newBlockFromContext(ctx *dbft.Context) block.Block {
 	block := &neoBlock{network: s.ProtocolConfiguration.Magic}
 
 	block.Block.Timestamp = ctx.Timestamp / nsInMs
+	block.Block.Nonce = ctx.PreparationPayloads[ctx.PrimaryIndex].GetPrepareRequest().Nonce()
 	block.Block.Index = ctx.BlockIndex
 	if s.ProtocolConfiguration.StateRootInHeader {
 		sr, err := s.Chain.GetStateModule().GetStateRoot(ctx.BlockIndex - 1)

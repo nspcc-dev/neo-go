@@ -30,6 +30,7 @@ func createGenesisBlock(cfg config.ProtocolConfiguration) (*block.Block, error) 
 		Version:       0,
 		PrevHash:      util.Uint256{},
 		Timestamp:     uint64(time.Date(2016, 7, 15, 15, 8, 21, 0, time.UTC).Unix()) * 1000, // Milliseconds.
+		Nonce:         2083236893,
 		Index:         0,
 		NextConsensus: nextConsensus,
 		Script: transaction.Witness{

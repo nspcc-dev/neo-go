@@ -1908,6 +1908,7 @@ func (bc *Blockchain) newInteropContext(trigger trigger.Type, d dao.DAO, block *
 	case block != nil:
 		ic.Container = block
 	}
+	ic.InitNonceData()
 	return ic
 }
 

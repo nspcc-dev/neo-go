@@ -19,6 +19,8 @@ type Block struct {
 	MerkleRoot interop.Hash256
 	// Timestamp represents millisecond-precision block timestamp.
 	Timestamp int
+	// Nonce represents block nonce.
+	Nonce int
 	// Index represents the height of the block.
 	Index int
 	// NextConsensus represents contract address of the next miner (160 bit BE

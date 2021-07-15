@@ -26,6 +26,7 @@ const (
 	SystemRuntimeGetInvocationCounter   = "System.Runtime.GetInvocationCounter"
 	SystemRuntimeGetNetwork             = "System.Runtime.GetNetwork"
 	SystemRuntimeGetNotifications       = "System.Runtime.GetNotifications"
+	SystemRuntimeGetRandom              = "System.Runtime.GetRandom"
 	SystemRuntimeGetScriptContainer     = "System.Runtime.GetScriptContainer"
 	SystemRuntimeGetTime                = "System.Runtime.GetTime"
 	SystemRuntimeGetTrigger             = "System.Runtime.GetTrigger"
@@ -64,6 +65,7 @@ var names = []string{
 	SystemRuntimeGetInvocationCounter,
 	SystemRuntimeGetNetwork,
 	SystemRuntimeGetNotifications,
+	SystemRuntimeGetRandom,
 	SystemRuntimeGetScriptContainer,
 	SystemRuntimeGetTime,
 	SystemRuntimeGetTrigger,

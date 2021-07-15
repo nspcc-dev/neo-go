@@ -205,7 +205,7 @@ func TestNEO_CalculateBonus(t *testing.T) {
 	bc := newTestChain(t)
 
 	neo := bc.contracts.NEO
-	tx := transaction.New([]byte{}, 0)
+	tx := transaction.New([]byte{byte(opcode.PUSH1)}, 0)
 	ic := bc.newInteropContext(trigger.Application, bc.dao, nil, tx)
 	ic.SpawnVM()
 	ic.VM.LoadScript([]byte{byte(opcode.RET)})

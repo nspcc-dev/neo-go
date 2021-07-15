@@ -3,6 +3,8 @@ package block
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
+	"strconv"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
@@ -27,6 +29,9 @@ type Header struct {
 	// Generally the difference of two block's time stamp is about 15 seconds and imprecision is allowed.
 	// The height of the block must be exactly equal to the height of the previous block plus 1.
 	Timestamp uint64
+
+	// Nonce is block random number.
+	Nonce uint64
 
 	// index/height of the block
 	Index uint32
@@ -57,6 +62,7 @@ type baseAux struct {
 	PrevHash      util.Uint256          `json:"previousblockhash"`
 	MerkleRoot    util.Uint256          `json:"merkleroot"`
 	Timestamp     uint64                `json:"time"`
+	Nonce         string                `json:"nonce"`
 	Index         uint32                `json:"index"`
 	NextConsensus string                `json:"nextconsensus"`
 	PrimaryIndex  byte                  `json:"primary"`
@@ -112,6 +118,7 @@ func (b *Header) encodeHashableFields(bw *io.BinWriter) {
 	bw.WriteBytes(b.PrevHash[:])
 	bw.WriteBytes(b.MerkleRoot[:])
 	bw.WriteU64LE(b.Timestamp)
+	bw.WriteU64LE(b.Nonce)
 	bw.WriteU32LE(b.Index)
 	bw.WriteB(b.PrimaryIndex)
 	bw.WriteBytes(b.NextConsensus[:])
@@ -127,6 +134,7 @@ func (b *Header) decodeHashableFields(br *io.BinReader) {
 	br.ReadBytes(b.PrevHash[:])
 	br.ReadBytes(b.MerkleRoot[:])
 	b.Timestamp = br.ReadU64LE()
+	b.Nonce = br.ReadU64LE()
 	b.Index = br.ReadU32LE()
 	b.PrimaryIndex = br.ReadB()
 	br.ReadBytes(b.NextConsensus[:])
@@ -149,6 +157,7 @@ func (b Header) MarshalJSON() ([]byte, error) {
 		PrevHash:      b.PrevHash,
 		MerkleRoot:    b.MerkleRoot,
 		Timestamp:     b.Timestamp,
+		Nonce:         fmt.Sprintf("%016x", b.Nonce),
 		Index:         b.Index,
 		PrimaryIndex:  b.PrimaryIndex,
 		NextConsensus: address.Uint160ToString(b.NextConsensus),
@@ -170,6 +179,13 @@ func (b *Header) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
+	var nonce uint64
+	if len(aux.Nonce) != 0 {
+		nonce, err = strconv.ParseUint(aux.Nonce, 16, 64)
+		if err != nil {
+			return err
+		}
+	}
 	nextC, err = address.StringToUint160(aux.NextConsensus)
 	if err != nil {
 		return err
@@ -181,6 +197,7 @@ func (b *Header) UnmarshalJSON(data []byte) error {
 	b.PrevHash = aux.PrevHash
 	b.MerkleRoot = aux.MerkleRoot
 	b.Timestamp = aux.Timestamp
+	b.Nonce = nonce
 	b.Index = aux.Index
 	b.PrimaryIndex = aux.PrimaryIndex
 	b.NextConsensus = nextC

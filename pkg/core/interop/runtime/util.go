@@ -1,13 +1,16 @@
 package runtime
 
 import (
+	"encoding/binary"
 	"errors"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
+	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
+	"github.com/twmb/murmur3"
 )
 
 // GasLeft returns remaining amount of GAS.
@@ -73,4 +76,20 @@ func GetNetwork(ic *interop.Context) error {
 	m := ic.Chain.GetConfig().Magic
 	ic.VM.Estack().PushVal(uint32(m))
 	return nil
+}
+
+// GetRandom returns pseudo-random number which depends on block nonce and transaction hash.
+func GetRandom(ic *interop.Context) error {
+	res := murmur128(ic.NonceData[:], ic.Network)
+	ic.VM.Estack().PushVal(bigint.FromBytesUnsigned(res))
+	copy(ic.NonceData[:], res)
+	return nil
+}
+
+func murmur128(data []byte, seed uint32) []byte {
+	h1, h2 := murmur3.SeedSum128(uint64(seed), uint64(seed), data)
+	result := make([]byte, 16)
+	binary.LittleEndian.PutUint64(result, h1)
+	binary.LittleEndian.PutUint64(result[8:], h2)
+	return result
 }

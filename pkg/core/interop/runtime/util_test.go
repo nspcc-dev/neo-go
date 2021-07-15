@@ -1,6 +1,7 @@
 package runtime
 
 import (
+	"encoding/hex"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/internal/random"
@@ -113,4 +114,21 @@ func TestRuntimeGetInvocationCounter(t *testing.T) {
 		require.NoError(t, GetInvocationCounter(ic))
 		checkStack(t, ic.VM, 42)
 	})
+}
+
+// Test compatibility with C# implementation.
+// https://github.com/neo-project/neo/blob/master/tests/neo.UnitTests/Cryptography/UT_Murmur128.cs
+func TestMurmurCompat(t *testing.T) {
+	res := murmur128([]byte("hello"), 123)
+	require.Equal(t, "0bc59d0ad25fde2982ed65af61227a0e", hex.EncodeToString(res))
+
+	res = murmur128([]byte("world"), 123)
+	require.Equal(t, "3d3810fed480472bd214a14023bb407f", hex.EncodeToString(res))
+
+	res = murmur128([]byte("hello world"), 123)
+	require.Equal(t, "e0a0632d4f51302c55e3b3e48d28795d", hex.EncodeToString(res))
+
+	bs, _ := hex.DecodeString("718f952132679baa9c5c2aa0d329fd2a")
+	res = murmur128(bs, 123)
+	require.Equal(t, "9b4aa747ff0cf4e41b3d96251551c8ae", hex.EncodeToString(res))
 }

@@ -1,6 +1,7 @@
 package interop
 
 import (
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"sort"
@@ -39,6 +40,7 @@ type Context struct {
 	Natives       []Contract
 	Trigger       trigger.Type
 	Block         *block.Block
+	NonceData     [16]byte
 	Tx            *transaction.Transaction
 	DAO           *dao.Cached
 	Notifications []state.NotificationEvent
@@ -67,6 +69,18 @@ func NewContext(trigger trigger.Type, bc blockchainer.Blockchainer, d dao.DAO,
 		// Functions is a slice of interops sorted by ID.
 		Functions:   []Function{},
 		getContract: getContract,
+	}
+}
+
+// InitNonceData initializes nonce to be used in `GetRandom` calculations.
+func (ic *Context) InitNonceData() {
+	if tx, ok := ic.Container.(*transaction.Transaction); ok {
+		copy(ic.NonceData[:], tx.Hash().BytesBE())
+	}
+	if ic.Block != nil {
+		nonce := ic.Block.Nonce
+		nonce ^= binary.LittleEndian.Uint64(ic.NonceData[:])
+		binary.LittleEndian.PutUint64(ic.NonceData[:], nonce)
 	}
 }
 

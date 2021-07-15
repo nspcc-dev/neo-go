@@ -8,6 +8,9 @@ import (
 
 	"github.com/nspcc-dev/neo-go/internal/random"
 	"github.com/nspcc-dev/neo-go/internal/testchain"
+	"github.com/nspcc-dev/neo-go/pkg/config"
+	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
+	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/contract"
@@ -34,6 +37,79 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/stretchr/testify/require"
 )
+
+// Tests are taken from
+// https://github.com/neo-project/neo/blob/master/tests/neo.UnitTests/SmartContract/UT_ApplicationEngine.Runtime.cs
+func TestRuntimeGetRandomCompatibility(t *testing.T) {
+	bc := newTestChain(t)
+
+	b := getSharpTestGenesis(t)
+	tx := getSharpTestTx(util.Uint160{})
+	ic := bc.newInteropContext(trigger.Application, dao.NewCached(bc.dao), b, tx)
+	ic.Network = uint32(netmode.MainNet)
+
+	ic.VM = vm.New()
+	ic.VM.LoadScript([]byte{0x01})
+
+	require.NoError(t, runtime.GetRandom(ic))
+	require.Equal(t, "225932872514876835587448704843370203748", ic.VM.Estack().Pop().BigInt().String())
+
+	require.NoError(t, runtime.GetRandom(ic))
+	require.Equal(t, "190129535548110356450238097068474508661", ic.VM.Estack().Pop().BigInt().String())
+
+	require.NoError(t, runtime.GetRandom(ic))
+	require.Equal(t, "48930406787011198493485648810190184269", ic.VM.Estack().Pop().BigInt().String())
+
+	require.NoError(t, runtime.GetRandom(ic))
+	require.Equal(t, "66199389469641263539889463157823839112", ic.VM.Estack().Pop().BigInt().String())
+
+	require.NoError(t, runtime.GetRandom(ic))
+	require.Equal(t, "217172703763162599519098299724476526911", ic.VM.Estack().Pop().BigInt().String())
+}
+
+func TestRuntimeGetRandomDifferentTransactions(t *testing.T) {
+	bc := newTestChain(t)
+	b, _ := bc.GetBlock(bc.GetHeaderHash(0))
+
+	tx1 := transaction.New([]byte{byte(opcode.PUSH1)}, 0)
+	ic1 := bc.newInteropContext(trigger.Application, dao.NewCached(bc.dao), b, tx1)
+	ic1.VM = vm.New()
+	ic1.VM.LoadScript(tx1.Script)
+
+	tx2 := transaction.New([]byte{byte(opcode.PUSH2)}, 0)
+	ic2 := bc.newInteropContext(trigger.Application, dao.NewCached(bc.dao), b, tx2)
+	ic2.VM = vm.New()
+	ic2.VM.LoadScript(tx2.Script)
+
+	require.NoError(t, runtime.GetRandom(ic1))
+	require.NoError(t, runtime.GetRandom(ic2))
+	require.NotEqual(t, ic1.VM.Estack().Pop().BigInt(), ic2.VM.Estack().Pop().BigInt())
+
+	require.NoError(t, runtime.GetRandom(ic1))
+	require.NoError(t, runtime.GetRandom(ic2))
+	require.NotEqual(t, ic1.VM.Estack().Pop().BigInt(), ic2.VM.Estack().Pop().BigInt())
+}
+
+func getSharpTestTx(sender util.Uint160) *transaction.Transaction {
+	tx := transaction.New([]byte{byte(opcode.PUSH2)}, 0)
+	tx.Nonce = 0
+	tx.Signers = append(tx.Signers, transaction.Signer{
+		Account: sender,
+		Scopes:  transaction.CalledByEntry,
+	})
+	tx.Scripts = append(tx.Scripts, transaction.Witness{})
+	return tx
+}
+
+func getSharpTestGenesis(t *testing.T) *block.Block {
+	const configPath = "../../config"
+
+	cfg, err := config.Load(configPath, netmode.MainNet)
+	require.NoError(t, err)
+	b, err := createGenesisBlock(cfg.ProtocolConfiguration)
+	require.NoError(t, err)
+	return b
+}
 
 func TestContractCreateAccount(t *testing.T) {
 	v, ic, _ := createVM(t)

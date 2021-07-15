@@ -200,6 +200,7 @@ func BlockToStackItem(b *block.Block) stackitem.Item {
 		stackitem.NewByteArray(b.PrevHash.BytesBE()),
 		stackitem.NewByteArray(b.MerkleRoot.BytesBE()),
 		stackitem.NewBigInteger(big.NewInt(int64(b.Timestamp))),
+		stackitem.NewBigInteger(new(big.Int).SetUint64(b.Nonce)),
 		stackitem.NewBigInteger(big.NewInt(int64(b.Index))),
 		stackitem.NewByteArray(b.NextConsensus.BytesBE()),
 		stackitem.NewBigInteger(big.NewInt(int64(len(b.Transactions)))),
