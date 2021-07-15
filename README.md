@@ -83,6 +83,9 @@ Available network flags:
 - `--privnet, -p`
 - `--testnet, -t`
 
+To run a consensus/committee node refer to [consensus
+documentation](docs/consensus.md).
+
 ### Docker
 
 By default the `CMD` is set to run a node on `privnet`, so to do this simply run:
