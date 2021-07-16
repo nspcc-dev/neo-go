@@ -277,11 +277,13 @@ func (o *Oracle) FinishInternal(ic *interop.Context) error {
 		}),
 	})
 
-	r := io.NewBinReaderFromBuf(req.UserData)
-	userData := stackitem.DecodeBinary(r)
+	userData, err := stackitem.Deserialize(req.UserData)
+	if err != nil {
+		return err
+	}
 	args := []stackitem.Item{
 		stackitem.Make(req.URL),
-		stackitem.Make(userData),
+		userData,
 		stackitem.Make(resp.Code),
 		stackitem.Make(resp.Result),
 	}
