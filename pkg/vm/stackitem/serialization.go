@@ -212,7 +212,7 @@ func decodeBinary(r *io.BinReader, allowInvalid bool) Item {
 		size := int(r.ReadVarUint())
 		arr := make([]Item, size)
 		for i := 0; i < size; i++ {
-			arr[i] = DecodeBinary(r)
+			arr[i] = decodeBinary(r, allowInvalid)
 		}
 
 		if t == ArrayT {
@@ -223,8 +223,8 @@ func decodeBinary(r *io.BinReader, allowInvalid bool) Item {
 		size := int(r.ReadVarUint())
 		m := NewMap()
 		for i := 0; i < size; i++ {
-			key := DecodeBinary(r)
-			value := DecodeBinary(r)
+			key := decodeBinary(r, allowInvalid)
+			value := decodeBinary(r, allowInvalid)
 			if r.Err != nil {
 				break
 			}
