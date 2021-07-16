@@ -3,7 +3,6 @@ package native
 import (
 	"math/big"
 
-	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
@@ -14,17 +13,18 @@ type candidate struct {
 
 // Bytes marshals c to byte array.
 func (c *candidate) Bytes() []byte {
-	w := io.NewBufBinWriter()
-	stackitem.EncodeBinary(c.toStackItem(), w.BinWriter)
-	return w.Bytes()
+	res, err := stackitem.Serialize(c.toStackItem())
+	if err != nil {
+		panic(err)
+	}
+	return res
 }
 
 // FromBytes unmarshals candidate from byte array.
 func (c *candidate) FromBytes(data []byte) *candidate {
-	r := io.NewBinReaderFromBuf(data)
-	item := stackitem.DecodeBinary(r)
-	if r.Err != nil {
-		panic(r.Err)
+	item, err := stackitem.Deserialize(data)
+	if err != nil {
+		panic(err)
 	}
 	return c.fromStackItem(item)
 }

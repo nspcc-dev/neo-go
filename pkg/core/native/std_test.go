@@ -11,7 +11,6 @@ import (
 	"github.com/mr-tron/base58"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	base58neogo "github.com/nspcc-dev/neo-go/pkg/encoding/base58"
-	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/stretchr/testify/assert"
@@ -275,11 +274,8 @@ func TestStdLibSerialize(t *testing.T) {
 			actualSerialized = s.serialize(ic, []stackitem.Item{stackitem.Make(42)})
 		})
 
-		w := io.NewBufBinWriter()
-		stackitem.EncodeBinary(stackitem.Make(42), w.BinWriter)
-		require.NoError(t, w.Err)
-
-		encoded := w.Bytes()
+		encoded, err := stackitem.Serialize(stackitem.Make(42))
+		require.NoError(t, err)
 		require.Equal(t, stackitem.Make(encoded), actualSerialized)
 
 		require.NotPanics(t, func() {

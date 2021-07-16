@@ -359,12 +359,10 @@ func (o *Oracle) RequestInternal(ic *interop.Context, url string, filter *string
 		return err
 	}
 
-	w := io.NewBufBinWriter()
-	stackitem.EncodeBinary(userData, w.BinWriter)
-	if w.Err != nil {
-		return w.Err
+	data, err := stackitem.Serialize(userData)
+	if err != nil {
+		return err
 	}
-	data := w.Bytes()
 	if len(data) > maxUserDataLength {
 		return ErrBigArgument
 	}

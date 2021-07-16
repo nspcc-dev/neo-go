@@ -20,7 +20,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
-	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
@@ -903,10 +902,9 @@ func (n *NEO) getAccountState(ic *interop.Context, args []stackitem.Item) stacki
 		return stackitem.Null{}
 	}
 
-	r := io.NewBinReaderFromBuf(si)
-	item := stackitem.DecodeBinary(r)
-	if r.Err != nil {
-		panic(r.Err) // no errors are expected but we better be sure
+	item, err := stackitem.Deserialize(si)
+	if err != nil {
+		panic(err) // no errors are expected but we better be sure
 	}
 	return item
 }
