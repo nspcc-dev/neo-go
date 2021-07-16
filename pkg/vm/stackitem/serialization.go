@@ -210,6 +210,10 @@ func decodeBinary(r *io.BinReader, allowInvalid bool) Item {
 		return NewBigInteger(num)
 	case ArrayT, StructT:
 		size := int(r.ReadVarUint())
+		if size > MaxArraySize {
+			r.Err = errTooBigArray
+			return nil
+		}
 		arr := make([]Item, size)
 		for i := 0; i < size; i++ {
 			arr[i] = decodeBinary(r, allowInvalid)
@@ -221,6 +225,10 @@ func decodeBinary(r *io.BinReader, allowInvalid bool) Item {
 		return NewStruct(arr)
 	case MapT:
 		size := int(r.ReadVarUint())
+		if size > MaxArraySize {
+			r.Err = errTooBigArray
+			return nil
+		}
 		m := NewMap()
 		for i := 0; i < size; i++ {
 			key := decodeBinary(r, allowInvalid)

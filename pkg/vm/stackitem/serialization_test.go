@@ -39,6 +39,7 @@ func testSerialize(t *testing.T, expectedErr error, item Item) {
 func TestSerialize(t *testing.T) {
 	bigByteArray := NewByteArray(make([]byte, MaxSize/2))
 	smallByteArray := NewByteArray(make([]byte, MaxSize/4))
+	zeroByteArray := NewByteArray(make([]byte, 0))
 	testArray := func(t *testing.T, newItem func([]Item) Item) {
 		arr := newItem([]Item{bigByteArray})
 		testSerialize(t, nil, arr)
@@ -50,6 +51,18 @@ func TestSerialize(t *testing.T) {
 
 		arr.Value().([]Item)[0] = arr
 		testSerialize(t, ErrRecursive, arr)
+
+		items := make([]Item, 0, MaxArraySize)
+		for i := 0; i < MaxArraySize; i++ {
+			items = append(items, zeroByteArray)
+		}
+		testSerialize(t, nil, newItem(items))
+
+		items = append(items, zeroByteArray)
+		data, err := Serialize(newItem(items))
+		require.NoError(t, err)
+		_, err = Deserialize(data)
+		require.True(t, errors.Is(err, ErrTooBig), err)
 	}
 	t.Run("array", func(t *testing.T) {
 		testArray(t, func(items []Item) Item { return NewArray(items) })
@@ -126,6 +139,18 @@ func TestSerialize(t *testing.T) {
 		m.Add(Make(0), NewByteArray(make([]byte, MaxSize-MaxKeySize)))
 		m.Add(NewByteArray(make([]byte, MaxKeySize)), Make(1))
 		testSerialize(t, ErrTooBig, m)
+
+		m = NewMap()
+		for i := 0; i < MaxArraySize; i++ {
+			m.Add(Make(i), zeroByteArray)
+		}
+		testSerialize(t, nil, m)
+
+		m.Add(Make(100500), zeroByteArray)
+		data, err := Serialize(m)
+		require.NoError(t, err)
+		_, err = Deserialize(data)
+		require.True(t, errors.Is(err, ErrTooBig), err)
 	})
 }
 

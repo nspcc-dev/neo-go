@@ -63,6 +63,7 @@ var (
 	// value exceeds MaxSize.
 	ErrTooBig = errors.New("too big")
 
+	errTooBigArray      = fmt.Errorf("%w: array", ErrTooBig)
 	errTooBigComparable = fmt.Errorf("%w: uncomparable", ErrTooBig)
 	errTooBigInteger    = fmt.Errorf("%w: integer", ErrTooBig)
 	errTooBigKey        = fmt.Errorf("%w: map key", ErrTooBig)
