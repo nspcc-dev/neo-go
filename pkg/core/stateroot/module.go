@@ -156,7 +156,7 @@ func (s *Module) VerifyStateRoot(r *state.MPTRoot) error {
 	return s.verifyWitness(r)
 }
 
-const maxVerificationGAS = 1_00000000
+const maxVerificationGAS = 2_00000000
 
 // verifyWitness verifies state root witness.
 func (s *Module) verifyWitness(r *state.MPTRoot) error {

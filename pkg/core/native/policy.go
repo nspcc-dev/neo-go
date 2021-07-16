@@ -23,12 +23,12 @@ const (
 
 	defaultExecFeeFactor      = interop.DefaultBaseExecFee
 	defaultFeePerByte         = 1000
-	defaultMaxVerificationGas = 50000000
+	defaultMaxVerificationGas = 1_50000000
 	// DefaultStoragePrice is the price to pay for 1 byte of storage.
 	DefaultStoragePrice = 100000
 
 	// maxExecFeeFactor is the maximum allowed execution fee factor.
-	maxExecFeeFactor = 1000
+	maxExecFeeFactor = 100
 	// maxFeePerByte is the maximum allowed fee per byte value.
 	maxFeePerByte = 100_000_000
 	// maxStoragePrice is the maximum allowed price for a byte of storage.
