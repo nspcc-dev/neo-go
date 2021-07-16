@@ -40,17 +40,14 @@ func TestDBRestore(t *testing.T) {
 	// First 15 blocks.
 	e.Run(t, append(baseArgs, "--count", "15")...)
 
-	// Invalid skips.
-	e.RunWithError(t, append(baseArgs, "--count", "10", "--skip", "14")...)
-	e.RunWithError(t, append(baseArgs, "--count", "10", "--skip", "16")...)
 	// Big count.
-	e.RunWithError(t, append(baseArgs, "--count", "1000", "--skip", "15")...)
+	e.RunWithError(t, append(baseArgs, "--count", "1000")...)
 
 	// Continue 15..25
-	e.Run(t, append(baseArgs, "--count", "10", "--skip", "15")...)
+	e.Run(t, append(baseArgs, "--count", "10")...)
 
 	// Continue till end.
-	e.Run(t, append(baseArgs, "--skip", "25")...)
+	e.Run(t, baseArgs...)
 
 	// Dump and compare.
 	dumpPath := path.Join(tmpDir, "testdump.acc")

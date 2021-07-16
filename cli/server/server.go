@@ -52,10 +52,6 @@ func NewCommands() []cli.Command {
 	var cfgCountInFlags = make([]cli.Flag, len(cfgWithCountFlags))
 	copy(cfgCountInFlags, cfgWithCountFlags)
 	cfgCountInFlags = append(cfgCountInFlags,
-		cli.UintFlag{
-			Name:  "skip, s",
-			Usage: "number of blocks to skip (default: 0)",
-		},
 		cli.StringFlag{
 			Name:  "in, i",
 			Usage: "Input file (stdin if not given)",
@@ -63,6 +59,10 @@ func NewCommands() []cli.Command {
 		cli.StringFlag{
 			Name:  "dump",
 			Usage: "directory for storing JSON dumps",
+		},
+		cli.BoolFlag{
+			Name:  "incremental, n",
+			Usage: "use if dump is incremental",
 		},
 	)
 	return []cli.Command{
@@ -215,7 +215,6 @@ func restoreDB(ctx *cli.Context) error {
 		return cli.NewExitError(err, 1)
 	}
 	count := uint32(ctx.Uint("count"))
-	skip := uint32(ctx.Uint("skip"))
 
 	var inStream = os.Stdin
 	if in := ctx.String("in"); in != "" {
@@ -240,6 +239,20 @@ func restoreDB(ctx *cli.Context) error {
 	defer prometheus.ShutDown()
 	defer pprof.ShutDown()
 
+	var start uint32
+	if ctx.Bool("incremental") {
+		start = reader.ReadU32LE()
+		if chain.BlockHeight()+1 < start {
+			return cli.NewExitError(fmt.Errorf("expected height: %d, dump starts at %d",
+				chain.BlockHeight()+1, start), 1)
+		}
+	}
+
+	var skip uint32
+	if chain.BlockHeight() != 0 {
+		skip = chain.BlockHeight() + 1 - start
+	}
+
 	var allBlocks = reader.ReadU32LE()
 	if reader.Err != nil {
 		return cli.NewExitError(err, 1)
@@ -250,6 +263,11 @@ func restoreDB(ctx *cli.Context) error {
 	if count == 0 {
 		count = allBlocks - skip
 	}
+	log.Info("initialize restore",
+		zap.Uint32("start", start),
+		zap.Uint32("height", chain.BlockHeight()),
+		zap.Uint32("skip", skip),
+		zap.Uint32("count", count))
 
 	gctx := newGraceContext()
 	var lastIndex uint32
