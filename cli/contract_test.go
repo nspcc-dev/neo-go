@@ -142,7 +142,7 @@ func TestContractInitAndCompile(t *testing.T) {
 // Checks that error is returned if GAS available for test-invoke exceeds
 // GAS needed to be consumed.
 func TestDeployBigContract(t *testing.T) {
-	e := newExecutorWithConfig(t, true, func(c *config.Config) {
+	e := newExecutorWithConfig(t, true, true, func(c *config.Config) {
 		c.ApplicationConfiguration.RPC.MaxGasInvoke = fixedn.Fixed8(1)
 	})
 

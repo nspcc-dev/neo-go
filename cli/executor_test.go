@@ -61,7 +61,7 @@ type executor struct {
 	In *bytes.Buffer
 }
 
-func newTestChain(t *testing.T, f func(*config.Config)) (*core.Blockchain, *server.Server, *network.Server) {
+func newTestChain(t *testing.T, f func(*config.Config), run bool) (*core.Blockchain, *server.Server, *network.Server) {
 	configPath := "../config/protocol.unit_testnet.single.yml"
 	cfg, err := config.LoadFile(configPath)
 	require.NoError(t, err, "could not load config")
@@ -74,7 +74,9 @@ func newTestChain(t *testing.T, f func(*config.Config)) (*core.Blockchain, *serv
 	chain, err := core.NewBlockchain(memoryStore, cfg.ProtocolConfiguration, logger)
 	require.NoError(t, err, "could not create chain")
 
-	go chain.Run()
+	if run {
+		go chain.Run()
+	}
 
 	serverConfig := network.NewServerConfig(cfg)
 	netSrv, err := network.NewServer(serverConfig, chain, zap.NewNop())
@@ -88,10 +90,14 @@ func newTestChain(t *testing.T, f func(*config.Config)) (*core.Blockchain, *serv
 }
 
 func newExecutor(t *testing.T, needChain bool) *executor {
-	return newExecutorWithConfig(t, needChain, nil)
+	return newExecutorWithConfig(t, needChain, true, nil)
 }
 
-func newExecutorWithConfig(t *testing.T, needChain bool, f func(*config.Config)) *executor {
+func newExecutorSuspended(t *testing.T) *executor {
+	return newExecutorWithConfig(t, true, false, nil)
+}
+
+func newExecutorWithConfig(t *testing.T, needChain, runChain bool, f func(*config.Config)) *executor {
 	e := &executor{
 		CLI: newApp(),
 		Out: bytes.NewBuffer(nil),
@@ -101,7 +107,7 @@ func newExecutorWithConfig(t *testing.T, needChain bool, f func(*config.Config))
 	e.CLI.Writer = e.Out
 	e.CLI.ErrWriter = e.Err
 	if needChain {
-		e.Chain, e.RPC, e.NetSrv = newTestChain(t, f)
+		e.Chain, e.RPC, e.NetSrv = newTestChain(t, f, runChain)
 	}
 	t.Cleanup(func() {
 		e.Close(t)
