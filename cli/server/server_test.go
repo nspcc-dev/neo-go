@@ -164,7 +164,6 @@ func TestRestoreDB(t *testing.T) {
 
 	// and then restore
 	set.String("in", testDump, "")
-	set.Int("skip", 0, "")
 	set.String("dump", saveDump, "")
 	require.NoError(t, restoreDB(ctx))
 }
