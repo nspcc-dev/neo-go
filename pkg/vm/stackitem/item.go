@@ -74,6 +74,7 @@ var (
 	errTooBigInteger    = fmt.Errorf("%w: integer", ErrTooBig)
 	errTooBigKey        = fmt.Errorf("%w: map key", ErrTooBig)
 	errTooBigSize       = fmt.Errorf("%w: size", ErrTooBig)
+	errTooBigElements   = fmt.Errorf("%w: many elements", ErrTooBig)
 )
 
 // mkInvConversion creates conversion error with additional metadata (from and

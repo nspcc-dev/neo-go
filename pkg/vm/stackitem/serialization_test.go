@@ -144,7 +144,7 @@ func TestSerialize(t *testing.T) {
 		for i := 0; i < MaxArraySize; i++ {
 			m.Add(Make(i), zeroByteArray)
 		}
-		testSerialize(t, nil, m)
+		// testSerialize(t, nil, m) // It contains too many elements already, so ErrTooBig.
 
 		m.Add(Make(100500), zeroByteArray)
 		data, err := Serialize(m)
@@ -152,6 +152,23 @@ func TestSerialize(t *testing.T) {
 		_, err = Deserialize(data)
 		require.True(t, errors.Is(err, ErrTooBig), err)
 	})
+}
+
+func TestDeserializeTooManyElements(t *testing.T) {
+	item := Make(0)
+	for i := 0; i < MaxDeserialized-1; i++ { // 1 for zero inner element.
+		item = Make([]Item{item})
+	}
+	data, err := Serialize(item)
+	require.NoError(t, err)
+	_, err = Deserialize(data)
+	require.NoError(t, err)
+
+	item = Make([]Item{item})
+	data, err = Serialize(item)
+	require.NoError(t, err)
+	_, err = Deserialize(data)
+	require.True(t, errors.Is(err, ErrTooBig), err)
 }
 
 func BenchmarkEncodeBinary(b *testing.B) {
