@@ -154,6 +154,25 @@ func TestSerialize(t *testing.T) {
 	})
 }
 
+func TestEmptyDeserialization(t *testing.T) {
+	empty := []byte{}
+	_, err := Deserialize(empty)
+	require.Error(t, err)
+}
+
+func TestMapDeserializationError(t *testing.T) {
+	m := NewMap()
+	m.Add(Make(1), Make(1))
+	m.Add(Make(2), nil) // Bad value
+	m.Add(Make(3), Make(3))
+
+	w := io.NewBufBinWriter()
+	EncodeBinaryProtected(m, w.BinWriter)
+	require.NoError(t, w.Err)
+	_, err := Deserialize(w.Bytes())
+	require.True(t, errors.Is(err, ErrInvalidType), err)
+}
+
 func TestDeserializeTooManyElements(t *testing.T) {
 	item := Make(0)
 	for i := 0; i < MaxDeserialized-1; i++ { // 1 for zero inner element.
