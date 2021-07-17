@@ -414,7 +414,7 @@ func (n *Notary) setMaxNotValidBeforeDelta(ic *interop.Context, args []stackitem
 func (n *Notary) GetDepositFor(dao dao.DAO, acc util.Uint160) *state.Deposit {
 	key := append([]byte{prefixDeposit}, acc.BytesBE()...)
 	deposit := new(state.Deposit)
-	err := getSerializableFromDAO(n.ID, dao, key, deposit)
+	err := getConvertibleFromDAO(n.ID, dao, key, deposit)
 	if err == nil {
 		return deposit
 	}
@@ -427,7 +427,7 @@ func (n *Notary) GetDepositFor(dao dao.DAO, acc util.Uint160) *state.Deposit {
 // putDepositFor puts deposit on the balance of the specified account in the storage.
 func (n *Notary) putDepositFor(dao dao.DAO, deposit *state.Deposit, acc util.Uint160) error {
 	key := append([]byte{prefixDeposit}, acc.BytesBE()...)
-	return putSerializableToDAO(n.ID, dao, key, deposit)
+	return putConvertibleToDAO(n.ID, dao, key, deposit)
 }
 
 // removeDepositFor removes deposit from the storage.

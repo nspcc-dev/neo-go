@@ -35,25 +35,6 @@ type NativeContract struct {
 	UpdateHistory []uint32 `json:"updatehistory"`
 }
 
-// DecodeBinary implements Serializable interface.
-func (c *Contract) DecodeBinary(r *io.BinReader) {
-	si := stackitem.DecodeBinary(r)
-	if r.Err != nil {
-		return
-	}
-	r.Err = c.FromStackItem(si)
-}
-
-// EncodeBinary implements Serializable interface.
-func (c *Contract) EncodeBinary(w *io.BinWriter) {
-	si, err := c.ToStackItem()
-	if err != nil {
-		w.Err = err
-		return
-	}
-	stackitem.EncodeBinary(si, w)
-}
-
 // ToStackItem converts state.Contract to stackitem.Item.
 func (c *Contract) ToStackItem() (stackitem.Item, error) {
 	rawNef, err := c.NEF.Bytes()

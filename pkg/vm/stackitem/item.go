@@ -52,6 +52,12 @@ type Item interface {
 	Convert(Type) (Item, error)
 }
 
+// Convertible is something that can be converted to/from Item.
+type Convertible interface {
+	ToStackItem() (Item, error)
+	FromStackItem(Item) error
+}
+
 var (
 	// ErrInvalidConversion is returned on attempt to make an incorrect
 	// conversion between item types.

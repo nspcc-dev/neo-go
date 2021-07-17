@@ -4,7 +4,7 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/stretchr/testify/require"
+	"github.com/nspcc-dev/neo-go/internal/testserdes"
 )
 
 func TestCandidate_Bytes(t *testing.T) {
@@ -12,7 +12,6 @@ func TestCandidate_Bytes(t *testing.T) {
 		Registered: true,
 		Votes:      *big.NewInt(0x0F),
 	}
-	data := expected.Bytes()
-	actual := new(candidate).FromBytes(data)
-	require.Equal(t, expected, actual)
+	actual := new(candidate)
+	testserdes.ToFromStackItem(t, expected, actual)
 }

@@ -16,7 +16,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
-	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
@@ -155,7 +154,7 @@ func (m *Management) GetContract(d dao.DAO, hash util.Uint160) (*state.Contract,
 func (m *Management) getContractFromDAO(d dao.DAO, hash util.Uint160) (*state.Contract, error) {
 	contract := new(state.Contract)
 	key := makeContractKey(hash)
-	err := getSerializableFromDAO(m.ID, d, key, contract)
+	err := getConvertibleFromDAO(m.ID, d, key, contract)
 	if err != nil {
 		return nil, err
 	}
@@ -487,14 +486,12 @@ func (m *Management) InitializeCache(d dao.DAO) error {
 
 	var initErr error
 	d.Seek(m.ID, []byte{prefixContract}, func(_, v []byte) {
-		var cs state.Contract
-		r := io.NewBinReaderFromBuf(v)
-		cs.DecodeBinary(r)
-		if r.Err != nil {
-			initErr = r.Err
+		var cs = new(state.Contract)
+		initErr = stackitem.DeserializeConvertible(v, cs)
+		if initErr != nil {
 			return
 		}
-		m.contracts[cs.Hash] = &cs
+		m.contracts[cs.Hash] = cs
 	})
 	return initErr
 }
@@ -529,7 +526,7 @@ func (m *Management) Initialize(ic *interop.Context) error {
 // PutContractState saves given contract state into given DAO.
 func (m *Management) PutContractState(d dao.DAO, cs *state.Contract) error {
 	key := makeContractKey(cs.Hash)
-	if err := putSerializableToDAO(m.ID, d, key, cs); err != nil {
+	if err := putConvertibleToDAO(m.ID, d, key, cs); err != nil {
 		return err
 	}
 	m.markUpdated(cs.Hash)

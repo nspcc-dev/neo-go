@@ -11,41 +11,35 @@ type candidate struct {
 	Votes      big.Int
 }
 
-// Bytes marshals c to byte array.
-func (c *candidate) Bytes() []byte {
-	res, err := stackitem.Serialize(c.toStackItem())
-	if err != nil {
-		panic(err)
-	}
-	return res
-}
-
 // FromBytes unmarshals candidate from byte array.
 func (c *candidate) FromBytes(data []byte) *candidate {
-	item, err := stackitem.Deserialize(data)
+	err := stackitem.DeserializeConvertible(data, c)
 	if err != nil {
 		panic(err)
 	}
-	return c.fromStackItem(item)
+	return c
 }
 
-func (c *candidate) toStackItem() stackitem.Item {
+// ToStackItem implements stackitem.Convertible. It never returns an error.
+func (c *candidate) ToStackItem() (stackitem.Item, error) {
 	return stackitem.NewStruct([]stackitem.Item{
 		stackitem.NewBool(c.Registered),
 		stackitem.NewBigInteger(&c.Votes),
-	})
+	}), nil
 }
 
-func (c *candidate) fromStackItem(item stackitem.Item) *candidate {
+// FromStackItem implements stackitem.Convertible.
+func (c *candidate) FromStackItem(item stackitem.Item) error {
 	arr := item.(*stackitem.Struct).Value().([]stackitem.Item)
 	vs, err := arr[1].TryInteger()
 	if err != nil {
-		panic(err)
+		return err
 	}
-	c.Registered, err = arr[0].TryBool()
+	reg, err := arr[0].TryBool()
 	if err != nil {
-		panic(err)
+		return err
 	}
+	c.Registered = reg
 	c.Votes = *vs
-	return c
+	return nil
 }

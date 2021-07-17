@@ -6,7 +6,6 @@ import (
 	"math"
 	"math/big"
 
-	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
@@ -16,28 +15,17 @@ type Deposit struct {
 	Till   uint32
 }
 
-// EncodeBinary implements io.Serializable interface.
-func (d *Deposit) EncodeBinary(w *io.BinWriter) {
-	stackitem.EncodeBinary(d.toStackItem(), w)
-}
-
-// DecodeBinary implements io.Serializable interface.
-func (d *Deposit) DecodeBinary(r *io.BinReader) {
-	si := stackitem.DecodeBinary(r)
-	if r.Err != nil {
-		return
-	}
-	r.Err = d.fromStackItem(si)
-}
-
-func (d *Deposit) toStackItem() stackitem.Item {
+// ToStackItem implements stackitem.Convertible interface. It never returns an
+// error.
+func (d *Deposit) ToStackItem() (stackitem.Item, error) {
 	return stackitem.NewStruct([]stackitem.Item{
 		stackitem.NewBigInteger(d.Amount),
 		stackitem.Make(d.Till),
-	})
+	}), nil
 }
 
-func (d *Deposit) fromStackItem(it stackitem.Item) error {
+// FromStackItem implements stackitem.Convertible interface.
+func (d *Deposit) FromStackItem(it stackitem.Item) error {
 	items, ok := it.Value().([]stackitem.Item)
 	if !ok {
 		return errors.New("not a struct")

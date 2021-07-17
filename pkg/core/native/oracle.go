@@ -170,7 +170,7 @@ func (o *Oracle) PostPersist(ic *interop.Context) error {
 		}
 		reqKey := makeRequestKey(resp.ID)
 		req := new(state.OracleRequest)
-		if err := o.getSerializableFromDAO(ic.DAO, reqKey, req); err != nil {
+		if err := o.getConvertibleFromDAO(ic.DAO, reqKey, req); err != nil {
 			continue
 		}
 		if err := ic.DAO.DeleteStorageItem(o.ID, reqKey); err != nil {
@@ -182,7 +182,7 @@ func (o *Oracle) PostPersist(ic *interop.Context) error {
 
 		idKey := makeIDListKey(req.URL)
 		idList := new(IDList)
-		if err := o.getSerializableFromDAO(ic.DAO, idKey, idList); err != nil {
+		if err := o.getConvertibleFromDAO(ic.DAO, idKey, idList); err != nil {
 			return err
 		}
 		if !idList.Remove(resp.ID) {
@@ -193,7 +193,7 @@ func (o *Oracle) PostPersist(ic *interop.Context) error {
 		if len(*idList) == 0 {
 			err = ic.DAO.DeleteStorageItem(o.ID, idKey)
 		} else {
-			err = ic.DAO.PutStorageItem(o.ID, idKey, idList.Bytes())
+			err = putConvertibleToDAO(o.ID, ic.DAO, idKey, idList)
 		}
 		if err != nil {
 			return err
@@ -398,7 +398,7 @@ func (o *Oracle) RequestInternal(ic *interop.Context, url string, filter *string
 // PutRequestInternal puts oracle request with the specified id to d.
 func (o *Oracle) PutRequestInternal(id uint64, req *state.OracleRequest, d dao.DAO) error {
 	reqKey := makeRequestKey(id)
-	if err := d.PutStorageItem(o.ID, reqKey, req.Bytes()); err != nil {
+	if err := putConvertibleToDAO(o.ID, d, reqKey, req); err != nil {
 		return err
 	}
 	o.newRequests[id] = req
@@ -406,14 +406,14 @@ func (o *Oracle) PutRequestInternal(id uint64, req *state.OracleRequest, d dao.D
 	// Add request ID to the id list.
 	lst := new(IDList)
 	key := makeIDListKey(req.URL)
-	if err := o.getSerializableFromDAO(d, key, lst); err != nil && !errors.Is(err, storage.ErrKeyNotFound) {
+	if err := o.getConvertibleFromDAO(d, key, lst); err != nil && !errors.Is(err, storage.ErrKeyNotFound) {
 		return err
 	}
 	if len(*lst) >= maxRequestsCount {
 		return fmt.Errorf("there are too many pending requests for %s url", req.URL)
 	}
 	*lst = append(*lst, id)
-	return d.PutStorageItem(o.ID, key, lst.Bytes())
+	return putConvertibleToDAO(o.ID, d, key, lst)
 }
 
 // GetScriptHash returns script hash or oracle nodes.
@@ -431,14 +431,14 @@ func (o *Oracle) GetOracleNodes(d dao.DAO) (keys.PublicKeys, error) {
 func (o *Oracle) GetRequestInternal(d dao.DAO, id uint64) (*state.OracleRequest, error) {
 	key := makeRequestKey(id)
 	req := new(state.OracleRequest)
-	return req, o.getSerializableFromDAO(d, key, req)
+	return req, o.getConvertibleFromDAO(d, key, req)
 }
 
 // GetIDListInternal returns request by ID and key under which it is stored.
 func (o *Oracle) GetIDListInternal(d dao.DAO, url string) (*IDList, error) {
 	key := makeIDListKey(url)
 	idList := new(IDList)
-	return idList, o.getSerializableFromDAO(d, key, idList)
+	return idList, o.getConvertibleFromDAO(d, key, idList)
 }
 
 func (o *Oracle) verify(ic *interop.Context, _ []stackitem.Item) stackitem.Item {
@@ -493,11 +493,10 @@ func (o *Oracle) getRequests(d dao.DAO) (map[uint64]*state.OracleRequest, error)
 		if len(k) != 8 {
 			return nil, errors.New("invalid request ID")
 		}
-		r := io.NewBinReaderFromBuf(si)
 		req := new(state.OracleRequest)
-		req.DecodeBinary(r)
-		if r.Err != nil {
-			return nil, r.Err
+		err = stackitem.DeserializeConvertible(si, req)
+		if err != nil {
+			return nil, err
 		}
 		id := binary.BigEndian.Uint64([]byte(k))
 		reqs[id] = req
@@ -516,8 +515,8 @@ func makeIDListKey(url string) []byte {
 	return append(prefixIDList, hash.Hash160([]byte(url)).BytesBE()...)
 }
 
-func (o *Oracle) getSerializableFromDAO(d dao.DAO, key []byte, item io.Serializable) error {
-	return getSerializableFromDAO(o.ID, d, key, item)
+func (o *Oracle) getConvertibleFromDAO(d dao.DAO, key []byte, item stackitem.Convertible) error {
+	return getConvertibleFromDAO(o.ID, d, key, item)
 }
 
 // updateCache updates cached Oracle values if they've been changed.

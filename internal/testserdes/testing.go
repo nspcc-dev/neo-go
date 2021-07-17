@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/stretchr/testify/require"
 )
 
@@ -23,6 +24,15 @@ func EncodeDecodeBinary(t *testing.T, expected, actual io.Serializable) {
 	data, err := EncodeBinary(expected)
 	require.NoError(t, err)
 	require.NoError(t, DecodeBinary(data, actual))
+	require.Equal(t, expected, actual)
+}
+
+// ToFromStackItem checks if expected stays the same after converting to/from
+// StackItem.
+func ToFromStackItem(t *testing.T, expected, actual stackitem.Convertible) {
+	item, err := expected.ToStackItem()
+	require.NoError(t, err)
+	require.NoError(t, actual.FromStackItem(item))
 	require.Equal(t, expected, actual)
 }
 

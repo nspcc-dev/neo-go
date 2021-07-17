@@ -254,3 +254,21 @@ func decodeBinary(r *io.BinReader, allowInvalid bool) Item {
 		return nil
 	}
 }
+
+// SerializeConvertible serializes Convertible into a slice of bytes.
+func SerializeConvertible(conv Convertible) ([]byte, error) {
+	item, err := conv.ToStackItem()
+	if err != nil {
+		return nil, err
+	}
+	return Serialize(item)
+}
+
+// DeserializeConvertible deserializes Convertible from a slice of bytes.
+func DeserializeConvertible(data []byte, conv Convertible) error {
+	item, err := Deserialize(data)
+	if err != nil {
+		return err
+	}
+	return conv.FromStackItem(item)
+}

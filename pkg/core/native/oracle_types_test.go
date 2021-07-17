@@ -5,32 +5,26 @@ import (
 
 	"github.com/nspcc-dev/neo-go/internal/testserdes"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
-	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/stretchr/testify/require"
 )
 
-func getInvalidTestFunc(actual io.Serializable, value interface{}) func(t *testing.T) {
+func getInvalidTestFunc(actual stackitem.Convertible, value interface{}) func(t *testing.T) {
 	return func(t *testing.T) {
-		w := io.NewBufBinWriter()
 		it := stackitem.Make(value)
-		stackitem.EncodeBinary(it, w.BinWriter)
-		require.NoError(t, w.Err)
-		require.Error(t, testserdes.DecodeBinary(w.Bytes(), actual))
+		require.Error(t, actual.FromStackItem(it))
 	}
 }
 
-func TestIDList_EncodeBinary(t *testing.T) {
+func TestIDListToFromSI(t *testing.T) {
 	t.Run("Valid", func(t *testing.T) {
 		l := &IDList{1, 4, 5}
-		testserdes.EncodeDecodeBinary(t, l, new(IDList))
+		var l2 = new(IDList)
+		testserdes.ToFromStackItem(t, l, l2)
 	})
 	t.Run("Invalid", func(t *testing.T) {
 		t.Run("NotArray", getInvalidTestFunc(new(IDList), []byte{}))
 		t.Run("InvalidElement", getInvalidTestFunc(new(IDList), []stackitem.Item{stackitem.Null{}}))
-		t.Run("NotStackItem", func(t *testing.T) {
-			require.Error(t, testserdes.DecodeBinary([]byte{0x77}, new(IDList)))
-		})
 	})
 }
 
@@ -50,22 +44,20 @@ func TestIDList_Remove(t *testing.T) {
 	require.Equal(t, IDList{1}, l)
 }
 
-func TestNodeList_EncodeBinary(t *testing.T) {
+func TestNodeListToFromSI(t *testing.T) {
 	priv, err := keys.NewPrivateKey()
 	require.NoError(t, err)
 	pub := priv.PublicKey()
 
 	t.Run("Valid", func(t *testing.T) {
 		l := &NodeList{pub}
-		testserdes.EncodeDecodeBinary(t, l, new(NodeList))
+		var l2 = new(NodeList)
+		testserdes.ToFromStackItem(t, l, l2)
 	})
 	t.Run("Invalid", func(t *testing.T) {
 		t.Run("NotArray", getInvalidTestFunc(new(NodeList), []byte{}))
 		t.Run("InvalidElement", getInvalidTestFunc(new(NodeList), []stackitem.Item{stackitem.Null{}}))
 		t.Run("InvalidKey", getInvalidTestFunc(new(NodeList),
 			[]stackitem.Item{stackitem.NewByteArray([]byte{0x9})}))
-		t.Run("NotStackItem", func(t *testing.T) {
-			require.Error(t, testserdes.DecodeBinary([]byte{0x77}, new(NodeList)))
-		})
 	})
 }

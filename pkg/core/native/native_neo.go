@@ -697,7 +697,7 @@ func (n *NEO) RegisterCandidateInternal(ic *interop.Context, pub *keys.PublicKey
 		c = new(candidate).FromBytes(si)
 		c.Registered = true
 	}
-	return ic.DAO.PutStorageItem(n.ID, key, c.Bytes())
+	return putConvertibleToDAO(n.ID, ic.DAO, key, c)
 }
 
 func (n *NEO) unregisterCandidate(ic *interop.Context, args []stackitem.Item) stackitem.Item {
@@ -726,7 +726,7 @@ func (n *NEO) UnregisterCandidateInternal(ic *interop.Context, pub *keys.PublicK
 	if ok {
 		return err
 	}
-	return ic.DAO.PutStorageItem(n.ID, key, c.Bytes())
+	return putConvertibleToDAO(n.ID, ic.DAO, key, c)
 }
 
 func (n *NEO) vote(ic *interop.Context, args []stackitem.Item) stackitem.Item {
@@ -819,7 +819,7 @@ func (n *NEO) ModifyAccountVotes(acc *state.NEOBalanceState, d dao.DAO, value *b
 			}
 		}
 		n.validators.Store(keys.PublicKeys(nil))
-		return d.PutStorageItem(n.ID, key, cd.Bytes())
+		return putConvertibleToDAO(n.ID, d, key, cd)
 	}
 	return nil
 }

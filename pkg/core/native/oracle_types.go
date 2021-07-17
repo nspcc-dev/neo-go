@@ -6,7 +6,6 @@ import (
 	"math/big"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
-	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
@@ -16,36 +15,17 @@ type IDList []uint64
 // NodeList represents list or oracle nodes.
 type NodeList keys.PublicKeys
 
-// Bytes return l serizalized to a byte-slice.
-func (l IDList) Bytes() []byte {
-	w := io.NewBufBinWriter()
-	l.EncodeBinary(w.BinWriter)
-	return w.Bytes()
-}
-
-// EncodeBinary implements io.Serializable.
-func (l IDList) EncodeBinary(w *io.BinWriter) {
-	stackitem.EncodeBinary(l.toStackItem(), w)
-}
-
-// DecodeBinary implements io.Serializable.
-func (l *IDList) DecodeBinary(r *io.BinReader) {
-	item := stackitem.DecodeBinary(r)
-	if r.Err != nil || item == nil {
-		return
-	}
-	r.Err = l.fromStackItem(item)
-}
-
-func (l IDList) toStackItem() stackitem.Item {
+// ToStackItem implements stackitem.Convertible. It never returns an error.
+func (l IDList) ToStackItem() (stackitem.Item, error) {
 	arr := make([]stackitem.Item, len(l))
 	for i := range l {
 		arr[i] = stackitem.NewBigInteger(new(big.Int).SetUint64(l[i]))
 	}
-	return stackitem.NewArray(arr)
+	return stackitem.NewArray(arr), nil
 }
 
-func (l *IDList) fromStackItem(it stackitem.Item) error {
+// FromStackItem implements stackitem.Convertible.
+func (l *IDList) FromStackItem(it stackitem.Item) error {
 	arr, ok := it.Value().([]stackitem.Item)
 	if !ok {
 		return errors.New("not an array")
@@ -75,36 +55,17 @@ func (l *IDList) Remove(id uint64) bool {
 	return false
 }
 
-// Bytes return l serizalized to a byte-slice.
-func (l NodeList) Bytes() []byte {
-	w := io.NewBufBinWriter()
-	l.EncodeBinary(w.BinWriter)
-	return w.Bytes()
-}
-
-// EncodeBinary implements io.Serializable.
-func (l NodeList) EncodeBinary(w *io.BinWriter) {
-	stackitem.EncodeBinary(l.toStackItem(), w)
-}
-
-// DecodeBinary implements io.Serializable.
-func (l *NodeList) DecodeBinary(r *io.BinReader) {
-	item := stackitem.DecodeBinary(r)
-	if r.Err != nil || item == nil {
-		return
-	}
-	r.Err = l.fromStackItem(item)
-}
-
-func (l NodeList) toStackItem() stackitem.Item {
+// ToStackItem implements stackitem.Convertible. It never returns an error.
+func (l NodeList) ToStackItem() (stackitem.Item, error) {
 	arr := make([]stackitem.Item, len(l))
 	for i := range l {
 		arr[i] = stackitem.NewByteArray(l[i].Bytes())
 	}
-	return stackitem.NewArray(arr)
+	return stackitem.NewArray(arr), nil
 }
 
-func (l *NodeList) fromStackItem(it stackitem.Item) error {
+// FromStackItem implements stackitem.Convertible.
+func (l *NodeList) FromStackItem(it stackitem.Item) error {
 	arr, ok := it.Value().([]stackitem.Item)
 	if !ok {
 		return errors.New("not an array")
