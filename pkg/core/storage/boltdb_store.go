@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/util/slice"
 	"github.com/syndtr/goleveldb/leveldb/util"
 	"go.etcd.io/bbolt"
 )
@@ -63,9 +64,7 @@ func (s *BoltDBStore) Get(key []byte) (val []byte, err error) {
 		val = b.Get(key)
 		// Value from Get is only valid for the lifetime of transaction, #1482
 		if val != nil {
-			var valcopy = make([]byte, len(val))
-			copy(valcopy, val)
-			val = valcopy
+			val = slice.Copy(val)
 		}
 		return nil
 	})

@@ -6,6 +6,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/util/slice"
 )
 
 // GetProof returns a proof that key belongs to t.
@@ -25,11 +26,11 @@ func (t *Trie) getProof(curr Node, path []byte, proofs *[][]byte) (Node, error) 
 	switch n := curr.(type) {
 	case *LeafNode:
 		if len(path) == 0 {
-			*proofs = append(*proofs, copySlice(n.Bytes()))
+			*proofs = append(*proofs, slice.Copy(n.Bytes()))
 			return n, nil
 		}
 	case *BranchNode:
-		*proofs = append(*proofs, copySlice(n.Bytes()))
+		*proofs = append(*proofs, slice.Copy(n.Bytes()))
 		i, path := splitPath(path)
 		r, err := t.getProof(n.Children[i], path, proofs)
 		if err != nil {
@@ -39,7 +40,7 @@ func (t *Trie) getProof(curr Node, path []byte, proofs *[][]byte) (Node, error) 
 		return n, nil
 	case *ExtensionNode:
 		if bytes.HasPrefix(path, n.key) {
-			*proofs = append(*proofs, copySlice(n.Bytes()))
+			*proofs = append(*proofs, slice.Copy(n.Bytes()))
 			r, err := t.getProof(n.next, path[len(n.key):], proofs)
 			if err != nil {
 				return nil, err

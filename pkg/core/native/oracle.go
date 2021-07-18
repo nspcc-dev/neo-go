@@ -27,6 +27,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/util/slice"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
@@ -135,9 +136,7 @@ func newOracle() *Oracle {
 
 // GetOracleResponseScript returns script for transaction with oracle response.
 func (o *Oracle) GetOracleResponseScript() []byte {
-	b := make([]byte, len(o.oracleScript))
-	copy(b, o.oracleScript)
-	return b
+	return slice.Copy(o.oracleScript)
 }
 
 // OnPersist implements Contract interface.

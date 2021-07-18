@@ -15,6 +15,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/util/slice"
 )
 
 const (
@@ -188,9 +189,7 @@ func convertPrimitive(item Item, typ Type) (Item, error) {
 			return nil, err
 		}
 		if typ == BufferT {
-			newb := make([]byte, len(b))
-			copy(newb, b)
-			return NewBuffer(newb), nil
+			return NewBuffer(slice.Copy(b)), nil
 		}
 		// ByteArray can't really be changed, so it's OK to reuse `b`.
 		return NewByteArray(b), nil
@@ -633,9 +632,7 @@ func (i *ByteArray) Equals(s Item) bool {
 
 // Dup implements Item interface.
 func (i *ByteArray) Dup() Item {
-	a := make([]byte, len(i.value))
-	copy(a, i.value)
-	return &ByteArray{a}
+	return &ByteArray{slice.Copy(i.value)}
 }
 
 // Type implements Item interface.
@@ -1110,9 +1107,7 @@ func (i *Buffer) Convert(typ Type) (Item, error) {
 	case BufferT:
 		return i, nil
 	case ByteArrayT:
-		val := make([]byte, len(i.value))
-		copy(val, i.value)
-		return NewByteArray(val), nil
+		return NewByteArray(slice.Copy(i.value)), nil
 	case IntegerT:
 		if len(i.value) > MaxBigIntegerSizeBits/8 {
 			return nil, errTooBigInteger
@@ -1173,13 +1168,9 @@ func deepCopy(item Item, seen map[Item]Item) Item {
 		}
 		return NewBigInteger(bi)
 	case *ByteArray:
-		val := make([]byte, len(it.value))
-		copy(val, it.value)
-		return NewByteArray(val)
+		return NewByteArray(slice.Copy(it.value))
 	case *Buffer:
-		val := make([]byte, len(it.value))
-		copy(val, it.value)
-		return NewBuffer(val)
+		return NewBuffer(slice.Copy(it.value))
 	case *Bool:
 		return NewBool(it.value)
 	case *Pointer:

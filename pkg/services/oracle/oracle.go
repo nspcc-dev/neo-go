@@ -14,6 +14,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/util/slice"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"go.uber.org/zap"
 )
@@ -211,11 +212,8 @@ func (o *Oracle) Run() {
 
 // UpdateNativeContract updates native oracle contract info for tx verification.
 func (o *Oracle) UpdateNativeContract(script, resp []byte, h util.Uint160, verifyOffset int) {
-	o.oracleScript = make([]byte, len(script))
-	copy(o.oracleScript, script)
-
-	o.oracleResponse = make([]byte, len(resp))
-	copy(o.oracleResponse, resp)
+	o.oracleScript = slice.Copy(script)
+	o.oracleResponse = slice.Copy(resp)
 
 	o.oracleHash = h
 	o.verifyOffset = verifyOffset

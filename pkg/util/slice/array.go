@@ -21,3 +21,10 @@ func reverse(dst []byte, src []byte) {
 		dst[i], dst[j] = src[j], src[i]
 	}
 }
+
+// Copy copies the byte slice into new slice (make/copy).
+func Copy(b []byte) []byte {
+	d := make([]byte, len(b))
+	copy(d, b)
+	return d
+}

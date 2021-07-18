@@ -3,6 +3,8 @@ package storage
 import (
 	"strings"
 	"sync"
+
+	"github.com/nspcc-dev/neo-go/pkg/util/slice"
 )
 
 // MemoryStore is an in-memory implementation of a Store, mainly
@@ -57,8 +59,7 @@ func (s *MemoryStore) put(key string, value []byte) {
 // Put implements the Store interface. Never returns an error.
 func (s *MemoryStore) Put(key, value []byte) error {
 	newKey := string(key)
-	vcopy := make([]byte, len(value))
-	copy(vcopy, value)
+	vcopy := slice.Copy(value)
 	s.mut.Lock()
 	s.put(newKey, vcopy)
 	s.mut.Unlock()

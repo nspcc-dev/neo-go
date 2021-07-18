@@ -30,8 +30,8 @@ var testCases = []struct {
 
 func TestCopyReverse(t *testing.T) {
 	for _, tc := range testCases {
-		arg := make([]byte, len(tc.arr))
-		copy(arg, tc.arr)
+		arg := Copy(tc.arr)
+		require.Equal(t, tc.arr, arg)
 
 		have := CopyReverse(arg)
 		require.Equal(t, tc.rev, have)
@@ -44,5 +44,8 @@ func TestCopyReverse(t *testing.T) {
 
 		Reverse(arg)
 		require.Equal(t, tc.rev, arg)
+		if len(tc.arr) > 1 {
+			require.NotEqual(t, tc.arr, arg)
+		}
 	}
 }

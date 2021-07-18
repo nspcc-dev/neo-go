@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/util/slice"
 	"github.com/stretchr/testify/require"
 )
 
@@ -35,32 +36,27 @@ func TestParseMultisigContract(t *testing.T) {
 			testParseMultisigContract(t, s, 1, pub)
 		})
 		t.Run("bad, no check multisig", func(t *testing.T) {
-			sBad := make([]byte, len(s))
-			copy(sBad, s)
+			sBad := slice.Copy(s)
 			sBad[len(sBad)-1] ^= 0xFF
 			testParseMultisigContract(t, sBad, 0)
 		})
 		t.Run("bad, invalid number of keys", func(t *testing.T) {
-			sBad := make([]byte, len(s))
-			copy(sBad, s)
+			sBad := slice.Copy(s)
 			sBad[len(sBad)-2] = opPush1 + 1
 			testParseMultisigContract(t, sBad, 0)
 		})
 		t.Run("bad, invalid first instruction", func(t *testing.T) {
-			sBad := make([]byte, len(s))
-			copy(sBad, s)
+			sBad := slice.Copy(s)
 			sBad[0] = 0xFF
 			testParseMultisigContract(t, sBad, 0)
 		})
 		t.Run("bad, invalid public key", func(t *testing.T) {
-			sBad := make([]byte, len(s))
-			copy(sBad, s)
+			sBad := slice.Copy(s)
 			sBad[2] = 0xFF
 			testParseMultisigContract(t, sBad, 0)
 		})
 		t.Run("bad, many sigs", func(t *testing.T) {
-			sBad := make([]byte, len(s))
-			copy(sBad, s)
+			sBad := slice.Copy(s)
 			sBad[0] = opPush1 + 1
 			testParseMultisigContract(t, sBad, 0)
 		})

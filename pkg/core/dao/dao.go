@@ -15,6 +15,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/util/slice"
 )
 
 // HasTransaction errors.
@@ -317,11 +318,9 @@ func (dao *Simple) GetStorageItemsWithPrefix(id int32, prefix []byte) (map[strin
 	saveToMap := func(k, v []byte) {
 		// Cut prefix and hash.
 		// Must copy here, #1468.
-		key := make([]byte, len(k))
-		copy(key, k)
-		si := make(state.StorageItem, len(v))
-		copy(si, v)
-		siMap[string(key)] = si
+		key := slice.Copy(k)
+		val := slice.Copy(v)
+		siMap[string(key)] = state.StorageItem(val)
 	}
 	dao.Seek(id, prefix, saveToMap)
 	return siMap, nil

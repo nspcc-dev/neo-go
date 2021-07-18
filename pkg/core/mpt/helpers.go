@@ -31,13 +31,6 @@ func lcpMany(kv []keyValue) []byte {
 	return p
 }
 
-// copySlice is a helper for copying slice if needed.
-func copySlice(a []byte) []byte {
-	b := make([]byte, len(a))
-	copy(b, a)
-	return b
-}
-
 // toNibbles mangles path by splitting every byte into 2 containing low- and high- 4-byte part.
 func toNibbles(path []byte) []byte {
 	result := make([]byte, len(path)*2)

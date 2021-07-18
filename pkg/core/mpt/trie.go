@@ -9,6 +9,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/util/slice"
 )
 
 // Trie is an MPT trie storing all key-value pairs.
@@ -64,7 +65,7 @@ func (t *Trie) getWithPath(curr Node, path []byte) (Node, []byte, error) {
 	switch n := curr.(type) {
 	case *LeafNode:
 		if len(path) == 0 {
-			return curr, copySlice(n.value), nil
+			return curr, slice.Copy(n.value), nil
 		}
 	case *BranchNode:
 		i, path := splitPath(path)
@@ -179,7 +180,7 @@ func (t *Trie) putIntoExtension(curr *ExtensionNode, path []byte, val Node) (Nod
 
 	t.addRef(b.Hash(), b.bytes)
 	if lp > 0 {
-		e := NewExtensionNode(copySlice(pref), b)
+		e := NewExtensionNode(slice.Copy(pref), b)
 		t.addRef(e.Hash(), e.bytes)
 		return e, nil
 	}
