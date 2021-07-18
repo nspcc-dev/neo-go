@@ -7,8 +7,17 @@ package slice
 // original.
 func CopyReverse(b []byte) []byte {
 	dest := make([]byte, len(b))
-	for i, j := 0, len(b)-1; i <= j; i, j = i+1, j-1 {
-		dest[i], dest[j] = b[j], b[i]
-	}
+	reverse(dest, b)
 	return dest
+}
+
+// Reverse does in-place reversing of byte slice.
+func Reverse(b []byte) {
+	reverse(b, b)
+}
+
+func reverse(dst []byte, src []byte) {
+	for i, j := 0, len(src)-1; i <= j; i, j = i+1, j-1 {
+		dst[i], dst[j] = src[j], src[i]
+	}
 }

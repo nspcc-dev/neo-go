@@ -41,5 +41,8 @@ func TestCopyReverse(t *testing.T) {
 			have[i] = ^have[i]
 		}
 		require.Equal(t, tc.arr, arg)
+
+		Reverse(arg)
+		require.Equal(t, tc.rev, arg)
 	}
 }
