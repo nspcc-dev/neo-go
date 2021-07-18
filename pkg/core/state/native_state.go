@@ -10,21 +10,21 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
-// NEP17BalanceState represents balance state of a NEP17-token.
-type NEP17BalanceState struct {
+// NEP17Balance represents balance state of a NEP17-token.
+type NEP17Balance struct {
 	Balance big.Int
 }
 
-// NEOBalanceState represents balance state of a NEO-token.
-type NEOBalanceState struct {
-	NEP17BalanceState
+// NEOBalance represents balance state of a NEO-token.
+type NEOBalance struct {
+	NEP17Balance
 	BalanceHeight uint32
 	VoteTo        *keys.PublicKey
 }
 
-// NEP17BalanceStateFromBytes converts serialized NEP17BalanceState to structure.
-func NEP17BalanceStateFromBytes(b []byte) (*NEP17BalanceState, error) {
-	balance := new(NEP17BalanceState)
+// NEP17BalanceFromBytes converts serialized NEP17Balance to structure.
+func NEP17BalanceFromBytes(b []byte) (*NEP17Balance, error) {
+	balance := new(NEP17Balance)
 	err := balanceFromBytes(b, balance)
 	if err != nil {
 		return nil, err
@@ -32,8 +32,8 @@ func NEP17BalanceStateFromBytes(b []byte) (*NEP17BalanceState, error) {
 	return balance, nil
 }
 
-// Bytes returns serialized NEP17BalanceState.
-func (s *NEP17BalanceState) Bytes() []byte {
+// Bytes returns serialized NEP17Balance.
+func (s *NEP17Balance) Bytes() []byte {
 	return balanceToBytes(s)
 }
 
@@ -53,12 +53,12 @@ func balanceToBytes(item stackitem.Convertible) []byte {
 }
 
 // ToStackItem implements stackitem.Convertible. It never returns an error.
-func (s *NEP17BalanceState) ToStackItem() (stackitem.Item, error) {
+func (s *NEP17Balance) ToStackItem() (stackitem.Item, error) {
 	return stackitem.NewStruct([]stackitem.Item{stackitem.NewBigInteger(&s.Balance)}), nil
 }
 
 // FromStackItem implements stackitem.Convertible.
-func (s *NEP17BalanceState) FromStackItem(item stackitem.Item) error {
+func (s *NEP17Balance) FromStackItem(item stackitem.Item) error {
 	items, ok := item.Value().([]stackitem.Item)
 	if !ok {
 		return errors.New("not a struct")
@@ -74,9 +74,9 @@ func (s *NEP17BalanceState) FromStackItem(item stackitem.Item) error {
 	return nil
 }
 
-// NEOBalanceStateFromBytes converts serialized NEOBalanceState to structure.
-func NEOBalanceStateFromBytes(b []byte) (*NEOBalanceState, error) {
-	balance := new(NEOBalanceState)
+// NEOBalanceFromBytes converts serialized NEOBalance to structure.
+func NEOBalanceFromBytes(b []byte) (*NEOBalance, error) {
+	balance := new(NEOBalance)
 	err := balanceFromBytes(b, balance)
 	if err != nil {
 		return nil, err
@@ -84,14 +84,14 @@ func NEOBalanceStateFromBytes(b []byte) (*NEOBalanceState, error) {
 	return balance, nil
 }
 
-// Bytes returns serialized NEOBalanceState.
-func (s *NEOBalanceState) Bytes() []byte {
+// Bytes returns serialized NEOBalance.
+func (s *NEOBalance) Bytes() []byte {
 	return balanceToBytes(s)
 }
 
 // ToStackItem implements stackitem.Convertible interface. It never returns an error.
-func (s *NEOBalanceState) ToStackItem() (stackitem.Item, error) {
-	resItem, _ := s.NEP17BalanceState.ToStackItem()
+func (s *NEOBalance) ToStackItem() (stackitem.Item, error) {
+	resItem, _ := s.NEP17Balance.ToStackItem()
 	result := resItem.(*stackitem.Struct)
 	result.Append(stackitem.NewBigInteger(big.NewInt(int64(s.BalanceHeight))))
 	if s.VoteTo != nil {
@@ -102,8 +102,8 @@ func (s *NEOBalanceState) ToStackItem() (stackitem.Item, error) {
 	return result, nil
 }
 
-// FromStackItem converts stackitem.Item to NEOBalanceState.
-func (s *NEOBalanceState) FromStackItem(item stackitem.Item) error {
+// FromStackItem converts stackitem.Item to NEOBalance.
+func (s *NEOBalance) FromStackItem(item stackitem.Item) error {
 	structItem, ok := item.Value().([]stackitem.Item)
 	if !ok || len(structItem) < 3 {
 		return errors.New("invalid stackitem length")

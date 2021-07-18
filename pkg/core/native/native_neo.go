@@ -392,7 +392,7 @@ func (n *NEO) getGASPerVote(d dao.DAO, key []byte, index ...uint32) []big.Int {
 }
 
 func (n *NEO) increaseBalance(ic *interop.Context, h util.Uint160, si *state.StorageItem, amount *big.Int) error {
-	acc, err := state.NEOBalanceStateFromBytes(*si)
+	acc, err := state.NEOBalanceFromBytes(*si)
 	if err != nil {
 		return err
 	}
@@ -424,14 +424,14 @@ func (n *NEO) increaseBalance(ic *interop.Context, h util.Uint160, si *state.Sto
 }
 
 func (n *NEO) balanceFromBytes(si *state.StorageItem) (*big.Int, error) {
-	acc, err := state.NEOBalanceStateFromBytes(*si)
+	acc, err := state.NEOBalanceFromBytes(*si)
 	if err != nil {
 		return nil, err
 	}
 	return &acc.Balance, err
 }
 
-func (n *NEO) distributeGas(ic *interop.Context, h util.Uint160, acc *state.NEOBalanceState) error {
+func (n *NEO) distributeGas(ic *interop.Context, h util.Uint160, acc *state.NEOBalance) error {
 	if ic.Block == nil || ic.Block.Index == 0 {
 		return nil
 	}
@@ -609,7 +609,7 @@ func (n *NEO) CalculateBonus(d dao.DAO, acc util.Uint160, end uint32) (*big.Int,
 	if si == nil {
 		return nil, storage.ErrKeyNotFound
 	}
-	st, err := state.NEOBalanceStateFromBytes(si)
+	st, err := state.NEOBalanceFromBytes(si)
 	if err != nil {
 		return nil, err
 	}
@@ -752,7 +752,7 @@ func (n *NEO) VoteInternal(ic *interop.Context, h util.Uint160, pub *keys.Public
 	if si == nil {
 		return errors.New("invalid account")
 	}
-	acc, err := state.NEOBalanceStateFromBytes(si)
+	acc, err := state.NEOBalanceFromBytes(si)
 	if err != nil {
 		return err
 	}
@@ -802,7 +802,7 @@ func (n *NEO) VoteInternal(ic *interop.Context, h util.Uint160, pub *keys.Public
 
 // ModifyAccountVotes modifies votes of the specified account by value (can be negative).
 // typ specifies if this modify is occurring during transfer or vote (with old or new validator).
-func (n *NEO) ModifyAccountVotes(acc *state.NEOBalanceState, d dao.DAO, value *big.Int, isNewVote bool) error {
+func (n *NEO) ModifyAccountVotes(acc *state.NEOBalance, d dao.DAO, value *big.Int, isNewVote bool) error {
 	n.votesChanged.Store(true)
 	if acc.VoteTo != nil {
 		key := makeValidatorKey(acc.VoteTo)
