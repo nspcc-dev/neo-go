@@ -316,9 +316,14 @@ func (p *Param) UnmarshalJSON(data []byte) error {
 				}
 			case *signerWithWitnessAux:
 				aux := *val
+				accParam := Param{StringT, aux.Account}
+				acc, err := accParam.GetUint160FromAddressOrHex()
+				if err != nil {
+					return err
+				}
 				p.Value = SignerWithWitness{
 					Signer: transaction.Signer{
-						Account:          aux.Account,
+						Account:          acc,
 						Scopes:           aux.Scopes,
 						AllowedContracts: aux.AllowedContracts,
 						AllowedGroups:    aux.AllowedGroups,
@@ -341,7 +346,7 @@ func (p *Param) UnmarshalJSON(data []byte) error {
 // signerWithWitnessAux is an auxiluary struct for JSON marshalling. We need it because of
 // DisallowUnknownFields JSON marshaller setting.
 type signerWithWitnessAux struct {
-	Account            util.Uint160             `json:"account"`
+	Account            string                   `json:"account"`
 	Scopes             transaction.WitnessScope `json:"scopes"`
 	AllowedContracts   []util.Uint160           `json:"allowedcontracts,omitempty"`
 	AllowedGroups      []*keys.PublicKey        `json:"allowedgroups,omitempty"`
@@ -352,7 +357,7 @@ type signerWithWitnessAux struct {
 // MarshalJSON implements json.Unmarshaler interface.
 func (s *SignerWithWitness) MarshalJSON() ([]byte, error) {
 	signer := &signerWithWitnessAux{
-		Account:            s.Account,
+		Account:            s.Account.StringLE(),
 		Scopes:             s.Scopes,
 		AllowedContracts:   s.AllowedContracts,
 		AllowedGroups:      s.AllowedGroups,

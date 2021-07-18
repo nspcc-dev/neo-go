@@ -25,11 +25,14 @@ func TestParam_UnmarshalJSON(t *testing.T) {
                  {"contract": "f84d6a337fbc3d3a201d41da99e86b479e7a2554", "name":"my_pretty_notification"},
                  {"state": "HALT"},
                  {"account": "0xcadb3dc2faa3ef14a13b619c9a43124755aa2569"},
+                 {"account": "NYxb4fSZVKAz8YsgaPK2WkT3KcAE9b3Vag", "scopes": "Global"},
                  [{"account": "0xcadb3dc2faa3ef14a13b619c9a43124755aa2569", "scopes": "Global"}]]`
 	contr, err := util.Uint160DecodeStringLE("f84d6a337fbc3d3a201d41da99e86b479e7a2554")
 	require.NoError(t, err)
 	name := "my_pretty_notification"
 	accountHash, err := util.Uint160DecodeStringLE("cadb3dc2faa3ef14a13b619c9a43124755aa2569")
+	require.NoError(t, err)
+	addrHash, err := address.StringToUint160("NYxb4fSZVKAz8YsgaPK2WkT3KcAE9b3Vag")
 	require.NoError(t, err)
 	expected := Params{
 		{
@@ -113,6 +116,15 @@ func TestParam_UnmarshalJSON(t *testing.T) {
 			},
 		},
 		{
+			Type: SignerWithWitnessT,
+			Value: SignerWithWitness{
+				Signer: transaction.Signer{
+					Account: addrHash,
+					Scopes:  transaction.Global,
+				},
+			},
+		},
+		{
 			Type: ArrayT,
 			Value: []Param{
 				{
@@ -133,6 +145,8 @@ func TestParam_UnmarshalJSON(t *testing.T) {
 	require.Equal(t, expected, ps)
 
 	msg = `[{"2": 3}]`
+	require.Error(t, json.Unmarshal([]byte(msg), &ps))
+	msg = `[{"account": "notanaccount", "scopes": "Global"}]`
 	require.Error(t, json.Unmarshal([]byte(msg), &ps))
 }
 
