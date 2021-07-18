@@ -5,7 +5,7 @@ import (
 	"math/big"
 	"math/bits"
 
-	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/util/slice"
 )
 
 const (
@@ -17,7 +17,7 @@ const (
 
 // FromBytesUnsigned converts data in little-endian format to an unsigned integer.
 func FromBytesUnsigned(data []byte) *big.Int {
-	bs := util.ArrayReverse(data)
+	bs := slice.CopyReverse(data)
 	return new(big.Int).SetBytes(bs)
 }
 

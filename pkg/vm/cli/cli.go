@@ -21,6 +21,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/util/slice"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"gopkg.in/abiosoft/ishell.v2"
@@ -565,7 +566,7 @@ func Parse(args []string) (string, error) {
 		}
 		buf.WriteString(fmt.Sprintf("Hex to String\t%s\n", fmt.Sprintf("%q", string(rawStr))))
 		buf.WriteString(fmt.Sprintf("Hex to Integer\t%s\n", bigint.FromBytes(rawStr)))
-		buf.WriteString(fmt.Sprintf("Swap Endianness\t%s\n", hex.EncodeToString(util.ArrayReverse(rawStr))))
+		buf.WriteString(fmt.Sprintf("Swap Endianness\t%s\n", hex.EncodeToString(slice.CopyReverse(rawStr))))
 	}
 	if addr, err := address.StringToUint160(arg); err == nil {
 		buf.WriteString(fmt.Sprintf("Address to BE ScriptHash\t%s\n", addr))

@@ -1,4 +1,4 @@
-package util
+package slice
 
 import (
 	"testing"
@@ -28,12 +28,12 @@ var testCases = []struct {
 	},
 }
 
-func TestArrayReverse(t *testing.T) {
+func TestCopyReverse(t *testing.T) {
 	for _, tc := range testCases {
 		arg := make([]byte, len(tc.arr))
 		copy(arg, tc.arr)
 
-		have := ArrayReverse(arg)
+		have := CopyReverse(arg)
 		require.Equal(t, tc.rev, have)
 
 		// test that argument was copied

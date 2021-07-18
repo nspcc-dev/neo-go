@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/util/slice"
 )
 
 // Uint160Size is the size of Uint160 in bytes.
@@ -74,7 +75,7 @@ func (u Uint160) BytesBE() []byte {
 
 // BytesLE returns a little-endian byte representation of u.
 func (u Uint160) BytesLE() []byte {
-	return ArrayReverse(u.BytesBE())
+	return slice.CopyReverse(u.BytesBE())
 }
 
 // String implements the stringer interface.

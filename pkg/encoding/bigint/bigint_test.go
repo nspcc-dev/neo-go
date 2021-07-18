@@ -5,7 +5,7 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/util/slice"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -204,7 +204,7 @@ func TestVeryBigInts(t *testing.T) {
 		num, ok := new(big.Int).SetString(tc.numStr, 10)
 		assert.True(t, ok)
 
-		result := FromBytes(util.ArrayReverse(tc.buf))
+		result := FromBytes(slice.CopyReverse(tc.buf))
 		assert.Equal(t, num, result, "error while converting %s from bytes", tc.numStr)
 	}
 }
