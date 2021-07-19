@@ -918,7 +918,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 	case opcode.POW:
 		exp := v.estack.Pop().BigInt()
 		a := v.estack.Pop().BigInt()
-		if ei := exp.Int64(); !exp.IsInt64() || ei > math.MaxInt32 || ei < 0 {
+		if ei := exp.Uint64(); !exp.IsUint64() || ei > maxSHLArg {
 			panic("invalid exponent")
 		}
 		v.estack.PushVal(new(big.Int).Exp(a, exp, nil))
@@ -1027,47 +1027,37 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 	case opcode.NEWARRAY0:
 		v.estack.PushVal(stackitem.NewArray([]stackitem.Item{}))
 
-	case opcode.NEWARRAY, opcode.NEWARRAYT:
-		item := v.estack.Pop()
-		n := item.BigInt().Int64()
-		if n > stackitem.MaxArraySize {
-			panic("too long array")
+	case opcode.NEWARRAY, opcode.NEWARRAYT, opcode.NEWSTRUCT:
+		n := toInt(v.estack.Pop().BigInt())
+		if n < 0 || n > MaxStackSize {
+			panic("wrong number of elements")
 		}
 		typ := stackitem.AnyT
 		if op == opcode.NEWARRAYT {
 			typ = stackitem.Type(parameter[0])
 		}
 		items := makeArrayOfType(int(n), typ)
-		v.estack.PushVal(stackitem.NewArray(items))
+		var res stackitem.Item
+		if op == opcode.NEWSTRUCT {
+			res = stackitem.NewStruct(items)
+		} else {
+			res = stackitem.NewArray(items)
+		}
+		v.estack.PushVal(res)
 
 	case opcode.NEWSTRUCT0:
 		v.estack.PushVal(stackitem.NewStruct([]stackitem.Item{}))
-
-	case opcode.NEWSTRUCT:
-		item := v.estack.Pop()
-		n := item.BigInt().Int64()
-		if n > stackitem.MaxArraySize {
-			panic("too long struct")
-		}
-		items := makeArrayOfType(int(n), stackitem.AnyT)
-		v.estack.PushVal(stackitem.NewStruct(items))
 
 	case opcode.APPEND:
 		itemElem := v.estack.Pop()
 		arrElem := v.estack.Pop()
 
-		val := cloneIfStruct(itemElem.value, MaxStackSize-v.refs.size)
+		val := cloneIfStruct(itemElem.value)
 
 		switch t := arrElem.value.(type) {
 		case *stackitem.Array:
-			if t.Len() >= stackitem.MaxArraySize {
-				panic("too long array")
-			}
 			t.Append(val)
 		case *stackitem.Struct:
-			if t.Len() >= stackitem.MaxArraySize {
-				panic("too long struct")
-			}
 			t.Append(val)
 		default:
 			panic("APPEND: not of underlying type Array")
@@ -1076,8 +1066,8 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		v.refs.Add(val)
 
 	case opcode.PACK:
-		n := int(v.estack.Pop().BigInt().Int64())
-		if n < 0 || n > v.estack.Len() || n > stackitem.MaxArraySize {
+		n := toInt(v.estack.Pop().BigInt())
+		if n < 0 || n > v.estack.Len() {
 			panic("OPACK: invalid length")
 		}
 
@@ -1148,8 +1138,6 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		case *stackitem.Map:
 			if i := t.Index(key.value); i >= 0 {
 				v.refs.Remove(t.Value().([]stackitem.MapElement)[i].Value)
-			} else if t.Len() >= stackitem.MaxArraySize {
-				panic("too big map")
 			}
 			t.Add(key.value, item)
 			v.refs.Add(item)
@@ -1370,12 +1358,12 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			src := t.Value().([]stackitem.Item)
 			arr = make([]stackitem.Item, len(src))
 			for i := range src {
-				arr[i] = cloneIfStruct(src[i], MaxStackSize-v.refs.size)
+				arr[i] = cloneIfStruct(src[i])
 			}
 		case *stackitem.Map:
 			arr = make([]stackitem.Item, 0, t.Len())
 			for k := range t.Value().([]stackitem.MapElement) {
-				arr = append(arr, cloneIfStruct(t.Value().([]stackitem.MapElement)[k].Value, MaxStackSize-v.refs.size))
+				arr = append(arr, cloneIfStruct(t.Value().([]stackitem.MapElement)[k].Value))
 			}
 		default:
 			panic("not a Map, Array or Struct")
@@ -1741,10 +1729,10 @@ func checkMultisig1(v *VM, curve elliptic.Curve, h []byte, pkeys [][]byte, sig [
 	return false
 }
 
-func cloneIfStruct(item stackitem.Item, limit int) stackitem.Item {
+func cloneIfStruct(item stackitem.Item) stackitem.Item {
 	switch it := item.(type) {
 	case *stackitem.Struct:
-		ret, err := it.Clone(limit)
+		ret, err := it.Clone()
 		if err != nil {
 			panic(err)
 		}

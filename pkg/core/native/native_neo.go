@@ -20,7 +20,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
-	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
@@ -698,7 +697,7 @@ func (n *NEO) RegisterCandidateInternal(ic *interop.Context, pub *keys.PublicKey
 		c = new(candidate).FromBytes(si)
 		c.Registered = true
 	}
-	return ic.DAO.PutStorageItem(n.ID, key, c.Bytes())
+	return putConvertibleToDAO(n.ID, ic.DAO, key, c)
 }
 
 func (n *NEO) unregisterCandidate(ic *interop.Context, args []stackitem.Item) stackitem.Item {
@@ -727,7 +726,7 @@ func (n *NEO) UnregisterCandidateInternal(ic *interop.Context, pub *keys.PublicK
 	if ok {
 		return err
 	}
-	return ic.DAO.PutStorageItem(n.ID, key, c.Bytes())
+	return putConvertibleToDAO(n.ID, ic.DAO, key, c)
 }
 
 func (n *NEO) vote(ic *interop.Context, args []stackitem.Item) stackitem.Item {
@@ -820,7 +819,7 @@ func (n *NEO) ModifyAccountVotes(acc *state.NEOBalanceState, d dao.DAO, value *b
 			}
 		}
 		n.validators.Store(keys.PublicKeys(nil))
-		return d.PutStorageItem(n.ID, key, cd.Bytes())
+		return putConvertibleToDAO(n.ID, d, key, cd)
 	}
 	return nil
 }
@@ -903,10 +902,9 @@ func (n *NEO) getAccountState(ic *interop.Context, args []stackitem.Item) stacki
 		return stackitem.Null{}
 	}
 
-	r := io.NewBinReaderFromBuf(si)
-	item := stackitem.DecodeBinary(r)
-	if r.Err != nil {
-		panic(r.Err) // no errors are expected but we better be sure
+	item, err := stackitem.Deserialize(si)
+	if err != nil {
+		panic(err) // no errors are expected but we better be sure
 	}
 	return item
 }

@@ -6,12 +6,11 @@ import (
 
 	"github.com/nspcc-dev/neo-go/internal/random"
 	"github.com/nspcc-dev/neo-go/internal/testserdes"
-	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/stretchr/testify/require"
 )
 
-func TestOracleRequest_EncodeBinary(t *testing.T) {
+func TestOracleRequestToFromSI(t *testing.T) {
 	t.Run("Valid", func(t *testing.T) {
 		r := &OracleRequest{
 			OriginalTxID:     random.Uint256(),
@@ -21,25 +20,19 @@ func TestOracleRequest_EncodeBinary(t *testing.T) {
 			CallbackMethod:   "method",
 			UserData:         []byte{1, 2, 3},
 		}
-		testserdes.EncodeDecodeBinary(t, r, new(OracleRequest))
+		testserdes.ToFromStackItem(t, r, new(OracleRequest))
 
 		t.Run("WithFilter", func(t *testing.T) {
 			s := "filter"
 			r.Filter = &s
-			testserdes.EncodeDecodeBinary(t, r, new(OracleRequest))
+			testserdes.ToFromStackItem(t, r, new(OracleRequest))
 		})
 	})
 	t.Run("Invalid", func(t *testing.T) {
-		w := io.NewBufBinWriter()
+		var res = new(OracleRequest)
 		t.Run("NotArray", func(t *testing.T) {
-			w.Reset()
 			it := stackitem.NewByteArray([]byte{})
-			stackitem.EncodeBinary(it, w.BinWriter)
-			require.Error(t, testserdes.DecodeBinary(w.Bytes(), new(OracleRequest)))
-		})
-		t.Run("NotStackItem", func(t *testing.T) {
-			w.Reset()
-			require.Error(t, testserdes.DecodeBinary([]byte{0x77}, new(OracleRequest)))
+			require.Error(t, res.FromStackItem(it))
 		})
 
 		items := []stackitem.Item{
@@ -54,12 +47,10 @@ func TestOracleRequest_EncodeBinary(t *testing.T) {
 		arrItem := stackitem.NewArray(items)
 		runInvalid := func(i int, elem stackitem.Item) func(t *testing.T) {
 			return func(t *testing.T) {
-				w.Reset()
 				before := items[i]
 				items[i] = elem
-				stackitem.EncodeBinary(arrItem, w.BinWriter)
+				require.Error(t, res.FromStackItem(arrItem))
 				items[i] = before
-				require.Error(t, testserdes.DecodeBinary(w.Bytes(), new(OracleRequest)))
 			}
 		}
 		t.Run("TxID", func(t *testing.T) {

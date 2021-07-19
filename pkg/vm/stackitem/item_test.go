@@ -172,6 +172,11 @@ var equalsTestCases = map[string][]struct {
 			item2:  NewStruct([]Item{NewBigInteger(big.NewInt(1))}),
 			result: true,
 		},
+		{
+			item1:  NewStruct([]Item{NewBigInteger(big.NewInt(1)), NewStruct([]Item{})}),
+			item2:  NewStruct([]Item{NewBigInteger(big.NewInt(1)), NewStruct([]Item{})}),
+			result: true,
+		},
 	},
 	"bigint": {
 		{
@@ -381,6 +386,40 @@ func TestEquals(t *testing.T) {
 	}
 }
 
+func TestEqualsDeepStructure(t *testing.T) {
+	const perStruct = 4
+	var items = []Item{}
+	var num int
+	for i := 0; i < perStruct; i++ {
+		items = append(items, Make(0))
+		num++
+	}
+	var layerUp = func(sa *Struct, num int) (*Struct, int) {
+		items := []Item{}
+		for i := 0; i < perStruct; i++ {
+			clon, err := sa.Clone()
+			require.NoError(t, err)
+			items = append(items, clon)
+		}
+		num *= perStruct
+		num++
+		return NewStruct(items), num
+	}
+	var sa = NewStruct(items)
+	for i := 0; i < 4; i++ {
+		sa, num = layerUp(sa, num)
+	}
+	require.Less(t, num, MaxComparableNumOfItems)
+	sb, err := sa.Clone()
+	require.NoError(t, err)
+	require.True(t, sa.Equals(sb))
+	sa, num = layerUp(sa, num)
+	sb, num = layerUp(sb, num)
+
+	require.Less(t, MaxComparableNumOfItems, num)
+	require.Panics(t, func() { sa.Equals(sb) })
+}
+
 var marshalJSONTestCases = []struct {
 	input  Item
 	result []byte
@@ -468,9 +507,12 @@ func TestNewVeryBigInteger(t *testing.T) {
 func TestStructClone(t *testing.T) {
 	st0 := Struct{}
 	st := Struct{value: []Item{&st0}}
-	_, err := st.Clone(1)
-	require.NoError(t, err)
-	_, err = st.Clone(0)
+	for i := 0; i < MaxClonableNumOfItems-1; i++ {
+		nst, err := st.Clone()
+		require.NoError(t, err)
+		st = Struct{value: []Item{nst}}
+	}
+	_, err := st.Clone()
 	require.Error(t, err)
 }
 

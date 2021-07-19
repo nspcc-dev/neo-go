@@ -12,6 +12,9 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
+// MaxMultisigKeys is the maximum number of used keys for correct multisig contract.
+const MaxMultisigKeys = 1024
+
 var (
 	verifyInteropID   = interopnames.ToID([]byte(interopnames.SystemCryptoCheckSig))
 	multisigInteropID = interopnames.ToID([]byte(interopnames.SystemCryptoCheckMultisig))
@@ -25,14 +28,14 @@ func getNumOfThingsFromInstr(instr opcode.Opcode, param []byte) (int, bool) {
 		nthings = int(instr-opcode.PUSH1) + 1
 	case instr <= opcode.PUSHINT256:
 		n := bigint.FromBytes(param)
-		if !n.IsInt64() || n.Int64() > stackitem.MaxArraySize {
+		if !n.IsInt64() || n.Sign() < 0 || n.Int64() > MaxMultisigKeys {
 			return 0, false
 		}
 		nthings = int(n.Int64())
 	default:
 		return 0, false
 	}
-	if nthings < 1 || nthings > stackitem.MaxArraySize {
+	if nthings < 1 || nthings > MaxMultisigKeys {
 		return 0, false
 	}
 	return nthings, true
@@ -76,7 +79,7 @@ func ParseMultiSigContract(script []byte) (int, [][]byte, bool) {
 		}
 		pubs = append(pubs, param)
 		nkeys++
-		if nkeys > stackitem.MaxArraySize {
+		if nkeys > MaxMultisigKeys {
 			return nsigs, nil, false
 		}
 	}

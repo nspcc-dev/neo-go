@@ -7,7 +7,6 @@ import (
 	"math/big"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
-	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
@@ -26,99 +25,81 @@ type NEOBalanceState struct {
 // NEP17BalanceStateFromBytes converts serialized NEP17BalanceState to structure.
 func NEP17BalanceStateFromBytes(b []byte) (*NEP17BalanceState, error) {
 	balance := new(NEP17BalanceState)
-	if len(b) == 0 {
-		return balance, nil
-	}
-	r := io.NewBinReaderFromBuf(b)
-	balance.DecodeBinary(r)
-	if r.Err != nil {
-		return nil, r.Err
+	err := balanceFromBytes(b, balance)
+	if err != nil {
+		return nil, err
 	}
 	return balance, nil
 }
 
 // Bytes returns serialized NEP17BalanceState.
 func (s *NEP17BalanceState) Bytes() []byte {
-	w := io.NewBufBinWriter()
-	s.EncodeBinary(w.BinWriter)
-	if w.Err != nil {
-		panic(w.Err)
+	return balanceToBytes(s)
+}
+
+func balanceFromBytes(b []byte, item stackitem.Convertible) error {
+	if len(b) == 0 {
+		return nil
 	}
-	return w.Bytes()
+	return stackitem.DeserializeConvertible(b, item)
 }
 
-func (s *NEP17BalanceState) toStackItem() stackitem.Item {
-	return stackitem.NewStruct([]stackitem.Item{stackitem.NewBigInteger(&s.Balance)})
-}
-
-func (s *NEP17BalanceState) fromStackItem(item stackitem.Item) {
-	s.Balance = *item.(*stackitem.Struct).Value().([]stackitem.Item)[0].Value().(*big.Int)
-}
-
-// EncodeBinary implements io.Serializable interface.
-func (s *NEP17BalanceState) EncodeBinary(w *io.BinWriter) {
-	si := s.toStackItem()
-	stackitem.EncodeBinary(si, w)
-}
-
-// DecodeBinary implements io.Serializable interface.
-func (s *NEP17BalanceState) DecodeBinary(r *io.BinReader) {
-	si := stackitem.DecodeBinary(r)
-	if r.Err != nil {
-		return
+func balanceToBytes(item stackitem.Convertible) []byte {
+	data, err := stackitem.SerializeConvertible(item)
+	if err != nil {
+		panic(err)
 	}
-	s.fromStackItem(si)
+	return data
+}
+
+// ToStackItem implements stackitem.Convertible. It never returns an error.
+func (s *NEP17BalanceState) ToStackItem() (stackitem.Item, error) {
+	return stackitem.NewStruct([]stackitem.Item{stackitem.NewBigInteger(&s.Balance)}), nil
+}
+
+// FromStackItem implements stackitem.Convertible.
+func (s *NEP17BalanceState) FromStackItem(item stackitem.Item) error {
+	items, ok := item.Value().([]stackitem.Item)
+	if !ok {
+		return errors.New("not a struct")
+	}
+	if len(items) < 1 {
+		return errors.New("no balance value")
+	}
+	balance, err := items[0].TryInteger()
+	if err != nil {
+		return fmt.Errorf("invalid balance: %w", err)
+	}
+	s.Balance = *balance
+	return nil
 }
 
 // NEOBalanceStateFromBytes converts serialized NEOBalanceState to structure.
 func NEOBalanceStateFromBytes(b []byte) (*NEOBalanceState, error) {
 	balance := new(NEOBalanceState)
-	if len(b) == 0 {
-		return balance, nil
-	}
-	r := io.NewBinReaderFromBuf(b)
-	balance.DecodeBinary(r)
-
-	if r.Err != nil {
-		return nil, r.Err
+	err := balanceFromBytes(b, balance)
+	if err != nil {
+		return nil, err
 	}
 	return balance, nil
 }
 
 // Bytes returns serialized NEOBalanceState.
 func (s *NEOBalanceState) Bytes() []byte {
-	w := io.NewBufBinWriter()
-	s.EncodeBinary(w.BinWriter)
-	if w.Err != nil {
-		panic(w.Err)
-	}
-	return w.Bytes()
+	return balanceToBytes(s)
 }
 
-// EncodeBinary implements io.Serializable interface.
-func (s *NEOBalanceState) EncodeBinary(w *io.BinWriter) {
-	si := s.toStackItem()
-	stackitem.EncodeBinary(si, w)
-}
-
-// DecodeBinary implements io.Serializable interface.
-func (s *NEOBalanceState) DecodeBinary(r *io.BinReader) {
-	si := stackitem.DecodeBinary(r)
-	if r.Err != nil {
-		return
-	}
-	r.Err = s.FromStackItem(si)
-}
-
-func (s *NEOBalanceState) toStackItem() stackitem.Item {
-	result := s.NEP17BalanceState.toStackItem().(*stackitem.Struct)
+// ToStackItem implements stackitem.Convertible interface. It never returns an error.
+func (s *NEOBalanceState) ToStackItem() (stackitem.Item, error) {
+	resItem, _ := s.NEP17BalanceState.ToStackItem()
+	result := resItem.(*stackitem.Struct)
 	result.Append(stackitem.NewBigInteger(big.NewInt(int64(s.BalanceHeight))))
 	if s.VoteTo != nil {
 		result.Append(stackitem.NewByteArray(s.VoteTo.Bytes()))
 	} else {
 		result.Append(stackitem.Null{})
 	}
-	return result
+	return result, nil
 }
 
 // FromStackItem converts stackitem.Item to NEOBalanceState.

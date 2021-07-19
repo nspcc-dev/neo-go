@@ -39,6 +39,7 @@ func testSerialize(t *testing.T, expectedErr error, item Item) {
 func TestSerialize(t *testing.T) {
 	bigByteArray := NewByteArray(make([]byte, MaxSize/2))
 	smallByteArray := NewByteArray(make([]byte, MaxSize/4))
+	zeroByteArray := NewByteArray(make([]byte, 0))
 	testArray := func(t *testing.T, newItem func([]Item) Item) {
 		arr := newItem([]Item{bigByteArray})
 		testSerialize(t, nil, arr)
@@ -50,6 +51,18 @@ func TestSerialize(t *testing.T) {
 
 		arr.Value().([]Item)[0] = arr
 		testSerialize(t, ErrRecursive, arr)
+
+		items := make([]Item, 0, MaxDeserialized-1)
+		for i := 0; i < MaxDeserialized-1; i++ {
+			items = append(items, zeroByteArray)
+		}
+		testSerialize(t, nil, newItem(items))
+
+		items = append(items, zeroByteArray)
+		data, err := Serialize(newItem(items))
+		require.NoError(t, err)
+		_, err = Deserialize(data)
+		require.True(t, errors.Is(err, ErrTooBig), err)
 	}
 	t.Run("array", func(t *testing.T) {
 		testArray(t, func(items []Item) Item { return NewArray(items) })
@@ -126,7 +139,57 @@ func TestSerialize(t *testing.T) {
 		m.Add(Make(0), NewByteArray(make([]byte, MaxSize-MaxKeySize)))
 		m.Add(NewByteArray(make([]byte, MaxKeySize)), Make(1))
 		testSerialize(t, ErrTooBig, m)
+
+		m = NewMap()
+		for i := 0; i < MaxDeserialized/2-1; i++ {
+			m.Add(Make(i), zeroByteArray)
+		}
+		testSerialize(t, nil, m)
+
+		for i := 0; i <= MaxDeserialized; i++ {
+			m.Add(Make(i), zeroByteArray)
+		}
+		data, err := Serialize(m)
+		require.NoError(t, err)
+		_, err = Deserialize(data)
+		require.True(t, errors.Is(err, ErrTooBig), err)
 	})
+}
+
+func TestEmptyDeserialization(t *testing.T) {
+	empty := []byte{}
+	_, err := Deserialize(empty)
+	require.Error(t, err)
+}
+
+func TestMapDeserializationError(t *testing.T) {
+	m := NewMap()
+	m.Add(Make(1), Make(1))
+	m.Add(Make(2), nil) // Bad value
+	m.Add(Make(3), Make(3))
+
+	w := io.NewBufBinWriter()
+	EncodeBinaryProtected(m, w.BinWriter)
+	require.NoError(t, w.Err)
+	_, err := Deserialize(w.Bytes())
+	require.True(t, errors.Is(err, ErrInvalidType), err)
+}
+
+func TestDeserializeTooManyElements(t *testing.T) {
+	item := Make(0)
+	for i := 0; i < MaxDeserialized-1; i++ { // 1 for zero inner element.
+		item = Make([]Item{item})
+	}
+	data, err := Serialize(item)
+	require.NoError(t, err)
+	_, err = Deserialize(data)
+	require.NoError(t, err)
+
+	item = Make([]Item{item})
+	data, err = Serialize(item)
+	require.NoError(t, err)
+	_, err = Deserialize(data)
+	require.True(t, errors.Is(err, ErrTooBig), err)
 }
 
 func BenchmarkEncodeBinary(b *testing.B) {

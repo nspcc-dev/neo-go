@@ -1,10 +1,12 @@
 package state
 
 import (
+	"errors"
+	"fmt"
+	"math"
 	"math/big"
 
-	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
-	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
 // Deposit represents GAS deposit from Notary contract.
@@ -13,14 +15,37 @@ type Deposit struct {
 	Till   uint32
 }
 
-// EncodeBinary implements io.Serializable interface.
-func (d *Deposit) EncodeBinary(w *io.BinWriter) {
-	w.WriteVarBytes(bigint.ToBytes(d.Amount))
-	w.WriteU32LE(d.Till)
+// ToStackItem implements stackitem.Convertible interface. It never returns an
+// error.
+func (d *Deposit) ToStackItem() (stackitem.Item, error) {
+	return stackitem.NewStruct([]stackitem.Item{
+		stackitem.NewBigInteger(d.Amount),
+		stackitem.Make(d.Till),
+	}), nil
 }
 
-// DecodeBinary implements io.Serializable interface.
-func (d *Deposit) DecodeBinary(r *io.BinReader) {
-	d.Amount = bigint.FromBytes(r.ReadVarBytes())
-	d.Till = r.ReadU32LE()
+// FromStackItem implements stackitem.Convertible interface.
+func (d *Deposit) FromStackItem(it stackitem.Item) error {
+	items, ok := it.Value().([]stackitem.Item)
+	if !ok {
+		return errors.New("not a struct")
+	}
+	if len(items) != 2 {
+		return errors.New("wrong number of elements")
+	}
+	amount, err := items[0].TryInteger()
+	if err != nil {
+		return fmt.Errorf("invalid amount: %w", err)
+	}
+	till, err := items[1].TryInteger()
+	if err != nil {
+		return fmt.Errorf("invalid till: %w", err)
+	}
+	tiu64 := till.Uint64()
+	if !till.IsUint64() || tiu64 > math.MaxUint32 {
+		return errors.New("wrong till value")
+	}
+	d.Amount = amount
+	d.Till = uint32(tiu64)
+	return nil
 }

@@ -18,7 +18,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
-	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
@@ -272,10 +271,9 @@ func (s *Designate) GetDesignatedByRole(d dao.DAO, r noderoles.Role, index uint3
 		}
 	}
 	if resSi != nil {
-		reader := io.NewBinReaderFromBuf(resSi)
-		ns.DecodeBinary(reader)
-		if reader.Err != nil {
-			return nil, 0, reader.Err
+		err = stackitem.DeserializeConvertible(resSi, &ns)
+		if err != nil {
+			return nil, 0, err
 		}
 	}
 	return keys.PublicKeys(ns), bestIndex, err
@@ -287,7 +285,7 @@ func (s *Designate) designateAsRole(ic *interop.Context, args []stackitem.Item) 
 		panic(ErrInvalidRole)
 	}
 	var ns NodeList
-	if err := ns.fromStackItem(args[1]); err != nil {
+	if err := ns.FromStackItem(args[1]); err != nil {
 		panic(err)
 	}
 
@@ -326,8 +324,9 @@ func (s *Designate) DesignateAsRole(ic *interop.Context, r noderoles.Role, pubs 
 		return ErrAlreadyDesignated
 	}
 	sort.Sort(pubs)
+	nl := NodeList(pubs)
 	s.rolesChangedFlag.Store(true)
-	err := ic.DAO.PutStorageItem(s.ID, key, NodeList(pubs).Bytes())
+	err := putConvertibleToDAO(s.ID, ic.DAO, key, &nl)
 	if err != nil {
 		return err
 	}

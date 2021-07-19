@@ -6,7 +6,6 @@ import (
 	"math/big"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
-	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
@@ -84,21 +83,18 @@ func (k *keysWithVotes) fromStackItem(item stackitem.Item) error {
 
 // Bytes serializes keys with votes slice.
 func (k keysWithVotes) Bytes() []byte {
-	var it = k.toStackItem()
-	var w = io.NewBufBinWriter()
-	stackitem.EncodeBinary(it, w.BinWriter)
-	if w.Err != nil {
-		panic(w.Err)
+	buf, err := stackitem.Serialize(k.toStackItem())
+	if err != nil {
+		panic(err)
 	}
-	return w.Bytes()
+	return buf
 }
 
 // DecodeBytes deserializes keys and votes slice.
 func (k *keysWithVotes) DecodeBytes(data []byte) error {
-	var r = io.NewBinReaderFromBuf(data)
-	var it = stackitem.DecodeBinary(r)
-	if r.Err != nil {
-		return r.Err
+	it, err := stackitem.Deserialize(data)
+	if err != nil {
+		return err
 	}
 	return k.fromStackItem(it)
 }

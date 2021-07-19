@@ -5,7 +5,6 @@ import (
 	"math/big"
 	"unicode/utf8"
 
-	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
@@ -21,28 +20,9 @@ type OracleRequest struct {
 	UserData         []byte
 }
 
-// Bytes return o serizalized to a byte-slice.
-func (o *OracleRequest) Bytes() []byte {
-	w := io.NewBufBinWriter()
-	o.EncodeBinary(w.BinWriter)
-	return w.Bytes()
-}
-
-// EncodeBinary implements io.Serializable.
-func (o *OracleRequest) EncodeBinary(w *io.BinWriter) {
-	stackitem.EncodeBinary(o.toStackItem(), w)
-}
-
-// DecodeBinary implements io.Serializable.
-func (o *OracleRequest) DecodeBinary(r *io.BinReader) {
-	item := stackitem.DecodeBinary(r)
-	if r.Err != nil || item == nil {
-		return
-	}
-	r.Err = o.fromStackItem(item)
-}
-
-func (o *OracleRequest) toStackItem() stackitem.Item {
+// ToStackItem implements stackitem.Convertible interface. It never returns an
+// error.
+func (o *OracleRequest) ToStackItem() (stackitem.Item, error) {
 	filter := stackitem.Item(stackitem.Null{})
 	if o.Filter != nil {
 		filter = stackitem.Make(*o.Filter)
@@ -55,10 +35,11 @@ func (o *OracleRequest) toStackItem() stackitem.Item {
 		stackitem.NewByteArray(o.CallbackContract.BytesBE()),
 		stackitem.Make(o.CallbackMethod),
 		stackitem.NewByteArray(o.UserData),
-	})
+	}), nil
 }
 
-func (o *OracleRequest) fromStackItem(it stackitem.Item) error {
+// FromStackItem implements stackitem.Convertible interface.
+func (o *OracleRequest) FromStackItem(it stackitem.Item) error {
 	arr, ok := it.Value().([]stackitem.Item)
 	if !ok || len(arr) < 7 {
 		return errors.New("not an array of needed length")

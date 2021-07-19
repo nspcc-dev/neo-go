@@ -14,7 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestEncodeDecodeContractState(t *testing.T) {
+func TestContractStateToFromSI(t *testing.T) {
 	script := []byte("testscript")
 
 	h := hash.Hash160(script)
@@ -52,9 +52,9 @@ func TestEncodeDecodeContractState(t *testing.T) {
 	}
 	contract.NEF.Checksum = contract.NEF.CalculateChecksum()
 
-	t.Run("Serializable", func(t *testing.T) {
+	t.Run("Convertible", func(t *testing.T) {
 		contractDecoded := new(Contract)
-		testserdes.EncodeDecodeBinary(t, contract, contractDecoded)
+		testserdes.ToFromStackItem(t, contract, contractDecoded)
 	})
 	t.Run("JSON", func(t *testing.T) {
 		contractDecoded := new(Contract)

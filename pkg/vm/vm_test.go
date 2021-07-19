@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"math"
 	"math/big"
 	"math/rand"
 	"testing"
@@ -719,7 +718,7 @@ func TestPOW(t *testing.T) {
 	t.Run("good, negative, odd", getTestFuncForVM(prog, -8, -2, 3))
 	t.Run("zero", getTestFuncForVM(prog, 1, 3, 0))
 	t.Run("negative exponent", getTestFuncForVM(prog, nil, 3, -1))
-	t.Run("too big exponent", getTestFuncForVM(prog, nil, 1, math.MaxInt32+1))
+	t.Run("too big exponent", getTestFuncForVM(prog, nil, 1, maxSHLArg+1))
 }
 
 func TestSQRT(t *testing.T) {
@@ -1058,7 +1057,7 @@ func TestNEWSTRUCT0(t *testing.T) {
 func TestNEWARRAYArray(t *testing.T) {
 	prog := makeProgram(opcode.NEWARRAY)
 	t.Run("ByteArray", getTestFuncForVM(prog, stackitem.NewArray([]stackitem.Item{}), []byte{}))
-	t.Run("BadSize", getTestFuncForVM(prog, nil, stackitem.MaxArraySize+1))
+	t.Run("BadSize", getTestFuncForVM(prog, nil, MaxStackSize+1))
 	t.Run("Integer", getTestFuncForVM(prog, []stackitem.Item{stackitem.Null{}}, 1))
 }
 
@@ -1109,7 +1108,7 @@ func TestNEWARRAYT(t *testing.T) {
 func TestNEWSTRUCT(t *testing.T) {
 	prog := makeProgram(opcode.NEWSTRUCT)
 	t.Run("ByteArray", getTestFuncForVM(prog, stackitem.NewStruct([]stackitem.Item{}), []byte{}))
-	t.Run("BadSize", getTestFuncForVM(prog, nil, stackitem.MaxArraySize+1))
+	t.Run("BadSize", getTestFuncForVM(prog, nil, MaxStackSize+1))
 	t.Run("Integer", getTestFuncForVM(prog, stackitem.NewStruct([]stackitem.Item{stackitem.Null{}}), 1))
 }
 
@@ -1137,15 +1136,20 @@ func TestAPPENDBad(t *testing.T) {
 func TestAPPENDGoodSizeLimit(t *testing.T) {
 	prog := makeProgram(opcode.NEWARRAY, opcode.DUP, opcode.PUSH0, opcode.APPEND)
 	vm := load(prog)
-	vm.estack.PushVal(stackitem.MaxArraySize - 1)
+	vm.estack.PushVal(MaxStackSize - 3) // 1 for array, 1 for copy, 1 for pushed 0.
 	runVM(t, vm)
 	assert.Equal(t, 1, vm.estack.Len())
-	assert.Equal(t, stackitem.MaxArraySize, len(vm.estack.Pop().Array()))
+	assert.Equal(t, MaxStackSize-2, len(vm.estack.Pop().Array()))
 }
 
 func TestAPPENDBadSizeLimit(t *testing.T) {
 	prog := makeProgram(opcode.NEWARRAY, opcode.DUP, opcode.PUSH0, opcode.APPEND)
-	runWithArgs(t, prog, nil, stackitem.MaxArraySize)
+	runWithArgs(t, prog, nil, MaxStackSize)
+}
+
+func TestAPPENDRefSizeLimit(t *testing.T) {
+	prog := makeProgram(opcode.NEWARRAY0, opcode.DUP, opcode.DUP, opcode.APPEND, opcode.JMP, 0xfd)
+	runWithArgs(t, prog, nil)
 }
 
 func TestPICKITEM(t *testing.T) {
@@ -1206,19 +1210,19 @@ func TestSETITEMMap(t *testing.T) {
 func TestSETITEMBigMapBad(t *testing.T) {
 	prog := makeProgram(opcode.SETITEM)
 	m := stackitem.NewMap()
-	for i := 0; i < stackitem.MaxArraySize; i++ {
+	for i := 0; i < MaxStackSize; i++ {
 		m.Add(stackitem.Make(i), stackitem.Make(i))
 	}
 
-	runWithArgs(t, prog, nil, m, stackitem.MaxArraySize, 0)
+	runWithArgs(t, prog, nil, m, m, MaxStackSize, 0)
 }
 
 // This test checks is SETITEM properly updates reference counter.
-// 1. Create 2 arrays of size MaxArraySize - 3. (MaxStackSize = 2 * MaxArraySize)
+// 1. Create 2 arrays of size MaxStackSize/2 - 3.
 // 2. SETITEM each of them to a map.
 // 3. Replace each of them with a scalar value.
 func TestSETITEMMapStackLimit(t *testing.T) {
-	size := stackitem.MaxArraySize - 3
+	size := MaxStackSize/2 - 3
 	m := stackitem.NewMap()
 	m.Add(stackitem.NewBigInteger(big.NewInt(1)), stackitem.NewArray(makeArrayOfType(size, stackitem.BooleanT)))
 	m.Add(stackitem.NewBigInteger(big.NewInt(2)), stackitem.NewArray(makeArrayOfType(size, stackitem.BooleanT)))
@@ -1238,7 +1242,7 @@ func TestSETITEMBigMapGood(t *testing.T) {
 	vm := load(prog)
 
 	m := stackitem.NewMap()
-	for i := 0; i < stackitem.MaxArraySize; i++ {
+	for i := 0; i < MaxStackSize-3; i++ {
 		m.Add(stackitem.Make(i), stackitem.Make(i))
 	}
 	vm.estack.Push(&Element{value: m})
@@ -1724,16 +1728,6 @@ func TestPACK(t *testing.T) {
 	t.Run("Good0Len", getTestFuncForVM(prog, []stackitem.Item{}, 0))
 }
 
-func TestPACKBigLen(t *testing.T) {
-	prog := makeProgram(opcode.PACK)
-	vm := load(prog)
-	for i := 0; i <= stackitem.MaxArraySize; i++ {
-		vm.estack.PushVal(0)
-	}
-	vm.estack.PushVal(stackitem.MaxArraySize + 1)
-	checkVMFailed(t, vm)
-}
-
 func TestPACKGood(t *testing.T) {
 	prog := makeProgram(opcode.PACK)
 	elements := []int{55, 34, 42}
@@ -1757,7 +1751,7 @@ func TestPACKGood(t *testing.T) {
 
 func TestPACK_UNPACK_MaxSize(t *testing.T) {
 	prog := makeProgram(opcode.PACK, opcode.UNPACK)
-	elements := make([]int, stackitem.MaxArraySize)
+	elements := make([]int, MaxStackSize-2)
 	vm := load(prog)
 	// canary
 	vm.estack.PushVal(1)
@@ -1780,7 +1774,7 @@ func TestPACK_UNPACK_MaxSize(t *testing.T) {
 
 func TestPACK_UNPACK_PACK_MaxSize(t *testing.T) {
 	prog := makeProgram(opcode.PACK, opcode.UNPACK, opcode.PACK)
-	elements := make([]int, stackitem.MaxArraySize)
+	elements := make([]int, MaxStackSize-2)
 	vm := load(prog)
 	// canary
 	vm.estack.PushVal(1)
@@ -2449,6 +2443,14 @@ func TestNestedStructClone(t *testing.T) {
 		vm := load(prog)
 		checkVMFailed(t, vm)
 	}
+}
+
+func TestNestedStructEquals(t *testing.T) {
+	h := "560112c501fe0160589d604a12c0db415824f7509d4a102aec4597" // See neo-project/neo-vm#426.
+	prog, err := hex.DecodeString(h)
+	require.NoError(t, err)
+	vm := load(prog)
+	checkVMFailed(t, vm)
 }
 
 func makeProgram(opcodes ...opcode.Opcode) []byte {

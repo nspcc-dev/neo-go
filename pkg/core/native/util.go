@@ -8,30 +8,26 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
-	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
 var intOne = big.NewInt(1)
 
-func getSerializableFromDAO(id int32, d dao.DAO, key []byte, item io.Serializable) error {
+func getConvertibleFromDAO(id int32, d dao.DAO, key []byte, conv stackitem.Convertible) error {
 	si := d.GetStorageItem(id, key)
 	if si == nil {
 		return storage.ErrKeyNotFound
 	}
-	r := io.NewBinReaderFromBuf(si)
-	item.DecodeBinary(r)
-	return r.Err
+	return stackitem.DeserializeConvertible(si, conv)
 }
 
-func putSerializableToDAO(id int32, d dao.DAO, key []byte, item io.Serializable) error {
-	w := io.NewBufBinWriter()
-	item.EncodeBinary(w.BinWriter)
-	if w.Err != nil {
-		return w.Err
+func putConvertibleToDAO(id int32, d dao.DAO, key []byte, conv stackitem.Convertible) error {
+	data, err := stackitem.SerializeConvertible(conv)
+	if err != nil {
+		return err
 	}
-	return d.PutStorageItem(id, key, w.Bytes())
+	return d.PutStorageItem(id, key, data)
 }
 
 func setIntWithKey(id int32, dao dao.DAO, key []byte, value int64) error {
