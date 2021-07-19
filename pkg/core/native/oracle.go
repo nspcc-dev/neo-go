@@ -329,10 +329,10 @@ func (o *Oracle) request(ic *interop.Context, args []stackitem.Item) stackitem.I
 
 // RequestInternal processes oracle request.
 func (o *Oracle) RequestInternal(ic *interop.Context, url string, filter *string, cb string, userData stackitem.Item, gas *big.Int) error {
-	if len(url) > maxURLLength || (filter != nil && len(*filter) > maxFilterLength) || len(cb) > maxCallbackLength {
+	if len(url) > maxURLLength || (filter != nil && len(*filter) > maxFilterLength) || len(cb) > maxCallbackLength || !gas.IsInt64() {
 		return ErrBigArgument
 	}
-	if gas.Uint64() < MinimumResponseGas {
+	if gas.Int64() < MinimumResponseGas {
 		return ErrLowResponseGas
 	}
 	if strings.HasPrefix(cb, "_") {
