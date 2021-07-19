@@ -46,8 +46,14 @@ func (o *Oracle) runRequestWorker() {
 func (o *Oracle) RemoveRequests(ids []uint64) {
 	o.respMtx.Lock()
 	defer o.respMtx.Unlock()
-	for _, id := range ids {
-		delete(o.responses, id)
+	if !o.running {
+		for _, id := range ids {
+			delete(o.pending, id)
+		}
+	} else {
+		for _, id := range ids {
+			delete(o.responses, id)
+		}
 	}
 }
 
@@ -56,6 +62,16 @@ func (o *Oracle) AddRequests(reqs map[uint64]*state.OracleRequest) {
 	if len(reqs) == 0 {
 		return
 	}
+
+	o.respMtx.Lock()
+	if !o.running {
+		for id, r := range reqs {
+			o.pending[id] = r
+		}
+		o.respMtx.Unlock()
+		return
+	}
+	o.respMtx.Unlock()
 
 	select {
 	case o.requestMap <- reqs:
