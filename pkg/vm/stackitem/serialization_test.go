@@ -52,8 +52,8 @@ func TestSerialize(t *testing.T) {
 		arr.Value().([]Item)[0] = arr
 		testSerialize(t, ErrRecursive, arr)
 
-		items := make([]Item, 0, MaxArraySize)
-		for i := 0; i < MaxArraySize; i++ {
+		items := make([]Item, 0, MaxDeserialized-1)
+		for i := 0; i < MaxDeserialized-1; i++ {
 			items = append(items, zeroByteArray)
 		}
 		testSerialize(t, nil, newItem(items))
@@ -141,12 +141,14 @@ func TestSerialize(t *testing.T) {
 		testSerialize(t, ErrTooBig, m)
 
 		m = NewMap()
-		for i := 0; i < MaxArraySize; i++ {
+		for i := 0; i < MaxDeserialized/2-1; i++ {
 			m.Add(Make(i), zeroByteArray)
 		}
-		// testSerialize(t, nil, m) // It contains too many elements already, so ErrTooBig.
+		testSerialize(t, nil, m)
 
-		m.Add(Make(100500), zeroByteArray)
+		for i := 0; i <= MaxDeserialized; i++ {
+			m.Add(Make(i), zeroByteArray)
+		}
 		data, err := Serialize(m)
 		require.NoError(t, err)
 		_, err = Deserialize(data)

@@ -1027,30 +1027,26 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 	case opcode.NEWARRAY0:
 		v.estack.PushVal(stackitem.NewArray([]stackitem.Item{}))
 
-	case opcode.NEWARRAY, opcode.NEWARRAYT:
-		item := v.estack.Pop()
-		n := item.BigInt().Int64()
-		if n > stackitem.MaxArraySize {
-			panic("too long array")
+	case opcode.NEWARRAY, opcode.NEWARRAYT, opcode.NEWSTRUCT:
+		n := toInt(v.estack.Pop().BigInt())
+		if n < 0 || n > MaxStackSize {
+			panic("wrong number of elements")
 		}
 		typ := stackitem.AnyT
 		if op == opcode.NEWARRAYT {
 			typ = stackitem.Type(parameter[0])
 		}
 		items := makeArrayOfType(int(n), typ)
-		v.estack.PushVal(stackitem.NewArray(items))
+		var res stackitem.Item
+		if op == opcode.NEWSTRUCT {
+			res = stackitem.NewStruct(items)
+		} else {
+			res = stackitem.NewArray(items)
+		}
+		v.estack.PushVal(res)
 
 	case opcode.NEWSTRUCT0:
 		v.estack.PushVal(stackitem.NewStruct([]stackitem.Item{}))
-
-	case opcode.NEWSTRUCT:
-		item := v.estack.Pop()
-		n := item.BigInt().Int64()
-		if n > stackitem.MaxArraySize {
-			panic("too long struct")
-		}
-		items := makeArrayOfType(int(n), stackitem.AnyT)
-		v.estack.PushVal(stackitem.NewStruct(items))
 
 	case opcode.APPEND:
 		itemElem := v.estack.Pop()
@@ -1060,14 +1056,8 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 
 		switch t := arrElem.value.(type) {
 		case *stackitem.Array:
-			if t.Len() >= stackitem.MaxArraySize {
-				panic("too long array")
-			}
 			t.Append(val)
 		case *stackitem.Struct:
-			if t.Len() >= stackitem.MaxArraySize {
-				panic("too long struct")
-			}
 			t.Append(val)
 		default:
 			panic("APPEND: not of underlying type Array")
@@ -1076,8 +1066,8 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		v.refs.Add(val)
 
 	case opcode.PACK:
-		n := int(v.estack.Pop().BigInt().Int64())
-		if n < 0 || n > v.estack.Len() || n > stackitem.MaxArraySize {
+		n := toInt(v.estack.Pop().BigInt())
+		if n < 0 || n > v.estack.Len() {
 			panic("OPACK: invalid length")
 		}
 
@@ -1148,8 +1138,6 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		case *stackitem.Map:
 			if i := t.Index(key.value); i >= 0 {
 				v.refs.Remove(t.Value().([]stackitem.MapElement)[i].Value)
-			} else if t.Len() >= stackitem.MaxArraySize {
-				panic("too big map")
 			}
 			t.Add(key.value, item)
 			v.refs.Add(item)

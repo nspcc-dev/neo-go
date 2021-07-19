@@ -3,8 +3,6 @@ package compiler_test
 import (
 	"math/big"
 	"testing"
-
-	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
 var assignTestCases = []testCase{
@@ -154,9 +152,9 @@ func TestManyAssignments(t *testing.T) {
 	src2 := `return a
 	}`
 
-	for i := 0; i < stackitem.MaxArraySize; i++ {
+	for i := 0; i < 1024; i++ {
 		src1 += "a += 1\n"
 	}
 
-	eval(t, src1+src2, big.NewInt(stackitem.MaxArraySize))
+	eval(t, src1+src2, big.NewInt(1024))
 }

@@ -20,8 +20,6 @@ import (
 const (
 	// MaxBigIntegerSizeBits is the maximum size of BigInt item in bits.
 	MaxBigIntegerSizeBits = 32 * 8
-	// MaxArraySize is the maximum array size allowed in the VM.
-	MaxArraySize = 1024
 	// MaxSize is the maximum item size allowed in the VM.
 	MaxSize = 1024 * 1024
 	// MaxComparableNumOfItems is the maximum number of items that can be compared for structs.
@@ -71,7 +69,6 @@ var (
 	// value exceeds MaxSize.
 	ErrTooBig = errors.New("too big")
 
-	errTooBigArray      = fmt.Errorf("%w: array", ErrTooBig)
 	errTooBigComparable = fmt.Errorf("%w: uncomparable", ErrTooBig)
 	errTooBigInteger    = fmt.Errorf("%w: integer", ErrTooBig)
 	errTooBigKey        = fmt.Errorf("%w: map key", ErrTooBig)

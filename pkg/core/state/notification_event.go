@@ -72,7 +72,7 @@ func (aer *AppExecResult) DecodeBinary(r *io.BinReader) {
 	aer.VMState = vm.State(r.ReadB())
 	aer.GasConsumed = int64(r.ReadU64LE())
 	sz := r.ReadVarUint()
-	if stackitem.MaxArraySize < sz && r.Err == nil {
+	if stackitem.MaxDeserialized < sz && r.Err == nil {
 		r.Err = errors.New("invalid format")
 	}
 	if r.Err != nil {

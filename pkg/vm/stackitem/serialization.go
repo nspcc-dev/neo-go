@@ -236,8 +236,8 @@ func (r *deserContext) decodeBinary() Item {
 		return NewBigInteger(num)
 	case ArrayT, StructT:
 		size := int(r.ReadVarUint())
-		if size > MaxArraySize {
-			r.Err = errTooBigArray
+		if size > MaxDeserialized {
+			r.Err = errTooBigElements
 			return nil
 		}
 		arr := make([]Item, size)
@@ -251,8 +251,8 @@ func (r *deserContext) decodeBinary() Item {
 		return NewStruct(arr)
 	case MapT:
 		size := int(r.ReadVarUint())
-		if size > MaxArraySize {
-			r.Err = errTooBigArray
+		if size > MaxDeserialized {
+			r.Err = errTooBigElements
 			return nil
 		}
 		m := NewMap()
