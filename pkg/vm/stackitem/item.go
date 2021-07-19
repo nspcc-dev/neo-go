@@ -24,6 +24,8 @@ const (
 	MaxArraySize = 1024
 	// MaxSize is the maximum item size allowed in the VM.
 	MaxSize = 1024 * 1024
+	// MaxComparableNumOfItems is the maximum number of items that can be compared for structs.
+	MaxComparableNumOfItems = 2048
 	// MaxByteArrayComparableSize is the maximum allowed length of ByteArray for Equals method.
 	// It is set to be the maximum uint16 value.
 	MaxByteArrayComparableSize = math.MaxUint16
@@ -268,17 +270,35 @@ func (i *Struct) TryInteger() (*big.Int, error) {
 
 // Equals implements Item interface.
 func (i *Struct) Equals(s Item) bool {
-	if i == s {
-		return true
-	} else if s == nil {
+	if s == nil {
 		return false
 	}
 	val, ok := s.(*Struct)
-	if !ok || len(i.value) != len(val.value) {
+	if !ok {
+		return false
+	}
+	var limit = MaxComparableNumOfItems - 1 // 1 for current element.
+	return i.equalStruct(val, &limit)
+}
+
+func (i *Struct) equalStruct(s *Struct, limit *int) bool {
+	if i == s {
+		return true
+	} else if len(i.value) != len(s.value) {
 		return false
 	}
 	for j := range i.value {
-		if !i.value[j].Equals(val.value[j]) {
+		*limit--
+		if *limit == 0 {
+			panic(errTooBigElements)
+		}
+		sa, oka := i.value[j].(*Struct)
+		sb, okb := s.value[j].(*Struct)
+		if oka && okb {
+			if !sa.equalStruct(sb, limit) {
+				return false
+			}
+		} else if !i.value[j].Equals(s.value[j]) {
 			return false
 		}
 	}

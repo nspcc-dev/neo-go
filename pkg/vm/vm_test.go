@@ -2450,6 +2450,14 @@ func TestNestedStructClone(t *testing.T) {
 	}
 }
 
+func TestNestedStructEquals(t *testing.T) {
+	h := "560112c501fe0160589d604a12c0db415824f7509d4a102aec4597" // See neo-project/neo-vm#426.
+	prog, err := hex.DecodeString(h)
+	require.NoError(t, err)
+	vm := load(prog)
+	checkVMFailed(t, vm)
+}
+
 func makeProgram(opcodes ...opcode.Opcode) []byte {
 	prog := make([]byte, len(opcodes)+1) // RET
 	for i := 0; i < len(opcodes); i++ {
