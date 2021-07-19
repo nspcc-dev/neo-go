@@ -397,7 +397,7 @@ func TestEqualsDeepStructure(t *testing.T) {
 	var layerUp = func(sa *Struct, num int) (*Struct, int) {
 		items := []Item{}
 		for i := 0; i < perStruct; i++ {
-			clon, err := sa.Clone(100500)
+			clon, err := sa.Clone()
 			require.NoError(t, err)
 			items = append(items, clon)
 		}
@@ -410,14 +410,13 @@ func TestEqualsDeepStructure(t *testing.T) {
 		sa, num = layerUp(sa, num)
 	}
 	require.Less(t, num, MaxComparableNumOfItems)
-	sb, err := sa.Clone(num)
+	sb, err := sa.Clone()
 	require.NoError(t, err)
 	require.True(t, sa.Equals(sb))
 	sa, num = layerUp(sa, num)
+	sb, num = layerUp(sb, num)
 
 	require.Less(t, MaxComparableNumOfItems, num)
-	sb, err = sa.Clone(num)
-	require.NoError(t, err)
 	require.Panics(t, func() { sa.Equals(sb) })
 }
 
@@ -508,9 +507,12 @@ func TestNewVeryBigInteger(t *testing.T) {
 func TestStructClone(t *testing.T) {
 	st0 := Struct{}
 	st := Struct{value: []Item{&st0}}
-	_, err := st.Clone(1)
-	require.NoError(t, err)
-	_, err = st.Clone(0)
+	for i := 0; i < MaxClonableNumOfItems-1; i++ {
+		nst, err := st.Clone()
+		require.NoError(t, err)
+		st = Struct{value: []Item{nst}}
+	}
+	_, err := st.Clone()
 	require.Error(t, err)
 }
 

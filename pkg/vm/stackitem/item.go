@@ -23,7 +23,9 @@ const (
 	// MaxSize is the maximum item size allowed in the VM.
 	MaxSize = 1024 * 1024
 	// MaxComparableNumOfItems is the maximum number of items that can be compared for structs.
-	MaxComparableNumOfItems = 2048
+	MaxComparableNumOfItems = MaxDeserialized
+	// MaxClonableNumOfItems is the maximum number of items that can be cloned in structs.
+	MaxClonableNumOfItems = MaxDeserialized
 	// MaxByteArrayComparableSize is the maximum allowed length of ByteArray for Equals method.
 	// It is set to be the maximum uint16 value.
 	MaxByteArrayComparableSize = math.MaxUint16
@@ -323,13 +325,18 @@ func (i *Struct) Convert(typ Type) (Item, error) {
 
 // Clone returns a Struct with all Struct fields copied by value.
 // Array fields are still copied by reference.
-func (i *Struct) Clone(limit int) (*Struct, error) {
+func (i *Struct) Clone() (*Struct, error) {
+	var limit = MaxClonableNumOfItems - 1 // For this struct itself.
 	return i.clone(&limit)
 }
 
 func (i *Struct) clone(limit *int) (*Struct, error) {
 	ret := &Struct{make([]Item, len(i.value))}
 	for j := range i.value {
+		*limit--
+		if *limit < 0 {
+			return nil, ErrTooBig
+		}
 		switch t := i.value[j].(type) {
 		case *Struct:
 			var err error
@@ -338,12 +345,8 @@ func (i *Struct) clone(limit *int) (*Struct, error) {
 			if err != nil {
 				return nil, err
 			}
-			*limit--
 		default:
 			ret.value[j] = t
-		}
-		if *limit < 0 {
-			return nil, ErrTooBig
 		}
 	}
 	return ret, nil
