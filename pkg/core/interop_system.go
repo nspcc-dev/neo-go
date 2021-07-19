@@ -219,8 +219,9 @@ func storageFind(ic *interop.Context) error {
 // given m and a set of public keys.
 func contractCreateMultisigAccount(ic *interop.Context) error {
 	m := ic.VM.Estack().Pop().BigInt()
-	if !m.IsInt64() || m.Int64() > math.MaxInt32 {
-		return errors.New("m should fit int32")
+	mu64 := m.Uint64()
+	if !m.IsUint64() || mu64 > math.MaxInt32 {
+		return errors.New("m must be positive and fit int32")
 	}
 	arr := ic.VM.Estack().Pop().Array()
 	pubs := make(keys.PublicKeys, len(arr))
@@ -231,7 +232,7 @@ func contractCreateMultisigAccount(ic *interop.Context) error {
 		}
 		pubs[i] = p
 	}
-	script, err := smartcontract.CreateMultiSigRedeemScript(int(m.Int64()), pubs)
+	script, err := smartcontract.CreateMultiSigRedeemScript(int(mu64), pubs)
 	if err != nil {
 		return err
 	}

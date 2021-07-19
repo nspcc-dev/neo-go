@@ -41,11 +41,11 @@ func (d *Deposit) FromStackItem(it stackitem.Item) error {
 	if err != nil {
 		return fmt.Errorf("invalid till: %w", err)
 	}
-	ti64 := till.Int64()
-	if !till.IsInt64() || ti64 > math.MaxUint32 || ti64 < 0 {
+	tiu64 := till.Uint64()
+	if !till.IsUint64() || tiu64 > math.MaxUint32 {
 		return errors.New("wrong till value")
 	}
 	d.Amount = amount
-	d.Till = uint32(ti64)
+	d.Till = uint32(tiu64)
 	return nil
 }

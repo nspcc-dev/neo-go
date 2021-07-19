@@ -157,9 +157,9 @@ func isTraceableBlock(bc blockchainer.Blockchainer, index uint32) bool {
 // be called within VM context, so it panics if anything goes wrong.
 func getBlockHashFromItem(bc blockchainer.Blockchainer, item stackitem.Item) util.Uint256 {
 	bigindex, err := item.TryInteger()
-	if err == nil && bigindex.IsInt64() {
-		index := bigindex.Int64()
-		if index < 0 || index > math.MaxUint32 {
+	if err == nil && bigindex.IsUint64() {
+		index := bigindex.Uint64()
+		if index > math.MaxUint32 {
 			panic("bad block index")
 		}
 		if uint32(index) > bc.BlockHeight() {

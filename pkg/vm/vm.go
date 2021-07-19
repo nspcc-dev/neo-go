@@ -918,7 +918,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 	case opcode.POW:
 		exp := v.estack.Pop().BigInt()
 		a := v.estack.Pop().BigInt()
-		if ei := exp.Int64(); !exp.IsInt64() || ei > maxSHLArg || ei < 0 {
+		if ei := exp.Uint64(); !exp.IsUint64() || ei > maxSHLArg {
 			panic("invalid exponent")
 		}
 		v.estack.PushVal(new(big.Int).Exp(a, exp, nil))

@@ -343,12 +343,12 @@ func toUint160(s stackitem.Item) util.Uint160 {
 
 func toUint32(s stackitem.Item) uint32 {
 	bigInt := toBigInt(s)
-	if !bigInt.IsInt64() {
-		panic("bigint is not an int64")
+	if !bigInt.IsUint64() {
+		panic("bigint is not an uint64")
 	}
-	int64Value := bigInt.Int64()
-	if int64Value < 0 || int64Value > math.MaxUint32 {
+	uint64Value := bigInt.Uint64()
+	if uint64Value > math.MaxUint32 {
 		panic("bigint does not fit into uint32")
 	}
-	return uint32(int64Value)
+	return uint32(uint64Value)
 }

@@ -73,10 +73,10 @@ func (c *Contract) FromStackItem(item stackitem.Item) error {
 	if !ok {
 		return errors.New("UpdateCounter is not an integer")
 	}
-	if !bi.IsInt64() || bi.Int64() > math.MaxUint16 || bi.Int64() < 0 {
+	if !bi.IsUint64() || bi.Uint64() > math.MaxUint16 {
 		return errors.New("UpdateCounter not in uint16 range")
 	}
-	c.UpdateCounter = uint16(bi.Int64())
+	c.UpdateCounter = uint16(bi.Uint64())
 	bytes, err := arr[2].TryBytes()
 	if err != nil {
 		return err
