@@ -81,10 +81,10 @@ func readResponse(rc gio.ReadCloser, limit int) ([]byte, error) {
 }
 
 // CreateResponseTx creates unsigned oracle response transaction.
-func (o *Oracle) CreateResponseTx(gasForResponse int64, height uint32, resp *transaction.OracleResponse) (*transaction.Transaction, error) {
+func (o *Oracle) CreateResponseTx(gasForResponse int64, vub uint32, resp *transaction.OracleResponse) (*transaction.Transaction, error) {
 	tx := transaction.New(o.oracleResponse, 0)
 	tx.Nonce = uint32(resp.ID)
-	tx.ValidUntilBlock = height + o.Chain.GetConfig().MaxValidUntilBlockIncrement
+	tx.ValidUntilBlock = vub
 	tx.Attributes = []transaction.Attribute{{
 		Type:  transaction.OracleResponseT,
 		Value: resp,
