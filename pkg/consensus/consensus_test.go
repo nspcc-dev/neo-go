@@ -389,13 +389,14 @@ func TestVerifyBlock(t *testing.T) {
 		require.True(t, srv.verifyBlock(&neoBlock{Block: *b}))
 	})
 	t.Run("good conflicting tx", func(t *testing.T) {
+		initGAS := srv.Chain.GetConfig().InitialGASSupply
 		tx1 := transaction.New([]byte{byte(opcode.RET)}, 100000)
-		tx1.NetworkFee = 20_000_000 * native.GASFactor
+		tx1.NetworkFee = int64(initGAS)/2 + 1
 		tx1.ValidUntilBlock = 1
 		addSender(t, tx1)
 		signTx(t, srv.Chain, tx1)
 		tx2 := transaction.New([]byte{byte(opcode.RET)}, 100000)
-		tx2.NetworkFee = 20_000_000 * native.GASFactor
+		tx2.NetworkFee = int64(initGAS)/2 + 1
 		tx2.ValidUntilBlock = 1
 		addSender(t, tx2)
 		signTx(t, srv.Chain, tx2)

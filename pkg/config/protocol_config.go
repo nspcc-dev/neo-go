@@ -2,6 +2,7 @@ package config
 
 import (
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
+	"github.com/nspcc-dev/neo-go/pkg/encoding/fixedn"
 )
 
 // ProtocolConfiguration represents the protocol config.
@@ -9,6 +10,9 @@ type (
 	ProtocolConfiguration struct {
 		Magic       netmode.Magic `yaml:"Magic"`
 		MemPoolSize int           `yaml:"MemPoolSize"`
+
+		// InitialGASSupply is the amount of GAS generated in the genesis block.
+		InitialGASSupply fixedn.Fixed8 `yaml:"InitialGASSupply"`
 		// P2PNotaryRequestPayloadPoolSize specifies the memory pool size for P2PNotaryRequestPayloads.
 		// It is valid only if P2PSigExtensions are enabled.
 		P2PNotaryRequestPayloadPoolSize int `yaml:"P2PNotaryRequestPayloadPoolSize"`

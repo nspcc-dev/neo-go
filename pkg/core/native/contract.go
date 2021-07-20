@@ -3,6 +3,7 @@ package native
 import (
 	"strings"
 
+	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/io"
@@ -55,7 +56,7 @@ func (cs *Contracts) ByName(name string) interop.Contract {
 
 // NewContracts returns new set of native contracts with new GAS, NEO, Policy, Oracle,
 // Designate and (optional) Notary contracts.
-func NewContracts(p2pSigExtensionsEnabled bool, nativeUpdateHistories map[string][]uint32) *Contracts {
+func NewContracts(cfg config.ProtocolConfiguration) *Contracts {
 	cs := new(Contracts)
 
 	mgmt := newManagement()
@@ -74,7 +75,7 @@ func NewContracts(p2pSigExtensionsEnabled bool, nativeUpdateHistories map[string
 	cs.Ledger = ledger
 	cs.Contracts = append(cs.Contracts, ledger)
 
-	gas := newGAS()
+	gas := newGAS(int64(cfg.InitialGASSupply))
 	neo := newNEO()
 	neo.GAS = gas
 	gas.NEO = neo
@@ -90,7 +91,7 @@ func NewContracts(p2pSigExtensionsEnabled bool, nativeUpdateHistories map[string
 	cs.Policy = policy
 	cs.Contracts = append(cs.Contracts, policy)
 
-	desig := newDesignate(p2pSigExtensionsEnabled)
+	desig := newDesignate(cfg.P2PSigExtensions)
 	desig.NEO = neo
 	cs.Designate = desig
 	cs.Contracts = append(cs.Contracts, desig)
@@ -102,7 +103,7 @@ func NewContracts(p2pSigExtensionsEnabled bool, nativeUpdateHistories map[string
 	cs.Oracle = oracle
 	cs.Contracts = append(cs.Contracts, oracle)
 
-	if p2pSigExtensionsEnabled {
+	if cfg.P2PSigExtensions {
 		notary := newNotary()
 		notary.GAS = gas
 		notary.NEO = neo
@@ -111,12 +112,13 @@ func NewContracts(p2pSigExtensionsEnabled bool, nativeUpdateHistories map[string
 		cs.Contracts = append(cs.Contracts, notary)
 	}
 
-	setDefaultHistory := len(nativeUpdateHistories) == 0
+	setDefaultHistory := len(cfg.NativeUpdateHistories) == 0
 	for _, c := range cs.Contracts {
-		if setDefaultHistory {
-			nativeUpdateHistories[c.Metadata().Name] = []uint32{0}
+		var history = []uint32{0}
+		if !setDefaultHistory {
+			history = cfg.NativeUpdateHistories[c.Metadata().Name]
 		}
-		c.Metadata().NativeContract.UpdateHistory = nativeUpdateHistories[c.Metadata().Name]
+		c.Metadata().NativeContract.UpdateHistory = history
 	}
 	return cs
 }

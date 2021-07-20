@@ -1639,7 +1639,7 @@ func TestConfigNativeUpdateHistory(t *testing.T) {
 		cfgPath := path.Join(prefixPath, fmt.Sprintf("protocol.%s.yml", cfgFileSuffix))
 		cfg, err := config.LoadFile(cfgPath)
 		require.NoError(t, err, fmt.Errorf("failed to load %s", cfgPath))
-		natives := native.NewContracts(cfg.ProtocolConfiguration.P2PSigExtensions, map[string][]uint32{})
+		natives := native.NewContracts(cfg.ProtocolConfiguration)
 		assert.Equal(t, len(natives.Contracts),
 			len(cfg.ProtocolConfiguration.NativeUpdateHistories),
 			fmt.Errorf("protocol configuration file %s: extra or missing NativeUpdateHistory in NativeActivations section", cfgPath))

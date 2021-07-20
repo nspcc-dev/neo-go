@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
@@ -30,7 +31,8 @@ import (
 )
 
 func TestContractHashes(t *testing.T) {
-	cs := native.NewContracts(true, map[string][]uint32{})
+	cfg := config.ProtocolConfiguration{P2PSigExtensions: true}
+	cs := native.NewContracts(cfg)
 	require.Equalf(t, []byte(neo.Hash), cs.NEO.Hash.BytesBE(), "%q", string(cs.NEO.Hash.BytesBE()))
 	require.Equalf(t, []byte(gas.Hash), cs.GAS.Hash.BytesBE(), "%q", string(cs.GAS.Hash.BytesBE()))
 	require.Equalf(t, []byte(oracle.Hash), cs.Oracle.Hash.BytesBE(), "%q", string(cs.Oracle.Hash.BytesBE()))
@@ -92,7 +94,8 @@ type nativeTestCase struct {
 
 // Here we test that corresponding method does exist, is invoked and correct value is returned.
 func TestNativeHelpersCompile(t *testing.T) {
-	cs := native.NewContracts(true, map[string][]uint32{})
+	cfg := config.ProtocolConfiguration{P2PSigExtensions: true}
+	cs := native.NewContracts(cfg)
 	u160 := `interop.Hash160("aaaaaaaaaaaaaaaaaaaa")`
 	u256 := `interop.Hash256("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")`
 	pub := `interop.PublicKey("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")`
