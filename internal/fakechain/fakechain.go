@@ -16,6 +16,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/mpt"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
+	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
@@ -42,11 +43,12 @@ type FakeChain struct {
 	NotaryDepositExpiration  uint32
 	PostBlock                []func(blockchainer.Blockchainer, *mempool.Pool, *block.Block)
 	UtilityTokenBalance      *big.Int
-	stateModule              *FakeStateModule
+	StateModule              *FakeStateModule
 }
 
 // FakeStateModule implements StateRoot interface, but does not provide real functionality.
 type FakeStateModule struct {
+	MPT *mpt.Trie
 }
 
 // NewFakeChain returns new FakeChain structure.
@@ -59,7 +61,7 @@ func NewFakeChain() *FakeChain {
 		hdrHashes:             make(map[uint32]util.Uint256),
 		txs:                   make(map[util.Uint256]*transaction.Transaction),
 		ProtocolConfiguration: config.ProtocolConfiguration{Magic: netmode.UnitTestNet, P2PNotaryRequestPayloadPoolSize: 10},
-		stateModule:           &FakeStateModule{},
+		StateModule:           &FakeStateModule{MPT: mpt.NewTrie(nil, false, storage.NewMemCachedStore(storage.NewMemoryStore()))},
 	}
 }
 
@@ -311,7 +313,7 @@ func (chain *FakeChain) GetEnrollments() ([]state.Validator, error) {
 
 // GetStateModule implements Blockchainer interface.
 func (chain *FakeChain) GetStateModule() blockchainer.StateRoot {
-	return chain.stateModule
+	return chain.StateModule
 }
 
 // GetStorageItem implements Blockchainer interface.
@@ -489,14 +491,17 @@ func (m *FakeStateModule) GetStateValidators(height uint32) keys.PublicKeys { pa
 func (m *FakeStateModule) OnSyncReached() {}
 
 // RestoreMPTNode implements StateRoot interface.
-func (m *FakeStateModule) RestoreMPTNode(path []byte, node mpt.Node) error { panic("TODO") }
+func (m *FakeStateModule) RestoreMPTNode(path []byte, node mpt.Node) error {
+	return m.MPT.RestoreHashNode(path, node)
+}
 
 // SetUpdateValidatorsCallback implements StateRoot interface.
 func (m *FakeStateModule) SetUpdateValidatorsCallback(func(uint32, keys.PublicKeys)) { panic("TODO") }
 
 // Traverse implements StateRoot interface.
-func (m *FakeStateModule) Traverse(root util.Uint256, stop func(node mpt.Node, nodeBytes []byte) bool, ignoreStorageErr bool) error {
-	panic("TODO")
+func (m *FakeStateModule) Traverse(root util.Uint256, process func(node mpt.Node, nodeBytes []byte) bool, ignoreStorageErr bool) error {
+	tr := mpt.NewTrie(mpt.NewHashNode(root), false, m.MPT.Store)
+	return tr.Traverse(process, ignoreStorageErr)
 }
 
 // UpdateStateValidators implements StateRoot interface.

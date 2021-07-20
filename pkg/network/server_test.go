@@ -16,7 +16,10 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
+	"github.com/nspcc-dev/neo-go/pkg/core/mpt"
+	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
+	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/network/capability"
 	"github.com/nspcc-dev/neo-go/pkg/network/payload"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -616,6 +619,144 @@ func TestGetData(t *testing.T) {
 		hs := []util.Uint256{random.Uint256(), r.FallbackTransaction.Hash(), random.Uint256()}
 		notFound := []util.Uint256{hs[0], hs[2]}
 		s.testHandleGetData(t, payload.P2PNotaryRequestType, hs, notFound, r)
+	})
+}
+
+func TestGetMPTData(t *testing.T) {
+	s := startTestServerWithStateExchange(t)
+	s.chain.(*fakechain.FakeChain).StateModule.MPT = newTestTrie(t)
+	var expected []util.Uint256
+	err := s.chain.(*fakechain.FakeChain).StateModule.MPT.Traverse(func(node mpt.Node, _ []byte) bool {
+		expected = append(expected, node.Hash())
+		return false
+	}, false)
+	require.NoError(t, err)
+
+	var recvResponse atomic.Bool
+	p := newLocalPeer(t, s)
+	p.handshaked = true
+	p.messageHandler = func(t *testing.T, msg *Message) {
+		switch msg.Command {
+		case CMDMPTData:
+			var actual []util.Uint256
+			for _, nBytes := range msg.Payload.(*payload.MPTData).Nodes {
+				var n mpt.NodeObject
+				r := io.NewBinReaderFromBuf(nBytes)
+				n.DecodeBinary(r)
+				require.NoError(t, r.Err)
+				actual = append(actual, n.Hash())
+			}
+			require.Equal(t, expected, actual)
+			recvResponse.Store(true)
+		}
+	}
+
+	t.Run("good", func(t *testing.T) {
+		s.testHandleMessage(t, p, CMDGetMPTData, payload.NewMPTInventory([]util.Uint256{s.chain.(*fakechain.FakeChain).StateModule.MPT.StateRoot()}))
+		require.Eventually(t, func() bool { return recvResponse.Load() }, time.Second, time.Millisecond)
+	})
+	t.Run("unknown nodes", func(t *testing.T) {
+		msg := NewMessage(CMDGetMPTData, payload.NewMPTInventory([]util.Uint256{random.Uint256()}))
+		require.Error(t, s.handleMessage(p, msg))
+	})
+	t.Run("empty payload", func(t *testing.T) {
+		recvResponse.Store(false)
+		expected = expected[:0]
+		s.testHandleMessage(t, p, CMDGetMPTData, payload.NewMPTInventory([]util.Uint256{}))
+		require.Never(t, func() bool { return recvResponse.Load() }, time.Second, time.Millisecond)
+	})
+	t.Run("P2PStateExchange is off", func(t *testing.T) {
+		s.chain.(*fakechain.FakeChain).P2PStateExchangeExtensions = false
+		msg := NewMessage(CMDGetMPTData, payload.NewMPTInventory([]util.Uint256{s.chain.(*fakechain.FakeChain).StateModule.MPT.StateRoot()}))
+		require.Error(t, s.handleMessage(p, msg))
+	})
+}
+
+func newTestTrie(t *testing.T) *mpt.Trie {
+	trie := mpt.NewTrie(nil, false, storage.NewMemCachedStore(storage.NewMemoryStore()))
+	require.NoError(t, trie.Put([]byte{0x24}, []byte{1, 2, 3}))
+	require.NoError(t, trie.Put([]byte{0x00}, []byte{4, 5, 6}))
+	require.NoError(t, trie.Put([]byte{0x01}, []byte{1, 2, 3}))
+	require.NoError(t, trie.Put([]byte{0x03}, []byte{1, 2, 3}))
+	/*
+			BranchNode1 [0, 1, 2, ...], Last -> HashNode(nil)
+			            |     |
+			            |     ExtensionNode1 [0x04], Next -> Leaf4(val1)
+			            |
+			            BranchNode2 [0, 1, 2, 3, ...], Last -> HashNode(nil)
+			                         | |     |
+			                         | |     Leaf3(val1)
+			                         | |
+			                         | Leaf2(val2)
+		                             |
+		                             Leaf1(val1)
+	*/
+	trie.Flush()
+	return trie
+}
+
+func TestHandleMPTData(t *testing.T) {
+	s := startTestServerWithStateExchange(t)
+	s.p.Store(123)
+
+	var (
+		expected     []util.Uint256
+		actual       []util.Uint256
+		recvResponse atomic.Bool
+	)
+	p := newLocalPeer(t, s)
+	p.handshaked = true
+	p.messageHandler = func(t *testing.T, msg *Message) {
+		switch msg.Command {
+		case CMDGetMPTData:
+			for _, h := range msg.Payload.(*payload.MPTInventory).Hashes {
+				actual = append(actual, h)
+			}
+			require.ElementsMatch(t, expected, actual)
+			recvResponse.Store(true)
+		}
+	}
+	trie := newTestTrie(t)
+	s.mptPool.Add(trie.StateRoot(), []byte{})
+	s.chain.(*fakechain.FakeChain).StateModule.MPT = mpt.NewTrie(mpt.NewHashNode(trie.StateRoot()), false, storage.NewMemCachedStore(storage.NewMemoryStore()))
+
+	t.Run("good", func(t *testing.T) {
+		var (
+			req1, req2 [][]byte
+			count      int
+		)
+		require.NoError(t, trie.Traverse(func(node mpt.Node, nodeBytes []byte) bool {
+			if count < 3 {
+				req1 = append(req1, nodeBytes) // req1 = [branch1, branch2, leaf1]
+				if branch, ok := node.(*mpt.BranchNode); ok {
+					if branch.Hash() == trie.StateRoot() {
+						// only [ext1, leaf2] to be requested, because leaf3 should be restored along with leaf1
+						expected = append(expected, branch.Children[2].Hash()) // ext1 hash
+					} else {
+						expected = append(expected, branch.Children[1].Hash()) // leaf2 hash
+					}
+				}
+			} else {
+				req2 = append(req2, nodeBytes) // req2 = [leaf2, leaf3, ext1, leaf4]
+			}
+			count++
+			return false
+		}, false))
+
+		// send req1 and wait for the corresponding GetMPTData response
+		s.testHandleMessage(t, p, CMDMPTData, &payload.MPTData{req1})
+		require.Eventually(t, func() bool { return recvResponse.Load() }, time.Second, time.Millisecond)
+
+		// send req2; nothing should be requested after that
+		recvResponse.Store(false)
+		s.testHandleMessage(t, p, CMDMPTData, &payload.MPTData{req2})
+		require.Never(t, func() bool { return recvResponse.Load() }, time.Second, time.Millisecond)
+	})
+
+	t.Run("P2PStateExchange is off", func(t *testing.T) {
+		s.chain.(*fakechain.FakeChain).P2PStateExchangeExtensions = false
+		msg := NewMessage(CMDMPTData, &payload.MPTData{})
+		require.Error(t, s.handleMessage(p, msg))
 	})
 }
 
