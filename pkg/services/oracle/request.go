@@ -46,8 +46,14 @@ func (o *Oracle) runRequestWorker() {
 func (o *Oracle) RemoveRequests(ids []uint64) {
 	o.respMtx.Lock()
 	defer o.respMtx.Unlock()
-	for _, id := range ids {
-		delete(o.responses, id)
+	if !o.running {
+		for _, id := range ids {
+			delete(o.pending, id)
+		}
+	} else {
+		for _, id := range ids {
+			delete(o.responses, id)
+		}
 	}
 }
 
@@ -56,6 +62,16 @@ func (o *Oracle) AddRequests(reqs map[uint64]*state.OracleRequest) {
 	if len(reqs) == 0 {
 		return
 	}
+
+	o.respMtx.Lock()
+	if !o.running {
+		for id, r := range reqs {
+			o.pending[id] = r
+		}
+		o.respMtx.Unlock()
+		return
+	}
+	o.respMtx.Unlock()
 
 	select {
 	case o.requestMap <- reqs:
@@ -172,6 +188,7 @@ func (o *Oracle) processRequest(priv *keys.PrivateKey, req request) error {
 	o.Log.Debug("oracle request processed", zap.String("url", req.Req.URL), zap.Int("code", int(resp.Code)), zap.String("result", string(resp.Result)))
 
 	currentHeight := o.Chain.BlockHeight()
+	vubInc := o.Chain.GetConfig().MaxValidUntilBlockIncrement
 	_, h, err := o.Chain.GetTransaction(req.Req.OriginalTxID)
 	if err != nil {
 		if !errors.Is(err, storage.ErrKeyNotFound) {
@@ -180,9 +197,13 @@ func (o *Oracle) processRequest(priv *keys.PrivateKey, req request) error {
 		// The only reason tx can be not found is if it wasn't yet persisted from DAO.
 		h = currentHeight
 	}
+	h += vubInc // Main tx is only valid for RequestHeight + ValidUntilBlock.
 	tx, err := o.CreateResponseTx(int64(req.Req.GasForResponse), h, resp)
 	if err != nil {
 		return err
+	}
+	for h <= currentHeight { // Backup tx must be valid in any event.
+		h += vubInc
 	}
 	backupTx, err := o.CreateResponseTx(int64(req.Req.GasForResponse), h, &transaction.OracleResponse{
 		ID:   req.ID,

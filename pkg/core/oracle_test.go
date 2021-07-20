@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"path"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -54,7 +55,7 @@ func getTestOracle(t *testing.T, bc *Blockchain, walletPath, pass string) (
 	m := make(map[uint64]*responseWithSig)
 	ch := make(chan *transaction.Transaction, 5)
 	orcCfg := getOracleConfig(t, bc, walletPath, pass)
-	orcCfg.ResponseHandler = saveToMapBroadcaster{m}
+	orcCfg.ResponseHandler = &saveToMapBroadcaster{m: m}
 	orcCfg.OnTransaction = saveTxToChan(ch)
 	orcCfg.URIValidator = func(u *url.URL) error {
 		if strings.HasPrefix(u.Host, "private") {
@@ -298,18 +299,74 @@ func TestOracleFull(t *testing.T) {
 	require.True(t, txes[0].HasAttribute(transaction.OracleResponseT))
 }
 
-type saveToMapBroadcaster struct {
-	m map[uint64]*responseWithSig
+func TestNotYetRunningOracle(t *testing.T) {
+	bc := initTestChain(t, nil, nil)
+	acc, orc, _, _ := getTestOracle(t, bc, "./testdata/oracle2.json", "two")
+	mp := bc.GetMemPool()
+	orc.OnTransaction = func(tx *transaction.Transaction) { _ = mp.Add(tx, bc) }
+	bc.SetOracle(orc)
+
+	cs := getOracleContractState(bc.contracts.Oracle.Hash, bc.contracts.Std.Hash)
+	require.NoError(t, bc.contracts.Management.PutContractState(bc.dao, cs))
+
+	go bc.Run()
+	bc.setNodesByRole(t, true, noderoles.Oracle, keys.PublicKeys{acc.PrivateKey().PublicKey()})
+
+	var req state.OracleRequest
+	var reqs = make(map[uint64]*state.OracleRequest)
+	for i := uint64(0); i < 3; i++ {
+		reqs[i] = &req
+	}
+	orc.AddRequests(reqs) // 0, 1, 2 added to pending.
+
+	var ids = []uint64{0, 1}
+	orc.RemoveRequests(ids) // 0, 1 removed from pending, 2 left.
+
+	reqs = make(map[uint64]*state.OracleRequest)
+	for i := uint64(3); i < 5; i++ {
+		reqs[i] = &req
+	}
+	orc.AddRequests(reqs) // 3, 4 added to pending -> 2, 3, 4 in pending.
+
+	ids = []uint64{3}
+	orc.RemoveRequests(ids) // 3 removed from pending -> 2, 4 in pending.
+
+	go orc.Run()
+	t.Cleanup(orc.Shutdown)
+
+	require.Eventually(t, func() bool { return mp.Count() == 2 },
+		time.Second*3, time.Millisecond*200)
+	txes := mp.GetVerifiedTransactions()
+	require.Len(t, txes, 2)
+	var txids []uint64
+	for _, tx := range txes {
+		for _, attr := range tx.Attributes {
+			if attr.Type == transaction.OracleResponseT {
+				resp := attr.Value.(*transaction.OracleResponse)
+				txids = append(txids, resp.ID)
+			}
+		}
+	}
+	require.Len(t, txids, 2)
+	require.Contains(t, txids, uint64(2))
+	require.Contains(t, txids, uint64(4))
 }
 
-func (b saveToMapBroadcaster) SendResponse(_ *keys.PrivateKey, resp *transaction.OracleResponse, txSig []byte) {
+type saveToMapBroadcaster struct {
+	mtx sync.RWMutex
+	m   map[uint64]*responseWithSig
+}
+
+func (b *saveToMapBroadcaster) SendResponse(_ *keys.PrivateKey, resp *transaction.OracleResponse, txSig []byte) {
+	b.mtx.Lock()
+	defer b.mtx.Unlock()
 	b.m[resp.ID] = &responseWithSig{
 		resp:  resp,
 		txSig: txSig,
 	}
 }
-func (saveToMapBroadcaster) Run()      {}
-func (saveToMapBroadcaster) Shutdown() {}
+func (*saveToMapBroadcaster) Run()      {}
+func (*saveToMapBroadcaster) Shutdown() {}
 
 type responseWithSig struct {
 	resp  *transaction.OracleResponse

@@ -43,8 +43,13 @@ type (
 		requestCh  chan request
 		requestMap chan map[uint64]*state.OracleRequest
 
-		// respMtx protects responses map.
-		respMtx   sync.RWMutex
+		// respMtx protects responses and pending maps.
+		respMtx sync.RWMutex
+		// running is false until Run() is invoked.
+		running bool
+		// pending contains requests for not yet started service.
+		pending map[uint64]*state.OracleRequest
+		// responses contains active not completely processed requests.
 		responses map[uint64]*incompleteTx
 		// removed contains ids of requests which won't be processed further due to expiration.
 		removed map[uint64]bool
@@ -102,6 +107,7 @@ func NewOracle(cfg Config) (*Oracle, error) {
 
 		close:      make(chan struct{}),
 		requestMap: make(chan map[uint64]*state.OracleRequest, 1),
+		pending:    make(map[uint64]*state.OracleRequest),
 		responses:  make(map[uint64]*incompleteTx),
 		removed:    make(map[uint64]bool),
 	}
@@ -165,7 +171,18 @@ func (o *Oracle) Shutdown() {
 
 // Run runs must be executed in a separate goroutine.
 func (o *Oracle) Run() {
+	o.respMtx.Lock()
+	if o.running {
+		o.respMtx.Unlock()
+		return
+	}
 	o.Log.Info("starting oracle service")
+
+	o.requestMap <- o.pending // Guaranteed to not block, only AddRequests sends to it.
+	o.pending = nil
+	o.running = true
+	o.respMtx.Unlock()
+
 	for i := 0; i < o.MainCfg.MaxConcurrentRequests; i++ {
 		go o.runRequestWorker()
 	}
