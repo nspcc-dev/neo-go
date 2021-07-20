@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 
+	"github.com/nspcc-dev/neo-go/cli/query"
 	"github.com/nspcc-dev/neo-go/cli/server"
 	"github.com/nspcc-dev/neo-go/cli/smartcontract"
 	"github.com/nspcc-dev/neo-go/cli/util"
@@ -32,5 +33,6 @@ func newApp() *cli.App {
 	ctl.Commands = append(ctl.Commands, wallet.NewCommands()...)
 	ctl.Commands = append(ctl.Commands, vm.NewCommands()...)
 	ctl.Commands = append(ctl.Commands, util.NewCommands()...)
+	ctl.Commands = append(ctl.Commands, query.NewCommands()...)
 	return ctl
 }
