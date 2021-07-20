@@ -28,6 +28,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
+	"github.com/nspcc-dev/neo-go/pkg/encoding/fixedn"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
@@ -44,6 +45,7 @@ const (
 	headerBatchCount = 2000
 	version          = "0.1.0"
 
+	defaultInitialGAS                      = 52000000_00000000
 	defaultMemPoolSize                     = 50000
 	defaultP2PNotaryRequestPayloadPoolSize = 1000
 	defaultMaxBlockSize                    = 262144
@@ -165,6 +167,10 @@ func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration, log *zap.L
 		return nil, errors.New("empty logger")
 	}
 
+	if cfg.InitialGASSupply <= 0 {
+		cfg.InitialGASSupply = fixedn.Fixed8(defaultInitialGAS)
+		log.Info("initial gas supply is not set or wrong, setting default value", zap.String("InitialGASSupply", cfg.InitialGASSupply.String()))
+	}
 	if cfg.MemPoolSize <= 0 {
 		cfg.MemPoolSize = defaultMemPoolSize
 		log.Info("mempool size is not set or wrong, setting default value", zap.Int("MemPoolSize", cfg.MemPoolSize))
@@ -216,8 +222,7 @@ func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration, log *zap.L
 		events:      make(chan bcEvent),
 		subCh:       make(chan interface{}),
 		unsubCh:     make(chan interface{}),
-
-		contracts: *native.NewContracts(cfg.P2PSigExtensions, cfg.NativeUpdateHistories),
+		contracts:   *native.NewContracts(cfg),
 	}
 
 	bc.stateRoot = stateroot.NewModule(bc, bc.log, bc.dao.Store)

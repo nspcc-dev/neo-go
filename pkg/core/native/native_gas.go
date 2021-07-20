@@ -21,17 +21,18 @@ import (
 type GAS struct {
 	nep17TokenNative
 	NEO *NEO
+
+	initialSupply int64
 }
 
 const gasContractID = -6
 
 // GASFactor is a divisor for finding GAS integral value.
 const GASFactor = NEOTotalSupply
-const initialGAS = 30000000
 
 // newGAS returns GAS native contract.
-func newGAS() *GAS {
-	g := &GAS{}
+func newGAS(init int64) *GAS {
+	g := &GAS{initialSupply: init}
 	defer g.UpdateHash()
 
 	nep17 := newNEP17Native(nativenames.Gas, gasContractID)
@@ -109,7 +110,7 @@ func (g *GAS) Initialize(ic *interop.Context) error {
 	if err != nil {
 		return err
 	}
-	g.mint(ic, h, big.NewInt(initialGAS*GASFactor), false)
+	g.mint(ic, h, big.NewInt(g.initialSupply), false)
 	return nil
 }
 
