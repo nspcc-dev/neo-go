@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/util/slice"
 )
 
 // Uint256Size is the size of Uint256 in bytes.
@@ -54,7 +55,7 @@ func Uint256DecodeBytesBE(b []byte) (u Uint256, err error) {
 
 // Uint256DecodeBytesLE attempts to decode the given string (in LE representation) into an Uint256.
 func Uint256DecodeBytesLE(b []byte) (u Uint256, err error) {
-	b = ArrayReverse(b)
+	b = slice.CopyReverse(b)
 	return Uint256DecodeBytesBE(b)
 }
 
@@ -71,7 +72,7 @@ func (u Uint256) Reverse() Uint256 {
 
 // BytesLE return a little-endian byte representation of u.
 func (u Uint256) BytesLE() []byte {
-	return ArrayReverse(u.BytesBE())
+	return slice.CopyReverse(u.BytesBE())
 }
 
 // Equals returns true if both Uint256 values are the same.

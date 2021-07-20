@@ -21,6 +21,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/util/slice"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
@@ -1167,10 +1168,8 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 				a[i], a[j] = a[j], a[i]
 			}
 		case *stackitem.Buffer:
-			slice := t.Value().([]byte)
-			for i, j := 0, t.Len()-1; i < j; i, j = i+1, j-1 {
-				slice[i], slice[j] = slice[j], slice[i]
-			}
+			b := t.Value().([]byte)
+			slice.Reverse(b)
 		default:
 			panic(fmt.Sprintf("invalid item type %s", t))
 		}

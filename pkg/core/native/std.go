@@ -16,6 +16,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
+	"github.com/nspcc-dev/neo-go/pkg/util/slice"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
@@ -232,7 +233,7 @@ func (s *Std) itoa(_ *interop.Context, args []stackitem.Item) stackitem.Item {
 			break
 		}
 		bs := bigint.ToBytes(num)
-		reverse(bs)
+		slice.Reverse(bs)
 		str = hex.EncodeToString(bs)
 		if pad := bs[0] & 0xF8; pad == 0 || pad == 0xF8 {
 			str = str[1:]
@@ -280,20 +281,13 @@ func (s *Std) atoi(_ *interop.Context, args []stackitem.Item) stackitem.Item {
 		if changed && bs[0]&0x8 != 0 {
 			bs[0] |= 0xF0
 		}
-		reverse(bs)
+		slice.Reverse(bs)
 		bi = bigint.FromBytes(bs)
 	default:
 		panic(ErrInvalidBase)
 	}
 
 	return stackitem.NewBigInteger(bi)
-}
-
-func reverse(b []byte) {
-	l := len(b)
-	for i := 0; i < l/2; i++ {
-		b[i], b[l-i-1] = b[l-i-1], b[i]
-	}
 }
 
 func (s *Std) base64Encode(_ *interop.Context, args []stackitem.Item) stackitem.Item {

@@ -252,7 +252,7 @@ func getAccountState(ctx *cli.Context) error {
 	if len(res.Stack) == 0 {
 		return cli.NewExitError("result stack is empty", 1)
 	}
-	st := new(state.NEOBalanceState)
+	st := new(state.NEOBalance)
 	err = st.FromStackItem(res.Stack[0])
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("failed to convert account state from stackitem: %w", err), 1)

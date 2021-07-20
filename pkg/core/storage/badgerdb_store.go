@@ -4,6 +4,7 @@ import (
 	"os"
 
 	"github.com/dgraph-io/badger/v2"
+	"github.com/nspcc-dev/neo-go/pkg/util/slice"
 )
 
 // BadgerDBOptions configuration for BadgerDB.
@@ -32,10 +33,8 @@ func (b *BadgerDBBatch) Delete(key []byte) {
 
 // Put implements the Batch interface.
 func (b *BadgerDBBatch) Put(key, value []byte) {
-	keycopy := make([]byte, len(key))
-	copy(keycopy, key)
-	valuecopy := make([]byte, len(value))
-	copy(valuecopy, value)
+	keycopy := slice.Copy(key)
+	valuecopy := slice.Copy(value)
 	err := b.batch.Set(keycopy, valuecopy)
 	if err != nil {
 		panic(err)

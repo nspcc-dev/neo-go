@@ -5,6 +5,7 @@ import (
 	"runtime"
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/pkg/util/slice"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -55,10 +56,8 @@ func testStorePutBatch(t *testing.T, s Store) {
 		batch = s.Batch()
 	)
 	// Test that key and value are copied when batching.
-	keycopy := make([]byte, len(key))
-	copy(keycopy, key)
-	valuecopy := make([]byte, len(value))
-	copy(valuecopy, value)
+	keycopy := slice.Copy(key)
+	valuecopy := slice.Copy(value)
 
 	batch.Put(keycopy, valuecopy)
 	copy(valuecopy, key)
