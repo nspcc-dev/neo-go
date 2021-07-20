@@ -12,8 +12,8 @@ import (
 )
 
 func TestDBRestore(t *testing.T) {
-	tmpDir := path.Join(os.TempDir(), "neogo.restoretest")
-	require.NoError(t, os.Mkdir(tmpDir, os.ModePerm))
+	tmpDir, err := ioutil.TempDir("", "neogo.restoretest")
+	require.NoError(t, err)
 	t.Cleanup(func() {
 		os.RemoveAll(tmpDir)
 	})

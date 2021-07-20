@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/hex"
 	"encoding/json"
+	"io/ioutil"
 	"math/big"
 	"os"
 	"path"
@@ -19,8 +20,8 @@ import (
 )
 
 func TestWalletInit(t *testing.T) {
-	tmpDir := path.Join(os.TempDir(), "neogo.test.walletinit")
-	require.NoError(t, os.Mkdir(tmpDir, os.ModePerm))
+	tmpDir, err := ioutil.TempDir("", "neogo.test.walletinit")
+	require.NoError(t, err)
 	t.Cleanup(func() {
 		os.RemoveAll(tmpDir)
 	})
@@ -243,12 +244,13 @@ func TestImportDeployed(t *testing.T) {
 	e := newExecutor(t, true)
 
 	h := deployVerifyContract(t, e)
-	tmpDir := os.TempDir()
+	tmpDir, err := ioutil.TempDir("", "neogo.importdeployed")
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		os.Remove(tmpDir)
+	})
 	walletPath := path.Join(tmpDir, "wallet.json")
 	e.Run(t, "neo-go", "wallet", "init", "--wallet", walletPath)
-	t.Cleanup(func() {
-		os.Remove(walletPath)
-	})
 
 	priv, err := keys.NewPrivateKey()
 	require.NoError(t, err)
@@ -373,8 +375,8 @@ func TestDumpKeys(t *testing.T) {
 
 // Testcase is the wallet of privnet validator.
 func TestWalletConvert(t *testing.T) {
-	tmpDir := path.Join(os.TempDir(), "neogo.test.convert")
-	require.NoError(t, os.Mkdir(tmpDir, os.ModePerm))
+	tmpDir, err := ioutil.TempDir("", "neogo.test.convert")
+	require.NoError(t, err)
 	t.Cleanup(func() {
 		os.RemoveAll(tmpDir)
 	})

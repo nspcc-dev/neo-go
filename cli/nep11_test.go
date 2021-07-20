@@ -31,9 +31,10 @@ const (
 func TestNEP11Import(t *testing.T) {
 	e := newExecutor(t, true)
 
-	tmpDir := os.TempDir()
+	tmpDir, err := ioutil.TempDir("", "neogo.nep11import")
+	require.NoError(t, err)
 	walletPath := path.Join(tmpDir, "walletForImport.json")
-	defer os.Remove(walletPath)
+	t.Cleanup(func() { os.RemoveAll(tmpDir) })
 
 	// deploy NFT NeoNameService contract
 	nnsContractHash := deployNNSContract(t, e)
