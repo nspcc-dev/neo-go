@@ -58,12 +58,13 @@ func TestCalcHash(t *testing.T) {
 			"--in", "./testdata/verify.nef123", "--manifest", manifestPath)...)
 	})
 	t.Run("invalid file", func(t *testing.T) {
-		p := path.Join(os.TempDir(), "neogo.calchash.verify.nef")
+		p, err := ioutil.TempFile("", "neogo.calchash.verify.nef")
+		require.NoError(t, err)
 		t.Cleanup(func() {
-			os.Remove(p)
+			os.Remove(p.Name())
 		})
-		require.NoError(t, ioutil.WriteFile(p, src[:4], os.ModePerm))
-		e.RunWithError(t, append(cmd, "--sender", sender.StringLE(), "--in", p, "--manifest", manifestPath)...)
+		require.NoError(t, ioutil.WriteFile(p.Name(), src[:4], os.ModePerm))
+		e.RunWithError(t, append(cmd, "--sender", sender.StringLE(), "--in", p.Name(), "--manifest", manifestPath)...)
 	})
 
 	cmd = append(cmd, "--in", nefPath, "--manifest", manifestPath)
@@ -83,8 +84,8 @@ func TestCalcHash(t *testing.T) {
 }
 
 func TestContractInitAndCompile(t *testing.T) {
-	tmpDir := path.Join(os.TempDir(), "neogo.inittest")
-	require.NoError(t, os.Mkdir(tmpDir, os.ModePerm))
+	tmpDir, err := ioutil.TempDir("", "neogo.inittest")
+	require.NoError(t, err)
 	t.Cleanup(func() {
 		os.RemoveAll(tmpDir)
 	})
@@ -148,8 +149,8 @@ func TestDeployBigContract(t *testing.T) {
 	// For proper nef generation.
 	config.Version = "0.90.0-test"
 
-	tmpDir := path.Join(os.TempDir(), "neogo.test.deployfail")
-	require.NoError(t, os.Mkdir(tmpDir, os.ModePerm))
+	tmpDir, err := ioutil.TempDir("", "neogo.test.deployfail")
+	require.NoError(t, err)
 	t.Cleanup(func() {
 		os.RemoveAll(tmpDir)
 	})
@@ -174,8 +175,8 @@ func TestContractDeployWithData(t *testing.T) {
 	// For proper nef generation.
 	config.Version = "0.90.0-test"
 
-	tmpDir := path.Join(os.TempDir(), "neogo.test.deployfail")
-	require.NoError(t, os.Mkdir(tmpDir, os.ModePerm))
+	tmpDir, err := ioutil.TempDir("", "neogo.test.deployfail")
+	require.NoError(t, err)
 	t.Cleanup(func() {
 		os.RemoveAll(tmpDir)
 	})
@@ -262,8 +263,8 @@ func TestComlileAndInvokeFunction(t *testing.T) {
 	// For proper nef generation.
 	config.Version = "0.90.0-test"
 
-	tmpDir := path.Join(os.TempDir(), "neogo.test.compileandinvoke")
-	require.NoError(t, os.Mkdir(tmpDir, os.ModePerm))
+	tmpDir, err := ioutil.TempDir("", "neogo.test.compileandinvoke")
+	require.NoError(t, err)
 	t.Cleanup(func() {
 		os.RemoveAll(tmpDir)
 	})
@@ -515,8 +516,8 @@ func TestContractInspect(t *testing.T) {
 	config.Version = "0.90.0-test"
 	const srcPath = "testdata/deploy/main.go"
 
-	tmpDir := path.Join(os.TempDir(), "neogo.test.contract.inspect")
-	require.NoError(t, os.Mkdir(tmpDir, os.ModePerm))
+	tmpDir, err := ioutil.TempDir("", "neogo.test.contract.inspect")
+	require.NoError(t, err)
 	t.Cleanup(func() {
 		os.RemoveAll(tmpDir)
 	})
@@ -553,8 +554,6 @@ func TestCompileExamples(t *testing.T) {
 	// For proper nef generation.
 	config.Version = "0.90.0-test"
 
-	tmpDir := os.TempDir()
-
 	e := newExecutor(t, false)
 
 	for _, info := range infos {
@@ -568,19 +567,21 @@ func TestCompileExamples(t *testing.T) {
 			require.NoError(t, err)
 			require.False(t, len(infos) == 0, "detected smart contract folder with no contract in it")
 
-			outPath := path.Join(tmpDir, info.Name()+".nef")
-			manifestPath := path.Join(tmpDir, info.Name()+".manifest.json")
+			outF, err := ioutil.TempFile("", info.Name()+".nef")
+			require.NoError(t, err)
+			manifestF, err := ioutil.TempFile("", info.Name()+".manifest.json")
+			require.NoError(t, err)
 			t.Cleanup(func() {
-				os.Remove(outPath)
-				os.Remove(manifestPath)
+				os.Remove(outF.Name())
+				os.Remove(manifestF.Name())
 			})
 
 			cfgName := filterFilename(infos, ".yml")
 			opts := []string{
 				"neo-go", "contract", "compile",
 				"--in", path.Join(examplePath, info.Name()),
-				"--out", outPath,
-				"--manifest", manifestPath,
+				"--out", outF.Name(),
+				"--manifest", manifestF.Name(),
 				"--config", path.Join(examplePath, info.Name(), cfgName),
 			}
 			e.Run(t, opts...)
@@ -590,16 +591,18 @@ func TestCompileExamples(t *testing.T) {
 	t.Run("invalid events in manifest", func(t *testing.T) {
 		const dir = "./testdata/"
 		for _, name := range []string{"invalid1", "invalid2", "invalid3"} {
-			outPath := path.Join(tmpDir, name+".nef")
-			manifestPath := path.Join(tmpDir, name+".manifest.json")
+			outF, err := ioutil.TempFile("", name+".nef")
+			require.NoError(t, err)
+			manifestF, err := ioutil.TempFile("", name+".manifest.json")
+			require.NoError(t, err)
 			t.Cleanup(func() {
-				os.Remove(outPath)
-				os.Remove(manifestPath)
+				os.Remove(outF.Name())
+				os.Remove(manifestF.Name())
 			})
 			e.RunWithError(t, "neo-go", "contract", "compile",
 				"--in", path.Join(dir, name),
-				"--out", outPath,
-				"--manifest", manifestPath,
+				"--out", outF.Name(),
+				"--manifest", manifestF.Name(),
 				"--config", path.Join(dir, name, "invalid.yml"),
 			)
 		}

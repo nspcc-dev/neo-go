@@ -2,6 +2,7 @@ package core
 
 import (
 	"errors"
+	"io/ioutil"
 	"os"
 	"path"
 	"sort"
@@ -78,9 +79,11 @@ func TestStateRoot(t *testing.T) {
 	updateIndex := bc.BlockHeight()
 	transferTokenFromMultisigAccount(t, bc, h, bc.contracts.GAS.Hash, 1_0000_0000)
 
-	tmpDir := path.Join(os.TempDir(), "neogo.initsnz")
-	require.NoError(t, os.Mkdir(tmpDir, os.ModePerm))
-	defer os.RemoveAll(tmpDir)
+	tmpDir, err := ioutil.TempDir("", "neogo.test.stateroot")
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		os.RemoveAll(tmpDir)
+	})
 	w := createAndWriteWallet(t, accs[0], path.Join(tmpDir, "w"), "pass")
 	cfg := createStateRootConfig(w.Path(), "pass")
 	srv, err := stateroot.New(cfg, zaptest.NewLogger(t), bc, nil)
@@ -148,9 +151,11 @@ func TestStateRootInitNonZeroHeight(t *testing.T) {
 
 		_, err := persistBlock(bc)
 		require.NoError(t, err)
-		tmpDir := path.Join(os.TempDir(), "neogo.initsnz")
-		require.NoError(t, os.Mkdir(tmpDir, os.ModePerm))
-		defer os.RemoveAll(tmpDir)
+		tmpDir, err := ioutil.TempDir("", "neogo.initsnz")
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			os.RemoveAll(tmpDir)
+		})
 		w := createAndWriteWallet(t, accs[0], path.Join(tmpDir, "w"), "pass")
 		cfg := createStateRootConfig(w.Path(), "pass")
 		srv, err := stateroot.New(cfg, zaptest.NewLogger(t), bc, nil)
@@ -190,9 +195,11 @@ func createStateRootConfig(walletPath, password string) config.StateRoot {
 }
 
 func TestStateRootFull(t *testing.T) {
-	tmpDir := path.Join(os.TempDir(), "neogo.stateroot4")
-	require.NoError(t, os.Mkdir(tmpDir, os.ModePerm))
-	defer os.RemoveAll(tmpDir)
+	tmpDir, err := ioutil.TempDir("", "neogo.stateroot4")
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		os.RemoveAll(tmpDir)
+	})
 
 	bc := newTestChain(t)
 
