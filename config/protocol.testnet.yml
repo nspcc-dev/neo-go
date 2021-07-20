@@ -1,5 +1,5 @@
 ProtocolConfiguration:
-  Magic: 844378958
+  Magic: 877933390
   MaxTraceableBlocks: 2102400
   SecondsPerBlock: 15
   MemPoolSize: 50000
