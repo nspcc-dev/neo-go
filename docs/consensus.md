@@ -91,8 +91,8 @@ use.
 
 This command will create and send appropriate transaction to the network and
 you should then wait for it to settle in a block. If all goes well it'll end
-with "HALT" state and your registration will be completed. You can make
-`getapplicationlog` RPC requests to see transaction status or
+with "HALT" state and your registration will be completed. You can use
+`query tx` command to see transaction status or
 `getnextblockvalidators` to see if your candidate was added.
 
 ### Voting

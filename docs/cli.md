@@ -464,6 +464,18 @@ You can also vote for candidates if you own NEO:
 ./bin/neo-go wallet candidate vote -a NMe64G6j6nkPZby26JAgpaCNrn1Ee4wW6E -w wallet.json -r http://localhost:20332 -c 03cecd63d7d8120c3b194c3b2880dd4aafe1475c57e40c852872d7305615258140
 ```
 
+### Querying transaction status
+`query tx` provides convenient wrapper over RPC calls to query transaction status.
+```
+./bin/neo-go query tx --rpc-endpoint http://localhost:20332 aaf87628851e0c03ee086ff88596bc24de87082e9e5c73d75bb1c740d1d68088
+Hash:			aaf87628851e0c03ee086ff88596bc24de87082e9e5c73d75bb1c740d1d68088
+OnChain:		true
+BlockHash:		fabcd46e93b8f4e1bc5689e3e0cc59704320494f7a0265b91ae78b4d747ee93b
+Success:		true
+```
+`OnChain` is true if transaction was included in block and `Success` is true
+if it was executed successfully.
+
 ### NEP-17 token functions
 
 `wallet nep17` contains a set of commands to use for NEP-17 tokens.
