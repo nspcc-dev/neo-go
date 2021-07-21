@@ -30,11 +30,20 @@ func (c *Client) GetNNSPrice(nnsHash util.Uint160) (int64, error) {
 
 // GetGasPerBlock invokes `getGasPerBlock` method on a native NEO contract.
 func (c *Client) GetGasPerBlock() (int64, error) {
+	return c.getFromNEO("getGasPerBlock")
+}
+
+// GetCandidateRegisterPrice invokes `getRegisterPrice` method on native NEO contract.
+func (c *Client) GetCandidateRegisterPrice() (int64, error) {
+	return c.getFromNEO("getRegisterPrice")
+}
+
+func (c *Client) getFromNEO(meth string) (int64, error) {
 	neoHash, err := c.GetNativeContractHash(nativenames.Neo)
 	if err != nil {
 		return 0, fmt.Errorf("failed to get native NEO hash: %w", err)
 	}
-	return c.invokeNativeGetMethod(neoHash, "getGasPerBlock")
+	return c.invokeNativeGetMethod(neoHash, meth)
 }
 
 // GetDesignatedByRole invokes `getDesignatedByRole` method on a native RoleManagement contract.
