@@ -14,7 +14,7 @@ require (
 	github.com/nspcc-dev/neofs-api-go v1.27.1
 	github.com/nspcc-dev/rfc6979 v0.2.0
 	github.com/pierrec/lz4 v2.6.1+incompatible
-	github.com/prometheus/client_golang v1.2.1
+	github.com/prometheus/client_golang v1.11.0
 	github.com/stretchr/testify v1.7.0
 	github.com/syndtr/goleveldb v0.0.0-20180307113352-169b1b37be73
 	github.com/twmb/murmur3 v1.1.5
@@ -28,7 +28,7 @@ require (
 	golang.org/x/text v0.3.3
 	golang.org/x/tools v0.0.0-20201022035929-9cf592e881e9
 	gopkg.in/abiosoft/ishell.v2 v2.0.0
-	gopkg.in/yaml.v2 v2.2.4
+	gopkg.in/yaml.v2 v2.4.0
 )
 
 go 1.14
