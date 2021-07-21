@@ -12,6 +12,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativeprices"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/fixedn"
@@ -803,53 +804,40 @@ func (c *Client) CalculateValidUntilBlock() (uint32, error) {
 }
 
 // AddNetworkFee adds network fee for each witness script and optional extra
-// network fee to transaction. `accs` is an array signer's accounts.
+// network fee to transaction. `accs` is an array of signer's accounts with
+// matching order.
 func (c *Client) AddNetworkFee(tx *transaction.Transaction, extraFee int64, accs ...*wallet.Account) error {
 	if len(tx.Signers) != len(accs) {
 		return errors.New("number of signers must match number of scripts")
 	}
-	size := io.GetVarSize(tx)
-	var ef int64
-	for i, cosigner := range tx.Signers {
-		if accs[i].Contract.Deployed {
-			res, err := c.InvokeContractVerify(cosigner.Account, smartcontract.Params{}, tx.Signers)
-			if err != nil {
-				return fmt.Errorf("failed to invoke verify: %w", err)
+	oldScripts := tx.Scripts
+	tx.Scripts = make([]transaction.Witness, len(tx.Signers))
+	for i := range tx.Signers {
+		if accs[i].Contract != nil {
+			if accs[i].Contract.Deployed == true {
+				tx.Scripts[i] = transaction.Witness{InvocationScript: []byte{}, VerificationScript: []byte{}}
+				continue
 			}
-			if res.State != "HALT" {
-				return fmt.Errorf("invalid VM state %s due to an error: %s", res.State, res.FaultException)
-			}
-			if l := len(res.Stack); l != 1 {
-				return fmt.Errorf("result stack length should be equal to 1, got %d", l)
-			}
-			r, err := topIntFromStack(res.Stack)
-			if err != nil {
-				return fmt.Errorf("signer #%d: failed to get `verify` result from stack: %w", i, err)
-			}
-			if r == 0 {
-				return fmt.Errorf("signer #%d: `verify` returned `false`", i)
-			}
-			tx.NetworkFee += res.GasConsumed
-			size += io.GetVarSize([]byte{}) * 2 // both scripts are empty
-			continue
-		}
-
-		if ef == 0 {
-			var err error
-			ef, err = c.GetExecFeeFactor()
-			if err != nil {
-				return fmt.Errorf("can't get `ExecFeeFactor`: %w", err)
+			nativeNotaryHashableScript := state.CreateContractHashableScript(util.Uint160{}, 0, nativenames.Notary)
+			if accs[i].Contract.Script == nil && tx.Signers[i].Account == hash.Hash160(nativeNotaryHashableScript) {
+				// This is a hack for Notary contract witness in uncompleted Notary request transactions.
+				// Witness check for such uncompleted transactions will fail, but we need the tx to pass
+				// witness check for the rest of witnesses. We're OK with 0 netfee for Notary witness,
+				// so all we need is just to skip Notary witness check. Given `CalculateNetworkFee`, the
+				// most simple way to do it is to pretend that Notary witness is an unusual witness
+				// (neither of sig/multisig/contract-based) with hash(verificationScript) == Notary contract hash.
+				tx.Scripts[i] = transaction.Witness{InvocationScript: []byte{}, VerificationScript: nativeNotaryHashableScript}
+				continue
 			}
 		}
-		netFee, sizeDelta := fee.Calculate(ef, accs[i].Contract.Script)
-		tx.NetworkFee += netFee
-		size += sizeDelta
+		tx.Scripts[i] = transaction.Witness{InvocationScript: []byte{}, VerificationScript: accs[i].GetVerificationScript()}
 	}
-	fee, err := c.GetFeePerByte()
+	netFee, err := c.CalculateNetworkFee(tx)
 	if err != nil {
-		return err
+		return fmt.Errorf("`calculatenetworkfee` RPC request returned an error: %w", err)
 	}
-	tx.NetworkFee += int64(size)*fee + extraFee
+	tx.NetworkFee += netFee + extraFee
+	tx.Scripts = oldScripts
 	return nil
 }
 
