@@ -2,6 +2,58 @@
 
 This document outlines major changes between releases.
 
+## 0.96.0 "Aspiration" (21 Jul 2021)
+
+We're updating NeoGo to support RC4 changes, there are some incompatible ones
+so this version can't be used with RC3 networks/chains (RC3 testnet is
+still available, please use 0.95.4 for it). This release was checked for RC4
+testnet compatibility and has the same state as C# for the first 5K blocks.
+
+No significant protocol changes are expected now as we're moving to final N3
+release, but we'll keep updating the node fixing bugs (if any), improving
+performance and introducing NeoGo-specific features.
+
+New features:
+ * "System.Runtime.GetNetwork" system call (#2043)
+ * ContentTypeNotSupported oracle return code and content type configuration
+   for Oracle service (#2042)
+ * block header have "Nonce" field again which is used for
+   "System.Runtime.GetRandom" system call (#2066)
+ * import from incremental chain dumps (#2061)
+ * configurable initial (from the genesis block) GAS supply (#2078)
+ * "query tx" CLI command to check for transaction status (#2070)
+
+Behavior changes:
+ * verification GAS limits were increased (#2055)
+ * SQRT price reduced (#2071)
+ * binary deserialization is now limited to 2048 (MaxStackSize) items (#2071)
+ * notary deposit is stored now as serialized stack item (#2071)
+ * testnet and mainnet configuration updates (#2077, #2079, #2081)
+
+Improvements:
+ * faster stack item binary and JSON serialization (#2053)
+ * faster Storage.Find operation (#2057)
+ * additional documentation for public network CNs (#2068)
+ * better code reuse for native contract's data serialization (#2071, see new
+   stackitem.Convertible interface)
+ * some types from state package renamed to remove "State" word (#2075)
+ * util.ArrayReverse helper moved to package of its own with additional
+   helpers (#2075)
+
+Bugs fixed:
+ * nested structure cloning could lead to OOM (#2054, #2071)
+ * addresses were not accepted for witness accounts in RPC calls (#2072)
+ * POW instruction could take unknown amount of time to complete for big
+   parameters (#2060)
+ * oracle contract could accept invalid user data (#2071)
+ * EQUAL for deeply nested structures could never complete (#2071)
+ * arrays and structures were limited to 1024 items (#2071)
+ * oracle fallback transactions could try using outdated ValidUntilBlock value
+   (#2074)
+ * oracle node starting from genesis block tried to process all requests from
+   the chain instead of only working with current ones (#2074)
+ * some tests used non-unique/wrong temporary files and directories (#2076)
+
 ## 0.95.4 "Yatter" (09 Jul 2021)
 
 Making a fully compliant Neo node is not easy, there are lots of minuscule
