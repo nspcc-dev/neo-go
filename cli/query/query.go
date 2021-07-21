@@ -26,11 +26,11 @@ func NewCommands() []cli.Command {
 	}, options.RPC...)
 	return []cli.Command{{
 		Name:  "query",
-		Usage: "query",
+		Usage: "Query data from RPC node",
 		Subcommands: []cli.Command{
 			{
 				Name:   "tx",
-				Usage:  "query tx status",
+				Usage:  "Query transaction status",
 				Action: queryTx,
 				Flags:  queryTxFlags,
 			},
