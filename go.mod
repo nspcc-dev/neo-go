@@ -16,7 +16,7 @@ require (
 	github.com/pierrec/lz4 v2.6.1+incompatible
 	github.com/prometheus/client_golang v1.11.0
 	github.com/stretchr/testify v1.7.0
-	github.com/syndtr/goleveldb v0.0.0-20180307113352-169b1b37be73
+	github.com/syndtr/goleveldb v1.0.1-0.20210305035536-64b5b1c73954
 	github.com/twmb/murmur3 v1.1.5
 	github.com/urfave/cli v1.20.0
 	github.com/virtuald/go-ordered-json v0.0.0-20170621173500-b18e6e673d74
