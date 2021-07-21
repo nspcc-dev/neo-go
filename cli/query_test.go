@@ -11,6 +11,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/internal/random"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
+	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/fixedn"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -118,7 +119,7 @@ func (e *executor) compareQueryTxVerbose(t *testing.T, tx *transaction.Transacti
 	res, _ := e.Chain.GetAppExecResults(tx.Hash(), trigger.Application)
 	e.checkNextLine(t, fmt.Sprintf(`Success:\s+%t`, res[0].Execution.VMState == vm.HaltState))
 	for _, s := range tx.Signers {
-		e.checkNextLine(t, fmt.Sprintf(`Signer:\s+%s\s*\(%s\)`, s.Account.StringLE(), s.Scopes.String()))
+		e.checkNextLine(t, fmt.Sprintf(`Signer:\s+%s\s*\(%s\)`, address.Uint160ToString(s.Account), s.Scopes.String()))
 	}
 	e.checkNextLine(t, `SystemFee:\s+`+fixedn.Fixed8(tx.SystemFee).String()+" GAS$")
 	e.checkNextLine(t, `NetworkFee:\s+`+fixedn.Fixed8(tx.NetworkFee).String()+" GAS$")

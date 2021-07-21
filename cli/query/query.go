@@ -9,6 +9,7 @@ import (
 	"text/tabwriter"
 
 	"github.com/nspcc-dev/neo-go/cli/options"
+	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/fixedn"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -95,7 +96,7 @@ func dumpApplicationLog(ctx *cli.Context, res *result.ApplicationLog, tx *result
 	if verbose {
 		for _, sig := range tx.Signers {
 			_, _ = tw.Write([]byte(fmt.Sprintf("Signer:\t%s (%s)",
-				sig.Account.StringLE(),
+				address.Uint160ToString(sig.Account),
 				sig.Scopes) + "\n"))
 		}
 		_, _ = tw.Write([]byte("SystemFee:\t" + fixedn.Fixed8(tx.SystemFee).String() + " GAS\n"))
