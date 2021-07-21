@@ -86,7 +86,11 @@ func dumpApplicationLog(ctx *cli.Context, res *result.ApplicationLog, tx *result
 		_, _ = tw.Write([]byte("ValidUntil:\t" + strconv.FormatUint(uint64(tx.ValidUntilBlock), 10) + "\n"))
 	} else {
 		_, _ = tw.Write([]byte("BlockHash:\t" + tx.Blockhash.StringLE() + "\n"))
-		_, _ = tw.Write([]byte(fmt.Sprintf("Success:\t%t\n", tx.VMState == vm.HaltState.String())))
+		if len(res.Executions) != 1 {
+			_, _ = tw.Write([]byte("Success:\tunknown (no execution data)\n"))
+		} else {
+			_, _ = tw.Write([]byte(fmt.Sprintf("Success:\t%t\n", res.Executions[0].VMState == vm.HaltState)))
+		}
 	}
 	if verbose {
 		for _, sig := range tx.Signers {
