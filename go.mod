@@ -13,7 +13,7 @@ require (
 	github.com/nspcc-dev/dbft v0.0.0-20210721160347-1b03241391ac
 	github.com/nspcc-dev/neofs-api-go v1.27.1
 	github.com/nspcc-dev/rfc6979 v0.2.0
-	github.com/pierrec/lz4 v2.5.2+incompatible
+	github.com/pierrec/lz4 v2.6.1+incompatible
 	github.com/prometheus/client_golang v1.2.1
 	github.com/stretchr/testify v1.7.0
 	github.com/syndtr/goleveldb v0.0.0-20180307113352-169b1b37be73
