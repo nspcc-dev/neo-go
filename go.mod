@@ -18,7 +18,7 @@ require (
 	github.com/stretchr/testify v1.7.0
 	github.com/syndtr/goleveldb v1.0.1-0.20210305035536-64b5b1c73954
 	github.com/twmb/murmur3 v1.1.5
-	github.com/urfave/cli v1.20.0
+	github.com/urfave/cli v1.22.5
 	github.com/virtuald/go-ordered-json v0.0.0-20170621173500-b18e6e673d74
 	go.etcd.io/bbolt v1.3.4
 	go.uber.org/atomic v1.4.0
