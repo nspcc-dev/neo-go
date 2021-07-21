@@ -21,7 +21,7 @@ require (
 	github.com/urfave/cli v1.22.5
 	github.com/virtuald/go-ordered-json v0.0.0-20170621173500-b18e6e673d74
 	go.etcd.io/bbolt v1.3.6
-	go.uber.org/atomic v1.4.0
+	go.uber.org/atomic v1.9.0
 	go.uber.org/zap v1.10.0
 	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9
 	golang.org/x/term v0.0.0-20201210144234-2321bbc49cbf
