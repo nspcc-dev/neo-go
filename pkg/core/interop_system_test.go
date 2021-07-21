@@ -46,7 +46,7 @@ func TestRuntimeGetRandomCompatibility(t *testing.T) {
 	b := getSharpTestGenesis(t)
 	tx := getSharpTestTx(util.Uint160{})
 	ic := bc.newInteropContext(trigger.Application, dao.NewCached(bc.dao), b, tx)
-	ic.Network = uint32(netmode.MainNet)
+	ic.Network = 5195086 // Old mainnet magic used by C# tests.
 
 	ic.VM = vm.New()
 	ic.VM.LoadScript([]byte{0x01})

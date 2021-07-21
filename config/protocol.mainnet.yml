@@ -1,5 +1,5 @@
 ProtocolConfiguration:
-  Magic: 5195086
+  Magic: 860833102
   MaxTraceableBlocks: 2102400
   InitialGASSupply: 52000000
   SecondsPerBlock: 15
