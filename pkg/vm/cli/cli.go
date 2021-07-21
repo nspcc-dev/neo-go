@@ -14,6 +14,7 @@ import (
 	"strings"
 	"text/tabwriter"
 
+	"github.com/abiosoft/ishell/v2"
 	"github.com/abiosoft/readline"
 	"github.com/nspcc-dev/neo-go/pkg/compiler"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
@@ -24,7 +25,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/util/slice"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
-	"gopkg.in/abiosoft/ishell.v2"
 )
 
 const (

@@ -2,6 +2,7 @@ module github.com/nspcc-dev/neo-go
 
 require (
 	github.com/Workiva/go-datastructures v1.0.53
+	github.com/abiosoft/ishell/v2 v2.0.2
 	github.com/abiosoft/readline v0.0.0-20180607040430-155bce2042db
 	github.com/alicebob/miniredis/v2 v2.15.1
 	github.com/btcsuite/btcd v0.22.0-beta
@@ -27,7 +28,6 @@ require (
 	golang.org/x/term v0.0.0-20210429154555-c04ba851c2a4
 	golang.org/x/text v0.3.6
 	golang.org/x/tools v0.0.0-20201022035929-9cf592e881e9
-	gopkg.in/abiosoft/ishell.v2 v2.0.0
 	gopkg.in/yaml.v2 v2.4.0
 )
 
