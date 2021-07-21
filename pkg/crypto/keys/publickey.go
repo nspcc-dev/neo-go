@@ -338,8 +338,7 @@ func (p *PublicKey) Verify(signature []byte, hash []byte) bool {
 	}
 	rBytes := new(big.Int).SetBytes(signature[0:32])
 	sBytes := new(big.Int).SetBytes(signature[32:64])
-	pk := ecdsa.PublicKey(*p)
-	return ecdsa.Verify(&pk, hash, rBytes, sBytes)
+	return ecdsa.Verify((*ecdsa.PublicKey)(p), hash, rBytes, sBytes)
 }
 
 // VerifyHashable returns true if the signature is valid and corresponds
