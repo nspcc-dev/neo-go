@@ -90,7 +90,7 @@ func newValidatorCommands() []cli.Command {
 }
 
 func handleRegister(ctx *cli.Context) error {
-	return handleCandidate(ctx, "registerCandidate", 1001*100000000) // registering costs 1000 GAS
+	return handleCandidate(ctx, "registerCandidate", 100000000) // 1 additional GAS.
 }
 
 func handleUnregister(ctx *cli.Context) error {
@@ -120,6 +120,14 @@ func handleCandidate(ctx *cli.Context, method string, sysGas int64) error {
 	c, err := options.GetRPCClient(gctx, ctx)
 	if err != nil {
 		return cli.NewExitError(err, 1)
+	}
+
+	if sysGas >= 0 {
+		regPrice, err := c.GetCandidateRegisterPrice()
+		if err != nil {
+			return cli.NewExitError(err, 1)
+		}
+		sysGas += regPrice
 	}
 
 	gas := flags.Fixed8FromContext(ctx, "gas")
