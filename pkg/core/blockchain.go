@@ -52,6 +52,7 @@ const (
 	defaultMaxBlockSystemFee               = 900000000000
 	defaultMaxTraceableBlocks              = 2102400 // 1 year of 15s blocks
 	defaultMaxTransactionsPerBlock         = 512
+	defaultStateSyncInterval               = 40000
 	headerVerificationGasLimit             = 3_00000000 // 3 GAS
 )
 
@@ -110,6 +111,9 @@ type Blockchain struct {
 
 	// Current persisted block count.
 	persistedHeight uint32
+
+	// Current state synchronisation point.
+	p uint32
 
 	// Number of headers stored in the chain file.
 	storedHeaderCount uint32
@@ -203,6 +207,11 @@ func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration, log *zap.L
 		log.Info("MaxValidUntilBlockIncrement is not set or wrong, using default value",
 			zap.Uint32("MaxValidUntilBlockIncrement", cfg.MaxValidUntilBlockIncrement))
 	}
+	if cfg.P2PStateExchangeExtensions && cfg.StateSyncInterval <= 0 {
+		cfg.StateSyncInterval = defaultStateSyncInterval
+		log.Info("StateSyncInterval is not set or wrong, using default value",
+			zap.Int("StateSyncInterval", cfg.StateSyncInterval))
+	}
 	committee, err := committeeFromConfig(cfg)
 	if err != nil {
 		return nil, err
@@ -292,7 +301,20 @@ func (bc *Blockchain) init() error {
 	}
 	bc.blockHeight = bHeight
 	bc.persistedHeight = bHeight
-	if err = bc.stateRoot.Init(bHeight, bc.config.KeepOnlyLatestState); err != nil {
+
+	p, err := bc.dao.GetStateSyncPoint()
+	if err != nil && !errors.Is(err, storage.ErrKeyNotFound) {
+		return fmt.Errorf("can't retrieve state synchronisation point: %w", err)
+	}
+	if err == nil && !(bc.config.P2PStateExchangeExtensions && bc.config.RemoveUntraceableBlocks) {
+		return errors.New("state sync point found in the storage: enable P2PStateExchangeExtensions and RemoveUntraceableBlocks or clean the storage")
+	}
+	if p <= bHeight {
+		p = bHeight
+	} else {
+		bc.p = p
+	}
+	if err = bc.stateRoot.Init(p, bc.config.KeepOnlyLatestState); err != nil {
 		return fmt.Errorf("can't init MPT at height %d: %w", bHeight, err)
 	}
 
@@ -387,6 +409,30 @@ func (bc *Blockchain) init() error {
 	return bc.updateExtensibleWhitelist(bHeight)
 }
 
+// InitOnRestore initializes blockchain before the state sync process for `p` height
+// can be started.
+func (bc *Blockchain) InitOnRestore(p uint32) error {
+	if !bc.config.P2PStateExchangeExtensions || p < uint32(bc.config.StateSyncInterval) {
+		return errors.New("invalid state sync point")
+	}
+	var height uint32
+	if p > bc.config.MaxTraceableBlocks+1 {
+		height = p - bc.config.MaxTraceableBlocks - 1
+	}
+	bc.lock.Lock()
+	defer bc.lock.Unlock()
+	bc.p = p
+	err := bc.dao.PutStateSyncPoint(p)
+	if err != nil {
+		return fmt.Errorf("failed to store state synchronization point: %w", err)
+	}
+	if height > bc.blockHeight {
+		// Need to provide proper (bc).BlockHeight() to external users while syncing.
+		bc.blockHeight = height
+	}
+	return nil
+}
+
 // Run runs chain loop, it needs to be run as goroutine and executing it is
 // critical for correct Blockchain operation.
 func (bc *Blockchain) Run() {
@@ -462,7 +508,7 @@ func (bc *Blockchain) notificationDispatcher() {
 		case event := <-bc.events:
 			// We don't want to waste time looping through transactions when there are no
 			// subscribers.
-			if len(txFeed) != 0 || len(notificationFeed) != 0 || len(executionFeed) != 0 {
+			if (len(txFeed) != 0 || len(notificationFeed) != 0 || len(executionFeed) != 0) && bc.BlockHeight() > bc.p {
 				aer := event.appExecResults[0]
 				if !aer.Container.Equals(event.block.Hash()) {
 					panic("inconsistent application execution results")
@@ -551,29 +597,55 @@ func (bc *Blockchain) AddBlock(block *block.Block) error {
 			return err
 		}
 	}
+	canStartSync := bc.blockHeight >= bc.p
+	if canStartSync {
+		if !bc.stateRoot.IsInSync() {
+			// unable to process blocks without full MPT state synchronisation, thus need to wait until MPT is synced
+			return nil
+		}
+		if bc.blockHeight == bc.p && bc.p != 0 {
+			// MPT sync and blocks sync are reached, need to clean cache of native contracts before sync process
+			// can be started.
+			err := bc.contracts.NEO.InitializeCache(bc, bc.dao)
+			if err != nil {
+				return fmt.Errorf("can't init cache for NEO native contract: %w", err)
+			}
+			err = bc.contracts.Management.InitializeCache(bc.dao)
+			if err != nil {
+				return fmt.Errorf("can't init cache for Management native contract: %w", err)
+			}
+			bc.contracts.Designate.InitializeCache()
+		}
+	}
 	if bc.config.VerifyBlocks {
 		merkle := block.ComputeMerkleRoot()
 		if !block.MerkleRoot.Equals(merkle) {
 			return errors.New("invalid block: MerkleRoot mismatch")
 		}
-		mp = mempool.New(len(block.Transactions), 0, false)
-		for _, tx := range block.Transactions {
-			var err error
-			// Transactions are verified before adding them
-			// into the pool, so there is no point in doing
-			// it again even if we're verifying in-block transactions.
-			if bc.memPool.ContainsKey(tx.Hash()) {
-				err = mp.Add(tx, bc)
-				if err == nil {
-					continue
+		if canStartSync {
+			mp = mempool.New(len(block.Transactions), 0, false)
+			for _, tx := range block.Transactions {
+				var err error
+				// Transactions are verified before adding them
+				// into the pool, so there is no point in doing
+				// it again even if we're verifying in-block transactions.
+				if bc.memPool.ContainsKey(tx.Hash()) {
+					err = mp.Add(tx, bc)
+					if err == nil {
+						continue
+					}
+				} else {
+					err = bc.verifyAndPoolTx(tx, mp, bc)
 				}
-			} else {
-				err = bc.verifyAndPoolTx(tx, mp, bc)
-			}
-			if err != nil && bc.config.VerifyTransactions {
-				return fmt.Errorf("transaction %s failed to verify: %w", tx.Hash().StringLE(), err)
+				if err != nil && bc.config.VerifyTransactions {
+					return fmt.Errorf("transaction %s failed to verify: %w", tx.Hash().StringLE(), err)
+				}
 			}
 		}
+	}
+
+	if !canStartSync {
+		return bc.saveBlock(block)
 	}
 	return bc.storeBlock(block, mp)
 }
@@ -672,6 +744,50 @@ func (bc *Blockchain) GetStateModule() blockchainer.StateRoot {
 	return bc.stateRoot
 }
 
+// saveBlock stores specified block skipping executable scripts and updates
+// Blockchain state.
+func (bc *Blockchain) saveBlock(block *block.Block) error {
+	cache := dao.NewCached(bc.dao)
+	writeBuf := io.NewBufBinWriter()
+	if err := cache.StoreAsBlock(block, writeBuf); err != nil {
+		return err
+	}
+	writeBuf.Reset()
+
+	if err := cache.StoreAsCurrentBlock(block, writeBuf); err != nil {
+		return err
+	}
+	writeBuf.Reset()
+
+	for _, tx := range block.Transactions {
+		if err := cache.StoreAsTransaction(tx, block.Index, writeBuf); err != nil {
+			return err
+		}
+		writeBuf.Reset()
+
+		err := bc.storeConflictTxs(tx, block, writeBuf, cache)
+		if err != nil {
+			return err
+		}
+	}
+
+	bc.lock.Lock()
+	_, err := cache.Persist()
+	if err != nil {
+		bc.lock.Unlock()
+		return err
+	}
+	bc.topBlock.Store(block)
+	atomic.StoreUint32(&bc.blockHeight, block.Index)
+	bc.lock.Unlock()
+
+	updateBlockHeightMetric(block.Index)
+
+	// need to notify server when last block is stored
+	bc.events <- bcEvent{block, nil}
+	return nil
+}
+
 // storeBlock performs chain update using the block given, it executes all
 // transactions with all appropriate side-effects and updates Blockchain state.
 // This is the only way to change Blockchain state.
@@ -748,16 +864,9 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 		}
 		writeBuf.Reset()
 
-		if bc.config.P2PSigExtensions {
-			for _, attr := range tx.GetAttributes(transaction.ConflictsT) {
-				hash := attr.Value.(*transaction.Conflicts).Hash
-				dummyTx := transaction.NewTrimmedTX(hash)
-				dummyTx.Version = transaction.DummyVersion
-				if err = cache.StoreAsTransaction(dummyTx, block.Index, writeBuf); err != nil {
-					return fmt.Errorf("failed to store conflicting transaction %s for transaction %s: %w", hash.StringLE(), tx.Hash().StringLE(), err)
-				}
-				writeBuf.Reset()
-			}
+		err = bc.storeConflictTxs(tx, block, writeBuf, cache)
+		if err != nil {
+			return err
 		}
 	}
 
@@ -795,8 +904,22 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 		bc.lastBatch = cache.DAO.GetBatch()
 	}
 	if bc.config.RemoveUntraceableBlocks {
-		if block.Index > bc.config.MaxTraceableBlocks {
-			index := block.Index - bc.config.MaxTraceableBlocks // is at least 1
+		var start, stop uint32
+		if bc.config.P2PStateExchangeExtensions {
+			// remove batch of old blocks starting from P2-MaxTraceableBlocks-StateSyncInterval up to P2-MaxTraceableBlocks
+			if block.Index >= 2*uint32(bc.config.StateSyncInterval) &&
+				block.Index >= uint32(bc.config.StateSyncInterval)+bc.config.MaxTraceableBlocks && // check this in case if MaxTraceableBlocks>StateSyncInterval
+				int(block.Index)%bc.config.StateSyncInterval == 0 {
+				stop = block.Index - uint32(bc.config.StateSyncInterval) - bc.config.MaxTraceableBlocks
+				if stop > uint32(bc.config.StateSyncInterval) {
+					start = stop - uint32(bc.config.StateSyncInterval)
+				}
+			}
+		} else if block.Index > bc.config.MaxTraceableBlocks {
+			start = block.Index - bc.config.MaxTraceableBlocks // is at least 1
+			stop = start + 1
+		}
+		for index := start; index < stop; index++ {
 			err := cache.DeleteBlock(bc.headerHashes[index], writeBuf)
 			if err != nil {
 				bc.log.Warn("error while removing old block",
@@ -810,8 +933,7 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 	// already in AddMPTBatch, so collapsing it is safe.
 	persistedHeight := atomic.LoadUint32(&bc.persistedHeight)
 	if persistedHeight == block.Index-1 {
-		// 10 is good and roughly estimated to fit remaining trie into 1M of memory.
-		mpt.Collapse(10)
+		mpt.Collapse(stateroot.CollapseDepth)
 	}
 
 	bc.lock.Lock()
@@ -841,6 +963,22 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 	// anyway.
 	if block.Index != 0 {
 		bc.events <- bcEvent{block, appExecResults}
+	}
+	return nil
+}
+
+// storeConflictTxs stores dummy transactions that are conflicting with the specified one.
+func (bc *Blockchain) storeConflictTxs(tx *transaction.Transaction, block *block.Block, writeBuf *io.BufBinWriter, cache *dao.Cached) error {
+	if bc.config.P2PSigExtensions {
+		for _, attr := range tx.GetAttributes(transaction.ConflictsT) {
+			hash := attr.Value.(*transaction.Conflicts).Hash
+			dummyTx := transaction.NewTrimmedTX(hash)
+			dummyTx.Version = transaction.DummyVersion
+			if err := cache.StoreAsTransaction(dummyTx, block.Index, writeBuf); err != nil {
+				return fmt.Errorf("failed to store conflicting transaction %s for transaction %s: %w", hash.StringLE(), tx.Hash().StringLE(), err)
+			}
+			writeBuf.Reset()
+		}
 	}
 	return nil
 }

@@ -1,10 +1,14 @@
 package mpt
 
 import (
+	"encoding/binary"
+	"errors"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/internal/random"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
+	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/stretchr/testify/require"
 )
 
@@ -521,5 +525,199 @@ func TestTrie_Collapse(t *testing.T) {
 		newRoot, ok := tr.root.(*HashNode)
 		require.True(t, ok)
 		require.Equal(t, NewHashNode(h), newRoot)
+	})
+}
+
+func TestTrie_RestoreHashNode(t *testing.T) {
+	check := func(t *testing.T, tr *Trie, expectedRoot Node, expectedNode Node, expectedRefCount uint32) {
+		_ = expectedRoot.Hash()
+		require.Equal(t, expectedRoot, tr.root)
+		expectedBytes, err := tr.Store.Get(makeStorageKey(expectedNode.Hash().BytesBE()))
+		if expectedRefCount != 0 {
+			require.NoError(t, err)
+			require.Equal(t, expectedRefCount, binary.LittleEndian.Uint32(expectedBytes[len(expectedBytes)-4:]))
+		} else {
+			require.True(t, errors.Is(err, storage.ErrKeyNotFound))
+		}
+		/*	if expectedRefCount == 0 {
+				require.True(t, errors.Is(err, storage.ErrKeyNotFound))
+				require.Nil(t, tr.refcount[expectedNode.Hash()])
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, expectedBytes, expectedNode.Bytes())
+				require.Equal(t, expectedRefCount, tr.refcount[expectedNode.Hash()].refcount)
+			}*/
+	}
+
+	t.Run("parent is Extension", func(t *testing.T) {
+		t.Run("restore Branch", func(t *testing.T) {
+			b := NewBranchNode()
+			b.Children[0] = NewExtensionNode([]byte{0x01}, NewLeafNode([]byte{0xAB, 0xCD}))
+			b.Children[5] = NewExtensionNode([]byte{0x01}, NewLeafNode([]byte{0xAB, 0xDE}))
+			path := toNibbles([]byte{0xAC})
+			e := NewExtensionNode(path, NewHashNode(b.Hash()))
+			tr := NewTrie(e, true, newTestStore())
+
+			// OK
+			n := new(NodeObject)
+			n.DecodeBinary(io.NewBinReaderFromBuf(b.Bytes()))
+			require.Nil(t, tr.refcount[n.Hash()])
+			require.NoError(t, tr.RestoreHashNode(path, n.Node))
+			expected := NewExtensionNode(path, n.Node)
+			check(t, tr, expected, n.Node, 1)
+
+			// One more time (already restored) => no error expected, no refcount changes
+			require.NoError(t, tr.RestoreHashNode(path, n.Node))
+			check(t, tr, expected, n.Node, 1)
+
+			// Same path, but wrong hash => error expected, no refcount changes
+			require.True(t, errors.Is(tr.RestoreHashNode(path, NewBranchNode()), ErrRestoreFailed))
+			check(t, tr, expected, n.Node, 1)
+
+			// New path (changes in the MPT structure are not allowed) => error expected, no refcount changes
+			require.True(t, errors.Is(tr.RestoreHashNode(toNibbles([]byte{0xAB}), n.Node), ErrRestoreFailed))
+			check(t, tr, expected, n.Node, 1)
+		})
+
+		t.Run("restore Leaf", func(t *testing.T) {
+			l := NewLeafNode([]byte{0xAB, 0xCD})
+			path := toNibbles([]byte{0xAC})
+			e := NewExtensionNode(path, NewHashNode(l.Hash()))
+			tr := NewTrie(e, true, newTestStore())
+
+			// OK
+			require.Nil(t, tr.refcount[l.Hash()])
+			require.NoError(t, tr.RestoreHashNode(path, l))
+			expected := NewExtensionNode(path, l)
+			check(t, tr, expected, l, 1)
+
+			// One more time (already restored) => no error expected, no refcount changes
+			require.NoError(t, tr.RestoreHashNode(path, l))
+			check(t, tr, expected, l, 1)
+
+			// Same path, but wrong hash => error expected, no refcount changes
+			require.True(t, errors.Is(tr.RestoreHashNode(path, NewLeafNode([]byte{0xAB, 0xEF})), ErrRestoreFailed))
+			check(t, tr, expected, l, 1)
+
+			// New path (changes in the MPT structure are not allowed) => error expected, no refcount changes
+			require.True(t, errors.Is(tr.RestoreHashNode(toNibbles([]byte{0xAB}), l), ErrRestoreFailed))
+			check(t, tr, expected, l, 1)
+		})
+
+		t.Run("restore Hash", func(t *testing.T) {
+			h := NewHashNode(util.Uint256{1, 2, 3})
+			path := toNibbles([]byte{0xAC})
+			e := NewExtensionNode(path, h)
+			tr := NewTrie(e, true, newTestStore())
+
+			// no-op
+			require.True(t, errors.Is(tr.RestoreHashNode(path, h), ErrRestoreFailed))
+			check(t, tr, e, h, 0)
+		})
+	})
+
+	t.Run("parent is Leaf", func(t *testing.T) {
+		l := NewLeafNode([]byte{0xAB, 0xCD})
+		path := []byte{}
+		tr := NewTrie(l, true, newTestStore())
+		tr.refcount[l.Hash()] = &cachedNode{bytes: l.Bytes(), refcount: 1}
+
+		// Already restored => no error expected, no refcount changes
+		require.NoError(t, tr.RestoreHashNode(path, l))
+		check(t, tr, l, l, 1)
+		bytes, err := tr.Store.Get(append([]byte{byte(storage.STStorage)}, path...))
+		require.NoError(t, err)
+		require.Equal(t, bytes, l.value)
+
+		// Same path, but wrong hash => error expected, no refcount changes
+		require.True(t, errors.Is(tr.RestoreHashNode(path, NewLeafNode([]byte{0xAB, 0xEF})), ErrRestoreFailed))
+		check(t, tr, l, l, 1)
+
+		// Non-nil path, but MPT structure can't be changed => error expected, no refcount changes
+		require.True(t, errors.Is(tr.RestoreHashNode(toNibbles([]byte{0xAC}), NewLeafNode([]byte{0xAB, 0xEF})), ErrRestoreFailed))
+		check(t, tr, l, l, 1)
+	})
+
+	t.Run("parent is Branch", func(t *testing.T) {
+		t.Run("middle child", func(t *testing.T) {
+			l1 := NewLeafNode([]byte{0xAB, 0xCD})
+			l2 := NewLeafNode([]byte{0xAB, 0xDE})
+			b := NewBranchNode()
+			b.Children[5] = NewHashNode(l1.Hash())
+			b.Children[lastChild] = NewHashNode(l2.Hash())
+			tr := NewTrie(b, true, newTestStore())
+			tr.putToStore(b)
+
+			// OK
+			path := []byte{0x05}
+			require.Nil(t, tr.refcount[l1.Hash()])
+			require.NoError(t, tr.RestoreHashNode(path, l1))
+			expected := NewBranchNode()
+			expected.Children[5] = l1
+			expected.Children[lastChild] = NewHashNode(l2.Hash())
+			check(t, tr, expected, l1, 1)
+
+			// One more time (already restored) => no error expected, no refcount changes
+			require.NoError(t, tr.RestoreHashNode(path, l1))
+			check(t, tr, expected, l1, 1)
+
+			// Same path, but wrong hash => error expected, no refcount changes
+			require.True(t, errors.Is(tr.RestoreHashNode(path, NewLeafNode([]byte{0xAD})), ErrRestoreFailed))
+			check(t, tr, expected, l1, 1)
+
+			// New path pointing to the empty HashNode (changes in the MPT structure are not allowed) => error expected, no refcount changes
+			require.True(t, errors.Is(tr.RestoreHashNode([]byte{0x01}, l1), ErrRestoreFailed))
+			check(t, tr, expected, l1, 1)
+		})
+
+		t.Run("last child", func(t *testing.T) {
+			l1 := NewLeafNode([]byte{0xAB, 0xCD})
+			l2 := NewLeafNode([]byte{0xAB, 0xDE})
+			b := NewBranchNode()
+			b.Children[5] = NewHashNode(l1.Hash())
+			b.Children[lastChild] = NewHashNode(l2.Hash())
+			tr := NewTrie(b, true, newTestStore())
+			tr.putToStore(b)
+
+			// OK
+			path := []byte{}
+			require.Nil(t, tr.refcount[l1.Hash()])
+			require.NoError(t, tr.RestoreHashNode(path, l2))
+			expected := NewBranchNode()
+			expected.Children[5] = NewHashNode(l1.Hash())
+			expected.Children[lastChild] = l2
+			check(t, tr, expected, l2, 1)
+
+			// One more time (already restored) => no error expected, no refcount changes
+			require.NoError(t, tr.RestoreHashNode(path, l2))
+			check(t, tr, expected, l2, 1)
+
+			// Same path, but wrong hash => error expected, no refcount changes
+			require.True(t, errors.Is(tr.RestoreHashNode(path, NewLeafNode([]byte{0xAD})), ErrRestoreFailed))
+			check(t, tr, expected, l2, 1)
+		})
+	})
+
+	t.Run("parent is Hash", func(t *testing.T) {
+		l := NewLeafNode([]byte{0xAB, 0xCD})
+		b := NewBranchNode()
+		// two same hashnodes => leaf's refcount expected to be 2.
+		b.Children[3] = NewHashNode(l.Hash())
+		b.Children[4] = NewHashNode(l.Hash())
+		tr := NewTrie(NewHashNode(b.Hash()), true, newTestStore())
+		tr.putToStore(b)
+
+		// OK
+		require.Nil(t, tr.refcount[l.Hash()])
+		require.NoError(t, tr.RestoreHashNode([]byte{0x03}, l))
+		expected := NewBranchNode()
+		expected.Children[3] = l
+		expected.Children[4] = NewHashNode(l.Hash())
+		check(t, tr, expected, l, 1)
+
+		// Restore another node with the same hash => no error expected, refcount should be incremented
+		require.NoError(t, tr.RestoreHashNode([]byte{0x04}, l))
+		expected.Children[4] = l
+		check(t, tr, expected, l, 2)
 	})
 }

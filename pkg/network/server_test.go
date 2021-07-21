@@ -16,7 +16,10 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
+	"github.com/nspcc-dev/neo-go/pkg/core/mpt"
+	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
+	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/network/capability"
 	"github.com/nspcc-dev/neo-go/pkg/network/payload"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -46,30 +49,42 @@ func (f *fakeConsensus) OnTransaction(tx *transaction.Transaction)     { f.txs =
 func (f *fakeConsensus) GetPayload(h util.Uint256) *payload.Extensible { panic("implement me") }
 
 func TestNewServer(t *testing.T) {
-	bc := &fakechain.FakeChain{}
+	bc := &fakechain.FakeChain{ProtocolConfiguration: config.ProtocolConfiguration{
+		P2PStateExchangeExtensions: true,
+		StateRootInHeader:          true,
+	}}
 	s, err := newServerFromConstructors(ServerConfig{}, bc, nil, newFakeTransp, newFakeConsensus, newTestDiscovery)
 	require.Error(t, err)
 
 	t.Run("set defaults", func(t *testing.T) {
-		s = newTestServer(t, ServerConfig{MinPeers: -1})
+		s, err = newServerFromConstructors(ServerConfig{MinPeers: -1, MPTPoolResendThreshold: -1}, bc, zaptest.NewLogger(t),
+			newFakeTransp, newFakeConsensus, newTestDiscovery)
+		require.NoError(t, err)
+		t.Cleanup(s.discovery.Close)
 
 		require.True(t, s.ID() != 0)
 		require.Equal(t, defaultMinPeers, s.ServerConfig.MinPeers)
 		require.Equal(t, defaultMaxPeers, s.ServerConfig.MaxPeers)
 		require.Equal(t, defaultAttemptConnPeers, s.ServerConfig.AttemptConnPeers)
+		require.Equal(t, defaultMPTPoolResendThreshold*time.Second, s.ServerConfig.MPTPoolResendThreshold)
 	})
 	t.Run("don't defaults", func(t *testing.T) {
 		cfg := ServerConfig{
-			MinPeers:         1,
-			MaxPeers:         2,
-			AttemptConnPeers: 3,
+			MinPeers:               1,
+			MaxPeers:               2,
+			AttemptConnPeers:       3,
+			MPTPoolResendThreshold: 4,
 		}
-		s = newTestServer(t, cfg)
+		s, err = newServerFromConstructors(cfg, bc, zaptest.NewLogger(t),
+			newFakeTransp, newFakeConsensus, newTestDiscovery)
+		require.NoError(t, err)
+		t.Cleanup(s.discovery.Close)
 
 		require.True(t, s.ID() != 0)
 		require.Equal(t, 1, s.ServerConfig.MinPeers)
 		require.Equal(t, 2, s.ServerConfig.MaxPeers)
 		require.Equal(t, 3, s.ServerConfig.AttemptConnPeers)
+		require.Equal(t, 4*time.Nanosecond, s.ServerConfig.MPTPoolResendThreshold)
 	})
 	t.Run("consensus error is not dropped", func(t *testing.T) {
 		errConsensus := errors.New("can't create consensus")
@@ -77,6 +92,14 @@ func TestNewServer(t *testing.T) {
 			func(consensus.Config) (consensus.Service, error) { return nil, errConsensus },
 			newTestDiscovery)
 		require.True(t, errors.Is(err, errConsensus), "got: %#v", err)
+	})
+	t.Run("StateExchangeExtensions enabled with StateRootInHeader off", func(t *testing.T) {
+		bc.ProtocolConfiguration = config.ProtocolConfiguration{
+			P2PStateExchangeExtensions: true,
+			StateRootInHeader:          false,
+		}
+		_, err := newServerFromConstructors(ServerConfig{}, bc, zaptest.NewLogger(t), newFakeTransp, newFakeConsensus, newTestDiscovery)
+		require.Error(t, err)
 	})
 }
 
@@ -396,6 +419,51 @@ func TestBlock(t *testing.T) {
 	require.Eventually(t, func() bool { return s.chain.BlockHeight() == 12345 }, time.Second, time.Millisecond*500)
 }
 
+func startTestServerWithStateExchange(t *testing.T) *Server {
+	chain := fakechain.NewFakeChain()
+	chain.P2PStateExchangeExtensions = true
+	chain.StateRootInHeader = true
+	chain.RemoveUntraceableBlocks = true
+	s := newTestServerWithChain(t, ServerConfig{Port: 0, UserAgent: "/test/"}, chain)
+	ch := startWithChannel(s)
+	t.Cleanup(func() {
+		s.Shutdown()
+		<-ch
+	})
+	return s
+}
+
+func TestHeaders(t *testing.T) {
+	check := func(t *testing.T, s *Server, shouldBeIncremented bool) {
+		var (
+			height   uint32 = 12344
+			expected        = height
+		)
+		atomic2.StoreUint32(&s.chain.(*fakechain.FakeChain).Headerheight, 12344)
+		require.Equal(t, height, s.chain.HeaderHeight())
+
+		b := block.New(false)
+		b.Index = height + 1
+
+		s.testHandleMessage(t, nil, CMDHeaders, &payload.Headers{
+			Hdrs:              []*block.Header{&b.Header},
+			StateRootInHeader: true,
+		})
+		if shouldBeIncremented {
+			expected++
+		}
+		require.Equal(t, expected, s.chain.HeaderHeight())
+	}
+	t.Run("state exchange is off", func(t *testing.T) {
+		s := startTestServer(t)
+		check(t, s, false)
+	})
+	t.Run("state exchange is on", func(t *testing.T) {
+		s := startTestServerWithStateExchange(t)
+		check(t, s, true)
+	})
+}
+
 func TestConsensus(t *testing.T) {
 	s := startTestServer(t)
 
@@ -551,6 +619,144 @@ func TestGetData(t *testing.T) {
 		hs := []util.Uint256{random.Uint256(), r.FallbackTransaction.Hash(), random.Uint256()}
 		notFound := []util.Uint256{hs[0], hs[2]}
 		s.testHandleGetData(t, payload.P2PNotaryRequestType, hs, notFound, r)
+	})
+}
+
+func TestGetMPTData(t *testing.T) {
+	s := startTestServerWithStateExchange(t)
+	s.chain.(*fakechain.FakeChain).StateModule.MPT = newTestTrie(t)
+	var expected []util.Uint256
+	err := s.chain.(*fakechain.FakeChain).StateModule.MPT.Traverse(func(node mpt.Node, _ []byte) bool {
+		expected = append(expected, node.Hash())
+		return false
+	}, false)
+	require.NoError(t, err)
+
+	var recvResponse atomic.Bool
+	p := newLocalPeer(t, s)
+	p.handshaked = true
+	p.messageHandler = func(t *testing.T, msg *Message) {
+		switch msg.Command {
+		case CMDMPTData:
+			var actual []util.Uint256
+			for _, nBytes := range msg.Payload.(*payload.MPTData).Nodes {
+				var n mpt.NodeObject
+				r := io.NewBinReaderFromBuf(nBytes)
+				n.DecodeBinary(r)
+				require.NoError(t, r.Err)
+				actual = append(actual, n.Hash())
+			}
+			require.Equal(t, expected, actual)
+			recvResponse.Store(true)
+		}
+	}
+
+	t.Run("good", func(t *testing.T) {
+		s.testHandleMessage(t, p, CMDGetMPTData, payload.NewMPTInventory([]util.Uint256{s.chain.(*fakechain.FakeChain).StateModule.MPT.StateRoot()}))
+		require.Eventually(t, func() bool { return recvResponse.Load() }, time.Second, time.Millisecond)
+	})
+	t.Run("unknown nodes", func(t *testing.T) {
+		msg := NewMessage(CMDGetMPTData, payload.NewMPTInventory([]util.Uint256{random.Uint256()}))
+		require.Error(t, s.handleMessage(p, msg))
+	})
+	t.Run("empty payload", func(t *testing.T) {
+		recvResponse.Store(false)
+		expected = expected[:0]
+		s.testHandleMessage(t, p, CMDGetMPTData, payload.NewMPTInventory([]util.Uint256{}))
+		require.Never(t, func() bool { return recvResponse.Load() }, time.Second, time.Millisecond)
+	})
+	t.Run("P2PStateExchange is off", func(t *testing.T) {
+		s.chain.(*fakechain.FakeChain).P2PStateExchangeExtensions = false
+		msg := NewMessage(CMDGetMPTData, payload.NewMPTInventory([]util.Uint256{s.chain.(*fakechain.FakeChain).StateModule.MPT.StateRoot()}))
+		require.Error(t, s.handleMessage(p, msg))
+	})
+}
+
+func newTestTrie(t *testing.T) *mpt.Trie {
+	trie := mpt.NewTrie(nil, false, storage.NewMemCachedStore(storage.NewMemoryStore()))
+	require.NoError(t, trie.Put([]byte{0x24}, []byte{1, 2, 3}))
+	require.NoError(t, trie.Put([]byte{0x00}, []byte{4, 5, 6}))
+	require.NoError(t, trie.Put([]byte{0x01}, []byte{1, 2, 3}))
+	require.NoError(t, trie.Put([]byte{0x03}, []byte{1, 2, 3}))
+	/*
+			BranchNode1 [0, 1, 2, ...], Last -> HashNode(nil)
+			            |     |
+			            |     ExtensionNode1 [0x04], Next -> Leaf4(val1)
+			            |
+			            BranchNode2 [0, 1, 2, 3, ...], Last -> HashNode(nil)
+			                         | |     |
+			                         | |     Leaf3(val1)
+			                         | |
+			                         | Leaf2(val2)
+		                             |
+		                             Leaf1(val1)
+	*/
+	trie.Flush()
+	return trie
+}
+
+func TestHandleMPTData(t *testing.T) {
+	s := startTestServerWithStateExchange(t)
+	s.p.Store(123)
+
+	var (
+		expected     []util.Uint256
+		actual       []util.Uint256
+		recvResponse atomic.Bool
+	)
+	p := newLocalPeer(t, s)
+	p.handshaked = true
+	p.messageHandler = func(t *testing.T, msg *Message) {
+		switch msg.Command {
+		case CMDGetMPTData:
+			for _, h := range msg.Payload.(*payload.MPTInventory).Hashes {
+				actual = append(actual, h)
+			}
+			require.ElementsMatch(t, expected, actual)
+			recvResponse.Store(true)
+		}
+	}
+	trie := newTestTrie(t)
+	s.mptPool.Add(trie.StateRoot(), []byte{})
+	s.chain.(*fakechain.FakeChain).StateModule.MPT = mpt.NewTrie(mpt.NewHashNode(trie.StateRoot()), false, storage.NewMemCachedStore(storage.NewMemoryStore()))
+
+	t.Run("good", func(t *testing.T) {
+		var (
+			req1, req2 [][]byte
+			count      int
+		)
+		require.NoError(t, trie.Traverse(func(node mpt.Node, nodeBytes []byte) bool {
+			if count < 3 {
+				req1 = append(req1, nodeBytes) // req1 = [branch1, branch2, leaf1]
+				if branch, ok := node.(*mpt.BranchNode); ok {
+					if branch.Hash() == trie.StateRoot() {
+						// only [ext1, leaf2] to be requested, because leaf3 should be restored along with leaf1
+						expected = append(expected, branch.Children[2].Hash()) // ext1 hash
+					} else {
+						expected = append(expected, branch.Children[1].Hash()) // leaf2 hash
+					}
+				}
+			} else {
+				req2 = append(req2, nodeBytes) // req2 = [leaf2, leaf3, ext1, leaf4]
+			}
+			count++
+			return false
+		}, false))
+
+		// send req1 and wait for the corresponding GetMPTData response
+		s.testHandleMessage(t, p, CMDMPTData, &payload.MPTData{req1})
+		require.Eventually(t, func() bool { return recvResponse.Load() }, time.Second, time.Millisecond)
+
+		// send req2; nothing should be requested after that
+		recvResponse.Store(false)
+		s.testHandleMessage(t, p, CMDMPTData, &payload.MPTData{req2})
+		require.Never(t, func() bool { return recvResponse.Load() }, time.Second, time.Millisecond)
+	})
+
+	t.Run("P2PStateExchange is off", func(t *testing.T) {
+		s.chain.(*fakechain.FakeChain).P2PStateExchangeExtensions = false
+		msg := NewMessage(CMDMPTData, &payload.MPTData{})
+		require.Error(t, s.handleMessage(p, msg))
 	})
 }
 
@@ -775,6 +981,75 @@ func TestRequestTx(t *testing.T) {
 		}
 		s.requestTx(expected...)
 		require.Equal(t, expected, actual)
+	})
+}
+
+func TestRequestMPTData(t *testing.T) {
+	s := startTestServer(t)
+	var lastBlockIndex uint32 = 5
+	s.p.Store(lastBlockIndex)
+
+	var actual []util.Uint256
+	var p1 Peer
+	for i := 0; i < 3; i++ {
+		p := newLocalPeer(t, s)
+		p.handshaked = true
+		p.messageHandler = func(t *testing.T, msg *Message) {
+			if msg.Command == CMDGetMPTData {
+				actual = append(actual, msg.Payload.(*payload.MPTInventory).Hashes...)
+			}
+		}
+		s.register <- p
+		s.register <- p // ensure previous send was handled
+
+		// one peer is lower; two peers are at the same height P
+		if i == 0 {
+			p.lastBlockIndex = lastBlockIndex - 1
+			p1 = p
+		} else {
+			p.lastBlockIndex = lastBlockIndex
+		}
+	}
+
+	check := func(t *testing.T, expected []util.Uint256) {
+		actual = nil
+		request := make(map[util.Uint256]bool)
+		for _, h := range expected {
+			request[h] = true
+		}
+		// single peer
+		require.NoError(t, s.requestMPTNodes(p1, request))
+		require.ElementsMatch(t, expected, actual)
+
+		// multiple peers
+		actual = nil
+		require.NoError(t, s.requestMPTNodes(nil, request))
+		require.NotEqual(t, 0, len(actual))
+		expectedMultiple := append(expected, expected...)
+		require.ElementsMatch(t, expectedMultiple, actual)
+	}
+	t.Run("no hashes, no message", func(t *testing.T) {
+		actual = nil
+		require.NoError(t, s.requestMPTNodes(p1, nil))
+		require.Nil(t, actual)
+	})
+	t.Run("good, small", func(t *testing.T) {
+		expected := []util.Uint256{random.Uint256(), random.Uint256()}
+		check(t, expected)
+	})
+	t.Run("good, exactly one chunk", func(t *testing.T) {
+		expected := make([]util.Uint256, payload.MaxMPTHashesCount)
+		for i := range expected {
+			expected[i] = random.Uint256()
+		}
+		check(t, expected)
+	})
+	t.Run("good, multiple chunks", func(t *testing.T) {
+		expected := make([]util.Uint256, payload.MaxMPTHashesCount*2+payload.MaxMPTHashesCount/2)
+		for i := range expected {
+			expected[i] = random.Uint256()
+		}
+		check(t, expected)
 	})
 }
 

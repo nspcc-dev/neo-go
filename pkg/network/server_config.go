@@ -81,6 +81,10 @@ type (
 
 		// ExtensiblePoolSize is size of the pool for extensible payloads from a single sender.
 		ExtensiblePoolSize int
+
+		// MPTPoolResendThreshold is threshold after which MPT hash nodes in the
+		// MPT pool considered to be stale and will be re-requested from the peers.
+		MPTPoolResendThreshold time.Duration
 	}
 )
 
@@ -96,25 +100,26 @@ func NewServerConfig(cfg config.Config) ServerConfig {
 	}
 
 	return ServerConfig{
-		UserAgent:          cfg.GenerateUserAgent(),
-		Address:            appConfig.Address,
-		AnnouncedPort:      appConfig.AnnouncedNodePort,
-		Port:               appConfig.NodePort,
-		Net:                protoConfig.Magic,
-		Relay:              appConfig.Relay,
-		Seeds:              protoConfig.SeedList,
-		DialTimeout:        appConfig.DialTimeout * time.Second,
-		ProtoTickInterval:  appConfig.ProtoTickInterval * time.Second,
-		PingInterval:       appConfig.PingInterval * time.Second,
-		PingTimeout:        appConfig.PingTimeout * time.Second,
-		MaxPeers:           appConfig.MaxPeers,
-		AttemptConnPeers:   appConfig.AttemptConnPeers,
-		MinPeers:           appConfig.MinPeers,
-		Wallet:             wc,
-		TimePerBlock:       time.Duration(protoConfig.SecondsPerBlock) * time.Second,
-		OracleCfg:          appConfig.Oracle,
-		P2PNotaryCfg:       appConfig.P2PNotary,
-		StateRootCfg:       appConfig.StateRoot,
-		ExtensiblePoolSize: appConfig.ExtensiblePoolSize,
+		UserAgent:              cfg.GenerateUserAgent(),
+		Address:                appConfig.Address,
+		AnnouncedPort:          appConfig.AnnouncedNodePort,
+		Port:                   appConfig.NodePort,
+		Net:                    protoConfig.Magic,
+		Relay:                  appConfig.Relay,
+		Seeds:                  protoConfig.SeedList,
+		DialTimeout:            appConfig.DialTimeout * time.Second,
+		ProtoTickInterval:      appConfig.ProtoTickInterval * time.Second,
+		PingInterval:           appConfig.PingInterval * time.Second,
+		PingTimeout:            appConfig.PingTimeout * time.Second,
+		MaxPeers:               appConfig.MaxPeers,
+		AttemptConnPeers:       appConfig.AttemptConnPeers,
+		MinPeers:               appConfig.MinPeers,
+		Wallet:                 wc,
+		TimePerBlock:           time.Duration(protoConfig.SecondsPerBlock) * time.Second,
+		OracleCfg:              appConfig.Oracle,
+		P2PNotaryCfg:           appConfig.P2PNotary,
+		StateRootCfg:           appConfig.StateRoot,
+		ExtensiblePoolSize:     appConfig.ExtensiblePoolSize,
+		MPTPoolResendThreshold: appConfig.MPTPoolResendThreshold * time.Second,
 	}
 }

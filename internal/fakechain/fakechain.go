@@ -13,8 +13,10 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer/services"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/mempool"
+	"github.com/nspcc-dev/neo-go/pkg/core/mpt"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
+	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
@@ -29,6 +31,7 @@ type FakeChain struct {
 	*mempool.Pool
 	blocksCh                 []chan<- *block.Block
 	Blockheight              uint32
+	Headerheight             uint32
 	PoolTxF                  func(*transaction.Transaction) error
 	poolTxWithData           func(*transaction.Transaction, interface{}, *mempool.Pool) error
 	blocks                   map[util.Uint256]*block.Block
@@ -40,6 +43,12 @@ type FakeChain struct {
 	NotaryDepositExpiration  uint32
 	PostBlock                []func(blockchainer.Blockchainer, *mempool.Pool, *block.Block)
 	UtilityTokenBalance      *big.Int
+	StateModule              *FakeStateModule
+}
+
+// FakeStateModule implements StateRoot interface, but does not provide real functionality.
+type FakeStateModule struct {
+	MPT *mpt.Trie
 }
 
 // NewFakeChain returns new FakeChain structure.
@@ -52,6 +61,7 @@ func NewFakeChain() *FakeChain {
 		hdrHashes:             make(map[uint32]util.Uint256),
 		txs:                   make(map[util.Uint256]*transaction.Transaction),
 		ProtocolConfiguration: config.ProtocolConfiguration{Magic: netmode.UnitTestNet, P2PNotaryRequestPayloadPoolSize: 10},
+		StateModule:           &FakeStateModule{MPT: mpt.NewTrie(nil, false, storage.NewMemCachedStore(storage.NewMemoryStore()))},
 	}
 }
 
@@ -60,11 +70,17 @@ func (chain *FakeChain) PutBlock(b *block.Block) {
 	chain.blocks[b.Hash()] = b
 	chain.hdrHashes[b.Index] = b.Hash()
 	atomic.StoreUint32(&chain.Blockheight, b.Index)
+	if atomic.LoadUint32(&chain.Headerheight) < b.Index {
+		atomic.StoreUint32(&chain.Headerheight, b.Index)
+	}
 }
 
 // PutHeader implements Blockchainer interface.
 func (chain *FakeChain) PutHeader(b *block.Block) {
 	chain.hdrHashes[b.Index] = b.Hash()
+	if b.Index > chain.Headerheight {
+		atomic.StoreUint32(&chain.Headerheight, b.Index)
+	}
 }
 
 // PutTx implements Blockchainer interface.
@@ -79,6 +95,11 @@ func (chain *FakeChain) ApplyPolicyToTxSet([]*transaction.Transaction) []*transa
 
 // IsTxStillRelevant implements Blockchainer interface.
 func (chain *FakeChain) IsTxStillRelevant(t *transaction.Transaction, txpool *mempool.Pool, isPartialTx bool) bool {
+	panic("TODO")
+}
+
+// InitOnRestore initializes chain for state sync process.
+func (chain *FakeChain) InitOnRestore(height uint32) error {
 	panic("TODO")
 }
 
@@ -172,8 +193,14 @@ func (chain *FakeChain) P2PSigExtensionsEnabled() bool {
 }
 
 // AddHeaders implements Blockchainer interface.
-func (chain *FakeChain) AddHeaders(...*block.Header) error {
-	panic("TODO")
+func (chain *FakeChain) AddHeaders(headers ...*block.Header) error {
+	for _, h := range headers {
+		if atomic.LoadUint32(&chain.Headerheight)+1 == h.Index {
+			chain.hdrHashes[h.Index] = h.Hash()
+			atomic.StoreUint32(&chain.Headerheight, h.Index)
+		}
+	}
+	return nil
 }
 
 // AddBlock implements Blockchainer interface.
@@ -196,7 +223,7 @@ func (chain *FakeChain) Close() {
 
 // HeaderHeight implements Blockchainer interface.
 func (chain *FakeChain) HeaderHeight() uint32 {
-	return atomic.LoadUint32(&chain.Blockheight)
+	return atomic.LoadUint32(&chain.Headerheight)
 }
 
 // GetAppExecResults implements Blockchainer interface.
@@ -286,7 +313,7 @@ func (chain *FakeChain) GetEnrollments() ([]state.Validator, error) {
 
 // GetStateModule implements Blockchainer interface.
 func (chain *FakeChain) GetStateModule() blockchainer.StateRoot {
-	return nil
+	return chain.StateModule
 }
 
 // GetStorageItem implements Blockchainer interface.
@@ -431,3 +458,51 @@ func (chain *FakeChain) UnsubscribeFromNotifications(ch chan<- *state.Notificati
 func (chain *FakeChain) UnsubscribeFromTransactions(ch chan<- *transaction.Transaction) {
 	panic("TODO")
 }
+
+// AddStateRoot implements StateRoot interface.
+func (m *FakeStateModule) AddStateRoot(root *state.MPTRoot) error { panic("TODO") }
+
+// CurrentLocalHeight implements StateRoot interface.
+func (m *FakeStateModule) CurrentLocalHeight() uint32 { panic("TODO") }
+
+// CurrentLocalStateRoot implements StateRoot interface.
+func (m *FakeStateModule) CurrentLocalStateRoot() util.Uint256 { panic("TODO") }
+
+// CurrentValidatedHeight implements StateRoot interface.
+func (m *FakeStateModule) CurrentValidatedHeight() uint32 { panic("TODO") }
+
+// InitOnRestore implements StateRoot interface.
+func (m *FakeStateModule) InitOnRestore(root *state.MPTRoot, enableRefCount bool) error {
+	panic("TODO")
+}
+
+// GetStateProof implements StateRoot interface.
+func (m *FakeStateModule) GetStateProof(root util.Uint256, key []byte) ([][]byte, error) {
+	panic("TODO")
+}
+
+// GetStateRoot implements StateRoot interface.
+func (m *FakeStateModule) GetStateRoot(height uint32) (*state.MPTRoot, error) { panic("TODO") }
+
+// GetStateValidators implements StateRoot interface.
+func (m *FakeStateModule) GetStateValidators(height uint32) keys.PublicKeys { panic("TODO") }
+
+// OnSyncReached implements StateRoot interface.
+func (m *FakeStateModule) OnSyncReached() {}
+
+// RestoreMPTNode implements StateRoot interface.
+func (m *FakeStateModule) RestoreMPTNode(path []byte, node mpt.Node) error {
+	return m.MPT.RestoreHashNode(path, node)
+}
+
+// SetUpdateValidatorsCallback implements StateRoot interface.
+func (m *FakeStateModule) SetUpdateValidatorsCallback(func(uint32, keys.PublicKeys)) { panic("TODO") }
+
+// Traverse implements StateRoot interface.
+func (m *FakeStateModule) Traverse(root util.Uint256, process func(node mpt.Node, nodeBytes []byte) bool, ignoreStorageErr bool) error {
+	tr := mpt.NewTrie(mpt.NewHashNode(root), false, m.MPT.Store)
+	return tr.Traverse(process, ignoreStorageErr)
+}
+
+// UpdateStateValidators implements StateRoot interface.
+func (m *FakeStateModule) UpdateStateValidators(height uint32, pubs keys.PublicKeys) { panic("TODO") }

@@ -140,6 +140,13 @@ func newMemoryBatch() *MemoryBatch {
 	return &MemoryBatch{MemoryStore: *NewMemoryStore()}
 }
 
+// Count returns the number of items in MemoryStore.
+func (s *MemoryStore) Count() int {
+	s.mut.RLock()
+	defer s.mut.RUnlock()
+	return len(s.mem)
+}
+
 // Close implements Store interface and clears up memory. Never returns an
 // error.
 func (s *MemoryStore) Close() error {

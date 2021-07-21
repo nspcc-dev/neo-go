@@ -27,8 +27,13 @@ type cachedNode struct {
 	refcount int32
 }
 
-// ErrNotFound is returned when requested trie item is missing.
-var ErrNotFound = errors.New("item not found")
+var (
+	// ErrNotFound is returned when requested trie item is missing.
+	ErrNotFound = errors.New("item not found")
+	// ErrRestoreFailed is returned when replacing HashNode by its "unhashed"
+	// candidate fails.
+	ErrRestoreFailed = errors.New("failed to restore HashNode")
+)
 
 // NewTrie returns new MPT trie. It accepts a MemCachedStore to decouple storage errors from logic errors
 // so that all storage errors are processed during `store.Persist()` at the caller.
@@ -110,7 +115,7 @@ func (t *Trie) Put(key, value []byte) error {
 	}
 	path := toNibbles(key)
 	n := NewLeafNode(value)
-	r, err := t.putIntoNode(t.root, path, n)
+	r, err := t.putIntoNode(t.root, path, n, false)
 	if err != nil {
 		return err
 	}
@@ -118,9 +123,56 @@ func (t *Trie) Put(key, value []byte) error {
 	return nil
 }
 
+// RestoreHashNode replaces HashNode located at the provided path by the specified Node
+// and stores it.
+func (t *Trie) RestoreHashNode(path []byte, node Node) error {
+	if _, ok := node.(*HashNode); ok {
+		return fmt.Errorf("%w: unable to restore node into HashNode or EmptyNode", ErrRestoreFailed)
+	}
+	r, err := t.putIntoNode(t.root, path, node, true)
+	if err != nil {
+		return err
+	}
+	t.root = r
+
+	// Flush right now, because sync process can be interrupted at any time. Flush() correctly manages
+	// all refcount changes.
+	t.Flush()
+
+	/*
+		// Put it in the storage right now, because sync process can be interrupted before
+		// mpt.Flush() invocation.
+		key := makeStorageKey(node.Hash().BytesBE())
+		if _, err := t.Store.Get(key); err != nil {
+			value := node.Bytes()
+			if t.refcountEnabled {
+				value = append(value, 0, 0, 0, 0)
+			}
+			_ = t.Store.Put(key, value)
+		}
+	*/
+	// If it's a leaf, then put into contract storage.
+	if leaf, ok := node.(*LeafNode); ok {
+		k := append([]byte{byte(storage.STStorage)}, fromNibbles(path)...)
+		_ = t.Store.Put(k, leaf.value)
+	}
+	return nil
+}
+
 // putIntoLeaf puts val to trie if current node is a Leaf.
 // It returns Node if curr needs to be replaced and error if any.
-func (t *Trie) putIntoLeaf(curr *LeafNode, path []byte, val Node) (Node, error) {
+func (t *Trie) putIntoLeaf(curr *LeafNode, path []byte, val Node, restore bool) (Node, error) {
+	if restore {
+		if len(path) == 0 {
+			if curr.Hash() == val.Hash() {
+				// this node has already been restored, no refcount changes required
+				return curr, nil
+			}
+			return nil, fmt.Errorf("%w: bad Leaf node hash: expected %s, got %s", ErrRestoreFailed, curr.Hash().StringBE(), val.Hash().StringBE())
+		}
+		return nil, fmt.Errorf("%w: can't restore LeafNode", ErrRestoreFailed)
+	}
+
 	v := val.(*LeafNode)
 	if len(path) == 0 {
 		t.removeRef(curr.Hash(), curr.bytes)
@@ -137,11 +189,19 @@ func (t *Trie) putIntoLeaf(curr *LeafNode, path []byte, val Node) (Node, error) 
 
 // putIntoBranch puts val to trie if current node is a Branch.
 // It returns Node if curr needs to be replaced and error if any.
-func (t *Trie) putIntoBranch(curr *BranchNode, path []byte, val Node) (Node, error) {
+func (t *Trie) putIntoBranch(curr *BranchNode, path []byte, val Node, restore bool) (Node, error) {
+	if restore && len(path) == 0 && curr.Hash().Equals(val.Hash()) {
+		// this node has already been restored, no refcount changes required
+		return curr, nil
+	}
 	i, path := splitPath(path)
 	t.removeRef(curr.Hash(), curr.bytes)
-	r, err := t.putIntoNode(curr.Children[i], path, val)
+	r, err := t.putIntoNode(curr.Children[i], path, val, restore)
 	if err != nil {
+		if restore {
+			// revert refcount changes
+			t.addRef(curr.Hash(), curr.bytes)
+		}
 		return nil, err
 	}
 	curr.Children[i] = r
@@ -152,17 +212,35 @@ func (t *Trie) putIntoBranch(curr *BranchNode, path []byte, val Node) (Node, err
 
 // putIntoExtension puts val to trie if current node is an Extension.
 // It returns Node if curr needs to be replaced and error if any.
-func (t *Trie) putIntoExtension(curr *ExtensionNode, path []byte, val Node) (Node, error) {
+func (t *Trie) putIntoExtension(curr *ExtensionNode, path []byte, val Node, restore bool) (Node, error) {
+	if restore && len(path) == 0 {
+		if curr.Hash() == val.Hash() {
+			// this node has already been restored, no refcount changes required
+			return curr, nil
+		}
+		return nil, fmt.Errorf("%w: bad Extension node hash: expected %s, got %s", ErrRestoreFailed, curr.Hash().StringBE(), val.Hash().StringBE())
+	}
+
 	t.removeRef(curr.Hash(), curr.bytes)
 	if bytes.HasPrefix(path, curr.key) {
-		r, err := t.putIntoNode(curr.next, path[len(curr.key):], val)
+		r, err := t.putIntoNode(curr.next, path[len(curr.key):], val, restore)
 		if err != nil {
+			if restore {
+				// revert refcount changes
+				t.addRef(curr.Hash(), curr.bytes)
+			}
 			return nil, err
 		}
 		curr.next = r
 		curr.invalidateCache()
 		t.addRef(curr.Hash(), curr.bytes)
 		return curr, nil
+	}
+
+	if restore {
+		// revert refcount changes
+		t.addRef(curr.Hash(), curr.bytes)
+		return nil, fmt.Errorf("%w: can't modify ExtensionNode during restore", ErrRestoreFailed)
 	}
 
 	pref := lcp(curr.key, path)
@@ -189,17 +267,35 @@ func (t *Trie) putIntoExtension(curr *ExtensionNode, path []byte, val Node) (Nod
 
 // putIntoHash puts val to trie if current node is a HashNode.
 // It returns Node if curr needs to be replaced and error if any.
-func (t *Trie) putIntoHash(curr *HashNode, path []byte, val Node) (Node, error) {
+func (t *Trie) putIntoHash(curr *HashNode, path []byte, val Node, restore bool) (Node, error) {
 	if curr.IsEmpty() {
+		if restore {
+			return nil, fmt.Errorf("%w: can't restore empty HashNode", ErrRestoreFailed)
+		}
 		hn := t.newSubTrie(path, val, true)
 		return hn, nil
 	}
 
+	if restore && len(path) == 0 {
+		// `curr` hash node can be either of
+		// 1) saved in storage (i.g. if this part of MPT is untouched after previous changes or
+		//    if we've already restored node with the same hash from the other part of MPT), so
+		//    just add it to local in-memory MPT.
+		// 2) missing from the storage. It's OK because we're syncing MPT state, and the purpose
+		//    is to store missing hash nodes.
+		// both cases are OK, but we still need to validate `val` against `curr`.
+		if val.Hash() != curr.Hash() {
+			return nil, fmt.Errorf("%w: can't restore HashNode: expected and actual hashes mismatch (%s vs %s)", ErrRestoreFailed, curr.Hash().StringBE(), val.Hash().StringBE())
+		}
+		// We also need to increment refcount in both cases, so treat `val` as new value.
+		hn := t.newSubTrie(path, val, true)
+		return hn, nil
+	}
 	result, err := t.getFromStore(curr.hash)
 	if err != nil {
 		return nil, err
 	}
-	return t.putIntoNode(result, path, val)
+	return t.putIntoNode(result, path, val, restore)
 }
 
 // newSubTrie create new trie containing node at provided path.
@@ -217,16 +313,16 @@ func (t *Trie) newSubTrie(path []byte, val Node, newVal bool) Node {
 
 // putIntoNode puts val with provided path inside curr and returns updated node.
 // Reference counters are updated for both curr and returned value.
-func (t *Trie) putIntoNode(curr Node, path []byte, val Node) (Node, error) {
+func (t *Trie) putIntoNode(curr Node, path []byte, val Node, restore bool) (Node, error) {
 	switch n := curr.(type) {
 	case *LeafNode:
-		return t.putIntoLeaf(n, path, val)
+		return t.putIntoLeaf(n, path, val, restore)
 	case *BranchNode:
-		return t.putIntoBranch(n, path, val)
+		return t.putIntoBranch(n, path, val, restore)
 	case *ExtensionNode:
-		return t.putIntoExtension(n, path, val)
+		return t.putIntoExtension(n, path, val, restore)
 	case *HashNode:
-		return t.putIntoHash(n, path, val)
+		return t.putIntoHash(n, path, val, restore)
 	default:
 		panic("invalid MPT node type")
 	}

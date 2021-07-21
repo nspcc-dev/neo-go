@@ -38,6 +38,8 @@ type (
 		NativeUpdateHistories map[string][]uint32 `yaml:"NativeActivations"`
 		// P2PSigExtensions enables additional signature-related logic.
 		P2PSigExtensions bool `yaml:"P2PSigExtensions"`
+		// P2PStateExchangeExtensions enables additional P2P MPT state data exchange logic.
+		P2PStateExchangeExtensions bool `yaml:"P2PStateExchangeExtensions"`
 		// ReservedAttributes allows to have reserved attributes range for experimental or private purposes.
 		ReservedAttributes bool `yaml:"ReservedAttributes"`
 		// SaveStorageBatch enables storage batch saving before every persist.
@@ -47,7 +49,10 @@ type (
 		StandbyCommittee []string `yaml:"StandbyCommittee"`
 		// StateRooInHeader enables storing state root in block header.
 		StateRootInHeader bool `yaml:"StateRootInHeader"`
-		ValidatorsCount   int  `yaml:"ValidatorsCount"`
+		// StateSyncInterval is the number of blocks between state heights available for MPT state data synchronization.
+		// It is valid only if P2PStateExchangeExtensions are enabled.
+		StateSyncInterval int `yaml:"StateSyncInterval"`
+		ValidatorsCount   int `yaml:"ValidatorsCount"`
 		// Whether to verify received blocks.
 		VerifyBlocks bool `yaml:"VerifyBlocks"`
 		// Whether to verify transactions in received blocks.

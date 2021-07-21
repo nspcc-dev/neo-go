@@ -106,6 +106,11 @@ func (s *Designate) Initialize(ic *interop.Context) error {
 	return nil
 }
 
+// InitializeCache invalidates native Designate cache.
+func (s *Designate) InitializeCache() {
+	s.rolesChangedFlag.Store(true)
+}
+
 // OnPersist implements Contract interface.
 func (s *Designate) OnPersist(ic *interop.Context) error {
 	return nil

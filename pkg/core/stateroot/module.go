@@ -17,11 +17,17 @@ import (
 	"go.uber.org/zap"
 )
 
+// CollapseDepth is a good and roughly estimated value of MPT collapse depth to fit
+// in-memory MPT into 1M of memory.
+const CollapseDepth = 10
+
 type (
 	// Module represents module for local processing of state roots.
 	Module struct {
 		Store   *storage.MemCachedStore
 		network netmode.Magic
+		// mptLock locks MPT for the sync time to avoid concurrent refCount access
+		mptLock sync.RWMutex
 		mpt     *mpt.Trie
 		bc      blockchainer.Blockchainer
 		log     *zap.Logger
@@ -29,6 +35,7 @@ type (
 		currentLocal    atomic.Value
 		localHeight     atomic.Uint32
 		validatedHeight atomic.Uint32
+		isInSync        atomic.Bool
 
 		mtx  sync.RWMutex
 		keys []keyCache
@@ -80,8 +87,20 @@ func (s *Module) CurrentValidatedHeight() uint32 {
 	return s.validatedHeight.Load()
 }
 
+// InitOnRestore initializes state root module at the given height with the given
+// stateroot when synchronizing MPT from the specified height.
+func (s *Module) InitOnRestore(root *state.MPTRoot, enableRefCount bool) error {
+	s.isInSync.Store(false)
+	return s.init(root.Index, enableRefCount, root)
+}
+
 // Init initializes state root module at the given height.
 func (s *Module) Init(height uint32, enableRefCount bool) error {
+	s.isInSync.Store(true)
+	return s.init(height, enableRefCount, nil)
+}
+
+func (s *Module) init(height uint32, enableRefCount bool, root *state.MPTRoot) error {
 	data, err := s.Store.Get([]byte{byte(storage.DataMPT), prefixValidated})
 	if err == nil {
 		s.validatedHeight.Store(binary.LittleEndian.Uint32(data))
@@ -106,7 +125,18 @@ func (s *Module) Init(height uint32, enableRefCount bool) error {
 	}
 	r, err := s.getStateRoot(makeStateRootKey(height))
 	if err != nil {
-		return err
+		if errors.Is(err, storage.ErrKeyNotFound) && root == nil {
+			return err
+		}
+		r = root
+		err := s.addLocalStateRoot(s.Store, r)
+		if err != nil {
+			return err
+		}
+	} else {
+		if root != nil && !r.Hash().Equals(root.Hash()) {
+			return errors.New("stateroot already exists")
+		}
 	}
 	s.currentLocal.Store(r.Root)
 	s.localHeight.Store(r.Index)
@@ -164,4 +194,34 @@ func (s *Module) verifyWitness(r *state.MPTRoot) error {
 	h := s.getKeyCacheForHeight(r.Index).validatorsHash
 	s.mtx.Unlock()
 	return s.bc.VerifyWitness(h, r, &r.Witness[0], maxVerificationGAS)
+}
+
+// Traverse traverses local MPT nodes starting from the specified root down to its
+// children calling `process` for each serialised node until stop condition is satisfied.
+func (s *Module) Traverse(root util.Uint256, process func(node mpt.Node, nodeBytes []byte) bool, ignoreStorageErr bool) error {
+	tr := mpt.NewTrie(mpt.NewHashNode(root), false, storage.NewMemCachedStore(s.Store))
+	return tr.Traverse(process, ignoreStorageErr)
+}
+
+// RestoreMPTNode tries to replace HashNode specified by the path to its "unhashed"
+// counterpart and stores it. An error is returned if the path doesn't point to a
+// missing HashNode or provided counterpart has invalid hash.
+func (s *Module) RestoreMPTNode(path []byte, node mpt.Node) error {
+	s.mptLock.Lock()
+	err := s.mpt.RestoreHashNode(path, node)
+	s.mptLock.Unlock()
+	return err
+}
+
+// IsInSync denotes whether MPT state synchronisation for the latest state synchronisation point is reached.
+func (s *Module) IsInSync() bool {
+	return s.isInSync.Load()
+}
+
+// OnSyncReached is a callback to be called after MPT state synchronisation is completed.
+func (s *Module) OnSyncReached() {
+	if s.isInSync.CAS(false, true) {
+		// TODO: хитрый коллапс
+		s.mpt.Collapse(CollapseDepth)
+	}
 }

@@ -254,7 +254,7 @@ func (p *TCPPeer) StartProtocol() {
 
 	p.server.discovery.RegisterGoodAddr(p.PeerAddr().String(), p.version.Capabilities)
 	if p.server.chain.BlockHeight() < p.LastBlockIndex() {
-		err = p.server.requestBlocks(p)
+		err = p.server.requestBlocksOrHeaders(p)
 		if err != nil {
 			p.Disconnect(err)
 			return
@@ -269,7 +269,7 @@ func (p *TCPPeer) StartProtocol() {
 		case <-timer.C:
 			// Try to sync in headers and block with the peer if his block height is higher then ours.
 			if p.LastBlockIndex() > p.server.chain.BlockHeight() {
-				err = p.server.requestBlocks(p)
+				err = p.server.requestBlocksOrHeaders(p)
 			}
 			if err == nil {
 				timer.Reset(p.server.ProtoTickInterval)

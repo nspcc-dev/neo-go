@@ -25,6 +25,7 @@ type Blockchainer interface {
 	AddBlock(*block.Block) error
 	CalculateClaimable(h util.Uint160, endHeight uint32) (*big.Int, error)
 	Close()
+	InitOnRestore(height uint32) error
 	InitVerificationVM(v *vm.VM, getContract func(util.Uint160) (*state.Contract, error), hash util.Uint160, witness *transaction.Witness) error
 	IsTxStillRelevant(t *transaction.Transaction, txpool *mempool.Pool, isPartialTx bool) bool
 	HeaderHeight() uint32

@@ -26,6 +26,8 @@ func _() {
 	_ = x[CMDBlock-44]
 	_ = x[CMDExtensible-46]
 	_ = x[CMDP2PNotaryRequest-80]
+	_ = x[CMDGetMPTData-81]
+	_ = x[CMDMPTData-82]
 	_ = x[CMDReject-47]
 	_ = x[CMDFilterLoad-48]
 	_ = x[CMDFilterAdd-49]
@@ -44,7 +46,7 @@ const (
 	_CommandType_name_6 = "CMDExtensibleCMDRejectCMDFilterLoadCMDFilterAddCMDFilterClear"
 	_CommandType_name_7 = "CMDMerkleBlock"
 	_CommandType_name_8 = "CMDAlert"
-	_CommandType_name_9 = "CMDP2PNotaryRequest"
+	_CommandType_name_9 = "CMDP2PNotaryRequestCMDGetMPTDataCMDMPTData"
 )
 
 var (
@@ -55,6 +57,7 @@ var (
 	_CommandType_index_4 = [...]uint8{0, 12, 22}
 	_CommandType_index_5 = [...]uint8{0, 6, 16, 34, 45, 50, 58}
 	_CommandType_index_6 = [...]uint8{0, 13, 22, 35, 47, 61}
+	_CommandType_index_9 = [...]uint8{0, 19, 32, 42}
 )
 
 func (i CommandType) String() string {
@@ -83,8 +86,9 @@ func (i CommandType) String() string {
 		return _CommandType_name_7
 	case i == 64:
 		return _CommandType_name_8
-	case i == 80:
-		return _CommandType_name_9
+	case 80 <= i && i <= 82:
+		i -= 80
+		return _CommandType_name_9[_CommandType_index_9[i]:_CommandType_index_9[i+1]]
 	default:
 		return "CommandType(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
