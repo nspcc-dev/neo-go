@@ -6,7 +6,7 @@ require (
 	github.com/alicebob/miniredis/v2 v2.15.1
 	github.com/btcsuite/btcd v0.22.0-beta
 	github.com/dgraph-io/badger/v2 v2.0.3
-	github.com/go-redis/redis v6.10.2+incompatible
+	github.com/go-redis/redis v6.15.9+incompatible
 	github.com/gorilla/websocket v1.4.2
 	github.com/hashicorp/golang-lru v0.5.4
 	github.com/mr-tron/base58 v1.1.2
