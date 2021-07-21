@@ -9,6 +9,7 @@ import (
 	"text/tabwriter"
 
 	"github.com/nspcc-dev/neo-go/cli/options"
+	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/fixedn"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -26,11 +27,11 @@ func NewCommands() []cli.Command {
 	}, options.RPC...)
 	return []cli.Command{{
 		Name:  "query",
-		Usage: "query",
+		Usage: "Query data from RPC node",
 		Subcommands: []cli.Command{
 			{
 				Name:   "tx",
-				Usage:  "query tx status",
+				Usage:  "Query transaction status",
 				Action: queryTx,
 				Flags:  queryTxFlags,
 			},
@@ -86,12 +87,16 @@ func dumpApplicationLog(ctx *cli.Context, res *result.ApplicationLog, tx *result
 		_, _ = tw.Write([]byte("ValidUntil:\t" + strconv.FormatUint(uint64(tx.ValidUntilBlock), 10) + "\n"))
 	} else {
 		_, _ = tw.Write([]byte("BlockHash:\t" + tx.Blockhash.StringLE() + "\n"))
-		_, _ = tw.Write([]byte(fmt.Sprintf("Success:\t%t\n", tx.VMState == vm.HaltState.String())))
+		if len(res.Executions) != 1 {
+			_, _ = tw.Write([]byte("Success:\tunknown (no execution data)\n"))
+		} else {
+			_, _ = tw.Write([]byte(fmt.Sprintf("Success:\t%t\n", res.Executions[0].VMState == vm.HaltState)))
+		}
 	}
 	if verbose {
 		for _, sig := range tx.Signers {
 			_, _ = tw.Write([]byte(fmt.Sprintf("Signer:\t%s (%s)",
-				sig.Account.StringLE(),
+				address.Uint160ToString(sig.Account),
 				sig.Scopes) + "\n"))
 		}
 		_, _ = tw.Write([]byte("SystemFee:\t" + fixedn.Fixed8(tx.SystemFee).String() + " GAS\n"))
