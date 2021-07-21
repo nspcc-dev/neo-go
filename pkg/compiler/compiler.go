@@ -17,7 +17,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest/standard"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"golang.org/x/tools/go/loader"
+	"golang.org/x/tools/go/loader" //nolint:staticcheck // SA1019: package golang.org/x/tools/go/loader is deprecated
 )
 
 const fileExt = "nef"
