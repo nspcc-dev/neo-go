@@ -82,7 +82,7 @@ func TestRegisterCandidate(t *testing.T) {
 		e.Run(t, "neo-go", "query", "voter",
 			"--rpc-endpoint", "http://"+e.RPC.Addr,
 			validatorPriv.Address())
-		e.checkNextLine(t, "^\\s*Voted:\\s+"+validatorPriv.Address())
+		e.checkNextLine(t, "^\\s*Voted:\\s+"+validatorHex+"\\s+\\("+validatorPriv.Address()+"\\)$")
 		e.checkNextLine(t, "^\\s*Amount\\s*:\\s*"+b.String()+"$")
 		e.checkNextLine(t, "^\\s*Block\\s*:\\s*"+strconv.FormatUint(uint64(index), 10))
 		e.checkEOF(t)

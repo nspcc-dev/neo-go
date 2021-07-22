@@ -248,7 +248,7 @@ func queryVoter(ctx *cli.Context) error {
 	}
 	voted := "null"
 	if st.VoteTo != nil {
-		voted = address.Uint160ToString(st.VoteTo.GetScriptHash())
+		voted = fmt.Sprintf("%s (%s)", hex.EncodeToString(st.VoteTo.Bytes()), address.Uint160ToString(st.VoteTo.GetScriptHash()))
 	}
 	fmt.Fprintf(ctx.App.Writer, "\tVoted: %s\n", voted)
 	fmt.Fprintf(ctx.App.Writer, "\tAmount : %s\n", fixedn.ToString(&st.Balance, int(dec)))
