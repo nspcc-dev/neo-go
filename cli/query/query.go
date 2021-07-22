@@ -10,10 +10,14 @@ import (
 	"strings"
 	"text/tabwriter"
 
+	"github.com/nspcc-dev/neo-go/cli/flags"
 	"github.com/nspcc-dev/neo-go/cli/options"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
+	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/fixedn"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/urfave/cli"
@@ -48,6 +52,12 @@ func NewCommands() []cli.Command {
 				Usage:  "Query transaction status",
 				Action: queryTx,
 				Flags:  queryTxFlags,
+			},
+			{
+				Name:   "voter",
+				Usage:  "Print NEO holder account state",
+				Action: queryVoter,
+				Flags:  options.RPC,
 			},
 		},
 	}}
@@ -187,5 +197,61 @@ func queryCommittee(ctx *cli.Context) error {
 	for _, k := range comm {
 		fmt.Fprintln(ctx.App.Writer, hex.EncodeToString(k.Bytes()))
 	}
+	return nil
+}
+
+func queryVoter(ctx *cli.Context) error {
+	args := ctx.Args()
+	if len(args) == 0 {
+		return cli.NewExitError("No address specified", 1)
+	}
+
+	addr, err := flags.ParseAddress(args[0])
+	if err != nil {
+		return cli.NewExitError(fmt.Sprintf("wrong address: %s", args[0]), 1)
+	}
+
+	gctx, cancel := options.GetTimeoutContext(ctx)
+	defer cancel()
+	c, exitErr := options.GetRPCClient(gctx, ctx)
+	if exitErr != nil {
+		return exitErr
+	}
+
+	neoHash, err := c.GetNativeContractHash(nativenames.Neo)
+	if err != nil {
+		return cli.NewExitError(fmt.Errorf("failed to get NEO contract hash: %w", err), 1)
+	}
+	res, err := c.InvokeFunction(neoHash, "getAccountState", []smartcontract.Parameter{
+		{
+			Type:  smartcontract.Hash160Type,
+			Value: addr,
+		},
+	}, nil)
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
+	if res.State != "HALT" {
+		return cli.NewExitError(fmt.Errorf("invocation failed: %s", res.FaultException), 1)
+	}
+	if len(res.Stack) == 0 {
+		return cli.NewExitError("result stack is empty", 1)
+	}
+	st := new(state.NEOBalance)
+	err = st.FromStackItem(res.Stack[0])
+	if err != nil {
+		return cli.NewExitError(fmt.Errorf("failed to convert account state from stackitem: %w", err), 1)
+	}
+	dec, err := c.NEP17Decimals(neoHash)
+	if err != nil {
+		return cli.NewExitError(fmt.Errorf("failed to get decimals: %w", err), 1)
+	}
+	voted := "null"
+	if st.VoteTo != nil {
+		voted = address.Uint160ToString(st.VoteTo.GetScriptHash())
+	}
+	fmt.Fprintf(ctx.App.Writer, "\tVoted: %s\n", voted)
+	fmt.Fprintf(ctx.App.Writer, "\tAmount : %s\n", fixedn.ToString(&st.Balance, int(dec)))
+	fmt.Fprintf(ctx.App.Writer, "\tBlock: %d\n", st.BalanceHeight)
 	return nil
 }

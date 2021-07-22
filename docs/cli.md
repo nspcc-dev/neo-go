@@ -533,6 +533,17 @@ Key                                                                 Votes    Com
 03d8d58d2257ca6cb14522b76513d4783f7d481801695893794c2186515c6de76f  0        false      false
 ```
 
+#### Voter data
+`query voter` returns additional data about NEO holder: amount of NEO he has,
+candidate he voted for (if any) and block number of the last transactions
+involving NEO on this account:
+```
+$ ./bin/neo-go query voter -r http://localhost:20332 Nj91C8TxQSxW1jCE1ytFre6mg5qxTypg1Y
+        Voted: 0214baf0ceea3a66f17e7e1e839ea25fd8bed6cd82e6bb6e68250189065f44ff01 (Nj91C8TxQSxW1jCE1ytFre6mg5qxTypg1Y)
+        Amount : 2000000
+        Block: 3970
+```
+
 ### NEP-17 token functions
 
 `wallet nep17` contains a set of commands to use for NEP-17 tokens.
