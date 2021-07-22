@@ -466,6 +466,14 @@ You can also vote for candidates if you own NEO:
 
 ### Getting data from chain
 
+#### Node height/validated height
+`query height` returns the latest block and validated state height:
+```
+$ ./bin/neo-go query height -r http://localhost:20332
+Latest block: 11926
+Validated state: 11926
+```
+
 #### Transaction status
 `query tx` provides convenient wrapper over RPC calls to query transaction status.
 ```

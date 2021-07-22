@@ -49,6 +49,12 @@ func NewCommands() []cli.Command {
 				Flags:  options.RPC,
 			},
 			{
+				Name:   "height",
+				Usage:  "Get node height",
+				Action: queryHeight,
+				Flags:  options.RPC,
+			},
+			{
 				Name:   "tx",
 				Usage:  "Query transaction status",
 				Action: queryTx,
@@ -198,6 +204,33 @@ func queryCommittee(ctx *cli.Context) error {
 	for _, k := range comm {
 		fmt.Fprintln(ctx.App.Writer, hex.EncodeToString(k.Bytes()))
 	}
+	return nil
+}
+
+func queryHeight(ctx *cli.Context) error {
+	var err error
+
+	gctx, cancel := options.GetTimeoutContext(ctx)
+	defer cancel()
+
+	c, err := options.GetRPCClient(gctx, ctx)
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
+
+	blockCount, err := c.GetBlockCount()
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
+	blockHeight := blockCount - 1 // GetBlockCount returns block count (including 0), not the highest block index.
+
+	fmt.Fprintf(ctx.App.Writer, "Latest block: %d\n", blockHeight)
+
+	stateHeight, err := c.GetStateHeight()
+	if err == nil { // We can be talking to a node without getstateheight request support.
+		fmt.Fprintf(ctx.App.Writer, "Validated state: %d\n", stateHeight.Validated)
+	}
+
 	return nil
 }
 
