@@ -3,7 +3,9 @@ package query
 import (
 	"bytes"
 	"encoding/base64"
+	"encoding/hex"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 	"text/tabwriter"
@@ -29,6 +31,18 @@ func NewCommands() []cli.Command {
 		Name:  "query",
 		Usage: "Query data from RPC node",
 		Subcommands: []cli.Command{
+			{
+				Name:   "candidates",
+				Usage:  "Get candidates and votes",
+				Action: queryCandidates,
+				Flags:  options.RPC,
+			},
+			{
+				Name:   "committee",
+				Usage:  "Get committee list",
+				Action: queryCommittee,
+				Flags:  options.RPC,
+			},
 			{
 				Name:   "tx",
 				Usage:  "Query transaction status",
@@ -112,4 +126,66 @@ func dumpApplicationLog(ctx *cli.Context, res *result.ApplicationLog, tx *result
 	}
 	_ = tw.Flush()
 	fmt.Fprint(ctx.App.Writer, buf.String())
+}
+
+func queryCandidates(ctx *cli.Context) error {
+	var err error
+
+	gctx, cancel := options.GetTimeoutContext(ctx)
+	defer cancel()
+
+	c, err := options.GetRPCClient(gctx, ctx)
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
+
+	vals, err := c.GetNextBlockValidators()
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
+	comm, err := c.GetCommittee()
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
+
+	sort.Slice(vals, func(i, j int) bool {
+		if vals[i].Active != vals[j].Active {
+			return vals[i].Active
+		}
+		if vals[i].Votes != vals[j].Votes {
+			return vals[i].Votes > vals[j].Votes
+		}
+		return vals[i].PublicKey.Cmp(&vals[j].PublicKey) == -1
+	})
+	buf := bytes.NewBuffer(nil)
+	tw := tabwriter.NewWriter(buf, 0, 2, 2, ' ', 0)
+	_, _ = tw.Write([]byte("Key\tVotes\tCommittee\tConsensus\n"))
+	for _, val := range vals {
+		_, _ = tw.Write([]byte(fmt.Sprintf("%s\t%d\t%t\t%t\n", hex.EncodeToString(val.PublicKey.Bytes()), val.Votes, comm.Contains(&val.PublicKey), val.Active)))
+	}
+	_ = tw.Flush()
+	fmt.Fprint(ctx.App.Writer, buf.String())
+	return nil
+}
+
+func queryCommittee(ctx *cli.Context) error {
+	var err error
+
+	gctx, cancel := options.GetTimeoutContext(ctx)
+	defer cancel()
+
+	c, err := options.GetRPCClient(gctx, ctx)
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
+
+	comm, err := c.GetCommittee()
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
+
+	for _, k := range comm {
+		fmt.Fprintln(ctx.App.Writer, hex.EncodeToString(k.Bytes()))
+	}
+	return nil
 }

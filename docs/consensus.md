@@ -92,16 +92,16 @@ use.
 This command will create and send appropriate transaction to the network and
 you should then wait for it to settle in a block. If all goes well it'll end
 with "HALT" state and your registration will be completed. You can use
-`query tx` command to see transaction status or
-`getnextblockvalidators` to see if your candidate was added.
+`query tx` command to see transaction status or `query candidates` to see if
+your candidate was added.
 
 ### Voting
 
 After registration completion if you own some NEO you can also vote for your
 candidate to help it become CN and receive additional voter GAS. To do that
 you need to know the public key of your candidate, which can either be seen in
-`getnextblockvalidators` RPC call output or extracted from wallet `wallet
-dump-keys` command:
+`query candidates` command output or extracted from wallet `wallet dump-keys`
+command:
 
 ```
 $ neo-go wallet dump-keys -w wallet.json

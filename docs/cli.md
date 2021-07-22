@@ -464,7 +464,9 @@ You can also vote for candidates if you own NEO:
 ./bin/neo-go wallet candidate vote -a NMe64G6j6nkPZby26JAgpaCNrn1Ee4wW6E -w wallet.json -r http://localhost:20332 -c 03cecd63d7d8120c3b194c3b2880dd4aafe1475c57e40c852872d7305615258140
 ```
 
-### Querying transaction status
+### Getting data from chain
+
+#### Transaction status
 `query tx` provides convenient wrapper over RPC calls to query transaction status.
 ```
 ./bin/neo-go query tx --rpc-endpoint http://localhost:20332 aaf87628851e0c03ee086ff88596bc24de87082e9e5c73d75bb1c740d1d68088
@@ -475,6 +477,61 @@ Success:		true
 ```
 `OnChain` is true if transaction was included in block and `Success` is true
 if it was executed successfully.
+
+#### Committee members
+`query commitee` returns a list of current committee members:
+```
+$ ./bin/neo-go query committee -r http://localhost:20332
+03009b7540e10f2562e5fd8fac9eaec25166a58b26e412348ff5a86927bfac22a2
+030205e9cefaea5a1dfc580af20c8d5aa2468bb0148f1a5e4605fc622c80e604ba
+0207da870cedb777fceff948641021714ec815110ca111ccc7a54c168e065bda70
+02147c1b1d5728e1954958daff2f88ee2fa50a06890a8a9db3fa9e972b66ae559f
+0214baf0ceea3a66f17e7e1e839ea25fd8bed6cd82e6bb6e68250189065f44ff01
+03184b018d6b2bc093e535519732b3fd3f7551c8cffaf4621dd5a0b89482ca66c9
+0231edee3978d46c335e851c76059166eb8878516f459e085c0dd092f0f1d51c21
+023e9b32ea89b94d066e649b124fd50e396ee91369e8e2a6ae1b11c170d022256d
+03408dcd416396f64783ac587ea1e1593c57d9fea880c8a6a1920e92a259477806
+035056669864feea401d8c31e447fb82dd29f342a9476cfd449584ce2a6165e4d7
+025831cee3708e87d78211bec0d1bfee9f4c85ae784762f042e7f31c0d40c329b8
+026328aae34f149853430f526ecaa9cf9c8d78a4ea82d08bdf63dd03c4d0693be6
+0370c75c54445565df62cfe2e76fbec4ba00d1298867972213530cae6d418da636
+03840415b0a0fcf066bcc3dc92d8349ebd33a6ab1402ef649bae00e5d9f5840828
+03957af9e77282ae3263544b7b2458903624adc3f5dee303957cb6570524a5f254
+02a7834be9b32e2981d157cb5bbd3acb42cfd11ea5c3b10224d7a44e98c5910f1b
+02ba2c70f5996f357a43198705859fae2cfea13e1172962800772b3d588a9d4abd
+03c609bea5a4825908027e4ab217e7efc06e311f19ecad9d417089f14927a173d5
+02c69a8d084ee7319cfecf5161ff257aa2d1f53e79bf6c6f164cff5d94675c38b3
+02cf9dc6e85d581480d91e88e8cbeaa0c153a046e89ded08b4cefd851e1d7325b5
+03d84d22b8753cf225d263a3a782a4e16ca72ef323cfde04977c74f14873ab1e4c
+```
+
+#### Candidate/voting data
+`query candidates` returns all current candidates, number of votes for them
+and their committee/consensus status:
+```
+$ ./bin/neo-go query candidates -r http://localhost:20332
+Key                                                                 Votes    Committee  Consensus
+03009b7540e10f2562e5fd8fac9eaec25166a58b26e412348ff5a86927bfac22a2  2000000  true       true
+030205e9cefaea5a1dfc580af20c8d5aa2468bb0148f1a5e4605fc622c80e604ba  2000000  true       true
+0214baf0ceea3a66f17e7e1e839ea25fd8bed6cd82e6bb6e68250189065f44ff01  2000000  true       true
+023e9b32ea89b94d066e649b124fd50e396ee91369e8e2a6ae1b11c170d022256d  2000000  true       true
+03408dcd416396f64783ac587ea1e1593c57d9fea880c8a6a1920e92a259477806  2000000  true       true
+02a7834be9b32e2981d157cb5bbd3acb42cfd11ea5c3b10224d7a44e98c5910f1b  2000000  true       true
+02ba2c70f5996f357a43198705859fae2cfea13e1172962800772b3d588a9d4abd  2000000  true       true
+025664cef0abcba7787ad5fb12f3af31c5cdc7a479068aa2ad8ee78804768bffe9  1000000  false      false
+03650a684461a64bf46bee561d9981a4c57adc6ccbd3a9512b83701480b30218ab  1000000  false      false
+026a10aa2b4d7639c5deafa4ff081467db10b5d00432749a2a5ee1d2bfed23e1c0  1000000  false      false
+02d5786a9214a8a3f1757d7596fd10f5241205e2c0d68362f4766579bac6189249  1000000  false      false
+033d8e35f8cd9a33852280b6d93093c7292ed5ce90d90f149fa2da50ba6168dfce  100000   false      false
+0349c7ef0b4aaf181f0a3e1350c527b136cc5b42498cb83ab8880c05ed95167e1c  100000   false      false
+035b4f9be2b853e06eb5a09c167e038b96b4804235961510423252f2ee3dbba583  100000   false      false
+027e459b264b6f7e325ab4b0bb0fa641081fb68517fd613ebd7a94cb79d3081e4f  100000   false      false
+0288cad442a877960c76b4f688f4be30f768256d9a3da2492b0180b91243918b4f  100000   false      false
+02a40c552798f79636095817ec88924fc6cb7094e5a3cb059a9b3bc91ea3bf0d3d  100000   false      false
+02db79e69c518ae9254e314b6f5f4b63e914cdd4b2574dc2f9236c01c1fc1d8973  100000   false      false
+02ec143f00b88524caf36a0121c2de09eef0519ddbe1c710a00f0e2663201ee4c0  100000   false      false
+03d8d58d2257ca6cb14522b76513d4783f7d481801695893794c2186515c6de76f  0        false      false
+```
 
 ### NEP-17 token functions
 
