@@ -680,6 +680,21 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 			},
 		},
 	},
+	"getstateheight": {
+		{
+			name: "positive",
+			invoke: func(c *Client) (interface{}, error) {
+				return c.GetStateHeight()
+			},
+			serverResponse: `{"jsonrpc":"2.0","id":1,"result":{"localrootindex":11646,"validatedrootindex":11645}}`,
+			result: func(c *Client) interface{} {
+				return &result.StateHeight{
+					Local:     11646,
+					Validated: 11645,
+				}
+			},
+		},
+	},
 	"getstorage": {
 		{
 			name: "by hash, positive",
