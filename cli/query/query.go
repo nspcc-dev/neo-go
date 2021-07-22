@@ -20,6 +20,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/urfave/cli"
 )
 
@@ -238,9 +239,11 @@ func queryVoter(ctx *cli.Context) error {
 		return cli.NewExitError("result stack is empty", 1)
 	}
 	st := new(state.NEOBalance)
-	err = st.FromStackItem(res.Stack[0])
-	if err != nil {
-		return cli.NewExitError(fmt.Errorf("failed to convert account state from stackitem: %w", err), 1)
+	if _, ok := res.Stack[0].(stackitem.Null); !ok {
+		err = st.FromStackItem(res.Stack[0])
+		if err != nil {
+			return cli.NewExitError(fmt.Errorf("failed to convert account state from stackitem: %w", err), 1)
+		}
 	}
 	dec, err := c.NEP17Decimals(neoHash)
 	if err != nil {
