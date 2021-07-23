@@ -168,7 +168,7 @@ func (c ParameterContext) MarshalJSON() ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
-		items["0x"+u.StringBE()] = data
+		items["0x"+u.StringLE()] = data
 	}
 	pc := &paramContext{
 		Type:  c.Type,
@@ -200,7 +200,7 @@ func (c *ParameterContext) UnmarshalJSON(data []byte) error {
 	}
 	items := make(map[util.Uint160]*Item, len(pc.Items))
 	for h := range pc.Items {
-		u, err := util.Uint160DecodeStringBE(strings.TrimPrefix(h, "0x"))
+		u, err := util.Uint160DecodeStringLE(strings.TrimPrefix(h, "0x"))
 		if err != nil {
 			return err
 		}
