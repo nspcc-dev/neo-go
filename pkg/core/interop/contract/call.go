@@ -120,7 +120,7 @@ func callExFromNative(ic *interop.Context, caller util.Uint160, cs *state.Contra
 }
 
 // ErrNativeCall is returned for failed calls from native.
-var ErrNativeCall = errors.New("error during call from native")
+var ErrNativeCall = errors.New("failed native call")
 
 // CallFromNative performs synchronous call from native contract.
 func CallFromNative(ic *interop.Context, caller util.Uint160, cs *state.Contract, method string, args []stackitem.Item, hasReturn bool) error {

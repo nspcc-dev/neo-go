@@ -405,7 +405,7 @@ func (c *httpClient) Do(req *http.Request) (*http.Response, error) {
 			Body: newResponseBody(resp.body),
 		}, nil
 	}
-	return nil, errors.New("error during request")
+	return nil, errors.New("request failed")
 }
 
 func newDefaultHTTPClient() oracle.HTTPClient {
