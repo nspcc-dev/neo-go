@@ -119,6 +119,16 @@ func (m *Manifest) IsValid(hash util.Uint160) error {
 	return Permissions(m.Permissions).AreValid()
 }
 
+// IsStandardSupported denotes whether the specified standard supported by the contract.
+func (m *Manifest) IsStandardSupported(standard string) bool {
+	for _, st := range m.SupportedStandards {
+		if st == standard {
+			return true
+		}
+	}
+	return false
+}
+
 // ToStackItem converts Manifest to stackitem.Item.
 func (m *Manifest) ToStackItem() (stackitem.Item, error) {
 	groups := make([]stackitem.Item, len(m.Groups))
