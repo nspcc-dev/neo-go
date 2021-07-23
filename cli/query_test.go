@@ -130,3 +130,12 @@ func (e *executor) compareQueryTxVerbose(t *testing.T, tx *transaction.Transacti
 	}
 	e.checkEOF(t)
 }
+
+func TestQueryHeight(t *testing.T) {
+	e := newExecutor(t, true)
+
+	e.Run(t, "neo-go", "query", "height", "--rpc-endpoint", "http://"+e.RPC.Addr)
+	e.checkNextLine(t, `^Latest block: [0-9]+$`)
+	e.checkNextLine(t, `^Validated state: [0-9]+$`)
+	e.checkEOF(t)
+}

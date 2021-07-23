@@ -15,6 +15,8 @@ import (
 func TestRegisterCandidate(t *testing.T) {
 	e := newExecutor(t, true)
 
+	validatorHex := hex.EncodeToString(validatorPriv.PublicKey().Bytes())
+
 	e.In.WriteString("one\r")
 	e.Run(t, "neo-go", "wallet", "nep17", "multitransfer",
 		"--rpc-endpoint", "http://"+e.RPC.Addr,
@@ -23,6 +25,15 @@ func TestRegisterCandidate(t *testing.T) {
 		"NEO:"+validatorPriv.Address()+":10",
 		"GAS:"+validatorPriv.Address()+":10000")
 	e.checkTxPersisted(t)
+
+	e.Run(t, "neo-go", "query", "committee",
+		"--rpc-endpoint", "http://"+e.RPC.Addr)
+	e.checkNextLine(t, "^\\s*"+validatorHex)
+
+	e.Run(t, "neo-go", "query", "candidates",
+		"--rpc-endpoint", "http://"+e.RPC.Addr)
+	e.checkNextLine(t, "^\\s*Key.+$") // Header.
+	e.checkEOF(t)
 
 	// missing address
 	e.RunWithError(t, "neo-go", "wallet", "candidate", "register",
@@ -48,7 +59,7 @@ func TestRegisterCandidate(t *testing.T) {
 			"--rpc-endpoint", "http://"+e.RPC.Addr,
 			"--wallet", validatorWallet,
 			"--address", validatorPriv.Address(),
-			"--candidate", hex.EncodeToString(validatorPriv.PublicKey().Bytes()))
+			"--candidate", validatorHex)
 		_, index := e.checkTxPersisted(t)
 
 		vs, err = e.Chain.GetEnrollments()
@@ -57,11 +68,21 @@ func TestRegisterCandidate(t *testing.T) {
 		b, _ := e.Chain.GetGoverningTokenBalance(validatorPriv.GetScriptHash())
 		require.Equal(t, b, vs[0].Votes)
 
+		e.Run(t, "neo-go", "query", "committee",
+			"--rpc-endpoint", "http://"+e.RPC.Addr)
+		e.checkNextLine(t, "^\\s*"+validatorHex)
+
+		e.Run(t, "neo-go", "query", "candidates",
+			"--rpc-endpoint", "http://"+e.RPC.Addr)
+		e.checkNextLine(t, "^\\s*Key.+$") // Header.
+		e.checkNextLine(t, "^\\s*"+validatorHex+"\\s*"+b.String()+"\\s*true\\s*true$")
+		e.checkEOF(t)
+
 		// check state
-		e.Run(t, "neo-go", "wallet", "candidate", "getstate",
+		e.Run(t, "neo-go", "query", "voter",
 			"--rpc-endpoint", "http://"+e.RPC.Addr,
-			"--address", validatorPriv.Address())
-		e.checkNextLine(t, "^\\s*Voted:\\s+"+validatorPriv.Address())
+			validatorPriv.Address())
+		e.checkNextLine(t, "^\\s*Voted:\\s+"+validatorHex+"\\s+\\("+validatorPriv.Address()+"\\)$")
 		e.checkNextLine(t, "^\\s*Amount\\s*:\\s*"+b.String()+"$")
 		e.checkNextLine(t, "^\\s*Block\\s*:\\s*"+strconv.FormatUint(uint64(index), 10))
 		e.checkEOF(t)
@@ -80,9 +101,9 @@ func TestRegisterCandidate(t *testing.T) {
 		require.Equal(t, big.NewInt(0), vs[0].Votes)
 
 		// check state
-		e.Run(t, "neo-go", "wallet", "candidate", "getstate",
+		e.Run(t, "neo-go", "query", "voter",
 			"--rpc-endpoint", "http://"+e.RPC.Addr,
-			"--address", validatorPriv.Address())
+			validatorPriv.Address())
 		e.checkNextLine(t, "^\\s*Voted:\\s+"+"null") // no vote.
 		e.checkNextLine(t, "^\\s*Amount\\s*:\\s*"+b.String()+"$")
 		e.checkNextLine(t, "^\\s*Block\\s*:\\s*"+strconv.FormatUint(uint64(index), 10))
@@ -104,6 +125,6 @@ func TestRegisterCandidate(t *testing.T) {
 	vs, err = e.Chain.GetEnrollments()
 	require.Equal(t, 0, len(vs))
 
-	// getstate: missing address
-	e.RunWithError(t, "neo-go", "wallet", "candidate", "getstate")
+	// query voter: missing address
+	e.RunWithError(t, "neo-go", "query", "voter")
 }

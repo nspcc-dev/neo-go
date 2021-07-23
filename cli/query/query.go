@@ -3,17 +3,24 @@ package query
 import (
 	"bytes"
 	"encoding/base64"
+	"encoding/hex"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 	"text/tabwriter"
 
+	"github.com/nspcc-dev/neo-go/cli/flags"
 	"github.com/nspcc-dev/neo-go/cli/options"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
+	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/fixedn"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/urfave/cli"
 )
 
@@ -30,10 +37,34 @@ func NewCommands() []cli.Command {
 		Usage: "Query data from RPC node",
 		Subcommands: []cli.Command{
 			{
+				Name:   "candidates",
+				Usage:  "Get candidates and votes",
+				Action: queryCandidates,
+				Flags:  options.RPC,
+			},
+			{
+				Name:   "committee",
+				Usage:  "Get committee list",
+				Action: queryCommittee,
+				Flags:  options.RPC,
+			},
+			{
+				Name:   "height",
+				Usage:  "Get node height",
+				Action: queryHeight,
+				Flags:  options.RPC,
+			},
+			{
 				Name:   "tx",
 				Usage:  "Query transaction status",
 				Action: queryTx,
 				Flags:  queryTxFlags,
+			},
+			{
+				Name:   "voter",
+				Usage:  "Print NEO holder account state",
+				Action: queryVoter,
+				Flags:  options.RPC,
 			},
 		},
 	}}
@@ -112,4 +143,151 @@ func dumpApplicationLog(ctx *cli.Context, res *result.ApplicationLog, tx *result
 	}
 	_ = tw.Flush()
 	fmt.Fprint(ctx.App.Writer, buf.String())
+}
+
+func queryCandidates(ctx *cli.Context) error {
+	var err error
+
+	gctx, cancel := options.GetTimeoutContext(ctx)
+	defer cancel()
+
+	c, err := options.GetRPCClient(gctx, ctx)
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
+
+	vals, err := c.GetNextBlockValidators()
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
+	comm, err := c.GetCommittee()
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
+
+	sort.Slice(vals, func(i, j int) bool {
+		if vals[i].Active != vals[j].Active {
+			return vals[i].Active
+		}
+		if vals[i].Votes != vals[j].Votes {
+			return vals[i].Votes > vals[j].Votes
+		}
+		return vals[i].PublicKey.Cmp(&vals[j].PublicKey) == -1
+	})
+	buf := bytes.NewBuffer(nil)
+	tw := tabwriter.NewWriter(buf, 0, 2, 2, ' ', 0)
+	_, _ = tw.Write([]byte("Key\tVotes\tCommittee\tConsensus\n"))
+	for _, val := range vals {
+		_, _ = tw.Write([]byte(fmt.Sprintf("%s\t%d\t%t\t%t\n", hex.EncodeToString(val.PublicKey.Bytes()), val.Votes, comm.Contains(&val.PublicKey), val.Active)))
+	}
+	_ = tw.Flush()
+	fmt.Fprint(ctx.App.Writer, buf.String())
+	return nil
+}
+
+func queryCommittee(ctx *cli.Context) error {
+	var err error
+
+	gctx, cancel := options.GetTimeoutContext(ctx)
+	defer cancel()
+
+	c, err := options.GetRPCClient(gctx, ctx)
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
+
+	comm, err := c.GetCommittee()
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
+
+	for _, k := range comm {
+		fmt.Fprintln(ctx.App.Writer, hex.EncodeToString(k.Bytes()))
+	}
+	return nil
+}
+
+func queryHeight(ctx *cli.Context) error {
+	var err error
+
+	gctx, cancel := options.GetTimeoutContext(ctx)
+	defer cancel()
+
+	c, err := options.GetRPCClient(gctx, ctx)
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
+
+	blockCount, err := c.GetBlockCount()
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
+	blockHeight := blockCount - 1 // GetBlockCount returns block count (including 0), not the highest block index.
+
+	fmt.Fprintf(ctx.App.Writer, "Latest block: %d\n", blockHeight)
+
+	stateHeight, err := c.GetStateHeight()
+	if err == nil { // We can be talking to a node without getstateheight request support.
+		fmt.Fprintf(ctx.App.Writer, "Validated state: %d\n", stateHeight.Validated)
+	}
+
+	return nil
+}
+
+func queryVoter(ctx *cli.Context) error {
+	args := ctx.Args()
+	if len(args) == 0 {
+		return cli.NewExitError("No address specified", 1)
+	}
+
+	addr, err := flags.ParseAddress(args[0])
+	if err != nil {
+		return cli.NewExitError(fmt.Sprintf("wrong address: %s", args[0]), 1)
+	}
+
+	gctx, cancel := options.GetTimeoutContext(ctx)
+	defer cancel()
+	c, exitErr := options.GetRPCClient(gctx, ctx)
+	if exitErr != nil {
+		return exitErr
+	}
+
+	neoHash, err := c.GetNativeContractHash(nativenames.Neo)
+	if err != nil {
+		return cli.NewExitError(fmt.Errorf("failed to get NEO contract hash: %w", err), 1)
+	}
+	res, err := c.InvokeFunction(neoHash, "getAccountState", []smartcontract.Parameter{
+		{
+			Type:  smartcontract.Hash160Type,
+			Value: addr,
+		},
+	}, nil)
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
+	if res.State != "HALT" {
+		return cli.NewExitError(fmt.Errorf("invocation failed: %s", res.FaultException), 1)
+	}
+	if len(res.Stack) == 0 {
+		return cli.NewExitError("result stack is empty", 1)
+	}
+	st := new(state.NEOBalance)
+	if _, ok := res.Stack[0].(stackitem.Null); !ok {
+		err = st.FromStackItem(res.Stack[0])
+		if err != nil {
+			return cli.NewExitError(fmt.Errorf("failed to convert account state from stackitem: %w", err), 1)
+		}
+	}
+	dec, err := c.NEP17Decimals(neoHash)
+	if err != nil {
+		return cli.NewExitError(fmt.Errorf("failed to get decimals: %w", err), 1)
+	}
+	voted := "null"
+	if st.VoteTo != nil {
+		voted = fmt.Sprintf("%s (%s)", hex.EncodeToString(st.VoteTo.Bytes()), address.Uint160ToString(st.VoteTo.GetScriptHash()))
+	}
+	fmt.Fprintf(ctx.App.Writer, "\tVoted: %s\n", voted)
+	fmt.Fprintf(ctx.App.Writer, "\tAmount : %s\n", fixedn.ToString(&st.Balance, int(dec)))
+	fmt.Fprintf(ctx.App.Writer, "\tBlock: %d\n", st.BalanceHeight)
+	return nil
 }

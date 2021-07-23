@@ -969,8 +969,8 @@ func (s *Server) getStateHeight(_ request.Params) (interface{}, *response.Error)
 		stateHeight = height - 1
 	}
 	return &result.StateHeight{
-		BlockHeight: height,
-		StateHeight: stateHeight,
+		Local:     height,
+		Validated: stateHeight,
 	}, nil
 }
 

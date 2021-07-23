@@ -374,6 +374,18 @@ func (c *Client) GetRawTransactionVerbose(hash util.Uint256) (*result.Transactio
 	return resp, nil
 }
 
+// GetStateHeight returns current validated and local node state height.
+func (c *Client) GetStateHeight() (*result.StateHeight, error) {
+	var (
+		params = request.NewRawParams()
+		resp   = new(result.StateHeight)
+	)
+	if err := c.performRequest("getstateheight", params, resp); err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
 // GetStorageByID returns the stored value, according to the contract ID and the stored key.
 func (c *Client) GetStorageByID(id int32, key []byte) ([]byte, error) {
 	return c.getStorage(request.NewRawParams(id, base64.StdEncoding.EncodeToString(key)))

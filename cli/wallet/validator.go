@@ -7,14 +7,11 @@ import (
 	"github.com/nspcc-dev/neo-go/cli/input"
 	"github.com/nspcc-dev/neo-go/cli/options"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
-	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
-	"github.com/nspcc-dev/neo-go/pkg/encoding/fixedn"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/client"
-	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
@@ -71,18 +68,6 @@ func newValidatorCommands() []cli.Command {
 				cli.StringFlag{
 					Name:  "candidate, c",
 					Usage: "Public key of candidate to vote for",
-				},
-			}, options.RPC...),
-		},
-		{
-			Name:      "getstate",
-			Usage:     "print NEO holder account state",
-			UsageText: "getstate -a <addr>",
-			Action:    getAccountState,
-			Flags: append([]cli.Flag{
-				flags.AddressFlag{
-					Name:  "address, a",
-					Usage: "Address to get state of",
 				},
 			}, options.RPC...),
 		},
@@ -226,55 +211,4 @@ func getDecryptedAccount(ctx *cli.Context, wall *wallet.Wallet, addr util.Uint16
 		return nil, err
 	}
 	return acc, nil
-}
-
-func getAccountState(ctx *cli.Context) error {
-	addrFlag := ctx.Generic("address").(*flags.Address)
-	if !addrFlag.IsSet {
-		return cli.NewExitError("address was not provided", 1)
-	}
-
-	gctx, cancel := options.GetTimeoutContext(ctx)
-	defer cancel()
-	c, exitErr := options.GetRPCClient(gctx, ctx)
-	if exitErr != nil {
-		return exitErr
-	}
-
-	neoHash, err := c.GetNativeContractHash(nativenames.Neo)
-	if err != nil {
-		return cli.NewExitError(fmt.Errorf("failed to get NEO contract hash: %w", err), 1)
-	}
-	res, err := c.InvokeFunction(neoHash, "getAccountState", []smartcontract.Parameter{
-		{
-			Type:  smartcontract.Hash160Type,
-			Value: addrFlag.Uint160(),
-		},
-	}, nil)
-	if err != nil {
-		return cli.NewExitError(err, 1)
-	}
-	if res.State != "HALT" {
-		return cli.NewExitError(fmt.Errorf("invocation failed: %s", res.FaultException), 1)
-	}
-	if len(res.Stack) == 0 {
-		return cli.NewExitError("result stack is empty", 1)
-	}
-	st := new(state.NEOBalance)
-	err = st.FromStackItem(res.Stack[0])
-	if err != nil {
-		return cli.NewExitError(fmt.Errorf("failed to convert account state from stackitem: %w", err), 1)
-	}
-	dec, err := c.NEP17Decimals(neoHash)
-	if err != nil {
-		return cli.NewExitError(fmt.Errorf("failed to get decimals: %w", err), 1)
-	}
-	voted := "null"
-	if st.VoteTo != nil {
-		voted = address.Uint160ToString(st.VoteTo.GetScriptHash())
-	}
-	fmt.Fprintf(ctx.App.Writer, "\tVoted: %s\n", voted)
-	fmt.Fprintf(ctx.App.Writer, "\tAmount : %s\n", fixedn.ToString(&st.Balance, int(dec)))
-	fmt.Fprintf(ctx.App.Writer, "\tBlock: %d\n", st.BalanceHeight)
-	return nil
 }
