@@ -33,7 +33,7 @@ type errorAtInstruct struct {
 }
 
 func (e *errorAtInstruct) Error() string {
-	return fmt.Sprintf("error encountered at instruction %d (%s): %s", e.ip, e.op, e.err)
+	return fmt.Sprintf("at instruction %d (%s): %s", e.ip, e.op, e.err)
 }
 
 func newError(ip int, op opcode.Opcode, err interface{}) *errorAtInstruct {
