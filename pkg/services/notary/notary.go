@@ -157,7 +157,8 @@ func (n *Notary) Stop() {
 
 // OnNewRequest is a callback method which is called after new notary request is added to the notary request pool.
 func (n *Notary) OnNewRequest(payload *payload.P2PNotaryRequest) {
-	if n.getAccount() == nil {
+	acc := n.getAccount()
+	if acc == nil {
 		return
 	}
 
@@ -243,7 +244,7 @@ func (n *Notary) OnNewRequest(payload *payload.P2PNotaryRequest) {
 		}
 	}
 	if r.typ != Unknown && r.nSigsCollected == nSigs && r.minNotValidBefore > n.Config.Chain.BlockHeight() {
-		if err := n.finalize(r.main, payload.MainTransaction.Hash()); err != nil {
+		if err := n.finalize(acc, r.main, payload.MainTransaction.Hash()); err != nil {
 			n.Config.Log.Error("failed to finalize main transaction", zap.Error(err))
 		}
 	}
@@ -276,7 +277,8 @@ func (n *Notary) OnRequestRemoval(pld *payload.P2PNotaryRequest) {
 // PostPersist is a callback which is called after new block event is received.
 // PostPersist must not be called under the blockchain lock, because it uses finalization function.
 func (n *Notary) PostPersist() {
-	if n.getAccount() == nil {
+	acc := n.getAccount()
+	if acc == nil {
 		return
 	}
 
@@ -285,7 +287,7 @@ func (n *Notary) PostPersist() {
 	currHeight := n.Config.Chain.BlockHeight()
 	for h, r := range n.requests {
 		if !r.isSent && r.typ != Unknown && r.nSigs == r.nSigsCollected && r.minNotValidBefore > currHeight {
-			if err := n.finalize(r.main, h); err != nil {
+			if err := n.finalize(acc, r.main, h); err != nil {
 				n.Config.Log.Error("failed to finalize main transaction", zap.Error(err))
 			}
 			continue
@@ -294,7 +296,7 @@ func (n *Notary) PostPersist() {
 			for _, fb := range r.fallbacks {
 				if nvb := fb.GetAttributes(transaction.NotValidBeforeT)[0].Value.(*transaction.NotValidBefore).Height; nvb <= currHeight {
 					// Ignore the error, wait for the next block to resend them
-					_ = n.finalize(fb, h)
+					_ = n.finalize(acc, fb, h)
 				}
 			}
 		}
@@ -302,11 +304,7 @@ func (n *Notary) PostPersist() {
 }
 
 // finalize adds missing Notary witnesses to the transaction (main or fallback) and pushes it to the network.
-func (n *Notary) finalize(tx *transaction.Transaction, h util.Uint256) error {
-	acc := n.getAccount()
-	if acc == nil {
-		panic(errors.New("no available Notary account")) // unreachable code, because all callers of `finalize` check that acc != nil
-	}
+func (n *Notary) finalize(acc *wallet.Account, tx *transaction.Transaction, h util.Uint256) error {
 	notaryWitness := transaction.Witness{
 		InvocationScript:   append([]byte{byte(opcode.PUSHDATA1), 64}, acc.PrivateKey().SignHashable(uint32(n.Network), tx)...),
 		VerificationScript: []byte{},
