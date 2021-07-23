@@ -188,7 +188,7 @@ func (c *ParameterContext) UnmarshalJSON(data []byte) error {
 
 	var verif crypto.VerifiableDecodable
 	switch pc.Type {
-	case "Neo.Core.ContractTransaction":
+	case "Neo.Core.ContractTransaction", "Neo.Network.P2P.Payloads.Transaction":
 		tx := new(transaction.Transaction)
 		verif = tx
 	default:
