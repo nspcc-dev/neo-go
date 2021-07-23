@@ -2,6 +2,41 @@
 
 This document outlines major changes between releases.
 
+## 0.96.1 "Brecciation" (23 Jul 2021)
+
+New CLI commands, updated dependencies and some bugs fixed --- you can find
+all of this in the new NeoGo release. It's compatible with 0.96.0 (except for
+multisignature contexts, but you're not likely to be using them) and
+confirmed to have proper RC4 testnet state up to 15K blocks (but 0.96.0 is
+fine wrt this too). At the same time we recommend to resynchronize the chain
+if you're using LevelDB or BoltDB, both databases were updated.
+
+New features:
+ * `query candidates`, `query committee` and `query height` CLI commands
+   (#2090)
+ * `GetStateHeight` RPC client call support (#2090)
+
+Behavior changes:
+ * `wallet candidate getstate` command was renamed to `query voter`, now it
+   also prints the key voted for and handles addresses with 0 balance without
+   spitting errors (#2090)
+
+Improvements:
+ * `query tx` now outputs signer address along with script hash (#2082)
+ * updated many of node's dependencies including BoltDB and LevelDB, there are
+   no radical changes there, mostly just some fixes improving stability (#2087)
+ * better error messages in some places (#2089, #2091)
+
+Bugs fixed:
+ * `query tx` command wasn't providing correct results if used with C# RPC
+   node (#2082)
+ * watch-only node (with a key, but not elected to participating in consensus)
+   could panic on receiving a number of Commit messages (#2083)
+ * `getstateheight` RPC call produced result in different format from C# node
+   (#2090)
+ * JSON representation of multisignature signing context wasn't compatible
+   with C# implementation (#2092)
+
 ## 0.96.0 "Aspiration" (21 Jul 2021)
 
 We're updating NeoGo to support RC4 changes, there are some incompatible ones
