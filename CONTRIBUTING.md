@@ -3,7 +3,7 @@
 First, thank you for contributing! We love and encourage pull requests from everyone. Please
 follow the guidelines:
 
-1. Check the open [issues](https://github.com/nspcc-dev/neo-go/issues) and
+1. Check open [issues](https://github.com/nspcc-dev/neo-go/issues) and
 [pull requests](https://github.com/nspcc-dev/neo-go/pulls) for existing discussions.
 1. Open an issue first, to discuss a new feature or enhancement.
 1. Write tests, and make sure the test suite passes locally and on CI.
