@@ -168,7 +168,7 @@ func (c ParameterContext) MarshalJSON() ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
-		items["0x"+u.StringBE()] = data
+		items["0x"+u.StringLE()] = data
 	}
 	pc := &paramContext{
 		Type:  c.Type,
@@ -188,7 +188,7 @@ func (c *ParameterContext) UnmarshalJSON(data []byte) error {
 
 	var verif crypto.VerifiableDecodable
 	switch pc.Type {
-	case "Neo.Core.ContractTransaction":
+	case "Neo.Core.ContractTransaction", "Neo.Network.P2P.Payloads.Transaction":
 		tx := new(transaction.Transaction)
 		verif = tx
 	default:
@@ -200,7 +200,7 @@ func (c *ParameterContext) UnmarshalJSON(data []byte) error {
 	}
 	items := make(map[util.Uint160]*Item, len(pc.Items))
 	for h := range pc.Items {
-		u, err := util.Uint160DecodeStringBE(strings.TrimPrefix(h, "0x"))
+		u, err := util.Uint160DecodeStringLE(strings.TrimPrefix(h, "0x"))
 		if err != nil {
 			return err
 		}

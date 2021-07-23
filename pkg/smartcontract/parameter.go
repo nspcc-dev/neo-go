@@ -109,7 +109,11 @@ func (p *Parameter) UnmarshalJSON(data []byte) (err error) {
 	if err = json.Unmarshal(data, &r); err != nil {
 		return
 	}
-	switch p.Type = r.Type; r.Type {
+	p.Type = r.Type
+	if len(r.Value) == 0 {
+		return
+	}
+	switch r.Type {
 	case BoolType:
 		if err = json.Unmarshal(r.Value, &boolean); err != nil {
 			return
