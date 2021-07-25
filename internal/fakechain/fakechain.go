@@ -260,7 +260,7 @@ func (chain *FakeChain) ForEachNEP17Transfer(util.Uint160, func(*state.NEP17Tran
 }
 
 // GetNEP17Balances implements Blockchainer interface.
-func (chain *FakeChain) GetNEP17Balances(util.Uint160) *state.NEP17Balances {
+func (chain *FakeChain) GetNEP17Balances(util.Uint160) *state.NEP17TransferInfo {
 	panic("TODO")
 }
 

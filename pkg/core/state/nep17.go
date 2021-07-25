@@ -44,25 +44,25 @@ type NEP17Transfer struct {
 	Tx util.Uint256
 }
 
-// NEP17Balances is a map of the NEP17 contract IDs
+// NEP17TransferInfo is a map of the NEP17 contract IDs
 // to the corresponding structures.
-type NEP17Balances struct {
-	Trackers map[int32]NEP17Tracker
+type NEP17TransferInfo struct {
+	LastUpdated map[int32]NEP17Tracker
 	// NextTransferBatch stores an index of the next transfer batch.
 	NextTransferBatch uint32
 	// NewBatch is true if batch with the `NextTransferBatch` index should be created.
 	NewBatch bool
 }
 
-// NewNEP17Balances returns new NEP17Balances.
-func NewNEP17Balances() *NEP17Balances {
-	return &NEP17Balances{
-		Trackers: make(map[int32]NEP17Tracker),
+// NewNEP17TransferInfo returns new NEP17TransferInfo.
+func NewNEP17TransferInfo() *NEP17TransferInfo {
+	return &NEP17TransferInfo{
+		LastUpdated: make(map[int32]NEP17Tracker),
 	}
 }
 
 // DecodeBinary implements io.Serializable interface.
-func (bs *NEP17Balances) DecodeBinary(r *io.BinReader) {
+func (bs *NEP17TransferInfo) DecodeBinary(r *io.BinReader) {
 	bs.NextTransferBatch = r.ReadU32LE()
 	bs.NewBatch = r.ReadBool()
 	lenBalances := r.ReadVarUint()
@@ -73,15 +73,15 @@ func (bs *NEP17Balances) DecodeBinary(r *io.BinReader) {
 		tr.DecodeBinary(r)
 		m[key] = tr
 	}
-	bs.Trackers = m
+	bs.LastUpdated = m
 }
 
 // EncodeBinary implements io.Serializable interface.
-func (bs *NEP17Balances) EncodeBinary(w *io.BinWriter) {
+func (bs *NEP17TransferInfo) EncodeBinary(w *io.BinWriter) {
 	w.WriteU32LE(bs.NextTransferBatch)
 	w.WriteBool(bs.NewBatch)
-	w.WriteVarUint(uint64(len(bs.Trackers)))
-	for k, v := range bs.Trackers {
+	w.WriteVarUint(uint64(len(bs.LastUpdated)))
+	for k, v := range bs.LastUpdated {
 		w.WriteU32LE(uint32(k))
 		v.EncodeBinary(w)
 	}

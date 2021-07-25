@@ -713,7 +713,7 @@ func checkFAULTState(t *testing.T, result *state.AppExecResult) {
 }
 
 func checkBalanceOf(t *testing.T, chain *Blockchain, addr util.Uint160, expected int) {
-	balance := chain.GetNEP17Balances(addr).Trackers[chain.contracts.GAS.ID]
+	balance := chain.GetNEP17Balances(addr).LastUpdated[chain.contracts.GAS.ID]
 	require.Equal(t, int64(expected), balance.Balance.Int64())
 }
 

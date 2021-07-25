@@ -47,7 +47,7 @@ type Blockchainer interface {
 	GetNativeContractScriptHash(string) (util.Uint160, error)
 	GetNatives() []state.NativeContract
 	GetNextBlockValidators() ([]*keys.PublicKey, error)
-	GetNEP17Balances(util.Uint160) *state.NEP17Balances
+	GetNEP17Balances(util.Uint160) *state.NEP17TransferInfo
 	GetNotaryContractScriptHash() util.Uint160
 	GetNotaryBalance(acc util.Uint160) *big.Int
 	GetPolicer() Policer

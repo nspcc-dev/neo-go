@@ -676,7 +676,7 @@ func (s *Server) getNEP17Balances(ps request.Params) (interface{}, *response.Err
 	}
 	if as != nil {
 		cache := make(map[int32]util.Uint160)
-		for id, bal := range as.Trackers {
+		for id, bal := range as.LastUpdated {
 			h, err := s.getHash(id, cache)
 			if err != nil {
 				continue
