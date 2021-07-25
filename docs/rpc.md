@@ -97,6 +97,25 @@ it only works for native contracts.
 This method doesn't work for the Ledger contract, you can get data via regular
 `getblock` and `getrawtransaction` calls.
 
+#### `getnep17balances`
+
+neo-go's implementation of `getnep17balances` does not perform tracking of NEP17
+balances for each account as it is done in the C# node. Instead, neo-go node
+maintains the list of NEP17-compliant contracts, i.e. those contracts that have
+`NEP-17` declared in the supported standards section of the manifest. Each time
+`getnep17balances` is queried, neo-go node asks every NEP17 contract for the
+account balance by invoking `balanceOf` method with the corresponding args.
+Invocation GAS limit is set to be 3 GAS. All non-zero NEP17 balances are included
+in the RPC call result.
+
+Thus, if NEP17 token contract doesn't have `NEP-17` standard declared in the list
+of supported standards but emits proper NEP17 `Transfer` notifications, the token
+balance won't be shown in the list of NEP17 balances returned by the neo-go node
+(unlike the C# node behavior). However, transfer logs of such token are still
+available via `getnep17transfers` RPC call.
+
+The behaviour of the `LastUpdatedBlock` tracking matches the C# node's one.
+
 ### Unsupported methods
 
 Methods listed down below are not going to be supported for various reasons

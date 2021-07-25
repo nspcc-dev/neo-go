@@ -11,15 +11,6 @@ import (
 // NEP17TransferBatchSize is the maximum number of entries for NEP17TransferLog.
 const NEP17TransferBatchSize = 128
 
-// NEP17Tracker contains info about a single account in a NEP17 contract.
-type NEP17Tracker struct {
-	// Balance is the current balance of the account.
-	Balance big.Int
-	// LastUpdatedBlock is a number of block when last `transfer` to or from the
-	// account occurred.
-	LastUpdatedBlock uint32
-}
-
 // NEP17TransferLog is a log of NEP17 token transfers for the specific command.
 type NEP17TransferLog struct {
 	Raw []byte
@@ -44,10 +35,10 @@ type NEP17Transfer struct {
 	Tx util.Uint256
 }
 
-// NEP17TransferInfo is a map of the NEP17 contract IDs
-// to the corresponding structures.
+// NEP17TransferInfo stores map of the NEP17 contract IDs to the balance's last updated
+// block trackers along with information about NEP17 transfer batch.
 type NEP17TransferInfo struct {
-	LastUpdated map[int32]NEP17Tracker
+	LastUpdated map[int32]uint32
 	// NextTransferBatch stores an index of the next transfer batch.
 	NextTransferBatch uint32
 	// NewBatch is true if batch with the `NextTransferBatch` index should be created.
@@ -57,7 +48,7 @@ type NEP17TransferInfo struct {
 // NewNEP17TransferInfo returns new NEP17TransferInfo.
 func NewNEP17TransferInfo() *NEP17TransferInfo {
 	return &NEP17TransferInfo{
-		LastUpdated: make(map[int32]NEP17Tracker),
+		LastUpdated: make(map[int32]uint32),
 	}
 }
 
@@ -66,12 +57,10 @@ func (bs *NEP17TransferInfo) DecodeBinary(r *io.BinReader) {
 	bs.NextTransferBatch = r.ReadU32LE()
 	bs.NewBatch = r.ReadBool()
 	lenBalances := r.ReadVarUint()
-	m := make(map[int32]NEP17Tracker, lenBalances)
+	m := make(map[int32]uint32, lenBalances)
 	for i := 0; i < int(lenBalances); i++ {
 		key := int32(r.ReadU32LE())
-		var tr NEP17Tracker
-		tr.DecodeBinary(r)
-		m[key] = tr
+		m[key] = r.ReadU32LE()
 	}
 	bs.LastUpdated = m
 }
@@ -83,7 +72,7 @@ func (bs *NEP17TransferInfo) EncodeBinary(w *io.BinWriter) {
 	w.WriteVarUint(uint64(len(bs.LastUpdated)))
 	for k, v := range bs.LastUpdated {
 		w.WriteU32LE(uint32(k))
-		v.EncodeBinary(w)
+		w.WriteU32LE(v)
 	}
 }
 
@@ -136,18 +125,6 @@ func (lg *NEP17TransferLog) Size() int {
 		return 0
 	}
 	return int(lg.Raw[0])
-}
-
-// EncodeBinary implements io.Serializable interface.
-func (t *NEP17Tracker) EncodeBinary(w *io.BinWriter) {
-	w.WriteVarBytes(bigint.ToBytes(&t.Balance))
-	w.WriteU32LE(t.LastUpdatedBlock)
-}
-
-// DecodeBinary implements io.Serializable interface.
-func (t *NEP17Tracker) DecodeBinary(r *io.BinReader) {
-	t.Balance = *bigint.FromBytes(r.ReadVarBytes())
-	t.LastUpdatedBlock = r.ReadU32LE()
 }
 
 // EncodeBinary implements io.Serializable interface.

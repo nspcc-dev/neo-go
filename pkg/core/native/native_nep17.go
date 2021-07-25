@@ -246,16 +246,20 @@ func (c *nep17TokenNative) TransferInternal(ic *interop.Context, from, to util.U
 
 func (c *nep17TokenNative) balanceOf(ic *interop.Context, args []stackitem.Item) stackitem.Item {
 	h := toUint160(args[0])
+	return stackitem.NewBigInteger(c.balanceOfInternal(ic.DAO, h))
+}
+
+func (c *nep17TokenNative) balanceOfInternal(d dao.DAO, h util.Uint160) *big.Int {
 	key := makeAccountKey(h)
-	si := ic.DAO.GetStorageItem(c.ID, key)
+	si := d.GetStorageItem(c.ID, key)
 	if si == nil {
-		return stackitem.NewBigInteger(big.NewInt(0))
+		return big.NewInt(0)
 	}
 	balance, err := c.balFromBytes(&si)
 	if err != nil {
 		panic(fmt.Errorf("can not deserialize balance state: %w", err))
 	}
-	return stackitem.NewBigInteger(balance)
+	return balance
 }
 
 func (c *nep17TokenNative) mint(ic *interop.Context, h util.Uint160, amount *big.Int, callOnPayment bool) {

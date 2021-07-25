@@ -76,12 +76,9 @@ func TestGAS_Roundtrip(t *testing.T) {
 	bc := newTestChain(t)
 
 	getUtilityTokenBalance := func(bc *Blockchain, acc util.Uint160) (*big.Int, uint32) {
-		bs, err := bc.dao.GetNEP17TransferInfo(acc)
-		if err != nil {
-			return big.NewInt(0), 0
-		}
-		balance := bs.LastUpdated[bc.contracts.GAS.ID]
-		return &balance.Balance, balance.LastUpdatedBlock
+		lub, err := bc.GetNEP17LastUpdated(acc)
+		require.NoError(t, err)
+		return bc.GetUtilityTokenBalance(acc), lub[bc.contracts.GAS.ID]
 	}
 
 	initialBalance, _ := getUtilityTokenBalance(bc, neoOwner)

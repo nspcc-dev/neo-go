@@ -38,15 +38,6 @@ func TestNEP17TransferLog_Append(t *testing.T) {
 	require.True(t, cont)
 }
 
-func TestNEP17Tracker_EncodeBinary(t *testing.T) {
-	expected := &NEP17Tracker{
-		Balance:          *big.NewInt(int64(rand.Uint64())),
-		LastUpdatedBlock: rand.Uint32(),
-	}
-
-	testserdes.EncodeDecodeBinary(t, expected, new(NEP17Tracker))
-}
-
 func TestNEP17Transfer_DecodeBinary(t *testing.T) {
 	expected := &NEP17Transfer{
 		Asset:     123,
