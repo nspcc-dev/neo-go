@@ -67,17 +67,8 @@ func (ms *MyStruct) MethodOnPointerToStruct() { }
 func _deploy(data interface{}, isUpdate bool) { x := 1; _ = x }
 `
 
-	info, err := getBuildInfo("foo.go", src)
+	buf, d, err := CompileWithOptions("foo.go", strings.NewReader(src), nil)
 	require.NoError(t, err)
-
-	pkg := info.program.Package(info.initialPackage)
-	c := newCodegen(info, pkg)
-	require.NoError(t, c.compile(info, pkg))
-
-	buf, err := c.writeJumps(c.prog.Bytes())
-	require.NoError(t, err)
-
-	d := c.emitDebugInfo(buf)
 	require.NotNil(t, d)
 
 	t.Run("return types", func(t *testing.T) {
@@ -308,15 +299,8 @@ func TestSequencePoints(t *testing.T) {
 		return false
 	}`
 
-	info, err := getBuildInfo("foo.go", src)
+	_, d, err := CompileWithOptions("foo.go", strings.NewReader(src), nil)
 	require.NoError(t, err)
-
-	pkg := info.program.Package(info.initialPackage)
-	c := newCodegen(info, pkg)
-	require.NoError(t, c.compile(info, pkg))
-
-	buf := c.prog.Bytes()
-	d := c.emitDebugInfo(buf)
 	require.NotNil(t, d)
 
 	require.Equal(t, d.Documents, []string{"foo.go"})
