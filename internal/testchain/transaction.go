@@ -55,7 +55,7 @@ func NewDeployTx(bc blockchainer.Blockchainer, name string, sender util.Uint160,
 	// nef.NewFile() cares about version a lot.
 	config.Version = "0.90.0-test"
 
-	ne, di, err := compiler.CompileWithDebugInfo(name, r)
+	ne, di, err := compiler.CompileWithOptions(name, r, nil)
 	if err != nil {
 		return nil, util.Uint160{}, nil, err
 	}

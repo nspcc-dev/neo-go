@@ -187,7 +187,7 @@ func TestBug1728(t *testing.T) {
 	func _deploy(_ interface{}, isUpdate bool) {
 		runtime.Log("Deploy")
 	}`
-	nf, di, err := compiler.CompileWithDebugInfo("foo", strings.NewReader(src))
+	nf, di, err := compiler.CompileWithOptions("foo", strings.NewReader(src), nil)
 	require.NoError(t, err)
 	m, err := di.ConvertToManifest(&compiler.Options{Name: "TestContract"})
 	require.NoError(t, err)

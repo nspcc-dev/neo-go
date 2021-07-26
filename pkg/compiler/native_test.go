@@ -251,7 +251,7 @@ func runNativeTestCase(t *testing.T, ctr interop.ContractMD, name, method string
 
 	v := vm.New()
 	v.GasLimit = -1
-	b, di, err := compiler.CompileWithDebugInfo("foo.go", strings.NewReader(src))
+	b, di, err := compiler.CompileWithOptions("foo.go", strings.NewReader(src), nil)
 	require.NoError(t, err)
 
 	result := getTestStackItem(md.MD.ReturnType)

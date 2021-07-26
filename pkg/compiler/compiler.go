@@ -160,19 +160,12 @@ func getBuildInfo(name string, src interface{}) (*buildInfo, error) {
 // If `r != nil`, `name` is interpreted as a filename, and `r` as file contents.
 // Otherwise `name` is either file name or name of the directory containing source files.
 func Compile(name string, r io.Reader) ([]byte, error) {
-	f, _, err := CompileWithDebugInfo(name, r)
+	f, _, err := CompileWithOptions(name, r, nil)
 	if err != nil {
 		return nil, err
 	}
 
 	return f.Script, nil
-}
-
-// CompileWithDebugInfo compiles a Go program into bytecode and emits debug info.
-func CompileWithDebugInfo(name string, r io.Reader) (*nef.File, *DebugInfo, error) {
-	return CompileWithOptions(name, r, &Options{
-		NoEventsCheck: true,
-	})
 }
 
 // CompileWithOptions compiles a Go program into bytecode with provided compiler options.

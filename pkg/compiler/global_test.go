@@ -131,7 +131,7 @@ func TestContractWithNoMain(t *testing.T) {
 		someLocal := 2
 		return someGlobal + someLocal + a
 	}`
-	b, di, err := compiler.CompileWithDebugInfo("foo.go", strings.NewReader(src))
+	b, di, err := compiler.CompileWithOptions("foo.go", strings.NewReader(src), nil)
 	require.NoError(t, err)
 	v := vm.New()
 	invokeMethod(t, "Add3", b.Script, v, di)

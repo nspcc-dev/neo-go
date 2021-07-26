@@ -243,7 +243,7 @@ func TestLoad(t *testing.T) {
 	t.Run("loadnef", func(t *testing.T) {
 		config.Version = "0.92.0-test"
 
-		nefFile, di, err := compiler.CompileWithDebugInfo("test", strings.NewReader(src))
+		nefFile, di, err := compiler.CompileWithOptions("test", strings.NewReader(src), nil)
 		require.NoError(t, err)
 		filename := filepath.Join(tmpDir, "vmtestcontract.nef")
 		rawNef, err := nefFile.Bytes()

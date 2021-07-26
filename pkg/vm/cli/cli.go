@@ -394,7 +394,7 @@ func handleLoadGo(c *ishell.Context) {
 		c.Err(fmt.Errorf("%w: <file>", ErrMissingParameter))
 		return
 	}
-	b, di, err := compiler.CompileWithDebugInfo(c.Args[0], nil)
+	b, di, err := compiler.CompileWithOptions(c.Args[0], nil, nil)
 	if err != nil {
 		c.Err(err)
 		return

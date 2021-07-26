@@ -36,7 +36,7 @@ func TestCompiler(t *testing.T) {
 			name: "TestCompileDirectory",
 			function: func(t *testing.T) {
 				const multiMainDir = "testdata/multi"
-				_, di, err := compiler.CompileWithDebugInfo(multiMainDir, nil)
+				_, di, err := compiler.CompileWithOptions(multiMainDir, nil, nil)
 				require.NoError(t, err)
 				m := map[string]bool{}
 				for i := range di.Methods {
@@ -93,7 +93,7 @@ func compileFile(src string) error {
 
 func TestOnPayableChecks(t *testing.T) {
 	compileAndCheck := func(t *testing.T, src string) error {
-		_, di, err := compiler.CompileWithDebugInfo("payable", strings.NewReader(src))
+		_, di, err := compiler.CompileWithOptions("payable", strings.NewReader(src), nil)
 		require.NoError(t, err)
 		_, err = compiler.CreateManifest(di, &compiler.Options{})
 		return err
@@ -129,7 +129,7 @@ func TestSafeMethodWarnings(t *testing.T) {
 	src := `package payable
 		func Main() int { return 1 }`
 
-	_, di, err := compiler.CompileWithDebugInfo("eventTest", strings.NewReader(src))
+	_, di, err := compiler.CompileWithOptions("eventTest", strings.NewReader(src), nil)
 	require.NoError(t, err)
 
 	_, err = compiler.CreateManifest(di, &compiler.Options{SafeMethods: []string{"main"}})
@@ -144,7 +144,7 @@ func TestEventWarnings(t *testing.T) {
 		import "github.com/nspcc-dev/neo-go/pkg/interop/runtime"
 		func Main() { runtime.Notify("Event", 1) }`
 
-	_, di, err := compiler.CompileWithDebugInfo("eventTest", strings.NewReader(src))
+	_, di, err := compiler.CompileWithOptions("eventTest", strings.NewReader(src), nil)
 	require.NoError(t, err)
 
 	t.Run("event it missing from config", func(t *testing.T) {
@@ -188,7 +188,7 @@ func TestEventWarnings(t *testing.T) {
 				return notify.Value
 			}`
 
-			_, di, err := compiler.CompileWithDebugInfo("eventTest", strings.NewReader(src))
+			_, di, err := compiler.CompileWithOptions("eventTest", strings.NewReader(src), nil)
 			require.NoError(t, err)
 
 			_, err = compiler.CreateManifest(di, &compiler.Options{NoEventsCheck: true})
@@ -202,7 +202,7 @@ func TestEventWarnings(t *testing.T) {
 				return 42
 			}`
 
-			_, di, err := compiler.CompileWithDebugInfo("eventTest", strings.NewReader(src))
+			_, di, err := compiler.CompileWithOptions("eventTest", strings.NewReader(src), nil)
 			require.NoError(t, err)
 
 			_, err = compiler.CreateManifest(di, &compiler.Options{})

@@ -302,7 +302,7 @@ func TestJumpOptimize(t *testing.T) {
 	func Main() int {
 		return Get3()
 	}`
-	b, di, err := compiler.CompileWithDebugInfo("", strings.NewReader(src))
+	b, di, err := compiler.CompileWithOptions("", strings.NewReader(src), nil)
 	require.NoError(t, err)
 	require.Equal(t, 6, len(di.Methods))
 	for _, mi := range di.Methods {

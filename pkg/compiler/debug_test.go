@@ -67,7 +67,7 @@ func (ms *MyStruct) MethodOnPointerToStruct() { }
 func _deploy(data interface{}, isUpdate bool) { x := 1; _ = x }
 `
 
-	buf, d, err := CompileWithOptions("foo.go", strings.NewReader(src), nil)
+	ne, d, err := CompileWithOptions("foo.go", strings.NewReader(src), nil)
 	require.NoError(t, err)
 	require.NotNil(t, d)
 
@@ -162,8 +162,8 @@ func _deploy(data interface{}, isUpdate bool) { x := 1; _ = x }
 	// basic check that last instruction of every method is indeed RET
 	for i := range d.Methods {
 		index := d.Methods[i].Range.End
-		require.True(t, int(index) < len(buf))
-		require.EqualValues(t, opcode.RET, buf[index])
+		require.True(t, int(index) < len(ne.Script))
+		require.EqualValues(t, opcode.RET, ne.Script[index])
 	}
 
 	t.Run("convert to Manifest", func(t *testing.T) {
@@ -365,7 +365,7 @@ func TestManifestOverload(t *testing.T) {
 		return 4
 	}`
 
-	_, di, err := CompileWithDebugInfo("foo", strings.NewReader(src))
+	_, di, err := CompileWithOptions("foo", strings.NewReader(src), nil)
 	require.NoError(t, err)
 
 	m, err := di.ConvertToManifest(&Options{Overloads: map[string]string{"add3Aux": "add3"}})
