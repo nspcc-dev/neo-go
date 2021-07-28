@@ -181,6 +181,101 @@ Deployment works via an RPC server, an address of which is passed via `-r`
 option and should be signed using a wallet from `-w` option. More details can
 be found in `deploy` command help.
 
+#### Config file
+Configuration file contains following options:
+
+| Parameter | Description | Example |
+| --- | --- | --- |
+| `name` | Contract name in the manifest. | `"My awesome contract"`
+| `safemethods` | List of methods which don't change contract state, don't emit notifications and are available for anyone to call. | `["balanceOf", "decimals"]`
+| `supportedstandards` | List of standards this contract implements. For example, `NEP-11` or `NEP-17` token standard. This will enable additional checks in compiler. The check can be disabled with `--no-standards` flag. | `["NEP-17"]`
+| `events` | Notifications emitted by this contract. | See [Events](#Events). |
+| `permissions` | Foreign calls allowed for this contract. | See [Permissions](#Permissions). |
+
+##### Events
+Each event must have a name and 0 or more parameters. Parameters are specified using their name and type.
+Both event and parameter names must be strings.
+Parameter type can be one of the following:
+
+Type in code | Type in config file
+--- | ---
+`bool` | `Boolean` 
+`int`, `int64` etc.| `Integer`
+`[]byte` | `ByteArray` 
+`string` | `String` 
+Any non-byte slice `[]T`| `Array` 
+`map[K]V` | `Map` 
+`interop.Hash160` | `Hash160`
+`interop.Hash256` | `Hash256`
+`interop.Interface` | `InteropInterface`
+`interop.PublicKey` | `PublicKey`
+`interop.Signature` | `Signature`
+anything else | `Any` 
+
+`interop.*` types are defined as aliases in `github.com/nspcc-dev/neo-go/pkg/interop` module
+with the sole purpose of correct manifest generation.
+
+As an example consider `Transfer` event from `NEP-17` standard:
+```
+- name: Transfer
+  parameters:
+    - name: from
+      type: Hash160
+    - name: to
+      type: Hash160
+    - name: amount
+      type: Integer
+```
+
+By default compiler performs some sanity checks. Most of the time
+it will report missing events and/or parameter type mismatch.
+Using variable as an event name in code isn't prohibited but will prevent
+compiler from analyzing an event. It is better to use either constant or string literal. 
+The check can be disabled with `--no-events` flag.
+
+##### Permissions
+Each permission specifies contracts and methods allowed for this permission.
+If contract is not specified in a rule, specified set of methods can be called on any contract.
+By default, no calls are allowed. Simplest permission is to allow everything:
+```
+- methods: '*'
+```
+
+Another common case is to allow calling `onNEP17Payment`, which is necessary
+for most of the NEP-17 token implementations:
+```
+- methods: ["onNEP17Payment"]
+```
+
+In addition to `methods` permission can have one of these fields:
+1. `hash` contains hash and restricts set of contracts to a single contract.
+2. `group` contains public key and restricts set of contracts to those who
+have corresponding group in their manifest.
+
+Consider an example:
+```
+- methods: ["onNEP17Payment"]
+- hash: fffdc93764dbaddd97c48f252a53ea4643faa3fd
+  methods: ["start", "stop"]
+- group: 03184b018d6b2bc093e535519732b3fd3f7551c8cffaf4621dd5a0b89482ca66c9
+  methods: ["update"]
+```
+
+This set of permissions allows calling:
+- `onNEP17Payment` method of any contract
+- `start` and `stop` methods of contract with hash `fffdc93764dbaddd97c48f252a53ea4643faa3fd`
+- `update` method of contract in group with public key `03184b018d6b2bc093e535519732b3fd3f7551c8cffaf4621dd5a0b89482ca66c9`
+
+Also note, that native contract must be included here too. For example, if your contract
+transfers NEO/GAS or gets some info from the `Ledger` contract, all of these
+calls must be allowed in permissions.
+
+Compiler does its best to ensure correct permissions are specified in config.
+Incorrect permissions will result in runtime invocation failures.
+Using either constant or literal for contract hash and method will allow compiler
+to perform more extensive analysis.
+This check can be disabled with `--no-permissions` flag.
+
 #### Neo Express support
 
 It's possible to deploy contracts written in Go using [Neo
