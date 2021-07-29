@@ -19,6 +19,38 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestWalletAccountRemove(t *testing.T) {
+	tmpDir, err := ioutil.TempDir("", "neogo.test.walletinit")
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		os.RemoveAll(tmpDir)
+	})
+
+	e := newExecutor(t, false)
+
+	walletPath := path.Join(tmpDir, "wallet.json")
+	e.In.WriteString("acc1\r")
+	e.In.WriteString("pass\r")
+	e.In.WriteString("pass\r")
+	e.Run(t, "neo-go", "wallet", "init", "--wallet", walletPath, "--account")
+
+	e.In.WriteString("acc2\r")
+	e.In.WriteString("pass\r")
+	e.In.WriteString("pass\r")
+	e.Run(t, "neo-go", "wallet", "create", "--wallet", walletPath)
+
+	w, err := wallet.NewWalletFromFile(walletPath)
+	require.NoError(t, err)
+
+	addr := w.Accounts[0].Address
+	e.Run(t, "neo-go", "wallet", "remove", "--wallet", walletPath,
+		"--address", addr, "--force")
+
+	rawWallet, err := ioutil.ReadFile(walletPath)
+	require.NoError(t, err)
+	require.NoError(t, json.Unmarshal(rawWallet, new(wallet.Wallet)))
+}
+
 func TestWalletInit(t *testing.T) {
 	tmpDir, err := ioutil.TempDir("", "neogo.test.walletinit")
 	require.NoError(t, err)
