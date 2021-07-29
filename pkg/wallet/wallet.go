@@ -181,7 +181,7 @@ func (w *Wallet) writeRaw(data []byte) error {
 
 func (w *Wallet) rewind() error {
 	if s, ok := w.rw.(io.Seeker); ok {
-		if _, err := s.Seek(0, 0); err != nil {
+		if _, err := s.Seek(0, io.SeekStart); err != nil {
 			return err
 		}
 	}
