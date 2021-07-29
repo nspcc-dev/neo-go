@@ -167,7 +167,16 @@ func (w *Wallet) writeRaw(data []byte) error {
 	}
 
 	_, err := w.rw.Write(data)
-	return err
+	if err != nil {
+		return err
+	}
+
+	if f, ok := w.rw.(*os.File); ok {
+		if err := f.Truncate(int64(len(data))); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (w *Wallet) rewind() error {
