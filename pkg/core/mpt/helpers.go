@@ -40,3 +40,12 @@ func toNibbles(path []byte) []byte {
 	}
 	return result
 }
+
+// fromNibbles performs operation opposite to toNibbles and does no path validity checks.
+func fromNibbles(path []byte) []byte {
+	result := make([]byte, len(path)/2)
+	for i := range result {
+		result[i] = path[2*i]<<4 + path[2*i+1]
+	}
+	return result
+}
