@@ -143,20 +143,31 @@ func (w *Wallet) Path() string {
 // that is responsible for saving the data. This can
 // be a buffer, file, etc..
 func (w *Wallet) Save() error {
-	if err := w.rewind(); err != nil {
+	data, err := json.Marshal(w)
+	if err != nil {
 		return err
 	}
-	return json.NewEncoder(w.rw).Encode(w)
+
+	return w.writeRaw(data)
 }
 
 // savePretty saves wallet in a beautiful JSON.
 func (w *Wallet) savePretty() error {
+	data, err := json.MarshalIndent(w, "", "  ")
+	if err != nil {
+		return err
+	}
+
+	return w.writeRaw(data)
+}
+
+func (w *Wallet) writeRaw(data []byte) error {
 	if err := w.rewind(); err != nil {
 		return err
 	}
-	enc := json.NewEncoder(w.rw)
-	enc.SetIndent("", "  ")
-	return enc.Encode(w)
+
+	_, err := w.rw.Write(data)
+	return err
 }
 
 func (w *Wallet) rewind() error {
