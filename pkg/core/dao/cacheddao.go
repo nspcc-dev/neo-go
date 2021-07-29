@@ -13,7 +13,7 @@ import (
 // objects in the storeBlock().
 type Cached struct {
 	DAO
-	balances  map[util.Uint160]*state.NEP17Balances
+	balances  map[util.Uint160]*state.NEP17TransferInfo
 	transfers map[util.Uint160]map[uint32]*state.NEP17TransferLog
 
 	dropNEP17Cache bool
@@ -21,21 +21,21 @@ type Cached struct {
 
 // NewCached returns new Cached wrapping around given backing store.
 func NewCached(d DAO) *Cached {
-	balances := make(map[util.Uint160]*state.NEP17Balances)
+	balances := make(map[util.Uint160]*state.NEP17TransferInfo)
 	transfers := make(map[util.Uint160]map[uint32]*state.NEP17TransferLog)
 	return &Cached{d.GetWrapped(), balances, transfers, false}
 }
 
-// GetNEP17Balances retrieves NEP17Balances for the acc.
-func (cd *Cached) GetNEP17Balances(acc util.Uint160) (*state.NEP17Balances, error) {
+// GetNEP17TransferInfo retrieves NEP17TransferInfo for the acc.
+func (cd *Cached) GetNEP17TransferInfo(acc util.Uint160) (*state.NEP17TransferInfo, error) {
 	if bs := cd.balances[acc]; bs != nil {
 		return bs, nil
 	}
-	return cd.DAO.GetNEP17Balances(acc)
+	return cd.DAO.GetNEP17TransferInfo(acc)
 }
 
-// PutNEP17Balances saves NEP17Balances for the acc.
-func (cd *Cached) PutNEP17Balances(acc util.Uint160, bs *state.NEP17Balances) error {
+// PutNEP17TransferInfo saves NEP17TransferInfo for the acc.
+func (cd *Cached) PutNEP17TransferInfo(acc util.Uint160, bs *state.NEP17TransferInfo) error {
 	cd.balances[acc] = bs
 	return nil
 }
@@ -88,7 +88,7 @@ func (cd *Cached) Persist() (int, error) {
 	// caches (accounts/transfer data) in any way.
 	if ok {
 		if cd.dropNEP17Cache {
-			lowerCache.balances = make(map[util.Uint160]*state.NEP17Balances)
+			lowerCache.balances = make(map[util.Uint160]*state.NEP17TransferInfo)
 		}
 		var simpleCache *Simple
 		for simpleCache == nil {
@@ -105,7 +105,7 @@ func (cd *Cached) Persist() (int, error) {
 	buf := io.NewBufBinWriter()
 
 	for acc, bs := range cd.balances {
-		err := cd.DAO.putNEP17Balances(acc, bs, buf)
+		err := cd.DAO.putNEP17TransferInfo(acc, bs, buf)
 		if err != nil {
 			return 0, err
 		}

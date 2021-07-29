@@ -607,3 +607,18 @@ func TestMinimumDeploymentFee(t *testing.T) {
 
 	testGetSet(t, chain, chain.contracts.Management.Hash, "MinimumDeploymentFee", 10_00000000, 0, 0)
 }
+
+func TestManagement_GetNEP17Contracts(t *testing.T) {
+	t.Run("empty chain", func(t *testing.T) {
+		chain := newTestChain(t)
+		require.ElementsMatch(t, []util.Uint160{chain.contracts.NEO.Hash, chain.contracts.GAS.Hash}, chain.contracts.Management.GetNEP17Contracts())
+	})
+
+	t.Run("test chain", func(t *testing.T) {
+		chain := newTestChain(t)
+		initBasicChain(t, chain)
+		rublesHash, err := chain.GetContractScriptHash(1)
+		require.NoError(t, err)
+		require.ElementsMatch(t, []util.Uint160{chain.contracts.NEO.Hash, chain.contracts.GAS.Hash, rublesHash}, chain.contracts.Management.GetNEP17Contracts())
+	})
+}

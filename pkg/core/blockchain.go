@@ -43,7 +43,7 @@ import (
 // Tuning parameters.
 const (
 	headerBatchCount = 2000
-	version          = "0.1.0"
+	version          = "0.1.1"
 
 	defaultInitialGAS                      = 52000000_00000000
 	defaultMemPoolSize                     = 50000
@@ -52,7 +52,8 @@ const (
 	defaultMaxBlockSystemFee               = 900000000000
 	defaultMaxTraceableBlocks              = 2102400 // 1 year of 15s blocks
 	defaultMaxTransactionsPerBlock         = 512
-	headerVerificationGasLimit             = 3_00000000 // 3 GAS
+	// HeaderVerificationGasLimit is the maximum amount of GAS for block header verification.
+	HeaderVerificationGasLimit = 3_00000000 // 3 GAS
 )
 
 var (
@@ -989,14 +990,11 @@ func (bc *Blockchain) processNEP17Transfer(cache *dao.Cached, h util.Uint256, b 
 		Tx:        h,
 	}
 	if !fromAddr.Equals(util.Uint160{}) {
-		balances, err := cache.GetNEP17Balances(fromAddr)
+		balances, err := cache.GetNEP17TransferInfo(fromAddr)
 		if err != nil {
 			return
 		}
-		bs := balances.Trackers[id]
-		bs.Balance = *new(big.Int).Sub(&bs.Balance, amount)
-		bs.LastUpdatedBlock = b.Index
-		balances.Trackers[id] = bs
+		balances.LastUpdated[id] = b.Index
 		transfer.Amount = *new(big.Int).Sub(&transfer.Amount, amount)
 		balances.NewBatch, err = cache.AppendNEP17Transfer(fromAddr,
 			balances.NextTransferBatch, balances.NewBatch, transfer)
@@ -1006,19 +1004,16 @@ func (bc *Blockchain) processNEP17Transfer(cache *dao.Cached, h util.Uint256, b 
 		if balances.NewBatch {
 			balances.NextTransferBatch++
 		}
-		if err := cache.PutNEP17Balances(fromAddr, balances); err != nil {
+		if err := cache.PutNEP17TransferInfo(fromAddr, balances); err != nil {
 			return
 		}
 	}
 	if !toAddr.Equals(util.Uint160{}) {
-		balances, err := cache.GetNEP17Balances(toAddr)
+		balances, err := cache.GetNEP17TransferInfo(toAddr)
 		if err != nil {
 			return
 		}
-		bs := balances.Trackers[id]
-		bs.Balance = *new(big.Int).Add(&bs.Balance, amount)
-		bs.LastUpdatedBlock = b.Index
-		balances.Trackers[id] = bs
+		balances.LastUpdated[id] = b.Index
 
 		transfer.Amount = *amount
 		balances.NewBatch, err = cache.AppendNEP17Transfer(toAddr,
@@ -1029,7 +1024,7 @@ func (bc *Blockchain) processNEP17Transfer(cache *dao.Cached, h util.Uint256, b 
 		if balances.NewBatch {
 			balances.NextTransferBatch++
 		}
-		if err := cache.PutNEP17Balances(toAddr, balances); err != nil {
+		if err := cache.PutNEP17TransferInfo(toAddr, balances); err != nil {
 			return
 		}
 	}
@@ -1037,7 +1032,7 @@ func (bc *Blockchain) processNEP17Transfer(cache *dao.Cached, h util.Uint256, b 
 
 // ForEachNEP17Transfer executes f for each nep17 transfer in log.
 func (bc *Blockchain) ForEachNEP17Transfer(acc util.Uint160, f func(*state.NEP17Transfer) (bool, error)) error {
-	balances, err := bc.dao.GetNEP17Balances(acc)
+	balances, err := bc.dao.GetNEP17TransferInfo(acc)
 	if err != nil {
 		return nil
 	}
@@ -1057,34 +1052,34 @@ func (bc *Blockchain) ForEachNEP17Transfer(acc util.Uint160, f func(*state.NEP17
 	return nil
 }
 
-// GetNEP17Balances returns NEP17 balances for the acc.
-func (bc *Blockchain) GetNEP17Balances(acc util.Uint160) *state.NEP17Balances {
-	bs, err := bc.dao.GetNEP17Balances(acc)
+// GetNEP17Contracts returns the list of deployed NEP17 contracts.
+func (bc *Blockchain) GetNEP17Contracts() []util.Uint160 {
+	return bc.contracts.Management.GetNEP17Contracts()
+}
+
+// GetNEP17LastUpdated returns a set of contract ids with the corresponding last updated
+// block indexes.
+func (bc *Blockchain) GetNEP17LastUpdated(acc util.Uint160) (map[int32]uint32, error) {
+	info, err := bc.dao.GetNEP17TransferInfo(acc)
 	if err != nil {
-		return nil
+		return nil, err
 	}
-	return bs
+	return info.LastUpdated, nil
 }
 
 // GetUtilityTokenBalance returns utility token (GAS) balance for the acc.
 func (bc *Blockchain) GetUtilityTokenBalance(acc util.Uint160) *big.Int {
-	bs, err := bc.dao.GetNEP17Balances(acc)
-	if err != nil {
+	bs := bc.contracts.GAS.BalanceOf(bc.dao, acc)
+	if bs == nil {
 		return big.NewInt(0)
 	}
-	balance := bs.Trackers[bc.contracts.GAS.ID].Balance
-	return &balance
+	return bs
 }
 
 // GetGoverningTokenBalance returns governing token (NEO) balance and the height
 // of the last balance change for the account.
 func (bc *Blockchain) GetGoverningTokenBalance(acc util.Uint160) (*big.Int, uint32) {
-	bs, err := bc.dao.GetNEP17Balances(acc)
-	if err != nil {
-		return big.NewInt(0), 0
-	}
-	neo := bs.Trackers[bc.contracts.NEO.ID]
-	return &neo.Balance, neo.LastUpdatedBlock
+	return bc.contracts.NEO.BalanceOf(bc.dao, acc)
 }
 
 // GetNotaryBalance returns Notary deposit amount for the specified account.
@@ -1873,7 +1868,7 @@ func (bc *Blockchain) verifyHeaderWitnesses(currHeader, prevHeader *block.Header
 	} else {
 		hash = prevHeader.NextConsensus
 	}
-	return bc.VerifyWitness(hash, currHeader, &currHeader.Script, headerVerificationGasLimit)
+	return bc.VerifyWitness(hash, currHeader, &currHeader.Script, HeaderVerificationGasLimit)
 }
 
 // GoverningTokenHash returns the governing token (NEO) native contract hash.

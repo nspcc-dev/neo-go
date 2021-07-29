@@ -33,6 +33,8 @@ type Management struct {
 
 	mtx       sync.RWMutex
 	contracts map[util.Uint160]*state.Contract
+	// nep17 is a map of NEP17-compliant contracts which is updated with every PostPersist.
+	nep17 map[util.Uint160]struct{}
 }
 
 const (
@@ -63,6 +65,7 @@ func newManagement() *Management {
 	var m = &Management{
 		ContractMD: *interop.NewContractMD(nativenames.Management, managementContractID),
 		contracts:  make(map[util.Uint160]*state.Contract),
+		nep17:      make(map[util.Uint160]struct{}),
 	}
 	defer m.UpdateHash()
 
@@ -471,6 +474,9 @@ func (m *Management) OnPersist(ic *interop.Context) error {
 		}
 		m.mtx.Lock()
 		m.contracts[md.Hash] = cs
+		if md.Manifest.IsStandardSupported(manifest.NEP17StandardName) {
+			m.nep17[md.Hash] = struct{}{}
+		}
 		m.mtx.Unlock()
 	}
 
@@ -492,6 +498,9 @@ func (m *Management) InitializeCache(d dao.DAO) error {
 			return
 		}
 		m.contracts[cs.Hash] = cs
+		if cs.Manifest.IsStandardSupported(manifest.NEP17StandardName) {
+			m.nep17[cs.Hash] = struct{}{}
+		}
 	})
 	return initErr
 }
@@ -507,12 +516,31 @@ func (m *Management) PostPersist(ic *interop.Context) error {
 		if err != nil {
 			// Contract was destroyed.
 			delete(m.contracts, h)
+			delete(m.nep17, h)
 			continue
 		}
 		m.contracts[h] = newCs
+		if newCs.Manifest.IsStandardSupported(manifest.NEP17StandardName) {
+			m.nep17[h] = struct{}{}
+		} else {
+			delete(m.nep17, h)
+		}
 	}
 	m.mtx.Unlock()
 	return nil
+}
+
+// GetNEP17Contracts returns hashes of all deployed contracts that support NEP17 standard. The list
+// is updated every PostPersist, so until PostPersist is called, the result for the previous block
+// is returned.
+func (m *Management) GetNEP17Contracts() []util.Uint160 {
+	m.mtx.RLock()
+	result := make([]util.Uint160, 0, len(m.nep17))
+	for h := range m.nep17 {
+		result = append(result, h)
+	}
+	m.mtx.RUnlock()
+	return result
 }
 
 // Initialize implements Contract interface.

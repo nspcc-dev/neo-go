@@ -429,3 +429,15 @@ func TestExtraToStackItem(t *testing.T) {
 		require.Equal(t, tc.expected, string(actual))
 	}
 }
+
+func TestManifest_IsStandardSupported(t *testing.T) {
+	m := &Manifest{
+		SupportedStandards: []string{NEP17StandardName, NEP17Payable, NEP11Payable},
+	}
+	for _, st := range m.SupportedStandards {
+		require.True(t, m.IsStandardSupported(st))
+	}
+	require.False(t, m.IsStandardSupported(NEP11StandardName))
+	require.False(t, m.IsStandardSupported(""))
+	require.False(t, m.IsStandardSupported("unknown standard"))
+}

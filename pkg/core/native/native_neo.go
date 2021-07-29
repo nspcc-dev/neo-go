@@ -1020,6 +1020,20 @@ func (n *NEO) GetNextBlockValidatorsInternal() keys.PublicKeys {
 	return n.nextValidators.Load().(keys.PublicKeys).Copy()
 }
 
+// BalanceOf returns native NEO token balance for the acc.
+func (n *NEO) BalanceOf(d dao.DAO, acc util.Uint160) (*big.Int, uint32) {
+	key := makeAccountKey(acc)
+	si := d.GetStorageItem(n.ID, key)
+	if si == nil {
+		return big.NewInt(0), 0
+	}
+	st, err := state.NEOBalanceFromBytes(si)
+	if err != nil {
+		panic(fmt.Errorf("failed to decode NEO balance state: %w", err))
+	}
+	return &st.Balance, st.BalanceHeight
+}
+
 func pubsToArray(pubs keys.PublicKeys) stackitem.Item {
 	arr := make([]stackitem.Item, len(pubs))
 	for i := range pubs {

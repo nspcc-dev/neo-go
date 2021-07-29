@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/runtime"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
@@ -136,6 +137,11 @@ func (g *GAS) OnPersist(ic *interop.Context) error {
 // PostPersist implements Contract interface.
 func (g *GAS) PostPersist(ic *interop.Context) error {
 	return nil
+}
+
+// BalanceOf returns native GAS token balance for the acc.
+func (g *GAS) BalanceOf(d dao.DAO, acc util.Uint160) *big.Int {
+	return g.balanceOfInternal(d, acc)
 }
 
 func getStandbyValidatorsHash(ic *interop.Context) (util.Uint160, error) {

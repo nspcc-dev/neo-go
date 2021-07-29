@@ -40,6 +40,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"go.uber.org/zap"
 )
@@ -669,26 +670,63 @@ func (s *Server) getNEP17Balances(ps request.Params) (interface{}, *response.Err
 		return nil, response.ErrInvalidParams
 	}
 
-	as := s.chain.GetNEP17Balances(u)
 	bs := &result.NEP17Balances{
 		Address:  address.Uint160ToString(u),
 		Balances: []result.NEP17Balance{},
 	}
-	if as != nil {
-		cache := make(map[int32]util.Uint160)
-		for id, bal := range as.Trackers {
-			h, err := s.getHash(id, cache)
-			if err != nil {
-				continue
-			}
-			bs.Balances = append(bs.Balances, result.NEP17Balance{
-				Asset:       h,
-				Amount:      bal.Balance.String(),
-				LastUpdated: bal.LastUpdatedBlock,
-			})
+	lastUpdated, err := s.chain.GetNEP17LastUpdated(u)
+	if err != nil {
+		return nil, response.NewRPCError("Failed to get NEP17 last updated block", err.Error(), err)
+	}
+	bw := io.NewBufBinWriter()
+	for _, h := range s.chain.GetNEP17Contracts() {
+		balance, err := s.getNEP17Balance(h, u, bw)
+		if err != nil {
+			continue
 		}
+		if balance.Sign() == 0 {
+			continue
+		}
+		cs := s.chain.GetContractState(h)
+		if cs == nil {
+			continue
+		}
+		bs.Balances = append(bs.Balances, result.NEP17Balance{
+			Asset:       h,
+			Amount:      balance.String(),
+			LastUpdated: lastUpdated[cs.ID],
+		})
 	}
 	return bs, nil
+}
+
+func (s *Server) getNEP17Balance(h util.Uint160, acc util.Uint160, bw *io.BufBinWriter) (*big.Int, error) {
+	if bw == nil {
+		bw = io.NewBufBinWriter()
+	} else {
+		bw.Reset()
+	}
+	emit.AppCall(bw.BinWriter, h, "balanceOf", callflag.ReadStates, acc)
+	if bw.Err != nil {
+		return nil, fmt.Errorf("failed to create `balanceOf` invocation script: %w", bw.Err)
+	}
+	script := bw.Bytes()
+	tx := &transaction.Transaction{Script: script}
+	v := s.chain.GetTestVM(trigger.Application, tx, nil)
+	v.GasLimit = core.HeaderVerificationGasLimit
+	v.LoadScriptWithFlags(script, callflag.All)
+	err := v.Run()
+	if err != nil {
+		return nil, fmt.Errorf("failed to run `balanceOf` for %s: %w", h.StringLE(), err)
+	}
+	if v.Estack().Len() != 1 {
+		return nil, fmt.Errorf("invalid `balanceOf` return values count: expected 1, got %d", v.Estack().Len())
+	}
+	res, err := v.Estack().Pop().Item().TryInteger()
+	if err != nil {
+		return nil, fmt.Errorf("unexpected `balanceOf` result type: %w", err)
+	}
+	return res, nil
 }
 
 func getTimestampsAndLimit(ps request.Params, index int) (uint64, uint64, int, int, error) {

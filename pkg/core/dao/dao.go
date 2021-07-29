@@ -42,7 +42,7 @@ type DAO interface {
 	GetCurrentBlockHeight() (uint32, error)
 	GetCurrentHeaderHeight() (i uint32, h util.Uint256, err error)
 	GetHeaderHashes() ([]util.Uint256, error)
-	GetNEP17Balances(acc util.Uint160) (*state.NEP17Balances, error)
+	GetNEP17TransferInfo(acc util.Uint160) (*state.NEP17TransferInfo, error)
 	GetNEP17TransferLog(acc util.Uint160, index uint32) (*state.NEP17TransferLog, error)
 	GetStorageItem(id int32, key []byte) state.StorageItem
 	GetStorageItems(id int32) (map[string]state.StorageItem, error)
@@ -55,7 +55,7 @@ type DAO interface {
 	PutAppExecResult(aer *state.AppExecResult, buf *io.BufBinWriter) error
 	PutContractID(id int32, hash util.Uint160) error
 	PutCurrentHeader(hashAndIndex []byte) error
-	PutNEP17Balances(acc util.Uint160, bs *state.NEP17Balances) error
+	PutNEP17TransferInfo(acc util.Uint160, bs *state.NEP17TransferInfo) error
 	PutNEP17TransferLog(acc util.Uint160, index uint32, lg *state.NEP17TransferLog) error
 	PutStorageItem(id int32, key []byte, si state.StorageItem) error
 	PutVersion(v string) error
@@ -63,7 +63,7 @@ type DAO interface {
 	StoreAsBlock(block *block.Block, buf *io.BufBinWriter) error
 	StoreAsCurrentBlock(block *block.Block, buf *io.BufBinWriter) error
 	StoreAsTransaction(tx *transaction.Transaction, index uint32, buf *io.BufBinWriter) error
-	putNEP17Balances(acc util.Uint160, bs *state.NEP17Balances, buf *io.BufBinWriter) error
+	putNEP17TransferInfo(acc util.Uint160, bs *state.NEP17TransferInfo, buf *io.BufBinWriter) error
 }
 
 // Simple is memCached wrapper around DB, simple DAO implementation.
@@ -142,12 +142,12 @@ func (dao *Simple) GetContractScriptHash(id int32) (util.Uint160, error) {
 	return *data, nil
 }
 
-// -- start nep17 balances.
+// -- start nep17 transfer info.
 
-// GetNEP17Balances retrieves nep17 balances from the cache.
-func (dao *Simple) GetNEP17Balances(acc util.Uint160) (*state.NEP17Balances, error) {
-	key := storage.AppendPrefix(storage.STNEP17Balances, acc.BytesBE())
-	bs := state.NewNEP17Balances()
+// GetNEP17TransferInfo retrieves nep17 transfer info from the cache.
+func (dao *Simple) GetNEP17TransferInfo(acc util.Uint160) (*state.NEP17TransferInfo, error) {
+	key := storage.AppendPrefix(storage.STNEP17TransferInfo, acc.BytesBE())
+	bs := state.NewNEP17TransferInfo()
 	err := dao.GetAndDecode(bs, key)
 	if err != nil && err != storage.ErrKeyNotFound {
 		return nil, err
@@ -155,17 +155,17 @@ func (dao *Simple) GetNEP17Balances(acc util.Uint160) (*state.NEP17Balances, err
 	return bs, nil
 }
 
-// PutNEP17Balances saves nep17 balances from the cache.
-func (dao *Simple) PutNEP17Balances(acc util.Uint160, bs *state.NEP17Balances) error {
-	return dao.putNEP17Balances(acc, bs, io.NewBufBinWriter())
+// PutNEP17TransferInfo saves nep17 transfer info in the cache.
+func (dao *Simple) PutNEP17TransferInfo(acc util.Uint160, bs *state.NEP17TransferInfo) error {
+	return dao.putNEP17TransferInfo(acc, bs, io.NewBufBinWriter())
 }
 
-func (dao *Simple) putNEP17Balances(acc util.Uint160, bs *state.NEP17Balances, buf *io.BufBinWriter) error {
-	key := storage.AppendPrefix(storage.STNEP17Balances, acc.BytesBE())
+func (dao *Simple) putNEP17TransferInfo(acc util.Uint160, bs *state.NEP17TransferInfo, buf *io.BufBinWriter) error {
+	key := storage.AppendPrefix(storage.STNEP17TransferInfo, acc.BytesBE())
 	return dao.putWithBuffer(bs, key, buf)
 }
 
-// -- end nep17 balances.
+// -- end nep17 transfer info.
 
 // -- start transfer log.
 

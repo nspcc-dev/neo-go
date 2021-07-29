@@ -83,3 +83,50 @@ func TestManagement_Initialize(t *testing.T) {
 		require.Error(t, mgmt.InitializeCache(d))
 	})
 }
+
+func TestManagement_GetNEP17Contracts(t *testing.T) {
+	mgmt := newManagement()
+	d := dao.NewCached(dao.NewSimple(storage.NewMemoryStore(), false))
+	err := mgmt.Initialize(&interop.Context{DAO: d})
+	require.NoError(t, err)
+
+	require.Empty(t, mgmt.GetNEP17Contracts())
+
+	// Deploy NEP17 contract
+	script := []byte{byte(opcode.RET)}
+	sender := util.Uint160{1, 2, 3}
+	ne, err := nef.NewFile(script)
+	require.NoError(t, err)
+	manif := manifest.NewManifest("Test")
+	manif.ABI.Methods = append(manif.ABI.Methods, manifest.Method{
+		Name:       "dummy",
+		ReturnType: smartcontract.VoidType,
+		Parameters: []manifest.Parameter{},
+	})
+	manif.SupportedStandards = []string{manifest.NEP17StandardName}
+	c1, err := mgmt.Deploy(d, sender, ne, manif)
+	require.NoError(t, err)
+
+	// PostPersist is not yet called, thus no NEP17 contracts are expected
+	require.Empty(t, mgmt.GetNEP17Contracts())
+
+	// Call PostPersist, check c1 contract hash is returned
+	require.NoError(t, mgmt.PostPersist(&interop.Context{DAO: d}))
+	require.Equal(t, []util.Uint160{c1.Hash}, mgmt.GetNEP17Contracts())
+
+	// Update contract
+	manif.ABI.Methods = append(manif.ABI.Methods, manifest.Method{
+		Name:       "dummy2",
+		ReturnType: smartcontract.VoidType,
+		Parameters: []manifest.Parameter{},
+	})
+	c2, err := mgmt.Update(d, c1.Hash, ne, manif)
+	require.NoError(t, err)
+
+	// No changes expected before PostPersist call.
+	require.Equal(t, []util.Uint160{c1.Hash}, mgmt.GetNEP17Contracts())
+
+	// Call PostPersist, check c2 contract hash is returned
+	require.NoError(t, mgmt.PostPersist(&interop.Context{DAO: d}))
+	require.Equal(t, []util.Uint160{c2.Hash}, mgmt.GetNEP17Contracts())
+}
