@@ -103,6 +103,7 @@ type Blockchain struct {
 
 	generationAmount  []int
 	decrementInterval int
+	noBonusHeight     uint32
 
 	// All operations on headerList must be called from an
 	// headersOp to be routine safe.
@@ -184,6 +185,7 @@ func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration, log *zap.L
 
 		generationAmount:  genAmount,
 		decrementInterval: decrementInterval,
+		noBonusHeight:     cfg.NoBonusHeight,
 	}
 
 	if err := bc.init(); err != nil {
@@ -1488,9 +1490,14 @@ func (bc *Blockchain) CalculateClaimable(value util.Fixed8, startHeight, endHeig
 	di := uint32(bc.decrementInterval)
 
 	ustart := startHeight / di
-	if genSize := uint32(len(bc.generationAmount)); ustart < genSize {
-		uend := endHeight / di
-		iend := endHeight % di
+	genSize := uint32(len(bc.generationAmount))
+	if ustart < genSize && (bc.noBonusHeight == 0 || startHeight < bc.noBonusHeight) {
+		endHeightMin := endHeight
+		if bc.noBonusHeight != 0 && endHeightMin > bc.noBonusHeight {
+			endHeightMin = bc.noBonusHeight
+		}
+		uend := endHeightMin / di
+		iend := endHeightMin % di
 		if uend >= genSize {
 			uend = genSize - 1
 			iend = di
