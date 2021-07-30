@@ -1,10 +1,14 @@
 package storage
 
+import "sync"
+
 // MemCachedStore is a wrapper around persistent store that caches all changes
 // being made for them to be later flushed in one batch.
 type MemCachedStore struct {
 	MemoryStore
 
+	// plock protects Persist from double entrance.
+	plock sync.Mutex
 	// Persistent Store.
 	ps Store
 }
@@ -96,45 +100,73 @@ func (s *MemCachedStore) Persist() (int, error) {
 	var err error
 	var keys, dkeys int
 
+	s.plock.Lock()
+	defer s.plock.Unlock()
 	s.mut.Lock()
-	defer s.mut.Unlock()
 
 	keys = len(s.mem)
 	dkeys = len(s.del)
 	if keys == 0 && dkeys == 0 {
+		s.mut.Unlock()
 		return 0, nil
 	}
 
-	memStore, ok := s.ps.(*MemoryStore)
+	// tempstore technically copies current s in lower layer while real s
+	// starts using fresh new maps. This tempstore is only known here and
+	// nothing ever changes it, therefore accesses to it (reads) can go
+	// unprotected while writes are handled by s proper.
+	var tempstore = &MemCachedStore{MemoryStore: MemoryStore{mem: s.mem, del: s.del}, ps: s.ps}
+	s.ps = tempstore
+	s.mem = make(map[string][]byte)
+	s.del = make(map[string]bool)
+	s.mut.Unlock()
+
+	memStore, ok := tempstore.ps.(*MemoryStore)
 	if !ok {
-		memCachedStore, ok := s.ps.(*MemCachedStore)
+		memCachedStore, ok := tempstore.ps.(*MemCachedStore)
 		if ok {
 			memStore = &memCachedStore.MemoryStore
 		}
 	}
 	if memStore != nil {
 		memStore.mut.Lock()
-		for k := range s.mem {
-			memStore.put(k, s.mem[k])
+		for k := range tempstore.mem {
+			memStore.put(k, tempstore.mem[k])
 		}
-		for k := range s.del {
+		for k := range tempstore.del {
 			memStore.drop(k)
 		}
 		memStore.mut.Unlock()
 	} else {
-		batch := s.ps.Batch()
-		for k := range s.mem {
-			batch.Put([]byte(k), s.mem[k])
+		batch := tempstore.ps.Batch()
+		for k := range tempstore.mem {
+			batch.Put([]byte(k), tempstore.mem[k])
 		}
-		for k := range s.del {
+		for k := range tempstore.del {
 			batch.Delete([]byte(k))
 		}
-		err = s.ps.PutBatch(batch)
+		err = tempstore.ps.PutBatch(batch)
 	}
+	s.mut.Lock()
 	if err == nil {
-		s.mem = make(map[string][]byte)
-		s.del = make(map[string]bool)
+		// tempstore.mem and tempstore.del are completely flushed now
+		// to tempstore.ps, so all KV pairs are the same and this
+		// substitution has no visible effects.
+		s.ps = tempstore.ps
+	} else {
+		// We're toast. We'll try to still keep proper state, but OOM
+		// killer will get to us eventually.
+		for k := range s.mem {
+			tempstore.put(k, s.mem[k])
+		}
+		for k := range s.del {
+			tempstore.drop(k)
+		}
+		s.ps = tempstore.ps
+		s.mem = tempstore.mem
+		s.del = tempstore.del
 	}
+	s.mut.Unlock()
 	return keys, err
 }
 

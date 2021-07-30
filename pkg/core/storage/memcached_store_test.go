@@ -177,3 +177,65 @@ func TestCachedSeek(t *testing.T) {
 func newMemCachedStoreForTesting(t *testing.T) Store {
 	return NewMemCachedStore(NewMemoryStore())
 }
+
+type BadBatch struct{}
+
+func (b BadBatch) Delete(k []byte) {}
+func (b BadBatch) Put(k, v []byte) {}
+
+type BadStore struct {
+	onPutBatch func()
+}
+
+func (b *BadStore) Batch() Batch {
+	return BadBatch{}
+}
+func (b *BadStore) Delete(k []byte) error {
+	return nil
+}
+func (b *BadStore) Get([]byte) ([]byte, error) {
+	return nil, ErrKeyNotFound
+}
+func (b *BadStore) Put(k, v []byte) error {
+	return nil
+}
+func (b *BadStore) PutBatch(Batch) error {
+	b.onPutBatch()
+	return ErrKeyNotFound
+}
+func (b *BadStore) Seek(k []byte, f func(k, v []byte)) {
+}
+func (b *BadStore) Close() error {
+	return nil
+}
+
+func TestMemCachedPersistFailing(t *testing.T) {
+	var (
+		bs BadStore
+		t1 = []byte("t1")
+		t2 = []byte("t2")
+		b1 = []byte("b1")
+	)
+	// cached Store
+	ts := NewMemCachedStore(&bs)
+	// Set a pair of keys.
+	require.NoError(t, ts.Put(t1, t1))
+	require.NoError(t, ts.Put(t2, t2))
+	// This will be called during Persist().
+	bs.onPutBatch = func() {
+		// Drop one, add one.
+		require.NoError(t, ts.Put(b1, b1))
+		require.NoError(t, ts.Delete(t1))
+	}
+	_, err := ts.Persist()
+	require.Error(t, err)
+	// PutBatch() failed in Persist, but we still should have proper state.
+	_, err = ts.Get(t1)
+	require.Error(t, err)
+	res, err := ts.Get(t2)
+	require.NoError(t, err)
+	require.Equal(t, t2, res)
+	res, err = ts.Get(b1)
+	require.NoError(t, err)
+	require.Equal(t, b1, res)
+}
