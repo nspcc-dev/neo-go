@@ -65,7 +65,7 @@ func (b *BaseNode) updateHash(n Node) {
 // updateCache updates hash and bytes fields for this BaseNode.
 func (b *BaseNode) updateBytes(n Node) {
 	buf := io.NewBufBinWriter()
-	encodeNodeWithType(n, buf.BinWriter)
+	encodeNodeWithType(n, buf)
 	b.bytes = buf.Bytes()
 	b.bytesValid = true
 }

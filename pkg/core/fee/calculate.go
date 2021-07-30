@@ -34,7 +34,7 @@ func Calculate(base int64, script []byte) (int64, int) {
 func calculateMultisig(base int64, n int) int64 {
 	result := Opcode(base, opcode.PUSHDATA1) * int64(n)
 	bw := io.NewBufBinWriter()
-	emit.Int(bw.BinWriter, int64(n))
+	emit.Int(bw, int64(n))
 	// it's a hack because coefficients of small PUSH* opcodes are equal
 	result += Opcode(base, opcode.Opcode(bw.Bytes()[0]))
 	return result

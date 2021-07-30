@@ -27,7 +27,7 @@ func TestWriteU64LE(t *testing.T) {
 	)
 	bw := NewBufBinWriter()
 	bw.WriteU64LE(val)
-	assert.Nil(t, bw.Err)
+	assert.Nil(t, bw.Error())
 	wrotebin := bw.Bytes()
 	assert.Equal(t, wrotebin, bin)
 	br := NewBinReaderFromBuf(bin)
@@ -44,7 +44,7 @@ func TestWriteU32LE(t *testing.T) {
 	)
 	bw := NewBufBinWriter()
 	bw.WriteU32LE(val)
-	assert.Nil(t, bw.Err)
+	assert.Nil(t, bw.Error())
 	wrotebin := bw.Bytes()
 	assert.Equal(t, wrotebin, bin)
 	br := NewBinReaderFromBuf(bin)
@@ -61,7 +61,7 @@ func TestWriteU16LE(t *testing.T) {
 	)
 	bw := NewBufBinWriter()
 	bw.WriteU16LE(val)
-	assert.Nil(t, bw.Err)
+	assert.Nil(t, bw.Error())
 	wrotebin := bw.Bytes()
 	assert.Equal(t, wrotebin, bin)
 	br := NewBinReaderFromBuf(bin)
@@ -78,7 +78,7 @@ func TestWriteU16BE(t *testing.T) {
 	)
 	bw := NewBufBinWriter()
 	bw.WriteU16BE(val)
-	assert.Nil(t, bw.Err)
+	assert.Nil(t, bw.Error())
 	wrotebin := bw.Bytes()
 	assert.Equal(t, wrotebin, bin)
 	br := NewBinReaderFromBuf(bin)
@@ -95,7 +95,7 @@ func TestWriteByte(t *testing.T) {
 	)
 	bw := NewBufBinWriter()
 	bw.WriteB(val)
-	assert.Nil(t, bw.Err)
+	assert.Nil(t, bw.Error())
 	wrotebin := bw.Bytes()
 	assert.Equal(t, wrotebin, bin)
 	br := NewBinReaderFromBuf(bin)
@@ -111,7 +111,7 @@ func TestWriteBool(t *testing.T) {
 	bw := NewBufBinWriter()
 	bw.WriteBool(true)
 	bw.WriteBool(false)
-	assert.Nil(t, bw.Err)
+	assert.Nil(t, bw.Error())
 	wrotebin := bw.Bytes()
 	assert.Equal(t, wrotebin, bin)
 	br := NewBinReaderFromBuf(bin)
@@ -150,7 +150,7 @@ func TestBinReader_ReadVarBytes(t *testing.T) {
 	}
 	w := NewBufBinWriter()
 	w.WriteVarBytes(buf)
-	require.NoError(t, w.Err)
+	require.NoError(t, w.Error())
 	data := w.Bytes()
 
 	t.Run("NoArguments", func(t *testing.T) {
@@ -176,14 +176,14 @@ func TestWriterErrHandling(t *testing.T) {
 	var badio = &badRW{}
 	bw := NewBinWriterFromIO(badio)
 	bw.WriteU32LE(uint32(0))
-	assert.NotNil(t, bw.Err)
+	assert.NotNil(t, bw.Error())
 	// these should work (without panic), preserving the Err
 	bw.WriteU32LE(uint32(0))
 	bw.WriteU16BE(uint16(0))
 	bw.WriteVarUint(0)
 	bw.WriteVarBytes([]byte{0x55, 0xaa})
 	bw.WriteString("neo")
-	assert.NotNil(t, bw.Err)
+	assert.NotNil(t, bw.Error())
 }
 
 func TestReaderErrHandling(t *testing.T) {
@@ -208,11 +208,11 @@ func TestReaderErrHandling(t *testing.T) {
 func TestBufBinWriterErr(t *testing.T) {
 	bw := NewBufBinWriter()
 	bw.WriteU32LE(uint32(0))
-	assert.Nil(t, bw.Err)
+	assert.Nil(t, bw.Error())
 	// inject error
-	bw.Err = errors.New("oopsie")
+	bw.SetError(errors.New("oopsie"))
 	res := bw.Bytes()
-	assert.NotNil(t, bw.Err)
+	assert.NotNil(t, bw.Error())
 	assert.Nil(t, res)
 }
 
@@ -220,11 +220,11 @@ func TestBufBinWriterReset(t *testing.T) {
 	bw := NewBufBinWriter()
 	for i := 0; i < 3; i++ {
 		bw.WriteU32LE(uint32(i))
-		assert.Nil(t, bw.Err)
+		assert.Nil(t, bw.Error())
 		_ = bw.Bytes()
-		assert.NotNil(t, bw.Err)
+		assert.NotNil(t, bw.Error())
 		bw.Reset()
-		assert.Nil(t, bw.Err)
+		assert.Nil(t, bw.Error())
 	}
 }
 
@@ -234,7 +234,7 @@ func TestWriteString(t *testing.T) {
 	)
 	bw := NewBufBinWriter()
 	bw.WriteString(str)
-	assert.Nil(t, bw.Err)
+	assert.Nil(t, bw.Error())
 	wrotebin := bw.Bytes()
 	// +1 byte for length
 	assert.Equal(t, len(wrotebin), len(str)+1)
@@ -250,7 +250,7 @@ func TestWriteVarUint1(t *testing.T) {
 	)
 	bw := NewBufBinWriter()
 	bw.WriteVarUint(val)
-	assert.Nil(t, bw.Err)
+	assert.Nil(t, bw.Error())
 	buf := bw.Bytes()
 	assert.Equal(t, 1, len(buf))
 	br := NewBinReaderFromBuf(buf)
@@ -265,7 +265,7 @@ func TestWriteVarUint1000(t *testing.T) {
 	)
 	bw := NewBufBinWriter()
 	bw.WriteVarUint(val)
-	assert.Nil(t, bw.Err)
+	assert.Nil(t, bw.Error())
 	buf := bw.Bytes()
 	assert.Equal(t, 3, len(buf))
 	assert.Equal(t, byte(0xfd), buf[0])
@@ -281,7 +281,7 @@ func TestWriteVarUint100000(t *testing.T) {
 	)
 	bw := NewBufBinWriter()
 	bw.WriteVarUint(val)
-	assert.Nil(t, bw.Err)
+	assert.Nil(t, bw.Error())
 	buf := bw.Bytes()
 	assert.Equal(t, 5, len(buf))
 	assert.Equal(t, byte(0xfe), buf[0])
@@ -297,7 +297,7 @@ func TestWriteVarUint100000000000(t *testing.T) {
 	)
 	bw := NewBufBinWriter()
 	bw.WriteVarUint(val)
-	assert.Nil(t, bw.Err)
+	assert.Nil(t, bw.Error())
 	buf := bw.Bytes()
 	assert.Equal(t, 9, len(buf))
 	assert.Equal(t, byte(0xff), buf[0])
@@ -313,13 +313,13 @@ func TestWriteBytes(t *testing.T) {
 	)
 	bw := NewBufBinWriter()
 	bw.WriteBytes(bin)
-	assert.Nil(t, bw.Err)
+	assert.Nil(t, bw.Error())
 	buf := bw.Bytes()
 	assert.Equal(t, 4, len(buf))
 	assert.Equal(t, byte(0xde), buf[0])
 
 	bw = NewBufBinWriter()
-	bw.Err = errors.New("smth bad")
+	bw.SetError(errors.New("smth bad"))
 	bw.WriteBytes(bin)
 	assert.Equal(t, 0, bw.Len())
 }
@@ -358,12 +358,12 @@ func TestBinWriter_WriteArray(t *testing.T) {
 
 	w := NewBufBinWriter()
 	w.WriteArray(arr)
-	require.NoError(t, w.Err)
+	require.NoError(t, w.Error())
 	require.Equal(t, expected, w.Bytes())
 
 	w.Reset()
 	w.WriteArray(arr[:])
-	require.NoError(t, w.Err)
+	require.NoError(t, w.Error())
 	require.Equal(t, expected, w.Bytes())
 
 	arrS := make([]Serializable, len(arr))
@@ -373,23 +373,23 @@ func TestBinWriter_WriteArray(t *testing.T) {
 
 	w.Reset()
 	w.WriteArray(arr)
-	require.NoError(t, w.Err)
+	require.NoError(t, w.Error())
 	require.Equal(t, expected, w.Bytes())
 
 	w.Reset()
 	require.Panics(t, func() { w.WriteArray(1) })
 
 	w.Reset()
-	w.Err = errors.New("error")
+	w.SetError(errors.New("error"))
 	w.WriteArray(arr[:])
-	require.Error(t, w.Err)
+	require.Error(t, w.Error())
 	require.Equal(t, w.Bytes(), []byte(nil))
 
 	w.Reset()
 	require.Panics(t, func() { w.WriteArray([]int{1}) })
 
 	w.Reset()
-	w.Err = errors.New("error")
+	w.SetError(errors.New("error"))
 	require.Panics(t, func() { w.WriteArray(make(chan testSerializable)) })
 
 	// Ptr receiver test
@@ -399,7 +399,7 @@ func TestBinWriter_WriteArray(t *testing.T) {
 	}
 	w.Reset()
 	w.WriteArray(arr[:])
-	require.NoError(t, w.Err)
+	require.NoError(t, w.Error())
 	require.Equal(t, expected, w.Bytes())
 }
 

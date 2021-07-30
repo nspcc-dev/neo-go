@@ -29,9 +29,9 @@ var (
 
 // DAO is a data access object.
 type DAO interface {
-	AppendAppExecResult(aer *state.AppExecResult, buf *io.BufBinWriter) error
+	AppendAppExecResult(aer *state.AppExecResult, buf io.BufferWriter) error
 	AppendNEP17Transfer(acc util.Uint160, index uint32, isNew bool, tr *state.NEP17Transfer) (bool, error)
-	DeleteBlock(h util.Uint256, buf *io.BufBinWriter) error
+	DeleteBlock(h util.Uint256, buf io.BufferWriter) error
 	DeleteContractID(id int32) error
 	DeleteStorageItem(id int32, key []byte) error
 	GetAndDecode(entity io.Serializable, key []byte) error
@@ -52,7 +52,7 @@ type DAO interface {
 	GetWrapped() DAO
 	HasTransaction(hash util.Uint256) error
 	Persist() (int, error)
-	PutAppExecResult(aer *state.AppExecResult, buf *io.BufBinWriter) error
+	PutAppExecResult(aer *state.AppExecResult, buf io.BufferWriter) error
 	PutContractID(id int32, hash util.Uint160) error
 	PutCurrentHeader(hashAndIndex []byte) error
 	PutNEP17TransferInfo(acc util.Uint160, bs *state.NEP17TransferInfo) error
@@ -60,10 +60,10 @@ type DAO interface {
 	PutStorageItem(id int32, key []byte, si state.StorageItem) error
 	PutVersion(v string) error
 	Seek(id int32, prefix []byte, f func(k, v []byte))
-	StoreAsBlock(block *block.Block, buf *io.BufBinWriter) error
-	StoreAsCurrentBlock(block *block.Block, buf *io.BufBinWriter) error
-	StoreAsTransaction(tx *transaction.Transaction, index uint32, buf *io.BufBinWriter) error
-	putNEP17TransferInfo(acc util.Uint160, bs *state.NEP17TransferInfo, buf *io.BufBinWriter) error
+	StoreAsBlock(block *block.Block, buf io.BufferWriter) error
+	StoreAsCurrentBlock(block *block.Block, buf io.BufferWriter) error
+	StoreAsTransaction(tx *transaction.Transaction, index uint32, buf io.BufferWriter) error
+	putNEP17TransferInfo(acc util.Uint160, bs *state.NEP17TransferInfo, buf io.BufferWriter) error
 }
 
 // Simple is memCached wrapper around DB, simple DAO implementation.
@@ -108,10 +108,10 @@ func (dao *Simple) Put(entity io.Serializable, key []byte) error {
 }
 
 // putWithBuffer performs put operation using buf as a pre-allocated buffer for serialization.
-func (dao *Simple) putWithBuffer(entity io.Serializable, key []byte, buf *io.BufBinWriter) error {
-	entity.EncodeBinary(buf.BinWriter)
-	if buf.Err != nil {
-		return buf.Err
+func (dao *Simple) putWithBuffer(entity io.Serializable, key []byte, buf io.BufferWriter) error {
+	entity.EncodeBinary(buf)
+	if err := buf.Error(); err != nil {
+		return err
 	}
 	return dao.Store.Put(key, buf.Bytes())
 }
@@ -160,7 +160,7 @@ func (dao *Simple) PutNEP17TransferInfo(acc util.Uint160, bs *state.NEP17Transfe
 	return dao.putNEP17TransferInfo(acc, bs, io.NewBufBinWriter())
 }
 
-func (dao *Simple) putNEP17TransferInfo(acc util.Uint160, bs *state.NEP17TransferInfo, buf *io.BufBinWriter) error {
+func (dao *Simple) putNEP17TransferInfo(acc util.Uint160, bs *state.NEP17TransferInfo, buf io.BufferWriter) error {
 	key := storage.AppendPrefix(storage.STNEP17TransferInfo, acc.BytesBE())
 	return dao.putWithBuffer(bs, key, buf)
 }
@@ -248,7 +248,7 @@ func (dao *Simple) GetAppExecResults(hash util.Uint256, trig trigger.Type) ([]st
 // AppendAppExecResult appends given application execution result to the existing
 // set of execution results for the corresponding hash. It can reuse given buffer
 // for the purpose of value serialization.
-func (dao *Simple) AppendAppExecResult(aer *state.AppExecResult, buf *io.BufBinWriter) error {
+func (dao *Simple) AppendAppExecResult(aer *state.AppExecResult, buf io.BufferWriter) error {
 	key := storage.AppendPrefix(storage.STNotification, aer.Container.BytesBE())
 	aers, err := dao.Store.Get(key)
 	if err != nil && err != storage.ErrKeyNotFound {
@@ -260,9 +260,9 @@ func (dao *Simple) AppendAppExecResult(aer *state.AppExecResult, buf *io.BufBinW
 	if buf == nil {
 		buf = io.NewBufBinWriter()
 	}
-	aer.EncodeBinary(buf.BinWriter)
-	if buf.Err != nil {
-		return buf.Err
+	aer.EncodeBinary(buf)
+	if err := buf.Error(); err != nil {
+		return err
 	}
 	aers = append(aers, buf.Bytes()...)
 	return dao.Store.Put(key, aers)
@@ -270,7 +270,7 @@ func (dao *Simple) AppendAppExecResult(aer *state.AppExecResult, buf *io.BufBinW
 
 // PutAppExecResult puts given application execution result into the
 // given store. It can reuse given buffer for the purpose of value serialization.
-func (dao *Simple) PutAppExecResult(aer *state.AppExecResult, buf *io.BufBinWriter) error {
+func (dao *Simple) PutAppExecResult(aer *state.AppExecResult, buf io.BufferWriter) error {
 	key := storage.AppendPrefix(storage.STNotification, aer.Container.BytesBE())
 	if buf == nil {
 		return dao.Put(aer, key)
@@ -498,7 +498,7 @@ func (dao *Simple) HasTransaction(hash util.Uint256) error {
 
 // StoreAsBlock stores given block as DataBlock. It can reuse given buffer for
 // the purpose of value serialization.
-func (dao *Simple) StoreAsBlock(block *block.Block, buf *io.BufBinWriter) error {
+func (dao *Simple) StoreAsBlock(block *block.Block, buf io.BufferWriter) error {
 	var (
 		key = storage.AppendPrefix(storage.DataBlock, block.Hash().BytesBE())
 	)
@@ -510,14 +510,14 @@ func (dao *Simple) StoreAsBlock(block *block.Block, buf *io.BufBinWriter) error 
 		return err
 	}
 	buf.WriteBytes(b)
-	if buf.Err != nil {
-		return buf.Err
+	if err := buf.Error(); err != nil {
+		return err
 	}
 	return dao.Store.Put(key, buf.Bytes())
 }
 
 // DeleteBlock removes block from dao.
-func (dao *Simple) DeleteBlock(h util.Uint256, w *io.BufBinWriter) error {
+func (dao *Simple) DeleteBlock(h util.Uint256, w io.BufferWriter) error {
 	batch := dao.Store.Batch()
 	key := make([]byte, util.Uint256Size+1)
 	key[0] = byte(storage.DataBlock)
@@ -535,10 +535,10 @@ func (dao *Simple) DeleteBlock(h util.Uint256, w *io.BufBinWriter) error {
 	if w == nil {
 		w = io.NewBufBinWriter()
 	}
-	b.Header.EncodeBinary(w.BinWriter)
-	w.BinWriter.WriteB(0)
-	if w.Err != nil {
-		return w.Err
+	b.Header.EncodeBinary(w)
+	w.WriteB(0)
+	if err := w.Error(); err != nil {
+		return err
 	}
 	batch.Put(key, w.Bytes())
 
@@ -560,31 +560,31 @@ func (dao *Simple) DeleteBlock(h util.Uint256, w *io.BufBinWriter) error {
 // StoreAsCurrentBlock stores a hash of the given block with prefix
 // SYSCurrentBlock. It can reuse given buffer for the purpose of value
 // serialization.
-func (dao *Simple) StoreAsCurrentBlock(block *block.Block, buf *io.BufBinWriter) error {
+func (dao *Simple) StoreAsCurrentBlock(block *block.Block, buf io.BufferWriter) error {
 	if buf == nil {
 		buf = io.NewBufBinWriter()
 	}
 	h := block.Hash()
-	h.EncodeBinary(buf.BinWriter)
+	h.EncodeBinary(buf)
 	buf.WriteU32LE(block.Index)
 	return dao.Store.Put(storage.SYSCurrentBlock.Bytes(), buf.Bytes())
 }
 
 // StoreAsTransaction stores given TX as DataTransaction. It can reuse given
 // buffer for the purpose of value serialization.
-func (dao *Simple) StoreAsTransaction(tx *transaction.Transaction, index uint32, buf *io.BufBinWriter) error {
+func (dao *Simple) StoreAsTransaction(tx *transaction.Transaction, index uint32, buf io.BufferWriter) error {
 	key := storage.AppendPrefix(storage.DataTransaction, tx.Hash().BytesBE())
 	if buf == nil {
 		buf = io.NewBufBinWriter()
 	}
 	buf.WriteU32LE(index)
 	if tx.Version == transaction.DummyVersion {
-		buf.BinWriter.WriteB(tx.Version)
+		buf.WriteB(tx.Version)
 	} else {
-		tx.EncodeBinary(buf.BinWriter)
+		tx.EncodeBinary(buf)
 	}
-	if buf.Err != nil {
-		return buf.Err
+	if err := buf.Error(); err != nil {
+		return err
 	}
 	return dao.Store.Put(key, buf.Bytes())
 }

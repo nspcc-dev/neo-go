@@ -133,7 +133,7 @@ func (p *Payload) Sign(key *privateKey) error {
 	sig := key.PrivateKey.SignHashable(uint32(p.network), &p.Extensible)
 
 	buf := io.NewBufBinWriter()
-	emit.Bytes(buf.BinWriter, sig)
+	emit.Bytes(buf, sig)
 	p.Witness.InvocationScript = buf.Bytes()
 	p.Witness.VerificationScript = key.PublicKey().GetVerificationScript()
 
@@ -228,7 +228,7 @@ func (p *Payload) encodeData() {
 		p.Extensible.ValidBlockStart = 0
 		p.Extensible.ValidBlockEnd = p.BlockIndex
 		bw := io.NewBufBinWriter()
-		p.message.EncodeBinary(bw.BinWriter)
+		p.message.EncodeBinary(bw)
 		p.Extensible.Data = bw.Bytes()
 	}
 }

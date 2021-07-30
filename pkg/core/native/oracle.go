@@ -89,11 +89,11 @@ func newOracle() *Oracle {
 	defer o.UpdateHash()
 
 	w := io.NewBufBinWriter()
-	emit.Opcodes(w.BinWriter, opcode.NEWARRAY0)
-	emit.Int(w.BinWriter, int64(callflag.All))
-	emit.String(w.BinWriter, "finish")
-	emit.Bytes(w.BinWriter, o.Hash.BytesBE())
-	emit.Syscall(w.BinWriter, interopnames.SystemContractCall)
+	emit.Opcodes(w, opcode.NEWARRAY0)
+	emit.Int(w, int64(callflag.All))
+	emit.String(w, "finish")
+	emit.Bytes(w, o.Hash.BytesBE())
+	emit.Syscall(w, interopnames.SystemContractCall)
 	o.oracleScript = w.Bytes()
 
 	desc := newDescriptor("request", smartcontract.VoidType,

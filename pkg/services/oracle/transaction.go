@@ -111,7 +111,7 @@ func finalizeTx(oracleNodes keys.PublicKeys, tx *transaction.Transaction, txSigs
 
 	w := io.NewBufBinWriter()
 	for i := range sigs {
-		emit.Bytes(w.BinWriter, sigs[i])
+		emit.Bytes(w, sigs[i])
 	}
 	tx.Scripts[1].InvocationScript = w.Bytes()
 	return true

@@ -83,9 +83,9 @@ func (lg *NEP17TransferLog) Append(tr *NEP17Transfer) error {
 	if len(lg.Raw) == 0 {
 		w.WriteB(1)
 	}
-	tr.EncodeBinary(w.BinWriter)
-	if w.Err != nil {
-		return w.Err
+	tr.EncodeBinary(w)
+	if err := w.Error(); err != nil {
+		return err
 	}
 	if len(lg.Raw) != 0 {
 		lg.Raw[0]++

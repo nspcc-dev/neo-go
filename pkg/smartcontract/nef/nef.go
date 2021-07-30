@@ -145,9 +145,9 @@ func (n *File) DecodeBinary(r io.BinaryReader) {
 // Bytes returns byte array with serialized NEF File.
 func (n File) Bytes() ([]byte, error) {
 	buf := io.NewBufBinWriter()
-	n.EncodeBinary(buf.BinWriter)
-	if buf.Err != nil {
-		return nil, buf.Err
+	n.EncodeBinary(buf)
+	if err := buf.Error(); err != nil {
+		return nil, err
 	}
 	return buf.Bytes(), nil
 }

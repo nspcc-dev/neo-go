@@ -638,10 +638,10 @@ func (bc *Blockchain) addHeaders(verify bool, headers ...*block.Header) error {
 			continue
 		}
 		bc.headerHashes = append(bc.headerHashes, h.Hash())
-		h.EncodeBinary(buf.BinWriter)
-		buf.BinWriter.WriteB(0)
-		if buf.Err != nil {
-			return buf.Err
+		h.EncodeBinary(buf)
+		buf.WriteB(0)
+		if err := buf.Error(); err != nil {
+			return err
 		}
 
 		key := storage.AppendPrefix(storage.DataBlock, h.Hash().BytesBE())
@@ -653,8 +653,8 @@ func (bc *Blockchain) addHeaders(verify bool, headers ...*block.Header) error {
 	if oldlen != len(bc.headerHashes) {
 		for int(lastHeader.Index)-headerBatchCount >= int(bc.storedHeaderCount) {
 			buf.WriteArray(bc.headerHashes[bc.storedHeaderCount : bc.storedHeaderCount+headerBatchCount])
-			if buf.Err != nil {
-				return buf.Err
+			if err := buf.Error(); err != nil {
+				return err
 			}
 
 			key := storage.AppendPrefixInt(storage.IXHeaderHashList, int(bc.storedHeaderCount))

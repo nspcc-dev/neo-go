@@ -129,7 +129,7 @@ func (cs *Contracts) GetPersistScript() []byte {
 		return cs.persistScript
 	}
 	w := io.NewBufBinWriter()
-	emit.Syscall(w.BinWriter, interopnames.SystemContractNativeOnPersist)
+	emit.Syscall(w, interopnames.SystemContractNativeOnPersist)
 	cs.persistScript = w.Bytes()
 	return cs.persistScript
 }
@@ -140,7 +140,7 @@ func (cs *Contracts) GetPostPersistScript() []byte {
 		return cs.postPersistScript
 	}
 	w := io.NewBufBinWriter()
-	emit.Syscall(w.BinWriter, interopnames.SystemContractNativePostPersist)
+	emit.Syscall(w, interopnames.SystemContractNativePostPersist)
 	cs.postPersistScript = w.Bytes()
 	return cs.postPersistScript
 }

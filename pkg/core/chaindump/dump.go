@@ -18,7 +18,7 @@ func Dump(bc blockchainer.Blockchainer, w io.BinaryWriter, start, count uint32) 
 			return err
 		}
 		buf := io.NewBufBinWriter()
-		b.EncodeBinary(buf.BinWriter)
+		b.EncodeBinary(buf)
 		bytes := buf.Bytes()
 		w.WriteU32LE(uint32(len(bytes)))
 		w.WriteBytes(bytes)

@@ -81,12 +81,12 @@ func (c *Client) CreateNEP17MultiTransferTx(acc *wallet.Account, gas int64,
 	}
 	w := io.NewBufBinWriter()
 	for i := range recipients {
-		emit.AppCall(w.BinWriter, recipients[i].Token, "transfer", callflag.All,
+		emit.AppCall(w, recipients[i].Token, "transfer", callflag.All,
 			from, recipients[i].Address, recipients[i].Amount, recipients[i].Data)
-		emit.Opcodes(w.BinWriter, opcode.ASSERT)
+		emit.Opcodes(w, opcode.ASSERT)
 	}
-	if w.Err != nil {
-		return nil, fmt.Errorf("failed to create transfer script: %w", w.Err)
+	if err := w.Error(); err != nil {
+		return nil, fmt.Errorf("failed to create transfer script: %w", err)
 	}
 	return c.CreateTxFromScript(w.Bytes(), acc, -1, gas, append([]SignerAccount{{
 		Signer: transaction.Signer{

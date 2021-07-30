@@ -46,8 +46,8 @@ func (keys *PublicKeys) DecodeBytes(data []byte) error {
 func (keys *PublicKeys) Bytes() []byte {
 	buf := io.NewBufBinWriter()
 	buf.WriteArray(*keys)
-	if buf.Err != nil {
-		panic(buf.Err)
+	if buf.Error() != nil {
+		panic(buf.Error())
 	}
 	return buf.Bytes()
 }
@@ -314,8 +314,8 @@ func (p *PublicKey) GetVerificationScript() []byte {
 		buf.WriteB(0xAC) // CHECKSIG
 		return buf.Bytes()
 	}
-	emit.Bytes(buf.BinWriter, b)
-	emit.Syscall(buf.BinWriter, interopnames.SystemCryptoCheckSig)
+	emit.Bytes(buf, b)
+	emit.Syscall(buf, interopnames.SystemCryptoCheckSig)
 
 	return buf.Bytes()
 }

@@ -29,9 +29,9 @@ type VerifyProof struct {
 // MarshalJSON implements json.Marshaler.
 func (p *ProofWithKey) MarshalJSON() ([]byte, error) {
 	w := io.NewBufBinWriter()
-	p.EncodeBinary(w.BinWriter)
-	if w.Err != nil {
-		return nil, w.Err
+	p.EncodeBinary(w)
+	if err := w.Error(); err != nil {
+		return nil, err
 	}
 	return []byte(`"` + base64.StdEncoding.EncodeToString(w.Bytes()) + `"`), nil
 }
@@ -66,7 +66,7 @@ func (p *ProofWithKey) UnmarshalJSON(data []byte) error {
 // String implements fmt.Stringer.
 func (p *ProofWithKey) String() string {
 	w := io.NewBufBinWriter()
-	p.EncodeBinary(w.BinWriter)
+	p.EncodeBinary(w)
 	return base64.StdEncoding.EncodeToString(w.Bytes())
 }
 

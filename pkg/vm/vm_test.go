@@ -38,8 +38,8 @@ func TestInteropHook(t *testing.T) {
 	v.SyscallHandler = fooInteropHandler
 
 	buf := io.NewBufBinWriter()
-	emit.Syscall(buf.BinWriter, "foo")
-	emit.Opcodes(buf.BinWriter, opcode.RET)
+	emit.Syscall(buf, "foo")
+	emit.Opcodes(buf, opcode.RET)
 	v.Load(buf.Bytes())
 	runVM(t, v)
 	assert.Equal(t, 1, v.estack.Len())
@@ -106,7 +106,7 @@ func TestPushBytes1to75(t *testing.T) {
 	buf := io.NewBufBinWriter()
 	for i := 1; i <= 75; i++ {
 		b := randomBytes(i)
-		emit.Bytes(buf.BinWriter, b)
+		emit.Bytes(buf, b)
 		vm := load(buf.Bytes())
 		err := vm.Step()
 		require.NoError(t, err)
@@ -1352,18 +1352,18 @@ func TestHASKEYBigKey(t *testing.T) {
 	v := newTestVM()
 
 	buf := io.NewBufBinWriter()
-	emit.Int(buf.BinWriter, 1024*1024)
-	emit.Opcodes(buf.BinWriter, opcode.NEWBUFFER, opcode.NEWMAP)
-	emit.Int(buf.BinWriter, 64)
-	emit.Opcodes(buf.BinWriter, opcode.NEWBUFFER)
-	emit.Opcodes(buf.BinWriter, opcode.INITSLOT, opcode.Opcode(0), opcode.Opcode(3))
+	emit.Int(buf, 1024*1024)
+	emit.Opcodes(buf, opcode.NEWBUFFER, opcode.NEWMAP)
+	emit.Int(buf, 64)
+	emit.Opcodes(buf, opcode.NEWBUFFER)
+	emit.Opcodes(buf, opcode.INITSLOT, opcode.Opcode(0), opcode.Opcode(3))
 
-	emit.Opcodes(buf.BinWriter, opcode.LDARG1, opcode.LDARG0, opcode.CONVERT, opcode.Opcode(stackitem.ByteArrayT))
-	emit.Opcodes(buf.BinWriter, opcode.LDARG0, opcode.SETITEM, opcode.LDARG1, opcode.LDARG2)
-	emit.Opcodes(buf.BinWriter, opcode.CONVERT, opcode.Opcode(stackitem.ByteArrayT))
-	emit.Opcodes(buf.BinWriter, opcode.HASKEY)
+	emit.Opcodes(buf, opcode.LDARG1, opcode.LDARG0, opcode.CONVERT, opcode.Opcode(stackitem.ByteArrayT))
+	emit.Opcodes(buf, opcode.LDARG0, opcode.SETITEM, opcode.LDARG1, opcode.LDARG2)
+	emit.Opcodes(buf, opcode.CONVERT, opcode.Opcode(stackitem.ByteArrayT))
+	emit.Opcodes(buf, opcode.HASKEY)
 
-	emit.Opcodes(buf.BinWriter, opcode.JMP, opcode.Opcode(0xFB)) // -5
+	emit.Opcodes(buf, opcode.JMP, opcode.Opcode(0xFB)) // -5
 	v.Load(buf.Bytes())
 	checkVMFailed(t, v)
 }
@@ -1380,8 +1380,7 @@ func TestSIGN(t *testing.T) {
 }
 
 func TestSimpleCall(t *testing.T) {
-	buf := io.NewBufBinWriter()
-	w := buf.BinWriter
+	w := io.NewBufBinWriter()
 	emit.Opcodes(w, opcode.PUSH2)
 	emit.Instruction(w, opcode.CALL, []byte{03})
 	emit.Opcodes(w, opcode.RET)
@@ -1390,7 +1389,7 @@ func TestSimpleCall(t *testing.T) {
 	emit.Opcodes(w, opcode.RET)
 
 	result := 12
-	vm := load(buf.Bytes())
+	vm := load(w.Bytes())
 	runVM(t, vm)
 	assert.Equal(t, result, int(vm.estack.Pop().BigInt().Int64()))
 }

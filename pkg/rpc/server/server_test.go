@@ -865,10 +865,10 @@ var rpcTestCases = map[string][]rpcTestCase{
 				res, ok := inv.(*result.Invoke)
 				require.True(t, ok)
 				expectedInvScript := io.NewBufBinWriter()
-				emit.Int(expectedInvScript.BinWriter, 0)
-				emit.Int(expectedInvScript.BinWriter, int64(4))
-				emit.String(expectedInvScript.BinWriter, "good_string")
-				require.NoError(t, expectedInvScript.Err)
+				emit.Int(expectedInvScript, 0)
+				emit.Int(expectedInvScript, int64(4))
+				emit.String(expectedInvScript, "good_string")
+				require.NoError(t, expectedInvScript.Error())
 				assert.Equal(t, expectedInvScript.Bytes(), res.Script) // witness invocation script (pushes args of `verify` on stack)
 				assert.Equal(t, "HALT", res.State, res.FaultException)
 				assert.NotEqual(t, 0, res.GasConsumed)
@@ -883,10 +883,10 @@ var rpcTestCases = map[string][]rpcTestCase{
 				res, ok := inv.(*result.Invoke)
 				require.True(t, ok)
 				expectedInvScript := io.NewBufBinWriter()
-				emit.Int(expectedInvScript.BinWriter, 0)
-				emit.Int(expectedInvScript.BinWriter, int64(4))
-				emit.String(expectedInvScript.BinWriter, "invalid_string")
-				require.NoError(t, expectedInvScript.Err)
+				emit.Int(expectedInvScript, 0)
+				emit.Int(expectedInvScript, int64(4))
+				emit.String(expectedInvScript, "invalid_string")
+				require.NoError(t, expectedInvScript.Error())
 				assert.Equal(t, expectedInvScript.Bytes(), res.Script)
 				assert.Equal(t, "HALT", res.State, res.FaultException)
 				assert.NotEqual(t, 0, res.GasConsumed)
@@ -1435,8 +1435,8 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 
 		t.Run("no verbose", func(t *testing.T) {
 			w := io.NewBufBinWriter()
-			hdr.EncodeBinary(w.BinWriter)
-			require.NoError(t, w.Err)
+			hdr.EncodeBinary(w)
+			require.NoError(t, w.Error())
 			encoded := base64.StdEncoding.EncodeToString(w.Bytes())
 
 			t.Run("missing", func(t *testing.T) {
@@ -1558,8 +1558,8 @@ func (e *executor) getHeader(s string) *block.Header {
 
 func encodeBlock(t *testing.T, b *block.Block) string {
 	w := io.NewBufBinWriter()
-	b.EncodeBinary(w.BinWriter)
-	require.NoError(t, w.Err)
+	b.EncodeBinary(w)
+	require.NoError(t, w.Error())
 	return base64.StdEncoding.EncodeToString(w.Bytes())
 }
 

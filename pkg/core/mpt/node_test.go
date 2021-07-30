@@ -83,7 +83,7 @@ func TestNode_Serializable(t *testing.T) {
 		})
 		t.Run("InvalidSize", func(t *testing.T) {
 			buf := io.NewBufBinWriter()
-			buf.BinWriter.WriteBytes(make([]byte, 13))
+			buf.WriteBytes(make([]byte, 13))
 			require.Error(t, testserdes.DecodeBinary(buf.Bytes(), &HashNode{BaseNode: BaseNode{hashValid: true}}))
 		})
 	})

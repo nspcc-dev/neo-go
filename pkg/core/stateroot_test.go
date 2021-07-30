@@ -35,9 +35,9 @@ func testSignStateRoot(t *testing.T, r *state.MPTRoot, pubs keys.PublicKeys, acc
 	w := io.NewBufBinWriter()
 	for i := 0; i < n; i++ {
 		sig := accs[i].PrivateKey().SignHashable(uint32(netmode.UnitTestNet), r)
-		emit.Bytes(w.BinWriter, sig)
+		emit.Bytes(w, sig)
 	}
-	require.NoError(t, w.Err)
+	require.NoError(t, w.Error())
 
 	script, err := smartcontract.CreateMajorityMultiSigRedeemScript(pubs.Copy())
 	require.NoError(t, err)

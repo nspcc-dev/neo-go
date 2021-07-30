@@ -98,8 +98,8 @@ func main() {
 			handleError("can't get random data for value", err)
 
 			w := io.NewBufBinWriter()
-			emit.AppCall(w.BinWriter, contractHash, "put", callflag.All, key, value)
-			handleError("can't create transaction", w.Err)
+			emit.AppCall(w, contractHash, "put", callflag.All, key, value)
+			handleError("can't create transaction", w.Error())
 
 			tx := transaction.New(w.Bytes(), 4_040_000)
 			tx.ValidUntilBlock = i + 1

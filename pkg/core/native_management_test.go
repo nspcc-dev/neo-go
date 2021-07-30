@@ -269,8 +269,8 @@ func TestContractDeploy(t *testing.T) {
 		})
 		t.Run("get after restore", func(t *testing.T) {
 			w := io.NewBufBinWriter()
-			require.NoError(t, chaindump.Dump(bc, w.BinWriter, 0, bc.BlockHeight()+1))
-			require.NoError(t, w.Err)
+			require.NoError(t, chaindump.Dump(bc, w, 0, bc.BlockHeight()+1))
+			require.NoError(t, w.Error())
 
 			r := io.NewBinReaderFromBuf(w.Bytes())
 			bc2 := newTestChain(t)

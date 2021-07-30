@@ -39,9 +39,9 @@ func ToFromStackItem(t *testing.T, expected, actual stackitem.Convertible) {
 // EncodeBinary serializes a to a byte slice.
 func EncodeBinary(a io.Serializable) ([]byte, error) {
 	w := io.NewBufBinWriter()
-	a.EncodeBinary(w.BinWriter)
-	if w.Err != nil {
-		return nil, w.Err
+	a.EncodeBinary(w)
+	if err := w.Error(); err != nil {
+		return nil, err
 	}
 	return w.Bytes(), nil
 }
@@ -70,7 +70,7 @@ func EncodeDecode(t *testing.T, expected, actual encodable) {
 // Encode serializes a to a byte slice.
 func Encode(a encodable) ([]byte, error) {
 	w := io.NewBufBinWriter()
-	err := a.Encode(w.BinWriter)
+	err := a.Encode(w)
 	if err != nil {
 		return nil, err
 	}

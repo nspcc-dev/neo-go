@@ -523,8 +523,8 @@ func (c *Client) SubmitBlock(b block.Block) (util.Uint256, error) {
 		resp   = new(result.RelayResult)
 	)
 	buf := io.NewBufBinWriter()
-	b.EncodeBinary(buf.BinWriter)
-	if err := buf.Err; err != nil {
+	b.EncodeBinary(buf)
+	if err := buf.Error(); err != nil {
 		return util.Uint256{}, err
 	}
 	params = request.NewRawParams(buf.Bytes())

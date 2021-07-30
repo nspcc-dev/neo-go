@@ -395,9 +395,9 @@ func (n *Notary) newTxCallbackLoop() {
 // updateTxSize returns transaction with re-calculated size and an error.
 func updateTxSize(tx *transaction.Transaction) (*transaction.Transaction, error) {
 	bw := io.NewBufBinWriter()
-	tx.EncodeBinary(bw.BinWriter)
-	if bw.Err != nil {
-		return nil, fmt.Errorf("encode binary: %w", bw.Err)
+	tx.EncodeBinary(bw)
+	if err := bw.Error(); err != nil {
+		return nil, fmt.Errorf("encode binary: %w", err)
 	}
 	return transaction.NewTransactionFromBytes(tx.Bytes())
 }

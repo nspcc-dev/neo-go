@@ -379,20 +379,20 @@ func testTokensOf(t *testing.T, bc *Blockchain, nsHash util.Uint160, signer *wal
 		method = "tokens"
 	}
 	w := io.NewBufBinWriter()
-	emit.AppCall(w.BinWriter, nsHash, method, callflag.All, args...)
+	emit.AppCall(w, nsHash, method, callflag.All, args...)
 	for range result {
-		emit.Opcodes(w.BinWriter, opcode.DUP)
-		emit.Syscall(w.BinWriter, interopnames.SystemIteratorNext)
-		emit.Opcodes(w.BinWriter, opcode.ASSERT)
+		emit.Opcodes(w, opcode.DUP)
+		emit.Syscall(w, interopnames.SystemIteratorNext)
+		emit.Opcodes(w, opcode.ASSERT)
 
-		emit.Opcodes(w.BinWriter, opcode.DUP)
-		emit.Syscall(w.BinWriter, interopnames.SystemIteratorValue)
-		emit.Opcodes(w.BinWriter, opcode.SWAP)
+		emit.Opcodes(w, opcode.DUP)
+		emit.Syscall(w, interopnames.SystemIteratorValue)
+		emit.Opcodes(w, opcode.SWAP)
 	}
-	emit.Opcodes(w.BinWriter, opcode.DROP)
-	emit.Int(w.BinWriter, int64(len(result)))
-	emit.Opcodes(w.BinWriter, opcode.PACK)
-	require.NoError(t, w.Err)
+	emit.Opcodes(w, opcode.DROP)
+	emit.Int(w, int64(len(result)))
+	emit.Opcodes(w, opcode.PACK)
+	require.NoError(t, w.Error())
 	script := w.Bytes()
 	tx := transaction.New(script, defaultNameServiceSysfee)
 	tx.ValidUntilBlock = bc.BlockHeight() + 1

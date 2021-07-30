@@ -84,9 +84,9 @@ func (s *service) signAndSend(r *state.MPTRoot) error {
 	})
 
 	w := io.NewBufBinWriter()
-	msg.EncodeBinary(w.BinWriter)
-	if w.Err != nil {
-		return w.Err
+	msg.EncodeBinary(w)
+	if err := w.Error(); err != nil {
+		return err
 	}
 	e := &payload.Extensible{
 		Category:        Category,
@@ -100,7 +100,7 @@ func (s *service) signAndSend(r *state.MPTRoot) error {
 	}
 	sig = acc.PrivateKey().SignHashable(uint32(s.Network), e)
 	buf := io.NewBufBinWriter()
-	emit.Bytes(buf.BinWriter, sig)
+	emit.Bytes(buf, sig)
 	e.Witness.InvocationScript = buf.Bytes()
 	incRoot.myVote = e
 	incRoot.retries = -1

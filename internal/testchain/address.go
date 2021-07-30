@@ -135,7 +135,7 @@ func Sign(h hash.Hashable) []byte {
 		if len(sig) != 64 {
 			panic("wrong signature length")
 		}
-		emit.Bytes(buf.BinWriter, sig)
+		emit.Bytes(buf, sig)
 	}
 	return buf.Bytes()
 }
@@ -149,7 +149,7 @@ func SignCommittee(h hash.Hashable) []byte {
 		if len(sig) != 64 {
 			panic("wrong signature length")
 		}
-		emit.Bytes(buf.BinWriter, sig)
+		emit.Bytes(buf, sig)
 	}
 	return buf.Bytes()
 }

@@ -117,29 +117,29 @@ func TestIsMultiSigContract(t *testing.T) {
 
 func TestIsScriptCorrect(t *testing.T) {
 	w := io.NewBufBinWriter()
-	emit.String(w.BinWriter, "something")
+	emit.String(w, "something")
 
 	jmpOff := w.Len()
-	emit.Opcodes(w.BinWriter, opcode.JMP, opcode.Opcode(-jmpOff))
+	emit.Opcodes(w, opcode.JMP, opcode.Opcode(-jmpOff))
 
 	retOff := w.Len()
-	emit.Opcodes(w.BinWriter, opcode.RET)
+	emit.Opcodes(w, opcode.RET)
 
 	jmplOff := w.Len()
-	emit.Opcodes(w.BinWriter, opcode.JMPL, opcode.Opcode(0xff), opcode.Opcode(0xff), opcode.Opcode(0xff), opcode.Opcode(0xff))
+	emit.Opcodes(w, opcode.JMPL, opcode.Opcode(0xff), opcode.Opcode(0xff), opcode.Opcode(0xff), opcode.Opcode(0xff))
 
 	tryOff := w.Len()
-	emit.Opcodes(w.BinWriter, opcode.TRY, opcode.Opcode(3), opcode.Opcode(0xfb)) // -5
+	emit.Opcodes(w, opcode.TRY, opcode.Opcode(3), opcode.Opcode(0xfb)) // -5
 
 	trylOff := w.Len()
-	emit.Opcodes(w.BinWriter, opcode.TRYL, opcode.Opcode(0xfd), opcode.Opcode(0xff), opcode.Opcode(0xff), opcode.Opcode(0xff),
+	emit.Opcodes(w, opcode.TRYL, opcode.Opcode(0xfd), opcode.Opcode(0xff), opcode.Opcode(0xff), opcode.Opcode(0xff),
 		opcode.Opcode(9), opcode.Opcode(0), opcode.Opcode(0), opcode.Opcode(0))
 
 	istypeOff := w.Len()
-	emit.Opcodes(w.BinWriter, opcode.ISTYPE, opcode.Opcode(stackitem.IntegerT))
+	emit.Opcodes(w, opcode.ISTYPE, opcode.Opcode(stackitem.IntegerT))
 
 	pushOff := w.Len()
-	emit.String(w.BinWriter, "else")
+	emit.String(w, "else")
 
 	good := w.Bytes()
 

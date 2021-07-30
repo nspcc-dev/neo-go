@@ -189,9 +189,9 @@ func (t *Transaction) encodeHashableFields(bw io.BinaryWriter) {
 // EncodeHashableFields returns serialized transaction's fields which are hashed.
 func (t *Transaction) EncodeHashableFields() ([]byte, error) {
 	bw := io.NewBufBinWriter()
-	t.encodeHashableFields(bw.BinWriter)
-	if bw.Err != nil {
-		return nil, bw.Err
+	t.encodeHashableFields(bw)
+	if err := bw.Error(); err != nil {
+		return nil, err
 	}
 	return bw.Bytes(), nil
 }
@@ -199,9 +199,9 @@ func (t *Transaction) EncodeHashableFields() ([]byte, error) {
 // createHash creates the hash of the transaction.
 func (t *Transaction) createHash() error {
 	buf := io.NewBufBinWriter()
-	t.encodeHashableFields(buf.BinWriter)
-	if buf.Err != nil {
-		return buf.Err
+	t.encodeHashableFields(buf)
+	if err := buf.Error(); err != nil {
+		return err
 	}
 
 	t.hash = hash.Sha256(buf.Bytes())
@@ -229,8 +229,8 @@ func (t *Transaction) DecodeHashableFields(buf []byte) error {
 // Bytes converts the transaction to []byte.
 func (t *Transaction) Bytes() []byte {
 	buf := io.NewBufBinWriter()
-	t.EncodeBinary(buf.BinWriter)
-	if buf.Err != nil {
+	t.EncodeBinary(buf)
+	if buf.Error() != nil {
 		return nil
 	}
 	return buf.Bytes()

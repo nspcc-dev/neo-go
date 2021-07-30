@@ -64,16 +64,16 @@ func (c *codegen) traverseGlobals() bool {
 	}
 
 	if n > 255 {
-		c.prog.BinWriter.Err = errors.New("too many global variables")
+		c.prog.SetError(errors.New("too many global variables"))
 		return hasDeploy
 	}
 
 	if n != 0 {
-		emit.Instruction(c.prog.BinWriter, opcode.INITSSLOT, []byte{byte(n)})
+		emit.Instruction(c.prog, opcode.INITSSLOT, []byte{byte(n)})
 	}
 
 	initOffset := c.prog.Len()
-	emit.Instruction(c.prog.BinWriter, opcode.INITSLOT, []byte{0, 0})
+	emit.Instruction(c.prog, opcode.INITSLOT, []byte{0, 0})
 
 	lastCnt, maxCnt := -1, -1
 	c.ForEachPackage(func(pkg *loader.PackageInfo) {
@@ -113,7 +113,7 @@ func (c *codegen) traverseGlobals() bool {
 
 	if initOffset != 0 || !hasNoInit { // if there are some globals or `init()`.
 		c.initEndOffset = c.prog.Len()
-		emit.Opcodes(c.prog.BinWriter, opcode.RET)
+		emit.Opcodes(c.prog, opcode.RET)
 
 		if maxCnt >= 0 {
 			c.reverseOffsetMap[initOffset] = nameWithLocals{

@@ -558,7 +558,7 @@ func (s *service) getBlockWitness(b *coreb.Block) *transaction.Witness {
 	buf := io.NewBufBinWriter()
 	for i, j := 0, 0; i < len(pubs) && j < m; i++ {
 		if sig, ok := sigs[pubs[i]]; ok {
-			emit.Bytes(buf.BinWriter, sig)
+			emit.Bytes(buf, sig)
 			j++
 		}
 	}

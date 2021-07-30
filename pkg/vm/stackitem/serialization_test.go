@@ -80,8 +80,8 @@ func TestSerialize(t *testing.T) {
 
 		t.Run("protected interop", func(t *testing.T) {
 			w := io.NewBufBinWriter()
-			EncodeBinaryProtected(NewInterop(42), w.BinWriter)
-			require.NoError(t, w.Err)
+			EncodeBinaryProtected(NewInterop(42), w)
+			require.NoError(t, w.Error())
 
 			data := w.Bytes()
 			r := io.NewBinReaderFromBuf(data)
@@ -95,8 +95,8 @@ func TestSerialize(t *testing.T) {
 		})
 		t.Run("protected nil", func(t *testing.T) {
 			w := io.NewBufBinWriter()
-			EncodeBinaryProtected(nil, w.BinWriter)
-			require.NoError(t, w.Err)
+			EncodeBinaryProtected(nil, w)
+			require.NoError(t, w.Error())
 
 			data := w.Bytes()
 			r := io.NewBinReaderFromBuf(data)
@@ -169,8 +169,8 @@ func TestMapDeserializationError(t *testing.T) {
 	m.Add(Make(3), Make(3))
 
 	w := io.NewBufBinWriter()
-	EncodeBinaryProtected(m, w.BinWriter)
-	require.NoError(t, w.Err)
+	EncodeBinaryProtected(m, w)
+	require.NoError(t, w.Error())
 	_, err := Deserialize(w.Bytes())
 	require.True(t, errors.Is(err, ErrInvalidType), err)
 }
@@ -201,8 +201,8 @@ func BenchmarkEncodeBinary(b *testing.B) {
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
 		w.Reset()
-		EncodeBinary(arr, w.BinWriter)
-		if w.Err != nil {
+		EncodeBinary(arr, w)
+		if w.Error() != nil {
 			b.FailNow()
 		}
 	}

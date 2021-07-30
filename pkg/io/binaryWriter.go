@@ -39,7 +39,6 @@ type BinWriter struct {
 
 func (w *BinWriter) Error() error       { return w.Err }
 func (w *BinWriter) SetError(err error) { w.Err = err }
-func (w *BinWriter) Reset()             {}
 
 // NewBinWriterFromIO makes a BinWriter from io.Writer.
 func NewBinWriterFromIO(iow io.Writer) *BinWriter {

@@ -32,10 +32,10 @@ var (
 func NewTransferFromOwner(bc blockchainer.Blockchainer, contractHash, to util.Uint160, amount int64,
 	nonce, validUntil uint32) (*transaction.Transaction, error) {
 	w := io.NewBufBinWriter()
-	emit.AppCall(w.BinWriter, contractHash, "transfer", callflag.All, ownerHash, to, amount, nil)
-	emit.Opcodes(w.BinWriter, opcode.ASSERT)
-	if w.Err != nil {
-		return nil, w.Err
+	emit.AppCall(w, contractHash, "transfer", callflag.All, ownerHash, to, amount, nil)
+	emit.Opcodes(w, opcode.ASSERT)
+	if err := w.Error(); err != nil {
+		return nil, err
 	}
 
 	script := w.Bytes()
@@ -99,9 +99,9 @@ func NewDeployTx(bc blockchainer.Blockchainer, name string, sender util.Uint160,
 		return nil, util.Uint160{}, nil, err
 	}
 	buf := io.NewBufBinWriter()
-	emit.AppCall(buf.BinWriter, bc.ManagementContractHash(), "deploy", callflag.All, neb, rawManifest)
-	if buf.Err != nil {
-		return nil, util.Uint160{}, nil, buf.Err
+	emit.AppCall(buf, bc.ManagementContractHash(), "deploy", callflag.All, neb, rawManifest)
+	if err := buf.Error(); err != nil {
+		return nil, util.Uint160{}, nil, err
 	}
 
 	tx := transaction.New(buf.Bytes(), 100*native.GASFactor)

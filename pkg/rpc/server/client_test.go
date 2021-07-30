@@ -351,10 +351,10 @@ func TestCalculateNetworkFee(t *testing.T) {
 			}
 
 			bw := io.NewBufBinWriter()
-			emit.Bool(bw.BinWriter, false)
-			emit.Int(bw.BinWriter, int64(4))
-			emit.String(bw.BinWriter, "good_string") // contract's `verify` return `true` with this string
-			require.NoError(t, bw.Err)
+			emit.Bool(bw, false)
+			emit.Int(bw, int64(4))
+			emit.String(bw, "good_string") // contract's `verify` return `true` with this string
+			require.NoError(t, bw.Error())
 			contractInv := bw.Bytes()
 			// we need to fill standard verification scripts to use CalculateNetworkFee.
 			tx.Scripts = []transaction.Witness{

@@ -29,7 +29,7 @@ func TestExtensible_Serializable(t *testing.T) {
 
 	t.Run("invalid", func(t *testing.T) {
 		w := io.NewBufBinWriter()
-		expected.encodeBinaryUnsigned(w.BinWriter)
+		expected.encodeBinaryUnsigned(w)
 		unsigned := w.Bytes()
 
 		t.Run("unexpected EOF", func(t *testing.T) {
@@ -43,7 +43,7 @@ func TestExtensible_Serializable(t *testing.T) {
 		t.Run("too large data size", func(t *testing.T) {
 			expected.Data = make([]byte, MaxSize+1)
 			w := io.NewBufBinWriter()
-			expected.encodeBinaryUnsigned(w.BinWriter)
+			expected.encodeBinaryUnsigned(w)
 			unsigned = w.Bytes()
 			err := testserdes.DecodeBinary(unsigned, new(Extensible))
 			require.NotNil(t, err)

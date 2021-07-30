@@ -83,6 +83,6 @@ func (e *Extensible) Hash() util.Uint256 {
 // createHash creates hashes of the payload.
 func (e *Extensible) createHash() {
 	buf := io.NewBufBinWriter()
-	e.encodeBinaryUnsigned(buf.BinWriter)
+	e.encodeBinaryUnsigned(buf)
 	e.hash = hash.Sha256(buf.Bytes())
 }

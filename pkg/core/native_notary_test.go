@@ -174,9 +174,9 @@ func TestNotaryContractPipeline(t *testing.T) {
 
 	// `withdraw`: bad witness
 	w := io.NewBufBinWriter()
-	emit.AppCall(w.BinWriter, notaryHash, "withdraw", callflag.All,
+	emit.AppCall(w, notaryHash, "withdraw", callflag.All,
 		testchain.MultisigScriptHash(), acc.PrivateKey().PublicKey().GetScriptHash())
-	require.NoError(t, w.Err)
+	require.NoError(t, w.Error())
 	script := w.Bytes()
 	withdrawTx := transaction.New(script, 10000000)
 	withdrawTx.ValidUntilBlock = chain.blockHeight + 1

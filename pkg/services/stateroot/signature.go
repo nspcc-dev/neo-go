@@ -101,7 +101,7 @@ func (r *incompleteRoot) finalize() (*state.MPTRoot, bool) {
 	}
 	w := io.NewBufBinWriter()
 	for i := range sigs {
-		emit.Bytes(w.BinWriter, sigs[i])
+		emit.Bytes(w, sigs[i])
 	}
 	r.root.Witness = []transaction.Witness{{
 		InvocationScript:   w.Bytes(),

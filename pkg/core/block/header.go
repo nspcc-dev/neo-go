@@ -106,7 +106,7 @@ func (b *Header) EncodeBinary(bw io.BinaryWriter) {
 func (b *Header) createHash() {
 	buf := io.NewBufBinWriter()
 	// No error can occur while encoding hashable fields.
-	b.encodeHashableFields(buf.BinWriter)
+	b.encodeHashableFields(buf)
 
 	b.hash = hash.Sha256(buf.Bytes())
 }

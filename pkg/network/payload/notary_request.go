@@ -39,9 +39,9 @@ func NewP2PNotaryRequestFromBytes(b []byte) (*P2PNotaryRequest, error) {
 // Bytes returns serialized P2PNotaryRequest payload.
 func (r *P2PNotaryRequest) Bytes() ([]byte, error) {
 	buf := io.NewBufBinWriter()
-	r.EncodeBinary(buf.BinWriter)
-	if buf.Err != nil {
-		return nil, buf.Err
+	r.EncodeBinary(buf)
+	if err := buf.Error(); err != nil {
+		return nil, err
 	}
 	return buf.Bytes(), nil
 }
@@ -59,7 +59,7 @@ func (r *P2PNotaryRequest) Hash() util.Uint256 {
 // createHash creates hash of the payload.
 func (r *P2PNotaryRequest) createHash() error {
 	buf := io.NewBufBinWriter()
-	r.encodeHashableFields(buf.BinWriter)
+	r.encodeHashableFields(buf)
 	r.hash = hash.Sha256(buf.Bytes())
 	return nil
 }

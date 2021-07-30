@@ -190,7 +190,7 @@ func (m *Message) Encode(br io.BinaryWriter) error {
 // Bytes serializes a Message into the new allocated buffer and returns it.
 func (m *Message) Bytes() ([]byte, error) {
 	w := io.NewBufBinWriter()
-	if err := m.Encode(w.BinWriter); err != nil {
+	if err := m.Encode(w); err != nil {
 		return nil, err
 	}
 	return w.Bytes(), nil
@@ -203,9 +203,9 @@ func (m *Message) tryCompressPayload() error {
 		return nil
 	}
 	buf := io.NewBufBinWriter()
-	m.Payload.EncodeBinary(buf.BinWriter)
-	if buf.Err != nil {
-		return buf.Err
+	m.Payload.EncodeBinary(buf)
+	if err := buf.Error(); err != nil {
+		return err
 	}
 	compressedPayload := buf.Bytes()
 	if m.Flags&Compressed == 0 {

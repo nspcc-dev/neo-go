@@ -93,7 +93,7 @@ func (s *service) sendValidatedRoot(r *state.MPTRoot, acc *wallet.Account) {
 	priv := acc.PrivateKey()
 	w := io.NewBufBinWriter()
 	m := NewMessage(RootT, r)
-	m.EncodeBinary(w.BinWriter)
+	m.EncodeBinary(w)
 	ep := &payload.Extensible{
 		Category:        Category,
 		ValidBlockStart: r.Index,
@@ -106,7 +106,7 @@ func (s *service) sendValidatedRoot(r *state.MPTRoot, acc *wallet.Account) {
 	}
 	sig := priv.SignHashable(uint32(s.Network), ep)
 	buf := io.NewBufBinWriter()
-	emit.Bytes(buf.BinWriter, sig)
+	emit.Bytes(buf, sig)
 	ep.Witness.InvocationScript = buf.Bytes()
 	s.relayExtensible(ep)
 }

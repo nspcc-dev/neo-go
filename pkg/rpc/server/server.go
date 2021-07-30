@@ -497,7 +497,7 @@ func (s *Server) getBlock(reqParams request.Params) (interface{}, *response.Erro
 		return result.NewBlock(block, s.chain), nil
 	}
 	writer := io.NewBufBinWriter()
-	block.EncodeBinary(writer.BinWriter)
+	block.EncodeBinary(writer)
 	return writer.Bytes(), nil
 }
 
@@ -700,15 +700,15 @@ func (s *Server) getNEP17Balances(ps request.Params) (interface{}, *response.Err
 	return bs, nil
 }
 
-func (s *Server) getNEP17Balance(h util.Uint160, acc util.Uint160, bw *io.BufBinWriter) (*big.Int, error) {
+func (s *Server) getNEP17Balance(h util.Uint160, acc util.Uint160, bw io.BufferWriter) (*big.Int, error) {
 	if bw == nil {
 		bw = io.NewBufBinWriter()
 	} else {
 		bw.Reset()
 	}
-	emit.AppCall(bw.BinWriter, h, "balanceOf", callflag.ReadStates, acc)
-	if bw.Err != nil {
-		return nil, fmt.Errorf("failed to create `balanceOf` invocation script: %w", bw.Err)
+	emit.AppCall(bw, h, "balanceOf", callflag.ReadStates, acc)
+	if err := bw.Error(); err != nil {
+		return nil, fmt.Errorf("failed to create `balanceOf` invocation script: %w", err)
 	}
 	script := bw.Bytes()
 	tx := &transaction.Transaction{Script: script}
@@ -1168,9 +1168,9 @@ func (s *Server) getBlockHeader(reqParams request.Params) (interface{}, *respons
 	}
 
 	buf := io.NewBufBinWriter()
-	h.EncodeBinary(buf.BinWriter)
-	if buf.Err != nil {
-		return nil, response.NewInternalServerError("encoding error", buf.Err)
+	h.EncodeBinary(buf)
+	if err := buf.Error(); err != nil {
+		return nil, response.NewInternalServerError("encoding error", err)
 	}
 	return buf.Bytes(), nil
 }
@@ -1297,7 +1297,7 @@ func (s *Server) invokeContractVerify(reqParams request.Params) (interface{}, *r
 			return nil, response.WrapErrorWithData(response.ErrInvalidParams, err)
 		}
 		if len(args) > 0 {
-			err := request.ExpandArrayIntoScript(bw.BinWriter, args)
+			err := request.ExpandArrayIntoScript(bw, args)
 			if err != nil {
 				return nil, response.NewRPCError("can't create witness invocation script", err.Error(), err)
 			}

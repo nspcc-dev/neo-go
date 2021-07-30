@@ -76,15 +76,15 @@ func TestNEO_Vote(t *testing.T) {
 
 		to := accs[i].Contract.ScriptHash()
 		w := io.NewBufBinWriter()
-		emit.AppCall(w.BinWriter, bc.contracts.NEO.Hash, "transfer", callflag.All,
+		emit.AppCall(w, bc.contracts.NEO.Hash, "transfer", callflag.All,
 			neoOwner.BytesBE(), to.BytesBE(),
 			big.NewInt(int64(sz-i)*1000000).Int64(), nil)
-		emit.Opcodes(w.BinWriter, opcode.ASSERT)
-		emit.AppCall(w.BinWriter, bc.contracts.GAS.Hash, "transfer", callflag.All,
+		emit.Opcodes(w, opcode.ASSERT)
+		emit.AppCall(w, bc.contracts.GAS.Hash, "transfer", callflag.All,
 			neoOwner.BytesBE(), to.BytesBE(),
 			int64(1_000_000_000), nil)
-		emit.Opcodes(w.BinWriter, opcode.ASSERT)
-		require.NoError(t, w.Err)
+		emit.Opcodes(w, opcode.ASSERT)
+		require.NoError(t, w.Error())
 		tx := transaction.New(w.Bytes(), 1000_000_000)
 		tx.ValidUntilBlock = bc.BlockHeight() + 1
 		setSigner(tx, testchain.MultisigScriptHash())
@@ -143,10 +143,10 @@ func TestNEO_Vote(t *testing.T) {
 			h := accs[i].PrivateKey().GetScriptHash()
 			gasBalance[i] = bc.GetUtilityTokenBalance(h)
 			neoBalance[i], _ = bc.GetGoverningTokenBalance(h)
-			emit.AppCall(w.BinWriter, bc.contracts.NEO.Hash, "transfer", callflag.All,
+			emit.AppCall(w, bc.contracts.NEO.Hash, "transfer", callflag.All,
 				h.BytesBE(), h.BytesBE(), int64(1), nil)
-			emit.Opcodes(w.BinWriter, opcode.ASSERT)
-			require.NoError(t, w.Err)
+			emit.Opcodes(w, opcode.ASSERT)
+			require.NoError(t, w.Error())
 			tx := transaction.New(w.Bytes(), 0)
 			tx.ValidUntilBlock = bc.BlockHeight() + 1
 			tx.NetworkFee = 2_000_000

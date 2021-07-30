@@ -5,6 +5,15 @@ import (
 	"errors"
 )
 
+// BufferWriter is similar to binary writer but also allows written
+// bytes to be extracted in the byte-slice and later reuse the underlying buffer.
+type BufferWriter interface {
+	BinaryWriter
+	Reset()
+	Len() int
+	Bytes() []byte
+}
+
 // BufBinWriter is an additional layer on top of BinWriter that
 // automatically creates buffer to write into that you can get after all
 // writes via Bytes().
@@ -14,7 +23,7 @@ type BufBinWriter struct {
 }
 
 // NewBufBinWriter makes a BufBinWriter with an empty byte buffer.
-func NewBufBinWriter() *BufBinWriter {
+func NewBufBinWriter() BufferWriter {
 	b := new(bytes.Buffer)
 	return &BufBinWriter{BinWriter: NewBinWriterFromIO(b), buf: b}
 }

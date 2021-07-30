@@ -35,7 +35,7 @@ func (s *Module) addLocalStateRoot(store *storage.MemCachedStore, sr *state.MPTR
 
 func putStateRoot(store *storage.MemCachedStore, key []byte, sr *state.MPTRoot) error {
 	w := io.NewBufBinWriter()
-	sr.EncodeBinary(w.BinWriter)
+	sr.EncodeBinary(w)
 	return store.Put(key, w.Bytes())
 }
 

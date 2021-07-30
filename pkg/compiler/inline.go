@@ -104,7 +104,7 @@ func (c *codegen) inlineCall(f *funcScope, n *ast.CallExpr) {
 	ast.Walk(c, f.decl.Body)
 	if c.scope.voidCalls[n] {
 		for i := 0; i < f.decl.Type.Results.NumFields(); i++ {
-			emit.Opcodes(c.prog.BinWriter, opcode.DROP)
+			emit.Opcodes(c.prog, opcode.DROP)
 		}
 	}
 	c.importMap = oldMap
@@ -128,7 +128,7 @@ func (c *codegen) processStdlibCall(f *funcScope, args []ast.Expr) {
 func (c *codegen) processNotify(f *funcScope, args []ast.Expr) {
 	if c.scope != nil && c.isVerifyFunc(c.scope.decl) &&
 		c.scope.pkg == c.mainPkg.Pkg && !c.buildInfo.options.NoEventsCheck {
-		c.prog.Err = fmt.Errorf("runtime.%s is not allowed in `Verify`", f.name)
+		c.prog.SetError(fmt.Errorf("runtime.%s is not allowed in `Verify`", f.name))
 		return
 	}
 
@@ -151,8 +151,8 @@ func (c *codegen) processNotify(f *funcScope, args []ast.Expr) {
 
 	name := constant.StringVal(tv.Value)
 	if len(name) > runtime.MaxEventNameLen {
-		c.prog.Err = fmt.Errorf("event name '%s' should be less than %d",
-			name, runtime.MaxEventNameLen)
+		c.prog.SetError(fmt.Errorf("event name '%s' should be less than %d",
+			name, runtime.MaxEventNameLen))
 		return
 	}
 	c.emittedEvents[name] = append(c.emittedEvents[name], params)

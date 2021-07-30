@@ -57,13 +57,13 @@ func initServiceNextConsensus(t *testing.T, newAcc *wallet.Account, offset uint3
 
 	// Transfer funds to new validator.
 	w := io.NewBufBinWriter()
-	emit.AppCall(w.BinWriter, bc.GoverningTokenHash(), "transfer", callflag.All,
+	emit.AppCall(w, bc.GoverningTokenHash(), "transfer", callflag.All,
 		acc.Contract.ScriptHash().BytesBE(), newPriv.GetScriptHash().BytesBE(), int64(native.NEOTotalSupply), nil)
-	emit.Opcodes(w.BinWriter, opcode.ASSERT)
-	emit.AppCall(w.BinWriter, bc.UtilityTokenHash(), "transfer", callflag.All,
+	emit.Opcodes(w, opcode.ASSERT)
+	emit.AppCall(w, bc.UtilityTokenHash(), "transfer", callflag.All,
 		acc.Contract.ScriptHash().BytesBE(), newPriv.GetScriptHash().BytesBE(), int64(10000_000_000_000), nil)
-	emit.Opcodes(w.BinWriter, opcode.ASSERT)
-	require.NoError(t, w.Err)
+	emit.Opcodes(w, opcode.ASSERT)
+	require.NoError(t, w.Error())
 
 	tx := transaction.New(w.Bytes(), 21_000_000)
 	tx.ValidUntilBlock = bc.BlockHeight() + 1
@@ -77,8 +77,8 @@ func initServiceNextConsensus(t *testing.T, newAcc *wallet.Account, offset uint3
 
 	// Register new candidate.
 	w.Reset()
-	emit.AppCall(w.BinWriter, bc.GoverningTokenHash(), "registerCandidate", callflag.All, newPriv.PublicKey().Bytes())
-	require.NoError(t, w.Err)
+	emit.AppCall(w, bc.GoverningTokenHash(), "registerCandidate", callflag.All, newPriv.PublicKey().Bytes())
+	require.NoError(t, w.Error())
 
 	tx = transaction.New(w.Bytes(), 1001_00000000)
 	tx.ValidUntilBlock = bc.BlockHeight() + 1
@@ -95,10 +95,10 @@ func initServiceNextConsensus(t *testing.T, newAcc *wallet.Account, offset uint3
 
 	// Vote for new candidate.
 	w.Reset()
-	emit.AppCall(w.BinWriter, bc.GoverningTokenHash(), "vote", callflag.All,
+	emit.AppCall(w, bc.GoverningTokenHash(), "vote", callflag.All,
 		newPriv.GetScriptHash(), newPriv.PublicKey().Bytes())
-	emit.Opcodes(w.BinWriter, opcode.ASSERT)
-	require.NoError(t, w.Err)
+	emit.Opcodes(w, opcode.ASSERT)
+	require.NoError(t, w.Error())
 
 	tx = transaction.New(w.Bytes(), 20_000_000)
 	tx.ValidUntilBlock = bc.BlockHeight() + 1
@@ -552,7 +552,7 @@ func signTx(t *testing.T, bc blockchainer.Blockchainer, txs ...*transaction.Tran
 		buf := io.NewBufBinWriter()
 		for _, key := range privNetKeys {
 			signature := key.SignHashable(uint32(testchain.Network()), tx)
-			emit.Bytes(buf.BinWriter, signature)
+			emit.Bytes(buf, signature)
 		}
 
 		tx.Scripts = []transaction.Witness{{

@@ -67,10 +67,10 @@ func (c *Client) TransferNEP11(acc *wallet.Account, to util.Uint160,
 func (c *Client) CreateNEP11TransferTx(acc *wallet.Account, tokenHash util.Uint160,
 	gas int64, cosigners []SignerAccount, args ...interface{}) (*transaction.Transaction, error) {
 	w := io.NewBufBinWriter()
-	emit.AppCall(w.BinWriter, tokenHash, "transfer", callflag.All, args...)
-	emit.Opcodes(w.BinWriter, opcode.ASSERT)
-	if w.Err != nil {
-		return nil, fmt.Errorf("failed to create NEP11 transfer script: %w", w.Err)
+	emit.AppCall(w, tokenHash, "transfer", callflag.All, args...)
+	emit.Opcodes(w, opcode.ASSERT)
+	if err := w.Error(); err != nil {
+		return nil, fmt.Errorf("failed to create NEP11 transfer script: %w", err)
 	}
 	from, err := address.StringToUint160(acc.Address)
 	if err != nil {

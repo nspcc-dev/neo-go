@@ -23,15 +23,15 @@ import (
 func (bc *Blockchain) setNodesByRole(t *testing.T, ok bool, r noderoles.Role, nodes keys.PublicKeys) {
 	w := io.NewBufBinWriter()
 	for _, pub := range nodes {
-		emit.Bytes(w.BinWriter, pub.Bytes())
+		emit.Bytes(w, pub.Bytes())
 	}
-	emit.Int(w.BinWriter, int64(len(nodes)))
-	emit.Opcodes(w.BinWriter, opcode.PACK)
-	emit.Int(w.BinWriter, int64(r))
-	emit.Int(w.BinWriter, 2)
-	emit.Opcodes(w.BinWriter, opcode.PACK)
-	emit.AppCallNoArgs(w.BinWriter, bc.contracts.Designate.Hash, "designateAsRole", callflag.All)
-	require.NoError(t, w.Err)
+	emit.Int(w, int64(len(nodes)))
+	emit.Opcodes(w, opcode.PACK)
+	emit.Int(w, int64(r))
+	emit.Int(w, 2)
+	emit.Opcodes(w, opcode.PACK)
+	emit.AppCallNoArgs(w, bc.contracts.Designate.Hash, "designateAsRole", callflag.All)
+	require.NoError(t, w.Error())
 	tx := transaction.New(w.Bytes(), 0)
 	tx.NetworkFee = 10_000_000
 	tx.SystemFee = 10_000_000

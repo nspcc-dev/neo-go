@@ -32,31 +32,31 @@ import (
 // getTestContractState returns test contract which uses oracles.
 func getOracleContractState(h util.Uint160, stdHash util.Uint160) *state.Contract {
 	w := io.NewBufBinWriter()
-	emit.Int(w.BinWriter, 5)
-	emit.Opcodes(w.BinWriter, opcode.PACK)
-	emit.Int(w.BinWriter, int64(callflag.All))
-	emit.String(w.BinWriter, "request")
-	emit.Bytes(w.BinWriter, h.BytesBE())
-	emit.Syscall(w.BinWriter, interopnames.SystemContractCall)
-	emit.Opcodes(w.BinWriter, opcode.DROP)
-	emit.Opcodes(w.BinWriter, opcode.RET)
+	emit.Int(w, 5)
+	emit.Opcodes(w, opcode.PACK)
+	emit.Int(w, int64(callflag.All))
+	emit.String(w, "request")
+	emit.Bytes(w, h.BytesBE())
+	emit.Syscall(w, interopnames.SystemContractCall)
+	emit.Opcodes(w, opcode.DROP)
+	emit.Opcodes(w, opcode.RET)
 
 	// `handle` method aborts if len(userData) == 2
 	offset := w.Len()
-	emit.Opcodes(w.BinWriter, opcode.OVER)
-	emit.Opcodes(w.BinWriter, opcode.SIZE)
-	emit.Int(w.BinWriter, 2)
-	emit.Instruction(w.BinWriter, opcode.JMPNE, []byte{3})
-	emit.Opcodes(w.BinWriter, opcode.ABORT)
-	emit.Int(w.BinWriter, 4) // url, userData, code, result
-	emit.Opcodes(w.BinWriter, opcode.PACK)
-	emit.Int(w.BinWriter, 1)                                            // 1 byte (args count for `serialize`)
-	emit.Opcodes(w.BinWriter, opcode.PACK)                              // 1 byte (pack args into array for `serialize`)
-	emit.AppCallNoArgs(w.BinWriter, stdHash, "serialize", callflag.All) // 39 bytes
-	emit.String(w.BinWriter, "lastOracleResponse")
-	emit.Syscall(w.BinWriter, interopnames.SystemStorageGetContext)
-	emit.Syscall(w.BinWriter, interopnames.SystemStoragePut)
-	emit.Opcodes(w.BinWriter, opcode.RET)
+	emit.Opcodes(w, opcode.OVER)
+	emit.Opcodes(w, opcode.SIZE)
+	emit.Int(w, 2)
+	emit.Instruction(w, opcode.JMPNE, []byte{3})
+	emit.Opcodes(w, opcode.ABORT)
+	emit.Int(w, 4) // url, userData, code, result
+	emit.Opcodes(w, opcode.PACK)
+	emit.Int(w, 1)                                            // 1 byte (args count for `serialize`)
+	emit.Opcodes(w, opcode.PACK)                              // 1 byte (pack args into array for `serialize`)
+	emit.AppCallNoArgs(w, stdHash, "serialize", callflag.All) // 39 bytes
+	emit.String(w, "lastOracleResponse")
+	emit.Syscall(w, interopnames.SystemStorageGetContext)
+	emit.Syscall(w, interopnames.SystemStoragePut)
+	emit.Opcodes(w, opcode.RET)
 
 	m := manifest.NewManifest("TestOracle")
 	m.ABI.Methods = []manifest.Method{

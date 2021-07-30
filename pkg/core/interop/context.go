@@ -150,13 +150,13 @@ func (c *ContractMD) UpdateHash() {
 		offset := w.Len()
 		c.Methods[i].MD.Offset = offset
 		c.Manifest.ABI.Methods[i].Offset = offset
-		emit.Int(w.BinWriter, 0)
+		emit.Int(w, 0)
 		c.Methods[i].SyscallOffset = w.Len()
-		emit.Syscall(w.BinWriter, interopnames.SystemContractCallNative)
-		emit.Opcodes(w.BinWriter, opcode.RET)
+		emit.Syscall(w, interopnames.SystemContractCallNative)
+		emit.Opcodes(w, opcode.RET)
 	}
-	if w.Err != nil {
-		panic(fmt.Errorf("can't create native contract script: %w", w.Err))
+	if err := w.Error(); err != nil {
+		panic(fmt.Errorf("can't create native contract script: %w", err))
 	}
 
 	c.NEF.Script = w.Bytes()

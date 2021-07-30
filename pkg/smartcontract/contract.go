@@ -24,13 +24,13 @@ func CreateMultiSigRedeemScript(m int, publicKeys keys.PublicKeys) ([]byte, erro
 	}
 
 	buf := io.NewBufBinWriter()
-	emit.Int(buf.BinWriter, int64(m))
+	emit.Int(buf, int64(m))
 	sort.Sort(publicKeys)
 	for _, pubKey := range publicKeys {
-		emit.Bytes(buf.BinWriter, pubKey.Bytes())
+		emit.Bytes(buf, pubKey.Bytes())
 	}
-	emit.Int(buf.BinWriter, int64(len(publicKeys)))
-	emit.Syscall(buf.BinWriter, interopnames.SystemCryptoCheckMultisig)
+	emit.Int(buf, int64(len(publicKeys)))
+	emit.Syscall(buf, interopnames.SystemCryptoCheckMultisig)
 
 	return buf.Bytes(), nil
 }

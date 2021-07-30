@@ -319,9 +319,9 @@ func TestRunWithDifferentArguments(t *testing.T) {
 
 func TestPrintOps(t *testing.T) {
 	w := io.NewBufBinWriter()
-	emit.String(w.BinWriter, "log")
-	emit.Syscall(w.BinWriter, interopnames.SystemRuntimeLog)
-	emit.Instruction(w.BinWriter, opcode.PUSHDATA1, []byte{3, 1, 2, 3})
+	emit.String(w, "log")
+	emit.Syscall(w, interopnames.SystemRuntimeLog)
+	emit.Instruction(w, opcode.PUSHDATA1, []byte{3, 1, 2, 3})
 	script := w.Bytes()
 	e := newTestVMCLI(t)
 	e.runProg(t,
@@ -350,7 +350,7 @@ func TestLoadAbort(t *testing.T) {
 
 func TestBreakpoint(t *testing.T) {
 	w := io.NewBufBinWriter()
-	emit.Opcodes(w.BinWriter, opcode.PUSH1, opcode.PUSH2, opcode.ADD, opcode.PUSH6, opcode.ADD)
+	emit.Opcodes(w, opcode.PUSH1, opcode.PUSH2, opcode.ADD, opcode.PUSH6, opcode.ADD)
 	e := newTestVMCLI(t)
 	e.runProg(t,
 		"break 3",

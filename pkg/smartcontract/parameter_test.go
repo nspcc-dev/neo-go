@@ -588,8 +588,8 @@ func TestExpandParameterToEmitable(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, testCase.Expected, actual)
 
-		emit.Array(bw.BinWriter, actual)
-		require.NoError(t, bw.Err)
+		emit.Array(bw, actual)
+		require.NoError(t, bw.Error())
 	}
 	errCases := []Parameter{
 		{Type: AnyType},

@@ -68,7 +68,7 @@ func (c *ParameterContext) GetWitness(h util.Uint160) (*transaction.Witness, err
 		} else if item.Parameters[i].Value == nil {
 			return nil, errors.New("nil parameter")
 		}
-		emit.Bytes(bw.BinWriter, item.Parameters[i].Value.([]byte))
+		emit.Bytes(bw, item.Parameters[i].Value.([]byte))
 	}
 	return &transaction.Witness{
 		InvocationScript:   bw.Bytes(),

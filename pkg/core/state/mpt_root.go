@@ -18,7 +18,7 @@ type MPTRoot struct {
 // Hash returns hash of s.
 func (s *MPTRoot) Hash() util.Uint256 {
 	buf := io.NewBufBinWriter()
-	s.EncodeBinaryUnsigned(buf.BinWriter)
+	s.EncodeBinaryUnsigned(buf)
 	return hash.Sha256(buf.Bytes())
 }
 

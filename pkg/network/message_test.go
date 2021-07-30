@@ -251,7 +251,7 @@ func TestInvalidMessages(t *testing.T) {
 		w.WriteB(byte(m.Flags))
 		w.WriteB(byte(m.Command))
 		w.WriteVarBytes(make([]byte, payload.MaxSize+1))
-		require.NoError(t, w.Err)
+		require.NoError(t, w.Error())
 		require.Error(t, testserdes.Decode(w.Bytes(), &Message{}))
 	})
 	t.Run("fail to encode message if payload can't be serialized", func(t *testing.T) {

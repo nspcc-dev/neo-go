@@ -106,12 +106,12 @@ func (c *Contract) FromStackItem(item stackitem.Item) error {
 // and contract script.
 func CreateContractHash(sender util.Uint160, checksum uint32, name string) util.Uint160 {
 	w := io.NewBufBinWriter()
-	emit.Opcodes(w.BinWriter, opcode.ABORT)
-	emit.Bytes(w.BinWriter, sender.BytesBE())
-	emit.Int(w.BinWriter, int64(checksum))
-	emit.String(w.BinWriter, name)
-	if w.Err != nil {
-		panic(w.Err)
+	emit.Opcodes(w, opcode.ABORT)
+	emit.Bytes(w, sender.BytesBE())
+	emit.Int(w, int64(checksum))
+	emit.String(w, name)
+	if err := w.Error(); err != nil {
+		panic(err)
 	}
 	return hash.Hash160(w.Bytes())
 }

@@ -251,7 +251,7 @@ func TestCreateBasicChain(t *testing.T) {
 	require.NoError(t, addNetworkFee(bc, txSendRaw, acc0))
 	require.NoError(t, acc0.SignTx(testchain.Network(), txSendRaw))
 	bw := io.NewBufBinWriter()
-	txSendRaw.EncodeBinary(bw.BinWriter)
+	txSendRaw.EncodeBinary(bw)
 	t.Logf("sendrawtransaction: \n\tbase64: %s\n\tHash LE: %s", base64.StdEncoding.EncodeToString(bw.Bytes()), txSendRaw.Hash().StringLE())
 	require.False(t, saveChain)
 }
@@ -300,15 +300,15 @@ func initBasicChain(t *testing.T, bc *Blockchain) {
 	checkTxHalt(t, bc, txMoveNeo.Hash())
 	t.Logf("Block1 hash: %s", b.Hash().StringLE())
 	bw := io.NewBufBinWriter()
-	b.EncodeBinary(bw.BinWriter)
-	require.NoError(t, bw.Err)
+	b.EncodeBinary(bw)
+	require.NoError(t, bw.Error())
 	jsonB, err := b.MarshalJSON()
 	require.NoError(t, err)
 	t.Logf("Block1 base64: %s", base64.StdEncoding.EncodeToString(bw.Bytes()))
 	t.Logf("Block1 JSON: %s", string(jsonB))
 	bw.Reset()
-	b.Header.EncodeBinary(bw.BinWriter)
-	require.NoError(t, bw.Err)
+	b.Header.EncodeBinary(bw)
+	require.NoError(t, bw.Error())
 	jsonH, err := b.Header.MarshalJSON()
 	require.NoError(t, err)
 	t.Logf("Header1 base64: %s", base64.StdEncoding.EncodeToString(bw.Bytes()))
@@ -324,7 +324,7 @@ func initBasicChain(t *testing.T, bc *Blockchain) {
 	// info for getblockheader rpc tests
 	t.Logf("header hash: %s", b.Hash().StringLE())
 	buf := io.NewBufBinWriter()
-	b.Header.EncodeBinary(buf.BinWriter)
+	b.Header.EncodeBinary(buf)
 	t.Logf("header: %s", hex.EncodeToString(buf.Bytes()))
 
 	acc0 := wallet.NewAccountFromPrivateKey(priv0)
@@ -344,7 +344,7 @@ func initBasicChain(t *testing.T, bc *Blockchain) {
 
 	// Now invoke this contract.
 	script := io.NewBufBinWriter()
-	emit.AppCall(script.BinWriter, cHash, "putValue", callflag.All, "testkey", "testvalue")
+	emit.AppCall(script, cHash, "putValue", callflag.All, "testkey", "testvalue")
 
 	txInv := transaction.New(script.Bytes(), 1*native.GASFactor)
 	txInv.Nonce = getNextNonce()
@@ -376,7 +376,7 @@ func initBasicChain(t *testing.T, bc *Blockchain) {
 	checkTxHalt(t, bc, txNeo0to1.Hash())
 
 	w := io.NewBufBinWriter()
-	emit.AppCall(w.BinWriter, cHash, "init", callflag.All)
+	emit.AppCall(w, cHash, "init", callflag.All)
 	initTx := transaction.New(w.Bytes(), 1*native.GASFactor)
 	initTx.Nonce = getNextNonce()
 	initTx.ValidUntilBlock = validUntilBlock
@@ -508,12 +508,12 @@ func newNEP17Transfer(sc, from, to util.Uint160, amount int64, additionalArgs ..
 
 func newNEP17TransferWithAssert(sc, from, to util.Uint160, amount int64, needAssert bool, additionalArgs ...interface{}) *transaction.Transaction {
 	w := io.NewBufBinWriter()
-	emit.AppCall(w.BinWriter, sc, "transfer", callflag.All, from, to, amount, additionalArgs)
+	emit.AppCall(w, sc, "transfer", callflag.All, from, to, amount, additionalArgs)
 	if needAssert {
-		emit.Opcodes(w.BinWriter, opcode.ASSERT)
+		emit.Opcodes(w, opcode.ASSERT)
 	}
-	if w.Err != nil {
-		panic(fmt.Errorf("failed to create nep17 transfer transaction: %w", w.Err))
+	if err := w.Error(); err != nil {
+		panic(fmt.Errorf("failed to create nep17 transfer transaction: %w", err))
 	}
 
 	script := w.Bytes()
@@ -570,9 +570,9 @@ func addNetworkFee(bc *Blockchain, tx *transaction.Transaction, sender *wallet.A
 func prepareContractMethodInvokeGeneric(chain *Blockchain, sysfee int64,
 	hash util.Uint160, method string, signer interface{}, args ...interface{}) (*transaction.Transaction, error) {
 	w := io.NewBufBinWriter()
-	emit.AppCall(w.BinWriter, hash, method, callflag.All, args...)
-	if w.Err != nil {
-		return nil, w.Err
+	emit.AppCall(w, hash, method, callflag.All, args...)
+	if err := w.Error(); err != nil {
+		return nil, err
 	}
 	script := w.Bytes()
 	tx := transaction.New(script, sysfee)

@@ -104,30 +104,30 @@ func CreateFunctionInvocationScript(contract util.Uint160, method string, params
 	for i := len(params) - 1; i >= 0; i-- {
 		switch params[i].Type {
 		case StringT:
-			emit.String(script.BinWriter, params[i].String())
+			emit.String(script, params[i].String())
 		case NumberT:
 			num, err := params[i].GetInt()
 			if err != nil {
 				return nil, err
 			}
-			emit.String(script.BinWriter, strconv.Itoa(num))
+			emit.String(script, strconv.Itoa(num))
 		case BooleanT:
 			val := params[i].GetBoolean()
-			emit.Bool(script.BinWriter, val)
+			emit.Bool(script, val)
 		case ArrayT:
 			slice, err := params[i].GetArray()
 			if err != nil {
 				return nil, err
 			}
-			err = ExpandArrayIntoScript(script.BinWriter, slice)
+			err = ExpandArrayIntoScript(script, slice)
 			if err != nil {
 				return nil, err
 			}
-			emit.Int(script.BinWriter, int64(len(slice)))
-			emit.Opcodes(script.BinWriter, opcode.PACK)
+			emit.Int(script, int64(len(slice)))
+			emit.Opcodes(script, opcode.PACK)
 		}
 	}
 
-	emit.AppCallNoArgs(script.BinWriter, contract, method, callflag.All)
+	emit.AppCallNoArgs(script, contract, method, callflag.All)
 	return script.Bytes(), nil
 }

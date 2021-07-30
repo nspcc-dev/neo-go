@@ -28,7 +28,7 @@ type codegen struct {
 	buildInfo *buildInfo
 
 	// prog holds the output buffer.
-	prog *io.BufBinWriter
+	prog io.BufferWriter
 
 	// Type information.
 	typeInfo *types.Info
@@ -151,7 +151,7 @@ const (
 func (c *codegen) newLabel() (l uint16) {
 	li := len(c.l)
 	if li > math.MaxUint16 {
-		c.prog.Err = errors.New("label number is too big")
+		c.prog.SetError(errors.New("label number is too big"))
 		return
 	}
 	l = uint16(li)
@@ -177,13 +177,13 @@ func (c *codegen) pc() int {
 }
 
 func (c *codegen) emitLoadConst(t types.TypeAndValue) {
-	if c.prog.Err != nil {
+	if c.prog.Error() != nil {
 		return
 	}
 
 	typ, ok := t.Type.Underlying().(*types.Basic)
 	if !ok {
-		c.prog.Err = fmt.Errorf("compiler doesn't know how to convert this constant: %v", t)
+		c.prog.SetError(fmt.Errorf("compiler doesn't know how to convert this constant: %v", t))
 		return
 	}
 
@@ -193,27 +193,27 @@ func (c *codegen) emitLoadConst(t types.TypeAndValue) {
 		types.Int16, types.Uint16,
 		types.Int32, types.Uint32, types.Int64, types.Uint64:
 		val, _ := constant.Int64Val(t.Value)
-		emit.Int(c.prog.BinWriter, val)
+		emit.Int(c.prog, val)
 	case types.String, types.UntypedString:
 		val := constant.StringVal(t.Value)
-		emit.String(c.prog.BinWriter, val)
+		emit.String(c.prog, val)
 	case types.Bool, types.UntypedBool:
 		val := constant.BoolVal(t.Value)
-		emit.Bool(c.prog.BinWriter, val)
+		emit.Bool(c.prog, val)
 	default:
-		c.prog.Err = fmt.Errorf("compiler doesn't know how to convert this basic type: %v", t)
+		c.prog.SetError(fmt.Errorf("compiler doesn't know how to convert this basic type: %v", t))
 		return
 	}
 }
 
 func (c *codegen) emitLoadField(i int) {
-	emit.Int(c.prog.BinWriter, int64(i))
-	emit.Opcodes(c.prog.BinWriter, opcode.PICKITEM)
+	emit.Int(c.prog, int64(i))
+	emit.Opcodes(c.prog, opcode.PICKITEM)
 }
 
 func (c *codegen) emitStoreStructField(i int) {
-	emit.Int(c.prog.BinWriter, int64(i))
-	emit.Opcodes(c.prog.BinWriter, opcode.ROT, opcode.SETITEM)
+	emit.Int(c.prog, int64(i))
+	emit.Opcodes(c.prog, opcode.ROT, opcode.SETITEM)
 }
 
 // getVarIndex returns variable type and position in corresponding slot,
@@ -271,7 +271,7 @@ func (c *codegen) emitLoadVar(pkg string, name string) {
 		c.importMap = oldMap
 		return
 	} else if vi.index == unspecifiedVarIndex {
-		emit.Opcodes(c.prog.BinWriter, opcode.PUSHNULL)
+		emit.Opcodes(c.prog, opcode.PUSHNULL)
 		return
 	}
 	c.emitLoadByIndex(vi.refType, vi.index)
@@ -281,16 +281,16 @@ func (c *codegen) emitLoadVar(pkg string, name string) {
 func (c *codegen) emitLoadByIndex(t varType, i int) {
 	base, _ := getBaseOpcode(t)
 	if i < 7 {
-		emit.Opcodes(c.prog.BinWriter, base+opcode.Opcode(i))
+		emit.Opcodes(c.prog, base+opcode.Opcode(i))
 	} else {
-		emit.Instruction(c.prog.BinWriter, base+7, []byte{byte(i)})
+		emit.Instruction(c.prog, base+7, []byte{byte(i)})
 	}
 }
 
 // emitStoreVar stores top value from the evaluation stack in the specified variable.
 func (c *codegen) emitStoreVar(pkg string, name string) {
 	if name == "_" {
-		emit.Opcodes(c.prog.BinWriter, opcode.DROP)
+		emit.Opcodes(c.prog, opcode.DROP)
 		return
 	}
 	vi := c.getVarIndex(pkg, name)
@@ -301,9 +301,9 @@ func (c *codegen) emitStoreVar(pkg string, name string) {
 func (c *codegen) emitStoreByIndex(t varType, i int) {
 	_, base := getBaseOpcode(t)
 	if i < 7 {
-		emit.Opcodes(c.prog.BinWriter, base+opcode.Opcode(i))
+		emit.Opcodes(c.prog, base+opcode.Opcode(i))
 	} else {
-		emit.Instruction(c.prog.BinWriter, base+7, []byte{byte(i)})
+		emit.Instruction(c.prog, base+7, []byte{byte(i)})
 	}
 }
 
@@ -313,26 +313,26 @@ func (c *codegen) emitDefault(t types.Type) {
 		info := t.Info()
 		switch {
 		case info&types.IsInteger != 0:
-			emit.Int(c.prog.BinWriter, 0)
+			emit.Int(c.prog, 0)
 		case info&types.IsString != 0:
-			emit.Bytes(c.prog.BinWriter, []byte{})
+			emit.Bytes(c.prog, []byte{})
 		case info&types.IsBoolean != 0:
-			emit.Bool(c.prog.BinWriter, false)
+			emit.Bool(c.prog, false)
 		default:
-			emit.Opcodes(c.prog.BinWriter, opcode.PUSHNULL)
+			emit.Opcodes(c.prog, opcode.PUSHNULL)
 		}
 	case *types.Struct:
 		num := t.NumFields()
-		emit.Int(c.prog.BinWriter, int64(num))
-		emit.Opcodes(c.prog.BinWriter, opcode.NEWSTRUCT)
+		emit.Int(c.prog, int64(num))
+		emit.Opcodes(c.prog, opcode.NEWSTRUCT)
 		for i := 0; i < num; i++ {
-			emit.Opcodes(c.prog.BinWriter, opcode.DUP)
-			emit.Int(c.prog.BinWriter, int64(i))
+			emit.Opcodes(c.prog, opcode.DUP)
+			emit.Int(c.prog, int64(i))
 			c.emitDefault(t.Field(i).Type())
-			emit.Opcodes(c.prog.BinWriter, opcode.SETITEM)
+			emit.Opcodes(c.prog, opcode.SETITEM)
 		}
 	default:
-		emit.Opcodes(c.prog.BinWriter, opcode.PUSHNULL)
+		emit.Opcodes(c.prog, opcode.PUSHNULL)
 	}
 }
 
@@ -365,7 +365,7 @@ func (c *codegen) isVerifyFunc(decl *ast.FuncDecl) bool {
 
 func (c *codegen) clearSlots(n int) {
 	for i := 0; i < n; i++ {
-		emit.Opcodes(c.prog.BinWriter, opcode.PUSHNULL)
+		emit.Opcodes(c.prog, opcode.PUSHNULL)
 		c.emitStoreByIndex(varLocal, i)
 	}
 }
@@ -466,9 +466,9 @@ func (c *codegen) convertFuncDecl(file ast.Node, decl *ast.FuncDecl, pkg *types.
 	if !isInit && !isDeploy {
 		sizeArg := f.countArgs()
 		if sizeArg > 255 {
-			c.prog.Err = errors.New("maximum of 255 local variables is allowed")
+			c.prog.SetError(errors.New("maximum of 255 local variables is allowed"))
 		}
-		emit.Instruction(c.prog.BinWriter, opcode.INITSLOT, []byte{byte(0), byte(sizeArg)})
+		emit.Instruction(c.prog, opcode.INITSLOT, []byte{byte(0), byte(sizeArg)})
 	}
 
 	f.vars.newScope()
@@ -502,7 +502,7 @@ func (c *codegen) convertFuncDecl(file ast.Node, decl *ast.FuncDecl, pkg *types.
 	// This can be the case with void and named-return functions.
 	if !isInit && !isDeploy && !lastStmtIsReturn(decl.Body) {
 		c.saveSequencePoint(decl.Body)
-		emit.Opcodes(c.prog.BinWriter, opcode.RET)
+		emit.Opcodes(c.prog, opcode.RET)
 	}
 
 	if isInit {
@@ -530,7 +530,7 @@ func (c *codegen) convertFuncDecl(file ast.Node, decl *ast.FuncDecl, pkg *types.
 }
 
 func (c *codegen) Visit(node ast.Node) ast.Visitor {
-	if c.prog.Err != nil {
+	if c.prog.Error() != nil {
 		return nil
 	}
 	switch n := node.(type) {
@@ -621,7 +621,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 				}
 				strct, ok := c.getStruct(typ)
 				if !ok {
-					c.prog.Err = fmt.Errorf("nested selector assigns not supported yet")
+					c.prog.SetError(fmt.Errorf("nested selector assigns not supported yet"))
 					return nil
 				}
 				ast.Walk(c, t.X)                      // load the struct
@@ -636,14 +636,14 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 				}
 				ast.Walk(c, t.X)
 				ast.Walk(c, t.Index)
-				emit.Opcodes(c.prog.BinWriter, opcode.ROT, opcode.SETITEM)
+				emit.Opcodes(c.prog, opcode.ROT, opcode.SETITEM)
 			}
 		}
 		return nil
 
 	case *ast.SliceExpr:
 		if isCompoundSlice(c.typeOf(n.X.(*ast.Ident)).Underlying()) {
-			c.prog.Err = errors.New("subslices are supported only for []byte")
+			c.prog.SetError(errors.New("subslices are supported only for []byte"))
 			return nil
 		}
 		name := n.X.(*ast.Ident).Name
@@ -652,16 +652,16 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		if n.Low != nil {
 			ast.Walk(c, n.Low)
 		} else {
-			emit.Opcodes(c.prog.BinWriter, opcode.PUSH0)
+			emit.Opcodes(c.prog, opcode.PUSH0)
 		}
 
 		if n.High != nil {
 			ast.Walk(c, n.High)
 		} else {
-			emit.Opcodes(c.prog.BinWriter, opcode.OVER, opcode.SIZE)
+			emit.Opcodes(c.prog, opcode.OVER, opcode.SIZE)
 		}
 
-		emit.Opcodes(c.prog.BinWriter, opcode.OVER, opcode.SUB, opcode.SUBSTR)
+		emit.Opcodes(c.prog, opcode.OVER, opcode.SUB, opcode.SUBSTR)
 
 		return nil
 
@@ -701,7 +701,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 
 		c.saveSequencePoint(n)
 		if len(c.pkgInfoInline) == 0 {
-			emit.Opcodes(c.prog.BinWriter, opcode.RET)
+			emit.Opcodes(c.prog, opcode.RET)
 		}
 		return nil
 
@@ -723,7 +723,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		c.setLabel(lIf)
 		ast.Walk(c, n.Body)
 		if n.Else != nil {
-			emit.Jmp(c.prog.BinWriter, opcode.JMPL, lElseEnd)
+			emit.Jmp(c.prog, opcode.JMPL, lElseEnd)
 		}
 
 		c.setLabel(lElse)
@@ -739,7 +739,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			ast.Walk(c, n.Tag)
 			eqOpcode, _ = convertToken(token.EQL, c.typeOf(n.Tag))
 		} else {
-			emit.Bool(c.prog.BinWriter, true)
+			emit.Bool(c.prog, true)
 		}
 		switchEnd, label := c.generateLabel(labelEnd)
 
@@ -758,13 +758,13 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 
 			if l := len(cc.List); l != 0 { // if not `default`
 				for j := range cc.List {
-					emit.Opcodes(c.prog.BinWriter, opcode.DUP)
+					emit.Opcodes(c.prog, opcode.DUP)
 					ast.Walk(c, cc.List[j])
-					emit.Opcodes(c.prog.BinWriter, eqOpcode)
+					emit.Opcodes(c.prog, eqOpcode)
 					if j == l-1 {
-						emit.Jmp(c.prog.BinWriter, opcode.JMPIFNOTL, lEnd)
+						emit.Jmp(c.prog, opcode.JMPIFNOTL, lEnd)
 					} else {
-						emit.Jmp(c.prog.BinWriter, opcode.JMPIFL, lStart)
+						emit.Jmp(c.prog, opcode.JMPIFL, lStart)
 					}
 				}
 			}
@@ -775,12 +775,12 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			last := len(cc.Body) - 1
 			for j, stmt := range cc.Body {
 				if j == last && isFallthroughStmt(stmt) {
-					emit.Jmp(c.prog.BinWriter, opcode.JMPL, startLabels[i+1])
+					emit.Jmp(c.prog, opcode.JMPL, startLabels[i+1])
 					break
 				}
 				ast.Walk(c, stmt)
 			}
-			emit.Jmp(c.prog.BinWriter, opcode.JMPL, switchEnd)
+			emit.Jmp(c.prog, opcode.JMPL, switchEnd)
 			c.setLabel(lEnd)
 
 			c.scope.vars.dropScope()
@@ -798,7 +798,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		c.newLambda(l, n)
 		buf := make([]byte, 4)
 		binary.LittleEndian.PutUint16(buf, l)
-		emit.Instruction(c.prog.BinWriter, opcode.PUSHA, buf)
+		emit.Instruction(c.prog, opcode.PUSHA, buf)
 		return nil
 
 	case *ast.BasicLit:
@@ -808,7 +808,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 	case *ast.StarExpr:
 		_, ok := c.getStruct(c.typeOf(n.X))
 		if !ok {
-			c.prog.Err = errors.New("dereferencing is only supported on structs")
+			c.prog.SetError(errors.New("dereferencing is only supported on structs"))
 			return nil
 		}
 		ast.Walk(c, n.X)
@@ -819,7 +819,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		if tv := c.typeAndValueOf(n); tv.Value != nil {
 			c.emitLoadConst(tv)
 		} else if n.Name == "nil" {
-			emit.Opcodes(c.prog.BinWriter, opcode.PUSHNULL)
+			emit.Opcodes(c.prog, opcode.PUSHNULL)
 		} else {
 			c.emitLoadVar("", n.Name)
 		}
@@ -843,7 +843,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 					expectedLen = 32
 				}
 				if expectedLen != -1 && expectedLen != len(n.Elts) {
-					c.prog.Err = fmt.Errorf("%s type must have size %d", tn.Obj().Name(), expectedLen)
+					c.prog.SetError(fmt.Errorf("%s type must have size %d", tn.Obj().Name(), expectedLen))
 					return nil
 				}
 			}
@@ -856,8 +856,8 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			for i := ln - 1; i >= 0; i-- {
 				ast.Walk(c, n.Elts[i])
 			}
-			emit.Int(c.prog.BinWriter, int64(ln))
-			emit.Opcodes(c.prog.BinWriter, opcode.PACK)
+			emit.Int(c.prog, int64(ln))
+			emit.Opcodes(c.prog, opcode.PACK)
 		}
 
 		return nil
@@ -914,7 +914,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			} else {
 				typ := c.typeOf(fun)
 				if _, ok := typ.(*types.Signature); ok {
-					c.prog.Err = fmt.Errorf("could not resolve function %s", fun.Sel.Name)
+					c.prog.SetError(fmt.Errorf("could not resolve function %s", fun.Sel.Name))
 					return nil
 				}
 
@@ -944,7 +944,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			if ok && !isInteropPath(typ.String()) {
 				// To clone struct fields we create a new array and append struct to it.
 				// This way even non-pointer struct fields will be copied.
-				emit.Opcodes(c.prog.BinWriter, opcode.NEWARRAY0,
+				emit.Opcodes(c.prog, opcode.NEWARRAY0,
 					opcode.DUP, opcode.ROT, opcode.APPEND,
 					opcode.POPITEM)
 			}
@@ -974,15 +974,15 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 				c.emitConvert(stackitem.ByteArrayT)
 			} else if isFunc {
 				c.emitLoadVar("", name)
-				emit.Opcodes(c.prog.BinWriter, opcode.CALLA)
+				emit.Opcodes(c.prog, opcode.CALLA)
 			}
 		case isLiteral:
 			ast.Walk(c, n.Fun)
-			emit.Opcodes(c.prog.BinWriter, opcode.CALLA)
+			emit.Opcodes(c.prog, opcode.CALLA)
 		case isSyscall(f):
 			c.convertSyscall(f, n)
 		default:
-			emit.Call(c.prog.BinWriter, opcode.CALLL, f.label)
+			emit.Call(c.prog, opcode.CALLL, f.label)
 		}
 
 		if c.scope != nil && c.scope.voidCalls[n] {
@@ -995,7 +995,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 				sz = f.Results().Len()
 			}
 			for i := 0; i < sz; i++ {
-				emit.Opcodes(c.prog.BinWriter, opcode.DROP)
+				emit.Opcodes(c.prog, opcode.DROP)
 			}
 		}
 
@@ -1007,7 +1007,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		param := make([]byte, 8)
 		binary.LittleEndian.PutUint16(param[0:], catch)
 		binary.LittleEndian.PutUint16(param[4:], finally)
-		emit.Instruction(c.prog.BinWriter, opcode.TRYL, param)
+		emit.Instruction(c.prog, opcode.TRYL, param)
 		c.scope.deferStack = append(c.scope.deferStack, deferInfo{
 			catchLabel:   catch,
 			finallyLabel: finally,
@@ -1030,7 +1030,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		}
 		strct, ok := c.getStruct(typ)
 		if !ok {
-			c.prog.Err = fmt.Errorf("selectors are supported only on structs")
+			c.prog.SetError(fmt.Errorf("selectors are supported only on structs"))
 			return nil
 		}
 		ast.Walk(c, n.X) // load the struct
@@ -1048,7 +1048,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 				c.convertStruct(lit, true)
 				return nil
 			}
-			c.prog.Err = fmt.Errorf("'&' can be used only with struct literals")
+			c.prog.SetError(fmt.Errorf("'&' can be used only with struct literals"))
 			return nil
 		}
 
@@ -1061,13 +1061,13 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		case token.ADD:
 			// +10 == 10, no need to do anything in this case
 		case token.SUB:
-			emit.Opcodes(c.prog.BinWriter, opcode.NEGATE)
+			emit.Opcodes(c.prog, opcode.NEGATE)
 		case token.NOT:
-			emit.Opcodes(c.prog.BinWriter, opcode.NOT)
+			emit.Opcodes(c.prog, opcode.NOT)
 		case token.XOR:
-			emit.Opcodes(c.prog.BinWriter, opcode.INVERT)
+			emit.Opcodes(c.prog, opcode.INVERT)
 		default:
-			c.prog.Err = fmt.Errorf("invalid unary operator: %s", n.Op)
+			c.prog.SetError(fmt.Errorf("invalid unary operator: %s", n.Op))
 			return nil
 		}
 		return nil
@@ -1089,7 +1089,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		// This will load local whatever X is.
 		ast.Walk(c, n.X)
 		ast.Walk(c, n.Index)
-		emit.Opcodes(c.prog.BinWriter, opcode.PICKITEM) // just pickitem here
+		emit.Opcodes(c.prog, opcode.PICKITEM) // just pickitem here
 
 		return nil
 
@@ -1112,10 +1112,10 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		switch n.Tok {
 		case token.BREAK:
 			end := c.getLabelOffset(labelEnd, label)
-			emit.Jmp(c.prog.BinWriter, opcode.JMPL, end)
+			emit.Jmp(c.prog, opcode.JMPL, end)
 		case token.CONTINUE:
 			post := c.getLabelOffset(labelPost, label)
-			emit.Jmp(c.prog.BinWriter, opcode.JMPL, post)
+			emit.Jmp(c.prog, opcode.JMPL, post)
 		}
 
 		return nil
@@ -1162,7 +1162,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			ast.Walk(c, n.Cond)
 
 			// Jump if the condition is false
-			emit.Jmp(c.prog.BinWriter, opcode.JMPIFNOTL, fend)
+			emit.Jmp(c.prog, opcode.JMPIFNOTL, fend)
 		}
 
 		// Walk body followed by the iterator (post stmt).
@@ -1173,7 +1173,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		}
 
 		// Jump back to condition.
-		emit.Jmp(c.prog.BinWriter, opcode.JMPL, fstart)
+		emit.Jmp(c.prog, opcode.JMPL, fstart)
 		c.setLabel(fend)
 		c.dropStackLabel()
 
@@ -1201,11 +1201,11 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		// For slices we iterate index from 0 to len-1, storing array, len and index on stack.
 		// For maps we iterate index from 0 to len-1, storing map, keyarray, size and index on stack.
 		_, isMap := c.typeOf(n.X).Underlying().(*types.Map)
-		emit.Opcodes(c.prog.BinWriter, opcode.DUP)
+		emit.Opcodes(c.prog, opcode.DUP)
 		if isMap {
-			emit.Opcodes(c.prog.BinWriter, opcode.KEYS, opcode.DUP)
+			emit.Opcodes(c.prog, opcode.KEYS, opcode.DUP)
 		}
-		emit.Opcodes(c.prog.BinWriter, opcode.SIZE, opcode.PUSH0)
+		emit.Opcodes(c.prog, opcode.SIZE, opcode.PUSH0)
 
 		stackSize := 3 // slice, len(slice), index
 		if isMap {
@@ -1214,8 +1214,8 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		c.pushStackLabel(label, stackSize)
 		c.setLabel(start)
 
-		emit.Opcodes(c.prog.BinWriter, opcode.OVER, opcode.OVER)
-		emit.Jmp(c.prog.BinWriter, opcode.JMPLEL, end)
+		emit.Opcodes(c.prog, opcode.OVER, opcode.OVER)
+		emit.Jmp(c.prog, opcode.JMPLEL, end)
 
 		var keyLoaded bool
 		needValue := n.Value != nil && n.Value.(*ast.Ident).Name != "_"
@@ -1223,11 +1223,11 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			if isMap {
 				c.rangeLoadKey()
 				if needValue {
-					emit.Opcodes(c.prog.BinWriter, opcode.DUP)
+					emit.Opcodes(c.prog, opcode.DUP)
 					keyLoaded = true
 				}
 			} else {
-				emit.Opcodes(c.prog.BinWriter, opcode.DUP)
+				emit.Opcodes(c.prog, opcode.DUP)
 			}
 			c.emitStoreVar("", n.Key.(*ast.Ident).Name)
 		}
@@ -1237,8 +1237,8 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			}
 			if isMap {
 				// we have loaded only key from key array, now load value
-				emit.Int(c.prog.BinWriter, 4)
-				emit.Opcodes(c.prog.BinWriter,
+				emit.Int(c.prog, 4)
+				emit.Opcodes(c.prog,
 					opcode.PICK, // load map itself (+1 because key was pushed)
 					opcode.SWAP, // key should be on top
 					opcode.PICKITEM)
@@ -1250,8 +1250,8 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 
 		c.setLabel(post)
 
-		emit.Opcodes(c.prog.BinWriter, opcode.INC)
-		emit.Jmp(c.prog.BinWriter, opcode.JMPL, start)
+		emit.Opcodes(c.prog, opcode.INC)
+		emit.Jmp(c.prog, opcode.JMPL, start)
 
 		c.setLabel(end)
 		c.dropStackLabel()
@@ -1274,7 +1274,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		goTyp := c.typeOf(n.Type)
 		if canConvert(goTyp.String()) {
 			typ := toNeoType(goTyp)
-			emit.Instruction(c.prog.BinWriter, opcode.CONVERT, []byte{byte(typ)})
+			emit.Instruction(c.prog, opcode.CONVERT, []byte{byte(typ)})
 		}
 		return nil
 	}
@@ -1286,8 +1286,8 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 func (c *codegen) packVarArgs(n *ast.CallExpr, typ *types.Signature) int {
 	varSize := len(n.Args) - typ.Params().Len() + 1
 	c.emitReverse(varSize)
-	emit.Int(c.prog.BinWriter, int64(varSize))
-	emit.Opcodes(c.prog.BinWriter, opcode.PACK)
+	emit.Int(c.prog, int64(varSize))
+	emit.Opcodes(c.prog, opcode.PACK)
 	return varSize
 }
 
@@ -1321,11 +1321,11 @@ func (c *codegen) processDefers() {
 	for i := len(c.scope.deferStack) - 1; i >= 0; i-- {
 		stmt := c.scope.deferStack[i]
 		after := c.newLabel()
-		emit.Jmp(c.prog.BinWriter, opcode.ENDTRYL, after)
+		emit.Jmp(c.prog, opcode.ENDTRYL, after)
 
 		c.setLabel(stmt.catchLabel)
 		c.emitStoreByIndex(varGlobal, c.exceptionIndex)
-		emit.Int(c.prog.BinWriter, 1)
+		emit.Int(c.prog, 1)
 
 		finalIndex := c.getVarIndex("", finallyVarName).index
 		c.emitStoreByIndex(varLocal, finalIndex)
@@ -1337,17 +1337,17 @@ func (c *codegen) processDefers() {
 				c.emitDefault(c.typeOf(c.scope.decl.Type.Results.List[i].Type))
 			}
 		}
-		emit.Jmp(c.prog.BinWriter, opcode.ENDTRYL, after)
+		emit.Jmp(c.prog, opcode.ENDTRYL, after)
 
 		c.setLabel(stmt.finallyLabel)
 		before := c.newLabel()
 		c.emitLoadByIndex(varLocal, finalIndex)
-		emit.Jmp(c.prog.BinWriter, opcode.JMPIFL, before)
+		emit.Jmp(c.prog, opcode.JMPIFL, before)
 		ast.Walk(c, stmt.expr)
 		c.setLabel(before)
-		emit.Int(c.prog.BinWriter, 0)
+		emit.Int(c.prog, 0)
 		c.emitStoreByIndex(varLocal, finalIndex)
-		emit.Opcodes(c.prog.BinWriter, opcode.ENDFINALLY)
+		emit.Opcodes(c.prog, opcode.ENDFINALLY)
 		c.setLabel(after)
 	}
 }
@@ -1371,8 +1371,8 @@ func (c *codegen) emitExplicitConvert(from, to types.Type) {
 }
 
 func (c *codegen) rangeLoadKey() {
-	emit.Int(c.prog.BinWriter, 2)
-	emit.Opcodes(c.prog.BinWriter,
+	emit.Int(c.prog, 2)
+	emit.Opcodes(c.prog,
 		opcode.PICK, // load keys
 		opcode.OVER, // load index in key array
 		opcode.PICKITEM)
@@ -1394,9 +1394,9 @@ func (c *codegen) getCompareWithNilArg(n *ast.BinaryExpr) ast.Expr {
 
 func (c *codegen) emitJumpOnCondition(cond bool, jmpLabel uint16) {
 	if cond {
-		emit.Jmp(c.prog.BinWriter, opcode.JMPIFL, jmpLabel)
+		emit.Jmp(c.prog, opcode.JMPIFL, jmpLabel)
 	} else {
-		emit.Jmp(c.prog.BinWriter, opcode.JMPIFNOTL, jmpLabel)
+		emit.Jmp(c.prog, opcode.JMPIFNOTL, jmpLabel)
 	}
 }
 
@@ -1432,11 +1432,11 @@ func (c *codegen) emitBinaryExpr(n *ast.BinaryExpr, needJump bool, cond bool, jm
 		return
 	} else if arg := c.getCompareWithNilArg(n); arg != nil {
 		ast.Walk(c, arg)
-		emit.Opcodes(c.prog.BinWriter, opcode.ISNULL)
+		emit.Opcodes(c.prog, opcode.ISNULL)
 		if needJump {
 			c.emitJumpOnCondition(cond == (n.Op == token.EQL), jmpLabel)
 		} else if n.Op == token.NEQ {
-			emit.Opcodes(c.prog.BinWriter, opcode.NOT)
+			emit.Opcodes(c.prog, opcode.NOT)
 		}
 		return
 	}
@@ -1458,9 +1458,9 @@ func (c *codegen) emitBinaryExpr(n *ast.BinaryExpr, needJump bool, cond bool, jm
 			push := c.newLabel()
 			c.emitBoolExpr(n.X, true, condShort, push)
 			c.emitBoolExpr(n.Y, false, false, 0)
-			emit.Jmp(c.prog.BinWriter, opcode.JMPL, end)
+			emit.Jmp(c.prog, opcode.JMPL, end)
 			c.setLabel(push)
-			emit.Bool(c.prog.BinWriter, condShort)
+			emit.Bool(c.prog, condShort)
 		}
 		c.setLabel(end)
 
@@ -1481,7 +1481,7 @@ func (c *codegen) emitBinaryExpr(n *ast.BinaryExpr, needJump bool, cond bool, jm
 		if !cond {
 			op = negateJmp(op)
 		}
-		emit.Jmp(c.prog.BinWriter, op, jmpLabel)
+		emit.Jmp(c.prog, op, jmpLabel)
 	}
 }
 
@@ -1501,13 +1501,13 @@ func (c *codegen) dropStackLabel() {
 func (c *codegen) dropItems(n int) {
 	if n < 4 {
 		for i := 0; i < n; i++ {
-			emit.Opcodes(c.prog.BinWriter, opcode.DROP)
+			emit.Opcodes(c.prog, opcode.DROP)
 		}
 		return
 	}
 
-	emit.Int(c.prog.BinWriter, int64(n))
-	emit.Opcodes(c.prog.BinWriter, opcode.PACK, opcode.DROP)
+	emit.Int(c.prog, int64(n))
+	emit.Opcodes(c.prog, opcode.PACK, opcode.DROP)
 }
 
 // emitReverse reverses top num items of the stack.
@@ -1515,14 +1515,14 @@ func (c *codegen) emitReverse(num int) {
 	switch num {
 	case 0, 1:
 	case 2:
-		emit.Opcodes(c.prog.BinWriter, opcode.SWAP)
+		emit.Opcodes(c.prog, opcode.SWAP)
 	case 3:
-		emit.Opcodes(c.prog.BinWriter, opcode.REVERSE3)
+		emit.Opcodes(c.prog, opcode.REVERSE3)
 	case 4:
-		emit.Opcodes(c.prog.BinWriter, opcode.REVERSE4)
+		emit.Opcodes(c.prog, opcode.REVERSE4)
 	default:
-		emit.Int(c.prog.BinWriter, int64(num))
-		emit.Opcodes(c.prog.BinWriter, opcode.REVERSEN)
+		emit.Int(c.prog, int64(num))
+		emit.Opcodes(c.prog, opcode.REVERSEN)
 	}
 }
 
@@ -1572,25 +1572,25 @@ func (c *codegen) convertSyscall(f *funcScope, expr *ast.CallExpr) {
 	name := constant.StringVal(tv.Value)
 	if strings.HasPrefix(f.name, "Syscall") {
 		c.emitReverse(len(expr.Args) - 1)
-		emit.Syscall(c.prog.BinWriter, name)
+		emit.Syscall(c.prog, name)
 
 		// This NOP instruction is basically not needed, but if we do, we have a
 		// one to one matching avm file with neo-python which is very nice for debugging.
-		emit.Opcodes(c.prog.BinWriter, opcode.NOP)
+		emit.Opcodes(c.prog, opcode.NOP)
 	} else {
 		op, err := opcode.FromString(name)
 		if err != nil {
-			c.prog.Err = fmt.Errorf("invalid opcode: %s", op)
+			c.prog.SetError(fmt.Errorf("invalid opcode: %s", op))
 			return
 		}
-		emit.Opcodes(c.prog.BinWriter, op)
+		emit.Opcodes(c.prog, op)
 	}
 }
 
 // emitSliceHelper emits 3 items on stack: slice, its first index, and its size.
 func (c *codegen) emitSliceHelper(e ast.Expr) {
 	if !isByteSlice(c.typeOf(e)) {
-		c.prog.Err = fmt.Errorf("copy is supported only for byte-slices")
+		c.prog.SetError(fmt.Errorf("copy is supported only for byte-slices"))
 		return
 	}
 	var hasLowIndex bool
@@ -1600,23 +1600,23 @@ func (c *codegen) emitSliceHelper(e ast.Expr) {
 		if src.High != nil {
 			ast.Walk(c, src.High)
 		} else {
-			emit.Opcodes(c.prog.BinWriter, opcode.DUP, opcode.SIZE)
+			emit.Opcodes(c.prog, opcode.DUP, opcode.SIZE)
 		}
 		if src.Low != nil {
 			ast.Walk(c, src.Low)
 			hasLowIndex = true
 		} else {
-			emit.Int(c.prog.BinWriter, 0)
+			emit.Int(c.prog, 0)
 		}
 	default:
 		ast.Walk(c, src)
-		emit.Opcodes(c.prog.BinWriter, opcode.DUP, opcode.SIZE)
-		emit.Int(c.prog.BinWriter, 0)
+		emit.Opcodes(c.prog, opcode.DUP, opcode.SIZE)
+		emit.Int(c.prog, 0)
 	}
 	if !hasLowIndex {
-		emit.Opcodes(c.prog.BinWriter, opcode.SWAP)
+		emit.Opcodes(c.prog, opcode.SWAP)
 	} else {
-		emit.Opcodes(c.prog.BinWriter, opcode.DUP, opcode.ROT, opcode.SWAP, opcode.SUB)
+		emit.Opcodes(c.prog, opcode.DUP, opcode.ROT, opcode.SWAP, opcode.SUB)
 	}
 }
 
@@ -1634,104 +1634,104 @@ func (c *codegen) convertBuiltin(expr *ast.CallExpr) {
 		// stack for MEMCPY is: dst, dst_index, src, src_index, count
 		c.emitSliceHelper(expr.Args[0])
 		c.emitSliceHelper(expr.Args[1])
-		emit.Int(c.prog.BinWriter, 3)
-		emit.Opcodes(c.prog.BinWriter, opcode.ROLL, opcode.MIN)
+		emit.Int(c.prog, 3)
+		emit.Opcodes(c.prog, opcode.ROLL, opcode.MIN)
 		if !c.scope.voidCalls[expr] {
 			// insert top item to the bottom of MEMCPY args, so that it is left on stack
-			emit.Opcodes(c.prog.BinWriter, opcode.DUP)
-			emit.Int(c.prog.BinWriter, 6)
-			emit.Opcodes(c.prog.BinWriter, opcode.REVERSEN)
-			emit.Int(c.prog.BinWriter, 5)
-			emit.Opcodes(c.prog.BinWriter, opcode.REVERSEN)
+			emit.Opcodes(c.prog, opcode.DUP)
+			emit.Int(c.prog, 6)
+			emit.Opcodes(c.prog, opcode.REVERSEN)
+			emit.Int(c.prog, 5)
+			emit.Opcodes(c.prog, opcode.REVERSEN)
 		}
-		emit.Opcodes(c.prog.BinWriter, opcode.MEMCPY)
+		emit.Opcodes(c.prog, opcode.MEMCPY)
 	case "make":
 		typ := c.typeOf(expr.Args[0])
 		switch {
 		case isMap(typ):
-			emit.Opcodes(c.prog.BinWriter, opcode.NEWMAP)
+			emit.Opcodes(c.prog, opcode.NEWMAP)
 		default:
 			if len(expr.Args) == 3 {
-				c.prog.Err = fmt.Errorf("`make()` with a capacity argument is not supported")
+				c.prog.SetError(fmt.Errorf("`make()` with a capacity argument is not supported"))
 				return
 			}
 			ast.Walk(c, expr.Args[1])
 			if isByteSlice(typ) {
-				emit.Opcodes(c.prog.BinWriter, opcode.NEWBUFFER)
+				emit.Opcodes(c.prog, opcode.NEWBUFFER)
 			} else {
 				neoT := toNeoType(typ.(*types.Slice).Elem())
-				emit.Instruction(c.prog.BinWriter, opcode.NEWARRAYT, []byte{byte(neoT)})
+				emit.Instruction(c.prog, opcode.NEWARRAYT, []byte{byte(neoT)})
 			}
 		}
 	case "len":
-		emit.Opcodes(c.prog.BinWriter, opcode.DUP, opcode.ISNULL)
-		emit.Instruction(c.prog.BinWriter, opcode.JMPIF, []byte{2 + 1 + 2})
-		emit.Opcodes(c.prog.BinWriter, opcode.SIZE)
-		emit.Instruction(c.prog.BinWriter, opcode.JMP, []byte{2 + 1 + 1})
-		emit.Opcodes(c.prog.BinWriter, opcode.DROP, opcode.PUSH0)
+		emit.Opcodes(c.prog, opcode.DUP, opcode.ISNULL)
+		emit.Instruction(c.prog, opcode.JMPIF, []byte{2 + 1 + 2})
+		emit.Opcodes(c.prog, opcode.SIZE)
+		emit.Instruction(c.prog, opcode.JMP, []byte{2 + 1 + 1})
+		emit.Opcodes(c.prog, opcode.DROP, opcode.PUSH0)
 	case "append":
 		arg := expr.Args[0]
 		typ := c.typeInfo.Types[arg].Type
 		ast.Walk(c, arg)
-		emit.Opcodes(c.prog.BinWriter, opcode.DUP, opcode.ISNULL)
+		emit.Opcodes(c.prog, opcode.DUP, opcode.ISNULL)
 		if isByteSlice(typ) {
-			emit.Instruction(c.prog.BinWriter, opcode.JMPIFNOT, []byte{2 + 3})
-			emit.Opcodes(c.prog.BinWriter, opcode.DROP, opcode.PUSHDATA1, 0)
+			emit.Instruction(c.prog, opcode.JMPIFNOT, []byte{2 + 3})
+			emit.Opcodes(c.prog, opcode.DROP, opcode.PUSHDATA1, 0)
 			if expr.Ellipsis.IsValid() {
 				ast.Walk(c, expr.Args[1])
 			} else {
 				c.convertByteArray(expr.Args[1:])
 			}
-			emit.Opcodes(c.prog.BinWriter, opcode.CAT)
+			emit.Opcodes(c.prog, opcode.CAT)
 		} else {
-			emit.Instruction(c.prog.BinWriter, opcode.JMPIFNOT, []byte{2 + 2})
-			emit.Opcodes(c.prog.BinWriter, opcode.DROP, opcode.NEWARRAY0)
+			emit.Instruction(c.prog, opcode.JMPIFNOT, []byte{2 + 2})
+			emit.Opcodes(c.prog, opcode.DROP, opcode.NEWARRAY0)
 			if expr.Ellipsis.IsValid() {
-				ast.Walk(c, expr.Args[1])                    // x y
-				emit.Opcodes(c.prog.BinWriter, opcode.PUSH0) // x y cnt=0
+				ast.Walk(c, expr.Args[1])          // x y
+				emit.Opcodes(c.prog, opcode.PUSH0) // x y cnt=0
 				start := c.newLabel()
 				c.setLabel(start)
-				emit.Opcodes(c.prog.BinWriter, opcode.PUSH2, opcode.PICK) // x y cnt x
-				emit.Opcodes(c.prog.BinWriter, opcode.PUSH2, opcode.PICK) // x y cnt x y
-				emit.Opcodes(c.prog.BinWriter, opcode.DUP, opcode.SIZE)   // x y cnt x y len(y)
-				emit.Opcodes(c.prog.BinWriter, opcode.PUSH3, opcode.PICK) // x y cnt x y len(y) cnt
+				emit.Opcodes(c.prog, opcode.PUSH2, opcode.PICK) // x y cnt x
+				emit.Opcodes(c.prog, opcode.PUSH2, opcode.PICK) // x y cnt x y
+				emit.Opcodes(c.prog, opcode.DUP, opcode.SIZE)   // x y cnt x y len(y)
+				emit.Opcodes(c.prog, opcode.PUSH3, opcode.PICK) // x y cnt x y len(y) cnt
 				after := c.newLabel()
-				emit.Jmp(c.prog.BinWriter, opcode.JMPEQL, after)          // x y cnt x y
-				emit.Opcodes(c.prog.BinWriter, opcode.PUSH2, opcode.PICK, // x y cnt x y cnt
+				emit.Jmp(c.prog, opcode.JMPEQL, after)          // x y cnt x y
+				emit.Opcodes(c.prog, opcode.PUSH2, opcode.PICK, // x y cnt x y cnt
 					opcode.PICKITEM, // x y cnt x y[cnt]
 					opcode.APPEND,   // x=append(x, y[cnt]) y cnt
 					opcode.INC)      // x y cnt+1
-				emit.Jmp(c.prog.BinWriter, opcode.JMPL, start)
+				emit.Jmp(c.prog, opcode.JMPL, start)
 				c.setLabel(after)
 				for i := 0; i < 4; i++ { // leave x on stack
-					emit.Opcodes(c.prog.BinWriter, opcode.DROP)
+					emit.Opcodes(c.prog, opcode.DROP)
 				}
 			} else {
 				for _, e := range expr.Args[1:] {
-					emit.Opcodes(c.prog.BinWriter, opcode.DUP)
+					emit.Opcodes(c.prog, opcode.DUP)
 					ast.Walk(c, e)
-					emit.Opcodes(c.prog.BinWriter, opcode.APPEND)
+					emit.Opcodes(c.prog, opcode.APPEND)
 				}
 			}
 		}
 	case "panic":
-		emit.Opcodes(c.prog.BinWriter, opcode.THROW)
+		emit.Opcodes(c.prog, opcode.THROW)
 	case "recover":
 		if !c.scope.voidCalls[expr] {
 			c.emitLoadByIndex(varGlobal, c.exceptionIndex)
 		}
-		emit.Opcodes(c.prog.BinWriter, opcode.PUSHNULL)
+		emit.Opcodes(c.prog, opcode.PUSHNULL)
 		c.emitStoreByIndex(varGlobal, c.exceptionIndex)
 	case "delete":
-		emit.Opcodes(c.prog.BinWriter, opcode.REMOVE)
+		emit.Opcodes(c.prog, opcode.REMOVE)
 	case "Remove":
 		if !isCompoundSlice(c.typeOf(expr.Args[0])) {
-			c.prog.Err = errors.New("`Remove` supports only non-byte slices")
+			c.prog.SetError(errors.New("`Remove` supports only non-byte slices"))
 			return
 		}
-		emit.Opcodes(c.prog.BinWriter, opcode.REMOVE)
+		emit.Opcodes(c.prog, opcode.REMOVE)
 	case "Equals":
-		emit.Opcodes(c.prog.BinWriter, opcode.EQUAL)
+		emit.Opcodes(c.prog, opcode.EQUAL)
 	case "FromAddress":
 		// We can be sure that this is a ast.BasicLit just containing a simple
 		// address string. Note that the string returned from calling Value will
@@ -1740,11 +1740,11 @@ func (c *codegen) convertBuiltin(expr *ast.CallExpr) {
 		addressStr = strings.Replace(addressStr, "\"", "", 2)
 		uint160, err := address.StringToUint160(addressStr)
 		if err != nil {
-			c.prog.Err = err
+			c.prog.SetError(err)
 			return
 		}
 		bytes := uint160.BytesBE()
-		emit.Bytes(c.prog.BinWriter, bytes)
+		emit.Bytes(c.prog, bytes)
 		c.emitConvert(stackitem.BufferT)
 	}
 }
@@ -1777,7 +1777,7 @@ func transformArgs(fs *funcScope, fun ast.Expr, args []ast.Expr) []ast.Expr {
 
 // emitConvert converts top stack item to the specified type.
 func (c *codegen) emitConvert(typ stackitem.Type) {
-	emit.Instruction(c.prog.BinWriter, opcode.CONVERT, []byte{byte(typ)})
+	emit.Instruction(c.prog, opcode.CONVERT, []byte{byte(typ)})
 }
 
 func (c *codegen) convertByteArray(elems []ast.Expr) {
@@ -1792,24 +1792,24 @@ func (c *codegen) convertByteArray(elems []ast.Expr) {
 			varIndices = append(varIndices, i)
 		}
 	}
-	emit.Bytes(c.prog.BinWriter, buf)
+	emit.Bytes(c.prog, buf)
 	c.emitConvert(stackitem.BufferT)
 	for _, i := range varIndices {
-		emit.Opcodes(c.prog.BinWriter, opcode.DUP)
-		emit.Int(c.prog.BinWriter, int64(i))
+		emit.Opcodes(c.prog, opcode.DUP)
+		emit.Int(c.prog, int64(i))
 		ast.Walk(c, elems[i])
-		emit.Opcodes(c.prog.BinWriter, opcode.SETITEM)
+		emit.Opcodes(c.prog, opcode.SETITEM)
 	}
 }
 
 func (c *codegen) convertMap(lit *ast.CompositeLit) {
-	emit.Opcodes(c.prog.BinWriter, opcode.NEWMAP)
+	emit.Opcodes(c.prog, opcode.NEWMAP)
 	for i := range lit.Elts {
 		elem := lit.Elts[i].(*ast.KeyValueExpr)
-		emit.Opcodes(c.prog.BinWriter, opcode.DUP)
+		emit.Opcodes(c.prog, opcode.DUP)
 		ast.Walk(c, elem.Key)
 		ast.Walk(c, elem.Value)
-		emit.Opcodes(c.prog.BinWriter, opcode.SETITEM)
+		emit.Opcodes(c.prog, opcode.SETITEM)
 	}
 }
 
@@ -1830,16 +1830,16 @@ func (c *codegen) convertStruct(lit *ast.CompositeLit, ptr bool) {
 	// the positions of its variables.
 	strct, ok := c.typeOf(lit).Underlying().(*types.Struct)
 	if !ok {
-		c.prog.Err = fmt.Errorf("the given literal is not of type struct: %v", lit)
+		c.prog.SetError(fmt.Errorf("the given literal is not of type struct: %v", lit))
 		return
 	}
 
-	emit.Opcodes(c.prog.BinWriter, opcode.NOP)
-	emit.Int(c.prog.BinWriter, int64(strct.NumFields()))
+	emit.Opcodes(c.prog, opcode.NOP)
+	emit.Int(c.prog, int64(strct.NumFields()))
 	if ptr {
-		emit.Opcodes(c.prog.BinWriter, opcode.NEWARRAY)
+		emit.Opcodes(c.prog, opcode.NEWARRAY)
 	} else {
-		emit.Opcodes(c.prog.BinWriter, opcode.NEWSTRUCT)
+		emit.Opcodes(c.prog, opcode.NEWSTRUCT)
 	}
 
 	keyedLit := len(lit.Elts) > 0
@@ -1853,8 +1853,8 @@ func (c *codegen) convertStruct(lit *ast.CompositeLit, ptr bool) {
 		sField := strct.Field(i)
 		var initialized bool
 
-		emit.Opcodes(c.prog.BinWriter, opcode.DUP)
-		emit.Int(c.prog.BinWriter, int64(i))
+		emit.Opcodes(c.prog, opcode.DUP)
+		emit.Int(c.prog, int64(i))
 
 		if !keyedLit {
 			if len(lit.Elts) > i {
@@ -1877,17 +1877,17 @@ func (c *codegen) convertStruct(lit *ast.CompositeLit, ptr bool) {
 		if !initialized {
 			c.emitDefault(sField.Type())
 		}
-		emit.Opcodes(c.prog.BinWriter, opcode.SETITEM)
+		emit.Opcodes(c.prog, opcode.SETITEM)
 	}
 }
 
 func (c *codegen) emitToken(tok token.Token, typ types.Type) {
 	op, err := convertToken(tok, typ)
 	if err != nil {
-		c.prog.Err = err
+		c.prog.SetError(err)
 		return
 	}
-	emit.Opcodes(c.prog.BinWriter, op)
+	emit.Opcodes(c.prog, op)
 }
 
 func convertToken(tok token.Token, typ types.Type) (opcode.Opcode, error) {
@@ -2005,14 +2005,14 @@ func (c *codegen) compile(info *buildInfo, pkg *loader.PackageInfo) error {
 
 	if hasDeploy {
 		deployOffset := c.prog.Len()
-		emit.Instruction(c.prog.BinWriter, opcode.INITSLOT, []byte{0, 2})
+		emit.Instruction(c.prog, opcode.INITSLOT, []byte{0, 2})
 		locCount := c.convertDeployFuncs()
 		c.reverseOffsetMap[deployOffset] = nameWithLocals{
 			name:  "_deploy",
 			count: locCount,
 		}
 		c.deployEndOffset = c.prog.Len()
-		emit.Opcodes(c.prog.BinWriter, opcode.RET)
+		emit.Opcodes(c.prog, opcode.RET)
 	}
 
 	// sort map keys to generate code deterministically.
@@ -2042,7 +2042,7 @@ func (c *codegen) compile(info *buildInfo, pkg *loader.PackageInfo) error {
 		}
 	})
 
-	return c.prog.Err
+	return c.prog.Error()
 }
 
 func newCodegen(info *buildInfo, pkg *loader.PackageInfo) *codegen {

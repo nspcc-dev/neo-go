@@ -324,15 +324,15 @@ func TestVerifyTx(t *testing.T) {
 			if sc.Equals(gasHash) {
 				amount = 1_000_000_000
 			}
-			emit.AppCall(w.BinWriter, sc, "transfer", callflag.All,
+			emit.AppCall(w, sc, "transfer", callflag.All,
 				neoOwner, a.Contract.ScriptHash(), amount, nil)
-			emit.Opcodes(w.BinWriter, opcode.ASSERT)
+			emit.Opcodes(w, opcode.ASSERT)
 		}
 	}
-	emit.AppCall(w.BinWriter, gasHash, "transfer", callflag.All,
+	emit.AppCall(w, gasHash, "transfer", callflag.All,
 		neoOwner, testchain.CommitteeScriptHash(), int64(1_000_000_000), nil)
-	emit.Opcodes(w.BinWriter, opcode.ASSERT)
-	require.NoError(t, w.Err)
+	emit.Opcodes(w, opcode.ASSERT)
+	require.NoError(t, w.Error())
 
 	txMove := bc.newTestTx(neoOwner, w.Bytes())
 	txMove.SystemFee = 1_000_000_000
@@ -640,10 +640,10 @@ func TestVerifyTx(t *testing.T) {
 					tx.Scripts = append(tx.Scripts, transaction.Witness{})
 					t.Run("NonZeroVerification", func(t *testing.T) {
 						w := io.NewBufBinWriter()
-						emit.Opcodes(w.BinWriter, opcode.ABORT)
-						emit.Bytes(w.BinWriter, util.Uint160{}.BytesBE())
-						emit.Int(w.BinWriter, 0)
-						emit.String(w.BinWriter, orc.Manifest.Name)
+						emit.Opcodes(w, opcode.ABORT)
+						emit.Bytes(w, util.Uint160{}.BytesBE())
+						emit.Int(w, 0)
+						emit.String(w, orc.Manifest.Name)
 						tx.Scripts[len(tx.Scripts)-1].VerificationScript = w.Bytes()
 						err := bc.VerifyTx(tx)
 						require.True(t, errors.Is(err, ErrNativeContractWitness), "got: %v", err)
@@ -1421,9 +1421,9 @@ func TestSubscriptions(t *testing.T) {
 	require.Equal(t, bc.UtilityTokenHash(), notif.ScriptHash)
 
 	script := io.NewBufBinWriter()
-	emit.Bytes(script.BinWriter, []byte("yay!"))
-	emit.Syscall(script.BinWriter, interopnames.SystemRuntimeNotify)
-	require.NoError(t, script.Err)
+	emit.Bytes(script, []byte("yay!"))
+	emit.Syscall(script, interopnames.SystemRuntimeNotify)
+	require.NoError(t, script.Error())
 	txGood1 := transaction.New(script.Bytes(), 0)
 	txGood1.Signers = []transaction.Signer{{Account: neoOwner}}
 	txGood1.Nonce = 1
@@ -1432,10 +1432,10 @@ func TestSubscriptions(t *testing.T) {
 
 	// Reset() reuses the script buffer and we need to keep scripts.
 	script = io.NewBufBinWriter()
-	emit.Bytes(script.BinWriter, []byte("nay!"))
-	emit.Syscall(script.BinWriter, interopnames.SystemRuntimeNotify)
-	emit.Opcodes(script.BinWriter, opcode.THROW)
-	require.NoError(t, script.Err)
+	emit.Bytes(script, []byte("nay!"))
+	emit.Syscall(script, interopnames.SystemRuntimeNotify)
+	emit.Opcodes(script, opcode.THROW)
+	require.NoError(t, script.Error())
 	txBad := transaction.New(script.Bytes(), 0)
 	txBad.Signers = []transaction.Signer{{Account: neoOwner}}
 	txBad.Nonce = 2
@@ -1443,9 +1443,9 @@ func TestSubscriptions(t *testing.T) {
 	require.NoError(t, testchain.SignTx(bc, txBad))
 
 	script = io.NewBufBinWriter()
-	emit.Bytes(script.BinWriter, []byte("yay! yay! yay!"))
-	emit.Syscall(script.BinWriter, interopnames.SystemRuntimeNotify)
-	require.NoError(t, script.Err)
+	emit.Bytes(script, []byte("yay! yay! yay!"))
+	emit.Syscall(script, interopnames.SystemRuntimeNotify)
+	require.NoError(t, script.Error())
 	txGood2 := transaction.New(script.Bytes(), 0)
 	txGood2.Signers = []transaction.Signer{{Account: neoOwner}}
 	txGood2.Nonce = 3
@@ -1518,8 +1518,8 @@ func testDumpAndRestore(t *testing.T, dumpF, restoreF func(c *config.Config)) {
 	require.True(t, bc.BlockHeight() > 5) // ensure that test is valid
 
 	w := io.NewBufBinWriter()
-	require.NoError(t, chaindump.Dump(bc, w.BinWriter, 0, bc.BlockHeight()+1))
-	require.NoError(t, w.Err)
+	require.NoError(t, chaindump.Dump(bc, w, 0, bc.BlockHeight()+1))
+	require.NoError(t, w.Error())
 
 	buf := w.Bytes()
 	t.Run("invalid start", func(t *testing.T) {
