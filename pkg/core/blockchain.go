@@ -23,6 +23,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/native/noderoles"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/stateroot"
+	"github.com/nspcc-dev/neo-go/pkg/core/statesync"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
@@ -409,6 +410,64 @@ func (bc *Blockchain) init() error {
 	return bc.updateExtensibleWhitelist(bHeight)
 }
 
+// JumpToState is an atomic operation that changes Blockchain state to the one
+// specified by the state sync point p. All the data needed for the jump must be
+// collected by the state sync module.
+func (bc *Blockchain) JumpToState(module blockchainer.StateSync) error {
+	bc.lock.Lock()
+	defer bc.lock.Unlock()
+
+	p, err := module.GetJumpHeight()
+	if err != nil {
+		return fmt.Errorf("failed to get jump height: %w", err)
+	}
+	if p+1 >= uint32(len(bc.headerHashes)) {
+		return fmt.Errorf("invalid state sync point")
+	}
+
+	bc.log.Info("jumping to state sync point", zap.Uint32("state sync point", p))
+
+	block, err := bc.dao.GetBlock(bc.headerHashes[p])
+	if err != nil {
+		return fmt.Errorf("failed to get current block: %w", err)
+	}
+	err = bc.dao.StoreAsCurrentBlock(block, nil)
+	if err != nil {
+		return fmt.Errorf("failed to store current block: %w", err)
+	}
+	bc.topBlock.Store(block)
+	atomic.StoreUint32(&bc.blockHeight, p)
+	atomic.StoreUint32(&bc.persistedHeight, p)
+
+	block, err = bc.dao.GetBlock(bc.headerHashes[p+1])
+	if err != nil {
+		return fmt.Errorf("failed to get block to init MPT: %w", err)
+	}
+	if err = bc.stateRoot.JumpToState(&state.MPTRoot{
+		Index: p,
+		Root:  block.PrevStateRoot,
+	}, bc.config.KeepOnlyLatestState); err != nil {
+		return fmt.Errorf("can't perform MPT jump to height %d: %w", p, err)
+	}
+
+	err = bc.contracts.NEO.InitializeCache(bc, bc.dao)
+	if err != nil {
+		return fmt.Errorf("can't init cache for NEO native contract: %w", err)
+	}
+	err = bc.contracts.Management.InitializeCache(bc.dao)
+	if err != nil {
+		return fmt.Errorf("can't init cache for Management native contract: %w", err)
+	}
+	bc.contracts.Designate.InitializeCache()
+
+	if err := bc.updateExtensibleWhitelist(p); err != nil {
+		return fmt.Errorf("failed to update extensible whitelist: %w", err)
+	}
+
+	updateBlockHeightMetric(p)
+	return nil
+}
+
 // Run runs chain loop, it needs to be run as goroutine and executing it is
 // critical for correct Blockchain operation.
 func (bc *Blockchain) Run() {
@@ -694,6 +753,11 @@ func (bc *Blockchain) addHeaders(verify bool, headers ...*block.Header) error {
 // GetStateModule returns state root service instance.
 func (bc *Blockchain) GetStateModule() blockchainer.StateRoot {
 	return bc.stateRoot
+}
+
+// GetStateSyncModule returns new state sync service instance.
+func (bc *Blockchain) GetStateSyncModule() blockchainer.StateSync {
+	return statesync.NewModule(bc, bc.log, bc.dao)
 }
 
 // storeBlock performs chain update using the block given, it executes all

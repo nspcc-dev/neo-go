@@ -114,6 +114,25 @@ func (s *Module) Init(height uint32, enableRefCount bool) error {
 	return nil
 }
 
+// JumpToState performs jump to the state specified by given stateroot index.
+func (s *Module) JumpToState(sr *state.MPTRoot, enableRefCount bool) error {
+	if err := s.addLocalStateRoot(s.Store, sr); err != nil {
+		return fmt.Errorf("failed to store local state root: %w", err)
+	}
+
+	data := make([]byte, 4)
+	binary.LittleEndian.PutUint32(data, sr.Index)
+	if err := s.Store.Put([]byte{byte(storage.DataMPT), prefixValidated}, data); err != nil {
+		return fmt.Errorf("failed to store validated height: %w", err)
+	}
+	s.validatedHeight.Store(sr.Index)
+
+	s.currentLocal.Store(sr.Root)
+	s.localHeight.Store(sr.Index)
+	s.mpt = mpt.NewTrie(mpt.NewHashNode(sr.Root), enableRefCount, s.Store)
+	return nil
+}
+
 // AddMPTBatch updates using provided batch.
 func (s *Module) AddMPTBatch(index uint32, b mpt.Batch, cache *storage.MemCachedStore) (*mpt.Trie, *state.MPTRoot, error) {
 	mpt := *s.mpt

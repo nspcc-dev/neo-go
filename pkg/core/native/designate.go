@@ -353,3 +353,8 @@ func (s *Designate) getRole(item stackitem.Item) (noderoles.Role, bool) {
 	u := bi.Uint64()
 	return noderoles.Role(u), u <= math.MaxUint8 && s.isValidRole(noderoles.Role(u))
 }
+
+// InitializeCache invalidates native Designate cache.
+func (s *Designate) InitializeCache() {
+	s.rolesChangedFlag.Store(true)
+}

@@ -2,6 +2,7 @@ package network
 
 import (
 	"errors"
+	"fmt"
 	"math/big"
 	"net"
 	"strconv"
@@ -46,7 +47,10 @@ func (f *fakeConsensus) OnTransaction(tx *transaction.Transaction)     { f.txs =
 func (f *fakeConsensus) GetPayload(h util.Uint256) *payload.Extensible { panic("implement me") }
 
 func TestNewServer(t *testing.T) {
-	bc := &fakechain.FakeChain{}
+	bc := &fakechain.FakeChain{ProtocolConfiguration: config.ProtocolConfiguration{
+		P2PStateExchangeExtensions: true,
+		StateRootInHeader:          true,
+	}}
 	s, err := newServerFromConstructors(ServerConfig{}, bc, nil, newFakeTransp, newFakeConsensus, newTestDiscovery)
 	require.Error(t, err)
 
@@ -897,5 +901,41 @@ func TestVerifyNotaryRequest(t *testing.T) {
 		r := newNotaryRequest()
 		bc.NotaryDepositExpiration = r.FallbackTransaction.ValidUntilBlock + 1
 		require.NoError(t, verifyNotaryRequest(bc, nil, r))
+	})
+}
+
+func TestTryInitStateSync(t *testing.T) {
+	t.Run("module inactive", func(t *testing.T) {
+		s := startTestServer(t)
+		s.tryInitStateSync()
+	})
+
+	t.Run("module already initialized", func(t *testing.T) {
+		s := startTestServer(t)
+		s.stateSync = &fakechain.FakeStateSync{IsActiveFlag: true, IsInitializedFlag: true}
+		s.tryInitStateSync()
+	})
+
+	t.Run("good", func(t *testing.T) {
+		s := startTestServer(t)
+		for _, h := range []uint32{10, 8, 7, 4, 11, 4} {
+			p := newLocalPeer(t, s)
+			p.handshaked = true
+			p.lastBlockIndex = h
+			s.peers[p] = true
+		}
+		p := newLocalPeer(t, s)
+		p.handshaked = false // one disconnected peer to check it won't be taken into attention
+		p.lastBlockIndex = 5
+		s.peers[p] = true
+		var expectedH uint32 = 8 // median peer
+
+		s.stateSync = &fakechain.FakeStateSync{IsActiveFlag: true, IsInitializedFlag: false, InitFunc: func(h uint32) error {
+			if h != expectedH {
+				return fmt.Errorf("invalid height: expected %d, got %d", expectedH, h)
+			}
+			return nil
+		}}
+		s.tryInitStateSync()
 	})
 }

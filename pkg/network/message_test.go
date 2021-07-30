@@ -258,6 +258,21 @@ func TestEncodeDecodeNotFound(t *testing.T) {
 	})
 }
 
+func TestEncodeDecodeGetMPTData(t *testing.T) {
+	testEncodeDecode(t, CMDGetMPTData, &payload.MPTInventory{
+		Hashes: []util.Uint256{
+			{1, 2, 3},
+			{4, 5, 6},
+		},
+	})
+}
+
+func TestEncodeDecodeMPTData(t *testing.T) {
+	testEncodeDecode(t, CMDMPTData, &payload.MPTData{
+		Nodes: [][]byte{{1, 2, 3}, {4, 5, 6}},
+	})
+}
+
 func TestInvalidMessages(t *testing.T) {
 	t.Run("CMDBlock, empty payload", func(t *testing.T) {
 		testEncodeDecodeFail(t, CMDBlock, payload.NullPayload{})

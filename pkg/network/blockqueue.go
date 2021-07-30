@@ -4,6 +4,7 @@ import (
 	"github.com/Workiva/go-datastructures/queue"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
+	"go.uber.org/atomic"
 	"go.uber.org/zap"
 )
 
@@ -13,6 +14,7 @@ type blockQueue struct {
 	checkBlocks chan struct{}
 	chain       blockchainer.Blockqueuer
 	relayF      func(*block.Block)
+	discarded   *atomic.Bool
 }
 
 const (
@@ -32,6 +34,7 @@ func newBlockQueue(capacity int, bc blockchainer.Blockqueuer, log *zap.Logger, r
 		checkBlocks: make(chan struct{}, 1),
 		chain:       bc,
 		relayF:      relayer,
+		discarded:   atomic.NewBool(false),
 	}
 }
 
@@ -91,8 +94,10 @@ func (bq *blockQueue) putBlock(block *block.Block) error {
 }
 
 func (bq *blockQueue) discard() {
-	close(bq.checkBlocks)
-	bq.queue.Dispose()
+	if bq.discarded.CAS(false, true) {
+		close(bq.checkBlocks)
+		bq.queue.Dispose()
+	}
 }
 
 func (bq *blockQueue) length() int {

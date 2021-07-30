@@ -21,7 +21,6 @@ import (
 type Blockchainer interface {
 	ApplyPolicyToTxSet([]*transaction.Transaction) []*transaction.Transaction
 	GetConfig() config.ProtocolConfiguration
-	AddHeaders(...*block.Header) error
 	Blockqueuer // Blockqueuer interface
 	CalculateClaimable(h util.Uint160, endHeight uint32) (*big.Int, error)
 	Close()
@@ -56,10 +55,12 @@ type Blockchainer interface {
 	GetStandByCommittee() keys.PublicKeys
 	GetStandByValidators() keys.PublicKeys
 	GetStateModule() StateRoot
+	GetStateSyncModule() StateSync
 	GetStorageItem(id int32, key []byte) state.StorageItem
 	GetStorageItems(id int32) (map[string]state.StorageItem, error)
 	GetTestVM(t trigger.Type, tx *transaction.Transaction, b *block.Block) *vm.VM
 	GetTransaction(util.Uint256) (*transaction.Transaction, uint32, error)
+	JumpToState(module StateSync) error
 	SetOracle(service services.Oracle)
 	mempool.Feer // fee interface
 	ManagementContractHash() util.Uint160

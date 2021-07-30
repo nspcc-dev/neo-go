@@ -13,6 +13,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer/services"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/mempool"
+	"github.com/nspcc-dev/neo-go/pkg/core/mpt"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
@@ -40,6 +41,13 @@ type FakeChain struct {
 	NotaryDepositExpiration  uint32
 	PostBlock                []func(blockchainer.Blockchainer, *mempool.Pool, *block.Block)
 	UtilityTokenBalance      *big.Int
+}
+
+// FakeStateSync implements StateSync interface.
+type FakeStateSync struct {
+	IsActiveFlag      bool
+	IsInitializedFlag bool
+	InitFunc          func(h uint32) error
 }
 
 // NewFakeChain returns new FakeChain structure.
@@ -294,6 +302,16 @@ func (chain *FakeChain) GetStateModule() blockchainer.StateRoot {
 	return nil
 }
 
+// GetStateSyncModule implements Blockchainer interface.
+func (chain *FakeChain) GetStateSyncModule() blockchainer.StateSync {
+	return &FakeStateSync{}
+}
+
+// JumpToState implements Blockchainer interface.
+func (chain *FakeChain) JumpToState(module blockchainer.StateSync) error {
+	panic("TODO")
+}
+
 // GetStorageItem implements Blockchainer interface.
 func (chain *FakeChain) GetStorageItem(id int32, key []byte) state.StorageItem {
 	panic("TODO")
@@ -434,5 +452,59 @@ func (chain *FakeChain) UnsubscribeFromNotifications(ch chan<- *state.Notificati
 
 // UnsubscribeFromTransactions implements Blockchainer interface.
 func (chain *FakeChain) UnsubscribeFromTransactions(ch chan<- *transaction.Transaction) {
+	panic("TODO")
+}
+
+// AddBlock implements StateSync interface.
+func (s *FakeStateSync) AddBlock(block *block.Block) error {
+	panic("TODO")
+}
+
+// AddHeaders implements StateSync interface.
+func (s *FakeStateSync) AddHeaders(...*block.Header) error {
+	panic("TODO")
+}
+
+// AddMPTNodes implements StateSync interface.
+func (s *FakeStateSync) AddMPTNodes([][]byte) error {
+	panic("TODO")
+}
+
+// BlockHeight implements StateSync interface.
+func (s *FakeStateSync) BlockHeight() uint32 {
+	panic("TODO")
+}
+
+// IsActive implements StateSync interface.
+func (s *FakeStateSync) IsActive() bool { return s.IsActiveFlag }
+
+// IsInitialized implements StateSync interface.
+func (s *FakeStateSync) IsInitialized() bool {
+	return s.IsInitializedFlag
+}
+
+// Init implements StateSync interface.
+func (s *FakeStateSync) Init(currChainHeight uint32) error {
+	if s.InitFunc != nil {
+		return s.InitFunc(currChainHeight)
+	}
+	panic("TODO")
+}
+
+// NeedHeaders implements StateSync interface.
+func (s *FakeStateSync) NeedHeaders() bool { return false }
+
+// NeedMPTNodes implements StateSync interface.
+func (s *FakeStateSync) NeedMPTNodes() bool {
+	panic("TODO")
+}
+
+// Traverse implements StateSync interface.
+func (s *FakeStateSync) Traverse(root util.Uint256, process func(node mpt.Node, nodeBytes []byte) bool) error {
+	panic("TODO")
+}
+
+// GetJumpHeight implements StateSync interface.
+func (s *FakeStateSync) GetJumpHeight() (uint32, error) {
 	panic("TODO")
 }
