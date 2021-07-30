@@ -180,7 +180,7 @@ func getBlockHashFromItem(bc blockchainer.Blockchainer, item stackitem.Item) uti
 
 // getTransactionAndHeight returns transaction and its height if it's present
 // on the chain. It panics if anything goes wrong.
-func getTransactionAndHeight(cd *dao.Cached, item stackitem.Item) (*transaction.Transaction, uint32, error) {
+func getTransactionAndHeight(d dao.DAO, item stackitem.Item) (*transaction.Transaction, uint32, error) {
 	hashbytes, err := item.TryBytes()
 	if err != nil {
 		panic(err)
@@ -189,7 +189,7 @@ func getTransactionAndHeight(cd *dao.Cached, item stackitem.Item) (*transaction.
 	if err != nil {
 		panic(err)
 	}
-	return cd.GetTransaction(hash)
+	return d.GetTransaction(hash)
 }
 
 // BlockToStackItem converts block.Block to stackitem.Item.

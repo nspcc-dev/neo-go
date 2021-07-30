@@ -15,15 +15,13 @@ type Cached struct {
 	DAO
 	balances  map[util.Uint160]*state.NEP17TransferInfo
 	transfers map[util.Uint160]map[uint32]*state.NEP17TransferLog
-
-	dropNEP17Cache bool
 }
 
 // NewCached returns new Cached wrapping around given backing store.
 func NewCached(d DAO) *Cached {
 	balances := make(map[util.Uint160]*state.NEP17TransferInfo)
 	transfers := make(map[util.Uint160]map[uint32]*state.NEP17TransferLog)
-	return &Cached{d.GetWrapped(), balances, transfers, false}
+	return &Cached{d.GetWrapped(), balances, transfers}
 }
 
 // GetNEP17TransferInfo retrieves NEP17TransferInfo for the acc.
@@ -87,9 +85,6 @@ func (cd *Cached) Persist() (int, error) {
 	// usage scenario it should be good enough if cd doesn't modify object
 	// caches (accounts/transfer data) in any way.
 	if ok {
-		if cd.dropNEP17Cache {
-			lowerCache.balances = make(map[util.Uint160]*state.NEP17TransferInfo)
-		}
 		var simpleCache *Simple
 		for simpleCache == nil {
 			simpleCache, ok = lowerCache.DAO.(*Simple)
@@ -127,6 +122,5 @@ func (cd *Cached) GetWrapped() DAO {
 	return &Cached{cd.DAO.GetWrapped(),
 		cd.balances,
 		cd.transfers,
-		false,
 	}
 }

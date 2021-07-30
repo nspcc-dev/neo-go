@@ -42,7 +42,7 @@ type Context struct {
 	Block         *block.Block
 	NonceData     [16]byte
 	Tx            *transaction.Transaction
-	DAO           *dao.Cached
+	DAO           dao.DAO
 	Notifications []state.NotificationEvent
 	Log           *zap.Logger
 	VM            *vm.VM
@@ -54,7 +54,7 @@ type Context struct {
 func NewContext(trigger trigger.Type, bc blockchainer.Blockchainer, d dao.DAO,
 	getContract func(dao.DAO, util.Uint160) (*state.Contract, error), natives []Contract,
 	block *block.Block, tx *transaction.Transaction, log *zap.Logger) *Context {
-	dao := dao.NewCached(d)
+	dao := d.GetWrapped()
 	nes := make([]state.NotificationEvent, 0)
 	return &Context{
 		Chain:         bc,
