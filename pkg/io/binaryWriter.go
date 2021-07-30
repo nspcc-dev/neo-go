@@ -98,9 +98,13 @@ func (w *BinWriter) WriteBool(b bool) {
 // empty slices are gonna be treated the same resulting in equal zero-length
 // array encoded.
 func (w *BinWriter) WriteArray(arr interface{}) {
+	writeArray(w, arr)
+}
+
+func writeArray(w BinaryWriter, arr interface{}) {
 	switch val := reflect.ValueOf(arr); val.Kind() {
 	case reflect.Slice, reflect.Array:
-		if w.Err != nil {
+		if w.Error() != nil {
 			return
 		}
 
