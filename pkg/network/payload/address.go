@@ -39,7 +39,7 @@ func (p *AddressAndTime) DecodeBinary(br *io.BinReader) {
 }
 
 // EncodeBinary implements Serializable interface.
-func (p *AddressAndTime) EncodeBinary(bw *io.BinWriter) {
+func (p *AddressAndTime) EncodeBinary(bw io.BinaryWriter) {
 	bw.WriteU32LE(p.Timestamp)
 	bw.WriteBytes(p.IP[:])
 	p.Capabilities.EncodeBinary(bw)
@@ -86,6 +86,6 @@ func (p *AddressList) DecodeBinary(br *io.BinReader) {
 }
 
 // EncodeBinary implements Serializable interface.
-func (p *AddressList) EncodeBinary(bw *io.BinWriter) {
+func (p *AddressList) EncodeBinary(bw io.BinaryWriter) {
 	bw.WriteArray(p.Addrs)
 }

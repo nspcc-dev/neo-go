@@ -16,7 +16,7 @@ type smthSerializable struct {
 
 func (*smthSerializable) DecodeBinary(*io.BinReader) {}
 
-func (ss *smthSerializable) EncodeBinary(bw *io.BinWriter) {
+func (ss *smthSerializable) EncodeBinary(bw io.BinaryWriter) {
 	bw.WriteBytes(ss.some[:])
 }
 
@@ -25,8 +25,8 @@ type smthNotReallySerializable struct{}
 
 func (*smthNotReallySerializable) DecodeBinary(*io.BinReader) {}
 
-func (*smthNotReallySerializable) EncodeBinary(bw *io.BinWriter) {
-	bw.Err = fmt.Errorf("smth bad happened in smthNotReallySerializable")
+func (*smthNotReallySerializable) EncodeBinary(bw io.BinaryWriter) {
+	bw.SetError(fmt.Errorf("smth bad happened in smthNotReallySerializable"))
 }
 
 func TestVarSize(t *testing.T) {

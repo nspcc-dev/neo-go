@@ -33,7 +33,7 @@ func (p *Ping) DecodeBinary(br *io.BinReader) {
 }
 
 // EncodeBinary implements Serializable interface.
-func (p *Ping) EncodeBinary(bw *io.BinWriter) {
+func (p *Ping) EncodeBinary(bw io.BinaryWriter) {
 	bw.WriteU32LE(p.LastBlockIndex)
 	bw.WriteU32LE(p.Timestamp)
 	bw.WriteU32LE(p.Nonce)

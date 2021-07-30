@@ -6,6 +6,24 @@ import (
 	"reflect"
 )
 
+// BinaryWriter is an interface for serializing arbitrary structures to
+// some underlying stream.
+type BinaryWriter interface {
+	WriteU64LE(u64 uint64)
+	WriteU32LE(u32 uint32)
+	WriteU16LE(u16 uint16)
+	WriteU16BE(u16 uint16)
+	WriteB(u8 byte)
+	WriteBool(b bool)
+	WriteArray(arr interface{})
+	WriteVarUint(val uint64)
+	WriteBytes(b []byte)
+	WriteVarBytes(b []byte)
+	WriteString(s string)
+	Error() error
+	SetError(error)
+}
+
 // BinWriter is a convenient wrapper around a io.Writer and err object.
 // Used to simplify error handling when writing into a io.Writer
 // from a struct with many fields.
@@ -18,6 +36,10 @@ type BinWriter struct {
 	u8  []byte
 	Err error
 }
+
+func (w *BinWriter) Error() error       { return w.Err }
+func (w *BinWriter) SetError(err error) { w.Err = err }
+func (w *BinWriter) Reset()             {}
 
 // NewBinWriterFromIO makes a BinWriter from io.Writer.
 func NewBinWriterFromIO(iow io.Writer) *BinWriter {

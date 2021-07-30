@@ -30,7 +30,7 @@ func (s *MPTRoot) DecodeBinaryUnsigned(r *io.BinReader) {
 }
 
 // EncodeBinaryUnsigned encodes hashable part of state root..
-func (s *MPTRoot) EncodeBinaryUnsigned(w *io.BinWriter) {
+func (s *MPTRoot) EncodeBinaryUnsigned(w io.BinaryWriter) {
 	w.WriteB(s.Version)
 	w.WriteU32LE(s.Index)
 	s.Root.EncodeBinary(w)
@@ -43,7 +43,7 @@ func (s *MPTRoot) DecodeBinary(r *io.BinReader) {
 }
 
 // EncodeBinary implements io.Serializable.
-func (s *MPTRoot) EncodeBinary(w *io.BinWriter) {
+func (s *MPTRoot) EncodeBinary(w io.BinaryWriter) {
 	s.EncodeBinaryUnsigned(w)
 	w.WriteArray(s.Witness)
 }

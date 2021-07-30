@@ -53,7 +53,7 @@ func (attr *Attribute) DecodeBinary(br *io.BinReader) {
 }
 
 // EncodeBinary implements Serializable interface.
-func (attr *Attribute) EncodeBinary(bw *io.BinWriter) {
+func (attr *Attribute) EncodeBinary(bw io.BinaryWriter) {
 	bw.WriteB(byte(attr.Type))
 	switch t := attr.Type; t {
 	case HighPriority:
@@ -64,7 +64,7 @@ func (attr *Attribute) EncodeBinary(bw *io.BinWriter) {
 			attr.Value.EncodeBinary(bw)
 			break
 		}
-		bw.Err = fmt.Errorf("failed encoding TX attribute usage: 0x%2x", attr.Type)
+		bw.SetError(fmt.Errorf("failed encoding TX attribute usage: 0x%2x", attr.Type))
 	}
 }
 

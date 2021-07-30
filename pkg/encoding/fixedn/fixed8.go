@@ -119,7 +119,7 @@ func (f *Fixed8) DecodeBinary(r *io.BinReader) {
 }
 
 // EncodeBinary implements the io.Serializable interface.
-func (f *Fixed8) EncodeBinary(w *io.BinWriter) {
+func (f *Fixed8) EncodeBinary(w io.BinaryWriter) {
 	w.WriteU64LE(uint64(*f))
 }
 

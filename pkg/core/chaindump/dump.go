@@ -10,7 +10,7 @@ import (
 
 // Dump writes count blocks from start to the provided writer.
 // Note: header needs to be written separately by client.
-func Dump(bc blockchainer.Blockchainer, w *io.BinWriter, start, count uint32) error {
+func Dump(bc blockchainer.Blockchainer, w io.BinaryWriter, start, count uint32) error {
 	for i := start; i < start+count; i++ {
 		bh := bc.GetHeaderHash(int(i))
 		b, err := bc.GetBlock(bh)
@@ -22,8 +22,8 @@ func Dump(bc blockchainer.Blockchainer, w *io.BinWriter, start, count uint32) er
 		bytes := buf.Bytes()
 		w.WriteU32LE(uint32(len(bytes)))
 		w.WriteBytes(bytes)
-		if w.Err != nil {
-			return w.Err
+		if err := w.Error(); err != nil {
+			return err
 		}
 	}
 	return nil

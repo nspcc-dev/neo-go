@@ -121,7 +121,7 @@ func (p *Payload) SetHeight(h uint32) {
 }
 
 // EncodeBinary implements io.Serializable interface.
-func (p *Payload) EncodeBinary(w *io.BinWriter) {
+func (p *Payload) EncodeBinary(w io.BinaryWriter) {
 	p.encodeData()
 	p.Extensible.EncodeBinary(w)
 }
@@ -157,7 +157,7 @@ func (p *Payload) DecodeBinary(r *io.BinReader) {
 }
 
 // EncodeBinary implements io.Serializable interface.
-func (m *message) EncodeBinary(w *io.BinWriter) {
+func (m *message) EncodeBinary(w io.BinaryWriter) {
 	w.WriteB(byte(m.Type))
 	w.WriteU32LE(m.BlockIndex)
 	w.WriteB(m.ValidatorIndex)

@@ -185,7 +185,7 @@ func (p *Parameter) UnmarshalJSON(data []byte) (err error) {
 }
 
 // EncodeBinary implements io.Serializable interface.
-func (p *Parameter) EncodeBinary(w *io.BinWriter) {
+func (p *Parameter) EncodeBinary(w io.BinaryWriter) {
 	w.WriteB(byte(p.Type))
 	switch p.Type {
 	case BoolType:
@@ -210,7 +210,7 @@ func (p *Parameter) EncodeBinary(w *io.BinWriter) {
 		w.WriteBytes(p.Value.(util.Uint256).BytesBE())
 	case InteropInterfaceType, AnyType:
 	default:
-		w.Err = fmt.Errorf("unknown type: %x", p.Type)
+		w.SetError(fmt.Errorf("unknown type: %x", p.Type))
 	}
 }
 
@@ -254,7 +254,7 @@ func (p *Parameter) DecodeBinary(r *io.BinReader) {
 }
 
 // EncodeBinary implements io.Serializable interface.
-func (p *ParameterPair) EncodeBinary(w *io.BinWriter) {
+func (p *ParameterPair) EncodeBinary(w io.BinaryWriter) {
 	p.Key.EncodeBinary(w)
 	p.Value.EncodeBinary(w)
 }

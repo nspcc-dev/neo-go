@@ -33,7 +33,7 @@ func NewMessage(typ MessageType, p io.Serializable) *Message {
 }
 
 // EncodeBinary implements io.Serializable interface.
-func (m *Message) EncodeBinary(w *io.BinWriter) {
+func (m *Message) EncodeBinary(w io.BinaryWriter) {
 	w.WriteB(byte(m.Type))
 	m.Payload.EncodeBinary(w)
 }

@@ -20,7 +20,7 @@ type Signer struct {
 }
 
 // EncodeBinary implements Serializable interface.
-func (c *Signer) EncodeBinary(bw *io.BinWriter) {
+func (c *Signer) EncodeBinary(bw io.BinaryWriter) {
 	bw.WriteBytes(c.Account[:])
 	bw.WriteB(byte(c.Scopes))
 	if c.Scopes&CustomContracts != 0 {

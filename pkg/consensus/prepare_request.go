@@ -21,7 +21,7 @@ type prepareRequest struct {
 var _ payload.PrepareRequest = (*prepareRequest)(nil)
 
 // EncodeBinary implements io.Serializable interface.
-func (p *prepareRequest) EncodeBinary(w *io.BinWriter) {
+func (p *prepareRequest) EncodeBinary(w io.BinaryWriter) {
 	w.WriteU32LE(p.version)
 	w.WriteBytes(p.prevHash[:])
 	w.WriteU64LE(p.timestamp)

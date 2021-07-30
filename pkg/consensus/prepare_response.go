@@ -14,7 +14,7 @@ type prepareResponse struct {
 var _ payload.PrepareResponse = (*prepareResponse)(nil)
 
 // EncodeBinary implements io.Serializable interface.
-func (p *prepareResponse) EncodeBinary(w *io.BinWriter) {
+func (p *prepareResponse) EncodeBinary(w io.BinaryWriter) {
 	w.WriteBytes(p.preparationHash[:])
 }
 

@@ -19,7 +19,7 @@ func (cs *Capabilities) DecodeBinary(br *io.BinReader) {
 }
 
 // EncodeBinary implements Serializable interface.
-func (cs *Capabilities) EncodeBinary(br *io.BinWriter) {
+func (cs *Capabilities) EncodeBinary(br io.BinaryWriter) {
 	br.WriteArray(*cs)
 }
 
@@ -71,9 +71,9 @@ func (c *Capability) DecodeBinary(br *io.BinReader) {
 }
 
 // EncodeBinary implements Serializable interface.
-func (c *Capability) EncodeBinary(bw *io.BinWriter) {
+func (c *Capability) EncodeBinary(bw io.BinaryWriter) {
 	if c.Data == nil {
-		bw.Err = errors.New("capability has no data")
+		bw.SetError(errors.New("capability has no data"))
 		return
 	}
 	bw.WriteB(byte(c.Type))
@@ -91,7 +91,7 @@ func (n *Node) DecodeBinary(br *io.BinReader) {
 }
 
 // EncodeBinary implements Serializable interface.
-func (n *Node) EncodeBinary(bw *io.BinWriter) {
+func (n *Node) EncodeBinary(bw io.BinaryWriter) {
 	bw.WriteU32LE(n.StartHeight)
 }
 
@@ -107,6 +107,6 @@ func (s *Server) DecodeBinary(br *io.BinReader) {
 }
 
 // EncodeBinary implements Serializable interface.
-func (s *Server) EncodeBinary(bw *io.BinWriter) {
+func (s *Server) EncodeBinary(bw io.BinaryWriter) {
 	bw.WriteU16LE(s.Port)
 }

@@ -46,14 +46,14 @@ func (b *BranchNode) Bytes() []byte {
 }
 
 // EncodeBinary implements io.Serializable.
-func (b *BranchNode) EncodeBinary(w *io.BinWriter) {
+func (b *BranchNode) EncodeBinary(w io.BinaryWriter) {
 	for i := 0; i < childrenCount; i++ {
 		b.Children[i].EncodeBinaryAsChild(w)
 	}
 }
 
 // EncodeBinaryAsChild implements BaseNode interface.
-func (b *BranchNode) EncodeBinaryAsChild(w *io.BinWriter) {
+func (b *BranchNode) EncodeBinaryAsChild(w io.BinaryWriter) {
 	n := &NodeObject{Node: NewHashNode(b.Hash())} // with type
 	n.EncodeBinary(w)
 }

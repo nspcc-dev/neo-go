@@ -28,7 +28,7 @@ type AppExecResult struct {
 }
 
 // EncodeBinary implements the Serializable interface.
-func (ne *NotificationEvent) EncodeBinary(w *io.BinWriter) {
+func (ne *NotificationEvent) EncodeBinary(w io.BinaryWriter) {
 	ne.ScriptHash.EncodeBinary(w)
 	w.WriteString(ne.Name)
 	stackitem.EncodeBinary(ne.Item, w)
@@ -51,7 +51,7 @@ func (ne *NotificationEvent) DecodeBinary(r *io.BinReader) {
 }
 
 // EncodeBinary implements the Serializable interface.
-func (aer *AppExecResult) EncodeBinary(w *io.BinWriter) {
+func (aer *AppExecResult) EncodeBinary(w io.BinaryWriter) {
 	w.WriteBytes(aer.Container[:])
 	w.WriteB(byte(aer.Trigger))
 	w.WriteB(byte(aer.VMState))

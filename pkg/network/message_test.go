@@ -275,9 +275,9 @@ func TestInvalidMessages(t *testing.T) {
 
 type failSer bool
 
-func (f failSer) EncodeBinary(r *io.BinWriter) {
+func (f failSer) EncodeBinary(r io.BinaryWriter) {
 	if f {
-		r.Err = errors.New("unserializable payload")
+		r.SetError(errors.New("unserializable payload"))
 	}
 }
 

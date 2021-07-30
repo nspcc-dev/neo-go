@@ -129,7 +129,7 @@ func (pt *ParamType) UnmarshalYAML(unmarshal func(interface{}) error) error {
 }
 
 // EncodeBinary implements io.Serializable interface.
-func (pt ParamType) EncodeBinary(w *io.BinWriter) {
+func (pt ParamType) EncodeBinary(w io.BinaryWriter) {
 	w.WriteB(byte(pt))
 }
 

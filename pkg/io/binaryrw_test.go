@@ -327,7 +327,7 @@ func TestWriteBytes(t *testing.T) {
 type testSerializable uint16
 
 // EncodeBinary implements io.Serializable interface.
-func (t testSerializable) EncodeBinary(w *BinWriter) {
+func (t testSerializable) EncodeBinary(w BinaryWriter) {
 	w.WriteU16LE(uint16(t))
 }
 
@@ -339,7 +339,7 @@ func (t *testSerializable) DecodeBinary(r *BinReader) {
 type testPtrSerializable uint16
 
 // EncodeBinary implements io.Serializable interface.
-func (t *testPtrSerializable) EncodeBinary(w *BinWriter) {
+func (t *testPtrSerializable) EncodeBinary(w BinaryWriter) {
 	w.WriteU16LE(uint16(*t))
 }
 

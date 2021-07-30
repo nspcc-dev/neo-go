@@ -26,7 +26,7 @@ func (n *NotValidBefore) DecodeBinary(br *io.BinReader) {
 }
 
 // EncodeBinary implements io.Serializable interface.
-func (n *NotValidBefore) EncodeBinary(w *io.BinWriter) {
+func (n *NotValidBefore) EncodeBinary(w io.BinaryWriter) {
 	bytes := make([]byte, 4)
 	binary.LittleEndian.PutUint32(bytes, n.Height)
 	w.WriteVarBytes(bytes)

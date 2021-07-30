@@ -37,7 +37,7 @@ func (p *ProofWithKey) MarshalJSON() ([]byte, error) {
 }
 
 // EncodeBinary implements io.Serializable.
-func (p *ProofWithKey) EncodeBinary(w *io.BinWriter) {
+func (p *ProofWithKey) EncodeBinary(w io.BinaryWriter) {
 	w.WriteVarBytes(p.Key)
 	w.WriteVarUint(uint64(len(p.Proof)))
 	for i := range p.Proof {

@@ -37,7 +37,7 @@ type Node interface {
 }
 
 // EncodeBinary implements io.Serializable.
-func (n NodeObject) EncodeBinary(w *io.BinWriter) {
+func (n NodeObject) EncodeBinary(w io.BinaryWriter) {
 	encodeNodeWithType(n.Node, w)
 }
 

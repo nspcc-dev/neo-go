@@ -13,7 +13,7 @@ type Vote struct {
 }
 
 // EncodeBinary implements io.Serializable interface.
-func (p *Vote) EncodeBinary(w *io.BinWriter) {
+func (p *Vote) EncodeBinary(w io.BinaryWriter) {
 	w.WriteU32LE(uint32(p.ValidatorIndex))
 	w.WriteU32LE(p.Height)
 	w.WriteVarBytes(p.Signature)

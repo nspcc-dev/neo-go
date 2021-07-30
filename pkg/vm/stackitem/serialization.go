@@ -52,10 +52,10 @@ func Serialize(item Item) ([]byte, error) {
 // EncodeBinary encodes given Item into the given BinWriter. It's
 // similar to io.Serializable's EncodeBinary, but works with Item
 // interface.
-func EncodeBinary(item Item, w *io.BinWriter) {
+func EncodeBinary(item Item, w io.BinaryWriter) {
 	data, err := Serialize(item)
 	if err != nil {
-		w.Err = err
+		w.SetError(err)
 		return
 	}
 	w.WriteBytes(data)
@@ -66,7 +66,7 @@ func EncodeBinary(item Item, w *io.BinWriter) {
 // value is lost) and doesn't return any errors in w, instead if error
 // (like recursive array) is encountered it just writes special InvalidT
 // type of element to w.
-func EncodeBinaryProtected(item Item, w *io.BinWriter) {
+func EncodeBinaryProtected(item Item, w io.BinaryWriter) {
 	sc := serContext{
 		allowInvalid: true,
 		seen:         make(map[Item]sliceNoPointer),

@@ -17,7 +17,7 @@ const signatureSize = 64
 var _ payload.Commit = (*commit)(nil)
 
 // EncodeBinary implements io.Serializable interface.
-func (c *commit) EncodeBinary(w *io.BinWriter) {
+func (c *commit) EncodeBinary(w io.BinaryWriter) {
 	w.WriteBytes(c.signature[:])
 }
 

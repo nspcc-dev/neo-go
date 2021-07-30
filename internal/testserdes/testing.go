@@ -54,7 +54,7 @@ func DecodeBinary(data []byte, a io.Serializable) error {
 }
 
 type encodable interface {
-	Encode(*io.BinWriter) error
+	Encode(io.BinaryWriter) error
 	Decode(*io.BinReader) error
 }
 

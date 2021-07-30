@@ -17,20 +17,20 @@ import (
 )
 
 // Instruction emits a VM Instruction with data to the given buffer.
-func Instruction(w *io.BinWriter, op opcode.Opcode, b []byte) {
+func Instruction(w io.BinaryWriter, op opcode.Opcode, b []byte) {
 	w.WriteB(byte(op))
 	w.WriteBytes(b)
 }
 
 // Opcodes emits a single VM Instruction without arguments to the given buffer.
-func Opcodes(w *io.BinWriter, ops ...opcode.Opcode) {
+func Opcodes(w io.BinaryWriter, ops ...opcode.Opcode) {
 	for _, op := range ops {
 		w.WriteB(byte(op))
 	}
 }
 
 // Bool emits a bool type the given buffer.
-func Bool(w *io.BinWriter, ok bool) {
+func Bool(w io.BinaryWriter, ok bool) {
 	if ok {
 		Opcodes(w, opcode.PUSHT)
 	} else {
@@ -51,7 +51,7 @@ func padRight(s int, buf []byte) []byte {
 }
 
 // Int emits a int type to the given buffer.
-func Int(w *io.BinWriter, i int64) {
+func Int(w io.BinaryWriter, i int64) {
 	switch {
 	case i == -1:
 		Opcodes(w, opcode.PUSHM1)
@@ -63,7 +63,7 @@ func Int(w *io.BinWriter, i int64) {
 	}
 }
 
-func bigInt(w *io.BinWriter, n *big.Int) {
+func bigInt(w io.BinaryWriter, n *big.Int) {
 	buf := bigint.ToPreallocatedBytes(n, make([]byte, 0, 32))
 	if len(buf) == 0 {
 		Opcodes(w, opcode.PUSH0)
@@ -75,7 +75,7 @@ func bigInt(w *io.BinWriter, n *big.Int) {
 }
 
 // Array emits array of elements to the given buffer.
-func Array(w *io.BinWriter, es ...interface{}) {
+func Array(w io.BinaryWriter, es ...interface{}) {
 	for i := len(es) - 1; i >= 0; i-- {
 		switch e := es[i].(type) {
 		case []interface{}:
@@ -96,7 +96,7 @@ func Array(w *io.BinWriter, es ...interface{}) {
 			Bool(w, e)
 		default:
 			if es[i] != nil {
-				w.Err = fmt.Errorf("unsupported type: %T", e)
+				w.SetError(fmt.Errorf("unsupported type: %T", e))
 				return
 			}
 			Opcodes(w, opcode.PUSHNULL)
@@ -107,12 +107,12 @@ func Array(w *io.BinWriter, es ...interface{}) {
 }
 
 // String emits a string to the given buffer.
-func String(w *io.BinWriter, s string) {
+func String(w io.BinaryWriter, s string) {
 	Bytes(w, []byte(s))
 }
 
 // Bytes emits a byte array to the given buffer.
-func Bytes(w *io.BinWriter, b []byte) {
+func Bytes(w io.BinaryWriter, b []byte) {
 	var n = len(b)
 
 	switch {
@@ -132,11 +132,11 @@ func Bytes(w *io.BinWriter, b []byte) {
 
 // Syscall emits the syscall API to the given buffer.
 // Syscall API string cannot be 0.
-func Syscall(w *io.BinWriter, api string) {
-	if w.Err != nil {
+func Syscall(w io.BinaryWriter, api string) {
+	if w.Error() != nil {
 		return
 	} else if len(api) == 0 {
-		w.Err = errors.New("syscall api cannot be of length 0")
+		w.SetError(errors.New("syscall api cannot be of length 0"))
 		return
 	}
 	buf := make([]byte, 4)
@@ -145,16 +145,16 @@ func Syscall(w *io.BinWriter, api string) {
 }
 
 // Call emits a call Instruction with label to the given buffer.
-func Call(w *io.BinWriter, op opcode.Opcode, label uint16) {
+func Call(w io.BinaryWriter, op opcode.Opcode, label uint16) {
 	Jmp(w, op, label)
 }
 
 // Jmp emits a jump Instruction along with label to the given buffer.
-func Jmp(w *io.BinWriter, op opcode.Opcode, label uint16) {
-	if w.Err != nil {
+func Jmp(w io.BinaryWriter, op opcode.Opcode, label uint16) {
+	if w.Error() != nil {
 		return
 	} else if !isInstructionJmp(op) {
-		w.Err = fmt.Errorf("opcode %s is not a jump or call type", op.String())
+		w.SetError(fmt.Errorf("opcode %s is not a jump or call type", op.String()))
 		return
 	}
 	buf := make([]byte, 4)
@@ -163,7 +163,7 @@ func Jmp(w *io.BinWriter, op opcode.Opcode, label uint16) {
 }
 
 // AppCallNoArgs emits call to provided contract.
-func AppCallNoArgs(w *io.BinWriter, scriptHash util.Uint160, operation string, f callflag.CallFlag) {
+func AppCallNoArgs(w io.BinaryWriter, scriptHash util.Uint160, operation string, f callflag.CallFlag) {
 	Int(w, int64(f))
 	String(w, operation)
 	Bytes(w, scriptHash.BytesBE())
@@ -171,7 +171,7 @@ func AppCallNoArgs(w *io.BinWriter, scriptHash util.Uint160, operation string, f
 }
 
 // AppCall emits an APPCALL with the default parameters given operation and arguments.
-func AppCall(w *io.BinWriter, scriptHash util.Uint160, operation string, f callflag.CallFlag, args ...interface{}) {
+func AppCall(w io.BinaryWriter, scriptHash util.Uint160, operation string, f callflag.CallFlag, args ...interface{}) {
 	Array(w, args...)
 	AppCallNoArgs(w, scriptHash, operation, f)
 }

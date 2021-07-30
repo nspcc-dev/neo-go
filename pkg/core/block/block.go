@@ -145,7 +145,7 @@ func (b *Block) DecodeBinary(br *io.BinReader) {
 
 // EncodeBinary encodes the block to the given BinWriter, implementing
 // Serializable interface.
-func (b *Block) EncodeBinary(bw *io.BinWriter) {
+func (b *Block) EncodeBinary(bw io.BinaryWriter) {
 	b.Header.EncodeBinary(bw)
 	bw.WriteVarUint(uint64(len(b.Transactions)))
 	for i := 0; i < len(b.Transactions); i++ {

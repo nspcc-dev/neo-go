@@ -25,7 +25,7 @@ func (c *Conflicts) DecodeBinary(br *io.BinReader) {
 }
 
 // EncodeBinary implements io.Serializable interface.
-func (c *Conflicts) EncodeBinary(w *io.BinWriter) {
+func (c *Conflicts) EncodeBinary(w io.BinaryWriter) {
 	w.WriteVarBytes(c.Hash.BytesBE())
 }
 

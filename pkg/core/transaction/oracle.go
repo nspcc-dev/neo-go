@@ -103,7 +103,7 @@ func (r *OracleResponse) DecodeBinary(br *io.BinReader) {
 }
 
 // EncodeBinary implements io.Serializable interface.
-func (r *OracleResponse) EncodeBinary(w *io.BinWriter) {
+func (r *OracleResponse) EncodeBinary(w io.BinaryWriter) {
 	w.WriteU64LE(r.ID)
 	w.WriteB(byte(r.Code))
 	w.WriteVarBytes(r.Result)

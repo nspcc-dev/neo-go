@@ -87,13 +87,13 @@ func (r *P2PNotaryRequest) DecodeBinary(br *io.BinReader) {
 }
 
 // encodeHashableFields writes payload to w excluding signature.
-func (r *P2PNotaryRequest) encodeHashableFields(bw *io.BinWriter) {
+func (r *P2PNotaryRequest) encodeHashableFields(bw io.BinaryWriter) {
 	r.MainTransaction.EncodeBinary(bw)
 	r.FallbackTransaction.EncodeBinary(bw)
 }
 
 // EncodeBinary implements Serializable interface.
-func (r *P2PNotaryRequest) EncodeBinary(bw *io.BinWriter) {
+func (r *P2PNotaryRequest) EncodeBinary(bw io.BinaryWriter) {
 	r.encodeHashableFields(bw)
 	r.Witness.EncodeBinary(bw)
 }

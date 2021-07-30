@@ -50,7 +50,7 @@ func (p *Version) DecodeBinary(br *io.BinReader) {
 }
 
 // EncodeBinary implements Serializable interface.
-func (p *Version) EncodeBinary(bw *io.BinWriter) {
+func (p *Version) EncodeBinary(bw io.BinaryWriter) {
 	bw.WriteU32LE(uint32(p.Magic))
 	bw.WriteU32LE(p.Version)
 	bw.WriteU32LE(p.Timestamp)

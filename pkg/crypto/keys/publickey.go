@@ -299,7 +299,7 @@ func (p *PublicKey) DecodeBinary(r *io.BinReader) {
 }
 
 // EncodeBinary encodes a PublicKey to the given BinWriter.
-func (p *PublicKey) EncodeBinary(w *io.BinWriter) {
+func (p *PublicKey) EncodeBinary(w io.BinaryWriter) {
 	w.WriteBytes(p.Bytes())
 }
 

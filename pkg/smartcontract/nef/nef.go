@@ -68,10 +68,10 @@ func NewFile(script []byte) (*File, error) {
 }
 
 // EncodeBinary implements io.Serializable interface.
-func (h *Header) EncodeBinary(w *io.BinWriter) {
+func (h *Header) EncodeBinary(w io.BinaryWriter) {
 	w.WriteU32LE(h.Magic)
 	if len(h.Compiler) > compilerFieldSize {
-		w.Err = errors.New("invalid compiler name length")
+		w.SetError(errors.New("invalid compiler name length"))
 		return
 	}
 	var b = make([]byte, compilerFieldSize)
@@ -104,7 +104,7 @@ func (n *File) CalculateChecksum() uint32 {
 }
 
 // EncodeBinary implements io.Serializable interface.
-func (n *File) EncodeBinary(w *io.BinWriter) {
+func (n *File) EncodeBinary(w io.BinaryWriter) {
 	n.Header.EncodeBinary(w)
 	w.WriteU16LE(0)
 	w.WriteArray(n.Tokens)

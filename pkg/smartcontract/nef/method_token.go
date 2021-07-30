@@ -32,7 +32,7 @@ type MethodToken struct {
 }
 
 // EncodeBinary implements io.Serializable.
-func (t *MethodToken) EncodeBinary(w *io.BinWriter) {
+func (t *MethodToken) EncodeBinary(w io.BinaryWriter) {
 	w.WriteBytes(t.Hash[:])
 	w.WriteString(t.Method)
 	w.WriteU16LE(t.ParamCount)

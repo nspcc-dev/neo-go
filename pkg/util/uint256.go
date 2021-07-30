@@ -118,7 +118,7 @@ func (u Uint256) MarshalJSON() ([]byte, error) {
 func (u Uint256) CompareTo(other Uint256) int { return bytes.Compare(u[:], other[:]) }
 
 // EncodeBinary implements io.Serializable interface.
-func (u *Uint256) EncodeBinary(w *io.BinWriter) {
+func (u *Uint256) EncodeBinary(w io.BinaryWriter) {
 	w.WriteBytes(u[:])
 }
 

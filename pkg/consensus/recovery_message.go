@@ -74,7 +74,7 @@ func (m *recoveryMessage) DecodeBinary(r *io.BinReader) {
 }
 
 // EncodeBinary implements io.Serializable interface.
-func (m *recoveryMessage) EncodeBinary(w *io.BinWriter) {
+func (m *recoveryMessage) EncodeBinary(w io.BinaryWriter) {
 	w.WriteArray(m.changeViewPayloads)
 
 	hasReq := m.prepareRequest != nil
@@ -103,7 +103,7 @@ func (p *changeViewCompact) DecodeBinary(r *io.BinReader) {
 }
 
 // EncodeBinary implements io.Serializable interface.
-func (p *changeViewCompact) EncodeBinary(w *io.BinWriter) {
+func (p *changeViewCompact) EncodeBinary(w io.BinaryWriter) {
 	w.WriteB(p.ValidatorIndex)
 	w.WriteB(p.OriginalViewNumber)
 	w.WriteU64LE(p.Timestamp)
@@ -119,7 +119,7 @@ func (p *commitCompact) DecodeBinary(r *io.BinReader) {
 }
 
 // EncodeBinary implements io.Serializable interface.
-func (p *commitCompact) EncodeBinary(w *io.BinWriter) {
+func (p *commitCompact) EncodeBinary(w io.BinaryWriter) {
 	w.WriteB(p.ViewNumber)
 	w.WriteB(p.ValidatorIndex)
 	w.WriteBytes(p.Signature[:])
@@ -133,7 +133,7 @@ func (p *preparationCompact) DecodeBinary(r *io.BinReader) {
 }
 
 // EncodeBinary implements io.Serializable interface.
-func (p *preparationCompact) EncodeBinary(w *io.BinWriter) {
+func (p *preparationCompact) EncodeBinary(w io.BinaryWriter) {
 	w.WriteB(p.ValidatorIndex)
 	w.WriteVarBytes(p.InvocationScript)
 }

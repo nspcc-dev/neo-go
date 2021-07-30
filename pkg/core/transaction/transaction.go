@@ -164,16 +164,16 @@ func (t *Transaction) DecodeBinary(br *io.BinReader) {
 }
 
 // EncodeBinary implements Serializable interface.
-func (t *Transaction) EncodeBinary(bw *io.BinWriter) {
+func (t *Transaction) EncodeBinary(bw io.BinaryWriter) {
 	t.encodeHashableFields(bw)
 	bw.WriteArray(t.Scripts)
 }
 
 // encodeHashableFields encodes the fields that are not used for
 // signing the transaction, which are all fields except the scripts.
-func (t *Transaction) encodeHashableFields(bw *io.BinWriter) {
+func (t *Transaction) encodeHashableFields(bw io.BinaryWriter) {
 	if len(t.Script) == 0 {
-		bw.Err = errors.New("transaction has no script")
+		bw.SetError(errors.New("transaction has no script"))
 		return
 	}
 	bw.WriteB(byte(t.Version))

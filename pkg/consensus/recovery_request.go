@@ -18,7 +18,7 @@ func (m *recoveryRequest) DecodeBinary(r *io.BinReader) {
 }
 
 // EncodeBinary implements io.Serializable interface.
-func (m *recoveryRequest) EncodeBinary(w *io.BinWriter) {
+func (m *recoveryRequest) EncodeBinary(w io.BinaryWriter) {
 	w.WriteU64LE(m.timestamp)
 }
 

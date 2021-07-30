@@ -15,7 +15,7 @@ func (e *Reserved) DecodeBinary(br *io.BinReader) {
 }
 
 // EncodeBinary implements io.Serializable interface.
-func (e *Reserved) EncodeBinary(w *io.BinWriter) {
+func (e *Reserved) EncodeBinary(w io.BinaryWriter) {
 	w.WriteVarBytes(e.Value)
 }
 

@@ -66,7 +66,7 @@ func (bs *NEP17TransferInfo) DecodeBinary(r *io.BinReader) {
 }
 
 // EncodeBinary implements io.Serializable interface.
-func (bs *NEP17TransferInfo) EncodeBinary(w *io.BinWriter) {
+func (bs *NEP17TransferInfo) EncodeBinary(w io.BinaryWriter) {
 	w.WriteU32LE(bs.NextTransferBatch)
 	w.WriteBool(bs.NewBatch)
 	w.WriteVarUint(uint64(len(bs.LastUpdated)))
@@ -128,7 +128,7 @@ func (lg *NEP17TransferLog) Size() int {
 }
 
 // EncodeBinary implements io.Serializable interface.
-func (t *NEP17Transfer) EncodeBinary(w *io.BinWriter) {
+func (t *NEP17Transfer) EncodeBinary(w io.BinaryWriter) {
 	w.WriteU32LE(uint32(t.Asset))
 	w.WriteBytes(t.Tx[:])
 	w.WriteBytes(t.From[:])

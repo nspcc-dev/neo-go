@@ -23,4 +23,4 @@ func NewNullPayload() NullPayload {
 func (p NullPayload) DecodeBinary(r *io.BinReader) {}
 
 // EncodeBinary implements Serializable interface.
-func (p NullPayload) EncodeBinary(w *io.BinWriter) {}
+func (p NullPayload) EncodeBinary(w io.BinaryWriter) {}

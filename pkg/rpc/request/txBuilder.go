@@ -16,7 +16,7 @@ import (
 
 // ExpandArrayIntoScript pushes all FuncParam parameters from the given array
 // into the given buffer in reverse order.
-func ExpandArrayIntoScript(script *io.BinWriter, slice []Param) error {
+func ExpandArrayIntoScript(script io.BinaryWriter, slice []Param) error {
 	for j := len(slice) - 1; j >= 0; j-- {
 		fp, err := slice[j].GetFuncParam()
 		if err != nil {

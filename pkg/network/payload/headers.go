@@ -57,6 +57,6 @@ func (p *Headers) DecodeBinary(br *io.BinReader) {
 }
 
 // EncodeBinary implements Serializable interface.
-func (p *Headers) EncodeBinary(bw *io.BinWriter) {
+func (p *Headers) EncodeBinary(bw io.BinaryWriter) {
 	bw.WriteArray(p.Hdrs)
 }

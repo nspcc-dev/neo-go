@@ -36,7 +36,7 @@ func NewExtensible() *Extensible {
 	return &Extensible{}
 }
 
-func (e *Extensible) encodeBinaryUnsigned(w *io.BinWriter) {
+func (e *Extensible) encodeBinaryUnsigned(w io.BinaryWriter) {
 	w.WriteString(e.Category)
 	w.WriteU32LE(e.ValidBlockStart)
 	w.WriteU32LE(e.ValidBlockEnd)
@@ -45,7 +45,7 @@ func (e *Extensible) encodeBinaryUnsigned(w *io.BinWriter) {
 }
 
 // EncodeBinary implements io.Serializable.
-func (e *Extensible) EncodeBinary(w *io.BinWriter) {
+func (e *Extensible) EncodeBinary(w io.BinaryWriter) {
 	e.encodeBinaryUnsigned(w)
 	w.WriteB(1)
 	e.Witness.EncodeBinary(w)

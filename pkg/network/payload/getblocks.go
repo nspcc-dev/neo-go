@@ -37,7 +37,7 @@ func (p *GetBlocks) DecodeBinary(br *io.BinReader) {
 }
 
 // EncodeBinary implements Serializable interface.
-func (p *GetBlocks) EncodeBinary(bw *io.BinWriter) {
+func (p *GetBlocks) EncodeBinary(bw io.BinaryWriter) {
 	p.HashStart.EncodeBinary(bw)
 	bw.WriteU16LE(uint16(p.Count))
 }

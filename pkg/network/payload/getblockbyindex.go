@@ -30,7 +30,7 @@ func (d *GetBlockByIndex) DecodeBinary(br *io.BinReader) {
 }
 
 // EncodeBinary implements Serializable interface.
-func (d *GetBlockByIndex) EncodeBinary(bw *io.BinWriter) {
+func (d *GetBlockByIndex) EncodeBinary(bw io.BinaryWriter) {
 	bw.WriteU32LE(d.IndexStart)
 	bw.WriteU16LE(uint16(d.Count))
 }

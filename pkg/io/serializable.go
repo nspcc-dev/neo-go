@@ -8,7 +8,7 @@ package io
 // panic in presence of error.
 type Serializable interface {
 	DecodeBinary(*BinReader)
-	EncodeBinary(*BinWriter)
+	EncodeBinary(BinaryWriter)
 }
 
 type decodable interface {
@@ -16,5 +16,5 @@ type decodable interface {
 }
 
 type encodable interface {
-	EncodeBinary(*BinWriter)
+	EncodeBinary(BinaryWriter)
 }

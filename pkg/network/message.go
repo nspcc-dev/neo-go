@@ -173,7 +173,7 @@ func (m *Message) decodePayload() error {
 }
 
 // Encode encodes a Message to any given BinWriter.
-func (m *Message) Encode(br *io.BinWriter) error {
+func (m *Message) Encode(br io.BinaryWriter) error {
 	if err := m.tryCompressPayload(); err != nil {
 		return err
 	}
@@ -184,7 +184,7 @@ func (m *Message) Encode(br *io.BinWriter) error {
 	} else {
 		br.WriteB(0)
 	}
-	return br.Err
+	return br.Error()
 }
 
 // Bytes serializes a Message into the new allocated buffer and returns it.

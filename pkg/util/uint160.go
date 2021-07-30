@@ -136,7 +136,7 @@ func (u Uint160) MarshalJSON() ([]byte, error) {
 }
 
 // EncodeBinary implements Serializable interface.
-func (u *Uint160) EncodeBinary(bw *io.BinWriter) {
+func (u *Uint160) EncodeBinary(bw io.BinaryWriter) {
 	bw.WriteBytes(u[:])
 }
 

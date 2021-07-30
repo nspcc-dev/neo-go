@@ -52,12 +52,12 @@ func (n *LeafNode) DecodeBinary(r *io.BinReader) {
 }
 
 // EncodeBinary implements io.Serializable.
-func (n LeafNode) EncodeBinary(w *io.BinWriter) {
+func (n LeafNode) EncodeBinary(w io.BinaryWriter) {
 	w.WriteVarBytes(n.value)
 }
 
 // EncodeBinaryAsChild implements BaseNode interface.
-func (n *LeafNode) EncodeBinaryAsChild(w *io.BinWriter) {
+func (n *LeafNode) EncodeBinaryAsChild(w io.BinaryWriter) {
 	no := &NodeObject{Node: NewHashNode(n.Hash())} // with type
 	no.EncodeBinary(w)
 }

@@ -28,7 +28,7 @@ func (n *NotaryAssisted) DecodeBinary(br *io.BinReader) {
 }
 
 // EncodeBinary implements io.Serializable interface.
-func (n *NotaryAssisted) EncodeBinary(w *io.BinWriter) {
+func (n *NotaryAssisted) EncodeBinary(w io.BinaryWriter) {
 	w.WriteVarBytes([]byte{n.NKeys})
 }
 

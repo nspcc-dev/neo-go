@@ -91,7 +91,7 @@ func (b *Header) DecodeBinary(br *io.BinReader) {
 }
 
 // EncodeBinary implements Serializable interface.
-func (b *Header) EncodeBinary(bw *io.BinWriter) {
+func (b *Header) EncodeBinary(bw io.BinaryWriter) {
 	b.encodeHashableFields(bw)
 	bw.WriteVarUint(1)
 	b.Script.EncodeBinary(bw)
@@ -113,7 +113,7 @@ func (b *Header) createHash() {
 
 // encodeHashableFields will only encode the fields used for hashing.
 // see Hash() for more information about the fields.
-func (b *Header) encodeHashableFields(bw *io.BinWriter) {
+func (b *Header) encodeHashableFields(bw io.BinaryWriter) {
 	bw.WriteU32LE(b.Version)
 	bw.WriteBytes(b.PrevHash[:])
 	bw.WriteBytes(b.MerkleRoot[:])

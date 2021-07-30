@@ -33,7 +33,7 @@ type TestSerializable struct {
 	field string
 }
 
-func (t *TestSerializable) EncodeBinary(writer *io.BinWriter) {
+func (t *TestSerializable) EncodeBinary(writer io.BinaryWriter) {
 	writer.WriteString(t.field)
 }
 

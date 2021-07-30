@@ -51,7 +51,7 @@ func (h *HashNode) DecodeBinary(r *io.BinReader) {
 }
 
 // EncodeBinary implements io.Serializable.
-func (h HashNode) EncodeBinary(w *io.BinWriter) {
+func (h HashNode) EncodeBinary(w io.BinaryWriter) {
 	if !h.hashValid {
 		return
 	}
@@ -59,7 +59,7 @@ func (h HashNode) EncodeBinary(w *io.BinWriter) {
 }
 
 // EncodeBinaryAsChild implements BaseNode interface.
-func (h *HashNode) EncodeBinaryAsChild(w *io.BinWriter) {
+func (h *HashNode) EncodeBinaryAsChild(w io.BinaryWriter) {
 	no := &NodeObject{Node: h} // with type
 	no.EncodeBinary(w)
 }

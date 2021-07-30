@@ -64,7 +64,7 @@ func (p *Inventory) DecodeBinary(br *io.BinReader) {
 }
 
 // EncodeBinary implements Serializable interface.
-func (p *Inventory) EncodeBinary(bw *io.BinWriter) {
+func (p *Inventory) EncodeBinary(bw io.BinaryWriter) {
 	bw.WriteB(byte(p.Type))
 	bw.WriteArray(p.Hashes)
 }

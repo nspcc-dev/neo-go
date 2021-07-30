@@ -29,7 +29,7 @@ func (w *Witness) DecodeBinary(br *io.BinReader) {
 }
 
 // EncodeBinary implements Serializable interface.
-func (w *Witness) EncodeBinary(bw *io.BinWriter) {
+func (w *Witness) EncodeBinary(bw io.BinaryWriter) {
 	bw.WriteVarBytes(w.InvocationScript)
 	bw.WriteVarBytes(w.VerificationScript)
 }
