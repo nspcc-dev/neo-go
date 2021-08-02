@@ -560,27 +560,33 @@ func invokeInternal(ctx *cli.Context, signAndPush bool) error {
 		return exitErr
 	}
 
-	_, err = invokeWithArgs(ctx, signAndPush, script, operation, params, cosigners)
+	var (
+		acc *wallet.Account
+		w   *wallet.Wallet
+	)
+	if signAndPush {
+		acc, w, err = getAccFromContext(ctx)
+		if err != nil {
+			return cli.NewExitError(err, 1)
+		}
+	}
+
+	_, err = invokeWithArgs(ctx, acc, w, script, operation, params, cosigners)
 	return err
 }
 
-func invokeWithArgs(ctx *cli.Context, signAndPush bool, script util.Uint160, operation string, params []smartcontract.Parameter, cosigners []transaction.Signer) (util.Uint160, error) {
+func invokeWithArgs(ctx *cli.Context, acc *wallet.Account, wall *wallet.Wallet, script util.Uint160, operation string, params []smartcontract.Parameter, cosigners []transaction.Signer) (util.Uint160, error) {
 	var (
 		err               error
 		gas, sysgas       fixedn.Fixed8
 		cosignersAccounts []client.SignerAccount
 		resp              *result.Invoke
-		acc               *wallet.Account
-		wall              *wallet.Wallet
 		sender            util.Uint160
+		signAndPush       = acc != nil
 	)
 	if signAndPush {
 		gas = flags.Fixed8FromContext(ctx, "gas")
 		sysgas = flags.Fixed8FromContext(ctx, "sysgas")
-		acc, wall, err = getAccFromContext(ctx)
-		if err != nil {
-			return sender, err
-		}
 		sender, err = address.StringToUint160(acc.Address)
 		if err != nil {
 			return sender, err
@@ -826,7 +832,18 @@ func contractDeploy(ctx *cli.Context) error {
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("failed to get management contract's hash: %w", err), 1)
 	}
-	sender, extErr := invokeWithArgs(ctx, true, mgmtHash, "deploy", appCallParams, nil)
+
+	acc, w, err := getAccFromContext(ctx)
+	if err != nil {
+		return cli.NewExitError(fmt.Errorf("can't get sender address: %w", err), 1)
+	}
+
+	cosigners := []transaction.Signer{{
+		Account: acc.Contract.ScriptHash(),
+		Scopes:  transaction.CalledByEntry,
+	}}
+
+	sender, extErr := invokeWithArgs(ctx, acc, w, mgmtHash, "deploy", appCallParams, cosigners)
 	if extErr != nil {
 		return extErr
 	}
