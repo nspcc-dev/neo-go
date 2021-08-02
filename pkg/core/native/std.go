@@ -204,7 +204,7 @@ func (s *Std) jsonDeserialize(_ *interop.Context, args []stackitem.Item) stackit
 		panic(err)
 	}
 
-	item, err := stackitem.FromJSON(data)
+	item, err := stackitem.FromJSON(data, stackitem.MaxDeserialized)
 	if err != nil {
 		panic(err)
 	}

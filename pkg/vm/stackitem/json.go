@@ -15,6 +15,7 @@ import (
 type decoder struct {
 	json.Decoder
 
+	count int
 	depth int
 }
 
@@ -157,8 +158,11 @@ func itemToJSONString(it Item) ([]byte, error) {
 //   null -> Null
 //   array -> Array
 //   map -> Map, keys are UTF-8
-func FromJSON(data []byte) (Item, error) {
-	d := decoder{Decoder: *json.NewDecoder(bytes.NewReader(data))}
+func FromJSON(data []byte, maxCount int) (Item, error) {
+	d := decoder{
+		Decoder: *json.NewDecoder(bytes.NewReader(data)),
+		count:   maxCount,
+	}
 	if item, err := d.decode(); err != nil {
 		return nil, err
 	} else if _, err := d.Token(); err != gio.EOF {
@@ -173,6 +177,12 @@ func (d *decoder) decode() (Item, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	d.count--
+	if d.count < 0 && tok != json.Delim('}') && tok != json.Delim(']') {
+		return nil, errTooBigElements
+	}
+
 	switch t := tok.(type) {
 	case json.Delim:
 		switch t {
@@ -190,6 +200,7 @@ func (d *decoder) decode() (Item, error) {
 			d.depth--
 			return item, err
 		default:
+			d.count++
 			// no error above means corresponding closing token
 			// was encountered for map or array respectively
 			return nil, nil
@@ -233,6 +244,11 @@ func (d *decoder) decodeMap() (*Map, error) {
 		k, ok := key.(string)
 		if !ok {
 			return m, nil
+		}
+
+		d.count--
+		if d.count < 0 {
+			return nil, errTooBigElements
 		}
 		val, err := d.decode()
 		if err != nil {
