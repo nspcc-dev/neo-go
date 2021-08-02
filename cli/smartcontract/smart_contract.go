@@ -370,6 +370,36 @@ func NewCommands() []cli.Command {
 					},
 				},
 			},
+			{
+				Name:  "manifest",
+				Usage: "manifest-related commands",
+				Subcommands: []cli.Command{
+					{
+						Name:   "add-group",
+						Usage:  "adds group to the manifest",
+						Action: manifestAddGroup,
+						Flags: []cli.Flag{
+							walletFlag,
+							cli.StringFlag{
+								Name:  "sender, s",
+								Usage: "deploy transaction sender",
+							},
+							cli.StringFlag{
+								Name:  "account, a",
+								Usage: "account to sign group with",
+							},
+							cli.StringFlag{
+								Name:  "nef, n",
+								Usage: "path to the NEF file",
+							},
+							cli.StringFlag{
+								Name:  "manifest, m",
+								Usage: "path to the manifest",
+							},
+						},
+					},
+				},
+			},
 		},
 	}}
 }
@@ -750,22 +780,32 @@ func getAccFromContext(ctx *cli.Context) (*wallet.Account, *wallet.Wallet, error
 	} else {
 		addr = wall.GetChangeAddress()
 	}
+
+	acc, err := getUnlockedAccount(wall, addr)
+	return acc, wall, err
+}
+
+func getUnlockedAccount(wall *wallet.Wallet, addr util.Uint160) (*wallet.Account, error) {
 	acc := wall.GetAccount(addr)
 	if acc == nil {
-		return nil, nil, cli.NewExitError(fmt.Errorf("wallet contains no account for '%s'", address.Uint160ToString(addr)), 1)
+		return nil, cli.NewExitError(fmt.Errorf("wallet contains no account for '%s'", address.Uint160ToString(addr)), 1)
+	}
+
+	if acc.PrivateKey() != nil {
+		return acc, nil
 	}
 
 	rawPass, err := input.ReadPassword(
 		fmt.Sprintf("Enter account %s password > ", address.Uint160ToString(addr)))
 	if err != nil {
-		return nil, nil, cli.NewExitError(err, 1)
+		return nil, cli.NewExitError(err, 1)
 	}
 	pass := strings.TrimRight(string(rawPass), "\n")
 	err = acc.Decrypt(pass, wall.Scrypt)
 	if err != nil {
-		return nil, nil, cli.NewExitError(err, 1)
+		return nil, cli.NewExitError(err, 1)
 	}
-	return acc, wall, nil
+	return acc, nil
 }
 
 // contractDeploy deploys contract.

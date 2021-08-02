@@ -227,6 +227,47 @@ func TestContractDeployWithData(t *testing.T) {
 	require.Equal(t, []byte("take_me_to_church"), res.Stack[0].Value())
 }
 
+func TestContractManifestGroups(t *testing.T) {
+	e := newExecutor(t, true)
+
+	// For proper nef generation.
+	config.Version = "0.90.0-test"
+
+	tmpDir, err := ioutil.TempDir("", "neogo.test.deployfail")
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		os.RemoveAll(tmpDir)
+	})
+
+	w, err := wallet.NewWalletFromFile(testWalletPath)
+	require.NoError(t, err)
+	defer w.Close()
+
+	nefName := path.Join(tmpDir, "deploy.nef")
+	manifestName := path.Join(tmpDir, "deploy.manifest.json")
+	e.Run(t, "neo-go", "contract", "compile",
+		"--in", "testdata/deploy/main.go", // compile single file
+		"--config", "testdata/deploy/neo-go.yml",
+		"--out", nefName, "--manifest", manifestName)
+
+	cmd := []string{"neo-go", "contract", "manifest", "add-group",
+		"--nef", nefName, "--manifest", manifestName}
+
+	e.In.WriteString("testpass\r")
+	e.Run(t, append(cmd, "--wallet", testWalletPath,
+		"--sender", testWalletAccount, "--account", testWalletAccount)...)
+
+	e.In.WriteString("testpass\r") // should override signature with the previous sender
+	e.Run(t, append(cmd, "--wallet", testWalletPath,
+		"--sender", validatorAddr, "--account", testWalletAccount)...)
+
+	e.In.WriteString("one\r")
+	e.Run(t, "neo-go", "contract", "deploy",
+		"--rpc-endpoint", "http://"+e.RPC.Addr,
+		"--in", nefName, "--manifest", manifestName,
+		"--wallet", validatorWallet, "--address", validatorAddr)
+}
+
 func deployVerifyContract(t *testing.T, e *executor) util.Uint160 {
 	return deployContract(t, e, "testdata/verify.go", "testdata/verify.yml", validatorWallet, validatorAddr, "one")
 }
