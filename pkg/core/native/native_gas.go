@@ -108,7 +108,8 @@ func (g *GAS) Initialize(ic *interop.Context) error {
 	if err := g.nep17TokenNative.Initialize(ic); err != nil {
 		return err
 	}
-	if g.nep17TokenNative.getTotalSupply(ic.DAO).Sign() != 0 {
+	_, totalSupply := g.nep17TokenNative.getTotalSupply(ic.DAO)
+	if totalSupply.Sign() != 0 {
 		return errors.New("already initialized")
 	}
 	h, err := getStandbyValidatorsHash(ic)

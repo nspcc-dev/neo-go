@@ -189,7 +189,8 @@ func (n *NEO) Initialize(ic *interop.Context) error {
 		return err
 	}
 
-	if n.nep17TokenNative.getTotalSupply(ic.DAO).Sign() != 0 {
+	_, totalSupply := n.nep17TokenNative.getTotalSupply(ic.DAO)
+	if totalSupply.Sign() != 0 {
 		return errors.New("already initialized")
 	}
 
@@ -977,7 +978,8 @@ func (n *NEO) computeCommitteeMembers(bc blockchainer.Blockchainer, d dao.DAO) (
 	votersCount := bigint.FromBytes(si)
 	// votersCount / totalSupply must be >= 0.2
 	votersCount.Mul(votersCount, big.NewInt(effectiveVoterTurnout))
-	voterTurnout := votersCount.Div(votersCount, n.getTotalSupply(d))
+	_, totalSupply := n.getTotalSupply(d)
+	voterTurnout := votersCount.Div(votersCount, totalSupply)
 
 	sbVals := bc.GetStandByCommittee()
 	count := len(sbVals)

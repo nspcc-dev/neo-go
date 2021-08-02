@@ -95,19 +95,21 @@ func (c *nep17TokenNative) Decimals(_ *interop.Context, _ []stackitem.Item) stac
 }
 
 func (c *nep17TokenNative) TotalSupply(ic *interop.Context, _ []stackitem.Item) stackitem.Item {
-	return stackitem.NewBigInteger(c.getTotalSupply(ic.DAO))
+	_, supply := c.getTotalSupply(ic.DAO)
+	return stackitem.NewBigInteger(supply)
 }
 
-func (c *nep17TokenNative) getTotalSupply(d dao.DAO) *big.Int {
+func (c *nep17TokenNative) getTotalSupply(d dao.DAO) (state.StorageItem, *big.Int) {
 	si := d.GetStorageItem(c.ID, totalSupplyKey)
 	if si == nil {
-		return big.NewInt(0)
+		si = []byte{}
 	}
-	return bigint.FromBytes(si)
+	return si, bigint.FromBytes(si)
 }
 
-func (c *nep17TokenNative) saveTotalSupply(d dao.DAO, supply *big.Int) error {
-	return d.PutStorageItem(c.ID, totalSupplyKey, bigint.ToBytes(supply))
+func (c *nep17TokenNative) saveTotalSupply(d dao.DAO, si state.StorageItem, supply *big.Int) error {
+	si = state.StorageItem(bigint.ToPreallocatedBytes(supply, si))
+	return d.PutStorageItem(c.ID, totalSupplyKey, si)
 }
 
 func (c *nep17TokenNative) Transfer(ic *interop.Context, args []stackitem.Item) stackitem.Item {
@@ -283,9 +285,9 @@ func (c *nep17TokenNative) addTokens(ic *interop.Context, h util.Uint160, amount
 		panic(err)
 	}
 
-	supply := c.getTotalSupply(ic.DAO)
+	buf, supply := c.getTotalSupply(ic.DAO)
 	supply.Add(supply, amount)
-	err = c.saveTotalSupply(ic.DAO, supply)
+	err = c.saveTotalSupply(ic.DAO, buf, supply)
 	if err != nil {
 		panic(err)
 	}
