@@ -222,8 +222,16 @@ const (
 	CONVERT Opcode = 0xDB
 )
 
+var validCodes [256]bool
+
+func init() {
+	// We rely on stringer here, it has a map anyway.
+	for op := range _Opcode_map {
+		validCodes[int(op)] = true
+	}
+}
+
 // IsValid returns true if the opcode passed is valid (defined in the VM).
 func IsValid(op Opcode) bool {
-	_, ok := _Opcode_map[op] // We rely on stringer here, it has a map anyway.
-	return ok
+	return validCodes[int(op)]
 }
