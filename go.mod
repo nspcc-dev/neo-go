@@ -11,7 +11,7 @@ require (
 	github.com/gorilla/websocket v1.4.2
 	github.com/hashicorp/golang-lru v0.5.4
 	github.com/mr-tron/base58 v1.2.0
-	github.com/nspcc-dev/dbft v0.0.0-20210721160347-1b03241391ac
+	github.com/nspcc-dev/dbft v0.0.0-20210804111001-41b1d27e4f22
 	github.com/nspcc-dev/neofs-api-go v1.27.1
 	github.com/nspcc-dev/rfc6979 v0.2.0
 	github.com/pierrec/lz4 v2.6.1+incompatible
