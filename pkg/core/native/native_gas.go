@@ -54,13 +54,17 @@ func newGAS(init int64) *GAS {
 	return g
 }
 
-func (g *GAS) increaseBalance(_ *interop.Context, _ util.Uint160, si *state.StorageItem, amount *big.Int) error {
+func (g *GAS) increaseBalance(_ *interop.Context, _ util.Uint160, si *state.StorageItem, amount *big.Int, checkBal *big.Int) error {
 	acc, err := state.NEP17BalanceFromBytes(*si)
 	if err != nil {
 		return err
 	}
 	if sign := amount.Sign(); sign == 0 {
-		return nil
+		// Requested self-transfer amount can be higher than actual balance.
+		if checkBal != nil && acc.Balance.Cmp(checkBal) < 0 {
+			err = errors.New("insufficient funds")
+		}
+		return err
 	} else if sign == -1 && acc.Balance.Cmp(new(big.Int).Neg(amount)) == -1 {
 		return errors.New("insufficient funds")
 	}

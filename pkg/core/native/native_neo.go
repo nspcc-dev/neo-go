@@ -391,12 +391,13 @@ func (n *NEO) getGASPerVote(d dao.DAO, key []byte, index ...uint32) []big.Int {
 	return reward
 }
 
-func (n *NEO) increaseBalance(ic *interop.Context, h util.Uint160, si *state.StorageItem, amount *big.Int) error {
+func (n *NEO) increaseBalance(ic *interop.Context, h util.Uint160, si *state.StorageItem, amount *big.Int, checkBal *big.Int) error {
 	acc, err := state.NEOBalanceFromBytes(*si)
 	if err != nil {
 		return err
 	}
-	if amount.Sign() == -1 && acc.Balance.Cmp(new(big.Int).Neg(amount)) == -1 {
+	if (amount.Sign() == -1 && acc.Balance.Cmp(new(big.Int).Neg(amount)) == -1) ||
+		(amount.Sign() == 0 && checkBal != nil && acc.Balance.Cmp(checkBal) == -1) {
 		return errors.New("insufficient funds")
 	}
 	if err := n.distributeGas(ic, h, acc); err != nil {
