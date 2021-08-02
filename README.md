@@ -2,7 +2,7 @@
 <img src="./.github/neo_color_dark_gopher.png" width="300px" alt="logo">
 </p>
 <p align="center">
-  <b>Go</b> Node and SDK for the <a href="https://neo.org">NEO</a> blockchain.
+  <b>Go</b> Node and SDK for the <a href="https://neo.org">Neo</a> blockchain.
 </p>
 
 <hr />
@@ -30,12 +30,10 @@ A complete toolkit for the NEO blockchain, including:
 - [Oracle service](docs/oracle.md)
 - [State validation service](docs/stateroots.md)
 
-This branch (**master**) is under active development now (read: won't work
-out of the box) and aims to be compatible with Neo 3. For the current stable
-version compatible with Neo 2 please refer to the [**master-2.x**
+This branch (**master**) is Neo N3-compatible. For the current
+Legacy-compatible version please refer to the [**master-2.x**
 branch](https://github.com/nspcc-dev/neo-go/tree/master-2.x) and releases
-before 0.80.0 (**0.7X.Y** track). Releases starting from 0.90.0 contain
-Neo 3 code (0.90.0 being compatible with Neo 3 preview2).
+before 0.80.0 (**0.7X.Y** track).
 
 # Getting started
 
