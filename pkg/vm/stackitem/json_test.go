@@ -11,7 +11,7 @@ import (
 
 func getTestDecodeFunc(js string, expected ...interface{}) func(t *testing.T) {
 	return func(t *testing.T) {
-		actual, err := FromJSON([]byte(js))
+		actual, err := FromJSON([]byte(js), 20)
 		if expected[0] == nil {
 			require.Error(t, err)
 			return
@@ -50,6 +50,14 @@ func TestFromToJSON(t *testing.T) {
 			NewArray([]Item{NewBigInteger(big.NewInt(1)), NewByteArray([]byte("test")), NewBool(true), Null{}})))
 		t.Run("Nested", getTestDecodeFunc(`[[],[{},null]]`,
 			NewArray([]Item{NewArray([]Item{}), NewArray([]Item{NewMap(), Null{}})})))
+		t.Run("ManyElements", func(t *testing.T) {
+			js := `[1, 2, 3]` // 3 elements + array itself
+			_, err := FromJSON([]byte(js), 4)
+			require.NoError(t, err)
+
+			_, err = FromJSON([]byte(js), 3)
+			require.True(t, errors.Is(err, errTooBigElements), err)
+		})
 	})
 	t.Run("Map", func(t *testing.T) {
 		small := NewMap()
@@ -64,6 +72,15 @@ func TestFromToJSON(t *testing.T) {
 		m := NewMap()
 		m.Add(NewByteArray([]byte("\t")), NewBool(true))
 		t.Run("escape keys", getTestDecodeFunc(`{"\t":true}`, m))
+
+		t.Run("ManyElements", func(t *testing.T) {
+			js := `{"a":1,"b":3}` // 4 elements + map itself
+			_, err := FromJSON([]byte(js), 5)
+			require.NoError(t, err)
+
+			_, err = FromJSON([]byte(js), 4)
+			require.True(t, errors.Is(err, errTooBigElements), err)
+		})
 	})
 	t.Run("Invalid", func(t *testing.T) {
 		t.Run("Empty", getTestDecodeFunc(``, nil))
@@ -114,7 +131,7 @@ func testToJSON(t *testing.T, expectedErr error, item Item) {
 	}
 	require.NoError(t, err)
 
-	actual, err := FromJSON(data)
+	actual, err := FromJSON(data, 1024)
 	require.NoError(t, err)
 	require.Equal(t, item, actual)
 }
