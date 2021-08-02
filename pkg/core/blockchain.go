@@ -98,8 +98,12 @@ type Blockchain struct {
 	// with the only writer being the block addition logic.
 	lock sync.RWMutex
 
-	// Data access object for CRUD operations around storage.
+	// Data access object for CRUD operations around storage. It's write-cached.
 	dao *dao.Simple
+
+	// persistent is the same DB as dao, but we never write to it, so all reads
+	// are directly from underlying persistent store.
+	persistent *dao.Simple
 
 	// Current index/height of the highest block.
 	// Read access should always be called by BlockHeight().
@@ -215,6 +219,7 @@ func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration, log *zap.L
 	bc := &Blockchain{
 		config:      cfg,
 		dao:         dao.NewSimple(s, cfg.StateRootInHeader),
+		persistent:  dao.NewSimple(s, cfg.StateRootInHeader),
 		stopCh:      make(chan struct{}),
 		runToExitCh: make(chan struct{}),
 		memPool:     mempool.New(cfg.MemPoolSize, 0, false),
@@ -1190,14 +1195,14 @@ func (bc *Blockchain) persist() (time.Duration, error) {
 		return 0, err
 	}
 	if persisted > 0 {
-		bHeight, err := bc.dao.GetCurrentBlockHeight()
+		bHeight, err := bc.persistent.GetCurrentBlockHeight()
 		if err != nil {
 			return 0, err
 		}
 		oldHeight := atomic.SwapUint32(&bc.persistedHeight, bHeight)
 		diff := bHeight - oldHeight
 
-		storedHeaderHeight, _, err := bc.dao.GetCurrentHeaderHeight()
+		storedHeaderHeight, _, err := bc.persistent.GetCurrentHeaderHeight()
 		if err != nil {
 			return 0, err
 		}
