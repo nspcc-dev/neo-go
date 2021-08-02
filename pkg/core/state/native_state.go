@@ -91,15 +91,18 @@ func (s *NEOBalance) Bytes() []byte {
 
 // ToStackItem implements stackitem.Convertible interface. It never returns an error.
 func (s *NEOBalance) ToStackItem() (stackitem.Item, error) {
-	resItem, _ := s.NEP17Balance.ToStackItem()
-	result := resItem.(*stackitem.Struct)
-	result.Append(stackitem.NewBigInteger(big.NewInt(int64(s.BalanceHeight))))
+	var voteItem stackitem.Item
+
 	if s.VoteTo != nil {
-		result.Append(stackitem.NewByteArray(s.VoteTo.Bytes()))
+		voteItem = stackitem.NewByteArray(s.VoteTo.Bytes())
 	} else {
-		result.Append(stackitem.Null{})
+		voteItem = stackitem.Null{}
 	}
-	return result, nil
+	return stackitem.NewStruct([]stackitem.Item{
+		stackitem.NewBigInteger(&s.Balance),
+		stackitem.NewBigInteger(big.NewInt(int64(s.BalanceHeight))),
+		voteItem,
+	}), nil
 }
 
 // FromStackItem converts stackitem.Item to NEOBalance.
