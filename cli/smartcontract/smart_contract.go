@@ -810,33 +810,14 @@ func getUnlockedAccount(wall *wallet.Wallet, addr util.Uint160) (*wallet.Account
 
 // contractDeploy deploys contract.
 func contractDeploy(ctx *cli.Context) error {
-	in := ctx.String("in")
-	if len(in) == 0 {
-		return cli.NewExitError(errNoInput, 1)
-	}
-	manifestFile := ctx.String("manifest")
-	if len(manifestFile) == 0 {
-		return cli.NewExitError(errNoManifestFile, 1)
-	}
-
-	f, err := ioutil.ReadFile(in)
+	nefFile, f, err := readNEFFile(ctx.String("in"))
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
-	// Check the file.
-	nefFile, err := nef.FileFromBytes(f)
-	if err != nil {
-		return cli.NewExitError(fmt.Errorf("failed to read .nef file: %w", err), 1)
-	}
 
-	manifestBytes, err := ioutil.ReadFile(manifestFile)
+	m, manifestBytes, err := readManifest(ctx.String("manifest"))
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("failed to read manifest file: %w", err), 1)
-	}
-	m := &manifest.Manifest{}
-	err = json.Unmarshal(manifestBytes, m)
-	if err != nil {
-		return cli.NewExitError(fmt.Errorf("failed to restore manifest file: %w", err), 1)
 	}
 
 	appCallParams := []smartcontract.Parameter{
