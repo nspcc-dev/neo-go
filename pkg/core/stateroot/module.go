@@ -82,28 +82,49 @@ func (s *Module) CurrentValidatedHeight() uint32 {
 }
 
 // Init initializes state root module at the given height.
-func (s *Module) Init(height uint32, enableRefCount bool) error {
+func (s *Module) Init(height uint32, span uint32, enableRefCount, removeUntraceable bool) error {
 	data, err := s.Store.Get([]byte{byte(storage.DataMPT), prefixValidated})
 	if err == nil {
 		s.validatedHeight.Store(binary.LittleEndian.Uint32(data))
 	}
 
+	// Removing untraceable blocks needs reference counters.
+	enableRefCount = enableRefCount || removeUntraceable
 	var gcKey = []byte{byte(storage.DataMPT), prefixGC}
 	if height == 0 {
-		s.mpt = mpt.NewTrie(nil, mpt.Config{Store: s.Store})
-		var val byte
+		s.mpt = mpt.NewTrie(nil, mpt.Config{
+			Store:           s.Store,
+			RefCountEnabled: enableRefCount,
+			GenerationSpan:  span,
+		})
+		val := make([]byte, 5)
 		if enableRefCount {
-			val = 1
+			val[0] = 1
 		}
+		if removeUntraceable {
+			val[0] |= 2
+		}
+		binary.LittleEndian.PutUint32(val[1:], span)
 		s.currentLocal.Store(util.Uint256{})
-		return s.Store.Put(gcKey, []byte{val})
+		return s.Store.Put(gcKey, val)
 	}
-	var hasRefCount bool
+
+	var hasRefCount, hasRemoveUntraceable bool
+	var oldSpan uint32
 	if v, err := s.Store.Get(gcKey); err == nil {
-		hasRefCount = v[0] != 0
+		hasRefCount = v[0]&1 != 0
+		hasRemoveUntraceable = v[0]&2 != 0
+		oldSpan = binary.LittleEndian.Uint32(v[1:])
 	}
 	if hasRefCount != enableRefCount {
 		return fmt.Errorf("KeepOnlyLatestState setting mismatch: old=%v, new=%v", hasRefCount, enableRefCount)
+	}
+	if hasRemoveUntraceable != removeUntraceable {
+		return fmt.Errorf("RemoveUntraceableBlocks setting mismatch: old=%v, new=%v",
+			hasRemoveUntraceable, removeUntraceable)
+	}
+	if oldSpan != span {
+		return fmt.Errorf("mismatched generation spans: old=%v, new=%v (wrong StateSyncInterval?)", oldSpan, span)
 	}
 	r, err := s.getStateRoot(makeStateRootKey(height))
 	if err != nil {
@@ -112,6 +133,8 @@ func (s *Module) Init(height uint32, enableRefCount bool) error {
 	s.currentLocal.Store(r.Root)
 	s.localHeight.Store(r.Index)
 	s.mpt = mpt.NewTrie(mpt.NewHashNode(r.Root), mpt.Config{
+		Generation:      r.Index / span,
+		GenerationSpan:  span,
 		RefCountEnabled: enableRefCount,
 		Store:           s.Store,
 	})
@@ -160,7 +183,7 @@ func (s *Module) CleanStorage() error {
 }
 
 // JumpToState performs jump to the state specified by given stateroot index.
-func (s *Module) JumpToState(sr *state.MPTRoot, enableRefCount bool) error {
+func (s *Module) JumpToState(sr *state.MPTRoot, enableRefCount, removeUntraceable bool) error {
 	if err := s.addLocalStateRoot(s.Store, sr); err != nil {
 		return fmt.Errorf("failed to store local state root: %w", err)
 	}
@@ -174,21 +197,48 @@ func (s *Module) JumpToState(sr *state.MPTRoot, enableRefCount bool) error {
 
 	s.currentLocal.Store(sr.Root)
 	s.localHeight.Store(sr.Index)
+
+	gcKey := []byte{byte(storage.DataMPT), prefixGC}
+	gcVal, err := s.Store.Get(gcKey)
+	if err != nil {
+		return fmt.Errorf("failed to get GC flag: %w", err)
+	}
+	span := binary.LittleEndian.Uint32(gcVal[1:])
 	s.mpt = mpt.NewTrie(mpt.NewHashNode(sr.Root), mpt.Config{
+		Generation:      sr.Index / span,
+		GenerationSpan:  span,
 		Store:           s.Store,
 		RefCountEnabled: enableRefCount,
 	})
 	return nil
 }
 
+// RemoveMPTAtHeight removes all MPT data for height. It should be executed
+// only when reference counting is enabled.
+func (s *Module) RemoveMPTAtHeight(height uint32) error {
+	sr, err := s.GetStateRoot(height)
+	if err != nil {
+		return fmt.Errorf("can't get old state root: %w", err)
+	}
+
+	return mpt.RemoveRoot(sr.Root, mpt.Config{
+		Generation:      height / s.mpt.GenerationSpan,
+		GenerationSpan:  s.mpt.GenerationSpan,
+		Store:           s.Store,
+		RefCountEnabled: true,
+	})
+}
+
 // AddMPTBatch updates using provided batch.
 func (s *Module) AddMPTBatch(index uint32, b mpt.Batch, cache *storage.MemCachedStore) (*mpt.Trie, *state.MPTRoot, error) {
+	s.mpt.Generation = index / s.mpt.GenerationSpan
 	mpt := *s.mpt
 	mpt.Store = cache
 	if _, err := mpt.PutBatch(b); err != nil {
 		return nil, nil, err
 	}
 	mpt.Flush()
+
 	sr := &state.MPTRoot{
 		Index: index,
 		Root:  mpt.StateRoot(),

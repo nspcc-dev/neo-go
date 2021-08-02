@@ -321,7 +321,7 @@ func (bc *Blockchain) init() error {
 		if err != nil {
 			return err
 		}
-		if err := bc.stateRoot.Init(0, bc.config.KeepOnlyLatestState); err != nil {
+		if err := bc.stateRoot.Init(0, 1, bc.config.KeepOnlyLatestState, bc.config.RemoveUntraceableBlocks); err != nil {
 			return fmt.Errorf("can't init MPT: %w", err)
 		}
 		return bc.storeBlock(genesisBlock, nil)
@@ -406,7 +406,7 @@ func (bc *Blockchain) init() error {
 	}
 	bc.blockHeight = bHeight
 	bc.persistedHeight = bHeight
-	if err = bc.stateRoot.Init(bHeight, bc.config.KeepOnlyLatestState); err != nil {
+	if err = bc.stateRoot.Init(bHeight, 1, bc.config.KeepOnlyLatestState, bc.config.RemoveUntraceableBlocks); err != nil {
 		return fmt.Errorf("can't init MPT at height %d: %w", bHeight, err)
 	}
 
@@ -579,7 +579,7 @@ func (bc *Blockchain) jumpToStateInternal(p uint32, stage stateJumpStage) error 
 	if err = bc.stateRoot.JumpToState(&state.MPTRoot{
 		Index: p,
 		Root:  block.PrevStateRoot,
-	}, bc.config.KeepOnlyLatestState); err != nil {
+	}, bc.config.KeepOnlyLatestState, bc.config.RemoveUntraceableBlocks); err != nil {
 		return fmt.Errorf("can't perform MPT jump to height %d: %w", p, err)
 	}
 
@@ -960,6 +960,15 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 						zap.Error(err))
 				}
 				writeBuf.Reset()
+
+				if !bc.config.KeepOnlyLatestState {
+					err := bc.stateRoot.RemoveMPTAtHeight(index)
+					if err != nil {
+						bc.log.Error("can't remove old MPT state data",
+							zap.Uint32("height", index),
+							zap.Error(err))
+					}
+				}
 			}
 		}
 		close(blockdone)

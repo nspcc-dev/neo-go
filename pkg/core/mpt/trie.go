@@ -22,14 +22,18 @@ type Trie struct {
 
 // Config represents MPT configuration.
 type Config struct {
-	Store           storage.Store
-	RefCountEnabled bool
+	Store             storage.Store
+	RefCountEnabled   bool
+	RemoveUntraceable bool
+	Generation        uint32
+	GenerationSpan    uint32
 }
 
 type cachedNode struct {
-	bytes    []byte
-	initial  int32
-	refcount int32
+	bytes     []byte
+	initial   int32
+	createdAt uint32
+	refcount  int32
 }
 
 // ErrNotFound is returned when requested trie item is missing.
@@ -48,6 +52,67 @@ func NewTrie(root Node, cfg Config) *Trie {
 		root:   root,
 
 		refcount: make(map[util.Uint256]*cachedNode),
+	}
+}
+
+// RemoveRoot removes all unused nodes from trie rooted at h.
+func RemoveRoot(h util.Uint256, cfg Config) error {
+	tr := NewTrie(NewHashNode(h), cfg)
+
+	key := make([]byte, 1+util.Uint256Size)
+	key[0] = byte(storage.DataMPT)
+
+	err := tr.removeNode(tr.root, key)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (t *Trie) removeNode(nd Node, key []byte) error {
+	switch n := nd.(type) {
+	case *HashNode:
+		copy(key[1:], n.Hash().BytesBE())
+		data, err := t.Store.Get(key)
+		if err != nil {
+			return nil
+		}
+
+		rc := int32(binary.LittleEndian.Uint32(data[len(data)-12:]))
+		removedAt := binary.LittleEndian.Uint32(data[len(data)-4:])
+		if rc != 0 || removedAt != t.Generation+1 {
+			return nil
+		}
+
+		var no NodeObject
+		r := io.NewBinReaderFromBuf(data)
+		no.DecodeBinary(r)
+		if r.Err != nil {
+			return r.Err
+		}
+
+		err = t.removeNode(no.Node, key)
+		if err != nil {
+			return err
+		}
+
+		// Remove parent after children to prevent them being inaccessible
+		// in case of transient error.
+		copy(key[1:], n.Hash().BytesBE())
+		return t.Store.Delete(key)
+	case *BranchNode:
+		for i := range n.Children {
+			if err := t.removeNode(n.Children[i], key); err != nil {
+				return err
+			}
+		}
+		return nil
+	case *ExtensionNode:
+		return t.removeNode(n.next, key)
+	case EmptyNode, *LeafNode:
+		return nil
+	default:
+		panic("invalid node type")
 	}
 }
 
@@ -391,20 +456,37 @@ func (t *Trie) updateRefCount(h util.Uint256) int32 {
 	if !t.RefCountEnabled {
 		panic("`updateRefCount` is called, but GC is disabled")
 	}
+
+	offset := 4
+	if t.RemoveUntraceable {
+		offset += 8
+	}
+
 	var data []byte
 	key := makeStorageKey(h.BytesBE())
 	node := t.refcount[h]
 	cnt := node.initial
+	createdAt := node.createdAt
+
 	if cnt == 0 {
 		// A newly created item which may be in store.
 		var err error
 		data, err = t.Store.Get(key)
 		if err == nil {
-			cnt = int32(binary.LittleEndian.Uint32(data[len(data)-4:]))
+			cnt = int32(binary.LittleEndian.Uint32(data[len(data)-offset:]))
+			if t.RemoveUntraceable {
+				createdAt = binary.LittleEndian.Uint32(data[len(data)-8:])
+			}
+		} else if t.RemoveUntraceable {
+			createdAt = t.Generation
 		}
 	}
 	if len(data) == 0 {
+		createdAt = t.Generation
 		data = append(node.bytes, 0, 0, 0, 0)
+		if t.RemoveUntraceable {
+			data = append(data, 0, 0, 0, 0, 0, 0, 0, 0)
+		}
 	}
 	cnt += node.refcount
 	switch {
@@ -412,9 +494,21 @@ func (t *Trie) updateRefCount(h util.Uint256) int32 {
 		// BUG: negative reference count
 		panic(fmt.Sprintf("negative reference count: %s new %d, upd %d", h.StringBE(), cnt, t.refcount[h]))
 	case cnt == 0:
-		_ = t.Store.Delete(key)
+		if !t.RemoveUntraceable || t.Generation < createdAt {
+			_ = t.Store.Delete(key)
+			return cnt
+		}
+		binary.LittleEndian.PutUint32(data[len(data)-4:], t.Generation)
+		binary.LittleEndian.PutUint32(data[len(data)-offset:], 0)
+		_ = t.Store.Put(key, data)
+
 	default:
-		binary.LittleEndian.PutUint32(data[len(data)-4:], uint32(cnt))
+		if t.RemoveUntraceable {
+			if createdAt == t.Generation { // don't override creation index for already present items.
+				binary.LittleEndian.PutUint32(data[len(data)-8:], t.Generation)
+			}
+		}
+		binary.LittleEndian.PutUint32(data[len(data)-offset:], uint32(cnt))
 		_ = t.Store.Put(key, data)
 	}
 	return cnt
@@ -464,11 +558,18 @@ func (t *Trie) getFromStore(h util.Uint256) (Node, error) {
 	}
 
 	if t.RefCountEnabled {
-		data = data[:len(data)-4]
+		offset := 4
+		if t.RemoveUntraceable {
+			offset += 8
+		}
+		data = data[:len(data)-offset]
 		node := t.refcount[h]
 		if node != nil {
 			node.bytes = data
 			node.initial = int32(r.ReadU32LE())
+			if t.RemoveUntraceable {
+				node.createdAt = r.ReadU32LE()
+			}
 		}
 	}
 	n.Node.(flushedNode).setCache(data, h)
