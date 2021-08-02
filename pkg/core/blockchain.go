@@ -727,15 +727,10 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 
 			writeBuf.Reset()
 			if bc.config.P2PSigExtensions {
-				for _, attr := range tx.GetAttributes(transaction.ConflictsT) {
-					hash := attr.Value.(*transaction.Conflicts).Hash
-					dummyTx := transaction.NewTrimmedTX(hash)
-					dummyTx.Version = transaction.DummyVersion
-					if err := kvcache.StoreAsTransaction(dummyTx, block.Index, writeBuf); err != nil {
-						blockdone <- fmt.Errorf("failed to store conflicting transaction %s for transaction %s: %w", hash.StringLE(), tx.Hash().StringLE(), err)
-						return
-					}
-					writeBuf.Reset()
+				err := kvcache.StoreConflictingTransactions(tx, block.Index, writeBuf)
+				if err != nil {
+					blockdone <- err
+					return
 				}
 			}
 		}

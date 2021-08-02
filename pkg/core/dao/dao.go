@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	iocore "io"
 	"sort"
 
@@ -63,6 +64,7 @@ type DAO interface {
 	StoreAsBlock(block *block.Block, buf *io.BufBinWriter) error
 	StoreAsCurrentBlock(block *block.Block, buf *io.BufBinWriter) error
 	StoreAsTransaction(tx *transaction.Transaction, index uint32, buf *io.BufBinWriter) error
+	StoreConflictingTransactions(tx *transaction.Transaction, index uint32, buf *io.BufBinWriter) error
 	putNEP17TransferInfo(acc util.Uint160, bs *state.NEP17TransferInfo, buf *io.BufBinWriter) error
 }
 
@@ -587,6 +589,25 @@ func (dao *Simple) StoreAsTransaction(tx *transaction.Transaction, index uint32,
 		return buf.Err
 	}
 	return dao.Store.Put(key, buf.Bytes())
+}
+
+// StoreConflictingTransactions stores transactions given tx has conflicts with
+// as DataTransaction with dummy version. It can reuse given buffer for the
+// purpose of value serialization.
+func (dao *Simple) StoreConflictingTransactions(tx *transaction.Transaction, index uint32, buf *io.BufBinWriter) error {
+	if buf == nil {
+		buf = io.NewBufBinWriter()
+	}
+	for _, attr := range tx.GetAttributes(transaction.ConflictsT) {
+		hash := attr.Value.(*transaction.Conflicts).Hash
+		dummyTx := transaction.NewTrimmedTX(hash)
+		dummyTx.Version = transaction.DummyVersion
+		if err := dao.StoreAsTransaction(dummyTx, index, buf); err != nil {
+			return fmt.Errorf("failed to store conflicting transaction %s for transaction %s: %w", hash.StringLE(), tx.Hash().StringLE(), err)
+		}
+		buf.Reset()
+	}
+	return nil
 }
 
 // Persist flushes all the changes made into the (supposedly) persistent
