@@ -36,7 +36,8 @@ func testGetSet(t *testing.T, chain *Blockchain, hash util.Uint160, name string,
 		res, err := invokeContractMethod(chain, 100000000, hash, getName)
 		require.NoError(t, err)
 		checkResult(t, res, stackitem.Make(defaultValue))
-		require.NoError(t, chain.persist())
+		_, err = chain.persist()
+		require.NoError(t, err)
 	})
 
 	t.Run("set, too small value", func(t *testing.T) {
@@ -68,13 +69,15 @@ func testGetSet(t *testing.T, chain *Blockchain, hash util.Uint160, name string,
 		if name != "GasPerBlock" { // GasPerBlock is set on the next block
 			checkResult(t, aers[1], stackitem.Make(defaultValue+1))
 		}
-		require.NoError(t, chain.persist())
+		_, err = chain.persist()
+		require.NoError(t, err)
 
 		// Get in the next block.
 		res, err := invokeContractMethod(chain, 100000000, hash, getName)
 		require.NoError(t, err)
 		checkResult(t, res, stackitem.Make(defaultValue+1))
-		require.NoError(t, chain.persist())
+		_, err = chain.persist()
+		require.NoError(t, err)
 	})
 }
 
@@ -128,7 +131,8 @@ func TestBlockedAccounts(t *testing.T) {
 		res, err := invokeContractMethod(chain, 100000000, policyHash, "isBlocked", random.Uint160())
 		require.NoError(t, err)
 		checkResult(t, res, stackitem.NewBool(false))
-		require.NoError(t, chain.persist())
+		_, err = chain.persist()
+		require.NoError(t, err)
 	})
 
 	t.Run("block-unblock account", func(t *testing.T) {
@@ -138,7 +142,8 @@ func TestBlockedAccounts(t *testing.T) {
 
 		isBlocked := chain.contracts.Policy.IsBlockedInternal(chain.dao, account)
 		require.Equal(t, isBlocked, true)
-		require.NoError(t, chain.persist())
+		_, err = chain.persist()
+		require.NoError(t, err)
 
 		res, err = invokeContractMethodGeneric(chain, 100000000, policyHash, "unblockAccount", true, account.BytesBE())
 		require.NoError(t, err)
@@ -146,7 +151,8 @@ func TestBlockedAccounts(t *testing.T) {
 
 		isBlocked = chain.contracts.Policy.IsBlockedInternal(chain.dao, account)
 		require.Equal(t, false, isBlocked)
-		require.NoError(t, chain.persist())
+		_, err = chain.persist()
+		require.NoError(t, err)
 	})
 
 	t.Run("double-block", func(t *testing.T) {
@@ -154,25 +160,29 @@ func TestBlockedAccounts(t *testing.T) {
 		res, err := invokeContractMethodGeneric(chain, 100000000, policyHash, "blockAccount", true, account.BytesBE())
 		require.NoError(t, err)
 		checkResult(t, res, stackitem.NewBool(true))
-		require.NoError(t, chain.persist())
+		_, err = chain.persist()
+		require.NoError(t, err)
 
 		// double-block should fail
 		res, err = invokeContractMethodGeneric(chain, 100000000, policyHash, "blockAccount", true, account.BytesBE())
 		require.NoError(t, err)
 		checkResult(t, res, stackitem.NewBool(false))
-		require.NoError(t, chain.persist())
+		_, err = chain.persist()
+		require.NoError(t, err)
 
 		// unblock
 		res, err = invokeContractMethodGeneric(chain, 100000000, policyHash, "unblockAccount", true, account.BytesBE())
 		require.NoError(t, err)
 		checkResult(t, res, stackitem.NewBool(true))
-		require.NoError(t, chain.persist())
+		_, err = chain.persist()
+		require.NoError(t, err)
 
 		// unblock the same account should fail as we don't have it blocked
 		res, err = invokeContractMethodGeneric(chain, 100000000, policyHash, "unblockAccount", true, account.BytesBE())
 		require.NoError(t, err)
 		checkResult(t, res, stackitem.NewBool(false))
-		require.NoError(t, chain.persist())
+		_, err = chain.persist()
+		require.NoError(t, err)
 	})
 
 	t.Run("not signed by committee", func(t *testing.T) {

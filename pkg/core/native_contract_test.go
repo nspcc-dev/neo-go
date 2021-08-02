@@ -196,7 +196,8 @@ func TestNativeContract_Invoke(t *testing.T) {
 	res, err := invokeContractMethod(chain, price, tn.Metadata().Hash, "sum", int64(14), int64(28))
 	require.NoError(t, err)
 	checkResult(t, res, stackitem.Make(42))
-	require.NoError(t, chain.persist())
+	_, err = chain.persist()
+	require.NoError(t, err)
 
 	select {
 	case index := <-tn.blocks:

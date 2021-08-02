@@ -98,8 +98,12 @@ type Blockchain struct {
 	// with the only writer being the block addition logic.
 	lock sync.RWMutex
 
-	// Data access object for CRUD operations around storage.
+	// Data access object for CRUD operations around storage. It's write-cached.
 	dao *dao.Simple
+
+	// persistent is the same DB as dao, but we never write to it, so all reads
+	// are directly from underlying persistent store.
+	persistent *dao.Simple
 
 	// Current index/height of the highest block.
 	// Read access should always be called by BlockHeight().
@@ -215,6 +219,7 @@ func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration, log *zap.L
 	bc := &Blockchain{
 		config:      cfg,
 		dao:         dao.NewSimple(s, cfg.StateRootInHeader),
+		persistent:  dao.NewSimple(s, cfg.StateRootInHeader),
 		stopCh:      make(chan struct{}),
 		runToExitCh: make(chan struct{}),
 		memPool:     mempool.New(cfg.MemPoolSize, 0, false),
@@ -394,7 +399,7 @@ func (bc *Blockchain) Run() {
 	persistTimer := time.NewTimer(persistInterval)
 	defer func() {
 		persistTimer.Stop()
-		if err := bc.persist(); err != nil {
+		if _, err := bc.persist(); err != nil {
 			bc.log.Warn("failed to persist", zap.Error(err))
 		}
 		if err := bc.dao.Store.Close(); err != nil {
@@ -408,13 +413,15 @@ func (bc *Blockchain) Run() {
 		case <-bc.stopCh:
 			return
 		case <-persistTimer.C:
-			go func() {
-				err := bc.persist()
-				if err != nil {
-					bc.log.Warn("failed to persist blockchain", zap.Error(err))
-				}
-				persistTimer.Reset(persistInterval)
-			}()
+			dur, err := bc.persist()
+			if err != nil {
+				bc.log.Warn("failed to persist blockchain", zap.Error(err))
+			}
+			interval := persistInterval - dur
+			if interval <= 0 {
+				interval = time.Microsecond // Reset doesn't work with zero value
+			}
+			persistTimer.Reset(interval)
 		}
 	}
 }
@@ -1175,41 +1182,43 @@ func (bc *Blockchain) LastBatch() *storage.MemBatch {
 }
 
 // persist flushes current in-memory Store contents to the persistent storage.
-func (bc *Blockchain) persist() error {
+func (bc *Blockchain) persist() (time.Duration, error) {
 	var (
 		start     = time.Now()
+		duration  time.Duration
 		persisted int
 		err       error
 	)
 
 	persisted, err = bc.dao.Persist()
 	if err != nil {
-		return err
+		return 0, err
 	}
 	if persisted > 0 {
-		bHeight, err := bc.dao.GetCurrentBlockHeight()
+		bHeight, err := bc.persistent.GetCurrentBlockHeight()
 		if err != nil {
-			return err
+			return 0, err
 		}
 		oldHeight := atomic.SwapUint32(&bc.persistedHeight, bHeight)
 		diff := bHeight - oldHeight
 
-		storedHeaderHeight, _, err := bc.dao.GetCurrentHeaderHeight()
+		storedHeaderHeight, _, err := bc.persistent.GetCurrentHeaderHeight()
 		if err != nil {
-			return err
+			return 0, err
 		}
+		duration = time.Since(start)
 		bc.log.Info("persisted to disk",
 			zap.Uint32("blocks", diff),
 			zap.Int("keys", persisted),
 			zap.Uint32("headerHeight", storedHeaderHeight),
 			zap.Uint32("blockHeight", bHeight),
-			zap.Duration("took", time.Since(start)))
+			zap.Duration("took", duration))
 
 		// update monitoring metrics.
 		updatePersistedHeightMetric(bHeight)
 	}
 
-	return nil
+	return duration, nil
 }
 
 // GetTransaction returns a TX and its height by the given hash. The height is MaxUint32 if tx is in the mempool.
