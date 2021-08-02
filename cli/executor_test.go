@@ -34,6 +34,9 @@ const (
 	validatorAddr = "NfgHwwTi3wHAS8aFAN243C5vGbkYDpqLHP"
 	multisigAddr  = "NVTiAjNgagDkTr5HTzDmQP9kPwPHN5BgVq"
 
+	testWalletPath    = "testdata/testwallet.json"
+	testWalletAccount = "Nfyz4KcsgYepRJw1W5C2uKCi6QWKf7v6gG"
+
 	validatorWallet = "testdata/wallet1_solo.json"
 )
 
