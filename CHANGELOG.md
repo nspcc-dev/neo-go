@@ -2,6 +2,35 @@
 
 This document outlines major changes between releases.
 
+## 0.97.0 "Ventilation" (02 Aug 2021)
+
+This is an official 3.0.0-compatible release that is ready to be used both for
+mainnet and testnet. Technically, 0.96.0 and 0.96.1 are compatible too, but
+they need an updated configuration to work on mainnet while this version has
+it covered.
+
+We keep improving our node and this release is not just a repackage of
+something older, so DB format changes require a resynchronization if you're
+upgrading from 0.96.X.
+
+Behavior changes:
+ * updated configuration for mainnet (#2103)
+
+Improvements:
+ * documentation for contract configuration file (#2097)
+ * significant change to NEP-17 tracking code, it shouldn't affect valid
+   NEP-17 tokens, but now we store a little less data in the DB and get more
+   from token contracts when needed (for `getnep17balances` RPC for
+   example); this change is required for our future state exchange protocol
+   extension (#2093)
+ * improved block processing speed on multicore systems (#2101)
+ * JSON deserialization now has the same limits as binary, but this doesn't
+   affect any valid code (#2105)
+
+Bugs fixed:
+ * potential deadlocks in notary-enabled nodes (#2064)
+ * wallet files not truncated properly on key removal (#2099)
+
 ## 0.96.1 "Brecciation" (23 Jul 2021)
 
 New CLI commands, updated dependencies and some bugs fixed --- you can find
