@@ -99,7 +99,7 @@ func New() *VM {
 func NewWithTrigger(t trigger.Type) *VM {
 	vm := &VM{
 		state:   NoneState,
-		istack:  NewStack("invocation"),
+		istack:  newStack("invocation", nil),
 		refs:    newRefCounter(),
 		trigger: t,
 
@@ -107,15 +107,8 @@ func NewWithTrigger(t trigger.Type) *VM {
 		Invocations:    make(map[util.Uint160]int),
 	}
 
-	vm.estack = vm.newItemStack("evaluation")
+	vm.estack = newStack("evaluation", vm.refs)
 	return vm
-}
-
-func (v *VM) newItemStack(n string) *Stack {
-	s := NewStack(n)
-	s.refs = v.refs
-
-	return s
 }
 
 // SetPriceGetter registers the given PriceGetterFunc in v.
@@ -288,9 +281,9 @@ func (v *VM) LoadScript(b []byte) {
 func (v *VM) LoadScriptWithFlags(b []byte, f callflag.CallFlag) {
 	v.checkInvocationStackSize()
 	ctx := NewContextWithParams(b, 0, -1, 0)
-	v.estack = v.newItemStack("estack")
+	v.estack = newStack("evaluation", v.refs)
 	ctx.estack = v.estack
-	ctx.tryStack = NewStack("exception")
+	ctx.tryStack = newStack("exception", nil)
 	ctx.callFlag = f
 	ctx.static = newSlot(v.refs)
 	ctx.callingScriptHash = v.GetCurrentScriptHash()
@@ -1527,7 +1520,7 @@ func (v *VM) call(ctx *Context, offset int) {
 	newCtx.RetCount = -1
 	newCtx.local = nil
 	newCtx.arguments = nil
-	newCtx.tryStack = NewStack("exception")
+	newCtx.tryStack = newStack("exception", nil)
 	newCtx.NEF = ctx.NEF
 	v.istack.PushVal(newCtx)
 	v.Jump(newCtx, offset)

@@ -18,6 +18,9 @@ func newRefCounter() *refCounter {
 
 // Add adds an item to the reference counter.
 func (r *refCounter) Add(item stackitem.Item) {
+	if r == nil {
+		return
+	}
 	r.size++
 
 	switch item.(type) {
@@ -41,6 +44,9 @@ func (r *refCounter) Add(item stackitem.Item) {
 
 // Remove removes item from the reference counter.
 func (r *refCounter) Remove(item stackitem.Item) {
+	if r == nil {
+		return
+	}
 	r.size--
 
 	switch item.(type) {
