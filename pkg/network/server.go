@@ -68,6 +68,7 @@ type (
 		chain             blockchainer.Blockchainer
 		bQueue            *blockQueue
 		consensus         consensus.Service
+		mempool           *mempool.Pool
 		notaryRequestPool *mempool.Pool
 		extensiblePool    *extpool.Pool
 		notaryFeer        NotaryFeer
@@ -138,6 +139,7 @@ func newServerFromConstructors(config ServerConfig, chain blockchainer.Blockchai
 		unregister:        make(chan peerDrop),
 		peers:             make(map[Peer]bool),
 		syncReached:       atomic.NewBool(false),
+		mempool:           chain.GetMemPool(),
 		extensiblePool:    extpool.New(chain, config.ExtensiblePoolSize),
 		log:               log,
 		transactions:      make(chan *transaction.Transaction, 64),
@@ -655,7 +657,7 @@ func (s *Server) handlePong(p Peer, pong *payload.Ping) error {
 func (s *Server) handleInvCmd(p Peer, inv *payload.Inventory) error {
 	reqHashes := make([]util.Uint256, 0)
 	var typExists = map[payload.InventoryType]func(util.Uint256) bool{
-		payload.TXType:    s.chain.HasTransaction,
+		payload.TXType:    s.mempool.ContainsKey,
 		payload.BlockType: s.chain.HasBlock,
 		payload.ExtensibleType: func(h util.Uint256) bool {
 			cp := s.extensiblePool.Get(h)
@@ -688,7 +690,7 @@ func (s *Server) handleInvCmd(p Peer, inv *payload.Inventory) error {
 
 // handleMempoolCmd handles getmempool command.
 func (s *Server) handleMempoolCmd(p Peer) error {
-	txs := s.chain.GetMemPool().GetVerifiedTransactions()
+	txs := s.mempool.GetVerifiedTransactions()
 	hs := make([]util.Uint256, 0, payload.MaxHashesCount)
 	for i := range txs {
 		hs = append(hs, txs[i].Hash())
@@ -1247,8 +1249,7 @@ func (s *Server) initStaleMemPools() {
 		threshold = cfg.ValidatorsCount * 2
 	}
 
-	mp := s.chain.GetMemPool()
-	mp.SetResendThreshold(uint32(threshold), s.broadcastTX)
+	s.mempool.SetResendThreshold(uint32(threshold), s.broadcastTX)
 	if s.chain.P2PSigExtensionsEnabled() {
 		s.notaryRequestPool.SetResendThreshold(uint32(threshold), s.broadcastP2PNotaryRequestPayload)
 	}
