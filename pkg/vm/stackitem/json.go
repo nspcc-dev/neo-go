@@ -120,8 +120,8 @@ func toJSON(data []byte, seen map[Item]sliceNoPointer, item Item) ([]byte, error
 			return nil, err
 		}
 		data = append(data, raw...)
-	case *Bool:
-		if it.value {
+	case Bool:
+		if it {
 			data = append(data, "true"...)
 		} else {
 			data = append(data, "false"...)
@@ -288,8 +288,8 @@ func toJSONWithTypes(item Item, seen map[Item]bool) (interface{}, error) {
 		}
 		value = arr
 		delete(seen, item)
-	case *Bool:
-		value = it.value
+	case Bool:
+		value = bool(it)
 	case *Buffer, *ByteArray:
 		value = base64.StdEncoding.EncodeToString(it.Value().([]byte))
 	case *BigInteger:

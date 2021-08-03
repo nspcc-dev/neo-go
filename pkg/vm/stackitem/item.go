@@ -126,9 +126,7 @@ func Make(v interface{}) Item {
 			value: []byte(val),
 		}
 	case bool:
-		return &Bool{
-			value: val,
-		}
+		return Bool(val)
 	case []Item:
 		return &Array{
 			value: val,
@@ -485,76 +483,72 @@ func (i *BigInteger) MarshalJSON() ([]byte, error) {
 }
 
 // Bool represents a boolean Item.
-type Bool struct {
-	value bool
-}
+type Bool bool
 
 // NewBool returns an new Bool object.
-func NewBool(val bool) *Bool {
-	return &Bool{
-		value: val,
-	}
+func NewBool(val bool) Bool {
+	return Bool(val)
 }
 
 // Value implements Item interface.
-func (i *Bool) Value() interface{} {
-	return i.value
+func (i Bool) Value() interface{} {
+	return bool(i)
 }
 
 // MarshalJSON implements the json.Marshaler interface.
-func (i *Bool) MarshalJSON() ([]byte, error) {
-	return json.Marshal(i.value)
+func (i Bool) MarshalJSON() ([]byte, error) {
+	return json.Marshal(bool(i))
 }
 
-func (i *Bool) String() string {
+func (i Bool) String() string {
 	return "Boolean"
 }
 
 // Dup implements Item interface.
-func (i *Bool) Dup() Item {
-	return &Bool{i.value}
+func (i Bool) Dup() Item {
+	return i
 }
 
 // TryBool implements Item interface.
-func (i *Bool) TryBool() (bool, error) { return i.value, nil }
+func (i Bool) TryBool() (bool, error) { return bool(i), nil }
 
 // Bytes converts Bool to bytes.
-func (i *Bool) Bytes() []byte {
-	if i.value {
+func (i Bool) Bytes() []byte {
+	if i {
 		return []byte{1}
 	}
 	return []byte{0}
 }
 
 // TryBytes implements Item interface.
-func (i *Bool) TryBytes() ([]byte, error) {
+func (i Bool) TryBytes() ([]byte, error) {
 	return i.Bytes(), nil
 }
 
 // TryInteger implements Item interface.
-func (i *Bool) TryInteger() (*big.Int, error) {
-	if i.value {
+func (i Bool) TryInteger() (*big.Int, error) {
+	if i {
 		return big.NewInt(1), nil
 	}
 	return big.NewInt(0), nil
 }
 
 // Equals implements Item interface.
-func (i *Bool) Equals(s Item) bool {
+func (i Bool) Equals(s Item) bool {
 	if i == s {
 		return true
 	} else if s == nil {
 		return false
 	}
-	val, ok := s.(*Bool)
-	return ok && i.value == val.value
+	val, ok := s.(Bool)
+	return ok && i == val
 }
 
 // Type implements Item interface.
-func (i *Bool) Type() Type { return BooleanT }
+func (i Bool) Type() Type { return BooleanT }
 
 // Convert implements Item interface.
-func (i *Bool) Convert(typ Type) (Item, error) {
+func (i Bool) Convert(typ Type) (Item, error) {
 	return convertPrimitive(i, typ)
 }
 
@@ -861,7 +855,7 @@ func (i *Map) Drop(index int) {
 // key.
 func IsValidMapKey(key Item) error {
 	switch key.(type) {
-	case *Bool, *BigInteger:
+	case Bool, *BigInteger:
 		return nil
 	case *ByteArray:
 		size := len(key.Value().([]byte))
@@ -1171,8 +1165,8 @@ func deepCopy(item Item, seen map[Item]Item) Item {
 		return NewByteArray(slice.Copy(it.value))
 	case *Buffer:
 		return NewBuffer(slice.Copy(it.value))
-	case *Bool:
-		return NewBool(it.value)
+	case Bool:
+		return it
 	case *Pointer:
 		return NewPointerWithHash(it.pos, it.script, it.hash)
 	case *Interop:

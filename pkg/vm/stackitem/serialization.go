@@ -103,9 +103,9 @@ func (w *serContext) serialize(item Item) error {
 		data := t.Value().([]byte)
 		w.appendVarUint(uint64(len(data)))
 		w.data = append(w.data, data...)
-	case *Bool:
+	case Bool:
 		w.data = append(w.data, byte(BooleanT))
-		if t.Value().(bool) {
+		if t {
 			w.data = append(w.data, 1)
 		} else {
 			w.data = append(w.data, 0)

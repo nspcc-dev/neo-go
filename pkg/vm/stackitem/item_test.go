@@ -63,11 +63,11 @@ var makeStackItemTestCases = []struct {
 	},
 	{
 		input:  true,
-		result: &Bool{value: true},
+		result: Bool(true),
 	},
 	{
 		input:  false,
-		result: &Bool{value: false},
+		result: Bool(false),
 	},
 	{
 		input:  []Item{&BigInteger{value: big.NewInt(3)}, &ByteArray{value: []byte{1, 2, 3}}},
@@ -459,8 +459,8 @@ func TestMarshalJSON(t *testing.T) {
 		switch testCase.input.(type) {
 		case *BigInteger:
 			actual, err = testCase.input.(*BigInteger).MarshalJSON()
-		case *Bool:
-			actual, err = testCase.input.(*Bool).MarshalJSON()
+		case Bool:
+			actual, err = testCase.input.(Bool).MarshalJSON()
 		case *ByteArray:
 			actual, err = testCase.input.(*ByteArray).MarshalJSON()
 		case *Array:
@@ -532,7 +532,9 @@ func TestDeepCopy(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			actual := DeepCopy(tc.item)
 			require.Equal(t, tc.item, actual)
-			require.False(t, actual == tc.item)
+			if tc.item.Type() != BooleanT {
+				require.False(t, actual == tc.item)
+			}
 		})
 	}
 

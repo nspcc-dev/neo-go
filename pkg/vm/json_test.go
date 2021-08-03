@@ -195,7 +195,7 @@ func compareItems(t *testing.T, a, b stackitem.Item) {
 			require.Equal(t, val, ac.Value().(*big.Int).Int64())
 		case *stackitem.ByteArray:
 			require.Equal(t, val, bigint.FromBytes(ac.Value().([]byte)).Int64())
-		case *stackitem.Bool:
+		case stackitem.Bool:
 			if ac.Value().(bool) {
 				require.Equal(t, val, int64(1))
 			} else {
