@@ -56,6 +56,11 @@ func (n LeafNode) EncodeBinary(w *io.BinWriter) {
 	w.WriteVarBytes(n.value)
 }
 
+// Size implements Node interface.
+func (n *LeafNode) Size() int {
+	return io.GetVarSize(len(n.value)) + len(n.value)
+}
+
 // MarshalJSON implements json.Marshaler.
 func (n *LeafNode) MarshalJSON() ([]byte, error) {
 	return []byte(`{"value":"` + hex.EncodeToString(n.value) + `"}`), nil

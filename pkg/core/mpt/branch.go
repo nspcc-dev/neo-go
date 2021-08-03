@@ -45,6 +45,17 @@ func (b *BranchNode) Bytes() []byte {
 	return b.getBytes(b)
 }
 
+// Size implements Node interface.
+func (b *BranchNode) Size() int {
+	sz := childrenCount
+	for i := range b.Children {
+		if !isEmpty(b.Children[i]) {
+			sz += util.Uint256Size
+		}
+	}
+	return sz
+}
+
 // EncodeBinary implements io.Serializable.
 func (b *BranchNode) EncodeBinary(w *io.BinWriter) {
 	for i := 0; i < childrenCount; i++ {

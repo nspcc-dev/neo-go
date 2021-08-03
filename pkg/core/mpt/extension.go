@@ -72,6 +72,12 @@ func (e ExtensionNode) EncodeBinary(w *io.BinWriter) {
 	encodeBinaryAsChild(e.next, w)
 }
 
+// Size implements Node interface.
+func (e *ExtensionNode) Size() int {
+	return io.GetVarSize(len(e.key)) + len(e.key) +
+		1 + util.Uint256Size // e.next is never empty
+}
+
 // MarshalJSON implements json.Marshaler.
 func (e *ExtensionNode) MarshalJSON() ([]byte, error) {
 	m := map[string]interface{}{

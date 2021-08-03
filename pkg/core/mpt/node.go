@@ -33,6 +33,7 @@ type Node interface {
 	io.Serializable
 	json.Marshaler
 	json.Unmarshaler
+	Size() int
 	BaseNodeIface
 }
 

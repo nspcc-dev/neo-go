@@ -27,6 +27,11 @@ func NewHashNode(h util.Uint256) *HashNode {
 // Type implements Node interface.
 func (h *HashNode) Type() NodeType { return HashT }
 
+// Size implements Node interface.
+func (h *HashNode) Size() int {
+	return util.Uint256Size
+}
+
 // Hash implements Node interface.
 func (h *HashNode) Hash() util.Uint256 {
 	if !h.hashValid {

@@ -27,6 +27,7 @@ func getTestFuncEncode(ok bool, expected, actual Node) func(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, expected.Type(), actual.Type())
 			require.Equal(t, expected.Hash(), actual.Hash())
+			require.Equal(t, 1+expected.Size(), len(expected.Bytes()))
 		})
 		t.Run("JSON", func(t *testing.T) {
 			bs, err := json.Marshal(expected)

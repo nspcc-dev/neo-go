@@ -1,6 +1,7 @@
 package mpt
 
 import (
+	"bytes"
 	"fmt"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
@@ -63,8 +64,9 @@ func (b *BaseNode) updateHash(n Node) {
 
 // updateCache updates hash and bytes fields for this BaseNode.
 func (b *BaseNode) updateBytes(n Node) {
-	buf := io.NewBufBinWriter()
-	encodeNodeWithType(n, buf.BinWriter)
+	buf := bytes.NewBuffer(make([]byte, 0, 1+n.Size()))
+	bw := io.NewBinWriterFromIO(buf)
+	encodeNodeWithType(n, bw)
 	b.bytes = buf.Bytes()
 	b.bytesValid = true
 }

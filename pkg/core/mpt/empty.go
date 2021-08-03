@@ -19,6 +19,9 @@ func (e EmptyNode) DecodeBinary(*io.BinReader) {
 func (e EmptyNode) EncodeBinary(*io.BinWriter) {
 }
 
+// Size implements Node interface.
+func (EmptyNode) Size() int { return 0 }
+
 // MarshalJSON implements Node interface.
 func (e EmptyNode) MarshalJSON() ([]byte, error) {
 	return []byte(`{}`), nil
