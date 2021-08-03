@@ -35,7 +35,7 @@ var ErrNotFound = errors.New("item not found")
 // This also has the benefit, that every `Put` can be considered an atomic operation.
 func NewTrie(root Node, enableRefCount bool, store *storage.MemCachedStore) *Trie {
 	if root == nil {
-		root = new(HashNode)
+		root = EmptyNode{}
 	}
 
 	return &Trie{
@@ -75,11 +75,10 @@ func (t *Trie) getWithPath(curr Node, path []byte) (Node, []byte, error) {
 		}
 		n.Children[i] = r
 		return n, bs, nil
+	case EmptyNode:
 	case *HashNode:
-		if !n.IsEmpty() {
-			if r, err := t.getFromStore(n.hash); err == nil {
-				return t.getWithPath(r, path)
-			}
+		if r, err := t.getFromStore(n.hash); err == nil {
+			return t.getWithPath(r, path)
 		}
 	case *ExtensionNode:
 		if bytes.HasPrefix(path, n.key) {
@@ -187,14 +186,13 @@ func (t *Trie) putIntoExtension(curr *ExtensionNode, path []byte, val Node) (Nod
 	return b, nil
 }
 
+func (t *Trie) putIntoEmpty(path []byte, val Node) (Node, error) {
+	return t.newSubTrie(path, val, true), nil
+}
+
 // putIntoHash puts val to trie if current node is a HashNode.
 // It returns Node if curr needs to be replaced and error if any.
 func (t *Trie) putIntoHash(curr *HashNode, path []byte, val Node) (Node, error) {
-	if curr.IsEmpty() {
-		hn := t.newSubTrie(path, val, true)
-		return hn, nil
-	}
-
 	result, err := t.getFromStore(curr.hash)
 	if err != nil {
 		return nil, err
@@ -227,6 +225,8 @@ func (t *Trie) putIntoNode(curr Node, path []byte, val Node) (Node, error) {
 		return t.putIntoExtension(n, path, val)
 	case *HashNode:
 		return t.putIntoHash(n, path, val)
+	case EmptyNode:
+		return t.putIntoEmpty(path, val)
 	default:
 		panic("invalid MPT node type")
 	}
@@ -257,8 +257,7 @@ func (t *Trie) deleteFromBranch(b *BranchNode, path []byte) (Node, error) {
 	b.invalidateCache()
 	var count, index int
 	for i := range b.Children {
-		h, ok := b.Children[i].(*HashNode)
-		if !ok || !h.IsEmpty() {
+		if !isEmpty(b.Children[i]) {
 			index = i
 			count++
 		}
@@ -307,10 +306,9 @@ func (t *Trie) deleteFromExtension(n *ExtensionNode, path []byte) (Node, error) 
 		t.removeRef(nxt.Hash(), nxt.bytes)
 		n.key = append(n.key, nxt.key...)
 		n.next = nxt.next
+	case EmptyNode:
+		return nxt, nil
 	case *HashNode:
-		if nxt.IsEmpty() {
-			return nxt, nil
-		}
 		n.next = nxt
 	default:
 		n.next = r
@@ -327,17 +325,16 @@ func (t *Trie) deleteFromNode(curr Node, path []byte) (Node, error) {
 	case *LeafNode:
 		if len(path) == 0 {
 			t.removeRef(curr.Hash(), curr.Bytes())
-			return new(HashNode), nil
+			return EmptyNode{}, nil
 		}
 		return curr, nil
 	case *BranchNode:
 		return t.deleteFromBranch(n, path)
 	case *ExtensionNode:
 		return t.deleteFromExtension(n, path)
+	case EmptyNode:
+		return n, nil
 	case *HashNode:
-		if n.IsEmpty() {
-			return n, nil
-		}
 		newNode, err := t.getFromStore(n.Hash())
 		if err != nil {
 			return nil, err
@@ -350,7 +347,7 @@ func (t *Trie) deleteFromNode(curr Node, path []byte) (Node, error) {
 
 // StateRoot returns root hash of t.
 func (t *Trie) StateRoot() util.Uint256 {
-	if hn, ok := t.root.(*HashNode); ok && hn.IsEmpty() {
+	if isEmpty(t.root) {
 		return util.Uint256{}
 	}
 	return t.root.Hash()
@@ -486,9 +483,11 @@ func (t *Trie) Collapse(depth int) {
 }
 
 func collapse(depth int, node Node) Node {
-	if _, ok := node.(*HashNode); ok {
+	switch node.(type) {
+	case *HashNode, EmptyNode:
 		return node
-	} else if depth == 0 {
+	}
+	if depth == 0 {
 		return NewHashNode(node.Hash())
 	}
 

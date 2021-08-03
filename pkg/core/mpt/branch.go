@@ -27,7 +27,7 @@ var _ Node = (*BranchNode)(nil)
 func NewBranchNode() *BranchNode {
 	b := new(BranchNode)
 	for i := 0; i < childrenCount; i++ {
-		b.Children[i] = new(HashNode)
+		b.Children[i] = EmptyNode{}
 	}
 	return b
 }

@@ -54,8 +54,8 @@ func (b *BaseNode) getBytes(n Node) []byte {
 
 // updateHash updates hash field for this BaseNode.
 func (b *BaseNode) updateHash(n Node) {
-	if n.Type() == HashT {
-		panic("can't update hash for hash node")
+	if n.Type() == HashT || n.Type() == EmptyT {
+		panic("can't update hash for empty or hash node")
 	}
 	b.hash = hash.DoubleSha256(b.getBytes(n))
 	b.hashValid = true
@@ -86,17 +86,7 @@ func encodeBinaryAsChild(n Node, w *io.BinWriter) {
 
 // encodeNodeWithType encodes node together with it's type.
 func encodeNodeWithType(n Node, w *io.BinWriter) {
-	switch t := n.Type(); t {
-	case HashT:
-		hn := n.(*HashNode)
-		if !hn.hashValid {
-			w.WriteB(byte(EmptyT))
-			break
-		}
-		fallthrough
-	default:
-		w.WriteB(byte(t))
-	}
+	w.WriteB(byte(n.Type()))
 	n.EncodeBinary(w)
 }
 
@@ -120,11 +110,7 @@ func DecodeNodeWithType(r *io.BinReader) Node {
 	case LeafT:
 		n = new(LeafNode)
 	case EmptyT:
-		n = &HashNode{
-			BaseNode: BaseNode{
-				hashValid: false,
-			},
-		}
+		n = EmptyNode{}
 	default:
 		r.Err = fmt.Errorf("invalid node type: %x", typ)
 		return nil

@@ -35,9 +35,6 @@ func (h *HashNode) Hash() util.Uint256 {
 	return h.hash
 }
 
-// IsEmpty returns true if h is an empty node i.e. contains no hash.
-func (h *HashNode) IsEmpty() bool { return !h.hashValid }
-
 // Bytes returns serialized HashNode.
 func (h *HashNode) Bytes() []byte {
 	return h.getBytes(h)
@@ -60,9 +57,6 @@ func (h HashNode) EncodeBinary(w *io.BinWriter) {
 
 // MarshalJSON implements json.Marshaler.
 func (h *HashNode) MarshalJSON() ([]byte, error) {
-	if !h.hashValid {
-		return []byte(`{}`), nil
-	}
 	return []byte(`{"hash":"` + h.hash.StringLE() + `"}`), nil
 }
 

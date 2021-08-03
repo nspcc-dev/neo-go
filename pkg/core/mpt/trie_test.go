@@ -239,8 +239,7 @@ func isValid(curr Node) bool {
 			if !isValid(n.Children[i]) {
 				return false
 			}
-			hn, ok := n.Children[i].(*HashNode)
-			if !ok || !hn.IsEmpty() {
+			if !isEmpty(n.Children[i]) {
 				count++
 			}
 		}
@@ -342,7 +341,7 @@ func testTrieDelete(t *testing.T, enableGC bool) {
 			})
 
 			require.NoError(t, tr.Delete([]byte{0xAB}))
-			require.True(t, tr.root.(*HashNode).IsEmpty())
+			require.IsType(t, EmptyNode{}, tr.root)
 		})
 
 		t.Run("MultipleKeys", func(t *testing.T) {
@@ -505,12 +504,11 @@ func TestTrie_Collapse(t *testing.T) {
 		require.Equal(t, NewLeafNode([]byte("value")), tr.root)
 	})
 	t.Run("Hash", func(t *testing.T) {
-		t.Run("Empty", func(t *testing.T) {
-			tr := NewTrie(new(HashNode), false, newTestStore())
+		t.Run("EmptyNode", func(t *testing.T) {
+			tr := NewTrie(EmptyNode{}, false, newTestStore())
 			require.NotPanics(t, func() { tr.Collapse(1) })
-			hn, ok := tr.root.(*HashNode)
+			_, ok := tr.root.(EmptyNode)
 			require.True(t, ok)
-			require.True(t, hn.IsEmpty())
 		})
 
 		h := random.Uint256()

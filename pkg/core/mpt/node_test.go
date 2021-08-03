@@ -78,9 +78,6 @@ func TestNode_Serializable(t *testing.T) {
 			t.Run("Raw", getTestFuncEncode(true, h, new(HashNode)))
 			t.Run("WithType", getTestFuncEncode(true, &NodeObject{h}, new(NodeObject)))
 		})
-		t.Run("Empty", func(t *testing.T) { // compare nodes, not hashes
-			testserdes.EncodeDecodeBinary(t, new(HashNode), new(HashNode))
-		})
 		t.Run("InvalidSize", func(t *testing.T) {
 			buf := io.NewBufBinWriter()
 			buf.BinWriter.WriteBytes(make([]byte, 13))
@@ -111,7 +108,7 @@ func TestInvalidJSON(t *testing.T) {
 	t.Run("InvalidChildrenCount", func(t *testing.T) {
 		var cs [childrenCount + 1]Node
 		for i := range cs {
-			cs[i] = new(HashNode)
+			cs[i] = EmptyNode{}
 		}
 		data, err := json.Marshal(cs)
 		require.NoError(t, err)
