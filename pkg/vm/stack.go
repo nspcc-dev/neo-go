@@ -158,13 +158,16 @@ type Stack struct {
 
 // NewStack returns a new stack name by the given name.
 func NewStack(n string) *Stack {
+	return newStack(n, newRefCounter())
+}
+
+func newStack(n string, refc *refCounter) *Stack {
 	s := &Stack{
 		name: n,
+		refs: refc,
 	}
 	s.top.next = &s.top
 	s.top.prev = &s.top
-	s.len = 0
-	s.refs = newRefCounter()
 	return s
 }
 

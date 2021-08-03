@@ -189,7 +189,8 @@ func (n *NEO) Initialize(ic *interop.Context) error {
 		return err
 	}
 
-	if n.nep17TokenNative.getTotalSupply(ic.DAO).Sign() != 0 {
+	_, totalSupply := n.nep17TokenNative.getTotalSupply(ic.DAO)
+	if totalSupply.Sign() != 0 {
 		return errors.New("already initialized")
 	}
 
@@ -391,12 +392,13 @@ func (n *NEO) getGASPerVote(d dao.DAO, key []byte, index ...uint32) []big.Int {
 	return reward
 }
 
-func (n *NEO) increaseBalance(ic *interop.Context, h util.Uint160, si *state.StorageItem, amount *big.Int) error {
+func (n *NEO) increaseBalance(ic *interop.Context, h util.Uint160, si *state.StorageItem, amount *big.Int, checkBal *big.Int) error {
 	acc, err := state.NEOBalanceFromBytes(*si)
 	if err != nil {
 		return err
 	}
-	if amount.Sign() == -1 && acc.Balance.Cmp(new(big.Int).Neg(amount)) == -1 {
+	if (amount.Sign() == -1 && acc.Balance.Cmp(new(big.Int).Neg(amount)) == -1) ||
+		(amount.Sign() == 0 && checkBal != nil && acc.Balance.Cmp(checkBal) == -1) {
 		return errors.New("insufficient funds")
 	}
 	if err := n.distributeGas(ic, h, acc); err != nil {
@@ -976,7 +978,8 @@ func (n *NEO) computeCommitteeMembers(bc blockchainer.Blockchainer, d dao.DAO) (
 	votersCount := bigint.FromBytes(si)
 	// votersCount / totalSupply must be >= 0.2
 	votersCount.Mul(votersCount, big.NewInt(effectiveVoterTurnout))
-	voterTurnout := votersCount.Div(votersCount, n.getTotalSupply(d))
+	_, totalSupply := n.getTotalSupply(d)
+	voterTurnout := votersCount.Div(votersCount, totalSupply)
 
 	sbVals := bc.GetStandByCommittee()
 	count := len(sbVals)

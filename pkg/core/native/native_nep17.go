@@ -33,7 +33,7 @@ type nep17TokenNative struct {
 	symbol       string
 	decimals     int64
 	factor       int64
-	incBalance   func(*interop.Context, util.Uint160, *state.StorageItem, *big.Int) error
+	incBalance   func(*interop.Context, util.Uint160, *state.StorageItem, *big.Int, *big.Int) error
 	balFromBytes func(item *state.StorageItem) (*big.Int, error)
 }
 
@@ -95,19 +95,21 @@ func (c *nep17TokenNative) Decimals(_ *interop.Context, _ []stackitem.Item) stac
 }
 
 func (c *nep17TokenNative) TotalSupply(ic *interop.Context, _ []stackitem.Item) stackitem.Item {
-	return stackitem.NewBigInteger(c.getTotalSupply(ic.DAO))
+	_, supply := c.getTotalSupply(ic.DAO)
+	return stackitem.NewBigInteger(supply)
 }
 
-func (c *nep17TokenNative) getTotalSupply(d dao.DAO) *big.Int {
+func (c *nep17TokenNative) getTotalSupply(d dao.DAO) (state.StorageItem, *big.Int) {
 	si := d.GetStorageItem(c.ID, totalSupplyKey)
 	if si == nil {
-		return big.NewInt(0)
+		si = []byte{}
 	}
-	return bigint.FromBytes(si)
+	return si, bigint.FromBytes(si)
 }
 
-func (c *nep17TokenNative) saveTotalSupply(d dao.DAO, supply *big.Int) error {
-	return d.PutStorageItem(c.ID, totalSupplyKey, bigint.ToBytes(supply))
+func (c *nep17TokenNative) saveTotalSupply(d dao.DAO, si state.StorageItem, supply *big.Int) error {
+	si = state.StorageItem(bigint.ToPreallocatedBytes(supply, si))
+	return d.PutStorageItem(c.ID, totalSupplyKey, si)
 }
 
 func (c *nep17TokenNative) Transfer(ic *interop.Context, args []stackitem.Item) stackitem.Item {
@@ -173,29 +175,11 @@ func (c *nep17TokenNative) updateAccBalance(ic *interop.Context, acc util.Uint16
 			return errors.New("insufficient funds")
 		}
 		si = state.StorageItem{}
-	} else if amount.Sign() == 0 && requiredBalance != nil {
-		// If amount == 0 then it's either a round trip or an empty transfer. In
-		// case of a round trip account's balance may still be less than actual
-		// transfer's amount, so we need to check it. Other cases are handled by
-		// `incBalance` method.
-		balance, err := c.balFromBytes(&si)
-		if err != nil {
-			return fmt.Errorf("failed to deserialise balance: %w", err)
-		}
-		if balance.Cmp(requiredBalance) < 0 {
-			// Firstly, need to put it back to storage as it affects dumps.
-			err = ic.DAO.PutStorageItem(c.ID, key, si)
-			if err != nil {
-				return err
-			}
-			// Finally, return an error.
-			return errors.New("insufficient funds")
-		}
 	}
 
-	err := c.incBalance(ic, acc, &si, amount)
+	err := c.incBalance(ic, acc, &si, amount, requiredBalance)
 	if err != nil {
-		if si != nil && amount.Sign() < 0 {
+		if si != nil && amount.Sign() <= 0 {
 			_ = ic.DAO.PutStorageItem(c.ID, key, si)
 		}
 		return err
@@ -288,7 +272,7 @@ func (c *nep17TokenNative) addTokens(ic *interop.Context, h util.Uint160, amount
 	if si == nil {
 		si = state.StorageItem{}
 	}
-	if err := c.incBalance(ic, h, &si, amount); err != nil {
+	if err := c.incBalance(ic, h, &si, amount, nil); err != nil {
 		panic(err)
 	}
 	var err error
@@ -301,9 +285,9 @@ func (c *nep17TokenNative) addTokens(ic *interop.Context, h util.Uint160, amount
 		panic(err)
 	}
 
-	supply := c.getTotalSupply(ic.DAO)
+	buf, supply := c.getTotalSupply(ic.DAO)
 	supply.Add(supply, amount)
-	err = c.saveTotalSupply(ic.DAO, supply)
+	err = c.saveTotalSupply(ic.DAO, buf, supply)
 	if err != nil {
 		panic(err)
 	}
