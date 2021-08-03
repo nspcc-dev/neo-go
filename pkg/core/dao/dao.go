@@ -45,6 +45,8 @@ type DAO interface {
 	GetHeaderHashes() ([]util.Uint256, error)
 	GetNEP17TransferInfo(acc util.Uint160) (*state.NEP17TransferInfo, error)
 	GetNEP17TransferLog(acc util.Uint160, index uint32) (*state.NEP17TransferLog, error)
+	GetStateSyncPoint() (uint32, error)
+	GetStateSyncCurrentBlockHeight() (uint32, error)
 	GetStorageItem(id int32, key []byte) state.StorageItem
 	GetStorageItems(id int32) (map[string]state.StorageItem, error)
 	GetStorageItemsWithPrefix(id int32, prefix []byte) (map[string]state.StorageItem, error)
@@ -58,6 +60,8 @@ type DAO interface {
 	PutCurrentHeader(hashAndIndex []byte) error
 	PutNEP17TransferInfo(acc util.Uint160, bs *state.NEP17TransferInfo) error
 	PutNEP17TransferLog(acc util.Uint160, index uint32, lg *state.NEP17TransferLog) error
+	PutStateSyncPoint(p uint32) error
+	PutStateSyncCurrentBlockHeight(h uint32) error
 	PutStorageItem(id int32, key []byte, si state.StorageItem) error
 	PutVersion(v string) error
 	Seek(id int32, prefix []byte, f func(k, v []byte))
@@ -399,6 +403,25 @@ func (dao *Simple) GetCurrentHeaderHeight() (i uint32, h util.Uint256, err error
 	return
 }
 
+// GetStateSyncPoint returns current state synchronisation point P.
+func (dao *Simple) GetStateSyncPoint() (uint32, error) {
+	b, err := dao.Store.Get(storage.SYSStateSyncPoint.Bytes())
+	if err != nil {
+		return 0, err
+	}
+	return binary.LittleEndian.Uint32(b), nil
+}
+
+// GetStateSyncCurrentBlockHeight returns current block height stored during state
+// synchronisation process.
+func (dao *Simple) GetStateSyncCurrentBlockHeight() (uint32, error) {
+	b, err := dao.Store.Get(storage.SYSStateSyncCurrentBlockHeight.Bytes())
+	if err != nil {
+		return 0, err
+	}
+	return binary.LittleEndian.Uint32(b), nil
+}
+
 // GetHeaderHashes returns a sorted list of header hashes retrieved from
 // the given underlying store.
 func (dao *Simple) GetHeaderHashes() ([]util.Uint256, error) {
@@ -464,6 +487,20 @@ func (dao *Simple) PutVersion(v string) error {
 // PutCurrentHeader stores current header.
 func (dao *Simple) PutCurrentHeader(hashAndIndex []byte) error {
 	return dao.Store.Put(storage.SYSCurrentHeader.Bytes(), hashAndIndex)
+}
+
+// PutStateSyncPoint stores current state synchronisation point P.
+func (dao *Simple) PutStateSyncPoint(p uint32) error {
+	buf := make([]byte, 4)
+	binary.LittleEndian.PutUint32(buf, p)
+	return dao.Store.Put(storage.SYSStateSyncPoint.Bytes(), buf)
+}
+
+// PutStateSyncCurrentBlockHeight stores current block height during state synchronisation process.
+func (dao *Simple) PutStateSyncCurrentBlockHeight(h uint32) error {
+	buf := make([]byte, 4)
+	binary.LittleEndian.PutUint32(buf, h)
+	return dao.Store.Put(storage.SYSStateSyncCurrentBlockHeight.Bytes(), buf)
 }
 
 // read2000Uint256Hashes attempts to read 2000 Uint256 hashes from

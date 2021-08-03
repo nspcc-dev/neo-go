@@ -171,3 +171,33 @@ func TestMakeStorageItemKey(t *testing.T) {
 	actual = makeStorageItemKey(id, nil)
 	require.Equal(t, expected, actual)
 }
+
+func TestPutGetStateSyncPoint(t *testing.T) {
+	dao := NewSimple(storage.NewMemoryStore(), true)
+
+	// empty store
+	_, err := dao.GetStateSyncPoint()
+	require.Error(t, err)
+
+	// non-empty store
+	var expected uint32 = 5
+	require.NoError(t, dao.PutStateSyncPoint(expected))
+	actual, err := dao.GetStateSyncPoint()
+	require.NoError(t, err)
+	require.Equal(t, expected, actual)
+}
+
+func TestPutGetStateSyncCurrentBlockHeight(t *testing.T) {
+	dao := NewSimple(storage.NewMemoryStore(), true)
+
+	// empty store
+	_, err := dao.GetStateSyncCurrentBlockHeight()
+	require.Error(t, err)
+
+	// non-empty store
+	var expected uint32 = 5
+	require.NoError(t, dao.PutStateSyncCurrentBlockHeight(expected))
+	actual, err := dao.GetStateSyncCurrentBlockHeight()
+	require.NoError(t, err)
+	require.Equal(t, expected, actual)
+}
