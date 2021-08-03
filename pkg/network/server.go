@@ -74,6 +74,9 @@ type (
 		notaryFeer        NotaryFeer
 		notaryModule      *notary.Notary
 
+		txInLock sync.Mutex
+		txInMap  map[util.Uint256]struct{}
+
 		lock  sync.RWMutex
 		peers map[Peer]bool
 
@@ -137,6 +140,7 @@ func newServerFromConstructors(config ServerConfig, chain blockchainer.Blockchai
 		quit:              make(chan struct{}),
 		register:          make(chan Peer),
 		unregister:        make(chan peerDrop),
+		txInMap:           make(map[util.Uint256]struct{}),
 		peers:             make(map[Peer]bool),
 		syncReached:       atomic.NewBool(false),
 		mempool:           chain.GetMemPool(),
@@ -876,10 +880,21 @@ func (s *Server) handleExtensibleCmd(e *payload.Extensible) error {
 func (s *Server) handleTxCmd(tx *transaction.Transaction) error {
 	// It's OK for it to fail for various reasons like tx already existing
 	// in the pool.
+	s.txInLock.Lock()
+	_, ok := s.txInMap[tx.Hash()]
+	if ok || s.mempool.ContainsKey(tx.Hash()) {
+		s.txInLock.Unlock()
+		return nil
+	}
+	s.txInMap[tx.Hash()] = struct{}{}
+	s.txInLock.Unlock()
 	if s.verifyAndPoolTX(tx) == nil {
 		s.consensus.OnTransaction(tx)
 		s.broadcastTX(tx, nil)
 	}
+	s.txInLock.Lock()
+	delete(s.txInMap, tx.Hash())
+	s.txInLock.Unlock()
 	return nil
 }
 
