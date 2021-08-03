@@ -56,12 +56,6 @@ func (n LeafNode) EncodeBinary(w *io.BinWriter) {
 	w.WriteVarBytes(n.value)
 }
 
-// EncodeBinaryAsChild implements BaseNode interface.
-func (n *LeafNode) EncodeBinaryAsChild(w *io.BinWriter) {
-	no := &NodeObject{Node: NewHashNode(n.Hash())} // with type
-	no.EncodeBinary(w)
-}
-
 // MarshalJSON implements json.Marshaler.
 func (n *LeafNode) MarshalJSON() ([]byte, error) {
 	return []byte(`{"value":"` + hex.EncodeToString(n.value) + `"}`), nil

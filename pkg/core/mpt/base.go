@@ -23,7 +23,6 @@ type BaseNodeIface interface {
 	Hash() util.Uint256
 	Type() NodeType
 	Bytes() []byte
-	EncodeBinaryAsChild(w *io.BinWriter)
 }
 
 type flushedNode interface {
@@ -74,6 +73,15 @@ func (b *BaseNode) updateBytes(n Node) {
 func (b *BaseNode) invalidateCache() {
 	b.bytesValid = false
 	b.hashValid = false
+}
+
+func encodeBinaryAsChild(n Node, w *io.BinWriter) {
+	if isEmpty(n) {
+		w.WriteB(byte(EmptyT))
+		return
+	}
+	w.WriteB(byte(HashT))
+	w.WriteBytes(n.Hash().BytesBE())
 }
 
 // encodeNodeWithType encodes node together with it's type.
