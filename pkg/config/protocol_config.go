@@ -44,6 +44,8 @@ type (
 		// MinimumNetworkFee sets the minimum required network fee for transaction to pass validation.
 		MinimumNetworkFee util.Fixed8 `yaml:"MinimumNetworkFee"`
 		MemPoolSize       int         `yaml:"MemPoolSize"`
+		// NoBonusHeight is the height where GAS generation stops.
+		NoBonusHeight uint32 `yaml:"NoBonusHeight"`
 		// SaveStorageBatch enables storage batch saving before every persist.
 		SaveStorageBatch  bool     `yaml:"SaveStorageBatch"`
 		SecondsPerBlock   int      `yaml:"SecondsPerBlock"`

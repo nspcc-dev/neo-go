@@ -187,6 +187,7 @@ func TestGetClaimable(t *testing.T) {
 	bc.generationAmount = []int{4, 3, 2, 1}
 	bc.decrementInterval = 2
 	_, err := bc.genBlocks(10)
+	bc.noBonusHeight = 6 // stop right before `1`
 	require.NoError(t, err)
 
 	t.Run("first generation period", func(t *testing.T) {
@@ -206,14 +207,38 @@ func TestGetClaimable(t *testing.T) {
 	t.Run("start from the 2-nd block", func(t *testing.T) {
 		amount, sysfee, err := bc.CalculateClaimable(util.Fixed8FromInt64(1), 1, 7)
 		require.NoError(t, err)
-		require.EqualValues(t, 4+3+3+2+2+1, amount)
+		require.EqualValues(t, 4+3+3+2+2, amount)
 		require.EqualValues(t, 0, sysfee)
 	})
 
 	t.Run("end height after generation has ended", func(t *testing.T) {
 		amount, sysfee, err := bc.CalculateClaimable(util.Fixed8FromInt64(1), 1, 10)
 		require.NoError(t, err)
+		require.EqualValues(t, 4+3+3+2+2, amount)
+		require.EqualValues(t, 0, sysfee)
+	})
+
+	t.Run("end height after generation has ended, noBonusHeight is very big", func(t *testing.T) {
+		bc.noBonusHeight = 20
+		amount, sysfee, err := bc.CalculateClaimable(util.Fixed8FromInt64(1), 1, 10)
+		require.NoError(t, err)
 		require.EqualValues(t, 4+3+3+2+2+1+1, amount)
+		require.EqualValues(t, 0, sysfee)
+	})
+
+	t.Run("end height after generation has ended, noBonusHeight is 0", func(t *testing.T) {
+		bc.noBonusHeight = 0
+		amount, sysfee, err := bc.CalculateClaimable(util.Fixed8FromInt64(1), 1, 10)
+		require.NoError(t, err)
+		require.EqualValues(t, 4+3+3+2+2+1+1, amount)
+		require.EqualValues(t, 0, sysfee)
+	})
+
+	t.Run("noBonusHeight is not divisible by decrement interval", func(t *testing.T) {
+		bc.noBonusHeight = 5
+		amount, sysfee, err := bc.CalculateClaimable(util.Fixed8FromInt64(1), 1, 10)
+		require.NoError(t, err)
+		require.EqualValues(t, 4+3+3+2, amount)
 		require.EqualValues(t, 0, sysfee)
 	})
 }
