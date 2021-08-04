@@ -1,7 +1,6 @@
 package io
 
 import (
-	"bytes"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -48,12 +47,6 @@ func NewBinReaderFromIO(ior io.Reader) *BinReader {
 	u16 := u64[:2]
 	u8 := u64[:1]
 	return &BinReader{r: ior, u64: u64, u32: u32, u16: u16, u8: u8}
-}
-
-// NewBinReaderFromBuf makes a BinReader from byte buffer.
-func NewBinReaderFromBuf(b []byte) *BinReader {
-	r := bytes.NewReader(b)
-	return NewBinReaderFromIO(r)
 }
 
 // ReadU64LE reads a little-endian encoded uint64 value from the underlying
@@ -115,12 +108,16 @@ func (r *BinReader) ReadBool() bool {
 // ReadArray reads array into value which must be
 // a pointer to a slice.
 func (r *BinReader) ReadArray(t interface{}, maxSize ...int) {
+	readArray(r, t, maxSize...)
+}
+
+func readArray(r BinaryReader, t interface{}, maxSize ...int) {
 	value := reflect.ValueOf(t)
 	if value.Kind() != reflect.Ptr || value.Elem().Kind() != reflect.Slice {
 		panic(value.Type().String() + " is not a pointer to a slice")
 	}
 
-	if r.Err != nil {
+	if r.Error() != nil {
 		return
 	}
 
@@ -135,7 +132,7 @@ func (r *BinReader) ReadArray(t interface{}, maxSize ...int) {
 
 	lu := r.ReadVarUint()
 	if lu > uint64(ms) {
-		r.Err = fmt.Errorf("array is too big (%d)", lu)
+		r.SetError(fmt.Errorf("array is too big (%d)", lu))
 		return
 	}
 
