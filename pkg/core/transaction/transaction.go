@@ -143,8 +143,7 @@ func (t *Transaction) decodeHashableFields(br *io.BinReader) {
 	}
 }
 
-// DecodeBinary implements Serializable interface.
-func (t *Transaction) DecodeBinary(br *io.BinReader) {
+func (t *Transaction) decodeBinaryNoSize(br *io.BinReader) {
 	t.decodeHashableFields(br)
 	if br.Err != nil {
 		return
@@ -159,6 +158,14 @@ func (t *Transaction) DecodeBinary(br *io.BinReader) {
 	// to do it anymore.
 	if br.Err == nil {
 		br.Err = t.createHash()
+	}
+}
+
+// DecodeBinary implements Serializable interface.
+func (t *Transaction) DecodeBinary(br *io.BinReader) {
+	t.decodeBinaryNoSize(br)
+
+	if br.Err == nil {
 		_ = t.Size()
 	}
 }
@@ -240,7 +247,7 @@ func (t *Transaction) Bytes() []byte {
 func NewTransactionFromBytes(b []byte) (*Transaction, error) {
 	tx := &Transaction{}
 	r := io.NewBinReaderFromBuf(b)
-	tx.DecodeBinary(r)
+	tx.decodeBinaryNoSize(r)
 	if r.Err != nil {
 		return nil, r.Err
 	}
