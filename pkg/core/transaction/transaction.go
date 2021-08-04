@@ -148,8 +148,8 @@ func (t *Transaction) decodeBinaryNoSize(br *io.BinReader) {
 	if br.Err != nil {
 		return
 	}
-	br.ReadArray(&t.Scripts, len(t.Signers))
-	if len(t.Signers) != len(t.Scripts) {
+	br.ReadArray(&t.Scripts, MaxAttributes)
+	if br.Err == nil && len(t.Signers) != len(t.Scripts) {
 		br.Err = fmt.Errorf("%w: %d vs %d", ErrInvalidWitnessNum, len(t.Signers), len(t.Scripts))
 		return
 	}
