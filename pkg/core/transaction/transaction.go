@@ -135,8 +135,30 @@ func (t *Transaction) decodeHashableFields(br *io.BinReader) {
 	t.SystemFee = int64(br.ReadU64LE())
 	t.NetworkFee = int64(br.ReadU64LE())
 	t.ValidUntilBlock = br.ReadU32LE()
-	br.ReadArray(&t.Signers, MaxAttributes)
-	br.ReadArray(&t.Attributes, MaxAttributes-len(t.Signers))
+	nsigners := br.ReadVarUint()
+	if br.Err != nil {
+		return
+	}
+	if nsigners > MaxAttributes {
+		br.Err = errors.New("too many signers")
+		return
+	} else if nsigners == 0 {
+		br.Err = errors.New("missing signers")
+		return
+	}
+	t.Signers = make([]Signer, nsigners)
+	for i := 0; i < int(nsigners); i++ {
+		t.Signers[i].DecodeBinary(br)
+	}
+	nattrs := br.ReadVarUint()
+	if nattrs > MaxAttributes-nsigners {
+		br.Err = errors.New("too many attributes")
+		return
+	}
+	t.Attributes = make([]Attribute, nattrs)
+	for i := 0; i < int(nattrs); i++ {
+		t.Attributes[i].DecodeBinary(br)
+	}
 	t.Script = br.ReadVarBytes(MaxScriptLength)
 	if br.Err == nil {
 		br.Err = t.isValid()
@@ -148,10 +170,17 @@ func (t *Transaction) decodeBinaryNoSize(br *io.BinReader) {
 	if br.Err != nil {
 		return
 	}
-	br.ReadArray(&t.Scripts, MaxAttributes)
-	if br.Err == nil && len(t.Signers) != len(t.Scripts) {
+	nscripts := br.ReadVarUint()
+	if nscripts > MaxAttributes {
+		br.Err = errors.New("too many witnesses")
+		return
+	} else if int(nscripts) != len(t.Signers) {
 		br.Err = fmt.Errorf("%w: %d vs %d", ErrInvalidWitnessNum, len(t.Signers), len(t.Scripts))
 		return
+	}
+	t.Scripts = make([]Witness, nscripts)
+	for i := 0; i < int(nscripts); i++ {
+		t.Scripts[i].DecodeBinary(br)
 	}
 
 	// Create the hash of the transaction at decode, so we dont need
