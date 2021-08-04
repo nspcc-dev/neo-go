@@ -25,12 +25,25 @@ type NEOBalance struct {
 
 // NEP17BalanceFromBytes converts serialized NEP17Balance to structure.
 func NEP17BalanceFromBytes(b []byte) (*NEP17Balance, error) {
-	balance := new(NEP17Balance)
-	err := balanceFromBytes(b, balance)
-	if err != nil {
-		return nil, err
+	if len(b) < 4 {
+		if len(b) == 0 {
+			return new(NEP17Balance), nil
+		}
+		return nil, errors.New("invalid format")
 	}
-	return balance, nil
+	if b[0] != byte(stackitem.StructT) {
+		return nil, errors.New("not a struct")
+	}
+	if b[1] != 1 {
+		return nil, errors.New("invalid item count")
+	}
+	if st := stackitem.Type(b[2]); st != stackitem.IntegerT {
+		return nil, fmt.Errorf("invalid balance: %s", st)
+	}
+	if int(b[3]) != len(b[4:]) {
+		return nil, errors.New("invalid balance format")
+	}
+	return &NEP17Balance{Balance: *bigint.FromBytes(b[4:])}, nil
 }
 
 // Bytes returns serialized NEP17Balance.
