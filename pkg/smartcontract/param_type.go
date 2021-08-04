@@ -134,7 +134,7 @@ func (pt ParamType) EncodeBinary(w io.BinaryWriter) {
 }
 
 // DecodeBinary implements io.Serializable interface.
-func (pt *ParamType) DecodeBinary(r *io.BinReader) {
+func (pt *ParamType) DecodeBinary(r io.BinaryReader) {
 	*pt = ParamType(r.ReadB())
 }
 

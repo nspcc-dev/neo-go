@@ -39,14 +39,14 @@ func (m *Message) EncodeBinary(w io.BinaryWriter) {
 }
 
 // DecodeBinary implements io.Serializable interface.
-func (m *Message) DecodeBinary(r *io.BinReader) {
+func (m *Message) DecodeBinary(r io.BinaryReader) {
 	switch m.Type = MessageType(r.ReadB()); m.Type {
 	case VoteT:
 		m.Payload = new(Vote)
 	case RootT:
 		m.Payload = new(state.MPTRoot)
 	default:
-		r.Err = fmt.Errorf("invalid type: %x", m.Type)
+		r.SetError(fmt.Errorf("invalid type: %x", m.Type))
 		return
 	}
 	m.Payload.DecodeBinary(r)

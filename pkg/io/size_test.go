@@ -14,7 +14,7 @@ type smthSerializable struct {
 	some [42]byte
 }
 
-func (*smthSerializable) DecodeBinary(*io.BinReader) {}
+func (*smthSerializable) DecodeBinary(io.BinaryReader) {}
 
 func (ss *smthSerializable) EncodeBinary(bw io.BinaryWriter) {
 	bw.WriteBytes(ss.some[:])
@@ -23,7 +23,7 @@ func (ss *smthSerializable) EncodeBinary(bw io.BinaryWriter) {
 // Mock structure that gives error in EncodeBinary().
 type smthNotReallySerializable struct{}
 
-func (*smthNotReallySerializable) DecodeBinary(*io.BinReader) {}
+func (*smthNotReallySerializable) DecodeBinary(io.BinaryReader) {}
 
 func (*smthNotReallySerializable) EncodeBinary(bw io.BinaryWriter) {
 	bw.SetError(fmt.Errorf("smth bad happened in smthNotReallySerializable"))

@@ -332,7 +332,7 @@ func (t testSerializable) EncodeBinary(w BinaryWriter) {
 }
 
 // DecodeBinary implements io.Serializable interface.
-func (t *testSerializable) DecodeBinary(r *BinReader) {
+func (t *testSerializable) DecodeBinary(r BinaryReader) {
 	*t = testSerializable(r.ReadU16LE())
 }
 
@@ -344,7 +344,7 @@ func (t *testPtrSerializable) EncodeBinary(w BinaryWriter) {
 }
 
 // DecodeBinary implements io.Serializable interface.
-func (t *testPtrSerializable) DecodeBinary(r *BinReader) {
+func (t *testPtrSerializable) DecodeBinary(r BinaryReader) {
 	*t = testPtrSerializable(r.ReadU16LE())
 }
 

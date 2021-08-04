@@ -27,11 +27,11 @@ var ErrTooManyHeaders = fmt.Errorf("too many headers were received (max: %d)", M
 var ErrNoHeaders = errors.New("no headers (zero length array)")
 
 // DecodeBinary implements Serializable interface.
-func (p *Headers) DecodeBinary(br *io.BinReader) {
+func (p *Headers) DecodeBinary(br io.BinaryReader) {
 	lenHeaders := br.ReadVarUint()
 
-	if br.Err == nil && lenHeaders == 0 {
-		br.Err = ErrNoHeaders
+	if br.Error() == nil && lenHeaders == 0 {
+		br.SetError(ErrNoHeaders)
 		return
 	}
 
@@ -51,8 +51,8 @@ func (p *Headers) DecodeBinary(br *io.BinReader) {
 		p.Hdrs[i] = header
 	}
 
-	if br.Err == nil && limitExceeded {
-		br.Err = ErrTooManyHeaders
+	if br.Error() == nil && limitExceeded {
+		br.SetError(ErrTooManyHeaders)
 	}
 }
 

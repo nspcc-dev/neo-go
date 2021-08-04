@@ -89,16 +89,16 @@ func (c *OracleResponseCode) UnmarshalJSON(data []byte) error {
 }
 
 // DecodeBinary implements io.Serializable interface.
-func (r *OracleResponse) DecodeBinary(br *io.BinReader) {
+func (r *OracleResponse) DecodeBinary(br io.BinaryReader) {
 	r.ID = br.ReadU64LE()
 	r.Code = OracleResponseCode(br.ReadB())
 	if !r.Code.IsValid() {
-		br.Err = ErrInvalidResponseCode
+		br.SetError(ErrInvalidResponseCode)
 		return
 	}
 	r.Result = br.ReadVarBytes(MaxOracleResultSize)
 	if r.Code != Success && len(r.Result) > 0 {
-		br.Err = ErrInvalidResult
+		br.SetError(ErrInvalidResult)
 	}
 }
 

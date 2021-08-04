@@ -7,12 +7,12 @@ package io
 // caller should handle the error once and all the other code should just not
 // panic in presence of error.
 type Serializable interface {
-	DecodeBinary(*BinReader)
+	DecodeBinary(BinaryReader)
 	EncodeBinary(BinaryWriter)
 }
 
 type decodable interface {
-	DecodeBinary(*BinReader)
+	DecodeBinary(BinaryReader)
 }
 
 type encodable interface {

@@ -40,7 +40,7 @@ func NewVersion(magic netmode.Magic, id uint32, ua string, c []capability.Capabi
 }
 
 // DecodeBinary implements Serializable interface.
-func (p *Version) DecodeBinary(br *io.BinReader) {
+func (p *Version) DecodeBinary(br io.BinaryReader) {
 	p.Magic = netmode.Magic(br.ReadU32LE())
 	p.Version = br.ReadU32LE()
 	p.Timestamp = br.ReadU32LE()

@@ -93,8 +93,8 @@ func encodeNodeWithType(n Node, w io.BinaryWriter) {
 }
 
 // DecodeNodeWithType decodes node together with it's type.
-func DecodeNodeWithType(r *io.BinReader) Node {
-	if r.Err != nil {
+func DecodeNodeWithType(r io.BinaryReader) Node {
+	if r.Error() != nil {
 		return nil
 	}
 	var n Node
@@ -118,7 +118,7 @@ func DecodeNodeWithType(r *io.BinReader) Node {
 			},
 		}
 	default:
-		r.Err = fmt.Errorf("invalid node type: %x", typ)
+		r.SetError(fmt.Errorf("invalid node type: %x", typ))
 		return nil
 	}
 	n.DecodeBinary(r)

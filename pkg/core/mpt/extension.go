@@ -52,10 +52,10 @@ func (e *ExtensionNode) Bytes() []byte {
 }
 
 // DecodeBinary implements io.Serializable.
-func (e *ExtensionNode) DecodeBinary(r *io.BinReader) {
+func (e *ExtensionNode) DecodeBinary(r io.BinaryReader) {
 	sz := r.ReadVarUint()
 	if sz > maxPathLength {
-		r.Err = fmt.Errorf("extension node key is too big: %d", sz)
+		r.SetError(fmt.Errorf("extension node key is too big: %d", sz))
 		return
 	}
 	e.key = make([]byte, sz)

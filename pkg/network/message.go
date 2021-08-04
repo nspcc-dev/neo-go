@@ -93,7 +93,7 @@ func NewMessage(cmd CommandType, p payload.Payload) *Message {
 }
 
 // Decode decodes a Message from the given reader.
-func (m *Message) Decode(br *io.BinReader) error {
+func (m *Message) Decode(br io.BinaryReader) error {
 	m.Flags = MessageFlag(br.ReadB())
 	m.Command = CommandType(br.ReadB())
 	l := br.ReadVarUint()
@@ -113,8 +113,8 @@ func (m *Message) Decode(br *io.BinReader) error {
 	}
 	m.compressedPayload = make([]byte, l)
 	br.ReadBytes(m.compressedPayload)
-	if br.Err != nil {
-		return br.Err
+	if err := br.Error(); err != nil {
+		return err
 	}
 	return m.decodePayload()
 }

@@ -32,7 +32,7 @@ func NewAddressAndTime(e *net.TCPAddr, t time.Time, c capability.Capabilities) *
 }
 
 // DecodeBinary implements Serializable interface.
-func (p *AddressAndTime) DecodeBinary(br *io.BinReader) {
+func (p *AddressAndTime) DecodeBinary(br io.BinaryReader) {
 	p.Timestamp = br.ReadU32LE()
 	br.ReadBytes(p.IP[:])
 	p.Capabilities.DecodeBinary(br)
@@ -78,10 +78,10 @@ func NewAddressList(n int) *AddressList {
 }
 
 // DecodeBinary implements Serializable interface.
-func (p *AddressList) DecodeBinary(br *io.BinReader) {
+func (p *AddressList) DecodeBinary(br io.BinaryReader) {
 	br.ReadArray(&p.Addrs, MaxAddrsCount)
 	if len(p.Addrs) == 0 {
-		br.Err = errors.New("no addresses listed")
+		br.SetError(errors.New("no addresses listed"))
 	}
 }
 

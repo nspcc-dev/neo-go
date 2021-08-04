@@ -28,11 +28,11 @@ func NewGetBlocks(start util.Uint256, count int16) *GetBlocks {
 }
 
 // DecodeBinary implements Serializable interface.
-func (p *GetBlocks) DecodeBinary(br *io.BinReader) {
+func (p *GetBlocks) DecodeBinary(br io.BinaryReader) {
 	p.HashStart.DecodeBinary(br)
 	p.Count = int16(br.ReadU16LE())
 	if p.Count < -1 || p.Count == 0 {
-		br.Err = errors.New("invalid count")
+		br.SetError(errors.New("invalid count"))
 	}
 }
 

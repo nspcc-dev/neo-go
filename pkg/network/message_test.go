@@ -281,7 +281,7 @@ func (f failSer) EncodeBinary(r io.BinaryWriter) {
 	}
 }
 
-func (failSer) DecodeBinary(w *io.BinReader) {}
+func (failSer) DecodeBinary(w io.BinaryReader) {}
 
 func newDummyBlock(height uint32, txCount int) *block.Block {
 	b := block.New(false)

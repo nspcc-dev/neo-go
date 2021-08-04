@@ -11,14 +11,14 @@ type Conflicts struct {
 }
 
 // DecodeBinary implements io.Serializable interface.
-func (c *Conflicts) DecodeBinary(br *io.BinReader) {
+func (c *Conflicts) DecodeBinary(br io.BinaryReader) {
 	bytes := br.ReadVarBytes(util.Uint256Size)
-	if br.Err != nil {
+	if br.Error() != nil {
 		return
 	}
 	hash, err := util.Uint256DecodeBytesBE(bytes)
 	if err != nil {
-		br.Err = err
+		br.SetError(err)
 		return
 	}
 	c.Hash = hash

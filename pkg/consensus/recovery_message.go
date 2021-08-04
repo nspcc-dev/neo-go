@@ -44,15 +44,15 @@ type (
 var _ payload.RecoveryMessage = (*recoveryMessage)(nil)
 
 // DecodeBinary implements io.Serializable interface.
-func (m *recoveryMessage) DecodeBinary(r *io.BinReader) {
+func (m *recoveryMessage) DecodeBinary(r io.BinaryReader) {
 	r.ReadArray(&m.changeViewPayloads)
 
 	var hasReq = r.ReadBool()
 	if hasReq {
 		m.prepareRequest = &message{stateRootEnabled: m.stateRootEnabled}
 		m.prepareRequest.DecodeBinary(r)
-		if r.Err == nil && m.prepareRequest.Type != prepareRequestType {
-			r.Err = errors.New("recovery message PrepareRequest has wrong type")
+		if r.Error() == nil && m.prepareRequest.Type != prepareRequestType {
+			r.SetError(errors.New("recovery message PrepareRequest has wrong type"))
 			return
 		}
 	} else {
@@ -62,7 +62,7 @@ func (m *recoveryMessage) DecodeBinary(r *io.BinReader) {
 				m.preparationHash = new(util.Uint256)
 				r.ReadBytes(m.preparationHash[:])
 			} else {
-				r.Err = errors.New("invalid data")
+				r.SetError(errors.New("invalid data"))
 			}
 		} else {
 			m.preparationHash = nil
@@ -95,7 +95,7 @@ func (m *recoveryMessage) EncodeBinary(w io.BinaryWriter) {
 }
 
 // DecodeBinary implements io.Serializable interface.
-func (p *changeViewCompact) DecodeBinary(r *io.BinReader) {
+func (p *changeViewCompact) DecodeBinary(r io.BinaryReader) {
 	p.ValidatorIndex = r.ReadB()
 	p.OriginalViewNumber = r.ReadB()
 	p.Timestamp = r.ReadU64LE()
@@ -111,7 +111,7 @@ func (p *changeViewCompact) EncodeBinary(w io.BinaryWriter) {
 }
 
 // DecodeBinary implements io.Serializable interface.
-func (p *commitCompact) DecodeBinary(r *io.BinReader) {
+func (p *commitCompact) DecodeBinary(r io.BinaryReader) {
 	p.ViewNumber = r.ReadB()
 	p.ValidatorIndex = r.ReadB()
 	r.ReadBytes(p.Signature[:])
@@ -127,7 +127,7 @@ func (p *commitCompact) EncodeBinary(w io.BinaryWriter) {
 }
 
 // DecodeBinary implements io.Serializable interface.
-func (p *preparationCompact) DecodeBinary(r *io.BinReader) {
+func (p *preparationCompact) DecodeBinary(r io.BinaryReader) {
 	p.ValidatorIndex = r.ReadB()
 	p.InvocationScript = r.ReadVarBytes(1024)
 }

@@ -32,15 +32,15 @@ func (c *Signer) EncodeBinary(bw io.BinaryWriter) {
 }
 
 // DecodeBinary implements Serializable interface.
-func (c *Signer) DecodeBinary(br *io.BinReader) {
+func (c *Signer) DecodeBinary(br io.BinaryReader) {
 	br.ReadBytes(c.Account[:])
 	c.Scopes = WitnessScope(br.ReadB())
 	if c.Scopes & ^(Global|CalledByEntry|CustomContracts|CustomGroups|None) != 0 {
-		br.Err = errors.New("unknown witness scope")
+		br.SetError(errors.New("unknown witness scope"))
 		return
 	}
 	if c.Scopes&Global != 0 && c.Scopes != Global {
-		br.Err = errors.New("global scope can not be combined with other scopes")
+		br.SetError(errors.New("global scope can not be combined with other scopes"))
 		return
 	}
 	if c.Scopes&CustomContracts != 0 {

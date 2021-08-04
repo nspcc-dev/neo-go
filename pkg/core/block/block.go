@@ -124,11 +124,11 @@ func (b *Block) Trim() ([]byte, error) {
 
 // DecodeBinary decodes the block from the given BinReader, implementing
 // Serializable interface.
-func (b *Block) DecodeBinary(br *io.BinReader) {
+func (b *Block) DecodeBinary(br io.BinaryReader) {
 	b.Header.DecodeBinary(br)
 	contentsCount := br.ReadVarUint()
 	if contentsCount > MaxTransactionsPerBlock {
-		br.Err = ErrMaxContentsPerBlock
+		br.SetError(ErrMaxContentsPerBlock)
 		return
 	}
 	txes := make([]*transaction.Transaction, contentsCount)
@@ -138,9 +138,6 @@ func (b *Block) DecodeBinary(br *io.BinReader) {
 		txes[i] = tx
 	}
 	b.Transactions = txes
-	if br.Err != nil {
-		return
-	}
 }
 
 // EncodeBinary encodes the block to the given BinWriter, implementing

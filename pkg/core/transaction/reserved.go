@@ -10,7 +10,7 @@ type Reserved struct {
 }
 
 // DecodeBinary implements io.Serializable interface.
-func (e *Reserved) DecodeBinary(br *io.BinReader) {
+func (e *Reserved) DecodeBinary(br io.BinaryReader) {
 	e.Value = br.ReadVarBytes()
 }
 

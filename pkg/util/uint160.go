@@ -141,6 +141,6 @@ func (u *Uint160) EncodeBinary(bw io.BinaryWriter) {
 }
 
 // DecodeBinary implements Serializable interface.
-func (u *Uint160) DecodeBinary(br *io.BinReader) {
+func (u *Uint160) DecodeBinary(br io.BinaryReader) {
 	br.ReadBytes(u[:])
 }

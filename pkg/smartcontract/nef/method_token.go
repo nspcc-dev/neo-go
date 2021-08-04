@@ -41,17 +41,17 @@ func (t *MethodToken) EncodeBinary(w io.BinaryWriter) {
 }
 
 // DecodeBinary implements io.Serializable.
-func (t *MethodToken) DecodeBinary(r *io.BinReader) {
+func (t *MethodToken) DecodeBinary(r io.BinaryReader) {
 	r.ReadBytes(t.Hash[:])
 	t.Method = r.ReadString(maxMethodLength)
-	if r.Err == nil && strings.HasPrefix(t.Method, "_") {
-		r.Err = errInvalidMethodName
+	if r.Error() == nil && strings.HasPrefix(t.Method, "_") {
+		r.SetError(errInvalidMethodName)
 		return
 	}
 	t.ParamCount = r.ReadU16LE()
 	t.HasReturn = r.ReadBool()
 	t.CallFlag = callflag.CallFlag(r.ReadB())
-	if r.Err == nil && t.CallFlag&^callflag.All != 0 {
-		r.Err = errInvalidCallFlag
+	if r.Error() == nil && t.CallFlag&^callflag.All != 0 {
+		r.SetError(errInvalidCallFlag)
 	}
 }

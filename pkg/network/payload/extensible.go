@@ -51,7 +51,7 @@ func (e *Extensible) EncodeBinary(w io.BinaryWriter) {
 	e.Witness.EncodeBinary(w)
 }
 
-func (e *Extensible) decodeBinaryUnsigned(r *io.BinReader) {
+func (e *Extensible) decodeBinaryUnsigned(r io.BinaryReader) {
 	e.Category = r.ReadString(maxExtensibleCategorySize)
 	e.ValidBlockStart = r.ReadU32LE()
 	e.ValidBlockEnd = r.ReadU32LE()
@@ -60,13 +60,13 @@ func (e *Extensible) decodeBinaryUnsigned(r *io.BinReader) {
 }
 
 // DecodeBinary implements io.Serializable.
-func (e *Extensible) DecodeBinary(r *io.BinReader) {
+func (e *Extensible) DecodeBinary(r io.BinaryReader) {
 	e.decodeBinaryUnsigned(r)
 	if r.ReadB() != 1 {
-		if r.Err != nil {
+		if r.Error() != nil {
 			return
 		}
-		r.Err = errInvalidPadding
+		r.SetError(errInvalidPadding)
 		return
 	}
 	e.Witness.DecodeBinary(r)

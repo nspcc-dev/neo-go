@@ -114,7 +114,7 @@ func (f Fixed8) MarshalYAML() (interface{}, error) {
 }
 
 // DecodeBinary implements the io.Serializable interface.
-func (f *Fixed8) DecodeBinary(r *io.BinReader) {
+func (f *Fixed8) DecodeBinary(r io.BinaryReader) {
 	*f = Fixed8(r.ReadU64LE())
 }
 

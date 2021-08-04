@@ -58,7 +58,7 @@ func NewInventory(typ InventoryType, hashes []util.Uint256) *Inventory {
 }
 
 // DecodeBinary implements Serializable interface.
-func (p *Inventory) DecodeBinary(br *io.BinReader) {
+func (p *Inventory) DecodeBinary(br io.BinaryReader) {
 	p.Type = InventoryType(br.ReadB())
 	br.ReadArray(&p.Hashes, MaxHashesCount)
 }

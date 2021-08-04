@@ -31,12 +31,12 @@ func Dump(bc blockchainer.Blockchainer, w io.BinaryWriter, start, count uint32) 
 
 // Restore restores blocks from provided reader.
 // f is called after addition of every block.
-func Restore(bc blockchainer.Blockchainer, r *io.BinReader, skip, count uint32, f func(b *block.Block) error) error {
-	readBlock := func(r *io.BinReader) ([]byte, error) {
+func Restore(bc blockchainer.Blockchainer, r io.BinaryReader, skip, count uint32, f func(b *block.Block) error) error {
+	readBlock := func(r io.BinaryReader) ([]byte, error) {
 		var size = r.ReadU32LE()
 		buf := make([]byte, size)
 		r.ReadBytes(buf)
-		return buf, r.Err
+		return buf, r.Error()
 	}
 
 	i := uint32(0)

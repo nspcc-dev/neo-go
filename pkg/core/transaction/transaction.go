@@ -129,7 +129,7 @@ func (t *Transaction) GetAttributes(typ AttrType) []Attribute {
 
 // decodeHashableFields decodes the fields that are used for signing the
 // transaction, which are all fields except the scripts.
-func (t *Transaction) decodeHashableFields(br *io.BinReader) {
+func (t *Transaction) decodeHashableFields(br io.BinaryReader) {
 	t.Version = uint8(br.ReadB())
 	t.Nonce = br.ReadU32LE()
 	t.SystemFee = int64(br.ReadU64LE())
@@ -138,27 +138,27 @@ func (t *Transaction) decodeHashableFields(br *io.BinReader) {
 	br.ReadArray(&t.Signers, MaxAttributes)
 	br.ReadArray(&t.Attributes, MaxAttributes-len(t.Signers))
 	t.Script = br.ReadVarBytes(MaxScriptLength)
-	if br.Err == nil {
-		br.Err = t.isValid()
+	if br.Error() == nil {
+		br.SetError(t.isValid())
 	}
 }
 
 // DecodeBinary implements Serializable interface.
-func (t *Transaction) DecodeBinary(br *io.BinReader) {
+func (t *Transaction) DecodeBinary(br io.BinaryReader) {
 	t.decodeHashableFields(br)
-	if br.Err != nil {
+	if br.Error() != nil {
 		return
 	}
 	br.ReadArray(&t.Scripts, len(t.Signers))
 	if len(t.Signers) != len(t.Scripts) {
-		br.Err = fmt.Errorf("%w: %d vs %d", ErrInvalidWitnessNum, len(t.Signers), len(t.Scripts))
+		br.SetError(fmt.Errorf("%w: %d vs %d", ErrInvalidWitnessNum, len(t.Signers), len(t.Scripts)))
 		return
 	}
 
 	// Create the hash of the transaction at decode, so we dont need
 	// to do it anymore.
-	if br.Err == nil {
-		br.Err = t.createHash()
+	if br.Error() == nil {
+		br.SetError(t.createHash())
 		_ = t.Size()
 	}
 }

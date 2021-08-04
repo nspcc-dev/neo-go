@@ -149,10 +149,10 @@ func (p *Payload) Hash() util.Uint256 {
 }
 
 // DecodeBinary implements io.Serializable interface.
-func (p *Payload) DecodeBinary(r *io.BinReader) {
+func (p *Payload) DecodeBinary(r io.BinaryReader) {
 	p.Extensible.DecodeBinary(r)
-	if r.Err == nil {
-		r.Err = p.decodeData()
+	if r.Error() == nil {
+		r.SetError(p.decodeData())
 	}
 }
 
@@ -166,7 +166,7 @@ func (m *message) EncodeBinary(w io.BinaryWriter) {
 }
 
 // DecodeBinary implements io.Serializable interface.
-func (m *message) DecodeBinary(r *io.BinReader) {
+func (m *message) DecodeBinary(r io.BinaryReader) {
 	m.Type = messageType(r.ReadB())
 	m.BlockIndex = r.ReadU32LE()
 	m.ValidatorIndex = r.ReadB()
@@ -197,7 +197,7 @@ func (m *message) DecodeBinary(r *io.BinReader) {
 		}
 		m.payload = r
 	default:
-		r.Err = fmt.Errorf("invalid type: 0x%02x", byte(m.Type))
+		r.SetError(fmt.Errorf("invalid type: 0x%02x", byte(m.Type)))
 		return
 	}
 	m.payload.DecodeBinary(r)

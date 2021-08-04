@@ -40,10 +40,10 @@ func (n *LeafNode) Bytes() []byte {
 }
 
 // DecodeBinary implements io.Serializable.
-func (n *LeafNode) DecodeBinary(r *io.BinReader) {
+func (n *LeafNode) DecodeBinary(r io.BinaryReader) {
 	sz := r.ReadVarUint()
 	if sz > MaxValueLength {
-		r.Err = fmt.Errorf("leaf node value is too big: %d", sz)
+		r.SetError(fmt.Errorf("leaf node value is too big: %d", sz))
 		return
 	}
 	n.value = make([]byte, sz)

@@ -42,7 +42,7 @@ func (n NodeObject) EncodeBinary(w io.BinaryWriter) {
 }
 
 // DecodeBinary implements io.Serializable.
-func (n *NodeObject) DecodeBinary(r *io.BinReader) {
+func (n *NodeObject) DecodeBinary(r io.BinaryReader) {
 	n.Node = DecodeNodeWithType(r)
 }
 

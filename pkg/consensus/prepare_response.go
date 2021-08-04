@@ -19,7 +19,7 @@ func (p *prepareResponse) EncodeBinary(w io.BinaryWriter) {
 }
 
 // DecodeBinary implements io.Serializable interface.
-func (p *prepareResponse) DecodeBinary(r *io.BinReader) {
+func (p *prepareResponse) DecodeBinary(r io.BinaryReader) {
 	r.ReadBytes(p.preparationHash[:])
 }
 

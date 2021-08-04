@@ -37,7 +37,7 @@ func (t *TestSerializable) EncodeBinary(writer io.BinaryWriter) {
 	writer.WriteString(t.field)
 }
 
-func (t *TestSerializable) DecodeBinary(reader *io.BinReader) {
+func (t *TestSerializable) DecodeBinary(reader io.BinaryReader) {
 	t.field = reader.ReadString()
 }
 

@@ -17,19 +17,19 @@ type MerkleBlock struct {
 }
 
 // DecodeBinary implements Serializable interface.
-func (m *MerkleBlock) DecodeBinary(br *io.BinReader) {
+func (m *MerkleBlock) DecodeBinary(br io.BinaryReader) {
 	m.Header = &block.Header{}
 	m.Header.DecodeBinary(br)
 
 	txCount := int(br.ReadVarUint())
 	if txCount > block.MaxTransactionsPerBlock {
-		br.Err = block.ErrMaxContentsPerBlock
+		br.SetError(block.ErrMaxContentsPerBlock)
 		return
 	}
 	m.TxCount = txCount
 	br.ReadArray(&m.Hashes, m.TxCount)
 	if txCount != len(m.Hashes) {
-		br.Err = errors.New("invalid tx count")
+		br.SetError(errors.New("invalid tx count"))
 	}
 	m.Flags = br.ReadVarBytes((txCount + 7) / 8)
 }

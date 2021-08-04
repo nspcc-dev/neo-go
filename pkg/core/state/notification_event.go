@@ -35,16 +35,16 @@ func (ne *NotificationEvent) EncodeBinary(w io.BinaryWriter) {
 }
 
 // DecodeBinary implements the Serializable interface.
-func (ne *NotificationEvent) DecodeBinary(r *io.BinReader) {
+func (ne *NotificationEvent) DecodeBinary(r io.BinaryReader) {
 	ne.ScriptHash.DecodeBinary(r)
 	ne.Name = r.ReadString()
 	item := stackitem.DecodeBinary(r)
-	if r.Err != nil {
+	if r.Error() != nil {
 		return
 	}
 	arr, ok := item.Value().([]stackitem.Item)
 	if !ok {
-		r.Err = errors.New("Array or Struct expected")
+		r.SetError(errors.New("Array or Struct expected"))
 		return
 	}
 	ne.Item = stackitem.NewArray(arr)
@@ -66,22 +66,22 @@ func (aer *AppExecResult) EncodeBinary(w io.BinaryWriter) {
 }
 
 // DecodeBinary implements the Serializable interface.
-func (aer *AppExecResult) DecodeBinary(r *io.BinReader) {
+func (aer *AppExecResult) DecodeBinary(r io.BinaryReader) {
 	r.ReadBytes(aer.Container[:])
 	aer.Trigger = trigger.Type(r.ReadB())
 	aer.VMState = vm.State(r.ReadB())
 	aer.GasConsumed = int64(r.ReadU64LE())
 	sz := r.ReadVarUint()
-	if stackitem.MaxDeserialized < sz && r.Err == nil {
-		r.Err = errors.New("invalid format")
+	if stackitem.MaxDeserialized < sz && r.Error() == nil {
+		r.SetError(errors.New("invalid format"))
 	}
-	if r.Err != nil {
+	if r.Error() != nil {
 		return
 	}
 	arr := make([]stackitem.Item, sz)
 	for i := 0; i < int(sz); i++ {
 		arr[i] = stackitem.DecodeBinaryProtected(r)
-		if r.Err != nil {
+		if r.Error() != nil {
 			return
 		}
 	}

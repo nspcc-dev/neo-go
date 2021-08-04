@@ -44,7 +44,7 @@ func (h *HashNode) Bytes() []byte {
 }
 
 // DecodeBinary implements io.Serializable.
-func (h *HashNode) DecodeBinary(r *io.BinReader) {
+func (h *HashNode) DecodeBinary(r io.BinaryReader) {
 	if h.hashValid {
 		h.hash.DecodeBinary(r)
 	}

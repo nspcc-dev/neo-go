@@ -33,7 +33,7 @@ func (p *prepareRequest) EncodeBinary(w io.BinaryWriter) {
 }
 
 // DecodeBinary implements io.Serializable interface.
-func (p *prepareRequest) DecodeBinary(r *io.BinReader) {
+func (p *prepareRequest) DecodeBinary(r io.BinaryReader) {
 	p.version = r.ReadU32LE()
 	r.ReadBytes(p.prevHash[:])
 	p.timestamp = r.ReadU64LE()

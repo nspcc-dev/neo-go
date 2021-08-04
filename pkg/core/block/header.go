@@ -79,11 +79,11 @@ func (b *Header) Hash() util.Uint256 {
 }
 
 // DecodeBinary implements Serializable interface.
-func (b *Header) DecodeBinary(br *io.BinReader) {
+func (b *Header) DecodeBinary(br io.BinaryReader) {
 	b.decodeHashableFields(br)
 	witnessCount := br.ReadVarUint()
-	if br.Err == nil && witnessCount != 1 {
-		br.Err = errors.New("wrong witness count")
+	if br.Error() == nil && witnessCount != 1 {
+		br.SetError(errors.New("wrong witness count"))
 		return
 	}
 
@@ -129,7 +129,7 @@ func (b *Header) encodeHashableFields(bw io.BinaryWriter) {
 
 // decodeHashableFields decodes the fields used for hashing.
 // see Hash() for more information about the fields.
-func (b *Header) decodeHashableFields(br *io.BinReader) {
+func (b *Header) decodeHashableFields(br io.BinaryReader) {
 	b.Version = br.ReadU32LE()
 	br.ReadBytes(b.PrevHash[:])
 	br.ReadBytes(b.MerkleRoot[:])
@@ -144,7 +144,7 @@ func (b *Header) decodeHashableFields(br *io.BinReader) {
 
 	// Make the hash of the block here so we dont need to do this
 	// again.
-	if br.Err == nil {
+	if br.Error() == nil {
 		b.createHash()
 	}
 }

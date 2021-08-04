@@ -239,13 +239,13 @@ func (p *PublicKey) DecodeBytes(data []byte) error {
 
 // DecodeBinary decodes a PublicKey from the given BinReader using information
 // about the EC curve to decompress Y point. Secp256r1 is a default value for EC curve.
-func (p *PublicKey) DecodeBinary(r *io.BinReader) {
+func (p *PublicKey) DecodeBinary(r io.BinaryReader) {
 	var prefix uint8
 	var x, y *big.Int
 	var err error
 
 	prefix = uint8(r.ReadB())
-	if r.Err != nil {
+	if r.Error() != nil {
 		return
 	}
 
@@ -263,14 +263,14 @@ func (p *PublicKey) DecodeBinary(r *io.BinReader) {
 		// Compressed public keys
 		xbytes := make([]byte, 32)
 		r.ReadBytes(xbytes)
-		if r.Err != nil {
+		if r.Error() != nil {
 			return
 		}
 		x = new(big.Int).SetBytes(xbytes)
 		ylsb := uint(prefix & 0x1)
 		y, err = decodeCompressedY(x, ylsb, curve)
 		if err != nil {
-			r.Err = err
+			r.SetError(err)
 			return
 		}
 	case 0x04:
@@ -278,21 +278,21 @@ func (p *PublicKey) DecodeBinary(r *io.BinReader) {
 		ybytes := make([]byte, 32)
 		r.ReadBytes(xbytes)
 		r.ReadBytes(ybytes)
-		if r.Err != nil {
+		if r.Error() != nil {
 			return
 		}
 		x = new(big.Int).SetBytes(xbytes)
 		y = new(big.Int).SetBytes(ybytes)
 		if !curve.IsOnCurve(x, y) {
-			r.Err = errors.New("encoded point is not on the P256 curve")
+			r.SetError(errors.New("encoded point is not on the P256 curve"))
 			return
 		}
 	default:
-		r.Err = fmt.Errorf("invalid prefix %d", prefix)
+		r.SetError(fmt.Errorf("invalid prefix %d", prefix))
 		return
 	}
 	if x.Cmp(curveParams.P) >= 0 || y.Cmp(curveParams.P) >= 0 {
-		r.Err = errors.New("enccoded point is not correct (X or Y is bigger than P")
+		r.SetError(errors.New("enccoded point is not correct (X or Y is bigger than P"))
 		return
 	}
 	p.X, p.Y = x, y

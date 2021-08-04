@@ -46,7 +46,7 @@ func (p *ProofWithKey) EncodeBinary(w io.BinaryWriter) {
 }
 
 // DecodeBinary implements io.Serializable.
-func (p *ProofWithKey) DecodeBinary(r *io.BinReader) {
+func (p *ProofWithKey) DecodeBinary(r io.BinaryReader) {
 	p.Key = r.ReadVarBytes()
 	sz := r.ReadVarUint()
 	for i := uint64(0); i < sz; i++ {

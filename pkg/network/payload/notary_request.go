@@ -65,23 +65,23 @@ func (r *P2PNotaryRequest) createHash() error {
 }
 
 // DecodeBinaryUnsigned reads payload from w excluding signature.
-func (r *P2PNotaryRequest) decodeHashableFields(br *io.BinReader) {
+func (r *P2PNotaryRequest) decodeHashableFields(br io.BinaryReader) {
 	r.MainTransaction = &transaction.Transaction{}
 	r.FallbackTransaction = &transaction.Transaction{}
 	r.MainTransaction.DecodeBinary(br)
 	r.FallbackTransaction.DecodeBinary(br)
-	if br.Err == nil {
-		br.Err = r.isValid()
+	if br.Error() == nil {
+		br.SetError(r.isValid())
 	}
-	if br.Err == nil {
-		br.Err = r.createHash()
+	if br.Error() == nil {
+		br.SetError(r.createHash())
 	}
 }
 
 // DecodeBinary implements io.Serializable interface.
-func (r *P2PNotaryRequest) DecodeBinary(br *io.BinReader) {
+func (r *P2PNotaryRequest) DecodeBinary(br io.BinaryReader) {
 	r.decodeHashableFields(br)
-	if br.Err == nil {
+	if br.Error() == nil {
 		r.Witness.DecodeBinary(br)
 	}
 }

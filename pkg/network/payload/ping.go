@@ -26,7 +26,7 @@ func NewPing(blockIndex uint32, nonce uint32) *Ping {
 }
 
 // DecodeBinary implements Serializable interface.
-func (p *Ping) DecodeBinary(br *io.BinReader) {
+func (p *Ping) DecodeBinary(br io.BinaryReader) {
 	p.LastBlockIndex = br.ReadU32LE()
 	p.Timestamp = br.ReadU32LE()
 	p.Nonce = br.ReadU32LE()

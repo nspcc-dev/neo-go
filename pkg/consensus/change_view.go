@@ -21,7 +21,7 @@ func (c *changeView) EncodeBinary(w io.BinaryWriter) {
 }
 
 // DecodeBinary implements io.Serializable interface.
-func (c *changeView) DecodeBinary(r *io.BinReader) {
+func (c *changeView) DecodeBinary(r io.BinaryReader) {
 	c.timestamp = r.ReadU64LE()
 	c.reason = payload.ChangeViewReason(r.ReadB())
 }

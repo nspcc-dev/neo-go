@@ -15,13 +15,13 @@ type NotaryAssisted struct {
 }
 
 // DecodeBinary implements io.Serializable interface.
-func (n *NotaryAssisted) DecodeBinary(br *io.BinReader) {
+func (n *NotaryAssisted) DecodeBinary(br io.BinaryReader) {
 	bytes := br.ReadVarBytes(1)
-	if br.Err != nil {
+	if br.Error() != nil {
 		return
 	}
 	if len(bytes) != 1 {
-		br.Err = fmt.Errorf("expected 1 byte, got %d", len(bytes))
+		br.SetError(fmt.Errorf("expected 1 byte, got %d", len(bytes)))
 		return
 	}
 	n.NKeys = bytes[0]

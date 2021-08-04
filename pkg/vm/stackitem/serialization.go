@@ -31,7 +31,7 @@ type serContext struct {
 
 // deserContext is an internal deserialization context.
 type deserContext struct {
-	*io.BinReader
+	io.BinaryReader
 	allowInvalid bool
 	limit        int
 }
@@ -189,9 +189,9 @@ func Deserialize(data []byte) (Item, error) {
 // reader. It's similar to the io.Serializable's DecodeBinary(), but implemented
 // as a function because Item itself is an interface. Caveat: always check
 // reader's error value before using the returned Item.
-func DecodeBinary(r *io.BinReader) Item {
+func DecodeBinary(r io.BinaryReader) Item {
 	dc := deserContext{
-		BinReader:    r,
+		BinaryReader: r,
 		allowInvalid: false,
 		limit:        MaxDeserialized,
 	}
@@ -200,9 +200,9 @@ func DecodeBinary(r *io.BinReader) Item {
 
 // DecodeBinaryProtected is similar to DecodeBinary but allows Interop and
 // Invalid values to be present (making it symmetric to EncodeBinaryProtected).
-func DecodeBinaryProtected(r *io.BinReader) Item {
+func DecodeBinaryProtected(r io.BinaryReader) Item {
 	dc := deserContext{
-		BinReader:    r,
+		BinaryReader: r,
 		allowInvalid: true,
 		limit:        MaxDeserialized,
 	}
@@ -211,13 +211,13 @@ func DecodeBinaryProtected(r *io.BinReader) Item {
 
 func (r *deserContext) decodeBinary() Item {
 	var t = Type(r.ReadB())
-	if r.Err != nil {
+	if r.Error() != nil {
 		return nil
 	}
 
 	r.limit--
 	if r.limit < 0 {
-		r.Err = errTooBigElements
+		r.SetError(errTooBigElements)
 		return nil
 	}
 	switch t {
@@ -237,7 +237,7 @@ func (r *deserContext) decodeBinary() Item {
 	case ArrayT, StructT:
 		size := int(r.ReadVarUint())
 		if size > MaxDeserialized {
-			r.Err = errTooBigElements
+			r.SetError(errTooBigElements)
 			return nil
 		}
 		arr := make([]Item, size)
@@ -252,14 +252,14 @@ func (r *deserContext) decodeBinary() Item {
 	case MapT:
 		size := int(r.ReadVarUint())
 		if size > MaxDeserialized {
-			r.Err = errTooBigElements
+			r.SetError(errTooBigElements)
 			return nil
 		}
 		m := NewMap()
 		for i := 0; i < size; i++ {
 			key := r.decodeBinary()
 			value := r.decodeBinary()
-			if r.Err != nil {
+			if r.Error() != nil {
 				break
 			}
 			m.Add(key, value)
@@ -276,7 +276,7 @@ func (r *deserContext) decodeBinary() Item {
 		if t == InvalidT && r.allowInvalid {
 			return nil
 		}
-		r.Err = fmt.Errorf("%w: %v", ErrInvalidType, t)
+		r.SetError(fmt.Errorf("%w: %v", ErrInvalidType, t))
 		return nil
 	}
 }

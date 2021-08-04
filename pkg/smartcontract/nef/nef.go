@@ -80,10 +80,10 @@ func (h *Header) EncodeBinary(w io.BinaryWriter) {
 }
 
 // DecodeBinary implements io.Serializable interface.
-func (h *Header) DecodeBinary(r *io.BinReader) {
+func (h *Header) DecodeBinary(r io.BinaryReader) {
 	h.Magic = r.ReadU32LE()
 	if h.Magic != Magic {
-		r.Err = errors.New("invalid Magic")
+		r.SetError(errors.New("invalid Magic"))
 		return
 	}
 	buf := make([]byte, compilerFieldSize)
@@ -116,28 +116,28 @@ func (n *File) EncodeBinary(w io.BinaryWriter) {
 var errInvalidReserved = errors.New("reserved bytes must be 0")
 
 // DecodeBinary implements io.Serializable interface.
-func (n *File) DecodeBinary(r *io.BinReader) {
+func (n *File) DecodeBinary(r io.BinaryReader) {
 	n.Header.DecodeBinary(r)
 	reserved := r.ReadU16LE()
-	if r.Err == nil && reserved != 0 {
-		r.Err = errInvalidReserved
+	if r.Error() == nil && reserved != 0 {
+		r.SetError(errInvalidReserved)
 		return
 	}
 	r.ReadArray(&n.Tokens)
 	reserved = r.ReadU16LE()
-	if r.Err == nil && reserved != 0 {
-		r.Err = errInvalidReserved
+	if r.Error() == nil && reserved != 0 {
+		r.SetError(errInvalidReserved)
 		return
 	}
 	n.Script = r.ReadVarBytes(MaxScriptLength)
-	if r.Err == nil && len(n.Script) == 0 {
-		r.Err = errors.New("empty script")
+	if r.Error() == nil && len(n.Script) == 0 {
+		r.SetError(errors.New("empty script"))
 		return
 	}
 	n.Checksum = r.ReadU32LE()
 	checksum := n.CalculateChecksum()
-	if r.Err == nil && checksum != n.Checksum {
-		r.Err = errors.New("checksum verification failure")
+	if r.Error() == nil && checksum != n.Checksum {
+		r.SetError(errors.New("checksum verification failure"))
 		return
 	}
 }

@@ -13,7 +13,7 @@ type recoveryRequest struct {
 var _ payload.RecoveryRequest = (*recoveryRequest)(nil)
 
 // DecodeBinary implements io.Serializable interface.
-func (m *recoveryRequest) DecodeBinary(r *io.BinReader) {
+func (m *recoveryRequest) DecodeBinary(r io.BinaryReader) {
 	m.timestamp = r.ReadU64LE()
 }
 

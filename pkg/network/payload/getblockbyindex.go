@@ -21,11 +21,11 @@ func NewGetBlockByIndex(indexStart uint32, count int16) *GetBlockByIndex {
 }
 
 // DecodeBinary implements Serializable interface.
-func (d *GetBlockByIndex) DecodeBinary(br *io.BinReader) {
+func (d *GetBlockByIndex) DecodeBinary(br io.BinaryReader) {
 	d.IndexStart = br.ReadU32LE()
 	d.Count = int16(br.ReadU16LE())
 	if d.Count < -1 || d.Count == 0 || d.Count > MaxHeadersAllowed {
-		br.Err = errors.New("invalid block count")
+		br.SetError(errors.New("invalid block count"))
 	}
 }
 

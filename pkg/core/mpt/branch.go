@@ -59,7 +59,7 @@ func (b *BranchNode) EncodeBinaryAsChild(w io.BinaryWriter) {
 }
 
 // DecodeBinary implements io.Serializable.
-func (b *BranchNode) DecodeBinary(r *io.BinReader) {
+func (b *BranchNode) DecodeBinary(r io.BinaryReader) {
 	for i := 0; i < childrenCount; i++ {
 		no := new(NodeObject)
 		no.DecodeBinary(r)

@@ -215,7 +215,7 @@ func (p *Parameter) EncodeBinary(w io.BinaryWriter) {
 }
 
 // DecodeBinary implements io.Serializable interface.
-func (p *Parameter) DecodeBinary(r *io.BinReader) {
+func (p *Parameter) DecodeBinary(r io.BinaryReader) {
 	p.Type = ParamType(r.ReadB())
 	switch p.Type {
 	case BoolType:
@@ -249,7 +249,7 @@ func (p *Parameter) DecodeBinary(r *io.BinReader) {
 		p.Value = u
 	case InteropInterfaceType, AnyType:
 	default:
-		r.Err = fmt.Errorf("unknown type: %x", p.Type)
+		r.SetError(fmt.Errorf("unknown type: %x", p.Type))
 	}
 }
 
@@ -260,7 +260,7 @@ func (p *ParameterPair) EncodeBinary(w io.BinaryWriter) {
 }
 
 // DecodeBinary implements io.Serializable interface.
-func (p *ParameterPair) DecodeBinary(r *io.BinReader) {
+func (p *ParameterPair) DecodeBinary(r io.BinaryReader) {
 	p.Key.DecodeBinary(r)
 	p.Value.DecodeBinary(r)
 }

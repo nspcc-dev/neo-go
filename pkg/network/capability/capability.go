@@ -13,9 +13,9 @@ const MaxCapabilities = 32
 type Capabilities []Capability
 
 // DecodeBinary implements Serializable interface.
-func (cs *Capabilities) DecodeBinary(br *io.BinReader) {
+func (cs *Capabilities) DecodeBinary(br io.BinaryReader) {
 	br.ReadArray(cs, MaxCapabilities)
-	br.Err = cs.checkUniqueCapabilities()
+	br.SetError(cs.checkUniqueCapabilities())
 }
 
 // EncodeBinary implements Serializable interface.
@@ -56,7 +56,7 @@ type Capability struct {
 }
 
 // DecodeBinary implements Serializable interface.
-func (c *Capability) DecodeBinary(br *io.BinReader) {
+func (c *Capability) DecodeBinary(br io.BinaryReader) {
 	c.Type = Type(br.ReadB())
 	switch c.Type {
 	case FullNode:
@@ -64,7 +64,7 @@ func (c *Capability) DecodeBinary(br *io.BinReader) {
 	case TCPServer, WSServer:
 		c.Data = &Server{}
 	default:
-		br.Err = errors.New("unknown node capability type")
+		br.SetError(errors.New("unknown node capability type"))
 		return
 	}
 	c.Data.DecodeBinary(br)
@@ -86,7 +86,7 @@ type Node struct {
 }
 
 // DecodeBinary implements Serializable interface.
-func (n *Node) DecodeBinary(br *io.BinReader) {
+func (n *Node) DecodeBinary(br io.BinaryReader) {
 	n.StartHeight = br.ReadU32LE()
 }
 
@@ -102,7 +102,7 @@ type Server struct {
 }
 
 // DecodeBinary implements Serializable interface.
-func (s *Server) DecodeBinary(br *io.BinReader) {
+func (s *Server) DecodeBinary(br io.BinaryReader) {
 	s.Port = br.ReadU16LE()
 }
 

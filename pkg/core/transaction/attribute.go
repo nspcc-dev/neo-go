@@ -27,7 +27,7 @@ type attrJSON struct {
 }
 
 // DecodeBinary implements Serializable interface.
-func (attr *Attribute) DecodeBinary(br *io.BinReader) {
+func (attr *Attribute) DecodeBinary(br io.BinaryReader) {
 	attr.Type = AttrType(br.ReadB())
 
 	switch t := attr.Type; t {
@@ -46,7 +46,7 @@ func (attr *Attribute) DecodeBinary(br *io.BinReader) {
 			attr.Value = new(Reserved)
 			break
 		}
-		br.Err = fmt.Errorf("failed decoding TX attribute usage: 0x%2x", int(attr.Type))
+		br.SetError(fmt.Errorf("failed decoding TX attribute usage: 0x%2x", int(attr.Type)))
 		return
 	}
 	attr.Value.DecodeBinary(br)

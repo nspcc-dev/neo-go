@@ -20,7 +20,7 @@ func (p *Vote) EncodeBinary(w io.BinaryWriter) {
 }
 
 // DecodeBinary implements io.Serializable interface.
-func (p *Vote) DecodeBinary(r *io.BinReader) {
+func (p *Vote) DecodeBinary(r io.BinaryReader) {
 	p.ValidatorIndex = int32(r.ReadU32LE())
 	p.Height = r.ReadU32LE()
 	p.Signature = r.ReadVarBytes(keys.SignatureLen)

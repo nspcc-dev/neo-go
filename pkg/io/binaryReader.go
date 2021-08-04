@@ -12,6 +12,24 @@ import (
 // It is taken from https://github.com/neo-project/neo/blob/master/neo/IO/Helper.cs#L130
 const MaxArraySize = 0x1000000
 
+// BinaryReader is an interface for deserializing arbitrary structures from
+// some underlying stream.
+type BinaryReader interface {
+	ReadU64LE() uint64
+	ReadU32LE() uint32
+	ReadU16LE() uint16
+	ReadU16BE() uint16
+	ReadB() byte
+	ReadBool() bool
+	ReadArray(interface{}, ...int)
+	ReadVarUint() uint64
+	ReadVarBytes(...int) []byte
+	ReadBytes([]byte)
+	ReadString(...int) string
+	Error() error
+	SetError(error)
+}
+
 // BinReader is a convenient wrapper around a io.Reader and err object.
 // Used to simplify error handling when reading into a struct with many fields.
 type BinReader struct {
@@ -196,4 +214,14 @@ func (r *BinReader) ReadBytes(buf []byte) {
 func (r *BinReader) ReadString(maxSize ...int) string {
 	b := r.ReadVarBytes(maxSize...)
 	return string(b)
+}
+
+// Error implements BinaryReader.
+func (r *BinReader) Error() error {
+	return r.Err
+}
+
+// SetError implements BinaryReader.
+func (r *BinReader) SetError(err error) {
+	r.Err = err
 }

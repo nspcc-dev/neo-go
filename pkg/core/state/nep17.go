@@ -53,7 +53,7 @@ func NewNEP17TransferInfo() *NEP17TransferInfo {
 }
 
 // DecodeBinary implements io.Serializable interface.
-func (bs *NEP17TransferInfo) DecodeBinary(r *io.BinReader) {
+func (bs *NEP17TransferInfo) DecodeBinary(r io.BinaryReader) {
 	bs.NextTransferBatch = r.ReadU32LE()
 	bs.NewBatch = r.ReadBool()
 	lenBalances := r.ReadVarUint()
@@ -140,7 +140,7 @@ func (t *NEP17Transfer) EncodeBinary(w io.BinaryWriter) {
 }
 
 // DecodeBinary implements io.Serializable interface.
-func (t *NEP17Transfer) DecodeBinary(r *io.BinReader) {
+func (t *NEP17Transfer) DecodeBinary(r io.BinaryReader) {
 	t.Asset = int32(r.ReadU32LE())
 	r.ReadBytes(t.Tx[:])
 	r.ReadBytes(t.From[:])
