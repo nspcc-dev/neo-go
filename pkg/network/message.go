@@ -130,7 +130,6 @@ func (m *Message) decodePayload() error {
 		buf = d
 	}
 
-	r := io.NewBinReaderFromBuf(buf)
 	var p payload.Payload
 	switch m.Command {
 	case CMDVersion:
@@ -154,7 +153,12 @@ func (m *Message) decodePayload() error {
 	case CMDHeaders:
 		p = &payload.Headers{StateRootInHeader: m.StateRootInHeader}
 	case CMDTX:
-		p = &transaction.Transaction{}
+		p, err := transaction.NewTransactionFromBytes(buf)
+		if err != nil {
+			return err
+		}
+		m.Payload = p
+		return nil
 	case CMDMerkleBlock:
 		p = &payload.MerkleBlock{}
 	case CMDPing, CMDPong:
@@ -164,6 +168,7 @@ func (m *Message) decodePayload() error {
 	default:
 		return fmt.Errorf("can't decode command %s", m.Command.String())
 	}
+	r := io.NewBinReaderFromBuf(buf)
 	p.DecodeBinary(r)
 	if r.Err == nil || r.Err == payload.ErrTooManyHeaders {
 		m.Payload = p
