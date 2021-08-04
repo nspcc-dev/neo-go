@@ -1,6 +1,7 @@
 package transaction
 
 import (
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -234,13 +235,14 @@ func (t *Transaction) EncodeHashableFields() ([]byte, error) {
 
 // createHash creates the hash of the transaction.
 func (t *Transaction) createHash() error {
-	buf := io.NewBufBinWriter()
-	t.encodeHashableFields(buf.BinWriter)
-	if buf.Err != nil {
-		return buf.Err
+	shaHash := sha256.New()
+	bw := io.NewBinWriterFromIO(shaHash)
+	t.encodeHashableFields(bw)
+	if bw.Err != nil {
+		return bw.Err
 	}
 
-	t.hash = hash.Sha256(buf.Bytes())
+	shaHash.Sum(t.hash[:0])
 	return nil
 }
 
