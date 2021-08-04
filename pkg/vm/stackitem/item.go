@@ -2,7 +2,6 @@ package stackitem
 
 import (
 	"bytes"
-	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -90,33 +89,17 @@ func mkInvConversion(from Item, to Type) error {
 func Make(v interface{}) Item {
 	switch val := v.(type) {
 	case int:
-		return &BigInteger{
-			value: big.NewInt(int64(val)),
-		}
+		return (*BigInteger)(big.NewInt(int64(val)))
 	case int64:
-		return &BigInteger{
-			value: big.NewInt(val),
-		}
+		return (*BigInteger)(big.NewInt(val))
 	case uint8:
-		return &BigInteger{
-			value: big.NewInt(int64(val)),
-		}
+		return (*BigInteger)(big.NewInt(int64(val)))
 	case uint16:
-		return &BigInteger{
-			value: big.NewInt(int64(val)),
-		}
+		return (*BigInteger)(big.NewInt(int64(val)))
 	case uint32:
-		return &BigInteger{
-			value: big.NewInt(int64(val)),
-		}
+		return (*BigInteger)(big.NewInt(int64(val)))
 	case uint64:
-		b := make([]byte, 8)
-		binary.BigEndian.PutUint64(b, val)
-		bigInt := big.NewInt(0)
-		bigInt.SetBytes(b)
-		return &BigInteger{
-			value: bigInt,
-		}
+		return (*BigInteger)(new(big.Int).SetUint64(val))
 	case []byte:
 		return &ByteArray{
 			value: val,
@@ -400,9 +383,7 @@ func (i Null) Convert(typ Type) (Item, error) {
 }
 
 // BigInteger represents a big integer on the stack.
-type BigInteger struct {
-	value *big.Int
-}
+type BigInteger big.Int
 
 // NewBigInteger returns an new BigInteger object.
 func NewBigInteger(value *big.Int) *BigInteger {
@@ -418,19 +399,22 @@ func NewBigInteger(value *big.Int) *BigInteger {
 			panic(errTooBigInteger)
 		}
 	}
-	return &BigInteger{
-		value: value,
-	}
+	return (*BigInteger)(value)
+}
+
+// Big casts i to the big.Int type.
+func (i *BigInteger) Big() *big.Int {
+	return (*big.Int)(i)
 }
 
 // Bytes converts i to a slice of bytes.
 func (i *BigInteger) Bytes() []byte {
-	return bigint.ToBytes(i.value)
+	return bigint.ToBytes(i.Big())
 }
 
 // TryBool implements Item interface.
 func (i *BigInteger) TryBool() (bool, error) {
-	return i.value.Sign() != 0, nil
+	return i.Big().Sign() != 0, nil
 }
 
 // TryBytes implements Item interface.
@@ -440,7 +424,7 @@ func (i *BigInteger) TryBytes() ([]byte, error) {
 
 // TryInteger implements Item interface.
 func (i *BigInteger) TryInteger() (*big.Int, error) {
-	return i.value, nil
+	return i.Big(), nil
 }
 
 // Equals implements Item interface.
@@ -451,12 +435,12 @@ func (i *BigInteger) Equals(s Item) bool {
 		return false
 	}
 	val, ok := s.(*BigInteger)
-	return ok && i.value.Cmp(val.value) == 0
+	return ok && i.Big().Cmp(val.Big()) == 0
 }
 
 // Value implements Item interface.
 func (i *BigInteger) Value() interface{} {
-	return i.value
+	return i.Big()
 }
 
 func (i *BigInteger) String() string {
@@ -466,7 +450,7 @@ func (i *BigInteger) String() string {
 // Dup implements Item interface.
 func (i *BigInteger) Dup() Item {
 	n := new(big.Int)
-	return &BigInteger{n.Set(i.value)}
+	return (*BigInteger)(n.Set(i.Big()))
 }
 
 // Type implements Item interface.
@@ -479,7 +463,7 @@ func (i *BigInteger) Convert(typ Type) (Item, error) {
 
 // MarshalJSON implements the json.Marshaler interface.
 func (i *BigInteger) MarshalJSON() ([]byte, error) {
-	return json.Marshal(i.value)
+	return json.Marshal(i.Big())
 }
 
 // Bool represents a boolean Item.
@@ -1156,11 +1140,8 @@ func deepCopy(item Item, seen map[Item]Item) Item {
 		}
 		return m
 	case *BigInteger:
-		bi := new(big.Int).SetBytes(it.value.Bytes())
-		if it.value.Sign() == -1 {
-			bi.Neg(bi)
-		}
-		return NewBigInteger(bi)
+		bi := new(big.Int).Set(it.Big())
+		return (*BigInteger)(bi)
 	case *ByteArray:
 		return NewByteArray(slice.Copy(it.value))
 	case *Buffer:
