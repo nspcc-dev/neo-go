@@ -145,9 +145,18 @@ func (t *Transaction) decodeHashableFields(br io.BinaryReader) {
 
 // DecodeBinary implements Serializable interface.
 func (t *Transaction) DecodeBinary(br io.BinaryReader) {
+	var start, end int
+	buf, ok := br.(*io.BufBinReader)
+	if ok {
+		start = buf.Pos
+	}
+
 	t.decodeHashableFields(br)
 	if br.Error() != nil {
 		return
+	}
+	if ok {
+		end = buf.Pos
 	}
 	br.ReadArray(&t.Scripts, len(t.Signers))
 	if len(t.Signers) != len(t.Scripts) {
@@ -158,6 +167,11 @@ func (t *Transaction) DecodeBinary(br io.BinaryReader) {
 	// Create the hash of the transaction at decode, so we dont need
 	// to do it anymore.
 	if br.Error() == nil {
+		if ok {
+			t.hash = hash.Sha256(buf.Data[start:end])
+			t.size = buf.Pos - start
+			return
+		}
 		br.SetError(t.createHash())
 		_ = t.Size()
 	}

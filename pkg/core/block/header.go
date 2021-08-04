@@ -130,6 +130,11 @@ func (b *Header) encodeHashableFields(bw io.BinaryWriter) {
 // decodeHashableFields decodes the fields used for hashing.
 // see Hash() for more information about the fields.
 func (b *Header) decodeHashableFields(br io.BinaryReader) {
+	buf, ok := br.(*io.BufBinReader)
+	var start int
+	if ok {
+		start = buf.Pos
+	}
 	b.Version = br.ReadU32LE()
 	br.ReadBytes(b.PrevHash[:])
 	br.ReadBytes(b.MerkleRoot[:])
@@ -145,6 +150,10 @@ func (b *Header) decodeHashableFields(br io.BinaryReader) {
 	// Make the hash of the block here so we dont need to do this
 	// again.
 	if br.Error() == nil {
+		if ok {
+			b.hash = hash.Sha256(buf.Data[start:buf.Pos])
+			return
+		}
 		b.createHash()
 	}
 }
