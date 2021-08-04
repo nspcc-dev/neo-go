@@ -7,6 +7,7 @@ import (
 	"math/big"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
@@ -33,8 +34,20 @@ func NEP17BalanceFromBytes(b []byte) (*NEP17Balance, error) {
 }
 
 // Bytes returns serialized NEP17Balance.
-func (s *NEP17Balance) Bytes() []byte {
-	return balanceToBytes(s)
+func (s *NEP17Balance) Bytes(buf []byte) []byte {
+	if cap(buf) < 4+bigint.MaxBytesLen {
+		buf = make([]byte, 4, 4+bigint.MaxBytesLen)
+	} else {
+		buf = buf[:4]
+	}
+	buf[0] = byte(stackitem.StructT)
+	buf[1] = 1
+	buf[2] = byte(stackitem.IntegerT)
+
+	data := bigint.ToPreallocatedBytes(&s.Balance, buf[4:])
+	buf[3] = byte(len(data)) // max is 33, so we are ok here
+	buf = append(buf, data...)
+	return buf
 }
 
 func balanceFromBytes(b []byte, item stackitem.Convertible) error {
