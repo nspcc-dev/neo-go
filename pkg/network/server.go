@@ -1146,6 +1146,9 @@ func (s *Server) iteratePeersWithSendMsg(msg *Message, send func(Peer, bool, []b
 	if len(peers) == 0 {
 		return
 	}
+	mrand.Shuffle(len(peers), func(i, j int) {
+		peers[i], peers[j] = peers[j], peers[i]
+	})
 	pkt, err := msg.Bytes()
 	if err != nil {
 		return
