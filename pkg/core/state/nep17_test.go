@@ -38,6 +38,26 @@ func TestNEP17TransferLog_Append(t *testing.T) {
 	require.True(t, cont)
 }
 
+func BenchmarkNEP17TransferLog_Append(b *testing.B) {
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	ts := make([]*NEP17Transfer, NEP17TransferBatchSize)
+	for i := range ts {
+		ts[i] = randomTransfer(r)
+	}
+
+	lg := new(NEP17TransferLog)
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		for _, tr := range ts {
+			err := lg.Append(tr)
+			if err != nil {
+				b.FailNow()
+			}
+		}
+	}
+}
+
 func TestNEP17Transfer_DecodeBinary(t *testing.T) {
 	expected := &NEP17Transfer{
 		Asset:     123,
