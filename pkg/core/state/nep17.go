@@ -1,6 +1,7 @@
 package state
 
 import (
+	"bytes"
 	"math/big"
 
 	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
@@ -78,19 +79,20 @@ func (bs *NEP17TransferInfo) EncodeBinary(w *io.BinWriter) {
 
 // Append appends single transfer to a log.
 func (lg *NEP17TransferLog) Append(tr *NEP17Transfer) error {
-	w := io.NewBufBinWriter()
 	// The first entry, set up counter.
 	if len(lg.Raw) == 0 {
-		w.WriteB(1)
+		lg.Raw = append(lg.Raw, 0)
 	}
-	tr.EncodeBinary(w.BinWriter)
+
+	b := bytes.NewBuffer(lg.Raw)
+	w := io.NewBinWriterFromIO(b)
+
+	tr.EncodeBinary(w)
 	if w.Err != nil {
 		return w.Err
 	}
-	if len(lg.Raw) != 0 {
-		lg.Raw[0]++
-	}
-	lg.Raw = append(lg.Raw, w.Bytes()...)
+	lg.Raw = b.Bytes()
+	lg.Raw[0]++
 	return nil
 }
 
