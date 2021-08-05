@@ -1,6 +1,7 @@
 package server
 
 import (
+	"bytes"
 	"context"
 	"crypto/elliptic"
 	"encoding/binary"
@@ -1496,27 +1497,40 @@ func (s *Server) subscribe(reqParams request.Params, sub *subscriber) (interface
 	// Optional filter.
 	var filter interface{}
 	if p := reqParams.Value(1); p != nil {
+		param, ok := p.Value.(json.RawMessage)
+		if !ok {
+			return nil, response.ErrInvalidParams
+		}
+		jd := json.NewDecoder(bytes.NewReader(param))
+		jd.DisallowUnknownFields()
 		switch event {
 		case response.BlockEventID:
-			if p.Type != request.BlockFilterT {
-				return nil, response.ErrInvalidParams
-			}
-		case response.TransactionEventID:
-			if p.Type != request.TxFilterT {
-				return nil, response.ErrInvalidParams
-			}
+			flt := new(request.BlockFilter)
+			err = jd.Decode(flt)
+			p.Type = request.BlockFilterT
+			p.Value = *flt
+		case response.TransactionEventID, response.NotaryRequestEventID:
+			flt := new(request.TxFilter)
+			err = jd.Decode(flt)
+			p.Type = request.TxFilterT
+			p.Value = *flt
 		case response.NotificationEventID:
-			if p.Type != request.NotificationFilterT {
-				return nil, response.ErrInvalidParams
-			}
+			flt := new(request.NotificationFilter)
+			err = jd.Decode(flt)
+			p.Type = request.NotificationFilterT
+			p.Value = *flt
 		case response.ExecutionEventID:
-			if p.Type != request.ExecutionFilterT {
-				return nil, response.ErrInvalidParams
+			flt := new(request.ExecutionFilter)
+			err = jd.Decode(flt)
+			if err == nil && (flt.State == "HALT" || flt.State == "FAULT") {
+				p.Type = request.ExecutionFilterT
+				p.Value = *flt
+			} else if err == nil {
+				err = errors.New("invalid state")
 			}
-		case response.NotaryRequestEventID:
-			if p.Type != request.TxFilterT {
-				return nil, response.ErrInvalidParams
-			}
+		}
+		if err != nil {
+			return nil, response.ErrInvalidParams
 		}
 		filter = p.Value
 	}
