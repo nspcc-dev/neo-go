@@ -1837,7 +1837,7 @@ func (bc *Blockchain) InitVerificationVM(v *vm.VM, getContract func(util.Uint160
 		if err != nil {
 			return fmt.Errorf("%w: %v", ErrInvalidVerification, err)
 		}
-		v.LoadScriptWithFlags(witness.VerificationScript, callflag.ReadOnly)
+		v.LoadScriptWithHash(witness.VerificationScript, hash, callflag.ReadOnly)
 	} else {
 		cs, err := getContract(hash)
 		if err != nil {
