@@ -1,6 +1,7 @@
 package transaction
 
 import (
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -135,30 +136,66 @@ func (t *Transaction) decodeHashableFields(br *io.BinReader) {
 	t.SystemFee = int64(br.ReadU64LE())
 	t.NetworkFee = int64(br.ReadU64LE())
 	t.ValidUntilBlock = br.ReadU32LE()
-	br.ReadArray(&t.Signers, MaxAttributes)
-	br.ReadArray(&t.Attributes, MaxAttributes-len(t.Signers))
+	nsigners := br.ReadVarUint()
+	if br.Err != nil {
+		return
+	}
+	if nsigners > MaxAttributes {
+		br.Err = errors.New("too many signers")
+		return
+	} else if nsigners == 0 {
+		br.Err = errors.New("missing signers")
+		return
+	}
+	t.Signers = make([]Signer, nsigners)
+	for i := 0; i < int(nsigners); i++ {
+		t.Signers[i].DecodeBinary(br)
+	}
+	nattrs := br.ReadVarUint()
+	if nattrs > MaxAttributes-nsigners {
+		br.Err = errors.New("too many attributes")
+		return
+	}
+	t.Attributes = make([]Attribute, nattrs)
+	for i := 0; i < int(nattrs); i++ {
+		t.Attributes[i].DecodeBinary(br)
+	}
 	t.Script = br.ReadVarBytes(MaxScriptLength)
 	if br.Err == nil {
 		br.Err = t.isValid()
 	}
 }
 
-// DecodeBinary implements Serializable interface.
-func (t *Transaction) DecodeBinary(br *io.BinReader) {
+func (t *Transaction) decodeBinaryNoSize(br *io.BinReader) {
 	t.decodeHashableFields(br)
 	if br.Err != nil {
 		return
 	}
-	br.ReadArray(&t.Scripts, len(t.Signers))
-	if len(t.Signers) != len(t.Scripts) {
+	nscripts := br.ReadVarUint()
+	if nscripts > MaxAttributes {
+		br.Err = errors.New("too many witnesses")
+		return
+	} else if int(nscripts) != len(t.Signers) {
 		br.Err = fmt.Errorf("%w: %d vs %d", ErrInvalidWitnessNum, len(t.Signers), len(t.Scripts))
 		return
+	}
+	t.Scripts = make([]Witness, nscripts)
+	for i := 0; i < int(nscripts); i++ {
+		t.Scripts[i].DecodeBinary(br)
 	}
 
 	// Create the hash of the transaction at decode, so we dont need
 	// to do it anymore.
 	if br.Err == nil {
 		br.Err = t.createHash()
+	}
+}
+
+// DecodeBinary implements Serializable interface.
+func (t *Transaction) DecodeBinary(br *io.BinReader) {
+	t.decodeBinaryNoSize(br)
+
+	if br.Err == nil {
 		_ = t.Size()
 	}
 }
@@ -198,13 +235,14 @@ func (t *Transaction) EncodeHashableFields() ([]byte, error) {
 
 // createHash creates the hash of the transaction.
 func (t *Transaction) createHash() error {
-	buf := io.NewBufBinWriter()
-	t.encodeHashableFields(buf.BinWriter)
-	if buf.Err != nil {
-		return buf.Err
+	shaHash := sha256.New()
+	bw := io.NewBinWriterFromIO(shaHash)
+	t.encodeHashableFields(bw)
+	if bw.Err != nil {
+		return bw.Err
 	}
 
-	t.hash = hash.Sha256(buf.Bytes())
+	shaHash.Sum(t.hash[:0])
 	return nil
 }
 
@@ -240,7 +278,7 @@ func (t *Transaction) Bytes() []byte {
 func NewTransactionFromBytes(b []byte) (*Transaction, error) {
 	tx := &Transaction{}
 	r := io.NewBinReaderFromBuf(b)
-	tx.DecodeBinary(r)
+	tx.decodeBinaryNoSize(r)
 	if r.Err != nil {
 		return nil, r.Err
 	}
