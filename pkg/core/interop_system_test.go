@@ -683,10 +683,6 @@ func getTestContractState(bc *Blockchain) (*state.Contract, *state.Contract) {
 	emit.Opcodes(w.BinWriter, opcode.CALLT, 1, 0, opcode.RET)
 	callT2Off := w.Len()
 	emit.Opcodes(w.BinWriter, opcode.CALLT, 0, 0, opcode.RET)
-	refuelOff := w.Len()
-	emit.Opcodes(w.BinWriter, opcode.PUSH2, opcode.PACK)
-	emit.AppCallNoArgs(w.BinWriter, bc.contracts.GAS.Hash, "refuel", callflag.States|callflag.AllowNotify)
-	emit.Opcodes(w.BinWriter, opcode.DROP)
 	burnGasOff := w.Len()
 	emit.Syscall(w.BinWriter, interopnames.SystemRuntimeBurnGas)
 	emit.Opcodes(w.BinWriter, opcode.RET)
@@ -859,18 +855,8 @@ func getTestContractState(bc *Blockchain) (*state.Contract, *state.Contract) {
 			},
 			ReturnType: smartcontract.VoidType,
 		},
-		{
-			Name:   "refuelGas",
-			Offset: refuelOff,
-			Parameters: []manifest.Parameter{
-				manifest.NewParameter("account", smartcontract.Hash160Type),
-				manifest.NewParameter("gasRefuel", smartcontract.IntegerType),
-				manifest.NewParameter("gasBurn", smartcontract.IntegerType),
-			},
-			ReturnType: smartcontract.VoidType,
-		},
 	}
-	m.Permissions = make([]manifest.Permission, 3)
+	m.Permissions = make([]manifest.Permission, 2)
 	m.Permissions[0].Contract.Type = manifest.PermissionHash
 	m.Permissions[0].Contract.Value = bc.contracts.NEO.Hash
 	m.Permissions[0].Methods.Add("balanceOf")
@@ -878,10 +864,6 @@ func getTestContractState(bc *Blockchain) (*state.Contract, *state.Contract) {
 	m.Permissions[1].Contract.Type = manifest.PermissionHash
 	m.Permissions[1].Contract.Value = util.Uint160{}
 	m.Permissions[1].Methods.Add("method")
-
-	m.Permissions[2].Contract.Type = manifest.PermissionHash
-	m.Permissions[2].Contract.Value = bc.contracts.GAS.Hash
-	m.Permissions[2].Methods.Add("refuel")
 
 	cs := &state.Contract{
 		ContractBase: state.ContractBase{
