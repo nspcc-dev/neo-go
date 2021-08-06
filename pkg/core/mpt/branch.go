@@ -27,7 +27,7 @@ var _ Node = (*BranchNode)(nil)
 func NewBranchNode() *BranchNode {
 	b := new(BranchNode)
 	for i := 0; i < childrenCount; i++ {
-		b.Children[i] = new(HashNode)
+		b.Children[i] = EmptyNode{}
 	}
 	return b
 }
@@ -45,17 +45,22 @@ func (b *BranchNode) Bytes() []byte {
 	return b.getBytes(b)
 }
 
+// Size implements Node interface.
+func (b *BranchNode) Size() int {
+	sz := childrenCount
+	for i := range b.Children {
+		if !isEmpty(b.Children[i]) {
+			sz += util.Uint256Size
+		}
+	}
+	return sz
+}
+
 // EncodeBinary implements io.Serializable.
 func (b *BranchNode) EncodeBinary(w *io.BinWriter) {
 	for i := 0; i < childrenCount; i++ {
-		b.Children[i].EncodeBinaryAsChild(w)
+		encodeBinaryAsChild(b.Children[i], w)
 	}
-}
-
-// EncodeBinaryAsChild implements BaseNode interface.
-func (b *BranchNode) EncodeBinaryAsChild(w *io.BinWriter) {
-	n := &NodeObject{Node: NewHashNode(b.Hash())} // with type
-	n.EncodeBinary(w)
 }
 
 // DecodeBinary implements io.Serializable.

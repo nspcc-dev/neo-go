@@ -53,3 +53,14 @@ func BenchmarkDecodeFromBytes(t *testing.B) {
 		require.NoError(t, err)
 	}
 }
+
+func BenchmarkTransaction_Bytes(b *testing.B) {
+	tx, err := NewTransactionFromBytes(benchTx)
+	require.NoError(b, err)
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = tx.Bytes()
+	}
+}

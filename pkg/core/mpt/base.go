@@ -1,6 +1,7 @@
 package mpt
 
 import (
+	"bytes"
 	"fmt"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
@@ -23,7 +24,6 @@ type BaseNodeIface interface {
 	Hash() util.Uint256
 	Type() NodeType
 	Bytes() []byte
-	EncodeBinaryAsChild(w *io.BinWriter)
 }
 
 type flushedNode interface {
@@ -55,8 +55,8 @@ func (b *BaseNode) getBytes(n Node) []byte {
 
 // updateHash updates hash field for this BaseNode.
 func (b *BaseNode) updateHash(n Node) {
-	if n.Type() == HashT {
-		panic("can't update hash for hash node")
+	if n.Type() == HashT || n.Type() == EmptyT {
+		panic("can't update hash for empty or hash node")
 	}
 	b.hash = hash.DoubleSha256(b.getBytes(n))
 	b.hashValid = true
@@ -64,8 +64,9 @@ func (b *BaseNode) updateHash(n Node) {
 
 // updateCache updates hash and bytes fields for this BaseNode.
 func (b *BaseNode) updateBytes(n Node) {
-	buf := io.NewBufBinWriter()
-	encodeNodeWithType(n, buf.BinWriter)
+	buf := bytes.NewBuffer(make([]byte, 0, 1+n.Size()))
+	bw := io.NewBinWriterFromIO(buf)
+	encodeNodeWithType(n, bw)
 	b.bytes = buf.Bytes()
 	b.bytesValid = true
 }
@@ -76,19 +77,18 @@ func (b *BaseNode) invalidateCache() {
 	b.hashValid = false
 }
 
+func encodeBinaryAsChild(n Node, w *io.BinWriter) {
+	if isEmpty(n) {
+		w.WriteB(byte(EmptyT))
+		return
+	}
+	w.WriteB(byte(HashT))
+	w.WriteBytes(n.Hash().BytesBE())
+}
+
 // encodeNodeWithType encodes node together with it's type.
 func encodeNodeWithType(n Node, w *io.BinWriter) {
-	switch t := n.Type(); t {
-	case HashT:
-		hn := n.(*HashNode)
-		if !hn.hashValid {
-			w.WriteB(byte(EmptyT))
-			break
-		}
-		fallthrough
-	default:
-		w.WriteB(byte(t))
-	}
+	w.WriteB(byte(n.Type()))
 	n.EncodeBinary(w)
 }
 
@@ -112,11 +112,7 @@ func DecodeNodeWithType(r *io.BinReader) Node {
 	case LeafT:
 		n = new(LeafNode)
 	case EmptyT:
-		n = &HashNode{
-			BaseNode: BaseNode{
-				hashValid: false,
-			},
-		}
+		n = EmptyNode{}
 	default:
 		r.Err = fmt.Errorf("invalid node type: %x", typ)
 		return nil

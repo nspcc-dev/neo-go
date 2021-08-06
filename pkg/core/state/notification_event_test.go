@@ -13,6 +13,31 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func BenchmarkAppExecResult_EncodeBinary(b *testing.B) {
+	aer := &AppExecResult{
+		Container: random.Uint256(),
+		Execution: Execution{
+			Trigger:     trigger.Application,
+			VMState:     vm.HaltState,
+			GasConsumed: 12345,
+			Stack:       []stackitem.Item{},
+			Events: []NotificationEvent{{
+				ScriptHash: random.Uint160(),
+				Name:       "Event",
+				Item:       stackitem.NewArray([]stackitem.Item{stackitem.NewBool(true)}),
+			}},
+		},
+	}
+
+	w := io.NewBufBinWriter()
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		w.Reset()
+		aer.EncodeBinary(w.BinWriter)
+	}
+}
+
 func TestEncodeDecodeNotificationEvent(t *testing.T) {
 	event := &NotificationEvent{
 		ScriptHash: random.Uint160(),

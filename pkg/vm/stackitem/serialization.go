@@ -112,8 +112,11 @@ func (w *serContext) serialize(item Item) error {
 		}
 	case *BigInteger:
 		w.data = append(w.data, byte(IntegerT))
-		data := bigint.ToBytes(t.Value().(*big.Int))
-		w.appendVarUint(uint64(len(data)))
+		v := t.Value().(*big.Int)
+		ln := len(w.data)
+		w.data = append(w.data, 0)
+		data := bigint.ToPreallocatedBytes(v, w.data[len(w.data):])
+		w.data[ln] = byte(len(data))
 		w.data = append(w.data, data...)
 	case *Interop:
 		if w.allowInvalid {

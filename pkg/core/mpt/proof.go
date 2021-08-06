@@ -49,13 +49,11 @@ func (t *Trie) getProof(curr Node, path []byte, proofs *[][]byte) (Node, error) 
 			return n, nil
 		}
 	case *HashNode:
-		if !n.IsEmpty() {
-			r, err := t.getFromStore(n.Hash())
-			if err != nil {
-				return nil, err
-			}
-			return t.getProof(r, path, proofs)
+		r, err := t.getFromStore(n.Hash())
+		if err != nil {
+			return nil, err
 		}
+		return t.getProof(r, path, proofs)
 	}
 	return nil, ErrNotFound
 }

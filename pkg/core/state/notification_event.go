@@ -61,7 +61,10 @@ func (aer *AppExecResult) EncodeBinary(w *io.BinWriter) {
 	for _, it := range aer.Stack {
 		stackitem.EncodeBinaryProtected(it, w)
 	}
-	w.WriteArray(aer.Events)
+	w.WriteVarUint(uint64(len(aer.Events)))
+	for i := range aer.Events {
+		aer.Events[i].EncodeBinary(w)
+	}
 	w.WriteVarBytes([]byte(aer.FaultException))
 }
 

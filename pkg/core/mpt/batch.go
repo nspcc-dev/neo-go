@@ -62,6 +62,8 @@ func (t *Trie) putBatchIntoNode(curr Node, kv []keyValue) (Node, int, error) {
 		return t.putBatchIntoExtension(n, kv)
 	case *HashNode:
 		return t.putBatchIntoHash(n, kv)
+	case EmptyNode:
+		return t.putBatchIntoEmpty(kv)
 	default:
 		panic("invalid MPT node type")
 	}
@@ -84,11 +86,9 @@ func (t *Trie) mergeExtension(prefix []byte, sub Node) (Node, error) {
 		sn.invalidateCache()
 		t.addRef(sn.Hash(), sn.bytes)
 		return sn, nil
+	case EmptyNode:
+		return sn, nil
 	case *HashNode:
-		if sn.IsEmpty() {
-			return sn, nil
-		}
-
 		n, err := t.getFromStore(sn.Hash())
 		if err != nil {
 			return sn, err
@@ -141,8 +141,8 @@ func (t *Trie) putBatchIntoExtensionNoPrefix(key []byte, next Node, kv []keyValu
 }
 
 func isEmpty(n Node) bool {
-	hn, ok := n.(*HashNode)
-	return ok && hn.IsEmpty()
+	_, ok := n.(EmptyNode)
+	return ok
 }
 
 // addToBranch puts items into the branch node assuming b is not yet in trie.
@@ -190,7 +190,7 @@ func (t *Trie) stripBranch(b *BranchNode) (Node, error) {
 	}
 	switch {
 	case n == 0:
-		return new(HashNode), nil
+		return EmptyNode{}, nil
 	case n == 1:
 		if lastIndex != lastChild {
 			return t.mergeExtension([]byte{lastIndex}, b.Children[lastIndex])
@@ -219,12 +219,13 @@ func (t *Trie) iterateBatch(kv []keyValue, f func(c byte, kv []keyValue) (int, e
 	return n, nil
 }
 
+func (t *Trie) putBatchIntoEmpty(kv []keyValue) (Node, int, error) {
+	common := lcpMany(kv)
+	stripPrefix(len(common), kv)
+	return t.newSubTrieMany(common, kv, nil)
+}
+
 func (t *Trie) putBatchIntoHash(curr *HashNode, kv []keyValue) (Node, int, error) {
-	if curr.IsEmpty() {
-		common := lcpMany(kv)
-		stripPrefix(len(common), kv)
-		return t.newSubTrieMany(common, kv, nil)
-	}
 	result, err := t.getFromStore(curr.hash)
 	if err != nil {
 		return curr, 0, err
@@ -242,7 +243,7 @@ func (t *Trie) newSubTrieMany(prefix []byte, kv []keyValue, value []byte) (Node,
 	if len(kv[0].key) == 0 {
 		if len(kv[0].value) == 0 {
 			if len(kv) == 1 {
-				return new(HashNode), 1, nil
+				return EmptyNode{}, 1, nil
 			}
 			node, n, err := t.newSubTrieMany(prefix, kv[1:], nil)
 			return node, n + 1, err

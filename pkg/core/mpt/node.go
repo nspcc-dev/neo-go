@@ -33,6 +33,7 @@ type Node interface {
 	io.Serializable
 	json.Marshaler
 	json.Unmarshaler
+	Size() int
 	BaseNodeIface
 }
 
@@ -68,7 +69,7 @@ func (n *NodeObject) UnmarshalJSON(data []byte) error {
 
 	switch len(m) {
 	case 0:
-		n.Node = new(HashNode)
+		n.Node = EmptyNode{}
 	case 1:
 		if v, ok := m["hash"]; ok {
 			var h util.Uint256

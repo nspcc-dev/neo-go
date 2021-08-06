@@ -27,6 +27,11 @@ func NewHashNode(h util.Uint256) *HashNode {
 // Type implements Node interface.
 func (h *HashNode) Type() NodeType { return HashT }
 
+// Size implements Node interface.
+func (h *HashNode) Size() int {
+	return util.Uint256Size
+}
+
 // Hash implements Node interface.
 func (h *HashNode) Hash() util.Uint256 {
 	if !h.hashValid {
@@ -34,9 +39,6 @@ func (h *HashNode) Hash() util.Uint256 {
 	}
 	return h.hash
 }
-
-// IsEmpty returns true if h is an empty node i.e. contains no hash.
-func (h *HashNode) IsEmpty() bool { return !h.hashValid }
 
 // Bytes returns serialized HashNode.
 func (h *HashNode) Bytes() []byte {
@@ -58,17 +60,8 @@ func (h HashNode) EncodeBinary(w *io.BinWriter) {
 	w.WriteBytes(h.hash[:])
 }
 
-// EncodeBinaryAsChild implements BaseNode interface.
-func (h *HashNode) EncodeBinaryAsChild(w *io.BinWriter) {
-	no := &NodeObject{Node: h} // with type
-	no.EncodeBinary(w)
-}
-
 // MarshalJSON implements json.Marshaler.
 func (h *HashNode) MarshalJSON() ([]byte, error) {
-	if !h.hashValid {
-		return []byte(`{}`), nil
-	}
 	return []byte(`{"hash":"` + h.hash.StringLE() + `"}`), nil
 }
 

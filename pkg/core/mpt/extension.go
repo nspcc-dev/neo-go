@@ -69,13 +69,13 @@ func (e *ExtensionNode) DecodeBinary(r *io.BinReader) {
 // EncodeBinary implements io.Serializable.
 func (e ExtensionNode) EncodeBinary(w *io.BinWriter) {
 	w.WriteVarBytes(e.key)
-	e.next.EncodeBinaryAsChild(w)
+	encodeBinaryAsChild(e.next, w)
 }
 
-// EncodeBinaryAsChild implements BaseNode interface.
-func (e *ExtensionNode) EncodeBinaryAsChild(w *io.BinWriter) {
-	n := &NodeObject{Node: NewHashNode(e.Hash())} // with type
-	n.EncodeBinary(w)
+// Size implements Node interface.
+func (e *ExtensionNode) Size() int {
+	return io.GetVarSize(len(e.key)) + len(e.key) +
+		1 + util.Uint256Size // e.next is never empty
 }
 
 // MarshalJSON implements json.Marshaler.

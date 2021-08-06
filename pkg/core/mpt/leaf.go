@@ -56,10 +56,9 @@ func (n LeafNode) EncodeBinary(w *io.BinWriter) {
 	w.WriteVarBytes(n.value)
 }
 
-// EncodeBinaryAsChild implements BaseNode interface.
-func (n *LeafNode) EncodeBinaryAsChild(w *io.BinWriter) {
-	no := &NodeObject{Node: NewHashNode(n.Hash())} // with type
-	no.EncodeBinary(w)
+// Size implements Node interface.
+func (n *LeafNode) Size() int {
+	return io.GetVarSize(len(n.value)) + len(n.value)
 }
 
 // MarshalJSON implements json.Marshaler.
