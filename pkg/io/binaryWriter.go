@@ -1,6 +1,7 @@
 package io
 
 import (
+	"bytes"
 	"encoding/binary"
 	"io"
 	"reflect"
@@ -143,4 +144,12 @@ func (w *BinWriter) WriteVarBytes(b []byte) {
 // WriteString writes a variable length string into the underlying io.Writer.
 func (w *BinWriter) WriteString(s string) {
 	w.WriteVarBytes([]byte(s))
+}
+
+// Grow tries to increase underlying buffer capacity so that at least n bytes
+// can be written without reallocation. If the writer is not a buffer, this is a no-op.
+func (w *BinWriter) Grow(n int) {
+	if b, ok := w.w.(*bytes.Buffer); ok {
+		b.Grow(n)
+	}
 }
