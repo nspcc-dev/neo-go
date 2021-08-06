@@ -203,7 +203,10 @@ func (t *Transaction) DecodeBinary(br *io.BinReader) {
 // EncodeBinary implements Serializable interface.
 func (t *Transaction) EncodeBinary(bw *io.BinWriter) {
 	t.encodeHashableFields(bw)
-	bw.WriteArray(t.Scripts)
+	bw.WriteVarUint(uint64(len(t.Scripts)))
+	for i := range t.Scripts {
+		t.Scripts[i].EncodeBinary(bw)
+	}
 }
 
 // encodeHashableFields encodes the fields that are not used for
@@ -218,8 +221,14 @@ func (t *Transaction) encodeHashableFields(bw *io.BinWriter) {
 	bw.WriteU64LE(uint64(t.SystemFee))
 	bw.WriteU64LE(uint64(t.NetworkFee))
 	bw.WriteU32LE(t.ValidUntilBlock)
-	bw.WriteArray(t.Signers)
-	bw.WriteArray(t.Attributes)
+	bw.WriteVarUint(uint64(len(t.Signers)))
+	for i := range t.Signers {
+		t.Signers[i].EncodeBinary(bw)
+	}
+	bw.WriteVarUint(uint64(len(t.Attributes)))
+	for i := range t.Attributes {
+		t.Attributes[i].EncodeBinary(bw)
+	}
 	bw.WriteVarBytes(t.Script)
 }
 
