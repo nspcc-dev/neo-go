@@ -370,6 +370,36 @@ func NewCommands() []cli.Command {
 					},
 				},
 			},
+			{
+				Name:  "manifest",
+				Usage: "manifest-related commands",
+				Subcommands: []cli.Command{
+					{
+						Name:   "add-group",
+						Usage:  "adds group to the manifest",
+						Action: manifestAddGroup,
+						Flags: []cli.Flag{
+							walletFlag,
+							cli.StringFlag{
+								Name:  "sender, s",
+								Usage: "deploy transaction sender",
+							},
+							cli.StringFlag{
+								Name:  "account, a",
+								Usage: "account to sign group with",
+							},
+							cli.StringFlag{
+								Name:  "nef, n",
+								Usage: "path to the NEF file",
+							},
+							cli.StringFlag{
+								Name:  "manifest, m",
+								Usage: "path to the manifest",
+							},
+						},
+					},
+				},
+			},
 		},
 	}}
 }
@@ -560,27 +590,33 @@ func invokeInternal(ctx *cli.Context, signAndPush bool) error {
 		return exitErr
 	}
 
-	_, err = invokeWithArgs(ctx, signAndPush, script, operation, params, cosigners)
+	var (
+		acc *wallet.Account
+		w   *wallet.Wallet
+	)
+	if signAndPush {
+		acc, w, err = getAccFromContext(ctx)
+		if err != nil {
+			return cli.NewExitError(err, 1)
+		}
+	}
+
+	_, err = invokeWithArgs(ctx, acc, w, script, operation, params, cosigners)
 	return err
 }
 
-func invokeWithArgs(ctx *cli.Context, signAndPush bool, script util.Uint160, operation string, params []smartcontract.Parameter, cosigners []transaction.Signer) (util.Uint160, error) {
+func invokeWithArgs(ctx *cli.Context, acc *wallet.Account, wall *wallet.Wallet, script util.Uint160, operation string, params []smartcontract.Parameter, cosigners []transaction.Signer) (util.Uint160, error) {
 	var (
 		err               error
 		gas, sysgas       fixedn.Fixed8
 		cosignersAccounts []client.SignerAccount
 		resp              *result.Invoke
-		acc               *wallet.Account
-		wall              *wallet.Wallet
 		sender            util.Uint160
+		signAndPush       = acc != nil
 	)
 	if signAndPush {
 		gas = flags.Fixed8FromContext(ctx, "gas")
 		sysgas = flags.Fixed8FromContext(ctx, "sysgas")
-		acc, wall, err = getAccFromContext(ctx)
-		if err != nil {
-			return sender, err
-		}
 		sender, err = address.StringToUint160(acc.Address)
 		if err != nil {
 			return sender, err
@@ -744,53 +780,44 @@ func getAccFromContext(ctx *cli.Context) (*wallet.Account, *wallet.Wallet, error
 	} else {
 		addr = wall.GetChangeAddress()
 	}
+
+	acc, err := getUnlockedAccount(wall, addr)
+	return acc, wall, err
+}
+
+func getUnlockedAccount(wall *wallet.Wallet, addr util.Uint160) (*wallet.Account, error) {
 	acc := wall.GetAccount(addr)
 	if acc == nil {
-		return nil, nil, cli.NewExitError(fmt.Errorf("wallet contains no account for '%s'", address.Uint160ToString(addr)), 1)
+		return nil, cli.NewExitError(fmt.Errorf("wallet contains no account for '%s'", address.Uint160ToString(addr)), 1)
+	}
+
+	if acc.PrivateKey() != nil {
+		return acc, nil
 	}
 
 	rawPass, err := input.ReadPassword(
 		fmt.Sprintf("Enter account %s password > ", address.Uint160ToString(addr)))
 	if err != nil {
-		return nil, nil, cli.NewExitError(err, 1)
+		return nil, cli.NewExitError(err, 1)
 	}
 	pass := strings.TrimRight(string(rawPass), "\n")
 	err = acc.Decrypt(pass, wall.Scrypt)
 	if err != nil {
-		return nil, nil, cli.NewExitError(err, 1)
+		return nil, cli.NewExitError(err, 1)
 	}
-	return acc, wall, nil
+	return acc, nil
 }
 
 // contractDeploy deploys contract.
 func contractDeploy(ctx *cli.Context) error {
-	in := ctx.String("in")
-	if len(in) == 0 {
-		return cli.NewExitError(errNoInput, 1)
-	}
-	manifestFile := ctx.String("manifest")
-	if len(manifestFile) == 0 {
-		return cli.NewExitError(errNoManifestFile, 1)
-	}
-
-	f, err := ioutil.ReadFile(in)
+	nefFile, f, err := readNEFFile(ctx.String("in"))
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
-	// Check the file.
-	nefFile, err := nef.FileFromBytes(f)
-	if err != nil {
-		return cli.NewExitError(fmt.Errorf("failed to read .nef file: %w", err), 1)
-	}
 
-	manifestBytes, err := ioutil.ReadFile(manifestFile)
+	m, manifestBytes, err := readManifest(ctx.String("manifest"))
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("failed to read manifest file: %w", err), 1)
-	}
-	m := &manifest.Manifest{}
-	err = json.Unmarshal(manifestBytes, m)
-	if err != nil {
-		return cli.NewExitError(fmt.Errorf("failed to restore manifest file: %w", err), 1)
 	}
 
 	appCallParams := []smartcontract.Parameter{
@@ -826,7 +853,18 @@ func contractDeploy(ctx *cli.Context) error {
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("failed to get management contract's hash: %w", err), 1)
 	}
-	sender, extErr := invokeWithArgs(ctx, true, mgmtHash, "deploy", appCallParams, nil)
+
+	acc, w, err := getAccFromContext(ctx)
+	if err != nil {
+		return cli.NewExitError(fmt.Errorf("can't get sender address: %w", err), 1)
+	}
+
+	cosigners := []transaction.Signer{{
+		Account: acc.Contract.ScriptHash(),
+		Scopes:  transaction.CalledByEntry,
+	}}
+
+	sender, extErr := invokeWithArgs(ctx, acc, w, mgmtHash, "deploy", appCallParams, cosigners)
 	if extErr != nil {
 		return extErr
 	}

@@ -276,6 +276,16 @@ Using either constant or literal for contract hash and method will allow compile
 to perform more extensive analysis.
 This check can be disabled with `--no-permissions` flag.
 
+#### Manifest file
+Any contract can be included in a group identified by a public key which is used in [permissions](#Permissions).
+This is achieved with `manifest add-group` command.
+```
+./bin/neo-go contract manifest add-group -n contract.nef -m contract.manifest.json --sender <sender> --wallet /path/to/wallet.json --account <account>
+```
+It accepts contract `.nef` and manifest files emitted by `compile` command as well as
+sender and signer accounts. `--sender` is the account who will send deploy transaction later (not necessarily in wallet).
+`--account` is the wallet account which signs contract hash using group private key.
+
 #### Neo Express support
 
 It's possible to deploy contracts written in Go using [Neo

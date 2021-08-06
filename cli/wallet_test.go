@@ -228,24 +228,19 @@ func TestWalletExport(t *testing.T) {
 func TestClaimGas(t *testing.T) {
 	e := newExecutor(t, true)
 
-	const walletPath = "testdata/testwallet.json"
-	w, err := wallet.NewWalletFromFile(walletPath)
-	require.NoError(t, err)
-	t.Cleanup(w.Close)
-
 	args := []string{
 		"neo-go", "wallet", "nep17", "multitransfer",
 		"--rpc-endpoint", "http://" + e.RPC.Addr,
 		"--wallet", validatorWallet,
 		"--from", validatorAddr,
-		"NEO:" + w.Accounts[0].Address + ":1000",
-		"GAS:" + w.Accounts[0].Address + ":1000", // for tx send
+		"NEO:" + testWalletAccount + ":1000",
+		"GAS:" + testWalletAccount + ":1000", // for tx send
 	}
 	e.In.WriteString("one\r")
 	e.Run(t, args...)
 	e.checkTxPersisted(t)
 
-	h, err := address.StringToUint160(w.Accounts[0].Address)
+	h, err := address.StringToUint160(testWalletAccount)
 	require.NoError(t, err)
 
 	balanceBefore := e.Chain.GetUtilityTokenBalance(h)
@@ -257,8 +252,8 @@ func TestClaimGas(t *testing.T) {
 	e.In.WriteString("testpass\r")
 	e.Run(t, "neo-go", "wallet", "claim",
 		"--rpc-endpoint", "http://"+e.RPC.Addr,
-		"--wallet", walletPath,
-		"--address", w.Accounts[0].Address)
+		"--wallet", testWalletPath,
+		"--address", testWalletAccount)
 	tx, height := e.checkTxPersisted(t)
 	balanceBefore.Sub(balanceBefore, big.NewInt(tx.NetworkFee+tx.SystemFee))
 	balanceBefore.Add(balanceBefore, cl)
@@ -337,13 +332,13 @@ func TestImportDeployed(t *testing.T) {
 func TestWalletDump(t *testing.T) {
 	e := newExecutor(t, false)
 
-	cmd := []string{"neo-go", "wallet", "dump", "--wallet", "testdata/testwallet.json"}
+	cmd := []string{"neo-go", "wallet", "dump", "--wallet", testWalletPath}
 	e.Run(t, cmd...)
 	rawStr := strings.TrimSpace(e.Out.String())
 	w := new(wallet.Wallet)
 	require.NoError(t, json.Unmarshal([]byte(rawStr), w))
 	require.Equal(t, 1, len(w.Accounts))
-	require.Equal(t, "Nfyz4KcsgYepRJw1W5C2uKCi6QWKf7v6gG", w.Accounts[0].Address)
+	require.Equal(t, testWalletAccount, w.Accounts[0].Address)
 
 	t.Run("with decrypt", func(t *testing.T) {
 		cmd = append(cmd, "--decrypt")
@@ -358,7 +353,7 @@ func TestWalletDump(t *testing.T) {
 		w := new(wallet.Wallet)
 		require.NoError(t, json.Unmarshal([]byte(rawStr), w))
 		require.Equal(t, 1, len(w.Accounts))
-		require.Equal(t, "Nfyz4KcsgYepRJw1W5C2uKCi6QWKf7v6gG", w.Accounts[0].Address)
+		require.Equal(t, testWalletAccount, w.Accounts[0].Address)
 	})
 }
 
