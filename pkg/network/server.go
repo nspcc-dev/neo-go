@@ -288,7 +288,7 @@ func (s *Server) Shutdown() {
 	s.transport.Close()
 	s.discovery.Close()
 	s.consensus.Shutdown()
-	for _, p := range s.getPeers() {
+	for _, p := range s.getPeers(nil) {
 		p.Disconnect(errServerShutdown)
 	}
 	s.bQueue.discard()
@@ -431,7 +431,7 @@ func (s *Server) runProto() {
 		case <-pingTimer.C:
 			if s.chain.BlockHeight() == prevHeight {
 				// Get a copy of s.peers to avoid holding a lock while sending.
-				for _, peer := range s.getPeers() {
+				for _, peer := range s.getPeers(nil) {
 					_ = peer.SendPing(NewMessage(CMDPing, payload.NewPing(s.chain.BlockHeight(), s.id)))
 				}
 			}
@@ -489,14 +489,17 @@ func (s *Server) UnsubscribeFromNotaryRequests(ch chan<- mempoolevent.Event) {
 	s.notaryRequestPool.UnsubscribeFromTransactions(ch)
 }
 
-// getPeers returns current list of peers connected to
-// the server.
-func (s *Server) getPeers() []Peer {
+// getPeers returns current list of peers connected to the server filtered by
+// isOK function if it's given.
+func (s *Server) getPeers(isOK func(Peer) bool) []Peer {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
 
 	peers := make([]Peer, 0, len(s.peers))
 	for k := range s.peers {
+		if isOK != nil && !isOK(k) {
+			continue
+		}
 		peers = append(peers, k)
 	}
 
@@ -1142,7 +1145,7 @@ func (s *Server) requestTx(hashes ...util.Uint256) {
 // peer is considered invalid if it returns false).
 func (s *Server) iteratePeersWithSendMsg(msg *Message, send func(Peer, bool, []byte) error, peerOK func(Peer) bool) {
 	// Get a copy of s.peers to avoid holding a lock while sending.
-	peers := s.getPeers()
+	peers := s.getPeers(peerOK)
 	if len(peers) == 0 {
 		return
 	}
@@ -1158,9 +1161,6 @@ func (s *Server) iteratePeersWithSendMsg(msg *Message, send func(Peer, bool, []b
 	okCount := 0
 	sentCount := 0
 	for i, peer := range peers {
-		if peerOK != nil && !peerOK(peer) {
-			continue
-		}
 		okCount++
 		if err := send(peer, false, pkt); err != nil {
 			continue
@@ -1179,7 +1179,7 @@ func (s *Server) iteratePeersWithSendMsg(msg *Message, send func(Peer, bool, []b
 
 	// Perform blocking send now.
 	for i, peer := range peers {
-		if success[i] || (peerOK != nil && !peerOK(peer)) {
+		if success[i] {
 			continue
 		}
 		if err := send(peer, true, pkt); err != nil {
