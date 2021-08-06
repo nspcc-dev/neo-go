@@ -2,6 +2,34 @@
 
 This document outlines major changes between releases.
 
+## 0.97.1 "Gasification" (06 Aug 2021)
+
+We're updating NeoGo to make it compatible with the latest protocol changes
+made in 3.0.2 version of C# node. But that's not the only thing we do, this
+release also fixes one important bug, improves node's performance and adds CLI
+support to add group signatures to manifests.
+
+It requires resynchronization on upgrade.
+
+New features:
+ * `contract manifest add-group` command to add group signatures to contract
+   manifest (#2100)
+
+Behavior changes:
+ * GAS contract no longer has Refuel method, it could be used as DOS
+   amplification tool for attacks on network and there is no way to securely
+   fix it (#2111)
+
+Improvements:
+ * memory store optimizations leading to substantial single-node TPS
+   improvements (#2102)
+ * various micro-optimizations across the board both for CPU usage and memory
+   allocations (#2106, #2113)
+ * optimized transaction decoding (#2110)
+
+Bugs fixed:
+ * ping messages created with wrong value used for node's height (#2115)
+
 ## 0.97.0 "Ventilation" (02 Aug 2021)
 
 This is an official 3.0.0-compatible release that is ready to be used both for
