@@ -64,3 +64,14 @@ func BenchmarkTransaction_Bytes(b *testing.B) {
 		_ = tx.Bytes()
 	}
 }
+
+func BenchmarkGetVarSize(b *testing.B) {
+	tx, err := NewTransactionFromBytes(benchTx)
+	require.NoError(b, err)
+
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		_ = io.GetVarSize(tx)
+	}
+}
