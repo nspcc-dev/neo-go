@@ -1144,12 +1144,15 @@ func (s *Server) requestTx(hashes ...util.Uint256) {
 // passed, one is to send the message and the other is to filtrate peers (the
 // peer is considered invalid if it returns false).
 func (s *Server) iteratePeersWithSendMsg(msg *Message, send func(Peer, bool, []byte) error, peerOK func(Peer) bool) {
+	var deadN, peerN, sentN int
+
 	// Get a copy of s.peers to avoid holding a lock while sending.
 	peers := s.getPeers(peerOK)
-	if len(peers) == 0 {
+	peerN = len(peers)
+	if peerN == 0 {
 		return
 	}
-	mrand.Shuffle(len(peers), func(i, j int) {
+	mrand.Shuffle(peerN, func(i, j int) {
 		peers[i], peers[j] = peers[j], peers[i]
 	})
 	pkt, err := msg.Bytes()
@@ -1157,39 +1160,47 @@ func (s *Server) iteratePeersWithSendMsg(msg *Message, send func(Peer, bool, []b
 		return
 	}
 
-	success := make([]bool, len(peers))
-	okCount := 0
-	sentCount := 0
+	// If true, this node isn't counted any more, either it's dead or we
+	// have already sent an Inv to it.
+	finished := make([]bool, peerN)
+
 	for i, peer := range peers {
-		okCount++
-		if err := send(peer, false, pkt); err != nil {
+		err := send(peer, false, pkt)
+		switch err {
+		case nil:
+			if msg.Command == CMDGetAddr {
+				peer.AddGetAddrSent()
+			}
+			sentN++
+		case errBusy:
 			continue
+		default:
+			deadN++
 		}
-		if msg.Command == CMDGetAddr {
-			peer.AddGetAddrSent()
-		}
-		success[i] = true
-		sentCount++
+		finished[i] = true
 	}
 
 	// Send to at least 2/3 of good peers.
-	if 3*sentCount >= 2*okCount {
+	if 3*sentN >= 2*(peerN-deadN) {
 		return
 	}
 
 	// Perform blocking send now.
 	for i, peer := range peers {
-		if success[i] {
+		if finished[i] {
 			continue
 		}
 		if err := send(peer, true, pkt); err != nil {
+			if err != errBusy {
+				deadN++
+			}
 			continue
 		}
 		if msg.Command == CMDGetAddr {
 			peer.AddGetAddrSent()
 		}
-		sentCount++
-		if 3*sentCount >= 2*okCount {
+		sentN++
+		if 3*sentN >= 2*(peerN-deadN) {
 			return
 		}
 	}
