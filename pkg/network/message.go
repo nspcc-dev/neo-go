@@ -182,6 +182,11 @@ func (m *Message) Encode(br *io.BinWriter) error {
 	if err := m.tryCompressPayload(); err != nil {
 		return err
 	}
+	growSize := 2 + 1 // header + empty payload
+	if m.compressedPayload != nil {
+		growSize += 8 + len(m.compressedPayload) // varint + byte-slice
+	}
+	br.Grow(growSize)
 	br.WriteB(byte(m.Flags))
 	br.WriteB(byte(m.Command))
 	if m.compressedPayload != nil {
