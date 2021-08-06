@@ -1164,44 +1164,29 @@ func (s *Server) iteratePeersWithSendMsg(msg *Message, send func(Peer, bool, []b
 	// have already sent an Inv to it.
 	finished := make([]bool, peerN)
 
-	for i, peer := range peers {
-		err := send(peer, false, pkt)
-		switch err {
-		case nil:
-			if msg.Command == CMDGetAddr {
-				peer.AddGetAddrSent()
+	// Try non-blocking sends first and only block if have to.
+	for _, blocking := range []bool{false, true} {
+		for i, peer := range peers {
+			// Send to 2/3 of good peers.
+			if 3*sentN >= 2*(peerN-deadN) {
+				return
 			}
-			sentN++
-		case errBusy:
-			continue
-		default:
-			deadN++
-		}
-		finished[i] = true
-	}
-
-	// Send to at least 2/3 of good peers.
-	if 3*sentN >= 2*(peerN-deadN) {
-		return
-	}
-
-	// Perform blocking send now.
-	for i, peer := range peers {
-		if finished[i] {
-			continue
-		}
-		if err := send(peer, true, pkt); err != nil {
-			if err != errBusy {
+			if finished[i] {
+				continue
+			}
+			err := send(peer, blocking, pkt)
+			switch err {
+			case nil:
+				if msg.Command == CMDGetAddr {
+					peer.AddGetAddrSent()
+				}
+				sentN++
+			case errBusy: // Can be retried.
+				continue
+			default:
 				deadN++
 			}
-			continue
-		}
-		if msg.Command == CMDGetAddr {
-			peer.AddGetAddrSent()
-		}
-		sentN++
-		if 3*sentN >= 2*(peerN-deadN) {
-			return
+			finished[i] = true
 		}
 	}
 }
