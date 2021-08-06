@@ -426,7 +426,7 @@ func (s *Server) runProto() {
 			if s.chain.BlockHeight() == prevHeight {
 				// Get a copy of s.peers to avoid holding a lock while sending.
 				for peer := range s.Peers() {
-					_ = peer.SendPing(NewMessage(CMDPing, payload.NewPing(s.id, s.chain.HeaderHeight())))
+					_ = peer.SendPing(NewMessage(CMDPing, payload.NewPing(s.chain.BlockHeight(), s.id)))
 				}
 			}
 			pingTimer.Reset(s.PingInterval)
