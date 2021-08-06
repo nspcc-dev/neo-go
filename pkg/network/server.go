@@ -1154,12 +1154,11 @@ func (s *Server) iteratePeersWithSendMsg(msg *Message, send func(Peer, bool, []b
 		return
 	}
 
-	success := make(map[Peer]bool, len(peers))
+	success := make([]bool, len(peers))
 	okCount := 0
 	sentCount := 0
-	for _, peer := range peers {
+	for i, peer := range peers {
 		if peerOK != nil && !peerOK(peer) {
-			success[peer] = false
 			continue
 		}
 		okCount++
@@ -1169,7 +1168,7 @@ func (s *Server) iteratePeersWithSendMsg(msg *Message, send func(Peer, bool, []b
 		if msg.Command == CMDGetAddr {
 			peer.AddGetAddrSent()
 		}
-		success[peer] = true
+		success[i] = true
 		sentCount++
 	}
 
@@ -1179,8 +1178,8 @@ func (s *Server) iteratePeersWithSendMsg(msg *Message, send func(Peer, bool, []b
 	}
 
 	// Perform blocking send now.
-	for _, peer := range peers {
-		if _, ok := success[peer]; ok || peerOK != nil && !peerOK(peer) {
+	for i, peer := range peers {
+		if success[i] || (peerOK != nil && !peerOK(peer)) {
 			continue
 		}
 		if err := send(peer, true, pkt); err != nil {
