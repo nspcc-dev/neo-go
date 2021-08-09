@@ -59,7 +59,7 @@ func (g *GAS) increaseBalance(_ *interop.Context, _ util.Uint160, si *state.Stor
 	}
 	acc.Balance.Add(&acc.Balance, amount)
 	if acc.Balance.Sign() != 0 {
-		*si = acc.Bytes()
+		*si = acc.Bytes(nil)
 	} else {
 		*si = nil
 	}
