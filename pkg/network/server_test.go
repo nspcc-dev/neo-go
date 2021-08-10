@@ -694,7 +694,7 @@ func TestInv(t *testing.T) {
 	})
 	t.Run("transaction", func(t *testing.T) {
 		tx := newDummyTx()
-		s.chain.(*fakechain.FakeChain).PutTx(tx)
+		require.NoError(t, s.chain.GetMemPool().Add(tx, s.chain))
 		hs := []util.Uint256{random.Uint256(), tx.Hash(), random.Uint256()}
 		s.testHandleMessage(t, p, CMDInv, &payload.Inventory{
 			Type:   payload.TXType,
