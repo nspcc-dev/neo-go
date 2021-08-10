@@ -1,6 +1,7 @@
 package io
 
 import (
+	"bytes"
 	"encoding/binary"
 	"io"
 	"reflect"
@@ -11,56 +12,47 @@ import (
 // from a struct with many fields.
 type BinWriter struct {
 	w   io.Writer
-	uv  []byte
-	u64 []byte
-	u32 []byte
-	u16 []byte
-	u8  []byte
 	Err error
+	uv  [9]byte
 }
 
 // NewBinWriterFromIO makes a BinWriter from io.Writer.
 func NewBinWriterFromIO(iow io.Writer) *BinWriter {
-	uv := make([]byte, 9)
-	u64 := uv[:8]
-	u32 := u64[:4]
-	u16 := u64[:2]
-	u8 := u64[:1]
-	return &BinWriter{w: iow, uv: uv, u64: u64, u32: u32, u16: u16, u8: u8}
+	return &BinWriter{w: iow}
 }
 
 // WriteU64LE writes an uint64 value into the underlying io.Writer in
 // little-endian format.
 func (w *BinWriter) WriteU64LE(u64 uint64) {
-	binary.LittleEndian.PutUint64(w.u64, u64)
-	w.WriteBytes(w.u64)
+	binary.LittleEndian.PutUint64(w.uv[:8], u64)
+	w.WriteBytes(w.uv[:8])
 }
 
 // WriteU32LE writes an uint32 value into the underlying io.Writer in
 // little-endian format.
 func (w *BinWriter) WriteU32LE(u32 uint32) {
-	binary.LittleEndian.PutUint32(w.u32, u32)
-	w.WriteBytes(w.u32)
+	binary.LittleEndian.PutUint32(w.uv[:4], u32)
+	w.WriteBytes(w.uv[:4])
 }
 
 // WriteU16LE writes an uint16 value into the underlying io.Writer in
 // little-endian format.
 func (w *BinWriter) WriteU16LE(u16 uint16) {
-	binary.LittleEndian.PutUint16(w.u16, u16)
-	w.WriteBytes(w.u16)
+	binary.LittleEndian.PutUint16(w.uv[:2], u16)
+	w.WriteBytes(w.uv[:2])
 }
 
 // WriteU16BE writes an uint16 value into the underlying io.Writer in
 // big-endian format.
 func (w *BinWriter) WriteU16BE(u16 uint16) {
-	binary.BigEndian.PutUint16(w.u16, u16)
-	w.WriteBytes(w.u16)
+	binary.BigEndian.PutUint16(w.uv[:2], u16)
+	w.WriteBytes(w.uv[:2])
 }
 
 // WriteB writes a byte into the underlying io.Writer.
 func (w *BinWriter) WriteB(u8 byte) {
-	w.u8[0] = u8
-	w.WriteBytes(w.u8)
+	w.uv[0] = u8
+	w.WriteBytes(w.uv[:1])
 }
 
 // WriteBool writes a boolean value into the underlying io.Writer encoded as
@@ -108,7 +100,7 @@ func (w *BinWriter) WriteVarUint(val uint64) {
 		return
 	}
 
-	n := PutVarUint(w.uv, val)
+	n := PutVarUint(w.uv[:], val)
 	w.WriteBytes(w.uv[:n])
 }
 
@@ -152,4 +144,12 @@ func (w *BinWriter) WriteVarBytes(b []byte) {
 // WriteString writes a variable length string into the underlying io.Writer.
 func (w *BinWriter) WriteString(s string) {
 	w.WriteVarBytes([]byte(s))
+}
+
+// Grow tries to increase underlying buffer capacity so that at least n bytes
+// can be written without reallocation. If the writer is not a buffer, this is a no-op.
+func (w *BinWriter) Grow(n int) {
+	if b, ok := w.w.(*bytes.Buffer); ok {
+		b.Grow(n)
+	}
 }

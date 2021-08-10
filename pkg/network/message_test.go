@@ -52,6 +52,34 @@ func TestEncodeDecodeVersion(t *testing.T) {
 	require.NotEqual(t, len(expected.compressedPayload), len(uncompressed))
 }
 
+func BenchmarkMessageBytes(b *testing.B) {
+	// shouldn't try to compress headers payload
+	ep := &payload.Extensible{
+		Category:        "consensus",
+		ValidBlockStart: rand.Uint32(),
+		ValidBlockEnd:   rand.Uint32(),
+		Sender:          util.Uint160{},
+		Data:            make([]byte, 300),
+		Witness: transaction.Witness{
+			InvocationScript:   make([]byte, 33),
+			VerificationScript: make([]byte, 40),
+		},
+	}
+	random.Fill(ep.Data)
+	random.Fill(ep.Witness.InvocationScript)
+	random.Fill(ep.Witness.VerificationScript)
+	msg := NewMessage(CMDExtensible, ep)
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, err := msg.Bytes()
+		if err != nil {
+			b.FailNow()
+		}
+	}
+}
+
 func TestEncodeDecodeHeaders(t *testing.T) {
 	// shouldn't try to compress headers payload
 	headers := &payload.Headers{Hdrs: make([]*block.Header, CompressionMinSize)}
