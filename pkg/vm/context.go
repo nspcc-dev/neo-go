@@ -97,9 +97,9 @@ func (c *Context) NextIP() int {
 	return c.nextip
 }
 
-// Next returns the next instruction to execute with its parameter if any. After
-// its invocation the instruction pointer points to the instruction being
-// returned.
+// Next returns the next instruction to execute with its parameter if any.
+// The parameter is not copied and shouldn't be written to. After its invocation
+// the instruction pointer points to the instruction being returned.
 func (c *Context) Next() (opcode.Opcode, []byte, error) {
 	var err error
 
@@ -171,8 +171,7 @@ func (c *Context) Next() (opcode.Opcode, []byte, error) {
 	if err != nil {
 		return instr, nil, err
 	}
-	parameter := make([]byte, numtoread)
-	copy(parameter, c.prog[c.nextip:c.nextip+numtoread])
+	parameter := c.prog[c.nextip : c.nextip+numtoread]
 	c.nextip += numtoread
 	return instr, parameter, nil
 }
