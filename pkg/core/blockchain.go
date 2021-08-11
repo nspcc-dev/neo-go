@@ -164,6 +164,12 @@ type bcEvent struct {
 	appExecResults []*state.AppExecResult
 }
 
+// transferData is used for transfer caching during storeBlock.
+type transferData struct {
+	Info state.NEP17TransferInfo
+	Log  state.NEP17TransferLog
+}
+
 // NewBlockchain returns a new blockchain object the will use the
 // given Store as its underlying storage. For it to work correctly you need
 // to spawn a goroutine for its Run method after this initialization.
@@ -748,10 +754,11 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 	}()
 	go func() {
 		var (
-			kvcache     = dao.NewCached(cache)
+			kvcache     = cache.GetWrapped()
 			writeBuf    = io.NewBufBinWriter()
 			err         error
 			appendBlock bool
+			transCache  = make(map[util.Uint160]transferData)
 		)
 		for aer := range aerchan {
 			if aer.Container == block.Hash() && appendBlock {
@@ -768,7 +775,7 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 			}
 			if aer.Execution.VMState == vm.HaltState {
 				for j := range aer.Execution.Events {
-					bc.handleNotification(&aer.Execution.Events[j], kvcache, block, aer.Container)
+					bc.handleNotification(&aer.Execution.Events[j], kvcache, transCache, block, aer.Container)
 				}
 			}
 			writeBuf.Reset()
@@ -777,6 +784,19 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 			aerdone <- err
 			return
 		}
+		for acc, trData := range transCache {
+			err = kvcache.PutNEP17TransferInfo(acc, &trData.Info)
+			if err != nil {
+				aerdone <- err
+				return
+			}
+			err = kvcache.PutNEP17TransferLog(acc, trData.Info.NextTransferBatch, &trData.Log)
+			if err != nil {
+				aerdone <- err
+				return
+			}
+		}
+
 		_, err = kvcache.Persist()
 		if err != nil {
 			aerdone <- err
@@ -996,7 +1016,8 @@ func (bc *Blockchain) runPersist(script []byte, block *block.Block, cache dao.DA
 	}, nil
 }
 
-func (bc *Blockchain) handleNotification(note *state.NotificationEvent, d *dao.Cached, b *block.Block, h util.Uint256) {
+func (bc *Blockchain) handleNotification(note *state.NotificationEvent, d dao.DAO,
+	transCache map[util.Uint160]transferData, b *block.Block, h util.Uint256) {
 	if note.Name != "Transfer" {
 		return
 	}
@@ -1033,7 +1054,7 @@ func (bc *Blockchain) handleNotification(note *state.NotificationEvent, d *dao.C
 		}
 		amount = bigint.FromBytes(bs)
 	}
-	bc.processNEP17Transfer(d, h, b, note.ScriptHash, from, to, amount)
+	bc.processNEP17Transfer(d, transCache, h, b, note.ScriptHash, from, to, amount)
 }
 
 func parseUint160(addr []byte) util.Uint160 {
@@ -1043,7 +1064,8 @@ func parseUint160(addr []byte) util.Uint160 {
 	return util.Uint160{}
 }
 
-func (bc *Blockchain) processNEP17Transfer(cache *dao.Cached, h util.Uint256, b *block.Block, sc util.Uint160, from, to []byte, amount *big.Int) {
+func (bc *Blockchain) processNEP17Transfer(cache dao.DAO, transCache map[util.Uint160]transferData,
+	h util.Uint256, b *block.Block, sc util.Uint160, from, to []byte, amount *big.Int) {
 	toAddr := parseUint160(to)
 	fromAddr := parseUint160(from)
 	var id int32
@@ -1067,31 +1089,48 @@ func (bc *Blockchain) processNEP17Transfer(cache *dao.Cached, h util.Uint256, b 
 	}
 	if !fromAddr.Equals(util.Uint160{}) {
 		_ = transfer.Amount.Neg(amount) // We already have the Int.
-		if appendNEP17Transfer(cache, fromAddr, transfer) != nil {
+		if appendNEP17Transfer(cache, transCache, fromAddr, transfer) != nil {
 			return
 		}
 	}
 	if !toAddr.Equals(util.Uint160{}) {
-		_ = transfer.Amount.Set(amount)                  // We already have the Int.
-		_ = appendNEP17Transfer(cache, toAddr, transfer) // Nothing useful we can do.
+		_ = transfer.Amount.Set(amount)                              // We already have the Int.
+		_ = appendNEP17Transfer(cache, transCache, toAddr, transfer) // Nothing useful we can do.
 	}
 }
 
-func appendNEP17Transfer(cache *dao.Cached, addr util.Uint160, transfer *state.NEP17Transfer) error {
-	balances, err := cache.GetNEP17TransferInfo(addr)
+func appendNEP17Transfer(cache dao.DAO, transCache map[util.Uint160]transferData, addr util.Uint160, transfer *state.NEP17Transfer) error {
+	transferData, ok := transCache[addr]
+	if !ok {
+		balances, err := cache.GetNEP17TransferInfo(addr)
+		if err != nil {
+			return err
+		}
+		if !balances.NewBatch {
+			trLog, err := cache.GetNEP17TransferLog(addr, balances.NextTransferBatch)
+			if err != nil {
+				return err
+			}
+			transferData.Log = *trLog
+		}
+		transferData.Info = *balances
+	}
+	err := transferData.Log.Append(transfer)
 	if err != nil {
 		return err
 	}
-	balances.LastUpdated[transfer.Asset] = transfer.Block
-	balances.NewBatch, err = cache.AppendNEP17Transfer(addr,
-		balances.NextTransferBatch, balances.NewBatch, transfer)
-	if err != nil {
-		return err
+	transferData.Info.LastUpdated[transfer.Asset] = transfer.Block
+	transferData.Info.NewBatch = transferData.Log.Size() >= state.NEP17TransferBatchSize
+	if transferData.Info.NewBatch {
+		err = cache.PutNEP17TransferLog(addr, transferData.Info.NextTransferBatch, &transferData.Log)
+		if err != nil {
+			return err
+		}
+		transferData.Info.NextTransferBatch++
+		transferData.Log = state.NEP17TransferLog{}
 	}
-	if balances.NewBatch {
-		balances.NextTransferBatch++
-	}
-	return cache.PutNEP17TransferInfo(addr, balances)
+	transCache[addr] = transferData
+	return nil
 }
 
 // ForEachNEP17Transfer executes f for each nep17 transfer in log.
