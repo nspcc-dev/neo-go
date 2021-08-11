@@ -73,7 +73,7 @@ type VM struct {
 
 	uncaughtException stackitem.Item // exception being handled
 
-	refs *refCounter
+	refs refCounter
 
 	gasConsumed int64
 	GasLimit    int64
@@ -100,14 +100,14 @@ func NewWithTrigger(t trigger.Type) *VM {
 	vm := &VM{
 		state:   NoneState,
 		istack:  newStack("invocation", nil),
-		refs:    newRefCounter(),
 		trigger: t,
 
 		SyscallHandler: defaultSyscallHandler,
 		Invocations:    make(map[util.Uint160]int),
 	}
 
-	vm.estack = newStack("evaluation", vm.refs)
+	vm.refs.items = make(map[stackitem.Item]int)
+	vm.estack = newStack("evaluation", &vm.refs)
 	return vm
 }
 
@@ -281,11 +281,11 @@ func (v *VM) LoadScript(b []byte) {
 func (v *VM) LoadScriptWithFlags(b []byte, f callflag.CallFlag) {
 	v.checkInvocationStackSize()
 	ctx := NewContextWithParams(b, 0, -1, 0)
-	v.estack = newStack("evaluation", v.refs)
+	v.estack = newStack("evaluation", &v.refs)
 	ctx.estack = v.estack
 	ctx.tryStack = newStack("exception", nil)
 	ctx.callFlag = f
-	ctx.static = newSlot(v.refs)
+	ctx.static = newSlot(&v.refs)
 	ctx.callingScriptHash = v.GetCurrentScriptHash()
 	v.istack.PushVal(ctx)
 }
