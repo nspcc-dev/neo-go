@@ -162,13 +162,15 @@ func NewStack(n string) *Stack {
 }
 
 func newStack(n string, refc *refCounter) *Stack {
-	s := &Stack{
-		name: n,
-		refs: refc,
-	}
+	s := new(Stack)
+	initStack(s, n, refc)
+	return s
+}
+func initStack(s *Stack, n string, refc *refCounter) {
+	s.name = n
+	s.refs = refc
 	s.top.next = &s.top
 	s.top.prev = &s.top
-	return s
 }
 
 // Clear clears all elements on the stack and set its length to 0.
