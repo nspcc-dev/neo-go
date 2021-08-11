@@ -105,7 +105,6 @@ func NewWithTrigger(t trigger.Type) *VM {
 		Invocations:    make(map[util.Uint160]int),
 	}
 
-	vm.refs.items = make(map[stackitem.Item]int)
 	initStack(&vm.istack, "invocation", nil)
 	vm.estack = newStack("evaluation", &vm.refs)
 	return vm
@@ -520,7 +519,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		if errRecover := recover(); errRecover != nil {
 			v.state = FaultState
 			err = newError(ctx.ip, op, errRecover)
-		} else if v.refs.size > MaxStackSize {
+		} else if v.refs > MaxStackSize {
 			v.state = FaultState
 			err = newError(ctx.ip, op, "stack is too big")
 		}

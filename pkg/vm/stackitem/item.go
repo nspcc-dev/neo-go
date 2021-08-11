@@ -188,6 +188,7 @@ func convertPrimitive(item Item, typ Type) (Item, error) {
 // Struct represents a struct on the stack.
 type Struct struct {
 	value []Item
+	rc
 }
 
 // NewStruct returns an new Struct object.
@@ -311,7 +312,7 @@ func (i *Struct) Clone() (*Struct, error) {
 }
 
 func (i *Struct) clone(limit *int) (*Struct, error) {
-	ret := &Struct{make([]Item, len(i.value))}
+	ret := &Struct{value: make([]Item, len(i.value))}
 	for j := range i.value {
 		*limit--
 		if *limit < 0 {
@@ -624,6 +625,7 @@ func (i *ByteArray) Convert(typ Type) (Item, error) {
 // Array represents a new Array object.
 type Array struct {
 	value []Item
+	rc
 }
 
 // NewArray returns a new Array object.
@@ -724,6 +726,7 @@ type MapElement struct {
 // if need be.
 type Map struct {
 	value []MapElement
+	rc
 }
 
 // NewMap returns new Map object.
