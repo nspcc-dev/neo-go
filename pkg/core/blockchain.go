@@ -1066,44 +1066,32 @@ func (bc *Blockchain) processNEP17Transfer(cache *dao.Cached, h util.Uint256, b 
 		Tx:        h,
 	}
 	if !fromAddr.Equals(util.Uint160{}) {
-		balances, err := cache.GetNEP17TransferInfo(fromAddr)
-		if err != nil {
-			return
-		}
-		balances.LastUpdated[id] = b.Index
-		transfer.Amount = *new(big.Int).Sub(&transfer.Amount, amount)
-		balances.NewBatch, err = cache.AppendNEP17Transfer(fromAddr,
-			balances.NextTransferBatch, balances.NewBatch, transfer)
-		if err != nil {
-			return
-		}
-		if balances.NewBatch {
-			balances.NextTransferBatch++
-		}
-		if err := cache.PutNEP17TransferInfo(fromAddr, balances); err != nil {
+		_ = transfer.Amount.Neg(amount) // We already have the Int.
+		if appendNEP17Transfer(cache, fromAddr, transfer) != nil {
 			return
 		}
 	}
 	if !toAddr.Equals(util.Uint160{}) {
-		balances, err := cache.GetNEP17TransferInfo(toAddr)
-		if err != nil {
-			return
-		}
-		balances.LastUpdated[id] = b.Index
-
-		transfer.Amount = *amount
-		balances.NewBatch, err = cache.AppendNEP17Transfer(toAddr,
-			balances.NextTransferBatch, balances.NewBatch, transfer)
-		if err != nil {
-			return
-		}
-		if balances.NewBatch {
-			balances.NextTransferBatch++
-		}
-		if err := cache.PutNEP17TransferInfo(toAddr, balances); err != nil {
-			return
-		}
+		_ = transfer.Amount.Set(amount)                  // We already have the Int.
+		_ = appendNEP17Transfer(cache, toAddr, transfer) // Nothing useful we can do.
 	}
+}
+
+func appendNEP17Transfer(cache *dao.Cached, addr util.Uint160, transfer *state.NEP17Transfer) error {
+	balances, err := cache.GetNEP17TransferInfo(addr)
+	if err != nil {
+		return err
+	}
+	balances.LastUpdated[transfer.Asset] = transfer.Block
+	balances.NewBatch, err = cache.AppendNEP17Transfer(addr,
+		balances.NextTransferBatch, balances.NewBatch, transfer)
+	if err != nil {
+		return err
+	}
+	if balances.NewBatch {
+		balances.NextTransferBatch++
+	}
+	return cache.PutNEP17TransferInfo(addr, balances)
 }
 
 // ForEachNEP17Transfer executes f for each nep17 transfer in log.
