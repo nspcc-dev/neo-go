@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/internal/fakechain"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/fee"
@@ -67,12 +68,15 @@ func initCheckMultisigVMNoArgs(container *transaction.Transaction) *vm.VM {
 	buf[0] = byte(opcode.SYSCALL)
 	binary.LittleEndian.PutUint32(buf[1:], neoCryptoCheckMultisigID)
 
-	ic := &interop.Context{
-		Network:   uint32(netmode.UnitTestNet),
-		Trigger:   trigger.Verification,
-		Container: container,
-		Functions: Interops,
-	}
+	ic := interop.NewContext(
+		trigger.Verification,
+		fakechain.NewFakeChain(),
+		dao.NewSimple(storage.NewMemoryStore(), false),
+		nil, nil, nil,
+		container,
+		nil)
+	ic.Container = container
+	ic.Functions = Interops
 	v := ic.SpawnVM()
 	v.LoadScript(buf)
 	return v

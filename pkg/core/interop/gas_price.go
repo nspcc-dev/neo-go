@@ -7,5 +7,5 @@ import (
 
 // GetPrice returns a price for executing op with the provided parameter.
 func (ic *Context) GetPrice(op opcode.Opcode, parameter []byte) int64 {
-	return fee.Opcode(ic.BaseExecFee(), op)
+	return fee.Opcode(ic.baseExecFee, op)
 }
