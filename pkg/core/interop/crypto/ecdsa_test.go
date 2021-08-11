@@ -174,7 +174,7 @@ func TestCheckSig(t *testing.T) {
 
 	verifyFunc := ECDSASecp256r1CheckSig
 	d := dao.NewSimple(storage.NewMemoryStore(), false)
-	ic := &interop.Context{Network: uint32(netmode.UnitTestNet), DAO: dao.NewCached(d)}
+	ic := &interop.Context{Network: uint32(netmode.UnitTestNet), DAO: d}
 	runCase := func(t *testing.T, isErr bool, result interface{}, args ...interface{}) {
 		ic.SpawnVM()
 		for i := range args {
