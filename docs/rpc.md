@@ -114,7 +114,11 @@ balance won't be shown in the list of NEP17 balances returned by the neo-go node
 (unlike the C# node behavior). However, transfer logs of such token are still
 available via `getnep17transfers` RPC call.
 
-The behaviour of the `LastUpdatedBlock` tracking matches the C# node's one.
+The behaviour of the `LastUpdatedBlock` tracking for archival nodes as far as for
+governing token balances matches the C# node's one. For non-archival nodes and
+other NEP17-compliant tokens if transfer's `LastUpdatedBlock` is lower than the
+latest state synchronization point P the node working against, then
+`LastUpdatedBlock` equals P.
 
 ### Unsupported methods
 

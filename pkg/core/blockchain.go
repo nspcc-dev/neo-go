@@ -1223,11 +1223,24 @@ func (bc *Blockchain) GetNEP17Contracts() []util.Uint160 {
 }
 
 // GetNEP17LastUpdated returns a set of contract ids with the corresponding last updated
-// block indexes.
+// block indexes. In case of an empty account, latest stored state synchronisation point
+// is returned under Math.MinInt32 key.
 func (bc *Blockchain) GetNEP17LastUpdated(acc util.Uint160) (map[int32]uint32, error) {
 	info, err := bc.dao.GetNEP17TransferInfo(acc)
 	if err != nil {
 		return nil, err
+	}
+	if bc.config.P2PStateExchangeExtensions && bc.config.RemoveUntraceableBlocks {
+		if _, ok := info.LastUpdated[bc.contracts.NEO.ID]; !ok {
+			nBalance, lub := bc.contracts.NEO.BalanceOf(bc.dao, acc)
+			if nBalance.Sign() != 0 {
+				info.LastUpdated[bc.contracts.NEO.ID] = lub
+			}
+		}
+	}
+	stateSyncPoint, err := bc.dao.GetStateSyncPoint()
+	if err == nil {
+		info.LastUpdated[math.MinInt32] = stateSyncPoint
 	}
 	return info.LastUpdated, nil
 }
