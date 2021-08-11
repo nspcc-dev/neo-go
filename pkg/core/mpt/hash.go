@@ -10,6 +10,7 @@ import (
 // HashNode represents MPT's hash node.
 type HashNode struct {
 	BaseNode
+	Collapsed bool
 }
 
 var _ Node = (*HashNode)(nil)

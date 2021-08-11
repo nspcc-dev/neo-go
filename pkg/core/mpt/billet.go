@@ -23,7 +23,10 @@ var (
 // Billet is based on the following assumptions:
 // 1. Refcount can only be incremented (we don't change MPT structure during restore,
 //    thus don't need to decrease refcount).
-// 2. TODO: Each time the part of Billet is completely restored, it is collapsed into HashNode.
+// 2. Each time the part of Billet is completely restored, it is collapsed into
+//    HashNode.
+// 3. Pair (node, path) must be restored only once. It's a duty of MPT pool to manage
+//    MPT paths in order to provide this assumption.
 type Billet struct {
 	Store *storage.MemCachedStore
 
@@ -44,8 +47,7 @@ func NewBillet(rootHash util.Uint256, enableRefCount bool, store *storage.MemCac
 }
 
 // RestoreHashNode replaces HashNode located at the provided path by the specified Node
-// and stores it.
-// TODO: It also maintains MPT as small as possible by collapsing those parts
+// and stores it. It also maintains MPT as small as possible by collapsing those parts
 // of MPT that have been completely restored.
 func (b *Billet) RestoreHashNode(path []byte, node Node) error {
 	if _, ok := node.(*HashNode); ok {
@@ -94,14 +96,16 @@ func (b *Billet) putIntoLeaf(curr *LeafNode, path []byte, val Node) (Node, error
 	if curr.Hash() != val.Hash() {
 		return nil, fmt.Errorf("%w: bad Leaf node hash: expected %s, got %s", ErrRestoreFailed, curr.Hash().StringBE(), val.Hash().StringBE())
 	}
-	// this node has already been restored, no refcount changes required
-	return curr, nil
+	// Once Leaf node is restored, it will be collapsed into HashNode forever, so
+	// there shouldn't be such situation when we try to restore Leaf node.
+	panic("bug: can't restore LeafNode")
 }
 
 func (b *Billet) putIntoBranch(curr *BranchNode, path []byte, val Node) (Node, error) {
 	if len(path) == 0 && curr.Hash().Equals(val.Hash()) {
-		// this node has already been restored, no refcount changes required
-		return curr, nil
+		// This node has already been restored, so it's an MPT pool duty to avoid
+		// duplicating restore requests.
+		panic("bug: can't perform restoring of BranchNode twice")
 	}
 	i, path := splitPath(path)
 	r, err := b.putIntoNode(curr.Children[i], path, val)
@@ -109,7 +113,7 @@ func (b *Billet) putIntoBranch(curr *BranchNode, path []byte, val Node) (Node, e
 		return nil, err
 	}
 	curr.Children[i] = r
-	return curr, nil
+	return b.tryCollapseBranch(curr), nil
 }
 
 func (b *Billet) putIntoExtension(curr *ExtensionNode, path []byte, val Node) (Node, error) {
@@ -117,8 +121,9 @@ func (b *Billet) putIntoExtension(curr *ExtensionNode, path []byte, val Node) (N
 		if curr.Hash() != val.Hash() {
 			return nil, fmt.Errorf("%w: bad Extension node hash: expected %s, got %s", ErrRestoreFailed, curr.Hash().StringBE(), val.Hash().StringBE())
 		}
-		// this node has already been restored, no refcount changes required
-		return curr, nil
+		// This node has already been restored, so it's an MPT pool duty to avoid
+		// duplicating restore requests.
+		panic("bug: can't perform restoring of ExtensionNode twice")
 	}
 	if !bytes.HasPrefix(path, curr.key) {
 		return nil, fmt.Errorf("%w: can't modify ExtensionNode during restore", ErrRestoreFailed)
@@ -129,11 +134,11 @@ func (b *Billet) putIntoExtension(curr *ExtensionNode, path []byte, val Node) (N
 		return nil, err
 	}
 	curr.next = r
-	return curr, nil
+	return b.tryCollapseExtension(curr), nil
 }
 
 func (b *Billet) putIntoHash(curr *HashNode, path []byte, val Node) (Node, error) {
-	// Once the part of MPT Billet is completely restored, it will be collapsed forever, so
+	// Once a part of MPT Billet is completely restored, it will be collapsed forever, so
 	// it's an MPT pool duty to avoid duplicating restore requests.
 	if len(path) != 0 {
 		return nil, fmt.Errorf("%w: node has already been collapsed", ErrRestoreFailed)
@@ -148,10 +153,21 @@ func (b *Billet) putIntoHash(curr *HashNode, path []byte, val Node) (Node, error
 	if val.Hash() != curr.Hash() {
 		return nil, fmt.Errorf("%w: can't restore HashNode: expected and actual hashes mismatch (%s vs %s)", ErrRestoreFailed, curr.Hash().StringBE(), val.Hash().StringBE())
 	}
+
+	if curr.Collapsed {
+		// This node has already been restored and collapsed, so it's an MPT pool duty to avoid
+		// duplicating restore requests.
+		panic("bug: can't perform restoring of collapsed node")
+	}
+
 	// We also need to increment refcount in both cases. That's the only place where refcount
 	// is changed during restore process. Also flush right now, because sync process can be
 	// interrupted at any time.
 	b.incrementRefAndStore(val.Hash(), val.Bytes())
+
+	if val.Type() == LeafT {
+		return b.tryCollapseLeaf(val.(*LeafNode)), nil
+	}
 	return val, nil
 }
 
@@ -214,7 +230,7 @@ func (b *Billet) traverse(curr Node, process func(node Node, nodeBytes []byte) b
 	}
 	switch n := curr.(type) {
 	case *LeafNode:
-		return n, nil
+		return b.tryCollapseLeaf(n), nil
 	case *BranchNode:
 		for i := range n.Children {
 			r, err := b.traverse(n.Children[i], process, ignoreStorageErr)
@@ -227,17 +243,53 @@ func (b *Billet) traverse(curr Node, process func(node Node, nodeBytes []byte) b
 			}
 			n.Children[i] = r
 		}
-		return n, nil
+		return b.tryCollapseBranch(n), nil
 	case *ExtensionNode:
 		r, err := b.traverse(n.next, process, ignoreStorageErr)
 		if err != nil && !errors.Is(err, errStop) {
 			return nil, err
 		}
 		n.next = r
-		return n, err
+		return b.tryCollapseExtension(n), err
 	default:
 		return nil, ErrNotFound
 	}
+}
+
+func (b *Billet) tryCollapseLeaf(curr *LeafNode) Node {
+	// Leaf can always be collapsed.
+	res := NewHashNode(curr.Hash())
+	res.Collapsed = true
+	return res
+}
+
+func (b *Billet) tryCollapseExtension(curr *ExtensionNode) Node {
+	if !(curr.next.Type() == HashT && curr.next.(*HashNode).Collapsed) {
+		return curr
+	}
+	res := NewHashNode(curr.Hash())
+	res.Collapsed = true
+	return res
+}
+
+func (b *Billet) tryCollapseBranch(curr *BranchNode) Node {
+	canCollapse := true
+	for i := 0; i < childrenCount; i++ {
+		if curr.Children[i].Type() == EmptyT {
+			continue
+		}
+		if curr.Children[i].Type() == HashT && curr.Children[i].(*HashNode).Collapsed {
+			continue
+		}
+		canCollapse = false
+		break
+	}
+	if !canCollapse {
+		return curr
+	}
+	res := NewHashNode(curr.Hash())
+	res.Collapsed = true
+	return res
 }
 
 func (b *Billet) getFromStore(h util.Uint256) (Node, error) {
