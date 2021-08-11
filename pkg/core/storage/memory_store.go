@@ -23,12 +23,12 @@ type MemoryBatch struct {
 
 // Put implements the Batch interface.
 func (b *MemoryBatch) Put(k, v []byte) {
-	_ = b.MemoryStore.Put(k, v)
+	b.MemoryStore.put(string(k), slice.Copy(v))
 }
 
 // Delete implements Batch interface.
 func (b *MemoryBatch) Delete(k []byte) {
-	_ = b.MemoryStore.Delete(k)
+	b.MemoryStore.drop(string(k))
 }
 
 // NewMemoryStore creates a new MemoryStore object.
