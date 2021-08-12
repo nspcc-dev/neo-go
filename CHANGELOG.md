@@ -2,6 +2,29 @@
 
 This document outlines major changes between releases.
 
+## 0.78.4 "Cementation" (12 Aug 2021)
+
+Neo Legacy is still there and we still support our node for it. This update
+makes NeoGo compatible with awaited GAS generation cut off on mainnet planned
+for block 8000000. It also fixes some bugs along the way. DB format isn't
+changed, so if you're updating before block 8M you can reuse old database, but
+you need to update configuration to add NoBonusHeight parameter (see our
+default configuration files).
+
+New features:
+ * system GAS can now be added to invocations via CLI (#1783)
+ * NoBonusHeight configuration parameter to turn GAS generation off at some
+   height (#2107)
+
+Bugs fixed:
+ * invalid transfer event could cause node to panic (#1901)
+ * incorrect MPT initialization could lead to block rejection if node stopped
+   synchronization before any MPT change (#1910)
+ * duplicate connections to peers (#2020)
+ * infinite loop attempting to connect to other nodes in some cases (#2020)
+ * ping messages sent with wrong height and nonce (#2116)
+ * node could lose some data on forced stop in some cases (#2126)
+
 ## 0.78.3 "Calcification" (22 February 2021)
 
 We're updating NeoGo node for Neo 2 network with this release bringing a
