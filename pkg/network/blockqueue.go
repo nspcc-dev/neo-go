@@ -11,7 +11,7 @@ type blockQueue struct {
 	log         *zap.Logger
 	queue       *queue.PriorityQueue
 	checkBlocks chan struct{}
-	chain       blockchainer.Blockchainer
+	chain       blockchainer.Blockqueuer
 	relayF      func(*block.Block)
 }
 
@@ -21,7 +21,7 @@ const (
 	blockCacheSize = 2000
 )
 
-func newBlockQueue(capacity int, bc blockchainer.Blockchainer, log *zap.Logger, relayer func(*block.Block)) *blockQueue {
+func newBlockQueue(capacity int, bc blockchainer.Blockqueuer, log *zap.Logger, relayer func(*block.Block)) *blockQueue {
 	if log == nil {
 		return nil
 	}

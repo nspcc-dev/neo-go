@@ -43,7 +43,7 @@ import (
 // Tuning parameters.
 const (
 	headerBatchCount = 2000
-	version          = "0.1.1"
+	version          = "0.1.2"
 
 	defaultInitialGAS                      = 52000000_00000000
 	defaultMemPoolSize                     = 50000
@@ -54,6 +54,7 @@ const (
 	defaultMaxTransactionsPerBlock         = 512
 	// HeaderVerificationGasLimit is the maximum amount of GAS for block header verification.
 	HeaderVerificationGasLimit = 3_00000000 // 3 GAS
+	defaultStateSyncInterval   = 40000
 )
 
 var (
@@ -207,6 +208,16 @@ func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration, log *zap.L
 		cfg.MaxValidUntilBlockIncrement = uint32(secondsPerDay / cfg.SecondsPerBlock)
 		log.Info("MaxValidUntilBlockIncrement is not set or wrong, using default value",
 			zap.Uint32("MaxValidUntilBlockIncrement", cfg.MaxValidUntilBlockIncrement))
+	}
+	if cfg.P2PStateExchangeExtensions {
+		if !cfg.StateRootInHeader {
+			return nil, errors.New("P2PStatesExchangeExtensions are enabled, but StateRootInHeader is off")
+		}
+		if cfg.StateSyncInterval <= 0 {
+			cfg.StateSyncInterval = defaultStateSyncInterval
+			log.Info("StateSyncInterval is not set or wrong, using default value",
+				zap.Int("StateSyncInterval", cfg.StateSyncInterval))
+		}
 	}
 	committee, err := committeeFromConfig(cfg)
 	if err != nil {
@@ -716,21 +727,30 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 
 			writeBuf.Reset()
 			if bc.config.P2PSigExtensions {
-				for _, attr := range tx.GetAttributes(transaction.ConflictsT) {
-					hash := attr.Value.(*transaction.Conflicts).Hash
-					dummyTx := transaction.NewTrimmedTX(hash)
-					dummyTx.Version = transaction.DummyVersion
-					if err := kvcache.StoreAsTransaction(dummyTx, block.Index, writeBuf); err != nil {
-						blockdone <- fmt.Errorf("failed to store conflicting transaction %s for transaction %s: %w", hash.StringLE(), tx.Hash().StringLE(), err)
-						return
-					}
-					writeBuf.Reset()
+				err := kvcache.StoreConflictingTransactions(tx, block.Index, writeBuf)
+				if err != nil {
+					blockdone <- err
+					return
 				}
 			}
 		}
 		if bc.config.RemoveUntraceableBlocks {
-			if block.Index > bc.config.MaxTraceableBlocks {
-				index := block.Index - bc.config.MaxTraceableBlocks // is at least 1
+			var start, stop uint32
+			if bc.config.P2PStateExchangeExtensions {
+				// remove batch of old blocks starting from P2-MaxTraceableBlocks-StateSyncInterval up to P2-MaxTraceableBlocks
+				if block.Index >= 2*uint32(bc.config.StateSyncInterval) &&
+					block.Index >= uint32(bc.config.StateSyncInterval)+bc.config.MaxTraceableBlocks && // check this in case if MaxTraceableBlocks>StateSyncInterval
+					int(block.Index)%bc.config.StateSyncInterval == 0 {
+					stop = block.Index - uint32(bc.config.StateSyncInterval) - bc.config.MaxTraceableBlocks
+					if stop > uint32(bc.config.StateSyncInterval) {
+						start = stop - uint32(bc.config.StateSyncInterval)
+					}
+				}
+			} else if block.Index > bc.config.MaxTraceableBlocks {
+				start = block.Index - bc.config.MaxTraceableBlocks // is at least 1
+				stop = start + 1
+			}
+			for index := start; index < stop; index++ {
 				err := kvcache.DeleteBlock(bc.headerHashes[index], writeBuf)
 				if err != nil {
 					bc.log.Warn("error while removing old block",

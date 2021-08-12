@@ -22,7 +22,7 @@ type Blockchainer interface {
 	ApplyPolicyToTxSet([]*transaction.Transaction) []*transaction.Transaction
 	GetConfig() config.ProtocolConfiguration
 	AddHeaders(...*block.Header) error
-	AddBlock(*block.Block) error
+	Blockqueuer // Blockqueuer interface
 	CalculateClaimable(h util.Uint160, endHeight uint32) (*big.Int, error)
 	Close()
 	InitVerificationVM(v *vm.VM, getContract func(util.Uint160) (*state.Contract, error), hash util.Uint160, witness *transaction.Witness) error
