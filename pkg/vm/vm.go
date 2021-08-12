@@ -68,12 +68,12 @@ type VM struct {
 	// callback to get interop price
 	getPrice func(opcode.Opcode, []byte) int64
 
-	istack *Stack // invocation stack.
+	istack Stack  // invocation stack.
 	estack *Stack // execution stack.
 
 	uncaughtException stackitem.Item // exception being handled
 
-	refs *refCounter
+	refs refCounter
 
 	gasConsumed int64
 	GasLimit    int64
@@ -99,15 +99,15 @@ func New() *VM {
 func NewWithTrigger(t trigger.Type) *VM {
 	vm := &VM{
 		state:   NoneState,
-		istack:  newStack("invocation", nil),
-		refs:    newRefCounter(),
 		trigger: t,
 
 		SyscallHandler: defaultSyscallHandler,
 		Invocations:    make(map[util.Uint160]int),
 	}
 
-	vm.estack = newStack("evaluation", vm.refs)
+	vm.refs.items = make(map[stackitem.Item]int)
+	initStack(&vm.istack, "invocation", nil)
+	vm.estack = newStack("evaluation", &vm.refs)
 	return vm
 }
 
@@ -135,7 +135,7 @@ func (v *VM) Estack() *Stack {
 
 // Istack returns the invocation stack so interop hooks can utilize this.
 func (v *VM) Istack() *Stack {
-	return v.istack
+	return &v.istack
 }
 
 // LoadArgs loads in the arguments used in the Mian entry point.
@@ -281,11 +281,11 @@ func (v *VM) LoadScript(b []byte) {
 func (v *VM) LoadScriptWithFlags(b []byte, f callflag.CallFlag) {
 	v.checkInvocationStackSize()
 	ctx := NewContextWithParams(b, 0, -1, 0)
-	v.estack = newStack("evaluation", v.refs)
+	v.estack = newStack("evaluation", &v.refs)
 	ctx.estack = v.estack
 	ctx.tryStack = newStack("exception", nil)
 	ctx.callFlag = f
-	ctx.static = newSlot(v.refs)
+	ctx.static = newSlot(&v.refs)
 	ctx.callingScriptHash = v.GetCurrentScriptHash()
 	v.istack.PushVal(ctx)
 }
@@ -340,7 +340,7 @@ func (v *VM) PopResult() interface{} {
 func (v *VM) Stack(n string) string {
 	var s *Stack
 	if n == "istack" {
-		s = v.istack
+		s = &v.istack
 	}
 	if n == "estack" {
 		s = v.estack
@@ -1786,7 +1786,7 @@ func (v *VM) GetCallingScriptHash() util.Uint160 {
 
 // GetEntryScriptHash implements ScriptHashGetter interface.
 func (v *VM) GetEntryScriptHash() util.Uint160 {
-	return v.getContextScriptHash(v.Istack().Len() - 1)
+	return v.getContextScriptHash(v.istack.len - 1)
 }
 
 // GetCurrentScriptHash implements ScriptHashGetter interface.

@@ -26,7 +26,7 @@ func (s *Slot) init(n int) {
 }
 
 func (v *VM) newSlot(n int) *Slot {
-	s := newSlot(v.refs)
+	s := newSlot(&v.refs)
 	s.init(n)
 	return s
 }

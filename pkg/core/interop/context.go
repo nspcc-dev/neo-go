@@ -48,14 +48,20 @@ type Context struct {
 	VM            *vm.VM
 	Functions     []Function
 	getContract   func(dao.DAO, util.Uint160) (*state.Contract, error)
+	baseExecFee   int64
 }
 
 // NewContext returns new interop context.
 func NewContext(trigger trigger.Type, bc blockchainer.Blockchainer, d dao.DAO,
 	getContract func(dao.DAO, util.Uint160) (*state.Contract, error), natives []Contract,
 	block *block.Block, tx *transaction.Transaction, log *zap.Logger) *Context {
+	baseExecFee := int64(DefaultBaseExecFee)
 	dao := d.GetWrapped()
 	nes := make([]state.NotificationEvent, 0)
+
+	if bc != nil && (block == nil || block.Index != 0) {
+		baseExecFee = bc.GetPolicer().GetBaseExecFee()
+	}
 	return &Context{
 		Chain:         bc,
 		Network:       uint32(bc.GetConfig().Magic),
@@ -69,6 +75,7 @@ func NewContext(trigger trigger.Type, bc blockchainer.Blockchainer, d dao.DAO,
 		// Functions is a slice of interops sorted by ID.
 		Functions:   []Function{},
 		getContract: getContract,
+		baseExecFee: baseExecFee,
 	}
 }
 
@@ -254,10 +261,7 @@ func (ic *Context) GetFunction(id uint32) *Function {
 
 // BaseExecFee represents factor to multiply syscall prices with.
 func (ic *Context) BaseExecFee() int64 {
-	if ic.Chain == nil || (ic.Block != nil && ic.Block.Index == 0) {
-		return DefaultBaseExecFee
-	}
-	return ic.Chain.GetPolicer().GetBaseExecFee()
+	return ic.baseExecFee
 }
 
 // SyscallHandler handles syscall with id.
