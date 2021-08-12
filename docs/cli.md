@@ -622,7 +622,7 @@ distribution.
 ## Conversion utility
 
 NeoGo provides conversion utility command to reverse data, convert script
-hashes to/from address, convert data to/from hexadecimal or base64
+hashes to/from address, convert public keys to hashes/addresses, convert data to/from hexadecimal or base64
 representation. All of this is done by a single `util convert` command like
 this:
 ```
