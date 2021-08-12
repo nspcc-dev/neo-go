@@ -85,14 +85,19 @@ func (s *MemoryStore) Delete(key []byte) error {
 // PutBatch implements the Store interface. Never returns an error.
 func (s *MemoryStore) PutBatch(batch Batch) error {
 	b := batch.(*MemoryBatch)
+	return s.PutChangeSet(b.mem, b.del)
+}
+
+// PutChangeSet implements the Store interface. Never returns an error.
+func (s *MemoryStore) PutChangeSet(puts map[string][]byte, dels map[string]bool) error {
 	s.mut.Lock()
-	defer s.mut.Unlock()
-	for k := range b.del {
+	for k := range puts {
+		s.put(k, puts[k])
+	}
+	for k := range dels {
 		s.drop(k)
 	}
-	for k, v := range b.mem {
-		s.put(k, v)
-	}
+	s.mut.Unlock()
 	return nil
 }
 

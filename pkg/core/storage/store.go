@@ -44,6 +44,8 @@ type (
 		Get([]byte) ([]byte, error)
 		Put(k, v []byte) error
 		PutBatch(Batch) error
+		// PutChangeSet allows to push prepared changeset to the Store.
+		PutChangeSet(puts map[string][]byte, dels map[string]bool) error
 		// Seek can guarantee that provided key (k) and value (v) are the only valid until the next call to f.
 		// Key and value slices should not be modified.
 		Seek(k []byte, f func(k, v []byte))

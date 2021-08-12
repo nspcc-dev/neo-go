@@ -61,6 +61,29 @@ func (s *LevelDBStore) PutBatch(batch Batch) error {
 	return s.db.Write(lvldbBatch, nil)
 }
 
+// PutChangeSet implements the Store interface.
+func (s *LevelDBStore) PutChangeSet(puts map[string][]byte, dels map[string]bool) error {
+	tx, err := s.db.OpenTransaction()
+	if err != nil {
+		return err
+	}
+	for k := range puts {
+		err = tx.Put([]byte(k), puts[k], nil)
+		if err != nil {
+			tx.Discard()
+			return err
+		}
+	}
+	for k := range dels {
+		err = tx.Delete([]byte(k), nil)
+		if err != nil {
+			tx.Discard()
+			return err
+		}
+	}
+	return tx.Commit()
+}
+
 // Seek implements the Store interface.
 func (s *LevelDBStore) Seek(key []byte, f func(k, v []byte)) {
 	iter := s.db.NewIterator(util.BytesPrefix(key), nil)
