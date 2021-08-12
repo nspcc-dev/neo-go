@@ -410,6 +410,7 @@ func (bc *Blockchain) Run() {
 	persistTimer := time.NewTimer(persistInterval)
 	defer func() {
 		persistTimer.Stop()
+		bc.addLock.Lock() // Prevent changing state, but do not release the lock, we're about to exit.
 		if _, err := bc.persist(); err != nil {
 			bc.log.Warn("failed to persist", zap.Error(err))
 		}
