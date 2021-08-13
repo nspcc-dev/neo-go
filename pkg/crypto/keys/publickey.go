@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	gio "io"
 	"math/big"
 
 	"github.com/btcsuite/btcd/btcec"
@@ -234,7 +235,15 @@ func decodeCompressedY(x *big.Int, ylsb uint, curve elliptic.Curve) (*big.Int, e
 func (p *PublicKey) DecodeBytes(data []byte) error {
 	b := io.NewBinReaderFromBuf(data)
 	p.DecodeBinary(b)
-	return b.Err
+	if b.Err != nil {
+		return b.Err
+	}
+
+	b.ReadB()
+	if b.Err != gio.EOF {
+		return errors.New("extra data")
+	}
+	return nil
 }
 
 // DecodeBinary decodes a PublicKey from the given BinReader using information
@@ -375,7 +384,7 @@ func (p *PublicKey) UnmarshalJSON(data []byte) error {
 		return errors.New("wrong format")
 	}
 
-	bytes := make([]byte, l-2)
+	bytes := make([]byte, hex.DecodedLen(l-2))
 	_, err := hex.Decode(bytes, data[1:l-1])
 	if err != nil {
 		return err

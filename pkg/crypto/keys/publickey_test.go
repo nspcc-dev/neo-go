@@ -67,6 +67,9 @@ func TestNewPublicKeyFromBytes(t *testing.T) {
 	pub2, err := NewPublicKeyFromBytes(b, elliptic.P256())
 	require.NoError(t, err)
 	require.Same(t, pub, pub2)
+
+	_, err = NewPublicKeyFromBytes([]byte{0x00, 0x01}, elliptic.P256())
+	require.Error(t, err)
 }
 
 func TestDecodeFromString(t *testing.T) {
