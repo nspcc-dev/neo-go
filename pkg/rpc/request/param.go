@@ -134,9 +134,20 @@ func (p *Param) GetArray() ([]Param, error) {
 		return nil, errMissingParameter
 	}
 	a, ok := p.Value.([]Param)
+	if ok {
+		return a, nil
+	}
+	raw, ok := p.Value.(json.RawMessage)
 	if !ok {
 		return nil, errors.New("not an array")
 	}
+
+	a = []Param{}
+	err := json.Unmarshal(raw, &a)
+	if err != nil {
+		return nil, errors.New("not an array")
+	}
+	p.Value = a
 	return a, nil
 }
 
@@ -190,9 +201,18 @@ func (p *Param) GetFuncParam() (FuncParam, error) {
 		return FuncParam{}, errMissingParameter
 	}
 	fp, ok := p.Value.(FuncParam)
+	if ok {
+		return fp, nil
+	}
+	raw, ok := p.Value.(json.RawMessage)
 	if !ok {
 		return FuncParam{}, errors.New("not a function parameter")
 	}
+	err := json.Unmarshal(raw, &fp)
+	if err != nil {
+		return fp, err
+	}
+	p.Value = fp
 	return fp, nil
 }
 
@@ -219,11 +239,38 @@ func (p *Param) GetBytesBase64() ([]byte, error) {
 }
 
 // GetSignerWithWitness returns SignerWithWitness value of the parameter.
-func (p Param) GetSignerWithWitness() (SignerWithWitness, error) {
+func (p *Param) GetSignerWithWitness() (SignerWithWitness, error) {
 	c, ok := p.Value.(SignerWithWitness)
+	if ok {
+		return c, nil
+	}
+	raw, ok := p.Value.(json.RawMessage)
 	if !ok {
 		return SignerWithWitness{}, errors.New("not a signer")
 	}
+	aux := new(signerWithWitnessAux)
+	err := json.Unmarshal(raw, aux)
+	if err != nil {
+		return SignerWithWitness{}, errors.New("not a signer")
+	}
+	accParam := Param{StringT, aux.Account}
+	acc, err := accParam.GetUint160FromAddressOrHex()
+	if err != nil {
+		return SignerWithWitness{}, errors.New("not a signer")
+	}
+	c = SignerWithWitness{
+		Signer: transaction.Signer{
+			Account:          acc,
+			Scopes:           aux.Scopes,
+			AllowedContracts: aux.AllowedContracts,
+			AllowedGroups:    aux.AllowedGroups,
+		},
+		Witness: transaction.Witness{
+			InvocationScript:   aux.InvocationScript,
+			VerificationScript: aux.VerificationScript,
+		},
+	}
+	p.Value = c
 	return c, nil
 }
 
@@ -264,83 +311,46 @@ func (p Param) GetSignersWithWitnesses() ([]transaction.Signer, []transaction.Wi
 
 // UnmarshalJSON implements json.Unmarshaler interface.
 func (p *Param) UnmarshalJSON(data []byte) error {
-	var s string
-	var num float64
-	var b bool
-	// To unmarshal correctly we need to pass pointers into the decoder.
-	var attempts = [...]Param{
-		{NumberT, &num},
-		{BooleanT, &b},
-		{StringT, &s},
-		{FuncParamT, &FuncParam{}},
-		{BlockFilterT, &BlockFilter{}},
-		{TxFilterT, &TxFilter{}},
-		{NotificationFilterT, &NotificationFilter{}},
-		{ExecutionFilterT, &ExecutionFilter{}},
-		{SignerWithWitnessT, &signerWithWitnessAux{}},
-		{ArrayT, &[]Param{}},
+	r := bytes.NewReader(data)
+	jd := json.NewDecoder(r)
+	jd.UseNumber()
+	tok, err := jd.Token()
+	if err != nil {
+		return err
 	}
-
-	if bytes.Equal(data, []byte("null")) {
-		p.Type = defaultT
-		return nil
-	}
-
-	for _, cur := range attempts {
-		r := bytes.NewReader(data)
-		jd := json.NewDecoder(r)
-		jd.DisallowUnknownFields()
-		if err := jd.Decode(cur.Value); err == nil {
-			p.Type = cur.Type
-			// But we need to store actual values, not pointers.
-			switch val := cur.Value.(type) {
-			case *float64:
-				p.Value = int(*val)
-			case *string:
-				p.Value = *val
-			case *bool:
-				p.Value = *val
-			case *FuncParam:
-				p.Value = *val
-			case *BlockFilter:
-				p.Value = *val
-			case *TxFilter:
-				p.Value = *val
-			case *NotificationFilter:
-				p.Value = *val
-			case *ExecutionFilter:
-				if (*val).State == "HALT" || (*val).State == "FAULT" {
-					p.Value = *val
-				} else {
-					continue
-				}
-			case *signerWithWitnessAux:
-				aux := *val
-				accParam := Param{StringT, aux.Account}
-				acc, err := accParam.GetUint160FromAddressOrHex()
-				if err != nil {
-					return err
-				}
-				p.Value = SignerWithWitness{
-					Signer: transaction.Signer{
-						Account:          acc,
-						Scopes:           aux.Scopes,
-						AllowedContracts: aux.AllowedContracts,
-						AllowedGroups:    aux.AllowedGroups,
-					},
-					Witness: transaction.Witness{
-						InvocationScript:   aux.InvocationScript,
-						VerificationScript: aux.VerificationScript,
-					},
-				}
-			case *[]Param:
-				p.Value = *val
+	switch t := tok.(type) {
+	case json.Delim:
+		if t == json.Delim('[') {
+			var arr []Param
+			err := json.Unmarshal(data, &arr)
+			if err != nil {
+				return err
 			}
-			return nil
+			p.Type = ArrayT
+			p.Value = arr
+		} else {
+			p.Type = defaultT
+			p.Value = json.RawMessage(data)
 		}
+	case bool:
+		p.Type = BooleanT
+		p.Value = t
+	case float64: // unexpected because of `UseNumber`.
+		panic("unexpected")
+	case json.Number:
+		value, err := strconv.Atoi(string(t))
+		if err != nil {
+			return err
+		}
+		p.Type = NumberT
+		p.Value = value
+	case string:
+		p.Type = StringT
+		p.Value = t
+	default: // null
+		p.Type = defaultT
 	}
-
-	return errors.New("unknown type")
+	return nil
 }
 
 // signerWithWitnessAux is an auxiluary struct for JSON marshalling. We need it because of

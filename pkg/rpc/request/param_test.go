@@ -16,24 +16,9 @@ import (
 
 func TestParam_UnmarshalJSON(t *testing.T) {
 	msg := `["str1", 123, null, ["str2", 3], [{"type": "String", "value": "jajaja"}],
-                 {"primary": 1},
-                 {"sender": "f84d6a337fbc3d3a201d41da99e86b479e7a2554"},
-                 {"signer": "f84d6a337fbc3d3a201d41da99e86b479e7a2554"},
-                 {"sender": "f84d6a337fbc3d3a201d41da99e86b479e7a2554", "signer": "f84d6a337fbc3d3a201d41da99e86b479e7a2554"},
-                 {"contract": "f84d6a337fbc3d3a201d41da99e86b479e7a2554"},
-                 {"name": "my_pretty_notification"},
-                 {"contract": "f84d6a337fbc3d3a201d41da99e86b479e7a2554", "name":"my_pretty_notification"},
-                 {"state": "HALT"},
                  {"account": "0xcadb3dc2faa3ef14a13b619c9a43124755aa2569"},
                  {"account": "NYxb4fSZVKAz8YsgaPK2WkT3KcAE9b3Vag", "scopes": "Global"},
                  [{"account": "0xcadb3dc2faa3ef14a13b619c9a43124755aa2569", "scopes": "Global"}]]`
-	contr, err := util.Uint160DecodeStringLE("f84d6a337fbc3d3a201d41da99e86b479e7a2554")
-	require.NoError(t, err)
-	name := "my_pretty_notification"
-	accountHash, err := util.Uint160DecodeStringLE("cadb3dc2faa3ef14a13b619c9a43124755aa2569")
-	require.NoError(t, err)
-	addrHash, err := address.StringToUint160("NYxb4fSZVKAz8YsgaPK2WkT3KcAE9b3Vag")
-	require.NoError(t, err)
 	expected := Params{
 		{
 			Type:  StringT,
@@ -63,78 +48,25 @@ func TestParam_UnmarshalJSON(t *testing.T) {
 			Type: ArrayT,
 			Value: []Param{
 				{
-					Type: FuncParamT,
-					Value: FuncParam{
-						Type: smartcontract.StringType,
-						Value: Param{
-							Type:  StringT,
-							Value: "jajaja",
-						},
-					},
+					Type:  defaultT,
+					Value: json.RawMessage(`{"type": "String", "value": "jajaja"}`),
 				},
 			},
 		},
 		{
-			Type:  BlockFilterT,
-			Value: BlockFilter{Primary: 1},
+			Type:  defaultT,
+			Value: json.RawMessage(`{"account": "0xcadb3dc2faa3ef14a13b619c9a43124755aa2569"}`),
 		},
 		{
-			Type:  TxFilterT,
-			Value: TxFilter{Sender: &contr},
-		},
-		{
-			Type:  TxFilterT,
-			Value: TxFilter{Signer: &contr},
-		},
-		{
-			Type:  TxFilterT,
-			Value: TxFilter{Sender: &contr, Signer: &contr},
-		},
-		{
-			Type:  NotificationFilterT,
-			Value: NotificationFilter{Contract: &contr},
-		},
-		{
-			Type:  NotificationFilterT,
-			Value: NotificationFilter{Name: &name},
-		},
-		{
-			Type:  NotificationFilterT,
-			Value: NotificationFilter{Contract: &contr, Name: &name},
-		},
-		{
-			Type:  ExecutionFilterT,
-			Value: ExecutionFilter{State: "HALT"},
-		},
-		{
-			Type: SignerWithWitnessT,
-			Value: SignerWithWitness{
-				Signer: transaction.Signer{
-					Account: accountHash,
-					Scopes:  transaction.None,
-				},
-			},
-		},
-		{
-			Type: SignerWithWitnessT,
-			Value: SignerWithWitness{
-				Signer: transaction.Signer{
-					Account: addrHash,
-					Scopes:  transaction.Global,
-				},
-			},
+			Type:  defaultT,
+			Value: json.RawMessage(`{"account": "NYxb4fSZVKAz8YsgaPK2WkT3KcAE9b3Vag", "scopes": "Global"}`),
 		},
 		{
 			Type: ArrayT,
 			Value: []Param{
 				{
-					Type: SignerWithWitnessT,
-					Value: SignerWithWitness{
-						Signer: transaction.Signer{
-							Account: accountHash,
-							Scopes:  transaction.Global,
-						},
-					},
+					Type:  defaultT,
+					Value: json.RawMessage(`{"account": "0xcadb3dc2faa3ef14a13b619c9a43124755aa2569", "scopes": "Global"}`),
 				},
 			},
 		},
@@ -143,11 +75,49 @@ func TestParam_UnmarshalJSON(t *testing.T) {
 	var ps Params
 	require.NoError(t, json.Unmarshal([]byte(msg), &ps))
 	require.Equal(t, expected, ps)
+}
 
-	msg = `[{"2": 3}]`
-	require.Error(t, json.Unmarshal([]byte(msg), &ps))
-	msg = `[{"account": "notanaccount", "scopes": "Global"}]`
-	require.Error(t, json.Unmarshal([]byte(msg), &ps))
+func TestGetWitness(t *testing.T) {
+	accountHash, err := util.Uint160DecodeStringLE("cadb3dc2faa3ef14a13b619c9a43124755aa2569")
+	require.NoError(t, err)
+	addrHash, err := address.StringToUint160("NYxb4fSZVKAz8YsgaPK2WkT3KcAE9b3Vag")
+	require.NoError(t, err)
+
+	testCases := []struct {
+		raw      string
+		expected SignerWithWitness
+	}{
+		{`{"account": "0xcadb3dc2faa3ef14a13b619c9a43124755aa2569"}`, SignerWithWitness{
+			Signer: transaction.Signer{
+				Account: accountHash,
+				Scopes:  transaction.None,
+			}},
+		},
+		{`{"account": "NYxb4fSZVKAz8YsgaPK2WkT3KcAE9b3Vag", "scopes": "Global"}`, SignerWithWitness{
+			Signer: transaction.Signer{
+				Account: addrHash,
+				Scopes:  transaction.Global,
+			}},
+		},
+		{`{"account": "0xcadb3dc2faa3ef14a13b619c9a43124755aa2569", "scopes": "Global"}`, SignerWithWitness{
+			Signer: transaction.Signer{
+				Account: accountHash,
+				Scopes:  transaction.Global,
+			}},
+		},
+	}
+
+	for _, tc := range testCases {
+		p := Param{Value: json.RawMessage(tc.raw)}
+		actual, err := p.GetSignerWithWitness()
+		require.NoError(t, err)
+		require.Equal(t, tc.expected, actual)
+		require.Equal(t, tc.expected, p.Value)
+
+		actual, err = p.GetSignerWithWitness() // valid second invocation.
+		require.NoError(t, err)
+		require.Equal(t, tc.expected, actual)
+	}
 }
 
 func TestParamGetString(t *testing.T) {
