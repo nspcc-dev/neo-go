@@ -1019,20 +1019,16 @@ func (p *Pointer) Position() int {
 }
 
 // Buffer represents represents Buffer stack item.
-type Buffer struct {
-	value []byte
-}
+type Buffer []byte
 
 // NewBuffer returns a new Buffer object.
 func NewBuffer(b []byte) *Buffer {
-	return &Buffer{
-		value: b,
-	}
+	return (*Buffer)(&b)
 }
 
 // Value implements Item interface.
 func (i *Buffer) Value() interface{} {
-	return i.value
+	return []byte(*i)
 }
 
 // String implements fmt.Stringer interface.
@@ -1047,7 +1043,7 @@ func (i *Buffer) TryBool() (bool, error) {
 
 // TryBytes implements Item interface.
 func (i *Buffer) TryBytes() ([]byte, error) {
-	return i.value, nil
+	return *i, nil
 }
 
 // TryInteger implements Item interface.
@@ -1067,7 +1063,7 @@ func (i *Buffer) Dup() Item {
 
 // MarshalJSON implements the json.Marshaler interface.
 func (i *Buffer) MarshalJSON() ([]byte, error) {
-	return json.Marshal(hex.EncodeToString(i.value))
+	return json.Marshal(hex.EncodeToString(*i))
 }
 
 // Type implements Item interface.
@@ -1081,12 +1077,12 @@ func (i *Buffer) Convert(typ Type) (Item, error) {
 	case BufferT:
 		return i, nil
 	case ByteArrayT:
-		return NewByteArray(slice.Copy(i.value)), nil
+		return NewByteArray(slice.Copy(*i)), nil
 	case IntegerT:
-		if len(i.value) > MaxBigIntegerSizeBits/8 {
+		if len(*i) > MaxBigIntegerSizeBits/8 {
 			return nil, errTooBigInteger
 		}
-		return NewBigInteger(bigint.FromBytes(i.value)), nil
+		return NewBigInteger(bigint.FromBytes(*i)), nil
 	default:
 		return nil, mkInvConversion(i, typ)
 	}
@@ -1094,7 +1090,7 @@ func (i *Buffer) Convert(typ Type) (Item, error) {
 
 // Len returns length of Buffer value.
 func (i *Buffer) Len() int {
-	return len(i.value)
+	return len(*i)
 }
 
 // DeepCopy returns new deep copy of the provided item.
@@ -1141,7 +1137,7 @@ func deepCopy(item Item, seen map[Item]Item) Item {
 	case *ByteArray:
 		return NewByteArray(slice.Copy(*it))
 	case *Buffer:
-		return NewBuffer(slice.Copy(it.value))
+		return NewBuffer(slice.Copy(*it))
 	case Bool:
 		return it
 	case *Pointer:
