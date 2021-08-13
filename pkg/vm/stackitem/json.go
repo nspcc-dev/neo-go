@@ -110,18 +110,18 @@ func toJSON(data []byte, seen map[Item]sliceNoPointer, item Item) ([]byte, error
 		data = append(data, '}')
 		seen[item] = sliceNoPointer{start, len(data)}
 	case *BigInteger:
-		if it.value.CmpAbs(big.NewInt(MaxAllowedInteger)) == 1 {
+		if it.Big().CmpAbs(big.NewInt(MaxAllowedInteger)) == 1 {
 			return nil, fmt.Errorf("%w (MaxAllowedInteger)", ErrInvalidValue)
 		}
-		data = append(data, it.value.String()...)
+		data = append(data, it.Big().String()...)
 	case *ByteArray, *Buffer:
 		raw, err := itemToJSONString(it)
 		if err != nil {
 			return nil, err
 		}
 		data = append(data, raw...)
-	case *Bool:
-		if it.value {
+	case Bool:
+		if it {
 			data = append(data, "true"...)
 		} else {
 			data = append(data, "false"...)
@@ -288,12 +288,12 @@ func toJSONWithTypes(item Item, seen map[Item]bool) (interface{}, error) {
 		}
 		value = arr
 		delete(seen, item)
-	case *Bool:
-		value = it.value
+	case Bool:
+		value = bool(it)
 	case *Buffer, *ByteArray:
 		value = base64.StdEncoding.EncodeToString(it.Value().([]byte))
 	case *BigInteger:
-		value = it.value.String()
+		value = it.Big().String()
 	case *Map:
 		if seen[item] {
 			return "", ErrRecursive

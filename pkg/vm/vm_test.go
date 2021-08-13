@@ -415,7 +415,7 @@ func TestStackLimit(t *testing.T) {
 	require.NoError(t, vm.Step(), "failed to initialize static slot")
 	for i := range expected {
 		require.NoError(t, vm.Step())
-		require.Equal(t, expected[i].size, vm.refs.size, "i: %d", i)
+		require.Equal(t, expected[i].size, int(vm.refs), "i: %d", i)
 	}
 }
 
@@ -829,7 +829,7 @@ func getTestFuncForVM(prog []byte, result interface{}, args ...interface{}) func
 	if result != nil {
 		f = func(t *testing.T, v *VM) {
 			require.Equal(t, 1, v.estack.Len())
-			require.Equal(t, stackitem.Make(result), v.estack.Pop().value)
+			require.Equal(t, stackitem.Make(result).Value(), v.estack.Pop().Value())
 		}
 	}
 	return getCustomTestFuncForVM(prog, f, args...)
@@ -1761,7 +1761,7 @@ func TestPACK_UNPACK_MaxSize(t *testing.T) {
 	vm.estack.PushVal(len(elements))
 	runVM(t, vm)
 	// check reference counter = 1+1+1024
-	assert.Equal(t, 1+1+len(elements), vm.refs.size)
+	assert.Equal(t, 1+1+len(elements), int(vm.refs))
 	assert.Equal(t, 1+1+len(elements), vm.estack.Len()) // canary + length + elements
 	assert.Equal(t, int64(len(elements)), vm.estack.Peek(0).Value().(*big.Int).Int64())
 	for i := 0; i < len(elements); i++ {
@@ -1784,7 +1784,7 @@ func TestPACK_UNPACK_PACK_MaxSize(t *testing.T) {
 	vm.estack.PushVal(len(elements))
 	runVM(t, vm)
 	// check reference counter = 1+1+1024
-	assert.Equal(t, 1+1+len(elements), vm.refs.size)
+	assert.Equal(t, 1+1+len(elements), int(vm.refs))
 	assert.Equal(t, 2, vm.estack.Len())
 	a := vm.estack.Peek(0).Array()
 	assert.Equal(t, len(elements), len(a))
@@ -1959,7 +1959,7 @@ func testCLEARITEMS(t *testing.T, item stackitem.Item) {
 	v.estack.PushVal(item)
 	runVM(t, v)
 	require.Equal(t, 2, v.estack.Len())
-	require.EqualValues(t, 2, v.refs.size) // empty collection + it's size
+	require.EqualValues(t, 2, int(v.refs)) // empty collection + it's size
 	require.EqualValues(t, 0, v.estack.Pop().BigInt().Int64())
 }
 

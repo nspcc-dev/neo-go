@@ -2097,20 +2097,17 @@ func (c *codegen) resolveFuncDecls(f *ast.File, pkg *types.Package) {
 func (c *codegen) writeJumps(b []byte) ([]byte, error) {
 	ctx := vm.NewContext(b)
 	var offsets []int
-	for op, _, err := ctx.Next(); err == nil && ctx.IP() < len(b); op, _, err = ctx.Next() {
+	for op, param, err := ctx.Next(); err == nil && ctx.IP() < len(b); op, param, err = ctx.Next() {
 		switch op {
 		case opcode.JMP, opcode.JMPIFNOT, opcode.JMPIF, opcode.CALL,
 			opcode.JMPEQ, opcode.JMPNE,
 			opcode.JMPGT, opcode.JMPGE, opcode.JMPLE, opcode.JMPLT:
 		case opcode.TRYL:
-			nextIP := ctx.NextIP()
-			catchArg := b[nextIP-8:]
-			_, err := c.replaceLabelWithOffset(ctx.IP(), catchArg)
+			_, err := c.replaceLabelWithOffset(ctx.IP(), param)
 			if err != nil {
 				return nil, err
 			}
-			finallyArg := b[nextIP-4:]
-			_, err = c.replaceLabelWithOffset(ctx.IP(), finallyArg)
+			_, err = c.replaceLabelWithOffset(ctx.IP(), param[4:])
 			if err != nil {
 				return nil, err
 			}
@@ -2118,10 +2115,7 @@ func (c *codegen) writeJumps(b []byte) ([]byte, error) {
 			opcode.JMPEQL, opcode.JMPNEL,
 			opcode.JMPGTL, opcode.JMPGEL, opcode.JMPLEL, opcode.JMPLTL,
 			opcode.CALLL, opcode.PUSHA, opcode.ENDTRYL:
-			// we can't use arg returned by ctx.Next() because it is copied
-			nextIP := ctx.NextIP()
-			arg := b[nextIP-4:]
-			offset, err := c.replaceLabelWithOffset(ctx.IP(), arg)
+			offset, err := c.replaceLabelWithOffset(ctx.IP(), param)
 			if err != nil {
 				return nil, err
 			}

@@ -15,67 +15,67 @@ var makeStackItemTestCases = []struct {
 }{
 	{
 		input:  int64(3),
-		result: &BigInteger{value: big.NewInt(3)},
+		result: (*BigInteger)(big.NewInt(3)),
 	},
 	{
 		input:  int16(3),
-		result: &BigInteger{value: big.NewInt(3)},
+		result: (*BigInteger)(big.NewInt(3)),
 	},
 	{
 		input:  3,
-		result: &BigInteger{value: big.NewInt(3)},
+		result: (*BigInteger)(big.NewInt(3)),
 	},
 	{
 		input:  uint8(3),
-		result: &BigInteger{value: big.NewInt(3)},
+		result: (*BigInteger)(big.NewInt(3)),
 	},
 	{
 		input:  uint16(3),
-		result: &BigInteger{value: big.NewInt(3)},
+		result: (*BigInteger)(big.NewInt(3)),
 	},
 	{
 		input:  uint32(3),
-		result: &BigInteger{value: big.NewInt(3)},
+		result: (*BigInteger)(big.NewInt(3)),
 	},
 	{
 		input:  uint64(3),
-		result: &BigInteger{value: big.NewInt(3)},
+		result: (*BigInteger)(big.NewInt(3)),
 	},
 	{
 		input:  big.NewInt(3),
-		result: &BigInteger{value: big.NewInt(3)},
+		result: (*BigInteger)(big.NewInt(3)),
 	},
 	{
 		input:  []byte{1, 2, 3, 4},
-		result: &ByteArray{value: []byte{1, 2, 3, 4}},
+		result: NewByteArray([]byte{1, 2, 3, 4}),
 	},
 	{
 		input:  []byte{},
-		result: &ByteArray{value: []byte{}},
+		result: NewByteArray([]byte{}),
 	},
 	{
 		input:  "bla",
-		result: &ByteArray{value: []byte("bla")},
+		result: NewByteArray([]byte("bla")),
 	},
 	{
 		input:  "",
-		result: &ByteArray{value: []byte{}},
+		result: NewByteArray([]byte{}),
 	},
 	{
 		input:  true,
-		result: &Bool{value: true},
+		result: Bool(true),
 	},
 	{
 		input:  false,
-		result: &Bool{value: false},
+		result: Bool(false),
 	},
 	{
-		input:  []Item{&BigInteger{value: big.NewInt(3)}, &ByteArray{value: []byte{1, 2, 3}}},
-		result: &Array{value: []Item{&BigInteger{value: big.NewInt(3)}, &ByteArray{value: []byte{1, 2, 3}}}},
+		input:  []Item{(*BigInteger)(big.NewInt(3)), NewByteArray([]byte{1, 2, 3})},
+		result: &Array{value: []Item{(*BigInteger)(big.NewInt(3)), NewByteArray([]byte{1, 2, 3})}},
 	},
 	{
 		input:  []int{1, 2, 3},
-		result: &Array{value: []Item{&BigInteger{value: big.NewInt(1)}, &BigInteger{value: big.NewInt(2)}, &BigInteger{value: big.NewInt(3)}}},
+		result: &Array{value: []Item{(*BigInteger)(big.NewInt(1)), (*BigInteger)(big.NewInt(2)), (*BigInteger)(big.NewInt(3))}},
 	},
 }
 
@@ -281,18 +281,18 @@ var equalsTestCases = map[string][]struct {
 			result: false,
 		},
 		{
-			item1:  NewArray([]Item{&BigInteger{big.NewInt(1)}, &BigInteger{big.NewInt(2)}, &BigInteger{big.NewInt(3)}}),
-			item2:  NewArray([]Item{&BigInteger{big.NewInt(1)}, &BigInteger{big.NewInt(2)}, &BigInteger{big.NewInt(3)}}),
+			item1:  NewArray([]Item{(*BigInteger)(big.NewInt(1)), (*BigInteger)(big.NewInt(2)), (*BigInteger)(big.NewInt(3))}),
+			item2:  NewArray([]Item{(*BigInteger)(big.NewInt(1)), (*BigInteger)(big.NewInt(2)), (*BigInteger)(big.NewInt(3))}),
 			result: false,
 		},
 		{
-			item1:  NewArray([]Item{&BigInteger{big.NewInt(1)}}),
+			item1:  NewArray([]Item{(*BigInteger)(big.NewInt(1))}),
 			item2:  NewBigInteger(big.NewInt(1)),
 			result: false,
 		},
 		{
-			item1:  NewArray([]Item{&BigInteger{big.NewInt(1)}, &BigInteger{big.NewInt(2)}, &BigInteger{big.NewInt(3)}}),
-			item2:  NewArray([]Item{&BigInteger{big.NewInt(1)}, &BigInteger{big.NewInt(2)}, &BigInteger{big.NewInt(4)}}),
+			item1:  NewArray([]Item{(*BigInteger)(big.NewInt(1)), (*BigInteger)(big.NewInt(2)), (*BigInteger)(big.NewInt(3))}),
+			item2:  NewArray([]Item{(*BigInteger)(big.NewInt(1)), (*BigInteger)(big.NewInt(2)), (*BigInteger)(big.NewInt(4))}),
 			result: false,
 		},
 	},
@@ -441,7 +441,7 @@ var marshalJSONTestCases = []struct {
 		result: []byte(`"010203"`),
 	},
 	{
-		input:  &Array{value: []Item{&BigInteger{value: big.NewInt(3)}, &ByteArray{value: []byte{1, 2, 3}}}},
+		input:  &Array{value: []Item{(*BigInteger)(big.NewInt(3)), NewByteArray([]byte{1, 2, 3})}},
 		result: []byte(`[3,"010203"]`),
 	},
 	{
@@ -459,8 +459,8 @@ func TestMarshalJSON(t *testing.T) {
 		switch testCase.input.(type) {
 		case *BigInteger:
 			actual, err = testCase.input.(*BigInteger).MarshalJSON()
-		case *Bool:
-			actual, err = testCase.input.(*Bool).MarshalJSON()
+		case Bool:
+			actual, err = testCase.input.(Bool).MarshalJSON()
 		case *ByteArray:
 			actual, err = testCase.input.(*ByteArray).MarshalJSON()
 		case *Array:
@@ -532,7 +532,9 @@ func TestDeepCopy(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			actual := DeepCopy(tc.item)
 			require.Equal(t, tc.item, actual)
-			require.False(t, actual == tc.item)
+			if tc.item.Type() != BooleanT {
+				require.False(t, actual == tc.item)
+			}
 		})
 	}
 

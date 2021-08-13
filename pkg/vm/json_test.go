@@ -195,7 +195,7 @@ func compareItems(t *testing.T, a, b stackitem.Item) {
 			require.Equal(t, val, ac.Value().(*big.Int).Int64())
 		case *stackitem.ByteArray:
 			require.Equal(t, val, bigint.FromBytes(ac.Value().([]byte)).Int64())
-		case *stackitem.Bool:
+		case stackitem.Bool:
 			if ac.Value().(bool) {
 				require.Equal(t, val, int64(1))
 			} else {
@@ -208,6 +208,28 @@ func compareItems(t *testing.T, a, b stackitem.Item) {
 		p, ok := b.(*stackitem.Pointer)
 		require.True(t, ok)
 		require.Equal(t, si.Position(), p.Position()) // there no script in test files
+	case *stackitem.Array, *stackitem.Struct:
+		require.Equal(t, a.Type(), b.Type())
+
+		as := a.Value().([]stackitem.Item)
+		bs := a.Value().([]stackitem.Item)
+		require.Equal(t, len(as), len(bs))
+
+		for i := range as {
+			compareItems(t, as[i], bs[i])
+		}
+
+	case *stackitem.Map:
+		require.Equal(t, a.Type(), b.Type())
+
+		as := a.Value().([]stackitem.MapElement)
+		bs := a.Value().([]stackitem.MapElement)
+		require.Equal(t, len(as), len(bs))
+
+		for i := range as {
+			compareItems(t, as[i].Key, bs[i].Key)
+			compareItems(t, as[i].Value, bs[i].Value)
+		}
 	default:
 		require.Equal(t, a, b)
 	}

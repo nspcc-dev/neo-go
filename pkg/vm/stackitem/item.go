@@ -2,7 +2,6 @@ package stackitem
 
 import (
 	"bytes"
-	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -90,45 +89,23 @@ func mkInvConversion(from Item, to Type) error {
 func Make(v interface{}) Item {
 	switch val := v.(type) {
 	case int:
-		return &BigInteger{
-			value: big.NewInt(int64(val)),
-		}
+		return (*BigInteger)(big.NewInt(int64(val)))
 	case int64:
-		return &BigInteger{
-			value: big.NewInt(val),
-		}
+		return (*BigInteger)(big.NewInt(val))
 	case uint8:
-		return &BigInteger{
-			value: big.NewInt(int64(val)),
-		}
+		return (*BigInteger)(big.NewInt(int64(val)))
 	case uint16:
-		return &BigInteger{
-			value: big.NewInt(int64(val)),
-		}
+		return (*BigInteger)(big.NewInt(int64(val)))
 	case uint32:
-		return &BigInteger{
-			value: big.NewInt(int64(val)),
-		}
+		return (*BigInteger)(big.NewInt(int64(val)))
 	case uint64:
-		b := make([]byte, 8)
-		binary.BigEndian.PutUint64(b, val)
-		bigInt := big.NewInt(0)
-		bigInt.SetBytes(b)
-		return &BigInteger{
-			value: bigInt,
-		}
+		return (*BigInteger)(new(big.Int).SetUint64(val))
 	case []byte:
-		return &ByteArray{
-			value: val,
-		}
+		return NewByteArray(val)
 	case string:
-		return &ByteArray{
-			value: []byte(val),
-		}
+		return NewByteArray([]byte(val))
 	case bool:
-		return &Bool{
-			value: val,
-		}
+		return Bool(val)
 	case []Item:
 		return &Array{
 			value: val,
@@ -207,6 +184,7 @@ func convertPrimitive(item Item, typ Type) (Item, error) {
 // Struct represents a struct on the stack.
 type Struct struct {
 	value []Item
+	rc
 }
 
 // NewStruct returns an new Struct object.
@@ -330,7 +308,7 @@ func (i *Struct) Clone() (*Struct, error) {
 }
 
 func (i *Struct) clone(limit *int) (*Struct, error) {
-	ret := &Struct{make([]Item, len(i.value))}
+	ret := &Struct{value: make([]Item, len(i.value))}
 	for j := range i.value {
 		*limit--
 		if *limit < 0 {
@@ -402,9 +380,7 @@ func (i Null) Convert(typ Type) (Item, error) {
 }
 
 // BigInteger represents a big integer on the stack.
-type BigInteger struct {
-	value *big.Int
-}
+type BigInteger big.Int
 
 // NewBigInteger returns an new BigInteger object.
 func NewBigInteger(value *big.Int) *BigInteger {
@@ -420,19 +396,22 @@ func NewBigInteger(value *big.Int) *BigInteger {
 			panic(errTooBigInteger)
 		}
 	}
-	return &BigInteger{
-		value: value,
-	}
+	return (*BigInteger)(value)
+}
+
+// Big casts i to the big.Int type.
+func (i *BigInteger) Big() *big.Int {
+	return (*big.Int)(i)
 }
 
 // Bytes converts i to a slice of bytes.
 func (i *BigInteger) Bytes() []byte {
-	return bigint.ToBytes(i.value)
+	return bigint.ToBytes(i.Big())
 }
 
 // TryBool implements Item interface.
 func (i *BigInteger) TryBool() (bool, error) {
-	return i.value.Sign() != 0, nil
+	return i.Big().Sign() != 0, nil
 }
 
 // TryBytes implements Item interface.
@@ -442,7 +421,7 @@ func (i *BigInteger) TryBytes() ([]byte, error) {
 
 // TryInteger implements Item interface.
 func (i *BigInteger) TryInteger() (*big.Int, error) {
-	return i.value, nil
+	return i.Big(), nil
 }
 
 // Equals implements Item interface.
@@ -453,12 +432,12 @@ func (i *BigInteger) Equals(s Item) bool {
 		return false
 	}
 	val, ok := s.(*BigInteger)
-	return ok && i.value.Cmp(val.value) == 0
+	return ok && i.Big().Cmp(val.Big()) == 0
 }
 
 // Value implements Item interface.
 func (i *BigInteger) Value() interface{} {
-	return i.value
+	return i.Big()
 }
 
 func (i *BigInteger) String() string {
@@ -468,7 +447,7 @@ func (i *BigInteger) String() string {
 // Dup implements Item interface.
 func (i *BigInteger) Dup() Item {
 	n := new(big.Int)
-	return &BigInteger{n.Set(i.value)}
+	return (*BigInteger)(n.Set(i.Big()))
 }
 
 // Type implements Item interface.
@@ -481,103 +460,95 @@ func (i *BigInteger) Convert(typ Type) (Item, error) {
 
 // MarshalJSON implements the json.Marshaler interface.
 func (i *BigInteger) MarshalJSON() ([]byte, error) {
-	return json.Marshal(i.value)
+	return json.Marshal(i.Big())
 }
 
 // Bool represents a boolean Item.
-type Bool struct {
-	value bool
-}
+type Bool bool
 
 // NewBool returns an new Bool object.
-func NewBool(val bool) *Bool {
-	return &Bool{
-		value: val,
-	}
+func NewBool(val bool) Bool {
+	return Bool(val)
 }
 
 // Value implements Item interface.
-func (i *Bool) Value() interface{} {
-	return i.value
+func (i Bool) Value() interface{} {
+	return bool(i)
 }
 
 // MarshalJSON implements the json.Marshaler interface.
-func (i *Bool) MarshalJSON() ([]byte, error) {
-	return json.Marshal(i.value)
+func (i Bool) MarshalJSON() ([]byte, error) {
+	return json.Marshal(bool(i))
 }
 
-func (i *Bool) String() string {
+func (i Bool) String() string {
 	return "Boolean"
 }
 
 // Dup implements Item interface.
-func (i *Bool) Dup() Item {
-	return &Bool{i.value}
+func (i Bool) Dup() Item {
+	return i
 }
 
 // TryBool implements Item interface.
-func (i *Bool) TryBool() (bool, error) { return i.value, nil }
+func (i Bool) TryBool() (bool, error) { return bool(i), nil }
 
 // Bytes converts Bool to bytes.
-func (i *Bool) Bytes() []byte {
-	if i.value {
+func (i Bool) Bytes() []byte {
+	if i {
 		return []byte{1}
 	}
 	return []byte{0}
 }
 
 // TryBytes implements Item interface.
-func (i *Bool) TryBytes() ([]byte, error) {
+func (i Bool) TryBytes() ([]byte, error) {
 	return i.Bytes(), nil
 }
 
 // TryInteger implements Item interface.
-func (i *Bool) TryInteger() (*big.Int, error) {
-	if i.value {
+func (i Bool) TryInteger() (*big.Int, error) {
+	if i {
 		return big.NewInt(1), nil
 	}
 	return big.NewInt(0), nil
 }
 
 // Equals implements Item interface.
-func (i *Bool) Equals(s Item) bool {
+func (i Bool) Equals(s Item) bool {
 	if i == s {
 		return true
 	} else if s == nil {
 		return false
 	}
-	val, ok := s.(*Bool)
-	return ok && i.value == val.value
+	val, ok := s.(Bool)
+	return ok && i == val
 }
 
 // Type implements Item interface.
-func (i *Bool) Type() Type { return BooleanT }
+func (i Bool) Type() Type { return BooleanT }
 
 // Convert implements Item interface.
-func (i *Bool) Convert(typ Type) (Item, error) {
+func (i Bool) Convert(typ Type) (Item, error) {
 	return convertPrimitive(i, typ)
 }
 
 // ByteArray represents a byte array on the stack.
-type ByteArray struct {
-	value []byte
-}
+type ByteArray []byte
 
 // NewByteArray returns an new ByteArray object.
 func NewByteArray(b []byte) *ByteArray {
-	return &ByteArray{
-		value: b,
-	}
+	return (*ByteArray)(&b)
 }
 
 // Value implements Item interface.
 func (i *ByteArray) Value() interface{} {
-	return i.value
+	return []byte(*i)
 }
 
 // MarshalJSON implements the json.Marshaler interface.
 func (i *ByteArray) MarshalJSON() ([]byte, error) {
-	return json.Marshal(hex.EncodeToString(i.value))
+	return json.Marshal(hex.EncodeToString(*i))
 }
 
 func (i *ByteArray) String() string {
@@ -586,10 +557,10 @@ func (i *ByteArray) String() string {
 
 // TryBool implements Item interface.
 func (i *ByteArray) TryBool() (bool, error) {
-	if len(i.value) > MaxBigIntegerSizeBits/8 {
+	if len(*i) > MaxBigIntegerSizeBits/8 {
 		return false, errTooBigInteger
 	}
-	for _, b := range i.value {
+	for _, b := range *i {
 		if b != 0 {
 			return true, nil
 		}
@@ -598,21 +569,21 @@ func (i *ByteArray) TryBool() (bool, error) {
 }
 
 // TryBytes implements Item interface.
-func (i *ByteArray) TryBytes() ([]byte, error) {
-	return i.value, nil
+func (i ByteArray) TryBytes() ([]byte, error) {
+	return i, nil
 }
 
 // TryInteger implements Item interface.
-func (i *ByteArray) TryInteger() (*big.Int, error) {
-	if len(i.value) > MaxBigIntegerSizeBits/8 {
+func (i ByteArray) TryInteger() (*big.Int, error) {
+	if len(i) > MaxBigIntegerSizeBits/8 {
 		return nil, errTooBigInteger
 	}
-	return bigint.FromBytes(i.value), nil
+	return bigint.FromBytes(i), nil
 }
 
 // Equals implements Item interface.
 func (i *ByteArray) Equals(s Item) bool {
-	if len(i.value) > MaxByteArrayComparableSize {
+	if len(*i) > MaxByteArrayComparableSize {
 		panic(errTooBigComparable)
 	}
 	if i == s {
@@ -624,15 +595,16 @@ func (i *ByteArray) Equals(s Item) bool {
 	if !ok {
 		return false
 	}
-	if len(val.value) > MaxByteArrayComparableSize {
+	if len(*val) > MaxByteArrayComparableSize {
 		panic(errTooBigComparable)
 	}
-	return bytes.Equal(i.value, val.value)
+	return bytes.Equal(*i, *val)
 }
 
 // Dup implements Item interface.
 func (i *ByteArray) Dup() Item {
-	return &ByteArray{slice.Copy(i.value)}
+	ba := slice.Copy(*i)
+	return (*ByteArray)(&ba)
 }
 
 // Type implements Item interface.
@@ -646,6 +618,7 @@ func (i *ByteArray) Convert(typ Type) (Item, error) {
 // Array represents a new Array object.
 type Array struct {
 	value []Item
+	rc
 }
 
 // NewArray returns a new Array object.
@@ -746,6 +719,7 @@ type MapElement struct {
 // if need be.
 type Map struct {
 	value []MapElement
+	rc
 }
 
 // NewMap returns new Map object.
@@ -861,7 +835,7 @@ func (i *Map) Drop(index int) {
 // key.
 func IsValidMapKey(key Item) error {
 	switch key.(type) {
-	case *Bool, *BigInteger:
+	case Bool, *BigInteger:
 		return nil
 	case *ByteArray:
 		size := len(key.Value().([]byte))
@@ -1045,20 +1019,16 @@ func (p *Pointer) Position() int {
 }
 
 // Buffer represents represents Buffer stack item.
-type Buffer struct {
-	value []byte
-}
+type Buffer []byte
 
 // NewBuffer returns a new Buffer object.
 func NewBuffer(b []byte) *Buffer {
-	return &Buffer{
-		value: b,
-	}
+	return (*Buffer)(&b)
 }
 
 // Value implements Item interface.
 func (i *Buffer) Value() interface{} {
-	return i.value
+	return []byte(*i)
 }
 
 // String implements fmt.Stringer interface.
@@ -1073,7 +1043,7 @@ func (i *Buffer) TryBool() (bool, error) {
 
 // TryBytes implements Item interface.
 func (i *Buffer) TryBytes() ([]byte, error) {
-	return i.value, nil
+	return *i, nil
 }
 
 // TryInteger implements Item interface.
@@ -1093,7 +1063,7 @@ func (i *Buffer) Dup() Item {
 
 // MarshalJSON implements the json.Marshaler interface.
 func (i *Buffer) MarshalJSON() ([]byte, error) {
-	return json.Marshal(hex.EncodeToString(i.value))
+	return json.Marshal(hex.EncodeToString(*i))
 }
 
 // Type implements Item interface.
@@ -1107,12 +1077,12 @@ func (i *Buffer) Convert(typ Type) (Item, error) {
 	case BufferT:
 		return i, nil
 	case ByteArrayT:
-		return NewByteArray(slice.Copy(i.value)), nil
+		return NewByteArray(slice.Copy(*i)), nil
 	case IntegerT:
-		if len(i.value) > MaxBigIntegerSizeBits/8 {
+		if len(*i) > MaxBigIntegerSizeBits/8 {
 			return nil, errTooBigInteger
 		}
-		return NewBigInteger(bigint.FromBytes(i.value)), nil
+		return NewBigInteger(bigint.FromBytes(*i)), nil
 	default:
 		return nil, mkInvConversion(i, typ)
 	}
@@ -1120,7 +1090,7 @@ func (i *Buffer) Convert(typ Type) (Item, error) {
 
 // Len returns length of Buffer value.
 func (i *Buffer) Len() int {
-	return len(i.value)
+	return len(*i)
 }
 
 // DeepCopy returns new deep copy of the provided item.
@@ -1162,17 +1132,14 @@ func deepCopy(item Item, seen map[Item]Item) Item {
 		}
 		return m
 	case *BigInteger:
-		bi := new(big.Int).SetBytes(it.value.Bytes())
-		if it.value.Sign() == -1 {
-			bi.Neg(bi)
-		}
-		return NewBigInteger(bi)
+		bi := new(big.Int).Set(it.Big())
+		return (*BigInteger)(bi)
 	case *ByteArray:
-		return NewByteArray(slice.Copy(it.value))
+		return NewByteArray(slice.Copy(*it))
 	case *Buffer:
-		return NewBuffer(slice.Copy(it.value))
-	case *Bool:
-		return NewBool(it.value)
+		return NewBuffer(slice.Copy(*it))
+	case Bool:
+		return it
 	case *Pointer:
 		return NewPointerWithHash(it.pos, it.script, it.hash)
 	case *Interop:
