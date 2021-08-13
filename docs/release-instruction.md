@@ -45,6 +45,11 @@ CircleCI to build it (or them if we're to have more than one OS or
 architecture), download it and rename to `neo-go-$OS-$ARCH`, at the moment
 that should be `neo-go-linux-amd64`.
 
+## Build and push image to DockerHub
+
+Manually trigger "Push images to DockerHub" workflow from master branch for
+the release tag.
+
 ## Make a proper Github release
 
 Edit an automatically-created release on Github, copy things from changelog
