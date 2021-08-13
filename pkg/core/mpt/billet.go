@@ -215,7 +215,7 @@ func (b *Billet) traverse(curr Node, process func(node Node, nodeBytes []byte) b
 		return curr, nil
 	}
 	if hn, ok := curr.(*HashNode); ok {
-		r, err := b.getFromStore(hn.Hash())
+		r, err := b.GetFromStore(hn.Hash())
 		if err != nil {
 			if ignoreStorageErr && errors.Is(err, storage.ErrKeyNotFound) {
 				return hn, nil
@@ -292,7 +292,8 @@ func (b *Billet) tryCollapseBranch(curr *BranchNode) Node {
 	return res
 }
 
-func (b *Billet) getFromStore(h util.Uint256) (Node, error) {
+// GetFromStore returns MPT node from the storage.
+func (b *Billet) GetFromStore(h util.Uint256) (Node, error) {
 	data, err := b.Store.Get(makeStorageKey(h.BytesBE()))
 	if err != nil {
 		return nil, err

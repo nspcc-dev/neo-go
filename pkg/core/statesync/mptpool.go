@@ -48,6 +48,26 @@ func (mp *Pool) GetAll() map[util.Uint256][][]byte {
 	return mp.hashes
 }
 
+// GetBatch returns set of unknown MPT nodes hashes (`limit` at max).
+func (mp *Pool) GetBatch(limit int) []util.Uint256 {
+	mp.lock.RLock()
+	defer mp.lock.RUnlock()
+
+	count := len(mp.hashes)
+	if count > limit {
+		count = limit
+	}
+	result := make([]util.Uint256, 0, limit)
+	for h := range mp.hashes {
+		if count == 0 {
+			break
+		}
+		result = append(result, h)
+		count--
+	}
+	return result
+}
+
 // Remove removes MPT node from the pool by the specified hash.
 func (mp *Pool) Remove(hash util.Uint256) {
 	mp.lock.Lock()

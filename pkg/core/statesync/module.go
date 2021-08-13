@@ -328,30 +328,47 @@ func (s *Module) AddMPTNodes(nodes [][]byte) error {
 		if r.Err != nil {
 			return fmt.Errorf("failed to decode MPT node: %w", r.Err)
 		}
-		nPaths, ok := s.mptpool.TryGet(n.Hash())
-		if !ok {
-			// it can easily happen after receiving the same data from different peers.
-			return nil
+		err := s.restoreNode(n.Node)
+		if err != nil {
+			return err
 		}
-
-		var childrenPaths = make(map[util.Uint256][][]byte)
-		for _, path := range nPaths {
-			err := s.billet.RestoreHashNode(path, n.Node)
-			if err != nil {
-				return fmt.Errorf("failed to add MPT node with hash %s and path %s: %w", n.Hash().StringBE(), hex.EncodeToString(path), err)
-			}
-			for h, paths := range mpt.GetChildrenPaths(path, n.Node) {
-				childrenPaths[h] = append(childrenPaths[h], paths...) // it's OK to have duplicates, they'll be handled by mempool
-			}
-		}
-
-		s.mptpool.Update(map[util.Uint256][][]byte{n.Hash(): nPaths}, childrenPaths)
 	}
 	if s.mptpool.Count() == 0 {
 		s.syncStage |= mptSynced
 		s.log.Info("MPT is in sync",
 			zap.Uint32("height", s.syncPoint))
 		s.checkSyncIsCompleted()
+	}
+	return nil
+}
+
+func (s *Module) restoreNode(n mpt.Node) error {
+	nPaths, ok := s.mptpool.TryGet(n.Hash())
+	if !ok {
+		// it can easily happen after receiving the same data from different peers.
+		return nil
+	}
+	var childrenPaths = make(map[util.Uint256][][]byte)
+	for _, path := range nPaths {
+		err := s.billet.RestoreHashNode(path, n)
+		if err != nil {
+			return fmt.Errorf("failed to restore MPT node with hash %s and path %s: %w", n.Hash().StringBE(), hex.EncodeToString(path), err)
+		}
+		for h, paths := range mpt.GetChildrenPaths(path, n) {
+			childrenPaths[h] = append(childrenPaths[h], paths...) // it's OK to have duplicates, they'll be handled by mempool
+		}
+	}
+
+	s.mptpool.Update(map[util.Uint256][][]byte{n.Hash(): nPaths}, childrenPaths)
+
+	for h := range childrenPaths {
+		if child, err := s.billet.GetFromStore(h); err == nil {
+			// child is already in the storage, so we don't need to request it one more time.
+			err = s.restoreNode(child)
+			if err != nil {
+				return fmt.Errorf("unable to restore saved children: %w", err)
+			}
+		}
 	}
 	return nil
 }
@@ -437,4 +454,12 @@ func (s *Module) GetJumpHeight() (uint32, error) {
 		return 0, errors.New("state sync module has wong state to perform state jump")
 	}
 	return s.syncPoint, nil
+}
+
+// GetUnknownMPTNodesBatch returns set of currently unknown MPT nodes (`limit` at max).
+func (s *Module) GetUnknownMPTNodesBatch(limit int) []util.Uint256 {
+	s.lock.RLock()
+	defer s.lock.RUnlock()
+
+	return s.mptpool.GetBatch(limit)
 }

@@ -13,6 +13,7 @@ type StateSync interface {
 	IsActive() bool
 	IsInitialized() bool
 	GetJumpHeight() (uint32, error)
+	GetUnknownMPTNodesBatch(limit int) []util.Uint256
 	NeedHeaders() bool
 	NeedMPTNodes() bool
 	Traverse(root util.Uint256, process func(node mpt.Node, nodeBytes []byte) bool) error

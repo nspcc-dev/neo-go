@@ -671,12 +671,23 @@ func (s *Server) requestBlocksOrHeaders(p Peer) error {
 		}
 		return nil
 	}
-	var bq blockchainer.Blockqueuer = s.chain
+	var (
+		bq              blockchainer.Blockqueuer = s.chain
+		requestMPTNodes bool
+	)
 	if s.stateSync.IsActive() {
 		bq = s.stateSync
+		requestMPTNodes = s.stateSync.NeedMPTNodes()
 	}
-	if bq.BlockHeight() < p.LastBlockIndex() {
-		return s.requestBlocks(bq, p)
+	if bq.BlockHeight() >= p.LastBlockIndex() {
+		return nil
+	}
+	err := s.requestBlocks(bq, p)
+	if err != nil {
+		return err
+	}
+	if requestMPTNodes {
+		return s.requestMPTNodes(p, s.stateSync.GetUnknownMPTNodesBatch(payload.MaxMPTHashesCount))
 	}
 	return nil
 }
@@ -847,6 +858,20 @@ func (s *Server) handleMPTDataCmd(p Peer, data *payload.MPTData) error {
 		return errors.New("MPTDataCMD was received, but P2PStateExchangeExtensions are disabled")
 	}
 	return s.stateSync.AddMPTNodes(data.Nodes)
+}
+
+// requestMPTNodes requests specified MPT nodes from the peer or broadcasts
+// request if peer is not specified.
+func (s *Server) requestMPTNodes(p Peer, itms []util.Uint256) error {
+	if len(itms) == 0 {
+		return nil
+	}
+	if len(itms) > payload.MaxMPTHashesCount {
+		itms = itms[:payload.MaxMPTHashesCount]
+	}
+	pl := payload.NewMPTInventory(itms)
+	msg := NewMessage(CMDGetMPTData, pl)
+	return p.EnqueueP2PMessage(msg)
 }
 
 // handleGetBlocksCmd processes the getblocks request.

@@ -508,3 +508,8 @@ func (s *FakeStateSync) Traverse(root util.Uint256, process func(node mpt.Node, 
 func (s *FakeStateSync) GetJumpHeight() (uint32, error) {
 	panic("TODO")
 }
+
+// GetUnknownMPTNodesBatch implements StateSync interface.
+func (s *FakeStateSync) GetUnknownMPTNodesBatch(limit int) []util.Uint256 {
+	panic("TODO")
+}
