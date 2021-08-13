@@ -500,6 +500,19 @@ func TestParse(t *testing.T) {
 		e.checkNextLine(t, "String to Hex.*30303030303030303030303030303030303030303030303030303030303030303030343434333432")
 		e.checkNextLine(t, "String to Base64.*MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDQ0NDM0Mg==")
 	})
+	t.Run("public key", func(t *testing.T) {
+		pub := "02b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc2"
+		e := newTestVMCLI(t)
+		e.runProg(t, "parse "+pub)
+		e.checkNextLine(t, "Public key to BE ScriptHash.*ee9ea22c27e34bd0148fc4108e08f74e8f5048b2")
+		e.checkNextLine(t, "Public key to LE ScriptHash.*b248508f4ef7088e10c48f14d04be3272ca29eee")
+		e.checkNextLine(t, "Public key to Address.*Nhfg3TbpwogLvDGVvAvqyThbsHgoSUKwtn")
+		e.checkNextLine(t, "Hex to String")
+		e.checkNextLine(t, "Hex to Integer.*-7115107707948693452214836319400158580475150561081357074343221218306172781415678")
+		e.checkNextLine(t, "Swap Endianness.*c28d7fbfc4bb74d7a76f0496b87d6b203f754c5fed8ac517e3df7b01f42b62b302")
+		e.checkNextLine(t, "String to Hex.*303262333632326266343031376264666533313763353861656435663463373533663230366237646238393630343666613764373734626263346266376638646332")
+		e.checkNextLine(t, "String to Base64.*MDJiMzYyMmJmNDAxN2JkZmUzMTdjNThhZWQ1ZjRjNzUzZjIwNmI3ZGI4OTYwNDZmYTdkNzc0YmJjNGJmN2Y4ZGMy")
+	})
 }
 
 func TestPrintLogo(t *testing.T) {

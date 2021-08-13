@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bytes"
+	"crypto/elliptic"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
@@ -17,6 +18,7 @@ import (
 	"github.com/abiosoft/ishell/v2"
 	"github.com/abiosoft/readline"
 	"github.com/nspcc-dev/neo-go/pkg/compiler"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
@@ -563,6 +565,12 @@ func Parse(args []string) (string, error) {
 		if val, err := util.Uint160DecodeBytesBE(rawStr); err == nil {
 			buf.WriteString(fmt.Sprintf("BE ScriptHash to Address\t%s\n", address.Uint160ToString(val)))
 			buf.WriteString(fmt.Sprintf("LE ScriptHash to Address\t%s\n", address.Uint160ToString(val.Reverse())))
+		}
+		if pub, err := keys.NewPublicKeyFromBytes(rawStr, elliptic.P256()); err == nil {
+			sh := pub.GetScriptHash()
+			buf.WriteString(fmt.Sprintf("Public key to BE ScriptHash\t%s\n", sh))
+			buf.WriteString(fmt.Sprintf("Public key to LE ScriptHash\t%s\n", sh.Reverse()))
+			buf.WriteString(fmt.Sprintf("Public key to Address\t%s\n", address.Uint160ToString(sh)))
 		}
 		buf.WriteString(fmt.Sprintf("Hex to String\t%s\n", fmt.Sprintf("%q", string(rawStr))))
 		buf.WriteString(fmt.Sprintf("Hex to Integer\t%s\n", bigint.FromBytes(rawStr)))
