@@ -45,7 +45,7 @@ func TestRuntimeGetRandomCompatibility(t *testing.T) {
 
 	b := getSharpTestGenesis(t)
 	tx := getSharpTestTx(util.Uint160{})
-	ic := bc.newInteropContext(trigger.Application, dao.NewCached(bc.dao), b, tx)
+	ic := bc.newInteropContext(trigger.Application, bc.dao.GetWrapped(), b, tx)
 	ic.Network = 5195086 // Old mainnet magic used by C# tests.
 
 	ic.VM = vm.New()
@@ -72,12 +72,12 @@ func TestRuntimeGetRandomDifferentTransactions(t *testing.T) {
 	b, _ := bc.GetBlock(bc.GetHeaderHash(0))
 
 	tx1 := transaction.New([]byte{byte(opcode.PUSH1)}, 0)
-	ic1 := bc.newInteropContext(trigger.Application, dao.NewCached(bc.dao), b, tx1)
+	ic1 := bc.newInteropContext(trigger.Application, bc.dao.GetWrapped(), b, tx1)
 	ic1.VM = vm.New()
 	ic1.VM.LoadScript(tx1.Script)
 
 	tx2 := transaction.New([]byte{byte(opcode.PUSH2)}, 0)
-	ic2 := bc.newInteropContext(trigger.Application, dao.NewCached(bc.dao), b, tx2)
+	ic2 := bc.newInteropContext(trigger.Application, bc.dao.GetWrapped(), b, tx2)
 	ic2.VM = vm.New()
 	ic2.VM.LoadScript(tx2.Script)
 

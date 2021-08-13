@@ -121,32 +121,8 @@ func (s *MemCachedStore) Persist() (int, error) {
 	s.del = make(map[string]bool)
 	s.mut.Unlock()
 
-	memStore, ok := tempstore.ps.(*MemoryStore)
-	if !ok {
-		memCachedStore, ok := tempstore.ps.(*MemCachedStore)
-		if ok {
-			memStore = &memCachedStore.MemoryStore
-		}
-	}
-	if memStore != nil {
-		memStore.mut.Lock()
-		for k := range tempstore.mem {
-			memStore.put(k, tempstore.mem[k])
-		}
-		for k := range tempstore.del {
-			memStore.drop(k)
-		}
-		memStore.mut.Unlock()
-	} else {
-		batch := tempstore.ps.Batch()
-		for k := range tempstore.mem {
-			batch.Put([]byte(k), tempstore.mem[k])
-		}
-		for k := range tempstore.del {
-			batch.Delete([]byte(k))
-		}
-		err = tempstore.ps.PutBatch(batch)
-	}
+	err = tempstore.ps.PutChangeSet(tempstore.mem, tempstore.del)
+
 	s.mut.Lock()
 	if err == nil {
 		// tempstore.mem and tempstore.del are completely flushed now

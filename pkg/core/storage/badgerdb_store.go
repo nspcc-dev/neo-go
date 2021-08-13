@@ -102,6 +102,25 @@ func (b *BadgerDBStore) PutBatch(batch Batch) error {
 	return batch.(*BadgerDBBatch).batch.Flush()
 }
 
+// PutChangeSet implements the Store interface.
+func (b *BadgerDBStore) PutChangeSet(puts map[string][]byte, dels map[string]bool) error {
+	return b.db.Update(func(txn *badger.Txn) error {
+		for k, v := range puts {
+			err := txn.Set([]byte(k), v)
+			if err != nil {
+				return err
+			}
+		}
+		for k := range dels {
+			err := txn.Delete([]byte(k))
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
 // Seek implements the Store interface.
 func (b *BadgerDBStore) Seek(key []byte, f func(k, v []byte)) {
 	err := b.db.View(func(txn *badger.Txn) error {
