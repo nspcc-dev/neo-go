@@ -101,13 +101,9 @@ func Make(v interface{}) Item {
 	case uint64:
 		return (*BigInteger)(new(big.Int).SetUint64(val))
 	case []byte:
-		return &ByteArray{
-			value: val,
-		}
+		return NewByteArray(val)
 	case string:
-		return &ByteArray{
-			value: []byte(val),
-		}
+		return NewByteArray([]byte(val))
 	case bool:
 		return Bool(val)
 	case []Item:
@@ -538,25 +534,21 @@ func (i Bool) Convert(typ Type) (Item, error) {
 }
 
 // ByteArray represents a byte array on the stack.
-type ByteArray struct {
-	value []byte
-}
+type ByteArray []byte
 
 // NewByteArray returns an new ByteArray object.
 func NewByteArray(b []byte) *ByteArray {
-	return &ByteArray{
-		value: b,
-	}
+	return (*ByteArray)(&b)
 }
 
 // Value implements Item interface.
 func (i *ByteArray) Value() interface{} {
-	return i.value
+	return []byte(*i)
 }
 
 // MarshalJSON implements the json.Marshaler interface.
 func (i *ByteArray) MarshalJSON() ([]byte, error) {
-	return json.Marshal(hex.EncodeToString(i.value))
+	return json.Marshal(hex.EncodeToString(*i))
 }
 
 func (i *ByteArray) String() string {
@@ -565,10 +557,10 @@ func (i *ByteArray) String() string {
 
 // TryBool implements Item interface.
 func (i *ByteArray) TryBool() (bool, error) {
-	if len(i.value) > MaxBigIntegerSizeBits/8 {
+	if len(*i) > MaxBigIntegerSizeBits/8 {
 		return false, errTooBigInteger
 	}
-	for _, b := range i.value {
+	for _, b := range *i {
 		if b != 0 {
 			return true, nil
 		}
@@ -577,21 +569,21 @@ func (i *ByteArray) TryBool() (bool, error) {
 }
 
 // TryBytes implements Item interface.
-func (i *ByteArray) TryBytes() ([]byte, error) {
-	return i.value, nil
+func (i ByteArray) TryBytes() ([]byte, error) {
+	return i, nil
 }
 
 // TryInteger implements Item interface.
-func (i *ByteArray) TryInteger() (*big.Int, error) {
-	if len(i.value) > MaxBigIntegerSizeBits/8 {
+func (i ByteArray) TryInteger() (*big.Int, error) {
+	if len(i) > MaxBigIntegerSizeBits/8 {
 		return nil, errTooBigInteger
 	}
-	return bigint.FromBytes(i.value), nil
+	return bigint.FromBytes(i), nil
 }
 
 // Equals implements Item interface.
 func (i *ByteArray) Equals(s Item) bool {
-	if len(i.value) > MaxByteArrayComparableSize {
+	if len(*i) > MaxByteArrayComparableSize {
 		panic(errTooBigComparable)
 	}
 	if i == s {
@@ -603,15 +595,16 @@ func (i *ByteArray) Equals(s Item) bool {
 	if !ok {
 		return false
 	}
-	if len(val.value) > MaxByteArrayComparableSize {
+	if len(*val) > MaxByteArrayComparableSize {
 		panic(errTooBigComparable)
 	}
-	return bytes.Equal(i.value, val.value)
+	return bytes.Equal(*i, *val)
 }
 
 // Dup implements Item interface.
 func (i *ByteArray) Dup() Item {
-	return &ByteArray{slice.Copy(i.value)}
+	ba := slice.Copy(*i)
+	return (*ByteArray)(&ba)
 }
 
 // Type implements Item interface.
@@ -1146,7 +1139,7 @@ func deepCopy(item Item, seen map[Item]Item) Item {
 		bi := new(big.Int).Set(it.Big())
 		return (*BigInteger)(bi)
 	case *ByteArray:
-		return NewByteArray(slice.Copy(it.value))
+		return NewByteArray(slice.Copy(*it))
 	case *Buffer:
 		return NewBuffer(slice.Copy(it.value))
 	case Bool:

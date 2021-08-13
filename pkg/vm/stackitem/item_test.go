@@ -47,19 +47,19 @@ var makeStackItemTestCases = []struct {
 	},
 	{
 		input:  []byte{1, 2, 3, 4},
-		result: &ByteArray{value: []byte{1, 2, 3, 4}},
+		result: NewByteArray([]byte{1, 2, 3, 4}),
 	},
 	{
 		input:  []byte{},
-		result: &ByteArray{value: []byte{}},
+		result: NewByteArray([]byte{}),
 	},
 	{
 		input:  "bla",
-		result: &ByteArray{value: []byte("bla")},
+		result: NewByteArray([]byte("bla")),
 	},
 	{
 		input:  "",
-		result: &ByteArray{value: []byte{}},
+		result: NewByteArray([]byte{}),
 	},
 	{
 		input:  true,
@@ -70,8 +70,8 @@ var makeStackItemTestCases = []struct {
 		result: Bool(false),
 	},
 	{
-		input:  []Item{(*BigInteger)(big.NewInt(3)), &ByteArray{value: []byte{1, 2, 3}}},
-		result: &Array{value: []Item{(*BigInteger)(big.NewInt(3)), &ByteArray{value: []byte{1, 2, 3}}}},
+		input:  []Item{(*BigInteger)(big.NewInt(3)), NewByteArray([]byte{1, 2, 3})},
+		result: &Array{value: []Item{(*BigInteger)(big.NewInt(3)), NewByteArray([]byte{1, 2, 3})}},
 	},
 	{
 		input:  []int{1, 2, 3},
@@ -441,7 +441,7 @@ var marshalJSONTestCases = []struct {
 		result: []byte(`"010203"`),
 	},
 	{
-		input:  &Array{value: []Item{(*BigInteger)(big.NewInt(3)), &ByteArray{value: []byte{1, 2, 3}}}},
+		input:  &Array{value: []Item{(*BigInteger)(big.NewInt(3)), NewByteArray([]byte{1, 2, 3})}},
 		result: []byte(`[3,"010203"]`),
 	},
 	{
