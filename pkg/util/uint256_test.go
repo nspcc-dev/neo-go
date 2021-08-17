@@ -95,3 +95,16 @@ func TestUint256_Serializable(t *testing.T) {
 	var b util.Uint256
 	testserdes.EncodeDecodeBinary(t, &a, &b)
 }
+
+func BenchmarkUint256DecodeStringLE(b *testing.B) {
+	a := "f037308fa0ab18155bccfc08485468c112409ea5064595699e98c545f245f32d"
+
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		_, err := util.Uint256DecodeStringLE(a)
+		if err != nil {
+			b.FailNow()
+		}
+	}
+}
