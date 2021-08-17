@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
@@ -14,6 +16,10 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
+
+type policyChecker interface {
+	IsBlockedInternal(dao.DAO, util.Uint160) bool
+}
 
 // LoadToken calls method specified by token id.
 func LoadToken(ic *interop.Context) func(id int32) error {
@@ -88,6 +94,15 @@ func callInternal(ic *interop.Context, cs *state.Contract, name string, f callfl
 // callExFromNative calls a contract with flags using provided calling hash.
 func callExFromNative(ic *interop.Context, caller util.Uint160, cs *state.Contract,
 	name string, args []stackitem.Item, f callflag.CallFlag, hasReturn bool) error {
+	for _, nc := range ic.Natives {
+		if nc.Metadata().Name == nativenames.Policy {
+			var pch = nc.(policyChecker)
+			if pch.IsBlockedInternal(ic.DAO, cs.Hash) {
+				return fmt.Errorf("contract %s is blocked", cs.Hash.StringLE())
+			}
+			break
+		}
+	}
 	md := cs.Manifest.ABI.GetMethod(name, len(args))
 	if md == nil {
 		return fmt.Errorf("method '%s' not found", name)

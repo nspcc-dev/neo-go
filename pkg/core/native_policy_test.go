@@ -196,4 +196,23 @@ func TestBlockedAccounts(t *testing.T) {
 		require.NoError(t, err)
 		checkFAULTState(t, invokeRes)
 	})
+
+	t.Run("block-unblock contract", func(t *testing.T) {
+		neoHash := chain.contracts.NEO.Metadata().Hash
+		res, err := invokeContractMethodGeneric(chain, 100000000, policyHash, "blockAccount", true, neoHash.BytesBE())
+		require.NoError(t, err)
+		checkResult(t, res, stackitem.NewBool(true))
+
+		res, err = invokeContractMethodGeneric(chain, 100000000, neoHash, "balanceOf", true, account.BytesBE())
+		require.NoError(t, err)
+		checkFAULTState(t, res)
+
+		res, err = invokeContractMethodGeneric(chain, 100000000, policyHash, "unblockAccount", true, neoHash.BytesBE())
+		require.NoError(t, err)
+		checkResult(t, res, stackitem.NewBool(true))
+
+		res, err = invokeContractMethodGeneric(chain, 100000000, neoHash, "balanceOf", true, account.BytesBE())
+		require.NoError(t, err)
+		checkResult(t, res, stackitem.Make(0))
+	})
 }
