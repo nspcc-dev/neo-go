@@ -26,7 +26,8 @@ func Uint256DecodeStringLE(s string) (u Uint256, err error) {
 	if err != nil {
 		return u, err
 	}
-	return Uint256DecodeBytesLE(b)
+	slice.Reverse(b)
+	return Uint256DecodeBytesBE(b)
 }
 
 // Uint256DecodeStringBE attempts to decode the given string (in BE representation)
