@@ -9,6 +9,7 @@ import (
 // StateRoot represents local state root module.
 type StateRoot interface {
 	AddStateRoot(root *state.MPTRoot) error
+	CleanStorage() error
 	CurrentLocalHeight() uint32
 	CurrentLocalStateRoot() util.Uint256
 	CurrentValidatedHeight() uint32

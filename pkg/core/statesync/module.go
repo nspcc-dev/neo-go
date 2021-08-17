@@ -120,10 +120,33 @@ func (s *Module) Init(currChainHeight uint32) error {
 	if err == nil && pOld >= p-s.syncInterval {
 		// old point is still valid, so try to resync states for this point.
 		p = pOld
-	} else if s.bc.BlockHeight() > p-2*s.syncInterval {
-		// chain has already been synchronised up to old state sync point and regular blocks processing was started
-		s.syncStage = inactive
-		return nil
+	} else {
+		if s.bc.BlockHeight() > p-2*s.syncInterval {
+			// chain has already been synchronised up to old state sync point and regular blocks processing was started.
+			// Current block height is enough to start regular blocks processing.
+			s.syncStage = inactive
+			return nil
+		}
+		if err == nil {
+			// pOld was found, it is outdated, and chain wasn't completely synchronised for pOld. Need to drop the db.
+			return fmt.Errorf("state sync point %d is found in the storage, "+
+				"but sync process wasn't completed and point is outdated. Please, drop the database manually and restart the node to run state sync process", pOld)
+		}
+		if s.bc.BlockHeight() != 0 {
+			// pOld wasn't found, but blocks processing was started in a regular manner and latest stored block is too outdated
+			// to start regular blocks processing again. Need to drop the db.
+			return fmt.Errorf("current chain's height is too low to start regular blocks processing from the oldest sync point %d. "+
+				"Please, drop the database manually and restart the node to run state sync process", p-s.syncInterval)
+		}
+
+		// We've reached this point, so chain has genesis block only. As far as we can't ruin
+		// current chain's state until new state is completely fetched, outdated state-related data
+		// will be removed from storage during (*Blockchain).JumpToState(...) execution.
+		// All we need to do right now is to remove genesis-related MPT nodes.
+		err = s.bc.GetStateModule().CleanStorage()
+		if err != nil {
+			return fmt.Errorf("failed to remove outdated MPT data from storage: %w", err)
+		}
 	}
 
 	s.syncPoint = p

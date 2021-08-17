@@ -431,7 +431,8 @@ func (bc *Blockchain) JumpToState(module blockchainer.StateSync) error {
 	if err != nil {
 		return fmt.Errorf("failed to get current block: %w", err)
 	}
-	err = bc.dao.StoreAsCurrentBlock(block, nil)
+	writeBuf := io.NewBufBinWriter()
+	err = bc.dao.StoreAsCurrentBlock(block, writeBuf)
 	if err != nil {
 		return fmt.Errorf("failed to store current block: %w", err)
 	}
@@ -462,6 +463,18 @@ func (bc *Blockchain) JumpToState(module blockchainer.StateSync) error {
 
 	if err := bc.updateExtensibleWhitelist(p); err != nil {
 		return fmt.Errorf("failed to update extensible whitelist: %w", err)
+	}
+
+	// After current state is updated, we need to remove outdated state-related data if so.
+	// The only outdated data we might have is genesis-related data, so check it.
+	if p-bc.config.MaxTraceableBlocks > 0 {
+		cache := bc.dao.GetWrapped()
+		writeBuf.Reset()
+		err = cache.DeleteBlock(bc.headerHashes[0], writeBuf)
+		if err != nil {
+			return fmt.Errorf("failed to remove outdated state data for the genesis block: %w", err)
+		}
+		// TODO: remove NEP17 transfers and NEP17 transfer info for genesis block, #2096 related.
 	}
 
 	updateBlockHeightMetric(p)
