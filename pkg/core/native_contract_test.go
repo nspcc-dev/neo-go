@@ -227,7 +227,7 @@ func TestNativeContract_InvokeInternal(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	d := dao.NewSimple(storage.NewMemoryStore(), chain.config.StateRootInHeader)
+	d := dao.NewSimple(storage.NewMemoryStore(), chain.config.StateRootInHeader, chain.config.P2PSigExtensions)
 	ic := chain.newInteropContext(trigger.Application, d, nil, nil)
 
 	sumOffset := 0

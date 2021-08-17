@@ -77,12 +77,14 @@ type Simple struct {
 	Store *storage.MemCachedStore
 	// stateRootInHeader specifies if block header contains state root.
 	stateRootInHeader bool
+	// p2pSigExtensions denotes whether P2PSignatureExtensions are enabled.
+	p2pSigExtensions bool
 }
 
 // NewSimple creates new simple dao using provided backend store.
-func NewSimple(backend storage.Store, stateRootInHeader bool) *Simple {
+func NewSimple(backend storage.Store, stateRootInHeader bool, p2pSigExtensions bool) *Simple {
 	st := storage.NewMemCachedStore(backend)
-	return &Simple{Store: st, stateRootInHeader: stateRootInHeader}
+	return &Simple{Store: st, stateRootInHeader: stateRootInHeader, p2pSigExtensions: p2pSigExtensions}
 }
 
 // GetBatch returns currently accumulated DB changeset.
@@ -93,7 +95,7 @@ func (dao *Simple) GetBatch() *storage.MemBatch {
 // GetWrapped returns new DAO instance with another layer of wrapped
 // MemCachedStore around the current DAO Store.
 func (dao *Simple) GetWrapped() DAO {
-	d := NewSimple(dao.Store, dao.stateRootInHeader)
+	d := NewSimple(dao.Store, dao.stateRootInHeader, dao.p2pSigExtensions)
 	return d
 }
 
@@ -585,6 +587,13 @@ func (dao *Simple) DeleteBlock(h util.Uint256, w *io.BufBinWriter) error {
 	for _, tx := range b.Transactions {
 		copy(key[1:], tx.Hash().BytesBE())
 		batch.Delete(key)
+		if dao.p2pSigExtensions {
+			for _, attr := range tx.GetAttributes(transaction.ConflictsT) {
+				hash := attr.Value.(*transaction.Conflicts).Hash
+				copy(key[1:], hash.BytesBE())
+				batch.Delete(key)
+			}
+		}
 		key[0] = byte(storage.STNotification)
 		batch.Delete(key)
 	}
