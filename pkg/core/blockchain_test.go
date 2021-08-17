@@ -792,9 +792,16 @@ func TestVerifyTx(t *testing.T) {
 				t.Run("dummy on-chain conflict", func(t *testing.T) {
 					tx := bc.newTestTx(h, testScript)
 					require.NoError(t, accs[0].SignTx(netmode.UnitTestNet, tx))
-					dummyTx := transaction.NewTrimmedTX(tx.Hash())
-					dummyTx.Version = transaction.DummyVersion
-					require.NoError(t, bc.dao.StoreAsTransaction(dummyTx, bc.blockHeight, nil))
+					conflicting := transaction.New([]byte{byte(opcode.RET)}, 1)
+					conflicting.Attributes = []transaction.Attribute{
+						{
+							Type: transaction.ConflictsT,
+							Value: &transaction.Conflicts{
+								Hash: tx.Hash(),
+							},
+						},
+					}
+					require.NoError(t, bc.dao.StoreAsTransaction(conflicting, bc.blockHeight, nil))
 					require.True(t, errors.Is(bc.VerifyTx(tx), ErrHasConflicts))
 				})
 				t.Run("attribute on-chain conflict", func(t *testing.T) {

@@ -732,13 +732,6 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 			}
 
 			writeBuf.Reset()
-			if bc.config.P2PSigExtensions {
-				err := kvcache.StoreConflictingTransactions(tx, block.Index, writeBuf)
-				if err != nil {
-					blockdone <- err
-					return
-				}
-			}
 		}
 		if bc.config.RemoveUntraceableBlocks {
 			var start, stop uint32
