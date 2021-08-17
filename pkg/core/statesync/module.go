@@ -136,29 +136,35 @@ func (s *Module) Init(currChainHeight uint32) error {
 		zap.Uint32("point", p),
 		zap.Uint32("evaluated chain's blockHeight", currChainHeight))
 
-	// check headers sync state first
+	return s.defineSyncStage()
+}
+
+// defineSyncStage sequentially checks and sets sync state process stage after Module
+// initialization. It also performs initialization of MPT Billet if necessary.
+func (s *Module) defineSyncStage() error {
+	// check headers sync stage first
 	ltstHeaderHeight := s.bc.HeaderHeight()
-	if ltstHeaderHeight > p {
+	if ltstHeaderHeight > s.syncPoint {
 		s.syncStage = headersSynced
 		s.log.Info("headers are in sync",
 			zap.Uint32("headerHeight", s.bc.HeaderHeight()))
 	}
 
-	// check blocks sync state
-	s.blockHeight = s.getLatestSavedBlock(p)
-	if s.blockHeight >= p {
+	// check blocks sync stage
+	s.blockHeight = s.getLatestSavedBlock(s.syncPoint)
+	if s.blockHeight >= s.syncPoint {
 		s.syncStage |= blocksSynced
 		s.log.Info("blocks are in sync",
 			zap.Uint32("blockHeight", s.blockHeight))
 	}
 
-	// check MPT sync state
-	if s.blockHeight > p {
+	// check MPT sync stage
+	if s.blockHeight > s.syncPoint {
 		s.syncStage |= mptSynced
 		s.log.Info("MPT is in sync",
 			zap.Uint32("stateroot height", s.bc.GetStateModule().CurrentLocalHeight()))
 	} else if s.syncStage&headersSynced != 0 {
-		header, err := s.bc.GetHeader(s.bc.GetHeaderHash(int(p + 1)))
+		header, err := s.bc.GetHeader(s.bc.GetHeaderHash(int(s.syncPoint + 1)))
 		if err != nil {
 			return fmt.Errorf("failed to get header to initialize MPT billet: %w", err)
 		}
@@ -186,13 +192,13 @@ func (s *Module) Init(currChainHeight uint32) error {
 			return false
 		}, true)
 		if err != nil {
-			return fmt.Errorf("failed to traverse MPT while initialization: %w", err)
+			return fmt.Errorf("failed to traverse MPT during initialization: %w", err)
 		}
 		s.mptpool.Update(nil, pool.GetAll())
 		if s.mptpool.Count() == 0 {
 			s.syncStage |= mptSynced
 			s.log.Info("MPT is in sync",
-				zap.Uint32("stateroot height", p))
+				zap.Uint32("stateroot height", s.syncPoint))
 		}
 	}
 
@@ -234,21 +240,10 @@ func (s *Module) AddHeaders(hdrs ...*block.Header) error {
 
 	hdrsErr := s.bc.AddHeaders(hdrs...)
 	if s.bc.HeaderHeight() > s.syncPoint {
-		s.syncStage = headersSynced
-		s.log.Info("headers for state sync are fetched",
-			zap.Uint32("header height", s.bc.HeaderHeight()))
-
-		header, err := s.bc.GetHeader(s.bc.GetHeaderHash(int(s.syncPoint) + 1))
+		err := s.defineSyncStage()
 		if err != nil {
-			s.log.Fatal("failed to get header to initialize MPT billet",
-				zap.Uint32("height", s.syncPoint+1),
-				zap.Error(err))
+			return fmt.Errorf("failed to define current sync stage: %w", err)
 		}
-		s.billet = mpt.NewBillet(header.PrevStateRoot, s.bc.GetConfig().KeepOnlyLatestState, s.dao.Store)
-		s.mptpool.Add(header.PrevStateRoot, []byte{})
-		s.log.Info("MPT billet initialized",
-			zap.Uint32("height", s.syncPoint),
-			zap.String("state root", header.PrevStateRoot.StringBE()))
 	}
 	return hdrsErr
 }
