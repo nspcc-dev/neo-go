@@ -106,8 +106,6 @@ func NewStore(cfg DBConfiguration) (Store, error) {
 		store, err = NewLevelDBStore(cfg.LevelDBOptions)
 	case "inmemory":
 		store = NewMemoryStore()
-	case "redis":
-		store, err = NewRedisStore(cfg.RedisDBOptions)
 	case "boltdb":
 		store, err = NewBoltDBStore(cfg.BoltDBOptions)
 	default:

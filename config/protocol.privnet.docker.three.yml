@@ -32,14 +32,10 @@ ApplicationConfiguration:
   # LogPath could be set up in case you need stdout logs to some proper file.
   # LogPath: "./log/neogo.log"
   DBConfiguration:
-    Type: "leveldb" #other options: 'inmemory','redis','boltdb'
+    Type: "leveldb" #other options: 'inmemory','boltdb'
     # DB type options. Uncomment those you need in case you want to switch DB type.
     LevelDBOptions:
       DataDirectoryPath: "/chains/three"
-  #    RedisDBOptions:
-  #      Addr: "localhost:6379"
-  #      Password: ""
-  #      DB: 0
   #    BoltDBOptions:
   #      FilePath: "./chains/privnet.bolt"
   #  Uncomment in order to set up custom address for node.

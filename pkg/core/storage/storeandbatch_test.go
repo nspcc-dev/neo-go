@@ -222,7 +222,6 @@ func TestAllDBs(t *testing.T) {
 		{"LevelDB", newLevelDBForTesting},
 		{"MemCached", newMemCachedStoreForTesting},
 		{"Memory", newMemoryStoreForTesting},
-		{"RedisDB", newRedisStoreForTesting},
 	}
 	var tests = []dbTestFunction{testStoreClose, testStorePutAndGet,
 		testStoreGetNonExistent, testStorePutBatch, testStoreSeek,
