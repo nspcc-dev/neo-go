@@ -8,8 +8,8 @@ We're rolling out an update for NeoGo nodes that mostly concentrates on
 performance. We've tweaked and tuned a lot of code while staying compatible
 with N3 mainnet and testnet. At the same time we're gradually introducing
 changes required for our P2P state exchange extension and this affected DB
-format, so you'll need to resynchronize on update. At the same time, this
-update is not mandatory, 0.97.1 is still perfectly valid for N3 networks.
+format, so you'll need to resynchronize on update. This update is not
+mandatory though, 0.97.1 is still perfectly valid for N3 networks.
 
 Note also that we're discussing removal of Badger and Redis databases support
 in future releases, so if you're interested in them take a look at #2130.
@@ -28,6 +28,8 @@ Improvements:
 Bugs fixed:
  * key decoding functions could accept some additional data even though only
    key is expected to be present (#2125)
+ * conflicting dummy transactions could stay in the DB even with block removal
+   enabled (#2134)
 
 ## 0.97.1 "Gasification" (06 Aug 2021)
 
