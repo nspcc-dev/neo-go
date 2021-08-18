@@ -29,7 +29,7 @@ func newTestTrie(t *testing.T) *Trie {
 	b.Children[10] = NewExtensionNode([]byte{0x0e}, h)
 
 	e := NewExtensionNode(toNibbles([]byte{0xAC}), b)
-	tr := NewTrie(e, false, newTestStore())
+	tr := NewTrie(e, Config{Store: newTestStore()})
 
 	tr.putToStore(e)
 	tr.putToStore(b)
@@ -46,7 +46,7 @@ func newTestTrie(t *testing.T) *Trie {
 }
 
 func testTrieRefcount(t *testing.T, key1, key2 []byte) {
-	tr := NewTrie(nil, true, storage.NewMemCachedStore(storage.NewMemoryStore()))
+	tr := NewTrie(nil, Config{Store: newTestStore(), RefCountEnabled: true})
 	require.NoError(t, tr.Put(key1, []byte{1}))
 	tr.Flush()
 	require.NoError(t, tr.Put(key2, []byte{1}))
@@ -89,7 +89,7 @@ func TestTrie_PutIntoBranchNode(t *testing.T) {
 		l := NewLeafNode([]byte{0x8})
 		b.Children[0x7] = NewHashNode(l.Hash())
 		b.Children[0x8] = NewHashNode(random.Uint256())
-		tr := NewTrie(b, false, newTestStore())
+		tr := NewTrie(b, Config{Store: newTestStore()})
 
 		// empty hash node child
 		require.NoError(t, tr.Put([]byte{0x66}, value))
@@ -119,7 +119,7 @@ func TestTrie_PutIntoExtensionNode(t *testing.T) {
 		l := NewLeafNode([]byte{0x11})
 		key := []byte{0x12}
 		e := NewExtensionNode(toNibbles(key), NewHashNode(l.Hash()))
-		tr := NewTrie(e, false, newTestStore())
+		tr := NewTrie(e, Config{Store: newTestStore()})
 
 		// missing hash
 		require.Error(t, tr.Put(key, value))
@@ -145,7 +145,7 @@ func TestTrie_PutIntoHashNode(t *testing.T) {
 		e := NewExtensionNode([]byte{0x02}, l)
 		b.Children[1] = NewHashNode(e.Hash())
 		b.Children[9] = NewHashNode(random.Uint256())
-		tr := NewTrie(b, false, newTestStore())
+		tr := NewTrie(b, Config{Store: newTestStore()})
 
 		tr.putToStore(e)
 
@@ -174,7 +174,7 @@ func TestTrie_PutIntoHashNode(t *testing.T) {
 func TestTrie_Put(t *testing.T) {
 	trExp := newTestTrie(t)
 
-	trAct := NewTrie(nil, false, newTestStore())
+	trAct := NewTrie(nil, Config{Store: newTestStore()})
 	require.NoError(t, trAct.Put([]byte{0xAC, 0x01}, []byte{0xAB, 0xCD}))
 	require.NoError(t, trAct.Put([]byte{0xAC, 0x13}, []byte{}))
 	require.NoError(t, trAct.Put([]byte{0xAC, 0x99}, []byte{0x22, 0x22}))
@@ -186,7 +186,7 @@ func TestTrie_Put(t *testing.T) {
 }
 
 func TestTrie_PutInvalid(t *testing.T) {
-	tr := NewTrie(nil, false, newTestStore())
+	tr := NewTrie(nil, Config{Store: newTestStore()})
 	key, value := []byte("key"), []byte("value")
 
 	// empty key
@@ -204,7 +204,7 @@ func TestTrie_PutInvalid(t *testing.T) {
 }
 
 func TestTrie_BigPut(t *testing.T) {
-	tr := NewTrie(nil, false, newTestStore())
+	tr := NewTrie(nil, Config{Store: newTestStore()})
 	items := []struct{ k, v string }{
 		{"item with long key", "value1"},
 		{"item with matching prefix", "value2"},
@@ -244,7 +244,7 @@ func (tr *Trie) putToStore(n Node) {
 	if n.Type() == HashT {
 		panic("can't put hash node in trie")
 	}
-	if tr.refcountEnabled {
+	if tr.RefCountEnabled {
 		tr.refcount[n.Hash()] = &cachedNode{
 			bytes:    n.Bytes(),
 			refcount: 1,
@@ -298,7 +298,7 @@ func TestTrie_Get(t *testing.T) {
 	})
 	t.Run("UnfoldRoot", func(t *testing.T) {
 		tr := newTestTrie(t)
-		single := NewTrie(NewHashNode(tr.root.Hash()), false, tr.Store)
+		single := NewTrie(NewHashNode(tr.root.Hash()), Config{Store: tr.Store})
 		single.testHas(t, []byte{0xAC}, nil)
 		single.testHas(t, []byte{0xAC, 0x01}, []byte{0xAB, 0xCD})
 		single.testHas(t, []byte{0xAC, 0x99}, []byte{0x22, 0x22})
@@ -313,13 +313,13 @@ func TestTrie_Flush(t *testing.T) {
 		"key2": []byte("value2"),
 	}
 
-	tr := NewTrie(nil, false, newTestStore())
+	tr := NewTrie(nil, Config{Store: newTestStore()})
 	for k, v := range pairs {
 		require.NoError(t, tr.Put([]byte(k), v))
 	}
 
 	tr.Flush()
-	tr = NewTrie(NewHashNode(tr.StateRoot()), false, tr.Store)
+	tr = NewTrie(NewHashNode(tr.StateRoot()), Config{Store: tr.Store})
 	for k, v := range pairs {
 		actual, err := tr.Get([]byte(k))
 		require.NoError(t, err)
@@ -340,7 +340,7 @@ func testTrieDelete(t *testing.T, enableGC bool) {
 	t.Run("Hash", func(t *testing.T) {
 		t.Run("FromStore", func(t *testing.T) {
 			l := NewLeafNode([]byte{0x12})
-			tr := NewTrie(NewHashNode(l.Hash()), enableGC, newTestStore())
+			tr := NewTrie(NewHashNode(l.Hash()), Config{Store: newTestStore(), RefCountEnabled: enableGC})
 			t.Run("NotInStore", func(t *testing.T) {
 				require.Error(t, tr.Delete([]byte{}))
 			})
@@ -352,7 +352,7 @@ func testTrieDelete(t *testing.T, enableGC bool) {
 		})
 
 		t.Run("Empty", func(t *testing.T) {
-			tr := NewTrie(nil, enableGC, newTestStore())
+			tr := NewTrie(nil, Config{Store: newTestStore(), RefCountEnabled: enableGC})
 			require.NoError(t, tr.Delete([]byte{}))
 		})
 	})
@@ -360,7 +360,10 @@ func testTrieDelete(t *testing.T, enableGC bool) {
 	t.Run("Leaf", func(t *testing.T) {
 		check := func(t *testing.T, value []byte) {
 			l := NewLeafNode(value)
-			tr := NewTrie(l, enableGC, newTestStore())
+			tr := NewTrie(l, Config{
+				RefCountEnabled: enableGC,
+				Store:           newTestStore(),
+			})
 			t.Run("NonExistentKey", func(t *testing.T) {
 				require.NoError(t, tr.Delete([]byte{0x12}))
 				tr.testHas(t, []byte{}, value)
@@ -381,7 +384,10 @@ func testTrieDelete(t *testing.T, enableGC bool) {
 			check := func(t *testing.T, value []byte) {
 				l := NewLeafNode(value)
 				e := NewExtensionNode([]byte{0x0A, 0x0B}, l)
-				tr := NewTrie(e, enableGC, newTestStore())
+				tr := NewTrie(e, Config{
+					RefCountEnabled: enableGC,
+					Store:           newTestStore(),
+				})
 
 				t.Run("NonExistentKey", func(t *testing.T) {
 					require.NoError(t, tr.Delete([]byte{}))
@@ -405,7 +411,10 @@ func testTrieDelete(t *testing.T, enableGC bool) {
 				b.Children[0] = NewExtensionNode([]byte{0x01}, NewLeafNode(value))
 				b.Children[6] = NewExtensionNode([]byte{0x07}, NewLeafNode([]byte{0x56, 0x78}))
 				e := NewExtensionNode([]byte{0x01, 0x02}, b)
-				tr := NewTrie(e, enableGC, newTestStore())
+				tr := NewTrie(e, Config{
+					RefCountEnabled: enableGC,
+					Store:           newTestStore(),
+				})
 
 				h := e.Hash()
 				require.NoError(t, tr.Delete([]byte{0x12, 0x01}))
@@ -432,7 +441,10 @@ func testTrieDelete(t *testing.T, enableGC bool) {
 				b.Children[lastChild] = NewLeafNode([]byte{0x12})
 				b.Children[0] = NewExtensionNode([]byte{0x01}, NewLeafNode([]byte{0x34}))
 				b.Children[1] = NewExtensionNode([]byte{0x06}, NewLeafNode(value))
-				tr := NewTrie(b, enableGC, newTestStore())
+				tr := NewTrie(b, Config{
+					RefCountEnabled: enableGC,
+					Store:           newTestStore(),
+				})
 				require.NoError(t, tr.Delete([]byte{0x16}))
 				tr.testHas(t, []byte{}, []byte{0x12})
 				tr.testHas(t, []byte{0x01}, []byte{0x34})
@@ -454,7 +466,10 @@ func testTrieDelete(t *testing.T, enableGC bool) {
 						l := NewLeafNode([]byte{0x34})
 						e := NewExtensionNode([]byte{0x06}, l)
 						b.Children[5] = NewHashNode(e.Hash())
-						tr := NewTrie(b, enableGC, newTestStore())
+						tr := NewTrie(b, Config{
+							RefCountEnabled: enableGC,
+							Store:           newTestStore(),
+						})
 						tr.putToStore(l)
 						tr.putToStore(e)
 						require.NoError(t, tr.Delete([]byte{}))
@@ -478,7 +493,10 @@ func testTrieDelete(t *testing.T, enableGC bool) {
 							b.Children[3] = NewExtensionNode([]byte{4}, NewLeafNode(value))
 							b.Children[lastChild] = NewHashNode(h)
 
-							tr := NewTrie(NewExtensionNode([]byte{1, 2}, b), enableGC, newTestStore())
+							tr := NewTrie(NewExtensionNode([]byte{1, 2}, b), Config{
+								RefCountEnabled: enableGC,
+								Store:           newTestStore(),
+							})
 							tr.putToStore(ch)
 
 							require.NoError(t, tr.Delete([]byte{0x12, 0x34}))
@@ -505,7 +523,10 @@ func testTrieDelete(t *testing.T, enableGC bool) {
 						b := NewBranchNode()
 						b.Children[lastChild] = NewLeafNode(value)
 						b.Children[5] = c
-						tr := NewTrie(b, enableGC, newTestStore())
+						tr := NewTrie(b, Config{
+							RefCountEnabled: enableGC,
+							Store:           newTestStore(),
+						})
 
 						require.NoError(t, tr.Delete([]byte{}))
 						tr.testHas(t, []byte{}, nil)
@@ -529,7 +550,10 @@ func testTrieDelete(t *testing.T, enableGC bool) {
 					l := NewLeafNode(value)
 					e := NewExtensionNode([]byte{0x06}, l)
 					b.Children[5] = NewHashNode(e.Hash())
-					tr := NewTrie(b, enableGC, newTestStore())
+					tr := NewTrie(b, Config{
+						RefCountEnabled: enableGC,
+						Store:           newTestStore(),
+					})
 					tr.putToStore(l)
 					tr.putToStore(e)
 					require.NoError(t, tr.Delete([]byte{0x56}))
@@ -549,7 +573,7 @@ func testTrieDelete(t *testing.T, enableGC bool) {
 }
 
 func TestTrie_PanicInvalidRoot(t *testing.T) {
-	tr := &Trie{Store: newTestStore()}
+	tr := &Trie{Config: Config{Store: newTestStore()}}
 	require.Panics(t, func() { _ = tr.Put([]byte{1}, []byte{2}) })
 	require.Panics(t, func() { _, _ = tr.Get([]byte{1}) })
 	require.Panics(t, func() { _ = tr.Delete([]byte{1}) })
@@ -579,7 +603,7 @@ func TestTrie_Collapse(t *testing.T) {
 		b.Children[0] = e
 		hb := b.Hash()
 
-		tr := NewTrie(b, false, newTestStore())
+		tr := NewTrie(b, Config{Store: newTestStore()})
 		tr.Collapse(1)
 
 		newb, ok := tr.root.(*BranchNode)
@@ -593,7 +617,7 @@ func TestTrie_Collapse(t *testing.T) {
 		hl := l.Hash()
 		e := NewExtensionNode([]byte{0x01}, l)
 		h := e.Hash()
-		tr := NewTrie(e, false, newTestStore())
+		tr := NewTrie(e, Config{Store: newTestStore()})
 		tr.Collapse(1)
 
 		newe, ok := tr.root.(*ExtensionNode)
@@ -604,19 +628,19 @@ func TestTrie_Collapse(t *testing.T) {
 	})
 	t.Run("Leaf", func(t *testing.T) {
 		l := NewLeafNode([]byte("value"))
-		tr := NewTrie(l, false, newTestStore())
+		tr := NewTrie(l, Config{Store: newTestStore()})
 		tr.Collapse(10)
 		require.Equal(t, NewLeafNode([]byte("value")), tr.root)
 	})
 	t.Run("Empty Leaf", func(t *testing.T) {
 		l := NewLeafNode([]byte{})
-		tr := NewTrie(l, false, newTestStore())
+		tr := NewTrie(l, Config{Store: newTestStore()})
 		tr.Collapse(10)
 		require.Equal(t, NewLeafNode([]byte{}), tr.root)
 	})
 	t.Run("Hash", func(t *testing.T) {
 		t.Run("EmptyNode", func(t *testing.T) {
-			tr := NewTrie(EmptyNode{}, false, newTestStore())
+			tr := NewTrie(EmptyNode{}, Config{Store: newTestStore()})
 			require.NotPanics(t, func() { tr.Collapse(1) })
 			_, ok := tr.root.(EmptyNode)
 			require.True(t, ok)
@@ -624,7 +648,7 @@ func TestTrie_Collapse(t *testing.T) {
 
 		h := random.Uint256()
 		hn := NewHashNode(h)
-		tr := NewTrie(hn, false, newTestStore())
+		tr := NewTrie(hn, Config{Store: newTestStore()})
 		tr.Collapse(10)
 
 		newRoot, ok := tr.root.(*HashNode)

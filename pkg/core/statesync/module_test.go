@@ -15,7 +15,10 @@ import (
 
 func TestModule_PR2019_discussion_r689629704(t *testing.T) {
 	expectedStorage := storage.NewMemCachedStore(storage.NewMemoryStore())
-	tr := mpt.NewTrie(nil, true, expectedStorage)
+	tr := mpt.NewTrie(nil, mpt.Config{
+		Store:           expectedStorage,
+		RefCountEnabled: true,
+	})
 	require.NoError(t, tr.Put([]byte{0x03}, []byte("leaf1")))
 	require.NoError(t, tr.Put([]byte{0x01, 0xab, 0x02}, []byte("leaf2")))
 	require.NoError(t, tr.Put([]byte{0x01, 0xab, 0x04}, []byte("leaf3")))

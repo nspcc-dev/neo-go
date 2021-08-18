@@ -93,7 +93,7 @@ func TestNode_Serializable(t *testing.T) {
 
 // https://github.com/neo-project/neo/blob/neox-2.x/neo.UnitTests/UT_MPTTrie.cs#L198
 func TestJSONSharp(t *testing.T) {
-	tr := NewTrie(nil, false, newTestStore())
+	tr := newEmptyTrie()
 	require.NoError(t, tr.Put([]byte{0xac, 0x11}, []byte{0xac, 0x11}))
 	require.NoError(t, tr.Put([]byte{0xac, 0x22}, []byte{0xac, 0x22}))
 	require.NoError(t, tr.Put([]byte{0xac}, []byte{0xac}))
