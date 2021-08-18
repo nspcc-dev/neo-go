@@ -17,7 +17,7 @@ import (
 
 func TestDeployGetUpdateDestroyContract(t *testing.T) {
 	mgmt := newManagement()
-	d := dao.NewSimple(storage.NewMemoryStore(), false)
+	d := dao.NewSimple(storage.NewMemoryStore(), false, false)
 	err := mgmt.Initialize(&interop.Context{DAO: d})
 	require.NoError(t, err)
 	script := []byte{byte(opcode.RET)}
@@ -72,12 +72,12 @@ func TestDeployGetUpdateDestroyContract(t *testing.T) {
 
 func TestManagement_Initialize(t *testing.T) {
 	t.Run("good", func(t *testing.T) {
-		d := dao.NewSimple(storage.NewMemoryStore(), false)
+		d := dao.NewSimple(storage.NewMemoryStore(), false, false)
 		mgmt := newManagement()
 		require.NoError(t, mgmt.InitializeCache(d))
 	})
 	t.Run("invalid contract state", func(t *testing.T) {
-		d := dao.NewSimple(storage.NewMemoryStore(), false)
+		d := dao.NewSimple(storage.NewMemoryStore(), false, false)
 		mgmt := newManagement()
 		require.NoError(t, d.PutStorageItem(mgmt.ID, []byte{prefixContract}, state.StorageItem{0xFF}))
 		require.Error(t, mgmt.InitializeCache(d))
@@ -86,7 +86,7 @@ func TestManagement_Initialize(t *testing.T) {
 
 func TestManagement_GetNEP17Contracts(t *testing.T) {
 	mgmt := newManagement()
-	d := dao.NewSimple(storage.NewMemoryStore(), false)
+	d := dao.NewSimple(storage.NewMemoryStore(), false, false)
 	err := mgmt.Initialize(&interop.Context{DAO: d})
 	require.NoError(t, err)
 

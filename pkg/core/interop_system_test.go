@@ -552,7 +552,7 @@ func TestStorageFind(t *testing.T) {
 func createVM(t *testing.T) (*vm.VM, *interop.Context, *Blockchain) {
 	chain := newTestChain(t)
 	context := chain.newInteropContext(trigger.Application,
-		dao.NewSimple(storage.NewMemoryStore(), chain.config.StateRootInHeader), nil, nil)
+		dao.NewSimple(storage.NewMemoryStore(), chain.config.StateRootInHeader, chain.config.P2PSigExtensions), nil, nil)
 	v := context.SpawnVM()
 	return v, context, chain
 }
@@ -572,7 +572,7 @@ func createVMAndContractState(t testing.TB) (*vm.VM, *state.Contract, *interop.C
 	}
 
 	chain := newTestChain(t)
-	d := dao.NewSimple(storage.NewMemoryStore(), chain.config.StateRootInHeader)
+	d := dao.NewSimple(storage.NewMemoryStore(), chain.config.StateRootInHeader, chain.config.P2PSigExtensions)
 	context := chain.newInteropContext(trigger.Application, d, nil, nil)
 	v := context.SpawnVM()
 	return v, contractState, context, chain
@@ -584,7 +584,7 @@ func createVMAndTX(t *testing.T) (*vm.VM, *transaction.Transaction, *interop.Con
 	tx.Signers = []transaction.Signer{{Account: util.Uint160{1, 2, 3, 4}}}
 	tx.Scripts = []transaction.Witness{{InvocationScript: []byte{}, VerificationScript: []byte{}}}
 	chain := newTestChain(t)
-	d := dao.NewSimple(storage.NewMemoryStore(), chain.config.StateRootInHeader)
+	d := dao.NewSimple(storage.NewMemoryStore(), chain.config.StateRootInHeader, chain.config.P2PSigExtensions)
 	context := chain.newInteropContext(trigger.Application, d, nil, tx)
 	v := context.SpawnVM()
 	return v, tx, context, chain

@@ -2,6 +2,7 @@ package dao
 
 import (
 	"encoding/binary"
+	"errors"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/internal/random"
@@ -11,13 +12,14 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
+	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/stretchr/testify/require"
 )
 
 func TestPutGetAndDecode(t *testing.T) {
-	dao := NewSimple(storage.NewMemoryStore(), false)
+	dao := NewSimple(storage.NewMemoryStore(), false, false)
 	serializable := &TestSerializable{field: random.String(4)}
 	hash := []byte{1}
 	err := dao.Put(serializable, hash)
@@ -42,7 +44,7 @@ func (t *TestSerializable) DecodeBinary(reader *io.BinReader) {
 }
 
 func TestPutGetAppExecResult(t *testing.T) {
-	dao := NewSimple(storage.NewMemoryStore(), false)
+	dao := NewSimple(storage.NewMemoryStore(), false, false)
 	hash := random.Uint256()
 	appExecResult := &state.AppExecResult{
 		Container: hash,
@@ -60,7 +62,7 @@ func TestPutGetAppExecResult(t *testing.T) {
 }
 
 func TestPutGetStorageItem(t *testing.T) {
-	dao := NewSimple(storage.NewMemoryStore(), false)
+	dao := NewSimple(storage.NewMemoryStore(), false, false)
 	id := int32(random.Int(0, 1024))
 	key := []byte{0}
 	storageItem := state.StorageItem{}
@@ -71,7 +73,7 @@ func TestPutGetStorageItem(t *testing.T) {
 }
 
 func TestDeleteStorageItem(t *testing.T) {
-	dao := NewSimple(storage.NewMemoryStore(), false)
+	dao := NewSimple(storage.NewMemoryStore(), false, false)
 	id := int32(random.Int(0, 1024))
 	key := []byte{0}
 	storageItem := state.StorageItem{}
@@ -84,7 +86,7 @@ func TestDeleteStorageItem(t *testing.T) {
 }
 
 func TestGetBlock_NotExists(t *testing.T) {
-	dao := NewSimple(storage.NewMemoryStore(), false)
+	dao := NewSimple(storage.NewMemoryStore(), false, false)
 	hash := random.Uint256()
 	block, err := dao.GetBlock(hash)
 	require.Error(t, err)
@@ -92,7 +94,7 @@ func TestGetBlock_NotExists(t *testing.T) {
 }
 
 func TestPutGetBlock(t *testing.T) {
-	dao := NewSimple(storage.NewMemoryStore(), false)
+	dao := NewSimple(storage.NewMemoryStore(), false, false)
 	b := &block.Block{
 		Header: block.Header{
 			Script: transaction.Witness{
@@ -110,14 +112,14 @@ func TestPutGetBlock(t *testing.T) {
 }
 
 func TestGetVersion_NoVersion(t *testing.T) {
-	dao := NewSimple(storage.NewMemoryStore(), false)
+	dao := NewSimple(storage.NewMemoryStore(), false, false)
 	version, err := dao.GetVersion()
 	require.Error(t, err)
 	require.Equal(t, "", version)
 }
 
 func TestGetVersion(t *testing.T) {
-	dao := NewSimple(storage.NewMemoryStore(), false)
+	dao := NewSimple(storage.NewMemoryStore(), false, false)
 	err := dao.PutVersion("testVersion")
 	require.NoError(t, err)
 	version, err := dao.GetVersion()
@@ -126,14 +128,14 @@ func TestGetVersion(t *testing.T) {
 }
 
 func TestGetCurrentHeaderHeight_NoHeader(t *testing.T) {
-	dao := NewSimple(storage.NewMemoryStore(), false)
+	dao := NewSimple(storage.NewMemoryStore(), false, false)
 	height, err := dao.GetCurrentBlockHeight()
 	require.Error(t, err)
 	require.Equal(t, uint32(0), height)
 }
 
 func TestGetCurrentHeaderHeight_Store(t *testing.T) {
-	dao := NewSimple(storage.NewMemoryStore(), false)
+	dao := NewSimple(storage.NewMemoryStore(), false, false)
 	b := &block.Block{
 		Header: block.Header{
 			Script: transaction.Witness{
@@ -150,13 +152,69 @@ func TestGetCurrentHeaderHeight_Store(t *testing.T) {
 }
 
 func TestStoreAsTransaction(t *testing.T) {
-	dao := NewSimple(storage.NewMemoryStore(), false)
+	t.Run("P2PSigExtensions off", func(t *testing.T) {
+		dao := NewSimple(storage.NewMemoryStore(), false, false)
+		tx := transaction.New([]byte{byte(opcode.PUSH1)}, 1)
+		hash := tx.Hash()
+		err := dao.StoreAsTransaction(tx, 0, nil)
+		require.NoError(t, err)
+		err = dao.HasTransaction(hash)
+		require.NotNil(t, err)
+	})
+
+	t.Run("P2PSigExtensions on", func(t *testing.T) {
+		dao := NewSimple(storage.NewMemoryStore(), false, true)
+		conflictsH := util.Uint256{1, 2, 3}
+		tx := transaction.New([]byte{byte(opcode.PUSH1)}, 1)
+		tx.Attributes = []transaction.Attribute{
+			{
+				Type:  transaction.ConflictsT,
+				Value: &transaction.Conflicts{Hash: conflictsH},
+			},
+		}
+		hash := tx.Hash()
+		err := dao.StoreAsTransaction(tx, 0, nil)
+		require.NoError(t, err)
+		err = dao.HasTransaction(hash)
+		require.True(t, errors.Is(err, ErrAlreadyExists))
+		err = dao.HasTransaction(conflictsH)
+		require.True(t, errors.Is(err, ErrHasConflicts))
+	})
+}
+
+func BenchmarkStoreAsTransaction(b *testing.B) {
+	dao := NewSimple(storage.NewMemoryStore(), false, true)
 	tx := transaction.New([]byte{byte(opcode.PUSH1)}, 1)
-	hash := tx.Hash()
-	err := dao.StoreAsTransaction(tx, 0, nil)
-	require.NoError(t, err)
-	err = dao.HasTransaction(hash)
-	require.NotNil(t, err)
+	tx.Attributes = []transaction.Attribute{
+		{
+			Type: transaction.ConflictsT,
+			Value: &transaction.Conflicts{
+				Hash: util.Uint256{1, 2, 3},
+			},
+		},
+		{
+			Type: transaction.ConflictsT,
+			Value: &transaction.Conflicts{
+				Hash: util.Uint256{4, 5, 6},
+			},
+		},
+		{
+			Type: transaction.ConflictsT,
+			Value: &transaction.Conflicts{
+				Hash: util.Uint256{7, 8, 9},
+			},
+		},
+	}
+	_ = tx.Hash()
+
+	b.ResetTimer()
+	b.ReportAllocs()
+	for n := 0; n < b.N; n++ {
+		err := dao.StoreAsTransaction(tx, 1, nil)
+		if err != nil {
+			b.FailNow()
+		}
+	}
 }
 
 func TestMakeStorageItemKey(t *testing.T) {
@@ -173,7 +231,7 @@ func TestMakeStorageItemKey(t *testing.T) {
 }
 
 func TestPutGetStateSyncPoint(t *testing.T) {
-	dao := NewSimple(storage.NewMemoryStore(), true)
+	dao := NewSimple(storage.NewMemoryStore(), true, false)
 
 	// empty store
 	_, err := dao.GetStateSyncPoint()
@@ -188,7 +246,7 @@ func TestPutGetStateSyncPoint(t *testing.T) {
 }
 
 func TestPutGetStateSyncCurrentBlockHeight(t *testing.T) {
-	dao := NewSimple(storage.NewMemoryStore(), true)
+	dao := NewSimple(storage.NewMemoryStore(), true, false)
 
 	// empty store
 	_, err := dao.GetStateSyncCurrentBlockHeight()

@@ -68,7 +68,6 @@ type DAO interface {
 	StoreAsBlock(block *block.Block, buf *io.BufBinWriter) error
 	StoreAsCurrentBlock(block *block.Block, buf *io.BufBinWriter) error
 	StoreAsTransaction(tx *transaction.Transaction, index uint32, buf *io.BufBinWriter) error
-	StoreConflictingTransactions(tx *transaction.Transaction, index uint32, buf *io.BufBinWriter) error
 	putNEP17TransferInfo(acc util.Uint160, bs *state.NEP17TransferInfo, buf *io.BufBinWriter) error
 }
 
@@ -77,12 +76,14 @@ type Simple struct {
 	Store *storage.MemCachedStore
 	// stateRootInHeader specifies if block header contains state root.
 	stateRootInHeader bool
+	// p2pSigExtensions denotes whether P2PSignatureExtensions are enabled.
+	p2pSigExtensions bool
 }
 
 // NewSimple creates new simple dao using provided backend store.
-func NewSimple(backend storage.Store, stateRootInHeader bool) *Simple {
+func NewSimple(backend storage.Store, stateRootInHeader bool, p2pSigExtensions bool) *Simple {
 	st := storage.NewMemCachedStore(backend)
-	return &Simple{Store: st, stateRootInHeader: stateRootInHeader}
+	return &Simple{Store: st, stateRootInHeader: stateRootInHeader, p2pSigExtensions: p2pSigExtensions}
 }
 
 // GetBatch returns currently accumulated DB changeset.
@@ -93,7 +94,7 @@ func (dao *Simple) GetBatch() *storage.MemBatch {
 // GetWrapped returns new DAO instance with another layer of wrapped
 // MemCachedStore around the current DAO Store.
 func (dao *Simple) GetWrapped() DAO {
-	d := NewSimple(dao.Store, dao.stateRootInHeader)
+	d := NewSimple(dao.Store, dao.stateRootInHeader, dao.p2pSigExtensions)
 	return d
 }
 
@@ -585,6 +586,13 @@ func (dao *Simple) DeleteBlock(h util.Uint256, w *io.BufBinWriter) error {
 	for _, tx := range b.Transactions {
 		copy(key[1:], tx.Hash().BytesBE())
 		batch.Delete(key)
+		if dao.p2pSigExtensions {
+			for _, attr := range tx.GetAttributes(transaction.ConflictsT) {
+				hash := attr.Value.(*transaction.Conflicts).Hash
+				copy(key[1:], hash.BytesBE())
+				batch.Delete(key)
+			}
+		}
 		key[0] = byte(storage.STNotification)
 		batch.Delete(key)
 	}
@@ -609,7 +617,8 @@ func (dao *Simple) StoreAsCurrentBlock(block *block.Block, buf *io.BufBinWriter)
 	return dao.Store.Put(storage.SYSCurrentBlock.Bytes(), buf.Bytes())
 }
 
-// StoreAsTransaction stores given TX as DataTransaction. It can reuse given
+// StoreAsTransaction stores given TX as DataTransaction. It also stores transactions
+// given tx has conflicts with as DataTransaction with dummy version. It can reuse given
 // buffer for the purpose of value serialization.
 func (dao *Simple) StoreAsTransaction(tx *transaction.Transaction, index uint32, buf *io.BufBinWriter) error {
 	key := storage.AppendPrefix(storage.DataTransaction, tx.Hash().BytesBE())
@@ -617,32 +626,30 @@ func (dao *Simple) StoreAsTransaction(tx *transaction.Transaction, index uint32,
 		buf = io.NewBufBinWriter()
 	}
 	buf.WriteU32LE(index)
-	if tx.Version == transaction.DummyVersion {
-		buf.BinWriter.WriteB(tx.Version)
-	} else {
-		tx.EncodeBinary(buf.BinWriter)
-	}
+	tx.EncodeBinary(buf.BinWriter)
 	if buf.Err != nil {
 		return buf.Err
 	}
-	return dao.Store.Put(key, buf.Bytes())
-}
-
-// StoreConflictingTransactions stores transactions given tx has conflicts with
-// as DataTransaction with dummy version. It can reuse given buffer for the
-// purpose of value serialization.
-func (dao *Simple) StoreConflictingTransactions(tx *transaction.Transaction, index uint32, buf *io.BufBinWriter) error {
-	if buf == nil {
-		buf = io.NewBufBinWriter()
+	err := dao.Store.Put(key, buf.Bytes())
+	if err != nil {
+		return err
 	}
-	for _, attr := range tx.GetAttributes(transaction.ConflictsT) {
-		hash := attr.Value.(*transaction.Conflicts).Hash
-		dummyTx := transaction.NewTrimmedTX(hash)
-		dummyTx.Version = transaction.DummyVersion
-		if err := dao.StoreAsTransaction(dummyTx, index, buf); err != nil {
-			return fmt.Errorf("failed to store conflicting transaction %s for transaction %s: %w", hash.StringLE(), tx.Hash().StringLE(), err)
+	if dao.p2pSigExtensions {
+		var value []byte
+		for _, attr := range tx.GetAttributes(transaction.ConflictsT) {
+			hash := attr.Value.(*transaction.Conflicts).Hash
+			copy(key[1:], hash.BytesBE())
+			if value == nil {
+				buf.Reset()
+				buf.WriteU32LE(index)
+				buf.BinWriter.WriteB(transaction.DummyVersion)
+				value = buf.Bytes()
+			}
+			err = dao.Store.Put(key, value)
+			if err != nil {
+				return fmt.Errorf("failed to store conflicting transaction %s for transaction %s: %w", hash.StringLE(), tx.Hash().StringLE(), err)
+			}
 		}
-		buf.Reset()
 	}
 	return nil
 }
