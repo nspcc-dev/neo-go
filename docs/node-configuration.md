@@ -53,16 +53,13 @@ DBConfiguration:
     DB: 0
   BoltDBOptions:
     FilePath: ./chains/privnet.bolt
-  BadgerDBOptions:
-    BadgerDir: ./chains/privnet.badger
 ```
 where:
 - `Type` is the database type (string value). Supported types: `levelDB`,
-  `redisDB`, `boltDB`, `badgerDB`.
+  `redisDB`, `boltDB`
 - `LevelDBOptions` are settings for LevelDB.
 - `RedisDBOptions` are options for RedisDB.
 - `BoltDBOptions` configures BoltDB.
-- `BadgerDBOptions` are options for BadgerDB.
 
 Only options for the specified database type will be used.
 

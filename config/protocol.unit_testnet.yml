@@ -34,7 +34,7 @@ ApplicationConfiguration:
   # LogPath could be set up in case you need stdout logs to some proper file.
   # LogPath: "./log/neogo.log"
   DBConfiguration:
-    Type: "inmemory" #other options: 'inmemory','redis','boltdb', 'badgerdb'.
+    Type: "inmemory" #other options: 'inmemory','redis','boltdb'
     # DB type options. Uncomment those you need in case you want to switch DB type.
   #    LevelDBOptions:
   #        DataDirectoryPath: "./chains/unit_testnet"
@@ -44,8 +44,6 @@ ApplicationConfiguration:
   #      DB: 0
   #    BoltDBOptions:
   #      FilePath: "./chains/unit_testnet.bolt"
-  #    BadgerDBOptions:
-  #      BadgerDir: "./chains/unit_testnet.badger"
   #  Uncomment in order to set up custom address for node.
   #  Address: 127.0.0.1
   NodePort: 20333
