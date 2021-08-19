@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
@@ -21,6 +22,7 @@ type (
 	// Module represents module for local processing of state roots.
 	Module struct {
 		Store   *storage.MemCachedStore
+		PS      storage.Store
 		network netmode.Magic
 		mpt     *mpt.Trie
 		bc      blockchainer.Blockchainer
@@ -114,23 +116,48 @@ func (s *Module) Init(height uint32, enableRefCount bool) error {
 	return nil
 }
 
+func (s *Module) Shutdown() {
+	s.mpt.ShutdownGC()
+}
+
 // AddMPTBatch updates using provided batch.
 func (s *Module) AddMPTBatch(index uint32, b mpt.Batch, cache *storage.MemCachedStore) (*mpt.Trie, *state.MPTRoot, error) {
-	mpt := *s.mpt
-	mpt.Store = cache
-	if _, err := mpt.PutBatch(b); err != nil {
+	s.mpt.SetGeneration(index / mpt.GenerationSpan)
+
+	mp := *s.mpt
+	mp.Store = cache
+	if _, err := mp.PutBatch(b); err != nil {
 		return nil, nil, err
 	}
-	mpt.Flush()
+	mp.Flush()
+
 	sr := &state.MPTRoot{
 		Index: index,
-		Root:  mpt.StateRoot(),
+		Root:  mp.StateRoot(),
 	}
 	err := s.addLocalStateRoot(cache, sr)
 	if err != nil {
 		return nil, nil, err
 	}
-	return &mpt, sr, err
+	return &mp, sr, err
+}
+
+func (s *Module) RunGC(index uint32, st storage.Store) {
+	mptGen := index / mpt.GenerationSpan
+	if index%mpt.GenerationSpan == 0 && mptGen > 1 {
+		mp := *s.mpt
+		root := mp.StateRoot()
+		go func() {
+			s.log.Info("start GC", zap.Uint32("generation", mptGen),
+				zap.String("root", root.StringLE()))
+			start := time.Now()
+			n, err := mp.PerformGC(root, st)
+			if err != nil {
+				s.log.Error("error during MPT GC", zap.Error(err))
+			}
+			s.log.Info("finish GC", zap.Int("removed", n), zap.Duration("time", time.Since(start)))
+		}()
+	}
 }
 
 // UpdateCurrentLocal updates local caches using provided state root.

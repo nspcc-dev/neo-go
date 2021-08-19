@@ -248,6 +248,7 @@ func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration, log *zap.L
 	}
 
 	bc.stateRoot = stateroot.NewModule(bc, bc.log, bc.dao.Store)
+	bc.stateRoot.PS = s
 	bc.contracts.Designate.StateRootService = bc.stateRoot
 
 	if err := bc.init(); err != nil {
@@ -418,6 +419,7 @@ func (bc *Blockchain) Run() {
 		if _, err := bc.persist(); err != nil {
 			bc.log.Warn("failed to persist", zap.Error(err))
 		}
+		bc.stateRoot.Shutdown()
 		if err := bc.dao.Store.Close(); err != nil {
 			bc.log.Warn("failed to close db", zap.Error(err))
 		}
@@ -946,6 +948,8 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 		return err
 	}
 	bc.lock.Unlock()
+
+	bc.stateRoot.RunGC(block.Index, bc.dao.Store)
 
 	updateBlockHeightMetric(block.Index)
 	// Genesis block is stored when Blockchain is not yet running, so there

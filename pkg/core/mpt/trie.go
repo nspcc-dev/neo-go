@@ -5,16 +5,24 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"sync"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/util/slice"
+	"go.uber.org/atomic"
 )
 
 // Trie is an MPT trie storing all key-value pairs.
 type Trie struct {
 	Store storage.Store
+
+	generation uint32
+	gcClose    chan struct{}
+	gcFinished chan struct{}
+	gcRunning  *atomic.Bool
+	gcMtx      sync.Mutex
 
 	root            Node
 	refcountEnabled bool
@@ -42,6 +50,9 @@ func NewTrie(root Node, enableRefCount bool, store storage.Store) *Trie {
 		Store: store,
 		root:  root,
 
+		gcClose:         make(chan struct{}),
+		gcFinished:      make(chan struct{}),
+		gcRunning:       atomic.NewBool(false),
 		refcountEnabled: enableRefCount,
 		refcount:        make(map[util.Uint256]*cachedNode),
 	}
@@ -362,16 +373,17 @@ func makeStorageKey(mptKey []byte) []byte {
 // new node to storage. Normally, flush should be called with every StateRoot persist, i.e.
 // after every block.
 func (t *Trie) Flush() {
+	t.gcMtx.Lock()
+	defer t.gcMtx.Unlock()
+
 	for h, node := range t.refcount {
 		if node.refcount != 0 {
 			if node.bytes == nil {
 				panic("item not in trie")
 			}
 			if t.refcountEnabled {
-				node.initial = t.updateRefCount(h)
-				if node.initial == 0 {
-					delete(t.refcount, h)
-				}
+				t.updateRefCount(h)
+				delete(t.refcount, h)
 			} else if node.refcount > 0 {
 				_ = t.Store.Put(makeStorageKey(h.BytesBE()), node.bytes)
 			}
@@ -383,37 +395,23 @@ func (t *Trie) Flush() {
 }
 
 // updateRefCount should be called only when refcounting is enabled.
-func (t *Trie) updateRefCount(h util.Uint256) int32 {
+func (t *Trie) updateRefCount(h util.Uint256) {
 	if !t.refcountEnabled {
 		panic("`updateRefCount` is called, but GC is disabled")
 	}
-	var data []byte
+
 	key := makeStorageKey(h.BytesBE())
 	node := t.refcount[h]
-	cnt := node.initial
-	if cnt == 0 {
-		// A newly created item which may be in store.
-		var err error
-		data, err = t.Store.Get(key)
-		if err == nil {
-			cnt = int32(binary.LittleEndian.Uint32(data[len(data)-4:]))
-		}
-	}
-	if len(data) == 0 {
-		data = append(node.bytes, 0, 0, 0, 0)
-	}
-	cnt += node.refcount
-	switch {
-	case cnt < 0:
-		// BUG: negative reference count
-		panic(fmt.Sprintf("negative reference count: %s new %d, upd %d", h.StringBE(), cnt, t.refcount[h]))
-	case cnt == 0:
-		_ = t.Store.Delete(key)
-	default:
-		binary.LittleEndian.PutUint32(data[len(data)-4:], uint32(cnt))
+	data := node.bytes
+	if node.refcount > 0 {
+		data = append(data, 0, 0, 0, 0)
+		binary.LittleEndian.PutUint32(data[len(data)-4:], t.generation)
 		_ = t.Store.Put(key, data)
 	}
-	return cnt
+}
+
+func (t *Trie) SetMPTGeneration(gen uint32) {
+	t.generation = gen
 }
 
 func (t *Trie) addRef(h util.Uint256, bs []byte) {
@@ -446,29 +444,161 @@ func (t *Trie) removeRef(h util.Uint256, bs []byte) {
 	}
 }
 
-func (t *Trie) getFromStore(h util.Uint256) (Node, error) {
-	data, err := t.Store.Get(makeStorageKey(h.BytesBE()))
+// SetGeneration sets current generation of MPT,
+// Generation is used for garbage collecting.
+func (t *Trie) SetGeneration(gen uint32) {
+	t.generation = gen
+}
+
+// updateGeneration updates generation for a single node and returns true
+// if it was updated.
+func updateGenerationSingle(h util.Uint256, gen uint32, st storage.Store) error {
+	key := makeStorageKey(h.BytesBE())
+	data, err := st.Get(key)
 	if err != nil {
-		return nil, err
+		return fmt.Errorf("%w: %s", err, h.BytesBE())
+	}
+	old := binary.LittleEndian.Uint32(data[len(data)-4:])
+	if old <= gen-2 {
+		binary.LittleEndian.PutUint32(data[len(data)-4:], gen)
+		_ = st.Put(key, data)
+	}
+	return nil
+}
+
+func (t *Trie) updateGeneration(h util.Uint256, gen uint32, st storage.Store) error {
+	select {
+	case <-t.gcClose:
+		return ErrInterrupted
+	default:
 	}
 
-	var n NodeObject
-	r := io.NewBinReaderFromBuf(data)
-	n.DecodeBinary(r)
-	if r.Err != nil {
-		return nil, r.Err
+	node, _, err := getAux(h, st)
+	if err != nil {
+		return fmt.Errorf("%s: %w", h.StringLE(), err)
+	}
+	// Children of node retrieved from store are always hash nodes.
+	switch n := node.(type) {
+	case *BranchNode:
+		for i := range n.Children {
+			if !isEmpty(n.Children[i]) {
+				if err := t.updateGeneration(n.Children[i].Hash(), gen, st); err != nil {
+					return err
+				}
+			}
+		}
+	case *ExtensionNode:
+		if !isEmpty(n.next) {
+			if err := t.updateGeneration(n.next.Hash(), gen, st); err != nil {
+				return err
+			}
+		}
+	case EmptyNode:
+		panic("empty node")
+	case *HashNode:
+		panic(fmt.Sprintf("hash node in store: %s", n.Hash()))
+	}
+	return updateGenerationSingle(h, gen, st)
+}
+
+const (
+	gcLogBatchSize = 8
+	gcBatchSize    = 1 << gcLogBatchSize
+
+	GenerationSpan = 10000
+)
+
+// ErrInterrupted is returned when GC is shutting down.
+var ErrInterrupted = errors.New("GC is shutting down")
+
+// ShutdownGC shutdowns GC if it is in process.
+func (t *Trie) ShutdownGC() {
+	if t.gcRunning.Load() {
+		close(t.gcClose)
+		<-t.gcFinished
+	}
+}
+
+// PerformGC compacts storage by removing items which are no longer
+func (t *Trie) PerformGC(root util.Uint256, st storage.Store) (int, error) {
+	if !t.refcountEnabled {
+		return 0, nil
+	}
+	if t.gcRunning.Load() {
+		return 0, errors.New("GC is already running")
+	}
+	if root.Equals(util.Uint256{}) {
+		return 0, nil
+	}
+	t.gcMtx.Lock()
+	defer t.gcMtx.Unlock()
+	t.gcRunning.Store(true)
+	defer func() {
+		t.gcRunning.Store(false)
+		select {
+		case <-t.gcClose:
+			close(t.gcFinished)
+		default:
+		}
+	}()
+
+	gen := t.generation
+	if err := t.updateGeneration(root, gen, st); err != nil {
+		return 0, fmt.Errorf("can't update generation: %w", err)
 	}
 
+	if mc, ok := t.Store.(*storage.MemCachedStore); ok {
+		_, err := mc.Persist()
+		if err != nil {
+			return 0, err
+		}
+	}
+	var n int
+	for i := 0; i <= 0xFF; i += gcBatchSize {
+		b := st.Batch()
+		for j := 0; j < gcBatchSize; j++ {
+			st.Seek([]byte{byte(storage.DataMPT), byte(i + j)}, func(k, v []byte) {
+				if len(k) == 33 && binary.LittleEndian.Uint32(v[len(v)-4:]) <= gen-2 {
+					n++
+					b.Delete(k)
+				}
+			})
+		}
+
+		err := st.PutBatch(b)
+		if err != nil {
+			return n, err
+		}
+	}
+	return n, nil
+}
+
+func (t *Trie) getFromStore(h util.Uint256) (Node, error) {
+	nd, data, err := getAux(h, t.Store)
+	if err != nil {
+		return nd, err
+	}
 	if t.refcountEnabled {
 		data = data[:len(data)-4]
 		node := t.refcount[h]
 		if node != nil {
 			node.bytes = data
-			node.initial = int32(r.ReadU32LE())
 		}
 	}
-	n.Node.(flushedNode).setCache(data, h)
-	return n.Node, nil
+	nd.(flushedNode).setCache(data, h)
+	return nd, nil
+}
+
+func getAux(h util.Uint256, s storage.Store) (Node, []byte, error) {
+	data, err := s.Get(makeStorageKey(h.BytesBE()))
+	if err != nil {
+		return nil, nil, err
+	}
+
+	var n NodeObject
+	r := io.NewBinReaderFromBuf(data)
+	n.DecodeBinary(r)
+	return n.Node, data, r.Err
 }
 
 // Collapse compresses all nodes at depth n to the hash nodes.
