@@ -107,9 +107,11 @@ func New(stateRootEnabled bool) *Block {
 // Notice that only the hashes of the transactions are stored.
 func (b *Block) Trim() ([]byte, error) {
 	buf := io.NewBufBinWriter()
+	numTx := len(b.Transactions)
+	buf.Grow(b.GetExpectedBlockSizeWithoutTransactions(numTx) + util.Uint256Size*numTx)
 	b.Header.EncodeBinary(buf.BinWriter)
 
-	buf.WriteVarUint(uint64(len(b.Transactions)))
+	buf.WriteVarUint(uint64(numTx))
 	for _, tx := range b.Transactions {
 		h := tx.Hash()
 		h.EncodeBinary(buf.BinWriter)

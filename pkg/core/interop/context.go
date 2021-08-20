@@ -57,23 +57,19 @@ func NewContext(trigger trigger.Type, bc blockchainer.Blockchainer, d dao.DAO,
 	block *block.Block, tx *transaction.Transaction, log *zap.Logger) *Context {
 	baseExecFee := int64(DefaultBaseExecFee)
 	dao := d.GetWrapped()
-	nes := make([]state.NotificationEvent, 0)
 
 	if bc != nil && (block == nil || block.Index != 0) {
 		baseExecFee = bc.GetPolicer().GetBaseExecFee()
 	}
 	return &Context{
-		Chain:         bc,
-		Network:       uint32(bc.GetConfig().Magic),
-		Natives:       natives,
-		Trigger:       trigger,
-		Block:         block,
-		Tx:            tx,
-		DAO:           dao,
-		Notifications: nes,
-		Log:           log,
-		// Functions is a slice of interops sorted by ID.
-		Functions:   []Function{},
+		Chain:       bc,
+		Network:     uint32(bc.GetConfig().Magic),
+		Natives:     natives,
+		Trigger:     trigger,
+		Block:       block,
+		Tx:          tx,
+		DAO:         dao,
+		Log:         log,
 		getContract: getContract,
 		baseExecFee: baseExecFee,
 	}

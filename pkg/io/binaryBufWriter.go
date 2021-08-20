@@ -5,18 +5,22 @@ import (
 	"errors"
 )
 
+// ErrDrained is returned on an attempt to use already drained write buffer.
+var ErrDrained = errors.New("buffer already drained")
+
 // BufBinWriter is an additional layer on top of BinWriter that
 // automatically creates buffer to write into that you can get after all
 // writes via Bytes().
 type BufBinWriter struct {
 	*BinWriter
-	buf *bytes.Buffer
+	buf bytes.Buffer
 }
 
 // NewBufBinWriter makes a BufBinWriter with an empty byte buffer.
 func NewBufBinWriter() *BufBinWriter {
-	b := new(bytes.Buffer)
-	return &BufBinWriter{BinWriter: NewBinWriterFromIO(b), buf: b}
+	b := new(BufBinWriter)
+	b.BinWriter = NewBinWriterFromIO(&b.buf)
+	return b
 }
 
 // Len returns the number of bytes of the unread portion of the buffer.
@@ -29,7 +33,7 @@ func (bw *BufBinWriter) Bytes() []byte {
 	if bw.Err != nil {
 		return nil
 	}
-	bw.Err = errors.New("buffer already drained")
+	bw.Err = ErrDrained
 	return bw.buf.Bytes()
 }
 

@@ -27,7 +27,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
-	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/fixedn"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
@@ -1038,49 +1037,35 @@ func (bc *Blockchain) handleNotification(note *state.NotificationEvent, d dao.DA
 	if !ok || len(arr) != 3 {
 		return
 	}
-	var from []byte
-	fromValue := arr[0].Value()
-	// we don't have `from` set when we are minting tokens
-	if fromValue != nil {
-		from, ok = fromValue.([]byte)
-		if !ok {
-			return
-		}
+	from, err := parseUint160(arr[0])
+	if err != nil {
+		return
 	}
-	var to []byte
-	toValue := arr[1].Value()
-	// we don't have `to` set when we are burning tokens
-	if toValue != nil {
-		to, ok = toValue.([]byte)
-		if !ok {
-			return
-		}
+	to, err := parseUint160(arr[1])
+	if err != nil {
+		return
 	}
-	amount, ok := arr[2].Value().(*big.Int)
-	if !ok {
-		bs, ok := arr[2].Value().([]byte)
-		if !ok {
-			return
-		}
-		if len(bs) > bigint.MaxBytesLen {
-			return // Not a proper number.
-		}
-		amount = bigint.FromBytes(bs)
+	amount, err := arr[2].TryInteger()
+	if err != nil {
+		return
 	}
 	bc.processNEP17Transfer(d, transCache, h, b, note.ScriptHash, from, to, amount)
 }
 
-func parseUint160(addr []byte) util.Uint160 {
-	if u, err := util.Uint160DecodeBytesBE(addr); err == nil {
-		return u
+func parseUint160(itm stackitem.Item) (util.Uint160, error) {
+	_, ok := itm.(stackitem.Null) // Minting or burning.
+	if ok {
+		return util.Uint160{}, nil
 	}
-	return util.Uint160{}
+	bytes, err := itm.TryBytes()
+	if err != nil {
+		return util.Uint160{}, err
+	}
+	return util.Uint160DecodeBytesBE(bytes)
 }
 
 func (bc *Blockchain) processNEP17Transfer(cache dao.DAO, transCache map[util.Uint160]transferData,
-	h util.Uint256, b *block.Block, sc util.Uint160, from, to []byte, amount *big.Int) {
-	toAddr := parseUint160(to)
-	fromAddr := parseUint160(from)
+	h util.Uint256, b *block.Block, sc util.Uint160, from util.Uint160, to util.Uint160, amount *big.Int) {
 	var id int32
 	nativeContract := bc.contracts.ByHash(sc)
 	if nativeContract != nil {
@@ -1094,21 +1079,21 @@ func (bc *Blockchain) processNEP17Transfer(cache dao.DAO, transCache map[util.Ui
 	}
 	transfer := &state.NEP17Transfer{
 		Asset:     id,
-		From:      fromAddr,
-		To:        toAddr,
+		From:      from,
+		To:        to,
 		Block:     b.Index,
 		Timestamp: b.Timestamp,
 		Tx:        h,
 	}
-	if !fromAddr.Equals(util.Uint160{}) {
+	if !from.Equals(util.Uint160{}) {
 		_ = transfer.Amount.Neg(amount) // We already have the Int.
-		if appendNEP17Transfer(cache, transCache, fromAddr, transfer) != nil {
+		if appendNEP17Transfer(cache, transCache, from, transfer) != nil {
 			return
 		}
 	}
-	if !toAddr.Equals(util.Uint160{}) {
-		_ = transfer.Amount.Set(amount)                              // We already have the Int.
-		_ = appendNEP17Transfer(cache, transCache, toAddr, transfer) // Nothing useful we can do.
+	if !to.Equals(util.Uint160{}) {
+		_ = transfer.Amount.Set(amount)                          // We already have the Int.
+		_ = appendNEP17Transfer(cache, transCache, to, transfer) // Nothing useful we can do.
 	}
 }
 
