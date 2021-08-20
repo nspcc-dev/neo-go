@@ -5,6 +5,9 @@ import (
 	"errors"
 )
 
+// ErrDrained is returned on an attempt to use already drained write buffer.
+var ErrDrained = errors.New("buffer already drained")
+
 // BufBinWriter is an additional layer on top of BinWriter that
 // automatically creates buffer to write into that you can get after all
 // writes via Bytes().
@@ -29,7 +32,7 @@ func (bw *BufBinWriter) Bytes() []byte {
 	if bw.Err != nil {
 		return nil
 	}
-	bw.Err = errors.New("buffer already drained")
+	bw.Err = ErrDrained
 	return bw.buf.Bytes()
 }
 
