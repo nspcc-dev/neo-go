@@ -16,20 +16,13 @@ const MaxArraySize = 0x1000000
 // Used to simplify error handling when reading into a struct with many fields.
 type BinReader struct {
 	r   io.Reader
-	u64 []byte
-	u32 []byte
-	u16 []byte
-	u8  []byte
+	uv  [8]byte
 	Err error
 }
 
 // NewBinReaderFromIO makes a BinReader from io.Reader.
 func NewBinReaderFromIO(ior io.Reader) *BinReader {
-	u64 := make([]byte, 8)
-	u32 := u64[:4]
-	u16 := u64[:2]
-	u8 := u64[:1]
-	return &BinReader{r: ior, u64: u64, u32: u32, u16: u16, u8: u8}
+	return &BinReader{r: ior}
 }
 
 // NewBinReaderFromBuf makes a BinReader from byte buffer.
@@ -41,51 +34,51 @@ func NewBinReaderFromBuf(b []byte) *BinReader {
 // ReadU64LE reads a little-endian encoded uint64 value from the underlying
 // io.Reader. On read failures it returns zero.
 func (r *BinReader) ReadU64LE() uint64 {
-	r.ReadBytes(r.u64)
+	r.ReadBytes(r.uv[:8])
 	if r.Err != nil {
 		return 0
 	}
-	return binary.LittleEndian.Uint64(r.u64)
+	return binary.LittleEndian.Uint64(r.uv[:8])
 }
 
 // ReadU32LE reads a little-endian encoded uint32 value from the underlying
 // io.Reader. On read failures it returns zero.
 func (r *BinReader) ReadU32LE() uint32 {
-	r.ReadBytes(r.u32)
+	r.ReadBytes(r.uv[:4])
 	if r.Err != nil {
 		return 0
 	}
-	return binary.LittleEndian.Uint32(r.u32)
+	return binary.LittleEndian.Uint32(r.uv[:4])
 }
 
 // ReadU16LE reads a little-endian encoded uint16 value from the underlying
 // io.Reader. On read failures it returns zero.
 func (r *BinReader) ReadU16LE() uint16 {
-	r.ReadBytes(r.u16)
+	r.ReadBytes(r.uv[:2])
 	if r.Err != nil {
 		return 0
 	}
-	return binary.LittleEndian.Uint16(r.u16)
+	return binary.LittleEndian.Uint16(r.uv[:2])
 }
 
 // ReadU16BE reads a big-endian encoded uint16 value from the underlying
 // io.Reader. On read failures it returns zero.
 func (r *BinReader) ReadU16BE() uint16 {
-	r.ReadBytes(r.u16)
+	r.ReadBytes(r.uv[:2])
 	if r.Err != nil {
 		return 0
 	}
-	return binary.BigEndian.Uint16(r.u16)
+	return binary.BigEndian.Uint16(r.uv[:2])
 }
 
 // ReadB reads a byte from the underlying io.Reader. On read failures it
 // returns zero.
 func (r *BinReader) ReadB() byte {
-	r.ReadBytes(r.u8)
+	r.ReadBytes(r.uv[:1])
 	if r.Err != nil {
 		return 0
 	}
-	return r.u8[0]
+	return r.uv[0]
 }
 
 // ReadBool reads a boolean value encoded in a zero/non-zero byte from the
