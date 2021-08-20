@@ -35,8 +35,8 @@ type Context struct {
 	local     *Slot
 	arguments *Slot
 
-	// Exception context stack pointer.
-	tryStack *Stack
+	// Exception context stack.
+	tryStack Stack
 
 	// Script hash of the prog.
 	scriptHash util.Uint160

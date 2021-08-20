@@ -282,7 +282,7 @@ func (v *VM) LoadScriptWithFlags(b []byte, f callflag.CallFlag) {
 	ctx := NewContextWithParams(b, 0, -1, 0)
 	v.estack = newStack("evaluation", &v.refs)
 	ctx.estack = v.estack
-	ctx.tryStack = newStack("exception", nil)
+	initStack(&ctx.tryStack, "exception", nil)
 	ctx.callFlag = f
 	ctx.static = newSlot(&v.refs)
 	ctx.callingScriptHash = v.GetCurrentScriptHash()
@@ -1519,7 +1519,7 @@ func (v *VM) call(ctx *Context, offset int) {
 	newCtx.RetCount = -1
 	newCtx.local = nil
 	newCtx.arguments = nil
-	newCtx.tryStack = newStack("exception", nil)
+	initStack(&newCtx.tryStack, "exception", nil)
 	newCtx.NEF = ctx.NEF
 	v.istack.PushVal(newCtx)
 	v.Jump(newCtx, offset)

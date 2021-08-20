@@ -171,6 +171,7 @@ func initStack(s *Stack, n string, refc *refCounter) {
 	s.refs = refc
 	s.top.next = &s.top
 	s.top.prev = &s.top
+	s.len = 0
 }
 
 // Clear clears all elements on the stack and set its length to 0.
