@@ -22,7 +22,7 @@ type Trie struct {
 
 // Config represents MPT configuration.
 type Config struct {
-	Store           *storage.MemCachedStore
+	Store           storage.Store
 	RefCountEnabled bool
 }
 
