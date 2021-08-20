@@ -29,8 +29,7 @@ func NewP2PNotaryRequestFromBytes(b []byte) (*P2PNotaryRequest, error) {
 	if br.Err != nil {
 		return nil, br.Err
 	}
-	_ = br.ReadB()
-	if br.Err == nil {
+	if br.Len() != 0 {
 		return nil, errors.New("additional data after the payload")
 	}
 	return req, nil

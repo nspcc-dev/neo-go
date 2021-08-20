@@ -130,7 +130,12 @@ func (t *Transaction) GetAttributes(typ AttrType) []Attribute {
 
 // decodeHashableFields decodes the fields that are used for signing the
 // transaction, which are all fields except the scripts.
-func (t *Transaction) decodeHashableFields(br *io.BinReader) {
+func (t *Transaction) decodeHashableFields(br *io.BinReader, buf []byte) {
+	var start, end int
+
+	if buf != nil {
+		start = len(buf) - br.Len()
+	}
 	t.Version = uint8(br.ReadB())
 	t.Nonce = br.ReadU32LE()
 	t.SystemFee = int64(br.ReadU64LE())
@@ -164,10 +169,14 @@ func (t *Transaction) decodeHashableFields(br *io.BinReader) {
 	if br.Err == nil {
 		br.Err = t.isValid()
 	}
+	if buf != nil {
+		end = len(buf) - br.Len()
+		t.hash = hash.Sha256(buf[start:end])
+	}
 }
 
-func (t *Transaction) decodeBinaryNoSize(br *io.BinReader) {
-	t.decodeHashableFields(br)
+func (t *Transaction) decodeBinaryNoSize(br *io.BinReader, buf []byte) {
+	t.decodeHashableFields(br, buf)
 	if br.Err != nil {
 		return
 	}
@@ -186,14 +195,14 @@ func (t *Transaction) decodeBinaryNoSize(br *io.BinReader) {
 
 	// Create the hash of the transaction at decode, so we dont need
 	// to do it anymore.
-	if br.Err == nil {
+	if br.Err == nil && buf == nil {
 		br.Err = t.createHash()
 	}
 }
 
 // DecodeBinary implements Serializable interface.
 func (t *Transaction) DecodeBinary(br *io.BinReader) {
-	t.decodeBinaryNoSize(br)
+	t.decodeBinaryNoSize(br, nil)
 
 	if br.Err == nil {
 		_ = t.Size()
@@ -258,18 +267,15 @@ func (t *Transaction) createHash() error {
 // DecodeHashableFields decodes a part of transaction which should be hashed.
 func (t *Transaction) DecodeHashableFields(buf []byte) error {
 	r := io.NewBinReaderFromBuf(buf)
-	t.decodeHashableFields(r)
+	t.decodeHashableFields(r, buf)
 	if r.Err != nil {
 		return r.Err
 	}
 	// Ensure all the data was read.
-	_ = r.ReadB()
-	if r.Err == nil {
+	if r.Len() != 0 {
 		return errors.New("additional data after the signed part")
 	}
 	t.Scripts = make([]Witness, 0)
-
-	t.hash = hash.Sha256(buf)
 	return nil
 }
 
@@ -287,12 +293,11 @@ func (t *Transaction) Bytes() []byte {
 func NewTransactionFromBytes(b []byte) (*Transaction, error) {
 	tx := &Transaction{}
 	r := io.NewBinReaderFromBuf(b)
-	tx.decodeBinaryNoSize(r)
+	tx.decodeBinaryNoSize(r, b)
 	if r.Err != nil {
 		return nil, r.Err
 	}
-	_ = r.ReadB()
-	if r.Err == nil {
+	if r.Len() != 0 {
 		return nil, errors.New("additional data after the transaction")
 	}
 	tx.size = len(b)

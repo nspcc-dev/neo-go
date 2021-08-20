@@ -31,6 +31,17 @@ func NewBinReaderFromBuf(b []byte) *BinReader {
 	return NewBinReaderFromIO(r)
 }
 
+// Len returns the number of bytes of the unread portion of the buffer if
+// reading from bytes.Reader or -1 otherwise.
+func (r *BinReader) Len() int {
+	var res = -1
+	byteReader, ok := r.r.(*bytes.Reader)
+	if ok {
+		res = byteReader.Len()
+	}
+	return res
+}
+
 // ReadU64LE reads a little-endian encoded uint64 value from the underlying
 // io.Reader. On read failures it returns zero.
 func (r *BinReader) ReadU64LE() uint64 {
