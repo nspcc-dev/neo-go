@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/stretchr/testify/require"
 )
 
@@ -273,12 +274,12 @@ func TestCompatibility(t *testing.T) {
 		tr1 := copyTrie(tr)
 		require.NoError(t, tr1.Delete([]byte{0xa1}))
 		tr1.Flush()
-		require.Equal(t, 2, len(tr1.Store.GetBatch().Put))
+		require.Equal(t, 2, len(tr1.Store.(*storage.MemCachedStore).GetBatch().Put))
 
 		tr2 := copyTrie(tr1)
 		require.NoError(t, tr2.Delete([]byte{0xa2}))
 		tr2.Flush()
-		require.Equal(t, 0, len(tr2.Store.GetBatch().Put))
+		require.Equal(t, 0, len(tr2.Store.(*storage.MemCachedStore).GetBatch().Put))
 	})
 
 	t.Run("BranchDeleteDirty", func(t *testing.T) {
@@ -296,12 +297,12 @@ func TestCompatibility(t *testing.T) {
 		tr2 := copyTrie(tr1)
 		require.NoError(t, tr2.Delete([]byte{0x20}))
 		tr2.Flush()
-		require.Equal(t, 2, len(tr2.Store.GetBatch().Put))
+		require.Equal(t, 2, len(tr2.Store.(*storage.MemCachedStore).GetBatch().Put))
 
 		tr3 := copyTrie(tr2)
 		require.NoError(t, tr3.Delete([]byte{0x30}))
 		tr3.Flush()
-		require.Equal(t, 0, len(tr3.Store.GetBatch().Put))
+		require.Equal(t, 0, len(tr3.Store.(*storage.MemCachedStore).GetBatch().Put))
 	})
 
 	t.Run("ExtensionPutDirty", func(t *testing.T) {
@@ -314,7 +315,7 @@ func TestCompatibility(t *testing.T) {
 		tr1 := copyTrie(tr)
 		require.NoError(t, tr1.Put([]byte{0xa3}, []byte{0x03}))
 		tr1.Flush()
-		require.Equal(t, 5, len(tr1.Store.GetBatch().Put))
+		require.Equal(t, 5, len(tr1.Store.(*storage.MemCachedStore).GetBatch().Put))
 	})
 
 	t.Run("BranchPutDirty", func(t *testing.T) {
@@ -336,7 +337,7 @@ func copyTrie(t *Trie) *Trie {
 }
 
 func checkBatchSize(t *testing.T, tr *Trie, n int) {
-	require.Equal(t, n, len(tr.Store.GetBatch().Put))
+	require.Equal(t, n, len(tr.Store.(*storage.MemCachedStore).GetBatch().Put))
 }
 
 func testGetProof(t *testing.T, tr *Trie, key []byte, size int) [][]byte {

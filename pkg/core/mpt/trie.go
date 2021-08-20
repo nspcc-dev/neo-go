@@ -14,7 +14,7 @@ import (
 
 // Trie is an MPT trie storing all key-value pairs.
 type Trie struct {
-	Store *storage.MemCachedStore
+	Store storage.Store
 
 	root            Node
 	refcountEnabled bool
@@ -33,7 +33,7 @@ var ErrNotFound = errors.New("item not found")
 // NewTrie returns new MPT trie. It accepts a MemCachedStore to decouple storage errors from logic errors
 // so that all storage errors are processed during `store.Persist()` at the caller.
 // This also has the benefit, that every `Put` can be considered an atomic operation.
-func NewTrie(root Node, enableRefCount bool, store *storage.MemCachedStore) *Trie {
+func NewTrie(root Node, enableRefCount bool, store storage.Store) *Trie {
 	if root == nil {
 		root = EmptyNode{}
 	}
