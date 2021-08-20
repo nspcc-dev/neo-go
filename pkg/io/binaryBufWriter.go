@@ -13,13 +13,14 @@ var ErrDrained = errors.New("buffer already drained")
 // writes via Bytes().
 type BufBinWriter struct {
 	*BinWriter
-	buf *bytes.Buffer
+	buf bytes.Buffer
 }
 
 // NewBufBinWriter makes a BufBinWriter with an empty byte buffer.
 func NewBufBinWriter() *BufBinWriter {
-	b := new(bytes.Buffer)
-	return &BufBinWriter{BinWriter: NewBinWriterFromIO(b), buf: b}
+	b := new(BufBinWriter)
+	b.BinWriter = NewBinWriterFromIO(&b.buf)
+	return b
 }
 
 // Len returns the number of bytes of the unread portion of the buffer.
