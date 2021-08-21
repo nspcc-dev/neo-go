@@ -328,11 +328,10 @@ func (v *VM) Context() *Context {
 // PopResult is used to pop the first item of the evaluation stack. This allows
 // us to test compiler and vm in a bi-directional way.
 func (v *VM) PopResult() interface{} {
-	e := v.estack.Pop()
-	if e != nil {
-		return e.Value()
+	if v.estack.Len() == 0 {
+		return nil
 	}
-	return nil
+	return v.estack.Pop().Value()
 }
 
 // Stack returns json formatted representation of the given stack.
@@ -448,8 +447,8 @@ func (v *VM) StepOut() error {
 		v.state = NoneState
 	}
 
-	expSize := v.istack.len
-	for v.state == NoneState && v.istack.len >= expSize {
+	expSize := v.istack.Len()
+	for v.state == NoneState && v.istack.Len() >= expSize {
 		err = v.StepInto()
 	}
 	if v.state == NoneState {
@@ -470,10 +469,10 @@ func (v *VM) StepOver() error {
 		v.state = NoneState
 	}
 
-	expSize := v.istack.len
+	expSize := v.istack.Len()
 	for {
 		err = v.StepInto()
-		if !(v.state == NoneState && v.istack.len > expSize) {
+		if !(v.state == NoneState && v.istack.Len() > expSize) {
 			break
 		}
 	}
@@ -739,20 +738,20 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		v.estack.Pop()
 
 	case opcode.NIP:
-		elem := v.estack.RemoveAt(1)
-		if elem == nil {
+		if v.estack.Len() < 2 {
 			panic("no second element found")
 		}
+		_ = v.estack.RemoveAt(1)
 
 	case opcode.XDROP:
 		n := int(v.estack.Pop().BigInt().Int64())
 		if n < 0 {
 			panic("invalid length")
 		}
-		e := v.estack.RemoveAt(n)
-		if e == nil {
+		if v.estack.Len() < n+1 {
 			panic("bad index")
 		}
+		_ = v.estack.RemoveAt(n)
 
 	case opcode.CLEAR:
 		v.estack.Clear()
@@ -761,10 +760,10 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		v.estack.Push(v.estack.Dup(0))
 
 	case opcode.OVER:
-		a := v.estack.Dup(1)
-		if a == nil {
+		if v.estack.Len() < 2 {
 			panic("no second element found")
 		}
+		a := v.estack.Dup(1)
 		v.estack.Push(a)
 
 	case opcode.PICK:
@@ -772,20 +771,17 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		if n < 0 {
 			panic("negative stack item returned")
 		}
-		a := v.estack.Dup(n)
-		if a == nil {
+		if v.estack.Len() < n+1 {
 			panic("no nth element found")
 		}
+		a := v.estack.Dup(n)
 		v.estack.Push(a)
 
 	case opcode.TUCK:
-		a := v.estack.Dup(0)
-		if a == nil {
-			panic("no top-level element found")
-		}
 		if v.estack.Len() < 2 {
-			panic("can't TUCK with a one-element stack")
+			panic("too short stack to TUCK")
 		}
+		a := v.estack.Dup(0)
 		v.estack.InsertAt(a, 2)
 
 	case opcode.SWAP:
@@ -821,10 +817,8 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 
 	// Bit operations.
 	case opcode.INVERT:
-		// inplace
-		e := v.estack.Peek(0)
-		i := e.BigInt()
-		e.value = stackitem.Make(new(big.Int).Not(i))
+		i := v.estack.Pop().BigInt()
+		v.estack.PushVal(new(big.Int).Not(i))
 
 	case opcode.AND:
 		b := v.estack.Pop().BigInt()
@@ -842,14 +836,11 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		v.estack.PushVal(new(big.Int).Xor(b, a))
 
 	case opcode.EQUAL, opcode.NOTEQUAL:
+		if v.estack.Len() < 2 {
+			panic("need a pair of elements on the stack")
+		}
 		b := v.estack.Pop()
-		if b == nil {
-			panic("no top-level element found")
-		}
 		a := v.estack.Pop()
-		if a == nil {
-			panic("no second-to-the-top element found")
-		}
 		v.estack.PushVal(a.value.Equals(b.value) == (op == opcode.EQUAL))
 
 	// Numeric operations.
@@ -1100,7 +1091,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			if index < 0 {
 				panic("invalid key")
 			}
-			v.estack.Push(&Element{value: t.Value().([]stackitem.MapElement)[index].Value.Dup()})
+			v.estack.Push(Element{value: t.Value().([]stackitem.MapElement)[index].Value.Dup()})
 		default:
 			arr := obj.Bytes()
 			if index < 0 || index >= len(arr) {
@@ -1318,13 +1309,13 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		}
 
 	case opcode.NEWMAP:
-		v.estack.Push(&Element{value: stackitem.NewMap()})
+		v.estack.Push(Element{value: stackitem.NewMap()})
 
 	case opcode.KEYS:
-		item := v.estack.Pop()
-		if item == nil {
+		if v.estack.Len() == 0 {
 			panic("no argument")
 		}
+		item := v.estack.Pop()
 
 		m, ok := item.value.(*stackitem.Map)
 		if !ok {
@@ -1338,10 +1329,10 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		v.estack.PushVal(arr)
 
 	case opcode.VALUES:
-		item := v.estack.Pop()
-		if item == nil {
+		if v.estack.Len() == 0 {
 			panic("no argument")
 		}
+		item := v.estack.Pop()
 
 		var arr []stackitem.Item
 		switch t := item.value.(type) {
@@ -1363,13 +1354,13 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		v.estack.PushVal(arr)
 
 	case opcode.HASKEY:
+		if v.estack.Len() < 2 {
+			panic("not enough arguments")
+		}
 		key := v.estack.Pop()
 		validateMapKey(key)
 
 		c := v.estack.Pop()
-		if c == nil {
-			panic("no value found")
-		}
 		switch t := c.value.(type) {
 		case *stackitem.Array, *stackitem.Struct:
 			index := key.BigInt().Int64()
@@ -1559,16 +1550,15 @@ func calcJumpOffset(ctx *Context, parameter []byte) (int, int, error) {
 }
 
 func (v *VM) handleException() {
-	pop := 0
-	ictxv := v.istack.Peek(0)
-	ictx := ictxv.Value().(*Context)
-	for ictx != nil {
-		e := ictx.tryStack.Peek(0)
-		for e != nil {
+	for pop := 0; pop < v.istack.Len(); pop++ {
+		ictxv := v.istack.Peek(pop)
+		ictx := ictxv.Value().(*Context)
+		for j := 0; j < ictx.tryStack.Len(); j++ {
+			e := ictx.tryStack.Peek(j)
 			ectx := e.Value().(*exceptionHandlingContext)
 			if ectx.State == eFinally || (ectx.State == eCatch && !ectx.HasFinally()) {
 				ictx.tryStack.Pop()
-				e = ictx.tryStack.Peek(0)
+				j = -1
 				continue
 			}
 			for i := 0; i < pop; i++ {
@@ -1586,12 +1576,6 @@ func (v *VM) handleException() {
 			}
 			return
 		}
-		pop++
-		ictxv = ictxv.Next()
-		if ictxv == nil {
-			break
-		}
-		ictx = ictxv.Value().(*Context)
 	}
 	throwUnhandledException(v.uncaughtException)
 }
@@ -1753,17 +1737,18 @@ func makeArrayOfType(n int, typ stackitem.Type) []stackitem.Item {
 	return items
 }
 
-func validateMapKey(key *Element) {
-	if key == nil {
+func validateMapKey(key Element) {
+	item := key.Item()
+	if item == nil {
 		panic("no key found")
 	}
-	if err := stackitem.IsValidMapKey(key.Item()); err != nil {
+	if err := stackitem.IsValidMapKey(item); err != nil {
 		panic(err)
 	}
 }
 
 func (v *VM) checkInvocationStackSize() {
-	if v.istack.len >= MaxInvocationStackSize {
+	if v.istack.Len() >= MaxInvocationStackSize {
 		panic("invocation stack is too big")
 	}
 }
@@ -1785,7 +1770,7 @@ func (v *VM) GetCallingScriptHash() util.Uint160 {
 
 // GetEntryScriptHash implements ScriptHashGetter interface.
 func (v *VM) GetEntryScriptHash() util.Uint160 {
-	return v.getContextScriptHash(v.istack.len - 1)
+	return v.getContextScriptHash(v.istack.Len() - 1)
 }
 
 // GetCurrentScriptHash implements ScriptHashGetter interface.

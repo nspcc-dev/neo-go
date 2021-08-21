@@ -1917,8 +1917,9 @@ func (bc *Blockchain) verifyHashAgainstScript(hash util.Uint160, witness *transa
 	if vm.HasFailed() {
 		return 0, fmt.Errorf("%w: vm execution has failed: %v", ErrVerificationFailed, err)
 	}
-	resEl := vm.Estack().Pop()
-	if resEl != nil {
+	estack := vm.Estack()
+	if estack.Len() > 0 {
+		resEl := estack.Pop()
 		res, err := resEl.Item().TryBool()
 		if err != nil {
 			return 0, fmt.Errorf("%w: invalid return value", ErrVerificationFailed)

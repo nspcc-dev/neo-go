@@ -20,7 +20,7 @@ func TestVM_Debug(t *testing.T) {
 		require.NoError(t, v.Run())
 		require.Equal(t, 5, v.Context().NextIP())
 		require.NoError(t, v.Run())
-		require.Equal(t, 1, v.estack.len)
+		require.Equal(t, 1, v.estack.Len())
 		require.Equal(t, big.NewInt(5), v.estack.Top().Value())
 	})
 	t.Run("StepInto", func(t *testing.T) {
@@ -29,14 +29,14 @@ func TestVM_Debug(t *testing.T) {
 		require.Equal(t, 3, v.Context().NextIP())
 		require.NoError(t, v.StepOut())
 		require.Equal(t, 2, v.Context().NextIP())
-		require.Equal(t, 1, v.estack.len)
+		require.Equal(t, 1, v.estack.Len())
 		require.Equal(t, big.NewInt(5), v.estack.Top().Value())
 	})
 	t.Run("StepOver", func(t *testing.T) {
 		v := load(prog)
 		require.NoError(t, v.StepOver())
 		require.Equal(t, 2, v.Context().NextIP())
-		require.Equal(t, 1, v.estack.len)
+		require.Equal(t, 1, v.estack.Len())
 		require.Equal(t, big.NewInt(5), v.estack.Top().Value())
 	})
 }
