@@ -31,9 +31,17 @@ func testIncompletePut(t *testing.T, ps pairs, n int, tr1, tr2 *Trie) {
 	var b Batch
 	for i, p := range ps {
 		if i < n {
-			require.NoError(t, tr1.Put(p[0], p[1]), "item %d", i)
+			if p[1] == nil {
+				require.NoError(t, tr1.Delete(p[0]), "item %d", i)
+			} else {
+				require.NoError(t, tr1.Put(p[0], p[1]), "item %d", i)
+			}
 		} else if i == n {
-			require.Error(t, tr1.Put(p[0], p[1]), "item %d", i)
+			if p[1] == nil {
+				require.Error(t, tr1.Delete(p[0]), "item %d", i)
+			} else {
+				require.Error(t, tr1.Put(p[0], p[1]), "item %d", i)
+			}
 		}
 		b.Add(p[0], p[1])
 	}
@@ -80,6 +88,11 @@ func TestTrie_PutBatchLeaf(t *testing.T) {
 		var ps = pairs{{[]byte{0}, nil}}
 		testPut(t, ps, tr1, tr2)
 	})
+	t.Run("empty value", func(t *testing.T) {
+		tr1, tr2 := prepareLeaf(t)
+		var ps = pairs{{[]byte{0}, []byte{}}}
+		testPut(t, ps, tr1, tr2)
+	})
 	t.Run("replace", func(t *testing.T) {
 		tr1, tr2 := prepareLeaf(t)
 		var ps = pairs{{[]byte{0}, []byte("replace")}}
@@ -89,6 +102,14 @@ func TestTrie_PutBatchLeaf(t *testing.T) {
 		tr1, tr2 := prepareLeaf(t)
 		var ps = pairs{
 			{[]byte{0}, nil},
+			{[]byte{0, 2}, []byte("replace2")},
+		}
+		testPut(t, ps, tr1, tr2)
+	})
+	t.Run("empty value and replace", func(t *testing.T) {
+		tr1, tr2 := prepareLeaf(t)
+		var ps = pairs{
+			{[]byte{0}, []byte{}},
 			{[]byte{0, 2}, []byte("replace2")},
 		}
 		testPut(t, ps, tr1, tr2)
@@ -130,6 +151,11 @@ func TestTrie_PutBatchExtension(t *testing.T) {
 	t.Run("remove value", func(t *testing.T) {
 		tr1, tr2 := prepareExtension(t)
 		var ps = pairs{{[]byte{1, 2}, nil}}
+		testPut(t, ps, tr1, tr2)
+	})
+	t.Run("empty value", func(t *testing.T) {
+		tr1, tr2 := prepareExtension(t)
+		var ps = pairs{{[]byte{1, 2}, []byte{}}}
 		testPut(t, ps, tr1, tr2)
 	})
 	t.Run("add to next, merge extension", func(t *testing.T) {

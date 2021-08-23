@@ -241,7 +241,7 @@ func (t *Trie) putBatchIntoHash(curr *HashNode, kv []keyValue) (Node, int, error
 // value is current value stored by prefix.
 func (t *Trie) newSubTrieMany(prefix []byte, kv []keyValue, value []byte) (Node, int, error) {
 	if len(kv[0].key) == 0 {
-		if len(kv[0].value) == 0 {
+		if kv[0].value == nil {
 			if len(kv) == 1 {
 				return EmptyNode{}, 1, nil
 			}
@@ -256,7 +256,7 @@ func (t *Trie) newSubTrieMany(prefix []byte, kv []keyValue, value []byte) (Node,
 
 	// Prefix is empty and we have at least 2 children.
 	b := NewBranchNode()
-	if len(value) != 0 {
+	if value != nil {
 		// Empty key is always first.
 		leaf := NewLeafNode(value)
 		t.addRef(leaf.Hash(), leaf.bytes)

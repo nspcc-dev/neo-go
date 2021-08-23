@@ -72,10 +72,11 @@ func TestCompatibility(t *testing.T) {
 
 		require.Equal(t, mainTrie.root.Hash(), tr.root.Hash())
 		require.Error(t, tr.Put(nil, []byte{0x01}))
-		require.NoError(t, tr.Put([]byte{0x01}, nil))
+		require.Error(t, tr.Put([]byte{0x01}, nil))
 		require.Error(t, tr.Put(make([]byte, MaxKeyLength+1), nil))
 		require.Error(t, tr.Put([]byte{0x01}, make([]byte, MaxValueLength+1)))
 		require.Equal(t, mainTrie.root.Hash(), tr.root.Hash())
+		require.NoError(t, tr.Put([]byte{0x01}, []byte{}))
 		require.NoError(t, tr.Put([]byte{0xac, 0x01}, []byte{0xab}))
 	})
 
@@ -328,6 +329,18 @@ func TestCompatibility(t *testing.T) {
 		require.NoError(t, tr1.Put([]byte{0x30}, []byte{0x03}))
 		tr1.Flush()
 		checkBatchSize(t, tr1, 7)
+	})
+
+	t.Run("EmptyValueIssue633", func(t *testing.T) {
+		tr := newFilledTrie(t,
+			[]byte{0x01}, []byte{})
+		tr.Flush()
+		checkBatchSize(t, tr, 2)
+
+		proof := testGetProof(t, tr, []byte{0x01}, 2)
+		value, ok := VerifyProof(tr.root.Hash(), []byte{0x01}, proof)
+		require.True(t, ok)
+		require.Equal(t, []byte{}, value)
 	})
 }
 

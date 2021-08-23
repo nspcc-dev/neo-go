@@ -18,6 +18,9 @@ func newTestTrie(t *testing.T) *Trie {
 	l1 := NewLeafNode([]byte{0xAB, 0xCD})
 	b.Children[0] = NewExtensionNode([]byte{0x01}, l1)
 
+	l3 := NewLeafNode([]byte{})
+	b.Children[1] = NewExtensionNode([]byte{0x03}, l3)
+
 	l2 := NewLeafNode([]byte{0x22, 0x22})
 	b.Children[9] = NewExtensionNode([]byte{0x09}, l2)
 
@@ -32,8 +35,10 @@ func newTestTrie(t *testing.T) *Trie {
 	tr.putToStore(b)
 	tr.putToStore(l1)
 	tr.putToStore(l2)
+	tr.putToStore(l3)
 	tr.putToStore(v)
 	tr.putToStore(b.Children[0])
+	tr.putToStore(b.Children[1])
 	tr.putToStore(b.Children[9])
 	tr.putToStore(b.Children[10])
 
@@ -79,64 +84,91 @@ func TestTrie_Refcount(t *testing.T) {
 }
 
 func TestTrie_PutIntoBranchNode(t *testing.T) {
-	b := NewBranchNode()
-	l := NewLeafNode([]byte{0x8})
-	b.Children[0x7] = NewHashNode(l.Hash())
-	b.Children[0x8] = NewHashNode(random.Uint256())
-	tr := NewTrie(b, false, newTestStore())
+	check := func(t *testing.T, value []byte) {
+		b := NewBranchNode()
+		l := NewLeafNode([]byte{0x8})
+		b.Children[0x7] = NewHashNode(l.Hash())
+		b.Children[0x8] = NewHashNode(random.Uint256())
+		tr := NewTrie(b, false, newTestStore())
 
-	// empty hash node child
-	require.NoError(t, tr.Put([]byte{0x66}, []byte{0x56}))
-	tr.testHas(t, []byte{0x66}, []byte{0x56})
-	require.True(t, isValid(tr.root))
+		// empty hash node child
+		require.NoError(t, tr.Put([]byte{0x66}, value))
+		tr.testHas(t, []byte{0x66}, value)
+		require.True(t, isValid(tr.root))
 
-	// missing hash
-	require.Error(t, tr.Put([]byte{0x70}, []byte{0x42}))
-	require.True(t, isValid(tr.root))
+		// missing hash
+		require.Error(t, tr.Put([]byte{0x70}, value))
+		require.True(t, isValid(tr.root))
 
-	// hash is in store
-	tr.putToStore(l)
-	require.NoError(t, tr.Put([]byte{0x70}, []byte{0x42}))
-	require.True(t, isValid(tr.root))
+		// hash is in store
+		tr.putToStore(l)
+		require.NoError(t, tr.Put([]byte{0x70}, value))
+		require.True(t, isValid(tr.root))
+	}
+
+	t.Run("non-empty value", func(t *testing.T) {
+		check(t, []byte{0x42})
+	})
+	t.Run("empty value", func(t *testing.T) {
+		check(t, []byte{})
+	})
 }
 
 func TestTrie_PutIntoExtensionNode(t *testing.T) {
-	l := NewLeafNode([]byte{0x11})
-	key := []byte{0x12}
-	e := NewExtensionNode(toNibbles(key), NewHashNode(l.Hash()))
-	tr := NewTrie(e, false, newTestStore())
+	check := func(t *testing.T, value []byte) {
+		l := NewLeafNode([]byte{0x11})
+		key := []byte{0x12}
+		e := NewExtensionNode(toNibbles(key), NewHashNode(l.Hash()))
+		tr := NewTrie(e, false, newTestStore())
 
-	// missing hash
-	require.Error(t, tr.Put(key, []byte{0x42}))
+		// missing hash
+		require.Error(t, tr.Put(key, value))
 
-	tr.putToStore(l)
-	require.NoError(t, tr.Put(key, []byte{0x42}))
-	tr.testHas(t, key, []byte{0x42})
-	require.True(t, isValid(tr.root))
+		tr.putToStore(l)
+		require.NoError(t, tr.Put(key, value))
+		tr.testHas(t, key, value)
+		require.True(t, isValid(tr.root))
+	}
+
+	t.Run("non-empty value", func(t *testing.T) {
+		check(t, []byte{0x42})
+	})
+	t.Run("empty value", func(t *testing.T) {
+		check(t, []byte{})
+	})
 }
 
 func TestTrie_PutIntoHashNode(t *testing.T) {
-	b := NewBranchNode()
-	l := NewLeafNode(random.Bytes(5))
-	e := NewExtensionNode([]byte{0x02}, l)
-	b.Children[1] = NewHashNode(e.Hash())
-	b.Children[9] = NewHashNode(random.Uint256())
-	tr := NewTrie(b, false, newTestStore())
+	check := func(t *testing.T, value []byte) {
+		b := NewBranchNode()
+		l := NewLeafNode(random.Bytes(5))
+		e := NewExtensionNode([]byte{0x02}, l)
+		b.Children[1] = NewHashNode(e.Hash())
+		b.Children[9] = NewHashNode(random.Uint256())
+		tr := NewTrie(b, false, newTestStore())
 
-	tr.putToStore(e)
+		tr.putToStore(e)
 
-	t.Run("MissingLeafHash", func(t *testing.T) {
-		_, err := tr.Get([]byte{0x12})
-		require.Error(t, err)
+		t.Run("MissingLeafHash", func(t *testing.T) {
+			_, err := tr.Get([]byte{0x12})
+			require.Error(t, err)
+		})
+
+		tr.putToStore(l)
+
+		require.NoError(t, tr.Put([]byte{0x12, 0x34}, value))
+		tr.testHas(t, []byte{0x12, 0x34}, value)
+		tr.testHas(t, []byte{0x12}, l.value)
+		require.True(t, isValid(tr.root))
+	}
+
+	t.Run("non-empty value", func(t *testing.T) {
+		val := random.Bytes(3)
+		check(t, val)
 	})
-
-	tr.putToStore(l)
-
-	val := random.Bytes(3)
-	require.NoError(t, tr.Put([]byte{0x12, 0x34}, val))
-	tr.testHas(t, []byte{0x12, 0x34}, val)
-	tr.testHas(t, []byte{0x12}, l.value)
-	require.True(t, isValid(tr.root))
+	t.Run("empty value", func(t *testing.T) {
+		check(t, []byte{})
+	})
 }
 
 func TestTrie_Put(t *testing.T) {
@@ -144,6 +176,7 @@ func TestTrie_Put(t *testing.T) {
 
 	trAct := NewTrie(nil, false, newTestStore())
 	require.NoError(t, trAct.Put([]byte{0xAC, 0x01}, []byte{0xAB, 0xCD}))
+	require.NoError(t, trAct.Put([]byte{0xAC, 0x13}, []byte{}))
 	require.NoError(t, trAct.Put([]byte{0xAC, 0x99}, []byte{0x22, 0x22}))
 	require.NoError(t, trAct.Put([]byte{0xAC, 0xAE}, []byte("hello")))
 
@@ -194,9 +227,15 @@ func TestTrie_BigPut(t *testing.T) {
 		tr.testHas(t, k, v)
 	})
 
+	t.Run("Rewrite to empty", func(t *testing.T) {
+		k, v := []byte(items[0].k), []byte{}
+		require.NoError(t, tr.Put(k, v))
+		tr.testHas(t, k, v)
+	})
+
 	t.Run("Remove", func(t *testing.T) {
 		k := []byte(items[1].k)
-		require.NoError(t, tr.Put(k, []byte{}))
+		require.NoError(t, tr.Delete(k))
 		tr.testHas(t, k, nil)
 	})
 }
@@ -319,125 +358,191 @@ func testTrieDelete(t *testing.T, enableGC bool) {
 	})
 
 	t.Run("Leaf", func(t *testing.T) {
-		l := NewLeafNode([]byte{0x12, 0x34})
-		tr := NewTrie(l, enableGC, newTestStore())
-		t.Run("NonExistentKey", func(t *testing.T) {
-			require.NoError(t, tr.Delete([]byte{0x12}))
-			tr.testHas(t, []byte{}, []byte{0x12, 0x34})
+		check := func(t *testing.T, value []byte) {
+			l := NewLeafNode(value)
+			tr := NewTrie(l, enableGC, newTestStore())
+			t.Run("NonExistentKey", func(t *testing.T) {
+				require.NoError(t, tr.Delete([]byte{0x12}))
+				tr.testHas(t, []byte{}, value)
+			})
+			require.NoError(t, tr.Delete([]byte{}))
+			tr.testHas(t, []byte{}, nil)
+		}
+		t.Run("non-empty value", func(t *testing.T) {
+			check(t, []byte{0x12, 0x34})
 		})
-		require.NoError(t, tr.Delete([]byte{}))
-		tr.testHas(t, []byte{}, nil)
+		t.Run("empty value", func(t *testing.T) {
+			check(t, []byte{})
+		})
 	})
 
 	t.Run("Extension", func(t *testing.T) {
 		t.Run("SingleKey", func(t *testing.T) {
-			l := NewLeafNode([]byte{0x12, 0x34})
-			e := NewExtensionNode([]byte{0x0A, 0x0B}, l)
-			tr := NewTrie(e, enableGC, newTestStore())
+			check := func(t *testing.T, value []byte) {
+				l := NewLeafNode(value)
+				e := NewExtensionNode([]byte{0x0A, 0x0B}, l)
+				tr := NewTrie(e, enableGC, newTestStore())
 
-			t.Run("NonExistentKey", func(t *testing.T) {
-				require.NoError(t, tr.Delete([]byte{}))
-				tr.testHas(t, []byte{0xAB}, []byte{0x12, 0x34})
+				t.Run("NonExistentKey", func(t *testing.T) {
+					require.NoError(t, tr.Delete([]byte{}))
+					tr.testHas(t, []byte{0xAB}, value)
+				})
+
+				require.NoError(t, tr.Delete([]byte{0xAB}))
+				require.IsType(t, EmptyNode{}, tr.root)
+			}
+			t.Run("non-empty value", func(t *testing.T) {
+				check(t, []byte{0x12, 0x34})
 			})
-
-			require.NoError(t, tr.Delete([]byte{0xAB}))
-			require.IsType(t, EmptyNode{}, tr.root)
+			t.Run("empty value", func(t *testing.T) {
+				check(t, []byte{})
+			})
 		})
 
 		t.Run("MultipleKeys", func(t *testing.T) {
-			b := NewBranchNode()
-			b.Children[0] = NewExtensionNode([]byte{0x01}, NewLeafNode([]byte{0x12, 0x34}))
-			b.Children[6] = NewExtensionNode([]byte{0x07}, NewLeafNode([]byte{0x56, 0x78}))
-			e := NewExtensionNode([]byte{0x01, 0x02}, b)
-			tr := NewTrie(e, enableGC, newTestStore())
+			check := func(t *testing.T, value []byte) {
+				b := NewBranchNode()
+				b.Children[0] = NewExtensionNode([]byte{0x01}, NewLeafNode(value))
+				b.Children[6] = NewExtensionNode([]byte{0x07}, NewLeafNode([]byte{0x56, 0x78}))
+				e := NewExtensionNode([]byte{0x01, 0x02}, b)
+				tr := NewTrie(e, enableGC, newTestStore())
 
-			h := e.Hash()
-			require.NoError(t, tr.Delete([]byte{0x12, 0x01}))
-			tr.testHas(t, []byte{0x12, 0x01}, nil)
-			tr.testHas(t, []byte{0x12, 0x67}, []byte{0x56, 0x78})
+				h := e.Hash()
+				require.NoError(t, tr.Delete([]byte{0x12, 0x01}))
+				tr.testHas(t, []byte{0x12, 0x01}, nil)
+				tr.testHas(t, []byte{0x12, 0x67}, []byte{0x56, 0x78})
 
-			require.NotEqual(t, h, tr.root.Hash())
-			require.Equal(t, toNibbles([]byte{0x12, 0x67}), e.key)
-			require.IsType(t, (*LeafNode)(nil), e.next)
+				require.NotEqual(t, h, tr.root.Hash())
+				require.Equal(t, toNibbles([]byte{0x12, 0x67}), e.key)
+				require.IsType(t, (*LeafNode)(nil), e.next)
+			}
+			t.Run("non-empty value", func(t *testing.T) {
+				check(t, []byte{0x12, 0x34})
+			})
+			t.Run("empty value", func(t *testing.T) {
+				check(t, []byte{})
+			})
 		})
 	})
 
 	t.Run("Branch", func(t *testing.T) {
 		t.Run("3 Children", func(t *testing.T) {
-			b := NewBranchNode()
-			b.Children[lastChild] = NewLeafNode([]byte{0x12})
-			b.Children[0] = NewExtensionNode([]byte{0x01}, NewLeafNode([]byte{0x34}))
-			b.Children[1] = NewExtensionNode([]byte{0x06}, NewLeafNode([]byte{0x56}))
-			tr := NewTrie(b, enableGC, newTestStore())
-			require.NoError(t, tr.Delete([]byte{0x16}))
-			tr.testHas(t, []byte{}, []byte{0x12})
-			tr.testHas(t, []byte{0x01}, []byte{0x34})
-			tr.testHas(t, []byte{0x16}, nil)
-		})
-		t.Run("2 Children", func(t *testing.T) {
-			newt := func(t *testing.T) *Trie {
+			check := func(t *testing.T, value []byte) {
 				b := NewBranchNode()
 				b.Children[lastChild] = NewLeafNode([]byte{0x12})
-				l := NewLeafNode([]byte{0x34})
-				e := NewExtensionNode([]byte{0x06}, l)
-				b.Children[5] = NewHashNode(e.Hash())
+				b.Children[0] = NewExtensionNode([]byte{0x01}, NewLeafNode([]byte{0x34}))
+				b.Children[1] = NewExtensionNode([]byte{0x06}, NewLeafNode(value))
 				tr := NewTrie(b, enableGC, newTestStore())
-				tr.putToStore(l)
-				tr.putToStore(e)
-				return tr
+				require.NoError(t, tr.Delete([]byte{0x16}))
+				tr.testHas(t, []byte{}, []byte{0x12})
+				tr.testHas(t, []byte{0x01}, []byte{0x34})
+				tr.testHas(t, []byte{0x16}, nil)
 			}
-
+			t.Run("non-empty value", func(t *testing.T) {
+				check(t, []byte{0x56})
+			})
+			t.Run("empty value", func(t *testing.T) {
+				check(t, []byte{})
+			})
+		})
+		t.Run("2 Children", func(t *testing.T) {
 			t.Run("DeleteLast", func(t *testing.T) {
 				t.Run("MergeExtension", func(t *testing.T) {
-					tr := newt(t)
-					require.NoError(t, tr.Delete([]byte{}))
-					tr.testHas(t, []byte{}, nil)
-					tr.testHas(t, []byte{0x56}, []byte{0x34})
-					require.IsType(t, (*ExtensionNode)(nil), tr.root)
+					check := func(t *testing.T, value []byte) {
+						b := NewBranchNode()
+						b.Children[lastChild] = NewLeafNode(value)
+						l := NewLeafNode([]byte{0x34})
+						e := NewExtensionNode([]byte{0x06}, l)
+						b.Children[5] = NewHashNode(e.Hash())
+						tr := NewTrie(b, enableGC, newTestStore())
+						tr.putToStore(l)
+						tr.putToStore(e)
+						require.NoError(t, tr.Delete([]byte{}))
+						tr.testHas(t, []byte{}, nil)
+						tr.testHas(t, []byte{0x56}, []byte{0x34})
+						require.IsType(t, (*ExtensionNode)(nil), tr.root)
+					}
+					t.Run("non-empty value", func(t *testing.T) {
+						check(t, []byte{0x12})
+					})
+					t.Run("empty value", func(t *testing.T) {
+						check(t, []byte{})
+					})
 
 					t.Run("WithHash, branch node replaced", func(t *testing.T) {
-						ch := NewLeafNode([]byte{5, 6})
-						h := ch.Hash()
+						check := func(t *testing.T, value []byte) {
+							ch := NewLeafNode([]byte{5, 6})
+							h := ch.Hash()
 
-						b := NewBranchNode()
-						b.Children[3] = NewExtensionNode([]byte{4}, NewLeafNode([]byte{1, 2, 3}))
-						b.Children[lastChild] = NewHashNode(h)
+							b := NewBranchNode()
+							b.Children[3] = NewExtensionNode([]byte{4}, NewLeafNode(value))
+							b.Children[lastChild] = NewHashNode(h)
 
-						tr := NewTrie(NewExtensionNode([]byte{1, 2}, b), enableGC, newTestStore())
-						tr.putToStore(ch)
+							tr := NewTrie(NewExtensionNode([]byte{1, 2}, b), enableGC, newTestStore())
+							tr.putToStore(ch)
 
-						require.NoError(t, tr.Delete([]byte{0x12, 0x34}))
-						tr.testHas(t, []byte{0x12, 0x34}, nil)
-						tr.testHas(t, []byte{0x12}, []byte{5, 6})
-						require.IsType(t, (*ExtensionNode)(nil), tr.root)
-						require.Equal(t, h, tr.root.(*ExtensionNode).next.Hash())
+							require.NoError(t, tr.Delete([]byte{0x12, 0x34}))
+							tr.testHas(t, []byte{0x12, 0x34}, nil)
+							tr.testHas(t, []byte{0x12}, []byte{5, 6})
+							require.IsType(t, (*ExtensionNode)(nil), tr.root)
+							require.Equal(t, h, tr.root.(*ExtensionNode).next.Hash())
+						}
+						t.Run("non-empty value", func(t *testing.T) {
+							check(t, []byte{1, 2, 3})
+						})
+						t.Run("empty value", func(t *testing.T) {
+							check(t, []byte{})
+						})
 					})
 				})
 
 				t.Run("LeaveLeaf", func(t *testing.T) {
-					c := NewBranchNode()
-					c.Children[5] = NewLeafNode([]byte{0x05})
-					c.Children[6] = NewLeafNode([]byte{0x06})
+					check := func(t *testing.T, value []byte) {
+						c := NewBranchNode()
+						c.Children[5] = NewLeafNode([]byte{0x05})
+						c.Children[6] = NewLeafNode([]byte{0x06})
 
-					b := NewBranchNode()
-					b.Children[lastChild] = NewLeafNode([]byte{0x12})
-					b.Children[5] = c
-					tr := NewTrie(b, enableGC, newTestStore())
+						b := NewBranchNode()
+						b.Children[lastChild] = NewLeafNode(value)
+						b.Children[5] = c
+						tr := NewTrie(b, enableGC, newTestStore())
 
-					require.NoError(t, tr.Delete([]byte{}))
-					tr.testHas(t, []byte{}, nil)
-					tr.testHas(t, []byte{0x55}, []byte{0x05})
-					tr.testHas(t, []byte{0x56}, []byte{0x06})
-					require.IsType(t, (*ExtensionNode)(nil), tr.root)
+						require.NoError(t, tr.Delete([]byte{}))
+						tr.testHas(t, []byte{}, nil)
+						tr.testHas(t, []byte{0x55}, []byte{0x05})
+						tr.testHas(t, []byte{0x56}, []byte{0x06})
+						require.IsType(t, (*ExtensionNode)(nil), tr.root)
+					}
+					t.Run("non-empty value", func(t *testing.T) {
+						check(t, []byte{0x12})
+					})
+					t.Run("empty value", func(t *testing.T) {
+						check(t, []byte{})
+					})
 				})
 			})
 
 			t.Run("DeleteMiddle", func(t *testing.T) {
-				tr := newt(t)
-				require.NoError(t, tr.Delete([]byte{0x56}))
-				tr.testHas(t, []byte{}, []byte{0x12})
-				tr.testHas(t, []byte{0x56}, nil)
-				require.IsType(t, (*LeafNode)(nil), tr.root)
+				check := func(t *testing.T, value []byte) {
+					b := NewBranchNode()
+					b.Children[lastChild] = NewLeafNode([]byte{0x12})
+					l := NewLeafNode(value)
+					e := NewExtensionNode([]byte{0x06}, l)
+					b.Children[5] = NewHashNode(e.Hash())
+					tr := NewTrie(b, enableGC, newTestStore())
+					tr.putToStore(l)
+					tr.putToStore(e)
+					require.NoError(t, tr.Delete([]byte{0x56}))
+					tr.testHas(t, []byte{}, []byte{0x12})
+					tr.testHas(t, []byte{0x56}, nil)
+					require.IsType(t, (*LeafNode)(nil), tr.root)
+				}
+				t.Run("non-empty value", func(t *testing.T) {
+					check(t, []byte{0x34})
+				})
+				t.Run("empty value", func(t *testing.T) {
+					check(t, []byte{})
+				})
 			})
 		})
 	})
@@ -502,6 +607,12 @@ func TestTrie_Collapse(t *testing.T) {
 		tr := NewTrie(l, false, newTestStore())
 		tr.Collapse(10)
 		require.Equal(t, NewLeafNode([]byte("value")), tr.root)
+	})
+	t.Run("Empty Leaf", func(t *testing.T) {
+		l := NewLeafNode([]byte{})
+		tr := NewTrie(l, false, newTestStore())
+		tr.Collapse(10)
+		require.Equal(t, NewLeafNode([]byte{}), tr.root)
 	})
 	t.Run("Hash", func(t *testing.T) {
 		t.Run("EmptyNode", func(t *testing.T) {
