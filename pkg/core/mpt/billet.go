@@ -62,9 +62,9 @@ func (b *Billet) RestoreHashNode(path []byte, node Node) error {
 	}
 	b.root = r
 
-	// If it's a leaf, then put into contract storage.
+	// If it's a leaf, then put into temporary contract storage.
 	if leaf, ok := node.(*LeafNode); ok {
-		k := append([]byte{byte(storage.STStorage)}, fromNibbles(path)...)
+		k := append([]byte{byte(storage.STTempStorage)}, fromNibbles(path)...)
 		_ = b.Store.Put(k, leaf.value)
 	}
 	return nil

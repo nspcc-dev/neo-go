@@ -35,6 +35,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/util/slice"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"go.uber.org/zap"
@@ -43,7 +44,7 @@ import (
 // Tuning parameters.
 const (
 	headerBatchCount = 2000
-	version          = "0.1.2"
+	version          = "0.1.3"
 
 	defaultInitialGAS                      = 52000000_00000000
 	defaultMemPoolSize                     = 50000
@@ -449,6 +450,27 @@ func (bc *Blockchain) JumpToState(module blockchainer.StateSync) error {
 		Root:  block.PrevStateRoot,
 	}, bc.config.KeepOnlyLatestState); err != nil {
 		return fmt.Errorf("can't perform MPT jump to height %d: %w", p, err)
+	}
+
+	b := bc.dao.Store.Batch()
+	bc.dao.Store.Seek([]byte{byte(storage.STStorage)}, func(k, _ []byte) {
+		// Must copy here, #1468.
+		key := slice.Copy(k)
+		b.Delete(key)
+	})
+	bc.dao.Store.Seek([]byte{byte(storage.STTempStorage)}, func(k, v []byte) {
+		// Must copy here, #1468.
+		oldKey := slice.Copy(k)
+		b.Delete(oldKey)
+		key := make([]byte, len(k))
+		key[0] = byte(storage.STStorage)
+		copy(key[1:], k[1:])
+		value := slice.Copy(v)
+		b.Put(key, value)
+	})
+	err = bc.dao.Store.PutBatch(b)
+	if err != nil {
+		return fmt.Errorf("failed to replace outdated contract storage items with the fresh ones: %w", err)
 	}
 
 	err = bc.contracts.NEO.InitializeCache(bc, bc.dao)
