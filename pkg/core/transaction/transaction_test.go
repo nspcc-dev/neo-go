@@ -97,6 +97,11 @@ func TestNewTransactionFromBytes(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, tx, tx1)
 
+	tx2 := new(Transaction)
+	err = testserdes.DecodeBinary(data, tx2)
+	require.NoError(t, err)
+	require.Equal(t, tx1, tx2)
+
 	data = append(data, 42)
 	_, err = NewTransactionFromBytes(data)
 	require.Error(t, err)
