@@ -165,7 +165,7 @@ func TestUnique(t *testing.T) {
 	require.Equal(t, 1, unique.Len())
 }
 
-func getPubKey(t *testing.T) *PublicKey {
+func getPubKey(t testing.TB) *PublicKey {
 	pubKey, err := NewPublicKeyFromString("031ee4e73a17d8f76dc02532e2620bcb12425b33c0c9f9694cc2caa8226b68cad4")
 	require.NoError(t, err)
 	return pubKey
@@ -211,4 +211,15 @@ func TestUnmarshallJSONBadFormat(t *testing.T) {
 	actual := &PublicKey{}
 	err := json.Unmarshal([]byte(str), actual)
 	require.Error(t, err)
+}
+
+func BenchmarkPublicEqual(t *testing.B) {
+	k11 := getPubKey(t)
+	k12 := getPubKey(t)
+	k2, err := NewPublicKeyFromString("03b209fd4f53a7170ea4444e0cb0a6bb6a53c2bd016926989cf85f9b0fba17a70c")
+	require.NoError(t, err)
+	for n := 0; n < t.N; n++ {
+		_ = k11.Equal(k12)
+		_ = k11.Equal(k2)
+	}
 }
