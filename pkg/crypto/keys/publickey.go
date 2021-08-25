@@ -143,29 +143,10 @@ func (p *PublicKey) getBytes(compressed bool) []byte {
 		return []byte{0x00}
 	}
 
-	var resLen = 1 + coordLen
-	if !compressed {
-		resLen += coordLen
-	}
-	var res = make([]byte, resLen)
-	var prefix byte
-
-	xBytes := p.X.Bytes()
-	copy(res[1+coordLen-len(xBytes):], xBytes)
 	if compressed {
-		if p.Y.Bit(0) == 0 {
-			prefix = 0x02
-		} else {
-			prefix = 0x03
-		}
-	} else {
-		prefix = 0x04
-		yBytes := p.Y.Bytes()
-		copy(res[1+coordLen+coordLen-len(yBytes):], yBytes)
+		return elliptic.MarshalCompressed(p.Curve, p.X, p.Y)
 	}
-	res[0] = prefix
-
-	return res
+	return elliptic.Marshal(p.Curve, p.X, p.Y)
 }
 
 // Bytes returns byte array representation of the public key in compressed

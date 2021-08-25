@@ -223,3 +223,17 @@ func BenchmarkPublicEqual(t *testing.B) {
 		_ = k11.Equal(k2)
 	}
 }
+
+func BenchmarkPublicBytes(t *testing.B) {
+	k := getPubKey(t)
+	for n := 0; n < t.N; n++ {
+		_ = k.Bytes()
+	}
+}
+
+func BenchmarkPublicUncompressedBytes(t *testing.B) {
+	k := getPubKey(t)
+	for n := 0; n < t.N; n++ {
+		_ = k.Bytes()
+	}
+}
