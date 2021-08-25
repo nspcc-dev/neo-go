@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	gio "io"
 	"math/big"
 
 	"github.com/btcsuite/btcd/btcec"
@@ -220,8 +219,7 @@ func (p *PublicKey) DecodeBytes(data []byte) error {
 		return b.Err
 	}
 
-	b.ReadB()
-	if b.Err != gio.EOF {
+	if b.Len() != 0 {
 		return errors.New("extra data")
 	}
 	return nil
