@@ -307,11 +307,6 @@ func (chain *FakeChain) GetStateSyncModule() blockchainer.StateSync {
 	return &FakeStateSync{}
 }
 
-// JumpToState implements Blockchainer interface.
-func (chain *FakeChain) JumpToState(module blockchainer.StateSync) error {
-	panic("TODO")
-}
-
 // GetStorageItem implements Blockchainer interface.
 func (chain *FakeChain) GetStorageItem(id int32, key []byte) state.StorageItem {
 	panic("TODO")
@@ -501,11 +496,6 @@ func (s *FakeStateSync) NeedMPTNodes() bool {
 
 // Traverse implements StateSync interface.
 func (s *FakeStateSync) Traverse(root util.Uint256, process func(node mpt.Node, nodeBytes []byte) bool) error {
-	panic("TODO")
-}
-
-// GetJumpHeight implements StateSync interface.
-func (s *FakeStateSync) GetJumpHeight() (uint32, error) {
 	panic("TODO")
 }
 

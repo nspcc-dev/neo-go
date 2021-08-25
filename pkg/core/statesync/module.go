@@ -79,10 +79,12 @@ type Module struct {
 	mptpool *Pool
 
 	billet *mpt.Billet
+
+	jumpCallback func(p uint32) error
 }
 
 // NewModule returns new instance of statesync module.
-func NewModule(bc blockchainer.Blockchainer, log *zap.Logger, s *dao.Simple) *Module {
+func NewModule(bc blockchainer.Blockchainer, log *zap.Logger, s *dao.Simple, jumpCallback func(p uint32) error) *Module {
 	if !(bc.GetConfig().P2PStateExchangeExtensions && bc.GetConfig().RemoveUntraceableBlocks) {
 		return &Module{
 			dao:       s,
@@ -97,6 +99,7 @@ func NewModule(bc blockchainer.Blockchainer, log *zap.Logger, s *dao.Simple) *Mo
 		syncInterval: uint32(bc.GetConfig().StateSyncInterval),
 		mptpool:      NewPool(),
 		syncStage:    none,
+		jumpCallback: jumpCallback,
 	}
 }
 
@@ -141,7 +144,7 @@ func (s *Module) Init(currChainHeight uint32) error {
 
 		// We've reached this point, so chain has genesis block only. As far as we can't ruin
 		// current chain's state until new state is completely fetched, outdated state-related data
-		// will be removed from storage during (*Blockchain).JumpToState(...) execution.
+		// will be removed from storage during (*Blockchain).jumpToState(...) execution.
 		// All we need to do right now is to remove genesis-related MPT nodes.
 		err = s.bc.GetStateModule().CleanStorage()
 		if err != nil {
@@ -401,7 +404,7 @@ func (s *Module) checkSyncIsCompleted() {
 	}
 	s.log.Info("state is in sync",
 		zap.Uint32("state sync point", s.syncPoint))
-	err := s.bc.JumpToState(s)
+	err := s.jumpCallback(s.syncPoint)
 	if err != nil {
 		s.log.Fatal("failed to jump to the latest state sync point", zap.Error(err))
 	}
@@ -463,15 +466,6 @@ func (s *Module) Traverse(root util.Uint256, process func(node mpt.Node, nodeByt
 
 	b := mpt.NewBillet(root, s.bc.GetConfig().KeepOnlyLatestState, storage.NewMemCachedStore(s.dao.Store))
 	return b.Traverse(process, false)
-}
-
-// GetJumpHeight returns state sync point to jump to. It is not protected by mutex and should be called
-// under the module lock.
-func (s *Module) GetJumpHeight() (uint32, error) {
-	if s.syncStage != headersSynced|mptSynced|blocksSynced {
-		return 0, errors.New("state sync module has wong state to perform state jump")
-	}
-	return s.syncPoint, nil
 }
 
 // GetUnknownMPTNodesBatch returns set of currently unknown MPT nodes (`limit` at max).

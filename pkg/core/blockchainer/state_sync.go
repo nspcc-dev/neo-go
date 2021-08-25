@@ -12,7 +12,6 @@ type StateSync interface {
 	Init(currChainHeight uint32) error
 	IsActive() bool
 	IsInitialized() bool
-	GetJumpHeight() (uint32, error)
 	GetUnknownMPTNodesBatch(limit int) []util.Uint256
 	NeedHeaders() bool
 	NeedMPTNodes() bool

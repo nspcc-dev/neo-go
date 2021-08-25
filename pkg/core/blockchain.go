@@ -411,17 +411,13 @@ func (bc *Blockchain) init() error {
 	return bc.updateExtensibleWhitelist(bHeight)
 }
 
-// JumpToState is an atomic operation that changes Blockchain state to the one
+// jumpToState is an atomic operation that changes Blockchain state to the one
 // specified by the state sync point p. All the data needed for the jump must be
 // collected by the state sync module.
-func (bc *Blockchain) JumpToState(module blockchainer.StateSync) error {
+func (bc *Blockchain) jumpToState(p uint32) error {
 	bc.lock.Lock()
 	defer bc.lock.Unlock()
 
-	p, err := module.GetJumpHeight()
-	if err != nil {
-		return fmt.Errorf("failed to get jump height: %w", err)
-	}
 	if p+1 >= uint32(len(bc.headerHashes)) {
 		return fmt.Errorf("invalid state sync point")
 	}
@@ -792,7 +788,7 @@ func (bc *Blockchain) GetStateModule() blockchainer.StateRoot {
 
 // GetStateSyncModule returns new state sync service instance.
 func (bc *Blockchain) GetStateSyncModule() blockchainer.StateSync {
-	return statesync.NewModule(bc, bc.log, bc.dao)
+	return statesync.NewModule(bc, bc.log, bc.dao, bc.jumpToState)
 }
 
 // storeBlock performs chain update using the block given, it executes all
