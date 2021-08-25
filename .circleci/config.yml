@@ -3,11 +3,6 @@ orbs:
   codecov: codecov/codecov@1.0.5
 
 executors:
-  go1_14:
-    docker:
-      - image: circleci/golang:1.14
-        environment:
-          GO111MODULE: "on"
   go1_15:
     docker:
       - image: circleci/golang:1.15
@@ -44,15 +39,6 @@ jobs:
             curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.40.0
             make lint
 
-  test_1_14:
-    working_directory: /go/src/github.com/nspcc-dev/neo-go
-    executor: go1_14
-    steps:
-      - checkout
-      - run: git submodule sync
-      - run: git submodule update --init
-      - gomod
-      - run: go test -v -race ./...
   test_1_15:
     working_directory: /go/src/github.com/nspcc-dev/neo-go
     executor: go1_15
@@ -115,10 +101,6 @@ workflows:
   workflow:
     jobs:
       - lint:
-          filters:
-            tags:
-              only: v/[0-9]+\.[0-9]+\.[0-9]+/
-      - test_1_14:
           filters:
             tags:
               only: v/[0-9]+\.[0-9]+\.[0-9]+/

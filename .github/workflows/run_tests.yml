@@ -70,7 +70,7 @@ jobs:
     runs-on: ubuntu-18.04
     strategy:
       matrix:
-        go_versions: [ '1.14', '1.15', '1.16' ]
+        go_versions: [ '1.15', '1.16' ]
       fail-fast: false
     steps:
       - uses: actions/checkout@v2
