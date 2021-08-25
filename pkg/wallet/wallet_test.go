@@ -2,8 +2,6 @@ package wallet
 
 import (
 	"encoding/json"
-	"io/ioutil"
-	"os"
 	"path"
 	"testing"
 
@@ -75,10 +73,8 @@ func TestPath(t *testing.T) {
 }
 
 func TestSave(t *testing.T) {
-	file, err := ioutil.TempFile("", walletTemplate)
-	require.NoError(t, err)
-	wallet, err := NewWallet(file.Name())
-	require.NoError(t, err)
+	wallet := checkWalletConstructor(t)
+
 	wallet.AddAccount(&Account{
 		privateKey:   nil,
 		publicKey:    nil,
@@ -91,9 +87,6 @@ func TestSave(t *testing.T) {
 		Default:      false,
 	})
 
-	t.Cleanup(func() {
-		removeWallet(t, file.Name())
-	})
 	errForSave := wallet.Save()
 	require.NoError(t, errForSave)
 
@@ -130,19 +123,11 @@ func TestJSONMarshallUnmarshal(t *testing.T) {
 }
 
 func checkWalletConstructor(t *testing.T) *Wallet {
-	file, err := ioutil.TempFile("", walletTemplate)
-	require.NoError(t, err)
-	wallet, err := NewWallet(file.Name())
-	t.Cleanup(func() {
-		removeWallet(t, file.Name())
-	})
+	tmpDir := t.TempDir()
+	file := path.Join(tmpDir, walletTemplate)
+	wallet, err := NewWallet(file)
 	require.NoError(t, err)
 	return wallet
-}
-
-func removeWallet(t *testing.T, walletPath string) {
-	err := os.RemoveAll(walletPath)
-	require.NoError(t, err)
 }
 
 func TestWallet_AddToken(t *testing.T) {

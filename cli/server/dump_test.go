@@ -1,8 +1,6 @@
 package server
 
 import (
-	"io/ioutil"
-	"os"
 	"path"
 	"testing"
 
@@ -10,12 +8,7 @@ import (
 )
 
 func TestGetPath(t *testing.T) {
-	testPath, err := ioutil.TempDir("./", "")
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		err := os.RemoveAll(testPath)
-		require.NoError(t, err)
-	})
+	testPath := t.TempDir()
 	actual, err := getPath(testPath, 123)
 	require.NoError(t, err)
 	require.Equal(t, path.Join(testPath, "/BlockStorage_100000/dump-block-1000.json"), actual)
