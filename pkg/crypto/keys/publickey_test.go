@@ -237,3 +237,12 @@ func BenchmarkPublicUncompressedBytes(t *testing.B) {
 		_ = k.Bytes()
 	}
 }
+
+func BenchmarkPublicDecodeBytes(t *testing.B) {
+	keyBytes, err := hex.DecodeString("03b209fd4f53a7170ea4444e0cb0a6bb6a53c2bd016926989cf85f9b0fba17a70c")
+	require.NoError(t, err)
+	k := new(PublicKey)
+	for n := 0; n < t.N; n++ {
+		require.NoError(t, k.DecodeBytes(keyBytes))
+	}
+}
