@@ -64,7 +64,7 @@ func NewPrivateKeyFromBytes(b []byte) (*PrivateKey, error) {
 		d = new(big.Int).SetBytes(b)
 	)
 
-	x, y := c.ScalarBaseMult(d.Bytes())
+	x, y := c.ScalarBaseMult(b)
 
 	return &PrivateKey{
 		ecdsa.PrivateKey{
@@ -85,7 +85,7 @@ func NewPrivateKeyFromASN1(b []byte) (*PrivateKey, error) {
 	if err != nil {
 		return nil, err
 	}
-	return NewPrivateKeyFromBytes(privkey.D.Bytes())
+	return &PrivateKey{*privkey}, nil
 }
 
 // PublicKey derives the public key from the private key.
