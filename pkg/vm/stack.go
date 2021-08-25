@@ -141,6 +141,9 @@ func initStack(s *Stack, n string, refc *refCounter) {
 // Clear clears all elements on the stack and set its length to 0.
 func (s *Stack) Clear() {
 	if s.elems != nil {
+		for _, el := range s.elems {
+			s.refs.Remove(el.value)
+		}
 		s.elems = s.elems[:0]
 	}
 }
