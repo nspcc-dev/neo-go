@@ -249,7 +249,7 @@ func (p *PublicKey) DecodeBinary(r *io.BinReader) {
 		return
 	case 0x02, 0x03:
 		// Compressed public keys
-		xbytes := make([]byte, 32)
+		xbytes := make([]byte, coordLen)
 		r.ReadBytes(xbytes)
 		if r.Err != nil {
 			return
@@ -262,8 +262,8 @@ func (p *PublicKey) DecodeBinary(r *io.BinReader) {
 			return
 		}
 	case 0x04:
-		xbytes := make([]byte, 32)
-		ybytes := make([]byte, 32)
+		xbytes := make([]byte, coordLen)
+		ybytes := make([]byte, coordLen)
 		r.ReadBytes(xbytes)
 		r.ReadBytes(ybytes)
 		if r.Err != nil {
