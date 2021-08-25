@@ -13,6 +13,9 @@ executors:
       - image: circleci/golang:1.16
         environment:
           GO111MODULE: "on"
+  go1_17:
+    docker:
+      - image: circleci/golang:1.17
 
 commands:
   gomod:
@@ -29,7 +32,7 @@ commands:
 jobs:
   lint:
     working_directory: /go/src/github.com/nspcc-dev/neo-go
-    executor: go1_16
+    executor: go1_17
     steps:
       - checkout
       - gomod
@@ -49,9 +52,19 @@ jobs:
       - gomod
       - run: go test -v -race ./...
 
-  test_cover:
+  test_1_16:
     working_directory: /go/src/github.com/nspcc-dev/neo-go
     executor: go1_16
+    steps:
+      - checkout
+      - run: git submodule sync
+      - run: git submodule update --init
+      - gomod
+      - run: go test -v -race ./...
+
+  test_cover:
+    working_directory: /go/src/github.com/nspcc-dev/neo-go
+    executor: go1_17
     environment:
         CGO_ENABLED: 0
     steps:
@@ -65,7 +78,7 @@ jobs:
 
   build_cli:
     working_directory: /go/src/github.com/nspcc-dev/neo-go
-    executor: go1_16
+    executor: go1_17
     steps:
       - checkout
       - gomod
@@ -76,7 +89,7 @@ jobs:
 
   build_image:
     working_directory: /go/src/github.com/nspcc-dev/neo-go
-    executor: go1_16
+    executor: go1_17
     docker:
       - image: golang:1-alpine
     steps:
@@ -105,6 +118,10 @@ workflows:
             tags:
               only: v/[0-9]+\.[0-9]+\.[0-9]+/
       - test_1_15:
+          filters:
+            tags:
+              only: v/[0-9]+\.[0-9]+\.[0-9]+/
+      - test_1_16:
           filters:
             tags:
               only: v/[0-9]+\.[0-9]+\.[0-9]+/
