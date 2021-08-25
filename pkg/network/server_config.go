@@ -84,6 +84,9 @@ type (
 
 		// EnableBatching is true if CMDTxBatch should be enabled.
 		EnableBatching bool
+
+		// InventoryBatchSize is the default size of sent tx batch.
+		InventoryBatchSize int
 	}
 )
 
@@ -120,5 +123,6 @@ func NewServerConfig(cfg config.Config) ServerConfig {
 		StateRootCfg:       appConfig.StateRoot,
 		ExtensiblePoolSize: appConfig.ExtensiblePoolSize,
 		EnableBatching:     protoConfig.NetworkBatchingEnabled,
+		InventoryBatchSize: protoConfig.InventoryBatchSize,
 	}
 }

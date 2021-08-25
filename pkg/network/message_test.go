@@ -326,10 +326,13 @@ func newDummyBlock(height uint32, txCount int) *block.Block {
 	return b
 }
 
-func newDummyTx() *transaction.Transaction {
+func newDummyTx(attrs ...transaction.Attribute) *transaction.Transaction {
 	tx := transaction.New(random.Bytes(100), 123)
 	tx.Signers = []transaction.Signer{{Account: random.Uint160()}}
 	tx.Scripts = []transaction.Witness{{InvocationScript: []byte{}, VerificationScript: []byte{}}}
+	if len(attrs) != 0 {
+		tx.Attributes = attrs
+	}
 	tx.Size()
 	tx.Hash()
 	return tx

@@ -35,6 +35,7 @@ const (
 	defaultAttemptConnPeers   = 20
 	defaultMaxPeers           = 100
 	defaultExtensiblePoolSize = 20
+	defaultTxBatchSize        = 32
 	maxBlockBatch             = 200
 	minPoolCount              = 30
 )
@@ -129,6 +130,12 @@ func newServerFromConstructors(config ServerConfig, chain blockchainer.Blockchai
 		config.ExtensiblePoolSize = defaultExtensiblePoolSize
 		log.Info("ExtensiblePoolSize is not set or wrong, using default value",
 			zap.Int("ExtensiblePoolSize", config.ExtensiblePoolSize))
+	}
+
+	if config.InventoryBatchSize <= 0 || payload.MaxBatchSize < config.InventoryBatchSize {
+		config.InventoryBatchSize = defaultTxBatchSize
+		log.Info("InventoryBatchSize is not set or wrong, using default value",
+			zap.Int("InventoryBatchSize", defaultTxBatchSize))
 	}
 
 	s := &Server{
@@ -717,6 +724,7 @@ func (s *Server) handleMempoolCmd(p Peer) error {
 // handleInvCmd processes the received inventory.
 func (s *Server) handleGetDataCmd(p Peer, inv *payload.Inventory) error {
 	var notFound []util.Uint256
+	var tx *transaction.Transaction
 	var txs []*transaction.Transaction
 	var size int
 	for _, hash := range inv.Hashes {
@@ -729,9 +737,10 @@ func (s *Server) handleGetDataCmd(p Peer, inv *payload.Inventory) error {
 				if !s.EnableBatching {
 					msg = NewMessage(CMDTX, tx)
 				} else {
-					_ = size
-					txs = append(txs, tx)
-					if len(txs) == 4 {
+					size += tx.Size()
+					if size < payload.MaxSize-4 {
+						txs = append(txs, tx)
+					} else {
 						msg = NewMessage(CMDTxBatch, &payload.Transactions{Values: txs})
 						txs = txs[:0]
 					}
@@ -760,9 +769,16 @@ func (s *Server) handleGetDataCmd(p Peer, inv *payload.Inventory) error {
 		if msg != nil {
 			pkt, err := msg.Bytes()
 			if err == nil {
-				if inv.Type == payload.ExtensibleType {
+				switch inv.Type {
+				case payload.ExtensibleType:
 					err = p.EnqueueHPPacket(true, pkt)
-				} else {
+				case payload.TXType:
+					if s.EnableBatching {
+						size = tx.Size()
+						txs = append(txs[:0], tx)
+					}
+					fallthrough
+				default:
 					err = p.EnqueueP2PPacket(pkt)
 				}
 			}
@@ -1307,10 +1323,9 @@ func (s *Server) initStaleMemPools() {
 func (s *Server) broadcastTxLoop() {
 	const (
 		batchTime = time.Millisecond * 50
-		batchSize = 32
 	)
 
-	txs := make([]util.Uint256, 0, batchSize)
+	txs := make([]util.Uint256, 0, s.InventoryBatchSize)
 	var timer *time.Timer
 
 	timerCh := func() <-chan time.Time {
@@ -1350,7 +1365,7 @@ func (s *Server) broadcastTxLoop() {
 			}
 
 			txs = append(txs, tx.Hash())
-			if len(txs) == batchSize {
+			if len(txs) == s.InventoryBatchSize {
 				broadcast()
 			}
 		}

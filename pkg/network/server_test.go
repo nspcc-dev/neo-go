@@ -511,6 +511,7 @@ func (s *Server) testHandleGetData(t *testing.T, invType payload.InventoryType, 
 func TestGetDataBatching(t *testing.T) {
 	s := startTestServer(t)
 	s.EnableBatching = true
+	s.InventoryBatchSize = 2
 
 	t.Run("simple", func(t *testing.T) {
 		tx1 := newDummyTx()
@@ -523,7 +524,7 @@ func TestGetDataBatching(t *testing.T) {
 			Values: []*transaction.Transaction{tx1, tx2},
 		})
 	})
-	t.Run("big", func(t *testing.T) {
+	t.Run("big, size", func(t *testing.T) {
 		bigAttr := transaction.Attribute{
 			Type:  transaction.ReservedUpperBound,
 			Value: &transaction.Reserved{Value: make([]byte, io.MaxArraySize)},
@@ -538,6 +539,21 @@ func TestGetDataBatching(t *testing.T) {
 			Values: []*transaction.Transaction{tx1},
 		}, &payload.Transactions{
 			Values: []*transaction.Transaction{tx2},
+		})
+	})
+	t.Run("big, count", func(t *testing.T) {
+		tx1 := newDummyTx()
+		tx2 := newDummyTx()
+		tx3 := newDummyTx()
+		hs := []util.Uint256{random.Uint256(), tx1.Hash(), tx2.Hash(), tx3.Hash()}
+		s.chain.(*fakechain.FakeChain).PutTx(tx1)
+		s.chain.(*fakechain.FakeChain).PutTx(tx2)
+		s.chain.(*fakechain.FakeChain).PutTx(tx3)
+		notFound := []util.Uint256{hs[0]}
+		s.testHandleGetData(t, payload.TXType, hs, notFound, &payload.Transactions{
+			Values: []*transaction.Transaction{tx1, tx2},
+		}, &payload.Transactions{
+			Values: []*transaction.Transaction{tx3},
 		})
 	})
 }
