@@ -310,16 +310,6 @@ func (bc *Blockchain) init() error {
 	// and the genesis block as first block.
 	bc.log.Info("restoring blockchain", zap.String("version", version))
 
-	bHeight, err := bc.dao.GetCurrentBlockHeight()
-	if err != nil {
-		return err
-	}
-	bc.blockHeight = bHeight
-	bc.persistedHeight = bHeight
-	if err = bc.stateRoot.Init(bHeight, bc.config.KeepOnlyLatestState); err != nil {
-		return fmt.Errorf("can't init MPT at height %d: %w", bHeight, err)
-	}
-
 	bc.headerHashes, err = bc.dao.GetHeaderHashes()
 	if err != nil {
 		return err
@@ -365,6 +355,16 @@ func (bc *Blockchain) init() error {
 		for _, h := range headers {
 			bc.headerHashes = append(bc.headerHashes, h.Hash())
 		}
+	}
+
+	bHeight, err := bc.dao.GetCurrentBlockHeight()
+	if err != nil {
+		return err
+	}
+	bc.blockHeight = bHeight
+	bc.persistedHeight = bHeight
+	if err = bc.stateRoot.Init(bHeight, bc.config.KeepOnlyLatestState); err != nil {
+		return fmt.Errorf("can't init MPT at height %d: %w", bHeight, err)
 	}
 
 	err = bc.contracts.NEO.InitializeCache(bc, bc.dao)
