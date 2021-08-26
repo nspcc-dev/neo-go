@@ -16,15 +16,12 @@ import (
 )
 
 func TestInitSmartContract(t *testing.T) {
-	d, err := ioutil.TempDir("./", "")
+	d := t.TempDir()
+	testWD, err := os.Getwd()
 	require.NoError(t, err)
 	err = os.Chdir(d)
 	require.NoError(t, err)
-	t.Cleanup(func() {
-		err = os.Chdir("..")
-		require.NoError(t, err)
-		os.RemoveAll(d)
-	})
+	t.Cleanup(func() { require.NoError(t, os.Chdir(testWD)) })
 	contractName := "testContract"
 
 	set := flag.NewFlagSet("flagSet", flag.ExitOnError)

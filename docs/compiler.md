@@ -48,7 +48,7 @@ The compiler uses Go parser internally and depends on regular Go compiler
 presence, so make sure you have it installed and set up. On some distributions
 this requires you to set proper `GOROOT` environment variable, like
 ```
-export GOROOT=/usr/lib64/go/1.14
+export GOROOT=/usr/lib64/go/1.15
 ```
 
 ### Compiling

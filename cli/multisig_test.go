@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/hex"
-	"io/ioutil"
 	"math/big"
 	"os"
 	"path"
@@ -28,13 +27,9 @@ func TestSignMultisigTx(t *testing.T) {
 	multisigAddr := address.Uint160ToString(multisigHash)
 
 	// Create 2 wallets participating in multisig.
-	tmpDir, err := ioutil.TempDir("", "neogo.wallettest")
-	require.NoError(t, err)
+	tmpDir := t.TempDir()
 	wallet1Path := path.Join(tmpDir, "multiWallet1.json")
 	wallet2Path := path.Join(tmpDir, "multiWallet2.json")
-	t.Cleanup(func() {
-		os.RemoveAll(tmpDir)
-	})
 
 	addAccount := func(w string, wif string) {
 		e.Run(t, "neo-go", "wallet", "init", "--wallet", w)

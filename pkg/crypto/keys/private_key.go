@@ -64,7 +64,7 @@ func NewPrivateKeyFromBytes(b []byte) (*PrivateKey, error) {
 		d = new(big.Int).SetBytes(b)
 	)
 
-	x, y := c.ScalarBaseMult(d.Bytes())
+	x, y := c.ScalarBaseMult(b)
 
 	return &PrivateKey{
 		ecdsa.PrivateKey{
@@ -85,7 +85,7 @@ func NewPrivateKeyFromASN1(b []byte) (*PrivateKey, error) {
 	if err != nil {
 		return nil, err
 	}
-	return NewPrivateKeyFromBytes(privkey.D.Bytes())
+	return &PrivateKey{*privkey}, nil
 }
 
 // PublicKey derives the public key from the private key.
@@ -155,10 +155,9 @@ func (p *PrivateKey) SignHashable(net uint32, hh hash.Hashable) []byte {
 func getSignatureSlice(curve elliptic.Curve, r, s *big.Int) []byte {
 	params := curve.Params()
 	curveOrderByteSize := params.P.BitLen() / 8
-	rBytes, sBytes := r.Bytes(), s.Bytes()
 	signature := make([]byte, curveOrderByteSize*2)
-	copy(signature[curveOrderByteSize-len(rBytes):], rBytes)
-	copy(signature[curveOrderByteSize*2-len(sBytes):], sBytes)
+	_ = r.FillBytes(signature[:curveOrderByteSize])
+	_ = s.FillBytes(signature[curveOrderByteSize:])
 
 	return signature
 }
@@ -170,9 +169,8 @@ func (p *PrivateKey) String() string {
 
 // Bytes returns the underlying bytes of the PrivateKey.
 func (p *PrivateKey) Bytes() []byte {
-	bytes := p.D.Bytes()
 	result := make([]byte, 32)
-	copy(result[32-len(bytes):], bytes)
+	_ = p.D.FillBytes(result)
 
 	return result
 }

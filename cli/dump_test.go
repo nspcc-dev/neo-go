@@ -12,11 +12,7 @@ import (
 )
 
 func TestDBRestore(t *testing.T) {
-	tmpDir, err := ioutil.TempDir("", "neogo.restoretest")
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		os.RemoveAll(tmpDir)
-	})
+	tmpDir := t.TempDir()
 
 	chainPath := path.Join(tmpDir, "neogotestchain")
 	cfg, err := config.LoadFile("../config/protocol.unit_testnet.yml")

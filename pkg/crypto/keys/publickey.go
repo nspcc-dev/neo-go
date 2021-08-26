@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	gio "io"
 	"math/big"
 
 	"github.com/btcsuite/btcd/btcec"
@@ -143,29 +142,10 @@ func (p *PublicKey) getBytes(compressed bool) []byte {
 		return []byte{0x00}
 	}
 
-	var resLen = 1 + coordLen
-	if !compressed {
-		resLen += coordLen
-	}
-	var res = make([]byte, resLen)
-	var prefix byte
-
-	xBytes := p.X.Bytes()
-	copy(res[1+coordLen-len(xBytes):], xBytes)
 	if compressed {
-		if p.Y.Bit(0) == 0 {
-			prefix = 0x02
-		} else {
-			prefix = 0x03
-		}
-	} else {
-		prefix = 0x04
-		yBytes := p.Y.Bytes()
-		copy(res[1+coordLen+coordLen-len(yBytes):], yBytes)
+		return elliptic.MarshalCompressed(p.Curve, p.X, p.Y)
 	}
-	res[0] = prefix
-
-	return res
+	return elliptic.Marshal(p.Curve, p.X, p.Y)
 }
 
 // Bytes returns byte array representation of the public key in compressed
@@ -239,8 +219,7 @@ func (p *PublicKey) DecodeBytes(data []byte) error {
 		return b.Err
 	}
 
-	b.ReadB()
-	if b.Err != gio.EOF {
+	if b.Len() != 0 {
 		return errors.New("extra data")
 	}
 	return nil
@@ -270,7 +249,7 @@ func (p *PublicKey) DecodeBinary(r *io.BinReader) {
 		return
 	case 0x02, 0x03:
 		// Compressed public keys
-		xbytes := make([]byte, 32)
+		xbytes := make([]byte, coordLen)
 		r.ReadBytes(xbytes)
 		if r.Err != nil {
 			return
@@ -283,8 +262,8 @@ func (p *PublicKey) DecodeBinary(r *io.BinReader) {
 			return
 		}
 	case 0x04:
-		xbytes := make([]byte, 32)
-		ybytes := make([]byte, 32)
+		xbytes := make([]byte, coordLen)
+		ybytes := make([]byte, coordLen)
 		r.ReadBytes(xbytes)
 		r.ReadBytes(ybytes)
 		if r.Err != nil {

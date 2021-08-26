@@ -2,8 +2,8 @@ package server
 
 import (
 	"flag"
-	"io/ioutil"
 	"os"
+	"path"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
@@ -16,6 +16,17 @@ import (
 	"go.uber.org/zap"
 )
 
+// serverTestWD is the default working directory for server tests.
+var serverTestWD string
+
+func init() {
+	var err error
+	serverTestWD, err = os.Getwd()
+	if err != nil {
+		panic("can't get current working directory")
+	}
+}
+
 func TestGetConfigFromContext(t *testing.T) {
 	set := flag.NewFlagSet("flagSet", flag.ExitOnError)
 	set.String("config-path", "../../config", "")
@@ -27,17 +38,14 @@ func TestGetConfigFromContext(t *testing.T) {
 }
 
 func TestHandleLoggingParams(t *testing.T) {
-	testLog, err := ioutil.TempFile("./", "*.log")
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		require.NoError(t, os.Remove(testLog.Name()))
-	})
+	d := t.TempDir()
+	testLog := path.Join(d, "file.log")
 
 	t.Run("default", func(t *testing.T) {
 		set := flag.NewFlagSet("flagSet", flag.ExitOnError)
 		ctx := cli.NewContext(cli.NewApp(), set, nil)
 		cfg := config.ApplicationConfiguration{
-			LogPath: testLog.Name(),
+			LogPath: testLog,
 		}
 		logger, err := handleLoggingParams(ctx, cfg)
 		require.NoError(t, err)
@@ -50,7 +58,7 @@ func TestHandleLoggingParams(t *testing.T) {
 		set.Bool("debug", true, "")
 		ctx := cli.NewContext(cli.NewApp(), set, nil)
 		cfg := config.ApplicationConfiguration{
-			LogPath: testLog.Name(),
+			LogPath: testLog,
 		}
 		logger, err := handleLoggingParams(ctx, cfg)
 		require.NoError(t, err)
@@ -60,18 +68,13 @@ func TestHandleLoggingParams(t *testing.T) {
 }
 
 func TestInitBCWithMetrics(t *testing.T) {
-	d, err := ioutil.TempDir("./", "")
+	d := t.TempDir()
+	err := os.Chdir(d)
 	require.NoError(t, err)
-	err = os.Chdir(d)
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		err = os.Chdir("..")
-		require.NoError(t, err)
-		os.RemoveAll(d)
-	})
+	t.Cleanup(func() { require.NoError(t, os.Chdir(serverTestWD)) })
 
 	set := flag.NewFlagSet("flagSet", flag.ExitOnError)
-	set.String("config-path", "../../../config", "")
+	set.String("config-path", path.Join(serverTestWD, "../../config"), "")
 	set.Bool("testnet", true, "")
 	set.Bool("debug", true, "")
 	ctx := cli.NewContext(cli.NewApp(), set, nil)
@@ -90,19 +93,15 @@ func TestInitBCWithMetrics(t *testing.T) {
 }
 
 func TestDumpDB(t *testing.T) {
+	testDump := "file.acc"
+
 	t.Run("too low chain", func(t *testing.T) {
-		d, err := ioutil.TempDir("./", "")
+		d := t.TempDir()
+		err := os.Chdir(d)
 		require.NoError(t, err)
-		err = os.Chdir(d)
-		require.NoError(t, err)
-		t.Cleanup(func() {
-			err = os.Chdir("..")
-			require.NoError(t, err)
-			os.RemoveAll(d)
-		})
-		testDump := "file.acc"
+		t.Cleanup(func() { require.NoError(t, os.Chdir(serverTestWD)) })
 		set := flag.NewFlagSet("flagSet", flag.ExitOnError)
-		set.String("config-path", "../../../config", "")
+		set.String("config-path", path.Join(serverTestWD, "../../config"), "")
 		set.Bool("privnet", true, "")
 		set.Bool("debug", true, "")
 		set.Int("start", 0, "")
@@ -114,18 +113,12 @@ func TestDumpDB(t *testing.T) {
 	})
 
 	t.Run("positive", func(t *testing.T) {
-		d, err := ioutil.TempDir("./", "")
+		d := t.TempDir()
+		err := os.Chdir(d)
 		require.NoError(t, err)
-		err = os.Chdir(d)
-		require.NoError(t, err)
-		t.Cleanup(func() {
-			err = os.Chdir("..")
-			require.NoError(t, err)
-			os.RemoveAll(d)
-		})
-		testDump := "file.acc"
+		t.Cleanup(func() { require.NoError(t, os.Chdir(serverTestWD)) })
 		set := flag.NewFlagSet("flagSet", flag.ExitOnError)
-		set.String("config-path", "../../../config", "")
+		set.String("config-path", path.Join(serverTestWD, "../../config"), "")
 		set.Bool("privnet", true, "")
 		set.Bool("debug", true, "")
 		set.Int("start", 0, "")
@@ -138,21 +131,16 @@ func TestDumpDB(t *testing.T) {
 }
 
 func TestRestoreDB(t *testing.T) {
-	d, err := ioutil.TempDir("./", "")
-	require.NoError(t, err)
+	d := t.TempDir()
 	testDump := "file1.acc"
 	saveDump := "file2.acc"
-	err = os.Chdir(d)
+	err := os.Chdir(d)
 	require.NoError(t, err)
-	t.Cleanup(func() {
-		err = os.Chdir("..")
-		require.NoError(t, err)
-		os.RemoveAll(d)
-	})
+	t.Cleanup(func() { require.NoError(t, os.Chdir(serverTestWD)) })
 
 	//dump first
 	set := flag.NewFlagSet("flagSet", flag.ExitOnError)
-	set.String("config-path", "../../../config", "")
+	set.String("config-path", path.Join(serverTestWD, "../../config"), "")
 	set.Bool("privnet", true, "")
 	set.Bool("debug", true, "")
 	set.Int("start", 0, "")

@@ -2,9 +2,7 @@ package main
 
 import (
 	"io"
-	"io/ioutil"
 	"math/big"
-	"os"
 	"path"
 	"strconv"
 	"strings"
@@ -260,10 +258,7 @@ func TestNEP17MultiTransfer(t *testing.T) {
 
 func TestNEP17ImportToken(t *testing.T) {
 	e := newExecutor(t, true)
-
-	tmpDir, err := ioutil.TempDir("", "neogo.nep17import")
-	require.NoError(t, err)
-	t.Cleanup(func() { os.RemoveAll(tmpDir) })
+	tmpDir := t.TempDir()
 	walletPath := path.Join(tmpDir, "walletForImport.json")
 
 	neoContractHash, err := e.Chain.GetNativeContractScriptHash(nativenames.Neo)
