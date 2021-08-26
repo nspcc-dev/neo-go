@@ -35,8 +35,8 @@ type Context struct {
 	local     *Slot
 	arguments *Slot
 
-	// Exception context stack pointer.
-	tryStack *Stack
+	// Exception context stack.
+	tryStack Stack
 
 	// Script hash of the prog.
 	scriptHash util.Uint160
@@ -282,10 +282,11 @@ func (c *Context) IsDeployed() bool {
 // getContextScriptHash returns script hash of the invocation stack element
 // number n.
 func (v *VM) getContextScriptHash(n int) util.Uint160 {
-	element := v.Istack().Peek(n)
-	if element == nil {
+	istack := v.Istack()
+	if istack.Len() <= n {
 		return util.Uint160{}
 	}
+	element := istack.Peek(n)
 	ctxIface := element.Value()
 	ctx := ctxIface.(*Context)
 	return ctx.ScriptHash()

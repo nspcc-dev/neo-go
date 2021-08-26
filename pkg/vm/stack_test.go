@@ -76,9 +76,6 @@ func TestRemoveAt(t *testing.T) {
 
 	elem := s.RemoveAt(8)
 	assert.Equal(t, elems[1], elem)
-	assert.Nil(t, elem.prev)
-	assert.Nil(t, elem.next)
-	assert.Nil(t, elem.stack)
 
 	// Test if the pointers are moved.
 	assert.Equal(t, elems[0], s.Peek(8))
@@ -147,8 +144,6 @@ func TestRemoveLastElement(t *testing.T) {
 	}
 	elem := s.RemoveAt(1)
 	assert.Equal(t, elems[0], elem)
-	assert.Nil(t, elem.prev)
-	assert.Nil(t, elem.next)
 	assert.Equal(t, 1, s.Len())
 }
 
@@ -163,7 +158,7 @@ func TestIterAfterRemove(t *testing.T) {
 	s.RemoveAt(0)
 
 	i := 0
-	s.Iter(func(elem *Element) {
+	s.Iter(func(_ Element) {
 		i++
 	})
 	assert.Equal(t, len(elems)-1, i)
@@ -180,15 +175,16 @@ func TestIteration(t *testing.T) {
 	}
 	assert.Equal(t, len(elems), s.Len())
 
-	iteratedElems := make([]*Element, 0)
+	iteratedElems := make([]Element, 0)
 
-	s.Iter(func(elem *Element) {
+	s.Iter(func(elem Element) {
 		iteratedElems = append(iteratedElems, elem)
 	})
+
 	// Top to bottom order of iteration.
-	poppedElems := make([]*Element, 0)
-	for elem := s.Pop(); elem != nil; elem = s.Pop() {
-		poppedElems = append(poppedElems, elem)
+	poppedElems := make([]Element, 0)
+	for s.Len() != 0 {
+		poppedElems = append(poppedElems, s.Pop())
 	}
 	assert.Equal(t, poppedElems, iteratedElems)
 }
@@ -204,9 +200,9 @@ func TestBackIteration(t *testing.T) {
 	}
 	assert.Equal(t, len(elems), s.Len())
 
-	iteratedElems := make([]*Element, 0)
+	iteratedElems := make([]Element, 0)
 
-	s.IterBack(func(elem *Element) {
+	s.IterBack(func(elem Element) {
 		iteratedElems = append(iteratedElems, elem)
 	})
 	// Bottom to the top order of iteration.
@@ -331,6 +327,25 @@ func TestRoll(t *testing.T) {
 	assert.Equal(t, int64(1), s.Pop().BigInt().Int64())
 }
 
+func TestInsertAt(t *testing.T) {
+	s := NewStack("stack")
+	s.PushVal(1)
+	s.PushVal(2)
+	s.PushVal(3)
+	s.PushVal(4)
+	s.PushVal(5)
+
+	e := s.Dup(1) // it's `4`
+	s.InsertAt(e, 3)
+
+	assert.Equal(t, int64(5), s.Peek(0).BigInt().Int64())
+	assert.Equal(t, int64(4), s.Peek(1).BigInt().Int64())
+	assert.Equal(t, int64(3), s.Peek(2).BigInt().Int64())
+	assert.Equal(t, int64(4), s.Peek(3).BigInt().Int64())
+	assert.Equal(t, int64(2), s.Peek(4).BigInt().Int64())
+	assert.Equal(t, int64(1), s.Peek(5).BigInt().Int64())
+}
+
 func TestPopSigElements(t *testing.T) {
 	s := NewStack("test")
 
@@ -369,8 +384,8 @@ func TestPopSigElements(t *testing.T) {
 	assert.Equal(t, z, [][]byte{b1, b2})
 }
 
-func makeElements(n int) []*Element {
-	elems := make([]*Element, n)
+func makeElements(n int) []Element {
+	elems := make([]Element, n)
 	for i := 0; i < n; i++ {
 		elems[i] = NewElement(i)
 	}

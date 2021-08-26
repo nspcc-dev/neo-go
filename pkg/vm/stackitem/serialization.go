@@ -95,14 +95,12 @@ func (w *serContext) serialize(item Item) error {
 	switch t := item.(type) {
 	case *ByteArray:
 		w.data = append(w.data, byte(ByteArrayT))
-		data := t.Value().([]byte)
-		w.appendVarUint(uint64(len(data)))
-		w.data = append(w.data, data...)
+		w.appendVarUint(uint64(len(*t)))
+		w.data = append(w.data, *t...)
 	case *Buffer:
 		w.data = append(w.data, byte(BufferT))
-		data := t.Value().([]byte)
-		w.appendVarUint(uint64(len(data)))
-		w.data = append(w.data, data...)
+		w.appendVarUint(uint64(len(*t)))
+		w.data = append(w.data, *t...)
 	case Bool:
 		w.data = append(w.data, byte(BooleanT))
 		if t {
@@ -112,10 +110,9 @@ func (w *serContext) serialize(item Item) error {
 		}
 	case *BigInteger:
 		w.data = append(w.data, byte(IntegerT))
-		v := t.Value().(*big.Int)
 		ln := len(w.data)
 		w.data = append(w.data, 0)
-		data := bigint.ToPreallocatedBytes(v, w.data[len(w.data):])
+		data := bigint.ToPreallocatedBytes((*big.Int)(t), w.data[len(w.data):])
 		w.data[ln] = byte(len(data))
 		w.data = append(w.data, data...)
 	case *Interop:

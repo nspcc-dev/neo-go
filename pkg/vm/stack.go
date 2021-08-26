@@ -9,70 +9,36 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
-// Stack implementation for the neo-go virtual machine. The stack implements
-// a double linked list where its semantics are first in first out.
-// To simplify the implementation, internally a Stack s is implemented as a
-// ring, such that &s.top is both the next element of the last element s.Back()
-// and the previous element of the first element s.Top().
-//
-// s.Push(0)
-// s.Push(1)
-// s.Push(2)
-//
-// [ 2 ] > top
-// [ 1 ]
-// [ 0 ] > back
-//
-// s.Pop() > 2
-//
-// [ 1 ]
-// [ 0 ]
+// Stack implementation for the neo-go virtual machine. The stack with its LIFO
+// semantics is emulated from simple slice where the top of the stack corresponds
+// to the latest element of this slice. Pushes are appends to this slice, pops are
+// slice resizes.
 
-// Element represents an element in the double linked list (the stack),
-// which will hold the underlying stackitem.Item.
+// Element represents an element on the stack, technically it's a wrapper around
+// stackitem.Item interface to provide some API simplification for VM.
 type Element struct {
-	value      stackitem.Item
-	next, prev *Element
-	stack      *Stack
+	value stackitem.Item
 }
 
 // NewElement returns a new Element object, with its underlying value inferred
 // to the corresponding type.
-func NewElement(v interface{}) *Element {
-	return &Element{
-		value: stackitem.Make(v),
-	}
-}
-
-// Next returns the next element in the stack.
-func (e *Element) Next() *Element {
-	if elem := e.next; e.stack != nil && elem != &e.stack.top {
-		return elem
-	}
-	return nil
-}
-
-// Prev returns the previous element in the stack.
-func (e *Element) Prev() *Element {
-	if elem := e.prev; e.stack != nil && elem != &e.stack.top {
-		return elem
-	}
-	return nil
+func NewElement(v interface{}) Element {
+	return Element{stackitem.Make(v)}
 }
 
 // Item returns Item contained in the element.
-func (e *Element) Item() stackitem.Item {
+func (e Element) Item() stackitem.Item {
 	return e.value
 }
 
 // Value returns value of the Item contained in the element.
-func (e *Element) Value() interface{} {
+func (e Element) Value() interface{} {
 	return e.value.Value()
 }
 
 // BigInt attempts to get the underlying value of the element as a big integer.
 // Will panic if the assertion failed which will be caught by the VM.
-func (e *Element) BigInt() *big.Int {
+func (e Element) BigInt() *big.Int {
 	val, err := e.value.TryInteger()
 	if err != nil {
 		panic(err)
@@ -82,7 +48,7 @@ func (e *Element) BigInt() *big.Int {
 
 // Bool converts an underlying value of the element to a boolean if it's
 // possible to do so, it will panic otherwise.
-func (e *Element) Bool() bool {
+func (e Element) Bool() bool {
 	b, err := e.value.TryBool()
 	if err != nil {
 		panic(err)
@@ -92,7 +58,7 @@ func (e *Element) Bool() bool {
 
 // Bytes attempts to get the underlying value of the element as a byte array.
 // Will panic if the assertion failed which will be caught by the VM.
-func (e *Element) Bytes() []byte {
+func (e Element) Bytes() []byte {
 	bs, err := e.value.TryBytes()
 	if err != nil {
 		panic(err)
@@ -102,7 +68,7 @@ func (e *Element) Bytes() []byte {
 
 // BytesOrNil attempts to get the underlying value of the element as a byte array or nil.
 // Will panic if the assertion failed which will be caught by the VM.
-func (e *Element) BytesOrNil() []byte {
+func (e Element) BytesOrNil() []byte {
 	if _, ok := e.value.(stackitem.Null); ok {
 		return nil
 	}
@@ -115,7 +81,7 @@ func (e *Element) BytesOrNil() []byte {
 
 // String attempts to get string from the element value.
 // It is assumed to be use in interops and panics if string is not a valid UTF-8 byte sequence.
-func (e *Element) String() string {
+func (e Element) String() string {
 	s, err := stackitem.ToString(e.value)
 	if err != nil {
 		panic(err)
@@ -126,7 +92,7 @@ func (e *Element) String() string {
 // Array attempts to get the underlying value of the element as an array of
 // other items. Will panic if the item type is different which will be caught
 // by the VM.
-func (e *Element) Array() []stackitem.Item {
+func (e Element) Array() []stackitem.Item {
 	switch t := e.value.(type) {
 	case *stackitem.Array:
 		return t.Value().([]stackitem.Item)
@@ -139,7 +105,7 @@ func (e *Element) Array() []stackitem.Item {
 
 // Interop attempts to get the underlying value of the element
 // as an interop item.
-func (e *Element) Interop() *stackitem.Interop {
+func (e Element) Interop() *stackitem.Interop {
 	switch t := e.value.(type) {
 	case *stackitem.Interop:
 		return t
@@ -148,12 +114,11 @@ func (e *Element) Interop() *stackitem.Interop {
 	}
 }
 
-// Stack represents a Stack backed by a double linked list.
+// Stack represents a Stack backed by a slice of Elements.
 type Stack struct {
-	top  Element
-	name string
-	len  int
-	refs *refCounter
+	elems []Element
+	name  string
+	refs  *refCounter
 }
 
 // NewStack returns a new stack name by the given name.
@@ -163,63 +128,46 @@ func NewStack(n string) *Stack {
 
 func newStack(n string, refc *refCounter) *Stack {
 	s := new(Stack)
+	s.elems = make([]Element, 0, 16) // Most of uses are expected to fit into 16 elements.
 	initStack(s, n, refc)
 	return s
 }
 func initStack(s *Stack, n string, refc *refCounter) {
 	s.name = n
 	s.refs = refc
-	s.top.next = &s.top
-	s.top.prev = &s.top
+	s.Clear()
 }
 
 // Clear clears all elements on the stack and set its length to 0.
 func (s *Stack) Clear() {
-	s.top.next = &s.top
-	s.top.prev = &s.top
-	s.len = 0
+	if s.elems != nil {
+		for _, el := range s.elems {
+			s.refs.Remove(el.value)
+		}
+		s.elems = s.elems[:0]
+	}
 }
 
 // Len returns the number of elements that are on the stack.
 func (s *Stack) Len() int {
-	return s.len
-}
-
-// insert inserts the element after element (at) on the stack.
-func (s *Stack) insert(e, at *Element) *Element {
-	// If we insert an element that is already popped from this stack,
-	// we need to clean it up, there are still pointers referencing to it.
-	if e.stack == s {
-		e = NewElement(e.value)
-	}
-
-	n := at.next
-	at.next = e
-	e.prev = at
-	e.next = n
-	n.prev = e
-	e.stack = s
-	s.len++
-
-	s.refs.Add(e.value)
-
-	return e
+	return len(s.elems)
 }
 
 // InsertAt inserts the given item (n) deep on the stack.
-// Be very careful using it and _always_ check both e and n before invocation
-// as it will silently do wrong things otherwise.
-func (s *Stack) InsertAt(e *Element, n int) *Element {
-	before := s.Peek(n - 1)
-	if before == nil {
-		return nil
-	}
-	return s.insert(e, before)
+// Be very careful using it and _always_ check n before invocation
+// as it will panic otherwise.
+func (s *Stack) InsertAt(e Element, n int) {
+	l := len(s.elems)
+	s.elems = append(s.elems, e)
+	copy(s.elems[l-n+1:], s.elems[l-n:l])
+	s.elems[l-n] = e
+	s.refs.Add(e.value)
 }
 
 // Push pushes the given element on the stack.
-func (s *Stack) Push(e *Element) {
-	s.insert(e, &s.top)
+func (s *Stack) Push(e Element) {
+	s.elems = append(s.elems, e)
+	s.refs.Add(e.value)
 }
 
 // PushVal pushes the given value on the stack. It will infer the
@@ -228,63 +176,49 @@ func (s *Stack) PushVal(v interface{}) {
 	s.Push(NewElement(v))
 }
 
-// Pop removes and returns the element on top of the stack.
-func (s *Stack) Pop() *Element {
-	return s.Remove(s.Top())
+// Pop removes and returns the element on top of the stack. Panics if stack is
+// empty.
+func (s *Stack) Pop() Element {
+	l := len(s.elems)
+	e := s.elems[l-1]
+	s.elems = s.elems[:l-1]
+	s.refs.Remove(e.value)
+	return e
 }
 
 // Top returns the element on top of the stack. Nil if the stack
 // is empty.
-func (s *Stack) Top() *Element {
-	if s.len == 0 {
-		return nil
+func (s *Stack) Top() Element {
+	if len(s.elems) == 0 {
+		return Element{}
 	}
-	return s.top.next
+	return s.elems[len(s.elems)-1]
 }
 
 // Back returns the element at the end of the stack. Nil if the stack
 // is empty.
-func (s *Stack) Back() *Element {
-	if s.len == 0 {
-		return nil
+func (s *Stack) Back() Element {
+	if len(s.elems) == 0 {
+		return Element{}
 	}
-	return s.top.prev
+	return s.elems[0]
 }
 
 // Peek returns the element (n) far in the stack beginning from
-// the top of the stack.
-// 	n = 0 => will return the element on top of the stack.
-func (s *Stack) Peek(n int) *Element {
-	i := 0
-	for e := s.Top(); e != nil; e = e.Next() {
-		if n == i {
-			return e
-		}
-		i++
-	}
-	return nil
+// the top of the stack. For n == 0 it's effectively the same as Top,
+// but it'll panic if the stack is empty.
+func (s *Stack) Peek(n int) Element {
+	n = len(s.elems) - n - 1
+	return s.elems[n]
 }
 
 // RemoveAt removes the element (n) deep on the stack beginning
-// from the top of the stack.
-func (s *Stack) RemoveAt(n int) *Element {
-	return s.Remove(s.Peek(n))
-}
-
-// Remove removes and returns the given element from the stack.
-func (s *Stack) Remove(e *Element) *Element {
-	if e == nil {
-		return nil
-	}
-	e.prev.next = e.next
-	e.next.prev = e.prev
-	e.next = nil // avoid memory leaks.
-	e.prev = nil // avoid memory leaks.
-	e.stack = nil
-	s.len--
-
+// from the top of the stack. Panics if called with out of bounds n.
+func (s *Stack) RemoveAt(n int) Element {
+	l := len(s.elems)
+	e := s.elems[l-1-n]
+	s.elems = append(s.elems[:l-1-n], s.elems[l-n:]...)
 	s.refs.Remove(e.value)
-
 	return e
 }
 
@@ -292,15 +226,9 @@ func (s *Stack) Remove(e *Element) *Element {
 // Dup is used for copying elements on to the top of its own stack.
 // 	s.Push(s.Peek(0)) // will result in unexpected behaviour.
 // 	s.Push(s.Dup(0)) // is the correct approach.
-func (s *Stack) Dup(n int) *Element {
+func (s *Stack) Dup(n int) Element {
 	e := s.Peek(n)
-	if e == nil {
-		return nil
-	}
-
-	return &Element{
-		value: e.value.Dup(),
-	}
+	return Element{e.value.Dup()}
 }
 
 // Iter iterates over all the elements int the stack, starting from the top
@@ -308,9 +236,9 @@ func (s *Stack) Dup(n int) *Element {
 // 	s.Iter(func(elem *Element) {
 //		// do something with the element.
 // 	})
-func (s *Stack) Iter(f func(*Element)) {
-	for e := s.Top(); e != nil; e = e.Next() {
-		f(e)
+func (s *Stack) Iter(f func(Element)) {
+	for i := len(s.elems) - 1; i >= 0; i-- {
+		f(s.elems[i])
 	}
 }
 
@@ -319,9 +247,9 @@ func (s *Stack) Iter(f func(*Element)) {
 // 	s.IterBack(func(elem *Element) {
 //		// do something with the element.
 // 	})
-func (s *Stack) IterBack(f func(*Element)) {
-	for e := s.Back(); e != nil; e = e.Prev() {
-		f(e)
+func (s *Stack) IterBack(f func(Element)) {
+	for i := 0; i < len(s.elems); i++ {
+		f(s.elems[i])
 	}
 }
 
@@ -330,37 +258,27 @@ func (s *Stack) Swap(n1, n2 int) error {
 	if n1 < 0 || n2 < 0 {
 		return errors.New("negative index")
 	}
-	if n1 >= s.len || n2 >= s.len {
+	l := len(s.elems)
+	if n1 >= l || n2 >= l {
 		return errors.New("too big index")
 	}
-	if n1 == n2 {
-		return nil
-	}
-	s.swap(n1, n2)
+	s.elems[l-n1-1], s.elems[l-n2-1] = s.elems[l-n2-1], s.elems[l-n1-1]
 	return nil
-}
-
-func (s *Stack) swap(n1, n2 int) {
-	a := s.Peek(n1)
-	b := s.Peek(n2)
-	a.value, b.value = b.value, a.value
 }
 
 // ReverseTop reverses top n items of the stack.
 func (s *Stack) ReverseTop(n int) error {
+	l := len(s.elems)
 	if n < 0 {
 		return errors.New("negative index")
-	} else if n > s.len {
+	} else if n > l {
 		return errors.New("too big index")
 	} else if n <= 1 {
 		return nil
 	}
 
-	a, b := s.Peek(0), s.Peek(n-1)
-	for i := 0; i < n/2; i++ {
-		a.value, b.value = b.value, a.value
-		a = a.Next()
-		b = b.Prev()
+	for i, j := l-n, l-1; i <= j; i, j = i+1, j-1 {
+		s.elems[i], s.elems[j] = s.elems[j], s.elems[i]
 	}
 	return nil
 }
@@ -372,24 +290,16 @@ func (s *Stack) Roll(n int) error {
 	if n < 0 {
 		return errors.New("negative index")
 	}
-	if n >= s.len {
+	l := len(s.elems)
+	if n >= l {
 		return errors.New("too big index")
 	}
 	if n == 0 {
 		return nil
 	}
-	top := s.Peek(0)
-	e := s.Peek(n)
-
-	e.prev.next = e.next
-	e.next.prev = e.prev
-
-	top.prev = e
-	e.next = top
-
-	e.prev = &s.top
-	s.top.next = e
-
+	e := s.elems[l-1-n]
+	copy(s.elems[l-1-n:], s.elems[l-n:])
+	s.elems[l-1] = e
 	return nil
 }
 
@@ -398,10 +308,10 @@ func (s *Stack) Roll(n int) error {
 func (s *Stack) PopSigElements() ([][]byte, error) {
 	var num int
 	var elems [][]byte
-	item := s.Pop()
-	if item == nil {
+	if s.Len() == 0 {
 		return nil, fmt.Errorf("nothing on the stack")
 	}
+	item := s.Pop()
 	switch item.value.(type) {
 	case *stackitem.Array:
 		num = len(item.Array())
@@ -431,8 +341,8 @@ func (s *Stack) PopSigElements() ([][]byte, error) {
 
 // ToArray converts stack to an array of stackitems with top item being the last.
 func (s *Stack) ToArray() []stackitem.Item {
-	items := make([]stackitem.Item, 0, s.len)
-	s.IterBack(func(e *Element) {
+	items := make([]stackitem.Item, 0, len(s.elems))
+	s.IterBack(func(e Element) {
 		items = append(items, e.Item())
 	})
 	return items

@@ -1176,7 +1176,7 @@ func TestPICKITEMDupMap(t *testing.T) {
 	vm := load(prog)
 	m := stackitem.NewMap()
 	m.Add(stackitem.Make(42), stackitem.Make(-1))
-	vm.estack.Push(&Element{value: m})
+	vm.estack.Push(Element{value: m})
 	runVM(t, vm)
 	assert.Equal(t, 2, vm.estack.Len())
 	assert.Equal(t, int64(1), vm.estack.Pop().BigInt().Int64())
@@ -1245,7 +1245,7 @@ func TestSETITEMBigMapGood(t *testing.T) {
 	for i := 0; i < MaxStackSize-3; i++ {
 		m.Add(stackitem.Make(i), stackitem.Make(i))
 	}
-	vm.estack.Push(&Element{value: m})
+	vm.estack.Push(Element{value: m})
 	vm.estack.PushVal(0)
 	vm.estack.PushVal(0)
 
@@ -1274,7 +1274,7 @@ func TestKEYSMap(t *testing.T) {
 	m := stackitem.NewMap()
 	m.Add(stackitem.Make(5), stackitem.Make(6))
 	m.Add(stackitem.Make([]byte{0, 1}), stackitem.Make(6))
-	vm.estack.Push(&Element{value: m})
+	vm.estack.Push(Element{value: m})
 
 	runVM(t, vm)
 	assert.Equal(t, 1, vm.estack.Len())
@@ -1298,7 +1298,7 @@ func TestVALUESMap(t *testing.T) {
 	m := stackitem.NewMap()
 	m.Add(stackitem.Make(5), stackitem.Make([]byte{2, 3}))
 	m.Add(stackitem.Make([]byte{0, 1}), stackitem.Make([]stackitem.Item{}))
-	vm.estack.Push(&Element{value: m})
+	vm.estack.Push(Element{value: m})
 
 	runVM(t, vm)
 	assert.Equal(t, 1, vm.estack.Len())
@@ -1880,7 +1880,7 @@ func TestREVERSEITEMSGoodStruct(t *testing.T) {
 		for i := range elements {
 			arr[i] = stackitem.Make(elements[i])
 		}
-		vm.estack.Push(&Element{value: stackitem.NewStruct(arr)})
+		vm.estack.Push(Element{value: stackitem.NewStruct(arr)})
 
 		runVM(t, vm)
 		assert.Equal(t, 2, vm.estack.Len())
@@ -1944,8 +1944,8 @@ func TestREMOVEMap(t *testing.T) {
 	m := stackitem.NewMap()
 	m.Add(stackitem.Make(5), stackitem.Make(3))
 	m.Add(stackitem.Make([]byte{0, 1}), stackitem.Make([]byte{2, 3}))
-	vm.estack.Push(&Element{value: m})
-	vm.estack.Push(&Element{value: m})
+	vm.estack.Push(Element{value: m})
+	vm.estack.Push(Element{value: m})
 	vm.estack.PushVal(stackitem.Make(5))
 
 	runVM(t, vm)

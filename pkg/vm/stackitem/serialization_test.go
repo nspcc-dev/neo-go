@@ -207,3 +207,15 @@ func BenchmarkEncodeBinary(b *testing.B) {
 		}
 	}
 }
+
+func BenchmarkSerializeSimple(b *testing.B) {
+	s := NewStruct(nil)
+	s.Append(Make(100500))
+	s.Append(Make("1aada0032aba1ef6d1f0")) // Mimicking uint160.
+	for i := 0; i < b.N; i++ {
+		_, err := Serialize(s)
+		if err != nil {
+			b.FailNow()
+		}
+	}
+}
