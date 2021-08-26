@@ -49,16 +49,12 @@ func checkScope(ic *interop.Context, tx *transaction.Transaction, v *vm.VM, hash
 				}
 			}
 			if c.Scopes&transaction.CustomGroups != 0 {
-				callingScriptHash := v.GetCallingScriptHash()
-				if callingScriptHash.Equals(util.Uint160{}) {
-					return false, nil
-				}
 				if !v.Context().GetCallFlags().Has(callflag.ReadStates) {
 					return false, errors.New("missing ReadStates call flag")
 				}
-				cs, err := ic.GetContract(callingScriptHash)
+				cs, err := ic.GetContract(v.GetCurrentScriptHash())
 				if err != nil {
-					return false, fmt.Errorf("unable to find calling script: %w", err)
+					return false, nil
 				}
 				// check if the current group is the required one
 				for _, allowedGroup := range c.AllowedGroups {

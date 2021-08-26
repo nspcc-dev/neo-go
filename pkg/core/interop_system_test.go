@@ -1119,23 +1119,6 @@ func TestRuntimeCheckWitness(t *testing.T) {
 				ic.VM.LoadScriptWithHash([]byte{0x1}, random.Uint160(), callflag.AllowCall)
 				check(t, ic, hash.BytesBE(), true)
 			})
-			t.Run("CustomGroups, unknown contract", func(t *testing.T) {
-				hash := random.Uint160()
-				tx := &transaction.Transaction{
-					Signers: []transaction.Signer{
-						{
-							Account:       hash,
-							Scopes:        transaction.CustomGroups,
-							AllowedGroups: []*keys.PublicKey{},
-						},
-					},
-				}
-				ic.Container = tx
-				callingScriptHash := scriptHash
-				loadScriptWithHashAndFlags(ic, script, callingScriptHash, callflag.All)
-				ic.VM.LoadScriptWithHash([]byte{0x1}, random.Uint160(), callflag.ReadStates)
-				check(t, ic, hash.BytesBE(), true)
-			})
 		})
 	})
 	t.Run("positive", func(t *testing.T) {
@@ -1200,7 +1183,7 @@ func TestRuntimeCheckWitness(t *testing.T) {
 				check(t, ic, hash.BytesBE(), false, true)
 			})
 			t.Run("CustomGroups", func(t *testing.T) {
-				t.Run("empty calling scripthash", func(t *testing.T) {
+				t.Run("unknown scripthash", func(t *testing.T) {
 					hash := random.Uint160()
 					tx := &transaction.Transaction{
 						Signers: []transaction.Signer{
@@ -1244,7 +1227,6 @@ func TestRuntimeCheckWitness(t *testing.T) {
 					}
 					require.NoError(t, bc.contracts.Management.PutContractState(ic.DAO, contractState))
 					loadScriptWithHashAndFlags(ic, contractScript, contractScriptHash, callflag.All)
-					ic.VM.LoadScriptWithHash([]byte{0x1}, random.Uint160(), callflag.ReadStates)
 					ic.Container = tx
 					check(t, ic, targetHash.BytesBE(), false, true)
 				})
