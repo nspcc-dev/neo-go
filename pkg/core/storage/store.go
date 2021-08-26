@@ -27,6 +27,7 @@ const (
 	SYSCurrentHeader               KeyPrefix = 0xc1
 	SYSStateSyncCurrentBlockHeight KeyPrefix = 0xc2
 	SYSStateSyncPoint              KeyPrefix = 0xc3
+	SYSStateJumpStage              KeyPrefix = 0xc4
 	SYSVersion                     KeyPrefix = 0xf0
 )
 
