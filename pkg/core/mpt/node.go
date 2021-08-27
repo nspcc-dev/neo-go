@@ -34,6 +34,7 @@ type Node interface {
 	json.Marshaler
 	json.Unmarshaler
 	Size() int
+	Clone() Node
 	BaseNodeIface
 }
 

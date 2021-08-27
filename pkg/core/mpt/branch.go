@@ -89,6 +89,12 @@ func (b *BranchNode) UnmarshalJSON(data []byte) error {
 	return errors.New("expected branch node")
 }
 
+// Clone implements Node interface.
+func (b *BranchNode) Clone() Node {
+	res := *b
+	return &res
+}
+
 // splitPath splits path for a branch node.
 func splitPath(path []byte) (byte, []byte) {
 	if len(path) != 0 {

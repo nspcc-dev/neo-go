@@ -371,7 +371,9 @@ func (s *Module) restoreNode(n mpt.Node) error {
 	}
 	var childrenPaths = make(map[util.Uint256][][]byte)
 	for _, path := range nPaths {
-		err := s.billet.RestoreHashNode(path, n)
+		// Must clone here in order to avoid future collapse collisions. If the node's refcount>1 then MPT pool
+		// will manage all paths for this node and call RestoreHashNode separately for each of the paths.
+		err := s.billet.RestoreHashNode(path, n.Clone())
 		if err != nil {
 			return fmt.Errorf("failed to restore MPT node with hash %s and path %s: %w", n.Hash().StringBE(), hex.EncodeToString(path), err)
 		}

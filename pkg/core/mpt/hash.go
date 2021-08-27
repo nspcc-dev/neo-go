@@ -77,3 +77,10 @@ func (h *HashNode) UnmarshalJSON(data []byte) error {
 	}
 	return errors.New("expected hash node")
 }
+
+// Clone implements Node interface.
+func (h *HashNode) Clone() Node {
+	res := *h
+	res.Collapsed = false
+	return &res
+}

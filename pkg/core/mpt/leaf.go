@@ -77,3 +77,9 @@ func (n *LeafNode) UnmarshalJSON(data []byte) error {
 	}
 	return errors.New("expected leaf node")
 }
+
+// Clone implements Node interface.
+func (n *LeafNode) Clone() Node {
+	res := *n
+	return &res
+}
