@@ -286,8 +286,7 @@ func (v *VM) getContextScriptHash(n int) util.Uint160 {
 		return util.Uint160{}
 	}
 	element := istack.Peek(n)
-	ctxIface := element.Value()
-	ctx := ctxIface.(*Context)
+	ctx := element.value.(*Context)
 	return ctx.ScriptHash()
 }
 

@@ -322,7 +322,7 @@ func (v *VM) Context() *Context {
 	if v.istack.Len() == 0 {
 		return nil
 	}
-	return v.istack.Peek(0).Value().(*Context)
+	return v.istack.Peek(0).value.(*Context)
 }
 
 // PopResult is used to pop the first item of the evaluation stack. This allows
@@ -360,6 +360,8 @@ func (v *VM) Ready() bool {
 
 // Run starts the execution of the loaded program.
 func (v *VM) Run() error {
+	var ctx *Context
+
 	if !v.Ready() {
 		v.state = FaultState
 		return errors.New("no program loaded")
@@ -372,6 +374,7 @@ func (v *VM) Run() error {
 	}
 	// HaltState (the default) or BreakState are safe to continue.
 	v.state = NoneState
+	ctx = v.Context()
 	for {
 		switch {
 		case v.state.HasFlag(FaultState):
@@ -382,7 +385,7 @@ func (v *VM) Run() error {
 			// Normal exit from this loop.
 			return nil
 		case v.state == NoneState:
-			if err := v.Step(); err != nil {
+			if err := v.step(ctx); err != nil {
 				return err
 			}
 		default:
@@ -390,7 +393,7 @@ func (v *VM) Run() error {
 			return errors.New("unknown state")
 		}
 		// check for breakpoint before executing the next instruction
-		ctx := v.Context()
+		ctx = v.Context()
 		if ctx != nil && ctx.atBreakPoint() {
 			v.state = BreakState
 		}
@@ -400,6 +403,11 @@ func (v *VM) Run() error {
 // Step 1 instruction in the program.
 func (v *VM) Step() error {
 	ctx := v.Context()
+	return v.step(ctx)
+}
+
+// step executes one instruction in given context.
+func (v *VM) step(ctx *Context) error {
 	op, param, err := ctx.Next()
 	if err != nil {
 		v.state = FaultState
@@ -1285,7 +1293,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		}
 
 	case opcode.RET:
-		oldCtx := v.istack.Pop().Value().(*Context)
+		oldCtx := v.istack.Pop().value.(*Context)
 		oldEstack := v.estack
 
 		v.unloadContext(oldCtx)
@@ -1552,7 +1560,7 @@ func calcJumpOffset(ctx *Context, parameter []byte) (int, int, error) {
 func (v *VM) handleException() {
 	for pop := 0; pop < v.istack.Len(); pop++ {
 		ictxv := v.istack.Peek(pop)
-		ictx := ictxv.Value().(*Context)
+		ictx := ictxv.value.(*Context)
 		for j := 0; j < ictx.tryStack.Len(); j++ {
 			e := ictx.tryStack.Peek(j)
 			ectx := e.Value().(*exceptionHandlingContext)
@@ -1562,7 +1570,7 @@ func (v *VM) handleException() {
 				continue
 			}
 			for i := 0; i < pop; i++ {
-				ctx := v.istack.Pop().Value().(*Context)
+				ctx := v.istack.Pop().value.(*Context)
 				v.unloadContext(ctx)
 			}
 			if ectx.State == eTry && ectx.HasCatch() {
