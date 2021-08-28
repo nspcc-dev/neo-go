@@ -294,6 +294,6 @@ func (v *VM) getContextScriptHash(n int) util.Uint160 {
 // invocation stack element number n.
 func (v *VM) PushContextScriptHash(n int) error {
 	h := v.getContextScriptHash(n)
-	v.Estack().PushVal(h.BytesBE())
+	v.Estack().PushItem(stackitem.NewByteArray(h.BytesBE()))
 	return nil
 }

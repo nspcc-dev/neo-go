@@ -286,7 +286,7 @@ func (v *VM) LoadScriptWithFlags(b []byte, f callflag.CallFlag) {
 	ctx.callFlag = f
 	ctx.static = newSlot(&v.refs)
 	ctx.callingScriptHash = v.GetCurrentScriptHash()
-	v.istack.PushVal(ctx)
+	v.istack.PushItem(ctx)
 }
 
 // LoadScriptWithHash if similar to the LoadScriptWithFlags method, but it also loads
@@ -540,7 +540,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 	}
 
 	if op <= opcode.PUSHINT256 {
-		v.estack.PushVal(bigint.FromBytes(parameter))
+		v.estack.PushItem(stackitem.NewBigInteger(bigint.FromBytes(parameter)))
 		return
 	}
 
@@ -551,26 +551,26 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		opcode.PUSH12, opcode.PUSH13, opcode.PUSH14, opcode.PUSH15,
 		opcode.PUSH16:
 		val := int(op) - int(opcode.PUSH0)
-		v.estack.PushVal(val)
+		v.estack.PushItem(stackitem.NewBigInteger(big.NewInt(int64(val))))
 
 	case opcode.PUSHDATA1, opcode.PUSHDATA2, opcode.PUSHDATA4:
-		v.estack.PushVal(parameter)
+		v.estack.PushItem(stackitem.NewByteArray(parameter))
 
 	case opcode.PUSHA:
 		n := getJumpOffset(ctx, parameter)
 		ptr := stackitem.NewPointerWithHash(n, ctx.prog, ctx.ScriptHash())
-		v.estack.PushVal(ptr)
+		v.estack.PushItem(ptr)
 
 	case opcode.PUSHNULL:
-		v.estack.PushVal(stackitem.Null{})
+		v.estack.PushItem(stackitem.Null{})
 
 	case opcode.ISNULL:
 		_, ok := v.estack.Pop().value.(stackitem.Null)
-		v.estack.PushVal(ok)
+		v.estack.PushItem(stackitem.Bool(ok))
 
 	case opcode.ISTYPE:
 		res := v.estack.Pop().Item()
-		v.estack.PushVal(res.Type() == stackitem.Type(parameter[0]))
+		v.estack.PushItem(stackitem.Bool(res.Type() == stackitem.Type(parameter[0])))
 
 	case opcode.CONVERT:
 		typ := stackitem.Type(parameter[0])
@@ -579,7 +579,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		if err != nil {
 			panic(err)
 		}
-		v.estack.PushVal(result)
+		v.estack.PushItem(result)
 
 	case opcode.INITSSLOT:
 		if parameter[0] == 0 {
@@ -607,11 +607,11 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 
 	case opcode.LDSFLD0, opcode.LDSFLD1, opcode.LDSFLD2, opcode.LDSFLD3, opcode.LDSFLD4, opcode.LDSFLD5, opcode.LDSFLD6:
 		item := ctx.static.Get(int(op - opcode.LDSFLD0))
-		v.estack.PushVal(item)
+		v.estack.PushItem(item)
 
 	case opcode.LDSFLD:
 		item := ctx.static.Get(int(parameter[0]))
-		v.estack.PushVal(item)
+		v.estack.PushItem(item)
 
 	case opcode.STSFLD0, opcode.STSFLD1, opcode.STSFLD2, opcode.STSFLD3, opcode.STSFLD4, opcode.STSFLD5, opcode.STSFLD6:
 		item := v.estack.Pop().Item()
@@ -623,11 +623,11 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 
 	case opcode.LDLOC0, opcode.LDLOC1, opcode.LDLOC2, opcode.LDLOC3, opcode.LDLOC4, opcode.LDLOC5, opcode.LDLOC6:
 		item := ctx.local.Get(int(op - opcode.LDLOC0))
-		v.estack.PushVal(item)
+		v.estack.PushItem(item)
 
 	case opcode.LDLOC:
 		item := ctx.local.Get(int(parameter[0]))
-		v.estack.PushVal(item)
+		v.estack.PushItem(item)
 
 	case opcode.STLOC0, opcode.STLOC1, opcode.STLOC2, opcode.STLOC3, opcode.STLOC4, opcode.STLOC5, opcode.STLOC6:
 		item := v.estack.Pop().Item()
@@ -639,11 +639,11 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 
 	case opcode.LDARG0, opcode.LDARG1, opcode.LDARG2, opcode.LDARG3, opcode.LDARG4, opcode.LDARG5, opcode.LDARG6:
 		item := ctx.arguments.Get(int(op - opcode.LDARG0))
-		v.estack.PushVal(item)
+		v.estack.PushItem(item)
 
 	case opcode.LDARG:
 		item := ctx.arguments.Get(int(parameter[0]))
-		v.estack.PushVal(item)
+		v.estack.PushItem(item)
 
 	case opcode.STARG0, opcode.STARG1, opcode.STARG2, opcode.STARG3, opcode.STARG4, opcode.STARG5, opcode.STARG6:
 		item := v.estack.Pop().Item()
@@ -658,7 +658,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		if n < 0 || n > stackitem.MaxSize {
 			panic("invalid size")
 		}
-		v.estack.PushVal(stackitem.NewBuffer(make([]byte, n)))
+		v.estack.PushItem(stackitem.NewBuffer(make([]byte, n)))
 
 	case opcode.MEMCPY:
 		n := toInt(v.estack.Pop().BigInt())
@@ -693,7 +693,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		ab := make([]byte, l)
 		copy(ab, a)
 		copy(ab[len(a):], b)
-		v.estack.PushVal(stackitem.NewBuffer(ab))
+		v.estack.PushItem(stackitem.NewBuffer(ab))
 
 	case opcode.SUBSTR:
 		l := int(v.estack.Pop().BigInt().Int64())
@@ -711,7 +711,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		}
 		res := make([]byte, l)
 		copy(res, s[o:last])
-		v.estack.PushVal(stackitem.NewBuffer(res))
+		v.estack.PushItem(stackitem.NewBuffer(res))
 
 	case opcode.LEFT:
 		l := int(v.estack.Pop().BigInt().Int64())
@@ -724,7 +724,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		}
 		res := make([]byte, l)
 		copy(res, s[:l])
-		v.estack.PushVal(stackitem.NewBuffer(res))
+		v.estack.PushItem(stackitem.NewBuffer(res))
 
 	case opcode.RIGHT:
 		l := int(v.estack.Pop().BigInt().Int64())
@@ -734,10 +734,10 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		s := v.estack.Pop().Bytes()
 		res := make([]byte, l)
 		copy(res, s[len(s)-l:])
-		v.estack.PushVal(stackitem.NewBuffer(res))
+		v.estack.PushItem(stackitem.NewBuffer(res))
 
 	case opcode.DEPTH:
-		v.estack.PushVal(v.estack.Len())
+		v.estack.PushItem(stackitem.NewBigInteger(big.NewInt(int64(v.estack.Len()))))
 
 	case opcode.DROP:
 		if v.estack.Len() < 1 {
@@ -826,22 +826,22 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 	// Bit operations.
 	case opcode.INVERT:
 		i := v.estack.Pop().BigInt()
-		v.estack.PushVal(new(big.Int).Not(i))
+		v.estack.PushItem(stackitem.NewBigInteger(new(big.Int).Not(i)))
 
 	case opcode.AND:
 		b := v.estack.Pop().BigInt()
 		a := v.estack.Pop().BigInt()
-		v.estack.PushVal(new(big.Int).And(b, a))
+		v.estack.PushItem(stackitem.NewBigInteger(new(big.Int).And(b, a)))
 
 	case opcode.OR:
 		b := v.estack.Pop().BigInt()
 		a := v.estack.Pop().BigInt()
-		v.estack.PushVal(new(big.Int).Or(b, a))
+		v.estack.PushItem(stackitem.NewBigInteger(new(big.Int).Or(b, a)))
 
 	case opcode.XOR:
 		b := v.estack.Pop().BigInt()
 		a := v.estack.Pop().BigInt()
-		v.estack.PushVal(new(big.Int).Xor(b, a))
+		v.estack.PushItem(stackitem.NewBigInteger(new(big.Int).Xor(b, a)))
 
 	case opcode.EQUAL, opcode.NOTEQUAL:
 		if v.estack.Len() < 2 {
@@ -849,63 +849,64 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		}
 		b := v.estack.Pop()
 		a := v.estack.Pop()
-		v.estack.PushVal(a.value.Equals(b.value) == (op == opcode.EQUAL))
+		res := stackitem.Bool(a.value.Equals(b.value) == (op == opcode.EQUAL))
+		v.estack.PushItem(res)
 
 	// Numeric operations.
 	case opcode.SIGN:
 		x := v.estack.Pop().BigInt()
-		v.estack.PushVal(x.Sign())
+		v.estack.PushItem(stackitem.NewBigInteger(big.NewInt(int64(x.Sign()))))
 
 	case opcode.ABS:
 		x := v.estack.Pop().BigInt()
-		v.estack.PushVal(new(big.Int).Abs(x))
+		v.estack.PushItem(stackitem.NewBigInteger(new(big.Int).Abs(x)))
 
 	case opcode.NEGATE:
 		x := v.estack.Pop().BigInt()
-		v.estack.PushVal(new(big.Int).Neg(x))
+		v.estack.PushItem(stackitem.NewBigInteger(new(big.Int).Neg(x)))
 
 	case opcode.INC:
 		x := v.estack.Pop().BigInt()
 		a := new(big.Int).Add(x, big.NewInt(1))
-		v.estack.PushVal(a)
+		v.estack.PushItem(stackitem.NewBigInteger(a))
 
 	case opcode.DEC:
 		x := v.estack.Pop().BigInt()
 		a := new(big.Int).Sub(x, big.NewInt(1))
-		v.estack.PushVal(a)
+		v.estack.PushItem(stackitem.NewBigInteger(a))
 
 	case opcode.ADD:
 		a := v.estack.Pop().BigInt()
 		b := v.estack.Pop().BigInt()
 
 		c := new(big.Int).Add(a, b)
-		v.estack.PushVal(c)
+		v.estack.PushItem(stackitem.NewBigInteger(c))
 
 	case opcode.SUB:
 		b := v.estack.Pop().BigInt()
 		a := v.estack.Pop().BigInt()
 
 		c := new(big.Int).Sub(a, b)
-		v.estack.PushVal(c)
+		v.estack.PushItem(stackitem.NewBigInteger(c))
 
 	case opcode.MUL:
 		a := v.estack.Pop().BigInt()
 		b := v.estack.Pop().BigInt()
 
 		c := new(big.Int).Mul(a, b)
-		v.estack.PushVal(c)
+		v.estack.PushItem(stackitem.NewBigInteger(c))
 
 	case opcode.DIV:
 		b := v.estack.Pop().BigInt()
 		a := v.estack.Pop().BigInt()
 
-		v.estack.PushVal(new(big.Int).Quo(a, b))
+		v.estack.PushItem(stackitem.NewBigInteger(new(big.Int).Quo(a, b)))
 
 	case opcode.MOD:
 		b := v.estack.Pop().BigInt()
 		a := v.estack.Pop().BigInt()
 
-		v.estack.PushVal(new(big.Int).Rem(a, b))
+		v.estack.PushItem(stackitem.NewBigInteger(new(big.Int).Rem(a, b)))
 
 	case opcode.POW:
 		exp := v.estack.Pop().BigInt()
@@ -913,7 +914,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		if ei := exp.Uint64(); !exp.IsUint64() || ei > maxSHLArg {
 			panic("invalid exponent")
 		}
-		v.estack.PushVal(new(big.Int).Exp(a, exp, nil))
+		v.estack.PushItem(stackitem.NewBigInteger(new(big.Int).Exp(a, exp, nil)))
 
 	case opcode.SQRT:
 		a := v.estack.Pop().BigInt()
@@ -921,7 +922,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			panic("negative value")
 		}
 
-		v.estack.PushVal(new(big.Int).Sqrt(a))
+		v.estack.PushItem(stackitem.NewBigInteger(new(big.Int).Sqrt(a)))
 
 	case opcode.SHL, opcode.SHR:
 		b := v.estack.Pop().BigInt().Int64()
@@ -939,35 +940,35 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			item.Rsh(a, uint(b))
 		}
 
-		v.estack.PushVal(&item)
+		v.estack.PushItem(stackitem.NewBigInteger(&item))
 
 	case opcode.NOT:
 		x := v.estack.Pop().Bool()
-		v.estack.PushVal(!x)
+		v.estack.PushItem(stackitem.Bool(!x))
 
 	case opcode.BOOLAND:
 		b := v.estack.Pop().Bool()
 		a := v.estack.Pop().Bool()
-		v.estack.PushVal(a && b)
+		v.estack.PushItem(stackitem.Bool(a && b))
 
 	case opcode.BOOLOR:
 		b := v.estack.Pop().Bool()
 		a := v.estack.Pop().Bool()
-		v.estack.PushVal(a || b)
+		v.estack.PushItem(stackitem.Bool(a || b))
 
 	case opcode.NZ:
 		x := v.estack.Pop().BigInt()
-		v.estack.PushVal(x.Sign() != 0)
+		v.estack.PushItem(stackitem.Bool(x.Sign() != 0))
 
 	case opcode.NUMEQUAL:
 		b := v.estack.Pop().BigInt()
 		a := v.estack.Pop().BigInt()
-		v.estack.PushVal(a.Cmp(b) == 0)
+		v.estack.PushItem(stackitem.Bool(a.Cmp(b) == 0))
 
 	case opcode.NUMNOTEQUAL:
 		b := v.estack.Pop().BigInt()
 		a := v.estack.Pop().BigInt()
-		v.estack.PushVal(a.Cmp(b) != 0)
+		v.estack.PushItem(stackitem.Bool(a.Cmp(b) != 0))
 
 	case opcode.LT, opcode.LE, opcode.GT, opcode.GE:
 		eb := v.estack.Pop()
@@ -989,7 +990,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 				res = cmp >= 0
 			}
 		}
-		v.estack.PushVal(res)
+		v.estack.PushItem(stackitem.Bool(res))
 
 	case opcode.MIN:
 		b := v.estack.Pop().BigInt()
@@ -998,7 +999,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		if a.Cmp(b) == 1 {
 			val = b
 		}
-		v.estack.PushVal(val)
+		v.estack.PushItem(stackitem.NewBigInteger(val))
 
 	case opcode.MAX:
 		b := v.estack.Pop().BigInt()
@@ -1007,17 +1008,17 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		if a.Cmp(b) == -1 {
 			val = b
 		}
-		v.estack.PushVal(val)
+		v.estack.PushItem(stackitem.NewBigInteger(val))
 
 	case opcode.WITHIN:
 		b := v.estack.Pop().BigInt()
 		a := v.estack.Pop().BigInt()
 		x := v.estack.Pop().BigInt()
-		v.estack.PushVal(a.Cmp(x) <= 0 && x.Cmp(b) == -1)
+		v.estack.PushItem(stackitem.Bool(a.Cmp(x) <= 0 && x.Cmp(b) == -1))
 
 	// Object operations
 	case opcode.NEWARRAY0:
-		v.estack.PushVal(stackitem.NewArray([]stackitem.Item{}))
+		v.estack.PushItem(stackitem.NewArray([]stackitem.Item{}))
 
 	case opcode.NEWARRAY, opcode.NEWARRAYT, opcode.NEWSTRUCT:
 		n := toInt(v.estack.Pop().BigInt())
@@ -1035,10 +1036,10 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		} else {
 			res = stackitem.NewArray(items)
 		}
-		v.estack.PushVal(res)
+		v.estack.PushItem(res)
 
 	case opcode.NEWSTRUCT0:
-		v.estack.PushVal(stackitem.NewStruct([]stackitem.Item{}))
+		v.estack.PushItem(stackitem.NewStruct([]stackitem.Item{}))
 
 	case opcode.APPEND:
 		itemElem := v.estack.Pop()
@@ -1068,15 +1069,15 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			items[i] = v.estack.Pop().value
 		}
 
-		v.estack.PushVal(items)
+		v.estack.PushItem(stackitem.NewArray(items))
 
 	case opcode.UNPACK:
 		a := v.estack.Pop().Array()
 		l := len(a)
 		for i := l - 1; i >= 0; i-- {
-			v.estack.PushVal(a[i])
+			v.estack.PushItem(a[i])
 		}
-		v.estack.PushVal(l)
+		v.estack.PushItem(stackitem.NewBigInteger(big.NewInt(int64(l))))
 
 	case opcode.PICKITEM:
 		key := v.estack.Pop()
@@ -1093,20 +1094,20 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 				panic("PICKITEM: invalid index")
 			}
 			item := arr[index].Dup()
-			v.estack.PushVal(item)
+			v.estack.PushItem(item)
 		case *stackitem.Map:
 			index := t.Index(key.Item())
 			if index < 0 {
 				panic("invalid key")
 			}
-			v.estack.Push(Element{value: t.Value().([]stackitem.MapElement)[index].Value.Dup()})
+			v.estack.PushItem(t.Value().([]stackitem.MapElement)[index].Value.Dup())
 		default:
 			arr := obj.Bytes()
 			if index < 0 || index >= len(arr) {
 				panic("PICKITEM: invalid index")
 			}
 			item := arr[index]
-			v.estack.PushVal(int(item))
+			v.estack.PushItem(stackitem.NewBigInteger(big.NewInt(int64(item))))
 		}
 
 	case opcode.SETITEM:
@@ -1231,20 +1232,22 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			item.Remove(index)
 		}
 		v.refs.Remove(elem)
-		v.estack.PushVal(elem)
+		v.estack.PushItem(elem)
 
 	case opcode.SIZE:
 		elem := v.estack.Pop()
+		var res int
 		// Cause there is no native (byte) item type here, hence we need to check
 		// the type of the item for array size operations.
 		switch t := elem.Value().(type) {
 		case []stackitem.Item:
-			v.estack.PushVal(len(t))
+			res = len(t)
 		case []stackitem.MapElement:
-			v.estack.PushVal(len(t))
+			res = len(t)
 		default:
-			v.estack.PushVal(len(elem.Bytes()))
+			res = len(elem.Bytes())
 		}
+		v.estack.PushItem(stackitem.NewBigInteger(big.NewInt(int64(res))))
 
 	case opcode.JMP, opcode.JMPL, opcode.JMPIF, opcode.JMPIFL, opcode.JMPIFNOT, opcode.JMPIFNOTL,
 		opcode.JMPEQ, opcode.JMPEQL, opcode.JMPNE, opcode.JMPNEL,
@@ -1317,7 +1320,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		}
 
 	case opcode.NEWMAP:
-		v.estack.Push(Element{value: stackitem.NewMap()})
+		v.estack.PushItem(stackitem.NewMap())
 
 	case opcode.KEYS:
 		if v.estack.Len() == 0 {
@@ -1334,7 +1337,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		for k := range m.Value().([]stackitem.MapElement) {
 			arr = append(arr, m.Value().([]stackitem.MapElement)[k].Key.Dup())
 		}
-		v.estack.PushVal(arr)
+		v.estack.PushItem(stackitem.NewArray(arr))
 
 	case opcode.VALUES:
 		if v.estack.Len() == 0 {
@@ -1359,7 +1362,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			panic("not a Map, Array or Struct")
 		}
 
-		v.estack.PushVal(arr)
+		v.estack.PushItem(stackitem.NewArray(arr))
 
 	case opcode.HASKEY:
 		if v.estack.Len() < 2 {
@@ -1369,24 +1372,26 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		validateMapKey(key)
 
 		c := v.estack.Pop()
+		var res bool
 		switch t := c.value.(type) {
 		case *stackitem.Array, *stackitem.Struct:
 			index := key.BigInt().Int64()
 			if index < 0 {
 				panic("negative index")
 			}
-			v.estack.PushVal(index < int64(len(c.Array())))
+			res = index < int64(len(c.Array()))
 		case *stackitem.Map:
-			v.estack.PushVal(t.Has(key.Item()))
+			res = t.Has(key.Item())
 		case *stackitem.Buffer:
 			index := key.BigInt().Int64()
 			if index < 0 {
 				panic("negative index")
 			}
-			v.estack.PushVal(index < int64(t.Len()))
+			res = index < int64(t.Len())
 		default:
 			panic("wrong collection type")
 		}
+		v.estack.PushItem(stackitem.Bool(res))
 
 	case opcode.NOP:
 		// unlucky ^^
@@ -1417,7 +1422,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			fOffset = -1
 		}
 		eCtx := newExceptionHandlingContext(cOffset, fOffset)
-		ctx.tryStack.PushVal(eCtx)
+		ctx.tryStack.PushItem(eCtx)
 
 	case opcode.ENDTRY, opcode.ENDTRYL:
 		eCtx := ctx.tryStack.Peek(0).Value().(*exceptionHandlingContext)
@@ -1520,7 +1525,7 @@ func (v *VM) call(ctx *Context, offset int) {
 	newCtx.arguments = nil
 	initStack(&newCtx.tryStack, "exception", nil)
 	newCtx.NEF = ctx.NEF
-	v.istack.PushVal(newCtx)
+	v.istack.PushItem(newCtx)
 	v.Jump(newCtx, offset)
 }
 
@@ -1575,7 +1580,7 @@ func (v *VM) handleException() {
 			}
 			if ectx.State == eTry && ectx.HasCatch() {
 				ectx.State = eCatch
-				v.estack.PushVal(v.uncaughtException)
+				v.estack.PushItem(v.uncaughtException)
 				v.uncaughtException = nil
 				v.Jump(ictx, ectx.CatchOffset)
 			} else {
