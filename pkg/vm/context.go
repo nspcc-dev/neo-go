@@ -79,11 +79,10 @@ func NewContext(b []byte) *Context {
 // return value count and initial position in script.
 func NewContextWithParams(b []byte, pcount int, rvcount int, pos int) *Context {
 	return &Context{
-		prog:        b,
-		breakPoints: []int{},
-		ParamCount:  pcount,
-		RetCount:    rvcount,
-		nextip:      pos,
+		prog:       b,
+		ParamCount: pcount,
+		RetCount:   rvcount,
+		nextip:     pos,
 	}
 }
 
