@@ -3,6 +3,7 @@ package runtime
 import (
 	"errors"
 	"fmt"
+	"math/big"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
@@ -28,7 +29,7 @@ func GetExecutingScriptHash(ic *interop.Context) error {
 // one native to another, no operations are performed on invocation stack.
 func GetCallingScriptHash(ic *interop.Context) error {
 	h := ic.VM.GetCallingScriptHash()
-	ic.VM.Estack().PushVal(h.BytesBE())
+	ic.VM.Estack().PushItem(stackitem.NewByteArray(h.BytesBE()))
 	return nil
 }
 
@@ -39,13 +40,13 @@ func GetEntryScriptHash(ic *interop.Context) error {
 
 // Platform returns the name of the platform.
 func Platform(ic *interop.Context) error {
-	ic.VM.Estack().PushVal([]byte("NEO"))
+	ic.VM.Estack().PushItem(stackitem.NewByteArray([]byte("NEO")))
 	return nil
 }
 
 // GetTrigger returns the script trigger.
 func GetTrigger(ic *interop.Context) error {
-	ic.VM.Estack().PushVal(byte(ic.Trigger))
+	ic.VM.Estack().PushItem(stackitem.NewBigInteger(big.NewInt(int64(ic.Trigger))))
 	return nil
 }
 
@@ -97,7 +98,7 @@ func Log(ic *interop.Context) error {
 // GetTime returns timestamp of the block being verified, or the latest
 // one in the blockchain if no block is given to Context.
 func GetTime(ic *interop.Context) error {
-	ic.VM.Estack().PushVal(ic.Block.Timestamp)
+	ic.VM.Estack().PushItem(stackitem.NewBigInteger(new(big.Int).SetUint64(ic.Block.Timestamp)))
 	return nil
 }
 

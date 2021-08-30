@@ -14,7 +14,7 @@ type iterator interface {
 func Next(ic *interop.Context) error {
 	iop := ic.VM.Estack().Pop().Interop()
 	arr := iop.Value().(iterator)
-	ic.VM.Estack().PushVal(arr.Next())
+	ic.VM.Estack().PushItem(stackitem.Bool(arr.Next()))
 
 	return nil
 }
@@ -25,7 +25,7 @@ func Next(ic *interop.Context) error {
 func Value(ic *interop.Context) error {
 	iop := ic.VM.Estack().Pop().Interop()
 	arr := iop.Value().(iterator)
-	ic.VM.Estack().PushVal(arr.Value())
+	ic.VM.Estack().PushItem(arr.Value())
 
 	return nil
 }
