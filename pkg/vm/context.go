@@ -79,11 +79,10 @@ func NewContext(b []byte) *Context {
 // return value count and initial position in script.
 func NewContextWithParams(b []byte, pcount int, rvcount int, pos int) *Context {
 	return &Context{
-		prog:        b,
-		breakPoints: []int{},
-		ParamCount:  pcount,
-		RetCount:    rvcount,
-		nextip:      pos,
+		prog:       b,
+		ParamCount: pcount,
+		RetCount:   rvcount,
+		nextip:     pos,
 	}
 }
 
@@ -287,8 +286,7 @@ func (v *VM) getContextScriptHash(n int) util.Uint160 {
 		return util.Uint160{}
 	}
 	element := istack.Peek(n)
-	ctxIface := element.Value()
-	ctx := ctxIface.(*Context)
+	ctx := element.value.(*Context)
 	return ctx.ScriptHash()
 }
 
@@ -296,6 +294,6 @@ func (v *VM) getContextScriptHash(n int) util.Uint160 {
 // invocation stack element number n.
 func (v *VM) PushContextScriptHash(n int) error {
 	h := v.getContextScriptHash(n)
-	v.Estack().PushVal(h.BytesBE())
+	v.Estack().PushItem(stackitem.NewByteArray(h.BytesBE()))
 	return nil
 }

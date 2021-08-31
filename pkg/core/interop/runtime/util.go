@@ -3,6 +3,7 @@ package runtime
 import (
 	"encoding/binary"
 	"errors"
+	"math/big"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
@@ -16,9 +17,9 @@ import (
 // GasLeft returns remaining amount of GAS.
 func GasLeft(ic *interop.Context) error {
 	if ic.VM.GasLimit == -1 {
-		ic.VM.Estack().PushVal(ic.VM.GasLimit)
+		ic.VM.Estack().PushItem(stackitem.NewBigInteger(big.NewInt(ic.VM.GasLimit)))
 	} else {
-		ic.VM.Estack().PushVal(ic.VM.GasLimit - ic.VM.GasConsumed())
+		ic.VM.Estack().PushItem(stackitem.NewBigInteger(big.NewInt(ic.VM.GasLimit - ic.VM.GasConsumed())))
 	}
 	return nil
 }
@@ -55,7 +56,7 @@ func GetNotifications(ic *interop.Context) error {
 		})
 		arr.Append(ev)
 	}
-	ic.VM.Estack().PushVal(arr)
+	ic.VM.Estack().PushItem(arr)
 	return nil
 }
 
@@ -67,21 +68,21 @@ func GetInvocationCounter(ic *interop.Context) error {
 		count = 1
 		ic.VM.Invocations[currentScriptHash] = count
 	}
-	ic.VM.Estack().PushVal(count)
+	ic.VM.Estack().PushItem(stackitem.NewBigInteger(big.NewInt(int64(count))))
 	return nil
 }
 
 // GetNetwork returns chain network number.
 func GetNetwork(ic *interop.Context) error {
 	m := ic.Chain.GetConfig().Magic
-	ic.VM.Estack().PushVal(uint32(m))
+	ic.VM.Estack().PushItem(stackitem.NewBigInteger(big.NewInt(int64(m))))
 	return nil
 }
 
 // GetRandom returns pseudo-random number which depends on block nonce and transaction hash.
 func GetRandom(ic *interop.Context) error {
 	res := murmur128(ic.NonceData[:], ic.Network)
-	ic.VM.Estack().PushVal(bigint.FromBytesUnsigned(res))
+	ic.VM.Estack().PushItem(stackitem.NewBigInteger(bigint.FromBytesUnsigned(res)))
 	copy(ic.NonceData[:], res)
 	return nil
 }

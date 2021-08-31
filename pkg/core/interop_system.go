@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"math/big"
 	"sort"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
@@ -44,7 +45,7 @@ func engineGetScriptContainer(ic *interop.Context) error {
 	default:
 		return errors.New("unknown script container")
 	}
-	ic.VM.Estack().PushVal(item)
+	ic.VM.Estack().PushItem(item)
 	return nil
 }
 
@@ -72,9 +73,9 @@ func storageGet(ic *interop.Context) error {
 	key := ic.VM.Estack().Pop().Bytes()
 	si := ic.DAO.GetStorageItem(stc.ID, key)
 	if si != nil {
-		ic.VM.Estack().PushVal([]byte(si))
+		ic.VM.Estack().PushItem(stackitem.NewByteArray([]byte(si)))
 	} else {
-		ic.VM.Estack().PushVal(stackitem.Null{})
+		ic.VM.Estack().PushItem(stackitem.Null{})
 	}
 	return nil
 }
@@ -100,7 +101,7 @@ func storageGetContextInternal(ic *interop.Context, isReadOnly bool) error {
 		ID:       contract.ID,
 		ReadOnly: isReadOnly,
 	}
-	ic.VM.Estack().PushVal(stackitem.NewInterop(sc))
+	ic.VM.Estack().PushItem(stackitem.NewInterop(sc))
 	return nil
 }
 
@@ -157,7 +158,7 @@ func storageContextAsReadOnly(ic *interop.Context) error {
 		}
 		stc = stx
 	}
-	ic.VM.Estack().PushVal(stackitem.NewInterop(stc))
+	ic.VM.Estack().PushItem(stackitem.NewInterop(stc))
 	return nil
 }
 
@@ -210,7 +211,7 @@ func storageFind(ic *interop.Context) error {
 
 	filteredMap := stackitem.NewMapWithValue(arr)
 	item := istorage.NewIterator(filteredMap, len(prefix), opts)
-	ic.VM.Estack().PushVal(stackitem.NewInterop(item))
+	ic.VM.Estack().PushItem(stackitem.NewInterop(item))
 
 	return nil
 }
@@ -236,7 +237,7 @@ func contractCreateMultisigAccount(ic *interop.Context) error {
 	if err != nil {
 		return err
 	}
-	ic.VM.Estack().PushVal(hash.Hash160(script).BytesBE())
+	ic.VM.Estack().PushItem(stackitem.NewByteArray(hash.Hash160(script).BytesBE()))
 	return nil
 }
 
@@ -247,12 +248,12 @@ func contractCreateStandardAccount(ic *interop.Context) error {
 	if err != nil {
 		return err
 	}
-	ic.VM.Estack().PushVal(p.GetScriptHash().BytesBE())
+	ic.VM.Estack().PushItem(stackitem.NewByteArray(p.GetScriptHash().BytesBE()))
 	return nil
 }
 
 // contractGetCallFlags returns current context calling flags.
 func contractGetCallFlags(ic *interop.Context) error {
-	ic.VM.Estack().PushVal(ic.VM.Context().GetCallFlags())
+	ic.VM.Estack().PushItem(stackitem.NewBigInteger(big.NewInt(int64(ic.VM.Context().GetCallFlags()))))
 	return nil
 }

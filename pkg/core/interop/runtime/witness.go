@@ -11,6 +11,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
 // CheckHashedWitness checks given hash against current list of script hashes
@@ -97,6 +98,6 @@ func CheckWitness(ic *interop.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to check witness: %w", err)
 	}
-	ic.VM.Estack().PushVal(res)
+	ic.VM.Estack().PushItem(stackitem.Bool(res))
 	return nil
 }

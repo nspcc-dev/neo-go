@@ -53,7 +53,7 @@ func Call(ic *interop.Context) error {
 	}
 	result := m.Func(ic, args)
 	if m.MD.ReturnType != smartcontract.VoidType {
-		ctx.Estack().PushVal(result)
+		ctx.Estack().PushItem(result)
 	}
 	return nil
 }

@@ -70,7 +70,7 @@ func Call(ic *interop.Context) error {
 	}
 	hasReturn := md.ReturnType != smartcontract.VoidType
 	if !hasReturn {
-		ic.VM.Estack().PushVal(stackitem.Null{})
+		ic.VM.Estack().PushItem(stackitem.Null{})
 	}
 	return callInternal(ic, cs, method, fs, hasReturn, args)
 }
@@ -116,7 +116,7 @@ func callExFromNative(ic *interop.Context, caller util.Uint160, cs *state.Contra
 	ic.VM.LoadScriptWithCallingHash(caller, cs.NEF.Script, cs.Hash, ic.VM.Context().GetCallFlags()&f, hasReturn, uint16(len(args)))
 	ic.VM.Context().NEF = &cs.NEF
 	for i := len(args) - 1; i >= 0; i-- {
-		ic.VM.Estack().PushVal(args[i])
+		ic.VM.Estack().PushItem(args[i])
 	}
 	// use Jump not Call here because context was loaded in LoadScript above.
 	ic.VM.Jump(ic.VM.Context(), md.Offset)

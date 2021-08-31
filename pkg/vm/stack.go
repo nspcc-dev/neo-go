@@ -170,6 +170,11 @@ func (s *Stack) Push(e Element) {
 	s.refs.Add(e.value)
 }
 
+// PushItem pushed an Item to the stack.
+func (s *Stack) PushItem(i stackitem.Item) {
+	s.Push(Element{i})
+}
+
 // PushVal pushes the given value on the stack. It will infer the
 // underlying Item to its corresponding type.
 func (s *Stack) PushVal(v interface{}) {
