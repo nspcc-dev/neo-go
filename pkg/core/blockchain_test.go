@@ -1,6 +1,7 @@
 package core
 
 import (
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"math/big"
@@ -34,6 +35,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/util/slice"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
@@ -41,6 +43,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap/zaptest"
 )
 
 func TestVerifyHeader(t *testing.T) {
@@ -1732,5 +1735,90 @@ func TestConfigNativeUpdateHistory(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		check(t, tc)
+	}
+}
+
+func TestBlockchain_InitWithIncompleteStateJump(t *testing.T) {
+	var (
+		stateSyncInterval        = 4
+		maxTraceable      uint32 = 6
+	)
+	spountCfg := func(c *config.Config) {
+		c.ProtocolConfiguration.RemoveUntraceableBlocks = true
+		c.ProtocolConfiguration.StateRootInHeader = true
+		c.ProtocolConfiguration.P2PStateExchangeExtensions = true
+		c.ProtocolConfiguration.StateSyncInterval = stateSyncInterval
+		c.ProtocolConfiguration.MaxTraceableBlocks = maxTraceable
+	}
+	bcSpout := newTestChainWithCustomCfg(t, spountCfg)
+	initBasicChain(t, bcSpout)
+
+	// reach next to the latest state sync point and pretend that we've just restored
+	stateSyncPoint := (int(bcSpout.BlockHeight())/stateSyncInterval + 1) * stateSyncInterval
+	for i := bcSpout.BlockHeight() + 1; i <= uint32(stateSyncPoint); i++ {
+		require.NoError(t, bcSpout.AddBlock(bcSpout.newBlock()))
+	}
+	require.Equal(t, uint32(stateSyncPoint), bcSpout.BlockHeight())
+	b := bcSpout.newBlock()
+	require.NoError(t, bcSpout.AddHeaders(&b.Header))
+
+	// put storage items with STTemp prefix
+	batch := bcSpout.dao.Store.Batch()
+	bcSpout.dao.Store.Seek(storage.STStorage.Bytes(), func(k, v []byte) {
+		key := slice.Copy(k)
+		key[0] = storage.STTempStorage.Bytes()[0]
+		value := slice.Copy(v)
+		batch.Put(key, value)
+	})
+	require.NoError(t, bcSpout.dao.Store.PutBatch(batch))
+
+	checkNewBlockchainErr := func(t *testing.T, cfg func(c *config.Config), store storage.Store, shouldFail bool) {
+		unitTestNetCfg, err := config.Load("../../config", testchain.Network())
+		require.NoError(t, err)
+		cfg(&unitTestNetCfg)
+		log := zaptest.NewLogger(t)
+		_, err = NewBlockchain(store, unitTestNetCfg.ProtocolConfiguration, log)
+		if shouldFail {
+			require.Error(t, err)
+		} else {
+			require.NoError(t, err)
+		}
+	}
+	boltCfg := func(c *config.Config) {
+		spountCfg(c)
+		c.ProtocolConfiguration.KeepOnlyLatestState = true
+	}
+	// manually store statejump stage to check statejump recover process
+	t.Run("invalid RemoveUntraceableBlocks setting", func(t *testing.T) {
+		require.NoError(t, bcSpout.dao.Store.Put(storage.SYSStateJumpStage.Bytes(), []byte{byte(stateJumpStarted)}))
+		checkNewBlockchainErr(t, func(c *config.Config) {
+			boltCfg(c)
+			c.ProtocolConfiguration.RemoveUntraceableBlocks = false
+		}, bcSpout.dao.Store, true)
+	})
+	t.Run("invalid state jump stage format", func(t *testing.T) {
+		require.NoError(t, bcSpout.dao.Store.Put(storage.SYSStateJumpStage.Bytes(), []byte{0x01, 0x02}))
+		checkNewBlockchainErr(t, boltCfg, bcSpout.dao.Store, true)
+	})
+	t.Run("missing state sync point", func(t *testing.T) {
+		require.NoError(t, bcSpout.dao.Store.Put(storage.SYSStateJumpStage.Bytes(), []byte{byte(stateJumpStarted)}))
+		checkNewBlockchainErr(t, boltCfg, bcSpout.dao.Store, true)
+	})
+	t.Run("invalid state sync point", func(t *testing.T) {
+		require.NoError(t, bcSpout.dao.Store.Put(storage.SYSStateJumpStage.Bytes(), []byte{byte(stateJumpStarted)}))
+		point := make([]byte, 4)
+		binary.LittleEndian.PutUint32(point, uint32(len(bcSpout.headerHashes)))
+		require.NoError(t, bcSpout.dao.Store.Put(storage.SYSStateSyncPoint.Bytes(), point))
+		checkNewBlockchainErr(t, boltCfg, bcSpout.dao.Store, true)
+	})
+	for _, stage := range []stateJumpStage{stateJumpStarted, oldStorageItemsRemoved, newStorageItemsAdded, genesisStateRemoved, 0x03} {
+		t.Run(fmt.Sprintf("state jump stage %d", stage), func(t *testing.T) {
+			require.NoError(t, bcSpout.dao.Store.Put(storage.SYSStateJumpStage.Bytes(), []byte{byte(stage)}))
+			point := make([]byte, 4)
+			binary.LittleEndian.PutUint32(point, uint32(stateSyncPoint))
+			require.NoError(t, bcSpout.dao.Store.Put(storage.SYSStateSyncPoint.Bytes(), point))
+			shouldFail := stage == 0x03 // unknown stage
+			checkNewBlockchainErr(t, boltCfg, bcSpout.dao.Store, shouldFail)
+		})
 	}
 }
