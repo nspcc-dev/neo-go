@@ -1,6 +1,7 @@
 package statesync
 
 import (
+	"encoding/hex"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/internal/random"
@@ -101,4 +102,22 @@ func TestPool_GetBatch(t *testing.T) {
 	t.Run("items count limit", func(t *testing.T) {
 		check(t, 5, 5)
 	})
+}
+
+func TestPool_UpdateUsingSliceFromPool(t *testing.T) {
+	mp := NewPool()
+	p1, _ := hex.DecodeString("0f0a0f0f0f0f0f0f0104020b02080c0a06050e070b050404060206060d07080602030b04040b050e040406030f0708060c05")
+	p2, _ := hex.DecodeString("0f0a0f0f0f0f0f0f01040a0b000f04000b03090b02090b0e040f0d0b060d070e0b0b090b0906080602060c0d0f0e0d04070e")
+	p3, _ := hex.DecodeString("0f0a0f0f0f0f0f0f01040b010d01080f050f000a0d0e08060c040b050800050904060f050807080a080c07040d0107080007")
+	h, _ := util.Uint256DecodeStringBE("57e197679ef031bf2f0b466b20afe3f67ac04dcff80a1dc4d12dd98dd21a2511")
+	mp.Add(h, p1)
+	mp.Add(h, p2)
+	mp.Add(h, p3)
+
+	toBeRemoved, ok := mp.TryGet(h)
+	require.True(t, ok)
+
+	mp.Update(map[util.Uint256][][]byte{h: toBeRemoved}, nil)
+	// test that all items were successfully removed.
+	require.Equal(t, 0, len(mp.GetAll()))
 }

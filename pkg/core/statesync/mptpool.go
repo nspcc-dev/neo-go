@@ -37,7 +37,10 @@ func (mp *Pool) TryGet(hash util.Uint256) ([][]byte, bool) {
 	defer mp.lock.RUnlock()
 
 	paths, ok := mp.hashes[hash]
-	return paths, ok
+	// need to copy here, because we can modify existing array of paths inside the pool.
+	res := make([][]byte, len(paths))
+	copy(res, paths)
+	return res, ok
 }
 
 // GetAll returns all MPT nodes with the corresponding paths from the pool.
