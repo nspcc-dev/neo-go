@@ -140,6 +140,9 @@ where:
   [Unlock Wallet Configuration](#Unlock-Wallet-Configuration) section for 
   structure details.
 
+Please, refer to the [Notary module documentation](./notary.md#NeoGo-Notary-service) for
+details on module features.
+
 ##### Metrics Services Configuration
 
 Metrics services configuration describes options for metrics services (pprof,

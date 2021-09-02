@@ -20,6 +20,7 @@ Currently supported events:
  * transaction executed
    Contents: application execution result.
    Filters: VM state.
+ * new/removed P2P notary request (if `P2PSigExtensions` are enabled)
 
 Filters use conjunctional logic.
 
@@ -66,6 +67,10 @@ Recognized stream names:
  * `transaction_executed`
    Filter: `state` field containing `HALT` or `FAULT` string for successful
    and failed executions respectively.
+ * `notary_request_event`
+   Filter: `sender` field containing string with hex-encoded Uint160 (LE
+   representation) for notary request's `Sender` and/or `signer` in the same
+   format for one of main transaction's `Signers`.
 
 Response: returns subscription ID (string) as a result. This ID can be used to
 cancel this subscription and has no meaning other than that.
@@ -411,6 +416,105 @@ Example:
       }
    ],
    "jsonrpc" : "2.0"
+}
+```
+
+### `notary_request_event` notification
+
+Contains two parameters: event type which could be one of "added" or "removed" and
+added (or removed) notary request.
+
+Example:
+
+```
+{
+   "jsonrpc" : "2.0",
+   "method" : "notary_request_event",
+   "params" : [
+      {
+         "notaryrequest" : {
+            "Witness" : {
+               "verification" : "DCECs2Ir9AF73+MXxYrtX0x1PyBrfbiWBG+n13S7xL9/jcJBVuezJw==",
+               "invocation" : "DECWLkFhNqBMCewLxjAWiXXA1YE/GmX6EWmIRM17F9lwwpXyWtzp+hkxvJNWHpDlslDvpXizGiB/YBd05kadXlSv"
+            },
+            "fallbacktx" : {
+               "validuntilblock" : 115,
+               "attributes" : [
+                  {
+                     "type" : "NotValidBefore",
+                     "height" : 65
+                  },
+                  {
+                     "type" : "Conflicts",
+                     "hash" : "0x03c564ed28ba3d50beb1a52dcb751b929e1d747281566bd510363470be186bc0"
+                  },
+                  {
+                     "type" : "NotaryAssisted",
+                     "nkeys" : 0
+                  }
+               ],
+               "sender" : "NRNp25VPHahL3umVxBcMLuEENGZR9cHxtc",
+               "size" : 291,
+               "netfee" : "200000000",
+               "witnesses" : [
+                  {
+                     "invocation" : "DEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+                     "verification" : ""
+                  },
+                  {
+                     "invocation" : "DEBnVePpwnsM54K72RmxZR8cWTGxQveJ1cAdd3/zQUh6KVDnj+G5F8AI6gYlbnEK5qJwP40WfGWlmy3A8mYHGVLm",
+                     "verification" : "DCECs2Ir9AF73+MXxYrtX0x1PyBrfbiWBG+n13S7xL9/jcJBVuezJw=="
+                  }
+               ],
+               "nonce" : 0,
+               "sysfee" : "0",
+               "signers" : [
+                  {
+                     "scopes" : "None",
+                     "account" : "0xc1e14f19c3e60d0b9244d06dd7ba9b113135ec3b"
+                  },
+                  {
+                     "account" : "0xb248508f4ef7088e10c48f14d04be3272ca29eee",
+                     "scopes" : "None"
+                  }
+               ],
+               "version" : 0,
+               "hash" : "0x5eb5f89d04648d43ba7563130e8bfd1710392ab97cba8e35857aed4206db3643",
+               "script" : "QA=="
+            },
+            "maintx" : {
+               "sender" : "Nhfg3TbpwogLvDGVvAvqyThbsHgoSUKwtn",
+               "attributes" : [
+                  {
+                     "nkeys" : 1,
+                     "type" : "NotaryAssisted"
+                  }
+               ],
+               "validuntilblock" : 115,
+               "witnesses" : [
+                  {
+                     "invocation" : "AQQH",
+                     "verification" : "AwYJ"
+                  }
+               ],
+               "netfee" : "0",
+               "size" : 62,
+               "version" : 0,
+               "signers" : [
+                  {
+                     "scopes" : "None",
+                     "account" : "0xb248508f4ef7088e10c48f14d04be3272ca29eee"
+                  }
+               ],
+               "sysfee" : "0",
+               "nonce" : 1,
+               "script" : "QA==",
+               "hash" : "0x03c564ed28ba3d50beb1a52dcb751b929e1d747281566bd510363470be186bc0"
+            }
+         },
+         "type" : "added"
+      }
+   ]
 }
 ```
 
