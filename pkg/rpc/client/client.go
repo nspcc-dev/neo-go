@@ -50,6 +50,8 @@ type Options struct {
 	CACert         string
 	DialTimeout    time.Duration
 	RequestTimeout time.Duration
+	// Limit total number of connections per host. No limit by default.
+	MaxConnsPerHost int
 }
 
 // cache stores cache values for the RPC client methods.
@@ -86,6 +88,7 @@ func New(ctx context.Context, endpoint string, opts Options) (*Client, error) {
 			DialContext: (&net.Dialer{
 				Timeout: opts.DialTimeout,
 			}).DialContext,
+			MaxConnsPerHost: opts.MaxConnsPerHost,
 		},
 		Timeout: opts.RequestTimeout,
 	}
