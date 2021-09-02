@@ -48,6 +48,10 @@ var (
 		Name:  "rpc, r",
 		Usage: "RPC node address",
 	}
+	r14Flag = cli.StringFlag{
+		Name:  "remark14",
+		Usage: "Remark14 field",
+	}
 	timeoutFlag = cli.DurationFlag{
 		Name:  "timeout, t",
 		Usage: "Timeout for the operation",
@@ -188,6 +192,7 @@ func NewCommands() []cli.Command {
 				Flags: []cli.Flag{
 					walletPathFlag,
 					rpcFlag,
+					r14Flag,
 					timeoutFlag,
 					outFlag,
 					fromAddrFlag,
@@ -487,6 +492,8 @@ func transferAsset(ctx *cli.Context) error {
 		return cli.NewExitError(fmt.Errorf("wallet contains no account for '%s'", from), 1)
 	}
 
+	remark14 := ctx.String("remark14")
+
 	asset, err := getAssetID(ctx.String("asset"))
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("invalid asset id: %v", err), 1)
@@ -515,6 +522,13 @@ func transferAsset(ctx *cli.Context) error {
 	tx := transaction.NewContractTX()
 	if err := request.AddInputsAndUnspentsToTx(tx, fromFlag.String(), asset, amount, c); err != nil {
 		return cli.NewExitError(err, 1)
+	}
+
+	if remark14 != "" {
+		tx.Attributes = append(tx.Attributes, transaction.Attribute{
+			Usage: transaction.Remark14,
+			Data:  []byte(remark14),
+		})
 	}
 
 	toFlag := ctx.Generic("to").(*flags.Address)
