@@ -201,18 +201,25 @@ func TestBlockedAccounts(t *testing.T) {
 		neoHash := chain.contracts.NEO.Metadata().Hash
 		res, err := invokeContractMethodGeneric(chain, 100000000, policyHash, "blockAccount", true, neoHash.BytesBE())
 		require.NoError(t, err)
+		checkFAULTState(t, res)
+
+		cs, _ := getTestContractState(chain)
+		require.NoError(t, chain.contracts.Management.PutContractState(chain.dao, cs))
+
+		res, err = invokeContractMethodGeneric(chain, 100000000, policyHash, "blockAccount", true, cs.Hash.BytesBE())
+		require.NoError(t, err)
 		checkResult(t, res, stackitem.NewBool(true))
 
-		res, err = invokeContractMethodGeneric(chain, 100000000, neoHash, "balanceOf", true, account.BytesBE())
+		res, err = invokeContractMethod(chain, 100000000, cs.Hash, "justReturn")
 		require.NoError(t, err)
 		checkFAULTState(t, res)
 
-		res, err = invokeContractMethodGeneric(chain, 100000000, policyHash, "unblockAccount", true, neoHash.BytesBE())
+		res, err = invokeContractMethodGeneric(chain, 100000000, policyHash, "unblockAccount", true, cs.Hash.BytesBE())
 		require.NoError(t, err)
 		checkResult(t, res, stackitem.NewBool(true))
 
-		res, err = invokeContractMethodGeneric(chain, 100000000, neoHash, "balanceOf", true, account.BytesBE())
+		res, err = invokeContractMethod(chain, 100000000, cs.Hash, "justReturn")
 		require.NoError(t, err)
-		checkResult(t, res, stackitem.Make(0))
+		checkResult(t, res, stackitem.Null{})
 	})
 }
