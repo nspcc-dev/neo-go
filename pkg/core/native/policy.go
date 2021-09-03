@@ -319,6 +319,11 @@ func (p *Policy) blockAccount(ic *interop.Context, args []stackitem.Item) stacki
 		panic("invalid committee signature")
 	}
 	hash := toUint160(args[0])
+	for i := range ic.Natives {
+		if ic.Natives[i].Metadata().Hash == hash {
+			panic("cannot block native contract")
+		}
+	}
 	if p.IsBlockedInternal(ic.DAO, hash) {
 		return stackitem.NewBool(false)
 	}
