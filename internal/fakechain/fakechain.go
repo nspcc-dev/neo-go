@@ -22,6 +22,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
+	uatomic "go.uber.org/atomic"
 )
 
 // FakeChain implements Blockchainer interface, but does not provide real functionality.
@@ -45,9 +46,11 @@ type FakeChain struct {
 
 // FakeStateSync implements StateSync interface.
 type FakeStateSync struct {
-	IsActiveFlag      bool
-	IsInitializedFlag bool
+	IsActiveFlag      uatomic.Bool
+	IsInitializedFlag uatomic.Bool
 	InitFunc          func(h uint32) error
+	TraverseFunc      func(root util.Uint256, process func(node mpt.Node, nodeBytes []byte) bool) error
+	AddMPTNodesFunc   func(nodes [][]byte) error
 }
 
 // NewFakeChain returns new FakeChain structure.
@@ -461,7 +464,10 @@ func (s *FakeStateSync) AddHeaders(...*block.Header) error {
 }
 
 // AddMPTNodes implements StateSync interface.
-func (s *FakeStateSync) AddMPTNodes([][]byte) error {
+func (s *FakeStateSync) AddMPTNodes(nodes [][]byte) error {
+	if s.AddMPTNodesFunc != nil {
+		return s.AddMPTNodesFunc(nodes)
+	}
 	panic("TODO")
 }
 
@@ -471,11 +477,11 @@ func (s *FakeStateSync) BlockHeight() uint32 {
 }
 
 // IsActive implements StateSync interface.
-func (s *FakeStateSync) IsActive() bool { return s.IsActiveFlag }
+func (s *FakeStateSync) IsActive() bool { return s.IsActiveFlag.Load() }
 
 // IsInitialized implements StateSync interface.
 func (s *FakeStateSync) IsInitialized() bool {
-	return s.IsInitializedFlag
+	return s.IsInitializedFlag.Load()
 }
 
 // Init implements StateSync interface.
@@ -496,6 +502,9 @@ func (s *FakeStateSync) NeedMPTNodes() bool {
 
 // Traverse implements StateSync interface.
 func (s *FakeStateSync) Traverse(root util.Uint256, process func(node mpt.Node, nodeBytes []byte) bool) error {
+	if s.TraverseFunc != nil {
+		return s.TraverseFunc(root, process)
+	}
 	panic("TODO")
 }
 

@@ -827,18 +827,23 @@ func (s *Server) handleGetMPTDataCmd(p Peer, inv *payload.MPTInventory) error {
 	}
 	resp := payload.MPTData{}
 	capLeft := payload.MaxSize - 8 // max(io.GetVarSize(len(resp.Nodes)))
+	added := make(map[util.Uint256]struct{})
 	for _, h := range inv.Hashes {
 		if capLeft <= 2 { // at least 1 byte for len(nodeBytes) and 1 byte for node type
 			break
 		}
 		err := s.stateSync.Traverse(h,
-			func(_ mpt.Node, node []byte) bool {
+			func(n mpt.Node, node []byte) bool {
+				if _, ok := added[n.Hash()]; ok {
+					return false
+				}
 				l := len(node)
 				size := l + io.GetVarSize(l)
 				if size > capLeft {
 					return true
 				}
 				resp.Nodes = append(resp.Nodes, node)
+				added[n.Hash()] = struct{}{}
 				capLeft -= size
 				return false
 			})
