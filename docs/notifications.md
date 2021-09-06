@@ -9,18 +9,20 @@ receive them as JSON-RPC notifications from the server.
 ## Events
 Currently supported events:
  * new block added
-   Contents: block.
-   Filters: primary ID.
+
+   Contents: block. Filters: primary ID.
  * new transaction in the block
-   Contents: transaction.
-   Filters: sender and signer.
+
+   Contents: transaction. Filters: sender and signer.
  * notification generated during execution
-   Contents: container hash, contract script hash, stack item.
-   Filters: contract script hash.
+
+   Contents: container hash, contract script hash, stack item. Filters: contract script hash.
  * transaction executed
-   Contents: application execution result.
-   Filters: VM state.
+
+   Contents: application execution result. Filters: VM state.
  * new/removed P2P notary request (if `P2PSigExtensions` are enabled)
+
+   Contents: P2P notary request. Filters: request sender and main tx signer.
 
 Filters use conjunctional logic.
 

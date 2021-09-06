@@ -21,13 +21,14 @@ which would yield the response:
 
 ```json
 {
+  "result" : {
+    "useragent" : "/NEO-GO:0.97.2/",
+    "tcpport" : 10333,
+    "network" : 860833102,
+    "nonce" : 105745208
+  },
   "jsonrpc" : "2.0",
-    "id" : 1,
-    "result" : {
-      "port" : 20333,
-      "useragent" : "/NEO-GO:0.36.0-dev/",
-      "nonce" : 9318417
-    }
+  "id" : 1
 }
 ```
 ### Supported methods
@@ -81,11 +82,6 @@ in returning it.
 It's possible to use `invokefunction` not only with contract scripthash, but also 
 with contract name (for native contracts) or contract ID (for all contracts). This
 feature is not supported by the C# node.
-
-##### `getunclaimedgas`
-
-It's possible to call this method for any address with neo-go, unlike with C#
-node where it only works for addresses from opened wallet.
 
 ##### `getcontractstate`
 

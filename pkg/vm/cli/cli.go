@@ -68,12 +68,6 @@ var commands = []*ishell.Cmd{
 		Func:     handleXStack,
 	},
 	{
-		Name:     "astack",
-		Help:     "Show alt stack contents",
-		LongHelp: "Show alt stack contents",
-		Func:     handleXStack,
-	},
-	{
 		Name:     "istack",
 		Help:     "Show invocation stack contents",
 		LongHelp: "Show invocation stack contents",

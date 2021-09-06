@@ -1,4 +1,4 @@
-# NEO-GO consensus node
+# NeoGo consensus node
 
 NeoGo node can act as a consensus node. A consensus node differs from regular
 one in that it participates in block acceptance process using dBFT
@@ -67,8 +67,9 @@ systemd service file to run automatically on system startup.
 Notice that the default configuration has RPC and Prometheus services enabled,
 you can turn them off for security purposes or restrict access to them with a
 firewall. Carefuly review all other configuration options to see if they meet
-your expectations. Details on various configuration options (as well as CLI
-commands) are provided [here](cli.md).
+your expectations. Details on various configuration options are provided in the
+[node configuration documentation](node-configuration.md), CLI commands are
+provided in the [CLI documentation](cli.md).
 
 ### Registration
 
@@ -179,7 +180,7 @@ Examples can be found at `config/protocol.privnet.docker.one.yml` (`two`, `three
        the number of nodes participating in consensus.
        This requirement is needed for nodes to correctly
        start and can be weakened in future.
-    3. Set you `Address`, `Port` and `RPC.Port` to the appropriate values.
+    3. Set `Address`, `Port` and `RPC.Port` to the appropriate values.
        They must differ between nodes.
     4. If you start binary from the same directory, you will probably want to change
        `DataDirectoryPath` from the `LevelDBOptions`. 
