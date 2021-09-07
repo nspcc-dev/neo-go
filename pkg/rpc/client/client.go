@@ -119,8 +119,12 @@ func (c *Client) Init() error {
 	if err != nil {
 		return fmt.Errorf("failed to get network magic: %w", err)
 	}
-	c.network = version.Magic
-	c.stateRootInHeader = version.StateRootInHeader
+	c.network = version.Protocol.Network
+	c.stateRootInHeader = version.Protocol.StateRootInHeader
+	if version.Protocol.MillisecondsPerBlock == 0 {
+		c.network = version.Magic
+		c.stateRootInHeader = version.StateRootInHeader
+	}
 	neoContractHash, err := c.GetContractStateByAddressOrName(nativenames.Neo)
 	if err != nil {
 		return fmt.Errorf("failed to get NEO contract scripthash: %w", err)

@@ -690,6 +690,17 @@ var rpcTestCases = map[string][]rpcTestCase{
 				resp, ok := ver.(*result.Version)
 				require.True(t, ok)
 				require.Equal(t, "/NEO-GO:/", resp.UserAgent)
+
+				cfg := e.chain.GetConfig()
+				require.EqualValues(t, address.NEO3Prefix, resp.Protocol.AddressVersion)
+				require.EqualValues(t, cfg.Magic, resp.Protocol.Network)
+				require.EqualValues(t, cfg.SecondsPerBlock*1000, resp.Protocol.MillisecondsPerBlock)
+				require.EqualValues(t, cfg.MaxTraceableBlocks, resp.Protocol.MaxTraceableBlocks)
+				require.EqualValues(t, cfg.MaxValidUntilBlockIncrement, resp.Protocol.MaxValidUntilBlockIncrement)
+				require.EqualValues(t, cfg.MaxTransactionsPerBlock, resp.Protocol.MaxTransactionsPerBlock)
+				require.EqualValues(t, cfg.MemPoolSize, resp.Protocol.MemoryPoolMaxTransactions)
+				require.EqualValues(t, cfg.InitialGASSupply, resp.Protocol.InitialGasDistribution)
+				require.EqualValues(t, false, resp.Protocol.StateRootInHeader)
 			},
 		},
 	},

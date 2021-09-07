@@ -520,12 +520,25 @@ func (s *Server) getVersion(_ request.Params) (interface{}, *response.Error) {
 	if err != nil {
 		return nil, response.NewInternalServerError("Cannot fetch tcp port", err)
 	}
+
+	cfg := s.chain.GetConfig()
 	return result.Version{
 		Magic:             s.network,
 		TCPPort:           port,
 		Nonce:             s.coreServer.ID(),
 		UserAgent:         s.coreServer.UserAgent,
-		StateRootInHeader: s.chain.GetConfig().StateRootInHeader,
+		StateRootInHeader: cfg.StateRootInHeader,
+		Protocol: result.Protocol{
+			AddressVersion:              address.NEO3Prefix,
+			Network:                     cfg.Magic,
+			MillisecondsPerBlock:        cfg.SecondsPerBlock * 1000,
+			MaxTraceableBlocks:          cfg.MaxTraceableBlocks,
+			MaxValidUntilBlockIncrement: cfg.MaxValidUntilBlockIncrement,
+			MaxTransactionsPerBlock:     cfg.MaxTransactionsPerBlock,
+			MemoryPoolMaxTransactions:   cfg.MemPoolSize,
+			InitialGasDistribution:      cfg.InitialGASSupply,
+			StateRootInHeader:           cfg.StateRootInHeader,
+		},
 	}, nil
 }
 
