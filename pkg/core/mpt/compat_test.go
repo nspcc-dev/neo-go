@@ -38,11 +38,14 @@ func prepareMPTCompat() *Trie {
 // TestCompatibility contains tests present in C# implementation.
 // https://github.com/neo-project/neo-modules/blob/master/tests/Neo.Plugins.StateService.Tests/MPT/UT_MPTTrie.cs
 // There are some differences, though:
-// 1. In our implementation delete is silent, i.e. we do not return an error is the key is missing.
+// 1. In our implementation delete is silent, i.e. we do not return an error is the key is missing or empty.
 //    However, we do return error when contents of hash node are missing from the store
 //    (corresponds to exception in C# implementation).
-// 2. If `GetProof` key is missing from the trie, we return error, while C# node just returns empty proof
-//    with no exception.
+// 2. In our implementation put returns error if something goes wrong, while C# implementation throws
+//    an exception and returns nothing.
+// 3. In our implementation get does not immediately return error in case of an empty key. An error is returned
+//    only if value is missing from the storage. C# implementation checks that key is not empty and throws an error
+//    otherwice.
 func TestCompatibility(t *testing.T) {
 	mainTrie := prepareMPTCompat()
 
@@ -72,10 +75,11 @@ func TestCompatibility(t *testing.T) {
 
 		require.Equal(t, mainTrie.root.Hash(), tr.root.Hash())
 		require.Error(t, tr.Put(nil, []byte{0x01}))
-		require.NoError(t, tr.Put([]byte{0x01}, nil))
+		require.Error(t, tr.Put([]byte{0x01}, nil))
 		require.Error(t, tr.Put(make([]byte, MaxKeyLength+1), nil))
 		require.Error(t, tr.Put([]byte{0x01}, make([]byte, MaxValueLength+1)))
 		require.Equal(t, mainTrie.root.Hash(), tr.root.Hash())
+		require.NoError(t, tr.Put([]byte{0x01}, []byte{}))
 		require.NoError(t, tr.Put([]byte{0xac, 0x01}, []byte{0xab}))
 	})
 
@@ -328,6 +332,18 @@ func TestCompatibility(t *testing.T) {
 		require.NoError(t, tr1.Put([]byte{0x30}, []byte{0x03}))
 		tr1.Flush()
 		checkBatchSize(t, tr1, 7)
+	})
+
+	t.Run("EmptyValueIssue633", func(t *testing.T) {
+		tr := newFilledTrie(t,
+			[]byte{0x01}, []byte{})
+		tr.Flush()
+		checkBatchSize(t, tr, 2)
+
+		proof := testGetProof(t, tr, []byte{0x01}, 2)
+		value, ok := VerifyProof(tr.root.Hash(), []byte{0x01}, proof)
+		require.True(t, ok)
+		require.Equal(t, []byte{}, value)
 	})
 }
 

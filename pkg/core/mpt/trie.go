@@ -103,9 +103,9 @@ func (t *Trie) Put(key, value []byte) error {
 		return errors.New("key is too big")
 	} else if len(value) > MaxValueLength {
 		return errors.New("value is too big")
-	}
-	if len(value) == 0 {
-		return t.Delete(key)
+	} else if value == nil {
+		// (t *Trie).Delete should be used to remove value
+		return errors.New("value is nil")
 	}
 	path := toNibbles(key)
 	n := NewLeafNode(value)
