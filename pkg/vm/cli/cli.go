@@ -404,6 +404,10 @@ func handleRun(c *ishell.Context) {
 			v.Estack().PushVal(params[i])
 		}
 		if runCurrent {
+			if !v.Ready() {
+				c.Err(fmt.Errorf("no program loaded"))
+				return
+			}
 			v.Jump(v.Context(), offset)
 			if initMD := m.ABI.GetMethod(manifest.MethodInit, 0); initMD != nil {
 				v.Call(v.Context(), initMD.Offset)
