@@ -2,6 +2,7 @@ package vm
 
 import (
 	"encoding/binary"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math/big"
@@ -276,6 +277,27 @@ func (c *Context) String() string {
 // IsDeployed returns whether this context contains deployed contract.
 func (c *Context) IsDeployed() bool {
 	return c.NEF != nil
+}
+
+// DumpStaticSlot returns json formatted representation of the given slot.
+func (c *Context) DumpStaticSlot() string {
+	return dumpSlot(c.static)
+}
+
+// DumpLocalSlot returns json formatted representation of the given slot.
+func (c *Context) DumpLocalSlot() string {
+	return dumpSlot(c.local)
+}
+
+// DumpArgumentsSlot returns json formatted representation of the given slot.
+func (c *Context) DumpArgumentsSlot() string {
+	return dumpSlot(c.arguments)
+}
+
+// dumpSlot returns json formatted representation of the given slot.
+func dumpSlot(s *Slot) string {
+	b, _ := json.MarshalIndent(s, "", "    ")
+	return string(b)
 }
 
 // getContextScriptHash returns script hash of the invocation stack element
