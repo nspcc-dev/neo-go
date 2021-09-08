@@ -12,37 +12,46 @@ return a more pretty printed response from the server instead of
 a raw hex string.
 
 TODO:
-	Add missing methods to client.
 	Allow client to connect using client cert.
 	More in-depth examples.
 
 Supported methods
 
+	calculatenetworkfee
 	getapplicationlog
 	getbestblockhash
 	getblock
 	getblockcount
 	getblockhash
 	getblockheader
-	getblocksysfee
+	getblockheadercount
+	getcommittee
 	getconnectioncount
 	getcontractstate
+	getnativecontracts
 	getnep17balances
 	getnep17transfers
 	getpeers
 	getrawmempool
 	getrawtransaction
+	getstateheight
 	getstorage
 	gettransactionheight
 	getunclaimedgas
-	getvalidators
+	getnextblockvalidators
 	getversion
-	invoke
 	invokefunction
 	invokescript
+	invokecontractverify
 	sendrawtransaction
 	submitblock
+	submitoracleresponse
 	validateaddress
+
+Extensions:
+
+	getblocksysfee
+	submitnotaryrequest
 
 Unsupported methods
 

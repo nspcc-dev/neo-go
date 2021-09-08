@@ -19,6 +19,12 @@ func Example() {
 		os.Exit(1)
 	}
 
+	err = c.Init()
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+
 	if err := c.Ping(); err != nil {
 		fmt.Println(err)
 		os.Exit(1)

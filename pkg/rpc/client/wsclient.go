@@ -38,8 +38,8 @@ type WSClient struct {
 }
 
 // Notification represents server-generated notification for client subscriptions.
-// Value can be one of block.Block, result.ApplicationLog, result.NotificationEvent
-// or transaction.Transaction based on Type.
+// Value can be one of block.Block, state.AppExecResult, state.NotificationEvent
+// transaction.Transaction or response.NotaryRequestEvent based on Type.
 type Notification struct {
 	Type  response.EventID
 	Value interface{}
