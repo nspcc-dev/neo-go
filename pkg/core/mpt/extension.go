@@ -98,3 +98,9 @@ func (e *ExtensionNode) UnmarshalJSON(data []byte) error {
 	}
 	return errors.New("expected extension node")
 }
+
+// Clone implements Node interface.
+func (e *ExtensionNode) Clone() Node {
+	res := *e
+	return &res
+}

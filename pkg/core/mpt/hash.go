@@ -10,6 +10,7 @@ import (
 // HashNode represents MPT's hash node.
 type HashNode struct {
 	BaseNode
+	Collapsed bool
 }
 
 var _ Node = (*HashNode)(nil)
@@ -75,4 +76,11 @@ func (h *HashNode) UnmarshalJSON(data []byte) error {
 		return nil
 	}
 	return errors.New("expected hash node")
+}
+
+// Clone implements Node interface.
+func (h *HashNode) Clone() Node {
+	res := *h
+	res.Collapsed = false
+	return &res
 }

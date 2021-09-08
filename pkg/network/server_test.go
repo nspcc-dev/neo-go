@@ -2,6 +2,7 @@ package network
 
 import (
 	"errors"
+	"fmt"
 	"math/big"
 	"net"
 	"strconv"
@@ -16,6 +17,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
+	"github.com/nspcc-dev/neo-go/pkg/core/mpt"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/network/capability"
 	"github.com/nspcc-dev/neo-go/pkg/network/payload"
@@ -46,7 +48,10 @@ func (f *fakeConsensus) OnTransaction(tx *transaction.Transaction)     { f.txs =
 func (f *fakeConsensus) GetPayload(h util.Uint256) *payload.Extensible { panic("implement me") }
 
 func TestNewServer(t *testing.T) {
-	bc := &fakechain.FakeChain{}
+	bc := &fakechain.FakeChain{ProtocolConfiguration: config.ProtocolConfiguration{
+		P2PStateExchangeExtensions: true,
+		StateRootInHeader:          true,
+	}}
 	s, err := newServerFromConstructors(ServerConfig{}, bc, nil, newFakeTransp, newFakeConsensus, newTestDiscovery)
 	require.Error(t, err)
 
@@ -733,6 +738,139 @@ func TestInv(t *testing.T) {
 	})
 }
 
+func TestHandleGetMPTData(t *testing.T) {
+	t.Run("P2PStateExchange extensions off", func(t *testing.T) {
+		s := startTestServer(t)
+		p := newLocalPeer(t, s)
+		p.handshaked = true
+		msg := NewMessage(CMDGetMPTData, &payload.MPTInventory{
+			Hashes: []util.Uint256{{1, 2, 3}},
+		})
+		require.Error(t, s.handleMessage(p, msg))
+	})
+
+	t.Run("KeepOnlyLatestState on", func(t *testing.T) {
+		s := startTestServer(t)
+		s.chain.(*fakechain.FakeChain).P2PStateExchangeExtensions = true
+		s.chain.(*fakechain.FakeChain).KeepOnlyLatestState = true
+		p := newLocalPeer(t, s)
+		p.handshaked = true
+		msg := NewMessage(CMDGetMPTData, &payload.MPTInventory{
+			Hashes: []util.Uint256{{1, 2, 3}},
+		})
+		require.Error(t, s.handleMessage(p, msg))
+	})
+
+	t.Run("good", func(t *testing.T) {
+		s := startTestServer(t)
+		s.chain.(*fakechain.FakeChain).P2PStateExchangeExtensions = true
+		var recvResponse atomic.Bool
+		r1 := random.Uint256()
+		r2 := random.Uint256()
+		r3 := random.Uint256()
+		node := []byte{1, 2, 3}
+		s.stateSync.(*fakechain.FakeStateSync).TraverseFunc = func(root util.Uint256, process func(node mpt.Node, nodeBytes []byte) bool) error {
+			if !(root.Equals(r1) || root.Equals(r2)) {
+				t.Fatal("unexpected root")
+			}
+			require.False(t, process(mpt.NewHashNode(r3), node))
+			return nil
+		}
+		found := &payload.MPTData{
+			Nodes: [][]byte{node}, // no duplicates expected
+		}
+		p := newLocalPeer(t, s)
+		p.handshaked = true
+		p.messageHandler = func(t *testing.T, msg *Message) {
+			switch msg.Command {
+			case CMDMPTData:
+				require.Equal(t, found, msg.Payload)
+				recvResponse.Store(true)
+			}
+		}
+		hs := []util.Uint256{r1, r2}
+		s.testHandleMessage(t, p, CMDGetMPTData, payload.NewMPTInventory(hs))
+
+		require.Eventually(t, recvResponse.Load, time.Second, time.Millisecond)
+	})
+}
+
+func TestHandleMPTData(t *testing.T) {
+	t.Run("P2PStateExchange extensions off", func(t *testing.T) {
+		s := startTestServer(t)
+		p := newLocalPeer(t, s)
+		p.handshaked = true
+		msg := NewMessage(CMDMPTData, &payload.MPTData{
+			Nodes: [][]byte{{1, 2, 3}},
+		})
+		require.Error(t, s.handleMessage(p, msg))
+	})
+
+	t.Run("good", func(t *testing.T) {
+		s := startTestServer(t)
+		expected := [][]byte{{1, 2, 3}, {2, 3, 4}}
+		s.chain.(*fakechain.FakeChain).P2PStateExchangeExtensions = true
+		s.stateSync = &fakechain.FakeStateSync{
+			AddMPTNodesFunc: func(nodes [][]byte) error {
+				require.Equal(t, expected, nodes)
+				return nil
+			},
+		}
+
+		p := newLocalPeer(t, s)
+		p.handshaked = true
+		msg := NewMessage(CMDMPTData, &payload.MPTData{
+			Nodes: expected,
+		})
+		require.NoError(t, s.handleMessage(p, msg))
+	})
+}
+
+func TestRequestMPTNodes(t *testing.T) {
+	s := startTestServer(t)
+
+	var actual []util.Uint256
+	p := newLocalPeer(t, s)
+	p.handshaked = true
+	p.messageHandler = func(t *testing.T, msg *Message) {
+		if msg.Command == CMDGetMPTData {
+			actual = append(actual, msg.Payload.(*payload.MPTInventory).Hashes...)
+		}
+	}
+	s.register <- p
+	s.register <- p // ensure previous send was handled
+
+	t.Run("no hashes, no message", func(t *testing.T) {
+		actual = nil
+		require.NoError(t, s.requestMPTNodes(p, nil))
+		require.Nil(t, actual)
+	})
+	t.Run("good, small", func(t *testing.T) {
+		actual = nil
+		expected := []util.Uint256{random.Uint256(), random.Uint256()}
+		require.NoError(t, s.requestMPTNodes(p, expected))
+		require.Equal(t, expected, actual)
+	})
+	t.Run("good, exactly one chunk", func(t *testing.T) {
+		actual = nil
+		expected := make([]util.Uint256, payload.MaxMPTHashesCount)
+		for i := range expected {
+			expected[i] = random.Uint256()
+		}
+		require.NoError(t, s.requestMPTNodes(p, expected))
+		require.Equal(t, expected, actual)
+	})
+	t.Run("good, too large chunk", func(t *testing.T) {
+		actual = nil
+		expected := make([]util.Uint256, payload.MaxMPTHashesCount+1)
+		for i := range expected {
+			expected[i] = random.Uint256()
+		}
+		require.NoError(t, s.requestMPTNodes(p, expected))
+		require.Equal(t, expected[:payload.MaxMPTHashesCount], actual)
+	})
+}
+
 func TestRequestTx(t *testing.T) {
 	s := startTestServer(t)
 
@@ -897,5 +1035,46 @@ func TestVerifyNotaryRequest(t *testing.T) {
 		r := newNotaryRequest()
 		bc.NotaryDepositExpiration = r.FallbackTransaction.ValidUntilBlock + 1
 		require.NoError(t, verifyNotaryRequest(bc, nil, r))
+	})
+}
+
+func TestTryInitStateSync(t *testing.T) {
+	t.Run("module inactive", func(t *testing.T) {
+		s := startTestServer(t)
+		s.tryInitStateSync()
+	})
+
+	t.Run("module already initialized", func(t *testing.T) {
+		s := startTestServer(t)
+		ss := &fakechain.FakeStateSync{}
+		ss.IsActiveFlag.Store(true)
+		ss.IsInitializedFlag.Store(true)
+		s.stateSync = ss
+		s.tryInitStateSync()
+	})
+
+	t.Run("good", func(t *testing.T) {
+		s := startTestServer(t)
+		for _, h := range []uint32{10, 8, 7, 4, 11, 4} {
+			p := newLocalPeer(t, s)
+			p.handshaked = true
+			p.lastBlockIndex = h
+			s.peers[p] = true
+		}
+		p := newLocalPeer(t, s)
+		p.handshaked = false // one disconnected peer to check it won't be taken into attention
+		p.lastBlockIndex = 5
+		s.peers[p] = true
+		var expectedH uint32 = 8 // median peer
+
+		ss := &fakechain.FakeStateSync{InitFunc: func(h uint32) error {
+			if h != expectedH {
+				return fmt.Errorf("invalid height: expected %d, got %d", expectedH, h)
+			}
+			return nil
+		}}
+		ss.IsActiveFlag.Store(true)
+		s.stateSync = ss
+		s.tryInitStateSync()
 	})
 }

@@ -54,3 +54,6 @@ func (e EmptyNode) Type() NodeType {
 func (e EmptyNode) Bytes() []byte {
 	return nil
 }
+
+// Clone implements Node interface.
+func (EmptyNode) Clone() Node { return EmptyNode{} }

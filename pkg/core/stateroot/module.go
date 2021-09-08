@@ -13,6 +13,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/util/slice"
 	"go.uber.org/atomic"
 	"go.uber.org/zap"
 )
@@ -111,6 +112,66 @@ func (s *Module) Init(height uint32, enableRefCount bool) error {
 	s.currentLocal.Store(r.Root)
 	s.localHeight.Store(r.Index)
 	s.mpt = mpt.NewTrie(mpt.NewHashNode(r.Root), enableRefCount, s.Store)
+	return nil
+}
+
+// CleanStorage removes all MPT-related data from the storage (MPT nodes, validated stateroots)
+// except local stateroot for the current height and GC flag. This method is aimed to clean
+// outdated MPT data before state sync process can be started.
+// Note: this method is aimed to be called for genesis block only, an error is returned otherwice.
+func (s *Module) CleanStorage() error {
+	if s.localHeight.Load() != 0 {
+		return fmt.Errorf("can't clean MPT data for non-genesis block: expected local stateroot height 0, got %d", s.localHeight.Load())
+	}
+	gcKey := []byte{byte(storage.DataMPT), prefixGC}
+	gcVal, err := s.Store.Get(gcKey)
+	if err != nil {
+		return fmt.Errorf("failed to get GC flag: %w", err)
+	}
+	//
+	b := s.Store.Batch()
+	s.Store.Seek([]byte{byte(storage.DataMPT)}, func(k, _ []byte) {
+		// Must copy here, #1468.
+		key := slice.Copy(k)
+		b.Delete(key)
+	})
+	err = s.Store.PutBatch(b)
+	if err != nil {
+		return fmt.Errorf("failed to remove outdated MPT-reated items: %w", err)
+	}
+	err = s.Store.Put(gcKey, gcVal)
+	if err != nil {
+		return fmt.Errorf("failed to store GC flag: %w", err)
+	}
+	currentLocal := s.currentLocal.Load().(util.Uint256)
+	if !currentLocal.Equals(util.Uint256{}) {
+		err := s.addLocalStateRoot(s.Store, &state.MPTRoot{
+			Index: s.localHeight.Load(),
+			Root:  currentLocal,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to store current local stateroot: %w", err)
+		}
+	}
+	return nil
+}
+
+// JumpToState performs jump to the state specified by given stateroot index.
+func (s *Module) JumpToState(sr *state.MPTRoot, enableRefCount bool) error {
+	if err := s.addLocalStateRoot(s.Store, sr); err != nil {
+		return fmt.Errorf("failed to store local state root: %w", err)
+	}
+
+	data := make([]byte, 4)
+	binary.LittleEndian.PutUint32(data, sr.Index)
+	if err := s.Store.Put([]byte{byte(storage.DataMPT), prefixValidated}, data); err != nil {
+		return fmt.Errorf("failed to store validated height: %w", err)
+	}
+	s.validatedHeight.Store(sr.Index)
+
+	s.currentLocal.Store(sr.Root)
+	s.localHeight.Store(sr.Index)
+	s.mpt = mpt.NewTrie(mpt.NewHashNode(sr.Root), enableRefCount, s.Store)
 	return nil
 }
 

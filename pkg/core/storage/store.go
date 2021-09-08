@@ -8,13 +8,18 @@ import (
 
 // KeyPrefix constants.
 const (
-	DataBlock                      KeyPrefix = 0x01
-	DataTransaction                KeyPrefix = 0x02
-	DataMPT                        KeyPrefix = 0x03
-	STAccount                      KeyPrefix = 0x40
-	STNotification                 KeyPrefix = 0x4d
-	STContractID                   KeyPrefix = 0x51
-	STStorage                      KeyPrefix = 0x70
+	DataBlock       KeyPrefix = 0x01
+	DataTransaction KeyPrefix = 0x02
+	DataMPT         KeyPrefix = 0x03
+	STAccount       KeyPrefix = 0x40
+	STNotification  KeyPrefix = 0x4d
+	STContractID    KeyPrefix = 0x51
+	STStorage       KeyPrefix = 0x70
+	// STTempStorage is used to store contract storage items during state sync process
+	// in order not to mess up the previous state which has its own items stored by
+	// STStorage prefix. Once state exchange process is completed, all items with
+	// STStorage prefix will be replaced with STTempStorage-prefixed ones.
+	STTempStorage                  KeyPrefix = 0x71
 	STNEP17Transfers               KeyPrefix = 0x72
 	STNEP17TransferInfo            KeyPrefix = 0x73
 	IXHeaderHashList               KeyPrefix = 0x80
@@ -22,6 +27,7 @@ const (
 	SYSCurrentHeader               KeyPrefix = 0xc1
 	SYSStateSyncCurrentBlockHeight KeyPrefix = 0xc2
 	SYSStateSyncPoint              KeyPrefix = 0xc3
+	SYSStateJumpStage              KeyPrefix = 0xc4
 	SYSVersion                     KeyPrefix = 0xf0
 )
 

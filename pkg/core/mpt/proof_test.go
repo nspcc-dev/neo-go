@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func newProofTrie(t *testing.T) *Trie {
+func newProofTrie(t *testing.T, missingHashNode bool) *Trie {
 	l := NewLeafNode([]byte("somevalue"))
 	e := NewExtensionNode([]byte{0x05, 0x06, 0x07}, l)
 	l2 := NewLeafNode([]byte("invalid"))
@@ -20,11 +20,14 @@ func newProofTrie(t *testing.T) *Trie {
 	require.NoError(t, tr.Put([]byte{0x12, 0x32}, []byte("value2")))
 	tr.putToStore(l)
 	tr.putToStore(e)
+	if !missingHashNode {
+		tr.putToStore(l2)
+	}
 	return tr
 }
 
 func TestTrie_GetProof(t *testing.T) {
-	tr := newProofTrie(t)
+	tr := newProofTrie(t, true)
 
 	t.Run("MissingKey", func(t *testing.T) {
 		_, err := tr.GetProof([]byte{0x12})
@@ -43,7 +46,7 @@ func TestTrie_GetProof(t *testing.T) {
 }
 
 func TestVerifyProof(t *testing.T) {
-	tr := newProofTrie(t)
+	tr := newProofTrie(t, true)
 
 	t.Run("Simple", func(t *testing.T) {
 		proof, err := tr.GetProof([]byte{0x12, 0x32})

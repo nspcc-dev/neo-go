@@ -679,6 +679,7 @@ func (s *Server) getNEP17Balances(ps request.Params) (interface{}, *response.Err
 	if err != nil {
 		return nil, response.NewRPCError("Failed to get NEP17 last updated block", err.Error(), err)
 	}
+	stateSyncPoint := lastUpdated[math.MinInt32]
 	bw := io.NewBufBinWriter()
 	for _, h := range s.chain.GetNEP17Contracts() {
 		balance, err := s.getNEP17Balance(h, u, bw)
@@ -692,10 +693,18 @@ func (s *Server) getNEP17Balances(ps request.Params) (interface{}, *response.Err
 		if cs == nil {
 			continue
 		}
+		lub, ok := lastUpdated[cs.ID]
+		if !ok {
+			cfg := s.chain.GetConfig()
+			if !cfg.P2PStateExchangeExtensions && cfg.RemoveUntraceableBlocks {
+				return nil, response.NewInternalServerError(fmt.Sprintf("failed to get LastUpdatedBlock for balance of %s token", cs.Hash.StringLE()), nil)
+			}
+			lub = stateSyncPoint
+		}
 		bs.Balances = append(bs.Balances, result.NEP17Balance{
 			Asset:       h,
 			Amount:      balance.String(),
-			LastUpdated: lastUpdated[cs.ID],
+			LastUpdated: lub,
 		})
 	}
 	return bs, nil
