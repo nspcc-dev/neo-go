@@ -334,15 +334,18 @@ func (v *VM) PopResult() interface{} {
 	return v.estack.Pop().Value()
 }
 
-// Stack returns json formatted representation of the given stack.
-func (v *VM) Stack(n string) string {
-	var s *Stack
-	if n == "istack" {
-		s = &v.istack
-	}
-	if n == "estack" {
-		s = v.estack
-	}
+// DumpIStack returns json formatted representation of the invocation stack.
+func (v *VM) DumpIStack() string {
+	return dumpStack(&v.istack)
+}
+
+// DumpEStack returns json formatted representation of the execution stack.
+func (v *VM) DumpEStack() string {
+	return dumpStack(v.estack)
+}
+
+// dumpStack returns json formatted representation of the given stack.
+func dumpStack(s *Stack) string {
 	b, _ := json.MarshalIndent(s, "", "    ")
 	return string(b)
 }

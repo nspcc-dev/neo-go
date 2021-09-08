@@ -301,7 +301,17 @@ func handleBreak(c *ishell.Context) {
 
 func handleXStack(c *ishell.Context) {
 	v := getVMFromContext(c)
-	c.Println(v.Stack(c.Cmd.Name))
+	var stackDump string
+	switch c.Cmd.Name {
+	case "estack":
+		stackDump = v.DumpEStack()
+	case "istack":
+		stackDump = v.DumpIStack()
+	default:
+		c.Err(errors.New("unknown stack"))
+		return
+	}
+	c.Println(stackDump)
 }
 
 func handleSlots(c *ishell.Context) {
@@ -470,7 +480,7 @@ func runVMWithHandling(c *ishell.Context, v *vm.VM) {
 	case v.HasFailed():
 		message = "" // the error will be printed on return
 	case v.HasHalted():
-		message = v.Stack("estack")
+		message = v.DumpEStack()
 	case v.AtBreakpoint():
 		ctx := v.Context()
 		if ctx.NextIP() < ctx.LenInstr() {
