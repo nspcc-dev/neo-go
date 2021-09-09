@@ -37,6 +37,7 @@ NEO-GO-VM >
 NEO-GO-VM > help
 
 Commands:
+  aslot           Show arguments slot contents
   break           Place a breakpoint
   clear           clear the screen
   cont            Continue execution of the current loaded script
@@ -49,9 +50,11 @@ Commands:
   loadgo          Compile and load a Go file with the manifest into the VM
   loadhex         Load a hex-encoded script string into the VM
   loadnef         Load a NEF-consistent script into the VM
+  lslot           Show local slot contents
   ops             Dump opcodes of the current loaded program
   parse           Parse provided argument and convert it into other possible formats
   run             Execute the current loaded script
+  sslot           Show static slot contents
   step            Step (n) instruction in the program
   stepinto        Stepinto instruction to take in the debugger
   stepout         Stepout instruction to take in the debugger
@@ -223,4 +226,9 @@ NEO-GO-VM > estack
 
 There is one more stack that you can inspect.
 - `istack` invocation stack
+
+There are slots that you can inspect.
+- `aslot` dumps arguments slot contents.
+- `lslot` dumps local slot contents.
+- `sslot` dumps static slot contents.
 

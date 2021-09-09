@@ -1,6 +1,8 @@
 package vm
 
 import (
+	"encoding/json"
+
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
@@ -65,4 +67,17 @@ func (s *Slot) Size() int {
 		panic("not initialized")
 	}
 	return len(s.storage)
+}
+
+// MarshalJSON implements JSON marshalling interface.
+func (s *Slot) MarshalJSON() ([]byte, error) {
+	items := s.storage
+	arr := make([]json.RawMessage, len(items))
+	for i := range items {
+		data, err := stackitem.ToJSONWithTypes(items[i])
+		if err == nil {
+			arr[i] = data
+		}
+	}
+	return json.Marshal(arr)
 }

@@ -74,6 +74,24 @@ var commands = []*ishell.Cmd{
 		Func:     handleXStack,
 	},
 	{
+		Name:     "sslot",
+		Help:     "Show static slot contents",
+		LongHelp: "Show static slot contents",
+		Func:     handleSlots,
+	},
+	{
+		Name:     "lslot",
+		Help:     "Show local slot contents",
+		LongHelp: "Show local slot contents",
+		Func:     handleSlots,
+	},
+	{
+		Name:     "aslot",
+		Help:     "Show arguments slot contents",
+		LongHelp: "Show arguments slot contents",
+		Func:     handleSlots,
+	},
+	{
 		Name: "loadnef",
 		Help: "Load a NEF-consistent script into the VM",
 		LongHelp: `Usage: loadnef <file> <manifest>
@@ -283,7 +301,39 @@ func handleBreak(c *ishell.Context) {
 
 func handleXStack(c *ishell.Context) {
 	v := getVMFromContext(c)
-	c.Println(v.Stack(c.Cmd.Name))
+	var stackDump string
+	switch c.Cmd.Name {
+	case "estack":
+		stackDump = v.DumpEStack()
+	case "istack":
+		stackDump = v.DumpIStack()
+	default:
+		c.Err(errors.New("unknown stack"))
+		return
+	}
+	c.Println(stackDump)
+}
+
+func handleSlots(c *ishell.Context) {
+	v := getVMFromContext(c)
+	vmCtx := v.Context()
+	if vmCtx == nil {
+		c.Err(errors.New("no program loaded"))
+		return
+	}
+	var rawSlot string
+	switch c.Cmd.Name {
+	case "sslot":
+		rawSlot = vmCtx.DumpStaticSlot()
+	case "lslot":
+		rawSlot = vmCtx.DumpLocalSlot()
+	case "aslot":
+		rawSlot = vmCtx.DumpArgumentsSlot()
+	default:
+		c.Err(errors.New("unknown slot"))
+		return
+	}
+	c.Println(rawSlot)
 }
 
 func handleLoadNEF(c *ishell.Context) {
@@ -430,7 +480,7 @@ func runVMWithHandling(c *ishell.Context, v *vm.VM) {
 	case v.HasFailed():
 		message = "" // the error will be printed on return
 	case v.HasHalted():
-		message = v.Stack("estack")
+		message = v.DumpEStack()
 	case v.AtBreakpoint():
 		ctx := v.Context()
 		if ctx.NextIP() < ctx.LenInstr() {

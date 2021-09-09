@@ -25,6 +25,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/atomic"
 )
@@ -116,6 +117,37 @@ func (e *executor) checkStack(t *testing.T, items ...interface{}) {
 		expected.PushVal(items[i])
 	}
 	rawExpected, err := json.Marshal(expected)
+	require.NoError(t, err)
+	require.JSONEq(t, string(rawExpected), string(rawActual))
+
+	// Decoder has it's own buffer, we need to return unread part to the output.
+	outRemain := e.out.String()
+	e.out.Reset()
+	_, err = gio.Copy(e.out, d.Buffered())
+	require.NoError(t, err)
+	e.out.WriteString(outRemain)
+	_, err = e.out.ReadString('\n')
+	require.NoError(t, err)
+}
+
+func (e *executor) checkSlot(t *testing.T, items ...interface{}) {
+	d := json.NewDecoder(e.out)
+	var actual interface{}
+	require.NoError(t, d.Decode(&actual))
+	rawActual, err := json.Marshal(actual)
+	require.NoError(t, err)
+
+	expected := make([]json.RawMessage, len(items))
+	for i := range items {
+		if items[i] == nil {
+			expected[i] = []byte("null")
+			continue
+		}
+		data, err := stackitem.ToJSONWithTypes(stackitem.Make(items[i]))
+		require.NoError(t, err)
+		expected[i] = data
+	}
+	rawExpected, err := json.MarshalIndent(expected, "", "    ")
 	require.NoError(t, err)
 	require.JSONEq(t, string(rawExpected), string(rawActual))
 
@@ -374,6 +406,55 @@ func TestBreakpoint(t *testing.T) {
 	e.checkStack(t, 3, 6)
 
 	e.checkStack(t, 9)
+}
+
+func TestDumpSSlot(t *testing.T) {
+	w := io.NewBufBinWriter()
+	emit.Opcodes(w.BinWriter, opcode.INITSSLOT, 2, // init static slot with size=2
+		opcode.PUSH5, opcode.STSFLD, 1, // put `int(5)` to sslot[1]; sslot[0] is nil
+		opcode.LDSFLD1) // put sslot[1] to the top of estack
+	e := newTestVMCLI(t)
+	e.runProg(t,
+		"loadhex "+hex.EncodeToString(w.Bytes()),
+		"break 5",
+		"step", "sslot",
+		"cont", "estack",
+	)
+	e.checkNextLine(t, "READY: loaded 6 instructions")
+	e.checkNextLine(t, "breakpoint added at instruction 5")
+
+	e.checkNextLine(t, "at breakpoint 5.*LDSFLD1")
+	e.checkSlot(t, nil, 5)
+
+	e.checkStack(t, 5)
+}
+
+func TestDumpLSlot_DumpASlot(t *testing.T) {
+	w := io.NewBufBinWriter()
+	emit.Opcodes(w.BinWriter, opcode.PUSH4, opcode.PUSH5, opcode.PUSH6, // items for args slot
+		opcode.INITSLOT, 2, 3, // init local slot with size=2 and args slot with size 3
+		opcode.PUSH7, opcode.STLOC1, // put `int(7)` to lslot[1]; lslot[0] is nil
+		opcode.LDLOC, 1) // put lslot[1] to the top of estack
+	e := newTestVMCLI(t)
+	e.runProg(t,
+		"loadhex "+hex.EncodeToString(w.Bytes()),
+		"break 6",
+		"break 8",
+		"cont", "aslot",
+		"cont", "lslot",
+		"cont", "estack",
+	)
+	e.checkNextLine(t, "READY: loaded 10 instructions")
+	e.checkNextLine(t, "breakpoint added at instruction 6")
+	e.checkNextLine(t, "breakpoint added at instruction 8")
+
+	e.checkNextLine(t, "at breakpoint 6.*PUSH7")
+	e.checkSlot(t, 6, 5, 4) // args slot
+
+	e.checkNextLine(t, "at breakpoint 8.*LDLOC")
+	e.checkSlot(t, nil, 7) // local slot
+
+	e.checkStack(t, 7)
 }
 
 func TestStep(t *testing.T) {
