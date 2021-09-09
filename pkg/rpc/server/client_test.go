@@ -876,4 +876,19 @@ func TestClient_NNS(t *testing.T) {
 		_, err := c.NNSResolve(nsHash, "neogo.com", nns.CNAME)
 		require.Error(t, err)
 	})
+	t.Run("NNSGetAllRecords, good", func(t *testing.T) {
+		rss, err := c.NNSGetAllRecords(nsHash, "neo.com")
+		require.NoError(t, err)
+		require.Equal(t, []nns.RecordState{
+			nns.RecordState{
+				Name: "neo.com",
+				Type: nns.A,
+				Data: "1.2.3.4",
+			},
+		}, rss)
+	})
+	t.Run("NNSGetAllRecords, bad", func(t *testing.T) {
+		_, err := c.NNSGetAllRecords(nsHash, "neopython.com")
+		require.Error(t, err)
+	})
 }

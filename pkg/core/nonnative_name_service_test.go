@@ -441,7 +441,7 @@ func TestResolve(t *testing.T) {
 
 const (
 	defaultNameServiceDomainPrice = 10_0000_0000
-	defaultNameServiceSysfee      = 4000_0000
+	defaultNameServiceSysfee      = 6000_0000
 	defaultRegisterSysfee         = 10_0000_0000 + defaultNameServiceDomainPrice
 )
 

@@ -66,6 +66,13 @@ const (
 	millisecondsInYear = 365 * 24 * 3600 * 1000
 )
 
+// RecordState is a type that registered entities are saved to.
+type RecordState struct {
+	Name string
+	Type RecordType
+	Data string
+}
+
 // Update updates NameService contract.
 func Update(nef []byte, manifest string) {
 	checkCommittee()
@@ -353,6 +360,15 @@ func Resolve(name string, typ RecordType) string {
 	return resolve(ctx, name, typ, 2)
 }
 
+// GetAllRecords returns an Iterator with RecordState items for given name.
+func GetAllRecords(name string) iterator.Iterator {
+	tokenID := []byte(tokenIDFromName(name))
+	ctx := storage.GetReadOnlyContext()
+	_ = getNameState(ctx, tokenID) // ensure not expired
+	recordsKey := getRecordsKey(tokenID, name)
+	return storage.Find(ctx, recordsKey, storage.ValuesOnly|storage.DeserializeValues)
+}
+
 // updateBalance updates account's balance and account's tokens.
 func updateBalance(ctx storage.Context, tokenId []byte, acc interop.Hash160, diff int) {
 	balanceKey := append([]byte{prefixBalance}, acc...)
@@ -437,20 +453,35 @@ func putNameStateWithKey(ctx storage.Context, tokenKey []byte, ns NameState) {
 // getRecord returns domain record.
 func getRecord(ctx storage.Context, tokenId []byte, name string, typ RecordType) string {
 	recordKey := getRecordKey(tokenId, name, typ)
-	record := storage.Get(ctx, recordKey)
-	return record.(string)
+	recBytes := storage.Get(ctx, recordKey)
+	if recBytes == nil {
+		return recBytes.(string) // A hack to actually return NULL.
+	}
+	record := std.Deserialize(recBytes.([]byte)).(RecordState)
+	return record.Data
 }
 
 // putRecord stores domain record.
 func putRecord(ctx storage.Context, tokenId []byte, name string, typ RecordType, record string) {
 	recordKey := getRecordKey(tokenId, name, typ)
-	storage.Put(ctx, recordKey, record)
+	rs := RecordState{
+		Name: name,
+		Type: typ,
+		Data: record,
+	}
+	recBytes := std.Serialize(rs)
+	storage.Put(ctx, recordKey, recBytes)
+}
+
+// getRecordsKey returns prefix used to store domain records of different types.
+func getRecordsKey(tokenId []byte, name string) []byte {
+	recordKey := append([]byte{prefixRecord}, getTokenKey(tokenId)...)
+	return append(recordKey, getTokenKey([]byte(name))...)
 }
 
 // getRecordKey returns key used to store domain records.
 func getRecordKey(tokenId []byte, name string, typ RecordType) []byte {
-	recordKey := append([]byte{prefixRecord}, getTokenKey(tokenId)...)
-	recordKey = append(recordKey, getTokenKey([]byte(name))...)
+	recordKey := getRecordsKey(tokenId, name)
 	return append(recordKey, []byte{byte(typ)}...)
 }
 
@@ -649,10 +680,12 @@ func resolve(ctx storage.Context, name string, typ RecordType, redirect int) str
 	records := getRecords(ctx, name)
 	cname := ""
 	for iterator.Next(records) {
-		r := iterator.Value(records).([]string)
-		key := []byte(r[0])
-		value := r[1]
-		rTyp := key[len(key)-1]
+		r := iterator.Value(records).(struct {
+			key string
+			rs  RecordState
+		})
+		value := r.rs.Data
+		rTyp := r.key[len(r.key)-1]
 		if rTyp == byte(typ) {
 			return value
 		}
@@ -671,7 +704,6 @@ func resolve(ctx storage.Context, name string, typ RecordType, redirect int) str
 func getRecords(ctx storage.Context, name string) iterator.Iterator {
 	tokenID := []byte(tokenIDFromName(name))
 	_ = getNameState(ctx, tokenID)
-	recordsKey := append([]byte{prefixRecord}, getTokenKey(tokenID)...)
-	recordsKey = append(recordsKey, getTokenKey([]byte(name))...)
-	return storage.Find(ctx, recordsKey, storage.None)
+	recordsKey := getRecordsKey(tokenID, name)
+	return storage.Find(ctx, recordsKey, storage.DeserializeValues)
 }
