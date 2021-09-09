@@ -264,17 +264,12 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 			result: func(c *Client) interface{} {
 				b := getResultBlock1()
 				return &result.Header{
-					Hash:          b.Hash(),
-					Size:          457,
-					Version:       b.Version,
-					NextBlockHash: b.NextBlockHash,
-					PrevBlockHash: b.PrevHash,
-					MerkleRoot:    b.MerkleRoot,
-					Timestamp:     b.Timestamp,
-					Index:         b.Index,
-					NextConsensus: address.Uint160ToString(b.NextConsensus),
-					Witnesses:     []transaction.Witness{b.Script},
-					Confirmations: b.Confirmations,
+					Header: b.Header,
+					BlockMetadata: result.BlockMetadata{
+						Size:          457,
+						NextBlockHash: b.NextBlockHash,
+						Confirmations: b.Confirmations,
+					},
 				}
 			},
 		},
