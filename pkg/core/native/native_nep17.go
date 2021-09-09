@@ -294,6 +294,9 @@ func (c *nep17TokenNative) addTokens(ic *interop.Context, h util.Uint160, amount
 }
 
 func newDescriptor(name string, ret smartcontract.ParamType, ps ...manifest.Parameter) *manifest.Method {
+	if len(ps) == 0 {
+		ps = []manifest.Parameter{}
+	}
 	return &manifest.Method{
 		Name:       name,
 		Parameters: ps,

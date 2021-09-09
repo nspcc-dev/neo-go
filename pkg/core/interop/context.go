@@ -140,6 +140,7 @@ func NewContractMD(name string, id int32) *ContractMD {
 	// Therefore values are taken from C# node.
 	c.NEF.Header.Compiler = "neo-core-v3.0"
 	c.NEF.Header.Magic = nef.Magic
+	c.NEF.Tokens = []nef.MethodToken{} // avoid `nil` result during JSON marshalling
 	c.Hash = state.CreateContractHash(util.Uint160{}, 0, c.Name)
 	c.Manifest = *manifest.DefaultManifest(name)
 
