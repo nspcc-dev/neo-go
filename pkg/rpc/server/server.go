@@ -548,8 +548,9 @@ func (s *Server) getRawMempool(reqParams request.Params) (interface{}, *response
 		return hashList, nil
 	}
 	return result.RawMempool{
-		Height:   s.chain.BlockHeight(),
-		Verified: hashList,
+		Height:     s.chain.BlockHeight(),
+		Verified:   hashList,
+		Unverified: []util.Uint256{}, // avoid `null` result
 	}, nil
 }
 
