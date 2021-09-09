@@ -114,7 +114,7 @@ func newNEP11Commands() []cli.Command {
 		},
 		{
 			Name:      "tokensOf",
-			Usage:     "print list of tokens IDs for the specified divisible NFT owner",
+			Usage:     "print list of tokens IDs for the specified NFT owner",
 			UsageText: "tokensOf --rpc-endpoint <node> --timeout <time> --token <hash> --address <addr>",
 			Action:    printNEP11TokensOf,
 			Flags: append([]cli.Flag{

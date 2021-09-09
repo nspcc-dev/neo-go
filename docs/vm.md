@@ -37,22 +37,25 @@ NEO-GO-VM >
 NEO-GO-VM > help
 
 Commands:
-  astack       Show alt stack contents
-  break        Place a breakpoint
-  clear        clear the screen
-  cont         Continue execution of the current loaded script
-  estack       Show evaluation stack contents
-  exit         Exit the VM prompt
-  help         display help
-  ip           Show current instruction
-  istack       Show invocation stack contents
-  loadnef      Load an avm script in NEF format into the VM
-  loadgo       Compile and load a Go file into the VM
-  loadhex      Load a hex-encoded script string into the VM
-  ops          Dump opcodes of the current loaded program
-  run          Execute the current loaded script
-  step         Step (n) instruction in the program
-
+  break           Place a breakpoint
+  clear           clear the screen
+  cont            Continue execution of the current loaded script
+  estack          Show evaluation stack contents
+  exit            Exit the VM prompt
+  help            display help
+  ip              Show current instruction
+  istack          Show invocation stack contents
+  loadbase64      Load a base64-encoded script string into the VM
+  loadgo          Compile and load a Go file with the manifest into the VM
+  loadhex         Load a hex-encoded script string into the VM
+  loadnef         Load a NEF-consistent script into the VM
+  ops             Dump opcodes of the current loaded program
+  parse           Parse provided argument and convert it into other possible formats
+  run             Execute the current loaded script
+  step            Step (n) instruction in the program
+  stepinto        Stepinto instruction to take in the debugger
+  stepout         Stepout instruction to take in the debugger
+  stepover        Stepover instruction to take in the debugger
 
 ```
 
@@ -96,7 +99,7 @@ NEO-GO-VM > loadgo ../contract.go
 READY: loaded 36 instructions
 ```
 
-To make it even more complete, you can directly load hex strings into the VM:
+To make it even more complete, you can directly load hex or base64 strings into the VM:
 
 ```
 NEO-GO-VM > loadhex 54c56b006c766b00527ac46c766b00c391640b006203005a616c756662030000616c7566
@@ -119,16 +122,7 @@ package rollthedice
 
 import "github.com/nspcc-dev/neo-go/pkg/interop/runtime"
 
-func Main(method string, args []interface{}) int {
-    if method == "rollDice" {
-        // args parameter is always of type []interface, hence we need to 
-        // cast it to an int.
-        rollDice(args[0].(int))
-    }
-    return 0
-}
-
-func rollDice(number int) {
+func RollDice(number int) {
     if number == 0 {
         runtime.Log("you rolled 0, better luck next time!")
     }
@@ -227,7 +221,6 @@ NEO-GO-VM > estack
 ]
 ```
 
-There are more stacks that you can inspect.
-- `astack` alt stack
+There is one more stack that you can inspect.
 - `istack` invocation stack
 

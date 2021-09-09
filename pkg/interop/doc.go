@@ -16,7 +16,7 @@ correspond to smartcontract and VM types:
 	non-byte slice - Array
 	map[K]V - map
 Other types are defined explicitly in this pkg:
-	Hash160, Hash256, InteropInterface, PublicKey, Signature
+	Hash160, Hash256, Interface, PublicKey, Signature
 
 Note that unless written otherwise structures defined in this packages can't be
 correctly created by new() or composite literals, they should be received from

@@ -6,14 +6,15 @@ package iterator
 import "github.com/nspcc-dev/neo-go/pkg/interop/neogointernal"
 
 // Iterator represents a Neo iterator, it's an opaque data structure that can
-// be properly created by Create or storage.Find. Unlike enumerators, iterators
-// range over key-value pairs, so it's convenient to use them for maps. This
-// structure is similar in function to Neo .net framework's Iterator.
+// be properly created by Create or storage.Find. Iterators range over key-value
+// pairs, so it's convenient to use them for maps. This structure is similar in
+// function to Neo .net framework's Iterator.
 type Iterator struct{}
 
-// Next advances the iterator returning true if it is was successful (and you
-// can use Key or Value) and false otherwise (and there are no more elements in
-// this Iterator). This function uses `System.Iterator.Next` syscall.
+// Next advances the iterator returning true if it was successful (and you
+// can use Value to get value for slices or key-value pair for maps) and false
+// otherwise (and there are no more elements in this Iterator). This function
+// uses `System.Iterator.Next` syscall.
 func Next(it Iterator) bool {
 	return neogointernal.Syscall1("System.Iterator.Next", it).(bool)
 }
