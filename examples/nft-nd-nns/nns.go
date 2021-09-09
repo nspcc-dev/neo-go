@@ -613,6 +613,9 @@ func checkIPv6(data string) bool {
 			nums[idx] = n
 		}
 	}
+	if l < 8 && !hasEmpty {
+		return false
+	}
 
 	f0 := nums[0]
 	if f0 < 0x2000 || f0 == 0x2002 || f0 == 0x3ffe || f0 > 0x3fff { // IPv6 Global Unicast https://www.iana.org/assignments/ipv6-address-space/ipv6-address-space.xhtml
