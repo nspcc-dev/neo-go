@@ -157,7 +157,7 @@ func (b Header) MarshalJSON() ([]byte, error) {
 		PrevHash:      b.PrevHash,
 		MerkleRoot:    b.MerkleRoot,
 		Timestamp:     b.Timestamp,
-		Nonce:         fmt.Sprintf("%016x", b.Nonce),
+		Nonce:         fmt.Sprintf("%016X", b.Nonce),
 		Index:         b.Index,
 		PrimaryIndex:  b.PrimaryIndex,
 		NextConsensus: address.Uint160ToString(b.NextConsensus),
