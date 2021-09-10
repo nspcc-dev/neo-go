@@ -42,6 +42,10 @@ var marshalJSONTestCases = []struct {
 		result: `{"type":"ByteString","value":null}`,
 	},
 	{
+		input:  Parameter{Type: SignatureType},
+		result: `{"type":"Signature"}`,
+	},
+	{
 		input: Parameter{
 			Type:  PublicKeyType,
 			Value: []byte{0x03, 0xb3, 0xbf, 0x15, 0x02, 0xfb, 0xdc, 0x05, 0x44, 0x9b, 0x50, 0x6a, 0xaf, 0x04, 0x57, 0x97, 0x24, 0x02, 0x4b, 0x06, 0x54, 0x2e, 0x49, 0x26, 0x2b, 0xfa, 0xa3, 0xf7, 0x0e, 0x20, 0x00, 0x40, 0xa9},
@@ -194,6 +198,14 @@ var unmarshalJSONTestCases = []struct {
 	{
 		input:  `{"type":"String","value":"Some string"}`,
 		result: Parameter{Type: StringType, Value: "Some string"},
+	},
+	{
+		input:  `{"type":"Signature"}`,
+		result: Parameter{Type: SignatureType},
+	},
+	{
+		input:  `{"type":"Signature","value":null }`,
+		result: Parameter{Type: SignatureType},
 	},
 	{
 		input: `{"type":"Array","value":[
