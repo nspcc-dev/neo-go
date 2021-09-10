@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	nns "github.com/nspcc-dev/neo-go/examples/nft-nd-nns"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -123,6 +124,35 @@ func topIterableFromStack(st []stackitem.Item, resultItemType interface{}) ([]in
 			result[i], err = util.Uint160DecodeBytesBE(bytes)
 			if err != nil {
 				return nil, fmt.Errorf("failed to decode uint160 from stackitem #%d: %w", i, err)
+			}
+		case nns.RecordState:
+			rs, ok := iter.Values[i].Value().([]stackitem.Item)
+			if !ok {
+				return nil, fmt.Errorf("failed to decode RecordState from stackitem #%d: not a struct", i)
+			}
+			if len(rs) != 3 {
+				return nil, fmt.Errorf("failed to decode RecordState from stackitem #%d: wrong number of elements", i)
+			}
+			name, err := rs[0].TryBytes()
+			if err != nil {
+				return nil, fmt.Errorf("failed to deocde RecordState from stackitem #%d: %w", i, err)
+			}
+			typ, err := rs[1].TryInteger()
+			if err != nil {
+				return nil, fmt.Errorf("failed to deocde RecordState from stackitem #%d: %w", i, err)
+			}
+			data, err := rs[2].TryBytes()
+			if err != nil {
+				return nil, fmt.Errorf("failed to deocde RecordState from stackitem #%d: %w", i, err)
+			}
+			u64Typ := typ.Uint64()
+			if !typ.IsUint64() || u64Typ > 255 {
+				return nil, fmt.Errorf("failed to deocde RecordState from stackitem #%d: bad type", i)
+			}
+			result[i] = nns.RecordState{
+				Name: string(name),
+				Type: nns.RecordType(u64Typ),
+				Data: string(data),
 			}
 		default:
 			return nil, errors.New("unsupported iterable type")
