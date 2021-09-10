@@ -880,7 +880,7 @@ func TestClient_NNS(t *testing.T) {
 		rss, err := c.NNSGetAllRecords(nsHash, "neo.com")
 		require.NoError(t, err)
 		require.Equal(t, []nns.RecordState{
-			nns.RecordState{
+			{
 				Name: "neo.com",
 				Type: nns.A,
 				Data: "1.2.3.4",
