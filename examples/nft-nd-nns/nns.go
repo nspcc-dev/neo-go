@@ -617,8 +617,14 @@ func checkIPv6(data string) bool {
 	for i, f := range fragments {
 		if len(f) == 0 {
 			if i == 0 {
+				if len(fragments[1]) != 0 {
+					return false
+				}
 				nums[i] = 0
 			} else if i == l-1 {
+				if len(fragments[i-1]) != 0 {
+					return false
+				}
 				nums[7] = 0
 			} else if hasEmpty {
 				return false
