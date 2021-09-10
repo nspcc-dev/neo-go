@@ -88,6 +88,11 @@ feature is not supported by the C# node.
 It's possible to get non-native contract state by its ID, unlike with C# node where
 it only works for native contracts.
 
+##### `getrawtransaction`
+
+VM state is included to verbose response along with other transaction fields if
+the transaction is already on chain.
+
 ##### `getstorage`
 
 This method doesn't work for the Ledger contract, you can get data via regular

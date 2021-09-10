@@ -1455,17 +1455,12 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 		t.Run("verbose != 0", func(t *testing.T) {
 			nextHash := chain.GetHeaderHash(int(hdr.Index) + 1)
 			expected := &result.Header{
-				Hash:          hdr.Hash(),
-				Size:          io.GetVarSize(hdr),
-				Version:       hdr.Version,
-				PrevBlockHash: hdr.PrevHash,
-				MerkleRoot:    hdr.MerkleRoot,
-				Timestamp:     hdr.Timestamp,
-				Index:         hdr.Index,
-				NextConsensus: address.Uint160ToString(hdr.NextConsensus),
-				Witnesses:     []transaction.Witness{hdr.Script},
-				Confirmations: e.chain.BlockHeight() - hdr.Index + 1,
-				NextBlockHash: &nextHash,
+				Header: *hdr,
+				BlockMetadata: result.BlockMetadata{
+					Size:          io.GetVarSize(hdr),
+					NextBlockHash: &nextHash,
+					Confirmations: e.chain.BlockHeight() - hdr.Index + 1,
+				},
 			}
 
 			rpc := fmt.Sprintf(rpc, `["`+testHeaderHash+`", 2]`)

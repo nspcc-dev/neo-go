@@ -69,6 +69,14 @@ func TestEncodeDecodeBinary(t *testing.T) {
 		expected.Header.Magic = Magic
 		testserdes.EncodeDecodeBinary(t, expected, &File{})
 	})
+	t.Run("positive with empty tokens", func(t *testing.T) {
+		expected.Script = script
+		// Check `Tokens` won't be deserialized to `nil`. We expect them to be non-nil slice in the related code.
+		expected.Tokens = []MethodToken{}
+		expected.Checksum = expected.CalculateChecksum()
+		expected.Header.Magic = Magic
+		testserdes.EncodeDecodeBinary(t, expected, &File{})
+	})
 	t.Run("invalid reserved bytes", func(t *testing.T) {
 		expected.Script = script
 		expected.Tokens = expected.Tokens[:0]

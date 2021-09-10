@@ -548,8 +548,9 @@ func (s *Server) getRawMempool(reqParams request.Params) (interface{}, *response
 		return hashList, nil
 	}
 	return result.RawMempool{
-		Height:   s.chain.BlockHeight(),
-		Verified: hashList,
+		Height:     s.chain.BlockHeight(),
+		Verified:   hashList,
+		Unverified: []util.Uint256{}, // avoid `null` result
 	}, nil
 }
 
@@ -1280,11 +1281,12 @@ func (s *Server) invokescript(reqParams request.Params) (interface{}, *response.
 
 	tx := &transaction.Transaction{}
 	if len(reqParams) > 1 {
-		signers, _, err := reqParams[1].GetSignersWithWitnesses()
+		signers, witnesses, err := reqParams[1].GetSignersWithWitnesses()
 		if err != nil {
 			return nil, response.ErrInvalidParams
 		}
 		tx.Signers = signers
+		tx.Scripts = witnesses
 	}
 	if len(tx.Signers) == 0 {
 		tx.Signers = []transaction.Signer{{Account: util.Uint160{}, Scopes: transaction.None}}
