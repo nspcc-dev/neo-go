@@ -1059,14 +1059,15 @@ func TestTryInitStateSync(t *testing.T) {
 			p := newLocalPeer(t, s)
 			p.handshaked = true
 			p.lastBlockIndex = h
-			s.peers[p] = true
+			s.register <- p
 		}
 		p := newLocalPeer(t, s)
 		p.handshaked = false // one disconnected peer to check it won't be taken into attention
 		p.lastBlockIndex = 5
-		s.peers[p] = true
-		var expectedH uint32 = 8 // median peer
+		s.register <- p
+		require.Eventually(t, func() bool { return 7 == s.PeerCount() }, time.Second, time.Millisecond*10)
 
+		var expectedH uint32 = 8 // median peer
 		ss := &fakechain.FakeStateSync{InitFunc: func(h uint32) error {
 			if h != expectedH {
 				return fmt.Errorf("invalid height: expected %d, got %d", expectedH, h)
