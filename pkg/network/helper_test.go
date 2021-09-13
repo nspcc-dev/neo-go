@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/nspcc-dev/neo-go/internal/fakechain"
+	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/network/capability"
 	"github.com/nspcc-dev/neo-go/pkg/network/payload"
@@ -187,7 +188,11 @@ func (p *localPeer) CanProcessAddr() bool {
 }
 
 func newTestServer(t *testing.T, serverConfig ServerConfig) *Server {
-	s, err := newServerFromConstructors(serverConfig, fakechain.NewFakeChain(), zaptest.NewLogger(t),
+	return newTestServerWithCustomCfg(t, serverConfig, nil)
+}
+
+func newTestServerWithCustomCfg(t *testing.T, serverConfig ServerConfig, protocolCfg func(*config.ProtocolConfiguration)) *Server {
+	s, err := newServerFromConstructors(serverConfig, fakechain.NewFakeChainWithCustomCfg(protocolCfg), zaptest.NewLogger(t),
 		newFakeTransp, newFakeConsensus, newTestDiscovery)
 	require.NoError(t, err)
 	t.Cleanup(s.discovery.Close)

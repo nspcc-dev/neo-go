@@ -379,8 +379,14 @@ func (s *Server) testHandleMessage(t *testing.T, p Peer, cmd CommandType, pl pay
 	return s
 }
 
-func startTestServer(t *testing.T) *Server {
-	s := newTestServer(t, ServerConfig{Port: 0, UserAgent: "/test/"})
+func startTestServer(t *testing.T, protocolCfg ...func(*config.ProtocolConfiguration)) *Server {
+	var s *Server
+	srvCfg := ServerConfig{Port: 0, UserAgent: "/test/"}
+	if protocolCfg != nil {
+		s = newTestServerWithCustomCfg(t, srvCfg, protocolCfg[0])
+	} else {
+		s = newTestServer(t, srvCfg)
+	}
 	ch := startWithChannel(s)
 	t.Cleanup(func() {
 		s.Shutdown()
@@ -750,9 +756,10 @@ func TestHandleGetMPTData(t *testing.T) {
 	})
 
 	t.Run("KeepOnlyLatestState on", func(t *testing.T) {
-		s := startTestServer(t)
-		s.chain.(*fakechain.FakeChain).P2PStateExchangeExtensions = true
-		s.chain.(*fakechain.FakeChain).KeepOnlyLatestState = true
+		s := startTestServer(t, func(c *config.ProtocolConfiguration) {
+			c.P2PStateExchangeExtensions = true
+			c.KeepOnlyLatestState = true
+		})
 		p := newLocalPeer(t, s)
 		p.handshaked = true
 		msg := NewMessage(CMDGetMPTData, &payload.MPTInventory{
@@ -762,8 +769,9 @@ func TestHandleGetMPTData(t *testing.T) {
 	})
 
 	t.Run("good", func(t *testing.T) {
-		s := startTestServer(t)
-		s.chain.(*fakechain.FakeChain).P2PStateExchangeExtensions = true
+		s := startTestServer(t, func(c *config.ProtocolConfiguration) {
+			c.P2PStateExchangeExtensions = true
+		})
 		var recvResponse atomic.Bool
 		r1 := random.Uint256()
 		r2 := random.Uint256()
