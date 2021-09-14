@@ -14,6 +14,7 @@ import (
 	"github.com/nspcc-dev/neo-go/cli/options"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
+	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/fixedn"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result"
@@ -102,12 +103,16 @@ func queryTx(ctx *cli.Context) error {
 		}
 	}
 
-	dumpApplicationLog(ctx, res, txOut)
+	DumpApplicationLog(ctx, res, &txOut.Transaction, &txOut.TransactionMetadata, ctx.Bool("verbose"))
 	return nil
 }
 
-func dumpApplicationLog(ctx *cli.Context, res *result.ApplicationLog, tx *result.TransactionOutputRaw) {
-	verbose := ctx.Bool("verbose")
+func DumpApplicationLog(
+	ctx *cli.Context,
+	res *result.ApplicationLog,
+	tx *transaction.Transaction,
+	txMeta *result.TransactionMetadata,
+	verbose bool) {
 	buf := bytes.NewBuffer(nil)
 
 	// Ignore the errors below because `Write` to buffer doesn't return error.
@@ -117,7 +122,9 @@ func dumpApplicationLog(ctx *cli.Context, res *result.ApplicationLog, tx *result
 	if res == nil {
 		_, _ = tw.Write([]byte("ValidUntil:\t" + strconv.FormatUint(uint64(tx.ValidUntilBlock), 10) + "\n"))
 	} else {
-		_, _ = tw.Write([]byte("BlockHash:\t" + tx.Blockhash.StringLE() + "\n"))
+		if txMeta != nil {
+			_, _ = tw.Write([]byte("BlockHash:\t" + txMeta.Blockhash.StringLE() + "\n"))
+		}
 		if len(res.Executions) != 1 {
 			_, _ = tw.Write([]byte("Success:\tunknown (no execution data)\n"))
 		} else {
@@ -133,6 +140,9 @@ func dumpApplicationLog(ctx *cli.Context, res *result.ApplicationLog, tx *result
 		_, _ = tw.Write([]byte("SystemFee:\t" + fixedn.Fixed8(tx.SystemFee).String() + " GAS\n"))
 		_, _ = tw.Write([]byte("NetworkFee:\t" + fixedn.Fixed8(tx.NetworkFee).String() + " GAS\n"))
 		_, _ = tw.Write([]byte("Script:\t" + base64.StdEncoding.EncodeToString(tx.Script) + "\n"))
+		v := vm.New()
+		v.Load(tx.Script)
+		v.PrintOps(tw)
 		if res != nil {
 			for _, e := range res.Executions {
 				if e.VMState != vm.HaltState {
