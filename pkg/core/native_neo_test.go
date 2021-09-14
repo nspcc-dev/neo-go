@@ -6,6 +6,7 @@ import (
 	"sort"
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/internal/random"
 	"github.com/nspcc-dev/neo-go/internal/testchain"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
@@ -355,5 +356,83 @@ func TestNEO_Roundtrip(t *testing.T) {
 		updatedBalance, updatedHeight := bc.GetGoverningTokenBalance(neoOwner)
 		require.Equal(t, initialBalance, updatedBalance)
 		require.Equal(t, bc.BlockHeight(), updatedHeight)
+	})
+}
+
+func TestNEO_TransferZeroWithZeroBalance(t *testing.T) {
+	bc := newTestChain(t)
+
+	check := func(t *testing.T, roundtrip bool) {
+		acc := newAccountWithGAS(t, bc)
+		from := acc.PrivateKey().GetScriptHash()
+		to := from
+		if !roundtrip {
+			to = random.Uint160()
+		}
+		transferTx := newNEP17TransferWithAssert(bc.contracts.NEO.Hash, acc.PrivateKey().GetScriptHash(), to, 0, true)
+		transferTx.SystemFee = 100000000
+		transferTx.NetworkFee = 10000000
+		transferTx.ValidUntilBlock = bc.BlockHeight() + 1
+		addSigners(acc.PrivateKey().GetScriptHash(), transferTx)
+		require.NoError(t, acc.SignTx(bc.config.Magic, transferTx))
+		b := bc.newBlock(transferTx)
+		require.NoError(t, bc.AddBlock(b))
+
+		aer, err := bc.GetAppExecResults(transferTx.Hash(), trigger.Application)
+		require.NoError(t, err)
+		require.Equal(t, vm.HaltState, aer[0].VMState, aer[0].FaultException)
+		require.Len(t, aer[0].Events, 1)                                                                              // roundtrip only, no GAS claim
+		require.Equal(t, stackitem.NewBigInteger(big.NewInt(0)), aer[0].Events[0].Item.Value().([]stackitem.Item)[2]) // amount is 0
+		// check balance wasn't changed and height wasn't updated
+		updatedBalance, updatedHeight := bc.GetGoverningTokenBalance(acc.PrivateKey().GetScriptHash())
+		require.Equal(t, big.NewInt(0), updatedBalance)
+		require.Equal(t, uint32(0), updatedHeight)
+	}
+	t.Run("roundtrip: amount == initial balance == 0", func(t *testing.T) {
+		check(t, true)
+	})
+	t.Run("non-roundtrip: amount == initial balance == 0", func(t *testing.T) {
+		check(t, false)
+	})
+}
+
+func TestNEO_TransferZeroWithNonZeroBalance(t *testing.T) {
+	bc := newTestChain(t)
+
+	check := func(t *testing.T, roundtrip bool) {
+		acc := newAccountWithGAS(t, bc)
+		transferTokenFromMultisigAccount(t, bc, acc.PrivateKey().GetScriptHash(), bc.contracts.NEO.Hash, 100)
+		initialBalance, _ := bc.GetGoverningTokenBalance(acc.PrivateKey().GetScriptHash())
+		require.True(t, initialBalance.Sign() > 0)
+
+		from := acc.PrivateKey().GetScriptHash()
+		to := from
+		if !roundtrip {
+			to = random.Uint160()
+		}
+		transferTx := newNEP17TransferWithAssert(bc.contracts.NEO.Hash, acc.PrivateKey().GetScriptHash(), to, 0, true)
+		transferTx.SystemFee = 100000000
+		transferTx.NetworkFee = 10000000
+		transferTx.ValidUntilBlock = bc.BlockHeight() + 1
+		addSigners(acc.PrivateKey().GetScriptHash(), transferTx)
+		require.NoError(t, acc.SignTx(bc.config.Magic, transferTx))
+		b := bc.newBlock(transferTx)
+		require.NoError(t, bc.AddBlock(b))
+
+		aer, err := bc.GetAppExecResults(transferTx.Hash(), trigger.Application)
+		require.NoError(t, err)
+		require.Equal(t, vm.HaltState, aer[0].VMState, aer[0].FaultException)
+		require.Len(t, aer[0].Events, 2)                                                                              // roundtrip + GAS claim
+		require.Equal(t, stackitem.NewBigInteger(big.NewInt(0)), aer[0].Events[1].Item.Value().([]stackitem.Item)[2]) // amount is 0
+		// check balance wasn't changed and height was updated
+		updatedBalance, updatedHeight := bc.GetGoverningTokenBalance(acc.PrivateKey().GetScriptHash())
+		require.Equal(t, initialBalance, updatedBalance)
+		require.Equal(t, bc.BlockHeight(), updatedHeight)
+	}
+	t.Run("roundtrip", func(t *testing.T) {
+		check(t, true)
+	})
+	t.Run("non-roundtrip", func(t *testing.T) {
+		check(t, false)
 	})
 }

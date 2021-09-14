@@ -171,8 +171,12 @@ func (c *nep17TokenNative) updateAccBalance(ic *interop.Context, acc util.Uint16
 	key := makeAccountKey(acc)
 	si := ic.DAO.GetStorageItem(c.ID, key)
 	if si == nil {
-		if amount.Sign() <= 0 {
+		if amount.Sign() < 0 {
 			return errors.New("insufficient funds")
+		}
+		if amount.Sign() == 0 {
+			// it's OK to transfer 0 if the balance 0, no need to put si to the storage
+			return nil
 		}
 		si = state.StorageItem{}
 	}
