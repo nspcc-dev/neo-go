@@ -55,6 +55,15 @@ type FakeStateSync struct {
 
 // NewFakeChain returns new FakeChain structure.
 func NewFakeChain() *FakeChain {
+	return NewFakeChainWithCustomCfg(nil)
+}
+
+// NewFakeChainWithCustomCfg returns new FakeChain structure with specified protocol configuration.
+func NewFakeChainWithCustomCfg(protocolCfg func(c *config.ProtocolConfiguration)) *FakeChain {
+	cfg := config.ProtocolConfiguration{Magic: netmode.UnitTestNet, P2PNotaryRequestPayloadPoolSize: 10}
+	if protocolCfg != nil {
+		protocolCfg(&cfg)
+	}
 	return &FakeChain{
 		Pool:                  mempool.New(10, 0, false),
 		PoolTxF:               func(*transaction.Transaction) error { return nil },
@@ -62,7 +71,7 @@ func NewFakeChain() *FakeChain {
 		blocks:                make(map[util.Uint256]*block.Block),
 		hdrHashes:             make(map[uint32]util.Uint256),
 		txs:                   make(map[util.Uint256]*transaction.Transaction),
-		ProtocolConfiguration: config.ProtocolConfiguration{Magic: netmode.UnitTestNet, P2PNotaryRequestPayloadPoolSize: 10},
+		ProtocolConfiguration: cfg,
 	}
 }
 
