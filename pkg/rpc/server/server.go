@@ -1397,7 +1397,7 @@ func (s *Server) getUnclaimed(ps request.Params) (interface{}, *response.Error) 
 
 	acc := s.chain.GetAccountState(u)
 	if acc == nil {
-		return nil, response.NewInternalServerError("unknown account", nil)
+		return &result.Unclaimed{}, nil
 	}
 	res, errRes := result.NewUnclaimed(acc, s.chain)
 	if errRes != nil {
