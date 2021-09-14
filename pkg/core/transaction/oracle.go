@@ -48,7 +48,7 @@ var (
 func (c OracleResponseCode) IsValid() bool {
 	return c == Success || c == ProtocolNotSupported || c == ConsensusUnreachable || c == NotFound ||
 		c == Timeout || c == Forbidden || c == ResponseTooLarge ||
-		c == InsufficientFunds || c == Error
+		c == InsufficientFunds || c == ContentTypeNotSupported || c == Error
 }
 
 // MarshalJSON implements json.Marshaler interface.
@@ -80,6 +80,8 @@ func (c *OracleResponseCode) UnmarshalJSON(data []byte) error {
 		*c = ResponseTooLarge
 	case "insufficientfunds":
 		*c = InsufficientFunds
+	case "contenttypenotsupported":
+		*c = ContentTypeNotSupported
 	case "error":
 		*c = Error
 	default:
