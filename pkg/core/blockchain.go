@@ -96,7 +96,7 @@ var (
 	ErrPolicy = errors.New("not allowed by policy")
 	// ErrInvalidBlockIndex is returned when trying to add block with index
 	// other than expected height of the blockchain.
-	ErrInvalidBlockIndex error = errors.New("invalid block index")
+	ErrInvalidBlockIndex = errors.New("invalid block index")
 	// ErrHasConflicts is returned when trying to add some transaction which
 	// conflicts with other transaction in the chain or pool according to
 	// Conflicts attribute.
