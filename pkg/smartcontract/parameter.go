@@ -1,6 +1,7 @@
 package smartcontract
 
 import (
+	"bytes"
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/hex"
@@ -54,6 +55,12 @@ func (p Parameter) MarshalJSON() ([]byte, error) {
 		resultRawValue json.RawMessage
 		resultErr      error
 	)
+	if p.Value == nil {
+		if _, ok := validParamTypes[p.Type]; ok && p.Type != UnknownType {
+			return json.Marshal(rawParameter{Type: p.Type})
+		}
+		return nil, fmt.Errorf("can't marshal %s", p.Type)
+	}
 	switch p.Type {
 	case BoolType, StringType, Hash160Type, Hash256Type:
 		resultRawValue, resultErr = json.Marshal(p.Value)
@@ -66,9 +73,7 @@ func (p Parameter) MarshalJSON() ([]byte, error) {
 		valStr := strconv.FormatInt(val, 10)
 		resultRawValue = json.RawMessage(`"` + valStr + `"`)
 	case PublicKeyType, ByteArrayType, SignatureType:
-		if p.Value == nil {
-			resultRawValue = []byte("null")
-		} else if p.Type == PublicKeyType {
+		if p.Type == PublicKeyType {
 			resultRawValue, resultErr = json.Marshal(hex.EncodeToString(p.Value.([]byte)))
 		} else {
 			resultRawValue, resultErr = json.Marshal(base64.StdEncoding.EncodeToString(p.Value.([]byte)))
@@ -110,7 +115,8 @@ func (p *Parameter) UnmarshalJSON(data []byte) (err error) {
 		return
 	}
 	p.Type = r.Type
-	if len(r.Value) == 0 {
+	p.Value = nil
+	if len(r.Value) == 0 || bytes.Equal(r.Value, []byte("null")) {
 		return
 	}
 	switch r.Type {
