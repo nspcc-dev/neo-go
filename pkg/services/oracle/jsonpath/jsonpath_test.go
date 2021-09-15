@@ -6,8 +6,8 @@ import (
 	"strconv"
 	"testing"
 
+	json "github.com/nspcc-dev/go-ordered-json"
 	"github.com/stretchr/testify/require"
-	json "github.com/virtuald/go-ordered-json"
 )
 
 type pathTestCase struct {
