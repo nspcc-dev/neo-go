@@ -34,6 +34,7 @@ func TestQueryTx(t *testing.T) {
 		"--to", w.Accounts[0].Address,
 		"--token", "NEO",
 		"--from", validatorAddr,
+		"--force",
 	}
 
 	e.In.WriteString("one\r")

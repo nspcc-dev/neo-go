@@ -122,14 +122,40 @@ func TestNEP17Transfer(t *testing.T) {
 		e.In.Reset()
 	})
 
+	t.Run("no confirmation", func(t *testing.T) {
+		e.In.WriteString("one\r")
+		e.RunWithError(t, args...)
+		e.In.Reset()
+	})
+	t.Run("cancel after prompt", func(t *testing.T) {
+		e.In.WriteString("one\r")
+		e.RunWithError(t, args...)
+		e.In.Reset()
+	})
+
 	e.In.WriteString("one\r")
+	e.In.WriteString("Y\r")
 	e.Run(t, args...)
+	e.checkNextLine(t, `^Network fee:\s*(\d|\.)+`)
+	e.checkNextLine(t, `^System fee:\s*(\d|\.)+`)
+	e.checkNextLine(t, `^Total fee:\s*(\d|\.)+`)
 	e.checkTxPersisted(t)
 
 	sh, err := address.StringToUint160(w.Accounts[0].Address)
 	require.NoError(t, err)
 	b, _ := e.Chain.GetGoverningTokenBalance(sh)
 	require.Equal(t, big.NewInt(1), b)
+
+	t.Run("with force", func(t *testing.T) {
+		e.In.WriteString("one\r")
+		e.Run(t, append(args, "--force")...)
+		e.checkTxPersisted(t)
+
+		sh, err := address.StringToUint160(w.Accounts[0].Address)
+		require.NoError(t, err)
+		b, _ := e.Chain.GetGoverningTokenBalance(sh)
+		require.Equal(t, big.NewInt(2), b)
+	})
 
 	hVerify := deployVerifyContract(t, e)
 	const validatorDefault = "Nhfg3TbpwogLvDGVvAvqyThbsHgoSUKwtn"
@@ -140,11 +166,13 @@ func TestNEP17Transfer(t *testing.T) {
 			"--rpc-endpoint", "http://"+e.RPC.Addr,
 			"--wallet", validatorWallet,
 			"--from", validatorAddr,
+			"--force",
 			"NEO:"+validatorDefault+":42",
 			"GAS:"+validatorDefault+":7")
 		e.checkTxPersisted(t)
 
 		args := args[:len(args)-2] // cut '--from' argument
+		args = append(args, "--force")
 		e.In.WriteString("one\r")
 		e.Run(t, args...)
 		e.checkTxPersisted(t)
@@ -152,7 +180,7 @@ func TestNEP17Transfer(t *testing.T) {
 		sh, err := address.StringToUint160(w.Accounts[0].Address)
 		require.NoError(t, err)
 		b, _ := e.Chain.GetGoverningTokenBalance(sh)
-		require.Equal(t, big.NewInt(2), b)
+		require.Equal(t, big.NewInt(3), b)
 
 		sh, err = address.StringToUint160(validatorDefault)
 		require.NoError(t, err)
@@ -166,6 +194,7 @@ func TestNEP17Transfer(t *testing.T) {
 			"--rpc-endpoint", "http://"+e.RPC.Addr,
 			"--wallet", validatorWallet,
 			"--from", validatorAddr,
+			"--force",
 			"NEO:"+validatorDefault+":42",
 			"GAS:"+validatorDefault+":7",
 			"--", validatorAddr+":Global")
@@ -181,6 +210,7 @@ func TestNEP17Transfer(t *testing.T) {
 		"--token", "GAS",
 		"--amount", "1",
 		"--from", validatorAddr,
+		"--force",
 		"[", validatorAddr, strconv.Itoa(int(validTil)), "]"}
 
 	t.Run("with data", func(t *testing.T) {
@@ -218,6 +248,7 @@ func TestNEP17MultiTransfer(t *testing.T) {
 		"--rpc-endpoint", "http://" + e.RPC.Addr,
 		"--wallet", validatorWallet,
 		"--from", validatorAddr,
+		"--force",
 		"NEO:" + privs[0].Address() + ":42",
 		"GAS:" + privs[1].Address() + ":7",
 		neoContractHash.StringLE() + ":" + privs[2].Address() + ":13",

@@ -1,10 +1,13 @@
 package input
 
 import (
+	"errors"
+	"fmt"
 	"io"
 	"os"
 	"syscall"
 
+	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"golang.org/x/term"
 )
 
@@ -54,4 +57,19 @@ func ReadPassword(prompt string) (string, error) {
 		trm = term.NewTerminal(ReadWriter{os.Stdin, os.Stdout}, prompt)
 	}
 	return trm.ReadPassword(prompt)
+}
+
+// ConfirmTx asks for a confirmation to send tx.
+func ConfirmTx(w io.Writer, tx *transaction.Transaction) error {
+	fmt.Fprintf(w, "Network fee: %d\n", tx.NetworkFee)
+	fmt.Fprintf(w, "System fee: %d\n", tx.SystemFee)
+	fmt.Fprintf(w, "Total fee: %d\n", tx.NetworkFee+tx.SystemFee)
+	ln, err := ReadLine("Relay transaction (y|N)> ")
+	if err != nil {
+		return err
+	}
+	if 0 < len(ln) && ln[0] == 'y' || ln[0] == 'Y' {
+		return nil
+	}
+	return errors.New("cancelled")
 }

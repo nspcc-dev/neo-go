@@ -660,7 +660,17 @@ func invokeWithArgs(ctx *cli.Context, acc *wallet.Account, wall *wallet.Wallet, 
 		if len(resp.Script) == 0 {
 			return sender, cli.NewExitError(errors.New("no script returned from the RPC node"), 1)
 		}
-		txHash, err := c.SignAndPushInvocationTx(resp.Script, acc, resp.GasConsumed+int64(sysgas), gas, cosignersAccounts)
+		tx, err := c.CreateTxFromScript(resp.Script, acc, resp.GasConsumed+int64(sysgas), int64(gas), cosignersAccounts)
+		if err != nil {
+			return sender, cli.NewExitError(fmt.Errorf("failed to create tx: %w", err), 1)
+		}
+		if !ctx.Bool("force") {
+			err := input.ConfirmTx(ctx.App.Writer, tx)
+			if err != nil {
+				return sender, cli.NewExitError(err, 1)
+			}
+		}
+		txHash, err := c.SignAndPushTx(tx, acc, cosignersAccounts)
 		if err != nil {
 			return sender, cli.NewExitError(fmt.Errorf("failed to push invocation tx: %w", err), 1)
 		}

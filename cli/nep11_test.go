@@ -107,6 +107,7 @@ func TestNEP11_OwnerOf_BalanceOf_Transfer(t *testing.T) {
 		"--to", nftOwnerAddr,
 		"--token", "GAS",
 		"--amount", "10000",
+		"--force",
 		"--from", validatorAddr)
 	e.checkTxPersisted(t)
 
@@ -122,6 +123,7 @@ func TestNEP11_OwnerOf_BalanceOf_Transfer(t *testing.T) {
 			"--to", h.StringLE(),
 			"--token", "GAS",
 			"--amount", "10",
+			"--force",
 			"--from", nftOwnerAddr)
 		txMint, _ := e.checkTxPersisted(t)
 
@@ -259,6 +261,7 @@ func TestNEP11_OwnerOf_BalanceOf_Transfer(t *testing.T) {
 		"--wallet", wall,
 		"--to", validatorAddr,
 		"--from", nftOwnerAddr,
+		"--force",
 	}
 
 	// transfer: unimported token with symbol id specified
@@ -290,6 +293,7 @@ func TestNEP11_OwnerOf_BalanceOf_Transfer(t *testing.T) {
 		"--from", nftOwnerAddr,
 		"--token", h.StringLE(),
 		"--id", string(tokenID1),
+		"--force",
 		"string:some_data",
 	}
 	e.In.WriteString(nftOwnerPass + "\r")

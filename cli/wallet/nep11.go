@@ -6,6 +6,7 @@ import (
 	"math/big"
 
 	"github.com/nspcc-dev/neo-go/cli/flags"
+	"github.com/nspcc-dev/neo-go/cli/input"
 	"github.com/nspcc-dev/neo-go/cli/options"
 	"github.com/nspcc-dev/neo-go/cli/paramcontext"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
@@ -262,6 +263,12 @@ func signAndSendNEP11Transfer(ctx *cli.Context, c *client.Client, acc *wallet.Ac
 			return cli.NewExitError(err, 1)
 		}
 	} else {
+		if !ctx.Bool("force") {
+			err := input.ConfirmTx(ctx.App.Writer, tx)
+			if err != nil {
+				return cli.NewExitError(err, 1)
+			}
+		}
 		_, err := c.SignAndPushTx(tx, acc, cosigners)
 		if err != nil {
 			return cli.NewExitError(err, 1)

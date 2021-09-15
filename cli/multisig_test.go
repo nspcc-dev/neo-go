@@ -51,6 +51,7 @@ func TestSignMultisigTx(t *testing.T) {
 		"--rpc-endpoint", "http://"+e.RPC.Addr,
 		"--wallet", validatorWallet,
 		"--from", validatorAddr,
+		"--force",
 		"NEO:"+multisigAddr+":4",
 		"GAS:"+multisigAddr+":1")
 	e.checkTxPersisted(t)

@@ -22,6 +22,7 @@ func TestRegisterCandidate(t *testing.T) {
 		"--rpc-endpoint", "http://"+e.RPC.Addr,
 		"--wallet", validatorWallet,
 		"--from", validatorAddr,
+		"--force",
 		"NEO:"+validatorPriv.Address()+":10",
 		"GAS:"+validatorPriv.Address()+":10000")
 	e.checkTxPersisted(t)

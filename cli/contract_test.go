@@ -175,6 +175,7 @@ func TestContractDeployWithData(t *testing.T) {
 		"--rpc-endpoint", "http://"+e.RPC.Addr,
 		"--wallet", validatorWallet, "--address", validatorAddr,
 		"--in", nefName, "--manifest", manifestName,
+		"--force",
 		"[", "key1", "12", "key2", "take_me_to_church", "]")
 
 	e.checkTxPersisted(t, "Sent invocation transaction ")
@@ -242,6 +243,7 @@ func TestContractManifestGroups(t *testing.T) {
 	e.Run(t, "neo-go", "contract", "deploy",
 		"--rpc-endpoint", "http://"+e.RPC.Addr,
 		"--in", nefName, "--manifest", manifestName,
+		"--force",
 		"--wallet", validatorWallet, "--address", validatorAddr)
 }
 
@@ -261,6 +263,7 @@ func deployContract(t *testing.T, e *executor, inPath, configPath, wallet, addre
 	e.Run(t, "neo-go", "contract", "deploy",
 		"--rpc-endpoint", "http://"+e.RPC.Addr,
 		"--wallet", wallet, "--address", address,
+		"--force",
 		"--in", nefName, "--manifest", manifestName)
 	e.checkTxPersisted(t, "Sent invocation transaction ")
 	line, err := e.Out.ReadString('\n')
@@ -297,7 +300,7 @@ func TestComlileAndInvokeFunction(t *testing.T) {
 
 	e.In.WriteString("one\r")
 	e.Run(t, "neo-go", "contract", "deploy",
-		"--rpc-endpoint", "http://"+e.RPC.Addr,
+		"--rpc-endpoint", "http://"+e.RPC.Addr, "--force",
 		"--wallet", validatorWallet, "--address", validatorAddr,
 		"--in", nefName, "--manifest", manifestName)
 
@@ -371,11 +374,20 @@ func TestComlileAndInvokeFunction(t *testing.T) {
 		})
 
 		cmd = append(cmd, "--wallet", validatorWallet, "--address", validatorAddr)
-		e.In.WriteString("one\r")
-		e.Run(t, append(cmd, h.StringLE(), "getValue")...)
+		t.Run("cancelled", func(t *testing.T) {
+			e.In.WriteString("one\r")
+			e.In.WriteString("n\r")
+			e.RunWithError(t, append(cmd, h.StringLE(), "getValue")...)
+		})
+		t.Run("confirmed", func(t *testing.T) {
+			e.In.WriteString("one\r")
+			e.In.WriteString("y\r")
+			e.Run(t, append(cmd, h.StringLE(), "getValue")...)
+		})
 
 		t.Run("failind method", func(t *testing.T) {
 			e.In.WriteString("one\r")
+			e.In.WriteString("y\r")
 			e.RunWithError(t, append(cmd, h.StringLE(), "fail")...)
 
 			e.In.WriteString("one\r")
@@ -384,6 +396,7 @@ func TestComlileAndInvokeFunction(t *testing.T) {
 
 		t.Run("cosigner is deployed contract", func(t *testing.T) {
 			e.In.WriteString("one\r")
+			e.In.WriteString("y\r")
 			e.Run(t, append(cmd, h.StringLE(), "getValue",
 				"--", validatorAddr, hVerify.StringLE())...)
 		})
@@ -499,6 +512,7 @@ func TestComlileAndInvokeFunction(t *testing.T) {
 		e.Run(t, "neo-go", "contract", "invokefunction",
 			"--rpc-endpoint", "http://"+e.RPC.Addr,
 			"--wallet", validatorWallet, "--address", validatorAddr,
+			"--force",
 			h.StringLE(), "update",
 			"bytes:"+hex.EncodeToString(rawNef),
 			"bytes:"+hex.EncodeToString(rawManifest),

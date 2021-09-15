@@ -222,6 +222,7 @@ func TestClaimGas(t *testing.T) {
 		"--rpc-endpoint", "http://" + e.RPC.Addr,
 		"--wallet", validatorWallet,
 		"--from", validatorAddr,
+		"--force",
 		"NEO:" + testWalletAccount + ":1000",
 		"GAS:" + testWalletAccount + ":1000", // for tx send
 	}
@@ -293,6 +294,7 @@ func TestImportDeployed(t *testing.T) {
 		e.Run(t, "neo-go", "wallet", "nep17", "multitransfer",
 			"--rpc-endpoint", "http://"+e.RPC.Addr,
 			"--wallet", validatorWallet, "--from", validatorAddr,
+			"--force",
 			"NEO:"+contractAddr+":10",
 			"GAS:"+contractAddr+":10")
 		e.checkTxPersisted(t)
@@ -304,6 +306,7 @@ func TestImportDeployed(t *testing.T) {
 		e.Run(t, "neo-go", "wallet", "nep17", "transfer",
 			"--rpc-endpoint", "http://"+e.RPC.Addr,
 			"--wallet", walletPath, "--from", contractAddr,
+			"--force",
 			"--to", privTo.Address(), "--token", "NEO", "--amount", "1")
 		e.checkTxPersisted(t)
 
