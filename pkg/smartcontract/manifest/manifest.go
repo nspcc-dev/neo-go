@@ -6,9 +6,9 @@ import (
 	"errors"
 	"math"
 
+	ojson "github.com/nspcc-dev/go-ordered-json"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
-	ojson "github.com/virtuald/go-ordered-json"
 )
 
 const (

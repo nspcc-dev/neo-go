@@ -4,7 +4,7 @@ import (
 	"strconv"
 	"strings"
 
-	json "github.com/virtuald/go-ordered-json"
+	json "github.com/nspcc-dev/go-ordered-json"
 )
 
 type (

@@ -5,10 +5,10 @@ import (
 	"errors"
 	"unicode/utf8"
 
+	json "github.com/nspcc-dev/go-ordered-json"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/services/oracle/jsonpath"
-	json "github.com/virtuald/go-ordered-json"
 )
 
 func filter(value []byte, path string) ([]byte, error) {
