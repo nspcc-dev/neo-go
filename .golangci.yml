@@ -29,7 +29,7 @@ linters:
   enable:
     # mandatory linters
     - govet
-    - golint
+    - revive
 
     # some default golangci-lint linters
     - deadcode

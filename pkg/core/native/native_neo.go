@@ -212,7 +212,7 @@ func (n *NEO) Initialize(ic *interop.Context) error {
 	}
 	n.mint(ic, h, big.NewInt(NEOTotalSupply), false)
 
-	var index uint32 = 0
+	var index uint32
 	value := big.NewInt(5 * GASFactor)
 	err = n.putGASRecord(ic.DAO, index, value)
 	if err != nil {
