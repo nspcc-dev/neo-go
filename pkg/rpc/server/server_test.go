@@ -54,8 +54,8 @@ type rpcTestCase struct {
 	check  func(t *testing.T, e *executor, result interface{})
 }
 
-const testContractHash = "bb6a679438ce0fc6cb0ed1aa85ce83cf96cd3aeb"
-const deploymentTxHash = "4c631654b04f6a3b25af45082d260b555de4d0eeba6b7697e3a0f18b3f96434f"
+const testContractHash = "5c9e40a12055c6b9e3f72271c9779958c842135d"
+const deploymentTxHash = "fefc10d2f7e323282cb50838174b68979b1794c1e5131f2b4737acbc5dde5932"
 const genesisBlockHash = "0f8fb4e17d2ab9f3097af75ca7fd16064160fb8043db94909e00dd4e257b9dc4"
 
 const verifyContractHash = "f68822e4ecd93de334bdf1f7c409eda3431bcbd0"
@@ -1650,7 +1650,7 @@ func checkNep17Balances(t *testing.T, e *executor, acc interface{}) {
 			},
 			{
 				Asset:       e.chain.UtilityTokenHash(),
-				Amount:      "57900879260",
+				Amount:      "57898138260",
 				LastUpdated: 15,
 			}},
 		Address: testchain.PrivateKeyByID(0).GetScriptHash().StringLE(),

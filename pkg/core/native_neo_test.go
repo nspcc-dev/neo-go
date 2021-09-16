@@ -195,6 +195,39 @@ func TestNEO_Vote(t *testing.T) {
 	}
 }
 
+// TestNEO_RecursiveDistribution is a test for https://github.com/nspcc-dev/neo-go/pull/2181.
+func TestNEO_RecursiveGASMint(t *testing.T) {
+	bc := newTestChain(t)
+	initBasicChain(t, bc)
+
+	contractHash, err := bc.GetContractScriptHash(1) // deployed rpc/server/testdata/test_contract.go contract
+	require.NoError(t, err)
+	tx := transferTokenFromMultisigAccount(t, bc, contractHash, bc.contracts.GAS.Hash, 2_0000_0000)
+	checkTxHalt(t, bc, tx.Hash())
+
+	// Transfer 10 NEO to test contract, the contract should earn some GAS by owning this NEO.
+	tx = transferTokenFromMultisigAccount(t, bc, contractHash, bc.contracts.NEO.Hash, 10)
+	res, err := bc.GetAppExecResults(tx.Hash(), trigger.Application)
+	require.NoError(t, err)
+	require.Equal(t, vm.HaltState, res[0].VMState)
+
+	// Add blocks to be able to trigger NEO transfer from contract address to owner
+	// address inside onNEP17Payment (the contract starts NEO transfers from chain height = 100).
+	for i := bc.BlockHeight(); i < 100; i++ {
+		require.NoError(t, bc.AddBlock(bc.newBlock()))
+	}
+
+	// Transfer 1 more NEO to the contract. Transfer will trigger onNEP17Payment. OnNEP17Payment will
+	// trigger transfer of 11 NEO to the contract owner (based on the contract code). 11 NEO Transfer will
+	// trigger GAS distribution. GAS transfer will trigger OnNEP17Payment one more time. The recursion
+	// shouldn't occur here, because contract's balance LastUpdated height has already been updated in
+	// this block.
+	tx = transferTokenFromMultisigAccount(t, bc, contractHash, bc.contracts.NEO.Hash, 1)
+	res, err = bc.GetAppExecResults(tx.Hash(), trigger.Application)
+	require.NoError(t, err)
+	require.Equal(t, vm.HaltState, res[0].VMState, res[0].FaultException)
+}
+
 func TestNEO_SetGasPerBlock(t *testing.T) {
 	bc := newTestChain(t)
 

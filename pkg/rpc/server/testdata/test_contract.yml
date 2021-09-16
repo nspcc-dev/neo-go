@@ -11,4 +11,6 @@ events:
       - name: amount
         type: Integer
 permissions:
+  - hash: ef4073a0f2b305a38ec4050e4d3d28bc40ea63f5
+    methods: ["transfer"]
   - methods: ["onNEP17Payment"]

@@ -442,6 +442,15 @@ func (n *NEO) distributeGas(ic *interop.Context, h util.Uint160, acc *state.NEOB
 		return err
 	}
 	acc.BalanceHeight = ic.Block.Index
+
+	// Must store acc before GAS distribution to fix acc's BalanceHeight value in the storage for
+	// further acc's queries from `onNEP17Payment` if so, see https://github.com/nspcc-dev/neo-go/pull/2181.
+	key := makeAccountKey(h)
+	err = ic.DAO.PutStorageItem(n.ID, key, acc.Bytes())
+	if err != nil {
+		return fmt.Errorf("failed to store acc before gas distribution: %w", err)
+	}
+
 	n.GAS.mint(ic, h, gen, true)
 	return nil
 }
