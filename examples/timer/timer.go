@@ -39,8 +39,8 @@ func _deploy(_ interface{}, isUpdate bool) {
 	runtime.Log("Timer set to " + i + " ticks.")
 }
 
-// Migrate migrates the contract.
-func Migrate(script []byte, manifest []byte) bool {
+// Update updates the contract.
+func Update(script []byte, manifest []byte) bool {
 	if !runtime.CheckWitness(owner) {
 		runtime.Log("Only owner is allowed to update the contract.")
 		return false
