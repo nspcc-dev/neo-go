@@ -3,9 +3,12 @@ package testdata
 import (
 	"github.com/nspcc-dev/neo-go/pkg/interop"
 	"github.com/nspcc-dev/neo-go/pkg/interop/contract"
+	"github.com/nspcc-dev/neo-go/pkg/interop/native/ledger"
 	"github.com/nspcc-dev/neo-go/pkg/interop/native/management"
+	"github.com/nspcc-dev/neo-go/pkg/interop/native/neo"
 	"github.com/nspcc-dev/neo-go/pkg/interop/runtime"
 	"github.com/nspcc-dev/neo-go/pkg/interop/storage"
+	"github.com/nspcc-dev/neo-go/pkg/interop/util"
 )
 
 const (
@@ -13,12 +16,34 @@ const (
 	decimals    = 2
 )
 
+var owner = util.FromAddress("NbrUYaZgyhSkNoRo9ugRyEMdUZxrhkNaWB")
+
 func Init() bool {
 	ctx := storage.GetContext()
 	h := runtime.GetExecutingScriptHash()
 	amount := totalSupply
 	storage.Put(ctx, h, amount)
 	runtime.Notify("Transfer", []byte{}, h, amount)
+	return true
+}
+
+func OnNEP17Payment(from interop.Hash160, amount int, data interface{}) {
+	curr := runtime.GetExecutingScriptHash()
+	balance := neo.BalanceOf(curr)
+	if ledger.CurrentIndex() >= 100 {
+		ok := neo.Transfer(curr, owner, balance, nil)
+		if !ok {
+			panic("owner transfer failed")
+		}
+		ok = neo.Transfer(curr, owner, 0, nil)
+		if !ok {
+			panic("owner transfer failed")
+		}
+	}
+}
+
+// Verify always returns true and is aimed to serve the TestNEO_RecursiveGASMint.
+func Verify() bool {
 	return true
 }
 

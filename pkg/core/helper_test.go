@@ -28,6 +28,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/fixedn"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
@@ -395,6 +396,7 @@ func initBasicChain(t *testing.T, bc *Blockchain) {
 		},
 	}
 	require.NoError(t, addNetworkFee(bc, transferTx, acc0))
+	transferTx.SystemFee += 1000000
 	require.NoError(t, acc0.SignTx(testchain.Network(), transferTx))
 
 	b = bc.newBlock(initTx, transferTx)
@@ -415,6 +417,7 @@ func initBasicChain(t *testing.T, bc *Blockchain) {
 		},
 	}
 	require.NoError(t, addNetworkFee(bc, transferTx, acc0))
+	transferTx.SystemFee += 1000000
 	require.NoError(t, acc0.SignTx(testchain.Network(), transferTx))
 
 	b = bc.newBlock(transferTx)
@@ -603,14 +606,20 @@ func prepareContractMethodInvokeGeneric(chain *Blockchain, sysfee int64,
 func signTxWithAccounts(chain *Blockchain, tx *transaction.Transaction, accs ...*wallet.Account) {
 	scope := transaction.CalledByEntry
 	for _, acc := range accs {
+		accH, _ := address.StringToUint160(acc.Address)
 		tx.Signers = append(tx.Signers, transaction.Signer{
-			Account: acc.PrivateKey().GetScriptHash(),
+			Account: accH,
 			Scopes:  scope,
 		})
 		scope = transaction.Global
 	}
 	size := io.GetVarSize(tx)
 	for _, acc := range accs {
+		if acc.Contract.Deployed {
+			// don't need precise calculation for tests
+			tx.NetworkFee += 1000_0000
+			continue
+		}
 		netFee, sizeDelta := fee.Calculate(chain.GetBaseExecFee(), acc.Contract.Script)
 		size += sizeDelta
 		tx.NetworkFee += netFee
