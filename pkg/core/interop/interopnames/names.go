@@ -2,10 +2,6 @@ package interopnames
 
 // Names of all used interops.
 const (
-	SystemCallbackCreate                = "System.Callback.Create"
-	SystemCallbackCreateFromMethod      = "System.Callback.CreateFromMethod"
-	SystemCallbackCreateFromSyscall     = "System.Callback.CreateFromSyscall"
-	SystemCallbackInvoke                = "System.Callback.Invoke"
 	SystemContractCall                  = "System.Contract.Call"
 	SystemContractCallNative            = "System.Contract.CallNative"
 	SystemContractCreateMultisigAccount = "System.Contract.CreateMultisigAccount"
@@ -43,10 +39,6 @@ const (
 )
 
 var names = []string{
-	SystemCallbackCreate,
-	SystemCallbackCreateFromMethod,
-	SystemCallbackCreateFromSyscall,
-	SystemCallbackInvoke,
 	SystemContractCall,
 	SystemContractCallNative,
 	SystemContractCreateMultisigAccount,
