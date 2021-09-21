@@ -56,12 +56,13 @@ func NewWallet(location string) (*Wallet, error) {
 
 // NewWalletFromFile creates a Wallet from the given wallet file path.
 func NewWalletFromFile(path string) (*Wallet, error) {
-	file, err := os.OpenFile(path, os.O_RDWR, os.ModeAppend)
+	file, err := os.Open(path)
 	if err != nil {
 		return nil, err
 	}
+	defer file.Close()
+
 	wall := &Wallet{
-		rw:   file,
 		path: file.Name(),
 	}
 	if err := json.NewDecoder(file).Decode(wall); err != nil {
@@ -162,6 +163,13 @@ func (w *Wallet) savePretty() error {
 }
 
 func (w *Wallet) writeRaw(data []byte) error {
+	if w.rw == nil {
+		f, err := os.OpenFile(w.path, os.O_RDWR, os.ModeAppend)
+		if err != nil {
+			return err
+		}
+		w.rw = f
+	}
 	if err := w.rewind(); err != nil {
 		return err
 	}
