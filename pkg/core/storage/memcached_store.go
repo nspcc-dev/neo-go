@@ -1,6 +1,13 @@
 package storage
 
-import "sync"
+import (
+	"bytes"
+	"sort"
+	"strings"
+	"sync"
+
+	"github.com/nspcc-dev/neo-go/pkg/util/slice"
+)
 
 // MemCachedStore is a wrapper around persistent store that caches all changes
 // being made for them to be later flushed in one batch.
@@ -83,21 +90,93 @@ func (s *MemCachedStore) GetBatch() *MemBatch {
 
 // Seek implements the Store interface.
 func (s *MemCachedStore) Seek(key []byte, f func(k, v []byte)) {
+	// Create memory store `mem` and `del` snapshot not to hold the lock.
+	memRes := make([]KeyValueExists, 0)
+	sk := string(key)
 	s.mut.RLock()
-	defer s.mut.RUnlock()
-	s.MemoryStore.seek(key, f)
-	s.ps.Seek(key, func(k, v []byte) {
-		elem := string(k)
-		// If it's in mem, we already called f() for it in MemoryStore.Seek().
-		_, present := s.mem[elem]
-		if !present {
-			// If it's in del, we shouldn't be calling f() anyway.
-			_, present = s.del[elem]
+	for k, v := range s.MemoryStore.mem {
+		if strings.HasPrefix(k, sk) {
+			memRes = append(memRes, KeyValueExists{
+				KeyValue: KeyValue{
+					Key:   []byte(k),
+					Value: slice.Copy(v),
+				},
+				Exists: true,
+			})
 		}
-		if !present {
-			f(k, v)
+	}
+	for k := range s.MemoryStore.del {
+		if strings.HasPrefix(k, sk) {
+			memRes = append(memRes, KeyValueExists{
+				KeyValue: KeyValue{
+					Key: []byte(k),
+				},
+			})
 		}
+	}
+	s.mut.RUnlock()
+	// Sort memRes items for further comparison with ps items.
+	sort.Slice(memRes, func(i, j int) bool {
+		return bytes.Compare(memRes[i].Key, memRes[j].Key) < 0
 	})
+
+	var (
+		data1   = make(chan KeyValueExists)
+		data2   = make(chan KeyValue)
+		seekres = make(chan KeyValue)
+	)
+	// Seek over memory store.
+	go func() {
+		for _, kv := range memRes {
+			data1 <- kv
+		}
+		close(data1)
+	}()
+
+	// Seek over persistent store.
+	go func() {
+		s.mut.RLock()
+		s.ps.Seek(key, func(k, v []byte) {
+			// Must copy here, #1468.
+			data2 <- KeyValue{
+				Key:   slice.Copy(k),
+				Value: slice.Copy(v),
+			}
+		})
+		s.mut.RUnlock()
+		close(data2)
+	}()
+
+	// Merge results of seek operations in ascending order.
+	go func() {
+		kvMem, haveMem := <-data1
+		kvPs, havePs := <-data2
+		for {
+			if !haveMem && !havePs {
+				break
+			}
+			var isMem = haveMem && (!havePs || (bytes.Compare(kvMem.Key, kvPs.Key) < 0))
+			if isMem {
+				if kvMem.Exists {
+					seekres <- KeyValue{
+						Key:   kvMem.Key,
+						Value: kvMem.Value,
+					}
+				}
+				kvMem, haveMem = <-data1
+			} else {
+				if !bytes.Equal(kvMem.Key, kvPs.Key) {
+					seekres <- kvPs
+				}
+				kvPs, havePs = <-data2
+			}
+		}
+		close(seekres)
+	}()
+
+	for r := range seekres {
+		f(r.Key, r.Value)
+	}
 }
 
 // Persist flushes all the MemoryStore contents into the (supposedly) persistent

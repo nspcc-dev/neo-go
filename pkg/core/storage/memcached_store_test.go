@@ -1,10 +1,13 @@
 package storage
 
 import (
+	"bytes"
 	"fmt"
+	"sort"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/internal/random"
+	"github.com/nspcc-dev/neo-go/pkg/util/slice"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -318,4 +321,53 @@ func TestMemCachedPersistFailing(t *testing.T) {
 	res, err = ts.Get(b1)
 	require.NoError(t, err)
 	require.Equal(t, b1, res)
+}
+
+func TestCachedSeekSorting(t *testing.T) {
+	var (
+		// Given this prefix...
+		goodPrefix = []byte{1}
+		// these pairs should be found...
+		lowerKVs = []kvSeen{
+			{[]byte{1, 2, 3}, []byte("bra"), false},
+			{[]byte{1, 2, 5}, []byte("bar"), false},
+			{[]byte{1, 3, 3}, []byte("bra"), false},
+			{[]byte{1, 3, 5}, []byte("bra"), false},
+		}
+		// and these should be not.
+		deletedKVs = []kvSeen{
+			{[]byte{1, 7, 3}, []byte("pow"), false},
+			{[]byte{1, 7, 4}, []byte("qaz"), false},
+		}
+		// and these should be not.
+		updatedKVs = []kvSeen{
+			{[]byte{1, 2, 4}, []byte("zaq"), false},
+			{[]byte{1, 2, 6}, []byte("zaq"), false},
+			{[]byte{1, 3, 2}, []byte("wop"), false},
+			{[]byte{1, 3, 4}, []byte("zaq"), false},
+		}
+		ps = NewMemoryStore()
+		ts = NewMemCachedStore(ps)
+	)
+	for _, v := range lowerKVs {
+		require.NoError(t, ps.Put(v.key, v.val))
+	}
+	for _, v := range deletedKVs {
+		require.NoError(t, ps.Put(v.key, v.val))
+		require.NoError(t, ts.Delete(v.key))
+	}
+	for _, v := range updatedKVs {
+		require.NoError(t, ps.Put(v.key, []byte("stub")))
+		require.NoError(t, ts.Put(v.key, v.val))
+	}
+	var foundKVs []kvSeen
+	ts.Seek(goodPrefix, func(k, v []byte) {
+		foundKVs = append(foundKVs, kvSeen{key: slice.Copy(k), val: slice.Copy(v)})
+	})
+	assert.Equal(t, len(foundKVs), len(lowerKVs)+len(updatedKVs))
+	expected := append(lowerKVs, updatedKVs...)
+	sort.Slice(expected, func(i, j int) bool {
+		return bytes.Compare(expected[i].key, expected[j].key) < 0
+	})
+	require.Equal(t, expected, foundKVs)
 }
