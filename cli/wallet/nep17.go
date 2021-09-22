@@ -8,6 +8,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/cli/cmdargs"
 	"github.com/nspcc-dev/neo-go/cli/flags"
+	"github.com/nspcc-dev/neo-go/cli/input"
 	"github.com/nspcc-dev/neo-go/cli/options"
 	"github.com/nspcc-dev/neo-go/cli/paramcontext"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
@@ -55,6 +56,7 @@ var (
 		tokenFlag,
 		gasFlag,
 		sysGasFlag,
+		forceFlag,
 		cli.StringFlag{
 			Name:  "amount",
 			Usage: "Amount of asset to send",
@@ -66,6 +68,7 @@ var (
 		fromAddrFlag,
 		gasFlag,
 		sysGasFlag,
+		forceFlag,
 	}, options.RPC...)
 )
 
@@ -580,6 +583,12 @@ func signAndSendNEP17Transfer(ctx *cli.Context, c *client.Client, acc *wallet.Ac
 			return cli.NewExitError(err, 1)
 		}
 	} else {
+		if !ctx.Bool("force") {
+			err := input.ConfirmTx(ctx.App.Writer, tx)
+			if err != nil {
+				return cli.NewExitError(err, 1)
+			}
+		}
 		_, err := c.SignAndPushTx(tx, acc, cosigners)
 		if err != nil {
 			return cli.NewExitError(err, 1)
