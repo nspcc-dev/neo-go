@@ -434,7 +434,7 @@ func (n *NEO) balanceFromBytes(si *state.StorageItem) (*big.Int, error) {
 }
 
 func (n *NEO) distributeGas(ic *interop.Context, h util.Uint160, acc *state.NEOBalance) error {
-	if ic.Block == nil || ic.Block.Index == 0 {
+	if ic.Block == nil || ic.Block.Index == 0 || ic.Block.Index == acc.BalanceHeight {
 		return nil
 	}
 	gen, err := n.calculateBonus(ic.DAO, acc.VoteTo, &acc.Balance, acc.BalanceHeight, ic.Block.Index)
