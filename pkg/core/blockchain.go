@@ -904,6 +904,8 @@ func (bc *Blockchain) GetStateSyncModule() blockchainer.StateSync {
 func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error {
 	var (
 		cache          = bc.dao.GetWrapped()
+		blockCache     = bc.dao.GetWrapped()
+		aerCache       = bc.dao.GetWrapped()
 		appExecResults = make([]*state.AppExecResult, 0, 2+len(block.Transactions))
 		aerchan        = make(chan *state.AppExecResult, len(block.Transactions)/8) // Tested 8 and 4 with no practical difference, but feel free to test more and tune.
 		aerdone        = make(chan error)
@@ -911,7 +913,7 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 	)
 	go func() {
 		var (
-			kvcache  = cache.GetWrapped()
+			kvcache  = blockCache
 			writeBuf = io.NewBufBinWriter()
 		)
 		if err := kvcache.StoreAsBlock(block, writeBuf); err != nil {
@@ -960,15 +962,11 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 				writeBuf.Reset()
 			}
 		}
-		_, err := kvcache.Persist()
-		if err != nil {
-			blockdone <- err
-		}
 		close(blockdone)
 	}()
 	go func() {
 		var (
-			kvcache     = cache.GetWrapped()
+			kvcache     = aerCache
 			writeBuf    = io.NewBufBinWriter()
 			err         error
 			appendBlock bool
@@ -1009,11 +1007,6 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 				aerdone <- err
 				return
 			}
-		}
-
-		_, err = kvcache.Persist()
-		if err != nil {
-			aerdone <- err
 		}
 		close(aerdone)
 	}()
@@ -1129,6 +1122,16 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 	}
 
 	bc.lock.Lock()
+	_, err = blockCache.Persist()
+	if err != nil {
+		bc.lock.Unlock()
+		return err
+	}
+	_, err = aerCache.Persist()
+	if err != nil {
+		bc.lock.Unlock()
+		return err
+	}
 	_, err = cache.Persist()
 	if err != nil {
 		bc.lock.Unlock()
