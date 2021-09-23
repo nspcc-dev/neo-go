@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
@@ -22,6 +23,7 @@ type (
 	// Module represents module for local processing of state roots.
 	Module struct {
 		Store   *storage.MemCachedStore
+		PS      storage.Store
 		network netmode.Magic
 		mpt     *mpt.Trie
 		bc      blockchainer.Blockchainer
@@ -89,12 +91,12 @@ func (s *Module) Init(height uint32, span uint32, enableRefCount, removeUntracea
 	}
 
 	// Removing untraceable blocks needs reference counters.
-	enableRefCount = enableRefCount || removeUntraceable
 	var gcKey = []byte{byte(storage.DataMPT), prefixGC}
 	if height == 0 {
 		s.mpt = mpt.NewTrie(nil, mpt.Config{
 			Store:           s.Store,
 			RefCountEnabled: enableRefCount,
+			GCEnabled:       removeUntraceable,
 			GenerationSpan:  span,
 		})
 		val := make([]byte, 5)
@@ -136,6 +138,7 @@ func (s *Module) Init(height uint32, span uint32, enableRefCount, removeUntracea
 		Generation:      r.Index / span,
 		GenerationSpan:  span,
 		RefCountEnabled: enableRefCount,
+		GCEnabled:       removeUntraceable,
 		Store:           s.Store,
 	})
 	return nil
@@ -209,6 +212,7 @@ func (s *Module) JumpToState(sr *state.MPTRoot, enableRefCount, removeUntraceabl
 		GenerationSpan:  span,
 		Store:           s.Store,
 		RefCountEnabled: enableRefCount,
+		GCEnabled:       removeUntraceable,
 	})
 	return nil
 }
@@ -227,6 +231,11 @@ func (s *Module) RemoveMPTAtHeight(height uint32) error {
 		Store:           s.Store,
 		RefCountEnabled: true,
 	})
+}
+
+// Shutdown stops all MPT-related running processes if any.
+func (s *Module) Shutdown() {
+	s.mpt.ShutdownGC()
 }
 
 // AddMPTBatch updates using provided batch.
@@ -248,6 +257,28 @@ func (s *Module) AddMPTBatch(index uint32, b mpt.Batch, cache *storage.MemCached
 		return nil, nil, err
 	}
 	return &mpt, sr, err
+}
+
+func (s *Module) RunGC(index uint32, st storage.Store) {
+	mptGen := index / s.mpt.GenerationSpan
+	if index%s.mpt.GenerationSpan == 0 && mptGen > 1 {
+		mp := *s.mpt
+		root := mp.StateRoot()
+		s.log.Info("start GC", zap.Uint32("generation", mptGen),
+			zap.String("root", root.StringLE()))
+		start := time.Now()
+		go func() {
+			n, err := mp.PerformGC(root, st)
+			if err != nil {
+				s.log.Error("error during MPT GC", zap.Error(err))
+			}
+			s.log.Info("finish GC",
+				zap.Int("removed", n),
+				zap.Uint32("generation", mptGen),
+				zap.Duration("time", time.Since(start)))
+		}()
+
+	}
 }
 
 // UpdateCurrentLocal updates local caches using provided state root.

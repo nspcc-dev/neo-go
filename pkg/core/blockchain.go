@@ -275,6 +275,7 @@ func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration, log *zap.L
 	}
 
 	bc.stateRoot = stateroot.NewModule(bc, bc.log, bc.dao.Store)
+	bc.stateRoot.PS = s
 	bc.contracts.Designate.StateRootService = bc.stateRoot
 
 	if err := bc.init(); err != nil {
@@ -305,6 +306,8 @@ func (bc *Blockchain) SetNotary(mod services.Notary) {
 }
 
 func (bc *Blockchain) init() error {
+	mptSpan := bc.config.MaxTraceableBlocks
+
 	// If we could not find the version in the Store, we know that there is nothing stored.
 	ver, err := bc.dao.GetVersion()
 	if err != nil {
@@ -321,7 +324,7 @@ func (bc *Blockchain) init() error {
 		if err != nil {
 			return err
 		}
-		if err := bc.stateRoot.Init(0, 1, bc.config.KeepOnlyLatestState, bc.config.RemoveUntraceableBlocks); err != nil {
+		if err := bc.stateRoot.Init(0, mptSpan, bc.config.KeepOnlyLatestState, bc.config.RemoveUntraceableBlocks); err != nil {
 			return fmt.Errorf("can't init MPT: %w", err)
 		}
 		return bc.storeBlock(genesisBlock, nil)
@@ -406,7 +409,7 @@ func (bc *Blockchain) init() error {
 	}
 	bc.blockHeight = bHeight
 	bc.persistedHeight = bHeight
-	if err = bc.stateRoot.Init(bHeight, 1, bc.config.KeepOnlyLatestState, bc.config.RemoveUntraceableBlocks); err != nil {
+	if err = bc.stateRoot.Init(bHeight, mptSpan, bc.config.KeepOnlyLatestState, bc.config.RemoveUntraceableBlocks); err != nil {
 		return fmt.Errorf("can't init MPT at height %d: %w", bHeight, err)
 	}
 
@@ -615,6 +618,7 @@ func (bc *Blockchain) Run() {
 		if _, err := bc.persist(); err != nil {
 			bc.log.Warn("failed to persist", zap.Error(err))
 		}
+		bc.stateRoot.Shutdown()
 		if err := bc.dao.Store.Close(); err != nil {
 			bc.log.Warn("failed to close db", zap.Error(err))
 		}
@@ -1160,6 +1164,8 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 		return err
 	}
 	bc.lock.Unlock()
+
+	bc.stateRoot.RunGC(block.Index, bc.stateRoot.PS)
 
 	updateBlockHeightMetric(block.Index)
 	// Genesis block is stored when Blockchain is not yet running, so there

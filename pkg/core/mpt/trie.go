@@ -5,25 +5,32 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"sync"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/util/slice"
+	"go.uber.org/atomic"
 )
 
 // Trie is an MPT trie storing all key-value pairs.
 type Trie struct {
 	Config
 
-	root     Node
-	refcount map[util.Uint256]*cachedNode
+	root       Node
+	gcMtx      *sync.Mutex
+	gcClosed   chan struct{}
+	gcFinished chan struct{}
+	gcRunning  *atomic.Bool
+	refcount   map[util.Uint256]*cachedNode
 }
 
 // Config represents MPT configuration.
 type Config struct {
 	Store             storage.Store
 	RefCountEnabled   bool
+	GCEnabled         bool
 	RemoveUntraceable bool
 	Generation        uint32
 	GenerationSpan    uint32
@@ -51,7 +58,11 @@ func NewTrie(root Node, cfg Config) *Trie {
 		Config: cfg,
 		root:   root,
 
-		refcount: make(map[util.Uint256]*cachedNode),
+		gcMtx:      new(sync.Mutex),
+		gcClosed:   make(chan struct{}),
+		gcFinished: make(chan struct{}),
+		gcRunning:  atomic.NewBool(false),
+		refcount:   make(map[util.Uint256]*cachedNode),
 	}
 }
 
@@ -431,17 +442,26 @@ func makeStorageKey(mptKey []byte) []byte {
 // new node to storage. Normally, flush should be called with every StateRoot persist, i.e.
 // after every block.
 func (t *Trie) Flush() {
+	if t.GCEnabled {
+		t.gcMtx.Lock()
+		defer t.gcMtx.Unlock()
+	}
+
 	for h, node := range t.refcount {
 		if node.refcount != 0 {
 			if node.bytes == nil {
 				panic("item not in trie")
 			}
-			if t.RefCountEnabled {
+			switch {
+			case t.RefCountEnabled:
 				node.initial = t.updateRefCount(h)
 				if node.initial == 0 {
 					delete(t.refcount, h)
 				}
-			} else if node.refcount > 0 {
+			case t.GCEnabled:
+				t.flushNodeGC(h)
+				delete(t.refcount, h)
+			case node.refcount > 0:
 				_ = t.Store.Put(makeStorageKey(h.BytesBE()), node.bytes)
 			}
 			node.refcount = 0

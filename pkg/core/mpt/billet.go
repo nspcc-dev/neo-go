@@ -182,13 +182,14 @@ func (b *Billet) incrementRefAndStore(h util.Uint256, bs []byte) {
 		// An item may already be in store.
 		data, err = b.Store.Get(key)
 		if err == nil {
-			cnt = int32(binary.LittleEndian.Uint32(data[len(data)-4:]))
+			cnt = int32(binary.LittleEndian.Uint32(data[len(data)-12:]))
 		}
 		cnt++
 		if len(data) == 0 {
-			data = append(bs, 0, 0, 0, 0)
+			// FIXME think about current generation
+			data = append(bs, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
 		}
-		binary.LittleEndian.PutUint32(data[len(data)-4:], uint32(cnt))
+		binary.LittleEndian.PutUint32(data[len(data)-12:], uint32(cnt))
 		_ = b.Store.Put(key, data)
 	} else {
 		_ = b.Store.Put(key, bs)

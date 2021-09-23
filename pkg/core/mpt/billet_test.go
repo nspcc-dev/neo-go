@@ -19,7 +19,7 @@ func TestBillet_RestoreHashNode(t *testing.T) {
 		expectedBytes, err := tr.Store.Get(makeStorageKey(expectedNode.Hash().BytesBE()))
 		if expectedRefCount != 0 {
 			require.NoError(t, err)
-			require.Equal(t, expectedRefCount, binary.LittleEndian.Uint32(expectedBytes[len(expectedBytes)-4:]))
+			require.Equal(t, expectedRefCount, binary.LittleEndian.Uint32(expectedBytes[len(expectedBytes)-12:]))
 		} else {
 			require.True(t, errors.Is(err, storage.ErrKeyNotFound))
 		}
