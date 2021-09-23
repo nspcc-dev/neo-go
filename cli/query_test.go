@@ -125,6 +125,13 @@ func (e *executor) compareQueryTxVerbose(t *testing.T, tx *transaction.Transacti
 	e.checkNextLine(t, `SystemFee:\s+`+fixedn.Fixed8(tx.SystemFee).String()+" GAS$")
 	e.checkNextLine(t, `NetworkFee:\s+`+fixedn.Fixed8(tx.NetworkFee).String()+" GAS$")
 	e.checkNextLine(t, `Script:\s+`+regexp.QuoteMeta(base64.StdEncoding.EncodeToString(tx.Script)))
+	c := vm.NewContext(tx.Script)
+	n := 0
+	for ; c.NextIP() < c.LenInstr(); _, _, err = c.Next() {
+		require.NoError(t, err)
+		n++
+	}
+	e.checkScriptDump(t, n)
 
 	if res[0].Execution.VMState != vm.HaltState {
 		e.checkNextLine(t, `Exception:\s+`+regexp.QuoteMeta(res[0].Execution.FaultException))

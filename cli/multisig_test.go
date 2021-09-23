@@ -2,6 +2,8 @@ package main
 
 import (
 	"encoding/hex"
+	"encoding/json"
+	"fmt"
 	"math/big"
 	"os"
 	"path"
@@ -10,7 +12,9 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
+	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/stretchr/testify/require"
 )
 
@@ -92,6 +96,27 @@ func TestSignMultisigTx(t *testing.T) {
 		"--wallet", wallet2Path,
 		"--in", txPath, "--out", txPath)
 
+	t.Run("test invoke", func(t *testing.T) {
+		t.Run("missing file", func(t *testing.T) {
+			e.RunWithError(t, "neo-go", "util", "txdump")
+			fmt.Println(e.Out.String())
+		})
+
+		t.Run("no invoke", func(t *testing.T) {
+			e.Run(t, "neo-go", "util", "txdump", txPath)
+			e.checkTxTestInvokeOutput(t, 11)
+			e.checkEOF(t)
+		})
+
+		e.Run(t, "neo-go", "util", "txdump",
+			"--rpc-endpoint", "http://"+e.RPC.Addr,
+			txPath)
+		e.checkTxTestInvokeOutput(t, 11)
+		res := new(result.Invoke)
+		require.NoError(t, json.Unmarshal(e.Out.Bytes(), res))
+		require.Equal(t, vm.HaltState.String(), res.State, res.FaultException)
+	})
+
 	e.In.WriteString("pass\r")
 	e.Run(t, "neo-go", "wallet", "sign",
 		"--rpc-endpoint", "http://"+e.RPC.Addr,
@@ -152,4 +177,22 @@ func TestSignMultisigTx(t *testing.T) {
 		b, _ = e.Chain.GetGoverningTokenBalance(multisigHash)
 		require.Equal(t, big.NewInt(2), b)
 	})
+}
+
+func (e *executor) checkTxTestInvokeOutput(t *testing.T, scriptSize int) {
+	e.checkNextLine(t, `Hash:\s+`)
+	e.checkNextLine(t, `OnChain:\s+false`)
+	e.checkNextLine(t, `ValidUntil:\s+\d+`)
+	e.checkNextLine(t, `Signer:\s+\w+`)
+	e.checkNextLine(t, `SystemFee:\s+(\d|\.)+`)
+	e.checkNextLine(t, `NetworkFee:\s+(\d|\.)+`)
+	e.checkNextLine(t, `Script:\s+\w+`)
+	e.checkScriptDump(t, scriptSize)
+}
+
+func (e *executor) checkScriptDump(t *testing.T, scriptSize int) {
+	e.checkNextLine(t, `INDEX\s+`)
+	for i := 0; i < scriptSize; i++ {
+		e.checkNextLine(t, `\d+\s+\w+`)
+	}
 }
