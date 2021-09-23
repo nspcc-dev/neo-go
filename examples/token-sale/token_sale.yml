@@ -1,4 +1,5 @@
 name: "My awesome token"
+sourceurl: https://github.com/nspcc-dev/neo-go/
 supportedstandards: ["NEP-17"]
 safemethods: ["balanceOf", "decimals", "symbol", "totalSupply"]
 events:

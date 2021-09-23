@@ -18,8 +18,9 @@ import (
 // +------------+-----------+------------------------------------------------------------+
 // | Magic      | 4 bytes   | Magic header                                               |
 // | Compiler   | 64 bytes  | Compiler used and it's version                             |
+// | Source     | Var bytes | Source file URL.                                           |
 // +------------+-----------+------------------------------------------------------------+
-// | Reserved   | 2-bytes   | Reserved for extensions. Must be 0.                        |
+// | Reserved   | 1 byte    | Reserved for extensions. Must be 0.                        |
 // | Tokens     | Var array | List of method tokens                                      |
 // | Reserved   | 2-bytes   | Reserved for extensions. Must be 0.                        |
 // | Script     | Var bytes | Var bytes for the payload                                  |
@@ -32,6 +33,8 @@ const (
 	Magic uint32 = 0x3346454E
 	// MaxScriptLength is the maximum allowed contract script length.
 	MaxScriptLength = 512 * 1024
+	// MaxSourceURLLength is the maximum allowed source URL length.
+	MaxSourceURLLength = 256
 	// compilerFieldSize is the length of `Compiler` File header field in bytes.
 	compilerFieldSize = 64
 )
@@ -39,6 +42,7 @@ const (
 // File represents compiled contract file structure according to the NEF3 standard.
 type File struct {
 	Header
+	Source   string        `json:"source"`
 	Tokens   []MethodToken `json:"tokens"`
 	Script   []byte        `json:"script"`
 	Checksum uint32        `json:"checksum"`
@@ -106,7 +110,12 @@ func (n *File) CalculateChecksum() uint32 {
 // EncodeBinary implements io.Serializable interface.
 func (n *File) EncodeBinary(w *io.BinWriter) {
 	n.Header.EncodeBinary(w)
-	w.WriteU16LE(0)
+	if len(n.Source) > MaxSourceURLLength {
+		w.Err = errors.New("source url too long")
+		return
+	}
+	w.WriteString(n.Source)
+	w.WriteB(0)
 	w.WriteArray(n.Tokens)
 	w.WriteU16LE(0)
 	w.WriteVarBytes(n.Script)
@@ -118,13 +127,14 @@ var errInvalidReserved = errors.New("reserved bytes must be 0")
 // DecodeBinary implements io.Serializable interface.
 func (n *File) DecodeBinary(r *io.BinReader) {
 	n.Header.DecodeBinary(r)
-	reserved := r.ReadU16LE()
-	if r.Err == nil && reserved != 0 {
+	n.Source = r.ReadString(MaxSourceURLLength)
+	reservedB := r.ReadB()
+	if r.Err == nil && reservedB != 0 {
 		r.Err = errInvalidReserved
 		return
 	}
 	r.ReadArray(&n.Tokens)
-	reserved = r.ReadU16LE()
+	reserved := r.ReadU16LE()
 	if r.Err == nil && reserved != 0 {
 		r.Err = errInvalidReserved
 		return
