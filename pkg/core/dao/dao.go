@@ -48,8 +48,8 @@ type DAO interface {
 	GetStateSyncPoint() (uint32, error)
 	GetStateSyncCurrentBlockHeight() (uint32, error)
 	GetStorageItem(id int32, key []byte) state.StorageItem
-	GetStorageItems(id int32) (map[string]state.StorageItem, error)
-	GetStorageItemsWithPrefix(id int32, prefix []byte) (map[string]state.StorageItem, error)
+	GetStorageItems(id int32) ([]state.StorageItemWithKey, error)
+	GetStorageItemsWithPrefix(id int32, prefix []byte) ([]state.StorageItemWithKey, error)
 	GetTransaction(hash util.Uint256) (*transaction.Transaction, uint32, error)
 	GetVersion() (string, error)
 	GetWrapped() DAO
@@ -313,28 +313,31 @@ func (dao *Simple) DeleteStorageItem(id int32, key []byte) error {
 }
 
 // GetStorageItems returns all storage items for a given id.
-func (dao *Simple) GetStorageItems(id int32) (map[string]state.StorageItem, error) {
+func (dao *Simple) GetStorageItems(id int32) ([]state.StorageItemWithKey, error) {
 	return dao.GetStorageItemsWithPrefix(id, nil)
 }
 
 // GetStorageItemsWithPrefix returns all storage items with given id for a
 // given scripthash.
-func (dao *Simple) GetStorageItemsWithPrefix(id int32, prefix []byte) (map[string]state.StorageItem, error) {
-	var siMap = make(map[string]state.StorageItem)
+func (dao *Simple) GetStorageItemsWithPrefix(id int32, prefix []byte) ([]state.StorageItemWithKey, error) {
+	var siArr []state.StorageItemWithKey
 
-	saveToMap := func(k, v []byte) {
+	saveToArr := func(k, v []byte) {
 		// Cut prefix and hash.
 		// Must copy here, #1468.
 		key := slice.Copy(k)
 		val := slice.Copy(v)
-		siMap[string(key)] = state.StorageItem(val)
+		siArr = append(siArr, state.StorageItemWithKey{
+			Key:  key,
+			Item: state.StorageItem(val),
+		})
 	}
-	dao.Seek(id, prefix, saveToMap)
-	return siMap, nil
+	dao.Seek(id, prefix, saveToArr)
+	return siArr, nil
 }
 
 // Seek executes f for all items with a given prefix.
-// If key is to be used outside of f, they must be copied.
+// If key is to be used outside of f, they may not be copied.
 func (dao *Simple) Seek(id int32, prefix []byte, f func(k, v []byte)) {
 	lookupKey := makeStorageItemKey(id, nil)
 	if prefix != nil {

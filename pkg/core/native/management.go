@@ -391,12 +391,12 @@ func (m *Management) Destroy(d dao.DAO, hash util.Uint160) error {
 	if err != nil {
 		return err
 	}
-	siMap, err := d.GetStorageItems(contract.ID)
+	siArr, err := d.GetStorageItems(contract.ID)
 	if err != nil {
 		return err
 	}
-	for k := range siMap {
-		err := d.DeleteStorageItem(contract.ID, []byte(k))
+	for _, kv := range siArr {
+		err := d.DeleteStorageItem(contract.ID, []byte(kv.Key))
 		if err != nil {
 			return err
 		}

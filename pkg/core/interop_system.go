@@ -1,13 +1,11 @@
 package core
 
 import (
-	"bytes"
 	"crypto/elliptic"
 	"errors"
 	"fmt"
 	"math"
 	"math/big"
-	"sort"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
@@ -188,26 +186,23 @@ func storageFind(ic *interop.Context) error {
 	if opts&istorage.FindDeserialize == 0 && (opts&istorage.FindPick0 != 0 || opts&istorage.FindPick1 != 0) {
 		return fmt.Errorf("%w: PickN is specified without Deserialize", errFindInvalidOptions)
 	}
-	siMap, err := ic.DAO.GetStorageItemsWithPrefix(stc.ID, prefix)
+	siArr, err := ic.DAO.GetStorageItemsWithPrefix(stc.ID, prefix)
 	if err != nil {
 		return err
 	}
 
-	arr := make([]stackitem.MapElement, 0, len(siMap))
-	for k, v := range siMap {
-		keycopy := make([]byte, len(k)+len(prefix))
+	arr := make([]stackitem.MapElement, 0, len(siArr))
+	for _, kv := range siArr {
+		keycopy := make([]byte, len(kv.Key)+len(prefix))
 		copy(keycopy, prefix)
-		copy(keycopy[len(prefix):], k)
+		copy(keycopy[len(prefix):], kv.Key)
 		arr = append(arr, stackitem.MapElement{
 			Key:   stackitem.NewByteArray(keycopy),
-			Value: stackitem.NewByteArray(v),
+			Value: stackitem.NewByteArray(kv.Item),
 		})
 	}
-	sort.Slice(arr, func(i, j int) bool {
-		k1 := arr[i].Key.Value().([]byte)
-		k2 := arr[j].Key.Value().([]byte)
-		return bytes.Compare(k1, k2) == -1
-	})
+	// Items in arr should be sorted by key, but GetStorageItemsWithPrefix returns
+	// sorted items, so no need to sort them one more time.
 
 	filteredMap := stackitem.NewMapWithValue(arr)
 	item := istorage.NewIterator(filteredMap, len(prefix), opts)

@@ -471,24 +471,20 @@ func (n *NEO) getGASPerBlock(ic *interop.Context, _ []stackitem.Item) stackitem.
 }
 
 func (n *NEO) getSortedGASRecordFromDAO(d dao.DAO) (gasRecord, error) {
-	grMap, err := d.GetStorageItemsWithPrefix(n.ID, []byte{prefixGASPerBlock})
+	grArr, err := d.GetStorageItemsWithPrefix(n.ID, []byte{prefixGASPerBlock})
 	if err != nil {
 		return gasRecord{}, fmt.Errorf("failed to get gas records from storage: %w", err)
 	}
-	var (
-		i  int
-		gr = make(gasRecord, len(grMap))
-	)
-	for indexBytes, gasValue := range grMap {
+	var gr = make(gasRecord, len(grArr))
+	for i, kv := range grArr {
+		indexBytes, gasValue := kv.Key, kv.Item
 		gr[i] = gasIndexPair{
 			Index:       binary.BigEndian.Uint32([]byte(indexBytes)),
 			GASPerBlock: *bigint.FromBytes(gasValue),
 		}
-		i++
 	}
-	sort.Slice(gr, func(i, j int) bool {
-		return gr[i].Index < gr[j].Index
-	})
+	// GAS records should be sorted by index, but GetStorageItemsWithPrefix returns
+	// values sorted by BE bytes of index, so we're OK with that.
 	return gr, nil
 }
 
@@ -836,21 +832,21 @@ func (n *NEO) ModifyAccountVotes(acc *state.NEOBalance, d dao.DAO, value *big.In
 }
 
 func (n *NEO) getCandidates(d dao.DAO, sortByKey bool) ([]keyWithVotes, error) {
-	siMap, err := d.GetStorageItemsWithPrefix(n.ID, []byte{prefixCandidate})
+	siArr, err := d.GetStorageItemsWithPrefix(n.ID, []byte{prefixCandidate})
 	if err != nil {
 		return nil, err
 	}
-	arr := make([]keyWithVotes, 0, len(siMap))
-	for key, si := range siMap {
-		c := new(candidate).FromBytes(si)
+	arr := make([]keyWithVotes, 0, len(siArr))
+	for _, kv := range siArr {
+		c := new(candidate).FromBytes(kv.Item)
 		if c.Registered {
-			arr = append(arr, keyWithVotes{Key: key, Votes: &c.Votes})
+			arr = append(arr, keyWithVotes{Key: string(kv.Key), Votes: &c.Votes})
 		}
 	}
-	if sortByKey {
-		// Sort by serialized key bytes (that's the way keys are stored and retrieved from the storage by default).
-		sort.Slice(arr, func(i, j int) bool { return strings.Compare(arr[i].Key, arr[j].Key) == -1 })
-	} else {
+	if !sortByKey {
+		// sortByKey assumes to sort by serialized key bytes (that's the way keys
+		// are stored and retrieved from the storage by default). Otherwise, need
+		// to sort using big.Int comparator.
 		sort.Slice(arr, func(i, j int) bool {
 			// The most-voted validators should end up in the front of the list.
 			cmp := arr[i].Votes.Cmp(arr[j].Votes)
