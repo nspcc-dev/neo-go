@@ -83,7 +83,7 @@ func (f *feed) Matches(r *response.Notification) bool {
 		return applog.VMState.String() == filt.State
 	case response.NotaryRequestEventID:
 		filt := f.filter.(request.TxFilter)
-		req := r.Payload[0].(*response.NotaryRequestEvent)
+		req := r.Payload[0].(*subscriptions.NotaryRequestEvent)
 		senderOk := filt.Sender == nil || req.NotaryRequest.FallbackTransaction.Signers[1].Account == *filt.Sender
 		signerOK := true
 		if filt.Signer != nil {

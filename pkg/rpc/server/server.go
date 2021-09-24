@@ -1705,7 +1705,7 @@ chloop:
 			resp.Payload[0] = tx
 		case e := <-s.notaryRequestCh:
 			resp.Event = response.NotaryRequestEventID
-			resp.Payload[0] = &response.NotaryRequestEvent{
+			resp.Payload[0] = &subscriptions.NotaryRequestEvent{
 				Type:          e.Type,
 				NotaryRequest: e.Data.(*payload.P2PNotaryRequest),
 			}

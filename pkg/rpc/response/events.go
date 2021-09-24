@@ -3,21 +3,10 @@ package response
 import (
 	"encoding/json"
 	"errors"
-
-	"github.com/nspcc-dev/neo-go/pkg/core/mempoolevent"
-	"github.com/nspcc-dev/neo-go/pkg/network/payload"
 )
 
-type (
-	// EventID represents an event type happening on the chain.
-	EventID byte
-	// NotaryRequestEvent represents P2PNotaryRequest event either added or removed
-	// from notary payload pool.
-	NotaryRequestEvent struct {
-		Type          mempoolevent.Type         `json:"type"`
-		NotaryRequest *payload.P2PNotaryRequest `json:"notaryrequest"`
-	}
-)
+// EventID represents an event type happening on the chain.
+type EventID byte
 
 const (
 	// InvalidEventID is an invalid event id that is the default value of
