@@ -13,7 +13,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/nspcc-dev/neo-go/pkg/util/slice"
 	"go.uber.org/atomic"
 	"go.uber.org/zap"
 )
@@ -147,9 +146,8 @@ func (s *Module) CleanStorage() error {
 	//
 	b := s.Store.Batch()
 	s.Store.Seek([]byte{byte(storage.DataMPT)}, func(k, _ []byte) {
-		// Must copy here, #1468.
-		key := slice.Copy(k)
-		b.Delete(key)
+		// #1468, but don't need to copy here, because it is done by Store.
+		b.Delete(k)
 	})
 	err = s.Store.PutBatch(b)
 	if err != nil {

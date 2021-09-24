@@ -490,9 +490,8 @@ func (bc *Blockchain) jumpToStateInternal(p uint32, stage stateJumpStage) error 
 		// Firstly, remove all old genesis-related items.
 		b := bc.dao.Store.Batch()
 		bc.dao.Store.Seek([]byte{byte(storage.STStorage)}, func(k, _ []byte) {
-			// Must copy here, #1468.
-			key := slice.Copy(k)
-			b.Delete(key)
+			// #1468, but don't need to copy here, because it is done by Store.
+			b.Delete(k)
 		})
 		b.Put(jumpStageKey, []byte{byte(oldStorageItemsRemoved)})
 		err := bc.dao.Store.PutBatch(b)
@@ -509,14 +508,12 @@ func (bc *Blockchain) jumpToStateInternal(p uint32, stage stateJumpStage) error 
 				if count >= maxStorageBatchSize {
 					return
 				}
-				// Must copy here, #1468.
-				oldKey := slice.Copy(k)
-				b.Delete(oldKey)
+				// #1468, but don't need to copy here, because it is done by Store.
+				b.Delete(k)
 				key := make([]byte, len(k))
 				key[0] = byte(storage.STStorage)
 				copy(key[1:], k[1:])
-				value := slice.Copy(v)
-				b.Put(key, value)
+				b.Put(key, slice.Copy(v))
 				count += 2
 			})
 			if count > 0 {

@@ -16,7 +16,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/nspcc-dev/neo-go/pkg/util/slice"
 )
 
 // HasTransaction errors.
@@ -324,12 +323,10 @@ func (dao *Simple) GetStorageItemsWithPrefix(id int32, prefix []byte) ([]state.S
 
 	saveToArr := func(k, v []byte) {
 		// Cut prefix and hash.
-		// Must copy here, #1468.
-		key := slice.Copy(k)
-		val := slice.Copy(v)
+		// #1468, but don't need to copy here, because it is done by Store.
 		siArr = append(siArr, state.StorageItemWithKey{
-			Key:  key,
-			Item: state.StorageItem(val),
+			Key:  k,
+			Item: state.StorageItem(v),
 		})
 	}
 	dao.Seek(id, prefix, saveToArr)
