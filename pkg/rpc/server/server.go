@@ -36,6 +36,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/rpc/request"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result"
+	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result/subscriptions"
 	"github.com/nspcc-dev/neo-go/pkg/services/oracle"
 	"github.com/nspcc-dev/neo-go/pkg/services/oracle/broadcaster"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
@@ -69,7 +70,7 @@ type (
 		notaryRequestSubs int
 		blockCh           chan *block.Block
 		executionCh       chan *state.AppExecResult
-		notificationCh    chan *state.NotificationEvent
+		notificationCh    chan *subscriptions.NotificationEvent
 		transactionCh     chan *transaction.Transaction
 		notaryRequestCh   chan mempoolevent.Event
 	}
@@ -181,7 +182,7 @@ func New(chain blockchainer.Blockchainer, conf rpc.Config, coreServer *network.S
 		// These are NOT buffered to preserve original order of events.
 		blockCh:         make(chan *block.Block),
 		executionCh:     make(chan *state.AppExecResult),
-		notificationCh:  make(chan *state.NotificationEvent),
+		notificationCh:  make(chan *subscriptions.NotificationEvent),
 		transactionCh:   make(chan *transaction.Transaction),
 		notaryRequestCh: make(chan mempoolevent.Event),
 	}

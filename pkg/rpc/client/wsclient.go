@@ -12,6 +12,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/request"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response"
+	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result/subscriptions"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 )
 
@@ -38,7 +39,7 @@ type WSClient struct {
 }
 
 // Notification represents server-generated notification for client subscriptions.
-// Value can be one of block.Block, state.AppExecResult, state.NotificationEvent
+// Value can be one of block.Block, state.AppExecResult, subscriptions.NotificationEvent
 // transaction.Transaction or response.NotaryRequestEvent based on Type.
 type Notification struct {
 	Type  response.EventID
@@ -146,7 +147,7 @@ readloop:
 			case response.TransactionEventID:
 				val = &transaction.Transaction{}
 			case response.NotificationEventID:
-				val = new(state.NotificationEvent)
+				val = new(subscriptions.NotificationEvent)
 			case response.ExecutionEventID:
 				val = new(state.AppExecResult)
 			case response.NotaryRequestEventID:
