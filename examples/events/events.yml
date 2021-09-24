@@ -1,4 +1,5 @@
 name: "Event types example"
+sourceurl: https://github.com/nspcc-dev/neo-go/
 supportedstandards: []
 events:
   - name: SomeBytes

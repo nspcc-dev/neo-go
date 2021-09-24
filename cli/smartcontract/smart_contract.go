@@ -427,6 +427,7 @@ func initSmartContract(ctx *cli.Context) error {
 
 	m := ProjectConfig{
 		Name:               contractName,
+		SourceURL:          "http://example.com/",
 		SupportedStandards: []string{},
 		SafeMethods:        []string{},
 		Events: []manifest.Event{
@@ -489,6 +490,7 @@ func contractCompile(ctx *cli.Context) error {
 			return err
 		}
 		o.Name = conf.Name
+		o.SourceURL = conf.SourceURL
 		o.ContractEvents = conf.Events
 		o.ContractSupportedStandards = conf.SupportedStandards
 		o.Permissions = make([]manifest.Permission, len(conf.Permissions))
@@ -733,6 +735,7 @@ func testInvokeScript(ctx *cli.Context) error {
 // ProjectConfig contains project metadata.
 type ProjectConfig struct {
 	Name               string
+	SourceURL          string
 	SafeMethods        []string
 	SupportedStandards []string
 	Events             []manifest.Event

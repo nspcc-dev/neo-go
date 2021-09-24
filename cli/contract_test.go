@@ -601,9 +601,9 @@ func TestCompileExamples(t *testing.T) {
 		})
 	}
 
-	t.Run("invalid events in manifest", func(t *testing.T) {
+	t.Run("invalid manifest", func(t *testing.T) {
 		const dir = "./testdata/"
-		for _, name := range []string{"invalid1", "invalid2", "invalid3"} {
+		for _, name := range []string{"invalid1", "invalid2", "invalid3", "invalid4"} {
 			outF := path.Join(tmpDir, name+".nef")
 			manifestF := path.Join(tmpDir, name+".manifest.json")
 			e.RunWithError(t, "neo-go", "contract", "compile",

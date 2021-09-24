@@ -149,6 +149,7 @@ func TestMarshalUnmarshalJSON(t *testing.T) {
 	require.JSONEq(t, `{
 		"magic":`+strconv.FormatUint(uint64(Magic), 10)+`,
 		"compiler": "test.compiler-test.ver",
+		"source": "",
 		"tokens": [
 			{
 	"hash": "0x`+expected.Tokens[0].Hash.StringLE()+`",

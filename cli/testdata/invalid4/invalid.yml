@@ -1,0 +1,2 @@
+name: Test bad source url
+sourceurl: http://example.com/with/some/huge/path/that/cant/be/ever/normally/reached/but/we/need/to/test/for/it/anyway/because/there/is/some/path/in/the/code/that/does/this/check/and/it/should/be/triggered/to/ensure/proper/coverage/in/this/particular/component/of/our/perfect/compiler

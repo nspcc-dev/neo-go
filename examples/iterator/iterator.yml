@@ -1,4 +1,5 @@
 name: "Iterator example"
+sourceurl: https://github.com/nspcc-dev/neo-go/
 supportedstandards: []
 events:
   - name: found storage key-value pair

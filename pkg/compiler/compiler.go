@@ -52,6 +52,9 @@ type Options struct {
 	// Name is contract's name to be written to manifest.
 	Name string
 
+	// SourceURL is contract's source URL to be written to manifest.
+	SourceURL string
+
 	// Runtime notifications.
 	ContractEvents []manifest.Event
 
@@ -198,6 +201,13 @@ func CompileAndSave(src string, o *Options) ([]byte, error) {
 	f, err := nef.NewFile(b)
 	if err != nil {
 		return nil, fmt.Errorf("error while trying to create .nef file: %w", err)
+	}
+	if o.SourceURL != "" {
+		if len(o.SourceURL) > nef.MaxSourceURLLength {
+			return nil, errors.New("too long source URL")
+		}
+		f.Source = o.SourceURL
+		f.Checksum = f.CalculateChecksum()
 	}
 	bytes, err := f.Bytes()
 	if err != nil {
