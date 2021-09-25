@@ -47,10 +47,6 @@ DBConfiguration:
   Type: leveldb
   LevelDBOptions:
     DataDirectoryPath: /chains/privnet
-  RedisDBOptions:
-    Addr: localhost:6379
-    Password: ""
-    DB: 0
   BoltDBOptions:
     FilePath: ./chains/privnet.bolt
   BadgerDBOptions:
@@ -58,9 +54,8 @@ DBConfiguration:
 ```
 where:
 - `Type` is the database type (string value). Supported types: `levelDB`,
-  `redisDB`, `boltDB`, `badgerDB`.
+  `boltDB`, `badgerDB`.
 - `LevelDBOptions` are settings for LevelDB.
-- `RedisDBOptions` are options for RedisDB.
 - `BoltDBOptions` configures BoltDB.
 - `BadgerDBOptions` are options for BadgerDB.
 
