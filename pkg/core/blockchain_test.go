@@ -31,6 +31,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result/subscriptions"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
@@ -1397,7 +1398,7 @@ func TestSubscriptions(t *testing.T) {
 	const chBufSize = 16
 	blockCh := make(chan *block.Block, chBufSize)
 	txCh := make(chan *transaction.Transaction, chBufSize)
-	notificationCh := make(chan *state.NotificationEvent, chBufSize)
+	notificationCh := make(chan *subscriptions.NotificationEvent, chBufSize)
 	executionCh := make(chan *state.AppExecResult, chBufSize)
 
 	bc := newTestChain(t)

@@ -7,6 +7,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/request"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response"
+	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result/subscriptions"
 	"go.uber.org/atomic"
 )
 
@@ -72,7 +73,7 @@ func (f *feed) Matches(r *response.Notification) bool {
 		return senderOK && signerOK
 	case response.NotificationEventID:
 		filt := f.filter.(request.NotificationFilter)
-		notification := r.Payload[0].(*state.NotificationEvent)
+		notification := r.Payload[0].(*subscriptions.NotificationEvent)
 		hashOk := filt.Contract == nil || notification.ScriptHash.Equals(*filt.Contract)
 		nameOk := filt.Name == nil || notification.Name == *filt.Name
 		return hashOk && nameOk
@@ -82,7 +83,7 @@ func (f *feed) Matches(r *response.Notification) bool {
 		return applog.VMState.String() == filt.State
 	case response.NotaryRequestEventID:
 		filt := f.filter.(request.TxFilter)
-		req := r.Payload[0].(*response.NotaryRequestEvent)
+		req := r.Payload[0].(*subscriptions.NotaryRequestEvent)
 		senderOk := filt.Sender == nil || req.NotaryRequest.FallbackTransaction.Signers[1].Account == *filt.Sender
 		signerOK := true
 		if filt.Signer != nil {

@@ -16,7 +16,7 @@ Currently supported events:
    Contents: transaction. Filters: sender and signer.
  * notification generated during execution
 
-   Contents: container hash, contract script hash, stack item. Filters: contract script hash.
+   Contents: container hash, contract hash, notification name, stack item. Filters: contract hash, notification name.
  * transaction executed
 
    Contents: application execution result. Filters: VM state.
@@ -284,10 +284,10 @@ Example:
 
 ### `notification_from_execution` notification
 
-Contains three parameters: contract script hash (hex-encoded LE Uint160 
-in a string), notification name and stack item (encoded the same way as
-`state` field contents for notifications from `getapplicationlog`
-response).
+Contains four parameters: container hash (block's or transaction's hex-encoded LE
+Uint256 hash in a string), contract hash (hex-encoded LE Uint160 in a string),
+notification name and stack item (encoded the same way as `state` field contents
+for notifications from `getapplicationlog` response).
 
 Example:
 
@@ -329,6 +329,7 @@ Example:
          },
          "contract" : "0x1b4357bff5a01bdf2a6581247cf9ed1e24629176",
          "name" : "transfer",
+         "container" : "0xe1cd5e57e721d2a2e05fb1f08721b12057b25ab1dd7fd0f33ee1639932fdfad7",
       }
    ]
 }
