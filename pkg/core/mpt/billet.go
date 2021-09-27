@@ -28,7 +28,8 @@ var (
 // 3. Pair (node, path) must be restored only once. It's a duty of MPT pool to manage
 //    MPT paths in order to provide this assumption.
 type Billet struct {
-	Store *storage.MemCachedStore
+	TempStoragePrefix storage.KeyPrefix
+	Store             *storage.MemCachedStore
 
 	root            Node
 	refcountEnabled bool
@@ -38,11 +39,12 @@ type Billet struct {
 // to decouple storage errors from logic errors so that all storage errors are
 // processed during `store.Persist()` at the caller. This also has the benefit,
 // that every `Put` can be considered an atomic operation.
-func NewBillet(rootHash util.Uint256, enableRefCount bool, store *storage.MemCachedStore) *Billet {
+func NewBillet(rootHash util.Uint256, enableRefCount bool, prefix storage.KeyPrefix, store *storage.MemCachedStore) *Billet {
 	return &Billet{
-		Store:           store,
-		root:            NewHashNode(rootHash),
-		refcountEnabled: enableRefCount,
+		TempStoragePrefix: prefix,
+		Store:             store,
+		root:              NewHashNode(rootHash),
+		refcountEnabled:   enableRefCount,
 	}
 }
 
@@ -64,7 +66,7 @@ func (b *Billet) RestoreHashNode(path []byte, node Node) error {
 
 	// If it's a leaf, then put into temporary contract storage.
 	if leaf, ok := node.(*LeafNode); ok {
-		k := append([]byte{byte(storage.STTempStorage)}, fromNibbles(path)...)
+		k := append([]byte{byte(b.TempStoragePrefix)}, fromNibbles(path)...)
 		_ = b.Store.Put(k, leaf.value)
 	}
 	return nil

@@ -490,7 +490,7 @@ func (bc *Blockchain) jumpToStateInternal(p uint32, stage stateJumpStage) error 
 		// Replace old storage items by new ones, it should be done step-by step.
 		// Firstly, remove all old genesis-related items.
 		b := bc.dao.Store.Batch()
-		bc.dao.Store.Seek([]byte{byte(storage.STStorage)}, func(k, _ []byte) {
+		bc.dao.Store.Seek([]byte{byte(bc.dao.StoragePrefix)}, func(k, _ []byte) {
 			// #1468, but don't need to copy here, because it is done by Store.
 			b.Delete(k)
 		})
@@ -505,14 +505,16 @@ func (bc *Blockchain) jumpToStateInternal(p uint32, stage stateJumpStage) error 
 		for {
 			count := 0
 			b := bc.dao.Store.Batch()
-			bc.dao.Store.Seek([]byte{byte(storage.STTempStorage)}, func(k, v []byte) {
+			currPrefix := byte(bc.dao.StoragePrefix)
+			syncPrefix := byte(statesync.TemporaryPrefix(bc.dao.StoragePrefix))
+			bc.dao.Store.Seek([]byte{syncPrefix}, func(k, v []byte) {
 				if count >= maxStorageBatchSize {
 					return
 				}
 				// #1468, but don't need to copy here, because it is done by Store.
 				b.Delete(k)
 				key := make([]byte, len(k))
-				key[0] = byte(storage.STStorage)
+				key[0] = currPrefix
 				copy(key[1:], k[1:])
 				b.Put(key, slice.Copy(v))
 				count += 2

@@ -32,7 +32,7 @@ func TestBillet_RestoreHashNode(t *testing.T) {
 			b.Children[5] = NewExtensionNode([]byte{0x01}, NewLeafNode([]byte{0xAB, 0xDE}))
 			path := toNibbles([]byte{0xAC})
 			e := NewExtensionNode(path, NewHashNode(b.Hash()))
-			tr := NewBillet(e.Hash(), true, newTestStore())
+			tr := NewBillet(e.Hash(), true, storage.STTempStorage, newTestStore())
 			tr.root = e
 
 			// OK
@@ -61,7 +61,7 @@ func TestBillet_RestoreHashNode(t *testing.T) {
 			l := NewLeafNode([]byte{0xAB, 0xCD})
 			path := toNibbles([]byte{0xAC})
 			e := NewExtensionNode(path, NewHashNode(l.Hash()))
-			tr := NewBillet(e.Hash(), true, newTestStore())
+			tr := NewBillet(e.Hash(), true, storage.STTempStorage, newTestStore())
 			tr.root = e
 
 			// OK
@@ -87,7 +87,7 @@ func TestBillet_RestoreHashNode(t *testing.T) {
 			h := NewHashNode(util.Uint256{1, 2, 3})
 			path := toNibbles([]byte{0xAC})
 			e := NewExtensionNode(path, h)
-			tr := NewBillet(e.Hash(), true, newTestStore())
+			tr := NewBillet(e.Hash(), true, storage.STTempStorage, newTestStore())
 			tr.root = e
 
 			// no-op
@@ -99,7 +99,7 @@ func TestBillet_RestoreHashNode(t *testing.T) {
 	t.Run("parent is Leaf", func(t *testing.T) {
 		l := NewLeafNode([]byte{0xAB, 0xCD})
 		path := []byte{}
-		tr := NewBillet(l.Hash(), true, newTestStore())
+		tr := NewBillet(l.Hash(), true, storage.STTempStorage, newTestStore())
 		tr.root = l
 
 		// Already restored => panic expected
@@ -121,7 +121,7 @@ func TestBillet_RestoreHashNode(t *testing.T) {
 			b := NewBranchNode()
 			b.Children[5] = NewHashNode(l1.Hash())
 			b.Children[lastChild] = NewHashNode(l2.Hash())
-			tr := NewBillet(b.Hash(), true, newTestStore())
+			tr := NewBillet(b.Hash(), true, storage.STTempStorage, newTestStore())
 			tr.root = b
 
 			// OK
@@ -152,7 +152,7 @@ func TestBillet_RestoreHashNode(t *testing.T) {
 			b := NewBranchNode()
 			b.Children[5] = NewHashNode(l1.Hash())
 			b.Children[lastChild] = NewHashNode(l2.Hash())
-			tr := NewBillet(b.Hash(), true, newTestStore())
+			tr := NewBillet(b.Hash(), true, storage.STTempStorage, newTestStore())
 			tr.root = b
 
 			// OK
@@ -179,7 +179,7 @@ func TestBillet_RestoreHashNode(t *testing.T) {
 			// two same hashnodes => leaf's refcount expected to be 2 in the end.
 			b.Children[3] = NewHashNode(l.Hash())
 			b.Children[4] = NewHashNode(l.Hash())
-			tr := NewBillet(b.Hash(), true, newTestStore())
+			tr := NewBillet(b.Hash(), true, storage.STTempStorage, newTestStore())
 			tr.root = b
 
 			// OK
@@ -202,7 +202,7 @@ func TestBillet_RestoreHashNode(t *testing.T) {
 		b := NewBranchNode()
 		b.Children[3] = NewHashNode(l.Hash())
 		b.Children[4] = NewHashNode(l.Hash())
-		tr := NewBillet(b.Hash(), true, newTestStore())
+		tr := NewBillet(b.Hash(), true, storage.STTempStorage, newTestStore())
 
 		// Should fail, because if it's a hash node with non-empty path, then the node
 		// has already been collapsed.

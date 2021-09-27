@@ -74,7 +74,8 @@ type DAO interface {
 
 // Simple is memCached wrapper around DB, simple DAO implementation.
 type Simple struct {
-	Store *storage.MemCachedStore
+	StoragePrefix storage.KeyPrefix
+	Store         *storage.MemCachedStore
 	// stateRootInHeader specifies if block header contains state root.
 	stateRootInHeader bool
 	// p2pSigExtensions denotes whether P2PSignatureExtensions are enabled.
@@ -84,7 +85,12 @@ type Simple struct {
 // NewSimple creates new simple dao using provided backend store.
 func NewSimple(backend storage.Store, stateRootInHeader bool, p2pSigExtensions bool) *Simple {
 	st := storage.NewMemCachedStore(backend)
-	return &Simple{Store: st, stateRootInHeader: stateRootInHeader, p2pSigExtensions: p2pSigExtensions}
+	return &Simple{
+		StoragePrefix:     storage.STStorage,
+		Store:             st,
+		stateRootInHeader: stateRootInHeader,
+		p2pSigExtensions:  p2pSigExtensions,
+	}
 }
 
 // GetBatch returns currently accumulated DB changeset.
@@ -96,6 +102,7 @@ func (dao *Simple) GetBatch() *storage.MemBatch {
 // MemCachedStore around the current DAO Store.
 func (dao *Simple) GetWrapped() DAO {
 	d := NewSimple(dao.Store, dao.stateRootInHeader, dao.p2pSigExtensions)
+	d.StoragePrefix = dao.StoragePrefix
 	return d
 }
 
@@ -277,7 +284,7 @@ func (dao *Simple) PutAppExecResult(aer *state.AppExecResult, buf *io.BufBinWrit
 
 // GetStorageItem returns StorageItem if it exists in the given store.
 func (dao *Simple) GetStorageItem(id int32, key []byte) state.StorageItem {
-	b, err := dao.Store.Get(makeStorageItemKey(id, key))
+	b, err := dao.Store.Get(makeStorageItemKey(dao.StoragePrefix, id, key))
 	if err != nil {
 		return nil
 	}
@@ -287,14 +294,14 @@ func (dao *Simple) GetStorageItem(id int32, key []byte) state.StorageItem {
 // PutStorageItem puts given StorageItem for given id with given
 // key into the given store.
 func (dao *Simple) PutStorageItem(id int32, key []byte, si state.StorageItem) error {
-	stKey := makeStorageItemKey(id, key)
+	stKey := makeStorageItemKey(dao.StoragePrefix, id, key)
 	return dao.Store.Put(stKey, si)
 }
 
 // DeleteStorageItem drops storage item for the given id with the
 // given key from the store.
 func (dao *Simple) DeleteStorageItem(id int32, key []byte) error {
-	stKey := makeStorageItemKey(id, key)
+	stKey := makeStorageItemKey(dao.StoragePrefix, id, key)
 	return dao.Store.Delete(stKey)
 }
 
@@ -323,7 +330,7 @@ func (dao *Simple) GetStorageItemsWithPrefix(id int32, prefix []byte) ([]state.S
 // Seek executes f for all items with a given prefix.
 // If key is to be used outside of f, they may not be copied.
 func (dao *Simple) Seek(id int32, prefix []byte, f func(k, v []byte)) {
-	lookupKey := makeStorageItemKey(id, nil)
+	lookupKey := makeStorageItemKey(dao.StoragePrefix, id, nil)
 	if prefix != nil {
 		lookupKey = append(lookupKey, prefix...)
 	}
@@ -335,7 +342,7 @@ func (dao *Simple) Seek(id int32, prefix []byte, f func(k, v []byte)) {
 // SeekAsync sends all storage items matching given prefix to a channel and returns
 // the channel. Resulting keys and values may not be copied.
 func (dao *Simple) SeekAsync(ctx context.Context, id int32, prefix []byte) chan storage.KeyValue {
-	lookupKey := makeStorageItemKey(id, nil)
+	lookupKey := makeStorageItemKey(dao.StoragePrefix, id, nil)
 	if prefix != nil {
 		lookupKey = append(lookupKey, prefix...)
 	}
@@ -343,10 +350,10 @@ func (dao *Simple) SeekAsync(ctx context.Context, id int32, prefix []byte) chan 
 }
 
 // makeStorageItemKey returns a key used to store StorageItem in the DB.
-func makeStorageItemKey(id int32, key []byte) []byte {
+func makeStorageItemKey(prefix storage.KeyPrefix, id int32, key []byte) []byte {
 	// 1 for prefix + 4 for Uint32 + len(key) for key
 	buf := make([]byte, 5+len(key))
-	buf[0] = byte(storage.STStorage)
+	buf[0] = byte(prefix)
 	binary.LittleEndian.PutUint32(buf[1:], uint32(id))
 	copy(buf[5:], key)
 	return buf
@@ -667,7 +674,7 @@ func (dao *Simple) PersistSync() (int, error) {
 // GetMPTBatch storage changes to be applied to MPT.
 func (dao *Simple) GetMPTBatch() mpt.Batch {
 	var b mpt.Batch
-	dao.Store.MemoryStore.SeekAll([]byte{byte(storage.STStorage)}, func(k, v []byte) {
+	dao.Store.MemoryStore.SeekAll([]byte{byte(dao.StoragePrefix)}, func(k, v []byte) {
 		b.Add(k[1:], v)
 	})
 	return b

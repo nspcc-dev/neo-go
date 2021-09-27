@@ -165,6 +165,19 @@ func (s *Module) Init(currChainHeight uint32) error {
 	return s.defineSyncStage()
 }
 
+// TemporaryPrefix accepts current storage prefix and returns prefix
+// to use for storing intermediate items during synchronization.
+func TemporaryPrefix(currPrefix storage.KeyPrefix) storage.KeyPrefix {
+	switch currPrefix {
+	case storage.STStorage:
+		return storage.STTempStorage
+	case storage.STTempStorage:
+		return storage.STStorage
+	default:
+		panic(fmt.Sprintf("invalid storage prefix: %x", currPrefix))
+	}
+}
+
 // defineSyncStage sequentially checks and sets sync state process stage after Module
 // initialization. It also performs initialization of MPT Billet if necessary.
 func (s *Module) defineSyncStage() error {
@@ -194,7 +207,8 @@ func (s *Module) defineSyncStage() error {
 		if err != nil {
 			return fmt.Errorf("failed to get header to initialize MPT billet: %w", err)
 		}
-		s.billet = mpt.NewBillet(header.PrevStateRoot, s.bc.GetConfig().KeepOnlyLatestState, s.dao.Store)
+		s.billet = mpt.NewBillet(header.PrevStateRoot, s.bc.GetConfig().KeepOnlyLatestState,
+			TemporaryPrefix(s.dao.StoragePrefix), s.dao.Store)
 		s.log.Info("MPT billet initialized",
 			zap.Uint32("height", s.syncPoint),
 			zap.String("state root", header.PrevStateRoot.StringBE()))
@@ -466,7 +480,7 @@ func (s *Module) Traverse(root util.Uint256, process func(node mpt.Node, nodeByt
 	s.lock.RLock()
 	defer s.lock.RUnlock()
 
-	b := mpt.NewBillet(root, s.bc.GetConfig().KeepOnlyLatestState, storage.NewMemCachedStore(s.dao.Store))
+	b := mpt.NewBillet(root, s.bc.GetConfig().KeepOnlyLatestState, 0, storage.NewMemCachedStore(s.dao.Store))
 	return b.Traverse(func(pathToNode []byte, node mpt.Node, nodeBytes []byte) bool {
 		return process(node, nodeBytes)
 	}, false)

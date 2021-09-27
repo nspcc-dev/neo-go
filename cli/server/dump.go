@@ -32,7 +32,7 @@ func batchToMap(index uint32, batch *storage.MemBatch) blockDump {
 	ops := make([]storageOp, 0, size)
 	for i := range batch.Put {
 		key := batch.Put[i].Key
-		if len(key) == 0 || key[0] != byte(storage.STStorage) {
+		if len(key) == 0 || key[0] != byte(storage.STStorage) && key[0] != byte(storage.STTempStorage) {
 			continue
 		}
 
@@ -50,7 +50,8 @@ func batchToMap(index uint32, batch *storage.MemBatch) blockDump {
 
 	for i := range batch.Deleted {
 		key := batch.Deleted[i].Key
-		if len(key) == 0 || key[0] != byte(storage.STStorage) || !batch.Deleted[i].Exists {
+		if len(key) == 0 || !batch.Deleted[i].Exists ||
+			key[0] != byte(storage.STStorage) && key[0] != byte(storage.STTempStorage) {
 			continue
 		}
 

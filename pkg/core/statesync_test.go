@@ -421,7 +421,7 @@ func TestStateSyncModule_RestoreBasicChain(t *testing.T) {
 	// compare storage states
 	fetchStorage := func(bc *Blockchain) []storage.KeyValue {
 		var kv []storage.KeyValue
-		bc.dao.Store.Seek(storage.STStorage.Bytes(), func(k, v []byte) {
+		bc.dao.Store.Seek(bc.dao.StoragePrefix.Bytes(), func(k, v []byte) {
 			key := slice.Copy(k)
 			value := slice.Copy(v)
 			kv = append(kv, storage.KeyValue{

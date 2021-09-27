@@ -222,11 +222,16 @@ func TestMakeStorageItemKey(t *testing.T) {
 
 	expected := []byte{byte(storage.STStorage), 0, 0, 0, 0, 1, 2, 3}
 	binary.LittleEndian.PutUint32(expected[1:5], uint32(id))
-	actual := makeStorageItemKey(id, []byte{1, 2, 3})
+	actual := makeStorageItemKey(storage.STStorage, id, []byte{1, 2, 3})
 	require.Equal(t, expected, actual)
 
 	expected = expected[0:5]
-	actual = makeStorageItemKey(id, nil)
+	actual = makeStorageItemKey(storage.STStorage, id, nil)
+	require.Equal(t, expected, actual)
+
+	expected = []byte{byte(storage.STTempStorage), 0, 0, 0, 0, 1, 2, 3}
+	binary.LittleEndian.PutUint32(expected[1:5], uint32(id))
+	actual = makeStorageItemKey(storage.STTempStorage, id, []byte{1, 2, 3})
 	require.Equal(t, expected, actual)
 }
 
