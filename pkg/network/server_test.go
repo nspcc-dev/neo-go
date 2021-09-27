@@ -186,26 +186,34 @@ func TestServerRegisterPeer(t *testing.T) {
 }
 
 func TestGetBlocksByIndex(t *testing.T) {
+	testGetBlocksByIndex(t, CMDGetBlockByIndex)
+}
+
+func testGetBlocksByIndex(t *testing.T, cmd CommandType) {
 	s := newTestServer(t, ServerConfig{Port: 0, UserAgent: "/test/"})
+	start := s.chain.BlockHeight()
+	if cmd == CMDGetHeaders {
+		start = s.chain.HeaderHeight()
+		s.stateSync.(*fakechain.FakeStateSync).RequestHeaders.Store(true)
+	}
 	ps := make([]*localPeer, 10)
 	expectsCmd := make([]CommandType, 10)
 	expectedHeight := make([][]uint32, 10)
-	start := s.chain.BlockHeight()
 	for i := range ps {
 		i := i
 		ps[i] = newLocalPeer(t, s)
 		ps[i].messageHandler = func(t *testing.T, msg *Message) {
 			require.Equal(t, expectsCmd[i], msg.Command)
-			if expectsCmd[i] == CMDGetBlockByIndex {
+			if expectsCmd[i] == cmd {
 				p, ok := msg.Payload.(*payload.GetBlockByIndex)
 				require.True(t, ok)
 				require.Contains(t, expectedHeight[i], p.IndexStart)
 				expectsCmd[i] = CMDPong
 			} else if expectsCmd[i] == CMDPong {
-				expectsCmd[i] = CMDGetBlockByIndex
+				expectsCmd[i] = cmd
 			}
 		}
-		expectsCmd[i] = CMDGetBlockByIndex
+		expectsCmd[i] = cmd
 		expectedHeight[i] = []uint32{start + 1}
 	}
 	go s.transport.Accept()
@@ -677,6 +685,9 @@ func TestGetHeaders(t *testing.T) {
 		actual = nil
 		s.testHandleMessage(t, p, CMDGetHeaders, &payload.GetBlockByIndex{IndexStart: 123, Count: -1})
 		require.Nil(t, actual)
+	})
+	t.Run("distribute requests between peers", func(t *testing.T) {
+		testGetBlocksByIndex(t, CMDGetHeaders)
 	})
 }
 
