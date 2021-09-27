@@ -75,19 +75,24 @@ func (r *Request) UnmarshalJSON(data []byte) error {
 		in    *In
 		batch Batch
 	)
-	in = &In{}
-	err := json.Unmarshal(data, in)
-	if err == nil {
-		r.In = in
-		return nil
-	}
+
 	decoder := json.NewDecoder(bytes.NewReader(data))
-	t, err := decoder.Token() // read `[`
+	t, err := decoder.Token() // read `[` or `{`
 	if err != nil {
 		return err
 	}
-	if t != json.Delim('[') {
-		return fmt.Errorf("`[` expected, got %s", t)
+
+	switch t {
+	case json.Delim('['):
+	case json.Delim('{'):
+		in = &In{}
+		err := json.Unmarshal(data, in)
+		if err == nil {
+			r.In = in
+		}
+		return err
+	default:
+		return fmt.Errorf("`[` or `{` expected, got %s", t)
 	}
 	count := 0
 	for decoder.More() {
