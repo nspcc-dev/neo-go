@@ -39,7 +39,7 @@ func BenchmarkUnmarshal(b *testing.B) {
 				r.In = new(In)
 				rd := bytes.NewReader(req)
 				b.StartTimer()
-				err := r.DecodeData(readCloser{rd})
+				err := r.decodeData(rd)
 				if err != nil {
 					b.FailNow()
 				}

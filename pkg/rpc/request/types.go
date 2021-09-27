@@ -71,59 +71,95 @@ func (r Request) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements json.Unmarshaler interface.
 func (r *Request) UnmarshalJSON(data []byte) error {
-	var (
-		in    *In
-		batch Batch
-	)
-
-	decoder := json.NewDecoder(bytes.NewReader(data))
-	t, err := decoder.Token() // read `[` or `{`
-	if err != nil {
-		return err
-	}
-
-	switch t {
-	case json.Delim('['):
-	case json.Delim('{'):
-		in = &In{}
-		err := json.Unmarshal(data, in)
-		if err == nil {
-			r.In = in
-		}
-		return err
-	default:
-		return fmt.Errorf("`[` or `{` expected, got %s", t)
-	}
-	count := 0
-	for decoder.More() {
-		if count > maxBatchSize {
-			return fmt.Errorf("the number of requests in batch shouldn't exceed %d", maxBatchSize)
-		}
-		in = &In{}
-		decodeErr := decoder.Decode(in)
-		if decodeErr != nil {
-			return decodeErr
-		}
-		batch = append(batch, *in)
-		count++
-	}
-	if len(batch) == 0 {
-		return errors.New("empty request")
-	}
-	r.Batch = batch
-	return nil
+	return r.decodeData(bytes.NewReader(data))
 }
 
 // DecodeData decodes the given reader into the the request
 // struct.
 func (r *Request) DecodeData(data io.ReadCloser) error {
 	defer data.Close()
+	return r.decodeData(data)
+}
 
-	err := json.NewDecoder(data).Decode(r)
-	if err != nil {
-		return fmt.Errorf("error parsing JSON payload: %w", err)
+func (r *Request) decodeData(data io.Reader) error {
+
+	var (
+		in    *In
+		batch Batch
+	)
+
+	isBatch := false
+	count := 0
+	decoder := json.NewDecoder(data)
+loop:
+	for {
+		t, err := decoder.Token() // read `[` or `{`
+		if err != nil {
+			return err
+		}
+
+		switch t {
+		case json.Delim('['):
+			if isBatch {
+				return fmt.Errorf("unexpected token: %s", t)
+			}
+			isBatch = true
+		case json.Delim('{'):
+			in = r.In
+			for decoder.More() {
+				t, err := decoder.Token()
+				if err != nil {
+					return fmt.Errorf("map key is expected: %w", err)
+				}
+
+				// Having t other than string is JSON spec violation and
+				// Go catches this for us the `Token` call above.
+				key := t.(string)
+				switch key {
+				case "jsonrpc":
+					err = decoder.Decode(&in.JSONRPC)
+				case "method":
+					err = decoder.Decode(&in.Method)
+				case "params":
+					err = decoder.Decode(&in.RawParams)
+				case "id":
+					err = decoder.Decode(&in.RawID)
+				default: // skip extra fields for compatibility
+					var v interface{}
+					err = decoder.Decode(&v)
+					if err != nil {
+						return err
+					}
+					continue
+				}
+				if err != nil {
+					return fmt.Errorf("invalid value for '%s': %w", key, err)
+				}
+			}
+			_, err := decoder.Token()
+			if err != nil {
+				return err
+			}
+
+			if !isBatch {
+				r.In = in
+				return nil
+			}
+			batch = append(batch, *in)
+			count++
+			if count > maxBatchSize {
+				return fmt.Errorf("the number of requests in batch shouldn't exceed %d", maxBatchSize)
+			}
+		case json.Delim(']'):
+			break loop
+		default:
+			return fmt.Errorf("`[` or `{` expected, got %s", t)
+		}
 	}
-
+	if len(batch) == 0 {
+		return errors.New("empty request")
+	}
+	r.Batch = batch
 	return nil
 }
 
