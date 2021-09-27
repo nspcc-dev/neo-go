@@ -119,13 +119,12 @@ func (r *Request) UnmarshalJSON(data []byte) error {
 func (r *Request) DecodeData(data io.ReadCloser) error {
 	defer data.Close()
 
-	rawData := json.RawMessage{}
-	err := json.NewDecoder(data).Decode(&rawData)
+	err := json.NewDecoder(data).Decode(r)
 	if err != nil {
 		return fmt.Errorf("error parsing JSON payload: %w", err)
 	}
 
-	return r.UnmarshalJSON(rawData)
+	return nil
 }
 
 // NewRequest creates a new Request struct.
