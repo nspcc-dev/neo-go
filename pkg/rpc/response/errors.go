@@ -90,6 +90,9 @@ func NewSubmitError(code int64, message string) *Error {
 
 // Error implements the error interface.
 func (e *Error) Error() string {
+	if e.Cause == nil {
+		return fmt.Sprintf("%s (%d) - %s", e.Message, e.Code, e.Data)
+	}
 	return fmt.Sprintf("%s (%d) - %s - %s", e.Message, e.Code, e.Data, e.Cause)
 }
 

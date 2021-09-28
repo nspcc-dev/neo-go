@@ -22,7 +22,7 @@ var (
 	// ErrConflict is returned when transaction being added is incompatible
 	// with the contents of the memory pool (Sender doesn't have enough GAS
 	// to pay for all transactions in the pool).
-	ErrConflict = errors.New("conflicts with the memory pool")
+	ErrConflict = errors.New("conflicts: insufficient funds for all pooled tx")
 	// ErrDup is returned when transaction being added is already present
 	// in the memory pool.
 	ErrDup = errors.New("already in the memory pool")
