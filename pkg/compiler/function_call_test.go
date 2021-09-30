@@ -324,3 +324,30 @@ func TestFunctionUnusedParameters(t *testing.T) {
 	}`
 	eval(t, src, big.NewInt(101))
 }
+
+func TestUnusedFunctions(t *testing.T) {
+	t.Run("only variable", func(t *testing.T) {
+		src := `package foo
+		import "github.com/nspcc-dev/neo-go/pkg/compiler/testdata/nestedcall"
+		func Main() int {
+			return nestedcall.X
+		}`
+
+		b, err := compiler.Compile("foo", strings.NewReader(src))
+		require.NoError(t, err)
+		require.Equal(t, 3, len(b)) // PUSHINT8 (42) + RET
+		eval(t, src, big.NewInt(42))
+	})
+	t.Run("imported function", func(t *testing.T) {
+		// Check that import map is set correctly during package traversal.
+		src := `package foo
+		import inner "github.com/nspcc-dev/neo-go/pkg/compiler/testdata/nestedcall"
+		func Main() int {
+			return inner.N()
+		}`
+
+		_, err := compiler.Compile("foo", strings.NewReader(src))
+		require.NoError(t, err)
+		eval(t, src, big.NewInt(65))
+	})
+}

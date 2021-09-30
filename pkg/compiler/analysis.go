@@ -241,34 +241,86 @@ func (c *codegen) fillDocumentInfo() {
 	})
 }
 
+// analyzeFuncUsage traverses all code and returns map with functions
+// which should be present in the emitted code.
+// This is done using BFS starting from exported functions or
+// function used in variable declarations (graph edge corresponds to
+// function being called in declaration).
 func (c *codegen) analyzeFuncUsage() funcUsage {
-	usage := funcUsage{}
+	type declPair struct {
+		decl      *ast.FuncDecl
+		importMap map[string]string
+		path      string
+	}
 
+	// nodeCache contains top-level function declarations .
+	nodeCache := make(map[string]declPair)
+	diff := funcUsage{}
 	c.ForEachFile(func(f *ast.File, pkg *types.Package) {
+		var pkgPath string
 		isMain := pkg == c.mainPkg.Pkg
+		if !isMain {
+			pkgPath = pkg.Path()
+		}
+
 		ast.Inspect(f, func(node ast.Node) bool {
 			switch n := node.(type) {
 			case *ast.CallExpr:
+				// functions invoked in variable declarations in imported packages
+				// are marked as used.
+				var name string
 				switch t := n.Fun.(type) {
 				case *ast.Ident:
-					var pkgPath string
-					if !isMain {
-						pkgPath = pkg.Path()
-					}
-					usage[c.getIdentName(pkgPath, t.Name)] = true
+					name = c.getIdentName(pkgPath, t.Name)
 				case *ast.SelectorExpr:
-					name, _ := c.getFuncNameFromSelector(t)
-					usage[name] = true
+					name, _ = c.getFuncNameFromSelector(t)
+				default:
+					return true
 				}
+				diff[name] = true
 			case *ast.FuncDecl:
+				name := c.getFuncNameFromDecl(pkgPath, n)
+
 				// exported functions are always assumed to be used
-				if isMain && n.Name.IsExported() {
-					usage[c.getFuncNameFromDecl("", n)] = true
+				if isMain && n.Name.IsExported() || isInitFunc(n) || isDeployFunc(n) {
+					diff[name] = true
 				}
+				nodeCache[name] = declPair{n, c.importMap, pkgPath}
+				return false // will be processed in the next stage
 			}
 			return true
 		})
 	})
+
+	usage := funcUsage{}
+	for len(diff) != 0 {
+		nextDiff := funcUsage{}
+		for name := range diff {
+			fd, ok := nodeCache[name]
+			if !ok || usage[name] {
+				continue
+			}
+			usage[name] = true
+
+			old := c.importMap
+			c.importMap = fd.importMap
+			ast.Inspect(fd.decl, func(node ast.Node) bool {
+				switch n := node.(type) {
+				case *ast.CallExpr:
+					switch t := n.Fun.(type) {
+					case *ast.Ident:
+						nextDiff[c.getIdentName(fd.path, t.Name)] = true
+					case *ast.SelectorExpr:
+						name, _ := c.getFuncNameFromSelector(t)
+						nextDiff[name] = true
+					}
+				}
+				return true
+			})
+			c.importMap = old
+		}
+		diff = nextDiff
+	}
 	return usage
 }
 
