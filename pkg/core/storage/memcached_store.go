@@ -90,6 +90,16 @@ func (s *MemCachedStore) GetBatch() *MemBatch {
 
 // Seek implements the Store interface.
 func (s *MemCachedStore) Seek(key []byte, f func(k, v []byte)) {
+	seekres := s.SeekAsync(key, false)
+	for kv := range seekres {
+		f(kv.Key, kv.Value)
+	}
+}
+
+// SeekAsync returns non-buffered channel with matching KeyValue pairs. Key and
+// value slices may not be copied and may be modified. SeekAsync can guarantee
+// that key-value items are sorted by key in ascending way.
+func (s *MemCachedStore) SeekAsync(key []byte, cutPrefix bool) chan KeyValue {
 	// Create memory store `mem` and `del` snapshot not to hold the lock.
 	memRes := make([]KeyValueExists, 0)
 	sk := string(key)
@@ -158,6 +168,9 @@ func (s *MemCachedStore) Seek(key []byte, f func(k, v []byte)) {
 			var isMem = haveMem && (!havePs || (bytes.Compare(kvMem.Key, kvPs.Key) < 0))
 			if isMem {
 				if kvMem.Exists {
+					if cutPrefix {
+						kvMem.Key = kvMem.Key[len(key):]
+					}
 					seekres <- KeyValue{
 						Key:   kvMem.Key,
 						Value: kvMem.Value,
@@ -166,6 +179,9 @@ func (s *MemCachedStore) Seek(key []byte, f func(k, v []byte)) {
 				kvMem, haveMem = <-data1
 			} else {
 				if !bytes.Equal(kvMem.Key, kvPs.Key) {
+					if cutPrefix {
+						kvPs.Key = kvPs.Key[len(key):]
+					}
 					seekres <- kvPs
 				}
 				kvPs, havePs = <-data2
@@ -174,9 +190,7 @@ func (s *MemCachedStore) Seek(key []byte, f func(k, v []byte)) {
 		close(seekres)
 	}()
 
-	for r := range seekres {
-		f(r.Key, r.Value)
-	}
+	return seekres
 }
 
 // Persist flushes all the MemoryStore contents into the (supposedly) persistent

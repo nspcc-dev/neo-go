@@ -64,6 +64,7 @@ type DAO interface {
 	PutStorageItem(id int32, key []byte, si state.StorageItem) error
 	PutVersion(v string) error
 	Seek(id int32, prefix []byte, f func(k, v []byte))
+	SeekAsync(id int32, prefix []byte) chan storage.KeyValue
 	StoreAsBlock(block *block.Block, buf *io.BufBinWriter) error
 	StoreAsCurrentBlock(block *block.Block, buf *io.BufBinWriter) error
 	StoreAsTransaction(tx *transaction.Transaction, index uint32, buf *io.BufBinWriter) error
@@ -336,13 +337,19 @@ func (dao *Simple) GetStorageItemsWithPrefix(id int32, prefix []byte) ([]state.S
 // Seek executes f for all items with a given prefix.
 // If key is to be used outside of f, they may not be copied.
 func (dao *Simple) Seek(id int32, prefix []byte, f func(k, v []byte)) {
+	for r := range dao.SeekAsync(id, prefix) {
+		f(r.Key, r.Value)
+	}
+}
+
+// SeekAsync sends all storage items matching given prefix to a channel and returns
+// the channel. Resulting keys and values may not be copied.
+func (dao *Simple) SeekAsync(id int32, prefix []byte) chan storage.KeyValue {
 	lookupKey := makeStorageItemKey(id, nil)
 	if prefix != nil {
 		lookupKey = append(lookupKey, prefix...)
 	}
-	dao.Store.Seek(lookupKey, func(k, v []byte) {
-		f(k[len(lookupKey):], v)
-	})
+	return dao.Store.SeekAsync(lookupKey, true)
 }
 
 // makeStorageItemKey returns a key used to store StorageItem in the DB.

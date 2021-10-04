@@ -186,26 +186,10 @@ func storageFind(ic *interop.Context) error {
 	if opts&istorage.FindDeserialize == 0 && (opts&istorage.FindPick0 != 0 || opts&istorage.FindPick1 != 0) {
 		return fmt.Errorf("%w: PickN is specified without Deserialize", errFindInvalidOptions)
 	}
-	siArr, err := ic.DAO.GetStorageItemsWithPrefix(stc.ID, prefix)
-	if err != nil {
-		return err
-	}
-
-	arr := make([]stackitem.MapElement, 0, len(siArr))
-	for _, kv := range siArr {
-		keycopy := make([]byte, len(kv.Key)+len(prefix))
-		copy(keycopy, prefix)
-		copy(keycopy[len(prefix):], kv.Key)
-		arr = append(arr, stackitem.MapElement{
-			Key:   stackitem.NewByteArray(keycopy),
-			Value: stackitem.NewByteArray(kv.Item),
-		})
-	}
-	// Items in arr should be sorted by key, but GetStorageItemsWithPrefix returns
+	// Items in seekres should be sorted by key, but GetStorageItemsWithPrefix returns
 	// sorted items, so no need to sort them one more time.
-
-	filteredMap := stackitem.NewMapWithValue(arr)
-	item := istorage.NewIterator(filteredMap, len(prefix), opts)
+	seekres := ic.DAO.SeekAsync(stc.ID, prefix)
+	item := istorage.NewIterator(seekres, prefix, opts)
 	ic.VM.Estack().PushItem(stackitem.NewInterop(item))
 
 	return nil
