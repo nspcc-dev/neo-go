@@ -18,14 +18,20 @@ type (
 	KeyValue struct {
 		Key   []byte
 		Value []byte
+	}
+
+	// KeyValueExists represents key-value pair with indicator whether the item
+	// exists in the persistent storage.
+	KeyValueExists struct {
+		KeyValue
 
 		Exists bool
 	}
 
 	// MemBatch represents a changeset to be persisted.
 	MemBatch struct {
-		Put     []KeyValue
-		Deleted []KeyValue
+		Put     []KeyValueExists
+		Deleted []KeyValueExists
 	}
 )
 
@@ -58,18 +64,18 @@ func (s *MemCachedStore) GetBatch() *MemBatch {
 
 	var b MemBatch
 
-	b.Put = make([]KeyValue, 0, len(s.mem))
+	b.Put = make([]KeyValueExists, 0, len(s.mem))
 	for k, v := range s.mem {
 		key := []byte(k)
 		_, err := s.ps.Get(key)
-		b.Put = append(b.Put, KeyValue{Key: key, Value: v, Exists: err == nil})
+		b.Put = append(b.Put, KeyValueExists{KeyValue: KeyValue{Key: key, Value: v}, Exists: err == nil})
 	}
 
-	b.Deleted = make([]KeyValue, 0, len(s.del))
+	b.Deleted = make([]KeyValueExists, 0, len(s.del))
 	for k := range s.del {
 		key := []byte(k)
 		_, err := s.ps.Get(key)
-		b.Deleted = append(b.Deleted, KeyValue{Key: key, Exists: err == nil})
+		b.Deleted = append(b.Deleted, KeyValueExists{KeyValue: KeyValue{Key: key}, Exists: err == nil})
 	}
 
 	return &b

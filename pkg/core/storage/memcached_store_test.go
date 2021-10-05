@@ -16,7 +16,7 @@ func testMemCachedStorePersist(t *testing.T, ps Store) {
 	assert.Equal(t, 0, c)
 	// persisting one key should result in one key in ps and nothing in ts
 	assert.NoError(t, ts.Put([]byte("key"), []byte("value")))
-	checkBatch(t, ts, []KeyValue{{Key: []byte("key"), Value: []byte("value")}}, nil)
+	checkBatch(t, ts, []KeyValueExists{{KeyValue: KeyValue{Key: []byte("key"), Value: []byte("value")}}}, nil)
 	c, err = ts.Persist()
 	checkBatch(t, ts, nil, nil)
 	assert.Equal(t, nil, err)
@@ -35,9 +35,9 @@ func testMemCachedStorePersist(t *testing.T, ps Store) {
 	v, err = ps.Get([]byte("key2"))
 	assert.Equal(t, ErrKeyNotFound, err)
 	assert.Equal(t, []byte(nil), v)
-	checkBatch(t, ts, []KeyValue{
-		{Key: []byte("key"), Value: []byte("newvalue"), Exists: true},
-		{Key: []byte("key2"), Value: []byte("value2")},
+	checkBatch(t, ts, []KeyValueExists{
+		{KeyValue: KeyValue{Key: []byte("key"), Value: []byte("newvalue")}, Exists: true},
+		{KeyValue: KeyValue{Key: []byte("key2"), Value: []byte("value2")}},
 	}, nil)
 	// two keys should be persisted (one overwritten and one new) and
 	// available in the ps
@@ -65,7 +65,7 @@ func testMemCachedStorePersist(t *testing.T, ps Store) {
 	// test persisting deletions
 	err = ts.Delete([]byte("key"))
 	assert.Equal(t, nil, err)
-	checkBatch(t, ts, nil, []KeyValue{{Key: []byte("key"), Exists: true}})
+	checkBatch(t, ts, nil, []KeyValueExists{{KeyValue: KeyValue{Key: []byte("key")}, Exists: true}})
 	c, err = ts.Persist()
 	checkBatch(t, ts, nil, nil)
 	assert.Equal(t, nil, err)
@@ -78,7 +78,7 @@ func testMemCachedStorePersist(t *testing.T, ps Store) {
 	assert.Equal(t, []byte("value2"), v)
 }
 
-func checkBatch(t *testing.T, ts *MemCachedStore, put []KeyValue, del []KeyValue) {
+func checkBatch(t *testing.T, ts *MemCachedStore, put []KeyValueExists, del []KeyValueExists) {
 	b := ts.GetBatch()
 	assert.Equal(t, len(put), len(b.Put), "wrong number of put elements in a batch")
 	assert.Equal(t, len(del), len(b.Deleted), "wrong number of deleted elements in a batch")
