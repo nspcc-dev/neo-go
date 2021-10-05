@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func newBadgerDBForTesting(t *testing.T) Store {
+func newBadgerDBForTesting(t testing.TB) Store {
 	bdbDir := t.TempDir()
 	dbConfig := DBConfiguration{
 		Type: "badgerdb",

@@ -1,8 +1,10 @@
 package storage
 
 import (
+	"fmt"
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/internal/random"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -174,7 +176,82 @@ func TestCachedSeek(t *testing.T) {
 	}
 }
 
-func newMemCachedStoreForTesting(t *testing.T) Store {
+func benchmarkCachedSeek(t *testing.B, ps Store, psElementsCount, tsElementsCount int) {
+	var (
+		searchPrefix      = []byte{1}
+		badPrefix         = []byte{2}
+		lowerPrefixGood   = append(searchPrefix, 1)
+		lowerPrefixBad    = append(badPrefix, 1)
+		deletedPrefixGood = append(searchPrefix, 2)
+		deletedPrefixBad  = append(badPrefix, 2)
+		updatedPrefixGood = append(searchPrefix, 3)
+		updatedPrefixBad  = append(badPrefix, 3)
+
+		ts = NewMemCachedStore(ps)
+	)
+	for i := 0; i < psElementsCount; i++ {
+		// lower KVs with matching prefix that should be found
+		require.NoError(t, ps.Put(append(lowerPrefixGood, random.Bytes(10)...), []byte("value")))
+		// lower KVs with non-matching prefix that shouldn't be found
+		require.NoError(t, ps.Put(append(lowerPrefixBad, random.Bytes(10)...), []byte("value")))
+
+		// deleted KVs with matching prefix that shouldn't be found
+		key := append(deletedPrefixGood, random.Bytes(10)...)
+		require.NoError(t, ps.Put(key, []byte("deleted")))
+		if i < tsElementsCount {
+			require.NoError(t, ts.Delete(key))
+		}
+		// deleted KVs with non-matching prefix that shouldn't be found
+		key = append(deletedPrefixBad, random.Bytes(10)...)
+		require.NoError(t, ps.Put(key, []byte("deleted")))
+		if i < tsElementsCount {
+			require.NoError(t, ts.Delete(key))
+		}
+
+		// updated KVs with matching prefix that should be found
+		key = append(updatedPrefixGood, random.Bytes(10)...)
+		require.NoError(t, ps.Put(key, []byte("stub")))
+		if i < tsElementsCount {
+			require.NoError(t, ts.Put(key, []byte("updated")))
+		}
+		// updated KVs with non-matching prefix that shouldn't be found
+		key = append(updatedPrefixBad, random.Bytes(10)...)
+		require.NoError(t, ps.Put(key, []byte("stub")))
+		if i < tsElementsCount {
+			require.NoError(t, ts.Put(key, []byte("updated")))
+		}
+	}
+
+	t.ReportAllocs()
+	t.ResetTimer()
+	for n := 0; n < t.N; n++ {
+		ts.Seek(searchPrefix, func(k, v []byte) {})
+	}
+	t.StopTimer()
+}
+
+func BenchmarkCachedSeek(t *testing.B) {
+	var stores = map[string]func(testing.TB) Store{
+		"MemPS": func(t testing.TB) Store {
+			return NewMemoryStore()
+		},
+		"BoltPS":  newBoltStoreForTesting,
+		"LevelPS": newLevelDBForTesting,
+	}
+	for psName, newPS := range stores {
+		for psCount := 100; psCount <= 10000; psCount *= 10 {
+			for tsCount := 10; tsCount <= psCount; tsCount *= 10 {
+				t.Run(fmt.Sprintf("%s_%dTSItems_%dPSItems", psName, tsCount, psCount), func(t *testing.B) {
+					ps := newPS(t)
+					benchmarkCachedSeek(t, ps, psCount, tsCount)
+					ps.Close()
+				})
+			}
+		}
+	}
+}
+
+func newMemCachedStoreForTesting(t testing.TB) Store {
 	return NewMemCachedStore(NewMemoryStore())
 }
 
