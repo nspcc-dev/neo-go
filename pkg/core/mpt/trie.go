@@ -49,6 +49,9 @@ func NewTrie(root Node, enableRefCount bool, store *storage.MemCachedStore) *Tri
 
 // Get returns value for the provided key in t.
 func (t *Trie) Get(key []byte) ([]byte, error) {
+	if len(key) > MaxKeyLength {
+		return nil, errors.New("key is too big")
+	}
 	path := toNibbles(key)
 	r, bs, err := t.getWithPath(t.root, path)
 	if err != nil {
@@ -235,6 +238,9 @@ func (t *Trie) putIntoNode(curr Node, path []byte, val Node) (Node, error) {
 // Delete removes key from trie.
 // It returns no error on missing key.
 func (t *Trie) Delete(key []byte) error {
+	if len(key) > MaxKeyLength {
+		return errors.New("key is too big")
+	}
 	path := toNibbles(key)
 	r, err := t.deleteFromNode(t.root, path)
 	if err != nil {
