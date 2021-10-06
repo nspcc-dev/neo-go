@@ -270,6 +270,11 @@ func CreateManifest(di *DebugInfo, o *Options) (*manifest.Manifest, error) {
 	if err != nil {
 		return m, fmt.Errorf("failed to convert debug info to manifest: %w", err)
 	}
+	for _, name := range o.SafeMethods {
+		if m.ABI.GetMethod(name, -1) == nil {
+			return m, fmt.Errorf("method %s is marked as safe but missing from manifest", name)
+		}
+	}
 	if !o.NoStandardCheck {
 		if err := standard.CheckABI(m, o.ContractSupportedStandards...); err != nil {
 			return m, err

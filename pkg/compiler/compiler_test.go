@@ -125,6 +125,20 @@ func TestOnPayableChecks(t *testing.T) {
 	})
 }
 
+func TestSafeMethodWarnings(t *testing.T) {
+	src := `package payable
+		func Main() int { return 1 }`
+
+	_, di, err := compiler.CompileWithDebugInfo("eventTest", strings.NewReader(src))
+	require.NoError(t, err)
+
+	_, err = compiler.CreateManifest(di, &compiler.Options{SafeMethods: []string{"main"}})
+	require.NoError(t, err)
+
+	_, err = compiler.CreateManifest(di, &compiler.Options{SafeMethods: []string{"main", "mississippi"}})
+	require.Error(t, err)
+}
+
 func TestEventWarnings(t *testing.T) {
 	src := `package payable
 		import "github.com/nspcc-dev/neo-go/pkg/interop/runtime"
