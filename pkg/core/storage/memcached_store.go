@@ -2,6 +2,7 @@ package storage
 
 import (
 	"bytes"
+	"context"
 	"sort"
 	"strings"
 	"sync"
@@ -90,7 +91,7 @@ func (s *MemCachedStore) GetBatch() *MemBatch {
 
 // Seek implements the Store interface.
 func (s *MemCachedStore) Seek(key []byte, f func(k, v []byte)) {
-	seekres := s.SeekAsync(key, false)
+	seekres := s.SeekAsync(context.Background(), key, false)
 	for kv := range seekres {
 		f(kv.Key, kv.Value)
 	}
@@ -99,7 +100,7 @@ func (s *MemCachedStore) Seek(key []byte, f func(k, v []byte)) {
 // SeekAsync returns non-buffered channel with matching KeyValue pairs. Key and
 // value slices may not be copied and may be modified. SeekAsync can guarantee
 // that key-value items are sorted by key in ascending way.
-func (s *MemCachedStore) SeekAsync(key []byte, cutPrefix bool) chan KeyValue {
+func (s *MemCachedStore) SeekAsync(ctx context.Context, key []byte, cutPrefix bool) chan KeyValue {
 	// Create memory store `mem` and `del` snapshot not to hold the lock.
 	memRes := make([]KeyValueExists, 0)
 	sk := string(key)
@@ -137,8 +138,14 @@ func (s *MemCachedStore) SeekAsync(key []byte, cutPrefix bool) chan KeyValue {
 	)
 	// Seek over memory store.
 	go func() {
+	loop:
 		for _, kv := range memRes {
-			data1 <- kv
+			select {
+			case <-ctx.Done():
+				break loop
+			default:
+				data1 <- kv
+			}
 		}
 		close(data1)
 	}()
@@ -146,11 +153,20 @@ func (s *MemCachedStore) SeekAsync(key []byte, cutPrefix bool) chan KeyValue {
 	// Seek over persistent store.
 	go func() {
 		s.mut.RLock()
+		var done bool
 		s.ps.Seek(key, func(k, v []byte) {
-			// Must copy here, #1468.
-			data2 <- KeyValue{
-				Key:   slice.Copy(k),
-				Value: slice.Copy(v),
+			if done {
+				return
+			}
+			select {
+			case <-ctx.Done():
+				done = true
+			default:
+				// Must copy here, #1468.
+				data2 <- KeyValue{
+					Key:   slice.Copy(k),
+					Value: slice.Copy(v),
+				}
 			}
 		})
 		s.mut.RUnlock()

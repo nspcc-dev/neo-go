@@ -1,6 +1,7 @@
 package core
 
 import (
+	"context"
 	"crypto/elliptic"
 	"errors"
 	"fmt"
@@ -188,8 +189,9 @@ func storageFind(ic *interop.Context) error {
 	}
 	// Items in seekres should be sorted by key, but GetStorageItemsWithPrefix returns
 	// sorted items, so no need to sort them one more time.
-	seekres := ic.DAO.SeekAsync(stc.ID, prefix)
-	item := istorage.NewIterator(seekres, prefix, opts)
+	ctx, cancel := context.WithCancel(context.Background())
+	seekres := ic.DAO.SeekAsync(ctx, stc.ID, prefix)
+	item := istorage.NewIterator(seekres, cancel, prefix, opts)
 	ic.VM.Estack().PushItem(stackitem.NewInterop(item))
 
 	return nil
