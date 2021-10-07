@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"io/ioutil"
 	"os"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
@@ -34,9 +35,6 @@ type Wallet struct {
 
 	// Path where the wallet file is located..
 	path string
-
-	// ReadWriter for reading and writing wallet data.
-	rw io.ReadWriter
 }
 
 // Extra stores imported token contracts.
@@ -51,17 +49,19 @@ func NewWallet(location string) (*Wallet, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer file.Close()
 	return newWallet(file), nil
 }
 
 // NewWalletFromFile creates a Wallet from the given wallet file path.
 func NewWalletFromFile(path string) (*Wallet, error) {
-	file, err := os.OpenFile(path, os.O_RDWR, os.ModeAppend)
+	file, err := os.Open(path)
 	if err != nil {
 		return nil, err
 	}
+	defer file.Close()
+
 	wall := &Wallet{
-		rw:   file,
 		path: file.Name(),
 	}
 	if err := json.NewDecoder(file).Decode(wall); err != nil {
@@ -79,7 +79,6 @@ func newWallet(rw io.ReadWriter) *Wallet {
 		Version:  walletVersion,
 		Accounts: []*Account{},
 		Scrypt:   keys.NEP2ScryptParams(),
-		rw:       rw,
 		path:     path,
 	}
 }
@@ -162,30 +161,7 @@ func (w *Wallet) savePretty() error {
 }
 
 func (w *Wallet) writeRaw(data []byte) error {
-	if err := w.rewind(); err != nil {
-		return err
-	}
-
-	_, err := w.rw.Write(data)
-	if err != nil {
-		return err
-	}
-
-	if f, ok := w.rw.(*os.File); ok {
-		if err := f.Truncate(int64(len(data))); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (w *Wallet) rewind() error {
-	if s, ok := w.rw.(io.Seeker); ok {
-		if _, err := s.Seek(0, io.SeekStart); err != nil {
-			return err
-		}
-	}
-	return nil
+	return ioutil.WriteFile(w.path, data, 0644)
 }
 
 // JSON outputs a pretty JSON representation of the wallet.
@@ -195,9 +171,6 @@ func (w *Wallet) JSON() ([]byte, error) {
 
 // Close closes the internal rw if its an io.ReadCloser.
 func (w *Wallet) Close() {
-	if rc, ok := w.rw.(io.ReadCloser); ok {
-		rc.Close()
-	}
 }
 
 // GetAccount returns account corresponding to the provided scripthash.
