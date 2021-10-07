@@ -55,7 +55,7 @@ type rpcTestCase struct {
 }
 
 const testContractHash = "5c9e40a12055c6b9e3f72271c9779958c842135d"
-const deploymentTxHash = "cb17eac9594d7ffa318545ab36e3227eedf30b4d13d76d3b49c94243fb3b2bde"
+const deploymentTxHash = "8de63ea12ca8a9c5233ebf8664a442c881ae1bb83708d82da7fa1da2305ecf14"
 const genesisBlockHash = "0f8fb4e17d2ab9f3097af75ca7fd16064160fb8043db94909e00dd4e257b9dc4"
 
 const verifyContractHash = "f68822e4ecd93de334bdf1f7c409eda3431bcbd0"
@@ -345,6 +345,38 @@ var rpcTestCases = map[string][]rpcTestCase{
 		{
 			name:   "unknown root/item",
 			params: `["0000000000000000000000000000000000000000000000000000000000000000", "` + testContractHash + `", "QQ=="]`,
+			fail:   true,
+		},
+	},
+	"findstates": {
+		{
+			name:   "no params",
+			params: `[]`,
+			fail:   true,
+		},
+		{
+			name:   "invalid root",
+			params: `["0xabcdef"]`,
+			fail:   true,
+		},
+		{
+			name:   "invalid contract",
+			params: `["0000000000000000000000000000000000000000000000000000000000000000", "0xabcdef"]`,
+			fail:   true,
+		},
+		{
+			name:   "invalid prefix",
+			params: `["0000000000000000000000000000000000000000000000000000000000000000", "` + testContractHash + `", "notabase64%"]`,
+			fail:   true,
+		},
+		{
+			name:   "invalid key",
+			params: `["0000000000000000000000000000000000000000000000000000000000000000", "` + testContractHash + `", "QQ==", "notabase64%"]`,
+			fail:   true,
+		},
+		{
+			name:   "unknown contract/large count",
+			params: `["0000000000000000000000000000000000000000000000000000000000000000", "0000000000000000000000000000000000000000", "QQ==", "QQ==", 101]`,
 			fail:   true,
 		},
 	},
@@ -1444,6 +1476,89 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 			testGetState(t, params, base64.StdEncoding.EncodeToString([]byte("newtestvalue")))
 		})
 	})
+	t.Run("findstates", func(t *testing.T) {
+		testFindStates := func(t *testing.T, p string, root util.Uint256, expected result.FindStates) {
+			rpc := fmt.Sprintf(`{"jsonrpc": "2.0", "id": 1, "method": "findstates", "params": [%s]}`, p)
+			body := doRPCCall(rpc, httpSrv.URL, t)
+			rawRes := checkErrGetResult(t, body, false)
+
+			var actual result.FindStates
+			require.NoError(t, json.Unmarshal(rawRes, &actual))
+			require.Equal(t, expected.Results, actual.Results)
+
+			checkProof := func(t *testing.T, proof *result.ProofWithKey, value []byte) {
+				rpc = fmt.Sprintf(`{"jsonrpc": "2.0", "id": 1, "method": "verifyproof", "params": ["%s", "%s"]}`,
+					root.StringLE(), proof.String())
+				body = doRPCCall(rpc, httpSrv.URL, t)
+				rawRes = checkErrGetResult(t, body, false)
+				vp := new(result.VerifyProof)
+				require.NoError(t, json.Unmarshal(rawRes, vp))
+				require.Equal(t, value, vp.Value)
+			}
+			checkProof(t, actual.FirstProof, actual.Results[0].Value)
+			if len(actual.Results) > 1 {
+				checkProof(t, actual.LastProof, actual.Results[len(actual.Results)-1].Value)
+			}
+			require.Equal(t, expected.Truncated, actual.Truncated)
+		}
+		t.Run("good: no prefix, no limit", func(t *testing.T) {
+			// pairs for this test where put to the contract storage at block #16
+			root, err := e.chain.GetStateModule().GetStateRoot(16)
+			require.NoError(t, err)
+			params := fmt.Sprintf(`"%s", "%s", "%s"`, root.Root.StringLE(), testContractHash, base64.StdEncoding.EncodeToString([]byte("aa")))
+			testFindStates(t, params, root.Root, result.FindStates{
+				Results: []result.KeyValue{
+					{Key: []byte("aa10"), Value: []byte("v2")},
+					{Key: []byte("aa50"), Value: []byte("v3")},
+					{Key: []byte("aa"), Value: []byte("v1")},
+				},
+				Truncated: false,
+			})
+		})
+		t.Run("good: with prefix, no limit", func(t *testing.T) {
+			// pairs for this test where put to the contract storage at block #16
+			root, err := e.chain.GetStateModule().GetStateRoot(16)
+			require.NoError(t, err)
+			params := fmt.Sprintf(`"%s", "%s", "%s", "%s"`, root.Root.StringLE(), testContractHash, base64.StdEncoding.EncodeToString([]byte("aa")), base64.StdEncoding.EncodeToString([]byte("aa10")))
+			testFindStates(t, params, root.Root, result.FindStates{
+				Results: []result.KeyValue{
+					{Key: []byte("aa50"), Value: []byte("v3")},
+				},
+				Truncated: false,
+			})
+		})
+		t.Run("good: no prefix, with limit", func(t *testing.T) {
+			for limit := 2; limit < 5; limit++ {
+				// pairs for this test where put to the contract storage at block #16
+				root, err := e.chain.GetStateModule().GetStateRoot(16)
+				require.NoError(t, err)
+				params := fmt.Sprintf(`"%s", "%s", "%s", "", %d`, root.Root.StringLE(), testContractHash, base64.StdEncoding.EncodeToString([]byte("aa")), limit)
+				expected := result.FindStates{
+					Results: []result.KeyValue{
+						{Key: []byte("aa10"), Value: []byte("v2")},
+						{Key: []byte("aa50"), Value: []byte("v3")},
+					},
+					Truncated: limit == 2,
+				}
+				if limit != 2 {
+					expected.Results = append(expected.Results, result.KeyValue{Key: []byte("aa"), Value: []byte("v1")})
+				}
+				testFindStates(t, params, root.Root, expected)
+			}
+		})
+		t.Run("good: with prefix, with limit", func(t *testing.T) {
+			// pairs for this test where put to the contract storage at block #16
+			root, err := e.chain.GetStateModule().GetStateRoot(16)
+			require.NoError(t, err)
+			params := fmt.Sprintf(`"%s", "%s", "%s", "%s", %d`, root.Root.StringLE(), testContractHash, base64.StdEncoding.EncodeToString([]byte("aa")), base64.StdEncoding.EncodeToString([]byte("aa00")), 1)
+			testFindStates(t, params, root.Root, result.FindStates{
+				Results: []result.KeyValue{
+					{Key: []byte("aa10"), Value: []byte("v2")},
+				},
+				Truncated: true,
+			})
+		})
+	})
 
 	t.Run("getrawtransaction", func(t *testing.T) {
 		block, _ := chain.GetBlock(chain.GetHeaderHash(1))
@@ -1708,7 +1823,7 @@ func checkNep17Balances(t *testing.T, e *executor, acc interface{}) {
 			},
 			{
 				Asset:       e.chain.UtilityTokenHash(),
-				Amount:      "57796933740",
+				Amount:      "57796785740",
 				LastUpdated: 16,
 			}},
 		Address: testchain.PrivateKeyByID(0).GetScriptHash().StringLE(),

@@ -25,6 +25,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/fixedn"
+	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/request"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
@@ -686,6 +687,29 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 			serverResponse: `{"id":1,"jsonrpc":"2.0","result":"dGVzdHZhbHVl"}`,
 			result: func(c *Client) interface{} {
 				return []byte("testvalue")
+			},
+		},
+	},
+	"findstates": {
+		{
+			name: "positive",
+			invoke: func(c *Client) (interface{}, error) {
+				root, _ := util.Uint256DecodeStringLE("252e9d73d49c95c7618d40650da504e05183a1b2eed0685e42c360413c329170")
+				cHash, _ := util.Uint160DecodeStringLE("5c9e40a12055c6b9e3f72271c9779958c842135d")
+				count := 1
+				return c.FindStates(root, cHash, []byte("aa"), []byte("aa00"), &count)
+			},
+			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"results":[{"key":"YWExMA==","value":"djI="}],"firstProof":"CAEAAABhYTEwCXIAA5KNHjQ1+LFX4lQBLjMAhaLtTJnfuI86O7WnNdlshsYWBAQEBAQEBAQDTzD7MJp2KW6E8BNVjjjgZMTAjI/GI3ZrTmR2UUOtSeIEBAQEBAPKPqb0qnb4Ywz6gqpNKCUNQsfBmAnKc5p3dxokSQRpwgRSAAQDPplG1wee4KOfkehaF94R5uoKSgvQL1j5gkFTN4ywYaIEBAOhOyI39MZfoKc940g57XeqwRnxh7P62fKjnfEtBzQxHQQEBAQEBAQEBAQEBCkBBgAAAAAAAAM6A1UrwFYZAEMfe6go3jX25xz2sHsovQ2UO/UHqZZOXLIABAOwg7pkXyaTR85yQIvYnoGaG/OVRLRHOj+nhZnXb6dVtAQEBAPnciBUp3uspLQTajKTlAxgrNe+3tlqlbwlNRkz0eNmhQMzoMcWOFi9nCyn+eM5lA6Pq67DxzTQDlHljh8g8kRtJAPq9hxzTgreK0qDTavsethixguZYfV7wDmKfumMglnoqQQEBAQEBAM1x2dVBdf5BJ0Xvw2qqhvpKqxdHb8/HMFWiXkJj1uAAQQEJgEDAQYBA5kV2WLkgey9C5z6gZT69VLKcEuwyY8P853rNtGhT3NeUgAEBAQDiX59K9PuJ5RE7Z1uj7q/QJ8FGf8avLdWM7hwmWkVH2gEBAQEBAQEBAQEBAQD1SubX5XhFHcUOWdUzg1bXmDwWJwt+wpU3FOdFkU1PXBSAAQDHCzfEQyqwOO263EE6HER1vWDrwz8JiEHEOXfZ3kX7NYEBAQDEH++Hy8wBcniKuWVevaAwzHCh60kzncU30E5fDC3gJsEBAQEBAQEBAQEBCUBAgMAA1wt18LbxMKdYcJ+nEDMMWZbRsu550l8HGhcYhpl6DjSBAICdjI=","truncated":true}}`,
+			result: func(c *Client) interface{} {
+				proofB, _ := base64.StdEncoding.DecodeString("CAEAAABhYTEwCXIAA5KNHjQ1+LFX4lQBLjMAhaLtTJnfuI86O7WnNdlshsYWBAQEBAQEBAQDTzD7MJp2KW6E8BNVjjjgZMTAjI/GI3ZrTmR2UUOtSeIEBAQEBAPKPqb0qnb4Ywz6gqpNKCUNQsfBmAnKc5p3dxokSQRpwgRSAAQDPplG1wee4KOfkehaF94R5uoKSgvQL1j5gkFTN4ywYaIEBAOhOyI39MZfoKc940g57XeqwRnxh7P62fKjnfEtBzQxHQQEBAQEBAQEBAQEBCkBBgAAAAAAAAM6A1UrwFYZAEMfe6go3jX25xz2sHsovQ2UO/UHqZZOXLIABAOwg7pkXyaTR85yQIvYnoGaG/OVRLRHOj+nhZnXb6dVtAQEBAPnciBUp3uspLQTajKTlAxgrNe+3tlqlbwlNRkz0eNmhQMzoMcWOFi9nCyn+eM5lA6Pq67DxzTQDlHljh8g8kRtJAPq9hxzTgreK0qDTavsethixguZYfV7wDmKfumMglnoqQQEBAQEBAM1x2dVBdf5BJ0Xvw2qqhvpKqxdHb8/HMFWiXkJj1uAAQQEJgEDAQYBA5kV2WLkgey9C5z6gZT69VLKcEuwyY8P853rNtGhT3NeUgAEBAQDiX59K9PuJ5RE7Z1uj7q/QJ8FGf8avLdWM7hwmWkVH2gEBAQEBAQEBAQEBAQD1SubX5XhFHcUOWdUzg1bXmDwWJwt+wpU3FOdFkU1PXBSAAQDHCzfEQyqwOO263EE6HER1vWDrwz8JiEHEOXfZ3kX7NYEBAQDEH++Hy8wBcniKuWVevaAwzHCh60kzncU30E5fDC3gJsEBAQEBAQEBAQEBCUBAgMAA1wt18LbxMKdYcJ+nEDMMWZbRsu550l8HGhcYhpl6DjSBAICdjI=")
+				proof := &result.ProofWithKey{}
+				r := io.NewBinReaderFromBuf(proofB)
+				proof.DecodeBinary(r)
+				return result.FindStates{
+					Results:    []result.KeyValue{{Key: []byte("aa10"), Value: []byte("v2")}},
+					FirstProof: proof,
+					Truncated:  true,
+				}
 			},
 		},
 	},

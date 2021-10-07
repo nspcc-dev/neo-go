@@ -36,6 +36,7 @@ which would yield the response:
 | Method  |
 | ------- |
 | `calculatenetworkfee` |
+| `findstates` |
 | `getapplicationlog` |
 | `getbestblockhash` |
 | `getblock` |

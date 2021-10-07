@@ -632,3 +632,58 @@ func TestTrie_Collapse(t *testing.T) {
 		require.Equal(t, NewHashNode(h), newRoot)
 	})
 }
+
+func TestTrie_Seek(t *testing.T) {
+	tr := newTestTrie(t)
+	t.Run("extension", func(t *testing.T) {
+		check := func(t *testing.T, prefix []byte) {
+			_, res, prefix, err := tr.getWithPath(tr.root, prefix, false)
+			require.NoError(t, err)
+			require.Equal(t, []byte{0x0A, 0x0C}, prefix)
+			require.Equal(t, BranchT, res.Type()) // extension's next is branch
+		}
+		t.Run("seek prefix points to extension", func(t *testing.T) {
+			check(t, []byte{})
+		})
+		t.Run("seek prefix is a part of extension key", func(t *testing.T) {
+			check(t, []byte{0x0A})
+		})
+		t.Run("seek prefix match extension key", func(t *testing.T) {
+			check(t, []byte{0x0A, 0x0C}) // path to extension's next
+		})
+	})
+	t.Run("branch", func(t *testing.T) {
+		t.Run("seek prefix points to branch", func(t *testing.T) {
+			_, res, prefix, err := tr.getWithPath(tr.root, []byte{0x0A, 0x0C}, false)
+			require.NoError(t, err)
+			require.Equal(t, []byte{0x0A, 0x0C}, prefix)
+			require.Equal(t, BranchT, res.Type())
+		})
+		t.Run("seek prefix points to empty branch child", func(t *testing.T) {
+			_, _, _, err := tr.getWithPath(tr.root, []byte{0x0A, 0x0C, 0x02}, false)
+			require.Error(t, err)
+		})
+		t.Run("seek prefix points to non-empty branch child", func(t *testing.T) {
+			_, res, prefix, err := tr.getWithPath(tr.root, []byte{0x0A, 0x0C, 0x01}, false)
+			require.NoError(t, err)
+			require.Equal(t, []byte{0x0A, 0x0C, 0x01, 0x03}, prefix)
+			require.Equal(t, LeafT, res.Type())
+		})
+	})
+	t.Run("leaf", func(t *testing.T) {
+		t.Run("seek prefix points to leaf", func(t *testing.T) {
+			_, res, prefix, err := tr.getWithPath(tr.root, []byte{0x0A, 0x0C, 0x01, 0x03}, false)
+			require.NoError(t, err)
+			require.Equal(t, []byte{0x0A, 0x0C, 0x01, 0x03}, prefix)
+			require.Equal(t, LeafT, res.Type())
+		})
+	})
+	t.Run("hash", func(t *testing.T) {
+		t.Run("seek prefix points to hash", func(t *testing.T) {
+			_, res, prefix, err := tr.getWithPath(tr.root, []byte{0x0A, 0x0C, 0x0A, 0x0E}, false)
+			require.NoError(t, err)
+			require.Equal(t, []byte{0x0A, 0x0C, 0x0A, 0x0E}, prefix)
+			require.Equal(t, LeafT, res.Type())
+		})
+	})
+}

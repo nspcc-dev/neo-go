@@ -102,6 +102,7 @@ const (
 
 var rpcHandlers = map[string]func(*Server, request.Params) (interface{}, *response.Error){
 	"calculatenetworkfee":    (*Server).calculateNetworkFee,
+	"findstates":             (*Server).findStates,
 	"getapplicationlog":      (*Server).getApplicationLog,
 	"getbestblockhash":       (*Server).getBestBlockHash,
 	"getblock":               (*Server).getBlock,
@@ -1051,6 +1052,108 @@ func (s *Server) getState(ps request.Params) (interface{}, *response.Error) {
 	if err != nil {
 		return nil, response.WrapErrorWithData(response.ErrInvalidParams, errors.New("invalid key"))
 	}
+	cs, respErr := s.getHistoricalContractState(root, csHash)
+	if respErr != nil {
+		return nil, respErr
+	}
+	sKey := makeStorageKey(cs.ID, key)
+	res, err := s.chain.GetStateModule().GetState(root, sKey)
+	if err != nil {
+		return nil, response.NewInternalServerError("failed to get historical item state", err)
+	}
+	return res, nil
+}
+
+func (s *Server) findStates(ps request.Params) (interface{}, *response.Error) {
+	root, err := ps.Value(0).GetUint256()
+	if err != nil {
+		return nil, response.WrapErrorWithData(response.ErrInvalidParams, errors.New("invalid stateroot"))
+	}
+	if s.chain.GetConfig().KeepOnlyLatestState {
+		curr, err := s.chain.GetStateModule().GetStateRoot(s.chain.BlockHeight())
+		if err != nil {
+			return nil, response.NewInternalServerError("failed to get current stateroot", err)
+		}
+		if !curr.Root.Equals(root) {
+			return nil, response.NewInvalidRequestError("'findstates' is not supported for old states", errKeepOnlyLatestState)
+		}
+	}
+	csHash, err := ps.Value(1).GetUint160FromHex()
+	if err != nil {
+		return nil, response.WrapErrorWithData(response.ErrInvalidParams, errors.New("invalid contract hash"))
+	}
+	prefix, err := ps.Value(2).GetBytesBase64()
+	if err != nil {
+		return nil, response.WrapErrorWithData(response.ErrInvalidParams, errors.New("invalid prefix"))
+	}
+	var (
+		key   []byte
+		count = s.config.MaxFindResultItems
+	)
+	if len(ps) > 3 {
+		key, err = ps.Value(3).GetBytesBase64()
+		if err != nil {
+			return nil, response.WrapErrorWithData(response.ErrInvalidParams, errors.New("invalid key"))
+		}
+	}
+	if len(ps) > 4 {
+		count, err = ps.Value(4).GetInt()
+		if err != nil {
+			return nil, response.WrapErrorWithData(response.ErrInvalidParams, errors.New("invalid count"))
+		}
+		if count > s.config.MaxFindResultItems {
+			count = s.config.MaxFindResultItems
+		}
+	}
+	cs, respErr := s.getHistoricalContractState(root, csHash)
+	if respErr != nil {
+		return nil, respErr
+	}
+	pKey := makeStorageKey(cs.ID, prefix)
+	var sKey []byte
+	if len(key) > 0 {
+		sKey = makeStorageKey(cs.ID, key)
+	}
+	kvs, err := s.chain.GetStateModule().FindStates(root, pKey, sKey, count+1) // +1 to define result truncation
+	if err != nil {
+		return nil, response.NewInternalServerError("failed to find historical items", err)
+	}
+	res := result.FindStates{}
+	if len(kvs) == count+1 {
+		res.Truncated = true
+		kvs = kvs[:len(kvs)-1]
+	}
+	if len(kvs) > 0 {
+		proof, err := s.chain.GetStateModule().GetStateProof(root, kvs[0].Key)
+		if err != nil {
+			return nil, response.NewInternalServerError("failed to get first proof", err)
+		}
+		res.FirstProof = &result.ProofWithKey{
+			Key:   kvs[0].Key,
+			Proof: proof,
+		}
+	}
+	if len(kvs) > 1 {
+		proof, err := s.chain.GetStateModule().GetStateProof(root, kvs[len(kvs)-1].Key)
+		if err != nil {
+			return nil, response.NewInternalServerError("failed to get first proof", err)
+		}
+		res.LastProof = &result.ProofWithKey{
+			Key:   kvs[len(kvs)-1].Key,
+			Proof: proof,
+		}
+	}
+	res.Results = make([]result.KeyValue, len(kvs))
+	for i, kv := range kvs {
+		res.Results[i] = result.KeyValue{
+			Key:   kv.Key[4:], // cut contract ID as it is done in C#
+			Value: kv.Value,
+		}
+	}
+	return res, nil
+}
+
+func (s *Server) getHistoricalContractState(root util.Uint256, csHash util.Uint160) (*state.Contract, *response.Error) {
 	csKey := makeStorageKey(native.ManagementContractID, native.MakeContractKey(csHash))
 	csBytes, err := s.chain.GetStateModule().GetState(root, csKey)
 	if err != nil {
@@ -1061,12 +1164,7 @@ func (s *Server) getState(ps request.Params) (interface{}, *response.Error) {
 	if err != nil {
 		return nil, response.NewInternalServerError("failed to deserialize historical contract state", err)
 	}
-	sKey := makeStorageKey(contract.ID, key)
-	res, err := s.chain.GetStateModule().GetState(root, sKey)
-	if err != nil {
-		return nil, response.NewInternalServerError("failed to get historical item state", err)
-	}
-	return res, nil
+	return contract, nil
 }
 
 func (s *Server) getStateHeight(_ request.Params) (interface{}, *response.Error) {

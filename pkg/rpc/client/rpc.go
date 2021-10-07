@@ -387,6 +387,25 @@ func (c *Client) GetState(stateroot util.Uint256, historicalContractHash util.Ui
 	return resp, nil
 }
 
+// FindStates returns historical contract storage item states by the given stateroot,
+// historical contract hash and historical prefix. If `start` path is specified, then items
+// starting from `start` path are being returned (excluding item located at the start path).
+// If `maxCount` specified, then maximum number of items to be returned equals to `maxCount`.
+func (c *Client) FindStates(stateroot util.Uint256, historicalContractHash util.Uint160, historicalPrefix []byte,
+	start []byte, maxCount *int) (result.FindStates, error) {
+	var (
+		params = request.NewRawParams(stateroot.StringLE(), historicalContractHash.StringLE(), historicalPrefix, historicalPrefix, start)
+		resp   result.FindStates
+	)
+	if maxCount != nil {
+		params.Values = append(params.Values, *maxCount)
+	}
+	if err := c.performRequest("findstates", params, &resp); err != nil {
+		return resp, err
+	}
+	return resp, nil
+}
+
 // GetStateHeight returns current validated and local node state height.
 func (c *Client) GetStateHeight() (*result.StateHeight, error) {
 	var (

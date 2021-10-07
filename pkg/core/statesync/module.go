@@ -200,7 +200,7 @@ func (s *Module) defineSyncStage() error {
 			zap.String("state root", header.PrevStateRoot.StringBE()))
 		pool := NewPool()
 		pool.Add(header.PrevStateRoot, []byte{})
-		err = s.billet.Traverse(func(n mpt.Node, _ []byte) bool {
+		err = s.billet.Traverse(func(_ []byte, n mpt.Node, _ []byte) bool {
 			nPaths, ok := pool.TryGet(n.Hash())
 			if !ok {
 				// if this situation occurs, then it's a bug in MPT pool or Traverse.
@@ -467,7 +467,9 @@ func (s *Module) Traverse(root util.Uint256, process func(node mpt.Node, nodeByt
 	defer s.lock.RUnlock()
 
 	b := mpt.NewBillet(root, s.bc.GetConfig().KeepOnlyLatestState, storage.NewMemCachedStore(s.dao.Store))
-	return b.Traverse(process, false)
+	return b.Traverse(func(pathToNode []byte, node mpt.Node, nodeBytes []byte) bool {
+		return process(node, nodeBytes)
+	}, false)
 }
 
 // GetUnknownMPTNodesBatch returns set of currently unknown MPT nodes (`limit` at max).

@@ -72,6 +72,9 @@ func VerifyProof(rh util.Uint256, key []byte, proofs [][]byte) ([]byte, bool) {
 		// no errors in Put to memory store
 		_ = tr.Store.Put(makeStorageKey(h[:]), proofs[i])
 	}
-	_, bs, err := tr.getWithPath(tr.root, path)
-	return bs, err == nil
+	_, leaf, _, err := tr.getWithPath(tr.root, path, true)
+	if err != nil {
+		return nil, false
+	}
+	return slice.Copy(leaf.(*LeafNode).value), true
 }

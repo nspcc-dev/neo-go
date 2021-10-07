@@ -504,6 +504,10 @@ func initBasicChain(t *testing.T, bc *Blockchain) {
 	// Invoke `test_contract.go`: put new value with the same key to check `getstate` RPC call
 	script.Reset()
 	emit.AppCall(script.BinWriter, cHash, "putValue", callflag.All, "testkey", "newtestvalue")
+	// Invoke `test_contract.go`: put values to check `findstates` RPC call
+	emit.AppCall(script.BinWriter, cHash, "putValue", callflag.All, "aa", "v1")
+	emit.AppCall(script.BinWriter, cHash, "putValue", callflag.All, "aa10", "v2")
+	emit.AppCall(script.BinWriter, cHash, "putValue", callflag.All, "aa50", "v3")
 
 	txInv = transaction.New(script.Bytes(), 1*native.GASFactor)
 	txInv.Nonce = getNextNonce()

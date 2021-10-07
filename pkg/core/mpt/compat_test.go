@@ -378,3 +378,29 @@ func newFilledTrie(t *testing.T, args ...[]byte) *Trie {
 	}
 	return tr
 }
+
+func TestCompatibility_Find(t *testing.T) {
+	check := func(t *testing.T, from []byte, expectedResLen int) {
+		tr := NewTrie(nil, false, newTestStore())
+		require.NoError(t, tr.Put([]byte("aa"), []byte("02")))
+		require.NoError(t, tr.Put([]byte("aa10"), []byte("03")))
+		require.NoError(t, tr.Put([]byte("aa50"), []byte("04")))
+		res, err := tr.Find([]byte("aa"), from, 10)
+		require.NoError(t, err)
+		require.Equal(t, expectedResLen, len(res))
+	}
+	t.Run("no from", func(t *testing.T) {
+		check(t, nil, 3)
+	})
+	t.Run("from is not in tree", func(t *testing.T) {
+		t.Run("matching", func(t *testing.T) {
+			check(t, []byte("aa30"), 1)
+		})
+		t.Run("non-matching", func(t *testing.T) {
+			check(t, []byte("aa60"), 0)
+		})
+	})
+	t.Run("from is in tree", func(t *testing.T) {
+		check(t, []byte("aa10"), 1) // without `from` key
+	})
+}
