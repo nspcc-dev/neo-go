@@ -134,16 +134,17 @@ func (o *Oracle) CreateResponseTx(gasForResponse int64, vub uint32, resp *transa
 }
 
 func (o *Oracle) testVerify(tx *transaction.Transaction) (int64, bool) {
-	v := o.Chain.GetTestVM(trigger.Verification, tx, nil)
+	v, finalize := o.Chain.GetTestVM(trigger.Verification, tx, nil)
 	v.GasLimit = o.Chain.GetPolicer().GetMaxVerificationGAS()
 	v.LoadScriptWithHash(o.oracleScript, o.oracleHash, callflag.ReadOnly)
 	v.Jump(v.Context(), o.verifyOffset)
 
-	ok := isVerifyOk(v)
+	ok := isVerifyOk(v, finalize)
 	return v.GasConsumed(), ok
 }
 
-func isVerifyOk(v *vm.VM) bool {
+func isVerifyOk(v *vm.VM, finalize func()) bool {
+	defer finalize()
 	if err := v.Run(); err != nil {
 		return false
 	}

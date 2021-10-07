@@ -714,7 +714,7 @@ func TestCreateNEP17TransferTx(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, acc.SignTx(testchain.Network(), tx))
 	require.NoError(t, chain.VerifyTx(tx))
-	v := chain.GetTestVM(trigger.Application, tx, nil)
+	v, _ := chain.GetTestVM(trigger.Application, tx, nil)
 	v.LoadScriptWithFlags(tx.Script, callflag.All)
 	require.NoError(t, v.Run())
 }

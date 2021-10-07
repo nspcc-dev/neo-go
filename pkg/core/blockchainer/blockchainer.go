@@ -59,7 +59,7 @@ type Blockchainer interface {
 	GetStateSyncModule() StateSync
 	GetStorageItem(id int32, key []byte) state.StorageItem
 	GetStorageItems(id int32) ([]state.StorageItemWithKey, error)
-	GetTestVM(t trigger.Type, tx *transaction.Transaction, b *block.Block) *vm.VM
+	GetTestVM(t trigger.Type, tx *transaction.Transaction, b *block.Block) (*vm.VM, func())
 	GetTransaction(util.Uint256) (*transaction.Transaction, uint32, error)
 	SetOracle(service services.Oracle)
 	mempool.Feer // fee interface

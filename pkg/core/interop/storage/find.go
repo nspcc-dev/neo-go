@@ -1,8 +1,6 @@
 package storage
 
 import (
-	"context"
-
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/util/slice"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
@@ -25,7 +23,6 @@ const (
 // Iterator is an iterator state representation.
 type Iterator struct {
 	seekCh chan storage.KeyValue
-	cancel context.CancelFunc
 	curr   storage.KeyValue
 	next   bool
 	opts   int64
@@ -33,10 +30,9 @@ type Iterator struct {
 }
 
 // NewIterator creates a new Iterator with given options for a given channel of store.Seek results.
-func NewIterator(seekCh chan storage.KeyValue, cancel context.CancelFunc, prefix []byte, opts int64) *Iterator {
+func NewIterator(seekCh chan storage.KeyValue, prefix []byte, opts int64) *Iterator {
 	return &Iterator{
 		seekCh: seekCh,
-		cancel: cancel,
 		opts:   opts,
 		prefix: slice.Copy(prefix),
 	}
@@ -83,10 +79,4 @@ func (s *Iterator) Value() stackitem.Item {
 		stackitem.NewByteArray(key),
 		value,
 	})
-}
-
-// Close releases resources occupied by the Iterator.
-// TODO: call this method on program unloading.
-func (s *Iterator) Close() {
-	s.cancel()
 }

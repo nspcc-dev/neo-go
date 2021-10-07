@@ -191,8 +191,9 @@ func storageFind(ic *interop.Context) error {
 	// sorted items, so no need to sort them one more time.
 	ctx, cancel := context.WithCancel(context.Background())
 	seekres := ic.DAO.SeekAsync(ctx, stc.ID, prefix)
-	item := istorage.NewIterator(seekres, cancel, prefix, opts)
+	item := istorage.NewIterator(seekres, prefix, opts)
 	ic.VM.Estack().PushItem(stackitem.NewInterop(item))
+	ic.RegisterCancelFunc(cancel)
 
 	return nil
 }

@@ -366,6 +366,8 @@ func BenchmarkStorageFind(b *testing.B) {
 				if err != nil {
 					b.FailNow()
 				}
+				b.StopTimer()
+				context.Finalize()
 			}
 		})
 	}
@@ -425,6 +427,7 @@ func BenchmarkStorageFindIteratorNext(b *testing.B) {
 						} else {
 							require.True(b, actual)
 						}
+						context.Finalize()
 					}
 				})
 			}

@@ -1036,7 +1036,7 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 		v.LoadToken = contract.LoadToken(systemInterop)
 		v.GasLimit = tx.SystemFee
 
-		err := v.Run()
+		err := systemInterop.Exec()
 		var faultException string
 		if !v.HasFailed() {
 			_, err := systemInterop.DAO.Persist()
@@ -1223,7 +1223,7 @@ func (bc *Blockchain) runPersist(script []byte, block *block.Block, cache dao.DA
 	v := systemInterop.SpawnVM()
 	v.LoadScriptWithFlags(script, callflag.All)
 	v.SetPriceGetter(systemInterop.GetPrice)
-	if err := v.Run(); err != nil {
+	if err := systemInterop.Exec(); err != nil {
 		return nil, fmt.Errorf("VM has failed: %w", err)
 	} else if _, err := systemInterop.DAO.Persist(); err != nil {
 		return nil, fmt.Errorf("can't save changes: %w", err)
@@ -2052,14 +2052,14 @@ func (bc *Blockchain) GetEnrollments() ([]state.Validator, error) {
 	return bc.contracts.NEO.GetCandidates(bc.dao)
 }
 
-// GetTestVM returns a VM and a Store setup for a test run of some sort of code.
-func (bc *Blockchain) GetTestVM(t trigger.Type, tx *transaction.Transaction, b *block.Block) *vm.VM {
+// GetTestVM returns a VM setup for a test run of some sort of code and finalizer function.
+func (bc *Blockchain) GetTestVM(t trigger.Type, tx *transaction.Transaction, b *block.Block) (*vm.VM, func()) {
 	d := bc.dao.GetWrapped().(*dao.Simple)
 	systemInterop := bc.newInteropContext(t, d, b, tx)
 	vm := systemInterop.SpawnVM()
 	vm.SetPriceGetter(systemInterop.GetPrice)
 	vm.LoadToken = contract.LoadToken(systemInterop)
-	return vm
+	return vm, systemInterop.Finalize
 }
 
 // Various witness verification errors.
@@ -2138,7 +2138,7 @@ func (bc *Blockchain) verifyHashAgainstScript(hash util.Uint160, witness *transa
 	if err := bc.InitVerificationVM(vm, interopCtx.GetContract, hash, witness); err != nil {
 		return 0, err
 	}
-	err := vm.Run()
+	err := interopCtx.Exec()
 	if vm.HasFailed() {
 		return 0, fmt.Errorf("%w: vm execution has failed: %v", ErrVerificationFailed, err)
 	}
