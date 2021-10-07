@@ -24,6 +24,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/fee"
 	"github.com/nspcc-dev/neo-go/pkg/core/mempoolevent"
 	"github.com/nspcc-dev/neo-go/pkg/core/mpt"
+	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
@@ -44,6 +45,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"go.uber.org/zap"
 )
 
@@ -118,6 +120,7 @@ var rpcHandlers = map[string]func(*Server, request.Params) (interface{}, *respon
 	"getproof":               (*Server).getProof,
 	"getrawmempool":          (*Server).getRawMempool,
 	"getrawtransaction":      (*Server).getrawtransaction,
+	"getstate":               (*Server).getState,
 	"getstateheight":         (*Server).getStateHeight,
 	"getstateroot":           (*Server).getStateRoot,
 	"getstorage":             (*Server).getStorage,
@@ -1024,6 +1027,46 @@ func (s *Server) verifyProof(ps request.Params) (interface{}, *response.Error) {
 		vp.Value = val
 	}
 	return vp, nil
+}
+
+func (s *Server) getState(ps request.Params) (interface{}, *response.Error) {
+	root, err := ps.Value(0).GetUint256()
+	if err != nil {
+		return nil, response.WrapErrorWithData(response.ErrInvalidParams, errors.New("invalid stateroot"))
+	}
+	if s.chain.GetConfig().KeepOnlyLatestState {
+		curr, err := s.chain.GetStateModule().GetStateRoot(s.chain.BlockHeight())
+		if err != nil {
+			return nil, response.NewInternalServerError("failed to get current stateroot", err)
+		}
+		if !curr.Root.Equals(root) {
+			return nil, response.NewInvalidRequestError("'getstate' is not supported for old states", errKeepOnlyLatestState)
+		}
+	}
+	csHash, err := ps.Value(1).GetUint160FromHex()
+	if err != nil {
+		return nil, response.WrapErrorWithData(response.ErrInvalidParams, errors.New("invalid contract hash"))
+	}
+	key, err := ps.Value(2).GetBytesBase64()
+	if err != nil {
+		return nil, response.WrapErrorWithData(response.ErrInvalidParams, errors.New("invalid key"))
+	}
+	csKey := makeStorageKey(native.ManagementContractID, native.MakeContractKey(csHash))
+	csBytes, err := s.chain.GetStateModule().GetState(root, csKey)
+	if err != nil {
+		return nil, response.NewInternalServerError("failed to get historical contract state", err)
+	}
+	contract := new(state.Contract)
+	err = stackitem.DeserializeConvertible(csBytes, contract)
+	if err != nil {
+		return nil, response.NewInternalServerError("failed to deserialize historical contract state", err)
+	}
+	sKey := makeStorageKey(contract.ID, key)
+	res, err := s.chain.GetStateModule().GetState(root, sKey)
+	if err != nil {
+		return nil, response.NewInternalServerError("failed to get historical item state", err)
+	}
+	return res, nil
 }
 
 func (s *Server) getStateHeight(_ request.Params) (interface{}, *response.Error) {

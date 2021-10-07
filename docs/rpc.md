@@ -54,6 +54,7 @@ which would yield the response:
 | `getproof` |
 | `getrawmempool` |
 | `getrawtransaction` |
+| `getstate` |
 | `getstateheight` |
 | `getstateroot` |
 | `getstorage` |

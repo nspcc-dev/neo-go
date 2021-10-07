@@ -55,7 +55,7 @@ type rpcTestCase struct {
 }
 
 const testContractHash = "5c9e40a12055c6b9e3f72271c9779958c842135d"
-const deploymentTxHash = "fefc10d2f7e323282cb50838174b68979b1794c1e5131f2b4737acbc5dde5932"
+const deploymentTxHash = "cb17eac9594d7ffa318545ab36e3227eedf30b4d13d76d3b49c94243fb3b2bde"
 const genesisBlockHash = "0f8fb4e17d2ab9f3097af75ca7fd16064160fb8043db94909e00dd4e257b9dc4"
 
 const verifyContractHash = "f68822e4ecd93de334bdf1f7c409eda3431bcbd0"
@@ -316,6 +316,38 @@ var rpcTestCases = map[string][]rpcTestCase{
 			fail:   true,
 		},
 	},
+	"getstate": {
+		{
+			name:   "no params",
+			params: `[]`,
+			fail:   true,
+		},
+		{
+			name:   "invalid root",
+			params: `["0xabcdef"]`,
+			fail:   true,
+		},
+		{
+			name:   "invalid contract",
+			params: `["0000000000000000000000000000000000000000000000000000000000000000", "0xabcdef"]`,
+			fail:   true,
+		},
+		{
+			name:   "invalid key",
+			params: `["0000000000000000000000000000000000000000000000000000000000000000", "` + testContractHash + `", "notabase64%"]`,
+			fail:   true,
+		},
+		{
+			name:   "unknown contract",
+			params: `["0000000000000000000000000000000000000000000000000000000000000000", "0000000000000000000000000000000000000000", "QQ=="]`,
+			fail:   true,
+		},
+		{
+			name:   "unknown root/item",
+			params: `["0000000000000000000000000000000000000000000000000000000000000000", "` + testContractHash + `", "QQ=="]`,
+			fail:   true,
+		},
+	},
 	"getstateheight": {
 		{
 			name:   "positive",
@@ -347,7 +379,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 			name:   "positive",
 			params: fmt.Sprintf(`["%s", "dGVzdGtleQ=="]`, testContractHash),
 			result: func(e *executor) interface{} {
-				v := base64.StdEncoding.EncodeToString([]byte("testvalue"))
+				v := base64.StdEncoding.EncodeToString([]byte("newtestvalue"))
 				return &v
 			},
 		},
@@ -650,7 +682,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 				require.True(t, ok)
 				expected := result.UnclaimedGas{
 					Address:   testchain.MultisigScriptHash(),
-					Unclaimed: *big.NewInt(7500),
+					Unclaimed: *big.NewInt(8000),
 				}
 				assert.Equal(t, expected, *actual)
 			},
@@ -1387,6 +1419,31 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 		t.Run("ByHeight", func(t *testing.T) { testRoot(t, strconv.FormatInt(5, 10)) })
 		t.Run("ByHash", func(t *testing.T) { testRoot(t, `"`+chain.GetHeaderHash(5).StringLE()+`"`) })
 	})
+	t.Run("getstate", func(t *testing.T) {
+		testGetState := func(t *testing.T, p string, expected string) {
+			rpc := fmt.Sprintf(`{"jsonrpc": "2.0", "id": 1, "method": "getstate", "params": [%s]}`, p)
+			body := doRPCCall(rpc, httpSrv.URL, t)
+			rawRes := checkErrGetResult(t, body, false)
+
+			var actual string
+			require.NoError(t, json.Unmarshal(rawRes, &actual))
+			require.Equal(t, expected, actual)
+		}
+		t.Run("good: historical state", func(t *testing.T) {
+			root, err := e.chain.GetStateModule().GetStateRoot(4)
+			require.NoError(t, err)
+			// `testkey`-`testvalue` pair was put to the contract storage at block #3
+			params := fmt.Sprintf(`"%s", "%s", "%s"`, root.Root.StringLE(), testContractHash, base64.StdEncoding.EncodeToString([]byte("testkey")))
+			testGetState(t, params, base64.StdEncoding.EncodeToString([]byte("testvalue")))
+		})
+		t.Run("good: fresh state", func(t *testing.T) {
+			root, err := e.chain.GetStateModule().GetStateRoot(16)
+			require.NoError(t, err)
+			// `testkey`-`newtestvalue` pair was put to the contract storage at block #16
+			params := fmt.Sprintf(`"%s", "%s", "%s"`, root.Root.StringLE(), testContractHash, base64.StdEncoding.EncodeToString([]byte("testkey")))
+			testGetState(t, params, base64.StdEncoding.EncodeToString([]byte("newtestvalue")))
+		})
+	})
 
 	t.Run("getrawtransaction", func(t *testing.T) {
 		block, _ := chain.GetBlock(chain.GetHeaderHash(1))
@@ -1430,7 +1487,7 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 		require.NoErrorf(t, err, "could not parse response: %s", txOut)
 
 		assert.Equal(t, *block.Transactions[0], actual.Transaction)
-		assert.Equal(t, 16, actual.Confirmations)
+		assert.Equal(t, 17, actual.Confirmations)
 		assert.Equal(t, TXHash, actual.Transaction.Hash())
 	})
 
@@ -1543,12 +1600,12 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 			require.NoError(t, json.Unmarshal(res, actual))
 			checkNep17TransfersAux(t, e, actual, sent, rcvd)
 		}
-		t.Run("time frame only", func(t *testing.T) { testNEP17T(t, 4, 5, 0, 0, []int{9, 10, 11, 12}, []int{2, 3}) })
+		t.Run("time frame only", func(t *testing.T) { testNEP17T(t, 4, 5, 0, 0, []int{10, 11, 12, 13}, []int{2, 3}) })
 		t.Run("no res", func(t *testing.T) { testNEP17T(t, 100, 100, 0, 0, []int{}, []int{}) })
-		t.Run("limit", func(t *testing.T) { testNEP17T(t, 1, 7, 3, 0, []int{6, 7}, []int{1}) })
-		t.Run("limit 2", func(t *testing.T) { testNEP17T(t, 4, 5, 2, 0, []int{9}, []int{2}) })
-		t.Run("limit with page", func(t *testing.T) { testNEP17T(t, 1, 7, 3, 1, []int{8, 9}, []int{2}) })
-		t.Run("limit with page 2", func(t *testing.T) { testNEP17T(t, 1, 7, 3, 2, []int{10, 11}, []int{3}) })
+		t.Run("limit", func(t *testing.T) { testNEP17T(t, 1, 7, 3, 0, []int{7, 8}, []int{1}) })
+		t.Run("limit 2", func(t *testing.T) { testNEP17T(t, 4, 5, 2, 0, []int{10}, []int{2}) })
+		t.Run("limit with page", func(t *testing.T) { testNEP17T(t, 1, 7, 3, 1, []int{9, 10}, []int{2}) })
+		t.Run("limit with page 2", func(t *testing.T) { testNEP17T(t, 1, 7, 3, 2, []int{11, 12}, []int{3}) })
 	})
 }
 
@@ -1651,8 +1708,8 @@ func checkNep17Balances(t *testing.T, e *executor, acc interface{}) {
 			},
 			{
 				Asset:       e.chain.UtilityTokenHash(),
-				Amount:      "57898138260",
-				LastUpdated: 15,
+				Amount:      "57796933740",
+				LastUpdated: 16,
 			}},
 		Address: testchain.PrivateKeyByID(0).GetScriptHash().StringLE(),
 	}
@@ -1661,7 +1718,7 @@ func checkNep17Balances(t *testing.T, e *executor, acc interface{}) {
 }
 
 func checkNep17Transfers(t *testing.T, e *executor, acc interface{}) {
-	checkNep17TransfersAux(t, e, acc, []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14}, []int{0, 1, 2, 3, 4, 5, 6, 7})
+	checkNep17TransfersAux(t, e, acc, []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}, []int{0, 1, 2, 3, 4, 5, 6, 7})
 }
 
 func checkNep17TransfersAux(t *testing.T, e *executor, acc interface{}, sent, rcvd []int) {
@@ -1669,6 +1726,11 @@ func checkNep17TransfersAux(t *testing.T, e *executor, acc interface{}, sent, rc
 	require.True(t, ok)
 	rublesHash, err := util.Uint160DecodeStringLE(testContractHash)
 	require.NoError(t, err)
+
+	blockPutNewTestValue, err := e.chain.GetBlock(e.chain.GetHeaderHash(16)) // invoke `put` method of `test_contract.go` with `testkey`, `newtestvalue` args
+	require.NoError(t, err)
+	require.Equal(t, 1, len(blockPutNewTestValue.Transactions))
+	txPutNewTestValue := blockPutNewTestValue.Transactions[0]
 
 	blockSetRecord, err := e.chain.GetBlock(e.chain.GetHeaderHash(15)) // add type A record to `neo.com` domain via NNS
 	require.NoError(t, err)
@@ -1746,6 +1808,14 @@ func checkNep17TransfersAux(t *testing.T, e *executor, acc interface{}, sent, rc
 	// duplicate the Server method.
 	expected := result.NEP17Transfers{
 		Sent: []result.NEP17Transfer{
+			{
+				Timestamp: blockPutNewTestValue.Timestamp,
+				Asset:     e.chain.UtilityTokenHash(),
+				Address:   "", // burn
+				Amount:    big.NewInt(txPutNewTestValue.SystemFee + txPutNewTestValue.NetworkFee).String(),
+				Index:     16,
+				TxHash:    blockPutNewTestValue.Hash(),
+			},
 			{
 				Timestamp: blockSetRecord.Timestamp,
 				Asset:     e.chain.UtilityTokenHash(),

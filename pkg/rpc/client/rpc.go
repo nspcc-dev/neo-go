@@ -374,6 +374,19 @@ func (c *Client) GetRawTransactionVerbose(hash util.Uint256) (*result.Transactio
 	return resp, nil
 }
 
+// GetState returns historical contract storage item state by the given stateroot,
+// historical contract hash and historical item key.
+func (c *Client) GetState(stateroot util.Uint256, historicalContractHash util.Uint160, historicalKey []byte) ([]byte, error) {
+	var (
+		params = request.NewRawParams(stateroot.StringLE(), historicalContractHash.StringLE(), historicalKey)
+		resp   []byte
+	)
+	if err := c.performRequest("getstate", params, &resp); err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
 // GetStateHeight returns current validated and local node state height.
 func (c *Client) GetStateHeight() (*result.StateHeight, error) {
 	var (

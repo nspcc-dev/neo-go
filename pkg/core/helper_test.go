@@ -501,6 +501,20 @@ func initBasicChain(t *testing.T, bc *Blockchain) {
 	require.NoError(t, err)
 	checkResult(t, res, stackitem.Null{})
 
+	// Invoke `test_contract.go`: put new value with the same key to check `getstate` RPC call
+	script.Reset()
+	emit.AppCall(script.BinWriter, cHash, "putValue", callflag.All, "testkey", "newtestvalue")
+
+	txInv = transaction.New(script.Bytes(), 1*native.GASFactor)
+	txInv.Nonce = getNextNonce()
+	txInv.ValidUntilBlock = validUntilBlock
+	txInv.Signers = []transaction.Signer{{Account: priv0ScriptHash}}
+	require.NoError(t, addNetworkFee(bc, txInv, acc0))
+	require.NoError(t, acc0.SignTx(testchain.Network(), txInv))
+	b = bc.newBlock(txInv)
+	require.NoError(t, bc.AddBlock(b))
+	checkTxHalt(t, bc, txInv.Hash())
+
 	// Compile contract to test `invokescript` RPC call
 	_, _ = newDeployTx(t, bc, priv0ScriptHash, prefix+"invokescript_contract.go", "ContractForInvokescriptTest", nil)
 }

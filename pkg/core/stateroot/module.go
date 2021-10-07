@@ -55,6 +55,12 @@ func NewModule(bc blockchainer.Blockchainer, log *zap.Logger, s *storage.MemCach
 	}
 }
 
+// GetState returns value at the specified key fom the MPT with the specified root.
+func (s *Module) GetState(root util.Uint256, key []byte) ([]byte, error) {
+	tr := mpt.NewTrie(mpt.NewHashNode(root), false, storage.NewMemCachedStore(s.Store))
+	return tr.Get(key)
+}
+
 // GetStateProof returns proof of having key in the MPT with the specified root.
 func (s *Module) GetStateProof(root util.Uint256, key []byte) ([][]byte, error) {
 	tr := mpt.NewTrie(mpt.NewHashNode(root), false, storage.NewMemCachedStore(s.Store))

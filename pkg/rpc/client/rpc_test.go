@@ -675,6 +675,20 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 			},
 		},
 	},
+	"getstate": {
+		{
+			name: "positive",
+			invoke: func(c *Client) (interface{}, error) {
+				root, _ := util.Uint256DecodeStringLE("252e9d73d49c95c7618d40650da504e05183a1b2eed0685e42c360413c329170")
+				cHash, _ := util.Uint160DecodeStringLE("5c9e40a12055c6b9e3f72271c9779958c842135d")
+				return c.GetState(root, cHash, []byte("testkey"))
+			},
+			serverResponse: `{"id":1,"jsonrpc":"2.0","result":"dGVzdHZhbHVl"}`,
+			result: func(c *Client) interface{} {
+				return []byte("testvalue")
+			},
+		},
+	},
 	"getstateheight": {
 		{
 			name: "positive",

@@ -285,7 +285,6 @@ func TestStateSyncModule_RestoreBasicChain(t *testing.T) {
 	// make spout chain higher that latest state sync point
 	require.NoError(t, bcSpout.AddBlock(bcSpout.newBlock()))
 	require.NoError(t, bcSpout.AddBlock(bcSpout.newBlock()))
-	require.NoError(t, bcSpout.AddBlock(bcSpout.newBlock()))
 	require.Equal(t, uint32(stateSyncPoint+2), bcSpout.BlockHeight())
 
 	boltCfg := func(c *config.Config) {

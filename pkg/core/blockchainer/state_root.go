@@ -13,6 +13,7 @@ type StateRoot interface {
 	CurrentLocalHeight() uint32
 	CurrentLocalStateRoot() util.Uint256
 	CurrentValidatedHeight() uint32
+	GetState(root util.Uint256, key []byte) ([]byte, error)
 	GetStateProof(root util.Uint256, key []byte) ([][]byte, error)
 	GetStateRoot(height uint32) (*state.MPTRoot, error)
 	GetStateValidators(height uint32) keys.PublicKeys
