@@ -49,6 +49,7 @@ type FakeChain struct {
 type FakeStateSync struct {
 	IsActiveFlag      uatomic.Bool
 	IsInitializedFlag uatomic.Bool
+	RequestHeaders    uatomic.Bool
 	InitFunc          func(h uint32) error
 	TraverseFunc      func(root util.Uint256, process func(node mpt.Node, nodeBytes []byte) bool) error
 	AddMPTNodesFunc   func(nodes [][]byte) error
@@ -503,7 +504,7 @@ func (s *FakeStateSync) Init(currChainHeight uint32) error {
 }
 
 // NeedHeaders implements StateSync interface.
-func (s *FakeStateSync) NeedHeaders() bool { return false }
+func (s *FakeStateSync) NeedHeaders() bool { return s.RequestHeaders.Load() }
 
 // NeedMPTNodes implements StateSync interface.
 func (s *FakeStateSync) NeedMPTNodes() bool {

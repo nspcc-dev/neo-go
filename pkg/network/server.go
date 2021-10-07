@@ -84,8 +84,10 @@ type (
 		lock  sync.RWMutex
 		peers map[Peer]bool
 
-		// lastRequestedHeight contains last requested height.
-		lastRequestedHeight atomic.Uint32
+		// lastRequestedBlock contains a height of the last requested block.
+		lastRequestedBlock atomic.Uint32
+		// lastRequestedHeader contains a height of the last requested header.
+		lastRequestedHeader atomic.Uint32
 
 		register   chan Peer
 		unregister chan peerDrop
@@ -694,11 +696,8 @@ func (s *Server) requestBlocksOrHeaders(p Peer) error {
 
 // requestHeaders sends a CMDGetHeaders message to the peer to sync up in headers.
 func (s *Server) requestHeaders(p Peer) error {
-	// TODO: optimize
-	currHeight := s.chain.HeaderHeight()
-	needHeight := currHeight + 1
-	payload := payload.NewGetBlockByIndex(needHeight, -1)
-	return p.EnqueueP2PMessage(NewMessage(CMDGetHeaders, payload))
+	pl := getRequestBlocksPayload(p, s.chain.HeaderHeight(), &s.lastRequestedHeader)
+	return p.EnqueueP2PMessage(NewMessage(CMDGetHeaders, pl))
 }
 
 // handlePing processes pong request.
@@ -1112,22 +1111,26 @@ func (s *Server) handleGetAddrCmd(p Peer) error {
 // 2. Send requests for chunk in increasing order.
 // 3. After all requests were sent, request random height.
 func (s *Server) requestBlocks(bq blockchainer.Blockqueuer, p Peer) error {
-	var currHeight = bq.BlockHeight()
+	pl := getRequestBlocksPayload(p, bq.BlockHeight(), &s.lastRequestedBlock)
+	return p.EnqueueP2PMessage(NewMessage(CMDGetBlockByIndex, pl))
+}
+
+func getRequestBlocksPayload(p Peer, currHeight uint32, lastRequestedHeight *atomic.Uint32) *payload.GetBlockByIndex {
 	var peerHeight = p.LastBlockIndex()
 	var needHeight uint32
-	// lastRequestedHeight can only be increased.
+	// lastRequestedBlock can only be increased.
 	for {
-		old := s.lastRequestedHeight.Load()
+		old := lastRequestedHeight.Load()
 		if old <= currHeight {
 			needHeight = currHeight + 1
-			if !s.lastRequestedHeight.CAS(old, needHeight) {
+			if !lastRequestedHeight.CAS(old, needHeight) {
 				continue
 			}
 		} else if old < currHeight+(blockCacheSize-payload.MaxHashesCount) {
 			needHeight = currHeight + 1
 			if peerHeight > old+payload.MaxHashesCount {
 				needHeight = old + payload.MaxHashesCount
-				if !s.lastRequestedHeight.CAS(old, needHeight) {
+				if !lastRequestedHeight.CAS(old, needHeight) {
 					continue
 				}
 			}
@@ -1137,8 +1140,7 @@ func (s *Server) requestBlocks(bq blockchainer.Blockqueuer, p Peer) error {
 		}
 		break
 	}
-	payload := payload.NewGetBlockByIndex(needHeight, -1)
-	return p.EnqueueP2PMessage(NewMessage(CMDGetBlockByIndex, payload))
+	return payload.NewGetBlockByIndex(needHeight, -1)
 }
 
 // handleMessage processes the given message.
