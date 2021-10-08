@@ -1205,6 +1205,16 @@ func TestSETITEMMap(t *testing.T) {
 	m := stackitem.NewMap()
 	m.Add(stackitem.Make(5), stackitem.Make(3))
 	runWithArgs(t, prog, []byte{0, 1}, m, 5, m, 5, []byte{0, 1})
+
+	t.Run("big key", func(t *testing.T) {
+		m := stackitem.NewMap()
+		key := make([]byte, stackitem.MaxKeySize)
+		for i := range key {
+			key[i] = 0x0F
+		}
+		m.Add(stackitem.NewByteArray(key), stackitem.Make(3))
+		runWithArgs(t, prog, "value", m, key, m, key, "value")
+	})
 }
 
 func TestSETITEMBigMapBad(t *testing.T) {

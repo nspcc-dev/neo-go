@@ -1087,11 +1087,11 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		validateMapKey(key)
 
 		obj := v.estack.Pop()
-		index := int(key.BigInt().Int64())
 
 		switch t := obj.value.(type) {
 		// Struct and Array items have their underlying value as []Item.
 		case *stackitem.Array, *stackitem.Struct:
+			index := int(key.BigInt().Int64())
 			arr := t.Value().([]stackitem.Item)
 			if index < 0 || index >= len(arr) {
 				panic("PICKITEM: invalid index")
@@ -1105,6 +1105,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			}
 			v.estack.PushItem(t.Value().([]stackitem.MapElement)[index].Value.Dup())
 		default:
+			index := int(key.BigInt().Int64())
 			arr := obj.Bytes()
 			if index < 0 || index >= len(arr) {
 				panic("PICKITEM: invalid index")
