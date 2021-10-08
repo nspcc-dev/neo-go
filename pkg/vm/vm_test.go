@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"math"
 	"math/big"
 	"math/rand"
 	"testing"
@@ -1158,6 +1159,26 @@ func TestPICKITEM(t *testing.T) {
 	t.Run("Array", getTestFuncForVM(prog, 2, []stackitem.Item{stackitem.Make(1), stackitem.Make(2)}, 1))
 	t.Run("ByteArray", getTestFuncForVM(prog, 2, []byte{1, 2}, 1))
 	t.Run("Buffer", getTestFuncForVM(prog, 2, stackitem.NewBuffer([]byte{1, 2}), 1))
+	t.Run("Exceptions", func(t *testing.T) {
+		tryProg := getTRYProgram(
+			[]byte{byte(opcode.PICKITEM), byte(opcode.RET)},
+			[]byte{byte(opcode.RET)}, nil)
+		items := []stackitem.Item{
+			stackitem.NewArray([]stackitem.Item{}),
+			stackitem.NewBuffer([]byte{}),
+			stackitem.NewByteArray([]byte{}),
+		}
+		for _, item := range items {
+			t.Run(item.String()+", negative", getTestFuncForVM(tryProg,
+				fmt.Sprintf("The value %d is out of range.", math.MinInt32),
+				item, math.MinInt32))
+			t.Run(item.String()+", very big index",
+				getTestFuncForVM(tryProg, nil, item, int64(math.MaxInt32)+1))
+		}
+
+		m := stackitem.NewMap()
+		t.Run("Map, missing key", getTestFuncForVM(tryProg, "Key not found in Map", m, 1))
+	})
 }
 
 func TestPICKITEMDupArray(t *testing.T) {
@@ -1196,8 +1217,33 @@ func TestPICKITEMMap(t *testing.T) {
 func TestSETITEMBuffer(t *testing.T) {
 	prog := makeProgram(opcode.DUP, opcode.REVERSE4, opcode.SETITEM)
 	t.Run("Good", getTestFuncForVM(prog, stackitem.NewBuffer([]byte{0, 42, 2}), 42, 1, stackitem.NewBuffer([]byte{0, 1, 2})))
-	t.Run("BadIndex", getTestFuncForVM(prog, nil, 42, -1, stackitem.NewBuffer([]byte{0, 1, 2})))
 	t.Run("BadValue", getTestFuncForVM(prog, nil, 256, 1, stackitem.NewBuffer([]byte{0, 1, 2})))
+	t.Run("Exceptions", func(t *testing.T) {
+		tryProg := getTRYProgram(
+			[]byte{byte(opcode.SETITEM), byte(opcode.PUSH12), byte(opcode.RET)},
+			[]byte{byte(opcode.RET)}, nil)
+		t.Run("negative index", getTestFuncForVM(tryProg,
+			fmt.Sprintf("The value %d is out of range.", math.MinInt32),
+			stackitem.NewBuffer([]byte{0, 1, 2}), math.MinInt32, 0))
+		t.Run("very big index", getTestFuncForVM(tryProg,
+			nil, stackitem.NewBuffer([]byte{0, 1, 2}), int64(math.MaxInt32)+1, 0))
+	})
+}
+
+func TestSETITEMArray(t *testing.T) {
+	tryProg := getTRYProgram(
+		[]byte{byte(opcode.SETITEM), byte(opcode.RET)},
+		[]byte{byte(opcode.RET)}, nil)
+	t.Run("Good", func(t *testing.T) {
+		arr := stackitem.NewArray([]stackitem.Item{stackitem.Make(12), stackitem.Make(2)})
+		expected := stackitem.NewArray([]stackitem.Item{stackitem.Make(12), stackitem.Make(42)})
+		runWithArgs(t, tryProg, expected, arr, arr, 1, 42)
+	})
+	t.Run("negative index", getTestFuncForVM(tryProg,
+		fmt.Sprintf("The value %d is out of range.", math.MinInt32),
+		[]stackitem.Item{}, math.MinInt32, 42))
+	t.Run("very big index", getTestFuncForVM(tryProg,
+		nil, []stackitem.Item{}, int64(math.MaxInt32)+1, 0))
 }
 
 func TestSETITEMMap(t *testing.T) {
