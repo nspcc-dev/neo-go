@@ -2,6 +2,7 @@ package compiler
 
 import (
 	"go/ast"
+	"strconv"
 )
 
 type varScope struct {
@@ -70,6 +71,12 @@ func (c *varScope) newVariable(t varType, name string) int {
 	case varLocal:
 		return c.newLocal(name)
 	case varArgument:
+		if name == "_" {
+			// See #2204. This name won't actually be referenced.
+			// This approach simplifies argument allocation and
+			// makes debugging easier.
+			name = "%_" + strconv.FormatUint(uint64(len(c.arguments)), 10)
+		}
 		_, ok := c.arguments[name]
 		if ok {
 			panic("argument is already allocated")

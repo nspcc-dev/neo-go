@@ -313,3 +313,14 @@ func TestJumpOptimize(t *testing.T) {
 		require.Equal(t, b[mi.Range.End], byte(opcode.RET))
 	}
 }
+
+func TestFunctionUnusedParameters(t *testing.T) {
+	src := `package foo
+	func add13(a int, _ int, _1 int, _ int) int {
+		return a + _1
+	}
+	func Main() int {
+		return add13(1, 10, 100, 1000)
+	}`
+	eval(t, src, big.NewInt(101))
+}
