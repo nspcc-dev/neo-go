@@ -1,7 +1,6 @@
 package client
 
 import (
-	"encoding/base64"
 	"errors"
 	"fmt"
 
@@ -420,12 +419,12 @@ func (c *Client) GetStateHeight() (*result.StateHeight, error) {
 
 // GetStorageByID returns the stored value, according to the contract ID and the stored key.
 func (c *Client) GetStorageByID(id int32, key []byte) ([]byte, error) {
-	return c.getStorage(request.NewRawParams(id, base64.StdEncoding.EncodeToString(key)))
+	return c.getStorage(request.NewRawParams(id, key))
 }
 
 // GetStorageByHash returns the stored value, according to the contract script hash and the stored key.
 func (c *Client) GetStorageByHash(hash util.Uint160, key []byte) ([]byte, error) {
-	return c.getStorage(request.NewRawParams(hash.StringLE(), base64.StdEncoding.EncodeToString(key)))
+	return c.getStorage(request.NewRawParams(hash.StringLE(), key))
 }
 
 func (c *Client) getStorage(params request.RawParams) ([]byte, error) {
