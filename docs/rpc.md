@@ -165,18 +165,18 @@ additional parameter and then use paging to request the next batch of
 transfers.
 
 Example requesting 10 events for address NbTiM6h8r99kpRtb428XcsUk1TzKed2gTc
-within 0-1600094189 timestamps:
+within 0-1600094189000 timestamps:
 
 ```json
 { "jsonrpc": "2.0", "id": 5, "method": "getnep17transfers", "params":
-["NbTiM6h8r99kpRtb428XcsUk1TzKed2gTc", 0, 1600094189, 10] }
+["NbTiM6h8r99kpRtb428XcsUk1TzKed2gTc", 0, 1600094189000, 10] }
 ```
 
 Get the next 10 transfers for the same account within the same time frame:
 
 ```json
 { "jsonrpc": "2.0", "id": 5, "method": "getnep17transfers", "params":
-["NbTiM6h8r99kpRtb428XcsUk1TzKed2gTc", 0, 1600094189, 10, 1] }
+["NbTiM6h8r99kpRtb428XcsUk1TzKed2gTc", 0, 1600094189000, 10, 1] }
 ```
 
 #### Websocket server

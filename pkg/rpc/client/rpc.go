@@ -283,7 +283,7 @@ func (c *Client) GetNEP17Balances(address util.Uint160) (*result.NEP17Balances, 
 // are supported since neo-go 0.77.0 and limit and page since neo-go 0.78.0.
 // These parameters are positional in the JSON-RPC call, you can't specify limit
 // and not specify start/stop for example.
-func (c *Client) GetNEP17Transfers(address string, start, stop *uint32, limit, page *int) (*result.NEP17Transfers, error) {
+func (c *Client) GetNEP17Transfers(address string, start, stop *uint64, limit, page *int) (*result.NEP17Transfers, error) {
 	params := request.NewRawParams(address)
 	if start != nil {
 		params.Values = append(params.Values, *start)
