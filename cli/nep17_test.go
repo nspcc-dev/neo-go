@@ -116,6 +116,14 @@ func TestNEP17Transfer(t *testing.T) {
 		"--from", validatorAddr,
 	}
 
+	t.Run("missing receiver", func(t *testing.T) {
+		as := append([]string{}, args[:8]...)
+		as = append(as, args[10:]...)
+		e.In.WriteString("one\r")
+		e.RunWithError(t, as...)
+		e.In.Reset()
+	})
+
 	t.Run("InvalidPassword", func(t *testing.T) {
 		e.In.WriteString("onetwothree\r")
 		e.RunWithError(t, args...)

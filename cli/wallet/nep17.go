@@ -514,6 +514,9 @@ func transferNEP(ctx *cli.Context, standard string) error {
 	}
 
 	toFlag := ctx.Generic("to").(*flags.Address)
+	if !toFlag.IsSet {
+		return cli.NewExitError(errors.New("missing receiver address (--to)"), 1)
+	}
 	to := toFlag.Uint160()
 	token, err := getMatchingToken(ctx, wall, ctx.String("token"), standard)
 	if err != nil {
