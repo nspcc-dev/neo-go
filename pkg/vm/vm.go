@@ -1087,27 +1087,33 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		validateMapKey(key)
 
 		obj := v.estack.Pop()
-		index := int(key.BigInt().Int64())
 
 		switch t := obj.value.(type) {
 		// Struct and Array items have their underlying value as []Item.
 		case *stackitem.Array, *stackitem.Struct:
+			index := toInt(key.BigInt())
 			arr := t.Value().([]stackitem.Item)
 			if index < 0 || index >= len(arr) {
-				panic("PICKITEM: invalid index")
+				msg := fmt.Sprintf("The value %d is out of range.", index)
+				v.throw(stackitem.NewByteArray([]byte(msg)))
+				return
 			}
 			item := arr[index].Dup()
 			v.estack.PushItem(item)
 		case *stackitem.Map:
 			index := t.Index(key.Item())
 			if index < 0 {
-				panic("invalid key")
+				v.throw(stackitem.NewByteArray([]byte("Key not found in Map")))
+				return
 			}
 			v.estack.PushItem(t.Value().([]stackitem.MapElement)[index].Value.Dup())
 		default:
+			index := toInt(key.BigInt())
 			arr := obj.Bytes()
 			if index < 0 || index >= len(arr) {
-				panic("PICKITEM: invalid index")
+				msg := fmt.Sprintf("The value %d is out of range.", index)
+				v.throw(stackitem.NewByteArray([]byte(msg)))
+				return
 			}
 			item := arr[index]
 			v.estack.PushItem(stackitem.NewBigInteger(big.NewInt(int64(item))))
@@ -1124,9 +1130,11 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		// Struct and Array items have their underlying value as []Item.
 		case *stackitem.Array, *stackitem.Struct:
 			arr := t.Value().([]stackitem.Item)
-			index := int(key.BigInt().Int64())
+			index := toInt(key.BigInt())
 			if index < 0 || index >= len(arr) {
-				panic("SETITEM: invalid index")
+				msg := fmt.Sprintf("The value %d is out of range.", index)
+				v.throw(stackitem.NewByteArray([]byte(msg)))
+				return
 			}
 			v.refs.Remove(arr[index])
 			arr[index] = item
@@ -1141,7 +1149,9 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		case *stackitem.Buffer:
 			index := toInt(key.BigInt())
 			if index < 0 || index >= t.Len() {
-				panic("invalid index")
+				msg := fmt.Sprintf("The value %d is out of range.", index)
+				v.throw(stackitem.NewByteArray([]byte(msg)))
+				return
 			}
 			bi, err := item.TryInteger()
 			b := toInt(bi)
