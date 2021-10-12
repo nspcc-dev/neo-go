@@ -843,7 +843,7 @@ func contractDeploy(ctx *cli.Context) error {
 			Value: manifestBytes,
 		},
 	}
-	_, data, err := cmdargs.ParseParams(ctx.Args(), true)
+	signOffset, data, err := cmdargs.ParseParams(ctx.Args(), true)
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("unable to parse 'data' parameter: %w", err), 1)
 	}
@@ -872,10 +872,15 @@ func contractDeploy(ctx *cli.Context) error {
 		return cli.NewExitError(fmt.Errorf("can't get sender address: %w", err), 1)
 	}
 
-	cosigners := []transaction.Signer{{
-		Account: acc.Contract.ScriptHash(),
-		Scopes:  transaction.CalledByEntry,
-	}}
+	cosigners, sgnErr := cmdargs.GetSignersFromContext(ctx, signOffset)
+	if sgnErr != nil {
+		return err
+	} else if len(cosigners) == 0 {
+		cosigners = []transaction.Signer{{
+			Account: acc.Contract.ScriptHash(),
+			Scopes:  transaction.CalledByEntry,
+		}}
+	}
 
 	sender, extErr := invokeWithArgs(ctx, acc, w, mgmtHash, "deploy", appCallParams, cosigners)
 	if extErr != nil {

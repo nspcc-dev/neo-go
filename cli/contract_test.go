@@ -14,6 +14,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
+	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/fixedn"
@@ -157,6 +158,83 @@ func TestDeployBigContract(t *testing.T) {
 }
 
 func TestContractDeployWithData(t *testing.T) {
+	eCompile := newExecutor(t, false)
+
+	// For proper nef generation.
+	config.Version = "0.90.0-test"
+	tmpDir := t.TempDir()
+
+	nefName := path.Join(tmpDir, "deploy.nef")
+	manifestName := path.Join(tmpDir, "deploy.manifest.json")
+	eCompile.Run(t, "neo-go", "contract", "compile",
+		"--in", "testdata/deploy/main.go", // compile single file
+		"--config", "testdata/deploy/neo-go.yml",
+		"--out", nefName, "--manifest", manifestName)
+
+	deployContract := func(t *testing.T, haveData bool, scope string) {
+		e := newExecutor(t, true)
+		cmd := []string{
+			"neo-go", "contract", "deploy",
+			"--rpc-endpoint", "http://" + e.RPC.Addr,
+			"--wallet", validatorWallet, "--address", validatorAddr,
+			"--in", nefName, "--manifest", manifestName,
+			"--force",
+		}
+
+		if haveData {
+			cmd = append(cmd, "[", "key1", "12", "key2", "take_me_to_church", "]")
+		}
+		if scope != "" {
+			cmd = append(cmd, "--", validatorAddr+":"+scope)
+		} else {
+			scope = "CalledByEntry"
+		}
+		e.In.WriteString("one\r")
+		e.Run(t, cmd...)
+
+		tx, _ := e.checkTxPersisted(t, "Sent invocation transaction ")
+		require.Equal(t, scope, tx.Signers[0].Scopes.String())
+		if !haveData {
+			return
+		}
+
+		line, err := e.Out.ReadString('\n')
+		require.NoError(t, err)
+		line = strings.TrimSpace(strings.TrimPrefix(line, "Contract: "))
+		h, err := util.Uint160DecodeStringLE(line)
+		require.NoError(t, err)
+
+		e.Run(t, "neo-go", "contract", "testinvokefunction",
+			"--rpc-endpoint", "http://"+e.RPC.Addr,
+			h.StringLE(),
+			"getValueWithKey", "key1",
+		)
+
+		res := new(result.Invoke)
+		require.NoError(t, json.Unmarshal(e.Out.Bytes(), res))
+		require.Equal(t, vm.HaltState.String(), res.State, res.FaultException)
+		require.Len(t, res.Stack, 1)
+		require.Equal(t, []byte{12}, res.Stack[0].Value())
+
+		e.Run(t, "neo-go", "contract", "testinvokefunction",
+			"--rpc-endpoint", "http://"+e.RPC.Addr,
+			h.StringLE(),
+			"getValueWithKey", "key2",
+		)
+
+		res = new(result.Invoke)
+		require.NoError(t, json.Unmarshal(e.Out.Bytes(), res))
+		require.Equal(t, vm.HaltState.String(), res.State, res.FaultException)
+		require.Len(t, res.Stack, 1)
+		require.Equal(t, []byte("take_me_to_church"), res.Stack[0].Value())
+	}
+
+	deployContract(t, true, "")
+	deployContract(t, false, "Global")
+	deployContract(t, true, "Global")
+}
+
+func TestDeployWithSigners(t *testing.T) {
 	e := newExecutor(t, true)
 
 	// For proper nef generation.
@@ -166,7 +244,7 @@ func TestContractDeployWithData(t *testing.T) {
 	nefName := path.Join(tmpDir, "deploy.nef")
 	manifestName := path.Join(tmpDir, "deploy.manifest.json")
 	e.Run(t, "neo-go", "contract", "compile",
-		"--in", "testdata/deploy/main.go", // compile single file
+		"--in", "testdata/deploy/main.go",
 		"--config", "testdata/deploy/neo-go.yml",
 		"--out", nefName, "--manifest", manifestName)
 
@@ -176,38 +254,9 @@ func TestContractDeployWithData(t *testing.T) {
 		"--wallet", validatorWallet, "--address", validatorAddr,
 		"--in", nefName, "--manifest", manifestName,
 		"--force",
-		"[", "key1", "12", "key2", "take_me_to_church", "]")
-
-	e.checkTxPersisted(t, "Sent invocation transaction ")
-	line, err := e.Out.ReadString('\n')
-	require.NoError(t, err)
-	line = strings.TrimSpace(strings.TrimPrefix(line, "Contract: "))
-	h, err := util.Uint160DecodeStringLE(line)
-	require.NoError(t, err)
-
-	e.Run(t, "neo-go", "contract", "testinvokefunction",
-		"--rpc-endpoint", "http://"+e.RPC.Addr,
-		h.StringLE(),
-		"getValueWithKey", "key1",
-	)
-
-	res := new(result.Invoke)
-	require.NoError(t, json.Unmarshal(e.Out.Bytes(), res))
-	require.Equal(t, vm.HaltState.String(), res.State, res.FaultException)
-	require.Len(t, res.Stack, 1)
-	require.Equal(t, []byte{12}, res.Stack[0].Value())
-
-	e.Run(t, "neo-go", "contract", "testinvokefunction",
-		"--rpc-endpoint", "http://"+e.RPC.Addr,
-		h.StringLE(),
-		"getValueWithKey", "key2",
-	)
-
-	res = new(result.Invoke)
-	require.NoError(t, json.Unmarshal(e.Out.Bytes(), res))
-	require.Equal(t, vm.HaltState.String(), res.State, res.FaultException)
-	require.Len(t, res.Stack, 1)
-	require.Equal(t, []byte("take_me_to_church"), res.Stack[0].Value())
+		"--", validatorAddr+":Global")
+	tx, _ := e.checkTxPersisted(t, "Sent invocation transaction ")
+	require.Equal(t, transaction.Global, tx.Signers[0].Scopes)
 }
 
 func TestContractManifestGroups(t *testing.T) {
