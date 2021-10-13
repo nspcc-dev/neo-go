@@ -163,7 +163,8 @@ Confirm passphrase >
 
 Use `wallet convert` to update addresses in NEP-6 wallets used with Neo
 Legacy. New wallet is specified in `-o` option, it will have the same keys
-with Neo N3 addresses.
+with Neo N3 addresses (notice that it doesn't do anything to your assets, it
+just allows to reuse the old key on N3 network).
 ```
 ./bin/neo-go wallet convert -w old.nep6 -o new.nep6
 ```
