@@ -526,22 +526,19 @@ func collapse(depth int, node Node) Node {
 }
 
 // Find returns list of storage key-value pairs whose key is prefixed by the specified
-// prefix starting from the specified path (not including the item at the specified path
-// if so). The `max` number of elements is returned at max.
+// prefix starting from the specified `prefix`+`from` path (not including the item at
+// the specified `prefix`+`from` path if so). The `max` number of elements is returned at max.
 func (t *Trie) Find(prefix, from []byte, max int) ([]storage.KeyValue, error) {
 	if len(prefix) > MaxKeyLength {
 		return nil, errors.New("invalid prefix length")
 	}
-	if len(from) > MaxKeyLength {
+	if len(from) > MaxKeyLength-len(prefix) {
 		return nil, errors.New("invalid from length")
 	}
 	prefixP := toNibbles(prefix)
 	fromP := []byte{}
 	if len(from) > 0 {
-		if !bytes.HasPrefix(from, prefix) {
-			return nil, errors.New("`from` argument doesn't match specified prefix")
-		}
-		fromP = toNibbles(from)[len(prefixP):]
+		fromP = toNibbles(from)
 	}
 	_, start, path, err := t.getWithPath(t.root, prefixP, false)
 	if err != nil {
@@ -572,10 +569,9 @@ func (t *Trie) Find(prefix, from []byte, max int) ([]storage.KeyValue, error) {
 	b := NewBillet(t.root.Hash(), false, t.Store)
 	process := func(pathToNode []byte, node Node, _ []byte) bool {
 		if leaf, ok := node.(*LeafNode); ok {
-			key := append(prefix, pathToNode...)
-			if !bytes.Equal(key, from) { // (*Billet).traverse includes `from` path into result if so. Need to filter out manually.
+			if from == nil || !bytes.Equal(pathToNode, from) { // (*Billet).traverse includes `from` path into result if so. Need to filter out manually.
 				res = append(res, storage.KeyValue{
-					Key:   key,
+					Key:   append(slice.Copy(prefix), pathToNode...),
 					Value: slice.Copy(leaf.value),
 				})
 				count++

@@ -1515,6 +1515,20 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 				Truncated: false,
 			})
 		})
+		t.Run("good: empty prefix, no limit", func(t *testing.T) {
+			// empty prefix should be considered as no prefix specified.
+			root, err := e.chain.GetStateModule().GetStateRoot(16)
+			require.NoError(t, err)
+			params := fmt.Sprintf(`"%s", "%s", "%s", ""`, root.Root.StringLE(), testContractHash, base64.StdEncoding.EncodeToString([]byte("aa")))
+			testFindStates(t, params, root.Root, result.FindStates{
+				Results: []result.KeyValue{
+					{Key: []byte("aa10"), Value: []byte("v2")},
+					{Key: []byte("aa50"), Value: []byte("v3")},
+					{Key: []byte("aa"), Value: []byte("v1")},
+				},
+				Truncated: false,
+			})
+		})
 		t.Run("good: with prefix, no limit", func(t *testing.T) {
 			// pairs for this test where put to the contract storage at block #16
 			root, err := e.chain.GetStateModule().GetStateRoot(16)
@@ -1527,7 +1541,7 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 				Truncated: false,
 			})
 		})
-		t.Run("good: no prefix, with limit", func(t *testing.T) {
+		t.Run("good: empty prefix, with limit", func(t *testing.T) {
 			for limit := 2; limit < 5; limit++ {
 				// pairs for this test where put to the contract storage at block #16
 				root, err := e.chain.GetStateModule().GetStateRoot(16)

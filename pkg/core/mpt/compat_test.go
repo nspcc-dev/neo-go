@@ -394,13 +394,16 @@ func TestCompatibility_Find(t *testing.T) {
 	})
 	t.Run("from is not in tree", func(t *testing.T) {
 		t.Run("matching", func(t *testing.T) {
-			check(t, []byte("aa30"), 1)
+			check(t, []byte("30"), 1)
 		})
 		t.Run("non-matching", func(t *testing.T) {
-			check(t, []byte("aa60"), 0)
+			check(t, []byte("60"), 0)
 		})
 	})
 	t.Run("from is in tree", func(t *testing.T) {
-		check(t, []byte("aa10"), 1) // without `from` key
+		check(t, []byte("10"), 1) // without `from` key
+	})
+	t.Run("from matching start", func(t *testing.T) {
+		check(t, []byte{}, 2) // without `from` key
 	})
 }

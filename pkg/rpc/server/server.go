@@ -1095,6 +1095,15 @@ func (s *Server) findStates(ps request.Params) (interface{}, *response.Error) {
 		if err != nil {
 			return nil, response.WrapErrorWithData(response.ErrInvalidParams, errors.New("invalid key"))
 		}
+		if len(key) > 0 {
+			if !bytes.HasPrefix(key, prefix) {
+				return nil, response.WrapErrorWithData(response.ErrInvalidParams, errors.New("key doesn't match prefix"))
+			}
+			key = key[len(prefix):]
+		} else {
+			// empty ("") key shouldn't exclude item matching prefix from the result
+			key = nil
+		}
 	}
 	if len(ps) > 4 {
 		count, err = ps.Value(4).GetInt()
@@ -1110,11 +1119,7 @@ func (s *Server) findStates(ps request.Params) (interface{}, *response.Error) {
 		return nil, respErr
 	}
 	pKey := makeStorageKey(cs.ID, prefix)
-	var sKey []byte
-	if len(key) > 0 {
-		sKey = makeStorageKey(cs.ID, key)
-	}
-	kvs, err := s.chain.GetStateModule().FindStates(root, pKey, sKey, count+1) // +1 to define result truncation
+	kvs, err := s.chain.GetStateModule().FindStates(root, pKey, key, count+1) // +1 to define result truncation
 	if err != nil {
 		return nil, response.NewInternalServerError("failed to find historical items", err)
 	}
