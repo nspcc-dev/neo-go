@@ -164,6 +164,16 @@ func ParseParams(args []string, calledFromMain bool) (int, []smartcontract.Param
 		default:
 			param, err := smartcontract.NewParameterFromString(s)
 			if err != nil {
+				// '--' argument is skipped by urfave/cli library, which leads
+				// to [--, addr:scope] being transformed to [addr:scope] and
+				// interpreted as a parameter if other positional arguments are not present.
+				// Here we fallback to parsing cosigners in this specific case to
+				// create a better user experience ('-- addr:scope' vs '-- -- addr:scope').
+				if k == 0 {
+					if _, err := parseCosigner(s); err == nil {
+						return 0, nil, nil
+					}
+				}
 				return 0, nil, fmt.Errorf("failed to parse argument #%d: %w", k+1, err)
 			}
 			res = append(res, *param)
