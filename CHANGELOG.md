@@ -2,6 +2,86 @@
 
 This document outlines major changes between releases.
 
+## 0.97.3 "Exception" (13 Oct 2021)
+
+This updated version of NeoGo is made to be compatible with Neo 3.0.3 bringing
+with it all corresponding protocol changes and bug fixes so that you can use
+it on public testnet and mainnet. It also brings with it a complete
+experimental P2P state exchange extension for private networks as well as
+additional optimizations. This is the first version requiring at least Go 1.15
+to compile, so make sure your Go is up to date if you're not using pre-built
+binaries. Protocol updates and bug fixes made in this release require a
+resynchronization on upgrade.
+
+We also make a final call on Badger and Redis DB issue #2130, if there are no
+active users of them, support for both will be removed in the next release.
+
+New features:
+ * MaxConnsPerHost RPC client option (#2151)
+ * P2P state exchange extension (#2019)
+ * transaction-related CLI commands now show calculated fees before
+   sending transaction to RPC node and ask for confirmation (#2180)
+ * test invocations are now possible for partially-signed transactions stored
+   in JSON format (used for manual signing by multiple parties, #2179)
+ * `getstate` and `findstates` RPC to retrieve historic state data (#2207)
+
+Behavior changes:
+ * added support for Go 1.17, dropped Go 1.14 (#2135, #2147)
+ * blocking native contracts is no longer possible in Policy contract (#2155)
+ * `getversion` RPC call now also returns protocol configuration data (#2161,
+   #2202)
+ * NEF files now have Source field that can be specified in contract's
+   metadata (#2191)
+ * notification events from contracts in subscription service now also contain
+   container (transaction usually) hash (#2192)
+ * out of bounds exceptions can be catched in contracts now for PICKITEM and
+   SETITEM VM instructions (#2209)
+
+Improvements:
+ * reduced number of memory allocations in some places (#2136, #2141)
+ * VM optimizations (#2140, #2148)
+ * notary subsystem documentation (#2139)
+ * documentation fixes (#2162)
+ * VM CLI now allows to dump slots (#2164)
+ * better IPv6 checks in example NNS contract and `getAllRecords` method (#2166)
+ * updated linters (#2177)
+ * Migrate methods renamed into Update in examples (#2183)
+ * old (no longer available) interop function names removed (#2185)
+ * optimized processing of voting NEO transfers (#2186)
+ * configuration parameters specified in seconds no longer use (improper)
+   time.Duration type (#2194)
+ * better error message for conflicting transactions (#2199)
+ * open wallet in read-only mode if not changing it (#2184)
+ * optimized header requests in P2P communication (#2200)
+ * compiler now checks for method existence if it's specified as safe in
+   metadata (#2206)
+
+Bugs fixed:
+ * incorrect CustomGroups witness scope check (#2142)
+ * empty leaf values were ignored for MPT calculcations (#2143)
+ * lower-case hexadecimal in block header JSON output (differing from C# node,
+   #2165)
+ * `getblockheader` RPC result missing `Nonce` and `Primary` fields (#2165)
+ * return empty list of unverified transactions for `getrawmempool` RPC
+   instead of null (C# node never returns null, #2165)
+ * return empty list of NEF tokens in JSON format instead of null which C#
+   node never returns (#2165)
+ * races in some tests (#2173)
+ * parameter context JSON serialization/deserialization incompatiblity with C#
+   node leading to interoperability problems (#2171)
+ * transfers of 0 GAS or NEO were not possible (#2169)
+ * incorrect ContentTypeNotSupported oracle response transaction handling (#2178)
+ * JSON escaping differences with C# implementation (#2174)
+ * NEO balance update didn't save LastUpdatedBlock before GAS distribution
+   leading to problems in transactions with recursive NEO transfers (#2181)
+ * panic in CLI transfer command when missing destination address (#2211)
+ * multiple blank identifiers in function/method were misinterpreted by the
+   compiler (#2204)
+ * `getnep17transfers` used uint32 for internal time processing which is not
+   enough for ms-precision N3 timestamps (#2212)
+ * PICKITEM instruction could fail on attempt to get an item with long key
+   from map (#2209)
+
 ## 0.97.2 "Dissipation" (18 Aug 2021)
 
 We're rolling out an update for NeoGo nodes that mostly concentrates on
