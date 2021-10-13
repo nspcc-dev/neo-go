@@ -258,7 +258,7 @@ func (b *Billet) traverse(curr Node, path, from []byte, process func(pathToNode 
 					return nil, err
 				}
 				n.Children[i] = r
-				return n, err
+				return b.tryCollapseBranch(n), err
 			}
 			n.Children[i] = r
 		}
@@ -276,10 +276,7 @@ func (b *Billet) traverse(curr Node, path, from []byte, process func(pathToNode 
 			return nil, err
 		}
 		n.next = r
-		if err != nil {
-			return n, err
-		}
-		return b.tryCollapseExtension(n), nil
+		return b.tryCollapseExtension(n), err
 	default:
 		return nil, ErrNotFound
 	}
