@@ -541,11 +541,28 @@ func (t *Trie) Find(prefix, from []byte, max int) ([]storage.KeyValue, error) {
 		if !bytes.HasPrefix(from, prefix) {
 			return nil, errors.New("`from` argument doesn't match specified prefix")
 		}
-		fromP = toNibbles(from)
+		fromP = toNibbles(from)[len(prefixP):]
 	}
 	_, start, path, err := t.getWithPath(t.root, prefixP, false)
 	if err != nil {
 		return nil, fmt.Errorf("failed to determine the start node: %w", err)
+	}
+	path = path[len(prefixP):]
+
+	if len(fromP) > 0 {
+		if len(path) <= len(fromP) && bytes.HasPrefix(fromP, path) {
+			fromP = fromP[len(path):]
+		} else if len(path) > len(fromP) && bytes.HasPrefix(path, fromP) {
+			fromP = []byte{}
+		} else {
+			cmp := bytes.Compare(path, fromP)
+			switch {
+			case cmp < 0:
+				return []storage.KeyValue{}, nil
+			case cmp > 0:
+				fromP = []byte{}
+			}
+		}
 	}
 
 	var (
@@ -555,15 +572,18 @@ func (t *Trie) Find(prefix, from []byte, max int) ([]storage.KeyValue, error) {
 	b := NewBillet(t.root.Hash(), false, t.Store)
 	process := func(pathToNode []byte, node Node, _ []byte) bool {
 		if leaf, ok := node.(*LeafNode); ok {
-			res = append(res, storage.KeyValue{
-				Key:   pathToNode,
-				Value: slice.Copy(leaf.value),
-			})
-			count++
+			key := append(prefix, pathToNode...)
+			if !bytes.Equal(key, from) { // (*Billet).traverse includes `from` path into result if so. Need to filter out manually.
+				res = append(res, storage.KeyValue{
+					Key:   key,
+					Value: slice.Copy(leaf.value),
+				})
+				count++
+			}
 		}
 		return count >= max
 	}
-	_, err = b.traverse(start, path, fromP, len(path), process, false)
+	_, err = b.traverse(start, path, fromP, process, false)
 	if err != nil && !errors.Is(err, errStop) {
 		return nil, err
 	}
