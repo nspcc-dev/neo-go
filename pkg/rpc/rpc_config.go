@@ -14,6 +14,7 @@ type (
 		// can be spent during RPC call.
 		MaxGasInvoke           fixedn.Fixed8 `yaml:"MaxGasInvoke"`
 		MaxIteratorResultItems int           `yaml:"MaxIteratorResultItems"`
+		MaxFindResultItems     int           `yaml:"MaxFindResultItems"`
 		Port                   uint16        `yaml:"Port"`
 		TLSConfig              TLSConfig     `yaml:"TLSConfig"`
 	}

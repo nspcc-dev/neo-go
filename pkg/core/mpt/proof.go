@@ -2,6 +2,7 @@ package mpt
 
 import (
 	"bytes"
+	"errors"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
@@ -13,6 +14,9 @@ import (
 // Proof consist of serialized nodes occurring on path from the root to the leaf of key.
 func (t *Trie) GetProof(key []byte) ([][]byte, error) {
 	var proof [][]byte
+	if len(key) > MaxKeyLength {
+		return nil, errors.New("key is too big")
+	}
 	path := toNibbles(key)
 	r, err := t.getProof(t.root, path, &proof)
 	if err != nil {
@@ -68,6 +72,9 @@ func VerifyProof(rh util.Uint256, key []byte, proofs [][]byte) ([]byte, bool) {
 		// no errors in Put to memory store
 		_ = tr.Store.Put(makeStorageKey(h[:]), proofs[i])
 	}
-	_, bs, err := tr.getWithPath(tr.root, path)
-	return bs, err == nil
+	_, leaf, _, err := tr.getWithPath(tr.root, path, true)
+	if err != nil {
+		return nil, false
+	}
+	return slice.Copy(leaf.(*LeafNode).value), true
 }

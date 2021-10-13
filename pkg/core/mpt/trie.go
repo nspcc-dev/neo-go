@@ -49,50 +49,66 @@ func NewTrie(root Node, enableRefCount bool, store *storage.MemCachedStore) *Tri
 
 // Get returns value for the provided key in t.
 func (t *Trie) Get(key []byte) ([]byte, error) {
+	if len(key) > MaxKeyLength {
+		return nil, errors.New("key is too big")
+	}
 	path := toNibbles(key)
-	r, bs, err := t.getWithPath(t.root, path)
+	r, leaf, _, err := t.getWithPath(t.root, path, true)
 	if err != nil {
 		return nil, err
 	}
 	t.root = r
-	return bs, nil
+	return slice.Copy(leaf.(*LeafNode).value), nil
 }
 
-// getWithPath returns value the provided path in a subtrie rooting in curr.
-// It also returns a current node with all hash nodes along the path
-// replaced to their "unhashed" counterparts.
-func (t *Trie) getWithPath(curr Node, path []byte) (Node, []byte, error) {
+// getWithPath returns a current node with all hash nodes along the path replaced
+// to their "unhashed" counterparts. It also returns node the provided path in a
+// subtrie rooting in curr points to. In case of `strict` set to `false` the
+// provided path can be incomplete, so it also returns full path that points to
+// the node found at the specified incomplete path. In case of `strict` set to `true`
+// the resulting path matches the provided one.
+func (t *Trie) getWithPath(curr Node, path []byte, strict bool) (Node, Node, []byte, error) {
 	switch n := curr.(type) {
 	case *LeafNode:
 		if len(path) == 0 {
-			return curr, slice.Copy(n.value), nil
+			return curr, n, []byte{}, nil
 		}
 	case *BranchNode:
 		i, path := splitPath(path)
-		r, bs, err := t.getWithPath(n.Children[i], path)
+		if i == lastChild && !strict {
+			return curr, n, []byte{}, nil
+		}
+		r, res, prefix, err := t.getWithPath(n.Children[i], path, strict)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
 		n.Children[i] = r
-		return n, bs, nil
+		return n, res, append([]byte{i}, prefix...), nil
 	case EmptyNode:
 	case *HashNode:
 		if r, err := t.getFromStore(n.hash); err == nil {
-			return t.getWithPath(r, path)
+			return t.getWithPath(r, path, strict)
 		}
 	case *ExtensionNode:
+		if len(path) == 0 && !strict {
+			return curr, n.next, n.key, nil
+		}
 		if bytes.HasPrefix(path, n.key) {
-			r, bs, err := t.getWithPath(n.next, path[len(n.key):])
+			r, res, prefix, err := t.getWithPath(n.next, path[len(n.key):], strict)
 			if err != nil {
-				return nil, nil, err
+				return nil, nil, nil, err
 			}
 			n.next = r
-			return curr, bs, err
+			return curr, res, append(n.key, prefix...), err
+		}
+		if !strict && bytes.HasPrefix(n.key, path) {
+			// path is shorter than prefix, stop seeking
+			return curr, n.next, n.key, nil
 		}
 	default:
 		panic("invalid MPT node type")
 	}
-	return curr, nil, ErrNotFound
+	return curr, nil, nil, ErrNotFound
 }
 
 // Put puts key-value pair in t.
@@ -235,6 +251,9 @@ func (t *Trie) putIntoNode(curr Node, path []byte, val Node) (Node, error) {
 // Delete removes key from trie.
 // It returns no error on missing key.
 func (t *Trie) Delete(key []byte) error {
+	if len(key) > MaxKeyLength {
+		return errors.New("key is too big")
+	}
 	path := toNibbles(key)
 	r, err := t.deleteFromNode(t.root, path)
 	if err != nil {
@@ -504,4 +523,65 @@ func collapse(depth int, node Node) Node {
 		panic("invalid MPT node type")
 	}
 	return node
+}
+
+// Find returns list of storage key-value pairs whose key is prefixed by the specified
+// prefix starting from the specified `prefix`+`from` path (not including the item at
+// the specified `prefix`+`from` path if so). The `max` number of elements is returned at max.
+func (t *Trie) Find(prefix, from []byte, max int) ([]storage.KeyValue, error) {
+	if len(prefix) > MaxKeyLength {
+		return nil, errors.New("invalid prefix length")
+	}
+	if len(from) > MaxKeyLength-len(prefix) {
+		return nil, errors.New("invalid from length")
+	}
+	prefixP := toNibbles(prefix)
+	fromP := []byte{}
+	if len(from) > 0 {
+		fromP = toNibbles(from)
+	}
+	_, start, path, err := t.getWithPath(t.root, prefixP, false)
+	if err != nil {
+		return nil, fmt.Errorf("failed to determine the start node: %w", err)
+	}
+	path = path[len(prefixP):]
+
+	if len(fromP) > 0 {
+		if len(path) <= len(fromP) && bytes.HasPrefix(fromP, path) {
+			fromP = fromP[len(path):]
+		} else if len(path) > len(fromP) && bytes.HasPrefix(path, fromP) {
+			fromP = []byte{}
+		} else {
+			cmp := bytes.Compare(path, fromP)
+			switch {
+			case cmp < 0:
+				return []storage.KeyValue{}, nil
+			case cmp > 0:
+				fromP = []byte{}
+			}
+		}
+	}
+
+	var (
+		res   []storage.KeyValue
+		count int
+	)
+	b := NewBillet(t.root.Hash(), false, t.Store)
+	process := func(pathToNode []byte, node Node, _ []byte) bool {
+		if leaf, ok := node.(*LeafNode); ok {
+			if from == nil || !bytes.Equal(pathToNode, from) { // (*Billet).traverse includes `from` path into result if so. Need to filter out manually.
+				res = append(res, storage.KeyValue{
+					Key:   append(slice.Copy(prefix), pathToNode...),
+					Value: slice.Copy(leaf.value),
+				})
+				count++
+			}
+		}
+		return count >= max
+	}
+	_, err = b.traverse(start, path, fromP, process, false)
+	if err != nil && !errors.Is(err, errStop) {
+		return nil, err
+	}
+	return res, nil
 }

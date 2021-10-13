@@ -199,8 +199,8 @@ func (b *Billet) incrementRefAndStore(h util.Uint256, bs []byte) {
 // to its children calling `process` for each serialised node until true is
 // returned from `process` function. It also replaces all HashNodes to their
 // "unhashed" counterparts until the stop condition is satisfied.
-func (b *Billet) Traverse(process func(node Node, nodeBytes []byte) bool, ignoreStorageErr bool) error {
-	r, err := b.traverse(b.root, process, ignoreStorageErr)
+func (b *Billet) Traverse(process func(pathToNode []byte, node Node, nodeBytes []byte) bool, ignoreStorageErr bool) error {
+	r, err := b.traverse(b.root, []byte{}, []byte{}, process, ignoreStorageErr)
 	if err != nil && !errors.Is(err, errStop) {
 		return err
 	}
@@ -208,7 +208,7 @@ func (b *Billet) Traverse(process func(node Node, nodeBytes []byte) bool, ignore
 	return nil
 }
 
-func (b *Billet) traverse(curr Node, process func(node Node, nodeBytes []byte) bool, ignoreStorageErr bool) (Node, error) {
+func (b *Billet) traverse(curr Node, path, from []byte, process func(pathToNode []byte, node Node, nodeBytes []byte) bool, ignoreStorageErr bool) (Node, error) {
 	if _, ok := curr.(EmptyNode); ok {
 		// We're not interested in EmptyNodes, and they do not affect the
 		// traversal process, thus remain them untouched.
@@ -222,30 +222,56 @@ func (b *Billet) traverse(curr Node, process func(node Node, nodeBytes []byte) b
 			}
 			return nil, err
 		}
-		return b.traverse(r, process, ignoreStorageErr)
+		return b.traverse(r, path, from, process, ignoreStorageErr)
 	}
-	bytes := slice.Copy(curr.Bytes())
-	if process(curr, bytes) {
-		return curr, errStop
+	if len(from) == 0 {
+		bytes := slice.Copy(curr.Bytes())
+		if process(fromNibbles(path), curr, bytes) {
+			return curr, errStop
+		}
 	}
 	switch n := curr.(type) {
 	case *LeafNode:
 		return b.tryCollapseLeaf(n), nil
 	case *BranchNode:
-		for i := range n.Children {
-			r, err := b.traverse(n.Children[i], process, ignoreStorageErr)
+		var (
+			startIndex byte
+			endIndex   byte = childrenCount
+		)
+		if len(from) != 0 {
+			endIndex = lastChild
+			startIndex, from = splitPath(from)
+		}
+		for i := startIndex; i < endIndex; i++ {
+			var newPath []byte
+			if i == lastChild {
+				newPath = path
+			} else {
+				newPath = append(path, i)
+			}
+			if i != startIndex {
+				from = []byte{}
+			}
+			r, err := b.traverse(n.Children[i], newPath, from, process, ignoreStorageErr)
 			if err != nil {
 				if !errors.Is(err, errStop) {
 					return nil, err
 				}
 				n.Children[i] = r
-				return n, err
+				return b.tryCollapseBranch(n), err
 			}
 			n.Children[i] = r
 		}
 		return b.tryCollapseBranch(n), nil
 	case *ExtensionNode:
-		r, err := b.traverse(n.next, process, ignoreStorageErr)
+		if len(from) != 0 && bytes.HasPrefix(from, n.key) {
+			from = from[len(n.key):]
+		} else if len(from) == 0 || bytes.Compare(n.key, from) > 0 {
+			from = []byte{}
+		} else {
+			return b.tryCollapseExtension(n), nil
+		}
+		r, err := b.traverse(n.next, append(path, n.key...), from, process, ignoreStorageErr)
 		if err != nil && !errors.Is(err, errStop) {
 			return nil, err
 		}

@@ -55,6 +55,22 @@ func NewModule(bc blockchainer.Blockchainer, log *zap.Logger, s *storage.MemCach
 	}
 }
 
+// GetState returns value at the specified key fom the MPT with the specified root.
+func (s *Module) GetState(root util.Uint256, key []byte) ([]byte, error) {
+	tr := mpt.NewTrie(mpt.NewHashNode(root), false, storage.NewMemCachedStore(s.Store))
+	return tr.Get(key)
+}
+
+// FindStates returns set of key-value pairs with key matching the prefix starting
+// from the `prefix`+`start` path from MPT trie with the specified root. `max` is
+// the maximum number of elements to be returned. If nil `start` specified, then
+// item with key equals to prefix is included into result; if empty `start` specified,
+// then item with key equals to prefix is not included into result.
+func (s *Module) FindStates(root util.Uint256, prefix, start []byte, max int) ([]storage.KeyValue, error) {
+	tr := mpt.NewTrie(mpt.NewHashNode(root), false, storage.NewMemCachedStore(s.Store))
+	return tr.Find(prefix, start, max)
+}
+
 // GetStateProof returns proof of having key in the MPT with the specified root.
 func (s *Module) GetStateProof(root util.Uint256, key []byte) ([][]byte, error) {
 	tr := mpt.NewTrie(mpt.NewHashNode(root), false, storage.NewMemCachedStore(s.Store))

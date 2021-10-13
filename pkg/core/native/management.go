@@ -38,7 +38,7 @@ type Management struct {
 }
 
 const (
-	managementContractID = -1
+	ManagementContractID = -1
 
 	prefixContract = 8
 
@@ -55,15 +55,15 @@ var (
 	keyMinimumDeploymentFee = []byte{20}
 )
 
-// makeContractKey creates a key from account script hash.
-func makeContractKey(h util.Uint160) []byte {
+// MakeContractKey creates a key from account script hash.
+func MakeContractKey(h util.Uint160) []byte {
 	return makeUint160Key(prefixContract, h)
 }
 
 // newManagement creates new Management native contract.
 func newManagement() *Management {
 	var m = &Management{
-		ContractMD: *interop.NewContractMD(nativenames.Management, managementContractID),
+		ContractMD: *interop.NewContractMD(nativenames.Management, ManagementContractID),
 		contracts:  make(map[util.Uint160]*state.Contract),
 		nep17:      make(map[util.Uint160]struct{}),
 	}
@@ -156,7 +156,7 @@ func (m *Management) GetContract(d dao.DAO, hash util.Uint160) (*state.Contract,
 
 func (m *Management) getContractFromDAO(d dao.DAO, hash util.Uint160) (*state.Contract, error) {
 	contract := new(state.Contract)
-	key := makeContractKey(hash)
+	key := MakeContractKey(hash)
 	err := getConvertibleFromDAO(m.ID, d, key, contract)
 	if err != nil {
 		return nil, err
@@ -268,7 +268,7 @@ func (m *Management) markUpdated(h util.Uint160) {
 // It doesn't run _deploy method and doesn't emit notification.
 func (m *Management) Deploy(d dao.DAO, sender util.Uint160, neff *nef.File, manif *manifest.Manifest) (*state.Contract, error) {
 	h := state.CreateContractHash(sender, neff.Checksum, manif.Name)
-	key := makeContractKey(h)
+	key := MakeContractKey(h)
 	si := d.GetStorageItem(m.ID, key)
 	if si != nil {
 		return nil, errors.New("contract already exists")
@@ -382,7 +382,7 @@ func (m *Management) Destroy(d dao.DAO, hash util.Uint160) error {
 	if err != nil {
 		return err
 	}
-	key := makeContractKey(hash)
+	key := MakeContractKey(hash)
 	err = d.DeleteStorageItem(m.ID, key)
 	if err != nil {
 		return err
@@ -553,7 +553,7 @@ func (m *Management) Initialize(ic *interop.Context) error {
 
 // PutContractState saves given contract state into given DAO.
 func (m *Management) PutContractState(d dao.DAO, cs *state.Contract) error {
-	key := makeContractKey(cs.Hash)
+	key := MakeContractKey(cs.Hash)
 	if err := putConvertibleToDAO(m.ID, d, key, cs); err != nil {
 		return err
 	}

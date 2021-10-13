@@ -220,16 +220,24 @@ func TestStateSyncModule_Init(t *testing.T) {
 		require.Equal(t, uint32(stateSyncPoint), module.BlockHeight())
 
 		// add the rest of MPT nodes and jump to state
+		alreadyRequested := make(map[util.Uint256]struct{})
 		for {
 			unknownHashes := module.GetUnknownMPTNodesBatch(1) // restore nodes one-by-one
 			if len(unknownHashes) == 0 {
 				break
 			}
+			if _, ok := alreadyRequested[unknownHashes[0]]; ok {
+				t.Fatal("bug: node was requested twice")
+			}
+			alreadyRequested[unknownHashes[0]] = struct{}{}
+			var callbackCalled bool
 			err := bcSpout.GetStateSyncModule().Traverse(unknownHashes[0], func(node mpt.Node, nodeBytes []byte) bool {
 				require.NoError(t, module.AddMPTNodes([][]byte{slice.Copy(nodeBytes)}))
+				callbackCalled = true
 				return true // add nodes one-by-one
 			})
 			require.NoError(t, err)
+			require.True(t, callbackCalled)
 		}
 
 		// check that module is inactive and statejump is completed
@@ -283,7 +291,6 @@ func TestStateSyncModule_RestoreBasicChain(t *testing.T) {
 	initBasicChain(t, bcSpout)
 
 	// make spout chain higher that latest state sync point
-	require.NoError(t, bcSpout.AddBlock(bcSpout.newBlock()))
 	require.NoError(t, bcSpout.AddBlock(bcSpout.newBlock()))
 	require.NoError(t, bcSpout.AddBlock(bcSpout.newBlock()))
 	require.Equal(t, uint32(stateSyncPoint+2), bcSpout.BlockHeight())

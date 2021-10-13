@@ -40,12 +40,13 @@ func prepareMPTCompat() *Trie {
 // There are some differences, though:
 // 1. In our implementation delete is silent, i.e. we do not return an error is the key is missing or empty.
 //    However, we do return error when contents of hash node are missing from the store
+//    (corresponds to exception in C# implementation). However, if the key is too big, an error is returned
 //    (corresponds to exception in C# implementation).
 // 2. In our implementation put returns error if something goes wrong, while C# implementation throws
 //    an exception and returns nothing.
 // 3. In our implementation get does not immediately return error in case of an empty key. An error is returned
 //    only if value is missing from the storage. C# implementation checks that key is not empty and throws an error
-//    otherwice.
+//    otherwice. However, if the key is too big, an error is returned (corresponds to exception in C# implementation).
 func TestCompatibility(t *testing.T) {
 	mainTrie := prepareMPTCompat()
 
@@ -59,6 +60,7 @@ func TestCompatibility(t *testing.T) {
 		tr.testHas(t, []byte{0xac, 0x01, 0x00}, nil)
 		tr.testHas(t, []byte{0xac, 0x99, 0x10}, nil)
 		tr.testHas(t, []byte{0xac, 0xf1}, nil)
+		tr.testHas(t, make([]byte, MaxKeyLength), nil)
 	})
 
 	t.Run("TryGetResolve", func(t *testing.T) {
@@ -95,7 +97,8 @@ func TestCompatibility(t *testing.T) {
 		require.NoError(t, tr.Delete(nil))
 		require.NoError(t, tr.Delete([]byte{0xac, 0x20}))
 
-		require.Error(t, tr.Delete([]byte{0xac, 0xf1})) // error for can't resolve
+		require.Error(t, tr.Delete([]byte{0xac, 0xf1}))           // error for can't resolve
+		require.Error(t, tr.Delete(make([]byte, MaxKeyLength+1))) // error for too big key
 
 		// In our implementation missing keys are ignored.
 		require.NoError(t, tr.Delete([]byte{0xac}))
@@ -202,6 +205,7 @@ func TestCompatibility(t *testing.T) {
 		testGetProof(t, tr, nil, 0)
 		testGetProof(t, tr, []byte{0xac, 0x01, 0x00}, 0)
 		testGetProof(t, tr, []byte{0xac, 0xf1}, 0)
+		testGetProof(t, tr, make([]byte, MaxKeyLength), 0)
 	})
 
 	t.Run("VerifyProof", func(t *testing.T) {
@@ -373,4 +377,33 @@ func newFilledTrie(t *testing.T, args ...[]byte) *Trie {
 		require.NoError(t, tr.Put(args[i], args[i+1]))
 	}
 	return tr
+}
+
+func TestCompatibility_Find(t *testing.T) {
+	check := func(t *testing.T, from []byte, expectedResLen int) {
+		tr := NewTrie(nil, false, newTestStore())
+		require.NoError(t, tr.Put([]byte("aa"), []byte("02")))
+		require.NoError(t, tr.Put([]byte("aa10"), []byte("03")))
+		require.NoError(t, tr.Put([]byte("aa50"), []byte("04")))
+		res, err := tr.Find([]byte("aa"), from, 10)
+		require.NoError(t, err)
+		require.Equal(t, expectedResLen, len(res))
+	}
+	t.Run("no from", func(t *testing.T) {
+		check(t, nil, 3)
+	})
+	t.Run("from is not in tree", func(t *testing.T) {
+		t.Run("matching", func(t *testing.T) {
+			check(t, []byte("30"), 1)
+		})
+		t.Run("non-matching", func(t *testing.T) {
+			check(t, []byte("60"), 0)
+		})
+	})
+	t.Run("from is in tree", func(t *testing.T) {
+		check(t, []byte("10"), 1) // without `from` key
+	})
+	t.Run("from matching start", func(t *testing.T) {
+		check(t, []byte{}, 2) // without `from` key
+	})
 }

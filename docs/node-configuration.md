@@ -140,6 +140,8 @@ RPC:
   Address: ""
   EnableCORSWorkaround: false
   MaxGasInvoke: 50
+  MaxIteratorResultItems: 100
+  MaxFindResultItems: 100
   Port: 10332
   TLSConfig:
     Address: ""
@@ -155,6 +157,11 @@ where:
   you're accessing RPC interface from the browser.
 - `MaxGasInvoke` is the maximum GAS allowed to spend during `invokefunction` and
   `invokescript` RPC-calls.
+- `MaxIteratorResultItems` - maximum number of elements extracted from iterator
+   returned by `invoke*` call. When the `MaxIteratorResultItems` value is set to
+   `n`, only `n` iterations are returned and truncated is true, indicating that
+   there is still data to be returned.
+- `MaxFindResultItems` - the maximum number of elements for `findstates` response.
 - `Port` is an RPC server port it should be bound to.
 - `TLS` section configures TLS protocol.
 

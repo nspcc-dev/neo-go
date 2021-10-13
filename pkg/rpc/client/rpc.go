@@ -1,7 +1,6 @@
 package client
 
 import (
-	"encoding/base64"
 	"errors"
 	"fmt"
 
@@ -374,6 +373,38 @@ func (c *Client) GetRawTransactionVerbose(hash util.Uint256) (*result.Transactio
 	return resp, nil
 }
 
+// GetState returns historical contract storage item state by the given stateroot,
+// historical contract hash and historical item key.
+func (c *Client) GetState(stateroot util.Uint256, historicalContractHash util.Uint160, historicalKey []byte) ([]byte, error) {
+	var (
+		params = request.NewRawParams(stateroot.StringLE(), historicalContractHash.StringLE(), historicalKey)
+		resp   []byte
+	)
+	if err := c.performRequest("getstate", params, &resp); err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
+// FindStates returns historical contract storage item states by the given stateroot,
+// historical contract hash and historical prefix. If `start` path is specified, then items
+// starting from `start` path are being returned (excluding item located at the start path).
+// If `maxCount` specified, then maximum number of items to be returned equals to `maxCount`.
+func (c *Client) FindStates(stateroot util.Uint256, historicalContractHash util.Uint160, historicalPrefix []byte,
+	start []byte, maxCount *int) (result.FindStates, error) {
+	var (
+		params = request.NewRawParams(stateroot.StringLE(), historicalContractHash.StringLE(), historicalPrefix, historicalPrefix, start)
+		resp   result.FindStates
+	)
+	if maxCount != nil {
+		params.Values = append(params.Values, *maxCount)
+	}
+	if err := c.performRequest("findstates", params, &resp); err != nil {
+		return resp, err
+	}
+	return resp, nil
+}
+
 // GetStateHeight returns current validated and local node state height.
 func (c *Client) GetStateHeight() (*result.StateHeight, error) {
 	var (
@@ -388,12 +419,12 @@ func (c *Client) GetStateHeight() (*result.StateHeight, error) {
 
 // GetStorageByID returns the stored value, according to the contract ID and the stored key.
 func (c *Client) GetStorageByID(id int32, key []byte) ([]byte, error) {
-	return c.getStorage(request.NewRawParams(id, base64.StdEncoding.EncodeToString(key)))
+	return c.getStorage(request.NewRawParams(id, key))
 }
 
 // GetStorageByHash returns the stored value, according to the contract script hash and the stored key.
 func (c *Client) GetStorageByHash(hash util.Uint160, key []byte) ([]byte, error) {
-	return c.getStorage(request.NewRawParams(hash.StringLE(), base64.StdEncoding.EncodeToString(key)))
+	return c.getStorage(request.NewRawParams(hash.StringLE(), key))
 }
 
 func (c *Client) getStorage(params request.RawParams) ([]byte, error) {

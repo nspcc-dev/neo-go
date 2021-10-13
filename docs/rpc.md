@@ -36,6 +36,7 @@ which would yield the response:
 | Method  |
 | ------- |
 | `calculatenetworkfee` |
+| `findstates` |
 | `getapplicationlog` |
 | `getbestblockhash` |
 | `getblock` |
@@ -54,6 +55,7 @@ which would yield the response:
 | `getproof` |
 | `getrawmempool` |
 | `getrawtransaction` |
+| `getstate` |
 | `getstateheight` |
 | `getstateroot` |
 | `getstorage` |
