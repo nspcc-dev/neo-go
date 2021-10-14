@@ -180,6 +180,40 @@ func TestEventWarnings(t *testing.T) {
 		})
 		require.NoError(t, err)
 	})
+	t.Run("event in imported package", func(t *testing.T) {
+		t.Run("unused", func(t *testing.T) {
+			src := `package foo
+			import "github.com/nspcc-dev/neo-go/pkg/compiler/testdata/notify"
+			func Main() int {
+				return notify.Value
+			}`
+
+			_, di, err := compiler.CompileWithDebugInfo("eventTest", strings.NewReader(src))
+			require.NoError(t, err)
+
+			_, err = compiler.CreateManifest(di, &compiler.Options{NoEventsCheck: true})
+			require.NoError(t, err)
+		})
+		t.Run("used", func(t *testing.T) {
+			src := `package foo
+			import "github.com/nspcc-dev/neo-go/pkg/compiler/testdata/notify"
+			func Main() int {
+				notify.EmitEvent()
+				return 42
+			}`
+
+			_, di, err := compiler.CompileWithDebugInfo("eventTest", strings.NewReader(src))
+			require.NoError(t, err)
+
+			_, err = compiler.CreateManifest(di, &compiler.Options{})
+			require.Error(t, err)
+
+			_, err = compiler.CreateManifest(di, &compiler.Options{
+				ContractEvents: []manifest.Event{{Name: "Event"}},
+			})
+			require.NoError(t, err)
+		})
+	})
 }
 
 func TestNotifyInVerify(t *testing.T) {
