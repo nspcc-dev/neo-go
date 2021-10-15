@@ -8,6 +8,7 @@ import (
 	"syscall"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
+	"github.com/nspcc-dev/neo-go/pkg/encoding/fixedn"
 	"golang.org/x/term"
 )
 
@@ -61,9 +62,9 @@ func ReadPassword(prompt string) (string, error) {
 
 // ConfirmTx asks for a confirmation to send tx.
 func ConfirmTx(w io.Writer, tx *transaction.Transaction) error {
-	fmt.Fprintf(w, "Network fee: %d\n", tx.NetworkFee)
-	fmt.Fprintf(w, "System fee: %d\n", tx.SystemFee)
-	fmt.Fprintf(w, "Total fee: %d\n", tx.NetworkFee+tx.SystemFee)
+	fmt.Fprintf(w, "Network fee: %s\n", fixedn.Fixed8(tx.NetworkFee))
+	fmt.Fprintf(w, "System fee: %s\n", fixedn.Fixed8(tx.SystemFee))
+	fmt.Fprintf(w, "Total fee: %s\n", fixedn.Fixed8(tx.NetworkFee+tx.SystemFee))
 	ln, err := ReadLine("Relay transaction (y|N)> ")
 	if err != nil {
 		return err
