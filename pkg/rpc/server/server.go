@@ -991,9 +991,9 @@ func (s *Server) getProof(ps request.Params) (interface{}, *response.Error) {
 	if err != nil {
 		return nil, response.ErrInvalidParams
 	}
-	cs := s.chain.GetContractState(sc)
-	if cs == nil {
-		return nil, response.ErrInvalidParams
+	cs, respErr := s.getHistoricalContractState(root, sc)
+	if respErr != nil {
+		return nil, respErr
 	}
 	skey := makeStorageKey(cs.ID, key)
 	proof, err := s.chain.GetStateModule().GetStateProof(root, skey)
