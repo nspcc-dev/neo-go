@@ -406,4 +406,38 @@ func TestCompatibility_Find(t *testing.T) {
 	t.Run("from matching start", func(t *testing.T) {
 		check(t, []byte{}, 2) // without `from` key
 	})
+	t.Run("TestFindStatesIssue652", func(t *testing.T) {
+		tr := NewTrie(nil, false, newTestStore())
+		// root is an extension node with key=abc; next=branch
+		require.NoError(t, tr.Put([]byte("abc1"), []byte("01")))
+		require.NoError(t, tr.Put([]byte("abc3"), []byte("02")))
+		tr.Flush()
+		// find items with extension's key prefix
+		t.Run("from > start", func(t *testing.T) {
+			res, err := tr.Find([]byte("ab"), []byte("d2"), 100)
+			require.NoError(t, err)
+			// nothing should be found, because from[0]=`d` > key[2]=`c`
+			require.Equal(t, 0, len(res))
+		})
+
+		t.Run("from < start", func(t *testing.T) {
+			res, err := tr.Find([]byte("ab"), []byte("b2"), 100)
+			require.NoError(t, err)
+			// all items should be included into the result, because from[0]=`b` < key[2]=`c`
+			require.Equal(t, 2, len(res))
+		})
+
+		t.Run("from and start have common prefix", func(t *testing.T) {
+			res, err := tr.Find([]byte("ab"), []byte("c"), 100)
+			require.NoError(t, err)
+			// all items should be included into the result, because from[0] == key[2]
+			require.Equal(t, 2, len(res))
+		})
+
+		t.Run("from equals to item key", func(t *testing.T) {
+			res, err := tr.Find([]byte("ab"), []byte("c1"), 100)
+			require.NoError(t, err)
+			require.Equal(t, 1, len(res))
+		})
+	})
 }
