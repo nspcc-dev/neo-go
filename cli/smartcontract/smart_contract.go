@@ -498,6 +498,7 @@ func contractCompile(ctx *cli.Context) error {
 			o.Permissions[i] = manifest.Permission(conf.Permissions[i])
 		}
 		o.SafeMethods = conf.SafeMethods
+		o.Overloads = conf.Overloads
 	}
 
 	result, err := compiler.CompileAndSave(src, o)
@@ -740,6 +741,7 @@ type ProjectConfig struct {
 	SupportedStandards []string
 	Events             []manifest.Event
 	Permissions        []permission
+	Overloads          map[string]string `yaml:"overloads,omitempty"`
 }
 
 func inspect(ctx *cli.Context) error {

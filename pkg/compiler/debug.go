@@ -446,5 +446,21 @@ func (di *DebugInfo) ConvertToManifest(o *Options) (*manifest.Manifest, error) {
 		result.ABI.Events = make([]manifest.Event, 0)
 	}
 	result.Permissions = o.Permissions
+	for name, emitName := range o.Overloads {
+		m := result.ABI.GetMethod(name, -1)
+		if m == nil {
+			return nil, fmt.Errorf("overload for method %s was provided but it wasn't found", name)
+		}
+		if result.ABI.GetMethod(emitName, -1) == nil {
+			return nil, fmt.Errorf("overload with target method %s was provided but it wasn't found", emitName)
+		}
+
+		realM := result.ABI.GetMethod(emitName, len(m.Parameters))
+		if realM != nil {
+			return nil, fmt.Errorf("conflict overload for %s: "+
+				"multiple methods with the same number of parameters", name)
+		}
+		m.Name = emitName
+	}
 	return result, nil
 }
