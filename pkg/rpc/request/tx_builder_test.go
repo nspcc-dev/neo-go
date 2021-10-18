@@ -22,10 +22,10 @@ func TestInvocationScriptCreationGood(t *testing.T) {
 		script string
 	}{{
 		ps:     Params{{Type: StringT, Value: "transfer"}},
-		script: "1f0c087472616e736665720c146f459162ceeb248b071ec157d9e4f6fd26fdbe5041627d5b52",
+		script: "c21f0c087472616e736665720c146f459162ceeb248b071ec157d9e4f6fd26fdbe5041627d5b52",
 	}, {
 		ps:     Params{{Type: NumberT, Value: 42}},
-		script: "1f0c0234320c146f459162ceeb248b071ec157d9e4f6fd26fdbe5041627d5b52",
+		script: "c21f0c0234320c146f459162ceeb248b071ec157d9e4f6fd26fdbe5041627d5b52",
 	}, {
 		ps:     Params{{Type: StringT, Value: "m"}, {Type: BooleanT, Value: true}},
 		script: "11db201f0c016d0c146f459162ceeb248b071ec157d9e4f6fd26fdbe5041627d5b52",

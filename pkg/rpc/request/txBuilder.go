@@ -127,6 +127,9 @@ func CreateFunctionInvocationScript(contract util.Uint160, method string, params
 			emit.Opcodes(script.BinWriter, opcode.PACK)
 		}
 	}
+	if len(params) == 0 {
+		emit.Opcodes(script.BinWriter, opcode.NEWARRAY0)
+	}
 
 	emit.AppCallNoArgs(script.BinWriter, contract, method, callflag.All)
 	return script.Bytes(), nil
