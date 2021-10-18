@@ -125,6 +125,7 @@ func (s *MemCachedStore) SeekAsync(ctx context.Context, key []byte, cutPrefix bo
 			})
 		}
 	}
+	ps := s.ps
 	s.mut.RUnlock()
 	// Sort memRes items for further comparison with ps items.
 	sort.Slice(memRes, func(i, j int) bool {
@@ -152,9 +153,8 @@ func (s *MemCachedStore) SeekAsync(ctx context.Context, key []byte, cutPrefix bo
 
 	// Seek over persistent store.
 	go func() {
-		s.mut.RLock()
 		var done bool
-		s.ps.Seek(key, func(k, v []byte) {
+		ps.Seek(key, func(k, v []byte) {
 			if done {
 				return
 			}
@@ -169,7 +169,6 @@ func (s *MemCachedStore) SeekAsync(ctx context.Context, key []byte, cutPrefix bo
 				}
 			}
 		})
-		s.mut.RUnlock()
 		close(data2)
 	}()
 
