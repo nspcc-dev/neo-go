@@ -338,10 +338,13 @@ func (dao *Simple) GetStorageItemsWithPrefix(id int32, prefix []byte) ([]state.S
 // Seek executes f for all items with a given prefix.
 // If key is to be used outside of f, they may not be copied.
 func (dao *Simple) Seek(id int32, prefix []byte, f func(k, v []byte)) {
-	res := dao.SeekAsync(context.Background(), id, prefix)
-	for r := range res {
-		f(r.Key, r.Value)
+	lookupKey := makeStorageItemKey(id, nil)
+	if prefix != nil {
+		lookupKey = append(lookupKey, prefix...)
 	}
+	dao.Store.Seek(lookupKey, func(k, v []byte) {
+		f(k[len(lookupKey):], v)
+	})
 }
 
 // SeekAsync sends all storage items matching given prefix to a channel and returns
