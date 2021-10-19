@@ -10,10 +10,10 @@ ProtocolConfiguration:
     - 02a7bc55fe8684e0119768d104ba30795bdcc86619e864add26156723ed185cd62
   ValidatorsCount: 4
   SeedList:
-    - 172.200.0.1:20333
-    - 172.200.0.2:20334
-    - 172.200.0.3:20335
-    - 172.200.0.4:20336
+    - node_one:20333
+    - node_two:20334
+    - node_three:20335
+    - node_four:20336
   VerifyBlocks: true
   VerifyTransactions: true
   P2PSigExtensions: false
@@ -60,10 +60,10 @@ ApplicationConfiguration:
     AllowedContentTypes:
       - application/json
     Nodes:
-      - 172.200.0.1:30333
-      - 172.200.0.2:30334
-      - 172.200.0.3:30335
-      - 172.200.0.4:30336
+      - node_one:30333
+      - node_two:30334
+      - node_three:30335
+      - node_four:30336
     RequestTimeout: 5s
     UnlockWallet:
       Path: "/wallet3.json"
