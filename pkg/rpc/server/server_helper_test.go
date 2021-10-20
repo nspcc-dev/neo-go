@@ -28,7 +28,7 @@ const (
 	notaryPass = "one"
 )
 
-func getUnitTestChain(t *testing.T, enableOracle bool, enableNotary bool) (*core.Blockchain, *oracle.Oracle, config.Config, *zap.Logger) {
+func getUnitTestChain(t testing.TB, enableOracle bool, enableNotary bool) (*core.Blockchain, *oracle.Oracle, config.Config, *zap.Logger) {
 	net := netmode.UnitTestNet
 	configPath := "../../../config"
 	cfg, err := config.Load(configPath, net)
@@ -97,7 +97,7 @@ func getTestBlocks(t *testing.T) []*block.Block {
 	return blocks
 }
 
-func initClearServerWithServices(t *testing.T, needOracle bool, needNotary bool) (*core.Blockchain, *Server, *httptest.Server) {
+func initClearServerWithServices(t testing.TB, needOracle bool, needNotary bool) (*core.Blockchain, *Server, *httptest.Server) {
 	chain, orc, cfg, logger := getUnitTestChain(t, needOracle, needNotary)
 
 	serverConfig := network.NewServerConfig(cfg)
@@ -113,7 +113,7 @@ func initClearServerWithServices(t *testing.T, needOracle bool, needNotary bool)
 	return chain, &rpcServer, srv
 }
 
-func initClearServerWithInMemoryChain(t *testing.T) (*core.Blockchain, *Server, *httptest.Server) {
+func initClearServerWithInMemoryChain(t testing.TB) (*core.Blockchain, *Server, *httptest.Server) {
 	return initClearServerWithServices(t, false, false)
 }
 

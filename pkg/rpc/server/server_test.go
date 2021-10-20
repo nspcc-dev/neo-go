@@ -27,7 +27,9 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/network"
 	"github.com/nspcc-dev/neo-go/pkg/network/payload"
+	"github.com/nspcc-dev/neo-go/pkg/rpc/request"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result"
 	rpc2 "github.com/nspcc-dev/neo-go/pkg/services/oracle/broadcaster"
@@ -39,6 +41,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap/zapcore"
 )
 
 type executor struct {
@@ -2159,4 +2162,46 @@ func checkNep17TransfersAux(t *testing.T, e *executor, acc interface{}, sent, rc
 		}
 	}
 	require.Equal(t, arr, res.Received)
+}
+
+func BenchmarkHandleIn(b *testing.B) {
+	chain, orc, cfg, logger := getUnitTestChain(b, false, false)
+
+	serverConfig := network.NewServerConfig(cfg)
+	serverConfig.LogLevel = zapcore.FatalLevel
+	server, err := network.NewServer(serverConfig, chain, logger)
+	require.NoError(b, err)
+	rpcServer := New(chain, cfg.ApplicationConfiguration.RPC, server, orc, logger)
+	defer chain.Close()
+
+	do := func(b *testing.B, req []byte) {
+		b.ReportAllocs()
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			b.StopTimer()
+			in := new(request.In)
+			b.StartTimer()
+			err := json.Unmarshal(req, in)
+			if err != nil {
+				b.FailNow()
+			}
+
+			res := rpcServer.handleIn(in, nil)
+			if res.Error != nil {
+				b.FailNow()
+			}
+		}
+		b.StopTimer()
+	}
+
+	b.Run("no extra params", func(b *testing.B) {
+		do(b, []byte(`{"jsonrpc":"2.0", "method":"validateaddress","params":["Nbb1qkwcwNSBs9pAnrVVrnFbWnbWBk91U2"]}`))
+	})
+
+	b.Run("with extra params", func(b *testing.B) {
+		do(b, []byte(`{"jsonrpc":"2.0", "method":"validateaddress","params":["Nbb1qkwcwNSBs9pAnrVVrnFbWnbWBk91U2", 
+"set", "of", "different", "parameters", "to", "see", "the", "difference", "between", "unmarshalling", "algorithms", 1234, 5678, 1234567, 765432, true, false, null,
+"0x50befd26fdf6e4d957c11e078b24ebce6291456f", "someMethod", [{"type": "String", "value": "50befd26fdf6e4d957c11e078b24ebce6291456f"}, 
+{"type": "Integer", "value": "42"}, {"type": "Boolean", "value": false}]]}`))
+	})
 }
