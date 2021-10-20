@@ -66,6 +66,9 @@ func (b *Billet) RestoreHashNode(path []byte, node Node) error {
 
 	// If it's a leaf, then put into temporary contract storage.
 	if leaf, ok := node.(*LeafNode); ok {
+		if b.TempStoragePrefix == 0 {
+			panic("invalid storage prefix")
+		}
 		k := append([]byte{byte(b.TempStoragePrefix)}, fromNibbles(path)...)
 		_ = b.Store.Put(k, leaf.value)
 	}

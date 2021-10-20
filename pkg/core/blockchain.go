@@ -36,7 +36,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/nspcc-dev/neo-go/pkg/util/slice"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"go.uber.org/zap"
@@ -57,11 +56,6 @@ const (
 	// HeaderVerificationGasLimit is the maximum amount of GAS for block header verification.
 	HeaderVerificationGasLimit = 3_00000000 // 3 GAS
 	defaultStateSyncInterval   = 40000
-
-	// maxStorageBatchSize is the number of elements in storage batch expected to fit into the
-	// storage without delays and problems. Estimated size of batch in case of given number of
-	// elements does not exceed 1Mb.
-	maxStorageBatchSize = 10000
 )
 
 // stateJumpStage denotes the stage of state jump process.
@@ -504,34 +498,18 @@ func (bc *Blockchain) jumpToStateInternal(p uint32, stage stateJumpStage) error 
 		}
 		fallthrough
 	case oldStorageItemsRemoved:
-		// Then change STTempStorage prefix to STStorage. Each replace operation is atomic.
-		for {
-			count := 0
-			b := bc.dao.Store.Batch()
-			currPrefix := byte(bc.dao.StoragePrefix)
-			syncPrefix := byte(statesync.TemporaryPrefix(bc.dao.StoragePrefix))
-			bc.dao.Store.Seek([]byte{syncPrefix}, func(k, v []byte) {
-				if count >= maxStorageBatchSize {
-					return
-				}
-				// #1468, but don't need to copy here, because it is done by Store.
-				b.Delete(k)
-				key := make([]byte, len(k))
-				key[0] = currPrefix
-				copy(key[1:], k[1:])
-				b.Put(key, slice.Copy(v))
-				count += 2
-			})
-			if count > 0 {
-				err := bc.dao.Store.PutBatch(b)
-				if err != nil {
-					return fmt.Errorf("failed to replace outdated contract storage items with the fresh ones: %w", err)
-				}
-			} else {
-				break
-			}
+		newPrefix := statesync.TemporaryPrefix(bc.dao.StoragePrefix)
+		v, err := bc.dao.GetVersion()
+		if err != nil {
+			return fmt.Errorf("failed to get dao.Version: %w", err)
 		}
-		err := bc.dao.Store.Put(jumpStageKey, []byte{byte(newStorageItemsAdded)})
+		v.Prefix = newPrefix
+		if err := bc.dao.PutVersion(v); err != nil {
+			return fmt.Errorf("failed to update dao.Version: %w", err)
+		}
+		bc.persistent.StoragePrefix = newPrefix
+
+		err = bc.dao.Store.Put(jumpStageKey, []byte{byte(newStorageItemsAdded)})
 		if err != nil {
 			return fmt.Errorf("failed to store state jump stage: %w", err)
 		}
