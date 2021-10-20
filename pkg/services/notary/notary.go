@@ -67,25 +67,47 @@ type (
 
 const defaultTxChannelCapacity = 100
 
-// request represents Notary service request.
-type request struct {
-	typ RequestType
-	// isSent indicates whether main transaction was successfully sent to the network.
-	isSent bool
-	main   *transaction.Transaction
-	// minNotValidBefore is the minimum NVB value among fallbacks transactions.
-	// We stop trying to send mainTx to the network if the chain reaches minNotValidBefore height.
-	minNotValidBefore uint32
-	fallbacks         []*transaction.Transaction
-	// nSigsLeft is the number of signatures left to collect to complete main transaction.
-	// Initial nSigsLeft value is defined as following:
-	// nSigsLeft == nKeys for standard signature request;
-	// nSigsLeft <= nKeys for multisignature request;
-	// nSigsLeft == 0 when all received requests were invalid, so check request.typ before access to nSigs.
-	nSigsLeft uint8
+type (
+	// request represents Notary service request.
+	request struct {
+		// isSent indicates whether main transaction was successfully sent to the network.
+		isSent bool
+		main   *transaction.Transaction
+		// minNotValidBefore is the minimum NVB value among fallbacks transactions.
+		// We stop trying to send mainTx to the network if the chain reaches minNotValidBefore height.
+		minNotValidBefore uint32
+		fallbacks         []*transaction.Transaction
 
-	// sigs is a map of partial multisig invocation scripts [opcode.PUSHDATA1+64+signatureBytes] grouped by public keys
-	sigs map[*keys.PublicKey][]byte
+		witnessInfo []witnessInfo
+	}
+
+	// witnessInfo represents information about signer and its witness.
+	witnessInfo struct {
+		typ RequestType
+		// nSigsLeft is the number of signatures left to collect to complete main transaction.
+		// Initial nSigsLeft value is defined as following:
+		// nSigsLeft == nKeys for standard signature request;
+		// nSigsLeft <= nKeys for multisignature request;
+		nSigsLeft uint8
+
+		// sigs is a map of partial multisig invocation scripts [opcode.PUSHDATA1+64+signatureBytes] grouped by public keys.
+		sigs map[*keys.PublicKey][]byte
+		// pubs is a set of public keys participating in the multisignature witness collection.
+		pubs keys.PublicKeys
+	}
+)
+
+// isMainCompleted denotes whether all signatures for the main transaction was collected.
+func (r request) isMainCompleted() bool {
+	if r.witnessInfo == nil {
+		return false
+	}
+	for _, wi := range r.witnessInfo {
+		if wi.nSigsLeft != 0 {
+			return false
+		}
+	}
+	return true
 }
 
 // NewNotary returns new Notary module.
@@ -163,7 +185,13 @@ func (n *Notary) OnNewRequest(payload *payload.P2PNotaryRequest) {
 
 	nvbFallback := payload.FallbackTransaction.GetAttributes(transaction.NotValidBeforeT)[0].Value.(*transaction.NotValidBefore).Height
 	nKeys := payload.MainTransaction.GetAttributes(transaction.NotaryAssistedT)[0].Value.(*transaction.NotaryAssisted).NKeys
-	typ, nSigs, pubs, validationErr := n.verifyIncompleteWitnesses(payload.MainTransaction, nKeys)
+	newInfo, validationErr := n.verifyIncompleteWitnesses(payload.MainTransaction, nKeys)
+	if validationErr != nil {
+		n.Config.Log.Info("verification of main notary transaction failed; fallback transaction will be completed",
+			zap.String("main hash", payload.MainTransaction.Hash().StringLE()),
+			zap.String("fallback hash", payload.FallbackTransaction.Hash().StringLE()),
+			zap.String("verification error", validationErr.Error()))
+	}
 	n.reqMtx.Lock()
 	defer n.reqMtx.Unlock()
 	r, exists := n.requests[payload.MainTransaction.Hash()]
@@ -176,75 +204,66 @@ func (n *Notary) OnNewRequest(payload *payload.P2PNotaryRequest) {
 		if nvbFallback < r.minNotValidBefore {
 			r.minNotValidBefore = nvbFallback
 		}
-		if r.typ == Unknown && validationErr == nil {
-			r.typ = typ
-			r.nSigsLeft = nSigs
-		}
 	} else {
 		r = &request{
-			nSigsLeft:         nSigs,
 			main:              payload.MainTransaction,
-			typ:               typ,
 			minNotValidBefore: nvbFallback,
 		}
 		n.requests[payload.MainTransaction.Hash()] = r
 	}
+	if r.witnessInfo == nil && validationErr == nil {
+		r.witnessInfo = newInfo
+	}
 	r.fallbacks = append(r.fallbacks, payload.FallbackTransaction)
-	if exists && r.typ != Unknown && r.nSigsLeft == 0 { // already collected sufficient number of signatures to complete main transaction
+	if exists && r.isMainCompleted() || validationErr != nil {
 		return
 	}
-	if validationErr == nil {
-	loop:
-		for i, w := range payload.MainTransaction.Scripts {
-			if payload.MainTransaction.Signers[i].Account.Equals(n.Config.Chain.GetNotaryContractScriptHash()) {
-				continue
+	mainHash := hash.NetSha256(uint32(n.Network), r.main).BytesBE()
+	for i, w := range payload.MainTransaction.Scripts {
+		if r.witnessInfo[i].typ == Contract || // check that we need to fill that witness
+			len(w.InvocationScript) == 0 || // check that signature for this witness was provided
+			r.witnessInfo[i].nSigsLeft == 0 { // check that signature wasn't yet added (consider receiving the same payload multiple times)
+			continue
+		}
+		switch r.witnessInfo[i].typ {
+		case Signature:
+			if r.witnessInfo[i].pubs[0].Verify(w.InvocationScript[2:], mainHash) {
+				r.main.Scripts[i] = w
+				r.witnessInfo[i].nSigsLeft--
 			}
-			if len(w.InvocationScript) != 0 && len(w.VerificationScript) != 0 {
-				switch r.typ {
-				case Signature:
-					if !exists {
-						r.nSigsLeft--
-					} else if len(r.main.Scripts[i].InvocationScript) == 0 { // need this check because signature can already be added (consider receiving the same payload multiple times)
-						r.main.Scripts[i] = w
-						r.nSigsLeft--
-					}
-					if r.nSigsLeft == 0 {
-						break loop
-					}
-				case MultiSignature:
-					if r.sigs == nil {
-						r.sigs = make(map[*keys.PublicKey][]byte)
-					}
+		case MultiSignature:
+			if r.witnessInfo[i].sigs == nil {
+				r.witnessInfo[i].sigs = make(map[*keys.PublicKey][]byte)
+			}
 
-					hash := hash.NetSha256(uint32(n.Network), r.main).BytesBE()
-					for _, pub := range pubs {
-						if r.sigs[pub] != nil {
-							continue // signature for this pub has already been added
-						}
-						if pub.Verify(w.InvocationScript[2:], hash) { // then pub is the owner of the signature
-							r.sigs[pub] = w.InvocationScript
-							r.nSigsLeft--
-							if r.nSigsLeft == 0 {
-								var invScript []byte
-								for j := range pubs {
-									if sig, ok := r.sigs[pubs[j]]; ok {
-										invScript = append(invScript, sig...)
-									}
-								}
-								r.main.Scripts[i].InvocationScript = invScript
+			for _, pub := range r.witnessInfo[i].pubs {
+				if r.witnessInfo[i].sigs[pub] != nil {
+					continue // signature for this pub has already been added
+				}
+				if pub.Verify(w.InvocationScript[2:], mainHash) { // then pub is the owner of the signature
+					r.witnessInfo[i].sigs[pub] = w.InvocationScript
+					r.witnessInfo[i].nSigsLeft--
+					if r.witnessInfo[i].nSigsLeft == 0 {
+						var invScript []byte
+						for j := range r.witnessInfo[i].pubs {
+							if sig, ok := r.witnessInfo[i].sigs[r.witnessInfo[i].pubs[j]]; ok {
+								invScript = append(invScript, sig...)
 							}
-							break loop
 						}
+						r.main.Scripts[i].InvocationScript = invScript
 					}
-					// pubKey was not found for the signature i.e. signature is bad - we're OK with that, let the fallback TX to be added
-					break loop // only one multisignature is allowed
+					break
 				}
 			}
+			// pubKey was not found for the signature (i.e. signature is bad) or the signature has already
+			// been added - we're OK with that, let the fallback TX to be added
 		}
 	}
-	if r.typ != Unknown && r.nSigsLeft == 0 && r.minNotValidBefore > n.Config.Chain.BlockHeight() {
+	if r.isMainCompleted() && r.minNotValidBefore > n.Config.Chain.BlockHeight() {
 		if err := n.finalize(acc, r.main, payload.MainTransaction.Hash()); err != nil {
-			n.Config.Log.Error("failed to finalize main transaction", zap.Error(err))
+			n.Config.Log.Error("failed to finalize main transaction",
+				zap.String("hash", r.main.Hash().StringLE()),
+				zap.Error(err))
 		}
 	}
 }
@@ -285,7 +304,7 @@ func (n *Notary) PostPersist() {
 	defer n.reqMtx.Unlock()
 	currHeight := n.Config.Chain.BlockHeight()
 	for h, r := range n.requests {
-		if !r.isSent && r.typ != Unknown && r.nSigsLeft == 0 && r.minNotValidBefore > currHeight {
+		if !r.isSent && r.isMainCompleted() && r.minNotValidBefore > currHeight {
 			if err := n.finalize(acc, r.main, h); err != nil {
 				n.Config.Log.Error("failed to finalize main transaction", zap.Error(err))
 			}
@@ -404,74 +423,67 @@ func updateTxSize(tx *transaction.Transaction) (*transaction.Transaction, error)
 // verifyIncompleteWitnesses checks that tx either doesn't have all witnesses attached (in this case none of them
 // can be multisignature), or it only has a partial multisignature. It returns the request type (sig/multisig), the
 // number of signatures to be collected, sorted public keys (for multisig request only) and an error.
-func (n *Notary) verifyIncompleteWitnesses(tx *transaction.Transaction, nKeys uint8) (RequestType, uint8, keys.PublicKeys, error) {
-	var (
-		typ         RequestType
-		nSigs       int
-		nKeysActual uint8
-		pubsBytes   [][]byte
-		pubs        keys.PublicKeys
-		ok          bool
-	)
+func (n *Notary) verifyIncompleteWitnesses(tx *transaction.Transaction, nKeysExpected uint8) ([]witnessInfo, error) {
+	var nKeysActual uint8
 	if len(tx.Signers) < 2 {
-		return Unknown, 0, nil, errors.New("transaction should have at least 2 signers")
+		return nil, errors.New("transaction should have at least 2 signers")
 	}
 	if !tx.HasSigner(n.Config.Chain.GetNotaryContractScriptHash()) {
-		return Unknown, 0, nil, fmt.Errorf("P2PNotary contract should be a signer of the transaction")
+		return nil, fmt.Errorf("P2PNotary contract should be a signer of the transaction")
 	}
-
+	result := make([]witnessInfo, len(tx.Signers))
 	for i, w := range tx.Scripts {
-		// do not check witness for Notary contract -- it will be replaced by proper witness in any case.
-		if tx.Signers[i].Account == n.Config.Chain.GetNotaryContractScriptHash() {
-			continue
-		}
+		// Do not check witness for Notary contract -- it will be replaced by proper witness in any case.
+		// Also do not check other contract-based witnesses (they can be combined with anything)
 		if len(w.VerificationScript) == 0 {
-			// then it's a contract verification (can be combined with anything)
+			result[i] = witnessInfo{
+				typ:       Contract,
+				nSigsLeft: 0,
+			}
 			continue
 		}
 		if !tx.Signers[i].Account.Equals(hash.Hash160(w.VerificationScript)) { // https://github.com/nspcc-dev/neo-go/pull/1658#discussion_r564265987
-			return Unknown, 0, nil, fmt.Errorf("transaction should have valid verification script for signer #%d", i)
+			return nil, fmt.Errorf("transaction should have valid verification script for signer #%d", i)
 		}
-		if nSigs, pubsBytes, ok = vm.ParseMultiSigContract(w.VerificationScript); ok {
-			if typ == Signature || typ == MultiSignature {
-				return Unknown, 0, nil, fmt.Errorf("bad type of witness #%d: only one multisignature witness is allowed", i)
-			}
-			typ = MultiSignature
-			nKeysActual = uint8(len(pubsBytes))
+		// Each verification script is allowed to have either one signature or zero signatures. If signature is provided, then need to verify it.
+		if len(w.InvocationScript) != 0 {
 			if len(w.InvocationScript) != 66 || !bytes.HasPrefix(w.InvocationScript, []byte{byte(opcode.PUSHDATA1), 64}) {
-				return Unknown, 0, nil, fmt.Errorf("multisignature invocation script should have length = 66 and be of the form [PUSHDATA1, 64, signatureBytes...]")
+				return nil, fmt.Errorf("witness #%d: invocation script should have length = 66 and be of the form [PUSHDATA1, 64, signatureBytes...]", i)
 			}
+		}
+		if nSigs, pubsBytes, ok := vm.ParseMultiSigContract(w.VerificationScript); ok {
+			result[i] = witnessInfo{
+				typ:       MultiSignature,
+				nSigsLeft: uint8(nSigs),
+				pubs:      make(keys.PublicKeys, len(pubsBytes)),
+			}
+			for j, pBytes := range pubsBytes {
+				pub, err := keys.NewPublicKeyFromBytes(pBytes, elliptic.P256())
+				if err != nil {
+					return nil, fmt.Errorf("witness #%d: invalid bytes of #%d public key: %s", i, j, hex.EncodeToString(pBytes))
+				}
+				result[i].pubs[j] = pub
+			}
+			nKeysActual += uint8(len(pubsBytes))
 			continue
 		}
-		if vm.IsSignatureContract(w.VerificationScript) {
-			if typ == MultiSignature {
-				return Unknown, 0, nil, fmt.Errorf("bad type of witness #%d: multisignature witness can not be combined with other witnesses", i)
-			}
-			typ = Signature
-			nSigs = int(nKeys)
-			continue
-		}
-		return Unknown, 0, nil, fmt.Errorf("unable to define the type of witness #%d", i)
-	}
-	switch typ {
-	case Signature:
-		if len(tx.Scripts) < int(nKeys+1) {
-			return Unknown, 0, nil, fmt.Errorf("transaction should comtain at least %d witnesses (1 for notary + nKeys)", nKeys+1)
-		}
-	case MultiSignature:
-		if nKeysActual != nKeys {
-			return Unknown, 0, nil, fmt.Errorf("bad m out of n partial multisignature witness: expected n = %d, got n = %d", nKeys, nKeysActual)
-		}
-		pubs = make(keys.PublicKeys, len(pubsBytes))
-		for i, pBytes := range pubsBytes {
+		if pBytes, ok := vm.ParseSignatureContract(w.VerificationScript); ok {
 			pub, err := keys.NewPublicKeyFromBytes(pBytes, elliptic.P256())
 			if err != nil {
-				return Unknown, 0, nil, fmt.Errorf("invalid bytes of #%d public key: %s", i, hex.EncodeToString(pBytes))
+				return nil, fmt.Errorf("witness #%d: invalid bytes of public key: %s", i, hex.EncodeToString(pBytes))
 			}
-			pubs[i] = pub
+			result[i] = witnessInfo{
+				typ:       Signature,
+				nSigsLeft: 1,
+				pubs:      keys.PublicKeys{pub},
+			}
+			nKeysActual++
+			continue
 		}
-	default:
-		return Unknown, 0, nil, errors.New("unexpected Notary request type")
+		return nil, fmt.Errorf("witness #%d: unable to detect witness type, only sig/multisig/contract are supported", i)
 	}
-	return typ, uint8(nSigs), pubs, nil
+	if nKeysActual != nKeysExpected {
+		return nil, fmt.Errorf("expected and actual NKeys mismatch: %d vs %d", nKeysExpected, nKeysActual)
+	}
+	return result, nil
 }
