@@ -77,13 +77,12 @@ type request struct {
 	// We stop trying to send mainTx to the network if the chain reaches minNotValidBefore height.
 	minNotValidBefore uint32
 	fallbacks         []*transaction.Transaction
-	// nSigs is the number of signatures to be collected.
-	// nSigs == nKeys for standard signature request;
-	// nSigs <= nKeys for multisignature request.
-	// nSigs is 0 when all received requests were invalid, so check request.typ before access to nSigs.
-	nSigs uint8
-	// nSigsCollected is the number of already collected signatures
-	nSigsCollected uint8
+	// nSigsLeft is the number of signatures left to collect to complete main transaction.
+	// Initial nSigsLeft value is defined as following:
+	// nSigsLeft == nKeys for standard signature request;
+	// nSigsLeft <= nKeys for multisignature request;
+	// nSigsLeft == 0 when all received requests were invalid, so check request.typ before access to nSigs.
+	nSigsLeft uint8
 
 	// sigs is a map of partial multisig invocation scripts [opcode.PUSHDATA1+64+signatureBytes] grouped by public keys
 	sigs map[*keys.PublicKey][]byte
@@ -179,11 +178,11 @@ func (n *Notary) OnNewRequest(payload *payload.P2PNotaryRequest) {
 		}
 		if r.typ == Unknown && validationErr == nil {
 			r.typ = typ
-			r.nSigs = nSigs
+			r.nSigsLeft = nSigs
 		}
 	} else {
 		r = &request{
-			nSigs:             nSigs,
+			nSigsLeft:         nSigs,
 			main:              payload.MainTransaction,
 			typ:               typ,
 			minNotValidBefore: nvbFallback,
@@ -191,7 +190,7 @@ func (n *Notary) OnNewRequest(payload *payload.P2PNotaryRequest) {
 		n.requests[payload.MainTransaction.Hash()] = r
 	}
 	r.fallbacks = append(r.fallbacks, payload.FallbackTransaction)
-	if exists && r.typ != Unknown && r.nSigsCollected >= r.nSigs { // already collected sufficient number of signatures to complete main transaction
+	if exists && r.typ != Unknown && r.nSigsLeft == 0 { // already collected sufficient number of signatures to complete main transaction
 		return
 	}
 	if validationErr == nil {
@@ -204,12 +203,12 @@ func (n *Notary) OnNewRequest(payload *payload.P2PNotaryRequest) {
 				switch r.typ {
 				case Signature:
 					if !exists {
-						r.nSigsCollected++
+						r.nSigsLeft--
 					} else if len(r.main.Scripts[i].InvocationScript) == 0 { // need this check because signature can already be added (consider receiving the same payload multiple times)
 						r.main.Scripts[i] = w
-						r.nSigsCollected++
+						r.nSigsLeft--
 					}
-					if r.nSigsCollected == r.nSigs {
+					if r.nSigsLeft == 0 {
 						break loop
 					}
 				case MultiSignature:
@@ -224,8 +223,8 @@ func (n *Notary) OnNewRequest(payload *payload.P2PNotaryRequest) {
 						}
 						if pub.Verify(w.InvocationScript[2:], hash) { // then pub is the owner of the signature
 							r.sigs[pub] = w.InvocationScript
-							r.nSigsCollected++
-							if r.nSigsCollected == r.nSigs {
+							r.nSigsLeft--
+							if r.nSigsLeft == 0 {
 								var invScript []byte
 								for j := range pubs {
 									if sig, ok := r.sigs[pubs[j]]; ok {
@@ -243,7 +242,7 @@ func (n *Notary) OnNewRequest(payload *payload.P2PNotaryRequest) {
 			}
 		}
 	}
-	if r.typ != Unknown && r.nSigsCollected == nSigs && r.minNotValidBefore > n.Config.Chain.BlockHeight() {
+	if r.typ != Unknown && r.nSigsLeft == 0 && r.minNotValidBefore > n.Config.Chain.BlockHeight() {
 		if err := n.finalize(acc, r.main, payload.MainTransaction.Hash()); err != nil {
 			n.Config.Log.Error("failed to finalize main transaction", zap.Error(err))
 		}
@@ -286,7 +285,7 @@ func (n *Notary) PostPersist() {
 	defer n.reqMtx.Unlock()
 	currHeight := n.Config.Chain.BlockHeight()
 	for h, r := range n.requests {
-		if !r.isSent && r.typ != Unknown && r.nSigs == r.nSigsCollected && r.minNotValidBefore > currHeight {
+		if !r.isSent && r.typ != Unknown && r.nSigsLeft == 0 && r.minNotValidBefore > currHeight {
 			if err := n.finalize(acc, r.main, h); err != nil {
 				n.Config.Log.Error("failed to finalize main transaction", zap.Error(err))
 			}
