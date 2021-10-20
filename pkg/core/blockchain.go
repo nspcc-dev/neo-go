@@ -45,7 +45,7 @@ import (
 // Tuning parameters.
 const (
 	headerBatchCount = 2000
-	version          = "0.1.5"
+	version          = "0.2.0"
 
 	defaultInitialGAS                      = 52000000_00000000
 	defaultMemPoolSize                     = 50000
@@ -311,7 +311,8 @@ func (bc *Blockchain) init() error {
 	ver, err := bc.dao.GetVersion()
 	if err != nil {
 		bc.log.Info("no storage version found! creating genesis block")
-		if err = bc.dao.PutVersion(version); err != nil {
+		v := dao.Version{Prefix: storage.STStorage, Value: version}
+		if err = bc.dao.PutVersion(v); err != nil {
 			return err
 		}
 		genesisBlock, err := createGenesisBlock(bc.config)
@@ -328,9 +329,11 @@ func (bc *Blockchain) init() error {
 		}
 		return bc.storeBlock(genesisBlock, nil)
 	}
-	if ver != version {
-		return fmt.Errorf("storage version mismatch betweeen %s and %s", version, ver)
+	if ver.Value != version {
+		return fmt.Errorf("storage version mismatch betweeen %s and %s", version, ver.Value)
 	}
+	bc.dao.StoragePrefix = ver.Prefix
+	bc.persistent.StoragePrefix = ver.Prefix // not strictly needed but we better be consistent here
 
 	// At this point there was no version found in the storage which
 	// implies a creating fresh storage with the version specified

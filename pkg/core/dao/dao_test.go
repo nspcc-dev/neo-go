@@ -115,16 +115,26 @@ func TestGetVersion_NoVersion(t *testing.T) {
 	dao := NewSimple(storage.NewMemoryStore(), false, false)
 	version, err := dao.GetVersion()
 	require.Error(t, err)
-	require.Equal(t, "", version)
+	require.Equal(t, "", version.Value)
 }
 
 func TestGetVersion(t *testing.T) {
 	dao := NewSimple(storage.NewMemoryStore(), false, false)
-	err := dao.PutVersion("testVersion")
+	err := dao.PutVersion(Version{Prefix: 0x42, Value: "testVersion"})
 	require.NoError(t, err)
 	version, err := dao.GetVersion()
 	require.NoError(t, err)
-	require.NotNil(t, version)
+	require.EqualValues(t, 0x42, version.Prefix)
+	require.Equal(t, "testVersion", version.Value)
+
+	t.Run("old format", func(t *testing.T) {
+		dao := NewSimple(storage.NewMemoryStore(), false, false)
+		require.NoError(t, dao.Store.Put(storage.SYSVersion.Bytes(), []byte("0.1.2")))
+
+		version, err := dao.GetVersion()
+		require.NoError(t, err)
+		require.Equal(t, "0.1.2", version.Value)
+	})
 }
 
 func TestGetCurrentHeaderHeight_NoHeader(t *testing.T) {

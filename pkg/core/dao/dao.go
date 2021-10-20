@@ -50,7 +50,7 @@ type DAO interface {
 	GetStorageItems(id int32) ([]state.StorageItemWithKey, error)
 	GetStorageItemsWithPrefix(id int32, prefix []byte) ([]state.StorageItemWithKey, error)
 	GetTransaction(hash util.Uint256) (*transaction.Transaction, uint32, error)
-	GetVersion() (string, error)
+	GetVersion() (Version, error)
 	GetWrapped() DAO
 	HasTransaction(hash util.Uint256) error
 	Persist() (int, error)
@@ -63,7 +63,7 @@ type DAO interface {
 	PutStateSyncPoint(p uint32) error
 	PutStateSyncCurrentBlockHeight(h uint32) error
 	PutStorageItem(id int32, key []byte, si state.StorageItem) error
-	PutVersion(v string) error
+	PutVersion(v Version) error
 	Seek(id int32, prefix []byte, f func(k, v []byte))
 	SeekAsync(ctx context.Context, id int32, prefix []byte) chan storage.KeyValue
 	StoreAsBlock(block *block.Block, buf *io.BufBinWriter) error
@@ -378,11 +378,46 @@ func (dao *Simple) GetBlock(hash util.Uint256) (*block.Block, error) {
 	return block, nil
 }
 
+// Version represents current dao version.
+type Version struct {
+	Prefix storage.KeyPrefix
+	Value  string
+}
+
+// FromBytes decodes v from a byte-slice.
+func (v *Version) FromBytes(data []byte) error {
+	if len(data) == 0 {
+		return errors.New("missing version")
+	}
+	i := 0
+	for ; i < len(data) && data[i] != '\x00'; i++ {
+	}
+
+	if i == len(data) {
+		v.Value = string(data)
+		return nil
+	}
+
+	v.Value = string(data[:i])
+	v.Prefix = storage.KeyPrefix(data[i+1])
+	return nil
+}
+
+// Bytes encodes v to a byte-slice.
+func (v *Version) Bytes() []byte {
+	return append([]byte(v.Value), '\x00', byte(v.Prefix))
+}
+
 // GetVersion attempts to get the current version stored in the
 // underlying store.
-func (dao *Simple) GetVersion() (string, error) {
-	version, err := dao.Store.Get(storage.SYSVersion.Bytes())
-	return string(version), err
+func (dao *Simple) GetVersion() (Version, error) {
+	var version Version
+
+	data, err := dao.Store.Get(storage.SYSVersion.Bytes())
+	if err == nil {
+		err = version.FromBytes(data)
+	}
+	return version, err
 }
 
 // GetCurrentBlockHeight returns the current block height found in the
@@ -485,8 +520,9 @@ func (dao *Simple) GetTransaction(hash util.Uint256) (*transaction.Transaction, 
 }
 
 // PutVersion stores the given version in the underlying store.
-func (dao *Simple) PutVersion(v string) error {
-	return dao.Store.Put(storage.SYSVersion.Bytes(), []byte(v))
+func (dao *Simple) PutVersion(v Version) error {
+	dao.StoragePrefix = v.Prefix
+	return dao.Store.Put(storage.SYSVersion.Bytes(), v.Bytes())
 }
 
 // PutCurrentHeader stores current header.
