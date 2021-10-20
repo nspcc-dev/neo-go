@@ -7,7 +7,7 @@ ProtocolConfiguration:
     - 02b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc2
   ValidatorsCount: 1
   SeedList:
-    - 172.200.0.1:20333
+    - node_single:20333
   VerifyBlocks: true
   VerifyTransactions: true
   P2PSigExtensions: false
@@ -54,7 +54,7 @@ ApplicationConfiguration:
     AllowedContentTypes:
       - application/json
     Nodes:
-      - 172.200.0.1:30333
+      - node_single:30333
     RequestTimeout: 5s
     UnlockWallet:
       Path: "/wallet1_solo.json"
