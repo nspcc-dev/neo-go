@@ -1,6 +1,8 @@
 package storage
 
 import (
+	"bytes"
+	"sort"
 	"strings"
 	"sync"
 
@@ -128,10 +130,20 @@ func (s *MemoryStore) SeekAll(key []byte, f func(k, v []byte)) {
 // seek is an internal unlocked implementation of Seek.
 func (s *MemoryStore) seek(key []byte, f func(k, v []byte)) {
 	sk := string(key)
+	var memList []KeyValue
 	for k, v := range s.mem {
 		if strings.HasPrefix(k, sk) {
-			f([]byte(k), v)
+			memList = append(memList, KeyValue{
+				Key:   []byte(k),
+				Value: v,
+			})
 		}
+	}
+	sort.Slice(memList, func(i, j int) bool {
+		return bytes.Compare(memList[i].Key, memList[j].Key) < 0
+	})
+	for _, kv := range memList {
+		f(kv.Key, kv.Value)
 	}
 }
 

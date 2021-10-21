@@ -12,7 +12,7 @@ type mockedRedisStore struct {
 	mini *miniredis.Miniredis
 }
 
-func prepareRedisMock(t *testing.T) (*miniredis.Miniredis, *RedisStore) {
+func prepareRedisMock(t testing.TB) (*miniredis.Miniredis, *RedisStore) {
 	miniRedis, err := miniredis.Run()
 	require.Nil(t, err, "MiniRedis mock creation error")
 
@@ -37,7 +37,7 @@ func (mrs *mockedRedisStore) Close() error {
 	return err
 }
 
-func newRedisStoreForTesting(t *testing.T) Store {
+func newRedisStoreForTesting(t testing.TB) Store {
 	mock, rs := prepareRedisMock(t)
 	mrs := &mockedRedisStore{RedisStore: *rs, mini: mock}
 	return mrs

@@ -1,8 +1,13 @@
 package storage
 
 import (
+	"bytes"
+	"fmt"
+	"sort"
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/internal/random"
+	"github.com/nspcc-dev/neo-go/pkg/util/slice"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -16,7 +21,7 @@ func testMemCachedStorePersist(t *testing.T, ps Store) {
 	assert.Equal(t, 0, c)
 	// persisting one key should result in one key in ps and nothing in ts
 	assert.NoError(t, ts.Put([]byte("key"), []byte("value")))
-	checkBatch(t, ts, []KeyValue{{Key: []byte("key"), Value: []byte("value")}}, nil)
+	checkBatch(t, ts, []KeyValueExists{{KeyValue: KeyValue{Key: []byte("key"), Value: []byte("value")}}}, nil)
 	c, err = ts.Persist()
 	checkBatch(t, ts, nil, nil)
 	assert.Equal(t, nil, err)
@@ -35,9 +40,9 @@ func testMemCachedStorePersist(t *testing.T, ps Store) {
 	v, err = ps.Get([]byte("key2"))
 	assert.Equal(t, ErrKeyNotFound, err)
 	assert.Equal(t, []byte(nil), v)
-	checkBatch(t, ts, []KeyValue{
-		{Key: []byte("key"), Value: []byte("newvalue"), Exists: true},
-		{Key: []byte("key2"), Value: []byte("value2")},
+	checkBatch(t, ts, []KeyValueExists{
+		{KeyValue: KeyValue{Key: []byte("key"), Value: []byte("newvalue")}, Exists: true},
+		{KeyValue: KeyValue{Key: []byte("key2"), Value: []byte("value2")}},
 	}, nil)
 	// two keys should be persisted (one overwritten and one new) and
 	// available in the ps
@@ -65,7 +70,7 @@ func testMemCachedStorePersist(t *testing.T, ps Store) {
 	// test persisting deletions
 	err = ts.Delete([]byte("key"))
 	assert.Equal(t, nil, err)
-	checkBatch(t, ts, nil, []KeyValue{{Key: []byte("key"), Exists: true}})
+	checkBatch(t, ts, nil, []KeyValueExists{{KeyValue: KeyValue{Key: []byte("key")}, Exists: true}})
 	c, err = ts.Persist()
 	checkBatch(t, ts, nil, nil)
 	assert.Equal(t, nil, err)
@@ -78,7 +83,7 @@ func testMemCachedStorePersist(t *testing.T, ps Store) {
 	assert.Equal(t, []byte("value2"), v)
 }
 
-func checkBatch(t *testing.T, ts *MemCachedStore, put []KeyValue, del []KeyValue) {
+func checkBatch(t *testing.T, ts *MemCachedStore, put []KeyValueExists, del []KeyValueExists) {
 	b := ts.GetBatch()
 	assert.Equal(t, len(put), len(b.Put), "wrong number of put elements in a batch")
 	assert.Equal(t, len(del), len(b.Deleted), "wrong number of deleted elements in a batch")
@@ -174,7 +179,82 @@ func TestCachedSeek(t *testing.T) {
 	}
 }
 
-func newMemCachedStoreForTesting(t *testing.T) Store {
+func benchmarkCachedSeek(t *testing.B, ps Store, psElementsCount, tsElementsCount int) {
+	var (
+		searchPrefix      = []byte{1}
+		badPrefix         = []byte{2}
+		lowerPrefixGood   = append(searchPrefix, 1)
+		lowerPrefixBad    = append(badPrefix, 1)
+		deletedPrefixGood = append(searchPrefix, 2)
+		deletedPrefixBad  = append(badPrefix, 2)
+		updatedPrefixGood = append(searchPrefix, 3)
+		updatedPrefixBad  = append(badPrefix, 3)
+
+		ts = NewMemCachedStore(ps)
+	)
+	for i := 0; i < psElementsCount; i++ {
+		// lower KVs with matching prefix that should be found
+		require.NoError(t, ps.Put(append(lowerPrefixGood, random.Bytes(10)...), []byte("value")))
+		// lower KVs with non-matching prefix that shouldn't be found
+		require.NoError(t, ps.Put(append(lowerPrefixBad, random.Bytes(10)...), []byte("value")))
+
+		// deleted KVs with matching prefix that shouldn't be found
+		key := append(deletedPrefixGood, random.Bytes(10)...)
+		require.NoError(t, ps.Put(key, []byte("deleted")))
+		if i < tsElementsCount {
+			require.NoError(t, ts.Delete(key))
+		}
+		// deleted KVs with non-matching prefix that shouldn't be found
+		key = append(deletedPrefixBad, random.Bytes(10)...)
+		require.NoError(t, ps.Put(key, []byte("deleted")))
+		if i < tsElementsCount {
+			require.NoError(t, ts.Delete(key))
+		}
+
+		// updated KVs with matching prefix that should be found
+		key = append(updatedPrefixGood, random.Bytes(10)...)
+		require.NoError(t, ps.Put(key, []byte("stub")))
+		if i < tsElementsCount {
+			require.NoError(t, ts.Put(key, []byte("updated")))
+		}
+		// updated KVs with non-matching prefix that shouldn't be found
+		key = append(updatedPrefixBad, random.Bytes(10)...)
+		require.NoError(t, ps.Put(key, []byte("stub")))
+		if i < tsElementsCount {
+			require.NoError(t, ts.Put(key, []byte("updated")))
+		}
+	}
+
+	t.ReportAllocs()
+	t.ResetTimer()
+	for n := 0; n < t.N; n++ {
+		ts.Seek(searchPrefix, func(k, v []byte) {})
+	}
+	t.StopTimer()
+}
+
+func BenchmarkCachedSeek(t *testing.B) {
+	var stores = map[string]func(testing.TB) Store{
+		"MemPS": func(t testing.TB) Store {
+			return NewMemoryStore()
+		},
+		"BoltPS":  newBoltStoreForTesting,
+		"LevelPS": newLevelDBForTesting,
+	}
+	for psName, newPS := range stores {
+		for psCount := 100; psCount <= 10000; psCount *= 10 {
+			for tsCount := 10; tsCount <= psCount; tsCount *= 10 {
+				t.Run(fmt.Sprintf("%s_%dTSItems_%dPSItems", psName, tsCount, psCount), func(t *testing.B) {
+					ps := newPS(t)
+					benchmarkCachedSeek(t, ps, psCount, tsCount)
+					ps.Close()
+				})
+			}
+		}
+	}
+}
+
+func newMemCachedStoreForTesting(t testing.TB) Store {
 	return NewMemCachedStore(NewMemoryStore())
 }
 
@@ -241,4 +321,53 @@ func TestMemCachedPersistFailing(t *testing.T) {
 	res, err = ts.Get(b1)
 	require.NoError(t, err)
 	require.Equal(t, b1, res)
+}
+
+func TestCachedSeekSorting(t *testing.T) {
+	var (
+		// Given this prefix...
+		goodPrefix = []byte{1}
+		// these pairs should be found...
+		lowerKVs = []kvSeen{
+			{[]byte{1, 2, 3}, []byte("bra"), false},
+			{[]byte{1, 2, 5}, []byte("bar"), false},
+			{[]byte{1, 3, 3}, []byte("bra"), false},
+			{[]byte{1, 3, 5}, []byte("bra"), false},
+		}
+		// and these should be not.
+		deletedKVs = []kvSeen{
+			{[]byte{1, 7, 3}, []byte("pow"), false},
+			{[]byte{1, 7, 4}, []byte("qaz"), false},
+		}
+		// and these should be not.
+		updatedKVs = []kvSeen{
+			{[]byte{1, 2, 4}, []byte("zaq"), false},
+			{[]byte{1, 2, 6}, []byte("zaq"), false},
+			{[]byte{1, 3, 2}, []byte("wop"), false},
+			{[]byte{1, 3, 4}, []byte("zaq"), false},
+		}
+		ps = NewMemoryStore()
+		ts = NewMemCachedStore(ps)
+	)
+	for _, v := range lowerKVs {
+		require.NoError(t, ps.Put(v.key, v.val))
+	}
+	for _, v := range deletedKVs {
+		require.NoError(t, ps.Put(v.key, v.val))
+		require.NoError(t, ts.Delete(v.key))
+	}
+	for _, v := range updatedKVs {
+		require.NoError(t, ps.Put(v.key, []byte("stub")))
+		require.NoError(t, ts.Put(v.key, v.val))
+	}
+	var foundKVs []kvSeen
+	ts.Seek(goodPrefix, func(k, v []byte) {
+		foundKVs = append(foundKVs, kvSeen{key: slice.Copy(k), val: slice.Copy(v)})
+	})
+	assert.Equal(t, len(foundKVs), len(lowerKVs)+len(updatedKVs))
+	expected := append(lowerKVs, updatedKVs...)
+	sort.Slice(expected, func(i, j int) bool {
+		return bytes.Compare(expected[i].key, expected[j].key) < 0
+	})
+	require.Equal(t, expected, foundKVs)
 }

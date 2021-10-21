@@ -162,20 +162,20 @@ func (p *Policy) PostPersist(ic *interop.Context) error {
 	p.storagePrice = uint32(getIntWithKey(p.ID, ic.DAO, storagePriceKey))
 
 	p.blockedAccounts = make([]util.Uint160, 0)
-	siMap, err := ic.DAO.GetStorageItemsWithPrefix(p.ID, []byte{blockedAccountPrefix})
+	siArr, err := ic.DAO.GetStorageItemsWithPrefix(p.ID, []byte{blockedAccountPrefix})
 	if err != nil {
 		return fmt.Errorf("failed to get blocked accounts from storage: %w", err)
 	}
-	for key := range siMap {
-		hash, err := util.Uint160DecodeBytesBE([]byte(key))
+	for _, kv := range siArr {
+		hash, err := util.Uint160DecodeBytesBE([]byte(kv.Key))
 		if err != nil {
 			return fmt.Errorf("failed to decode blocked account hash: %w", err)
 		}
 		p.blockedAccounts = append(p.blockedAccounts, hash)
 	}
-	sort.Slice(p.blockedAccounts, func(i, j int) bool {
-		return p.blockedAccounts[i].Less(p.blockedAccounts[j])
-	})
+	// blockedAccounts should be sorted by account BE bytes, but GetStorageItemsWithPrefix
+	// returns values sorted by key (which is account's BE bytes), so don't need to sort
+	// one more time.
 
 	p.isValid = true
 	return nil

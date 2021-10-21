@@ -1,6 +1,7 @@
 package interop
 
 import (
+	"context"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -47,6 +48,7 @@ type Context struct {
 	Log           *zap.Logger
 	VM            *vm.VM
 	Functions     []Function
+	cancelFuncs   []context.CancelFunc
 	getContract   func(dao.DAO, util.Uint160) (*state.Contract, error)
 	baseExecFee   int64
 }
@@ -284,4 +286,26 @@ func (ic *Context) SpawnVM() *vm.VM {
 	v.SyscallHandler = ic.SyscallHandler
 	ic.VM = v
 	return v
+}
+
+// RegisterCancelFunc adds given function to the list of functions to be called after VM
+// finishes script execution.
+func (ic *Context) RegisterCancelFunc(f context.CancelFunc) {
+	if f != nil {
+		ic.cancelFuncs = append(ic.cancelFuncs, f)
+	}
+}
+
+// Finalize calls all registered cancel functions to release the occupied resources.
+func (ic *Context) Finalize() {
+	for _, f := range ic.cancelFuncs {
+		f()
+	}
+	ic.cancelFuncs = nil
+}
+
+// Exec executes loaded VM script and calls registered finalizers to release the occupied resources.
+func (ic *Context) Exec() error {
+	defer ic.Finalize()
+	return ic.VM.Run()
 }

@@ -1,13 +1,12 @@
 package core
 
 import (
-	"bytes"
+	"context"
 	"crypto/elliptic"
 	"errors"
 	"fmt"
 	"math"
 	"math/big"
-	"sort"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
@@ -188,30 +187,13 @@ func storageFind(ic *interop.Context) error {
 	if opts&istorage.FindDeserialize == 0 && (opts&istorage.FindPick0 != 0 || opts&istorage.FindPick1 != 0) {
 		return fmt.Errorf("%w: PickN is specified without Deserialize", errFindInvalidOptions)
 	}
-	siMap, err := ic.DAO.GetStorageItemsWithPrefix(stc.ID, prefix)
-	if err != nil {
-		return err
-	}
-
-	arr := make([]stackitem.MapElement, 0, len(siMap))
-	for k, v := range siMap {
-		keycopy := make([]byte, len(k)+len(prefix))
-		copy(keycopy, prefix)
-		copy(keycopy[len(prefix):], k)
-		arr = append(arr, stackitem.MapElement{
-			Key:   stackitem.NewByteArray(keycopy),
-			Value: stackitem.NewByteArray(v),
-		})
-	}
-	sort.Slice(arr, func(i, j int) bool {
-		k1 := arr[i].Key.Value().([]byte)
-		k2 := arr[j].Key.Value().([]byte)
-		return bytes.Compare(k1, k2) == -1
-	})
-
-	filteredMap := stackitem.NewMapWithValue(arr)
-	item := istorage.NewIterator(filteredMap, len(prefix), opts)
+	// Items in seekres should be sorted by key, but GetStorageItemsWithPrefix returns
+	// sorted items, so no need to sort them one more time.
+	ctx, cancel := context.WithCancel(context.Background())
+	seekres := ic.DAO.SeekAsync(ctx, stc.ID, prefix)
+	item := istorage.NewIterator(seekres, prefix, opts)
 	ic.VM.Estack().PushItem(stackitem.NewInterop(item))
+	ic.RegisterCancelFunc(cancel)
 
 	return nil
 }

@@ -624,6 +624,7 @@ func (s *Server) calculateNetworkFee(reqParams request.Params) (interface{}, *re
 			if respErr != nil {
 				return 0, respErr
 			}
+			res.Finalize()
 			if res.State != "HALT" {
 				cause := fmt.Errorf("invalid VM state %s due to an error: %s", res.State, res.FaultException)
 				return 0, response.NewRPCError(verificationErr, cause.Error(), cause)
@@ -742,7 +743,8 @@ func (s *Server) getNEP17Balance(h util.Uint160, acc util.Uint160, bw *io.BufBin
 	}
 	script := bw.Bytes()
 	tx := &transaction.Transaction{Script: script}
-	v := s.chain.GetTestVM(trigger.Application, tx, nil)
+	v, finalize := s.chain.GetTestVM(trigger.Application, tx, nil)
+	defer finalize()
 	v.GasLimit = core.HeaderVerificationGasLimit
 	v.LoadScriptWithFlags(script, callflag.All)
 	err := v.Run()
@@ -1490,7 +1492,6 @@ func (s *Server) invokeContractVerify(reqParams request.Params) (interface{}, *r
 		tx.Signers = []transaction.Signer{{Account: scriptHash}}
 		tx.Scripts = []transaction.Witness{{InvocationScript: invocationScript, VerificationScript: []byte{}}}
 	}
-
 	return s.runScriptInVM(trigger.Verification, invocationScript, scriptHash, tx)
 }
 
@@ -1511,7 +1512,7 @@ func (s *Server) runScriptInVM(t trigger.Type, script []byte, contractScriptHash
 	}
 	b.Timestamp = hdr.Timestamp + uint64(s.chain.GetConfig().SecondsPerBlock*int(time.Second/time.Millisecond))
 
-	vm := s.chain.GetTestVM(t, tx, b)
+	vm, finalize := s.chain.GetTestVM(t, tx, b)
 	vm.GasLimit = int64(s.config.MaxGasInvoke)
 	if t == trigger.Verification {
 		// We need this special case because witnesses verification is not the simple System.Contract.Call,
@@ -1539,7 +1540,7 @@ func (s *Server) runScriptInVM(t trigger.Type, script []byte, contractScriptHash
 	if err != nil {
 		faultException = err.Error()
 	}
-	return result.NewInvoke(vm, script, faultException, s.config.MaxIteratorResultItems), nil
+	return result.NewInvoke(vm, finalize, script, faultException, s.config.MaxIteratorResultItems), nil
 }
 
 // submitBlock broadcasts a raw block over the NEO network.

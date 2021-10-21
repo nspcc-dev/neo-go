@@ -257,17 +257,22 @@ func (s *Designate) GetDesignatedByRole(d dao.DAO, r noderoles.Role, index uint3
 	if err != nil {
 		return nil, 0, err
 	}
-	var ns NodeList
-	var bestIndex uint32
-	var resSi state.StorageItem
-	for k, si := range kvs {
-		if len(k) < 4 {
+	var (
+		ns        NodeList
+		bestIndex uint32
+		resSi     state.StorageItem
+	)
+	// kvs are sorted by key (BE index bytes) in ascending way, so iterate backwards to get the latest designated.
+	for i := len(kvs) - 1; i >= 0; i-- {
+		kv := kvs[i]
+		if len(kv.Key) < 4 {
 			continue
 		}
-		siInd := binary.BigEndian.Uint32([]byte(k))
-		if (resSi == nil || siInd > bestIndex) && siInd <= index {
+		siInd := binary.BigEndian.Uint32(kv.Key)
+		if siInd <= index {
 			bestIndex = siInd
-			resSi = si
+			resSi = kv.Item
+			break
 		}
 	}
 	if resSi != nil {

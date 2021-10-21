@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func newLevelDBForTesting(t *testing.T) Store {
+func newLevelDBForTesting(t testing.TB) Store {
 	ldbDir := t.TempDir()
 	dbConfig := DBConfiguration{
 		Type: "leveldb",

@@ -2,6 +2,7 @@ package core
 
 import (
 	"errors"
+	"fmt"
 	"math"
 	"math/big"
 	"testing"
@@ -336,32 +337,101 @@ func TestStorageDelete(t *testing.T) {
 }
 
 func BenchmarkStorageFind(b *testing.B) {
-	v, contractState, context, chain := createVMAndContractState(b)
-	require.NoError(b, chain.contracts.Management.PutContractState(chain.dao, contractState))
+	for count := 10; count <= 10000; count *= 10 {
+		b.Run(fmt.Sprintf("%dElements", count), func(b *testing.B) {
+			v, contractState, context, chain := createVMAndContractState(b)
+			require.NoError(b, chain.contracts.Management.PutContractState(chain.dao, contractState))
 
-	const count = 100
+			items := make(map[string]state.StorageItem)
+			for i := 0; i < count; i++ {
+				items["abc"+random.String(10)] = random.Bytes(10)
+			}
+			for k, v := range items {
+				require.NoError(b, context.DAO.PutStorageItem(contractState.ID, []byte(k), v))
+				require.NoError(b, context.DAO.PutStorageItem(contractState.ID+1, []byte(k), v))
+			}
+			changes, err := context.DAO.Persist()
+			require.NoError(b, err)
+			require.NotEqual(b, 0, changes)
 
-	items := make(map[string]state.StorageItem)
-	for i := 0; i < count; i++ {
-		items["abc"+random.String(10)] = random.Bytes(10)
+			b.ResetTimer()
+			b.ReportAllocs()
+			for i := 0; i < b.N; i++ {
+				b.StopTimer()
+				v.Estack().PushVal(istorage.FindDefault)
+				v.Estack().PushVal("abc")
+				v.Estack().PushVal(stackitem.NewInterop(&StorageContext{ID: contractState.ID}))
+				b.StartTimer()
+				err := storageFind(context)
+				if err != nil {
+					b.FailNow()
+				}
+				b.StopTimer()
+				context.Finalize()
+			}
+		})
 	}
-	for k, v := range items {
-		require.NoError(b, context.DAO.PutStorageItem(contractState.ID, []byte(k), v))
-		require.NoError(b, context.DAO.PutStorageItem(contractState.ID+1, []byte(k), v))
-	}
+}
 
-	b.ResetTimer()
-	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
-		b.StopTimer()
-		v.Estack().PushVal(istorage.FindDefault)
-		v.Estack().PushVal("abc")
-		v.Estack().PushVal(stackitem.NewInterop(&StorageContext{ID: contractState.ID}))
-		b.StartTimer()
-		err := storageFind(context)
-		if err != nil {
-			b.FailNow()
+func BenchmarkStorageFindIteratorNext(b *testing.B) {
+	for count := 10; count <= 10000; count *= 10 {
+		cases := map[string]int{
+			"Pick1":    1,
+			"PickHalf": count / 2,
+			"PickAll":  count,
 		}
+		b.Run(fmt.Sprintf("%dElements", count), func(b *testing.B) {
+			for name, last := range cases {
+				b.Run(name, func(b *testing.B) {
+					v, contractState, context, chain := createVMAndContractState(b)
+					require.NoError(b, chain.contracts.Management.PutContractState(chain.dao, contractState))
+
+					items := make(map[string]state.StorageItem)
+					for i := 0; i < count; i++ {
+						items["abc"+random.String(10)] = random.Bytes(10)
+					}
+					for k, v := range items {
+						require.NoError(b, context.DAO.PutStorageItem(contractState.ID, []byte(k), v))
+						require.NoError(b, context.DAO.PutStorageItem(contractState.ID+1, []byte(k), v))
+					}
+					changes, err := context.DAO.Persist()
+					require.NoError(b, err)
+					require.NotEqual(b, 0, changes)
+					b.ReportAllocs()
+					b.ResetTimer()
+					for i := 0; i < b.N; i++ {
+						b.StopTimer()
+						v.Estack().PushVal(istorage.FindDefault)
+						v.Estack().PushVal("abc")
+						v.Estack().PushVal(stackitem.NewInterop(&StorageContext{ID: contractState.ID}))
+						b.StartTimer()
+						err := storageFind(context)
+						b.StopTimer()
+						if err != nil {
+							b.FailNow()
+						}
+						res := context.VM.Estack().Pop().Item()
+						for i := 0; i < last; i++ {
+							context.VM.Estack().PushVal(res)
+							b.StartTimer()
+							require.NoError(b, iterator.Next(context))
+							b.StopTimer()
+							require.True(b, context.VM.Estack().Pop().Bool())
+						}
+
+						context.VM.Estack().PushVal(res)
+						require.NoError(b, iterator.Next(context))
+						actual := context.VM.Estack().Pop().Bool()
+						if last == count {
+							require.False(b, actual)
+						} else {
+							require.True(b, actual)
+						}
+						context.Finalize()
+					}
+				})
+			}
+		})
 	}
 }
 

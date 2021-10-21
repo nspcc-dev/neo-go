@@ -19,7 +19,7 @@ type kvSeen struct {
 
 type dbSetup struct {
 	name   string
-	create func(*testing.T) Store
+	create func(testing.TB) Store
 }
 
 type dbTestFunction func(*testing.T, Store)

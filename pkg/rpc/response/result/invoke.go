@@ -20,10 +20,11 @@ type Invoke struct {
 	FaultException         string
 	Transaction            *transaction.Transaction
 	maxIteratorResultItems int
+	finalize               func()
 }
 
 // NewInvoke returns new Invoke structure with the given fields set.
-func NewInvoke(vm *vm.VM, script []byte, faultException string, maxIteratorResultItems int) *Invoke {
+func NewInvoke(vm *vm.VM, finalize func(), script []byte, faultException string, maxIteratorResultItems int) *Invoke {
 	return &Invoke{
 		State:                  vm.State().String(),
 		GasConsumed:            vm.GasConsumed(),
@@ -31,6 +32,7 @@ func NewInvoke(vm *vm.VM, script []byte, faultException string, maxIteratorResul
 		Stack:                  vm.Estack().ToArray(),
 		FaultException:         faultException,
 		maxIteratorResultItems: maxIteratorResultItems,
+		finalize:               finalize,
 	}
 }
 
@@ -55,8 +57,17 @@ type Iterator struct {
 	Truncated bool
 }
 
+// Finalize releases resources occupied by Iterators created at the script invocation.
+// This method will be called automatically on Invoke marshalling.
+func (r *Invoke) Finalize() {
+	if r.finalize != nil {
+		r.finalize()
+	}
+}
+
 // MarshalJSON implements json.Marshaler.
 func (r Invoke) MarshalJSON() ([]byte, error) {
+	defer r.Finalize()
 	var st json.RawMessage
 	arr := make([]json.RawMessage, len(r.Stack))
 	for i := range arr {

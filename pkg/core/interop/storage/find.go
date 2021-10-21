@@ -1,6 +1,10 @@
 package storage
 
-import "github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
+import (
+	"github.com/nspcc-dev/neo-go/pkg/core/storage"
+	"github.com/nspcc-dev/neo-go/pkg/util/slice"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
+)
 
 // Storage iterator options.
 const (
@@ -18,44 +22,45 @@ const (
 
 // Iterator is an iterator state representation.
 type Iterator struct {
-	m          []stackitem.MapElement
-	opts       int64
-	index      int
-	prefixSize int
+	seekCh chan storage.KeyValue
+	curr   storage.KeyValue
+	next   bool
+	opts   int64
+	prefix []byte
 }
 
-// NewIterator creates a new Iterator with given options for a given map.
-func NewIterator(m *stackitem.Map, prefix int, opts int64) *Iterator {
+// NewIterator creates a new Iterator with given options for a given channel of store.Seek results.
+func NewIterator(seekCh chan storage.KeyValue, prefix []byte, opts int64) *Iterator {
 	return &Iterator{
-		m:          m.Value().([]stackitem.MapElement),
-		opts:       opts,
-		index:      -1,
-		prefixSize: prefix,
+		seekCh: seekCh,
+		opts:   opts,
+		prefix: slice.Copy(prefix),
 	}
 }
 
 // Next advances the iterator and returns true if Value can be called at the
 // current position.
 func (s *Iterator) Next() bool {
-	if s.index < len(s.m) {
-		s.index++
-	}
-	return s.index < len(s.m)
+	s.curr, s.next = <-s.seekCh
+	return s.next
 }
 
 // Value returns current iterators value (exact type depends on options this
 // iterator was created with).
 func (s *Iterator) Value() stackitem.Item {
-	key := s.m[s.index].Key.Value().([]byte)
-	if s.opts&FindRemovePrefix != 0 {
-		key = key[s.prefixSize:]
+	if !s.next {
+		panic("iterator index out of range")
+	}
+	key := s.curr.Key
+	if s.opts&FindRemovePrefix == 0 {
+		key = append(s.prefix, key...)
 	}
 	if s.opts&FindKeysOnly != 0 {
 		return stackitem.NewByteArray(key)
 	}
-	value := s.m[s.index].Value
+	value := stackitem.Item(stackitem.NewByteArray(s.curr.Value))
 	if s.opts&FindDeserialize != 0 {
-		bs := s.m[s.index].Value.Value().([]byte)
+		bs := s.curr.Value
 		var err error
 		value, err = stackitem.Deserialize(bs)
 		if err != nil {

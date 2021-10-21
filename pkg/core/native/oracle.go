@@ -483,21 +483,21 @@ func (o *Oracle) getOriginalTxID(d dao.DAO, tx *transaction.Transaction) util.Ui
 
 // getRequests returns all requests which have not been finished yet.
 func (o *Oracle) getRequests(d dao.DAO) (map[uint64]*state.OracleRequest, error) {
-	m, err := d.GetStorageItemsWithPrefix(o.ID, prefixRequest)
+	arr, err := d.GetStorageItemsWithPrefix(o.ID, prefixRequest)
 	if err != nil {
 		return nil, err
 	}
-	reqs := make(map[uint64]*state.OracleRequest, len(m))
-	for k, si := range m {
-		if len(k) != 8 {
+	reqs := make(map[uint64]*state.OracleRequest, len(arr))
+	for _, kv := range arr {
+		if len(kv.Key) != 8 {
 			return nil, errors.New("invalid request ID")
 		}
 		req := new(state.OracleRequest)
-		err = stackitem.DeserializeConvertible(si, req)
+		err = stackitem.DeserializeConvertible(kv.Item, req)
 		if err != nil {
 			return nil, err
 		}
-		id := binary.BigEndian.Uint64([]byte(k))
+		id := binary.BigEndian.Uint64([]byte(kv.Key))
 		reqs[id] = req
 	}
 	return reqs, nil
