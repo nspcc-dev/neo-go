@@ -3,7 +3,16 @@ Package util contains some special useful functions that are provided by compile
 */
 package util
 
-import "github.com/nspcc-dev/neo-go/pkg/interop"
+import (
+	"github.com/nspcc-dev/neo-go/pkg/interop"
+	"github.com/nspcc-dev/neo-go/pkg/interop/neogointernal"
+)
+
+// Abort terminates current execution, unlike exception throwing with panic() it
+// can't be recovered from.
+func Abort() {
+	_ = neogointernal.Opcode0("ABORT")
+}
 
 // FromAddress is an utility function that converts a Neo address to its hash
 // (160 bit BE value in a 20 byte slice). It can only be used for strings known

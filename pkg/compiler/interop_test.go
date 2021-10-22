@@ -116,6 +116,18 @@ func TestFromAddress(t *testing.T) {
 	})
 }
 
+func TestAbort(t *testing.T) {
+	src := `package foo
+	import "github.com/nspcc-dev/neo-go/pkg/interop/util"
+	func Main() int {
+		util.Abort()
+		return 1
+	}`
+	v := vmAndCompile(t, src)
+	require.Error(t, v.Run())
+	require.True(t, v.HasFailed())
+}
+
 func spawnVM(t *testing.T, ic *interop.Context, src string) *vm.VM {
 	b, di, err := compiler.CompileWithDebugInfo("foo.go", strings.NewReader(src))
 	require.NoError(t, err)
