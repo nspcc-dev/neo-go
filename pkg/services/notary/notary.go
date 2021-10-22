@@ -220,12 +220,18 @@ func (n *Notary) OnNewRequest(payload *payload.P2PNotaryRequest) {
 	}
 	mainHash := hash.NetSha256(uint32(n.Network), r.main).BytesBE()
 	for i, w := range payload.MainTransaction.Scripts {
-		if r.witnessInfo[i].typ == Contract || // check that we need to fill that witness
-			len(w.InvocationScript) == 0 || // check that signature for this witness was provided
-			r.witnessInfo[i].nSigsLeft == 0 { // check that signature wasn't yet added (consider receiving the same payload multiple times)
+		if len(w.InvocationScript) == 0 || // check that signature for this witness was provided
+			(r.witnessInfo[i].nSigsLeft == 0 && r.witnessInfo[i].typ != Contract) { // check that signature wasn't yet added (consider receiving the same payload multiple times)
 			continue
 		}
 		switch r.witnessInfo[i].typ {
+		case Contract:
+			// Need to check even if r.main.Scripts[i].InvocationScript is already filled in.
+			err := n.Config.Chain.VerifyWitness(r.main.Signers[i].Account, r.main, &w, n.Config.Chain.GetPolicer().GetMaxVerificationGAS())
+			if err != nil {
+				continue
+			}
+			r.main.Scripts[i].InvocationScript = w.InvocationScript
 		case Signature:
 			if r.witnessInfo[i].pubs[0].Verify(w.InvocationScript[2:], mainHash) {
 				r.main.Scripts[i] = w

@@ -376,8 +376,9 @@ the steps to create a signature request:
 9. Construct the list of main transactions witnesses (that will be `Scripts`
    transaction field). Use the following rules:
    - Contract-based witness should have `Invocation` script that pushes arguments
-     on stack (it may be empty) and empty `Verification` script. Currently, **only
-     empty** `Invocation` scripts are supported for contract-based witnesses.
+     on stack (it may be empty) and empty `Verification` script. If multiple notary
+     requests provide different `Invocation` scripts then the first one will be used
+     to construct contract-based witness.
    - **Notary contract witness** (which is also a contract-based witness) should
      have empty `Verification` script. `Invocation` script should be of the form
      [opcode.PUSHDATA1, 64, make([]byte, 64)...], i.e. to be a placeholder for
