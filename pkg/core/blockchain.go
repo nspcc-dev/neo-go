@@ -305,10 +305,17 @@ func (bc *Blockchain) init() error {
 	ver, err := bc.dao.GetVersion()
 	if err != nil {
 		bc.log.Info("no storage version found! creating genesis block")
-		v := dao.Version{Prefix: storage.STStorage, Value: version}
-		if err = bc.dao.PutVersion(v); err != nil {
+		ver = dao.Version{
+			StoragePrefix:     storage.STStorage,
+			StateRootInHeader: bc.config.StateRootInHeader,
+			P2PSigExtensions:  bc.config.P2PSigExtensions,
+			Value:             version,
+		}
+		if err = bc.dao.PutVersion(ver); err != nil {
 			return err
 		}
+		bc.dao.Version = ver
+		bc.persistent.Version = ver
 		genesisBlock, err := createGenesisBlock(bc.config)
 		if err != nil {
 			return err
@@ -326,8 +333,16 @@ func (bc *Blockchain) init() error {
 	if ver.Value != version {
 		return fmt.Errorf("storage version mismatch betweeen %s and %s", version, ver.Value)
 	}
-	bc.dao.StoragePrefix = ver.Prefix
-	bc.persistent.StoragePrefix = ver.Prefix // not strictly needed but we better be consistent here
+	if ver.StateRootInHeader != bc.config.StateRootInHeader {
+		return fmt.Errorf("StateRootInHeader setting mismatch (config=%t, db=%t)",
+			ver.StateRootInHeader, bc.config.StateRootInHeader)
+	}
+	if ver.P2PSigExtensions != bc.config.P2PSigExtensions {
+		return fmt.Errorf("P2PSigExtensions setting mismatch (old=%t, new=%t",
+			ver.P2PSigExtensions, bc.config.P2PSigExtensions)
+	}
+	bc.dao.Version = ver
+	bc.persistent.Version = ver
 
 	// At this point there was no version found in the storage which
 	// implies a creating fresh storage with the version specified
@@ -487,7 +502,7 @@ func (bc *Blockchain) jumpToStateInternal(p uint32, stage stateJumpStage) error 
 		// Replace old storage items by new ones, it should be done step-by step.
 		// Firstly, remove all old genesis-related items.
 		b := bc.dao.Store.Batch()
-		bc.dao.Store.Seek([]byte{byte(bc.dao.StoragePrefix)}, func(k, _ []byte) {
+		bc.dao.Store.Seek([]byte{byte(bc.dao.Version.StoragePrefix)}, func(k, _ []byte) {
 			// #1468, but don't need to copy here, because it is done by Store.
 			b.Delete(k)
 		})
@@ -498,16 +513,16 @@ func (bc *Blockchain) jumpToStateInternal(p uint32, stage stateJumpStage) error 
 		}
 		fallthrough
 	case oldStorageItemsRemoved:
-		newPrefix := statesync.TemporaryPrefix(bc.dao.StoragePrefix)
+		newPrefix := statesync.TemporaryPrefix(bc.dao.Version.StoragePrefix)
 		v, err := bc.dao.GetVersion()
 		if err != nil {
 			return fmt.Errorf("failed to get dao.Version: %w", err)
 		}
-		v.Prefix = newPrefix
+		v.StoragePrefix = newPrefix
 		if err := bc.dao.PutVersion(v); err != nil {
 			return fmt.Errorf("failed to update dao.Version: %w", err)
 		}
-		bc.persistent.StoragePrefix = newPrefix
+		bc.persistent.Version = v
 
 		err = bc.dao.Store.Put(jumpStageKey, []byte{byte(newStorageItemsAdded)})
 		if err != nil {

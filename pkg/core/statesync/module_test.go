@@ -57,7 +57,7 @@ func TestModule_PR2019_discussion_r689629704(t *testing.T) {
 		mptpool:      NewPool(),
 	}
 	stateSync.billet = mpt.NewBillet(sr, true,
-		TemporaryPrefix(stateSync.dao.StoragePrefix), actualStorage)
+		TemporaryPrefix(stateSync.dao.Version.StoragePrefix), actualStorage)
 	stateSync.mptpool.Add(sr, []byte{})
 
 	// The test itself: we'll ask state sync module to restore each node exactly once.

@@ -120,13 +120,25 @@ func TestGetVersion_NoVersion(t *testing.T) {
 
 func TestGetVersion(t *testing.T) {
 	dao := NewSimple(storage.NewMemoryStore(), false, false)
-	err := dao.PutVersion(Version{Prefix: 0x42, Value: "testVersion"})
+	expected := Version{
+		StoragePrefix:     0x42,
+		P2PSigExtensions:  true,
+		StateRootInHeader: true,
+		Value:             "testVersion",
+	}
+	err := dao.PutVersion(expected)
 	require.NoError(t, err)
-	version, err := dao.GetVersion()
+	actual, err := dao.GetVersion()
 	require.NoError(t, err)
-	require.EqualValues(t, 0x42, version.Prefix)
-	require.Equal(t, "testVersion", version.Value)
+	require.Equal(t, expected, actual)
 
+	t.Run("invalid", func(t *testing.T) {
+		dao := NewSimple(storage.NewMemoryStore(), false, false)
+		require.NoError(t, dao.Store.Put(storage.SYSVersion.Bytes(), []byte("0.1.2\x00x")))
+
+		_, err := dao.GetVersion()
+		require.Error(t, err)
+	})
 	t.Run("old format", func(t *testing.T) {
 		dao := NewSimple(storage.NewMemoryStore(), false, false)
 		require.NoError(t, dao.Store.Put(storage.SYSVersion.Bytes(), []byte("0.1.2")))

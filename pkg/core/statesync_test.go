@@ -423,7 +423,7 @@ func TestStateSyncModule_RestoreBasicChain(t *testing.T) {
 	// compare storage states
 	fetchStorage := func(bc *Blockchain) []storage.KeyValue {
 		var kv []storage.KeyValue
-		bc.dao.Store.Seek(bc.dao.StoragePrefix.Bytes(), func(k, v []byte) {
+		bc.dao.Store.Seek(bc.dao.Version.StoragePrefix.Bytes(), func(k, v []byte) {
 			key := slice.Copy(k)
 			value := slice.Copy(v)
 			if key[0] == byte(storage.STTempStorage) {
@@ -450,6 +450,6 @@ func TestStateSyncModule_RestoreBasicChain(t *testing.T) {
 	bcBolt = initTestChain(t, bcBoltStore, boltCfg)
 	go bcBolt.Run()
 	defer bcBolt.Close()
-	require.Equal(t, storage.STTempStorage, bcBolt.dao.StoragePrefix)
-	require.Equal(t, storage.STTempStorage, bcBolt.persistent.StoragePrefix)
+	require.Equal(t, storage.STTempStorage, bcBolt.dao.Version.StoragePrefix)
+	require.Equal(t, storage.STTempStorage, bcBolt.persistent.Version.StoragePrefix)
 }

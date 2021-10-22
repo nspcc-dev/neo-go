@@ -208,7 +208,7 @@ func (s *Module) defineSyncStage() error {
 			return fmt.Errorf("failed to get header to initialize MPT billet: %w", err)
 		}
 		s.billet = mpt.NewBillet(header.PrevStateRoot, s.bc.GetConfig().KeepOnlyLatestState,
-			TemporaryPrefix(s.dao.StoragePrefix), s.dao.Store)
+			TemporaryPrefix(s.dao.Version.StoragePrefix), s.dao.Store)
 		s.log.Info("MPT billet initialized",
 			zap.Uint32("height", s.syncPoint),
 			zap.String("state root", header.PrevStateRoot.StringBE()))
