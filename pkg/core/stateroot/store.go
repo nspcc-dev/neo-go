@@ -17,7 +17,6 @@ var (
 )
 
 const (
-	prefixGC        = 0x01
 	prefixLocal     = 0x02
 	prefixValidated = 0x03
 )

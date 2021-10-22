@@ -1823,7 +1823,7 @@ func TestBlockchain_InitWithIncompleteStateJump(t *testing.T) {
 			binary.LittleEndian.PutUint32(point, uint32(stateSyncPoint))
 			require.NoError(t, bcSpout.dao.Store.Put(storage.SYSStateSyncPoint.Bytes(), point))
 			shouldFail := stage == 0x03 // unknown stage
-			checkNewBlockchainErr(t, boltCfg, bcSpout.dao.Store, shouldFail)
+			checkNewBlockchainErr(t, spountCfg, bcSpout.dao.Store, shouldFail)
 		})
 	}
 }

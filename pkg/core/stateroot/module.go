@@ -103,22 +103,10 @@ func (s *Module) Init(height uint32, enableRefCount bool) error {
 		s.validatedHeight.Store(binary.LittleEndian.Uint32(data))
 	}
 
-	var gcKey = []byte{byte(storage.DataMPT), prefixGC}
 	if height == 0 {
 		s.mpt = mpt.NewTrie(nil, enableRefCount, s.Store)
-		var val byte
-		if enableRefCount {
-			val = 1
-		}
 		s.currentLocal.Store(util.Uint256{})
-		return s.Store.Put(gcKey, []byte{val})
-	}
-	var hasRefCount bool
-	if v, err := s.Store.Get(gcKey); err == nil {
-		hasRefCount = v[0] != 0
-	}
-	if hasRefCount != enableRefCount {
-		return fmt.Errorf("KeepOnlyLatestState setting mismatch: old=%v, new=%v", hasRefCount, enableRefCount)
+		return nil
 	}
 	r, err := s.getStateRoot(makeStateRootKey(height))
 	if err != nil {
@@ -138,24 +126,14 @@ func (s *Module) CleanStorage() error {
 	if s.localHeight.Load() != 0 {
 		return fmt.Errorf("can't clean MPT data for non-genesis block: expected local stateroot height 0, got %d", s.localHeight.Load())
 	}
-	gcKey := []byte{byte(storage.DataMPT), prefixGC}
-	gcVal, err := s.Store.Get(gcKey)
-	if err != nil {
-		return fmt.Errorf("failed to get GC flag: %w", err)
-	}
-	//
 	b := s.Store.Batch()
 	s.Store.Seek([]byte{byte(storage.DataMPT)}, func(k, _ []byte) {
 		// #1468, but don't need to copy here, because it is done by Store.
 		b.Delete(k)
 	})
-	err = s.Store.PutBatch(b)
+	err := s.Store.PutBatch(b)
 	if err != nil {
 		return fmt.Errorf("failed to remove outdated MPT-reated items: %w", err)
-	}
-	err = s.Store.Put(gcKey, gcVal)
-	if err != nil {
-		return fmt.Errorf("failed to store GC flag: %w", err)
 	}
 	currentLocal := s.currentLocal.Load().(util.Uint256)
 	if !currentLocal.Equals(util.Uint256{}) {
