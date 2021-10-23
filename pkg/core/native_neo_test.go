@@ -469,3 +469,10 @@ func TestNEO_TransferZeroWithNonZeroBalance(t *testing.T) {
 		check(t, false)
 	})
 }
+
+func newAccountWithGAS(t *testing.T, bc *Blockchain) *wallet.Account {
+	acc, err := wallet.NewAccount()
+	require.NoError(t, err)
+	transferTokenFromMultisigAccount(t, bc, acc.PrivateKey().GetScriptHash(), bc.contracts.GAS.Hash, 1000_00000000)
+	return acc
+}
