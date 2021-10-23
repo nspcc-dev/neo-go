@@ -18,7 +18,6 @@ var (
 	// Custom builtin utility functions.
 	customBuiltins = []string{
 		"FromAddress",
-		"ToBool", "ToBytes", "ToString", "ToInteger",
 	}
 )
 
