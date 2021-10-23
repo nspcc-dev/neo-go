@@ -238,8 +238,8 @@ func (e *Executor) SignBlock(b *block.Block) *block.Block {
 	return b
 }
 
-// AddBlockCheckHalt is a convenient wrapper over AddNewBlock and CheckHalt.
-func (e *Executor) AddBlockCheckHalt(t *testing.T, bc blockchainer.Blockchainer, txs ...*transaction.Transaction) *block.Block {
+// AddBlockCheckHalt is a convenient wrapper over AddBlock and CheckHalt.
+func (e *Executor) AddBlockCheckHalt(t *testing.T, txs ...*transaction.Transaction) *block.Block {
 	b := e.AddNewBlock(t, txs...)
 	for _, tx := range txs {
 		e.CheckHalt(t, tx.Hash())
