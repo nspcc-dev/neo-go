@@ -28,9 +28,8 @@ bin/
 *~
 TAGS
 
-# leveldb 
-chains/
-chain/
+# storage 
+/chains
 
 # patch
 *.orig
