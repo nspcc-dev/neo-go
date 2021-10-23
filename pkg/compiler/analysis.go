@@ -17,7 +17,7 @@ var (
 	goBuiltins = []string{"len", "append", "panic", "make", "copy", "recover", "delete"}
 	// Custom builtin utility functions.
 	customBuiltins = []string{
-		"Abort", "FromAddress", "Equals", "Remove",
+		"FromAddress",
 		"ToBool", "ToBytes", "ToString", "ToInteger",
 	}
 )
@@ -376,7 +376,7 @@ func canConvert(s string) bool {
 // canInline returns true if function is to be inlined.
 // Currently there is a static list of function which are inlined,
 // this may change in future.
-func canInline(s string) bool {
+func canInline(s string, name string) bool {
 	if strings.HasPrefix(s, "github.com/nspcc-dev/neo-go/pkg/compiler/testdata/inline") {
 		return true
 	}
@@ -384,5 +384,5 @@ func canInline(s string) bool {
 		return false
 	}
 	return !strings.HasPrefix(s[len(interopPrefix):], "/neogointernal") &&
-		!strings.HasPrefix(s[len(interopPrefix):], "/util")
+		!(strings.HasPrefix(s[len(interopPrefix):], "/util") && name == "FromAddress")
 }

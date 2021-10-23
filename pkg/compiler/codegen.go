@@ -888,7 +888,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			if fun.Obj != nil && fun.Obj.Kind == ast.Var {
 				isFunc = true
 			}
-			if ok && canInline(f.pkg.Path()) {
+			if ok && canInline(f.pkg.Path(), f.decl.Name.Name) {
 				c.inlineCall(f, n)
 				return nil
 			}
@@ -907,7 +907,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			if ok {
 				f.selector = fun.X.(*ast.Ident)
 				isBuiltin = isCustomBuiltin(f)
-				if canInline(f.pkg.Path()) {
+				if canInline(f.pkg.Path(), f.decl.Name.Name) {
 					c.inlineCall(f, n)
 					return nil
 				}
@@ -1724,16 +1724,6 @@ func (c *codegen) convertBuiltin(expr *ast.CallExpr) {
 		c.emitStoreByIndex(varGlobal, c.exceptionIndex)
 	case "delete":
 		emit.Opcodes(c.prog.BinWriter, opcode.REMOVE)
-	case "Abort":
-		emit.Opcodes(c.prog.BinWriter, opcode.ABORT)
-	case "Remove":
-		if !isCompoundSlice(c.typeOf(expr.Args[0])) {
-			c.prog.Err = errors.New("`Remove` supports only non-byte slices")
-			return
-		}
-		emit.Opcodes(c.prog.BinWriter, opcode.REMOVE)
-	case "Equals":
-		emit.Opcodes(c.prog.BinWriter, opcode.EQUAL)
 	case "FromAddress":
 		// We can be sure that this is a ast.BasicLit just containing a simple
 		// address string. Note that the string returned from calling Value will
@@ -2037,7 +2027,7 @@ func (c *codegen) compile(info *buildInfo, pkg *loader.PackageInfo) error {
 				}
 				name := c.getFuncNameFromDecl(pkgPath, n)
 				if !isInitFunc(n) && !isDeployFunc(n) && funUsage.funcUsed(name) &&
-					(!isInteropPath(pkg.Path()) && !canInline(pkg.Path())) {
+					(!isInteropPath(pkg.Path()) && !canInline(pkg.Path(), n.Name.Name)) {
 					c.convertFuncDecl(f, n, pkg)
 				}
 			}

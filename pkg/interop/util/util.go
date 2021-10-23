@@ -11,7 +11,7 @@ import (
 // Abort terminates current execution, unlike exception throwing with panic() it
 // can't be recovered from.
 func Abort() {
-	_ = neogointernal.Opcode0("ABORT")
+	neogointernal.Opcode0NoReturn("ABORT")
 }
 
 // FromAddress is an utility function that converts a Neo address to its hash
@@ -26,10 +26,11 @@ func FromAddress(address string) interop.Hash160 {
 // implemented as an EQUAL VM opcode, so the rules of comparison are those
 // of EQUAL.
 func Equals(a, b interface{}) bool {
-	return false
+	return neogointernal.Opcode2("EQUAL", a, b).(bool)
 }
 
 // Remove removes element with index i from slice.
 // This is done in place and slice must have type other than `[]byte`.
 func Remove(slice interface{}, i int) {
+	neogointernal.Opcode2NoReturn("REMOVE", slice, i)
 }
