@@ -2168,6 +2168,9 @@ func (c *codegen) replaceLabelWithOffset(ip int, arg []byte) (int, error) {
 	if int(index) > len(c.l) {
 		return 0, fmt.Errorf("unexpected label number: %d (max %d)", index, len(c.l))
 	}
+	if c.l[index] < 0 {
+		return 0, fmt.Errorf("invalid label target: %d at %d", c.l[index], ip)
+	}
 	offset := c.l[index] - ip
 	if offset > math.MaxInt32 || offset < math.MinInt32 {
 		return 0, fmt.Errorf("label offset is too big at the instruction %d: %d (max %d, min %d)",
