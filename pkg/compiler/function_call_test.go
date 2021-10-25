@@ -350,4 +350,17 @@ func TestUnusedFunctions(t *testing.T) {
 		require.NoError(t, err)
 		eval(t, src, big.NewInt(65))
 	})
+	t.Run("method inside of an imported package", func(t *testing.T) {
+		// Check that import map is set correctly during package traversal.
+		src := `package foo
+		import inner "github.com/nspcc-dev/neo-go/pkg/compiler/testdata/nestedcall"
+		func Main() int {
+			var t inner.Token
+			return t.Method()
+		}`
+
+		_, err := compiler.Compile("foo", strings.NewReader(src))
+		require.NoError(t, err)
+		eval(t, src, big.NewInt(2231))
+	})
 }

@@ -301,7 +301,12 @@ func (c *codegen) analyzeFuncUsage() funcUsage {
 			}
 			usage[name] = true
 
-			old := c.importMap
+			pkg := c.mainPkg
+			if fd.path != "" {
+				pkg = c.buildInfo.program.Package(fd.path)
+			}
+			c.typeInfo = &pkg.Info
+			c.currPkg = pkg.Pkg
 			c.importMap = fd.importMap
 			ast.Inspect(fd.decl, func(node ast.Node) bool {
 				switch n := node.(type) {
@@ -316,7 +321,6 @@ func (c *codegen) analyzeFuncUsage() funcUsage {
 				}
 				return true
 			})
-			c.importMap = old
 		}
 		diff = nextDiff
 	}
