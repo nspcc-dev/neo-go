@@ -1048,7 +1048,7 @@ func (s *Server) verifyAndPoolNotaryRequest(r *payload.P2PNotaryRequest) error {
 func verifyNotaryRequest(bc blockchainer.Blockchainer, _ *transaction.Transaction, data interface{}) error {
 	r := data.(*payload.P2PNotaryRequest)
 	payer := r.FallbackTransaction.Signers[1].Account
-	if err := bc.VerifyWitness(payer, r, &r.Witness, bc.GetPolicer().GetMaxVerificationGAS()); err != nil {
+	if _, err := bc.VerifyWitness(payer, r, &r.Witness, bc.GetPolicer().GetMaxVerificationGAS()); err != nil {
 		return fmt.Errorf("bad P2PNotaryRequest payload witness: %w", err)
 	}
 	notaryHash := bc.GetNotaryContractScriptHash()

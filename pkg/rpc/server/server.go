@@ -613,36 +613,11 @@ func (s *Server) calculateNetworkFee(reqParams request.Params) (interface{}, *re
 			}
 		}
 		if verificationScript == nil { // then it still might be a contract-based verification
-			verificationErr := fmt.Sprintf("contract verification for signer #%d failed", i)
-			res, respErr := s.runScriptInVM(trigger.Verification, tx.Scripts[i].InvocationScript, signer.Account, tx)
-			if respErr != nil && errors.Is(respErr.Cause, core.ErrUnknownVerificationContract) {
-				// it's neither a contract-based verification script nor a standard witness attached to
-				// the tx, so the user did not provide enough data to calculate fee for that witness =>
-				// it's a user error
-				return 0, response.NewRPCError(verificationErr, respErr.Cause.Error(), respErr.Cause)
-			}
-			if respErr != nil {
-				return 0, respErr
-			}
-			res.Finalize()
-			if res.State != "HALT" {
-				cause := fmt.Errorf("invalid VM state %s due to an error: %s", res.State, res.FaultException)
-				return 0, response.NewRPCError(verificationErr, cause.Error(), cause)
-			}
-			if l := len(res.Stack); l != 1 {
-				cause := fmt.Errorf("result stack length should be equal to 1, got %d", l)
-				return 0, response.NewRPCError(verificationErr, cause.Error(), cause)
-			}
-			isOK, err := res.Stack[0].TryBool()
+			gasConsumed, err := s.chain.VerifyWitness(signer.Account, tx, &tx.Scripts[i], int64(s.config.MaxGasInvoke))
 			if err != nil {
-				cause := fmt.Errorf("resulting stackitem cannot be converted to Boolean: %w", err)
-				return 0, response.NewRPCError(verificationErr, cause.Error(), cause)
+				return 0, response.NewRPCError(fmt.Sprintf("contract verification for signer #%d failed", i), err.Error(), err)
 			}
-			if !isOK {
-				cause := errors.New("`verify` method returned `false` on stack")
-				return 0, response.NewRPCError(verificationErr, cause.Error(), cause)
-			}
-			netFee += res.GasConsumed
+			netFee += gasConsumed
 			size += io.GetVarSize([]byte{}) + // verification script is empty (contract-based witness)
 				io.GetVarSize(tx.Scripts[i].InvocationScript) // invocation script might not be empty (args for `verify`)
 			continue
