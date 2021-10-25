@@ -16,6 +16,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/util/bitfield"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
@@ -2073,7 +2074,13 @@ func CodeGen(info *buildInfo) ([]byte, *DebugInfo, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	return buf, c.emitDebugInfo(buf), nil
+
+	methods := bitfield.New(len(buf))
+	di := c.emitDebugInfo(buf)
+	for i := range di.Methods {
+		methods.Set(int(di.Methods[i].Range.Start))
+	}
+	return buf, di, vm.IsScriptCorrect(buf, methods)
 }
 
 func (c *codegen) resolveFuncDecls(f *ast.File, pkg *types.Package) {
