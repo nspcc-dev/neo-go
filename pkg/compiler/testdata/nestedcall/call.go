@@ -28,3 +28,16 @@ func y() int {
 	tmp := 10
 	return tmp
 }
+
+// Token is stateless token.
+type Token struct{}
+
+// Method is a method.
+func (t Token) Method() int {
+	return t.Inner()
+}
+
+// Inner is a function to be called in Method.
+func (t Token) Inner() int {
+	return 2231
+}

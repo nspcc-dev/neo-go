@@ -16,6 +16,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/util/bitfield"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
@@ -2073,7 +2074,13 @@ func CodeGen(info *buildInfo) ([]byte, *DebugInfo, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	return buf, c.emitDebugInfo(buf), nil
+
+	methods := bitfield.New(len(buf))
+	di := c.emitDebugInfo(buf)
+	for i := range di.Methods {
+		methods.Set(int(di.Methods[i].Range.Start))
+	}
+	return buf, di, vm.IsScriptCorrect(buf, methods)
 }
 
 func (c *codegen) resolveFuncDecls(f *ast.File, pkg *types.Package) {
@@ -2167,6 +2174,9 @@ func (c *codegen) replaceLabelWithOffset(ip int, arg []byte) (int, error) {
 	index := binary.LittleEndian.Uint16(arg)
 	if int(index) > len(c.l) {
 		return 0, fmt.Errorf("unexpected label number: %d (max %d)", index, len(c.l))
+	}
+	if c.l[index] < 0 {
+		return 0, fmt.Errorf("invalid label target: %d at %d", c.l[index], ip)
 	}
 	offset := c.l[index] - ip
 	if offset > math.MaxInt32 || offset < math.MinInt32 {
