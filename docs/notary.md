@@ -35,7 +35,9 @@ for this service. `FEE` is set to be 0.1 GAS.
 We'll also use `NKeys` definition as the number of keys that participate in the
 process of signature collection. This is the number of keys that could potentially
 sign the transaction, for transactions lacking appropriate witnesses that would be
-the number of witnesses, for "M out of N" multisignature scripts that's N.
+the number of witnesses, for "M out of N" multisignature scripts that's N, for
+combination of K standard signature witnesses and L multisignature "M out of N"
+witnesses that's K+N*L.
 
 ### Transaction attributes
 
@@ -107,11 +109,13 @@ This payload has two incomplete transactions inside:
   than the current chain height and it must have `Conflicts` attribute with the
   hash of the main transaction. It at the same time must have `Notary assisted`
   attribute with a count of zero.
-- *Main tx*. This is the one that actually needs to be completed, it either
-  doesn't have all witnesses attached (in this case none of them can be
-  multisignature), or it only has a partial multisignature, currenlty only one of
-  the two is allowed. This transaction must have `Notary assisted` attribute with
-  a count of `NKeys` (and Notary contract as one of the signers).
+- *Main tx*. This is the one that actually needs to be completed, it:
+  1. *either* doesn't have all witnesses attached
+  2. *or* it only has a partial multisignature
+  3. *or* have not all witnesses attached and some of the rest are partial multisignature
+  
+  This transaction must have `Notary assisted` attribute with a count of `NKeys`
+  (and Notary contract as one of the signers).
 
 See the [Notary request submission guide](#2-request-submission) to learn how to
 construct and send the payload.
@@ -297,10 +301,8 @@ the steps to create a signature request:
    * First signer is the one who pays transaction fees.
    * Each signer is either multisignature or standard signature or a contract
      signer.
-   * Multisignature and signature signers can't be combined.
+   * Multisignature and signature signers can be combined.
    * Contract signer can be combined with any other signer.
-   * Maximum number of multisignature signers is 1.
-   * Maximum number of signature or contract signers is unlimited.
 
    Include Notary native contract in the list of signers with the following
    constraints:
@@ -374,7 +376,9 @@ the steps to create a signature request:
 9. Construct the list of main transactions witnesses (that will be `Scripts`
    transaction field). Use the following rules:
    - Contract-based witness should have `Invocation` script that pushes arguments
-     on stack (it may be empty) and empty `Verification` script.
+     on stack (it may be empty) and empty `Verification` script. If multiple notary
+     requests provide different `Invocation` scripts then the first one will be used
+     to construct contract-based witness.
    - **Notary contract witness** (which is also a contract-based witness) should
      have empty `Verification` script. `Invocation` script should be of the form
      [opcode.PUSHDATA1, 64, make([]byte, 64)...], i.e. to be a placeholder for
@@ -388,8 +392,7 @@ the steps to create a signature request:
      if `Invocation` script is to be collected from other notary requests.
      `Invocation` script either should push on stack signature bytes (one
      signature at max per one resuest) **or** (in case if there's no ability to
-     provide proper signature) **should be of the form [opcode.PUSHDATA1, 64,
-     make([]byte, 64)...]**, i.e. to be a placeholder for signature.
+     provide proper signature) **should be empty**.
 10. Define lifetime for the fallback transaction. Let the `fallbackValidFor` be
     the lifetime. Let `N` be the current chain's height and `VUB` be
     `ValidUntilBlock` value estimated at the step 3. Then notary node is trying to

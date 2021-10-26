@@ -4,10 +4,10 @@ package notary
 type RequestType byte
 
 const (
-	// Unknown represents unknown request type which means that main tx witnesses are invalid.
-	Unknown RequestType = 0x00
 	// Signature represents standard single signature request type.
 	Signature RequestType = 0x01
 	// MultiSignature represents m out of n multisignature request type.
 	MultiSignature RequestType = 0x02
+	// Contract represents contract witness type.
+	Contract RequestType = 0x03
 )

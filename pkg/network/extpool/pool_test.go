@@ -134,11 +134,11 @@ func newTestChain() *testChain {
 		},
 	}
 }
-func (c *testChain) VerifyWitness(u util.Uint160, _ hash.Hashable, _ *transaction.Witness, _ int64) error {
+func (c *testChain) VerifyWitness(u util.Uint160, _ hash.Hashable, _ *transaction.Witness, _ int64) (int64, error) {
 	if !c.verifyWitness(u) {
-		return errVerification
+		return 0, errVerification
 	}
-	return nil
+	return 0, nil
 }
 func (c *testChain) IsExtensibleAllowed(u util.Uint160) bool {
 	return c.isAllowed(u)

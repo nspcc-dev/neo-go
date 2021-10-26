@@ -2116,12 +2116,12 @@ func (bc *Blockchain) InitVerificationVM(v *vm.VM, getContract func(util.Uint160
 	return nil
 }
 
-// VerifyWitness checks that w is a correct witness for c signed by h.
-func (bc *Blockchain) VerifyWitness(h util.Uint160, c hash.Hashable, w *transaction.Witness, gas int64) error {
+// VerifyWitness checks that w is a correct witness for c signed by h. It returns
+// the amount of GAS consumed during verification and an error.
+func (bc *Blockchain) VerifyWitness(h util.Uint160, c hash.Hashable, w *transaction.Witness, gas int64) (int64, error) {
 	ic := bc.newInteropContext(trigger.Verification, bc.dao, nil, nil)
 	ic.Container = c
-	_, err := bc.verifyHashAgainstScript(h, w, ic, gas)
-	return err
+	return bc.verifyHashAgainstScript(h, w, ic, gas)
 }
 
 // verifyHashAgainstScript verifies given hash against the given witness and returns the amount of GAS consumed.
@@ -2197,7 +2197,8 @@ func (bc *Blockchain) verifyHeaderWitnesses(currHeader, prevHeader *block.Header
 	} else {
 		hash = prevHeader.NextConsensus
 	}
-	return bc.VerifyWitness(hash, currHeader, &currHeader.Script, HeaderVerificationGasLimit)
+	_, err := bc.VerifyWitness(hash, currHeader, &currHeader.Script, HeaderVerificationGasLimit)
+	return err
 }
 
 // GoverningTokenHash returns the governing token (NEO) native contract hash.

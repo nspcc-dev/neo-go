@@ -37,7 +37,7 @@ type FakeChain struct {
 	blocks                   map[util.Uint256]*block.Block
 	hdrHashes                map[uint32]util.Uint256
 	txs                      map[util.Uint256]*transaction.Transaction
-	VerifyWitnessF           func() error
+	VerifyWitnessF           func() (int64, error)
 	MaxVerificationGAS       int64
 	NotaryContractScriptHash util.Uint160
 	NotaryDepositExpiration  uint32
@@ -430,7 +430,7 @@ func (chain *FakeChain) VerifyTx(*transaction.Transaction) error {
 }
 
 // VerifyWitness implements Blockchainer interface.
-func (chain *FakeChain) VerifyWitness(util.Uint160, hash.Hashable, *transaction.Witness, int64) error {
+func (chain *FakeChain) VerifyWitness(util.Uint160, hash.Hashable, *transaction.Witness, int64) (int64, error) {
 	if chain.VerifyWitnessF != nil {
 		return chain.VerifyWitnessF()
 	}

@@ -69,7 +69,7 @@ func (p *Pool) Add(e *payload.Extensible) (bool, error) {
 }
 
 func (p *Pool) verify(e *payload.Extensible) (bool, error) {
-	if err := p.chain.VerifyWitness(e.Sender, e, &e.Witness, extensibleVerifyMaxGAS); err != nil {
+	if _, err := p.chain.VerifyWitness(e.Sender, e, &e.Witness, extensibleVerifyMaxGAS); err != nil {
 		return false, err
 	}
 	h := p.chain.BlockHeight()
@@ -118,7 +118,7 @@ func (p *Pool) RemoveStale(index uint32) {
 				lst.Remove(old)
 				continue
 			}
-			if err := p.chain.VerifyWitness(e.Sender, e, &e.Witness, extensibleVerifyMaxGAS); err != nil {
+			if _, err := p.chain.VerifyWitness(e.Sender, e, &e.Witness, extensibleVerifyMaxGAS); err != nil {
 				delete(p.verified, h)
 				lst.Remove(old)
 				continue

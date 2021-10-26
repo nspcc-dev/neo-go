@@ -262,9 +262,11 @@ func TestPayload_Sign(t *testing.T) {
 	p := randomPayload(t, prepareRequestType)
 	h := priv.PublicKey().GetScriptHash()
 	bc := newTestChain(t, false)
-	require.Error(t, bc.VerifyWitness(h, p, &p.Witness, payloadGasLimit))
+	_, err = bc.VerifyWitness(h, p, &p.Witness, payloadGasLimit)
+	require.Error(t, err)
 	require.NoError(t, p.Sign(priv))
-	require.NoError(t, bc.VerifyWitness(h, p, &p.Witness, payloadGasLimit))
+	_, err = bc.VerifyWitness(h, p, &p.Witness, payloadGasLimit)
+	require.NoError(t, err)
 }
 
 func TestMessageType_String(t *testing.T) {

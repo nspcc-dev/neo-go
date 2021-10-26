@@ -73,7 +73,7 @@ type Blockchainer interface {
 	SubscribeForNotifications(ch chan<- *subscriptions.NotificationEvent)
 	SubscribeForTransactions(ch chan<- *transaction.Transaction)
 	VerifyTx(*transaction.Transaction) error
-	VerifyWitness(util.Uint160, hash.Hashable, *transaction.Witness, int64) error
+	VerifyWitness(util.Uint160, hash.Hashable, *transaction.Witness, int64) (int64, error)
 	GetMemPool() *mempool.Pool
 	UnsubscribeFromBlocks(ch chan<- *block.Block)
 	UnsubscribeFromExecutions(ch chan<- *state.AppExecResult)

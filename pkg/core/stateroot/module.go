@@ -238,5 +238,6 @@ func (s *Module) verifyWitness(r *state.MPTRoot) error {
 	s.mtx.Lock()
 	h := s.getKeyCacheForHeight(r.Index).validatorsHash
 	s.mtx.Unlock()
-	return s.bc.VerifyWitness(h, r, &r.Witness[0], maxVerificationGAS)
+	_, err := s.bc.VerifyWitness(h, r, &r.Witness[0], maxVerificationGAS)
+	return err
 }

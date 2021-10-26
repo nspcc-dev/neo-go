@@ -432,11 +432,11 @@ func TestConsensus(t *testing.T) {
 		return NewMessage(CMDExtensible, pl)
 	}
 
-	s.chain.(*fakechain.FakeChain).VerifyWitnessF = func() error { return errors.New("invalid") }
+	s.chain.(*fakechain.FakeChain).VerifyWitnessF = func() (int64, error) { return 0, errors.New("invalid") }
 	msg := newConsensusMessage(0, s.chain.BlockHeight()+1)
 	require.Error(t, s.handleMessage(p, msg))
 
-	s.chain.(*fakechain.FakeChain).VerifyWitnessF = func() error { return nil }
+	s.chain.(*fakechain.FakeChain).VerifyWitnessF = func() (int64, error) { return 0, nil }
 	require.NoError(t, s.handleMessage(p, msg))
 	require.Contains(t, s.consensus.(*fakeConsensus).payloads, msg.Payload.(*payload.Extensible))
 
@@ -726,7 +726,7 @@ func TestInv(t *testing.T) {
 	})
 	t.Run("extensible", func(t *testing.T) {
 		ep := payload.NewExtensible()
-		s.chain.(*fakechain.FakeChain).VerifyWitnessF = func() error { return nil }
+		s.chain.(*fakechain.FakeChain).VerifyWitnessF = func() (int64, error) { return 0, nil }
 		ep.ValidBlockEnd = s.chain.(*fakechain.FakeChain).BlockHeight() + 1
 		ok, err := s.extensiblePool.Add(ep)
 		require.NoError(t, err)
@@ -1033,12 +1033,12 @@ func TestVerifyNotaryRequest(t *testing.T) {
 	}
 
 	t.Run("bad payload witness", func(t *testing.T) {
-		bc.VerifyWitnessF = func() error { return errors.New("bad witness") }
+		bc.VerifyWitnessF = func() (int64, error) { return 0, errors.New("bad witness") }
 		require.Error(t, verifyNotaryRequest(bc, nil, newNotaryRequest()))
 	})
 
 	t.Run("bad fallback sender", func(t *testing.T) {
-		bc.VerifyWitnessF = func() error { return nil }
+		bc.VerifyWitnessF = func() (int64, error) { return 0, nil }
 		r := newNotaryRequest()
 		r.FallbackTransaction.Signers[0] = transaction.Signer{Account: util.Uint160{7, 8, 9}}
 		require.Error(t, verifyNotaryRequest(bc, nil, r))

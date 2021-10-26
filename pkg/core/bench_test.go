@@ -19,6 +19,6 @@ func BenchmarkVerifyWitness(t *testing.B) {
 
 	t.ResetTimer()
 	for n := 0; n < t.N; n++ {
-		_ = bc.VerifyWitness(tx.Signers[0].Account, tx, &tx.Scripts[0], 100000000)
+		_, _ = bc.VerifyWitness(tx.Signers[0].Account, tx, &tx.Scripts[0], 100000000)
 	}
 }
