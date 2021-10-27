@@ -156,9 +156,6 @@ func (o *Oracle) PostPersist(ic *interop.Context) error {
 		o.requestPriceChanged.Store(false)
 	}
 
-	var nodes keys.PublicKeys
-	var reward []big.Int
-	single := big.NewInt(p)
 	var removedIDs []uint64
 
 	orc, _ := o.Module.Load().(services.Oracle)
@@ -197,22 +194,6 @@ func (o *Oracle) PostPersist(ic *interop.Context) error {
 		if err != nil {
 			return err
 		}
-
-		if nodes == nil {
-			nodes, err = o.GetOracleNodes(ic.DAO)
-			if err != nil {
-				return err
-			}
-			reward = make([]big.Int, len(nodes))
-		}
-
-		if len(reward) > 0 {
-			index := resp.ID % uint64(len(nodes))
-			reward[index].Add(&reward[index], single)
-		}
-	}
-	for i := range reward {
-		o.GAS.mint(ic, nodes[i].GetScriptHash(), &reward[i], false)
 	}
 
 	if len(removedIDs) != 0 && orc != nil {
@@ -317,9 +298,6 @@ func (o *Oracle) request(ic *interop.Context, args []stackitem.Item) stackitem.I
 	if err != nil {
 		panic(err)
 	}
-	if !ic.VM.AddGas(o.getPriceInternal(ic.DAO)) {
-		panic("insufficient gas")
-	}
 	if err := o.RequestInternal(ic, url, filter, cb, userData, gas); err != nil {
 		panic(err)
 	}
@@ -331,18 +309,14 @@ func (o *Oracle) RequestInternal(ic *interop.Context, url string, filter *string
 	if len(url) > maxURLLength || (filter != nil && len(*filter) > maxFilterLength) || len(cb) > maxCallbackLength || !gas.IsInt64() {
 		return ErrBigArgument
 	}
-	if gas.Int64() < MinimumResponseGas {
+	if gas.Int64() < MinimumResponseGas { // TODO: this constraint is still in the C#, although we don't use this GAS
 		return ErrLowResponseGas
 	}
 	if strings.HasPrefix(cb, "_") {
 		return errors.New("disallowed callback method (starts with '_')")
 	}
 
-	if !ic.VM.AddGas(gas.Int64()) {
-		return ErrNotEnoughGas
-	}
 	callingHash := ic.VM.GetCallingScriptHash()
-	o.GAS.mint(ic, o.Hash, gas, false)
 	si := ic.DAO.GetStorageItem(o.ID, prefixRequestID)
 	itemID := bigint.FromBytes(si)
 	id := itemID.Uint64()

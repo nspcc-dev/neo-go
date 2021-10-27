@@ -89,7 +89,7 @@ func TestFeePerByte(t *testing.T) {
 		require.Equal(t, 1000, int(n))
 	})
 
-	testGetSet(t, chain, chain.contracts.Policy.Hash, "FeePerByte", 1000, 0, 100_000_000)
+	testGetSet(t, chain, chain.contracts.Policy.Hash, "FeePerByte", 0, 0, 100_000_000)
 }
 
 func TestExecFeeFactor(t *testing.T) {

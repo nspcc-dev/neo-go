@@ -872,7 +872,6 @@ func (c *Client) AddNetworkFee(tx *transaction.Transaction, extraFee int64, accs
 			if r == 0 {
 				return fmt.Errorf("signer #%d: `verify` returned `false`", i)
 			}
-			tx.NetworkFee += res.GasConsumed
 			size += io.GetVarSize([]byte{}) * 2 // both scripts are empty
 			continue
 		}
@@ -884,15 +883,9 @@ func (c *Client) AddNetworkFee(tx *transaction.Transaction, extraFee int64, accs
 				return fmt.Errorf("can't get `ExecFeeFactor`: %w", err)
 			}
 		}
-		netFee, sizeDelta := fee.Calculate(ef, accs[i].Contract.Script)
-		tx.NetworkFee += netFee
+		_, sizeDelta := fee.Calculate(ef, accs[i].Contract.Script)
 		size += sizeDelta
 	}
-	fee, err := c.GetFeePerByte()
-	if err != nil {
-		return err
-	}
-	tx.NetworkFee += int64(size)*fee + extraFee
 	return nil
 }
 

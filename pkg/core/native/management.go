@@ -42,7 +42,7 @@ const (
 
 	prefixContract = 8
 
-	defaultMinimumDeploymentFee     = 10_00000000
+	defaultMinimumDeploymentFee     = 0
 	contractDeployNotificationName  = "Deploy"
 	contractUpdateNotificationName  = "Update"
 	contractDestroyNotificationName = "Destroy"
@@ -195,16 +195,6 @@ func (m *Management) getNefAndManifestFromItems(ic *interop.Context, args []stac
 		return nil, nil, fmt.Errorf("invalid manifest: %w", err)
 	}
 
-	gas := ic.Chain.GetPolicer().GetStoragePrice() * int64(len(nefBytes)+len(manifestBytes))
-	if isDeploy {
-		fee := m.GetMinimumDeploymentFee(ic.DAO)
-		if fee > gas {
-			gas = fee
-		}
-	}
-	if !ic.VM.AddGas(gas) {
-		return nil, nil, errGasLimitExceeded
-	}
 	var resManifest *manifest.Manifest
 	var resNef *nef.File
 	if nefBytes != nil {

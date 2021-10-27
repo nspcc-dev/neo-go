@@ -154,13 +154,6 @@ func (n *Notary) OnPersist(ic *interop.Context) error {
 			}
 		}
 	}
-	if nFees == 0 {
-		return nil
-	}
-	singleReward := calculateNotaryReward(nFees, len(notaries))
-	for _, notary := range notaries {
-		n.GAS.mint(ic, notary.GetScriptHash(), singleReward, false)
-	}
 	return nil
 }
 

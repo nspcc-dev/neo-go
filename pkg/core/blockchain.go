@@ -1818,18 +1818,6 @@ func (bc *Blockchain) verifyAndPoolTx(t *transaction.Transaction, pool *mempool.
 	if size > transaction.MaxTransactionSize {
 		return fmt.Errorf("%w: (%d > MaxTransactionSize %d)", ErrTxTooBig, size, transaction.MaxTransactionSize)
 	}
-	needNetworkFee := int64(size) * bc.FeePerByte()
-	if bc.P2PSigExtensionsEnabled() {
-		attrs := t.GetAttributes(transaction.NotaryAssistedT)
-		if len(attrs) != 0 {
-			na := attrs[0].Value.(*transaction.NotaryAssisted)
-			needNetworkFee += (int64(na.NKeys) + 1) * transaction.NotaryServiceFeePerKey
-		}
-	}
-	netFee := t.NetworkFee - needNetworkFee
-	if netFee < 0 {
-		return fmt.Errorf("%w: net fee is %v, need %v", ErrTxSmallNetworkFee, t.NetworkFee, needNetworkFee)
-	}
 	// check that current tx wasn't included in the conflicts attributes of some other transaction which is already in the chain
 	if err := bc.dao.HasTransaction(t.Hash()); err != nil {
 		switch {
@@ -2129,15 +2117,10 @@ func (bc *Blockchain) VerifyWitness(h util.Uint160, c hash.Hashable, w *transact
 
 // verifyHashAgainstScript verifies given hash against the given witness and returns the amount of GAS consumed.
 func (bc *Blockchain) verifyHashAgainstScript(hash util.Uint160, witness *transaction.Witness, interopCtx *interop.Context, gas int64) (int64, error) {
-	gasPolicy := bc.contracts.Policy.GetMaxVerificationGas(interopCtx.DAO)
-	if gas > gasPolicy {
-		gas = gasPolicy
-	}
-
 	vm := interopCtx.SpawnVM()
 	vm.SetPriceGetter(interopCtx.GetPrice)
 	vm.LoadToken = contract.LoadToken(interopCtx)
-	vm.GasLimit = gas
+	vm.GasLimit = -1
 	if err := bc.InitVerificationVM(vm, interopCtx.GetContract, hash, witness); err != nil {
 		return 0, err
 	}
@@ -2172,21 +2155,12 @@ func (bc *Blockchain) verifyHashAgainstScript(hash util.Uint160, witness *transa
 // Golang implementation of VerifyWitnesses method in C# (https://github.com/neo-project/neo/blob/master/neo/SmartContract/Helper.cs#L87).
 func (bc *Blockchain) verifyTxWitnesses(t *transaction.Transaction, block *block.Block, isPartialTx bool) error {
 	interopCtx := bc.newInteropContext(trigger.Verification, bc.dao, block, t)
-	gasLimit := t.NetworkFee - int64(t.Size())*bc.FeePerByte()
-	if bc.P2PSigExtensionsEnabled() {
-		attrs := t.GetAttributes(transaction.NotaryAssistedT)
-		if len(attrs) != 0 {
-			na := attrs[0].Value.(*transaction.NotaryAssisted)
-			gasLimit -= (int64(na.NKeys) + 1) * transaction.NotaryServiceFeePerKey
-		}
-	}
 	for i := range t.Signers {
-		gasConsumed, err := bc.verifyHashAgainstScript(t.Signers[i].Account, &t.Scripts[i], interopCtx, gasLimit)
+		_, err := bc.verifyHashAgainstScript(t.Signers[i].Account, &t.Scripts[i], interopCtx, -1)
 		if err != nil &&
 			!(i == 0 && isPartialTx && errors.Is(err, ErrInvalidSignature)) { // it's OK for partially-filled transaction with dummy first witness.
 			return fmt.Errorf("witness #%d: %w", i, err)
 		}
-		gasLimit -= gasConsumed
 	}
 
 	return nil

@@ -100,13 +100,6 @@ func (g *GAS) OnPersist(ic *interop.Context) error {
 		absAmount := big.NewInt(tx.SystemFee + tx.NetworkFee)
 		g.burn(ic, tx.Sender(), absAmount)
 	}
-	validators := g.NEO.GetNextBlockValidatorsInternal()
-	primary := validators[ic.Block.PrimaryIndex].GetScriptHash()
-	var netFee int64
-	for _, tx := range ic.Block.Transactions {
-		netFee += tx.NetworkFee
-	}
-	g.mint(ic, primary, big.NewInt(int64(netFee)), false)
 	return nil
 }
 

@@ -600,8 +600,7 @@ func (s *Server) calculateNetworkFee(reqParams request.Params) (interface{}, *re
 	}
 	size := len(hashablePart) + io.GetVarSize(len(tx.Signers))
 	var (
-		ef     int64
-		netFee int64
+		ef int64
 	)
 	for i, signer := range tx.Signers {
 		var verificationScript []byte
@@ -641,7 +640,6 @@ func (s *Server) calculateNetworkFee(reqParams request.Params) (interface{}, *re
 				cause := errors.New("`verify` method returned `false` on stack")
 				return 0, response.NewRPCError(verificationErr, cause.Error(), cause)
 			}
-			netFee += res.GasConsumed
 			size += io.GetVarSize([]byte{}) + // verification script is empty (contract-based witness)
 				io.GetVarSize(tx.Scripts[i].InvocationScript) // invocation script might not be empty (args for `verify`)
 			continue
@@ -650,13 +648,10 @@ func (s *Server) calculateNetworkFee(reqParams request.Params) (interface{}, *re
 		if ef == 0 {
 			ef = s.chain.GetPolicer().GetBaseExecFee()
 		}
-		fee, sizeDelta := fee.Calculate(ef, verificationScript)
-		netFee += fee
+		_, sizeDelta := fee.Calculate(ef, verificationScript)
 		size += sizeDelta
 	}
-	fee := s.chain.GetPolicer().FeePerByte()
-	netFee += int64(size) * fee
-	return result.NetworkFee{Value: netFee}, nil
+	return result.NetworkFee{Value: 0}, nil
 }
 
 // getApplicationLog returns the contract log based on the specified txid or blockid.

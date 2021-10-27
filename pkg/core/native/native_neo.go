@@ -313,11 +313,7 @@ func (n *NEO) OnPersist(ic *interop.Context) error {
 // PostPersist implements Contract interface.
 func (n *NEO) PostPersist(ic *interop.Context) error {
 	gas := n.GetGASPerBlock(ic.DAO, ic.Block.Index)
-	pubs := n.GetCommitteeMembers()
 	committeeSize := len(ic.Chain.GetConfig().StandbyCommittee)
-	index := int(ic.Block.Index) % committeeSize
-	committeeReward := new(big.Int).Mul(gas, big.NewInt(committeeRewardRatio))
-	n.GAS.mint(ic, pubs[index].GetScriptHash(), committeeReward.Div(committeeReward, big.NewInt(100)), false)
 
 	if ShouldUpdateCommittee(ic.Block.Index, ic.Chain) {
 		var voterReward = big.NewInt(voterRewardRatio)
@@ -437,21 +433,16 @@ func (n *NEO) distributeGas(ic *interop.Context, h util.Uint160, acc *state.NEOB
 	if ic.Block == nil || ic.Block.Index == 0 || ic.Block.Index == acc.BalanceHeight {
 		return nil
 	}
-	gen, err := n.calculateBonus(ic.DAO, acc.VoteTo, &acc.Balance, acc.BalanceHeight, ic.Block.Index)
-	if err != nil {
-		return err
-	}
 	acc.BalanceHeight = ic.Block.Index
 
 	// Must store acc before GAS distribution to fix acc's BalanceHeight value in the storage for
 	// further acc's queries from `onNEP17Payment` if so, see https://github.com/nspcc-dev/neo-go/pull/2181.
 	key := makeAccountKey(h)
-	err = ic.DAO.PutStorageItem(n.ID, key, acc.Bytes())
+	err := ic.DAO.PutStorageItem(n.ID, key, acc.Bytes())
 	if err != nil {
 		return fmt.Errorf("failed to store acc before gas distribution: %w", err)
 	}
 
-	n.GAS.mint(ic, h, gen, true)
 	return nil
 }
 
@@ -689,9 +680,6 @@ func (n *NEO) registerCandidate(ic *interop.Context, args []stackitem.Item) stac
 		panic(err)
 	} else if !ok {
 		return stackitem.NewBool(false)
-	}
-	if !ic.VM.AddGas(n.getRegisterPriceInternal(ic.DAO)) {
-		panic("insufficient gas")
 	}
 	err = n.RegisterCandidateInternal(ic, pub)
 	return stackitem.NewBool(err == nil)

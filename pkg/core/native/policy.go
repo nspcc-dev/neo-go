@@ -22,7 +22,7 @@ const (
 	policyContractID = -7
 
 	defaultExecFeeFactor      = interop.DefaultBaseExecFee
-	defaultFeePerByte         = 1000
+	defaultFeePerByte         = 1000 // TODO: it is still in the storage, but GetFeePerByte() returns 0 in C#.
 	defaultMaxVerificationGas = 1_50000000
 	// DefaultStoragePrice is the price to pay for 1 byte of storage.
 	DefaultStoragePrice = 100000
@@ -189,6 +189,7 @@ func (p *Policy) getFeePerByte(ic *interop.Context, _ []stackitem.Item) stackite
 
 // GetFeePerByteInternal returns required transaction's fee per byte.
 func (p *Policy) GetFeePerByteInternal(dao dao.DAO) int64 {
+	return 0
 	p.lock.RLock()
 	defer p.lock.RUnlock()
 	if p.isValid {
@@ -267,6 +268,7 @@ func (p *Policy) getStoragePrice(ic *interop.Context, _ []stackitem.Item) stacki
 
 // GetStoragePriceInternal returns current execution fee factor.
 func (p *Policy) GetStoragePriceInternal(d dao.DAO) int64 {
+	// TODO: this method still returns non-zero value (unlike getFeePerByte)
 	p.lock.RLock()
 	defer p.lock.RUnlock()
 	if p.isValid {

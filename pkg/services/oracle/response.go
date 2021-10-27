@@ -119,7 +119,7 @@ func (o *Oracle) CreateResponseTx(gasForResponse int64, vub uint32, resp *transa
 	tx.NetworkFee += netFee
 	size += sizeDelta
 
-	currNetFee := tx.NetworkFee + int64(size)*o.Chain.FeePerByte()
+	currNetFee := tx.NetworkFee + int64(size)*o.Chain.FeePerByte() // TODO: this logic remains the same in C#
 	if currNetFee > gasForResponse {
 		attrSize := io.GetVarSize(tx.Attributes)
 		resp.Code = transaction.InsufficientFunds

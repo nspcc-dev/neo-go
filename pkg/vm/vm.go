@@ -535,13 +535,6 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		}
 	}()
 
-	if v.getPrice != nil && ctx.ip < len(ctx.prog) {
-		v.gasConsumed += v.getPrice(op, parameter)
-		if v.GasLimit >= 0 && v.gasConsumed > v.GasLimit {
-			panic("gas limit is exceeded")
-		}
-	}
-
 	if op <= opcode.PUSHINT256 {
 		v.estack.PushItem(stackitem.NewBigInteger(bigint.FromBytes(parameter)))
 		return

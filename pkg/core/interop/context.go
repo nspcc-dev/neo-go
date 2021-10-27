@@ -29,7 +29,7 @@ import (
 
 const (
 	// DefaultBaseExecFee specifies default multiplier for opcode and syscall prices.
-	DefaultBaseExecFee = 30
+	DefaultBaseExecFee = 30 // TODO: still 30 in C#, but it's unused or multiplied by 0, so keep it as is.
 )
 
 // Context represents context in which interops are executed.
@@ -270,9 +270,6 @@ func (ic *Context) SyscallHandler(_ *vm.VM, id uint32) error {
 	cf := ic.VM.Context().GetCallFlags()
 	if !cf.Has(f.RequiredFlags) {
 		return fmt.Errorf("missing call flags: %05b vs %05b", cf, f.RequiredFlags)
-	}
-	if !ic.VM.AddGas(f.Price * ic.BaseExecFee()) {
-		return errors.New("insufficient amount of gas")
 	}
 	return f.Func(ic)
 }

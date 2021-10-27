@@ -115,20 +115,6 @@ func putWithContext(ic *interop.Context, stc *StorageContext, key []byte, value 
 	if stc.ReadOnly {
 		return errors.New("StorageContext is read only")
 	}
-	si := ic.DAO.GetStorageItem(stc.ID, key)
-	sizeInc := len(value)
-	if si == nil {
-		sizeInc = len(key) + len(value)
-	} else if len(value) != 0 {
-		if len(value) <= len(si) {
-			sizeInc = (len(value)-1)/4 + 1
-		} else if len(si) != 0 {
-			sizeInc = (len(si)-1)/4 + 1 + len(value) - len(si)
-		}
-	}
-	if !ic.VM.AddGas(int64(sizeInc) * ic.Chain.GetPolicer().GetStoragePrice()) {
-		return errGasLimitExceeded
-	}
 	return ic.DAO.PutStorageItem(stc.ID, key, value)
 }
 

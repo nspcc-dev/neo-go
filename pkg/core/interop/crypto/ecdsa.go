@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/nspcc-dev/neo-go/pkg/core/fee"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
@@ -19,9 +18,6 @@ func ECDSASecp256r1CheckMultisig(ic *interop.Context) error {
 	pkeys, err := ic.VM.Estack().PopSigElements()
 	if err != nil {
 		return fmt.Errorf("wrong parameters: %w", err)
-	}
-	if !ic.VM.AddGas(ic.BaseExecFee() * fee.ECDSAVerifyPrice * int64(len(pkeys))) {
-		return errors.New("gas limit exceeded")
 	}
 	sigs, err := ic.VM.Estack().PopSigElements()
 	if err != nil {
