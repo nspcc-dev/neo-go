@@ -329,6 +329,8 @@ func TestTrie_PutBatch(t *testing.T) {
 
 	ps = pairs{[2][]byte{{4}, nil}}
 	testPut(t, ps, tr1, tr2)
+
+	testPut(t, pairs{}, tr1, tr2)
 }
 
 var _ = printNode

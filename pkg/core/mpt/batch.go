@@ -43,6 +43,9 @@ func (b *Batch) Add(key []byte, value []byte) {
 // and won't strip the resulting branch node.
 // However it is used mostly after the block processing to update MPT and error is not expected.
 func (t *Trie) PutBatch(b Batch) (int, error) {
+	if len(b.kv) == 0 {
+		return 0, nil
+	}
 	r, n, err := t.putBatch(b.kv)
 	t.root = r
 	return n, err
