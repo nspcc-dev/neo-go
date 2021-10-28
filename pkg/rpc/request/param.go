@@ -23,6 +23,7 @@ type (
 	// the client.
 	Param struct {
 		json.RawMessage
+		cache interface{}
 	}
 
 	// FuncParam represents a function argument parameter used in the
@@ -86,12 +87,18 @@ func (p *Param) GetStringStrict() (string, error) {
 	if p.IsNull() {
 		return "", errNotAString
 	}
-	var s string
-	err := json.Unmarshal(p.RawMessage, &s)
-	if err != nil {
-		return "", errNotAString
+	if p.cache == nil {
+		var s string
+		err := json.Unmarshal(p.RawMessage, &s)
+		if err != nil {
+			return "", errNotAString
+		}
+		p.cache = s
 	}
-	return s, nil
+	if s, ok := p.cache.(string); ok {
+		return s, nil
+	}
+	return "", errNotAString
 }
 
 // GetString returns string value of the parameter or tries to cast parameter to a string value.
@@ -102,25 +109,40 @@ func (p *Param) GetString() (string, error) {
 	if p.IsNull() {
 		return "", errNotAString
 	}
-	var s string
-	err := json.Unmarshal(p.RawMessage, &s)
-	if err == nil {
-		return s, nil
+	if p.cache == nil {
+		var s string
+		err := json.Unmarshal(p.RawMessage, &s)
+		if err == nil {
+			p.cache = s
+		} else {
+			var i int
+			err = json.Unmarshal(p.RawMessage, &i)
+			if err == nil {
+				p.cache = i
+			} else {
+				var b bool
+				err = json.Unmarshal(p.RawMessage, &b)
+				if err == nil {
+					p.cache = b
+				} else {
+					return "", errNotAString
+				}
+			}
+		}
 	}
-	var i int
-	err = json.Unmarshal(p.RawMessage, &i)
-	if err == nil {
-		return strconv.Itoa(i), nil
-	}
-	var b bool
-	err = json.Unmarshal(p.RawMessage, &b)
-	if err == nil {
-		if b {
+	switch t := p.cache.(type) {
+	case string:
+		return t, nil
+	case int:
+		return strconv.Itoa(t), nil
+	case bool:
+		if t {
 			return "true", nil
 		}
 		return "false", nil
+	default:
+		return "", errNotAString
 	}
-	return "", errNotAString
 }
 
 // GetBooleanStrict returns boolean value of the parameter.
@@ -129,9 +151,11 @@ func (p *Param) GetBooleanStrict() (bool, error) {
 		return false, errMissingParameter
 	}
 	if bytes.Equal(p.RawMessage, jsonTrueBytes) {
+		p.cache = true
 		return true, nil
 	}
 	if bytes.Equal(p.RawMessage, jsonFalseBytes) {
+		p.cache = false
 		return false, nil
 	}
 	return false, errNotABool
@@ -146,21 +170,36 @@ func (p *Param) GetBoolean() (bool, error) {
 		return false, errNotABool
 	}
 	var b bool
-	err := json.Unmarshal(p.RawMessage, &b)
-	if err == nil {
-		return b, nil
+	if p.cache == nil {
+		err := json.Unmarshal(p.RawMessage, &b)
+		if err == nil {
+			p.cache = b
+		} else {
+			var s string
+			err = json.Unmarshal(p.RawMessage, &s)
+			if err == nil {
+				p.cache = s
+			} else {
+				var i int
+				err = json.Unmarshal(p.RawMessage, &i)
+				if err == nil {
+					p.cache = i
+				} else {
+					return false, errNotABool
+				}
+			}
+		}
 	}
-	var s string
-	err = json.Unmarshal(p.RawMessage, &s)
-	if err == nil {
-		return s != "", nil
+	switch t := p.cache.(type) {
+	case bool:
+		return t, nil
+	case string:
+		return t != "", nil
+	case int:
+		return t != 0, nil
+	default:
+		return false, errNotABool
 	}
-	var i int
-	err = json.Unmarshal(p.RawMessage, &i)
-	if err == nil {
-		return i != 0, nil
-	}
-	return false, errNotABool
 }
 
 // GetIntStrict returns int value of the parameter if the parameter is integer.
@@ -171,12 +210,18 @@ func (p *Param) GetIntStrict() (int, error) {
 	if p.IsNull() {
 		return 0, errNotAnInt
 	}
-	var i int
-	err := json.Unmarshal(p.RawMessage, &i)
-	if err != nil {
-		return i, errNotAnInt
+	if p.cache == nil {
+		var i int
+		err := json.Unmarshal(p.RawMessage, &i)
+		if err != nil {
+			return i, errNotAnInt
+		}
+		p.cache = i
 	}
-	return i, nil
+	if i, ok := p.cache.(int); ok {
+		return i, nil
+	}
+	return 0, errNotAnInt
 }
 
 // GetInt returns int value of the parameter or tries to cast parameter to an int value.
@@ -187,26 +232,40 @@ func (p *Param) GetInt() (int, error) {
 	if p.IsNull() {
 		return 0, errNotAnInt
 	}
-	var i int
-	err := json.Unmarshal(p.RawMessage, &i)
-	if err == nil {
-		return i, nil
-	}
-	var s string
-	err = json.Unmarshal(p.RawMessage, &s)
-	if err == nil {
-		return strconv.Atoi(s)
-	}
-	var b bool
-	err = json.Unmarshal(p.RawMessage, &b)
-	if err == nil {
-		i = 0
-		if b {
-			i = 1
+	if p.cache == nil {
+		var i int
+		err := json.Unmarshal(p.RawMessage, &i)
+		if err == nil {
+			p.cache = i
+		} else {
+			var s string
+			err = json.Unmarshal(p.RawMessage, &s)
+			if err == nil {
+				p.cache = s
+			} else {
+				var b bool
+				err = json.Unmarshal(p.RawMessage, &b)
+				if err == nil {
+					p.cache = b
+				} else {
+					return 0, errNotAnInt
+				}
+			}
 		}
-		return i, nil
 	}
-	return 0, errNotAnInt
+	switch t := p.cache.(type) {
+	case int:
+		return t, nil
+	case string:
+		return strconv.Atoi(t)
+	case bool:
+		if t {
+			return 1, nil
+		}
+		return 0, nil
+	default:
+		return 0, errNotAnInt
+	}
 }
 
 // GetArray returns a slice of Params stored in the parameter.
@@ -217,12 +276,18 @@ func (p *Param) GetArray() ([]Param, error) {
 	if p.IsNull() {
 		return nil, errNotAnArray
 	}
-	a := []Param{}
-	err := json.Unmarshal(p.RawMessage, &a)
-	if err != nil {
-		return nil, errNotAnArray
+	if p.cache == nil {
+		a := []Param{}
+		err := json.Unmarshal(p.RawMessage, &a)
+		if err != nil {
+			return nil, errNotAnArray
+		}
+		p.cache = a
 	}
-	return a, nil
+	if a, ok := p.cache.([]Param); ok {
+		return a, nil
+	}
+	return nil, errNotAnArray
 }
 
 // GetUint256 returns Uint256 value of the parameter.
@@ -274,6 +339,7 @@ func (p *Param) GetFuncParam() (FuncParam, error) {
 	if p == nil {
 		return FuncParam{}, errMissingParameter
 	}
+	// This one doesn't need to be cached, it's used only once.
 	fp := FuncParam{}
 	err := json.Unmarshal(p.RawMessage, &fp)
 	return fp, err
@@ -303,6 +369,7 @@ func (p *Param) GetBytesBase64() ([]byte, error) {
 
 // GetSignerWithWitness returns SignerWithWitness value of the parameter.
 func (p *Param) GetSignerWithWitness() (SignerWithWitness, error) {
+	// This one doesn't need to be cached, it's used only once.
 	aux := new(signerWithWitnessAux)
 	err := json.Unmarshal(p.RawMessage, aux)
 	if err != nil {
