@@ -335,10 +335,7 @@ func (s *Server) handleIn(req *request.In, sub *subscriber) response.Abstract {
 		return s.packResponse(req, nil, response.NewInvalidParamsError("Problem parsing JSON", fmt.Errorf("invalid version, expected 2.0 got: '%s'", req.JSONRPC)))
 	}
 
-	reqParams, err := req.Params()
-	if err != nil {
-		return s.packResponse(req, nil, response.NewInvalidParamsError("Problem parsing request parameters", err))
-	}
+	reqParams := request.Params(req.RawParams)
 
 	s.log.Debug("processing rpc request",
 		zap.String("method", req.Method),
@@ -349,11 +346,11 @@ func (s *Server) handleIn(req *request.In, sub *subscriber) response.Abstract {
 	resErr = response.NewMethodNotFoundError(fmt.Sprintf("Method '%s' not supported", req.Method), nil)
 	handler, ok := rpcHandlers[req.Method]
 	if ok {
-		res, resErr = handler(s, *reqParams)
+		res, resErr = handler(s, reqParams)
 	} else if sub != nil {
 		handler, ok := rpcWsHandlers[req.Method]
 		if ok {
-			res, resErr = handler(s, *reqParams, sub)
+			res, resErr = handler(s, reqParams, sub)
 		}
 	}
 	return s.packResponse(req, res, resErr)
@@ -468,21 +465,18 @@ func (s *Server) blockHashFromParam(param *request.Param) (util.Uint256, *respon
 		return hash, response.ErrInvalidParams
 	}
 
-	switch param.Type {
-	case request.StringT:
+	if _, err := param.GetStringStrict(); err == nil {
 		var err error
 		hash, err = param.GetUint256()
 		if err != nil {
 			return hash, response.ErrInvalidParams
 		}
-	case request.NumberT:
+	} else {
 		num, err := s.blockHeightFromParam(param)
 		if err != nil {
 			return hash, response.ErrInvalidParams
 		}
 		hash = s.chain.GetHeaderHash(num)
-	default:
-		return hash, response.ErrInvalidParams
 	}
 	return hash, nil
 }
@@ -499,7 +493,7 @@ func (s *Server) getBlock(reqParams request.Params) (interface{}, *response.Erro
 		return nil, response.NewInternalServerError(fmt.Sprintf("Problem locating block with hash: %s", hash), err)
 	}
 
-	if reqParams.Value(1).GetBoolean() {
+	if v, _ := reqParams.Value(1).GetBoolean(); v {
 		return result.NewBlock(block, s.chain), nil
 	}
 	writer := io.NewBufBinWriter()
@@ -508,11 +502,7 @@ func (s *Server) getBlock(reqParams request.Params) (interface{}, *response.Erro
 }
 
 func (s *Server) getBlockHash(reqParams request.Params) (interface{}, *response.Error) {
-	param := reqParams.ValueWithType(0, request.NumberT)
-	if param == nil {
-		return nil, response.ErrInvalidParams
-	}
-	num, err := s.blockHeightFromParam(param)
+	num, err := s.blockHeightFromParam(reqParams.Value(0))
 	if err != nil {
 		return nil, response.ErrInvalidParams
 	}
@@ -557,7 +547,7 @@ func (s *Server) getPeers(_ request.Params) (interface{}, *response.Error) {
 }
 
 func (s *Server) getRawMempool(reqParams request.Params) (interface{}, *response.Error) {
-	verbose := reqParams.Value(0).GetBoolean()
+	verbose, _ := reqParams.Value(0).GetBoolean()
 	mp := s.chain.GetMemPool()
 	hashList := make([]util.Uint256, 0)
 	for _, item := range mp.GetVerifiedTransactions() {
@@ -574,11 +564,15 @@ func (s *Server) getRawMempool(reqParams request.Params) (interface{}, *response
 }
 
 func (s *Server) validateAddress(reqParams request.Params) (interface{}, *response.Error) {
-	param := reqParams.Value(0)
-	if param == nil {
+	param, err := reqParams.Value(0).GetString()
+	if err != nil {
 		return nil, response.ErrInvalidParams
 	}
-	return validateAddress(param.Value), nil
+
+	return result.ValidateAddress{
+		Address: reqParams.Value(0),
+		IsValid: validateAddress(param),
+	}, nil
 }
 
 // calculateNetworkFee calculates network fee for the transaction.
@@ -669,11 +663,11 @@ func (s *Server) getApplicationLog(reqParams request.Params) (interface{}, *resp
 
 	trig := trigger.All
 	if len(reqParams) > 1 {
-		trigString := reqParams.ValueWithType(1, request.StringT)
-		if trigString == nil {
+		trigString, err := reqParams.Value(1).GetString()
+		if err != nil {
 			return nil, response.ErrInvalidParams
 		}
-		trig, err = trigger.FromString(trigString.String())
+		trig, err = trigger.FromString(trigString)
 		if err != nil {
 			return nil, response.ErrInvalidParams
 		}
@@ -902,19 +896,13 @@ func (s *Server) contractIDFromParam(param *request.Param) (int32, *response.Err
 	if param == nil {
 		return 0, response.ErrInvalidParams
 	}
-	switch param.Type {
-	case request.StringT:
-		var err error
-		scriptHash, err := param.GetUint160FromHex()
-		if err != nil {
-			return 0, response.ErrInvalidParams
-		}
+	if scriptHash, err := param.GetUint160FromHex(); err == nil {
 		cs := s.chain.GetContractState(scriptHash)
 		if cs == nil {
 			return 0, response.ErrUnknown
 		}
 		result = cs.ID
-	case request.NumberT:
+	} else {
 		id, err := param.GetInt()
 		if err != nil {
 			return 0, response.ErrInvalidParams
@@ -923,8 +911,6 @@ func (s *Server) contractIDFromParam(param *request.Param) (int32, *response.Err
 			return 0, response.WrapErrorWithData(response.ErrInvalidParams, err)
 		}
 		result = int32(id)
-	default:
-		return 0, response.ErrInvalidParams
 	}
 	return result, nil
 }
@@ -935,8 +921,7 @@ func (s *Server) contractScriptHashFromParam(param *request.Param) (util.Uint160
 	if param == nil {
 		return result, response.ErrInvalidParams
 	}
-	switch param.Type {
-	case request.StringT:
+	if _, err := param.GetStringStrict(); err == nil {
 		var err error
 		result, err = param.GetUint160FromAddressOrHex()
 		if err == nil {
@@ -950,7 +935,7 @@ func (s *Server) contractScriptHashFromParam(param *request.Param) (util.Uint160
 		if err != nil {
 			return result, response.NewRPCError("Unknown contract: querying by name is supported for native contracts only", "", nil)
 		}
-	case request.NumberT:
+	} else {
 		id, err := param.GetInt()
 		if err != nil {
 			return result, response.ErrInvalidParams
@@ -962,8 +947,6 @@ func (s *Server) contractScriptHashFromParam(param *request.Param) (util.Uint160
 		if err != nil {
 			return result, response.NewRPCError("Unknown contract", "", err)
 		}
-	default:
-		return result, response.ErrInvalidParams
 	}
 	return result, nil
 }
@@ -1244,7 +1227,7 @@ func (s *Server) getrawtransaction(reqParams request.Params) (interface{}, *resp
 		err = fmt.Errorf("invalid transaction %s: %w", txHash, err)
 		return nil, response.NewRPCError("Unknown transaction", err.Error(), err)
 	}
-	if reqParams.Value(1).GetBoolean() {
+	if v, _ := reqParams.Value(1).GetBoolean(); v {
 		if height == math.MaxUint32 {
 			return result.NewTransactionOutputRaw(tx, nil, nil, s.chain), nil
 		}
@@ -1299,12 +1282,7 @@ func (s *Server) getNativeContracts(_ request.Params) (interface{}, *response.Er
 
 // getBlockSysFee returns the system fees of the block, based on the specified index.
 func (s *Server) getBlockSysFee(reqParams request.Params) (interface{}, *response.Error) {
-	param := reqParams.ValueWithType(0, request.NumberT)
-	if param == nil {
-		return 0, response.ErrInvalidParams
-	}
-
-	num, err := s.blockHeightFromParam(param)
+	num, err := s.blockHeightFromParam(reqParams.Value(0))
 	if err != nil {
 		return 0, response.NewRPCError("Invalid height", "", nil)
 	}
@@ -1331,7 +1309,7 @@ func (s *Server) getBlockHeader(reqParams request.Params) (interface{}, *respons
 		return nil, respErr
 	}
 
-	verbose := reqParams.Value(1).GetBoolean()
+	verbose, _ := reqParams.Value(1).GetBoolean()
 	h, err := s.chain.GetHeader(hash)
 	if err != nil {
 		return nil, response.NewRPCError("unknown block", "", nil)
@@ -1351,7 +1329,7 @@ func (s *Server) getBlockHeader(reqParams request.Params) (interface{}, *respons
 
 // getUnclaimedGas returns unclaimed GAS amount of the specified address.
 func (s *Server) getUnclaimedGas(ps request.Params) (interface{}, *response.Error) {
-	u, err := ps.ValueWithType(0, request.StringT).GetUint160FromAddressOrHex()
+	u, err := ps.Value(0).GetUint160FromAddressOrHex()
 	if err != nil {
 		return nil, response.ErrInvalidParams
 	}
@@ -1423,7 +1401,11 @@ func (s *Server) invokeFunction(reqParams request.Params) (interface{}, *respons
 	if len(tx.Signers) == 0 {
 		tx.Signers = []transaction.Signer{{Account: util.Uint160{}, Scopes: transaction.None}}
 	}
-	script, err := request.CreateFunctionInvocationScript(scriptHash, reqParams[1].String(), reqParams[2:checkWitnessHashesIndex])
+	method, err := reqParams[1].GetString()
+	if err != nil {
+		return nil, response.ErrInvalidParams
+	}
+	script, err := request.CreateFunctionInvocationScript(scriptHash, method, reqParams[2:checkWitnessHashesIndex])
 	if err != nil {
 		return nil, response.NewInternalServerError("can't create invocation script", err)
 	}
@@ -1545,7 +1527,7 @@ func (s *Server) runScriptInVM(t trigger.Type, script []byte, contractScriptHash
 
 // submitBlock broadcasts a raw block over the NEO network.
 func (s *Server) submitBlock(reqParams request.Params) (interface{}, *response.Error) {
-	blockBytes, err := reqParams.ValueWithType(0, request.StringT).GetBytesBase64()
+	blockBytes, err := reqParams.Value(0).GetBytesBase64()
 	if err != nil {
 		return nil, response.NewInvalidParamsError("missing parameter or not base64", err)
 	}
@@ -1670,34 +1652,27 @@ func (s *Server) subscribe(reqParams request.Params, sub *subscriber) (interface
 	// Optional filter.
 	var filter interface{}
 	if p := reqParams.Value(1); p != nil {
-		param, ok := p.Value.(json.RawMessage)
-		if !ok {
-			return nil, response.ErrInvalidParams
-		}
-		jd := json.NewDecoder(bytes.NewReader(param))
+		param := *p
+		jd := json.NewDecoder(bytes.NewReader(param.RawMessage))
 		jd.DisallowUnknownFields()
 		switch event {
 		case response.BlockEventID:
 			flt := new(request.BlockFilter)
 			err = jd.Decode(flt)
-			p.Type = request.BlockFilterT
-			p.Value = *flt
+			filter = *flt
 		case response.TransactionEventID, response.NotaryRequestEventID:
 			flt := new(request.TxFilter)
 			err = jd.Decode(flt)
-			p.Type = request.TxFilterT
-			p.Value = *flt
+			filter = *flt
 		case response.NotificationEventID:
 			flt := new(request.NotificationFilter)
 			err = jd.Decode(flt)
-			p.Type = request.NotificationFilterT
-			p.Value = *flt
+			filter = *flt
 		case response.ExecutionEventID:
 			flt := new(request.ExecutionFilter)
 			err = jd.Decode(flt)
 			if err == nil && (flt.State == "HALT" || flt.State == "FAULT") {
-				p.Type = request.ExecutionFilterT
-				p.Value = *flt
+				filter = *flt
 			} else if err == nil {
 				err = errors.New("invalid state")
 			}
@@ -1705,7 +1680,6 @@ func (s *Server) subscribe(reqParams request.Params, sub *subscriber) (interface
 		if err != nil {
 			return nil, response.ErrInvalidParams
 		}
-		filter = p.Value
 	}
 
 	s.subsLock.Lock()
@@ -1937,7 +1911,7 @@ drainloop:
 func (s *Server) blockHeightFromParam(param *request.Param) (int, *response.Error) {
 	num, err := param.GetInt()
 	if err != nil {
-		return 0, nil
+		return 0, response.ErrInvalidParams
 	}
 
 	if num < 0 || num > int(s.chain.BlockHeight()) {
@@ -1971,10 +1945,8 @@ func (s *Server) logRequestError(r *request.Request, jsonErr *response.Error) {
 
 	if r.In != nil {
 		logFields = append(logFields, zap.String("method", r.In.Method))
-		params, err := r.In.Params()
-		if err == nil {
-			logFields = append(logFields, zap.Any("params", params))
-		}
+		params := request.Params(r.In.RawParams)
+		logFields = append(logFields, zap.Any("params", params))
 	}
 
 	s.log.Error("Error encountered with rpc request", logFields...)
@@ -2021,11 +1993,10 @@ func (s *Server) writeHTTPServerResponse(r *request.Request, w http.ResponseWrit
 
 // validateAddress verifies that the address is a correct NEO address
 // see https://docs.neo.org/en-us/node/cli/2.9.4/api/validateaddress.html
-func validateAddress(addr interface{}) result.ValidateAddress {
-	resp := result.ValidateAddress{Address: addr}
+func validateAddress(addr interface{}) bool {
 	if addr, ok := addr.(string); ok {
 		_, err := address.StringToUint160(addr)
-		resp.IsValid = (err == nil)
+		return err == nil
 	}
-	return resp
+	return false
 }

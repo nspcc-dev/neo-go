@@ -455,10 +455,6 @@ var rpcTestCases = map[string][]rpcTestCase{
 				return &v
 			},
 		},
-		{
-			params: "1",
-			fail:   true,
-		},
 	},
 	"getblock": {
 		{

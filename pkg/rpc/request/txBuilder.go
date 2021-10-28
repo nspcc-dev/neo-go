@@ -70,8 +70,8 @@ func ExpandArrayIntoScript(script *io.BinWriter, slice []Param) error {
 			}
 			emit.Int(script, int64(val))
 		case smartcontract.BoolType:
-			val, ok := fp.Value.Value.(bool)
-			if !ok {
+			val, err := fp.Value.GetBoolean() // not GetBooleanStrict(), because that's the way C# code works
+			if err != nil {
 				return errors.New("not a bool")
 			}
 			if val {
@@ -102,29 +102,21 @@ func ExpandArrayIntoScript(script *io.BinWriter, slice []Param) error {
 func CreateFunctionInvocationScript(contract util.Uint160, method string, params Params) ([]byte, error) {
 	script := io.NewBufBinWriter()
 	for i := len(params) - 1; i >= 0; i-- {
-		switch params[i].Type {
-		case StringT:
-			emit.String(script.BinWriter, params[i].String())
-		case NumberT:
-			num, err := params[i].GetInt()
-			if err != nil {
-				return nil, err
-			}
-			emit.String(script.BinWriter, strconv.Itoa(num))
-		case BooleanT:
-			val := params[i].GetBoolean()
-			emit.Bool(script.BinWriter, val)
-		case ArrayT:
-			slice, err := params[i].GetArray()
-			if err != nil {
-				return nil, err
-			}
+		if slice, err := params[i].GetArray(); err == nil {
 			err = ExpandArrayIntoScript(script.BinWriter, slice)
 			if err != nil {
 				return nil, err
 			}
 			emit.Int(script.BinWriter, int64(len(slice)))
 			emit.Opcodes(script.BinWriter, opcode.PACK)
+		} else if s, err := params[i].GetStringStrict(); err == nil {
+			emit.String(script.BinWriter, s)
+		} else if n, err := params[i].GetIntStrict(); err == nil {
+			emit.String(script.BinWriter, strconv.Itoa(n))
+		} else if b, err := params[i].GetBooleanStrict(); err == nil {
+			emit.Bool(script.BinWriter, b)
+		} else {
+			return nil, fmt.Errorf("failed to convert parmeter %s to script parameter", params[i])
 		}
 	}
 	if len(params) == 0 {
