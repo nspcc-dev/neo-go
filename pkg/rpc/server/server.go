@@ -459,22 +459,18 @@ func (s *Server) getConnectionCount(_ request.Params) (interface{}, *response.Er
 }
 
 func (s *Server) blockHashFromParam(param *request.Param) (util.Uint256, *response.Error) {
-	var hash util.Uint256
-
+	var (
+		hash util.Uint256
+		err  error
+	)
 	if param == nil {
 		return hash, response.ErrInvalidParams
 	}
 
-	if _, err := param.GetStringStrict(); err == nil {
-		var err error
-		hash, err = param.GetUint256()
-		if err != nil {
-			return hash, response.ErrInvalidParams
-		}
-	} else {
-		num, err := s.blockHeightFromParam(param)
-		if err != nil {
-			return hash, response.ErrInvalidParams
+	if hash, err = param.GetUint256(); err != nil {
+		num, respErr := s.blockHeightFromParam(param)
+		if respErr != nil {
+			return hash, respErr
 		}
 		hash = s.chain.GetHeaderHash(num)
 	}
@@ -921,32 +917,28 @@ func (s *Server) contractScriptHashFromParam(param *request.Param) (util.Uint160
 	if param == nil {
 		return result, response.ErrInvalidParams
 	}
-	if _, err := param.GetStringStrict(); err == nil {
-		var err error
-		result, err = param.GetUint160FromAddressOrHex()
-		if err == nil {
-			return result, nil
-		}
-		name, err := param.GetString()
-		if err != nil {
-			return result, response.ErrInvalidParams
-		}
-		result, err = s.chain.GetNativeContractScriptHash(name)
-		if err != nil {
-			return result, response.NewRPCError("Unknown contract: querying by name is supported for native contracts only", "", nil)
-		}
-	} else {
-		id, err := param.GetInt()
-		if err != nil {
-			return result, response.ErrInvalidParams
-		}
-		if err := checkInt32(id); err != nil {
-			return result, response.WrapErrorWithData(response.ErrInvalidParams, err)
-		}
-		result, err = s.chain.GetContractScriptHash(int32(id))
-		if err != nil {
-			return result, response.NewRPCError("Unknown contract", "", err)
-		}
+	nameOrHashOrIndex, err := param.GetString()
+	if err != nil {
+		return result, response.ErrInvalidParams
+	}
+	result, err = param.GetUint160FromAddressOrHex()
+	if err == nil {
+		return result, nil
+	}
+	result, err = s.chain.GetNativeContractScriptHash(nameOrHashOrIndex)
+	if err == nil {
+		return result, nil
+	}
+	id, err := strconv.Atoi(nameOrHashOrIndex)
+	if err != nil {
+		return result, response.NewRPCError("Unknown contract", "", err)
+	}
+	if err := checkInt32(id); err != nil {
+		return result, response.WrapErrorWithData(response.ErrInvalidParams, err)
+	}
+	result, err = s.chain.GetContractScriptHash(int32(id))
+	if err != nil {
+		return result, response.NewRPCError("Unknown contract", "", err)
 	}
 	return result, nil
 }
@@ -1176,7 +1168,7 @@ func (s *Server) getStateRoot(ps request.Params) (interface{}, *response.Error) 
 	}
 	var rt *state.MPTRoot
 	var h util.Uint256
-	height, err := p.GetInt()
+	height, err := p.GetIntStrict()
 	if err == nil {
 		if err := checkUint32(height); err != nil {
 			return nil, response.WrapErrorWithData(response.ErrInvalidParams, err)
@@ -1557,10 +1549,7 @@ func (s *Server) submitNotaryRequest(ps request.Params) (interface{}, *response.
 		return nil, response.NewInternalServerError("P2PNotaryRequest was received, but P2PSignatureExtensions are disabled", nil)
 	}
 
-	if len(ps) < 1 {
-		return nil, response.NewInvalidParamsError("not enough parameters", nil)
-	}
-	bytePayload, err := ps[0].GetBytesBase64()
+	bytePayload, err := ps.Value(0).GetBytesBase64()
 	if err != nil {
 		return nil, response.NewInvalidParamsError("not base64", err)
 	}
