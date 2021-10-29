@@ -633,6 +633,12 @@ func Parse(args []string) (string, error) {
 	if rawStr, err := base64.StdEncoding.DecodeString(arg); err == nil {
 		buf.WriteString(fmt.Sprintf("Base64 to String\t%s\n", fmt.Sprintf("%q", string(rawStr))))
 		buf.WriteString(fmt.Sprintf("Base64 to BigInteger\t%s\n", bigint.FromBytes(rawStr)))
+		if u, err := util.Uint160DecodeBytesBE(rawStr); err == nil {
+			buf.WriteString(fmt.Sprintf("Base64 to BE ScriptHash\t%s\n", u.StringBE()))
+			buf.WriteString(fmt.Sprintf("Base64 to LE ScriptHash\t%s\n", u.StringLE()))
+			buf.WriteString(fmt.Sprintf("Base64 to Address (BE)\t%s\n", address.Uint160ToString(u)))
+			buf.WriteString(fmt.Sprintf("Base64 to Address (LE)\t%s\n", address.Uint160ToString(u.Reverse())))
+		}
 	}
 
 	buf.WriteString(fmt.Sprintf("String to Hex\t%s\n", hex.EncodeToString([]byte(arg))))

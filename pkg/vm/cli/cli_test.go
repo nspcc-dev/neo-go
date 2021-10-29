@@ -16,9 +16,11 @@ import (
 	"time"
 
 	"github.com/abiosoft/readline"
+	"github.com/nspcc-dev/neo-go/internal/random"
 	"github.com/nspcc-dev/neo-go/pkg/compiler"
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
+	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -585,6 +587,19 @@ func TestParse(t *testing.T) {
 		e.checkNextLine(t, "Swap Endianness.*c28d7fbfc4bb74d7a76f0496b87d6b203f754c5fed8ac517e3df7b01f42b62b302")
 		e.checkNextLine(t, "String to Hex.*303262333632326266343031376264666533313763353861656435663463373533663230366237646238393630343666613764373734626263346266376638646332")
 		e.checkNextLine(t, "String to Base64.*MDJiMzYyMmJmNDAxN2JkZmUzMTdjNThhZWQ1ZjRjNzUzZjIwNmI3ZGI4OTYwNDZmYTdkNzc0YmJjNGJmN2Y4ZGMy")
+	})
+	t.Run("base64", func(t *testing.T) {
+		e := newTestVMCLI(t)
+		u := random.Uint160()
+		e.runProg(t, "parse "+base64.StdEncoding.EncodeToString(u.BytesBE()))
+		e.checkNextLine(t, "Base64 to String\\s+")
+		e.checkNextLine(t, "Base64 to BigInteger\\s+")
+		e.checkNextLine(t, "Base64 to BE ScriptHash\\s+"+u.StringBE())
+		e.checkNextLine(t, "Base64 to LE ScriptHash\\s+"+u.StringLE())
+		e.checkNextLine(t, "Base64 to Address \\(BE\\)\\s+"+address.Uint160ToString(u))
+		e.checkNextLine(t, "Base64 to Address \\(LE\\)\\s+"+address.Uint160ToString(u.Reverse()))
+		e.checkNextLine(t, "String to Hex\\s+")
+		e.checkNextLine(t, "String to Base64\\s+")
 	})
 }
 
