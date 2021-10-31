@@ -204,15 +204,6 @@ func TestBlockSizeCalculation(t *testing.T) {
 	assert.Equal(t, rawBlock, base64.StdEncoding.EncodeToString(benc))
 }
 
-func TestBlockCompare(t *testing.T) {
-	b1 := Block{Header: Header{Index: 1}}
-	b2 := Block{Header: Header{Index: 2}}
-	b3 := Block{Header: Header{Index: 3}}
-	assert.Equal(t, 1, b2.Compare(&b1))
-	assert.Equal(t, 0, b2.Compare(&b2))
-	assert.Equal(t, -1, b2.Compare(&b3))
-}
-
 func TestBlockEncodeDecode(t *testing.T) {
 	t.Run("positive", func(t *testing.T) {
 		b := newDumbBlock()

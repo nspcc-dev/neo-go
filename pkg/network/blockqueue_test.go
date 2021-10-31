@@ -74,3 +74,10 @@ func TestBlockQueue(t *testing.T) {
 	bq.discard()
 	assert.Equal(t, 0, bq.length())
 }
+
+// length wraps len access for tests to make them thread-safe.
+func (bq *blockQueue) length() int {
+	bq.queueLock.Lock()
+	defer bq.queueLock.Unlock()
+	return bq.len
+}

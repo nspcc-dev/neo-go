@@ -484,7 +484,7 @@ func (s *FakeStateSync) AddMPTNodes(nodes [][]byte) error {
 
 // BlockHeight implements StateSync interface.
 func (s *FakeStateSync) BlockHeight() uint32 {
-	panic("TODO")
+	return 0
 }
 
 // IsActive implements StateSync interface.
