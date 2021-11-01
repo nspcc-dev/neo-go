@@ -56,6 +56,19 @@ make build
 
 The resulting binary is `bin/neo-go`.
 
+#### Building on Windows
+
+To build NeoGo on Windows platform we recommend you to install `make` from [MinGW
+package](https://osdn.net/projects/mingw/). Then you can build NeoGo with:
+
+```
+make build
+```
+
+The resulting binary is `bin/neo-go.exe`.
+
+We also recommend you to switch the Windows Firewall off for further NeoGo node run.
+
 ## Running a node
 
 A node needs to connect to some network, either local one (usually referred to
