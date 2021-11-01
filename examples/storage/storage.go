@@ -8,6 +8,9 @@ import (
 // ctx holds storage context for contract methods
 var ctx storage.Context
 
+// defaultKey represents the default key.
+var defaultKey = []byte("default")
+
 // init inits storage context before any other contract method is called
 func init() {
 	ctx = storage.GetContext()
@@ -19,9 +22,20 @@ func Put(key, value []byte) []byte {
 	return key
 }
 
+// PutDefault puts value to the default key.
+func PutDefault(value []byte) []byte {
+	storage.Put(ctx, defaultKey, value)
+	return defaultKey
+}
+
 // Get returns the value at passed key.
 func Get(key []byte) interface{} {
 	return storage.Get(ctx, key)
+}
+
+// GetDefault returns the value at the default key.
+func GetDefault() interface{} {
+	return storage.Get(ctx, defaultKey)
 }
 
 // Delete deletes the value at passed key.

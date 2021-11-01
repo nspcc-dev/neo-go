@@ -64,6 +64,10 @@ type Options struct {
 	// SafeMethods contains list of methods which will be marked as safe in manifest.
 	SafeMethods []string
 
+	// Overloads contains mapping from compiled method name to the name emitted in manifest.
+	// It can be used to provide method overloads as Go doesn't have such capability.
+	Overloads map[string]string
+
 	// Permissions is a list of permissions for every contract method.
 	Permissions []manifest.Permission
 }

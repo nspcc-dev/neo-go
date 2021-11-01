@@ -233,6 +233,7 @@ Configuration file contains following options:
 | `supportedstandards` | List of standards this contract implements. For example, `NEP-11` or `NEP-17` token standard. This will enable additional checks in compiler. The check can be disabled with `--no-standards` flag. | `["NEP-17"]`
 | `events` | Notifications emitted by this contract. | See [Events](#Events). |
 | `permissions` | Foreign calls allowed for this contract. | See [Permissions](#Permissions). |
+| `overloads` | Custom method names for this contract. | See [Overloads](#Overloads). |
 
 ##### Events
 Each event must have a name and 0 or more parameters. Parameters are specified using their name and type.
@@ -317,6 +318,28 @@ Incorrect permissions will result in runtime invocation failures.
 Using either constant or literal for contract hash and method will allow compiler
 to perform more extensive analysis.
 This check can be disabled with `--no-permissions` flag.
+
+##### Overloads
+NeoVM allows a contract to have multiple methods with the same name
+but different parameters number. Go lacks this feature but this can be circumvented
+with `overloads` section. Essentially it is a mapping from default contract method names
+to the new ones.
+```
+- overloads:
+    oldName1: newName
+    oldName2: newName
+```
+Because the use-case for this is to provide multiple implementations with the same ABI name,
+`newName` is required to be already present in the compiled contract.
+
+As an example consider [`NEP-11` standard](https://github.com/neo-project/proposals/blob/master/nep-11.mediawiki#transfer).
+It requires divisible NFT contract to have 2 `transfer` methods. To achieve this we might implement
+`Tranfer` and `TransferDivisible` and specify emitted name in config:
+```
+- overloads:
+    transferDivisible:transfer
+```
+
 
 #### Manifest file
 Any contract can be included in a group identified by a public key which is used in [permissions](#Permissions).

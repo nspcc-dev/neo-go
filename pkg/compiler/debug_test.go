@@ -2,6 +2,7 @@ package compiler
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/internal/testserdes"
@@ -360,4 +361,53 @@ func TestDebugInfo_MarshalJSON(t *testing.T) {
 	}
 
 	testserdes.MarshalUnmarshalJSON(t, d, new(DebugInfo))
+}
+
+func TestManifestOverload(t *testing.T) {
+	src := `package foo
+	func Main() int {
+		return 1
+	}
+	func Add3() int {
+		return Add3Aux(0)
+	}
+	func Add3Aux(a int) int {
+		return a + 3
+	}
+	func Add3Aux2(b int) int {
+		return b + 3
+	}
+	func Add4() int {
+		return 4
+	}`
+
+	_, di, err := CompileWithDebugInfo("foo", strings.NewReader(src))
+	require.NoError(t, err)
+
+	m, err := di.ConvertToManifest(&Options{Overloads: map[string]string{"add3Aux": "add3"}})
+	require.NoError(t, err)
+	require.NoError(t, m.ABI.IsValid())
+	require.NotNil(t, m.ABI.GetMethod("add3", 0))
+	require.NotNil(t, m.ABI.GetMethod("add3", 1))
+	require.Nil(t, m.ABI.GetMethod("add3Aux", 1))
+
+	t.Run("missing method", func(t *testing.T) {
+		_, err := di.ConvertToManifest(&Options{Overloads: map[string]string{"miss": "add3"}})
+		require.Error(t, err)
+	})
+	t.Run("parameter conflict", func(t *testing.T) {
+		_, err := di.ConvertToManifest(&Options{Overloads: map[string]string{"add4": "add3"}})
+		require.Error(t, err)
+	})
+	t.Run("parameter conflict, overload", func(t *testing.T) {
+		_, err := di.ConvertToManifest(&Options{Overloads: map[string]string{
+			"add3Aux":  "add3",
+			"add3Aux2": "add3",
+		}})
+		require.Error(t, err)
+	})
+	t.Run("missing target method", func(t *testing.T) {
+		_, err := di.ConvertToManifest(&Options{Overloads: map[string]string{"add4": "add5"}})
+		require.Error(t, err)
+	})
 }

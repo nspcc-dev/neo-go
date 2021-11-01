@@ -647,6 +647,22 @@ func TestCompileExamples(t *testing.T) {
 				"--config", path.Join(examplePath, info.Name(), cfgName),
 			}
 			e.Run(t, opts...)
+
+			if info.Name() == "storage" {
+				rawM, err := ioutil.ReadFile(manifestF)
+				require.NoError(t, err)
+
+				m := new(manifest.Manifest)
+				require.NoError(t, json.Unmarshal(rawM, m))
+
+				require.Nil(t, m.ABI.GetMethod("getDefault", 0))
+				require.NotNil(t, m.ABI.GetMethod("get", 0))
+				require.NotNil(t, m.ABI.GetMethod("get", 1))
+
+				require.Nil(t, m.ABI.GetMethod("putDefault", 1))
+				require.NotNil(t, m.ABI.GetMethod("put", 1))
+				require.NotNil(t, m.ABI.GetMethod("put", 2))
+			}
 		})
 	}
 
