@@ -1,7 +1,6 @@
 module github.com/nspcc-dev/neo-go
 
 require (
-	github.com/Workiva/go-datastructures v1.0.53
 	github.com/abiosoft/ishell/v2 v2.0.2
 	github.com/abiosoft/readline v0.0.0-20180607040430-155bce2042db
 	github.com/btcsuite/btcd v0.22.0-beta
