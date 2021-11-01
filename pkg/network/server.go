@@ -393,7 +393,7 @@ func (s *Server) run() {
 				s.lock.Unlock()
 				s.log.Warn("peer disconnected",
 					zap.Stringer("addr", drop.peer.RemoteAddr()),
-					zap.String("reason", drop.reason.Error()),
+					zap.Error(drop.reason),
 					zap.Int("peerCount", s.PeerCount()))
 				addr := drop.peer.PeerAddr().String()
 				if drop.reason == errIdenticalID {
