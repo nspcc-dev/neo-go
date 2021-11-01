@@ -179,8 +179,8 @@ func (p *TCPPeer) handleConn() {
 			p.incoming <- msg
 		}
 	}
-	close(p.incoming)
 	p.Disconnect(err)
+	close(p.incoming)
 }
 
 func (p *TCPPeer) handleIncoming() {
