@@ -3,6 +3,7 @@ package neotest
 import (
 	"bytes"
 	"fmt"
+	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
@@ -11,6 +12,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
+	"github.com/stretchr/testify/require"
 )
 
 // Signer is a generic interface which can be either simple- or multi-signature signer.
@@ -121,4 +123,19 @@ func (m multiSigner) SignTx(magic netmode.Magic, tx *transaction.Transaction) er
 		VerificationScript: verif,
 	})
 	return nil
+}
+
+func checkMultiSigner(t *testing.T, s Signer) {
+	accs, ok := s.(multiSigner)
+	require.True(t, ok, "expected to be a multi-signer")
+	require.True(t, len(accs) > 0, "empty multi-signer")
+
+	m := len(accs[0].Contract.Parameters)
+	require.True(t, m <= len(accs), "honest not count is too big for a multi-signer")
+
+	h := accs[0].Contract.ScriptHash()
+	for i := 1; i < len(accs); i++ {
+		require.Equal(t, m, len(accs[i].Contract.Parameters), "inconsistent multi-signer accounts")
+		require.Equal(t, h, accs[i].Contract.ScriptHash(), "inconsistent multi-signer accounts")
+	}
 }

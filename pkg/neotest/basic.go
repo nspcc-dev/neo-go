@@ -35,8 +35,8 @@ type Executor struct {
 
 // NewExecutor creates new executor instance from provided blockchain and committee.
 func NewExecutor(t *testing.T, bc blockchainer.Blockchainer, validator, committee Signer) *Executor {
-	require.Equal(t, 1, len(bc.GetConfig().StandbyCommittee))
-	require.IsType(t, multiSigner{}, committee, "committee must be a multi-signer")
+	checkMultiSigner(t, validator)
+	checkMultiSigner(t, committee)
 
 	return &Executor{
 		Chain:         bc,
