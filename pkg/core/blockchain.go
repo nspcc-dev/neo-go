@@ -306,11 +306,12 @@ func (bc *Blockchain) init() error {
 	if err != nil {
 		bc.log.Info("no storage version found! creating genesis block")
 		ver = dao.Version{
-			StoragePrefix:       storage.STStorage,
-			StateRootInHeader:   bc.config.StateRootInHeader,
-			P2PSigExtensions:    bc.config.P2PSigExtensions,
-			KeepOnlyLatestState: bc.config.KeepOnlyLatestState,
-			Value:               version,
+			StoragePrefix:              storage.STStorage,
+			StateRootInHeader:          bc.config.StateRootInHeader,
+			P2PSigExtensions:           bc.config.P2PSigExtensions,
+			P2PStateExchangeExtensions: bc.config.P2PStateExchangeExtensions,
+			KeepOnlyLatestState:        bc.config.KeepOnlyLatestState,
+			Value:                      version,
 		}
 		if err = bc.dao.PutVersion(ver); err != nil {
 			return err
@@ -341,6 +342,10 @@ func (bc *Blockchain) init() error {
 	if ver.P2PSigExtensions != bc.config.P2PSigExtensions {
 		return fmt.Errorf("P2PSigExtensions setting mismatch (old=%t, new=%t",
 			ver.P2PSigExtensions, bc.config.P2PSigExtensions)
+	}
+	if ver.P2PStateExchangeExtensions != bc.config.P2PStateExchangeExtensions {
+		return fmt.Errorf("P2PStateExchangeExtensions setting mismatch (old=%t, new=%t",
+			ver.P2PStateExchangeExtensions, bc.config.P2PStateExchangeExtensions)
 	}
 	if ver.KeepOnlyLatestState != bc.config.KeepOnlyLatestState {
 		return fmt.Errorf("KeepOnlyLatestState setting mismatch: old=%v, new=%v",
