@@ -27,18 +27,20 @@ import (
 // Executor is a wrapper over chain state.
 type Executor struct {
 	Chain         blockchainer.Blockchainer
+	Validator     Signer
 	Committee     Signer
 	CommitteeHash util.Uint160
 	Contracts     map[string]*Contract
 }
 
 // NewExecutor creates new executor instance from provided blockchain and committee.
-func NewExecutor(t *testing.T, bc blockchainer.Blockchainer, committee Signer) *Executor {
+func NewExecutor(t *testing.T, bc blockchainer.Blockchainer, validator, committee Signer) *Executor {
 	require.Equal(t, 1, len(bc.GetConfig().StandbyCommittee))
 	require.IsType(t, multiSigner{}, committee, "committee must be a multi-signer")
 
 	return &Executor{
 		Chain:         bc,
+		Validator:     validator,
 		Committee:     committee,
 		CommitteeHash: committee.ScriptHash(),
 		Contracts:     make(map[string]*Contract),
@@ -191,9 +193,9 @@ func (e *Executor) NewUnsignedBlock(t *testing.T, txs ...*transaction.Transactio
 	lastBlock := e.TopBlock(t)
 	b := &block.Block{
 		Header: block.Header{
-			NextConsensus: e.Committee.ScriptHash(),
+			NextConsensus: e.Validator.ScriptHash(),
 			Script: transaction.Witness{
-				VerificationScript: e.Committee.Script(),
+				VerificationScript: e.Validator.Script(),
 			},
 			Timestamp: lastBlock.Timestamp + 1,
 		},
@@ -219,7 +221,7 @@ func (e *Executor) AddNewBlock(t *testing.T, txs ...*transaction.Transaction) *b
 
 // SignBlock add validators signature to b.
 func (e *Executor) SignBlock(b *block.Block) *block.Block {
-	invoc := e.Committee.SignHashable(uint32(e.Chain.GetConfig().Magic), b)
+	invoc := e.Validator.SignHashable(uint32(e.Chain.GetConfig().Magic), b)
 	b.Script.InvocationScript = invoc
 	return b
 }

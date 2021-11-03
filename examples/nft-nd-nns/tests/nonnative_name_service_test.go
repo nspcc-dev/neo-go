@@ -16,7 +16,7 @@ import (
 
 func newNSClient(t *testing.T) *neotest.ContractInvoker {
 	bc, acc := chain.NewSingle(t)
-	e := neotest.NewExecutor(t, bc, acc)
+	e := neotest.NewExecutor(t, bc, acc, acc)
 	c := neotest.CompileFile(t, e.CommitteeHash, "..", "../nns.yml")
 	e.DeployContract(t, c, nil)
 
