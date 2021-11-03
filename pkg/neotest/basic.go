@@ -19,7 +19,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
-	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/stretchr/testify/require"
@@ -28,19 +27,20 @@ import (
 // Executor is a wrapper over chain state.
 type Executor struct {
 	Chain         blockchainer.Blockchainer
-	Committee     *wallet.Account
+	Committee     Signer
 	CommitteeHash util.Uint160
 	Contracts     map[string]*Contract
 }
 
 // NewExecutor creates new executor instance from provided blockchain and committee.
-func NewExecutor(t *testing.T, bc blockchainer.Blockchainer, committee *wallet.Account) *Executor {
+func NewExecutor(t *testing.T, bc blockchainer.Blockchainer, committee Signer) *Executor {
 	require.Equal(t, 1, len(bc.GetConfig().StandbyCommittee))
+	require.IsType(t, multiSigner{}, committee, "committee must be a multi-signer")
 
 	return &Executor{
 		Chain:         bc,
 		Committee:     committee,
-		CommitteeHash: committee.Contract.ScriptHash(),
+		CommitteeHash: committee.ScriptHash(),
 		Contracts:     make(map[string]*Contract),
 	}
 }
@@ -74,57 +74,41 @@ func (e *Executor) NewUnsignedTx(t *testing.T, hash util.Uint160, method string,
 
 // NewTx creates new transaction which invokes contract method.
 // Transaction is signed with signer.
-func (e *Executor) NewTx(t *testing.T, signer interface{},
+func (e *Executor) NewTx(t *testing.T, signers []Signer,
 	hash util.Uint160, method string, args ...interface{}) *transaction.Transaction {
 	tx := e.NewUnsignedTx(t, hash, method, args...)
-	return e.SignTx(t, tx, -1, signer)
+	return e.SignTx(t, tx, -1, signers...)
 }
 
 // SignTx signs a transaction using provided signers.
-// signers can be either *wallet.Account or []*wallet.Account.
-func (e *Executor) SignTx(t *testing.T, tx *transaction.Transaction, sysFee int64, signers interface{}) *transaction.Transaction {
-	switch s := signers.(type) {
-	case *wallet.Account:
+func (e *Executor) SignTx(t *testing.T, tx *transaction.Transaction, sysFee int64, signers ...Signer) *transaction.Transaction {
+	for _, acc := range signers {
 		tx.Signers = append(tx.Signers, transaction.Signer{
-			Account: s.Contract.ScriptHash(),
+			Account: acc.ScriptHash(),
 			Scopes:  transaction.Global,
 		})
-		addNetworkFee(e.Chain, tx, s)
-		addSystemFee(e.Chain, tx, sysFee)
-		require.NoError(t, s.SignTx(e.Chain.GetConfig().Magic, tx))
-	case []*wallet.Account:
-		for _, acc := range s {
-			tx.Signers = append(tx.Signers, transaction.Signer{
-				Account: acc.Contract.ScriptHash(),
-				Scopes:  transaction.Global,
-			})
-		}
-		for _, acc := range s {
-			addNetworkFee(e.Chain, tx, acc)
-		}
-		addSystemFee(e.Chain, tx, sysFee)
-		for _, acc := range s {
-			require.NoError(t, acc.SignTx(e.Chain.GetConfig().Magic, tx))
-		}
-	default:
-		panic("invalid signer")
 	}
+	addNetworkFee(e.Chain, tx, signers...)
+	addSystemFee(e.Chain, tx, sysFee)
 
+	for _, acc := range signers {
+		require.NoError(t, acc.SignTx(e.Chain.GetConfig().Magic, tx))
+	}
 	return tx
 }
 
-// NewAccount returns new account holding 100.0 GAS. This method advances the chain
+// NewAccount returns new signer holding 100.0 GAS. This method advances the chain
 // by one block with a transfer transaction.
-func (e *Executor) NewAccount(t *testing.T) *wallet.Account {
+func (e *Executor) NewAccount(t *testing.T) Signer {
 	acc, err := wallet.NewAccount()
 	require.NoError(t, err)
 
-	tx := e.NewTx(t, e.Committee,
+	tx := e.NewTx(t, []Signer{e.Committee},
 		e.NativeHash(t, nativenames.Gas), "transfer",
-		e.Committee.Contract.ScriptHash(), acc.Contract.ScriptHash(), int64(100_0000_0000), nil)
+		e.Committee.ScriptHash(), acc.Contract.ScriptHash(), int64(100_0000_0000), nil)
 	e.AddNewBlock(t, tx)
 	e.CheckHalt(t, tx.Hash())
-	return acc
+	return NewSingleSigner(acc)
 }
 
 // DeployContract compiles and deploys contract to bc.
@@ -174,7 +158,7 @@ func (e *Executor) NewDeployTx(t *testing.T, bc blockchainer.Blockchainer, c *Co
 	tx.Nonce = nonce()
 	tx.ValidUntilBlock = bc.BlockHeight() + 1
 	tx.Signers = []transaction.Signer{{
-		Account: e.Committee.Contract.ScriptHash(),
+		Account: e.Committee.ScriptHash(),
 		Scopes:  transaction.Global,
 	}}
 	addNetworkFee(bc, tx, e.Committee)
@@ -191,12 +175,14 @@ func addSystemFee(bc blockchainer.Blockchainer, tx *transaction.Transaction, sys
 	tx.SystemFee = v.GasConsumed()
 }
 
-func addNetworkFee(bc blockchainer.Blockchainer, tx *transaction.Transaction, sender *wallet.Account) {
+func addNetworkFee(bc blockchainer.Blockchainer, tx *transaction.Transaction, signers ...Signer) {
 	baseFee := bc.GetPolicer().GetBaseExecFee()
 	size := io.GetVarSize(tx)
-	netFee, sizeDelta := fee.Calculate(baseFee, sender.Contract.Script)
-	tx.NetworkFee += netFee
-	size += sizeDelta
+	for _, sgr := range signers {
+		netFee, sizeDelta := fee.Calculate(baseFee, sgr.Script())
+		tx.NetworkFee += netFee
+		size += sizeDelta
+	}
 	tx.NetworkFee += int64(size) * bc.FeePerByte()
 }
 
@@ -205,9 +191,9 @@ func (e *Executor) NewUnsignedBlock(t *testing.T, txs ...*transaction.Transactio
 	lastBlock := e.TopBlock(t)
 	b := &block.Block{
 		Header: block.Header{
-			NextConsensus: e.Committee.Contract.ScriptHash(),
+			NextConsensus: e.Committee.ScriptHash(),
 			Script: transaction.Witness{
-				VerificationScript: e.Committee.Contract.Script,
+				VerificationScript: e.Committee.Script(),
 			},
 			Timestamp: lastBlock.Timestamp + 1,
 		},
@@ -233,8 +219,8 @@ func (e *Executor) AddNewBlock(t *testing.T, txs ...*transaction.Transaction) *b
 
 // SignBlock add validators signature to b.
 func (e *Executor) SignBlock(b *block.Block) *block.Block {
-	sign := e.Committee.PrivateKey().SignHashable(uint32(e.Chain.GetConfig().Magic), b)
-	b.Script.InvocationScript = append([]byte{byte(opcode.PUSHDATA1), 64}, sign...)
+	invoc := e.Committee.SignHashable(uint32(e.Chain.GetConfig().Magic), b)
+	b.Script.InvocationScript = invoc
 	return b
 }
 

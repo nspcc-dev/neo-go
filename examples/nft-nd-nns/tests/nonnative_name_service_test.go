@@ -11,7 +11,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/neotest/chain"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
-	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/stretchr/testify/require"
 )
 
@@ -37,7 +36,7 @@ func TestNameService_Price(t *testing.T) {
 
 	t.Run("set, not signed by committee", func(t *testing.T) {
 		acc := c.NewAccount(t)
-		cAcc := c.WithSigner(acc)
+		cAcc := c.WithSigners(acc)
 		cAcc.InvokeFail(t, "not witnessed by committee", "setPrice", minPrice+1)
 	})
 
@@ -68,7 +67,7 @@ func TestNameService_Price(t *testing.T) {
 func TestNonfungible(t *testing.T) {
 	c := newNSClient(t)
 
-	c.Signer = c.NewAccount(t)
+	c.Signers = []neotest.Signer{c.NewAccount(t)}
 	c.Invoke(t, "NNS", "symbol")
 	c.Invoke(t, 0, "decimals")
 	c.Invoke(t, 0, "totalSupply")
@@ -82,7 +81,7 @@ func TestAddRoot(t *testing.T) {
 	})
 	t.Run("not signed by committee", func(t *testing.T) {
 		acc := c.NewAccount(t)
-		c := c.WithSigner(acc)
+		c := c.WithSigners(acc)
 		c.InvokeFail(t, "not witnessed by committee", "addRoot", "some")
 	})
 
@@ -98,14 +97,14 @@ func TestExpiration(t *testing.T) {
 	bc := e.Chain
 
 	acc := e.NewAccount(t)
-	cAcc := c.WithSigner(acc)
+	cAcc := c.WithSigners(acc)
 
 	c.Invoke(t, stackitem.Null{}, "addRoot", "com")
-	cAcc.Invoke(t, true, "register", "first.com", acc.Contract.ScriptHash())
+	cAcc.Invoke(t, true, "register", "first.com", acc.ScriptHash())
 	cAcc.Invoke(t, stackitem.Null{}, "setRecord", "first.com", int64(nns.TXT), "sometext")
 	b1 := e.TopBlock(t)
 
-	tx := cAcc.PrepareInvoke(t, "register", "second.com", acc.Contract.ScriptHash())
+	tx := cAcc.PrepareInvoke(t, "register", "second.com", acc.ScriptHash())
 	b2 := e.NewUnsignedBlock(t, tx)
 	b2.Index = b1.Index + 1
 	b2.PrevHash = b1.Hash()
@@ -191,7 +190,7 @@ func TestSetGetRecord(t *testing.T) {
 	e := c.Executor
 
 	acc := e.NewAccount(t)
-	cAcc := c.WithSigner(acc)
+	cAcc := c.WithSigners(acc)
 	c.Invoke(t, stackitem.Null{}, "addRoot", "com")
 
 	t.Run("set before register", func(t *testing.T) {
@@ -295,22 +294,22 @@ func TestSetAdmin(t *testing.T) {
 	e := c.Executor
 
 	owner := e.NewAccount(t)
-	cOwner := c.WithSigner(owner)
+	cOwner := c.WithSigners(owner)
 	admin := e.NewAccount(t)
-	cAdmin := c.WithSigner(admin)
+	cAdmin := c.WithSigners(admin)
 	guest := e.NewAccount(t)
-	cGuest := c.WithSigner(guest)
+	cGuest := c.WithSigners(guest)
 
 	c.Invoke(t, stackitem.Null{}, "addRoot", "com")
 
-	cOwner.Invoke(t, true, "register", "neo.com", owner.PrivateKey().GetScriptHash())
-	cGuest.InvokeFail(t, "not witnessed", "setAdmin", "neo.com", admin.PrivateKey().GetScriptHash())
+	cOwner.Invoke(t, true, "register", "neo.com", owner.ScriptHash())
+	cGuest.InvokeFail(t, "not witnessed", "setAdmin", "neo.com", admin.ScriptHash())
 
 	// Must be witnessed by both owner and admin.
-	cOwner.InvokeFail(t, "not witnessed by admin", "setAdmin", "neo.com", admin.PrivateKey().GetScriptHash())
-	cAdmin.InvokeFail(t, "not witnessed by owner", "setAdmin", "neo.com", admin.PrivateKey().GetScriptHash())
-	cc := c.WithSigner([]*wallet.Account{owner, admin})
-	cc.Invoke(t, stackitem.Null{}, "setAdmin", "neo.com", admin.PrivateKey().GetScriptHash())
+	cOwner.InvokeFail(t, "not witnessed by admin", "setAdmin", "neo.com", admin.ScriptHash())
+	cAdmin.InvokeFail(t, "not witnessed by owner", "setAdmin", "neo.com", admin.ScriptHash())
+	cc := c.WithSigners(owner, admin)
+	cc.Invoke(t, stackitem.Null{}, "setAdmin", "neo.com", admin.ScriptHash())
 
 	t.Run("set and delete by admin", func(t *testing.T) {
 		cAdmin.Invoke(t, stackitem.Null{}, "setRecord", "neo.com", int64(nns.TXT), "sometext")
@@ -330,18 +329,18 @@ func TestTransfer(t *testing.T) {
 	e := c.Executor
 
 	from := e.NewAccount(t)
-	cFrom := c.WithSigner(from)
+	cFrom := c.WithSigners(from)
 	to := e.NewAccount(t)
-	cTo := c.WithSigner(to)
+	cTo := c.WithSigners(to)
 
 	c.Invoke(t, stackitem.Null{}, "addRoot", "com")
-	cFrom.Invoke(t, true, "register", "neo.com", from.PrivateKey().GetScriptHash())
+	cFrom.Invoke(t, true, "register", "neo.com", from.ScriptHash())
 	cFrom.Invoke(t, stackitem.Null{}, "setRecord", "neo.com", int64(nns.A), "1.2.3.4")
-	cFrom.InvokeFail(t, "token not found", "transfer", to.Contract.ScriptHash(), "not.exists", nil)
-	c.Invoke(t, false, "transfer", to.Contract.ScriptHash(), "neo.com", nil)
-	cFrom.Invoke(t, true, "transfer", to.Contract.ScriptHash(), "neo.com", nil)
+	cFrom.InvokeFail(t, "token not found", "transfer", to.ScriptHash(), "not.exists", nil)
+	c.Invoke(t, false, "transfer", to.ScriptHash(), "neo.com", nil)
+	cFrom.Invoke(t, true, "transfer", to.ScriptHash(), "neo.com", nil)
 	cFrom.Invoke(t, 1, "totalSupply")
-	cFrom.Invoke(t, to.Contract.ScriptHash().BytesBE(), "ownerOf", "neo.com")
+	cFrom.Invoke(t, to.ScriptHash().BytesBE(), "ownerOf", "neo.com")
 
 	// without onNEP11Transfer
 	ctr := neotest.CompileSource(t, e.CommitteeHash,
@@ -368,16 +367,16 @@ func TestTokensOf(t *testing.T) {
 	e := c.Executor
 
 	acc1 := e.NewAccount(t)
-	cAcc1 := c.WithSigner(acc1)
+	cAcc1 := c.WithSigners(acc1)
 	acc2 := e.NewAccount(t)
-	cAcc2 := c.WithSigner(acc2)
+	cAcc2 := c.WithSigners(acc2)
 
 	c.Invoke(t, stackitem.Null{}, "addRoot", "com")
-	cAcc1.Invoke(t, true, "register", "neo.com", acc1.PrivateKey().GetScriptHash())
-	cAcc2.Invoke(t, true, "register", "nspcc.com", acc2.PrivateKey().GetScriptHash())
+	cAcc1.Invoke(t, true, "register", "neo.com", acc1.ScriptHash())
+	cAcc2.Invoke(t, true, "register", "nspcc.com", acc2.ScriptHash())
 
-	testTokensOf(t, c, [][]byte{[]byte("neo.com")}, acc1.Contract.ScriptHash().BytesBE())
-	testTokensOf(t, c, [][]byte{[]byte("nspcc.com")}, acc2.Contract.ScriptHash().BytesBE())
+	testTokensOf(t, c, [][]byte{[]byte("neo.com")}, acc1.ScriptHash().BytesBE())
+	testTokensOf(t, c, [][]byte{[]byte("nspcc.com")}, acc2.ScriptHash().BytesBE())
 	testTokensOf(t, c, [][]byte{[]byte("neo.com"), []byte("nspcc.com")})
 	testTokensOf(t, c, [][]byte{}, util.Uint160{}.BytesBE()) // empty hash is a valid hash still
 }
@@ -408,14 +407,14 @@ func TestResolve(t *testing.T) {
 	e := c.Executor
 
 	acc := e.NewAccount(t)
-	cAcc := c.WithSigner(acc)
+	cAcc := c.WithSigners(acc)
 
 	c.Invoke(t, stackitem.Null{}, "addRoot", "com")
-	cAcc.Invoke(t, true, "register", "neo.com", acc.PrivateKey().GetScriptHash())
+	cAcc.Invoke(t, true, "register", "neo.com", acc.ScriptHash())
 	cAcc.Invoke(t, stackitem.Null{}, "setRecord", "neo.com", int64(nns.A), "1.2.3.4")
 	cAcc.Invoke(t, stackitem.Null{}, "setRecord", "neo.com", int64(nns.CNAME), "alias.com")
 
-	cAcc.Invoke(t, true, "register", "alias.com", acc.PrivateKey().GetScriptHash())
+	cAcc.Invoke(t, true, "register", "alias.com", acc.ScriptHash())
 	cAcc.Invoke(t, stackitem.Null{}, "setRecord", "alias.com", int64(nns.TXT), "sometxt")
 
 	c.Invoke(t, "1.2.3.4", "resolve", "neo.com", int64(nns.A))

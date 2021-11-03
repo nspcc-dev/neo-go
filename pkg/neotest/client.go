@@ -14,8 +14,8 @@ import (
 // ContractInvoker is a client for specific contract.
 type ContractInvoker struct {
 	*Executor
-	Hash   util.Uint160
-	Signer interface{}
+	Hash    util.Uint160
+	Signers []Signer
 }
 
 // CommitteeInvoker creates new ContractInvoker for contract with hash h.
@@ -23,7 +23,7 @@ func (e *Executor) CommitteeInvoker(h util.Uint160) *ContractInvoker {
 	return &ContractInvoker{
 		Executor: e,
 		Hash:     h,
-		Signer:   e.Committee,
+		Signers:  []Signer{e.Committee},
 	}
 }
 
@@ -39,16 +39,16 @@ func (c *ContractInvoker) TestInvoke(t *testing.T, method string, args ...interf
 	return v.Estack(), err
 }
 
-// WithSigner creates new client with the provided signer.
-func (c *ContractInvoker) WithSigner(signer interface{}) *ContractInvoker {
+// WithSigners creates new client with the provided signer.
+func (c *ContractInvoker) WithSigners(signers ...Signer) *ContractInvoker {
 	newC := *c
-	newC.Signer = signer
+	newC.Signers = signers
 	return &newC
 }
 
 // PrepareInvoke creates new invocation transaction.
 func (c *ContractInvoker) PrepareInvoke(t *testing.T, method string, args ...interface{}) *transaction.Transaction {
-	return c.Executor.NewTx(t, c.Signer, c.Hash, method, args...)
+	return c.Executor.NewTx(t, c.Signers, c.Hash, method, args...)
 }
 
 // PrepareInvokeNoSign creates new unsigned invocation transaction.
@@ -68,7 +68,7 @@ func (c *ContractInvoker) Invoke(t *testing.T, result interface{}, method string
 // InvokeWithFeeFail is like InvokeFail but sets custom system fee for the transaction.
 func (c *ContractInvoker) InvokeWithFeeFail(t *testing.T, message string, sysFee int64, method string, args ...interface{}) util.Uint256 {
 	tx := c.PrepareInvokeNoSign(t, method, args...)
-	c.Executor.SignTx(t, tx, sysFee, c.Signer)
+	c.Executor.SignTx(t, tx, sysFee, c.Signers...)
 	c.AddNewBlock(t, tx)
 	c.CheckFault(t, tx.Hash(), message)
 	return tx.Hash()

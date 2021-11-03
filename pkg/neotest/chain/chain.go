@@ -9,6 +9,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/neotest"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap/zaptest"
@@ -30,7 +31,7 @@ func init() {
 
 // NewSingle creates new blockchain instance with a single validator and
 // setups cleanup functions.
-func NewSingle(t *testing.T) (*core.Blockchain, *wallet.Account) {
+func NewSingle(t *testing.T) (*core.Blockchain, neotest.Signer) {
 	protoCfg := config.ProtocolConfiguration{
 		Magic:              netmode.UnitTestNet,
 		SecondsPerBlock:    1,
@@ -46,5 +47,5 @@ func NewSingle(t *testing.T) (*core.Blockchain, *wallet.Account) {
 	require.NoError(t, err)
 	go bc.Run()
 	t.Cleanup(bc.Close)
-	return bc, committeeAcc
+	return bc, neotest.NewMultiSigner(committeeAcc)
 }
