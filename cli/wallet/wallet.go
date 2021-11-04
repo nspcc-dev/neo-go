@@ -302,7 +302,7 @@ func convertWallet(ctx *cli.Context) error {
 	for _, acc := range wall.Accounts {
 		pass, err := input.ReadPassword(fmt.Sprintf("Enter passphrase for account %s (label '%s') > ", acc.Address, acc.Label))
 		if err != nil {
-			return cli.NewExitError(err, 1)
+			return cli.NewExitError(fmt.Errorf("Error reading password: %w", err), 1)
 		}
 		newAcc, err := acc.convert(pass, wall.Scrypt)
 		if err != nil {
@@ -372,7 +372,7 @@ loop:
 		if decrypt {
 			pass, err := input.ReadPassword("Enter password > ")
 			if err != nil {
-				return cli.NewExitError(err, 1)
+				return cli.NewExitError(fmt.Errorf("Error reading password: %w", err), 1)
 			}
 
 			pk, err := keys.NEP2Decrypt(wif, pass, wall.Scrypt)
@@ -567,7 +567,7 @@ func dumpWallet(ctx *cli.Context) error {
 	if ctx.Bool("decrypt") {
 		pass, err := input.ReadPassword("Enter wallet password > ")
 		if err != nil {
-			return cli.NewExitError(err, 1)
+			return cli.NewExitError(fmt.Errorf("Error reading password: %w", err), 1)
 		}
 		for i := range wall.Accounts {
 			// Just testing the decryption here.
@@ -656,11 +656,11 @@ func readAccountInfo() (string, string, error) {
 	rawName, _ := input.ReadLine("Enter the name of the account > ")
 	phrase, err := input.ReadPassword("Enter passphrase > ")
 	if err != nil {
-		return "", "", err
+		return "", "", fmt.Errorf("Error reading password: %w", err)
 	}
 	phraseCheck, err := input.ReadPassword("Confirm passphrase > ")
 	if err != nil {
-		return "", "", err
+		return "", "", fmt.Errorf("Error reading password: %w", err)
 	}
 
 	if phrase != phraseCheck {
@@ -692,7 +692,7 @@ func newAccountFromWIF(w io.Writer, wif string, scrypt keys.ScryptParams) (*wall
 	if len(wif) == 58 {
 		pass, err := input.ReadPassword("Enter password > ")
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("Error reading password: %w", err)
 		}
 
 		return wallet.NewAccountFromEncryptedWIF(wif, pass, scrypt)

@@ -813,7 +813,7 @@ func getUnlockedAccount(wall *wallet.Wallet, addr util.Uint160) (*wallet.Account
 	rawPass, err := input.ReadPassword(
 		fmt.Sprintf("Enter account %s password > ", address.Uint160ToString(addr)))
 	if err != nil {
-		return nil, cli.NewExitError(err, 1)
+		return nil, cli.NewExitError(fmt.Errorf("Error reading password: %w", err), 1)
 	}
 	pass := strings.TrimRight(string(rawPass), "\n")
 	err = acc.Decrypt(pass, wall.Scrypt)
