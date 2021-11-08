@@ -1,7 +1,12 @@
 BRANCH = "master"
 REPONAME = "neo-go"
 NETMODE ?= "privnet"
-BINARY = "./bin/neo-go"
+GOOS ?= $(shell go env GOOS)
+EXTENSION=
+ifeq ($(GOOS),windows)
+  EXTENSION=".exe"
+endif
+BINARY=./bin/neo-go$(EXTENSION)
 DESTDIR = ""
 SYSCONFIGDIR = "/etc"
 BINDIR = "/usr/bin"

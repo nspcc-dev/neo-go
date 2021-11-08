@@ -25,11 +25,11 @@ type ReadWriter struct {
 func ReadLine(prompt string) (string, error) {
 	trm := Terminal
 	if trm == nil {
-		s, err := term.MakeRaw(syscall.Stdin)
+		s, err := term.MakeRaw(int(syscall.Stdin))
 		if err != nil {
 			return "", err
 		}
-		defer func() { _ = term.Restore(syscall.Stdin, s) }()
+		defer func() { _ = term.Restore(int(syscall.Stdin), s) }()
 		trm = term.NewTerminal(ReadWriter{
 			Reader: os.Stdin,
 			Writer: os.Stdout,
@@ -50,11 +50,11 @@ func readLine(trm *term.Terminal, prompt string) (string, error) {
 func ReadPassword(prompt string) (string, error) {
 	trm := Terminal
 	if trm == nil {
-		s, err := term.MakeRaw(syscall.Stdin)
+		s, err := term.MakeRaw(int(syscall.Stdin))
 		if err != nil {
 			return "", err
 		}
-		defer func() { _ = term.Restore(syscall.Stdin, s) }()
+		defer func() { _ = term.Restore(int(syscall.Stdin), s) }()
 		trm = term.NewTerminal(ReadWriter{os.Stdin, os.Stdout}, prompt)
 	}
 	return trm.ReadPassword(prompt)
