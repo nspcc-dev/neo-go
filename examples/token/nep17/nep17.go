@@ -64,7 +64,10 @@ func (t Token) Transfer(ctx storage.Context, from, to interop.Hash160, amount in
 
 	amountTo := getIntFromDB(ctx, to)
 	totalAmountTo := amountTo + amount
-	storage.Put(ctx, to, totalAmountTo)
+	if totalAmountTo != 0 {
+		storage.Put(ctx, to, totalAmountTo)
+	}
+
 	runtime.Notify("Transfer", from, to, amount)
 	if to != nil && management.GetContract(to) != nil {
 		contract.Call(to, "onNEP17Payment", contract.All, from, amount, data)

@@ -186,7 +186,9 @@ func Transfer(from, to interop.Hash160, amount int, _ interface{}) bool {
 	}
 	amountTo := getIntFromDB(ctx, to)
 	totalAmountTo := amountTo + amount
-	storage.Put(ctx, to, totalAmountTo)
+	if totalAmountTo != 0 {
+		storage.Put(ctx, to, totalAmountTo)
+	}
 	return true
 }
 
