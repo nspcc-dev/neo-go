@@ -31,7 +31,7 @@ env:
 jobs:
   test:
     name: Run tests before publishing
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
 
     steps:
       - name: Checkout (manual run)
@@ -74,7 +74,7 @@ jobs:
     # Ensure test job passes before pushing image.
     needs: test
     name: Publish image to DockerHub
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     steps:
       - name: Checkout (manual run)
         if: ${{ github.event_name == 'workflow_dispatch' }}
