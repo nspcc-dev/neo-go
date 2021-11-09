@@ -27,7 +27,7 @@ jobs:
 
   test_cover:
     name: Coverage
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
 
     env:
       CGO_ENABLED: 0
@@ -67,7 +67,7 @@ jobs:
 
   tests:
     name: Go
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     strategy:
       matrix:
         go_versions: [ '1.15', '1.16' ]
@@ -101,7 +101,7 @@ jobs:
 
   build_cli:
     name: Build CLI
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
 
     steps:
       - uses: actions/checkout@v2
@@ -128,7 +128,7 @@ jobs:
   build_image:
     needs: build_cli
     name: Build Docker image
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
 
     steps:
       - uses: actions/checkout@v2
