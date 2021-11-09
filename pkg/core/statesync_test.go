@@ -2,6 +2,7 @@ package core
 
 import (
 	"testing"
+	"time"
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
@@ -441,9 +442,13 @@ func TestStateSyncModule_RestoreBasicChain(t *testing.T) {
 	require.ElementsMatch(t, expected, actual)
 
 	// no temp items should be left
-	bcBolt.dao.Store.Seek(storage.STStorage.Bytes(), func(k, v []byte) {
-		t.Fatal("temp storage items are found")
-	})
+	require.Eventually(t, func() bool {
+		var haveItems bool
+		bcBolt.dao.Store.Seek(storage.STStorage.Bytes(), func(_, _ []byte) {
+			haveItems = true
+		})
+		return !haveItems
+	}, time.Second*5, time.Millisecond*100)
 	bcBolt.Close()
 
 	// Check restoring with new prefix.

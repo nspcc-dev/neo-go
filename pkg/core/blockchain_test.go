@@ -1816,7 +1816,7 @@ func TestBlockchain_InitWithIncompleteStateJump(t *testing.T) {
 		require.NoError(t, bcSpout.dao.Store.Put(storage.SYSStateSyncPoint.Bytes(), point))
 		checkNewBlockchainErr(t, boltCfg, bcSpout.dao.Store, true)
 	})
-	for _, stage := range []stateJumpStage{stateJumpStarted, oldStorageItemsRemoved, newStorageItemsAdded, genesisStateRemoved, 0x03} {
+	for _, stage := range []stateJumpStage{stateJumpStarted, newStorageItemsAdded, genesisStateRemoved, 0x03} {
 		t.Run(fmt.Sprintf("state jump stage %d", stage), func(t *testing.T) {
 			require.NoError(t, bcSpout.dao.Store.Put(storage.SYSStateJumpStage.Bytes(), []byte{byte(stage)}))
 			point := make([]byte, 4)
