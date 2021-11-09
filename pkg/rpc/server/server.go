@@ -1248,7 +1248,7 @@ func (s *Server) getTransactionHeight(ps request.Params) (interface{}, *response
 
 	_, height, err := s.chain.GetTransaction(h)
 	if err != nil || height == math.MaxUint32 {
-		return nil, response.NewRPCError("unknown transaction", "", nil)
+		return nil, response.NewRPCError("Unknown transaction", "", nil)
 	}
 
 	return height, nil
