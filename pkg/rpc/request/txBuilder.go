@@ -90,6 +90,10 @@ func ExpandArrayIntoScript(script *io.BinWriter, slice []Param) error {
 			}
 			emit.Int(script, int64(len(val)))
 			emit.Opcodes(script, opcode.PACK)
+		case smartcontract.AnyType:
+			if fp.Value.IsNull() {
+				emit.Opcodes(script, opcode.PUSHNULL)
+			}
 		default:
 			return fmt.Errorf("parameter type %v is not supported", fp.Type)
 		}
