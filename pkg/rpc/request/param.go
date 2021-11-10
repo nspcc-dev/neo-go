@@ -306,11 +306,8 @@ func (p *Param) GetUint160FromHex() (util.Uint160, error) {
 	if err != nil {
 		return util.Uint160{}, err
 	}
-	if len(s) == 2*util.Uint160Size+2 && s[0] == '0' && s[1] == 'x' {
-		s = s[2:]
-	}
 
-	return util.Uint160DecodeStringLE(s)
+	return util.Uint160DecodeStringLE(strings.TrimPrefix(s, "0x"))
 }
 
 // GetUint160FromAddress returns Uint160 value of the parameter that was
