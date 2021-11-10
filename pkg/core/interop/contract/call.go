@@ -66,7 +66,7 @@ func Call(ic *interop.Context) error {
 	}
 	md := cs.Manifest.ABI.GetMethod(method, len(args))
 	if md == nil {
-		return errors.New("method not found")
+		return fmt.Errorf("method not found: %s/%d", method, len(args))
 	}
 	hasReturn := md.ReturnType != smartcontract.VoidType
 	if !hasReturn {

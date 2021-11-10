@@ -95,10 +95,17 @@ it only works for native contracts.
 VM state is included to verbose response along with other transaction fields if
 the transaction is already on chain.
 
+##### `getstateroot`
+
+This method is able to accept state root hash instead of index, unlike the C# node
+where only index is accepted.
+
 ##### `getstorage`
 
 This method doesn't work for the Ledger contract, you can get data via regular
-`getblock` and `getrawtransaction` calls.
+`getblock` and `getrawtransaction` calls. This method is able to get storage of
+the native contract by its name (case-insensitive), unlike the C# node where
+it only possible for index or hash.
 
 #### `getnep17balances`
 

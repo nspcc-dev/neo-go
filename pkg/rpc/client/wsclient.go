@@ -134,9 +134,7 @@ readloop:
 				// Bad event received.
 				break
 			}
-			var slice []json.RawMessage
-			err = json.Unmarshal(rr.RawParams, &slice)
-			if err != nil || (event != response.MissedEventID && len(slice) != 1) {
+			if event != response.MissedEventID && len(rr.RawParams) != 1 {
 				// Bad event received.
 				break
 			}
@@ -159,7 +157,7 @@ readloop:
 				break readloop
 			}
 			if event != response.MissedEventID {
-				err = json.Unmarshal(slice[0], val)
+				err = json.Unmarshal(rr.RawParams[0].RawMessage, val)
 				if err != nil {
 					// Bad event received.
 					break
