@@ -52,11 +52,6 @@ var neoOwner = testchain.MultisigScriptHash()
 // examplesPrefix is a prefix of the example smart-contracts.
 const examplesPrefix = "../../examples/"
 
-const (
-	defaultNameServiceDomainPrice = 10_0000_0000
-	defaultNameServiceSysfee      = 6000_0000
-)
-
 // newTestChain should be called before newBlock invocation to properly setup
 // global state.
 func newTestChain(t testing.TB) *Blockchain {
@@ -471,15 +466,15 @@ func initBasicChain(t *testing.T, bc *Blockchain) {
 
 	// register `neo.com` with A record type and priv0 owner via NS
 	transferFundsToCommittee(t, bc) // block #12
-	res, err := invokeContractMethodGeneric(bc, defaultNameServiceSysfee,
+	res, err := invokeContractMethodGeneric(bc, -1,
 		nsHash, "addRoot", true, "com") // block #13
 	require.NoError(t, err)
 	checkResult(t, res, stackitem.Null{})
-	res, err = invokeContractMethodGeneric(bc, defaultNameServiceDomainPrice+defaultNameServiceSysfee+1_0000_000,
+	res, err = invokeContractMethodGeneric(bc, -1,
 		nsHash, "register", acc0, "neo.com", priv0ScriptHash) // block #14
 	require.NoError(t, err)
 	checkResult(t, res, stackitem.NewBool(true))
-	res, err = invokeContractMethodGeneric(bc, defaultNameServiceSysfee, nsHash,
+	res, err = invokeContractMethodGeneric(bc, -1, nsHash,
 		"setRecord", acc0, "neo.com", int64(nns.A), "1.2.3.4") // block #15
 	require.NoError(t, err)
 	checkResult(t, res, stackitem.Null{})
@@ -579,22 +574,24 @@ func prepareContractMethodInvokeGeneric(chain *Blockchain, sysfee int64,
 		return nil, w.Err
 	}
 	script := w.Bytes()
-	tx := transaction.New(script, sysfee)
+	tx := transaction.New(script, 0)
 	tx.ValidUntilBlock = chain.blockHeight + 1
 	var err error
 	switch s := signer.(type) {
 	case bool:
 		if s {
 			addSigners(testchain.CommitteeScriptHash(), tx)
+			setTxSystemFee(chain, sysfee, tx)
 			err = testchain.SignTxCommittee(chain, tx)
 		} else {
 			addSigners(neoOwner, tx)
+			setTxSystemFee(chain, sysfee, tx)
 			err = testchain.SignTx(chain, tx)
 		}
 	case *wallet.Account:
-		signTxWithAccounts(chain, tx, s)
+		signTxWithAccounts(chain, sysfee, tx, s)
 	case []*wallet.Account:
-		signTxWithAccounts(chain, tx, s...)
+		signTxWithAccounts(chain, sysfee, tx, s...)
 	default:
 		panic("invalid signer")
 	}
@@ -604,7 +601,31 @@ func prepareContractMethodInvokeGeneric(chain *Blockchain, sysfee int64,
 	return tx, nil
 }
 
-func signTxWithAccounts(chain *Blockchain, tx *transaction.Transaction, accs ...*wallet.Account) {
+func setTxSystemFee(bc *Blockchain, sysFee int64, tx *transaction.Transaction) {
+	if sysFee >= 0 {
+		tx.SystemFee = sysFee
+		return
+	}
+
+	lastBlock := bc.topBlock.Load().(*block.Block)
+	b := &block.Block{
+		Header: block.Header{
+			Index:     lastBlock.Index + 1,
+			Timestamp: lastBlock.Timestamp + 1000,
+		},
+		Transactions: []*transaction.Transaction{tx},
+	}
+
+	ttx := *tx // prevent setting 'hash' field
+	v, f := bc.GetTestVM(trigger.Application, &ttx, b)
+	defer f()
+
+	v.LoadWithFlags(tx.Script, callflag.All)
+	_ = v.Run()
+	tx.SystemFee = v.GasConsumed()
+}
+
+func signTxWithAccounts(chain *Blockchain, sysFee int64, tx *transaction.Transaction, accs ...*wallet.Account) {
 	scope := transaction.CalledByEntry
 	for _, acc := range accs {
 		accH, _ := address.StringToUint160(acc.Address)
@@ -614,6 +635,7 @@ func signTxWithAccounts(chain *Blockchain, tx *transaction.Transaction, accs ...
 		})
 		scope = transaction.Global
 	}
+	setTxSystemFee(chain, sysFee, tx)
 	size := io.GetVarSize(tx)
 	for _, acc := range accs {
 		if acc.Contract.Deployed {
