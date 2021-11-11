@@ -69,7 +69,7 @@ func (e *Executor) NewUnsignedTx(t *testing.T, hash util.Uint160, method string,
 
 	script := w.Bytes()
 	tx := transaction.New(script, 0)
-	tx.Nonce = nonce()
+	tx.Nonce = Nonce()
 	tx.ValidUntilBlock = e.Chain.BlockHeight() + 1
 	return tx
 }
@@ -157,7 +157,7 @@ func (e *Executor) NewDeployTx(t *testing.T, bc blockchainer.Blockchainer, c *Co
 	require.NoError(t, buf.Err)
 
 	tx := transaction.New(buf.Bytes(), 100*native.GASFactor)
-	tx.Nonce = nonce()
+	tx.Nonce = Nonce()
 	tx.ValidUntilBlock = bc.BlockHeight() + 1
 	tx.Signers = []transaction.Signer{{
 		Account: e.Committee.ScriptHash(),
