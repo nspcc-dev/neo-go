@@ -12,6 +12,7 @@ func _() {
 	_ = x[CalledByEntry-1]
 	_ = x[CustomContracts-16]
 	_ = x[CustomGroups-32]
+	_ = x[Rules-64]
 	_ = x[Global-128]
 }
 
@@ -19,7 +20,8 @@ const (
 	_WitnessScope_name_0 = "NoneCalledByEntry"
 	_WitnessScope_name_1 = "CustomContracts"
 	_WitnessScope_name_2 = "CustomGroups"
-	_WitnessScope_name_3 = "Global"
+	_WitnessScope_name_3 = "Rules"
+	_WitnessScope_name_4 = "Global"
 )
 
 var (
@@ -28,14 +30,16 @@ var (
 
 func (i WitnessScope) String() string {
 	switch {
-	case i <= 1:
+	case 0 <= i && i <= 1:
 		return _WitnessScope_name_0[_WitnessScope_index_0[i]:_WitnessScope_index_0[i+1]]
 	case i == 16:
 		return _WitnessScope_name_1
 	case i == 32:
 		return _WitnessScope_name_2
-	case i == 128:
+	case i == 64:
 		return _WitnessScope_name_3
+	case i == 128:
+		return _WitnessScope_name_4
 	default:
 		return "WitnessScope(" + strconv.FormatInt(int64(i), 10) + ")"
 	}

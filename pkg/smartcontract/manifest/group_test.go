@@ -41,3 +41,17 @@ func TestGroupsAreValid(t *testing.T) {
 	gps = Groups{gcorrect, gcorrect}
 	require.Error(t, gps.AreValid(h))
 }
+
+func TestGroupsContains(t *testing.T) {
+	priv, err := keys.NewPrivateKey()
+	require.NoError(t, err)
+	priv2, err := keys.NewPrivateKey()
+	require.NoError(t, err)
+	priv3, err := keys.NewPrivateKey()
+	require.NoError(t, err)
+	g1 := Group{priv.PublicKey(), nil}
+	g2 := Group{priv2.PublicKey(), nil}
+	gps := Groups{g1, g2}
+	require.True(t, gps.Contains(priv2.PublicKey()))
+	require.False(t, gps.Contains(priv3.PublicKey()))
+}

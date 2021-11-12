@@ -17,6 +17,7 @@ type Signer struct {
 	Scopes           WitnessScope      `json:"scopes"`
 	AllowedContracts []util.Uint160    `json:"allowedcontracts,omitempty"`
 	AllowedGroups    []*keys.PublicKey `json:"allowedgroups,omitempty"`
+	Rules            []WitnessRule     `json:"rules,omitempty"`
 }
 
 // EncodeBinary implements Serializable interface.
@@ -28,6 +29,9 @@ func (c *Signer) EncodeBinary(bw *io.BinWriter) {
 	}
 	if c.Scopes&CustomGroups != 0 {
 		bw.WriteArray(c.AllowedGroups)
+	}
+	if c.Scopes&Rules != 0 {
+		bw.WriteArray(c.Rules)
 	}
 }
 
@@ -48,5 +52,8 @@ func (c *Signer) DecodeBinary(br *io.BinReader) {
 	}
 	if c.Scopes&CustomGroups != 0 {
 		br.ReadArray(&c.AllowedGroups, maxSubitems)
+	}
+	if c.Scopes&Rules != 0 {
+		br.ReadArray(&c.Rules, maxSubitems)
 	}
 }
