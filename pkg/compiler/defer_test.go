@@ -3,6 +3,8 @@ package compiler_test
 import (
 	"math/big"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestDefer(t *testing.T) {
@@ -78,6 +80,33 @@ func TestDefer(t *testing.T) {
 			return a
 		}`
 		eval(t, src, big.NewInt(13))
+	})
+	t.Run("NoReturnReturn", func(t *testing.T) {
+		src := `package main
+		var i int
+		func Main() {
+			defer func() {
+				i++
+			}()
+			return
+		}`
+		vm := vmAndCompile(t, src)
+		err := vm.Run()
+		require.NoError(t, err)
+		require.Equal(t, 0, vm.Estack().Len(), "stack contains unexpected items")
+	})
+	t.Run("NoReturnNoReturn", func(t *testing.T) {
+		src := `package main
+		var i int
+		func Main() {
+			defer func() {
+				i++
+			}()
+		}`
+		vm := vmAndCompile(t, src)
+		err := vm.Run()
+		require.NoError(t, err)
+		require.Equal(t, 0, vm.Estack().Len(), "stack contains unexpected items")
 	})
 }
 

@@ -499,6 +499,7 @@ func (c *codegen) convertFuncDecl(file ast.Node, decl *ast.FuncDecl, pkg *types.
 	// we should clean alt.stack manually.
 	// This can be the case with void and named-return functions.
 	if !isInit && !isDeploy && !lastStmtIsReturn(decl.Body) {
+		c.processDefers()
 		c.saveSequencePoint(decl.Body)
 		emit.Opcodes(c.prog.BinWriter, opcode.RET)
 	}
@@ -1329,10 +1330,13 @@ func (c *codegen) processDefers() {
 		c.emitStoreByIndex(varLocal, finalIndex)
 		ast.Walk(c, stmt.expr)
 		if i == 0 {
-			// After panic, default values must be returns, except for named returns,
-			// which we don't support here for now.
-			for i := len(c.scope.decl.Type.Results.List) - 1; i >= 0; i-- {
-				c.emitDefault(c.typeOf(c.scope.decl.Type.Results.List[i].Type))
+			results := c.scope.decl.Type.Results
+			if results.NumFields() != 0 {
+				// After panic, default values must be returns, except for named returns,
+				// which we don't support here for now.
+				for i := len(results.List) - 1; i >= 0; i-- {
+					c.emitDefault(c.typeOf(results.List[i].Type))
+				}
 			}
 		}
 		emit.Jmp(c.prog.BinWriter, opcode.ENDTRYL, after)
