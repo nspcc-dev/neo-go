@@ -324,14 +324,11 @@ func (c *codegen) emitDefault(t types.Type) {
 		}
 	case *types.Struct:
 		num := t.NumFields()
-		emit.Int(c.prog.BinWriter, int64(num))
-		emit.Opcodes(c.prog.BinWriter, opcode.NEWSTRUCT)
-		for i := 0; i < num; i++ {
-			emit.Opcodes(c.prog.BinWriter, opcode.DUP)
-			emit.Int(c.prog.BinWriter, int64(i))
+		for i := num - 1; i >= 0; i-- {
 			c.emitDefault(t.Field(i).Type())
-			emit.Opcodes(c.prog.BinWriter, opcode.SETITEM)
 		}
+		emit.Int(c.prog.BinWriter, int64(num))
+		emit.Opcodes(c.prog.BinWriter, opcode.PACKSTRUCT)
 	default:
 		emit.Opcodes(c.prog.BinWriter, opcode.PUSHNULL)
 	}
