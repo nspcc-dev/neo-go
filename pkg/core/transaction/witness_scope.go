@@ -22,6 +22,8 @@ const (
 	CustomContracts WitnessScope = 0x10
 	// CustomGroups define custom pubkey for group members.
 	CustomGroups WitnessScope = 0x20
+	// Rules is a set of conditions with boolean operators.
+	Rules WitnessScope = 0x40
 	// Global allows this witness in all contexts (default Neo2 behavior).
 	// This cannot be combined with other flags.
 	Global WitnessScope = 0x80
@@ -42,6 +44,7 @@ func ScopesFromString(s string) (WitnessScope, error) {
 		CalledByEntry.String():   CalledByEntry,
 		CustomContracts.String(): CustomContracts,
 		CustomGroups.String():    CustomGroups,
+		Rules.String():           Rules,
 		None.String():            None,
 	}
 	var isGlobal bool
@@ -61,6 +64,16 @@ func ScopesFromString(s string) (WitnessScope, error) {
 	return result, nil
 }
 
+func appendScopeString(str string, scopes WitnessScope, scope WitnessScope) string {
+	if scopes&scope != 0 {
+		if len(str) != 0 {
+			str += ", "
+		}
+		str += scope.String()
+	}
+	return str
+}
+
 // scopesToString converts witness scope to it's string representation. It uses
 // `, ` to separate scope names.
 func scopesToString(scopes WitnessScope) string {
@@ -68,21 +81,10 @@ func scopesToString(scopes WitnessScope) string {
 		return scopes.String()
 	}
 	var res string
-	if scopes&CalledByEntry != 0 {
-		res = CalledByEntry.String()
-	}
-	if scopes&CustomContracts != 0 {
-		if len(res) != 0 {
-			res += ", "
-		}
-		res += CustomContracts.String()
-	}
-	if scopes&CustomGroups != 0 {
-		if len(res) != 0 {
-			res += ", "
-		}
-		res += CustomGroups.String()
-	}
+	res = appendScopeString(res, scopes, CalledByEntry)
+	res = appendScopeString(res, scopes, CustomContracts)
+	res = appendScopeString(res, scopes, CustomGroups)
+	res = appendScopeString(res, scopes, Rules)
 	return res
 }
 

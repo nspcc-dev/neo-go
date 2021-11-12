@@ -9,6 +9,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
@@ -26,6 +27,38 @@ func CheckHashedWitness(ic *interop.Context, hash util.Uint160) (bool, error) {
 	}
 
 	return false, errors.New("script container is not a transaction")
+}
+
+type scopeContext struct {
+	*vm.VM
+	ic *interop.Context
+}
+
+func getContractGroups(v *vm.VM, ic *interop.Context, h util.Uint160) (manifest.Groups, error) {
+	if !v.Context().GetCallFlags().Has(callflag.ReadStates) {
+		return nil, errors.New("missing ReadStates call flag")
+	}
+	cs, err := ic.GetContract(h)
+	if err != nil {
+		return nil, nil // It's OK to not have the contract.
+	}
+	return manifest.Groups(cs.Manifest.Groups), nil
+}
+
+func (sc scopeContext) checkScriptGroups(h util.Uint160, k *keys.PublicKey) (bool, error) {
+	groups, err := getContractGroups(sc.VM, sc.ic, h)
+	if err != nil {
+		return false, err
+	}
+	return groups.Contains(k), nil
+}
+
+func (sc scopeContext) CallingScriptHasGroup(k *keys.PublicKey) (bool, error) {
+	return sc.checkScriptGroups(sc.GetCallingScriptHash(), k)
+}
+
+func (sc scopeContext) CurrentScriptHasGroup(k *keys.PublicKey) (bool, error) {
+	return sc.checkScriptGroups(sc.GetCurrentScriptHash(), k)
 }
 
 func checkScope(ic *interop.Context, tx *transaction.Transaction, v *vm.VM, hash util.Uint160) (bool, error) {
@@ -50,19 +83,26 @@ func checkScope(ic *interop.Context, tx *transaction.Transaction, v *vm.VM, hash
 				}
 			}
 			if c.Scopes&transaction.CustomGroups != 0 {
-				if !v.Context().GetCallFlags().Has(callflag.ReadStates) {
-					return false, errors.New("missing ReadStates call flag")
-				}
-				cs, err := ic.GetContract(v.GetCurrentScriptHash())
+				groups, err := getContractGroups(v, ic, v.GetCurrentScriptHash())
 				if err != nil {
-					return false, nil
+					return false, err
 				}
 				// check if the current group is the required one
 				for _, allowedGroup := range c.AllowedGroups {
-					for _, group := range cs.Manifest.Groups {
-						if group.PublicKey.Equal(allowedGroup) {
-							return true, nil
-						}
+					if groups.Contains(allowedGroup) {
+						return true, nil
+					}
+				}
+			}
+			if c.Scopes&transaction.Rules != 0 {
+				ctx := scopeContext{v, ic}
+				for _, r := range c.Rules {
+					res, err := r.Condition.Match(ctx)
+					if err != nil {
+						return false, err
+					}
+					if res {
+						return r.Action == transaction.WitnessAllow, nil
 					}
 				}
 			}

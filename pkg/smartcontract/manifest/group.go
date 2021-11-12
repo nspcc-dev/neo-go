@@ -64,6 +64,15 @@ func (g Groups) AreValid(h util.Uint160) error {
 	return nil
 }
 
+func (g Groups) Contains(k *keys.PublicKey) bool {
+	for i := range g {
+		if k.Equal(g[i].PublicKey) {
+			return true
+		}
+	}
+	return false
+}
+
 // MarshalJSON implements json.Marshaler interface.
 func (g *Group) MarshalJSON() ([]byte, error) {
 	aux := &groupAux{

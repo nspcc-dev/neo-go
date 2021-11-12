@@ -1189,6 +1189,28 @@ func TestRuntimeCheckWitness(t *testing.T) {
 				ic.VM.LoadScriptWithHash([]byte{0x1}, random.Uint160(), callflag.AllowCall)
 				check(t, ic, hash.BytesBE(), true)
 			})
+			t.Run("Rules, missing ReadStates flag", func(t *testing.T) {
+				hash := random.Uint160()
+				pk, err := keys.NewPrivateKey()
+				require.NoError(t, err)
+				tx := &transaction.Transaction{
+					Signers: []transaction.Signer{
+						{
+							Account: hash,
+							Scopes:  transaction.Rules,
+							Rules: []transaction.WitnessRule{{
+								Action:    transaction.WitnessAllow,
+								Condition: (*transaction.ConditionGroup)(pk.PublicKey()),
+							}},
+						},
+					},
+				}
+				ic.Container = tx
+				callingScriptHash := scriptHash
+				loadScriptWithHashAndFlags(ic, script, callingScriptHash, callflag.All)
+				ic.VM.LoadScriptWithHash([]byte{0x1}, random.Uint160(), callflag.AllowCall)
+				check(t, ic, hash.BytesBE(), true)
+			})
 		})
 	})
 	t.Run("positive", func(t *testing.T) {
@@ -1299,6 +1321,64 @@ func TestRuntimeCheckWitness(t *testing.T) {
 					loadScriptWithHashAndFlags(ic, contractScript, contractScriptHash, callflag.All)
 					ic.Container = tx
 					check(t, ic, targetHash.BytesBE(), false, true)
+				})
+			})
+			t.Run("Rules", func(t *testing.T) {
+				t.Run("no match", func(t *testing.T) {
+					hash := random.Uint160()
+					tx := &transaction.Transaction{
+						Signers: []transaction.Signer{
+							{
+								Account: hash,
+								Scopes:  transaction.Rules,
+								Rules: []transaction.WitnessRule{{
+									Action:    transaction.WitnessAllow,
+									Condition: (*transaction.ConditionScriptHash)(&hash),
+								}},
+							},
+						},
+					}
+					loadScriptWithHashAndFlags(ic, script, scriptHash, callflag.ReadStates)
+					ic.Container = tx
+					check(t, ic, hash.BytesBE(), false, false)
+				})
+				t.Run("allow", func(t *testing.T) {
+					hash := random.Uint160()
+					var cond = true
+					tx := &transaction.Transaction{
+						Signers: []transaction.Signer{
+							{
+								Account: hash,
+								Scopes:  transaction.Rules,
+								Rules: []transaction.WitnessRule{{
+									Action:    transaction.WitnessAllow,
+									Condition: (*transaction.ConditionBoolean)(&cond),
+								}},
+							},
+						},
+					}
+					loadScriptWithHashAndFlags(ic, script, scriptHash, callflag.ReadStates)
+					ic.Container = tx
+					check(t, ic, hash.BytesBE(), false, true)
+				})
+				t.Run("deny", func(t *testing.T) {
+					hash := random.Uint160()
+					var cond = true
+					tx := &transaction.Transaction{
+						Signers: []transaction.Signer{
+							{
+								Account: hash,
+								Scopes:  transaction.Rules,
+								Rules: []transaction.WitnessRule{{
+									Action:    transaction.WitnessDeny,
+									Condition: (*transaction.ConditionBoolean)(&cond),
+								}},
+							},
+						},
+					}
+					loadScriptWithHashAndFlags(ic, script, scriptHash, callflag.ReadStates)
+					ic.Container = tx
+					check(t, ic, hash.BytesBE(), false, false)
 				})
 			})
 			t.Run("bad scope", func(t *testing.T) {
