@@ -1779,30 +1779,39 @@ func TestRIGHT(t *testing.T) {
 }
 
 func TestPACK(t *testing.T) {
-	prog := makeProgram(opcode.PACK)
-	t.Run("BadLen", getTestFuncForVM(prog, nil, 1))
-	t.Run("Good0Len", getTestFuncForVM(prog, []stackitem.Item{}, 0))
+	for _, op := range []opcode.Opcode{opcode.PACK, opcode.PACKSTRUCT} {
+		t.Run(op.String(), func(t *testing.T) {
+			prog := makeProgram(op)
+			t.Run("BadLen", getTestFuncForVM(prog, nil, 1))
+			t.Run("BigLen", getTestFuncForVM(prog, nil, 100500))
+			t.Run("Good0Len", getTestFuncForVM(prog, []stackitem.Item{}, 0))
+		})
+	}
 }
 
 func TestPACKGood(t *testing.T) {
-	prog := makeProgram(opcode.PACK)
-	elements := []int{55, 34, 42}
-	vm := load(prog)
-	// canary
-	vm.estack.PushVal(1)
-	for i := len(elements) - 1; i >= 0; i-- {
-		vm.estack.PushVal(elements[i])
+	for _, op := range []opcode.Opcode{opcode.PACK, opcode.PACKSTRUCT} {
+		t.Run(op.String(), func(t *testing.T) {
+			prog := makeProgram(op)
+			elements := []int{55, 34, 42}
+			vm := load(prog)
+			// canary
+			vm.estack.PushVal(1)
+			for i := len(elements) - 1; i >= 0; i-- {
+				vm.estack.PushVal(elements[i])
+			}
+			vm.estack.PushVal(len(elements))
+			runVM(t, vm)
+			assert.Equal(t, 2, vm.estack.Len())
+			a := vm.estack.Peek(0).Array()
+			assert.Equal(t, len(elements), len(a))
+			for i := 0; i < len(elements); i++ {
+				e := a[i].Value().(*big.Int)
+				assert.Equal(t, int64(elements[i]), e.Int64())
+			}
+			assert.Equal(t, int64(1), vm.estack.Peek(1).BigInt().Int64())
+		})
 	}
-	vm.estack.PushVal(len(elements))
-	runVM(t, vm)
-	assert.Equal(t, 2, vm.estack.Len())
-	a := vm.estack.Peek(0).Array()
-	assert.Equal(t, len(elements), len(a))
-	for i := 0; i < len(elements); i++ {
-		e := a[i].Value().(*big.Int)
-		assert.Equal(t, int64(elements[i]), e.Int64())
-	}
-	assert.Equal(t, int64(1), vm.estack.Peek(1).BigInt().Int64())
 }
 
 func TestPACK_UNPACK_MaxSize(t *testing.T) {
@@ -1849,6 +1858,42 @@ func TestPACK_UNPACK_PACK_MaxSize(t *testing.T) {
 		assert.Equal(t, int64(elements[i]), e.Int64())
 	}
 	assert.Equal(t, int64(1), vm.estack.Peek(1).BigInt().Int64())
+}
+
+func TestPACKMAP_UNPACK_PACKMAP_MaxSize(t *testing.T) {
+	prog := makeProgram(opcode.PACKMAP, opcode.UNPACK, opcode.PACKMAP)
+	elements := make([]int, (MaxStackSize-2)/2)
+	vm := load(prog)
+	// canary
+	vm.estack.PushVal(-1)
+	for i := len(elements) - 1; i >= 0; i-- {
+		elements[i] = i
+		vm.estack.PushVal(i * 2)
+		vm.estack.PushVal(i)
+	}
+	vm.estack.PushVal(len(elements))
+	runVM(t, vm)
+	// check reference counter = 1+1+1024
+	assert.Equal(t, 1+1+len(elements), int(vm.refs))
+	assert.Equal(t, 2, vm.estack.Len())
+	m := vm.estack.Peek(0).value.(*stackitem.Map).Value().([]stackitem.MapElement)
+	assert.Equal(t, len(elements), len(m))
+	for i := 0; i < len(elements); i++ {
+		k := m[i].Key.Value().(*big.Int)
+		v := m[i].Value.Value().(*big.Int)
+		assert.Equal(t, int64(elements[i]), k.Int64())
+		assert.Equal(t, int64(elements[i])*2, v.Int64())
+	}
+	assert.Equal(t, int64(-1), vm.estack.Peek(1).BigInt().Int64())
+}
+
+func TestPACKMAPBadKey(t *testing.T) {
+	prog := makeProgram(opcode.PACKMAP)
+	vm := load(prog)
+	vm.estack.PushVal(1)
+	vm.estack.PushItem(stackitem.NewBuffer([]byte{1}))
+	vm.estack.PushVal(1)
+	checkVMFailed(t, vm)
 }
 
 func TestUNPACKBadNotArray(t *testing.T) {

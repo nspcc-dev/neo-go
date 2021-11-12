@@ -395,6 +395,16 @@ var structTestCases = []testCase{
 		big.NewInt(11),
 	},
 	{
+		"lengthy struct default value",
+		`package foo
+		type S struct { x int; y []byte; z bool }
+		func Main() int {
+			var s S
+			return s.x
+		}`,
+		big.NewInt(0),
+	},
+	{
 		"nested selectors (complex write)",
 		`package foo
 		type S1 struct { x S2 }

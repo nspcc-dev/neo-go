@@ -324,14 +324,11 @@ func (c *codegen) emitDefault(t types.Type) {
 		}
 	case *types.Struct:
 		num := t.NumFields()
-		emit.Int(c.prog.BinWriter, int64(num))
-		emit.Opcodes(c.prog.BinWriter, opcode.NEWSTRUCT)
-		for i := 0; i < num; i++ {
-			emit.Opcodes(c.prog.BinWriter, opcode.DUP)
-			emit.Int(c.prog.BinWriter, int64(i))
+		for i := num - 1; i >= 0; i-- {
 			c.emitDefault(t.Field(i).Type())
-			emit.Opcodes(c.prog.BinWriter, opcode.SETITEM)
 		}
+		emit.Int(c.prog.BinWriter, int64(num))
+		emit.Opcodes(c.prog.BinWriter, opcode.PACKSTRUCT)
 	default:
 		emit.Opcodes(c.prog.BinWriter, opcode.PUSHNULL)
 	}
@@ -1574,10 +1571,6 @@ func (c *codegen) convertSyscall(f *funcScope, expr *ast.CallExpr) {
 	if strings.HasPrefix(f.name, "Syscall") {
 		c.emitReverse(len(expr.Args) - 1)
 		emit.Syscall(c.prog.BinWriter, name)
-
-		// This NOP instruction is basically not needed, but if we do, we have a
-		// one to one matching avm file with neo-python which is very nice for debugging.
-		emit.Opcodes(c.prog.BinWriter, opcode.NOP)
 	} else {
 		op, err := opcode.FromString(name)
 		if err != nil {
@@ -1796,14 +1789,14 @@ func (c *codegen) convertByteArray(elems []ast.Expr) {
 }
 
 func (c *codegen) convertMap(lit *ast.CompositeLit) {
-	emit.Opcodes(c.prog.BinWriter, opcode.NEWMAP)
-	for i := range lit.Elts {
+	l := len(lit.Elts)
+	for i := l - 1; i >= 0; i-- {
 		elem := lit.Elts[i].(*ast.KeyValueExpr)
-		emit.Opcodes(c.prog.BinWriter, opcode.DUP)
-		ast.Walk(c, elem.Key)
 		ast.Walk(c, elem.Value)
-		emit.Opcodes(c.prog.BinWriter, opcode.SETITEM)
+		ast.Walk(c, elem.Key)
 	}
+	emit.Int(c.prog.BinWriter, int64(l))
+	emit.Opcodes(c.prog.BinWriter, opcode.PACKMAP)
 }
 
 func (c *codegen) getStruct(typ types.Type) (*types.Struct, bool) {
@@ -1827,14 +1820,6 @@ func (c *codegen) convertStruct(lit *ast.CompositeLit, ptr bool) {
 		return
 	}
 
-	emit.Opcodes(c.prog.BinWriter, opcode.NOP)
-	emit.Int(c.prog.BinWriter, int64(strct.NumFields()))
-	if ptr {
-		emit.Opcodes(c.prog.BinWriter, opcode.NEWARRAY)
-	} else {
-		emit.Opcodes(c.prog.BinWriter, opcode.NEWSTRUCT)
-	}
-
 	keyedLit := len(lit.Elts) > 0
 	if keyedLit {
 		_, ok := lit.Elts[0].(*ast.KeyValueExpr)
@@ -1842,12 +1827,9 @@ func (c *codegen) convertStruct(lit *ast.CompositeLit, ptr bool) {
 	}
 	// We need to locally store all the fields, even if they are not initialized.
 	// We will initialize all fields to their "zero" value.
-	for i := 0; i < strct.NumFields(); i++ {
+	for i := strct.NumFields() - 1; i >= 0; i-- {
 		sField := strct.Field(i)
 		var initialized bool
-
-		emit.Opcodes(c.prog.BinWriter, opcode.DUP)
-		emit.Int(c.prog.BinWriter, int64(i))
 
 		if !keyedLit {
 			if len(lit.Elts) > i {
@@ -1870,7 +1852,12 @@ func (c *codegen) convertStruct(lit *ast.CompositeLit, ptr bool) {
 		if !initialized {
 			c.emitDefault(sField.Type())
 		}
-		emit.Opcodes(c.prog.BinWriter, opcode.SETITEM)
+	}
+	emit.Int(c.prog.BinWriter, int64(strct.NumFields()))
+	if ptr {
+		emit.Opcodes(c.prog.BinWriter, opcode.PACK)
+	} else {
+		emit.Opcodes(c.prog.BinWriter, opcode.PACKSTRUCT)
 	}
 }
 

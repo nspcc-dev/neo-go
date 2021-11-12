@@ -1061,7 +1061,23 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 
 		v.refs.Add(val)
 
-	case opcode.PACK:
+	case opcode.PACKMAP:
+		n := toInt(v.estack.Pop().BigInt())
+		if n < 0 || n*2 > v.estack.Len() {
+			panic("invalid length")
+		}
+
+		items := make([]stackitem.MapElement, n)
+		for i := 0; i < n; i++ {
+			key := v.estack.Pop()
+			validateMapKey(key)
+			val := v.estack.Pop().value
+			items[i].Key = key.value
+			items[i].Value = val
+		}
+		v.estack.PushItem(stackitem.NewMapWithValue(items))
+
+	case opcode.PACKSTRUCT, opcode.PACK:
 		n := toInt(v.estack.Pop().BigInt())
 		if n < 0 || n > v.estack.Len() {
 			panic("OPACK: invalid length")
@@ -1072,13 +1088,39 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			items[i] = v.estack.Pop().value
 		}
 
-		v.estack.PushItem(stackitem.NewArray(items))
+		var res stackitem.Item
+		if op == opcode.PACK {
+			res = stackitem.NewArray(items)
+		} else {
+			res = stackitem.NewStruct(items)
+		}
+		v.estack.PushItem(res)
 
 	case opcode.UNPACK:
-		a := v.estack.Pop().Array()
-		l := len(a)
-		for i := l - 1; i >= 0; i-- {
-			v.estack.PushItem(a[i])
+		e := v.estack.Pop()
+		var arr []stackitem.Item
+		var l int
+
+		switch t := e.value.(type) {
+		case *stackitem.Array:
+			arr = t.Value().([]stackitem.Item)
+		case *stackitem.Struct:
+			arr = t.Value().([]stackitem.Item)
+		case *stackitem.Map:
+			m := t.Value().([]stackitem.MapElement)
+			l = len(m)
+			for i := l - 1; i >= 0; i-- {
+				v.estack.PushItem(m[i].Value)
+				v.estack.PushItem(m[i].Key)
+			}
+		default:
+			panic("element is not an array/struct/map")
+		}
+		if arr != nil {
+			l = len(arr)
+			for i := l - 1; i >= 0; i-- {
+				v.estack.PushItem(arr[i])
+			}
 		}
 		v.estack.PushItem(stackitem.NewBigInteger(big.NewInt(int64(l))))
 
