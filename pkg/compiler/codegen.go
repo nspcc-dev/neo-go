@@ -1571,10 +1571,6 @@ func (c *codegen) convertSyscall(f *funcScope, expr *ast.CallExpr) {
 	if strings.HasPrefix(f.name, "Syscall") {
 		c.emitReverse(len(expr.Args) - 1)
 		emit.Syscall(c.prog.BinWriter, name)
-
-		// This NOP instruction is basically not needed, but if we do, we have a
-		// one to one matching avm file with neo-python which is very nice for debugging.
-		emit.Opcodes(c.prog.BinWriter, opcode.NOP)
 	} else {
 		op, err := opcode.FromString(name)
 		if err != nil {
@@ -1824,7 +1820,6 @@ func (c *codegen) convertStruct(lit *ast.CompositeLit, ptr bool) {
 		return
 	}
 
-	emit.Opcodes(c.prog.BinWriter, opcode.NOP)
 	keyedLit := len(lit.Elts) > 0
 	if keyedLit {
 		_, ok := lit.Elts[0].(*ast.KeyValueExpr)
