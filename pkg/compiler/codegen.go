@@ -1793,14 +1793,14 @@ func (c *codegen) convertByteArray(elems []ast.Expr) {
 }
 
 func (c *codegen) convertMap(lit *ast.CompositeLit) {
-	emit.Opcodes(c.prog.BinWriter, opcode.NEWMAP)
-	for i := range lit.Elts {
+	l := len(lit.Elts)
+	for i := l - 1; i >= 0; i-- {
 		elem := lit.Elts[i].(*ast.KeyValueExpr)
-		emit.Opcodes(c.prog.BinWriter, opcode.DUP)
-		ast.Walk(c, elem.Key)
 		ast.Walk(c, elem.Value)
-		emit.Opcodes(c.prog.BinWriter, opcode.SETITEM)
+		ast.Walk(c, elem.Key)
 	}
+	emit.Int(c.prog.BinWriter, int64(l))
+	emit.Opcodes(c.prog.BinWriter, opcode.PACKMAP)
 }
 
 func (c *codegen) getStruct(typ types.Type) (*types.Struct, bool) {
