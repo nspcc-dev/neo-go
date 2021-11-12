@@ -180,6 +180,8 @@ var coefficients = [256]uint16{
 	opcode.MIN:          1 << 3,
 	opcode.MAX:          1 << 3,
 	opcode.WITHIN:       1 << 3,
+	opcode.PACKMAP:      1 << 11,
+	opcode.PACKSTRUCT:   1 << 11,
 	opcode.PACK:         1 << 11,
 	opcode.UNPACK:       1 << 11,
 	opcode.NEWARRAY0:    1 << 4,

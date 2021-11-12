@@ -196,6 +196,8 @@ const (
 	WITHIN      Opcode = 0xBB
 
 	// Advanced data structures (arrays, structures, maps).
+	PACKMAP      Opcode = 0xBE
+	PACKSTRUCT   Opcode = 0xBF
 	PACK         Opcode = 0xC0
 	UNPACK       Opcode = 0xC1
 	NEWARRAY0    Opcode = 0xC2
