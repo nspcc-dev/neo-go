@@ -1828,13 +1828,6 @@ func (c *codegen) convertStruct(lit *ast.CompositeLit, ptr bool) {
 	}
 
 	emit.Opcodes(c.prog.BinWriter, opcode.NOP)
-	emit.Int(c.prog.BinWriter, int64(strct.NumFields()))
-	if ptr {
-		emit.Opcodes(c.prog.BinWriter, opcode.NEWARRAY)
-	} else {
-		emit.Opcodes(c.prog.BinWriter, opcode.NEWSTRUCT)
-	}
-
 	keyedLit := len(lit.Elts) > 0
 	if keyedLit {
 		_, ok := lit.Elts[0].(*ast.KeyValueExpr)
@@ -1842,12 +1835,9 @@ func (c *codegen) convertStruct(lit *ast.CompositeLit, ptr bool) {
 	}
 	// We need to locally store all the fields, even if they are not initialized.
 	// We will initialize all fields to their "zero" value.
-	for i := 0; i < strct.NumFields(); i++ {
+	for i := strct.NumFields() - 1; i >= 0; i-- {
 		sField := strct.Field(i)
 		var initialized bool
-
-		emit.Opcodes(c.prog.BinWriter, opcode.DUP)
-		emit.Int(c.prog.BinWriter, int64(i))
 
 		if !keyedLit {
 			if len(lit.Elts) > i {
@@ -1870,7 +1860,12 @@ func (c *codegen) convertStruct(lit *ast.CompositeLit, ptr bool) {
 		if !initialized {
 			c.emitDefault(sField.Type())
 		}
-		emit.Opcodes(c.prog.BinWriter, opcode.SETITEM)
+	}
+	emit.Int(c.prog.BinWriter, int64(strct.NumFields()))
+	if ptr {
+		emit.Opcodes(c.prog.BinWriter, opcode.PACK)
+	} else {
+		emit.Opcodes(c.prog.BinWriter, opcode.PACKSTRUCT)
 	}
 }
 
