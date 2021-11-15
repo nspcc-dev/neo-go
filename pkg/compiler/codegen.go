@@ -1272,7 +1272,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		goTyp := c.typeOf(n.Type)
 		if canConvert(goTyp.String()) {
 			typ := toNeoType(goTyp)
-			emit.Instruction(c.prog.BinWriter, opcode.CONVERT, []byte{byte(typ)})
+			c.emitConvert(typ)
 		}
 		return nil
 	}
@@ -1763,6 +1763,9 @@ func transformArgs(fs *funcScope, fun ast.Expr, args []ast.Expr) []ast.Expr {
 
 // emitConvert converts top stack item to the specified type.
 func (c *codegen) emitConvert(typ stackitem.Type) {
+	emit.Opcodes(c.prog.BinWriter, opcode.DUP)
+	emit.Instruction(c.prog.BinWriter, opcode.ISTYPE, []byte{byte(typ)})
+	emit.Instruction(c.prog.BinWriter, opcode.JMPIF, []byte{2 + 2}) // After CONVERT.
 	emit.Instruction(c.prog.BinWriter, opcode.CONVERT, []byte{byte(typ)})
 }
 
