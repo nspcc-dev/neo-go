@@ -55,6 +55,18 @@ func getTestNotary(t *testing.T, bc *Blockchain, walletPath, pass string, onTx f
 	return w.Accounts[0], ntr, mp
 }
 
+// dupNotaryRequest duplicates notary request by serializing/deserializing it. Use
+// it to avoid data races when reusing the same payload. Normal OnNewRequest handler
+// never receives the same (as in the same pointer) payload multiple times, even if
+// the contents is the same it would be a separate buffer.
+func dupNotaryRequest(t *testing.T, p *payload.P2PNotaryRequest) *payload.P2PNotaryRequest {
+	b, err := p.Bytes()
+	require.NoError(t, err)
+	r, err := payload.NewP2PNotaryRequestFromBytes(b)
+	require.NoError(t, err)
+	return r
+}
+
 func TestNotary(t *testing.T) {
 	bc := newTestChain(t)
 	var (
@@ -344,7 +356,7 @@ func TestNotary(t *testing.T) {
 			completedCount := len(completedTxes)
 
 			// check that the same request won't be processed twice
-			ntr1.OnNewRequest(requests[sendOrder[i]])
+			ntr1.OnNewRequest(dupNotaryRequest(t, requests[sendOrder[i]]))
 			checkMainTx(t, requesters, requests, i+1, shouldComplete)
 			require.Equal(t, completedCount, len(completedTxes))
 		}
@@ -380,7 +392,7 @@ func TestNotary(t *testing.T) {
 			checkMainTx(t, requesters, submittedRequests, i+1, shouldComplete)
 
 			// check that the same request won't be processed twice
-			ntr1.OnNewRequest(requests[sendOrder[i]])
+			ntr1.OnNewRequest(dupNotaryRequest(t, requests[sendOrder[i]]))
 			checkMainTx(t, requesters, submittedRequests, i+1, shouldComplete)
 		}
 
@@ -424,7 +436,7 @@ func TestNotary(t *testing.T) {
 			completedCount := len(completedTxes)
 
 			// check that the same request won't be processed twice
-			ntr1.OnNewRequest(requests[i])
+			ntr1.OnNewRequest(dupNotaryRequest(t, requests[i]))
 			checkMainTx(t, requesters, requests, i+1, shouldComplete)
 			require.Equal(t, completedCount, len(completedTxes))
 		}
