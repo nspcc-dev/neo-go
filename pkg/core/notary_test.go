@@ -146,7 +146,7 @@ func TestNotary(t *testing.T) {
 		fallback.Nonce = nonce
 		nonce++
 		fallback.SystemFee = 1_0000_0000
-		fallback.ValidUntilBlock = bc.BlockHeight() + 50
+		fallback.ValidUntilBlock = bc.BlockHeight() + 2*nvbDiffFallback
 		fallback.Signers = []transaction.Signer{
 			{
 				Account: bc.GetNotaryContractScriptHash(),
