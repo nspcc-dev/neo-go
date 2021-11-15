@@ -141,11 +141,7 @@ func TestServerRegisterPeer(t *testing.T) {
 		ps[i].netaddr.Port = i + 1
 	}
 
-	ch := startWithChannel(s)
-	t.Cleanup(func() {
-		s.Shutdown()
-		<-ch
-	})
+	startWithCleanup(t, s)
 
 	s.register <- ps[0]
 	require.Eventually(t, func() bool { return 1 == s.PeerCount() }, time.Second, time.Millisecond*10)
@@ -395,12 +391,16 @@ func startTestServer(t *testing.T, protocolCfg ...func(*config.ProtocolConfigura
 	} else {
 		s = newTestServer(t, srvCfg)
 	}
+	startWithCleanup(t, s)
+	return s
+}
+
+func startWithCleanup(t *testing.T, s *Server) {
 	ch := startWithChannel(s)
 	t.Cleanup(func() {
 		s.Shutdown()
 		<-ch
 	})
-	return s
 }
 
 func TestBlock(t *testing.T) {
@@ -826,8 +826,8 @@ func TestHandleMPTData(t *testing.T) {
 	})
 
 	t.Run("good", func(t *testing.T) {
-		s := startTestServer(t)
 		expected := [][]byte{{1, 2, 3}, {2, 3, 4}}
+		s := newTestServer(t, ServerConfig{Port: 0, UserAgent: "/test/"})
 		s.chain.(*fakechain.FakeChain).P2PStateExchangeExtensions = true
 		s.stateSync = &fakechain.FakeStateSync{
 			AddMPTNodesFunc: func(nodes [][]byte) error {
@@ -835,6 +835,7 @@ func TestHandleMPTData(t *testing.T) {
 				return nil
 			},
 		}
+		startWithCleanup(t, s)
 
 		p := newLocalPeer(t, s)
 		p.handshaked = true
