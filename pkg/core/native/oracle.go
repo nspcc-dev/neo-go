@@ -275,6 +275,12 @@ func (o *Oracle) FinishInternal(ic *interop.Context) error {
 			stackitem.Make(req.OriginalTxID.BytesBE()),
 		}),
 	})
+	origTx, _, err := ic.DAO.GetTransaction(req.OriginalTxID)
+	if err != nil {
+		return ErrRequestNotFound
+	}
+	ic.UseSigners(origTx.Signers)
+	defer ic.UseSigners(nil)
 
 	userData, err := stackitem.Deserialize(req.UserData)
 	if err != nil {

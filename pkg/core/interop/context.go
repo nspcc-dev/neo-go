@@ -51,6 +51,7 @@ type Context struct {
 	cancelFuncs   []context.CancelFunc
 	getContract   func(dao.DAO, util.Uint160) (*state.Contract, error)
 	baseExecFee   int64
+	signers       []transaction.Signer
 }
 
 // NewContext returns new interop context.
@@ -87,6 +88,22 @@ func (ic *Context) InitNonceData() {
 		nonce ^= binary.LittleEndian.Uint64(ic.NonceData[:])
 		binary.LittleEndian.PutUint64(ic.NonceData[:], nonce)
 	}
+}
+
+// UseSigners allows overriding signers used in this context.
+func (ic *Context) UseSigners(s []transaction.Signer) {
+	ic.signers = s
+}
+
+// Signers returns signers witnessing current execution context.
+func (ic *Context) Signers() []transaction.Signer {
+	if ic.signers != nil {
+		return ic.signers
+	}
+	if ic.Tx != nil {
+		return ic.Tx.Signers
+	}
+	return nil
 }
 
 // Function binds function name, id with the function itself and price,

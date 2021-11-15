@@ -43,6 +43,11 @@ func getOracleContractState(h util.Uint160, stdHash util.Uint160) *state.Contrac
 
 	// `handle` method aborts if len(userData) == 2
 	offset := w.Len()
+	emit.Bytes(w.BinWriter, neoOwner.BytesBE())
+	emit.Syscall(w.BinWriter, interopnames.SystemRuntimeCheckWitness)
+	emit.Instruction(w.BinWriter, opcode.JMPIF, []byte{3})
+	emit.Opcodes(w.BinWriter, opcode.ABORT)
+
 	emit.Opcodes(w.BinWriter, opcode.OVER)
 	emit.Opcodes(w.BinWriter, opcode.SIZE)
 	emit.Int(w.BinWriter, 2)

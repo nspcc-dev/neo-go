@@ -22,11 +22,7 @@ func CheckHashedWitness(ic *interop.Context, hash util.Uint160) (bool, error) {
 	if !callingSH.Equals(util.Uint160{}) && hash.Equals(callingSH) {
 		return true, nil
 	}
-	if tx, ok := ic.Container.(*transaction.Transaction); ok {
-		return checkScope(ic, tx, ic.VM, hash)
-	}
-
-	return false, errors.New("script container is not a transaction")
+	return checkScope(ic, hash)
 }
 
 type scopeContext struct {
@@ -61,21 +57,26 @@ func (sc scopeContext) CurrentScriptHasGroup(k *keys.PublicKey) (bool, error) {
 	return sc.checkScriptGroups(sc.GetCurrentScriptHash(), k)
 }
 
-func checkScope(ic *interop.Context, tx *transaction.Transaction, v *vm.VM, hash util.Uint160) (bool, error) {
-	for _, c := range tx.Signers {
+func checkScope(ic *interop.Context, hash util.Uint160) (bool, error) {
+	signers := ic.Signers()
+	if len(signers) == 0 {
+		return false, errors.New("no valid signers")
+	}
+	for i := range signers {
+		c := &signers[i]
 		if c.Account == hash {
 			if c.Scopes == transaction.Global {
 				return true, nil
 			}
 			if c.Scopes&transaction.CalledByEntry != 0 {
-				callingScriptHash := v.GetCallingScriptHash()
-				entryScriptHash := v.GetEntryScriptHash()
+				callingScriptHash := ic.VM.GetCallingScriptHash()
+				entryScriptHash := ic.VM.GetEntryScriptHash()
 				if callingScriptHash.Equals(util.Uint160{}) || callingScriptHash == entryScriptHash {
 					return true, nil
 				}
 			}
 			if c.Scopes&transaction.CustomContracts != 0 {
-				currentScriptHash := v.GetCurrentScriptHash()
+				currentScriptHash := ic.VM.GetCurrentScriptHash()
 				for _, allowedContract := range c.AllowedContracts {
 					if allowedContract == currentScriptHash {
 						return true, nil
@@ -83,7 +84,7 @@ func checkScope(ic *interop.Context, tx *transaction.Transaction, v *vm.VM, hash
 				}
 			}
 			if c.Scopes&transaction.CustomGroups != 0 {
-				groups, err := getContractGroups(v, ic, v.GetCurrentScriptHash())
+				groups, err := getContractGroups(ic.VM, ic, ic.VM.GetCurrentScriptHash())
 				if err != nil {
 					return false, err
 				}
@@ -95,7 +96,7 @@ func checkScope(ic *interop.Context, tx *transaction.Transaction, v *vm.VM, hash
 				}
 			}
 			if c.Scopes&transaction.Rules != 0 {
-				ctx := scopeContext{v, ic}
+				ctx := scopeContext{ic.VM, ic}
 				for _, r := range c.Rules {
 					res, err := r.Condition.Match(ctx)
 					if err != nil {
