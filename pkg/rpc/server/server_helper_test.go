@@ -101,6 +101,7 @@ func initClearServerWithServices(t testing.TB, needOracle bool, needNotary bool)
 	chain, orc, cfg, logger := getUnitTestChain(t, needOracle, needNotary)
 
 	serverConfig := network.NewServerConfig(cfg)
+	serverConfig.Port = 0
 	server, err := network.NewServer(serverConfig, chain, logger)
 	require.NoError(t, err)
 	rpcServer := New(chain, cfg.ApplicationConfiguration.RPC, server, orc, logger)
