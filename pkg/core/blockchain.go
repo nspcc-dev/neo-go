@@ -1010,15 +1010,19 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 				aerdone <- err
 				return
 			}
-			err = kvcache.PutTokenTransferLog(acc, trData.Info.NextNEP11Batch, true, &trData.Log11)
-			if err != nil {
-				aerdone <- err
-				return
+			if !trData.Info.NewNEP11Batch {
+				err = kvcache.PutTokenTransferLog(acc, trData.Info.NextNEP11Batch, true, &trData.Log11)
+				if err != nil {
+					aerdone <- err
+					return
+				}
 			}
-			err = kvcache.PutTokenTransferLog(acc, trData.Info.NextNEP17Batch, false, &trData.Log17)
-			if err != nil {
-				aerdone <- err
-				return
+			if !trData.Info.NewNEP17Batch {
+				err = kvcache.PutTokenTransferLog(acc, trData.Info.NextNEP17Batch, false, &trData.Log17)
+				if err != nil {
+					aerdone <- err
+					return
+				}
 			}
 		}
 		close(aerdone)
