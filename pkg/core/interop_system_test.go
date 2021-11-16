@@ -1183,7 +1183,7 @@ func TestRuntimeCheckWitness(t *testing.T) {
 						},
 					},
 				}
-				ic.Container = tx
+				ic.Tx = tx
 				callingScriptHash := scriptHash
 				loadScriptWithHashAndFlags(ic, script, callingScriptHash, callflag.All)
 				ic.VM.LoadScriptWithHash([]byte{0x1}, random.Uint160(), callflag.AllowCall)
@@ -1205,7 +1205,7 @@ func TestRuntimeCheckWitness(t *testing.T) {
 						},
 					},
 				}
-				ic.Container = tx
+				ic.Tx = tx
 				callingScriptHash := scriptHash
 				loadScriptWithHashAndFlags(ic, script, callingScriptHash, callflag.All)
 				ic.VM.LoadScriptWithHash([]byte{0x1}, random.Uint160(), callflag.AllowCall)
@@ -1242,7 +1242,7 @@ func TestRuntimeCheckWitness(t *testing.T) {
 					},
 				}
 				loadScriptWithHashAndFlags(ic, script, scriptHash, callflag.ReadStates)
-				ic.Container = tx
+				ic.Tx = tx
 				check(t, ic, hash.BytesBE(), false, true)
 			})
 			t.Run("CalledByEntry", func(t *testing.T) {
@@ -1256,7 +1256,7 @@ func TestRuntimeCheckWitness(t *testing.T) {
 					},
 				}
 				loadScriptWithHashAndFlags(ic, script, scriptHash, callflag.ReadStates)
-				ic.Container = tx
+				ic.Tx = tx
 				check(t, ic, hash.BytesBE(), false, true)
 			})
 			t.Run("CustomContracts", func(t *testing.T) {
@@ -1271,7 +1271,7 @@ func TestRuntimeCheckWitness(t *testing.T) {
 					},
 				}
 				loadScriptWithHashAndFlags(ic, script, scriptHash, callflag.ReadStates)
-				ic.Container = tx
+				ic.Tx = tx
 				check(t, ic, hash.BytesBE(), false, true)
 			})
 			t.Run("CustomGroups", func(t *testing.T) {
@@ -1287,7 +1287,7 @@ func TestRuntimeCheckWitness(t *testing.T) {
 						},
 					}
 					loadScriptWithHashAndFlags(ic, script, scriptHash, callflag.ReadStates)
-					ic.Container = tx
+					ic.Tx = tx
 					check(t, ic, hash.BytesBE(), false, false)
 				})
 				t.Run("positive", func(t *testing.T) {
@@ -1319,7 +1319,7 @@ func TestRuntimeCheckWitness(t *testing.T) {
 					}
 					require.NoError(t, bc.contracts.Management.PutContractState(ic.DAO, contractState))
 					loadScriptWithHashAndFlags(ic, contractScript, contractScriptHash, callflag.All)
-					ic.Container = tx
+					ic.Tx = tx
 					check(t, ic, targetHash.BytesBE(), false, true)
 				})
 			})
@@ -1339,7 +1339,7 @@ func TestRuntimeCheckWitness(t *testing.T) {
 						},
 					}
 					loadScriptWithHashAndFlags(ic, script, scriptHash, callflag.ReadStates)
-					ic.Container = tx
+					ic.Tx = tx
 					check(t, ic, hash.BytesBE(), false, false)
 				})
 				t.Run("allow", func(t *testing.T) {
@@ -1358,7 +1358,7 @@ func TestRuntimeCheckWitness(t *testing.T) {
 						},
 					}
 					loadScriptWithHashAndFlags(ic, script, scriptHash, callflag.ReadStates)
-					ic.Container = tx
+					ic.Tx = tx
 					check(t, ic, hash.BytesBE(), false, true)
 				})
 				t.Run("deny", func(t *testing.T) {
@@ -1377,7 +1377,7 @@ func TestRuntimeCheckWitness(t *testing.T) {
 						},
 					}
 					loadScriptWithHashAndFlags(ic, script, scriptHash, callflag.ReadStates)
-					ic.Container = tx
+					ic.Tx = tx
 					check(t, ic, hash.BytesBE(), false, false)
 				})
 			})
@@ -1392,7 +1392,7 @@ func TestRuntimeCheckWitness(t *testing.T) {
 					},
 				}
 				loadScriptWithHashAndFlags(ic, script, scriptHash, callflag.ReadStates)
-				ic.Container = tx
+				ic.Tx = tx
 				check(t, ic, hash.BytesBE(), false, false)
 			})
 		})

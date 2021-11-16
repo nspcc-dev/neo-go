@@ -540,7 +540,7 @@ func addSigners(sender util.Uint160, txs ...*transaction.Transaction) {
 	for _, tx := range txs {
 		tx.Signers = []transaction.Signer{{
 			Account:          sender,
-			Scopes:           transaction.CalledByEntry,
+			Scopes:           transaction.Global,
 			AllowedContracts: nil,
 			AllowedGroups:    nil,
 		}}
