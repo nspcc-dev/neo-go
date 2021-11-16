@@ -1393,7 +1393,8 @@ func appendTokenTransfer(cache dao.DAO, transCache map[util.Uint160]transferData
 			return err
 		}
 		*nextBatch++
-		*log = state.TokenTransferLog{}
+		// Put makes a copy of it anyway.
+		log.Raw = log.Raw[:0]
 	}
 	transCache[addr] = transferData
 	return nil
