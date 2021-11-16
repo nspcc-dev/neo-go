@@ -62,7 +62,9 @@ type TokenTransferInfo struct {
 // NewTokenTransferInfo returns new TokenTransferInfo.
 func NewTokenTransferInfo() *TokenTransferInfo {
 	return &TokenTransferInfo{
-		LastUpdated: make(map[int32]uint32),
+		NewNEP11Batch: true,
+		NewNEP17Batch: true,
+		LastUpdated:   make(map[int32]uint32),
 	}
 }
 
