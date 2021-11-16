@@ -34,6 +34,7 @@ type Blockchainer interface {
 	GetContractScriptHash(id int32) (util.Uint160, error)
 	GetEnrollments() ([]state.Validator, error)
 	GetGoverningTokenBalance(acc util.Uint160) (*big.Int, uint32)
+	ForEachNEP11Transfer(util.Uint160, func(*state.NEP11Transfer) (bool, error)) error
 	ForEachNEP17Transfer(util.Uint160, func(*state.NEP17Transfer) (bool, error)) error
 	GetHeaderHash(int) util.Uint256
 	GetHeader(hash util.Uint256) (*block.Header, error)
@@ -47,8 +48,9 @@ type Blockchainer interface {
 	GetNativeContractScriptHash(string) (util.Uint160, error)
 	GetNatives() []state.NativeContract
 	GetNextBlockValidators() ([]*keys.PublicKey, error)
+	GetNEP11Contracts() []util.Uint160
 	GetNEP17Contracts() []util.Uint160
-	GetNEP17LastUpdated(acc util.Uint160) (map[int32]uint32, error)
+	GetTokenLastUpdated(acc util.Uint160) (map[int32]uint32, error)
 	GetNotaryContractScriptHash() util.Uint160
 	GetNotaryBalance(acc util.Uint160) *big.Int
 	GetPolicer() Policer

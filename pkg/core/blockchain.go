@@ -45,7 +45,7 @@ import (
 // Tuning parameters.
 const (
 	headerBatchCount = 2000
-	version          = "0.1.4"
+	version          = "0.1.5"
 
 	defaultInitialGAS                      = 52000000_00000000
 	defaultMemPoolSize                     = 50000
@@ -194,8 +194,9 @@ type bcEvent struct {
 
 // transferData is used for transfer caching during storeBlock.
 type transferData struct {
-	Info state.TokenTransferInfo
-	Log  state.TokenTransferLog
+	Info  state.TokenTransferInfo
+	Log11 state.TokenTransferLog
+	Log17 state.TokenTransferLog
 }
 
 // NewBlockchain returns a new blockchain object the will use the
@@ -1009,7 +1010,12 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 				aerdone <- err
 				return
 			}
-			err = kvcache.PutTokenTransferLog(acc, trData.Info.NextNEP17Batch, &trData.Log)
+			err = kvcache.PutTokenTransferLog(acc, trData.Info.NextNEP11Batch, true, &trData.Log11)
+			if err != nil {
+				aerdone <- err
+				return
+			}
+			err = kvcache.PutTokenTransferLog(acc, trData.Info.NextNEP17Batch, false, &trData.Log17)
 			if err != nil {
 				aerdone <- err
 				return
@@ -1246,7 +1252,7 @@ func (bc *Blockchain) handleNotification(note *state.NotificationEvent, d dao.DA
 		return
 	}
 	arr, ok := note.Item.Value().([]stackitem.Item)
-	if !ok || len(arr) != 3 {
+	if !ok || !(len(arr) == 3 || len(arr) == 4) {
 		return
 	}
 	from, err := parseUint160(arr[0])
@@ -1261,7 +1267,14 @@ func (bc *Blockchain) handleNotification(note *state.NotificationEvent, d dao.DA
 	if err != nil {
 		return
 	}
-	bc.processNEP17Transfer(d, transCache, h, b, note.ScriptHash, from, to, amount)
+	var id []byte
+	if len(arr) == 4 {
+		id, err = arr[3].TryBytes()
+		if err != nil || len(id) > storage.MaxStorageKeyLen {
+			return
+		}
+	}
+	bc.processTokenTransfer(d, transCache, h, b, note.ScriptHash, from, to, amount, id)
 }
 
 func parseUint160(itm stackitem.Item) (util.Uint160, error) {
@@ -1276,8 +1289,9 @@ func parseUint160(itm stackitem.Item) (util.Uint160, error) {
 	return util.Uint160DecodeBytesBE(bytes)
 }
 
-func (bc *Blockchain) processNEP17Transfer(cache dao.DAO, transCache map[util.Uint160]transferData,
-	h util.Uint256, b *block.Block, sc util.Uint160, from util.Uint160, to util.Uint160, amount *big.Int) {
+func (bc *Blockchain) processTokenTransfer(cache dao.DAO, transCache map[util.Uint160]transferData,
+	h util.Uint256, b *block.Block, sc util.Uint160, from util.Uint160, to util.Uint160,
+	amount *big.Int, tokenID []byte) {
 	var id int32
 	nativeContract := bc.contracts.ByHash(sc)
 	if nativeContract != nil {
@@ -1289,55 +1303,97 @@ func (bc *Blockchain) processNEP17Transfer(cache dao.DAO, transCache map[util.Ui
 		}
 		id = assetContract.ID
 	}
-	transfer := &state.NEP17Transfer{
-		Asset:     id,
-		From:      from,
-		To:        to,
-		Block:     b.Index,
-		Timestamp: b.Timestamp,
-		Tx:        h,
+	var transfer io.Serializable
+	var nep17xfer *state.NEP17Transfer
+	var isNEP11 = (tokenID != nil)
+	if !isNEP11 {
+		nep17xfer = &state.NEP17Transfer{
+			Asset:     id,
+			From:      from,
+			To:        to,
+			Block:     b.Index,
+			Timestamp: b.Timestamp,
+			Tx:        h,
+		}
+		transfer = nep17xfer
+	} else {
+		nep11xfer := &state.NEP11Transfer{
+			NEP17Transfer: state.NEP17Transfer{
+				Asset:     id,
+				From:      from,
+				To:        to,
+				Block:     b.Index,
+				Timestamp: b.Timestamp,
+				Tx:        h,
+			},
+			ID: tokenID,
+		}
+		transfer = nep11xfer
+		nep17xfer = &nep11xfer.NEP17Transfer
 	}
 	if !from.Equals(util.Uint160{}) {
-		_ = transfer.Amount.Neg(amount) // We already have the Int.
-		if appendNEP17Transfer(cache, transCache, from, transfer) != nil {
+		_ = nep17xfer.Amount.Neg(amount) // We already have the Int.
+		if appendTokenTransfer(cache, transCache, from, transfer, id, b.Index, isNEP11) != nil {
 			return
 		}
 	}
 	if !to.Equals(util.Uint160{}) {
-		_ = transfer.Amount.Set(amount)                          // We already have the Int.
-		_ = appendNEP17Transfer(cache, transCache, to, transfer) // Nothing useful we can do.
+		_ = nep17xfer.Amount.Set(amount)                                               // We already have the Int.
+		_ = appendTokenTransfer(cache, transCache, to, transfer, id, b.Index, isNEP11) // Nothing useful we can do.
 	}
 }
 
-func appendNEP17Transfer(cache dao.DAO, transCache map[util.Uint160]transferData, addr util.Uint160, transfer *state.NEP17Transfer) error {
+func appendTokenTransfer(cache dao.DAO, transCache map[util.Uint160]transferData, addr util.Uint160, transfer io.Serializable,
+	token int32, bIndex uint32, isNEP11 bool) error {
 	transferData, ok := transCache[addr]
 	if !ok {
 		balances, err := cache.GetTokenTransferInfo(addr)
 		if err != nil {
 			return err
 		}
-		if !balances.NewNEP17Batch {
-			trLog, err := cache.GetTokenTransferLog(addr, balances.NextNEP17Batch)
+		if !balances.NewNEP11Batch {
+			trLog, err := cache.GetTokenTransferLog(addr, balances.NextNEP11Batch, true)
 			if err != nil {
 				return err
 			}
-			transferData.Log = *trLog
+			transferData.Log11 = *trLog
+		}
+		if !balances.NewNEP17Batch {
+			trLog, err := cache.GetTokenTransferLog(addr, balances.NextNEP17Batch, false)
+			if err != nil {
+				return err
+			}
+			transferData.Log17 = *trLog
 		}
 		transferData.Info = *balances
 	}
-	err := transferData.Log.Append(transfer)
+	var (
+		log       *state.TokenTransferLog
+		newBatch  *bool
+		nextBatch *uint32
+	)
+	if !isNEP11 {
+		log = &transferData.Log17
+		newBatch = &transferData.Info.NewNEP17Batch
+		nextBatch = &transferData.Info.NextNEP17Batch
+	} else {
+		log = &transferData.Log11
+		newBatch = &transferData.Info.NewNEP11Batch
+		nextBatch = &transferData.Info.NextNEP11Batch
+	}
+	err := log.Append(transfer)
 	if err != nil {
 		return err
 	}
-	transferData.Info.LastUpdated[transfer.Asset] = transfer.Block
-	transferData.Info.NewNEP17Batch = transferData.Log.Size() >= state.TokenTransferBatchSize
-	if transferData.Info.NewNEP17Batch {
-		err = cache.PutTokenTransferLog(addr, transferData.Info.NextNEP17Batch, &transferData.Log)
+	transferData.Info.LastUpdated[token] = bIndex
+	*newBatch = log.Size() >= state.TokenTransferBatchSize
+	if *newBatch {
+		err = cache.PutTokenTransferLog(addr, *nextBatch, isNEP11, log)
 		if err != nil {
 			return err
 		}
-		transferData.Info.NextNEP17Batch++
-		transferData.Log = state.TokenTransferLog{}
+		*nextBatch++
+		*log = state.TokenTransferLog{}
 	}
 	transCache[addr] = transferData
 	return nil
@@ -1350,11 +1406,33 @@ func (bc *Blockchain) ForEachNEP17Transfer(acc util.Uint160, f func(*state.NEP17
 		return nil
 	}
 	for i := int(balances.NextNEP17Batch); i >= 0; i-- {
-		lg, err := bc.dao.GetTokenTransferLog(acc, uint32(i))
+		lg, err := bc.dao.GetTokenTransferLog(acc, uint32(i), false)
 		if err != nil {
 			return nil
 		}
 		cont, err := lg.ForEachNEP17(f)
+		if err != nil {
+			return err
+		}
+		if !cont {
+			break
+		}
+	}
+	return nil
+}
+
+// ForEachNEP11Transfer executes f for each nep11 transfer in log.
+func (bc *Blockchain) ForEachNEP11Transfer(acc util.Uint160, f func(*state.NEP11Transfer) (bool, error)) error {
+	balances, err := bc.dao.GetTokenTransferInfo(acc)
+	if err != nil {
+		return nil
+	}
+	for i := int(balances.NextNEP11Batch); i >= 0; i-- {
+		lg, err := bc.dao.GetTokenTransferLog(acc, uint32(i), true)
+		if err != nil {
+			return nil
+		}
+		cont, err := lg.ForEachNEP11(f)
 		if err != nil {
 			return err
 		}
@@ -1370,10 +1448,15 @@ func (bc *Blockchain) GetNEP17Contracts() []util.Uint160 {
 	return bc.contracts.Management.GetNEP17Contracts()
 }
 
-// GetNEP17LastUpdated returns a set of contract ids with the corresponding last updated
+// GetNEP11Contracts returns the list of deployed NEP11 contracts.
+func (bc *Blockchain) GetNEP11Contracts() []util.Uint160 {
+	return bc.contracts.Management.GetNEP11Contracts()
+}
+
+// GetTokenLastUpdated returns a set of contract ids with the corresponding last updated
 // block indexes. In case of an empty account, latest stored state synchronisation point
 // is returned under Math.MinInt32 key.
-func (bc *Blockchain) GetNEP17LastUpdated(acc util.Uint160) (map[int32]uint32, error) {
+func (bc *Blockchain) GetTokenLastUpdated(acc util.Uint160) (map[int32]uint32, error) {
 	info, err := bc.dao.GetTokenTransferInfo(acc)
 	if err != nil {
 		return nil, err

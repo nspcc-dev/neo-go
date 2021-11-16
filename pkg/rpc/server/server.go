@@ -661,7 +661,7 @@ func (s *Server) getNEP17Balances(ps request.Params) (interface{}, *response.Err
 		Address:  address.Uint160ToString(u),
 		Balances: []result.NEP17Balance{},
 	}
-	lastUpdated, err := s.chain.GetNEP17LastUpdated(u)
+	lastUpdated, err := s.chain.GetTokenLastUpdated(u)
 	if err != nil {
 		return nil, response.NewRPCError("Failed to get NEP17 last updated block", err.Error(), err)
 	}

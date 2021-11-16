@@ -43,7 +43,7 @@ type DAO interface {
 	GetCurrentHeaderHeight() (i uint32, h util.Uint256, err error)
 	GetHeaderHashes() ([]util.Uint256, error)
 	GetTokenTransferInfo(acc util.Uint160) (*state.TokenTransferInfo, error)
-	GetTokenTransferLog(acc util.Uint160, index uint32) (*state.TokenTransferLog, error)
+	GetTokenTransferLog(acc util.Uint160, index uint32, isNEP11 bool) (*state.TokenTransferLog, error)
 	GetStateSyncPoint() (uint32, error)
 	GetStateSyncCurrentBlockHeight() (uint32, error)
 	GetStorageItem(id int32, key []byte) state.StorageItem
@@ -58,7 +58,7 @@ type DAO interface {
 	PutContractID(id int32, hash util.Uint160) error
 	PutCurrentHeader(hashAndIndex []byte) error
 	PutTokenTransferInfo(acc util.Uint160, bs *state.TokenTransferInfo) error
-	PutTokenTransferLog(acc util.Uint160, index uint32, lg *state.TokenTransferLog) error
+	PutTokenTransferLog(acc util.Uint160, index uint32, isNEP11 bool, lg *state.TokenTransferLog) error
 	PutStateSyncPoint(p uint32) error
 	PutStateSyncCurrentBlockHeight(h uint32) error
 	PutStorageItem(id int32, key []byte, si state.StorageItem) error
@@ -176,17 +176,21 @@ func (dao *Simple) putTokenTransferInfo(acc util.Uint160, bs *state.TokenTransfe
 
 // -- start transfer log.
 
-func getTokenTransferLogKey(acc util.Uint160, index uint32) []byte {
+func getTokenTransferLogKey(acc util.Uint160, index uint32, isNEP11 bool) []byte {
 	key := make([]byte, 1+util.Uint160Size+4)
-	key[0] = byte(storage.STNEP17Transfers)
+	if isNEP11 {
+		key[0] = byte(storage.STNEP11Transfers)
+	} else {
+		key[0] = byte(storage.STNEP17Transfers)
+	}
 	copy(key[1:], acc.BytesBE())
 	binary.LittleEndian.PutUint32(key[util.Uint160Size:], index)
 	return key
 }
 
 // GetTokenTransferLog retrieves transfer log from the cache.
-func (dao *Simple) GetTokenTransferLog(acc util.Uint160, index uint32) (*state.TokenTransferLog, error) {
-	key := getTokenTransferLogKey(acc, index)
+func (dao *Simple) GetTokenTransferLog(acc util.Uint160, index uint32, isNEP11 bool) (*state.TokenTransferLog, error) {
+	key := getTokenTransferLogKey(acc, index, isNEP11)
 	value, err := dao.Store.Get(key)
 	if err != nil {
 		if err == storage.ErrKeyNotFound {
@@ -198,8 +202,8 @@ func (dao *Simple) GetTokenTransferLog(acc util.Uint160, index uint32) (*state.T
 }
 
 // PutTokenTransferLog saves given transfer log in the cache.
-func (dao *Simple) PutTokenTransferLog(acc util.Uint160, index uint32, lg *state.TokenTransferLog) error {
-	key := getTokenTransferLogKey(acc, index)
+func (dao *Simple) PutTokenTransferLog(acc util.Uint160, index uint32, isNEP11 bool, lg *state.TokenTransferLog) error {
+	key := getTokenTransferLogKey(acc, index, isNEP11)
 	return dao.Store.Put(key, lg.Raw)
 }
 
