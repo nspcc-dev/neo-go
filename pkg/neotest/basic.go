@@ -114,13 +114,24 @@ func (e *Executor) NewAccount(t *testing.T) Signer {
 	return NewSingleSigner(acc)
 }
 
-// DeployContract compiles and deploys contract to bc.
+// DeployContract compiles and deploys contract to bc. It also checks that
+// precalculated contract hash matches the actual one.
 // data is an optional argument to `_deploy`.
 // Returns hash of the deploy transaction.
 func (e *Executor) DeployContract(t *testing.T, c *Contract, data interface{}) util.Uint256 {
 	tx := e.NewDeployTx(t, e.Chain, c, data)
 	e.AddNewBlock(t, tx)
 	e.CheckHalt(t, tx.Hash())
+
+	// Check that precalculated hash matches the real one.
+	e.CheckTxNotificationEvent(t, tx.Hash(), -1, state.NotificationEvent{
+		ScriptHash: e.NativeHash(t, nativenames.Management),
+		Name:       "Deploy",
+		Item: stackitem.NewArray([]stackitem.Item{
+			stackitem.NewByteArray(c.Hash.BytesBE()),
+		}),
+	})
+
 	return tx.Hash()
 }
 

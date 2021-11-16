@@ -20,10 +20,7 @@ func newNSClient(t *testing.T) *neotest.ContractInvoker {
 	c := neotest.CompileFile(t, e.CommitteeHash, "..", "../nns.yml")
 	e.DeployContract(t, c, nil)
 
-	h, err := e.Chain.GetContractScriptHash(1)
-	require.NoError(t, err)
-	require.Equal(t, c.Hash, h)
-	return e.CommitteeInvoker(h)
+	return e.CommitteeInvoker(c.Hash)
 }
 
 func TestNameService_Price(t *testing.T) {
