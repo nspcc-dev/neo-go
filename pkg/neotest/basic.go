@@ -2,6 +2,7 @@ package neotest
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -142,6 +143,19 @@ func (e *Executor) CheckFault(t *testing.T, h util.Uint256, s string) {
 	require.Equal(t, vm.FaultState, aer[0].VMState)
 	require.True(t, strings.Contains(aer[0].FaultException, s),
 		"expected: %s, got: %s", s, aer[0].FaultException)
+}
+
+// CheckTxNotificationEvent checks that specified event was emitted at the specified position
+// during transaction script execution. Negative index corresponds to backwards enumeration.
+func (e *Executor) CheckTxNotificationEvent(t *testing.T, h util.Uint256, index int, expected state.NotificationEvent) {
+	aer, err := e.Chain.GetAppExecResults(h, trigger.Application)
+	require.NoError(t, err)
+	l := len(aer[0].Events)
+	if index < 0 {
+		index = l + index
+	}
+	require.True(t, 0 <= index && index < l, fmt.Errorf("notification index is out of range: want %d, len is %d", index, l))
+	require.Equal(t, expected, aer[0].Events[index])
 }
 
 // NewDeployTx returns new deployment tx for contract signed by committee.
