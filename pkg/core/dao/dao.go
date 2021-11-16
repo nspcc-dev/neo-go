@@ -31,7 +31,6 @@ var (
 // DAO is a data access object.
 type DAO interface {
 	AppendAppExecResult(aer *state.AppExecResult, buf *io.BufBinWriter) error
-	AppendNEP17Transfer(acc util.Uint160, index uint32, isNew bool, tr *state.NEP17Transfer) (bool, error)
 	DeleteBlock(h util.Uint256, buf *io.BufBinWriter) error
 	DeleteContractID(id int32) error
 	DeleteStorageItem(id int32, key []byte) error
@@ -202,25 +201,6 @@ func (dao *Simple) GetTokenTransferLog(acc util.Uint160, index uint32) (*state.T
 func (dao *Simple) PutTokenTransferLog(acc util.Uint160, index uint32, lg *state.TokenTransferLog) error {
 	key := getTokenTransferLogKey(acc, index)
 	return dao.Store.Put(key, lg.Raw)
-}
-
-// AppendNEP17Transfer appends a single NEP17 transfer to a log.
-// First return value signalizes that log size has exceeded batch size.
-func (dao *Simple) AppendNEP17Transfer(acc util.Uint160, index uint32, isNew bool, tr *state.NEP17Transfer) (bool, error) {
-	var lg *state.TokenTransferLog
-	if isNew {
-		lg = new(state.TokenTransferLog)
-	} else {
-		var err error
-		lg, err = dao.GetTokenTransferLog(acc, index)
-		if err != nil {
-			return false, err
-		}
-	}
-	if err := lg.Append(tr); err != nil {
-		return false, err
-	}
-	return lg.Size() >= state.TokenTransferBatchSize, dao.PutTokenTransferLog(acc, index, lg)
 }
 
 // -- end transfer log.
