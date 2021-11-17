@@ -38,6 +38,7 @@ func TestGetConfigFromContext(t *testing.T) {
 }
 
 func TestHandleLoggingParams(t *testing.T) {
+	// This test is failing on Windows, see https://github.com/nspcc-dev/neo-go/issues/2269
 	d := t.TempDir()
 	testLog := path.Join(d, "file.log")
 
