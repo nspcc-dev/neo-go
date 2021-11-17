@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"path"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -58,7 +58,7 @@ func TestCompiler(t *testing.T) {
 						continue
 					}
 
-					targetPath := path.Join(examplePath, info.Name())
+					targetPath := filepath.Join(examplePath, info.Name())
 					require.NoError(t, compileFile(targetPath))
 				}
 			},

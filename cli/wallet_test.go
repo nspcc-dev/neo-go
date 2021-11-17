@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"math/big"
-	"path"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -22,7 +22,7 @@ func TestWalletAccountRemove(t *testing.T) {
 	tmpDir := t.TempDir()
 	e := newExecutor(t, false)
 
-	walletPath := path.Join(tmpDir, "wallet.json")
+	walletPath := filepath.Join(tmpDir, "wallet.json")
 	e.In.WriteString("acc1\r")
 	e.In.WriteString("pass\r")
 	e.In.WriteString("pass\r")
@@ -49,11 +49,11 @@ func TestWalletInit(t *testing.T) {
 	tmpDir := t.TempDir()
 	e := newExecutor(t, false)
 
-	walletPath := path.Join(tmpDir, "wallet.json")
+	walletPath := filepath.Join(tmpDir, "wallet.json")
 	e.Run(t, "neo-go", "wallet", "init", "--wallet", walletPath)
 
 	t.Run("terminal escape codes", func(t *testing.T) {
-		walletPath := path.Join(tmpDir, "walletrussian.json")
+		walletPath := filepath.Join(tmpDir, "walletrussian.json")
 		bksp := string([]byte{
 			byte(readline.CharBackward),
 			byte(readline.CharDelete),
@@ -261,7 +261,7 @@ func TestImportDeployed(t *testing.T) {
 	tmpDir := t.TempDir()
 	e := newExecutor(t, true)
 	h := deployVerifyContract(t, e)
-	walletPath := path.Join(tmpDir, "wallet.json")
+	walletPath := filepath.Join(tmpDir, "wallet.json")
 
 	e.Run(t, "neo-go", "wallet", "init", "--wallet", walletPath)
 
@@ -393,7 +393,7 @@ func TestWalletConvert(t *testing.T) {
 	tmpDir := t.TempDir()
 	e := newExecutor(t, false)
 
-	outPath := path.Join(tmpDir, "wallet.json")
+	outPath := filepath.Join(tmpDir, "wallet.json")
 	cmd := []string{"neo-go", "wallet", "convert"}
 	t.Run("missing wallet", func(t *testing.T) {
 		e.RunWithError(t, cmd...)

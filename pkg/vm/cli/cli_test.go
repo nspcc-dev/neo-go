@@ -9,7 +9,7 @@ import (
 	gio "io"
 	"io/ioutil"
 	"os"
-	"path"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -200,9 +200,9 @@ func TestLoad(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	t.Run("loadgo", func(t *testing.T) {
-		filename := path.Join(tmpDir, "vmtestcontract.go")
+		filename := filepath.Join(tmpDir, "vmtestcontract.go")
 		require.NoError(t, ioutil.WriteFile(filename, []byte(src), os.ModePerm))
-		filenameErr := path.Join(tmpDir, "vmtestcontract_err.go")
+		filenameErr := filepath.Join(tmpDir, "vmtestcontract_err.go")
 		require.NoError(t, ioutil.WriteFile(filenameErr, []byte(src+"invalid_token"), os.ModePerm))
 
 		e := newTestVMCLI(t)
@@ -225,7 +225,7 @@ func TestLoad(t *testing.T) {
 			return 1
 		}
 `
-		filename := path.Join(tmpDir, "vmtestcontract.go")
+		filename := filepath.Join(tmpDir, "vmtestcontract.go")
 		require.NoError(t, ioutil.WriteFile(filename, []byte(srcAllowNotify), os.ModePerm))
 
 		e := newTestVMCLI(t)
@@ -242,19 +242,19 @@ func TestLoad(t *testing.T) {
 		require.NoError(t, err)
 		nefFile, err := nef.NewFile(script)
 		require.NoError(t, err)
-		filename := path.Join(tmpDir, "vmtestcontract.nef")
+		filename := filepath.Join(tmpDir, "vmtestcontract.nef")
 		rawNef, err := nefFile.Bytes()
 		require.NoError(t, err)
 		require.NoError(t, ioutil.WriteFile(filename, rawNef, os.ModePerm))
 		m, err := di.ConvertToManifest(&compiler.Options{})
 		require.NoError(t, err)
-		manifestFile := path.Join(tmpDir, "vmtestcontract.manifest.json")
+		manifestFile := filepath.Join(tmpDir, "vmtestcontract.manifest.json")
 		rawManifest, err := json.Marshal(m)
 		require.NoError(t, err)
 		require.NoError(t, ioutil.WriteFile(manifestFile, rawManifest, os.ModePerm))
-		filenameErr := path.Join(tmpDir, "vmtestcontract_err.nef")
+		filenameErr := filepath.Join(tmpDir, "vmtestcontract_err.nef")
 		require.NoError(t, ioutil.WriteFile(filenameErr, append([]byte{1, 2, 3, 4}, rawNef...), os.ModePerm))
-		notExists := path.Join(tmpDir, "notexists.json")
+		notExists := filepath.Join(tmpDir, "notexists.json")
 
 		e := newTestVMCLI(t)
 		e.runProg(t,
@@ -294,7 +294,7 @@ func TestRunWithDifferentArguments(t *testing.T) {
 	}`
 
 	tmpDir := t.TempDir()
-	filename := path.Join(tmpDir, "run_vmtestcontract.go")
+	filename := filepath.Join(tmpDir, "run_vmtestcontract.go")
 	require.NoError(t, ioutil.WriteFile(filename, []byte(src), os.ModePerm))
 
 	e := newTestVMCLI(t)

@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"path"
 	"path/filepath"
 	"strings"
 
@@ -417,7 +416,7 @@ func initSmartContract(ctx *cli.Context) error {
 	}
 
 	basePath := contractName
-	contractName = path.Base(contractName)
+	contractName = filepath.Base(contractName)
 	fileName := "main.go"
 
 	// create base directory

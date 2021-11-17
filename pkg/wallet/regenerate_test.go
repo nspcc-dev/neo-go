@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"path"
+	"path/filepath"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
@@ -57,7 +57,7 @@ func TestRegenerateSoloWallet(t *testing.T) {
 	if !regenerate {
 		return
 	}
-	walletPath := path.Join(dockerWalletDir, "wallet1_solo.json")
+	walletPath := filepath.Join(dockerWalletDir, "wallet1_solo.json")
 	wif := privnetWIFs[0]
 	acc1 := getAccount(t, wif, "one")
 	acc2 := getAccount(t, wif, "one")
@@ -76,7 +76,7 @@ func regenerateWallets(t *testing.T, dir string) {
 		acc2 := getAccount(t, privnetWIFs[i], passwords[i])
 		require.NoError(t, acc2.ConvertMultisig(3, pubs))
 
-		createWallet(t, path.Join(dir, fmt.Sprintf("wallet%d.json", i+1)), acc1, acc2)
+		createWallet(t, filepath.Join(dir, fmt.Sprintf("wallet%d.json", i+1)), acc1, acc2)
 	}
 }
 
@@ -107,9 +107,9 @@ func TestRegenerateWalletTestdata(t *testing.T) {
 	acc3 := getAccount(t, privnetWIFs[1], "two")
 	acc3.Default = true
 
-	createWallet(t, path.Join(walletDir, "wallet1.json"), acc1, acc2)
+	createWallet(t, filepath.Join(walletDir, "wallet1.json"), acc1, acc2)
 
-	createWallet(t, path.Join(walletDir, "wallet2.json"), acc1, acc2, acc3)
+	createWallet(t, filepath.Join(walletDir, "wallet2.json"), acc1, acc2, acc3)
 }
 
 func TestRegenerateNotaryWallets(t *testing.T) {
@@ -117,21 +117,21 @@ func TestRegenerateNotaryWallets(t *testing.T) {
 		return
 	}
 	const (
-		walletDir = "../services/notary/testdata/"
-		acc1WIF   = "L1MstxuD8SvS9HuFcV5oYzcdA1xX8D9bD9qPwg8fU5SSywYBecg3"
-		acc2WIF   = "L2iGxPvxbyWpYEbCZk2L3PgT7sCQaSDAbBC4MRLAjhs1s2JZ1xs5"
-		acc3WIF   = "L1xD2yiUyARX8DAkWa8qGpWpwjqW2u717VzUJyByk6s7HinhRVZv"
-		acc4WIF   = "L1ioz93TNt6Nu1aoMpZQ4zgdtgC8ZvJMC6pyHFkrovdR3SFwbn6n"
+		acc1WIF = "L1MstxuD8SvS9HuFcV5oYzcdA1xX8D9bD9qPwg8fU5SSywYBecg3"
+		acc2WIF = "L2iGxPvxbyWpYEbCZk2L3PgT7sCQaSDAbBC4MRLAjhs1s2JZ1xs5"
+		acc3WIF = "L1xD2yiUyARX8DAkWa8qGpWpwjqW2u717VzUJyByk6s7HinhRVZv"
+		acc4WIF = "L1ioz93TNt6Nu1aoMpZQ4zgdtgC8ZvJMC6pyHFkrovdR3SFwbn6n"
 	)
+	var walletDir = filepath.Join("..", "services", "notary", "testdata")
 
 	scryptParams := keys.ScryptParams{N: 2, R: 1, P: 1}
 	acc1 := getAccountWithScrypt(t, acc1WIF, "one", scryptParams)
 	acc2 := getAccountWithScrypt(t, acc2WIF, "one", scryptParams)
 	acc3 := getAccountWithScrypt(t, acc3WIF, "four", scryptParams)
-	createWallet(t, path.Join(walletDir, "notary1.json"), acc1, acc2, acc3)
+	createWallet(t, filepath.Join(walletDir, "notary1.json"), acc1, acc2, acc3)
 
 	acc4 := getAccountWithScrypt(t, acc4WIF, "two", scryptParams)
-	createWallet(t, path.Join(walletDir, "notary2.json"), acc4)
+	createWallet(t, filepath.Join(walletDir, "notary2.json"), acc4)
 }
 
 func TestRegenerateOracleWallets(t *testing.T) {
@@ -145,10 +145,10 @@ func TestRegenerateOracleWallets(t *testing.T) {
 	)
 
 	acc1 := getAccount(t, acc1WIF, "one")
-	createWallet(t, path.Join(walletDir, "oracle1.json"), acc1)
+	createWallet(t, filepath.Join(walletDir, "oracle1.json"), acc1)
 
 	acc2 := getAccount(t, acc2WIF, "two")
-	createWallet(t, path.Join(walletDir, "oracle2.json"), acc2)
+	createWallet(t, filepath.Join(walletDir, "oracle2.json"), acc2)
 }
 
 func TestRegenerateExamplesWallet(t *testing.T) {

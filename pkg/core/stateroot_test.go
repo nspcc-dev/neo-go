@@ -2,7 +2,7 @@ package core
 
 import (
 	"errors"
-	"path"
+	"path/filepath"
 	"sort"
 	"testing"
 	"time"
@@ -78,7 +78,7 @@ func TestStateRoot(t *testing.T) {
 	transferTokenFromMultisigAccount(t, bc, h, bc.contracts.GAS.Hash, 1_0000_0000)
 
 	tmpDir := t.TempDir()
-	w := createAndWriteWallet(t, accs[0], path.Join(tmpDir, "w"), "pass")
+	w := createAndWriteWallet(t, accs[0], filepath.Join(tmpDir, "w"), "pass")
 	cfg := createStateRootConfig(w.Path(), "pass")
 	srv, err := stateroot.New(cfg, zaptest.NewLogger(t), bc, nil)
 	require.NoError(t, err)
@@ -146,7 +146,7 @@ func TestStateRootInitNonZeroHeight(t *testing.T) {
 		_, err := persistBlock(bc)
 		require.NoError(t, err)
 		tmpDir := t.TempDir()
-		w := createAndWriteWallet(t, accs[0], path.Join(tmpDir, "w"), "pass")
+		w := createAndWriteWallet(t, accs[0], filepath.Join(tmpDir, "w"), "pass")
 		cfg := createStateRootConfig(w.Path(), "pass")
 		srv, err := stateroot.New(cfg, zaptest.NewLogger(t), bc, nil)
 		require.NoError(t, err)
@@ -189,7 +189,7 @@ func TestStateRootFull(t *testing.T) {
 	bc := newTestChain(t)
 
 	h, pubs, accs := newMajorityMultisigWithGAS(t, 2)
-	w := createAndWriteWallet(t, accs[1], path.Join(tmpDir, "wallet2"), "two")
+	w := createAndWriteWallet(t, accs[1], filepath.Join(tmpDir, "wallet2"), "two")
 	cfg := createStateRootConfig(w.Path(), "two")
 
 	var lastValidated atomic.Value

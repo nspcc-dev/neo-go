@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"os"
-	"path"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
@@ -60,7 +60,7 @@ func TestCalcHash(t *testing.T) {
 			"--in", "./testdata/verify.nef123", "--manifest", manifestPath)...)
 	})
 	t.Run("invalid file", func(t *testing.T) {
-		p := path.Join(tmpDir, "neogo.calchash.verify.nef")
+		p := filepath.Join(tmpDir, "neogo.calchash.verify.nef")
 		require.NoError(t, ioutil.WriteFile(p, src[:4], os.ModePerm))
 		e.RunWithError(t, append(cmd, "--sender", sender.StringLE(), "--in", p, "--manifest", manifestPath)...)
 	})
@@ -92,7 +92,7 @@ func TestContractInitAndCompile(t *testing.T) {
 		e.RunWithError(t, "neo-go", "contract", "init", "--name", "\x00")
 	})
 
-	ctrPath := path.Join(tmpDir, "testcontract")
+	ctrPath := filepath.Join(tmpDir, "testcontract")
 	e.Run(t, "neo-go", "contract", "init", "--name", ctrPath)
 
 	t.Run("don't rewrite existing directory", func(t *testing.T) {
@@ -102,10 +102,10 @@ func TestContractInitAndCompile(t *testing.T) {
 	// For proper nef generation.
 	config.Version = "0.90.0-test"
 
-	srcPath := path.Join(ctrPath, "main.go")
-	cfgPath := path.Join(ctrPath, "neo-go.yml")
-	nefPath := path.Join(tmpDir, "testcontract.nef")
-	manifestPath := path.Join(tmpDir, "testcontract.manifest.json")
+	srcPath := filepath.Join(ctrPath, "main.go")
+	cfgPath := filepath.Join(ctrPath, "neo-go.yml")
+	nefPath := filepath.Join(tmpDir, "testcontract.nef")
+	manifestPath := filepath.Join(tmpDir, "testcontract.manifest.json")
 	cmd := []string{"neo-go", "contract", "compile"}
 	t.Run("missing source", func(t *testing.T) {
 		e.RunWithError(t, cmd...)
@@ -116,7 +116,7 @@ func TestContractInitAndCompile(t *testing.T) {
 		e.RunWithError(t, cmd...)
 	})
 	t.Run("provided non-existent config", func(t *testing.T) {
-		cfgName := path.Join(ctrPath, "notexists.yml")
+		cfgName := filepath.Join(ctrPath, "notexists.yml")
 		e.RunWithError(t, append(cmd, "--config", cfgName)...)
 	})
 
@@ -143,8 +143,8 @@ func TestDeployBigContract(t *testing.T) {
 	config.Version = "0.90.0-test"
 	tmpDir := t.TempDir()
 
-	nefName := path.Join(tmpDir, "deploy.nef")
-	manifestName := path.Join(tmpDir, "deploy.manifest.json")
+	nefName := filepath.Join(tmpDir, "deploy.nef")
+	manifestName := filepath.Join(tmpDir, "deploy.manifest.json")
 	e.Run(t, "neo-go", "contract", "compile",
 		"--in", "testdata/deploy/main.go", // compile single file
 		"--config", "testdata/deploy/neo-go.yml",
@@ -164,8 +164,8 @@ func TestContractDeployWithData(t *testing.T) {
 	config.Version = "0.90.0-test"
 	tmpDir := t.TempDir()
 
-	nefName := path.Join(tmpDir, "deploy.nef")
-	manifestName := path.Join(tmpDir, "deploy.manifest.json")
+	nefName := filepath.Join(tmpDir, "deploy.nef")
+	manifestName := filepath.Join(tmpDir, "deploy.manifest.json")
 	eCompile.Run(t, "neo-go", "contract", "compile",
 		"--in", "testdata/deploy/main.go", // compile single file
 		"--config", "testdata/deploy/neo-go.yml",
@@ -241,8 +241,8 @@ func TestDeployWithSigners(t *testing.T) {
 	config.Version = "0.90.0-test"
 	tmpDir := t.TempDir()
 
-	nefName := path.Join(tmpDir, "deploy.nef")
-	manifestName := path.Join(tmpDir, "deploy.manifest.json")
+	nefName := filepath.Join(tmpDir, "deploy.nef")
+	manifestName := filepath.Join(tmpDir, "deploy.manifest.json")
 	e.Run(t, "neo-go", "contract", "compile",
 		"--in", "testdata/deploy/main.go",
 		"--config", "testdata/deploy/neo-go.yml",
@@ -270,8 +270,8 @@ func TestContractManifestGroups(t *testing.T) {
 	require.NoError(t, err)
 	defer w.Close()
 
-	nefName := path.Join(tmpDir, "deploy.nef")
-	manifestName := path.Join(tmpDir, "deploy.manifest.json")
+	nefName := filepath.Join(tmpDir, "deploy.nef")
+	manifestName := filepath.Join(tmpDir, "deploy.manifest.json")
 	e.Run(t, "neo-go", "contract", "compile",
 		"--in", "testdata/deploy/main.go", // compile single file
 		"--config", "testdata/deploy/neo-go.yml",
@@ -302,8 +302,8 @@ func deployVerifyContract(t *testing.T, e *executor) util.Uint160 {
 
 func deployContract(t *testing.T, e *executor, inPath, configPath, wallet, address, pass string) util.Uint160 {
 	tmpDir := t.TempDir()
-	nefName := path.Join(tmpDir, "contract.nef")
-	manifestName := path.Join(tmpDir, "contract.manifest.json")
+	nefName := filepath.Join(tmpDir, "contract.nef")
+	manifestName := filepath.Join(tmpDir, "contract.manifest.json")
 	e.Run(t, "neo-go", "contract", "compile",
 		"--in", inPath,
 		"--config", configPath,
@@ -330,8 +330,8 @@ func TestComlileAndInvokeFunction(t *testing.T) {
 	config.Version = "0.90.0-test"
 	tmpDir := t.TempDir()
 
-	nefName := path.Join(tmpDir, "deploy.nef")
-	manifestName := path.Join(tmpDir, "deploy.manifest.json")
+	nefName := filepath.Join(tmpDir, "deploy.nef")
+	manifestName := filepath.Join(tmpDir, "deploy.manifest.json")
 	e.Run(t, "neo-go", "contract", "compile",
 		"--in", "testdata/deploy/main.go", // compile single file
 		"--config", "testdata/deploy/neo-go.yml",
@@ -417,7 +417,7 @@ func TestComlileAndInvokeFunction(t *testing.T) {
 			e.RunWithError(t, cmd...)
 		})
 		t.Run("non-existent wallet", func(t *testing.T) {
-			cmd := append(cmd, "--wallet", path.Join(tmpDir, "not.exists"),
+			cmd := append(cmd, "--wallet", filepath.Join(tmpDir, "not.exists"),
 				h.StringLE(), "getValue")
 			e.RunWithError(t, cmd...)
 		})
@@ -452,7 +452,7 @@ func TestComlileAndInvokeFunction(t *testing.T) {
 	})
 
 	t.Run("real invoke and save tx", func(t *testing.T) {
-		txout := path.Join(tmpDir, "test_contract_tx.json")
+		txout := filepath.Join(tmpDir, "test_contract_tx.json")
 
 		cmd = []string{"neo-go", "contract", "invokefunction",
 			"--rpc-endpoint", "http://" + e.RPC.Addr,
@@ -540,8 +540,8 @@ func TestComlileAndInvokeFunction(t *testing.T) {
 	})
 
 	t.Run("Update", func(t *testing.T) {
-		nefName := path.Join(tmpDir, "updated.nef")
-		manifestName := path.Join(tmpDir, "updated.manifest.json")
+		nefName := filepath.Join(tmpDir, "updated.nef")
+		manifestName := filepath.Join(tmpDir, "updated.manifest.json")
 		e.Run(t, "neo-go", "contract", "compile",
 			"--config", "testdata/deploy/neo-go.yml",
 			"--in", "testdata/deploy/", // compile all files in dir
@@ -589,8 +589,8 @@ func TestContractInspect(t *testing.T) {
 	const srcPath = "testdata/deploy/main.go"
 	tmpDir := t.TempDir()
 
-	nefName := path.Join(tmpDir, "deploy.nef")
-	manifestName := path.Join(tmpDir, "deploy.manifest.json")
+	nefName := filepath.Join(tmpDir, "deploy.nef")
+	manifestName := filepath.Join(tmpDir, "deploy.manifest.json")
 	e.Run(t, "neo-go", "contract", "compile",
 		"--in", srcPath,
 		"--config", "testdata/deploy/neo-go.yml",
@@ -607,7 +607,7 @@ func TestContractInspect(t *testing.T) {
 	})
 	t.Run("with nef", func(t *testing.T) {
 		e.RunWithError(t, append(cmd, "--in", nefName, "--compile")...)
-		e.RunWithError(t, append(cmd, "--in", path.Join(tmpDir, "not.exists"))...)
+		e.RunWithError(t, append(cmd, "--in", filepath.Join(tmpDir, "not.exists"))...)
 		e.Run(t, append(cmd, "--in", nefName)...)
 		require.True(t, strings.Contains(e.Out.String(), "SYSCALL"))
 	})
@@ -631,20 +631,20 @@ func TestCompileExamples(t *testing.T) {
 			continue
 		}
 		t.Run(info.Name(), func(t *testing.T) {
-			infos, err := ioutil.ReadDir(path.Join(examplePath, info.Name()))
+			infos, err := ioutil.ReadDir(filepath.Join(examplePath, info.Name()))
 			require.NoError(t, err)
 			require.False(t, len(infos) == 0, "detected smart contract folder with no contract in it")
 
-			outF := path.Join(tmpDir, info.Name()+".nef")
-			manifestF := path.Join(tmpDir, info.Name()+".manifest.json")
+			outF := filepath.Join(tmpDir, info.Name()+".nef")
+			manifestF := filepath.Join(tmpDir, info.Name()+".manifest.json")
 
 			cfgName := filterFilename(infos, ".yml")
 			opts := []string{
 				"neo-go", "contract", "compile",
-				"--in", path.Join(examplePath, info.Name()),
+				"--in", filepath.Join(examplePath, info.Name()),
 				"--out", outF,
 				"--manifest", manifestF,
-				"--config", path.Join(examplePath, info.Name(), cfgName),
+				"--config", filepath.Join(examplePath, info.Name(), cfgName),
 			}
 			e.Run(t, opts...)
 
@@ -669,13 +669,13 @@ func TestCompileExamples(t *testing.T) {
 	t.Run("invalid manifest", func(t *testing.T) {
 		const dir = "./testdata/"
 		for _, name := range []string{"invalid1", "invalid2", "invalid3", "invalid4"} {
-			outF := path.Join(tmpDir, name+".nef")
-			manifestF := path.Join(tmpDir, name+".manifest.json")
+			outF := filepath.Join(tmpDir, name+".nef")
+			manifestF := filepath.Join(tmpDir, name+".manifest.json")
 			e.RunWithError(t, "neo-go", "contract", "compile",
-				"--in", path.Join(dir, name),
+				"--in", filepath.Join(dir, name),
 				"--out", outF,
 				"--manifest", manifestF,
-				"--config", path.Join(dir, name, "invalid.yml"),
+				"--config", filepath.Join(dir, name, "invalid.yml"),
 			)
 		}
 	})
