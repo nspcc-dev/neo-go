@@ -159,13 +159,6 @@ var invalidBlockHeightError = func(index int, height int) *response.Error {
 // doesn't set any Error function.
 var upgrader = websocket.Upgrader{}
 
-var knownNEP11Properties = map[string]bool{
-	"description": true,
-	"image":       true,
-	"name":        true,
-	"tokenURI":    true,
-}
-
 // New creates a new Server struct.
 func New(chain blockchainer.Blockchainer, conf rpc.Config, coreServer *network.Server,
 	orc *oracle.Oracle, log *zap.Logger) Server {
@@ -783,12 +776,12 @@ func (s *Server) getNEP11Properties(ps request.Params) (interface{}, *response.E
 			continue
 		}
 		var val interface{}
-		if knownNEP11Properties[string(key)] || kv.Value.Type() != stackitem.AnyT {
+		if result.KnownNEP11Properties[string(key)] || kv.Value.Type() != stackitem.AnyT {
 			v, err := kv.Value.TryBytes()
 			if err != nil {
 				continue
 			}
-			if knownNEP11Properties[string(key)] {
+			if result.KnownNEP11Properties[string(key)] {
 				val = string(v)
 			} else {
 				val = v

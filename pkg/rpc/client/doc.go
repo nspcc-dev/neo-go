@@ -29,6 +29,9 @@ Supported methods
 	getconnectioncount
 	getcontractstate
 	getnativecontracts
+	getnep11balances
+	getnep11properties
+	getnep11transfers
 	getnep17balances
 	getnep17transfers
 	getpeers

@@ -72,3 +72,11 @@ type NEP17Transfer struct {
 	NotifyIndex uint32       `json:"transfernotifyindex"`
 	TxHash      util.Uint256 `json:"txhash"`
 }
+
+// KnownNEP11Properties contains a list of well-known NEP-11 token property names.
+var KnownNEP11Properties = map[string]bool{
+	"description": true,
+	"image":       true,
+	"name":        true,
+	"tokenURI":    true,
+}

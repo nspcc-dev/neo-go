@@ -532,6 +532,36 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 			},
 		},
 	},
+	"getnep11balances": {
+		{
+			name: "positive",
+			invoke: func(c *Client) (interface{}, error) {
+				hash, err := util.Uint160DecodeStringLE("1aada0032aba1ef6d1f07bbd8bec1d85f5380fb3")
+				if err != nil {
+					panic(err)
+				}
+				return c.GetNEP11Balances(hash)
+			},
+			serverResponse: `{"jsonrpc":"2.0","id":1,"result":{"balance":[{"assethash":"a48b6e1291ba24211ad11bb90ae2a10bf1fcd5a8","tokens":[{"tokenid":"abcdef","amount":"1","lastupdatedblock":251604}]}],"address":"NcEkNmgWmf7HQVQvzhxpengpnt4DXjmZLe"}}`,
+			result: func(c *Client) interface{} {
+				hash, err := util.Uint160DecodeStringLE("a48b6e1291ba24211ad11bb90ae2a10bf1fcd5a8")
+				if err != nil {
+					panic(err)
+				}
+				return &result.NEP11Balances{
+					Balances: []result.NEP11AssetBalance{{
+						Asset: hash,
+						Tokens: []result.NEP11TokenBalance{{
+							ID:          "abcdef",
+							Amount:      "1",
+							LastUpdated: 251604,
+						}},
+					}},
+					Address: "NcEkNmgWmf7HQVQvzhxpengpnt4DXjmZLe",
+				}
+			},
+		},
+	},
 	"getnep17balances": {
 		{
 			name: "positive",
@@ -555,6 +585,61 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 						LastUpdated: 251604,
 					}},
 					Address: "AY6eqWjsUFCzsVELG7yG72XDukKvC34p2w",
+				}
+			},
+		},
+	},
+	"getnep11properties": {
+		{
+			name: "positive",
+			invoke: func(c *Client) (interface{}, error) {
+				hash, err := util.Uint160DecodeStringLE("1aada0032aba1ef6d1f07bbd8bec1d85f5380fb3")
+				if err != nil {
+					panic(err)
+				}
+				return c.GetNEP11Properties(hash, []byte("abcdef"))
+			}, // NcEkNmgWmf7HQVQvzhxpengpnt4DXjmZLe
+			serverResponse: `{"jsonrpc":"2.0","id":1,"result":{"name":"sometoken","field1":"c29tZXRoaW5n","field2":null}}`,
+			result: func(c *Client) interface{} {
+				return map[string]interface{}{
+					"name":   "sometoken",
+					"field1": []byte("something"),
+					"field2": nil,
+				}
+			},
+		},
+	},
+	"getnep11transfers": {
+		{
+			name: "positive",
+			invoke: func(c *Client) (interface{}, error) {
+				return c.GetNEP11Transfers("NcEkNmgWmf7HQVQvzhxpengpnt4DXjmZLe", nil, nil, nil, nil)
+			},
+			serverResponse: `{"jsonrpc":"2.0","id":1,"result":{"sent":[],"received":[{"timestamp":1555651816,"assethash":"600c4f5200db36177e3e8a09e9f18e2fc7d12a0f","transferaddress":"NfgHwwTi3wHAS8aFAN243C5vGbkYDpqLHP","amount":"1","tokenid":"abcdef","blockindex":436036,"transfernotifyindex":0,"txhash":"df7683ece554ecfb85cf41492c5f143215dd43ef9ec61181a28f922da06aba58"}],"address":"NcEkNmgWmf7HQVQvzhxpengpnt4DXjmZLe"}}`,
+			result: func(c *Client) interface{} {
+				assetHash, err := util.Uint160DecodeStringLE("600c4f5200db36177e3e8a09e9f18e2fc7d12a0f")
+				if err != nil {
+					panic(err)
+				}
+				txHash, err := util.Uint256DecodeStringLE("df7683ece554ecfb85cf41492c5f143215dd43ef9ec61181a28f922da06aba58")
+				if err != nil {
+					panic(err)
+				}
+				return &result.NEP11Transfers{
+					Sent: []result.NEP11Transfer{},
+					Received: []result.NEP11Transfer{
+						{
+							Timestamp:   1555651816,
+							Asset:       assetHash,
+							Address:     "NfgHwwTi3wHAS8aFAN243C5vGbkYDpqLHP",
+							Amount:      "1",
+							ID:          "abcdef",
+							Index:       436036,
+							NotifyIndex: 0,
+							TxHash:      txHash,
+						},
+					},
+					Address: "NcEkNmgWmf7HQVQvzhxpengpnt4DXjmZLe",
 				}
 			},
 		},
@@ -1052,6 +1137,22 @@ type rpcClientErrorCase struct {
 }
 
 var rpcClientErrorCases = map[string][]rpcClientErrorCase{
+	`{"jsonrpc":"2.0","id":1,"result":{"name":"name","bad":42}}`: {
+		{
+			name: "getnep11properties_unmarshalling_error",
+			invoke: func(c *Client) (interface{}, error) {
+				return c.GetNEP11Properties(util.Uint160{}, []byte{})
+			},
+		},
+	},
+	`{"jsonrpc":"2.0","id":1,"result":{"name":100500,"good":"c29tZXRoaW5n"}}`: {
+		{
+			name: "getnep11properties_unmarshalling_error",
+			invoke: func(c *Client) (interface{}, error) {
+				return c.GetNEP11Properties(util.Uint160{}, []byte{})
+			},
+		},
+	},
 	`{"jsonrpc":"2.0","id":1,"result":"not-a-hex-string"}`: {
 		{
 			name: "getblock_not_a_hex_response",
@@ -1230,9 +1331,27 @@ var rpcClientErrorCases = map[string][]rpcClientErrorCase{
 			},
 		},
 		{
+			name: "getnep11balances_invalid_params_error",
+			invoke: func(c *Client) (interface{}, error) {
+				return c.GetNEP11Balances(util.Uint160{})
+			},
+		},
+		{
 			name: "getnep17balances_invalid_params_error",
 			invoke: func(c *Client) (interface{}, error) {
 				return c.GetNEP17Balances(util.Uint160{})
+			},
+		},
+		{
+			name: "getnep11properties_invalid_params_error",
+			invoke: func(c *Client) (interface{}, error) {
+				return c.GetNEP11Properties(util.Uint160{}, []byte{})
+			},
+		},
+		{
+			name: "getnep11transfers_invalid_params_error",
+			invoke: func(c *Client) (interface{}, error) {
+				return c.GetNEP11Transfers("", nil, nil, nil, nil)
 			},
 		},
 		{
@@ -1417,9 +1536,21 @@ var rpcClientErrorCases = map[string][]rpcClientErrorCase{
 			},
 		},
 		{
+			name: "getnep11balances_unmarshalling_error",
+			invoke: func(c *Client) (interface{}, error) {
+				return c.GetNEP11Balances(util.Uint160{})
+			},
+		},
+		{
 			name: "getnep17balances_unmarshalling_error",
 			invoke: func(c *Client) (interface{}, error) {
 				return c.GetNEP17Balances(util.Uint160{})
+			},
+		},
+		{
+			name: "getnep11transfers_unmarshalling_error",
+			invoke: func(c *Client) (interface{}, error) {
+				return c.GetNEP11Transfers("", nil, nil, nil, nil)
 			},
 		},
 		{

@@ -1,6 +1,8 @@
 package client
 
 import (
+	"encoding/base64"
+	"encoding/hex"
 	"errors"
 	"fmt"
 
@@ -267,6 +269,16 @@ func (c *Client) GetNativeContracts() ([]state.NativeContract, error) {
 	return resp, nil
 }
 
+// GetNEP11Balances is a wrapper for getnep11balances RPC.
+func (c *Client) GetNEP11Balances(address util.Uint160) (*result.NEP11Balances, error) {
+	params := request.NewRawParams(address.StringLE())
+	resp := new(result.NEP11Balances)
+	if err := c.performRequest("getnep11balances", params, resp); err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
 // GetNEP17Balances is a wrapper for getnep17balances RPC.
 func (c *Client) GetNEP17Balances(address util.Uint160) (*result.NEP17Balances, error) {
 	params := request.NewRawParams(address.StringLE())
@@ -277,12 +289,53 @@ func (c *Client) GetNEP17Balances(address util.Uint160) (*result.NEP17Balances, 
 	return resp, nil
 }
 
-// GetNEP17Transfers is a wrapper for getnep17transfers RPC. Address parameter
-// is mandatory, while all the others are optional. Start and stop parameters
-// are supported since neo-go 0.77.0 and limit and page since neo-go 0.78.0.
-// These parameters are positional in the JSON-RPC call, you can't specify limit
-// and not specify start/stop for example.
-func (c *Client) GetNEP17Transfers(address string, start, stop *uint64, limit, page *int) (*result.NEP17Transfers, error) {
+// GetNEP11Properties is a wrapper for getnep11properties RPC. We recommend using
+// NEP11Properties method instead of this to receive and work with proper VM types,
+// this method is provided mostly for the sake of completeness. For well-known
+// attributes like "description", "image", "name" and "tokenURI" it returns strings,
+// while for all other ones []byte (which can be nil).
+func (c *Client) GetNEP11Properties(asset util.Uint160, token []byte) (map[string]interface{}, error) {
+	params := request.NewRawParams(asset.StringLE(), hex.EncodeToString(token))
+	resp := make(map[string]interface{})
+	if err := c.performRequest("getnep11properties", params, &resp); err != nil {
+		return nil, err
+	}
+	for k, v := range resp {
+		if v == nil {
+			continue
+		}
+		str, ok := v.(string)
+		if !ok {
+			return nil, errors.New("value is not a string")
+		}
+		if result.KnownNEP11Properties[k] {
+			continue
+		}
+		val, err := base64.StdEncoding.DecodeString(str)
+		if err != nil {
+			return nil, err
+		}
+		resp[k] = val
+	}
+	return resp, nil
+}
+
+// GetNEP11Transfers is a wrapper for getnep11transfers RPC. Address parameter
+// is mandatory, while all the others are optional. Limit and page parameters are
+// only supported by NeoGo servers and can only be specified with start and stop.
+func (c *Client) GetNEP11Transfers(address string, start, stop *uint64, limit, page *int) (*result.NEP11Transfers, error) {
+	params, err := packTransfersParams(address, start, stop, limit, page)
+	if err != nil {
+		return nil, err
+	}
+	resp := new(result.NEP11Transfers)
+	if err := c.performRequest("getnep11transfers", *params, resp); err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
+func packTransfersParams(address string, start, stop *uint64, limit, page *int) (*request.RawParams, error) {
 	params := request.NewRawParams(address)
 	if start != nil {
 		params.Values = append(params.Values, *start)
@@ -302,8 +355,21 @@ func (c *Client) GetNEP17Transfers(address string, start, stop *uint64, limit, p
 	} else if stop != nil || limit != nil || page != nil {
 		return nil, errors.New("bad parameters")
 	}
+	return &params, nil
+}
+
+// GetNEP17Transfers is a wrapper for getnep17transfers RPC. Address parameter
+// is mandatory, while all the others are optional. Start and stop parameters
+// are supported since neo-go 0.77.0 and limit and page since neo-go 0.78.0.
+// These parameters are positional in the JSON-RPC call, you can't specify limit
+// and not specify start/stop for example.
+func (c *Client) GetNEP17Transfers(address string, start, stop *uint64, limit, page *int) (*result.NEP17Transfers, error) {
+	params, err := packTransfersParams(address, start, stop, limit, page)
+	if err != nil {
+		return nil, err
+	}
 	resp := new(result.NEP17Transfers)
-	if err := c.performRequest("getnep17transfers", params, resp); err != nil {
+	if err := c.performRequest("getnep17transfers", *params, resp); err != nil {
 		return nil, err
 	}
 	return resp, nil
