@@ -2,6 +2,7 @@ package neotest
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -69,7 +70,7 @@ func (e *Executor) NewUnsignedTx(t *testing.T, hash util.Uint160, method string,
 
 	script := w.Bytes()
 	tx := transaction.New(script, 0)
-	tx.Nonce = nonce()
+	tx.Nonce = Nonce()
 	tx.ValidUntilBlock = e.Chain.BlockHeight() + 1
 	return tx
 }
@@ -113,13 +114,24 @@ func (e *Executor) NewAccount(t *testing.T) Signer {
 	return NewSingleSigner(acc)
 }
 
-// DeployContract compiles and deploys contract to bc.
+// DeployContract compiles and deploys contract to bc. It also checks that
+// precalculated contract hash matches the actual one.
 // data is an optional argument to `_deploy`.
 // Returns hash of the deploy transaction.
 func (e *Executor) DeployContract(t *testing.T, c *Contract, data interface{}) util.Uint256 {
 	tx := e.NewDeployTx(t, e.Chain, c, data)
 	e.AddNewBlock(t, tx)
 	e.CheckHalt(t, tx.Hash())
+
+	// Check that precalculated hash matches the real one.
+	e.CheckTxNotificationEvent(t, tx.Hash(), -1, state.NotificationEvent{
+		ScriptHash: e.NativeHash(t, nativenames.Management),
+		Name:       "Deploy",
+		Item: stackitem.NewArray([]stackitem.Item{
+			stackitem.NewByteArray(c.Hash.BytesBE()),
+		}),
+	})
+
 	return tx.Hash()
 }
 
@@ -144,6 +156,19 @@ func (e *Executor) CheckFault(t *testing.T, h util.Uint256, s string) {
 		"expected: %s, got: %s", s, aer[0].FaultException)
 }
 
+// CheckTxNotificationEvent checks that specified event was emitted at the specified position
+// during transaction script execution. Negative index corresponds to backwards enumeration.
+func (e *Executor) CheckTxNotificationEvent(t *testing.T, h util.Uint256, index int, expected state.NotificationEvent) {
+	aer, err := e.Chain.GetAppExecResults(h, trigger.Application)
+	require.NoError(t, err)
+	l := len(aer[0].Events)
+	if index < 0 {
+		index = l + index
+	}
+	require.True(t, 0 <= index && index < l, fmt.Errorf("notification index is out of range: want %d, len is %d", index, l))
+	require.Equal(t, expected, aer[0].Events[index])
+}
+
 // NewDeployTx returns new deployment tx for contract signed by committee.
 func (e *Executor) NewDeployTx(t *testing.T, bc blockchainer.Blockchainer, c *Contract, data interface{}) *transaction.Transaction {
 	rawManifest, err := json.Marshal(c.Manifest)
@@ -157,7 +182,7 @@ func (e *Executor) NewDeployTx(t *testing.T, bc blockchainer.Blockchainer, c *Co
 	require.NoError(t, buf.Err)
 
 	tx := transaction.New(buf.Bytes(), 100*native.GASFactor)
-	tx.Nonce = nonce()
+	tx.Nonce = Nonce()
 	tx.ValidUntilBlock = bc.BlockHeight() + 1
 	tx.Signers = []transaction.Signer{{
 		Account: e.Committee.ScriptHash(),
