@@ -39,9 +39,9 @@ func TestGetTimeoutContext(t *testing.T) {
 		set := flag.NewFlagSet("flagSet", flag.ExitOnError)
 		ctx := cli.NewContext(cli.NewApp(), set, nil)
 		actualCtx, _ := GetTimeoutContext(ctx)
-		end := time.Now()
+		end := time.Now().Add(DefaultTimeout)
 		dl, _ := actualCtx.Deadline()
-		require.True(t, start.Before(dl) && dl.Before(end.Add(DefaultTimeout)))
+		require.True(t, start.Before(dl) && (dl.Before(end) || dl.Equal(end)))
 	})
 
 	t.Run("set", func(t *testing.T) {
@@ -50,8 +50,8 @@ func TestGetTimeoutContext(t *testing.T) {
 		set.Duration("timeout", time.Duration(20), "")
 		ctx := cli.NewContext(cli.NewApp(), set, nil)
 		actualCtx, _ := GetTimeoutContext(ctx)
-		end := time.Now()
+		end := time.Now().Add(time.Nanosecond * 20)
 		dl, _ := actualCtx.Deadline()
-		require.True(t, start.Before(dl) && dl.Before(end.Add(time.Nanosecond*20)))
+		require.True(t, start.Before(dl) && (dl.Before(end) || dl.Equal(end)))
 	})
 }
