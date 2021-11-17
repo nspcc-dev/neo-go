@@ -10,19 +10,21 @@ import (
 
 func TestMakeDirForFile_HappyPath(t *testing.T) {
 	tempDir := t.TempDir()
-	filePath := path.Join(tempDir, "testDir/testFile.test")
+	filePath := path.Join(tempDir, "testDir", "testFile.test")
 	err := MakeDirForFile(filePath, "test")
 	require.NoError(t, err)
 
-	_, errChDir := os.Create(filePath)
+	f, errChDir := os.Create(filePath)
 	require.NoError(t, errChDir)
+	require.NoError(t, f.Close())
 }
 
 func TestMakeDirForFile_Negative(t *testing.T) {
 	tempDir := t.TempDir()
 	filePath := path.Join(tempDir, "testFile.test")
-	_, err := os.Create(filePath)
+	f, err := os.Create(filePath)
 	require.NoError(t, err)
+	require.NoError(t, f.Close())
 
 	filePath = path.Join(filePath, "error")
 	err = MakeDirForFile(filePath, "test")
