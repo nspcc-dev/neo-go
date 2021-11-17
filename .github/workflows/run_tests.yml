@@ -65,8 +65,8 @@ jobs:
           path_to_write_report: ./coverage.txt
           verbose: true
 
-  tests:
-    name: Go
+  tests_ubuntu:
+    name: Ubuntu, Go
     runs-on: ubuntu-20.04
     strategy:
       matrix:
@@ -81,6 +81,36 @@ jobs:
         uses: actions/setup-go@v2
         with:
           go-version: '${{ matrix.go_versions }}'
+
+      - name: Restore Go modules from cache
+        uses: actions/cache@v2
+        with:
+          path: /home/runner/go/pkg/mod
+          key: deps-${{ hashFiles('go.sum') }}
+
+      - name: Update Go modules
+        run: go mod download -json
+
+      - name: Sync VM submodule
+        run: |
+          git submodule sync
+          git submodule update --init
+
+      - name: Run tests
+        run: go test -v -race ./...
+
+  tests_win:
+    name: Windows, Go (1.17)
+    runs-on: windows-2019
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.17
 
       - name: Restore Go modules from cache
         uses: actions/cache@v2
