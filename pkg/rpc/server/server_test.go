@@ -68,6 +68,20 @@ const invokescriptContractAVM = "VwIADBQBDAMOBQYMDQIODw0DDgcJAAAAANswcGhB+CfsjCG
 
 const nameServiceContractHash = "3a602b3e7cfd760850bfac44f4a9bb0ebad3e2dc"
 
+var NNSHash = util.Uint160{0xdc, 0xe2, 0xd3, 0xba, 0x0e, 0xbb, 0xa9, 0xf4, 0x44, 0xac, 0xbf, 0x50, 0x08, 0x76, 0xfd, 0x7c, 0x3e, 0x2b, 0x60, 0x3a}
+
+var nep11Reg = &result.NEP11Balances{
+	Address: "Nhfg3TbpwogLvDGVvAvqyThbsHgoSUKwtn",
+	Balances: []result.NEP11AssetBalance{{
+		Asset: NNSHash,
+		Tokens: []result.NEP11TokenBalance{{
+			ID:          "6e656f2e636f6d",
+			Amount:      "1",
+			LastUpdated: 14,
+		}},
+	}},
+}
+
 var rpcTestCases = map[string][]rpcTestCase{
 	"getapplicationlog": {
 		{
@@ -213,7 +227,89 @@ var rpcTestCases = map[string][]rpcTestCase{
 			fail:   true,
 		},
 	},
-
+	"getnep11balances": {
+		{
+			name:   "no params",
+			params: `[]`,
+			fail:   true,
+		},
+		{
+			name:   "invalid address",
+			params: `["notahex"]`,
+			fail:   true,
+		},
+		{
+			name:   "positive",
+			params: `["` + testchain.PrivateKeyByID(0).GetScriptHash().StringLE() + `"]`,
+			result: func(e *executor) interface{} { return nep11Reg },
+		},
+		{
+			name:   "positive_address",
+			params: `["` + address.Uint160ToString(testchain.PrivateKeyByID(0).GetScriptHash()) + `"]`,
+			result: func(e *executor) interface{} { return nep11Reg },
+		},
+	},
+	"getnep11properties": {
+		{
+			name:   "no params",
+			params: `[]`,
+			fail:   true,
+		},
+		{
+			name:   "invalid address",
+			params: `["notahex"]`,
+			fail:   true,
+		},
+		{
+			name:   "no token",
+			params: `["` + NNSHash.StringLE() + `"]`,
+			fail:   true,
+		},
+		{
+			name:   "bad token",
+			params: `["` + NNSHash.StringLE() + `", "abcdef"]`,
+			fail:   true,
+		},
+		{
+			name:   "positive",
+			params: `["` + NNSHash.StringLE() + `", "6e656f2e636f6d"]`,
+			result: func(e *executor) interface{} {
+				return &map[string]interface{}{
+					"name":       "neo.com",
+					"expiration": "bhORxoMB",
+				}
+			},
+		},
+	},
+	"getnep11transfers": {
+		{
+			name:   "no params",
+			params: `[]`,
+			fail:   true,
+		},
+		{
+			name:   "invalid address",
+			params: `["notahex"]`,
+			fail:   true,
+		},
+		{
+			name:   "invalid timestamp",
+			params: `["` + testchain.PrivateKeyByID(0).Address() + `", "notanumber"]`,
+			fail:   true,
+		},
+		{
+			name:   "invalid stop timestamp",
+			params: `["` + testchain.PrivateKeyByID(0).Address() + `", "1", "blah"]`,
+			fail:   true,
+		},
+		{
+			name:   "positive",
+			params: `["` + testchain.PrivateKeyByID(0).Address() + `", 0]`,
+			result: func(e *executor) interface{} {
+				return &result.NEP11Transfers{Sent: []result.NEP11Transfer{}, Received: []result.NEP11Transfer{{Timestamp: 0x17c6edfe76e, Asset: util.Uint160{0xdc, 0xe2, 0xd3, 0xba, 0xe, 0xbb, 0xa9, 0xf4, 0x44, 0xac, 0xbf, 0x50, 0x8, 0x76, 0xfd, 0x7c, 0x3e, 0x2b, 0x60, 0x3a}, Address: "", ID: "6e656f2e636f6d", Amount: "1", Index: 0xe, NotifyIndex: 0x0, TxHash: util.Uint256{0x5b, 0x5a, 0x5b, 0xae, 0xf2, 0xc5, 0x63, 0x8a, 0x2e, 0xcc, 0x77, 0x27, 0xd9, 0x6b, 0xb9, 0xda, 0x3a, 0x7f, 0x30, 0xaa, 0xcf, 0xda, 0x7f, 0x8a, 0x10, 0xd3, 0x23, 0xbf, 0xd, 0x1f, 0x28, 0x69}}}, Address: "Nhfg3TbpwogLvDGVvAvqyThbsHgoSUKwtn"}
+			},
+		},
+	},
 	"getnep17balances": {
 		{
 			name:   "no params",

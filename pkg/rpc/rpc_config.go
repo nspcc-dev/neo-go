@@ -15,6 +15,7 @@ type (
 		MaxGasInvoke           fixedn.Fixed8 `yaml:"MaxGasInvoke"`
 		MaxIteratorResultItems int           `yaml:"MaxIteratorResultItems"`
 		MaxFindResultItems     int           `yaml:"MaxFindResultItems"`
+		MaxNEP11Tokens         int           `yaml:"MaxNEP11Tokens"`
 		Port                   uint16        `yaml:"Port"`
 		TLSConfig              TLSConfig     `yaml:"TLSConfig"`
 	}

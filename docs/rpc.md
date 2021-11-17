@@ -48,6 +48,9 @@ which would yield the response:
 | `getconnectioncount` |
 | `getcontractstate` |
 | `getnativecontracts` |
+| `getnep11balances` |
+| `getnep11properties` |
+| `getnep11transfers` |
 | `getnep17balances` |
 | `getnep17transfers` |
 | `getnextblockvalidators` |
@@ -107,28 +110,32 @@ This method doesn't work for the Ledger contract, you can get data via regular
 the native contract by its name (case-insensitive), unlike the C# node where
 it only possible for index or hash.
 
-#### `getnep17balances`
+#### `getnep11balances` and `getnep17balances`
+neo-go's implementation of `getnep11balances` and `getnep17balances` does not
+perform tracking of NEP-11 and NEP-17 balances for each account as it is done
+in the C# node. Instead, neo-go node maintains the list of standard-compliant
+contracts, i.e. those contracts that have `NEP-11` or `NEP-17` declared in the
+supported standards section of the manifest. Each time balances are queried,
+neo-go node asks every NEP-11/NEP-17 contract for the account balance by
+invoking `balanceOf` method with the corresponding args. Invocation GAS limit
+is set to be 3 GAS. All non-zero balances are included in the RPC call result.
 
-neo-go's implementation of `getnep17balances` does not perform tracking of NEP17
-balances for each account as it is done in the C# node. Instead, neo-go node
-maintains the list of NEP17-compliant contracts, i.e. those contracts that have
-`NEP-17` declared in the supported standards section of the manifest. Each time
-`getnep17balances` is queried, neo-go node asks every NEP17 contract for the
-account balance by invoking `balanceOf` method with the corresponding args.
-Invocation GAS limit is set to be 3 GAS. All non-zero NEP17 balances are included
-in the RPC call result.
-
-Thus, if NEP17 token contract doesn't have `NEP-17` standard declared in the list
-of supported standards but emits proper NEP17 `Transfer` notifications, the token
-balance won't be shown in the list of NEP17 balances returned by the neo-go node
-(unlike the C# node behavior). However, transfer logs of such token are still
-available via `getnep17transfers` RPC call.
+Thus, if token contract doesn't have proper standard declared in the list of
+supported standards but emits compliant NEP-11/NEP-17 `Transfer`
+notifications, the token balance won't be shown in the list of balances
+returned by the neo-go node (unlike the C# node behavior). However, transfer
+logs of such tokens are still available via respective `getnepXXtransfers` RPC
+calls.
 
 The behaviour of the `LastUpdatedBlock` tracking for archival nodes as far as for
 governing token balances matches the C# node's one. For non-archival nodes and
-other NEP17-compliant tokens if transfer's `LastUpdatedBlock` is lower than the
+other NEP-11/NEP-17 tokens if transfer's `LastUpdatedBlock` is lower than the
 latest state synchronization point P the node working against, then
-`LastUpdatedBlock` equals P.
+`LastUpdatedBlock` equals P. For NEP-11 NFTs `LastUpdatedBlock` is equal for
+all tokens of the same asset.
+
+#### `getnep11transfers` and `getnep17transfers`
+`transfernotifyindex` is not tracked by NeoGo, thus this field is always zero.
 
 ### Unsupported methods
 
@@ -166,12 +173,12 @@ burned).
 This method can be used on P2P Notary enabled networks to submit new notary
 payloads to be relayed from RPC to P2P.
 
-#### Limits and paging for getnep17transfers
+#### Limits and paging for getnep11transfers and getnep17transfers
 
-`getnep17transfers` RPC call never returns more than 1000 results for one
-request (within specified time frame). You can pass your own limit via an
-additional parameter and then use paging to request the next batch of
-transfers.
+`getnep11transfers` and `getnep17transfers` RPC calls never return more than
+1000 results for one request (within specified time frame). You can pass your
+own limit via an additional parameter and then use paging to request the next
+batch of transfers.
 
 Example requesting 10 events for address NbTiM6h8r99kpRtb428XcsUk1TzKed2gTc
 within 0-1600094189000 timestamps:
