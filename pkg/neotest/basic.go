@@ -135,6 +135,39 @@ func (e *Executor) DeployContract(t *testing.T, c *Contract, data interface{}) u
 	return tx.Hash()
 }
 
+// DeployContractCheckFAULT compiles and deploys contract to bc. It checks that deploy
+// transaction FAULTed with the specified error.
+func (e *Executor) DeployContractCheckFAULT(t *testing.T, c *Contract, data interface{}, errMessage string) {
+	tx := e.NewDeployTx(t, e.Chain, c, data)
+	e.AddNewBlock(t, tx)
+	e.CheckFault(t, tx.Hash(), errMessage)
+}
+
+// InvokeScript adds transaction with the specified script to the chain and
+// returns its hash. It does no faults check.
+func (e *Executor) InvokeScript(t *testing.T, script []byte, signers []Signer) util.Uint256 {
+	tx := transaction.New(script, 0)
+	tx.Nonce = Nonce()
+	tx.ValidUntilBlock = e.Chain.BlockHeight() + 1
+	e.SignTx(t, tx, -1, signers...)
+	e.AddNewBlock(t, tx)
+	return tx.Hash()
+}
+
+// InvokeScriptCheckHALT adds transaction with the specified script to the chain
+// and checks it's HALTed with the specified items on stack.
+func (e *Executor) InvokeScriptCheckHALT(t *testing.T, script []byte, signers []Signer, stack ...stackitem.Item) {
+	hash := e.InvokeScript(t, script, signers)
+	e.CheckHalt(t, hash, stack...)
+}
+
+// InvokeScriptCheckFAULT adds transaction with the specified script to the
+// chain and checks it's FAULTed with the specified error.
+func (e *Executor) InvokeScriptCheckFAULT(t *testing.T, script []byte, signers []Signer, errMessage string) {
+	hash := e.InvokeScript(t, script, signers)
+	e.CheckFault(t, hash, errMessage)
+}
+
 // CheckHalt checks that transaction persisted with HALT state.
 func (e *Executor) CheckHalt(t *testing.T, h util.Uint256, stack ...stackitem.Item) *state.AppExecResult {
 	aer, err := e.Chain.GetAppExecResults(h, trigger.Application)
