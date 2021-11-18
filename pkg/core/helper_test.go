@@ -512,7 +512,7 @@ func newNEP17TransferWithAssert(sc, from, to util.Uint160, amount int64, needAss
 		emit.Opcodes(w.BinWriter, opcode.ASSERT)
 	}
 	if w.Err != nil {
-		panic(fmt.Errorf("failed to create nep17 transfer transaction: %w", w.Err))
+		panic(fmt.Errorf("failed to create NEP-17 transfer transaction: %w", w.Err))
 	}
 
 	script := w.Bytes()

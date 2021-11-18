@@ -53,7 +53,7 @@ func TestNEP11Import(t *testing.T) {
 	// already exists
 	e.RunWithError(t, append(args, "--token", nnsContractHash.StringLE())...)
 
-	// not a NEP11 token
+	// not a NEP-11 token
 	e.RunWithError(t, append(args, "--token", neoContractHash.StringLE())...)
 
 	t.Run("Info", func(t *testing.T) {
@@ -283,7 +283,7 @@ func TestNEP11_OwnerOf_BalanceOf_Transfer(t *testing.T) {
 	e.Run(t, append(cmdCheckBalance, "--token", h.StringLE())...)
 	checkBalanceResult(t, nftOwnerAddr, "1") // tokenID1
 
-	// transfer: good, to NEP11-Payable contract, with data
+	// transfer: good, to NEP-11-Payable contract, with data
 	verifyH := deployVerifyContract(t, e)
 	cmdTransfer = []string{
 		"neo-go", "wallet", "nep11", "transfer",

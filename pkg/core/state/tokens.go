@@ -18,9 +18,9 @@ type TokenTransferLog struct {
 	Raw []byte
 }
 
-// NEP17Transfer represents a single NEP17 Transfer event.
+// NEP17Transfer represents a single NEP-17 Transfer event.
 type NEP17Transfer struct {
-	// Asset is a NEP17 contract ID.
+	// Asset is a NEP-17 contract ID.
 	Asset int32
 	// Address is the address of the sender.
 	From util.Uint160

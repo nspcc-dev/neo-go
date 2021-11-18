@@ -682,7 +682,7 @@ func (s *Server) getNEP11Balances(ps request.Params) (interface{}, *response.Err
 	}
 	lastUpdated, err := s.chain.GetTokenLastUpdated(u)
 	if err != nil {
-		return nil, response.NewRPCError("Failed to get NEP11 last updated block", err.Error(), err)
+		return nil, response.NewRPCError("Failed to get NEP-11 last updated block", err.Error(), err)
 	}
 	var count int
 	stateSyncPoint := lastUpdated[math.MinInt32]
@@ -804,7 +804,7 @@ func (s *Server) getNEP17Balances(ps request.Params) (interface{}, *response.Err
 	}
 	lastUpdated, err := s.chain.GetTokenLastUpdated(u)
 	if err != nil {
-		return nil, response.NewRPCError("Failed to get NEP17 last updated block", err.Error(), err)
+		return nil, response.NewRPCError("Failed to get NEP-17 last updated block", err.Error(), err)
 	}
 	stateSyncPoint := lastUpdated[math.MinInt32]
 	bw := io.NewBufBinWriter()

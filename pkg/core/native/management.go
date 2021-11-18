@@ -35,7 +35,7 @@ type Management struct {
 	contracts map[util.Uint160]*state.Contract
 	// nep11 is a map of NEP11-compliant contracts which is updated with every PostPersist.
 	nep11 map[util.Uint160]struct{}
-	// nep17 is a map of NEP17-compliant contracts which is updated with every PostPersist.
+	// nep17 is a map of NEP-17-compliant contracts which is updated with every PostPersist.
 	nep17 map[util.Uint160]struct{}
 }
 
@@ -548,7 +548,7 @@ func (m *Management) GetNEP11Contracts() []util.Uint160 {
 	return result
 }
 
-// GetNEP17Contracts returns hashes of all deployed contracts that support NEP17 standard. The list
+// GetNEP17Contracts returns hashes of all deployed contracts that support NEP-17 standard. The list
 // is updated every PostPersist, so until PostPersist is called, the result for the previous block
 // is returned.
 func (m *Management) GetNEP17Contracts() []util.Uint160 {

@@ -321,7 +321,7 @@ func TestNEP17ImportToken(t *testing.T) {
 		"--wallet", walletPath,
 		"--token", address.Uint160ToString(neoContractHash)) // try address instead of sh
 
-	// not a NEP17 token
+	// not a NEP-17 token
 	e.RunWithError(t, "neo-go", "wallet", "nep17", "import",
 		"--rpc-endpoint", "http://"+e.RPC.Addr,
 		"--wallet", walletPath,

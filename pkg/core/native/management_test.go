@@ -92,7 +92,7 @@ func TestManagement_GetNEP17Contracts(t *testing.T) {
 
 	require.Empty(t, mgmt.GetNEP17Contracts())
 
-	// Deploy NEP17 contract
+	// Deploy NEP-17 contract
 	script := []byte{byte(opcode.RET)}
 	sender := util.Uint160{1, 2, 3}
 	ne, err := nef.NewFile(script)
@@ -107,7 +107,7 @@ func TestManagement_GetNEP17Contracts(t *testing.T) {
 	c1, err := mgmt.Deploy(d, sender, ne, manif)
 	require.NoError(t, err)
 
-	// PostPersist is not yet called, thus no NEP17 contracts are expected
+	// PostPersist is not yet called, thus no NEP-17 contracts are expected
 	require.Empty(t, mgmt.GetNEP17Contracts())
 
 	// Call PostPersist, check c1 contract hash is returned

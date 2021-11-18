@@ -231,12 +231,12 @@ func NewCommands() []cli.Command {
 			},
 			{
 				Name:        "nep17",
-				Usage:       "work with NEP17 contracts",
+				Usage:       "work with NEP-17 contracts",
 				Subcommands: newNEP17Commands(),
 			},
 			{
 				Name:        "nep11",
-				Usage:       "work with NEP11 contracts",
+				Usage:       "work with NEP-11 contracts",
 				Subcommands: newNEP11Commands(),
 			},
 			{

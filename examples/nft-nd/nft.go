@@ -1,5 +1,5 @@
 /*
-Package nft contains non-divisible non-fungible NEP11-compatible token
+Package nft contains non-divisible non-fungible NEP-11-compatible token
 implementation. This token can be minted with GAS transfer to contract address,
 it will hash some data (including data provided in transfer) and produce
 base64-encoded string that is your NFT. Since it's based on hashing and basically

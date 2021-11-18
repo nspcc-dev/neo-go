@@ -11,7 +11,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
-// NEP17Balance represents balance state of a NEP17-token.
+// NEP17Balance represents balance state of a NEP-17-token.
 type NEP17Balance struct {
 	Balance big.Int
 }

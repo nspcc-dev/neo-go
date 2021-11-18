@@ -149,9 +149,9 @@ func (dao *Simple) GetContractScriptHash(id int32) (util.Uint160, error) {
 	return *data, nil
 }
 
-// -- start nep17 transfer info.
+// -- start NEP-17 transfer info.
 
-// GetTokenTransferInfo retrieves nep17 transfer info from the cache.
+// GetTokenTransferInfo retrieves NEP-17 transfer info from the cache.
 func (dao *Simple) GetTokenTransferInfo(acc util.Uint160) (*state.TokenTransferInfo, error) {
 	key := storage.AppendPrefix(storage.STTokenTransferInfo, acc.BytesBE())
 	bs := state.NewTokenTransferInfo()
@@ -162,7 +162,7 @@ func (dao *Simple) GetTokenTransferInfo(acc util.Uint160) (*state.TokenTransferI
 	return bs, nil
 }
 
-// PutTokenTransferInfo saves nep17 transfer info in the cache.
+// PutTokenTransferInfo saves NEP-17 transfer info in the cache.
 func (dao *Simple) PutTokenTransferInfo(acc util.Uint160, bs *state.TokenTransferInfo) error {
 	return dao.putTokenTransferInfo(acc, bs, io.NewBufBinWriter())
 }
@@ -172,7 +172,7 @@ func (dao *Simple) putTokenTransferInfo(acc util.Uint160, bs *state.TokenTransfe
 	return dao.putWithBuffer(bs, key, buf)
 }
 
-// -- end nep17 transfer info.
+// -- end NEP-17 transfer info.
 
 // -- start transfer log.
 

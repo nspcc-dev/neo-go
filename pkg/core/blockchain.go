@@ -541,7 +541,7 @@ func (bc *Blockchain) jumpToStateInternal(p uint32, stage stateJumpStage) error 
 			if err != nil {
 				return fmt.Errorf("failed to remove outdated state data for the genesis block: %w", err)
 			}
-			// TODO: remove NEP17 transfers and NEP17 transfer info for genesis block, #2096 related.
+			// TODO: remove NEP-17 transfers and NEP-17 transfer info for genesis block, #2096 related.
 			_, err = cache.Persist()
 			if err != nil {
 				return fmt.Errorf("failed to drop genesis block state: %w", err)
@@ -1404,7 +1404,7 @@ func appendTokenTransfer(cache dao.DAO, transCache map[util.Uint160]transferData
 	return nil
 }
 
-// ForEachNEP17Transfer executes f for each nep17 transfer in log.
+// ForEachNEP17Transfer executes f for each NEP-17 transfer in log.
 func (bc *Blockchain) ForEachNEP17Transfer(acc util.Uint160, f func(*state.NEP17Transfer) (bool, error)) error {
 	balances, err := bc.dao.GetTokenTransferInfo(acc)
 	if err != nil {
@@ -1426,7 +1426,7 @@ func (bc *Blockchain) ForEachNEP17Transfer(acc util.Uint160, f func(*state.NEP17
 	return nil
 }
 
-// ForEachNEP11Transfer executes f for each nep11 transfer in log.
+// ForEachNEP11Transfer executes f for each NEP-11 transfer in log.
 func (bc *Blockchain) ForEachNEP11Transfer(acc util.Uint160, f func(*state.NEP11Transfer) (bool, error)) error {
 	balances, err := bc.dao.GetTokenTransferInfo(acc)
 	if err != nil {
@@ -1448,12 +1448,12 @@ func (bc *Blockchain) ForEachNEP11Transfer(acc util.Uint160, f func(*state.NEP11
 	return nil
 }
 
-// GetNEP17Contracts returns the list of deployed NEP17 contracts.
+// GetNEP17Contracts returns the list of deployed NEP-17 contracts.
 func (bc *Blockchain) GetNEP17Contracts() []util.Uint160 {
 	return bc.contracts.Management.GetNEP17Contracts()
 }
 
-// GetNEP11Contracts returns the list of deployed NEP11 contracts.
+// GetNEP11Contracts returns the list of deployed NEP-11 contracts.
 func (bc *Blockchain) GetNEP11Contracts() []util.Uint160 {
 	return bc.contracts.Management.GetNEP11Contracts()
 }

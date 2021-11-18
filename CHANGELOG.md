@@ -294,7 +294,7 @@ Improvements:
    StateRootInHeader option (#2028)
  * cached GAS per vote value leads to substantially improved block processing
    speed (#2032)
- * failed native NEP17 transfers now still re-save the old value to the
+ * failed native NEP-17 transfers now still re-save the old value to the
    storage making state dumps compatible with C# (#2034)
  * refactored and renamed some stackitem package functions, added proper error
    values in all cases (#2045)
@@ -412,30 +412,30 @@ Bugs fixed:
 ## 0.95.0 "Sharpness" (17 May 2021)
 
 This version mostly implements N3 RC2 protocol changes (and is fully
-RC2-compatible), but also brings NEP11 CLI support and small improvements for
+RC2-compatible), but also brings NEP-11 CLI support and small improvements for
 node operators.
 
 Please note that this release is incompatible with 0.94.1 and there won't be
 long-term support provided for it.
 
 New features:
- * CLI command for NEP17 transfers now accepts `data` parameter for the
+ * CLI command for NEP-17 transfers now accepts `data` parameter for the
    transfer (#1906)
  * contract deployment CLI comand now also accepts `data` parameter for
    `_deploy` method (#1907)
- * NEP11 and NEP17 transfers from CLI can now have multiple signers (#1914)
+ * NEP-11 and NEP-17 transfers from CLI can now have multiple signers (#1914)
  * `System.Runtime.BurnGas` interop was added to burn some GAS as well as
    `refuel` GAS contract method to add GAS to current execution environment
    (#1937)
  * port number announced via P2P can now differ from actual port node is bound
    to if new option is used (#1942)
- * CLI now supports full set of NEP11 commands, including balance and
+ * CLI now supports full set of NEP-11 commands, including balance and
    transfers (#1918)
  * string split, memory search and compare functions added to stdlib (#1943)
  * MaxValidUntilBlockIncrement can now be configured (#1963)
 
 Behavior changes:
- * `data` parameter is now passed in a different way to NEP17 RPC client
+ * `data` parameter is now passed in a different way to NEP-17 RPC client
    methods (#1906)
  * default (used if nothing else specified) signer scope is now
    `CalledByEntry` in CLI and RPC (#1909)
@@ -454,7 +454,7 @@ Behavior changes:
  * node will reread TLS certificates (if any configured) on SIGHUP (#1945)
  * contract trusts are now expressed with permission descriptors in manifest
    (#1946)
- * NEP11 transfers now also support `data` parameter (#1950)
+ * NEP-11 transfers now also support `data` parameter (#1950)
  * N3 RC2 testnet magic differs from N2 RC1 testnet (#1951, #1954)
  * stdlib encoding/decoding methods now only accept inputs no longer than 1024
    bytes (#1943)
@@ -485,7 +485,7 @@ Improvements:
 Bugs fixed:
  * `getproof` RPC request returned successful results in some cases where it
    should fail
- * `Transfer` events with invalid numbers were not rejected by NEP17 tracking
+ * `Transfer` events with invalid numbers were not rejected by NEP-17 tracking
    code (#1902)
  * boolean function parameters were not accepted by `invokefunction` RPC call
    implementation (#1920)
@@ -744,9 +744,9 @@ New features:
 Behavior changes:
  * VM CLI now supports and requires manifests to properly work with NEF files
    (#1642)
- * NEP17-related CLI commands now output GAS balance as floating point numbers
+ * NEP-17-related CLI commands now output GAS balance as floating point numbers
    (#1654)
- * `--from` parameter can be omitted now for NEP17 CLI transfers, the default
+ * `--from` parameter can be omitted now for NEP-17 CLI transfers, the default
    wallet address will be used in this case (#1655)
  * native contracts now use more specific types for methods arguments (#1657)
  * some native contract names and IDs have changed (#1622, #1660)
