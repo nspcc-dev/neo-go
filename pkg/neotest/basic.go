@@ -135,6 +135,14 @@ func (e *Executor) DeployContract(t *testing.T, c *Contract, data interface{}) u
 	return tx.Hash()
 }
 
+// DeployContractCheckFAULT compiles and deploys contract to bc. It checks that deploy
+// transaction FAULTed with the specified error.
+func (e *Executor) DeployContractCheckFAULT(t *testing.T, c *Contract, data interface{}, errMessage string) {
+	tx := e.NewDeployTx(t, e.Chain, c, data)
+	e.AddNewBlock(t, tx)
+	e.CheckFault(t, tx.Hash(), errMessage)
+}
+
 // InvokeScript adds transaction with the specified script to the chain and
 // returns its hash. It does no faults check.
 func (e *Executor) InvokeScript(t *testing.T, script []byte, signers []Signer) util.Uint256 {
