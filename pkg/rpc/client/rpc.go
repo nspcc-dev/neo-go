@@ -323,7 +323,7 @@ func (c *Client) GetNEP11Properties(asset util.Uint160, token []byte) (map[strin
 // GetNEP11Transfers is a wrapper for getnep11transfers RPC. Address parameter
 // is mandatory, while all the others are optional. Limit and page parameters are
 // only supported by NeoGo servers and can only be specified with start and stop.
-func (c *Client) GetNEP11Transfers(address string, start, stop *uint64, limit, page *int) (*result.NEP11Transfers, error) {
+func (c *Client) GetNEP11Transfers(address util.Uint160, start, stop *uint64, limit, page *int) (*result.NEP11Transfers, error) {
 	params, err := packTransfersParams(address, start, stop, limit, page)
 	if err != nil {
 		return nil, err
@@ -335,8 +335,8 @@ func (c *Client) GetNEP11Transfers(address string, start, stop *uint64, limit, p
 	return resp, nil
 }
 
-func packTransfersParams(address string, start, stop *uint64, limit, page *int) (*request.RawParams, error) {
-	params := request.NewRawParams(address)
+func packTransfersParams(address util.Uint160, start, stop *uint64, limit, page *int) (*request.RawParams, error) {
+	params := request.NewRawParams(address.StringLE())
 	if start != nil {
 		params.Values = append(params.Values, *start)
 		if stop != nil {
@@ -363,7 +363,7 @@ func packTransfersParams(address string, start, stop *uint64, limit, page *int) 
 // are supported since neo-go 0.77.0 and limit and page since neo-go 0.78.0.
 // These parameters are positional in the JSON-RPC call, you can't specify limit
 // and not specify start/stop for example.
-func (c *Client) GetNEP17Transfers(address string, start, stop *uint64, limit, page *int) (*result.NEP17Transfers, error) {
+func (c *Client) GetNEP17Transfers(address util.Uint160, start, stop *uint64, limit, page *int) (*result.NEP17Transfers, error) {
 	params, err := packTransfersParams(address, start, stop, limit, page)
 	if err != nil {
 		return nil, err

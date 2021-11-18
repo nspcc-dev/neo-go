@@ -613,7 +613,11 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 		{
 			name: "positive",
 			invoke: func(c *Client) (interface{}, error) {
-				return c.GetNEP11Transfers("NcEkNmgWmf7HQVQvzhxpengpnt4DXjmZLe", nil, nil, nil, nil)
+				hash, err := address.StringToUint160("NcEkNmgWmf7HQVQvzhxpengpnt4DXjmZLe")
+				if err != nil {
+					panic(err)
+				}
+				return c.GetNEP11Transfers(hash, nil, nil, nil, nil)
 			},
 			serverResponse: `{"jsonrpc":"2.0","id":1,"result":{"sent":[],"received":[{"timestamp":1555651816,"assethash":"600c4f5200db36177e3e8a09e9f18e2fc7d12a0f","transferaddress":"NfgHwwTi3wHAS8aFAN243C5vGbkYDpqLHP","amount":"1","tokenid":"abcdef","blockindex":436036,"transfernotifyindex":0,"txhash":"df7683ece554ecfb85cf41492c5f143215dd43ef9ec61181a28f922da06aba58"}],"address":"NcEkNmgWmf7HQVQvzhxpengpnt4DXjmZLe"}}`,
 			result: func(c *Client) interface{} {
@@ -648,9 +652,13 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 		{
 			name: "positive",
 			invoke: func(c *Client) (interface{}, error) {
-				return c.GetNEP17Transfers("AbHgdBaWEnHkCiLtDZXjhvhaAK2cwFh5pF", nil, nil, nil, nil)
+				hash, err := address.StringToUint160("NcEkNmgWmf7HQVQvzhxpengpnt4DXjmZLe")
+				if err != nil {
+					panic(err)
+				}
+				return c.GetNEP17Transfers(hash, nil, nil, nil, nil)
 			},
-			serverResponse: `{"jsonrpc":"2.0","id":1,"result":{"sent":[],"received":[{"timestamp":1555651816,"assethash":"600c4f5200db36177e3e8a09e9f18e2fc7d12a0f","transferaddress":"AYwgBNMepiv5ocGcyNT4mA8zPLTQ8pDBis","amount":"1000000","blockindex":436036,"transfernotifyindex":0,"txhash":"df7683ece554ecfb85cf41492c5f143215dd43ef9ec61181a28f922da06aba58"}],"address":"AbHgdBaWEnHkCiLtDZXjhvhaAK2cwFh5pF"}}`,
+			serverResponse: `{"jsonrpc":"2.0","id":1,"result":{"sent":[],"received":[{"timestamp":1555651816,"assethash":"600c4f5200db36177e3e8a09e9f18e2fc7d12a0f","transferaddress":"AYwgBNMepiv5ocGcyNT4mA8zPLTQ8pDBis","amount":"1000000","blockindex":436036,"transfernotifyindex":0,"txhash":"df7683ece554ecfb85cf41492c5f143215dd43ef9ec61181a28f922da06aba58"}],"address":"NcEkNmgWmf7HQVQvzhxpengpnt4DXjmZLe"}}`,
 			result: func(c *Client) interface{} {
 				assetHash, err := util.Uint160DecodeStringLE("600c4f5200db36177e3e8a09e9f18e2fc7d12a0f")
 				if err != nil {
@@ -673,7 +681,7 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 							TxHash:      txHash,
 						},
 					},
-					Address: "AbHgdBaWEnHkCiLtDZXjhvhaAK2cwFh5pF",
+					Address: "NcEkNmgWmf7HQVQvzhxpengpnt4DXjmZLe",
 				}
 			},
 		},
@@ -1351,20 +1359,20 @@ var rpcClientErrorCases = map[string][]rpcClientErrorCase{
 		{
 			name: "getnep11transfers_invalid_params_error",
 			invoke: func(c *Client) (interface{}, error) {
-				return c.GetNEP11Transfers("", nil, nil, nil, nil)
+				return c.GetNEP11Transfers(util.Uint160{}, nil, nil, nil, nil)
 			},
 		},
 		{
 			name: "getnep17transfers_invalid_params_error",
 			invoke: func(c *Client) (interface{}, error) {
-				return c.GetNEP17Transfers("", nil, nil, nil, nil)
+				return c.GetNEP17Transfers(util.Uint160{}, nil, nil, nil, nil)
 			},
 		},
 		{
 			name: "getnep17transfers_invalid_params_error 2",
 			invoke: func(c *Client) (interface{}, error) {
 				var stop uint64
-				return c.GetNEP17Transfers("Nhfg3TbpwogLvDGVvAvqyThbsHgoSUKwtn", nil, &stop, nil, nil)
+				return c.GetNEP17Transfers(util.Uint160{}, nil, &stop, nil, nil)
 			},
 		},
 		{
@@ -1372,7 +1380,7 @@ var rpcClientErrorCases = map[string][]rpcClientErrorCase{
 			invoke: func(c *Client) (interface{}, error) {
 				var start uint64
 				var limit int
-				return c.GetNEP17Transfers("Nhfg3TbpwogLvDGVvAvqyThbsHgoSUKwtn", &start, nil, &limit, nil)
+				return c.GetNEP17Transfers(util.Uint160{}, &start, nil, &limit, nil)
 			},
 		},
 		{
@@ -1380,7 +1388,7 @@ var rpcClientErrorCases = map[string][]rpcClientErrorCase{
 			invoke: func(c *Client) (interface{}, error) {
 				var start, stop uint64
 				var page int
-				return c.GetNEP17Transfers("Nhfg3TbpwogLvDGVvAvqyThbsHgoSUKwtn", &start, &stop, nil, &page)
+				return c.GetNEP17Transfers(util.Uint160{}, &start, &stop, nil, &page)
 			},
 		},
 		{
@@ -1550,13 +1558,13 @@ var rpcClientErrorCases = map[string][]rpcClientErrorCase{
 		{
 			name: "getnep11transfers_unmarshalling_error",
 			invoke: func(c *Client) (interface{}, error) {
-				return c.GetNEP11Transfers("", nil, nil, nil, nil)
+				return c.GetNEP11Transfers(util.Uint160{}, nil, nil, nil, nil)
 			},
 		},
 		{
 			name: "getnep17transfers_unmarshalling_error",
 			invoke: func(c *Client) (interface{}, error) {
-				return c.GetNEP17Transfers("", nil, nil, nil, nil)
+				return c.GetNEP17Transfers(util.Uint160{}, nil, nil, nil, nil)
 			},
 		},
 		{
