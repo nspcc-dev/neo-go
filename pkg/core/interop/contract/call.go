@@ -118,7 +118,7 @@ func callExFromNative(ic *interop.Context, caller util.Uint160, cs *state.Contra
 	if md != nil {
 		initOff = md.Offset
 	}
-	ic.VM.Invocations[cs.Hash]++
+	ic.Invocations[cs.Hash]++
 	ic.VM.LoadNEFMethod(&cs.NEF, caller, cs.Hash, ic.VM.Context().GetCallFlags()&f,
 		hasReturn, methodOff, initOff)
 

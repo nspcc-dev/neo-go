@@ -234,7 +234,7 @@ func TestRuntimeGetInvocationCounter(t *testing.T) {
 	cs, _ := getTestContractState(bc)
 	require.NoError(t, bc.contracts.Management.PutContractState(ic.DAO, cs))
 
-	ic.VM.Invocations[hash.Hash160([]byte{2})] = 42
+	ic.Invocations[hash.Hash160([]byte{2})] = 42
 
 	t.Run("No invocations", func(t *testing.T) {
 		v.Load([]byte{1})

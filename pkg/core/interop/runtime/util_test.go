@@ -97,9 +97,9 @@ func TestRuntimeGetNotifications(t *testing.T) {
 }
 
 func TestRuntimeGetInvocationCounter(t *testing.T) {
-	ic := &interop.Context{VM: vm.New()}
+	ic := &interop.Context{VM: vm.New(), Invocations: make(map[util.Uint160]int)}
 	h := random.Uint160()
-	ic.VM.Invocations[h] = 42
+	ic.Invocations[h] = 42
 
 	t.Run("No invocations", func(t *testing.T) {
 		h1 := h
