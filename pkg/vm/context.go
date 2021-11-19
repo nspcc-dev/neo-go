@@ -48,8 +48,8 @@ type Context struct {
 	// Call flags this context was created with.
 	callFlag callflag.CallFlag
 
-	// RetCount specifies number of return values.
-	RetCount int
+	// retCount specifies number of return values.
+	retCount int
 	// NEF represents NEF file for the current contract.
 	NEF *nef.File
 }
@@ -79,7 +79,7 @@ func NewContext(b []byte) *Context {
 func NewContextWithParams(b []byte, rvcount int, pos int) *Context {
 	return &Context{
 		prog:     b,
-		RetCount: rvcount,
+		retCount: rvcount,
 		nextip:   pos,
 	}
 }

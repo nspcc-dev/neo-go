@@ -309,9 +309,9 @@ func (v *VM) LoadScriptWithCallingHash(caller util.Uint160, b []byte, hash util.
 	ctx.scriptHash = hash
 	ctx.callingScriptHash = caller
 	if hasReturn {
-		ctx.RetCount = 1
+		ctx.retCount = 1
 	} else {
-		ctx.RetCount = 0
+		ctx.retCount = 0
 	}
 }
 
@@ -1361,9 +1361,9 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 
 		newEstack := v.Context().estack
 		if oldEstack != newEstack {
-			if oldCtx.RetCount >= 0 && oldEstack.Len() != oldCtx.RetCount {
+			if oldCtx.retCount >= 0 && oldEstack.Len() != oldCtx.retCount {
 				panic(fmt.Errorf("invalid return values count: expected %d, got %d",
-					oldCtx.RetCount, oldEstack.Len()))
+					oldCtx.retCount, oldEstack.Len()))
 			}
 			rvcount := oldEstack.Len()
 			for i := rvcount; i > 0; i-- {
@@ -1566,7 +1566,7 @@ func (v *VM) Call(offset int) {
 func (v *VM) call(ctx *Context, offset int) {
 	v.checkInvocationStackSize()
 	newCtx := ctx.Copy()
-	newCtx.RetCount = -1
+	newCtx.retCount = -1
 	newCtx.local = nil
 	newCtx.arguments = nil
 	initStack(&newCtx.tryStack, "exception", nil)
