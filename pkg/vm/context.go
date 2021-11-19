@@ -54,19 +54,6 @@ type Context struct {
 	NEF *nef.File
 }
 
-// CheckReturnState represents possible states of stack after opcode.RET was processed.
-type CheckReturnState byte
-
-const (
-	// NoCheck performs no return values check.
-	NoCheck CheckReturnState = 0
-	// EnsureIsEmpty checks that stack is empty and panics if not.
-	EnsureIsEmpty CheckReturnState = 1
-	// EnsureNotEmpty checks that stack contains not more than 1 element and panics if not.
-	// It pushes stackitem.Null on stack in case if there's no elements.
-	EnsureNotEmpty CheckReturnState = 2
-)
-
 var errNoInstParam = errors.New("failed to read instruction parameter")
 
 // NewContext returns a new Context object.
