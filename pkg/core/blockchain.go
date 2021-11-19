@@ -2191,7 +2191,7 @@ func (bc *Blockchain) InitVerificationVM(v *vm.VM, getContract func(util.Uint160
 		v.Context().Jump(md.Offset)
 
 		if initMD != nil {
-			v.Call(v.Context(), initMD.Offset)
+			v.Call(initMD.Offset)
 		}
 	}
 	if len(witness.InvocationScript) != 0 {

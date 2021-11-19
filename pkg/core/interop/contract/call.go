@@ -123,7 +123,7 @@ func callExFromNative(ic *interop.Context, caller util.Uint160, cs *state.Contra
 
 	md = cs.Manifest.ABI.GetMethod(manifest.MethodInit, 0)
 	if md != nil {
-		ic.VM.Call(ic.VM.Context(), md.Offset)
+		ic.VM.Call(md.Offset)
 	}
 
 	return nil

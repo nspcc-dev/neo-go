@@ -460,7 +460,7 @@ func handleRun(c *ishell.Context) {
 			}
 			v.Context().Jump(offset)
 			if initMD := m.ABI.GetMethod(manifest.MethodInit, 0); initMD != nil {
-				v.Call(v.Context(), initMD.Offset)
+				v.Call(initMD.Offset)
 			}
 		}
 	}

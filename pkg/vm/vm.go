@@ -1557,8 +1557,8 @@ func (v *VM) throw(item stackitem.Item) {
 }
 
 // Call calls method by offset using new execution context.
-func (v *VM) Call(ctx *Context, offset int) {
-	v.call(ctx, offset)
+func (v *VM) Call(offset int) {
+	v.call(v.Context(), offset)
 }
 
 // call is an internal representation of Call, which does not
