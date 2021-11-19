@@ -53,6 +53,7 @@ func LoadFile(configPath string) (Config, error) {
 			RPC: rpc.Config{
 				MaxIteratorResultItems: 100,
 				MaxFindResultItems:     100,
+				MaxNEP11Tokens:         100,
 			},
 		},
 	}

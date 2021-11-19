@@ -89,14 +89,14 @@ func newNEP17Commands() []cli.Command {
 		},
 		{
 			Name:      "import",
-			Usage:     "import NEP17 token to a wallet",
+			Usage:     "import NEP-17 token to a wallet",
 			UsageText: "import --wallet <path> --rpc-endpoint <node> --timeout <time> --token <hash>",
 			Action:    importNEP17Token,
 			Flags:     importFlags,
 		},
 		{
 			Name:      "info",
-			Usage:     "print imported NEP17 token info",
+			Usage:     "print imported NEP-17 token info",
 			UsageText: "print --wallet <path> [--token <hash-or-name>]",
 			Action:    printNEP17Info,
 			Flags: []cli.Flag{
@@ -106,7 +106,7 @@ func newNEP17Commands() []cli.Command {
 		},
 		{
 			Name:      "remove",
-			Usage:     "remove NEP17 token from the wallet",
+			Usage:     "remove NEP-17 token from the wallet",
 			UsageText: "remove --wallet <path> --token <hash-or-name>",
 			Action:    removeNEP17Token,
 			Flags: []cli.Flag{
@@ -117,11 +117,11 @@ func newNEP17Commands() []cli.Command {
 		},
 		{
 			Name:      "transfer",
-			Usage:     "transfer NEP17 tokens",
+			Usage:     "transfer NEP-17 tokens",
 			UsageText: "transfer --wallet <path> --rpc-endpoint <node> --timeout <time> --from <addr> --to <addr> --token <hash-or-name> --amount string [data] [-- <cosigner1:Scope> [<cosigner2> [...]]]",
 			Action:    transferNEP17,
 			Flags:     transferFlags,
-			Description: `Transfers specified NEP17 token amount with optional 'data' parameter and cosigners
+			Description: `Transfers specified NEP-17 token amount with optional 'data' parameter and cosigners
    list attached to the transfer. See 'contract testinvokefunction' documentation
    for the details about 'data' parameter and cosigners syntax. If no 'data' is
    given then default nil value will be used. If no cosigners are given then the
@@ -130,7 +130,7 @@ func newNEP17Commands() []cli.Command {
 		},
 		{
 			Name:  "multitransfer",
-			Usage: "transfer NEP17 tokens to multiple recipients",
+			Usage: "transfer NEP-17 tokens to multiple recipients",
 			UsageText: `multitransfer --wallet <path> --rpc-endpoint <node> --timeout <time> --from <addr>` +
 				` <token1>:<addr1>:<amount1> [<token2>:<addr2>:<amount2> [...]] [-- <cosigner1:Scope> [<cosigner2> [...]]]`,
 			Action: multiTransferNEP17,
@@ -478,7 +478,7 @@ func multiTransferNEP17(ctx *cli.Context) error {
 	}
 	cosignersAccounts, err := cmdargs.GetSignersAccounts(wall, cosigners)
 	if err != nil {
-		return cli.NewExitError(fmt.Errorf("failed to create NEP17 multitransfer transaction: %w", err), 1)
+		return cli.NewExitError(fmt.Errorf("failed to create NEP-17 multitransfer transaction: %w", err), 1)
 	}
 
 	return signAndSendNEP17Transfer(ctx, c, acc, recipients, cosignersAccounts)
@@ -537,7 +537,7 @@ func transferNEP(ctx *cli.Context, standard string) error {
 	}
 	cosignersAccounts, err := cmdargs.GetSignersAccounts(wall, cosigners)
 	if err != nil {
-		return cli.NewExitError(fmt.Errorf("failed to create NEP17 transfer transaction: %w", err), 1)
+		return cli.NewExitError(fmt.Errorf("failed to create NEP-17 transfer transaction: %w", err), 1)
 	}
 
 	amountArg := ctx.String("amount")

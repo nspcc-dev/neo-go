@@ -52,14 +52,14 @@ func newNEP11Commands() []cli.Command {
 		},
 		{
 			Name:      "import",
-			Usage:     "import NEP11 token to a wallet",
+			Usage:     "import NEP-11 token to a wallet",
 			UsageText: "import --wallet <path> --rpc-endpoint <node> --timeout <time> --token <hash>",
 			Action:    importNEP11Token,
 			Flags:     importFlags,
 		},
 		{
 			Name:      "info",
-			Usage:     "print imported NEP11 token info",
+			Usage:     "print imported NEP-11 token info",
 			UsageText: "print --wallet <path> [--token <hash-or-name>]",
 			Action:    printNEP11Info,
 			Flags: []cli.Flag{
@@ -69,7 +69,7 @@ func newNEP11Commands() []cli.Command {
 		},
 		{
 			Name:      "remove",
-			Usage:     "remove NEP11 token from the wallet",
+			Usage:     "remove NEP-11 token from the wallet",
 			UsageText: "remove --wallet <path> --token <hash-or-name>",
 			Action:    removeNEP11Token,
 			Flags: []cli.Flag{
@@ -80,13 +80,13 @@ func newNEP11Commands() []cli.Command {
 		},
 		{
 			Name:      "transfer",
-			Usage:     "transfer NEP11 tokens",
+			Usage:     "transfer NEP-11 tokens",
 			UsageText: "transfer --wallet <path> --rpc-endpoint <node> --timeout <time> --from <addr> --to <addr> --token <hash-or-name> --id <token-id> [--amount string] [data] [-- <cosigner1:Scope> [<cosigner2> [...]]]",
 			Action:    transferNEP11,
 			Flags:     transferFlags,
-			Description: `Transfers specified NEP11 token with optional cosigners list attached to 
-   the transfer. Amount should be specified for divisible NEP11
-   tokens and omitted for non-divisible NEP11 tokens. See
+			Description: `Transfers specified NEP-11 token with optional cosigners list attached to
+   the transfer. Amount should be specified for divisible NEP-11
+   tokens and omitted for non-divisible NEP-11 tokens. See
    'contract testinvokefunction' documentation for the details
    about cosigners syntax. If no cosigners are given then the
    sender with CalledByEntry scope will be used as the only
@@ -95,7 +95,7 @@ func newNEP11Commands() []cli.Command {
 		},
 		{
 			Name:      "properties",
-			Usage:     "print properties of NEP11 token",
+			Usage:     "print properties of NEP-11 token",
 			UsageText: "properties --rpc-endpoint <node> --timeout <time> --token <hash> --id <token-id>",
 			Action:    printNEP11Properties,
 			Flags: append([]cli.Flag{
@@ -105,7 +105,7 @@ func newNEP11Commands() []cli.Command {
 		},
 		{
 			Name:      "ownerOf",
-			Usage:     "print owner of non-divisible NEP11 token with the specified ID",
+			Usage:     "print owner of non-divisible NEP-11 token with the specified ID",
 			UsageText: "ownerOf --rpc-endpoint <node> --timeout <time> --token <hash> --id <token-id>",
 			Action:    printNEP11Owner,
 			Flags: append([]cli.Flag{
@@ -301,7 +301,7 @@ func printNEP11Owner(ctx *cli.Context) error {
 
 	result, err := c.NEP11NDOwnerOf(tokenHash.Uint160(), tokenID)
 	if err != nil {
-		return cli.NewExitError(fmt.Sprintf("failed to call NEP11 `ownerOf` method: %s", err.Error()), 1)
+		return cli.NewExitError(fmt.Sprintf("failed to call NEP-11 `ownerOf` method: %s", err.Error()), 1)
 	}
 
 	fmt.Fprintln(ctx.App.Writer, address.Uint160ToString(result))
@@ -330,7 +330,7 @@ func printNEP11TokensOf(ctx *cli.Context) error {
 
 	result, err := c.NEP11TokensOf(tokenHash.Uint160(), acc.Uint160())
 	if err != nil {
-		return cli.NewExitError(fmt.Sprintf("failed to call NEP11 `tokensOf` method: %s", err.Error()), 1)
+		return cli.NewExitError(fmt.Sprintf("failed to call NEP-11 `tokensOf` method: %s", err.Error()), 1)
 	}
 
 	for i := range result {
@@ -356,7 +356,7 @@ func printNEP11Tokens(ctx *cli.Context) error {
 
 	result, err := c.NEP11Tokens(tokenHash.Uint160())
 	if err != nil {
-		return cli.NewExitError(fmt.Sprintf("failed to call optional NEP11 `tokens` method: %s", err.Error()), 1)
+		return cli.NewExitError(fmt.Sprintf("failed to call optional NEP-11 `tokens` method: %s", err.Error()), 1)
 	}
 
 	for i := range result {
@@ -387,7 +387,7 @@ func printNEP11Properties(ctx *cli.Context) error {
 
 	result, err := c.NEP11Properties(tokenHash.Uint160(), tokenID)
 	if err != nil {
-		return cli.NewExitError(fmt.Sprintf("failed to call NEP11 `properties` method: %s", err.Error()), 1)
+		return cli.NewExitError(fmt.Sprintf("failed to call NEP-11 `properties` method: %s", err.Error()), 1)
 	}
 
 	bytes, err := stackitem.ToJSON(result)

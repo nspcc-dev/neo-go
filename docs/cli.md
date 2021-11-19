@@ -464,7 +464,7 @@ To print token IDs owned by the specified owner, use `tokensOf` command with
 
 #### Owner Of
 
-For non-divisible NEP-11 tokens only. To print owner of non-divisible NEP11 token
+For non-divisible NEP-11 tokens only. To print owner of non-divisible NEP-11 token
 use `ownerOf` method, specify token hash via `--token` flag and token ID via
 `--id` flag:
 

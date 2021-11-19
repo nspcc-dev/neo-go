@@ -134,6 +134,7 @@ RPC:
   MaxGasInvoke: 50
   MaxIteratorResultItems: 100
   MaxFindResultItems: 100
+  MaxNEP11Tokens: 100
   Port: 10332
   TLSConfig:
     Address: ""
@@ -154,6 +155,8 @@ where:
    `n`, only `n` iterations are returned and truncated is true, indicating that
    there is still data to be returned.
 - `MaxFindResultItems` - the maximum number of elements for `findstates` response.
+- `MaxNEP11Tokens` - limit for the number of tokens returned from
+  `getnep11balances` call.
 - `Port` is an RPC server port it should be bound to.
 - `TLS` section configures TLS protocol.
 

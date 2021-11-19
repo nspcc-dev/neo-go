@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/elliptic"
 	"encoding/binary"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -22,10 +23,12 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
 	"github.com/nspcc-dev/neo-go/pkg/core/fee"
+	"github.com/nspcc-dev/neo-go/pkg/core/interop/iterator"
 	"github.com/nspcc-dev/neo-go/pkg/core/mempoolevent"
 	"github.com/nspcc-dev/neo-go/pkg/core/mpt"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
+	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
@@ -115,6 +118,9 @@ var rpcHandlers = map[string]func(*Server, request.Params) (interface{}, *respon
 	"getconnectioncount":     (*Server).getConnectionCount,
 	"getcontractstate":       (*Server).getContractState,
 	"getnativecontracts":     (*Server).getNativeContracts,
+	"getnep11balances":       (*Server).getNEP11Balances,
+	"getnep11properties":     (*Server).getNEP11Properties,
+	"getnep11transfers":      (*Server).getNEP11Transfers,
 	"getnep17balances":       (*Server).getNEP17Balances,
 	"getnep17transfers":      (*Server).getNEP17Transfers,
 	"getpeers":               (*Server).getPeers,
@@ -651,6 +657,141 @@ func (s *Server) getApplicationLog(reqParams request.Params) (interface{}, *resp
 	return result.NewApplicationLog(hash, appExecResults, trig), nil
 }
 
+func (s *Server) getNEP11Tokens(h util.Uint160, acc util.Uint160, bw *io.BufBinWriter) ([]stackitem.Item, error) {
+	item, finalize, err := s.invokeReadOnly(bw, h, "tokensOf", acc)
+	if err != nil {
+		return nil, err
+	}
+	defer finalize()
+	if (item.Type() == stackitem.InteropT) && iterator.IsIterator(item) {
+		vals, _ := iterator.Values(item, s.config.MaxNEP11Tokens)
+		return vals, nil
+	}
+	return nil, fmt.Errorf("invalid `tokensOf` result type %s", item.String())
+}
+
+func (s *Server) getNEP11Balances(ps request.Params) (interface{}, *response.Error) {
+	u, err := ps.Value(0).GetUint160FromAddressOrHex()
+	if err != nil {
+		return nil, response.ErrInvalidParams
+	}
+
+	bs := &result.NEP11Balances{
+		Address:  address.Uint160ToString(u),
+		Balances: []result.NEP11AssetBalance{},
+	}
+	lastUpdated, err := s.chain.GetTokenLastUpdated(u)
+	if err != nil {
+		return nil, response.NewRPCError("Failed to get NEP-11 last updated block", err.Error(), err)
+	}
+	var count int
+	stateSyncPoint := lastUpdated[math.MinInt32]
+	bw := io.NewBufBinWriter()
+contract_loop:
+	for _, h := range s.chain.GetNEP11Contracts() {
+		toks, err := s.getNEP11Tokens(h, u, bw)
+		if err != nil {
+			continue
+		}
+		if len(toks) == 0 {
+			continue
+		}
+		cs := s.chain.GetContractState(h)
+		if cs == nil {
+			continue
+		}
+		isDivisible := (cs.Manifest.ABI.GetMethod("balanceOf", 2) != nil)
+		lub, ok := lastUpdated[cs.ID]
+		if !ok {
+			cfg := s.chain.GetConfig()
+			if !cfg.P2PStateExchangeExtensions && cfg.RemoveUntraceableBlocks {
+				return nil, response.NewInternalServerError(fmt.Sprintf("failed to get LastUpdatedBlock for balance of %s token", cs.Hash.StringLE()), nil)
+			}
+			lub = stateSyncPoint
+		}
+		bs.Balances = append(bs.Balances, result.NEP11AssetBalance{
+			Asset:  h,
+			Tokens: make([]result.NEP11TokenBalance, 0, len(toks)),
+		})
+		curAsset := &bs.Balances[len(bs.Balances)-1]
+		for i := range toks {
+			id, err := toks[i].TryBytes()
+			if err != nil || len(id) > storage.MaxStorageKeyLen {
+				continue
+			}
+			var amount = "1"
+			if isDivisible {
+				balance, err := s.getTokenBalance(h, u, id, bw)
+				if err != nil {
+					continue
+				}
+				if balance.Sign() == 0 {
+					continue
+				}
+				amount = balance.String()
+			}
+			count++
+			curAsset.Tokens = append(curAsset.Tokens, result.NEP11TokenBalance{
+				ID:          hex.EncodeToString(id),
+				Amount:      amount,
+				LastUpdated: lub,
+			})
+			if count >= s.config.MaxNEP11Tokens {
+				break contract_loop
+			}
+		}
+	}
+	return bs, nil
+}
+
+func (s *Server) invokeNEP11Properties(h util.Uint160, id []byte, bw *io.BufBinWriter) ([]stackitem.MapElement, error) {
+	item, finalize, err := s.invokeReadOnly(bw, h, "properties", id)
+	if err != nil {
+		return nil, err
+	}
+	defer finalize()
+	if item.Type() != stackitem.MapT {
+		return nil, fmt.Errorf("invalid `properties` result type %s", item.String())
+	}
+	return item.Value().([]stackitem.MapElement), nil
+}
+
+func (s *Server) getNEP11Properties(ps request.Params) (interface{}, *response.Error) {
+	asset, err := ps.Value(0).GetUint160FromAddressOrHex()
+	if err != nil {
+		return nil, response.ErrInvalidParams
+	}
+	token, err := ps.Value(1).GetBytesHex()
+	if err != nil {
+		return nil, response.ErrInvalidParams
+	}
+	props, err := s.invokeNEP11Properties(asset, token, nil)
+	if err != nil {
+		return nil, response.NewRPCError("failed to get NEP-11 properties", err.Error(), err)
+	}
+	res := make(map[string]interface{})
+	for _, kv := range props {
+		key, err := kv.Key.TryBytes()
+		if err != nil {
+			continue
+		}
+		var val interface{}
+		if result.KnownNEP11Properties[string(key)] || kv.Value.Type() != stackitem.AnyT {
+			v, err := kv.Value.TryBytes()
+			if err != nil {
+				continue
+			}
+			if result.KnownNEP11Properties[string(key)] {
+				val = string(v)
+			} else {
+				val = v
+			}
+		}
+		res[string(key)] = val
+	}
+	return res, nil
+}
+
 func (s *Server) getNEP17Balances(ps request.Params) (interface{}, *response.Error) {
 	u, err := ps.Value(0).GetUint160FromAddressOrHex()
 	if err != nil {
@@ -661,14 +802,14 @@ func (s *Server) getNEP17Balances(ps request.Params) (interface{}, *response.Err
 		Address:  address.Uint160ToString(u),
 		Balances: []result.NEP17Balance{},
 	}
-	lastUpdated, err := s.chain.GetNEP17LastUpdated(u)
+	lastUpdated, err := s.chain.GetTokenLastUpdated(u)
 	if err != nil {
-		return nil, response.NewRPCError("Failed to get NEP17 last updated block", err.Error(), err)
+		return nil, response.NewRPCError("Failed to get NEP-17 last updated block", err.Error(), err)
 	}
 	stateSyncPoint := lastUpdated[math.MinInt32]
 	bw := io.NewBufBinWriter()
 	for _, h := range s.chain.GetNEP17Contracts() {
-		balance, err := s.getNEP17Balance(h, u, bw)
+		balance, err := s.getTokenBalance(h, u, nil, bw)
 		if err != nil {
 			continue
 		}
@@ -696,30 +837,53 @@ func (s *Server) getNEP17Balances(ps request.Params) (interface{}, *response.Err
 	return bs, nil
 }
 
-func (s *Server) getNEP17Balance(h util.Uint160, acc util.Uint160, bw *io.BufBinWriter) (*big.Int, error) {
+func (s *Server) invokeReadOnly(bw *io.BufBinWriter, h util.Uint160, method string, params ...interface{}) (stackitem.Item, func(), error) {
 	if bw == nil {
 		bw = io.NewBufBinWriter()
 	} else {
 		bw.Reset()
 	}
-	emit.AppCall(bw.BinWriter, h, "balanceOf", callflag.ReadStates, acc)
+	emit.AppCall(bw.BinWriter, h, method, callflag.ReadStates|callflag.AllowCall, params...)
 	if bw.Err != nil {
-		return nil, fmt.Errorf("failed to create `balanceOf` invocation script: %w", bw.Err)
+		return nil, nil, fmt.Errorf("failed to create `%s` invocation script: %w", method, bw.Err)
 	}
 	script := bw.Bytes()
 	tx := &transaction.Transaction{Script: script}
-	v, finalize := s.chain.GetTestVM(trigger.Application, tx, nil)
-	defer finalize()
+	b, err := s.getFakeNextBlock()
+	if err != nil {
+		return nil, nil, err
+	}
+	v, finalize := s.chain.GetTestVM(trigger.Application, tx, b)
 	v.GasLimit = core.HeaderVerificationGasLimit
 	v.LoadScriptWithFlags(script, callflag.All)
-	err := v.Run()
+	err = v.Run()
 	if err != nil {
-		return nil, fmt.Errorf("failed to run `balanceOf` for %s: %w", h.StringLE(), err)
+		finalize()
+		return nil, nil, fmt.Errorf("failed to run `%s` for %s: %w", method, h.StringLE(), err)
 	}
 	if v.Estack().Len() != 1 {
-		return nil, fmt.Errorf("invalid `balanceOf` return values count: expected 1, got %d", v.Estack().Len())
+		finalize()
+		return nil, nil, fmt.Errorf("invalid `%s` return values count: expected 1, got %d", method, v.Estack().Len())
 	}
-	res, err := v.Estack().Pop().Item().TryInteger()
+	return v.Estack().Pop().Item(), finalize, nil
+}
+
+func (s *Server) getTokenBalance(h util.Uint160, acc util.Uint160, id []byte, bw *io.BufBinWriter) (*big.Int, error) {
+	var (
+		item     stackitem.Item
+		finalize func()
+		err      error
+	)
+	if id == nil { // NEP-17 and NEP-11 generic.
+		item, finalize, err = s.invokeReadOnly(bw, h, "balanceOf", acc)
+	} else { // NEP-11 divisible.
+		item, finalize, err = s.invokeReadOnly(bw, h, "balanceOf", acc, id)
+	}
+	if err != nil {
+		return nil, err
+	}
+	finalize()
+	res, err := item.TryInteger()
 	if err != nil {
 		return nil, fmt.Errorf("unexpected `balanceOf` result type: %w", err)
 	}
@@ -776,7 +940,15 @@ func getTimestampsAndLimit(ps request.Params, index int) (uint64, uint64, int, i
 	return start, end, limit, page, nil
 }
 
+func (s *Server) getNEP11Transfers(ps request.Params) (interface{}, *response.Error) {
+	return s.getTokenTransfers(ps, true)
+}
+
 func (s *Server) getNEP17Transfers(ps request.Params) (interface{}, *response.Error) {
+	return s.getTokenTransfers(ps, false)
+}
+
+func (s *Server) getTokenTransfers(ps request.Params, isNEP11 bool) (interface{}, *response.Error) {
 	u, err := ps.Value(0).GetUint160FromAddressOrHex()
 	if err != nil {
 		return nil, response.ErrInvalidParams
@@ -787,33 +959,37 @@ func (s *Server) getNEP17Transfers(ps request.Params) (interface{}, *response.Er
 		return nil, response.NewInvalidParamsError(err.Error(), err)
 	}
 
-	bs := &result.NEP17Transfers{
+	bs := &tokenTransfers{
 		Address:  address.Uint160ToString(u),
-		Received: []result.NEP17Transfer{},
-		Sent:     []result.NEP17Transfer{},
+		Received: []interface{}{},
+		Sent:     []interface{}{},
 	}
 	cache := make(map[int32]util.Uint160)
 	var resCount, frameCount int
-	err = s.chain.ForEachNEP17Transfer(u, func(tr *state.NEP17Transfer) (bool, error) {
+	// handleTransfer returns items to be added into received and sent arrays
+	// along with a continue flag and error.
+	var handleTransfer = func(tr *state.NEP17Transfer) (*result.NEP17Transfer, *result.NEP17Transfer, bool, error) {
+		var received, sent *result.NEP17Transfer
+
 		// Iterating from newest to oldest, not yet reached required
 		// time frame, continue looping.
 		if tr.Timestamp > end {
-			return true, nil
+			return nil, nil, true, nil
 		}
 		// Iterating from newest to oldest, moved past required
 		// time frame, stop looping.
 		if tr.Timestamp < start {
-			return false, nil
+			return nil, nil, false, nil
 		}
 		frameCount++
 		// Using limits, not yet reached required page.
 		if limit != 0 && page*limit >= frameCount {
-			return true, nil
+			return nil, nil, true, nil
 		}
 
 		h, err := s.getHash(tr.Asset, cache)
 		if err != nil {
-			return false, err
+			return nil, nil, false, err
 		}
 
 		transfer := result.NEP17Transfer{
@@ -827,24 +1003,51 @@ func (s *Server) getNEP17Transfers(ps request.Params) (interface{}, *response.Er
 			if !tr.From.Equals(util.Uint160{}) {
 				transfer.Address = address.Uint160ToString(tr.From)
 			}
-			bs.Received = append(bs.Received, transfer)
+			received = &result.NEP17Transfer{}
+			*received = transfer // Make a copy, transfer is to be modified below.
 		} else {
 			transfer.Amount = new(big.Int).Neg(&tr.Amount).String()
 			if !tr.To.Equals(util.Uint160{}) {
 				transfer.Address = address.Uint160ToString(tr.To)
 			}
-			bs.Sent = append(bs.Sent, transfer)
+			sent = &result.NEP17Transfer{}
+			*sent = transfer
 		}
 
 		resCount++
-		// Using limits, reached limit.
-		if limit != 0 && resCount >= limit {
-			return false, nil
-		}
-		return true, nil
-	})
+		// Check limits for continue flag.
+		return received, sent, !(limit != 0 && resCount >= limit), nil
+	}
+	if !isNEP11 {
+		err = s.chain.ForEachNEP17Transfer(u, func(tr *state.NEP17Transfer) (bool, error) {
+			r, s, res, err := handleTransfer(tr)
+			if err == nil {
+				if r != nil {
+					bs.Received = append(bs.Received, r)
+				}
+				if s != nil {
+					bs.Sent = append(bs.Sent, s)
+				}
+			}
+			return res, err
+		})
+	} else {
+		err = s.chain.ForEachNEP11Transfer(u, func(tr *state.NEP11Transfer) (bool, error) {
+			r, s, res, err := handleTransfer(&tr.NEP17Transfer)
+			if err == nil {
+				id := hex.EncodeToString(tr.ID)
+				if r != nil {
+					bs.Received = append(bs.Received, nep17TransferToNEP11(r, id))
+				}
+				if s != nil {
+					bs.Sent = append(bs.Sent, nep17TransferToNEP11(s, id))
+				}
+			}
+			return res, err
+		})
+	}
 	if err != nil {
-		return nil, response.NewInternalServerError("invalid NEP17 transfer log", err)
+		return nil, response.NewInternalServerError("invalid transfer log", err)
 	}
 	return bs, nil
 }
@@ -1444,12 +1647,7 @@ func (s *Server) invokeContractVerify(reqParams request.Params) (interface{}, *r
 	return s.runScriptInVM(trigger.Verification, invocationScript, scriptHash, tx)
 }
 
-// runScriptInVM runs given script in a new test VM and returns the invocation
-// result. The script is either a simple script in case of `application` trigger
-// witness invocation script in case of `verification` trigger (it pushes `verify`
-// arguments on stack before verification). In case of contract verification
-// contractScriptHash should be specified.
-func (s *Server) runScriptInVM(t trigger.Type, script []byte, contractScriptHash util.Uint160, tx *transaction.Transaction) (*result.Invoke, *response.Error) {
+func (s *Server) getFakeNextBlock() (*block.Block, error) {
 	// When transferring funds, script execution does no auto GAS claim,
 	// because it depends on persisting tx height.
 	// This is why we provide block here.
@@ -1457,10 +1655,22 @@ func (s *Server) runScriptInVM(t trigger.Type, script []byte, contractScriptHash
 	b.Index = s.chain.BlockHeight() + 1
 	hdr, err := s.chain.GetHeader(s.chain.GetHeaderHash(int(s.chain.BlockHeight())))
 	if err != nil {
-		return nil, response.NewInternalServerError("can't get last block", err)
+		return nil, err
 	}
 	b.Timestamp = hdr.Timestamp + uint64(s.chain.GetConfig().SecondsPerBlock*int(time.Second/time.Millisecond))
+	return b, nil
+}
 
+// runScriptInVM runs given script in a new test VM and returns the invocation
+// result. The script is either a simple script in case of `application` trigger
+// witness invocation script in case of `verification` trigger (it pushes `verify`
+// arguments on stack before verification). In case of contract verification
+// contractScriptHash should be specified.
+func (s *Server) runScriptInVM(t trigger.Type, script []byte, contractScriptHash util.Uint160, tx *transaction.Transaction) (*result.Invoke, *response.Error) {
+	b, err := s.getFakeNextBlock()
+	if err != nil {
+		return nil, response.NewInternalServerError("can't create fake block", err)
+	}
 	vm, finalize := s.chain.GetTestVM(t, tx, b)
 	vm.GasLimit = int64(s.config.MaxGasInvoke)
 	if t == trigger.Verification {

@@ -1,5 +1,5 @@
 /*
-Package nns contains non-divisible non-fungible NEP11-compatible token
+Package nns contains non-divisible non-fungible NEP-11-compatible token
 implementation. This token is a compatible analogue of C# Neo Name Service
 token and is aimed to serve as a domain name service for Neo smart-contracts,
 thus it's NeoNameService. This token can be minted with new domain name

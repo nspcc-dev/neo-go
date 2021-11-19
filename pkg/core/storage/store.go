@@ -20,8 +20,9 @@ const (
 	// STStorage prefix. Once state exchange process is completed, all items with
 	// STStorage prefix will be replaced with STTempStorage-prefixed ones.
 	STTempStorage                  KeyPrefix = 0x71
-	STNEP17Transfers               KeyPrefix = 0x72
-	STNEP17TransferInfo            KeyPrefix = 0x73
+	STNEP11Transfers               KeyPrefix = 0x72
+	STNEP17Transfers               KeyPrefix = 0x73
+	STTokenTransferInfo            KeyPrefix = 0x74
 	IXHeaderHashList               KeyPrefix = 0x80
 	SYSCurrentBlock                KeyPrefix = 0xc0
 	SYSCurrentHeader               KeyPrefix = 0xc1
