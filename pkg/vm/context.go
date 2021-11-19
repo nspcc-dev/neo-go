@@ -97,6 +97,11 @@ func (c *Context) NextIP() int {
 	return c.nextip
 }
 
+// Jump unconditionally moves the next instruction pointer to specified location.
+func (c *Context) Jump(pos int) {
+	c.nextip = pos
+}
+
 // Next returns the next instruction to execute with its parameter if any.
 // The parameter is not copied and shouldn't be written to. After its invocation
 // the instruction pointer points to the instruction being returned.

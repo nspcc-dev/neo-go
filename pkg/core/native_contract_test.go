@@ -243,7 +243,7 @@ func TestNativeContract_InvokeInternal(t *testing.T) {
 		v.LoadScriptWithHash(tn.Metadata().NEF.Script, util.Uint160{1, 2, 3}, callflag.All)
 		v.Estack().PushVal(14)
 		v.Estack().PushVal(28)
-		v.Jump(v.Context(), sumOffset)
+		v.Context().Jump(sumOffset)
 
 		// it's prohibited to call natives directly
 		require.Error(t, v.Run())
@@ -255,7 +255,7 @@ func TestNativeContract_InvokeInternal(t *testing.T) {
 		v.LoadScriptWithHash(tn.Metadata().NEF.Script, tn.Metadata().Hash, callflag.All)
 		v.Estack().PushVal(14)
 		v.Estack().PushVal(28)
-		v.Jump(v.Context(), sumOffset)
+		v.Context().Jump(sumOffset)
 
 		// it's prohibited to call natives before NativeUpdateHistory[0] height
 		require.Error(t, v.Run())
@@ -269,7 +269,7 @@ func TestNativeContract_InvokeInternal(t *testing.T) {
 		v.LoadScriptWithHash(tn.Metadata().NEF.Script, tn.Metadata().Hash, callflag.All)
 		v.Estack().PushVal(14)
 		v.Estack().PushVal(28)
-		v.Jump(v.Context(), sumOffset)
+		v.Context().Jump(sumOffset)
 		require.NoError(t, v.Run())
 
 		value := v.Estack().Pop().BigInt()

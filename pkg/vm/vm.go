@@ -1321,7 +1321,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		}
 
 		if cond {
-			v.Jump(ctx, offset)
+			ctx.Jump(offset)
 		}
 
 	case opcode.CALL, opcode.CALLL:
@@ -1492,7 +1492,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		} else {
 			ctx.tryStack.Pop()
 		}
-		v.Jump(ctx, eOffset)
+		ctx.Jump(eOffset)
 
 	case opcode.ENDFINALLY:
 		if v.uncaughtException != nil {
@@ -1500,7 +1500,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			return
 		}
 		eCtx := ctx.tryStack.Pop().Value().(*exceptionHandlingContext)
-		v.Jump(ctx, eCtx.EndOffset)
+		ctx.Jump(eCtx.EndOffset)
 
 	default:
 		panic(fmt.Sprintf("unknown opcode %s", op.String()))
@@ -1556,14 +1556,8 @@ func (v *VM) throw(item stackitem.Item) {
 	v.handleException()
 }
 
-// Jump performs jump to the offset.
-func (v *VM) Jump(ctx *Context, offset int) {
-	ctx.nextip = offset
-}
-
-// Call calls method by offset. It is similar to Jump but also
-// pushes new context to the invocation stack and increments
-// invocation counter for the corresponding context script hash.
+// Call calls method by offset. It pushes new context to the invocation stack
+// and increments invocation counter for the corresponding context script hash.
 func (v *VM) Call(ctx *Context, offset int) {
 	v.call(ctx, offset)
 	v.Invocations[ctx.ScriptHash()]++
@@ -1581,7 +1575,7 @@ func (v *VM) call(ctx *Context, offset int) {
 	initStack(&newCtx.tryStack, "exception", nil)
 	newCtx.NEF = ctx.NEF
 	v.istack.PushItem(newCtx)
-	v.Jump(newCtx, offset)
+	newCtx.Jump(offset)
 }
 
 // getJumpOffset returns instruction number in a current context
@@ -1637,10 +1631,10 @@ func (v *VM) handleException() {
 				ectx.State = eCatch
 				v.estack.PushItem(v.uncaughtException)
 				v.uncaughtException = nil
-				v.Jump(ictx, ectx.CatchOffset)
+				ictx.Jump(ectx.CatchOffset)
 			} else {
 				ectx.State = eFinally
-				v.Jump(ictx, ectx.FinallyOffset)
+				ictx.Jump(ectx.FinallyOffset)
 			}
 			return
 		}

@@ -118,8 +118,8 @@ func callExFromNative(ic *interop.Context, caller util.Uint160, cs *state.Contra
 	for e, i := ic.VM.Estack(), len(args)-1; i >= 0; i-- {
 		e.PushItem(args[i])
 	}
-	// use Jump not Call here because context was loaded in LoadScript above.
-	ic.VM.Jump(ic.VM.Context(), md.Offset)
+	// Move IP to the target method.
+	ic.VM.Context().Jump(md.Offset)
 
 	md = cs.Manifest.ABI.GetMethod(manifest.MethodInit, 0)
 	if md != nil {

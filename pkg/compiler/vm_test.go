@@ -87,7 +87,7 @@ func invokeMethod(t *testing.T, method string, script []byte, v *vm.VM, di *comp
 	}
 	require.True(t, mainOffset >= 0)
 	v.LoadScriptWithFlags(script, callflag.All)
-	v.Jump(v.Context(), mainOffset)
+	v.Context().Jump(mainOffset)
 	if initOffset >= 0 {
 		v.Call(v.Context(), initOffset)
 	}

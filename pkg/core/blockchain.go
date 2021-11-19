@@ -2188,7 +2188,7 @@ func (bc *Blockchain) InitVerificationVM(v *vm.VM, getContract func(util.Uint160
 		initMD := cs.Manifest.ABI.GetMethod(manifest.MethodInit, 0)
 		v.LoadScriptWithHash(cs.NEF.Script, hash, callflag.ReadOnly)
 		v.Context().NEF = &cs.NEF
-		v.Jump(v.Context(), md.Offset)
+		v.Context().Jump(md.Offset)
 
 		if initMD != nil {
 			v.Call(v.Context(), initMD.Offset)

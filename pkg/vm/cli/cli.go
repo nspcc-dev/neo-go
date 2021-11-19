@@ -458,7 +458,7 @@ func handleRun(c *ishell.Context) {
 				c.Err(fmt.Errorf("no program loaded"))
 				return
 			}
-			v.Jump(v.Context(), offset)
+			v.Context().Jump(offset)
 			if initMD := m.ABI.GetMethod(manifest.MethodInit, 0); initMD != nil {
 				v.Call(v.Context(), initMD.Offset)
 			}
