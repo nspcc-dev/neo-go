@@ -279,7 +279,7 @@ func (v *VM) LoadScript(b []byte) {
 // LoadScriptWithFlags loads script and sets call flag to f.
 func (v *VM) LoadScriptWithFlags(b []byte, f callflag.CallFlag) {
 	v.checkInvocationStackSize()
-	ctx := NewContextWithParams(b, 0, -1, 0)
+	ctx := NewContextWithParams(b, -1, 0)
 	v.estack = newStack("evaluation", &v.refs)
 	ctx.estack = v.estack
 	initStack(&ctx.tryStack, "exception", nil)
@@ -297,13 +297,13 @@ func (v *VM) LoadScriptWithFlags(b []byte, f callflag.CallFlag) {
 // each other.
 func (v *VM) LoadScriptWithHash(b []byte, hash util.Uint160, f callflag.CallFlag) {
 	shash := v.GetCurrentScriptHash()
-	v.LoadScriptWithCallingHash(shash, b, hash, f, true, 0)
+	v.LoadScriptWithCallingHash(shash, b, hash, f, true)
 }
 
 // LoadScriptWithCallingHash is similar to LoadScriptWithHash but sets calling hash explicitly.
 // It should be used for calling from native contracts.
 func (v *VM) LoadScriptWithCallingHash(caller util.Uint160, b []byte, hash util.Uint160,
-	f callflag.CallFlag, hasReturn bool, paramCount uint16) {
+	f callflag.CallFlag, hasReturn bool) {
 	v.LoadScriptWithFlags(b, f)
 	ctx := v.Context()
 	ctx.scriptHash = hash
@@ -313,7 +313,6 @@ func (v *VM) LoadScriptWithCallingHash(caller util.Uint160, b []byte, hash util.
 	} else {
 		ctx.RetCount = 0
 	}
-	ctx.ParamCount = int(paramCount)
 }
 
 // Context returns the current executed context. Nil if there is no context,

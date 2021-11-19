@@ -113,7 +113,7 @@ func callExFromNative(ic *interop.Context, caller util.Uint160, cs *state.Contra
 	}
 
 	ic.VM.Invocations[cs.Hash]++
-	ic.VM.LoadScriptWithCallingHash(caller, cs.NEF.Script, cs.Hash, ic.VM.Context().GetCallFlags()&f, hasReturn, uint16(len(args)))
+	ic.VM.LoadScriptWithCallingHash(caller, cs.NEF.Script, cs.Hash, ic.VM.Context().GetCallFlags()&f, hasReturn)
 	ic.VM.Context().NEF = &cs.NEF
 	for e, i := ic.VM.Estack(), len(args)-1; i >= 0; i-- {
 		e.PushItem(args[i])
