@@ -120,11 +120,6 @@ func callExFromNative(ic *interop.Context, caller util.Uint160, cs *state.Contra
 	}
 	// use Jump not Call here because context was loaded in LoadScript above.
 	ic.VM.Jump(ic.VM.Context(), md.Offset)
-	if hasReturn {
-		ic.VM.Context().RetCount = 1
-	} else {
-		ic.VM.Context().RetCount = 0
-	}
 
 	md = cs.Manifest.ABI.GetMethod(manifest.MethodInit, 0)
 	if md != nil {
