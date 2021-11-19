@@ -2185,14 +2185,14 @@ func (bc *Blockchain) InitVerificationVM(v *vm.VM, getContract func(util.Uint160
 		if md == nil || md.ReturnType != smartcontract.BoolType {
 			return ErrInvalidVerificationContract
 		}
-		initMD := cs.Manifest.ABI.GetMethod(manifest.MethodInit, 0)
-		v.LoadScriptWithHash(cs.NEF.Script, hash, callflag.ReadOnly)
-		v.Context().NEF = &cs.NEF
-		v.Context().Jump(md.Offset)
-
-		if initMD != nil {
-			v.Call(initMD.Offset)
+		verifyOffset := md.Offset
+		initOffset := -1
+		md = cs.Manifest.ABI.GetMethod(manifest.MethodInit, 0)
+		if md != nil {
+			initOffset = md.Offset
 		}
+		v.LoadNEFMethod(&cs.NEF, util.Uint160{}, hash, callflag.ReadOnly,
+			true, verifyOffset, initOffset)
 	}
 	if len(witness.InvocationScript) != 0 {
 		err := vm.IsScriptCorrect(witness.InvocationScript, nil)

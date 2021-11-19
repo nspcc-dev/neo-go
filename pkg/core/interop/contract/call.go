@@ -112,20 +112,19 @@ func callExFromNative(ic *interop.Context, caller util.Uint160, cs *state.Contra
 		return fmt.Errorf("invalid argument count: %d (expected %d)", len(args), len(md.Parameters))
 	}
 
+	methodOff := md.Offset
+	initOff := -1
+	md = cs.Manifest.ABI.GetMethod(manifest.MethodInit, 0)
+	if md != nil {
+		initOff = md.Offset
+	}
 	ic.VM.Invocations[cs.Hash]++
-	ic.VM.LoadScriptWithCallingHash(caller, cs.NEF.Script, cs.Hash, ic.VM.Context().GetCallFlags()&f, hasReturn)
-	ic.VM.Context().NEF = &cs.NEF
+	ic.VM.LoadNEFMethod(&cs.NEF, caller, cs.Hash, ic.VM.Context().GetCallFlags()&f,
+		hasReturn, methodOff, initOff)
+
 	for e, i := ic.VM.Estack(), len(args)-1; i >= 0; i-- {
 		e.PushItem(args[i])
 	}
-	// Move IP to the target method.
-	ic.VM.Context().Jump(md.Offset)
-
-	md = cs.Manifest.ABI.GetMethod(manifest.MethodInit, 0)
-	if md != nil {
-		ic.VM.Call(md.Offset)
-	}
-
 	return nil
 }
 

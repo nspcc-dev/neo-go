@@ -297,12 +297,27 @@ func (v *VM) LoadScriptWithFlags(b []byte, f callflag.CallFlag) {
 // each other.
 func (v *VM) LoadScriptWithHash(b []byte, hash util.Uint160, f callflag.CallFlag) {
 	shash := v.GetCurrentScriptHash()
-	v.LoadScriptWithCallingHash(shash, b, hash, f, true)
+	v.loadScriptWithCallingHash(shash, b, hash, f, true)
 }
 
-// LoadScriptWithCallingHash is similar to LoadScriptWithHash but sets calling hash explicitly.
+// LoadNEFMethod allows to create a context to execute a method from the NEF
+// file with specified caller and executing hash, call flags, return value,
+// method and _initialize offsets.
+func (v *VM) LoadNEFMethod(exe *nef.File, caller util.Uint160, hash util.Uint160, f callflag.CallFlag,
+	hasReturn bool, methodOff int, initOff int) {
+	v.loadScriptWithCallingHash(caller, exe.Script, hash, f, hasReturn)
+	ctx := v.Context()
+	ctx.NEF = exe
+	// Move IP to the target method.
+	ctx.Jump(methodOff)
+	if initOff >= 0 {
+		v.Call(initOff)
+	}
+}
+
+// loadScriptWithCallingHash is similar to LoadScriptWithHash but sets calling hash explicitly.
 // It should be used for calling from native contracts.
-func (v *VM) LoadScriptWithCallingHash(caller util.Uint160, b []byte, hash util.Uint160,
+func (v *VM) loadScriptWithCallingHash(caller util.Uint160, b []byte, hash util.Uint160,
 	f callflag.CallFlag, hasReturn bool) {
 	v.LoadScriptWithFlags(b, f)
 	ctx := v.Context()
