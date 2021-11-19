@@ -133,16 +133,6 @@ func (v *VM) Istack() *Stack {
 	return &v.istack
 }
 
-// LoadArgs loads in the arguments used in the Mian entry point.
-func (v *VM) LoadArgs(method []byte, args []stackitem.Item) {
-	if len(args) > 0 {
-		v.estack.PushVal(args)
-	}
-	if method != nil {
-		v.estack.PushVal(method)
-	}
-}
-
 // PrintOps prints the opcodes of the current loaded program to stdout.
 func (v *VM) PrintOps(out io.Writer) {
 	if out == nil {

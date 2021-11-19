@@ -42,7 +42,12 @@ func eval(t *testing.T, src string, result interface{}) {
 
 func evalWithArgs(t *testing.T, src string, op []byte, args []stackitem.Item, result interface{}) {
 	vm := vmAndCompile(t, src)
-	vm.LoadArgs(op, args)
+	if len(args) > 0 {
+		vm.Estack().PushVal(args)
+	}
+	if op != nil {
+		vm.Estack().PushVal(op)
+	}
 	err := vm.Run()
 	require.NoError(t, err)
 	assert.Equal(t, 1, vm.Estack().Len(), "stack contains unexpected items")
