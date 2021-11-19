@@ -274,15 +274,7 @@ func (v *VM) LoadScript(b []byte) {
 
 // LoadScriptWithFlags loads script and sets call flag to f.
 func (v *VM) LoadScriptWithFlags(b []byte, f callflag.CallFlag) {
-	v.checkInvocationStackSize()
-	ctx := NewContextWithParams(b, -1, 0)
-	v.estack = newStack("evaluation", &v.refs)
-	ctx.estack = v.estack
-	initStack(&ctx.tryStack, "exception", nil)
-	ctx.callFlag = f
-	ctx.static = newSlot(&v.refs)
-	ctx.callingScriptHash = v.GetCurrentScriptHash()
-	v.istack.PushItem(ctx)
+	v.loadScriptWithCallingHash(b, nil, v.GetCurrentScriptHash(), util.Uint160{}, f, -1, 0)
 }
 
 // LoadScriptWithHash if similar to the LoadScriptWithFlags method, but it also loads
@@ -292,8 +284,7 @@ func (v *VM) LoadScriptWithFlags(b []byte, f callflag.CallFlag) {
 // accordingly). It's up to user of this function to make sure the script and hash match
 // each other.
 func (v *VM) LoadScriptWithHash(b []byte, hash util.Uint160, f callflag.CallFlag) {
-	shash := v.GetCurrentScriptHash()
-	v.loadScriptWithCallingHash(shash, b, hash, f, true)
+	v.loadScriptWithCallingHash(b, nil, v.GetCurrentScriptHash(), hash, f, 1, 0)
 }
 
 // LoadNEFMethod allows to create a context to execute a method from the NEF
@@ -301,11 +292,11 @@ func (v *VM) LoadScriptWithHash(b []byte, hash util.Uint160, f callflag.CallFlag
 // method and _initialize offsets.
 func (v *VM) LoadNEFMethod(exe *nef.File, caller util.Uint160, hash util.Uint160, f callflag.CallFlag,
 	hasReturn bool, methodOff int, initOff int) {
-	v.loadScriptWithCallingHash(caller, exe.Script, hash, f, hasReturn)
-	ctx := v.Context()
-	ctx.NEF = exe
-	// Move IP to the target method.
-	ctx.Jump(methodOff)
+	var rvcount int
+	if hasReturn {
+		rvcount = 1
+	}
+	v.loadScriptWithCallingHash(exe.Script, exe, caller, hash, f, rvcount, methodOff)
 	if initOff >= 0 {
 		v.Call(initOff)
 	}
@@ -313,17 +304,19 @@ func (v *VM) LoadNEFMethod(exe *nef.File, caller util.Uint160, hash util.Uint160
 
 // loadScriptWithCallingHash is similar to LoadScriptWithHash but sets calling hash explicitly.
 // It should be used for calling from native contracts.
-func (v *VM) loadScriptWithCallingHash(caller util.Uint160, b []byte, hash util.Uint160,
-	f callflag.CallFlag, hasReturn bool) {
-	v.LoadScriptWithFlags(b, f)
-	ctx := v.Context()
+func (v *VM) loadScriptWithCallingHash(b []byte, exe *nef.File, caller util.Uint160,
+	hash util.Uint160, f callflag.CallFlag, rvcount int, offset int) {
+	v.checkInvocationStackSize()
+	ctx := NewContextWithParams(b, rvcount, offset)
+	v.estack = newStack("evaluation", &v.refs)
+	ctx.estack = v.estack
+	initStack(&ctx.tryStack, "exception", nil)
+	ctx.callFlag = f
+	ctx.static = newSlot(&v.refs)
 	ctx.scriptHash = hash
 	ctx.callingScriptHash = caller
-	if hasReturn {
-		ctx.retCount = 1
-	} else {
-		ctx.retCount = 0
-	}
+	ctx.NEF = exe
+	v.istack.PushItem(ctx)
 }
 
 // Context returns the current executed context. Nil if there is no context,
