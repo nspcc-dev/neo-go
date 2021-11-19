@@ -229,20 +229,30 @@ func TestRuntimeGetNotifications(t *testing.T) {
 }
 
 func TestRuntimeGetInvocationCounter(t *testing.T) {
-	v, ic, _ := createVM(t)
+	v, ic, bc := createVM(t)
+
+	cs, _ := getTestContractState(bc)
+	require.NoError(t, bc.contracts.Management.PutContractState(ic.DAO, cs))
 
 	ic.VM.Invocations[hash.Hash160([]byte{2})] = 42
 
 	t.Run("No invocations", func(t *testing.T) {
-		v.LoadScript([]byte{1})
+		v.Load([]byte{1})
 		// do not return an error in this case.
 		require.NoError(t, runtime.GetInvocationCounter(ic))
 		require.EqualValues(t, 1, v.Estack().Pop().BigInt().Int64())
 	})
 	t.Run("NonZero", func(t *testing.T) {
-		v.LoadScript([]byte{2})
+		v.Load([]byte{2})
 		require.NoError(t, runtime.GetInvocationCounter(ic))
 		require.EqualValues(t, 42, v.Estack().Pop().BigInt().Int64())
+	})
+	t.Run("Contract", func(t *testing.T) {
+		w := io.NewBufBinWriter()
+		emit.AppCall(w.BinWriter, cs.Hash, "invocCounter", callflag.All)
+		v.LoadWithFlags(w.Bytes(), callflag.All)
+		require.NoError(t, v.Run())
+		require.EqualValues(t, 1, v.Estack().Pop().BigInt().Int64())
 	})
 }
 
@@ -756,6 +766,9 @@ func getTestContractState(bc *Blockchain) (*state.Contract, *state.Contract) {
 	burnGasOff := w.Len()
 	emit.Syscall(w.BinWriter, interopnames.SystemRuntimeBurnGas)
 	emit.Opcodes(w.BinWriter, opcode.RET)
+	invocCounterOff := w.Len()
+	emit.Syscall(w.BinWriter, interopnames.SystemRuntimeGetInvocationCounter)
+	emit.Opcodes(w.BinWriter, opcode.RET)
 
 	script := w.Bytes()
 	h := hash.Hash160(script)
@@ -924,6 +937,11 @@ func getTestContractState(bc *Blockchain) (*state.Contract, *state.Contract) {
 				manifest.NewParameter("amount", smartcontract.IntegerType),
 			},
 			ReturnType: smartcontract.VoidType,
+		},
+		{
+			Name:       "invocCounter",
+			Offset:     invocCounterOff,
+			ReturnType: smartcontract.IntegerType,
 		},
 	}
 	m.Permissions = make([]manifest.Permission, 2)

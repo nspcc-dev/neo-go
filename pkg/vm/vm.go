@@ -1556,11 +1556,9 @@ func (v *VM) throw(item stackitem.Item) {
 	v.handleException()
 }
 
-// Call calls method by offset. It pushes new context to the invocation stack
-// and increments invocation counter for the corresponding context script hash.
+// Call calls method by offset using new execution context.
 func (v *VM) Call(ctx *Context, offset int) {
 	v.call(ctx, offset)
-	v.Invocations[ctx.ScriptHash()]++
 }
 
 // call is an internal representation of Call, which does not
