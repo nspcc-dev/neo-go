@@ -191,19 +191,5 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Set up Go
-        uses: actions/setup-go@v2
-        with:
-          go-version: 1.17
-
-      - name: Restore Go modules from cache
-        uses: actions/cache@v2
-        with:
-          path: /home/runner/go/pkg/mod
-          key: deps-${{ hashFiles('go.sum') }}
-
-      - name: Update Go modules
-        run: go mod download -json
-
       - name: Build Docker image
         run: make image
