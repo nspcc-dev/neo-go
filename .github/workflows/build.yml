@@ -40,9 +40,9 @@ jobs:
       - name: Build CLI
         run: make build
 
-  build_cli_win:
-    name: Build CLI (Windows)
-    runs-on: windows-2019
+  build_cli_wsc:
+    name: Build CLI (Windows Server Core)
+    runs-on: windows-2022
 
     steps:
       - uses: actions/checkout@v2
@@ -66,9 +66,9 @@ jobs:
       - name: Build CLI
         run: make build
 
-  build_image:
+  build_image_ubuntu:
     needs: build_cli_ubuntu
-    name: Build Docker image
+    name: Build Docker image (Ubuntu)
     runs-on: ubuntu-20.04
 
     steps:
@@ -78,3 +78,16 @@ jobs:
 
       - name: Build Docker image
         run: make image
+
+  build_image_wsc:
+    needs: build_cli_wsc
+    name: Build Docker image (Windows Server Core)
+    runs-on: windows-2022
+
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: Build Docker image
+        run: make image-wsc

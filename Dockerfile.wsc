@@ -1,0 +1,36 @@
+# Builder image
+FROM golang:windowsservercore-ltsc2022 as builder
+
+COPY . /neo-go
+
+WORKDIR /neo-go
+
+ARG REPO=repository
+ARG VERSION=dev
+
+SHELL ["cmd", "/S", "/C"]
+RUN go env -w CGO_ENABLED=0
+ENV GOGC=off
+
+RUN go build -trimpath -v -o ./bin/neo-go.exe -ldflags="-X %REPO%/pkg/config.Version=%VERSION%" ./cli/main.go
+
+# Executable image
+FROM mcr.microsoft.com/windows/servercore:ltsc2022
+
+ARG VERSION
+LABEL version=%VERSION%
+
+WORKDIR /
+
+COPY --from=builder /neo-go/config /config
+COPY --from=builder /neo-go/.docker/privnet-entrypoint.ps1 /usr/bin/privnet-entrypoint.ps1
+COPY --from=builder /neo-go/bin/neo-go.exe /usr/bin/neo-go.exe
+
+SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop';", "$ProgressPreference = 'SilentlyContinue';"]
+
+# Check executable version.
+RUN /usr/bin/neo-go.exe --version
+
+ENTRYPOINT ["powershell", "-File", "/usr/bin/privnet-entrypoint.ps1"]
+
+CMD ["node", "--config-path", "/config", "--privnet"]

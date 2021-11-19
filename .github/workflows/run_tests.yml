@@ -99,9 +99,9 @@ jobs:
       - name: Run tests
         run: go test -v -race ./...
 
-  tests_win:
-    name: Windows, Go (1.17)
-    runs-on: windows-2019
+  tests_wsc:
+    name: Windows Server Core, Go (1.17)
+    runs-on: windows-2022
     steps:
       - uses: actions/checkout@v2
         with:
