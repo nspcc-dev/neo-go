@@ -52,6 +52,8 @@ type Context struct {
 	retCount int
 	// NEF represents NEF file for the current contract.
 	NEF *nef.File
+	// invTree is an invocation tree (or branch of it) for this context.
+	invTree *InvocationTree
 }
 
 var errNoInstParam = errors.New("failed to read instruction parameter")

@@ -85,6 +85,9 @@ type VM struct {
 	LoadToken func(id int32) error
 
 	trigger trigger.Type
+
+	// invTree is a top-level invocation tree (if enabled).
+	invTree *InvocationTree
 }
 
 // New returns a new VM object ready to load AVM bytecode scripts.
@@ -240,6 +243,16 @@ func (v *VM) LoadFileWithFlags(path string, f callflag.CallFlag) error {
 	return nil
 }
 
+// CollectInvocationTree enables collecting invocation tree data.
+func (v *VM) EnableInvocationTree() {
+	v.invTree = &InvocationTree{}
+}
+
+// GetInvocationTree returns current invocation tree structure.
+func (v *VM) GetInvocationTree() *InvocationTree {
+	return v.invTree
+}
+
 // Load initializes the VM with the program given.
 func (v *VM) Load(prog []byte) {
 	v.LoadWithFlags(prog, callflag.NoneFlag)
@@ -252,6 +265,7 @@ func (v *VM) LoadWithFlags(prog []byte, f callflag.CallFlag) {
 	v.estack.Clear()
 	v.state = NoneState
 	v.gasConsumed = 0
+	v.invTree = nil
 	v.LoadScriptWithFlags(prog, f)
 }
 
@@ -306,6 +320,16 @@ func (v *VM) loadScriptWithCallingHash(b []byte, exe *nef.File, caller util.Uint
 	ctx.scriptHash = hash
 	ctx.callingScriptHash = caller
 	ctx.NEF = exe
+	if v.invTree != nil {
+		curTree := v.invTree
+		parent := v.Context()
+		if parent != nil {
+			curTree = parent.invTree
+		}
+		newTree := &InvocationTree{Current: ctx.ScriptHash()}
+		curTree.Calls = append(curTree.Calls, newTree)
+		ctx.invTree = newTree
+	}
 	v.istack.PushItem(ctx)
 }
 
