@@ -1577,6 +1577,13 @@ func (s *Server) invokeFunction(reqParams request.Params) (interface{}, *respons
 		}
 		tx.Signers = signers
 	}
+	var verbose bool
+	if len(reqParams) > 4 {
+		verbose, err = reqParams[4].GetBoolean()
+		if err != nil {
+			return nil, response.ErrInvalidParams
+		}
+	}
 	if len(tx.Signers) == 0 {
 		tx.Signers = []transaction.Signer{{Account: util.Uint160{}, Scopes: transaction.None}}
 	}
@@ -1585,7 +1592,7 @@ func (s *Server) invokeFunction(reqParams request.Params) (interface{}, *respons
 		return nil, response.NewInternalServerError("can't create invocation script", err)
 	}
 	tx.Script = script
-	return s.runScriptInVM(trigger.Application, script, util.Uint160{}, tx)
+	return s.runScriptInVM(trigger.Application, script, util.Uint160{}, tx, verbose)
 }
 
 // invokescript implements the `invokescript` RPC call.
@@ -1608,11 +1615,18 @@ func (s *Server) invokescript(reqParams request.Params) (interface{}, *response.
 		tx.Signers = signers
 		tx.Scripts = witnesses
 	}
+	var verbose bool
+	if len(reqParams) > 2 {
+		verbose, err = reqParams[2].GetBoolean()
+		if err != nil {
+			return nil, response.ErrInvalidParams
+		}
+	}
 	if len(tx.Signers) == 0 {
 		tx.Signers = []transaction.Signer{{Account: util.Uint160{}, Scopes: transaction.None}}
 	}
 	tx.Script = script
-	return s.runScriptInVM(trigger.Application, script, util.Uint160{}, tx)
+	return s.runScriptInVM(trigger.Application, script, util.Uint160{}, tx, verbose)
 }
 
 // invokeContractVerify implements the `invokecontractverify` RPC call.
@@ -1649,7 +1663,7 @@ func (s *Server) invokeContractVerify(reqParams request.Params) (interface{}, *r
 		tx.Signers = []transaction.Signer{{Account: scriptHash}}
 		tx.Scripts = []transaction.Witness{{InvocationScript: invocationScript, VerificationScript: []byte{}}}
 	}
-	return s.runScriptInVM(trigger.Verification, invocationScript, scriptHash, tx)
+	return s.runScriptInVM(trigger.Verification, invocationScript, scriptHash, tx, false)
 }
 
 func (s *Server) getFakeNextBlock() (*block.Block, error) {
@@ -1671,12 +1685,15 @@ func (s *Server) getFakeNextBlock() (*block.Block, error) {
 // witness invocation script in case of `verification` trigger (it pushes `verify`
 // arguments on stack before verification). In case of contract verification
 // contractScriptHash should be specified.
-func (s *Server) runScriptInVM(t trigger.Type, script []byte, contractScriptHash util.Uint160, tx *transaction.Transaction) (*result.Invoke, *response.Error) {
+func (s *Server) runScriptInVM(t trigger.Type, script []byte, contractScriptHash util.Uint160, tx *transaction.Transaction, verbose bool) (*result.Invoke, *response.Error) {
 	b, err := s.getFakeNextBlock()
 	if err != nil {
 		return nil, response.NewInternalServerError("can't create fake block", err)
 	}
 	vm, finalize := s.chain.GetTestVM(t, tx, b)
+	if verbose {
+		vm.EnableInvocationTree()
+	}
 	vm.GasLimit = int64(s.config.MaxGasInvoke)
 	if t == trigger.Verification {
 		// We need this special case because witnesses verification is not the simple System.Contract.Call,

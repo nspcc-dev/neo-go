@@ -19,18 +19,30 @@ type Invoke struct {
 	Stack                  []stackitem.Item
 	FaultException         string
 	Transaction            *transaction.Transaction
+	Diagnostics            *InvokeDiag
 	maxIteratorResultItems int
 	finalize               func()
 }
 
+// InvokeDiag is an additional diagnostic data for invocation.
+type InvokeDiag struct {
+	Invocations []*vm.InvocationTree `json:"invokedcontracts"`
+}
+
 // NewInvoke returns new Invoke structure with the given fields set.
 func NewInvoke(vm *vm.VM, finalize func(), script []byte, faultException string, maxIteratorResultItems int) *Invoke {
+	var diag *InvokeDiag
+	tree := vm.GetInvocationTree()
+	if tree != nil {
+		diag = &InvokeDiag{Invocations: tree.Calls}
+	}
 	return &Invoke{
 		State:                  vm.State().String(),
 		GasConsumed:            vm.GasConsumed(),
 		Script:                 script,
 		Stack:                  vm.Estack().ToArray(),
 		FaultException:         faultException,
+		Diagnostics:            diag,
 		maxIteratorResultItems: maxIteratorResultItems,
 		finalize:               finalize,
 	}
@@ -43,6 +55,7 @@ type invokeAux struct {
 	Stack          json.RawMessage `json:"stack"`
 	FaultException string          `json:"exception,omitempty"`
 	Transaction    []byte          `json:"tx,omitempty"`
+	Diagnostics    *InvokeDiag     `json:"diagnostics,omitempty"`
 }
 
 type iteratorAux struct {
@@ -121,6 +134,7 @@ func (r Invoke) MarshalJSON() ([]byte, error) {
 		Stack:          st,
 		FaultException: r.FaultException,
 		Transaction:    txbytes,
+		Diagnostics:    r.Diagnostics,
 	})
 }
 
@@ -176,5 +190,6 @@ func (r *Invoke) UnmarshalJSON(data []byte) error {
 	r.State = aux.State
 	r.FaultException = aux.FaultException
 	r.Transaction = tx
+	r.Diagnostics = aux.Diagnostics
 	return nil
 }
