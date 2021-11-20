@@ -1554,28 +1554,33 @@ func (s *Server) getCommittee(_ request.Params) (interface{}, *response.Error) {
 
 // invokeFunction implements the `invokeFunction` RPC call.
 func (s *Server) invokeFunction(reqParams request.Params) (interface{}, *response.Error) {
+	if len(reqParams) < 2 {
+		return nil, response.ErrInvalidParams
+	}
 	scriptHash, responseErr := s.contractScriptHashFromParam(reqParams.Value(0))
 	if responseErr != nil {
 		return nil, responseErr
-	}
-	tx := &transaction.Transaction{}
-	checkWitnessHashesIndex := len(reqParams)
-	if checkWitnessHashesIndex > 3 {
-		signers, _, err := reqParams[3].GetSignersWithWitnesses()
-		if err != nil {
-			return nil, response.ErrInvalidParams
-		}
-		tx.Signers = signers
-		checkWitnessHashesIndex--
-	}
-	if len(tx.Signers) == 0 {
-		tx.Signers = []transaction.Signer{{Account: util.Uint160{}, Scopes: transaction.None}}
 	}
 	method, err := reqParams[1].GetString()
 	if err != nil {
 		return nil, response.ErrInvalidParams
 	}
-	script, err := request.CreateFunctionInvocationScript(scriptHash, method, reqParams[2:checkWitnessHashesIndex])
+	var params *request.Param
+	if len(reqParams) > 2 {
+		params = &reqParams[2]
+	}
+	tx := &transaction.Transaction{}
+	if len(reqParams) > 3 {
+		signers, _, err := reqParams[3].GetSignersWithWitnesses()
+		if err != nil {
+			return nil, response.ErrInvalidParams
+		}
+		tx.Signers = signers
+	}
+	if len(tx.Signers) == 0 {
+		tx.Signers = []transaction.Signer{{Account: util.Uint160{}, Scopes: transaction.None}}
+	}
+	script, err := request.CreateFunctionInvocationScript(scriptHash, method, params)
 	if err != nil {
 		return nil, response.NewInternalServerError("can't create invocation script", err)
 	}
