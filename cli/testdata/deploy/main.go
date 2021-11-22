@@ -40,6 +40,14 @@ func Fail() {
 	panic("as expected")
 }
 
+// CheckSenderWitness checks sender's witness.
+func CheckSenderWitness() {
+	tx := runtime.GetScriptContainer()
+	if !runtime.CheckWitness(tx.Sender) {
+		panic("not witnessed")
+	}
+}
+
 // Update updates contract with the new one.
 func Update(script, manifest []byte) {
 	ctx := storage.GetReadOnlyContext()

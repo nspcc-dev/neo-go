@@ -466,9 +466,17 @@ func TestComlileAndInvokeFunction(t *testing.T) {
 		})
 
 		t.Run("with cosigner", func(t *testing.T) {
-			t.Run("cosigner is sender", func(t *testing.T) {
+			t.Run("cosigner is sender (none)", func(t *testing.T) {
 				e.In.WriteString("one\r")
-				e.Run(t, append(cmd, hVerify.StringLE(), "verify", "--", validatorAddr+":Global")...)
+				e.RunWithError(t, append(cmd, h.StringLE(), "checkSenderWitness", "--", validatorAddr+":None")...)
+			})
+			t.Run("cosigner is sender (customcontract)", func(t *testing.T) {
+				e.In.WriteString("one\r")
+				e.Run(t, append(cmd, h.StringLE(), "checkSenderWitness", "--", validatorAddr+":CustomContracts:"+h.StringLE())...)
+			})
+			t.Run("cosigner is sender (global)", func(t *testing.T) {
+				e.In.WriteString("one\r")
+				e.Run(t, append(cmd, h.StringLE(), "checkSenderWitness", "--", validatorAddr+":Global")...)
 			})
 
 			acc, err := wallet.NewAccount()
