@@ -36,7 +36,7 @@ func testGetSet(t *testing.T, chain *Blockchain, hash util.Uint160, name string,
 		res, err := invokeContractMethod(chain, 100000000, hash, getName)
 		require.NoError(t, err)
 		checkResult(t, res, stackitem.Make(defaultValue))
-		_, err = chain.persist()
+		_, err = chain.persist(false)
 		require.NoError(t, err)
 	})
 
@@ -69,14 +69,14 @@ func testGetSet(t *testing.T, chain *Blockchain, hash util.Uint160, name string,
 		if name != "GasPerBlock" { // GasPerBlock is set on the next block
 			checkResult(t, aers[1], stackitem.Make(defaultValue+1))
 		}
-		_, err = chain.persist()
+		_, err = chain.persist(false)
 		require.NoError(t, err)
 
 		// Get in the next block.
 		res, err := invokeContractMethod(chain, 100000000, hash, getName)
 		require.NoError(t, err)
 		checkResult(t, res, stackitem.Make(defaultValue+1))
-		_, err = chain.persist()
+		_, err = chain.persist(false)
 		require.NoError(t, err)
 	})
 }
@@ -131,7 +131,7 @@ func TestBlockedAccounts(t *testing.T) {
 		res, err := invokeContractMethod(chain, 100000000, policyHash, "isBlocked", random.Uint160())
 		require.NoError(t, err)
 		checkResult(t, res, stackitem.NewBool(false))
-		_, err = chain.persist()
+		_, err = chain.persist(false)
 		require.NoError(t, err)
 	})
 
@@ -142,7 +142,7 @@ func TestBlockedAccounts(t *testing.T) {
 
 		isBlocked := chain.contracts.Policy.IsBlockedInternal(chain.dao, account)
 		require.Equal(t, isBlocked, true)
-		_, err = chain.persist()
+		_, err = chain.persist(false)
 		require.NoError(t, err)
 
 		res, err = invokeContractMethodGeneric(chain, 100000000, policyHash, "unblockAccount", true, account.BytesBE())
@@ -151,7 +151,7 @@ func TestBlockedAccounts(t *testing.T) {
 
 		isBlocked = chain.contracts.Policy.IsBlockedInternal(chain.dao, account)
 		require.Equal(t, false, isBlocked)
-		_, err = chain.persist()
+		_, err = chain.persist(false)
 		require.NoError(t, err)
 	})
 
@@ -160,28 +160,28 @@ func TestBlockedAccounts(t *testing.T) {
 		res, err := invokeContractMethodGeneric(chain, 100000000, policyHash, "blockAccount", true, account.BytesBE())
 		require.NoError(t, err)
 		checkResult(t, res, stackitem.NewBool(true))
-		_, err = chain.persist()
+		_, err = chain.persist(false)
 		require.NoError(t, err)
 
 		// double-block should fail
 		res, err = invokeContractMethodGeneric(chain, 100000000, policyHash, "blockAccount", true, account.BytesBE())
 		require.NoError(t, err)
 		checkResult(t, res, stackitem.NewBool(false))
-		_, err = chain.persist()
+		_, err = chain.persist(false)
 		require.NoError(t, err)
 
 		// unblock
 		res, err = invokeContractMethodGeneric(chain, 100000000, policyHash, "unblockAccount", true, account.BytesBE())
 		require.NoError(t, err)
 		checkResult(t, res, stackitem.NewBool(true))
-		_, err = chain.persist()
+		_, err = chain.persist(false)
 		require.NoError(t, err)
 
 		// unblock the same account should fail as we don't have it blocked
 		res, err = invokeContractMethodGeneric(chain, 100000000, policyHash, "unblockAccount", true, account.BytesBE())
 		require.NoError(t, err)
 		checkResult(t, res, stackitem.NewBool(false))
-		_, err = chain.persist()
+		_, err = chain.persist(false)
 		require.NoError(t, err)
 	})
 

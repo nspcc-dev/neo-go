@@ -611,7 +611,7 @@ func (bc *Blockchain) Run() {
 	persistTimer := time.NewTimer(persistInterval)
 	defer func() {
 		persistTimer.Stop()
-		if _, err := bc.persist(); err != nil {
+		if _, err := bc.persist(true); err != nil {
 			bc.log.Warn("failed to persist", zap.Error(err))
 		}
 		if err := bc.dao.Store.Close(); err != nil {
@@ -620,15 +620,17 @@ func (bc *Blockchain) Run() {
 		close(bc.runToExitCh)
 	}()
 	go bc.notificationDispatcher()
+	var nextSync bool
 	for {
 		select {
 		case <-bc.stopCh:
 			return
 		case <-persistTimer.C:
-			dur, err := bc.persist()
+			dur, err := bc.persist(nextSync)
 			if err != nil {
 				bc.log.Warn("failed to persist blockchain", zap.Error(err))
 			}
+			nextSync = dur > persistInterval*2
 			interval := persistInterval - dur
 			if interval <= 0 {
 				interval = time.Microsecond // Reset doesn't work with zero value
@@ -1520,7 +1522,7 @@ func (bc *Blockchain) LastBatch() *storage.MemBatch {
 }
 
 // persist flushes current in-memory Store contents to the persistent storage.
-func (bc *Blockchain) persist() (time.Duration, error) {
+func (bc *Blockchain) persist(isSync bool) (time.Duration, error) {
 	var (
 		start     = time.Now()
 		duration  time.Duration
@@ -1528,7 +1530,11 @@ func (bc *Blockchain) persist() (time.Duration, error) {
 		err       error
 	)
 
-	persisted, err = bc.dao.Persist()
+	if isSync {
+		persisted, err = bc.dao.PersistSync()
+	} else {
+		persisted, err = bc.dao.Persist()
+	}
 	if err != nil {
 		return 0, err
 	}
