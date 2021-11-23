@@ -54,6 +54,7 @@ type DAO interface {
 	GetWrapped() DAO
 	HasTransaction(hash util.Uint256) error
 	Persist() (int, error)
+	PersistSync() (int, error)
 	PutAppExecResult(aer *state.AppExecResult, buf *io.BufBinWriter) error
 	PutContractID(id int32, hash util.Uint160) error
 	PutCurrentHeader(hashAndIndex []byte) error
@@ -651,9 +652,16 @@ func (dao *Simple) StoreAsTransaction(tx *transaction.Transaction, index uint32,
 }
 
 // Persist flushes all the changes made into the (supposedly) persistent
-// underlying store.
+// underlying store. It doesn't block accesses to DAO from other threads.
 func (dao *Simple) Persist() (int, error) {
 	return dao.Store.Persist()
+}
+
+// PersistSync flushes all the changes made into the (supposedly) persistent
+// underlying store. It's a synchronous version of Persist that doesn't allow
+// other threads to work with DAO while flushing the Store.
+func (dao *Simple) PersistSync() (int, error) {
+	return dao.Store.PersistSync()
 }
 
 // GetMPTBatch storage changes to be applied to MPT.

@@ -122,7 +122,7 @@ func TestAddBlock(t *testing.T) {
 	assert.Equal(t, lastBlock.Hash(), bc.CurrentHeaderHash())
 
 	// This one tests persisting blocks, so it does need to persist()
-	_, err = bc.persist()
+	_, err = bc.persist(false)
 	require.NoError(t, err)
 
 	for _, block := range blocks {
@@ -241,7 +241,7 @@ func TestGetHeader(t *testing.T) {
 		b2 := bc.newBlock()
 		_, err = bc.GetHeader(b2.Hash())
 		assert.Error(t, err)
-		_, err = bc.persist()
+		_, err = bc.persist(false)
 		assert.NoError(t, err)
 	}
 }
@@ -259,7 +259,7 @@ func TestGetBlock(t *testing.T) {
 			assert.Equal(t, blocks[i].Index, block.Index)
 			assert.Equal(t, blocks[i].Hash(), block.Hash())
 		}
-		_, err = bc.persist()
+		_, err = bc.persist(false)
 		assert.NoError(t, err)
 	}
 
@@ -1319,7 +1319,7 @@ func TestHasBlock(t *testing.T) {
 		}
 		newBlock := bc.newBlock()
 		assert.False(t, bc.HasBlock(newBlock.Hash()))
-		_, err = bc.persist()
+		_, err = bc.persist(true)
 		assert.NoError(t, err)
 	}
 }
@@ -1355,7 +1355,7 @@ func TestGetTransaction(t *testing.T) {
 		assert.Equal(t, block.Transactions[0], tx)
 		assert.Equal(t, 1, io.GetVarSize(tx.Attributes))
 		assert.Equal(t, 1, io.GetVarSize(tx.Scripts))
-		_, err = bc.persist()
+		_, err = bc.persist(true)
 		assert.NoError(t, err)
 	}
 }

@@ -218,8 +218,20 @@ func (s *MemCachedStore) seek(ctx context.Context, key []byte, cutPrefix bool, f
 }
 
 // Persist flushes all the MemoryStore contents into the (supposedly) persistent
-// store ps.
+// store ps. MemCachedStore remains accessible for the most part of this action
+// (any new changes will be cached in memory).
 func (s *MemCachedStore) Persist() (int, error) {
+	return s.persist(false)
+}
+
+// PersistSync flushes all the MemoryStore contents into the (supposedly) persistent
+// store ps. It's different from Persist in that it blocks MemCachedStore completely
+// while flushing things from memory to persistent store.
+func (s *MemCachedStore) PersistSync() (int, error) {
+	return s.persist(true)
+}
+
+func (s *MemCachedStore) persist(isSync bool) (int, error) {
 	var err error
 	var keys, dkeys int
 
@@ -242,11 +254,15 @@ func (s *MemCachedStore) Persist() (int, error) {
 	s.ps = tempstore
 	s.mem = make(map[string][]byte)
 	s.del = make(map[string]bool)
-	s.mut.Unlock()
+	if !isSync {
+		s.mut.Unlock()
+	}
 
 	err = tempstore.ps.PutChangeSet(tempstore.mem, tempstore.del)
 
-	s.mut.Lock()
+	if !isSync {
+		s.mut.Lock()
+	}
 	if err == nil {
 		// tempstore.mem and tempstore.del are completely flushed now
 		// to tempstore.ps, so all KV pairs are the same and this
