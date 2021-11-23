@@ -11,9 +11,10 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/nspcc-dev/neofs-api-go/pkg/client"
-	cid "github.com/nspcc-dev/neofs-api-go/pkg/container/id"
-	"github.com/nspcc-dev/neofs-api-go/pkg/object"
+	"github.com/nspcc-dev/neofs-sdk-go/client"
+	neofsapistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
+	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
+	"github.com/nspcc-dev/neofs-sdk-go/object"
 )
 
 const (
@@ -94,11 +95,13 @@ func parseNeoFSURL(u *url.URL) (*object.Address, []string, error) {
 }
 
 func getPayload(ctx context.Context, c client.Client, addr *object.Address) ([]byte, error) {
-	obj, err := c.GetObject(ctx, new(client.GetObjectParams).WithAddress(addr))
+	res, err := c.GetObject(ctx, new(client.GetObjectParams).WithAddress(addr))
 	if err != nil {
 		return nil, err
+	} else if err = neofsapistatus.ErrFromStatus(res.Status()); err != nil {
+		return nil, err
 	}
-	return checkUTF8(obj.Payload())
+	return checkUTF8(res.Object().Payload())
 }
 
 func getRange(ctx context.Context, c client.Client, addr *object.Address, ps ...string) ([]byte, error) {
@@ -109,42 +112,55 @@ func getRange(ctx context.Context, c client.Client, addr *object.Address, ps ...
 	if err != nil {
 		return nil, err
 	}
-	data, err := c.ObjectPayloadRangeData(ctx, new(client.RangeDataParams).WithAddress(addr).WithRange(r))
+	res, err := c.ObjectPayloadRangeData(ctx, new(client.RangeDataParams).WithAddress(addr).WithRange(r))
 	if err != nil {
 		return nil, err
+	} else if err = neofsapistatus.ErrFromStatus(res.Status()); err != nil {
+		return nil, err
 	}
-	return checkUTF8(data)
+	return checkUTF8(res.Data())
 }
 
 func getHeader(ctx context.Context, c client.Client, addr *object.Address) ([]byte, error) {
-	obj, err := c.GetObjectHeader(ctx, new(client.ObjectHeaderParams).WithAddress(addr))
+	res, err := c.HeadObject(ctx, new(client.ObjectHeaderParams).WithAddress(addr))
 	if err != nil {
 		return nil, err
+	} else if err = neofsapistatus.ErrFromStatus(res.Status()); err != nil {
+		return nil, err
 	}
-	return obj.MarshalHeaderJSON()
+	return res.Object().MarshalHeaderJSON()
 }
 
 func getHash(ctx context.Context, c client.Client, addr *object.Address, ps ...string) ([]byte, error) {
 	if len(ps) == 0 || ps[0] == "" { // hash of the full payload
-		obj, err := c.GetObjectHeader(ctx, new(client.ObjectHeaderParams).WithAddress(addr))
+		res, err := c.HeadObject(ctx, new(client.ObjectHeaderParams).WithAddress(addr))
 		if err != nil {
 			return nil, err
+		} else if err = neofsapistatus.ErrFromStatus(res.Status()); err != nil {
+			return nil, err
 		}
-		return obj.PayloadChecksum().Sum(), nil
+		return res.Object().PayloadChecksum().Sum(), nil
 	}
 	r, err := parseRange(ps[0])
 	if err != nil {
 		return nil, err
 	}
-	hashes, err := c.ObjectPayloadRangeSHA256(ctx,
+	res, err := c.HashObjectPayloadRanges(ctx,
 		new(client.RangeChecksumParams).WithAddress(addr).WithRangeList(r))
 	if err != nil {
 		return nil, err
+	} else if err = neofsapistatus.ErrFromStatus(res.Status()); err != nil {
+		return nil, err
 	}
+	hashes := res.Hashes()
 	if len(hashes) == 0 {
 		return nil, fmt.Errorf("%w: empty response", ErrInvalidRange)
 	}
-	return util.Uint256(hashes[0]).MarshalJSON()
+	u256, err := util.Uint256DecodeBytesBE(hashes[0])
+	if err != nil {
+		return nil, fmt.Errorf("decode Uint256: %w", err)
+	}
+	return u256.MarshalJSON()
 }
 
 func parseRange(s string) (*object.Range, error) {
