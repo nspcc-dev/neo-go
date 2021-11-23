@@ -714,7 +714,7 @@ func getSigners(sender *wallet.Account, cosigners []SignerAccount) ([]transactio
 	}
 	for _, c := range cosigners {
 		if c.Signer.Account == from {
-			s.Scopes = c.Signer.Scopes
+			s = c.Signer
 			continue
 		}
 		signers = append(signers, c.Signer)

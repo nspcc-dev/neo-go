@@ -710,13 +710,39 @@ func TestCreateNEP17TransferTx(t *testing.T) {
 	gasContractHash, err := c.GetNativeContractHash(nativenames.Gas)
 	require.NoError(t, err)
 
-	tx, err := c.CreateNEP17TransferTx(acc, util.Uint160{}, gasContractHash, 1000, 0, nil, nil)
-	require.NoError(t, err)
-	require.NoError(t, acc.SignTx(testchain.Network(), tx))
-	require.NoError(t, chain.VerifyTx(tx))
-	v, _ := chain.GetTestVM(trigger.Application, tx, nil)
-	v.LoadScriptWithFlags(tx.Script, callflag.All)
-	require.NoError(t, v.Run())
+	t.Run("default scope", func(t *testing.T) {
+		tx, err := c.CreateNEP17TransferTx(acc, util.Uint160{}, gasContractHash, 1000, 0, nil, nil)
+		require.NoError(t, err)
+		require.NoError(t, acc.SignTx(testchain.Network(), tx))
+		require.NoError(t, chain.VerifyTx(tx))
+		v, _ := chain.GetTestVM(trigger.Application, tx, nil)
+		v.LoadScriptWithFlags(tx.Script, callflag.All)
+		require.NoError(t, v.Run())
+	})
+	t.Run("none scope", func(t *testing.T) {
+		_, err := c.CreateNEP17TransferTx(acc, util.Uint160{}, gasContractHash, 1000, 0, nil, []client.SignerAccount{{
+			Signer: transaction.Signer{
+				Account: priv.PublicKey().GetScriptHash(),
+				Scopes:  transaction.None,
+			},
+		}})
+		require.Error(t, err)
+	})
+	t.Run("customcontracts scope", func(t *testing.T) {
+		tx, err := c.CreateNEP17TransferTx(acc, util.Uint160{}, gasContractHash, 1000, 0, nil, []client.SignerAccount{{
+			Signer: transaction.Signer{
+				Account:          priv.PublicKey().GetScriptHash(),
+				Scopes:           transaction.CustomContracts,
+				AllowedContracts: []util.Uint160{gasContractHash},
+			},
+		}})
+		require.NoError(t, err)
+		require.NoError(t, acc.SignTx(testchain.Network(), tx))
+		require.NoError(t, chain.VerifyTx(tx))
+		v, _ := chain.GetTestVM(trigger.Application, tx, nil)
+		v.LoadScriptWithFlags(tx.Script, callflag.All)
+		require.NoError(t, v.Run())
+	})
 }
 
 func TestInvokeVerify(t *testing.T) {
