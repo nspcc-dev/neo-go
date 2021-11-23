@@ -112,7 +112,7 @@ func (o *Oracle) processRequest(priv *keys.PrivateKey, req request) error {
 	if incTx == nil {
 		return nil
 	}
-	resp := &transaction.OracleResponse{ID: req.ID}
+	resp := &transaction.OracleResponse{ID: req.ID, Code: transaction.Success}
 	u, err := url.ParseRequestURI(req.Req.URL)
 	if err != nil {
 		o.Log.Warn("malformed oracle request", zap.String("url", req.Req.URL), zap.Error(err))
@@ -149,7 +149,7 @@ func (o *Oracle) processRequest(priv *keys.PrivateKey, req request) error {
 					break
 				}
 
-				result, err := readResponse(r.Body, transaction.MaxOracleResultSize)
+				resp.Result, err = readResponse(r.Body, transaction.MaxOracleResultSize)
 				if err != nil {
 					if errors.Is(err, ErrResponseTooLarge) {
 						resp.Code = transaction.ResponseTooLarge
@@ -159,7 +159,6 @@ func (o *Oracle) processRequest(priv *keys.PrivateKey, req request) error {
 					o.Log.Warn("failed to read data for oracle request", zap.String("url", req.Req.URL), zap.Error(err))
 					break
 				}
-				resp.Code, resp.Result = filterRequest(result, req.Req)
 			case http.StatusForbidden:
 				resp.Code = transaction.Forbidden
 			case http.StatusNotFound:
@@ -173,16 +172,21 @@ func (o *Oracle) processRequest(priv *keys.PrivateKey, req request) error {
 			ctx, cancel := context.WithTimeout(context.Background(), o.MainCfg.NeoFS.Timeout)
 			defer cancel()
 			index := (int(req.ID) + incTx.attempts) % len(o.MainCfg.NeoFS.Nodes)
-			res, err := neofs.Get(ctx, priv, u, o.MainCfg.NeoFS.Nodes[index])
+			resp.Result, err = neofs.Get(ctx, priv, u, o.MainCfg.NeoFS.Nodes[index])
 			if err != nil {
 				o.Log.Warn("oracle request failed", zap.String("url", req.Req.URL), zap.Error(err))
 				resp.Code = transaction.Error
-			} else {
-				resp.Code, resp.Result = filterRequest(res, req.Req)
 			}
 		default:
 			resp.Code = transaction.ProtocolNotSupported
 			o.Log.Warn("unknown oracle request scheme", zap.String("url", req.Req.URL))
+		}
+	}
+	if resp.Code == transaction.Success {
+		resp.Result, err = filterRequest(resp.Result, req.Req)
+		if err != nil {
+			o.Log.Warn("oracle filter failed", zap.Uint64("request", req.ID), zap.Error(err))
+			resp.Code = transaction.Error
 		}
 	}
 	o.Log.Debug("oracle request processed", zap.String("url", req.Req.URL), zap.Int("code", int(resp.Code)), zap.String("result", string(resp.Result)))
