@@ -115,16 +115,38 @@ func TestGetVersion_NoVersion(t *testing.T) {
 	dao := NewSimple(storage.NewMemoryStore(), false, false)
 	version, err := dao.GetVersion()
 	require.Error(t, err)
-	require.Equal(t, "", version)
+	require.Equal(t, "", version.Value)
 }
 
 func TestGetVersion(t *testing.T) {
 	dao := NewSimple(storage.NewMemoryStore(), false, false)
-	err := dao.PutVersion("testVersion")
+	expected := Version{
+		StoragePrefix:     0x42,
+		P2PSigExtensions:  true,
+		StateRootInHeader: true,
+		Value:             "testVersion",
+	}
+	err := dao.PutVersion(expected)
 	require.NoError(t, err)
-	version, err := dao.GetVersion()
+	actual, err := dao.GetVersion()
 	require.NoError(t, err)
-	require.NotNil(t, version)
+	require.Equal(t, expected, actual)
+
+	t.Run("invalid", func(t *testing.T) {
+		dao := NewSimple(storage.NewMemoryStore(), false, false)
+		require.NoError(t, dao.Store.Put(storage.SYSVersion.Bytes(), []byte("0.1.2\x00x")))
+
+		_, err := dao.GetVersion()
+		require.Error(t, err)
+	})
+	t.Run("old format", func(t *testing.T) {
+		dao := NewSimple(storage.NewMemoryStore(), false, false)
+		require.NoError(t, dao.Store.Put(storage.SYSVersion.Bytes(), []byte("0.1.2")))
+
+		version, err := dao.GetVersion()
+		require.NoError(t, err)
+		require.Equal(t, "0.1.2", version.Value)
+	})
 }
 
 func TestGetCurrentHeaderHeight_NoHeader(t *testing.T) {
@@ -222,11 +244,16 @@ func TestMakeStorageItemKey(t *testing.T) {
 
 	expected := []byte{byte(storage.STStorage), 0, 0, 0, 0, 1, 2, 3}
 	binary.LittleEndian.PutUint32(expected[1:5], uint32(id))
-	actual := makeStorageItemKey(id, []byte{1, 2, 3})
+	actual := makeStorageItemKey(storage.STStorage, id, []byte{1, 2, 3})
 	require.Equal(t, expected, actual)
 
 	expected = expected[0:5]
-	actual = makeStorageItemKey(id, nil)
+	actual = makeStorageItemKey(storage.STStorage, id, nil)
+	require.Equal(t, expected, actual)
+
+	expected = []byte{byte(storage.STTempStorage), 0, 0, 0, 0, 1, 2, 3}
+	binary.LittleEndian.PutUint32(expected[1:5], uint32(id))
+	actual = makeStorageItemKey(storage.STTempStorage, id, []byte{1, 2, 3})
 	require.Equal(t, expected, actual)
 }
 

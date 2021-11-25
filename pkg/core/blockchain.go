@@ -36,7 +36,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/nspcc-dev/neo-go/pkg/util/slice"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"go.uber.org/zap"
@@ -45,7 +44,7 @@ import (
 // Tuning parameters.
 const (
 	headerBatchCount = 2000
-	version          = "0.1.5"
+	version          = "0.2.0"
 
 	defaultInitialGAS                      = 52000000_00000000
 	defaultMemPoolSize                     = 50000
@@ -57,11 +56,6 @@ const (
 	// HeaderVerificationGasLimit is the maximum amount of GAS for block header verification.
 	HeaderVerificationGasLimit = 3_00000000 // 3 GAS
 	defaultStateSyncInterval   = 40000
-
-	// maxStorageBatchSize is the number of elements in storage batch expected to fit into the
-	// storage without delays and problems. Estimated size of batch in case of given number of
-	// elements does not exceed 1Mb.
-	maxStorageBatchSize = 10000
 )
 
 // stateJumpStage denotes the stage of state jump process.
@@ -73,9 +67,6 @@ const (
 	// stateJumpStarted means that state jump was just initiated, but outdated storage items
 	// were not yet removed.
 	stateJumpStarted
-	// oldStorageItemsRemoved means that outdated contract storage items were removed, but
-	// new storage items were not yet saved.
-	oldStorageItemsRemoved
 	// newStorageItemsAdded means that contract storage items are up-to-date with the current
 	// state.
 	newStorageItemsAdded
@@ -311,9 +302,19 @@ func (bc *Blockchain) init() error {
 	ver, err := bc.dao.GetVersion()
 	if err != nil {
 		bc.log.Info("no storage version found! creating genesis block")
-		if err = bc.dao.PutVersion(version); err != nil {
+		ver = dao.Version{
+			StoragePrefix:              storage.STStorage,
+			StateRootInHeader:          bc.config.StateRootInHeader,
+			P2PSigExtensions:           bc.config.P2PSigExtensions,
+			P2PStateExchangeExtensions: bc.config.P2PStateExchangeExtensions,
+			KeepOnlyLatestState:        bc.config.KeepOnlyLatestState,
+			Value:                      version,
+		}
+		if err = bc.dao.PutVersion(ver); err != nil {
 			return err
 		}
+		bc.dao.Version = ver
+		bc.persistent.Version = ver
 		genesisBlock, err := createGenesisBlock(bc.config)
 		if err != nil {
 			return err
@@ -328,9 +329,30 @@ func (bc *Blockchain) init() error {
 		}
 		return bc.storeBlock(genesisBlock, nil)
 	}
-	if ver != version {
-		return fmt.Errorf("storage version mismatch betweeen %s and %s", version, ver)
+	if ver.Value != version {
+		return fmt.Errorf("storage version mismatch betweeen %s and %s", version, ver.Value)
 	}
+	if ver.StateRootInHeader != bc.config.StateRootInHeader {
+		return fmt.Errorf("StateRootInHeader setting mismatch (config=%t, db=%t)",
+			ver.StateRootInHeader, bc.config.StateRootInHeader)
+	}
+	if ver.P2PSigExtensions != bc.config.P2PSigExtensions {
+		return fmt.Errorf("P2PSigExtensions setting mismatch (old=%t, new=%t",
+			ver.P2PSigExtensions, bc.config.P2PSigExtensions)
+	}
+	if ver.P2PStateExchangeExtensions != bc.config.P2PStateExchangeExtensions {
+		return fmt.Errorf("P2PStateExchangeExtensions setting mismatch (old=%t, new=%t",
+			ver.P2PStateExchangeExtensions, bc.config.P2PStateExchangeExtensions)
+	}
+	if ver.KeepOnlyLatestState != bc.config.KeepOnlyLatestState {
+		return fmt.Errorf("KeepOnlyLatestState setting mismatch: old=%v, new=%v",
+			ver.KeepOnlyLatestState, bc.config.KeepOnlyLatestState)
+	}
+	bc.dao.Version = ver
+	bc.persistent.Version = ver
+
+	// Always try to remove garbage. If there is nothing to do, it will exit quickly.
+	go bc.removeOldStorageItems()
 
 	// At this point there was no version found in the storage which
 	// implies a creating fresh storage with the version specified
@@ -456,6 +478,26 @@ func (bc *Blockchain) init() error {
 	return bc.updateExtensibleWhitelist(bHeight)
 }
 
+func (bc *Blockchain) removeOldStorageItems() {
+	_, err := bc.dao.Store.Get(storage.SYSCleanStorage.Bytes())
+	if err != nil {
+		return
+	}
+
+	b := bc.dao.Store.Batch()
+	prefix := statesync.TemporaryPrefix(bc.dao.Version.StoragePrefix)
+	bc.dao.Store.Seek([]byte{byte(prefix)}, func(k, _ []byte) {
+		// #1468, but don't need to copy here, because it is done by Store.
+		b.Delete(k)
+	})
+	b.Delete(storage.SYSCleanStorage.Bytes())
+
+	err = bc.dao.Store.PutBatch(b)
+	if err != nil {
+		bc.log.Error("failed to remove old storage items", zap.Error(err))
+	}
+}
+
 // jumpToState is an atomic operation that changes Blockchain state to the one
 // specified by the state sync point p. All the data needed for the jump must be
 // collected by the state sync module.
@@ -487,49 +529,29 @@ func (bc *Blockchain) jumpToStateInternal(p uint32, stage stateJumpStage) error 
 		}
 		fallthrough
 	case stateJumpStarted:
-		// Replace old storage items by new ones, it should be done step-by step.
-		// Firstly, remove all old genesis-related items.
-		b := bc.dao.Store.Batch()
-		bc.dao.Store.Seek([]byte{byte(storage.STStorage)}, func(k, _ []byte) {
-			// #1468, but don't need to copy here, because it is done by Store.
-			b.Delete(k)
-		})
-		b.Put(jumpStageKey, []byte{byte(oldStorageItemsRemoved)})
-		err := bc.dao.Store.PutBatch(b)
+		newPrefix := statesync.TemporaryPrefix(bc.dao.Version.StoragePrefix)
+		v, err := bc.dao.GetVersion()
+		if err != nil {
+			return fmt.Errorf("failed to get dao.Version: %w", err)
+		}
+		v.StoragePrefix = newPrefix
+		if err := bc.dao.PutVersion(v); err != nil {
+			return fmt.Errorf("failed to update dao.Version: %w", err)
+		}
+		bc.persistent.Version = v
+
+		err = bc.dao.Store.Put(jumpStageKey, []byte{byte(newStorageItemsAdded)})
 		if err != nil {
 			return fmt.Errorf("failed to store state jump stage: %w", err)
 		}
-		fallthrough
-	case oldStorageItemsRemoved:
-		// Then change STTempStorage prefix to STStorage. Each replace operation is atomic.
-		for {
-			count := 0
-			b := bc.dao.Store.Batch()
-			bc.dao.Store.Seek([]byte{byte(storage.STTempStorage)}, func(k, v []byte) {
-				if count >= maxStorageBatchSize {
-					return
-				}
-				// #1468, but don't need to copy here, because it is done by Store.
-				b.Delete(k)
-				key := make([]byte, len(k))
-				key[0] = byte(storage.STStorage)
-				copy(key[1:], k[1:])
-				b.Put(key, slice.Copy(v))
-				count += 2
-			})
-			if count > 0 {
-				err := bc.dao.Store.PutBatch(b)
-				if err != nil {
-					return fmt.Errorf("failed to replace outdated contract storage items with the fresh ones: %w", err)
-				}
-			} else {
-				break
-			}
-		}
-		err := bc.dao.Store.Put(jumpStageKey, []byte{byte(newStorageItemsAdded)})
+
+		err = bc.dao.Store.Put(storage.SYSCleanStorage.Bytes(), []byte{})
 		if err != nil {
-			return fmt.Errorf("failed to store state jump stage: %w", err)
+			return fmt.Errorf("failed to store clean storage flag: %w", err)
 		}
+
+		go bc.removeOldStorageItems()
+
 		fallthrough
 	case newStorageItemsAdded:
 		// After current state is updated, we need to remove outdated state-related data if so.

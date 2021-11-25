@@ -1765,9 +1765,13 @@ func TestBlockchain_InitWithIncompleteStateJump(t *testing.T) {
 
 	// put storage items with STTemp prefix
 	batch := bcSpout.dao.Store.Batch()
-	bcSpout.dao.Store.Seek(storage.STStorage.Bytes(), func(k, v []byte) {
+	tempPrefix := storage.STTempStorage
+	if bcSpout.dao.Version.StoragePrefix == tempPrefix {
+		tempPrefix = storage.STStorage
+	}
+	bcSpout.dao.Store.Seek(bcSpout.dao.Version.StoragePrefix.Bytes(), func(k, v []byte) {
 		key := slice.Copy(k)
-		key[0] = storage.STTempStorage.Bytes()[0]
+		key[0] = byte(tempPrefix)
 		value := slice.Copy(v)
 		batch.Put(key, value)
 	})
@@ -1812,14 +1816,14 @@ func TestBlockchain_InitWithIncompleteStateJump(t *testing.T) {
 		require.NoError(t, bcSpout.dao.Store.Put(storage.SYSStateSyncPoint.Bytes(), point))
 		checkNewBlockchainErr(t, boltCfg, bcSpout.dao.Store, true)
 	})
-	for _, stage := range []stateJumpStage{stateJumpStarted, oldStorageItemsRemoved, newStorageItemsAdded, genesisStateRemoved, 0x03} {
+	for _, stage := range []stateJumpStage{stateJumpStarted, newStorageItemsAdded, genesisStateRemoved, 0x03} {
 		t.Run(fmt.Sprintf("state jump stage %d", stage), func(t *testing.T) {
 			require.NoError(t, bcSpout.dao.Store.Put(storage.SYSStateJumpStage.Bytes(), []byte{byte(stage)}))
 			point := make([]byte, 4)
 			binary.LittleEndian.PutUint32(point, uint32(stateSyncPoint))
 			require.NoError(t, bcSpout.dao.Store.Put(storage.SYSStateSyncPoint.Bytes(), point))
 			shouldFail := stage == 0x03 // unknown stage
-			checkNewBlockchainErr(t, boltCfg, bcSpout.dao.Store, shouldFail)
+			checkNewBlockchainErr(t, spountCfg, bcSpout.dao.Store, shouldFail)
 		})
 	}
 }

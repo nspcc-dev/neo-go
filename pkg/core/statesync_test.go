@@ -2,6 +2,7 @@ package core
 
 import (
 	"testing"
+	"time"
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
@@ -300,7 +301,9 @@ func TestStateSyncModule_RestoreBasicChain(t *testing.T) {
 		c.ProtocolConfiguration.KeepOnlyLatestState = true
 		c.ProtocolConfiguration.RemoveUntraceableBlocks = true
 	}
-	bcBolt := newTestChainWithCustomCfg(t, boltCfg)
+	bcBoltStore := memoryStore{storage.NewMemoryStore()}
+	bcBolt := initTestChain(t, bcBoltStore, boltCfg)
+	go bcBolt.Run()
 	module := bcBolt.GetStateSyncModule()
 
 	t.Run("error: add headers before initialisation", func(t *testing.T) {
@@ -421,9 +424,12 @@ func TestStateSyncModule_RestoreBasicChain(t *testing.T) {
 	// compare storage states
 	fetchStorage := func(bc *Blockchain) []storage.KeyValue {
 		var kv []storage.KeyValue
-		bc.dao.Store.Seek(storage.STStorage.Bytes(), func(k, v []byte) {
+		bc.dao.Store.Seek(bc.dao.Version.StoragePrefix.Bytes(), func(k, v []byte) {
 			key := slice.Copy(k)
 			value := slice.Copy(v)
+			if key[0] == byte(storage.STTempStorage) {
+				key[0] = byte(storage.STStorage)
+			}
 			kv = append(kv, storage.KeyValue{
 				Key:   key,
 				Value: value,
@@ -436,7 +442,19 @@ func TestStateSyncModule_RestoreBasicChain(t *testing.T) {
 	require.ElementsMatch(t, expected, actual)
 
 	// no temp items should be left
-	bcBolt.dao.Store.Seek(storage.STTempStorage.Bytes(), func(k, v []byte) {
-		t.Fatal("temp storage items are found")
-	})
+	require.Eventually(t, func() bool {
+		var haveItems bool
+		bcBolt.dao.Store.Seek(storage.STStorage.Bytes(), func(_, _ []byte) {
+			haveItems = true
+		})
+		return !haveItems
+	}, time.Second*5, time.Millisecond*100)
+	bcBolt.Close()
+
+	// Check restoring with new prefix.
+	bcBolt = initTestChain(t, bcBoltStore, boltCfg)
+	go bcBolt.Run()
+	defer bcBolt.Close()
+	require.Equal(t, storage.STTempStorage, bcBolt.dao.Version.StoragePrefix)
+	require.Equal(t, storage.STTempStorage, bcBolt.persistent.Version.StoragePrefix)
 }
