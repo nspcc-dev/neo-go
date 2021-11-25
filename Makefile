@@ -18,7 +18,7 @@ IMAGE_REPO=nspccdev/neo-go
 
 # All of the targets are phony here because we don't really use make dependency
 # tracking for files
-.PHONY: build deps image image-wsc image-latest image-push image-push-latest check-version clean-cluster push-tag \
+.PHONY: build deps image image-wsc image-latest image-push image-wsc-push image-push-latest check-version clean-cluster push-tag \
 	test vet lint fmt cover
 
 build: deps
@@ -61,11 +61,15 @@ image-latest: deps
 	@docker build -t $(IMAGE_REPO):latest --build-arg REPO=$(REPO) --build-arg VERSION=$(VERSION) .
 
 image-push:
-	@echo "=> Publish image"
+	@echo "=> Publish image for Ubuntu"
 	@docker push $(IMAGE_REPO):$(VERSION)
 
+image-wsc-push:
+	@echo "=> Publish image for Windows Server Core"
+	@docker push $(IMAGE_REPO):$(VERSION)_WindowsServerCore
+
 image-push-latest:
-	@echo "=> Publish image with 'latest' tag"
+	@echo "=> Publish image for Ubuntu with 'latest' tag"
 	@docker push $(IMAGE_REPO):latest
 
 check-version:
