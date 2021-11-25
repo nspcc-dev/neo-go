@@ -7,7 +7,6 @@ import (
 
 	json "github.com/nspcc-dev/go-ordered-json"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
-	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/services/oracle/jsonpath"
 )
 
@@ -32,13 +31,9 @@ func filter(value []byte, path string) ([]byte, error) {
 	return json.Marshal(result)
 }
 
-func filterRequest(result []byte, req *state.OracleRequest) (transaction.OracleResponseCode, []byte) {
+func filterRequest(result []byte, req *state.OracleRequest) ([]byte, error) {
 	if req.Filter != nil {
-		var err error
-		result, err = filter(result, *req.Filter)
-		if err != nil {
-			return transaction.Error, nil
-		}
+		return filter(result, *req.Filter)
 	}
-	return transaction.Success, result
+	return result, nil
 }
