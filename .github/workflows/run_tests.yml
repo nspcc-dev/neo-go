@@ -65,12 +65,20 @@ jobs:
           path_to_write_report: ./coverage.txt
           verbose: true
 
-  tests_ubuntu:
-    name: Ubuntu, Go
-    runs-on: ubuntu-20.04
+  tests:
+    name: Run tests
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        go_versions: [ '1.15', '1.16' ]
+        os: [ubuntu-20.04, windows-2022]
+        go_versions: [ '1.15', '1.16', '1.17' ]
+        exclude:
+          - os: windows-2022
+            go_versions: '1.15'
+          - os: windows-2022
+            go_versions: '1.16'
+          - os: ubuntu-20.04
+            go_versions: '1.17'
       fail-fast: false
     steps:
       - uses: actions/checkout@v2
@@ -81,36 +89,6 @@ jobs:
         uses: actions/setup-go@v2
         with:
           go-version: '${{ matrix.go_versions }}'
-
-      - name: Restore Go modules from cache
-        uses: actions/cache@v2
-        with:
-          path: /home/runner/go/pkg/mod
-          key: deps-${{ hashFiles('go.sum') }}
-
-      - name: Update Go modules
-        run: go mod download -json
-
-      - name: Sync VM submodule
-        run: |
-          git submodule sync
-          git submodule update --init
-
-      - name: Run tests
-        run: go test -v -race ./...
-
-  tests_wsc:
-    name: Windows Server Core, Go (1.17)
-    runs-on: windows-2022
-    steps:
-      - uses: actions/checkout@v2
-        with:
-          fetch-depth: 0
-
-      - name: Set up Go
-        uses: actions/setup-go@v2
-        with:
-          go-version: 1.17
 
       - name: Restore Go modules from cache
         uses: actions/cache@v2
