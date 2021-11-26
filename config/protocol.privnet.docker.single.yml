@@ -48,7 +48,7 @@ ApplicationConfiguration:
     AllowedContentTypes:
       - application/json
     Nodes:
-      - node_single:30333
+      - http://node_single:30333
     RequestTimeout: 5s
     UnlockWallet:
       Path: "/wallet1_solo.json"

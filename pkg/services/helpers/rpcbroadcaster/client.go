@@ -53,6 +53,7 @@ func (c *RPCClient) run() {
 					RequestTimeout: c.sendTimeout,
 				})
 				if err != nil {
+					c.log.Error("failed to create client to submit oracle response", zap.Error(err))
 					continue
 				}
 			}

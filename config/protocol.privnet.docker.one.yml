@@ -54,10 +54,10 @@ ApplicationConfiguration:
     AllowedContentTypes:
       - application/json
     Nodes:
-      - node_one:30333
-      - node_two:30334
-      - node_three:30335
-      - node_four:30336
+      - http://node_one:30333
+      - http://node_two:30334
+      - http://node_three:30335
+      - http://node_four:30336
     RequestTimeout: 5s
     UnlockWallet:
       Path: "/wallet1.json"
