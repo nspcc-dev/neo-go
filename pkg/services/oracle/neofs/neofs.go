@@ -39,6 +39,21 @@ var (
 	ErrInvalidCommand   = errors.New("invalid command")
 )
 
+// common interface of NeoFS API client's responses.
+type neoFSResponseCommon interface {
+	Status() neofsapistatus.Status
+}
+
+// if err is nil, then pulls out failed statuses and returns them as error.
+// keep an eye on https://github.com/nspcc-dev/neofs-sdk-go/issues/91.
+func combineAllErrors(resp neoFSResponseCommon, err error) error {
+	if err != nil {
+		return err
+	}
+
+	return neofsapistatus.ErrFromStatus(resp.Status())
+}
+
 // Get returns neofs object from the provided url.
 // URI scheme is "neofs:<Container-ID>/<Object-ID/<Command>/<Params>".
 // If Command is not provided, full object is requested.
@@ -96,9 +111,7 @@ func parseNeoFSURL(u *url.URL) (*object.Address, []string, error) {
 
 func getPayload(ctx context.Context, c client.Client, addr *object.Address) ([]byte, error) {
 	res, err := c.GetObject(ctx, new(client.GetObjectParams).WithAddress(addr))
-	if err != nil {
-		return nil, err
-	} else if err = neofsapistatus.ErrFromStatus(res.Status()); err != nil {
+	if err = combineAllErrors(res, err); err != nil {
 		return nil, err
 	}
 	return checkUTF8(res.Object().Payload())
@@ -113,9 +126,7 @@ func getRange(ctx context.Context, c client.Client, addr *object.Address, ps ...
 		return nil, err
 	}
 	res, err := c.ObjectPayloadRangeData(ctx, new(client.RangeDataParams).WithAddress(addr).WithRange(r))
-	if err != nil {
-		return nil, err
-	} else if err = neofsapistatus.ErrFromStatus(res.Status()); err != nil {
+	if err = combineAllErrors(res, err); err != nil {
 		return nil, err
 	}
 	return checkUTF8(res.Data())
@@ -123,9 +134,7 @@ func getRange(ctx context.Context, c client.Client, addr *object.Address, ps ...
 
 func getHeader(ctx context.Context, c client.Client, addr *object.Address) ([]byte, error) {
 	res, err := c.HeadObject(ctx, new(client.ObjectHeaderParams).WithAddress(addr))
-	if err != nil {
-		return nil, err
-	} else if err = neofsapistatus.ErrFromStatus(res.Status()); err != nil {
+	if err = combineAllErrors(res, err); err != nil {
 		return nil, err
 	}
 	return res.Object().MarshalHeaderJSON()
@@ -134,9 +143,7 @@ func getHeader(ctx context.Context, c client.Client, addr *object.Address) ([]by
 func getHash(ctx context.Context, c client.Client, addr *object.Address, ps ...string) ([]byte, error) {
 	if len(ps) == 0 || ps[0] == "" { // hash of the full payload
 		res, err := c.HeadObject(ctx, new(client.ObjectHeaderParams).WithAddress(addr))
-		if err != nil {
-			return nil, err
-		} else if err = neofsapistatus.ErrFromStatus(res.Status()); err != nil {
+		if err = combineAllErrors(res, err); err != nil {
 			return nil, err
 		}
 		return res.Object().PayloadChecksum().Sum(), nil
@@ -147,9 +154,7 @@ func getHash(ctx context.Context, c client.Client, addr *object.Address, ps ...s
 	}
 	res, err := c.HashObjectPayloadRanges(ctx,
 		new(client.RangeChecksumParams).WithAddress(addr).WithRangeList(r))
-	if err != nil {
-		return nil, err
-	} else if err = neofsapistatus.ErrFromStatus(res.Status()); err != nil {
+	if err = combineAllErrors(res, err); err != nil {
 		return nil, err
 	}
 	hashes := res.Hashes()
