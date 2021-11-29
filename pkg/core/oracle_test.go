@@ -168,6 +168,25 @@ func TestOracle(t *testing.T) {
 	checkEmitTx := func(t *testing.T, ch chan *transaction.Transaction) {
 		require.Len(t, ch, 1)
 		tx := <-ch
+
+		// Response transaction has its hash being precalculated. Check that this hash
+		// matches the actual one.
+		cachedHash := tx.Hash()
+		cp := transaction.Transaction{
+			Version:         tx.Version,
+			Nonce:           tx.Nonce,
+			SystemFee:       tx.SystemFee,
+			NetworkFee:      tx.NetworkFee,
+			ValidUntilBlock: tx.ValidUntilBlock,
+			Script:          tx.Script,
+			Attributes:      tx.Attributes,
+			Signers:         tx.Signers,
+			Scripts:         tx.Scripts,
+			Trimmed:         tx.Trimmed,
+		}
+		actualHash := cp.Hash()
+		require.Equal(t, actualHash, cachedHash, "transaction hash was changed during ")
+
 		require.NoError(t, bc.verifyAndPoolTx(tx, bc.GetMemPool(), bc))
 	}
 
