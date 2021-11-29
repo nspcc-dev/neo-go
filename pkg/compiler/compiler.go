@@ -10,7 +10,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
-	"path"
+	"path/filepath"
 	"strings"
 
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
@@ -135,7 +135,7 @@ func getBuildInfo(name string, src interface{}) (*buildInfo, error) {
 			}
 			for i := range ds {
 				if !ds[i].IsDir() && strings.HasSuffix(ds[i].Name(), ".go") {
-					names = append(names, path.Join(name, ds[i].Name()))
+					names = append(names, filepath.Join(name, ds[i].Name()))
 				}
 			}
 		}

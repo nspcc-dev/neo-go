@@ -3,7 +3,7 @@ package main
 import (
 	"io"
 	"math/big"
-	"path"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
@@ -298,7 +298,7 @@ func TestNEP17MultiTransfer(t *testing.T) {
 func TestNEP17ImportToken(t *testing.T) {
 	e := newExecutor(t, true)
 	tmpDir := t.TempDir()
-	walletPath := path.Join(tmpDir, "walletForImport.json")
+	walletPath := filepath.Join(tmpDir, "walletForImport.json")
 
 	neoContractHash, err := e.Chain.GetNativeContractScriptHash(nativenames.Neo)
 	require.NoError(t, err)

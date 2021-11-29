@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"path"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -28,7 +29,7 @@ import (
 	"go.uber.org/zap/zaptest"
 )
 
-const oracleModulePath = "../services/oracle/"
+var oracleModulePath = filepath.Join("..", "services", "oracle")
 
 func getOracleConfig(t *testing.T, bc *Blockchain, w, pass string) oracle.Config {
 	return oracle.Config{
@@ -38,7 +39,7 @@ func getOracleConfig(t *testing.T, bc *Blockchain, w, pass string) oracle.Config
 			RefreshInterval:     time.Second,
 			AllowedContentTypes: []string{"application/json"},
 			UnlockWallet: config.Wallet{
-				Path:     path.Join(oracleModulePath, w),
+				Path:     filepath.Join(oracleModulePath, w),
 				Password: pass,
 			},
 		},

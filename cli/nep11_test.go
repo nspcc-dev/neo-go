@@ -6,7 +6,7 @@ import (
 	"io"
 	"io/ioutil"
 	"math/big"
-	"path"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -31,7 +31,7 @@ func TestNEP11Import(t *testing.T) {
 	e := newExecutor(t, true)
 
 	tmpDir := t.TempDir()
-	walletPath := path.Join(tmpDir, "walletForImport.json")
+	walletPath := filepath.Join(tmpDir, "walletForImport.json")
 
 	// deploy NFT NeoNameService contract
 	nnsContractHash := deployNNSContract(t, e)
@@ -95,7 +95,7 @@ func TestNEP11_OwnerOf_BalanceOf_Transfer(t *testing.T) {
 	// copy wallet to temp dir in order not to overwrite the original file
 	bytesRead, err := ioutil.ReadFile(nftOwnerWallet)
 	require.NoError(t, err)
-	wall := path.Join(tmpDir, "my_wallet.json")
+	wall := filepath.Join(tmpDir, "my_wallet.json")
 	err = ioutil.WriteFile(wall, bytesRead, 0755)
 	require.NoError(t, err)
 

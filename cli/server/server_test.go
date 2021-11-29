@@ -3,7 +3,7 @@ package server
 import (
 	"flag"
 	"os"
-	"path"
+	"path/filepath"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
@@ -38,8 +38,9 @@ func TestGetConfigFromContext(t *testing.T) {
 }
 
 func TestHandleLoggingParams(t *testing.T) {
+	// This test is failing on Windows, see https://github.com/nspcc-dev/neo-go/issues/2269
 	d := t.TempDir()
-	testLog := path.Join(d, "file.log")
+	testLog := filepath.Join(d, "file.log")
 
 	t.Run("default", func(t *testing.T) {
 		set := flag.NewFlagSet("flagSet", flag.ExitOnError)
@@ -74,7 +75,7 @@ func TestInitBCWithMetrics(t *testing.T) {
 	t.Cleanup(func() { require.NoError(t, os.Chdir(serverTestWD)) })
 
 	set := flag.NewFlagSet("flagSet", flag.ExitOnError)
-	set.String("config-path", path.Join(serverTestWD, "../../config"), "")
+	set.String("config-path", filepath.Join(serverTestWD, "..", "..", "config"), "")
 	set.Bool("testnet", true, "")
 	set.Bool("debug", true, "")
 	ctx := cli.NewContext(cli.NewApp(), set, nil)
@@ -101,7 +102,7 @@ func TestDumpDB(t *testing.T) {
 		require.NoError(t, err)
 		t.Cleanup(func() { require.NoError(t, os.Chdir(serverTestWD)) })
 		set := flag.NewFlagSet("flagSet", flag.ExitOnError)
-		set.String("config-path", path.Join(serverTestWD, "../../config"), "")
+		set.String("config-path", filepath.Join(serverTestWD, "..", "..", "config"), "")
 		set.Bool("privnet", true, "")
 		set.Bool("debug", true, "")
 		set.Int("start", 0, "")
@@ -118,7 +119,7 @@ func TestDumpDB(t *testing.T) {
 		require.NoError(t, err)
 		t.Cleanup(func() { require.NoError(t, os.Chdir(serverTestWD)) })
 		set := flag.NewFlagSet("flagSet", flag.ExitOnError)
-		set.String("config-path", path.Join(serverTestWD, "../../config"), "")
+		set.String("config-path", filepath.Join(serverTestWD, "..", "..", "config"), "")
 		set.Bool("privnet", true, "")
 		set.Bool("debug", true, "")
 		set.Int("start", 0, "")
@@ -140,7 +141,7 @@ func TestRestoreDB(t *testing.T) {
 
 	//dump first
 	set := flag.NewFlagSet("flagSet", flag.ExitOnError)
-	set.String("config-path", path.Join(serverTestWD, "../../config"), "")
+	set.String("config-path", filepath.Join(serverTestWD, "..", "..", "config"), "")
 	set.Bool("privnet", true, "")
 	set.Bool("debug", true, "")
 	set.Int("start", 0, "")

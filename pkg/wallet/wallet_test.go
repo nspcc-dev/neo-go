@@ -3,6 +3,7 @@ package wallet
 import (
 	"encoding/json"
 	"path"
+	"path/filepath"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
@@ -124,7 +125,7 @@ func TestJSONMarshallUnmarshal(t *testing.T) {
 
 func checkWalletConstructor(t *testing.T) *Wallet {
 	tmpDir := t.TempDir()
-	file := path.Join(tmpDir, walletTemplate)
+	file := filepath.Join(tmpDir, walletTemplate)
 	wallet, err := NewWallet(file)
 	require.NoError(t, err)
 	return wallet

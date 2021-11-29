@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"math/big"
 	"os"
-	"path"
+	"path/filepath"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
@@ -32,8 +32,8 @@ func TestSignMultisigTx(t *testing.T) {
 
 	// Create 2 wallets participating in multisig.
 	tmpDir := t.TempDir()
-	wallet1Path := path.Join(tmpDir, "multiWallet1.json")
-	wallet2Path := path.Join(tmpDir, "multiWallet2.json")
+	wallet1Path := filepath.Join(tmpDir, "multiWallet1.json")
+	wallet2Path := filepath.Join(tmpDir, "multiWallet2.json")
 
 	addAccount := func(w string, wif string) {
 		e.Run(t, "neo-go", "wallet", "init", "--wallet", w)
@@ -64,7 +64,7 @@ func TestSignMultisigTx(t *testing.T) {
 	priv, err := keys.NewPrivateKey()
 	require.NoError(t, err)
 
-	txPath := path.Join(tmpDir, "multisigtx.json")
+	txPath := filepath.Join(tmpDir, "multisigtx.json")
 	t.Cleanup(func() {
 		os.Remove(txPath)
 	})

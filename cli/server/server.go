@@ -186,6 +186,11 @@ func dumpDB(ctx *cli.Context) error {
 	if err != nil {
 		return err
 	}
+	defer func() {
+		pprof.ShutDown()
+		prometheus.ShutDown()
+		chain.Close()
+	}()
 
 	chainCount := chain.BlockHeight() + 1
 	if start+count > chainCount {
@@ -199,9 +204,6 @@ func dumpDB(ctx *cli.Context) error {
 	if err != nil {
 		return cli.NewExitError(err.Error(), 1)
 	}
-	pprof.ShutDown()
-	prometheus.ShutDown()
-	chain.Close()
 	return nil
 }
 

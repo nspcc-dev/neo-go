@@ -109,6 +109,10 @@ func TestMemCachedPersist(t *testing.T) {
 	})
 	t.Run("BoltDBStore", func(t *testing.T) {
 		ps := newBoltStoreForTesting(t)
+		t.Cleanup(func() {
+			err := ps.Close()
+			require.NoError(t, err)
+		})
 		testMemCachedStorePersist(t, ps)
 	})
 }

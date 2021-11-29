@@ -66,11 +66,19 @@ jobs:
           verbose: true
 
   tests:
-    name: Go
-    runs-on: ubuntu-20.04
+    name: Run tests
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        go_versions: [ '1.15', '1.16' ]
+        os: [ubuntu-20.04, windows-2022]
+        go_versions: [ '1.15', '1.16', '1.17' ]
+        exclude:
+          - os: windows-2022
+            go_versions: '1.15'
+          - os: windows-2022
+            go_versions: '1.16'
+          - os: ubuntu-20.04
+            go_versions: '1.17'
       fail-fast: false
     steps:
       - uses: actions/checkout@v2
@@ -98,56 +106,3 @@ jobs:
 
       - name: Run tests
         run: go test -v -race ./...
-
-  build_cli:
-    name: Build CLI
-    runs-on: ubuntu-20.04
-
-    steps:
-      - uses: actions/checkout@v2
-        with:
-          fetch-depth: 0
-
-      - name: Set up Go
-        uses: actions/setup-go@v2
-        with:
-          go-version: 1.17
-
-      - name: Restore Go modules from cache
-        uses: actions/cache@v2
-        with:
-          path: /home/runner/go/pkg/mod
-          key: deps-${{ hashFiles('go.sum') }}
-
-      - name: Update Go modules
-        run: go mod download -json
-
-      - name: Build CLI
-        run: make build
-
-  build_image:
-    needs: build_cli
-    name: Build Docker image
-    runs-on: ubuntu-20.04
-
-    steps:
-      - uses: actions/checkout@v2
-        with:
-          fetch-depth: 0
-
-      - name: Set up Go
-        uses: actions/setup-go@v2
-        with:
-          go-version: 1.17
-
-      - name: Restore Go modules from cache
-        uses: actions/cache@v2
-        with:
-          path: /home/runner/go/pkg/mod
-          key: deps-${{ hashFiles('go.sum') }}
-
-      - name: Update Go modules
-        run: go mod download -json
-
-      - name: Build Docker image
-        run: make image

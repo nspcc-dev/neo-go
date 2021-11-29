@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/rand"
 	"path"
+	"path/filepath"
 	"sync"
 	"testing"
 	"time"
@@ -30,13 +31,13 @@ import (
 	"go.uber.org/zap/zaptest"
 )
 
-const notaryModulePath = "../services/notary/"
+var notaryModulePath = filepath.Join("..", "services", "notary")
 
 func getTestNotary(t *testing.T, bc *Blockchain, walletPath, pass string, onTx func(tx *transaction.Transaction) error) (*wallet.Account, *notary.Notary, *mempool.Pool) {
 	mainCfg := config.P2PNotary{
 		Enabled: true,
 		UnlockWallet: config.Wallet{
-			Path:     path.Join(notaryModulePath, walletPath),
+			Path:     filepath.Join(notaryModulePath, walletPath),
 			Password: pass,
 		},
 	}
