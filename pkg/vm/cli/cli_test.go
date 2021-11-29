@@ -104,7 +104,8 @@ func (e *executor) checkNextLine(t *testing.T, expected string) {
 func (e *executor) checkError(t *testing.T, expectedErr error) {
 	line, err := e.out.ReadString('\n')
 	require.NoError(t, err)
-	require.True(t, strings.HasPrefix(line, "Error: "+expectedErr.Error()))
+	expected := "Error: " + expectedErr.Error()
+	require.True(t, strings.HasPrefix(line, expected), fmt.Errorf("expected `%s`, got `%s`", expected, line))
 }
 
 func (e *executor) checkStack(t *testing.T, items ...interface{}) {
