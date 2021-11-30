@@ -85,6 +85,18 @@ func EncodeBinaryProtected(item Item, w *io.BinWriter) {
 	w.WriteBytes(sc.data)
 }
 
+func (w *serContext) writeArray(item Item, arr []Item, start int) error {
+	w.seen[item] = sliceNoPointer{}
+	w.appendVarUint(uint64(len(arr)))
+	for i := range arr {
+		if err := w.serialize(arr[i]); err != nil {
+			return err
+		}
+	}
+	w.seen[item] = sliceNoPointer{start, len(w.data)}
+	return nil
+}
+
 func (w *serContext) serialize(item Item) error {
 	if v, ok := w.seen[item]; ok {
 		if v.start == v.end {
@@ -127,24 +139,16 @@ func (w *serContext) serialize(item Item) error {
 		} else {
 			return fmt.Errorf("%w: Interop", ErrUnserializable)
 		}
-	case *Array, *Struct:
-		w.seen[item] = sliceNoPointer{}
-
-		_, isArray := t.(*Array)
-		if isArray {
-			w.data = append(w.data, byte(ArrayT))
-		} else {
-			w.data = append(w.data, byte(StructT))
+	case *Array:
+		w.data = append(w.data, byte(ArrayT))
+		if err := w.writeArray(item, t.value, start); err != nil {
+			return err
 		}
-
-		arr := t.Value().([]Item)
-		w.appendVarUint(uint64(len(arr)))
-		for i := range arr {
-			if err := w.serialize(arr[i]); err != nil {
-				return err
-			}
+	case *Struct:
+		w.data = append(w.data, byte(StructT))
+		if err := w.writeArray(item, t.value, start); err != nil {
+			return err
 		}
-		w.seen[item] = sliceNoPointer{start, len(w.data)}
 	case *Map:
 		w.seen[item] = sliceNoPointer{}
 
