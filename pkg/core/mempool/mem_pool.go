@@ -3,11 +3,11 @@ package mempool
 import (
 	"errors"
 	"fmt"
-	"math/big"
 	"math/bits"
 	"sort"
 	"sync"
 
+	"github.com/holiman/uint256"
 	"github.com/nspcc-dev/neo-go/pkg/core/mempoolevent"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -50,8 +50,8 @@ type items []item
 // utilityBalanceAndFees stores sender's balance and overall fees of
 // sender's transactions which are currently in mempool.
 type utilityBalanceAndFees struct {
-	balance *big.Int
-	feeSum  *big.Int
+	balance uint256.Int
+	feeSum  uint256.Int
 }
 
 // Pool stores the unconfirms transactions.
@@ -164,8 +164,7 @@ func (mp *Pool) tryAddSendersFee(tx *transaction.Transaction, feer Feer, needChe
 	payer := tx.Signers[mp.payerIndex].Account
 	senderFee, ok := mp.fees[payer]
 	if !ok {
-		senderFee.balance = feer.GetUtilityTokenBalance(payer)
-		senderFee.feeSum = big.NewInt(0)
+		_ = senderFee.balance.SetFromBig(feer.GetUtilityTokenBalance(payer))
 		mp.fees[payer] = senderFee
 	}
 	if needCheck {
@@ -173,23 +172,26 @@ func (mp *Pool) tryAddSendersFee(tx *transaction.Transaction, feer Feer, needChe
 		if err != nil {
 			return false
 		}
-		senderFee.feeSum.Set(newFeeSum)
+		senderFee.feeSum = newFeeSum
 	} else {
-		senderFee.feeSum.Add(senderFee.feeSum, big.NewInt(tx.SystemFee+tx.NetworkFee))
+		senderFee.feeSum.AddUint64(&senderFee.feeSum, uint64(tx.SystemFee+tx.NetworkFee))
 	}
+	mp.fees[payer] = senderFee
 	return true
 }
 
 // checkBalance returns new cumulative fee balance for account or an error in
 // case sender doesn't have enough GAS to pay for the transaction.
-func checkBalance(tx *transaction.Transaction, balance utilityBalanceAndFees) (*big.Int, error) {
-	txFee := big.NewInt(tx.SystemFee + tx.NetworkFee)
-	if balance.balance.Cmp(txFee) < 0 {
-		return nil, ErrInsufficientFunds
+func checkBalance(tx *transaction.Transaction, balance utilityBalanceAndFees) (uint256.Int, error) {
+	var txFee uint256.Int
+
+	txFee.SetUint64(uint64(tx.SystemFee + tx.NetworkFee))
+	if balance.balance.Cmp(&txFee) < 0 {
+		return txFee, ErrInsufficientFunds
 	}
-	txFee.Add(txFee, balance.feeSum)
-	if balance.balance.Cmp(txFee) < 0 {
-		return nil, ErrConflict
+	txFee.Add(&txFee, &balance.feeSum)
+	if balance.balance.Cmp(&txFee) < 0 {
+		return txFee, ErrConflict
 	}
 	return txFee, nil
 }
@@ -323,7 +325,7 @@ func (mp *Pool) removeInternal(hash util.Uint256, feer Feer) {
 		}
 		payer := itm.txn.Signers[mp.payerIndex].Account
 		senderFee := mp.fees[payer]
-		senderFee.feeSum.Sub(senderFee.feeSum, big.NewInt(tx.SystemFee+tx.NetworkFee))
+		senderFee.feeSum.SubUint64(&senderFee.feeSum, uint64(tx.SystemFee+tx.NetworkFee))
 		mp.fees[payer] = senderFee
 		if feer.P2PSigExtensionsEnabled() {
 			// remove all conflicting hashes from mp.conflicts list
@@ -507,8 +509,7 @@ func (mp *Pool) checkTxConflicts(tx *transaction.Transaction, fee Feer) ([]*tran
 	payer := tx.Signers[mp.payerIndex].Account
 	actualSenderFee, ok := mp.fees[payer]
 	if !ok {
-		actualSenderFee.balance = fee.GetUtilityTokenBalance(payer)
-		actualSenderFee.feeSum = big.NewInt(0)
+		actualSenderFee.balance.SetFromBig(fee.GetUtilityTokenBalance(payer))
 	}
 
 	var expectedSenderFee utilityBalanceAndFees
@@ -541,13 +542,10 @@ func (mp *Pool) checkTxConflicts(tx *transaction.Transaction, fee Feer) ([]*tran
 			conflictsToBeRemoved = append(conflictsToBeRemoved, existingTx)
 		}
 		// Step 3: take into account sender's conflicting transactions before balance check.
-		expectedSenderFee = utilityBalanceAndFees{
-			balance: new(big.Int).Set(actualSenderFee.balance),
-			feeSum:  new(big.Int).Set(actualSenderFee.feeSum),
-		}
+		expectedSenderFee = actualSenderFee
 		for _, conflictingTx := range conflictsToBeRemoved {
 			if conflictingTx.Signers[mp.payerIndex].Account.Equals(payer) {
-				expectedSenderFee.feeSum.Sub(expectedSenderFee.feeSum, big.NewInt(conflictingTx.SystemFee+conflictingTx.NetworkFee))
+				expectedSenderFee.feeSum.SubUint64(&expectedSenderFee.feeSum, uint64(conflictingTx.SystemFee+conflictingTx.NetworkFee))
 			}
 		}
 	} else {
