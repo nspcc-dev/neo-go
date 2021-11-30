@@ -152,7 +152,7 @@ func (w *serContext) serialize(item Item) error {
 	case *Map:
 		w.seen[item] = sliceNoPointer{}
 
-		elems := t.Value().([]MapElement)
+		elems := t.value
 		w.data = append(w.data, byte(MapT))
 		w.appendVarUint(uint64(len(elems)))
 		for i := range elems {
