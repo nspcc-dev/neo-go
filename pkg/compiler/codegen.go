@@ -641,12 +641,12 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		return nil
 
 	case *ast.SliceExpr:
-		if isCompoundSlice(c.typeOf(n.X.(*ast.Ident)).Underlying()) {
+		if isCompoundSlice(c.typeOf(n.X).Underlying()) {
 			c.prog.Err = errors.New("subslices are supported only for []byte")
 			return nil
 		}
-		name := n.X.(*ast.Ident).Name
-		c.emitLoadVar("", name)
+
+		ast.Walk(c, n.X)
 
 		if n.Low != nil {
 			ast.Walk(c, n.Low)

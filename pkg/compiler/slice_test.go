@@ -432,6 +432,16 @@ func TestSubsliceCompound(t *testing.T) {
 	require.Error(t, err)
 }
 
+func TestSubsliceFromStructField(t *testing.T) {
+	src := `package foo
+	type pair struct { key, value []byte }
+	func Main() []byte {
+		p := pair{ []byte{1}, []byte{4, 8, 15, 16, 23, 42} }
+		return p.value[2:4]
+	}`
+	eval(t, src, []byte{15, 16})
+}
+
 func TestRemove(t *testing.T) {
 	t.Run("Valid", func(t *testing.T) {
 		src := `package foo
