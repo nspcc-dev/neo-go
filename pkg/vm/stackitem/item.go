@@ -1097,7 +1097,7 @@ func (i *Buffer) Len() int {
 // Values of Interop items are not deeply copied.
 // It does preserve duplicates only for non-primitive types.
 func DeepCopy(item Item) Item {
-	seen := make(map[Item]Item)
+	seen := make(map[Item]Item, typicalNumOfItems)
 	return deepCopy(item, seen)
 }
 

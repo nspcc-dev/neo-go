@@ -13,6 +13,12 @@ import (
 // (including itself).
 const MaxDeserialized = 2048
 
+// typicalNumOfItems is the number of items covering most serializaton needs.
+// It's a hint used for map creation, so it's not limiting anything, it's just
+// a microoptimization to avoid excessive reallocations. Most of the serialized
+// items are structs, so there is at least one of them.
+const typicalNumOfItems = 4
+
 // ErrRecursive is returned on attempts to serialize some recursive stack item
 // (like array including an item with reference to the same array).
 var ErrRecursive = errors.New("recursive item")
@@ -40,7 +46,7 @@ type deserContext struct {
 func Serialize(item Item) ([]byte, error) {
 	sc := serContext{
 		allowInvalid: false,
-		seen:         make(map[Item]sliceNoPointer),
+		seen:         make(map[Item]sliceNoPointer, typicalNumOfItems),
 	}
 	err := sc.serialize(item)
 	if err != nil {
@@ -69,7 +75,7 @@ func EncodeBinary(item Item, w *io.BinWriter) {
 func EncodeBinaryProtected(item Item, w *io.BinWriter) {
 	sc := serContext{
 		allowInvalid: true,
-		seen:         make(map[Item]sliceNoPointer),
+		seen:         make(map[Item]sliceNoPointer, typicalNumOfItems),
 	}
 	err := sc.serialize(item)
 	if err != nil {
