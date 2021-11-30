@@ -514,6 +514,9 @@ func (c *codegen) convertFuncDecl(file ast.Node, decl *ast.FuncDecl, pkg *types.
 
 	if !isLambda {
 		for _, f := range c.lambda {
+			if _, ok := c.lambda[c.getIdentName("", f.decl.Name.Name)]; !ok {
+				panic("ICE: lambda name doesn't match map key")
+			}
 			c.convertFuncDecl(file, f.decl, pkg)
 		}
 		c.lambda = make(map[string]*funcScope)

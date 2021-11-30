@@ -50,6 +50,24 @@ func TestDefer(t *testing.T) {
 		func f() { a += 2 }`
 		eval(t, src, big.NewInt(10))
 	})
+	t.Run("DeferAfterInterop", func(t *testing.T) {
+		src := `package main
+
+		import (
+			"github.com/nspcc-dev/neo-go/pkg/interop/storage"
+		)
+
+		func Main() {
+			defer func() {
+			}()
+			storage.GetContext()
+		}`
+		vm := vmAndCompile(t, src)
+		err := vm.Run()
+		require.NoError(t, err)
+		require.Equal(t, 0, vm.Estack().Len(), "stack contains unexpected items")
+	})
+
 	t.Run("MultipleDefers", func(t *testing.T) {
 		src := `package main
 		var a int
