@@ -15,6 +15,8 @@ const (
 	wordSizeBytes = bits.UintSize / 8
 )
 
+var bigOne = big.NewInt(1)
+
 // FromBytesUnsigned converts data in little-endian format to an unsigned integer.
 func FromBytesUnsigned(data []byte) *big.Int {
 	bs := slice.CopyReverse(data)
@@ -70,7 +72,7 @@ func FromBytes(data []byte) *big.Int {
 		n.SetBits(ws)
 		n.Neg(n)
 
-		return n.Sub(n, big.NewInt(1))
+		return n.Sub(n, bigOne)
 	}
 
 	return n.SetBits(ws)
@@ -114,7 +116,7 @@ func ToPreallocatedBytes(n *big.Int, data []byte) []byte {
 	if sign == 1 {
 		ws = n.Bits()
 	} else {
-		n1 := new(big.Int).Add(n, big.NewInt(1))
+		n1 := new(big.Int).Add(n, bigOne)
 		if n1.Sign() == 0 { // n == -1
 			return append(data, 0xFF)
 		}

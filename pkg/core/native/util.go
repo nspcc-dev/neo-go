@@ -13,6 +13,7 @@ import (
 )
 
 var intOne = big.NewInt(1)
+var intTwo = big.NewInt(2)
 
 func getConvertibleFromDAO(id int32, d dao.DAO, key []byte, conv stackitem.Convertible) error {
 	si := d.GetStorageItem(id, key)

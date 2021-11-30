@@ -90,6 +90,8 @@ type VM struct {
 	invTree *InvocationTree
 }
 
+var bigOne = big.NewInt(1)
+
 // New returns a new VM object ready to load AVM bytecode scripts.
 func New() *VM {
 	return NewWithTrigger(trigger.Application)
@@ -889,12 +891,12 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 
 	case opcode.INC:
 		x := v.estack.Pop().BigInt()
-		a := new(big.Int).Add(x, big.NewInt(1))
+		a := new(big.Int).Add(x, bigOne)
 		v.estack.PushItem(stackitem.NewBigInteger(a))
 
 	case opcode.DEC:
 		x := v.estack.Pop().BigInt()
-		a := new(big.Int).Sub(x, big.NewInt(1))
+		a := new(big.Int).Sub(x, bigOne)
 		v.estack.PushItem(stackitem.NewBigInteger(a))
 
 	case opcode.ADD:
