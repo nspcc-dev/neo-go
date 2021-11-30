@@ -107,6 +107,7 @@ func NewWithTrigger(t trigger.Type) *VM {
 	}
 
 	initStack(&vm.istack, "invocation", nil)
+	vm.istack.elems = make([]Element, 0, 8) // Most of invocations use one-two contracts, but they're likely to have internal calls.
 	vm.estack = newStack("evaluation", &vm.refs)
 	return vm
 }
