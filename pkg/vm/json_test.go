@@ -239,8 +239,8 @@ func compareStacks(t *testing.T, expected []vmUTStackItem, actual *Stack) {
 	compareItemArrays(t, expected, actual.Len(), func(i int) stackitem.Item { return actual.Peek(i).Item() })
 }
 
-func compareSlots(t *testing.T, expected []vmUTStackItem, actual *Slot) {
-	if actual.storage == nil && len(expected) == 0 {
+func compareSlots(t *testing.T, expected []vmUTStackItem, actual *slot) {
+	if (actual == nil || *actual == nil) && len(expected) == 0 {
 		return
 	}
 	require.NotNil(t, actual)

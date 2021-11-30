@@ -9,8 +9,8 @@ import (
 )
 
 func TestSlot_Get(t *testing.T) {
-	s := newSlot(newRefCounter())
-	require.NotNil(t, s)
+	rc := newRefCounter()
+	var s slot
 	require.Panics(t, func() { s.Size() })
 
 	s.init(3)
@@ -20,6 +20,6 @@ func TestSlot_Get(t *testing.T) {
 	item := s.Get(2)
 	require.Equal(t, stackitem.Null{}, item)
 
-	s.Set(1, stackitem.NewBigInteger(big.NewInt(42)))
+	s.Set(1, stackitem.NewBigInteger(big.NewInt(42)), rc)
 	require.Equal(t, stackitem.NewBigInteger(big.NewInt(42)), s.Get(1))
 }
