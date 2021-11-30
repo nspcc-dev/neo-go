@@ -58,14 +58,14 @@ func signStoredTransaction(ctx *cli.Context) error {
 	}
 	if out := ctx.String("out"); out != "" {
 		if err := paramcontext.Save(c, out); err != nil {
-			return cli.NewExitError(err, 1)
+			return cli.NewExitError(fmt.Errorf("failed to dump resulting transaction: %w", err), 1)
 		}
 	}
 	if len(ctx.String(options.RPCEndpointFlag)) != 0 {
 		for i := range tx.Signers {
 			w, err := c.GetWitness(tx.Signers[i].Account)
 			if err != nil {
-				return cli.NewExitError(err, 1)
+				return cli.NewExitError(fmt.Errorf("failed to construct witness for signer #%d: %w", i, err), 1)
 			}
 			tx.Scripts = append(tx.Scripts, *w)
 		}
@@ -76,11 +76,11 @@ func signStoredTransaction(ctx *cli.Context) error {
 		var err error // `GetRPCClient` returns specialized type.
 		c, err := options.GetRPCClient(gctx, ctx)
 		if err != nil {
-			return cli.NewExitError(err, 1)
+			return cli.NewExitError(fmt.Errorf("failed to create RPC client: %w", err), 1)
 		}
 		res, err := c.SendRawTransaction(tx)
 		if err != nil {
-			return cli.NewExitError(err, 1)
+			return cli.NewExitError(fmt.Errorf("failed to submit transaction to RPC node: %w", err), 1)
 		}
 		fmt.Fprintln(ctx.App.Writer, res.StringLE())
 		return nil

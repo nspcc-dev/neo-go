@@ -134,7 +134,11 @@ func (o *Oracle) CreateResponseTx(gasForResponse int64, vub uint32, resp *transa
 }
 
 func (o *Oracle) testVerify(tx *transaction.Transaction) (int64, bool) {
-	v, finalize := o.Chain.GetTestVM(trigger.Verification, tx, nil)
+	// (*Blockchain).GetTestVM calls Hash() method of provided transaction; once being called, this
+	// method caches transaction hash, but tx building is not yet completed and hash will be changed.
+	// So make a copy of tx to avoid wrong hash caching.
+	cp := *tx
+	v, finalize := o.Chain.GetTestVM(trigger.Verification, &cp, nil)
 	v.GasLimit = o.Chain.GetPolicer().GetMaxVerificationGAS()
 	v.LoadScriptWithHash(o.oracleScript, o.oracleHash, callflag.ReadOnly)
 	v.Jump(v.Context(), o.verifyOffset)
