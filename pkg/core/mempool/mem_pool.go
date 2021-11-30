@@ -422,7 +422,7 @@ func (mp *Pool) checkPolicy(tx *transaction.Transaction, policyChanged bool) boo
 // New returns a new Pool struct.
 func New(capacity int, payerIndex int, enableSubscriptions bool) *Pool {
 	mp := &Pool{
-		verifiedMap:          make(map[util.Uint256]*transaction.Transaction),
+		verifiedMap:          make(map[util.Uint256]*transaction.Transaction, capacity),
 		verifiedTxes:         make([]item, 0, capacity),
 		capacity:             capacity,
 		payerIndex:           payerIndex,
