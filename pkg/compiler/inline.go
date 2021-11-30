@@ -99,6 +99,8 @@ func (c *codegen) inlineCall(f *funcScope, n *ast.CallExpr) {
 
 	c.pkgInfoInline = append(c.pkgInfoInline, pkg)
 	oldMap := c.importMap
+	oldDefers := c.scope.deferStack
+	c.scope.deferStack = nil
 	c.fillImportMap(f.file, pkg.Pkg)
 	ast.Inspect(f.decl, c.scope.analyzeVoidCalls)
 	ast.Walk(c, f.decl.Body)
@@ -107,6 +109,8 @@ func (c *codegen) inlineCall(f *funcScope, n *ast.CallExpr) {
 			emit.Opcodes(c.prog.BinWriter, opcode.DROP)
 		}
 	}
+	c.processDefers()
+	c.scope.deferStack = oldDefers
 	c.importMap = oldMap
 	c.pkgInfoInline = c.pkgInfoInline[:len(c.pkgInfoInline)-1]
 }
