@@ -77,6 +77,9 @@ func newTestVMCLIWithLogo(t *testing.T, printLogo bool) *executor {
 			Prompt: "",
 			Stdin:  e.in,
 			Stdout: e.out,
+			FuncIsTerminal: func() bool {
+				return false
+			},
 		})
 	return e
 }
@@ -202,8 +205,10 @@ func TestLoad(t *testing.T) {
 	t.Run("loadgo", func(t *testing.T) {
 		filename := filepath.Join(tmpDir, "vmtestcontract.go")
 		require.NoError(t, ioutil.WriteFile(filename, []byte(src), os.ModePerm))
+		filename = "'" + filename + "'"
 		filenameErr := filepath.Join(tmpDir, "vmtestcontract_err.go")
 		require.NoError(t, ioutil.WriteFile(filenameErr, []byte(src+"invalid_token"), os.ModePerm))
+		filenameErr = "'" + filenameErr + "'"
 
 		e := newTestVMCLI(t)
 		e.runProg(t,
@@ -227,6 +232,7 @@ func TestLoad(t *testing.T) {
 `
 		filename := filepath.Join(tmpDir, "vmtestcontract.go")
 		require.NoError(t, ioutil.WriteFile(filename, []byte(srcAllowNotify), os.ModePerm))
+		filename = "'" + filename + "'"
 
 		e := newTestVMCLI(t)
 		e.runProg(t,
@@ -255,6 +261,10 @@ func TestLoad(t *testing.T) {
 		filenameErr := filepath.Join(tmpDir, "vmtestcontract_err.nef")
 		require.NoError(t, ioutil.WriteFile(filenameErr, append([]byte{1, 2, 3, 4}, rawNef...), os.ModePerm))
 		notExists := filepath.Join(tmpDir, "notexists.json")
+
+		manifestFile = "'" + manifestFile + "'"
+		filename = "'" + filename + "'"
+		filenameErr = "'" + filenameErr + "'"
 
 		e := newTestVMCLI(t)
 		e.runProg(t,
@@ -297,6 +307,7 @@ func TestRunWithDifferentArguments(t *testing.T) {
 	filename := filepath.Join(tmpDir, "run_vmtestcontract.go")
 	require.NoError(t, ioutil.WriteFile(filename, []byte(src), os.ModePerm))
 
+	filename = "'" + filename + "'"
 	e := newTestVMCLI(t)
 	e.runProg(t,
 		"loadgo "+filename, "run notexists",
