@@ -112,25 +112,19 @@ func callExFromNative(ic *interop.Context, caller util.Uint160, cs *state.Contra
 		return fmt.Errorf("invalid argument count: %d (expected %d)", len(args), len(md.Parameters))
 	}
 
-	ic.VM.Invocations[cs.Hash]++
-	ic.VM.LoadScriptWithCallingHash(caller, cs.NEF.Script, cs.Hash, ic.VM.Context().GetCallFlags()&f, hasReturn, uint16(len(args)))
-	ic.VM.Context().NEF = &cs.NEF
-	for i := len(args) - 1; i >= 0; i-- {
-		ic.VM.Estack().PushItem(args[i])
-	}
-	// use Jump not Call here because context was loaded in LoadScript above.
-	ic.VM.Jump(ic.VM.Context(), md.Offset)
-	if hasReturn {
-		ic.VM.Context().RetCount = 1
-	} else {
-		ic.VM.Context().RetCount = 0
-	}
-
+	methodOff := md.Offset
+	initOff := -1
 	md = cs.Manifest.ABI.GetMethod(manifest.MethodInit, 0)
 	if md != nil {
-		ic.VM.Call(ic.VM.Context(), md.Offset)
+		initOff = md.Offset
 	}
+	ic.Invocations[cs.Hash]++
+	ic.VM.LoadNEFMethod(&cs.NEF, caller, cs.Hash, ic.VM.Context().GetCallFlags()&f,
+		hasReturn, methodOff, initOff)
 
+	for e, i := ic.VM.Estack(), len(args)-1; i >= 0; i-- {
+		e.PushItem(args[i])
+	}
 	return nil
 }
 

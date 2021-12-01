@@ -48,6 +48,7 @@ type Context struct {
 	Log           *zap.Logger
 	VM            *vm.VM
 	Functions     []Function
+	Invocations   map[util.Uint160]int
 	cancelFuncs   []context.CancelFunc
 	getContract   func(dao.DAO, util.Uint160) (*state.Contract, error)
 	baseExecFee   int64
@@ -73,6 +74,7 @@ func NewContext(trigger trigger.Type, bc blockchainer.Blockchainer, d dao.DAO,
 		Tx:          tx,
 		DAO:         dao,
 		Log:         log,
+		Invocations: make(map[util.Uint160]int),
 		getContract: getContract,
 		baseExecFee: baseExecFee,
 	}

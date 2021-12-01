@@ -22,8 +22,10 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/fee"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/io"
@@ -38,6 +40,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -878,6 +881,48 @@ var rpcTestCases = map[string][]rpcTestCase{
 			},
 		},
 		{
+			name:   "positive, verbose",
+			params: `["` + NNSHash.StringLE() + `", "resolve", [{"type":"String", "value":"neo.com"},{"type":"Integer","value":1}], [], true]`,
+			result: func(e *executor) interface{} {
+				script := []byte{0x11, 0xc, 0x7, 0x6e, 0x65, 0x6f, 0x2e, 0x63, 0x6f, 0x6d, 0x12, 0xc0, 0x1f, 0xc, 0x7, 0x72, 0x65, 0x73, 0x6f, 0x6c, 0x76, 0x65, 0xc, 0x14, 0xdc, 0xe2, 0xd3, 0xba, 0xe, 0xbb, 0xa9, 0xf4, 0x44, 0xac, 0xbf, 0x50, 0x8, 0x76, 0xfd, 0x7c, 0x3e, 0x2b, 0x60, 0x3a, 0x41, 0x62, 0x7d, 0x5b, 0x52}
+				stdHash, _ := e.chain.GetNativeContractScriptHash(nativenames.StdLib)
+				cryptoHash, _ := e.chain.GetNativeContractScriptHash(nativenames.CryptoLib)
+				return &result.Invoke{
+					State:       "HALT",
+					GasConsumed: 17958510,
+					Script:      script,
+					Stack:       []stackitem.Item{stackitem.Make("1.2.3.4")},
+					Diagnostics: &result.InvokeDiag{
+						Invocations: []*vm.InvocationTree{{
+							Current: hash.Hash160(script),
+							Calls: []*vm.InvocationTree{
+								{
+									Current: NNSHash,
+									Calls: []*vm.InvocationTree{
+										{
+											Current: stdHash,
+										},
+										{
+											Current: cryptoHash,
+										},
+										{
+											Current: stdHash,
+										},
+										{
+											Current: cryptoHash,
+										},
+										{
+											Current: cryptoHash,
+										},
+									},
+								},
+							},
+						}},
+					},
+				}
+			},
+		},
+		{
 			name:   "no params",
 			params: `[]`,
 			fail:   true,
@@ -909,6 +954,25 @@ var rpcTestCases = map[string][]rpcTestCase{
 				assert.NotEqual(t, "", res.Script)
 				assert.NotEqual(t, "", res.State)
 				assert.NotEqual(t, 0, res.GasConsumed)
+			},
+		},
+		{
+			name:   "positive,verbose",
+			params: `["UcVrDUhlbGxvLCB3b3JsZCFoD05lby5SdW50aW1lLkxvZ2FsdWY=",[],true]`,
+			result: func(e *executor) interface{} {
+				script := []byte{0x51, 0xc5, 0x6b, 0xd, 0x48, 0x65, 0x6c, 0x6c, 0x6f, 0x2c, 0x20, 0x77, 0x6f, 0x72, 0x6c, 0x64, 0x21, 0x68, 0xf, 0x4e, 0x65, 0x6f, 0x2e, 0x52, 0x75, 0x6e, 0x74, 0x69, 0x6d, 0x65, 0x2e, 0x4c, 0x6f, 0x67, 0x61, 0x6c, 0x75, 0x66}
+				return &result.Invoke{
+					State:          "FAULT",
+					GasConsumed:    60,
+					Script:         script,
+					Stack:          []stackitem.Item{},
+					FaultException: "at instruction 0 (ROT): too big index",
+					Diagnostics: &result.InvokeDiag{
+						Invocations: []*vm.InvocationTree{{
+							Current: hash.Hash160(script),
+						}},
+					},
+				}
 			},
 		},
 		{

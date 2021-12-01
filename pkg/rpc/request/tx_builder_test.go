@@ -27,9 +27,6 @@ func TestInvocationScriptCreationGood(t *testing.T) {
 		ps:     Params{{RawMessage: []byte(`42`)}},
 		script: "c21f0c0234320c146f459162ceeb248b071ec157d9e4f6fd26fdbe5041627d5b52",
 	}, {
-		ps:     Params{{RawMessage: []byte(`"m"`)}, {RawMessage: []byte(`true`)}},
-		script: "11db201f0c016d0c146f459162ceeb248b071ec157d9e4f6fd26fdbe5041627d5b52",
-	}, {
 		ps:     Params{{RawMessage: []byte(`"a"`)}, {RawMessage: []byte(`[]`)}},
 		script: "10c01f0c01610c146f459162ceeb248b071ec157d9e4f6fd26fdbe5041627d5b52",
 	}, {
@@ -72,7 +69,11 @@ func TestInvocationScriptCreationGood(t *testing.T) {
 	for i, ps := range paramScripts {
 		method, err := ps.ps[0].GetString()
 		require.NoError(t, err, fmt.Sprintf("testcase #%d", i))
-		script, err := CreateFunctionInvocationScript(contract, method, ps.ps[1:])
+		var p *Param
+		if len(ps.ps) > 1 {
+			p = &ps.ps[1]
+		}
+		script, err := CreateFunctionInvocationScript(contract, method, p)
 		assert.Nil(t, err)
 		assert.Equal(t, ps.script, hex.EncodeToString(script), fmt.Sprintf("testcase #%d", i))
 	}
@@ -81,18 +82,19 @@ func TestInvocationScriptCreationGood(t *testing.T) {
 func TestInvocationScriptCreationBad(t *testing.T) {
 	contract := util.Uint160{}
 
-	var testParams = []Params{
-		{{RawMessage: []byte(`[{"type": "ByteArray", "value": "qwerty"}]`)}},
-		{{RawMessage: []byte(`[{"type": "Signature", "value": "qwerty"}]`)}},
-		{{RawMessage: []byte(`[{"type": "Hash160", "value": "qwerty"}]`)}},
-		{{RawMessage: []byte(`[{"type": "Hash256", "value": "qwerty"}]`)}},
-		{{RawMessage: []byte(`[{"type": "PublicKey", "value": 42}]`)}},
-		{{RawMessage: []byte(`[{"type": "PublicKey", "value": "qwerty"}]`)}},
-		{{RawMessage: []byte(`[{"type": "Integer", "value": "123q"}]`)}},
-		{{RawMessage: []byte(`[{"type": "Unknown"}]`)}},
+	var testParams = []Param{
+		{RawMessage: []byte(`true`)},
+		{RawMessage: []byte(`[{"type": "ByteArray", "value": "qwerty"}]`)},
+		{RawMessage: []byte(`[{"type": "Signature", "value": "qwerty"}]`)},
+		{RawMessage: []byte(`[{"type": "Hash160", "value": "qwerty"}]`)},
+		{RawMessage: []byte(`[{"type": "Hash256", "value": "qwerty"}]`)},
+		{RawMessage: []byte(`[{"type": "PublicKey", "value": 42}]`)},
+		{RawMessage: []byte(`[{"type": "PublicKey", "value": "qwerty"}]`)},
+		{RawMessage: []byte(`[{"type": "Integer", "value": "123q"}]`)},
+		{RawMessage: []byte(`[{"type": "Unknown"}]`)},
 	}
 	for i, ps := range testParams {
-		_, err := CreateFunctionInvocationScript(contract, "", ps)
+		_, err := CreateFunctionInvocationScript(contract, "", &ps)
 		assert.NotNil(t, err, fmt.Sprintf("testcase #%d", i))
 	}
 }

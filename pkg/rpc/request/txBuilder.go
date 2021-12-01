@@ -3,7 +3,6 @@ package request
 import (
 	"errors"
 	"fmt"
-	"strconv"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/io"
@@ -103,28 +102,19 @@ func ExpandArrayIntoScript(script *io.BinWriter, slice []Param) error {
 
 // CreateFunctionInvocationScript creates a script to invoke given contract with
 // given parameters.
-func CreateFunctionInvocationScript(contract util.Uint160, method string, params Params) ([]byte, error) {
+func CreateFunctionInvocationScript(contract util.Uint160, method string, param *Param) ([]byte, error) {
 	script := io.NewBufBinWriter()
-	for i := len(params) - 1; i >= 0; i-- {
-		if slice, err := params[i].GetArray(); err == nil {
-			err = ExpandArrayIntoScript(script.BinWriter, slice)
-			if err != nil {
-				return nil, err
-			}
-			emit.Int(script.BinWriter, int64(len(slice)))
-			emit.Opcodes(script.BinWriter, opcode.PACK)
-		} else if s, err := params[i].GetStringStrict(); err == nil {
-			emit.String(script.BinWriter, s)
-		} else if n, err := params[i].GetIntStrict(); err == nil {
-			emit.String(script.BinWriter, strconv.Itoa(n))
-		} else if b, err := params[i].GetBooleanStrict(); err == nil {
-			emit.Bool(script.BinWriter, b)
-		} else {
-			return nil, fmt.Errorf("failed to convert parmeter %s to script parameter", params[i])
-		}
-	}
-	if len(params) == 0 {
+	if param == nil {
 		emit.Opcodes(script.BinWriter, opcode.NEWARRAY0)
+	} else if slice, err := param.GetArray(); err == nil {
+		err = ExpandArrayIntoScript(script.BinWriter, slice)
+		if err != nil {
+			return nil, err
+		}
+		emit.Int(script.BinWriter, int64(len(slice)))
+		emit.Opcodes(script.BinWriter, opcode.PACK)
+	} else {
+		return nil, fmt.Errorf("failed to convert %s to script parameter", param)
 	}
 
 	emit.AppCallNoArgs(script.BinWriter, contract, method, callflag.All)

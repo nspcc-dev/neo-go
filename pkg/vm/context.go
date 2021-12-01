@@ -48,42 +48,28 @@ type Context struct {
 	// Call flags this context was created with.
 	callFlag callflag.CallFlag
 
-	// ParamCount specifies number of parameters.
-	ParamCount int
-	// RetCount specifies number of return values.
-	RetCount int
+	// retCount specifies number of return values.
+	retCount int
 	// NEF represents NEF file for the current contract.
 	NEF *nef.File
+	// invTree is an invocation tree (or branch of it) for this context.
+	invTree *InvocationTree
 }
-
-// CheckReturnState represents possible states of stack after opcode.RET was processed.
-type CheckReturnState byte
-
-const (
-	// NoCheck performs no return values check.
-	NoCheck CheckReturnState = 0
-	// EnsureIsEmpty checks that stack is empty and panics if not.
-	EnsureIsEmpty CheckReturnState = 1
-	// EnsureNotEmpty checks that stack contains not more than 1 element and panics if not.
-	// It pushes stackitem.Null on stack in case if there's no elements.
-	EnsureNotEmpty CheckReturnState = 2
-)
 
 var errNoInstParam = errors.New("failed to read instruction parameter")
 
 // NewContext returns a new Context object.
 func NewContext(b []byte) *Context {
-	return NewContextWithParams(b, 0, -1, 0)
+	return NewContextWithParams(b, -1, 0)
 }
 
 // NewContextWithParams creates new Context objects using script, parameter count,
 // return value count and initial position in script.
-func NewContextWithParams(b []byte, pcount int, rvcount int, pos int) *Context {
+func NewContextWithParams(b []byte, rvcount int, pos int) *Context {
 	return &Context{
-		prog:       b,
-		ParamCount: pcount,
-		RetCount:   rvcount,
-		nextip:     pos,
+		prog:     b,
+		retCount: rvcount,
+		nextip:   pos,
 	}
 }
 
@@ -95,6 +81,11 @@ func (c *Context) Estack() *Stack {
 // NextIP returns next instruction pointer.
 func (c *Context) NextIP() int {
 	return c.nextip
+}
+
+// Jump unconditionally moves the next instruction pointer to specified location.
+func (c *Context) Jump(pos int) {
+	c.nextip = pos
 }
 
 // Next returns the next instruction to execute with its parameter if any.

@@ -86,8 +86,8 @@ type VM struct {
 
 	trigger trigger.Type
 
-	// Invocations is a script invocation counter.
-	Invocations map[util.Uint160]int
+	// invTree is a top-level invocation tree (if enabled).
+	invTree *InvocationTree
 }
 
 // New returns a new VM object ready to load AVM bytecode scripts.
@@ -102,7 +102,6 @@ func NewWithTrigger(t trigger.Type) *VM {
 		trigger: t,
 
 		SyscallHandler: defaultSyscallHandler,
-		Invocations:    make(map[util.Uint160]int),
 	}
 
 	initStack(&vm.istack, "invocation", nil)
@@ -135,16 +134,6 @@ func (v *VM) Estack() *Stack {
 // Istack returns the invocation stack so interop hooks can utilize this.
 func (v *VM) Istack() *Stack {
 	return &v.istack
-}
-
-// LoadArgs loads in the arguments used in the Mian entry point.
-func (v *VM) LoadArgs(method []byte, args []stackitem.Item) {
-	if len(args) > 0 {
-		v.estack.PushVal(args)
-	}
-	if method != nil {
-		v.estack.PushVal(method)
-	}
 }
 
 // PrintOps prints the opcodes of the current loaded program to stdout.
@@ -254,6 +243,16 @@ func (v *VM) LoadFileWithFlags(path string, f callflag.CallFlag) error {
 	return nil
 }
 
+// CollectInvocationTree enables collecting invocation tree data.
+func (v *VM) EnableInvocationTree() {
+	v.invTree = &InvocationTree{}
+}
+
+// GetInvocationTree returns current invocation tree structure.
+func (v *VM) GetInvocationTree() *InvocationTree {
+	return v.invTree
+}
+
 // Load initializes the VM with the program given.
 func (v *VM) Load(prog []byte) {
 	v.LoadWithFlags(prog, callflag.NoneFlag)
@@ -266,6 +265,7 @@ func (v *VM) LoadWithFlags(prog []byte, f callflag.CallFlag) {
 	v.estack.Clear()
 	v.state = NoneState
 	v.gasConsumed = 0
+	v.invTree = nil
 	v.LoadScriptWithFlags(prog, f)
 }
 
@@ -278,15 +278,7 @@ func (v *VM) LoadScript(b []byte) {
 
 // LoadScriptWithFlags loads script and sets call flag to f.
 func (v *VM) LoadScriptWithFlags(b []byte, f callflag.CallFlag) {
-	v.checkInvocationStackSize()
-	ctx := NewContextWithParams(b, 0, -1, 0)
-	v.estack = newStack("evaluation", &v.refs)
-	ctx.estack = v.estack
-	initStack(&ctx.tryStack, "exception", nil)
-	ctx.callFlag = f
-	ctx.static = newSlot(&v.refs)
-	ctx.callingScriptHash = v.GetCurrentScriptHash()
-	v.istack.PushItem(ctx)
+	v.loadScriptWithCallingHash(b, nil, v.GetCurrentScriptHash(), util.Uint160{}, f, -1, 0)
 }
 
 // LoadScriptWithHash if similar to the LoadScriptWithFlags method, but it also loads
@@ -296,24 +288,49 @@ func (v *VM) LoadScriptWithFlags(b []byte, f callflag.CallFlag) {
 // accordingly). It's up to user of this function to make sure the script and hash match
 // each other.
 func (v *VM) LoadScriptWithHash(b []byte, hash util.Uint160, f callflag.CallFlag) {
-	shash := v.GetCurrentScriptHash()
-	v.LoadScriptWithCallingHash(shash, b, hash, f, true, 0)
+	v.loadScriptWithCallingHash(b, nil, v.GetCurrentScriptHash(), hash, f, 1, 0)
 }
 
-// LoadScriptWithCallingHash is similar to LoadScriptWithHash but sets calling hash explicitly.
+// LoadNEFMethod allows to create a context to execute a method from the NEF
+// file with specified caller and executing hash, call flags, return value,
+// method and _initialize offsets.
+func (v *VM) LoadNEFMethod(exe *nef.File, caller util.Uint160, hash util.Uint160, f callflag.CallFlag,
+	hasReturn bool, methodOff int, initOff int) {
+	var rvcount int
+	if hasReturn {
+		rvcount = 1
+	}
+	v.loadScriptWithCallingHash(exe.Script, exe, caller, hash, f, rvcount, methodOff)
+	if initOff >= 0 {
+		v.Call(initOff)
+	}
+}
+
+// loadScriptWithCallingHash is similar to LoadScriptWithHash but sets calling hash explicitly.
 // It should be used for calling from native contracts.
-func (v *VM) LoadScriptWithCallingHash(caller util.Uint160, b []byte, hash util.Uint160,
-	f callflag.CallFlag, hasReturn bool, paramCount uint16) {
-	v.LoadScriptWithFlags(b, f)
-	ctx := v.Context()
+func (v *VM) loadScriptWithCallingHash(b []byte, exe *nef.File, caller util.Uint160,
+	hash util.Uint160, f callflag.CallFlag, rvcount int, offset int) {
+	v.checkInvocationStackSize()
+	ctx := NewContextWithParams(b, rvcount, offset)
+	v.estack = newStack("evaluation", &v.refs)
+	ctx.estack = v.estack
+	initStack(&ctx.tryStack, "exception", nil)
+	ctx.callFlag = f
+	ctx.static = newSlot(&v.refs)
 	ctx.scriptHash = hash
 	ctx.callingScriptHash = caller
-	if hasReturn {
-		ctx.RetCount = 1
-	} else {
-		ctx.RetCount = 0
+	ctx.NEF = exe
+	if v.invTree != nil {
+		curTree := v.invTree
+		parent := v.Context()
+		if parent != nil {
+			curTree = parent.invTree
+		}
+		newTree := &InvocationTree{Current: ctx.ScriptHash()}
+		curTree.Calls = append(curTree.Calls, newTree)
+		ctx.invTree = newTree
 	}
-	ctx.ParamCount = int(paramCount)
+	v.istack.PushItem(ctx)
 }
 
 // Context returns the current executed context. Nil if there is no context,
@@ -1321,7 +1338,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		}
 
 		if cond {
-			v.Jump(ctx, offset)
+			ctx.Jump(offset)
 		}
 
 	case opcode.CALL, opcode.CALLL:
@@ -1362,9 +1379,9 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 
 		newEstack := v.Context().estack
 		if oldEstack != newEstack {
-			if oldCtx.RetCount >= 0 && oldEstack.Len() != oldCtx.RetCount {
+			if oldCtx.retCount >= 0 && oldEstack.Len() != oldCtx.retCount {
 				panic(fmt.Errorf("invalid return values count: expected %d, got %d",
-					oldCtx.RetCount, oldEstack.Len()))
+					oldCtx.retCount, oldEstack.Len()))
 			}
 			rvcount := oldEstack.Len()
 			for i := rvcount; i > 0; i-- {
@@ -1492,7 +1509,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		} else {
 			ctx.tryStack.Pop()
 		}
-		v.Jump(ctx, eOffset)
+		ctx.Jump(eOffset)
 
 	case opcode.ENDFINALLY:
 		if v.uncaughtException != nil {
@@ -1500,7 +1517,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			return
 		}
 		eCtx := ctx.tryStack.Pop().Value().(*exceptionHandlingContext)
-		v.Jump(ctx, eCtx.EndOffset)
+		ctx.Jump(eCtx.EndOffset)
 
 	default:
 		panic(fmt.Sprintf("unknown opcode %s", op.String()))
@@ -1556,17 +1573,9 @@ func (v *VM) throw(item stackitem.Item) {
 	v.handleException()
 }
 
-// Jump performs jump to the offset.
-func (v *VM) Jump(ctx *Context, offset int) {
-	ctx.nextip = offset
-}
-
-// Call calls method by offset. It is similar to Jump but also
-// pushes new context to the invocation stack and increments
-// invocation counter for the corresponding context script hash.
-func (v *VM) Call(ctx *Context, offset int) {
-	v.call(ctx, offset)
-	v.Invocations[ctx.ScriptHash()]++
+// Call calls method by offset using new execution context.
+func (v *VM) Call(offset int) {
+	v.call(v.Context(), offset)
 }
 
 // call is an internal representation of Call, which does not
@@ -1575,13 +1584,13 @@ func (v *VM) Call(ctx *Context, offset int) {
 func (v *VM) call(ctx *Context, offset int) {
 	v.checkInvocationStackSize()
 	newCtx := ctx.Copy()
-	newCtx.RetCount = -1
+	newCtx.retCount = -1
 	newCtx.local = nil
 	newCtx.arguments = nil
 	initStack(&newCtx.tryStack, "exception", nil)
 	newCtx.NEF = ctx.NEF
 	v.istack.PushItem(newCtx)
-	v.Jump(newCtx, offset)
+	newCtx.Jump(offset)
 }
 
 // getJumpOffset returns instruction number in a current context
@@ -1637,10 +1646,10 @@ func (v *VM) handleException() {
 				ectx.State = eCatch
 				v.estack.PushItem(v.uncaughtException)
 				v.uncaughtException = nil
-				v.Jump(ictx, ectx.CatchOffset)
+				ictx.Jump(ectx.CatchOffset)
 			} else {
 				ectx.State = eFinally
-				v.Jump(ictx, ectx.FinallyOffset)
+				ictx.Jump(ectx.FinallyOffset)
 			}
 			return
 		}

@@ -42,7 +42,12 @@ func eval(t *testing.T, src string, result interface{}) {
 
 func evalWithArgs(t *testing.T, src string, op []byte, args []stackitem.Item, result interface{}) {
 	vm := vmAndCompile(t, src)
-	vm.LoadArgs(op, args)
+	if len(args) > 0 {
+		vm.Estack().PushVal(args)
+	}
+	if op != nil {
+		vm.Estack().PushVal(op)
+	}
 	err := vm.Run()
 	require.NoError(t, err)
 	assert.Equal(t, 1, vm.Estack().Len(), "stack contains unexpected items")
@@ -87,9 +92,9 @@ func invokeMethod(t *testing.T, method string, script []byte, v *vm.VM, di *comp
 	}
 	require.True(t, mainOffset >= 0)
 	v.LoadScriptWithFlags(script, callflag.All)
-	v.Jump(v.Context(), mainOffset)
+	v.Context().Jump(mainOffset)
 	if initOffset >= 0 {
-		v.Call(v.Context(), initOffset)
+		v.Call(initOffset)
 	}
 }
 

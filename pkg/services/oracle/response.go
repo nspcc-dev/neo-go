@@ -141,7 +141,7 @@ func (o *Oracle) testVerify(tx *transaction.Transaction) (int64, bool) {
 	v, finalize := o.Chain.GetTestVM(trigger.Verification, &cp, nil)
 	v.GasLimit = o.Chain.GetPolicer().GetMaxVerificationGAS()
 	v.LoadScriptWithHash(o.oracleScript, o.oracleHash, callflag.ReadOnly)
-	v.Jump(v.Context(), o.verifyOffset)
+	v.Context().Jump(o.verifyOffset)
 
 	ok := isVerifyOk(v, finalize)
 	return v.GasConsumed(), ok
