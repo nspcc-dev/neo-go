@@ -42,7 +42,7 @@ var ErrTooDeep = errors.New("too deep")
 //   Array, Struct -> array
 //   Map -> map with keys as UTF-8 bytes
 func ToJSON(item Item) ([]byte, error) {
-	seen := make(map[Item]sliceNoPointer)
+	seen := make(map[Item]sliceNoPointer, typicalNumOfItems)
 	return toJSON(nil, seen, item)
 }
 
@@ -260,7 +260,7 @@ func (d *decoder) decodeMap() (*Map, error) {
 
 // ToJSONWithTypes serializes any stackitem to JSON in a lossless way.
 func ToJSONWithTypes(item Item) ([]byte, error) {
-	result, err := toJSONWithTypes(item, make(map[Item]bool))
+	result, err := toJSONWithTypes(item, make(map[Item]bool, typicalNumOfItems))
 	if err != nil {
 		return nil, err
 	}

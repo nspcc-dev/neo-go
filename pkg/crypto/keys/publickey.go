@@ -29,6 +29,9 @@ const SignatureLen = 64
 // PublicKeys is a list of public keys.
 type PublicKeys []*PublicKey
 
+var big0 = big.NewInt(0)
+var big3 = big.NewInt(3)
+
 func (keys PublicKeys) Len() int      { return len(keys) }
 func (keys PublicKeys) Swap(i, j int) { keys[i], keys[j] = keys[j], keys[i] }
 func (keys PublicKeys) Less(i, j int) bool {
@@ -189,12 +192,12 @@ func decodeCompressedY(x *big.Int, ylsb uint, curve elliptic.Curve) (*big.Int, e
 	var a *big.Int
 	switch curve.(type) {
 	case *btcec.KoblitzCurve:
-		a = big.NewInt(0)
+		a = big0
 	default:
-		a = big.NewInt(3)
+		a = big3
 	}
 	cp := curve.Params()
-	xCubed := new(big.Int).Exp(x, big.NewInt(3), cp.P)
+	xCubed := new(big.Int).Exp(x, big3, cp.P)
 	aX := new(big.Int).Mul(x, a)
 	aX.Mod(aX, cp.P)
 	ySquared := new(big.Int).Sub(xCubed, aX)

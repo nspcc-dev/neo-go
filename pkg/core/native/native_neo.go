@@ -90,6 +90,12 @@ const (
 var (
 	// prefixCommittee is a key used to store committee.
 	prefixCommittee = []byte{14}
+
+	bigCommitteeRewardRatio  = big.NewInt(committeeRewardRatio)
+	bigVoterRewardRatio      = big.NewInt(voterRewardRatio)
+	bigVoterRewardFactor     = big.NewInt(voterRewardFactor)
+	bigEffectiveVoterTurnout = big.NewInt(effectiveVoterTurnout)
+	big100                   = big.NewInt(100)
 )
 
 // makeValidatorKey creates a key from account script hash.
@@ -316,24 +322,26 @@ func (n *NEO) PostPersist(ic *interop.Context) error {
 	pubs := n.GetCommitteeMembers()
 	committeeSize := len(ic.Chain.GetConfig().StandbyCommittee)
 	index := int(ic.Block.Index) % committeeSize
-	committeeReward := new(big.Int).Mul(gas, big.NewInt(committeeRewardRatio))
-	n.GAS.mint(ic, pubs[index].GetScriptHash(), committeeReward.Div(committeeReward, big.NewInt(100)), false)
+	committeeReward := new(big.Int).Mul(gas, bigCommitteeRewardRatio)
+	n.GAS.mint(ic, pubs[index].GetScriptHash(), committeeReward.Div(committeeReward, big100), false)
 
 	if ShouldUpdateCommittee(ic.Block.Index, ic.Chain) {
-		var voterReward = big.NewInt(voterRewardRatio)
+		var voterReward = new(big.Int).Set(bigVoterRewardRatio)
 		voterReward.Mul(voterReward, gas)
 		voterReward.Mul(voterReward, big.NewInt(voterRewardFactor*int64(committeeSize)))
 		var validatorsCount = ic.Chain.GetConfig().ValidatorsCount
 		voterReward.Div(voterReward, big.NewInt(int64(committeeSize+validatorsCount)))
-		voterReward.Div(voterReward, big.NewInt(100))
+		voterReward.Div(voterReward, big100)
 
 		var cs = n.committee.Load().(keysWithVotes)
 		var key = make([]byte, 38)
 		for i := range cs {
 			if cs[i].Votes.Sign() > 0 {
-				tmp := big.NewInt(1)
+				var tmp = new(big.Int)
 				if i < validatorsCount {
-					tmp = big.NewInt(2)
+					tmp.Set(intTwo)
+				} else {
+					tmp.Set(intOne)
 				}
 				tmp.Mul(tmp, voterReward)
 				tmp.Div(tmp, cs[i].Votes)
@@ -633,7 +641,7 @@ func (n *NEO) calculateBonus(d dao.DAO, vote *keys.PublicKey, value *big.Int, st
 	var reward = n.getGASPerVote(d, key, start, end)
 	var tmp = new(big.Int).Sub(&reward[1], &reward[0])
 	tmp.Mul(tmp, value)
-	tmp.Div(tmp, big.NewInt(voterRewardFactor))
+	tmp.Div(tmp, bigVoterRewardFactor)
 	tmp.Add(tmp, r)
 	return tmp, nil
 }
@@ -982,7 +990,7 @@ func (n *NEO) computeCommitteeMembers(bc blockchainer.Blockchainer, d dao.DAO) (
 	}
 	votersCount := bigint.FromBytes(si)
 	// votersCount / totalSupply must be >= 0.2
-	votersCount.Mul(votersCount, big.NewInt(effectiveVoterTurnout))
+	votersCount.Mul(votersCount, bigEffectiveVoterTurnout)
 	_, totalSupply := n.getTotalSupply(d)
 	voterTurnout := votersCount.Div(votersCount, totalSupply)
 

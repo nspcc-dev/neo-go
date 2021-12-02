@@ -6,6 +6,7 @@ require (
 	github.com/btcsuite/btcd v0.22.0-beta
 	github.com/gorilla/websocket v1.4.2
 	github.com/hashicorp/golang-lru v0.5.4
+	github.com/holiman/uint256 v1.2.0
 	github.com/mr-tron/base58 v1.2.0
 	github.com/nspcc-dev/dbft v0.0.0-20210721160347-1b03241391ac
 	github.com/nspcc-dev/go-ordered-json v0.0.0-20210915112629-e1b6cce73d02

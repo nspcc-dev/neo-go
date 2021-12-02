@@ -13,6 +13,12 @@ import (
 // (including itself).
 const MaxDeserialized = 2048
 
+// typicalNumOfItems is the number of items covering most serializaton needs.
+// It's a hint used for map creation, so it's not limiting anything, it's just
+// a microoptimization to avoid excessive reallocations. Most of the serialized
+// items are structs, so there is at least one of them.
+const typicalNumOfItems = 4
+
 // ErrRecursive is returned on attempts to serialize some recursive stack item
 // (like array including an item with reference to the same array).
 var ErrRecursive = errors.New("recursive item")
@@ -40,7 +46,7 @@ type deserContext struct {
 func Serialize(item Item) ([]byte, error) {
 	sc := serContext{
 		allowInvalid: false,
-		seen:         make(map[Item]sliceNoPointer),
+		seen:         make(map[Item]sliceNoPointer, typicalNumOfItems),
 	}
 	err := sc.serialize(item)
 	if err != nil {
@@ -69,7 +75,7 @@ func EncodeBinary(item Item, w *io.BinWriter) {
 func EncodeBinaryProtected(item Item, w *io.BinWriter) {
 	sc := serContext{
 		allowInvalid: true,
-		seen:         make(map[Item]sliceNoPointer),
+		seen:         make(map[Item]sliceNoPointer, typicalNumOfItems),
 	}
 	err := sc.serialize(item)
 	if err != nil {
@@ -77,6 +83,18 @@ func EncodeBinaryProtected(item Item, w *io.BinWriter) {
 		return
 	}
 	w.WriteBytes(sc.data)
+}
+
+func (w *serContext) writeArray(item Item, arr []Item, start int) error {
+	w.seen[item] = sliceNoPointer{}
+	w.appendVarUint(uint64(len(arr)))
+	for i := range arr {
+		if err := w.serialize(arr[i]); err != nil {
+			return err
+		}
+	}
+	w.seen[item] = sliceNoPointer{start, len(w.data)}
+	return nil
 }
 
 func (w *serContext) serialize(item Item) error {
@@ -121,28 +139,20 @@ func (w *serContext) serialize(item Item) error {
 		} else {
 			return fmt.Errorf("%w: Interop", ErrUnserializable)
 		}
-	case *Array, *Struct:
-		w.seen[item] = sliceNoPointer{}
-
-		_, isArray := t.(*Array)
-		if isArray {
-			w.data = append(w.data, byte(ArrayT))
-		} else {
-			w.data = append(w.data, byte(StructT))
+	case *Array:
+		w.data = append(w.data, byte(ArrayT))
+		if err := w.writeArray(item, t.value, start); err != nil {
+			return err
 		}
-
-		arr := t.Value().([]Item)
-		w.appendVarUint(uint64(len(arr)))
-		for i := range arr {
-			if err := w.serialize(arr[i]); err != nil {
-				return err
-			}
+	case *Struct:
+		w.data = append(w.data, byte(StructT))
+		if err := w.writeArray(item, t.value, start); err != nil {
+			return err
 		}
-		w.seen[item] = sliceNoPointer{start, len(w.data)}
 	case *Map:
 		w.seen[item] = sliceNoPointer{}
 
-		elems := t.Value().([]MapElement)
+		elems := t.value
 		w.data = append(w.data, byte(MapT))
 		w.appendVarUint(uint64(len(elems)))
 		for i := range elems {

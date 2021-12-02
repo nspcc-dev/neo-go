@@ -32,9 +32,9 @@ type Context struct {
 	// Evaluation stack pointer.
 	estack *Stack
 
-	static    *Slot
-	local     *Slot
-	arguments *Slot
+	static    *slot
+	local     slot
+	arguments slot
 
 	// Exception context stack.
 	tryStack Stack
@@ -277,16 +277,19 @@ func (c *Context) DumpStaticSlot() string {
 
 // DumpLocalSlot returns json formatted representation of the given slot.
 func (c *Context) DumpLocalSlot() string {
-	return dumpSlot(c.local)
+	return dumpSlot(&c.local)
 }
 
 // DumpArgumentsSlot returns json formatted representation of the given slot.
 func (c *Context) DumpArgumentsSlot() string {
-	return dumpSlot(c.arguments)
+	return dumpSlot(&c.arguments)
 }
 
 // dumpSlot returns json formatted representation of the given slot.
-func dumpSlot(s *Slot) string {
+func dumpSlot(s *slot) string {
+	if s == nil || *s == nil {
+		return "[]"
+	}
 	b, _ := json.MarshalIndent(s, "", "    ")
 	return string(b)
 }

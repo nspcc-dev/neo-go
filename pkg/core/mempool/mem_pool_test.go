@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/holiman/uint256"
 	"github.com/nspcc-dev/neo-go/internal/random"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/network/payload"
@@ -268,8 +269,8 @@ func TestMemPoolFees(t *testing.T) {
 	require.NoError(t, mp.Add(tx1, fs))
 	require.Equal(t, 1, len(mp.fees))
 	require.Equal(t, utilityBalanceAndFees{
-		balance: big.NewInt(fs.balance),
-		feeSum:  big.NewInt(tx1.NetworkFee),
+		balance: *uint256.NewInt(uint64(fs.balance)),
+		feeSum:  *uint256.NewInt(uint64(tx1.NetworkFee)),
 	}, mp.fees[sender0])
 
 	// balance shouldn't change after adding one more transaction
@@ -280,8 +281,8 @@ func TestMemPoolFees(t *testing.T) {
 	require.Equal(t, 2, len(mp.verifiedTxes))
 	require.Equal(t, 1, len(mp.fees))
 	require.Equal(t, utilityBalanceAndFees{
-		balance: big.NewInt(fs.balance),
-		feeSum:  big.NewInt(fs.balance),
+		balance: *uint256.NewInt(uint64(fs.balance)),
+		feeSum:  *uint256.NewInt(uint64(fs.balance)),
 	}, mp.fees[sender0])
 
 	// can't add more transactions as we don't have enough GAS
@@ -292,8 +293,8 @@ func TestMemPoolFees(t *testing.T) {
 	require.Error(t, mp.Add(tx3, fs))
 	require.Equal(t, 1, len(mp.fees))
 	require.Equal(t, utilityBalanceAndFees{
-		balance: big.NewInt(fs.balance),
-		feeSum:  big.NewInt(fs.balance),
+		balance: *uint256.NewInt(uint64(fs.balance)),
+		feeSum:  *uint256.NewInt(uint64(fs.balance)),
 	}, mp.fees[sender0])
 
 	// check whether sender's fee updates correctly
@@ -302,8 +303,8 @@ func TestMemPoolFees(t *testing.T) {
 	}, fs)
 	require.Equal(t, 1, len(mp.fees))
 	require.Equal(t, utilityBalanceAndFees{
-		balance: big.NewInt(fs.balance),
-		feeSum:  big.NewInt(tx2.NetworkFee),
+		balance: *uint256.NewInt(uint64(fs.balance)),
+		feeSum:  *uint256.NewInt(uint64(tx2.NetworkFee)),
 	}, mp.fees[sender0])
 
 	// there should be nothing left

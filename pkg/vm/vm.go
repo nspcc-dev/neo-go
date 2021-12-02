@@ -90,6 +90,8 @@ type VM struct {
 	invTree *InvocationTree
 }
 
+var bigOne = big.NewInt(1)
+
 // New returns a new VM object ready to load AVM bytecode scripts.
 func New() *VM {
 	return NewWithTrigger(trigger.Application)
@@ -105,6 +107,7 @@ func NewWithTrigger(t trigger.Type) *VM {
 	}
 
 	initStack(&vm.istack, "invocation", nil)
+	vm.istack.elems = make([]Element, 0, 8) // Most of invocations use one-two contracts, but they're likely to have internal calls.
 	vm.estack = newStack("evaluation", &vm.refs)
 	return vm
 }
@@ -310,13 +313,15 @@ func (v *VM) LoadNEFMethod(exe *nef.File, caller util.Uint160, hash util.Uint160
 // It should be used for calling from native contracts.
 func (v *VM) loadScriptWithCallingHash(b []byte, exe *nef.File, caller util.Uint160,
 	hash util.Uint160, f callflag.CallFlag, rvcount int, offset int) {
+	var sl slot
+
 	v.checkInvocationStackSize()
 	ctx := NewContextWithParams(b, rvcount, offset)
 	v.estack = newStack("evaluation", &v.refs)
 	ctx.estack = v.estack
 	initStack(&ctx.tryStack, "exception", nil)
 	ctx.callFlag = f
-	ctx.static = newSlot(&v.refs)
+	ctx.static = &sl
 	ctx.scriptHash = hash
 	ctx.callingScriptHash = caller
 	ctx.NEF = exe
@@ -615,13 +620,13 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			panic("zero argument")
 		}
 		if parameter[0] > 0 {
-			ctx.local = v.newSlot(int(parameter[0]))
+			ctx.local.init(int(parameter[0]))
 		}
 		if parameter[1] > 0 {
 			sz := int(parameter[1])
-			ctx.arguments = v.newSlot(sz)
+			ctx.arguments.init(sz)
 			for i := 0; i < sz; i++ {
-				ctx.arguments.Set(i, v.estack.Pop().Item())
+				ctx.arguments.Set(i, v.estack.Pop().Item(), &v.refs)
 			}
 		}
 
@@ -635,11 +640,11 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 
 	case opcode.STSFLD0, opcode.STSFLD1, opcode.STSFLD2, opcode.STSFLD3, opcode.STSFLD4, opcode.STSFLD5, opcode.STSFLD6:
 		item := v.estack.Pop().Item()
-		ctx.static.Set(int(op-opcode.STSFLD0), item)
+		ctx.static.Set(int(op-opcode.STSFLD0), item, &v.refs)
 
 	case opcode.STSFLD:
 		item := v.estack.Pop().Item()
-		ctx.static.Set(int(parameter[0]), item)
+		ctx.static.Set(int(parameter[0]), item, &v.refs)
 
 	case opcode.LDLOC0, opcode.LDLOC1, opcode.LDLOC2, opcode.LDLOC3, opcode.LDLOC4, opcode.LDLOC5, opcode.LDLOC6:
 		item := ctx.local.Get(int(op - opcode.LDLOC0))
@@ -651,11 +656,11 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 
 	case opcode.STLOC0, opcode.STLOC1, opcode.STLOC2, opcode.STLOC3, opcode.STLOC4, opcode.STLOC5, opcode.STLOC6:
 		item := v.estack.Pop().Item()
-		ctx.local.Set(int(op-opcode.STLOC0), item)
+		ctx.local.Set(int(op-opcode.STLOC0), item, &v.refs)
 
 	case opcode.STLOC:
 		item := v.estack.Pop().Item()
-		ctx.local.Set(int(parameter[0]), item)
+		ctx.local.Set(int(parameter[0]), item, &v.refs)
 
 	case opcode.LDARG0, opcode.LDARG1, opcode.LDARG2, opcode.LDARG3, opcode.LDARG4, opcode.LDARG5, opcode.LDARG6:
 		item := ctx.arguments.Get(int(op - opcode.LDARG0))
@@ -667,11 +672,11 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 
 	case opcode.STARG0, opcode.STARG1, opcode.STARG2, opcode.STARG3, opcode.STARG4, opcode.STARG5, opcode.STARG6:
 		item := v.estack.Pop().Item()
-		ctx.arguments.Set(int(op-opcode.STARG0), item)
+		ctx.arguments.Set(int(op-opcode.STARG0), item, &v.refs)
 
 	case opcode.STARG:
 		item := v.estack.Pop().Item()
-		ctx.arguments.Set(int(parameter[0]), item)
+		ctx.arguments.Set(int(parameter[0]), item, &v.refs)
 
 	case opcode.NEWBUFFER:
 		n := toInt(v.estack.Pop().BigInt())
@@ -887,12 +892,12 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 
 	case opcode.INC:
 		x := v.estack.Pop().BigInt()
-		a := new(big.Int).Add(x, big.NewInt(1))
+		a := new(big.Int).Add(x, bigOne)
 		v.estack.PushItem(stackitem.NewBigInteger(a))
 
 	case opcode.DEC:
 		x := v.estack.Pop().BigInt()
-		a := new(big.Int).Sub(x, big.NewInt(1))
+		a := new(big.Int).Sub(x, bigOne)
 		v.estack.PushItem(stackitem.NewBigInteger(a))
 
 	case opcode.ADD:
@@ -1527,14 +1532,14 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 
 func (v *VM) unloadContext(ctx *Context) {
 	if ctx.local != nil {
-		ctx.local.Clear()
+		ctx.local.Clear(&v.refs)
 	}
 	if ctx.arguments != nil {
-		ctx.arguments.Clear()
+		ctx.arguments.Clear(&v.refs)
 	}
 	currCtx := v.Context()
 	if ctx.static != nil && currCtx != nil && ctx.static != currCtx.static {
-		ctx.static.Clear()
+		ctx.static.Clear(&v.refs)
 	}
 }
 

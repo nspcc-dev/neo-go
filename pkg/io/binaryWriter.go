@@ -143,7 +143,11 @@ func (w *BinWriter) WriteVarBytes(b []byte) {
 
 // WriteString writes a variable length string into the underlying io.Writer.
 func (w *BinWriter) WriteString(s string) {
-	w.WriteVarBytes([]byte(s))
+	w.WriteVarUint(uint64(len(s)))
+	if w.Err != nil {
+		return
+	}
+	_, w.Err = io.WriteString(w.w, s)
 }
 
 // Grow tries to increase underlying buffer capacity so that at least n bytes

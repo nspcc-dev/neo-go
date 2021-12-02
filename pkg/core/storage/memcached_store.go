@@ -252,8 +252,8 @@ func (s *MemCachedStore) persist(isSync bool) (int, error) {
 	// unprotected while writes are handled by s proper.
 	var tempstore = &MemCachedStore{MemoryStore: MemoryStore{mem: s.mem, del: s.del}, ps: s.ps}
 	s.ps = tempstore
-	s.mem = make(map[string][]byte)
-	s.del = make(map[string]bool)
+	s.mem = make(map[string][]byte, len(s.mem))
+	s.del = make(map[string]bool, len(s.del))
 	if !isSync {
 		s.mut.Unlock()
 	}
