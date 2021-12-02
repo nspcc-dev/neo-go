@@ -302,7 +302,7 @@ func TestJumpOptimize(t *testing.T) {
 	func Main() int {
 		return Get3()
 	}`
-	b, di, err := compiler.CompileWithOptions("", strings.NewReader(src), nil)
+	b, di, err := compiler.CompileWithOptions("file.go", strings.NewReader(src), nil)
 	require.NoError(t, err)
 	require.Equal(t, 6, len(di.Methods))
 	for _, mi := range di.Methods {
@@ -333,7 +333,7 @@ func TestUnusedFunctions(t *testing.T) {
 			return nestedcall.X
 		}`
 
-		b, err := compiler.Compile("foo", strings.NewReader(src))
+		b, err := compiler.Compile("foo.go", strings.NewReader(src))
 		require.NoError(t, err)
 		require.Equal(t, 3, len(b)) // PUSHINT8 (42) + RET
 		eval(t, src, big.NewInt(42))
@@ -346,7 +346,7 @@ func TestUnusedFunctions(t *testing.T) {
 			return inner.N()
 		}`
 
-		_, err := compiler.Compile("foo", strings.NewReader(src))
+		_, err := compiler.Compile("foo.go", strings.NewReader(src))
 		require.NoError(t, err)
 		eval(t, src, big.NewInt(65))
 	})
@@ -359,7 +359,7 @@ func TestUnusedFunctions(t *testing.T) {
 			return t.Method()
 		}`
 
-		_, err := compiler.Compile("foo", strings.NewReader(src))
+		_, err := compiler.Compile("foo.go", strings.NewReader(src))
 		require.NoError(t, err)
 		eval(t, src, big.NewInt(2231))
 	})

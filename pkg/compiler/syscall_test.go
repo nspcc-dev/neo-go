@@ -139,7 +139,7 @@ func runSyscallTestCase(t *testing.T, ic *interop.Context, goName string, tc sys
 	}
 	ss := strings.Split(goName, ".")
 	src := fmt.Sprintf(srcTmpl, ss[0], goName, strings.Join(tc.params, ", "))
-	b, _, err := compiler.CompileWithOptions("foo", strings.NewReader(src), nil)
+	b, _, err := compiler.CompileWithOptions("foo.go", strings.NewReader(src), nil)
 	require.NoError(t, err)
 
 	v := ic.SpawnVM()

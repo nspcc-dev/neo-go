@@ -365,7 +365,7 @@ func TestManifestOverload(t *testing.T) {
 		return 4
 	}`
 
-	_, di, err := CompileWithOptions("foo", strings.NewReader(src), nil)
+	_, di, err := CompileWithOptions("foo.go", strings.NewReader(src), nil)
 	require.NoError(t, err)
 
 	m, err := di.ConvertToManifest(&Options{Overloads: map[string]string{"add3Aux": "add3"}})
