@@ -405,7 +405,7 @@ func (n *NEO) increaseBalance(ic *interop.Context, h util.Uint160, si *state.Sto
 	if err != nil {
 		return err
 	}
-	if (amount.Sign() == -1 && acc.Balance.Cmp(new(big.Int).Neg(amount)) == -1) ||
+	if (amount.Sign() == -1 && acc.Balance.CmpAbs(amount) == -1) ||
 		(amount.Sign() == 0 && checkBal != nil && acc.Balance.Cmp(checkBal) == -1) {
 		return errors.New("insufficient funds")
 	}

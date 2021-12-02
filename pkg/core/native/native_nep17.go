@@ -262,7 +262,9 @@ func (c *nep17TokenNative) burn(ic *interop.Context, h util.Uint160, amount *big
 	if amount.Sign() == 0 {
 		return
 	}
-	c.addTokens(ic, h, new(big.Int).Neg(amount))
+	amount.Neg(amount)
+	c.addTokens(ic, h, amount)
+	amount.Neg(amount)
 	c.postTransfer(ic, &h, nil, amount, stackitem.Null{}, false)
 }
 

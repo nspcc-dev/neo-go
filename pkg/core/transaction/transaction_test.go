@@ -308,3 +308,17 @@ func TestTransaction_HasSigner(t *testing.T) {
 	require.True(t, tx.HasSigner(u1))
 	require.False(t, tx.HasSigner(util.Uint160{}))
 }
+
+func BenchmarkTxHash(b *testing.B) {
+	script := []byte{0x51}
+	tx := New(script, 1)
+	tx.NetworkFee = 123
+	tx.Signers = []Signer{{Account: util.Uint160{1, 2, 3}}}
+	tx.Scripts = []Witness{{InvocationScript: []byte{}, VerificationScript: []byte{}}}
+
+	// Prime cache.
+	tx.Hash()
+	for i := 0; i < b.N; i++ {
+		_ = tx.Hash()
+	}
+}

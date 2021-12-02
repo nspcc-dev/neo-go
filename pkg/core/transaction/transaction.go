@@ -68,6 +68,9 @@ type Transaction struct {
 	// Hash of the transaction (double SHA256).
 	hash util.Uint256
 
+	// Whether hash is correct.
+	hashed bool
+
 	// Trimmed indicates this is a transaction from trimmed
 	// data.
 	Trimmed bool
@@ -78,6 +81,7 @@ type Transaction struct {
 func NewTrimmedTX(hash util.Uint256) *Transaction {
 	return &Transaction{
 		hash:    hash,
+		hashed:  true,
 		Trimmed: true,
 	}
 }
@@ -98,7 +102,7 @@ func New(script []byte, gas int64) *Transaction {
 
 // Hash returns the hash of the transaction.
 func (t *Transaction) Hash() util.Uint256 {
-	if t.hash.Equals(util.Uint256{}) {
+	if !t.hashed {
 		if t.createHash() != nil {
 			panic("failed to compute hash!")
 		}
@@ -172,6 +176,7 @@ func (t *Transaction) decodeHashableFields(br *io.BinReader, buf []byte) {
 	if buf != nil {
 		end = len(buf) - br.Len()
 		t.hash = hash.Sha256(buf[start:end])
+		t.hashed = true
 	}
 }
 
@@ -261,6 +266,7 @@ func (t *Transaction) createHash() error {
 	}
 
 	shaHash.Sum(t.hash[:0])
+	t.hashed = true
 	return nil
 }
 
