@@ -23,7 +23,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
-	"golang.org/x/tools/go/loader" //nolint:staticcheck // SA1019: package golang.org/x/tools/go/loader is deprecated
+	"golang.org/x/tools/go/packages"
 )
 
 type codegen struct {
@@ -36,7 +36,7 @@ type codegen struct {
 	// Type information.
 	typeInfo *types.Info
 	// pkgInfoInline is stack of type information for packages containing inline functions.
-	pkgInfoInline []*loader.PackageInfo
+	pkgInfoInline []*packages.Package
 
 	// A mapping of func identifiers with their scope.
 	funcs map[string]*funcScope
@@ -93,13 +93,14 @@ type codegen struct {
 	constMap map[string]types.TypeAndValue
 
 	// currPkg is current package being processed.
-	currPkg *types.Package
+	currPkg *packages.Package
 
 	// mainPkg is a main package metadata.
-	mainPkg *loader.PackageInfo
+	mainPkg *packages.Package
 
 	// packages contains packages in the order they were loaded.
-	packages []string
+	packages     []string
+	packageCache map[string]*packages.Package
 
 	// exceptionIndex is the index of static slot where exception is stored.
 	exceptionIndex int
@@ -553,8 +554,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			for _, spec := range n.Specs {
 				vs := spec.(*ast.ValueSpec)
 				for i := range vs.Names {
-					info := c.buildInfo.program.Package(c.currPkg.Path())
-					obj := info.Defs[vs.Names[i]]
+					obj := c.currPkg.Types.Scope().Lookup(vs.Names[i].Name)
 					c.constMap[c.getIdentName("", vs.Names[i].Name)] = types.TypeAndValue{
 						Type:  obj.Type(),
 						Value: obj.(*types.Const).Val(),
@@ -621,7 +621,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 					ast.Walk(c, n.Rhs[i])
 				}
 				typ := c.typeOf(t.X)
-				if typ == nil {
+				if c.isInvalidType(typ) {
 					// Store to other package global variable.
 					c.emitStoreVar(t.X.(*ast.Ident).Name, t.Sel.Name)
 					return nil
@@ -920,11 +920,6 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 				}
 			} else {
 				typ := c.typeOf(fun)
-				if _, ok := typ.(*types.Signature); ok {
-					c.prog.Err = fmt.Errorf("could not resolve function %s", fun.Sel.Name)
-					return nil
-				}
-
 				ast.Walk(c, n.Args[0])
 				c.emitExplicitConvert(c.typeOf(n.Args[0]), typ)
 				return nil
@@ -1024,7 +1019,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 
 	case *ast.SelectorExpr:
 		typ := c.typeOf(n.X)
-		if typ == nil {
+		if c.isInvalidType(typ) {
 			// This is a global variable from a package.
 			pkgAlias := n.X.(*ast.Ident).Name
 			name := c.getIdentName(pkgAlias, n.Sel.Name)
@@ -1378,6 +1373,11 @@ func (c *codegen) emitExplicitConvert(from, to types.Type) {
 	} else if isString(to) && !isString(from) {
 		c.emitConvert(stackitem.ByteArrayT)
 	}
+}
+
+func (c *codegen) isInvalidType(typ types.Type) bool {
+	tb, ok := typ.(*types.Basic)
+	return typ == nil || ok && tb.Kind() == types.Invalid
 }
 
 func (c *codegen) rangeLoadKey() {
@@ -2028,7 +2028,7 @@ func (c *codegen) newFunc(decl *ast.FuncDecl) *funcScope {
 func (c *codegen) getFuncFromIdent(fun *ast.Ident) (*funcScope, bool) {
 	var pkgName string
 	if len(c.pkgInfoInline) != 0 {
-		pkgName = c.pkgInfoInline[len(c.pkgInfoInline)-1].Pkg.Path()
+		pkgName = c.pkgInfoInline[len(c.pkgInfoInline)-1].PkgPath
 	}
 
 	f, ok := c.funcs[c.getIdentName(pkgName, fun.Name)]
@@ -2056,7 +2056,7 @@ func (c *codegen) newLambda(u uint16, lit *ast.FuncLit) {
 	c.lambda[c.getFuncNameFromDecl("", f.decl)] = f
 }
 
-func (c *codegen) compile(info *buildInfo, pkg *loader.PackageInfo) error {
+func (c *codegen) compile(info *buildInfo, pkg *packages.Package) error {
 	c.mainPkg = pkg
 	c.analyzePkgOrder()
 	c.fillDocumentInfo()
@@ -2080,9 +2080,9 @@ func (c *codegen) compile(info *buildInfo, pkg *loader.PackageInfo) error {
 	}
 
 	// sort map keys to generate code deterministically.
-	keys := make([]*types.Package, 0, len(info.program.AllPackages))
-	for p := range info.program.AllPackages {
-		keys = append(keys, p)
+	keys := make([]*types.Package, 0, len(info.program))
+	for _, p := range info.program {
+		keys = append(keys, p.Types)
 	}
 	sort.Slice(keys, func(i, j int) bool { return keys[i].Path() < keys[j].Path() })
 
@@ -2094,7 +2094,7 @@ func (c *codegen) compile(info *buildInfo, pkg *loader.PackageInfo) error {
 				// Don't convert the function if it's not used. This will save a lot
 				// of bytecode space.
 				pkgPath := ""
-				if pkg != c.mainPkg.Pkg { // not a main package
+				if pkg != c.mainPkg.Types { // not a main package
 					pkgPath = pkg.Path()
 				}
 				name := c.getFuncNameFromDecl(pkgPath, n)
@@ -2109,7 +2109,7 @@ func (c *codegen) compile(info *buildInfo, pkg *loader.PackageInfo) error {
 	return c.prog.Err
 }
 
-func newCodegen(info *buildInfo, pkg *loader.PackageInfo) *codegen {
+func newCodegen(info *buildInfo, pkg *packages.Package) *codegen {
 	return &codegen{
 		buildInfo:        info,
 		prog:             io.NewBufBinWriter(),
@@ -2119,9 +2119,10 @@ func newCodegen(info *buildInfo, pkg *loader.PackageInfo) *codegen {
 		reverseOffsetMap: map[int]nameWithLocals{},
 		globals:          map[string]int{},
 		labels:           map[labelWithType]uint16{},
-		typeInfo:         &pkg.Info,
+		typeInfo:         pkg.TypesInfo,
 		constMap:         map[string]types.TypeAndValue{},
 		docIndex:         map[string]int{},
+		packageCache:     map[string]*packages.Package{},
 
 		initEndOffset:   -1,
 		deployEndOffset: -1,
@@ -2134,7 +2135,7 @@ func newCodegen(info *buildInfo, pkg *loader.PackageInfo) *codegen {
 
 // codeGen compiles the program to bytecode.
 func codeGen(info *buildInfo) (*nef.File, *DebugInfo, error) {
-	pkg := info.program.Package(info.initialPackage)
+	pkg := info.program[0]
 	c := newCodegen(info, pkg)
 
 	if err := c.compile(info, pkg); err != nil {

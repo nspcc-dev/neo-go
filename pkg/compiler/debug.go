@@ -105,7 +105,7 @@ func (c *codegen) saveSequencePoint(n ast.Node) {
 		name = c.scope.name
 	}
 
-	fset := c.buildInfo.program.Fset
+	fset := c.buildInfo.config.Fset
 	start := fset.Position(n.Pos())
 	end := fset.Position(n.End())
 	c.sequencePoints[name] = append(c.sequencePoints[name], DebugSeqPoint{
@@ -120,7 +120,7 @@ func (c *codegen) saveSequencePoint(n ast.Node) {
 
 func (c *codegen) emitDebugInfo(contract []byte) *DebugInfo {
 	d := &DebugInfo{
-		MainPkg:         c.mainPkg.Pkg.Name(),
+		MainPkg:         c.mainPkg.Name,
 		Events:          []EventDebugInfo{},
 		Documents:       c.documents,
 		StaticVariables: c.staticVariables,
@@ -130,7 +130,7 @@ func (c *codegen) emitDebugInfo(contract []byte) *DebugInfo {
 			ID: manifest.MethodInit,
 			Name: DebugMethodName{
 				Name:      manifest.MethodInit,
-				Namespace: c.mainPkg.Pkg.Name(),
+				Namespace: c.mainPkg.Name,
 			},
 			IsExported: true,
 			IsFunction: true,
@@ -149,7 +149,7 @@ func (c *codegen) emitDebugInfo(contract []byte) *DebugInfo {
 			ID: manifest.MethodDeploy,
 			Name: DebugMethodName{
 				Name:      manifest.MethodDeploy,
-				Namespace: c.mainPkg.Pkg.Name(),
+				Namespace: c.mainPkg.Name,
 			},
 			IsExported: true,
 			IsFunction: true,

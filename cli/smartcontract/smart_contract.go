@@ -449,6 +449,13 @@ func initSmartContract(ctx *cli.Context) error {
 	if err := ioutil.WriteFile(filepath.Join(basePath, "neo-go.yml"), b, 0644); err != nil {
 		return cli.NewExitError(err, 1)
 	}
+	gm := []byte("module " + contractName + `
+require (
+	github.com/nspcc-dev/neo-go latest
+)`)
+	if err := ioutil.WriteFile(filepath.Join(basePath, "go.mod"), gm, 0644); err != nil {
+		return cli.NewExitError(err, 1)
+	}
 
 	data := []byte(fmt.Sprintf(smartContractTmpl, contractName))
 	if err := ioutil.WriteFile(filepath.Join(basePath, fileName), data, 0644); err != nil {

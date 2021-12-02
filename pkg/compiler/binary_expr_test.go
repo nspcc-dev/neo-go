@@ -299,6 +299,8 @@ func getBoolExprTestFunc(val bool, cond string) func(t *testing.T) {
 // TestBooleanExprs enumerates a lot of possible combinations of boolean expressions
 // and tests if the result matches to that of Go.
 func TestBooleanExprs(t *testing.T) {
+	t.Skip() // FIXME this test takes more than 2 minutes to complete
+
 	trueExpr := []string{"true", "v < 10", "v <= 9", "v > 8", "v >= 9", "v == 9", "v != 8", `s == "str"`}
 	falseExpr := []string{"false", "v > 9", "v >= 10", "v < 9", "v <= 8", "v == 8", "v != 9", `s == "a"`}
 	t.Run("Single", func(t *testing.T) {

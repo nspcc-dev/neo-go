@@ -59,7 +59,7 @@ func TestCompiler(t *testing.T) {
 					}
 
 					targetPath := filepath.Join(examplePath, info.Name())
-					require.NoError(t, compileFile(targetPath))
+					require.NoError(t, compileFile(targetPath), info.Name())
 				}
 			},
 		},

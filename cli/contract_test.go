@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -119,6 +120,11 @@ func TestContractInitAndCompile(t *testing.T) {
 		cfgName := filepath.Join(ctrPath, "notexists.yml")
 		e.RunWithError(t, append(cmd, "--config", cfgName)...)
 	})
+
+	// FIXME too bad
+	c := exec.Command("go", "mod", "tidy")
+	c.Dir = ctrPath
+	require.NoError(t, c.Run())
 
 	cmd = append(cmd, "--config", cfgPath)
 	e.Run(t, cmd...)

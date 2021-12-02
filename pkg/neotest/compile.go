@@ -29,7 +29,7 @@ func CompileSource(t *testing.T, sender util.Uint160, src io.Reader, opts *compi
 	// nef.NewFile() cares about version a lot.
 	config.Version = "neotest"
 
-	ne, di, err := compiler.CompileWithOptions(opts.Name, src, opts)
+	ne, di, err := compiler.CompileWithOptions("contract.go", src, opts)
 	require.NoError(t, err)
 
 	m, err := compiler.CreateManifest(di, opts)

@@ -33,7 +33,7 @@ func runTestCases(t *testing.T, tcases []testCase) {
 }
 
 func eval(t *testing.T, src string, result interface{}) {
-	vm := vmAndCompile(t, src)
+	vm, _ := vmAndCompileInterop(t, src)
 	err := vm.Run()
 	require.NoError(t, err)
 	assert.Equal(t, 1, vm.Estack().Len(), "stack contains unexpected items")

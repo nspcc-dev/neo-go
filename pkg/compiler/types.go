@@ -9,15 +9,37 @@ import (
 
 func (c *codegen) typeAndValueOf(e ast.Expr) types.TypeAndValue {
 	for i := len(c.pkgInfoInline) - 1; i >= 0; i-- {
-		if tv, ok := c.pkgInfoInline[i].Types[e]; ok {
+		if tv, ok := c.pkgInfoInline[i].TypesInfo.Types[e]; ok {
 			return tv
 		}
 	}
-	return c.typeInfo.Types[e]
+
+	if tv, ok := c.typeInfo.Types[e]; ok {
+		return tv
+	}
+
+	se, ok := e.(*ast.SelectorExpr)
+	if ok {
+		if tv, ok := c.typeInfo.Selections[se]; ok {
+			return types.TypeAndValue{Type: tv.Type()}
+		}
+	}
+	return types.TypeAndValue{}
 }
 
 func (c *codegen) typeOf(e ast.Expr) types.Type {
-	return c.typeAndValueOf(e).Type
+	for i := len(c.pkgInfoInline) - 1; i >= 0; i-- {
+		if typ := c.pkgInfoInline[i].TypesInfo.TypeOf(e); typ != nil {
+			return typ
+		}
+	}
+	for _, p := range c.packageCache {
+		typ := p.TypesInfo.TypeOf(e)
+		if typ != nil {
+			return typ
+		}
+	}
+	return nil
 }
 
 func isBasicTypeOfKind(typ types.Type, ks ...types.BasicKind) bool {

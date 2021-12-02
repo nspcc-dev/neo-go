@@ -69,7 +69,7 @@ func (c *codegen) newFuncScope(decl *ast.FuncDecl, label uint16) *funcScope {
 		name:      name,
 		decl:      decl,
 		label:     label,
-		pkg:       c.currPkg,
+		pkg:       c.currPkg.Types,
 		vars:      newVarScope(),
 		voidCalls: map[*ast.CallExpr]bool{},
 		variables: []string{},
