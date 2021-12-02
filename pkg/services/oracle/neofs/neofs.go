@@ -11,9 +11,10 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/nspcc-dev/neofs-api-go/pkg/client"
-	cid "github.com/nspcc-dev/neofs-api-go/pkg/container/id"
-	"github.com/nspcc-dev/neofs-api-go/pkg/object"
+	"github.com/nspcc-dev/neofs-sdk-go/client"
+	neofsapistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
+	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
+	"github.com/nspcc-dev/neofs-sdk-go/object"
 )
 
 const (
@@ -37,6 +38,21 @@ var (
 	ErrInvalidRange     = errors.New("object range is invalid (expected 'Offset|Length')")
 	ErrInvalidCommand   = errors.New("invalid command")
 )
+
+// common interface of NeoFS API client's responses.
+type neoFSResponseCommon interface {
+	Status() neofsapistatus.Status
+}
+
+// if err is nil, then pulls out failed statuses and returns them as error.
+// keep an eye on https://github.com/nspcc-dev/neofs-sdk-go/issues/91.
+func combineAllErrors(resp neoFSResponseCommon, err error) error {
+	if err != nil {
+		return err
+	}
+
+	return neofsapistatus.ErrFromStatus(resp.Status())
+}
 
 // Get returns neofs object from the provided url.
 // URI scheme is "neofs:<Container-ID>/<Object-ID/<Command>/<Params>".
@@ -94,11 +110,11 @@ func parseNeoFSURL(u *url.URL) (*object.Address, []string, error) {
 }
 
 func getPayload(ctx context.Context, c client.Client, addr *object.Address) ([]byte, error) {
-	obj, err := c.GetObject(ctx, new(client.GetObjectParams).WithAddress(addr))
-	if err != nil {
+	res, err := c.GetObject(ctx, new(client.GetObjectParams).WithAddress(addr))
+	if err = combineAllErrors(res, err); err != nil {
 		return nil, err
 	}
-	return checkUTF8(obj.Payload())
+	return checkUTF8(res.Object().Payload())
 }
 
 func getRange(ctx context.Context, c client.Client, addr *object.Address, ps ...string) ([]byte, error) {
@@ -109,42 +125,47 @@ func getRange(ctx context.Context, c client.Client, addr *object.Address, ps ...
 	if err != nil {
 		return nil, err
 	}
-	data, err := c.ObjectPayloadRangeData(ctx, new(client.RangeDataParams).WithAddress(addr).WithRange(r))
-	if err != nil {
+	res, err := c.ObjectPayloadRangeData(ctx, new(client.RangeDataParams).WithAddress(addr).WithRange(r))
+	if err = combineAllErrors(res, err); err != nil {
 		return nil, err
 	}
-	return checkUTF8(data)
+	return checkUTF8(res.Data())
 }
 
 func getHeader(ctx context.Context, c client.Client, addr *object.Address) ([]byte, error) {
-	obj, err := c.GetObjectHeader(ctx, new(client.ObjectHeaderParams).WithAddress(addr))
-	if err != nil {
+	res, err := c.HeadObject(ctx, new(client.ObjectHeaderParams).WithAddress(addr))
+	if err = combineAllErrors(res, err); err != nil {
 		return nil, err
 	}
-	return obj.MarshalHeaderJSON()
+	return res.Object().MarshalHeaderJSON()
 }
 
 func getHash(ctx context.Context, c client.Client, addr *object.Address, ps ...string) ([]byte, error) {
 	if len(ps) == 0 || ps[0] == "" { // hash of the full payload
-		obj, err := c.GetObjectHeader(ctx, new(client.ObjectHeaderParams).WithAddress(addr))
-		if err != nil {
+		res, err := c.HeadObject(ctx, new(client.ObjectHeaderParams).WithAddress(addr))
+		if err = combineAllErrors(res, err); err != nil {
 			return nil, err
 		}
-		return obj.PayloadChecksum().Sum(), nil
+		return res.Object().PayloadChecksum().Sum(), nil
 	}
 	r, err := parseRange(ps[0])
 	if err != nil {
 		return nil, err
 	}
-	hashes, err := c.ObjectPayloadRangeSHA256(ctx,
+	res, err := c.HashObjectPayloadRanges(ctx,
 		new(client.RangeChecksumParams).WithAddress(addr).WithRangeList(r))
-	if err != nil {
+	if err = combineAllErrors(res, err); err != nil {
 		return nil, err
 	}
+	hashes := res.Hashes()
 	if len(hashes) == 0 {
 		return nil, fmt.Errorf("%w: empty response", ErrInvalidRange)
 	}
-	return util.Uint256(hashes[0]).MarshalJSON()
+	u256, err := util.Uint256DecodeBytesBE(hashes[0])
+	if err != nil {
+		return nil, fmt.Errorf("decode Uint256: %w", err)
+	}
+	return u256.MarshalJSON()
 }
 
 func parseRange(s string) (*object.Range, error) {
