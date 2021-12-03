@@ -2,6 +2,72 @@
 
 This document outlines major changes between releases.
 
+## 0.98.0 "Zincification" (03 Dec 2021)
+
+We've implemented all of Neo 3.1.0 protocol changes in this release (and
+features like NEP-11 transfer tracker), but as usual it's not the only thing
+it contains. If you're developing contracts in Go you might be interested in
+contract testing framework this release brings with it, which allows you to
+write automated tests in Go. You can also build a node for Windows now and
+most of functionality works there (but some known problems still exist, so
+this port is considered to be experimental for now). As usual there were some
+optimizations made in various components as well as bug fixes.
+
+There are also some things removed in this release, that is BadgerDB and
+RedisDB support, this will allow us to optimize better for LevelDB and BoltDB
+in future. Notice also that this release requires full node resynchronization.
+
+New features:
+ * optional signer scope parameter for deploy command (#2213)
+ * interop packages extended with Abort() function and useful constants (#2228)
+ * notary subsystem now allows to have multiple multisignature signers as well
+   as combining simple notary-completed accounts with multisignature ones (#2225)
+ * configurable method overloading for the compiler (#2217)
+ * initial support for the Windows platform (#2239, #2265, #2267, #2264,
+   #2283, #2288)
+ * contract testing framework (#2229, #2262)
+ * `Rules` witness scope (#2251)
+ * PACKMAP/PACKSTRUCT opcodes and UNPACK extension (#2252)
+ * NEP-11 transfer tracking with RPC API (#2266)
+ * support for structure field slicing in the compiler (#2280)
+ * invoked contract tracing for invoke* RPCs (#2270, #2291)
+
+Behavior changes:
+ * BadgerDB and RedisDB are no longer available for DB backend (#2196)
+ * GetNEP17Transfers() RPC client method now works with Uint160 parameter
+   instead of address (#2266)
+
+Improvements:
+ * compiler optimizations (#2205, #2230, #2232, #2252, #2256)
+ * output fees as proper decimals in the CLI (#2214)
+ * private network created from Makefile now uses dynamic IP addresses (#2224)
+ * various minor optimizations across whole codebase (#2193, #2243, #2287, #2290)
+ * `util convert` command now also handles base64 representations of script
+   hashes (#2237)
+ * unified "unknown transaction" RPC responses (#2247)
+ * faster state switch when using P2P state synchronization extension (#2201)
+ * better logging for oracle errors (#2275)
+ * updated NeoFS client library dependency (#2276)
+
+Bugs fixed:
+ * getproof RPC API didn't handle destroyed contracts correctly (#2215)
+ * invokefunction RPC returned error if no parameters were passed (#2220)
+ * incorrect handling of empty MPT batch (#2235)
+ * incoming block queue using more memory than it should, up to OOM condition
+   on stuck node (#2238)
+ * panic on peer disconnection in rare cases (#2240)
+ * panic on password read failure (#2244)
+ * miscompiled functions using `defer` and returning no values (#2255)
+ * oracle responses processed not using request witnesses (#2261)
+ * CreateTxFromScript() RPC client method incorrectly handled CustomContracts
+   and CreateTxFromScript sender scopes (#2272)
+ * potential OOM during synchronization on systems with slow disks (#2271)
+ * incorrect oracle peer configuration in the default private network (#2278)
+ * compiler error processing functions using defer and inlined calls (#2282)
+ * node that is simultaneously a CN and Oracle node could create invalid
+   oracle response transactions (#2279)
+ * incorrect GetInvocationCounter() result in some cases (#2270)
+
 ## 0.97.3 "Exception" (13 Oct 2021)
 
 This updated version of NeoGo is made to be compatible with Neo 3.0.3 bringing

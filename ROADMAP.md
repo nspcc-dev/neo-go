@@ -7,5 +7,5 @@ functionality.
 ## Versions 0.7X.Y (as needed)
 * Neo 2.0 support (bug fixes, minor functionality additions)
 
-## Version 1.0 (2021, TBD)
+## Version 1.0 (2022, TBD)
 * full NEO N3 support and useful extensions
