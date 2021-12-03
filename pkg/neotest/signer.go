@@ -27,6 +27,14 @@ type Signer interface {
 	SignTx(netmode.Magic, *transaction.Transaction) error
 }
 
+// SingleSigner is a generic interface for simple one-signature signer.
+type SingleSigner interface {
+	Signer
+	// Account returns underlying account which can be used to
+	// get public key and/or sign arbitrary things.
+	Account() *wallet.Account
+}
+
 // signer represents simple-signature signer.
 type signer wallet.Account
 
@@ -35,7 +43,7 @@ type multiSigner []*wallet.Account
 
 // NewSingleSigner returns multi-signature signer for the provided account.
 // It must contain exactly as many accounts as needed to sign the script.
-func NewSingleSigner(acc *wallet.Account) Signer {
+func NewSingleSigner(acc *wallet.Account) SingleSigner {
 	if !vm.IsSignatureContract(acc.Contract.Script) {
 		panic("account must have simple-signature verification script")
 	}
@@ -61,6 +69,11 @@ func (s *signer) SignHashable(magic uint32, item hash.Hashable) []byte {
 // SignTx implements Signer interface.
 func (s *signer) SignTx(magic netmode.Magic, tx *transaction.Transaction) error {
 	return (*wallet.Account)(s).SignTx(magic, tx)
+}
+
+// Account implements SingleSigner interface.
+func (s *signer) Account() *wallet.Account {
+	return (*wallet.Account)(s)
 }
 
 // NewMultiSigner returns multi-signature signer for the provided account.
