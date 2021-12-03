@@ -9,6 +9,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
+	"github.com/stretchr/testify/require"
 )
 
 // ContractInvoker is a client for specific contract.
@@ -62,6 +63,20 @@ func (c *ContractInvoker) Invoke(t *testing.T, result interface{}, method string
 	tx := c.PrepareInvoke(t, method, args...)
 	c.AddNewBlock(t, tx)
 	c.CheckHalt(t, tx.Hash(), stackitem.Make(result))
+	return tx.Hash()
+}
+
+// InvokeAndCheck invokes method with args, persists transaction and checks the result
+// using provided function. Returns transaction hash.
+func (c *ContractInvoker) InvokeAndCheck(t *testing.T, checkResult func(t *testing.T, stack []stackitem.Item), method string, args ...interface{}) util.Uint256 {
+	tx := c.PrepareInvoke(t, method, args...)
+	c.AddNewBlock(t, tx)
+	aer, err := c.Chain.GetAppExecResults(tx.Hash(), trigger.Application)
+	require.NoError(t, err)
+	require.Equal(t, vm.HaltState, aer[0].VMState, aer[0].FaultException)
+	if checkResult != nil {
+		checkResult(t, aer[0].Stack)
+	}
 	return tx.Hash()
 }
 

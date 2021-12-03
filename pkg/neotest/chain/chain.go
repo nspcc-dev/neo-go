@@ -108,13 +108,23 @@ func init() {
 // NewSingle creates new blockchain instance with a single validator and
 // setups cleanup functions.
 func NewSingle(t *testing.T) (*core.Blockchain, neotest.Signer) {
+	return NewSingleWithCustomConfig(t, nil)
+}
+
+// NewSingleWithCustomConfig creates new blockchain instance with custom protocol
+// configuration and a single validator. It also setups cleanup functions.
+func NewSingleWithCustomConfig(t *testing.T, f func(*config.ProtocolConfiguration)) (*core.Blockchain, neotest.Signer) {
 	protoCfg := config.ProtocolConfiguration{
 		Magic:              netmode.UnitTestNet,
+		MaxTraceableBlocks: 1000, // We don't need a lot of traceable blocks for tests.
 		SecondsPerBlock:    1,
 		StandbyCommittee:   []string{hex.EncodeToString(committeeAcc.PrivateKey().PublicKey().Bytes())},
 		ValidatorsCount:    1,
 		VerifyBlocks:       true,
 		VerifyTransactions: true,
+	}
+	if f != nil {
+		f(&protoCfg)
 	}
 
 	st := storage.NewMemoryStore()
@@ -129,6 +139,13 @@ func NewSingle(t *testing.T) (*core.Blockchain, neotest.Signer) {
 // NewMulti creates new blockchain instance with 4 validators and 6 committee members.
 // Second return value is for validator signer, third -- for committee.
 func NewMulti(t *testing.T) (*core.Blockchain, neotest.Signer, neotest.Signer) {
+	return NewMultiWithCustomConfig(t, nil)
+}
+
+// NewMultiWithCustomConfig creates new blockchain instance with custom protocol
+// configuration, 4 validators and 6 committee members. Second return value is
+// for validator signer, third -- for committee.
+func NewMultiWithCustomConfig(t *testing.T, f func(*config.ProtocolConfiguration)) (*core.Blockchain, neotest.Signer, neotest.Signer) {
 	protoCfg := config.ProtocolConfiguration{
 		Magic:              netmode.UnitTestNet,
 		SecondsPerBlock:    1,
@@ -136,6 +153,9 @@ func NewMulti(t *testing.T) (*core.Blockchain, neotest.Signer, neotest.Signer) {
 		ValidatorsCount:    4,
 		VerifyBlocks:       true,
 		VerifyTransactions: true,
+	}
+	if f != nil {
+		f(&protoCfg)
 	}
 
 	st := storage.NewMemoryStore()
