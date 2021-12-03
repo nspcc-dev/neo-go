@@ -9,6 +9,11 @@ on:
       - 'scripts/**'
       - '**/*.md'
   workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Ref to build CLI for Ubuntu and Windows Server Core [default: latest master; examples: v0.92.0, 0a4ff9d3e4a9ab432fd5812eb18c98e03b5a7432]'
+        required: false
+        default: ''
 
 env:
   GO111MODULE: "on"
@@ -21,6 +26,8 @@ jobs:
     steps:
       - uses: actions/checkout@v2
         with:
+          ref: ${{ github.event.inputs.ref }}
+          # Allows to fetch all history for all branches and tags. Need this for proper versioning.
           fetch-depth: 0
 
       - name: Set up Go
@@ -54,6 +61,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
         with:
+          ref: ${{ github.event.inputs.ref }}
           fetch-depth: 0
 
       - name: Set up Go
@@ -88,6 +96,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
         with:
+          ref: ${{ github.event.inputs.ref }}
           fetch-depth: 0
 
       - name: Build Docker image
@@ -101,6 +110,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
         with:
+          ref: ${{ github.event.inputs.ref }}
           fetch-depth: 0
 
       - name: Build Docker image
