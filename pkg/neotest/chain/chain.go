@@ -72,7 +72,7 @@ func init() {
 	standByCommittee[4] = hex.EncodeToString(pubs[4].Bytes())
 	standByCommittee[5] = hex.EncodeToString(pubs[5].Bytes())
 
-	multiValidatorAcc = make([]*wallet.Account, mv)
+	multiValidatorAcc = make([]*wallet.Account, 4)
 	sort.Sort(pubs[:4])
 
 	sort.Slice(accs[:4], func(i, j int) bool {
@@ -88,7 +88,7 @@ func init() {
 		}
 	}
 
-	multiCommitteeAcc = make([]*wallet.Account, mc)
+	multiCommitteeAcc = make([]*wallet.Account, len(committeeWIFs))
 	sort.Sort(pubs)
 
 	sort.Slice(accs, func(i, j int) bool {
