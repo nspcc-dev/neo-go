@@ -40,6 +40,13 @@ jobs:
       - name: Build CLI
         run: make build
 
+      - name: Upload artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: neo-go-binaries-ubuntu
+          path: ./bin/neo-go
+          if-no-files-found: error
+
   build_cli_wsc:
     name: Build CLI (Windows Server Core)
     runs-on: windows-2022
@@ -65,6 +72,13 @@ jobs:
 
       - name: Build CLI
         run: make build
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: neo-go-binaries-wsc
+          path: ./bin/neo-go.exe
+          if-no-files-found: error
 
   build_image_ubuntu:
     needs: build_cli_ubuntu
