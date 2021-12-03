@@ -34,18 +34,9 @@ jobs:
     runs-on: ubuntu-20.04
 
     steps:
-      - name: Checkout (manual run)
-        if: ${{ github.event_name == 'workflow_dispatch' }}
-        uses: actions/checkout@v2
+      - uses: actions/checkout@v2
         with:
           ref: ${{ github.event.inputs.ref }}
-          # Allows to fetch all history for all branches and tags. Need this for proper versioning.
-          fetch-depth: 0
-
-      - name: Checkout (automatical run)
-        if: ${{ github.event_name != 'workflow_dispatch' }}
-        uses: actions/checkout@v2
-        with:
           # Allows to fetch all history for all branches and tags. Need this for proper versioning.
           fetch-depth: 0
 
@@ -76,18 +67,9 @@ jobs:
     name: Publish Ubuntu-based image to DockerHub
     runs-on: ubuntu-20.04
     steps:
-      - name: Checkout (manual run)
-        if: ${{ github.event_name == 'workflow_dispatch' }}
-        uses: actions/checkout@v2
+      - uses: actions/checkout@v2
         with:
           ref: ${{ github.event.inputs.ref }}
-          # Allows to fetch all history for all branches and tags. Need this for proper versioning.
-          fetch-depth: 0
-
-      - name: Checkout (automatical run)
-        if: ${{ github.event_name != 'workflow_dispatch' }}
-        uses: actions/checkout@v2
-        with:
           # Allows to fetch all history for all branches and tags. Need this for proper versioning.
           fetch-depth: 0
 
@@ -117,18 +99,9 @@ jobs:
     runs-on: windows-2022
 
     steps:
-      - name: Checkout (manual run)
-        if: ${{ github.event_name == 'workflow_dispatch' }}
-        uses: actions/checkout@v2
+      - uses: actions/checkout@v2
         with:
           ref: ${{ github.event.inputs.ref }}
-          # Allows to fetch all history for all branches and tags. Need this for proper versioning.
-          fetch-depth: 0
-
-      - name: Checkout (automatical run)
-        if: ${{ github.event_name != 'workflow_dispatch' }}
-        uses: actions/checkout@v2
-        with:
           # Allows to fetch all history for all branches and tags. Need this for proper versioning.
           fetch-depth: 0
 
@@ -162,18 +135,9 @@ jobs:
     name: Publish WindowsServerCore-based image to DockerHub
     runs-on: windows-2022
     steps:
-      - name: Checkout (manual run)
-        if: ${{ github.event_name == 'workflow_dispatch' }}
-        uses: actions/checkout@v2
+      - uses: actions/checkout@v2
         with:
           ref: ${{ github.event.inputs.ref }}
-          # Allows to fetch all history for all branches and tags. Need this for proper versioning.
-          fetch-depth: 0
-
-      - name: Checkout (automatical run)
-        if: ${{ github.event_name != 'workflow_dispatch' }}
-        uses: actions/checkout@v2
-        with:
           # Allows to fetch all history for all branches and tags. Need this for proper versioning.
           fetch-depth: 0
 
