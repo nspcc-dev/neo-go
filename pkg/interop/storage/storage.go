@@ -25,7 +25,7 @@ const (
 	None FindFlags = 0
 	// KeysOnly is used for iterating over keys.
 	KeysOnly FindFlags = 1 << 0
-	// RemovePrefix is used for stripping 1-byte prefix from keys.
+	// RemovePrefix is used for stripping prefix (passed to Find) from keys.
 	RemovePrefix FindFlags = 1 << 1
 	// ValuesOnly is used for iterating over values.
 	ValuesOnly FindFlags = 1 << 2
