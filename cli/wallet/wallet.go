@@ -23,7 +23,7 @@ import (
 )
 
 var (
-	errNoPath         = errors.New("target path where the wallet should be stored is mandatory and should be passed using (--wallet, -w) flags")
+	errNoPath         = errors.New("wallet path is mandatory and should be passed using (--wallet, -w) flags")
 	errPhraseMismatch = errors.New("the entered pass-phrases do not match. Maybe you have misspelled them")
 	errNoStdin        = errors.New("can't read wallet from stdin for this command")
 )
