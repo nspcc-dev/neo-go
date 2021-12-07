@@ -75,6 +75,9 @@ func TestWalletInit(t *testing.T) {
 	})
 
 	t.Run("CreateAccount", func(t *testing.T) {
+		t.Run("stdin", func(t *testing.T) {
+			e.RunWithError(t, "neo-go", "wallet", "create", "--wallet", "-")
+		})
 		e.In.WriteString("testname\r")
 		e.In.WriteString("testpass\r")
 		e.In.WriteString("testpass\r")

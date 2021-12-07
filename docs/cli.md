@@ -83,7 +83,8 @@ see [compiler documentation](compiler.md).
 deploy` and `contract invokefunction`). Wallet management (creating wallet,
 adding addresses/keys to it) is available there as well as wallet-related
 functions like NEP-17 transfers, NEO votes, multi-signature signing and other
-things.
+things. For all commands requiring read-only wallet (like `dump-keys`) a
+special `-` path can be used to read the wallet from the standard input.
 
 ### Wallet management
 

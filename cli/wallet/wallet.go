@@ -2,9 +2,11 @@ package wallet
 
 import (
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"strings"
 
 	"github.com/nspcc-dev/neo-go/cli/flags"
@@ -23,12 +25,13 @@ import (
 var (
 	errNoPath         = errors.New("target path where the wallet should be stored is mandatory and should be passed using (--wallet, -w) flags")
 	errPhraseMismatch = errors.New("the entered pass-phrases do not match. Maybe you have misspelled them")
+	errNoStdin        = errors.New("can't read wallet from stdin for this command")
 )
 
 var (
 	walletPathFlag = cli.StringFlag{
 		Name:  "wallet, w",
-		Usage: "Target location of the wallet file.",
+		Usage: "Target location of the wallet file ('-' to read from stdin).",
 	}
 	wifFlag = cli.StringFlag{
 		Name:  "wif",
@@ -249,7 +252,7 @@ func NewCommands() []cli.Command {
 }
 
 func claimGas(ctx *cli.Context) error {
-	wall, err := openWallet(ctx.String("wallet"))
+	wall, err := readWallet(ctx.String("wallet"))
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -332,7 +335,7 @@ func addAccount(ctx *cli.Context) error {
 }
 
 func exportKeys(ctx *cli.Context) error {
-	wall, err := openWallet(ctx.String("wallet"))
+	wall, err := readWallet(ctx.String("wallet"))
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -560,7 +563,7 @@ func askForConsent(w io.Writer) bool {
 }
 
 func dumpWallet(ctx *cli.Context) error {
-	wall, err := openWallet(ctx.String("wallet"))
+	wall, err := readWallet(ctx.String("wallet"))
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -582,7 +585,7 @@ func dumpWallet(ctx *cli.Context) error {
 }
 
 func dumpKeys(ctx *cli.Context) error {
-	wall, err := openWallet(ctx.String("wallet"))
+	wall, err := readWallet(ctx.String("wallet"))
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -682,6 +685,23 @@ func createAccount(wall *wallet.Wallet) error {
 func openWallet(path string) (*wallet.Wallet, error) {
 	if len(path) == 0 {
 		return nil, errNoPath
+	}
+	if path == "-" {
+		return nil, errNoStdin
+	}
+	return wallet.NewWalletFromFile(path)
+}
+
+func readWallet(path string) (*wallet.Wallet, error) {
+	if len(path) == 0 {
+		return nil, errNoPath
+	}
+	if path == "-" {
+		w := &wallet.Wallet{}
+		if err := json.NewDecoder(os.Stdin).Decode(w); err != nil {
+			return nil, fmt.Errorf("js %s", err)
+		}
+		return w, nil
 	}
 	return wallet.NewWalletFromFile(path)
 }
