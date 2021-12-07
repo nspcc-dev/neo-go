@@ -2510,7 +2510,6 @@ func (bc *Blockchain) verifyTxWitnesses(t *transaction.Transaction, block *block
 		return errors.Errorf("expected len(hashes) == len(witnesses). got: %d != %d", len(hashes), len(witnesses))
 	}
 	sort.Slice(hashes, func(i, j int) bool { return hashes[i].Less(hashes[j]) })
-	sort.Slice(witnesses, func(i, j int) bool { return witnesses[i].ScriptHash().Less(witnesses[j].ScriptHash()) })
 	interopCtx := bc.newInteropContext(trigger.Verification, bc.dao, block, t)
 	for i := 0; i < len(hashes); i++ {
 		err := bc.verifyHashAgainstScript(hashes[i], &witnesses[i], t.VerificationHash(), interopCtx, false)
