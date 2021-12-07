@@ -30,7 +30,6 @@ var (
 
 // DAO is a data access object.
 type DAO interface {
-	AppendAppExecResult(aer *state.AppExecResult, buf *io.BufBinWriter) error
 	DeleteBlock(h util.Uint256, buf *io.BufBinWriter) error
 	DeleteContractID(id int32) error
 	DeleteStorageItem(id int32, key []byte) error
@@ -55,7 +54,6 @@ type DAO interface {
 	HasTransaction(hash util.Uint256) error
 	Persist() (int, error)
 	PersistSync() (int, error)
-	PutAppExecResult(aer *state.AppExecResult, buf *io.BufBinWriter) error
 	PutContractID(id int32, hash util.Uint160) error
 	PutCurrentHeader(hashAndIndex []byte) error
 	PutTokenTransferInfo(acc util.Uint160, bs *state.TokenTransferInfo) error
@@ -66,9 +64,9 @@ type DAO interface {
 	PutVersion(v Version) error
 	Seek(id int32, prefix []byte, f func(k, v []byte))
 	SeekAsync(ctx context.Context, id int32, prefix []byte) chan storage.KeyValue
-	StoreAsBlock(block *block.Block, buf *io.BufBinWriter) error
+	StoreAsBlock(block *block.Block, aer1 *state.AppExecResult, aer2 *state.AppExecResult, buf *io.BufBinWriter) error
 	StoreAsCurrentBlock(block *block.Block, buf *io.BufBinWriter) error
-	StoreAsTransaction(tx *transaction.Transaction, index uint32, buf *io.BufBinWriter) error
+	StoreAsTransaction(tx *transaction.Transaction, index uint32, aer *state.AppExecResult, buf *io.BufBinWriter) error
 	putTokenTransferInfo(acc util.Uint160, bs *state.TokenTransferInfo, buf *io.BufBinWriter) error
 }
 
@@ -220,12 +218,26 @@ func (dao *Simple) PutTokenTransferLog(acc util.Uint160, index uint32, isNEP11 b
 // GetAppExecResults gets application execution results with the specified trigger from the
 // given store.
 func (dao *Simple) GetAppExecResults(hash util.Uint256, trig trigger.Type) ([]state.AppExecResult, error) {
-	key := storage.AppendPrefix(storage.STNotification, hash.BytesBE())
-	aers, err := dao.Store.Get(key)
+	key := storage.AppendPrefix(storage.DataExecutable, hash.BytesBE())
+	bs, err := dao.Store.Get(key)
 	if err != nil {
 		return nil, err
 	}
-	r := io.NewBinReaderFromBuf(aers)
+	r := io.NewBinReaderFromBuf(bs)
+	switch r.ReadB() {
+	case storage.ExecBlock:
+		_, err = block.NewTrimmedFromReader(dao.Version.StateRootInHeader, r)
+		if err != nil {
+			return nil, err
+		}
+	case storage.ExecTransaction:
+		_ = r.ReadU32LE()
+		tx := &transaction.Transaction{}
+		tx.DecodeBinary(r)
+	}
+	if r.Err != nil {
+		return nil, r.Err
+	}
 	result := make([]state.AppExecResult, 0, 2)
 	for {
 		aer := new(state.AppExecResult)
@@ -241,39 +253,6 @@ func (dao *Simple) GetAppExecResults(hash util.Uint256, trig trigger.Type) ([]st
 		}
 	}
 	return result, nil
-}
-
-// AppendAppExecResult appends given application execution result to the existing
-// set of execution results for the corresponding hash. It can reuse given buffer
-// for the purpose of value serialization.
-func (dao *Simple) AppendAppExecResult(aer *state.AppExecResult, buf *io.BufBinWriter) error {
-	key := storage.AppendPrefix(storage.STNotification, aer.Container.BytesBE())
-	aers, err := dao.Store.Get(key)
-	if err != nil && err != storage.ErrKeyNotFound {
-		return err
-	}
-	if len(aers) == 0 {
-		return dao.PutAppExecResult(aer, buf)
-	}
-	if buf == nil {
-		buf = io.NewBufBinWriter()
-	}
-	aer.EncodeBinary(buf.BinWriter)
-	if buf.Err != nil {
-		return buf.Err
-	}
-	aers = append(aers, buf.Bytes()...)
-	return dao.Store.Put(key, aers)
-}
-
-// PutAppExecResult puts given application execution result into the
-// given store. It can reuse given buffer for the purpose of value serialization.
-func (dao *Simple) PutAppExecResult(aer *state.AppExecResult, buf *io.BufBinWriter) error {
-	key := storage.AppendPrefix(storage.STNotification, aer.Container.BytesBE())
-	if buf == nil {
-		return dao.Put(aer, key)
-	}
-	return dao.putWithBuffer(aer, key, buf)
 }
 
 // -- end notification event.
@@ -363,13 +342,17 @@ func makeStorageItemKey(prefix storage.KeyPrefix, id int32, key []byte) []byte {
 
 // GetBlock returns Block by the given hash if it exists in the store.
 func (dao *Simple) GetBlock(hash util.Uint256) (*block.Block, error) {
-	key := storage.AppendPrefix(storage.DataBlock, hash.BytesBE())
+	key := storage.AppendPrefix(storage.DataExecutable, hash.BytesBE())
 	b, err := dao.Store.Get(key)
 	if err != nil {
 		return nil, err
 	}
 
-	block, err := block.NewBlockFromTrimmedBytes(dao.Version.StateRootInHeader, b)
+	r := io.NewBinReaderFromBuf(b)
+	if r.ReadB() != storage.ExecBlock {
+		return nil, errors.New("internal DB inconsistency")
+	}
+	block, err := block.NewTrimmedFromReader(dao.Version.StateRootInHeader, r)
 	if err != nil {
 		return nil, err
 	}
@@ -525,18 +508,22 @@ func (dao *Simple) GetHeaderHashes() ([]util.Uint256, error) {
 // GetTransaction returns Transaction and its height by the given hash
 // if it exists in the store. It does not return dummy transactions.
 func (dao *Simple) GetTransaction(hash util.Uint256) (*transaction.Transaction, uint32, error) {
-	key := storage.AppendPrefix(storage.DataTransaction, hash.BytesBE())
+	key := storage.AppendPrefix(storage.DataExecutable, hash.BytesBE())
 	b, err := dao.Store.Get(key)
 	if err != nil {
 		return nil, 0, err
 	}
-	if len(b) < 5 {
+	if len(b) < 6 {
 		return nil, 0, errors.New("bad transaction bytes")
 	}
-	if b[4] == transaction.DummyVersion {
+	if b[0] != storage.ExecTransaction {
+		return nil, 0, errors.New("internal DB inconsistency")
+	}
+	if b[5] == transaction.DummyVersion {
 		return nil, 0, storage.ErrKeyNotFound
 	}
 	r := io.NewBinReaderFromBuf(b)
+	_ = r.ReadB()
 
 	var height = r.ReadU32LE()
 
@@ -591,16 +578,16 @@ func read2000Uint256Hashes(b []byte) ([]util.Uint256, error) {
 // Transaction hash. It returns an error in case if transaction is in chain
 // or in the list of conflicting transactions.
 func (dao *Simple) HasTransaction(hash util.Uint256) error {
-	key := storage.AppendPrefix(storage.DataTransaction, hash.BytesBE())
+	key := storage.AppendPrefix(storage.DataExecutable, hash.BytesBE())
 	bytes, err := dao.Store.Get(key)
 	if err != nil {
 		return nil
 	}
 
-	if len(bytes) < 5 {
+	if len(bytes) < 6 {
 		return nil
 	}
-	if bytes[4] == transaction.DummyVersion {
+	if bytes[5] == transaction.DummyVersion {
 		return ErrHasConflicts
 	}
 	return ErrAlreadyExists
@@ -608,18 +595,25 @@ func (dao *Simple) HasTransaction(hash util.Uint256) error {
 
 // StoreAsBlock stores given block as DataBlock. It can reuse given buffer for
 // the purpose of value serialization.
-func (dao *Simple) StoreAsBlock(block *block.Block, buf *io.BufBinWriter) error {
+func (dao *Simple) StoreAsBlock(block *block.Block, aer1 *state.AppExecResult, aer2 *state.AppExecResult, buf *io.BufBinWriter) error {
 	var (
-		key = storage.AppendPrefix(storage.DataBlock, block.Hash().BytesBE())
+		key = storage.AppendPrefix(storage.DataExecutable, block.Hash().BytesBE())
 	)
 	if buf == nil {
 		buf = io.NewBufBinWriter()
 	}
+	buf.WriteB(storage.ExecBlock)
 	b, err := block.Trim()
 	if err != nil {
 		return err
 	}
 	buf.WriteBytes(b)
+	if aer1 != nil {
+		aer1.EncodeBinary(buf.BinWriter)
+	}
+	if aer2 != nil {
+		aer2.EncodeBinary(buf.BinWriter)
+	}
 	if buf.Err != nil {
 		return buf.Err
 	}
@@ -630,14 +624,18 @@ func (dao *Simple) StoreAsBlock(block *block.Block, buf *io.BufBinWriter) error 
 func (dao *Simple) DeleteBlock(h util.Uint256, w *io.BufBinWriter) error {
 	batch := dao.Store.Batch()
 	key := make([]byte, util.Uint256Size+1)
-	key[0] = byte(storage.DataBlock)
+	key[0] = byte(storage.DataExecutable)
 	copy(key[1:], h.BytesBE())
 	bs, err := dao.Store.Get(key)
 	if err != nil {
 		return err
 	}
 
-	b, err := block.NewBlockFromTrimmedBytes(dao.Version.StateRootInHeader, bs)
+	r := io.NewBinReaderFromBuf(bs)
+	if r.ReadB() != storage.ExecBlock {
+		return errors.New("internal DB inconsistency")
+	}
+	b, err := block.NewTrimmedFromReader(dao.Version.StateRootInHeader, r)
 	if err != nil {
 		return err
 	}
@@ -645,6 +643,7 @@ func (dao *Simple) DeleteBlock(h util.Uint256, w *io.BufBinWriter) error {
 	if w == nil {
 		w = io.NewBufBinWriter()
 	}
+	w.WriteB(storage.ExecBlock)
 	b.Header.EncodeBinary(w.BinWriter)
 	w.BinWriter.WriteB(0)
 	if w.Err != nil {
@@ -652,7 +651,6 @@ func (dao *Simple) DeleteBlock(h util.Uint256, w *io.BufBinWriter) error {
 	}
 	batch.Put(key, w.Bytes())
 
-	key[0] = byte(storage.DataTransaction)
 	for _, tx := range b.Transactions {
 		copy(key[1:], tx.Hash().BytesBE())
 		batch.Delete(key)
@@ -663,13 +661,7 @@ func (dao *Simple) DeleteBlock(h util.Uint256, w *io.BufBinWriter) error {
 				batch.Delete(key)
 			}
 		}
-		key[0] = byte(storage.STNotification)
-		batch.Delete(key)
 	}
-
-	key[0] = byte(storage.STNotification)
-	copy(key[1:], h.BytesBE())
-	batch.Delete(key)
 
 	return dao.Store.PutBatch(batch)
 }
@@ -690,13 +682,17 @@ func (dao *Simple) StoreAsCurrentBlock(block *block.Block, buf *io.BufBinWriter)
 // StoreAsTransaction stores given TX as DataTransaction. It also stores transactions
 // given tx has conflicts with as DataTransaction with dummy version. It can reuse given
 // buffer for the purpose of value serialization.
-func (dao *Simple) StoreAsTransaction(tx *transaction.Transaction, index uint32, buf *io.BufBinWriter) error {
-	key := storage.AppendPrefix(storage.DataTransaction, tx.Hash().BytesBE())
+func (dao *Simple) StoreAsTransaction(tx *transaction.Transaction, index uint32, aer *state.AppExecResult, buf *io.BufBinWriter) error {
+	key := storage.AppendPrefix(storage.DataExecutable, tx.Hash().BytesBE())
 	if buf == nil {
 		buf = io.NewBufBinWriter()
 	}
+	buf.WriteB(storage.ExecTransaction)
 	buf.WriteU32LE(index)
 	tx.EncodeBinary(buf.BinWriter)
+	if aer != nil {
+		aer.EncodeBinary(buf.BinWriter)
+	}
 	if buf.Err != nil {
 		return buf.Err
 	}
@@ -711,6 +707,7 @@ func (dao *Simple) StoreAsTransaction(tx *transaction.Transaction, index uint32,
 			copy(key[1:], hash.BytesBE())
 			if value == nil {
 				buf.Reset()
+				buf.WriteB(storage.ExecTransaction)
 				buf.WriteU32LE(index)
 				buf.BinWriter.WriteB(transaction.DummyVersion)
 				value = buf.Bytes()

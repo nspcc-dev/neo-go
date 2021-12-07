@@ -62,11 +62,11 @@ func (b *Block) RebuildMerkleRoot() {
 	b.MerkleRoot = b.ComputeMerkleRoot()
 }
 
-// NewBlockFromTrimmedBytes returns a new block from trimmed data.
+// NewTrimmedFromReader returns a new block from trimmed data.
 // This is commonly used to create a block from stored data.
 // Blocks created from trimmed data will have their Trimmed field
 // set to true.
-func NewBlockFromTrimmedBytes(stateRootEnabled bool, b []byte) (*Block, error) {
+func NewTrimmedFromReader(stateRootEnabled bool, br *io.BinReader) (*Block, error) {
 	block := &Block{
 		Header: Header{
 			StateRootEnabled: stateRootEnabled,
@@ -74,7 +74,6 @@ func NewBlockFromTrimmedBytes(stateRootEnabled bool, b []byte) (*Block, error) {
 		Trimmed: true,
 	}
 
-	br := io.NewBinReaderFromBuf(b)
 	block.Header.DecodeBinary(br)
 	lenHashes := br.ReadVarUint()
 	if lenHashes > MaxTransactionsPerBlock {

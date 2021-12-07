@@ -315,7 +315,7 @@ func (s *Module) AddBlock(block *block.Block) error {
 	}
 	cache := s.dao.GetWrapped()
 	writeBuf := io.NewBufBinWriter()
-	if err := cache.StoreAsBlock(block, writeBuf); err != nil {
+	if err := cache.StoreAsBlock(block, nil, nil, writeBuf); err != nil {
 		return err
 	}
 	writeBuf.Reset()
@@ -326,7 +326,7 @@ func (s *Module) AddBlock(block *block.Block) error {
 	}
 
 	for _, tx := range block.Transactions {
-		if err := cache.StoreAsTransaction(tx, block.Index, writeBuf); err != nil {
+		if err := cache.StoreAsTransaction(tx, block.Index, nil, writeBuf); err != nil {
 			return err
 		}
 		writeBuf.Reset()

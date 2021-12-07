@@ -18,7 +18,7 @@ func TestLedgerGetTransactionHeight(t *testing.T) {
 	for i := 0; i < 13; i++ {
 		require.NoError(t, chain.AddBlock(chain.newBlock()))
 	}
-	require.NoError(t, chain.dao.StoreAsTransaction(tx, 13, nil))
+	require.NoError(t, chain.dao.StoreAsTransaction(tx, 13, nil, nil))
 	t.Run("good", func(t *testing.T) {
 		res, err := invokeContractMethod(chain, 100000000, ledger, "getTransactionHeight", tx.Hash().BytesBE())
 		require.NoError(t, err)
@@ -41,7 +41,7 @@ func TestLedgerGetTransaction(t *testing.T) {
 	ledger := chain.contracts.ByName(nativenames.Ledger).Metadata().Hash
 
 	t.Run("success", func(t *testing.T) {
-		require.NoError(t, chain.dao.StoreAsTransaction(tx, 0, nil))
+		require.NoError(t, chain.dao.StoreAsTransaction(tx, 0, nil, nil))
 
 		res, err := invokeContractMethod(chain, 100000000, ledger, "getTransaction", tx.Hash().BytesBE())
 		require.NoError(t, err)
@@ -63,13 +63,13 @@ func TestLedgerGetTransaction(t *testing.T) {
 	})
 
 	t.Run("isn't traceable", func(t *testing.T) {
-		require.NoError(t, chain.dao.StoreAsTransaction(tx, 2, nil)) // block 1 is added above
+		require.NoError(t, chain.dao.StoreAsTransaction(tx, 2, nil, nil)) // block 1 is added above
 		res, err := invokeContractMethod(chain, 100000000, ledger, "getTransaction", tx.Hash().BytesBE())
 		require.NoError(t, err)
 		checkResult(t, res, stackitem.Null{})
 	})
 	t.Run("bad hash", func(t *testing.T) {
-		require.NoError(t, chain.dao.StoreAsTransaction(tx, 0, nil))
+		require.NoError(t, chain.dao.StoreAsTransaction(tx, 0, nil, nil))
 		res, err := invokeContractMethod(chain, 100000000, ledger, "getTransaction", tx.Hash().BytesLE())
 		require.NoError(t, err)
 		checkResult(t, res, stackitem.Null{})
@@ -120,7 +120,7 @@ func TestLedgerGetTransactionFromBlock(t *testing.T) {
 	})
 	t.Run("isn't traceable", func(t *testing.T) {
 		b.Index = chain.BlockHeight() + 1
-		require.NoError(t, chain.dao.StoreAsBlock(b, nil))
+		require.NoError(t, chain.dao.StoreAsBlock(b, nil, nil, nil))
 		res, err := invokeContractMethod(chain, 100000000, ledger, "getTransactionFromBlock", bhash.BytesBE(), int64(0))
 		require.NoError(t, err)
 		checkResult(t, res, stackitem.Null{})
@@ -166,7 +166,7 @@ func TestLedgerGetBlock(t *testing.T) {
 	})
 	t.Run("isn't traceable", func(t *testing.T) {
 		b.Index = chain.BlockHeight() + 1
-		require.NoError(t, chain.dao.StoreAsBlock(b, nil))
+		require.NoError(t, chain.dao.StoreAsBlock(b, nil, nil, nil))
 		res, err := invokeContractMethod(chain, 100000000, ledger, "getBlock", bhash.BytesBE())
 		require.NoError(t, err)
 		checkResult(t, res, stackitem.Null{})
