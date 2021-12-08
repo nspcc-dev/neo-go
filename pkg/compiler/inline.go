@@ -189,12 +189,6 @@ func (c *codegen) processContractCall(f *funcScope, args []ast.Expr) {
 	}
 
 	method := constant.StringVal(value)
-	currLst := c.invokedContracts[u]
-	for _, m := range currLst {
-		if m == method {
-			return
-		}
-	}
 
 	value = c.typeAndValueOf(args[2]).Value
 	if value == nil {
@@ -202,6 +196,17 @@ func (c *codegen) processContractCall(f *funcScope, args []ast.Expr) {
 	}
 
 	flag, _ := constant.Uint64Val(value)
+	c.appendInvokedContract(u, method, flag)
+}
+
+func (c *codegen) appendInvokedContract(u util.Uint160, method string, flag uint64) {
+	currLst := c.invokedContracts[u]
+	for _, m := range currLst {
+		if m == method {
+			return
+		}
+	}
+
 	if flag&uint64(callflag.WriteStates|callflag.AllowNotify) != 0 {
 		c.invokedContracts[u] = append(currLst, method)
 	}

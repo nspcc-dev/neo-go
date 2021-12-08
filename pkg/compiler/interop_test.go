@@ -19,7 +19,6 @@ import (
 	cinterop "github.com/nspcc-dev/neo-go/pkg/interop"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
-	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
@@ -132,8 +131,8 @@ func spawnVM(t *testing.T, ic *interop.Context, src string) *vm.VM {
 	b, di, err := compiler.CompileWithDebugInfo("foo.go", strings.NewReader(src))
 	require.NoError(t, err)
 	v := core.SpawnVM(ic)
-	invokeMethod(t, testMainIdent, b, v, di)
-	v.LoadScriptWithFlags(b, callflag.All)
+	invokeMethod(t, testMainIdent, b.Script, v, di)
+	v.LoadScriptWithFlags(b.Script, callflag.All)
 	return v
 }
 
@@ -147,7 +146,7 @@ func TestAppCall(t *testing.T) {
 	mBar, err := di.ConvertToManifest(&compiler.Options{Name: "Bar"})
 	require.NoError(t, err)
 
-	barH := hash.Hash160(barCtr)
+	barH := hash.Hash160(barCtr.Script)
 
 	srcInner := `package foo
 	import "github.com/nspcc-dev/neo-go/pkg/interop/contract"
@@ -178,25 +177,21 @@ func TestAppCall(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	ih := hash.Hash160(inner)
+	ih := hash.Hash160(inner.Script)
 	var contractGetter = func(_ dao.DAO, h util.Uint160) (*state.Contract, error) {
 		if h.Equals(ih) {
-			innerNef, err := nef.NewFile(inner)
-			require.NoError(t, err)
 			return &state.Contract{
 				ContractBase: state.ContractBase{
 					Hash:     ih,
-					NEF:      *innerNef,
+					NEF:      *inner,
 					Manifest: *m,
 				},
 			}, nil
 		} else if h.Equals(barH) {
-			barNef, err := nef.NewFile(barCtr)
-			require.NoError(t, err)
 			return &state.Contract{
 				ContractBase: state.ContractBase{
 					Hash:     barH,
-					NEF:      *barNef,
+					NEF:      *barCtr,
 					Manifest: *mBar,
 				},
 			}, nil
@@ -381,4 +376,46 @@ func TestLenForNil(t *testing.T) {
 	}`
 
 	eval(t, src, true)
+}
+
+func TestCallTConversionErrors(t *testing.T) {
+	t.Run("variable hash", func(t *testing.T) {
+		src := `package foo
+		import "github.com/nspcc-dev/neo-go/pkg/interop/neogointernal"
+		func Main() int {
+			var hash string
+			return neogointernal.CallWithToken(hash, "method", 0).(int)
+		}`
+		_, err := compiler.Compile("foo.go", strings.NewReader(src))
+		require.Error(t, err)
+	})
+	t.Run("bad hash", func(t *testing.T) {
+		src := `package foo
+		import "github.com/nspcc-dev/neo-go/pkg/interop/neogointernal"
+		func Main() int {
+			return neogointernal.CallWithToken("badstring", "method", 0).(int)
+		}`
+		_, err := compiler.Compile("foo.go", strings.NewReader(src))
+		require.Error(t, err)
+	})
+	t.Run("variable method", func(t *testing.T) {
+		src := `package foo
+		import "github.com/nspcc-dev/neo-go/pkg/interop/neogointernal"
+		func Main() int {
+			var method string
+			return neogointernal.CallWithToken("\xf5\x63\xea\x40\xbc\x28\x3d\x4d\x0e\x05\xc4\x8e\xa3\x05\xb3\xf2\xa0\x73\x40\xef", method, 0).(int)
+		}`
+		_, err := compiler.Compile("foo.go", strings.NewReader(src))
+		require.Error(t, err)
+	})
+	t.Run("variable flags", func(t *testing.T) {
+		src := `package foo
+		import "github.com/nspcc-dev/neo-go/pkg/interop/neogointernal"
+		func Main() {
+			var flags int
+			neogointernal.CallWithTokenNoRet("\xf5\x63\xea\x40\xbc\x28\x3d\x4d\x0e\x05\xc4\x8e\xa3\x05\xb3\xf2\xa0\x73\x40\xef", "method", flags)
+		}`
+		_, err := compiler.Compile("foo.go", strings.NewReader(src))
+		require.Error(t, err)
+	})
 }

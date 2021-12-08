@@ -134,7 +134,7 @@ func TestContractWithNoMain(t *testing.T) {
 	b, di, err := compiler.CompileWithDebugInfo("foo.go", strings.NewReader(src))
 	require.NoError(t, err)
 	v := vm.New()
-	invokeMethod(t, "Add3", b, v, di)
+	invokeMethod(t, "Add3", b.Script, v, di)
 	v.Estack().PushVal(39)
 	require.NoError(t, v.Run())
 	require.Equal(t, 1, v.Estack().Len())

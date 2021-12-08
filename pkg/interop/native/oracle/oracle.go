@@ -6,8 +6,8 @@ protocols.
 package oracle
 
 import (
-	"github.com/nspcc-dev/neo-go/pkg/interop"
 	"github.com/nspcc-dev/neo-go/pkg/interop/contract"
+	"github.com/nspcc-dev/neo-go/pkg/interop/neogointernal"
 )
 
 // These are potential response codes you get in your callback completing
@@ -66,18 +66,18 @@ const MinimumResponseGas = 10_000_000
 //       so it should be enough to pay for reply data as well as
 //       its processing.
 func Request(url string, filter []byte, cb string, userData interface{}, gasForResponse int) {
-	contract.Call(interop.Hash160(Hash), "request",
-		contract.States|contract.AllowNotify,
+	neogointernal.CallWithTokenNoRet(Hash, "request",
+		int(contract.States|contract.AllowNotify),
 		url, filter, cb, userData, gasForResponse)
 }
 
 // GetPrice returns current oracle request price.
 func GetPrice() int {
-	return contract.Call(interop.Hash160(Hash), "getPrice", contract.ReadStates).(int)
+	return neogointernal.CallWithToken(Hash, "getPrice", int(contract.ReadStates)).(int)
 }
 
 // SetPrice allows to set oracle request price. This method can only be
 // successfully invoked by the committee.
 func SetPrice(amount int) {
-	contract.Call(interop.Hash160(Hash), "setPrice", contract.States, amount)
+	neogointernal.CallWithTokenNoRet(Hash, "setPrice", int(contract.States), amount)
 }

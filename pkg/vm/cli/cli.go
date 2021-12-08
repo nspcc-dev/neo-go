@@ -408,7 +408,7 @@ func handleLoadGo(c *ishell.Context) {
 	}
 	setManifestInContext(c, m)
 
-	v.LoadWithFlags(b, callflag.All)
+	v.LoadWithFlags(b.Script, callflag.All)
 	c.Printf("READY: loaded %d instructions\n", v.Context().LenInstr())
 	changePrompt(c, v)
 }

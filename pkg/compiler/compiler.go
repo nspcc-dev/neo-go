@@ -160,29 +160,29 @@ func getBuildInfo(name string, src interface{}) (*buildInfo, error) {
 // If `r != nil`, `name` is interpreted as a filename, and `r` as file contents.
 // Otherwise `name` is either file name or name of the directory containing source files.
 func Compile(name string, r io.Reader) ([]byte, error) {
-	buf, _, err := CompileWithDebugInfo(name, r)
+	f, _, err := CompileWithDebugInfo(name, r)
 	if err != nil {
 		return nil, err
 	}
 
-	return buf, nil
+	return f.Script, nil
 }
 
 // CompileWithDebugInfo compiles a Go program into bytecode and emits debug info.
-func CompileWithDebugInfo(name string, r io.Reader) ([]byte, *DebugInfo, error) {
+func CompileWithDebugInfo(name string, r io.Reader) (*nef.File, *DebugInfo, error) {
 	return CompileWithOptions(name, r, &Options{
 		NoEventsCheck: true,
 	})
 }
 
 // CompileWithOptions compiles a Go program into bytecode with provided compiler options.
-func CompileWithOptions(name string, r io.Reader, o *Options) ([]byte, *DebugInfo, error) {
+func CompileWithOptions(name string, r io.Reader, o *Options) (*nef.File, *DebugInfo, error) {
 	ctx, err := getBuildInfo(name, r)
 	if err != nil {
 		return nil, nil, err
 	}
 	ctx.options = o
-	return CodeGen(ctx)
+	return codeGen(ctx)
 }
 
 // CompileAndSave will compile and save the file to disk in the NEF format.
@@ -198,13 +198,9 @@ func CompileAndSave(src string, o *Options) ([]byte, error) {
 	if len(o.Ext) == 0 {
 		o.Ext = fileExt
 	}
-	b, di, err := CompileWithOptions(src, nil, o)
+	f, di, err := CompileWithOptions(src, nil, o)
 	if err != nil {
 		return nil, fmt.Errorf("error while trying to compile smart contract file: %w", err)
-	}
-	f, err := nef.NewFile(b)
-	if err != nil {
-		return nil, fmt.Errorf("error while trying to create .nef file: %w", err)
 	}
 	if o.SourceURL != "" {
 		if len(o.SourceURL) > nef.MaxSourceURLLength {
@@ -220,10 +216,10 @@ func CompileAndSave(src string, o *Options) ([]byte, error) {
 	out := fmt.Sprintf("%s.%s", o.Outfile, o.Ext)
 	err = ioutil.WriteFile(out, bytes, os.ModePerm)
 	if err != nil {
-		return b, err
+		return f.Script, err
 	}
 	if o.DebugInfo == "" && o.ManifestFile == "" {
-		return b, nil
+		return f.Script, nil
 	}
 
 	if o.DebugInfo != "" {
@@ -246,26 +242,26 @@ func CompileAndSave(src string, o *Options) ([]byte, error) {
 		}
 		data, err := json.Marshal(di)
 		if err != nil {
-			return b, err
+			return f.Script, err
 		}
 		if err := ioutil.WriteFile(o.DebugInfo, data, os.ModePerm); err != nil {
-			return b, err
+			return f.Script, err
 		}
 	}
 
 	if o.ManifestFile != "" {
 		m, err := CreateManifest(di, o)
 		if err != nil {
-			return b, err
+			return f.Script, err
 		}
 		mData, err := json.Marshal(m)
 		if err != nil {
-			return b, fmt.Errorf("failed to marshal manifest to JSON: %w", err)
+			return f.Script, fmt.Errorf("failed to marshal manifest to JSON: %w", err)
 		}
-		return b, ioutil.WriteFile(o.ManifestFile, mData, os.ModePerm)
+		return f.Script, ioutil.WriteFile(o.ManifestFile, mData, os.ModePerm)
 	}
 
-	return b, nil
+	return f.Script, nil
 }
 
 // CreateManifest creates manifest and checks that is is valid.

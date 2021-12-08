@@ -17,7 +17,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
-	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
@@ -56,12 +55,7 @@ func NewDeployTx(bc blockchainer.Blockchainer, name string, sender util.Uint160,
 	// nef.NewFile() cares about version a lot.
 	config.Version = "0.90.0-test"
 
-	avm, di, err := compiler.CompileWithDebugInfo(name, r)
-	if err != nil {
-		return nil, util.Uint160{}, nil, err
-	}
-
-	ne, err := nef.NewFile(avm)
+	ne, di, err := compiler.CompileWithDebugInfo(name, r)
 	if err != nil {
 		return nil, util.Uint160{}, nil, err
 	}
@@ -108,7 +102,7 @@ func NewDeployTx(bc blockchainer.Blockchainer, name string, sender util.Uint160,
 	tx.Signers = []transaction.Signer{{Account: sender}}
 	h := state.CreateContractHash(tx.Sender(), ne.Checksum, name)
 
-	return tx, h, avm, nil
+	return tx, h, ne.Script, nil
 }
 
 // SignTx signs provided transactions with validator keys.

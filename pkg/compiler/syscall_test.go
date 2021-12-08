@@ -143,7 +143,7 @@ func runSyscallTestCase(t *testing.T, ic *interop.Context, goName string, tc sys
 	require.NoError(t, err)
 
 	v := ic.SpawnVM()
-	v.LoadScriptWithFlags(b, callflag.All)
+	v.LoadScriptWithFlags(b.Script, callflag.All)
 	require.NoError(t, v.Run())
 	require.True(t, called)
 	if tc.isVoid {

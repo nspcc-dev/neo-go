@@ -22,7 +22,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/io"
-	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
@@ -244,9 +243,7 @@ func TestLoad(t *testing.T) {
 	t.Run("loadnef", func(t *testing.T) {
 		config.Version = "0.92.0-test"
 
-		script, di, err := compiler.CompileWithDebugInfo("test", strings.NewReader(src))
-		require.NoError(t, err)
-		nefFile, err := nef.NewFile(script)
+		nefFile, di, err := compiler.CompileWithDebugInfo("test", strings.NewReader(src))
 		require.NoError(t, err)
 		filename := filepath.Join(tmpDir, "vmtestcontract.nef")
 		rawNef, err := nefFile.Bytes()
