@@ -12,24 +12,22 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/stateroot"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
+	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
+	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/stretchr/testify/require"
 )
 
-// This is in a separate test because test test for long manifest
-// prevents chain from being dumped. In any real scenario
-// restrictions on tx script length will be applied before
-// restrictions on manifest size. In this test providing manifest of max size
-// leads to tx deserialization failure.
-func TestRestoreAfterDeploy(t *testing.T) {
+func TestDeployManifestOverflow(t *testing.T) {
 	bc := newTestChain(t)
 
 	// nef.NewFile() cares about version a lot.
@@ -45,9 +43,26 @@ func TestRestoreAfterDeploy(t *testing.T) {
 	nef1b, err := nef1.Bytes()
 	require.NoError(t, err)
 
-	res, err := invokeContractMethod(bc, 100_00000000, mgmtHash, "deploy", nef1b, append(manif1, make([]byte, manifest.MaxManifestSize)...))
+	w := io.NewBufBinWriter()
+	emit.Bytes(w.BinWriter, manif1)
+	emit.Int(w.BinWriter, manifest.MaxManifestSize)
+	emit.Opcodes(w.BinWriter, opcode.NEWBUFFER, opcode.CAT)
+	emit.Bytes(w.BinWriter, nef1b)
+	emit.Int(w.BinWriter, 2)
+	emit.Opcodes(w.BinWriter, opcode.PACK)
+	emit.AppCallNoArgs(w.BinWriter, mgmtHash, "deploy", callflag.All)
+	require.NoError(t, w.Err)
+	script := w.Bytes()
+
+	tx := transaction.New(script, 0)
+	tx.ValidUntilBlock = bc.blockHeight + 1
+	addSigners(neoOwner, tx)
+	setTxSystemFee(bc, 100_00000000, tx)
+	require.NoError(t, testchain.SignTx(bc, tx))
+
+	aers, err := persistBlock(bc, tx)
 	require.NoError(t, err)
-	checkFAULTState(t, res)
+	checkFAULTState(t, aers[0])
 }
 
 type memoryStore struct {
