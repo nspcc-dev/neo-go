@@ -83,7 +83,7 @@ func handleUnregister(ctx *cli.Context) error {
 }
 
 func handleCandidate(ctx *cli.Context, method string, sysGas int64) error {
-	wall, err := openWallet(ctx.String("wallet"))
+	wall, err := readWallet(ctx.String("wallet"))
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -138,7 +138,7 @@ func handleCandidate(ctx *cli.Context, method string, sysGas int64) error {
 }
 
 func handleVote(ctx *cli.Context) error {
-	wall, err := openWallet(ctx.String("wallet"))
+	wall, err := readWallet(ctx.String("wallet"))
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}

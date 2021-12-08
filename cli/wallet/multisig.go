@@ -12,7 +12,7 @@ import (
 )
 
 func signStoredTransaction(ctx *cli.Context) error {
-	wall, err := openWallet(ctx.String("wallet"))
+	wall, err := readWallet(ctx.String("wallet"))
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}

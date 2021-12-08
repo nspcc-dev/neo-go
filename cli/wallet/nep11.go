@@ -150,7 +150,7 @@ func removeNEP11Token(ctx *cli.Context) error {
 func getNEP11Balance(ctx *cli.Context) error {
 	var accounts []*wallet.Account
 
-	wall, err := openWallet(ctx.String("wallet"))
+	wall, err := readWallet(ctx.String("wallet"))
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("bad wallet: %w", err), 1)
 	}
