@@ -19,12 +19,21 @@ type ContractInvoker struct {
 	Signers []Signer
 }
 
-// CommitteeInvoker creates new ContractInvoker for contract with hash h.
+// CommitteeInvoker creates new ContractInvoker for contract with hash h and committee multisignature signer.
 func (e *Executor) CommitteeInvoker(h util.Uint160) *ContractInvoker {
 	return &ContractInvoker{
 		Executor: e,
 		Hash:     h,
 		Signers:  []Signer{e.Committee},
+	}
+}
+
+// ValidatorInvoker creates new ContractInvoker for contract with hash h and validators multisignature signer.
+func (e *Executor) ValidatorInvoker(h util.Uint160) *ContractInvoker {
+	return &ContractInvoker{
+		Executor: e,
+		Hash:     h,
+		Signers:  []Signer{e.Validator},
 	}
 }
 

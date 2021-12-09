@@ -109,15 +109,19 @@ func (e *Executor) SignTx(t *testing.T, tx *transaction.Transaction, sysFee int6
 	return tx
 }
 
-// NewAccount returns new signer holding 100.0 GAS. This method advances the chain
-// by one block with a transfer transaction.
-func (e *Executor) NewAccount(t *testing.T) Signer {
+// NewAccount returns new signer holding 100.0 GAS (or given amount is specified).
+// This method advances the chain by one block with a transfer transaction.
+func (e *Executor) NewAccount(t *testing.T, expectedGASBalance ...int64) Signer {
 	acc, err := wallet.NewAccount()
 	require.NoError(t, err)
 
-	tx := e.NewTx(t, []Signer{e.Committee},
+	amount := int64(100_0000_0000)
+	if len(expectedGASBalance) != 0 {
+		amount = expectedGASBalance[0]
+	}
+	tx := e.NewTx(t, []Signer{e.Validator},
 		e.NativeHash(t, nativenames.Gas), "transfer",
-		e.Committee.ScriptHash(), acc.Contract.ScriptHash(), int64(100_0000_0000), nil)
+		e.Validator.ScriptHash(), acc.Contract.ScriptHash(), amount, nil)
 	e.AddNewBlock(t, tx)
 	e.CheckHalt(t, tx.Hash())
 	return NewSingleSigner(acc)
@@ -233,11 +237,11 @@ func (e *Executor) NewDeployTx(t *testing.T, bc blockchainer.Blockchainer, c *Co
 	tx.Nonce = Nonce()
 	tx.ValidUntilBlock = bc.BlockHeight() + 1
 	tx.Signers = []transaction.Signer{{
-		Account: e.Committee.ScriptHash(),
+		Account: e.Validator.ScriptHash(),
 		Scopes:  transaction.Global,
 	}}
-	addNetworkFee(bc, tx, e.Committee)
-	require.NoError(t, e.Committee.SignTx(netmode.UnitTestNet, tx))
+	addNetworkFee(bc, tx, e.Validator)
+	require.NoError(t, e.Validator.SignTx(netmode.UnitTestNet, tx))
 	return tx
 }
 
