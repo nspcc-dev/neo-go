@@ -739,6 +739,13 @@ func checkResult(t *testing.T, result *state.AppExecResult, expected stackitem.I
 	require.Equal(t, expected, result.Stack[0])
 }
 
+func checkTxHalt(t testing.TB, bc *Blockchain, h util.Uint256) {
+	aer, err := bc.GetAppExecResults(h, trigger.Application)
+	require.NoError(t, err)
+	require.Equal(t, 1, len(aer))
+	require.Equal(t, vm.HaltState, aer[0].VMState, aer[0].FaultException)
+}
+
 func checkFAULTState(t *testing.T, result *state.AppExecResult) {
 	require.Equal(t, vm.FaultState, result.VMState)
 }

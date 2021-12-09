@@ -1827,3 +1827,10 @@ func TestBlockchain_InitWithIncompleteStateJump(t *testing.T) {
 		})
 	}
 }
+
+func setSigner(tx *transaction.Transaction, h util.Uint160) {
+	tx.Signers = []transaction.Signer{{
+		Account: h,
+		Scopes:  transaction.Global,
+	}}
+}
