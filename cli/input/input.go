@@ -69,7 +69,7 @@ func ConfirmTx(w io.Writer, tx *transaction.Transaction) error {
 	if err != nil {
 		return err
 	}
-	if 0 < len(ln) && ln[0] == 'y' || ln[0] == 'Y' {
+	if 0 < len(ln) && (ln[0] == 'y' || ln[0] == 'Y') {
 		return nil
 	}
 	return errors.New("cancelled")
