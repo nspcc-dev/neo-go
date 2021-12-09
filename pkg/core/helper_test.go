@@ -674,12 +674,6 @@ func signTxWithAccounts(chain *Blockchain, sysFee int64, tx *transaction.Transac
 	}
 }
 
-func prepareContractMethodInvoke(chain *Blockchain, sysfee int64,
-	hash util.Uint160, method string, args ...interface{}) (*transaction.Transaction, error) {
-	return prepareContractMethodInvokeGeneric(chain, sysfee, hash,
-		method, false, args...)
-}
-
 func persistBlock(chain *Blockchain, txs ...*transaction.Transaction) ([]*state.AppExecResult, error) {
 	b := chain.newBlock(txs...)
 	err := chain.AddBlock(b)
@@ -714,19 +708,6 @@ func invokeContractMethodGeneric(chain *Blockchain, sysfee int64, hash util.Uint
 		return nil, err
 	}
 	return aers[0], nil
-}
-
-func invokeContractMethodBy(t *testing.T, chain *Blockchain, signer *wallet.Account, hash util.Uint160, method string, args ...interface{}) (*state.AppExecResult, error) {
-	var (
-		netfee int64 = 1000_0000
-		sysfee int64 = 1_0000_0000
-	)
-	transferTx := transferTokenFromMultisigAccount(t, chain, signer.PrivateKey().PublicKey().GetScriptHash(), chain.contracts.GAS.Hash, sysfee+netfee+1000_0000, nil)
-	res, err := chain.GetAppExecResults(transferTx.Hash(), trigger.Application)
-	require.NoError(t, err)
-	require.Equal(t, vm.HaltState, res[0].VMState)
-	require.Equal(t, 0, len(res[0].Stack))
-	return invokeContractMethodGeneric(chain, sysfee, hash, method, signer, args...)
 }
 
 func transferTokenFromMultisigAccountCheckOK(t *testing.T, chain *Blockchain, to, tokenHash util.Uint160, amount int64, additionalArgs ...interface{}) {

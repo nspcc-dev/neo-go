@@ -114,6 +114,11 @@ func NewSingle(t *testing.T) (*core.Blockchain, neotest.Signer) {
 // NewSingleWithCustomConfig creates new blockchain instance with custom protocol
 // configuration and a single validator. It also setups cleanup functions.
 func NewSingleWithCustomConfig(t *testing.T, f func(*config.ProtocolConfiguration)) (*core.Blockchain, neotest.Signer) {
+	st := storage.NewMemoryStore()
+	return NewSingleWithCustomConfigAndStore(t, f, st, true)
+}
+
+func NewSingleWithCustomConfigAndStore(t *testing.T, f func(cfg *config.ProtocolConfiguration), st storage.Store, run bool) (*core.Blockchain, neotest.Signer) {
 	protoCfg := config.ProtocolConfiguration{
 		Magic:              netmode.UnitTestNet,
 		MaxTraceableBlocks: 1000, // We don't need a lot of traceable blocks for tests.
@@ -126,13 +131,13 @@ func NewSingleWithCustomConfig(t *testing.T, f func(*config.ProtocolConfiguratio
 	if f != nil {
 		f(&protoCfg)
 	}
-
-	st := storage.NewMemoryStore()
 	log := zaptest.NewLogger(t)
 	bc, err := core.NewBlockchain(st, protoCfg, log)
 	require.NoError(t, err)
-	go bc.Run()
-	t.Cleanup(bc.Close)
+	if run {
+		go bc.Run()
+		t.Cleanup(bc.Close)
+	}
 	return bc, neotest.NewMultiSigner(committeeAcc)
 }
 

@@ -1,10 +1,14 @@
 package core
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"math"
 	"math/big"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/internal/random"
@@ -36,6 +40,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
+	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/stretchr/testify/require"
 )
 
@@ -231,7 +236,7 @@ func TestRuntimeGetNotifications(t *testing.T) {
 func TestRuntimeGetInvocationCounter(t *testing.T) {
 	v, ic, bc := createVM(t)
 
-	cs, _ := getTestContractState(bc)
+	cs, _ := getTestContractState(t, 4, 5, random.Uint160()) // sender and IDs are not important for the test
 	require.NoError(t, bc.contracts.Management.PutContractState(ic.DAO, cs))
 
 	ic.Invocations[hash.Hash160([]byte{2})] = 42
@@ -658,22 +663,28 @@ func createVMAndContractState(t testing.TB) (*vm.VM, *state.Contract, *interop.C
 	return v, contractState, context, chain
 }
 
-func createVMAndTX(t *testing.T) (*vm.VM, *transaction.Transaction, *interop.Context, *Blockchain) {
-	script := []byte{byte(opcode.PUSH1), byte(opcode.RET)}
-	tx := transaction.New(script, 0)
-	tx.Signers = []transaction.Signer{{Account: util.Uint160{1, 2, 3, 4}}}
-	tx.Scripts = []transaction.Witness{{InvocationScript: []byte{}, VerificationScript: []byte{}}}
-	chain := newTestChain(t)
-	d := dao.NewSimple(storage.NewMemoryStore(), chain.config.StateRootInHeader, chain.config.P2PSigExtensions)
-	context := chain.newInteropContext(trigger.Application, d, nil, tx)
-	v := context.SpawnVM()
-	return v, tx, context, chain
-}
+var (
+	helper1ContractNEFPath      = filepath.Join("test_data", "management_helper", "management_helper1.nef")
+	helper1ContractManifestPath = filepath.Join("test_data", "management_helper", "management_helper1.manifest.json")
+	helper2ContractNEFPath      = filepath.Join("test_data", "management_helper", "management_helper2.nef")
+	helper2ContractManifestPath = filepath.Join("test_data", "management_helper", "management_helper2.manifest.json")
+)
 
-// getTestContractState returns 2 contracts second of which is allowed to call the first.
-func getTestContractState(bc *Blockchain) (*state.Contract, *state.Contract) {
-	mgmtHash := bc.ManagementContractHash()
+// TestGenerateManagementHelperContracts generates 2 helper contracts second of which is
+// allowed to call the first. It uses test chain to define Management and StdLib
+// native hashes and saves generated NEF and manifest to ../test_data/management_contract folder.
+// Set `saveState` flag to true and run the test to rewrite NEF and manifest files.
+func TestGenerateManagementHelperContracts(t *testing.T) {
+	const saveState = false
+
+	bc := newTestChain(t)
+	mgmtHash := bc.contracts.Management.Hash
 	stdHash := bc.contracts.Std.Hash
+	neoHash := bc.contracts.NEO.Hash
+	singleChainValidator := testchain.PrivateKey(testchain.IDToOrder(0))
+	acc := wallet.NewAccountFromPrivateKey(singleChainValidator)
+	require.NoError(t, acc.ConvertMultisig(1, keys.PublicKeys{singleChainValidator.PublicKey()}))
+	singleChainValidatorHash := acc.Contract.ScriptHash()
 
 	w := io.NewBufBinWriter()
 	emit.Opcodes(w.BinWriter, opcode.ABORT)
@@ -771,7 +782,6 @@ func getTestContractState(bc *Blockchain) (*state.Contract, *state.Contract) {
 	emit.Opcodes(w.BinWriter, opcode.RET)
 
 	script := w.Bytes()
-	h := hash.Hash160(script)
 	m := manifest.NewManifest("TestMain")
 	m.ABI.Methods = []manifest.Method{
 		{
@@ -953,20 +963,14 @@ func getTestContractState(bc *Blockchain) (*state.Contract, *state.Contract) {
 	m.Permissions[1].Contract.Value = util.Uint160{}
 	m.Permissions[1].Methods.Add("method")
 
-	cs := &state.Contract{
-		ContractBase: state.ContractBase{
-			Hash:     h,
-			Manifest: *m,
-			ID:       42,
-		},
-	}
+	// Generate NEF file.
 	ne, err := nef.NewFile(script)
 	if err != nil {
 		panic(err)
 	}
 	ne.Tokens = []nef.MethodToken{
 		{
-			Hash:       bc.contracts.NEO.Hash,
+			Hash:       neoHash,
 			Method:     "balanceOf",
 			ParamCount: 1,
 			HasReturn:  true,
@@ -980,7 +984,25 @@ func getTestContractState(bc *Blockchain) (*state.Contract, *state.Contract) {
 		},
 	}
 	ne.Checksum = ne.CalculateChecksum()
-	cs.NEF = *ne
+
+	// Write first NEF file.
+	bytes, err := ne.Bytes()
+	require.NoError(t, err)
+	if saveState {
+		err = ioutil.WriteFile(helper1ContractNEFPath, bytes, os.ModePerm)
+		require.NoError(t, err)
+	}
+
+	// Write first manifest file.
+	mData, err := json.Marshal(m)
+	require.NoError(t, err)
+	if saveState {
+		err = ioutil.WriteFile(helper1ContractManifestPath, mData, os.ModePerm)
+		require.NoError(t, err)
+	}
+
+	// Create hash of the first contract assuming that sender is single-chain validator.
+	h := state.CreateContractHash(singleChainValidatorHash, ne.Checksum, m.Name)
 
 	currScript := []byte{byte(opcode.RET)}
 	m = manifest.NewManifest("TestAux")
@@ -997,14 +1019,74 @@ func getTestContractState(bc *Blockchain) (*state.Contract, *state.Contract) {
 		panic(err)
 	}
 
-	return cs, &state.Contract{
+	// Write second NEF file.
+	bytes, err = ne.Bytes()
+	require.NoError(t, err)
+	if saveState {
+		err = ioutil.WriteFile(helper2ContractNEFPath, bytes, os.ModePerm)
+		require.NoError(t, err)
+	}
+
+	// Write second manifest file.
+	mData, err = json.Marshal(m)
+	require.NoError(t, err)
+	if saveState {
+		err = ioutil.WriteFile(helper2ContractManifestPath, mData, os.ModePerm)
+		require.NoError(t, err)
+	}
+
+	require.False(t, saveState)
+}
+
+// getTestContractState returns 2 contracts second of which is allowed to call the first.
+func getTestContractState(t *testing.T, id1, id2 int32, sender2 util.Uint160) (*state.Contract, *state.Contract) {
+	errNotFound := errors.New("auto-generated oracle contract is not found, use TestGenerateOracleContract to regenerate")
+
+	neBytes, err := ioutil.ReadFile(helper1ContractNEFPath)
+	require.NoError(t, err, fmt.Errorf("nef1: %w", errNotFound))
+	ne, err := nef.FileFromBytes(neBytes)
+	require.NoError(t, err)
+
+	mBytes, err := ioutil.ReadFile(helper1ContractManifestPath)
+	require.NoError(t, err, fmt.Errorf("manifest1: %w", errNotFound))
+	m := &manifest.Manifest{}
+	err = json.Unmarshal(mBytes, m)
+	require.NoError(t, err)
+
+	cs1 := &state.Contract{
 		ContractBase: state.ContractBase{
-			NEF:      *ne,
-			Hash:     hash.Hash160(currScript),
+			NEF:      ne,
 			Manifest: *m,
-			ID:       123,
+			ID:       id1,
 		},
 	}
+
+	neBytes, err = ioutil.ReadFile(helper2ContractNEFPath)
+	require.NoError(t, err, fmt.Errorf("nef2: %w", errNotFound))
+	ne, err = nef.FileFromBytes(neBytes)
+	require.NoError(t, err)
+
+	mBytes, err = ioutil.ReadFile(helper2ContractManifestPath)
+	require.NoError(t, err, fmt.Errorf("manifest2: %w", errNotFound))
+	m = &manifest.Manifest{}
+	err = json.Unmarshal(mBytes, m)
+	require.NoError(t, err)
+
+	// Retrieve hash of the first contract from the permissions of the second contract.
+	require.Equal(t, 1, len(m.Permissions))
+	require.Equal(t, manifest.PermissionHash, m.Permissions[0].Contract.Type)
+	cs1.Hash = m.Permissions[0].Contract.Hash()
+
+	cs2 := &state.Contract{
+		ContractBase: state.ContractBase{
+			NEF:      ne,
+			Manifest: *m,
+			ID:       id2,
+			Hash:     state.CreateContractHash(sender2, ne.Checksum, m.Name),
+		},
+	}
+
+	return cs1, cs2
 }
 
 func loadScript(ic *interop.Context, script []byte, args ...interface{}) {
@@ -1028,12 +1110,12 @@ func loadScriptWithHashAndFlags(ic *interop.Context, script []byte, hash util.Ui
 func TestContractCall(t *testing.T) {
 	_, ic, bc := createVM(t)
 
-	cs, currCs := getTestContractState(bc)
+	cs, currCs := getTestContractState(t, 4, 5, random.Uint160()) // sender and IDs are not important for the test
 	require.NoError(t, bc.contracts.Management.PutContractState(ic.DAO, cs))
 	require.NoError(t, bc.contracts.Management.PutContractState(ic.DAO, currCs))
 
 	currScript := currCs.NEF.Script
-	h := hash.Hash160(cs.NEF.Script)
+	h := cs.Hash
 
 	addArgs := stackitem.NewArray([]stackitem.Item{stackitem.Make(1), stackitem.Make(2)})
 	t.Run("Good", func(t *testing.T) {
@@ -1420,7 +1502,7 @@ func TestRuntimeCheckWitness(t *testing.T) {
 func TestLoadToken(t *testing.T) {
 	bc := newTestChain(t)
 
-	cs, _ := getTestContractState(bc)
+	cs, _ := getTestContractState(t, 4, 5, random.Uint160()) // sender and IDs are not important for the test
 	require.NoError(t, bc.contracts.Management.PutContractState(bc.dao, cs))
 
 	t.Run("good", func(t *testing.T) {
@@ -1463,7 +1545,7 @@ func TestRuntimeGetNetwork(t *testing.T) {
 func TestRuntimeBurnGas(t *testing.T) {
 	bc := newTestChain(t)
 
-	cs, _ := getTestContractState(bc)
+	cs, _ := getTestContractState(t, 4, 5, random.Uint160()) // sender and IDs are not important for the test
 	require.NoError(t, bc.contracts.Management.PutContractState(bc.dao, cs))
 
 	const sysFee = 2_000000

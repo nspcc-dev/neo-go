@@ -318,7 +318,7 @@ func TestNEO_CommitteeBountyOnPersist(t *testing.T) {
 func TestNEO_TransferOnPayment(t *testing.T) {
 	bc := newTestChain(t)
 
-	cs, _ := getTestContractState(bc)
+	cs, _ := getTestContractState(t, 4, 5, random.Uint160()) // sender and IDs are not important for the test
 	require.NoError(t, bc.contracts.Management.PutContractState(bc.dao, cs))
 
 	const amount = 2
