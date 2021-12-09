@@ -126,7 +126,7 @@ func TestAddBlock(t *testing.T) {
 	require.NoError(t, err)
 
 	for _, block := range blocks {
-		key := storage.AppendPrefix(storage.DataBlock, block.Hash().BytesBE())
+		key := storage.AppendPrefix(storage.DataExecutable, block.Hash().BytesBE())
 		_, err := bc.dao.Store.Get(key)
 		require.NoErrorf(t, err, "block %s not persisted", block.Hash())
 	}
@@ -805,7 +805,7 @@ func TestVerifyTx(t *testing.T) {
 							},
 						},
 					}
-					require.NoError(t, bc.dao.StoreAsTransaction(conflicting, bc.blockHeight, nil))
+					require.NoError(t, bc.dao.StoreAsTransaction(conflicting, bc.blockHeight, nil, nil))
 					require.True(t, errors.Is(bc.VerifyTx(tx), ErrHasConflicts))
 				})
 				t.Run("attribute on-chain conflict", func(t *testing.T) {

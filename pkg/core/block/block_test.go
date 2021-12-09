@@ -58,7 +58,8 @@ func TestTrimmedBlock(t *testing.T) {
 	b, err := block.Trim()
 	require.NoError(t, err)
 
-	trimmedBlock, err := NewBlockFromTrimmedBytes(false, b)
+	r := io.NewBinReaderFromBuf(b)
+	trimmedBlock, err := NewTrimmedFromReader(false, r)
 	require.NoError(t, err)
 
 	assert.True(t, trimmedBlock.Trimmed)

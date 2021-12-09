@@ -43,24 +43,6 @@ func (t *TestSerializable) DecodeBinary(reader *io.BinReader) {
 	t.field = reader.ReadString()
 }
 
-func TestPutGetAppExecResult(t *testing.T) {
-	dao := NewSimple(storage.NewMemoryStore(), false, false)
-	hash := random.Uint256()
-	appExecResult := &state.AppExecResult{
-		Container: hash,
-		Execution: state.Execution{
-			Trigger: trigger.Application,
-			Events:  []state.NotificationEvent{},
-			Stack:   []stackitem.Item{},
-		},
-	}
-	err := dao.AppendAppExecResult(appExecResult, nil)
-	require.NoError(t, err)
-	gotAppExecResult, err := dao.GetAppExecResults(hash, trigger.All)
-	require.NoError(t, err)
-	require.Equal(t, []state.AppExecResult{*appExecResult}, gotAppExecResult)
-}
-
 func TestPutGetStorageItem(t *testing.T) {
 	dao := NewSimple(storage.NewMemoryStore(), false, false)
 	id := int32(random.Int(0, 1024))
@@ -104,11 +86,32 @@ func TestPutGetBlock(t *testing.T) {
 		},
 	}
 	hash := b.Hash()
-	err := dao.StoreAsBlock(b, nil)
+	appExecResult1 := &state.AppExecResult{
+		Container: hash,
+		Execution: state.Execution{
+			Trigger: trigger.OnPersist,
+			Events:  []state.NotificationEvent{},
+			Stack:   []stackitem.Item{},
+		},
+	}
+	appExecResult2 := &state.AppExecResult{
+		Container: hash,
+		Execution: state.Execution{
+			Trigger: trigger.PostPersist,
+			Events:  []state.NotificationEvent{},
+			Stack:   []stackitem.Item{},
+		},
+	}
+	err := dao.StoreAsBlock(b, appExecResult1, appExecResult2, nil)
 	require.NoError(t, err)
 	gotBlock, err := dao.GetBlock(hash)
 	require.NoError(t, err)
 	require.NotNil(t, gotBlock)
+	gotAppExecResult, err := dao.GetAppExecResults(hash, trigger.All)
+	require.NoError(t, err)
+	require.Equal(t, 2, len(gotAppExecResult))
+	require.Equal(t, *appExecResult1, gotAppExecResult[0])
+	require.Equal(t, *appExecResult2, gotAppExecResult[1])
 }
 
 func TestGetVersion_NoVersion(t *testing.T) {
@@ -177,17 +180,33 @@ func TestStoreAsTransaction(t *testing.T) {
 	t.Run("P2PSigExtensions off", func(t *testing.T) {
 		dao := NewSimple(storage.NewMemoryStore(), false, false)
 		tx := transaction.New([]byte{byte(opcode.PUSH1)}, 1)
+		tx.Signers = append(tx.Signers, transaction.Signer{})
+		tx.Scripts = append(tx.Scripts, transaction.Witness{})
 		hash := tx.Hash()
-		err := dao.StoreAsTransaction(tx, 0, nil)
+		aer := &state.AppExecResult{
+			Container: hash,
+			Execution: state.Execution{
+				Trigger: trigger.Application,
+				Events:  []state.NotificationEvent{},
+				Stack:   []stackitem.Item{},
+			},
+		}
+		err := dao.StoreAsTransaction(tx, 0, aer, nil)
 		require.NoError(t, err)
 		err = dao.HasTransaction(hash)
 		require.NotNil(t, err)
+		gotAppExecResult, err := dao.GetAppExecResults(hash, trigger.All)
+		require.NoError(t, err)
+		require.Equal(t, 1, len(gotAppExecResult))
+		require.Equal(t, *aer, gotAppExecResult[0])
 	})
 
 	t.Run("P2PSigExtensions on", func(t *testing.T) {
 		dao := NewSimple(storage.NewMemoryStore(), false, true)
 		conflictsH := util.Uint256{1, 2, 3}
 		tx := transaction.New([]byte{byte(opcode.PUSH1)}, 1)
+		tx.Signers = append(tx.Signers, transaction.Signer{})
+		tx.Scripts = append(tx.Scripts, transaction.Witness{})
 		tx.Attributes = []transaction.Attribute{
 			{
 				Type:  transaction.ConflictsT,
@@ -195,12 +214,24 @@ func TestStoreAsTransaction(t *testing.T) {
 			},
 		}
 		hash := tx.Hash()
-		err := dao.StoreAsTransaction(tx, 0, nil)
+		aer := &state.AppExecResult{
+			Container: hash,
+			Execution: state.Execution{
+				Trigger: trigger.Application,
+				Events:  []state.NotificationEvent{},
+				Stack:   []stackitem.Item{},
+			},
+		}
+		err := dao.StoreAsTransaction(tx, 0, aer, nil)
 		require.NoError(t, err)
 		err = dao.HasTransaction(hash)
 		require.True(t, errors.Is(err, ErrAlreadyExists))
 		err = dao.HasTransaction(conflictsH)
 		require.True(t, errors.Is(err, ErrHasConflicts))
+		gotAppExecResult, err := dao.GetAppExecResults(hash, trigger.All)
+		require.NoError(t, err)
+		require.Equal(t, 1, len(gotAppExecResult))
+		require.Equal(t, *aer, gotAppExecResult[0])
 	})
 }
 
@@ -228,11 +259,19 @@ func BenchmarkStoreAsTransaction(b *testing.B) {
 		},
 	}
 	_ = tx.Hash()
+	aer := &state.AppExecResult{
+		Container: tx.Hash(),
+		Execution: state.Execution{
+			Trigger: trigger.Application,
+			Events:  []state.NotificationEvent{},
+			Stack:   []stackitem.Item{},
+		},
+	}
 
 	b.ResetTimer()
 	b.ReportAllocs()
 	for n := 0; n < b.N; n++ {
-		err := dao.StoreAsTransaction(tx, 1, nil)
+		err := dao.StoreAsTransaction(tx, 1, aer, nil)
 		if err != nil {
 			b.FailNow()
 		}

@@ -44,7 +44,7 @@ import (
 // Tuning parameters.
 const (
 	headerBatchCount = 2000
-	version          = "0.2.0"
+	version          = "0.2.1"
 
 	defaultInitialGAS                      = 52000000_00000000
 	defaultMemPoolSize                     = 50000
@@ -883,13 +883,14 @@ func (bc *Blockchain) addHeaders(verify bool, headers ...*block.Header) error {
 			continue
 		}
 		bc.headerHashes = append(bc.headerHashes, h.Hash())
+		buf.WriteB(storage.ExecBlock)
 		h.EncodeBinary(buf.BinWriter)
 		buf.BinWriter.WriteB(0)
 		if buf.Err != nil {
 			return buf.Err
 		}
 
-		key := storage.AppendPrefix(storage.DataBlock, h.Hash().BytesBE())
+		key := storage.AppendPrefix(storage.DataExecutable, h.Hash().BytesBE())
 		batch.Put(key, buf.Bytes())
 		buf.Reset()
 		lastHeader = h
@@ -936,38 +937,25 @@ func (bc *Blockchain) GetStateSyncModule() blockchainer.StateSync {
 func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error {
 	var (
 		cache          = bc.dao.GetWrapped()
-		blockCache     = bc.dao.GetWrapped()
 		aerCache       = bc.dao.GetWrapped()
 		appExecResults = make([]*state.AppExecResult, 0, 2+len(block.Transactions))
 		aerchan        = make(chan *state.AppExecResult, len(block.Transactions)/8) // Tested 8 and 4 with no practical difference, but feel free to test more and tune.
 		aerdone        = make(chan error)
-		blockdone      = make(chan error)
 	)
 	go func() {
 		var (
-			kvcache  = blockCache
-			writeBuf = io.NewBufBinWriter()
+			kvcache      = aerCache
+			writeBuf     = io.NewBufBinWriter()
+			err          error
+			txCnt        int
+			baer1, baer2 *state.AppExecResult
+			transCache   = make(map[util.Uint160]transferData)
 		)
-		if err := kvcache.StoreAsBlock(block, writeBuf); err != nil {
-			blockdone <- err
-			return
-		}
-		writeBuf.Reset()
-
 		if err := kvcache.StoreAsCurrentBlock(block, writeBuf); err != nil {
-			blockdone <- err
+			aerdone <- err
 			return
 		}
 		writeBuf.Reset()
-
-		for _, tx := range block.Transactions {
-			if err := kvcache.StoreAsTransaction(tx, block.Index, writeBuf); err != nil {
-				blockdone <- err
-				return
-			}
-
-			writeBuf.Reset()
-		}
 		if bc.config.RemoveUntraceableBlocks {
 			var start, stop uint32
 			if bc.config.P2PStateExchangeExtensions {
@@ -994,24 +982,16 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 				writeBuf.Reset()
 			}
 		}
-		close(blockdone)
-	}()
-	go func() {
-		var (
-			kvcache     = aerCache
-			writeBuf    = io.NewBufBinWriter()
-			err         error
-			appendBlock bool
-			transCache  = make(map[util.Uint160]transferData)
-		)
 		for aer := range aerchan {
-			if aer.Container == block.Hash() && appendBlock {
-				err = kvcache.AppendAppExecResult(aer, writeBuf)
-			} else {
-				err = kvcache.PutAppExecResult(aer, writeBuf)
-				if aer.Container == block.Hash() {
-					appendBlock = true
+			if aer.Container == block.Hash() {
+				if baer1 == nil {
+					baer1 = aer
+				} else {
+					baer2 = aer
 				}
+			} else {
+				err = kvcache.StoreAsTransaction(block.Transactions[txCnt], block.Index, aer, writeBuf)
+				txCnt++
 			}
 			if err != nil {
 				err = fmt.Errorf("failed to store exec result: %w", err)
@@ -1028,6 +1008,11 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 			aerdone <- err
 			return
 		}
+		if err := kvcache.StoreAsBlock(block, baer1, baer2, writeBuf); err != nil {
+			aerdone <- err
+			return
+		}
+		writeBuf.Reset()
 		for acc, trData := range transCache {
 			err = kvcache.PutTokenTransferInfo(acc, &trData.Info)
 			if err != nil {
@@ -1055,7 +1040,6 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 	if err != nil {
 		// Release goroutines, don't care about errors, we already have one.
 		close(aerchan)
-		<-blockdone
 		<-aerdone
 		return fmt.Errorf("onPersist failed: %w", err)
 	}
@@ -1077,7 +1061,6 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 			if err != nil {
 				// Release goroutines, don't care about errors, we already have one.
 				close(aerchan)
-				<-blockdone
 				<-aerdone
 				return fmt.Errorf("failed to persist invocation results: %w", err)
 			}
@@ -1107,7 +1090,6 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 	if err != nil {
 		// Release goroutines, don't care about errors, we already have one.
 		close(aerchan)
-		<-blockdone
 		<-aerdone
 		return fmt.Errorf("postPersist failed: %w", err)
 	}
@@ -1119,7 +1101,6 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 	mpt, sr, err := bc.stateRoot.AddMPTBatch(block.Index, b, d.Store)
 	if err != nil {
 		// Release goroutines, don't care about errors, we already have one.
-		<-blockdone
 		<-aerdone
 		// Here MPT can be left in a half-applied state.
 		// However if this error occurs, this is a bug somewhere in code
@@ -1135,7 +1116,6 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 		}
 		if err != nil {
 			// Release goroutines, don't care about errors, we already have one.
-			<-blockdone
 			<-aerdone
 			return err
 		}
@@ -1152,22 +1132,12 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 		mpt.Collapse(10)
 	}
 
-	// Wait for _both_ goroutines to finish.
-	blockerr := <-blockdone
 	aererr := <-aerdone
-	if blockerr != nil {
-		return blockerr
-	}
 	if aererr != nil {
 		return aererr
 	}
 
 	bc.lock.Lock()
-	_, err = blockCache.Persist()
-	if err != nil {
-		bc.lock.Unlock()
-		return err
-	}
 	_, err = aerCache.Persist()
 	if err != nil {
 		bc.lock.Unlock()

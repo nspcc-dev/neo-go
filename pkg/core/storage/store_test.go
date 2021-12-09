@@ -8,8 +8,7 @@ import (
 
 var (
 	prefixes = []KeyPrefix{
-		DataBlock,
-		DataTransaction,
+		DataExecutable,
 		STAccount,
 		STStorage,
 		IXHeaderHashList,
@@ -20,7 +19,6 @@ var (
 
 	expected = []uint8{
 		0x01,
-		0x02,
 		0x40,
 		0x70,
 		0x80,
