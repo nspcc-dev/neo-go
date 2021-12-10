@@ -15,6 +15,8 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/util/bitfield"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
@@ -115,6 +117,9 @@ type codegen struct {
 
 	// Label table for recording jump destinations.
 	l []int
+
+	// Tokens for CALLT instruction
+	callTokens []nef.MethodToken
 }
 
 type labelOffsetType byte
@@ -1569,17 +1574,86 @@ func getJumpForToken(tok token.Token, typ types.Type) (opcode.Opcode, bool) {
 	return 0, false
 }
 
+func (c *codegen) getCallToken(hash util.Uint160, method string, pcount int, hasReturn bool, flag callflag.CallFlag) (uint16, error) {
+	needed := nef.MethodToken{
+		Hash:       hash,
+		Method:     method,
+		ParamCount: uint16(pcount),
+		HasReturn:  hasReturn,
+		CallFlag:   flag,
+	}
+	for i := range c.callTokens {
+		if c.callTokens[i] == needed {
+			return uint16(i), nil
+		}
+	}
+	if len(c.callTokens) == math.MaxUint16 {
+		return 0, errors.New("call token overflow")
+	}
+	c.callTokens = append(c.callTokens, needed)
+	return uint16(len(c.callTokens) - 1), nil
+}
+
 func (c *codegen) convertSyscall(f *funcScope, expr *ast.CallExpr) {
-	for _, arg := range expr.Args[1:] {
+	var callArgs = expr.Args[1:]
+
+	if strings.HasPrefix(f.name, "CallWithToken") {
+		callArgs = expr.Args[3:]
+	}
+	for _, arg := range callArgs {
 		ast.Walk(c, arg)
 	}
 	tv := c.typeAndValueOf(expr.Args[0])
-	name := constant.StringVal(tv.Value)
+	if tv.Value == nil || !isString(tv.Type) {
+		c.prog.Err = fmt.Errorf("bad intrinsic argument")
+		return
+	}
+	arg0Str := constant.StringVal(tv.Value)
+
 	if strings.HasPrefix(f.name, "Syscall") {
-		c.emitReverse(len(expr.Args) - 1)
-		emit.Syscall(c.prog.BinWriter, name)
+		c.emitReverse(len(callArgs))
+		emit.Syscall(c.prog.BinWriter, arg0Str)
+	} else if strings.HasPrefix(f.name, "CallWithToken") {
+		var hasRet = !strings.HasSuffix(f.name, "NoRet")
+
+		c.emitReverse(len(callArgs))
+
+		hash, err := util.Uint160DecodeBytesBE([]byte(arg0Str))
+		if err != nil {
+			c.prog.Err = fmt.Errorf("bad callt hash: %w", err)
+			return
+		}
+
+		tv = c.typeAndValueOf(expr.Args[1])
+		if tv.Value == nil || !isString(tv.Type) {
+			c.prog.Err = errors.New("bad callt method")
+			return
+		}
+		method := constant.StringVal(tv.Value)
+
+		tv = c.typeAndValueOf(expr.Args[2])
+		if tv.Value == nil || !isNumber(tv.Type) {
+			c.prog.Err = errors.New("bad callt call flags")
+			return
+		}
+		flag, ok := constant.Uint64Val(tv.Value)
+		if !ok || flag > 255 {
+			c.prog.Err = errors.New("invalid callt flag")
+			return
+		}
+
+		c.appendInvokedContract(hash, method, flag)
+
+		tokNum, err := c.getCallToken(hash, method, len(callArgs), hasRet, callflag.CallFlag(flag))
+		if err != nil {
+			c.prog.Err = err
+			return
+		}
+		tokBuf := make([]byte, 2)
+		binary.LittleEndian.PutUint16(tokBuf, tokNum)
+		emit.Instruction(c.prog.BinWriter, opcode.CALLT, tokBuf)
 	} else {
-		op, err := opcode.FromString(name)
+		op, err := opcode.FromString(arg0Str)
 		if err != nil {
 			c.prog.Err = fmt.Errorf("invalid opcode: %s", op)
 			return
@@ -2058,8 +2132,8 @@ func newCodegen(info *buildInfo, pkg *loader.PackageInfo) *codegen {
 	}
 }
 
-// CodeGen compiles the program to bytecode.
-func CodeGen(info *buildInfo) ([]byte, *DebugInfo, error) {
+// codeGen compiles the program to bytecode.
+func codeGen(info *buildInfo) (*nef.File, *DebugInfo, error) {
 	pkg := info.program.Package(info.initialPackage)
 	c := newCodegen(info, pkg)
 
@@ -2077,7 +2151,15 @@ func CodeGen(info *buildInfo) ([]byte, *DebugInfo, error) {
 	for i := range di.Methods {
 		methods.Set(int(di.Methods[i].Range.Start))
 	}
-	return buf, di, vm.IsScriptCorrect(buf, methods)
+	f, err := nef.NewFile(buf)
+	if err != nil {
+		return nil, nil, fmt.Errorf("error while trying to create .nef file: %w", err)
+	}
+	if c.callTokens != nil {
+		f.Tokens = c.callTokens
+	}
+	f.Checksum = f.CalculateChecksum()
+	return f, di, vm.IsScriptCorrect(buf, methods)
 }
 
 func (c *codegen) resolveFuncDecls(f *ast.File, pkg *types.Package) {

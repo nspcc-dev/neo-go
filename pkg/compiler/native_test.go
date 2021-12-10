@@ -1,14 +1,15 @@
 package compiler_test
 
 import (
+	"errors"
 	"fmt"
 	"math/big"
 	"strings"
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/pkg/compiler"
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
-	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/noderoles"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
@@ -23,8 +24,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/interop/native/roles"
 	"github.com/nspcc-dev/neo-go/pkg/interop/native/std"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
-	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
-	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/stretchr/testify/require"
@@ -250,10 +249,41 @@ func runNativeTestCase(t *testing.T, ctr interop.ContractMD, name, method string
 	methodUpper = strings.ReplaceAll(methodUpper, "Json", "JSON")
 	src := fmt.Sprintf(srcTmpl, name, name, methodUpper, strings.Join(params, ","))
 
-	v, s := vmAndCompileInterop(t, src)
-	id := interopnames.ToID([]byte(interopnames.SystemContractCall))
+	v := vm.New()
+	v.GasLimit = -1
+	b, di, err := compiler.CompileWithDebugInfo("foo.go", strings.NewReader(src))
+	require.NoError(t, err)
+
 	result := getTestStackItem(md.MD.ReturnType)
-	s.interops[id] = testContractCall(t, ctr.Hash, md, result)
+	v.LoadToken = func(id int32) error {
+		t := b.Tokens[id]
+		if t.Hash != ctr.Hash {
+			return fmt.Errorf("wrong hash %s", t.Hash.StringLE())
+		}
+		if t.Method != md.MD.Name {
+			return fmt.Errorf("wrong name %s", t.Method)
+		}
+		if int(t.ParamCount) != len(md.MD.Parameters) {
+			return fmt.Errorf("wrong number of parameters %v", t.ParamCount)
+		}
+		if t.HasReturn != !isVoid {
+			return fmt.Errorf("wrong hasReturn %v", t.HasReturn)
+		}
+		if t.CallFlag != md.RequiredFlags {
+			return fmt.Errorf("wrong flags %v", t.CallFlag)
+		}
+		for i := 0; i < int(t.ParamCount); i++ {
+			_ = v.Estack().Pop()
+		}
+		if v.Estack().Len() != 0 {
+			return errors.New("excessive parameters on the stack")
+		}
+		if !isVoid {
+			v.Estack().PushVal(result)
+		}
+		return nil
+	}
+	invokeMethod(t, testMainIdent, b.Script, v, di)
 	require.NoError(t, v.Run())
 	if isVoid {
 		require.Equal(t, 0, v.Estack().Len())
@@ -285,24 +315,5 @@ func getTestStackItem(typ smartcontract.ParamType) stackitem.Item {
 		return stackitem.NewInterop(42)
 	default:
 		panic("unexpected type")
-	}
-}
-
-func testContractCall(t *testing.T, hash util.Uint160, md interop.MethodAndPrice, result stackitem.Item) func(*vm.VM) error {
-	return func(v *vm.VM) error {
-		h := v.Estack().Pop().Bytes()
-		require.Equal(t, hash.BytesBE(), h)
-
-		method := v.Estack().Pop().String()
-		require.Equal(t, md.MD.Name, method)
-
-		fs := callflag.CallFlag(int32(v.Estack().Pop().BigInt().Int64()))
-		require.Equal(t, fs, md.RequiredFlags)
-
-		args := v.Estack().Pop().Array()
-		require.Equal(t, len(md.MD.Parameters), len(args))
-
-		v.Estack().PushVal(result)
-		return nil
 	}
 }

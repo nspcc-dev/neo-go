@@ -29,10 +29,7 @@ func CompileSource(t *testing.T, sender util.Uint160, src io.Reader, opts *compi
 	// nef.NewFile() cares about version a lot.
 	config.Version = "neotest"
 
-	avm, di, err := compiler.CompileWithDebugInfo(opts.Name, src)
-	require.NoError(t, err)
-
-	ne, err := nef.NewFile(avm)
+	ne, di, err := compiler.CompileWithDebugInfo(opts.Name, src)
 	require.NoError(t, err)
 
 	m, err := compiler.CreateManifest(di, opts)
@@ -54,10 +51,7 @@ func CompileFile(t *testing.T, sender util.Uint160, srcPath string, configPath s
 	// nef.NewFile() cares about version a lot.
 	config.Version = "neotest"
 
-	avm, di, err := compiler.CompileWithDebugInfo(srcPath, nil)
-	require.NoError(t, err)
-
-	ne, err := nef.NewFile(avm)
+	ne, di, err := compiler.CompileWithDebugInfo(srcPath, nil)
 	require.NoError(t, err)
 
 	conf, err := smartcontract.ParseContractConfig(configPath)

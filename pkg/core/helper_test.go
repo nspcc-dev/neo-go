@@ -33,7 +33,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
-	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
@@ -166,13 +165,10 @@ func TestBug1728(t *testing.T) {
 	func _deploy(_ interface{}, isUpdate bool) {
 		runtime.Log("Deploy")
 	}`
-	b, di, err := compiler.CompileWithDebugInfo("foo", strings.NewReader(src))
+	nf, di, err := compiler.CompileWithDebugInfo("foo", strings.NewReader(src))
 	require.NoError(t, err)
 	m, err := di.ConvertToManifest(&compiler.Options{Name: "TestContract"})
 	require.NoError(t, err)
-	nf, err := nef.NewFile(b)
-	require.NoError(t, err)
-	nf.CalculateChecksum()
 
 	rawManifest, err := json.Marshal(m)
 	require.NoError(t, err)

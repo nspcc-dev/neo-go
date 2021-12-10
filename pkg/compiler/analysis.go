@@ -353,7 +353,7 @@ func isSyscall(fun *funcScope) bool {
 		return false
 	}
 	return fun.pkg.Name() == "neogointernal" && (strings.HasPrefix(fun.name, "Syscall") ||
-		strings.HasPrefix(fun.name, "Opcode"))
+		strings.HasPrefix(fun.name, "Opcode") || strings.HasPrefix(fun.name, "CallWithToken"))
 }
 
 const interopPrefix = "github.com/nspcc-dev/neo-go/pkg/interop"

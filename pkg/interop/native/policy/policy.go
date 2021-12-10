@@ -7,6 +7,7 @@ package policy
 import (
 	"github.com/nspcc-dev/neo-go/pkg/interop"
 	"github.com/nspcc-dev/neo-go/pkg/interop/contract"
+	"github.com/nspcc-dev/neo-go/pkg/interop/neogointernal"
 )
 
 // Hash represents Policy contract hash.
@@ -14,45 +15,45 @@ const Hash = "\x7b\xc6\x81\xc0\xa1\xf7\x1d\x54\x34\x57\xb6\x8b\xba\x8d\x5f\x9f\x
 
 // GetFeePerByte represents `getFeePerByte` method of Policy native contract.
 func GetFeePerByte() int {
-	return contract.Call(interop.Hash160(Hash), "getFeePerByte", contract.ReadStates).(int)
+	return neogointernal.CallWithToken(Hash, "getFeePerByte", int(contract.ReadStates)).(int)
 }
 
 // SetFeePerByte represents `setFeePerByte` method of Policy native contract.
 func SetFeePerByte(value int) {
-	contract.Call(interop.Hash160(Hash), "setFeePerByte", contract.States, value)
+	neogointernal.CallWithTokenNoRet(Hash, "setFeePerByte", int(contract.States), value)
 }
 
 // GetExecFeeFactor represents `getExecFeeFactor` method of Policy native contract.
 func GetExecFeeFactor() int {
-	return contract.Call(interop.Hash160(Hash), "getExecFeeFactor", contract.ReadStates).(int)
+	return neogointernal.CallWithToken(Hash, "getExecFeeFactor", int(contract.ReadStates)).(int)
 }
 
 // SetExecFeeFactor represents `setExecFeeFactor` method of Policy native contract.
 func SetExecFeeFactor(value int) {
-	contract.Call(interop.Hash160(Hash), "setExecFeeFactor", contract.States, value)
+	neogointernal.CallWithTokenNoRet(Hash, "setExecFeeFactor", int(contract.States), value)
 }
 
 // GetStoragePrice represents `getStoragePrice` method of Policy native contract.
 func GetStoragePrice() int {
-	return contract.Call(interop.Hash160(Hash), "getStoragePrice", contract.ReadStates).(int)
+	return neogointernal.CallWithToken(Hash, "getStoragePrice", int(contract.ReadStates)).(int)
 }
 
 // SetStoragePrice represents `setStoragePrice` method of Policy native contract.
 func SetStoragePrice(value int) {
-	contract.Call(interop.Hash160(Hash), "setStoragePrice", contract.States, value)
+	neogointernal.CallWithTokenNoRet(Hash, "setStoragePrice", int(contract.States), value)
 }
 
 // IsBlocked represents `isBlocked` method of Policy native contract.
 func IsBlocked(addr interop.Hash160) bool {
-	return contract.Call(interop.Hash160(Hash), "isBlocked", contract.ReadStates, addr).(bool)
+	return neogointernal.CallWithToken(Hash, "isBlocked", int(contract.ReadStates), addr).(bool)
 }
 
 // BlockAccount represents `blockAccount` method of Policy native contract.
 func BlockAccount(addr interop.Hash160) bool {
-	return contract.Call(interop.Hash160(Hash), "blockAccount", contract.States, addr).(bool)
+	return neogointernal.CallWithToken(Hash, "blockAccount", int(contract.States), addr).(bool)
 }
 
 // UnblockAccount represents `unblockAccount` method of Policy native contract.
 func UnblockAccount(addr interop.Hash160) bool {
-	return contract.Call(interop.Hash160(Hash), "unblockAccount", contract.States, addr).(bool)
+	return neogointernal.CallWithToken(Hash, "unblockAccount", int(contract.States), addr).(bool)
 }

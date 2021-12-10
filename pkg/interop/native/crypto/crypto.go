@@ -7,6 +7,7 @@ package crypto
 import (
 	"github.com/nspcc-dev/neo-go/pkg/interop"
 	"github.com/nspcc-dev/neo-go/pkg/interop/contract"
+	"github.com/nspcc-dev/neo-go/pkg/interop/neogointernal"
 )
 
 // Hash represents CryptoLib contract hash.
@@ -23,16 +24,16 @@ const (
 
 // Sha256 calls `sha256` method of native CryptoLib contract and computes SHA256 hash of b.
 func Sha256(b []byte) interop.Hash256 {
-	return contract.Call(interop.Hash160(Hash), "sha256", contract.NoneFlag, b).(interop.Hash256)
+	return neogointernal.CallWithToken(Hash, "sha256", int(contract.NoneFlag), b).(interop.Hash256)
 }
 
 // Ripemd160 calls `ripemd160` method of native CryptoLib contract and computes RIPEMD160 hash of b.
 func Ripemd160(b []byte) interop.Hash160 {
-	return contract.Call(interop.Hash160(Hash), "ripemd160", contract.NoneFlag, b).(interop.Hash160)
+	return neogointernal.CallWithToken(Hash, "ripemd160", int(contract.NoneFlag), b).(interop.Hash160)
 }
 
 // VerifyWithECDsa calls `verifyWithECDsa` method of native CryptoLib contract and checks that sig is
 // correct msg's signature for a given pub (serialized public key on a given curve).
 func VerifyWithECDsa(msg []byte, pub interop.PublicKey, sig interop.Signature, curve NamedCurve) bool {
-	return contract.Call(interop.Hash160(Hash), "verifyWithECDsa", contract.NoneFlag, msg, pub, sig, curve).(bool)
+	return neogointernal.CallWithToken(Hash, "verifyWithECDsa", int(contract.NoneFlag), msg, pub, sig, curve).(bool)
 }

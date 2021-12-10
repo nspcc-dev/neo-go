@@ -75,7 +75,7 @@ func vmAndCompileInterop(t *testing.T, src string) (*vm.VM, *storagePlugin) {
 	require.NoError(t, err)
 
 	storePlugin.info = di
-	invokeMethod(t, testMainIdent, b, vm, di)
+	invokeMethod(t, testMainIdent, b.Script, vm, di)
 	return vm, storePlugin
 }
 
