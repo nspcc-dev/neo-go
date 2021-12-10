@@ -3,6 +3,7 @@ package neotest
 import (
 	"bytes"
 	"fmt"
+	"sort"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
@@ -27,15 +28,33 @@ type Signer interface {
 	SignTx(netmode.Magic, *transaction.Transaction) error
 }
 
+// SingleSigner is a generic interface for simple one-signature signer.
+type SingleSigner interface {
+	Signer
+	// Account returns underlying account which can be used to
+	// get public key and/or sign arbitrary things.
+	Account() *wallet.Account
+}
+
+// MultiSigner is the interface for multisignature signing account.
+type MultiSigner interface {
+	Signer
+	// Single returns simple-signature signer for n-th account in list.
+	Single(n int) SingleSigner
+}
+
 // signer represents simple-signature signer.
 type signer wallet.Account
 
 // multiSigner represents single multi-signature signer consisting of provided accounts.
-type multiSigner []*wallet.Account
+type multiSigner struct {
+	accounts []*wallet.Account
+	m        int
+}
 
 // NewSingleSigner returns multi-signature signer for the provided account.
 // It must contain exactly as many accounts as needed to sign the script.
-func NewSingleSigner(acc *wallet.Account) Signer {
+func NewSingleSigner(acc *wallet.Account) SingleSigner {
 	if !vm.IsSignatureContract(acc.Contract.Script) {
 		panic("account must have simple-signature verification script")
 	}
@@ -63,9 +82,14 @@ func (s *signer) SignTx(magic netmode.Magic, tx *transaction.Transaction) error 
 	return (*wallet.Account)(s).SignTx(magic, tx)
 }
 
+// Account implements SingleSigner interface.
+func (s *signer) Account() *wallet.Account {
+	return (*wallet.Account)(s)
+}
+
 // NewMultiSigner returns multi-signature signer for the provided account.
 // It must contain at least as many accounts as needed to sign the script.
-func NewMultiSigner(accs ...*wallet.Account) Signer {
+func NewMultiSigner(accs ...*wallet.Account) MultiSigner {
 	if len(accs) == 0 {
 		panic("empty account list")
 	}
@@ -78,30 +102,35 @@ func NewMultiSigner(accs ...*wallet.Account) Signer {
 		panic(fmt.Sprintf("verification script requires %d signatures, "+
 			"but only %d accounts were provided", m, len(accs)))
 	}
+	sort.Slice(accs, func(i, j int) bool {
+		p1 := accs[i].PrivateKey().PublicKey()
+		p2 := accs[j].PrivateKey().PublicKey()
+		return p1.Cmp(p2) == -1
+	})
 	for _, acc := range accs {
 		if !bytes.Equal(script, acc.Contract.Script) {
 			panic("all accounts must have equal verification script")
 		}
 	}
 
-	return multiSigner(accs[:m])
+	return multiSigner{accounts: accs, m: m}
 }
 
 // ScriptHash implements Signer interface.
 func (m multiSigner) ScriptHash() util.Uint160 {
-	return m[0].Contract.ScriptHash()
+	return m.accounts[0].Contract.ScriptHash()
 }
 
 // Script implements Signer interface.
 func (m multiSigner) Script() []byte {
-	return m[0].Contract.Script
+	return m.accounts[0].Contract.Script
 }
 
 // SignHashable implements Signer interface.
 func (m multiSigner) SignHashable(magic uint32, item hash.Hashable) []byte {
 	var script []byte
-	for _, acc := range m {
-		sign := acc.PrivateKey().SignHashable(magic, item)
+	for i := 0; i < m.m; i++ {
+		sign := m.accounts[i].PrivateKey().SignHashable(magic, item)
 		script = append(script, byte(opcode.PUSHDATA1), 64)
 		script = append(script, sign...)
 	}
@@ -125,9 +154,19 @@ func (m multiSigner) SignTx(magic netmode.Magic, tx *transaction.Transaction) er
 	return nil
 }
 
+// Single implements MultiSigner interface.
+func (m multiSigner) Single(n int) SingleSigner {
+	if len(m.accounts) <= n {
+		panic("invalid index")
+	}
+	return NewSingleSigner(wallet.NewAccountFromPrivateKey(m.accounts[n].PrivateKey()))
+}
+
 func checkMultiSigner(t *testing.T, s Signer) {
-	accs, ok := s.(multiSigner)
+	ms, ok := s.(multiSigner)
 	require.True(t, ok, "expected to be a multi-signer")
+
+	accs := ms.accounts
 	require.True(t, len(accs) > 0, "empty multi-signer")
 
 	m := len(accs[0].Contract.Parameters)

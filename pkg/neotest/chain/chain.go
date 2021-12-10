@@ -72,40 +72,36 @@ func init() {
 	standByCommittee[4] = hex.EncodeToString(pubs[4].Bytes())
 	standByCommittee[5] = hex.EncodeToString(pubs[5].Bytes())
 
-	multiValidatorAcc = make([]*wallet.Account, mv)
+	multiValidatorAcc = make([]*wallet.Account, 4)
 	sort.Sort(pubs[:4])
 
-vloop:
-	for i := 0; i < mv; i++ {
-		for j := range accs {
-			if accs[j].PrivateKey().PublicKey().Equal(pubs[i]) {
-				multiValidatorAcc[i] = wallet.NewAccountFromPrivateKey(accs[j].PrivateKey())
-				err := multiValidatorAcc[i].ConvertMultisig(mv, pubs[:4])
-				if err != nil {
-					panic(err)
-				}
-				continue vloop
-			}
+	sort.Slice(accs[:4], func(i, j int) bool {
+		p1 := accs[i].PrivateKey().PublicKey()
+		p2 := accs[j].PrivateKey().PublicKey()
+		return p1.Cmp(p2) == -1
+	})
+	for i := range multiValidatorAcc {
+		multiValidatorAcc[i] = wallet.NewAccountFromPrivateKey(accs[i].PrivateKey())
+		err := multiValidatorAcc[i].ConvertMultisig(mv, pubs[:4])
+		if err != nil {
+			panic(err)
 		}
-		panic("invalid committee WIFs")
 	}
 
-	multiCommitteeAcc = make([]*wallet.Account, mc)
+	multiCommitteeAcc = make([]*wallet.Account, len(committeeWIFs))
 	sort.Sort(pubs)
 
-cloop:
-	for i := 0; i < mc; i++ {
-		for j := range accs {
-			if accs[j].PrivateKey().PublicKey().Equal(pubs[i]) {
-				multiCommitteeAcc[i] = wallet.NewAccountFromPrivateKey(accs[j].PrivateKey())
-				err := multiCommitteeAcc[i].ConvertMultisig(mc, pubs)
-				if err != nil {
-					panic(err)
-				}
-				continue cloop
-			}
+	sort.Slice(accs, func(i, j int) bool {
+		p1 := accs[i].PrivateKey().PublicKey()
+		p2 := accs[j].PrivateKey().PublicKey()
+		return p1.Cmp(p2) == -1
+	})
+	for i := range multiCommitteeAcc {
+		multiCommitteeAcc[i] = wallet.NewAccountFromPrivateKey(accs[i].PrivateKey())
+		err := multiCommitteeAcc[i].ConvertMultisig(mc, pubs)
+		if err != nil {
+			panic(err)
 		}
-		panic("invalid committee WIFs")
 	}
 }
 
