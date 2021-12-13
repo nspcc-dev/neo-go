@@ -8,6 +8,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
+	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -18,7 +19,8 @@ type GAS struct {
 	nep17TokenNative
 	NEO *NEO
 
-	initialSupply int64
+	initialSupply           int64
+	p2pSigExtensionsEnabled bool
 }
 
 const gasContractID = -6
@@ -27,8 +29,11 @@ const gasContractID = -6
 const GASFactor = NEOTotalSupply
 
 // newGAS returns GAS native contract.
-func newGAS(init int64) *GAS {
-	g := &GAS{initialSupply: init}
+func newGAS(init int64, p2pSigExtensionsEnabled bool) *GAS {
+	g := &GAS{
+		initialSupply:           init,
+		p2pSigExtensionsEnabled: p2pSigExtensionsEnabled,
+	}
 	defer g.UpdateHash()
 
 	nep17 := newNEP17Native(nativenames.Gas, gasContractID)
@@ -105,6 +110,15 @@ func (g *GAS) OnPersist(ic *interop.Context) error {
 	var netFee int64
 	for _, tx := range ic.Block.Transactions {
 		netFee += tx.NetworkFee
+		if g.p2pSigExtensionsEnabled {
+			// Reward for NotaryAssisted attribute will be minted to designated notary nodes
+			// by Notary contract.
+			attrs := tx.GetAttributes(transaction.NotaryAssistedT)
+			if len(attrs) != 0 {
+				na := attrs[0].Value.(*transaction.NotaryAssisted)
+				netFee -= (int64(na.NKeys) + 1) * transaction.NotaryServiceFeePerKey
+			}
+		}
 	}
 	g.mint(ic, primary, big.NewInt(int64(netFee)), false)
 	return nil

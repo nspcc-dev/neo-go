@@ -75,7 +75,7 @@ func NewContracts(cfg config.ProtocolConfiguration) *Contracts {
 	cs.Ledger = ledger
 	cs.Contracts = append(cs.Contracts, ledger)
 
-	gas := newGAS(int64(cfg.InitialGASSupply))
+	gas := newGAS(int64(cfg.InitialGASSupply), cfg.P2PSigExtensions)
 	neo := newNEO()
 	neo.GAS = gas
 	gas.NEO = neo
