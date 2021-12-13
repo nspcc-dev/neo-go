@@ -82,6 +82,20 @@ func Array(w *io.BinWriter, es ...interface{}) {
 			Array(w, e...)
 		case int64:
 			Int(w, e)
+		case int32:
+			Int(w, int64(e))
+		case uint32:
+			Int(w, int64(e))
+		case int16:
+			Int(w, int64(e))
+		case uint16:
+			Int(w, int64(e))
+		case int8:
+			Int(w, int64(e))
+		case uint8:
+			Int(w, int64(e))
+		case int:
+			Int(w, int64(e))
 		case *big.Int:
 			bigInt(w, e)
 		case string:
