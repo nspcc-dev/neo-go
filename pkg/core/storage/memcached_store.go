@@ -90,17 +90,17 @@ func (s *MemCachedStore) GetBatch() *MemBatch {
 }
 
 // Seek implements the Store interface.
-func (s *MemCachedStore) Seek(key []byte, f func(k, v []byte)) {
-	s.seek(context.Background(), key, false, f)
+func (s *MemCachedStore) Seek(rng SeekRange, f func(k, v []byte)) {
+	s.seek(context.Background(), rng, false, f)
 }
 
 // SeekAsync returns non-buffered channel with matching KeyValue pairs. Key and
 // value slices may not be copied and may be modified. SeekAsync can guarantee
 // that key-value items are sorted by key in ascending way.
-func (s *MemCachedStore) SeekAsync(ctx context.Context, key []byte, cutPrefix bool) chan KeyValue {
+func (s *MemCachedStore) SeekAsync(ctx context.Context, rng SeekRange, cutPrefix bool) chan KeyValue {
 	res := make(chan KeyValue)
 	go func() {
-		s.seek(ctx, key, cutPrefix, func(k, v []byte) {
+		s.seek(ctx, rng, cutPrefix, func(k, v []byte) {
 			res <- KeyValue{
 				Key:   k,
 				Value: v,
@@ -112,13 +112,23 @@ func (s *MemCachedStore) SeekAsync(ctx context.Context, key []byte, cutPrefix bo
 	return res
 }
 
-func (s *MemCachedStore) seek(ctx context.Context, key []byte, cutPrefix bool, f func(k, v []byte)) {
+// seek is internal representations of Seek* capable of seeking for the given key
+// and supporting early stop using provided context. `cutPrefix` denotes whether provided
+// key needs to be cut off the resulting keys. `rng` specifies prefix items must match
+// and point to start seeking from.
+func (s *MemCachedStore) seek(ctx context.Context, rng SeekRange, cutPrefix bool, f func(k, v []byte)) {
 	// Create memory store `mem` and `del` snapshot not to hold the lock.
 	var memRes []KeyValueExists
-	sk := string(key)
+	sPrefix := string(rng.Prefix)
+	lPrefix := len(sPrefix)
+	sStart := string(rng.Start)
+	lStart := len(sStart)
+	isKeyOK := func(key string) bool {
+		return strings.HasPrefix(key, sPrefix) && (lStart == 0 || strings.Compare(key[lPrefix:], sStart) >= 0)
+	}
 	s.mut.RLock()
 	for k, v := range s.MemoryStore.mem {
-		if strings.HasPrefix(k, sk) {
+		if isKeyOK(k) {
 			memRes = append(memRes, KeyValueExists{
 				KeyValue: KeyValue{
 					Key:   []byte(k),
@@ -129,7 +139,7 @@ func (s *MemCachedStore) seek(ctx context.Context, key []byte, cutPrefix bool, f
 		}
 	}
 	for k := range s.MemoryStore.del {
-		if strings.HasPrefix(k, sk) {
+		if isKeyOK(k) {
 			memRes = append(memRes, KeyValueExists{
 				KeyValue: KeyValue{
 					Key: []byte(k),
@@ -156,7 +166,7 @@ func (s *MemCachedStore) seek(ctx context.Context, key []byte, cutPrefix bool, f
 		iMem++
 	}
 	// Merge results of seek operations in ascending order.
-	ps.Seek(key, func(k, v []byte) {
+	mergeFunc := func(k, v []byte) {
 		if done {
 			return
 		}
@@ -175,7 +185,7 @@ func (s *MemCachedStore) seek(ctx context.Context, key []byte, cutPrefix bool, f
 				if isMem {
 					if kvMem.Exists {
 						if cutPrefix {
-							kvMem.Key = kvMem.Key[len(key):]
+							kvMem.Key = kvMem.Key[lPrefix:]
 						}
 						f(kvMem.Key, kvMem.Value)
 					}
@@ -189,7 +199,7 @@ func (s *MemCachedStore) seek(ctx context.Context, key []byte, cutPrefix bool, f
 				} else {
 					if !bytes.Equal(kvMem.Key, kvPs.Key) {
 						if cutPrefix {
-							kvPs.Key = kvPs.Key[len(key):]
+							kvPs.Key = kvPs.Key[lPrefix:]
 						}
 						f(kvPs.Key, kvPs.Value)
 					}
@@ -197,7 +207,9 @@ func (s *MemCachedStore) seek(ctx context.Context, key []byte, cutPrefix bool, f
 				}
 			}
 		}
-	})
+	}
+	ps.Seek(rng, mergeFunc)
+
 	if !done && haveMem {
 	loop:
 		for i := iMem - 1; i < len(memRes); i++ {
@@ -208,7 +220,7 @@ func (s *MemCachedStore) seek(ctx context.Context, key []byte, cutPrefix bool, f
 				kvMem = memRes[i]
 				if kvMem.Exists {
 					if cutPrefix {
-						kvMem.Key = kvMem.Key[len(key):]
+						kvMem.Key = kvMem.Key[lPrefix:]
 					}
 					f(kvMem.Key, kvMem.Value)
 				}

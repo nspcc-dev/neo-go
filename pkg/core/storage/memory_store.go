@@ -104,9 +104,9 @@ func (s *MemoryStore) PutChangeSet(puts map[string][]byte, dels map[string]bool)
 }
 
 // Seek implements the Store interface.
-func (s *MemoryStore) Seek(key []byte, f func(k, v []byte)) {
+func (s *MemoryStore) Seek(rng SeekRange, f func(k, v []byte)) {
 	s.mut.RLock()
-	s.seek(key, f)
+	s.seek(rng, f)
 	s.mut.RUnlock()
 }
 
@@ -127,12 +127,20 @@ func (s *MemoryStore) SeekAll(key []byte, f func(k, v []byte)) {
 	}
 }
 
-// seek is an internal unlocked implementation of Seek.
-func (s *MemoryStore) seek(key []byte, f func(k, v []byte)) {
-	sk := string(key)
+// seek is an internal unlocked implementation of Seek. `start` denotes whether
+// seeking starting from the provided prefix should be performed.
+func (s *MemoryStore) seek(rng SeekRange, f func(k, v []byte)) {
+	sPrefix := string(rng.Prefix)
+	lPrefix := len(sPrefix)
+	sStart := string(rng.Start)
+	lStart := len(sStart)
 	var memList []KeyValue
+
+	isKeyOK := func(key string) bool {
+		return strings.HasPrefix(key, sPrefix) && (lStart == 0 || strings.Compare(key[lPrefix:], sStart) >= 0)
+	}
 	for k, v := range s.mem {
-		if strings.HasPrefix(k, sk) {
+		if isKeyOK(k) {
 			memList = append(memList, KeyValue{
 				Key:   []byte(k),
 				Value: v,

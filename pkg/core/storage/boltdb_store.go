@@ -109,11 +109,15 @@ func (s *BoltDBStore) PutChangeSet(puts map[string][]byte, dels map[string]bool)
 }
 
 // Seek implements the Store interface.
-func (s *BoltDBStore) Seek(key []byte, f func(k, v []byte)) {
+func (s *BoltDBStore) Seek(rng SeekRange, f func(k, v []byte)) {
+	start := make([]byte, len(rng.Prefix)+len(rng.Start))
+	copy(start, rng.Prefix)
+	copy(start[len(rng.Prefix):], rng.Start)
+	prefix := util.BytesPrefix(rng.Prefix)
+	prefix.Start = start
 	err := s.db.View(func(tx *bbolt.Tx) error {
 		c := tx.Bucket(Bucket).Cursor()
-		prefix := util.BytesPrefix(key)
-		for k, v := c.Seek(prefix.Start); k != nil && bytes.Compare(k, prefix.Limit) <= 0; k, v = c.Next() {
+		for k, v := c.Seek(prefix.Start); k != nil && (len(prefix.Limit) == 0 || bytes.Compare(k, prefix.Limit) <= 0); k, v = c.Next() {
 			f(k, v)
 		}
 		return nil

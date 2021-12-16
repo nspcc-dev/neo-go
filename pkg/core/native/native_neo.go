@@ -386,7 +386,7 @@ func (n *NEO) PostPersist(ic *interop.Context) error {
 func (n *NEO) getGASPerVote(d dao.DAO, key []byte, index ...uint32) []big.Int {
 	var max = make([]uint32, len(index))
 	var reward = make([]big.Int, len(index))
-	d.Seek(n.ID, key, func(k, v []byte) {
+	d.Seek(n.ID, storage.SeekRange{Prefix: key}, func(k, v []byte) {
 		if len(k) == 4 {
 			num := binary.BigEndian.Uint32(k)
 			for i, ind := range index {
@@ -591,7 +591,7 @@ func (n *NEO) dropCandidateIfZero(d dao.DAO, pub *keys.PublicKey, c *candidate) 
 
 	var toRemove []string
 	voterKey := makeVoterKey(pub.Bytes())
-	d.Seek(n.ID, voterKey, func(k, v []byte) {
+	d.Seek(n.ID, storage.SeekRange{Prefix: voterKey}, func(k, v []byte) {
 		toRemove = append(toRemove, string(k))
 	})
 	for i := range toRemove {

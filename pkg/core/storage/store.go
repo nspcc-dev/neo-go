@@ -45,6 +45,22 @@ const (
 	MaxStorageValueLen = 65535
 )
 
+// SeekRange represents options for Store.Seek operation.
+type SeekRange struct {
+	// Prefix denotes the Seek's lookup key.
+	// Empty Prefix means seeking through all keys in the DB starting from
+	// the Start if specified.
+	Prefix []byte
+	// Start denotes value upended to the Prefix to start Seek from.
+	// Seeking starting from some key includes this key to the result;
+	// if no matching key was found then next suitable key is picked up.
+	// Start may be empty. Empty Start means seeking through all keys in
+	// the DB with matching Prefix.
+	// Empty Prefix and empty Start can be combined, which means seeking
+	// through all keys in the DB.
+	Start []byte
+}
+
 // ErrKeyNotFound is an error returned by Store implementations
 // when a certain key is not found.
 var ErrKeyNotFound = errors.New("key not found")
@@ -63,7 +79,7 @@ type (
 		// Seek can guarantee that provided key (k) and value (v) are the only valid until the next call to f.
 		// Key and value slices should not be modified. Seek can guarantee that key-value items are sorted by
 		// key in ascending way.
-		Seek(k []byte, f func(k, v []byte))
+		Seek(rng SeekRange, f func(k, v []byte))
 		Close() error
 	}
 

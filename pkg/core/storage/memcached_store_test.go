@@ -167,7 +167,7 @@ func TestCachedSeek(t *testing.T) {
 		require.NoError(t, ts.Put(v.Key, v.Value))
 	}
 	foundKVs := make(map[string][]byte)
-	ts.Seek(goodPrefix, func(k, v []byte) {
+	ts.Seek(SeekRange{Prefix: goodPrefix}, func(k, v []byte) {
 		foundKVs[string(k)] = v
 	})
 	assert.Equal(t, len(foundKVs), len(lowerKVs)+len(updatedKVs))
@@ -232,7 +232,7 @@ func benchmarkCachedSeek(t *testing.B, ps Store, psElementsCount, tsElementsCoun
 	t.ReportAllocs()
 	t.ResetTimer()
 	for n := 0; n < t.N; n++ {
-		ts.Seek(searchPrefix, func(k, v []byte) {})
+		ts.Seek(SeekRange{Prefix: searchPrefix}, func(k, v []byte) {})
 	}
 	t.StopTimer()
 }
@@ -290,7 +290,7 @@ func (b *BadStore) PutChangeSet(_ map[string][]byte, _ map[string]bool) error {
 	b.onPutBatch()
 	return ErrKeyNotFound
 }
-func (b *BadStore) Seek(k []byte, f func(k, v []byte)) {
+func (b *BadStore) Seek(rng SeekRange, f func(k, v []byte)) {
 }
 func (b *BadStore) Close() error {
 	return nil
@@ -365,7 +365,7 @@ func TestCachedSeekSorting(t *testing.T) {
 		require.NoError(t, ts.Put(v.Key, v.Value))
 	}
 	var foundKVs []KeyValue
-	ts.Seek(goodPrefix, func(k, v []byte) {
+	ts.Seek(SeekRange{Prefix: goodPrefix}, func(k, v []byte) {
 		foundKVs = append(foundKVs, KeyValue{Key: slice.Copy(k), Value: slice.Copy(v)})
 	})
 	assert.Equal(t, len(foundKVs), len(lowerKVs)+len(updatedKVs))

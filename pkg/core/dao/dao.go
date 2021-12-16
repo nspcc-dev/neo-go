@@ -62,8 +62,8 @@ type DAO interface {
 	PutStateSyncCurrentBlockHeight(h uint32) error
 	PutStorageItem(id int32, key []byte, si state.StorageItem) error
 	PutVersion(v Version) error
-	Seek(id int32, prefix []byte, f func(k, v []byte))
-	SeekAsync(ctx context.Context, id int32, prefix []byte) chan storage.KeyValue
+	Seek(id int32, rng storage.SeekRange, f func(k, v []byte))
+	SeekAsync(ctx context.Context, id int32, rng storage.SeekRange) chan storage.KeyValue
 	StoreAsBlock(block *block.Block, aer1 *state.AppExecResult, aer2 *state.AppExecResult, buf *io.BufBinWriter) error
 	StoreAsCurrentBlock(block *block.Block, buf *io.BufBinWriter) error
 	StoreAsTransaction(tx *transaction.Transaction, index uint32, aer *state.AppExecResult, buf *io.BufBinWriter) error
@@ -300,30 +300,26 @@ func (dao *Simple) GetStorageItemsWithPrefix(id int32, prefix []byte) ([]state.S
 			Item: state.StorageItem(v),
 		})
 	}
-	dao.Seek(id, prefix, saveToArr)
+	dao.Seek(id, storage.SeekRange{Prefix: prefix}, saveToArr)
 	return siArr, nil
 }
 
-// Seek executes f for all items with a given prefix.
-// If key is to be used outside of f, they may not be copied.
-func (dao *Simple) Seek(id int32, prefix []byte, f func(k, v []byte)) {
-	lookupKey := makeStorageItemKey(dao.Version.StoragePrefix, id, nil)
-	if prefix != nil {
-		lookupKey = append(lookupKey, prefix...)
-	}
-	dao.Store.Seek(lookupKey, func(k, v []byte) {
-		f(k[len(lookupKey):], v)
+// Seek executes f for all storage items matching a given `rng` (matching given prefix and
+// starting from the point specified). If key or value is to be used outside of f, they
+// may not be copied.
+func (dao *Simple) Seek(id int32, rng storage.SeekRange, f func(k, v []byte)) {
+	rng.Prefix = makeStorageItemKey(dao.Version.StoragePrefix, id, rng.Prefix)
+	dao.Store.Seek(rng, func(k, v []byte) {
+		f(k[len(rng.Prefix):], v)
 	})
 }
 
-// SeekAsync sends all storage items matching given prefix to a channel and returns
-// the channel. Resulting keys and values may not be copied.
-func (dao *Simple) SeekAsync(ctx context.Context, id int32, prefix []byte) chan storage.KeyValue {
-	lookupKey := makeStorageItemKey(dao.Version.StoragePrefix, id, nil)
-	if prefix != nil {
-		lookupKey = append(lookupKey, prefix...)
-	}
-	return dao.Store.SeekAsync(ctx, lookupKey, true)
+// SeekAsync sends all storage items matching a given `rng` (matching given prefix and
+// starting from the point specified) to a channel and returns the channel.
+// Resulting keys and values may not be copied.
+func (dao *Simple) SeekAsync(ctx context.Context, id int32, rng storage.SeekRange) chan storage.KeyValue {
+	rng.Prefix = makeStorageItemKey(dao.Version.StoragePrefix, id, rng.Prefix)
+	return dao.Store.SeekAsync(ctx, rng, true)
 }
 
 // makeStorageItemKey returns a key used to store StorageItem in the DB.
@@ -479,7 +475,9 @@ func (dao *Simple) GetStateSyncCurrentBlockHeight() (uint32, error) {
 // the given underlying store.
 func (dao *Simple) GetHeaderHashes() ([]util.Uint256, error) {
 	hashMap := make(map[uint32][]util.Uint256)
-	dao.Store.Seek(storage.IXHeaderHashList.Bytes(), func(k, v []byte) {
+	dao.Store.Seek(storage.SeekRange{
+		Prefix: storage.IXHeaderHashList.Bytes(),
+	}, func(k, v []byte) {
 		storedCount := binary.LittleEndian.Uint32(k[1:])
 		hashes, err := read2000Uint256Hashes(v)
 		if err != nil {

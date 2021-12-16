@@ -85,8 +85,13 @@ func (s *LevelDBStore) PutChangeSet(puts map[string][]byte, dels map[string]bool
 }
 
 // Seek implements the Store interface.
-func (s *LevelDBStore) Seek(key []byte, f func(k, v []byte)) {
-	iter := s.db.NewIterator(util.BytesPrefix(key), nil)
+func (s *LevelDBStore) Seek(rng SeekRange, f func(k, v []byte)) {
+	start := make([]byte, len(rng.Prefix)+len(rng.Start))
+	copy(start, rng.Prefix)
+	copy(start[len(rng.Prefix):], rng.Start)
+	prefix := util.BytesPrefix(rng.Prefix)
+	prefix.Start = start
+	iter := s.db.NewIterator(prefix, nil)
 	for iter.Next() {
 		f(iter.Key(), iter.Value())
 	}
