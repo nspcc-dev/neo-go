@@ -49,6 +49,16 @@ func TestNEP17Balance(t *testing.T) {
 		b := e.Chain.GetUtilityTokenBalance(validatorHash)
 		e.checkNextLine(t, "^\\s*Amount\\s*:\\s*"+fixedn.Fixed8(b.Int64()).String()+"$")
 	})
+	t.Run("zero balance of known token", func(t *testing.T) {
+		e.Run(t, append(cmdbase, []string{"--token", "NEO"}...)...)
+		addr1, err := address.StringToUint160("Nhfg3TbpwogLvDGVvAvqyThbsHgoSUKwtn")
+		require.NoError(t, err)
+		e.checkNextLine(t, "^Account "+address.Uint160ToString(addr1))
+		e.checkNextLine(t, "^\\s*NEO:\\s+NeoToken \\("+e.Chain.GoverningTokenHash().StringLE()+"\\)")
+		e.checkNextLine(t, "^\\s*Amount\\s*:\\s*"+fixedn.Fixed8(0).String()+"$")
+		e.checkNextLine(t, "^\\s*Updated:")
+		e.checkNextLine(t, "^\\s*$")
+	})
 	t.Run("all accounts", func(t *testing.T) {
 		e.Run(t, cmdbase...)
 		addr1, err := address.StringToUint160("Nhfg3TbpwogLvDGVvAvqyThbsHgoSUKwtn")

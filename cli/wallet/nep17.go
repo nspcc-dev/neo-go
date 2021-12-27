@@ -11,9 +11,11 @@ import (
 	"github.com/nspcc-dev/neo-go/cli/input"
 	"github.com/nspcc-dev/neo-go/cli/options"
 	"github.com/nspcc-dev/neo-go/cli/paramcontext"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/fixedn"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/client"
+	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
@@ -188,6 +190,7 @@ func getNEP17Balance(ctx *cli.Context) error {
 		}
 		fmt.Fprintf(ctx.App.Writer, "Account %s\n", acc.Address)
 
+		var tokenFound bool
 		for i := range balances.Balances {
 			var tokenName, tokenSymbol string
 			tokenDecimals := 0
@@ -203,25 +206,82 @@ func getNEP17Balance(ctx *cli.Context) error {
 				tokenName = token.Name
 				tokenSymbol = token.Symbol
 				tokenDecimals = int(token.Decimals)
+				tokenFound = true
 			} else {
 				if name != "" {
 					continue
 				}
 				tokenSymbol = "UNKNOWN"
 			}
-			fmt.Fprintf(ctx.App.Writer, "%s: %s (%s)\n", tokenSymbol, tokenName, asset.StringLE())
-			amount := balances.Balances[i].Amount
-			if tokenDecimals != 0 {
-				b, ok := new(big.Int).SetString(amount, 10)
-				if ok {
-					amount = fixedn.ToString(b, tokenDecimals)
+			printAssetBalance(ctx, asset, tokenName, tokenSymbol, tokenDecimals, balances.Balances[i])
+		}
+		if name == "" || tokenFound {
+			continue
+		}
+		// Token was explicitly specified, but was not found among balances, thus either balance is 0
+		// or the token doesn't exist. Try to find token by its address/hash/name/symbol and print zero
+		// balance if found. Search into wallet first.
+		token, err := getMatchingToken(ctx, wall, name, manifest.NEP17StandardName)
+		if err != nil {
+			// The wallet doesn't contain specified token, so try to ask chain.
+			h, err := flags.ParseAddress(name)
+			if err != nil {
+				h, err = c.GetNativeContractHash(name)
+				if err != nil {
+					// Try to get native NEP17 with matching symbol.
+					var gasSymbol, neoSymbol string
+					gasSymbol, h, err = getNativeNEP17Symbol(c, nativenames.Gas)
+					if err != nil {
+						continue
+					}
+					if gasSymbol != name {
+						neoSymbol, h, err = getNativeNEP17Symbol(c, nativenames.Neo)
+						if err != nil {
+							continue
+						}
+						if neoSymbol != name {
+							continue
+						}
+					}
 				}
 			}
-			fmt.Fprintf(ctx.App.Writer, "\tAmount : %s\n", amount)
-			fmt.Fprintf(ctx.App.Writer, "\tUpdated: %d\n", balances.Balances[i].LastUpdated)
+			token, err = c.NEP17TokenInfo(h)
+			if err != nil {
+				continue
+			}
 		}
+		printAssetBalance(ctx, token.Hash, token.Name, token.Symbol, int(token.Decimals), result.NEP17Balance{
+			Asset:       token.Hash,
+			Amount:      "0",
+			LastUpdated: 0,
+		})
 	}
 	return nil
+}
+
+func printAssetBalance(ctx *cli.Context, asset util.Uint160, tokenName, tokenSymbol string, tokenDecimals int, balance result.NEP17Balance) {
+	fmt.Fprintf(ctx.App.Writer, "%s: %s (%s)\n", tokenSymbol, tokenName, asset.StringLE())
+	amount := balance.Amount
+	if tokenDecimals != 0 {
+		b, ok := new(big.Int).SetString(amount, 10)
+		if ok {
+			amount = fixedn.ToString(b, tokenDecimals)
+		}
+	}
+	fmt.Fprintf(ctx.App.Writer, "\tAmount : %s\n", amount)
+	fmt.Fprintf(ctx.App.Writer, "\tUpdated: %d\n", balance.LastUpdated)
+}
+
+func getNativeNEP17Symbol(c *client.Client, name string) (string, util.Uint160, error) {
+	h, err := c.GetNativeContractHash(name)
+	if err != nil {
+		return "", util.Uint160{}, fmt.Errorf("failed to get native %s hash: %w", name, err)
+	}
+	symbol, err := c.NEP17Symbol(h)
+	if err != nil {
+		return "", util.Uint160{}, fmt.Errorf("failed to get native %s symbol: %w", name, err)
+	}
+	return symbol, h, nil
 }
 
 func getMatchingToken(ctx *cli.Context, w *wallet.Wallet, name string, standard string) (*wallet.Token, error) {
