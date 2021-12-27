@@ -145,7 +145,7 @@ func (v *VM) PrintOps(out io.Writer) {
 		out = os.Stdout
 	}
 	w := tabwriter.NewWriter(out, 0, 0, 4, ' ', 0)
-	fmt.Fprintln(w, "INDEX\tOPCODE\tPARAMETER\t")
+	fmt.Fprintln(w, "INDEX\tOPCODE\tPARAMETER")
 	realctx := v.Context()
 	ctx := realctx.Copy()
 	ctx.ip = 0
@@ -154,10 +154,10 @@ func (v *VM) PrintOps(out io.Writer) {
 		cursor := ""
 		instr, parameter, err := ctx.Next()
 		if ctx.ip == realctx.ip {
-			cursor = "<<"
+			cursor = "\t<<"
 		}
 		if err != nil {
-			fmt.Fprintf(w, "%d\t%s\tERROR: %s\t%s\n", ctx.ip, instr, err, cursor)
+			fmt.Fprintf(w, "%d\t%s\tERROR: %s%s\n", ctx.ip, instr, err, cursor)
 			break
 		}
 		var desc = ""
@@ -203,7 +203,7 @@ func (v *VM) PrintOps(out io.Writer) {
 			}
 		}
 
-		fmt.Fprintf(w, "%d\t%s\t%s\t%s\n", ctx.ip, instr, desc, cursor)
+		fmt.Fprintf(w, "%d\t%s\t%s%s\n", ctx.ip, instr, desc, cursor)
 		if ctx.nextip >= len(ctx.prog) {
 			break
 		}
