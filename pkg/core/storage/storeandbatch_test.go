@@ -1,21 +1,16 @@
 package storage
 
 import (
+	"bytes"
 	"reflect"
 	"runtime"
+	"sort"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/util/slice"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
-
-// kvSeen is used to test Seek implementations.
-type kvSeen struct {
-	key  []byte
-	val  []byte
-	seen bool
-}
 
 type dbSetup struct {
 	name   string
@@ -76,47 +71,38 @@ func testStoreSeek(t *testing.T, s Store) {
 		// Given this prefix...
 		goodprefix = []byte{'f'}
 		// these pairs should be found...
-		goodkvs = []kvSeen{
-			{[]byte("foo"), []byte("bar"), false},
-			{[]byte("faa"), []byte("bra"), false},
-			{[]byte("foox"), []byte("barx"), false},
+		goodkvs = []KeyValue{
+			{[]byte("foo"), []byte("bar")},
+			{[]byte("faa"), []byte("bra")},
+			{[]byte("foox"), []byte("barx")},
 		}
 		// and these should be not.
-		badkvs = []kvSeen{
-			{[]byte("doo"), []byte("pow"), false},
-			{[]byte("mew"), []byte("qaz"), false},
+		badkvs = []KeyValue{
+			{[]byte("doo"), []byte("pow")},
+			{[]byte("mew"), []byte("qaz")},
 		}
 	)
 
 	for _, v := range goodkvs {
-		require.NoError(t, s.Put(v.key, v.val))
+		require.NoError(t, s.Put(v.Key, v.Value))
 	}
 	for _, v := range badkvs {
-		require.NoError(t, s.Put(v.key, v.val))
+		require.NoError(t, s.Put(v.Key, v.Value))
 	}
 
-	numFound := 0
-	s.Seek(goodprefix, func(k, v []byte) {
-		for i := 0; i < len(goodkvs); i++ {
-			if string(k) == string(goodkvs[i].key) {
-				assert.Equal(t, string(goodkvs[i].val), string(v))
-				goodkvs[i].seen = true
-			}
-		}
-		for i := 0; i < len(badkvs); i++ {
-			if string(k) == string(badkvs[i].key) {
-				badkvs[i].seen = true
-			}
-		}
-		numFound++
+	// Seek result expected to be sorted in an ascending way.
+	sort.Slice(goodkvs, func(i, j int) bool {
+		return bytes.Compare(goodkvs[i].Key, goodkvs[j].Key) < 0
 	})
-	assert.Equal(t, len(goodkvs), numFound)
-	for i := 0; i < len(goodkvs); i++ {
-		assert.Equal(t, true, goodkvs[i].seen)
-	}
-	for i := 0; i < len(badkvs); i++ {
-		assert.Equal(t, false, badkvs[i].seen)
-	}
+
+	actual := make([]KeyValue, 0, len(goodkvs))
+	s.Seek(goodprefix, func(k, v []byte) {
+		actual = append(actual, KeyValue{
+			Key:   slice.Copy(k),
+			Value: slice.Copy(v),
+		})
+	})
+	assert.Equal(t, goodkvs, actual)
 	require.NoError(t, s.Close())
 }
 

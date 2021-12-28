@@ -138,33 +138,33 @@ func TestCachedSeek(t *testing.T) {
 		// Given this prefix...
 		goodPrefix = []byte{'f'}
 		// these pairs should be found...
-		lowerKVs = []kvSeen{
-			{[]byte("foo"), []byte("bar"), false},
-			{[]byte("faa"), []byte("bra"), false},
+		lowerKVs = []KeyValue{
+			{[]byte("foo"), []byte("bar")},
+			{[]byte("faa"), []byte("bra")},
 		}
 		// and these should be not.
-		deletedKVs = []kvSeen{
-			{[]byte("fee"), []byte("pow"), false},
-			{[]byte("fii"), []byte("qaz"), false},
+		deletedKVs = []KeyValue{
+			{[]byte("fee"), []byte("pow")},
+			{[]byte("fii"), []byte("qaz")},
 		}
 		// and these should be not.
-		updatedKVs = []kvSeen{
-			{[]byte("fuu"), []byte("wop"), false},
-			{[]byte("fyy"), []byte("zaq"), false},
+		updatedKVs = []KeyValue{
+			{[]byte("fuu"), []byte("wop")},
+			{[]byte("fyy"), []byte("zaq")},
 		}
 		ps = NewMemoryStore()
 		ts = NewMemCachedStore(ps)
 	)
 	for _, v := range lowerKVs {
-		require.NoError(t, ps.Put(v.key, v.val))
+		require.NoError(t, ps.Put(v.Key, v.Value))
 	}
 	for _, v := range deletedKVs {
-		require.NoError(t, ps.Put(v.key, v.val))
-		require.NoError(t, ts.Delete(v.key))
+		require.NoError(t, ps.Put(v.Key, v.Value))
+		require.NoError(t, ts.Delete(v.Key))
 	}
 	for _, v := range updatedKVs {
-		require.NoError(t, ps.Put(v.key, []byte("stub")))
-		require.NoError(t, ts.Put(v.key, v.val))
+		require.NoError(t, ps.Put(v.Key, []byte("stub")))
+		require.NoError(t, ts.Put(v.Key, v.Value))
 	}
 	foundKVs := make(map[string][]byte)
 	ts.Seek(goodPrefix, func(k, v []byte) {
@@ -172,14 +172,14 @@ func TestCachedSeek(t *testing.T) {
 	})
 	assert.Equal(t, len(foundKVs), len(lowerKVs)+len(updatedKVs))
 	for _, kv := range lowerKVs {
-		assert.Equal(t, kv.val, foundKVs[string(kv.key)])
+		assert.Equal(t, kv.Value, foundKVs[string(kv.Key)])
 	}
 	for _, kv := range deletedKVs {
-		_, ok := foundKVs[string(kv.key)]
+		_, ok := foundKVs[string(kv.Key)]
 		assert.Equal(t, false, ok)
 	}
 	for _, kv := range updatedKVs {
-		assert.Equal(t, kv.val, foundKVs[string(kv.key)])
+		assert.Equal(t, kv.Value, foundKVs[string(kv.Key)])
 	}
 }
 
@@ -332,46 +332,46 @@ func TestCachedSeekSorting(t *testing.T) {
 		// Given this prefix...
 		goodPrefix = []byte{1}
 		// these pairs should be found...
-		lowerKVs = []kvSeen{
-			{[]byte{1, 2, 3}, []byte("bra"), false},
-			{[]byte{1, 2, 5}, []byte("bar"), false},
-			{[]byte{1, 3, 3}, []byte("bra"), false},
-			{[]byte{1, 3, 5}, []byte("bra"), false},
+		lowerKVs = []KeyValue{
+			{[]byte{1, 2, 3}, []byte("bra")},
+			{[]byte{1, 2, 5}, []byte("bar")},
+			{[]byte{1, 3, 3}, []byte("bra")},
+			{[]byte{1, 3, 5}, []byte("bra")},
 		}
 		// and these should be not.
-		deletedKVs = []kvSeen{
-			{[]byte{1, 7, 3}, []byte("pow"), false},
-			{[]byte{1, 7, 4}, []byte("qaz"), false},
+		deletedKVs = []KeyValue{
+			{[]byte{1, 7, 3}, []byte("pow")},
+			{[]byte{1, 7, 4}, []byte("qaz")},
 		}
 		// and these should be not.
-		updatedKVs = []kvSeen{
-			{[]byte{1, 2, 4}, []byte("zaq"), false},
-			{[]byte{1, 2, 6}, []byte("zaq"), false},
-			{[]byte{1, 3, 2}, []byte("wop"), false},
-			{[]byte{1, 3, 4}, []byte("zaq"), false},
+		updatedKVs = []KeyValue{
+			{[]byte{1, 2, 4}, []byte("zaq")},
+			{[]byte{1, 2, 6}, []byte("zaq")},
+			{[]byte{1, 3, 2}, []byte("wop")},
+			{[]byte{1, 3, 4}, []byte("zaq")},
 		}
 		ps = NewMemoryStore()
 		ts = NewMemCachedStore(ps)
 	)
 	for _, v := range lowerKVs {
-		require.NoError(t, ps.Put(v.key, v.val))
+		require.NoError(t, ps.Put(v.Key, v.Value))
 	}
 	for _, v := range deletedKVs {
-		require.NoError(t, ps.Put(v.key, v.val))
-		require.NoError(t, ts.Delete(v.key))
+		require.NoError(t, ps.Put(v.Key, v.Value))
+		require.NoError(t, ts.Delete(v.Key))
 	}
 	for _, v := range updatedKVs {
-		require.NoError(t, ps.Put(v.key, []byte("stub")))
-		require.NoError(t, ts.Put(v.key, v.val))
+		require.NoError(t, ps.Put(v.Key, []byte("stub")))
+		require.NoError(t, ts.Put(v.Key, v.Value))
 	}
-	var foundKVs []kvSeen
+	var foundKVs []KeyValue
 	ts.Seek(goodPrefix, func(k, v []byte) {
-		foundKVs = append(foundKVs, kvSeen{key: slice.Copy(k), val: slice.Copy(v)})
+		foundKVs = append(foundKVs, KeyValue{Key: slice.Copy(k), Value: slice.Copy(v)})
 	})
 	assert.Equal(t, len(foundKVs), len(lowerKVs)+len(updatedKVs))
 	expected := append(lowerKVs, updatedKVs...)
 	sort.Slice(expected, func(i, j int) bool {
-		return bytes.Compare(expected[i].key, expected[j].key) < 0
+		return bytes.Compare(expected[i].Key, expected[j].Key) < 0
 	})
 	require.Equal(t, expected, foundKVs)
 }
