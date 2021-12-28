@@ -352,7 +352,7 @@ func (n *NEO) PostPersist(ic *interop.Context) error {
 				if g, ok := n.gasPerVoteCache[cs[i].Key]; ok {
 					r = &g
 				} else {
-					reward := n.getGASPerVote(ic.DAO, key[:34], ic.Block.Index+1)
+					reward := n.getGASPerVote(ic.DAO, key[:34], []uint32{ic.Block.Index + 1})
 					r = &reward[0]
 				}
 				tmp.Add(tmp, r)
@@ -383,16 +383,27 @@ func (n *NEO) PostPersist(ic *interop.Context) error {
 	return nil
 }
 
-func (n *NEO) getGASPerVote(d dao.DAO, key []byte, index ...uint32) []big.Int {
-	var max = make([]uint32, len(index))
-	var reward = make([]big.Int, len(index))
-	d.Seek(n.ID, storage.SeekRange{Prefix: key}, func(k, v []byte) {
-		if len(k) == 4 {
+func (n *NEO) getGASPerVote(d dao.DAO, key []byte, indexes []uint32) []big.Int {
+	sort.Slice(indexes, func(i, j int) bool {
+		return indexes[i] < indexes[j]
+	})
+	start := make([]byte, 4)
+	binary.BigEndian.PutUint32(start, indexes[len(indexes)-1])
+
+	need := len(indexes)
+	var reward = make([]big.Int, need)
+	collected := 0
+	d.Seek(n.ID, storage.SeekRange{
+		Prefix:    key,
+		Start:     start,
+		Backwards: true,
+	}, func(k, v []byte) {
+		if collected < need && len(k) == 4 {
 			num := binary.BigEndian.Uint32(k)
-			for i, ind := range index {
-				if max[i] < num && num <= ind {
-					max[i] = num
+			for i, ind := range indexes {
+				if reward[i].Sign() == 0 && num <= ind {
 					reward[i] = *bigint.FromBytes(v)
+					collected++
 				}
 			}
 		}
@@ -638,8 +649,8 @@ func (n *NEO) calculateBonus(d dao.DAO, vote *keys.PublicKey, value *big.Int, st
 	}
 
 	var key = makeVoterKey(vote.Bytes())
-	var reward = n.getGASPerVote(d, key, start, end)
-	var tmp = new(big.Int).Sub(&reward[1], &reward[0])
+	var reward = n.getGASPerVote(d, key, []uint32{start, end})
+	var tmp = (&reward[1]).Sub(&reward[1], &reward[0])
 	tmp.Mul(tmp, value)
 	tmp.Div(tmp, bigVoterRewardFactor)
 	tmp.Add(tmp, r)
