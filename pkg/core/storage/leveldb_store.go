@@ -89,10 +89,29 @@ func (s *LevelDBStore) Seek(rng SeekRange, f func(k, v []byte)) {
 	start := make([]byte, len(rng.Prefix)+len(rng.Start))
 	copy(start, rng.Prefix)
 	copy(start[len(rng.Prefix):], rng.Start)
-	prefix := util.BytesPrefix(rng.Prefix)
+	if rng.Backwards {
+		s.seekBackwards(rng.Prefix, start, f)
+	} else {
+		s.seek(rng.Prefix, start, f)
+	}
+}
+
+func (s *LevelDBStore) seek(key []byte, start []byte, f func(k, v []byte)) {
+	prefix := util.BytesPrefix(key)
 	prefix.Start = start
 	iter := s.db.NewIterator(prefix, nil)
 	for iter.Next() {
+		f(iter.Key(), iter.Value())
+	}
+	iter.Release()
+}
+
+func (s *LevelDBStore) seekBackwards(key []byte, start []byte, f func(k, v []byte)) {
+	iRange := util.BytesPrefix(start)
+	iRange.Start = key
+
+	iter := s.db.NewIterator(iRange, nil)
+	for ok := iter.Last(); ok; ok = iter.Prev() {
 		f(iter.Key(), iter.Value())
 	}
 	iter.Release()

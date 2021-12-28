@@ -59,6 +59,10 @@ type SeekRange struct {
 	// Empty Prefix and empty Start can be combined, which means seeking
 	// through all keys in the DB.
 	Start []byte
+	// Backwards denotes whether Seek direction should be reversed, i.e.
+	// whether seeking should be performed in a descending way.
+	// Backwards can be safely combined with Prefix and Start.
+	Backwards bool
 }
 
 // ErrKeyNotFound is an error returned by Store implementations

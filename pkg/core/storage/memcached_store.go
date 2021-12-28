@@ -115,7 +115,8 @@ func (s *MemCachedStore) SeekAsync(ctx context.Context, rng SeekRange, cutPrefix
 // seek is internal representations of Seek* capable of seeking for the given key
 // and supporting early stop using provided context. `cutPrefix` denotes whether provided
 // key needs to be cut off the resulting keys. `rng` specifies prefix items must match
-// and point to start seeking from.
+// and point to start seeking from. Backwards seeking from some point is supported
+// with corresponding `rng` field set.
 func (s *MemCachedStore) seek(ctx context.Context, rng SeekRange, cutPrefix bool, f func(k, v []byte)) {
 	// Create memory store `mem` and `del` snapshot not to hold the lock.
 	var memRes []KeyValueExists
@@ -125,6 +126,11 @@ func (s *MemCachedStore) seek(ctx context.Context, rng SeekRange, cutPrefix bool
 	lStart := len(sStart)
 	isKeyOK := func(key string) bool {
 		return strings.HasPrefix(key, sPrefix) && (lStart == 0 || strings.Compare(key[lPrefix:], sStart) >= 0)
+	}
+	if rng.Backwards {
+		isKeyOK = func(key string) bool {
+			return strings.HasPrefix(key, sPrefix) && (lStart == 0 || strings.Compare(key[lPrefix:], sStart) <= 0)
+		}
 	}
 	s.mut.RLock()
 	for k, v := range s.MemoryStore.mem {
@@ -149,9 +155,14 @@ func (s *MemCachedStore) seek(ctx context.Context, rng SeekRange, cutPrefix bool
 	}
 	ps := s.ps
 	s.mut.RUnlock()
+
+	less := func(k1, k2 []byte) bool {
+		res := bytes.Compare(k1, k2)
+		return res != 0 && rng.Backwards == (res > 0)
+	}
 	// Sort memRes items for further comparison with ps items.
 	sort.Slice(memRes, func(i, j int) bool {
-		return bytes.Compare(memRes[i].Key, memRes[j].Key) < 0
+		return less(memRes[i].Key, memRes[j].Key)
 	})
 
 	var (
@@ -181,7 +192,7 @@ func (s *MemCachedStore) seek(ctx context.Context, rng SeekRange, cutPrefix bool
 				done = true
 				break loop
 			default:
-				var isMem = haveMem && (bytes.Compare(kvMem.Key, kvPs.Key) < 0)
+				var isMem = haveMem && less(kvMem.Key, kvPs.Key)
 				if isMem {
 					if kvMem.Exists {
 						if cutPrefix {

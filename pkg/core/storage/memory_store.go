@@ -128,7 +128,8 @@ func (s *MemoryStore) SeekAll(key []byte, f func(k, v []byte)) {
 }
 
 // seek is an internal unlocked implementation of Seek. `start` denotes whether
-// seeking starting from the provided prefix should be performed.
+// seeking starting from the provided prefix should be performed. Backwards
+// seeking from some point is supported with corresponding SeekRange field set.
 func (s *MemoryStore) seek(rng SeekRange, f func(k, v []byte)) {
 	sPrefix := string(rng.Prefix)
 	lPrefix := len(sPrefix)
@@ -139,6 +140,16 @@ func (s *MemoryStore) seek(rng SeekRange, f func(k, v []byte)) {
 	isKeyOK := func(key string) bool {
 		return strings.HasPrefix(key, sPrefix) && (lStart == 0 || strings.Compare(key[lPrefix:], sStart) >= 0)
 	}
+	if rng.Backwards {
+		isKeyOK = func(key string) bool {
+			return strings.HasPrefix(key, sPrefix) && (lStart == 0 || strings.Compare(key[lPrefix:], sStart) <= 0)
+		}
+	}
+	less := func(k1, k2 []byte) bool {
+		res := bytes.Compare(k1, k2)
+		return res != 0 && rng.Backwards == (res > 0)
+	}
+
 	for k, v := range s.mem {
 		if isKeyOK(k) {
 			memList = append(memList, KeyValue{
@@ -148,7 +159,7 @@ func (s *MemoryStore) seek(rng SeekRange, f func(k, v []byte)) {
 		}
 	}
 	sort.Slice(memList, func(i, j int) bool {
-		return bytes.Compare(memList[i].Key, memList[j].Key) < 0
+		return less(memList[i].Key, memList[j].Key)
 	})
 	for _, kv := range memList {
 		f(kv.Key, kv.Value)
