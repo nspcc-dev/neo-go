@@ -9,6 +9,7 @@ import (
 	"math"
 	"math/big"
 	"math/rand"
+	"strings"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/internal/random"
@@ -1179,6 +1180,25 @@ func TestPICKITEM(t *testing.T) {
 		m := stackitem.NewMap()
 		t.Run("Map, missing key", getTestFuncForVM(tryProg, "Key not found in Map", m, 1))
 	})
+}
+
+func TestVMPrintOps(t *testing.T) {
+	w := io.NewBufBinWriter()
+	emit.Bytes(w.BinWriter, make([]byte, 1000))
+	emit.Opcodes(w.BinWriter, opcode.PUSH0)
+	emit.Bytes(w.BinWriter, make([]byte, 8))
+
+	buf := bytes.NewBuffer(nil)
+	v := New()
+	v.Load(w.Bytes())
+	v.PrintOps(buf)
+
+	ss := strings.Split(buf.String(), "\n")
+	require.Equal(t, 5, len(ss)) // header + 3 opcodes + trailing newline
+	require.True(t, len(ss[0]) < 1000)
+	require.True(t, len(ss[1]) > 1000)
+	require.True(t, len(ss[2]) < 1000)
+	require.True(t, len(ss[3]) < 1000)
 }
 
 func TestPICKITEMDupArray(t *testing.T) {
