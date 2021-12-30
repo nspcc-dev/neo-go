@@ -324,7 +324,7 @@ func importNEPToken(ctx *cli.Context, standard string) error {
 	}
 
 	wall.AddToken(tok)
-	if err := wall.Save(); err != nil {
+	if err := wall.SavePretty(); err != nil {
 		return cli.NewExitError(err, 1)
 	}
 	printTokenInfo(ctx, tok)
@@ -396,7 +396,7 @@ func removeNEPToken(ctx *cli.Context, standard string) error {
 	}
 	if err := wall.RemoveToken(token.Hash); err != nil {
 		return cli.NewExitError(fmt.Errorf("can't remove token: %w", err), 1)
-	} else if err := wall.Save(); err != nil {
+	} else if err := wall.SavePretty(); err != nil {
 		return cli.NewExitError(fmt.Errorf("error while saving wallet: %w", err), 1)
 	}
 	return nil

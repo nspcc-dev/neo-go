@@ -313,7 +313,7 @@ func convertWallet(ctx *cli.Context) error {
 		}
 		newWallet.AddAccount(newAcc)
 	}
-	if err := newWallet.Save(); err != nil {
+	if err := newWallet.SavePretty(); err != nil {
 		return cli.NewExitError(err, -1)
 	}
 	return nil
@@ -544,7 +544,7 @@ func removeAccount(ctx *cli.Context) error {
 
 	if err := wall.RemoveAccount(acc.Address); err != nil {
 		return cli.NewExitError(fmt.Errorf("error on remove: %w", err), 1)
-	} else if err := wall.Save(); err != nil {
+	} else if err := wall.SavePretty(); err != nil {
 		return cli.NewExitError(fmt.Errorf("error while saving wallet: %w", err), 1)
 	}
 	return nil
@@ -640,7 +640,7 @@ func createWallet(ctx *cli.Context) error {
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
-	if err := wall.Save(); err != nil {
+	if err := wall.SavePretty(); err != nil {
 		return cli.NewExitError(err, 1)
 	}
 
@@ -745,7 +745,7 @@ func addAccountAndSave(w *wallet.Wallet, acc *wallet.Account) error {
 	}
 
 	w.AddAccount(acc)
-	return w.Save()
+	return w.SavePretty()
 }
 
 func fmtPrintWallet(w io.Writer, wall *wallet.Wallet) {

@@ -201,7 +201,7 @@ func createWallet(t *testing.T, path string, accs ...*Account) {
 	for _, acc := range accs {
 		w.AddAccount(acc)
 	}
-	require.NoError(t, w.savePretty())
+	require.NoError(t, w.SavePretty())
 	w.Close()
 }
 

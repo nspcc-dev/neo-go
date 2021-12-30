@@ -88,7 +88,7 @@ func TestSave(t *testing.T) {
 		Default:      false,
 	})
 
-	errForSave := wallet.Save()
+	errForSave := wallet.SavePretty()
 	require.NoError(t, errForSave)
 
 	openedWallet, err := NewWalletFromFile(wallet.path)

@@ -95,7 +95,7 @@ func (w *Wallet) CreateAccount(name, passphrase string) error {
 		return err
 	}
 	w.AddAccount(acc)
-	return w.Save()
+	return w.SavePretty()
 }
 
 // AddAccount adds an existing Account to the wallet.
@@ -138,20 +138,10 @@ func (w *Wallet) Path() string {
 	return w.path
 }
 
-// Save saves the wallet data. It's the internal io.ReadWriter
+// SavePretty saves wallet in a beautiful JSON. It's the internal io.ReadWriter
 // that is responsible for saving the data. This can
-// be a buffer, file, etc..
-func (w *Wallet) Save() error {
-	data, err := json.Marshal(w)
-	if err != nil {
-		return err
-	}
-
-	return w.writeRaw(data)
-}
-
-// savePretty saves wallet in a beautiful JSON.
-func (w *Wallet) savePretty() error {
+// be a buffer, file, etc.
+func (w *Wallet) SavePretty() error {
 	data, err := json.MarshalIndent(w, "", "  ")
 	if err != nil {
 		return err

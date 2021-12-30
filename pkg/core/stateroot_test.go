@@ -169,7 +169,7 @@ func createAndWriteWallet(t *testing.T, acc *wallet.Account, path, password stri
 	require.NoError(t, err)
 	require.NoError(t, acc.Encrypt(password, w.Scrypt))
 	w.AddAccount(acc)
-	require.NoError(t, w.Save())
+	require.NoError(t, w.SavePretty())
 	w.Close()
 	return w
 }
