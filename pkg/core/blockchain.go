@@ -2106,7 +2106,7 @@ func (bc *Blockchain) PoolTxWithData(t *transaction.Transaction, data interface{
 	return bc.verifyAndPoolTx(t, mp, feer, data)
 }
 
-//GetStandByValidators returns validators from the configuration.
+// GetStandByValidators returns validators from the configuration.
 func (bc *Blockchain) GetStandByValidators() keys.PublicKeys {
 	return bc.sbCommittee[:bc.config.ValidatorsCount].Copy()
 }
