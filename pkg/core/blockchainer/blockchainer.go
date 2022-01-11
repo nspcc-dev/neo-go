@@ -53,7 +53,6 @@ type Blockchainer interface {
 	GetTokenLastUpdated(acc util.Uint160) (map[int32]uint32, error)
 	GetNotaryContractScriptHash() util.Uint160
 	GetNotaryBalance(acc util.Uint160) *big.Int
-	GetPolicer() Policer
 	GetValidators() ([]*keys.PublicKey, error)
 	GetStandByCommittee() keys.PublicKeys
 	GetStandByValidators() keys.PublicKeys
@@ -81,4 +80,9 @@ type Blockchainer interface {
 	UnsubscribeFromExecutions(ch chan<- *state.AppExecResult)
 	UnsubscribeFromNotifications(ch chan<- *subscriptions.NotificationEvent)
 	UnsubscribeFromTransactions(ch chan<- *transaction.Transaction)
+	// Policer.
+	GetBaseExecFee() int64
+	GetMaxVerificationGAS() int64
+	GetStoragePrice() int64
+	FeePerByte() int64
 }

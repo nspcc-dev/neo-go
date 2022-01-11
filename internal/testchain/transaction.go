@@ -120,7 +120,7 @@ func SignTxCommittee(bc blockchainer.Blockchainer, txs ...*transaction.Transacti
 func signTxGeneric(bc blockchainer.Blockchainer, sign func(hash.Hashable) []byte, verif []byte, txs ...*transaction.Transaction) {
 	for _, tx := range txs {
 		size := io.GetVarSize(tx)
-		netFee, sizeDelta := fee.Calculate(bc.GetPolicer().GetBaseExecFee(), verif)
+		netFee, sizeDelta := fee.Calculate(bc.GetBaseExecFee(), verif)
 		tx.NetworkFee += netFee
 		size += sizeDelta
 		tx.NetworkFee += int64(size) * bc.FeePerByte()

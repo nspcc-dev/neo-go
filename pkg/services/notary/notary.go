@@ -227,7 +227,7 @@ func (n *Notary) OnNewRequest(payload *payload.P2PNotaryRequest) {
 		switch r.witnessInfo[i].typ {
 		case Contract:
 			// Need to check even if r.main.Scripts[i].InvocationScript is already filled in.
-			_, err := n.Config.Chain.VerifyWitness(r.main.Signers[i].Account, r.main, &w, n.Config.Chain.GetPolicer().GetMaxVerificationGAS())
+			_, err := n.Config.Chain.VerifyWitness(r.main.Signers[i].Account, r.main, &w, n.Config.Chain.GetMaxVerificationGAS())
 			if err != nil {
 				continue
 			}

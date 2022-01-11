@@ -620,13 +620,13 @@ func (s *Server) calculateNetworkFee(reqParams request.Params) (interface{}, *re
 		}
 
 		if ef == 0 {
-			ef = s.chain.GetPolicer().GetBaseExecFee()
+			ef = s.chain.GetBaseExecFee()
 		}
 		fee, sizeDelta := fee.Calculate(ef, verificationScript)
 		netFee += fee
 		size += sizeDelta
 	}
-	fee := s.chain.GetPolicer().FeePerByte()
+	fee := s.chain.FeePerByte()
 	netFee += int64(size) * fee
 	return result.NetworkFee{Value: netFee}, nil
 }
@@ -1698,7 +1698,7 @@ func (s *Server) runScriptInVM(t trigger.Type, script []byte, contractScriptHash
 	if t == trigger.Verification {
 		// We need this special case because witnesses verification is not the simple System.Contract.Call,
 		// and we need to define exactly the amount of gas consumed for a contract witness verification.
-		gasPolicy := s.chain.GetPolicer().GetMaxVerificationGAS()
+		gasPolicy := s.chain.GetMaxVerificationGAS()
 		if vm.GasLimit > gasPolicy {
 			vm.GasLimit = gasPolicy
 		}

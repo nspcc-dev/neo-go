@@ -140,11 +140,6 @@ func (chain *FakeChain) GetNotaryBalance(acc util.Uint160) *big.Int {
 	panic("TODO")
 }
 
-// GetPolicer implements Blockchainer interface.
-func (chain *FakeChain) GetPolicer() blockchainer.Policer {
-	return chain
-}
-
 // GetBaseExecFee implements Policer interface.
 func (chain *FakeChain) GetBaseExecFee() int64 {
 	return interop.DefaultBaseExecFee

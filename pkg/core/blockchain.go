@@ -2333,13 +2333,6 @@ func (bc *Blockchain) RegisterPostBlock(f func(blockchainer.Blockchainer, *mempo
 	bc.postBlock = append(bc.postBlock, f)
 }
 
-// -- start Policer.
-
-// GetPolicer provides access to policy values via Policer interface.
-func (bc *Blockchain) GetPolicer() blockchainer.Policer {
-	return bc
-}
-
 // GetBaseExecFee return execution price for `NOP`.
 func (bc *Blockchain) GetBaseExecFee() int64 {
 	return bc.contracts.Policy.GetExecFeeFactorInternal(bc.dao)
@@ -2357,5 +2350,3 @@ func (bc *Blockchain) GetStoragePrice() int64 {
 	}
 	return bc.contracts.Policy.GetStoragePriceInternal(bc.dao)
 }
-
-// -- end Policer.

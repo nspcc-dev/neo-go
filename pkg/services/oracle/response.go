@@ -115,7 +115,7 @@ func (o *Oracle) CreateResponseTx(gasForResponse int64, vub uint32, resp *transa
 	}
 	tx.NetworkFee += gasConsumed
 
-	netFee, sizeDelta := fee.Calculate(o.Chain.GetPolicer().GetBaseExecFee(), tx.Scripts[1].VerificationScript)
+	netFee, sizeDelta := fee.Calculate(o.Chain.GetBaseExecFee(), tx.Scripts[1].VerificationScript)
 	tx.NetworkFee += netFee
 	size += sizeDelta
 
@@ -139,7 +139,7 @@ func (o *Oracle) testVerify(tx *transaction.Transaction) (int64, bool) {
 	// So make a copy of tx to avoid wrong hash caching.
 	cp := *tx
 	v, finalize := o.Chain.GetTestVM(trigger.Verification, &cp, nil)
-	v.GasLimit = o.Chain.GetPolicer().GetMaxVerificationGAS()
+	v.GasLimit = o.Chain.GetMaxVerificationGAS()
 	v.LoadScriptWithHash(o.oracleScript, o.oracleHash, callflag.ReadOnly)
 	v.Context().Jump(o.verifyOffset)
 

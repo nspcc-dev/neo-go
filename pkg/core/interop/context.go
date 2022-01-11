@@ -63,7 +63,7 @@ func NewContext(trigger trigger.Type, bc blockchainer.Blockchainer, d dao.DAO,
 	dao := d.GetWrapped()
 
 	if bc != nil && (block == nil || block.Index != 0) {
-		baseExecFee = bc.GetPolicer().GetBaseExecFee()
+		baseExecFee = bc.GetBaseExecFee()
 	}
 	return &Context{
 		Chain:       bc,

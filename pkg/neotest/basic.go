@@ -236,7 +236,7 @@ func addSystemFee(bc blockchainer.Blockchainer, tx *transaction.Transaction, sys
 }
 
 func addNetworkFee(bc blockchainer.Blockchainer, tx *transaction.Transaction, signers ...Signer) {
-	baseFee := bc.GetPolicer().GetBaseExecFee()
+	baseFee := bc.GetBaseExecFee()
 	size := io.GetVarSize(tx)
 	for _, sgr := range signers {
 		netFee, sizeDelta := fee.Calculate(baseFee, sgr.Script())

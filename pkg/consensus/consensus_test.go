@@ -544,7 +544,7 @@ func signTx(t *testing.T, bc blockchainer.Blockchainer, txs ...*transaction.Tran
 	require.NoError(t, err)
 	for _, tx := range txs {
 		size := io.GetVarSize(tx)
-		netFee, sizeDelta := fee.Calculate(bc.GetPolicer().GetBaseExecFee(), rawScript)
+		netFee, sizeDelta := fee.Calculate(bc.GetBaseExecFee(), rawScript)
 		tx.NetworkFee += +netFee
 		size += sizeDelta
 		tx.NetworkFee += int64(size) * bc.FeePerByte()
