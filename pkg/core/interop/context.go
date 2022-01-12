@@ -8,13 +8,14 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
-	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
@@ -33,9 +34,22 @@ const (
 	DefaultBaseExecFee = 30
 )
 
+// Ledger is the interface to Blockchain required for Context functionality.
+type Ledger interface {
+	BlockHeight() uint32
+	CurrentBlockHash() util.Uint256
+	GetBaseExecFee() int64
+	GetBlock(hash util.Uint256) (*block.Block, error)
+	GetConfig() config.ProtocolConfiguration
+	GetHeaderHash(int) util.Uint256
+	GetStandByCommittee() keys.PublicKeys
+	GetStandByValidators() keys.PublicKeys
+	GetStoragePrice() int64
+}
+
 // Context represents context in which interops are executed.
 type Context struct {
-	Chain         blockchainer.Blockchainer
+	Chain         Ledger
 	Container     hash.Hashable
 	Network       uint32
 	Natives       []Contract
@@ -56,7 +70,7 @@ type Context struct {
 }
 
 // NewContext returns new interop context.
-func NewContext(trigger trigger.Type, bc blockchainer.Blockchainer, d dao.DAO,
+func NewContext(trigger trigger.Type, bc Ledger, d dao.DAO,
 	getContract func(dao.DAO, util.Uint160) (*state.Contract, error), natives []Contract,
 	block *block.Block, tx *transaction.Transaction, log *zap.Logger) *Context {
 	baseExecFee := int64(DefaultBaseExecFee)

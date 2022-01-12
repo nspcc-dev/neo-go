@@ -6,7 +6,6 @@ import (
 	"math/big"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
-	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
@@ -145,17 +144,17 @@ func (l *Ledger) getTransactionFromBlock(ic *interop.Context, params []stackitem
 
 // isTraceableBlock defines whether we're able to give information about
 // the block with index specified.
-func isTraceableBlock(bc blockchainer.Blockchainer, index uint32) bool {
+func isTraceableBlock(bc interop.Ledger, index uint32) bool {
 	height := bc.BlockHeight()
 	MaxTraceableBlocks := bc.GetConfig().MaxTraceableBlocks
 	return index <= height && index+MaxTraceableBlocks > height
 }
 
 // getBlockHashFromItem converts given stackitem.Item to block hash using given
-// Blockchainer if needed. Interop functions accept both block numbers and
+// Ledger if needed. Interop functions accept both block numbers and
 // block hashes as parameters, thus this function is needed. It's supposed to
 // be called within VM context, so it panics if anything goes wrong.
-func getBlockHashFromItem(bc blockchainer.Blockchainer, item stackitem.Item) util.Uint256 {
+func getBlockHashFromItem(bc interop.Ledger, item stackitem.Item) util.Uint256 {
 	bigindex, err := item.TryInteger()
 	if err == nil && bigindex.IsUint64() {
 		index := bigindex.Uint64()

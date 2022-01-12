@@ -10,7 +10,6 @@ import (
 	"strings"
 	"sync/atomic"
 
-	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/runtime"
@@ -244,7 +243,7 @@ func (n *NEO) Initialize(ic *interop.Context) error {
 // InitializeCache initializes all NEO cache with the proper values from storage.
 // Cache initialisation should be done apart from Initialize because Initialize is
 // called only when deploying native contracts.
-func (n *NEO) InitializeCache(bc blockchainer.Blockchainer, d dao.DAO) error {
+func (n *NEO) InitializeCache(bc interop.Ledger, d dao.DAO) error {
 	var committee = keysWithVotes{}
 	si := d.GetStorageItem(n.ID, prefixCommittee)
 	if err := committee.DecodeBytes(si); err != nil {
@@ -264,7 +263,7 @@ func (n *NEO) InitializeCache(bc blockchainer.Blockchainer, d dao.DAO) error {
 	return nil
 }
 
-func (n *NEO) updateCache(cvs keysWithVotes, bc blockchainer.Blockchainer) error {
+func (n *NEO) updateCache(cvs keysWithVotes, bc interop.Ledger) error {
 	n.committee.Store(cvs)
 
 	var committee = n.GetCommitteeMembers()
@@ -300,7 +299,7 @@ func (n *NEO) updateCommittee(ic *interop.Context) error {
 }
 
 // ShouldUpdateCommittee returns true if committee is updated at block h.
-func ShouldUpdateCommittee(h uint32, bc blockchainer.Blockchainer) bool {
+func ShouldUpdateCommittee(h uint32, bc interop.Ledger) bool {
 	cfg := bc.GetConfig()
 	r := len(cfg.StandbyCommittee)
 	return h%uint32(r) == 0
@@ -925,7 +924,7 @@ func (n *NEO) getAccountState(ic *interop.Context, args []stackitem.Item) stacki
 }
 
 // ComputeNextBlockValidators returns an actual list of current validators.
-func (n *NEO) ComputeNextBlockValidators(bc blockchainer.Blockchainer, d dao.DAO) (keys.PublicKeys, error) {
+func (n *NEO) ComputeNextBlockValidators(bc interop.Ledger, d dao.DAO) (keys.PublicKeys, error) {
 	if vals := n.validators.Load().(keys.PublicKeys); vals != nil {
 		return vals.Copy(), nil
 	}
@@ -982,7 +981,7 @@ func toKeysWithVotes(pubs keys.PublicKeys) keysWithVotes {
 }
 
 // computeCommitteeMembers returns public keys of nodes in committee.
-func (n *NEO) computeCommitteeMembers(bc blockchainer.Blockchainer, d dao.DAO) (keys.PublicKeys, keysWithVotes, error) {
+func (n *NEO) computeCommitteeMembers(bc interop.Ledger, d dao.DAO) (keys.PublicKeys, keysWithVotes, error) {
 	key := []byte{prefixVotersCount}
 	si := d.GetStorageItem(n.ID, key)
 	if si == nil {
