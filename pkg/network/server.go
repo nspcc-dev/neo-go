@@ -25,7 +25,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/network/extpool"
 	"github.com/nspcc-dev/neo-go/pkg/network/payload"
 	"github.com/nspcc-dev/neo-go/pkg/services/notary"
-	"github.com/nspcc-dev/neo-go/pkg/services/stateroot"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"go.uber.org/atomic"
 	"go.uber.org/zap"
@@ -83,6 +82,7 @@ type (
 		notaryFeer        NotaryFeer
 		notaryModule      *notary.Notary
 		services          []Service
+		extensHandlers    map[string]func(*payload.Extensible) error
 
 		txInLock sync.Mutex
 		txInMap  map[util.Uint256]struct{}
@@ -103,7 +103,6 @@ type (
 
 		syncReached *atomic.Bool
 
-		stateRoot stateroot.Service
 		stateSync blockchainer.StateSync
 
 		log *zap.Logger
@@ -159,6 +158,7 @@ func newServerFromConstructors(config ServerConfig, chain blockchainer.Blockchai
 		extensiblePool:    extpool.New(chain, config.ExtensiblePoolSize),
 		log:               log,
 		transactions:      make(chan *transaction.Transaction, 64),
+		extensHandlers:    make(map[string]func(*payload.Extensible) error),
 	}
 	if chain.P2PSigExtensionsEnabled() {
 		s.notaryFeer = NewNotaryFeer(chain)
@@ -194,17 +194,6 @@ func newServerFromConstructors(config ServerConfig, chain blockchainer.Blockchai
 		s.tryStartServices()
 	})
 
-	if config.StateRootCfg.Enabled && chain.GetConfig().StateRootInHeader {
-		return nil, errors.New("`StateRootInHeader` should be disabled when state service is enabled")
-	}
-
-	sr, err := stateroot.New(config.StateRootCfg, s.log, chain, s.handleNewPayload)
-	if err != nil {
-		return nil, fmt.Errorf("can't initialize StateRoot service: %w", err)
-	}
-	s.stateRoot = sr
-	s.services = append(s.services, sr)
-
 	sSync := chain.GetStateSyncModule()
 	s.stateSync = sSync
 	s.bSyncQueue = newBlockQueue(maxBlockBatch, sSync, log, nil)
@@ -212,7 +201,7 @@ func newServerFromConstructors(config ServerConfig, chain blockchainer.Blockchai
 	if config.Wallet != nil {
 		srv, err := newConsensus(consensus.Config{
 			Logger:                log,
-			Broadcast:             s.handleNewPayload,
+			Broadcast:             s.BroadcastExtensible,
 			Chain:                 chain,
 			ProtocolConfiguration: chain.GetConfig(),
 			RequestTx:             s.requestTx,
@@ -225,7 +214,7 @@ func newServerFromConstructors(config ServerConfig, chain blockchainer.Blockchai
 		}
 
 		s.consensus = srv
-		s.services = append(s.services, srv)
+		s.AddExtensibleService(srv, consensus.Category, srv.OnPayload)
 	}
 
 	if s.MinPeers < 0 {
@@ -306,9 +295,10 @@ func (s *Server) AddService(svc Service) {
 	s.services = append(s.services, svc)
 }
 
-// GetStateRoot returns state root service instance.
-func (s *Server) GetStateRoot() stateroot.Service {
-	return s.stateRoot
+// AddExtensibleService register a service that handles extensible payload of some kind.
+func (s *Server) AddExtensibleService(svc Service, category string, handler func(*payload.Extensible) error) {
+	s.extensHandlers[category] = handler
+	s.AddService(svc)
 }
 
 // UnconnectedPeers returns a list of peers that are in the discovery peer list
@@ -946,27 +936,26 @@ func (s *Server) handleExtensibleCmd(e *payload.Extensible) error {
 	if !ok { // payload is already in cache
 		return nil
 	}
-	switch e.Category {
-	case consensus.Category:
-		if s.consensus != nil {
-			s.consensus.OnPayload(e)
-		}
-	case stateroot.Category:
-		err := s.stateRoot.OnPayload(e)
+	handler := s.extensHandlers[e.Category]
+	if handler != nil {
+		err = handler(e)
 		if err != nil {
 			return err
 		}
-	default:
-		return errors.New("invalid category")
 	}
+	s.advertiseExtensible(e)
+	return nil
+}
 
+func (s *Server) advertiseExtensible(e *payload.Extensible) {
 	msg := NewMessage(CMDInv, payload.NewInventory(payload.ExtensibleType, []util.Uint256{e.Hash()}))
 	if e.Category == consensus.Category {
+		// It's high priority because it directly affects consensus process,
+		// even though it's just an inv.
 		s.broadcastHPMessage(msg)
 	} else {
 		s.broadcastMessage(msg)
 	}
-	return nil
 }
 
 // handleTxCmd processes received transaction.
@@ -1253,22 +1242,17 @@ func (s *Server) tryInitStateSync() {
 		}
 	}
 }
-func (s *Server) handleNewPayload(p *payload.Extensible) {
+
+// BroadcastExtensible add locally-generated Extensible payload to the pool
+// and advertises it to peers.
+func (s *Server) BroadcastExtensible(p *payload.Extensible) {
 	_, err := s.extensiblePool.Add(p)
 	if err != nil {
 		s.log.Error("created payload is not valid", zap.Error(err))
 		return
 	}
 
-	msg := NewMessage(CMDInv, payload.NewInventory(payload.ExtensibleType, []util.Uint256{p.Hash()}))
-	switch p.Category {
-	case consensus.Category:
-		// It's high priority because it directly affects consensus process,
-		// even though it's just an inv.
-		s.broadcastHPMessage(msg)
-	default:
-		s.broadcastMessage(msg)
-	}
+	s.advertiseExtensible(p)
 }
 
 func (s *Server) requestTx(hashes ...util.Uint256) {

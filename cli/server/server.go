@@ -18,6 +18,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/network/metrics"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/server"
 	"github.com/nspcc-dev/neo-go/pkg/services/oracle"
+	"github.com/nspcc-dev/neo-go/pkg/services/stateroot"
 	"github.com/urfave/cli"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -361,6 +362,12 @@ func startServer(ctx *cli.Context) error {
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("failed to create network server: %w", err), 1)
 	}
+	sr, err := stateroot.New(serverConfig.StateRootCfg, log, chain, serv.BroadcastExtensible)
+	if err != nil {
+		return cli.NewExitError(fmt.Errorf("can't initialize StateRoot service: %w", err), 1)
+	}
+	serv.AddExtensibleService(sr, stateroot.Category, sr.OnPayload)
+
 	oracleSrv, err := mkOracle(serverConfig, chain, serv, log)
 	if err != nil {
 		return err

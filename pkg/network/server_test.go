@@ -41,9 +41,12 @@ var _ consensus.Service = (*fakeConsensus)(nil)
 func newFakeConsensus(c consensus.Config) (consensus.Service, error) {
 	return new(fakeConsensus), nil
 }
-func (f *fakeConsensus) Start()                                        { f.started.Store(true) }
-func (f *fakeConsensus) Shutdown()                                     { f.stopped.Store(true) }
-func (f *fakeConsensus) OnPayload(p *payload.Extensible)               { f.payloads = append(f.payloads, p) }
+func (f *fakeConsensus) Start()    { f.started.Store(true) }
+func (f *fakeConsensus) Shutdown() { f.stopped.Store(true) }
+func (f *fakeConsensus) OnPayload(p *payload.Extensible) error {
+	f.payloads = append(f.payloads, p)
+	return nil
+}
 func (f *fakeConsensus) OnTransaction(tx *transaction.Transaction)     { f.txs = append(f.txs, tx) }
 func (f *fakeConsensus) GetPayload(h util.Uint256) *payload.Extensible { panic("implement me") }
 
@@ -453,13 +456,6 @@ func TestConsensus(t *testing.T) {
 	})
 	t.Run("big ValidUntiLBlockStart", func(t *testing.T) {
 		msg := newConsensusMessage(s.chain.BlockHeight()+1, s.chain.BlockHeight()+2)
-		require.Error(t, s.handleMessage(p, msg))
-	})
-	t.Run("invalid category", func(t *testing.T) {
-		pl := payload.NewExtensible()
-		pl.Category = "invalid"
-		pl.ValidBlockEnd = s.chain.BlockHeight() + 1
-		msg := NewMessage(CMDExtensible, pl)
 		require.Error(t, s.handleMessage(p, msg))
 	})
 }

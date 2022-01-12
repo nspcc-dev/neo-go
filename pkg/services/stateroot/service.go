@@ -77,6 +77,9 @@ func New(cfg config.StateRoot, log *zap.Logger, bc blockchainer.Blockchainer, cb
 
 	s.MainCfg = cfg
 	if cfg.Enabled {
+		if bcConf.StateRootInHeader {
+			return nil, errors.New("`StateRootInHeader` should be disabled when state service is enabled")
+		}
 		var err error
 		w := cfg.UnlockWallet
 		if s.wallet, err = wallet.NewWalletFromFile(w.Path); err != nil {

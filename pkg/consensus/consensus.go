@@ -52,7 +52,7 @@ type Service interface {
 	Shutdown()
 
 	// OnPayload is a callback to notify Service about new received payload.
-	OnPayload(p *npayload.Extensible)
+	OnPayload(p *npayload.Extensible) error
 	// OnTransaction is a callback to notify Service about new received transaction.
 	OnTransaction(tx *transaction.Transaction)
 }
@@ -365,26 +365,27 @@ func (s *service) payloadFromExtensible(ep *npayload.Extensible) *Payload {
 }
 
 // OnPayload handles Payload receive.
-func (s *service) OnPayload(cp *npayload.Extensible) {
+func (s *service) OnPayload(cp *npayload.Extensible) error {
 	log := s.log.With(zap.Stringer("hash", cp.Hash()))
 	p := s.payloadFromExtensible(cp)
 	// decode payload data into message
 	if err := p.decodeData(); err != nil {
 		log.Info("can't decode payload data", zap.Error(err))
-		return
+		return nil
 	}
 
 	if !s.validatePayload(p) {
 		log.Info("can't validate payload")
-		return
+		return nil
 	}
 
 	if s.dbft == nil || !s.started.Load() {
 		log.Debug("dbft is inactive or not started yet")
-		return
+		return nil
 	}
 
 	s.messages <- *p
+	return nil
 }
 
 func (s *service) OnTransaction(tx *transaction.Transaction) {

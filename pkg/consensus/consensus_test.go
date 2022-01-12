@@ -351,7 +351,7 @@ func TestService_OnPayload(t *testing.T) {
 	p.encodeData()
 
 	// sender is invalid
-	srv.OnPayload(&p.Extensible)
+	require.NoError(t, srv.OnPayload(&p.Extensible))
 	shouldNotReceive(t, srv.messages)
 
 	p = new(Payload)
@@ -359,7 +359,7 @@ func TestService_OnPayload(t *testing.T) {
 	p.Sender = priv.GetScriptHash()
 	p.SetPayload(&prepareRequest{})
 	require.NoError(t, p.Sign(priv))
-	srv.OnPayload(&p.Extensible)
+	require.NoError(t, srv.OnPayload(&p.Extensible))
 	shouldReceive(t, srv.messages)
 }
 
