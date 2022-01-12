@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
-	"github.com/nspcc-dev/neo-go/pkg/consensus"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
 	"github.com/nspcc-dev/neo-go/pkg/core/mempool"
@@ -75,7 +74,6 @@ type (
 		chain             blockchainer.Blockchainer
 		bQueue            *blockQueue
 		bSyncQueue        *blockQueue
-		consensus         consensus.Service
 		mempool           *mempool.Pool
 		notaryRequestPool *mempool.Pool
 		extensiblePool    *extpool.Pool
@@ -83,6 +81,8 @@ type (
 		notaryModule      *notary.Notary
 		services          []Service
 		extensHandlers    map[string]func(*payload.Extensible) error
+		extensHighPrio    string
+		txCallback        func(*transaction.Transaction)
 
 		txInLock sync.Mutex
 		txInMap  map[util.Uint256]struct{}
@@ -124,12 +124,11 @@ func randomID() uint32 {
 func NewServer(config ServerConfig, chain blockchainer.Blockchainer, log *zap.Logger) (*Server, error) {
 	return newServerFromConstructors(config, chain, log, func(s *Server) Transporter {
 		return NewTCPTransport(s, net.JoinHostPort(s.ServerConfig.Address, strconv.Itoa(int(s.ServerConfig.Port))), s.log)
-	}, consensus.NewService, newDefaultDiscovery)
+	}, newDefaultDiscovery)
 }
 
 func newServerFromConstructors(config ServerConfig, chain blockchainer.Blockchainer, log *zap.Logger,
 	newTransport func(*Server) Transporter,
-	newConsensus func(consensus.Config) (consensus.Service, error),
 	newDiscovery func([]string, time.Duration, Transporter) Discoverer,
 ) (*Server, error) {
 	if log == nil {
@@ -197,25 +196,6 @@ func newServerFromConstructors(config ServerConfig, chain blockchainer.Blockchai
 	sSync := chain.GetStateSyncModule()
 	s.stateSync = sSync
 	s.bSyncQueue = newBlockQueue(maxBlockBatch, sSync, log, nil)
-
-	if config.Wallet != nil {
-		srv, err := newConsensus(consensus.Config{
-			Logger:                log,
-			Broadcast:             s.BroadcastExtensible,
-			Chain:                 chain,
-			ProtocolConfiguration: chain.GetConfig(),
-			RequestTx:             s.requestTx,
-			Wallet:                config.Wallet,
-
-			TimePerBlock: config.TimePerBlock,
-		})
-		if err != nil {
-			return nil, err
-		}
-
-		s.consensus = srv
-		s.AddExtensibleService(srv, consensus.Category, srv.OnPayload)
-	}
 
 	if s.MinPeers < 0 {
 		s.log.Info("bad MinPeers configured, using the default value",
@@ -299,6 +279,13 @@ func (s *Server) AddService(svc Service) {
 func (s *Server) AddExtensibleService(svc Service, category string, handler func(*payload.Extensible) error) {
 	s.extensHandlers[category] = handler
 	s.AddService(svc)
+}
+
+// AddExtensibleHPService registers a high-priority service that handles extensible payload of some kind.
+func (s *Server) AddExtensibleHPService(svc Service, category string, handler func(*payload.Extensible) error, txCallback func(*transaction.Transaction)) {
+	s.txCallback = txCallback
+	s.extensHighPrio = category
+	s.AddExtensibleService(svc, category, handler)
 }
 
 // UnconnectedPeers returns a list of peers that are in the discovery peer list
@@ -949,7 +936,7 @@ func (s *Server) handleExtensibleCmd(e *payload.Extensible) error {
 
 func (s *Server) advertiseExtensible(e *payload.Extensible) {
 	msg := NewMessage(CMDInv, payload.NewInventory(payload.ExtensibleType, []util.Uint256{e.Hash()}))
-	if e.Category == consensus.Category {
+	if e.Category == s.extensHighPrio {
 		// It's high priority because it directly affects consensus process,
 		// even though it's just an inv.
 		s.broadcastHPMessage(msg)
@@ -972,8 +959,8 @@ func (s *Server) handleTxCmd(tx *transaction.Transaction) error {
 	s.txInMap[tx.Hash()] = struct{}{}
 	s.txInLock.Unlock()
 	if s.verifyAndPoolTX(tx) == nil {
-		if s.consensus != nil {
-			s.consensus.OnTransaction(tx)
+		if s.txCallback != nil {
+			s.txCallback(tx)
 		}
 		s.broadcastTX(tx, nil)
 	}
@@ -1255,7 +1242,8 @@ func (s *Server) BroadcastExtensible(p *payload.Extensible) {
 	s.advertiseExtensible(p)
 }
 
-func (s *Server) requestTx(hashes ...util.Uint256) {
+// RequestTx asks for given transactions from Server peers using GetData message.
+func (s *Server) RequestTx(hashes ...util.Uint256) {
 	if len(hashes) == 0 {
 		return
 	}

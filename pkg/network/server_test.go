@@ -26,7 +26,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/atomic"
-	"go.uber.org/zap/zaptest"
 )
 
 type fakeConsensus struct {
@@ -38,9 +37,6 @@ type fakeConsensus struct {
 
 var _ consensus.Service = (*fakeConsensus)(nil)
 
-func newFakeConsensus(c consensus.Config) (consensus.Service, error) {
-	return new(fakeConsensus), nil
-}
 func (f *fakeConsensus) Start()    { f.started.Store(true) }
 func (f *fakeConsensus) Shutdown() { f.stopped.Store(true) }
 func (f *fakeConsensus) OnPayload(p *payload.Extensible) error {
@@ -55,7 +51,7 @@ func TestNewServer(t *testing.T) {
 		P2PStateExchangeExtensions: true,
 		StateRootInHeader:          true,
 	}}
-	s, err := newServerFromConstructors(ServerConfig{}, bc, nil, newFakeTransp, newFakeConsensus, newTestDiscovery)
+	s, err := newServerFromConstructors(ServerConfig{}, bc, nil, newFakeTransp, newTestDiscovery)
 	require.Error(t, err)
 
 	t.Run("set defaults", func(t *testing.T) {
@@ -79,13 +75,6 @@ func TestNewServer(t *testing.T) {
 		require.Equal(t, 2, s.ServerConfig.MaxPeers)
 		require.Equal(t, 3, s.ServerConfig.AttemptConnPeers)
 	})
-	t.Run("consensus error is not dropped", func(t *testing.T) {
-		errConsensus := errors.New("can't create consensus")
-		_, err = newServerFromConstructors(ServerConfig{Wallet: new(config.Wallet), MinPeers: -1}, bc, zaptest.NewLogger(t), newFakeTransp,
-			func(consensus.Config) (consensus.Service, error) { return nil, errConsensus },
-			newTestDiscovery)
-		require.True(t, errors.Is(err, errConsensus), "got: %#v", err)
-	})
 }
 
 func startWithChannel(s *Server) chan error {
@@ -107,7 +96,7 @@ func TestServerStartAndShutdown(t *testing.T) {
 		require.Eventually(t, func() bool { return 1 == s.PeerCount() }, time.Second, time.Millisecond*10)
 
 		assert.True(t, s.transport.(*fakeTransp).started.Load())
-		assert.Nil(t, s.consensus)
+		assert.Nil(t, s.txCallback)
 
 		s.Shutdown()
 		<-ch
@@ -124,12 +113,12 @@ func TestServerStartAndShutdown(t *testing.T) {
 		p := newLocalPeer(t, s)
 		s.register <- p
 
-		assert.True(t, s.consensus.(*fakeConsensus).started.Load())
+		assert.True(t, s.services[0].(*fakeConsensus).started.Load())
 
 		s.Shutdown()
 		<-ch
 
-		require.True(t, s.consensus.(*fakeConsensus).stopped.Load())
+		require.True(t, s.services[0].(*fakeConsensus).stopped.Load())
 	})
 }
 
@@ -441,13 +430,13 @@ func TestConsensus(t *testing.T) {
 
 	s.chain.(*fakechain.FakeChain).VerifyWitnessF = func() (int64, error) { return 0, nil }
 	require.NoError(t, s.handleMessage(p, msg))
-	require.Contains(t, s.consensus.(*fakeConsensus).payloads, msg.Payload.(*payload.Extensible))
+	require.Contains(t, s.services[0].(*fakeConsensus).payloads, msg.Payload.(*payload.Extensible))
 
 	t.Run("small ValidUntilBlockEnd", func(t *testing.T) {
 		t.Run("current height", func(t *testing.T) {
 			msg := newConsensusMessage(0, s.chain.BlockHeight())
 			require.NoError(t, s.handleMessage(p, msg))
-			require.NotContains(t, s.consensus.(*fakeConsensus).payloads, msg.Payload.(*payload.Extensible))
+			require.NotContains(t, s.services[0].(*fakeConsensus).payloads, msg.Payload.(*payload.Extensible))
 		})
 		t.Run("invalid", func(t *testing.T) {
 			msg := newConsensusMessage(0, s.chain.BlockHeight()-1)
@@ -478,13 +467,13 @@ func TestTransaction(t *testing.T) {
 		s.register <- p
 
 		s.testHandleMessage(t, nil, CMDTX, tx)
-		require.Contains(t, s.consensus.(*fakeConsensus).txs, tx)
+		require.Contains(t, s.services[0].(*fakeConsensus).txs, tx)
 	})
 	t.Run("bad", func(t *testing.T) {
 		tx := newDummyTx()
 		s.chain.(*fakechain.FakeChain).PoolTxF = func(*transaction.Transaction) error { return core.ErrInsufficientFunds }
 		s.testHandleMessage(t, nil, CMDTX, tx)
-		for _, ftx := range s.consensus.(*fakeConsensus).txs {
+		for _, ftx := range s.services[0].(*fakeConsensus).txs {
 			require.NotEqual(t, ftx, tx)
 		}
 	})
@@ -904,13 +893,13 @@ func TestRequestTx(t *testing.T) {
 
 	t.Run("no hashes, no message", func(t *testing.T) {
 		actual = nil
-		s.requestTx()
+		s.RequestTx()
 		require.Nil(t, actual)
 	})
 	t.Run("good, small", func(t *testing.T) {
 		actual = nil
 		expected := []util.Uint256{random.Uint256(), random.Uint256()}
-		s.requestTx(expected...)
+		s.RequestTx(expected...)
 		require.Equal(t, expected, actual)
 	})
 	t.Run("good, exactly one chunk", func(t *testing.T) {
@@ -919,7 +908,7 @@ func TestRequestTx(t *testing.T) {
 		for i := range expected {
 			expected[i] = random.Uint256()
 		}
-		s.requestTx(expected...)
+		s.RequestTx(expected...)
 		require.Equal(t, expected, actual)
 	})
 	t.Run("good, multiple chunks", func(t *testing.T) {
@@ -928,7 +917,7 @@ func TestRequestTx(t *testing.T) {
 		for i := range expected {
 			expected[i] = random.Uint256()
 		}
-		s.requestTx(expected...)
+		s.RequestTx(expected...)
 		require.Equal(t, expected, actual)
 	})
 }

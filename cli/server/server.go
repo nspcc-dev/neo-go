@@ -9,6 +9,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/cli/options"
 	"github.com/nspcc-dev/neo-go/pkg/config"
+	"github.com/nspcc-dev/neo-go/pkg/consensus"
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/chaindump"
@@ -338,6 +339,27 @@ func mkOracle(config network.ServerConfig, chain *core.Blockchain, serv *network
 	return orc, nil
 }
 
+func mkConsensus(config network.ServerConfig, chain *core.Blockchain, serv *network.Server, log *zap.Logger) (consensus.Service, error) {
+	if config.Wallet == nil {
+		return nil, nil
+	}
+	srv, err := consensus.NewService(consensus.Config{
+		Logger:                log,
+		Broadcast:             serv.BroadcastExtensible,
+		Chain:                 chain,
+		ProtocolConfiguration: chain.GetConfig(),
+		RequestTx:             serv.RequestTx,
+		Wallet:                config.Wallet,
+		TimePerBlock:          config.TimePerBlock,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("can't initialize Consensus module: %w", err)
+	}
+
+	serv.AddExtensibleHPService(srv, consensus.Category, srv.OnPayload, srv.OnTransaction)
+	return srv, nil
+}
+
 func startServer(ctx *cli.Context) error {
 	cfg, err := getConfigFromContext(ctx)
 	if err != nil {
@@ -369,6 +391,10 @@ func startServer(ctx *cli.Context) error {
 	serv.AddExtensibleService(sr, stateroot.Category, sr.OnPayload)
 
 	oracleSrv, err := mkOracle(serverConfig, chain, serv, log)
+	if err != nil {
+		return err
+	}
+	_, err = mkConsensus(serverConfig, chain, serv, log)
 	if err != nil {
 		return err
 	}

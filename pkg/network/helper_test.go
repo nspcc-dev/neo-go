@@ -10,6 +10,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/internal/fakechain"
 	"github.com/nspcc-dev/neo-go/pkg/config"
+	"github.com/nspcc-dev/neo-go/pkg/consensus"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/network/capability"
 	"github.com/nspcc-dev/neo-go/pkg/network/payload"
@@ -193,8 +194,12 @@ func newTestServer(t *testing.T, serverConfig ServerConfig) *Server {
 
 func newTestServerWithCustomCfg(t *testing.T, serverConfig ServerConfig, protocolCfg func(*config.ProtocolConfiguration)) *Server {
 	s, err := newServerFromConstructors(serverConfig, fakechain.NewFakeChainWithCustomCfg(protocolCfg), zaptest.NewLogger(t),
-		newFakeTransp, newFakeConsensus, newTestDiscovery)
+		newFakeTransp, newTestDiscovery)
 	require.NoError(t, err)
+	if serverConfig.Wallet != nil {
+		cons := new(fakeConsensus)
+		s.AddExtensibleHPService(cons, consensus.Category, cons.OnPayload, cons.OnTransaction)
+	}
 	t.Cleanup(s.discovery.Close)
 	return s
 }
