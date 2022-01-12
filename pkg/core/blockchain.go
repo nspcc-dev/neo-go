@@ -2138,14 +2138,14 @@ func (bc *Blockchain) GetEnrollments() ([]state.Validator, error) {
 	return bc.contracts.NEO.GetCandidates(bc.dao)
 }
 
-// GetTestVM returns a VM setup for a test run of some sort of code and finalizer function.
-func (bc *Blockchain) GetTestVM(t trigger.Type, tx *transaction.Transaction, b *block.Block) (*vm.VM, func()) {
+// GetTestVM returns an interop context with VM set up for a test run.
+func (bc *Blockchain) GetTestVM(t trigger.Type, tx *transaction.Transaction, b *block.Block) *interop.Context {
 	d := bc.dao.GetWrapped().(*dao.Simple)
 	systemInterop := bc.newInteropContext(t, d, b, tx)
 	vm := systemInterop.SpawnVM()
 	vm.SetPriceGetter(systemInterop.GetPrice)
 	vm.LoadToken = contract.LoadToken(systemInterop)
-	return vm, systemInterop.Finalize
+	return systemInterop
 }
 
 // Various witness verification errors.

@@ -613,12 +613,12 @@ func setTxSystemFee(bc *Blockchain, sysFee int64, tx *transaction.Transaction) {
 	}
 
 	ttx := *tx // prevent setting 'hash' field
-	v, f := bc.GetTestVM(trigger.Application, &ttx, b)
-	defer f()
+	ic := bc.GetTestVM(trigger.Application, &ttx, b)
+	defer ic.Finalize()
 
-	v.LoadWithFlags(tx.Script, callflag.All)
-	_ = v.Run()
-	tx.SystemFee = v.GasConsumed()
+	ic.VM.LoadWithFlags(tx.Script, callflag.All)
+	_ = ic.VM.Run()
+	tx.SystemFee = ic.VM.GasConsumed()
 }
 
 func signTxWithAccounts(chain *Blockchain, sysFee int64, tx *transaction.Transaction, accs ...*wallet.Account) {

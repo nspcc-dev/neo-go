@@ -31,12 +31,12 @@ func (e *Executor) CommitteeInvoker(h util.Uint160) *ContractInvoker {
 func (c *ContractInvoker) TestInvoke(t *testing.T, method string, args ...interface{}) (*vm.Stack, error) {
 	tx := c.PrepareInvokeNoSign(t, method, args...)
 	b := c.NewUnsignedBlock(t, tx)
-	v, f := c.Chain.GetTestVM(trigger.Application, tx, b)
-	t.Cleanup(f)
+	ic := c.Chain.GetTestVM(trigger.Application, tx, b)
+	t.Cleanup(ic.Finalize)
 
-	v.LoadWithFlags(tx.Script, callflag.All)
-	err := v.Run()
-	return v.Estack(), err
+	ic.VM.LoadWithFlags(tx.Script, callflag.All)
+	err := ic.VM.Run()
+	return ic.VM.Estack(), err
 }
 
 // WithSigners creates new client with the provided signer.
