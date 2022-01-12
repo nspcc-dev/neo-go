@@ -25,7 +25,7 @@ type (
 		OnPayload(p *payload.Extensible) error
 		AddSignature(height uint32, validatorIndex int32, sig []byte) error
 		GetConfig() config.StateRoot
-		Run()
+		Start()
 		Shutdown()
 	}
 

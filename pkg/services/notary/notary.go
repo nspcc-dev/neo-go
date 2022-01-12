@@ -143,12 +143,16 @@ func NewNotary(cfg Config, net netmode.Magic, mp *mempool.Pool, onTransaction fu
 	}, nil
 }
 
-// Run runs Notary module and should be called in a separate goroutine.
-func (n *Notary) Run() {
+// Start runs Notary module in a separate goroutine.
+func (n *Notary) Start() {
 	n.Config.Log.Info("starting notary service")
 	n.Config.Chain.SubscribeForBlocks(n.blocksCh)
 	n.mp.SubscribeForTransactions(n.reqCh)
 	go n.newTxCallbackLoop()
+	go n.mainLoop()
+}
+
+func (n *Notary) mainLoop() {
 	for {
 		select {
 		case <-n.stopCh:
@@ -171,8 +175,8 @@ func (n *Notary) Run() {
 	}
 }
 
-// Stop shutdowns Notary module.
-func (n *Notary) Stop() {
+// Shutdown stops Notary module.
+func (n *Notary) Shutdown() {
 	close(n.stopCh)
 }
 

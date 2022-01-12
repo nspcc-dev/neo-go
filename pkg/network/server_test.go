@@ -78,7 +78,7 @@ func TestNewServer(t *testing.T) {
 	})
 	t.Run("consensus error is not dropped", func(t *testing.T) {
 		errConsensus := errors.New("can't create consensus")
-		_, err = newServerFromConstructors(ServerConfig{MinPeers: -1}, bc, zaptest.NewLogger(t), newFakeTransp,
+		_, err = newServerFromConstructors(ServerConfig{Wallet: new(config.Wallet), MinPeers: -1}, bc, zaptest.NewLogger(t), newFakeTransp,
 			func(consensus.Config) (consensus.Service, error) { return nil, errConsensus },
 			newTestDiscovery)
 		require.True(t, errors.Is(err, errConsensus), "got: %#v", err)
@@ -104,13 +104,12 @@ func TestServerStartAndShutdown(t *testing.T) {
 		require.Eventually(t, func() bool { return 1 == s.PeerCount() }, time.Second, time.Millisecond*10)
 
 		assert.True(t, s.transport.(*fakeTransp).started.Load())
-		assert.False(t, s.consensus.(*fakeConsensus).started.Load())
+		assert.Nil(t, s.consensus)
 
 		s.Shutdown()
 		<-ch
 
 		require.True(t, s.transport.(*fakeTransp).closed.Load())
-		require.True(t, s.consensus.(*fakeConsensus).stopped.Load())
 		err, ok := p.droppedWith.Load().(error)
 		require.True(t, ok)
 		require.True(t, errors.Is(err, errServerShutdown))
@@ -416,7 +415,8 @@ func TestBlock(t *testing.T) {
 }
 
 func TestConsensus(t *testing.T) {
-	s := startTestServer(t)
+	s := newTestServer(t, ServerConfig{Wallet: new(config.Wallet)})
+	startWithCleanup(t, s)
 
 	atomic2.StoreUint32(&s.chain.(*fakechain.FakeChain).Blockheight, 4)
 	p := newLocalPeer(t, s)
@@ -465,7 +465,8 @@ func TestConsensus(t *testing.T) {
 }
 
 func TestTransaction(t *testing.T) {
-	s := startTestServer(t)
+	s := newTestServer(t, ServerConfig{Wallet: new(config.Wallet)})
+	startWithCleanup(t, s)
 
 	t.Run("good", func(t *testing.T) {
 		tx := newDummyTx()

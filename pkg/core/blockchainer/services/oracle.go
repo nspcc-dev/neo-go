@@ -16,8 +16,8 @@ type Oracle interface {
 	UpdateOracleNodes(keys.PublicKeys)
 	// UpdateNativeContract updates oracle contract native script and hash.
 	UpdateNativeContract([]byte, []byte, util.Uint160, int)
-	// Run runs oracle module. Must be invoked in a separate goroutine.
-	Run()
+	// Start runs oracle module.
+	Start()
 	// Shutdown shutdowns oracle module.
 	Shutdown()
 }

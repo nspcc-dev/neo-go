@@ -140,9 +140,9 @@ func TestNotary(t *testing.T) {
 	})
 
 	mp1.RunSubscriptions()
-	go ntr1.Run()
+	ntr1.Start()
 	t.Cleanup(func() {
-		ntr1.Stop()
+		ntr1.Shutdown()
 		mp1.StopSubscriptions()
 	})
 

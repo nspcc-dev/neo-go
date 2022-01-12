@@ -129,10 +129,6 @@ func NewService(cfg Config) (Service, error) {
 		finished:     make(chan struct{}),
 	}
 
-	if cfg.Wallet == nil {
-		return srv, nil
-	}
-
 	var err error
 
 	if srv.wallet, err = wallet.NewWalletFromFile(cfg.Wallet.Path); err != nil {

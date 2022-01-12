@@ -170,15 +170,18 @@ func (o *Oracle) Shutdown() {
 	o.getBroadcaster().Shutdown()
 }
 
-// Run runs must be executed in a separate goroutine.
-func (o *Oracle) Run() {
+// Start runs the oracle service in a separate goroutine.
+func (o *Oracle) Start() {
 	o.respMtx.Lock()
 	if o.running {
 		o.respMtx.Unlock()
 		return
 	}
 	o.Log.Info("starting oracle service")
+	go o.start()
+}
 
+func (o *Oracle) start() {
 	o.requestMap <- o.pending // Guaranteed to not block, only AddRequests sends to it.
 	o.pending = nil
 	o.running = true

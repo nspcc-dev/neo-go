@@ -305,7 +305,7 @@ func TestOracleFull(t *testing.T) {
 	require.NoError(t, bc.contracts.Management.PutContractState(bc.dao, cs))
 
 	go bc.Run()
-	go orc.Run()
+	orc.Start()
 	t.Cleanup(orc.Shutdown)
 
 	bc.setNodesByRole(t, true, noderoles.Oracle, keys.PublicKeys{acc.PrivateKey().PublicKey()})
@@ -351,7 +351,7 @@ func TestNotYetRunningOracle(t *testing.T) {
 	ids = []uint64{3}
 	orc.RemoveRequests(ids) // 3 removed from pending -> 2, 4 in pending.
 
-	go orc.Run()
+	orc.Start()
 	t.Cleanup(orc.Shutdown)
 
 	require.Eventually(t, func() bool { return mp.Count() == 2 },

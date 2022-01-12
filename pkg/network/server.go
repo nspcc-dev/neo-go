@@ -52,6 +52,12 @@ var (
 )
 
 type (
+	// Service is a service abstraction (oracle, state root, consensus, etc).
+	Service interface {
+		Start()
+		Shutdown()
+	}
+
 	// Server represents the local Node in the network. Its transport could
 	// be of any kind.
 	Server struct {
@@ -77,6 +83,7 @@ type (
 		extensiblePool    *extpool.Pool
 		notaryFeer        NotaryFeer
 		notaryModule      *notary.Notary
+		services          []Service
 
 		txInLock sync.Mutex
 		txInMap  map[util.Uint256]struct{}
@@ -179,6 +186,7 @@ func newServerFromConstructors(config ServerConfig, chain blockchainer.Blockchai
 				return nil, fmt.Errorf("failed to create Notary module: %w", err)
 			}
 			s.notaryModule = n
+			s.services = append(s.services, n)
 			chain.SetNotary(n)
 		}
 	} else if config.P2PNotaryCfg.Enabled {
@@ -197,6 +205,7 @@ func newServerFromConstructors(config ServerConfig, chain blockchainer.Blockchai
 		return nil, fmt.Errorf("can't initialize StateRoot service: %w", err)
 	}
 	s.stateRoot = sr
+	s.services = append(s.services, sr)
 
 	sSync := chain.GetStateSyncModule()
 	s.stateSync = sSync
@@ -221,24 +230,28 @@ func newServerFromConstructors(config ServerConfig, chain blockchainer.Blockchai
 			}
 		})
 		s.oracle = orc
+		s.services = append(s.services, orc)
 		chain.SetOracle(orc)
 	}
 
-	srv, err := newConsensus(consensus.Config{
-		Logger:                log,
-		Broadcast:             s.handleNewPayload,
-		Chain:                 chain,
-		ProtocolConfiguration: chain.GetConfig(),
-		RequestTx:             s.requestTx,
-		Wallet:                config.Wallet,
+	if config.Wallet != nil {
+		srv, err := newConsensus(consensus.Config{
+			Logger:                log,
+			Broadcast:             s.handleNewPayload,
+			Chain:                 chain,
+			ProtocolConfiguration: chain.GetConfig(),
+			RequestTx:             s.requestTx,
+			Wallet:                config.Wallet,
 
-		TimePerBlock: config.TimePerBlock,
-	})
-	if err != nil {
-		return nil, err
+			TimePerBlock: config.TimePerBlock,
+		})
+		if err != nil {
+			return nil, err
+		}
+
+		s.consensus = srv
+		s.services = append(s.services, srv)
 	}
-
-	s.consensus = srv
 
 	if s.MinPeers < 0 {
 		s.log.Info("bad MinPeers configured, using the default value",
@@ -299,20 +312,13 @@ func (s *Server) Shutdown() {
 	s.log.Info("shutting down server", zap.Int("peers", s.PeerCount()))
 	s.transport.Close()
 	s.discovery.Close()
-	s.consensus.Shutdown()
 	for _, p := range s.getPeers(nil) {
 		p.Disconnect(errServerShutdown)
 	}
 	s.bQueue.discard()
 	s.bSyncQueue.discard()
-	if s.StateRootCfg.Enabled {
-		s.stateRoot.Shutdown()
-	}
-	if s.oracle != nil {
-		s.oracle.Shutdown()
-	}
-	if s.notaryModule != nil {
-		s.notaryModule.Stop()
+	for _, svc := range s.services {
+		svc.Shutdown()
 	}
 	if s.chain.P2PSigExtensionsEnabled() {
 		s.notaryRequestPool.StopSubscriptions()
@@ -460,20 +466,11 @@ func (s *Server) tryStartServices() {
 
 	if s.IsInSync() && s.syncReached.CAS(false, true) {
 		s.log.Info("node reached synchronized state, starting services")
-		if s.Wallet != nil {
-			s.consensus.Start()
-		}
-		if s.StateRootCfg.Enabled {
-			s.stateRoot.Run()
-		}
-		if s.oracle != nil {
-			go s.oracle.Run()
-		}
 		if s.chain.P2PSigExtensionsEnabled() {
 			s.notaryRequestPool.RunSubscriptions() // WSClient is also a subscriber.
 		}
-		if s.notaryModule != nil {
-			go s.notaryModule.Run()
+		for _, svc := range s.services {
+			svc.Start()
 		}
 	}
 }
@@ -976,7 +973,9 @@ func (s *Server) handleExtensibleCmd(e *payload.Extensible) error {
 	}
 	switch e.Category {
 	case consensus.Category:
-		s.consensus.OnPayload(e)
+		if s.consensus != nil {
+			s.consensus.OnPayload(e)
+		}
 	case stateroot.Category:
 		err := s.stateRoot.OnPayload(e)
 		if err != nil {
@@ -1009,7 +1008,9 @@ func (s *Server) handleTxCmd(tx *transaction.Transaction) error {
 	s.txInMap[tx.Hash()] = struct{}{}
 	s.txInLock.Unlock()
 	if s.verifyAndPoolTX(tx) == nil {
-		s.consensus.OnTransaction(tx)
+		if s.consensus != nil {
+			s.consensus.OnTransaction(tx)
+		}
 		s.broadcastTX(tx, nil)
 	}
 	s.txInLock.Lock()

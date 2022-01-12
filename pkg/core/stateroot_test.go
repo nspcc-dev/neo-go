@@ -199,7 +199,7 @@ func TestStateRootFull(t *testing.T) {
 		lastValidated.Store(ep)
 	})
 	require.NoError(t, err)
-	srv.Run()
+	srv.Start()
 	t.Cleanup(srv.Shutdown)
 
 	bc.setNodesByRole(t, true, noderoles.StateValidator, pubs)
