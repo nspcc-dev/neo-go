@@ -22,7 +22,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result/subscriptions"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/nspcc-dev/neo-go/pkg/vm"
 	uatomic "go.uber.org/atomic"
 )
 
@@ -104,8 +103,8 @@ func (chain *FakeChain) IsTxStillRelevant(t *transaction.Transaction, txpool *me
 	panic("TODO")
 }
 
-// InitVerificationVM initializes VM for witness check.
-func (chain *FakeChain) InitVerificationVM(v *vm.VM, getContract func(util.Uint160) (*state.Contract, error), hash util.Uint160, witness *transaction.Witness) error {
+// InitVerificationContext initializes context for witness check.
+func (chain *FakeChain) InitVerificationContext(ic *interop.Context, hash util.Uint160, witness *transaction.Witness) error {
 	panic("TODO")
 }
 

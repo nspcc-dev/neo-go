@@ -1703,13 +1703,7 @@ func (s *Server) runScriptInVM(t trigger.Type, script []byte, contractScriptHash
 			ic.VM.GasLimit = gasPolicy
 		}
 
-		err := s.chain.InitVerificationVM(ic.VM, func(h util.Uint160) (*state.Contract, error) {
-			res := s.chain.GetContractState(h)
-			if res == nil {
-				return nil, fmt.Errorf("unknown contract: %s", h.StringBE())
-			}
-			return res, nil
-		}, contractScriptHash, &transaction.Witness{InvocationScript: script, VerificationScript: []byte{}})
+		err := s.chain.InitVerificationContext(ic, contractScriptHash, &transaction.Witness{InvocationScript: script, VerificationScript: []byte{}})
 		if err != nil {
 			return nil, response.NewInternalServerError("can't prepare verification VM", err)
 		}

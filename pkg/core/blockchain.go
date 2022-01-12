@@ -2160,8 +2160,8 @@ var (
 	ErrInvalidVerificationContract = errors.New("verification contract is missing `verify` method")
 )
 
-// InitVerificationVM initializes VM for witness check.
-func (bc *Blockchain) InitVerificationVM(v *vm.VM, getContract func(util.Uint160) (*state.Contract, error), hash util.Uint160, witness *transaction.Witness) error {
+// InitVerificationContext initializes context for witness check.
+func (bc *Blockchain) InitVerificationContext(ic *interop.Context, hash util.Uint160, witness *transaction.Witness) error {
 	if len(witness.VerificationScript) != 0 {
 		if witness.ScriptHash() != hash {
 			return ErrWitnessHashMismatch
@@ -2173,9 +2173,9 @@ func (bc *Blockchain) InitVerificationVM(v *vm.VM, getContract func(util.Uint160
 		if err != nil {
 			return fmt.Errorf("%w: %v", ErrInvalidVerification, err)
 		}
-		v.LoadScriptWithHash(witness.VerificationScript, hash, callflag.ReadOnly)
+		ic.VM.LoadScriptWithHash(witness.VerificationScript, hash, callflag.ReadOnly)
 	} else {
-		cs, err := getContract(hash)
+		cs, err := ic.GetContract(hash)
 		if err != nil {
 			return ErrUnknownVerificationContract
 		}
@@ -2189,7 +2189,8 @@ func (bc *Blockchain) InitVerificationVM(v *vm.VM, getContract func(util.Uint160
 		if md != nil {
 			initOffset = md.Offset
 		}
-		v.LoadNEFMethod(&cs.NEF, util.Uint160{}, hash, callflag.ReadOnly,
+		ic.Invocations[cs.Hash]++
+		ic.VM.LoadNEFMethod(&cs.NEF, util.Uint160{}, hash, callflag.ReadOnly,
 			true, verifyOffset, initOffset)
 	}
 	if len(witness.InvocationScript) != 0 {
@@ -2197,7 +2198,7 @@ func (bc *Blockchain) InitVerificationVM(v *vm.VM, getContract func(util.Uint160
 		if err != nil {
 			return fmt.Errorf("%w: %v", ErrInvalidInvocation, err)
 		}
-		v.LoadScript(witness.InvocationScript)
+		ic.VM.LoadScript(witness.InvocationScript)
 	}
 	return nil
 }
@@ -2221,7 +2222,7 @@ func (bc *Blockchain) verifyHashAgainstScript(hash util.Uint160, witness *transa
 	vm.SetPriceGetter(interopCtx.GetPrice)
 	vm.LoadToken = contract.LoadToken(interopCtx)
 	vm.GasLimit = gas
-	if err := bc.InitVerificationVM(vm, interopCtx.GetContract, hash, witness); err != nil {
+	if err := bc.InitVerificationContext(interopCtx, hash, witness); err != nil {
 		return 0, err
 	}
 	err := interopCtx.Exec()

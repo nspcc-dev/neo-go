@@ -15,7 +15,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result/subscriptions"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/nspcc-dev/neo-go/pkg/vm"
 )
 
 // Blockchainer is an interface that abstract the implementation
@@ -26,7 +25,7 @@ type Blockchainer interface {
 	Blockqueuer // Blockqueuer interface
 	CalculateClaimable(h util.Uint160, endHeight uint32) (*big.Int, error)
 	Close()
-	InitVerificationVM(v *vm.VM, getContract func(util.Uint160) (*state.Contract, error), hash util.Uint160, witness *transaction.Witness) error
+	InitVerificationContext(ic *interop.Context, hash util.Uint160, witness *transaction.Witness) error
 	IsTxStillRelevant(t *transaction.Transaction, txpool *mempool.Pool, isPartialTx bool) bool
 	HeaderHeight() uint32
 	GetBlock(hash util.Uint256) (*block.Block, error)
