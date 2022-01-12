@@ -34,10 +34,14 @@ func runTestCases(t *testing.T, tcases []testCase) {
 
 func eval(t *testing.T, src string, result interface{}) {
 	vm, _ := vmAndCompileInterop(t, src)
-	err := vm.Run()
+	runAndCheck(t, vm, result)
+}
+
+func runAndCheck(t *testing.T, v *vm.VM, result interface{}) {
+	err := v.Run()
 	require.NoError(t, err)
-	assert.Equal(t, 1, vm.Estack().Len(), "stack contains unexpected items")
-	assertResult(t, vm, result)
+	assert.Equal(t, 1, v.Estack().Len(), "stack contains unexpected items")
+	assertResult(t, v, result)
 }
 
 func evalWithArgs(t *testing.T, src string, op []byte, args []stackitem.Item, result interface{}) {
@@ -48,10 +52,7 @@ func evalWithArgs(t *testing.T, src string, op []byte, args []stackitem.Item, re
 	if op != nil {
 		vm.Estack().PushVal(op)
 	}
-	err := vm.Run()
-	require.NoError(t, err)
-	assert.Equal(t, 1, vm.Estack().Len(), "stack contains unexpected items")
-	assertResult(t, vm, result)
+	runAndCheck(t, vm, result)
 }
 
 func assertResult(t *testing.T, vm *vm.VM, result interface{}) {

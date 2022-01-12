@@ -1,9 +1,15 @@
 package compiler_test
 
 import (
+	"bytes"
 	"fmt"
 	"math/big"
+	"strings"
 	"testing"
+
+	"github.com/nspcc-dev/neo-go/pkg/compiler"
+	"github.com/nspcc-dev/neo-go/pkg/vm"
+	"github.com/stretchr/testify/require"
 )
 
 var binaryExprTestCases = []testCase{
@@ -264,34 +270,55 @@ func TestBinaryExprs(t *testing.T) {
 	runTestCases(t, binaryExprTestCases)
 }
 
-func getBoolExprTestFunc(val bool, cond string) func(t *testing.T) {
-	srcTmpl := `package foo
-	var s = "str"
-	var v = 9
-	var cond = %s
-	func Main() int {
-		if %s {
-			return 42
-		} %s
+func addBoolExprTestFunc(testCases []testCase, b *bytes.Buffer, val bool, cond string) []testCase {
+	n := len(testCases)
+	b.WriteString(fmt.Sprintf(`
+	func F%d_expr() int {
+		var cond%d = %s
+		if cond%d { return 42 }
 		return 17
-		%s
-	}`
+	}
+	func F%d_cond() int {
+		if %s { return 42 }
+		return 17
+	}
+	func F%d_else() int {
+		if %s { return 42 } else { return 17 }
+	}
+	`, n, n, cond, n, n, cond, n, cond))
+
 	res := big.NewInt(42)
 	if !val {
 		res.SetInt64(17)
 	}
-	return func(t *testing.T) {
-		t.Run("AsExpression", func(t *testing.T) {
-			src := fmt.Sprintf(srcTmpl, cond, "cond", "", "")
-			eval(t, src, res)
-		})
-		t.Run("InCondition", func(t *testing.T) {
-			src := fmt.Sprintf(srcTmpl, "true", cond, "", "")
-			eval(t, src, res)
-		})
-		t.Run("InConditionWithElse", func(t *testing.T) {
-			src := fmt.Sprintf(srcTmpl, "true", cond, " else {", "}")
-			eval(t, src, res)
+
+	return append(testCases, testCase{
+		name:   cond,
+		result: res,
+	})
+}
+
+func runBooleanCases(t *testing.T, testCases []testCase, src string) {
+	ne, di, err := compiler.CompileWithOptions("file.go", strings.NewReader(src), nil)
+	require.NoError(t, err)
+
+	for i, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Run("AsExpression", func(t *testing.T) {
+				v := vm.New()
+				invokeMethod(t, fmt.Sprintf("F%d_expr", i), ne.Script, v, di)
+				runAndCheck(t, v, tc.result)
+			})
+			t.Run("InCondition", func(t *testing.T) {
+				v := vm.New()
+				invokeMethod(t, fmt.Sprintf("F%d_cond", i), ne.Script, v, di)
+				runAndCheck(t, v, tc.result)
+			})
+			t.Run("InConditionWithElse", func(t *testing.T) {
+				v := vm.New()
+				invokeMethod(t, fmt.Sprintf("F%d_else", i), ne.Script, v, di)
+				runAndCheck(t, v, tc.result)
+			})
 		})
 	}
 }
@@ -299,46 +326,70 @@ func getBoolExprTestFunc(val bool, cond string) func(t *testing.T) {
 // TestBooleanExprs enumerates a lot of possible combinations of boolean expressions
 // and tests if the result matches to that of Go.
 func TestBooleanExprs(t *testing.T) {
-	t.Skip() // FIXME this test takes more than 2 minutes to complete
+	header := `package foo
+	var s = "str"
+	var v = 9
+	`
+
+	srcBuilder := bytes.NewBuffer([]byte(header))
+
+	var testCases []testCase
 
 	trueExpr := []string{"true", "v < 10", "v <= 9", "v > 8", "v >= 9", "v == 9", "v != 8", `s == "str"`}
 	falseExpr := []string{"false", "v > 9", "v >= 10", "v < 9", "v <= 8", "v == 8", "v != 9", `s == "a"`}
 	t.Run("Single", func(t *testing.T) {
 		for _, s := range trueExpr {
-			t.Run(s, getBoolExprTestFunc(true, s))
+			testCases = addBoolExprTestFunc(testCases, srcBuilder, true, s)
 		}
 		for _, s := range falseExpr {
-			t.Run(s, getBoolExprTestFunc(false, s))
+			testCases = addBoolExprTestFunc(testCases, srcBuilder, false, s)
 		}
+		runBooleanCases(t, testCases, srcBuilder.String())
 	})
 
 	type arg struct {
 		val bool
 		s   string
 	}
-	t.Run("Combine", func(t *testing.T) {
-		var double []arg
-		for _, e := range trueExpr {
-			double = append(double, arg{true, e + " || false"})
-			double = append(double, arg{true, e + " && true"})
-		}
-		for _, e := range falseExpr {
-			double = append(double, arg{false, e + " && true"})
-			double = append(double, arg{false, e + " || false"})
-		}
-		for i := range double {
-			t.Run(double[i].s, getBoolExprTestFunc(double[i].val, double[i].s))
-		}
 
-		var triple []arg
-		for _, a1 := range double {
-			for _, a2 := range double {
-				triple = append(triple, arg{a1.val || a2.val, fmt.Sprintf("(%s) || (%s)", a1.s, a2.s)})
-				triple = append(triple, arg{a1.val && a2.val, fmt.Sprintf("(%s) && (%s)", a1.s, a2.s)})
-			}
+	var double []arg
+	for _, e := range trueExpr {
+		double = append(double, arg{true, e + " || false"})
+		double = append(double, arg{true, e + " && true"})
+	}
+	for _, e := range falseExpr {
+		double = append(double, arg{false, e + " && true"})
+		double = append(double, arg{false, e + " || false"})
+	}
+
+	t.Run("Double", func(t *testing.T) {
+		testCases = testCases[:0]
+		srcBuilder.Reset()
+		srcBuilder.WriteString(header)
+		for i := range double {
+			testCases = addBoolExprTestFunc(testCases, srcBuilder, double[i].val, double[i].s)
 		}
-		for i := range triple {
-			t.Run(triple[i].s, getBoolExprTestFunc(triple[i].val, triple[i].s))
+		runBooleanCases(t, testCases, srcBuilder.String())
+	})
+
+	var triple []arg
+	for _, a1 := range double {
+		for _, a2 := range double {
+			triple = append(triple, arg{a1.val || a2.val, fmt.Sprintf("(%s) || (%s)", a1.s, a2.s)})
+			triple = append(triple, arg{a1.val && a2.val, fmt.Sprintf("(%s) && (%s)", a1.s, a2.s)})
+		}
+	}
+
+	t.Run("Triple", func(t *testing.T) {
+		const step = 256 // empirically found value to make script less than 65536 in size
+		for start := 0; start < len(triple); start += step {
+			testCases = testCases[:0]
+			srcBuilder.Reset()
+			srcBuilder.WriteString(header)
+			for i := start; i < start+step && i < len(triple); i++ {
+				testCases = addBoolExprTestFunc(testCases, srcBuilder, triple[i].val, triple[i].s)
+			}
+			runBooleanCases(t, testCases, srcBuilder.String())
 		}
 	})
 }
