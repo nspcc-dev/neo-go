@@ -25,7 +25,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/network/extpool"
 	"github.com/nspcc-dev/neo-go/pkg/network/payload"
 	"github.com/nspcc-dev/neo-go/pkg/services/notary"
-	"github.com/nspcc-dev/neo-go/pkg/services/oracle"
 	"github.com/nspcc-dev/neo-go/pkg/services/stateroot"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"go.uber.org/atomic"
@@ -104,7 +103,6 @@ type (
 
 		syncReached *atomic.Bool
 
-		oracle    *oracle.Oracle
 		stateRoot stateroot.Service
 		stateSync blockchainer.StateSync
 
@@ -211,29 +209,6 @@ func newServerFromConstructors(config ServerConfig, chain blockchainer.Blockchai
 	s.stateSync = sSync
 	s.bSyncQueue = newBlockQueue(maxBlockBatch, sSync, log, nil)
 
-	if config.OracleCfg.Enabled {
-		orcCfg := oracle.Config{
-			Log:     log,
-			Network: config.Net,
-			MainCfg: config.OracleCfg,
-			Chain:   chain,
-		}
-		orc, err := oracle.NewOracle(orcCfg)
-		if err != nil {
-			return nil, fmt.Errorf("can't initialize Oracle module: %w", err)
-		}
-		orc.SetOnTransaction(func(tx *transaction.Transaction) {
-			if err := s.RelayTxn(tx); err != nil {
-				orc.Log.Error("can't pool oracle tx",
-					zap.String("hash", tx.Hash().StringLE()),
-					zap.Error(err))
-			}
-		})
-		s.oracle = orc
-		s.services = append(s.services, orc)
-		chain.SetOracle(orc)
-	}
-
 	if config.Wallet != nil {
 		srv, err := newConsensus(consensus.Config{
 			Logger:                log,
@@ -326,9 +301,9 @@ func (s *Server) Shutdown() {
 	close(s.quit)
 }
 
-// GetOracle returns oracle module instance.
-func (s *Server) GetOracle() *oracle.Oracle {
-	return s.oracle
+// AddService allows to add a service to be started/stopped by Server.
+func (s *Server) AddService(svc Service) {
+	s.services = append(s.services, svc)
 }
 
 // GetStateRoot returns state root service instance.

@@ -298,7 +298,7 @@ func TestOracleFull(t *testing.T) {
 	bc := initTestChain(t, nil, nil)
 	acc, orc, _, _ := getTestOracle(t, bc, "./testdata/oracle2.json", "two")
 	mp := bc.GetMemPool()
-	orc.OnTransaction = func(tx *transaction.Transaction) { _ = mp.Add(tx, bc) }
+	orc.OnTransaction = func(tx *transaction.Transaction) error { return mp.Add(tx, bc) }
 	bc.SetOracle(orc)
 
 	cs := getOracleContractState(bc.contracts.Oracle.Hash, bc.contracts.Std.Hash)
@@ -323,7 +323,7 @@ func TestNotYetRunningOracle(t *testing.T) {
 	bc := initTestChain(t, nil, nil)
 	acc, orc, _, _ := getTestOracle(t, bc, "./testdata/oracle2.json", "two")
 	mp := bc.GetMemPool()
-	orc.OnTransaction = func(tx *transaction.Transaction) { _ = mp.Add(tx, bc) }
+	orc.OnTransaction = func(tx *transaction.Transaction) error { return mp.Add(tx, bc) }
 	bc.SetOracle(orc)
 
 	cs := getOracleContractState(bc.contracts.Oracle.Hash, bc.contracts.Std.Hash)
@@ -394,8 +394,9 @@ type responseWithSig struct {
 }
 
 func saveTxToChan(ch chan *transaction.Transaction) oracle.TxCallback {
-	return func(tx *transaction.Transaction) {
+	return func(tx *transaction.Transaction) error {
 		ch <- tx
+		return nil
 	}
 }
 

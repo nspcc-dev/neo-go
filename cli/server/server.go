@@ -17,6 +17,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/network"
 	"github.com/nspcc-dev/neo-go/pkg/network/metrics"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/server"
+	"github.com/nspcc-dev/neo-go/pkg/services/oracle"
 	"github.com/urfave/cli"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -316,6 +317,26 @@ func restoreDB(ctx *cli.Context) error {
 	return nil
 }
 
+func mkOracle(config network.ServerConfig, chain *core.Blockchain, serv *network.Server, log *zap.Logger) (*oracle.Oracle, error) {
+	if !config.OracleCfg.Enabled {
+		return nil, nil
+	}
+	orcCfg := oracle.Config{
+		Log:           log,
+		Network:       config.Net,
+		MainCfg:       config.OracleCfg,
+		Chain:         chain,
+		OnTransaction: serv.RelayTxn,
+	}
+	orc, err := oracle.NewOracle(orcCfg)
+	if err != nil {
+		return nil, fmt.Errorf("can't initialize Oracle module: %w", err)
+	}
+	chain.SetOracle(orc)
+	serv.AddService(orc)
+	return orc, nil
+}
+
 func startServer(ctx *cli.Context) error {
 	cfg, err := getConfigFromContext(ctx)
 	if err != nil {
@@ -340,7 +361,11 @@ func startServer(ctx *cli.Context) error {
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("failed to create network server: %w", err), 1)
 	}
-	rpcServer := server.New(chain, cfg.ApplicationConfiguration.RPC, serv, serv.GetOracle(), log)
+	oracleSrv, err := mkOracle(serverConfig, chain, serv, log)
+	if err != nil {
+		return err
+	}
+	rpcServer := server.New(chain, cfg.ApplicationConfiguration.RPC, serv, oracleSrv, log)
 	errChan := make(chan error)
 
 	go serv.Start(errChan)
@@ -369,7 +394,7 @@ Main:
 					errChan <- fmt.Errorf("error while restarting rpc-server: %w", serverErr)
 					break
 				}
-				rpcServer = server.New(chain, cfg.ApplicationConfiguration.RPC, serv, serv.GetOracle(), log)
+				rpcServer = server.New(chain, cfg.ApplicationConfiguration.RPC, serv, oracleSrv, log)
 				rpcServer.Start(errChan)
 			}
 		case <-grace.Done():

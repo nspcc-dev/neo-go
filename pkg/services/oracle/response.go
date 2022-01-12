@@ -59,7 +59,7 @@ func (o *Oracle) AddResponse(pub *keys.PublicKey, reqID uint64, txSig []byte) {
 	incTx.Unlock()
 
 	if ready {
-		o.getOnTransaction()(readyTx)
+		o.sendTx(readyTx)
 	}
 }
 

@@ -85,7 +85,7 @@ type (
 	defaultResponseHandler struct{}
 
 	// TxCallback executes on new transactions when they are ready to be pooled.
-	TxCallback = func(tx *transaction.Transaction)
+	TxCallback = func(tx *transaction.Transaction) error
 	// URIValidator is used to check if provided URL is valid.
 	URIValidator = func(*url.URL) error
 )
@@ -156,7 +156,7 @@ func NewOracle(cfg Config) (*Oracle, error) {
 		o.ResponseHandler = defaultResponseHandler{}
 	}
 	if o.OnTransaction == nil {
-		o.OnTransaction = func(*transaction.Transaction) {}
+		o.OnTransaction = func(*transaction.Transaction) error { return nil }
 	}
 	if o.URIValidator == nil {
 		o.URIValidator = defaultURIValidator
@@ -239,17 +239,12 @@ func (o *Oracle) UpdateNativeContract(script, resp []byte, h util.Uint160, verif
 	o.verifyOffset = verifyOffset
 }
 
-func (o *Oracle) getOnTransaction() TxCallback {
-	o.mtx.RLock()
-	defer o.mtx.RUnlock()
-	return o.OnTransaction
-}
-
-// SetOnTransaction sets callback to pool and broadcast tx.
-func (o *Oracle) SetOnTransaction(cb TxCallback) {
-	o.mtx.Lock()
-	defer o.mtx.Unlock()
-	o.OnTransaction = cb
+func (o *Oracle) sendTx(tx *transaction.Transaction) {
+	if err := o.OnTransaction(tx); err != nil {
+		o.Log.Error("can't pool oracle tx",
+			zap.String("hash", tx.Hash().StringLE()),
+			zap.Error(err))
+	}
 }
 
 func (o *Oracle) getBroadcaster() Broadcaster {
