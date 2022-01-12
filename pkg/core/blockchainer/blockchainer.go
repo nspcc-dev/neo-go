@@ -57,7 +57,6 @@ type Blockchainer interface {
 	GetStandByCommittee() keys.PublicKeys
 	GetStandByValidators() keys.PublicKeys
 	GetStateModule() StateRoot
-	GetStateSyncModule() StateSync
 	GetStorageItem(id int32, key []byte) state.StorageItem
 	GetStorageItems(id int32) ([]state.StorageItemWithKey, error)
 	GetTestVM(t trigger.Type, tx *transaction.Transaction, b *block.Block) (*vm.VM, func())

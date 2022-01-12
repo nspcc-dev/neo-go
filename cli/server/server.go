@@ -409,7 +409,7 @@ func startServer(ctx *cli.Context) error {
 		return err
 	}
 
-	serv, err := network.NewServer(serverConfig, chain, log)
+	serv, err := network.NewServer(serverConfig, chain, chain.GetStateSyncModule(), log)
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("failed to create network server: %w", err), 1)
 	}

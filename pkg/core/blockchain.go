@@ -927,7 +927,7 @@ func (bc *Blockchain) GetStateModule() blockchainer.StateRoot {
 }
 
 // GetStateSyncModule returns new state sync service instance.
-func (bc *Blockchain) GetStateSyncModule() blockchainer.StateSync {
+func (bc *Blockchain) GetStateSyncModule() *statesync.Module {
 	return statesync.NewModule(bc, bc.log, bc.dao, bc.jumpToState)
 }
 

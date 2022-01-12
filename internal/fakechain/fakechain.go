@@ -321,11 +321,6 @@ func (chain *FakeChain) GetStateModule() blockchainer.StateRoot {
 	return nil
 }
 
-// GetStateSyncModule implements Blockchainer interface.
-func (chain *FakeChain) GetStateSyncModule() blockchainer.StateSync {
-	return &FakeStateSync{}
-}
-
 // GetStorageItem implements Blockchainer interface.
 func (chain *FakeChain) GetStorageItem(id int32, key []byte) state.StorageItem {
 	panic("TODO")

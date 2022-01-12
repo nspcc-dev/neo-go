@@ -193,7 +193,7 @@ func newTestServer(t *testing.T, serverConfig ServerConfig) *Server {
 }
 
 func newTestServerWithCustomCfg(t *testing.T, serverConfig ServerConfig, protocolCfg func(*config.ProtocolConfiguration)) *Server {
-	s, err := newServerFromConstructors(serverConfig, fakechain.NewFakeChainWithCustomCfg(protocolCfg), zaptest.NewLogger(t),
+	s, err := newServerFromConstructors(serverConfig, fakechain.NewFakeChainWithCustomCfg(protocolCfg), new(fakechain.FakeStateSync), zaptest.NewLogger(t),
 		newFakeTransp, newTestDiscovery)
 	require.NoError(t, err)
 	if serverConfig.Wallet != nil {

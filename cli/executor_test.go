@@ -83,7 +83,7 @@ func newTestChain(t *testing.T, f func(*config.Config), run bool) (*core.Blockch
 	}
 
 	serverConfig := network.NewServerConfig(cfg)
-	netSrv, err := network.NewServer(serverConfig, chain, zap.NewNop())
+	netSrv, err := network.NewServer(serverConfig, chain, chain.GetStateSyncModule(), zap.NewNop())
 	require.NoError(t, err)
 	cons, err := consensus.NewService(consensus.Config{
 		Logger:                zap.NewNop(),

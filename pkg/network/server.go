@@ -101,7 +101,7 @@ type (
 
 		syncReached *atomic.Bool
 
-		stateSync blockchainer.StateSync
+		stateSync StateSync
 
 		log *zap.Logger
 	}
@@ -119,13 +119,13 @@ func randomID() uint32 {
 }
 
 // NewServer returns a new Server, initialized with the given configuration.
-func NewServer(config ServerConfig, chain blockchainer.Blockchainer, log *zap.Logger) (*Server, error) {
-	return newServerFromConstructors(config, chain, log, func(s *Server) Transporter {
+func NewServer(config ServerConfig, chain blockchainer.Blockchainer, stSync StateSync, log *zap.Logger) (*Server, error) {
+	return newServerFromConstructors(config, chain, stSync, log, func(s *Server) Transporter {
 		return NewTCPTransport(s, net.JoinHostPort(s.ServerConfig.Address, strconv.Itoa(int(s.ServerConfig.Port))), s.log)
 	}, newDefaultDiscovery)
 }
 
-func newServerFromConstructors(config ServerConfig, chain blockchainer.Blockchainer, log *zap.Logger,
+func newServerFromConstructors(config ServerConfig, chain blockchainer.Blockchainer, stSync StateSync, log *zap.Logger,
 	newTransport func(*Server) Transporter,
 	newDiscovery func([]string, time.Duration, Transporter) Discoverer,
 ) (*Server, error) {
@@ -156,6 +156,7 @@ func newServerFromConstructors(config ServerConfig, chain blockchainer.Blockchai
 		log:               log,
 		transactions:      make(chan *transaction.Transaction, 64),
 		extensHandlers:    make(map[string]func(*payload.Extensible) error),
+		stateSync:         stSync,
 	}
 	if chain.P2PSigExtensionsEnabled() {
 		s.notaryFeer = NewNotaryFeer(chain)
@@ -170,9 +171,7 @@ func newServerFromConstructors(config ServerConfig, chain blockchainer.Blockchai
 		s.tryStartServices()
 	})
 
-	sSync := chain.GetStateSyncModule()
-	s.stateSync = sSync
-	s.bSyncQueue = newBlockQueue(maxBlockBatch, sSync, log, nil)
+	s.bSyncQueue = newBlockQueue(maxBlockBatch, s.stateSync, log, nil)
 
 	if s.MinPeers < 0 {
 		s.log.Info("bad MinPeers configured, using the default value",

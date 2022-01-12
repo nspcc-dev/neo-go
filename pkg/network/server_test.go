@@ -51,7 +51,7 @@ func TestNewServer(t *testing.T) {
 		P2PStateExchangeExtensions: true,
 		StateRootInHeader:          true,
 	}}
-	s, err := newServerFromConstructors(ServerConfig{}, bc, nil, newFakeTransp, newTestDiscovery)
+	s, err := newServerFromConstructors(ServerConfig{}, bc, new(fakechain.FakeStateSync), nil, newFakeTransp, newTestDiscovery)
 	require.Error(t, err)
 
 	t.Run("set defaults", func(t *testing.T) {
