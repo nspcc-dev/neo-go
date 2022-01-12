@@ -23,7 +23,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/network/capability"
 	"github.com/nspcc-dev/neo-go/pkg/network/extpool"
 	"github.com/nspcc-dev/neo-go/pkg/network/payload"
-	"github.com/nspcc-dev/neo-go/pkg/services/notary"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"go.uber.org/atomic"
 	"go.uber.org/zap"
@@ -78,7 +77,6 @@ type (
 		notaryRequestPool *mempool.Pool
 		extensiblePool    *extpool.Pool
 		notaryFeer        NotaryFeer
-		notaryModule      *notary.Notary
 		services          []Service
 		extensHandlers    map[string]func(*payload.Extensible) error
 		extensHighPrio    string
@@ -167,27 +165,6 @@ func newServerFromConstructors(config ServerConfig, chain blockchainer.Blockchai
 				return bc.IsTxStillRelevant(t, txpool, true)
 			}, s.notaryFeer)
 		})
-		if config.P2PNotaryCfg.Enabled {
-			cfg := notary.Config{
-				MainCfg: config.P2PNotaryCfg,
-				Chain:   chain,
-				Log:     log,
-			}
-			n, err := notary.NewNotary(cfg, s.network, s.notaryRequestPool, func(tx *transaction.Transaction) error {
-				if err := s.RelayTxn(tx); err != nil {
-					return fmt.Errorf("can't relay completed notary transaction: hash %s, error: %w", tx.Hash().StringLE(), err)
-				}
-				return nil
-			})
-			if err != nil {
-				return nil, fmt.Errorf("failed to create Notary module: %w", err)
-			}
-			s.notaryModule = n
-			s.services = append(s.services, n)
-			chain.SetNotary(n)
-		}
-	} else if config.P2PNotaryCfg.Enabled {
-		return nil, errors.New("P2PSigExtensions are disabled, but Notary service is enabled")
 	}
 	s.bQueue = newBlockQueue(maxBlockBatch, chain, log, func(b *block.Block) {
 		s.tryStartServices()
@@ -286,6 +263,11 @@ func (s *Server) AddExtensibleHPService(svc Service, category string, handler fu
 	s.txCallback = txCallback
 	s.extensHighPrio = category
 	s.AddExtensibleService(svc, category, handler)
+}
+
+// GetNotaryPool allows to retrieve notary pool, if it's configured.
+func (s *Server) GetNotaryPool() *mempool.Pool {
+	return s.notaryRequestPool
 }
 
 // UnconnectedPeers returns a list of peers that are in the discovery peer list

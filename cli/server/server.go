@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/signal"
@@ -14,10 +15,12 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/chaindump"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
+	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/network"
 	"github.com/nspcc-dev/neo-go/pkg/network/metrics"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/server"
+	"github.com/nspcc-dev/neo-go/pkg/services/notary"
 	"github.com/nspcc-dev/neo-go/pkg/services/oracle"
 	"github.com/nspcc-dev/neo-go/pkg/services/stateroot"
 	"github.com/urfave/cli"
@@ -360,6 +363,32 @@ func mkConsensus(config network.ServerConfig, chain *core.Blockchain, serv *netw
 	return srv, nil
 }
 
+func mkP2PNotary(config network.ServerConfig, chain *core.Blockchain, serv *network.Server, log *zap.Logger) (*notary.Notary, error) {
+	if !config.P2PNotaryCfg.Enabled {
+		return nil, nil
+	}
+	if !chain.P2PSigExtensionsEnabled() {
+		return nil, errors.New("P2PSigExtensions are disabled, but Notary service is enabled")
+	}
+	cfg := notary.Config{
+		MainCfg: config.P2PNotaryCfg,
+		Chain:   chain,
+		Log:     log,
+	}
+	n, err := notary.NewNotary(cfg, serv.Net, serv.GetNotaryPool(), func(tx *transaction.Transaction) error {
+		if err := serv.RelayTxn(tx); err != nil {
+			return fmt.Errorf("can't relay completed notary transaction: hash %s, error: %w", tx.Hash().StringLE(), err)
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create Notary module: %w", err)
+	}
+	serv.AddService(n)
+	chain.SetNotary(n)
+	return n, nil
+}
+
 func startServer(ctx *cli.Context) error {
 	cfg, err := getConfigFromContext(ctx)
 	if err != nil {
@@ -395,6 +424,10 @@ func startServer(ctx *cli.Context) error {
 		return err
 	}
 	_, err = mkConsensus(serverConfig, chain, serv, log)
+	if err != nil {
+		return err
+	}
+	_, err = mkP2PNotary(serverConfig, chain, serv, log)
 	if err != nil {
 		return err
 	}
