@@ -8,7 +8,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
-	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/stateroot"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
@@ -22,7 +21,6 @@ type (
 	// Ledger is the interface to Blockchain sufficient for Service.
 	Ledger interface {
 		GetConfig() config.ProtocolConfiguration
-		GetStateModule() blockchainer.StateRoot
 		HeaderHeight() uint32
 		SubscribeForBlocks(ch chan<- *block.Block)
 		UnsubscribeFromBlocks(ch chan<- *block.Block)
@@ -30,7 +28,6 @@ type (
 
 	// Service represents state root service.
 	Service interface {
-		blockchainer.StateRoot
 		OnPayload(p *payload.Extensible) error
 		AddSignature(height uint32, validatorIndex int32, sig []byte) error
 		GetConfig() config.StateRoot
@@ -39,7 +36,7 @@ type (
 	}
 
 	service struct {
-		blockchainer.StateRoot
+		*stateroot.Module
 		chain Ledger
 
 		MainCfg config.StateRoot
@@ -69,10 +66,10 @@ const (
 )
 
 // New returns new state root service instance using underlying module.
-func New(cfg config.StateRoot, log *zap.Logger, bc Ledger, cb RelayCallback) (Service, error) {
+func New(cfg config.StateRoot, sm *stateroot.Module, log *zap.Logger, bc Ledger, cb RelayCallback) (Service, error) {
 	bcConf := bc.GetConfig()
 	s := &service{
-		StateRoot:       bc.GetStateModule(),
+		Module:          sm,
 		Network:         bcConf.Magic,
 		chain:           bc,
 		log:             log,

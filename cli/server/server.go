@@ -14,6 +14,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/chaindump"
+	corestate "github.com/nspcc-dev/neo-go/pkg/core/stateroot"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/io"
@@ -413,7 +414,8 @@ func startServer(ctx *cli.Context) error {
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("failed to create network server: %w", err), 1)
 	}
-	sr, err := stateroot.New(serverConfig.StateRootCfg, log, chain, serv.BroadcastExtensible)
+	srMod := chain.GetStateModule().(*corestate.Module) // Take full responsibility here.
+	sr, err := stateroot.New(serverConfig.StateRootCfg, srMod, log, chain, serv.BroadcastExtensible)
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("can't initialize StateRoot service: %w", err), 1)
 	}
