@@ -5,7 +5,6 @@ import (
 	"errors"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
-	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 )
@@ -20,7 +19,7 @@ type (
 )
 
 // NewHeader creates a new Header wrapper.
-func NewHeader(h *block.Header, chain blockchainer.Blockchainer) Header {
+func NewHeader(h *block.Header, chain LedgerAux) Header {
 	res := Header{
 		Header: *h,
 		BlockMetadata: BlockMetadata{

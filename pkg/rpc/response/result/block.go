@@ -5,12 +5,16 @@ import (
 	"errors"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
-	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 )
 
 type (
+	// LedgerAux is a set of methods needed to construct some outputs.
+	LedgerAux interface {
+		BlockHeight() uint32
+		GetHeaderHash(int) util.Uint256
+	}
 	// Block wrapper used for the representation of
 	// block.Block / block.Base on the RPC Server.
 	Block struct {
@@ -28,7 +32,7 @@ type (
 )
 
 // NewBlock creates a new Block wrapper.
-func NewBlock(b *block.Block, chain blockchainer.Blockchainer) Block {
+func NewBlock(b *block.Block, chain LedgerAux) Block {
 	res := Block{
 		Block: *b,
 		BlockMetadata: BlockMetadata{
