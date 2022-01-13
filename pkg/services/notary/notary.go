@@ -11,7 +11,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
-	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
 	"github.com/nspcc-dev/neo-go/pkg/core/mempool"
 	"github.com/nspcc-dev/neo-go/pkg/core/mempoolevent"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
@@ -27,6 +26,16 @@ import (
 )
 
 type (
+	// Ledger is the interface to Blockchain sufficient for Notary.
+	Ledger interface {
+		BlockHeight() uint32
+		GetMaxVerificationGAS() int64
+		GetNotaryContractScriptHash() util.Uint160
+		SubscribeForBlocks(ch chan<- *block.Block)
+		UnsubscribeFromBlocks(ch chan<- *block.Block)
+		VerifyWitness(util.Uint160, hash.Hashable, *transaction.Witness, int64) (int64, error)
+	}
+
 	// Notary represents Notary module.
 	Notary struct {
 		Config Config
@@ -60,7 +69,7 @@ type (
 	// Config represents external configuration for Notary module.
 	Config struct {
 		MainCfg config.P2PNotary
-		Chain   blockchainer.Blockchainer
+		Chain   Ledger
 		Log     *zap.Logger
 	}
 )

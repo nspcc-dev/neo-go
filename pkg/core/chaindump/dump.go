@@ -3,14 +3,23 @@ package chaindump
 import (
 	"fmt"
 
+	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
-	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
 	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/util"
 )
+
+// DumperRestorer in the interface to get/add blocks from/to.
+type DumperRestorer interface {
+	AddBlock(block *block.Block) error
+	GetBlock(hash util.Uint256) (*block.Block, error)
+	GetConfig() config.ProtocolConfiguration
+	GetHeaderHash(int) util.Uint256
+}
 
 // Dump writes count blocks from start to the provided writer.
 // Note: header needs to be written separately by client.
-func Dump(bc blockchainer.Blockchainer, w *io.BinWriter, start, count uint32) error {
+func Dump(bc DumperRestorer, w *io.BinWriter, start, count uint32) error {
 	for i := start; i < start+count; i++ {
 		bh := bc.GetHeaderHash(int(i))
 		b, err := bc.GetBlock(bh)
@@ -31,7 +40,7 @@ func Dump(bc blockchainer.Blockchainer, w *io.BinWriter, start, count uint32) er
 
 // Restore restores blocks from provided reader.
 // f is called after addition of every block.
-func Restore(bc blockchainer.Blockchainer, r *io.BinReader, skip, count uint32, f func(b *block.Block) error) error {
+func Restore(bc DumperRestorer, r *io.BinReader, skip, count uint32, f func(b *block.Block) error) error {
 	readBlock := func(r *io.BinReader) ([]byte, error) {
 		var size = r.ReadU32LE()
 		buf := make([]byte, size)

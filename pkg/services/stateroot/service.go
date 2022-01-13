@@ -19,6 +19,15 @@ import (
 )
 
 type (
+	// Ledger is the interface to Blockchain sufficient for Service.
+	Ledger interface {
+		GetConfig() config.ProtocolConfiguration
+		GetStateModule() blockchainer.StateRoot
+		HeaderHeight() uint32
+		SubscribeForBlocks(ch chan<- *block.Block)
+		UnsubscribeFromBlocks(ch chan<- *block.Block)
+	}
+
 	// Service represents state root service.
 	Service interface {
 		blockchainer.StateRoot
@@ -31,7 +40,7 @@ type (
 
 	service struct {
 		blockchainer.StateRoot
-		chain blockchainer.Blockchainer
+		chain Ledger
 
 		MainCfg config.StateRoot
 		Network netmode.Magic
@@ -60,7 +69,7 @@ const (
 )
 
 // New returns new state root service instance using underlying module.
-func New(cfg config.StateRoot, log *zap.Logger, bc blockchainer.Blockchainer, cb RelayCallback) (Service, error) {
+func New(cfg config.StateRoot, log *zap.Logger, bc Ledger, cb RelayCallback) (Service, error) {
 	bcConf := bc.GetConfig()
 	s := &service{
 		StateRoot:       bc.GetStateModule(),

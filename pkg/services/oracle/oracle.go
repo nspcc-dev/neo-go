@@ -9,10 +9,12 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
-	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
+	"github.com/nspcc-dev/neo-go/pkg/core/block"
+	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/util/slice"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
@@ -20,6 +22,17 @@ import (
 )
 
 type (
+	// Ledger is the interface to Blockchain sufficient for Oracle.
+	Ledger interface {
+		BlockHeight() uint32
+		FeePerByte() int64
+		GetBaseExecFee() int64
+		GetConfig() config.ProtocolConfiguration
+		GetMaxVerificationGAS() int64
+		GetTestVM(t trigger.Type, tx *transaction.Transaction, b *block.Block) *interop.Context
+		GetTransaction(util.Uint256) (*transaction.Transaction, uint32, error)
+	}
+
 	// Oracle represents oracle module capable of talking
 	// with the external world.
 	Oracle struct {
@@ -64,7 +77,7 @@ type (
 		Network         netmode.Magic
 		MainCfg         config.OracleConfiguration
 		Client          HTTPClient
-		Chain           blockchainer.Blockchainer
+		Chain           Ledger
 		ResponseHandler Broadcaster
 		OnTransaction   TxCallback
 		URIValidator    URIValidator

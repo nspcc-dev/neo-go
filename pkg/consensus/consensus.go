@@ -14,6 +14,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	coreb "github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
+	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/mempool"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
@@ -42,6 +43,22 @@ const nsInMs = 1000000
 
 // Category is message category for extensible payloads.
 const Category = "dBFT"
+
+// Ledger is the interface to Blockchain sufficient for Service.
+type Ledger interface {
+	AddBlock(block *coreb.Block) error
+	ApplyPolicyToTxSet([]*transaction.Transaction) []*transaction.Transaction
+	GetMemPool() *mempool.Pool
+	GetNextBlockValidators() ([]*keys.PublicKey, error)
+	GetStateModule() blockchainer.StateRoot
+	GetTransaction(util.Uint256) (*transaction.Transaction, uint32, error)
+	GetValidators() ([]*keys.PublicKey, error)
+	PoolTx(t *transaction.Transaction, pools ...*mempool.Pool) error
+	SubscribeForBlocks(ch chan<- *coreb.Block)
+	UnsubscribeFromBlocks(ch chan<- *coreb.Block)
+	interop.Ledger
+	mempool.Feer
+}
 
 // Service represents consensus instance.
 type Service interface {
@@ -92,8 +109,8 @@ type Config struct {
 	// Broadcast is a callback which is called to notify server
 	// about new consensus payload to sent.
 	Broadcast func(p *npayload.Extensible)
-	// Chain is a core.Blockchainer instance.
-	Chain blockchainer.Blockchainer
+	// Chain is a Ledger instance.
+	Chain Ledger
 	// ProtocolConfiguration contains protocol settings.
 	ProtocolConfiguration config.ProtocolConfiguration
 	// RequestTx is a callback to which will be called
