@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
@@ -59,6 +60,17 @@ const (
 	blocksSynced
 )
 
+// Ledger is the interface required from Blockchain for Module to operate.
+type Ledger interface {
+	AddHeaders(...*block.Header) error
+	BlockHeight() uint32
+	GetConfig() config.ProtocolConfiguration
+	GetHeader(hash util.Uint256) (*block.Header, error)
+	GetHeaderHash(int) util.Uint256
+	GetStateModule() blockchainer.StateRoot
+	HeaderHeight() uint32
+}
+
 // Module represents state sync module and aimed to gather state-related data to
 // perform an atomic state jump.
 type Module struct {
@@ -75,7 +87,7 @@ type Module struct {
 	blockHeight uint32
 
 	dao     *dao.Simple
-	bc      blockchainer.Blockchainer
+	bc      Ledger
 	mptpool *Pool
 
 	billet *mpt.Billet
@@ -84,7 +96,7 @@ type Module struct {
 }
 
 // NewModule returns new instance of statesync module.
-func NewModule(bc blockchainer.Blockchainer, log *zap.Logger, s *dao.Simple, jumpCallback func(p uint32) error) *Module {
+func NewModule(bc Ledger, log *zap.Logger, s *dao.Simple, jumpCallback func(p uint32) error) *Module {
 	if !(bc.GetConfig().P2PStateExchangeExtensions && bc.GetConfig().RemoveUntraceableBlocks) {
 		return &Module{
 			dao:       s,

@@ -267,7 +267,7 @@ func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration, log *zap.L
 		contracts:   *native.NewContracts(cfg),
 	}
 
-	bc.stateRoot = stateroot.NewModule(bc, bc.log, bc.dao.Store)
+	bc.stateRoot = stateroot.NewModule(bc.GetConfig(), bc.VerifyWitness, bc.log, bc.dao.Store)
 	bc.contracts.Designate.StateRootService = bc.stateRoot
 
 	if err := bc.init(); err != nil {
