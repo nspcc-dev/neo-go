@@ -4,14 +4,13 @@ require (
 	github.com/abiosoft/ishell/v2 v2.0.2
 	github.com/abiosoft/readline v0.0.0-20180607040430-155bce2042db
 	github.com/btcsuite/btcd v0.22.0-beta
-	github.com/frankban/quicktest v1.14.0 // indirect
 	github.com/gorilla/websocket v1.4.2
 	github.com/hashicorp/golang-lru v0.5.4
 	github.com/holiman/uint256 v1.2.0
 	github.com/mr-tron/base58 v1.2.0
 	github.com/nspcc-dev/dbft v0.0.0-20210721160347-1b03241391ac
 	github.com/nspcc-dev/go-ordered-json v0.0.0-20220111165707-25110be27d22
-	github.com/nspcc-dev/neofs-sdk-go v0.0.0-20211201182451-a5b61c4f6477
+	github.com/nspcc-dev/neofs-sdk-go v0.0.0-20220113123743-7f3162110659
 	github.com/nspcc-dev/rfc6979 v0.2.0
 	github.com/pierrec/lz4 v2.6.1+incompatible
 	github.com/prometheus/client_golang v1.11.0
