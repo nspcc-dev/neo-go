@@ -10,7 +10,6 @@ import (
 // StateRoot represents local state root module.
 type StateRoot interface {
 	AddStateRoot(root *state.MPTRoot) error
-	CleanStorage() error
 	CurrentLocalHeight() uint32
 	CurrentLocalStateRoot() util.Uint256
 	CurrentValidatedHeight() uint32
@@ -20,5 +19,4 @@ type StateRoot interface {
 	GetStateRoot(height uint32) (*state.MPTRoot, error)
 	GetStateValidators(height uint32) keys.PublicKeys
 	SetUpdateValidatorsCallback(func(uint32, keys.PublicKeys))
-	UpdateStateValidators(height uint32, pubs keys.PublicKeys)
 }

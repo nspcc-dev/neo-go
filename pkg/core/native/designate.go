@@ -8,7 +8,6 @@ import (
 	"sort"
 	"sync/atomic"
 
-	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
 	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer/services"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
@@ -16,6 +15,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/noderoles"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
+	"github.com/nspcc-dev/neo-go/pkg/core/stateroot"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
@@ -43,7 +43,7 @@ type Designate struct {
 	// NotaryService represents Notary node module.
 	NotaryService atomic.Value
 	// StateRootService represents StateRoot node module.
-	StateRootService blockchainer.StateRoot
+	StateRootService *stateroot.Module
 }
 
 type roleData struct {

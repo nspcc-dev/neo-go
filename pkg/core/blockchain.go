@@ -928,7 +928,7 @@ func (bc *Blockchain) GetStateModule() blockchainer.StateRoot {
 
 // GetStateSyncModule returns new state sync service instance.
 func (bc *Blockchain) GetStateSyncModule() *statesync.Module {
-	return statesync.NewModule(bc, bc.log, bc.dao, bc.jumpToState)
+	return statesync.NewModule(bc, bc.stateRoot, bc.log, bc.dao, bc.jumpToState)
 }
 
 // storeBlock performs chain update using the block given, it executes all
