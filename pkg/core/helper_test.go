@@ -10,6 +10,7 @@ import (
 	"math/big"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -66,6 +67,27 @@ func newTestChainWithCustomCfgAndStore(t testing.TB, st storage.Store, f func(*c
 	go chain.Run()
 	t.Cleanup(chain.Close)
 	return chain
+}
+
+func newLevelDBForTesting(t testing.TB) storage.Store {
+	ldbDir := t.TempDir()
+	dbConfig := storage.DBConfiguration{
+		Type: "leveldb",
+		LevelDBOptions: storage.LevelDBOptions{
+			DataDirectoryPath: ldbDir,
+		},
+	}
+	newLevelStore, err := storage.NewLevelDBStore(dbConfig.LevelDBOptions)
+	require.Nil(t, err, "NewLevelDBStore error")
+	return newLevelStore
+}
+
+func newBoltStoreForTesting(t testing.TB) storage.Store {
+	d := t.TempDir()
+	testFileName := filepath.Join(d, "test_bolt_db")
+	boltDBStore, err := storage.NewBoltDBStore(storage.BoltDBOptions{FilePath: testFileName})
+	require.NoError(t, err)
+	return boltDBStore
 }
 
 func initTestChain(t testing.TB, st storage.Store, f func(*config.Config)) *Blockchain {

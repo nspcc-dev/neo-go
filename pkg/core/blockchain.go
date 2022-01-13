@@ -486,7 +486,7 @@ func (bc *Blockchain) removeOldStorageItems() {
 
 	b := bc.dao.Store.Batch()
 	prefix := statesync.TemporaryPrefix(bc.dao.Version.StoragePrefix)
-	bc.dao.Store.Seek([]byte{byte(prefix)}, func(k, _ []byte) {
+	bc.dao.Store.Seek(storage.SeekRange{Prefix: []byte{byte(prefix)}}, func(k, _ []byte) {
 		// #1468, but don't need to copy here, because it is done by Store.
 		b.Delete(k)
 	})
@@ -2106,7 +2106,7 @@ func (bc *Blockchain) PoolTxWithData(t *transaction.Transaction, data interface{
 	return bc.verifyAndPoolTx(t, mp, feer, data)
 }
 
-//GetStandByValidators returns validators from the configuration.
+// GetStandByValidators returns validators from the configuration.
 func (bc *Blockchain) GetStandByValidators() keys.PublicKeys {
 	return bc.sbCommittee[:bc.config.ValidatorsCount].Copy()
 }

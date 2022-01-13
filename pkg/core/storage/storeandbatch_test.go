@@ -1,21 +1,16 @@
 package storage
 
 import (
+	"bytes"
 	"reflect"
 	"runtime"
+	"sort"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/util/slice"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
-
-// kvSeen is used to test Seek implementations.
-type kvSeen struct {
-	key  []byte
-	val  []byte
-	seen bool
-}
 
 type dbSetup struct {
 	name   string
@@ -72,51 +67,177 @@ func testStorePutBatch(t *testing.T, s Store) {
 }
 
 func testStoreSeek(t *testing.T, s Store) {
-	var (
-		// Given this prefix...
-		goodprefix = []byte{'f'}
-		// these pairs should be found...
-		goodkvs = []kvSeen{
-			{[]byte("foo"), []byte("bar"), false},
-			{[]byte("faa"), []byte("bra"), false},
-			{[]byte("foox"), []byte("barx"), false},
-		}
-		// and these should be not.
-		badkvs = []kvSeen{
-			{[]byte("doo"), []byte("pow"), false},
-			{[]byte("mew"), []byte("qaz"), false},
-		}
-	)
-
-	for _, v := range goodkvs {
-		require.NoError(t, s.Put(v.key, v.val))
+	// Use the same set of kvs to test Seek with different prefix/start values.
+	kvs := []KeyValue{
+		{[]byte("10"), []byte("bar")},
+		{[]byte("11"), []byte("bara")},
+		{[]byte("20"), []byte("barb")},
+		{[]byte("21"), []byte("barc")},
+		{[]byte("22"), []byte("bard")},
+		{[]byte("30"), []byte("bare")},
+		{[]byte("31"), []byte("barf")},
 	}
-	for _, v := range badkvs {
-		require.NoError(t, s.Put(v.key, v.val))
+	for _, v := range kvs {
+		require.NoError(t, s.Put(v.Key, v.Value))
 	}
 
-	numFound := 0
-	s.Seek(goodprefix, func(k, v []byte) {
-		for i := 0; i < len(goodkvs); i++ {
-			if string(k) == string(goodkvs[i].key) {
-				assert.Equal(t, string(goodkvs[i].val), string(v))
-				goodkvs[i].seen = true
+	check := func(t *testing.T, goodprefix, start []byte, goodkvs []KeyValue, backwards bool) {
+		// Seek result expected to be sorted in an ascending (for forwards seeking) or descending (for backwards seeking) way.
+		cmpFunc := func(i, j int) bool {
+			return bytes.Compare(goodkvs[i].Key, goodkvs[j].Key) < 0
+		}
+		if backwards {
+			cmpFunc = func(i, j int) bool {
+				return bytes.Compare(goodkvs[i].Key, goodkvs[j].Key) > 0
 			}
 		}
-		for i := 0; i < len(badkvs); i++ {
-			if string(k) == string(badkvs[i].key) {
-				badkvs[i].seen = true
-			}
+		sort.Slice(goodkvs, cmpFunc)
+
+		rng := SeekRange{
+			Prefix: goodprefix,
+			Start:  start,
 		}
-		numFound++
+		if backwards {
+			rng.Backwards = true
+		}
+		actual := make([]KeyValue, 0, len(goodkvs))
+		s.Seek(rng, func(k, v []byte) {
+			actual = append(actual, KeyValue{
+				Key:   slice.Copy(k),
+				Value: slice.Copy(v),
+			})
+		})
+		assert.Equal(t, goodkvs, actual)
+	}
+
+	t.Run("non-empty prefix, empty start", func(t *testing.T) {
+		t.Run("forwards", func(t *testing.T) {
+			t.Run("good", func(t *testing.T) {
+				// Given this prefix...
+				goodprefix := []byte("2")
+				// and empty start range...
+				start := []byte{}
+				// these pairs should be found.
+				goodkvs := []KeyValue{
+					kvs[2], // key = "20"
+					kvs[3], // key = "21"
+					kvs[4], // key = "22"
+				}
+				check(t, goodprefix, start, goodkvs, false)
+			})
+			t.Run("no matching items", func(t *testing.T) {
+				goodprefix := []byte("0")
+				start := []byte{}
+				check(t, goodprefix, start, []KeyValue{}, false)
+			})
+		})
+
+		t.Run("backwards", func(t *testing.T) {
+			t.Run("good", func(t *testing.T) {
+				goodprefix := []byte("2")
+				start := []byte{}
+				goodkvs := []KeyValue{
+					kvs[4], // key = "22"
+					kvs[3], // key = "21"
+					kvs[2], // key = "20"
+				}
+				check(t, goodprefix, start, goodkvs, true)
+			})
+			t.Run("no matching items", func(t *testing.T) {
+				goodprefix := []byte("0")
+				start := []byte{}
+				check(t, goodprefix, start, []KeyValue{}, true)
+			})
+		})
 	})
-	assert.Equal(t, len(goodkvs), numFound)
-	for i := 0; i < len(goodkvs); i++ {
-		assert.Equal(t, true, goodkvs[i].seen)
-	}
-	for i := 0; i < len(badkvs); i++ {
-		assert.Equal(t, false, badkvs[i].seen)
-	}
+
+	t.Run("non-empty prefix, non-empty start", func(t *testing.T) {
+		t.Run("forwards", func(t *testing.T) {
+			t.Run("good", func(t *testing.T) {
+				goodprefix := []byte("2")
+				start := []byte("1") // start will be upended to goodprefix to start seek from
+				goodkvs := []KeyValue{
+					kvs[3], // key = "21"
+					kvs[4], // key = "22"
+				}
+				check(t, goodprefix, start, goodkvs, false)
+			})
+			t.Run("no matching items", func(t *testing.T) {
+				goodprefix := []byte("2")
+				start := []byte("3") // start is more than all keys prefixed by '2'.
+				check(t, goodprefix, start, []KeyValue{}, false)
+			})
+		})
+		t.Run("backwards", func(t *testing.T) {
+			t.Run("good", func(t *testing.T) {
+				goodprefix := []byte("2")
+				start := []byte("1") // start will be upended to goodprefix to start seek from
+				goodkvs := []KeyValue{
+					kvs[3], // key = "21"
+					kvs[2], // key = "20"
+				}
+				check(t, goodprefix, start, goodkvs, true)
+			})
+			t.Run("no matching items", func(t *testing.T) {
+				goodprefix := []byte("2")
+				start := []byte(".") // start is less than all keys prefixed by '2'.
+				check(t, goodprefix, start, []KeyValue{}, true)
+			})
+		})
+	})
+
+	t.Run("empty prefix, non-empty start", func(t *testing.T) {
+		t.Run("forwards", func(t *testing.T) {
+			t.Run("good", func(t *testing.T) {
+				goodprefix := []byte{}
+				start := []byte("21")
+				goodkvs := []KeyValue{
+					kvs[3], // key = "21"
+					kvs[4], // key = "22"
+					kvs[5], // key = "30"
+					kvs[6], // key = "31"
+				}
+				check(t, goodprefix, start, goodkvs, false)
+			})
+			t.Run("no matching items", func(t *testing.T) {
+				goodprefix := []byte{}
+				start := []byte("32") // start is more than all keys.
+				check(t, goodprefix, start, []KeyValue{}, false)
+			})
+		})
+		t.Run("backwards", func(t *testing.T) {
+			t.Run("good", func(t *testing.T) {
+				goodprefix := []byte{}
+				start := []byte("21")
+				goodkvs := []KeyValue{
+					kvs[3], // key = "21"
+					kvs[2], // key = "20"
+					kvs[1], // key = "11"
+					kvs[0], // key = "10"
+				}
+				check(t, goodprefix, start, goodkvs, true)
+			})
+			t.Run("no matching items", func(t *testing.T) {
+				goodprefix := []byte{}
+				start := []byte("0") // start is less than all keys.
+				check(t, goodprefix, start, []KeyValue{}, true)
+			})
+		})
+	})
+
+	t.Run("empty prefix, empty start", func(t *testing.T) {
+		goodprefix := []byte{}
+		start := []byte{}
+		goodkvs := make([]KeyValue, len(kvs))
+		copy(goodkvs, kvs)
+		t.Run("forwards", func(t *testing.T) {
+			check(t, goodprefix, start, goodkvs, false)
+		})
+		t.Run("backwards", func(t *testing.T) {
+			check(t, goodprefix, start, goodkvs, true)
+		})
+	})
+
 	require.NoError(t, s.Close())
 }
 

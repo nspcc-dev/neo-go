@@ -190,7 +190,7 @@ func storageFind(ic *interop.Context) error {
 	// Items in seekres should be sorted by key, but GetStorageItemsWithPrefix returns
 	// sorted items, so no need to sort them one more time.
 	ctx, cancel := context.WithCancel(context.Background())
-	seekres := ic.DAO.SeekAsync(ctx, stc.ID, prefix)
+	seekres := ic.DAO.SeekAsync(ctx, stc.ID, storage.SeekRange{Prefix: prefix})
 	item := istorage.NewIterator(seekres, prefix, opts)
 	ic.VM.Estack().PushItem(stackitem.NewInterop(item))
 	ic.RegisterCancelFunc(cancel)

@@ -1051,7 +1051,7 @@ func TestVerifyTx(t *testing.T) {
 			netFee, sizeDelta := fee.Calculate(bc.GetBaseExecFee(), testchain.MultisigVerificationScript())
 			tx.NetworkFee = netFee + // multisig witness verification price
 				int64(size)*bc.FeePerByte() + // fee for unsigned size
-				int64(sizeDelta)*bc.FeePerByte() + //fee for multisig size
+				int64(sizeDelta)*bc.FeePerByte() + // fee for multisig size
 				66*bc.FeePerByte() + // fee for Notary signature size (66 bytes for Invocation script and 0 bytes for Verification script)
 				2*bc.FeePerByte() + // fee for the length of each script in Notary witness (they are nil, so we did not take them into account during `size` calculation)
 				transaction.NotaryServiceFeePerKey + // fee for Notary attribute
@@ -1769,7 +1769,7 @@ func TestBlockchain_InitWithIncompleteStateJump(t *testing.T) {
 	if bcSpout.dao.Version.StoragePrefix == tempPrefix {
 		tempPrefix = storage.STStorage
 	}
-	bcSpout.dao.Store.Seek(bcSpout.dao.Version.StoragePrefix.Bytes(), func(k, v []byte) {
+	bcSpout.dao.Store.Seek(storage.SeekRange{Prefix: bcSpout.dao.Version.StoragePrefix.Bytes()}, func(k, v []byte) {
 		key := slice.Copy(k)
 		key[0] = byte(tempPrefix)
 		value := slice.Copy(v)
