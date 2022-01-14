@@ -76,6 +76,10 @@ func bigInt(w *io.BinWriter, n *big.Int) {
 
 // Array emits array of elements to the given buffer.
 func Array(w *io.BinWriter, es ...interface{}) {
+	if len(es) == 0 {
+		Opcodes(w, opcode.NEWARRAY0)
+		return
+	}
 	for i := len(es) - 1; i >= 0; i-- {
 		switch e := es[i].(type) {
 		case []interface{}:
