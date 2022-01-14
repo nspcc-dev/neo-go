@@ -177,7 +177,7 @@ func TestEmitArray(t *testing.T) {
 		buf := io.NewBufBinWriter()
 		Array(buf.BinWriter)
 		require.NoError(t, buf.Err)
-		assert.EqualValues(t, []byte{byte(opcode.PUSH0), byte(opcode.PACK)}, buf.Bytes())
+		assert.EqualValues(t, []byte{byte(opcode.NEWARRAY0)}, buf.Bytes())
 	})
 
 	t.Run("invalid type", func(t *testing.T) {

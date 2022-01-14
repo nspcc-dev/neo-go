@@ -1,0 +1,4 @@
+name: "Policy helper contract"
+sourceurl: https://github.com/nspcc-dev/neo-go
+supportedstandards: []
+safemethods: ["do"]

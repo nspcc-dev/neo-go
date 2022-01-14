@@ -73,51 +73,6 @@ func (bc *Blockchain) setNodesByRole(t *testing.T, ok bool, r noderoles.Role, no
 	}
 }
 
-func (bc *Blockchain) getNodesByRole(t *testing.T, ok bool, r noderoles.Role, index uint32, resLen int) {
-	res, err := invokeContractMethod(bc, 10_000_000, bc.contracts.Designate.Hash, "getDesignatedByRole", int64(r), int64(index))
-	require.NoError(t, err)
-	if ok {
-		require.Equal(t, vm.HaltState, res.VMState)
-		require.Equal(t, 1, len(res.Stack))
-		arrItem := res.Stack[0]
-		require.Equal(t, stackitem.ArrayT, arrItem.Type())
-		arr := arrItem.(*stackitem.Array)
-		require.Equal(t, resLen, arr.Len())
-	} else {
-		checkFAULTState(t, res)
-	}
-}
-
-func TestDesignate_DesignateAsRoleTx(t *testing.T) {
-	bc := newTestChain(t)
-
-	priv, err := keys.NewPrivateKey()
-	require.NoError(t, err)
-	pubs := keys.PublicKeys{priv.PublicKey()}
-
-	bc.setNodesByRole(t, false, 0xFF, pubs)
-	bc.setNodesByRole(t, true, noderoles.Oracle, pubs)
-	index := bc.BlockHeight() + 1
-	bc.getNodesByRole(t, false, 0xFF, 0, 0)
-	bc.getNodesByRole(t, false, noderoles.Oracle, 100500, 0)
-	bc.getNodesByRole(t, true, noderoles.Oracle, 0, 0)     // returns an empty list
-	bc.getNodesByRole(t, true, noderoles.Oracle, index, 1) // returns pubs
-
-	priv1, err := keys.NewPrivateKey()
-	require.NoError(t, err)
-	pubs = keys.PublicKeys{priv1.PublicKey()}
-	bc.setNodesByRole(t, true, noderoles.StateValidator, pubs)
-	bc.getNodesByRole(t, true, noderoles.StateValidator, bc.BlockHeight()+1, 1)
-
-	t.Run("neofs", func(t *testing.T) {
-		priv, err := keys.NewPrivateKey()
-		require.NoError(t, err)
-		pubs = keys.PublicKeys{priv.PublicKey()}
-		bc.setNodesByRole(t, true, noderoles.NeoFSAlphabet, pubs)
-		bc.getNodesByRole(t, true, noderoles.NeoFSAlphabet, bc.BlockHeight()+1, 1)
-	})
-}
-
 func TestDesignate_DesignateAsRole(t *testing.T) {
 	bc := newTestChain(t)
 

@@ -1116,7 +1116,7 @@ func TestVerifyTx(t *testing.T) {
 func TestVerifyHashAgainstScript(t *testing.T) {
 	bc := newTestChain(t)
 
-	cs, csInvalid := getTestContractState(bc)
+	cs, csInvalid := getTestContractState(t, 4, 5, random.Uint160()) // sender and IDs are not important for the test
 	ic := bc.newInteropContext(trigger.Verification, bc.dao, nil, nil)
 	require.NoError(t, bc.contracts.Management.PutContractState(bc.dao, cs))
 	require.NoError(t, bc.contracts.Management.PutContractState(bc.dao, csInvalid))
@@ -1681,7 +1681,7 @@ func TestRemoveUntraceable(t *testing.T) {
 func TestInvalidNotification(t *testing.T) {
 	bc := newTestChain(t)
 
-	cs, _ := getTestContractState(bc)
+	cs, _ := getTestContractState(t, 4, 5, random.Uint160()) // sender and IDs are not important for the test
 	require.NoError(t, bc.contracts.Management.PutContractState(bc.dao, cs))
 
 	aer, err := invokeContractMethod(bc, 1_00000000, cs.Hash, "invalidStack")
@@ -1695,7 +1695,7 @@ func TestInvalidNotification(t *testing.T) {
 func TestMPTDeleteNoKey(t *testing.T) {
 	bc := newTestChain(t)
 
-	cs, _ := getTestContractState(bc)
+	cs, _ := getTestContractState(t, 4, 5, random.Uint160()) // sender and IDs are not important for the test
 	require.NoError(t, bc.contracts.Management.PutContractState(bc.dao, cs))
 	aer, err := invokeContractMethod(bc, 1_00000000, cs.Hash, "delValue", "non-existent-key")
 	require.NoError(t, err)
@@ -1826,4 +1826,11 @@ func TestBlockchain_InitWithIncompleteStateJump(t *testing.T) {
 			checkNewBlockchainErr(t, spountCfg, bcSpout.dao.Store, shouldFail)
 		})
 	}
+}
+
+func setSigner(tx *transaction.Transaction, h util.Uint160) {
+	tx.Signers = []transaction.Signer{{
+		Account: h,
+		Scopes:  transaction.Global,
+	}}
 }

@@ -108,27 +108,49 @@ func init() {
 // NewSingle creates new blockchain instance with a single validator and
 // setups cleanup functions.
 func NewSingle(t *testing.T) (*core.Blockchain, neotest.Signer) {
+	return NewSingleWithCustomConfig(t, nil)
+}
+
+// NewSingleWithCustomConfig creates new blockchain instance with custom protocol
+// configuration and a single validator. It also setups cleanup functions.
+func NewSingleWithCustomConfig(t *testing.T, f func(*config.ProtocolConfiguration)) (*core.Blockchain, neotest.Signer) {
+	st := storage.NewMemoryStore()
+	return NewSingleWithCustomConfigAndStore(t, f, st, true)
+}
+
+func NewSingleWithCustomConfigAndStore(t *testing.T, f func(cfg *config.ProtocolConfiguration), st storage.Store, run bool) (*core.Blockchain, neotest.Signer) {
 	protoCfg := config.ProtocolConfiguration{
 		Magic:              netmode.UnitTestNet,
+		MaxTraceableBlocks: 1000, // We don't need a lot of traceable blocks for tests.
 		SecondsPerBlock:    1,
 		StandbyCommittee:   []string{hex.EncodeToString(committeeAcc.PrivateKey().PublicKey().Bytes())},
 		ValidatorsCount:    1,
 		VerifyBlocks:       true,
 		VerifyTransactions: true,
 	}
-
-	st := storage.NewMemoryStore()
+	if f != nil {
+		f(&protoCfg)
+	}
 	log := zaptest.NewLogger(t)
 	bc, err := core.NewBlockchain(st, protoCfg, log)
 	require.NoError(t, err)
-	go bc.Run()
-	t.Cleanup(bc.Close)
+	if run {
+		go bc.Run()
+		t.Cleanup(bc.Close)
+	}
 	return bc, neotest.NewMultiSigner(committeeAcc)
 }
 
 // NewMulti creates new blockchain instance with 4 validators and 6 committee members.
 // Second return value is for validator signer, third -- for committee.
 func NewMulti(t *testing.T) (*core.Blockchain, neotest.Signer, neotest.Signer) {
+	return NewMultiWithCustomConfig(t, nil)
+}
+
+// NewMultiWithCustomConfig creates new blockchain instance with custom protocol
+// configuration, 4 validators and 6 committee members. Second return value is
+// for validator signer, third -- for committee.
+func NewMultiWithCustomConfig(t *testing.T, f func(*config.ProtocolConfiguration)) (*core.Blockchain, neotest.Signer, neotest.Signer) {
 	protoCfg := config.ProtocolConfiguration{
 		Magic:              netmode.UnitTestNet,
 		SecondsPerBlock:    1,
@@ -136,6 +158,9 @@ func NewMulti(t *testing.T) (*core.Blockchain, neotest.Signer, neotest.Signer) {
 		ValidatorsCount:    4,
 		VerifyBlocks:       true,
 		VerifyTransactions: true,
+	}
+	if f != nil {
+		f(&protoCfg)
 	}
 
 	st := storage.NewMemoryStore()

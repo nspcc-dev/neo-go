@@ -674,12 +674,6 @@ func signTxWithAccounts(chain *Blockchain, sysFee int64, tx *transaction.Transac
 	}
 }
 
-func prepareContractMethodInvoke(chain *Blockchain, sysfee int64,
-	hash util.Uint160, method string, args ...interface{}) (*transaction.Transaction, error) {
-	return prepareContractMethodInvokeGeneric(chain, sysfee, hash,
-		method, false, args...)
-}
-
 func persistBlock(chain *Blockchain, txs ...*transaction.Transaction) ([]*state.AppExecResult, error) {
 	b := chain.newBlock(txs...)
 	err := chain.AddBlock(b)
@@ -716,19 +710,6 @@ func invokeContractMethodGeneric(chain *Blockchain, sysfee int64, hash util.Uint
 	return aers[0], nil
 }
 
-func invokeContractMethodBy(t *testing.T, chain *Blockchain, signer *wallet.Account, hash util.Uint160, method string, args ...interface{}) (*state.AppExecResult, error) {
-	var (
-		netfee int64 = 1000_0000
-		sysfee int64 = 1_0000_0000
-	)
-	transferTx := transferTokenFromMultisigAccount(t, chain, signer.PrivateKey().PublicKey().GetScriptHash(), chain.contracts.GAS.Hash, sysfee+netfee+1000_0000, nil)
-	res, err := chain.GetAppExecResults(transferTx.Hash(), trigger.Application)
-	require.NoError(t, err)
-	require.Equal(t, vm.HaltState, res[0].VMState)
-	require.Equal(t, 0, len(res[0].Stack))
-	return invokeContractMethodGeneric(chain, sysfee, hash, method, signer, args...)
-}
-
 func transferTokenFromMultisigAccountCheckOK(t *testing.T, chain *Blockchain, to, tokenHash util.Uint160, amount int64, additionalArgs ...interface{}) {
 	transferTx := transferTokenFromMultisigAccount(t, chain, to, tokenHash, amount, additionalArgs...)
 	res, err := chain.GetAppExecResults(transferTx.Hash(), trigger.Application)
@@ -756,6 +737,13 @@ func checkResult(t *testing.T, result *state.AppExecResult, expected stackitem.I
 	require.Equal(t, vm.HaltState, result.VMState, result.FaultException)
 	require.Equal(t, 1, len(result.Stack))
 	require.Equal(t, expected, result.Stack[0])
+}
+
+func checkTxHalt(t testing.TB, bc *Blockchain, h util.Uint256) {
+	aer, err := bc.GetAppExecResults(h, trigger.Application)
+	require.NoError(t, err)
+	require.Equal(t, 1, len(aer))
+	require.Equal(t, vm.HaltState, aer[0].VMState, aer[0].FaultException)
 }
 
 func checkFAULTState(t *testing.T, result *state.AppExecResult) {

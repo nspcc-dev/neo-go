@@ -1,0 +1,1 @@
+{"name":"TestAux","abi":{"methods":[],"events":[]},"features":{},"groups":[],"permissions":[{"contract":"0x00ecaa2f079b65e3b31572e4c2c160a1abd02997","methods":["add","drop","add3","invalidReturn","justReturn","getValue"]}],"supportedstandards":[],"trusts":[],"extra":null}

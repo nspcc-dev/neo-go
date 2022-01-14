@@ -13,7 +13,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/contract"
-	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/noderoles"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
@@ -29,7 +28,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/util/slice"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
-	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
@@ -89,11 +87,7 @@ func newOracle() *Oracle {
 	defer o.UpdateHash()
 
 	w := io.NewBufBinWriter()
-	emit.Opcodes(w.BinWriter, opcode.NEWARRAY0)
-	emit.Int(w.BinWriter, int64(callflag.All))
-	emit.String(w.BinWriter, "finish")
-	emit.Bytes(w.BinWriter, o.Hash.BytesBE())
-	emit.Syscall(w.BinWriter, interopnames.SystemContractCall)
+	emit.AppCall(w.BinWriter, o.Hash, "finish", callflag.All)
 	o.oracleScript = w.Bytes()
 
 	desc := newDescriptor("request", smartcontract.VoidType,
