@@ -21,8 +21,10 @@ import (
 // of the blockchain.
 type Blockchainer interface {
 	ApplyPolicyToTxSet([]*transaction.Transaction) []*transaction.Transaction
+	AddBlock(block *block.Block) error
+	AddHeaders(...*block.Header) error
+	BlockHeight() uint32
 	GetConfig() config.ProtocolConfiguration
-	Blockqueuer // Blockqueuer interface
 	CalculateClaimable(h util.Uint160, endHeight uint32) (*big.Int, error)
 	Close()
 	InitVerificationContext(ic *interop.Context, hash util.Uint160, witness *transaction.Witness) error
@@ -65,8 +67,7 @@ type Blockchainer interface {
 	mempool.Feer // fee interface
 	ManagementContractHash() util.Uint160
 	PoolTx(t *transaction.Transaction, pools ...*mempool.Pool) error
-	PoolTxWithData(t *transaction.Transaction, data interface{}, mp *mempool.Pool, feer mempool.Feer, verificationFunction func(bc Blockchainer, t *transaction.Transaction, data interface{}) error) error
-	RegisterPostBlock(f func(Blockchainer, *mempool.Pool, *block.Block))
+	PoolTxWithData(t *transaction.Transaction, data interface{}, mp *mempool.Pool, feer mempool.Feer, verificationFunction func(t *transaction.Transaction, data interface{}) error) error
 	SetNotary(mod services.Notary)
 	SubscribeForBlocks(ch chan<- *block.Block)
 	SubscribeForExecutions(ch chan<- *state.AppExecResult)

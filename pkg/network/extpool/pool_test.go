@@ -4,7 +4,6 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/network/payload"
@@ -116,7 +115,7 @@ func (p *Pool) testAdd(t *testing.T, expectedOk bool, expectedErr error, ep *pay
 }
 
 type testChain struct {
-	blockchainer.Blockchainer
+	Ledger
 	height        uint32
 	verifyWitness func(util.Uint160) bool
 	isAllowed     func(util.Uint160) bool

@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"math/big"
 	mrand "math/rand"
 	"net"
 	"sort"
@@ -12,9 +13,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
-	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
 	"github.com/nspcc-dev/neo-go/pkg/core/mempool"
 	"github.com/nspcc-dev/neo-go/pkg/core/mempoolevent"
 	"github.com/nspcc-dev/neo-go/pkg/core/mpt"
@@ -48,6 +49,31 @@ var (
 )
 
 type (
+	// Ledger is everything Server needs from the blockchain.
+	Ledger interface {
+		extpool.Ledger
+		mempool.Feer
+		Blockqueuer
+		GetBlock(hash util.Uint256) (*block.Block, error)
+		GetConfig() config.ProtocolConfiguration
+		GetHeader(hash util.Uint256) (*block.Header, error)
+		GetHeaderHash(int) util.Uint256
+		GetMaxVerificationGAS() int64
+		GetMemPool() *mempool.Pool
+		GetNotaryBalance(acc util.Uint160) *big.Int
+		GetNotaryContractScriptHash() util.Uint160
+		GetNotaryDepositExpiration(acc util.Uint160) uint32
+		GetTransaction(util.Uint256) (*transaction.Transaction, uint32, error)
+		HasBlock(util.Uint256) bool
+		HeaderHeight() uint32
+		P2PSigExtensionsEnabled() bool
+		PoolTx(t *transaction.Transaction, pools ...*mempool.Pool) error
+		PoolTxWithData(t *transaction.Transaction, data interface{}, mp *mempool.Pool, feer mempool.Feer, verificationFunction func(t *transaction.Transaction, data interface{}) error) error
+		RegisterPostBlock(f func(func(*transaction.Transaction, *mempool.Pool, bool) bool, *mempool.Pool, *block.Block))
+		SubscribeForBlocks(ch chan<- *block.Block)
+		UnsubscribeFromBlocks(ch chan<- *block.Block)
+	}
+
 	// Service is a service abstraction (oracle, state root, consensus, etc).
 	Service interface {
 		Start()
@@ -70,7 +96,7 @@ type (
 
 		transport         Transporter
 		discovery         Discoverer
-		chain             blockchainer.Blockchainer
+		chain             Ledger
 		bQueue            *blockQueue
 		bSyncQueue        *blockQueue
 		mempool           *mempool.Pool
@@ -119,13 +145,13 @@ func randomID() uint32 {
 }
 
 // NewServer returns a new Server, initialized with the given configuration.
-func NewServer(config ServerConfig, chain blockchainer.Blockchainer, stSync StateSync, log *zap.Logger) (*Server, error) {
+func NewServer(config ServerConfig, chain Ledger, stSync StateSync, log *zap.Logger) (*Server, error) {
 	return newServerFromConstructors(config, chain, stSync, log, func(s *Server) Transporter {
 		return NewTCPTransport(s, net.JoinHostPort(s.ServerConfig.Address, strconv.Itoa(int(s.ServerConfig.Port))), s.log)
 	}, newDefaultDiscovery)
 }
 
-func newServerFromConstructors(config ServerConfig, chain blockchainer.Blockchainer, stSync StateSync, log *zap.Logger,
+func newServerFromConstructors(config ServerConfig, chain Ledger, stSync StateSync, log *zap.Logger,
 	newTransport func(*Server) Transporter,
 	newDiscovery func([]string, time.Duration, Transporter) Discoverer,
 ) (*Server, error) {
@@ -161,9 +187,9 @@ func newServerFromConstructors(config ServerConfig, chain blockchainer.Blockchai
 	if chain.P2PSigExtensionsEnabled() {
 		s.notaryFeer = NewNotaryFeer(chain)
 		s.notaryRequestPool = mempool.New(chain.GetConfig().P2PNotaryRequestPayloadPoolSize, 1, true)
-		chain.RegisterPostBlock(func(bc blockchainer.Blockchainer, txpool *mempool.Pool, _ *block.Block) {
+		chain.RegisterPostBlock(func(isRelevant func(*transaction.Transaction, *mempool.Pool, bool) bool, txpool *mempool.Pool, _ *block.Block) {
 			s.notaryRequestPool.RemoveStale(func(t *transaction.Transaction) bool {
-				return bc.IsTxStillRelevant(t, txpool, true)
+				return isRelevant(t, txpool, true)
 			}, s.notaryFeer)
 		})
 	}
@@ -604,7 +630,7 @@ func (s *Server) requestBlocksOrHeaders(p Peer) error {
 		return nil
 	}
 	var (
-		bq              blockchainer.Blockqueuer = s.chain
+		bq              Blockqueuer = s.chain
 		requestMPTNodes bool
 	)
 	if s.stateSync.IsActive() {
@@ -974,21 +1000,21 @@ func (s *Server) RelayP2PNotaryRequest(r *payload.P2PNotaryRequest) error {
 
 // verifyAndPoolNotaryRequest verifies NotaryRequest payload and adds it to the payload mempool.
 func (s *Server) verifyAndPoolNotaryRequest(r *payload.P2PNotaryRequest) error {
-	return s.chain.PoolTxWithData(r.FallbackTransaction, r, s.notaryRequestPool, s.notaryFeer, verifyNotaryRequest)
+	return s.chain.PoolTxWithData(r.FallbackTransaction, r, s.notaryRequestPool, s.notaryFeer, s.verifyNotaryRequest)
 }
 
 // verifyNotaryRequest is a function for state-dependant P2PNotaryRequest payload verification which is executed before ordinary blockchain's verification.
-func verifyNotaryRequest(bc blockchainer.Blockchainer, _ *transaction.Transaction, data interface{}) error {
+func (s *Server) verifyNotaryRequest(_ *transaction.Transaction, data interface{}) error {
 	r := data.(*payload.P2PNotaryRequest)
 	payer := r.FallbackTransaction.Signers[1].Account
-	if _, err := bc.VerifyWitness(payer, r, &r.Witness, bc.GetMaxVerificationGAS()); err != nil {
+	if _, err := s.chain.VerifyWitness(payer, r, &r.Witness, s.chain.GetMaxVerificationGAS()); err != nil {
 		return fmt.Errorf("bad P2PNotaryRequest payload witness: %w", err)
 	}
-	notaryHash := bc.GetNotaryContractScriptHash()
+	notaryHash := s.chain.GetNotaryContractScriptHash()
 	if r.FallbackTransaction.Sender() != notaryHash {
 		return errors.New("P2PNotary contract should be a sender of the fallback transaction")
 	}
-	depositExpiration := bc.GetNotaryDepositExpiration(payer)
+	depositExpiration := s.chain.GetNotaryDepositExpiration(payer)
 	if r.FallbackTransaction.ValidUntilBlock >= depositExpiration {
 		return fmt.Errorf("fallback transaction is valid after deposit is unlocked: ValidUntilBlock is %d, deposit lock expires at %d", r.FallbackTransaction.ValidUntilBlock, depositExpiration)
 	}
@@ -1043,7 +1069,7 @@ func (s *Server) handleGetAddrCmd(p Peer) error {
 // 1. Block range is divided into chunks of payload.MaxHashesCount.
 // 2. Send requests for chunk in increasing order.
 // 3. After all requests were sent, request random height.
-func (s *Server) requestBlocks(bq blockchainer.Blockqueuer, p Peer) error {
+func (s *Server) requestBlocks(bq Blockqueuer, p Peer) error {
 	pl := getRequestBlocksPayload(p, bq.BlockHeight(), &s.lastRequestedBlock)
 	return p.EnqueueP2PMessage(NewMessage(CMDGetBlockByIndex, pl))
 }

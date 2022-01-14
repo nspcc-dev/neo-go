@@ -26,6 +26,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/atomic"
+	"go.uber.org/zap/zaptest"
 )
 
 type fakeConsensus struct {
@@ -1008,6 +1009,9 @@ func TestVerifyNotaryRequest(t *testing.T) {
 	bc := fakechain.NewFakeChain()
 	bc.MaxVerificationGAS = 10
 	bc.NotaryContractScriptHash = util.Uint160{1, 2, 3}
+	s, err := newServerFromConstructors(ServerConfig{}, bc, new(fakechain.FakeStateSync), zaptest.NewLogger(t), newFakeTransp, newTestDiscovery)
+	require.NoError(t, err)
+	t.Cleanup(s.Shutdown)
 	newNotaryRequest := func() *payload.P2PNotaryRequest {
 		return &payload.P2PNotaryRequest{
 			MainTransaction: &transaction.Transaction{Script: []byte{0, 1, 2}},
@@ -1021,26 +1025,26 @@ func TestVerifyNotaryRequest(t *testing.T) {
 
 	t.Run("bad payload witness", func(t *testing.T) {
 		bc.VerifyWitnessF = func() (int64, error) { return 0, errors.New("bad witness") }
-		require.Error(t, verifyNotaryRequest(bc, nil, newNotaryRequest()))
+		require.Error(t, s.verifyNotaryRequest(nil, newNotaryRequest()))
 	})
 
 	t.Run("bad fallback sender", func(t *testing.T) {
 		bc.VerifyWitnessF = func() (int64, error) { return 0, nil }
 		r := newNotaryRequest()
 		r.FallbackTransaction.Signers[0] = transaction.Signer{Account: util.Uint160{7, 8, 9}}
-		require.Error(t, verifyNotaryRequest(bc, nil, r))
+		require.Error(t, s.verifyNotaryRequest(nil, r))
 	})
 
 	t.Run("expired deposit", func(t *testing.T) {
 		r := newNotaryRequest()
 		bc.NotaryDepositExpiration = r.FallbackTransaction.ValidUntilBlock
-		require.Error(t, verifyNotaryRequest(bc, nil, r))
+		require.Error(t, s.verifyNotaryRequest(nil, r))
 	})
 
 	t.Run("good", func(t *testing.T) {
 		r := newNotaryRequest()
 		bc.NotaryDepositExpiration = r.FallbackTransaction.ValidUntilBlock + 1
-		require.NoError(t, verifyNotaryRequest(bc, nil, r))
+		require.NoError(t, s.verifyNotaryRequest(nil, r))
 	})
 }
 

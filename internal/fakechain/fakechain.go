@@ -40,7 +40,7 @@ type FakeChain struct {
 	MaxVerificationGAS       int64
 	NotaryContractScriptHash util.Uint160
 	NotaryDepositExpiration  uint32
-	PostBlock                []func(blockchainer.Blockchainer, *mempool.Pool, *block.Block)
+	PostBlock                []func(func(*transaction.Transaction, *mempool.Pool, bool) bool, *mempool.Pool, *block.Block)
 	UtilityTokenBalance      *big.Int
 }
 
@@ -158,12 +158,12 @@ func (chain *FakeChain) GetMaxVerificationGAS() int64 {
 }
 
 // PoolTxWithData implements Blockchainer interface.
-func (chain *FakeChain) PoolTxWithData(t *transaction.Transaction, data interface{}, mp *mempool.Pool, feer mempool.Feer, verificationFunction func(bc blockchainer.Blockchainer, t *transaction.Transaction, data interface{}) error) error {
+func (chain *FakeChain) PoolTxWithData(t *transaction.Transaction, data interface{}, mp *mempool.Pool, feer mempool.Feer, verificationFunction func(t *transaction.Transaction, data interface{}) error) error {
 	return chain.poolTxWithData(t, data, mp)
 }
 
 // RegisterPostBlock implements Blockchainer interface.
-func (chain *FakeChain) RegisterPostBlock(f func(blockchainer.Blockchainer, *mempool.Pool, *block.Block)) {
+func (chain *FakeChain) RegisterPostBlock(f func(func(*transaction.Transaction, *mempool.Pool, bool) bool, *mempool.Pool, *block.Block)) {
 	chain.PostBlock = append(chain.PostBlock, f)
 }
 

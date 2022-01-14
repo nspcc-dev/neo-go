@@ -4,17 +4,23 @@ import (
 	"sync"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
-	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
 	"go.uber.org/atomic"
 	"go.uber.org/zap"
 )
+
+// Blockqueuer is the interface for block queue.
+type Blockqueuer interface {
+	AddBlock(block *block.Block) error
+	AddHeaders(...*block.Header) error
+	BlockHeight() uint32
+}
 
 type blockQueue struct {
 	log         *zap.Logger
 	queueLock   sync.Mutex
 	queue       []*block.Block
 	checkBlocks chan struct{}
-	chain       blockchainer.Blockqueuer
+	chain       Blockqueuer
 	relayF      func(*block.Block)
 	discarded   *atomic.Bool
 	len         int
@@ -26,7 +32,7 @@ const (
 	blockCacheSize = 2000
 )
 
-func newBlockQueue(capacity int, bc blockchainer.Blockqueuer, log *zap.Logger, relayer func(*block.Block)) *blockQueue {
+func newBlockQueue(capacity int, bc Blockqueuer, log *zap.Logger, relayer func(*block.Block)) *blockQueue {
 	if log == nil {
 		return nil
 	}

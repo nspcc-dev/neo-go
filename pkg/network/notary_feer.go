@@ -3,13 +3,12 @@ package network
 import (
 	"math/big"
 
-	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 )
 
 // NotaryFeer implements mempool.Feer interface for Notary balance handling.
 type NotaryFeer struct {
-	bc blockchainer.Blockchainer
+	bc Ledger
 }
 
 // FeePerByte implements mempool.Feer interface.
@@ -33,7 +32,7 @@ func (f NotaryFeer) P2PSigExtensionsEnabled() bool {
 }
 
 // NewNotaryFeer returns new NotaryFeer instance.
-func NewNotaryFeer(bc blockchainer.Blockchainer) NotaryFeer {
+func NewNotaryFeer(bc Ledger) NotaryFeer {
 	return NotaryFeer{
 		bc: bc,
 	}

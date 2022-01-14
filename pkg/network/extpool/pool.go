@@ -5,10 +5,18 @@ import (
 	"errors"
 	"sync"
 
-	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
+	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/network/payload"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 )
+
+// Ledger is enough of Blockchain to satisfy Pool.
+type Ledger interface {
+	BlockHeight() uint32
+	IsExtensibleAllowed(util.Uint160) bool
+	VerifyWitness(util.Uint160, hash.Hashable, *transaction.Witness, int64) (int64, error)
+}
 
 // Pool represents pool of extensible payloads.
 type Pool struct {
@@ -17,11 +25,11 @@ type Pool struct {
 	senders  map[util.Uint160]*list.List
 	// singleCap represents maximum number of payloads from the single sender.
 	singleCap int
-	chain     blockchainer.Blockchainer
+	chain     Ledger
 }
 
 // New returns new payload pool using provided chain.
-func New(bc blockchainer.Blockchainer, capacity int) *Pool {
+func New(bc Ledger, capacity int) *Pool {
 	if capacity <= 0 {
 		panic("invalid capacity")
 	}

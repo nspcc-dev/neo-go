@@ -16,7 +16,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
-	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
 	"github.com/nspcc-dev/neo-go/pkg/core/chaindump"
 	"github.com/nspcc-dev/neo-go/pkg/core/fee"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
@@ -1073,7 +1072,7 @@ func TestVerifyTx(t *testing.T) {
 		}
 
 		mp := mempool.New(10, 1, false)
-		verificationF := func(bc blockchainer.Blockchainer, tx *transaction.Transaction, data interface{}) error {
+		verificationF := func(tx *transaction.Transaction, data interface{}) error {
 			if data.(int) > 5 {
 				return errors.New("bad data")
 			}
