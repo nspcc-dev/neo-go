@@ -69,6 +69,10 @@ var (
 	}
 )
 
+// ModVersion contains `pkg/interop` module version
+// suitable to be used in go.mod.
+var ModVersion string
+
 const (
 	// smartContractTmpl is written to a file when used with `init` command.
 	// %s is parsed to be the smartContractName.
@@ -449,9 +453,15 @@ func initSmartContract(ctx *cli.Context) error {
 	if err := ioutil.WriteFile(filepath.Join(basePath, "neo-go.yml"), b, 0644); err != nil {
 		return cli.NewExitError(err, 1)
 	}
+
+	ver := ModVersion
+	if ver == "" {
+		ver = "latest"
+	}
+
 	gm := []byte("module " + contractName + `
 require (
-	github.com/nspcc-dev/neo-go/pkg/interop latest
+	github.com/nspcc-dev/neo-go/pkg/interop ` + ver + `
 )`)
 	if err := ioutil.WriteFile(filepath.Join(basePath, "go.mod"), gm, 0644); err != nil {
 		return cli.NewExitError(err, 1)
