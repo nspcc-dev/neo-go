@@ -474,9 +474,7 @@ func TestTransaction(t *testing.T) {
 		tx := newDummyTx()
 		s.chain.(*fakechain.FakeChain).PoolTxF = func(*transaction.Transaction) error { return core.ErrInsufficientFunds }
 		s.testHandleMessage(t, nil, CMDTX, tx)
-		for _, ftx := range s.services[0].(*fakeConsensus).txs {
-			require.NotEqual(t, ftx, tx)
-		}
+		require.Contains(t, s.services[0].(*fakeConsensus).txs, tx) // Consensus receives everything.
 	})
 }
 

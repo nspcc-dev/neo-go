@@ -965,10 +965,10 @@ func (s *Server) handleTxCmd(tx *transaction.Transaction) error {
 	}
 	s.txInMap[tx.Hash()] = struct{}{}
 	s.txInLock.Unlock()
+	if s.txCallback != nil {
+		s.txCallback(tx)
+	}
 	if s.verifyAndPoolTX(tx) == nil {
-		if s.txCallback != nil {
-			s.txCallback(tx)
-		}
 		s.broadcastTX(tx, nil)
 	}
 	s.txInLock.Lock()
