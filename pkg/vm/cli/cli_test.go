@@ -167,7 +167,6 @@ func (e *executor) checkSlot(t *testing.T, items ...interface{}) {
 }
 
 func TestLoad(t *testing.T) {
-	t.Skip()
 	script := []byte{byte(opcode.PUSH3), byte(opcode.PUSH4), byte(opcode.ADD)}
 	t.Run("loadhex", func(t *testing.T) {
 		e := newTestVMCLI(t)
@@ -240,9 +239,9 @@ go 1.15`)
 		require.NoError(t, err)
 		goMod := []byte(`module test.example/kek
 require (
-	github.com/nspcc-dev/neo-go v0.0.0
+	github.com/nspcc-dev/neo-go/pkg/interop v0.0.0
 )
-replace github.com/nspcc-dev/neo-go => ` + filepath.Join(wd, "../../..") + `
+replace github.com/nspcc-dev/neo-go/pkg/interop => ` + filepath.Join(wd, "../../interop") + `
 go 1.15`)
 		require.NoError(t, ioutil.WriteFile(filepath.Join(tmpDir, "go.mod"), goMod, os.ModePerm))
 

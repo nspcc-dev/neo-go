@@ -451,7 +451,7 @@ func initSmartContract(ctx *cli.Context) error {
 	}
 	gm := []byte("module " + contractName + `
 require (
-	github.com/nspcc-dev/neo-go latest
+	github.com/nspcc-dev/neo-go/pkg/interop latest
 )`)
 	if err := ioutil.WriteFile(filepath.Join(basePath, "go.mod"), gm, 0644); err != nil {
 		return cli.NewExitError(err, 1)
