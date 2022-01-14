@@ -502,8 +502,10 @@ func (bc *Blockchain) removeOldStorageItems() {
 // specified by the state sync point p. All the data needed for the jump must be
 // collected by the state sync module.
 func (bc *Blockchain) jumpToState(p uint32) error {
+	bc.addLock.Lock()
 	bc.lock.Lock()
 	defer bc.lock.Unlock()
+	defer bc.addLock.Unlock()
 
 	return bc.jumpToStateInternal(p, none)
 }
