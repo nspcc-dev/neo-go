@@ -198,7 +198,7 @@ func (m *Management) getNefAndManifestFromItems(ic *interop.Context, args []stac
 		return nil, nil, fmt.Errorf("invalid manifest: %w", err)
 	}
 
-	gas := ic.Chain.GetPolicer().GetStoragePrice() * int64(len(nefBytes)+len(manifestBytes))
+	gas := ic.Chain.GetStoragePrice() * int64(len(nefBytes)+len(manifestBytes))
 	if isDeploy {
 		fee := m.GetMinimumDeploymentFee(ic.DAO)
 		if fee > gas {

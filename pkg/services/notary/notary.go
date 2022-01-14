@@ -11,7 +11,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
-	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
 	"github.com/nspcc-dev/neo-go/pkg/core/mempool"
 	"github.com/nspcc-dev/neo-go/pkg/core/mempoolevent"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
@@ -27,6 +26,16 @@ import (
 )
 
 type (
+	// Ledger is the interface to Blockchain sufficient for Notary.
+	Ledger interface {
+		BlockHeight() uint32
+		GetMaxVerificationGAS() int64
+		GetNotaryContractScriptHash() util.Uint160
+		SubscribeForBlocks(ch chan<- *block.Block)
+		UnsubscribeFromBlocks(ch chan<- *block.Block)
+		VerifyWitness(util.Uint160, hash.Hashable, *transaction.Witness, int64) (int64, error)
+	}
+
 	// Notary represents Notary module.
 	Notary struct {
 		Config Config
@@ -60,7 +69,7 @@ type (
 	// Config represents external configuration for Notary module.
 	Config struct {
 		MainCfg config.P2PNotary
-		Chain   blockchainer.Blockchainer
+		Chain   Ledger
 		Log     *zap.Logger
 	}
 )
@@ -143,12 +152,16 @@ func NewNotary(cfg Config, net netmode.Magic, mp *mempool.Pool, onTransaction fu
 	}, nil
 }
 
-// Run runs Notary module and should be called in a separate goroutine.
-func (n *Notary) Run() {
+// Start runs Notary module in a separate goroutine.
+func (n *Notary) Start() {
 	n.Config.Log.Info("starting notary service")
 	n.Config.Chain.SubscribeForBlocks(n.blocksCh)
 	n.mp.SubscribeForTransactions(n.reqCh)
 	go n.newTxCallbackLoop()
+	go n.mainLoop()
+}
+
+func (n *Notary) mainLoop() {
 	for {
 		select {
 		case <-n.stopCh:
@@ -171,8 +184,8 @@ func (n *Notary) Run() {
 	}
 }
 
-// Stop shutdowns Notary module.
-func (n *Notary) Stop() {
+// Shutdown stops Notary module.
+func (n *Notary) Shutdown() {
 	close(n.stopCh)
 }
 
@@ -227,7 +240,7 @@ func (n *Notary) OnNewRequest(payload *payload.P2PNotaryRequest) {
 		switch r.witnessInfo[i].typ {
 		case Contract:
 			// Need to check even if r.main.Scripts[i].InvocationScript is already filled in.
-			_, err := n.Config.Chain.VerifyWitness(r.main.Signers[i].Account, r.main, &w, n.Config.Chain.GetPolicer().GetMaxVerificationGAS())
+			_, err := n.Config.Chain.VerifyWitness(r.main.Signers[i].Account, r.main, &w, n.Config.Chain.GetMaxVerificationGAS())
 			if err != nil {
 				continue
 			}

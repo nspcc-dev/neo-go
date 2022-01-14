@@ -9,10 +9,12 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
-	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
+	"github.com/nspcc-dev/neo-go/pkg/core/block"
+	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/util/slice"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
@@ -20,6 +22,17 @@ import (
 )
 
 type (
+	// Ledger is the interface to Blockchain sufficient for Oracle.
+	Ledger interface {
+		BlockHeight() uint32
+		FeePerByte() int64
+		GetBaseExecFee() int64
+		GetConfig() config.ProtocolConfiguration
+		GetMaxVerificationGAS() int64
+		GetTestVM(t trigger.Type, tx *transaction.Transaction, b *block.Block) *interop.Context
+		GetTransaction(util.Uint256) (*transaction.Transaction, uint32, error)
+	}
+
 	// Oracle represents oracle module capable of talking
 	// with the external world.
 	Oracle struct {
@@ -64,7 +77,7 @@ type (
 		Network         netmode.Magic
 		MainCfg         config.OracleConfiguration
 		Client          HTTPClient
-		Chain           blockchainer.Blockchainer
+		Chain           Ledger
 		ResponseHandler Broadcaster
 		OnTransaction   TxCallback
 		URIValidator    URIValidator
@@ -85,7 +98,7 @@ type (
 	defaultResponseHandler struct{}
 
 	// TxCallback executes on new transactions when they are ready to be pooled.
-	TxCallback = func(tx *transaction.Transaction)
+	TxCallback = func(tx *transaction.Transaction) error
 	// URIValidator is used to check if provided URL is valid.
 	URIValidator = func(*url.URL) error
 )
@@ -156,7 +169,7 @@ func NewOracle(cfg Config) (*Oracle, error) {
 		o.ResponseHandler = defaultResponseHandler{}
 	}
 	if o.OnTransaction == nil {
-		o.OnTransaction = func(*transaction.Transaction) {}
+		o.OnTransaction = func(*transaction.Transaction) error { return nil }
 	}
 	if o.URIValidator == nil {
 		o.URIValidator = defaultURIValidator
@@ -170,15 +183,18 @@ func (o *Oracle) Shutdown() {
 	o.getBroadcaster().Shutdown()
 }
 
-// Run runs must be executed in a separate goroutine.
-func (o *Oracle) Run() {
+// Start runs the oracle service in a separate goroutine.
+func (o *Oracle) Start() {
 	o.respMtx.Lock()
 	if o.running {
 		o.respMtx.Unlock()
 		return
 	}
 	o.Log.Info("starting oracle service")
+	go o.start()
+}
 
+func (o *Oracle) start() {
 	o.requestMap <- o.pending // Guaranteed to not block, only AddRequests sends to it.
 	o.pending = nil
 	o.running = true
@@ -236,17 +252,12 @@ func (o *Oracle) UpdateNativeContract(script, resp []byte, h util.Uint160, verif
 	o.verifyOffset = verifyOffset
 }
 
-func (o *Oracle) getOnTransaction() TxCallback {
-	o.mtx.RLock()
-	defer o.mtx.RUnlock()
-	return o.OnTransaction
-}
-
-// SetOnTransaction sets callback to pool and broadcast tx.
-func (o *Oracle) SetOnTransaction(cb TxCallback) {
-	o.mtx.Lock()
-	defer o.mtx.Unlock()
-	o.OnTransaction = cb
+func (o *Oracle) sendTx(tx *transaction.Transaction) {
+	if err := o.OnTransaction(tx); err != nil {
+		o.Log.Error("can't pool oracle tx",
+			zap.String("hash", tx.Hash().StringLE()),
+			zap.Error(err))
+	}
 }
 
 func (o *Oracle) getBroadcaster() Broadcaster {

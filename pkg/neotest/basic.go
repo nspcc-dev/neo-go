@@ -255,7 +255,7 @@ func addSystemFee(bc blockchainer.Blockchainer, tx *transaction.Transaction, sys
 }
 
 func addNetworkFee(bc blockchainer.Blockchainer, tx *transaction.Transaction, signers ...Signer) {
-	baseFee := bc.GetPolicer().GetBaseExecFee()
+	baseFee := bc.GetBaseExecFee()
 	size := io.GetVarSize(tx)
 	for _, sgr := range signers {
 		netFee, sizeDelta := fee.Calculate(baseFee, sgr.Script())
@@ -335,12 +335,12 @@ func TestInvoke(bc blockchainer.Blockchainer, tx *transaction.Transaction) (*vm.
 	// `GetTestVM` as well as `Run` can use transaction hash which will set cached value.
 	// This is unwanted behaviour so we explicitly copy transaction to perform execution.
 	ttx := *tx
-	v, f := bc.GetTestVM(trigger.Application, &ttx, b)
-	defer f()
+	ic := bc.GetTestVM(trigger.Application, &ttx, b)
+	defer ic.Finalize()
 
-	v.LoadWithFlags(tx.Script, callflag.All)
-	err = v.Run()
-	return v, err
+	ic.VM.LoadWithFlags(tx.Script, callflag.All)
+	err = ic.VM.Run()
+	return ic.VM, err
 }
 
 // GetTransaction returns transaction and its height by the specified hash.

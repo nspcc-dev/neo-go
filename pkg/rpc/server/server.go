@@ -620,13 +620,13 @@ func (s *Server) calculateNetworkFee(reqParams request.Params) (interface{}, *re
 		}
 
 		if ef == 0 {
-			ef = s.chain.GetPolicer().GetBaseExecFee()
+			ef = s.chain.GetBaseExecFee()
 		}
 		fee, sizeDelta := fee.Calculate(ef, verificationScript)
 		netFee += fee
 		size += sizeDelta
 	}
-	fee := s.chain.GetPolicer().FeePerByte()
+	fee := s.chain.FeePerByte()
 	netFee += int64(size) * fee
 	return result.NetworkFee{Value: netFee}, nil
 }
@@ -853,19 +853,19 @@ func (s *Server) invokeReadOnly(bw *io.BufBinWriter, h util.Uint160, method stri
 	if err != nil {
 		return nil, nil, err
 	}
-	v, finalize := s.chain.GetTestVM(trigger.Application, tx, b)
-	v.GasLimit = core.HeaderVerificationGasLimit
-	v.LoadScriptWithFlags(script, callflag.All)
-	err = v.Run()
+	ic := s.chain.GetTestVM(trigger.Application, tx, b)
+	ic.VM.GasLimit = core.HeaderVerificationGasLimit
+	ic.VM.LoadScriptWithFlags(script, callflag.All)
+	err = ic.VM.Run()
 	if err != nil {
-		finalize()
+		ic.Finalize()
 		return nil, nil, fmt.Errorf("failed to run `%s` for %s: %w", method, h.StringLE(), err)
 	}
-	if v.Estack().Len() != 1 {
-		finalize()
-		return nil, nil, fmt.Errorf("invalid `%s` return values count: expected 1, got %d", method, v.Estack().Len())
+	if ic.VM.Estack().Len() != 1 {
+		ic.Finalize()
+		return nil, nil, fmt.Errorf("invalid `%s` return values count: expected 1, got %d", method, ic.VM.Estack().Len())
 	}
-	return v.Estack().Pop().Item(), finalize, nil
+	return ic.VM.Estack().Pop().Item(), ic.Finalize, nil
 }
 
 func (s *Server) getTokenBalance(h util.Uint160, acc util.Uint160, id []byte, bw *io.BufBinWriter) (*big.Int, error) {
@@ -1690,38 +1690,32 @@ func (s *Server) runScriptInVM(t trigger.Type, script []byte, contractScriptHash
 	if err != nil {
 		return nil, response.NewInternalServerError("can't create fake block", err)
 	}
-	vm, finalize := s.chain.GetTestVM(t, tx, b)
+	ic := s.chain.GetTestVM(t, tx, b)
 	if verbose {
-		vm.EnableInvocationTree()
+		ic.VM.EnableInvocationTree()
 	}
-	vm.GasLimit = int64(s.config.MaxGasInvoke)
+	ic.VM.GasLimit = int64(s.config.MaxGasInvoke)
 	if t == trigger.Verification {
 		// We need this special case because witnesses verification is not the simple System.Contract.Call,
 		// and we need to define exactly the amount of gas consumed for a contract witness verification.
-		gasPolicy := s.chain.GetPolicer().GetMaxVerificationGAS()
-		if vm.GasLimit > gasPolicy {
-			vm.GasLimit = gasPolicy
+		gasPolicy := s.chain.GetMaxVerificationGAS()
+		if ic.VM.GasLimit > gasPolicy {
+			ic.VM.GasLimit = gasPolicy
 		}
 
-		err := s.chain.InitVerificationVM(vm, func(h util.Uint160) (*state.Contract, error) {
-			res := s.chain.GetContractState(h)
-			if res == nil {
-				return nil, fmt.Errorf("unknown contract: %s", h.StringBE())
-			}
-			return res, nil
-		}, contractScriptHash, &transaction.Witness{InvocationScript: script, VerificationScript: []byte{}})
+		err := s.chain.InitVerificationContext(ic, contractScriptHash, &transaction.Witness{InvocationScript: script, VerificationScript: []byte{}})
 		if err != nil {
 			return nil, response.NewInternalServerError("can't prepare verification VM", err)
 		}
 	} else {
-		vm.LoadScriptWithFlags(script, callflag.All)
+		ic.VM.LoadScriptWithFlags(script, callflag.All)
 	}
-	err = vm.Run()
+	err = ic.VM.Run()
 	var faultException string
 	if err != nil {
 		faultException = err.Error()
 	}
-	return result.NewInvoke(vm, finalize, script, faultException, s.config.MaxIteratorResultItems), nil
+	return result.NewInvoke(ic.VM, ic.Finalize, script, faultException, s.config.MaxIteratorResultItems), nil
 }
 
 // submitBlock broadcasts a raw block over the NEO network.

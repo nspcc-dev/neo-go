@@ -1,4 +1,4 @@
-package blockchainer
+package network
 
 import (
 	"github.com/nspcc-dev/neo-go/pkg/core/mpt"
@@ -8,7 +8,7 @@ import (
 // StateSync represents state sync module.
 type StateSync interface {
 	AddMPTNodes([][]byte) error
-	Blockqueuer // Blockqueuer interface
+	Blockqueuer
 	Init(currChainHeight uint32) error
 	IsActive() bool
 	IsInitialized() bool

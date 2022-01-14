@@ -83,7 +83,7 @@ func (s *Module) AddStateRoot(sr *state.MPTRoot) error {
 		return err
 	}
 	s.validatedHeight.Store(sr.Index)
-	if !s.bc.GetConfig().StateRootInHeader {
+	if !s.srInHead {
 		updateStateHeightMetric(sr.Index)
 	}
 	return nil

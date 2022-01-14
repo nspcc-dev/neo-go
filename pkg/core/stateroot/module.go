@@ -6,11 +6,13 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
-	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
 	"github.com/nspcc-dev/neo-go/pkg/core/mpt"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
+	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"go.uber.org/atomic"
@@ -18,13 +20,17 @@ import (
 )
 
 type (
+	// VerifierFunc is a function that allows to check witness of account
+	// for Hashable item with GAS limit.
+	VerifierFunc func(util.Uint160, hash.Hashable, *transaction.Witness, int64) (int64, error)
 	// Module represents module for local processing of state roots.
 	Module struct {
-		Store   *storage.MemCachedStore
-		network netmode.Magic
-		mpt     *mpt.Trie
-		bc      blockchainer.Blockchainer
-		log     *zap.Logger
+		Store    *storage.MemCachedStore
+		network  netmode.Magic
+		srInHead bool
+		mpt      *mpt.Trie
+		verifier VerifierFunc
+		log      *zap.Logger
 
 		currentLocal    atomic.Value
 		localHeight     atomic.Uint32
@@ -45,12 +51,13 @@ type (
 )
 
 // NewModule returns new instance of stateroot module.
-func NewModule(bc blockchainer.Blockchainer, log *zap.Logger, s *storage.MemCachedStore) *Module {
+func NewModule(cfg config.ProtocolConfiguration, verif VerifierFunc, log *zap.Logger, s *storage.MemCachedStore) *Module {
 	return &Module{
-		network: bc.GetConfig().Magic,
-		bc:      bc,
-		log:     log,
-		Store:   s,
+		network:  cfg.Magic,
+		srInHead: cfg.StateRootInHeader,
+		verifier: verif,
+		log:      log,
+		Store:    s,
 	}
 }
 
@@ -191,7 +198,7 @@ func (s *Module) UpdateCurrentLocal(mpt *mpt.Trie, sr *state.MPTRoot) {
 	s.mpt = mpt
 	s.currentLocal.Store(sr.Root)
 	s.localHeight.Store(sr.Index)
-	if s.bc.GetConfig().StateRootInHeader {
+	if s.srInHead {
 		s.validatedHeight.Store(sr.Index)
 		updateStateHeightMetric(sr.Index)
 	}
@@ -216,6 +223,6 @@ func (s *Module) verifyWitness(r *state.MPTRoot) error {
 	s.mtx.Lock()
 	h := s.getKeyCacheForHeight(r.Index).validatorsHash
 	s.mtx.Unlock()
-	_, err := s.bc.VerifyWitness(h, r, &r.Witness[0], maxVerificationGAS)
+	_, err := s.verifier(h, r, &r.Witness[0], maxVerificationGAS)
 	return err
 }

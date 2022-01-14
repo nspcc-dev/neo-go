@@ -715,9 +715,9 @@ func TestCreateNEP17TransferTx(t *testing.T) {
 		require.NoError(t, err)
 		require.NoError(t, acc.SignTx(testchain.Network(), tx))
 		require.NoError(t, chain.VerifyTx(tx))
-		v, _ := chain.GetTestVM(trigger.Application, tx, nil)
-		v.LoadScriptWithFlags(tx.Script, callflag.All)
-		require.NoError(t, v.Run())
+		ic := chain.GetTestVM(trigger.Application, tx, nil)
+		ic.VM.LoadScriptWithFlags(tx.Script, callflag.All)
+		require.NoError(t, ic.VM.Run())
 	})
 	t.Run("none scope", func(t *testing.T) {
 		_, err := c.CreateNEP17TransferTx(acc, util.Uint160{}, gasContractHash, 1000, 0, nil, []client.SignerAccount{{
@@ -739,9 +739,9 @@ func TestCreateNEP17TransferTx(t *testing.T) {
 		require.NoError(t, err)
 		require.NoError(t, acc.SignTx(testchain.Network(), tx))
 		require.NoError(t, chain.VerifyTx(tx))
-		v, _ := chain.GetTestVM(trigger.Application, tx, nil)
-		v.LoadScriptWithFlags(tx.Script, callflag.All)
-		require.NoError(t, v.Run())
+		ic := chain.GetTestVM(trigger.Application, tx, nil)
+		ic.VM.LoadScriptWithFlags(tx.Script, callflag.All)
+		require.NoError(t, ic.VM.Run())
 	})
 }
 

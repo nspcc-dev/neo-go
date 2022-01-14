@@ -240,7 +240,7 @@ func (o *Oracle) processRequest(priv *keys.PrivateKey, req request) error {
 
 	o.getBroadcaster().SendResponse(priv, resp, txSig)
 	if ready {
-		o.getOnTransaction()(readyTx)
+		o.sendTx(readyTx)
 	}
 	return nil
 }
@@ -253,7 +253,7 @@ func (o *Oracle) processFailedRequest(priv *keys.PrivateKey, req request) {
 		return
 	} else if incTx.isSent {
 		// Tx was sent but not yet persisted. Try to pool it again.
-		o.getOnTransaction()(incTx.tx)
+		o.sendTx(incTx.tx)
 		return
 	}
 
@@ -271,7 +271,7 @@ func (o *Oracle) processFailedRequest(priv *keys.PrivateKey, req request) {
 
 	o.getBroadcaster().SendResponse(priv, getFailedResponse(req.ID), txSig)
 	if ready {
-		o.getOnTransaction()(readyTx)
+		o.sendTx(readyTx)
 	}
 }
 

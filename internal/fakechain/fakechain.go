@@ -22,7 +22,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result/subscriptions"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/nspcc-dev/neo-go/pkg/vm"
 	uatomic "go.uber.org/atomic"
 )
 
@@ -41,7 +40,7 @@ type FakeChain struct {
 	MaxVerificationGAS       int64
 	NotaryContractScriptHash util.Uint160
 	NotaryDepositExpiration  uint32
-	PostBlock                []func(blockchainer.Blockchainer, *mempool.Pool, *block.Block)
+	PostBlock                []func(func(*transaction.Transaction, *mempool.Pool, bool) bool, *mempool.Pool, *block.Block)
 	UtilityTokenBalance      *big.Int
 }
 
@@ -104,8 +103,8 @@ func (chain *FakeChain) IsTxStillRelevant(t *transaction.Transaction, txpool *me
 	panic("TODO")
 }
 
-// InitVerificationVM initializes VM for witness check.
-func (chain *FakeChain) InitVerificationVM(v *vm.VM, getContract func(util.Uint160) (*state.Contract, error), hash util.Uint160, witness *transaction.Witness) error {
+// InitVerificationContext initializes context for witness check.
+func (chain *FakeChain) InitVerificationContext(ic *interop.Context, hash util.Uint160, witness *transaction.Witness) error {
 	panic("TODO")
 }
 
@@ -140,11 +139,6 @@ func (chain *FakeChain) GetNotaryBalance(acc util.Uint160) *big.Int {
 	panic("TODO")
 }
 
-// GetPolicer implements Blockchainer interface.
-func (chain *FakeChain) GetPolicer() blockchainer.Policer {
-	return chain
-}
-
 // GetBaseExecFee implements Policer interface.
 func (chain *FakeChain) GetBaseExecFee() int64 {
 	return interop.DefaultBaseExecFee
@@ -164,12 +158,12 @@ func (chain *FakeChain) GetMaxVerificationGAS() int64 {
 }
 
 // PoolTxWithData implements Blockchainer interface.
-func (chain *FakeChain) PoolTxWithData(t *transaction.Transaction, data interface{}, mp *mempool.Pool, feer mempool.Feer, verificationFunction func(bc blockchainer.Blockchainer, t *transaction.Transaction, data interface{}) error) error {
+func (chain *FakeChain) PoolTxWithData(t *transaction.Transaction, data interface{}, mp *mempool.Pool, feer mempool.Feer, verificationFunction func(t *transaction.Transaction, data interface{}) error) error {
 	return chain.poolTxWithData(t, data, mp)
 }
 
 // RegisterPostBlock implements Blockchainer interface.
-func (chain *FakeChain) RegisterPostBlock(f func(blockchainer.Blockchainer, *mempool.Pool, *block.Block)) {
+func (chain *FakeChain) RegisterPostBlock(f func(func(*transaction.Transaction, *mempool.Pool, bool) bool, *mempool.Pool, *block.Block)) {
 	chain.PostBlock = append(chain.PostBlock, f)
 }
 
@@ -326,18 +320,13 @@ func (chain *FakeChain) GetStateModule() blockchainer.StateRoot {
 	return nil
 }
 
-// GetStateSyncModule implements Blockchainer interface.
-func (chain *FakeChain) GetStateSyncModule() blockchainer.StateSync {
-	return &FakeStateSync{}
-}
-
 // GetStorageItem implements Blockchainer interface.
 func (chain *FakeChain) GetStorageItem(id int32, key []byte) state.StorageItem {
 	panic("TODO")
 }
 
 // GetTestVM implements Blockchainer interface.
-func (chain *FakeChain) GetTestVM(t trigger.Type, tx *transaction.Transaction, b *block.Block) (*vm.VM, func()) {
+func (chain *FakeChain) GetTestVM(t trigger.Type, tx *transaction.Transaction, b *block.Block) *interop.Context {
 	panic("TODO")
 }
 

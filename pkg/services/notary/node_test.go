@@ -6,7 +6,6 @@ import (
 	"github.com/nspcc-dev/neo-go/internal/fakechain"
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
-	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
 	"github.com/nspcc-dev/neo-go/pkg/core/mempool"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
@@ -14,7 +13,7 @@ import (
 	"go.uber.org/zap/zaptest"
 )
 
-func getTestNotary(t *testing.T, bc blockchainer.Blockchainer, walletPath, pass string) (*wallet.Account, *Notary, *mempool.Pool) {
+func getTestNotary(t *testing.T, bc Ledger, walletPath, pass string) (*wallet.Account, *Notary, *mempool.Pool) {
 	mainCfg := config.P2PNotary{
 		Enabled: true,
 		UnlockWallet: config.Wallet{

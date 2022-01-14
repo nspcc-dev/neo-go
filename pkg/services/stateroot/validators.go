@@ -17,8 +17,8 @@ const (
 	firstVoteResendDelay = 3 * time.Second
 )
 
-// Run runs service instance in a separate goroutine.
-func (s *service) Run() {
+// Start runs service instance in a separate goroutine.
+func (s *service) Start() {
 	s.log.Info("starting state validation service")
 	s.chain.SubscribeForBlocks(s.blockCh)
 	go s.run()

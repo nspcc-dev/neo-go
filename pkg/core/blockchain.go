@@ -150,7 +150,7 @@ type Blockchain struct {
 
 	// postBlock is a set of callback methods which should be run under the Blockchain lock after new block is persisted.
 	// Block's transactions are passed via mempool.
-	postBlock []func(blockchainer.Blockchainer, *mempool.Pool, *block.Block)
+	postBlock []func(func(*transaction.Transaction, *mempool.Pool, bool) bool, *mempool.Pool, *block.Block)
 
 	sbCommittee keys.PublicKeys
 
@@ -267,7 +267,7 @@ func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration, log *zap.L
 		contracts:   *native.NewContracts(cfg),
 	}
 
-	bc.stateRoot = stateroot.NewModule(bc, bc.log, bc.dao.Store)
+	bc.stateRoot = stateroot.NewModule(bc.GetConfig(), bc.VerifyWitness, bc.log, bc.dao.Store)
 	bc.contracts.Designate.StateRootService = bc.stateRoot
 
 	if err := bc.init(); err != nil {
@@ -929,8 +929,8 @@ func (bc *Blockchain) GetStateModule() blockchainer.StateRoot {
 }
 
 // GetStateSyncModule returns new state sync service instance.
-func (bc *Blockchain) GetStateSyncModule() blockchainer.StateSync {
-	return statesync.NewModule(bc, bc.log, bc.dao, bc.jumpToState)
+func (bc *Blockchain) GetStateSyncModule() *statesync.Module {
+	return statesync.NewModule(bc, bc.stateRoot, bc.log, bc.dao, bc.jumpToState)
 }
 
 // storeBlock performs chain update using the block given, it executes all
@@ -1157,7 +1157,7 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 	atomic.StoreUint32(&bc.blockHeight, block.Index)
 	bc.memPool.RemoveStale(func(tx *transaction.Transaction) bool { return bc.IsTxStillRelevant(tx, txpool, false) }, bc)
 	for _, f := range bc.postBlock {
-		f(bc, txpool, block)
+		f(bc.IsTxStillRelevant, txpool, block)
 	}
 	if err := bc.updateExtensibleWhitelist(block.Index); err != nil {
 		bc.lock.Unlock()
@@ -2095,12 +2095,12 @@ func (bc *Blockchain) PoolTx(t *transaction.Transaction, pools ...*mempool.Pool)
 }
 
 // PoolTxWithData verifies and tries to add given transaction with additional data into the mempool.
-func (bc *Blockchain) PoolTxWithData(t *transaction.Transaction, data interface{}, mp *mempool.Pool, feer mempool.Feer, verificationFunction func(bc blockchainer.Blockchainer, tx *transaction.Transaction, data interface{}) error) error {
+func (bc *Blockchain) PoolTxWithData(t *transaction.Transaction, data interface{}, mp *mempool.Pool, feer mempool.Feer, verificationFunction func(tx *transaction.Transaction, data interface{}) error) error {
 	bc.lock.RLock()
 	defer bc.lock.RUnlock()
 
 	if verificationFunction != nil {
-		err := verificationFunction(bc, t, data)
+		err := verificationFunction(t, data)
 		if err != nil {
 			return err
 		}
@@ -2140,14 +2140,14 @@ func (bc *Blockchain) GetEnrollments() ([]state.Validator, error) {
 	return bc.contracts.NEO.GetCandidates(bc.dao)
 }
 
-// GetTestVM returns a VM setup for a test run of some sort of code and finalizer function.
-func (bc *Blockchain) GetTestVM(t trigger.Type, tx *transaction.Transaction, b *block.Block) (*vm.VM, func()) {
+// GetTestVM returns an interop context with VM set up for a test run.
+func (bc *Blockchain) GetTestVM(t trigger.Type, tx *transaction.Transaction, b *block.Block) *interop.Context {
 	d := bc.dao.GetWrapped().(*dao.Simple)
 	systemInterop := bc.newInteropContext(t, d, b, tx)
 	vm := systemInterop.SpawnVM()
 	vm.SetPriceGetter(systemInterop.GetPrice)
 	vm.LoadToken = contract.LoadToken(systemInterop)
-	return vm, systemInterop.Finalize
+	return systemInterop
 }
 
 // Various witness verification errors.
@@ -2162,8 +2162,8 @@ var (
 	ErrInvalidVerificationContract = errors.New("verification contract is missing `verify` method")
 )
 
-// InitVerificationVM initializes VM for witness check.
-func (bc *Blockchain) InitVerificationVM(v *vm.VM, getContract func(util.Uint160) (*state.Contract, error), hash util.Uint160, witness *transaction.Witness) error {
+// InitVerificationContext initializes context for witness check.
+func (bc *Blockchain) InitVerificationContext(ic *interop.Context, hash util.Uint160, witness *transaction.Witness) error {
 	if len(witness.VerificationScript) != 0 {
 		if witness.ScriptHash() != hash {
 			return ErrWitnessHashMismatch
@@ -2175,9 +2175,9 @@ func (bc *Blockchain) InitVerificationVM(v *vm.VM, getContract func(util.Uint160
 		if err != nil {
 			return fmt.Errorf("%w: %v", ErrInvalidVerification, err)
 		}
-		v.LoadScriptWithHash(witness.VerificationScript, hash, callflag.ReadOnly)
+		ic.VM.LoadScriptWithHash(witness.VerificationScript, hash, callflag.ReadOnly)
 	} else {
-		cs, err := getContract(hash)
+		cs, err := ic.GetContract(hash)
 		if err != nil {
 			return ErrUnknownVerificationContract
 		}
@@ -2191,7 +2191,8 @@ func (bc *Blockchain) InitVerificationVM(v *vm.VM, getContract func(util.Uint160
 		if md != nil {
 			initOffset = md.Offset
 		}
-		v.LoadNEFMethod(&cs.NEF, util.Uint160{}, hash, callflag.ReadOnly,
+		ic.Invocations[cs.Hash]++
+		ic.VM.LoadNEFMethod(&cs.NEF, util.Uint160{}, hash, callflag.ReadOnly,
 			true, verifyOffset, initOffset)
 	}
 	if len(witness.InvocationScript) != 0 {
@@ -2199,7 +2200,7 @@ func (bc *Blockchain) InitVerificationVM(v *vm.VM, getContract func(util.Uint160
 		if err != nil {
 			return fmt.Errorf("%w: %v", ErrInvalidInvocation, err)
 		}
-		v.LoadScript(witness.InvocationScript)
+		ic.VM.LoadScript(witness.InvocationScript)
 	}
 	return nil
 }
@@ -2223,7 +2224,7 @@ func (bc *Blockchain) verifyHashAgainstScript(hash util.Uint160, witness *transa
 	vm.SetPriceGetter(interopCtx.GetPrice)
 	vm.LoadToken = contract.LoadToken(interopCtx)
 	vm.GasLimit = gas
-	if err := bc.InitVerificationVM(vm, interopCtx.GetContract, hash, witness); err != nil {
+	if err := bc.InitVerificationContext(interopCtx, hash, witness); err != nil {
 		return 0, err
 	}
 	err := interopCtx.Exec()
@@ -2331,15 +2332,8 @@ func (bc *Blockchain) P2PSigExtensionsEnabled() bool {
 
 // RegisterPostBlock appends provided function to the list of functions which should be run after new block
 // is stored.
-func (bc *Blockchain) RegisterPostBlock(f func(blockchainer.Blockchainer, *mempool.Pool, *block.Block)) {
+func (bc *Blockchain) RegisterPostBlock(f func(func(*transaction.Transaction, *mempool.Pool, bool) bool, *mempool.Pool, *block.Block)) {
 	bc.postBlock = append(bc.postBlock, f)
-}
-
-// -- start Policer.
-
-// GetPolicer provides access to policy values via Policer interface.
-func (bc *Blockchain) GetPolicer() blockchainer.Policer {
-	return bc
 }
 
 // GetBaseExecFee return execution price for `NOP`.
@@ -2359,5 +2353,3 @@ func (bc *Blockchain) GetStoragePrice() int64 {
 	}
 	return bc.contracts.Policy.GetStoragePriceInternal(bc.dao)
 }
-
-// -- end Policer.

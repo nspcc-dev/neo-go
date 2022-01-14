@@ -14,6 +14,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	coreb "github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
+	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/mempool"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
@@ -43,6 +44,22 @@ const nsInMs = 1000000
 // Category is message category for extensible payloads.
 const Category = "dBFT"
 
+// Ledger is the interface to Blockchain sufficient for Service.
+type Ledger interface {
+	AddBlock(block *coreb.Block) error
+	ApplyPolicyToTxSet([]*transaction.Transaction) []*transaction.Transaction
+	GetMemPool() *mempool.Pool
+	GetNextBlockValidators() ([]*keys.PublicKey, error)
+	GetStateModule() blockchainer.StateRoot
+	GetTransaction(util.Uint256) (*transaction.Transaction, uint32, error)
+	GetValidators() ([]*keys.PublicKey, error)
+	PoolTx(t *transaction.Transaction, pools ...*mempool.Pool) error
+	SubscribeForBlocks(ch chan<- *coreb.Block)
+	UnsubscribeFromBlocks(ch chan<- *coreb.Block)
+	interop.Ledger
+	mempool.Feer
+}
+
 // Service represents consensus instance.
 type Service interface {
 	// Start initializes dBFT and starts event loop for consensus service.
@@ -52,7 +69,7 @@ type Service interface {
 	Shutdown()
 
 	// OnPayload is a callback to notify Service about new received payload.
-	OnPayload(p *npayload.Extensible)
+	OnPayload(p *npayload.Extensible) error
 	// OnTransaction is a callback to notify Service about new received transaction.
 	OnTransaction(tx *transaction.Transaction)
 }
@@ -92,8 +109,8 @@ type Config struct {
 	// Broadcast is a callback which is called to notify server
 	// about new consensus payload to sent.
 	Broadcast func(p *npayload.Extensible)
-	// Chain is a core.Blockchainer instance.
-	Chain blockchainer.Blockchainer
+	// Chain is a Ledger instance.
+	Chain Ledger
 	// ProtocolConfiguration contains protocol settings.
 	ProtocolConfiguration config.ProtocolConfiguration
 	// RequestTx is a callback to which will be called
@@ -127,10 +144,6 @@ func NewService(cfg Config) (Service, error) {
 		started:      atomic.NewBool(false),
 		quit:         make(chan struct{}),
 		finished:     make(chan struct{}),
-	}
-
-	if cfg.Wallet == nil {
-		return srv, nil
 	}
 
 	var err error
@@ -369,26 +382,27 @@ func (s *service) payloadFromExtensible(ep *npayload.Extensible) *Payload {
 }
 
 // OnPayload handles Payload receive.
-func (s *service) OnPayload(cp *npayload.Extensible) {
+func (s *service) OnPayload(cp *npayload.Extensible) error {
 	log := s.log.With(zap.Stringer("hash", cp.Hash()))
 	p := s.payloadFromExtensible(cp)
 	// decode payload data into message
 	if err := p.decodeData(); err != nil {
 		log.Info("can't decode payload data", zap.Error(err))
-		return
+		return nil
 	}
 
 	if !s.validatePayload(p) {
 		log.Info("can't validate payload")
-		return
+		return nil
 	}
 
 	if s.dbft == nil || !s.started.Load() {
 		log.Debug("dbft is inactive or not started yet")
-		return
+		return nil
 	}
 
 	s.messages <- *p
+	return nil
 }
 
 func (s *service) OnTransaction(tx *transaction.Transaction) {

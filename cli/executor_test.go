@@ -12,6 +12,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/cli/input"
 	"github.com/nspcc-dev/neo-go/pkg/config"
+	"github.com/nspcc-dev/neo-go/pkg/consensus"
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
@@ -82,8 +83,19 @@ func newTestChain(t *testing.T, f func(*config.Config), run bool) (*core.Blockch
 	}
 
 	serverConfig := network.NewServerConfig(cfg)
-	netSrv, err := network.NewServer(serverConfig, chain, zap.NewNop())
+	netSrv, err := network.NewServer(serverConfig, chain, chain.GetStateSyncModule(), zap.NewNop())
 	require.NoError(t, err)
+	cons, err := consensus.NewService(consensus.Config{
+		Logger:                zap.NewNop(),
+		Broadcast:             netSrv.BroadcastExtensible,
+		Chain:                 chain,
+		ProtocolConfiguration: chain.GetConfig(),
+		RequestTx:             netSrv.RequestTx,
+		Wallet:                serverConfig.Wallet,
+		TimePerBlock:          serverConfig.TimePerBlock,
+	})
+	require.NoError(t, err)
+	netSrv.AddExtensibleHPService(cons, consensus.Category, cons.OnPayload, cons.OnTransaction)
 	go netSrv.Start(make(chan error, 1))
 	rpcServer := server.New(chain, cfg.ApplicationConfiguration.RPC, netSrv, nil, logger)
 	errCh := make(chan error, 2)

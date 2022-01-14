@@ -80,32 +80,32 @@ func TestStateRoot(t *testing.T) {
 	tmpDir := t.TempDir()
 	w := createAndWriteWallet(t, accs[0], filepath.Join(tmpDir, "w"), "pass")
 	cfg := createStateRootConfig(w.Path(), "pass")
-	srv, err := stateroot.New(cfg, zaptest.NewLogger(t), bc, nil)
+	srv, err := stateroot.New(cfg, bc.stateRoot, zaptest.NewLogger(t), bc, nil)
 	require.NoError(t, err)
-	require.EqualValues(t, 0, srv.CurrentValidatedHeight())
-	r, err := srv.GetStateRoot(bc.BlockHeight())
+	require.EqualValues(t, 0, bc.stateRoot.CurrentValidatedHeight())
+	r, err := bc.stateRoot.GetStateRoot(bc.BlockHeight())
 	require.NoError(t, err)
-	require.Equal(t, r.Root, srv.CurrentLocalStateRoot())
+	require.Equal(t, r.Root, bc.stateRoot.CurrentLocalStateRoot())
 
 	t.Run("invalid message", func(t *testing.T) {
 		require.Error(t, srv.OnPayload(&payload.Extensible{Data: []byte{42}}))
-		require.EqualValues(t, 0, srv.CurrentValidatedHeight())
+		require.EqualValues(t, 0, bc.stateRoot.CurrentValidatedHeight())
 	})
 	t.Run("drop zero index", func(t *testing.T) {
-		r, err := srv.GetStateRoot(0)
+		r, err := bc.stateRoot.GetStateRoot(0)
 		require.NoError(t, err)
 		data, err := testserdes.EncodeBinary(stateroot.NewMessage(stateroot.RootT, r))
 		require.NoError(t, err)
 		require.NoError(t, srv.OnPayload(&payload.Extensible{Data: data}))
-		require.EqualValues(t, 0, srv.CurrentValidatedHeight())
+		require.EqualValues(t, 0, bc.stateRoot.CurrentValidatedHeight())
 	})
 	t.Run("invalid height", func(t *testing.T) {
-		r, err := srv.GetStateRoot(1)
+		r, err := bc.stateRoot.GetStateRoot(1)
 		require.NoError(t, err)
 		r.Index = 10
 		data := testSignStateRoot(t, r, pubs, accs...)
 		require.Error(t, srv.OnPayload(&payload.Extensible{Data: data}))
-		require.EqualValues(t, 0, srv.CurrentValidatedHeight())
+		require.EqualValues(t, 0, bc.stateRoot.CurrentValidatedHeight())
 	})
 	t.Run("invalid signer", func(t *testing.T) {
 		accInv, err := wallet.NewAccount()
@@ -113,21 +113,21 @@ func TestStateRoot(t *testing.T) {
 		pubs := keys.PublicKeys{accInv.PrivateKey().PublicKey()}
 		require.NoError(t, accInv.ConvertMultisig(1, pubs))
 		transferTokenFromMultisigAccount(t, bc, accInv.Contract.ScriptHash(), bc.contracts.GAS.Hash, 1_0000_0000)
-		r, err := srv.GetStateRoot(1)
+		r, err := bc.stateRoot.GetStateRoot(1)
 		require.NoError(t, err)
 		data := testSignStateRoot(t, r, pubs, accInv)
 		err = srv.OnPayload(&payload.Extensible{Data: data})
 		require.True(t, errors.Is(err, ErrWitnessHashMismatch), "got: %v", err)
-		require.EqualValues(t, 0, srv.CurrentValidatedHeight())
+		require.EqualValues(t, 0, bc.stateRoot.CurrentValidatedHeight())
 	})
 
-	r, err = srv.GetStateRoot(updateIndex + 1)
+	r, err = bc.stateRoot.GetStateRoot(updateIndex + 1)
 	require.NoError(t, err)
 	data := testSignStateRoot(t, r, pubs, accs...)
 	require.NoError(t, srv.OnPayload(&payload.Extensible{Data: data}))
-	require.EqualValues(t, 2, srv.CurrentValidatedHeight())
+	require.EqualValues(t, 2, bc.stateRoot.CurrentValidatedHeight())
 
-	r, err = srv.GetStateRoot(updateIndex + 1)
+	r, err = bc.stateRoot.GetStateRoot(updateIndex + 1)
 	require.NoError(t, err)
 	require.NotEqual(t, 0, len(r.Witness))
 	require.Equal(t, h, r.Witness[0].ScriptHash())
@@ -148,14 +148,14 @@ func TestStateRootInitNonZeroHeight(t *testing.T) {
 		tmpDir := t.TempDir()
 		w := createAndWriteWallet(t, accs[0], filepath.Join(tmpDir, "w"), "pass")
 		cfg := createStateRootConfig(w.Path(), "pass")
-		srv, err := stateroot.New(cfg, zaptest.NewLogger(t), bc, nil)
+		srv, err := stateroot.New(cfg, bc.stateRoot, zaptest.NewLogger(t), bc, nil)
 		require.NoError(t, err)
-		r, err := srv.GetStateRoot(2)
+		r, err := bc.stateRoot.GetStateRoot(2)
 		require.NoError(t, err)
 		data := testSignStateRoot(t, r, pubs, accs...)
 		require.NoError(t, srv.OnPayload(&payload.Extensible{Data: data}))
-		require.EqualValues(t, 2, srv.CurrentValidatedHeight())
-		root = srv.CurrentLocalStateRoot()
+		require.EqualValues(t, 2, bc.stateRoot.CurrentValidatedHeight())
+		root = bc.stateRoot.CurrentLocalStateRoot()
 	})
 
 	bc2 := newTestChainWithCustomCfgAndStore(t, st, nil)
@@ -194,12 +194,12 @@ func TestStateRootFull(t *testing.T) {
 
 	var lastValidated atomic.Value
 	var lastHeight atomic.Uint32
-	srv, err := stateroot.New(cfg, zaptest.NewLogger(t), bc, func(ep *payload.Extensible) {
+	srv, err := stateroot.New(cfg, bc.stateRoot, zaptest.NewLogger(t), bc, func(ep *payload.Extensible) {
 		lastHeight.Store(ep.ValidBlockStart)
 		lastValidated.Store(ep)
 	})
 	require.NoError(t, err)
-	srv.Run()
+	srv.Start()
 	t.Cleanup(srv.Shutdown)
 
 	bc.setNodesByRole(t, true, noderoles.StateValidator, pubs)
@@ -211,7 +211,7 @@ func TestStateRootFull(t *testing.T) {
 	require.Eventually(t, func() bool { return lastHeight.Load() == 3 }, time.Second, time.Millisecond)
 	checkVoteBroadcasted(t, bc, lastValidated.Load().(*payload.Extensible), 3, 1)
 
-	r, err := srv.GetStateRoot(2)
+	r, err := bc.stateRoot.GetStateRoot(2)
 	require.NoError(t, err)
 	require.NoError(t, srv.AddSignature(2, 0, accs[0].PrivateKey().SignHashable(uint32(netmode.UnitTestNet), r)))
 	require.NotNil(t, lastValidated.Load().(*payload.Extensible))
@@ -220,7 +220,7 @@ func TestStateRootFull(t *testing.T) {
 	require.NoError(t, testserdes.DecodeBinary(lastValidated.Load().(*payload.Extensible).Data, msg))
 	require.NotEqual(t, stateroot.RootT, msg.Type) // not a sender for this root
 
-	r, err = srv.GetStateRoot(3)
+	r, err = bc.stateRoot.GetStateRoot(3)
 	require.NoError(t, err)
 	require.Error(t, srv.AddSignature(2, 0, accs[0].PrivateKey().SignHashable(uint32(netmode.UnitTestNet), r)))
 	require.NoError(t, srv.AddSignature(3, 0, accs[0].PrivateKey().SignHashable(uint32(netmode.UnitTestNet), r)))

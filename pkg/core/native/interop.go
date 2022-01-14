@@ -41,8 +41,8 @@ func Call(ic *interop.Context) error {
 		return fmt.Errorf("missing call flags for native %d `%s` operation call: %05b vs %05b",
 			version, m.MD.Name, ic.VM.Context().GetCallFlags(), m.RequiredFlags)
 	}
-	invokeFee := m.CPUFee*ic.Chain.GetPolicer().GetBaseExecFee() +
-		m.StorageFee*ic.Chain.GetPolicer().GetStoragePrice()
+	invokeFee := m.CPUFee*ic.Chain.GetBaseExecFee() +
+		m.StorageFee*ic.Chain.GetStoragePrice()
 	if !ic.VM.AddGas(invokeFee) {
 		return errors.New("gas limit exceeded")
 	}

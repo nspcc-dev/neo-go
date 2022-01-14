@@ -38,12 +38,12 @@ type fakeConsensus struct {
 
 var _ consensus.Service = (*fakeConsensus)(nil)
 
-func newFakeConsensus(c consensus.Config) (consensus.Service, error) {
-	return new(fakeConsensus), nil
+func (f *fakeConsensus) Start()    { f.started.Store(true) }
+func (f *fakeConsensus) Shutdown() { f.stopped.Store(true) }
+func (f *fakeConsensus) OnPayload(p *payload.Extensible) error {
+	f.payloads = append(f.payloads, p)
+	return nil
 }
-func (f *fakeConsensus) Start()                                        { f.started.Store(true) }
-func (f *fakeConsensus) Shutdown()                                     { f.stopped.Store(true) }
-func (f *fakeConsensus) OnPayload(p *payload.Extensible)               { f.payloads = append(f.payloads, p) }
 func (f *fakeConsensus) OnTransaction(tx *transaction.Transaction)     { f.txs = append(f.txs, tx) }
 func (f *fakeConsensus) GetPayload(h util.Uint256) *payload.Extensible { panic("implement me") }
 
@@ -52,7 +52,7 @@ func TestNewServer(t *testing.T) {
 		P2PStateExchangeExtensions: true,
 		StateRootInHeader:          true,
 	}}
-	s, err := newServerFromConstructors(ServerConfig{}, bc, nil, newFakeTransp, newFakeConsensus, newTestDiscovery)
+	s, err := newServerFromConstructors(ServerConfig{}, bc, new(fakechain.FakeStateSync), nil, newFakeTransp, newTestDiscovery)
 	require.Error(t, err)
 
 	t.Run("set defaults", func(t *testing.T) {
@@ -76,13 +76,6 @@ func TestNewServer(t *testing.T) {
 		require.Equal(t, 2, s.ServerConfig.MaxPeers)
 		require.Equal(t, 3, s.ServerConfig.AttemptConnPeers)
 	})
-	t.Run("consensus error is not dropped", func(t *testing.T) {
-		errConsensus := errors.New("can't create consensus")
-		_, err = newServerFromConstructors(ServerConfig{MinPeers: -1}, bc, zaptest.NewLogger(t), newFakeTransp,
-			func(consensus.Config) (consensus.Service, error) { return nil, errConsensus },
-			newTestDiscovery)
-		require.True(t, errors.Is(err, errConsensus), "got: %#v", err)
-	})
 }
 
 func startWithChannel(s *Server) chan error {
@@ -104,13 +97,12 @@ func TestServerStartAndShutdown(t *testing.T) {
 		require.Eventually(t, func() bool { return 1 == s.PeerCount() }, time.Second, time.Millisecond*10)
 
 		assert.True(t, s.transport.(*fakeTransp).started.Load())
-		assert.False(t, s.consensus.(*fakeConsensus).started.Load())
+		assert.Nil(t, s.txCallback)
 
 		s.Shutdown()
 		<-ch
 
 		require.True(t, s.transport.(*fakeTransp).closed.Load())
-		require.True(t, s.consensus.(*fakeConsensus).stopped.Load())
 		err, ok := p.droppedWith.Load().(error)
 		require.True(t, ok)
 		require.True(t, errors.Is(err, errServerShutdown))
@@ -122,12 +114,12 @@ func TestServerStartAndShutdown(t *testing.T) {
 		p := newLocalPeer(t, s)
 		s.register <- p
 
-		assert.True(t, s.consensus.(*fakeConsensus).started.Load())
+		assert.True(t, s.services[0].(*fakeConsensus).started.Load())
 
 		s.Shutdown()
 		<-ch
 
-		require.True(t, s.consensus.(*fakeConsensus).stopped.Load())
+		require.True(t, s.services[0].(*fakeConsensus).stopped.Load())
 	})
 }
 
@@ -416,7 +408,8 @@ func TestBlock(t *testing.T) {
 }
 
 func TestConsensus(t *testing.T) {
-	s := startTestServer(t)
+	s := newTestServer(t, ServerConfig{Wallet: new(config.Wallet)})
+	startWithCleanup(t, s)
 
 	atomic2.StoreUint32(&s.chain.(*fakechain.FakeChain).Blockheight, 4)
 	p := newLocalPeer(t, s)
@@ -438,13 +431,13 @@ func TestConsensus(t *testing.T) {
 
 	s.chain.(*fakechain.FakeChain).VerifyWitnessF = func() (int64, error) { return 0, nil }
 	require.NoError(t, s.handleMessage(p, msg))
-	require.Contains(t, s.consensus.(*fakeConsensus).payloads, msg.Payload.(*payload.Extensible))
+	require.Contains(t, s.services[0].(*fakeConsensus).payloads, msg.Payload.(*payload.Extensible))
 
 	t.Run("small ValidUntilBlockEnd", func(t *testing.T) {
 		t.Run("current height", func(t *testing.T) {
 			msg := newConsensusMessage(0, s.chain.BlockHeight())
 			require.NoError(t, s.handleMessage(p, msg))
-			require.NotContains(t, s.consensus.(*fakeConsensus).payloads, msg.Payload.(*payload.Extensible))
+			require.NotContains(t, s.services[0].(*fakeConsensus).payloads, msg.Payload.(*payload.Extensible))
 		})
 		t.Run("invalid", func(t *testing.T) {
 			msg := newConsensusMessage(0, s.chain.BlockHeight()-1)
@@ -455,17 +448,11 @@ func TestConsensus(t *testing.T) {
 		msg := newConsensusMessage(s.chain.BlockHeight()+1, s.chain.BlockHeight()+2)
 		require.Error(t, s.handleMessage(p, msg))
 	})
-	t.Run("invalid category", func(t *testing.T) {
-		pl := payload.NewExtensible()
-		pl.Category = "invalid"
-		pl.ValidBlockEnd = s.chain.BlockHeight() + 1
-		msg := NewMessage(CMDExtensible, pl)
-		require.Error(t, s.handleMessage(p, msg))
-	})
 }
 
 func TestTransaction(t *testing.T) {
-	s := startTestServer(t)
+	s := newTestServer(t, ServerConfig{Wallet: new(config.Wallet)})
+	startWithCleanup(t, s)
 
 	t.Run("good", func(t *testing.T) {
 		tx := newDummyTx()
@@ -481,15 +468,13 @@ func TestTransaction(t *testing.T) {
 		s.register <- p
 
 		s.testHandleMessage(t, nil, CMDTX, tx)
-		require.Contains(t, s.consensus.(*fakeConsensus).txs, tx)
+		require.Contains(t, s.services[0].(*fakeConsensus).txs, tx)
 	})
 	t.Run("bad", func(t *testing.T) {
 		tx := newDummyTx()
 		s.chain.(*fakechain.FakeChain).PoolTxF = func(*transaction.Transaction) error { return core.ErrInsufficientFunds }
 		s.testHandleMessage(t, nil, CMDTX, tx)
-		for _, ftx := range s.consensus.(*fakeConsensus).txs {
-			require.NotEqual(t, ftx, tx)
-		}
+		require.Contains(t, s.services[0].(*fakeConsensus).txs, tx) // Consensus receives everything.
 	})
 }
 
@@ -907,13 +892,13 @@ func TestRequestTx(t *testing.T) {
 
 	t.Run("no hashes, no message", func(t *testing.T) {
 		actual = nil
-		s.requestTx()
+		s.RequestTx()
 		require.Nil(t, actual)
 	})
 	t.Run("good, small", func(t *testing.T) {
 		actual = nil
 		expected := []util.Uint256{random.Uint256(), random.Uint256()}
-		s.requestTx(expected...)
+		s.RequestTx(expected...)
 		require.Equal(t, expected, actual)
 	})
 	t.Run("good, exactly one chunk", func(t *testing.T) {
@@ -922,7 +907,7 @@ func TestRequestTx(t *testing.T) {
 		for i := range expected {
 			expected[i] = random.Uint256()
 		}
-		s.requestTx(expected...)
+		s.RequestTx(expected...)
 		require.Equal(t, expected, actual)
 	})
 	t.Run("good, multiple chunks", func(t *testing.T) {
@@ -931,7 +916,7 @@ func TestRequestTx(t *testing.T) {
 		for i := range expected {
 			expected[i] = random.Uint256()
 		}
-		s.requestTx(expected...)
+		s.RequestTx(expected...)
 		require.Equal(t, expected, actual)
 	})
 }
@@ -1022,6 +1007,9 @@ func TestVerifyNotaryRequest(t *testing.T) {
 	bc := fakechain.NewFakeChain()
 	bc.MaxVerificationGAS = 10
 	bc.NotaryContractScriptHash = util.Uint160{1, 2, 3}
+	s, err := newServerFromConstructors(ServerConfig{}, bc, new(fakechain.FakeStateSync), zaptest.NewLogger(t), newFakeTransp, newTestDiscovery)
+	require.NoError(t, err)
+	t.Cleanup(s.Shutdown)
 	newNotaryRequest := func() *payload.P2PNotaryRequest {
 		return &payload.P2PNotaryRequest{
 			MainTransaction: &transaction.Transaction{Script: []byte{0, 1, 2}},
@@ -1035,26 +1023,26 @@ func TestVerifyNotaryRequest(t *testing.T) {
 
 	t.Run("bad payload witness", func(t *testing.T) {
 		bc.VerifyWitnessF = func() (int64, error) { return 0, errors.New("bad witness") }
-		require.Error(t, verifyNotaryRequest(bc, nil, newNotaryRequest()))
+		require.Error(t, s.verifyNotaryRequest(nil, newNotaryRequest()))
 	})
 
 	t.Run("bad fallback sender", func(t *testing.T) {
 		bc.VerifyWitnessF = func() (int64, error) { return 0, nil }
 		r := newNotaryRequest()
 		r.FallbackTransaction.Signers[0] = transaction.Signer{Account: util.Uint160{7, 8, 9}}
-		require.Error(t, verifyNotaryRequest(bc, nil, r))
+		require.Error(t, s.verifyNotaryRequest(nil, r))
 	})
 
 	t.Run("expired deposit", func(t *testing.T) {
 		r := newNotaryRequest()
 		bc.NotaryDepositExpiration = r.FallbackTransaction.ValidUntilBlock
-		require.Error(t, verifyNotaryRequest(bc, nil, r))
+		require.Error(t, s.verifyNotaryRequest(nil, r))
 	})
 
 	t.Run("good", func(t *testing.T) {
 		r := newNotaryRequest()
 		bc.NotaryDepositExpiration = r.FallbackTransaction.ValidUntilBlock + 1
-		require.NoError(t, verifyNotaryRequest(bc, nil, r))
+		require.NoError(t, s.verifyNotaryRequest(nil, r))
 	})
 }
 

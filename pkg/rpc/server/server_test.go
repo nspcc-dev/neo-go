@@ -2325,7 +2325,7 @@ func BenchmarkHandleIn(b *testing.B) {
 
 	serverConfig := network.NewServerConfig(cfg)
 	serverConfig.LogLevel = zapcore.FatalLevel
-	server, err := network.NewServer(serverConfig, chain, logger)
+	server, err := network.NewServer(serverConfig, chain, chain.GetStateSyncModule(), logger)
 	require.NoError(b, err)
 	rpcServer := New(chain, cfg.ApplicationConfiguration.RPC, server, orc, logger)
 	defer chain.Close()

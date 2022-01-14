@@ -6,13 +6,13 @@ import (
 	gio "io"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/fee"
+	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
-	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"go.uber.org/zap"
 )
 
@@ -59,7 +59,7 @@ func (o *Oracle) AddResponse(pub *keys.PublicKey, reqID uint64, txSig []byte) {
 	incTx.Unlock()
 
 	if ready {
-		o.getOnTransaction()(readyTx)
+		o.sendTx(readyTx)
 	}
 }
 
@@ -115,7 +115,7 @@ func (o *Oracle) CreateResponseTx(gasForResponse int64, vub uint32, resp *transa
 	}
 	tx.NetworkFee += gasConsumed
 
-	netFee, sizeDelta := fee.Calculate(o.Chain.GetPolicer().GetBaseExecFee(), tx.Scripts[1].VerificationScript)
+	netFee, sizeDelta := fee.Calculate(o.Chain.GetBaseExecFee(), tx.Scripts[1].VerificationScript)
 	tx.NetworkFee += netFee
 	size += sizeDelta
 
@@ -138,24 +138,24 @@ func (o *Oracle) testVerify(tx *transaction.Transaction) (int64, bool) {
 	// method caches transaction hash, but tx building is not yet completed and hash will be changed.
 	// So make a copy of tx to avoid wrong hash caching.
 	cp := *tx
-	v, finalize := o.Chain.GetTestVM(trigger.Verification, &cp, nil)
-	v.GasLimit = o.Chain.GetPolicer().GetMaxVerificationGAS()
-	v.LoadScriptWithHash(o.oracleScript, o.oracleHash, callflag.ReadOnly)
-	v.Context().Jump(o.verifyOffset)
+	ic := o.Chain.GetTestVM(trigger.Verification, &cp, nil)
+	ic.VM.GasLimit = o.Chain.GetMaxVerificationGAS()
+	ic.VM.LoadScriptWithHash(o.oracleScript, o.oracleHash, callflag.ReadOnly)
+	ic.VM.Context().Jump(o.verifyOffset)
 
-	ok := isVerifyOk(v, finalize)
-	return v.GasConsumed(), ok
+	ok := isVerifyOk(ic)
+	return ic.VM.GasConsumed(), ok
 }
 
-func isVerifyOk(v *vm.VM, finalize func()) bool {
-	defer finalize()
-	if err := v.Run(); err != nil {
+func isVerifyOk(ic *interop.Context) bool {
+	defer ic.Finalize()
+	if err := ic.VM.Run(); err != nil {
 		return false
 	}
-	if v.Estack().Len() != 1 {
+	if ic.VM.Estack().Len() != 1 {
 		return false
 	}
-	ok, err := v.Estack().Pop().Item().TryBool()
+	ok, err := ic.VM.Estack().Pop().Item().TryBool()
 	return err == nil && ok
 }
 

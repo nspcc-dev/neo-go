@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/signal"
@@ -9,14 +10,20 @@ import (
 
 	"github.com/nspcc-dev/neo-go/cli/options"
 	"github.com/nspcc-dev/neo-go/pkg/config"
+	"github.com/nspcc-dev/neo-go/pkg/consensus"
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/chaindump"
+	corestate "github.com/nspcc-dev/neo-go/pkg/core/stateroot"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
+	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/network"
 	"github.com/nspcc-dev/neo-go/pkg/network/metrics"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/server"
+	"github.com/nspcc-dev/neo-go/pkg/services/notary"
+	"github.com/nspcc-dev/neo-go/pkg/services/oracle"
+	"github.com/nspcc-dev/neo-go/pkg/services/stateroot"
 	"github.com/urfave/cli"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -316,6 +323,73 @@ func restoreDB(ctx *cli.Context) error {
 	return nil
 }
 
+func mkOracle(config network.ServerConfig, chain *core.Blockchain, serv *network.Server, log *zap.Logger) (*oracle.Oracle, error) {
+	if !config.OracleCfg.Enabled {
+		return nil, nil
+	}
+	orcCfg := oracle.Config{
+		Log:           log,
+		Network:       config.Net,
+		MainCfg:       config.OracleCfg,
+		Chain:         chain,
+		OnTransaction: serv.RelayTxn,
+	}
+	orc, err := oracle.NewOracle(orcCfg)
+	if err != nil {
+		return nil, fmt.Errorf("can't initialize Oracle module: %w", err)
+	}
+	chain.SetOracle(orc)
+	serv.AddService(orc)
+	return orc, nil
+}
+
+func mkConsensus(config network.ServerConfig, chain *core.Blockchain, serv *network.Server, log *zap.Logger) (consensus.Service, error) {
+	if config.Wallet == nil {
+		return nil, nil
+	}
+	srv, err := consensus.NewService(consensus.Config{
+		Logger:                log,
+		Broadcast:             serv.BroadcastExtensible,
+		Chain:                 chain,
+		ProtocolConfiguration: chain.GetConfig(),
+		RequestTx:             serv.RequestTx,
+		Wallet:                config.Wallet,
+		TimePerBlock:          config.TimePerBlock,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("can't initialize Consensus module: %w", err)
+	}
+
+	serv.AddExtensibleHPService(srv, consensus.Category, srv.OnPayload, srv.OnTransaction)
+	return srv, nil
+}
+
+func mkP2PNotary(config network.ServerConfig, chain *core.Blockchain, serv *network.Server, log *zap.Logger) (*notary.Notary, error) {
+	if !config.P2PNotaryCfg.Enabled {
+		return nil, nil
+	}
+	if !chain.P2PSigExtensionsEnabled() {
+		return nil, errors.New("P2PSigExtensions are disabled, but Notary service is enabled")
+	}
+	cfg := notary.Config{
+		MainCfg: config.P2PNotaryCfg,
+		Chain:   chain,
+		Log:     log,
+	}
+	n, err := notary.NewNotary(cfg, serv.Net, serv.GetNotaryPool(), func(tx *transaction.Transaction) error {
+		if err := serv.RelayTxn(tx); err != nil {
+			return fmt.Errorf("can't relay completed notary transaction: hash %s, error: %w", tx.Hash().StringLE(), err)
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create Notary module: %w", err)
+	}
+	serv.AddService(n)
+	chain.SetNotary(n)
+	return n, nil
+}
+
 func startServer(ctx *cli.Context) error {
 	cfg, err := getConfigFromContext(ctx)
 	if err != nil {
@@ -336,11 +410,30 @@ func startServer(ctx *cli.Context) error {
 		return err
 	}
 
-	serv, err := network.NewServer(serverConfig, chain, log)
+	serv, err := network.NewServer(serverConfig, chain, chain.GetStateSyncModule(), log)
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("failed to create network server: %w", err), 1)
 	}
-	rpcServer := server.New(chain, cfg.ApplicationConfiguration.RPC, serv, serv.GetOracle(), log)
+	srMod := chain.GetStateModule().(*corestate.Module) // Take full responsibility here.
+	sr, err := stateroot.New(serverConfig.StateRootCfg, srMod, log, chain, serv.BroadcastExtensible)
+	if err != nil {
+		return cli.NewExitError(fmt.Errorf("can't initialize StateRoot service: %w", err), 1)
+	}
+	serv.AddExtensibleService(sr, stateroot.Category, sr.OnPayload)
+
+	oracleSrv, err := mkOracle(serverConfig, chain, serv, log)
+	if err != nil {
+		return err
+	}
+	_, err = mkConsensus(serverConfig, chain, serv, log)
+	if err != nil {
+		return err
+	}
+	_, err = mkP2PNotary(serverConfig, chain, serv, log)
+	if err != nil {
+		return err
+	}
+	rpcServer := server.New(chain, cfg.ApplicationConfiguration.RPC, serv, oracleSrv, log)
 	errChan := make(chan error)
 
 	go serv.Start(errChan)
@@ -369,7 +462,7 @@ Main:
 					errChan <- fmt.Errorf("error while restarting rpc-server: %w", serverErr)
 					break
 				}
-				rpcServer = server.New(chain, cfg.ApplicationConfiguration.RPC, serv, serv.GetOracle(), log)
+				rpcServer = server.New(chain, cfg.ApplicationConfiguration.RPC, serv, oracleSrv, log)
 				rpcServer.Start(errChan)
 			}
 		case <-grace.Done():

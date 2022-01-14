@@ -5,7 +5,6 @@ import (
 	"errors"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
-	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -27,7 +26,7 @@ type TransactionMetadata struct {
 }
 
 // NewTransactionOutputRaw returns a new ransactionOutputRaw object.
-func NewTransactionOutputRaw(tx *transaction.Transaction, header *block.Header, appExecResult *state.AppExecResult, chain blockchainer.Blockchainer) TransactionOutputRaw {
+func NewTransactionOutputRaw(tx *transaction.Transaction, header *block.Header, appExecResult *state.AppExecResult, chain LedgerAux) TransactionOutputRaw {
 	result := TransactionOutputRaw{
 		Transaction: *tx,
 	}

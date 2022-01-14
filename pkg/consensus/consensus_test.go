@@ -13,7 +13,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core"
-	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
 	"github.com/nspcc-dev/neo-go/pkg/core/fee"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
@@ -351,7 +350,7 @@ func TestService_OnPayload(t *testing.T) {
 	p.encodeData()
 
 	// sender is invalid
-	srv.OnPayload(&p.Extensible)
+	require.NoError(t, srv.OnPayload(&p.Extensible))
 	shouldNotReceive(t, srv.messages)
 
 	p = new(Payload)
@@ -359,16 +358,17 @@ func TestService_OnPayload(t *testing.T) {
 	p.Sender = priv.GetScriptHash()
 	p.SetPayload(&prepareRequest{})
 	require.NoError(t, p.Sign(priv))
-	srv.OnPayload(&p.Extensible)
+	require.NoError(t, srv.OnPayload(&p.Extensible))
 	shouldReceive(t, srv.messages)
 }
 
 func TestVerifyBlock(t *testing.T) {
 	srv := newTestService(t)
 
+	bc := srv.Chain.(*core.Blockchain)
 	srv.lastTimestamp = 1
 	t.Run("good empty", func(t *testing.T) {
-		b := testchain.NewBlock(t, srv.Chain, 1, 0)
+		b := testchain.NewBlock(t, bc, 1, 0)
 		require.True(t, srv.verifyBlock(&neoBlock{Block: *b}))
 	})
 	t.Run("good pooled tx", func(t *testing.T) {
@@ -377,7 +377,7 @@ func TestVerifyBlock(t *testing.T) {
 		addSender(t, tx)
 		signTx(t, srv.Chain, tx)
 		require.NoError(t, srv.Chain.PoolTx(tx))
-		b := testchain.NewBlock(t, srv.Chain, 1, 0, tx)
+		b := testchain.NewBlock(t, bc, 1, 0, tx)
 		require.True(t, srv.verifyBlock(&neoBlock{Block: *b}))
 	})
 	t.Run("good non-pooled tx", func(t *testing.T) {
@@ -385,7 +385,7 @@ func TestVerifyBlock(t *testing.T) {
 		tx.ValidUntilBlock = 1
 		addSender(t, tx)
 		signTx(t, srv.Chain, tx)
-		b := testchain.NewBlock(t, srv.Chain, 1, 0, tx)
+		b := testchain.NewBlock(t, bc, 1, 0, tx)
 		require.True(t, srv.verifyBlock(&neoBlock{Block: *b}))
 	})
 	t.Run("good conflicting tx", func(t *testing.T) {
@@ -402,11 +402,11 @@ func TestVerifyBlock(t *testing.T) {
 		signTx(t, srv.Chain, tx2)
 		require.NoError(t, srv.Chain.PoolTx(tx1))
 		require.Error(t, srv.Chain.PoolTx(tx2))
-		b := testchain.NewBlock(t, srv.Chain, 1, 0, tx2)
+		b := testchain.NewBlock(t, bc, 1, 0, tx2)
 		require.True(t, srv.verifyBlock(&neoBlock{Block: *b}))
 	})
 	t.Run("bad old", func(t *testing.T) {
-		b := testchain.NewBlock(t, srv.Chain, 1, 0)
+		b := testchain.NewBlock(t, bc, 1, 0)
 		b.Index = srv.Chain.BlockHeight()
 		require.False(t, srv.verifyBlock(&neoBlock{Block: *b}))
 	})
@@ -417,11 +417,11 @@ func TestVerifyBlock(t *testing.T) {
 		tx.ValidUntilBlock = 1
 		addSender(t, tx)
 		signTx(t, srv.Chain, tx)
-		b := testchain.NewBlock(t, srv.Chain, 1, 0, tx)
+		b := testchain.NewBlock(t, bc, 1, 0, tx)
 		require.False(t, srv.verifyBlock(&neoBlock{Block: *b}))
 	})
 	t.Run("bad timestamp", func(t *testing.T) {
-		b := testchain.NewBlock(t, srv.Chain, 1, 0)
+		b := testchain.NewBlock(t, bc, 1, 0)
 		b.Timestamp = srv.lastTimestamp - 1
 		require.False(t, srv.verifyBlock(&neoBlock{Block: *b}))
 	})
@@ -431,7 +431,7 @@ func TestVerifyBlock(t *testing.T) {
 		addSender(t, tx)
 		signTx(t, srv.Chain, tx)
 		tx.Scripts[0].InvocationScript[16] = ^tx.Scripts[0].InvocationScript[16]
-		b := testchain.NewBlock(t, srv.Chain, 1, 0, tx)
+		b := testchain.NewBlock(t, bc, 1, 0, tx)
 		require.False(t, srv.verifyBlock(&neoBlock{Block: *b}))
 	})
 	t.Run("bad big sys fee", func(t *testing.T) {
@@ -442,7 +442,7 @@ func TestVerifyBlock(t *testing.T) {
 			addSender(t, txes[i])
 			signTx(t, srv.Chain, txes[i])
 		}
-		b := testchain.NewBlock(t, srv.Chain, 1, 0, txes...)
+		b := testchain.NewBlock(t, bc, 1, 0, txes...)
 		require.False(t, srv.verifyBlock(&neoBlock{Block: *b}))
 	})
 }
@@ -532,7 +532,7 @@ func addSender(t *testing.T, txs ...*transaction.Transaction) {
 	}
 }
 
-func signTx(t *testing.T, bc blockchainer.Blockchainer, txs ...*transaction.Transaction) {
+func signTx(t *testing.T, bc Ledger, txs ...*transaction.Transaction) {
 	validators := make([]*keys.PublicKey, 4)
 	privNetKeys := make([]*keys.PrivateKey, 4)
 	for i := 0; i < 4; i++ {
@@ -544,7 +544,7 @@ func signTx(t *testing.T, bc blockchainer.Blockchainer, txs ...*transaction.Tran
 	require.NoError(t, err)
 	for _, tx := range txs {
 		size := io.GetVarSize(tx)
-		netFee, sizeDelta := fee.Calculate(bc.GetPolicer().GetBaseExecFee(), rawScript)
+		netFee, sizeDelta := fee.Calculate(bc.GetBaseExecFee(), rawScript)
 		tx.NetworkFee += +netFee
 		size += sizeDelta
 		tx.NetworkFee += int64(size) * bc.FeePerByte()

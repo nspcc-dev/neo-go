@@ -23,10 +23,11 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
-	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/mpt"
+	"github.com/nspcc-dev/neo-go/pkg/core/stateroot"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -59,6 +60,16 @@ const (
 	blocksSynced
 )
 
+// Ledger is the interface required from Blockchain for Module to operate.
+type Ledger interface {
+	AddHeaders(...*block.Header) error
+	BlockHeight() uint32
+	GetConfig() config.ProtocolConfiguration
+	GetHeader(hash util.Uint256) (*block.Header, error)
+	GetHeaderHash(int) util.Uint256
+	HeaderHeight() uint32
+}
+
 // Module represents state sync module and aimed to gather state-related data to
 // perform an atomic state jump.
 type Module struct {
@@ -74,9 +85,10 @@ type Module struct {
 	// blockHeight is the index of the latest stored block.
 	blockHeight uint32
 
-	dao     *dao.Simple
-	bc      blockchainer.Blockchainer
-	mptpool *Pool
+	dao      *dao.Simple
+	bc       Ledger
+	stateMod *stateroot.Module
+	mptpool  *Pool
 
 	billet *mpt.Billet
 
@@ -84,17 +96,19 @@ type Module struct {
 }
 
 // NewModule returns new instance of statesync module.
-func NewModule(bc blockchainer.Blockchainer, log *zap.Logger, s *dao.Simple, jumpCallback func(p uint32) error) *Module {
+func NewModule(bc Ledger, stateMod *stateroot.Module, log *zap.Logger, s *dao.Simple, jumpCallback func(p uint32) error) *Module {
 	if !(bc.GetConfig().P2PStateExchangeExtensions && bc.GetConfig().RemoveUntraceableBlocks) {
 		return &Module{
 			dao:       s,
 			bc:        bc,
+			stateMod:  stateMod,
 			syncStage: inactive,
 		}
 	}
 	return &Module{
 		dao:          s,
 		bc:           bc,
+		stateMod:     stateMod,
 		log:          log,
 		syncInterval: uint32(bc.GetConfig().StateSyncInterval),
 		mptpool:      NewPool(),
@@ -146,7 +160,7 @@ func (s *Module) Init(currChainHeight uint32) error {
 		// current chain's state until new state is completely fetched, outdated state-related data
 		// will be removed from storage during (*Blockchain).jumpToState(...) execution.
 		// All we need to do right now is to remove genesis-related MPT nodes.
-		err = s.bc.GetStateModule().CleanStorage()
+		err = s.stateMod.CleanStorage()
 		if err != nil {
 			return fmt.Errorf("failed to remove outdated MPT data from storage: %w", err)
 		}
@@ -201,7 +215,7 @@ func (s *Module) defineSyncStage() error {
 	if s.blockHeight > s.syncPoint {
 		s.syncStage |= mptSynced
 		s.log.Info("MPT is in sync",
-			zap.Uint32("stateroot height", s.bc.GetStateModule().CurrentLocalHeight()))
+			zap.Uint32("stateroot height", s.stateMod.CurrentLocalHeight()))
 	} else if s.syncStage&headersSynced != 0 {
 		header, err := s.bc.GetHeader(s.bc.GetHeaderHash(int(s.syncPoint + 1)))
 		if err != nil {

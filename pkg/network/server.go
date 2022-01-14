@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"math/big"
 	mrand "math/rand"
 	"net"
 	"sort"
@@ -12,10 +13,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
-	"github.com/nspcc-dev/neo-go/pkg/consensus"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
-	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
 	"github.com/nspcc-dev/neo-go/pkg/core/mempool"
 	"github.com/nspcc-dev/neo-go/pkg/core/mempoolevent"
 	"github.com/nspcc-dev/neo-go/pkg/core/mpt"
@@ -24,9 +24,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/network/capability"
 	"github.com/nspcc-dev/neo-go/pkg/network/extpool"
 	"github.com/nspcc-dev/neo-go/pkg/network/payload"
-	"github.com/nspcc-dev/neo-go/pkg/services/notary"
-	"github.com/nspcc-dev/neo-go/pkg/services/oracle"
-	"github.com/nspcc-dev/neo-go/pkg/services/stateroot"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"go.uber.org/atomic"
 	"go.uber.org/zap"
@@ -52,6 +49,37 @@ var (
 )
 
 type (
+	// Ledger is everything Server needs from the blockchain.
+	Ledger interface {
+		extpool.Ledger
+		mempool.Feer
+		Blockqueuer
+		GetBlock(hash util.Uint256) (*block.Block, error)
+		GetConfig() config.ProtocolConfiguration
+		GetHeader(hash util.Uint256) (*block.Header, error)
+		GetHeaderHash(int) util.Uint256
+		GetMaxVerificationGAS() int64
+		GetMemPool() *mempool.Pool
+		GetNotaryBalance(acc util.Uint160) *big.Int
+		GetNotaryContractScriptHash() util.Uint160
+		GetNotaryDepositExpiration(acc util.Uint160) uint32
+		GetTransaction(util.Uint256) (*transaction.Transaction, uint32, error)
+		HasBlock(util.Uint256) bool
+		HeaderHeight() uint32
+		P2PSigExtensionsEnabled() bool
+		PoolTx(t *transaction.Transaction, pools ...*mempool.Pool) error
+		PoolTxWithData(t *transaction.Transaction, data interface{}, mp *mempool.Pool, feer mempool.Feer, verificationFunction func(t *transaction.Transaction, data interface{}) error) error
+		RegisterPostBlock(f func(func(*transaction.Transaction, *mempool.Pool, bool) bool, *mempool.Pool, *block.Block))
+		SubscribeForBlocks(ch chan<- *block.Block)
+		UnsubscribeFromBlocks(ch chan<- *block.Block)
+	}
+
+	// Service is a service abstraction (oracle, state root, consensus, etc).
+	Service interface {
+		Start()
+		Shutdown()
+	}
+
 	// Server represents the local Node in the network. Its transport could
 	// be of any kind.
 	Server struct {
@@ -68,15 +96,17 @@ type (
 
 		transport         Transporter
 		discovery         Discoverer
-		chain             blockchainer.Blockchainer
+		chain             Ledger
 		bQueue            *blockQueue
 		bSyncQueue        *blockQueue
-		consensus         consensus.Service
 		mempool           *mempool.Pool
 		notaryRequestPool *mempool.Pool
 		extensiblePool    *extpool.Pool
 		notaryFeer        NotaryFeer
-		notaryModule      *notary.Notary
+		services          []Service
+		extensHandlers    map[string]func(*payload.Extensible) error
+		extensHighPrio    string
+		txCallback        func(*transaction.Transaction)
 
 		txInLock sync.Mutex
 		txInMap  map[util.Uint256]struct{}
@@ -97,9 +127,7 @@ type (
 
 		syncReached *atomic.Bool
 
-		oracle    *oracle.Oracle
-		stateRoot stateroot.Service
-		stateSync blockchainer.StateSync
+		stateSync StateSync
 
 		log *zap.Logger
 	}
@@ -117,15 +145,14 @@ func randomID() uint32 {
 }
 
 // NewServer returns a new Server, initialized with the given configuration.
-func NewServer(config ServerConfig, chain blockchainer.Blockchainer, log *zap.Logger) (*Server, error) {
-	return newServerFromConstructors(config, chain, log, func(s *Server) Transporter {
+func NewServer(config ServerConfig, chain Ledger, stSync StateSync, log *zap.Logger) (*Server, error) {
+	return newServerFromConstructors(config, chain, stSync, log, func(s *Server) Transporter {
 		return NewTCPTransport(s, net.JoinHostPort(s.ServerConfig.Address, strconv.Itoa(int(s.ServerConfig.Port))), s.log)
-	}, consensus.NewService, newDefaultDiscovery)
+	}, newDefaultDiscovery)
 }
 
-func newServerFromConstructors(config ServerConfig, chain blockchainer.Blockchainer, log *zap.Logger,
+func newServerFromConstructors(config ServerConfig, chain Ledger, stSync StateSync, log *zap.Logger,
 	newTransport func(*Server) Transporter,
-	newConsensus func(consensus.Config) (consensus.Service, error),
 	newDiscovery func([]string, time.Duration, Transporter) Discoverer,
 ) (*Server, error) {
 	if log == nil {
@@ -154,91 +181,23 @@ func newServerFromConstructors(config ServerConfig, chain blockchainer.Blockchai
 		extensiblePool:    extpool.New(chain, config.ExtensiblePoolSize),
 		log:               log,
 		transactions:      make(chan *transaction.Transaction, 64),
+		extensHandlers:    make(map[string]func(*payload.Extensible) error),
+		stateSync:         stSync,
 	}
 	if chain.P2PSigExtensionsEnabled() {
 		s.notaryFeer = NewNotaryFeer(chain)
 		s.notaryRequestPool = mempool.New(chain.GetConfig().P2PNotaryRequestPayloadPoolSize, 1, true)
-		chain.RegisterPostBlock(func(bc blockchainer.Blockchainer, txpool *mempool.Pool, _ *block.Block) {
+		chain.RegisterPostBlock(func(isRelevant func(*transaction.Transaction, *mempool.Pool, bool) bool, txpool *mempool.Pool, _ *block.Block) {
 			s.notaryRequestPool.RemoveStale(func(t *transaction.Transaction) bool {
-				return bc.IsTxStillRelevant(t, txpool, true)
+				return isRelevant(t, txpool, true)
 			}, s.notaryFeer)
 		})
-		if config.P2PNotaryCfg.Enabled {
-			cfg := notary.Config{
-				MainCfg: config.P2PNotaryCfg,
-				Chain:   chain,
-				Log:     log,
-			}
-			n, err := notary.NewNotary(cfg, s.network, s.notaryRequestPool, func(tx *transaction.Transaction) error {
-				if err := s.RelayTxn(tx); err != nil {
-					return fmt.Errorf("can't relay completed notary transaction: hash %s, error: %w", tx.Hash().StringLE(), err)
-				}
-				return nil
-			})
-			if err != nil {
-				return nil, fmt.Errorf("failed to create Notary module: %w", err)
-			}
-			s.notaryModule = n
-			chain.SetNotary(n)
-		}
-	} else if config.P2PNotaryCfg.Enabled {
-		return nil, errors.New("P2PSigExtensions are disabled, but Notary service is enabled")
 	}
 	s.bQueue = newBlockQueue(maxBlockBatch, chain, log, func(b *block.Block) {
 		s.tryStartServices()
 	})
 
-	if config.StateRootCfg.Enabled && chain.GetConfig().StateRootInHeader {
-		return nil, errors.New("`StateRootInHeader` should be disabled when state service is enabled")
-	}
-
-	sr, err := stateroot.New(config.StateRootCfg, s.log, chain, s.handleNewPayload)
-	if err != nil {
-		return nil, fmt.Errorf("can't initialize StateRoot service: %w", err)
-	}
-	s.stateRoot = sr
-
-	sSync := chain.GetStateSyncModule()
-	s.stateSync = sSync
-	s.bSyncQueue = newBlockQueue(maxBlockBatch, sSync, log, nil)
-
-	if config.OracleCfg.Enabled {
-		orcCfg := oracle.Config{
-			Log:     log,
-			Network: config.Net,
-			MainCfg: config.OracleCfg,
-			Chain:   chain,
-		}
-		orc, err := oracle.NewOracle(orcCfg)
-		if err != nil {
-			return nil, fmt.Errorf("can't initialize Oracle module: %w", err)
-		}
-		orc.SetOnTransaction(func(tx *transaction.Transaction) {
-			if err := s.RelayTxn(tx); err != nil {
-				orc.Log.Error("can't pool oracle tx",
-					zap.String("hash", tx.Hash().StringLE()),
-					zap.Error(err))
-			}
-		})
-		s.oracle = orc
-		chain.SetOracle(orc)
-	}
-
-	srv, err := newConsensus(consensus.Config{
-		Logger:                log,
-		Broadcast:             s.handleNewPayload,
-		Chain:                 chain,
-		ProtocolConfiguration: chain.GetConfig(),
-		RequestTx:             s.requestTx,
-		Wallet:                config.Wallet,
-
-		TimePerBlock: config.TimePerBlock,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	s.consensus = srv
+	s.bSyncQueue = newBlockQueue(maxBlockBatch, s.stateSync, log, nil)
 
 	if s.MinPeers < 0 {
 		s.log.Info("bad MinPeers configured, using the default value",
@@ -299,20 +258,13 @@ func (s *Server) Shutdown() {
 	s.log.Info("shutting down server", zap.Int("peers", s.PeerCount()))
 	s.transport.Close()
 	s.discovery.Close()
-	s.consensus.Shutdown()
 	for _, p := range s.getPeers(nil) {
 		p.Disconnect(errServerShutdown)
 	}
 	s.bQueue.discard()
 	s.bSyncQueue.discard()
-	if s.StateRootCfg.Enabled {
-		s.stateRoot.Shutdown()
-	}
-	if s.oracle != nil {
-		s.oracle.Shutdown()
-	}
-	if s.notaryModule != nil {
-		s.notaryModule.Stop()
+	for _, svc := range s.services {
+		svc.Shutdown()
 	}
 	if s.chain.P2PSigExtensionsEnabled() {
 		s.notaryRequestPool.StopSubscriptions()
@@ -320,14 +272,27 @@ func (s *Server) Shutdown() {
 	close(s.quit)
 }
 
-// GetOracle returns oracle module instance.
-func (s *Server) GetOracle() *oracle.Oracle {
-	return s.oracle
+// AddService allows to add a service to be started/stopped by Server.
+func (s *Server) AddService(svc Service) {
+	s.services = append(s.services, svc)
 }
 
-// GetStateRoot returns state root service instance.
-func (s *Server) GetStateRoot() stateroot.Service {
-	return s.stateRoot
+// AddExtensibleService register a service that handles extensible payload of some kind.
+func (s *Server) AddExtensibleService(svc Service, category string, handler func(*payload.Extensible) error) {
+	s.extensHandlers[category] = handler
+	s.AddService(svc)
+}
+
+// AddExtensibleHPService registers a high-priority service that handles extensible payload of some kind.
+func (s *Server) AddExtensibleHPService(svc Service, category string, handler func(*payload.Extensible) error, txCallback func(*transaction.Transaction)) {
+	s.txCallback = txCallback
+	s.extensHighPrio = category
+	s.AddExtensibleService(svc, category, handler)
+}
+
+// GetNotaryPool allows to retrieve notary pool, if it's configured.
+func (s *Server) GetNotaryPool() *mempool.Pool {
+	return s.notaryRequestPool
 }
 
 // UnconnectedPeers returns a list of peers that are in the discovery peer list
@@ -460,20 +425,11 @@ func (s *Server) tryStartServices() {
 
 	if s.IsInSync() && s.syncReached.CAS(false, true) {
 		s.log.Info("node reached synchronized state, starting services")
-		if s.Wallet != nil {
-			s.consensus.Start()
-		}
-		if s.StateRootCfg.Enabled {
-			s.stateRoot.Run()
-		}
-		if s.oracle != nil {
-			go s.oracle.Run()
-		}
 		if s.chain.P2PSigExtensionsEnabled() {
 			s.notaryRequestPool.RunSubscriptions() // WSClient is also a subscriber.
 		}
-		if s.notaryModule != nil {
-			go s.notaryModule.Run()
+		for _, svc := range s.services {
+			svc.Start()
 		}
 	}
 }
@@ -674,7 +630,7 @@ func (s *Server) requestBlocksOrHeaders(p Peer) error {
 		return nil
 	}
 	var (
-		bq              blockchainer.Blockqueuer = s.chain
+		bq              Blockqueuer = s.chain
 		requestMPTNodes bool
 	)
 	if s.stateSync.IsActive() {
@@ -974,25 +930,26 @@ func (s *Server) handleExtensibleCmd(e *payload.Extensible) error {
 	if !ok { // payload is already in cache
 		return nil
 	}
-	switch e.Category {
-	case consensus.Category:
-		s.consensus.OnPayload(e)
-	case stateroot.Category:
-		err := s.stateRoot.OnPayload(e)
+	handler := s.extensHandlers[e.Category]
+	if handler != nil {
+		err = handler(e)
 		if err != nil {
 			return err
 		}
-	default:
-		return errors.New("invalid category")
 	}
+	s.advertiseExtensible(e)
+	return nil
+}
 
+func (s *Server) advertiseExtensible(e *payload.Extensible) {
 	msg := NewMessage(CMDInv, payload.NewInventory(payload.ExtensibleType, []util.Uint256{e.Hash()}))
-	if e.Category == consensus.Category {
+	if e.Category == s.extensHighPrio {
+		// It's high priority because it directly affects consensus process,
+		// even though it's just an inv.
 		s.broadcastHPMessage(msg)
 	} else {
 		s.broadcastMessage(msg)
 	}
-	return nil
 }
 
 // handleTxCmd processes received transaction.
@@ -1008,8 +965,10 @@ func (s *Server) handleTxCmd(tx *transaction.Transaction) error {
 	}
 	s.txInMap[tx.Hash()] = struct{}{}
 	s.txInLock.Unlock()
+	if s.txCallback != nil {
+		s.txCallback(tx)
+	}
 	if s.verifyAndPoolTX(tx) == nil {
-		s.consensus.OnTransaction(tx)
 		s.broadcastTX(tx, nil)
 	}
 	s.txInLock.Lock()
@@ -1041,21 +1000,21 @@ func (s *Server) RelayP2PNotaryRequest(r *payload.P2PNotaryRequest) error {
 
 // verifyAndPoolNotaryRequest verifies NotaryRequest payload and adds it to the payload mempool.
 func (s *Server) verifyAndPoolNotaryRequest(r *payload.P2PNotaryRequest) error {
-	return s.chain.PoolTxWithData(r.FallbackTransaction, r, s.notaryRequestPool, s.notaryFeer, verifyNotaryRequest)
+	return s.chain.PoolTxWithData(r.FallbackTransaction, r, s.notaryRequestPool, s.notaryFeer, s.verifyNotaryRequest)
 }
 
 // verifyNotaryRequest is a function for state-dependant P2PNotaryRequest payload verification which is executed before ordinary blockchain's verification.
-func verifyNotaryRequest(bc blockchainer.Blockchainer, _ *transaction.Transaction, data interface{}) error {
+func (s *Server) verifyNotaryRequest(_ *transaction.Transaction, data interface{}) error {
 	r := data.(*payload.P2PNotaryRequest)
 	payer := r.FallbackTransaction.Signers[1].Account
-	if _, err := bc.VerifyWitness(payer, r, &r.Witness, bc.GetPolicer().GetMaxVerificationGAS()); err != nil {
+	if _, err := s.chain.VerifyWitness(payer, r, &r.Witness, s.chain.GetMaxVerificationGAS()); err != nil {
 		return fmt.Errorf("bad P2PNotaryRequest payload witness: %w", err)
 	}
-	notaryHash := bc.GetNotaryContractScriptHash()
+	notaryHash := s.chain.GetNotaryContractScriptHash()
 	if r.FallbackTransaction.Sender() != notaryHash {
 		return errors.New("P2PNotary contract should be a sender of the fallback transaction")
 	}
-	depositExpiration := bc.GetNotaryDepositExpiration(payer)
+	depositExpiration := s.chain.GetNotaryDepositExpiration(payer)
 	if r.FallbackTransaction.ValidUntilBlock >= depositExpiration {
 		return fmt.Errorf("fallback transaction is valid after deposit is unlocked: ValidUntilBlock is %d, deposit lock expires at %d", r.FallbackTransaction.ValidUntilBlock, depositExpiration)
 	}
@@ -1110,7 +1069,7 @@ func (s *Server) handleGetAddrCmd(p Peer) error {
 // 1. Block range is divided into chunks of payload.MaxHashesCount.
 // 2. Send requests for chunk in increasing order.
 // 3. After all requests were sent, request random height.
-func (s *Server) requestBlocks(bq blockchainer.Blockqueuer, p Peer) error {
+func (s *Server) requestBlocks(bq Blockqueuer, p Peer) error {
 	pl := getRequestBlocksPayload(p, bq.BlockHeight(), &s.lastRequestedBlock)
 	return p.EnqueueP2PMessage(NewMessage(CMDGetBlockByIndex, pl))
 }
@@ -1277,25 +1236,21 @@ func (s *Server) tryInitStateSync() {
 		}
 	}
 }
-func (s *Server) handleNewPayload(p *payload.Extensible) {
+
+// BroadcastExtensible add locally-generated Extensible payload to the pool
+// and advertises it to peers.
+func (s *Server) BroadcastExtensible(p *payload.Extensible) {
 	_, err := s.extensiblePool.Add(p)
 	if err != nil {
 		s.log.Error("created payload is not valid", zap.Error(err))
 		return
 	}
 
-	msg := NewMessage(CMDInv, payload.NewInventory(payload.ExtensibleType, []util.Uint256{p.Hash()}))
-	switch p.Category {
-	case consensus.Category:
-		// It's high priority because it directly affects consensus process,
-		// even though it's just an inv.
-		s.broadcastHPMessage(msg)
-	default:
-		s.broadcastMessage(msg)
-	}
+	s.advertiseExtensible(p)
 }
 
-func (s *Server) requestTx(hashes ...util.Uint256) {
+// RequestTx asks for given transactions from Server peers using GetData message.
+func (s *Server) RequestTx(hashes ...util.Uint256) {
 	if len(hashes) == 0 {
 		return
 	}

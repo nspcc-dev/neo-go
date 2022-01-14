@@ -6,6 +6,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer/services"
+	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/mempool"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
@@ -14,18 +15,19 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result/subscriptions"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/nspcc-dev/neo-go/pkg/vm"
 )
 
 // Blockchainer is an interface that abstract the implementation
 // of the blockchain.
 type Blockchainer interface {
 	ApplyPolicyToTxSet([]*transaction.Transaction) []*transaction.Transaction
+	AddBlock(block *block.Block) error
+	AddHeaders(...*block.Header) error
+	BlockHeight() uint32
 	GetConfig() config.ProtocolConfiguration
-	Blockqueuer // Blockqueuer interface
 	CalculateClaimable(h util.Uint160, endHeight uint32) (*big.Int, error)
 	Close()
-	InitVerificationVM(v *vm.VM, getContract func(util.Uint160) (*state.Contract, error), hash util.Uint160, witness *transaction.Witness) error
+	InitVerificationContext(ic *interop.Context, hash util.Uint160, witness *transaction.Witness) error
 	IsTxStillRelevant(t *transaction.Transaction, txpool *mempool.Pool, isPartialTx bool) bool
 	HeaderHeight() uint32
 	GetBlock(hash util.Uint256) (*block.Block, error)
@@ -53,22 +55,19 @@ type Blockchainer interface {
 	GetTokenLastUpdated(acc util.Uint160) (map[int32]uint32, error)
 	GetNotaryContractScriptHash() util.Uint160
 	GetNotaryBalance(acc util.Uint160) *big.Int
-	GetPolicer() Policer
 	GetValidators() ([]*keys.PublicKey, error)
 	GetStandByCommittee() keys.PublicKeys
 	GetStandByValidators() keys.PublicKeys
 	GetStateModule() StateRoot
-	GetStateSyncModule() StateSync
 	GetStorageItem(id int32, key []byte) state.StorageItem
 	GetStorageItems(id int32) ([]state.StorageItemWithKey, error)
-	GetTestVM(t trigger.Type, tx *transaction.Transaction, b *block.Block) (*vm.VM, func())
+	GetTestVM(t trigger.Type, tx *transaction.Transaction, b *block.Block) *interop.Context
 	GetTransaction(util.Uint256) (*transaction.Transaction, uint32, error)
 	SetOracle(service services.Oracle)
 	mempool.Feer // fee interface
 	ManagementContractHash() util.Uint160
 	PoolTx(t *transaction.Transaction, pools ...*mempool.Pool) error
-	PoolTxWithData(t *transaction.Transaction, data interface{}, mp *mempool.Pool, feer mempool.Feer, verificationFunction func(bc Blockchainer, t *transaction.Transaction, data interface{}) error) error
-	RegisterPostBlock(f func(Blockchainer, *mempool.Pool, *block.Block))
+	PoolTxWithData(t *transaction.Transaction, data interface{}, mp *mempool.Pool, feer mempool.Feer, verificationFunction func(t *transaction.Transaction, data interface{}) error) error
 	SetNotary(mod services.Notary)
 	SubscribeForBlocks(ch chan<- *block.Block)
 	SubscribeForExecutions(ch chan<- *state.AppExecResult)
@@ -81,4 +80,9 @@ type Blockchainer interface {
 	UnsubscribeFromExecutions(ch chan<- *state.AppExecResult)
 	UnsubscribeFromNotifications(ch chan<- *subscriptions.NotificationEvent)
 	UnsubscribeFromTransactions(ch chan<- *transaction.Transaction)
+	// Policer.
+	GetBaseExecFee() int64
+	GetMaxVerificationGAS() int64
+	GetStoragePrice() int64
+	FeePerByte() int64
 }
