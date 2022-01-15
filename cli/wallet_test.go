@@ -45,6 +45,72 @@ func TestWalletAccountRemove(t *testing.T) {
 	require.NoError(t, json.Unmarshal(rawWallet, new(wallet.Wallet)))
 }
 
+func TestWalletChangePassword(t *testing.T) {
+	tmpDir := t.TempDir()
+	e := newExecutor(t, false)
+
+	walletPath := filepath.Join(tmpDir, "wallet.json")
+	e.In.WriteString("acc1\r")
+	e.In.WriteString("pass\r")
+	e.In.WriteString("pass\r")
+	e.Run(t, "neo-go", "wallet", "init", "--wallet", walletPath, "--account")
+
+	e.In.WriteString("acc2\r")
+	e.In.WriteString("pass\r")
+	e.In.WriteString("pass\r")
+	e.Run(t, "neo-go", "wallet", "create", "--wallet", walletPath)
+
+	w, err := wallet.NewWalletFromFile(walletPath)
+	require.NoError(t, err)
+
+	addr1 := w.Accounts[0].Address
+	addr2 := w.Accounts[1].Address
+	t.Run("bad old password", func(t *testing.T) {
+		e.In.WriteString("ssap\r")
+		e.In.WriteString("aaa\r") // Pretend for the password to be fine.
+		e.In.WriteString("aaa\r")
+
+		e.RunWithError(t, "neo-go", "wallet", "change-password", "--wallet", walletPath)
+	})
+	t.Run("no account", func(t *testing.T) {
+		e.RunWithError(t, "neo-go", "wallet", "change-password", "--wallet", walletPath, "--address", "NVTiAjNgagDkTr5HTzDmQP9kPwPHN5BgVq")
+	})
+	t.Run("bad new password, multiaccount", func(t *testing.T) {
+		e.In.WriteString("pass\r")
+		e.In.WriteString("pass1\r")
+		e.In.WriteString("pass2\r")
+		e.RunWithError(t, "neo-go", "wallet", "change-password", "--wallet", walletPath)
+	})
+	t.Run("good, multiaccount", func(t *testing.T) {
+		e.In.WriteString("pass\r")
+		e.In.WriteString("asdf\r")
+		e.In.WriteString("asdf\r")
+		e.Run(t, "neo-go", "wallet", "change-password", "--wallet", walletPath)
+	})
+	t.Run("good, single account", func(t *testing.T) {
+		e.In.WriteString("asdf\r")
+		e.In.WriteString("jkl\r")
+		e.In.WriteString("jkl\r")
+		e.Run(t, "neo-go", "wallet", "change-password", "--wallet", walletPath, "--address", addr1)
+	})
+	t.Run("bad, different passwords", func(t *testing.T) {
+		e.In.WriteString("jkl\r")
+		e.RunWithError(t, "neo-go", "wallet", "change-password", "--wallet", walletPath)
+	})
+	t.Run("good, second account", func(t *testing.T) {
+		e.In.WriteString("asdf\r")
+		e.In.WriteString("jkl\r")
+		e.In.WriteString("jkl\r")
+		e.Run(t, "neo-go", "wallet", "change-password", "--wallet", walletPath, "--address", addr2)
+	})
+	t.Run("good, second multiaccount", func(t *testing.T) {
+		e.In.WriteString("jkl\r")
+		e.In.WriteString("pass\r")
+		e.In.WriteString("pass\r")
+		e.Run(t, "neo-go", "wallet", "change-password", "--wallet", walletPath)
+	})
+}
+
 func TestWalletInit(t *testing.T) {
 	tmpDir := t.TempDir()
 	e := newExecutor(t, false)
