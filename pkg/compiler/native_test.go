@@ -1,9 +1,11 @@
 package compiler_test
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"math/big"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -24,6 +26,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/interop/native/roles"
 	"github.com/nspcc-dev/neo-go/pkg/interop/native/std"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/stretchr/testify/require"
@@ -196,11 +199,23 @@ func TestNativeHelpersCompile(t *testing.T) {
 	})
 }
 
-func runNativeTestCases(t *testing.T, ctr interop.ContractMD, name string, testCases []nativeTestCase) {
+func runNativeTestCases(t *testing.T, ctr interop.ContractMD, name string, nativeTestCases []nativeTestCase) {
+	srcBuilder := bytes.NewBuffer([]byte(`package foo
+		import "github.com/nspcc-dev/neo-go/pkg/interop/native/` + name + `"
+		import "github.com/nspcc-dev/neo-go/pkg/interop"
+		var _ interop.Hash160
+	`))
+	for i, tc := range nativeTestCases {
+		addNativeTestCase(t, srcBuilder, ctr, i, name, tc.method, tc.params...)
+	}
+
+	ne, di, err := compiler.CompileWithOptions("file.go", strings.NewReader(srcBuilder.String()), nil)
+	require.NoError(t, err)
+
 	t.Run(ctr.Name, func(t *testing.T) {
-		for _, tc := range testCases {
+		for i, tc := range nativeTestCases {
 			t.Run(tc.method, func(t *testing.T) {
-				runNativeTestCase(t, ctr, name, tc.method, tc.params...)
+				runNativeTestCase(t, ne, di, ctr, i, tc.method, tc.params...)
 			})
 		}
 	})
@@ -231,30 +246,32 @@ func getMethod(t *testing.T, ctr interop.ContractMD, name string, params []strin
 	return md
 }
 
-func runNativeTestCase(t *testing.T, ctr interop.ContractMD, name, method string, params ...string) {
+func addNativeTestCase(t *testing.T, srcBuilder *bytes.Buffer, ctr interop.ContractMD, i int, name, method string, params ...string) {
 	md := getMethod(t, ctr, method, params)
 	isVoid := md.MD.ReturnType == smartcontract.VoidType
-	srcTmpl := `package foo
-		import "github.com/nspcc-dev/neo-go/pkg/interop/native/%s"
-		import "github.com/nspcc-dev/neo-go/pkg/interop"
-		var _ interop.Hash160
-	`
-	if isVoid {
-		srcTmpl += `func Main() { %s.%s(%s) }`
+	srcBuilder.WriteString("func F" + strconv.Itoa(i) + "() ")
+	if !isVoid {
+		srcBuilder.WriteString("interface{} { return ")
 	} else {
-		srcTmpl += `func Main() interface{} { return %s.%s(%s) }`
+		srcBuilder.WriteString("{ ")
 	}
 	methodUpper := strings.ToUpper(method[:1]) + method[1:] // ASCII only
 	methodUpper = strings.ReplaceAll(methodUpper, "Gas", "GAS")
 	methodUpper = strings.ReplaceAll(methodUpper, "Json", "JSON")
-	src := fmt.Sprintf(srcTmpl, name, name, methodUpper, strings.Join(params, ","))
+	srcBuilder.WriteString(name)
+	srcBuilder.WriteRune('.')
+	srcBuilder.WriteString(methodUpper)
+	srcBuilder.WriteRune('(')
+	srcBuilder.WriteString(strings.Join(params, ", "))
+	srcBuilder.WriteString(") }\n")
+}
+
+func runNativeTestCase(t *testing.T, b *nef.File, di *compiler.DebugInfo, ctr interop.ContractMD, i int, method string, params ...string) {
+	md := getMethod(t, ctr, method, params)
+	result := getTestStackItem(md.MD.ReturnType)
+	isVoid := md.MD.ReturnType == smartcontract.VoidType
 
 	v := vm.New()
-	v.GasLimit = -1
-	b, di, err := compiler.CompileWithOptions("foo.go", strings.NewReader(src), nil)
-	require.NoError(t, err)
-
-	result := getTestStackItem(md.MD.ReturnType)
 	v.LoadToken = func(id int32) error {
 		t := b.Tokens[id]
 		if t.Hash != ctr.Hash {
@@ -283,7 +300,7 @@ func runNativeTestCase(t *testing.T, ctr interop.ContractMD, name, method string
 		}
 		return nil
 	}
-	invokeMethod(t, testMainIdent, b.Script, v, di)
+	invokeMethod(t, fmt.Sprintf("F%d", i), b.Script, v, di)
 	require.NoError(t, v.Run())
 	if isVoid {
 		require.Equal(t, 0, v.Estack().Len())

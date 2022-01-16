@@ -1,9 +1,15 @@
 package compiler_test
 
 import (
+	"bytes"
 	"fmt"
 	"math/big"
+	"strings"
 	"testing"
+
+	"github.com/nspcc-dev/neo-go/pkg/compiler"
+	"github.com/nspcc-dev/neo-go/pkg/vm"
+	"github.com/stretchr/testify/require"
 )
 
 type convertTestCase struct {
@@ -25,12 +31,11 @@ func getFunctionName(typ string) string {
 }
 
 func TestConvert(t *testing.T) {
-	srcTmpl := `package foo
-	import "github.com/nspcc-dev/neo-go/pkg/interop/convert"
-	func Main() %s {
+	srcTmpl := `func F%d() %s {
 		arg := %s
 		return convert.To%s(arg)
-	}`
+	}
+	`
 
 	convertTestCases := []convertTestCase{
 		{"bool", "true", true},
@@ -53,11 +58,24 @@ func TestConvert(t *testing.T) {
 		{"[]byte", "[]byte{0, 1, 0}", []byte{0, 1, 0}},
 	}
 
-	for _, tc := range convertTestCases {
+	srcBuilder := bytes.NewBuffer([]byte(`package testcase
+		import "github.com/nspcc-dev/neo-go/pkg/interop/convert"
+	`))
+	for i, tc := range convertTestCases {
 		name := getFunctionName(tc.returnType)
-		t.Run(tc.argValue+"->"+name, func(t *testing.T) {
-			src := fmt.Sprintf(srcTmpl, tc.returnType, tc.argValue, name)
-			eval(t, src, tc.result)
+		srcBuilder.WriteString(fmt.Sprintf(srcTmpl, i, tc.returnType, tc.argValue, name))
+	}
+
+	ne, di, err := compiler.CompileWithOptions("file.go", strings.NewReader(srcBuilder.String()), nil)
+	require.NoError(t, err)
+
+	for i, tc := range convertTestCases {
+		v := vm.New()
+		t.Run(tc.argValue+getFunctionName(tc.returnType), func(t *testing.T) {
+			v.Istack().Clear()
+			v.Estack().Clear()
+			invokeMethod(t, fmt.Sprintf("F%d", i), ne.Script, v, di)
+			runAndCheck(t, v, tc.result)
 		})
 	}
 }

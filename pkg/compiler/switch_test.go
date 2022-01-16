@@ -1,28 +1,34 @@
 package compiler_test
 
 import (
+	"bytes"
+	"fmt"
 	"math/big"
+	"strings"
 	"testing"
+
+	"github.com/nspcc-dev/neo-go/pkg/compiler"
+	"github.com/nspcc-dev/neo-go/pkg/vm"
+	"github.com/stretchr/testify/require"
 )
 
 var switchTestCases = []testCase{
 	{
 		"simple switch success",
-		`package main
-		func Main() int {
+		`func F%d() int {
 			a := 5
 			switch a {
 			case 5: return 2
 			}
 			return 1
-		}`,
+		}
+		`,
 		big.NewInt(2),
 	},
 	{
 		"switch with no tag",
-		`package main
-		func f() bool { return false }
-		func Main() int {
+		`func f() bool { return false }
+		func F%d() int {
 			switch {
 			case f():
 				return 1
@@ -30,14 +36,14 @@ var switchTestCases = []testCase{
 				return 2
 			}
 			return 3
-		}`,
+		}
+		`,
 		big.NewInt(2),
 	},
 	{
 		"type conversion in tag",
-		`package main
-		type state int
-		func Main() int {
+		`type state int
+		func F%d() int {
 			a := 1
 			switch state(a) {
 			case 1:
@@ -45,52 +51,52 @@ var switchTestCases = []testCase{
 			default:
 				return 11
 			}
-		}`,
+		}
+		`,
 		big.NewInt(42),
 	},
 	{
 		"simple switch fail",
-		`package main
-		func Main() int {
+		`func F%d() int {
 			a := 6
 			switch a {
 			case 5:
 				return 2
 			}
 			return 1
-		}`,
+		}
+		`,
 		big.NewInt(1),
 	},
 	{
 		"multiple cases success",
-		`package main
-		func Main() int {
+		`func F%d() int {
 			a := 6
 			switch a {
 			case 5: return 2
 			case 6: return 3
 			}
 			return 1
-		}`,
+		}
+		`,
 		big.NewInt(3),
 	},
 	{
 		"multiple cases fail",
-		`package main
-		func Main() int {
+		`func F%d() int {
 			a := 7
 			switch a {
 			case 5: return 2
 			case 6: return 3
 			}
 			return 1
-		}`,
+		}
+		`,
 		big.NewInt(1),
 	},
 	{
 		"default case",
-		`package main
-		func Main() int {
+		`func F%d() int {
 			a := 7
 			switch a {
 			case 5: return 2
@@ -98,13 +104,13 @@ var switchTestCases = []testCase{
 			default: return 4
 			}
 			return 1
-		}`,
+		}
+		`,
 		big.NewInt(4),
 	},
 	{
 		"empty case before default",
-		`package main
-		func Main() int {
+		`func F%d() int {
 			a := 6
 			switch a {
 			case 5: return 2
@@ -112,13 +118,13 @@ var switchTestCases = []testCase{
 			default: return 4
 			}
 			return 1
-		}`,
+		}
+		`,
 		big.NewInt(1),
 	},
 	{
 		"expression in case clause",
-		`package main
-		func Main() int {
+		`func F%d() int {
 			a := 6
 			b := 3
 			switch a {
@@ -126,13 +132,13 @@ var switchTestCases = []testCase{
 			case b*3-3: return 3
 			}
 			return 1
-		}`,
+		}
+		`,
 		big.NewInt(3),
 	},
 	{
 		"multiple expressions in case",
-		`package main
-		func Main() int {
+		`func F%d() int {
 			a := 8
 			b := 3
 			switch a {
@@ -140,13 +146,13 @@ var switchTestCases = []testCase{
 			case b*3-3, 7, 8: return 3
 			}
 			return 1
-		}`,
+		}
+		`,
 		big.NewInt(3),
 	},
 	{
 		"string switch",
-		`package main
-		func Main() int {
+		`func F%d() int {
 			name := "Valera"
 			switch name {
 			case "Misha": return 2
@@ -154,13 +160,13 @@ var switchTestCases = []testCase{
 			case "Lera", "Valer" + "a": return 4
 			}
 			return 1
-		}`,
+		}
+		`,
 		big.NewInt(4),
 	},
 	{
 		"break from switch",
-		`package main
-		func Main() int {
+		`func F%d() int {
 			i := 3
 			switch i {
 			case 2: return 2
@@ -171,13 +177,13 @@ var switchTestCases = []testCase{
 			case 4: return 4
 			}
 			return i
-		}`,
+		}
+		`,
 		big.NewInt(1),
 	},
 	{
 		"break from outer for",
-		`package main
-		func Main() int {
+		`func F%d() int {
 			i := 3
 			loop:
 			for i < 10 {
@@ -191,13 +197,13 @@ var switchTestCases = []testCase{
 				}
 			}
 			return i
-		}`,
+		}
+		`,
 		big.NewInt(7),
 	},
 	{
 		"continue outer for",
-		`package main
-		func Main() int {
+		`func F%d() int {
 			i := 2
 			for i < 10 {
 				i++
@@ -214,13 +220,13 @@ var switchTestCases = []testCase{
 				}
 			}
 			return i
-		}`,
+		}
+		`,
 		big.NewInt(2),
 	},
 	{
 		"simple fallthrough",
-		`package main
-		func Main() int {
+		`func F%d() int {
 			n := 2
 			switch n {
 			case 1: return 5
@@ -228,13 +234,13 @@ var switchTestCases = []testCase{
 			case 3: return 6
 			}
 			return 7
-		}`,
+		}
+		`,
 		big.NewInt(6),
 	},
 	{
 		"double fallthrough",
-		`package main
-		func Main() int {
+		`func F%d() int {
 			n := 2
 			k := 5
 			switch n {
@@ -249,15 +255,26 @@ var switchTestCases = []testCase{
 				return k
 			}
 			return k
-		}`,
+		}
+		`,
 		big.NewInt(6),
 	},
 }
 
 func TestSwitch(t *testing.T) {
-	for _, tc := range switchTestCases {
+	srcBuilder := bytes.NewBuffer([]byte("package testcase\n"))
+	for i, tc := range switchTestCases {
+		srcBuilder.WriteString(fmt.Sprintf(tc.src, i))
+	}
+
+	ne, di, err := compiler.CompileWithOptions("file.go", strings.NewReader(srcBuilder.String()), nil)
+	require.NoError(t, err)
+
+	for i, tc := range switchTestCases {
 		t.Run(tc.name, func(t *testing.T) {
-			eval(t, tc.src, tc.result)
+			v := vm.New()
+			invokeMethod(t, fmt.Sprintf("F%d", i), ne.Script, v, di)
+			runAndCheck(t, v, tc.result)
 		})
 	}
 }

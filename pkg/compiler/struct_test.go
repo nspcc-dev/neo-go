@@ -1,19 +1,23 @@
 package compiler_test
 
 import (
+	"bytes"
+	"fmt"
 	"math/big"
+	"strings"
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/pkg/compiler"
+	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
+	"github.com/stretchr/testify/require"
 )
 
 var structTestCases = []testCase{
 	{
 		"struct field assign",
-		`
-		package foo
-		func Main() int {
-			t := token {
+		`func F%d() int {
+			t := token1 {
 				x: 2,
 				y: 4,
 			}
@@ -22,7 +26,7 @@ var structTestCases = []testCase{
 			return age
 		}
 
-		type token struct {
+		type token1 struct {
 			x int 
 			y int
 		}
@@ -31,11 +35,9 @@ var structTestCases = []testCase{
 	},
 	{
 		"struct field from func result",
-		`
-		package foo
-		type S struct { x int }
+		`type S struct { x int }
 		func fn() int { return 2 }
-		func Main() int {
+		func F%d() int {
 			t := S{x: fn()}
 			return t.x
 		}
@@ -44,15 +46,13 @@ var structTestCases = []testCase{
 	},
 	{
 		"struct field return",
-		`
-		package foo
-		type token struct {
+		`type token2 struct {
 			x int
 			y int
 		}
 
-		func Main() int {
-			t := token {
+		func F%d() int {
+			t := token2 {
 				x: 2,
 				y: 4,
 			}
@@ -64,15 +64,13 @@ var structTestCases = []testCase{
 	},
 	{
 		"struct field assign",
-		`
-		package foo
-		type token struct {
+		`type token3 struct {
 			x int
 			y int
 		}
 
-		func Main() int {
-			t := token {
+		func F%d() int {
+			t := token3 {
 				x: 2,
 				y: 4,
 			}
@@ -84,17 +82,15 @@ var structTestCases = []testCase{
 	},
 	{
 		"complex struct",
-		`
-		package foo
-		type token struct {
+		`type token4 struct {
 			x int
 			y int
 		}
 
-		func Main() int {
+		func F%d() int {
 			x := 10
 
-			t := token {
+			t := token4 {
 				x: 2,
 				y: 4,
 			}
@@ -108,95 +104,90 @@ var structTestCases = []testCase{
 	},
 	{
 		"initialize struct field from variable",
-		`
-		package foo
-		type token struct {
+		`type token5 struct {
 			x int
 			y int
 		}
 
-		func Main() int {
+		func F%d() int {
 			x := 10
-			t := token {
+			t := token5 {
 				x: x,
 				y: 4,
 			}
 			y := t.x + t.y
 			return y
-		}`,
+		}
+		`,
 		big.NewInt(14),
 	},
 	{
 		"assign a variable to a struct field",
-		`
-		package foo
-		type token struct {
+		`type token6 struct {
 			x int
 			y int
 		}
 
-		func Main() int {
+		func F%d() int {
 			ten := 10
-			t := token {
+			t := token6 {
 				x: 2,
 				y: 4,
 			}
 			t.x = ten
 			y := t.y + t.x
 			return y
-		}`,
+		}
+		`,
 		big.NewInt(14),
 	},
 	{
 		"increase struct field with +=",
-		`package foo
-		type token struct { x int }
-		func Main() int {
-		t := token{x: 2}
+		`type token7 struct { x int }
+		func F%d() int {
+		t := token7{x: 2}
 		t.x += 3
 		return t.x
-		}`,
+		}
+		`,
 		big.NewInt(5),
 	},
 	{
 		"assign a struct field to a struct field",
-		`
-		package foo
-		type token struct {
+		`type token8 struct {
 			x int
 			y int
 		}
 
-		func Main() int {
-			t1 := token {
+		func F%d() int {
+			t1 := token8 {
 				x: 2,
 				y: 4,
 			}
-			t2 := token {
+			t2 := token8 {
 				x: 3,
 				y: 5,
 			}
 			t1.x = t2.y
 			y := t1.x + t2.x
 			return y
-		}`,
+		}
+		`,
 		big.NewInt(8),
 	},
 	{
 		"initialize same struct twice",
-		`
-		package foo
-		type token struct {
+		`type token9 struct {
 			x int
 			y int
 		}
 
-		func Main() int {
-			t1 := token {
+		func F%d() int {
+			t1 := token9 {
 				x: 2,
 				y: 4,
 			}
-			t2 := token {
+			t2 := token9 {
 				x: 2,
 				y: 4,
 			}
@@ -207,18 +198,16 @@ var structTestCases = []testCase{
 	},
 	{
 		"struct methods",
-		`
-		package foo
-		type token struct {
+		`type token10 struct {
 			x int
 		}
 
-		func(t token) getInteger() int {
+		func(t token10) getInteger() int {
 			return t.x
 		}
 
-		func Main() int {
-			t := token {
+		func F%d() int {
+			t := token10 {
 				x: 4, 
 			}
 			someInt := t.getInteger()
@@ -229,19 +218,17 @@ var structTestCases = []testCase{
 	},
 	{
 		"struct methods with arguments",
-		`
-		package foo
-		type token struct {
+		`type token11 struct {
 			x int
 		}
 
 		// Also tests if x conflicts with t.x
-		func(t token) addIntegers(x int, y int) int {
+		func(t token11) addIntegers(x int, y int) int {
 			return t.x + x + y
 		}
 
-		func Main() int {
-			t := token {
+		func F%d() int {
+			t := token11 {
 				x: 4, 
 			}
 			someInt := t.addIntegers(2, 4)
@@ -252,17 +239,15 @@ var structTestCases = []testCase{
 	},
 	{
 		"initialize struct partially",
-		`
-		package foo
-		type token struct {
+		`type token12 struct {
 			x int
 			y int
 			z string
 			b bool
 		}
 
-		func Main() int {
-			t := token {
+		func F%d() int {
+			t := token12 {
 				x: 4,
 			}
 			return t.y
@@ -272,17 +257,15 @@ var structTestCases = []testCase{
 	},
 	{
 		"test return struct from func",
-		`
-		package foo
-		type token struct {
+		`type token13 struct {
 			x int
 			y int
 			z string
 			b bool
 		}
 
-		func newToken() token {
-			return token{
+		func newToken() token13 {
+			return token13{
 				x: 1,
 				y: 2, 
 				z: "hello",
@@ -290,7 +273,7 @@ var structTestCases = []testCase{
 			}
 		}
 
-		func Main() token {
+		func F%d() token13 {
 			return newToken()
 		}
 		`,
@@ -303,10 +286,7 @@ var structTestCases = []testCase{
 	},
 	{
 		"pass struct as argument",
-		`
-		package foo
-
-		type Bar struct {
+		`type Bar struct {
 			amount int
 		}
 
@@ -315,7 +295,7 @@ var structTestCases = []testCase{
 			return bar.amount
 		}
 
-		func Main() int {
+		func F%d() int {
 			b := Bar{
 				amount: 10,
 			}
@@ -328,110 +308,109 @@ var structTestCases = []testCase{
 	},
 	{
 		"declare struct literal",
-		`package foo
-		func Main() int {
+		`func F%d() int {
 			var x struct {
 				a int
 			}
 			x.a = 2
 			return x.a
-		}`,
+		}
+		`,
 		big.NewInt(2),
 	},
 	{
 		"declare struct type",
-		`package foo
-		type withA struct {
+		`type withA struct {
 			a int
 		}
-		func Main() int {
+		func F%d() int {
 			var x withA
 			x.a = 2
 			return x.a
-		}`,
+		}
+		`,
 		big.NewInt(2),
 	},
 	{
 		"nested selectors (simple read)",
-		`package foo
-		type S1 struct { x, y S2 }
+		`type S1 struct { x, y S2 }
 		type S2 struct { a, b int }
-		func Main() int {
+		func F%d() int {
 			var s1 S1
 			var s2 S2
 			s2.a = 3
 			s1.y = s2
 			return s1.y.a
-		}`,
+		}
+		`,
 		big.NewInt(3),
 	},
 	{
 		"nested selectors (simple write)",
-		`package foo
-		type S1 struct { x S2 }
-		type S2 struct { a int }
-		func Main() int {
-			s1 := S1{
-				x: S2 {
+		`type S3 struct { x S4 }
+		type S4 struct { a int }
+		func F%d() int {
+			s1 := S3{
+				x: S4 {
 					a: 3,
 				},
 			}
 			s1.x.a = 11
 			return s1.x.a
-		}`,
+		}
+		`,
 		big.NewInt(11),
 	},
 	{
 		"complex struct default value",
-		`package foo
-		type S1 struct { x S2 }
-		type S2 struct { y S3 }
-		type S3 struct { a int }
-		func Main() int {
-			var s1 S1
+		`type S5 struct { x S6 }
+		type S6 struct { y S7 }
+		type S7 struct { a int }
+		func F%d() int {
+			var s1 S5
 			s1.x.y.a = 11
 			return s1.x.y.a
-		}`,
+		}
+		`,
 		big.NewInt(11),
 	},
 	{
 		"lengthy struct default value",
-		`package foo
-		type S struct { x int; y []byte; z bool }
-		func Main() int {
-			var s S
+		`type SS struct { x int; y []byte; z bool }
+		func F%d() int {
+			var s SS
 			return s.x
-		}`,
+		}
+		`,
 		big.NewInt(0),
 	},
 	{
 		"nested selectors (complex write)",
-		`package foo
-		type S1 struct { x S2 }
-		type S2 struct { y, z S3 }
-		type S3 struct { a int }
-		func Main() int {
-			var s1 S1
+		`type S8 struct { x S9 }
+		type S9 struct { y, z S10 }
+		type S10 struct { a int }
+		func F%d() int {
+			var s1 S8
 			s1.x.y.a, s1.x.z.a = 11, 31
 			return s1.x.y.a + s1.x.z.a
-		}`,
+		}
+		`,
 		big.NewInt(42),
 	},
 	{
 		"omit field names",
-		`package foo
-		type pair struct { a, b int }
-		func Main() int {
+		`type pair struct { a, b int }
+		func F%d() int {
 			p := pair{1, 2}
 			x := p.a * 10
 			return x + p.b
-		}`,
+		}
+		`,
 		big.NewInt(12),
 	},
 	{
 		"uninitialized struct fields",
-		`package foo
-               type Foo struct {
+		`type Foo struct {
                        i int
                        m map[string]int
                        b []byte
@@ -439,7 +418,7 @@ var structTestCases = []testCase{
                        s struct { ii int }
                }
                func NewFoo() Foo { return Foo{} }
-               func Main() int {
+               func F%d() int {
                        foo := NewFoo()
                        if foo.i != 0 { return 1 }
                        if len(foo.m) != 0 { return 1 }
@@ -448,11 +427,26 @@ var structTestCases = []testCase{
                        s := foo.s
                        if s.ii != 0 { return 1 }
                        return 2
-               }`,
+               }
+		`,
 		big.NewInt(2),
 	},
 }
 
 func TestStructs(t *testing.T) {
-	runTestCases(t, structTestCases)
+	srcBuilder := bytes.NewBuffer([]byte("package testcase\n"))
+	for i, tc := range structTestCases {
+		srcBuilder.WriteString(fmt.Sprintf(tc.src, i))
+	}
+
+	ne, di, err := compiler.CompileWithOptions("file.go", strings.NewReader(srcBuilder.String()), nil)
+	require.NoError(t, err)
+
+	for i, tc := range structTestCases {
+		t.Run(tc.name, func(t *testing.T) {
+			v := vm.New()
+			invokeMethod(t, fmt.Sprintf("F%d", i), ne.Script, v, di)
+			runAndCheck(t, v, tc.result)
+		})
+	}
 }

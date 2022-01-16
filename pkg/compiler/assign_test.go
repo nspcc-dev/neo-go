@@ -1,16 +1,21 @@
 package compiler_test
 
 import (
+	"bytes"
+	"fmt"
 	"math/big"
+	"strings"
 	"testing"
+
+	"github.com/nspcc-dev/neo-go/pkg/compiler"
+	"github.com/nspcc-dev/neo-go/pkg/vm"
+	"github.com/stretchr/testify/require"
 )
 
 var assignTestCases = []testCase{
 	{
 		"chain define",
-		`
-		package foo
-		func Main() int {
+		`func F%d() int {
 			x := 4
 			y := x
 			z := y
@@ -23,9 +28,7 @@ var assignTestCases = []testCase{
 	},
 	{
 		"simple assign",
-		`
-		package foo
-		func Main() int {
+		`func F%d() int {
 			x := 4
 			x = 8
 			return x
@@ -35,9 +38,7 @@ var assignTestCases = []testCase{
 	},
 	{
 		"add assign",
-		`
-		package foo
-		func Main() int {
+		`func F%d() int {
 			x := 4
 			x += 8
 			return x
@@ -47,9 +48,7 @@ var assignTestCases = []testCase{
 	},
 	{
 		"sub assign",
-		`
-		package foo
-		func Main() int {
+		`func F%d() int {
 			x := 4
 			x -= 2
 			return x
@@ -59,9 +58,7 @@ var assignTestCases = []testCase{
 	},
 	{
 		"mul assign",
-		`
-		package foo
-		func Main() int {
+		`func F%d() int {
 			x := 4
 			x *= 2
 			return x
@@ -71,9 +68,7 @@ var assignTestCases = []testCase{
 	},
 	{
 		"div assign",
-		`
-		package foo
-		func Main() int {
+		`func F%d() int {
 			x := 4
 			x /= 2
 			return x
@@ -83,9 +78,7 @@ var assignTestCases = []testCase{
 	},
 	{
 		"add assign binary expr",
-		`
-		package foo
-		func Main() int {
+		`func F%d() int {
 			x := 4
 			x += 6 + 2
 			return x
@@ -95,9 +88,7 @@ var assignTestCases = []testCase{
 	},
 	{
 		"add assign binary expr ident",
-		`
-		package foo
-		func Main() int {
+		`func F%d() int {
 			x := 4
 			y := 5
 			x += 6 + y
@@ -108,19 +99,17 @@ var assignTestCases = []testCase{
 	},
 	{
 		"add assign for string",
-		`package foo
-		func Main() string {
+		`func F%d() string {
 			s := "Hello, "
 			s += "world!"
 			return s
-		}`,
+		}
+		`,
 		[]byte("Hello, world!"),
 	},
 	{
 		"decl assign",
-		`
-		package foo
-		func Main() int {
+		`func F%d() int {
 			var x int = 4
 			return x
 		}
@@ -129,32 +118,41 @@ var assignTestCases = []testCase{
 	},
 	{
 		"multi assign",
-		`
-		package foo
-		func Main() int {
+		`func F%d() int {
 			x, y := 1, 2
 			return x + y
 		}
 		`,
 		big.NewInt(3),
 	},
+	{
+		"many assignments",
+		`func F%d() int {
+			a := 0
+			` + strings.Repeat("a += 1\n", 1024) + `
+			return a
+		}
+		`,
+		big.NewInt(1024),
+	},
 }
 
 func TestAssignments(t *testing.T) {
-	runTestCases(t, assignTestCases)
-}
-
-func TestManyAssignments(t *testing.T) {
-	src1 := `package foo
-	func Main() int {
-		a := 0
-	`
-	src2 := `return a
-	}`
-
-	for i := 0; i < 1024; i++ {
-		src1 += "a += 1\n"
+	srcBuilder := bytes.NewBuffer([]byte("package testcase\n"))
+	for i, tc := range assignTestCases {
+		srcBuilder.WriteString(fmt.Sprintf(tc.src, i))
 	}
 
-	eval(t, src1+src2, big.NewInt(1024))
+	ne, di, err := compiler.CompileWithOptions("file.go", strings.NewReader(srcBuilder.String()), nil)
+	require.NoError(t, err)
+
+	for i, tc := range assignTestCases {
+		v := vm.New()
+		t.Run(tc.name, func(t *testing.T) {
+			v.Istack().Clear()
+			v.Estack().Clear()
+			invokeMethod(t, fmt.Sprintf("F%d", i), ne.Script, v, di)
+			runAndCheck(t, v, tc.result)
+		})
+	}
 }
