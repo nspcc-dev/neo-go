@@ -106,6 +106,18 @@ func NewCommands() []cli.Command {
 				},
 			},
 			{
+				Name:   "change-password",
+				Usage:  "change password for accounts",
+				Action: changePassword,
+				Flags: []cli.Flag{
+					walletPathFlag,
+					flags.AddressFlag{
+						Name:  "address, a",
+						Usage: "address to change password for",
+					},
+				},
+			},
+			{
 				Name:   "convert",
 				Usage:  "convert addresses from existing NEO2 NEP6-wallet to NEO3 format",
 				Action: convertWallet,
@@ -286,6 +298,55 @@ func claimGas(ctx *cli.Context) error {
 	}
 
 	fmt.Fprintln(ctx.App.Writer, hash.StringLE())
+	return nil
+}
+
+func changePassword(ctx *cli.Context) error {
+	wall, err := openWallet(ctx.String("wallet"))
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
+	addrFlag := ctx.Generic("address").(*flags.Address)
+	if addrFlag.IsSet {
+		// Check for account presence first before asking for password.
+		acc := wall.GetAccount(addrFlag.Uint160())
+		if acc == nil {
+			return cli.NewExitError("account is missing", 1)
+		}
+	}
+
+	oldPass, err := input.ReadPassword("Enter password > ")
+	if err != nil {
+		return cli.NewExitError(fmt.Errorf("Error reading old password: %w", err), 1)
+	}
+
+	for i := range wall.Accounts {
+		if addrFlag.IsSet && wall.Accounts[i].Address != addrFlag.String() {
+			continue
+		}
+		err := wall.Accounts[i].Decrypt(oldPass, wall.Scrypt)
+		if err != nil {
+			return cli.NewExitError(fmt.Errorf("unable to decrypt account %s: %w", wall.Accounts[i].Address, err), 1)
+		}
+	}
+
+	pass, err := readNewPassword()
+	if err != nil {
+		return cli.NewExitError(fmt.Errorf("Error reading new password: %w", err), 1)
+	}
+	for i := range wall.Accounts {
+		if addrFlag.IsSet && wall.Accounts[i].Address != addrFlag.String() {
+			continue
+		}
+		err := wall.Accounts[i].Encrypt(pass, wall.Scrypt)
+		if err != nil {
+			return cli.NewExitError(err, 1)
+		}
+	}
+	err = wall.Save()
+	if err != nil {
+		return cli.NewExitError(fmt.Errorf("Error saving the wallet: %w", err), 1)
+	}
 	return nil
 }
 
@@ -656,22 +717,31 @@ func createWallet(ctx *cli.Context) error {
 }
 
 func readAccountInfo() (string, string, error) {
-	rawName, _ := input.ReadLine("Enter the name of the account > ")
+	name, err := input.ReadLine("Enter the name of the account > ")
+	if err != nil {
+		return "", "", err
+	}
+	phrase, err := readNewPassword()
+	if err != nil {
+		return "", "", err
+	}
+	return name, phrase, nil
+}
+
+func readNewPassword() (string, error) {
 	phrase, err := input.ReadPassword("Enter passphrase > ")
 	if err != nil {
-		return "", "", fmt.Errorf("Error reading password: %w", err)
+		return "", fmt.Errorf("Error reading password: %w", err)
 	}
 	phraseCheck, err := input.ReadPassword("Confirm passphrase > ")
 	if err != nil {
-		return "", "", fmt.Errorf("Error reading password: %w", err)
+		return "", fmt.Errorf("Error reading password: %w", err)
 	}
 
 	if phrase != phraseCheck {
-		return "", "", errPhraseMismatch
+		return "", errPhraseMismatch
 	}
-
-	name := strings.TrimRight(rawName, "\n")
-	return name, phrase, nil
+	return phrase, nil
 }
 
 func createAccount(wall *wallet.Wallet) error {
