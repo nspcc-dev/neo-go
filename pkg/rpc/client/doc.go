@@ -38,6 +38,7 @@ Supported methods
 	getrawmempool
 	getrawtransaction
 	getstateheight
+	getstateroot
 	getstorage
 	gettransactionheight
 	getunclaimedgas

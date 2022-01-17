@@ -471,6 +471,24 @@ func (c *Client) FindStates(stateroot util.Uint256, historicalContractHash util.
 	return resp, nil
 }
 
+// GetStateRootByHeight returns state root for the specified height.
+func (c *Client) GetStateRootByHeight(height uint32) (*state.MPTRoot, error) {
+	return c.getStateRoot(request.NewRawParams(height))
+}
+
+// GetStateRootByBlockHash returns state root for block with specified hash.
+func (c *Client) GetStateRootByBlockHash(hash util.Uint256) (*state.MPTRoot, error) {
+	return c.getStateRoot(request.NewRawParams(hash))
+}
+
+func (c *Client) getStateRoot(params request.RawParams) (*state.MPTRoot, error) {
+	var resp = new(state.MPTRoot)
+	if err := c.performRequest("getstateroot", params, resp); err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
 // GetStateHeight returns current validated and local node state height.
 func (c *Client) GetStateHeight() (*result.StateHeight, error) {
 	var (
