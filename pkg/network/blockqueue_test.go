@@ -37,11 +37,7 @@ func TestBlockQueue(t *testing.T) {
 	assert.Equal(t, 4, bq.length())
 	go bq.run()
 	// run() is asynchronous, so we need some kind of timeout anyway and this is the simplest one
-	for i := 0; i < 5; i++ {
-		if chain.BlockHeight() != 4 {
-			time.Sleep(time.Second)
-		}
-	}
+	assert.Eventually(t, func() bool { return chain.BlockHeight() == 4 }, 4*time.Second, 100*time.Millisecond)
 	assert.Equal(t, 0, bq.length())
 	assert.Equal(t, uint32(4), chain.BlockHeight())
 	// put some old blocks
@@ -64,11 +60,7 @@ func TestBlockQueue(t *testing.T) {
 	assert.NoError(t, bq.putBlock(blocks[6]))
 	assert.NoError(t, bq.putBlock(blocks[5]))
 	// run() is asynchronous, so we need some kind of timeout anyway and this is the simplest one
-	for i := 0; i < 5; i++ {
-		if chain.BlockHeight() != 8 {
-			time.Sleep(time.Second)
-		}
-	}
+	assert.Eventually(t, func() bool { return chain.BlockHeight() == 8 }, 4*time.Second, 100*time.Millisecond)
 	assert.Equal(t, 1, bq.length())
 	assert.Equal(t, uint32(8), chain.BlockHeight())
 	bq.discard()
