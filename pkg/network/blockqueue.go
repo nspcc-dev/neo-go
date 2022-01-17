@@ -32,6 +32,10 @@ const (
 	blockCacheSize = 2000
 )
 
+func indexToPosition(i uint32) int {
+	return int(i) % blockCacheSize
+}
+
 func newBlockQueue(capacity int, bc Blockqueuer, log *zap.Logger, relayer func(*block.Block)) *blockQueue {
 	if log == nil {
 		return nil
@@ -56,12 +60,12 @@ func (bq *blockQueue) run() {
 		}
 		for {
 			h := bq.chain.BlockHeight()
-			pos := int(h+1) % blockCacheSize
+			pos := indexToPosition(h + 1)
 			bq.queueLock.Lock()
 			b := bq.queue[pos]
 			// The chain moved forward using blocks from other sources (consensus).
 			for i := lastHeight; i < h; i++ {
-				old := int(i+1) % blockCacheSize
+				old := indexToPosition(i + 1)
 				if bq.queue[old] != nil && bq.queue[old].Index == i {
 					bq.len--
 					bq.queue[old] = nil
@@ -106,7 +110,7 @@ func (bq *blockQueue) putBlock(block *block.Block) error {
 		bq.queueLock.Unlock()
 		return nil
 	}
-	pos := block.Index % blockCacheSize
+	pos := indexToPosition(block.Index)
 	// If we already have it, keep the old block, throw away new one.
 	if bq.queue[pos] == nil || bq.queue[pos].Index < block.Index {
 		bq.len++
