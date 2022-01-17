@@ -17,8 +17,9 @@ type Blockqueuer interface {
 
 type blockQueue struct {
 	log         *zap.Logger
-	queueLock   sync.Mutex
+	queueLock   sync.RWMutex
 	queue       []*block.Block
+	lastQ       uint32
 	checkBlocks chan struct{}
 	chain       Blockqueuer
 	relayF      func(*block.Block)
@@ -115,6 +116,10 @@ func (bq *blockQueue) putBlock(block *block.Block) error {
 	if bq.queue[pos] == nil || bq.queue[pos].Index < block.Index {
 		bq.len++
 		bq.queue[pos] = block
+		for pos < blockCacheSize && bq.queue[pos] != nil && bq.lastQ+1 == bq.queue[pos].Index {
+			bq.lastQ = bq.queue[pos].Index
+			pos++
+		}
 	}
 	l := bq.len
 	bq.queueLock.Unlock()
@@ -127,6 +132,12 @@ func (bq *blockQueue) putBlock(block *block.Block) error {
 		// it's already busy processing blocks
 	}
 	return nil
+}
+
+func (bq *blockQueue) lastQueued() uint32 {
+	bq.queueLock.RLock()
+	defer bq.queueLock.RUnlock()
+	return bq.lastQ
 }
 
 func (bq *blockQueue) discard() {

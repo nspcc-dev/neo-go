@@ -1070,7 +1070,16 @@ func (s *Server) handleGetAddrCmd(p Peer) error {
 // 2. Send requests for chunk in increasing order.
 // 3. After all requests were sent, request random height.
 func (s *Server) requestBlocks(bq Blockqueuer, p Peer) error {
-	pl := getRequestBlocksPayload(p, bq.BlockHeight(), &s.lastRequestedBlock)
+	h := bq.BlockHeight()
+	pl := getRequestBlocksPayload(p, h, &s.lastRequestedBlock)
+	lq := s.bQueue.lastQueued()
+	if lq > pl.IndexStart {
+		c := int16(h + blockCacheSize - lq)
+		if c < payload.MaxHashesCount {
+			pl.Count = c
+		}
+		pl.IndexStart = lq + 1
+	}
 	return p.EnqueueP2PMessage(NewMessage(CMDGetBlockByIndex, pl))
 }
 
