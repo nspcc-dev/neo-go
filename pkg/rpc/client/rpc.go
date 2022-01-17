@@ -459,7 +459,7 @@ func (c *Client) GetState(stateroot util.Uint256, historicalContractHash util.Ui
 func (c *Client) FindStates(stateroot util.Uint256, historicalContractHash util.Uint160, historicalPrefix []byte,
 	start []byte, maxCount *int) (result.FindStates, error) {
 	var (
-		params = request.NewRawParams(stateroot.StringLE(), historicalContractHash.StringLE(), historicalPrefix, historicalPrefix, start)
+		params = request.NewRawParams(stateroot.StringLE(), historicalContractHash.StringLE(), historicalPrefix, start)
 		resp   result.FindStates
 	)
 	if maxCount != nil {
