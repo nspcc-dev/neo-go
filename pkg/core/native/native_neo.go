@@ -396,8 +396,8 @@ func (n *NEO) getGASPerVote(d dao.DAO, key []byte, indexes []uint32) []big.Int {
 		Prefix:    key,
 		Start:     start,
 		Backwards: true,
-	}, func(k, v []byte) {
-		if collected < need && len(k) == 4 {
+	}, func(k, v []byte) bool {
+		if len(k) == 4 {
 			num := binary.BigEndian.Uint32(k)
 			for i, ind := range indexes {
 				if reward[i].Sign() == 0 && num <= ind {
@@ -406,6 +406,7 @@ func (n *NEO) getGASPerVote(d dao.DAO, key []byte, indexes []uint32) []big.Int {
 				}
 			}
 		}
+		return collected < need
 	})
 	return reward
 }
@@ -601,8 +602,9 @@ func (n *NEO) dropCandidateIfZero(d dao.DAO, pub *keys.PublicKey, c *candidate) 
 
 	var toRemove []string
 	voterKey := makeVoterKey(pub.Bytes())
-	d.Seek(n.ID, storage.SeekRange{Prefix: voterKey}, func(k, v []byte) {
+	d.Seek(n.ID, storage.SeekRange{Prefix: voterKey}, func(k, v []byte) bool {
 		toRemove = append(toRemove, string(k))
+		return true
 	})
 	for i := range toRemove {
 		if err := d.DeleteStorageItem(n.ID, []byte(toRemove[i])); err != nil {

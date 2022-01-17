@@ -32,7 +32,7 @@ func TestModule_PR2019_discussion_r689629704(t *testing.T) {
 		nodes         = make(map[util.Uint256][]byte)
 		expectedItems []storage.KeyValue
 	)
-	expectedStorage.Seek(storage.SeekRange{Prefix: storage.DataMPT.Bytes()}, func(k, v []byte) {
+	expectedStorage.Seek(storage.SeekRange{Prefix: storage.DataMPT.Bytes()}, func(k, v []byte) bool {
 		key := slice.Copy(k)
 		value := slice.Copy(v)
 		expectedItems = append(expectedItems, storage.KeyValue{
@@ -43,6 +43,7 @@ func TestModule_PR2019_discussion_r689629704(t *testing.T) {
 		require.NoError(t, err)
 		nodeBytes := value[:len(value)-4]
 		nodes[hash] = nodeBytes
+		return true
 	})
 
 	actualStorage := storage.NewMemCachedStore(storage.NewMemoryStore())
@@ -95,13 +96,14 @@ func TestModule_PR2019_discussion_r689629704(t *testing.T) {
 
 	// Compare resulting storage items and refcounts.
 	var actualItems []storage.KeyValue
-	expectedStorage.Seek(storage.SeekRange{Prefix: storage.DataMPT.Bytes()}, func(k, v []byte) {
+	expectedStorage.Seek(storage.SeekRange{Prefix: storage.DataMPT.Bytes()}, func(k, v []byte) bool {
 		key := slice.Copy(k)
 		value := slice.Copy(v)
 		actualItems = append(actualItems, storage.KeyValue{
 			Key:   key,
 			Value: value,
 		})
+		return true
 	})
 	require.ElementsMatch(t, expectedItems, actualItems)
 }

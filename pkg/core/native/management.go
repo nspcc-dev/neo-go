@@ -503,13 +503,14 @@ func (m *Management) InitializeCache(d dao.DAO) error {
 	defer m.mtx.Unlock()
 
 	var initErr error
-	d.Seek(m.ID, storage.SeekRange{Prefix: []byte{prefixContract}}, func(_, v []byte) {
+	d.Seek(m.ID, storage.SeekRange{Prefix: []byte{prefixContract}}, func(_, v []byte) bool {
 		var cs = new(state.Contract)
 		initErr = stackitem.DeserializeConvertible(v, cs)
 		if initErr != nil {
-			return
+			return false
 		}
 		m.updateContractCache(cs)
+		return true
 	})
 	return initErr
 }

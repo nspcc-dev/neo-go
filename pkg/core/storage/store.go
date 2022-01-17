@@ -51,7 +51,7 @@ type SeekRange struct {
 	// Empty Prefix means seeking through all keys in the DB starting from
 	// the Start if specified.
 	Prefix []byte
-	// Start denotes value upended to the Prefix to start Seek from.
+	// Start denotes value appended to the Prefix to start Seek from.
 	// Seeking starting from some key includes this key to the result;
 	// if no matching key was found then next suitable key is picked up.
 	// Start may be empty. Empty Start means seeking through all keys in
@@ -81,9 +81,10 @@ type (
 		// PutChangeSet allows to push prepared changeset to the Store.
 		PutChangeSet(puts map[string][]byte, dels map[string]bool) error
 		// Seek can guarantee that provided key (k) and value (v) are the only valid until the next call to f.
-		// Key and value slices should not be modified. Seek can guarantee that key-value items are sorted by
-		// key in ascending way.
-		Seek(rng SeekRange, f func(k, v []byte))
+		// Seek continues iteration until false is returned from f.
+		// Key and value slices should not be modified.
+		// Seek can guarantee that key-value items are sorted by key in ascending way.
+		Seek(rng SeekRange, f func(k, v []byte) bool)
 		Close() error
 	}
 

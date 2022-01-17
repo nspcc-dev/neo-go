@@ -134,9 +134,10 @@ func (s *Module) CleanStorage() error {
 		return fmt.Errorf("can't clean MPT data for non-genesis block: expected local stateroot height 0, got %d", s.localHeight.Load())
 	}
 	b := s.Store.Batch()
-	s.Store.Seek(storage.SeekRange{Prefix: []byte{byte(storage.DataMPT)}}, func(k, _ []byte) {
+	s.Store.Seek(storage.SeekRange{Prefix: []byte{byte(storage.DataMPT)}}, func(k, _ []byte) bool {
 		// #1468, but don't need to copy here, because it is done by Store.
 		b.Delete(k)
+		return true
 	})
 	err := s.Store.PutBatch(b)
 	if err != nil {

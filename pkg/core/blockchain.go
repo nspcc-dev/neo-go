@@ -486,9 +486,10 @@ func (bc *Blockchain) removeOldStorageItems() {
 
 	b := bc.dao.Store.Batch()
 	prefix := statesync.TemporaryPrefix(bc.dao.Version.StoragePrefix)
-	bc.dao.Store.Seek(storage.SeekRange{Prefix: []byte{byte(prefix)}}, func(k, _ []byte) {
+	bc.dao.Store.Seek(storage.SeekRange{Prefix: []byte{byte(prefix)}}, func(k, _ []byte) bool {
 		// #1468, but don't need to copy here, because it is done by Store.
 		b.Delete(k)
+		return true
 	})
 	b.Delete(storage.SYSCleanStorage.Bytes())
 

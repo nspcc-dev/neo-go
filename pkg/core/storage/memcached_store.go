@@ -90,7 +90,7 @@ func (s *MemCachedStore) GetBatch() *MemBatch {
 }
 
 // Seek implements the Store interface.
-func (s *MemCachedStore) Seek(rng SeekRange, f func(k, v []byte)) {
+func (s *MemCachedStore) Seek(rng SeekRange, f func(k, v []byte) bool) {
 	s.seek(context.Background(), rng, false, f)
 }
 
@@ -100,11 +100,12 @@ func (s *MemCachedStore) Seek(rng SeekRange, f func(k, v []byte)) {
 func (s *MemCachedStore) SeekAsync(ctx context.Context, rng SeekRange, cutPrefix bool) chan KeyValue {
 	res := make(chan KeyValue)
 	go func() {
-		s.seek(ctx, rng, cutPrefix, func(k, v []byte) {
+		s.seek(ctx, rng, cutPrefix, func(k, v []byte) bool {
 			res <- KeyValue{
 				Key:   k,
 				Value: v,
 			}
+			return true // always continue, we have context for early stop.
 		})
 		close(res)
 	}()
@@ -117,7 +118,7 @@ func (s *MemCachedStore) SeekAsync(ctx context.Context, rng SeekRange, cutPrefix
 // key needs to be cut off the resulting keys. `rng` specifies prefix items must match
 // and point to start seeking from. Backwards seeking from some point is supported
 // with corresponding `rng` field set.
-func (s *MemCachedStore) seek(ctx context.Context, rng SeekRange, cutPrefix bool, f func(k, v []byte)) {
+func (s *MemCachedStore) seek(ctx context.Context, rng SeekRange, cutPrefix bool, f func(k, v []byte) bool) {
 	// Create memory store `mem` and `del` snapshot not to hold the lock.
 	var memRes []KeyValueExists
 	sPrefix := string(rng.Prefix)
@@ -176,21 +177,21 @@ func (s *MemCachedStore) seek(ctx context.Context, rng SeekRange, cutPrefix bool
 		haveMem = true
 		iMem++
 	}
-	// Merge results of seek operations in ascending order.
-	mergeFunc := func(k, v []byte) {
+	// Merge results of seek operations in ascending order. It returns whether iterating
+	// should be continued.
+	mergeFunc := func(k, v []byte) bool {
 		if done {
-			return
+			return false
 		}
 		kvPs := KeyValue{
 			Key:   slice.Copy(k),
 			Value: slice.Copy(v),
 		}
-	loop:
 		for {
 			select {
 			case <-ctx.Done():
 				done = true
-				break loop
+				return false
 			default:
 				var isMem = haveMem && less(kvMem.Key, kvPs.Key)
 				if isMem {
@@ -198,7 +199,10 @@ func (s *MemCachedStore) seek(ctx context.Context, rng SeekRange, cutPrefix bool
 						if cutPrefix {
 							kvMem.Key = kvMem.Key[lPrefix:]
 						}
-						f(kvMem.Key, kvMem.Value)
+						if !f(kvMem.Key, kvMem.Value) {
+							done = true
+							return false
+						}
 					}
 					if iMem < len(memRes) {
 						kvMem = memRes[iMem]
@@ -212,9 +216,12 @@ func (s *MemCachedStore) seek(ctx context.Context, rng SeekRange, cutPrefix bool
 						if cutPrefix {
 							kvPs.Key = kvPs.Key[lPrefix:]
 						}
-						f(kvPs.Key, kvPs.Value)
+						if !f(kvPs.Key, kvPs.Value) {
+							done = true
+							return false
+						}
 					}
-					break loop
+					return true
 				}
 			}
 		}
@@ -233,7 +240,9 @@ func (s *MemCachedStore) seek(ctx context.Context, rng SeekRange, cutPrefix bool
 					if cutPrefix {
 						kvMem.Key = kvMem.Key[lPrefix:]
 					}
-					f(kvMem.Key, kvMem.Value)
+					if !f(kvMem.Key, kvMem.Value) {
+						break loop
+					}
 				}
 			}
 		}

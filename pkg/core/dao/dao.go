@@ -62,7 +62,7 @@ type DAO interface {
 	PutStateSyncCurrentBlockHeight(h uint32) error
 	PutStorageItem(id int32, key []byte, si state.StorageItem) error
 	PutVersion(v Version) error
-	Seek(id int32, rng storage.SeekRange, f func(k, v []byte))
+	Seek(id int32, rng storage.SeekRange, f func(k, v []byte) bool)
 	SeekAsync(ctx context.Context, id int32, rng storage.SeekRange) chan storage.KeyValue
 	StoreAsBlock(block *block.Block, aer1 *state.AppExecResult, aer2 *state.AppExecResult, buf *io.BufBinWriter) error
 	StoreAsCurrentBlock(block *block.Block, buf *io.BufBinWriter) error
@@ -292,13 +292,14 @@ func (dao *Simple) GetStorageItems(id int32) ([]state.StorageItemWithKey, error)
 func (dao *Simple) GetStorageItemsWithPrefix(id int32, prefix []byte) ([]state.StorageItemWithKey, error) {
 	var siArr []state.StorageItemWithKey
 
-	saveToArr := func(k, v []byte) {
+	saveToArr := func(k, v []byte) bool {
 		// Cut prefix and hash.
 		// #1468, but don't need to copy here, because it is done by Store.
 		siArr = append(siArr, state.StorageItemWithKey{
 			Key:  k,
 			Item: state.StorageItem(v),
 		})
+		return true
 	}
 	dao.Seek(id, storage.SeekRange{Prefix: prefix}, saveToArr)
 	return siArr, nil
@@ -306,11 +307,11 @@ func (dao *Simple) GetStorageItemsWithPrefix(id int32, prefix []byte) ([]state.S
 
 // Seek executes f for all storage items matching a given `rng` (matching given prefix and
 // starting from the point specified). If key or value is to be used outside of f, they
-// may not be copied.
-func (dao *Simple) Seek(id int32, rng storage.SeekRange, f func(k, v []byte)) {
+// may not be copied. Seek continues iterating until false is returned from f.
+func (dao *Simple) Seek(id int32, rng storage.SeekRange, f func(k, v []byte) bool) {
 	rng.Prefix = makeStorageItemKey(dao.Version.StoragePrefix, id, rng.Prefix)
-	dao.Store.Seek(rng, func(k, v []byte) {
-		f(k[len(rng.Prefix):], v)
+	dao.Store.Seek(rng, func(k, v []byte) bool {
+		return f(k[len(rng.Prefix):], v)
 	})
 }
 
@@ -477,13 +478,14 @@ func (dao *Simple) GetHeaderHashes() ([]util.Uint256, error) {
 	hashMap := make(map[uint32][]util.Uint256)
 	dao.Store.Seek(storage.SeekRange{
 		Prefix: storage.IXHeaderHashList.Bytes(),
-	}, func(k, v []byte) {
+	}, func(k, v []byte) bool {
 		storedCount := binary.LittleEndian.Uint32(k[1:])
 		hashes, err := read2000Uint256Hashes(v)
 		if err != nil {
 			panic(err)
 		}
 		hashMap[storedCount] = hashes
+		return true
 	})
 
 	var (

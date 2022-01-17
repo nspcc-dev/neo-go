@@ -1768,11 +1768,12 @@ func TestBlockchain_InitWithIncompleteStateJump(t *testing.T) {
 	if bcSpout.dao.Version.StoragePrefix == tempPrefix {
 		tempPrefix = storage.STStorage
 	}
-	bcSpout.dao.Store.Seek(storage.SeekRange{Prefix: bcSpout.dao.Version.StoragePrefix.Bytes()}, func(k, v []byte) {
+	bcSpout.dao.Store.Seek(storage.SeekRange{Prefix: bcSpout.dao.Version.StoragePrefix.Bytes()}, func(k, v []byte) bool {
 		key := slice.Copy(k)
 		key[0] = byte(tempPrefix)
 		value := slice.Copy(v)
 		batch.Put(key, value)
+		return true
 	})
 	require.NoError(t, bcSpout.dao.Store.PutBatch(batch))
 

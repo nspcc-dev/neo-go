@@ -85,7 +85,7 @@ func (s *LevelDBStore) PutChangeSet(puts map[string][]byte, dels map[string]bool
 }
 
 // Seek implements the Store interface.
-func (s *LevelDBStore) Seek(rng SeekRange, f func(k, v []byte)) {
+func (s *LevelDBStore) Seek(rng SeekRange, f func(k, v []byte) bool) {
 	start := make([]byte, len(rng.Prefix)+len(rng.Start))
 	copy(start, rng.Prefix)
 	copy(start[len(rng.Prefix):], rng.Start)
@@ -96,23 +96,27 @@ func (s *LevelDBStore) Seek(rng SeekRange, f func(k, v []byte)) {
 	}
 }
 
-func (s *LevelDBStore) seek(key []byte, start []byte, f func(k, v []byte)) {
+func (s *LevelDBStore) seek(key []byte, start []byte, f func(k, v []byte) bool) {
 	prefix := util.BytesPrefix(key)
 	prefix.Start = start
 	iter := s.db.NewIterator(prefix, nil)
 	for iter.Next() {
-		f(iter.Key(), iter.Value())
+		if !f(iter.Key(), iter.Value()) {
+			break
+		}
 	}
 	iter.Release()
 }
 
-func (s *LevelDBStore) seekBackwards(key []byte, start []byte, f func(k, v []byte)) {
+func (s *LevelDBStore) seekBackwards(key []byte, start []byte, f func(k, v []byte) bool) {
 	iRange := util.BytesPrefix(start)
 	iRange.Start = key
 
 	iter := s.db.NewIterator(iRange, nil)
 	for ok := iter.Last(); ok; ok = iter.Prev() {
-		f(iter.Key(), iter.Value())
+		if !f(iter.Key(), iter.Value()) {
+			break
+		}
 	}
 	iter.Release()
 }

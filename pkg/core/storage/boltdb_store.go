@@ -109,7 +109,7 @@ func (s *BoltDBStore) PutChangeSet(puts map[string][]byte, dels map[string]bool)
 }
 
 // Seek implements the Store interface.
-func (s *BoltDBStore) Seek(rng SeekRange, f func(k, v []byte)) {
+func (s *BoltDBStore) Seek(rng SeekRange, f func(k, v []byte) bool) {
 	start := make([]byte, len(rng.Prefix)+len(rng.Start))
 	copy(start, rng.Prefix)
 	copy(start[len(rng.Prefix):], rng.Start)
@@ -120,13 +120,15 @@ func (s *BoltDBStore) Seek(rng SeekRange, f func(k, v []byte)) {
 	}
 }
 
-func (s *BoltDBStore) seek(key []byte, start []byte, f func(k, v []byte)) {
+func (s *BoltDBStore) seek(key []byte, start []byte, f func(k, v []byte) bool) {
 	prefix := util.BytesPrefix(key)
 	prefix.Start = start
 	err := s.db.View(func(tx *bbolt.Tx) error {
 		c := tx.Bucket(Bucket).Cursor()
 		for k, v := c.Seek(prefix.Start); k != nil && (len(prefix.Limit) == 0 || bytes.Compare(k, prefix.Limit) <= 0); k, v = c.Next() {
-			f(k, v)
+			if !f(k, v) {
+				break
+			}
 		}
 		return nil
 	})
@@ -135,7 +137,7 @@ func (s *BoltDBStore) seek(key []byte, start []byte, f func(k, v []byte)) {
 	}
 }
 
-func (s *BoltDBStore) seekBackwards(key []byte, start []byte, f func(k, v []byte)) {
+func (s *BoltDBStore) seekBackwards(key []byte, start []byte, f func(k, v []byte) bool) {
 	err := s.db.View(func(tx *bbolt.Tx) error {
 		c := tx.Bucket(Bucket).Cursor()
 		// Move cursor to the first kv pair which is followed by the pair matching the specified prefix.
@@ -146,7 +148,9 @@ func (s *BoltDBStore) seekBackwards(key []byte, start []byte, f func(k, v []byte
 		rng := util.BytesPrefix(start) // in fact, we only need limit based on start slice to iterate backwards starting from this limit
 		c.Seek(rng.Limit)
 		for k, v := c.Prev(); k != nil && bytes.HasPrefix(k, key); k, v = c.Prev() {
-			f(k, v)
+			if !f(k, v) {
+				break
+			}
 		}
 		return nil
 	})
