@@ -1235,11 +1235,11 @@ func (s *Server) findStates(ps request.Params) (interface{}, *response.Error) {
 	}
 	csHash, err := ps.Value(1).GetUint160FromHex()
 	if err != nil {
-		return nil, response.WrapErrorWithData(response.ErrInvalidParams, errors.New("invalid contract hash"))
+		return nil, response.WrapErrorWithData(response.ErrInvalidParams, fmt.Errorf("invalid contract hash: %w", err))
 	}
 	prefix, err := ps.Value(2).GetBytesBase64()
 	if err != nil {
-		return nil, response.WrapErrorWithData(response.ErrInvalidParams, errors.New("invalid prefix"))
+		return nil, response.WrapErrorWithData(response.ErrInvalidParams, fmt.Errorf("invalid prefix: %w", err))
 	}
 	var (
 		key   []byte
@@ -1248,7 +1248,7 @@ func (s *Server) findStates(ps request.Params) (interface{}, *response.Error) {
 	if len(ps) > 3 {
 		key, err = ps.Value(3).GetBytesBase64()
 		if err != nil {
-			return nil, response.WrapErrorWithData(response.ErrInvalidParams, errors.New("invalid key"))
+			return nil, response.WrapErrorWithData(response.ErrInvalidParams, fmt.Errorf("invalid key: %w", err))
 		}
 		if len(key) > 0 {
 			if !bytes.HasPrefix(key, prefix) {
@@ -1263,7 +1263,7 @@ func (s *Server) findStates(ps request.Params) (interface{}, *response.Error) {
 	if len(ps) > 4 {
 		count, err = ps.Value(4).GetInt()
 		if err != nil {
-			return nil, response.WrapErrorWithData(response.ErrInvalidParams, errors.New("invalid count"))
+			return nil, response.WrapErrorWithData(response.ErrInvalidParams, fmt.Errorf("invalid count: %w", err))
 		}
 		if count > s.config.MaxFindResultItems {
 			count = s.config.MaxFindResultItems
