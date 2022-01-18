@@ -286,12 +286,12 @@ func (chain *FakeChain) GetTokenLastUpdated(acc util.Uint160) (map[int32]uint32,
 }
 
 // ForEachNEP17Transfer implements Blockchainer interface.
-func (chain *FakeChain) ForEachNEP11Transfer(util.Uint160, func(*state.NEP11Transfer) (bool, error)) error {
+func (chain *FakeChain) ForEachNEP11Transfer(util.Uint160, uint64, func(*state.NEP11Transfer) (bool, error)) error {
 	panic("TODO")
 }
 
 // ForEachNEP17Transfer implements Blockchainer interface.
-func (chain *FakeChain) ForEachNEP17Transfer(util.Uint160, func(*state.NEP17Transfer) (bool, error)) error {
+func (chain *FakeChain) ForEachNEP17Transfer(util.Uint160, uint64, func(*state.NEP17Transfer) (bool, error)) error {
 	panic("TODO")
 }
 

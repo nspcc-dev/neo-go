@@ -93,7 +93,7 @@ func benchmarkForEachNEP17Transfer(t *testing.B, ps storage.Store, startFromBloc
 
 	newestB, err := bc.GetBlock(bc.GetHeaderHash(int(bc.BlockHeight()) - startFromBlock + 1))
 	require.NoError(t, err)
-	_ = newestB.Timestamp
+	newestTimestamp := newestB.Timestamp
 	oldestB, err := bc.GetBlock(bc.GetHeaderHash(int(newestB.Index) - nBlocksToTake))
 	require.NoError(t, err)
 	oldestTimestamp := oldestB.Timestamp
@@ -102,7 +102,7 @@ func benchmarkForEachNEP17Transfer(t *testing.B, ps storage.Store, startFromBloc
 	t.ReportAllocs()
 	t.StartTimer()
 	for i := 0; i < t.N; i++ {
-		require.NoError(t, bc.ForEachNEP17Transfer(acc, func(t *state.NEP17Transfer) (bool, error) {
+		require.NoError(t, bc.ForEachNEP17Transfer(acc, newestTimestamp, func(t *state.NEP17Transfer) (bool, error) {
 			if t.Timestamp < oldestTimestamp {
 				// iterating from newest to oldest, already have reached the needed height
 				return false, nil

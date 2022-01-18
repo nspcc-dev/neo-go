@@ -1023,14 +1023,14 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 				return
 			}
 			if !trData.Info.NewNEP11Batch {
-				err = kvcache.PutTokenTransferLog(acc, trData.Info.NextNEP11Batch, true, &trData.Log11)
+				err = kvcache.PutTokenTransferLog(acc, trData.Info.NextNEP11NewestTimestamp, trData.Info.NextNEP11Batch, true, &trData.Log11)
 				if err != nil {
 					aerdone <- err
 					return
 				}
 			}
 			if !trData.Info.NewNEP17Batch {
-				err = kvcache.PutTokenTransferLog(acc, trData.Info.NextNEP17Batch, false, &trData.Log17)
+				err = kvcache.PutTokenTransferLog(acc, trData.Info.NextNEP17NewestTimestamp, trData.Info.NextNEP17Batch, false, &trData.Log17)
 				if err != nil {
 					aerdone <- err
 					return
@@ -1334,18 +1334,18 @@ func (bc *Blockchain) processTokenTransfer(cache dao.DAO, transCache map[util.Ui
 	}
 	if !from.Equals(util.Uint160{}) {
 		_ = nep17xfer.Amount.Neg(amount) // We already have the Int.
-		if appendTokenTransfer(cache, transCache, from, transfer, id, b.Index, isNEP11) != nil {
+		if appendTokenTransfer(cache, transCache, from, transfer, id, b.Index, b.Timestamp, isNEP11) != nil {
 			return
 		}
 	}
 	if !to.Equals(util.Uint160{}) {
-		_ = nep17xfer.Amount.Set(amount)                                               // We already have the Int.
-		_ = appendTokenTransfer(cache, transCache, to, transfer, id, b.Index, isNEP11) // Nothing useful we can do.
+		_ = nep17xfer.Amount.Set(amount)                                                            // We already have the Int.
+		_ = appendTokenTransfer(cache, transCache, to, transfer, id, b.Index, b.Timestamp, isNEP11) // Nothing useful we can do.
 	}
 }
 
 func appendTokenTransfer(cache dao.DAO, transCache map[util.Uint160]transferData, addr util.Uint160, transfer io.Serializable,
-	token int32, bIndex uint32, isNEP11 bool) error {
+	token int32, bIndex uint32, bTimestamp uint64, isNEP11 bool) error {
 	transferData, ok := transCache[addr]
 	if !ok {
 		balances, err := cache.GetTokenTransferInfo(addr)
@@ -1353,14 +1353,14 @@ func appendTokenTransfer(cache dao.DAO, transCache map[util.Uint160]transferData
 			return err
 		}
 		if !balances.NewNEP11Batch {
-			trLog, err := cache.GetTokenTransferLog(addr, balances.NextNEP11Batch, true)
+			trLog, err := cache.GetTokenTransferLog(addr, balances.NextNEP11NewestTimestamp, balances.NextNEP11Batch, true)
 			if err != nil {
 				return err
 			}
 			transferData.Log11 = *trLog
 		}
 		if !balances.NewNEP17Batch {
-			trLog, err := cache.GetTokenTransferLog(addr, balances.NextNEP17Batch, false)
+			trLog, err := cache.GetTokenTransferLog(addr, balances.NextNEP17NewestTimestamp, balances.NextNEP17Batch, false)
 			if err != nil {
 				return err
 			}
@@ -1369,18 +1369,21 @@ func appendTokenTransfer(cache dao.DAO, transCache map[util.Uint160]transferData
 		transferData.Info = *balances
 	}
 	var (
-		log       *state.TokenTransferLog
-		newBatch  *bool
-		nextBatch *uint32
+		log           *state.TokenTransferLog
+		newBatch      *bool
+		nextBatch     *uint32
+		currTimestamp *uint64
 	)
 	if !isNEP11 {
 		log = &transferData.Log17
 		newBatch = &transferData.Info.NewNEP17Batch
 		nextBatch = &transferData.Info.NextNEP17Batch
+		currTimestamp = &transferData.Info.NextNEP17NewestTimestamp
 	} else {
 		log = &transferData.Log11
 		newBatch = &transferData.Info.NewNEP11Batch
 		nextBatch = &transferData.Info.NextNEP11Batch
+		currTimestamp = &transferData.Info.NextNEP11NewestTimestamp
 	}
 	err := log.Append(transfer)
 	if err != nil {
@@ -1389,11 +1392,12 @@ func appendTokenTransfer(cache dao.DAO, transCache map[util.Uint160]transferData
 	transferData.Info.LastUpdated[token] = bIndex
 	*newBatch = log.Size() >= state.TokenTransferBatchSize
 	if *newBatch {
-		err = cache.PutTokenTransferLog(addr, *nextBatch, isNEP11, log)
+		err = cache.PutTokenTransferLog(addr, *currTimestamp, *nextBatch, isNEP11, log)
 		if err != nil {
 			return err
 		}
 		*nextBatch++
+		*currTimestamp = bTimestamp
 		// Put makes a copy of it anyway.
 		log.Raw = log.Raw[:0]
 	}
@@ -1401,48 +1405,18 @@ func appendTokenTransfer(cache dao.DAO, transCache map[util.Uint160]transferData
 	return nil
 }
 
-// ForEachNEP17Transfer executes f for each NEP-17 transfer in log.
-func (bc *Blockchain) ForEachNEP17Transfer(acc util.Uint160, f func(*state.NEP17Transfer) (bool, error)) error {
-	balances, err := bc.dao.GetTokenTransferInfo(acc)
-	if err != nil {
-		return nil
-	}
-	for i := int(balances.NextNEP17Batch); i >= 0; i-- {
-		lg, err := bc.dao.GetTokenTransferLog(acc, uint32(i), false)
-		if err != nil {
-			return nil
-		}
-		cont, err := lg.ForEachNEP17(f)
-		if err != nil {
-			return err
-		}
-		if !cont {
-			break
-		}
-	}
-	return nil
+// ForEachNEP17Transfer executes f for each NEP-17 transfer in log starting from
+// the transfer with the newest timestamp up to the oldest transfer. It continues
+// iteration until false is returned from f. The last non-nil error is returned.
+func (bc *Blockchain) ForEachNEP17Transfer(acc util.Uint160, newestTimestamp uint64, f func(*state.NEP17Transfer) (bool, error)) error {
+	return bc.dao.SeekNEP17TransferLog(acc, newestTimestamp, f)
 }
 
-// ForEachNEP11Transfer executes f for each NEP-11 transfer in log.
-func (bc *Blockchain) ForEachNEP11Transfer(acc util.Uint160, f func(*state.NEP11Transfer) (bool, error)) error {
-	balances, err := bc.dao.GetTokenTransferInfo(acc)
-	if err != nil {
-		return nil
-	}
-	for i := int(balances.NextNEP11Batch); i >= 0; i-- {
-		lg, err := bc.dao.GetTokenTransferLog(acc, uint32(i), true)
-		if err != nil {
-			return nil
-		}
-		cont, err := lg.ForEachNEP11(f)
-		if err != nil {
-			return err
-		}
-		if !cont {
-			break
-		}
-	}
-	return nil
+// ForEachNEP11Transfer executes f for each NEP-11 transfer in log starting from
+// the transfer with the newest timestamp up to the oldest transfer. It continues
+// iteration until false is returned from f. The last non-nil error is returned.
+func (bc *Blockchain) ForEachNEP11Transfer(acc util.Uint160, newestTimestamp uint64, f func(*state.NEP11Transfer) (bool, error)) error {
+	return bc.dao.SeekNEP11TransferLog(acc, newestTimestamp, f)
 }
 
 // GetNEP17Contracts returns the list of deployed NEP-17 contracts.
