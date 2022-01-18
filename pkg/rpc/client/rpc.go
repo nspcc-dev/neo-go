@@ -458,15 +458,42 @@ func (c *Client) GetState(stateroot util.Uint256, historicalContractHash util.Ui
 // If `maxCount` specified, then maximum number of items to be returned equals to `maxCount`.
 func (c *Client) FindStates(stateroot util.Uint256, historicalContractHash util.Uint160, historicalPrefix []byte,
 	start []byte, maxCount *int) (result.FindStates, error) {
+	if historicalPrefix == nil {
+		historicalPrefix = []byte{}
+	}
 	var (
-		params = request.NewRawParams(stateroot.StringLE(), historicalContractHash.StringLE(), historicalPrefix, historicalPrefix, start)
+		params = request.NewRawParams(stateroot.StringLE(), historicalContractHash.StringLE(), historicalPrefix)
 		resp   result.FindStates
 	)
+	if start == nil && maxCount != nil {
+		start = []byte{}
+	}
+	if start != nil {
+		params.Values = append(params.Values, start)
+	}
 	if maxCount != nil {
 		params.Values = append(params.Values, *maxCount)
 	}
 	if err := c.performRequest("findstates", params, &resp); err != nil {
 		return resp, err
+	}
+	return resp, nil
+}
+
+// GetStateRootByHeight returns state root for the specified height.
+func (c *Client) GetStateRootByHeight(height uint32) (*state.MPTRoot, error) {
+	return c.getStateRoot(request.NewRawParams(height))
+}
+
+// GetStateRootByBlockHash returns state root for block with specified hash.
+func (c *Client) GetStateRootByBlockHash(hash util.Uint256) (*state.MPTRoot, error) {
+	return c.getStateRoot(request.NewRawParams(hash))
+}
+
+func (c *Client) getStateRoot(params request.RawParams) (*state.MPTRoot, error) {
+	var resp = new(state.MPTRoot)
+	if err := c.performRequest("getstateroot", params, resp); err != nil {
+		return nil, err
 	}
 	return resp, nil
 }

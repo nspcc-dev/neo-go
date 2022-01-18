@@ -769,6 +769,47 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 			},
 		},
 	},
+	"getstateroot": {
+		{
+			name: "positive, by height",
+			invoke: func(c *Client) (interface{}, error) {
+				return c.GetStateRootByHeight(5)
+			},
+			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"version":0,"index":5,"roothash":"0x65d19151694321e70c6d184b37a2bcf7af4a2c60c099af332a4f7815e3670686","witnesses":[]}}`,
+			result: func(c *Client) interface{} {
+				h, err := util.Uint256DecodeStringLE("65d19151694321e70c6d184b37a2bcf7af4a2c60c099af332a4f7815e3670686")
+				if err != nil {
+					panic(err)
+				}
+				return &state.MPTRoot{
+					Version: 0,
+					Index:   5,
+					Root:    h,
+					Witness: []transaction.Witness{},
+				}
+			},
+		},
+		{
+			name: "positive, by hash",
+			invoke: func(c *Client) (interface{}, error) {
+				hash, err := util.Uint256DecodeStringLE("86fe1061140b2ea791b0739fb9732abc6e5e47de4927228a1ac41de3d93eb7cb")
+				if err != nil {
+					panic(err)
+				}
+				return c.GetStateRootByBlockHash(hash)
+			},
+			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"version":0,"index":5,"roothash":"0x65d19151694321e70c6d184b37a2bcf7af4a2c60c099af332a4f7815e3670686","witnesses":[]}}`,
+			result: func(c *Client) interface{} {
+				h, _ := util.Uint256DecodeStringLE("65d19151694321e70c6d184b37a2bcf7af4a2c60c099af332a4f7815e3670686")
+				return &state.MPTRoot{
+					Version: 0,
+					Index:   5,
+					Root:    h,
+					Witness: []transaction.Witness{},
+				}
+			},
+		},
+	},
 	"getstate": {
 		{
 			name: "positive",

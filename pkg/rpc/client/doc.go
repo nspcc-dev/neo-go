@@ -18,6 +18,7 @@ TODO:
 Supported methods
 
 	calculatenetworkfee
+	findstates
 	getapplicationlog
 	getbestblockhash
 	getblock
@@ -37,7 +38,9 @@ Supported methods
 	getpeers
 	getrawmempool
 	getrawtransaction
+	getstate
 	getstateheight
+	getstateroot
 	getstorage
 	gettransactionheight
 	getunclaimedgas
