@@ -458,10 +458,19 @@ func (c *Client) GetState(stateroot util.Uint256, historicalContractHash util.Ui
 // If `maxCount` specified, then maximum number of items to be returned equals to `maxCount`.
 func (c *Client) FindStates(stateroot util.Uint256, historicalContractHash util.Uint160, historicalPrefix []byte,
 	start []byte, maxCount *int) (result.FindStates, error) {
+	if historicalPrefix == nil {
+		historicalPrefix = []byte{}
+	}
 	var (
-		params = request.NewRawParams(stateroot.StringLE(), historicalContractHash.StringLE(), historicalPrefix, start)
+		params = request.NewRawParams(stateroot.StringLE(), historicalContractHash.StringLE(), historicalPrefix)
 		resp   result.FindStates
 	)
+	if start == nil && maxCount != nil {
+		start = []byte{}
+	}
+	if start != nil {
+		params.Values = append(params.Values, start)
+	}
 	if maxCount != nil {
 		params.Values = append(params.Values, *maxCount)
 	}
