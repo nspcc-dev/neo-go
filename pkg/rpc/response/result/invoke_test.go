@@ -6,6 +6,7 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
@@ -25,6 +26,7 @@ func TestInvoke_MarshalJSON(t *testing.T) {
 		Script:         []byte{10},
 		Stack:          []stackitem.Item{stackitem.NewBigInteger(big.NewInt(1))},
 		FaultException: "",
+		Notifications:  []state.NotificationEvent{},
 		Transaction:    tx,
 	}
 
@@ -37,6 +39,7 @@ func TestInvoke_MarshalJSON(t *testing.T) {
 		"stack":[
 			{"type":"Integer","value":"1"}
 		],
+		"notifications":[],
 		"tx":"` + base64.StdEncoding.EncodeToString(tx.Bytes()) + `"
 }`
 	require.JSONEq(t, expected, string(data))

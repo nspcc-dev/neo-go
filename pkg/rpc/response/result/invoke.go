@@ -4,7 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/iterator"
+	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
@@ -18,6 +20,7 @@ type Invoke struct {
 	Script                 []byte
 	Stack                  []stackitem.Item
 	FaultException         string
+	Notifications          []state.NotificationEvent
 	Transaction            *transaction.Transaction
 	Diagnostics            *InvokeDiag
 	maxIteratorResultItems int
@@ -30,32 +33,38 @@ type InvokeDiag struct {
 }
 
 // NewInvoke returns new Invoke structure with the given fields set.
-func NewInvoke(vm *vm.VM, finalize func(), script []byte, faultException string, maxIteratorResultItems int) *Invoke {
+func NewInvoke(ic *interop.Context, script []byte, faultException string, maxIteratorResultItems int) *Invoke {
 	var diag *InvokeDiag
-	tree := vm.GetInvocationTree()
+	tree := ic.VM.GetInvocationTree()
 	if tree != nil {
 		diag = &InvokeDiag{Invocations: tree.Calls}
 	}
+	notifications := ic.Notifications
+	if notifications == nil {
+		notifications = make([]state.NotificationEvent, 0)
+	}
 	return &Invoke{
-		State:                  vm.State().String(),
-		GasConsumed:            vm.GasConsumed(),
+		State:                  ic.VM.State().String(),
+		GasConsumed:            ic.VM.GasConsumed(),
 		Script:                 script,
-		Stack:                  vm.Estack().ToArray(),
+		Stack:                  ic.VM.Estack().ToArray(),
 		FaultException:         faultException,
+		Notifications:          notifications,
 		Diagnostics:            diag,
 		maxIteratorResultItems: maxIteratorResultItems,
-		finalize:               finalize,
+		finalize:               ic.Finalize,
 	}
 }
 
 type invokeAux struct {
-	State          string          `json:"state"`
-	GasConsumed    int64           `json:"gasconsumed,string"`
-	Script         []byte          `json:"script"`
-	Stack          json.RawMessage `json:"stack"`
-	FaultException string          `json:"exception,omitempty"`
-	Transaction    []byte          `json:"tx,omitempty"`
-	Diagnostics    *InvokeDiag     `json:"diagnostics,omitempty"`
+	State          string                    `json:"state"`
+	GasConsumed    int64                     `json:"gasconsumed,string"`
+	Script         []byte                    `json:"script"`
+	Stack          json.RawMessage           `json:"stack"`
+	FaultException string                    `json:"exception,omitempty"`
+	Notifications  []state.NotificationEvent `json:"notifications"`
+	Transaction    []byte                    `json:"tx,omitempty"`
+	Diagnostics    *InvokeDiag               `json:"diagnostics,omitempty"`
 }
 
 type iteratorAux struct {
@@ -133,6 +142,7 @@ func (r Invoke) MarshalJSON() ([]byte, error) {
 		State:          r.State,
 		Stack:          st,
 		FaultException: r.FaultException,
+		Notifications:  r.Notifications,
 		Transaction:    txbytes,
 		Diagnostics:    r.Diagnostics,
 	})
@@ -189,6 +199,7 @@ func (r *Invoke) UnmarshalJSON(data []byte) error {
 	r.Script = aux.Script
 	r.State = aux.State
 	r.FaultException = aux.FaultException
+	r.Notifications = aux.Notifications
 	r.Transaction = tx
 	r.Diagnostics = aux.Diagnostics
 	return nil

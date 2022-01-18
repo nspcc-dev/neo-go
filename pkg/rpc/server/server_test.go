@@ -881,6 +881,29 @@ var rpcTestCases = map[string][]rpcTestCase{
 			},
 		},
 		{
+			name:   "positive, with notifications",
+			params: `["` + NNSHash.StringLE() + `", "transfer", [{"type":"Hash160", "value":"0x0bcd2978634d961c24f5aea0802297ff128724d6"},{"type":"String", "value":"neo.com"},{"type":"Any", "value":null}],["0xb248508f4ef7088e10c48f14d04be3272ca29eee"]]`,
+			result: func(e *executor) interface{} {
+				script := []byte{0x0b, 0x0c, 0x07, 0x6e, 0x65, 0x6f, 0x2e, 0x63, 0x6f, 0x6d, 0x0c, 0x14, 0xd6, 0x24, 0x87, 0x12, 0xff, 0x97, 0x22, 0x80, 0xa0, 0xae, 0xf5, 0x24, 0x1c, 0x96, 0x4d, 0x63, 0x78, 0x29, 0xcd, 0x0b, 0x13, 0xc0, 0x1f, 0x0c, 0x08, 0x74, 0x72, 0x61, 0x6e, 0x73, 0x66, 0x65, 0x72, 0x0c, 0x14, 0xdc, 0xe2, 0xd3, 0xba, 0x0e, 0xbb, 0xa9, 0xf4, 0x44, 0xac, 0xbf, 0x50, 0x08, 0x76, 0xfd, 0x7c, 0x3e, 0x2b, 0x60, 0x3a, 0x41, 0x62, 0x7d, 0x5b, 0x52}
+				return &result.Invoke{
+					State:       "HALT",
+					GasConsumed: 33767940,
+					Script:      script,
+					Stack:       []stackitem.Item{stackitem.Make(true)},
+					Notifications: []state.NotificationEvent{{
+						ScriptHash: NNSHash,
+						Name:       "Transfer",
+						Item: stackitem.NewArray([]stackitem.Item{
+							stackitem.Make([]byte{0xee, 0x9e, 0xa2, 0x2c, 0x27, 0xe3, 0x4b, 0xd0, 0x14, 0x8f, 0xc4, 0x10, 0x8e, 0x08, 0xf7, 0x4e, 0x8f, 0x50, 0x48, 0xb2}),
+							stackitem.Make([]byte{0xd6, 0x24, 0x87, 0x12, 0xff, 0x97, 0x22, 0x80, 0xa0, 0xae, 0xf5, 0x24, 0x1c, 0x96, 0x4d, 0x63, 0x78, 0x29, 0xcd, 0x0b}),
+							stackitem.Make(1),
+							stackitem.Make("neo.com"),
+						}),
+					}},
+				}
+			},
+		},
+		{
 			name:   "positive, verbose",
 			params: `["` + NNSHash.StringLE() + `", "resolve", [{"type":"String", "value":"neo.com"},{"type":"Integer","value":1}], [], true]`,
 			result: func(e *executor) interface{} {
@@ -888,10 +911,11 @@ var rpcTestCases = map[string][]rpcTestCase{
 				stdHash, _ := e.chain.GetNativeContractScriptHash(nativenames.StdLib)
 				cryptoHash, _ := e.chain.GetNativeContractScriptHash(nativenames.CryptoLib)
 				return &result.Invoke{
-					State:       "HALT",
-					GasConsumed: 17958510,
-					Script:      script,
-					Stack:       []stackitem.Item{stackitem.Make("1.2.3.4")},
+					State:         "HALT",
+					GasConsumed:   17958510,
+					Script:        script,
+					Stack:         []stackitem.Item{stackitem.Make("1.2.3.4")},
+					Notifications: []state.NotificationEvent{},
 					Diagnostics: &result.InvokeDiag{
 						Invocations: []*vm.InvocationTree{{
 							Current: hash.Hash160(script),
@@ -967,6 +991,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 					Script:         script,
 					Stack:          []stackitem.Item{},
 					FaultException: "at instruction 0 (ROT): too big index",
+					Notifications:  []state.NotificationEvent{},
 					Diagnostics: &result.InvokeDiag{
 						Invocations: []*vm.InvocationTree{{
 							Current: hash.Hash160(script),
