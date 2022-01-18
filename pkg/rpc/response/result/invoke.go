@@ -7,6 +7,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/iterator"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
+	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
@@ -29,6 +30,7 @@ type Invoke struct {
 
 // InvokeDiag is an additional diagnostic data for invocation.
 type InvokeDiag struct {
+	Changes     []storage.Operation  `json:"storagechanges"`
 	Invocations []*vm.InvocationTree `json:"invokedcontracts"`
 }
 
@@ -37,7 +39,10 @@ func NewInvoke(ic *interop.Context, script []byte, faultException string, maxIte
 	var diag *InvokeDiag
 	tree := ic.VM.GetInvocationTree()
 	if tree != nil {
-		diag = &InvokeDiag{Invocations: tree.Calls}
+		diag = &InvokeDiag{
+			Invocations: tree.Calls,
+			Changes:     storage.BatchToOperations(ic.DAO.GetBatch()),
+		}
 	}
 	notifications := ic.Notifications
 	if notifications == nil {
