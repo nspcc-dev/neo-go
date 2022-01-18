@@ -555,9 +555,11 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 				vs := spec.(*ast.ValueSpec)
 				for i := range vs.Names {
 					obj := c.currPkg.Types.Scope().Lookup(vs.Names[i].Name)
-					c.constMap[c.getIdentName("", vs.Names[i].Name)] = types.TypeAndValue{
-						Type:  obj.Type(),
-						Value: obj.(*types.Const).Val(),
+					if obj != nil { // can be nil if unused
+						c.constMap[c.getIdentName("", vs.Names[i].Name)] = types.TypeAndValue{
+							Type:  obj.Type(),
+							Value: obj.(*types.Const).Val(),
+						}
 					}
 				}
 			}

@@ -12,6 +12,18 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestUnusedGlobal(t *testing.T) {
+	src := `package foo
+	const (
+		_ int = iota
+		a
+	)
+	func Main() int {
+		return 1
+	}`
+	eval(t, src, big.NewInt(1))
+}
+
 func TestChangeGlobal(t *testing.T) {
 	src := `package foo
 	var a int
