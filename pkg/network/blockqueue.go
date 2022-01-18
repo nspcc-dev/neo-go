@@ -17,8 +17,9 @@ type Blockqueuer interface {
 
 type blockQueue struct {
 	log         *zap.Logger
-	queueLock   sync.Mutex
+	queueLock   sync.RWMutex
 	queue       []*block.Block
+	lastQ       uint32
 	checkBlocks chan struct{}
 	chain       Blockqueuer
 	relayF      func(*block.Block)
@@ -31,6 +32,10 @@ const (
 	// which are stored in queue.
 	blockCacheSize = 2000
 )
+
+func indexToPosition(i uint32) int {
+	return int(i) % blockCacheSize
+}
 
 func newBlockQueue(capacity int, bc Blockqueuer, log *zap.Logger, relayer func(*block.Block)) *blockQueue {
 	if log == nil {
@@ -56,12 +61,12 @@ func (bq *blockQueue) run() {
 		}
 		for {
 			h := bq.chain.BlockHeight()
-			pos := int(h+1) % blockCacheSize
+			pos := indexToPosition(h + 1)
 			bq.queueLock.Lock()
 			b := bq.queue[pos]
 			// The chain moved forward using blocks from other sources (consensus).
 			for i := lastHeight; i < h; i++ {
-				old := int(i+1) % blockCacheSize
+				old := indexToPosition(i + 1)
 				if bq.queue[old] != nil && bq.queue[old].Index == i {
 					bq.len--
 					bq.queue[old] = nil
@@ -106,11 +111,15 @@ func (bq *blockQueue) putBlock(block *block.Block) error {
 		bq.queueLock.Unlock()
 		return nil
 	}
-	pos := block.Index % blockCacheSize
+	pos := indexToPosition(block.Index)
 	// If we already have it, keep the old block, throw away new one.
 	if bq.queue[pos] == nil || bq.queue[pos].Index < block.Index {
 		bq.len++
 		bq.queue[pos] = block
+		for pos < blockCacheSize && bq.queue[pos] != nil && bq.lastQ+1 == bq.queue[pos].Index {
+			bq.lastQ = bq.queue[pos].Index
+			pos++
+		}
 	}
 	l := bq.len
 	bq.queueLock.Unlock()
@@ -123,6 +132,12 @@ func (bq *blockQueue) putBlock(block *block.Block) error {
 		// it's already busy processing blocks
 	}
 	return nil
+}
+
+func (bq *blockQueue) lastQueued() uint32 {
+	bq.queueLock.RLock()
+	defer bq.queueLock.RUnlock()
+	return bq.lastQ
 }
 
 func (bq *blockQueue) discard() {

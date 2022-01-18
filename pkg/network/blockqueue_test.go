@@ -22,6 +22,7 @@ func TestBlockQueue(t *testing.T) {
 	for i := 3; i < 5; i++ {
 		assert.NoError(t, bq.putBlock(blocks[i]))
 	}
+	assert.Equal(t, uint32(0), bq.lastQueued())
 	// nothing should be put into the blockchain
 	assert.Equal(t, uint32(0), chain.BlockHeight())
 	assert.Equal(t, 2, bq.length())
@@ -30,6 +31,7 @@ func TestBlockQueue(t *testing.T) {
 		assert.NoError(t, bq.putBlock(blocks[i]))
 	}
 	// but they're still not put into the blockchain, because bq isn't running
+	assert.Equal(t, uint32(4), bq.lastQueued())
 	assert.Equal(t, uint32(0), chain.BlockHeight())
 	assert.Equal(t, 4, bq.length())
 	// block with too big index is dropped
@@ -37,17 +39,15 @@ func TestBlockQueue(t *testing.T) {
 	assert.Equal(t, 4, bq.length())
 	go bq.run()
 	// run() is asynchronous, so we need some kind of timeout anyway and this is the simplest one
-	for i := 0; i < 5; i++ {
-		if chain.BlockHeight() != 4 {
-			time.Sleep(time.Second)
-		}
-	}
+	assert.Eventually(t, func() bool { return chain.BlockHeight() == 4 }, 4*time.Second, 100*time.Millisecond)
+	assert.Equal(t, uint32(4), bq.lastQueued())
 	assert.Equal(t, 0, bq.length())
 	assert.Equal(t, uint32(4), chain.BlockHeight())
 	// put some old blocks
 	for i := 1; i < 5; i++ {
 		assert.NoError(t, bq.putBlock(blocks[i]))
 	}
+	assert.Equal(t, uint32(4), bq.lastQueued())
 	assert.Equal(t, 0, bq.length())
 	assert.Equal(t, uint32(4), chain.BlockHeight())
 	// unexpected blocks with run() active
@@ -64,11 +64,8 @@ func TestBlockQueue(t *testing.T) {
 	assert.NoError(t, bq.putBlock(blocks[6]))
 	assert.NoError(t, bq.putBlock(blocks[5]))
 	// run() is asynchronous, so we need some kind of timeout anyway and this is the simplest one
-	for i := 0; i < 5; i++ {
-		if chain.BlockHeight() != 8 {
-			time.Sleep(time.Second)
-		}
-	}
+	assert.Eventually(t, func() bool { return chain.BlockHeight() == 8 }, 4*time.Second, 100*time.Millisecond)
+	assert.Equal(t, uint32(8), bq.lastQueued())
 	assert.Equal(t, 1, bq.length())
 	assert.Equal(t, uint32(8), chain.BlockHeight())
 	bq.discard()
