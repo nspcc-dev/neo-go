@@ -1,7 +1,11 @@
 package config
 
 import (
+	"errors"
+	"fmt"
+
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/fixedn"
 )
 
@@ -59,3 +63,18 @@ type (
 		VerifyTransactions bool `yaml:"VerifyTransactions"`
 	}
 )
+
+// Validate checks ProtocolConfiguration for internal consistency and returns
+// error if anything inappropriate found. Other methods can rely on protocol
+// validity after this.
+func (p *ProtocolConfiguration) Validate() error {
+	if len(p.StandbyCommittee) < p.ValidatorsCount {
+		return errors.New("validators count can't exceed the size of StandbyCommittee")
+	}
+	for name := range p.NativeUpdateHistories {
+		if !nativenames.IsValid(name) {
+			return fmt.Errorf("NativeActivations configuration section contains unexpected native contract name: %s", name)
+		}
+	}
+	return nil
+}
