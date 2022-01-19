@@ -81,7 +81,7 @@ func testStoreSeek(t *testing.T, s Store) {
 		require.NoError(t, s.Put(v.Key, v.Value))
 	}
 
-	check := func(t *testing.T, goodprefix, start []byte, goodkvs []KeyValue, backwards bool) {
+	check := func(t *testing.T, goodprefix, start []byte, goodkvs []KeyValue, backwards bool, cont func(k, v []byte) bool) {
 		// Seek result expected to be sorted in an ascending (for forwards seeking) or descending (for backwards seeking) way.
 		cmpFunc := func(i, j int) bool {
 			return bytes.Compare(goodkvs[i].Key, goodkvs[j].Key) < 0
@@ -101,11 +101,15 @@ func testStoreSeek(t *testing.T, s Store) {
 			rng.Backwards = true
 		}
 		actual := make([]KeyValue, 0, len(goodkvs))
-		s.Seek(rng, func(k, v []byte) {
+		s.Seek(rng, func(k, v []byte) bool {
 			actual = append(actual, KeyValue{
 				Key:   slice.Copy(k),
 				Value: slice.Copy(v),
 			})
+			if cont == nil {
+				return true
+			}
+			return cont(k, v)
 		})
 		assert.Equal(t, goodkvs, actual)
 	}
@@ -123,12 +127,26 @@ func testStoreSeek(t *testing.T, s Store) {
 					kvs[3], // key = "21"
 					kvs[4], // key = "22"
 				}
-				check(t, goodprefix, start, goodkvs, false)
+				check(t, goodprefix, start, goodkvs, false, nil)
 			})
 			t.Run("no matching items", func(t *testing.T) {
 				goodprefix := []byte("0")
 				start := []byte{}
-				check(t, goodprefix, start, []KeyValue{}, false)
+				check(t, goodprefix, start, []KeyValue{}, false, nil)
+			})
+			t.Run("early stop", func(t *testing.T) {
+				// Given this prefix...
+				goodprefix := []byte("2")
+				// and empty start range...
+				start := []byte{}
+				// these pairs should be found.
+				goodkvs := []KeyValue{
+					kvs[2], // key = "20"
+					kvs[3], // key = "21"
+				}
+				check(t, goodprefix, start, goodkvs, false, func(k, v []byte) bool {
+					return string(k) < "21"
+				})
 			})
 		})
 
@@ -141,12 +159,23 @@ func testStoreSeek(t *testing.T, s Store) {
 					kvs[3], // key = "21"
 					kvs[2], // key = "20"
 				}
-				check(t, goodprefix, start, goodkvs, true)
+				check(t, goodprefix, start, goodkvs, true, nil)
 			})
 			t.Run("no matching items", func(t *testing.T) {
 				goodprefix := []byte("0")
 				start := []byte{}
-				check(t, goodprefix, start, []KeyValue{}, true)
+				check(t, goodprefix, start, []KeyValue{}, true, nil)
+			})
+			t.Run("early stop", func(t *testing.T) {
+				goodprefix := []byte("2")
+				start := []byte{}
+				goodkvs := []KeyValue{
+					kvs[4], // key = "22"
+					kvs[3], // key = "21"
+				}
+				check(t, goodprefix, start, goodkvs, true, func(k, v []byte) bool {
+					return string(k) > "21"
+				})
 			})
 		})
 	})
@@ -155,33 +184,55 @@ func testStoreSeek(t *testing.T, s Store) {
 		t.Run("forwards", func(t *testing.T) {
 			t.Run("good", func(t *testing.T) {
 				goodprefix := []byte("2")
-				start := []byte("1") // start will be upended to goodprefix to start seek from
+				start := []byte("1") // start will be appended to goodprefix to start seek from
 				goodkvs := []KeyValue{
 					kvs[3], // key = "21"
 					kvs[4], // key = "22"
 				}
-				check(t, goodprefix, start, goodkvs, false)
+				check(t, goodprefix, start, goodkvs, false, nil)
 			})
 			t.Run("no matching items", func(t *testing.T) {
 				goodprefix := []byte("2")
 				start := []byte("3") // start is more than all keys prefixed by '2'.
-				check(t, goodprefix, start, []KeyValue{}, false)
+				check(t, goodprefix, start, []KeyValue{}, false, nil)
+			})
+			t.Run("early stop", func(t *testing.T) {
+				goodprefix := []byte("2")
+				start := []byte("0") // start will be appended to goodprefix to start seek from
+				goodkvs := []KeyValue{
+					kvs[2], // key = "20"
+					kvs[3], // key = "21"
+				}
+				check(t, goodprefix, start, goodkvs, false, func(k, v []byte) bool {
+					return string(k) < "21"
+				})
 			})
 		})
 		t.Run("backwards", func(t *testing.T) {
 			t.Run("good", func(t *testing.T) {
 				goodprefix := []byte("2")
-				start := []byte("1") // start will be upended to goodprefix to start seek from
+				start := []byte("1") // start will be appended to goodprefix to start seek from
 				goodkvs := []KeyValue{
 					kvs[3], // key = "21"
 					kvs[2], // key = "20"
 				}
-				check(t, goodprefix, start, goodkvs, true)
+				check(t, goodprefix, start, goodkvs, true, nil)
 			})
 			t.Run("no matching items", func(t *testing.T) {
 				goodprefix := []byte("2")
 				start := []byte(".") // start is less than all keys prefixed by '2'.
-				check(t, goodprefix, start, []KeyValue{}, true)
+				check(t, goodprefix, start, []KeyValue{}, true, nil)
+			})
+			t.Run("early stop", func(t *testing.T) {
+				goodprefix := []byte("2")
+				start := []byte("2") // start will be appended to goodprefix to start seek from
+				goodkvs := []KeyValue{
+					kvs[4], // key = "24"
+					kvs[3], // key = "21"
+				}
+				check(t, goodprefix, start, goodkvs, true, func(k, v []byte) bool {
+					return string(k) > "21"
+				})
 			})
 		})
 	})
@@ -197,12 +248,24 @@ func testStoreSeek(t *testing.T, s Store) {
 					kvs[5], // key = "30"
 					kvs[6], // key = "31"
 				}
-				check(t, goodprefix, start, goodkvs, false)
+				check(t, goodprefix, start, goodkvs, false, nil)
 			})
 			t.Run("no matching items", func(t *testing.T) {
 				goodprefix := []byte{}
 				start := []byte("32") // start is more than all keys.
-				check(t, goodprefix, start, []KeyValue{}, false)
+				check(t, goodprefix, start, []KeyValue{}, false, nil)
+			})
+			t.Run("early stop", func(t *testing.T) {
+				goodprefix := []byte{}
+				start := []byte("21")
+				goodkvs := []KeyValue{
+					kvs[3], // key = "21"
+					kvs[4], // key = "22"
+					kvs[5], // key = "30"
+				}
+				check(t, goodprefix, start, goodkvs, false, func(k, v []byte) bool {
+					return string(k) < "30"
+				})
 			})
 		})
 		t.Run("backwards", func(t *testing.T) {
@@ -215,12 +278,24 @@ func testStoreSeek(t *testing.T, s Store) {
 					kvs[1], // key = "11"
 					kvs[0], // key = "10"
 				}
-				check(t, goodprefix, start, goodkvs, true)
+				check(t, goodprefix, start, goodkvs, true, nil)
 			})
 			t.Run("no matching items", func(t *testing.T) {
 				goodprefix := []byte{}
 				start := []byte("0") // start is less than all keys.
-				check(t, goodprefix, start, []KeyValue{}, true)
+				check(t, goodprefix, start, []KeyValue{}, true, nil)
+			})
+			t.Run("early stop", func(t *testing.T) {
+				goodprefix := []byte{}
+				start := []byte("21")
+				goodkvs := []KeyValue{
+					kvs[3], // key = "21"
+					kvs[2], // key = "20"
+					kvs[1], // key = "11"
+				}
+				check(t, goodprefix, start, goodkvs, true, func(k, v []byte) bool {
+					return string(k) > "11"
+				})
 			})
 		})
 	})
@@ -231,10 +306,36 @@ func testStoreSeek(t *testing.T, s Store) {
 		goodkvs := make([]KeyValue, len(kvs))
 		copy(goodkvs, kvs)
 		t.Run("forwards", func(t *testing.T) {
-			check(t, goodprefix, start, goodkvs, false)
+			t.Run("good", func(t *testing.T) {
+				check(t, goodprefix, start, goodkvs, false, nil)
+			})
+			t.Run("early stop", func(t *testing.T) {
+				goodkvs := []KeyValue{
+					kvs[0], // key = "10"
+					kvs[1], // key = "11"
+					kvs[2], // key = "20"
+					kvs[3], // key = "21"
+				}
+				check(t, goodprefix, start, goodkvs, false, func(k, v []byte) bool {
+					return string(k) < "21"
+				})
+			})
 		})
 		t.Run("backwards", func(t *testing.T) {
-			check(t, goodprefix, start, goodkvs, true)
+			t.Run("good", func(t *testing.T) {
+				check(t, goodprefix, start, goodkvs, true, nil)
+			})
+			t.Run("early stop", func(t *testing.T) {
+				goodkvs := []KeyValue{
+					kvs[6], // key = "31"
+					kvs[5], // key = "30"
+					kvs[4], // key = "22"
+					kvs[3], // key = "21"
+				}
+				check(t, goodprefix, start, goodkvs, true, func(k, v []byte) bool {
+					return string(k) > "21"
+				})
+			})
 		})
 	})
 

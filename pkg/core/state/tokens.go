@@ -53,6 +53,10 @@ type TokenTransferInfo struct {
 	NextNEP11Batch uint32
 	// NextNEP17Batch stores the index of the next NEP-17 transfer batch.
 	NextNEP17Batch uint32
+	// NextNEP11NewestTimestamp stores the block timestamp of the first NEP-11 transfer in raw.
+	NextNEP11NewestTimestamp uint64
+	// NextNEP17NewestTimestamp stores the block timestamp of the first NEP-17 transfer in raw.
+	NextNEP17NewestTimestamp uint64
 	// NewNEP11Batch is true if batch with the `NextNEP11Batch` index should be created.
 	NewNEP11Batch bool
 	// NewNEP17Batch is true if batch with the `NextNEP17Batch` index should be created.
@@ -72,6 +76,8 @@ func NewTokenTransferInfo() *TokenTransferInfo {
 func (bs *TokenTransferInfo) DecodeBinary(r *io.BinReader) {
 	bs.NextNEP11Batch = r.ReadU32LE()
 	bs.NextNEP17Batch = r.ReadU32LE()
+	bs.NextNEP11NewestTimestamp = r.ReadU64LE()
+	bs.NextNEP17NewestTimestamp = r.ReadU64LE()
 	bs.NewNEP11Batch = r.ReadBool()
 	bs.NewNEP17Batch = r.ReadBool()
 	lenBalances := r.ReadVarUint()
@@ -87,6 +93,8 @@ func (bs *TokenTransferInfo) DecodeBinary(r *io.BinReader) {
 func (bs *TokenTransferInfo) EncodeBinary(w *io.BinWriter) {
 	w.WriteU32LE(bs.NextNEP11Batch)
 	w.WriteU32LE(bs.NextNEP17Batch)
+	w.WriteU64LE(bs.NextNEP11NewestTimestamp)
+	w.WriteU64LE(bs.NextNEP17NewestTimestamp)
 	w.WriteBool(bs.NewNEP11Batch)
 	w.WriteBool(bs.NewNEP17Batch)
 	w.WriteVarUint(uint64(len(bs.LastUpdated)))

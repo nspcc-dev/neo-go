@@ -42,7 +42,7 @@ type DAO interface {
 	GetCurrentHeaderHeight() (i uint32, h util.Uint256, err error)
 	GetHeaderHashes() ([]util.Uint256, error)
 	GetTokenTransferInfo(acc util.Uint160) (*state.TokenTransferInfo, error)
-	GetTokenTransferLog(acc util.Uint160, index uint32, isNEP11 bool) (*state.TokenTransferLog, error)
+	GetTokenTransferLog(acc util.Uint160, start uint64, index uint32, isNEP11 bool) (*state.TokenTransferLog, error)
 	GetStateSyncPoint() (uint32, error)
 	GetStateSyncCurrentBlockHeight() (uint32, error)
 	GetStorageItem(id int32, key []byte) state.StorageItem
@@ -57,12 +57,12 @@ type DAO interface {
 	PutContractID(id int32, hash util.Uint160) error
 	PutCurrentHeader(hashAndIndex []byte) error
 	PutTokenTransferInfo(acc util.Uint160, bs *state.TokenTransferInfo) error
-	PutTokenTransferLog(acc util.Uint160, index uint32, isNEP11 bool, lg *state.TokenTransferLog) error
+	PutTokenTransferLog(acc util.Uint160, start uint64, index uint32, isNEP11 bool, lg *state.TokenTransferLog) error
 	PutStateSyncPoint(p uint32) error
 	PutStateSyncCurrentBlockHeight(h uint32) error
 	PutStorageItem(id int32, key []byte, si state.StorageItem) error
 	PutVersion(v Version) error
-	Seek(id int32, rng storage.SeekRange, f func(k, v []byte))
+	Seek(id int32, rng storage.SeekRange, f func(k, v []byte) bool)
 	SeekAsync(ctx context.Context, id int32, rng storage.SeekRange) chan storage.KeyValue
 	StoreAsBlock(block *block.Block, aer1 *state.AppExecResult, aer2 *state.AppExecResult, buf *io.BufBinWriter) error
 	StoreAsCurrentBlock(block *block.Block, buf *io.BufBinWriter) error
@@ -180,21 +180,66 @@ func (dao *Simple) putTokenTransferInfo(acc util.Uint160, bs *state.TokenTransfe
 
 // -- start transfer log.
 
-func getTokenTransferLogKey(acc util.Uint160, index uint32, isNEP11 bool) []byte {
-	key := make([]byte, 1+util.Uint160Size+4)
+func getTokenTransferLogKey(acc util.Uint160, newestTimestamp uint64, index uint32, isNEP11 bool) []byte {
+	key := make([]byte, 1+util.Uint160Size+8+4)
 	if isNEP11 {
 		key[0] = byte(storage.STNEP11Transfers)
 	} else {
 		key[0] = byte(storage.STNEP17Transfers)
 	}
 	copy(key[1:], acc.BytesBE())
-	binary.LittleEndian.PutUint32(key[util.Uint160Size:], index)
+	binary.BigEndian.PutUint64(key[1+util.Uint160Size:], newestTimestamp)
+	binary.BigEndian.PutUint32(key[1+util.Uint160Size+8:], index)
 	return key
 }
 
+// SeekNEP17TransferLog executes f for each NEP-17 transfer in log starting from
+// the transfer with the newest timestamp up to the oldest transfer. It continues
+// iteration until false is returned from f. The last non-nil error is returned.
+func (dao *Simple) SeekNEP17TransferLog(acc util.Uint160, newestTimestamp uint64, f func(*state.NEP17Transfer) (bool, error)) error {
+	key := getTokenTransferLogKey(acc, newestTimestamp, 0, false)
+	prefixLen := 1 + util.Uint160Size
+	var seekErr error
+	dao.Store.Seek(storage.SeekRange{
+		Prefix:    key[:prefixLen],
+		Start:     key[prefixLen : prefixLen+8],
+		Backwards: true,
+	}, func(k, v []byte) bool {
+		lg := &state.TokenTransferLog{Raw: v}
+		cont, err := lg.ForEachNEP17(f)
+		if err != nil {
+			seekErr = err
+		}
+		return cont
+	})
+	return seekErr
+}
+
+// SeekNEP11TransferLog executes f for each NEP-11 transfer in log starting from
+// the transfer with the newest timestamp up to the oldest transfer. It continues
+// iteration until false is returned from f. The last non-nil error is returned.
+func (dao *Simple) SeekNEP11TransferLog(acc util.Uint160, newestTimestamp uint64, f func(*state.NEP11Transfer) (bool, error)) error {
+	key := getTokenTransferLogKey(acc, newestTimestamp, 0, true)
+	prefixLen := 1 + util.Uint160Size
+	var seekErr error
+	dao.Store.Seek(storage.SeekRange{
+		Prefix:    key[:prefixLen],
+		Start:     key[prefixLen : prefixLen+8],
+		Backwards: true,
+	}, func(k, v []byte) bool {
+		lg := &state.TokenTransferLog{Raw: v}
+		cont, err := lg.ForEachNEP11(f)
+		if err != nil {
+			seekErr = err
+		}
+		return cont
+	})
+	return seekErr
+}
+
 // GetTokenTransferLog retrieves transfer log from the cache.
-func (dao *Simple) GetTokenTransferLog(acc util.Uint160, index uint32, isNEP11 bool) (*state.TokenTransferLog, error) {
-	key := getTokenTransferLogKey(acc, index, isNEP11)
+func (dao *Simple) GetTokenTransferLog(acc util.Uint160, newestTimestamp uint64, index uint32, isNEP11 bool) (*state.TokenTransferLog, error) {
+	key := getTokenTransferLogKey(acc, newestTimestamp, index, isNEP11)
 	value, err := dao.Store.Get(key)
 	if err != nil {
 		if err == storage.ErrKeyNotFound {
@@ -206,8 +251,8 @@ func (dao *Simple) GetTokenTransferLog(acc util.Uint160, index uint32, isNEP11 b
 }
 
 // PutTokenTransferLog saves given transfer log in the cache.
-func (dao *Simple) PutTokenTransferLog(acc util.Uint160, index uint32, isNEP11 bool, lg *state.TokenTransferLog) error {
-	key := getTokenTransferLogKey(acc, index, isNEP11)
+func (dao *Simple) PutTokenTransferLog(acc util.Uint160, start uint64, index uint32, isNEP11 bool, lg *state.TokenTransferLog) error {
+	key := getTokenTransferLogKey(acc, start, index, isNEP11)
 	return dao.Store.Put(key, lg.Raw)
 }
 
@@ -292,13 +337,14 @@ func (dao *Simple) GetStorageItems(id int32) ([]state.StorageItemWithKey, error)
 func (dao *Simple) GetStorageItemsWithPrefix(id int32, prefix []byte) ([]state.StorageItemWithKey, error) {
 	var siArr []state.StorageItemWithKey
 
-	saveToArr := func(k, v []byte) {
+	saveToArr := func(k, v []byte) bool {
 		// Cut prefix and hash.
 		// #1468, but don't need to copy here, because it is done by Store.
 		siArr = append(siArr, state.StorageItemWithKey{
 			Key:  k,
 			Item: state.StorageItem(v),
 		})
+		return true
 	}
 	dao.Seek(id, storage.SeekRange{Prefix: prefix}, saveToArr)
 	return siArr, nil
@@ -306,11 +352,11 @@ func (dao *Simple) GetStorageItemsWithPrefix(id int32, prefix []byte) ([]state.S
 
 // Seek executes f for all storage items matching a given `rng` (matching given prefix and
 // starting from the point specified). If key or value is to be used outside of f, they
-// may not be copied.
-func (dao *Simple) Seek(id int32, rng storage.SeekRange, f func(k, v []byte)) {
+// may not be copied. Seek continues iterating until false is returned from f.
+func (dao *Simple) Seek(id int32, rng storage.SeekRange, f func(k, v []byte) bool) {
 	rng.Prefix = makeStorageItemKey(dao.Version.StoragePrefix, id, rng.Prefix)
-	dao.Store.Seek(rng, func(k, v []byte) {
-		f(k[len(rng.Prefix):], v)
+	dao.Store.Seek(rng, func(k, v []byte) bool {
+		return f(k[len(rng.Prefix):], v)
 	})
 }
 
@@ -477,13 +523,14 @@ func (dao *Simple) GetHeaderHashes() ([]util.Uint256, error) {
 	hashMap := make(map[uint32][]util.Uint256)
 	dao.Store.Seek(storage.SeekRange{
 		Prefix: storage.IXHeaderHashList.Bytes(),
-	}, func(k, v []byte) {
+	}, func(k, v []byte) bool {
 		storedCount := binary.LittleEndian.Uint32(k[1:])
 		hashes, err := read2000Uint256Hashes(v)
 		if err != nil {
 			panic(err)
 		}
 		hashMap[storedCount] = hashes
+		return true
 	})
 
 	var (

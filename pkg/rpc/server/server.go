@@ -1019,7 +1019,7 @@ func (s *Server) getTokenTransfers(ps request.Params, isNEP11 bool) (interface{}
 		return received, sent, !(limit != 0 && resCount >= limit), nil
 	}
 	if !isNEP11 {
-		err = s.chain.ForEachNEP17Transfer(u, func(tr *state.NEP17Transfer) (bool, error) {
+		err = s.chain.ForEachNEP17Transfer(u, end, func(tr *state.NEP17Transfer) (bool, error) {
 			r, s, res, err := handleTransfer(tr)
 			if err == nil {
 				if r != nil {
@@ -1032,7 +1032,7 @@ func (s *Server) getTokenTransfers(ps request.Params, isNEP11 bool) (interface{}
 			return res, err
 		})
 	} else {
-		err = s.chain.ForEachNEP11Transfer(u, func(tr *state.NEP11Transfer) (bool, error) {
+		err = s.chain.ForEachNEP11Transfer(u, end, func(tr *state.NEP11Transfer) (bool, error) {
 			r, s, res, err := handleTransfer(&tr.NEP17Transfer)
 			if err == nil {
 				id := hex.EncodeToString(tr.ID)
@@ -1047,7 +1047,7 @@ func (s *Server) getTokenTransfers(ps request.Params, isNEP11 bool) (interface{}
 		})
 	}
 	if err != nil {
-		return nil, response.NewInternalServerError("invalid transfer log", err)
+		return nil, response.NewInternalServerError(fmt.Sprintf("invalid transfer log: %v", err), err)
 	}
 	return bs, nil
 }

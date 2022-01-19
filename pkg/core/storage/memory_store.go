@@ -104,7 +104,7 @@ func (s *MemoryStore) PutChangeSet(puts map[string][]byte, dels map[string]bool)
 }
 
 // Seek implements the Store interface.
-func (s *MemoryStore) Seek(rng SeekRange, f func(k, v []byte)) {
+func (s *MemoryStore) Seek(rng SeekRange, f func(k, v []byte) bool) {
 	s.mut.RLock()
 	s.seek(rng, f)
 	s.mut.RUnlock()
@@ -130,7 +130,7 @@ func (s *MemoryStore) SeekAll(key []byte, f func(k, v []byte)) {
 // seek is an internal unlocked implementation of Seek. `start` denotes whether
 // seeking starting from the provided prefix should be performed. Backwards
 // seeking from some point is supported with corresponding SeekRange field set.
-func (s *MemoryStore) seek(rng SeekRange, f func(k, v []byte)) {
+func (s *MemoryStore) seek(rng SeekRange, f func(k, v []byte) bool) {
 	sPrefix := string(rng.Prefix)
 	lPrefix := len(sPrefix)
 	sStart := string(rng.Start)
@@ -162,7 +162,9 @@ func (s *MemoryStore) seek(rng SeekRange, f func(k, v []byte)) {
 		return less(memList[i].Key, memList[j].Key)
 	})
 	for _, kv := range memList {
-		f(kv.Key, kv.Value)
+		if !f(kv.Key, kv.Value) {
+			break
+		}
 	}
 }
 
