@@ -72,7 +72,7 @@ func newNotary() *Notary {
 	desc = newDescriptor("withdraw", smartcontract.BoolType,
 		manifest.NewParameter("from", smartcontract.Hash160Type),
 		manifest.NewParameter("to", smartcontract.Hash160Type))
-	md = newMethodAndPrice(n.withdraw, 1<<15, callflag.States)
+	md = newMethodAndPrice(n.withdraw, 1<<15, callflag.All)
 	n.AddMethod(md, desc)
 
 	desc = newDescriptor("balanceOf", smartcontract.IntegerType,
