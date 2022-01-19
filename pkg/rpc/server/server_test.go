@@ -24,6 +24,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/fee"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
+	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
@@ -881,6 +882,61 @@ var rpcTestCases = map[string][]rpcTestCase{
 			},
 		},
 		{
+			name:   "positive, with notifications",
+			params: `["` + NNSHash.StringLE() + `", "transfer", [{"type":"Hash160", "value":"0x0bcd2978634d961c24f5aea0802297ff128724d6"},{"type":"String", "value":"neo.com"},{"type":"Any", "value":null}],["0xb248508f4ef7088e10c48f14d04be3272ca29eee"]]`,
+			result: func(e *executor) interface{} {
+				script := []byte{0x0b, 0x0c, 0x07, 0x6e, 0x65, 0x6f, 0x2e, 0x63, 0x6f, 0x6d, 0x0c, 0x14, 0xd6, 0x24, 0x87, 0x12, 0xff, 0x97, 0x22, 0x80, 0xa0, 0xae, 0xf5, 0x24, 0x1c, 0x96, 0x4d, 0x63, 0x78, 0x29, 0xcd, 0x0b, 0x13, 0xc0, 0x1f, 0x0c, 0x08, 0x74, 0x72, 0x61, 0x6e, 0x73, 0x66, 0x65, 0x72, 0x0c, 0x14, 0xdc, 0xe2, 0xd3, 0xba, 0x0e, 0xbb, 0xa9, 0xf4, 0x44, 0xac, 0xbf, 0x50, 0x08, 0x76, 0xfd, 0x7c, 0x3e, 0x2b, 0x60, 0x3a, 0x41, 0x62, 0x7d, 0x5b, 0x52}
+				return &result.Invoke{
+					State:       "HALT",
+					GasConsumed: 33767940,
+					Script:      script,
+					Stack:       []stackitem.Item{stackitem.Make(true)},
+					Notifications: []state.NotificationEvent{{
+						ScriptHash: NNSHash,
+						Name:       "Transfer",
+						Item: stackitem.NewArray([]stackitem.Item{
+							stackitem.Make([]byte{0xee, 0x9e, 0xa2, 0x2c, 0x27, 0xe3, 0x4b, 0xd0, 0x14, 0x8f, 0xc4, 0x10, 0x8e, 0x08, 0xf7, 0x4e, 0x8f, 0x50, 0x48, 0xb2}),
+							stackitem.Make([]byte{0xd6, 0x24, 0x87, 0x12, 0xff, 0x97, 0x22, 0x80, 0xa0, 0xae, 0xf5, 0x24, 0x1c, 0x96, 0x4d, 0x63, 0x78, 0x29, 0xcd, 0x0b}),
+							stackitem.Make(1),
+							stackitem.Make("neo.com"),
+						}),
+					}},
+				}
+			},
+		},
+		{
+			name:   "positive, with storage changes",
+			params: `["0xef4073a0f2b305a38ec4050e4d3d28bc40ea63f5", "transfer", [{"type":"Hash160", "value":"0xb248508f4ef7088e10c48f14d04be3272ca29eee"},{"type":"Hash160", "value":"0x0bcd2978634d961c24f5aea0802297ff128724d6"},{"type":"Integer", "value":1},{"type":"Any", "value":null}],["0xb248508f4ef7088e10c48f14d04be3272ca29eee"],true]`,
+			result: func(e *executor) interface{} { return &result.Invoke{} },
+			check: func(t *testing.T, e *executor, inv interface{}) {
+				res, ok := inv.(*result.Invoke)
+				require.True(t, ok)
+				assert.NotNil(t, res.Script)
+				assert.Equal(t, "HALT", res.State)
+				assert.Equal(t, []stackitem.Item{stackitem.Make(true)}, res.Stack)
+				assert.NotEqual(t, 0, res.GasConsumed)
+				chg := []storage.Operation{{
+					State: "Changed",
+					Key:   []byte{0xfa, 0xff, 0xff, 0xff, 0xb},
+					Value: []byte{0xbc, 0xf8, 0x8b, 0xa, 0x56, 0x79, 0x12},
+				}, {
+					State: "Added",
+					Key:   []byte{0xfb, 0xff, 0xff, 0xff, 0x14, 0xd6, 0x24, 0x87, 0x12, 0xff, 0x97, 0x22, 0x80, 0xa0, 0xae, 0xf5, 0x24, 0x1c, 0x96, 0x4d, 0x63, 0x78, 0x29, 0xcd, 0xb},
+					Value: []byte{0x41, 0x3, 0x21, 0x1, 0x1, 0x21, 0x1, 0x11, 0x0},
+				}, {
+					State: "Changed",
+					Key:   []byte{0xfb, 0xff, 0xff, 0xff, 0x14, 0xee, 0x9e, 0xa2, 0x2c, 0x27, 0xe3, 0x4b, 0xd0, 0x14, 0x8f, 0xc4, 0x10, 0x8e, 0x8, 0xf7, 0x4e, 0x8f, 0x50, 0x48, 0xb2},
+					Value: []byte{0x41, 0x3, 0x21, 0x4, 0x2f, 0xd9, 0xf5, 0x5, 0x21, 0x1, 0x11, 0x0},
+				}, {
+					State: "Changed",
+					Key:   []byte{0xfa, 0xff, 0xff, 0xff, 0x14, 0xee, 0x9e, 0xa2, 0x2c, 0x27, 0xe3, 0x4b, 0xd0, 0x14, 0x8f, 0xc4, 0x10, 0x8e, 0x8, 0xf7, 0x4e, 0x8f, 0x50, 0x48, 0xb2},
+					Value: []byte{0x41, 0x1, 0x21, 0x5, 0x4, 0xfa, 0xb2, 0x9b, 0xd},
+				}}
+				// Can be returned in any order.
+				assert.ElementsMatch(t, chg, res.Diagnostics.Changes)
+			},
+		},
+		{
 			name:   "positive, verbose",
 			params: `["` + NNSHash.StringLE() + `", "resolve", [{"type":"String", "value":"neo.com"},{"type":"Integer","value":1}], [], true]`,
 			result: func(e *executor) interface{} {
@@ -888,11 +944,13 @@ var rpcTestCases = map[string][]rpcTestCase{
 				stdHash, _ := e.chain.GetNativeContractScriptHash(nativenames.StdLib)
 				cryptoHash, _ := e.chain.GetNativeContractScriptHash(nativenames.CryptoLib)
 				return &result.Invoke{
-					State:       "HALT",
-					GasConsumed: 17958510,
-					Script:      script,
-					Stack:       []stackitem.Item{stackitem.Make("1.2.3.4")},
+					State:         "HALT",
+					GasConsumed:   17958510,
+					Script:        script,
+					Stack:         []stackitem.Item{stackitem.Make("1.2.3.4")},
+					Notifications: []state.NotificationEvent{},
 					Diagnostics: &result.InvokeDiag{
+						Changes: []storage.Operation{},
 						Invocations: []*vm.InvocationTree{{
 							Current: hash.Hash160(script),
 							Calls: []*vm.InvocationTree{
@@ -967,7 +1025,9 @@ var rpcTestCases = map[string][]rpcTestCase{
 					Script:         script,
 					Stack:          []stackitem.Item{},
 					FaultException: "at instruction 0 (ROT): too big index",
+					Notifications:  []state.NotificationEvent{},
 					Diagnostics: &result.InvokeDiag{
+						Changes: []storage.Operation{},
 						Invocations: []*vm.InvocationTree{{
 							Current: hash.Hash160(script),
 						}},

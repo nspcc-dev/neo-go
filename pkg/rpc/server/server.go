@@ -1715,7 +1715,7 @@ func (s *Server) runScriptInVM(t trigger.Type, script []byte, contractScriptHash
 	if err != nil {
 		faultException = err.Error()
 	}
-	return result.NewInvoke(ic.VM, ic.Finalize, script, faultException, s.config.MaxIteratorResultItems), nil
+	return result.NewInvoke(ic, script, faultException, s.config.MaxIteratorResultItems), nil
 }
 
 // submitBlock broadcasts a raw block over the NEO network.

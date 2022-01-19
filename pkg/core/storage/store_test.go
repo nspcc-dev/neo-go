@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 var (
@@ -42,4 +43,25 @@ func TestAppendPrefixInt(t *testing.T) {
 		prefix := AppendPrefixInt(prefixes[i], value)
 		assert.Equal(t, KeyPrefix(expected[i]), KeyPrefix(prefix[0]))
 	}
+}
+
+func TestBatchToOperations(t *testing.T) {
+	b := &MemBatch{
+		Put: []KeyValueExists{
+			{KeyValue: KeyValue{Key: []byte{byte(STStorage), 0x01}, Value: []byte{0x01}}},
+			{KeyValue: KeyValue{Key: []byte{byte(STAccount), 0x02}, Value: []byte{0x02}}},
+			{KeyValue: KeyValue{Key: []byte{byte(STStorage), 0x03}, Value: []byte{0x03}}, Exists: true},
+		},
+		Deleted: []KeyValueExists{
+			{KeyValue: KeyValue{Key: []byte{byte(STStorage), 0x04}, Value: []byte{0x04}}},
+			{KeyValue: KeyValue{Key: []byte{byte(STAccount), 0x05}, Value: []byte{0x05}}},
+			{KeyValue: KeyValue{Key: []byte{byte(STStorage), 0x06}, Value: []byte{0x06}}, Exists: true},
+		},
+	}
+	o := []Operation{
+		{State: "Added", Key: []byte{0x01}, Value: []byte{0x01}},
+		{State: "Changed", Key: []byte{0x03}, Value: []byte{0x03}},
+		{State: "Deleted", Key: []byte{0x06}},
+	}
+	require.Equal(t, o, BatchToOperations(b))
 }

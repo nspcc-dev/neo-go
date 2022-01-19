@@ -1,7 +1,6 @@
 package server
 
 import (
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -14,58 +13,9 @@ import (
 type dump []blockDump
 
 type blockDump struct {
-	Block   uint32      `json:"block"`
-	Size    int         `json:"size"`
-	Storage []storageOp `json:"storage"`
-}
-
-type storageOp struct {
-	State string `json:"state"`
-	Key   string `json:"key"`
-	Value string `json:"value,omitempty"`
-}
-
-// batchToMap converts batch to a map so that JSON is compatible
-// with https://github.com/NeoResearch/neo-storage-audit/
-func batchToMap(index uint32, batch *storage.MemBatch) blockDump {
-	size := len(batch.Put) + len(batch.Deleted)
-	ops := make([]storageOp, 0, size)
-	for i := range batch.Put {
-		key := batch.Put[i].Key
-		if len(key) == 0 || key[0] != byte(storage.STStorage) && key[0] != byte(storage.STTempStorage) {
-			continue
-		}
-
-		op := "Added"
-		if batch.Put[i].Exists {
-			op = "Changed"
-		}
-
-		ops = append(ops, storageOp{
-			State: op,
-			Key:   base64.StdEncoding.EncodeToString(key[1:]),
-			Value: base64.StdEncoding.EncodeToString(batch.Put[i].Value),
-		})
-	}
-
-	for i := range batch.Deleted {
-		key := batch.Deleted[i].Key
-		if len(key) == 0 || !batch.Deleted[i].Exists ||
-			key[0] != byte(storage.STStorage) && key[0] != byte(storage.STTempStorage) {
-			continue
-		}
-
-		ops = append(ops, storageOp{
-			State: "Deleted",
-			Key:   base64.StdEncoding.EncodeToString(key[1:]),
-		})
-	}
-
-	return blockDump{
-		Block:   index,
-		Size:    len(ops),
-		Storage: ops,
-	}
+	Block   uint32              `json:"block"`
+	Size    int                 `json:"size"`
+	Storage []storage.Operation `json:"storage"`
 }
 
 func newDump() *dump {
@@ -73,8 +23,12 @@ func newDump() *dump {
 }
 
 func (d *dump) add(index uint32, batch *storage.MemBatch) {
-	m := batchToMap(index, batch)
-	*d = append(*d, m)
+	ops := storage.BatchToOperations(batch)
+	*d = append(*d, blockDump{
+		Block:   index,
+		Size:    len(ops),
+		Storage: ops,
+	})
 }
 
 func (d *dump) tryPersist(prefix string, index uint32) error {

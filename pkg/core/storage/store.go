@@ -45,6 +45,15 @@ const (
 	MaxStorageValueLen = 65535
 )
 
+// Operation represents a single KV operation (add/del/change) performed
+// in the DB.
+type Operation struct {
+	// State can be Added, Changed or Deleted.
+	State string `json:"state"`
+	Key   []byte `json:"key"`
+	Value []byte `json:"value,omitempty"`
+}
+
 // SeekRange represents options for Store.Seek operation.
 type SeekRange struct {
 	// Prefix denotes the Seek's lookup key.
@@ -138,4 +147,41 @@ func NewStore(cfg DBConfiguration) (Store, error) {
 		return nil, fmt.Errorf("unknown storage: %s", cfg.Type)
 	}
 	return store, err
+}
+
+// BatchToOperations converts a batch of changes into array of Operations.
+func BatchToOperations(batch *MemBatch) []Operation {
+	size := len(batch.Put) + len(batch.Deleted)
+	ops := make([]Operation, 0, size)
+	for i := range batch.Put {
+		key := batch.Put[i].Key
+		if len(key) == 0 || key[0] != byte(STStorage) && key[0] != byte(STTempStorage) {
+			continue
+		}
+
+		op := "Added"
+		if batch.Put[i].Exists {
+			op = "Changed"
+		}
+
+		ops = append(ops, Operation{
+			State: op,
+			Key:   key[1:],
+			Value: batch.Put[i].Value,
+		})
+	}
+
+	for i := range batch.Deleted {
+		key := batch.Deleted[i].Key
+		if len(key) == 0 || !batch.Deleted[i].Exists ||
+			key[0] != byte(STStorage) && key[0] != byte(STTempStorage) {
+			continue
+		}
+
+		ops = append(ops, Operation{
+			State: "Deleted",
+			Key:   key[1:],
+		})
+	}
+	return ops
 }
