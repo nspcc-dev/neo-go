@@ -22,7 +22,7 @@ func LockDepositUntil(addr interop.Hash160, till int) bool {
 
 // Withdraw represents `withdraw` method of Notary native contract.
 func Withdraw(from, to interop.Hash160) bool {
-	return neogointernal.CallWithToken(Hash, "withdraw", int(contract.States),
+	return neogointernal.CallWithToken(Hash, "withdraw", int(contract.All),
 		from, to).(bool)
 }
 
