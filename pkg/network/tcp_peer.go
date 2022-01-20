@@ -167,7 +167,7 @@ func (p *TCPPeer) handleConn() {
 	if err == nil {
 		r := io.NewBinReaderFromIO(p.conn)
 		for {
-			msg := &Message{StateRootInHeader: p.server.stateRootInHeader}
+			msg := &Message{StateRootInHeader: p.server.config.StateRootInHeader}
 			err = msg.Decode(r)
 
 			if err == payload.ErrTooManyHeaders {
@@ -207,7 +207,7 @@ func (p *TCPPeer) handleQueues() {
 	var p2pSkipCounter uint32
 	const p2pSkipDivisor = 4
 
-	var writeTimeout = time.Duration(p.server.chain.GetConfig().SecondsPerBlock) * time.Second
+	var writeTimeout = time.Duration(p.server.config.SecondsPerBlock) * time.Second
 	for {
 		var msg []byte
 
