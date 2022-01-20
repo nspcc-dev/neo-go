@@ -54,10 +54,16 @@ this requires you to set proper `GOROOT` environment variable, like
 export GOROOT=/usr/lib64/go/1.15
 ```
 
-You'll also need to initialize go modules for your contract like this (in the
+The best way to create a new contract is using `contract init` command. This will
+create an example source file, config file and `go.mod` with `github.com/nspcc-dev/neo-go/pkg/interop` dependency.
+```
+$ ./bin/neo-go contract init --name MyAwesomeContract
+$ cd MyAwesomeContract
+```
+
+You'll also need to download dependency modules for your contract like this (in the
 directory containing contract package):
 ```
-$ go mod init
 $ go mod tidy
 ```
 
