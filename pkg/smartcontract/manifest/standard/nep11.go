@@ -103,7 +103,7 @@ var nep11Divisible = &Standard{
 					Parameters: []manifest.Parameter{
 						{Name: "tokenId", Type: smartcontract.ByteArrayType},
 					},
-					ReturnType: smartcontract.AnyType,
+					ReturnType: smartcontract.InteropInterfaceType, // iterator
 					Safe:       true,
 				},
 				{
