@@ -273,7 +273,8 @@ func (n *NEO) updateCache(cvs keysWithVotes, bc interop.Ledger) error {
 	}
 	n.committeeHash.Store(hash.Hash160(script))
 
-	nextVals := committee[:bc.GetConfig().ValidatorsCount].Copy()
+	cfg := bc.GetConfig()
+	nextVals := committee[:cfg.GetNumOfCNs(bc.BlockHeight()+1)].Copy()
 	sort.Sort(nextVals)
 	n.nextValidators.Store(nextVals)
 	return nil
@@ -298,16 +299,16 @@ func (n *NEO) updateCommittee(ic *interop.Context) error {
 	return ic.DAO.PutStorageItem(n.ID, prefixCommittee, cvs.Bytes())
 }
 
-// ShouldUpdateCommittee returns true if committee is updated at block h.
-func ShouldUpdateCommittee(h uint32, bc interop.Ledger) bool {
-	cfg := bc.GetConfig()
-	r := len(cfg.StandbyCommittee)
-	return h%uint32(r) == 0
-}
-
 // OnPersist implements Contract interface.
 func (n *NEO) OnPersist(ic *interop.Context) error {
-	if ShouldUpdateCommittee(ic.Block.Index, ic.Chain) {
+	cfg := ic.Chain.GetConfig()
+	if cfg.ShouldUpdateCommitteeAt(ic.Block.Index) {
+		oldKeys := n.nextValidators.Load().(keys.PublicKeys)
+		oldCom := n.committee.Load().(keysWithVotes)
+		if cfg.GetNumOfCNs(ic.Block.Index) != len(oldKeys) ||
+			cfg.GetCommitteeSize(ic.Block.Index) != len(oldCom) {
+			n.votesChanged.Store(true)
+		}
 		if err := n.updateCommittee(ic); err != nil {
 			return err
 		}
@@ -319,16 +320,17 @@ func (n *NEO) OnPersist(ic *interop.Context) error {
 func (n *NEO) PostPersist(ic *interop.Context) error {
 	gas := n.GetGASPerBlock(ic.DAO, ic.Block.Index)
 	pubs := n.GetCommitteeMembers()
-	committeeSize := len(ic.Chain.GetConfig().StandbyCommittee)
+	cfg := ic.Chain.GetConfig()
+	committeeSize := cfg.GetCommitteeSize(ic.Block.Index)
 	index := int(ic.Block.Index) % committeeSize
 	committeeReward := new(big.Int).Mul(gas, bigCommitteeRewardRatio)
 	n.GAS.mint(ic, pubs[index].GetScriptHash(), committeeReward.Div(committeeReward, big100), false)
 
-	if ShouldUpdateCommittee(ic.Block.Index, ic.Chain) {
+	if cfg.ShouldUpdateCommitteeAt(ic.Block.Index) {
 		var voterReward = new(big.Int).Set(bigVoterRewardRatio)
 		voterReward.Mul(voterReward, gas)
 		voterReward.Mul(voterReward, big.NewInt(voterRewardFactor*int64(committeeSize)))
-		var validatorsCount = ic.Chain.GetConfig().ValidatorsCount
+		var validatorsCount = cfg.GetNumOfCNs(ic.Block.Index)
 		voterReward.Div(voterReward, big.NewInt(int64(committeeSize+validatorsCount)))
 		voterReward.Div(voterReward, big100)
 
@@ -938,14 +940,16 @@ func (n *NEO) getAccountState(ic *interop.Context, args []stackitem.Item) stacki
 
 // ComputeNextBlockValidators returns an actual list of current validators.
 func (n *NEO) ComputeNextBlockValidators(bc interop.Ledger, d dao.DAO) (keys.PublicKeys, error) {
-	if vals := n.validators.Load().(keys.PublicKeys); vals != nil {
+	cfg := bc.GetConfig()
+	numOfCNs := cfg.GetNumOfCNs(bc.BlockHeight() + 1)
+	if vals := n.validators.Load().(keys.PublicKeys); vals != nil && numOfCNs == len(vals) {
 		return vals.Copy(), nil
 	}
 	result, _, err := n.computeCommitteeMembers(bc, d)
 	if err != nil {
 		return nil, err
 	}
-	result = result[:bc.GetConfig().ValidatorsCount]
+	result = result[:numOfCNs]
 	sort.Sort(result)
 	n.validators.Store(result)
 	return result, nil
@@ -1007,7 +1011,9 @@ func (n *NEO) computeCommitteeMembers(bc interop.Ledger, d dao.DAO) (keys.Public
 	voterTurnout := votersCount.Div(votersCount, totalSupply)
 
 	sbVals := bc.GetStandByCommittee()
-	count := len(sbVals)
+	cfg := bc.GetConfig()
+	count := cfg.GetCommitteeSize(bc.BlockHeight() + 1)
+	sbVals = sbVals[:count]
 	cs, err := n.getCandidates(d, false)
 	if err != nil {
 		return nil, nil, err

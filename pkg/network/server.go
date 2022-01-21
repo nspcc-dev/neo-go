@@ -1393,8 +1393,10 @@ func (s *Server) broadcastTxHashes(hs []util.Uint256) {
 // initStaleMemPools initializes mempools for stale tx/payload processing.
 func (s *Server) initStaleMemPools() {
 	threshold := 5
-	if s.config.ValidatorsCount*2 > threshold {
-		threshold = s.config.ValidatorsCount * 2
+	// Not perfect, can change over time, but should be sufficient.
+	numOfCNs := s.config.GetNumOfCNs(s.chain.BlockHeight())
+	if numOfCNs*2 > threshold {
+		threshold = numOfCNs * 2
 	}
 
 	s.mempool.SetResendThreshold(uint32(threshold), s.broadcastTX)

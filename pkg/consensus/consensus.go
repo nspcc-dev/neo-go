@@ -16,7 +16,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/mempool"
-	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
@@ -48,6 +47,7 @@ const Category = "dBFT"
 type Ledger interface {
 	AddBlock(block *coreb.Block) error
 	ApplyPolicyToTxSet([]*transaction.Transaction) []*transaction.Transaction
+	GetConfig() config.ProtocolConfiguration
 	GetMemPool() *mempool.Pool
 	GetNextBlockValidators() ([]*keys.PublicKey, error)
 	GetStateModule() blockchainer.StateRoot
@@ -676,7 +676,8 @@ func (s *service) newBlockFromContext(ctx *dbft.Context) block.Block {
 
 	var validators keys.PublicKeys
 	var err error
-	if native.ShouldUpdateCommittee(ctx.BlockIndex, s.Chain) {
+	cfg := s.Chain.GetConfig()
+	if cfg.ShouldUpdateCommitteeAt(ctx.BlockIndex) {
 		validators, err = s.Chain.GetValidators()
 	} else {
 		validators, err = s.Chain.GetNextBlockValidators()
@@ -684,7 +685,7 @@ func (s *service) newBlockFromContext(ctx *dbft.Context) block.Block {
 	if err != nil {
 		s.log.Fatal(fmt.Sprintf("failed to get validators: %s", err.Error()))
 	}
-	script, err := smartcontract.CreateMultiSigRedeemScript(s.dbft.Context.M(), validators)
+	script, err := smartcontract.CreateDefaultMultiSigRedeemScript(validators)
 	if err != nil {
 		s.log.Fatal(fmt.Sprintf("failed to create multisignature script: %s", err.Error()))
 	}

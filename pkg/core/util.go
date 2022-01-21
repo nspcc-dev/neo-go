@@ -53,7 +53,7 @@ func validatorsFromConfig(cfg config.ProtocolConfiguration) ([]*keys.PublicKey, 
 	if err != nil {
 		return nil, err
 	}
-	return vs[:cfg.ValidatorsCount], nil
+	return vs[:cfg.GetNumOfCNs(0)], nil
 }
 
 func committeeFromConfig(cfg config.ProtocolConfiguration) ([]*keys.PublicKey, error) {

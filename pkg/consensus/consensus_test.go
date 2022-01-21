@@ -88,7 +88,8 @@ func initServiceNextConsensus(t *testing.T, newAcc *wallet.Account, offset uint3
 	require.NoError(t, bc.PoolTx(tx))
 	srv.dbft.OnTimeout(timer.HV{Height: srv.dbft.Context.BlockIndex})
 
-	for i := srv.dbft.BlockIndex; !native.ShouldUpdateCommittee(i+offset, bc); i++ {
+	cfg := bc.GetConfig()
+	for i := srv.dbft.BlockIndex; !cfg.ShouldUpdateCommitteeAt(i + offset); i++ {
 		srv.dbft.OnTimeout(timer.HV{Height: srv.dbft.Context.BlockIndex})
 	}
 

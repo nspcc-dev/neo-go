@@ -392,9 +392,10 @@ func (n *Notary) GetMaxNotValidBeforeDelta(dao dao.DAO) uint32 {
 // setMaxNotValidBeforeDelta is Notary contract method and sets the maximum NotValidBefore delta.
 func (n *Notary) setMaxNotValidBeforeDelta(ic *interop.Context, args []stackitem.Item) stackitem.Item {
 	value := toUint32(args[0])
-	maxInc := ic.Chain.GetConfig().MaxValidUntilBlockIncrement
-	if value > maxInc/2 || value < uint32(ic.Chain.GetConfig().ValidatorsCount) {
-		panic(fmt.Errorf("MaxNotValidBeforeDelta cannot be more than %d or less than %d", maxInc/2, ic.Chain.GetConfig().ValidatorsCount))
+	cfg := ic.Chain.GetConfig()
+	maxInc := cfg.MaxValidUntilBlockIncrement
+	if value > maxInc/2 || value < uint32(cfg.GetNumOfCNs(ic.Chain.BlockHeight())) {
+		panic(fmt.Errorf("MaxNotValidBeforeDelta cannot be more than %d or less than %d", maxInc/2, cfg.GetNumOfCNs(ic.Chain.BlockHeight())))
 	}
 	if !n.NEO.checkCommittee(ic) {
 		panic("invalid committee signature")

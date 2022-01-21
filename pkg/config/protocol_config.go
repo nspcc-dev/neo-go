@@ -3,6 +3,7 @@ package config
 import (
 	"errors"
 	"fmt"
+	"sort"
 
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
@@ -12,8 +13,10 @@ import (
 // ProtocolConfiguration represents the protocol config.
 type (
 	ProtocolConfiguration struct {
-		Magic       netmode.Magic `yaml:"Magic"`
-		MemPoolSize int           `yaml:"MemPoolSize"`
+		// CommitteeHistory stores committee size change history (height: size).
+		CommitteeHistory map[uint32]int `yaml:"CommitteeHistory"`
+		Magic            netmode.Magic  `yaml:"Magic"`
+		MemPoolSize      int            `yaml:"MemPoolSize"`
 
 		// InitialGASSupply is the amount of GAS generated in the genesis block.
 		InitialGASSupply fixedn.Fixed8 `yaml:"InitialGASSupply"`
@@ -57,6 +60,8 @@ type (
 		// It is valid only if P2PStateExchangeExtensions are enabled.
 		StateSyncInterval int `yaml:"StateSyncInterval"`
 		ValidatorsCount   int `yaml:"ValidatorsCount"`
+		// Validators stores history of changes to consensus node number (height: number).
+		ValidatorsHistory map[uint32]int `yaml:"ValidatorsHistory"`
 		// Whether to verify received blocks.
 		VerifyBlocks bool `yaml:"VerifyBlocks"`
 		// Whether to verify transactions in received blocks.
@@ -64,17 +69,114 @@ type (
 	}
 )
 
+// heightNumber is an auxiliary structure for configuration checks.
+type heightNumber struct {
+	h uint32
+	n int
+}
+
 // Validate checks ProtocolConfiguration for internal consistency and returns
 // error if anything inappropriate found. Other methods can rely on protocol
 // validity after this.
 func (p *ProtocolConfiguration) Validate() error {
-	if len(p.StandbyCommittee) < p.ValidatorsCount {
-		return errors.New("validators count can't exceed the size of StandbyCommittee")
-	}
+	var err error
+
 	for name := range p.NativeUpdateHistories {
 		if !nativenames.IsValid(name) {
 			return fmt.Errorf("NativeActivations configuration section contains unexpected native contract name: %s", name)
 		}
 	}
+	if p.ValidatorsCount != 0 && len(p.ValidatorsHistory) != 0 {
+		return errors.New("configuration should either have ValidatorsCount or ValidatorsHistory, not both")
+	}
+	if len(p.StandbyCommittee) < p.ValidatorsCount {
+		return errors.New("validators count can't exceed the size of StandbyCommittee")
+	}
+	var arr = make([]heightNumber, 0, len(p.CommitteeHistory))
+	for h, n := range p.CommitteeHistory {
+		if int(n) > len(p.StandbyCommittee) {
+			return fmt.Errorf("too small StandbyCommittee for required number of committee members at %d", h)
+		}
+		arr = append(arr, heightNumber{h, n})
+	}
+	if len(arr) != 0 {
+		err = sortCheckZero(arr, "CommitteeHistory")
+		if err != nil {
+			return err
+		}
+		for i, hn := range arr[1:] {
+			if int64(hn.h)%int64(hn.n) != 0 || int64(hn.h)%int64(arr[i].n) != 0 {
+				return fmt.Errorf("invalid CommitteeHistory: bad %d height for %d and %d committee", hn.h, hn.n, arr[i].n)
+			}
+		}
+	}
+	arr = arr[:0]
+	for h, n := range p.ValidatorsHistory {
+		if int(n) > len(p.StandbyCommittee) {
+			return fmt.Errorf("too small StandbyCommittee for required number of validators at %d", h)
+		}
+		arr = append(arr, heightNumber{h, n})
+	}
+	if len(arr) != 0 {
+		err = sortCheckZero(arr, "ValidatorsHistory")
+		if err != nil {
+			return err
+		}
+		for _, hn := range arr {
+			if int64(hn.n) > int64(p.GetCommitteeSize(hn.h)) {
+				return fmt.Errorf("requested number of validators is too big: %d at %d", hn.n, hn.h)
+			}
+			if int64(hn.h)%int64(p.GetCommitteeSize(hn.h)) != 0 {
+				return fmt.Errorf("validators number change is not aligned with committee change at %d", hn.h)
+			}
+		}
+	}
 	return nil
+}
+
+// sortCheckZero sorts heightNumber array and checks for zero height presence.
+func sortCheckZero(arr []heightNumber, field string) error {
+	sort.Slice(arr, func(i, j int) bool {
+		return arr[i].h < arr[j].h
+	})
+	if arr[0].h != 0 {
+		return fmt.Errorf("invalid %s: no height 0 specified", field)
+	}
+	return nil
+}
+
+// GetCommitteeSize returns the committee size for the given height. It implies
+// valid configuration file.
+func (p *ProtocolConfiguration) GetCommitteeSize(height uint32) int {
+	if len(p.CommitteeHistory) == 0 {
+		return len(p.StandbyCommittee)
+	}
+	return getBestFromMap(p.CommitteeHistory, height)
+}
+
+func getBestFromMap(dict map[uint32]int, height uint32) int {
+	var res int
+	var bestH = uint32(0)
+	for h, n := range dict {
+		if h >= bestH && h <= height {
+			res = n
+			bestH = h
+		}
+	}
+	return res
+}
+
+// GetNumOfCNs returns the number of validators for the given height.
+// It implies valid configuration file.
+func (p *ProtocolConfiguration) GetNumOfCNs(height uint32) int {
+	if len(p.ValidatorsHistory) == 0 {
+		return p.ValidatorsCount
+	}
+	return getBestFromMap(p.ValidatorsHistory, height)
+}
+
+// ShouldUpdateCommitteeAt answers the question of whether the committee
+// should be updated at the given height.
+func (p *ProtocolConfiguration) ShouldUpdateCommitteeAt(height uint32) bool {
+	return height%uint32(p.GetCommitteeSize(height)) == 0
 }
