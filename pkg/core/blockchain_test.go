@@ -1257,7 +1257,7 @@ func TestIsTxStillRelevant(t *testing.T) {
 			currentHeight := contract.Call(addr, "currentIndex", contract.ReadStates)
 			return currentHeight.(int) < %d
 		}`, bc.BlockHeight()+2) // deploy + next block
-		txDeploy, h, _, err := testchain.NewDeployTx(bc, "TestVerify", neoOwner, strings.NewReader(src), nil)
+		txDeploy, h, _, err := testchain.NewDeployTx(bc, "TestVerify.go", neoOwner, strings.NewReader(src), nil)
 		require.NoError(t, err)
 		txDeploy.ValidUntilBlock = bc.BlockHeight() + 1
 		addSigners(neoOwner, txDeploy)

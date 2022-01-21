@@ -208,6 +208,9 @@ func TestLoad(t *testing.T) {
 		filenameErr := filepath.Join(tmpDir, "vmtestcontract_err.go")
 		require.NoError(t, ioutil.WriteFile(filenameErr, []byte(src+"invalid_token"), os.ModePerm))
 		filenameErr = "'" + filenameErr + "'"
+		goMod := []byte(`module test.example/vmcli
+go 1.16`)
+		require.NoError(t, ioutil.WriteFile(filepath.Join(tmpDir, "go.mod"), goMod, os.ModePerm))
 
 		e := newTestVMCLI(t)
 		e.runProg(t,
@@ -232,6 +235,15 @@ func TestLoad(t *testing.T) {
 		filename := filepath.Join(tmpDir, "vmtestcontract.go")
 		require.NoError(t, ioutil.WriteFile(filename, []byte(srcAllowNotify), os.ModePerm))
 		filename = "'" + filename + "'"
+		wd, err := os.Getwd()
+		require.NoError(t, err)
+		goMod := []byte(`module test.example/kek
+require (
+	github.com/nspcc-dev/neo-go/pkg/interop v0.0.0
+)
+replace github.com/nspcc-dev/neo-go/pkg/interop => ` + filepath.Join(wd, "../../interop") + `
+go 1.16`)
+		require.NoError(t, ioutil.WriteFile(filepath.Join(tmpDir, "go.mod"), goMod, os.ModePerm))
 
 		e := newTestVMCLI(t)
 		e.runProg(t,
@@ -243,7 +255,7 @@ func TestLoad(t *testing.T) {
 	t.Run("loadnef", func(t *testing.T) {
 		config.Version = "0.92.0-test"
 
-		nefFile, di, err := compiler.CompileWithDebugInfo("test", strings.NewReader(src))
+		nefFile, di, err := compiler.CompileWithOptions("test.go", strings.NewReader(src), nil)
 		require.NoError(t, err)
 		filename := filepath.Join(tmpDir, "vmtestcontract.nef")
 		rawNef, err := nefFile.Bytes()

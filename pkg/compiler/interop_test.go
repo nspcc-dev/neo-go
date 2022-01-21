@@ -128,7 +128,7 @@ func TestAbort(t *testing.T) {
 }
 
 func spawnVM(t *testing.T, ic *interop.Context, src string) *vm.VM {
-	b, di, err := compiler.CompileWithDebugInfo("foo.go", strings.NewReader(src))
+	b, di, err := compiler.CompileWithOptions("foo.go", strings.NewReader(src), nil)
 	require.NoError(t, err)
 	v := core.SpawnVM(ic)
 	invokeMethod(t, testMainIdent, b.Script, v, di)
@@ -141,7 +141,7 @@ func TestAppCall(t *testing.T) {
 	func Get42() int {
 		return 42
 	}`
-	barCtr, di, err := compiler.CompileWithDebugInfo("bar.go", strings.NewReader(srcDeep))
+	barCtr, di, err := compiler.CompileWithOptions("bar.go", strings.NewReader(srcDeep), nil)
 	require.NoError(t, err)
 	mBar, err := di.ConvertToManifest(&compiler.Options{Name: "Bar"})
 	require.NoError(t, err)
@@ -167,7 +167,7 @@ func TestAppCall(t *testing.T) {
 	srcInner = fmt.Sprintf(srcInner,
 		fmt.Sprintf("%#v", cinterop.Hash160(barH.BytesBE())))
 
-	inner, di, err := compiler.CompileWithDebugInfo("foo.go", strings.NewReader(srcInner))
+	inner, di, err := compiler.CompileWithOptions("foo.go", strings.NewReader(srcInner), nil)
 	require.NoError(t, err)
 	m, err := di.ConvertToManifest(&compiler.Options{
 		Name: "Foo",

@@ -1,4 +1,4 @@
-package testdata
+package invoke
 
 import "github.com/nspcc-dev/neo-go/pkg/interop/runtime"
 

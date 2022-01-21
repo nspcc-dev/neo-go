@@ -29,7 +29,7 @@ func (c *codegen) inlineCall(f *funcScope, n *ast.CallExpr) {
 		c.labelList = c.labelList[:labelSz]
 	}()
 
-	pkg := c.buildInfo.program.Package(f.pkg.Path())
+	pkg := c.packageCache[f.pkg.Path()]
 	sig := c.typeOf(n.Fun).(*types.Signature)
 
 	c.processStdlibCall(f, n.Args)
@@ -101,7 +101,7 @@ func (c *codegen) inlineCall(f *funcScope, n *ast.CallExpr) {
 	oldMap := c.importMap
 	oldDefers := c.scope.deferStack
 	c.scope.deferStack = nil
-	c.fillImportMap(f.file, pkg.Pkg)
+	c.fillImportMap(f.file, pkg)
 	ast.Inspect(f.decl, c.scope.analyzeVoidCalls)
 	ast.Walk(c, f.decl.Body)
 	if c.scope.voidCalls[n] {
@@ -131,7 +131,7 @@ func (c *codegen) processStdlibCall(f *funcScope, args []ast.Expr) {
 
 func (c *codegen) processNotify(f *funcScope, args []ast.Expr) {
 	if c.scope != nil && c.isVerifyFunc(c.scope.decl) &&
-		c.scope.pkg == c.mainPkg.Pkg && !c.buildInfo.options.NoEventsCheck {
+		c.scope.pkg == c.mainPkg.Types && !c.buildInfo.options.NoEventsCheck {
 		c.prog.Err = fmt.Errorf("runtime.%s is not allowed in `Verify`", f.name)
 		return
 	}

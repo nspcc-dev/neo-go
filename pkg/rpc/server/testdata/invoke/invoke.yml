@@ -1,0 +1,3 @@
+name: ContractForInvokescriptTest
+permissions:
+  - methods: ['transfer']

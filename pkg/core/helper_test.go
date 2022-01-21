@@ -1,12 +1,10 @@
 package core
 
 import (
-	"bytes"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"math/big"
 	"os"
 	"path"
@@ -187,7 +185,7 @@ func TestBug1728(t *testing.T) {
 	func _deploy(_ interface{}, isUpdate bool) {
 		runtime.Log("Deploy")
 	}`
-	nf, di, err := compiler.CompileWithDebugInfo("foo", strings.NewReader(src))
+	nf, di, err := compiler.CompileWithOptions("foo.go", strings.NewReader(src), nil)
 	require.NoError(t, err)
 	m, err := di.ConvertToManifest(&compiler.Options{Name: "TestContract"})
 	require.NoError(t, err)
@@ -422,7 +420,8 @@ func initBasicChain(t *testing.T, bc *Blockchain) {
 	t.Logf("sendRublesTx: %v", transferTx.Hash().StringLE())
 
 	// Push verification contract into the chain.
-	txDeploy2, _ := newDeployTx(t, bc, priv0ScriptHash, prefix+"verification_contract.go", "Verify", nil)
+	verifyPath := filepath.Join(prefix, "verify", "verification_contract.go")
+	txDeploy2, _ := newDeployTx(t, bc, priv0ScriptHash, verifyPath, "Verify", nil)
 	txDeploy2.Nonce = getNextNonce()
 	txDeploy2.ValidUntilBlock = validUntilBlock
 	require.NoError(t, addNetworkFee(bc, txDeploy2, acc0))
@@ -458,7 +457,8 @@ func initBasicChain(t *testing.T, bc *Blockchain) {
 	t.Logf("Designated Notary node: %s", hex.EncodeToString(ntr.Accounts[0].PrivateKey().PublicKey().Bytes()))
 
 	// Push verification contract with arguments into the chain.
-	txDeploy3, _ := newDeployTx(t, bc, priv0ScriptHash, prefix+"verification_with_args_contract.go", "VerifyWithArgs", nil)
+	verifyPath = filepath.Join(prefix, "verify_args", "verification_with_args_contract.go")
+	txDeploy3, _ := newDeployTx(t, bc, priv0ScriptHash, verifyPath, "VerifyWithArgs", nil)
 	txDeploy3.Nonce = getNextNonce()
 	txDeploy3.ValidUntilBlock = validUntilBlock
 	require.NoError(t, addNetworkFee(bc, txDeploy3, acc0))
@@ -516,7 +516,9 @@ func initBasicChain(t *testing.T, bc *Blockchain) {
 	checkTxHalt(t, bc, txInv.Hash())
 
 	// Compile contract to test `invokescript` RPC call
-	_, _ = newDeployTx(t, bc, priv0ScriptHash, prefix+"invokescript_contract.go", "ContractForInvokescriptTest", nil)
+	invokePath := filepath.Join(prefix, "invoke", "invokescript_contract.go")
+	invokeCfg := filepath.Join(prefix, "invoke", "invoke.yml")
+	_, _ = newDeployTx(t, bc, priv0ScriptHash, invokePath, "ContractForInvokescriptTest", &invokeCfg)
 }
 
 func newNEP17Transfer(sc, from, to util.Uint160, amount int64, additionalArgs ...interface{}) *transaction.Transaction {
@@ -538,17 +540,7 @@ func newNEP17TransferWithAssert(sc, from, to util.Uint160, amount int64, needAss
 }
 
 func newDeployTx(t *testing.T, bc *Blockchain, sender util.Uint160, name, ctrName string, cfgName *string) (*transaction.Transaction, util.Uint160) {
-	c, err := ioutil.ReadFile(name)
-	var (
-		tx  *transaction.Transaction
-		h   util.Uint160
-		avm []byte
-	)
-	if err == nil {
-		tx, h, avm, err = testchain.NewDeployTx(bc, ctrName, sender, bytes.NewReader(c), cfgName)
-	} else {
-		tx, h, avm, err = testchain.NewDeployTx(bc, ctrName, sender, nil, cfgName)
-	}
+	tx, h, avm, err := testchain.NewDeployTx(bc, name, sender, nil, cfgName)
 	require.NoError(t, err)
 	t.Logf("contract (%s): \n\tHash: %s\n\tAVM: %s", name, h.StringLE(), base64.StdEncoding.EncodeToString(avm))
 	return tx, h

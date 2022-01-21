@@ -6,18 +6,20 @@ import (
 	"fmt"
 	"go/ast"
 	"go/parser"
+	"go/token"
 	"go/types"
 	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest/standard"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"golang.org/x/tools/go/loader" //nolint:staticcheck // SA1019: package golang.org/x/tools/go/loader is deprecated
+	"golang.org/x/tools/go/packages"
 )
 
 const fileExt = "nef"
@@ -73,86 +75,131 @@ type Options struct {
 }
 
 type buildInfo struct {
-	initialPackage string
-	program        *loader.Program
-	options        *Options
+	config  *packages.Config
+	program []*packages.Package
+	options *Options
 }
 
 // ForEachPackage executes fn on each package used in the current program
 // in the order they should be initialized.
-func (c *codegen) ForEachPackage(fn func(*loader.PackageInfo)) {
-	for i := range c.packages {
-		pkg := c.buildInfo.program.Package(c.packages[i])
-		c.typeInfo = &pkg.Info
-		c.currPkg = pkg.Pkg
-		fn(pkg)
+func (c *codegen) ForEachPackage(fn func(*packages.Package)) {
+	for _, pkgPath := range c.packages {
+		p := c.packageCache[pkgPath]
+		c.typeInfo = p.TypesInfo
+		c.currPkg = p
+		fn(p)
 	}
 }
 
 // ForEachFile executes fn on each file used in current program.
 func (c *codegen) ForEachFile(fn func(*ast.File, *types.Package)) {
-	c.ForEachPackage(func(pkg *loader.PackageInfo) {
-		for _, f := range pkg.Files {
-			c.fillImportMap(f, pkg.Pkg)
-			fn(f, pkg.Pkg)
+	c.ForEachPackage(func(pkg *packages.Package) {
+		for _, f := range pkg.Syntax {
+			c.fillImportMap(f, pkg)
+			fn(f, pkg.Types)
 		}
 	})
 }
 
 // fillImportMap fills import map for f.
-func (c *codegen) fillImportMap(f *ast.File, pkg *types.Package) {
-	c.importMap = map[string]string{"": pkg.Path()}
+func (c *codegen) fillImportMap(f *ast.File, pkg *packages.Package) {
+	c.importMap = map[string]string{"": pkg.PkgPath}
 	for _, imp := range f.Imports {
 		// We need to load find package metadata because
 		// name specified in `package ...` decl, can be in
 		// conflict with package path.
 		pkgPath := strings.Trim(imp.Path.Value, `"`)
-		realPkg := c.buildInfo.program.Package(pkgPath)
-		name := realPkg.Pkg.Name()
+		realPkg := pkg.Imports[pkgPath]
+		name := realPkg.Name
 		if imp.Name != nil {
 			name = imp.Name.Name
 		}
-		c.importMap[name] = realPkg.Pkg.Path()
+		c.importMap[name] = realPkg.PkgPath
 	}
 }
 
 func getBuildInfo(name string, src interface{}) (*buildInfo, error) {
-	conf := loader.Config{ParserMode: parser.ParseComments}
-	if src != nil {
-		f, err := conf.ParseFile(name, src)
-		if err != nil {
-			return nil, err
-		}
-		conf.CreateFromFiles("", f)
-	} else {
-		var names []string
-		if strings.HasSuffix(name, ".go") {
-			names = append(names, name)
-		} else {
-			ds, err := ioutil.ReadDir(name)
-			if err != nil {
-				return nil, fmt.Errorf("'%s' is neither Go source nor a directory", name)
-			}
-			for i := range ds {
-				if !ds[i].IsDir() && strings.HasSuffix(ds[i].Name(), ".go") {
-					names = append(names, filepath.Join(name, ds[i].Name()))
-				}
-			}
-		}
-		if len(names) == 0 {
-			return nil, errors.New("no files provided")
-		}
-		conf.CreateFromFilenames("", names...)
-	}
-
-	prog, err := conf.Load()
+	dir, err := filepath.Abs(name)
 	if err != nil {
 		return nil, err
 	}
+	absName := dir
 
+	singleFile := strings.HasSuffix(absName, ".go")
+	if singleFile {
+		dir = filepath.Dir(dir)
+	}
+
+	conf := &packages.Config{
+		Mode: packages.NeedName |
+			packages.NeedImports |
+			packages.NeedDeps |
+			packages.NeedTypes |
+			packages.NeedSyntax |
+			packages.NeedTypesInfo,
+		Fset:    token.NewFileSet(),
+		Dir:     dir,
+		Overlay: make(map[string][]byte),
+	}
+
+	var names []string
+	if src != nil {
+		var buf []byte
+		var err error
+
+		switch s := src.(type) {
+		case string:
+			buf = []byte(s)
+		case io.Reader:
+			buf, err = ioutil.ReadAll(s)
+			if err != nil {
+				return nil, err
+			}
+		default:
+			panic(fmt.Sprintf("unsupported src type: %T", s))
+		}
+		if strings.HasPrefix(runtime.Version(), "go1.15") {
+			dir, err = ioutil.TempDir("", "*")
+			if err != nil {
+				return nil, err
+			}
+			name = filepath.Join(dir, filepath.Base(name))
+			absName = name
+			names = append(names, "file="+name)
+		} else {
+			names = append(names, name)
+		}
+		conf.Overlay[absName] = buf
+	} else {
+		if strings.HasSuffix(name, ".go") {
+			names = append(names, "file="+absName)
+		} else {
+			names = append(names, "pattern="+absName)
+		}
+	}
+
+	conf.ParseFile = func(fset *token.FileSet, filename string, src []byte) (*ast.File, error) {
+		// When compiling a single file we can or can not load other files from the same package.
+		// Here we chose the latter which is consistent with `go run` behaviour.
+		// Other dependencies should still be processed.
+		if singleFile && filepath.Dir(filename) == filepath.Dir(absName) && filename != absName {
+			return nil, nil
+		}
+		const mode = parser.AllErrors
+		return parser.ParseFile(fset, filename, src, mode)
+	}
+	prog, err := packages.Load(conf, names...)
+	if err != nil {
+		return nil, err
+	}
+	for _, p := range prog {
+		if len(p.Errors) != 0 {
+			return nil, p.Errors[0]
+		}
+	}
 	return &buildInfo{
-		initialPackage: prog.InitialPackages()[0].Pkg.Name(),
-		program:        prog,
+		config:  conf,
+		program: prog,
 	}, nil
 }
 
@@ -160,19 +207,12 @@ func getBuildInfo(name string, src interface{}) (*buildInfo, error) {
 // If `r != nil`, `name` is interpreted as a filename, and `r` as file contents.
 // Otherwise `name` is either file name or name of the directory containing source files.
 func Compile(name string, r io.Reader) ([]byte, error) {
-	f, _, err := CompileWithDebugInfo(name, r)
+	f, _, err := CompileWithOptions(name, r, nil)
 	if err != nil {
 		return nil, err
 	}
 
 	return f.Script, nil
-}
-
-// CompileWithDebugInfo compiles a Go program into bytecode and emits debug info.
-func CompileWithDebugInfo(name string, r io.Reader) (*nef.File, *DebugInfo, error) {
-	return CompileWithOptions(name, r, &Options{
-		NoEventsCheck: true,
-	})
 }
 
 // CompileWithOptions compiles a Go program into bytecode with provided compiler options.

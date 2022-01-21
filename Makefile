@@ -13,7 +13,8 @@ DC_FILE=.docker/docker-compose.yml
 GOOS ?= $(shell go env GOOS)
 REPO ?= "$(shell go list -m)"
 VERSION ?= "$(shell git describe --tags 2>/dev/null | sed 's/^v//')$(shell if [ "$(GOOS)" = "windows" ]; then echo "_unsupported"; fi)"
-BUILD_FLAGS = "-X '$(REPO)/pkg/config.Version=$(VERSION)'"
+MODVERSION ?= "$(shell cat go.mod | cat go.mod | sed -r -n -e 's|.*pkg/interop (.*)|\1|p')"
+BUILD_FLAGS = "-X '$(REPO)/pkg/config.Version=$(VERSION)' -X '$(REPO)/cli/smartcontract.ModVersion=$(MODVERSION)'"
 
 IMAGE_REPO=nspccdev/neo-go
 

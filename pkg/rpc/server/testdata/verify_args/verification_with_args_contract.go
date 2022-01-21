@@ -1,4 +1,4 @@
-package testdata
+package verify_args
 
 // Verify is a verification contract method which takes several arguments.
 func Verify(argString string, argInt int, argBool bool) bool {

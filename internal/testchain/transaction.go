@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	gio "io"
+	"strings"
 
 	"github.com/nspcc-dev/neo-go/cli/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/compiler"
@@ -50,18 +51,14 @@ func NewTransferFromOwner(bc blockchainer.Blockchainer, contractHash, to util.Ui
 	return tx, SignTx(bc, tx)
 }
 
-// NewDeployTx returns new deployment tx for contract with name with Go code read from r.
+// NewDeployTx returns new deployment for contract with source from r and name equal to
+// filename without '.go' suffix.
 func NewDeployTx(bc blockchainer.Blockchainer, name string, sender util.Uint160, r gio.Reader, confFile *string) (*transaction.Transaction, util.Uint160, []byte, error) {
 	// nef.NewFile() cares about version a lot.
 	config.Version = "0.90.0-test"
 
-	ne, di, err := compiler.CompileWithDebugInfo(name, r)
-	if err != nil {
-		return nil, util.Uint160{}, nil, err
-	}
-
 	o := &compiler.Options{
-		Name:            name,
+		Name:            strings.TrimSuffix(name, ".go"),
 		NoStandardCheck: true,
 		NoEventsCheck:   true,
 	}
@@ -79,6 +76,12 @@ func NewDeployTx(bc blockchainer.Blockchainer, name string, sender util.Uint160,
 		}
 		o.SafeMethods = conf.SafeMethods
 	}
+
+	ne, di, err := compiler.CompileWithOptions(name, r, o)
+	if err != nil {
+		return nil, util.Uint160{}, nil, err
+	}
+
 	m, err := compiler.CreateManifest(di, o)
 	if err != nil {
 		return nil, util.Uint160{}, nil, fmt.Errorf("failed to create manifest: %w", err)
@@ -100,7 +103,7 @@ func NewDeployTx(bc blockchainer.Blockchainer, name string, sender util.Uint160,
 
 	tx := transaction.New(buf.Bytes(), 100*native.GASFactor)
 	tx.Signers = []transaction.Signer{{Account: sender}}
-	h := state.CreateContractHash(tx.Sender(), ne.Checksum, name)
+	h := state.CreateContractHash(tx.Sender(), ne.Checksum, m.Name)
 
 	return tx, h, ne.Script, nil
 }

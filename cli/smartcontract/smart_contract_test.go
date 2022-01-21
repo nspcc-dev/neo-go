@@ -33,10 +33,11 @@ func TestInitSmartContract(t *testing.T) {
 	require.True(t, dirInfo.IsDir())
 	files, err := ioutil.ReadDir(contractName)
 	require.NoError(t, err)
-	require.Equal(t, 2, len(files))
-	require.Equal(t, "main.go", files[0].Name())
-	require.Equal(t, "neo-go.yml", files[1].Name())
-	main, err := ioutil.ReadFile(contractName + "/" + files[0].Name())
+	require.Equal(t, 3, len(files))
+	require.Equal(t, "go.mod", files[0].Name())
+	require.Equal(t, "main.go", files[1].Name())
+	require.Equal(t, "neo-go.yml", files[2].Name())
+	main, err := ioutil.ReadFile(contractName + "/" + files[1].Name())
 	require.NoError(t, err)
 	require.Equal(t,
 		`package `+contractName+`
@@ -55,7 +56,7 @@ func RuntimeNotify(args []interface{}) {
     runtime.Notify(notificationName, args)
 }`, string(main))
 
-	manifest, err := ioutil.ReadFile(contractName + "/" + files[1].Name())
+	manifest, err := ioutil.ReadFile(contractName + "/" + files[2].Name())
 	require.NoError(t, err)
 	require.Equal(t,
 		`name: testContract

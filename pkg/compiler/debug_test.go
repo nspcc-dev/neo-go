@@ -67,17 +67,8 @@ func (ms *MyStruct) MethodOnPointerToStruct() { }
 func _deploy(data interface{}, isUpdate bool) { x := 1; _ = x }
 `
 
-	info, err := getBuildInfo("foo.go", src)
+	ne, d, err := CompileWithOptions("foo.go", strings.NewReader(src), nil)
 	require.NoError(t, err)
-
-	pkg := info.program.Package(info.initialPackage)
-	c := newCodegen(info, pkg)
-	require.NoError(t, c.compile(info, pkg))
-
-	buf, err := c.writeJumps(c.prog.Bytes())
-	require.NoError(t, err)
-
-	d := c.emitDebugInfo(buf)
 	require.NotNil(t, d)
 
 	t.Run("return types", func(t *testing.T) {
@@ -171,8 +162,8 @@ func _deploy(data interface{}, isUpdate bool) { x := 1; _ = x }
 	// basic check that last instruction of every method is indeed RET
 	for i := range d.Methods {
 		index := d.Methods[i].Range.End
-		require.True(t, int(index) < len(buf))
-		require.EqualValues(t, opcode.RET, buf[index])
+		require.True(t, int(index) < len(ne.Script))
+		require.EqualValues(t, opcode.RET, ne.Script[index])
 	}
 
 	t.Run("convert to Manifest", func(t *testing.T) {
@@ -308,18 +299,12 @@ func TestSequencePoints(t *testing.T) {
 		return false
 	}`
 
-	info, err := getBuildInfo("foo.go", src)
+	_, d, err := CompileWithOptions("foo.go", strings.NewReader(src), nil)
 	require.NoError(t, err)
-
-	pkg := info.program.Package(info.initialPackage)
-	c := newCodegen(info, pkg)
-	require.NoError(t, c.compile(info, pkg))
-
-	buf := c.prog.Bytes()
-	d := c.emitDebugInfo(buf)
 	require.NotNil(t, d)
 
-	require.Equal(t, d.Documents, []string{"foo.go"})
+	require.Equal(t, 1, len(d.Documents))
+	require.True(t, strings.HasSuffix(d.Documents[0], "foo.go"))
 
 	// Main func has 2 return on 4-th and 6-th lines.
 	ps := d.Methods[0].SeqPoints
@@ -381,7 +366,7 @@ func TestManifestOverload(t *testing.T) {
 		return 4
 	}`
 
-	_, di, err := CompileWithDebugInfo("foo", strings.NewReader(src))
+	_, di, err := CompileWithOptions("foo.go", strings.NewReader(src), nil)
 	require.NoError(t, err)
 
 	m, err := di.ConvertToManifest(&Options{Overloads: map[string]string{"add3Aux": "add3"}})

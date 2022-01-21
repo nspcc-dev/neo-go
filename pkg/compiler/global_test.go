@@ -12,6 +12,18 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestUnusedGlobal(t *testing.T) {
+	src := `package foo
+	const (
+		_ int = iota
+		a
+	)
+	func Main() int {
+		return 1
+	}`
+	eval(t, src, big.NewInt(1))
+}
+
 func TestChangeGlobal(t *testing.T) {
 	src := `package foo
 	var a int
@@ -131,7 +143,7 @@ func TestContractWithNoMain(t *testing.T) {
 		someLocal := 2
 		return someGlobal + someLocal + a
 	}`
-	b, di, err := compiler.CompileWithDebugInfo("foo.go", strings.NewReader(src))
+	b, di, err := compiler.CompileWithOptions("foo.go", strings.NewReader(src), nil)
 	require.NoError(t, err)
 	v := vm.New()
 	invokeMethod(t, "Add3", b.Script, v, di)

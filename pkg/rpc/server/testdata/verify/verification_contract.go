@@ -1,4 +1,4 @@
-package testdata
+package verify
 
 import (
 	"github.com/nspcc-dev/neo-go/pkg/interop/runtime"

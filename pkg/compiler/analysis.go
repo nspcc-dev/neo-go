@@ -5,11 +5,12 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
+	"path/filepath"
 	"strings"
 
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
-	"golang.org/x/tools/go/loader" //nolint:staticcheck // SA1019: package golang.org/x/tools/go/loader is deprecated
+	"golang.org/x/tools/go/packages"
 )
 
 var (
@@ -75,18 +76,18 @@ func (c *codegen) traverseGlobals() bool {
 	emit.Instruction(c.prog.BinWriter, opcode.INITSLOT, []byte{0, 0})
 
 	lastCnt, maxCnt := -1, -1
-	c.ForEachPackage(func(pkg *loader.PackageInfo) {
+	c.ForEachPackage(func(pkg *packages.Package) {
 		if n+nConst > 0 {
-			for _, f := range pkg.Files {
-				c.fillImportMap(f, pkg.Pkg)
-				c.convertGlobals(f, pkg.Pkg)
+			for _, f := range pkg.Syntax {
+				c.fillImportMap(f, pkg)
+				c.convertGlobals(f, pkg.Types)
 			}
 		}
-		for _, f := range pkg.Files {
-			c.fillImportMap(f, pkg.Pkg)
+		for _, f := range pkg.Syntax {
+			c.fillImportMap(f, pkg)
 
 			var currMax int
-			lastCnt, currMax = c.convertInitFuncs(f, pkg.Pkg, lastCnt)
+			lastCnt, currMax = c.convertInitFuncs(f, pkg.Types, lastCnt)
 			if currMax > maxCnt {
 				maxCnt = currMax
 			}
@@ -214,26 +215,30 @@ func lastStmtIsReturn(body *ast.BlockStmt) (b bool) {
 //   that there can be no cyclic initialization dependencies.
 func (c *codegen) analyzePkgOrder() {
 	seen := make(map[string]bool)
-	info := c.buildInfo.program.Package(c.buildInfo.initialPackage)
-	c.visitPkg(info.Pkg, seen)
+	info := c.buildInfo.program[0]
+	c.visitPkg(info, seen)
 }
 
-func (c *codegen) visitPkg(pkg *types.Package, seen map[string]bool) {
-	pkgPath := pkg.Path()
-	if seen[pkgPath] {
+func (c *codegen) visitPkg(pkg *packages.Package, seen map[string]bool) {
+	if seen[pkg.PkgPath] {
 		return
 	}
-	for _, imp := range pkg.Imports() {
-		c.visitPkg(imp, seen)
+	for _, imp := range pkg.Types.Imports() {
+		c.visitPkg(pkg.Imports[imp.Path()], seen)
 	}
-	seen[pkgPath] = true
-	c.packages = append(c.packages, pkgPath)
+	seen[pkg.PkgPath] = true
+	c.packages = append(c.packages, pkg.PkgPath)
+	c.packageCache[pkg.PkgPath] = pkg
 }
 
 func (c *codegen) fillDocumentInfo() {
-	fset := c.buildInfo.program.Fset
+	fset := c.buildInfo.config.Fset
 	fset.Iterate(func(f *token.File) bool {
 		filePath := f.Position(f.Pos(0)).Filename
+		filePath, err := filepath.Rel(c.buildInfo.config.Dir, filePath)
+		if err != nil {
+			panic(err)
+		}
 		c.docIndex[filePath] = len(c.documents)
 		c.documents = append(c.documents, filePath)
 		return true
@@ -257,7 +262,7 @@ func (c *codegen) analyzeFuncUsage() funcUsage {
 	diff := funcUsage{}
 	c.ForEachFile(func(f *ast.File, pkg *types.Package) {
 		var pkgPath string
-		isMain := pkg == c.mainPkg.Pkg
+		isMain := pkg == c.mainPkg.Types
 		if !isMain {
 			pkgPath = pkg.Path()
 		}
@@ -303,10 +308,10 @@ func (c *codegen) analyzeFuncUsage() funcUsage {
 
 			pkg := c.mainPkg
 			if fd.path != "" {
-				pkg = c.buildInfo.program.Package(fd.path)
+				pkg = c.packageCache[fd.path]
 			}
-			c.typeInfo = &pkg.Info
-			c.currPkg = pkg.Pkg
+			c.typeInfo = pkg.TypesInfo
+			c.currPkg = pkg
 			c.importMap = fd.importMap
 			ast.Inspect(fd.decl, func(node ast.Node) bool {
 				switch n := node.(type) {

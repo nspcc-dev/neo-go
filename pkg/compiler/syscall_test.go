@@ -139,7 +139,7 @@ func runSyscallTestCase(t *testing.T, ic *interop.Context, goName string, tc sys
 	}
 	ss := strings.Split(goName, ".")
 	src := fmt.Sprintf(srcTmpl, ss[0], goName, strings.Join(tc.params, ", "))
-	b, _, err := compiler.CompileWithDebugInfo("foo", strings.NewReader(src))
+	b, _, err := compiler.CompileWithOptions("foo.go", strings.NewReader(src), nil)
 	require.NoError(t, err)
 
 	v := ic.SpawnVM()
@@ -198,7 +198,7 @@ func TestNotify(t *testing.T) {
 			runtime.Notify("long event12345678901234567890123")
 		}`
 
-		_, _, err := compiler.CompileWithDebugInfo("foo.go", strings.NewReader(src))
+		_, _, err := compiler.CompileWithOptions("foo.go", strings.NewReader(src), nil)
 		require.Error(t, err)
 	})
 }

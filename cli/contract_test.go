@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/cli/smartcontract"
 	"github.com/nspcc-dev/neo-go/internal/random"
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/storage"
@@ -82,6 +83,12 @@ func TestCalcHash(t *testing.T) {
 }
 
 func TestContractInitAndCompile(t *testing.T) {
+	// For proper nef generation.
+	config.Version = "v0.98.1-test"
+
+	// For proper contract init. The actual version as it will be replaced.
+	smartcontract.ModVersion = "v0.0.0"
+
 	tmpDir := t.TempDir()
 	e := newExecutor(t, false)
 
@@ -98,9 +105,6 @@ func TestContractInitAndCompile(t *testing.T) {
 	t.Run("don't rewrite existing directory", func(t *testing.T) {
 		e.RunWithError(t, "neo-go", "contract", "init", "--name", ctrPath)
 	})
-
-	// For proper nef generation.
-	config.Version = "0.90.0-test"
 
 	srcPath := filepath.Join(ctrPath, "main.go")
 	cfgPath := filepath.Join(ctrPath, "neo-go.yml")
@@ -119,6 +123,17 @@ func TestContractInitAndCompile(t *testing.T) {
 		cfgName := filepath.Join(ctrPath, "notexists.yml")
 		e.RunWithError(t, append(cmd, "--config", cfgName)...)
 	})
+
+	// Replace `pkg/interop` in go.mod to avoid getting an actual module version.
+	goMod := filepath.Join(ctrPath, "go.mod")
+	data, err := ioutil.ReadFile(goMod)
+	require.NoError(t, err)
+
+	wd, err := os.Getwd()
+	require.NoError(t, err)
+	data = append(data, "\nreplace github.com/nspcc-dev/neo-go/pkg/interop => "...)
+	data = append(data, filepath.Join(wd, "../pkg/interop")...)
+	require.NoError(t, ioutil.WriteFile(goMod, data, os.ModePerm))
 
 	cmd = append(cmd, "--config", cfgPath)
 	e.Run(t, cmd...)
