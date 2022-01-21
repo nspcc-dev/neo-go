@@ -1,3 +1,3 @@
 module github.com/nspcc-dev/neo-go/pkg/interop
 
-go 1.15
+go 1.16

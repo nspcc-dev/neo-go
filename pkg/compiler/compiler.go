@@ -12,6 +12,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
@@ -157,7 +158,17 @@ func getBuildInfo(name string, src interface{}) (*buildInfo, error) {
 		default:
 			panic(fmt.Sprintf("unsupported src type: %T", s))
 		}
-		names = append(names, name)
+		if strings.HasPrefix(runtime.Version(), "go1.15") {
+			dir, err = ioutil.TempDir("", "*")
+			if err != nil {
+				return nil, err
+			}
+			name = filepath.Join(dir, filepath.Base(name))
+			absName = name
+			names = append(names, "file="+name)
+		} else {
+			names = append(names, name)
+		}
 		conf.Overlay[absName] = buf
 	} else {
 		if strings.HasSuffix(name, ".go") {

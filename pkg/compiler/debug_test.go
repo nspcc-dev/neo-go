@@ -303,7 +303,8 @@ func TestSequencePoints(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, d)
 
-	require.Equal(t, d.Documents, []string{"foo.go"})
+	require.Equal(t, 1, len(d.Documents))
+	require.True(t, strings.HasSuffix(d.Documents[0], "foo.go"))
 
 	// Main func has 2 return on 4-th and 6-th lines.
 	ps := d.Methods[0].SeqPoints
