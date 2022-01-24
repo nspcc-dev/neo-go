@@ -461,6 +461,13 @@ func (di *DebugInfo) ConvertToManifest(o *Options) (*manifest.Manifest, error) {
 				"multiple methods with the same number of parameters", name)
 		}
 		m.Name = emitName
+		// Check the resulting name against set of safe methods.
+		for i := range o.SafeMethods {
+			if m.Name == o.SafeMethods[i] {
+				m.Safe = true
+				break
+			}
+		}
 	}
 	return result, nil
 }

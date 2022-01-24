@@ -1,0 +1,22 @@
+name: "NFSO NFT"
+sourceurl: https://github.com/nspcc-dev/neo-go/
+supportedstandards: ["NEP-11"]
+safemethods: ["balanceOf", "decimals", "symbol", "totalSupply", "tokensOf", "ownerOf", "properties", "tokens"]
+events:
+  - name: Transfer
+    parameters:
+      - name: from
+        type: Hash160
+      - name: to
+        type: Hash160
+      - name: amount
+        type: Integer
+      - name: tokenId
+        type: ByteArray
+permissions:
+  - hash: fffdc93764dbaddd97c48f252a53ea4643faa3fd
+    methods: ["update", "destroy"]
+  - methods: ["onNEP11Payment"]
+overloads:
+  balanceOfDivisible: balanceOf
+  transferDivisible: transfer

@@ -129,7 +129,7 @@ func checkMethod(m *manifest.Manifest, expected *manifest.Method,
 		}
 	}
 	if expected.Safe != actual.Safe {
-		return fmt.Errorf("%w: expected %t", ErrSafeMethodMismatch, expected.Safe)
+		return fmt.Errorf("'%s' %w: expected %t", expected.Name, ErrSafeMethodMismatch, expected.Safe)
 	}
 	return nil
 }
