@@ -300,16 +300,6 @@ func (chain *FakeChain) GetValidators() ([]*keys.PublicKey, error) {
 	panic("TODO")
 }
 
-// GetStandByCommittee implements Blockchainer interface.
-func (chain *FakeChain) GetStandByCommittee() keys.PublicKeys {
-	panic("TODO")
-}
-
-// GetStandByValidators implements Blockchainer interface.
-func (chain *FakeChain) GetStandByValidators() keys.PublicKeys {
-	panic("TODO")
-}
-
 // GetEnrollments implements Blockchainer interface.
 func (chain *FakeChain) GetEnrollments() ([]state.Validator, error) {
 	panic("TODO")

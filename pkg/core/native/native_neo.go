@@ -10,6 +10,7 @@ import (
 	"strings"
 	"sync/atomic"
 
+	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/runtime"
@@ -54,6 +55,10 @@ type NEO struct {
 	// It is set in state-modifying methods only and read in `PostPersist` thus is not protected
 	// by any mutex.
 	gasPerVoteCache map[string]big.Int
+	// Configuration and standby keys are set during initialization and then
+	// only read from.
+	cfg         config.ProtocolConfiguration
+	standbyKeys keys.PublicKeys
 }
 
 const (
@@ -190,6 +195,10 @@ func newNEO() *NEO {
 
 // Initialize initializes NEO contract.
 func (n *NEO) Initialize(ic *interop.Context) error {
+	err := n.initConfigCache(ic.Chain)
+	if err != nil {
+		return nil
+	}
 	if err := n.nep17TokenNative.Initialize(ic); err != nil {
 		return err
 	}
@@ -199,9 +208,9 @@ func (n *NEO) Initialize(ic *interop.Context) error {
 		return errors.New("already initialized")
 	}
 
-	committee := ic.Chain.GetStandByCommittee()
-	cvs := toKeysWithVotes(committee)
-	err := n.updateCache(cvs, ic.Chain)
+	committee0 := n.standbyKeys[:n.cfg.GetCommitteeSize(ic.Block.Index)]
+	cvs := toKeysWithVotes(committee0)
+	err = n.updateCache(cvs, ic.Chain)
 	if err != nil {
 		return err
 	}
@@ -244,6 +253,10 @@ func (n *NEO) Initialize(ic *interop.Context) error {
 // Cache initialisation should be done apart from Initialize because Initialize is
 // called only when deploying native contracts.
 func (n *NEO) InitializeCache(bc interop.Ledger, d dao.DAO) error {
+	err := n.initConfigCache(bc)
+	if err != nil {
+		return nil
+	}
 	var committee = keysWithVotes{}
 	si := d.GetStorageItem(n.ID, prefixCommittee)
 	if err := committee.DecodeBytes(si); err != nil {
@@ -263,6 +276,14 @@ func (n *NEO) InitializeCache(bc interop.Ledger, d dao.DAO) error {
 	return nil
 }
 
+func (n *NEO) initConfigCache(bc interop.Ledger) error {
+	var err error
+
+	n.cfg = bc.GetConfig()
+	n.standbyKeys, err = keys.NewPublicKeysFromStrings(n.cfg.StandbyCommittee)
+	return err
+}
+
 func (n *NEO) updateCache(cvs keysWithVotes, bc interop.Ledger) error {
 	n.committee.Store(cvs)
 
@@ -273,8 +294,7 @@ func (n *NEO) updateCache(cvs keysWithVotes, bc interop.Ledger) error {
 	}
 	n.committeeHash.Store(hash.Hash160(script))
 
-	cfg := bc.GetConfig()
-	nextVals := committee[:cfg.GetNumOfCNs(bc.BlockHeight()+1)].Copy()
+	nextVals := committee[:n.cfg.GetNumOfCNs(bc.BlockHeight()+1)].Copy()
 	sort.Sort(nextVals)
 	n.nextValidators.Store(nextVals)
 	return nil
@@ -301,12 +321,11 @@ func (n *NEO) updateCommittee(ic *interop.Context) error {
 
 // OnPersist implements Contract interface.
 func (n *NEO) OnPersist(ic *interop.Context) error {
-	cfg := ic.Chain.GetConfig()
-	if cfg.ShouldUpdateCommitteeAt(ic.Block.Index) {
+	if n.cfg.ShouldUpdateCommitteeAt(ic.Block.Index) {
 		oldKeys := n.nextValidators.Load().(keys.PublicKeys)
 		oldCom := n.committee.Load().(keysWithVotes)
-		if cfg.GetNumOfCNs(ic.Block.Index) != len(oldKeys) ||
-			cfg.GetCommitteeSize(ic.Block.Index) != len(oldCom) {
+		if n.cfg.GetNumOfCNs(ic.Block.Index) != len(oldKeys) ||
+			n.cfg.GetCommitteeSize(ic.Block.Index) != len(oldCom) {
 			n.votesChanged.Store(true)
 		}
 		if err := n.updateCommittee(ic); err != nil {
@@ -320,17 +339,16 @@ func (n *NEO) OnPersist(ic *interop.Context) error {
 func (n *NEO) PostPersist(ic *interop.Context) error {
 	gas := n.GetGASPerBlock(ic.DAO, ic.Block.Index)
 	pubs := n.GetCommitteeMembers()
-	cfg := ic.Chain.GetConfig()
-	committeeSize := cfg.GetCommitteeSize(ic.Block.Index)
+	committeeSize := n.cfg.GetCommitteeSize(ic.Block.Index)
 	index := int(ic.Block.Index) % committeeSize
 	committeeReward := new(big.Int).Mul(gas, bigCommitteeRewardRatio)
 	n.GAS.mint(ic, pubs[index].GetScriptHash(), committeeReward.Div(committeeReward, big100), false)
 
-	if cfg.ShouldUpdateCommitteeAt(ic.Block.Index) {
+	if n.cfg.ShouldUpdateCommitteeAt(ic.Block.Index) {
 		var voterReward = new(big.Int).Set(bigVoterRewardRatio)
 		voterReward.Mul(voterReward, gas)
 		voterReward.Mul(voterReward, big.NewInt(voterRewardFactor*int64(committeeSize)))
-		var validatorsCount = cfg.GetNumOfCNs(ic.Block.Index)
+		var validatorsCount = n.cfg.GetNumOfCNs(ic.Block.Index)
 		voterReward.Div(voterReward, big.NewInt(int64(committeeSize+validatorsCount)))
 		voterReward.Div(voterReward, big100)
 
@@ -940,8 +958,7 @@ func (n *NEO) getAccountState(ic *interop.Context, args []stackitem.Item) stacki
 
 // ComputeNextBlockValidators returns an actual list of current validators.
 func (n *NEO) ComputeNextBlockValidators(bc interop.Ledger, d dao.DAO) (keys.PublicKeys, error) {
-	cfg := bc.GetConfig()
-	numOfCNs := cfg.GetNumOfCNs(bc.BlockHeight() + 1)
+	numOfCNs := n.cfg.GetNumOfCNs(bc.BlockHeight() + 1)
 	if vals := n.validators.Load().(keys.PublicKeys); vals != nil && numOfCNs == len(vals) {
 		return vals.Copy(), nil
 	}
@@ -1010,10 +1027,9 @@ func (n *NEO) computeCommitteeMembers(bc interop.Ledger, d dao.DAO) (keys.Public
 	_, totalSupply := n.getTotalSupply(d)
 	voterTurnout := votersCount.Div(votersCount, totalSupply)
 
-	sbVals := bc.GetStandByCommittee()
-	cfg := bc.GetConfig()
-	count := cfg.GetCommitteeSize(bc.BlockHeight() + 1)
-	sbVals = sbVals[:count]
+	count := n.cfg.GetCommitteeSize(bc.BlockHeight() + 1)
+	// Can be sorted and/or returned to outside users, thus needs to be copied.
+	sbVals := keys.PublicKeys(n.standbyKeys[:count]).Copy()
 	cs, err := n.getCandidates(d, false)
 	if err != nil {
 		return nil, nil, err

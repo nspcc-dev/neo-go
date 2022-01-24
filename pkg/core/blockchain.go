@@ -152,8 +152,6 @@ type Blockchain struct {
 	// Block's transactions are passed via mempool.
 	postBlock []func(func(*transaction.Transaction, *mempool.Pool, bool) bool, *mempool.Pool, *block.Block)
 
-	sbCommittee keys.PublicKeys
-
 	log *zap.Logger
 
 	lastBatch *storage.MemBatch
@@ -247,10 +245,6 @@ func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration, log *zap.L
 				zap.Int("StateSyncInterval", cfg.StateSyncInterval))
 		}
 	}
-	committee, err := committeeFromConfig(cfg)
-	if err != nil {
-		return nil, err
-	}
 	if len(cfg.NativeUpdateHistories) == 0 {
 		cfg.NativeUpdateHistories = map[string][]uint32{}
 		log.Info("NativeActivations are not set, using default values")
@@ -262,7 +256,6 @@ func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration, log *zap.L
 		stopCh:      make(chan struct{}),
 		runToExitCh: make(chan struct{}),
 		memPool:     mempool.New(cfg.MemPoolSize, 0, false),
-		sbCommittee: committee,
 		log:         log,
 		events:      make(chan bcEvent),
 		subCh:       make(chan interface{}),
@@ -2087,16 +2080,6 @@ func (bc *Blockchain) PoolTxWithData(t *transaction.Transaction, data interface{
 		}
 	}
 	return bc.verifyAndPoolTx(t, mp, feer, data)
-}
-
-// GetStandByValidators returns validators from the configuration.
-func (bc *Blockchain) GetStandByValidators() keys.PublicKeys {
-	return bc.sbCommittee[:bc.config.GetNumOfCNs(bc.BlockHeight())].Copy()
-}
-
-// GetStandByCommittee returns standby committee from the configuration.
-func (bc *Blockchain) GetStandByCommittee() keys.PublicKeys {
-	return bc.sbCommittee.Copy()
 }
 
 // GetCommittee returns the sorted list of public keys of nodes in committee.

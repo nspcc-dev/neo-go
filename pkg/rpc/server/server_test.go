@@ -699,8 +699,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 		{
 			params: "[]",
 			result: func(e *executor) interface{} {
-				// it's a test chain, so committee is a sorted standby committee
-				expected := e.chain.GetStandByCommittee()
+				expected, _ := e.chain.GetCommittee()
 				sort.Sort(expected)
 				return &expected
 			},

@@ -10,6 +10,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 )
@@ -135,7 +136,12 @@ func (g *GAS) BalanceOf(d dao.DAO, acc util.Uint160) *big.Int {
 }
 
 func getStandbyValidatorsHash(ic *interop.Context) (util.Uint160, error) {
-	s, err := smartcontract.CreateDefaultMultiSigRedeemScript(ic.Chain.GetStandByValidators())
+	cfg := ic.Chain.GetConfig()
+	committee, err := keys.NewPublicKeysFromStrings(cfg.StandbyCommittee)
+	if err != nil {
+		return util.Uint160{}, err
+	}
+	s, err := smartcontract.CreateDefaultMultiSigRedeemScript(committee[:cfg.GetNumOfCNs(0)])
 	if err != nil {
 		return util.Uint160{}, err
 	}

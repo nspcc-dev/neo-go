@@ -32,6 +32,20 @@ type PublicKeys []*PublicKey
 var big0 = big.NewInt(0)
 var big3 = big.NewInt(3)
 
+// NewPublicKeysFromStrings converts an array of string-encoded P256 public keys
+// into an array of PublicKeys.
+func NewPublicKeysFromStrings(ss []string) (PublicKeys, error) {
+	arr := make([]*PublicKey, len(ss))
+	for i := range ss {
+		pubKey, err := NewPublicKeyFromString(ss[i])
+		if err != nil {
+			return nil, err
+		}
+		arr[i] = pubKey
+	}
+	return PublicKeys(arr), nil
+}
+
 func (keys PublicKeys) Len() int      { return len(keys) }
 func (keys PublicKeys) Swap(i, j int) { keys[i], keys[j] = keys[j], keys[i] }
 func (keys PublicKeys) Less(i, j int) bool {

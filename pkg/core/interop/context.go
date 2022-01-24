@@ -15,7 +15,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
-	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
@@ -42,8 +41,6 @@ type Ledger interface {
 	GetBlock(hash util.Uint256) (*block.Block, error)
 	GetConfig() config.ProtocolConfiguration
 	GetHeaderHash(int) util.Uint256
-	GetStandByCommittee() keys.PublicKeys
-	GetStandByValidators() keys.PublicKeys
 	GetStoragePrice() int64
 }
 

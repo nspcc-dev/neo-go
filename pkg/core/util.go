@@ -49,23 +49,11 @@ func createGenesisBlock(cfg config.ProtocolConfiguration) (*block.Block, error) 
 }
 
 func validatorsFromConfig(cfg config.ProtocolConfiguration) ([]*keys.PublicKey, error) {
-	vs, err := committeeFromConfig(cfg)
+	vs, err := keys.NewPublicKeysFromStrings(cfg.StandbyCommittee)
 	if err != nil {
 		return nil, err
 	}
 	return vs[:cfg.GetNumOfCNs(0)], nil
-}
-
-func committeeFromConfig(cfg config.ProtocolConfiguration) ([]*keys.PublicKey, error) {
-	validators := make([]*keys.PublicKey, len(cfg.StandbyCommittee))
-	for i := range validators {
-		pubKey, err := keys.NewPublicKeyFromString(cfg.StandbyCommittee[i])
-		if err != nil {
-			return nil, err
-		}
-		validators[i] = pubKey
-	}
-	return validators, nil
 }
 
 func getNextConsensusAddress(validators []*keys.PublicKey) (val util.Uint160, err error) {
