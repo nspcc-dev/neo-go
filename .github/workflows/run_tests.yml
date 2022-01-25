@@ -25,6 +25,18 @@ jobs:
         with:
           version: latest
 
+  gomodcheck:
+    name: Check internal dependencies
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Check dependencies
+        run: |
+          find -name go.mod | xargs -n1 grep -o 'pkg/interop v\S*' | uniq | wc -l | xargs -I{} -n1 [ 1 -eq {} ] || { echo "Different versions for dependencies in go.mod" && exit 1; }
+
   test_cover:
     name: Coverage
     runs-on: ubuntu-20.04
