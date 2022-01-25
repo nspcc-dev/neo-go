@@ -4,6 +4,7 @@ require (
 	github.com/abiosoft/ishell/v2 v2.0.2
 	github.com/abiosoft/readline v0.0.0-20180607040430-155bce2042db
 	github.com/btcsuite/btcd v0.22.0-beta
+	github.com/davecgh/go-spew v1.1.1
 	github.com/gorilla/websocket v1.4.2
 	github.com/hashicorp/golang-lru v0.5.4
 	github.com/holiman/uint256 v1.2.0
@@ -13,6 +14,7 @@ require (
 	github.com/nspcc-dev/neofs-sdk-go v0.0.0-20220113123743-7f3162110659
 	github.com/nspcc-dev/rfc6979 v0.2.0
 	github.com/pierrec/lz4 v2.6.1+incompatible
+	github.com/pmezard/go-difflib v1.0.0
 	github.com/prometheus/client_golang v1.11.0
 	github.com/stretchr/testify v1.7.0
 	github.com/syndtr/goleveldb v1.0.1-0.20210305035536-64b5b1c73954
