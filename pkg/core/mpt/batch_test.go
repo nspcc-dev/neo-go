@@ -274,7 +274,7 @@ func TestTrie_PutBatchHash(t *testing.T) {
 		}
 		tr1.Collapse(1)
 		tr2.Collapse(1)
-		key := makeStorageKey(tr1.root.(*BranchNode).Children[2].Hash().BytesBE())
+		key := makeStorageKey(tr1.root.(*BranchNode).Children[2].Hash())
 		require.NoError(t, tr1.Store.Delete(key))
 		require.NoError(t, tr2.Store.Delete(key))
 		testIncompletePut(t, ps, 1, tr1, tr2)

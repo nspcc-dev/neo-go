@@ -372,8 +372,8 @@ func (t *Trie) StateRoot() util.Uint256 {
 	return t.root.Hash()
 }
 
-func makeStorageKey(mptKey []byte) []byte {
-	return append([]byte{byte(storage.DataMPT)}, mptKey...)
+func makeStorageKey(mptKey util.Uint256) []byte {
+	return append([]byte{byte(storage.DataMPT)}, mptKey[:]...)
 }
 
 // Flush puts every node in the trie except Hash ones to the storage.
@@ -392,7 +392,7 @@ func (t *Trie) Flush() {
 					delete(t.refcount, h)
 				}
 			} else if node.refcount > 0 {
-				_ = t.Store.Put(makeStorageKey(h.BytesBE()), node.bytes)
+				_ = t.Store.Put(makeStorageKey(h), node.bytes)
 			}
 			node.refcount = 0
 		} else {
@@ -407,7 +407,7 @@ func (t *Trie) updateRefCount(h util.Uint256) int32 {
 		panic("`updateRefCount` is called, but GC is disabled")
 	}
 	var data []byte
-	key := makeStorageKey(h.BytesBE())
+	key := makeStorageKey(h)
 	node := t.refcount[h]
 	cnt := node.initial
 	if cnt == 0 {
@@ -466,7 +466,7 @@ func (t *Trie) removeRef(h util.Uint256, bs []byte) {
 }
 
 func (t *Trie) getFromStore(h util.Uint256) (Node, error) {
-	data, err := t.Store.Get(makeStorageKey(h.BytesBE()))
+	data, err := t.Store.Get(makeStorageKey(h))
 	if err != nil {
 		return nil, err
 	}
