@@ -177,7 +177,7 @@ func (b *Billet) putIntoHash(curr *HashNode, path []byte, val Node) (Node, error
 }
 
 func (b *Billet) incrementRefAndStore(h util.Uint256, bs []byte) {
-	key := makeStorageKey(h.BytesBE())
+	key := makeStorageKey(h)
 	if b.refcountEnabled {
 		var (
 			err  error
@@ -325,7 +325,7 @@ func (b *Billet) tryCollapseBranch(curr *BranchNode) Node {
 
 // GetFromStore returns MPT node from the storage.
 func (b *Billet) GetFromStore(h util.Uint256) (Node, error) {
-	data, err := b.Store.Get(makeStorageKey(h.BytesBE()))
+	data, err := b.Store.Get(makeStorageKey(h))
 	if err != nil {
 		return nil, err
 	}
