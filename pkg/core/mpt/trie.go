@@ -12,13 +12,29 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/util/slice"
 )
 
+// TrieMode is the storage mode of trie, it affects the DB scheme.
+type TrieMode byte
+
+// TrieMode is the storage mode of trie.
+const (
+	// ModeAll is used to store everything.
+	ModeAll TrieMode = 0
+	// ModeLatest is used to only store the latest root.
+	ModeLatest TrieMode = 0x01
+	// ModeGCFlag is a flag for GC.
+	ModeGCFlag TrieMode = 0x02
+	// ModeGC is used to store a set of roots with GC possible, it combines
+	// GCFlag and Latest (because it needs RC, but it has GC enabled).
+	ModeGC TrieMode = 0x03
+)
+
 // Trie is an MPT trie storing all key-value pairs.
 type Trie struct {
 	Store *storage.MemCachedStore
 
-	root            Node
-	refcountEnabled bool
-	refcount        map[util.Uint256]*cachedNode
+	root     Node
+	mode     TrieMode
+	refcount map[util.Uint256]*cachedNode
 }
 
 type cachedNode struct {
@@ -30,10 +46,20 @@ type cachedNode struct {
 // ErrNotFound is returned when requested trie item is missing.
 var ErrNotFound = errors.New("item not found")
 
+// RC returns true when reference counting is enabled.
+func (m TrieMode) RC() bool {
+	return m&ModeLatest != 0
+}
+
+// GC returns true when garbage collection is enabled.
+func (m TrieMode) GC() bool {
+	return m&ModeGCFlag != 0
+}
+
 // NewTrie returns new MPT trie. It accepts a MemCachedStore to decouple storage errors from logic errors
 // so that all storage errors are processed during `store.Persist()` at the caller.
 // This also has the benefit, that every `Put` can be considered an atomic operation.
-func NewTrie(root Node, enableRefCount bool, store *storage.MemCachedStore) *Trie {
+func NewTrie(root Node, mode TrieMode, store *storage.MemCachedStore) *Trie {
 	if root == nil {
 		root = EmptyNode{}
 	}
@@ -42,8 +68,8 @@ func NewTrie(root Node, enableRefCount bool, store *storage.MemCachedStore) *Tri
 		Store: store,
 		root:  root,
 
-		refcountEnabled: enableRefCount,
-		refcount:        make(map[util.Uint256]*cachedNode),
+		mode:     mode,
+		refcount: make(map[util.Uint256]*cachedNode),
 	}
 }
 
@@ -386,7 +412,7 @@ func (t *Trie) Flush() {
 			if node.bytes == nil {
 				panic("item not in trie")
 			}
-			if t.refcountEnabled {
+			if t.mode.RC() {
 				node.initial = t.updateRefCount(h)
 				if node.initial == 0 {
 					delete(t.refcount, h)
@@ -403,7 +429,7 @@ func (t *Trie) Flush() {
 
 // updateRefCount should be called only when refcounting is enabled.
 func (t *Trie) updateRefCount(h util.Uint256) int32 {
-	if !t.refcountEnabled {
+	if !t.mode.RC() {
 		panic("`updateRefCount` is called, but GC is disabled")
 	}
 	var data []byte
@@ -478,7 +504,7 @@ func (t *Trie) getFromStore(h util.Uint256) (Node, error) {
 		return nil, r.Err
 	}
 
-	if t.refcountEnabled {
+	if t.mode.RC() {
 		data = data[:len(data)-4]
 		node := t.refcount[h]
 		if node != nil {
@@ -566,7 +592,7 @@ func (t *Trie) Find(prefix, from []byte, max int) ([]storage.KeyValue, error) {
 		res   []storage.KeyValue
 		count int
 	)
-	b := NewBillet(t.root.Hash(), false, 0, t.Store)
+	b := NewBillet(t.root.Hash(), t.mode, 0, t.Store)
 	process := func(pathToNode []byte, node Node, _ []byte) bool {
 		if leaf, ok := node.(*LeafNode); ok {
 			if from == nil || !bytes.Equal(pathToNode, from) { // (*Billet).traverse includes `from` path into result if so. Need to filter out manually.

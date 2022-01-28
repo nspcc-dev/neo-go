@@ -31,20 +31,20 @@ type Billet struct {
 	TempStoragePrefix storage.KeyPrefix
 	Store             *storage.MemCachedStore
 
-	root            Node
-	refcountEnabled bool
+	root Node
+	mode TrieMode
 }
 
 // NewBillet returns new billet for MPT trie restoring. It accepts a MemCachedStore
 // to decouple storage errors from logic errors so that all storage errors are
 // processed during `store.Persist()` at the caller. This also has the benefit,
 // that every `Put` can be considered an atomic operation.
-func NewBillet(rootHash util.Uint256, enableRefCount bool, prefix storage.KeyPrefix, store *storage.MemCachedStore) *Billet {
+func NewBillet(rootHash util.Uint256, mode TrieMode, prefix storage.KeyPrefix, store *storage.MemCachedStore) *Billet {
 	return &Billet{
 		TempStoragePrefix: prefix,
 		Store:             store,
 		root:              NewHashNode(rootHash),
-		refcountEnabled:   enableRefCount,
+		mode:              mode,
 	}
 }
 
@@ -178,7 +178,7 @@ func (b *Billet) putIntoHash(curr *HashNode, path []byte, val Node) (Node, error
 
 func (b *Billet) incrementRefAndStore(h util.Uint256, bs []byte) {
 	key := makeStorageKey(h)
-	if b.refcountEnabled {
+	if b.mode.RC() {
 		var (
 			err  error
 			data []byte
@@ -337,7 +337,7 @@ func (b *Billet) GetFromStore(h util.Uint256) (Node, error) {
 		return nil, r.Err
 	}
 
-	if b.refcountEnabled {
+	if b.mode.RC() {
 		data = data[:len(data)-4]
 	}
 	n.Node.(flushedNode).setCache(data, h)

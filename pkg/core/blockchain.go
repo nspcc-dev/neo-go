@@ -320,7 +320,7 @@ func (bc *Blockchain) init() error {
 		if err != nil {
 			return err
 		}
-		if err := bc.stateRoot.Init(0, bc.config.KeepOnlyLatestState); err != nil {
+		if err := bc.stateRoot.Init(0); err != nil {
 			return fmt.Errorf("can't init MPT: %w", err)
 		}
 		return bc.storeBlock(genesisBlock, nil)
@@ -426,7 +426,7 @@ func (bc *Blockchain) init() error {
 	}
 	bc.blockHeight = bHeight
 	bc.persistedHeight = bHeight
-	if err = bc.stateRoot.Init(bHeight, bc.config.KeepOnlyLatestState); err != nil {
+	if err = bc.stateRoot.Init(bHeight); err != nil {
 		return fmt.Errorf("can't init MPT at height %d: %w", bHeight, err)
 	}
 
@@ -599,7 +599,7 @@ func (bc *Blockchain) jumpToStateInternal(p uint32, stage stateJumpStage) error 
 	if err = bc.stateRoot.JumpToState(&state.MPTRoot{
 		Index: p,
 		Root:  block.PrevStateRoot,
-	}, bc.config.KeepOnlyLatestState); err != nil {
+	}); err != nil {
 		return fmt.Errorf("can't perform MPT jump to height %d: %w", p, err)
 	}
 
