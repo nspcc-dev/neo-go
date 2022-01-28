@@ -222,7 +222,8 @@ func (s *Module) defineSyncStage() error {
 			return fmt.Errorf("failed to get header to initialize MPT billet: %w", err)
 		}
 		var mode mpt.TrieMode
-		if s.bc.GetConfig().KeepOnlyLatestState {
+		// No need to enable GC here, it only has latest things.
+		if s.bc.GetConfig().KeepOnlyLatestState || s.bc.GetConfig().RemoveUntraceableBlocks {
 			mode |= mpt.ModeLatest
 		}
 		s.billet = mpt.NewBillet(header.PrevStateRoot, mode,
@@ -499,7 +500,8 @@ func (s *Module) Traverse(root util.Uint256, process func(node mpt.Node, nodeByt
 	defer s.lock.RUnlock()
 
 	var mode mpt.TrieMode
-	if s.bc.GetConfig().KeepOnlyLatestState {
+	// GC must be turned off here to allow access to the archived nodes.
+	if s.bc.GetConfig().KeepOnlyLatestState || s.bc.GetConfig().RemoveUntraceableBlocks {
 		mode |= mpt.ModeLatest
 	}
 	b := mpt.NewBillet(root, mode, 0, storage.NewMemCachedStore(s.dao.Store))

@@ -1,7 +1,6 @@
 package mpt
 
 import (
-	"bytes"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -113,12 +112,12 @@ func TestCompatibility(t *testing.T) {
 		tr := newFilledTrie(t,
 			[]byte{0xac, 0x00}, []byte{0xab, 0xcd},
 			[]byte{0xac, 0x10}, []byte{0xab, 0xcd})
-		tr.Flush()
+		tr.Flush(0)
 
 		tr2 := copyTrie(tr)
 		require.NoError(t, tr2.Delete([]byte{0xac, 0x00}))
 
-		tr2.Flush()
+		tr2.Flush(0)
 		require.NoError(t, tr2.Delete([]byte{0xac, 0x10}))
 	})
 
@@ -150,7 +149,7 @@ func TestCompatibility(t *testing.T) {
 
 		require.NoError(t, tr.Delete([]byte{0xac, 0x01}))
 		tr.testHas(t, []byte{0xac, 0x02}, []byte{0xab, 0xcd})
-		tr.Flush()
+		tr.Flush(0)
 
 		tr2 := NewTrie(NewHashNode(tr.root.Hash()), ModeAll, tr.Store)
 		tr2.testHas(t, []byte{0xac, 0x02}, []byte{0xab, 0xcd})
@@ -161,15 +160,15 @@ func TestCompatibility(t *testing.T) {
 			[]byte{0xac, 0x11}, []byte{0xac, 0x11},
 			[]byte{0xac, 0x22}, []byte{0xac, 0x22},
 			[]byte{0xac}, []byte{0xac})
-		tr.Flush()
+		tr.Flush(0)
 		checkBatchSize(t, tr, 7)
 
 		require.NoError(t, tr.Delete([]byte{0xac, 0x11}))
-		tr.Flush()
+		tr.Flush(0)
 		checkBatchSize(t, tr, 5)
 
 		require.NoError(t, tr.Delete([]byte{0xac, 0x22}))
-		tr.Flush()
+		tr.Flush(0)
 		checkBatchSize(t, tr, 2)
 	})
 
@@ -192,12 +191,11 @@ func TestCompatibility(t *testing.T) {
 		tr := NewTrie(NewHashNode(r.Hash()), ModeLatest, mainTrie.Store)
 		require.Equal(t, r.Hash(), tr.root.Hash())
 
-		// Tail bytes contain reference counter thus check for prefix.
 		proof := testGetProof(t, tr, []byte{0xac, 0x01}, 4)
-		require.True(t, bytes.HasPrefix(r.Bytes(), proof[0]))
-		require.True(t, bytes.HasPrefix(b.Bytes(), proof[1]))
-		require.True(t, bytes.HasPrefix(e1.Bytes(), proof[2]))
-		require.True(t, bytes.HasPrefix(v1.Bytes(), proof[3]))
+		require.Equal(t, r.Bytes(), proof[0])
+		require.Equal(t, b.Bytes(), proof[1])
+		require.Equal(t, e1.Bytes(), proof[2])
+		require.Equal(t, v1.Bytes(), proof[3])
 
 		testGetProof(t, tr, []byte{0xac}, 3)
 		testGetProof(t, tr, []byte{0xac, 0x10}, 0)
@@ -242,11 +240,11 @@ func TestCompatibility(t *testing.T) {
 			[]byte{0xa1, 0x01}, []byte{0x01},
 			[]byte{0xa2, 0x01}, []byte{0x01},
 			[]byte{0xa3, 0x01}, []byte{0x01})
-		tr.Flush()
+		tr.Flush(0)
 
 		tr2 := copyTrie(tr)
 		require.NoError(t, tr2.Delete([]byte{0xa3, 0x01}))
-		tr2.Flush()
+		tr2.Flush(0)
 
 		tr3 := copyTrie(tr2)
 		require.NoError(t, tr3.Delete([]byte{0xa2, 0x01}))
@@ -258,15 +256,15 @@ func TestCompatibility(t *testing.T) {
 			[]byte{0xa1, 0x01}, []byte{0x01},
 			[]byte{0xa2, 0x01}, []byte{0x01},
 			[]byte{0xa3, 0x01}, []byte{0x01})
-		tr.Flush()
+		tr.Flush(0)
 		checkBatchSize(t, tr, 4)
 
 		require.NoError(t, tr.Delete([]byte{0xa3, 0x01}))
-		tr.Flush()
+		tr.Flush(0)
 		checkBatchSize(t, tr, 4)
 
 		require.NoError(t, tr.Delete([]byte{0xa2, 0x01}))
-		tr.Flush()
+		tr.Flush(0)
 		checkBatchSize(t, tr, 2)
 		tr.testHas(t, []byte{0xa1, 0x01}, []byte{0x01})
 	})
@@ -275,17 +273,17 @@ func TestCompatibility(t *testing.T) {
 		tr := newFilledTrie(t,
 			[]byte{0xa1}, []byte{0x01},
 			[]byte{0xa2}, []byte{0x02})
-		tr.Flush()
+		tr.Flush(0)
 		checkBatchSize(t, tr, 4)
 
 		tr1 := copyTrie(tr)
 		require.NoError(t, tr1.Delete([]byte{0xa1}))
-		tr1.Flush()
+		tr1.Flush(0)
 		require.Equal(t, 2, len(tr1.Store.GetBatch().Put))
 
 		tr2 := copyTrie(tr1)
 		require.NoError(t, tr2.Delete([]byte{0xa2}))
-		tr2.Flush()
+		tr2.Flush(0)
 		require.Equal(t, 0, len(tr2.Store.GetBatch().Put))
 	})
 
@@ -294,21 +292,21 @@ func TestCompatibility(t *testing.T) {
 			[]byte{0x10}, []byte{0x01},
 			[]byte{0x20}, []byte{0x02},
 			[]byte{0x30}, []byte{0x03})
-		tr.Flush()
+		tr.Flush(0)
 		checkBatchSize(t, tr, 7)
 
 		tr1 := copyTrie(tr)
 		require.NoError(t, tr1.Delete([]byte{0x10}))
-		tr1.Flush()
+		tr1.Flush(0)
 
 		tr2 := copyTrie(tr1)
 		require.NoError(t, tr2.Delete([]byte{0x20}))
-		tr2.Flush()
+		tr2.Flush(0)
 		require.Equal(t, 2, len(tr2.Store.GetBatch().Put))
 
 		tr3 := copyTrie(tr2)
 		require.NoError(t, tr3.Delete([]byte{0x30}))
-		tr3.Flush()
+		tr3.Flush(0)
 		require.Equal(t, 0, len(tr3.Store.GetBatch().Put))
 	})
 
@@ -316,12 +314,12 @@ func TestCompatibility(t *testing.T) {
 		tr := newFilledTrie(t,
 			[]byte{0xa1}, []byte{0x01},
 			[]byte{0xa2}, []byte{0x02})
-		tr.Flush()
+		tr.Flush(0)
 		checkBatchSize(t, tr, 4)
 
 		tr1 := copyTrie(tr)
 		require.NoError(t, tr1.Put([]byte{0xa3}, []byte{0x03}))
-		tr1.Flush()
+		tr1.Flush(0)
 		require.Equal(t, 5, len(tr1.Store.GetBatch().Put))
 	})
 
@@ -329,19 +327,19 @@ func TestCompatibility(t *testing.T) {
 		tr := newFilledTrie(t,
 			[]byte{0x10}, []byte{0x01},
 			[]byte{0x20}, []byte{0x02})
-		tr.Flush()
+		tr.Flush(0)
 		checkBatchSize(t, tr, 5)
 
 		tr1 := copyTrie(tr)
 		require.NoError(t, tr1.Put([]byte{0x30}, []byte{0x03}))
-		tr1.Flush()
+		tr1.Flush(0)
 		checkBatchSize(t, tr1, 7)
 	})
 
 	t.Run("EmptyValueIssue633", func(t *testing.T) {
 		tr := newFilledTrie(t,
 			[]byte{0x01}, []byte{})
-		tr.Flush()
+		tr.Flush(0)
 		checkBatchSize(t, tr, 2)
 
 		proof := testGetProof(t, tr, []byte{0x01}, 2)
@@ -411,7 +409,7 @@ func TestCompatibility_Find(t *testing.T) {
 		// root is an extension node with key=abc; next=branch
 		require.NoError(t, tr.Put([]byte("abc1"), []byte("01")))
 		require.NoError(t, tr.Put([]byte("abc3"), []byte("02")))
-		tr.Flush()
+		tr.Flush(0)
 		// find items with extension's key prefix
 		t.Run("from > start", func(t *testing.T) {
 			res, err := tr.Find([]byte("ab"), []byte("d2"), 100)

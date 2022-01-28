@@ -56,7 +56,7 @@ func testIncompletePut(t *testing.T, ps pairs, n int, tr1, tr2 *Trie) {
 	require.Equal(t, tr1.StateRoot(), tr2.StateRoot())
 
 	t.Run("test restore", func(t *testing.T) {
-		tr2.Flush()
+		tr2.Flush(0)
 		tr3 := NewTrie(NewHashNode(tr2.StateRoot()), ModeAll, storage.NewMemCachedStore(tr2.Store))
 		for _, p := range ps[:n] {
 			val, err := tr3.Get(p[0])
@@ -191,9 +191,9 @@ func TestTrie_PutBatchBranch(t *testing.T) {
 
 		t.Run("non-empty child is hash node", func(t *testing.T) {
 			tr1, tr2 := prepareBranch(t)
-			tr1.Flush()
+			tr1.Flush(0)
 			tr1.Collapse(1)
-			tr2.Flush()
+			tr2.Flush(0)
 			tr2.Collapse(1)
 
 			var ps = pairs{{[]byte{0x00, 2}, nil}}
@@ -208,9 +208,9 @@ func TestTrie_PutBatchBranch(t *testing.T) {
 			require.NoError(t, tr1.Put([]byte{0x00}, []byte("value2")))
 			require.NoError(t, tr2.Put([]byte{0x00}, []byte("value2")))
 
-			tr1.Flush()
+			tr1.Flush(0)
 			tr1.Collapse(1)
-			tr2.Flush()
+			tr2.Flush(0)
 			tr2.Collapse(1)
 
 			var ps = pairs{{[]byte{0x00, 2}, nil}}
@@ -254,8 +254,8 @@ func TestTrie_PutBatchHash(t *testing.T) {
 		require.NoError(t, tr2.Put([]byte{0x10}, []byte("value1")))
 		require.NoError(t, tr1.Put([]byte{0x20}, []byte("value2")))
 		require.NoError(t, tr2.Put([]byte{0x20}, []byte("value2")))
-		tr1.Flush()
-		tr2.Flush()
+		tr1.Flush(0)
+		tr2.Flush(0)
 		return tr1, tr2
 	}
 

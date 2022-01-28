@@ -69,7 +69,8 @@ func NewModule(cfg config.ProtocolConfiguration, verif VerifierFunc, log *zap.Lo
 
 // GetState returns value at the specified key fom the MPT with the specified root.
 func (s *Module) GetState(root util.Uint256, key []byte) ([]byte, error) {
-	tr := mpt.NewTrie(mpt.NewHashNode(root), s.mode, storage.NewMemCachedStore(s.Store))
+	// Allow accessing old values, it's RO thing.
+	tr := mpt.NewTrie(mpt.NewHashNode(root), s.mode&^mpt.ModeGCFlag, storage.NewMemCachedStore(s.Store))
 	return tr.Get(key)
 }
 
@@ -79,13 +80,15 @@ func (s *Module) GetState(root util.Uint256, key []byte) ([]byte, error) {
 // item with key equals to prefix is included into result; if empty `start` specified,
 // then item with key equals to prefix is not included into result.
 func (s *Module) FindStates(root util.Uint256, prefix, start []byte, max int) ([]storage.KeyValue, error) {
-	tr := mpt.NewTrie(mpt.NewHashNode(root), s.mode, storage.NewMemCachedStore(s.Store))
+	// Allow accessing old values, it's RO thing.
+	tr := mpt.NewTrie(mpt.NewHashNode(root), s.mode&^mpt.ModeGCFlag, storage.NewMemCachedStore(s.Store))
 	return tr.Find(prefix, start, max)
 }
 
 // GetStateProof returns proof of having key in the MPT with the specified root.
 func (s *Module) GetStateProof(root util.Uint256, key []byte) ([][]byte, error) {
-	tr := mpt.NewTrie(mpt.NewHashNode(root), s.mode, storage.NewMemCachedStore(s.Store))
+	// Allow accessing old values, it's RO thing.
+	tr := mpt.NewTrie(mpt.NewHashNode(root), s.mode&^mpt.ModeGCFlag, storage.NewMemCachedStore(s.Store))
 	return tr.GetProof(key)
 }
 
@@ -188,7 +191,7 @@ func (s *Module) AddMPTBatch(index uint32, b mpt.Batch, cache *storage.MemCached
 	if _, err := mpt.PutBatch(b); err != nil {
 		return nil, nil, err
 	}
-	mpt.Flush()
+	mpt.Flush(index)
 	sr := &state.MPTRoot{
 		Index: index,
 		Root:  mpt.StateRoot(),

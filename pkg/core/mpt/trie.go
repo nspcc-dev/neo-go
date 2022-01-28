@@ -406,14 +406,14 @@ func makeStorageKey(mptKey util.Uint256) []byte {
 // Because we care only about block-level changes, there is no need to put every
 // new node to storage. Normally, flush should be called with every StateRoot persist, i.e.
 // after every block.
-func (t *Trie) Flush() {
+func (t *Trie) Flush(index uint32) {
 	for h, node := range t.refcount {
 		if node.refcount != 0 {
 			if node.bytes == nil {
 				panic("item not in trie")
 			}
 			if t.mode.RC() {
-				node.initial = t.updateRefCount(h)
+				node.initial = t.updateRefCount(h, index)
 				if node.initial == 0 {
 					delete(t.refcount, h)
 				}
@@ -427,8 +427,20 @@ func (t *Trie) Flush() {
 	}
 }
 
+func IsActiveValue(v []byte) bool {
+	return len(v) > 4 && v[len(v)-5] == 1
+}
+
+func getFromStore(key []byte, mode TrieMode, store *storage.MemCachedStore) ([]byte, error) {
+	data, err := store.Get(key)
+	if err == nil && mode.GC() && !IsActiveValue(data) {
+		return nil, storage.ErrKeyNotFound
+	}
+	return data, err
+}
+
 // updateRefCount should be called only when refcounting is enabled.
-func (t *Trie) updateRefCount(h util.Uint256) int32 {
+func (t *Trie) updateRefCount(h util.Uint256, index uint32) int32 {
 	if !t.mode.RC() {
 		panic("`updateRefCount` is called, but GC is disabled")
 	}
@@ -439,13 +451,13 @@ func (t *Trie) updateRefCount(h util.Uint256) int32 {
 	if cnt == 0 {
 		// A newly created item which may be in store.
 		var err error
-		data, err = t.Store.Get(key)
+		data, err = getFromStore(key, t.mode, t.Store)
 		if err == nil {
 			cnt = int32(binary.LittleEndian.Uint32(data[len(data)-4:]))
 		}
 	}
 	if len(data) == 0 {
-		data = append(node.bytes, 0, 0, 0, 0)
+		data = append(node.bytes, 1, 0, 0, 0, 0)
 	}
 	cnt += node.refcount
 	switch {
@@ -453,7 +465,13 @@ func (t *Trie) updateRefCount(h util.Uint256) int32 {
 		// BUG: negative reference count
 		panic(fmt.Sprintf("negative reference count: %s new %d, upd %d", h.StringBE(), cnt, t.refcount[h]))
 	case cnt == 0:
-		_ = t.Store.Delete(key)
+		if !t.mode.GC() {
+			_ = t.Store.Delete(key)
+		} else {
+			data[len(data)-5] = 0
+			binary.LittleEndian.PutUint32(data[len(data)-4:], index)
+			_ = t.Store.Put(key, data)
+		}
 	default:
 		binary.LittleEndian.PutUint32(data[len(data)-4:], uint32(cnt))
 		_ = t.Store.Put(key, data)
@@ -492,7 +510,7 @@ func (t *Trie) removeRef(h util.Uint256, bs []byte) {
 }
 
 func (t *Trie) getFromStore(h util.Uint256) (Node, error) {
-	data, err := t.Store.Get(makeStorageKey(h))
+	data, err := getFromStore(makeStorageKey(h), t.mode, t.Store)
 	if err != nil {
 		return nil, err
 	}
@@ -505,10 +523,11 @@ func (t *Trie) getFromStore(h util.Uint256) (Node, error) {
 	}
 
 	if t.mode.RC() {
-		data = data[:len(data)-4]
+		data = data[:len(data)-5]
 		node := t.refcount[h]
 		if node != nil {
 			node.bytes = data
+			_ = r.ReadB()
 			node.initial = int32(r.ReadU32LE())
 		}
 	}

@@ -48,28 +48,28 @@ func newTestTrie(t *testing.T) *Trie {
 func testTrieRefcount(t *testing.T, key1, key2 []byte) {
 	tr := NewTrie(nil, ModeLatest, storage.NewMemCachedStore(storage.NewMemoryStore()))
 	require.NoError(t, tr.Put(key1, []byte{1}))
-	tr.Flush()
+	tr.Flush(0)
 	require.NoError(t, tr.Put(key2, []byte{1}))
-	tr.Flush()
+	tr.Flush(0)
 	tr.testHas(t, key1, []byte{1})
 	tr.testHas(t, key2, []byte{1})
 
 	// remove first, keep second
 	require.NoError(t, tr.Delete(key1))
-	tr.Flush()
+	tr.Flush(0)
 	tr.testHas(t, key1, nil)
 	tr.testHas(t, key2, []byte{1})
 
 	// no-op
 	require.NoError(t, tr.Put(key1, []byte{1}))
 	require.NoError(t, tr.Delete(key1))
-	tr.Flush()
+	tr.Flush(0)
 	tr.testHas(t, key1, nil)
 	tr.testHas(t, key2, []byte{1})
 
 	// delete non-existent, refcount should not be updated
 	require.NoError(t, tr.Delete(key1))
-	tr.Flush()
+	tr.Flush(0)
 	tr.testHas(t, key1, nil)
 	tr.testHas(t, key2, []byte{1})
 }
@@ -249,7 +249,7 @@ func (tr *Trie) putToStore(n Node) {
 			bytes:    n.Bytes(),
 			refcount: 1,
 		}
-		tr.updateRefCount(n.Hash())
+		tr.updateRefCount(n.Hash(), 0)
 	} else {
 		_ = tr.Store.Put(makeStorageKey(n.Hash()), n.Bytes())
 	}
@@ -318,7 +318,7 @@ func TestTrie_Flush(t *testing.T) {
 		require.NoError(t, tr.Put([]byte(k), v))
 	}
 
-	tr.Flush()
+	tr.Flush(0)
 	tr = NewTrie(NewHashNode(tr.StateRoot()), ModeAll, tr.Store)
 	for k, v := range pairs {
 		actual, err := tr.Get([]byte(k))

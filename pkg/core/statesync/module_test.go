@@ -24,7 +24,7 @@ func TestModule_PR2019_discussion_r689629704(t *testing.T) {
 	require.NoError(t, tr.Put([]byte{0x06, 0x03}, []byte("leaf4")))
 
 	sr := tr.StateRoot()
-	tr.Flush()
+	tr.Flush(0)
 
 	// Keep MPT nodes in a map in order not to repeat them. We'll use `nodes` map to ask
 	// state sync module to restore the nodes.

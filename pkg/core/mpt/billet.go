@@ -191,7 +191,7 @@ func (b *Billet) incrementRefAndStore(h util.Uint256, bs []byte) {
 		}
 		cnt++
 		if len(data) == 0 {
-			data = append(bs, 0, 0, 0, 0)
+			data = append(bs, 1, 0, 0, 0, 0)
 		}
 		binary.LittleEndian.PutUint32(data[len(data)-4:], uint32(cnt))
 		_ = b.Store.Put(key, data)
@@ -338,7 +338,7 @@ func (b *Billet) GetFromStore(h util.Uint256) (Node, error) {
 	}
 
 	if b.mode.RC() {
-		data = data[:len(data)-4]
+		data = data[:len(data)-5]
 	}
 	n.Node.(flushedNode).setCache(data, h)
 	return n.Node, nil
