@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
@@ -56,6 +57,9 @@ func NewModule(cfg config.ProtocolConfiguration, verif VerifierFunc, log *zap.Lo
 	var mode mpt.TrieMode
 	if cfg.KeepOnlyLatestState {
 		mode |= mpt.ModeLatest
+	}
+	if cfg.RemoveUntraceableBlocks {
+		mode |= mpt.ModeGC
 	}
 	return &Module{
 		network:  cfg.Magic,
@@ -182,6 +186,44 @@ func (s *Module) JumpToState(sr *state.MPTRoot) error {
 	s.localHeight.Store(sr.Index)
 	s.mpt = mpt.NewTrie(mpt.NewHashNode(sr.Root), s.mode, s.Store)
 	return nil
+}
+
+// GC performs garbage collection.
+func (s *Module) GC(index uint32, store storage.Store) time.Duration {
+	if !s.mode.GC() {
+		panic("stateroot: GC invoked, but not enabled")
+	}
+	var removed int
+	var stored int64
+	s.log.Info("starting MPT garbage collection", zap.Uint32("index", index))
+	start := time.Now()
+	b := store.Batch()
+	store.Seek(storage.SeekRange{
+		Prefix: []byte{byte(storage.DataMPT)},
+	}, func(k, v []byte) bool {
+		stored++
+		if !mpt.IsActiveValue(v) {
+			h := binary.LittleEndian.Uint32(v[len(v)-4:])
+			if h > index {
+				return true
+			}
+			b.Delete(k)
+			removed++
+			stored--
+		}
+		return true
+	})
+	err := store.PutBatch(b)
+	dur := time.Since(start)
+	if err != nil {
+		s.log.Error("failed to flush MPT GC changeset", zap.Duration("time", dur), zap.Error(err))
+	} else {
+		s.log.Info("finished MPT garbage collection",
+			zap.Int("removed", removed),
+			zap.Int64("stored", stored),
+			zap.Duration("time", dur))
+	}
+	return dur
 }
 
 // AddMPTBatch updates using provided batch.

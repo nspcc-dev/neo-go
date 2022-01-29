@@ -47,6 +47,7 @@ const (
 	version          = "0.2.2"
 
 	defaultInitialGAS                      = 52000000_00000000
+	defaultGCPeriod                        = 10000
 	defaultMemPoolSize                     = 50000
 	defaultP2PNotaryRequestPayloadPoolSize = 1000
 	defaultMaxBlockSize                    = 262144
@@ -123,6 +124,9 @@ type Blockchain struct {
 	// persistent is the same DB as dao, but we never write to it, so all reads
 	// are directly from underlying persistent store.
 	persistent *dao.Simple
+
+	// Underlying persistent store.
+	store storage.Store
 
 	// Current index/height of the highest block.
 	// Read access should always be called by BlockHeight().
@@ -245,6 +249,10 @@ func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration, log *zap.L
 				zap.Int("StateSyncInterval", cfg.StateSyncInterval))
 		}
 	}
+	if cfg.RemoveUntraceableBlocks && cfg.GarbageCollectionPeriod == 0 {
+		cfg.GarbageCollectionPeriod = defaultGCPeriod
+		log.Info("GarbageCollectionPeriod is not set or wrong, using default value", zap.Uint32("GarbageCollectionPeriod", cfg.GarbageCollectionPeriod))
+	}
 	if len(cfg.NativeUpdateHistories) == 0 {
 		cfg.NativeUpdateHistories = map[string][]uint32{}
 		log.Info("NativeActivations are not set, using default values")
@@ -253,6 +261,7 @@ func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration, log *zap.L
 		config:      cfg,
 		dao:         dao.NewSimple(s, cfg.StateRootInHeader, cfg.P2PSigExtensions),
 		persistent:  dao.NewSimple(s, cfg.StateRootInHeader, cfg.P2PSigExtensions),
+		store:       s,
 		stopCh:      make(chan struct{}),
 		runToExitCh: make(chan struct{}),
 		memPool:     mempool.New(cfg.MemPoolSize, 0, false),
@@ -647,18 +656,56 @@ func (bc *Blockchain) Run() {
 		case <-bc.stopCh:
 			return
 		case <-persistTimer.C:
+			var oldPersisted uint32
+			var gcDur time.Duration
+
+			if bc.config.RemoveUntraceableBlocks {
+				oldPersisted = atomic.LoadUint32(&bc.persistedHeight)
+			}
 			dur, err := bc.persist(nextSync)
 			if err != nil {
 				bc.log.Warn("failed to persist blockchain", zap.Error(err))
 			}
+			if bc.config.RemoveUntraceableBlocks {
+				gcDur = bc.tryRunGC(oldPersisted)
+			}
 			nextSync = dur > persistInterval*2
-			interval := persistInterval - dur
+			interval := persistInterval - dur - gcDur
 			if interval <= 0 {
 				interval = time.Microsecond // Reset doesn't work with zero value
 			}
 			persistTimer.Reset(interval)
 		}
 	}
+}
+
+func (bc *Blockchain) tryRunGC(old uint32) time.Duration {
+	var dur time.Duration
+
+	new := atomic.LoadUint32(&bc.persistedHeight)
+	var tgtBlock = int64(new)
+
+	tgtBlock -= int64(bc.config.MaxTraceableBlocks)
+	if bc.config.P2PStateExchangeExtensions {
+		syncP := new / uint32(bc.config.StateSyncInterval)
+		syncP--
+		syncP *= uint32(bc.config.StateSyncInterval)
+		if tgtBlock > int64(syncP) {
+			tgtBlock = int64(syncP)
+		}
+	}
+	// Always round to the GCP.
+	tgtBlock /= int64(bc.config.GarbageCollectionPeriod)
+	tgtBlock *= int64(bc.config.GarbageCollectionPeriod)
+	// Count periods.
+	old /= bc.config.GarbageCollectionPeriod
+	new /= bc.config.GarbageCollectionPeriod
+	if tgtBlock > int64(bc.config.GarbageCollectionPeriod) && new != old {
+		tgtBlock /= int64(bc.config.GarbageCollectionPeriod)
+		tgtBlock *= int64(bc.config.GarbageCollectionPeriod)
+		dur = bc.stateRoot.GC(uint32(tgtBlock), bc.store)
+	}
+	return dur
 }
 
 // notificationDispatcher manages subscription to events and broadcasts new events.
