@@ -85,21 +85,21 @@ func (s *BoltDBStore) Delete(key []byte) error {
 // PutBatch implements the Store interface.
 func (s *BoltDBStore) PutBatch(batch Batch) error {
 	memBatch := batch.(*MemoryBatch)
-	return s.PutChangeSet(memBatch.mem, memBatch.del)
+	return s.PutChangeSet(memBatch.mem)
 }
 
 // PutChangeSet implements the Store interface.
-func (s *BoltDBStore) PutChangeSet(puts map[string][]byte, dels map[string]bool) error {
+func (s *BoltDBStore) PutChangeSet(puts map[string][]byte) error {
+	var err error
+
 	return s.db.Batch(func(tx *bbolt.Tx) error {
 		b := tx.Bucket(Bucket)
 		for k, v := range puts {
-			err := b.Put([]byte(k), v)
-			if err != nil {
-				return err
+			if v != nil {
+				err = b.Put([]byte(k), v)
+			} else {
+				err = b.Delete([]byte(k))
 			}
-		}
-		for k := range dels {
-			err := b.Delete([]byte(k))
 			if err != nil {
 				return err
 			}
