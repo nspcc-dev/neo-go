@@ -62,20 +62,17 @@ func (s *LevelDBStore) PutBatch(batch Batch) error {
 }
 
 // PutChangeSet implements the Store interface.
-func (s *LevelDBStore) PutChangeSet(puts map[string][]byte, dels map[string]bool) error {
+func (s *LevelDBStore) PutChangeSet(puts map[string][]byte) error {
 	tx, err := s.db.OpenTransaction()
 	if err != nil {
 		return err
 	}
 	for k := range puts {
-		err = tx.Put([]byte(k), puts[k], nil)
-		if err != nil {
-			tx.Discard()
-			return err
+		if puts[k] != nil {
+			err = tx.Put([]byte(k), puts[k], nil)
+		} else {
+			err = tx.Delete([]byte(k), nil)
 		}
-	}
-	for k := range dels {
-		err = tx.Delete([]byte(k), nil)
 		if err != nil {
 			tx.Discard()
 			return err

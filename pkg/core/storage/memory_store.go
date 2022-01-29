@@ -14,8 +14,6 @@ import (
 type MemoryStore struct {
 	mut sync.RWMutex
 	mem map[string][]byte
-	// A map, not a slice, to avoid duplicates.
-	del map[string]bool
 }
 
 // MemoryBatch is an in-memory batch compatible with MemoryStore.
@@ -37,7 +35,6 @@ func (b *MemoryBatch) Delete(k []byte) {
 func NewMemoryStore() *MemoryStore {
 	return &MemoryStore{
 		mem: make(map[string][]byte),
-		del: make(map[string]bool),
 	}
 }
 
@@ -45,7 +42,7 @@ func NewMemoryStore() *MemoryStore {
 func (s *MemoryStore) Get(key []byte) ([]byte, error) {
 	s.mut.RLock()
 	defer s.mut.RUnlock()
-	if val, ok := s.mem[string(key)]; ok {
+	if val, ok := s.mem[string(key)]; ok && val != nil {
 		return val, nil
 	}
 	return nil, ErrKeyNotFound
@@ -55,7 +52,6 @@ func (s *MemoryStore) Get(key []byte) ([]byte, error) {
 // with mutex locked.
 func (s *MemoryStore) put(key string, value []byte) {
 	s.mem[key] = value
-	delete(s.del, key)
 }
 
 // Put implements the Store interface. Never returns an error.
@@ -71,8 +67,7 @@ func (s *MemoryStore) Put(key, value []byte) error {
 // drop deletes a key-value pair from the store, it's supposed to be called
 // with mutex locked.
 func (s *MemoryStore) drop(key string) {
-	s.del[key] = true
-	delete(s.mem, key)
+	s.mem[key] = nil
 }
 
 // Delete implements Store interface. Never returns an error.
@@ -87,17 +82,14 @@ func (s *MemoryStore) Delete(key []byte) error {
 // PutBatch implements the Store interface. Never returns an error.
 func (s *MemoryStore) PutBatch(batch Batch) error {
 	b := batch.(*MemoryBatch)
-	return s.PutChangeSet(b.mem, b.del)
+	return s.PutChangeSet(b.mem)
 }
 
 // PutChangeSet implements the Store interface. Never returns an error.
-func (s *MemoryStore) PutChangeSet(puts map[string][]byte, dels map[string]bool) error {
+func (s *MemoryStore) PutChangeSet(puts map[string][]byte) error {
 	s.mut.Lock()
 	for k := range puts {
 		s.put(k, puts[k])
-	}
-	for k := range dels {
-		s.drop(k)
 	}
 	s.mut.Unlock()
 	return nil
@@ -118,11 +110,6 @@ func (s *MemoryStore) SeekAll(key []byte, f func(k, v []byte)) {
 	for k, v := range s.mem {
 		if strings.HasPrefix(k, sk) {
 			f([]byte(k), v)
-		}
-	}
-	for k := range s.del {
-		if strings.HasPrefix(k, sk) {
-			f([]byte(k), nil)
 		}
 	}
 }
@@ -151,7 +138,7 @@ func (s *MemoryStore) seek(rng SeekRange, f func(k, v []byte) bool) {
 	}
 
 	for k, v := range s.mem {
-		if isKeyOK(k) {
+		if v != nil && isKeyOK(k) {
 			memList = append(memList, KeyValue{
 				Key:   []byte(k),
 				Value: v,
@@ -182,7 +169,6 @@ func newMemoryBatch() *MemoryBatch {
 // error.
 func (s *MemoryStore) Close() error {
 	s.mut.Lock()
-	s.del = nil
 	s.mem = nil
 	s.mut.Unlock()
 	return nil
