@@ -16,13 +16,13 @@ const Hash = "\xfd\xa3\xfa\x43\x46\xea\x53\x2a\x25\x8f\xc4\x97\xdd\xad\xdb\x64\x
 // Deploy represents `deploy` method of Management native contract.
 func Deploy(script, manifest []byte) *Contract {
 	return neogointernal.CallWithToken(Hash, "deploy",
-		int(contract.States|contract.AllowNotify), script, manifest).(*Contract)
+		int(contract.All), script, manifest).(*Contract)
 }
 
 // DeployWithData represents `deploy` method of Management native contract.
 func DeployWithData(script, manifest []byte, data interface{}) *Contract {
 	return neogointernal.CallWithToken(Hash, "deploy",
-		int(contract.States|contract.AllowNotify), script, manifest, data).(*Contract)
+		int(contract.All), script, manifest, data).(*Contract)
 }
 
 // Destroy represents `destroy` method of Management native contract.
@@ -48,11 +48,11 @@ func SetMinimumDeploymentFee(value int) {
 // Update represents `update` method of Management native contract.
 func Update(script, manifest []byte) {
 	neogointernal.CallWithTokenNoRet(Hash, "update",
-		int(contract.States|contract.AllowNotify), script, manifest)
+		int(contract.All), script, manifest)
 }
 
 // UpdateWithData represents `update` method of Management native contract.
 func UpdateWithData(script, manifest []byte, data interface{}) {
 	neogointernal.CallWithTokenNoRet(Hash, "update",
-		int(contract.States|contract.AllowNotify), script, manifest, data)
+		int(contract.All), script, manifest, data)
 }
