@@ -356,7 +356,11 @@ func convertWallet(ctx *cli.Context) error {
 		return cli.NewExitError(err, 1)
 	}
 
-	newWallet, err := wallet.NewWallet(ctx.String("out"))
+	out := ctx.String("out")
+	if len(out) == 0 {
+		return cli.NewExitError("missing out path", 1)
+	}
+	newWallet, err := wallet.NewWallet(out)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -375,7 +379,7 @@ func convertWallet(ctx *cli.Context) error {
 		newWallet.AddAccount(newAcc)
 	}
 	if err := newWallet.Save(); err != nil {
-		return cli.NewExitError(err, -1)
+		return cli.NewExitError(err, 1)
 	}
 	return nil
 }
@@ -605,7 +609,8 @@ func removeAccount(ctx *cli.Context) error {
 
 	if err := wall.RemoveAccount(acc.Address); err != nil {
 		return cli.NewExitError(fmt.Errorf("error on remove: %w", err), 1)
-	} else if err := wall.Save(); err != nil {
+	}
+	if err := wall.Save(); err != nil {
 		return cli.NewExitError(fmt.Errorf("error while saving wallet: %w", err), 1)
 	}
 	return nil
