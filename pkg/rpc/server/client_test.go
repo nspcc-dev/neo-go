@@ -5,7 +5,6 @@ import (
 	"encoding/base64"
 	"testing"
 
-	nns "github.com/nspcc-dev/neo-go/examples/nft-nd-nns"
 	"github.com/nspcc-dev/neo-go/internal/testchain"
 	"github.com/nspcc-dev/neo-go/pkg/core/fee"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
@@ -15,6 +14,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/client"
+	"github.com/nspcc-dev/neo-go/pkg/rpc/client/nns"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"

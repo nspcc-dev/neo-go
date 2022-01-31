@@ -5,8 +5,8 @@ import (
 	"errors"
 	"fmt"
 
-	nns "github.com/nspcc-dev/neo-go/examples/nft-nd-nns"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/rpc/client/nns"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"

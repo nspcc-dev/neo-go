@@ -13,7 +13,6 @@ import (
 	"testing"
 	"time"
 
-	nns "github.com/nspcc-dev/neo-go/examples/nft-nd-nns"
 	"github.com/nspcc-dev/neo-go/internal/testchain"
 	"github.com/nspcc-dev/neo-go/pkg/compiler"
 	"github.com/nspcc-dev/neo-go/pkg/config"
@@ -30,6 +29,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/fixedn"
 	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/rpc/client/nns"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
