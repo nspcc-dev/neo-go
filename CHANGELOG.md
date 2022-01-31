@@ -38,7 +38,7 @@ Improvements:
  * optimized emitting zero-length arrays in `emit` package used to construct
    scripts (#2299)
  * native contract tests refactored using generic contract testing framework (#2299)
- * refactored internal Blockchainer interfaces, eliminating unneccessary
+ * refactored internal Blockchainer interfaces, eliminating unnecessary
    dependencies and standardizing internal service behavior (#2323)
  * consensus process now always receives incoming transactions which might be
    helpful for accepting conflicting (wrt local pool) transactions or when the
