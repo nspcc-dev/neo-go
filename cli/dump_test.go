@@ -4,6 +4,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strconv"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
@@ -11,15 +12,19 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-func TestDBRestore(t *testing.T) {
+func TestDBRestoreDump(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	chainPath := filepath.Join(tmpDir, "neogotestchain")
-	cfg, err := config.LoadFile(filepath.Join("..", "config", "protocol.unit_testnet.yml"))
-	require.NoError(t, err, "could not load config")
-	cfg.ApplicationConfiguration.DBConfiguration.Type = "leveldb"
-	cfg.ApplicationConfiguration.DBConfiguration.LevelDBOptions.DataDirectoryPath = chainPath
+	loadConfig := func(t *testing.T) config.Config {
+		chainPath := filepath.Join(tmpDir, "neogotestchain")
+		cfg, err := config.LoadFile(filepath.Join("..", "config", "protocol.unit_testnet.yml"))
+		require.NoError(t, err, "could not load config")
+		cfg.ApplicationConfiguration.DBConfiguration.Type = "leveldb"
+		cfg.ApplicationConfiguration.DBConfiguration.LevelDBOptions.DataDirectoryPath = chainPath
+		return cfg
+	}
 
+	cfg := loadConfig(t)
 	out, err := yaml.Marshal(cfg)
 	require.NoError(t, err)
 
@@ -29,6 +34,7 @@ func TestDBRestore(t *testing.T) {
 	// generated via `go run ./scripts/gendump/main.go --out ./cli/testdata/chain50x2.acc --blocks 50 --txs 2`
 	const inDump = "./testdata/chain50x2.acc"
 	e := newExecutor(t, false)
+
 	stateDump := filepath.Join(tmpDir, "neogo.teststate")
 	baseArgs := []string{"neo-go", "db", "restore", "--unittest",
 		"--config-path", tmpDir, "--in", inDump, "--dump", stateDump}
@@ -47,8 +53,50 @@ func TestDBRestore(t *testing.T) {
 
 	// Dump and compare.
 	dumpPath := filepath.Join(tmpDir, "testdump.acc")
-	e.Run(t, "neo-go", "db", "dump", "--unittest",
-		"--config-path", tmpDir, "--out", dumpPath)
+
+	t.Run("missing config", func(t *testing.T) {
+		e.RunWithError(t, "neo-go", "db", "dump", "--privnet",
+			"--config-path", tmpDir, "--out", dumpPath)
+	})
+	t.Run("bad logger config", func(t *testing.T) {
+		badConfigDir := t.TempDir()
+		logfile := filepath.Join(badConfigDir, "logdir")
+		require.NoError(t, os.WriteFile(logfile, []byte{1, 2, 3}, os.ModePerm))
+		cfg = loadConfig(t)
+		cfg.ApplicationConfiguration.LogPath = filepath.Join(logfile, "file.log")
+		out, err = yaml.Marshal(cfg)
+		require.NoError(t, err)
+
+		cfgPath = filepath.Join(badConfigDir, "protocol.unit_testnet.yml")
+		require.NoError(t, ioutil.WriteFile(cfgPath, out, os.ModePerm))
+
+		e.RunWithError(t, "neo-go", "db", "dump", "--unittest",
+			"--config-path", badConfigDir, "--out", dumpPath)
+	})
+	t.Run("bad storage config", func(t *testing.T) {
+		badConfigDir := t.TempDir()
+		logfile := filepath.Join(badConfigDir, "logdir")
+		require.NoError(t, os.WriteFile(logfile, []byte{1, 2, 3}, os.ModePerm))
+		cfg = loadConfig(t)
+		cfg.ApplicationConfiguration.DBConfiguration.Type = ""
+		out, err = yaml.Marshal(cfg)
+		require.NoError(t, err)
+
+		cfgPath = filepath.Join(badConfigDir, "protocol.unit_testnet.yml")
+		require.NoError(t, ioutil.WriteFile(cfgPath, out, os.ModePerm))
+
+		e.RunWithError(t, "neo-go", "db", "dump", "--unittest",
+			"--config-path", badConfigDir, "--out", dumpPath)
+	})
+
+	baseCmd := []string{"neo-go", "db", "dump", "--unittest",
+		"--config-path", tmpDir, "--out", dumpPath}
+
+	t.Run("invalid start/count", func(t *testing.T) {
+		e.RunWithError(t, append(baseCmd, "--start", "5", "--count", strconv.Itoa(50-5+1+1))...)
+	})
+
+	e.Run(t, baseCmd...)
 
 	d1, err := ioutil.ReadFile(inDump)
 	require.NoError(t, err)

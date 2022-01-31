@@ -393,11 +393,11 @@ func mkP2PNotary(config network.ServerConfig, chain *core.Blockchain, serv *netw
 func startServer(ctx *cli.Context) error {
 	cfg, err := getConfigFromContext(ctx)
 	if err != nil {
-		return err
+		return cli.NewExitError(err, 1)
 	}
 	log, err := handleLoggingParams(ctx, cfg.ApplicationConfiguration)
 	if err != nil {
-		return err
+		return cli.NewExitError(err, 1)
 	}
 
 	grace, cancel := context.WithCancel(newGraceContext())
@@ -407,7 +407,7 @@ func startServer(ctx *cli.Context) error {
 
 	chain, prometheus, pprof, err := initBCWithMetrics(cfg, log)
 	if err != nil {
-		return err
+		return cli.NewExitError(err, 1)
 	}
 
 	serv, err := network.NewServer(serverConfig, chain, chain.GetStateSyncModule(), log)
@@ -423,15 +423,15 @@ func startServer(ctx *cli.Context) error {
 
 	oracleSrv, err := mkOracle(serverConfig, chain, serv, log)
 	if err != nil {
-		return err
+		return cli.NewExitError(err, 1)
 	}
 	_, err = mkConsensus(serverConfig, chain, serv, log)
 	if err != nil {
-		return err
+		return cli.NewExitError(err, 1)
 	}
 	_, err = mkP2PNotary(serverConfig, chain, serv, log)
 	if err != nil {
-		return err
+		return cli.NewExitError(err, 1)
 	}
 	rpcServer := server.New(chain, cfg.ApplicationConfiguration.RPC, serv, oracleSrv, log)
 	errChan := make(chan error)
@@ -442,7 +442,7 @@ func startServer(ctx *cli.Context) error {
 	sighupCh := make(chan os.Signal, 1)
 	signal.Notify(sighupCh, syscall.SIGHUP)
 
-	fmt.Fprintln(ctx.App.Writer, logo())
+	fmt.Fprintln(ctx.App.Writer, Logo())
 	fmt.Fprintln(ctx.App.Writer, serv.UserAgent)
 	fmt.Fprintln(ctx.App.Writer)
 
@@ -517,7 +517,8 @@ func initBlockChain(cfg config.Config, log *zap.Logger) (*core.Blockchain, error
 	return chain, nil
 }
 
-func logo() string {
+// Logo returns Neo-Go logo.
+func Logo() string {
 	return `
     _   ____________        __________
    / | / / ____/ __ \      / ____/ __ \
