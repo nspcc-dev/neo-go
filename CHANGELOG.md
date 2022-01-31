@@ -2,6 +2,69 @@
 
 This document outlines major changes between releases.
 
+## 0.98.1 "Immunization" (31 Jan 2022)
+
+Bug fixes, interesting optimizations, divisible NEP-11 example and a big
+compiler update --- everything you wanted to find in this NeoGo update. It
+requires chain resynchronization, but this resynchronization will be faster
+than ever.
+
+One thing should also be noted, even though this release is 3.1.0-compatible,
+it is known to have a different state for testnet after block 975644, but it's
+not a NeoGo fault, it'll be fixed in the next C# node release. The root cause
+is well-known and is not considered to be critical compatibility-wise.
+
+New features:
+ * support for reading the wallet from stdin in CLI (where it's possible, #2304)
+ * new CLI command for wallet password change (#2327)
+ * `getstateroot` support in RPC client (#2328)
+ * divisible NEP-11 example (#2333)
+ * helper script to compare node states via RPC (#2339)
+
+Behavior changes:
+ * zero balance is explicitly printed now for token-specific NEP-17 balance
+   requests from CLI (#2315)
+ * pkg/interop (used by smart contracts) is a separate Go module now (#2292,
+   #2338)
+ * smart contracts must be proper Go packages now (#2292, #2326)
+
+Improvements:
+ * optimized application log storage (#2305)
+ * additional APIs in `neotest` framework (#2298, #2299)
+ * CALLT instruction is now used by the compiler where appropriate leading to
+   more optimized code (#2306)
+ * DB seek improvements increasing chain processing speed by ~27% (#2316, #2330)
+ * updated NeoFS dependencies (#2324)
+ * optimized emitting zero-length arrays in `emit` package used to construct
+   scripts (#2299)
+ * native contract tests refactored using generic contract testing framework (#2299)
+ * refactored internal Blockchainer interfaces, eliminating unneccessary
+   dependencies and standardizing internal service behavior (#2323)
+ * consensus process now always receives incoming transactions which might be
+   helpful for accepting conflicting (wrt local pool) transactions or when the
+   memory pool is full (#2323)
+ * eliminated queued block networked re-requests (#2329)
+ * better error reporting and parameter handling in FindStates RPC client
+   method (#2328)
+ * invoke* RPCs now also return notifications generated during execution (#2331)
+ * it's possible to get storage changes from the result of invoke* RPCs (#2331)
+ * better transfer data storage scheme resulting in faster getnep* RPC
+   processing (#2330)
+ * dropped deprecated `loader` package from compiler dependencies moving to
+   updated x/tools interface (#2292)
+
+Bugs fixed:
+ * incorrect handling of missing user response in CLI (#2308)
+ * improper primary node GAS distribution in notary-enabled networks (#2311)
+ * excessive trailing spaces in the VM CLI output (#2314)
+ * difference in JSON escaping wrt C# node leading to state difference for
+   testnet at block 864762 (#2321)
+ * potential panic during node shutdown in the middle of state jump (#2325)
+ * wrong parameters for `findstates` call in RPC client (#2328)
+ * improper call flags in Notary contract `withdraw` method (#2332)
+ * incorrect ownerOf signature for divisible NEP-11 contracts (#2333)
+ * missing safeness check for overloaded methods in the compiler (#2333)
+
 ## 0.98.0 "Zincification" (03 Dec 2021)
 
 We've implemented all of Neo 3.1.0 protocol changes in this release (and
