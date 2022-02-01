@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
-	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/mempool"
 	"github.com/nspcc-dev/neo-go/pkg/core/mempoolevent"
@@ -89,10 +88,8 @@ type (
 		// id also known as the nonce of the server.
 		id uint32
 
-		// Network's magic number for correct message decoding.
-		network netmode.Magic
-		// stateRootInHeader specifies if block header contain state root.
-		stateRootInHeader bool
+		// A copy of the Ledger's config.
+		config config.ProtocolConfiguration
 
 		transport         Transporter
 		discovery         Discoverer
@@ -166,27 +163,26 @@ func newServerFromConstructors(config ServerConfig, chain Ledger, stSync StateSy
 	}
 
 	s := &Server{
-		ServerConfig:      config,
-		chain:             chain,
-		id:                randomID(),
-		network:           chain.GetConfig().Magic,
-		stateRootInHeader: chain.GetConfig().StateRootInHeader,
-		quit:              make(chan struct{}),
-		register:          make(chan Peer),
-		unregister:        make(chan peerDrop),
-		txInMap:           make(map[util.Uint256]struct{}),
-		peers:             make(map[Peer]bool),
-		syncReached:       atomic.NewBool(false),
-		mempool:           chain.GetMemPool(),
-		extensiblePool:    extpool.New(chain, config.ExtensiblePoolSize),
-		log:               log,
-		transactions:      make(chan *transaction.Transaction, 64),
-		extensHandlers:    make(map[string]func(*payload.Extensible) error),
-		stateSync:         stSync,
+		ServerConfig:   config,
+		chain:          chain,
+		id:             randomID(),
+		config:         chain.GetConfig(),
+		quit:           make(chan struct{}),
+		register:       make(chan Peer),
+		unregister:     make(chan peerDrop),
+		txInMap:        make(map[util.Uint256]struct{}),
+		peers:          make(map[Peer]bool),
+		syncReached:    atomic.NewBool(false),
+		mempool:        chain.GetMemPool(),
+		extensiblePool: extpool.New(chain, config.ExtensiblePoolSize),
+		log:            log,
+		transactions:   make(chan *transaction.Transaction, 64),
+		extensHandlers: make(map[string]func(*payload.Extensible) error),
+		stateSync:      stSync,
 	}
 	if chain.P2PSigExtensionsEnabled() {
 		s.notaryFeer = NewNotaryFeer(chain)
-		s.notaryRequestPool = mempool.New(chain.GetConfig().P2PNotaryRequestPayloadPoolSize, 1, true)
+		s.notaryRequestPool = mempool.New(s.config.P2PNotaryRequestPayloadPoolSize, 1, true)
 		chain.RegisterPostBlock(func(isRelevant func(*transaction.Transaction, *mempool.Pool, bool) bool, txpool *mempool.Pool, _ *block.Block) {
 			s.notaryRequestPool.RemoveStale(func(t *transaction.Transaction) bool {
 				return isRelevant(t, txpool, true)
@@ -773,10 +769,10 @@ func (s *Server) handleGetDataCmd(p Peer, inv *payload.Inventory) error {
 
 // handleGetMPTDataCmd processes the received MPT inventory.
 func (s *Server) handleGetMPTDataCmd(p Peer, inv *payload.MPTInventory) error {
-	if !s.chain.GetConfig().P2PStateExchangeExtensions {
+	if !s.config.P2PStateExchangeExtensions {
 		return errors.New("GetMPTDataCMD was received, but P2PStateExchangeExtensions are disabled")
 	}
-	if s.chain.GetConfig().KeepOnlyLatestState {
+	if s.config.KeepOnlyLatestState {
 		// TODO: implement keeping MPT states for P1 and P2 height (#2095, #2152 related)
 		return errors.New("GetMPTDataCMD was received, but only latest MPT state is supported")
 	}
@@ -814,7 +810,7 @@ func (s *Server) handleGetMPTDataCmd(p Peer, inv *payload.MPTInventory) error {
 }
 
 func (s *Server) handleMPTDataCmd(p Peer, data *payload.MPTData) error {
-	if !s.chain.GetConfig().P2PStateExchangeExtensions {
+	if !s.config.P2PStateExchangeExtensions {
 		return errors.New("MPTDataCMD was received, but P2PStateExchangeExtensions are disabled")
 	}
 	return s.stateSync.AddMPTNodes(data.Nodes)
@@ -1396,10 +1392,11 @@ func (s *Server) broadcastTxHashes(hs []util.Uint256) {
 
 // initStaleMemPools initializes mempools for stale tx/payload processing.
 func (s *Server) initStaleMemPools() {
-	cfg := s.chain.GetConfig()
 	threshold := 5
-	if cfg.ValidatorsCount*2 > threshold {
-		threshold = cfg.ValidatorsCount * 2
+	// Not perfect, can change over time, but should be sufficient.
+	numOfCNs := s.config.GetNumOfCNs(s.chain.BlockHeight())
+	if numOfCNs*2 > threshold {
+		threshold = numOfCNs * 2
 	}
 
 	s.mempool.SetResendThreshold(uint32(threshold), s.broadcastTX)

@@ -197,6 +197,7 @@ protocol-related settings described in the table below.
 
 | Section | Type | Default value | Description | Notes |
 | --- | --- | --- | --- | --- |
+| CommitteeHistory | map[uint32]int | none | Number of committee members after given height, for example `{0: 1, 20: 4}` sets up a chain with one committee member since the genesis and then changes the setting to 4 committee members at the height of 20. `StandbyCommittee` committee setting must have the number of keys equal or exceeding the highest value in this option. Blocks numbers where the change happens must be divisble by the old and by the new values simultaneously. If not set, committee size is derived from the `StandbyCommittee` setting and never changes. |
 | KeepOnlyLatestState | `bool` | `false` | Specifies if MPT should only store latest state. If true, DB size will be smaller, but older roots won't be accessible. This value should remain the same for the same database. |
 | Magic | `uint32` | `0` | Magic number which uniquely identifies NEO network. |
 | MaxBlockSize | `uint32` | `262144` | Maximum block size in bytes. |
@@ -216,6 +217,7 @@ protocol-related settings described in the table below.
 | StandbyCommittee | `[]string` | [] | List of public keys of standby committee validators are chosen from. |
 | StateRootInHeader | `bool` | `false` | Enables storing state root in block header. | Experimental protocol extension! |
 | StateSyncInterval | `int` | `40000` | The number of blocks between state heights available for MPT state data synchronization. | `P2PStateExchangeExtensions` should be enabled to use this setting.  |
-| ValidatorsCount | `int` | `0` | Number of validators. |
+| ValidatorsCount | `int` | `0` | Number of validators set for the whole network lifetime, can't be set if `ValidatorsHistory` setting is used. |
+| ValidatorsHistory | map[uint32]int | none | Number of consensus nodes to use after given height (see `CommitteeHistory` also). Heights where the change occurs must be divisible by the number of committee members at that height. Can't be used with `ValidatorsCount` not equal to zero. |
 | VerifyBlocks | `bool` | `false` | Denotes whether to verify received blocks. |
 | VerifyTransactions | `bool` | `false` | Denotes whether to verify transactions in received blocks. |

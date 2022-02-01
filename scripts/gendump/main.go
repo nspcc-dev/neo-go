@@ -64,7 +64,9 @@ func main() {
 	bc, err := newChain()
 	handleError("can't initialize blockchain", err)
 
-	valScript, err := smartcontract.CreateDefaultMultiSigRedeemScript(bc.GetStandByValidators())
+	nbVals, err := bc.GetNextBlockValidators()
+	handleError("can't get next block validators", err)
+	valScript, err := smartcontract.CreateDefaultMultiSigRedeemScript(nbVals)
 	handleError("can't create verification script", err)
 	lastBlock, err := bc.GetBlock(bc.GetHeaderHash(int(bc.BlockHeight())))
 	handleError("can't fetch last block", err)

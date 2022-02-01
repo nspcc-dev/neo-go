@@ -56,8 +56,6 @@ type Blockchainer interface {
 	GetNotaryContractScriptHash() util.Uint160
 	GetNotaryBalance(acc util.Uint160) *big.Int
 	GetValidators() ([]*keys.PublicKey, error)
-	GetStandByCommittee() keys.PublicKeys
-	GetStandByValidators() keys.PublicKeys
 	GetStateModule() StateRoot
 	GetStorageItem(id int32, key []byte) state.StorageItem
 	GetStorageItems(id int32) ([]state.StorageItemWithKey, error)

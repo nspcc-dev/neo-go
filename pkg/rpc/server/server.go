@@ -533,7 +533,7 @@ func (s *Server) getVersion(_ request.Params) (interface{}, *response.Error) {
 			MaxValidUntilBlockIncrement: cfg.MaxValidUntilBlockIncrement,
 			MaxTransactionsPerBlock:     cfg.MaxTransactionsPerBlock,
 			MemoryPoolMaxTransactions:   cfg.MemPoolSize,
-			ValidatorsCount:             byte(cfg.ValidatorsCount),
+			ValidatorsCount:             byte(cfg.GetNumOfCNs(s.chain.BlockHeight())),
 			InitialGasDistribution:      cfg.InitialGASSupply,
 			StateRootInHeader:           cfg.StateRootInHeader,
 		},

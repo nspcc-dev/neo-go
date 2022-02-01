@@ -1828,6 +1828,81 @@ func TestBlockchain_InitWithIncompleteStateJump(t *testing.T) {
 	}
 }
 
+func TestChainWithVolatileNumOfValidators(t *testing.T) {
+	bc := newTestChainWithCustomCfg(t, func(c *config.Config) {
+		c.ProtocolConfiguration.ValidatorsCount = 0
+		c.ProtocolConfiguration.CommitteeHistory = map[uint32]int{
+			0:  1,
+			4:  4,
+			24: 6,
+		}
+		c.ProtocolConfiguration.ValidatorsHistory = map[uint32]int{
+			0: 1,
+			4: 4,
+		}
+		require.NoError(t, c.ProtocolConfiguration.Validate())
+	})
+	require.Equal(t, uint32(0), bc.BlockHeight())
+
+	priv0 := testchain.PrivateKeyByID(0)
+
+	vals, err := bc.GetValidators()
+	require.NoError(t, err)
+	script, err := smartcontract.CreateDefaultMultiSigRedeemScript(vals)
+	require.NoError(t, err)
+	curWit := transaction.Witness{
+		VerificationScript: script,
+	}
+	for i := 1; i < 26; i++ {
+		comm, err := bc.GetCommittee()
+		require.NoError(t, err)
+		if i < 5 {
+			require.Equal(t, 1, len(comm))
+		} else if i < 25 {
+			require.Equal(t, 4, len(comm))
+		} else {
+			require.Equal(t, 6, len(comm))
+		}
+		// Mimic consensus.
+		if bc.config.ShouldUpdateCommitteeAt(uint32(i)) {
+			vals, err = bc.GetValidators()
+		} else {
+			vals, err = bc.GetNextBlockValidators()
+		}
+		require.NoError(t, err)
+		if i < 4 {
+			require.Equalf(t, 1, len(vals), "at %d", i)
+		} else {
+			require.Equalf(t, 4, len(vals), "at %d", i)
+		}
+		require.NoError(t, err)
+		script, err := smartcontract.CreateDefaultMultiSigRedeemScript(vals)
+		require.NoError(t, err)
+		nextWit := transaction.Witness{
+			VerificationScript: script,
+		}
+		b := &block.Block{
+			Header: block.Header{
+				NextConsensus: nextWit.ScriptHash(),
+				Script:        curWit,
+			},
+		}
+		curWit = nextWit
+		b.PrevHash = bc.GetHeaderHash(i - 1)
+		b.Timestamp = uint64(time.Now().UTC().Unix())*1000 + uint64(i)
+		b.Index = uint32(i)
+		b.RebuildMerkleRoot()
+		if i < 5 {
+			signa := priv0.SignHashable(uint32(bc.config.Magic), b)
+			b.Script.InvocationScript = append([]byte{byte(opcode.PUSHDATA1), byte(len(signa))}, signa...)
+		} else {
+			b.Script.InvocationScript = testchain.Sign(b)
+		}
+		err = bc.AddBlock(b)
+		require.NoErrorf(t, err, "at %d", i)
+	}
+}
+
 func setSigner(tx *transaction.Transaction, h util.Uint160) {
 	tx.Signers = []transaction.Signer{{
 		Account: h,

@@ -50,8 +50,9 @@ func TestNEO_Vote(t *testing.T) {
 	neoValidatorsInvoker := neoCommitteeInvoker.WithSigners(neoCommitteeInvoker.Validator)
 	e := neoCommitteeInvoker.Executor
 
-	committeeSize := len(neoValidatorsInvoker.Chain.GetConfig().StandbyCommittee)
-	validatorsCount := neoCommitteeInvoker.Chain.GetConfig().ValidatorsCount
+	cfg := e.Chain.GetConfig()
+	committeeSize := cfg.GetCommitteeSize(0)
+	validatorsCount := cfg.GetNumOfCNs(0)
 	freq := validatorsCount + committeeSize
 	advanceChain := func(t *testing.T) {
 		for i := 0; i < freq; i++ {
@@ -59,7 +60,9 @@ func TestNEO_Vote(t *testing.T) {
 		}
 	}
 
-	standBySorted := e.Chain.GetStandByValidators()
+	standBySorted, err := keys.NewPublicKeysFromStrings(e.Chain.GetConfig().StandbyCommittee)
+	require.NoError(t, err)
+	standBySorted = standBySorted[:validatorsCount]
 	sort.Sort(standBySorted)
 	pubs, err := e.Chain.GetValidators()
 	require.NoError(t, err)
@@ -250,7 +253,8 @@ func TestNEO_CommitteeBountyOnPersist(t *testing.T) {
 	neoCommitteeInvoker := newNeoCommitteeClient(t, 0)
 	e := neoCommitteeInvoker.Executor
 
-	hs := e.Chain.GetStandByCommittee()
+	hs, err := keys.NewPublicKeysFromStrings(e.Chain.GetConfig().StandbyCommittee)
+	require.NoError(t, err)
 	committeeSize := len(hs)
 
 	const singleBounty = 50000000

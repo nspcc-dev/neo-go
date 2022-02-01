@@ -152,8 +152,6 @@ type Blockchain struct {
 	// Block's transactions are passed via mempool.
 	postBlock []func(func(*transaction.Transaction, *mempool.Pool, bool) bool, *mempool.Pool, *block.Block)
 
-	sbCommittee keys.PublicKeys
-
 	log *zap.Logger
 
 	lastBatch *storage.MemBatch
@@ -162,8 +160,11 @@ type Blockchain struct {
 
 	extensible atomic.Value
 
+	// knownValidatorsCount is the latest known validators count used
+	// for defaultBlockWitness.
+	knownValidatorsCount atomic.Value
 	// defaultBlockWitness stores transaction.Witness with m out of n multisig,
-	// where n = ValidatorsCount.
+	// where n = knownValidatorsCount.
 	defaultBlockWitness atomic.Value
 
 	stateRoot *stateroot.Module
@@ -244,10 +245,6 @@ func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration, log *zap.L
 				zap.Int("StateSyncInterval", cfg.StateSyncInterval))
 		}
 	}
-	committee, err := committeeFromConfig(cfg)
-	if err != nil {
-		return nil, err
-	}
 	if len(cfg.NativeUpdateHistories) == 0 {
 		cfg.NativeUpdateHistories = map[string][]uint32{}
 		log.Info("NativeActivations are not set, using default values")
@@ -259,7 +256,6 @@ func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration, log *zap.L
 		stopCh:      make(chan struct{}),
 		runToExitCh: make(chan struct{}),
 		memPool:     mempool.New(cfg.MemPoolSize, 0, false),
-		sbCommittee: committee,
 		log:         log,
 		events:      make(chan bcEvent),
 		subCh:       make(chan interface{}),
@@ -1177,7 +1173,7 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 }
 
 func (bc *Blockchain) updateExtensibleWhitelist(height uint32) error {
-	updateCommittee := native.ShouldUpdateCommittee(height, bc)
+	updateCommittee := bc.config.ShouldUpdateCommitteeAt(height)
 	stateVals, sh, err := bc.contracts.Designate.GetDesignatedByRole(bc.dao, noderoles.StateValidator, height)
 	if err != nil {
 		return err
@@ -1787,14 +1783,17 @@ func (bc *Blockchain) ApplyPolicyToTxSet(txes []*transaction.Transaction) []*tra
 	}
 	maxBlockSize := bc.config.MaxBlockSize
 	maxBlockSysFee := bc.config.MaxBlockSystemFee
+	oldVC := bc.knownValidatorsCount.Load()
 	defaultWitness := bc.defaultBlockWitness.Load()
-	if defaultWitness == nil {
-		m := smartcontract.GetDefaultHonestNodeCount(bc.config.ValidatorsCount)
+	curVC := bc.config.GetNumOfCNs(bc.BlockHeight() + 1)
+	if oldVC == nil || oldVC != curVC {
+		m := smartcontract.GetDefaultHonestNodeCount(curVC)
 		verification, _ := smartcontract.CreateDefaultMultiSigRedeemScript(bc.contracts.NEO.GetNextBlockValidatorsInternal())
 		defaultWitness = transaction.Witness{
 			InvocationScript:   make([]byte, 66*m),
 			VerificationScript: verification,
 		}
+		bc.knownValidatorsCount.Store(curVC)
 		bc.defaultBlockWitness.Store(defaultWitness)
 	}
 	var (
@@ -2081,16 +2080,6 @@ func (bc *Blockchain) PoolTxWithData(t *transaction.Transaction, data interface{
 		}
 	}
 	return bc.verifyAndPoolTx(t, mp, feer, data)
-}
-
-// GetStandByValidators returns validators from the configuration.
-func (bc *Blockchain) GetStandByValidators() keys.PublicKeys {
-	return bc.sbCommittee[:bc.config.ValidatorsCount].Copy()
-}
-
-// GetStandByCommittee returns standby committee from the configuration.
-func (bc *Blockchain) GetStandByCommittee() keys.PublicKeys {
-	return bc.sbCommittee.Copy()
 }
 
 // GetCommittee returns the sorted list of public keys of nodes in committee.

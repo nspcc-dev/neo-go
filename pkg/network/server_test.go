@@ -813,7 +813,7 @@ func TestHandleMPTData(t *testing.T) {
 	t.Run("good", func(t *testing.T) {
 		expected := [][]byte{{1, 2, 3}, {2, 3, 4}}
 		s := newTestServer(t, ServerConfig{Port: 0, UserAgent: "/test/"})
-		s.chain.(*fakechain.FakeChain).P2PStateExchangeExtensions = true
+		s.config.P2PStateExchangeExtensions = true
 		s.stateSync = &fakechain.FakeStateSync{
 			AddMPTNodesFunc: func(nodes [][]byte) error {
 				require.Equal(t, expected, nodes)
