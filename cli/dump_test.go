@@ -61,7 +61,7 @@ func TestDBRestoreDump(t *testing.T) {
 	t.Run("bad logger config", func(t *testing.T) {
 		badConfigDir := t.TempDir()
 		logfile := filepath.Join(badConfigDir, "logdir")
-		require.NoError(t, os.WriteFile(logfile, []byte{1, 2, 3}, os.ModePerm))
+		require.NoError(t, ioutil.WriteFile(logfile, []byte{1, 2, 3}, os.ModePerm))
 		cfg = loadConfig(t)
 		cfg.ApplicationConfiguration.LogPath = filepath.Join(logfile, "file.log")
 		out, err = yaml.Marshal(cfg)
@@ -76,7 +76,7 @@ func TestDBRestoreDump(t *testing.T) {
 	t.Run("bad storage config", func(t *testing.T) {
 		badConfigDir := t.TempDir()
 		logfile := filepath.Join(badConfigDir, "logdir")
-		require.NoError(t, os.WriteFile(logfile, []byte{1, 2, 3}, os.ModePerm))
+		require.NoError(t, ioutil.WriteFile(logfile, []byte{1, 2, 3}, os.ModePerm))
 		cfg = loadConfig(t)
 		cfg.ApplicationConfiguration.DBConfiguration.Type = ""
 		out, err = yaml.Marshal(cfg)

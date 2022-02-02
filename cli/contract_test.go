@@ -370,7 +370,7 @@ func TestContractManifestGroups(t *testing.T) {
 	})
 	t.Run("corrupted NEF file", func(t *testing.T) {
 		f := filepath.Join(tmpDir, "invalid.nef")
-		require.NoError(t, os.WriteFile(f, []byte{1, 2, 3}, os.ModePerm))
+		require.NoError(t, ioutil.WriteFile(f, []byte{1, 2, 3}, os.ModePerm))
 		e.RunWithError(t, "neo-go", "contract", "manifest", "add-group",
 			"--wallet", testWalletPath, "--account", testWalletAccount,
 			"--sender", testWalletAccount, "--nef", f)
@@ -383,7 +383,7 @@ func TestContractManifestGroups(t *testing.T) {
 	})
 	t.Run("corrupted manifest file", func(t *testing.T) {
 		f := filepath.Join(tmpDir, "invalid.manifest.json")
-		require.NoError(t, os.WriteFile(f, []byte{1, 2, 3}, os.ModePerm))
+		require.NoError(t, ioutil.WriteFile(f, []byte{1, 2, 3}, os.ModePerm))
 		e.RunWithError(t, "neo-go", "contract", "manifest", "add-group",
 			"--wallet", testWalletPath, "--account", testWalletAccount,
 			"--sender", testWalletAccount, "--nef", nefName,

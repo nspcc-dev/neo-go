@@ -47,7 +47,7 @@ func TestServerStart(t *testing.T) {
 	t.Run("bad logger config", func(t *testing.T) {
 		badConfigDir := t.TempDir()
 		logfile := filepath.Join(badConfigDir, "logdir")
-		require.NoError(t, os.WriteFile(logfile, []byte{1, 2, 3}, os.ModePerm))
+		require.NoError(t, ioutil.WriteFile(logfile, []byte{1, 2, 3}, os.ModePerm))
 		saveCfg(t, func(cfg *config.Config) {
 			cfg.ApplicationConfiguration.LogPath = filepath.Join(logfile, "file.log")
 		})
