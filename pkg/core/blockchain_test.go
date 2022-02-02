@@ -1373,22 +1373,14 @@ func TestGetClaimable(t *testing.T) {
 }
 
 func TestClose(t *testing.T) {
-	defer func() {
-		r := recover()
-		assert.NotNil(t, r)
-	}()
 	bc := initTestChain(t, nil, nil)
 	go bc.Run()
+	hash0 := bc.GetHeaderHash(0)
 	_, err := bc.genBlocks(10)
 	require.NoError(t, err)
 	bc.Close()
-	// It's a hack, but we use internal knowledge of MemoryStore
-	// implementation which makes it completely unusable (up to panicing)
-	// after Close().
-	_ = bc.dao.Store.Put([]byte{0}, []byte{1})
-
-	// This should never be executed.
-	assert.Nil(t, t)
+	_, err = bc.GetBlock(hash0) // DB is closed, so this will fail.
+	require.Error(t, err)
 }
 
 func TestSubscriptions(t *testing.T) {

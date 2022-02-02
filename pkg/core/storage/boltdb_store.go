@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/google/btree"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util/slice"
 	"github.com/syndtr/goleveldb/leveldb/util"
@@ -85,26 +86,25 @@ func (s *BoltDBStore) Delete(key []byte) error {
 // PutBatch implements the Store interface.
 func (s *BoltDBStore) PutBatch(batch Batch) error {
 	memBatch := batch.(*MemoryBatch)
-	return s.PutChangeSet(memBatch.mem)
+	return s.PutChangeSet(&memBatch.mem)
 }
 
 // PutChangeSet implements the Store interface.
-func (s *BoltDBStore) PutChangeSet(puts map[string][]byte) error {
+func (s *BoltDBStore) PutChangeSet(puts *btree.BTree) error {
 	var err error
 
 	return s.db.Batch(func(tx *bbolt.Tx) error {
 		b := tx.Bucket(Bucket)
-		for k, v := range puts {
-			if v != nil {
-				err = b.Put([]byte(k), v)
+		puts.Ascend(func(i btree.Item) bool {
+			kv := i.(KeyValue)
+			if kv.Value != nil {
+				err = b.Put(kv.Key, kv.Value)
 			} else {
-				err = b.Delete([]byte(k))
+				err = b.Delete(kv.Key)
 			}
-			if err != nil {
-				return err
-			}
-		}
-		return nil
+			return err == nil
+		})
+		return err
 	})
 }
 

@@ -2,10 +2,9 @@ package storage
 
 import (
 	"bytes"
-	"sort"
-	"strings"
 	"sync"
 
+	"github.com/google/btree"
 	"github.com/nspcc-dev/neo-go/pkg/util/slice"
 )
 
@@ -13,7 +12,7 @@ import (
 // used for testing. Do not use MemoryStore in production.
 type MemoryStore struct {
 	mut sync.RWMutex
-	mem map[string][]byte
+	mem btree.BTree
 }
 
 // MemoryBatch is an in-memory batch compatible with MemoryStore.
@@ -23,18 +22,18 @@ type MemoryBatch struct {
 
 // Put implements the Batch interface.
 func (b *MemoryBatch) Put(k, v []byte) {
-	b.MemoryStore.put(string(k), slice.Copy(v))
+	b.MemoryStore.put(dupKV(k, v))
 }
 
 // Delete implements Batch interface.
 func (b *MemoryBatch) Delete(k []byte) {
-	b.MemoryStore.drop(string(k))
+	b.MemoryStore.drop(slice.Copy(k))
 }
 
 // NewMemoryStore creates a new MemoryStore object.
 func NewMemoryStore() *MemoryStore {
 	return &MemoryStore{
-		mem: make(map[string][]byte),
+		mem: *btree.New(8),
 	}
 }
 
@@ -42,37 +41,40 @@ func NewMemoryStore() *MemoryStore {
 func (s *MemoryStore) Get(key []byte) ([]byte, error) {
 	s.mut.RLock()
 	defer s.mut.RUnlock()
-	if val, ok := s.mem[string(key)]; ok && val != nil {
-		return val, nil
+	itm := s.mem.Get(KeyValue{Key: key})
+	if itm != nil {
+		kv := itm.(KeyValue)
+		if kv.Value != nil {
+			return kv.Value, nil
+		}
 	}
 	return nil, ErrKeyNotFound
 }
 
 // put puts a key-value pair into the store, it's supposed to be called
 // with mutex locked.
-func (s *MemoryStore) put(key string, value []byte) {
-	s.mem[key] = value
+func (s *MemoryStore) put(kv KeyValue) {
+	_ = s.mem.ReplaceOrInsert(kv)
 }
 
 // Put implements the Store interface. Never returns an error.
 func (s *MemoryStore) Put(key, value []byte) error {
-	newKey := string(key)
-	vcopy := slice.Copy(value)
+	kv := dupKV(key, value)
 	s.mut.Lock()
-	s.put(newKey, vcopy)
+	s.put(kv)
 	s.mut.Unlock()
 	return nil
 }
 
 // drop deletes a key-value pair from the store, it's supposed to be called
 // with mutex locked.
-func (s *MemoryStore) drop(key string) {
-	s.mem[key] = nil
+func (s *MemoryStore) drop(key []byte) {
+	s.put(KeyValue{Key: key})
 }
 
 // Delete implements Store interface. Never returns an error.
 func (s *MemoryStore) Delete(key []byte) error {
-	newKey := string(key)
+	newKey := slice.Copy(key)
 	s.mut.Lock()
 	s.drop(newKey)
 	s.mut.Unlock()
@@ -82,15 +84,16 @@ func (s *MemoryStore) Delete(key []byte) error {
 // PutBatch implements the Store interface. Never returns an error.
 func (s *MemoryStore) PutBatch(batch Batch) error {
 	b := batch.(*MemoryBatch)
-	return s.PutChangeSet(b.mem)
+	return s.PutChangeSet(&b.mem)
 }
 
 // PutChangeSet implements the Store interface. Never returns an error.
-func (s *MemoryStore) PutChangeSet(puts map[string][]byte) error {
+func (s *MemoryStore) PutChangeSet(puts *btree.BTree) error {
 	s.mut.Lock()
-	for k := range puts {
-		s.put(k, puts[k])
-	}
+	puts.Ascend(func(i btree.Item) bool {
+		s.put(i.(KeyValue))
+		return true
+	})
 	s.mut.Unlock()
 	return nil
 }
@@ -106,49 +109,59 @@ func (s *MemoryStore) Seek(rng SeekRange, f func(k, v []byte) bool) {
 func (s *MemoryStore) SeekAll(key []byte, f func(k, v []byte)) {
 	s.mut.RLock()
 	defer s.mut.RUnlock()
-	sk := string(key)
-	for k, v := range s.mem {
-		if strings.HasPrefix(k, sk) {
-			f([]byte(k), v)
+	s.mem.AscendGreaterOrEqual(KeyValue{Key: key}, func(i btree.Item) bool {
+		kv := i.(KeyValue)
+		if !bytes.HasPrefix(kv.Key, key) {
+			return false
+		}
+		f(kv.Key, kv.Value)
+		return true
+	})
+}
+
+// getSeekPairs returns KV pairs for current Seek.
+func (s *MemoryStore) getSeekPairs(rng SeekRange) []KeyValue {
+	lPrefix := len(rng.Prefix)
+	lStart := len(rng.Start)
+
+	var pivot KeyValue
+	pivot.Key = make([]byte, lPrefix+lStart, lPrefix+lStart+1)
+	copy(pivot.Key, rng.Prefix)
+	if lStart != 0 {
+		copy(pivot.Key[lPrefix:], rng.Start)
+	}
+
+	var memList []KeyValue
+	var appender = func(i btree.Item) bool {
+		kv := i.(KeyValue)
+		if !bytes.HasPrefix(kv.Key, rng.Prefix) {
+			return false
+		}
+		memList = append(memList, kv)
+		return true
+	}
+
+	if !rng.Backwards {
+		s.mem.AscendGreaterOrEqual(pivot, appender)
+	} else {
+		if lStart != 0 {
+			pivot.Key = append(pivot.Key, 0) // Right after the start key.
+			s.mem.AscendRange(KeyValue{Key: rng.Prefix}, pivot, appender)
+		} else {
+			s.mem.AscendGreaterOrEqual(KeyValue{Key: rng.Prefix}, appender)
+		}
+		for i, j := 0, len(memList)-1; i <= j; i, j = i+1, j-1 {
+			memList[i], memList[j] = memList[j], memList[i]
 		}
 	}
+	return memList
 }
 
 // seek is an internal unlocked implementation of Seek. `start` denotes whether
 // seeking starting from the provided prefix should be performed. Backwards
 // seeking from some point is supported with corresponding SeekRange field set.
 func (s *MemoryStore) seek(rng SeekRange, f func(k, v []byte) bool) {
-	sPrefix := string(rng.Prefix)
-	lPrefix := len(sPrefix)
-	sStart := string(rng.Start)
-	lStart := len(sStart)
-	var memList []KeyValue
-
-	isKeyOK := func(key string) bool {
-		return strings.HasPrefix(key, sPrefix) && (lStart == 0 || strings.Compare(key[lPrefix:], sStart) >= 0)
-	}
-	if rng.Backwards {
-		isKeyOK = func(key string) bool {
-			return strings.HasPrefix(key, sPrefix) && (lStart == 0 || strings.Compare(key[lPrefix:], sStart) <= 0)
-		}
-	}
-	less := func(k1, k2 []byte) bool {
-		res := bytes.Compare(k1, k2)
-		return res != 0 && rng.Backwards == (res > 0)
-	}
-
-	for k, v := range s.mem {
-		if v != nil && isKeyOK(k) {
-			memList = append(memList, KeyValue{
-				Key:   []byte(k),
-				Value: v,
-			})
-		}
-	}
-	sort.Slice(memList, func(i, j int) bool {
-		return less(memList[i].Key, memList[j].Key)
-	})
-	for _, kv := range memList {
+	for _, kv := range s.getSeekPairs(rng) {
 		if !f(kv.Key, kv.Value) {
 			break
 		}
@@ -169,7 +182,20 @@ func newMemoryBatch() *MemoryBatch {
 // error.
 func (s *MemoryStore) Close() error {
 	s.mut.Lock()
-	s.mem = nil
+	s.mem.Clear(false)
 	s.mut.Unlock()
 	return nil
+}
+
+func dupKV(key []byte, value []byte) KeyValue {
+	var res KeyValue
+
+	s := make([]byte, len(key)+len(value))
+	copy(s, key)
+	res.Key = s[:len(key)]
+	if value != nil {
+		copy(s[len(key):], value)
+		res.Value = s[len(key):]
+	}
+	return res
 }

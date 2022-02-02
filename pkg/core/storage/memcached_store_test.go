@@ -6,6 +6,7 @@ import (
 	"sort"
 	"testing"
 
+	"github.com/google/btree"
 	"github.com/nspcc-dev/neo-go/internal/random"
 	"github.com/nspcc-dev/neo-go/pkg/util/slice"
 	"github.com/stretchr/testify/assert"
@@ -243,8 +244,8 @@ func BenchmarkCachedSeek(t *testing.B) {
 		"MemPS": func(t testing.TB) Store {
 			return NewMemoryStore()
 		},
-		"BoltPS":  newBoltStoreForTesting,
-		"LevelPS": newLevelDBForTesting,
+		//		"BoltPS":  newBoltStoreForTesting,
+		//		"LevelPS": newLevelDBForTesting,
 	}
 	for psName, newPS := range stores {
 		for psCount := 100; psCount <= 10000; psCount *= 10 {
@@ -287,7 +288,7 @@ func (b *BadStore) Put(k, v []byte) error {
 func (b *BadStore) PutBatch(Batch) error {
 	return nil
 }
-func (b *BadStore) PutChangeSet(_ map[string][]byte) error {
+func (b *BadStore) PutChangeSet(_ *btree.BTree) error {
 	b.onPutBatch()
 	return ErrKeyNotFound
 }

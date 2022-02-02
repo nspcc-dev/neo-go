@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"github.com/google/btree"
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/filter"
 	"github.com/syndtr/goleveldb/leveldb/opt"
@@ -62,21 +63,23 @@ func (s *LevelDBStore) PutBatch(batch Batch) error {
 }
 
 // PutChangeSet implements the Store interface.
-func (s *LevelDBStore) PutChangeSet(puts map[string][]byte) error {
+func (s *LevelDBStore) PutChangeSet(puts *btree.BTree) error {
 	tx, err := s.db.OpenTransaction()
 	if err != nil {
 		return err
 	}
-	for k := range puts {
-		if puts[k] != nil {
-			err = tx.Put([]byte(k), puts[k], nil)
+	puts.Ascend(func(i btree.Item) bool {
+		kv := i.(KeyValue)
+		if kv.Value != nil {
+			err = tx.Put(kv.Key, kv.Value, nil)
 		} else {
-			err = tx.Delete([]byte(k), nil)
+			err = tx.Delete(kv.Key, nil)
 		}
-		if err != nil {
-			tx.Discard()
-			return err
-		}
+		return err == nil
+	})
+	if err != nil {
+		tx.Discard()
+		return err
 	}
 	return tx.Commit()
 }
