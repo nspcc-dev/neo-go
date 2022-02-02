@@ -71,10 +71,10 @@ jobs:
         run: go test -v ./... -coverprofile=./coverage.txt -covermode=atomic -coverpkg=./pkg...,./cli/...
 
       - name: Upload coverage results to Codecov
-        uses: codecov/codecov-action@v1
+        uses: codecov/codecov-action@v2
         with:
-          fail_ci_if_error: false
-          path_to_write_report: ./coverage.txt
+          fail_ci_if_error: true # if something is wrong on uploading codecov results, then this job will fail
+          files: ./coverage.txt
           verbose: true
 
   tests:

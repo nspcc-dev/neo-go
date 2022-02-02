@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"math"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -58,11 +59,64 @@ type executor struct {
 	// NetSrv is a network server (can be empty).
 	NetSrv *network.Server
 	// Out contains command output.
-	Out *bytes.Buffer
+	Out *ConcurrentBuffer
 	// Err contains command errors.
 	Err *bytes.Buffer
 	// In contains command input.
 	In *bytes.Buffer
+}
+
+// ConcurrentBuffer is a wrapper over Buffer with mutex.
+type ConcurrentBuffer struct {
+	lock sync.RWMutex
+	buf  *bytes.Buffer
+}
+
+// NewConcurrentBuffer returns new ConcurrentBuffer with underlying buffer initialized.
+func NewConcurrentBuffer() *ConcurrentBuffer {
+	return &ConcurrentBuffer{
+		buf: bytes.NewBuffer(nil),
+	}
+}
+
+// Write is a concurrent wrapper over the corresponding method of bytes.Buffer.
+func (w *ConcurrentBuffer) Write(p []byte) (int, error) {
+	w.lock.Lock()
+	defer w.lock.Unlock()
+
+	return w.buf.Write(p)
+}
+
+// ReadString is a concurrent wrapper over the corresponding method of bytes.Buffer.
+func (w *ConcurrentBuffer) ReadString(delim byte) (string, error) {
+	w.lock.RLock()
+	defer w.lock.RUnlock()
+
+	return w.buf.ReadString(delim)
+}
+
+// Bytes is a concurrent wrapper over the corresponding method of bytes.Buffer.
+func (w *ConcurrentBuffer) Bytes() []byte {
+	w.lock.RLock()
+	defer w.lock.RUnlock()
+
+	return w.buf.Bytes()
+}
+
+// String is a concurrent wrapper over the corresponding method of bytes.Buffer.
+func (w *ConcurrentBuffer) String() string {
+	w.lock.RLock()
+	defer w.lock.RUnlock()
+
+	return w.buf.String()
+}
+
+// Reset is a concurrent wrapper over the corresponding method of bytes.Buffer.
+func (w *ConcurrentBuffer) Reset() {
+	w.lock.Lock()
+	defer w.lock.Unlock()
+
+	w.buf.Reset()
 }
 
 func newTestChain(t *testing.T, f func(*config.Config), run bool) (*core.Blockchain, *server.Server, *network.Server) {
@@ -115,7 +169,7 @@ func newExecutorSuspended(t *testing.T) *executor {
 func newExecutorWithConfig(t *testing.T, needChain, runChain bool, f func(*config.Config)) *executor {
 	e := &executor{
 		CLI: newApp(),
-		Out: bytes.NewBuffer(nil),
+		Out: NewConcurrentBuffer(),
 		Err: bytes.NewBuffer(nil),
 		In:  bytes.NewBuffer(nil),
 	}

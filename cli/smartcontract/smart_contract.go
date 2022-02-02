@@ -653,18 +653,30 @@ func invokeWithArgs(ctx *cli.Context, acc *wallet.Account, wall *wallet.Wallet, 
 		return sender, err
 	}
 
+	out := ctx.String("out")
 	resp, err = c.InvokeFunction(script, operation, params, cosigners)
 	if err != nil {
 		return sender, cli.NewExitError(err, 1)
 	}
-	if signAndPush && resp.State != "HALT" {
+	if resp.State != "HALT" {
 		errText := fmt.Sprintf("Warning: %s VM state returned from the RPC node: %s\n", resp.State, resp.FaultException)
-		if !ctx.Bool("force") {
-			return sender, cli.NewExitError(errText+". Use --force flag to send the transaction anyway.", 1)
+		action := "save"
+		process := "Saving"
+		if signAndPush {
+			if out != "" {
+				action += "and send"
+				process += "and sending"
+			} else {
+				action = "send"
+				process = "Sending"
+			}
 		}
-		fmt.Fprintln(ctx.App.Writer, errText+". Sending transaction...")
+		if !ctx.Bool("force") {
+			return sender, cli.NewExitError(errText+". Use --force flag to "+action+" the transaction anyway.", 1)
+		}
+		fmt.Fprintln(ctx.App.Writer, errText+". "+process+" transaction...")
 	}
-	if out := ctx.String("out"); out != "" {
+	if out != "" {
 		tx, err := c.CreateTxFromScript(resp.Script, acc, resp.GasConsumed+int64(sysgas), int64(gas), cosignersAccounts)
 		if err != nil {
 			return sender, cli.NewExitError(fmt.Errorf("failed to create tx: %w", err), 1)

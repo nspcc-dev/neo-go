@@ -14,6 +14,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/stretchr/testify/require"
 )
@@ -64,6 +65,51 @@ func TestSignMultisigTx(t *testing.T) {
 	priv, err := keys.NewPrivateKey()
 	require.NoError(t, err)
 
+	t.Run("bad cases", func(t *testing.T) {
+		txPath := filepath.Join(tmpDir, "multisigtx.json")
+		t.Cleanup(func() {
+			os.Remove(txPath)
+		})
+		e.In.WriteString("pass\r")
+		e.Run(t, "neo-go", "wallet", "nep17", "transfer",
+			"--rpc-endpoint", "http://"+e.RPC.Addr,
+			"--wallet", wallet1Path, "--from", multisigAddr,
+			"--to", priv.Address(), "--token", "NEO", "--amount", "1",
+			"--out", txPath)
+
+		// missing wallet
+		e.RunWithError(t, "neo-go", "wallet", "sign")
+
+		// missing in
+		e.RunWithError(t, "neo-go", "wallet", "sign",
+			"--wallet", wallet2Path)
+
+		// missing address
+		e.RunWithError(t, "neo-go", "wallet", "sign",
+			"--wallet", wallet2Path,
+			"--in", txPath)
+
+		// invalid address
+		e.RunWithError(t, "neo-go", "wallet", "sign",
+			"--wallet", wallet2Path, "--address", util.Uint160{}.StringLE(),
+			"--in", txPath)
+
+		// invalid out
+		e.In.WriteString("pass\r")
+		e.RunWithError(t, "neo-go", "wallet", "sign",
+			"--rpc-endpoint", "http://"+e.RPC.Addr,
+			"--wallet", wallet2Path, "--address", multisigAddr,
+			"--in", txPath, "--out", t.TempDir())
+
+		// invalid RPC endpoint
+		e.In.WriteString("pass\r")
+		e.RunWithError(t, "neo-go", "wallet", "sign",
+			"--rpc-endpoint", "http://not-an-address",
+			"--wallet", wallet2Path, "--address", multisigAddr,
+			"--in", txPath)
+	})
+
+	// Create transaction and save it for further multisigning.
 	txPath := filepath.Join(tmpDir, "multisigtx.json")
 	t.Cleanup(func() {
 		os.Remove(txPath)
@@ -89,12 +135,6 @@ func TestSignMultisigTx(t *testing.T) {
 				"--in", txPath, "--out", txPath)
 		})
 	}
-
-	// missing address
-	e.RunWithError(t, "neo-go", "wallet", "sign",
-		"--rpc-endpoint", "http://"+e.RPC.Addr,
-		"--wallet", wallet2Path,
-		"--in", txPath, "--out", txPath)
 
 	t.Run("test invoke", func(t *testing.T) {
 		t.Run("missing file", func(t *testing.T) {
@@ -123,6 +163,14 @@ func TestSignMultisigTx(t *testing.T) {
 		"--wallet", wallet2Path, "--address", multisigAddr,
 		"--in", txPath, "--out", txPath)
 	e.checkTxPersisted(t)
+
+	t.Run("double-sign", func(t *testing.T) {
+		e.In.WriteString("pass\r")
+		e.RunWithError(t, "neo-go", "wallet", "sign",
+			"--rpc-endpoint", "http://"+e.RPC.Addr,
+			"--wallet", wallet2Path, "--address", multisigAddr,
+			"--in", txPath, "--out", txPath)
+	})
 
 	b, _ := e.Chain.GetGoverningTokenBalance(priv.GetScriptHash())
 	require.Equal(t, big.NewInt(1), b)

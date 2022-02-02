@@ -29,12 +29,12 @@ func manifestAddGroup(ctx *cli.Context) error {
 
 	addr, err := flags.ParseAddress(ctx.String("account"))
 	if err != nil {
-		return cli.NewExitError(errors.New("address is missing"), 1)
+		return cli.NewExitError(fmt.Errorf("account is invalid or missing: %w", err), 1)
 	}
 
 	sender, err := flags.ParseAddress(ctx.String("sender"))
 	if err != nil {
-		return cli.NewExitError("invalid sender", 1)
+		return cli.NewExitError(fmt.Errorf("invalid sender: %w", err), 1)
 	}
 
 	nf, _, err := readNEFFile(ctx.String("nef"))
