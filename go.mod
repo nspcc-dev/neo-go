@@ -5,6 +5,7 @@ require (
 	github.com/abiosoft/readline v0.0.0-20180607040430-155bce2042db
 	github.com/btcsuite/btcd v0.22.0-beta
 	github.com/davecgh/go-spew v1.1.1
+	github.com/google/btree v1.0.1
 	github.com/gorilla/websocket v1.4.2
 	github.com/hashicorp/golang-lru v0.5.4
 	github.com/holiman/uint256 v1.2.0

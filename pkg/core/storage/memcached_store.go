@@ -3,10 +3,9 @@ package storage
 import (
 	"bytes"
 	"context"
-	"sort"
-	"strings"
 	"sync"
 
+	"github.com/google/btree"
 	"github.com/nspcc-dev/neo-go/pkg/util/slice"
 )
 
@@ -43,6 +42,11 @@ type (
 	}
 )
 
+// Less implements btree.Item interface.
+func (kv KeyValue) Less(other btree.Item) bool {
+	return bytes.Compare(kv.Key, other.(KeyValue).Key) < 0
+}
+
 // NewMemCachedStore creates a new MemCachedStore object.
 func NewMemCachedStore(lower Store) *MemCachedStore {
 	return &MemCachedStore{
@@ -55,11 +59,13 @@ func NewMemCachedStore(lower Store) *MemCachedStore {
 func (s *MemCachedStore) Get(key []byte) ([]byte, error) {
 	s.mut.RLock()
 	defer s.mut.RUnlock()
-	if val, ok := s.mem[string(key)]; ok {
-		if val == nil {
+	itm := s.mem.Get(KeyValue{Key: key})
+	if itm != nil {
+		kv := itm.(KeyValue)
+		if kv.Value == nil {
 			return nil, ErrKeyNotFound
 		}
-		return val, nil
+		return kv.Value, nil
 	}
 	return s.ps.Get(key)
 }
@@ -71,17 +77,18 @@ func (s *MemCachedStore) GetBatch() *MemBatch {
 
 	var b MemBatch
 
-	b.Put = make([]KeyValueExists, 0, len(s.mem))
+	b.Put = make([]KeyValueExists, 0, s.mem.Len())
 	b.Deleted = make([]KeyValueExists, 0)
-	for k, v := range s.mem {
-		key := []byte(k)
-		_, err := s.ps.Get(key)
-		if v == nil {
-			b.Deleted = append(b.Deleted, KeyValueExists{KeyValue: KeyValue{Key: key}, Exists: err == nil})
+	s.mem.Ascend(func(i btree.Item) bool {
+		kv := i.(KeyValue)
+		_, err := s.ps.Get(kv.Key)
+		if kv.Value == nil {
+			b.Deleted = append(b.Deleted, KeyValueExists{KeyValue: kv, Exists: err == nil})
 		} else {
-			b.Put = append(b.Put, KeyValueExists{KeyValue: KeyValue{Key: key, Value: v}, Exists: err == nil})
+			b.Put = append(b.Put, KeyValueExists{KeyValue: kv, Exists: err == nil})
 		}
-	}
+		return true
+	})
 	return &b
 }
 
@@ -116,32 +123,10 @@ func (s *MemCachedStore) SeekAsync(ctx context.Context, rng SeekRange, cutPrefix
 // and point to start seeking from. Backwards seeking from some point is supported
 // with corresponding `rng` field set.
 func (s *MemCachedStore) seek(ctx context.Context, rng SeekRange, cutPrefix bool, f func(k, v []byte) bool) {
-	// Create memory store `mem` and `del` snapshot not to hold the lock.
-	var memRes []KeyValueExists
-	sPrefix := string(rng.Prefix)
-	lPrefix := len(sPrefix)
-	sStart := string(rng.Start)
-	lStart := len(sStart)
-	isKeyOK := func(key string) bool {
-		return strings.HasPrefix(key, sPrefix) && (lStart == 0 || strings.Compare(key[lPrefix:], sStart) >= 0)
-	}
-	if rng.Backwards {
-		isKeyOK = func(key string) bool {
-			return strings.HasPrefix(key, sPrefix) && (lStart == 0 || strings.Compare(key[lPrefix:], sStart) <= 0)
-		}
-	}
+	lPrefix := len(rng.Prefix)
+
 	s.mut.RLock()
-	for k, v := range s.MemoryStore.mem {
-		if isKeyOK(k) {
-			memRes = append(memRes, KeyValueExists{
-				KeyValue: KeyValue{
-					Key:   []byte(k),
-					Value: v,
-				},
-				Exists: v != nil,
-			})
-		}
-	}
+	var memRes = s.getSeekPairs(rng)
 	ps := s.ps
 	s.mut.RUnlock()
 
@@ -149,15 +134,11 @@ func (s *MemCachedStore) seek(ctx context.Context, rng SeekRange, cutPrefix bool
 		res := bytes.Compare(k1, k2)
 		return res != 0 && rng.Backwards == (res > 0)
 	}
-	// Sort memRes items for further comparison with ps items.
-	sort.Slice(memRes, func(i, j int) bool {
-		return less(memRes[i].Key, memRes[j].Key)
-	})
 
 	var (
 		done    bool
 		iMem    int
-		kvMem   KeyValueExists
+		kvMem   KeyValue
 		haveMem bool
 	)
 	if iMem < len(memRes) {
@@ -183,7 +164,7 @@ func (s *MemCachedStore) seek(ctx context.Context, rng SeekRange, cutPrefix bool
 			default:
 				var isMem = haveMem && less(kvMem.Key, kvPs.Key)
 				if isMem {
-					if kvMem.Exists {
+					if kvMem.Value != nil {
 						if cutPrefix {
 							kvMem.Key = kvMem.Key[lPrefix:]
 						}
@@ -224,7 +205,7 @@ func (s *MemCachedStore) seek(ctx context.Context, rng SeekRange, cutPrefix bool
 				break loop
 			default:
 				kvMem = memRes[i]
-				if kvMem.Exists {
+				if kvMem.Value != nil {
 					if cutPrefix {
 						kvMem.Key = kvMem.Key[lPrefix:]
 					}
@@ -259,7 +240,7 @@ func (s *MemCachedStore) persist(isSync bool) (int, error) {
 	defer s.plock.Unlock()
 	s.mut.Lock()
 
-	keys = len(s.mem)
+	keys = s.mem.Len()
 	if keys == 0 {
 		s.mut.Unlock()
 		return 0, nil
@@ -271,12 +252,12 @@ func (s *MemCachedStore) persist(isSync bool) (int, error) {
 	// unprotected while writes are handled by s proper.
 	var tempstore = &MemCachedStore{MemoryStore: MemoryStore{mem: s.mem}, ps: s.ps}
 	s.ps = tempstore
-	s.mem = make(map[string][]byte, len(s.mem))
+	s.mem = *btree.New(8)
 	if !isSync {
 		s.mut.Unlock()
 	}
 
-	err = tempstore.ps.PutChangeSet(tempstore.mem)
+	err = tempstore.ps.PutChangeSet(&tempstore.mem)
 
 	if !isSync {
 		s.mut.Lock()
@@ -289,11 +270,10 @@ func (s *MemCachedStore) persist(isSync bool) (int, error) {
 	} else {
 		// We're toast. We'll try to still keep proper state, but OOM
 		// killer will get to us eventually.
-		for k := range s.mem {
-			tempstore.put(k, s.mem[k])
-		}
-		s.ps = tempstore.ps
-		s.mem = tempstore.mem
+		s.mem.Ascend(func(i btree.Item) bool {
+			tempstore.put(i.(KeyValue))
+			return true
+		})
 	}
 	s.mut.Unlock()
 	return keys, err
