@@ -33,7 +33,7 @@ func (b *MemoryBatch) Delete(k []byte) {
 // NewMemoryStore creates a new MemoryStore object.
 func NewMemoryStore() *MemoryStore {
 	return &MemoryStore{
-		mem: *btree.New(2),
+		mem: *btree.New(16),
 	}
 }
 
