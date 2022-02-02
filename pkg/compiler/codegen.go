@@ -803,8 +803,20 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		return nil
 
 	case *ast.FuncLit:
-		l := c.newLabel()
-		c.newLambda(l, n)
+		var found bool
+		var l uint16
+		for _, fs := range c.lambda {
+			if fs.decl.Body == n.Body {
+				found = true
+				l = fs.label
+				break
+			}
+		}
+		if !found {
+			l = c.newLabel()
+			c.newLambda(l, n)
+		}
+
 		buf := make([]byte, 4)
 		binary.LittleEndian.PutUint16(buf, l)
 		emit.Instruction(c.prog.BinWriter, opcode.PUSHA, buf)

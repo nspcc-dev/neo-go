@@ -33,7 +33,7 @@ func checkCallCount(t *testing.T, src string, expectedCall, expectedInitSlot, ex
 			actualCall++
 		case opcode.INITSLOT:
 			actualInitSlot++
-			if ctx.IP() == mainStart {
+			if ctx.IP() == mainStart && expectedLocalsMain >= 0 {
 				require.Equal(t, expectedLocalsMain, int(param[0]))
 			}
 		}

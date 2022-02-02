@@ -126,6 +126,22 @@ func TestDefer(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, 0, vm.Estack().Len(), "stack contains unexpected items")
 	})
+	t.Run("CodeDuplication", func(t *testing.T) {
+		src := `package main
+		var i int
+		func Main() {
+			defer func() {
+				var j int
+				i += j
+			}()
+			if i == 1 { return }
+			if i == 2 { return }
+			if i == 3 { return }
+			if i == 4 { return }
+			if i == 5 { return }
+		}`
+		checkCallCount(t, src, 0 /* defer body + Main */, 2, -1)
+	})
 }
 
 func TestRecover(t *testing.T) {
