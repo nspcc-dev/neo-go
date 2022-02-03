@@ -1024,10 +1024,14 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		binary.LittleEndian.PutUint16(param[0:], catch)
 		binary.LittleEndian.PutUint16(param[4:], finally)
 		emit.Instruction(c.prog.BinWriter, opcode.TRYL, param)
+		index := c.scope.newLocal(fmt.Sprintf("defer@%d", n.Call.Pos()))
+		emit.Opcodes(c.prog.BinWriter, opcode.PUSH1)
+		c.emitStoreByIndex(varLocal, index)
 		c.scope.deferStack = append(c.scope.deferStack, deferInfo{
 			catchLabel:   catch,
 			finallyLabel: finally,
 			expr:         n.Call,
+			localIndex:   index,
 		})
 		return nil
 
@@ -1330,13 +1334,21 @@ func (c *codegen) isCallExprSyscall(e ast.Expr) bool {
 // 2. `recover` can or can not handle a possible exception.
 // Thus we use the following approach:
 // 1. Throwed exception is saved in a static field X, static fields Y and is set to true.
-// 2. CATCH and FINALLY blocks are the same, and both contain the same CALLs.
-// 3. In CATCH block we set Y to true and emit default return values if it is the last defer.
-// 4. Execute FINALLY block only if Y is false.
+// 2. For each defer local there is a dedicated local variable which is set to 1 if `defer` statement
+//    is encountered during an actual execution.
+// 3. CATCH and FINALLY blocks are the same, and both contain the same CALLs.
+// 4. Right before the CATCH block check a variable from (2). If it is null, jump to the end of CATCH+FINALLY block.
+// 5. In CATCH block we set Y to true and emit default return values if it is the last defer.
+// 6. Execute FINALLY block only if Y is false.
 func (c *codegen) processDefers() {
 	for i := len(c.scope.deferStack) - 1; i >= 0; i-- {
 		stmt := c.scope.deferStack[i]
 		after := c.newLabel()
+
+		c.emitLoadByIndex(varLocal, c.scope.deferStack[i].localIndex)
+		emit.Opcodes(c.prog.BinWriter, opcode.ISNULL)
+		emit.Jmp(c.prog.BinWriter, opcode.JMPIFL, after)
+
 		emit.Jmp(c.prog.BinWriter, opcode.ENDTRYL, after)
 
 		c.setLabel(stmt.catchLabel)

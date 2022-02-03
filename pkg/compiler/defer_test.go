@@ -2,8 +2,10 @@ package compiler_test
 
 import (
 	"math/big"
+	"strings"
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/stretchr/testify/require"
 )
 
@@ -141,6 +143,92 @@ func TestDefer(t *testing.T) {
 			if i == 5 { return }
 		}`
 		checkCallCount(t, src, 0 /* defer body + Main */, 2, -1)
+	})
+}
+
+func TestConditionalDefer(t *testing.T) {
+	type testCase struct {
+		a      []bool
+		result int64
+	}
+
+	t.Run("no panic", func(t *testing.T) {
+		src := `package foo
+		var i int
+		func Main(a []bool) int { return f(a[0], a[1], a[2]) + i }
+		func g() { i += 10 }
+		func f(a bool, b bool, c bool) int {
+			if a { defer func() { i += 1 }() }
+			if b { defer g() }
+			if c { defer func() { i += 100 }() }
+			return 0
+		}`
+		testCases := []testCase{
+			{[]bool{false, false, false}, 0},
+			{[]bool{false, false, true}, 100},
+			{[]bool{false, true, false}, 10},
+			{[]bool{false, true, true}, 110},
+			{[]bool{true, false, false}, 1},
+			{[]bool{true, false, true}, 101},
+			{[]bool{true, true, false}, 11},
+			{[]bool{true, true, true}, 111},
+		}
+		for _, tc := range testCases {
+			args := []stackitem.Item{stackitem.Make(tc.a[0]), stackitem.Make(tc.a[1]), stackitem.Make(tc.a[2])}
+			evalWithArgs(t, src, nil, args, big.NewInt(tc.result))
+		}
+	})
+	t.Run("panic between ifs", func(t *testing.T) {
+		src := `package foo
+		var i int
+		func Main(a []bool) int { if a[1] { defer func() { recover() }() }; return f(a[0], a[1]) + i }
+		func f(a, b bool) int {
+			if a { defer func() { i += 1; recover() }() }
+			panic("totally expected")
+			if b { defer func() { i += 100; recover() }() }
+			return 0
+		}`
+
+		args := []stackitem.Item{stackitem.Make(false), stackitem.Make(false)}
+		v := vmAndCompile(t, src)
+		v.Estack().PushVal(args)
+		err := v.Run()
+		require.Error(t, err)
+		require.True(t, strings.Contains(err.Error(), "totally expected"))
+
+		testCases := []testCase{
+			{[]bool{false, true}, 0},
+			{[]bool{true, false}, 1},
+			{[]bool{true, true}, 1},
+		}
+		for _, tc := range testCases {
+			args := []stackitem.Item{stackitem.Make(tc.a[0]), stackitem.Make(tc.a[1])}
+			evalWithArgs(t, src, nil, args, big.NewInt(tc.result))
+		}
+	})
+	t.Run("panic in conditional", func(t *testing.T) {
+		src := `package foo
+		var i int
+		func Main(a []bool) int { if a[1] { defer func() { recover() }() }; return f(a[0], a[1]) + i }
+		func f(a, b bool) int {
+			if a {
+				defer func() { i += 1; recover() }()
+				panic("somewhat expected")
+			}
+			if b { defer func() { i += 100; recover() }() }
+			return 0
+		}`
+
+		testCases := []testCase{
+			{[]bool{false, false}, 0},
+			{[]bool{false, true}, 100},
+			{[]bool{true, false}, 1},
+			{[]bool{true, true}, 1},
+		}
+		for _, tc := range testCases {
+			args := []stackitem.Item{stackitem.Make(tc.a[0]), stackitem.Make(tc.a[1])}
+			evalWithArgs(t, src, nil, args, big.NewInt(tc.result))
+		}
 	})
 }
 
