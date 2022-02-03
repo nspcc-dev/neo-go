@@ -1,11 +1,3 @@
 codecov:
   require_ci_to_pass: no # We have several CI jobs that upload codecov results,
                          # and sometimes some of them may fail, it's OK.
-coverage:
-  status:
-    project:
-      default: # This can be anything, but it needs to exist as the name
-        if_ci_failed: error #success, failure, error, ignore
-        only_pulls: false
-comment:
-  after_n_builds: 1

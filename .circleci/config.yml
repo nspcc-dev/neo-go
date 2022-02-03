@@ -1,6 +1,4 @@
 version: 2.1
-orbs:
-  codecov: codecov/codecov@1.0.5
 
 executors:
   go1_15:
@@ -62,20 +60,6 @@ jobs:
       - gomod
       - run: go test -v -race ./...
 
-  test_cover:
-    working_directory: /go/src/github.com/nspcc-dev/neo-go
-    executor: go1_17
-    environment:
-        CGO_ENABLED: 0
-    steps:
-      - checkout
-      - run: git submodule sync
-      - run: git submodule update --init
-      - gomod
-      - run: go test -v ./... -coverprofile=coverage.txt -covermode=atomic -coverpkg=./pkg...,./cli/...
-      - codecov/upload:
-          file: coverage.txt
-
   build_cli:
     working_directory: /go/src/github.com/nspcc-dev/neo-go
     executor: go1_17
@@ -122,10 +106,6 @@ workflows:
             tags:
               only: v/[0-9]+\.[0-9]+\.[0-9]+/
       - test_1_16:
-          filters:
-            tags:
-              only: v/[0-9]+\.[0-9]+\.[0-9]+/
-      - test_cover:
           filters:
             tags:
               only: v/[0-9]+\.[0-9]+\.[0-9]+/
