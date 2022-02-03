@@ -1116,7 +1116,7 @@ func TestVerifyHashAgainstScript(t *testing.T) {
 	bc := newTestChain(t)
 
 	cs, csInvalid := getTestContractState(t, 4, 5, random.Uint160()) // sender and IDs are not important for the test
-	ic := bc.newInteropContext(trigger.Verification, bc.dao, nil, nil)
+	ic := bc.newInteropContext(trigger.Verification, bc.dao.GetWrapped(), nil, nil)
 	require.NoError(t, bc.contracts.Management.PutContractState(bc.dao, cs))
 	require.NoError(t, bc.contracts.Management.PutContractState(bc.dao, csInvalid))
 
