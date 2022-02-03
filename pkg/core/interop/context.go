@@ -71,7 +71,7 @@ func NewContext(trigger trigger.Type, bc Ledger, d dao.DAO,
 	getContract func(dao.DAO, util.Uint160) (*state.Contract, error), natives []Contract,
 	block *block.Block, tx *transaction.Transaction, log *zap.Logger) *Context {
 	baseExecFee := int64(DefaultBaseExecFee)
-	dao := d.GetWrapped()
+	dao := d.GetCloned()
 
 	if bc != nil && (block == nil || block.Index != 0) {
 		baseExecFee = bc.GetBaseExecFee()

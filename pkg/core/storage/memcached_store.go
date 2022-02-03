@@ -14,6 +14,9 @@ import (
 type MemCachedStore struct {
 	MemoryStore
 
+	// lowerTrie stores lower level MemCachedStore trie for cloned MemCachedStore,
+	// which allows for much more efficient Persist.
+	lowerTrie *btree.BTree
 	// plock protects Persist from double entrance.
 	plock sync.Mutex
 	// Persistent Store.
@@ -52,6 +55,16 @@ func NewMemCachedStore(lower Store) *MemCachedStore {
 	return &MemCachedStore{
 		MemoryStore: *NewMemoryStore(),
 		ps:          lower,
+	}
+}
+
+// NewClonedMemCachedStore creates a cloned MemCachedStore which shares the trie
+// with another MemCachedStore (until you write into it).
+func (s *MemCachedStore) Clone() *MemCachedStore {
+	return &MemCachedStore{
+		MemoryStore: MemoryStore{mem: *s.mem.Clone()}, // Shared COW trie.
+		lowerTrie:   &s.mem,
+		ps:          s.ps, // But the same PS.
 	}
 }
 
@@ -238,6 +251,13 @@ func (s *MemCachedStore) persist(isSync bool) (int, error) {
 	s.plock.Lock()
 	defer s.plock.Unlock()
 	s.mut.Lock()
+
+	if s.lowerTrie != nil {
+		keys = s.mem.Len() - s.lowerTrie.Len()
+		*s.lowerTrie = s.mem
+		s.mut.Unlock()
+		return keys, nil
+	}
 
 	keys = s.mem.Len()
 	if keys == 0 {

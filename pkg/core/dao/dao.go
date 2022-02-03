@@ -50,6 +50,7 @@ type DAO interface {
 	GetStorageItemsWithPrefix(id int32, prefix []byte) ([]state.StorageItemWithKey, error)
 	GetTransaction(hash util.Uint256) (*transaction.Transaction, uint32, error)
 	GetVersion() (Version, error)
+	GetCloned() DAO
 	GetWrapped() DAO
 	HasTransaction(hash util.Uint256) error
 	Persist() (int, error)
@@ -100,6 +101,15 @@ func (dao *Simple) GetWrapped() DAO {
 	d := NewSimple(dao.Store, dao.Version.StateRootInHeader, dao.Version.P2PSigExtensions)
 	d.Version = dao.Version
 	return d
+}
+
+// GetCloned returns new DAO instance with shared trie of MemCachedStore, use it for
+// the latest layer that either doesn't need to Persist, or Persists to another well-known
+// non-shared (!) layer.
+func (dao *Simple) GetCloned() DAO {
+	d := *dao
+	d.Store = dao.Store.Clone()
+	return &d
 }
 
 // GetAndDecode performs get operation and decoding with serializable structures.
