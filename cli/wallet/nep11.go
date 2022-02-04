@@ -1,6 +1,7 @@
 package wallet
 
 import (
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"math/big"
@@ -31,7 +32,7 @@ func newNEP11Commands() []cli.Command {
 	}
 	tokenID := cli.StringFlag{
 		Name:  "id",
-		Usage: "Token ID",
+		Usage: "Hex-encoded token ID",
 	}
 
 	balanceFlags := make([]cli.Flag, len(baseBalanceFlags))
@@ -107,7 +108,17 @@ func newNEP11Commands() []cli.Command {
 			Name:      "ownerOf",
 			Usage:     "print owner of non-divisible NEP-11 token with the specified ID",
 			UsageText: "ownerOf --rpc-endpoint <node> --timeout <time> --token <hash> --id <token-id>",
-			Action:    printNEP11Owner,
+			Action:    printNEP11NDOwner,
+			Flags: append([]cli.Flag{
+				tokenAddressFlag,
+				tokenID,
+			}, options.RPC...),
+		},
+		{
+			Name:      "ownerOfD",
+			Usage:     "print set of owners of divisible NEP-11 token with the specified ID",
+			UsageText: "ownerOfD --rpc-endpoint <node> --timeout <time> --token <hash> --id <token-id>",
+			Action:    printNEP11DOwner,
 			Flags: append([]cli.Flag{
 				tokenAddressFlag,
 				tokenID,
@@ -196,6 +207,10 @@ func getNEP11Balance(ctx *cli.Context) error {
 	}
 
 	tokenID := ctx.String("id")
+	tokenIDBytes, err := hex.DecodeString(tokenID)
+	if err != nil {
+		return cli.NewExitError(fmt.Errorf("invalid tokenID bytes: %w", err), 1)
+	}
 	for k, acc := range accounts {
 		addrHash, err := address.StringToUint160(acc.Address)
 		if err != nil {
@@ -208,10 +223,10 @@ func getNEP11Balance(ctx *cli.Context) error {
 		fmt.Fprintf(ctx.App.Writer, "Account %s\n", acc.Address)
 
 		var amount int64
-		if tokenID == "" {
+		if len(tokenIDBytes) == 0 {
 			amount, err = c.NEP11BalanceOf(token.Hash, addrHash)
 		} else {
-			amount, err = c.NEP11DBalanceOf(token.Hash, addrHash, tokenID)
+			amount, err = c.NEP11DBalanceOf(token.Hash, addrHash, tokenIDBytes)
 		}
 		if err != nil {
 			continue
@@ -220,7 +235,7 @@ func getNEP11Balance(ctx *cli.Context) error {
 
 		format := "%s: %s (%s)\n"
 		formatArgs := []interface{}{token.Symbol, token.Name, token.Hash.StringLE()}
-		if tokenID != "" {
+		if len(tokenIDBytes) != 0 {
 			format = "%s: %s (%s, %s)\n"
 			formatArgs = append(formatArgs, tokenID)
 		}
@@ -234,7 +249,7 @@ func transferNEP11(ctx *cli.Context) error {
 	return transferNEP(ctx, manifest.NEP11StandardName)
 }
 
-func signAndSendNEP11Transfer(ctx *cli.Context, c *client.Client, acc *wallet.Account, token, to util.Uint160, tokenID string, amount *big.Int, data interface{}, cosigners []client.SignerAccount) error {
+func signAndSendNEP11Transfer(ctx *cli.Context, c *client.Client, acc *wallet.Account, token, to util.Uint160, tokenID []byte, amount *big.Int, data interface{}, cosigners []client.SignerAccount) error {
 	gas := flags.Fixed8FromContext(ctx, "gas")
 	sysgas := flags.Fixed8FromContext(ctx, "sysgas")
 
@@ -279,7 +294,15 @@ func signAndSendNEP11Transfer(ctx *cli.Context, c *client.Client, acc *wallet.Ac
 	return nil
 }
 
-func printNEP11Owner(ctx *cli.Context) error {
+func printNEP11NDOwner(ctx *cli.Context) error {
+	return printNEP11Owner(ctx, false)
+}
+
+func printNEP11DOwner(ctx *cli.Context) error {
+	return printNEP11Owner(ctx, true)
+}
+
+func printNEP11Owner(ctx *cli.Context, divisible bool) error {
 	var err error
 	tokenHash := ctx.Generic("token").(*flags.Address)
 	if !tokenHash.IsSet {
@@ -290,6 +313,10 @@ func printNEP11Owner(ctx *cli.Context) error {
 	if tokenID == "" {
 		return cli.NewExitError(errors.New("token ID should be specified"), 1)
 	}
+	tokenIDBytes, err := hex.DecodeString(tokenID)
+	if err != nil {
+		return cli.NewExitError(fmt.Errorf("invalid tokenID bytes: %w", err), 1)
+	}
 
 	gctx, cancel := options.GetTimeoutContext(ctx)
 	defer cancel()
@@ -299,12 +326,22 @@ func printNEP11Owner(ctx *cli.Context) error {
 		return cli.NewExitError(err, 1)
 	}
 
-	result, err := c.NEP11NDOwnerOf(tokenHash.Uint160(), tokenID)
-	if err != nil {
-		return cli.NewExitError(fmt.Sprintf("failed to call NEP-11 `ownerOf` method: %s", err.Error()), 1)
+	if divisible {
+		result, err := c.NEP11DOwnerOf(tokenHash.Uint160(), tokenIDBytes)
+		if err != nil {
+			return cli.NewExitError(fmt.Sprintf("failed to call NEP-11 divisible `ownerOf` method: %s", err.Error()), 1)
+		}
+		for _, h := range result {
+			fmt.Fprintln(ctx.App.Writer, address.Uint160ToString(h))
+		}
+	} else {
+		result, err := c.NEP11NDOwnerOf(tokenHash.Uint160(), tokenIDBytes)
+		if err != nil {
+			return cli.NewExitError(fmt.Sprintf("failed to call NEP-11 non-divisible `ownerOf` method: %s", err.Error()), 1)
+		}
+		fmt.Fprintln(ctx.App.Writer, address.Uint160ToString(result))
 	}
 
-	fmt.Fprintln(ctx.App.Writer, address.Uint160ToString(result))
 	return nil
 }
 
@@ -334,7 +371,7 @@ func printNEP11TokensOf(ctx *cli.Context) error {
 	}
 
 	for i := range result {
-		fmt.Fprintln(ctx.App.Writer, result[i])
+		fmt.Fprintln(ctx.App.Writer, hex.EncodeToString(result[i]))
 	}
 	return nil
 }
@@ -360,7 +397,7 @@ func printNEP11Tokens(ctx *cli.Context) error {
 	}
 
 	for i := range result {
-		fmt.Fprintln(ctx.App.Writer, result[i])
+		fmt.Fprintln(ctx.App.Writer, hex.EncodeToString(result[i]))
 	}
 	return nil
 }
@@ -376,6 +413,10 @@ func printNEP11Properties(ctx *cli.Context) error {
 	if tokenID == "" {
 		return cli.NewExitError(errors.New("token ID should be specified"), 1)
 	}
+	tokenIDBytes, err := hex.DecodeString(tokenID)
+	if err != nil {
+		return cli.NewExitError(fmt.Errorf("invalid tokenID bytes: %w", err), 1)
+	}
 
 	gctx, cancel := options.GetTimeoutContext(ctx)
 	defer cancel()
@@ -385,7 +426,7 @@ func printNEP11Properties(ctx *cli.Context) error {
 		return cli.NewExitError(err, 1)
 	}
 
-	result, err := c.NEP11Properties(tokenHash.Uint160(), tokenID)
+	result, err := c.NEP11Properties(tokenHash.Uint160(), tokenIDBytes)
 	if err != nil {
 		return cli.NewExitError(fmt.Sprintf("failed to call NEP-11 `properties` method: %s", err.Error()), 1)
 	}

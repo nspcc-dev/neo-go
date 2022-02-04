@@ -1,6 +1,7 @@
 package wallet
 
 import (
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"math/big"
@@ -618,14 +619,18 @@ func transferNEP(ctx *cli.Context, standard string) error {
 		if tokenID == "" {
 			return cli.NewExitError(errors.New("token ID should be specified"), 1)
 		}
+		tokenIDBytes, err := hex.DecodeString(tokenID)
+		if err != nil {
+			return cli.NewExitError(fmt.Errorf("invalid token ID: %w", err), 1)
+		}
 		if amountArg == "" {
-			return signAndSendNEP11Transfer(ctx, c, acc, token.Hash, to, tokenID, nil, data, cosignersAccounts)
+			return signAndSendNEP11Transfer(ctx, c, acc, token.Hash, to, tokenIDBytes, nil, data, cosignersAccounts)
 		}
 		amount, err := fixedn.FromString(amountArg, int(token.Decimals))
 		if err != nil {
 			return cli.NewExitError(fmt.Errorf("invalid amount: %w", err), 1)
 		}
-		return signAndSendNEP11Transfer(ctx, c, acc, token.Hash, to, tokenID, amount, data, cosignersAccounts)
+		return signAndSendNEP11Transfer(ctx, c, acc, token.Hash, to, tokenIDBytes, amount, data, cosignersAccounts)
 	default:
 		return cli.NewExitError(fmt.Errorf("unsupported token standard %s", standard), 1)
 	}

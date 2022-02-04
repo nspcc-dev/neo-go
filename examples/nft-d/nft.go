@@ -10,6 +10,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/interop"
 	"github.com/nspcc-dev/neo-go/pkg/interop/contract"
 	"github.com/nspcc-dev/neo-go/pkg/interop/iterator"
+	"github.com/nspcc-dev/neo-go/pkg/interop/native/crypto"
 	"github.com/nspcc-dev/neo-go/pkg/interop/native/gas"
 	"github.com/nspcc-dev/neo-go/pkg/interop/native/management"
 	"github.com/nspcc-dev/neo-go/pkg/interop/native/std"
@@ -30,7 +31,7 @@ const (
 	balancePrefix = "b"
 	// tokenOwnerPrefix contains map from [token id + owner] to token's owner.
 	tokenOwnerPrefix = "t"
-	// tokenPrefix contains map from token id to empty array.
+	// tokenPrefix contains map from token id to its properties (serialised containerID + objectID).
 	tokenPrefix = "i"
 )
 
@@ -231,12 +232,13 @@ func Properties(id []byte) map[string]string {
 	if !isTokenValid(ctx, id) {
 		panic("unknown token")
 	}
-	t := std.Deserialize(id).(ObjectIdentifier)
+	key := mkTokenKey(id)
+	props := storage.Get(ctx, key).([]byte)
+	t := std.Deserialize(props).(ObjectIdentifier)
 	result := map[string]string{
-		"name":        "NFSO " + string(id),
-		"fullName":    "NeoFS Object",
-		"containerID": string(t.ContainerID),
-		"objectID":    string(t.ObjectID),
+		"name":        "NeoFS Object " + std.Base64Encode(id), // Not a hex for contract simplicity.
+		"containerID": std.Base64Encode(t.ContainerID),
+		"objectID":    std.Base64Encode(t.ObjectID),
 	}
 	return result
 }
@@ -360,11 +362,11 @@ func OnNEP17Payment(from interop.Hash160, amount int, data interface{}) {
 		panic("invalid 'data'")
 	}
 	containerID := tokenInfo[0].([]byte)
-	if len(containerID) != 32 {
+	if len(containerID) != interop.Hash256Len {
 		panic("invalid container ID")
 	}
 	objectID := tokenInfo[1].([]byte)
-	if len(objectID) != 32 {
+	if len(objectID) != interop.Hash256Len {
 		panic("invalid object ID")
 	}
 
@@ -372,14 +374,15 @@ func OnNEP17Payment(from interop.Hash160, amount int, data interface{}) {
 		ContainerID: containerID,
 		ObjectID:    objectID,
 	}
-	id := std.Serialize(t)
+	props := std.Serialize(t)
+	id := crypto.Ripemd160(props)
 
 	var ctx = storage.GetContext()
 	if isTokenValid(ctx, id) {
-		panic("NFSO for the specified address is already minted")
+		panic("NFSO for the specified object is already minted")
 	}
 	key := mkTokenKey(id)
-	storage.Put(ctx, key, []byte{})
+	storage.Put(ctx, key, props)
 
 	total := totalSupply(ctx)
 
