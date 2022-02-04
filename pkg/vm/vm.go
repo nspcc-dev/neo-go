@@ -1594,6 +1594,9 @@ func (v *VM) call(ctx *Context, offset int) {
 	newCtx.retCount = -1
 	newCtx.local = nil
 	newCtx.arguments = nil
+	// If memory for `elems` is reused, we can end up
+	// with incorrect exception context state in the caller.
+	newCtx.tryStack.elems = nil
 	initStack(&newCtx.tryStack, "exception", nil)
 	newCtx.NEF = ctx.NEF
 	v.istack.PushItem(newCtx)
