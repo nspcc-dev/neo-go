@@ -1027,6 +1027,22 @@ func TestTRY(t *testing.T) {
 		// add 5 to the exception, mul to the result of inner finally (2)
 		getTRYTestFunc(47, inner, append(add5, byte(opcode.MUL)), add9)(t)
 	})
+	t.Run("nested, in throw and catch in call", func(t *testing.T) {
+		catchP := []byte{byte(opcode.PUSH10), byte(opcode.ADD)}
+		inner := getTRYProgram(throw, catchP, []byte{byte(opcode.PUSH2)})
+		outer := getTRYProgram([]byte{byte(opcode.CALL), 0}, []byte{byte(opcode.PUSH3)}, []byte{byte(opcode.PUSH4)})
+		outer = append(outer, byte(opcode.RET))
+		outer[4] = byte(len(outer) - 3) // CALL argument at 3 (TRY) + 1 (CALL opcode)
+		outer = append(outer, inner...)
+		outer = append(outer, byte(opcode.RET))
+
+		v := load(outer)
+		runVM(t, v)
+		require.Equal(t, 3, v.Estack().Len())
+		require.Equal(t, big.NewInt(4), v.Estack().Pop().Value())  // outer FINALLY
+		require.Equal(t, big.NewInt(2), v.Estack().Pop().Value())  // inner FINALLY
+		require.Equal(t, big.NewInt(23), v.Estack().Pop().Value()) // inner THROW + CATCH
+	})
 }
 
 func TestMEMCPY(t *testing.T) {

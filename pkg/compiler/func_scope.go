@@ -53,6 +53,7 @@ type deferInfo struct {
 	catchLabel   uint16
 	finallyLabel uint16
 	expr         *ast.CallExpr
+	localIndex   int
 }
 
 const (
