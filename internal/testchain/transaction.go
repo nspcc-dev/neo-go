@@ -68,6 +68,7 @@ func NewDeployTx(bc blockchainer.Blockchainer, name string, sender util.Uint160,
 			return nil, util.Uint160{}, nil, fmt.Errorf("failed to parse configuration: %w", err)
 		}
 		o.Name = conf.Name
+		o.SourceURL = conf.SourceURL
 		o.ContractEvents = conf.Events
 		o.ContractSupportedStandards = conf.SupportedStandards
 		o.Permissions = make([]manifest.Permission, len(conf.Permissions))
@@ -75,6 +76,7 @@ func NewDeployTx(bc blockchainer.Blockchainer, name string, sender util.Uint160,
 			o.Permissions[i] = manifest.Permission(conf.Permissions[i])
 		}
 		o.SafeMethods = conf.SafeMethods
+		o.Overloads = conf.Overloads
 	}
 
 	ne, di, err := compiler.CompileWithOptions(name, r, o)
