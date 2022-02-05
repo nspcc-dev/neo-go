@@ -97,11 +97,12 @@ func (s *MemCachedStore) SeekAsync(ctx context.Context, rng SeekRange, cutPrefix
 	res := make(chan KeyValue)
 	go func() {
 		s.seek(ctx, rng, cutPrefix, func(k, v []byte) bool {
-			res <- KeyValue{
-				Key:   k,
-				Value: v,
+			select {
+			case <-ctx.Done():
+				return false
+			case res <- KeyValue{Key: k, Value: v}:
+				return true
 			}
-			return true // always continue, we have context for early stop.
 		})
 		close(res)
 	}()
