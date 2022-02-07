@@ -383,7 +383,7 @@ func OnNEP17Payment(from interop.Hash160, amount int, data interface{}) {
 
 	total := totalSupply(ctx)
 
-	addOwner(ctx, from, id)
+	addOwner(ctx, id, from)
 	addToBalance(ctx, from, id, multiplier)
 
 	total++
