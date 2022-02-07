@@ -31,9 +31,12 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-// _winfileSinkRegistered denotes whether zap has registered
-// user-supplied factory for all sinks with `winfile`-prefixed scheme.
-var _winfileSinkRegistered bool
+var (
+	// _winfileSinkRegistered denotes whether zap has registered
+	// user-supplied factory for all sinks with `winfile`-prefixed scheme.
+	_winfileSinkRegistered bool
+	_winfileSinkCloser     func() error
+)
 
 // NewCommands returns 'node' command.
 func NewCommands() []cli.Command {
@@ -130,7 +133,9 @@ func getConfigFromContext(ctx *cli.Context) (config.Config, error) {
 // handleLoggingParams reads logging parameters.
 // If user selected debug level -- function enables it.
 // If logPath is configured -- function creates dir and file for logging.
-func handleLoggingParams(ctx *cli.Context, cfg config.ApplicationConfiguration) (*zap.Logger, error) {
+// If logPath is configured on Windows -- function returns closer to be
+// able to close sink for opened log output file.
+func handleLoggingParams(ctx *cli.Context, cfg config.ApplicationConfiguration) (*zap.Logger, func() error, error) {
 	level := zapcore.InfoLevel
 	if ctx.Bool("debug") {
 		level = zapcore.DebugLevel
@@ -148,7 +153,7 @@ func handleLoggingParams(ctx *cli.Context, cfg config.ApplicationConfiguration) 
 
 	if logPath := cfg.LogPath; logPath != "" {
 		if err := io.MakeDirForFile(logPath, "logger"); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 
 		if runtime.GOOS == "windows" {
@@ -177,11 +182,16 @@ func handleLoggingParams(ctx *cli.Context, cfg config.ApplicationConfiguration) 
 					case "stderr":
 						return os.Stderr, nil
 					}
-					return os.OpenFile(u.Path[1:], // Remove leading slash left after url.Parse.
+					f, err := os.OpenFile(u.Path[1:], // Remove leading slash left after url.Parse.
 						os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0644)
+					_winfileSinkCloser = func() error {
+						_winfileSinkCloser = nil
+						return f.Close()
+					}
+					return f, err
 				})
 				if err != nil {
-					return nil, fmt.Errorf("failed to register windows-specific sinc: %w", err)
+					return nil, nil, fmt.Errorf("failed to register windows-specific sinc: %w", err)
 				}
 				_winfileSinkRegistered = true
 			}
@@ -191,7 +201,8 @@ func handleLoggingParams(ctx *cli.Context, cfg config.ApplicationConfiguration) 
 		cc.OutputPaths = []string{logPath}
 	}
 
-	return cc.Build()
+	log, err := cc.Build()
+	return log, _winfileSinkCloser, err
 }
 
 func initBCWithMetrics(cfg config.Config, log *zap.Logger) (*core.Blockchain, *metrics.Service, *metrics.Service, error) {
@@ -215,9 +226,12 @@ func dumpDB(ctx *cli.Context) error {
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
-	log, err := handleLoggingParams(ctx, cfg.ApplicationConfiguration)
+	log, logCloser, err := handleLoggingParams(ctx, cfg.ApplicationConfiguration)
 	if err != nil {
 		return cli.NewExitError(err, 1)
+	}
+	if logCloser != nil {
+		defer func() { _ = logCloser() }()
 	}
 	count := uint32(ctx.Uint("count"))
 	start := uint32(ctx.Uint("start"))
@@ -262,9 +276,12 @@ func restoreDB(ctx *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	log, err := handleLoggingParams(ctx, cfg.ApplicationConfiguration)
+	log, logCloser, err := handleLoggingParams(ctx, cfg.ApplicationConfiguration)
 	if err != nil {
 		return cli.NewExitError(err, 1)
+	}
+	if logCloser != nil {
+		defer func() { _ = logCloser() }()
 	}
 	count := uint32(ctx.Uint("count"))
 
@@ -438,9 +455,12 @@ func startServer(ctx *cli.Context) error {
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
-	log, err := handleLoggingParams(ctx, cfg.ApplicationConfiguration)
+	log, logCloser, err := handleLoggingParams(ctx, cfg.ApplicationConfiguration)
 	if err != nil {
 		return cli.NewExitError(err, 1)
+	}
+	if logCloser != nil {
+		defer func() { _ = logCloser() }()
 	}
 
 	grace, cancel := context.WithCancel(newGraceContext())
