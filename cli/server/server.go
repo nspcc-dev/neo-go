@@ -4,8 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"os/signal"
+	"runtime"
 	"syscall"
 
 	"github.com/nspcc-dev/neo-go/cli/options"
@@ -28,6 +30,10 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
+
+// _winfileSinkRegistered denotes whether zap has registered
+// user-supplied factory for all sinks with `winfile`-prefixed scheme.
+var _winfileSinkRegistered bool
 
 // NewCommands returns 'node' command.
 func NewCommands() []cli.Command {
@@ -143,6 +149,43 @@ func handleLoggingParams(ctx *cli.Context, cfg config.ApplicationConfiguration) 
 	if logPath := cfg.LogPath; logPath != "" {
 		if err := io.MakeDirForFile(logPath, "logger"); err != nil {
 			return nil, err
+		}
+
+		if runtime.GOOS == "windows" {
+			if !_winfileSinkRegistered {
+				// See https://github.com/uber-go/zap/issues/621.
+				err := zap.RegisterSink("winfile", func(u *url.URL) (zap.Sink, error) {
+					if u.User != nil {
+						return nil, fmt.Errorf("user and password not allowed with file URLs: got %v", u)
+					}
+					if u.Fragment != "" {
+						return nil, fmt.Errorf("fragments not allowed with file URLs: got %v", u)
+					}
+					if u.RawQuery != "" {
+						return nil, fmt.Errorf("query parameters not allowed with file URLs: got %v", u)
+					}
+					// Error messages are better if we check hostname and port separately.
+					if u.Port() != "" {
+						return nil, fmt.Errorf("ports not allowed with file URLs: got %v", u)
+					}
+					if hn := u.Hostname(); hn != "" && hn != "localhost" {
+						return nil, fmt.Errorf("file URLs must leave host empty or use localhost: got %v", u)
+					}
+					switch u.Path {
+					case "stdout":
+						return os.Stdout, nil
+					case "stderr":
+						return os.Stderr, nil
+					}
+					return os.OpenFile(u.Path[1:], // Remove leading slash left after url.Parse.
+						os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0644)
+				})
+				if err != nil {
+					return nil, fmt.Errorf("failed to register windows-specific sinc: %w", err)
+				}
+				_winfileSinkRegistered = true
+			}
+			logPath = "winfile:///" + logPath
 		}
 
 		cc.OutputPaths = []string{logPath}
