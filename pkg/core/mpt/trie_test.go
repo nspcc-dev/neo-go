@@ -249,7 +249,7 @@ func (tr *Trie) putToStore(n Node) {
 			bytes:    n.Bytes(),
 			refcount: 1,
 		}
-		tr.updateRefCount(n.Hash(), 0)
+		tr.updateRefCount(n.Hash(), makeStorageKey(n.Hash()), 0)
 	} else {
 		_ = tr.Store.Put(makeStorageKey(n.Hash()), n.Bytes())
 	}

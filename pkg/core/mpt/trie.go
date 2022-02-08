@@ -407,18 +407,20 @@ func makeStorageKey(mptKey util.Uint256) []byte {
 // new node to storage. Normally, flush should be called with every StateRoot persist, i.e.
 // after every block.
 func (t *Trie) Flush(index uint32) {
+	key := makeStorageKey(util.Uint256{})
 	for h, node := range t.refcount {
 		if node.refcount != 0 {
+			copy(key[1:], h[:])
 			if node.bytes == nil {
 				panic("item not in trie")
 			}
 			if t.mode.RC() {
-				node.initial = t.updateRefCount(h, index)
+				node.initial = t.updateRefCount(h, key, index)
 				if node.initial == 0 {
 					delete(t.refcount, h)
 				}
 			} else if node.refcount > 0 {
-				_ = t.Store.Put(makeStorageKey(h), node.bytes)
+				_ = t.Store.Put(key, node.bytes)
 			}
 			node.refcount = 0
 		} else {
@@ -440,12 +442,11 @@ func getFromStore(key []byte, mode TrieMode, store *storage.MemCachedStore) ([]b
 }
 
 // updateRefCount should be called only when refcounting is enabled.
-func (t *Trie) updateRefCount(h util.Uint256, index uint32) int32 {
+func (t *Trie) updateRefCount(h util.Uint256, key []byte, index uint32) int32 {
 	if !t.mode.RC() {
 		panic("`updateRefCount` is called, but GC is disabled")
 	}
 	var data []byte
-	key := makeStorageKey(h)
 	node := t.refcount[h]
 	cnt := node.initial
 	if cnt == 0 {
