@@ -86,6 +86,9 @@ type heightNumber struct {
 func (p *ProtocolConfiguration) Validate() error {
 	var err error
 
+	if p.KeepOnlyLatestState && p.P2PStateExchangeExtensions {
+		return errors.New("can't have both KeepOnlyLatestState and P2PStateExchangeExtensions")
+	}
 	for name := range p.NativeUpdateHistories {
 		if !nativenames.IsValid(name) {
 			return fmt.Errorf("NativeActivations configuration section contains unexpected native contract name: %s", name)

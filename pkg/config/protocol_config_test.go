@@ -8,6 +8,15 @@ import (
 
 func TestProtocolConfigurationValidation(t *testing.T) {
 	p := &ProtocolConfiguration{
+		StandbyCommittee: []string{
+			"02b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc2",
+		},
+		ValidatorsCount:            1,
+		KeepOnlyLatestState:        true,
+		P2PStateExchangeExtensions: true,
+	}
+	require.Error(t, p.Validate())
+	p = &ProtocolConfiguration{
 		ValidatorsCount: 1,
 	}
 	require.Error(t, p.Validate())
