@@ -1,11 +1,11 @@
 package main
 
 import (
-	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -96,29 +96,33 @@ func TestServerStart(t *testing.T) {
 			e.RunWithError(t, baseCmd...)
 		})
 	})
-	t.Run("good", func(t *testing.T) {
-		saveCfg(t, func(cfg *config.Config) {})
+	// We can't properly shutdown server on windows and release the resources.
+	// Also, windows doesn't support SIGHUP and SIGINT.
+	if runtime.GOOS != "windows" {
+		t.Run("good", func(t *testing.T) {
+			saveCfg(t, func(cfg *config.Config) {})
 
-		go func() {
-			e.Run(t, baseCmd...)
-		}()
+			go func() {
+				e.Run(t, baseCmd...)
+			}()
 
-		var line string
-		require.Eventually(t, func() bool {
-			line, err = e.Out.ReadString('\n')
-			if err != nil && err != io.EOF {
-				t.Fatalf(fmt.Sprintf("unexpected error while reading CLI output: %s", err))
+			var line string
+			require.Eventually(t, func() bool {
+				line, err = e.Out.ReadString('\n')
+				if err != nil && err != io.EOF {
+					t.Fatalf("unexpected error while reading CLI output: %s", err)
+				}
+				return err == nil
+			}, 2*time.Second, 100*time.Millisecond)
+			lines := strings.Split(server.Logo(), "\n")
+			for _, expected := range lines {
+				// It should be regexp, so escape all backslashes.
+				expected = strings.ReplaceAll(expected, `\`, `\\`)
+				e.checkLine(t, line, expected)
+				line = e.getNextLine(t)
 			}
-			return err == nil
-		}, 2*time.Second, 100*time.Millisecond)
-		lines := strings.Split(server.Logo(), "\n")
-		for _, expected := range lines {
-			// It should be regexp, so escape all backslashes.
-			expected = strings.ReplaceAll(expected, `\`, `\\`)
-			e.checkLine(t, line, expected)
-			line = e.getNextLine(t)
-		}
-		e.checkNextLine(t, "")
-		e.checkEOF(t)
-	})
+			e.checkNextLine(t, "")
+			e.checkEOF(t)
+		})
+	}
 }
