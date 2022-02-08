@@ -304,9 +304,11 @@ func restoreDB(ctx *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	defer chain.Close()
-	defer prometheus.ShutDown()
-	defer pprof.ShutDown()
+	defer func() {
+		pprof.ShutDown()
+		prometheus.ShutDown()
+		chain.Close()
+	}()
 
 	var start uint32
 	if ctx.Bool("incremental") {
@@ -472,6 +474,11 @@ func startServer(ctx *cli.Context) error {
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
+	defer func() {
+		pprof.ShutDown()
+		prometheus.ShutDown()
+		chain.Close()
+	}()
 
 	serv, err := network.NewServer(serverConfig, chain, chain.GetStateSyncModule(), log)
 	if err != nil {
@@ -534,9 +541,6 @@ Main:
 			if serverErr := rpcServer.Shutdown(); serverErr != nil {
 				shutdownErr = fmt.Errorf("error on shutdown: %w", serverErr)
 			}
-			prometheus.ShutDown()
-			pprof.ShutDown()
-			chain.Close()
 			break Main
 		}
 	}
