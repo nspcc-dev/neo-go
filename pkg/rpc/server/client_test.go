@@ -846,12 +846,12 @@ func TestClient_NEP11(t *testing.T) {
 		require.EqualValues(t, 1, b)
 	})
 	t.Run("OwnerOf", func(t *testing.T) {
-		b, err := c.NEP11NDOwnerOf(h, "neo.com")
+		b, err := c.NEP11NDOwnerOf(h, []byte("neo.com"))
 		require.NoError(t, err)
 		require.EqualValues(t, acc, b)
 	})
 	t.Run("Properties", func(t *testing.T) {
-		p, err := c.NEP11Properties(h, "neo.com")
+		p, err := c.NEP11Properties(h, []byte("neo.com"))
 		require.NoError(t, err)
 		blockRegisterDomain, err := chain.GetBlock(chain.GetHeaderHash(14)) // `neo.com` domain was registered in 14th block
 		require.NoError(t, err)
