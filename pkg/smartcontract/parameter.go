@@ -9,15 +9,17 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"math/big"
 	"math/bits"
 	"os"
-	"strconv"
 	"strings"
 	"unicode/utf8"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
 // Parameter represents a smart contract parameter.
@@ -65,13 +67,12 @@ func (p Parameter) MarshalJSON() ([]byte, error) {
 	case BoolType, StringType, Hash160Type, Hash256Type:
 		resultRawValue, resultErr = json.Marshal(p.Value)
 	case IntegerType:
-		val, ok := p.Value.(int64)
+		val, ok := p.Value.(*big.Int)
 		if !ok {
 			resultErr = errors.New("invalid integer value")
 			break
 		}
-		valStr := strconv.FormatInt(val, 10)
-		resultRawValue = json.RawMessage(`"` + valStr + `"`)
+		resultRawValue = json.RawMessage(`"` + val.String() + `"`)
 	case PublicKeyType, ByteArrayType, SignatureType:
 		if p.Type == PublicKeyType {
 			resultRawValue, resultErr = json.Marshal(hex.EncodeToString(p.Value.([]byte)))
@@ -145,17 +146,22 @@ func (p *Parameter) UnmarshalJSON(data []byte) (err error) {
 		p.Value = s
 	case IntegerType:
 		if err = json.Unmarshal(r.Value, &i); err == nil {
-			p.Value = i
+			p.Value = big.NewInt(i)
 			return
 		}
 		// sometimes integer comes as string
-		if err = json.Unmarshal(r.Value, &s); err != nil {
-			return
+		if jErr := json.Unmarshal(r.Value, &s); jErr != nil {
+			return jErr
 		}
-		if i, err = strconv.ParseInt(s, 10, 64); err != nil {
-			return
+		bi, ok := new(big.Int).SetString(s, 10)
+		if !ok {
+			// In this case previous err should mean string contains non-digit characters.
+			return err
 		}
-		p.Value = i
+		err = stackitem.CheckIntegerSize(bi)
+		if err == nil {
+			p.Value = bi
+		}
 	case ArrayType:
 		// https://github.com/neo-project/neo/blob/3d59ecca5a8deb057bdad94b3028a6d5e25ac088/neo/Network/RPC/RpcServer.cs#L67
 		var rs []Parameter
@@ -205,7 +211,8 @@ func (p *Parameter) EncodeBinary(w *io.BinWriter) {
 	case StringType:
 		w.WriteString(p.Value.(string))
 	case IntegerType:
-		w.WriteU64LE(uint64(p.Value.(int64)))
+		val := p.Value.(*big.Int)
+		w.WriteVarBytes(bigint.ToBytes(val))
 	case ArrayType:
 		w.WriteArray(p.Value.([]Parameter))
 	case MapType:
@@ -236,7 +243,11 @@ func (p *Parameter) DecodeBinary(r *io.BinReader) {
 	case StringType:
 		p.Value = r.ReadString()
 	case IntegerType:
-		p.Value = int64(r.ReadU64LE())
+		bs := r.ReadVarBytes(bigint.MaxBytesLen)
+		if r.Err != nil {
+			return
+		}
+		p.Value = bigint.FromBytes(bs)
 	case ArrayType:
 		ps := []Parameter{}
 		r.ReadArray(&ps)
@@ -317,6 +328,9 @@ func (p Parameter) TryParse(dest interface{}) error {
 			if *dest, err = util.Uint256DecodeBytesLE(data); err != nil {
 				return err
 			}
+			return nil
+		case **big.Int:
+			*dest = bigint.FromBytes(data)
 			return nil
 		case *int64, *int32, *int16, *int8, *int, *uint64, *uint32, *uint16, *uint8, *uint:
 			var size int

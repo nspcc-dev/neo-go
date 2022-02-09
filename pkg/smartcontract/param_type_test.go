@@ -2,9 +2,11 @@ package smartcontract
 
 import (
 	"encoding/hex"
+	"math/big"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -76,6 +78,7 @@ func TestParseParamType(t *testing.T) {
 }
 
 func TestInferParamType(t *testing.T) {
+	bi := new(big.Int).Lsh(big.NewInt(1), stackitem.MaxBigIntegerSizeBits-2)
 	var inouts = []struct {
 		in  string
 		out ParamType
@@ -88,6 +91,15 @@ func TestInferParamType(t *testing.T) {
 	}, {
 		in:  "0",
 		out: IntegerType,
+	}, {
+		in:  "8765432187654321111",
+		out: IntegerType,
+	}, {
+		in:  bi.String(),
+		out: IntegerType,
+	}, {
+		in:  bi.String() + "0", // big for Integer but is still a valid hex
+		out: ByteArrayType,
 	}, {
 		in:  "2e10",
 		out: ByteArrayType,
@@ -150,6 +162,8 @@ func TestInferParamType(t *testing.T) {
 }
 
 func TestAdjustValToType(t *testing.T) {
+	bi := big.NewInt(1).Lsh(big.NewInt(1), stackitem.MaxBigIntegerSizeBits-2)
+
 	var inouts = []struct {
 		typ ParamType
 		val string
@@ -190,15 +204,23 @@ func TestAdjustValToType(t *testing.T) {
 	}, {
 		typ: IntegerType,
 		val: "0",
-		out: int64(0),
+		out: big.NewInt(0),
 	}, {
 		typ: IntegerType,
 		val: "42",
-		out: int64(42),
+		out: big.NewInt(42),
 	}, {
 		typ: IntegerType,
 		val: "-42",
-		out: int64(-42),
+		out: big.NewInt(-42),
+	}, {
+		typ: IntegerType,
+		val: bi.String(),
+		out: bi,
+	}, {
+		typ: IntegerType,
+		val: bi.String() + "0",
+		err: true,
 	}, {
 		typ: IntegerType,
 		val: "q",

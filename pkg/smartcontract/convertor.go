@@ -15,7 +15,7 @@ func ParameterFromStackItem(i stackitem.Item, seen map[stackitem.Item]bool) Para
 	case *stackitem.BigInteger:
 		return Parameter{
 			Type:  IntegerType,
-			Value: i.Value().(*big.Int).Int64(),
+			Value: i.Value().(*big.Int),
 		}
 	case stackitem.Bool:
 		return Parameter{

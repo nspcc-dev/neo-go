@@ -18,7 +18,7 @@ var toContractParameterTestCases = []struct {
 			stackitem.NewBool(true),
 		}),
 		result: Parameter{Type: ArrayType, Value: []Parameter{
-			{Type: IntegerType, Value: int64(1)},
+			{Type: IntegerType, Value: big.NewInt(1)},
 			{Type: BoolType, Value: true},
 		}},
 	},
@@ -37,7 +37,7 @@ var toContractParameterTestCases = []struct {
 	{
 		input: stackitem.NewArray([]stackitem.Item{stackitem.NewBigInteger(big.NewInt(2)), stackitem.NewBool(true)}),
 		result: Parameter{Type: ArrayType, Value: []Parameter{
-			{Type: IntegerType, Value: int64(2)},
+			{Type: IntegerType, Value: big.NewInt(2)},
 			{Type: BoolType, Value: true},
 		}},
 	},
@@ -55,11 +55,11 @@ var toContractParameterTestCases = []struct {
 			Type: MapType,
 			Value: []ParameterPair{
 				{
-					Key:   Parameter{Type: IntegerType, Value: int64(1)},
+					Key:   Parameter{Type: IntegerType, Value: big.NewInt(1)},
 					Value: Parameter{Type: BoolType, Value: true},
 				}, {
 					Key:   Parameter{Type: ByteArrayType, Value: []byte("qwerty")},
-					Value: Parameter{Type: IntegerType, Value: int64(3)},
+					Value: Parameter{Type: IntegerType, Value: big.NewInt(3)},
 				}, {
 
 					Key:   Parameter{Type: BoolType, Value: true},
