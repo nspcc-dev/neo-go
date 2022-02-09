@@ -138,6 +138,9 @@ jobs:
           # Allows to fetch all history for all branches and tags. Need this for proper versioning.
           fetch-depth: 0
 
+      - name: Show docker images
+        run: docker images
+
       - name: Build image
         run: make image-wsc
 
