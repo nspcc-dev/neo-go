@@ -384,19 +384,30 @@ type BigInteger big.Int
 
 // NewBigInteger returns an new BigInteger object.
 func NewBigInteger(value *big.Int) *BigInteger {
-	// There are 2 cases, when `BitLen` differs from actual size:
-	// 1. Positive integer with highest bit on byte boundary = 1.
-	// 2. Negative integer with highest bit on byte boundary = 1
-	//    minus some value. (-0x80 -> 0x80, -0x7F -> 0x81, -0x81 -> 0x7FFF).
-	sz := value.BitLen()
-	if sz > MaxBigIntegerSizeBits {
-		panic(errTooBigInteger)
-	} else if sz == MaxBigIntegerSizeBits {
-		if value.Sign() == 1 || value.TrailingZeroBits() != MaxBigIntegerSizeBits-1 {
-			panic(errTooBigInteger)
-		}
+	if err := CheckIntegerSize(value); err != nil {
+		panic(err)
 	}
 	return (*BigInteger)(value)
+}
+
+// CheckIntegerSize checks that value size doesn't exceed VM limit for Interer.
+func CheckIntegerSize(value *big.Int) error {
+	// There are 2 cases, when `BitLen` differs from actual size:
+	// 1. Positive integer with the highest bit on byte boundary = 1.
+	// 2. Negative integer with the highest bit on byte boundary = 1
+	//    minus some value. (-0x80 -> 0x80, -0x7F -> 0x81, -0x81 -> 0x7FFF).
+	sz := value.BitLen()
+	// This check is not required, just an optimization for the common case.
+	if sz < MaxBigIntegerSizeBits {
+		return nil
+	}
+	if sz > MaxBigIntegerSizeBits {
+		return errTooBigInteger
+	}
+	if value.Sign() == 1 || value.TrailingZeroBits() != MaxBigIntegerSizeBits-1 {
+		return errTooBigInteger
+	}
+	return nil
 }
 
 // Big casts i to the big.Int type.

@@ -86,6 +86,76 @@ func TestEmitInt(t *testing.T) {
 	})
 }
 
+func TestEmitBigInt(t *testing.T) {
+	t.Run("biggest positive number", func(t *testing.T) {
+		buf := io.NewBufBinWriter()
+		bi := big.NewInt(1)
+		bi.Lsh(bi, 255)
+		bi.Sub(bi, big.NewInt(1))
+
+		// sanity check
+		require.NotPanics(t, func() { stackitem.NewBigInteger(bi) })
+
+		BigInt(buf.BinWriter, bi)
+		require.NoError(t, buf.Err)
+
+		expected := make([]byte, 33)
+		expected[0] = byte(opcode.PUSHINT256)
+		for i := 1; i < 32; i++ {
+			expected[i] = 0xFF
+		}
+		expected[32] = 0x7F
+		require.Equal(t, expected, buf.Bytes())
+	})
+	t.Run("smallest negative number", func(t *testing.T) {
+		buf := io.NewBufBinWriter()
+		bi := big.NewInt(-1)
+		bi.Lsh(bi, 255)
+
+		// sanity check
+		require.NotPanics(t, func() { stackitem.NewBigInteger(bi) })
+
+		BigInt(buf.BinWriter, bi)
+		require.NoError(t, buf.Err)
+
+		expected := make([]byte, 33)
+		expected[0] = byte(opcode.PUSHINT256)
+		expected[32] = 0x80
+		require.Equal(t, expected, buf.Bytes())
+	})
+	t.Run("biggest positive number plus 1", func(t *testing.T) {
+		buf := io.NewBufBinWriter()
+		bi := big.NewInt(1)
+		bi.Lsh(bi, 255)
+
+		// sanity check
+		require.Panics(t, func() { stackitem.NewBigInteger(bi) })
+
+		BigInt(buf.BinWriter, bi)
+		require.Error(t, buf.Err)
+
+		t.Run("do not clear previous error", func(t *testing.T) {
+			buf.Reset()
+			expected := errors.New("expected")
+			buf.Err = expected
+			BigInt(buf.BinWriter, bi)
+			require.Equal(t, expected, buf.Err)
+		})
+	})
+	t.Run("smallest negative number minus 1", func(t *testing.T) {
+		buf := io.NewBufBinWriter()
+		bi := big.NewInt(-1)
+		bi.Lsh(bi, 255)
+		bi.Sub(bi, big.NewInt(1))
+
+		// sanity check
+		require.Panics(t, func() { stackitem.NewBigInteger(bi) })
+
+		BigInt(buf.BinWriter, bi)
+		require.Error(t, buf.Err)
+	})
+}
+
 func getSlice(n int) []byte {
 	data := make([]byte, n)
 	for i := range data {

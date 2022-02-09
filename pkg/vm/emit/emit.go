@@ -84,6 +84,11 @@ func bigInt(w *io.BinWriter, n *big.Int, trySmall bool) {
 		return
 	}
 
+	if err := stackitem.CheckIntegerSize(n); err != nil {
+		w.Err = err
+		return
+	}
+
 	buf := bigint.ToPreallocatedBytes(n, make([]byte, 0, 32))
 	if len(buf) == 0 {
 		Opcodes(w, opcode.PUSH0)
