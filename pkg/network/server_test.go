@@ -404,7 +404,7 @@ func TestBlock(t *testing.T) {
 	b := block.New(false)
 	b.Index = 12345
 	s.testHandleMessage(t, nil, CMDBlock, b)
-	require.Eventually(t, func() bool { return s.chain.BlockHeight() == 12345 }, time.Second, time.Millisecond*500)
+	require.Eventually(t, func() bool { return s.chain.BlockHeight() == 12345 }, 2*time.Second, time.Millisecond*500)
 }
 
 func TestConsensus(t *testing.T) {
@@ -497,8 +497,8 @@ func (s *Server) testHandleGetData(t *testing.T, invType payload.InventoryType, 
 
 	s.testHandleMessage(t, p, CMDGetData, payload.NewInventory(invType, hs))
 
-	require.Eventually(t, func() bool { return recvResponse.Load() }, time.Second, time.Millisecond)
-	require.Eventually(t, func() bool { return recvNotFound.Load() }, time.Second, time.Millisecond)
+	require.Eventually(t, func() bool { return recvResponse.Load() }, 2*time.Second, time.Millisecond)
+	require.Eventually(t, func() bool { return recvNotFound.Load() }, 2*time.Second, time.Millisecond)
 }
 
 func TestGetData(t *testing.T) {
