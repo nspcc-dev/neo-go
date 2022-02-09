@@ -128,9 +128,6 @@ jobs:
         run: make test
   publish_wsc:
     # Ensure test job passes before pushing image.
-    # TODO: currently test_wsc job is failing, so we have `always()` condition.
-    # After #2269 and #2268 this condition should be removed.
-    if: ${{ always() }}
     needs: tests_wsc
     name: Publish WindowsServerCore-based image to DockerHub
     runs-on: windows-2022
