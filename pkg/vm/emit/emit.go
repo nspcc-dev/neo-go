@@ -52,18 +52,38 @@ func padRight(s int, buf []byte) []byte {
 
 // Int emits a int type to the given buffer.
 func Int(w *io.BinWriter, i int64) {
+	if smallInt(w, i) {
+		return
+	}
+	bigInt(w, big.NewInt(i), false)
+}
+
+// BigInt emits big-integer to the given buffer.
+func BigInt(w *io.BinWriter, n *big.Int) {
+	bigInt(w, n, true)
+}
+
+func smallInt(w *io.BinWriter, i int64) bool {
 	switch {
 	case i == -1:
 		Opcodes(w, opcode.PUSHM1)
 	case i >= 0 && i < 16:
-		val := opcode.Opcode(int(opcode.PUSH1) - 1 + int(i))
+		val := opcode.Opcode(int(opcode.PUSH0) + int(i))
 		Opcodes(w, val)
 	default:
-		bigInt(w, big.NewInt(i))
+		return false
 	}
+	return true
 }
 
-func bigInt(w *io.BinWriter, n *big.Int) {
+func bigInt(w *io.BinWriter, n *big.Int, trySmall bool) {
+	if w.Err != nil {
+		return
+	}
+	if trySmall && n.IsInt64() && smallInt(w, n.Int64()) {
+		return
+	}
+
 	buf := bigint.ToPreallocatedBytes(n, make([]byte, 0, 32))
 	if len(buf) == 0 {
 		Opcodes(w, opcode.PUSH0)
@@ -101,7 +121,7 @@ func Array(w *io.BinWriter, es ...interface{}) {
 		case int:
 			Int(w, int64(e))
 		case *big.Int:
-			bigInt(w, e)
+			BigInt(w, e)
 		case string:
 			String(w, e)
 		case util.Uint160:

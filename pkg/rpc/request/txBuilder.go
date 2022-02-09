@@ -63,11 +63,11 @@ func ExpandArrayIntoScript(script *io.BinWriter, slice []Param) error {
 			}
 			emit.Bytes(script, key.Bytes())
 		case smartcontract.IntegerType:
-			val, err := fp.Value.GetInt()
+			bi, err := fp.Value.GetBigInt()
 			if err != nil {
 				return err
 			}
-			emit.Int(script, int64(val))
+			emit.BigInt(script, bi)
 		case smartcontract.BoolType:
 			val, err := fp.Value.GetBoolean() // not GetBooleanStrict(), because that's the way C# code works
 			if err != nil {
