@@ -97,7 +97,7 @@ func ExpandArrayIntoScript(script *io.BinWriter, slice []Param) error {
 			return fmt.Errorf("parameter type %v is not supported", fp.Type)
 		}
 	}
-	return nil
+	return script.Err
 }
 
 // CreateFunctionInvocationScript creates a script to invoke given contract with

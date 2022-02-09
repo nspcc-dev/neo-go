@@ -135,6 +135,10 @@ func TestExpandArrayIntoScript(t *testing.T) {
 		{
 			{RawMessage: []byte(`{"type": "Array", "value": null}`)},
 		},
+		{
+			{RawMessage: []byte(`{"type": "Integer", "value": "` +
+				new(big.Int).Lsh(big.NewInt(1), 255).String() + `"}`)},
+		},
 	}
 	for _, c := range errorCases {
 		script := io.NewBufBinWriter()
