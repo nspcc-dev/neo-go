@@ -110,6 +110,12 @@ func topIterableFromStack(st []stackitem.Item, resultItemType interface{}) ([]in
 	result := make([]interface{}, len(iter.Values))
 	for i := range iter.Values {
 		switch resultItemType.(type) {
+		case []byte:
+			bytes, err := iter.Values[i].TryBytes()
+			if err != nil {
+				return nil, fmt.Errorf("failed to deserialize []byte from stackitem #%d: %w", i, err)
+			}
+			result[i] = bytes
 		case string:
 			bytes, err := iter.Values[i].TryBytes()
 			if err != nil {

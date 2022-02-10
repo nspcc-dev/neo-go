@@ -1,4 +1,4 @@
-name: "NFSO NFT"
+name: "NeoFS Object NFT"
 sourceurl: https://github.com/nspcc-dev/neo-go/
 supportedstandards: ["NEP-11"]
 safemethods: ["balanceOf", "decimals", "symbol", "totalSupply", "tokensOf", "ownerOf", "properties", "tokens"]

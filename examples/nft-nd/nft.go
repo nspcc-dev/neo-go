@@ -273,7 +273,7 @@ func Properties(id []byte) map[string]string {
 		panic("unknown token")
 	}
 	result := map[string]string{
-		"name": "HASHY " + string(id),
+		"name": "HASHY " + std.Base64Encode(id), // Not a hex for contract simplicity.
 	}
 	return result
 }

@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"encoding/base64"
+	"encoding/hex"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/internal/testchain"
@@ -107,7 +108,7 @@ func TestAddNetworkFeeCalculateNetworkFee(t *testing.T) {
 		acc0 := wallet.NewAccountFromPrivateKey(testchain.PrivateKeyByID(0))
 		check := func(t *testing.T, extraFee int64) {
 			tx := transaction.New([]byte{byte(opcode.PUSH1)}, 0)
-			tx.ValidUntilBlock = 20
+			tx.ValidUntilBlock = 25
 			tx.Signers = []transaction.Signer{{
 				Account: acc0.PrivateKey().GetScriptHash(),
 				Scopes:  transaction.CalledByEntry,
@@ -165,7 +166,7 @@ func TestAddNetworkFeeCalculateNetworkFee(t *testing.T) {
 		require.NoError(t, err)
 		check := func(t *testing.T, extraFee int64) {
 			tx := transaction.New([]byte{byte(opcode.PUSH1)}, 0)
-			tx.ValidUntilBlock = 20
+			tx.ValidUntilBlock = 25
 			tx.Signers = []transaction.Signer{
 				{
 					Account: acc0.PrivateKey().GetScriptHash(),
@@ -801,7 +802,7 @@ func TestClient_GetNativeContracts(t *testing.T) {
 	require.Equal(t, chain.GetNatives(), cs)
 }
 
-func TestClient_NEP11(t *testing.T) {
+func TestClient_NEP11_ND(t *testing.T) {
 	chain, rpcSrv, httpSrv := initServerWithInMemoryChain(t)
 	defer chain.Close()
 	defer func() { _ = rpcSrv.Shutdown() }()
@@ -810,7 +811,7 @@ func TestClient_NEP11(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, c.Init())
 
-	h, err := util.Uint160DecodeStringLE(nameServiceContractHash)
+	h, err := util.Uint160DecodeStringLE(nnsContractHash)
 	require.NoError(t, err)
 	acc := testchain.PrivateKeyByID(0).GetScriptHash()
 
@@ -846,12 +847,12 @@ func TestClient_NEP11(t *testing.T) {
 		require.EqualValues(t, 1, b)
 	})
 	t.Run("OwnerOf", func(t *testing.T) {
-		b, err := c.NEP11NDOwnerOf(h, "neo.com")
+		b, err := c.NEP11NDOwnerOf(h, []byte("neo.com"))
 		require.NoError(t, err)
 		require.EqualValues(t, acc, b)
 	})
 	t.Run("Properties", func(t *testing.T) {
-		p, err := c.NEP11Properties(h, "neo.com")
+		p, err := c.NEP11Properties(h, []byte("neo.com"))
 		require.NoError(t, err)
 		blockRegisterDomain, err := chain.GetBlock(chain.GetHeaderHash(14)) // `neo.com` domain was registered in 14th block
 		require.NoError(t, err)
@@ -867,6 +868,73 @@ func TestClient_NEP11(t *testing.T) {
 	})
 }
 
+func TestClient_NEP11_D(t *testing.T) {
+	chain, rpcSrv, httpSrv := initServerWithInMemoryChain(t)
+	defer chain.Close()
+	defer func() { _ = rpcSrv.Shutdown() }()
+
+	c, err := client.New(context.Background(), httpSrv.URL, client.Options{})
+	require.NoError(t, err)
+	require.NoError(t, c.Init())
+
+	priv0 := testchain.PrivateKeyByID(0).GetScriptHash()
+	priv1 := testchain.PrivateKeyByID(1).GetScriptHash()
+	token1ID, err := hex.DecodeString(nfsoToken1ID)
+	require.NoError(t, err)
+
+	t.Run("Decimals", func(t *testing.T) {
+		d, err := c.NEP11Decimals(nfsoHash)
+		require.NoError(t, err)
+		require.EqualValues(t, 2, d) // Divisible.
+	})
+	t.Run("TotalSupply", func(t *testing.T) {
+		s, err := c.NEP11TotalSupply(nfsoHash)
+		require.NoError(t, err)
+		require.EqualValues(t, 1, s) // the only NFSO of acc0
+	})
+	t.Run("Symbol", func(t *testing.T) {
+		sym, err := c.NEP11Symbol(nfsoHash)
+		require.NoError(t, err)
+		require.Equal(t, "NFSO", sym)
+	})
+	t.Run("TokenInfo", func(t *testing.T) {
+		tok, err := c.NEP11TokenInfo(nfsoHash)
+		require.NoError(t, err)
+		require.Equal(t, &wallet.Token{
+			Name:     "NeoFS Object NFT",
+			Hash:     nfsoHash,
+			Decimals: 2,
+			Symbol:   "NFSO",
+			Standard: manifest.NEP11StandardName,
+		}, tok)
+	})
+	t.Run("BalanceOf", func(t *testing.T) {
+		b, err := c.NEP11BalanceOf(nfsoHash, priv0)
+		require.NoError(t, err)
+		require.EqualValues(t, 80, b)
+	})
+	t.Run("OwnerOf", func(t *testing.T) {
+		b, err := c.NEP11DOwnerOf(nfsoHash, token1ID)
+		require.NoError(t, err)
+		require.Equal(t, []util.Uint160{priv1, priv0}, b)
+	})
+	t.Run("Properties", func(t *testing.T) {
+		p, err := c.NEP11Properties(nfsoHash, token1ID)
+		require.NoError(t, err)
+		expected := stackitem.NewMap()
+		expected.Add(stackitem.Make([]byte("name")), stackitem.NewBuffer([]byte("NeoFS Object "+base64.StdEncoding.EncodeToString(token1ID))))
+		expected.Add(stackitem.Make([]byte("containerID")), stackitem.Make([]byte(base64.StdEncoding.EncodeToString(nfsoToken1ContainerID.BytesBE()))))
+		expected.Add(stackitem.Make([]byte("objectID")), stackitem.Make([]byte(base64.StdEncoding.EncodeToString(nfsoToken1ObjectID.BytesBE()))))
+		require.EqualValues(t, expected, p)
+	})
+	t.Run("Transfer", func(t *testing.T) {
+		_, err := c.TransferNEP11D(wallet.NewAccountFromPrivateKey(testchain.PrivateKeyByID(0)),
+			testchain.PrivateKeyByID(1).GetScriptHash(),
+			nfsoHash, 20, token1ID, nil, 0, nil)
+		require.NoError(t, err)
+	})
+}
+
 func TestClient_NNS(t *testing.T) {
 	chain, rpcSrv, httpSrv := initServerWithInMemoryChain(t)
 	defer chain.Close()
@@ -876,34 +944,31 @@ func TestClient_NNS(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, c.Init())
 
-	nsHash, err := util.Uint160DecodeStringLE(nameServiceContractHash)
-	require.NoError(t, err)
-
 	t.Run("NNSIsAvailable, false", func(t *testing.T) {
-		b, err := c.NNSIsAvailable(nsHash, "neo.com")
+		b, err := c.NNSIsAvailable(nnsHash, "neo.com")
 		require.NoError(t, err)
 		require.Equal(t, false, b)
 	})
 	t.Run("NNSIsAvailable, true", func(t *testing.T) {
-		b, err := c.NNSIsAvailable(nsHash, "neogo.com")
+		b, err := c.NNSIsAvailable(nnsHash, "neogo.com")
 		require.NoError(t, err)
 		require.Equal(t, true, b)
 	})
 	t.Run("NNSResolve, good", func(t *testing.T) {
-		b, err := c.NNSResolve(nsHash, "neo.com", nns.A)
+		b, err := c.NNSResolve(nnsHash, "neo.com", nns.A)
 		require.NoError(t, err)
 		require.Equal(t, "1.2.3.4", b)
 	})
 	t.Run("NNSResolve, bad", func(t *testing.T) {
-		_, err := c.NNSResolve(nsHash, "neogo.com", nns.A)
+		_, err := c.NNSResolve(nnsHash, "neogo.com", nns.A)
 		require.Error(t, err)
 	})
 	t.Run("NNSResolve, forbidden", func(t *testing.T) {
-		_, err := c.NNSResolve(nsHash, "neogo.com", nns.CNAME)
+		_, err := c.NNSResolve(nnsHash, "neogo.com", nns.CNAME)
 		require.Error(t, err)
 	})
 	t.Run("NNSGetAllRecords, good", func(t *testing.T) {
-		rss, err := c.NNSGetAllRecords(nsHash, "neo.com")
+		rss, err := c.NNSGetAllRecords(nnsHash, "neo.com")
 		require.NoError(t, err)
 		require.Equal(t, []nns.RecordState{
 			{
@@ -914,7 +979,7 @@ func TestClient_NNS(t *testing.T) {
 		}, rss)
 	})
 	t.Run("NNSGetAllRecords, bad", func(t *testing.T) {
-		_, err := c.NNSGetAllRecords(nsHash, "neopython.com")
+		_, err := c.NNSGetAllRecords(nnsHash, "neopython.com")
 		require.Error(t, err)
 	})
 }

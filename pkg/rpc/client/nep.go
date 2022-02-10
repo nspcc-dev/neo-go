@@ -51,15 +51,15 @@ func (c *Client) nepTotalSupply(tokenHash util.Uint160) (int64, error) {
 }
 
 // nepBalanceOf invokes `balanceOf` NEP* method on a specified contract.
-func (c *Client) nepBalanceOf(tokenHash, acc util.Uint160, tokenID *string) (int64, error) {
+func (c *Client) nepBalanceOf(tokenHash, acc util.Uint160, tokenID []byte) (int64, error) {
 	params := []smartcontract.Parameter{{
 		Type:  smartcontract.Hash160Type,
 		Value: acc,
 	}}
 	if tokenID != nil {
 		params = append(params, smartcontract.Parameter{
-			Type:  smartcontract.StringType,
-			Value: *tokenID,
+			Type:  smartcontract.ByteArrayType,
+			Value: tokenID,
 		})
 	}
 	result, err := c.InvokeFunction(tokenHash, "balanceOf", params, nil)

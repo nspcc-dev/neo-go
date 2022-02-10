@@ -280,7 +280,7 @@ func TestStateSyncModule_RestoreBasicChain(t *testing.T) {
 	var (
 		stateSyncInterval        = 4
 		maxTraceable      uint32 = 6
-		stateSyncPoint           = 16
+		stateSyncPoint           = 20
 	)
 	spoutCfg := func(c *config.Config) {
 		c.ProtocolConfiguration.StateRootInHeader = true
@@ -291,10 +291,9 @@ func TestStateSyncModule_RestoreBasicChain(t *testing.T) {
 	bcSpout := newTestChainWithCustomCfg(t, spoutCfg)
 	initBasicChain(t, bcSpout)
 
-	// make spout chain higher that latest state sync point
+	// make spout chain higher that latest state sync point (add several blocks up to stateSyncPoint+2)
 	require.NoError(t, bcSpout.AddBlock(bcSpout.newBlock()))
-	require.NoError(t, bcSpout.AddBlock(bcSpout.newBlock()))
-	require.Equal(t, uint32(stateSyncPoint+2), bcSpout.BlockHeight())
+	require.Equal(t, stateSyncPoint+2, int(bcSpout.BlockHeight()))
 
 	boltCfg := func(c *config.Config) {
 		spoutCfg(c)

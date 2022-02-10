@@ -40,6 +40,7 @@ const (
 	testWalletAccount = "Nfyz4KcsgYepRJw1W5C2uKCi6QWKf7v6gG"
 
 	validatorWallet = "testdata/wallet1_solo.json"
+	validatorPass   = "one"
 )
 
 var (
