@@ -235,9 +235,10 @@ func (c *codegen) fillDocumentInfo() {
 	fset := c.buildInfo.config.Fset
 	fset.Iterate(func(f *token.File) bool {
 		filePath := f.Position(f.Pos(0)).Filename
-		filePath, err := filepath.Rel(c.buildInfo.config.Dir, filePath)
-		if err != nil {
-			panic(err)
+		rel, err := filepath.Rel(c.buildInfo.config.Dir, filePath)
+		// It's OK if we can't construct relative path, e.g. for interop dependencies.
+		if err == nil {
+			filePath = rel
 		}
 		c.docIndex[filePath] = len(c.documents)
 		c.documents = append(c.documents, filePath)

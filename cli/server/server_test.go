@@ -41,7 +41,6 @@ func TestGetConfigFromContext(t *testing.T) {
 }
 
 func TestHandleLoggingParams(t *testing.T) {
-	// This test is failing on Windows, see https://github.com/nspcc-dev/neo-go/issues/2269
 	d := t.TempDir()
 	testLog := filepath.Join(d, "file.log")
 
@@ -53,8 +52,9 @@ func TestHandleLoggingParams(t *testing.T) {
 		cfg := config.ApplicationConfiguration{
 			LogPath: filepath.Join(logfile, "file.log"),
 		}
-		_, err := handleLoggingParams(ctx, cfg)
+		_, closer, err := handleLoggingParams(ctx, cfg)
 		require.Error(t, err)
+		require.Nil(t, closer)
 	})
 
 	t.Run("default", func(t *testing.T) {
@@ -63,8 +63,13 @@ func TestHandleLoggingParams(t *testing.T) {
 		cfg := config.ApplicationConfiguration{
 			LogPath: testLog,
 		}
-		logger, err := handleLoggingParams(ctx, cfg)
+		logger, closer, err := handleLoggingParams(ctx, cfg)
 		require.NoError(t, err)
+		t.Cleanup(func() {
+			if closer != nil {
+				require.NoError(t, closer())
+			}
+		})
 		require.True(t, logger.Core().Enabled(zap.InfoLevel))
 		require.False(t, logger.Core().Enabled(zap.DebugLevel))
 	})
@@ -76,8 +81,13 @@ func TestHandleLoggingParams(t *testing.T) {
 		cfg := config.ApplicationConfiguration{
 			LogPath: testLog,
 		}
-		logger, err := handleLoggingParams(ctx, cfg)
+		logger, closer, err := handleLoggingParams(ctx, cfg)
 		require.NoError(t, err)
+		t.Cleanup(func() {
+			if closer != nil {
+				require.NoError(t, closer())
+			}
+		})
 		require.True(t, logger.Core().Enabled(zap.InfoLevel))
 		require.True(t, logger.Core().Enabled(zap.DebugLevel))
 	})
@@ -96,8 +106,13 @@ func TestInitBCWithMetrics(t *testing.T) {
 	ctx := cli.NewContext(cli.NewApp(), set, nil)
 	cfg, err := getConfigFromContext(ctx)
 	require.NoError(t, err)
-	logger, err := handleLoggingParams(ctx, cfg.ApplicationConfiguration)
+	logger, closer, err := handleLoggingParams(ctx, cfg.ApplicationConfiguration)
 	require.NoError(t, err)
+	t.Cleanup(func() {
+		if closer != nil {
+			require.NoError(t, closer())
+		}
+	})
 
 	t.Run("bad store", func(t *testing.T) {
 		_, _, _, err = initBCWithMetrics(config.Config{}, logger)

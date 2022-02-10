@@ -4,8 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"os/signal"
+	"runtime"
 	"syscall"
 
 	"github.com/nspcc-dev/neo-go/cli/options"
@@ -27,6 +29,13 @@ import (
 	"github.com/urfave/cli"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+)
+
+var (
+	// _winfileSinkRegistered denotes whether zap has registered
+	// user-supplied factory for all sinks with `winfile`-prefixed scheme.
+	_winfileSinkRegistered bool
+	_winfileSinkCloser     func() error
 )
 
 // NewCommands returns 'node' command.
@@ -124,7 +133,9 @@ func getConfigFromContext(ctx *cli.Context) (config.Config, error) {
 // handleLoggingParams reads logging parameters.
 // If user selected debug level -- function enables it.
 // If logPath is configured -- function creates dir and file for logging.
-func handleLoggingParams(ctx *cli.Context, cfg config.ApplicationConfiguration) (*zap.Logger, error) {
+// If logPath is configured on Windows -- function returns closer to be
+// able to close sink for opened log output file.
+func handleLoggingParams(ctx *cli.Context, cfg config.ApplicationConfiguration) (*zap.Logger, func() error, error) {
 	level := zapcore.InfoLevel
 	if ctx.Bool("debug") {
 		level = zapcore.DebugLevel
@@ -142,13 +153,56 @@ func handleLoggingParams(ctx *cli.Context, cfg config.ApplicationConfiguration) 
 
 	if logPath := cfg.LogPath; logPath != "" {
 		if err := io.MakeDirForFile(logPath, "logger"); err != nil {
-			return nil, err
+			return nil, nil, err
+		}
+
+		if runtime.GOOS == "windows" {
+			if !_winfileSinkRegistered {
+				// See https://github.com/uber-go/zap/issues/621.
+				err := zap.RegisterSink("winfile", func(u *url.URL) (zap.Sink, error) {
+					if u.User != nil {
+						return nil, fmt.Errorf("user and password not allowed with file URLs: got %v", u)
+					}
+					if u.Fragment != "" {
+						return nil, fmt.Errorf("fragments not allowed with file URLs: got %v", u)
+					}
+					if u.RawQuery != "" {
+						return nil, fmt.Errorf("query parameters not allowed with file URLs: got %v", u)
+					}
+					// Error messages are better if we check hostname and port separately.
+					if u.Port() != "" {
+						return nil, fmt.Errorf("ports not allowed with file URLs: got %v", u)
+					}
+					if hn := u.Hostname(); hn != "" && hn != "localhost" {
+						return nil, fmt.Errorf("file URLs must leave host empty or use localhost: got %v", u)
+					}
+					switch u.Path {
+					case "stdout":
+						return os.Stdout, nil
+					case "stderr":
+						return os.Stderr, nil
+					}
+					f, err := os.OpenFile(u.Path[1:], // Remove leading slash left after url.Parse.
+						os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0644)
+					_winfileSinkCloser = func() error {
+						_winfileSinkCloser = nil
+						return f.Close()
+					}
+					return f, err
+				})
+				if err != nil {
+					return nil, nil, fmt.Errorf("failed to register windows-specific sinc: %w", err)
+				}
+				_winfileSinkRegistered = true
+			}
+			logPath = "winfile:///" + logPath
 		}
 
 		cc.OutputPaths = []string{logPath}
 	}
 
-	return cc.Build()
+	log, err := cc.Build()
+	return log, _winfileSinkCloser, err
 }
 
 func initBCWithMetrics(cfg config.Config, log *zap.Logger) (*core.Blockchain, *metrics.Service, *metrics.Service, error) {
@@ -172,9 +226,12 @@ func dumpDB(ctx *cli.Context) error {
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
-	log, err := handleLoggingParams(ctx, cfg.ApplicationConfiguration)
+	log, logCloser, err := handleLoggingParams(ctx, cfg.ApplicationConfiguration)
 	if err != nil {
 		return cli.NewExitError(err, 1)
+	}
+	if logCloser != nil {
+		defer func() { _ = logCloser() }()
 	}
 	count := uint32(ctx.Uint("count"))
 	start := uint32(ctx.Uint("start"))
@@ -219,9 +276,12 @@ func restoreDB(ctx *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	log, err := handleLoggingParams(ctx, cfg.ApplicationConfiguration)
+	log, logCloser, err := handleLoggingParams(ctx, cfg.ApplicationConfiguration)
 	if err != nil {
 		return cli.NewExitError(err, 1)
+	}
+	if logCloser != nil {
+		defer func() { _ = logCloser() }()
 	}
 	count := uint32(ctx.Uint("count"))
 
@@ -244,9 +304,11 @@ func restoreDB(ctx *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	defer chain.Close()
-	defer prometheus.ShutDown()
-	defer pprof.ShutDown()
+	defer func() {
+		pprof.ShutDown()
+		prometheus.ShutDown()
+		chain.Close()
+	}()
 
 	var start uint32
 	if ctx.Bool("incremental") {
@@ -395,9 +457,12 @@ func startServer(ctx *cli.Context) error {
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
-	log, err := handleLoggingParams(ctx, cfg.ApplicationConfiguration)
+	log, logCloser, err := handleLoggingParams(ctx, cfg.ApplicationConfiguration)
 	if err != nil {
 		return cli.NewExitError(err, 1)
+	}
+	if logCloser != nil {
+		defer func() { _ = logCloser() }()
 	}
 
 	grace, cancel := context.WithCancel(newGraceContext())
@@ -409,6 +474,11 @@ func startServer(ctx *cli.Context) error {
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
+	defer func() {
+		pprof.ShutDown()
+		prometheus.ShutDown()
+		chain.Close()
+	}()
 
 	serv, err := network.NewServer(serverConfig, chain, chain.GetStateSyncModule(), log)
 	if err != nil {
@@ -471,9 +541,6 @@ Main:
 			if serverErr := rpcServer.Shutdown(); serverErr != nil {
 				shutdownErr = fmt.Errorf("error on shutdown: %w", serverErr)
 			}
-			prometheus.ShutDown()
-			pprof.ShutDown()
-			chain.Close()
 			break Main
 		}
 	}

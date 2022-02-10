@@ -84,6 +84,10 @@ func newTestVMCLIWithLogo(t *testing.T, printLogo bool) *executor {
 }
 
 func (e *executor) runProg(t *testing.T, commands ...string) {
+	e.runProgWithTimeout(t, 4*time.Second, commands...)
+}
+
+func (e *executor) runProgWithTimeout(t *testing.T, timeout time.Duration, commands ...string) {
 	cmd := strings.Join(commands, "\n") + "\n"
 	e.in.WriteString(cmd + "\n")
 	go func() {
@@ -92,7 +96,7 @@ func (e *executor) runProg(t *testing.T, commands ...string) {
 	}()
 	select {
 	case <-e.ch:
-	case <-time.After(4 * time.Second):
+	case <-time.After(timeout):
 		require.Fail(t, "command took too long time")
 	}
 }
@@ -213,7 +217,7 @@ go 1.16`)
 		require.NoError(t, ioutil.WriteFile(filepath.Join(tmpDir, "go.mod"), goMod, os.ModePerm))
 
 		e := newTestVMCLI(t)
-		e.runProg(t,
+		e.runProgWithTimeout(t, 10*time.Second,
 			"loadgo",
 			"loadgo "+filenameErr,
 			"loadgo "+filename,
@@ -318,7 +322,7 @@ func TestRunWithDifferentArguments(t *testing.T) {
 
 	filename = "'" + filename + "'"
 	e := newTestVMCLI(t)
-	e.runProg(t,
+	e.runProgWithTimeout(t, 30*time.Second,
 		"loadgo "+filename, "run notexists",
 		"loadgo "+filename, "run negate false",
 		"loadgo "+filename, "run negate true",
