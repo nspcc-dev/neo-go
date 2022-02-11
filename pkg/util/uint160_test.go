@@ -8,6 +8,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gopkg.in/yaml.v2"
 )
 
 func TestUint160UnmarshalJSON(t *testing.T) {
@@ -24,6 +25,23 @@ func TestUint160UnmarshalJSON(t *testing.T) {
 	testserdes.MarshalUnmarshalJSON(t, &expected, &u2)
 
 	assert.Error(t, u2.UnmarshalJSON([]byte(`123`)))
+}
+
+func TestUint160UnmarshalYAML(t *testing.T) {
+	str := "0263c1de100292813b5e075e585acc1bae963b2d"
+	expected, err := util.Uint160DecodeStringLE(str)
+	assert.NoError(t, err)
+
+	var u1, u2 util.Uint160
+	require.NoError(t, yaml.Unmarshal([]byte(`"`+str+`"`), &u1))
+	require.Equal(t, expected, u1)
+
+	data, err := yaml.Marshal(u1)
+	require.NoError(t, err)
+	require.NoError(t, yaml.Unmarshal(data, &u2))
+	require.Equal(t, expected, u2)
+
+	require.Error(t, yaml.Unmarshal([]byte(`[]`), &u1))
 }
 
 func TestUInt160DecodeString(t *testing.T) {
