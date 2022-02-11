@@ -5,6 +5,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/internal/testserdes"
 	"github.com/stretchr/testify/require"
+	"gopkg.in/yaml.v2"
 )
 
 func TestCallFlag_Has(t *testing.T) {
@@ -74,4 +75,18 @@ func TestMarshalUnmarshalJSON(t *testing.T) {
 	err = f.UnmarshalJSON([]byte(`"State"`))
 	require.Error(t, err)
 	require.Equal(t, forig, f)
+}
+
+func TestMarshalUnmarshalYAML(t *testing.T) {
+	for _, expected := range []CallFlag{States, States | AllowNotify} {
+		data, err := yaml.Marshal(expected)
+		require.NoError(t, err)
+
+		var f CallFlag
+		require.NoError(t, yaml.Unmarshal(data, &f))
+		require.Equal(t, expected, f)
+	}
+
+	var f CallFlag
+	require.Error(t, yaml.Unmarshal([]byte(`[]`), &f))
 }

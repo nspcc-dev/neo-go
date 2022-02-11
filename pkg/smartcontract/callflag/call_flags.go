@@ -117,3 +117,21 @@ func (f *CallFlag) UnmarshalJSON(data []byte) error {
 	*f = flag
 	return nil
 }
+
+// MarshalYAML implements the YAML marshaler interface.
+func (f CallFlag) MarshalYAML() (interface{}, error) {
+	return f.String(), nil
+}
+
+// UnmarshalYAML implements the YAML unmarshaler interface.
+func (f *CallFlag) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	var s string
+
+	err := unmarshal(&s)
+	if err != nil {
+		return err
+	}
+
+	*f, err = FromString(s)
+	return err
+}
