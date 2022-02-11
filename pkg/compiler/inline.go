@@ -149,7 +149,7 @@ func (c *codegen) processNotify(f *funcScope, args []ast.Expr) {
 
 	params := make([]string, 0, len(args[1:]))
 	for _, p := range args[1:] {
-		st, _ := c.scAndVMTypeFromExpr(p)
+		st, _, _ := c.scAndVMTypeFromExpr(p)
 		params = append(params, st.String())
 	}
 

@@ -15,11 +15,13 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/binding"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest/standard"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"golang.org/x/tools/go/packages"
+	"gopkg.in/yaml.v2"
 )
 
 const fileExt = "nef"
@@ -72,6 +74,9 @@ type Options struct {
 
 	// Permissions is a list of permissions for every contract method.
 	Permissions []manifest.Permission
+
+	// BindingsFile contains configuration for smart-contract bindings generator.
+	BindingsFile string
 }
 
 type buildInfo struct {
@@ -258,7 +263,7 @@ func CompileAndSave(src string, o *Options) ([]byte, error) {
 	if err != nil {
 		return f.Script, err
 	}
-	if o.DebugInfo == "" && o.ManifestFile == "" {
+	if o.DebugInfo == "" && o.ManifestFile == "" && o.BindingsFile == "" {
 		return f.Script, nil
 	}
 
@@ -286,6 +291,29 @@ func CompileAndSave(src string, o *Options) ([]byte, error) {
 		}
 		if err := ioutil.WriteFile(o.DebugInfo, data, os.ModePerm); err != nil {
 			return f.Script, err
+		}
+	}
+
+	if o.BindingsFile != "" {
+		cfg := binding.NewConfig()
+		cfg.Package = di.MainPkg
+		for _, m := range di.Methods {
+			for _, p := range m.Parameters {
+				if p.RealType.TypeName != "" {
+					cfg.Overrides[m.Name.Name+"."+p.Name] = p.RealType
+				}
+			}
+			if m.ReturnTypeReal.TypeName != "" {
+				cfg.Overrides[m.Name.Name] = m.ReturnTypeReal
+			}
+		}
+		data, err := yaml.Marshal(&cfg)
+		if err != nil {
+			return nil, fmt.Errorf("can't marshal bindings configuration: %w", err)
+		}
+		err = ioutil.WriteFile(o.BindingsFile, data, os.ModePerm)
+		if err != nil {
+			return nil, fmt.Errorf("can't write bindings configuration: %w", err)
 		}
 	}
 

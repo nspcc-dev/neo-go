@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/hex"
 	"encoding/json"
 	"io/ioutil"
@@ -89,6 +90,116 @@ func TestCalcHash(t *testing.T) {
 		e.Run(t, append(cmd, "--sender", address.Uint160ToString(sender))...)
 		e.checkNextLine(t, expected.StringLE())
 	})
+}
+
+func TestContractBindings(t *testing.T) {
+	// For proper nef generation.
+	config.Version = "v0.98.1-test"
+
+	// For proper contract init. The actual version as it will be replaced.
+	smartcontract.ModVersion = "v0.0.0"
+
+	tmpDir := t.TempDir()
+	e := newExecutor(t, false)
+
+	ctrPath := filepath.Join(tmpDir, "testcontract")
+	e.Run(t, "neo-go", "contract", "init", "--name", ctrPath)
+
+	srcPath := filepath.Join(ctrPath, "main.go")
+	require.NoError(t, ioutil.WriteFile(srcPath, []byte(`package testcontract
+import(
+	alias "github.com/nspcc-dev/neo-go/pkg/interop/native/ledger"
+)
+type MyPair struct {
+	Key int
+	Value string
+}
+func ToMap(a []MyPair) map[int]string {
+	return nil
+}
+func ToArray(m map[int]string) []MyPair {
+	return nil
+}
+func Block() *alias.Block{
+	return alias.GetBlock(1)
+}
+func Blocks() []*alias.Block {
+	return []*alias.Block{
+		alias.GetBlock(10),
+		alias.GetBlock(11),
+	}
+}
+`), os.ModePerm))
+
+	cfgPath := filepath.Join(ctrPath, "neo-go.yml")
+	manifestPath := filepath.Join(tmpDir, "manifest.json")
+	bindingsPath := filepath.Join(tmpDir, "bindings.yml")
+	cmd := []string{"neo-go", "contract", "compile"}
+
+	cmd = append(cmd, "--in", ctrPath, "--bindings", bindingsPath)
+
+	// Replace `pkg/interop` in go.mod to avoid getting an actual module version.
+	goMod := filepath.Join(ctrPath, "go.mod")
+	data, err := ioutil.ReadFile(goMod)
+	require.NoError(t, err)
+
+	i := bytes.IndexByte(data, '\n')
+	data = append([]byte("module myimport.com/testcontract"), data[i:]...)
+
+	wd, err := os.Getwd()
+	require.NoError(t, err)
+	data = append(data, "\nreplace github.com/nspcc-dev/neo-go/pkg/interop => "...)
+	data = append(data, filepath.Join(wd, "../pkg/interop")...)
+	require.NoError(t, ioutil.WriteFile(goMod, data, os.ModePerm))
+
+	cmd = append(cmd, "--config", cfgPath,
+		"--out", filepath.Join(tmpDir, "out.nef"),
+		"--manifest", manifestPath,
+		"--bindings", bindingsPath)
+	e.Run(t, cmd...)
+	e.checkEOF(t)
+	require.FileExists(t, bindingsPath)
+
+	outPath := filepath.Join(t.TempDir(), "binding.go")
+	e.Run(t, "neo-go", "contract", "generate-wrapper",
+		"--config", bindingsPath, "--manifest", manifestPath,
+		"--out", outPath, "--hash", "0x0123456789987654321001234567899876543210")
+
+	bs, err := ioutil.ReadFile(outPath)
+	require.NoError(t, err)
+	require.Equal(t, `// Package testcontract contains wrappers for testcontract contract.
+package testcontract
+
+import (
+	"github.com/nspcc-dev/neo-go/pkg/interop/contract"
+	"github.com/nspcc-dev/neo-go/pkg/interop/native/ledger"
+	"github.com/nspcc-dev/neo-go/pkg/interop/neogointernal"
+	"myimport.com/testcontract"
+)
+
+// Hash contains contract hash in big-endian form.
+const Hash = "\x10\x32\x54\x76\x98\x89\x67\x45\x23\x01\x10\x32\x54\x76\x98\x89\x67\x45\x23\x01"
+
+// Block invokes `+"`block`"+` method of contract.
+func Block() *ledger.Block {
+	return neogointernal.CallWithToken(Hash, "block", int(contract.All)).(*ledger.Block)
+}
+
+// Blocks invokes `+"`blocks`"+` method of contract.
+func Blocks() []*ledger.Block {
+	return neogointernal.CallWithToken(Hash, "blocks", int(contract.All)).([]*ledger.Block)
+}
+
+// ToArray invokes `+"`toArray`"+` method of contract.
+func ToArray(m map[int]string) []testcontract.MyPair {
+	return neogointernal.CallWithToken(Hash, "toArray", int(contract.All), m).([]testcontract.MyPair)
+}
+
+// ToMap invokes `+"`toMap`"+` method of contract.
+func ToMap(a []testcontract.MyPair) map[int]string {
+	return neogointernal.CallWithToken(Hash, "toMap", int(contract.All), a).(map[int]string)
+}
+`, string(bs))
 }
 
 func TestContractInitAndCompile(t *testing.T) {
