@@ -92,7 +92,7 @@ func (s *BoltDBStore) PutBatch(batch Batch) error {
 func (s *BoltDBStore) PutChangeSet(puts map[string][]byte) error {
 	var err error
 
-	return s.db.Batch(func(tx *bbolt.Tx) error {
+	return s.db.Update(func(tx *bbolt.Tx) error {
 		b := tx.Bucket(Bucket)
 		for k, v := range puts {
 			if v != nil {
