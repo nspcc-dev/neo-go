@@ -74,7 +74,7 @@ func testMemCachedStorePersist(t *testing.T, ps Store) {
 	c, err = ts.Persist()
 	checkBatch(t, ts, nil, nil)
 	assert.Equal(t, nil, err)
-	assert.Equal(t, 0, c)
+	assert.Equal(t, 1, c)
 	v, err = ps.Get([]byte("key"))
 	assert.Equal(t, ErrKeyNotFound, err)
 	assert.Equal(t, []byte(nil), v)
@@ -287,7 +287,7 @@ func (b *BadStore) Put(k, v []byte) error {
 func (b *BadStore) PutBatch(Batch) error {
 	return nil
 }
-func (b *BadStore) PutChangeSet(_ map[string][]byte, _ map[string]bool) error {
+func (b *BadStore) PutChangeSet(_ map[string][]byte) error {
 	b.onPutBatch()
 	return ErrKeyNotFound
 }

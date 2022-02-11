@@ -66,11 +66,11 @@ func (t *Trie) getProof(curr Node, path []byte, proofs *[][]byte) (Node, error) 
 // It also returns value for the key.
 func VerifyProof(rh util.Uint256, key []byte, proofs [][]byte) ([]byte, bool) {
 	path := toNibbles(key)
-	tr := NewTrie(NewHashNode(rh), false, storage.NewMemCachedStore(storage.NewMemoryStore()))
+	tr := NewTrie(NewHashNode(rh), ModeAll, storage.NewMemCachedStore(storage.NewMemoryStore()))
 	for i := range proofs {
 		h := hash.DoubleSha256(proofs[i])
 		// no errors in Put to memory store
-		_ = tr.Store.Put(makeStorageKey(h[:]), proofs[i])
+		_ = tr.Store.Put(makeStorageKey(h), proofs[i])
 	}
 	_, leaf, _, err := tr.getWithPath(tr.root, path, true)
 	if err != nil {

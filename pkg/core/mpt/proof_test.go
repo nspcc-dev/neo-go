@@ -15,7 +15,7 @@ func newProofTrie(t *testing.T, missingHashNode bool) *Trie {
 	b.Children[4] = NewHashNode(e.Hash())
 	b.Children[5] = e2
 
-	tr := NewTrie(b, false, newTestStore())
+	tr := NewTrie(b, ModeAll, newTestStore())
 	require.NoError(t, tr.Put([]byte{0x12, 0x31}, []byte("value1")))
 	require.NoError(t, tr.Put([]byte{0x12, 0x32}, []byte("value2")))
 	tr.putToStore(l)

@@ -12,13 +12,29 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/util/slice"
 )
 
+// TrieMode is the storage mode of trie, it affects the DB scheme.
+type TrieMode byte
+
+// TrieMode is the storage mode of trie.
+const (
+	// ModeAll is used to store everything.
+	ModeAll TrieMode = 0
+	// ModeLatest is used to only store the latest root.
+	ModeLatest TrieMode = 0x01
+	// ModeGCFlag is a flag for GC.
+	ModeGCFlag TrieMode = 0x02
+	// ModeGC is used to store a set of roots with GC possible, it combines
+	// GCFlag and Latest (because it needs RC, but it has GC enabled).
+	ModeGC TrieMode = 0x03
+)
+
 // Trie is an MPT trie storing all key-value pairs.
 type Trie struct {
 	Store *storage.MemCachedStore
 
-	root            Node
-	refcountEnabled bool
-	refcount        map[util.Uint256]*cachedNode
+	root     Node
+	mode     TrieMode
+	refcount map[util.Uint256]*cachedNode
 }
 
 type cachedNode struct {
@@ -30,10 +46,20 @@ type cachedNode struct {
 // ErrNotFound is returned when requested trie item is missing.
 var ErrNotFound = errors.New("item not found")
 
+// RC returns true when reference counting is enabled.
+func (m TrieMode) RC() bool {
+	return m&ModeLatest != 0
+}
+
+// GC returns true when garbage collection is enabled.
+func (m TrieMode) GC() bool {
+	return m&ModeGCFlag != 0
+}
+
 // NewTrie returns new MPT trie. It accepts a MemCachedStore to decouple storage errors from logic errors
 // so that all storage errors are processed during `store.Persist()` at the caller.
 // This also has the benefit, that every `Put` can be considered an atomic operation.
-func NewTrie(root Node, enableRefCount bool, store *storage.MemCachedStore) *Trie {
+func NewTrie(root Node, mode TrieMode, store *storage.MemCachedStore) *Trie {
 	if root == nil {
 		root = EmptyNode{}
 	}
@@ -42,8 +68,8 @@ func NewTrie(root Node, enableRefCount bool, store *storage.MemCachedStore) *Tri
 		Store: store,
 		root:  root,
 
-		refcountEnabled: enableRefCount,
-		refcount:        make(map[util.Uint256]*cachedNode),
+		mode:     mode,
+		refcount: make(map[util.Uint256]*cachedNode),
 	}
 }
 
@@ -372,27 +398,29 @@ func (t *Trie) StateRoot() util.Uint256 {
 	return t.root.Hash()
 }
 
-func makeStorageKey(mptKey []byte) []byte {
-	return append([]byte{byte(storage.DataMPT)}, mptKey...)
+func makeStorageKey(mptKey util.Uint256) []byte {
+	return append([]byte{byte(storage.DataMPT)}, mptKey[:]...)
 }
 
 // Flush puts every node in the trie except Hash ones to the storage.
 // Because we care only about block-level changes, there is no need to put every
 // new node to storage. Normally, flush should be called with every StateRoot persist, i.e.
 // after every block.
-func (t *Trie) Flush() {
+func (t *Trie) Flush(index uint32) {
+	key := makeStorageKey(util.Uint256{})
 	for h, node := range t.refcount {
 		if node.refcount != 0 {
+			copy(key[1:], h[:])
 			if node.bytes == nil {
 				panic("item not in trie")
 			}
-			if t.refcountEnabled {
-				node.initial = t.updateRefCount(h)
+			if t.mode.RC() {
+				node.initial = t.updateRefCount(h, key, index)
 				if node.initial == 0 {
 					delete(t.refcount, h)
 				}
 			} else if node.refcount > 0 {
-				_ = t.Store.Put(makeStorageKey(h.BytesBE()), node.bytes)
+				_ = t.Store.Put(key, node.bytes)
 			}
 			node.refcount = 0
 		} else {
@@ -401,25 +429,36 @@ func (t *Trie) Flush() {
 	}
 }
 
+func IsActiveValue(v []byte) bool {
+	return len(v) > 4 && v[len(v)-5] == 1
+}
+
+func getFromStore(key []byte, mode TrieMode, store *storage.MemCachedStore) ([]byte, error) {
+	data, err := store.Get(key)
+	if err == nil && mode.GC() && !IsActiveValue(data) {
+		return nil, storage.ErrKeyNotFound
+	}
+	return data, err
+}
+
 // updateRefCount should be called only when refcounting is enabled.
-func (t *Trie) updateRefCount(h util.Uint256) int32 {
-	if !t.refcountEnabled {
+func (t *Trie) updateRefCount(h util.Uint256, key []byte, index uint32) int32 {
+	if !t.mode.RC() {
 		panic("`updateRefCount` is called, but GC is disabled")
 	}
 	var data []byte
-	key := makeStorageKey(h.BytesBE())
 	node := t.refcount[h]
 	cnt := node.initial
 	if cnt == 0 {
 		// A newly created item which may be in store.
 		var err error
-		data, err = t.Store.Get(key)
+		data, err = getFromStore(key, t.mode, t.Store)
 		if err == nil {
 			cnt = int32(binary.LittleEndian.Uint32(data[len(data)-4:]))
 		}
 	}
 	if len(data) == 0 {
-		data = append(node.bytes, 0, 0, 0, 0)
+		data = append(node.bytes, 1, 0, 0, 0, 0)
 	}
 	cnt += node.refcount
 	switch {
@@ -427,7 +466,13 @@ func (t *Trie) updateRefCount(h util.Uint256) int32 {
 		// BUG: negative reference count
 		panic(fmt.Sprintf("negative reference count: %s new %d, upd %d", h.StringBE(), cnt, t.refcount[h]))
 	case cnt == 0:
-		_ = t.Store.Delete(key)
+		if !t.mode.GC() {
+			_ = t.Store.Delete(key)
+		} else {
+			data[len(data)-5] = 0
+			binary.LittleEndian.PutUint32(data[len(data)-4:], index)
+			_ = t.Store.Put(key, data)
+		}
 	default:
 		binary.LittleEndian.PutUint32(data[len(data)-4:], uint32(cnt))
 		_ = t.Store.Put(key, data)
@@ -466,7 +511,7 @@ func (t *Trie) removeRef(h util.Uint256, bs []byte) {
 }
 
 func (t *Trie) getFromStore(h util.Uint256) (Node, error) {
-	data, err := t.Store.Get(makeStorageKey(h.BytesBE()))
+	data, err := getFromStore(makeStorageKey(h), t.mode, t.Store)
 	if err != nil {
 		return nil, err
 	}
@@ -478,11 +523,12 @@ func (t *Trie) getFromStore(h util.Uint256) (Node, error) {
 		return nil, r.Err
 	}
 
-	if t.refcountEnabled {
-		data = data[:len(data)-4]
+	if t.mode.RC() {
+		data = data[:len(data)-5]
 		node := t.refcount[h]
 		if node != nil {
 			node.bytes = data
+			_ = r.ReadB()
 			node.initial = int32(r.ReadU32LE())
 		}
 	}
@@ -566,7 +612,7 @@ func (t *Trie) Find(prefix, from []byte, max int) ([]storage.KeyValue, error) {
 		res   []storage.KeyValue
 		count int
 	)
-	b := NewBillet(t.root.Hash(), false, 0, t.Store)
+	b := NewBillet(t.root.Hash(), t.mode, 0, t.Store)
 	process := func(pathToNode []byte, node Node, _ []byte) bool {
 		if leaf, ok := node.(*LeafNode); ok {
 			if from == nil || !bytes.Equal(pathToNode, from) { // (*Billet).traverse includes `from` path into result if so. Need to filter out manually.

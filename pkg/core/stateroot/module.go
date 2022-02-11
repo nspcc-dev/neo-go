@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
@@ -28,6 +29,7 @@ type (
 		Store    *storage.MemCachedStore
 		network  netmode.Magic
 		srInHead bool
+		mode     mpt.TrieMode
 		mpt      *mpt.Trie
 		verifier VerifierFunc
 		log      *zap.Logger
@@ -52,9 +54,17 @@ type (
 
 // NewModule returns new instance of stateroot module.
 func NewModule(cfg config.ProtocolConfiguration, verif VerifierFunc, log *zap.Logger, s *storage.MemCachedStore) *Module {
+	var mode mpt.TrieMode
+	if cfg.KeepOnlyLatestState {
+		mode |= mpt.ModeLatest
+	}
+	if cfg.RemoveUntraceableBlocks {
+		mode |= mpt.ModeGC
+	}
 	return &Module{
 		network:  cfg.Magic,
 		srInHead: cfg.StateRootInHeader,
+		mode:     mode,
 		verifier: verif,
 		log:      log,
 		Store:    s,
@@ -63,7 +73,8 @@ func NewModule(cfg config.ProtocolConfiguration, verif VerifierFunc, log *zap.Lo
 
 // GetState returns value at the specified key fom the MPT with the specified root.
 func (s *Module) GetState(root util.Uint256, key []byte) ([]byte, error) {
-	tr := mpt.NewTrie(mpt.NewHashNode(root), false, storage.NewMemCachedStore(s.Store))
+	// Allow accessing old values, it's RO thing.
+	tr := mpt.NewTrie(mpt.NewHashNode(root), s.mode&^mpt.ModeGCFlag, storage.NewMemCachedStore(s.Store))
 	return tr.Get(key)
 }
 
@@ -73,13 +84,15 @@ func (s *Module) GetState(root util.Uint256, key []byte) ([]byte, error) {
 // item with key equals to prefix is included into result; if empty `start` specified,
 // then item with key equals to prefix is not included into result.
 func (s *Module) FindStates(root util.Uint256, prefix, start []byte, max int) ([]storage.KeyValue, error) {
-	tr := mpt.NewTrie(mpt.NewHashNode(root), false, storage.NewMemCachedStore(s.Store))
+	// Allow accessing old values, it's RO thing.
+	tr := mpt.NewTrie(mpt.NewHashNode(root), s.mode&^mpt.ModeGCFlag, storage.NewMemCachedStore(s.Store))
 	return tr.Find(prefix, start, max)
 }
 
 // GetStateProof returns proof of having key in the MPT with the specified root.
 func (s *Module) GetStateProof(root util.Uint256, key []byte) ([][]byte, error) {
-	tr := mpt.NewTrie(mpt.NewHashNode(root), false, storage.NewMemCachedStore(s.Store))
+	// Allow accessing old values, it's RO thing.
+	tr := mpt.NewTrie(mpt.NewHashNode(root), s.mode&^mpt.ModeGCFlag, storage.NewMemCachedStore(s.Store))
 	return tr.GetProof(key)
 }
 
@@ -104,14 +117,14 @@ func (s *Module) CurrentValidatedHeight() uint32 {
 }
 
 // Init initializes state root module at the given height.
-func (s *Module) Init(height uint32, enableRefCount bool) error {
+func (s *Module) Init(height uint32) error {
 	data, err := s.Store.Get([]byte{byte(storage.DataMPT), prefixValidated})
 	if err == nil {
 		s.validatedHeight.Store(binary.LittleEndian.Uint32(data))
 	}
 
 	if height == 0 {
-		s.mpt = mpt.NewTrie(nil, enableRefCount, s.Store)
+		s.mpt = mpt.NewTrie(nil, s.mode, s.Store)
 		s.currentLocal.Store(util.Uint256{})
 		return nil
 	}
@@ -121,7 +134,7 @@ func (s *Module) Init(height uint32, enableRefCount bool) error {
 	}
 	s.currentLocal.Store(r.Root)
 	s.localHeight.Store(r.Index)
-	s.mpt = mpt.NewTrie(mpt.NewHashNode(r.Root), enableRefCount, s.Store)
+	s.mpt = mpt.NewTrie(mpt.NewHashNode(r.Root), s.mode, s.Store)
 	return nil
 }
 
@@ -157,7 +170,7 @@ func (s *Module) CleanStorage() error {
 }
 
 // JumpToState performs jump to the state specified by given stateroot index.
-func (s *Module) JumpToState(sr *state.MPTRoot, enableRefCount bool) error {
+func (s *Module) JumpToState(sr *state.MPTRoot) error {
 	if err := s.addLocalStateRoot(s.Store, sr); err != nil {
 		return fmt.Errorf("failed to store local state root: %w", err)
 	}
@@ -171,8 +184,46 @@ func (s *Module) JumpToState(sr *state.MPTRoot, enableRefCount bool) error {
 
 	s.currentLocal.Store(sr.Root)
 	s.localHeight.Store(sr.Index)
-	s.mpt = mpt.NewTrie(mpt.NewHashNode(sr.Root), enableRefCount, s.Store)
+	s.mpt = mpt.NewTrie(mpt.NewHashNode(sr.Root), s.mode, s.Store)
 	return nil
+}
+
+// GC performs garbage collection.
+func (s *Module) GC(index uint32, store storage.Store) time.Duration {
+	if !s.mode.GC() {
+		panic("stateroot: GC invoked, but not enabled")
+	}
+	var removed int
+	var stored int64
+	s.log.Info("starting MPT garbage collection", zap.Uint32("index", index))
+	start := time.Now()
+	b := store.Batch()
+	store.Seek(storage.SeekRange{
+		Prefix: []byte{byte(storage.DataMPT)},
+	}, func(k, v []byte) bool {
+		stored++
+		if !mpt.IsActiveValue(v) {
+			h := binary.LittleEndian.Uint32(v[len(v)-4:])
+			if h > index {
+				return true
+			}
+			b.Delete(k)
+			removed++
+			stored--
+		}
+		return true
+	})
+	err := store.PutBatch(b)
+	dur := time.Since(start)
+	if err != nil {
+		s.log.Error("failed to flush MPT GC changeset", zap.Duration("time", dur), zap.Error(err))
+	} else {
+		s.log.Info("finished MPT garbage collection",
+			zap.Int("removed", removed),
+			zap.Int64("stored", stored),
+			zap.Duration("time", dur))
+	}
+	return dur
 }
 
 // AddMPTBatch updates using provided batch.
@@ -182,7 +233,7 @@ func (s *Module) AddMPTBatch(index uint32, b mpt.Batch, cache *storage.MemCached
 	if _, err := mpt.PutBatch(b); err != nil {
 		return nil, nil, err
 	}
-	mpt.Flush()
+	mpt.Flush(index)
 	sr := &state.MPTRoot{
 		Index: index,
 		Root:  mpt.StateRoot(),

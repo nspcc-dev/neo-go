@@ -55,12 +55,11 @@ func NewMemCachedStore(lower Store) *MemCachedStore {
 func (s *MemCachedStore) Get(key []byte) ([]byte, error) {
 	s.mut.RLock()
 	defer s.mut.RUnlock()
-	k := string(key)
-	if val, ok := s.mem[k]; ok {
+	if val, ok := s.mem[string(key)]; ok {
+		if val == nil {
+			return nil, ErrKeyNotFound
+		}
 		return val, nil
-	}
-	if _, ok := s.del[k]; ok {
-		return nil, ErrKeyNotFound
 	}
 	return s.ps.Get(key)
 }
@@ -73,19 +72,16 @@ func (s *MemCachedStore) GetBatch() *MemBatch {
 	var b MemBatch
 
 	b.Put = make([]KeyValueExists, 0, len(s.mem))
+	b.Deleted = make([]KeyValueExists, 0)
 	for k, v := range s.mem {
 		key := []byte(k)
 		_, err := s.ps.Get(key)
-		b.Put = append(b.Put, KeyValueExists{KeyValue: KeyValue{Key: key, Value: v}, Exists: err == nil})
+		if v == nil {
+			b.Deleted = append(b.Deleted, KeyValueExists{KeyValue: KeyValue{Key: key}, Exists: err == nil})
+		} else {
+			b.Put = append(b.Put, KeyValueExists{KeyValue: KeyValue{Key: key, Value: v}, Exists: err == nil})
+		}
 	}
-
-	b.Deleted = make([]KeyValueExists, 0, len(s.del))
-	for k := range s.del {
-		key := []byte(k)
-		_, err := s.ps.Get(key)
-		b.Deleted = append(b.Deleted, KeyValueExists{KeyValue: KeyValue{Key: key}, Exists: err == nil})
-	}
-
 	return &b
 }
 
@@ -101,11 +97,12 @@ func (s *MemCachedStore) SeekAsync(ctx context.Context, rng SeekRange, cutPrefix
 	res := make(chan KeyValue)
 	go func() {
 		s.seek(ctx, rng, cutPrefix, func(k, v []byte) bool {
-			res <- KeyValue{
-				Key:   k,
-				Value: v,
+			select {
+			case <-ctx.Done():
+				return false
+			case res <- KeyValue{Key: k, Value: v}:
+				return true
 			}
-			return true // always continue, we have context for early stop.
 		})
 		close(res)
 	}()
@@ -141,16 +138,7 @@ func (s *MemCachedStore) seek(ctx context.Context, rng SeekRange, cutPrefix bool
 					Key:   []byte(k),
 					Value: v,
 				},
-				Exists: true,
-			})
-		}
-	}
-	for k := range s.MemoryStore.del {
-		if isKeyOK(k) {
-			memRes = append(memRes, KeyValueExists{
-				KeyValue: KeyValue{
-					Key: []byte(k),
-				},
+				Exists: v != nil,
 			})
 		}
 	}
@@ -265,15 +253,14 @@ func (s *MemCachedStore) PersistSync() (int, error) {
 
 func (s *MemCachedStore) persist(isSync bool) (int, error) {
 	var err error
-	var keys, dkeys int
+	var keys int
 
 	s.plock.Lock()
 	defer s.plock.Unlock()
 	s.mut.Lock()
 
 	keys = len(s.mem)
-	dkeys = len(s.del)
-	if keys == 0 && dkeys == 0 {
+	if keys == 0 {
 		s.mut.Unlock()
 		return 0, nil
 	}
@@ -282,15 +269,14 @@ func (s *MemCachedStore) persist(isSync bool) (int, error) {
 	// starts using fresh new maps. This tempstore is only known here and
 	// nothing ever changes it, therefore accesses to it (reads) can go
 	// unprotected while writes are handled by s proper.
-	var tempstore = &MemCachedStore{MemoryStore: MemoryStore{mem: s.mem, del: s.del}, ps: s.ps}
+	var tempstore = &MemCachedStore{MemoryStore: MemoryStore{mem: s.mem}, ps: s.ps}
 	s.ps = tempstore
 	s.mem = make(map[string][]byte, len(s.mem))
-	s.del = make(map[string]bool, len(s.del))
 	if !isSync {
 		s.mut.Unlock()
 	}
 
-	err = tempstore.ps.PutChangeSet(tempstore.mem, tempstore.del)
+	err = tempstore.ps.PutChangeSet(tempstore.mem)
 
 	if !isSync {
 		s.mut.Lock()
@@ -306,12 +292,8 @@ func (s *MemCachedStore) persist(isSync bool) (int, error) {
 		for k := range s.mem {
 			tempstore.put(k, s.mem[k])
 		}
-		for k := range s.del {
-			tempstore.drop(k)
-		}
 		s.ps = tempstore.ps
 		s.mem = tempstore.mem
-		s.del = tempstore.del
 	}
 	s.mut.Unlock()
 	return keys, err

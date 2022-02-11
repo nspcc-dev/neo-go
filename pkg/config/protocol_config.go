@@ -15,8 +15,13 @@ type (
 	ProtocolConfiguration struct {
 		// CommitteeHistory stores committee size change history (height: size).
 		CommitteeHistory map[uint32]int `yaml:"CommitteeHistory"`
-		Magic            netmode.Magic  `yaml:"Magic"`
-		MemPoolSize      int            `yaml:"MemPoolSize"`
+		// GarbageCollectionPeriod sets the number of blocks to wait before
+		// starting the next MPT garbage collection cycle when RemoveUntraceableBlocks
+		// option is used.
+		GarbageCollectionPeriod uint32 `yaml:"GarbageCollectionPeriod"`
+
+		Magic       netmode.Magic `yaml:"Magic"`
+		MemPoolSize int           `yaml:"MemPoolSize"`
 
 		// InitialGASSupply is the amount of GAS generated in the genesis block.
 		InitialGASSupply fixedn.Fixed8 `yaml:"InitialGASSupply"`
@@ -27,7 +32,7 @@ type (
 		// If true, DB size will be smaller, but older roots won't be accessible.
 		// This value should remain the same for the same database.
 		KeepOnlyLatestState bool `yaml:"KeepOnlyLatestState"`
-		// RemoveUntraceableBlocks specifies if old blocks should be removed.
+		// RemoveUntraceableBlocks specifies if old data should be removed.
 		RemoveUntraceableBlocks bool `yaml:"RemoveUntraceableBlocks"`
 		// MaxBlockSize is the maximum block size in bytes.
 		MaxBlockSize uint32 `yaml:"MaxBlockSize"`
@@ -81,6 +86,9 @@ type heightNumber struct {
 func (p *ProtocolConfiguration) Validate() error {
 	var err error
 
+	if p.KeepOnlyLatestState && p.P2PStateExchangeExtensions {
+		return errors.New("can't have both KeepOnlyLatestState and P2PStateExchangeExtensions")
+	}
 	for name := range p.NativeUpdateHistories {
 		if !nativenames.IsValid(name) {
 			return fmt.Errorf("NativeActivations configuration section contains unexpected native contract name: %s", name)

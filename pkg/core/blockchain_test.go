@@ -1589,7 +1589,7 @@ func TestDumpAndRestore(t *testing.T) {
 }
 
 func TestRemoveUntraceable(t *testing.T) {
-	check := func(t *testing.T, bc *Blockchain, tHash, bHash util.Uint256, errorExpected bool) {
+	check := func(t *testing.T, bc *Blockchain, tHash, bHash, sHash util.Uint256, errorExpected bool) {
 		_, _, err := bc.GetTransaction(tHash)
 		if errorExpected {
 			require.Error(t, err)
@@ -1610,10 +1610,20 @@ func TestRemoveUntraceable(t *testing.T) {
 		}
 		_, err = bc.GetHeader(bHash)
 		require.NoError(t, err)
+		if !sHash.Equals(util.Uint256{}) {
+			sm := bc.GetStateModule()
+			_, err = sm.GetState(sHash, []byte{0xfb, 0xff, 0xff, 0xff, 0x0e}) // NEO committee key.
+			if errorExpected {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+		}
 	}
 	t.Run("P2PStateExchangeExtensions off", func(t *testing.T) {
 		bc := newTestChainWithCustomCfg(t, func(c *config.Config) {
 			c.ProtocolConfiguration.MaxTraceableBlocks = 2
+			c.ProtocolConfiguration.GarbageCollectionPeriod = 2
 			c.ProtocolConfiguration.RemoveUntraceableBlocks = true
 		})
 
@@ -1622,6 +1632,8 @@ func TestRemoveUntraceable(t *testing.T) {
 		b1 := bc.newBlock(tx1)
 		require.NoError(t, bc.AddBlock(b1))
 		tx1Height := bc.BlockHeight()
+		sRoot, err := bc.GetStateModule().GetStateRoot(tx1Height)
+		require.NoError(t, err)
 
 		tx2, err := testchain.NewTransferFromOwner(bc, bc.contracts.NEO.Hash, util.Uint160{}, 1, 0, bc.BlockHeight()+1)
 		require.NoError(t, err)
@@ -1631,13 +1643,21 @@ func TestRemoveUntraceable(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, tx1Height, h1)
 
+		check(t, bc, tx1.Hash(), b1.Hash(), sRoot.Root, false)
 		require.NoError(t, bc.AddBlock(bc.newBlock()))
-
-		check(t, bc, tx1.Hash(), b1.Hash(), true)
+		require.NoError(t, bc.AddBlock(bc.newBlock()))
+		require.NoError(t, bc.AddBlock(bc.newBlock()))
+		require.NoError(t, bc.AddBlock(bc.newBlock()))
+		// Don't wait for Run().
+		_, err = bc.persist(true)
+		require.NoError(t, err)
+		bc.tryRunGC(0)
+		check(t, bc, tx1.Hash(), b1.Hash(), sRoot.Root, true)
 	})
 	t.Run("P2PStateExchangeExtensions on", func(t *testing.T) {
 		bc := newTestChainWithCustomCfg(t, func(c *config.Config) {
 			c.ProtocolConfiguration.MaxTraceableBlocks = 2
+			c.ProtocolConfiguration.GarbageCollectionPeriod = 2
 			c.ProtocolConfiguration.RemoveUntraceableBlocks = true
 			c.ProtocolConfiguration.P2PStateExchangeExtensions = true
 			c.ProtocolConfiguration.StateSyncInterval = 2
@@ -1649,6 +1669,8 @@ func TestRemoveUntraceable(t *testing.T) {
 		b1 := bc.newBlock(tx1)
 		require.NoError(t, bc.AddBlock(b1))
 		tx1Height := bc.BlockHeight()
+		sRoot, err := bc.GetStateModule().GetStateRoot(tx1Height)
+		require.NoError(t, err)
 
 		tx2, err := testchain.NewTransferFromOwner(bc, bc.contracts.NEO.Hash, util.Uint160{}, 1, 0, bc.BlockHeight()+1)
 		require.NoError(t, err)
@@ -1664,13 +1686,13 @@ func TestRemoveUntraceable(t *testing.T) {
 		require.NoError(t, bc.AddBlock(bc.newBlock()))
 		require.NoError(t, bc.AddBlock(bc.newBlock()))
 
-		check(t, bc, tx1.Hash(), b1.Hash(), false)
-		check(t, bc, tx2.Hash(), b2.Hash(), false)
+		check(t, bc, tx1.Hash(), b1.Hash(), sRoot.Root, false)
+		check(t, bc, tx2.Hash(), b2.Hash(), sRoot.Root, false)
 
 		require.NoError(t, bc.AddBlock(bc.newBlock()))
 
-		check(t, bc, tx1.Hash(), b1.Hash(), true)
-		check(t, bc, tx2.Hash(), b2.Hash(), false)
+		check(t, bc, tx1.Hash(), b1.Hash(), util.Uint256{}, true)
+		check(t, bc, tx2.Hash(), b2.Hash(), util.Uint256{}, false)
 		_, h2, err := bc.GetTransaction(tx2.Hash())
 		require.NoError(t, err)
 		require.Equal(t, tx2Height, h2)
