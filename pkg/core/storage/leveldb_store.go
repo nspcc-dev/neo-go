@@ -3,6 +3,7 @@ package storage
 import (
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/filter"
+	"github.com/syndtr/goleveldb/leveldb/iterator"
 	"github.com/syndtr/goleveldb/leveldb/opt"
 )
 
@@ -82,13 +83,39 @@ func (s *LevelDBStore) PutChangeSet(puts map[string][]byte) error {
 
 // Seek implements the Store interface.
 func (s *LevelDBStore) Seek(rng SeekRange, f func(k, v []byte) bool) {
+	iter := s.db.NewIterator(seekRangeToPrefixes(rng), nil)
+	s.seek(iter, rng.Backwards, f)
+}
+
+// SeekGC implements the Store interface.
+func (s *LevelDBStore) SeekGC(rng SeekRange, keep func(k, v []byte) bool) error {
+	tx, err := s.db.OpenTransaction()
+	if err != nil {
+		return err
+	}
+	iter := tx.NewIterator(seekRangeToPrefixes(rng), nil)
+	s.seek(iter, rng.Backwards, func(k, v []byte) bool {
+		if !keep(k, v) {
+			err = tx.Delete(k, nil)
+			if err != nil {
+				return false
+			}
+		}
+		return true
+	})
+	if err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+func (s *LevelDBStore) seek(iter iterator.Iterator, backwards bool, f func(k, v []byte) bool) {
 	var (
 		next func() bool
 		ok   bool
-		iter = s.db.NewIterator(seekRangeToPrefixes(rng), nil)
 	)
 
-	if !rng.Backwards {
+	if !backwards {
 		ok = iter.Next()
 		next = iter.Next
 	} else {

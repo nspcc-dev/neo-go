@@ -107,10 +107,31 @@ func (s *BoltDBStore) PutChangeSet(puts map[string][]byte) error {
 	})
 }
 
+// SeekGC implements the Store interface.
+func (s *BoltDBStore) SeekGC(rng SeekRange, keep func(k, v []byte) bool) error {
+	return boltSeek(s.db.Update, rng, func(c *bbolt.Cursor, k, v []byte) (bool, error) {
+		if !keep(k, v) {
+			if err := c.Delete(); err != nil {
+				return false, err
+			}
+		}
+		return true, nil
+	})
+}
+
 // Seek implements the Store interface.
 func (s *BoltDBStore) Seek(rng SeekRange, f func(k, v []byte) bool) {
+	err := boltSeek(s.db.View, rng, func(_ *bbolt.Cursor, k, v []byte) (bool, error) {
+		return f(k, v), nil
+	})
+	if err != nil {
+		panic(err)
+	}
+}
+
+func boltSeek(txopener func(func(*bbolt.Tx) error) error, rng SeekRange, f func(c *bbolt.Cursor, k, v []byte) (bool, error)) error {
 	rang := seekRangeToPrefixes(rng)
-	err := s.db.View(func(tx *bbolt.Tx) error {
+	return txopener(func(tx *bbolt.Tx) error {
 		var (
 			k, v []byte
 			next func() ([]byte, []byte)
@@ -133,15 +154,16 @@ func (s *BoltDBStore) Seek(rng SeekRange, f func(k, v []byte) bool) {
 		}
 
 		for ; k != nil && bytes.HasPrefix(k, rng.Prefix) && (len(rang.Limit) == 0 || bytes.Compare(k, rang.Limit) <= 0); k, v = next() {
-			if !f(k, v) {
+			cont, err := f(c, k, v)
+			if err != nil {
+				return err
+			}
+			if !cont {
 				break
 			}
 		}
 		return nil
 	})
-	if err != nil {
-		panic(err)
-	}
 }
 
 // Batch implements the Batch interface and returns a boltdb

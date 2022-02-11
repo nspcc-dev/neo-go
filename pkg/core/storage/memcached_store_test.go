@@ -293,6 +293,9 @@ func (b *BadStore) PutChangeSet(_ map[string][]byte) error {
 }
 func (b *BadStore) Seek(rng SeekRange, f func(k, v []byte) bool) {
 }
+func (b *BadStore) SeekGC(rng SeekRange, keep func(k, v []byte) bool) error {
+	return nil
+}
 func (b *BadStore) Close() error {
 	return nil
 }

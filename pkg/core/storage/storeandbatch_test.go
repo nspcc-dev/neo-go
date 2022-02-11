@@ -438,6 +438,41 @@ func testStorePutBatchWithDelete(t *testing.T, s Store) {
 	require.NoError(t, s.Close())
 }
 
+func testStoreSeekGC(t *testing.T, s Store) {
+	kvs := []KeyValue{
+		{[]byte("10"), []byte("bar")},
+		{[]byte("11"), []byte("bara")},
+		{[]byte("20"), []byte("barb")},
+		{[]byte("21"), []byte("barc")},
+		{[]byte("22"), []byte("bard")},
+		{[]byte("30"), []byte("bare")},
+		{[]byte("31"), []byte("barf")},
+	}
+	for _, v := range kvs {
+		require.NoError(t, s.Put(v.Key, v.Value))
+	}
+	err := s.SeekGC(SeekRange{Prefix: []byte("1")}, func(k, v []byte) bool {
+		return true
+	})
+	require.NoError(t, err)
+	for i := range kvs {
+		_, err = s.Get(kvs[i].Key)
+		require.NoError(t, err)
+	}
+	err = s.SeekGC(SeekRange{Prefix: []byte("3")}, func(k, v []byte) bool {
+		return false
+	})
+	require.NoError(t, err)
+	for i := range kvs[:5] {
+		_, err = s.Get(kvs[i].Key)
+		require.NoError(t, err)
+	}
+	for _, kv := range kvs[5:] {
+		_, err = s.Get(kv.Key)
+		require.Error(t, err)
+	}
+}
+
 func TestAllDBs(t *testing.T) {
 	var DBs = []dbSetup{
 		{"BoltDB", newBoltStoreForTesting},
@@ -448,7 +483,7 @@ func TestAllDBs(t *testing.T) {
 	var tests = []dbTestFunction{testStoreClose, testStorePutAndGet,
 		testStoreGetNonExistent, testStorePutBatch, testStoreSeek,
 		testStoreDeleteNonExistent, testStorePutAndDelete,
-		testStorePutBatchWithDelete}
+		testStorePutBatchWithDelete, testStoreSeekGC}
 	for _, db := range DBs {
 		for _, test := range tests {
 			s := db.create(t)

@@ -197,23 +197,20 @@ func (s *Module) GC(index uint32, store storage.Store) time.Duration {
 	var stored int64
 	s.log.Info("starting MPT garbage collection", zap.Uint32("index", index))
 	start := time.Now()
-	b := store.Batch()
-	store.Seek(storage.SeekRange{
+	err := store.SeekGC(storage.SeekRange{
 		Prefix: []byte{byte(storage.DataMPT)},
 	}, func(k, v []byte) bool {
 		stored++
 		if !mpt.IsActiveValue(v) {
 			h := binary.LittleEndian.Uint32(v[len(v)-4:])
-			if h > index {
-				return true
+			if h <= index {
+				removed++
+				stored--
+				return false
 			}
-			b.Delete(k)
-			removed++
-			stored--
 		}
 		return true
 	})
-	err := store.PutBatch(b)
 	dur := time.Since(start)
 	if err != nil {
 		s.log.Error("failed to flush MPT GC changeset", zap.Duration("time", dur), zap.Error(err))
