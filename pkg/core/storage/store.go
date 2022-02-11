@@ -4,6 +4,8 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+
+	"github.com/syndtr/goleveldb/leveldb/util"
 )
 
 // KeyPrefix constants.
@@ -131,6 +133,24 @@ func AppendPrefixInt(k KeyPrefix, n int) []byte {
 	b := make([]byte, 4)
 	binary.LittleEndian.PutUint32(b, uint32(n))
 	return AppendPrefix(k, b)
+}
+
+func seekRangeToPrefixes(sr SeekRange) *util.Range {
+	var (
+		rang  *util.Range
+		start = make([]byte, len(sr.Prefix)+len(sr.Start))
+	)
+	copy(start, sr.Prefix)
+	copy(start[len(sr.Prefix):], sr.Start)
+
+	if !sr.Backwards {
+		rang = util.BytesPrefix(sr.Prefix)
+		rang.Start = start
+	} else {
+		rang = util.BytesPrefix(start)
+		rang.Start = sr.Prefix
+	}
+	return rang
 }
 
 // NewStore creates storage with preselected in configuration database type.

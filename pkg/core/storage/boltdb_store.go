@@ -7,7 +7,6 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util/slice"
-	"github.com/syndtr/goleveldb/leveldb/util"
 	"go.etcd.io/bbolt"
 )
 
@@ -110,44 +109,30 @@ func (s *BoltDBStore) PutChangeSet(puts map[string][]byte) error {
 
 // Seek implements the Store interface.
 func (s *BoltDBStore) Seek(rng SeekRange, f func(k, v []byte) bool) {
-	start := make([]byte, len(rng.Prefix)+len(rng.Start))
-	copy(start, rng.Prefix)
-	copy(start[len(rng.Prefix):], rng.Start)
-	if rng.Backwards {
-		s.seekBackwards(rng.Prefix, start, f)
-	} else {
-		s.seek(rng.Prefix, start, f)
-	}
-}
-
-func (s *BoltDBStore) seek(key []byte, start []byte, f func(k, v []byte) bool) {
-	prefix := util.BytesPrefix(key)
-	prefix.Start = start
+	rang := seekRangeToPrefixes(rng)
 	err := s.db.View(func(tx *bbolt.Tx) error {
+		var (
+			k, v []byte
+			next func() ([]byte, []byte)
+		)
+
 		c := tx.Bucket(Bucket).Cursor()
-		for k, v := c.Seek(prefix.Start); k != nil && (len(prefix.Limit) == 0 || bytes.Compare(k, prefix.Limit) <= 0); k, v = c.Next() {
-			if !f(k, v) {
-				break
+
+		if !rng.Backwards {
+			k, v = c.Seek(rang.Start)
+			next = c.Next
+		} else {
+			if len(rang.Limit) == 0 {
+				lastKey, _ := c.Last()
+				k, v = c.Seek(lastKey)
+			} else {
+				c.Seek(rang.Limit)
+				k, v = c.Prev()
 			}
+			next = c.Prev
 		}
-		return nil
-	})
-	if err != nil {
-		panic(err)
-	}
-}
 
-func (s *BoltDBStore) seekBackwards(key []byte, start []byte, f func(k, v []byte) bool) {
-	err := s.db.View(func(tx *bbolt.Tx) error {
-		c := tx.Bucket(Bucket).Cursor()
-		// Move cursor to the first kv pair which is followed by the pair matching the specified prefix.
-		if len(start) == 0 {
-			lastKey, _ := c.Last()
-			start = lastKey
-		}
-		rng := util.BytesPrefix(start) // in fact, we only need limit based on start slice to iterate backwards starting from this limit
-		c.Seek(rng.Limit)
-		for k, v := c.Prev(); k != nil && bytes.HasPrefix(k, key); k, v = c.Prev() {
+		for ; k != nil && bytes.HasPrefix(k, rng.Prefix) && (len(rang.Limit) == 0 || bytes.Compare(k, rang.Limit) <= 0); k, v = next() {
 			if !f(k, v) {
 				break
 			}

@@ -4,7 +4,6 @@ import (
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/filter"
 	"github.com/syndtr/goleveldb/leveldb/opt"
-	"github.com/syndtr/goleveldb/leveldb/util"
 )
 
 // LevelDBOptions configuration for LevelDB.
@@ -83,34 +82,21 @@ func (s *LevelDBStore) PutChangeSet(puts map[string][]byte) error {
 
 // Seek implements the Store interface.
 func (s *LevelDBStore) Seek(rng SeekRange, f func(k, v []byte) bool) {
-	start := make([]byte, len(rng.Prefix)+len(rng.Start))
-	copy(start, rng.Prefix)
-	copy(start[len(rng.Prefix):], rng.Start)
-	if rng.Backwards {
-		s.seekBackwards(rng.Prefix, start, f)
+	var (
+		next func() bool
+		ok   bool
+		iter = s.db.NewIterator(seekRangeToPrefixes(rng), nil)
+	)
+
+	if !rng.Backwards {
+		ok = iter.Next()
+		next = iter.Next
 	} else {
-		s.seek(rng.Prefix, start, f)
+		ok = iter.Last()
+		next = iter.Prev
 	}
-}
 
-func (s *LevelDBStore) seek(key []byte, start []byte, f func(k, v []byte) bool) {
-	prefix := util.BytesPrefix(key)
-	prefix.Start = start
-	iter := s.db.NewIterator(prefix, nil)
-	for iter.Next() {
-		if !f(iter.Key(), iter.Value()) {
-			break
-		}
-	}
-	iter.Release()
-}
-
-func (s *LevelDBStore) seekBackwards(key []byte, start []byte, f func(k, v []byte) bool) {
-	iRange := util.BytesPrefix(start)
-	iRange.Start = key
-
-	iter := s.db.NewIterator(iRange, nil)
-	for ok := iter.Last(); ok; ok = iter.Prev() {
+	for ; ok; ok = next() {
 		if !f(iter.Key(), iter.Value()) {
 			break
 		}
