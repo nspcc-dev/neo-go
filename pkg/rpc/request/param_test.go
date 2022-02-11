@@ -5,6 +5,8 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"math"
+	"math/big"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
@@ -187,6 +189,48 @@ func TestParam_UnmarshalJSON(t *testing.T) {
 		require.NotNil(t, ps[i])
 		require.Equal(t, json.RawMessage(tc.expectedRawMessage), ps[i].RawMessage, i)
 		tc.check(t, &ps[i])
+	}
+}
+
+func TestGetBigInt(t *testing.T) {
+	maxUint64 := new(big.Int).SetUint64(math.MaxUint64)
+	minInt64 := big.NewInt(math.MinInt64)
+	testCases := []struct {
+		raw      string
+		expected *big.Int
+	}{
+		{"true", big.NewInt(1)},
+		{"false", new(big.Int)},
+		{"42", big.NewInt(42)},
+		{`"` + minInt64.String() + `"`, minInt64},
+		{`"` + maxUint64.String() + `"`, maxUint64},
+		{`"` + minInt64.String() + `000"`, new(big.Int).Mul(minInt64, big.NewInt(1000))},
+		{`"` + maxUint64.String() + `000"`, new(big.Int).Mul(maxUint64, big.NewInt(1000))},
+		{`"abc"`, nil},
+		{`[]`, nil},
+		{`null`, nil},
+	}
+
+	for _, tc := range testCases {
+		var p Param
+		require.NoError(t, json.Unmarshal([]byte(tc.raw), &p))
+
+		actual, err := p.GetBigInt()
+		if tc.expected == nil {
+			require.Error(t, err)
+			continue
+		}
+		require.NoError(t, err)
+		require.Equal(t, tc.expected, actual)
+
+		expected := tc.expected.Int64()
+		actualInt, err := p.GetInt()
+		if !actual.IsInt64() || int64(int(expected)) != expected {
+			require.Error(t, err)
+		} else {
+			require.NoError(t, err)
+			require.Equal(t, int(expected), actualInt)
+		}
 	}
 }
 

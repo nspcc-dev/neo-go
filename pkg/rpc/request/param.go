@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math/big"
 	"strconv"
 	"strings"
 
@@ -115,7 +116,7 @@ func (p *Param) GetString() (string, error) {
 		if err == nil {
 			p.cache = s
 		} else {
-			var i int
+			var i int64
 			err = json.Unmarshal(p.RawMessage, &i)
 			if err == nil {
 				p.cache = i
@@ -133,8 +134,8 @@ func (p *Param) GetString() (string, error) {
 	switch t := p.cache.(type) {
 	case string:
 		return t, nil
-	case int:
-		return strconv.Itoa(t), nil
+	case int64:
+		return strconv.FormatInt(t, 10), nil
 	case bool:
 		if t {
 			return "true", nil
@@ -180,7 +181,7 @@ func (p *Param) GetBoolean() (bool, error) {
 			if err == nil {
 				p.cache = s
 			} else {
-				var i int
+				var i int64
 				err = json.Unmarshal(p.RawMessage, &i)
 				if err == nil {
 					p.cache = i
@@ -195,7 +196,7 @@ func (p *Param) GetBoolean() (bool, error) {
 		return t, nil
 	case string:
 		return t != "", nil
-	case int:
+	case int64:
 		return t != 0, nil
 	default:
 		return false, errNotABool
@@ -210,18 +211,44 @@ func (p *Param) GetIntStrict() (int, error) {
 	if p.IsNull() {
 		return 0, errNotAnInt
 	}
-	if p.cache == nil {
-		var i int
-		err := json.Unmarshal(p.RawMessage, &i)
-		if err != nil {
-			return i, errNotAnInt
-		}
-		p.cache = i
+	value, err := p.fillIntCache()
+	if err != nil {
+		return 0, err
 	}
-	if i, ok := p.cache.(int); ok {
-		return i, nil
+	if i, ok := value.(int64); ok && i == int64(int(i)) {
+		return int(i), nil
 	}
 	return 0, errNotAnInt
+}
+
+func (p *Param) fillIntCache() (interface{}, error) {
+	if p.cache != nil {
+		return p.cache, nil
+	}
+
+	// We could also try unmarshalling to uint64, but JSON reliably supports numbers
+	// up to 53 bits in size.
+	var i int64
+	err := json.Unmarshal(p.RawMessage, &i)
+	if err == nil {
+		p.cache = i
+		return i, nil
+	}
+
+	var s string
+	err = json.Unmarshal(p.RawMessage, &s)
+	if err == nil {
+		p.cache = s
+		return s, nil
+	}
+
+	var b bool
+	err = json.Unmarshal(p.RawMessage, &b)
+	if err == nil {
+		p.cache = b
+		return b, nil
+	}
+	return nil, errNotAnInt
 }
 
 // GetInt returns int value of the parameter or tries to cast parameter to an int value.
@@ -232,30 +259,16 @@ func (p *Param) GetInt() (int, error) {
 	if p.IsNull() {
 		return 0, errNotAnInt
 	}
-	if p.cache == nil {
-		var i int
-		err := json.Unmarshal(p.RawMessage, &i)
-		if err == nil {
-			p.cache = i
-		} else {
-			var s string
-			err = json.Unmarshal(p.RawMessage, &s)
-			if err == nil {
-				p.cache = s
-			} else {
-				var b bool
-				err = json.Unmarshal(p.RawMessage, &b)
-				if err == nil {
-					p.cache = b
-				} else {
-					return 0, errNotAnInt
-				}
-			}
-		}
+	value, err := p.fillIntCache()
+	if err != nil {
+		return 0, err
 	}
-	switch t := p.cache.(type) {
-	case int:
-		return t, nil
+	switch t := value.(type) {
+	case int64:
+		if t == int64(int(t)) {
+			return int(t), nil
+		}
+		return 0, errNotAnInt
 	case string:
 		return strconv.Atoi(t)
 	case bool:
@@ -264,7 +277,38 @@ func (p *Param) GetInt() (int, error) {
 		}
 		return 0, nil
 	default:
-		return 0, errNotAnInt
+		panic("unreachable")
+	}
+}
+
+// GetBigInt returns big-interer value of the parameter.
+func (p *Param) GetBigInt() (*big.Int, error) {
+	if p == nil {
+		return nil, errMissingParameter
+	}
+	if p.IsNull() {
+		return nil, errNotAnInt
+	}
+	value, err := p.fillIntCache()
+	if err != nil {
+		return nil, err
+	}
+	switch t := value.(type) {
+	case int64:
+		return big.NewInt(t), nil
+	case string:
+		bi, ok := new(big.Int).SetString(t, 10)
+		if !ok {
+			return nil, errNotAnInt
+		}
+		return bi, nil
+	case bool:
+		if t {
+			return big.NewInt(1), nil
+		}
+		return new(big.Int), nil
+	default:
+		panic("unreachable")
 	}
 }
 

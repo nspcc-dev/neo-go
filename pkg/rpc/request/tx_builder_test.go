@@ -3,6 +3,7 @@ package request
 import (
 	"encoding/hex"
 	"fmt"
+	"math/big"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/io"
@@ -100,6 +101,10 @@ func TestInvocationScriptCreationBad(t *testing.T) {
 }
 
 func TestExpandArrayIntoScript(t *testing.T) {
+	bi := new(big.Int).Lsh(big.NewInt(1), 254)
+	rawInt := make([]byte, 32)
+	rawInt[31] = 0x40
+
 	testCases := []struct {
 		Input    []Param
 		Expected []byte
@@ -111,6 +116,10 @@ func TestExpandArrayIntoScript(t *testing.T) {
 		{
 			Input:    []Param{{RawMessage: []byte(`{"type": "Array", "value": [{"type": "String", "value": "a"}]}`)}},
 			Expected: []byte{byte(opcode.PUSHDATA1), 1, byte('a'), byte(opcode.PUSH1), byte(opcode.PACK)},
+		},
+		{
+			Input:    []Param{{RawMessage: []byte(`{"type": "Integer", "value": "` + bi.String() + `"}`)}},
+			Expected: append([]byte{byte(opcode.PUSHINT256)}, rawInt...),
 		},
 	}
 	for _, c := range testCases {
@@ -125,6 +134,10 @@ func TestExpandArrayIntoScript(t *testing.T) {
 		},
 		{
 			{RawMessage: []byte(`{"type": "Array", "value": null}`)},
+		},
+		{
+			{RawMessage: []byte(`{"type": "Integer", "value": "` +
+				new(big.Int).Lsh(big.NewInt(1), 255).String() + `"}`)},
 		},
 	}
 	for _, c := range errorCases {
