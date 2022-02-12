@@ -118,7 +118,7 @@ func (s *Module) CurrentValidatedHeight() uint32 {
 
 // Init initializes state root module at the given height.
 func (s *Module) Init(height uint32) error {
-	data, err := s.Store.Get([]byte{byte(storage.DataMPT), prefixValidated})
+	data, err := s.Store.Get([]byte{byte(storage.DataMPTAux), prefixValidated})
 	if err == nil {
 		s.validatedHeight.Store(binary.LittleEndian.Uint32(data))
 	}
@@ -156,16 +156,6 @@ func (s *Module) CleanStorage() error {
 	if err != nil {
 		return fmt.Errorf("failed to remove outdated MPT-reated items: %w", err)
 	}
-	currentLocal := s.currentLocal.Load().(util.Uint256)
-	if !currentLocal.Equals(util.Uint256{}) {
-		err := s.addLocalStateRoot(s.Store, &state.MPTRoot{
-			Index: s.localHeight.Load(),
-			Root:  currentLocal,
-		})
-		if err != nil {
-			return fmt.Errorf("failed to store current local stateroot: %w", err)
-		}
-	}
 	return nil
 }
 
@@ -177,7 +167,7 @@ func (s *Module) JumpToState(sr *state.MPTRoot) error {
 
 	data := make([]byte, 4)
 	binary.LittleEndian.PutUint32(data, sr.Index)
-	if err := s.Store.Put([]byte{byte(storage.DataMPT), prefixValidated}, data); err != nil {
+	if err := s.Store.Put([]byte{byte(storage.DataMPTAux), prefixValidated}, data); err != nil {
 		return fmt.Errorf("failed to store validated height: %w", err)
 	}
 	s.validatedHeight.Store(sr.Index)

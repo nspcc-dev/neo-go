@@ -29,7 +29,7 @@ func (s *Module) addLocalStateRoot(store *storage.MemCachedStore, sr *state.MPTR
 
 	data := make([]byte, 4)
 	binary.LittleEndian.PutUint32(data, sr.Index)
-	return store.Put([]byte{byte(storage.DataMPT), prefixLocal}, data)
+	return store.Put([]byte{byte(storage.DataMPTAux), prefixLocal}, data)
 }
 
 func putStateRoot(store *storage.MemCachedStore, key []byte, sr *state.MPTRoot) error {
@@ -52,7 +52,7 @@ func (s *Module) getStateRoot(key []byte) (*state.MPTRoot, error) {
 
 func makeStateRootKey(index uint32) []byte {
 	key := make([]byte, 5)
-	key[0] = byte(storage.DataMPT)
+	key[0] = byte(storage.DataMPTAux)
 	binary.BigEndian.PutUint32(key, index)
 	return key
 }
@@ -79,7 +79,7 @@ func (s *Module) AddStateRoot(sr *state.MPTRoot) error {
 
 	data := make([]byte, 4)
 	binary.LittleEndian.PutUint32(data, sr.Index)
-	if err := s.Store.Put([]byte{byte(storage.DataMPT), prefixValidated}, data); err != nil {
+	if err := s.Store.Put([]byte{byte(storage.DataMPTAux), prefixValidated}, data); err != nil {
 		return err
 	}
 	s.validatedHeight.Store(sr.Index)

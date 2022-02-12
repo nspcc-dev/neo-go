@@ -11,10 +11,14 @@ import (
 // KeyPrefix constants.
 const (
 	DataExecutable KeyPrefix = 0x01
-	DataMPT        KeyPrefix = 0x03
-	STAccount      KeyPrefix = 0x40
-	STContractID   KeyPrefix = 0x51
-	STStorage      KeyPrefix = 0x70
+	// DataMPT is used for MPT node entries identified by Uint256.
+	DataMPT KeyPrefix = 0x03
+	// DataMPTAux is used to store additional MPT data like height-root
+	// mappings and local/validated heights.
+	DataMPTAux   KeyPrefix = 0x04
+	STAccount    KeyPrefix = 0x40
+	STContractID KeyPrefix = 0x51
+	STStorage    KeyPrefix = 0x70
 	// STTempStorage is used to store contract storage items during state sync process
 	// in order not to mess up the previous state which has its own items stored by
 	// STStorage prefix. Once state exchange process is completed, all items with
