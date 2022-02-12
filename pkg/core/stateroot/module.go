@@ -207,7 +207,7 @@ func (s *Module) GC(index uint32, store storage.Store) time.Duration {
 	} else {
 		s.log.Info("finished MPT garbage collection",
 			zap.Int("removed", removed),
-			zap.Int64("stored", stored),
+			zap.Int64("kept", stored),
 			zap.Duration("time", dur))
 	}
 	return dur
