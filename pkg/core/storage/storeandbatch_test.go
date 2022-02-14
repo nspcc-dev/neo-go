@@ -19,10 +19,6 @@ type dbSetup struct {
 
 type dbTestFunction func(*testing.T, Store)
 
-func testStoreClose(t *testing.T, s Store) {
-	require.NoError(t, s.Close())
-}
-
 func testStorePutAndGet(t *testing.T, s Store) {
 	key := []byte("foo")
 	value := []byte("bar")
@@ -32,8 +28,6 @@ func testStorePutAndGet(t *testing.T, s Store) {
 	result, err := s.Get(key)
 	assert.Nil(t, err)
 	require.Equal(t, value, result)
-
-	require.NoError(t, s.Close())
 }
 
 func testStoreGetNonExistent(t *testing.T, s Store) {
@@ -41,7 +35,6 @@ func testStoreGetNonExistent(t *testing.T, s Store) {
 
 	_, err := s.Get(key)
 	assert.Equal(t, err, ErrKeyNotFound)
-	require.NoError(t, s.Close())
 }
 
 func testStorePutBatch(t *testing.T, s Store) {
@@ -63,7 +56,6 @@ func testStorePutBatch(t *testing.T, s Store) {
 	assert.Nil(t, err)
 	require.Equal(t, value, newVal)
 	assert.Equal(t, value, newVal)
-	require.NoError(t, s.Close())
 }
 
 func testStoreSeek(t *testing.T, s Store) {
@@ -338,15 +330,12 @@ func testStoreSeek(t *testing.T, s Store) {
 			})
 		})
 	})
-
-	require.NoError(t, s.Close())
 }
 
 func testStoreDeleteNonExistent(t *testing.T, s Store) {
 	key := []byte("sparse")
 
 	assert.NoError(t, s.Delete(key))
-	require.NoError(t, s.Close())
 }
 
 func testStorePutAndDelete(t *testing.T, s Store) {
@@ -365,8 +354,6 @@ func testStorePutAndDelete(t *testing.T, s Store) {
 	// Double delete.
 	err = s.Delete(key)
 	assert.Nil(t, err)
-
-	require.NoError(t, s.Close())
 }
 
 func testStorePutBatchWithDelete(t *testing.T, s Store) {
@@ -435,7 +422,41 @@ func testStorePutBatchWithDelete(t *testing.T, s Store) {
 			assert.Equal(t, ErrKeyNotFound, err, "%s:%s", k, v)
 		}
 	}
-	require.NoError(t, s.Close())
+}
+
+func testStoreSeekGC(t *testing.T, s Store) {
+	kvs := []KeyValue{
+		{[]byte("10"), []byte("bar")},
+		{[]byte("11"), []byte("bara")},
+		{[]byte("20"), []byte("barb")},
+		{[]byte("21"), []byte("barc")},
+		{[]byte("22"), []byte("bard")},
+		{[]byte("30"), []byte("bare")},
+		{[]byte("31"), []byte("barf")},
+	}
+	for _, v := range kvs {
+		require.NoError(t, s.Put(v.Key, v.Value))
+	}
+	err := s.SeekGC(SeekRange{Prefix: []byte("1")}, func(k, v []byte) bool {
+		return true
+	})
+	require.NoError(t, err)
+	for i := range kvs {
+		_, err = s.Get(kvs[i].Key)
+		require.NoError(t, err)
+	}
+	err = s.SeekGC(SeekRange{Prefix: []byte("3")}, func(k, v []byte) bool {
+		return false
+	})
+	require.NoError(t, err)
+	for i := range kvs[:5] {
+		_, err = s.Get(kvs[i].Key)
+		require.NoError(t, err)
+	}
+	for _, kv := range kvs[5:] {
+		_, err = s.Get(kv.Key)
+		require.Error(t, err)
+	}
 }
 
 func TestAllDBs(t *testing.T) {
@@ -445,10 +466,10 @@ func TestAllDBs(t *testing.T) {
 		{"MemCached", newMemCachedStoreForTesting},
 		{"Memory", newMemoryStoreForTesting},
 	}
-	var tests = []dbTestFunction{testStoreClose, testStorePutAndGet,
+	var tests = []dbTestFunction{testStorePutAndGet,
 		testStoreGetNonExistent, testStorePutBatch, testStoreSeek,
 		testStoreDeleteNonExistent, testStorePutAndDelete,
-		testStorePutBatchWithDelete}
+		testStorePutBatchWithDelete, testStoreSeekGC}
 	for _, db := range DBs {
 		for _, test := range tests {
 			s := db.create(t)
@@ -457,6 +478,7 @@ func TestAllDBs(t *testing.T) {
 			}
 			fname := runtime.FuncForPC(reflect.ValueOf(test).Pointer()).Name()
 			t.Run(db.name+"/"+fname, twrapper)
+			require.NoError(t, s.Close())
 		}
 	}
 }

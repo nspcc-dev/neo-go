@@ -102,6 +102,21 @@ func (s *MemoryStore) Seek(rng SeekRange, f func(k, v []byte) bool) {
 	s.mut.RUnlock()
 }
 
+// SeekGC implements the Store interface.
+func (s *MemoryStore) SeekGC(rng SeekRange, keep func(k, v []byte) bool) error {
+	s.mut.Lock()
+	// We still need to perform normal seek, some GC operations can be
+	// sensitive to the order of KV pairs.
+	s.seek(rng, func(k, v []byte) bool {
+		if !keep(k, v) {
+			s.drop(string(k))
+		}
+		return true
+	})
+	s.mut.Unlock()
+	return nil
+}
+
 // SeekAll is like seek but also iterates over deleted items.
 func (s *MemoryStore) SeekAll(key []byte, f func(k, v []byte)) {
 	s.mut.RLock()

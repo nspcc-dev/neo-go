@@ -4,15 +4,21 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+
+	"github.com/syndtr/goleveldb/leveldb/util"
 )
 
 // KeyPrefix constants.
 const (
 	DataExecutable KeyPrefix = 0x01
-	DataMPT        KeyPrefix = 0x03
-	STAccount      KeyPrefix = 0x40
-	STContractID   KeyPrefix = 0x51
-	STStorage      KeyPrefix = 0x70
+	// DataMPT is used for MPT node entries identified by Uint256.
+	DataMPT KeyPrefix = 0x03
+	// DataMPTAux is used to store additional MPT data like height-root
+	// mappings and local/validated heights.
+	DataMPTAux   KeyPrefix = 0x04
+	STAccount    KeyPrefix = 0x40
+	STContractID KeyPrefix = 0x51
+	STStorage    KeyPrefix = 0x70
 	// STTempStorage is used to store contract storage items during state sync process
 	// in order not to mess up the previous state which has its own items stored by
 	// STStorage prefix. Once state exchange process is completed, all items with
@@ -94,6 +100,11 @@ type (
 		// Key and value slices should not be modified.
 		// Seek can guarantee that key-value items are sorted by key in ascending way.
 		Seek(rng SeekRange, f func(k, v []byte) bool)
+		// SeekGC is similar to Seek, but the function should return true if current
+		// KV pair should be kept and false if it's to be deleted; there is no way to
+		// do an early exit here. SeekGC only works with the current Store, it won't
+		// go down to layers below and it takes a full write lock, so use it carefully.
+		SeekGC(rng SeekRange, keep func(k, v []byte) bool) error
 		Close() error
 	}
 
@@ -131,6 +142,24 @@ func AppendPrefixInt(k KeyPrefix, n int) []byte {
 	b := make([]byte, 4)
 	binary.LittleEndian.PutUint32(b, uint32(n))
 	return AppendPrefix(k, b)
+}
+
+func seekRangeToPrefixes(sr SeekRange) *util.Range {
+	var (
+		rang  *util.Range
+		start = make([]byte, len(sr.Prefix)+len(sr.Start))
+	)
+	copy(start, sr.Prefix)
+	copy(start[len(sr.Prefix):], sr.Start)
+
+	if !sr.Backwards {
+		rang = util.BytesPrefix(sr.Prefix)
+		rang.Start = start
+	} else {
+		rang = util.BytesPrefix(start)
+		rang.Start = sr.Prefix
+	}
+	return rang
 }
 
 // NewStore creates storage with preselected in configuration database type.

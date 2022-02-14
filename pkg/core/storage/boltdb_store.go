@@ -7,7 +7,6 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util/slice"
-	"github.com/syndtr/goleveldb/leveldb/util"
 	"go.etcd.io/bbolt"
 )
 
@@ -92,7 +91,7 @@ func (s *BoltDBStore) PutBatch(batch Batch) error {
 func (s *BoltDBStore) PutChangeSet(puts map[string][]byte) error {
 	var err error
 
-	return s.db.Batch(func(tx *bbolt.Tx) error {
+	return s.db.Update(func(tx *bbolt.Tx) error {
 		b := tx.Bucket(Bucket)
 		for k, v := range puts {
 			if v != nil {
@@ -108,55 +107,63 @@ func (s *BoltDBStore) PutChangeSet(puts map[string][]byte) error {
 	})
 }
 
+// SeekGC implements the Store interface.
+func (s *BoltDBStore) SeekGC(rng SeekRange, keep func(k, v []byte) bool) error {
+	return boltSeek(s.db.Update, rng, func(c *bbolt.Cursor, k, v []byte) (bool, error) {
+		if !keep(k, v) {
+			if err := c.Delete(); err != nil {
+				return false, err
+			}
+		}
+		return true, nil
+	})
+}
+
 // Seek implements the Store interface.
 func (s *BoltDBStore) Seek(rng SeekRange, f func(k, v []byte) bool) {
-	start := make([]byte, len(rng.Prefix)+len(rng.Start))
-	copy(start, rng.Prefix)
-	copy(start[len(rng.Prefix):], rng.Start)
-	if rng.Backwards {
-		s.seekBackwards(rng.Prefix, start, f)
-	} else {
-		s.seek(rng.Prefix, start, f)
-	}
-}
-
-func (s *BoltDBStore) seek(key []byte, start []byte, f func(k, v []byte) bool) {
-	prefix := util.BytesPrefix(key)
-	prefix.Start = start
-	err := s.db.View(func(tx *bbolt.Tx) error {
-		c := tx.Bucket(Bucket).Cursor()
-		for k, v := c.Seek(prefix.Start); k != nil && (len(prefix.Limit) == 0 || bytes.Compare(k, prefix.Limit) <= 0); k, v = c.Next() {
-			if !f(k, v) {
-				break
-			}
-		}
-		return nil
+	err := boltSeek(s.db.View, rng, func(_ *bbolt.Cursor, k, v []byte) (bool, error) {
+		return f(k, v), nil
 	})
 	if err != nil {
 		panic(err)
 	}
 }
 
-func (s *BoltDBStore) seekBackwards(key []byte, start []byte, f func(k, v []byte) bool) {
-	err := s.db.View(func(tx *bbolt.Tx) error {
+func boltSeek(txopener func(func(*bbolt.Tx) error) error, rng SeekRange, f func(c *bbolt.Cursor, k, v []byte) (bool, error)) error {
+	rang := seekRangeToPrefixes(rng)
+	return txopener(func(tx *bbolt.Tx) error {
+		var (
+			k, v []byte
+			next func() ([]byte, []byte)
+		)
+
 		c := tx.Bucket(Bucket).Cursor()
-		// Move cursor to the first kv pair which is followed by the pair matching the specified prefix.
-		if len(start) == 0 {
-			lastKey, _ := c.Last()
-			start = lastKey
+
+		if !rng.Backwards {
+			k, v = c.Seek(rang.Start)
+			next = c.Next
+		} else {
+			if len(rang.Limit) == 0 {
+				lastKey, _ := c.Last()
+				k, v = c.Seek(lastKey)
+			} else {
+				c.Seek(rang.Limit)
+				k, v = c.Prev()
+			}
+			next = c.Prev
 		}
-		rng := util.BytesPrefix(start) // in fact, we only need limit based on start slice to iterate backwards starting from this limit
-		c.Seek(rng.Limit)
-		for k, v := c.Prev(); k != nil && bytes.HasPrefix(k, key); k, v = c.Prev() {
-			if !f(k, v) {
+
+		for ; k != nil && bytes.HasPrefix(k, rng.Prefix) && (len(rang.Limit) == 0 || bytes.Compare(k, rang.Limit) <= 0); k, v = next() {
+			cont, err := f(c, k, v)
+			if err != nil {
+				return err
+			}
+			if !cont {
 				break
 			}
 		}
 		return nil
 	})
-	if err != nil {
-		panic(err)
-	}
 }
 
 // Batch implements the Batch interface and returns a boltdb
