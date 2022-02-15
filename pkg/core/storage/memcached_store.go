@@ -55,7 +55,8 @@ func NewMemCachedStore(lower Store) *MemCachedStore {
 func (s *MemCachedStore) Get(key []byte) ([]byte, error) {
 	s.mut.RLock()
 	defer s.mut.RUnlock()
-	if val, ok := s.mem[string(key)]; ok {
+	m := s.chooseMap(key)
+	if val, ok := m[string(key)]; ok {
 		if val == nil {
 			return nil, ErrKeyNotFound
 		}
@@ -71,15 +72,17 @@ func (s *MemCachedStore) GetBatch() *MemBatch {
 
 	var b MemBatch
 
-	b.Put = make([]KeyValueExists, 0, len(s.mem))
+	b.Put = make([]KeyValueExists, 0, len(s.mem)+len(s.stor))
 	b.Deleted = make([]KeyValueExists, 0)
-	for k, v := range s.mem {
-		key := []byte(k)
-		_, err := s.ps.Get(key)
-		if v == nil {
-			b.Deleted = append(b.Deleted, KeyValueExists{KeyValue: KeyValue{Key: key}, Exists: err == nil})
-		} else {
-			b.Put = append(b.Put, KeyValueExists{KeyValue: KeyValue{Key: key, Value: v}, Exists: err == nil})
+	for _, m := range []map[string][]byte{s.mem, s.stor} {
+		for k, v := range m {
+			key := []byte(k)
+			_, err := s.ps.Get(key)
+			if v == nil {
+				b.Deleted = append(b.Deleted, KeyValueExists{KeyValue: KeyValue{Key: key}, Exists: err == nil})
+			} else {
+				b.Put = append(b.Put, KeyValueExists{KeyValue: KeyValue{Key: key, Value: v}, Exists: err == nil})
+			}
 		}
 	}
 	return &b
@@ -131,7 +134,8 @@ func (s *MemCachedStore) seek(ctx context.Context, rng SeekRange, cutPrefix bool
 		}
 	}
 	s.mut.RLock()
-	for k, v := range s.MemoryStore.mem {
+	m := s.MemoryStore.chooseMap(rng.Prefix)
+	for k, v := range m {
 		if isKeyOK(k) {
 			memRes = append(memRes, KeyValueExists{
 				KeyValue: KeyValue{
@@ -259,7 +263,7 @@ func (s *MemCachedStore) persist(isSync bool) (int, error) {
 	defer s.plock.Unlock()
 	s.mut.Lock()
 
-	keys = len(s.mem)
+	keys = len(s.mem) + len(s.stor)
 	if keys == 0 {
 		s.mut.Unlock()
 		return 0, nil
@@ -269,14 +273,15 @@ func (s *MemCachedStore) persist(isSync bool) (int, error) {
 	// starts using fresh new maps. This tempstore is only known here and
 	// nothing ever changes it, therefore accesses to it (reads) can go
 	// unprotected while writes are handled by s proper.
-	var tempstore = &MemCachedStore{MemoryStore: MemoryStore{mem: s.mem}, ps: s.ps}
+	var tempstore = &MemCachedStore{MemoryStore: MemoryStore{mem: s.mem, stor: s.stor}, ps: s.ps}
 	s.ps = tempstore
 	s.mem = make(map[string][]byte, len(s.mem))
+	s.stor = make(map[string][]byte, len(s.stor))
 	if !isSync {
 		s.mut.Unlock()
 	}
 
-	err = tempstore.ps.PutChangeSet(tempstore.mem)
+	err = tempstore.ps.PutChangeSet(tempstore.mem, tempstore.stor)
 
 	if !isSync {
 		s.mut.Lock()
@@ -290,10 +295,14 @@ func (s *MemCachedStore) persist(isSync bool) (int, error) {
 		// We're toast. We'll try to still keep proper state, but OOM
 		// killer will get to us eventually.
 		for k := range s.mem {
-			tempstore.put(k, s.mem[k])
+			put(tempstore.mem, k, s.mem[k])
+		}
+		for k := range s.stor {
+			put(tempstore.stor, k, s.stor[k])
 		}
 		s.ps = tempstore.ps
 		s.mem = tempstore.mem
+		s.stor = tempstore.stor
 	}
 	s.mut.Unlock()
 	return keys, err

@@ -61,8 +61,7 @@ type Operation struct {
 // SeekRange represents options for Store.Seek operation.
 type SeekRange struct {
 	// Prefix denotes the Seek's lookup key.
-	// Empty Prefix means seeking through all keys in the DB starting from
-	// the Start if specified.
+	// Empty Prefix is not supported.
 	Prefix []byte
 	// Start denotes value appended to the Prefix to start Seek from.
 	// Seeking starting from some key includes this key to the result;
@@ -92,7 +91,7 @@ type (
 		Put(k, v []byte) error
 		PutBatch(Batch) error
 		// PutChangeSet allows to push prepared changeset to the Store.
-		PutChangeSet(puts map[string][]byte) error
+		PutChangeSet(puts map[string][]byte, stor map[string][]byte) error
 		// Seek can guarantee that provided key (k) and value (v) are the only valid until the next call to f.
 		// Seek continues iteration until false is returned from f.
 		// Key and value slices should not be modified.

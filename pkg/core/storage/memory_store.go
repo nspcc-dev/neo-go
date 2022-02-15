@@ -12,8 +12,9 @@ import (
 // MemoryStore is an in-memory implementation of a Store, mainly
 // used for testing. Do not use MemoryStore in production.
 type MemoryStore struct {
-	mut sync.RWMutex
-	mem map[string][]byte
+	mut  sync.RWMutex
+	mem  map[string][]byte
+	stor map[string][]byte
 }
 
 // MemoryBatch is an in-memory batch compatible with MemoryStore.
@@ -23,18 +24,19 @@ type MemoryBatch struct {
 
 // Put implements the Batch interface.
 func (b *MemoryBatch) Put(k, v []byte) {
-	b.MemoryStore.put(string(k), slice.Copy(v))
+	put(b.MemoryStore.chooseMap(k), string(k), slice.Copy(v))
 }
 
 // Delete implements Batch interface.
 func (b *MemoryBatch) Delete(k []byte) {
-	b.MemoryStore.drop(string(k))
+	drop(b.MemoryStore.chooseMap(k), string(k))
 }
 
 // NewMemoryStore creates a new MemoryStore object.
 func NewMemoryStore() *MemoryStore {
 	return &MemoryStore{
-		mem: make(map[string][]byte),
+		mem:  make(map[string][]byte),
+		stor: make(map[string][]byte),
 	}
 }
 
@@ -42,16 +44,26 @@ func NewMemoryStore() *MemoryStore {
 func (s *MemoryStore) Get(key []byte) ([]byte, error) {
 	s.mut.RLock()
 	defer s.mut.RUnlock()
-	if val, ok := s.mem[string(key)]; ok && val != nil {
+	m := s.chooseMap(key)
+	if val, ok := m[string(key)]; ok && val != nil {
 		return val, nil
 	}
 	return nil, ErrKeyNotFound
 }
 
+func (s *MemoryStore) chooseMap(key []byte) map[string][]byte {
+	switch KeyPrefix(key[0]) {
+	case STStorage, STTempStorage:
+		return s.stor
+	default:
+		return s.mem
+	}
+}
+
 // put puts a key-value pair into the store, it's supposed to be called
 // with mutex locked.
-func (s *MemoryStore) put(key string, value []byte) {
-	s.mem[key] = value
+func put(m map[string][]byte, key string, value []byte) {
+	m[key] = value
 }
 
 // Put implements the Store interface. Never returns an error.
@@ -59,22 +71,22 @@ func (s *MemoryStore) Put(key, value []byte) error {
 	newKey := string(key)
 	vcopy := slice.Copy(value)
 	s.mut.Lock()
-	s.put(newKey, vcopy)
+	put(s.chooseMap(key), newKey, vcopy)
 	s.mut.Unlock()
 	return nil
 }
 
 // drop deletes a key-value pair from the store, it's supposed to be called
 // with mutex locked.
-func (s *MemoryStore) drop(key string) {
-	s.mem[key] = nil
+func drop(m map[string][]byte, key string) {
+	m[key] = nil
 }
 
 // Delete implements Store interface. Never returns an error.
 func (s *MemoryStore) Delete(key []byte) error {
 	newKey := string(key)
 	s.mut.Lock()
-	s.drop(newKey)
+	drop(s.chooseMap(key), newKey)
 	s.mut.Unlock()
 	return nil
 }
@@ -82,14 +94,17 @@ func (s *MemoryStore) Delete(key []byte) error {
 // PutBatch implements the Store interface. Never returns an error.
 func (s *MemoryStore) PutBatch(batch Batch) error {
 	b := batch.(*MemoryBatch)
-	return s.PutChangeSet(b.mem)
+	return s.PutChangeSet(b.mem, b.stor)
 }
 
 // PutChangeSet implements the Store interface. Never returns an error.
-func (s *MemoryStore) PutChangeSet(puts map[string][]byte) error {
+func (s *MemoryStore) PutChangeSet(puts map[string][]byte, stores map[string][]byte) error {
 	s.mut.Lock()
 	for k := range puts {
-		s.put(k, puts[k])
+		put(s.mem, k, puts[k])
+	}
+	for k := range stores {
+		put(s.stor, k, stores[k])
 	}
 	s.mut.Unlock()
 	return nil
@@ -109,7 +124,7 @@ func (s *MemoryStore) SeekGC(rng SeekRange, keep func(k, v []byte) bool) error {
 	// sensitive to the order of KV pairs.
 	s.seek(rng, func(k, v []byte) bool {
 		if !keep(k, v) {
-			s.drop(string(k))
+			drop(s.chooseMap(k), string(k))
 		}
 		return true
 	})
@@ -122,7 +137,8 @@ func (s *MemoryStore) SeekAll(key []byte, f func(k, v []byte)) {
 	s.mut.RLock()
 	defer s.mut.RUnlock()
 	sk := string(key)
-	for k, v := range s.mem {
+	m := s.chooseMap(key)
+	for k, v := range m {
 		if strings.HasPrefix(k, sk) {
 			f([]byte(k), v)
 		}
@@ -152,7 +168,8 @@ func (s *MemoryStore) seek(rng SeekRange, f func(k, v []byte) bool) {
 		return res != 0 && rng.Backwards == (res > 0)
 	}
 
-	for k, v := range s.mem {
+	m := s.chooseMap(rng.Prefix)
+	for k, v := range m {
 		if v != nil && isKeyOK(k) {
 			memList = append(memList, KeyValue{
 				Key:   []byte(k),
@@ -185,6 +202,7 @@ func newMemoryBatch() *MemoryBatch {
 func (s *MemoryStore) Close() error {
 	s.mut.Lock()
 	s.mem = nil
+	s.stor = nil
 	s.mut.Unlock()
 	return nil
 }

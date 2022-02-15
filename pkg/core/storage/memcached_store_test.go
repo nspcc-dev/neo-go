@@ -287,7 +287,7 @@ func (b *BadStore) Put(k, v []byte) error {
 func (b *BadStore) PutBatch(Batch) error {
 	return nil
 }
-func (b *BadStore) PutChangeSet(_ map[string][]byte) error {
+func (b *BadStore) PutChangeSet(_ map[string][]byte, _ map[string][]byte) error {
 	b.onPutBatch()
 	return ErrKeyNotFound
 }
