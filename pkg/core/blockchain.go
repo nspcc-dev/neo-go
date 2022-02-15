@@ -2,6 +2,7 @@ package core
 
 import (
 	"bytes"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"math"
@@ -704,6 +705,62 @@ func (bc *Blockchain) tryRunGC(old uint32) time.Duration {
 		tgtBlock /= int64(bc.config.GarbageCollectionPeriod)
 		tgtBlock *= int64(bc.config.GarbageCollectionPeriod)
 		dur = bc.stateRoot.GC(uint32(tgtBlock), bc.store)
+		dur += bc.removeOldTransfers(uint32(tgtBlock))
+	}
+	return dur
+}
+
+func (bc *Blockchain) removeOldTransfers(index uint32) time.Duration {
+	bc.log.Info("starting transfer data garbage collection", zap.Uint32("index", index))
+	start := time.Now()
+	h, err := bc.GetHeader(bc.GetHeaderHash(int(index)))
+	if err != nil {
+		dur := time.Since(start)
+		bc.log.Error("failed to find block header for transfer GC", zap.Duration("time", dur), zap.Error(err))
+		return dur
+	}
+	var removed, kept int64
+	var ts = h.Timestamp
+	prefixes := []byte{byte(storage.STNEP11Transfers), byte(storage.STNEP17Transfers)}
+
+	for i := range prefixes {
+		var acc util.Uint160
+		var canDrop bool
+
+		err = bc.store.SeekGC(storage.SeekRange{
+			Prefix:    prefixes[i : i+1],
+			Backwards: true, // From new to old.
+		}, func(k, v []byte) bool {
+			// We don't look inside of the batches, it requires too much effort, instead
+			// we drop batches that are confirmed to contain outdated entries.
+			var batchAcc util.Uint160
+			var batchTs = binary.BigEndian.Uint64(k[1+util.Uint160Size:])
+			copy(batchAcc[:], k[1:])
+
+			if batchAcc != acc { // Some new account we're iterating over.
+				acc = batchAcc
+			} else if canDrop { // We've seen this account and all entries in this batch are guaranteed to be outdated.
+				removed++
+				return false
+			}
+			// We don't know what's inside, so keep the current
+			// batch anyway, but allow to drop older ones.
+			canDrop = batchTs <= ts
+			kept++
+			return true
+		})
+		if err != nil {
+			break
+		}
+	}
+	dur := time.Since(start)
+	if err != nil {
+		bc.log.Error("failed to flush transfer data GC changeset", zap.Duration("time", dur), zap.Error(err))
+	} else {
+		bc.log.Info("finished transfer data garbage collection",
+			zap.Int64("removed", removed),
+			zap.Int64("kept", kept),
+			zap.Duration("time", dur))
 	}
 	return dur
 }
