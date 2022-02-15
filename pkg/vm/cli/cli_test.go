@@ -15,7 +15,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/abiosoft/readline"
+	"github.com/chzyer/readline"
 	"github.com/nspcc-dev/neo-go/internal/random"
 	"github.com/nspcc-dev/neo-go/pkg/compiler"
 	"github.com/nspcc-dev/neo-go/pkg/config"
@@ -75,6 +75,7 @@ func newTestVMCLIWithLogo(t *testing.T, printLogo bool) *executor {
 		&readline.Config{
 			Prompt: "",
 			Stdin:  e.in,
+			Stderr: e.out,
 			Stdout: e.out,
 			FuncIsTerminal: func() bool {
 				return false
