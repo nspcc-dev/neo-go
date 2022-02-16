@@ -355,6 +355,31 @@ func TestMemCachedPersistFailing(t *testing.T) {
 	require.Equal(t, b1, res)
 }
 
+func TestPrivateMemCachedPersistFailing(t *testing.T) {
+	var (
+		bs BadStore
+		t1 = []byte("t1")
+		t2 = []byte("t2")
+	)
+	// cached Store
+	ts := NewPrivateMemCachedStore(&bs)
+	// Set a pair of keys.
+	ts.Put(t1, t1)
+	ts.Put(t2, t2)
+	// This will be called during Persist().
+	bs.onPutBatch = func() {}
+
+	_, err := ts.Persist()
+	require.Error(t, err)
+	// PutBatch() failed in Persist, but we still should have proper state.
+	res, err := ts.Get(t1)
+	require.NoError(t, err)
+	require.Equal(t, t1, res)
+	res, err = ts.Get(t2)
+	require.NoError(t, err)
+	require.Equal(t, t2, res)
+}
+
 func TestCachedSeekSorting(t *testing.T) {
 	var (
 		// Given this prefix...
@@ -378,29 +403,31 @@ func TestCachedSeekSorting(t *testing.T) {
 			{[]byte{1, 3, 2}, []byte("wop")},
 			{[]byte{1, 3, 4}, []byte("zaq")},
 		}
-		ps = NewMemoryStore()
-		ts = NewMemCachedStore(ps)
 	)
-	for _, v := range lowerKVs {
-		require.NoError(t, ps.PutChangeSet(map[string][]byte{string(v.Key): v.Value}, nil))
+	for _, newCached := range []func(Store) *MemCachedStore{NewMemCachedStore, NewPrivateMemCachedStore} {
+		ps := NewMemoryStore()
+		ts := newCached(ps)
+		for _, v := range lowerKVs {
+			require.NoError(t, ps.PutChangeSet(map[string][]byte{string(v.Key): v.Value}, nil))
+		}
+		for _, v := range deletedKVs {
+			require.NoError(t, ps.PutChangeSet(map[string][]byte{string(v.Key): v.Value}, nil))
+			ts.Delete(v.Key)
+		}
+		for _, v := range updatedKVs {
+			require.NoError(t, ps.PutChangeSet(map[string][]byte{string(v.Key): v.Value}, nil))
+			ts.Put(v.Key, v.Value)
+		}
+		var foundKVs []KeyValue
+		ts.Seek(SeekRange{Prefix: goodPrefix}, func(k, v []byte) bool {
+			foundKVs = append(foundKVs, KeyValue{Key: slice.Copy(k), Value: slice.Copy(v)})
+			return true
+		})
+		assert.Equal(t, len(foundKVs), len(lowerKVs)+len(updatedKVs))
+		expected := append(lowerKVs, updatedKVs...)
+		sort.Slice(expected, func(i, j int) bool {
+			return bytes.Compare(expected[i].Key, expected[j].Key) < 0
+		})
+		require.Equal(t, expected, foundKVs)
 	}
-	for _, v := range deletedKVs {
-		require.NoError(t, ps.PutChangeSet(map[string][]byte{string(v.Key): v.Value}, nil))
-		ts.Delete(v.Key)
-	}
-	for _, v := range updatedKVs {
-		require.NoError(t, ps.PutChangeSet(map[string][]byte{string(v.Key): v.Value}, nil))
-		ts.Put(v.Key, v.Value)
-	}
-	var foundKVs []KeyValue
-	ts.Seek(SeekRange{Prefix: goodPrefix}, func(k, v []byte) bool {
-		foundKVs = append(foundKVs, KeyValue{Key: slice.Copy(k), Value: slice.Copy(v)})
-		return true
-	})
-	assert.Equal(t, len(foundKVs), len(lowerKVs)+len(updatedKVs))
-	expected := append(lowerKVs, updatedKVs...)
-	sort.Slice(expected, func(i, j int) bool {
-		return bytes.Compare(expected[i].Key, expected[j].Key) < 0
-	})
-	require.Equal(t, expected, foundKVs)
 }

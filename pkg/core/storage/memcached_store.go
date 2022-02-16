@@ -15,6 +15,7 @@ import (
 type MemCachedStore struct {
 	MemoryStore
 
+	private bool
 	// plock protects Persist from double entrance.
 	plock sync.Mutex
 	// Persistent Store.
@@ -51,10 +52,48 @@ func NewMemCachedStore(lower Store) *MemCachedStore {
 	}
 }
 
+// NewPrivateMemCachedStore creates a new private (unlocked) MemCachedStore object.
+// Private cached stores are closed after Persist.
+func NewPrivateMemCachedStore(lower Store) *MemCachedStore {
+	return &MemCachedStore{
+		MemoryStore: *NewMemoryStore(),
+		private:     true,
+		ps:          lower,
+	}
+}
+
+// lock write-locks non-private store.
+func (s *MemCachedStore) lock() {
+	if !s.private {
+		s.mut.Lock()
+	}
+}
+
+// unlock unlocks non-private store.
+func (s *MemCachedStore) unlock() {
+	if !s.private {
+		s.mut.Unlock()
+	}
+}
+
+// rlock read-locks non-private store.
+func (s *MemCachedStore) rlock() {
+	if !s.private {
+		s.mut.RLock()
+	}
+}
+
+// runlock drops read lock for non-private stores.
+func (s *MemCachedStore) runlock() {
+	if !s.private {
+		s.mut.RUnlock()
+	}
+}
+
 // Get implements the Store interface.
 func (s *MemCachedStore) Get(key []byte) ([]byte, error) {
-	s.mut.RLock()
-	defer s.mut.RUnlock()
+	s.rlock()
+	defer s.runlock()
 	m := s.chooseMap(key)
 	if val, ok := m[string(key)]; ok {
 		if val == nil {
@@ -69,24 +108,23 @@ func (s *MemCachedStore) Get(key []byte) ([]byte, error) {
 func (s *MemCachedStore) Put(key, value []byte) {
 	newKey := string(key)
 	vcopy := slice.Copy(value)
-	s.mut.Lock()
+	s.lock()
 	put(s.chooseMap(key), newKey, vcopy)
-	s.mut.Unlock()
+	s.unlock()
 }
 
 // Delete drops KV pair from the store. Never returns an error.
 func (s *MemCachedStore) Delete(key []byte) {
 	newKey := string(key)
-	s.mut.Lock()
+	s.lock()
 	put(s.chooseMap(key), newKey, nil)
-	s.mut.Unlock()
+	s.unlock()
 }
 
 // GetBatch returns currently accumulated changeset.
 func (s *MemCachedStore) GetBatch() *MemBatch {
-	s.mut.RLock()
-	defer s.mut.RUnlock()
-
+	s.rlock()
+	defer s.runlock()
 	var b MemBatch
 
 	b.Put = make([]KeyValueExists, 0, len(s.mem)+len(s.stor))
@@ -105,9 +143,32 @@ func (s *MemCachedStore) GetBatch() *MemBatch {
 	return &b
 }
 
+// PutChangeSet implements the Store interface. Never returns an error.
+func (s *MemCachedStore) PutChangeSet(puts map[string][]byte, stores map[string][]byte) error {
+	s.lock()
+	s.MemoryStore.putChangeSet(puts, stores)
+	s.unlock()
+	return nil
+}
+
 // Seek implements the Store interface.
 func (s *MemCachedStore) Seek(rng SeekRange, f func(k, v []byte) bool) {
 	s.seek(context.Background(), rng, false, f)
+}
+
+// SeekAll is like seek but also iterates over deleted items.
+func (s *MemCachedStore) SeekAll(key []byte, f func(k, v []byte)) {
+	if !s.private {
+		s.mut.RLock()
+		defer s.mut.RUnlock()
+	}
+	sk := string(key)
+	m := s.chooseMap(key)
+	for k, v := range m {
+		if strings.HasPrefix(k, sk) {
+			f([]byte(k), v)
+		}
+	}
 }
 
 // SeekAsync returns non-buffered channel with matching KeyValue pairs. Key and
@@ -150,7 +211,7 @@ func (s *MemCachedStore) seek(ctx context.Context, rng SeekRange, cutPrefix bool
 			return strings.HasPrefix(key, sPrefix) && (lStart == 0 || strings.Compare(key[lPrefix:], sStart) <= 0)
 		}
 	}
-	s.mut.RLock()
+	s.rlock()
 	m := s.MemoryStore.chooseMap(rng.Prefix)
 	for k, v := range m {
 		if isKeyOK(k) {
@@ -164,8 +225,7 @@ func (s *MemCachedStore) seek(ctx context.Context, rng SeekRange, cutPrefix bool
 		}
 	}
 	ps := s.ps
-	s.mut.RUnlock()
-
+	s.runlock()
 	less := func(k1, k2 []byte) bool {
 		res := bytes.Compare(k1, k2)
 		return res != 0 && rng.Backwards == (res > 0)
@@ -275,6 +335,20 @@ func (s *MemCachedStore) PersistSync() (int, error) {
 func (s *MemCachedStore) persist(isSync bool) (int, error) {
 	var err error
 	var keys int
+
+	if s.private {
+		keys = len(s.mem) + len(s.stor)
+		if keys == 0 {
+			return 0, nil
+		}
+		err = s.ps.PutChangeSet(s.mem, s.stor)
+		if err != nil {
+			return 0, err
+		}
+		s.mem = nil
+		s.stor = nil
+		return keys, nil
+	}
 
 	s.plock.Lock()
 	defer s.plock.Unlock()

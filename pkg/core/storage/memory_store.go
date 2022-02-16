@@ -52,14 +52,18 @@ func put(m map[string][]byte, key string, value []byte) {
 // PutChangeSet implements the Store interface. Never returns an error.
 func (s *MemoryStore) PutChangeSet(puts map[string][]byte, stores map[string][]byte) error {
 	s.mut.Lock()
+	s.putChangeSet(puts, stores)
+	s.mut.Unlock()
+	return nil
+}
+
+func (s *MemoryStore) putChangeSet(puts map[string][]byte, stores map[string][]byte) {
 	for k := range puts {
 		put(s.mem, k, puts[k])
 	}
 	for k := range stores {
 		put(s.stor, k, stores[k])
 	}
-	s.mut.Unlock()
-	return nil
 }
 
 // Seek implements the Store interface.
@@ -82,19 +86,6 @@ func (s *MemoryStore) SeekGC(rng SeekRange, keep func(k, v []byte) bool) error {
 	})
 	s.mut.Unlock()
 	return nil
-}
-
-// SeekAll is like seek but also iterates over deleted items.
-func (s *MemoryStore) SeekAll(key []byte, f func(k, v []byte)) {
-	s.mut.RLock()
-	defer s.mut.RUnlock()
-	sk := string(key)
-	m := s.chooseMap(key)
-	for k, v := range m {
-		if strings.HasPrefix(k, sk) {
-			f([]byte(k), v)
-		}
-	}
 }
 
 // seek is an internal unlocked implementation of Seek. `start` denotes whether

@@ -519,7 +519,7 @@ func (bc *Blockchain) jumpToStateInternal(p uint32, stage stateJumpStage) error 
 
 		fallthrough
 	case newStorageItemsAdded:
-		cache := bc.dao.GetWrapped()
+		cache := bc.dao.GetPrivate()
 		prefix := statesync.TemporaryPrefix(bc.dao.Version.StoragePrefix)
 		bc.dao.Store.Seek(storage.SeekRange{Prefix: []byte{byte(prefix)}}, func(k, _ []byte) bool {
 			// #1468, but don't need to copy here, because it is done by Store.
@@ -903,7 +903,7 @@ func (bc *Blockchain) AddHeaders(headers ...*block.Header) error {
 func (bc *Blockchain) addHeaders(verify bool, headers ...*block.Header) error {
 	var (
 		start = time.Now()
-		batch = bc.dao.GetWrapped()
+		batch = bc.dao.GetPrivate()
 		err   error
 	)
 
@@ -997,8 +997,8 @@ func (bc *Blockchain) GetStateSyncModule() *statesync.Module {
 // This is the only way to change Blockchain state.
 func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error {
 	var (
-		cache          = bc.dao.GetWrapped()
-		aerCache       = bc.dao.GetWrapped()
+		cache          = bc.dao.GetPrivate()
+		aerCache       = bc.dao.GetPrivate()
 		appExecResults = make([]*state.AppExecResult, 0, 2+len(block.Transactions))
 		aerchan        = make(chan *state.AppExecResult, len(block.Transactions)/8) // Tested 8 and 4 with no practical difference, but feel free to test more and tune.
 		aerdone        = make(chan error)
@@ -2153,7 +2153,7 @@ func (bc *Blockchain) GetEnrollments() ([]state.Validator, error) {
 
 // GetTestVM returns an interop context with VM set up for a test run.
 func (bc *Blockchain) GetTestVM(t trigger.Type, tx *transaction.Transaction, b *block.Block) *interop.Context {
-	d := bc.dao.GetWrapped()
+	d := bc.dao.GetPrivate()
 	systemInterop := bc.newInteropContext(t, d, b, tx)
 	vm := systemInterop.SpawnVM()
 	vm.SetPriceGetter(systemInterop.GetPrice)

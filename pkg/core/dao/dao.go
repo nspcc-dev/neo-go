@@ -36,6 +36,10 @@ type Simple struct {
 // NewSimple creates new simple dao using provided backend store.
 func NewSimple(backend storage.Store, stateRootInHeader bool, p2pSigExtensions bool) *Simple {
 	st := storage.NewMemCachedStore(backend)
+	return newSimple(st, stateRootInHeader, p2pSigExtensions)
+}
+
+func newSimple(st *storage.MemCachedStore, stateRootInHeader bool, p2pSigExtensions bool) *Simple {
 	return &Simple{
 		Version: Version{
 			StoragePrefix:     storage.STStorage,
@@ -55,6 +59,15 @@ func (dao *Simple) GetBatch() *storage.MemBatch {
 // MemCachedStore around the current DAO Store.
 func (dao *Simple) GetWrapped() *Simple {
 	d := NewSimple(dao.Store, dao.Version.StateRootInHeader, dao.Version.P2PSigExtensions)
+	d.Version = dao.Version
+	return d
+}
+
+// GetPrivate returns new DAO instance with another layer of private
+// MemCachedStore around the current DAO Store.
+func (dao *Simple) GetPrivate() *Simple {
+	st := storage.NewPrivateMemCachedStore(dao.Store)
+	d := newSimple(st, dao.Version.StateRootInHeader, dao.Version.P2PSigExtensions)
 	d.Version = dao.Version
 	return d
 }
@@ -730,7 +743,7 @@ func (dao *Simple) PersistSync() (int, error) {
 // GetMPTBatch storage changes to be applied to MPT.
 func (dao *Simple) GetMPTBatch() mpt.Batch {
 	var b mpt.Batch
-	dao.Store.MemoryStore.SeekAll([]byte{byte(dao.Version.StoragePrefix)}, func(k, v []byte) {
+	dao.Store.SeekAll([]byte{byte(dao.Version.StoragePrefix)}, func(k, v []byte) {
 		b.Add(k[1:], v)
 	})
 	return b

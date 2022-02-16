@@ -329,7 +329,7 @@ func (s *Module) AddBlock(block *block.Block) error {
 			return errors.New("invalid block: MerkleRoot mismatch")
 		}
 	}
-	cache := s.dao.GetWrapped()
+	cache := s.dao.GetPrivate()
 	writeBuf := io.NewBufBinWriter()
 	if err := cache.StoreAsBlock(block, nil, nil, writeBuf); err != nil {
 		return err
