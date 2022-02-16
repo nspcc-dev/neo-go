@@ -37,27 +37,6 @@ func testStoreGetNonExistent(t *testing.T, s Store) {
 	assert.Equal(t, err, ErrKeyNotFound)
 }
 
-func testStorePutBatch(t *testing.T, s Store) {
-	var (
-		key   = []byte("foo")
-		value = []byte("bar")
-		batch = s.Batch()
-	)
-	// Test that key and value are copied when batching.
-	keycopy := slice.Copy(key)
-	valuecopy := slice.Copy(value)
-
-	batch.Put(keycopy, valuecopy)
-	copy(valuecopy, key)
-	copy(keycopy, value)
-
-	require.NoError(t, s.PutBatch(batch))
-	newVal, err := s.Get(key)
-	assert.Nil(t, err)
-	require.Equal(t, value, newVal)
-	assert.Equal(t, value, newVal)
-}
-
 func testStoreSeek(t *testing.T, s Store) {
 	// Use the same set of kvs to test Seek with different prefix/start values.
 	kvs := []KeyValue{
@@ -254,74 +233,6 @@ func testStorePutAndDelete(t *testing.T, s Store) {
 	assert.Nil(t, err)
 }
 
-func testStorePutBatchWithDelete(t *testing.T, s Store) {
-	var (
-		toBeStored = map[string][]byte{
-			"foo": []byte("bar"),
-			"bar": []byte("baz"),
-		}
-		deletedInBatch = map[string][]byte{
-			"edc": []byte("rfv"),
-			"tgb": []byte("yhn"),
-		}
-		readdedToBatch = map[string][]byte{
-			"yhn": []byte("ujm"),
-		}
-		toBeDeleted = map[string][]byte{
-			"qaz": []byte("wsx"),
-			"qwe": []byte("123"),
-		}
-		toStay = map[string][]byte{
-			"key": []byte("val"),
-			"faa": []byte("bra"),
-		}
-	)
-	for k, v := range toBeDeleted {
-		require.NoError(t, s.Put([]byte(k), v))
-	}
-	for k, v := range toStay {
-		require.NoError(t, s.Put([]byte(k), v))
-	}
-	batch := s.Batch()
-	for k, v := range toBeStored {
-		batch.Put([]byte(k), v)
-	}
-	for k := range toBeDeleted {
-		batch.Delete([]byte(k))
-	}
-	for k, v := range readdedToBatch {
-		batch.Put([]byte(k), v)
-	}
-	for k, v := range deletedInBatch {
-		batch.Put([]byte(k), v)
-	}
-	for k := range deletedInBatch {
-		batch.Delete([]byte(k))
-	}
-	for k := range readdedToBatch {
-		batch.Delete([]byte(k))
-	}
-	for k, v := range readdedToBatch {
-		batch.Put([]byte(k), v)
-	}
-	require.NoError(t, s.PutBatch(batch))
-	toBe := []map[string][]byte{toStay, toBeStored, readdedToBatch}
-	notToBe := []map[string][]byte{deletedInBatch, toBeDeleted}
-	for _, kvs := range toBe {
-		for k, v := range kvs {
-			value, err := s.Get([]byte(k))
-			assert.Nil(t, err)
-			assert.Equal(t, value, v)
-		}
-	}
-	for _, kvs := range notToBe {
-		for k, v := range kvs {
-			_, err := s.Get([]byte(k))
-			assert.Equal(t, ErrKeyNotFound, err, "%s:%s", k, v)
-		}
-	}
-}
-
 func testStoreSeekGC(t *testing.T, s Store) {
 	kvs := []KeyValue{
 		{[]byte("10"), []byte("bar")},
@@ -365,9 +276,9 @@ func TestAllDBs(t *testing.T) {
 		{"Memory", newMemoryStoreForTesting},
 	}
 	var tests = []dbTestFunction{testStorePutAndGet,
-		testStoreGetNonExistent, testStorePutBatch, testStoreSeek,
+		testStoreGetNonExistent, testStoreSeek,
 		testStoreDeleteNonExistent, testStorePutAndDelete,
-		testStorePutBatchWithDelete, testStoreSeekGC}
+		testStoreSeekGC}
 	for _, db := range DBs {
 		for _, test := range tests {
 			s := db.create(t)

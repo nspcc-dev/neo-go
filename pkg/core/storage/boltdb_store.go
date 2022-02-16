@@ -81,12 +81,6 @@ func (s *BoltDBStore) Delete(key []byte) error {
 	})
 }
 
-// PutBatch implements the Store interface.
-func (s *BoltDBStore) PutBatch(batch Batch) error {
-	memBatch := batch.(*MemoryBatch)
-	return s.PutChangeSet(memBatch.mem, memBatch.stor)
-}
-
 // PutChangeSet implements the Store interface.
 func (s *BoltDBStore) PutChangeSet(puts map[string][]byte, stores map[string][]byte) error {
 	var err error
@@ -166,12 +160,6 @@ func boltSeek(txopener func(func(*bbolt.Tx) error) error, rng SeekRange, f func(
 		}
 		return nil
 	})
-}
-
-// Batch implements the Batch interface and returns a boltdb
-// compatible Batch.
-func (s *BoltDBStore) Batch() Batch {
-	return newMemoryBatch()
 }
 
 // Close releases all db resources.

@@ -85,11 +85,9 @@ type (
 	// Store is anything that can persist and retrieve the blockchain.
 	// information.
 	Store interface {
-		Batch() Batch
 		Delete(k []byte) error
 		Get([]byte) ([]byte, error)
 		Put(k, v []byte) error
-		PutBatch(Batch) error
 		// PutChangeSet allows to push prepared changeset to the Store.
 		PutChangeSet(puts map[string][]byte, stor map[string][]byte) error
 		// Seek can guarantee that provided key (k) and value (v) are the only valid until the next call to f.
