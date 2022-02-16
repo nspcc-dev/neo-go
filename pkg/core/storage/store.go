@@ -103,15 +103,6 @@ type (
 		Close() error
 	}
 
-	// Batch represents an abstraction on top of batch operations.
-	// Each Store implementation is responsible of casting a Batch
-	// to its appropriate type. Batches can only be used in a single
-	// thread.
-	Batch interface {
-		Delete(k []byte)
-		Put(k, v []byte)
-	}
-
 	// KeyPrefix is a constant byte added as a prefix for each key
 	// stored.
 	KeyPrefix uint8

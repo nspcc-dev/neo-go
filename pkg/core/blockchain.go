@@ -532,23 +532,17 @@ func (bc *Blockchain) jumpToStateInternal(p uint32, stage stateJumpStage) error 
 
 		fallthrough
 	case newStorageItemsAdded:
-		b := bc.dao.Store.Batch()
+		cache := bc.dao.GetWrapped().(*dao.Simple)
 		prefix := statesync.TemporaryPrefix(bc.dao.Version.StoragePrefix)
 		bc.dao.Store.Seek(storage.SeekRange{Prefix: []byte{byte(prefix)}}, func(k, _ []byte) bool {
 			// #1468, but don't need to copy here, because it is done by Store.
-			b.Delete(k)
+			_ = cache.Store.Delete(k)
 			return true
 		})
-
-		err := bc.dao.Store.PutBatch(b)
-		if err != nil {
-			return fmt.Errorf("failed to remove old storage items: %w", err)
-		}
 
 		// After current state is updated, we need to remove outdated state-related data if so.
 		// The only outdated data we might have is genesis-related data, so check it.
 		if p-bc.config.MaxTraceableBlocks > 0 {
-			cache := bc.dao.GetWrapped().(*dao.Simple)
 			writeBuf.Reset()
 			err := cache.DeleteBlock(bc.headerHashes[0], writeBuf)
 			if err != nil {
@@ -561,14 +555,11 @@ func (bc *Blockchain) jumpToStateInternal(p uint32, stage stateJumpStage) error 
 					return true
 				})
 			}
-			_, err = cache.Persist()
-			if err != nil {
-				return fmt.Errorf("failed to drop genesis block state: %w", err)
-			}
 		}
-		err = bc.dao.Store.Put(jumpStageKey, []byte{byte(genesisStateRemoved)})
+		_ = cache.Store.Put(jumpStageKey, []byte{byte(genesisStateRemoved)})
+		_, err := cache.Persist()
 		if err != nil {
-			return fmt.Errorf("failed to store state jump stage: %w", err)
+			return fmt.Errorf("failed to persist old items removal: %w", err)
 		}
 	case genesisStateRemoved:
 		// there's nothing to do after that, so just continue with common operations
@@ -933,7 +924,7 @@ func (bc *Blockchain) AddHeaders(headers ...*block.Header) error {
 func (bc *Blockchain) addHeaders(verify bool, headers ...*block.Header) error {
 	var (
 		start = time.Now()
-		batch = bc.dao.Store.Batch()
+		batch = bc.dao.GetWrapped().(*dao.Simple)
 		err   error
 	)
 
@@ -982,7 +973,7 @@ func (bc *Blockchain) addHeaders(verify bool, headers ...*block.Header) error {
 		}
 
 		key := storage.AppendPrefix(storage.DataExecutable, h.Hash().BytesBE())
-		batch.Put(key, buf.Bytes())
+		_ = batch.Store.Put(key, buf.Bytes())
 		buf.Reset()
 		lastHeader = h
 	}
@@ -995,13 +986,13 @@ func (bc *Blockchain) addHeaders(verify bool, headers ...*block.Header) error {
 			}
 
 			key := storage.AppendPrefixInt(storage.IXHeaderHashList, int(bc.storedHeaderCount))
-			batch.Put(key, buf.Bytes())
+			_ = batch.Store.Put(key, buf.Bytes())
 			bc.storedHeaderCount += headerBatchCount
 		}
 
-		batch.Put(storage.SYSCurrentHeader.Bytes(), hashAndIndexToBytes(lastHeader.Hash(), lastHeader.Index))
+		_ = batch.Store.Put(storage.SYSCurrentHeader.Bytes(), hashAndIndexToBytes(lastHeader.Hash(), lastHeader.Index))
 		updateHeaderHeightMetric(len(bc.headerHashes) - 1)
-		if err = bc.dao.Store.PutBatch(batch); err != nil {
+		if _, err = batch.Persist(); err != nil {
 			return err
 		}
 		bc.log.Debug("done processing headers",

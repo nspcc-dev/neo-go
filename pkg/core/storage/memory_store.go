@@ -17,21 +17,6 @@ type MemoryStore struct {
 	stor map[string][]byte
 }
 
-// MemoryBatch is an in-memory batch compatible with MemoryStore.
-type MemoryBatch struct {
-	MemoryStore
-}
-
-// Put implements the Batch interface.
-func (b *MemoryBatch) Put(k, v []byte) {
-	put(b.MemoryStore.chooseMap(k), string(k), slice.Copy(v))
-}
-
-// Delete implements Batch interface.
-func (b *MemoryBatch) Delete(k []byte) {
-	drop(b.MemoryStore.chooseMap(k), string(k))
-}
-
 // NewMemoryStore creates a new MemoryStore object.
 func NewMemoryStore() *MemoryStore {
 	return &MemoryStore{
@@ -89,12 +74,6 @@ func (s *MemoryStore) Delete(key []byte) error {
 	drop(s.chooseMap(key), newKey)
 	s.mut.Unlock()
 	return nil
-}
-
-// PutBatch implements the Store interface. Never returns an error.
-func (s *MemoryStore) PutBatch(batch Batch) error {
-	b := batch.(*MemoryBatch)
-	return s.PutChangeSet(b.mem, b.stor)
 }
 
 // PutChangeSet implements the Store interface. Never returns an error.
@@ -185,16 +164,6 @@ func (s *MemoryStore) seek(rng SeekRange, f func(k, v []byte) bool) {
 			break
 		}
 	}
-}
-
-// Batch implements the Batch interface and returns a compatible Batch.
-func (s *MemoryStore) Batch() Batch {
-	return newMemoryBatch()
-}
-
-// newMemoryBatch returns new memory batch.
-func newMemoryBatch() *MemoryBatch {
-	return &MemoryBatch{MemoryStore: *NewMemoryStore()}
 }
 
 // Close implements Store interface and clears up memory. Never returns an

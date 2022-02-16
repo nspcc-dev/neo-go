@@ -1846,7 +1846,7 @@ func TestBlockchain_InitWithIncompleteStateJump(t *testing.T) {
 	require.NoError(t, bcSpout.AddHeaders(&b.Header))
 
 	// put storage items with STTemp prefix
-	batch := bcSpout.dao.Store.Batch()
+	batch := storage.NewMemCachedStore(bcSpout.dao.Store)
 	tempPrefix := storage.STTempStorage
 	if bcSpout.dao.Version.StoragePrefix == tempPrefix {
 		tempPrefix = storage.STStorage
@@ -1855,10 +1855,11 @@ func TestBlockchain_InitWithIncompleteStateJump(t *testing.T) {
 		key := slice.Copy(k)
 		key[0] = byte(tempPrefix)
 		value := slice.Copy(v)
-		batch.Put(key, value)
+		_ = batch.Put(key, value)
 		return true
 	})
-	require.NoError(t, bcSpout.dao.Store.PutBatch(batch))
+	_, err := batch.Persist()
+	require.NoError(t, err)
 
 	checkNewBlockchainErr := func(t *testing.T, cfg func(c *config.Config), store storage.Store, shouldFail bool) {
 		unitTestNetCfg, err := config.Load("../../config", testchain.Network())

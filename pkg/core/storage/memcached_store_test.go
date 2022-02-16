@@ -263,18 +263,10 @@ func newMemCachedStoreForTesting(t testing.TB) Store {
 	return NewMemCachedStore(NewMemoryStore())
 }
 
-type BadBatch struct{}
-
-func (b BadBatch) Delete(k []byte) {}
-func (b BadBatch) Put(k, v []byte) {}
-
 type BadStore struct {
 	onPutBatch func()
 }
 
-func (b *BadStore) Batch() Batch {
-	return BadBatch{}
-}
 func (b *BadStore) Delete(k []byte) error {
 	return nil
 }
@@ -282,9 +274,6 @@ func (b *BadStore) Get([]byte) ([]byte, error) {
 	return nil, ErrKeyNotFound
 }
 func (b *BadStore) Put(k, v []byte) error {
-	return nil
-}
-func (b *BadStore) PutBatch(Batch) error {
 	return nil
 }
 func (b *BadStore) PutChangeSet(_ map[string][]byte, _ map[string][]byte) error {

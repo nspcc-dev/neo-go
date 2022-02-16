@@ -146,13 +146,13 @@ func (s *Module) CleanStorage() error {
 	if s.localHeight.Load() != 0 {
 		return fmt.Errorf("can't clean MPT data for non-genesis block: expected local stateroot height 0, got %d", s.localHeight.Load())
 	}
-	b := s.Store.Batch()
+	b := storage.NewMemCachedStore(s.Store)
 	s.Store.Seek(storage.SeekRange{Prefix: []byte{byte(storage.DataMPT)}}, func(k, _ []byte) bool {
 		// #1468, but don't need to copy here, because it is done by Store.
-		b.Delete(k)
+		_ = b.Delete(k)
 		return true
 	})
-	err := s.Store.PutBatch(b)
+	_, err := b.Persist()
 	if err != nil {
 		return fmt.Errorf("failed to remove outdated MPT-reated items: %w", err)
 	}

@@ -665,9 +665,9 @@ func (dao *Simple) StoreAsBlock(block *block.Block, aer1 *state.AppExecResult, a
 	return dao.Store.Put(key, buf.Bytes())
 }
 
-// DeleteBlock removes block from dao.
+// DeleteBlock removes block from dao. It's not atomic, so make sure you're
+// using private MemCached instance here.
 func (dao *Simple) DeleteBlock(h util.Uint256, w *io.BufBinWriter) error {
-	batch := dao.Store.Batch()
 	key := make([]byte, util.Uint256Size+1)
 	key[0] = byte(storage.DataExecutable)
 	copy(key[1:], h.BytesBE())
@@ -694,21 +694,21 @@ func (dao *Simple) DeleteBlock(h util.Uint256, w *io.BufBinWriter) error {
 	if w.Err != nil {
 		return w.Err
 	}
-	batch.Put(key, w.Bytes())
+	_ = dao.Store.Put(key, w.Bytes())
 
 	for _, tx := range b.Transactions {
 		copy(key[1:], tx.Hash().BytesBE())
-		batch.Delete(key)
+		_ = dao.Store.Delete(key)
 		if dao.Version.P2PSigExtensions {
 			for _, attr := range tx.GetAttributes(transaction.ConflictsT) {
 				hash := attr.Value.(*transaction.Conflicts).Hash
 				copy(key[1:], hash.BytesBE())
-				batch.Delete(key)
+				_ = dao.Store.Delete(key)
 			}
 		}
 	}
 
-	return dao.Store.PutBatch(batch)
+	return nil
 }
 
 // StoreAsCurrentBlock stores a hash of the given block with prefix
