@@ -179,7 +179,7 @@ func getBlockHashFromItem(bc interop.Ledger, item stackitem.Item) util.Uint256 {
 
 // getTransactionAndHeight returns transaction and its height if it's present
 // on the chain. It panics if anything goes wrong.
-func getTransactionAndHeight(d dao.DAO, item stackitem.Item) (*transaction.Transaction, uint32, error) {
+func getTransactionAndHeight(d *dao.Simple, item stackitem.Item) (*transaction.Transaction, uint32, error) {
 	hashbytes, err := item.TryBytes()
 	if err != nil {
 		panic(err)

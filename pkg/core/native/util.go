@@ -15,7 +15,7 @@ import (
 var intOne = big.NewInt(1)
 var intTwo = big.NewInt(2)
 
-func getConvertibleFromDAO(id int32, d dao.DAO, key []byte, conv stackitem.Convertible) error {
+func getConvertibleFromDAO(id int32, d *dao.Simple, key []byte, conv stackitem.Convertible) error {
 	si := d.GetStorageItem(id, key)
 	if si == nil {
 		return storage.ErrKeyNotFound
@@ -23,7 +23,7 @@ func getConvertibleFromDAO(id int32, d dao.DAO, key []byte, conv stackitem.Conve
 	return stackitem.DeserializeConvertible(si, conv)
 }
 
-func putConvertibleToDAO(id int32, d dao.DAO, key []byte, conv stackitem.Convertible) error {
+func putConvertibleToDAO(id int32, d *dao.Simple, key []byte, conv stackitem.Convertible) error {
 	data, err := stackitem.SerializeConvertible(conv)
 	if err != nil {
 		return err
@@ -32,11 +32,11 @@ func putConvertibleToDAO(id int32, d dao.DAO, key []byte, conv stackitem.Convert
 	return nil
 }
 
-func setIntWithKey(id int32, dao dao.DAO, key []byte, value int64) {
+func setIntWithKey(id int32, dao *dao.Simple, key []byte, value int64) {
 	dao.PutStorageItem(id, key, bigint.ToBytes(big.NewInt(value)))
 }
 
-func getIntWithKey(id int32, dao dao.DAO, key []byte) int64 {
+func getIntWithKey(id int32, dao *dao.Simple, key []byte) int64 {
 	si := dao.GetStorageItem(id, key)
 	if si == nil {
 		panic(fmt.Errorf("item with id = %d and key = %s is not initialized", id, hex.EncodeToString(key)))

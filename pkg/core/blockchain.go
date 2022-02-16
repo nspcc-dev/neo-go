@@ -519,7 +519,7 @@ func (bc *Blockchain) jumpToStateInternal(p uint32, stage stateJumpStage) error 
 
 		fallthrough
 	case newStorageItemsAdded:
-		cache := bc.dao.GetWrapped().(*dao.Simple)
+		cache := bc.dao.GetWrapped()
 		prefix := statesync.TemporaryPrefix(bc.dao.Version.StoragePrefix)
 		bc.dao.Store.Seek(storage.SeekRange{Prefix: []byte{byte(prefix)}}, func(k, _ []byte) bool {
 			// #1468, but don't need to copy here, because it is done by Store.
@@ -903,7 +903,7 @@ func (bc *Blockchain) AddHeaders(headers ...*block.Header) error {
 func (bc *Blockchain) addHeaders(verify bool, headers ...*block.Header) error {
 	var (
 		start = time.Now()
-		batch = bc.dao.GetWrapped().(*dao.Simple)
+		batch = bc.dao.GetWrapped()
 		err   error
 	)
 
@@ -1146,9 +1146,8 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 	appExecResults = append(appExecResults, aer)
 	aerchan <- aer
 	close(aerchan)
-	d := cache.(*dao.Simple)
-	b := d.GetMPTBatch()
-	mpt, sr, err := bc.stateRoot.AddMPTBatch(block.Index, b, d.Store)
+	b := cache.GetMPTBatch()
+	mpt, sr, err := bc.stateRoot.AddMPTBatch(block.Index, b, cache.Store)
 	if err != nil {
 		// Release goroutines, don't care about errors, we already have one.
 		<-aerdone
@@ -1172,7 +1171,7 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 	}
 
 	if bc.config.SaveStorageBatch {
-		bc.lastBatch = d.GetBatch()
+		bc.lastBatch = cache.GetBatch()
 	}
 	// Every persist cycle we also compact our in-memory MPT. It's flushed
 	// already in AddMPTBatch, so collapsing it is safe.
@@ -1272,7 +1271,7 @@ func (bc *Blockchain) IsExtensibleAllowed(u util.Uint160) bool {
 	return n < len(us)
 }
 
-func (bc *Blockchain) runPersist(script []byte, block *block.Block, cache dao.DAO, trig trigger.Type) (*state.AppExecResult, error) {
+func (bc *Blockchain) runPersist(script []byte, block *block.Block, cache *dao.Simple, trig trigger.Type) (*state.AppExecResult, error) {
 	systemInterop := bc.newInteropContext(trig, cache, block, nil)
 	v := systemInterop.SpawnVM()
 	v.LoadScriptWithFlags(script, callflag.All)
@@ -1294,7 +1293,7 @@ func (bc *Blockchain) runPersist(script []byte, block *block.Block, cache dao.DA
 	}, nil
 }
 
-func (bc *Blockchain) handleNotification(note *state.NotificationEvent, d dao.DAO,
+func (bc *Blockchain) handleNotification(note *state.NotificationEvent, d *dao.Simple,
 	transCache map[util.Uint160]transferData, b *block.Block, h util.Uint256) {
 	if note.Name != "Transfer" {
 		return
@@ -1337,7 +1336,7 @@ func parseUint160(itm stackitem.Item) (util.Uint160, error) {
 	return util.Uint160DecodeBytesBE(bytes)
 }
 
-func (bc *Blockchain) processTokenTransfer(cache dao.DAO, transCache map[util.Uint160]transferData,
+func (bc *Blockchain) processTokenTransfer(cache *dao.Simple, transCache map[util.Uint160]transferData,
 	h util.Uint256, b *block.Block, sc util.Uint160, from util.Uint160, to util.Uint160,
 	amount *big.Int, tokenID []byte) {
 	var id int32
@@ -1391,7 +1390,7 @@ func (bc *Blockchain) processTokenTransfer(cache dao.DAO, transCache map[util.Ui
 	}
 }
 
-func appendTokenTransfer(cache dao.DAO, transCache map[util.Uint160]transferData, addr util.Uint160, transfer io.Serializable,
+func appendTokenTransfer(cache *dao.Simple, transCache map[util.Uint160]transferData, addr util.Uint160, transfer io.Serializable,
 	token int32, bIndex uint32, bTimestamp uint64, isNEP11 bool) error {
 	transferData, ok := transCache[addr]
 	if !ok {
@@ -2154,7 +2153,7 @@ func (bc *Blockchain) GetEnrollments() ([]state.Validator, error) {
 
 // GetTestVM returns an interop context with VM set up for a test run.
 func (bc *Blockchain) GetTestVM(t trigger.Type, tx *transaction.Transaction, b *block.Block) *interop.Context {
-	d := bc.dao.GetWrapped().(*dao.Simple)
+	d := bc.dao.GetWrapped()
 	systemInterop := bc.newInteropContext(t, d, b, tx)
 	vm := systemInterop.SpawnVM()
 	vm.SetPriceGetter(systemInterop.GetPrice)
@@ -2324,7 +2323,7 @@ func hashAndIndexToBytes(h util.Uint256, index uint32) []byte {
 	return buf.Bytes()
 }
 
-func (bc *Blockchain) newInteropContext(trigger trigger.Type, d dao.DAO, block *block.Block, tx *transaction.Transaction) *interop.Context {
+func (bc *Blockchain) newInteropContext(trigger trigger.Type, d *dao.Simple, block *block.Block, tx *transaction.Transaction) *interop.Context {
 	ic := interop.NewContext(trigger, bc, d, bc.contracts.Management.GetContract, bc.contracts.Contracts, block, tx, bc.log)
 	ic.Functions = systemInterops
 	switch {

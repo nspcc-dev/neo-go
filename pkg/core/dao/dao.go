@@ -27,48 +27,6 @@ var (
 	ErrHasConflicts = errors.New("transaction has conflicts")
 )
 
-// DAO is a data access object.
-type DAO interface {
-	DeleteBlock(h util.Uint256, buf *io.BufBinWriter) error
-	DeleteContractID(id int32)
-	DeleteStorageItem(id int32, key []byte)
-	GetAndDecode(entity io.Serializable, key []byte) error
-	GetAppExecResults(hash util.Uint256, trig trigger.Type) ([]state.AppExecResult, error)
-	GetBatch() *storage.MemBatch
-	GetBlock(hash util.Uint256) (*block.Block, error)
-	GetContractScriptHash(id int32) (util.Uint160, error)
-	GetCurrentBlockHeight() (uint32, error)
-	GetCurrentHeaderHeight() (i uint32, h util.Uint256, err error)
-	GetHeaderHashes() ([]util.Uint256, error)
-	GetTokenTransferInfo(acc util.Uint160) (*state.TokenTransferInfo, error)
-	GetTokenTransferLog(acc util.Uint160, start uint64, index uint32, isNEP11 bool) (*state.TokenTransferLog, error)
-	GetStateSyncPoint() (uint32, error)
-	GetStateSyncCurrentBlockHeight() (uint32, error)
-	GetStorageItem(id int32, key []byte) state.StorageItem
-	GetStorageItems(id int32) ([]state.StorageItemWithKey, error)
-	GetStorageItemsWithPrefix(id int32, prefix []byte) ([]state.StorageItemWithKey, error)
-	GetTransaction(hash util.Uint256) (*transaction.Transaction, uint32, error)
-	GetVersion() (Version, error)
-	GetWrapped() DAO
-	HasTransaction(hash util.Uint256) error
-	Persist() (int, error)
-	PersistSync() (int, error)
-	PutContractID(id int32, hash util.Uint160)
-	PutCurrentHeader(hashAndIndex []byte)
-	PutTokenTransferInfo(acc util.Uint160, bs *state.TokenTransferInfo) error
-	PutTokenTransferLog(acc util.Uint160, start uint64, index uint32, isNEP11 bool, lg *state.TokenTransferLog)
-	PutStateSyncPoint(p uint32)
-	PutStateSyncCurrentBlockHeight(h uint32)
-	PutStorageItem(id int32, key []byte, si state.StorageItem)
-	PutVersion(v Version)
-	Seek(id int32, rng storage.SeekRange, f func(k, v []byte) bool)
-	SeekAsync(ctx context.Context, id int32, rng storage.SeekRange) chan storage.KeyValue
-	StoreAsBlock(block *block.Block, aer1 *state.AppExecResult, aer2 *state.AppExecResult, buf *io.BufBinWriter) error
-	StoreAsCurrentBlock(block *block.Block, buf *io.BufBinWriter)
-	StoreAsTransaction(tx *transaction.Transaction, index uint32, aer *state.AppExecResult, buf *io.BufBinWriter) error
-	putTokenTransferInfo(acc util.Uint160, bs *state.TokenTransferInfo, buf *io.BufBinWriter) error
-}
-
 // Simple is memCached wrapper around DB, simple DAO implementation.
 type Simple struct {
 	Version Version
@@ -95,7 +53,7 @@ func (dao *Simple) GetBatch() *storage.MemBatch {
 
 // GetWrapped returns new DAO instance with another layer of wrapped
 // MemCachedStore around the current DAO Store.
-func (dao *Simple) GetWrapped() DAO {
+func (dao *Simple) GetWrapped() *Simple {
 	d := NewSimple(dao.Store, dao.Version.StateRootInHeader, dao.Version.P2PSigExtensions)
 	d.Version = dao.Version
 	return d

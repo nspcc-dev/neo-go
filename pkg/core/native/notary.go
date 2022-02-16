@@ -293,7 +293,7 @@ func (n *Notary) balanceOf(ic *interop.Context, args []stackitem.Item) stackitem
 }
 
 // BalanceOf is an internal representation of `balanceOf` Notary method.
-func (n *Notary) BalanceOf(dao dao.DAO, acc util.Uint160) *big.Int {
+func (n *Notary) BalanceOf(dao *dao.Simple, acc util.Uint160) *big.Int {
 	deposit := n.GetDepositFor(dao, acc)
 	if deposit == nil {
 		return big.NewInt(0)
@@ -308,7 +308,7 @@ func (n *Notary) expirationOf(ic *interop.Context, args []stackitem.Item) stacki
 }
 
 // ExpirationOf is an internal representation of `expirationOf` Notary method.
-func (n *Notary) ExpirationOf(dao dao.DAO, acc util.Uint160) uint32 {
+func (n *Notary) ExpirationOf(dao *dao.Simple, acc util.Uint160) uint32 {
 	deposit := n.GetDepositFor(dao, acc)
 	if deposit == nil {
 		return 0
@@ -360,7 +360,7 @@ func (n *Notary) verify(ic *interop.Context, args []stackitem.Item) stackitem.It
 }
 
 // GetNotaryNodes returns public keys of notary nodes.
-func (n *Notary) GetNotaryNodes(d dao.DAO) (keys.PublicKeys, error) {
+func (n *Notary) GetNotaryNodes(d *dao.Simple) (keys.PublicKeys, error) {
 	nodes, _, err := n.Desig.GetDesignatedByRole(d, noderoles.P2PNotary, math.MaxUint32)
 	return nodes, err
 }
@@ -371,7 +371,7 @@ func (n *Notary) getMaxNotValidBeforeDelta(ic *interop.Context, _ []stackitem.It
 }
 
 // GetMaxNotValidBeforeDelta is an internal representation of Notary getMaxNotValidBeforeDelta method.
-func (n *Notary) GetMaxNotValidBeforeDelta(dao dao.DAO) uint32 {
+func (n *Notary) GetMaxNotValidBeforeDelta(dao *dao.Simple) uint32 {
 	n.lock.RLock()
 	defer n.lock.RUnlock()
 	if n.isValid {
@@ -400,7 +400,7 @@ func (n *Notary) setMaxNotValidBeforeDelta(ic *interop.Context, args []stackitem
 
 // GetDepositFor returns state.Deposit for the account specified. It returns nil in case if
 // deposit is not found in storage and panics in case of any other error.
-func (n *Notary) GetDepositFor(dao dao.DAO, acc util.Uint160) *state.Deposit {
+func (n *Notary) GetDepositFor(dao *dao.Simple, acc util.Uint160) *state.Deposit {
 	key := append([]byte{prefixDeposit}, acc.BytesBE()...)
 	deposit := new(state.Deposit)
 	err := getConvertibleFromDAO(n.ID, dao, key, deposit)
@@ -414,13 +414,13 @@ func (n *Notary) GetDepositFor(dao dao.DAO, acc util.Uint160) *state.Deposit {
 }
 
 // putDepositFor puts deposit on the balance of the specified account in the storage.
-func (n *Notary) putDepositFor(dao dao.DAO, deposit *state.Deposit, acc util.Uint160) error {
+func (n *Notary) putDepositFor(dao *dao.Simple, deposit *state.Deposit, acc util.Uint160) error {
 	key := append([]byte{prefixDeposit}, acc.BytesBE()...)
 	return putConvertibleToDAO(n.ID, dao, key, deposit)
 }
 
 // removeDepositFor removes deposit from the storage.
-func (n *Notary) removeDepositFor(dao dao.DAO, acc util.Uint160) {
+func (n *Notary) removeDepositFor(dao *dao.Simple, acc util.Uint160) {
 	key := append([]byte{prefixDeposit}, acc.BytesBE()...)
 	dao.DeleteStorageItem(n.ID, key)
 }

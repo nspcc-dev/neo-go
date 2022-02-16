@@ -99,7 +99,7 @@ func (c *nep17TokenNative) TotalSupply(ic *interop.Context, _ []stackitem.Item) 
 	return stackitem.NewBigInteger(supply)
 }
 
-func (c *nep17TokenNative) getTotalSupply(d dao.DAO) (state.StorageItem, *big.Int) {
+func (c *nep17TokenNative) getTotalSupply(d *dao.Simple) (state.StorageItem, *big.Int) {
 	si := d.GetStorageItem(c.ID, totalSupplyKey)
 	if si == nil {
 		si = []byte{}
@@ -107,7 +107,7 @@ func (c *nep17TokenNative) getTotalSupply(d dao.DAO) (state.StorageItem, *big.In
 	return si, bigint.FromBytes(si)
 }
 
-func (c *nep17TokenNative) saveTotalSupply(d dao.DAO, si state.StorageItem, supply *big.Int) {
+func (c *nep17TokenNative) saveTotalSupply(d *dao.Simple, si state.StorageItem, supply *big.Int) {
 	si = state.StorageItem(bigint.ToPreallocatedBytes(supply, si))
 	d.PutStorageItem(c.ID, totalSupplyKey, si)
 }
@@ -237,7 +237,7 @@ func (c *nep17TokenNative) balanceOf(ic *interop.Context, args []stackitem.Item)
 	return stackitem.NewBigInteger(c.balanceOfInternal(ic.DAO, h))
 }
 
-func (c *nep17TokenNative) balanceOfInternal(d dao.DAO, h util.Uint160) *big.Int {
+func (c *nep17TokenNative) balanceOfInternal(d *dao.Simple, h util.Uint160) *big.Int {
 	key := makeAccountKey(h)
 	si := d.GetStorageItem(c.ID, key)
 	if si == nil {
