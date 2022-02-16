@@ -566,13 +566,19 @@ func (bc *Blockchain) jumpToStateInternal(p uint32, stage stateJumpStage) error 
 		// After current state is updated, we need to remove outdated state-related data if so.
 		// The only outdated data we might have is genesis-related data, so check it.
 		if p-bc.config.MaxTraceableBlocks > 0 {
-			cache := bc.dao.GetWrapped()
+			cache := bc.dao.GetWrapped().(*dao.Simple)
 			writeBuf.Reset()
 			err := cache.DeleteBlock(bc.headerHashes[0], writeBuf)
 			if err != nil {
 				return fmt.Errorf("failed to remove outdated state data for the genesis block: %w", err)
 			}
-			// TODO: remove NEP-17 transfers and NEP-17 transfer info for genesis block, #2096 related.
+			prefixes := []byte{byte(storage.STNEP11Transfers), byte(storage.STNEP17Transfers), byte(storage.STTokenTransferInfo)}
+			for i := range prefixes {
+				cache.Store.Seek(storage.SeekRange{Prefix: prefixes[i : i+1]}, func(k, v []byte) bool {
+					_ = cache.Store.Delete(k) // It's MemCachedStore which never returns an error.
+					return true
+				})
+			}
 			_, err = cache.Persist()
 			if err != nil {
 				return fmt.Errorf("failed to drop genesis block state: %w", err)
