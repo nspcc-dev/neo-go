@@ -10,7 +10,7 @@ import (
 var (
 	prefixes = []KeyPrefix{
 		DataExecutable,
-		STAccount,
+		DataMPT,
 		STStorage,
 		IXHeaderHashList,
 		SYSCurrentBlock,
@@ -20,7 +20,7 @@ var (
 
 	expected = []uint8{
 		0x01,
-		0x40,
+		0x03,
 		0x70,
 		0x80,
 		0xc0,
@@ -49,12 +49,12 @@ func TestBatchToOperations(t *testing.T) {
 	b := &MemBatch{
 		Put: []KeyValueExists{
 			{KeyValue: KeyValue{Key: []byte{byte(STStorage), 0x01}, Value: []byte{0x01}}},
-			{KeyValue: KeyValue{Key: []byte{byte(STAccount), 0x02}, Value: []byte{0x02}}},
+			{KeyValue: KeyValue{Key: []byte{byte(DataMPT), 0x02}, Value: []byte{0x02}}},
 			{KeyValue: KeyValue{Key: []byte{byte(STStorage), 0x03}, Value: []byte{0x03}}, Exists: true},
 		},
 		Deleted: []KeyValueExists{
 			{KeyValue: KeyValue{Key: []byte{byte(STStorage), 0x04}, Value: []byte{0x04}}},
-			{KeyValue: KeyValue{Key: []byte{byte(STAccount), 0x05}, Value: []byte{0x05}}},
+			{KeyValue: KeyValue{Key: []byte{byte(DataMPT), 0x05}, Value: []byte{0x05}}},
 			{KeyValue: KeyValue{Key: []byte{byte(STStorage), 0x06}, Value: []byte{0x06}}, Exists: true},
 		},
 	}
