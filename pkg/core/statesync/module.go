@@ -330,19 +330,16 @@ func (s *Module) AddBlock(block *block.Block) error {
 		}
 	}
 	cache := s.dao.GetPrivate()
-	writeBuf := io.NewBufBinWriter()
-	if err := cache.StoreAsBlock(block, nil, nil, writeBuf); err != nil {
+	if err := cache.StoreAsBlock(block, nil, nil); err != nil {
 		return err
 	}
-	writeBuf.Reset()
 
 	cache.PutStateSyncCurrentBlockHeight(block.Index)
 
 	for _, tx := range block.Transactions {
-		if err := cache.StoreAsTransaction(tx, block.Index, nil, writeBuf); err != nil {
+		if err := cache.StoreAsTransaction(tx, block.Index, nil); err != nil {
 			return err
 		}
-		writeBuf.Reset()
 	}
 
 	_, err := cache.Persist()

@@ -804,7 +804,7 @@ func TestVerifyTx(t *testing.T) {
 							},
 						},
 					}
-					require.NoError(t, bc.dao.StoreAsTransaction(conflicting, bc.blockHeight, nil, nil))
+					require.NoError(t, bc.dao.StoreAsTransaction(conflicting, bc.blockHeight, nil))
 					require.True(t, errors.Is(bc.VerifyTx(tx), ErrHasConflicts))
 				})
 				t.Run("attribute on-chain conflict", func(t *testing.T) {

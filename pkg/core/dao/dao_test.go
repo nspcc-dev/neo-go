@@ -98,7 +98,7 @@ func TestPutGetBlock(t *testing.T) {
 			Stack:   []stackitem.Item{},
 		},
 	}
-	err := dao.StoreAsBlock(b, appExecResult1, appExecResult2, nil)
+	err := dao.StoreAsBlock(b, appExecResult1, appExecResult2)
 	require.NoError(t, err)
 	gotBlock, err := dao.GetBlock(hash)
 	require.NoError(t, err)
@@ -164,7 +164,7 @@ func TestGetCurrentHeaderHeight_Store(t *testing.T) {
 			},
 		},
 	}
-	dao.StoreAsCurrentBlock(b, nil)
+	dao.StoreAsCurrentBlock(b)
 	height, err := dao.GetCurrentBlockHeight()
 	require.NoError(t, err)
 	require.Equal(t, uint32(0), height)
@@ -185,7 +185,7 @@ func TestStoreAsTransaction(t *testing.T) {
 				Stack:   []stackitem.Item{},
 			},
 		}
-		err := dao.StoreAsTransaction(tx, 0, aer, nil)
+		err := dao.StoreAsTransaction(tx, 0, aer)
 		require.NoError(t, err)
 		err = dao.HasTransaction(hash)
 		require.NotNil(t, err)
@@ -216,7 +216,7 @@ func TestStoreAsTransaction(t *testing.T) {
 				Stack:   []stackitem.Item{},
 			},
 		}
-		err := dao.StoreAsTransaction(tx, 0, aer, nil)
+		err := dao.StoreAsTransaction(tx, 0, aer)
 		require.NoError(t, err)
 		err = dao.HasTransaction(hash)
 		require.True(t, errors.Is(err, ErrAlreadyExists))
@@ -265,7 +265,7 @@ func BenchmarkStoreAsTransaction(b *testing.B) {
 	b.ResetTimer()
 	b.ReportAllocs()
 	for n := 0; n < b.N; n++ {
-		err := dao.StoreAsTransaction(tx, 1, aer, nil)
+		err := dao.StoreAsTransaction(tx, 1, aer)
 		if err != nil {
 			b.FailNow()
 		}
@@ -275,18 +275,21 @@ func BenchmarkStoreAsTransaction(b *testing.B) {
 func TestMakeStorageItemKey(t *testing.T) {
 	var id int32 = 5
 
+	dao := NewSimple(storage.NewMemoryStore(), true, false)
+
 	expected := []byte{byte(storage.STStorage), 0, 0, 0, 0, 1, 2, 3}
 	binary.LittleEndian.PutUint32(expected[1:5], uint32(id))
-	actual := makeStorageItemKey(storage.STStorage, id, []byte{1, 2, 3})
+	actual := dao.makeStorageItemKey(id, []byte{1, 2, 3})
 	require.Equal(t, expected, actual)
 
 	expected = expected[0:5]
-	actual = makeStorageItemKey(storage.STStorage, id, nil)
+	actual = dao.makeStorageItemKey(id, nil)
 	require.Equal(t, expected, actual)
 
 	expected = []byte{byte(storage.STTempStorage), 0, 0, 0, 0, 1, 2, 3}
 	binary.LittleEndian.PutUint32(expected[1:5], uint32(id))
-	actual = makeStorageItemKey(storage.STTempStorage, id, []byte{1, 2, 3})
+	dao.Version.StoragePrefix = storage.STTempStorage
+	actual = dao.makeStorageItemKey(id, []byte{1, 2, 3})
 	require.Equal(t, expected, actual)
 }
 

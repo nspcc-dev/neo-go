@@ -499,7 +499,6 @@ func (bc *Blockchain) jumpToStateInternal(p uint32, stage stateJumpStage) error 
 
 	bc.log.Info("jumping to state sync point", zap.Uint32("state sync point", p))
 
-	writeBuf := io.NewBufBinWriter()
 	jumpStageKey := storage.SYSStateJumpStage.Bytes()
 	switch stage {
 	case none:
@@ -530,8 +529,7 @@ func (bc *Blockchain) jumpToStateInternal(p uint32, stage stateJumpStage) error 
 		// After current state is updated, we need to remove outdated state-related data if so.
 		// The only outdated data we might have is genesis-related data, so check it.
 		if p-bc.config.MaxTraceableBlocks > 0 {
-			writeBuf.Reset()
-			err := cache.DeleteBlock(bc.headerHashes[0], writeBuf)
+			err := cache.DeleteBlock(bc.headerHashes[0])
 			if err != nil {
 				return fmt.Errorf("failed to remove outdated state data for the genesis block: %w", err)
 			}
@@ -559,8 +557,7 @@ func (bc *Blockchain) jumpToStateInternal(p uint32, stage stateJumpStage) error 
 	if err != nil {
 		return fmt.Errorf("failed to get current block: %w", err)
 	}
-	writeBuf.Reset()
-	bc.dao.StoreAsCurrentBlock(block, writeBuf)
+	bc.dao.StoreAsCurrentBlock(block)
 	bc.topBlock.Store(block)
 	atomic.StoreUint32(&bc.blockHeight, p)
 	atomic.StoreUint32(&bc.persistedHeight, p)
@@ -1006,14 +1003,12 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 	go func() {
 		var (
 			kvcache      = aerCache
-			writeBuf     = io.NewBufBinWriter()
 			err          error
 			txCnt        int
 			baer1, baer2 *state.AppExecResult
 			transCache   = make(map[util.Uint160]transferData)
 		)
-		kvcache.StoreAsCurrentBlock(block, writeBuf)
-		writeBuf.Reset()
+		kvcache.StoreAsCurrentBlock(block)
 		if bc.config.RemoveUntraceableBlocks {
 			var start, stop uint32
 			if bc.config.P2PStateExchangeExtensions {
@@ -1031,13 +1026,12 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 				stop = start + 1
 			}
 			for index := start; index < stop; index++ {
-				err := kvcache.DeleteBlock(bc.headerHashes[index], writeBuf)
+				err := kvcache.DeleteBlock(bc.headerHashes[index])
 				if err != nil {
 					bc.log.Warn("error while removing old block",
 						zap.Uint32("index", index),
 						zap.Error(err))
 				}
-				writeBuf.Reset()
 			}
 		}
 		for aer := range aerchan {
@@ -1048,7 +1042,7 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 					baer2 = aer
 				}
 			} else {
-				err = kvcache.StoreAsTransaction(block.Transactions[txCnt], block.Index, aer, writeBuf)
+				err = kvcache.StoreAsTransaction(block.Transactions[txCnt], block.Index, aer)
 				txCnt++
 			}
 			if err != nil {
@@ -1060,17 +1054,15 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 					bc.handleNotification(&aer.Execution.Events[j], kvcache, transCache, block, aer.Container)
 				}
 			}
-			writeBuf.Reset()
 		}
 		if err != nil {
 			aerdone <- err
 			return
 		}
-		if err := kvcache.StoreAsBlock(block, baer1, baer2, writeBuf); err != nil {
+		if err := kvcache.StoreAsBlock(block, baer1, baer2); err != nil {
 			aerdone <- err
 			return
 		}
-		writeBuf.Reset()
 		for acc, trData := range transCache {
 			err = kvcache.PutTokenTransferInfo(acc, &trData.Info)
 			if err != nil {
