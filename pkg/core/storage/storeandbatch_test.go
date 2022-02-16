@@ -19,17 +19,6 @@ type dbSetup struct {
 
 type dbTestFunction func(*testing.T, Store)
 
-func testStorePutAndGet(t *testing.T, s Store) {
-	key := []byte("foo")
-	value := []byte("bar")
-
-	require.NoError(t, s.Put(key, value))
-
-	result, err := s.Get(key)
-	assert.Nil(t, err)
-	require.Equal(t, value, result)
-}
-
 func testStoreGetNonExistent(t *testing.T, s Store) {
 	key := []byte("sparse")
 
@@ -37,7 +26,7 @@ func testStoreGetNonExistent(t *testing.T, s Store) {
 	assert.Equal(t, err, ErrKeyNotFound)
 }
 
-func testStoreSeek(t *testing.T, s Store) {
+func pushSeekDataSet(t *testing.T, s Store) []KeyValue {
 	// Use the same set of kvs to test Seek with different prefix/start values.
 	kvs := []KeyValue{
 		{[]byte("10"), []byte("bar")},
@@ -48,10 +37,17 @@ func testStoreSeek(t *testing.T, s Store) {
 		{[]byte("30"), []byte("bare")},
 		{[]byte("31"), []byte("barf")},
 	}
+	up := NewMemCachedStore(s)
 	for _, v := range kvs {
-		require.NoError(t, s.Put(v.Key, v.Value))
+		require.NoError(t, up.Put(v.Key, v.Value))
 	}
+	_, err := up.PersistSync()
+	require.NoError(t, err)
+	return kvs
+}
 
+func testStoreSeek(t *testing.T, s Store) {
+	kvs := pushSeekDataSet(t, s)
 	check := func(t *testing.T, goodprefix, start []byte, goodkvs []KeyValue, backwards bool, cont func(k, v []byte) bool) {
 		// Seek result expected to be sorted in an ascending (for forwards seeking) or descending (for backwards seeking) way.
 		cmpFunc := func(i, j int) bool {
@@ -209,43 +205,8 @@ func testStoreSeek(t *testing.T, s Store) {
 	})
 }
 
-func testStoreDeleteNonExistent(t *testing.T, s Store) {
-	key := []byte("sparse")
-
-	assert.NoError(t, s.Delete(key))
-}
-
-func testStorePutAndDelete(t *testing.T, s Store) {
-	key := []byte("foo")
-	value := []byte("bar")
-
-	require.NoError(t, s.Put(key, value))
-
-	err := s.Delete(key)
-	assert.Nil(t, err)
-
-	_, err = s.Get(key)
-	assert.NotNil(t, err)
-	assert.Equal(t, err, ErrKeyNotFound)
-
-	// Double delete.
-	err = s.Delete(key)
-	assert.Nil(t, err)
-}
-
 func testStoreSeekGC(t *testing.T, s Store) {
-	kvs := []KeyValue{
-		{[]byte("10"), []byte("bar")},
-		{[]byte("11"), []byte("bara")},
-		{[]byte("20"), []byte("barb")},
-		{[]byte("21"), []byte("barc")},
-		{[]byte("22"), []byte("bard")},
-		{[]byte("30"), []byte("bare")},
-		{[]byte("31"), []byte("barf")},
-	}
-	for _, v := range kvs {
-		require.NoError(t, s.Put(v.Key, v.Value))
-	}
+	kvs := pushSeekDataSet(t, s)
 	err := s.SeekGC(SeekRange{Prefix: []byte("1")}, func(k, v []byte) bool {
 		return true
 	})
@@ -275,9 +236,7 @@ func TestAllDBs(t *testing.T) {
 		{"MemCached", newMemCachedStoreForTesting},
 		{"Memory", newMemoryStoreForTesting},
 	}
-	var tests = []dbTestFunction{testStorePutAndGet,
-		testStoreGetNonExistent, testStoreSeek,
-		testStoreDeleteNonExistent, testStorePutAndDelete,
+	var tests = []dbTestFunction{testStoreGetNonExistent, testStoreSeek,
 		testStoreSeekGC}
 	for _, db := range DBs {
 		for _, test := range tests {

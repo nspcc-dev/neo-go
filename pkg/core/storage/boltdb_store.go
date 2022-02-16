@@ -47,15 +47,6 @@ func NewBoltDBStore(cfg BoltDBOptions) (*BoltDBStore, error) {
 	return &BoltDBStore{db: db}, nil
 }
 
-// Put implements the Store interface.
-func (s *BoltDBStore) Put(key, value []byte) error {
-	return s.db.Update(func(tx *bbolt.Tx) error {
-		b := tx.Bucket(Bucket)
-		err := b.Put(key, value)
-		return err
-	})
-}
-
 // Get implements the Store interface.
 func (s *BoltDBStore) Get(key []byte) (val []byte, err error) {
 	err = s.db.View(func(tx *bbolt.Tx) error {
@@ -71,14 +62,6 @@ func (s *BoltDBStore) Get(key []byte) (val []byte, err error) {
 		err = ErrKeyNotFound
 	}
 	return
-}
-
-// Delete implements the Store interface.
-func (s *BoltDBStore) Delete(key []byte) error {
-	return s.db.Update(func(tx *bbolt.Tx) error {
-		b := tx.Bucket(Bucket)
-		return b.Delete(key)
-	})
 }
 
 // PutChangeSet implements the Store interface.

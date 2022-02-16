@@ -12,6 +12,34 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestMemCachedPutGetDelete(t *testing.T) {
+	ps := NewMemoryStore()
+	s := NewMemCachedStore(ps)
+	key := []byte("foo")
+	value := []byte("bar")
+
+	require.NoError(t, s.Put(key, value))
+
+	result, err := s.Get(key)
+	assert.Nil(t, err)
+	require.Equal(t, value, result)
+
+	err = s.Delete(key)
+	assert.Nil(t, err)
+
+	_, err = s.Get(key)
+	assert.NotNil(t, err)
+	assert.Equal(t, err, ErrKeyNotFound)
+
+	// Double delete.
+	err = s.Delete(key)
+	assert.Nil(t, err)
+
+	// Nonexistent.
+	key = []byte("sparse")
+	assert.NoError(t, s.Delete(key))
+}
+
 func testMemCachedStorePersist(t *testing.T, ps Store) {
 	// cached Store
 	ts := NewMemCachedStore(ps)
@@ -123,7 +151,7 @@ func TestCachedGetFromPersistent(t *testing.T) {
 	ps := NewMemoryStore()
 	ts := NewMemCachedStore(ps)
 
-	assert.NoError(t, ps.Put(key, value))
+	assert.NoError(t, ps.PutChangeSet(map[string][]byte{string(key): value}, nil))
 	val, err := ts.Get(key)
 	assert.Nil(t, err)
 	assert.Equal(t, value, val)
@@ -156,14 +184,14 @@ func TestCachedSeek(t *testing.T) {
 		ts = NewMemCachedStore(ps)
 	)
 	for _, v := range lowerKVs {
-		require.NoError(t, ps.Put(v.Key, v.Value))
+		require.NoError(t, ps.PutChangeSet(map[string][]byte{string(v.Key): v.Value}, nil))
 	}
 	for _, v := range deletedKVs {
-		require.NoError(t, ps.Put(v.Key, v.Value))
+		require.NoError(t, ps.PutChangeSet(map[string][]byte{string(v.Key): v.Value}, nil))
 		require.NoError(t, ts.Delete(v.Key))
 	}
 	for _, v := range updatedKVs {
-		require.NoError(t, ps.Put(v.Key, []byte("stub")))
+		require.NoError(t, ps.PutChangeSet(map[string][]byte{string(v.Key): v.Value}, nil))
 		require.NoError(t, ts.Put(v.Key, v.Value))
 	}
 	foundKVs := make(map[string][]byte)
@@ -199,36 +227,38 @@ func benchmarkCachedSeek(t *testing.B, ps Store, psElementsCount, tsElementsCoun
 	)
 	for i := 0; i < psElementsCount; i++ {
 		// lower KVs with matching prefix that should be found
-		require.NoError(t, ps.Put(append(lowerPrefixGood, random.Bytes(10)...), []byte("value")))
+		require.NoError(t, ts.Put(append(lowerPrefixGood, random.Bytes(10)...), []byte("value")))
 		// lower KVs with non-matching prefix that shouldn't be found
-		require.NoError(t, ps.Put(append(lowerPrefixBad, random.Bytes(10)...), []byte("value")))
+		require.NoError(t, ts.Put(append(lowerPrefixBad, random.Bytes(10)...), []byte("value")))
 
 		// deleted KVs with matching prefix that shouldn't be found
 		key := append(deletedPrefixGood, random.Bytes(10)...)
-		require.NoError(t, ps.Put(key, []byte("deleted")))
+		require.NoError(t, ts.Put(key, []byte("deleted")))
 		if i < tsElementsCount {
 			require.NoError(t, ts.Delete(key))
 		}
 		// deleted KVs with non-matching prefix that shouldn't be found
 		key = append(deletedPrefixBad, random.Bytes(10)...)
-		require.NoError(t, ps.Put(key, []byte("deleted")))
+		require.NoError(t, ts.Put(key, []byte("deleted")))
 		if i < tsElementsCount {
 			require.NoError(t, ts.Delete(key))
 		}
 
 		// updated KVs with matching prefix that should be found
 		key = append(updatedPrefixGood, random.Bytes(10)...)
-		require.NoError(t, ps.Put(key, []byte("stub")))
+		require.NoError(t, ts.Put(key, []byte("stub")))
 		if i < tsElementsCount {
 			require.NoError(t, ts.Put(key, []byte("updated")))
 		}
 		// updated KVs with non-matching prefix that shouldn't be found
 		key = append(updatedPrefixBad, random.Bytes(10)...)
-		require.NoError(t, ps.Put(key, []byte("stub")))
+		require.NoError(t, ts.Put(key, []byte("stub")))
 		if i < tsElementsCount {
 			require.NoError(t, ts.Put(key, []byte("updated")))
 		}
 	}
+	_, err := ts.PersistSync()
+	require.NoError(t, err)
 
 	t.ReportAllocs()
 	t.ResetTimer()
@@ -347,14 +377,14 @@ func TestCachedSeekSorting(t *testing.T) {
 		ts = NewMemCachedStore(ps)
 	)
 	for _, v := range lowerKVs {
-		require.NoError(t, ps.Put(v.Key, v.Value))
+		require.NoError(t, ps.PutChangeSet(map[string][]byte{string(v.Key): v.Value}, nil))
 	}
 	for _, v := range deletedKVs {
-		require.NoError(t, ps.Put(v.Key, v.Value))
+		require.NoError(t, ps.PutChangeSet(map[string][]byte{string(v.Key): v.Value}, nil))
 		require.NoError(t, ts.Delete(v.Key))
 	}
 	for _, v := range updatedKVs {
-		require.NoError(t, ps.Put(v.Key, []byte("stub")))
+		require.NoError(t, ps.PutChangeSet(map[string][]byte{string(v.Key): v.Value}, nil))
 		require.NoError(t, ts.Put(v.Key, v.Value))
 	}
 	var foundKVs []KeyValue

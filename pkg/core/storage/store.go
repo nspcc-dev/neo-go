@@ -82,12 +82,11 @@ type SeekRange struct {
 var ErrKeyNotFound = errors.New("key not found")
 
 type (
-	// Store is anything that can persist and retrieve the blockchain.
-	// information.
+	// Store is the underlying KV backend for the blockchain data, it's
+	// not intended to be used directly, you wrap it with some memory cache
+	// layer most of the time.
 	Store interface {
-		Delete(k []byte) error
 		Get([]byte) ([]byte, error)
-		Put(k, v []byte) error
 		// PutChangeSet allows to push prepared changeset to the Store.
 		PutChangeSet(puts map[string][]byte, stor map[string][]byte) error
 		// Seek can guarantee that provided key (k) and value (v) are the only valid until the next call to f.

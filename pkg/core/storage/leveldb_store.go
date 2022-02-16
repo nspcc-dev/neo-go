@@ -36,11 +36,6 @@ func NewLevelDBStore(cfg LevelDBOptions) (*LevelDBStore, error) {
 	}, nil
 }
 
-// Put implements the Store interface.
-func (s *LevelDBStore) Put(key, value []byte) error {
-	return s.db.Put(key, value, nil)
-}
-
 // Get implements the Store interface.
 func (s *LevelDBStore) Get(key []byte) ([]byte, error) {
 	value, err := s.db.Get(key, nil)
@@ -48,11 +43,6 @@ func (s *LevelDBStore) Get(key []byte) ([]byte, error) {
 		err = ErrKeyNotFound
 	}
 	return value, err
-}
-
-// Delete implements the Store interface.
-func (s *LevelDBStore) Delete(key []byte) error {
-	return s.db.Delete(key, nil)
 }
 
 // PutChangeSet implements the Store interface.

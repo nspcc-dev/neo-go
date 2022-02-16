@@ -5,8 +5,6 @@ import (
 	"sort"
 	"strings"
 	"sync"
-
-	"github.com/nspcc-dev/neo-go/pkg/util/slice"
 )
 
 // MemoryStore is an in-memory implementation of a Store, mainly
@@ -51,31 +49,6 @@ func put(m map[string][]byte, key string, value []byte) {
 	m[key] = value
 }
 
-// Put implements the Store interface. Never returns an error.
-func (s *MemoryStore) Put(key, value []byte) error {
-	newKey := string(key)
-	vcopy := slice.Copy(value)
-	s.mut.Lock()
-	put(s.chooseMap(key), newKey, vcopy)
-	s.mut.Unlock()
-	return nil
-}
-
-// drop deletes a key-value pair from the store, it's supposed to be called
-// with mutex locked.
-func drop(m map[string][]byte, key string) {
-	m[key] = nil
-}
-
-// Delete implements Store interface. Never returns an error.
-func (s *MemoryStore) Delete(key []byte) error {
-	newKey := string(key)
-	s.mut.Lock()
-	drop(s.chooseMap(key), newKey)
-	s.mut.Unlock()
-	return nil
-}
-
 // PutChangeSet implements the Store interface. Never returns an error.
 func (s *MemoryStore) PutChangeSet(puts map[string][]byte, stores map[string][]byte) error {
 	s.mut.Lock()
@@ -103,7 +76,7 @@ func (s *MemoryStore) SeekGC(rng SeekRange, keep func(k, v []byte) bool) error {
 	// sensitive to the order of KV pairs.
 	s.seek(rng, func(k, v []byte) bool {
 		if !keep(k, v) {
-			drop(s.chooseMap(k), string(k))
+			delete(s.chooseMap(k), string(k))
 		}
 		return true
 	})
