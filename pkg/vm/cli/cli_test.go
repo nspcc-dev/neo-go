@@ -641,3 +641,19 @@ func TestExit(t *testing.T) {
 	e.runProg(t, "exit")
 	require.True(t, e.exit.Load())
 }
+
+func TestReset(t *testing.T) {
+	script := []byte{byte(opcode.PUSH1)}
+	e := newTestVMCLI(t)
+	e.runProg(t,
+		"loadhex "+hex.EncodeToString(script),
+		"ops",
+		"reset",
+		"ops")
+
+	e.checkNextLine(t, "READY: loaded 1 instructions")
+	e.checkNextLine(t, "INDEX.*OPCODE.*PARAMETER")
+	e.checkNextLine(t, "0.*PUSH1.*")
+	e.checkNextLine(t, "")
+	e.checkError(t, fmt.Errorf("VM is not ready: no program loaded"))
+}

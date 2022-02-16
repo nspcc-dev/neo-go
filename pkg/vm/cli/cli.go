@@ -137,6 +137,11 @@ both parameters are mandatory, example:
 		Action: handleLoadGo,
 	},
 	{
+		Name:   "reset",
+		Usage:  "Unload compiled script from the VM",
+		Action: handleReset,
+	},
+	{
 		Name:      "parse",
 		Usage:     "Parse provided argument and convert it into other possible formats",
 		UsageText: `parse <arg>`,
@@ -286,6 +291,11 @@ func getReadlineInstanceFromContext(app *cli.App) *readline.Instance {
 
 func getVMFromContext(app *cli.App) *vm.VM {
 	return app.Metadata[vmKey].(*vm.VM)
+}
+
+func setVMInContext(app *cli.App, v *vm.VM) {
+	old := getVMFromContext(app)
+	*old = *v
 }
 
 func getManifestFromContext(app *cli.App) *manifest.Manifest {
@@ -462,6 +472,12 @@ func handleLoadGo(c *cli.Context) error {
 
 	v.LoadWithFlags(b.Script, callflag.All)
 	fmt.Fprintf(c.App.Writer, "READY: loaded %d instructions\n", v.Context().LenInstr())
+	changePrompt(c.App)
+	return nil
+}
+
+func handleReset(c *cli.Context) error {
+	setVMInContext(c.App, vm.New())
 	changePrompt(c.App)
 	return nil
 }
