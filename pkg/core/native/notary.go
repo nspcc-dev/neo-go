@@ -109,11 +109,7 @@ func (n *Notary) Metadata() *interop.ContractMD {
 
 // Initialize initializes Notary native contract and implements Contract interface.
 func (n *Notary) Initialize(ic *interop.Context) error {
-	err := setIntWithKey(n.ID, ic.DAO, maxNotValidBeforeDeltaKey, defaultMaxNotValidBeforeDelta)
-	if err != nil {
-		return err
-	}
-
+	setIntWithKey(n.ID, ic.DAO, maxNotValidBeforeDeltaKey, defaultMaxNotValidBeforeDelta)
 	n.isValid = true
 	n.maxNotValidBeforeDelta = defaultMaxNotValidBeforeDelta
 	return nil
@@ -141,10 +137,7 @@ func (n *Notary) OnPersist(ic *interop.Context) error {
 				balance := n.GetDepositFor(ic.DAO, payer.Account)
 				balance.Amount.Sub(balance.Amount, big.NewInt(tx.SystemFee+tx.NetworkFee))
 				if balance.Amount.Sign() == 0 {
-					err := n.removeDepositFor(ic.DAO, payer.Account)
-					if err != nil {
-						return fmt.Errorf("failed to remove an empty deposit for %s from storage: %w", payer.Account.StringBE(), err)
-					}
+					n.removeDepositFor(ic.DAO, payer.Account)
 				} else {
 					err := n.putDepositFor(ic.DAO, balance, payer.Account)
 					if err != nil {
@@ -289,9 +282,7 @@ func (n *Notary) withdraw(ic *interop.Context, args []stackitem.Item) stackitem.
 	if !ic.VM.Estack().Pop().Bool() {
 		panic("failed to transfer GAS from Notary account: `transfer` returned false")
 	}
-	if err := n.removeDepositFor(ic.DAO, from); err != nil {
-		panic(fmt.Errorf("failed to remove withdrawn deposit for %s from the storage: %w", from.StringBE(), err))
-	}
+	n.removeDepositFor(ic.DAO, from)
 	return stackitem.NewBool(true)
 }
 
@@ -402,10 +393,7 @@ func (n *Notary) setMaxNotValidBeforeDelta(ic *interop.Context, args []stackitem
 	}
 	n.lock.Lock()
 	defer n.lock.Unlock()
-	err := setIntWithKey(n.ID, ic.DAO, maxNotValidBeforeDeltaKey, int64(value))
-	if err != nil {
-		panic(fmt.Errorf("failed to put value into the storage: %w", err))
-	}
+	setIntWithKey(n.ID, ic.DAO, maxNotValidBeforeDeltaKey, int64(value))
 	n.isValid = false
 	return stackitem.Null{}
 }
@@ -432,9 +420,9 @@ func (n *Notary) putDepositFor(dao dao.DAO, deposit *state.Deposit, acc util.Uin
 }
 
 // removeDepositFor removes deposit from the storage.
-func (n *Notary) removeDepositFor(dao dao.DAO, acc util.Uint160) error {
+func (n *Notary) removeDepositFor(dao dao.DAO, acc util.Uint160) {
 	key := append([]byte{prefixDeposit}, acc.BytesBE()...)
-	return dao.DeleteStorageItem(n.ID, key)
+	dao.DeleteStorageItem(n.ID, key)
 }
 
 // calculateNotaryReward calculates the reward for a single notary node based on FEE's count and Notary nodes count.

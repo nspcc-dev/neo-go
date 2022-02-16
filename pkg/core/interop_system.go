@@ -59,7 +59,8 @@ func storageDelete(ic *interop.Context) error {
 		return errors.New("StorageContext is read only")
 	}
 	key := ic.VM.Estack().Pop().Bytes()
-	return ic.DAO.DeleteStorageItem(stc.ID, key)
+	ic.DAO.DeleteStorageItem(stc.ID, key)
+	return nil
 }
 
 // storageGet returns stored key-value pair.
@@ -128,7 +129,8 @@ func putWithContext(ic *interop.Context, stc *StorageContext, key []byte, value 
 	if !ic.VM.AddGas(int64(sizeInc) * ic.Chain.GetStoragePrice()) {
 		return errGasLimitExceeded
 	}
-	return ic.DAO.PutStorageItem(stc.ID, key, value)
+	ic.DAO.PutStorageItem(stc.ID, key, value)
+	return nil
 }
 
 // storagePut puts key-value pair into the storage.

@@ -386,23 +386,14 @@ func (m *Management) Destroy(d dao.DAO, hash util.Uint160) error {
 		return err
 	}
 	key := MakeContractKey(hash)
-	err = d.DeleteStorageItem(m.ID, key)
-	if err != nil {
-		return err
-	}
-	err = d.DeleteContractID(contract.ID)
-	if err != nil {
-		return err
-	}
+	d.DeleteStorageItem(m.ID, key)
+	d.DeleteContractID(contract.ID)
 	siArr, err := d.GetStorageItems(contract.ID)
 	if err != nil {
 		return err
 	}
 	for _, kv := range siArr {
-		err := d.DeleteStorageItem(contract.ID, []byte(kv.Key))
-		if err != nil {
-			return err
-		}
+		d.DeleteStorageItem(contract.ID, []byte(kv.Key))
 	}
 	m.markUpdated(hash)
 	return nil
@@ -425,10 +416,7 @@ func (m *Management) setMinimumDeploymentFee(ic *interop.Context, args []stackit
 	if !m.NEO.checkCommittee(ic) {
 		panic("invalid committee signature")
 	}
-	err := ic.DAO.PutStorageItem(m.ID, keyMinimumDeploymentFee, bigint.ToBytes(value))
-	if err != nil {
-		panic(err)
-	}
+	ic.DAO.PutStorageItem(m.ID, keyMinimumDeploymentFee, bigint.ToBytes(value))
 	return stackitem.Null{}
 }
 
@@ -564,10 +552,9 @@ func (m *Management) GetNEP17Contracts() []util.Uint160 {
 
 // Initialize implements Contract interface.
 func (m *Management) Initialize(ic *interop.Context) error {
-	if err := setIntWithKey(m.ID, ic.DAO, keyMinimumDeploymentFee, defaultMinimumDeploymentFee); err != nil {
-		return err
-	}
-	return setIntWithKey(m.ID, ic.DAO, keyNextAvailableID, 1)
+	setIntWithKey(m.ID, ic.DAO, keyMinimumDeploymentFee, defaultMinimumDeploymentFee)
+	setIntWithKey(m.ID, ic.DAO, keyNextAvailableID, 1)
+	return nil
 }
 
 // PutContractState saves given contract state into given DAO.
@@ -580,7 +567,8 @@ func (m *Management) PutContractState(d dao.DAO, cs *state.Contract) error {
 	if cs.UpdateCounter != 0 { // Update.
 		return nil
 	}
-	return d.PutContractID(cs.ID, cs.Hash)
+	d.PutContractID(cs.ID, cs.Hash)
+	return nil
 }
 
 func (m *Management) getNextContractID(d dao.DAO) (int32, error) {
@@ -592,7 +580,8 @@ func (m *Management) getNextContractID(d dao.DAO) (int32, error) {
 	ret := int32(id.Int64())
 	id.Add(id, intOne)
 	si = bigint.ToPreallocatedBytes(id, si)
-	return ret, d.PutStorageItem(m.ID, keyNextAvailableID, si)
+	d.PutStorageItem(m.ID, keyNextAvailableID, si)
+	return ret, nil
 }
 
 func (m *Management) emitNotification(ic *interop.Context, name string, hash util.Uint160) {

@@ -166,9 +166,7 @@ func (o *Oracle) PostPersist(ic *interop.Context) error {
 		if err := o.getConvertibleFromDAO(ic.DAO, reqKey, req); err != nil {
 			continue
 		}
-		if err := ic.DAO.DeleteStorageItem(o.ID, reqKey); err != nil {
-			return err
-		}
+		ic.DAO.DeleteStorageItem(o.ID, reqKey)
 		if orc != nil {
 			removedIDs = append(removedIDs, resp.ID)
 		}
@@ -184,7 +182,7 @@ func (o *Oracle) PostPersist(ic *interop.Context) error {
 
 		var err error
 		if len(*idList) == 0 {
-			err = ic.DAO.DeleteStorageItem(o.ID, idKey)
+			ic.DAO.DeleteStorageItem(o.ID, idKey)
 		} else {
 			err = putConvertibleToDAO(o.ID, ic.DAO, idKey, idList)
 		}
@@ -222,12 +220,8 @@ func (o *Oracle) Metadata() *interop.ContractMD {
 
 // Initialize initializes Oracle contract.
 func (o *Oracle) Initialize(ic *interop.Context) error {
-	if err := setIntWithKey(o.ID, ic.DAO, prefixRequestID, 0); err != nil {
-		return err
-	}
-	if err := setIntWithKey(o.ID, ic.DAO, prefixRequestPrice, DefaultOracleRequestPrice); err != nil {
-		return err
-	}
+	setIntWithKey(o.ID, ic.DAO, prefixRequestID, 0)
+	setIntWithKey(o.ID, ic.DAO, prefixRequestPrice, DefaultOracleRequestPrice)
 	o.requestPrice.Store(int64(DefaultOracleRequestPrice))
 	o.requestPriceChanged.Store(false)
 	return nil
@@ -348,9 +342,7 @@ func (o *Oracle) RequestInternal(ic *interop.Context, url string, filter *string
 	id := itemID.Uint64()
 	itemID.Add(itemID, intOne)
 	si = bigint.ToPreallocatedBytes(itemID, si)
-	if err := ic.DAO.PutStorageItem(o.ID, prefixRequestID, si); err != nil {
-		return err
-	}
+	ic.DAO.PutStorageItem(o.ID, prefixRequestID, si)
 
 	// Should be executed from contract.
 	_, err := ic.GetContract(ic.VM.GetCallingScriptHash())
@@ -463,9 +455,7 @@ func (o *Oracle) setPrice(ic *interop.Context, args []stackitem.Item) stackitem.
 	if !o.NEO.checkCommittee(ic) {
 		panic("invalid committee signature")
 	}
-	if err := setIntWithKey(o.ID, ic.DAO, prefixRequestPrice, price.Int64()); err != nil {
-		panic(err)
-	}
+	setIntWithKey(o.ID, ic.DAO, prefixRequestPrice, price.Int64())
 	o.requestPriceChanged.Store(true)
 	return stackitem.Null{}
 }

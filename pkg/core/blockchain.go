@@ -316,9 +316,7 @@ func (bc *Blockchain) init() error {
 			KeepOnlyLatestState:        bc.config.KeepOnlyLatestState,
 			Value:                      version,
 		}
-		if err = bc.dao.PutVersion(ver); err != nil {
-			return err
-		}
+		bc.dao.PutVersion(ver)
 		bc.dao.Version = ver
 		bc.persistent.Version = ver
 		genesisBlock, err := createGenesisBlock(bc.config)
@@ -326,10 +324,7 @@ func (bc *Blockchain) init() error {
 			return err
 		}
 		bc.headerHashes = []util.Uint256{genesisBlock.Hash()}
-		err = bc.dao.PutCurrentHeader(hashAndIndexToBytes(genesisBlock.Hash(), genesisBlock.Index))
-		if err != nil {
-			return err
-		}
+		bc.dao.PutCurrentHeader(hashAndIndexToBytes(genesisBlock.Hash(), genesisBlock.Index))
 		if err := bc.stateRoot.Init(0); err != nil {
 			return fmt.Errorf("can't init MPT: %w", err)
 		}
@@ -508,10 +503,7 @@ func (bc *Blockchain) jumpToStateInternal(p uint32, stage stateJumpStage) error 
 	jumpStageKey := storage.SYSStateJumpStage.Bytes()
 	switch stage {
 	case none:
-		err := bc.dao.Store.Put(jumpStageKey, []byte{byte(stateJumpStarted)})
-		if err != nil {
-			return fmt.Errorf("failed to store state jump stage: %w", err)
-		}
+		bc.dao.Store.Put(jumpStageKey, []byte{byte(stateJumpStarted)})
 		fallthrough
 	case stateJumpStarted:
 		newPrefix := statesync.TemporaryPrefix(bc.dao.Version.StoragePrefix)
@@ -520,15 +512,10 @@ func (bc *Blockchain) jumpToStateInternal(p uint32, stage stateJumpStage) error 
 			return fmt.Errorf("failed to get dao.Version: %w", err)
 		}
 		v.StoragePrefix = newPrefix
-		if err := bc.dao.PutVersion(v); err != nil {
-			return fmt.Errorf("failed to update dao.Version: %w", err)
-		}
+		bc.dao.PutVersion(v)
 		bc.persistent.Version = v
 
-		err = bc.dao.Store.Put(jumpStageKey, []byte{byte(newStorageItemsAdded)})
-		if err != nil {
-			return fmt.Errorf("failed to store state jump stage: %w", err)
-		}
+		bc.dao.Store.Put(jumpStageKey, []byte{byte(newStorageItemsAdded)})
 
 		fallthrough
 	case newStorageItemsAdded:
@@ -536,7 +523,7 @@ func (bc *Blockchain) jumpToStateInternal(p uint32, stage stateJumpStage) error 
 		prefix := statesync.TemporaryPrefix(bc.dao.Version.StoragePrefix)
 		bc.dao.Store.Seek(storage.SeekRange{Prefix: []byte{byte(prefix)}}, func(k, _ []byte) bool {
 			// #1468, but don't need to copy here, because it is done by Store.
-			_ = cache.Store.Delete(k)
+			cache.Store.Delete(k)
 			return true
 		})
 
@@ -551,12 +538,12 @@ func (bc *Blockchain) jumpToStateInternal(p uint32, stage stateJumpStage) error 
 			prefixes := []byte{byte(storage.STNEP11Transfers), byte(storage.STNEP17Transfers), byte(storage.STTokenTransferInfo)}
 			for i := range prefixes {
 				cache.Store.Seek(storage.SeekRange{Prefix: prefixes[i : i+1]}, func(k, v []byte) bool {
-					_ = cache.Store.Delete(k) // It's MemCachedStore which never returns an error.
+					cache.Store.Delete(k)
 					return true
 				})
 			}
 		}
-		_ = cache.Store.Put(jumpStageKey, []byte{byte(genesisStateRemoved)})
+		cache.Store.Put(jumpStageKey, []byte{byte(genesisStateRemoved)})
 		_, err := cache.Persist()
 		if err != nil {
 			return fmt.Errorf("failed to persist old items removal: %w", err)
@@ -573,10 +560,7 @@ func (bc *Blockchain) jumpToStateInternal(p uint32, stage stateJumpStage) error 
 		return fmt.Errorf("failed to get current block: %w", err)
 	}
 	writeBuf.Reset()
-	err = bc.dao.StoreAsCurrentBlock(block, writeBuf)
-	if err != nil {
-		return fmt.Errorf("failed to store current block: %w", err)
-	}
+	bc.dao.StoreAsCurrentBlock(block, writeBuf)
 	bc.topBlock.Store(block)
 	atomic.StoreUint32(&bc.blockHeight, p)
 	atomic.StoreUint32(&bc.persistedHeight, p)
@@ -585,12 +569,10 @@ func (bc *Blockchain) jumpToStateInternal(p uint32, stage stateJumpStage) error 
 	if err != nil {
 		return fmt.Errorf("failed to get block to init MPT: %w", err)
 	}
-	if err = bc.stateRoot.JumpToState(&state.MPTRoot{
+	bc.stateRoot.JumpToState(&state.MPTRoot{
 		Index: p,
 		Root:  block.PrevStateRoot,
-	}); err != nil {
-		return fmt.Errorf("can't perform MPT jump to height %d: %w", p, err)
-	}
+	})
 
 	err = bc.contracts.NEO.InitializeCache(bc, bc.dao)
 	if err != nil {
@@ -608,10 +590,7 @@ func (bc *Blockchain) jumpToStateInternal(p uint32, stage stateJumpStage) error 
 
 	updateBlockHeightMetric(p)
 
-	err = bc.dao.Store.Delete(jumpStageKey)
-	if err != nil {
-		return fmt.Errorf("failed to remove outdated state jump stage: %w", err)
-	}
+	bc.dao.Store.Delete(jumpStageKey)
 	return nil
 }
 
@@ -973,7 +952,7 @@ func (bc *Blockchain) addHeaders(verify bool, headers ...*block.Header) error {
 		}
 
 		key := storage.AppendPrefix(storage.DataExecutable, h.Hash().BytesBE())
-		_ = batch.Store.Put(key, buf.Bytes())
+		batch.Store.Put(key, buf.Bytes())
 		buf.Reset()
 		lastHeader = h
 	}
@@ -986,11 +965,11 @@ func (bc *Blockchain) addHeaders(verify bool, headers ...*block.Header) error {
 			}
 
 			key := storage.AppendPrefixInt(storage.IXHeaderHashList, int(bc.storedHeaderCount))
-			_ = batch.Store.Put(key, buf.Bytes())
+			batch.Store.Put(key, buf.Bytes())
 			bc.storedHeaderCount += headerBatchCount
 		}
 
-		_ = batch.Store.Put(storage.SYSCurrentHeader.Bytes(), hashAndIndexToBytes(lastHeader.Hash(), lastHeader.Index))
+		batch.Store.Put(storage.SYSCurrentHeader.Bytes(), hashAndIndexToBytes(lastHeader.Hash(), lastHeader.Index))
 		updateHeaderHeightMetric(len(bc.headerHashes) - 1)
 		if _, err = batch.Persist(); err != nil {
 			return err
@@ -1033,10 +1012,7 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 			baer1, baer2 *state.AppExecResult
 			transCache   = make(map[util.Uint160]transferData)
 		)
-		if err := kvcache.StoreAsCurrentBlock(block, writeBuf); err != nil {
-			aerdone <- err
-			return
-		}
+		kvcache.StoreAsCurrentBlock(block, writeBuf)
 		writeBuf.Reset()
 		if bc.config.RemoveUntraceableBlocks {
 			var start, stop uint32
@@ -1102,18 +1078,10 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 				return
 			}
 			if !trData.Info.NewNEP11Batch {
-				err = kvcache.PutTokenTransferLog(acc, trData.Info.NextNEP11NewestTimestamp, trData.Info.NextNEP11Batch, true, &trData.Log11)
-				if err != nil {
-					aerdone <- err
-					return
-				}
+				kvcache.PutTokenTransferLog(acc, trData.Info.NextNEP11NewestTimestamp, trData.Info.NextNEP11Batch, true, &trData.Log11)
 			}
 			if !trData.Info.NewNEP17Batch {
-				err = kvcache.PutTokenTransferLog(acc, trData.Info.NextNEP17NewestTimestamp, trData.Info.NextNEP17Batch, false, &trData.Log17)
-				if err != nil {
-					aerdone <- err
-					return
-				}
+				kvcache.PutTokenTransferLog(acc, trData.Info.NextNEP17NewestTimestamp, trData.Info.NextNEP17Batch, false, &trData.Log17)
 			}
 		}
 		close(aerdone)
@@ -1471,10 +1439,7 @@ func appendTokenTransfer(cache dao.DAO, transCache map[util.Uint160]transferData
 	transferData.Info.LastUpdated[token] = bIndex
 	*newBatch = log.Size() >= state.TokenTransferBatchSize
 	if *newBatch {
-		err = cache.PutTokenTransferLog(addr, *currTimestamp, *nextBatch, isNEP11, log)
-		if err != nil {
-			return err
-		}
+		cache.PutTokenTransferLog(addr, *currTimestamp, *nextBatch, isNEP11, log)
 		*nextBatch++
 		*currTimestamp = bTimestamp
 		// Put makes a copy of it anyway.

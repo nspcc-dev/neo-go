@@ -28,11 +28,12 @@ func putConvertibleToDAO(id int32, d dao.DAO, key []byte, conv stackitem.Convert
 	if err != nil {
 		return err
 	}
-	return d.PutStorageItem(id, key, data)
+	d.PutStorageItem(id, key, data)
+	return nil
 }
 
-func setIntWithKey(id int32, dao dao.DAO, key []byte, value int64) error {
-	return dao.PutStorageItem(id, key, bigint.ToBytes(big.NewInt(value)))
+func setIntWithKey(id int32, dao dao.DAO, key []byte, value int64) {
+	dao.PutStorageItem(id, key, bigint.ToBytes(big.NewInt(value)))
 }
 
 func getIntWithKey(id int32, dao dao.DAO, key []byte) int64 {

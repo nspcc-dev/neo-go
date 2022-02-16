@@ -107,9 +107,9 @@ func (c *nep17TokenNative) getTotalSupply(d dao.DAO) (state.StorageItem, *big.In
 	return si, bigint.FromBytes(si)
 }
 
-func (c *nep17TokenNative) saveTotalSupply(d dao.DAO, si state.StorageItem, supply *big.Int) error {
+func (c *nep17TokenNative) saveTotalSupply(d dao.DAO, si state.StorageItem, supply *big.Int) {
 	si = state.StorageItem(bigint.ToPreallocatedBytes(supply, si))
-	return d.PutStorageItem(c.ID, totalSupplyKey, si)
+	d.PutStorageItem(c.ID, totalSupplyKey, si)
 }
 
 func (c *nep17TokenNative) Transfer(ic *interop.Context, args []stackitem.Item) stackitem.Item {
@@ -184,16 +184,16 @@ func (c *nep17TokenNative) updateAccBalance(ic *interop.Context, acc util.Uint16
 	err := c.incBalance(ic, acc, &si, amount, requiredBalance)
 	if err != nil {
 		if si != nil && amount.Sign() <= 0 {
-			_ = ic.DAO.PutStorageItem(c.ID, key, si)
+			ic.DAO.PutStorageItem(c.ID, key, si)
 		}
 		return err
 	}
 	if si == nil {
-		err = ic.DAO.DeleteStorageItem(c.ID, key)
+		ic.DAO.DeleteStorageItem(c.ID, key)
 	} else {
-		err = ic.DAO.PutStorageItem(c.ID, key, si)
+		ic.DAO.PutStorageItem(c.ID, key, si)
 	}
-	return err
+	return nil
 }
 
 // TransferInternal transfers NEO between accounts.
@@ -281,22 +281,15 @@ func (c *nep17TokenNative) addTokens(ic *interop.Context, h util.Uint160, amount
 	if err := c.incBalance(ic, h, &si, amount, nil); err != nil {
 		panic(err)
 	}
-	var err error
 	if si == nil {
-		err = ic.DAO.DeleteStorageItem(c.ID, key)
+		ic.DAO.DeleteStorageItem(c.ID, key)
 	} else {
-		err = ic.DAO.PutStorageItem(c.ID, key, si)
-	}
-	if err != nil {
-		panic(err)
+		ic.DAO.PutStorageItem(c.ID, key, si)
 	}
 
 	buf, supply := c.getTotalSupply(ic.DAO)
 	supply.Add(supply, amount)
-	err = c.saveTotalSupply(ic.DAO, buf, supply)
-	if err != nil {
-		panic(err)
-	}
+	c.saveTotalSupply(ic.DAO, buf, supply)
 }
 
 func newDescriptor(name string, ret smartcontract.ParamType, ps ...manifest.Parameter) *manifest.Method {

@@ -167,10 +167,7 @@ func (s *Module) Init(currChainHeight uint32) error {
 	}
 
 	s.syncPoint = p
-	err = s.dao.PutStateSyncPoint(p)
-	if err != nil {
-		return fmt.Errorf("failed to store state synchronisation point %d: %w", p, err)
-	}
+	s.dao.PutStateSyncPoint(p)
 	s.syncStage = initialized
 	s.log.Info("try to sync state for the latest state synchronisation point",
 		zap.Uint32("point", p),
@@ -339,10 +336,7 @@ func (s *Module) AddBlock(block *block.Block) error {
 	}
 	writeBuf.Reset()
 
-	err := cache.PutStateSyncCurrentBlockHeight(block.Index)
-	if err != nil {
-		return fmt.Errorf("failed to store current block height: %w", err)
-	}
+	cache.PutStateSyncCurrentBlockHeight(block.Index)
 
 	for _, tx := range block.Transactions {
 		if err := cache.StoreAsTransaction(tx, block.Index, nil, writeBuf); err != nil {
@@ -351,7 +345,7 @@ func (s *Module) AddBlock(block *block.Block) error {
 		writeBuf.Reset()
 	}
 
-	_, err = cache.Persist()
+	_, err := cache.Persist()
 	if err != nil {
 		return fmt.Errorf("failed to persist results: %w", err)
 	}

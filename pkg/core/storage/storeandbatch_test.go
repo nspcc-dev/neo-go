@@ -39,7 +39,7 @@ func pushSeekDataSet(t *testing.T, s Store) []KeyValue {
 	}
 	up := NewMemCachedStore(s)
 	for _, v := range kvs {
-		require.NoError(t, up.Put(v.Key, v.Value))
+		up.Put(v.Key, v.Value)
 	}
 	_, err := up.PersistSync()
 	require.NoError(t, err)

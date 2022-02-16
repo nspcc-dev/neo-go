@@ -65,23 +65,21 @@ func (s *MemCachedStore) Get(key []byte) ([]byte, error) {
 	return s.ps.Get(key)
 }
 
-// Put puts new KV pair into the store. Never returns an error.
-func (s *MemCachedStore) Put(key, value []byte) error {
+// Put puts new KV pair into the store.
+func (s *MemCachedStore) Put(key, value []byte) {
 	newKey := string(key)
 	vcopy := slice.Copy(value)
 	s.mut.Lock()
 	put(s.chooseMap(key), newKey, vcopy)
 	s.mut.Unlock()
-	return nil
 }
 
 // Delete drops KV pair from the store. Never returns an error.
-func (s *MemCachedStore) Delete(key []byte) error {
+func (s *MemCachedStore) Delete(key []byte) {
 	newKey := string(key)
 	s.mut.Lock()
 	put(s.chooseMap(key), newKey, nil)
 	s.mut.Unlock()
-	return nil
 }
 
 // GetBatch returns currently accumulated changeset.

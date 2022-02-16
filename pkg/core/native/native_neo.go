@@ -215,10 +215,7 @@ func (n *NEO) Initialize(ic *interop.Context) error {
 		return err
 	}
 
-	err = ic.DAO.PutStorageItem(n.ID, prefixCommittee, cvs.Bytes())
-	if err != nil {
-		return err
-	}
+	ic.DAO.PutStorageItem(n.ID, prefixCommittee, cvs.Bytes())
 
 	h, err := getStandbyValidatorsHash(ic)
 	if err != nil {
@@ -228,22 +225,14 @@ func (n *NEO) Initialize(ic *interop.Context) error {
 
 	var index uint32
 	value := big.NewInt(5 * GASFactor)
-	err = n.putGASRecord(ic.DAO, index, value)
-	if err != nil {
-		return err
-	}
+	n.putGASRecord(ic.DAO, index, value)
+
 	gr := &gasRecord{{Index: index, GASPerBlock: *value}}
 	n.gasPerBlock.Store(*gr)
 	n.gasPerBlockChanged.Store(false)
-	err = ic.DAO.PutStorageItem(n.ID, []byte{prefixVotersCount}, state.StorageItem{})
-	if err != nil {
-		return err
-	}
+	ic.DAO.PutStorageItem(n.ID, []byte{prefixVotersCount}, state.StorageItem{})
 
-	err = setIntWithKey(n.ID, ic.DAO, []byte{prefixRegisterPrice}, DefaultRegisterPrice)
-	if err != nil {
-		return err
-	}
+	setIntWithKey(n.ID, ic.DAO, []byte{prefixRegisterPrice}, DefaultRegisterPrice)
 	n.registerPrice.Store(int64(DefaultRegisterPrice))
 	n.registerPriceChanged.Store(false)
 	return nil
@@ -305,7 +294,8 @@ func (n *NEO) updateCommittee(ic *interop.Context) error {
 	if !votesChanged {
 		// We need to put in storage anyway, as it affects dumps
 		committee := n.committee.Load().(keysWithVotes)
-		return ic.DAO.PutStorageItem(n.ID, prefixCommittee, committee.Bytes())
+		ic.DAO.PutStorageItem(n.ID, prefixCommittee, committee.Bytes())
+		return nil
 	}
 
 	_, cvs, err := n.computeCommitteeMembers(ic.Chain, ic.DAO)
@@ -316,7 +306,8 @@ func (n *NEO) updateCommittee(ic *interop.Context) error {
 		return err
 	}
 	n.votesChanged.Store(false)
-	return ic.DAO.PutStorageItem(n.ID, prefixCommittee, cvs.Bytes())
+	ic.DAO.PutStorageItem(n.ID, prefixCommittee, cvs.Bytes())
+	return nil
 }
 
 // OnPersist implements Contract interface.
@@ -379,9 +370,7 @@ func (n *NEO) PostPersist(ic *interop.Context) error {
 				binary.BigEndian.PutUint32(key[34:], ic.Block.Index+1)
 				n.gasPerVoteCache[cs[i].Key] = *tmp
 
-				if err := ic.DAO.PutStorageItem(n.ID, key, bigint.ToBytes(tmp)); err != nil {
-					return err
-				}
+				ic.DAO.PutStorageItem(n.ID, key, bigint.ToBytes(tmp))
 			}
 		}
 	}
@@ -485,10 +474,7 @@ func (n *NEO) distributeGas(ic *interop.Context, h util.Uint160, acc *state.NEOB
 	// Must store acc before GAS distribution to fix acc's BalanceHeight value in the storage for
 	// further acc's queries from `onNEP17Payment` if so, see https://github.com/nspcc-dev/neo-go/pull/2181.
 	key := makeAccountKey(h)
-	err = ic.DAO.PutStorageItem(n.ID, key, acc.Bytes())
-	if err != nil {
-		return fmt.Errorf("failed to store acc before gas distribution: %w", err)
-	}
+	ic.DAO.PutStorageItem(n.ID, key, acc.Bytes())
 
 	n.GAS.mint(ic, h, gen, true)
 	return nil
@@ -581,7 +567,8 @@ func (n *NEO) SetGASPerBlock(ic *interop.Context, index uint32, gas *big.Int) er
 		return errors.New("invalid committee signature")
 	}
 	n.gasPerBlockChanged.Store(true)
-	return n.putGASRecord(ic.DAO, index, gas)
+	n.putGASRecord(ic.DAO, index, gas)
+	return nil
 }
 
 func (n *NEO) getRegisterPrice(ic *interop.Context, _ []stackitem.Item) stackitem.Item {
@@ -604,10 +591,7 @@ func (n *NEO) setRegisterPrice(ic *interop.Context, args []stackitem.Item) stack
 		panic("invalid committee signature")
 	}
 
-	err := setIntWithKey(n.ID, ic.DAO, []byte{prefixRegisterPrice}, price.Int64())
-	if err != nil {
-		panic(err)
-	}
+	setIntWithKey(n.ID, ic.DAO, []byte{prefixRegisterPrice}, price.Int64())
 	n.registerPriceChanged.Store(true)
 	return stackitem.Null{}
 }
@@ -616,9 +600,7 @@ func (n *NEO) dropCandidateIfZero(d dao.DAO, pub *keys.PublicKey, c *candidate) 
 	if c.Registered || c.Votes.Sign() != 0 {
 		return false, nil
 	}
-	if err := d.DeleteStorageItem(n.ID, makeValidatorKey(pub)); err != nil {
-		return true, err
-	}
+	d.DeleteStorageItem(n.ID, makeValidatorKey(pub))
 
 	var toRemove []string
 	voterKey := makeVoterKey(pub.Bytes())
@@ -627,9 +609,7 @@ func (n *NEO) dropCandidateIfZero(d dao.DAO, pub *keys.PublicKey, c *candidate) 
 		return true
 	})
 	for i := range toRemove {
-		if err := d.DeleteStorageItem(n.ID, []byte(toRemove[i])); err != nil {
-			return true, err
-		}
+		d.DeleteStorageItem(n.ID, []byte(toRemove[i]))
 	}
 	delete(n.gasPerVoteCache, string(voterKey))
 
@@ -804,10 +784,7 @@ func (n *NEO) VoteInternal(ic *interop.Context, h util.Uint160, pub *keys.Public
 		return err
 	}
 	// we should put it in storage anyway as it affects dumps
-	err = ic.DAO.PutStorageItem(n.ID, key, si)
-	if err != nil {
-		return err
-	}
+	ic.DAO.PutStorageItem(n.ID, key, si)
 	if pub != nil {
 		valKey := makeValidatorKey(pub)
 		valSi := ic.DAO.GetStorageItem(n.ID, valKey)
@@ -816,10 +793,7 @@ func (n *NEO) VoteInternal(ic *interop.Context, h util.Uint160, pub *keys.Public
 		}
 		cd := new(candidate).FromBytes(valSi)
 		// we should put it in storage anyway as it affects dumps
-		err = ic.DAO.PutStorageItem(n.ID, valKey, valSi)
-		if err != nil {
-			return err
-		}
+		ic.DAO.PutStorageItem(n.ID, valKey, valSi)
 		if !cd.Registered {
 			return errors.New("validator must be registered")
 		}
@@ -844,7 +818,8 @@ func (n *NEO) VoteInternal(ic *interop.Context, h util.Uint160, pub *keys.Public
 	if err := n.ModifyAccountVotes(acc, ic.DAO, &acc.Balance, true); err != nil {
 		return err
 	}
-	return ic.DAO.PutStorageItem(n.ID, key, acc.Bytes())
+	ic.DAO.PutStorageItem(n.ID, key, acc.Bytes())
+	return nil
 }
 
 // ModifyAccountVotes modifies votes of the specified account by value (can be negative).
@@ -987,7 +962,8 @@ func (n *NEO) modifyVoterTurnout(d dao.DAO, amount *big.Int) error {
 	votersCount := bigint.FromBytes(si)
 	votersCount.Add(votersCount, amount)
 	si = bigint.ToPreallocatedBytes(votersCount, si)
-	return d.PutStorageItem(n.ID, key, si)
+	d.PutStorageItem(n.ID, key, si)
+	return nil
 }
 
 // GetCommitteeMembers returns public keys of nodes in committee using cached value.
@@ -1105,9 +1081,9 @@ func toPublicKey(s stackitem.Item) *keys.PublicKey {
 }
 
 // putGASRecord is a helper which creates key and puts GASPerBlock value into the storage.
-func (n *NEO) putGASRecord(dao dao.DAO, index uint32, value *big.Int) error {
+func (n *NEO) putGASRecord(dao dao.DAO, index uint32, value *big.Int) {
 	key := make([]byte, 5)
 	key[0] = prefixGASPerBlock
 	binary.BigEndian.PutUint32(key[1:], index)
-	return dao.PutStorageItem(n.ID, key, bigint.ToBytes(value))
+	dao.PutStorageItem(n.ID, key, bigint.ToBytes(value))
 }

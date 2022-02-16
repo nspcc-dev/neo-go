@@ -1385,7 +1385,7 @@ func TestClose(t *testing.T) {
 	// It's a hack, but we use internal knowledge of MemoryStore
 	// implementation which makes it completely unusable (up to panicing)
 	// after Close().
-	_ = bc.dao.Store.Put([]byte{0}, []byte{1})
+	bc.dao.Store.Put([]byte{0}, []byte{1})
 
 	// This should never be executed.
 	assert.Nil(t, t)
@@ -1602,16 +1602,16 @@ func TestRemoveOldTransfers(t *testing.T) {
 	ttl := state.TokenTransferLog{Raw: []byte{1}} // It's incorrect, but who cares.
 
 	for i := uint32(0); i < 3; i++ {
-		require.NoError(t, bc.dao.PutTokenTransferLog(acc1, older, i, false, &ttl))
+		bc.dao.PutTokenTransferLog(acc1, older, i, false, &ttl)
 	}
 	for i := uint32(0); i < 3; i++ {
-		require.NoError(t, bc.dao.PutTokenTransferLog(acc2, newer, i, false, &ttl))
+		bc.dao.PutTokenTransferLog(acc2, newer, i, false, &ttl)
 	}
 	for i := uint32(0); i < 2; i++ {
-		require.NoError(t, bc.dao.PutTokenTransferLog(acc3, older, i, true, &ttl))
+		bc.dao.PutTokenTransferLog(acc3, older, i, true, &ttl)
 	}
 	for i := uint32(0); i < 2; i++ {
-		require.NoError(t, bc.dao.PutTokenTransferLog(acc3, newer, i, true, &ttl))
+		bc.dao.PutTokenTransferLog(acc3, newer, i, true, &ttl)
 	}
 
 	_, err = bc.dao.Persist()
@@ -1855,7 +1855,7 @@ func TestBlockchain_InitWithIncompleteStateJump(t *testing.T) {
 		key := slice.Copy(k)
 		key[0] = byte(tempPrefix)
 		value := slice.Copy(v)
-		_ = batch.Put(key, value)
+		batch.Put(key, value)
 		return true
 	})
 	_, err := batch.Persist()
@@ -1879,33 +1879,33 @@ func TestBlockchain_InitWithIncompleteStateJump(t *testing.T) {
 	}
 	// manually store statejump stage to check statejump recover process
 	t.Run("invalid RemoveUntraceableBlocks setting", func(t *testing.T) {
-		require.NoError(t, bcSpout.dao.Store.Put(storage.SYSStateJumpStage.Bytes(), []byte{byte(stateJumpStarted)}))
+		bcSpout.dao.Store.Put(storage.SYSStateJumpStage.Bytes(), []byte{byte(stateJumpStarted)})
 		checkNewBlockchainErr(t, func(c *config.Config) {
 			boltCfg(c)
 			c.ProtocolConfiguration.RemoveUntraceableBlocks = false
 		}, bcSpout.dao.Store, true)
 	})
 	t.Run("invalid state jump stage format", func(t *testing.T) {
-		require.NoError(t, bcSpout.dao.Store.Put(storage.SYSStateJumpStage.Bytes(), []byte{0x01, 0x02}))
+		bcSpout.dao.Store.Put(storage.SYSStateJumpStage.Bytes(), []byte{0x01, 0x02})
 		checkNewBlockchainErr(t, boltCfg, bcSpout.dao.Store, true)
 	})
 	t.Run("missing state sync point", func(t *testing.T) {
-		require.NoError(t, bcSpout.dao.Store.Put(storage.SYSStateJumpStage.Bytes(), []byte{byte(stateJumpStarted)}))
+		bcSpout.dao.Store.Put(storage.SYSStateJumpStage.Bytes(), []byte{byte(stateJumpStarted)})
 		checkNewBlockchainErr(t, boltCfg, bcSpout.dao.Store, true)
 	})
 	t.Run("invalid state sync point", func(t *testing.T) {
-		require.NoError(t, bcSpout.dao.Store.Put(storage.SYSStateJumpStage.Bytes(), []byte{byte(stateJumpStarted)}))
+		bcSpout.dao.Store.Put(storage.SYSStateJumpStage.Bytes(), []byte{byte(stateJumpStarted)})
 		point := make([]byte, 4)
 		binary.LittleEndian.PutUint32(point, uint32(len(bcSpout.headerHashes)))
-		require.NoError(t, bcSpout.dao.Store.Put(storage.SYSStateSyncPoint.Bytes(), point))
+		bcSpout.dao.Store.Put(storage.SYSStateSyncPoint.Bytes(), point)
 		checkNewBlockchainErr(t, boltCfg, bcSpout.dao.Store, true)
 	})
 	for _, stage := range []stateJumpStage{stateJumpStarted, newStorageItemsAdded, genesisStateRemoved, 0x03} {
 		t.Run(fmt.Sprintf("state jump stage %d", stage), func(t *testing.T) {
-			require.NoError(t, bcSpout.dao.Store.Put(storage.SYSStateJumpStage.Bytes(), []byte{byte(stage)}))
+			bcSpout.dao.Store.Put(storage.SYSStateJumpStage.Bytes(), []byte{byte(stage)})
 			point := make([]byte, 4)
 			binary.LittleEndian.PutUint32(point, uint32(stateSyncPoint))
-			require.NoError(t, bcSpout.dao.Store.Put(storage.SYSStateSyncPoint.Bytes(), point))
+			bcSpout.dao.Store.Put(storage.SYSStateSyncPoint.Bytes(), point)
 			shouldFail := stage == 0x03 // unknown stage
 			checkNewBlockchainErr(t, spountCfg, bcSpout.dao.Store, shouldFail)
 		})

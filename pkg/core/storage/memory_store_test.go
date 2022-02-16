@@ -22,8 +22,8 @@ func BenchmarkMemorySeek(t *testing.B) {
 			)
 			ts := NewMemCachedStore(ms)
 			for i := 0; i < count; i++ {
-				require.NoError(t, ts.Put(append(searchPrefix, random.Bytes(10)...), random.Bytes(10)))
-				require.NoError(t, ts.Put(append(badPrefix, random.Bytes(10)...), random.Bytes(10)))
+				ts.Put(append(searchPrefix, random.Bytes(10)...), random.Bytes(10))
+				ts.Put(append(badPrefix, random.Bytes(10)...), random.Bytes(10))
 			}
 			_, err := ts.PersistSync()
 			require.NoError(t, err)

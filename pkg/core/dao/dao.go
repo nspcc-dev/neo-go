@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/binary"
 	"errors"
-	"fmt"
 	iocore "io"
 	"sort"
 
@@ -31,8 +30,8 @@ var (
 // DAO is a data access object.
 type DAO interface {
 	DeleteBlock(h util.Uint256, buf *io.BufBinWriter) error
-	DeleteContractID(id int32) error
-	DeleteStorageItem(id int32, key []byte) error
+	DeleteContractID(id int32)
+	DeleteStorageItem(id int32, key []byte)
 	GetAndDecode(entity io.Serializable, key []byte) error
 	GetAppExecResults(hash util.Uint256, trig trigger.Type) ([]state.AppExecResult, error)
 	GetBatch() *storage.MemBatch
@@ -54,18 +53,18 @@ type DAO interface {
 	HasTransaction(hash util.Uint256) error
 	Persist() (int, error)
 	PersistSync() (int, error)
-	PutContractID(id int32, hash util.Uint160) error
-	PutCurrentHeader(hashAndIndex []byte) error
+	PutContractID(id int32, hash util.Uint160)
+	PutCurrentHeader(hashAndIndex []byte)
 	PutTokenTransferInfo(acc util.Uint160, bs *state.TokenTransferInfo) error
-	PutTokenTransferLog(acc util.Uint160, start uint64, index uint32, isNEP11 bool, lg *state.TokenTransferLog) error
-	PutStateSyncPoint(p uint32) error
-	PutStateSyncCurrentBlockHeight(h uint32) error
-	PutStorageItem(id int32, key []byte, si state.StorageItem) error
-	PutVersion(v Version) error
+	PutTokenTransferLog(acc util.Uint160, start uint64, index uint32, isNEP11 bool, lg *state.TokenTransferLog)
+	PutStateSyncPoint(p uint32)
+	PutStateSyncCurrentBlockHeight(h uint32)
+	PutStorageItem(id int32, key []byte, si state.StorageItem)
+	PutVersion(v Version)
 	Seek(id int32, rng storage.SeekRange, f func(k, v []byte) bool)
 	SeekAsync(ctx context.Context, id int32, rng storage.SeekRange) chan storage.KeyValue
 	StoreAsBlock(block *block.Block, aer1 *state.AppExecResult, aer2 *state.AppExecResult, buf *io.BufBinWriter) error
-	StoreAsCurrentBlock(block *block.Block, buf *io.BufBinWriter) error
+	StoreAsCurrentBlock(block *block.Block, buf *io.BufBinWriter)
 	StoreAsTransaction(tx *transaction.Transaction, index uint32, aer *state.AppExecResult, buf *io.BufBinWriter) error
 	putTokenTransferInfo(acc util.Uint160, bs *state.TokenTransferInfo, buf *io.BufBinWriter) error
 }
@@ -113,18 +112,14 @@ func (dao *Simple) GetAndDecode(entity io.Serializable, key []byte) error {
 	return reader.Err
 }
 
-// Put performs put operation with serializable structures.
-func (dao *Simple) Put(entity io.Serializable, key []byte) error {
-	return dao.putWithBuffer(entity, key, io.NewBufBinWriter())
-}
-
 // putWithBuffer performs put operation using buf as a pre-allocated buffer for serialization.
 func (dao *Simple) putWithBuffer(entity io.Serializable, key []byte, buf *io.BufBinWriter) error {
 	entity.EncodeBinary(buf.BinWriter)
 	if buf.Err != nil {
 		return buf.Err
 	}
-	return dao.Store.Put(key, buf.Bytes())
+	dao.Store.Put(key, buf.Bytes())
+	return nil
 }
 
 func makeContractIDKey(id int32) []byte {
@@ -135,13 +130,13 @@ func makeContractIDKey(id int32) []byte {
 }
 
 // DeleteContractID deletes contract's id to hash mapping.
-func (dao *Simple) DeleteContractID(id int32) error {
-	return dao.Store.Delete(makeContractIDKey(id))
+func (dao *Simple) DeleteContractID(id int32) {
+	dao.Store.Delete(makeContractIDKey(id))
 }
 
 // PutContractID adds a mapping from contract's ID to its hash.
-func (dao *Simple) PutContractID(id int32, hash util.Uint160) error {
-	return dao.Store.Put(makeContractIDKey(id), hash.BytesBE())
+func (dao *Simple) PutContractID(id int32, hash util.Uint160) {
+	dao.Store.Put(makeContractIDKey(id), hash.BytesBE())
 }
 
 // GetContractScriptHash retrieves contract's hash given its ID.
@@ -251,9 +246,9 @@ func (dao *Simple) GetTokenTransferLog(acc util.Uint160, newestTimestamp uint64,
 }
 
 // PutTokenTransferLog saves given transfer log in the cache.
-func (dao *Simple) PutTokenTransferLog(acc util.Uint160, start uint64, index uint32, isNEP11 bool, lg *state.TokenTransferLog) error {
+func (dao *Simple) PutTokenTransferLog(acc util.Uint160, start uint64, index uint32, isNEP11 bool, lg *state.TokenTransferLog) {
 	key := getTokenTransferLogKey(acc, start, index, isNEP11)
-	return dao.Store.Put(key, lg.Raw)
+	dao.Store.Put(key, lg.Raw)
 }
 
 // -- end transfer log.
@@ -315,16 +310,16 @@ func (dao *Simple) GetStorageItem(id int32, key []byte) state.StorageItem {
 
 // PutStorageItem puts given StorageItem for given id with given
 // key into the given store.
-func (dao *Simple) PutStorageItem(id int32, key []byte, si state.StorageItem) error {
+func (dao *Simple) PutStorageItem(id int32, key []byte, si state.StorageItem) {
 	stKey := makeStorageItemKey(dao.Version.StoragePrefix, id, key)
-	return dao.Store.Put(stKey, si)
+	dao.Store.Put(stKey, si)
 }
 
 // DeleteStorageItem drops storage item for the given id with the
 // given key from the store.
-func (dao *Simple) DeleteStorageItem(id int32, key []byte) error {
+func (dao *Simple) DeleteStorageItem(id int32, key []byte) {
 	stKey := makeStorageItemKey(dao.Version.StoragePrefix, id, key)
-	return dao.Store.Delete(stKey)
+	dao.Store.Delete(stKey)
 }
 
 // GetStorageItems returns all storage items for a given id.
@@ -582,28 +577,28 @@ func (dao *Simple) GetTransaction(hash util.Uint256) (*transaction.Transaction, 
 }
 
 // PutVersion stores the given version in the underlying store.
-func (dao *Simple) PutVersion(v Version) error {
+func (dao *Simple) PutVersion(v Version) {
 	dao.Version = v
-	return dao.Store.Put(storage.SYSVersion.Bytes(), v.Bytes())
+	dao.Store.Put(storage.SYSVersion.Bytes(), v.Bytes())
 }
 
 // PutCurrentHeader stores current header.
-func (dao *Simple) PutCurrentHeader(hashAndIndex []byte) error {
-	return dao.Store.Put(storage.SYSCurrentHeader.Bytes(), hashAndIndex)
+func (dao *Simple) PutCurrentHeader(hashAndIndex []byte) {
+	dao.Store.Put(storage.SYSCurrentHeader.Bytes(), hashAndIndex)
 }
 
 // PutStateSyncPoint stores current state synchronisation point P.
-func (dao *Simple) PutStateSyncPoint(p uint32) error {
+func (dao *Simple) PutStateSyncPoint(p uint32) {
 	buf := make([]byte, 4)
 	binary.LittleEndian.PutUint32(buf, p)
-	return dao.Store.Put(storage.SYSStateSyncPoint.Bytes(), buf)
+	dao.Store.Put(storage.SYSStateSyncPoint.Bytes(), buf)
 }
 
 // PutStateSyncCurrentBlockHeight stores current block height during state synchronisation process.
-func (dao *Simple) PutStateSyncCurrentBlockHeight(h uint32) error {
+func (dao *Simple) PutStateSyncCurrentBlockHeight(h uint32) {
 	buf := make([]byte, 4)
 	binary.LittleEndian.PutUint32(buf, h)
-	return dao.Store.Put(storage.SYSStateSyncCurrentBlockHeight.Bytes(), buf)
+	dao.Store.Put(storage.SYSStateSyncCurrentBlockHeight.Bytes(), buf)
 }
 
 // read2000Uint256Hashes attempts to read 2000 Uint256 hashes from
@@ -662,7 +657,8 @@ func (dao *Simple) StoreAsBlock(block *block.Block, aer1 *state.AppExecResult, a
 	if buf.Err != nil {
 		return buf.Err
 	}
-	return dao.Store.Put(key, buf.Bytes())
+	dao.Store.Put(key, buf.Bytes())
+	return nil
 }
 
 // DeleteBlock removes block from dao. It's not atomic, so make sure you're
@@ -694,16 +690,16 @@ func (dao *Simple) DeleteBlock(h util.Uint256, w *io.BufBinWriter) error {
 	if w.Err != nil {
 		return w.Err
 	}
-	_ = dao.Store.Put(key, w.Bytes())
+	dao.Store.Put(key, w.Bytes())
 
 	for _, tx := range b.Transactions {
 		copy(key[1:], tx.Hash().BytesBE())
-		_ = dao.Store.Delete(key)
+		dao.Store.Delete(key)
 		if dao.Version.P2PSigExtensions {
 			for _, attr := range tx.GetAttributes(transaction.ConflictsT) {
 				hash := attr.Value.(*transaction.Conflicts).Hash
 				copy(key[1:], hash.BytesBE())
-				_ = dao.Store.Delete(key)
+				dao.Store.Delete(key)
 			}
 		}
 	}
@@ -714,14 +710,14 @@ func (dao *Simple) DeleteBlock(h util.Uint256, w *io.BufBinWriter) error {
 // StoreAsCurrentBlock stores a hash of the given block with prefix
 // SYSCurrentBlock. It can reuse given buffer for the purpose of value
 // serialization.
-func (dao *Simple) StoreAsCurrentBlock(block *block.Block, buf *io.BufBinWriter) error {
+func (dao *Simple) StoreAsCurrentBlock(block *block.Block, buf *io.BufBinWriter) {
 	if buf == nil {
 		buf = io.NewBufBinWriter()
 	}
 	h := block.Hash()
 	h.EncodeBinary(buf.BinWriter)
 	buf.WriteU32LE(block.Index)
-	return dao.Store.Put(storage.SYSCurrentBlock.Bytes(), buf.Bytes())
+	dao.Store.Put(storage.SYSCurrentBlock.Bytes(), buf.Bytes())
 }
 
 // StoreAsTransaction stores given TX as DataTransaction. It also stores transactions
@@ -741,10 +737,7 @@ func (dao *Simple) StoreAsTransaction(tx *transaction.Transaction, index uint32,
 	if buf.Err != nil {
 		return buf.Err
 	}
-	err := dao.Store.Put(key, buf.Bytes())
-	if err != nil {
-		return err
-	}
+	dao.Store.Put(key, buf.Bytes())
 	if dao.Version.P2PSigExtensions {
 		var value []byte
 		for _, attr := range tx.GetAttributes(transaction.ConflictsT) {
@@ -757,10 +750,7 @@ func (dao *Simple) StoreAsTransaction(tx *transaction.Transaction, index uint32,
 				buf.BinWriter.WriteB(transaction.DummyVersion)
 				value = buf.Bytes()
 			}
-			err = dao.Store.Put(key, value)
-			if err != nil {
-				return fmt.Errorf("failed to store conflicting transaction %s for transaction %s: %w", hash.StringLE(), tx.Hash().StringLE(), err)
-			}
+			dao.Store.Put(key, value)
 		}
 	}
 	return nil

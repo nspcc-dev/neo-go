@@ -420,7 +420,7 @@ func (t *Trie) Flush(index uint32) {
 					delete(t.refcount, h)
 				}
 			} else if node.refcount > 0 {
-				_ = t.Store.Put(key, node.bytes)
+				t.Store.Put(key, node.bytes)
 			}
 			node.refcount = 0
 		} else {
@@ -467,15 +467,15 @@ func (t *Trie) updateRefCount(h util.Uint256, key []byte, index uint32) int32 {
 		panic(fmt.Sprintf("negative reference count: %s new %d, upd %d", h.StringBE(), cnt, t.refcount[h]))
 	case cnt == 0:
 		if !t.mode.GC() {
-			_ = t.Store.Delete(key)
+			t.Store.Delete(key)
 		} else {
 			data[len(data)-5] = 0
 			binary.LittleEndian.PutUint32(data[len(data)-4:], index)
-			_ = t.Store.Put(key, data)
+			t.Store.Put(key, data)
 		}
 	default:
 		binary.LittleEndian.PutUint32(data[len(data)-4:], uint32(cnt))
-		_ = t.Store.Put(key, data)
+		t.Store.Put(key, data)
 	}
 	return cnt
 }

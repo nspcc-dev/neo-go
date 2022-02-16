@@ -362,8 +362,8 @@ func BenchmarkStorageFind(b *testing.B) {
 				items["abc"+random.String(10)] = random.Bytes(10)
 			}
 			for k, v := range items {
-				require.NoError(b, context.DAO.PutStorageItem(contractState.ID, []byte(k), v))
-				require.NoError(b, context.DAO.PutStorageItem(contractState.ID+1, []byte(k), v))
+				context.DAO.PutStorageItem(contractState.ID, []byte(k), v)
+				context.DAO.PutStorageItem(contractState.ID+1, []byte(k), v)
 			}
 			changes, err := context.DAO.Persist()
 			require.NoError(b, err)
@@ -406,8 +406,8 @@ func BenchmarkStorageFindIteratorNext(b *testing.B) {
 						items["abc"+random.String(10)] = random.Bytes(10)
 					}
 					for k, v := range items {
-						require.NoError(b, context.DAO.PutStorageItem(contractState.ID, []byte(k), v))
-						require.NoError(b, context.DAO.PutStorageItem(contractState.ID+1, []byte(k), v))
+						context.DAO.PutStorageItem(contractState.ID, []byte(k), v)
+						context.DAO.PutStorageItem(contractState.ID+1, []byte(k), v)
 					}
 					changes, err := context.DAO.Persist()
 					require.NoError(b, err)
@@ -487,8 +487,7 @@ func TestStorageFind(t *testing.T) {
 	id := contractState.ID
 
 	for i := range skeys {
-		err := context.DAO.PutStorageItem(id, skeys[i], items[i])
-		require.NoError(t, err)
+		context.DAO.PutStorageItem(id, skeys[i], items[i])
 	}
 
 	testFind := func(t *testing.T, prefix []byte, opts int64, expected []stackitem.Item) {

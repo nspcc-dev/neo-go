@@ -18,26 +18,32 @@ func TestMemCachedPutGetDelete(t *testing.T) {
 	key := []byte("foo")
 	value := []byte("bar")
 
-	require.NoError(t, s.Put(key, value))
+	s.Put(key, value)
 
 	result, err := s.Get(key)
 	assert.Nil(t, err)
 	require.Equal(t, value, result)
 
-	err = s.Delete(key)
-	assert.Nil(t, err)
+	s.Delete(key)
 
 	_, err = s.Get(key)
 	assert.NotNil(t, err)
 	assert.Equal(t, err, ErrKeyNotFound)
 
 	// Double delete.
-	err = s.Delete(key)
-	assert.Nil(t, err)
+	s.Delete(key)
+
+	_, err = s.Get(key)
+	assert.NotNil(t, err)
+	assert.Equal(t, err, ErrKeyNotFound)
 
 	// Nonexistent.
 	key = []byte("sparse")
-	assert.NoError(t, s.Delete(key))
+	s.Delete(key)
+
+	_, err = s.Get(key)
+	assert.NotNil(t, err)
+	assert.Equal(t, err, ErrKeyNotFound)
 }
 
 func testMemCachedStorePersist(t *testing.T, ps Store) {
@@ -48,7 +54,7 @@ func testMemCachedStorePersist(t *testing.T, ps Store) {
 	assert.Equal(t, nil, err)
 	assert.Equal(t, 0, c)
 	// persisting one key should result in one key in ps and nothing in ts
-	assert.NoError(t, ts.Put([]byte("key"), []byte("value")))
+	ts.Put([]byte("key"), []byte("value"))
 	checkBatch(t, ts, []KeyValueExists{{KeyValue: KeyValue{Key: []byte("key"), Value: []byte("value")}}}, nil)
 	c, err = ts.Persist()
 	checkBatch(t, ts, nil, nil)
@@ -61,8 +67,8 @@ func testMemCachedStorePersist(t *testing.T, ps Store) {
 	assert.Equal(t, ErrKeyNotFound, err)
 	assert.Equal(t, []byte(nil), v)
 	// now we overwrite the previous `key` contents and also add `key2`,
-	assert.NoError(t, ts.Put([]byte("key"), []byte("newvalue")))
-	assert.NoError(t, ts.Put([]byte("key2"), []byte("value2")))
+	ts.Put([]byte("key"), []byte("newvalue"))
+	ts.Put([]byte("key2"), []byte("value2"))
 	// this is to check that now key is written into the ps before we do
 	// persist
 	v, err = ps.Get([]byte("key2"))
@@ -96,8 +102,7 @@ func testMemCachedStorePersist(t *testing.T, ps Store) {
 	assert.Equal(t, nil, err)
 	assert.Equal(t, 0, c)
 	// test persisting deletions
-	err = ts.Delete([]byte("key"))
-	assert.Equal(t, nil, err)
+	ts.Delete([]byte("key"))
 	checkBatch(t, ts, nil, []KeyValueExists{{KeyValue: KeyValue{Key: []byte("key")}, Exists: true}})
 	c, err = ts.Persist()
 	checkBatch(t, ts, nil, nil)
@@ -155,7 +160,7 @@ func TestCachedGetFromPersistent(t *testing.T) {
 	val, err := ts.Get(key)
 	assert.Nil(t, err)
 	assert.Equal(t, value, val)
-	assert.NoError(t, ts.Delete(key))
+	ts.Delete(key)
 	val, err = ts.Get(key)
 	assert.Equal(t, err, ErrKeyNotFound)
 	assert.Nil(t, val)
@@ -188,11 +193,11 @@ func TestCachedSeek(t *testing.T) {
 	}
 	for _, v := range deletedKVs {
 		require.NoError(t, ps.PutChangeSet(map[string][]byte{string(v.Key): v.Value}, nil))
-		require.NoError(t, ts.Delete(v.Key))
+		ts.Delete(v.Key)
 	}
 	for _, v := range updatedKVs {
 		require.NoError(t, ps.PutChangeSet(map[string][]byte{string(v.Key): v.Value}, nil))
-		require.NoError(t, ts.Put(v.Key, v.Value))
+		ts.Put(v.Key, v.Value)
 	}
 	foundKVs := make(map[string][]byte)
 	ts.Seek(SeekRange{Prefix: goodPrefix}, func(k, v []byte) bool {
@@ -227,34 +232,34 @@ func benchmarkCachedSeek(t *testing.B, ps Store, psElementsCount, tsElementsCoun
 	)
 	for i := 0; i < psElementsCount; i++ {
 		// lower KVs with matching prefix that should be found
-		require.NoError(t, ts.Put(append(lowerPrefixGood, random.Bytes(10)...), []byte("value")))
+		ts.Put(append(lowerPrefixGood, random.Bytes(10)...), []byte("value"))
 		// lower KVs with non-matching prefix that shouldn't be found
-		require.NoError(t, ts.Put(append(lowerPrefixBad, random.Bytes(10)...), []byte("value")))
+		ts.Put(append(lowerPrefixBad, random.Bytes(10)...), []byte("value"))
 
 		// deleted KVs with matching prefix that shouldn't be found
 		key := append(deletedPrefixGood, random.Bytes(10)...)
-		require.NoError(t, ts.Put(key, []byte("deleted")))
+		ts.Put(key, []byte("deleted"))
 		if i < tsElementsCount {
-			require.NoError(t, ts.Delete(key))
+			ts.Delete(key)
 		}
 		// deleted KVs with non-matching prefix that shouldn't be found
 		key = append(deletedPrefixBad, random.Bytes(10)...)
-		require.NoError(t, ts.Put(key, []byte("deleted")))
+		ts.Put(key, []byte("deleted"))
 		if i < tsElementsCount {
-			require.NoError(t, ts.Delete(key))
+			ts.Delete(key)
 		}
 
 		// updated KVs with matching prefix that should be found
 		key = append(updatedPrefixGood, random.Bytes(10)...)
-		require.NoError(t, ts.Put(key, []byte("stub")))
+		ts.Put(key, []byte("stub"))
 		if i < tsElementsCount {
-			require.NoError(t, ts.Put(key, []byte("updated")))
+			ts.Put(key, []byte("updated"))
 		}
 		// updated KVs with non-matching prefix that shouldn't be found
 		key = append(updatedPrefixBad, random.Bytes(10)...)
-		require.NoError(t, ts.Put(key, []byte("stub")))
+		ts.Put(key, []byte("stub"))
 		if i < tsElementsCount {
-			require.NoError(t, ts.Put(key, []byte("updated")))
+			ts.Put(key, []byte("updated"))
 		}
 	}
 	_, err := ts.PersistSync()
@@ -329,13 +334,13 @@ func TestMemCachedPersistFailing(t *testing.T) {
 	// cached Store
 	ts := NewMemCachedStore(&bs)
 	// Set a pair of keys.
-	require.NoError(t, ts.Put(t1, t1))
-	require.NoError(t, ts.Put(t2, t2))
+	ts.Put(t1, t1)
+	ts.Put(t2, t2)
 	// This will be called during Persist().
 	bs.onPutBatch = func() {
 		// Drop one, add one.
-		require.NoError(t, ts.Put(b1, b1))
-		require.NoError(t, ts.Delete(t1))
+		ts.Put(b1, b1)
+		ts.Delete(t1)
 	}
 	_, err := ts.Persist()
 	require.Error(t, err)
@@ -381,11 +386,11 @@ func TestCachedSeekSorting(t *testing.T) {
 	}
 	for _, v := range deletedKVs {
 		require.NoError(t, ps.PutChangeSet(map[string][]byte{string(v.Key): v.Value}, nil))
-		require.NoError(t, ts.Delete(v.Key))
+		ts.Delete(v.Key)
 	}
 	for _, v := range updatedKVs {
 		require.NoError(t, ps.PutChangeSet(map[string][]byte{string(v.Key): v.Value}, nil))
-		require.NoError(t, ts.Put(v.Key, v.Value))
+		ts.Put(v.Key, v.Value)
 	}
 	var foundKVs []KeyValue
 	ts.Seek(SeekRange{Prefix: goodPrefix}, func(k, v []byte) bool {

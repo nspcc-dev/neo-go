@@ -123,15 +123,9 @@ func (p *Policy) Metadata() *interop.ContractMD {
 
 // Initialize initializes Policy native contract and implements Contract interface.
 func (p *Policy) Initialize(ic *interop.Context) error {
-	if err := setIntWithKey(p.ID, ic.DAO, feePerByteKey, defaultFeePerByte); err != nil {
-		return err
-	}
-	if err := setIntWithKey(p.ID, ic.DAO, execFeeFactorKey, defaultExecFeeFactor); err != nil {
-		return err
-	}
-	if err := setIntWithKey(p.ID, ic.DAO, storagePriceKey, DefaultStoragePrice); err != nil {
-		return err
-	}
+	setIntWithKey(p.ID, ic.DAO, feePerByteKey, defaultFeePerByte)
+	setIntWithKey(p.ID, ic.DAO, execFeeFactorKey, defaultExecFeeFactor)
+	setIntWithKey(p.ID, ic.DAO, storagePriceKey, DefaultStoragePrice)
 
 	p.isValid = true
 	p.execFeeFactor = defaultExecFeeFactor
@@ -229,10 +223,7 @@ func (p *Policy) setExecFeeFactor(ic *interop.Context, args []stackitem.Item) st
 	}
 	p.lock.Lock()
 	defer p.lock.Unlock()
-	err := setIntWithKey(p.ID, ic.DAO, execFeeFactorKey, int64(value))
-	if err != nil {
-		panic(err)
-	}
+	setIntWithKey(p.ID, ic.DAO, execFeeFactorKey, int64(value))
 	p.isValid = false
 	return stackitem.Null{}
 }
@@ -285,10 +276,7 @@ func (p *Policy) setStoragePrice(ic *interop.Context, args []stackitem.Item) sta
 	}
 	p.lock.Lock()
 	defer p.lock.Unlock()
-	err := setIntWithKey(p.ID, ic.DAO, storagePriceKey, int64(value))
-	if err != nil {
-		panic(err)
-	}
+	setIntWithKey(p.ID, ic.DAO, storagePriceKey, int64(value))
 	p.isValid = false
 	return stackitem.Null{}
 }
@@ -304,10 +292,7 @@ func (p *Policy) setFeePerByte(ic *interop.Context, args []stackitem.Item) stack
 	}
 	p.lock.Lock()
 	defer p.lock.Unlock()
-	err := setIntWithKey(p.ID, ic.DAO, feePerByteKey, value)
-	if err != nil {
-		panic(err)
-	}
+	setIntWithKey(p.ID, ic.DAO, feePerByteKey, value)
 	p.isValid = false
 	return stackitem.Null{}
 }
@@ -330,10 +315,7 @@ func (p *Policy) blockAccount(ic *interop.Context, args []stackitem.Item) stacki
 	key := append([]byte{blockedAccountPrefix}, hash.BytesBE()...)
 	p.lock.Lock()
 	defer p.lock.Unlock()
-	err := ic.DAO.PutStorageItem(p.ID, key, state.StorageItem{})
-	if err != nil {
-		panic(err)
-	}
+	ic.DAO.PutStorageItem(p.ID, key, state.StorageItem{})
 	p.isValid = false
 	return stackitem.NewBool(true)
 }
@@ -351,10 +333,7 @@ func (p *Policy) unblockAccount(ic *interop.Context, args []stackitem.Item) stac
 	key := append([]byte{blockedAccountPrefix}, hash.BytesBE()...)
 	p.lock.Lock()
 	defer p.lock.Unlock()
-	err := ic.DAO.DeleteStorageItem(p.ID, key)
-	if err != nil {
-		panic(err)
-	}
+	ic.DAO.DeleteStorageItem(p.ID, key)
 	p.isValid = false
 	return stackitem.NewBool(true)
 }
