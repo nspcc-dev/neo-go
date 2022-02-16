@@ -357,9 +357,6 @@ func (bc *Blockchain) init() error {
 	bc.dao.Version = ver
 	bc.persistent.Version = ver
 
-	// Always try to remove garbage. If there is nothing to do, it will exit quickly.
-	go bc.removeOldStorageItems()
-
 	// At this point there was no version found in the storage which
 	// implies a creating fresh storage with the version specified
 	// and the genesis block as first block.
@@ -484,27 +481,6 @@ func (bc *Blockchain) init() error {
 	return bc.updateExtensibleWhitelist(bHeight)
 }
 
-func (bc *Blockchain) removeOldStorageItems() {
-	_, err := bc.dao.Store.Get(storage.SYSCleanStorage.Bytes())
-	if err != nil {
-		return
-	}
-
-	b := bc.dao.Store.Batch()
-	prefix := statesync.TemporaryPrefix(bc.dao.Version.StoragePrefix)
-	bc.dao.Store.Seek(storage.SeekRange{Prefix: []byte{byte(prefix)}}, func(k, _ []byte) bool {
-		// #1468, but don't need to copy here, because it is done by Store.
-		b.Delete(k)
-		return true
-	})
-	b.Delete(storage.SYSCleanStorage.Bytes())
-
-	err = bc.dao.Store.PutBatch(b)
-	if err != nil {
-		bc.log.Error("failed to remove old storage items", zap.Error(err))
-	}
-}
-
 // jumpToState is an atomic operation that changes Blockchain state to the one
 // specified by the state sync point p. All the data needed for the jump must be
 // collected by the state sync module.
@@ -554,15 +530,21 @@ func (bc *Blockchain) jumpToStateInternal(p uint32, stage stateJumpStage) error 
 			return fmt.Errorf("failed to store state jump stage: %w", err)
 		}
 
-		err = bc.dao.Store.Put(storage.SYSCleanStorage.Bytes(), []byte{})
-		if err != nil {
-			return fmt.Errorf("failed to store clean storage flag: %w", err)
-		}
-
-		go bc.removeOldStorageItems()
-
 		fallthrough
 	case newStorageItemsAdded:
+		b := bc.dao.Store.Batch()
+		prefix := statesync.TemporaryPrefix(bc.dao.Version.StoragePrefix)
+		bc.dao.Store.Seek(storage.SeekRange{Prefix: []byte{byte(prefix)}}, func(k, _ []byte) bool {
+			// #1468, but don't need to copy here, because it is done by Store.
+			b.Delete(k)
+			return true
+		})
+
+		err := bc.dao.Store.PutBatch(b)
+		if err != nil {
+			return fmt.Errorf("failed to remove old storage items: %w", err)
+		}
+
 		// After current state is updated, we need to remove outdated state-related data if so.
 		// The only outdated data we might have is genesis-related data, so check it.
 		if p-bc.config.MaxTraceableBlocks > 0 {
@@ -584,7 +566,7 @@ func (bc *Blockchain) jumpToStateInternal(p uint32, stage stateJumpStage) error 
 				return fmt.Errorf("failed to drop genesis block state: %w", err)
 			}
 		}
-		err := bc.dao.Store.Put(jumpStageKey, []byte{byte(genesisStateRemoved)})
+		err = bc.dao.Store.Put(jumpStageKey, []byte{byte(genesisStateRemoved)})
 		if err != nil {
 			return fmt.Errorf("failed to store state jump stage: %w", err)
 		}
