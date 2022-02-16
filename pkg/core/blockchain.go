@@ -2,6 +2,7 @@ package core
 
 import (
 	"bytes"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"math"
@@ -356,9 +357,6 @@ func (bc *Blockchain) init() error {
 	bc.dao.Version = ver
 	bc.persistent.Version = ver
 
-	// Always try to remove garbage. If there is nothing to do, it will exit quickly.
-	go bc.removeOldStorageItems()
-
 	// At this point there was no version found in the storage which
 	// implies a creating fresh storage with the version specified
 	// and the genesis block as first block.
@@ -483,27 +481,6 @@ func (bc *Blockchain) init() error {
 	return bc.updateExtensibleWhitelist(bHeight)
 }
 
-func (bc *Blockchain) removeOldStorageItems() {
-	_, err := bc.dao.Store.Get(storage.SYSCleanStorage.Bytes())
-	if err != nil {
-		return
-	}
-
-	b := bc.dao.Store.Batch()
-	prefix := statesync.TemporaryPrefix(bc.dao.Version.StoragePrefix)
-	bc.dao.Store.Seek(storage.SeekRange{Prefix: []byte{byte(prefix)}}, func(k, _ []byte) bool {
-		// #1468, but don't need to copy here, because it is done by Store.
-		b.Delete(k)
-		return true
-	})
-	b.Delete(storage.SYSCleanStorage.Bytes())
-
-	err = bc.dao.Store.PutBatch(b)
-	if err != nil {
-		bc.log.Error("failed to remove old storage items", zap.Error(err))
-	}
-}
-
 // jumpToState is an atomic operation that changes Blockchain state to the one
 // specified by the state sync point p. All the data needed for the jump must be
 // collected by the state sync module.
@@ -553,31 +530,43 @@ func (bc *Blockchain) jumpToStateInternal(p uint32, stage stateJumpStage) error 
 			return fmt.Errorf("failed to store state jump stage: %w", err)
 		}
 
-		err = bc.dao.Store.Put(storage.SYSCleanStorage.Bytes(), []byte{})
-		if err != nil {
-			return fmt.Errorf("failed to store clean storage flag: %w", err)
-		}
-
-		go bc.removeOldStorageItems()
-
 		fallthrough
 	case newStorageItemsAdded:
+		b := bc.dao.Store.Batch()
+		prefix := statesync.TemporaryPrefix(bc.dao.Version.StoragePrefix)
+		bc.dao.Store.Seek(storage.SeekRange{Prefix: []byte{byte(prefix)}}, func(k, _ []byte) bool {
+			// #1468, but don't need to copy here, because it is done by Store.
+			b.Delete(k)
+			return true
+		})
+
+		err := bc.dao.Store.PutBatch(b)
+		if err != nil {
+			return fmt.Errorf("failed to remove old storage items: %w", err)
+		}
+
 		// After current state is updated, we need to remove outdated state-related data if so.
 		// The only outdated data we might have is genesis-related data, so check it.
 		if p-bc.config.MaxTraceableBlocks > 0 {
-			cache := bc.dao.GetWrapped()
+			cache := bc.dao.GetWrapped().(*dao.Simple)
 			writeBuf.Reset()
 			err := cache.DeleteBlock(bc.headerHashes[0], writeBuf)
 			if err != nil {
 				return fmt.Errorf("failed to remove outdated state data for the genesis block: %w", err)
 			}
-			// TODO: remove NEP-17 transfers and NEP-17 transfer info for genesis block, #2096 related.
+			prefixes := []byte{byte(storage.STNEP11Transfers), byte(storage.STNEP17Transfers), byte(storage.STTokenTransferInfo)}
+			for i := range prefixes {
+				cache.Store.Seek(storage.SeekRange{Prefix: prefixes[i : i+1]}, func(k, v []byte) bool {
+					_ = cache.Store.Delete(k) // It's MemCachedStore which never returns an error.
+					return true
+				})
+			}
 			_, err = cache.Persist()
 			if err != nil {
 				return fmt.Errorf("failed to drop genesis block state: %w", err)
 			}
 		}
-		err := bc.dao.Store.Put(jumpStageKey, []byte{byte(genesisStateRemoved)})
+		err = bc.dao.Store.Put(jumpStageKey, []byte{byte(genesisStateRemoved)})
 		if err != nil {
 			return fmt.Errorf("failed to store state jump stage: %w", err)
 		}
@@ -704,6 +693,62 @@ func (bc *Blockchain) tryRunGC(old uint32) time.Duration {
 		tgtBlock /= int64(bc.config.GarbageCollectionPeriod)
 		tgtBlock *= int64(bc.config.GarbageCollectionPeriod)
 		dur = bc.stateRoot.GC(uint32(tgtBlock), bc.store)
+		dur += bc.removeOldTransfers(uint32(tgtBlock))
+	}
+	return dur
+}
+
+func (bc *Blockchain) removeOldTransfers(index uint32) time.Duration {
+	bc.log.Info("starting transfer data garbage collection", zap.Uint32("index", index))
+	start := time.Now()
+	h, err := bc.GetHeader(bc.GetHeaderHash(int(index)))
+	if err != nil {
+		dur := time.Since(start)
+		bc.log.Error("failed to find block header for transfer GC", zap.Duration("time", dur), zap.Error(err))
+		return dur
+	}
+	var removed, kept int64
+	var ts = h.Timestamp
+	prefixes := []byte{byte(storage.STNEP11Transfers), byte(storage.STNEP17Transfers)}
+
+	for i := range prefixes {
+		var acc util.Uint160
+		var canDrop bool
+
+		err = bc.store.SeekGC(storage.SeekRange{
+			Prefix:    prefixes[i : i+1],
+			Backwards: true, // From new to old.
+		}, func(k, v []byte) bool {
+			// We don't look inside of the batches, it requires too much effort, instead
+			// we drop batches that are confirmed to contain outdated entries.
+			var batchAcc util.Uint160
+			var batchTs = binary.BigEndian.Uint64(k[1+util.Uint160Size:])
+			copy(batchAcc[:], k[1:])
+
+			if batchAcc != acc { // Some new account we're iterating over.
+				acc = batchAcc
+			} else if canDrop { // We've seen this account and all entries in this batch are guaranteed to be outdated.
+				removed++
+				return false
+			}
+			// We don't know what's inside, so keep the current
+			// batch anyway, but allow to drop older ones.
+			canDrop = batchTs <= ts
+			kept++
+			return true
+		})
+		if err != nil {
+			break
+		}
+	}
+	dur := time.Since(start)
+	if err != nil {
+		bc.log.Error("failed to flush transfer data GC changeset", zap.Duration("time", dur), zap.Error(err))
+	} else {
+		bc.log.Info("finished transfer data garbage collection",
+			zap.Int64("removed", removed),
+			zap.Int64("kept", kept),
+			zap.Duration("time", dur))
 	}
 	return dur
 }

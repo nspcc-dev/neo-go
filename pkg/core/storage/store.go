@@ -16,7 +16,6 @@ const (
 	// DataMPTAux is used to store additional MPT data like height-root
 	// mappings and local/validated heights.
 	DataMPTAux   KeyPrefix = 0x04
-	STAccount    KeyPrefix = 0x40
 	STContractID KeyPrefix = 0x51
 	STStorage    KeyPrefix = 0x70
 	// STTempStorage is used to store contract storage items during state sync process
@@ -33,7 +32,6 @@ const (
 	SYSStateSyncCurrentBlockHeight KeyPrefix = 0xc2
 	SYSStateSyncPoint              KeyPrefix = 0xc3
 	SYSStateJumpStage              KeyPrefix = 0xc4
-	SYSCleanStorage                KeyPrefix = 0xc5
 	SYSVersion                     KeyPrefix = 0xf0
 )
 

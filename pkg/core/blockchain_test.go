@@ -1588,6 +1588,67 @@ func TestDumpAndRestore(t *testing.T) {
 	})
 }
 
+func TestRemoveOldTransfers(t *testing.T) {
+	// Creating proper number of transfers/blocks takes unneccessary time, so emulate
+	// some DB with stale entries.
+	bc := newTestChain(t)
+	h, err := bc.GetHeader(bc.GetHeaderHash(0))
+	require.NoError(t, err)
+	older := h.Timestamp - 1000
+	newer := h.Timestamp + 1000
+	acc1 := util.Uint160{1}
+	acc2 := util.Uint160{2}
+	acc3 := util.Uint160{3}
+	ttl := state.TokenTransferLog{Raw: []byte{1}} // It's incorrect, but who cares.
+
+	for i := uint32(0); i < 3; i++ {
+		require.NoError(t, bc.dao.PutTokenTransferLog(acc1, older, i, false, &ttl))
+	}
+	for i := uint32(0); i < 3; i++ {
+		require.NoError(t, bc.dao.PutTokenTransferLog(acc2, newer, i, false, &ttl))
+	}
+	for i := uint32(0); i < 2; i++ {
+		require.NoError(t, bc.dao.PutTokenTransferLog(acc3, older, i, true, &ttl))
+	}
+	for i := uint32(0); i < 2; i++ {
+		require.NoError(t, bc.dao.PutTokenTransferLog(acc3, newer, i, true, &ttl))
+	}
+
+	_, err = bc.dao.Persist()
+	require.NoError(t, err)
+	_ = bc.removeOldTransfers(0)
+
+	for i := uint32(0); i < 2; i++ {
+		log, err := bc.dao.GetTokenTransferLog(acc1, older, i, false)
+		require.NoError(t, err)
+		require.Equal(t, 0, len(log.Raw))
+	}
+
+	log, err := bc.dao.GetTokenTransferLog(acc1, older, 2, false)
+	require.NoError(t, err)
+	require.NotEqual(t, 0, len(log.Raw))
+
+	for i := uint32(0); i < 3; i++ {
+		log, err = bc.dao.GetTokenTransferLog(acc2, newer, i, false)
+		require.NoError(t, err)
+		require.NotEqual(t, 0, len(log.Raw))
+	}
+
+	log, err = bc.dao.GetTokenTransferLog(acc3, older, 0, true)
+	require.NoError(t, err)
+	require.Equal(t, 0, len(log.Raw))
+
+	log, err = bc.dao.GetTokenTransferLog(acc3, older, 1, true)
+	require.NoError(t, err)
+	require.NotEqual(t, 0, len(log.Raw))
+
+	for i := uint32(0); i < 2; i++ {
+		log, err = bc.dao.GetTokenTransferLog(acc3, newer, i, true)
+		require.NoError(t, err)
+		require.NotEqual(t, 0, len(log.Raw))
+	}
+}
+
 func TestRemoveUntraceable(t *testing.T) {
 	check := func(t *testing.T, bc *Blockchain, tHash, bHash, sHash util.Uint256, errorExpected bool) {
 		_, _, err := bc.GetTransaction(tHash)
