@@ -20,6 +20,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/contract"
 	"github.com/nspcc-dev/neo-go/pkg/core/mempool"
+	"github.com/nspcc-dev/neo-go/pkg/core/mpt"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/noderoles"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
@@ -1138,7 +1139,7 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 	appExecResults = append(appExecResults, aer)
 	aerchan <- aer
 	close(aerchan)
-	b := cache.GetMPTBatch()
+	b := mpt.MapToMPTBatch(cache.Store.GetStorageChanges())
 	mpt, sr, err := bc.stateRoot.AddMPTBatch(block.Index, b, cache.Store)
 	if err != nil {
 		// Release goroutines, don't care about errors, we already have one.

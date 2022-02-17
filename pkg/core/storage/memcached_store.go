@@ -156,19 +156,13 @@ func (s *MemCachedStore) Seek(rng SeekRange, f func(k, v []byte) bool) {
 	s.seek(context.Background(), rng, false, f)
 }
 
-// SeekAll is like seek but also iterates over deleted items.
-func (s *MemCachedStore) SeekAll(key []byte, f func(k, v []byte)) {
+// GetStorageChanges returns all current storage changes. It can only be done for private
+// MemCachedStore.
+func (s *MemCachedStore) GetStorageChanges() map[string][]byte {
 	if !s.private {
-		s.mut.RLock()
-		defer s.mut.RUnlock()
+		panic("GetStorageChanges called on shared MemCachedStore")
 	}
-	sk := string(key)
-	m := s.chooseMap(key)
-	for k, v := range m {
-		if strings.HasPrefix(k, sk) {
-			f([]byte(k), v)
-		}
-	}
+	return s.stor
 }
 
 // SeekAsync returns non-buffered channel with matching KeyValue pairs. Key and

@@ -9,7 +9,6 @@ import (
 	"sort"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
-	"github.com/nspcc-dev/neo-go/pkg/core/mpt"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
@@ -770,13 +769,4 @@ func (dao *Simple) Persist() (int, error) {
 // other threads to work with DAO while flushing the Store.
 func (dao *Simple) PersistSync() (int, error) {
 	return dao.Store.PersistSync()
-}
-
-// GetMPTBatch storage changes to be applied to MPT.
-func (dao *Simple) GetMPTBatch() mpt.Batch {
-	var b mpt.Batch
-	dao.Store.SeekAll([]byte{byte(dao.Version.StoragePrefix)}, func(k, v []byte) {
-		b.Add(k[1:], v)
-	})
-	return b
 }
