@@ -819,7 +819,8 @@ const logo = `
 `
 
 func printLogo(w io.Writer) {
-	fmt.Fprintln(w, logo)
+	fmt.Fprint(w, logo)
+	fmt.Fprintln(w)
 	fmt.Fprintln(w)
 	fmt.Fprintln(w)
 }
