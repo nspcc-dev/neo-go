@@ -222,6 +222,23 @@ example:
 	},
 }
 
+var completer *readline.PrefixCompleter
+
+func init() {
+	var pcItems []readline.PrefixCompleterInterface
+	for _, c := range commands {
+		if !c.Hidden {
+			var flagsItems []readline.PrefixCompleterInterface
+			for _, f := range c.Flags {
+				names := strings.SplitN(f.GetName(), ", ", 2) // only long name will be offered
+				flagsItems = append(flagsItems, readline.PcItem("--"+names[0]))
+			}
+			pcItems = append(pcItems, readline.PcItem(c.Name, flagsItems...))
+		}
+	}
+	completer = readline.NewPrefixCompleter(pcItems...)
+}
+
 // Various errors.
 var (
 	ErrMissingParameter = errors.New("missing argument")
@@ -243,6 +260,10 @@ func New() *VMCLI {
 
 // NewWithConfig returns new VMCLI instance using provided config.
 func NewWithConfig(printLogotype bool, onExit func(int), c *readline.Config) *VMCLI {
+	if c.AutoComplete == nil {
+		// Autocomplete commands/flags on TAB.
+		c.AutoComplete = completer
+	}
 	l, err := readline.NewEx(c)
 	if err != nil {
 		panic(err)
