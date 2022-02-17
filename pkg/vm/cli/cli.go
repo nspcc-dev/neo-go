@@ -157,9 +157,8 @@ and converted to other formats. Strings are escaped and output in quotes.`,
 		UsageText: `run [<method> [<parameter>...]]`,
 		Description: `run [<method> [<parameter>...]]
 
-<method> is a contract method, specified in manifest (and it
-        can't be 'help' at the moment). It can be '_' which will push parameters
-        onto the stack and execute from the current offset.
+<method> is a contract method, specified in manifest. It can be '_' which will push
+        parameters onto the stack and execute from the current offset.
 <parameter> is a parameter (can be repeated multiple times) that can be specified
         as <type>:<value>, where type can be:
             '` + boolType + `': supports '` + boolFalse + `' and '` + boolTrue + `' values
