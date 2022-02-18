@@ -99,7 +99,7 @@ func (dao *Simple) putWithBuffer(entity io.Serializable, key []byte, buf *io.Buf
 func (dao *Simple) makeContractIDKey(id int32) []byte {
 	key := dao.getKeyBuf(5)
 	key[0] = byte(storage.STContractID)
-	binary.LittleEndian.PutUint32(key[1:], uint32(id))
+	binary.BigEndian.PutUint32(key[1:], uint32(id))
 	return key
 }
 
