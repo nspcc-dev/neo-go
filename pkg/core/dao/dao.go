@@ -31,6 +31,7 @@ var (
 type Simple struct {
 	Version Version
 	Store   *storage.MemCachedStore
+	private bool
 	keyBuf  []byte
 	dataBuf *io.BufBinWriter
 }
@@ -71,12 +72,7 @@ func (dao *Simple) GetPrivate() *Simple {
 	d := &Simple{}
 	*d = *dao                                             // Inherit everything...
 	d.Store = storage.NewPrivateMemCachedStore(dao.Store) // except storage, wrap another layer.
-	if d.keyBuf == nil {
-		d.keyBuf = make([]byte, 0, 1+4+storage.MaxStorageKeyLen) // Prefix, uint32, key.
-	}
-	if dao.dataBuf == nil {
-		d.dataBuf = io.NewBufBinWriter()
-	}
+	d.private = true
 	return d
 }
 
@@ -748,14 +744,20 @@ func (dao *Simple) StoreAsTransaction(tx *transaction.Transaction, index uint32,
 }
 
 func (dao *Simple) getKeyBuf(len int) []byte {
-	if dao.keyBuf != nil { // Private DAO.
+	if dao.private {
+		if dao.keyBuf == nil {
+			dao.keyBuf = make([]byte, 0, 1+4+storage.MaxStorageKeyLen) // Prefix, uint32, key.
+		}
 		return dao.keyBuf[:len] // Should have enough capacity.
 	}
 	return make([]byte, len)
 }
 
 func (dao *Simple) getDataBuf() *io.BufBinWriter {
-	if dao.dataBuf != nil {
+	if dao.private {
+		if dao.dataBuf == nil {
+			dao.dataBuf = io.NewBufBinWriter()
+		}
 		dao.dataBuf.Reset()
 		return dao.dataBuf
 	}
