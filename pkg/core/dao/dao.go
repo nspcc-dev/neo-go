@@ -559,8 +559,11 @@ func (dao *Simple) PutVersion(v Version) {
 }
 
 // PutCurrentHeader stores current header.
-func (dao *Simple) PutCurrentHeader(hashAndIndex []byte) {
-	dao.Store.Put(storage.SYSCurrentHeader.Bytes(), hashAndIndex)
+func (dao *Simple) PutCurrentHeader(h util.Uint256, index uint32) {
+	buf := dao.getDataBuf()
+	buf.WriteBytes(h.BytesLE())
+	buf.WriteU32LE(index)
+	dao.Store.Put(storage.SYSCurrentHeader.Bytes(), buf.Bytes())
 }
 
 // PutStateSyncPoint stores current state synchronisation point P.

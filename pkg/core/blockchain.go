@@ -325,7 +325,7 @@ func (bc *Blockchain) init() error {
 			return err
 		}
 		bc.headerHashes = []util.Uint256{genesisBlock.Hash()}
-		bc.dao.PutCurrentHeader(hashAndIndexToBytes(genesisBlock.Hash(), genesisBlock.Index))
+		bc.dao.PutCurrentHeader(genesisBlock.Hash(), genesisBlock.Index)
 		if err := bc.stateRoot.Init(0); err != nil {
 			return fmt.Errorf("can't init MPT: %w", err)
 		}
@@ -958,7 +958,7 @@ func (bc *Blockchain) addHeaders(verify bool, headers ...*block.Header) error {
 			bc.storedHeaderCount += headerBatchCount
 		}
 
-		batch.Store.Put(storage.SYSCurrentHeader.Bytes(), hashAndIndexToBytes(lastHeader.Hash(), lastHeader.Index))
+		batch.PutCurrentHeader(lastHeader.Hash(), lastHeader.Index)
 		updateHeaderHeightMetric(len(bc.headerHashes) - 1)
 		if _, err = batch.Persist(); err != nil {
 			return err
@@ -2297,13 +2297,6 @@ func (bc *Blockchain) UtilityTokenHash() util.Uint160 {
 // ManagementContractHash returns management contract's hash.
 func (bc *Blockchain) ManagementContractHash() util.Uint160 {
 	return bc.contracts.Management.Hash
-}
-
-func hashAndIndexToBytes(h util.Uint256, index uint32) []byte {
-	buf := io.NewBufBinWriter()
-	buf.WriteBytes(h.BytesLE())
-	buf.WriteU32LE(index)
-	return buf.Bytes()
 }
 
 func (bc *Blockchain) newInteropContext(trigger trigger.Type, d *dao.Simple, block *block.Block, tx *transaction.Transaction) *interop.Context {
