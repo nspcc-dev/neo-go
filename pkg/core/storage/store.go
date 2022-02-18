@@ -106,11 +106,6 @@ type (
 	KeyPrefix uint8
 )
 
-// Bytes returns the bytes representation of KeyPrefix.
-func (k KeyPrefix) Bytes() []byte {
-	return []byte{byte(k)}
-}
-
 func seekRangeToPrefixes(sr SeekRange) *util.Range {
 	var (
 		rang  *util.Range

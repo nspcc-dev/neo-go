@@ -423,7 +423,7 @@ func TestStateSyncModule_RestoreBasicChain(t *testing.T) {
 	// compare storage states
 	fetchStorage := func(bc *Blockchain) []storage.KeyValue {
 		var kv []storage.KeyValue
-		bc.dao.Store.Seek(storage.SeekRange{Prefix: bc.dao.Version.StoragePrefix.Bytes()}, func(k, v []byte) bool {
+		bc.dao.Store.Seek(storage.SeekRange{Prefix: []byte{byte(bc.dao.Version.StoragePrefix)}}, func(k, v []byte) bool {
 			key := slice.Copy(k)
 			value := slice.Copy(v)
 			if key[0] == byte(storage.STTempStorage) {
@@ -444,7 +444,7 @@ func TestStateSyncModule_RestoreBasicChain(t *testing.T) {
 	// no temp items should be left
 	require.Eventually(t, func() bool {
 		var haveItems bool
-		bcBolt.dao.Store.Seek(storage.SeekRange{Prefix: storage.STStorage.Bytes()}, func(_, _ []byte) bool {
+		bcBolt.dao.Store.Seek(storage.SeekRange{Prefix: []byte{byte(storage.STStorage)}}, func(_, _ []byte) bool {
 			haveItems = true
 			return false
 		})

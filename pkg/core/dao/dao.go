@@ -448,12 +448,18 @@ func (v *Version) Bytes() []byte {
 	return append([]byte(v.Value), '\x00', byte(v.StoragePrefix), mask)
 }
 
+func (dao *Simple) mkKeyPrefix(k storage.KeyPrefix) []byte {
+	b := dao.getKeyBuf(1)
+	b[0] = byte(k)
+	return b
+}
+
 // GetVersion attempts to get the current version stored in the
 // underlying store.
 func (dao *Simple) GetVersion() (Version, error) {
 	var version Version
 
-	data, err := dao.Store.Get(storage.SYSVersion.Bytes())
+	data, err := dao.Store.Get(dao.mkKeyPrefix(storage.SYSVersion))
 	if err == nil {
 		err = version.FromBytes(data)
 	}
@@ -463,7 +469,7 @@ func (dao *Simple) GetVersion() (Version, error) {
 // GetCurrentBlockHeight returns the current block height found in the
 // underlying store.
 func (dao *Simple) GetCurrentBlockHeight() (uint32, error) {
-	b, err := dao.Store.Get(storage.SYSCurrentBlock.Bytes())
+	b, err := dao.Store.Get(dao.mkKeyPrefix(storage.SYSCurrentBlock))
 	if err != nil {
 		return 0, err
 	}
@@ -474,7 +480,7 @@ func (dao *Simple) GetCurrentBlockHeight() (uint32, error) {
 // the underlying store.
 func (dao *Simple) GetCurrentHeaderHeight() (i uint32, h util.Uint256, err error) {
 	var b []byte
-	b, err = dao.Store.Get(storage.SYSCurrentHeader.Bytes())
+	b, err = dao.Store.Get(dao.mkKeyPrefix(storage.SYSCurrentHeader))
 	if err != nil {
 		return
 	}
@@ -485,7 +491,7 @@ func (dao *Simple) GetCurrentHeaderHeight() (i uint32, h util.Uint256, err error
 
 // GetStateSyncPoint returns current state synchronisation point P.
 func (dao *Simple) GetStateSyncPoint() (uint32, error) {
-	b, err := dao.Store.Get(storage.SYSStateSyncPoint.Bytes())
+	b, err := dao.Store.Get(dao.mkKeyPrefix(storage.SYSStateSyncPoint))
 	if err != nil {
 		return 0, err
 	}
@@ -495,7 +501,7 @@ func (dao *Simple) GetStateSyncPoint() (uint32, error) {
 // GetStateSyncCurrentBlockHeight returns current block height stored during state
 // synchronisation process.
 func (dao *Simple) GetStateSyncCurrentBlockHeight() (uint32, error) {
-	b, err := dao.Store.Get(storage.SYSStateSyncCurrentBlockHeight.Bytes())
+	b, err := dao.Store.Get(dao.mkKeyPrefix(storage.SYSStateSyncCurrentBlockHeight))
 	if err != nil {
 		return 0, err
 	}
@@ -508,7 +514,7 @@ func (dao *Simple) GetHeaderHashes() ([]util.Uint256, error) {
 	var hashes = make([]util.Uint256, 0)
 
 	dao.Store.Seek(storage.SeekRange{
-		Prefix: storage.IXHeaderHashList.Bytes(),
+		Prefix: dao.mkKeyPrefix(storage.IXHeaderHashList),
 	}, func(k, v []byte) bool {
 		newHashes, err := read2000Uint256Hashes(v)
 		if err != nil {
@@ -555,7 +561,7 @@ func (dao *Simple) GetTransaction(hash util.Uint256) (*transaction.Transaction, 
 // PutVersion stores the given version in the underlying store.
 func (dao *Simple) PutVersion(v Version) {
 	dao.Version = v
-	dao.Store.Put(storage.SYSVersion.Bytes(), v.Bytes())
+	dao.Store.Put(dao.mkKeyPrefix(storage.SYSVersion), v.Bytes())
 }
 
 // PutCurrentHeader stores current header.
@@ -563,21 +569,21 @@ func (dao *Simple) PutCurrentHeader(h util.Uint256, index uint32) {
 	buf := dao.getDataBuf()
 	buf.WriteBytes(h.BytesLE())
 	buf.WriteU32LE(index)
-	dao.Store.Put(storage.SYSCurrentHeader.Bytes(), buf.Bytes())
+	dao.Store.Put(dao.mkKeyPrefix(storage.SYSCurrentHeader), buf.Bytes())
 }
 
 // PutStateSyncPoint stores current state synchronisation point P.
 func (dao *Simple) PutStateSyncPoint(p uint32) {
-	buf := dao.getKeyBuf(4) // It's very small, no point in using BufBinWriter.
-	binary.LittleEndian.PutUint32(buf, p)
-	dao.Store.Put(storage.SYSStateSyncPoint.Bytes(), buf)
+	buf := dao.getDataBuf()
+	buf.WriteU32LE(p)
+	dao.Store.Put(dao.mkKeyPrefix(storage.SYSStateSyncPoint), buf.Bytes())
 }
 
 // PutStateSyncCurrentBlockHeight stores current block height during state synchronisation process.
 func (dao *Simple) PutStateSyncCurrentBlockHeight(h uint32) {
-	buf := dao.getKeyBuf(4) // It's very small, no point in using BufBinWriter.
-	binary.LittleEndian.PutUint32(buf, h)
-	dao.Store.Put(storage.SYSStateSyncCurrentBlockHeight.Bytes(), buf)
+	buf := dao.getDataBuf()
+	buf.WriteU32LE(h)
+	dao.Store.Put(dao.mkKeyPrefix(storage.SYSStateSyncCurrentBlockHeight), buf.Bytes())
 }
 
 // read2000Uint256Hashes attempts to read 2000 Uint256 hashes from
@@ -712,7 +718,7 @@ func (dao *Simple) StoreAsCurrentBlock(block *block.Block) {
 	h := block.Hash()
 	h.EncodeBinary(buf.BinWriter)
 	buf.WriteU32LE(block.Index)
-	dao.Store.Put(storage.SYSCurrentBlock.Bytes(), buf.Bytes())
+	dao.Store.Put(dao.mkKeyPrefix(storage.SYSCurrentBlock), buf.Bytes())
 }
 
 // StoreAsTransaction stores given TX as DataTransaction. It also stores transactions

@@ -406,7 +406,7 @@ func (bc *Blockchain) init() error {
 	}
 
 	// Check whether StateJump stage is in the storage and continue interrupted state jump if so.
-	jumpStage, err := bc.dao.Store.Get(storage.SYSStateJumpStage.Bytes())
+	jumpStage, err := bc.dao.Store.Get([]byte{byte(storage.SYSStateJumpStage)})
 	if err == nil {
 		if !(bc.GetConfig().P2PStateExchangeExtensions && bc.GetConfig().RemoveUntraceableBlocks) {
 			return errors.New("state jump was not completed, but P2PStateExchangeExtensions are disabled or archival node capability is on. " +
@@ -500,7 +500,7 @@ func (bc *Blockchain) jumpToStateInternal(p uint32, stage stateJumpStage) error 
 
 	bc.log.Info("jumping to state sync point", zap.Uint32("state sync point", p))
 
-	jumpStageKey := storage.SYSStateJumpStage.Bytes()
+	jumpStageKey := []byte{byte(storage.SYSStateJumpStage)}
 	switch stage {
 	case none:
 		bc.dao.Store.Put(jumpStageKey, []byte{byte(stateJumpStarted)})
