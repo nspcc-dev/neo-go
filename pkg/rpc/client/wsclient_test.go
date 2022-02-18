@@ -45,6 +45,7 @@ func TestWSClientSubscription(t *testing.T) {
 				srv := initTestServer(t, `{"jsonrpc": "2.0", "id": 1, "result": "55aaff00"}`)
 				wsc, err := NewWS(context.TODO(), httpURLtoWS(srv.URL), Options{})
 				require.NoError(t, err)
+				wsc.getNextRequestID = getTestRequestID
 				require.NoError(t, wsc.Init())
 				id, err := f(wsc)
 				require.NoError(t, err)
@@ -58,6 +59,7 @@ func TestWSClientSubscription(t *testing.T) {
 				srv := initTestServer(t, `{"jsonrpc": "2.0", "id": 1, "error":{"code":-32602,"message":"Invalid Params"}}`)
 				wsc, err := NewWS(context.TODO(), httpURLtoWS(srv.URL), Options{})
 				require.NoError(t, err)
+				wsc.getNextRequestID = getTestRequestID
 				require.NoError(t, wsc.Init())
 				_, err = f(wsc)
 				require.Error(t, err)
@@ -107,6 +109,7 @@ func TestWSClientUnsubscription(t *testing.T) {
 			srv := initTestServer(t, rc.response)
 			wsc, err := NewWS(context.TODO(), httpURLtoWS(srv.URL), Options{})
 			require.NoError(t, err)
+			wsc.getNextRequestID = getTestRequestID
 			require.NoError(t, wsc.Init())
 			rc.code(t, wsc)
 		})
@@ -143,6 +146,7 @@ func TestWSClientEvents(t *testing.T) {
 
 	wsc, err := NewWS(context.TODO(), httpURLtoWS(srv.URL), Options{})
 	require.NoError(t, err)
+	wsc.getNextRequestID = getTestRequestID
 	wsc.cache.initDone = true // Our server mock is restricted, so perform initialisation manually.
 	wsc.cache.network = netmode.UnitTestNet
 	for range events {
@@ -167,6 +171,7 @@ func TestWSExecutionVMStateCheck(t *testing.T) {
 	srv := initTestServer(t, `{"jsonrpc": "2.0", "id": 1, "result": "55aaff00"}`)
 	wsc, err := NewWS(context.TODO(), httpURLtoWS(srv.URL), Options{})
 	require.NoError(t, err)
+	wsc.getNextRequestID = getTestRequestID
 	require.NoError(t, wsc.Init())
 	filter := "NONE"
 	_, err = wsc.SubscribeForTransactionExecutions(&filter)
@@ -316,6 +321,7 @@ func TestWSFilteredSubscriptions(t *testing.T) {
 			}))
 			wsc, err := NewWS(context.TODO(), httpURLtoWS(srv.URL), Options{})
 			require.NoError(t, err)
+			wsc.getNextRequestID = getTestRequestID
 			wsc.cache.network = netmode.UnitTestNet
 			c.clientCode(t, wsc)
 			wsc.Close()
@@ -329,6 +335,8 @@ func TestNewWS(t *testing.T) {
 	t.Run("good", func(t *testing.T) {
 		c, err := NewWS(context.TODO(), httpURLtoWS(srv.URL), Options{})
 		require.NoError(t, err)
+		c.getNextRequestID = getTestRequestID
+		c.cache.network = netmode.UnitTestNet
 		require.NoError(t, c.Init())
 	})
 	t.Run("bad URL", func(t *testing.T) {

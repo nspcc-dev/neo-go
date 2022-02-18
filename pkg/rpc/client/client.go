@@ -17,6 +17,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/rpc/request"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"go.uber.org/atomic"
 )
 
 const (
@@ -40,6 +41,12 @@ type Client struct {
 	// cache is mostly filled in during Init(), but can also be updated
 	// during regular Client lifecycle.
 	cache cache
+
+	latestReqID *atomic.Uint64
+	// getNextRequestID returns ID to be used for subsequent request creation.
+	// It is defined on Client so that our testing code can override this method
+	// for the sake of more predictable request IDs generation behaviour.
+	getNextRequestID func() uint64
 }
 
 // Options defines options for the RPC client.
@@ -110,10 +117,16 @@ func New(ctx context.Context, endpoint string, opts Options) (*Client, error) {
 		cache: cache{
 			nativeHashes: make(map[string]util.Uint160),
 		},
+		latestReqID: atomic.NewUint64(0),
 	}
+	cl.getNextRequestID = (cl).getRequestID
 	cl.opts = opts
 	cl.requestF = cl.makeHTTPRequest
 	return cl, nil
+}
+
+func (c *Client) getRequestID() uint64 {
+	return c.latestReqID.Inc()
 }
 
 // Init sets magic of the network client connected to, stateRootInHeader option
@@ -159,7 +172,7 @@ func (c *Client) performRequest(method string, p request.RawParams, v interface{
 		JSONRPC:   request.JSONRPCVersion,
 		Method:    method,
 		RawParams: p.Values,
-		ID:        1,
+		ID:        c.getNextRequestID(),
 	}
 
 	raw, err := c.requestF(&r)

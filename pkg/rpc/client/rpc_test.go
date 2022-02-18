@@ -1705,6 +1705,7 @@ func TestRPCClients(t *testing.T) {
 		testRPCClient(t, func(ctx context.Context, endpoint string, opts Options) (*Client, error) {
 			c, err := New(ctx, endpoint, opts)
 			require.NoError(t, err)
+			c.getNextRequestID = getTestRequestID
 			require.NoError(t, c.Init())
 			return c, nil
 		})
@@ -1713,6 +1714,7 @@ func TestRPCClients(t *testing.T) {
 		testRPCClient(t, func(ctx context.Context, endpoint string, opts Options) (*Client, error) {
 			wsc, err := NewWS(ctx, httpURLtoWS(endpoint), opts)
 			require.NoError(t, err)
+			wsc.getNextRequestID = getTestRequestID
 			require.NoError(t, wsc.Init())
 			return &wsc.Client, nil
 		})
@@ -1732,6 +1734,7 @@ func testRPCClient(t *testing.T, newClient func(context.Context, string, Options
 					if err != nil {
 						t.Fatal(err)
 					}
+					c.getNextRequestID = getTestRequestID
 
 					actual, err := testCase.invoke(c)
 					if testCase.fails {
@@ -1755,14 +1758,14 @@ func testRPCClient(t *testing.T, newClient func(context.Context, string, Options
 
 		endpoint := srv.URL
 		opts := Options{}
-		c, err := newClient(context.TODO(), endpoint, opts)
-		if err != nil {
-			t.Fatal(err)
-		}
-
 		for _, testCase := range testBatch {
 			t.Run(testCase.name, func(t *testing.T) {
-				_, err := testCase.invoke(c)
+				c, err := newClient(context.TODO(), endpoint, opts)
+				if err != nil {
+					t.Fatal(err)
+				}
+				c.getNextRequestID = getTestRequestID
+				_, err = testCase.invoke(c)
 				assert.Error(t, err)
 			})
 		}
@@ -1878,6 +1881,7 @@ func TestCalculateValidUntilBlock(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	c.getNextRequestID = getTestRequestID
 	require.NoError(t, c.Init())
 
 	validUntilBlock, err := c.CalculateValidUntilBlock()
@@ -1913,6 +1917,7 @@ func TestGetNetwork(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		c.getNextRequestID = getTestRequestID
 		// network was not initialised
 		_, err = c.GetNetwork()
 		require.True(t, errors.Is(err, errNetworkNotInitialized))
@@ -1924,6 +1929,7 @@ func TestGetNetwork(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		c.getNextRequestID = getTestRequestID
 		require.NoError(t, c.Init())
 		m, err := c.GetNetwork()
 		require.NoError(t, err)
@@ -1945,6 +1951,7 @@ func TestUninitedClient(t *testing.T) {
 
 	c, err := New(context.TODO(), endpoint, opts)
 	require.NoError(t, err)
+	c.getNextRequestID = getTestRequestID
 
 	_, err = c.GetBlockByIndex(0)
 	require.Error(t, err)
@@ -1969,4 +1976,8 @@ func newTestNEF(script []byte) nef.File {
 	ne.Script = script
 	ne.Checksum = ne.CalculateChecksum()
 	return ne
+}
+
+func getTestRequestID() uint64 {
+	return 1
 }
