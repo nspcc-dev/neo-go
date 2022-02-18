@@ -206,29 +206,35 @@ func TestLoad(t *testing.T) {
 	}`
 	tmpDir := t.TempDir()
 
-	t.Run("loadgo", func(t *testing.T) {
-		filename := filepath.Join(tmpDir, "vmtestcontract.go")
-		require.NoError(t, ioutil.WriteFile(filename, []byte(src), os.ModePerm))
-		filename = "'" + filename + "'"
-		filenameErr := filepath.Join(tmpDir, "vmtestcontract_err.go")
-		require.NoError(t, ioutil.WriteFile(filenameErr, []byte(src+"invalid_token"), os.ModePerm))
-		filenameErr = "'" + filenameErr + "'"
-		goMod := []byte(`module test.example/vmcli
+	checkLoadgo := func(t *testing.T, tName, cName, cErrName string) {
+		t.Run("loadgo "+tName, func(t *testing.T) {
+			filename := filepath.Join(tmpDir, cName)
+			require.NoError(t, ioutil.WriteFile(filename, []byte(src), os.ModePerm))
+			filename = "'" + filename + "'"
+			filenameErr := filepath.Join(tmpDir, cErrName)
+			require.NoError(t, ioutil.WriteFile(filenameErr, []byte(src+"invalid_token"), os.ModePerm))
+			filenameErr = "'" + filenameErr + "'"
+			goMod := []byte(`module test.example/vmcli
 go 1.16`)
-		require.NoError(t, ioutil.WriteFile(filepath.Join(tmpDir, "go.mod"), goMod, os.ModePerm))
+			require.NoError(t, ioutil.WriteFile(filepath.Join(tmpDir, "go.mod"), goMod, os.ModePerm))
 
-		e := newTestVMCLI(t)
-		e.runProgWithTimeout(t, 10*time.Second,
-			"loadgo",
-			"loadgo "+filenameErr,
-			"loadgo "+filename,
-			"run main add 3 5")
+			e := newTestVMCLI(t)
+			e.runProgWithTimeout(t, 10*time.Second,
+				"loadgo",
+				"loadgo "+filenameErr,
+				"loadgo "+filename,
+				"run main add 3 5")
 
-		e.checkError(t, ErrMissingParameter)
-		e.checkNextLine(t, "Error:")
-		e.checkNextLine(t, "READY: loaded \\d* instructions")
-		e.checkStack(t, 8)
-	})
+			e.checkError(t, ErrMissingParameter)
+			e.checkNextLine(t, "Error:")
+			e.checkNextLine(t, "READY: loaded \\d* instructions")
+			e.checkStack(t, 8)
+		})
+	}
+
+	checkLoadgo(t, "simple", "vmtestcontract.go", "vmtestcontract_err.go")
+	checkLoadgo(t, "utf-8 with spaces", "тестовый контракт.go", "тестовый контракт с ошибкой.go")
+
 	t.Run("loadgo, check calling flags", func(t *testing.T) {
 		srcAllowNotify := `package kek
 		import "github.com/nspcc-dev/neo-go/pkg/interop/runtime"		
