@@ -132,14 +132,14 @@ func TestGetVersion(t *testing.T) {
 
 	t.Run("invalid", func(t *testing.T) {
 		dao := NewSimple(storage.NewMemoryStore(), false, false)
-		dao.Store.Put(storage.SYSVersion.Bytes(), []byte("0.1.2\x00x"))
+		dao.Store.Put([]byte{byte(storage.SYSVersion)}, []byte("0.1.2\x00x"))
 
 		_, err := dao.GetVersion()
 		require.Error(t, err)
 	})
 	t.Run("old format", func(t *testing.T) {
 		dao := NewSimple(storage.NewMemoryStore(), false, false)
-		dao.Store.Put(storage.SYSVersion.Bytes(), []byte("0.1.2"))
+		dao.Store.Put([]byte{byte(storage.SYSVersion)}, []byte("0.1.2"))
 
 		version, err := dao.GetVersion()
 		require.NoError(t, err)

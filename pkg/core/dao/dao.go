@@ -6,7 +6,6 @@ import (
 	"encoding/binary"
 	"errors"
 	iocore "io"
-	"sort"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
@@ -31,6 +30,7 @@ var (
 type Simple struct {
 	Version Version
 	Store   *storage.MemCachedStore
+	private bool
 	keyBuf  []byte
 	dataBuf *io.BufBinWriter
 }
@@ -68,19 +68,10 @@ func (dao *Simple) GetWrapped() *Simple {
 // GetPrivate returns new DAO instance with another layer of private
 // MemCachedStore around the current DAO Store.
 func (dao *Simple) GetPrivate() *Simple {
-	st := storage.NewPrivateMemCachedStore(dao.Store)
-	d := newSimple(st, dao.Version.StateRootInHeader, dao.Version.P2PSigExtensions)
-	d.Version = dao.Version
-	if dao.keyBuf != nil { // This one is private.
-		d.keyBuf = dao.keyBuf // Thus we can reuse its buffer.
-	} else {
-		d.keyBuf = make([]byte, 0, 1+4+storage.MaxStorageKeyLen) // Prefix, uint32, key.
-	}
-	if dao.dataBuf != nil { // This one is private.
-		d.dataBuf = dao.dataBuf // Thus we can reuse its buffer.
-	} else {
-		d.dataBuf = io.NewBufBinWriter()
-	}
+	d := &Simple{}
+	*d = *dao                                             // Inherit everything...
+	d.Store = storage.NewPrivateMemCachedStore(dao.Store) // except storage, wrap another layer.
+	d.private = true
 	return d
 }
 
@@ -108,7 +99,7 @@ func (dao *Simple) putWithBuffer(entity io.Serializable, key []byte, buf *io.Buf
 func (dao *Simple) makeContractIDKey(id int32) []byte {
 	key := dao.getKeyBuf(5)
 	key[0] = byte(storage.STContractID)
-	binary.LittleEndian.PutUint32(key[1:], uint32(id))
+	binary.BigEndian.PutUint32(key[1:], uint32(id))
 	return key
 }
 
@@ -375,7 +366,10 @@ func (dao *Simple) makeStorageItemKey(id int32, key []byte) []byte {
 
 // GetBlock returns Block by the given hash if it exists in the store.
 func (dao *Simple) GetBlock(hash util.Uint256) (*block.Block, error) {
-	key := dao.makeExecutableKey(hash)
+	return dao.getBlock(dao.makeExecutableKey(hash))
+}
+
+func (dao *Simple) getBlock(key []byte) (*block.Block, error) {
 	b, err := dao.Store.Get(key)
 	if err != nil {
 		return nil, err
@@ -454,12 +448,18 @@ func (v *Version) Bytes() []byte {
 	return append([]byte(v.Value), '\x00', byte(v.StoragePrefix), mask)
 }
 
+func (dao *Simple) mkKeyPrefix(k storage.KeyPrefix) []byte {
+	b := dao.getKeyBuf(1)
+	b[0] = byte(k)
+	return b
+}
+
 // GetVersion attempts to get the current version stored in the
 // underlying store.
 func (dao *Simple) GetVersion() (Version, error) {
 	var version Version
 
-	data, err := dao.Store.Get(storage.SYSVersion.Bytes())
+	data, err := dao.Store.Get(dao.mkKeyPrefix(storage.SYSVersion))
 	if err == nil {
 		err = version.FromBytes(data)
 	}
@@ -469,7 +469,7 @@ func (dao *Simple) GetVersion() (Version, error) {
 // GetCurrentBlockHeight returns the current block height found in the
 // underlying store.
 func (dao *Simple) GetCurrentBlockHeight() (uint32, error) {
-	b, err := dao.Store.Get(storage.SYSCurrentBlock.Bytes())
+	b, err := dao.Store.Get(dao.mkKeyPrefix(storage.SYSCurrentBlock))
 	if err != nil {
 		return 0, err
 	}
@@ -480,7 +480,7 @@ func (dao *Simple) GetCurrentBlockHeight() (uint32, error) {
 // the underlying store.
 func (dao *Simple) GetCurrentHeaderHeight() (i uint32, h util.Uint256, err error) {
 	var b []byte
-	b, err = dao.Store.Get(storage.SYSCurrentHeader.Bytes())
+	b, err = dao.Store.Get(dao.mkKeyPrefix(storage.SYSCurrentHeader))
 	if err != nil {
 		return
 	}
@@ -491,7 +491,7 @@ func (dao *Simple) GetCurrentHeaderHeight() (i uint32, h util.Uint256, err error
 
 // GetStateSyncPoint returns current state synchronisation point P.
 func (dao *Simple) GetStateSyncPoint() (uint32, error) {
-	b, err := dao.Store.Get(storage.SYSStateSyncPoint.Bytes())
+	b, err := dao.Store.Get(dao.mkKeyPrefix(storage.SYSStateSyncPoint))
 	if err != nil {
 		return 0, err
 	}
@@ -501,7 +501,7 @@ func (dao *Simple) GetStateSyncPoint() (uint32, error) {
 // GetStateSyncCurrentBlockHeight returns current block height stored during state
 // synchronisation process.
 func (dao *Simple) GetStateSyncCurrentBlockHeight() (uint32, error) {
-	b, err := dao.Store.Get(storage.SYSStateSyncCurrentBlockHeight.Bytes())
+	b, err := dao.Store.Get(dao.mkKeyPrefix(storage.SYSStateSyncCurrentBlockHeight))
 	if err != nil {
 		return 0, err
 	}
@@ -511,32 +511,18 @@ func (dao *Simple) GetStateSyncCurrentBlockHeight() (uint32, error) {
 // GetHeaderHashes returns a sorted list of header hashes retrieved from
 // the given underlying store.
 func (dao *Simple) GetHeaderHashes() ([]util.Uint256, error) {
-	hashMap := make(map[uint32][]util.Uint256)
+	var hashes = make([]util.Uint256, 0)
+
 	dao.Store.Seek(storage.SeekRange{
-		Prefix: storage.IXHeaderHashList.Bytes(),
+		Prefix: dao.mkKeyPrefix(storage.IXHeaderHashList),
 	}, func(k, v []byte) bool {
-		storedCount := binary.LittleEndian.Uint32(k[1:])
-		hashes, err := read2000Uint256Hashes(v)
+		newHashes, err := read2000Uint256Hashes(v)
 		if err != nil {
 			panic(err)
 		}
-		hashMap[storedCount] = hashes
+		hashes = append(hashes, newHashes...)
 		return true
 	})
-
-	var (
-		hashes     = make([]util.Uint256, 0, len(hashMap))
-		sortedKeys = make([]uint32, 0, len(hashMap))
-	)
-
-	for k := range hashMap {
-		sortedKeys = append(sortedKeys, k)
-	}
-	sort.Slice(sortedKeys, func(i, j int) bool { return sortedKeys[i] < sortedKeys[j] })
-
-	for _, key := range sortedKeys {
-		hashes = append(hashes[:key], hashMap[key]...)
-	}
 
 	return hashes, nil
 }
@@ -575,26 +561,29 @@ func (dao *Simple) GetTransaction(hash util.Uint256) (*transaction.Transaction, 
 // PutVersion stores the given version in the underlying store.
 func (dao *Simple) PutVersion(v Version) {
 	dao.Version = v
-	dao.Store.Put(storage.SYSVersion.Bytes(), v.Bytes())
+	dao.Store.Put(dao.mkKeyPrefix(storage.SYSVersion), v.Bytes())
 }
 
 // PutCurrentHeader stores current header.
-func (dao *Simple) PutCurrentHeader(hashAndIndex []byte) {
-	dao.Store.Put(storage.SYSCurrentHeader.Bytes(), hashAndIndex)
+func (dao *Simple) PutCurrentHeader(h util.Uint256, index uint32) {
+	buf := dao.getDataBuf()
+	buf.WriteBytes(h.BytesLE())
+	buf.WriteU32LE(index)
+	dao.Store.Put(dao.mkKeyPrefix(storage.SYSCurrentHeader), buf.Bytes())
 }
 
 // PutStateSyncPoint stores current state synchronisation point P.
 func (dao *Simple) PutStateSyncPoint(p uint32) {
-	buf := dao.getKeyBuf(4) // It's very small, no point in using BufBinWriter.
-	binary.LittleEndian.PutUint32(buf, p)
-	dao.Store.Put(storage.SYSStateSyncPoint.Bytes(), buf)
+	buf := dao.getDataBuf()
+	buf.WriteU32LE(p)
+	dao.Store.Put(dao.mkKeyPrefix(storage.SYSStateSyncPoint), buf.Bytes())
 }
 
 // PutStateSyncCurrentBlockHeight stores current block height during state synchronisation process.
 func (dao *Simple) PutStateSyncCurrentBlockHeight(h uint32) {
-	buf := dao.getKeyBuf(4) // It's very small, no point in using BufBinWriter.
-	binary.LittleEndian.PutUint32(buf, h)
-	dao.Store.Put(storage.SYSStateSyncCurrentBlockHeight.Bytes(), buf)
+	buf := dao.getDataBuf()
+	buf.WriteU32LE(h)
+	dao.Store.Put(dao.mkKeyPrefix(storage.SYSStateSyncCurrentBlockHeight), buf.Bytes())
 }
 
 // read2000Uint256Hashes attempts to read 2000 Uint256 hashes from
@@ -608,6 +597,25 @@ func read2000Uint256Hashes(b []byte) ([]util.Uint256, error) {
 		return nil, br.Err
 	}
 	return hashes, nil
+}
+
+func (dao *Simple) mkHeaderHashKey(h uint32) []byte {
+	b := dao.getKeyBuf(1 + 4)
+	b[0] = byte(storage.IXHeaderHashList)
+	binary.BigEndian.PutUint32(b[1:], h)
+	return b
+}
+
+// StoreHeaderHashes pushes a batch of header hashes into the store.
+func (dao *Simple) StoreHeaderHashes(hashes []util.Uint256, height uint32) error {
+	key := dao.mkHeaderHashKey(height)
+	buf := dao.getDataBuf()
+	buf.WriteArray(hashes)
+	if buf.Err != nil {
+		return buf.Err
+	}
+	dao.Store.Put(key, buf.Bytes())
+	return nil
 }
 
 // HasTransaction returns nil if the given store does not contain the given
@@ -659,28 +667,16 @@ func (dao *Simple) StoreAsBlock(block *block.Block, aer1 *state.AppExecResult, a
 // using private MemCached instance here.
 func (dao *Simple) DeleteBlock(h util.Uint256) error {
 	key := dao.makeExecutableKey(h)
-	bs, err := dao.Store.Get(key)
+
+	b, err := dao.getBlock(key)
 	if err != nil {
 		return err
 	}
 
-	r := io.NewBinReaderFromBuf(bs)
-	if r.ReadB() != storage.ExecBlock {
-		return errors.New("internal DB inconsistency")
-	}
-	b, err := block.NewTrimmedFromReader(dao.Version.StateRootInHeader, r)
+	err = dao.storeHeader(key, &b.Header)
 	if err != nil {
 		return err
 	}
-
-	w := dao.getDataBuf()
-	w.WriteB(storage.ExecBlock)
-	b.Header.EncodeBinary(w.BinWriter)
-	w.BinWriter.WriteB(0)
-	if w.Err != nil {
-		return w.Err
-	}
-	dao.Store.Put(key, w.Bytes())
 
 	for _, tx := range b.Transactions {
 		copy(key[1:], tx.Hash().BytesBE())
@@ -697,6 +693,23 @@ func (dao *Simple) DeleteBlock(h util.Uint256) error {
 	return nil
 }
 
+// StoreHeader saves block header into the store.
+func (dao *Simple) StoreHeader(h *block.Header) error {
+	return dao.storeHeader(dao.makeExecutableKey(h.Hash()), h)
+}
+
+func (dao *Simple) storeHeader(key []byte, h *block.Header) error {
+	buf := dao.getDataBuf()
+	buf.WriteB(storage.ExecBlock)
+	h.EncodeBinary(buf.BinWriter)
+	buf.BinWriter.WriteB(0)
+	if buf.Err != nil {
+		return buf.Err
+	}
+	dao.Store.Put(key, buf.Bytes())
+	return nil
+}
+
 // StoreAsCurrentBlock stores a hash of the given block with prefix
 // SYSCurrentBlock. It can reuse given buffer for the purpose of value
 // serialization.
@@ -705,7 +718,7 @@ func (dao *Simple) StoreAsCurrentBlock(block *block.Block) {
 	h := block.Hash()
 	h.EncodeBinary(buf.BinWriter)
 	buf.WriteU32LE(block.Index)
-	dao.Store.Put(storage.SYSCurrentBlock.Bytes(), buf.Bytes())
+	dao.Store.Put(dao.mkKeyPrefix(storage.SYSCurrentBlock), buf.Bytes())
 }
 
 // StoreAsTransaction stores given TX as DataTransaction. It also stores transactions
@@ -744,14 +757,20 @@ func (dao *Simple) StoreAsTransaction(tx *transaction.Transaction, index uint32,
 }
 
 func (dao *Simple) getKeyBuf(len int) []byte {
-	if dao.keyBuf != nil { // Private DAO.
+	if dao.private {
+		if dao.keyBuf == nil {
+			dao.keyBuf = make([]byte, 0, 1+4+storage.MaxStorageKeyLen) // Prefix, uint32, key.
+		}
 		return dao.keyBuf[:len] // Should have enough capacity.
 	}
 	return make([]byte, len)
 }
 
 func (dao *Simple) getDataBuf() *io.BufBinWriter {
-	if dao.dataBuf != nil {
+	if dao.private {
+		if dao.dataBuf == nil {
+			dao.dataBuf = io.NewBufBinWriter()
+		}
 		dao.dataBuf.Reset()
 		return dao.dataBuf
 	}

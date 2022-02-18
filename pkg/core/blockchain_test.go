@@ -124,8 +124,10 @@ func TestAddBlock(t *testing.T) {
 	_, err = bc.persist(false)
 	require.NoError(t, err)
 
+	key := make([]byte, 1+util.Uint256Size)
+	key[0] = byte(storage.DataExecutable)
 	for _, block := range blocks {
-		key := storage.AppendPrefix(storage.DataExecutable, block.Hash().BytesBE())
+		copy(key[1:], block.Hash().BytesBE())
 		_, err := bc.dao.Store.Get(key)
 		require.NoErrorf(t, err, "block %s not persisted", block.Hash())
 	}
@@ -1851,7 +1853,9 @@ func TestBlockchain_InitWithIncompleteStateJump(t *testing.T) {
 	if bcSpout.dao.Version.StoragePrefix == tempPrefix {
 		tempPrefix = storage.STStorage
 	}
-	bcSpout.dao.Store.Seek(storage.SeekRange{Prefix: bcSpout.dao.Version.StoragePrefix.Bytes()}, func(k, v []byte) bool {
+	bPrefix := make([]byte, 1)
+	bPrefix[0] = byte(bcSpout.dao.Version.StoragePrefix)
+	bcSpout.dao.Store.Seek(storage.SeekRange{Prefix: bPrefix}, func(k, v []byte) bool {
 		key := slice.Copy(k)
 		key[0] = byte(tempPrefix)
 		value := slice.Copy(v)
@@ -1878,34 +1882,35 @@ func TestBlockchain_InitWithIncompleteStateJump(t *testing.T) {
 		c.ProtocolConfiguration.KeepOnlyLatestState = true
 	}
 	// manually store statejump stage to check statejump recover process
+	bPrefix[0] = byte(storage.SYSStateJumpStage)
 	t.Run("invalid RemoveUntraceableBlocks setting", func(t *testing.T) {
-		bcSpout.dao.Store.Put(storage.SYSStateJumpStage.Bytes(), []byte{byte(stateJumpStarted)})
+		bcSpout.dao.Store.Put(bPrefix, []byte{byte(stateJumpStarted)})
 		checkNewBlockchainErr(t, func(c *config.Config) {
 			boltCfg(c)
 			c.ProtocolConfiguration.RemoveUntraceableBlocks = false
 		}, bcSpout.dao.Store, true)
 	})
 	t.Run("invalid state jump stage format", func(t *testing.T) {
-		bcSpout.dao.Store.Put(storage.SYSStateJumpStage.Bytes(), []byte{0x01, 0x02})
+		bcSpout.dao.Store.Put(bPrefix, []byte{0x01, 0x02})
 		checkNewBlockchainErr(t, boltCfg, bcSpout.dao.Store, true)
 	})
 	t.Run("missing state sync point", func(t *testing.T) {
-		bcSpout.dao.Store.Put(storage.SYSStateJumpStage.Bytes(), []byte{byte(stateJumpStarted)})
+		bcSpout.dao.Store.Put(bPrefix, []byte{byte(stateJumpStarted)})
 		checkNewBlockchainErr(t, boltCfg, bcSpout.dao.Store, true)
 	})
 	t.Run("invalid state sync point", func(t *testing.T) {
-		bcSpout.dao.Store.Put(storage.SYSStateJumpStage.Bytes(), []byte{byte(stateJumpStarted)})
+		bcSpout.dao.Store.Put(bPrefix, []byte{byte(stateJumpStarted)})
 		point := make([]byte, 4)
 		binary.LittleEndian.PutUint32(point, uint32(len(bcSpout.headerHashes)))
-		bcSpout.dao.Store.Put(storage.SYSStateSyncPoint.Bytes(), point)
+		bcSpout.dao.Store.Put([]byte{byte(storage.SYSStateSyncPoint)}, point)
 		checkNewBlockchainErr(t, boltCfg, bcSpout.dao.Store, true)
 	})
 	for _, stage := range []stateJumpStage{stateJumpStarted, newStorageItemsAdded, genesisStateRemoved, 0x03} {
 		t.Run(fmt.Sprintf("state jump stage %d", stage), func(t *testing.T) {
-			bcSpout.dao.Store.Put(storage.SYSStateJumpStage.Bytes(), []byte{byte(stage)})
+			bcSpout.dao.Store.Put(bPrefix, []byte{byte(stage)})
 			point := make([]byte, 4)
 			binary.LittleEndian.PutUint32(point, uint32(stateSyncPoint))
-			bcSpout.dao.Store.Put(storage.SYSStateSyncPoint.Bytes(), point)
+			bcSpout.dao.Store.Put([]byte{byte(storage.SYSStateSyncPoint)}, point)
 			shouldFail := stage == 0x03 // unknown stage
 			checkNewBlockchainErr(t, spountCfg, bcSpout.dao.Store, shouldFail)
 		})

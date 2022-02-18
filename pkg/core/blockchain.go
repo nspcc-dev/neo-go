@@ -46,7 +46,7 @@ import (
 // Tuning parameters.
 const (
 	headerBatchCount = 2000
-	version          = "0.2.3"
+	version          = "0.2.5"
 
 	defaultInitialGAS                      = 52000000_00000000
 	defaultGCPeriod                        = 10000
@@ -325,7 +325,7 @@ func (bc *Blockchain) init() error {
 			return err
 		}
 		bc.headerHashes = []util.Uint256{genesisBlock.Hash()}
-		bc.dao.PutCurrentHeader(hashAndIndexToBytes(genesisBlock.Hash(), genesisBlock.Index))
+		bc.dao.PutCurrentHeader(genesisBlock.Hash(), genesisBlock.Index)
 		if err := bc.stateRoot.Init(0); err != nil {
 			return fmt.Errorf("can't init MPT: %w", err)
 		}
@@ -406,7 +406,7 @@ func (bc *Blockchain) init() error {
 	}
 
 	// Check whether StateJump stage is in the storage and continue interrupted state jump if so.
-	jumpStage, err := bc.dao.Store.Get(storage.SYSStateJumpStage.Bytes())
+	jumpStage, err := bc.dao.Store.Get([]byte{byte(storage.SYSStateJumpStage)})
 	if err == nil {
 		if !(bc.GetConfig().P2PStateExchangeExtensions && bc.GetConfig().RemoveUntraceableBlocks) {
 			return errors.New("state jump was not completed, but P2PStateExchangeExtensions are disabled or archival node capability is on. " +
@@ -500,7 +500,7 @@ func (bc *Blockchain) jumpToStateInternal(p uint32, stage stateJumpStage) error 
 
 	bc.log.Info("jumping to state sync point", zap.Uint32("state sync point", p))
 
-	jumpStageKey := storage.SYSStateJumpStage.Bytes()
+	jumpStageKey := []byte{byte(storage.SYSStateJumpStage)}
 	switch stage {
 	case none:
 		bc.dao.Store.Put(jumpStageKey, []byte{byte(stateJumpStarted)})
@@ -932,7 +932,6 @@ func (bc *Blockchain) addHeaders(verify bool, headers ...*block.Header) error {
 		}
 	}
 
-	buf := io.NewBufBinWriter()
 	bc.headerHashesLock.Lock()
 	defer bc.headerHashesLock.Unlock()
 	oldlen := len(bc.headerHashes)
@@ -941,33 +940,25 @@ func (bc *Blockchain) addHeaders(verify bool, headers ...*block.Header) error {
 		if int(h.Index) != len(bc.headerHashes) {
 			continue
 		}
-		bc.headerHashes = append(bc.headerHashes, h.Hash())
-		buf.WriteB(storage.ExecBlock)
-		h.EncodeBinary(buf.BinWriter)
-		buf.BinWriter.WriteB(0)
-		if buf.Err != nil {
-			return buf.Err
+		err = batch.StoreHeader(h)
+		if err != nil {
+			return err
 		}
-
-		key := storage.AppendPrefix(storage.DataExecutable, h.Hash().BytesBE())
-		batch.Store.Put(key, buf.Bytes())
-		buf.Reset()
+		bc.headerHashes = append(bc.headerHashes, h.Hash())
 		lastHeader = h
 	}
 
 	if oldlen != len(bc.headerHashes) {
 		for int(lastHeader.Index)-headerBatchCount >= int(bc.storedHeaderCount) {
-			buf.WriteArray(bc.headerHashes[bc.storedHeaderCount : bc.storedHeaderCount+headerBatchCount])
-			if buf.Err != nil {
-				return buf.Err
+			err = batch.StoreHeaderHashes(bc.headerHashes[bc.storedHeaderCount:bc.storedHeaderCount+headerBatchCount],
+				bc.storedHeaderCount)
+			if err != nil {
+				return err
 			}
-
-			key := storage.AppendPrefixInt(storage.IXHeaderHashList, int(bc.storedHeaderCount))
-			batch.Store.Put(key, buf.Bytes())
 			bc.storedHeaderCount += headerBatchCount
 		}
 
-		batch.Store.Put(storage.SYSCurrentHeader.Bytes(), hashAndIndexToBytes(lastHeader.Hash(), lastHeader.Index))
+		batch.PutCurrentHeader(lastHeader.Hash(), lastHeader.Index)
 		updateHeaderHeightMetric(len(bc.headerHashes) - 1)
 		if _, err = batch.Persist(); err != nil {
 			return err
@@ -2146,8 +2137,7 @@ func (bc *Blockchain) GetEnrollments() ([]state.Validator, error) {
 
 // GetTestVM returns an interop context with VM set up for a test run.
 func (bc *Blockchain) GetTestVM(t trigger.Type, tx *transaction.Transaction, b *block.Block) *interop.Context {
-	d := bc.dao.GetPrivate()
-	systemInterop := bc.newInteropContext(t, d, b, tx)
+	systemInterop := bc.newInteropContext(t, bc.dao, b, tx)
 	vm := systemInterop.SpawnVM()
 	vm.SetPriceGetter(systemInterop.GetPrice)
 	vm.LoadToken = contract.LoadToken(systemInterop)
@@ -2307,13 +2297,6 @@ func (bc *Blockchain) UtilityTokenHash() util.Uint160 {
 // ManagementContractHash returns management contract's hash.
 func (bc *Blockchain) ManagementContractHash() util.Uint160 {
 	return bc.contracts.Management.Hash
-}
-
-func hashAndIndexToBytes(h util.Uint256, index uint32) []byte {
-	buf := io.NewBufBinWriter()
-	buf.WriteBytes(h.BytesLE())
-	buf.WriteU32LE(index)
-	return buf.Bytes()
 }
 
 func (bc *Blockchain) newInteropContext(trigger trigger.Type, d *dao.Simple, block *block.Block, tx *transaction.Transaction) *interop.Context {

@@ -1,7 +1,6 @@
 package storage
 
 import (
-	"encoding/binary"
 	"errors"
 	"fmt"
 
@@ -106,28 +105,6 @@ type (
 	// stored.
 	KeyPrefix uint8
 )
-
-// Bytes returns the bytes representation of KeyPrefix.
-func (k KeyPrefix) Bytes() []byte {
-	return []byte{byte(k)}
-}
-
-// AppendPrefix appends byteslice b to the given KeyPrefix.
-// AppendKeyPrefix(SYSVersion, []byte{0x00, 0x01}).
-func AppendPrefix(k KeyPrefix, b []byte) []byte {
-	dest := make([]byte, len(b)+1)
-	dest[0] = byte(k)
-	copy(dest[1:], b)
-	return dest
-}
-
-// AppendPrefixInt append int n to the given KeyPrefix.
-//   AppendPrefixInt(SYSCurrentHeader, 10001)
-func AppendPrefixInt(k KeyPrefix, n int) []byte {
-	b := make([]byte, 4)
-	binary.LittleEndian.PutUint32(b, uint32(n))
-	return AppendPrefix(k, b)
-}
 
 func seekRangeToPrefixes(sr SeekRange) *util.Range {
 	var (

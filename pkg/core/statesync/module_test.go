@@ -32,7 +32,7 @@ func TestModule_PR2019_discussion_r689629704(t *testing.T) {
 		nodes         = make(map[util.Uint256][]byte)
 		expectedItems []storage.KeyValue
 	)
-	expectedStorage.Seek(storage.SeekRange{Prefix: storage.DataMPT.Bytes()}, func(k, v []byte) bool {
+	expectedStorage.Seek(storage.SeekRange{Prefix: []byte{byte(storage.DataMPT)}}, func(k, v []byte) bool {
 		key := slice.Copy(k)
 		value := slice.Copy(v)
 		expectedItems = append(expectedItems, storage.KeyValue{
@@ -96,7 +96,7 @@ func TestModule_PR2019_discussion_r689629704(t *testing.T) {
 
 	// Compare resulting storage items and refcounts.
 	var actualItems []storage.KeyValue
-	expectedStorage.Seek(storage.SeekRange{Prefix: storage.DataMPT.Bytes()}, func(k, v []byte) bool {
+	expectedStorage.Seek(storage.SeekRange{Prefix: []byte{byte(storage.DataMPT)}}, func(k, v []byte) bool {
 		key := slice.Copy(k)
 		value := slice.Copy(v)
 		actualItems = append(actualItems, storage.KeyValue{
