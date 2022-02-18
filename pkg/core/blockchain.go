@@ -2140,8 +2140,7 @@ func (bc *Blockchain) GetEnrollments() ([]state.Validator, error) {
 
 // GetTestVM returns an interop context with VM set up for a test run.
 func (bc *Blockchain) GetTestVM(t trigger.Type, tx *transaction.Transaction, b *block.Block) *interop.Context {
-	d := bc.dao.GetPrivate()
-	systemInterop := bc.newInteropContext(t, d, b, tx)
+	systemInterop := bc.newInteropContext(t, bc.dao, b, tx)
 	vm := systemInterop.SpawnVM()
 	vm.SetPriceGetter(systemInterop.GetPrice)
 	vm.LoadToken = contract.LoadToken(systemInterop)
