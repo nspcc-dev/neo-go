@@ -125,7 +125,7 @@ func AppendPrefix(k KeyPrefix, b []byte) []byte {
 //   AppendPrefixInt(SYSCurrentHeader, 10001)
 func AppendPrefixInt(k KeyPrefix, n int) []byte {
 	b := make([]byte, 4)
-	binary.LittleEndian.PutUint32(b, uint32(n))
+	binary.BigEndian.PutUint32(b, uint32(n))
 	return AppendPrefix(k, b)
 }
 

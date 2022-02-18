@@ -6,7 +6,6 @@ import (
 	"encoding/binary"
 	"errors"
 	iocore "io"
-	"sort"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
@@ -506,32 +505,18 @@ func (dao *Simple) GetStateSyncCurrentBlockHeight() (uint32, error) {
 // GetHeaderHashes returns a sorted list of header hashes retrieved from
 // the given underlying store.
 func (dao *Simple) GetHeaderHashes() ([]util.Uint256, error) {
-	hashMap := make(map[uint32][]util.Uint256)
+	var hashes = make([]util.Uint256, 0)
+
 	dao.Store.Seek(storage.SeekRange{
 		Prefix: storage.IXHeaderHashList.Bytes(),
 	}, func(k, v []byte) bool {
-		storedCount := binary.LittleEndian.Uint32(k[1:])
-		hashes, err := read2000Uint256Hashes(v)
+		newHashes, err := read2000Uint256Hashes(v)
 		if err != nil {
 			panic(err)
 		}
-		hashMap[storedCount] = hashes
+		hashes = append(hashes, newHashes...)
 		return true
 	})
-
-	var (
-		hashes     = make([]util.Uint256, 0, len(hashMap))
-		sortedKeys = make([]uint32, 0, len(hashMap))
-	)
-
-	for k := range hashMap {
-		sortedKeys = append(sortedKeys, k)
-	}
-	sort.Slice(sortedKeys, func(i, j int) bool { return sortedKeys[i] < sortedKeys[j] })
-
-	for _, key := range sortedKeys {
-		hashes = append(hashes[:key], hashMap[key]...)
-	}
 
 	return hashes, nil
 }
