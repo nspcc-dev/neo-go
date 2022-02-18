@@ -1,13 +1,13 @@
 module github.com/nspcc-dev/neo-go
 
 require (
-	github.com/abiosoft/ishell/v2 v2.0.2
-	github.com/abiosoft/readline v0.0.0-20180607040430-155bce2042db
 	github.com/btcsuite/btcd v0.22.0-beta
+	github.com/chzyer/readline v0.0.0-20180603132655-2972be24d48e
 	github.com/davecgh/go-spew v1.1.1
 	github.com/gorilla/websocket v1.4.2
 	github.com/hashicorp/golang-lru v0.5.4
 	github.com/holiman/uint256 v1.2.0
+	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51
 	github.com/mr-tron/base58 v1.2.0
 	github.com/nspcc-dev/dbft v0.0.0-20210721160347-1b03241391ac
 	github.com/nspcc-dev/go-ordered-json v0.0.0-20220111165707-25110be27d22

@@ -15,7 +15,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/abiosoft/readline"
+	"github.com/chzyer/readline"
 	"github.com/nspcc-dev/neo-go/internal/random"
 	"github.com/nspcc-dev/neo-go/pkg/compiler"
 	"github.com/nspcc-dev/neo-go/pkg/config"
@@ -75,6 +75,7 @@ func newTestVMCLIWithLogo(t *testing.T, printLogo bool) *executor {
 		&readline.Config{
 			Prompt: "",
 			Stdin:  e.in,
+			Stderr: e.out,
 			Stdout: e.out,
 			FuncIsTerminal: func() bool {
 				return false
@@ -205,29 +206,35 @@ func TestLoad(t *testing.T) {
 	}`
 	tmpDir := t.TempDir()
 
-	t.Run("loadgo", func(t *testing.T) {
-		filename := filepath.Join(tmpDir, "vmtestcontract.go")
-		require.NoError(t, ioutil.WriteFile(filename, []byte(src), os.ModePerm))
-		filename = "'" + filename + "'"
-		filenameErr := filepath.Join(tmpDir, "vmtestcontract_err.go")
-		require.NoError(t, ioutil.WriteFile(filenameErr, []byte(src+"invalid_token"), os.ModePerm))
-		filenameErr = "'" + filenameErr + "'"
-		goMod := []byte(`module test.example/vmcli
+	checkLoadgo := func(t *testing.T, tName, cName, cErrName string) {
+		t.Run("loadgo "+tName, func(t *testing.T) {
+			filename := filepath.Join(tmpDir, cName)
+			require.NoError(t, ioutil.WriteFile(filename, []byte(src), os.ModePerm))
+			filename = "'" + filename + "'"
+			filenameErr := filepath.Join(tmpDir, cErrName)
+			require.NoError(t, ioutil.WriteFile(filenameErr, []byte(src+"invalid_token"), os.ModePerm))
+			filenameErr = "'" + filenameErr + "'"
+			goMod := []byte(`module test.example/vmcli
 go 1.16`)
-		require.NoError(t, ioutil.WriteFile(filepath.Join(tmpDir, "go.mod"), goMod, os.ModePerm))
+			require.NoError(t, ioutil.WriteFile(filepath.Join(tmpDir, "go.mod"), goMod, os.ModePerm))
 
-		e := newTestVMCLI(t)
-		e.runProgWithTimeout(t, 10*time.Second,
-			"loadgo",
-			"loadgo "+filenameErr,
-			"loadgo "+filename,
-			"run main add 3 5")
+			e := newTestVMCLI(t)
+			e.runProgWithTimeout(t, 10*time.Second,
+				"loadgo",
+				"loadgo "+filenameErr,
+				"loadgo "+filename,
+				"run main add 3 5")
 
-		e.checkError(t, ErrMissingParameter)
-		e.checkNextLine(t, "Error:")
-		e.checkNextLine(t, "READY: loaded \\d* instructions")
-		e.checkStack(t, 8)
-	})
+			e.checkError(t, ErrMissingParameter)
+			e.checkNextLine(t, "Error:")
+			e.checkNextLine(t, "READY: loaded \\d* instructions")
+			e.checkStack(t, 8)
+		})
+	}
+
+	checkLoadgo(t, "simple", "vmtestcontract.go", "vmtestcontract_err.go")
+	checkLoadgo(t, "utf-8 with spaces", "тестовый контракт.go", "тестовый контракт с ошибкой.go")
+
 	t.Run("loadgo, check calling flags", func(t *testing.T) {
 		srcAllowNotify := `package kek
 		import "github.com/nspcc-dev/neo-go/pkg/interop/runtime"		
@@ -639,4 +646,20 @@ func TestExit(t *testing.T) {
 	e := newTestVMCLI(t)
 	e.runProg(t, "exit")
 	require.True(t, e.exit.Load())
+}
+
+func TestReset(t *testing.T) {
+	script := []byte{byte(opcode.PUSH1)}
+	e := newTestVMCLI(t)
+	e.runProg(t,
+		"loadhex "+hex.EncodeToString(script),
+		"ops",
+		"reset",
+		"ops")
+
+	e.checkNextLine(t, "READY: loaded 1 instructions")
+	e.checkNextLine(t, "INDEX.*OPCODE.*PARAMETER")
+	e.checkNextLine(t, "0.*PUSH1.*")
+	e.checkNextLine(t, "")
+	e.checkError(t, fmt.Errorf("VM is not ready: no program loaded"))
 }

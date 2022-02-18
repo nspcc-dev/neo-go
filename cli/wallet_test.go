@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/abiosoft/readline"
+	"github.com/chzyer/readline"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
