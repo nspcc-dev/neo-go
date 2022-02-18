@@ -590,6 +590,25 @@ func read2000Uint256Hashes(b []byte) ([]util.Uint256, error) {
 	return hashes, nil
 }
 
+func (dao *Simple) mkHeaderHashKey(h uint32) []byte {
+	b := dao.getKeyBuf(1 + 4)
+	b[0] = byte(storage.IXHeaderHashList)
+	binary.BigEndian.PutUint32(b[1:], h)
+	return b
+}
+
+// StoreHeaderHashes pushes a batch of header hashes into the store.
+func (dao *Simple) StoreHeaderHashes(hashes []util.Uint256, height uint32) error {
+	key := dao.mkHeaderHashKey(height)
+	buf := dao.getDataBuf()
+	buf.WriteArray(hashes)
+	if buf.Err != nil {
+		return buf.Err
+	}
+	dao.Store.Put(key, buf.Bytes())
+	return nil
+}
+
 // HasTransaction returns nil if the given store does not contain the given
 // Transaction hash. It returns an error in case if transaction is in chain
 // or in the list of conflicting transactions.

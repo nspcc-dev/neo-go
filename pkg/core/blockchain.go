@@ -949,15 +949,12 @@ func (bc *Blockchain) addHeaders(verify bool, headers ...*block.Header) error {
 	}
 
 	if oldlen != len(bc.headerHashes) {
-		buf := io.NewBufBinWriter()
 		for int(lastHeader.Index)-headerBatchCount >= int(bc.storedHeaderCount) {
-			buf.WriteArray(bc.headerHashes[bc.storedHeaderCount : bc.storedHeaderCount+headerBatchCount])
-			if buf.Err != nil {
-				return buf.Err
+			err = batch.StoreHeaderHashes(bc.headerHashes[bc.storedHeaderCount:bc.storedHeaderCount+headerBatchCount],
+				bc.storedHeaderCount)
+			if err != nil {
+				return err
 			}
-
-			key := storage.AppendPrefixInt(storage.IXHeaderHashList, int(bc.storedHeaderCount))
-			batch.Store.Put(key, buf.Bytes())
 			bc.storedHeaderCount += headerBatchCount
 		}
 
