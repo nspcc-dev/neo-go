@@ -932,7 +932,6 @@ func (bc *Blockchain) addHeaders(verify bool, headers ...*block.Header) error {
 		}
 	}
 
-	buf := io.NewBufBinWriter()
 	bc.headerHashesLock.Lock()
 	defer bc.headerHashesLock.Unlock()
 	oldlen := len(bc.headerHashes)
@@ -941,21 +940,16 @@ func (bc *Blockchain) addHeaders(verify bool, headers ...*block.Header) error {
 		if int(h.Index) != len(bc.headerHashes) {
 			continue
 		}
-		bc.headerHashes = append(bc.headerHashes, h.Hash())
-		buf.WriteB(storage.ExecBlock)
-		h.EncodeBinary(buf.BinWriter)
-		buf.BinWriter.WriteB(0)
-		if buf.Err != nil {
-			return buf.Err
+		err = batch.StoreHeader(h)
+		if err != nil {
+			return err
 		}
-
-		key := storage.AppendPrefix(storage.DataExecutable, h.Hash().BytesBE())
-		batch.Store.Put(key, buf.Bytes())
-		buf.Reset()
+		bc.headerHashes = append(bc.headerHashes, h.Hash())
 		lastHeader = h
 	}
 
 	if oldlen != len(bc.headerHashes) {
+		buf := io.NewBufBinWriter()
 		for int(lastHeader.Index)-headerBatchCount >= int(bc.storedHeaderCount) {
 			buf.WriteArray(bc.headerHashes[bc.storedHeaderCount : bc.storedHeaderCount+headerBatchCount])
 			if buf.Err != nil {

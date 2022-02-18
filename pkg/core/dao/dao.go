@@ -668,14 +668,10 @@ func (dao *Simple) DeleteBlock(h util.Uint256) error {
 		return err
 	}
 
-	w := dao.getDataBuf()
-	w.WriteB(storage.ExecBlock)
-	b.Header.EncodeBinary(w.BinWriter)
-	w.BinWriter.WriteB(0)
-	if w.Err != nil {
-		return w.Err
+	err = dao.storeHeader(key, &b.Header)
+	if err != nil {
+		return err
 	}
-	dao.Store.Put(key, w.Bytes())
 
 	for _, tx := range b.Transactions {
 		copy(key[1:], tx.Hash().BytesBE())
@@ -689,6 +685,23 @@ func (dao *Simple) DeleteBlock(h util.Uint256) error {
 		}
 	}
 
+	return nil
+}
+
+// StoreHeader saves block header into the store.
+func (dao *Simple) StoreHeader(h *block.Header) error {
+	return dao.storeHeader(dao.makeExecutableKey(h.Hash()), h)
+}
+
+func (dao *Simple) storeHeader(key []byte, h *block.Header) error {
+	buf := dao.getDataBuf()
+	buf.WriteB(storage.ExecBlock)
+	h.EncodeBinary(buf.BinWriter)
+	buf.BinWriter.WriteB(0)
+	if buf.Err != nil {
+		return buf.Err
+	}
+	dao.Store.Put(key, buf.Bytes())
 	return nil
 }
 
