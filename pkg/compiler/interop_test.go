@@ -178,7 +178,7 @@ func TestAppCall(t *testing.T) {
 	require.NoError(t, err)
 
 	ih := hash.Hash160(inner.Script)
-	var contractGetter = func(_ dao.DAO, h util.Uint160) (*state.Contract, error) {
+	var contractGetter = func(_ *dao.Simple, h util.Uint160) (*state.Contract, error) {
 		if h.Equals(ih) {
 			return &state.Contract{
 				ContractBase: state.ContractBase{

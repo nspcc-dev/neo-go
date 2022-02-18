@@ -180,7 +180,7 @@ func (s *Designate) hashFromNodes(r noderoles.Role, nodes keys.PublicKeys) util.
 	return hash.Hash160(script)
 }
 
-func (s *Designate) updateCachedRoleData(v *atomic.Value, d dao.DAO, r noderoles.Role) error {
+func (s *Designate) updateCachedRoleData(v *atomic.Value, d *dao.Simple, r noderoles.Role) error {
 	nodeKeys, height, err := s.GetDesignatedByRole(d, r, math.MaxUint32)
 	if err != nil {
 		return err
@@ -226,7 +226,7 @@ func (s *Designate) getCachedRoleData(r noderoles.Role) *roleData {
 }
 
 // GetLastDesignatedHash returns last designated hash of a given role.
-func (s *Designate) GetLastDesignatedHash(d dao.DAO, r noderoles.Role) (util.Uint160, error) {
+func (s *Designate) GetLastDesignatedHash(d *dao.Simple, r noderoles.Role) (util.Uint160, error) {
 	if !s.isValidRole(r) {
 		return util.Uint160{}, ErrInvalidRole
 	}
@@ -244,7 +244,7 @@ func (s *Designate) GetLastDesignatedHash(d dao.DAO, r noderoles.Role) (util.Uin
 }
 
 // GetDesignatedByRole returns nodes for role r.
-func (s *Designate) GetDesignatedByRole(d dao.DAO, r noderoles.Role, index uint32) (keys.PublicKeys, uint32, error) {
+func (s *Designate) GetDesignatedByRole(d *dao.Simple, r noderoles.Role, index uint32) (keys.PublicKeys, uint32, error) {
 	if !s.isValidRole(r) {
 		return nil, 0, ErrInvalidRole
 	}

@@ -146,13 +146,13 @@ func (s *Module) CleanStorage() error {
 	if s.localHeight.Load() != 0 {
 		return fmt.Errorf("can't clean MPT data for non-genesis block: expected local stateroot height 0, got %d", s.localHeight.Load())
 	}
-	b := s.Store.Batch()
+	b := storage.NewMemCachedStore(s.Store)
 	s.Store.Seek(storage.SeekRange{Prefix: []byte{byte(storage.DataMPT)}}, func(k, _ []byte) bool {
 		// #1468, but don't need to copy here, because it is done by Store.
 		b.Delete(k)
 		return true
 	})
-	err := s.Store.PutBatch(b)
+	_, err := b.Persist()
 	if err != nil {
 		return fmt.Errorf("failed to remove outdated MPT-reated items: %w", err)
 	}
@@ -160,22 +160,17 @@ func (s *Module) CleanStorage() error {
 }
 
 // JumpToState performs jump to the state specified by given stateroot index.
-func (s *Module) JumpToState(sr *state.MPTRoot) error {
-	if err := s.addLocalStateRoot(s.Store, sr); err != nil {
-		return fmt.Errorf("failed to store local state root: %w", err)
-	}
+func (s *Module) JumpToState(sr *state.MPTRoot) {
+	s.addLocalStateRoot(s.Store, sr)
 
 	data := make([]byte, 4)
 	binary.LittleEndian.PutUint32(data, sr.Index)
-	if err := s.Store.Put([]byte{byte(storage.DataMPTAux), prefixValidated}, data); err != nil {
-		return fmt.Errorf("failed to store validated height: %w", err)
-	}
+	s.Store.Put([]byte{byte(storage.DataMPTAux), prefixValidated}, data)
 	s.validatedHeight.Store(sr.Index)
 
 	s.currentLocal.Store(sr.Root)
 	s.localHeight.Store(sr.Index)
 	s.mpt = mpt.NewTrie(mpt.NewHashNode(sr.Root), s.mode, s.Store)
-	return nil
 }
 
 // GC performs garbage collection.
@@ -225,11 +220,8 @@ func (s *Module) AddMPTBatch(index uint32, b mpt.Batch, cache *storage.MemCached
 		Index: index,
 		Root:  mpt.StateRoot(),
 	}
-	err := s.addLocalStateRoot(cache, sr)
-	if err != nil {
-		return nil, nil, err
-	}
-	return &mpt, sr, err
+	s.addLocalStateRoot(cache, sr)
+	return &mpt, sr, nil
 }
 
 // UpdateCurrentLocal updates local caches using provided state root.

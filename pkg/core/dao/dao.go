@@ -5,18 +5,17 @@ import (
 	"context"
 	"encoding/binary"
 	"errors"
-	"fmt"
 	iocore "io"
 	"sort"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
-	"github.com/nspcc-dev/neo-go/pkg/core/mpt"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/util/slice"
 )
 
 // HasTransaction errors.
@@ -28,57 +27,21 @@ var (
 	ErrHasConflicts = errors.New("transaction has conflicts")
 )
 
-// DAO is a data access object.
-type DAO interface {
-	DeleteBlock(h util.Uint256, buf *io.BufBinWriter) error
-	DeleteContractID(id int32) error
-	DeleteStorageItem(id int32, key []byte) error
-	GetAndDecode(entity io.Serializable, key []byte) error
-	GetAppExecResults(hash util.Uint256, trig trigger.Type) ([]state.AppExecResult, error)
-	GetBatch() *storage.MemBatch
-	GetBlock(hash util.Uint256) (*block.Block, error)
-	GetContractScriptHash(id int32) (util.Uint160, error)
-	GetCurrentBlockHeight() (uint32, error)
-	GetCurrentHeaderHeight() (i uint32, h util.Uint256, err error)
-	GetHeaderHashes() ([]util.Uint256, error)
-	GetTokenTransferInfo(acc util.Uint160) (*state.TokenTransferInfo, error)
-	GetTokenTransferLog(acc util.Uint160, start uint64, index uint32, isNEP11 bool) (*state.TokenTransferLog, error)
-	GetStateSyncPoint() (uint32, error)
-	GetStateSyncCurrentBlockHeight() (uint32, error)
-	GetStorageItem(id int32, key []byte) state.StorageItem
-	GetStorageItems(id int32) ([]state.StorageItemWithKey, error)
-	GetStorageItemsWithPrefix(id int32, prefix []byte) ([]state.StorageItemWithKey, error)
-	GetTransaction(hash util.Uint256) (*transaction.Transaction, uint32, error)
-	GetVersion() (Version, error)
-	GetWrapped() DAO
-	HasTransaction(hash util.Uint256) error
-	Persist() (int, error)
-	PersistSync() (int, error)
-	PutContractID(id int32, hash util.Uint160) error
-	PutCurrentHeader(hashAndIndex []byte) error
-	PutTokenTransferInfo(acc util.Uint160, bs *state.TokenTransferInfo) error
-	PutTokenTransferLog(acc util.Uint160, start uint64, index uint32, isNEP11 bool, lg *state.TokenTransferLog) error
-	PutStateSyncPoint(p uint32) error
-	PutStateSyncCurrentBlockHeight(h uint32) error
-	PutStorageItem(id int32, key []byte, si state.StorageItem) error
-	PutVersion(v Version) error
-	Seek(id int32, rng storage.SeekRange, f func(k, v []byte) bool)
-	SeekAsync(ctx context.Context, id int32, rng storage.SeekRange) chan storage.KeyValue
-	StoreAsBlock(block *block.Block, aer1 *state.AppExecResult, aer2 *state.AppExecResult, buf *io.BufBinWriter) error
-	StoreAsCurrentBlock(block *block.Block, buf *io.BufBinWriter) error
-	StoreAsTransaction(tx *transaction.Transaction, index uint32, aer *state.AppExecResult, buf *io.BufBinWriter) error
-	putTokenTransferInfo(acc util.Uint160, bs *state.TokenTransferInfo, buf *io.BufBinWriter) error
-}
-
 // Simple is memCached wrapper around DB, simple DAO implementation.
 type Simple struct {
 	Version Version
 	Store   *storage.MemCachedStore
+	keyBuf  []byte
+	dataBuf *io.BufBinWriter
 }
 
 // NewSimple creates new simple dao using provided backend store.
 func NewSimple(backend storage.Store, stateRootInHeader bool, p2pSigExtensions bool) *Simple {
 	st := storage.NewMemCachedStore(backend)
+	return newSimple(st, stateRootInHeader, p2pSigExtensions)
+}
+
+func newSimple(st *storage.MemCachedStore, stateRootInHeader bool, p2pSigExtensions bool) *Simple {
 	return &Simple{
 		Version: Version{
 			StoragePrefix:     storage.STStorage,
@@ -96,9 +59,28 @@ func (dao *Simple) GetBatch() *storage.MemBatch {
 
 // GetWrapped returns new DAO instance with another layer of wrapped
 // MemCachedStore around the current DAO Store.
-func (dao *Simple) GetWrapped() DAO {
+func (dao *Simple) GetWrapped() *Simple {
 	d := NewSimple(dao.Store, dao.Version.StateRootInHeader, dao.Version.P2PSigExtensions)
 	d.Version = dao.Version
+	return d
+}
+
+// GetPrivate returns new DAO instance with another layer of private
+// MemCachedStore around the current DAO Store.
+func (dao *Simple) GetPrivate() *Simple {
+	st := storage.NewPrivateMemCachedStore(dao.Store)
+	d := newSimple(st, dao.Version.StateRootInHeader, dao.Version.P2PSigExtensions)
+	d.Version = dao.Version
+	if dao.keyBuf != nil { // This one is private.
+		d.keyBuf = dao.keyBuf // Thus we can reuse its buffer.
+	} else {
+		d.keyBuf = make([]byte, 0, 1+4+storage.MaxStorageKeyLen) // Prefix, uint32, key.
+	}
+	if dao.dataBuf != nil { // This one is private.
+		d.dataBuf = dao.dataBuf // Thus we can reuse its buffer.
+	} else {
+		d.dataBuf = io.NewBufBinWriter()
+	}
 	return d
 }
 
@@ -113,41 +95,37 @@ func (dao *Simple) GetAndDecode(entity io.Serializable, key []byte) error {
 	return reader.Err
 }
 
-// Put performs put operation with serializable structures.
-func (dao *Simple) Put(entity io.Serializable, key []byte) error {
-	return dao.putWithBuffer(entity, key, io.NewBufBinWriter())
-}
-
 // putWithBuffer performs put operation using buf as a pre-allocated buffer for serialization.
 func (dao *Simple) putWithBuffer(entity io.Serializable, key []byte, buf *io.BufBinWriter) error {
 	entity.EncodeBinary(buf.BinWriter)
 	if buf.Err != nil {
 		return buf.Err
 	}
-	return dao.Store.Put(key, buf.Bytes())
+	dao.Store.Put(key, buf.Bytes())
+	return nil
 }
 
-func makeContractIDKey(id int32) []byte {
-	key := make([]byte, 5)
+func (dao *Simple) makeContractIDKey(id int32) []byte {
+	key := dao.getKeyBuf(5)
 	key[0] = byte(storage.STContractID)
 	binary.LittleEndian.PutUint32(key[1:], uint32(id))
 	return key
 }
 
 // DeleteContractID deletes contract's id to hash mapping.
-func (dao *Simple) DeleteContractID(id int32) error {
-	return dao.Store.Delete(makeContractIDKey(id))
+func (dao *Simple) DeleteContractID(id int32) {
+	dao.Store.Delete(dao.makeContractIDKey(id))
 }
 
 // PutContractID adds a mapping from contract's ID to its hash.
-func (dao *Simple) PutContractID(id int32, hash util.Uint160) error {
-	return dao.Store.Put(makeContractIDKey(id), hash.BytesBE())
+func (dao *Simple) PutContractID(id int32, hash util.Uint160) {
+	dao.Store.Put(dao.makeContractIDKey(id), hash.BytesBE())
 }
 
 // GetContractScriptHash retrieves contract's hash given its ID.
 func (dao *Simple) GetContractScriptHash(id int32) (util.Uint160, error) {
 	var data = new(util.Uint160)
-	if err := dao.GetAndDecode(data, makeContractIDKey(id)); err != nil {
+	if err := dao.GetAndDecode(data, dao.makeContractIDKey(id)); err != nil {
 		return *data, err
 	}
 	return *data, nil
@@ -155,9 +133,16 @@ func (dao *Simple) GetContractScriptHash(id int32) (util.Uint160, error) {
 
 // -- start NEP-17 transfer info.
 
+func (dao *Simple) makeTTIKey(acc util.Uint160) []byte {
+	key := dao.getKeyBuf(1 + util.Uint160Size)
+	key[0] = byte(storage.STTokenTransferInfo)
+	copy(key[1:], acc.BytesBE())
+	return key
+}
+
 // GetTokenTransferInfo retrieves NEP-17 transfer info from the cache.
 func (dao *Simple) GetTokenTransferInfo(acc util.Uint160) (*state.TokenTransferInfo, error) {
-	key := storage.AppendPrefix(storage.STTokenTransferInfo, acc.BytesBE())
+	key := dao.makeTTIKey(acc)
 	bs := state.NewTokenTransferInfo()
 	err := dao.GetAndDecode(bs, key)
 	if err != nil && err != storage.ErrKeyNotFound {
@@ -168,20 +153,19 @@ func (dao *Simple) GetTokenTransferInfo(acc util.Uint160) (*state.TokenTransferI
 
 // PutTokenTransferInfo saves NEP-17 transfer info in the cache.
 func (dao *Simple) PutTokenTransferInfo(acc util.Uint160, bs *state.TokenTransferInfo) error {
-	return dao.putTokenTransferInfo(acc, bs, io.NewBufBinWriter())
+	return dao.putTokenTransferInfo(acc, bs, dao.getDataBuf())
 }
 
 func (dao *Simple) putTokenTransferInfo(acc util.Uint160, bs *state.TokenTransferInfo, buf *io.BufBinWriter) error {
-	key := storage.AppendPrefix(storage.STTokenTransferInfo, acc.BytesBE())
-	return dao.putWithBuffer(bs, key, buf)
+	return dao.putWithBuffer(bs, dao.makeTTIKey(acc), buf)
 }
 
 // -- end NEP-17 transfer info.
 
 // -- start transfer log.
 
-func getTokenTransferLogKey(acc util.Uint160, newestTimestamp uint64, index uint32, isNEP11 bool) []byte {
-	key := make([]byte, 1+util.Uint160Size+8+4)
+func (dao *Simple) getTokenTransferLogKey(acc util.Uint160, newestTimestamp uint64, index uint32, isNEP11 bool) []byte {
+	key := dao.getKeyBuf(1 + util.Uint160Size + 8 + 4)
 	if isNEP11 {
 		key[0] = byte(storage.STNEP11Transfers)
 	} else {
@@ -197,7 +181,7 @@ func getTokenTransferLogKey(acc util.Uint160, newestTimestamp uint64, index uint
 // the transfer with the newest timestamp up to the oldest transfer. It continues
 // iteration until false is returned from f. The last non-nil error is returned.
 func (dao *Simple) SeekNEP17TransferLog(acc util.Uint160, newestTimestamp uint64, f func(*state.NEP17Transfer) (bool, error)) error {
-	key := getTokenTransferLogKey(acc, newestTimestamp, 0, false)
+	key := dao.getTokenTransferLogKey(acc, newestTimestamp, 0, false)
 	prefixLen := 1 + util.Uint160Size
 	var seekErr error
 	dao.Store.Seek(storage.SeekRange{
@@ -219,7 +203,7 @@ func (dao *Simple) SeekNEP17TransferLog(acc util.Uint160, newestTimestamp uint64
 // the transfer with the newest timestamp up to the oldest transfer. It continues
 // iteration until false is returned from f. The last non-nil error is returned.
 func (dao *Simple) SeekNEP11TransferLog(acc util.Uint160, newestTimestamp uint64, f func(*state.NEP11Transfer) (bool, error)) error {
-	key := getTokenTransferLogKey(acc, newestTimestamp, 0, true)
+	key := dao.getTokenTransferLogKey(acc, newestTimestamp, 0, true)
 	prefixLen := 1 + util.Uint160Size
 	var seekErr error
 	dao.Store.Seek(storage.SeekRange{
@@ -239,7 +223,7 @@ func (dao *Simple) SeekNEP11TransferLog(acc util.Uint160, newestTimestamp uint64
 
 // GetTokenTransferLog retrieves transfer log from the cache.
 func (dao *Simple) GetTokenTransferLog(acc util.Uint160, newestTimestamp uint64, index uint32, isNEP11 bool) (*state.TokenTransferLog, error) {
-	key := getTokenTransferLogKey(acc, newestTimestamp, index, isNEP11)
+	key := dao.getTokenTransferLogKey(acc, newestTimestamp, index, isNEP11)
 	value, err := dao.Store.Get(key)
 	if err != nil {
 		if err == storage.ErrKeyNotFound {
@@ -251,19 +235,26 @@ func (dao *Simple) GetTokenTransferLog(acc util.Uint160, newestTimestamp uint64,
 }
 
 // PutTokenTransferLog saves given transfer log in the cache.
-func (dao *Simple) PutTokenTransferLog(acc util.Uint160, start uint64, index uint32, isNEP11 bool, lg *state.TokenTransferLog) error {
-	key := getTokenTransferLogKey(acc, start, index, isNEP11)
-	return dao.Store.Put(key, lg.Raw)
+func (dao *Simple) PutTokenTransferLog(acc util.Uint160, start uint64, index uint32, isNEP11 bool, lg *state.TokenTransferLog) {
+	key := dao.getTokenTransferLogKey(acc, start, index, isNEP11)
+	dao.Store.Put(key, lg.Raw)
 }
 
 // -- end transfer log.
 
 // -- start notification event.
 
+func (dao *Simple) makeExecutableKey(hash util.Uint256) []byte {
+	key := dao.getKeyBuf(1 + util.Uint256Size)
+	key[0] = byte(storage.DataExecutable)
+	copy(key[1:], hash.BytesBE())
+	return key
+}
+
 // GetAppExecResults gets application execution results with the specified trigger from the
 // given store.
 func (dao *Simple) GetAppExecResults(hash util.Uint256, trig trigger.Type) ([]state.AppExecResult, error) {
-	key := storage.AppendPrefix(storage.DataExecutable, hash.BytesBE())
+	key := dao.makeExecutableKey(hash)
 	bs, err := dao.Store.Get(key)
 	if err != nil {
 		return nil, err
@@ -306,7 +297,7 @@ func (dao *Simple) GetAppExecResults(hash util.Uint256, trig trigger.Type) ([]st
 
 // GetStorageItem returns StorageItem if it exists in the given store.
 func (dao *Simple) GetStorageItem(id int32, key []byte) state.StorageItem {
-	b, err := dao.Store.Get(makeStorageItemKey(dao.Version.StoragePrefix, id, key))
+	b, err := dao.Store.Get(dao.makeStorageItemKey(id, key))
 	if err != nil {
 		return nil
 	}
@@ -315,16 +306,16 @@ func (dao *Simple) GetStorageItem(id int32, key []byte) state.StorageItem {
 
 // PutStorageItem puts given StorageItem for given id with given
 // key into the given store.
-func (dao *Simple) PutStorageItem(id int32, key []byte, si state.StorageItem) error {
-	stKey := makeStorageItemKey(dao.Version.StoragePrefix, id, key)
-	return dao.Store.Put(stKey, si)
+func (dao *Simple) PutStorageItem(id int32, key []byte, si state.StorageItem) {
+	stKey := dao.makeStorageItemKey(id, key)
+	dao.Store.Put(stKey, si)
 }
 
 // DeleteStorageItem drops storage item for the given id with the
 // given key from the store.
-func (dao *Simple) DeleteStorageItem(id int32, key []byte) error {
-	stKey := makeStorageItemKey(dao.Version.StoragePrefix, id, key)
-	return dao.Store.Delete(stKey)
+func (dao *Simple) DeleteStorageItem(id int32, key []byte) {
+	stKey := dao.makeStorageItemKey(id, key)
+	dao.Store.Delete(stKey)
 }
 
 // GetStorageItems returns all storage items for a given id.
@@ -354,7 +345,7 @@ func (dao *Simple) GetStorageItemsWithPrefix(id int32, prefix []byte) ([]state.S
 // starting from the point specified). If key or value is to be used outside of f, they
 // may not be copied. Seek continues iterating until false is returned from f.
 func (dao *Simple) Seek(id int32, rng storage.SeekRange, f func(k, v []byte) bool) {
-	rng.Prefix = makeStorageItemKey(dao.Version.StoragePrefix, id, rng.Prefix)
+	rng.Prefix = slice.Copy(dao.makeStorageItemKey(id, rng.Prefix)) // f() can use dao too.
 	dao.Store.Seek(rng, func(k, v []byte) bool {
 		return f(k[len(rng.Prefix):], v)
 	})
@@ -364,15 +355,15 @@ func (dao *Simple) Seek(id int32, rng storage.SeekRange, f func(k, v []byte) boo
 // starting from the point specified) to a channel and returns the channel.
 // Resulting keys and values may not be copied.
 func (dao *Simple) SeekAsync(ctx context.Context, id int32, rng storage.SeekRange) chan storage.KeyValue {
-	rng.Prefix = makeStorageItemKey(dao.Version.StoragePrefix, id, rng.Prefix)
+	rng.Prefix = slice.Copy(dao.makeStorageItemKey(id, rng.Prefix))
 	return dao.Store.SeekAsync(ctx, rng, true)
 }
 
 // makeStorageItemKey returns a key used to store StorageItem in the DB.
-func makeStorageItemKey(prefix storage.KeyPrefix, id int32, key []byte) []byte {
+func (dao *Simple) makeStorageItemKey(id int32, key []byte) []byte {
 	// 1 for prefix + 4 for Uint32 + len(key) for key
-	buf := make([]byte, 5+len(key))
-	buf[0] = byte(prefix)
+	buf := dao.getKeyBuf(5 + len(key))
+	buf[0] = byte(dao.Version.StoragePrefix)
 	binary.LittleEndian.PutUint32(buf[1:], uint32(id))
 	copy(buf[5:], key)
 	return buf
@@ -384,7 +375,7 @@ func makeStorageItemKey(prefix storage.KeyPrefix, id int32, key []byte) []byte {
 
 // GetBlock returns Block by the given hash if it exists in the store.
 func (dao *Simple) GetBlock(hash util.Uint256) (*block.Block, error) {
-	key := storage.AppendPrefix(storage.DataExecutable, hash.BytesBE())
+	key := dao.makeExecutableKey(hash)
 	b, err := dao.Store.Get(key)
 	if err != nil {
 		return nil, err
@@ -553,7 +544,7 @@ func (dao *Simple) GetHeaderHashes() ([]util.Uint256, error) {
 // GetTransaction returns Transaction and its height by the given hash
 // if it exists in the store. It does not return dummy transactions.
 func (dao *Simple) GetTransaction(hash util.Uint256) (*transaction.Transaction, uint32, error) {
-	key := storage.AppendPrefix(storage.DataExecutable, hash.BytesBE())
+	key := dao.makeExecutableKey(hash)
 	b, err := dao.Store.Get(key)
 	if err != nil {
 		return nil, 0, err
@@ -582,28 +573,28 @@ func (dao *Simple) GetTransaction(hash util.Uint256) (*transaction.Transaction, 
 }
 
 // PutVersion stores the given version in the underlying store.
-func (dao *Simple) PutVersion(v Version) error {
+func (dao *Simple) PutVersion(v Version) {
 	dao.Version = v
-	return dao.Store.Put(storage.SYSVersion.Bytes(), v.Bytes())
+	dao.Store.Put(storage.SYSVersion.Bytes(), v.Bytes())
 }
 
 // PutCurrentHeader stores current header.
-func (dao *Simple) PutCurrentHeader(hashAndIndex []byte) error {
-	return dao.Store.Put(storage.SYSCurrentHeader.Bytes(), hashAndIndex)
+func (dao *Simple) PutCurrentHeader(hashAndIndex []byte) {
+	dao.Store.Put(storage.SYSCurrentHeader.Bytes(), hashAndIndex)
 }
 
 // PutStateSyncPoint stores current state synchronisation point P.
-func (dao *Simple) PutStateSyncPoint(p uint32) error {
-	buf := make([]byte, 4)
+func (dao *Simple) PutStateSyncPoint(p uint32) {
+	buf := dao.getKeyBuf(4) // It's very small, no point in using BufBinWriter.
 	binary.LittleEndian.PutUint32(buf, p)
-	return dao.Store.Put(storage.SYSStateSyncPoint.Bytes(), buf)
+	dao.Store.Put(storage.SYSStateSyncPoint.Bytes(), buf)
 }
 
 // PutStateSyncCurrentBlockHeight stores current block height during state synchronisation process.
-func (dao *Simple) PutStateSyncCurrentBlockHeight(h uint32) error {
-	buf := make([]byte, 4)
+func (dao *Simple) PutStateSyncCurrentBlockHeight(h uint32) {
+	buf := dao.getKeyBuf(4) // It's very small, no point in using BufBinWriter.
 	binary.LittleEndian.PutUint32(buf, h)
-	return dao.Store.Put(storage.SYSStateSyncCurrentBlockHeight.Bytes(), buf)
+	dao.Store.Put(storage.SYSStateSyncCurrentBlockHeight.Bytes(), buf)
 }
 
 // read2000Uint256Hashes attempts to read 2000 Uint256 hashes from
@@ -623,7 +614,7 @@ func read2000Uint256Hashes(b []byte) ([]util.Uint256, error) {
 // Transaction hash. It returns an error in case if transaction is in chain
 // or in the list of conflicting transactions.
 func (dao *Simple) HasTransaction(hash util.Uint256) error {
-	key := storage.AppendPrefix(storage.DataExecutable, hash.BytesBE())
+	key := dao.makeExecutableKey(hash)
 	bytes, err := dao.Store.Get(key)
 	if err != nil {
 		return nil
@@ -640,13 +631,11 @@ func (dao *Simple) HasTransaction(hash util.Uint256) error {
 
 // StoreAsBlock stores given block as DataBlock. It can reuse given buffer for
 // the purpose of value serialization.
-func (dao *Simple) StoreAsBlock(block *block.Block, aer1 *state.AppExecResult, aer2 *state.AppExecResult, buf *io.BufBinWriter) error {
+func (dao *Simple) StoreAsBlock(block *block.Block, aer1 *state.AppExecResult, aer2 *state.AppExecResult) error {
 	var (
-		key = storage.AppendPrefix(storage.DataExecutable, block.Hash().BytesBE())
+		key = dao.makeExecutableKey(block.Hash())
+		buf = dao.getDataBuf()
 	)
-	if buf == nil {
-		buf = io.NewBufBinWriter()
-	}
 	buf.WriteB(storage.ExecBlock)
 	b, err := block.Trim()
 	if err != nil {
@@ -662,15 +651,14 @@ func (dao *Simple) StoreAsBlock(block *block.Block, aer1 *state.AppExecResult, a
 	if buf.Err != nil {
 		return buf.Err
 	}
-	return dao.Store.Put(key, buf.Bytes())
+	dao.Store.Put(key, buf.Bytes())
+	return nil
 }
 
-// DeleteBlock removes block from dao.
-func (dao *Simple) DeleteBlock(h util.Uint256, w *io.BufBinWriter) error {
-	batch := dao.Store.Batch()
-	key := make([]byte, util.Uint256Size+1)
-	key[0] = byte(storage.DataExecutable)
-	copy(key[1:], h.BytesBE())
+// DeleteBlock removes block from dao. It's not atomic, so make sure you're
+// using private MemCached instance here.
+func (dao *Simple) DeleteBlock(h util.Uint256) error {
+	key := dao.makeExecutableKey(h)
 	bs, err := dao.Store.Get(key)
 	if err != nil {
 		return err
@@ -685,53 +673,48 @@ func (dao *Simple) DeleteBlock(h util.Uint256, w *io.BufBinWriter) error {
 		return err
 	}
 
-	if w == nil {
-		w = io.NewBufBinWriter()
-	}
+	w := dao.getDataBuf()
 	w.WriteB(storage.ExecBlock)
 	b.Header.EncodeBinary(w.BinWriter)
 	w.BinWriter.WriteB(0)
 	if w.Err != nil {
 		return w.Err
 	}
-	batch.Put(key, w.Bytes())
+	dao.Store.Put(key, w.Bytes())
 
 	for _, tx := range b.Transactions {
 		copy(key[1:], tx.Hash().BytesBE())
-		batch.Delete(key)
+		dao.Store.Delete(key)
 		if dao.Version.P2PSigExtensions {
 			for _, attr := range tx.GetAttributes(transaction.ConflictsT) {
 				hash := attr.Value.(*transaction.Conflicts).Hash
 				copy(key[1:], hash.BytesBE())
-				batch.Delete(key)
+				dao.Store.Delete(key)
 			}
 		}
 	}
 
-	return dao.Store.PutBatch(batch)
+	return nil
 }
 
 // StoreAsCurrentBlock stores a hash of the given block with prefix
 // SYSCurrentBlock. It can reuse given buffer for the purpose of value
 // serialization.
-func (dao *Simple) StoreAsCurrentBlock(block *block.Block, buf *io.BufBinWriter) error {
-	if buf == nil {
-		buf = io.NewBufBinWriter()
-	}
+func (dao *Simple) StoreAsCurrentBlock(block *block.Block) {
+	buf := dao.getDataBuf()
 	h := block.Hash()
 	h.EncodeBinary(buf.BinWriter)
 	buf.WriteU32LE(block.Index)
-	return dao.Store.Put(storage.SYSCurrentBlock.Bytes(), buf.Bytes())
+	dao.Store.Put(storage.SYSCurrentBlock.Bytes(), buf.Bytes())
 }
 
 // StoreAsTransaction stores given TX as DataTransaction. It also stores transactions
 // given tx has conflicts with as DataTransaction with dummy version. It can reuse given
 // buffer for the purpose of value serialization.
-func (dao *Simple) StoreAsTransaction(tx *transaction.Transaction, index uint32, aer *state.AppExecResult, buf *io.BufBinWriter) error {
-	key := storage.AppendPrefix(storage.DataExecutable, tx.Hash().BytesBE())
-	if buf == nil {
-		buf = io.NewBufBinWriter()
-	}
+func (dao *Simple) StoreAsTransaction(tx *transaction.Transaction, index uint32, aer *state.AppExecResult) error {
+	key := dao.makeExecutableKey(tx.Hash())
+	buf := dao.getDataBuf()
+
 	buf.WriteB(storage.ExecTransaction)
 	buf.WriteU32LE(index)
 	tx.EncodeBinary(buf.BinWriter)
@@ -741,10 +724,7 @@ func (dao *Simple) StoreAsTransaction(tx *transaction.Transaction, index uint32,
 	if buf.Err != nil {
 		return buf.Err
 	}
-	err := dao.Store.Put(key, buf.Bytes())
-	if err != nil {
-		return err
-	}
+	dao.Store.Put(key, buf.Bytes())
 	if dao.Version.P2PSigExtensions {
 		var value []byte
 		for _, attr := range tx.GetAttributes(transaction.ConflictsT) {
@@ -757,13 +737,25 @@ func (dao *Simple) StoreAsTransaction(tx *transaction.Transaction, index uint32,
 				buf.BinWriter.WriteB(transaction.DummyVersion)
 				value = buf.Bytes()
 			}
-			err = dao.Store.Put(key, value)
-			if err != nil {
-				return fmt.Errorf("failed to store conflicting transaction %s for transaction %s: %w", hash.StringLE(), tx.Hash().StringLE(), err)
-			}
+			dao.Store.Put(key, value)
 		}
 	}
 	return nil
+}
+
+func (dao *Simple) getKeyBuf(len int) []byte {
+	if dao.keyBuf != nil { // Private DAO.
+		return dao.keyBuf[:len] // Should have enough capacity.
+	}
+	return make([]byte, len)
+}
+
+func (dao *Simple) getDataBuf() *io.BufBinWriter {
+	if dao.dataBuf != nil {
+		dao.dataBuf.Reset()
+		return dao.dataBuf
+	}
+	return io.NewBufBinWriter()
 }
 
 // Persist flushes all the changes made into the (supposedly) persistent
@@ -777,13 +769,4 @@ func (dao *Simple) Persist() (int, error) {
 // other threads to work with DAO while flushing the Store.
 func (dao *Simple) PersistSync() (int, error) {
 	return dao.Store.PersistSync()
-}
-
-// GetMPTBatch storage changes to be applied to MPT.
-func (dao *Simple) GetMPTBatch() mpt.Batch {
-	var b mpt.Batch
-	dao.Store.MemoryStore.SeekAll([]byte{byte(dao.Version.StoragePrefix)}, func(k, v []byte) {
-		b.Add(k[1:], v)
-	})
-	return b
 }

@@ -61,8 +61,7 @@ type Operation struct {
 // SeekRange represents options for Store.Seek operation.
 type SeekRange struct {
 	// Prefix denotes the Seek's lookup key.
-	// Empty Prefix means seeking through all keys in the DB starting from
-	// the Start if specified.
+	// Empty Prefix is not supported.
 	Prefix []byte
 	// Start denotes value appended to the Prefix to start Seek from.
 	// Seeking starting from some key includes this key to the result;
@@ -83,16 +82,13 @@ type SeekRange struct {
 var ErrKeyNotFound = errors.New("key not found")
 
 type (
-	// Store is anything that can persist and retrieve the blockchain.
-	// information.
+	// Store is the underlying KV backend for the blockchain data, it's
+	// not intended to be used directly, you wrap it with some memory cache
+	// layer most of the time.
 	Store interface {
-		Batch() Batch
-		Delete(k []byte) error
 		Get([]byte) ([]byte, error)
-		Put(k, v []byte) error
-		PutBatch(Batch) error
 		// PutChangeSet allows to push prepared changeset to the Store.
-		PutChangeSet(puts map[string][]byte) error
+		PutChangeSet(puts map[string][]byte, stor map[string][]byte) error
 		// Seek can guarantee that provided key (k) and value (v) are the only valid until the next call to f.
 		// Seek continues iteration until false is returned from f.
 		// Key and value slices should not be modified.
@@ -104,15 +100,6 @@ type (
 		// go down to layers below and it takes a full write lock, so use it carefully.
 		SeekGC(rng SeekRange, keep func(k, v []byte) bool) error
 		Close() error
-	}
-
-	// Batch represents an abstraction on top of batch operations.
-	// Each Store implementation is responsible of casting a Batch
-	// to its appropriate type. Batches can only be used in a single
-	// thread.
-	Batch interface {
-		Delete(k []byte)
-		Put(k, v []byte)
 	}
 
 	// KeyPrefix is a constant byte added as a prefix for each key

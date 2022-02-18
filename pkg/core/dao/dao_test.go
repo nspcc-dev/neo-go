@@ -22,11 +22,10 @@ func TestPutGetAndDecode(t *testing.T) {
 	dao := NewSimple(storage.NewMemoryStore(), false, false)
 	serializable := &TestSerializable{field: random.String(4)}
 	hash := []byte{1}
-	err := dao.Put(serializable, hash)
-	require.NoError(t, err)
+	require.NoError(t, dao.putWithBuffer(serializable, hash, io.NewBufBinWriter()))
 
 	gotAndDecoded := &TestSerializable{}
-	err = dao.GetAndDecode(gotAndDecoded, hash)
+	err := dao.GetAndDecode(gotAndDecoded, hash)
 	require.NoError(t, err)
 }
 
@@ -48,8 +47,7 @@ func TestPutGetStorageItem(t *testing.T) {
 	id := int32(random.Int(0, 1024))
 	key := []byte{0}
 	storageItem := state.StorageItem{}
-	err := dao.PutStorageItem(id, key, storageItem)
-	require.NoError(t, err)
+	dao.PutStorageItem(id, key, storageItem)
 	gotStorageItem := dao.GetStorageItem(id, key)
 	require.Equal(t, storageItem, gotStorageItem)
 }
@@ -59,10 +57,8 @@ func TestDeleteStorageItem(t *testing.T) {
 	id := int32(random.Int(0, 1024))
 	key := []byte{0}
 	storageItem := state.StorageItem{}
-	err := dao.PutStorageItem(id, key, storageItem)
-	require.NoError(t, err)
-	err = dao.DeleteStorageItem(id, key)
-	require.NoError(t, err)
+	dao.PutStorageItem(id, key, storageItem)
+	dao.DeleteStorageItem(id, key)
 	gotStorageItem := dao.GetStorageItem(id, key)
 	require.Nil(t, gotStorageItem)
 }
@@ -102,7 +98,7 @@ func TestPutGetBlock(t *testing.T) {
 			Stack:   []stackitem.Item{},
 		},
 	}
-	err := dao.StoreAsBlock(b, appExecResult1, appExecResult2, nil)
+	err := dao.StoreAsBlock(b, appExecResult1, appExecResult2)
 	require.NoError(t, err)
 	gotBlock, err := dao.GetBlock(hash)
 	require.NoError(t, err)
@@ -129,22 +125,21 @@ func TestGetVersion(t *testing.T) {
 		StateRootInHeader: true,
 		Value:             "testVersion",
 	}
-	err := dao.PutVersion(expected)
-	require.NoError(t, err)
+	dao.PutVersion(expected)
 	actual, err := dao.GetVersion()
 	require.NoError(t, err)
 	require.Equal(t, expected, actual)
 
 	t.Run("invalid", func(t *testing.T) {
 		dao := NewSimple(storage.NewMemoryStore(), false, false)
-		require.NoError(t, dao.Store.Put(storage.SYSVersion.Bytes(), []byte("0.1.2\x00x")))
+		dao.Store.Put(storage.SYSVersion.Bytes(), []byte("0.1.2\x00x"))
 
 		_, err := dao.GetVersion()
 		require.Error(t, err)
 	})
 	t.Run("old format", func(t *testing.T) {
 		dao := NewSimple(storage.NewMemoryStore(), false, false)
-		require.NoError(t, dao.Store.Put(storage.SYSVersion.Bytes(), []byte("0.1.2")))
+		dao.Store.Put(storage.SYSVersion.Bytes(), []byte("0.1.2"))
 
 		version, err := dao.GetVersion()
 		require.NoError(t, err)
@@ -169,8 +164,7 @@ func TestGetCurrentHeaderHeight_Store(t *testing.T) {
 			},
 		},
 	}
-	err := dao.StoreAsCurrentBlock(b, nil)
-	require.NoError(t, err)
+	dao.StoreAsCurrentBlock(b)
 	height, err := dao.GetCurrentBlockHeight()
 	require.NoError(t, err)
 	require.Equal(t, uint32(0), height)
@@ -191,7 +185,7 @@ func TestStoreAsTransaction(t *testing.T) {
 				Stack:   []stackitem.Item{},
 			},
 		}
-		err := dao.StoreAsTransaction(tx, 0, aer, nil)
+		err := dao.StoreAsTransaction(tx, 0, aer)
 		require.NoError(t, err)
 		err = dao.HasTransaction(hash)
 		require.NotNil(t, err)
@@ -222,7 +216,7 @@ func TestStoreAsTransaction(t *testing.T) {
 				Stack:   []stackitem.Item{},
 			},
 		}
-		err := dao.StoreAsTransaction(tx, 0, aer, nil)
+		err := dao.StoreAsTransaction(tx, 0, aer)
 		require.NoError(t, err)
 		err = dao.HasTransaction(hash)
 		require.True(t, errors.Is(err, ErrAlreadyExists))
@@ -271,7 +265,7 @@ func BenchmarkStoreAsTransaction(b *testing.B) {
 	b.ResetTimer()
 	b.ReportAllocs()
 	for n := 0; n < b.N; n++ {
-		err := dao.StoreAsTransaction(tx, 1, aer, nil)
+		err := dao.StoreAsTransaction(tx, 1, aer)
 		if err != nil {
 			b.FailNow()
 		}
@@ -281,18 +275,21 @@ func BenchmarkStoreAsTransaction(b *testing.B) {
 func TestMakeStorageItemKey(t *testing.T) {
 	var id int32 = 5
 
+	dao := NewSimple(storage.NewMemoryStore(), true, false)
+
 	expected := []byte{byte(storage.STStorage), 0, 0, 0, 0, 1, 2, 3}
 	binary.LittleEndian.PutUint32(expected[1:5], uint32(id))
-	actual := makeStorageItemKey(storage.STStorage, id, []byte{1, 2, 3})
+	actual := dao.makeStorageItemKey(id, []byte{1, 2, 3})
 	require.Equal(t, expected, actual)
 
 	expected = expected[0:5]
-	actual = makeStorageItemKey(storage.STStorage, id, nil)
+	actual = dao.makeStorageItemKey(id, nil)
 	require.Equal(t, expected, actual)
 
 	expected = []byte{byte(storage.STTempStorage), 0, 0, 0, 0, 1, 2, 3}
 	binary.LittleEndian.PutUint32(expected[1:5], uint32(id))
-	actual = makeStorageItemKey(storage.STTempStorage, id, []byte{1, 2, 3})
+	dao.Version.StoragePrefix = storage.STTempStorage
+	actual = dao.makeStorageItemKey(id, []byte{1, 2, 3})
 	require.Equal(t, expected, actual)
 }
 
@@ -305,7 +302,7 @@ func TestPutGetStateSyncPoint(t *testing.T) {
 
 	// non-empty store
 	var expected uint32 = 5
-	require.NoError(t, dao.PutStateSyncPoint(expected))
+	dao.PutStateSyncPoint(expected)
 	actual, err := dao.GetStateSyncPoint()
 	require.NoError(t, err)
 	require.Equal(t, expected, actual)
@@ -320,7 +317,7 @@ func TestPutGetStateSyncCurrentBlockHeight(t *testing.T) {
 
 	// non-empty store
 	var expected uint32 = 5
-	require.NoError(t, dao.PutStateSyncCurrentBlockHeight(expected))
+	dao.PutStateSyncCurrentBlockHeight(expected)
 	actual, err := dao.GetStateSyncCurrentBlockHeight()
 	require.NoError(t, err)
 	require.Equal(t, expected, actual)

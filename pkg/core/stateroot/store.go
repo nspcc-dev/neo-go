@@ -21,21 +21,19 @@ const (
 	prefixValidated = 0x03
 )
 
-func (s *Module) addLocalStateRoot(store *storage.MemCachedStore, sr *state.MPTRoot) error {
+func (s *Module) addLocalStateRoot(store *storage.MemCachedStore, sr *state.MPTRoot) {
 	key := makeStateRootKey(sr.Index)
-	if err := putStateRoot(store, key, sr); err != nil {
-		return err
-	}
+	putStateRoot(store, key, sr)
 
 	data := make([]byte, 4)
 	binary.LittleEndian.PutUint32(data, sr.Index)
-	return store.Put([]byte{byte(storage.DataMPTAux), prefixLocal}, data)
+	store.Put([]byte{byte(storage.DataMPTAux), prefixLocal}, data)
 }
 
-func putStateRoot(store *storage.MemCachedStore, key []byte, sr *state.MPTRoot) error {
+func putStateRoot(store *storage.MemCachedStore, key []byte, sr *state.MPTRoot) {
 	w := io.NewBufBinWriter()
 	sr.EncodeBinary(w.BinWriter)
-	return store.Put(key, w.Bytes())
+	store.Put(key, w.Bytes())
 }
 
 func (s *Module) getStateRoot(key []byte) (*state.MPTRoot, error) {
@@ -73,15 +71,11 @@ func (s *Module) AddStateRoot(sr *state.MPTRoot) error {
 	if len(local.Witness) != 0 {
 		return nil
 	}
-	if err := putStateRoot(s.Store, key, sr); err != nil {
-		return err
-	}
+	putStateRoot(s.Store, key, sr)
 
 	data := make([]byte, 4)
 	binary.LittleEndian.PutUint32(data, sr.Index)
-	if err := s.Store.Put([]byte{byte(storage.DataMPTAux), prefixValidated}, data); err != nil {
-		return err
-	}
+	s.Store.Put([]byte{byte(storage.DataMPTAux), prefixValidated}, data)
 	s.validatedHeight.Store(sr.Index)
 	if !s.srInHead {
 		updateStateHeightMetric(sr.Index)

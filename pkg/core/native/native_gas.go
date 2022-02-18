@@ -131,7 +131,7 @@ func (g *GAS) PostPersist(ic *interop.Context) error {
 }
 
 // BalanceOf returns native GAS token balance for the acc.
-func (g *GAS) BalanceOf(d dao.DAO, acc util.Uint160) *big.Int {
+func (g *GAS) BalanceOf(d *dao.Simple, acc util.Uint160) *big.Int {
 	return g.balanceOfInternal(d, acc)
 }
 

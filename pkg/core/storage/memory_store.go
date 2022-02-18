@@ -5,36 +5,21 @@ import (
 	"sort"
 	"strings"
 	"sync"
-
-	"github.com/nspcc-dev/neo-go/pkg/util/slice"
 )
 
 // MemoryStore is an in-memory implementation of a Store, mainly
 // used for testing. Do not use MemoryStore in production.
 type MemoryStore struct {
-	mut sync.RWMutex
-	mem map[string][]byte
-}
-
-// MemoryBatch is an in-memory batch compatible with MemoryStore.
-type MemoryBatch struct {
-	MemoryStore
-}
-
-// Put implements the Batch interface.
-func (b *MemoryBatch) Put(k, v []byte) {
-	b.MemoryStore.put(string(k), slice.Copy(v))
-}
-
-// Delete implements Batch interface.
-func (b *MemoryBatch) Delete(k []byte) {
-	b.MemoryStore.drop(string(k))
+	mut  sync.RWMutex
+	mem  map[string][]byte
+	stor map[string][]byte
 }
 
 // NewMemoryStore creates a new MemoryStore object.
 func NewMemoryStore() *MemoryStore {
 	return &MemoryStore{
-		mem: make(map[string][]byte),
+		mem:  make(map[string][]byte),
+		stor: make(map[string][]byte),
 	}
 }
 
@@ -42,57 +27,43 @@ func NewMemoryStore() *MemoryStore {
 func (s *MemoryStore) Get(key []byte) ([]byte, error) {
 	s.mut.RLock()
 	defer s.mut.RUnlock()
-	if val, ok := s.mem[string(key)]; ok && val != nil {
+	m := s.chooseMap(key)
+	if val, ok := m[string(key)]; ok && val != nil {
 		return val, nil
 	}
 	return nil, ErrKeyNotFound
 }
 
+func (s *MemoryStore) chooseMap(key []byte) map[string][]byte {
+	switch KeyPrefix(key[0]) {
+	case STStorage, STTempStorage:
+		return s.stor
+	default:
+		return s.mem
+	}
+}
+
 // put puts a key-value pair into the store, it's supposed to be called
 // with mutex locked.
-func (s *MemoryStore) put(key string, value []byte) {
-	s.mem[key] = value
-}
-
-// Put implements the Store interface. Never returns an error.
-func (s *MemoryStore) Put(key, value []byte) error {
-	newKey := string(key)
-	vcopy := slice.Copy(value)
-	s.mut.Lock()
-	s.put(newKey, vcopy)
-	s.mut.Unlock()
-	return nil
-}
-
-// drop deletes a key-value pair from the store, it's supposed to be called
-// with mutex locked.
-func (s *MemoryStore) drop(key string) {
-	s.mem[key] = nil
-}
-
-// Delete implements Store interface. Never returns an error.
-func (s *MemoryStore) Delete(key []byte) error {
-	newKey := string(key)
-	s.mut.Lock()
-	s.drop(newKey)
-	s.mut.Unlock()
-	return nil
-}
-
-// PutBatch implements the Store interface. Never returns an error.
-func (s *MemoryStore) PutBatch(batch Batch) error {
-	b := batch.(*MemoryBatch)
-	return s.PutChangeSet(b.mem)
+func put(m map[string][]byte, key string, value []byte) {
+	m[key] = value
 }
 
 // PutChangeSet implements the Store interface. Never returns an error.
-func (s *MemoryStore) PutChangeSet(puts map[string][]byte) error {
+func (s *MemoryStore) PutChangeSet(puts map[string][]byte, stores map[string][]byte) error {
 	s.mut.Lock()
-	for k := range puts {
-		s.put(k, puts[k])
-	}
+	s.putChangeSet(puts, stores)
 	s.mut.Unlock()
 	return nil
+}
+
+func (s *MemoryStore) putChangeSet(puts map[string][]byte, stores map[string][]byte) {
+	for k := range puts {
+		put(s.mem, k, puts[k])
+	}
+	for k := range stores {
+		put(s.stor, k, stores[k])
+	}
 }
 
 // Seek implements the Store interface.
@@ -109,24 +80,12 @@ func (s *MemoryStore) SeekGC(rng SeekRange, keep func(k, v []byte) bool) error {
 	// sensitive to the order of KV pairs.
 	s.seek(rng, func(k, v []byte) bool {
 		if !keep(k, v) {
-			s.drop(string(k))
+			delete(s.chooseMap(k), string(k))
 		}
 		return true
 	})
 	s.mut.Unlock()
 	return nil
-}
-
-// SeekAll is like seek but also iterates over deleted items.
-func (s *MemoryStore) SeekAll(key []byte, f func(k, v []byte)) {
-	s.mut.RLock()
-	defer s.mut.RUnlock()
-	sk := string(key)
-	for k, v := range s.mem {
-		if strings.HasPrefix(k, sk) {
-			f([]byte(k), v)
-		}
-	}
 }
 
 // seek is an internal unlocked implementation of Seek. `start` denotes whether
@@ -152,7 +111,8 @@ func (s *MemoryStore) seek(rng SeekRange, f func(k, v []byte) bool) {
 		return res != 0 && rng.Backwards == (res > 0)
 	}
 
-	for k, v := range s.mem {
+	m := s.chooseMap(rng.Prefix)
+	for k, v := range m {
 		if v != nil && isKeyOK(k) {
 			memList = append(memList, KeyValue{
 				Key:   []byte(k),
@@ -170,21 +130,12 @@ func (s *MemoryStore) seek(rng SeekRange, f func(k, v []byte) bool) {
 	}
 }
 
-// Batch implements the Batch interface and returns a compatible Batch.
-func (s *MemoryStore) Batch() Batch {
-	return newMemoryBatch()
-}
-
-// newMemoryBatch returns new memory batch.
-func newMemoryBatch() *MemoryBatch {
-	return &MemoryBatch{MemoryStore: *NewMemoryStore()}
-}
-
 // Close implements Store interface and clears up memory. Never returns an
 // error.
 func (s *MemoryStore) Close() error {
 	s.mut.Lock()
 	s.mem = nil
+	s.stor = nil
 	s.mut.Unlock()
 	return nil
 }

@@ -15,6 +15,7 @@ import (
 type MemCachedStore struct {
 	MemoryStore
 
+	private bool
 	// plock protects Persist from double entrance.
 	plock sync.Mutex
 	// Persistent Store.
@@ -51,11 +52,50 @@ func NewMemCachedStore(lower Store) *MemCachedStore {
 	}
 }
 
+// NewPrivateMemCachedStore creates a new private (unlocked) MemCachedStore object.
+// Private cached stores are closed after Persist.
+func NewPrivateMemCachedStore(lower Store) *MemCachedStore {
+	return &MemCachedStore{
+		MemoryStore: *NewMemoryStore(),
+		private:     true,
+		ps:          lower,
+	}
+}
+
+// lock write-locks non-private store.
+func (s *MemCachedStore) lock() {
+	if !s.private {
+		s.mut.Lock()
+	}
+}
+
+// unlock unlocks non-private store.
+func (s *MemCachedStore) unlock() {
+	if !s.private {
+		s.mut.Unlock()
+	}
+}
+
+// rlock read-locks non-private store.
+func (s *MemCachedStore) rlock() {
+	if !s.private {
+		s.mut.RLock()
+	}
+}
+
+// runlock drops read lock for non-private stores.
+func (s *MemCachedStore) runlock() {
+	if !s.private {
+		s.mut.RUnlock()
+	}
+}
+
 // Get implements the Store interface.
 func (s *MemCachedStore) Get(key []byte) ([]byte, error) {
-	s.mut.RLock()
-	defer s.mut.RUnlock()
-	if val, ok := s.mem[string(key)]; ok {
+	s.rlock()
+	defer s.runlock()
+	m := s.chooseMap(key)
+	if val, ok := m[string(key)]; ok {
 		if val == nil {
 			return nil, ErrKeyNotFound
 		}
@@ -64,30 +104,65 @@ func (s *MemCachedStore) Get(key []byte) ([]byte, error) {
 	return s.ps.Get(key)
 }
 
+// Put puts new KV pair into the store.
+func (s *MemCachedStore) Put(key, value []byte) {
+	newKey := string(key)
+	vcopy := slice.Copy(value)
+	s.lock()
+	put(s.chooseMap(key), newKey, vcopy)
+	s.unlock()
+}
+
+// Delete drops KV pair from the store. Never returns an error.
+func (s *MemCachedStore) Delete(key []byte) {
+	newKey := string(key)
+	s.lock()
+	put(s.chooseMap(key), newKey, nil)
+	s.unlock()
+}
+
 // GetBatch returns currently accumulated changeset.
 func (s *MemCachedStore) GetBatch() *MemBatch {
-	s.mut.RLock()
-	defer s.mut.RUnlock()
-
+	s.rlock()
+	defer s.runlock()
 	var b MemBatch
 
-	b.Put = make([]KeyValueExists, 0, len(s.mem))
+	b.Put = make([]KeyValueExists, 0, len(s.mem)+len(s.stor))
 	b.Deleted = make([]KeyValueExists, 0)
-	for k, v := range s.mem {
-		key := []byte(k)
-		_, err := s.ps.Get(key)
-		if v == nil {
-			b.Deleted = append(b.Deleted, KeyValueExists{KeyValue: KeyValue{Key: key}, Exists: err == nil})
-		} else {
-			b.Put = append(b.Put, KeyValueExists{KeyValue: KeyValue{Key: key, Value: v}, Exists: err == nil})
+	for _, m := range []map[string][]byte{s.mem, s.stor} {
+		for k, v := range m {
+			key := []byte(k)
+			_, err := s.ps.Get(key)
+			if v == nil {
+				b.Deleted = append(b.Deleted, KeyValueExists{KeyValue: KeyValue{Key: key}, Exists: err == nil})
+			} else {
+				b.Put = append(b.Put, KeyValueExists{KeyValue: KeyValue{Key: key, Value: v}, Exists: err == nil})
+			}
 		}
 	}
 	return &b
 }
 
+// PutChangeSet implements the Store interface. Never returns an error.
+func (s *MemCachedStore) PutChangeSet(puts map[string][]byte, stores map[string][]byte) error {
+	s.lock()
+	s.MemoryStore.putChangeSet(puts, stores)
+	s.unlock()
+	return nil
+}
+
 // Seek implements the Store interface.
 func (s *MemCachedStore) Seek(rng SeekRange, f func(k, v []byte) bool) {
 	s.seek(context.Background(), rng, false, f)
+}
+
+// GetStorageChanges returns all current storage changes. It can only be done for private
+// MemCachedStore.
+func (s *MemCachedStore) GetStorageChanges() map[string][]byte {
+	if !s.private {
+		panic("GetStorageChanges called on shared MemCachedStore")
+	}
+	return s.stor
 }
 
 // SeekAsync returns non-buffered channel with matching KeyValue pairs. Key and
@@ -130,8 +205,9 @@ func (s *MemCachedStore) seek(ctx context.Context, rng SeekRange, cutPrefix bool
 			return strings.HasPrefix(key, sPrefix) && (lStart == 0 || strings.Compare(key[lPrefix:], sStart) <= 0)
 		}
 	}
-	s.mut.RLock()
-	for k, v := range s.MemoryStore.mem {
+	s.rlock()
+	m := s.MemoryStore.chooseMap(rng.Prefix)
+	for k, v := range m {
 		if isKeyOK(k) {
 			memRes = append(memRes, KeyValueExists{
 				KeyValue: KeyValue{
@@ -143,8 +219,7 @@ func (s *MemCachedStore) seek(ctx context.Context, rng SeekRange, cutPrefix bool
 		}
 	}
 	ps := s.ps
-	s.mut.RUnlock()
-
+	s.runlock()
 	less := func(k1, k2 []byte) bool {
 		res := bytes.Compare(k1, k2)
 		return res != 0 && rng.Backwards == (res > 0)
@@ -255,11 +330,25 @@ func (s *MemCachedStore) persist(isSync bool) (int, error) {
 	var err error
 	var keys int
 
+	if s.private {
+		keys = len(s.mem) + len(s.stor)
+		if keys == 0 {
+			return 0, nil
+		}
+		err = s.ps.PutChangeSet(s.mem, s.stor)
+		if err != nil {
+			return 0, err
+		}
+		s.mem = nil
+		s.stor = nil
+		return keys, nil
+	}
+
 	s.plock.Lock()
 	defer s.plock.Unlock()
 	s.mut.Lock()
 
-	keys = len(s.mem)
+	keys = len(s.mem) + len(s.stor)
 	if keys == 0 {
 		s.mut.Unlock()
 		return 0, nil
@@ -269,14 +358,15 @@ func (s *MemCachedStore) persist(isSync bool) (int, error) {
 	// starts using fresh new maps. This tempstore is only known here and
 	// nothing ever changes it, therefore accesses to it (reads) can go
 	// unprotected while writes are handled by s proper.
-	var tempstore = &MemCachedStore{MemoryStore: MemoryStore{mem: s.mem}, ps: s.ps}
+	var tempstore = &MemCachedStore{MemoryStore: MemoryStore{mem: s.mem, stor: s.stor}, ps: s.ps}
 	s.ps = tempstore
 	s.mem = make(map[string][]byte, len(s.mem))
+	s.stor = make(map[string][]byte, len(s.stor))
 	if !isSync {
 		s.mut.Unlock()
 	}
 
-	err = tempstore.ps.PutChangeSet(tempstore.mem)
+	err = tempstore.ps.PutChangeSet(tempstore.mem, tempstore.stor)
 
 	if !isSync {
 		s.mut.Lock()
@@ -290,10 +380,14 @@ func (s *MemCachedStore) persist(isSync bool) (int, error) {
 		// We're toast. We'll try to still keep proper state, but OOM
 		// killer will get to us eventually.
 		for k := range s.mem {
-			tempstore.put(k, s.mem[k])
+			put(tempstore.mem, k, s.mem[k])
+		}
+		for k := range s.stor {
+			put(tempstore.stor, k, s.stor[k])
 		}
 		s.ps = tempstore.ps
 		s.mem = tempstore.mem
+		s.stor = tempstore.stor
 	}
 	s.mut.Unlock()
 	return keys, err

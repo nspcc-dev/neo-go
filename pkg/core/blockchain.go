@@ -20,6 +20,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/contract"
 	"github.com/nspcc-dev/neo-go/pkg/core/mempool"
+	"github.com/nspcc-dev/neo-go/pkg/core/mpt"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/noderoles"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
@@ -316,9 +317,7 @@ func (bc *Blockchain) init() error {
 			KeepOnlyLatestState:        bc.config.KeepOnlyLatestState,
 			Value:                      version,
 		}
-		if err = bc.dao.PutVersion(ver); err != nil {
-			return err
-		}
+		bc.dao.PutVersion(ver)
 		bc.dao.Version = ver
 		bc.persistent.Version = ver
 		genesisBlock, err := createGenesisBlock(bc.config)
@@ -326,10 +325,7 @@ func (bc *Blockchain) init() error {
 			return err
 		}
 		bc.headerHashes = []util.Uint256{genesisBlock.Hash()}
-		err = bc.dao.PutCurrentHeader(hashAndIndexToBytes(genesisBlock.Hash(), genesisBlock.Index))
-		if err != nil {
-			return err
-		}
+		bc.dao.PutCurrentHeader(hashAndIndexToBytes(genesisBlock.Hash(), genesisBlock.Index))
 		if err := bc.stateRoot.Init(0); err != nil {
 			return fmt.Errorf("can't init MPT: %w", err)
 		}
@@ -504,14 +500,10 @@ func (bc *Blockchain) jumpToStateInternal(p uint32, stage stateJumpStage) error 
 
 	bc.log.Info("jumping to state sync point", zap.Uint32("state sync point", p))
 
-	writeBuf := io.NewBufBinWriter()
 	jumpStageKey := storage.SYSStateJumpStage.Bytes()
 	switch stage {
 	case none:
-		err := bc.dao.Store.Put(jumpStageKey, []byte{byte(stateJumpStarted)})
-		if err != nil {
-			return fmt.Errorf("failed to store state jump stage: %w", err)
-		}
+		bc.dao.Store.Put(jumpStageKey, []byte{byte(stateJumpStarted)})
 		fallthrough
 	case stateJumpStarted:
 		newPrefix := statesync.TemporaryPrefix(bc.dao.Version.StoragePrefix)
@@ -520,55 +512,40 @@ func (bc *Blockchain) jumpToStateInternal(p uint32, stage stateJumpStage) error 
 			return fmt.Errorf("failed to get dao.Version: %w", err)
 		}
 		v.StoragePrefix = newPrefix
-		if err := bc.dao.PutVersion(v); err != nil {
-			return fmt.Errorf("failed to update dao.Version: %w", err)
-		}
+		bc.dao.PutVersion(v)
 		bc.persistent.Version = v
 
-		err = bc.dao.Store.Put(jumpStageKey, []byte{byte(newStorageItemsAdded)})
-		if err != nil {
-			return fmt.Errorf("failed to store state jump stage: %w", err)
-		}
+		bc.dao.Store.Put(jumpStageKey, []byte{byte(newStorageItemsAdded)})
 
 		fallthrough
 	case newStorageItemsAdded:
-		b := bc.dao.Store.Batch()
+		cache := bc.dao.GetPrivate()
 		prefix := statesync.TemporaryPrefix(bc.dao.Version.StoragePrefix)
 		bc.dao.Store.Seek(storage.SeekRange{Prefix: []byte{byte(prefix)}}, func(k, _ []byte) bool {
 			// #1468, but don't need to copy here, because it is done by Store.
-			b.Delete(k)
+			cache.Store.Delete(k)
 			return true
 		})
-
-		err := bc.dao.Store.PutBatch(b)
-		if err != nil {
-			return fmt.Errorf("failed to remove old storage items: %w", err)
-		}
 
 		// After current state is updated, we need to remove outdated state-related data if so.
 		// The only outdated data we might have is genesis-related data, so check it.
 		if p-bc.config.MaxTraceableBlocks > 0 {
-			cache := bc.dao.GetWrapped().(*dao.Simple)
-			writeBuf.Reset()
-			err := cache.DeleteBlock(bc.headerHashes[0], writeBuf)
+			err := cache.DeleteBlock(bc.headerHashes[0])
 			if err != nil {
 				return fmt.Errorf("failed to remove outdated state data for the genesis block: %w", err)
 			}
 			prefixes := []byte{byte(storage.STNEP11Transfers), byte(storage.STNEP17Transfers), byte(storage.STTokenTransferInfo)}
 			for i := range prefixes {
 				cache.Store.Seek(storage.SeekRange{Prefix: prefixes[i : i+1]}, func(k, v []byte) bool {
-					_ = cache.Store.Delete(k) // It's MemCachedStore which never returns an error.
+					cache.Store.Delete(k)
 					return true
 				})
 			}
-			_, err = cache.Persist()
-			if err != nil {
-				return fmt.Errorf("failed to drop genesis block state: %w", err)
-			}
 		}
-		err = bc.dao.Store.Put(jumpStageKey, []byte{byte(genesisStateRemoved)})
+		cache.Store.Put(jumpStageKey, []byte{byte(genesisStateRemoved)})
+		_, err := cache.Persist()
 		if err != nil {
-			return fmt.Errorf("failed to store state jump stage: %w", err)
+			return fmt.Errorf("failed to persist old items removal: %w", err)
 		}
 	case genesisStateRemoved:
 		// there's nothing to do after that, so just continue with common operations
@@ -581,11 +558,7 @@ func (bc *Blockchain) jumpToStateInternal(p uint32, stage stateJumpStage) error 
 	if err != nil {
 		return fmt.Errorf("failed to get current block: %w", err)
 	}
-	writeBuf.Reset()
-	err = bc.dao.StoreAsCurrentBlock(block, writeBuf)
-	if err != nil {
-		return fmt.Errorf("failed to store current block: %w", err)
-	}
+	bc.dao.StoreAsCurrentBlock(block)
 	bc.topBlock.Store(block)
 	atomic.StoreUint32(&bc.blockHeight, p)
 	atomic.StoreUint32(&bc.persistedHeight, p)
@@ -594,12 +567,10 @@ func (bc *Blockchain) jumpToStateInternal(p uint32, stage stateJumpStage) error 
 	if err != nil {
 		return fmt.Errorf("failed to get block to init MPT: %w", err)
 	}
-	if err = bc.stateRoot.JumpToState(&state.MPTRoot{
+	bc.stateRoot.JumpToState(&state.MPTRoot{
 		Index: p,
 		Root:  block.PrevStateRoot,
-	}); err != nil {
-		return fmt.Errorf("can't perform MPT jump to height %d: %w", p, err)
-	}
+	})
 
 	err = bc.contracts.NEO.InitializeCache(bc, bc.dao)
 	if err != nil {
@@ -617,10 +588,7 @@ func (bc *Blockchain) jumpToStateInternal(p uint32, stage stateJumpStage) error 
 
 	updateBlockHeightMetric(p)
 
-	err = bc.dao.Store.Delete(jumpStageKey)
-	if err != nil {
-		return fmt.Errorf("failed to remove outdated state jump stage: %w", err)
-	}
+	bc.dao.Store.Delete(jumpStageKey)
 	return nil
 }
 
@@ -933,7 +901,7 @@ func (bc *Blockchain) AddHeaders(headers ...*block.Header) error {
 func (bc *Blockchain) addHeaders(verify bool, headers ...*block.Header) error {
 	var (
 		start = time.Now()
-		batch = bc.dao.Store.Batch()
+		batch = bc.dao.GetPrivate()
 		err   error
 	)
 
@@ -982,7 +950,7 @@ func (bc *Blockchain) addHeaders(verify bool, headers ...*block.Header) error {
 		}
 
 		key := storage.AppendPrefix(storage.DataExecutable, h.Hash().BytesBE())
-		batch.Put(key, buf.Bytes())
+		batch.Store.Put(key, buf.Bytes())
 		buf.Reset()
 		lastHeader = h
 	}
@@ -995,13 +963,13 @@ func (bc *Blockchain) addHeaders(verify bool, headers ...*block.Header) error {
 			}
 
 			key := storage.AppendPrefixInt(storage.IXHeaderHashList, int(bc.storedHeaderCount))
-			batch.Put(key, buf.Bytes())
+			batch.Store.Put(key, buf.Bytes())
 			bc.storedHeaderCount += headerBatchCount
 		}
 
-		batch.Put(storage.SYSCurrentHeader.Bytes(), hashAndIndexToBytes(lastHeader.Hash(), lastHeader.Index))
+		batch.Store.Put(storage.SYSCurrentHeader.Bytes(), hashAndIndexToBytes(lastHeader.Hash(), lastHeader.Index))
 		updateHeaderHeightMetric(len(bc.headerHashes) - 1)
-		if err = bc.dao.Store.PutBatch(batch); err != nil {
+		if _, err = batch.Persist(); err != nil {
 			return err
 		}
 		bc.log.Debug("done processing headers",
@@ -1027,8 +995,8 @@ func (bc *Blockchain) GetStateSyncModule() *statesync.Module {
 // This is the only way to change Blockchain state.
 func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error {
 	var (
-		cache          = bc.dao.GetWrapped()
-		aerCache       = bc.dao.GetWrapped()
+		cache          = bc.dao.GetPrivate()
+		aerCache       = bc.dao.GetPrivate()
 		appExecResults = make([]*state.AppExecResult, 0, 2+len(block.Transactions))
 		aerchan        = make(chan *state.AppExecResult, len(block.Transactions)/8) // Tested 8 and 4 with no practical difference, but feel free to test more and tune.
 		aerdone        = make(chan error)
@@ -1036,17 +1004,12 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 	go func() {
 		var (
 			kvcache      = aerCache
-			writeBuf     = io.NewBufBinWriter()
 			err          error
 			txCnt        int
 			baer1, baer2 *state.AppExecResult
 			transCache   = make(map[util.Uint160]transferData)
 		)
-		if err := kvcache.StoreAsCurrentBlock(block, writeBuf); err != nil {
-			aerdone <- err
-			return
-		}
-		writeBuf.Reset()
+		kvcache.StoreAsCurrentBlock(block)
 		if bc.config.RemoveUntraceableBlocks {
 			var start, stop uint32
 			if bc.config.P2PStateExchangeExtensions {
@@ -1064,13 +1027,12 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 				stop = start + 1
 			}
 			for index := start; index < stop; index++ {
-				err := kvcache.DeleteBlock(bc.headerHashes[index], writeBuf)
+				err := kvcache.DeleteBlock(bc.headerHashes[index])
 				if err != nil {
 					bc.log.Warn("error while removing old block",
 						zap.Uint32("index", index),
 						zap.Error(err))
 				}
-				writeBuf.Reset()
 			}
 		}
 		for aer := range aerchan {
@@ -1081,7 +1043,7 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 					baer2 = aer
 				}
 			} else {
-				err = kvcache.StoreAsTransaction(block.Transactions[txCnt], block.Index, aer, writeBuf)
+				err = kvcache.StoreAsTransaction(block.Transactions[txCnt], block.Index, aer)
 				txCnt++
 			}
 			if err != nil {
@@ -1093,17 +1055,15 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 					bc.handleNotification(&aer.Execution.Events[j], kvcache, transCache, block, aer.Container)
 				}
 			}
-			writeBuf.Reset()
 		}
 		if err != nil {
 			aerdone <- err
 			return
 		}
-		if err := kvcache.StoreAsBlock(block, baer1, baer2, writeBuf); err != nil {
+		if err := kvcache.StoreAsBlock(block, baer1, baer2); err != nil {
 			aerdone <- err
 			return
 		}
-		writeBuf.Reset()
 		for acc, trData := range transCache {
 			err = kvcache.PutTokenTransferInfo(acc, &trData.Info)
 			if err != nil {
@@ -1111,18 +1071,10 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 				return
 			}
 			if !trData.Info.NewNEP11Batch {
-				err = kvcache.PutTokenTransferLog(acc, trData.Info.NextNEP11NewestTimestamp, trData.Info.NextNEP11Batch, true, &trData.Log11)
-				if err != nil {
-					aerdone <- err
-					return
-				}
+				kvcache.PutTokenTransferLog(acc, trData.Info.NextNEP11NewestTimestamp, trData.Info.NextNEP11Batch, true, &trData.Log11)
 			}
 			if !trData.Info.NewNEP17Batch {
-				err = kvcache.PutTokenTransferLog(acc, trData.Info.NextNEP17NewestTimestamp, trData.Info.NextNEP17Batch, false, &trData.Log17)
-				if err != nil {
-					aerdone <- err
-					return
-				}
+				kvcache.PutTokenTransferLog(acc, trData.Info.NextNEP17NewestTimestamp, trData.Info.NextNEP17Batch, false, &trData.Log17)
 			}
 		}
 		close(aerdone)
@@ -1187,9 +1139,8 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 	appExecResults = append(appExecResults, aer)
 	aerchan <- aer
 	close(aerchan)
-	d := cache.(*dao.Simple)
-	b := d.GetMPTBatch()
-	mpt, sr, err := bc.stateRoot.AddMPTBatch(block.Index, b, d.Store)
+	b := mpt.MapToMPTBatch(cache.Store.GetStorageChanges())
+	mpt, sr, err := bc.stateRoot.AddMPTBatch(block.Index, b, cache.Store)
 	if err != nil {
 		// Release goroutines, don't care about errors, we already have one.
 		<-aerdone
@@ -1213,7 +1164,7 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 	}
 
 	if bc.config.SaveStorageBatch {
-		bc.lastBatch = d.GetBatch()
+		bc.lastBatch = cache.GetBatch()
 	}
 	// Every persist cycle we also compact our in-memory MPT. It's flushed
 	// already in AddMPTBatch, so collapsing it is safe.
@@ -1313,7 +1264,7 @@ func (bc *Blockchain) IsExtensibleAllowed(u util.Uint160) bool {
 	return n < len(us)
 }
 
-func (bc *Blockchain) runPersist(script []byte, block *block.Block, cache dao.DAO, trig trigger.Type) (*state.AppExecResult, error) {
+func (bc *Blockchain) runPersist(script []byte, block *block.Block, cache *dao.Simple, trig trigger.Type) (*state.AppExecResult, error) {
 	systemInterop := bc.newInteropContext(trig, cache, block, nil)
 	v := systemInterop.SpawnVM()
 	v.LoadScriptWithFlags(script, callflag.All)
@@ -1335,7 +1286,7 @@ func (bc *Blockchain) runPersist(script []byte, block *block.Block, cache dao.DA
 	}, nil
 }
 
-func (bc *Blockchain) handleNotification(note *state.NotificationEvent, d dao.DAO,
+func (bc *Blockchain) handleNotification(note *state.NotificationEvent, d *dao.Simple,
 	transCache map[util.Uint160]transferData, b *block.Block, h util.Uint256) {
 	if note.Name != "Transfer" {
 		return
@@ -1378,7 +1329,7 @@ func parseUint160(itm stackitem.Item) (util.Uint160, error) {
 	return util.Uint160DecodeBytesBE(bytes)
 }
 
-func (bc *Blockchain) processTokenTransfer(cache dao.DAO, transCache map[util.Uint160]transferData,
+func (bc *Blockchain) processTokenTransfer(cache *dao.Simple, transCache map[util.Uint160]transferData,
 	h util.Uint256, b *block.Block, sc util.Uint160, from util.Uint160, to util.Uint160,
 	amount *big.Int, tokenID []byte) {
 	var id int32
@@ -1432,7 +1383,7 @@ func (bc *Blockchain) processTokenTransfer(cache dao.DAO, transCache map[util.Ui
 	}
 }
 
-func appendTokenTransfer(cache dao.DAO, transCache map[util.Uint160]transferData, addr util.Uint160, transfer io.Serializable,
+func appendTokenTransfer(cache *dao.Simple, transCache map[util.Uint160]transferData, addr util.Uint160, transfer io.Serializable,
 	token int32, bIndex uint32, bTimestamp uint64, isNEP11 bool) error {
 	transferData, ok := transCache[addr]
 	if !ok {
@@ -1480,10 +1431,7 @@ func appendTokenTransfer(cache dao.DAO, transCache map[util.Uint160]transferData
 	transferData.Info.LastUpdated[token] = bIndex
 	*newBatch = log.Size() >= state.TokenTransferBatchSize
 	if *newBatch {
-		err = cache.PutTokenTransferLog(addr, *currTimestamp, *nextBatch, isNEP11, log)
-		if err != nil {
-			return err
-		}
+		cache.PutTokenTransferLog(addr, *currTimestamp, *nextBatch, isNEP11, log)
 		*nextBatch++
 		*currTimestamp = bTimestamp
 		// Put makes a copy of it anyway.
@@ -2198,7 +2146,7 @@ func (bc *Blockchain) GetEnrollments() ([]state.Validator, error) {
 
 // GetTestVM returns an interop context with VM set up for a test run.
 func (bc *Blockchain) GetTestVM(t trigger.Type, tx *transaction.Transaction, b *block.Block) *interop.Context {
-	d := bc.dao.GetWrapped().(*dao.Simple)
+	d := bc.dao.GetPrivate()
 	systemInterop := bc.newInteropContext(t, d, b, tx)
 	vm := systemInterop.SpawnVM()
 	vm.SetPriceGetter(systemInterop.GetPrice)
@@ -2368,7 +2316,7 @@ func hashAndIndexToBytes(h util.Uint256, index uint32) []byte {
 	return buf.Bytes()
 }
 
-func (bc *Blockchain) newInteropContext(trigger trigger.Type, d dao.DAO, block *block.Block, tx *transaction.Transaction) *interop.Context {
+func (bc *Blockchain) newInteropContext(trigger trigger.Type, d *dao.Simple, block *block.Block, tx *transaction.Transaction) *interop.Context {
 	ic := interop.NewContext(trigger, bc, d, bc.contracts.Management.GetContract, bc.contracts.Contracts, block, tx, bc.log)
 	ic.Functions = systemInterops
 	switch {

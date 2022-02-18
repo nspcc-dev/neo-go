@@ -10,12 +10,13 @@ import (
 )
 
 func TestBatchAdd(t *testing.T) {
-	b := new(Batch)
-	b.Add([]byte{1}, []byte{2})
-	b.Add([]byte{2, 16}, []byte{3})
-	b.Add([]byte{2, 0}, []byte{4})
-	b.Add([]byte{0, 1}, []byte{5})
-	b.Add([]byte{2, 0}, []byte{6})
+	b := MapToMPTBatch(map[string][]byte{
+		"a\x01":     {2},
+		"a\x02\x10": {3},
+		"a\x00\x01": {5},
+		"a\x02\x00": {6},
+	})
+
 	expected := []keyValue{
 		{[]byte{0, 0, 0, 1}, []byte{5}},
 		{[]byte{0, 1}, []byte{2}},
@@ -28,7 +29,7 @@ func TestBatchAdd(t *testing.T) {
 type pairs = [][2][]byte
 
 func testIncompletePut(t *testing.T, ps pairs, n int, tr1, tr2 *Trie) {
-	var b Batch
+	var m = make(map[string][]byte)
 	for i, p := range ps {
 		if i < n {
 			if p[1] == nil {
@@ -43,9 +44,10 @@ func testIncompletePut(t *testing.T, ps pairs, n int, tr1, tr2 *Trie) {
 				require.Error(t, tr1.Put(p[0], p[1]), "item %d", i)
 			}
 		}
-		b.Add(p[0], p[1])
+		m["a"+string(p[0])] = p[1]
 	}
 
+	b := MapToMPTBatch(m)
 	num, err := tr2.PutBatch(b)
 	if n == len(ps) {
 		require.NoError(t, err)
@@ -275,8 +277,8 @@ func TestTrie_PutBatchHash(t *testing.T) {
 		tr1.Collapse(1)
 		tr2.Collapse(1)
 		key := makeStorageKey(tr1.root.(*BranchNode).Children[2].Hash())
-		require.NoError(t, tr1.Store.Delete(key))
-		require.NoError(t, tr2.Store.Delete(key))
+		tr1.Store.Delete(key)
+		tr2.Store.Delete(key)
 		testIncompletePut(t, ps, 1, tr1, tr2)
 	})
 }
@@ -308,8 +310,10 @@ func TestTrie_PutBatchEmpty(t *testing.T) {
 // For the sake of coverage.
 func TestTrie_InvalidNodeType(t *testing.T) {
 	tr := NewTrie(EmptyNode{}, ModeAll, newTestStore())
-	var b Batch
-	b.Add([]byte{1}, []byte("value"))
+	var b = Batch{kv: []keyValue{{
+		key:   []byte{0, 1},
+		value: []byte("value"),
+	}}}
 	tr.root = Node(nil)
 	require.Panics(t, func() { _, _ = tr.PutBatch(b) })
 }

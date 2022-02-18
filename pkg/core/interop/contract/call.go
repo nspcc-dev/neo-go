@@ -18,7 +18,7 @@ import (
 )
 
 type policyChecker interface {
-	IsBlockedInternal(dao.DAO, util.Uint160) bool
+	IsBlockedInternal(*dao.Simple, util.Uint160) bool
 }
 
 // LoadToken calls method specified by token id.

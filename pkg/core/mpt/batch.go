@@ -16,23 +16,19 @@ type keyValue struct {
 	value []byte
 }
 
-// Add adds key-value pair to batch.
-// If there is an item with the specified key, it is replaced.
-func (b *Batch) Add(key []byte, value []byte) {
-	path := toNibbles(key)
-	i := sort.Search(len(b.kv), func(i int) bool {
-		return bytes.Compare(path, b.kv[i].key) <= 0
-	})
-	if i == len(b.kv) {
-		b.kv = append(b.kv, keyValue{path, value})
-	} else if bytes.Equal(b.kv[i].key, path) {
-		b.kv[i].value = value
-	} else {
-		b.kv = append(b.kv, keyValue{})
-		copy(b.kv[i+1:], b.kv[i:])
-		b.kv[i].key = path
-		b.kv[i].value = value
+// MapToMPTBatch makes a Batch from unordered set of storage changes.
+func MapToMPTBatch(m map[string][]byte) Batch {
+	var b Batch
+
+	b.kv = make([]keyValue, 0, len(m))
+
+	for k, v := range m {
+		b.kv = append(b.kv, keyValue{strToNibbles(k), v}) // Strip storage prefix.
 	}
+	sort.Slice(b.kv, func(i, j int) bool {
+		return bytes.Compare(b.kv[i].key, b.kv[j].key) < 0
+	})
+	return b
 }
 
 // PutBatch puts batch to trie.

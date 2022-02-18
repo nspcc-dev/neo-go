@@ -70,7 +70,7 @@ func (b *Billet) RestoreHashNode(path []byte, node Node) error {
 			panic("invalid storage prefix")
 		}
 		k := append([]byte{byte(b.TempStoragePrefix)}, fromNibbles(path)...)
-		_ = b.Store.Put(k, leaf.value)
+		b.Store.Put(k, leaf.value)
 	}
 	return nil
 }
@@ -194,9 +194,9 @@ func (b *Billet) incrementRefAndStore(h util.Uint256, bs []byte) {
 			data = append(bs, 1, 0, 0, 0, 0)
 		}
 		binary.LittleEndian.PutUint32(data[len(data)-4:], uint32(cnt))
-		_ = b.Store.Put(key, data)
+		b.Store.Put(key, data)
 	} else {
-		_ = b.Store.Put(key, bs)
+		b.Store.Put(key, bs)
 	}
 }
 

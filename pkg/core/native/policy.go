@@ -123,15 +123,9 @@ func (p *Policy) Metadata() *interop.ContractMD {
 
 // Initialize initializes Policy native contract and implements Contract interface.
 func (p *Policy) Initialize(ic *interop.Context) error {
-	if err := setIntWithKey(p.ID, ic.DAO, feePerByteKey, defaultFeePerByte); err != nil {
-		return err
-	}
-	if err := setIntWithKey(p.ID, ic.DAO, execFeeFactorKey, defaultExecFeeFactor); err != nil {
-		return err
-	}
-	if err := setIntWithKey(p.ID, ic.DAO, storagePriceKey, DefaultStoragePrice); err != nil {
-		return err
-	}
+	setIntWithKey(p.ID, ic.DAO, feePerByteKey, defaultFeePerByte)
+	setIntWithKey(p.ID, ic.DAO, execFeeFactorKey, defaultExecFeeFactor)
+	setIntWithKey(p.ID, ic.DAO, storagePriceKey, DefaultStoragePrice)
 
 	p.isValid = true
 	p.execFeeFactor = defaultExecFeeFactor
@@ -188,7 +182,7 @@ func (p *Policy) getFeePerByte(ic *interop.Context, _ []stackitem.Item) stackite
 }
 
 // GetFeePerByteInternal returns required transaction's fee per byte.
-func (p *Policy) GetFeePerByteInternal(dao dao.DAO) int64 {
+func (p *Policy) GetFeePerByteInternal(dao *dao.Simple) int64 {
 	p.lock.RLock()
 	defer p.lock.RUnlock()
 	if p.isValid {
@@ -198,7 +192,7 @@ func (p *Policy) GetFeePerByteInternal(dao dao.DAO) int64 {
 }
 
 // GetMaxVerificationGas returns maximum gas allowed to be burned during verificaion.
-func (p *Policy) GetMaxVerificationGas(_ dao.DAO) int64 {
+func (p *Policy) GetMaxVerificationGas(_ *dao.Simple) int64 {
 	if p.isValid {
 		return p.maxVerificationGas
 	}
@@ -210,7 +204,7 @@ func (p *Policy) getExecFeeFactor(ic *interop.Context, _ []stackitem.Item) stack
 }
 
 // GetExecFeeFactorInternal returns current execution fee factor.
-func (p *Policy) GetExecFeeFactorInternal(d dao.DAO) int64 {
+func (p *Policy) GetExecFeeFactorInternal(d *dao.Simple) int64 {
 	p.lock.RLock()
 	defer p.lock.RUnlock()
 	if p.isValid {
@@ -229,10 +223,7 @@ func (p *Policy) setExecFeeFactor(ic *interop.Context, args []stackitem.Item) st
 	}
 	p.lock.Lock()
 	defer p.lock.Unlock()
-	err := setIntWithKey(p.ID, ic.DAO, execFeeFactorKey, int64(value))
-	if err != nil {
-		panic(err)
-	}
+	setIntWithKey(p.ID, ic.DAO, execFeeFactorKey, int64(value))
 	p.isValid = false
 	return stackitem.Null{}
 }
@@ -244,7 +235,7 @@ func (p *Policy) isBlocked(ic *interop.Context, args []stackitem.Item) stackitem
 }
 
 // IsBlockedInternal checks whether provided account is blocked.
-func (p *Policy) IsBlockedInternal(dao dao.DAO, hash util.Uint160) bool {
+func (p *Policy) IsBlockedInternal(dao *dao.Simple, hash util.Uint160) bool {
 	p.lock.RLock()
 	defer p.lock.RUnlock()
 	if p.isValid {
@@ -266,7 +257,7 @@ func (p *Policy) getStoragePrice(ic *interop.Context, _ []stackitem.Item) stacki
 }
 
 // GetStoragePriceInternal returns current execution fee factor.
-func (p *Policy) GetStoragePriceInternal(d dao.DAO) int64 {
+func (p *Policy) GetStoragePriceInternal(d *dao.Simple) int64 {
 	p.lock.RLock()
 	defer p.lock.RUnlock()
 	if p.isValid {
@@ -285,10 +276,7 @@ func (p *Policy) setStoragePrice(ic *interop.Context, args []stackitem.Item) sta
 	}
 	p.lock.Lock()
 	defer p.lock.Unlock()
-	err := setIntWithKey(p.ID, ic.DAO, storagePriceKey, int64(value))
-	if err != nil {
-		panic(err)
-	}
+	setIntWithKey(p.ID, ic.DAO, storagePriceKey, int64(value))
 	p.isValid = false
 	return stackitem.Null{}
 }
@@ -304,10 +292,7 @@ func (p *Policy) setFeePerByte(ic *interop.Context, args []stackitem.Item) stack
 	}
 	p.lock.Lock()
 	defer p.lock.Unlock()
-	err := setIntWithKey(p.ID, ic.DAO, feePerByteKey, value)
-	if err != nil {
-		panic(err)
-	}
+	setIntWithKey(p.ID, ic.DAO, feePerByteKey, value)
 	p.isValid = false
 	return stackitem.Null{}
 }
@@ -330,10 +315,7 @@ func (p *Policy) blockAccount(ic *interop.Context, args []stackitem.Item) stacki
 	key := append([]byte{blockedAccountPrefix}, hash.BytesBE()...)
 	p.lock.Lock()
 	defer p.lock.Unlock()
-	err := ic.DAO.PutStorageItem(p.ID, key, state.StorageItem{})
-	if err != nil {
-		panic(err)
-	}
+	ic.DAO.PutStorageItem(p.ID, key, state.StorageItem{})
 	p.isValid = false
 	return stackitem.NewBool(true)
 }
@@ -351,10 +333,7 @@ func (p *Policy) unblockAccount(ic *interop.Context, args []stackitem.Item) stac
 	key := append([]byte{blockedAccountPrefix}, hash.BytesBE()...)
 	p.lock.Lock()
 	defer p.lock.Unlock()
-	err := ic.DAO.DeleteStorageItem(p.ID, key)
-	if err != nil {
-		panic(err)
-	}
+	ic.DAO.DeleteStorageItem(p.ID, key)
 	p.isValid = false
 	return stackitem.NewBool(true)
 }
@@ -362,7 +341,7 @@ func (p *Policy) unblockAccount(ic *interop.Context, args []stackitem.Item) stac
 // CheckPolicy checks whether transaction conforms to current policy restrictions
 // like not being signed by blocked account or not exceeding block-level system
 // fee limit.
-func (p *Policy) CheckPolicy(d dao.DAO, tx *transaction.Transaction) error {
+func (p *Policy) CheckPolicy(d *dao.Simple, tx *transaction.Transaction) error {
 	for _, signer := range tx.Signers {
 		if p.IsBlockedInternal(d, signer.Account) {
 			return fmt.Errorf("account %s is blocked", signer.Account.StringLE())

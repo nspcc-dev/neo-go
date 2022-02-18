@@ -166,9 +166,7 @@ func (o *Oracle) PostPersist(ic *interop.Context) error {
 		if err := o.getConvertibleFromDAO(ic.DAO, reqKey, req); err != nil {
 			continue
 		}
-		if err := ic.DAO.DeleteStorageItem(o.ID, reqKey); err != nil {
-			return err
-		}
+		ic.DAO.DeleteStorageItem(o.ID, reqKey)
 		if orc != nil {
 			removedIDs = append(removedIDs, resp.ID)
 		}
@@ -184,7 +182,7 @@ func (o *Oracle) PostPersist(ic *interop.Context) error {
 
 		var err error
 		if len(*idList) == 0 {
-			err = ic.DAO.DeleteStorageItem(o.ID, idKey)
+			ic.DAO.DeleteStorageItem(o.ID, idKey)
 		} else {
 			err = putConvertibleToDAO(o.ID, ic.DAO, idKey, idList)
 		}
@@ -222,12 +220,8 @@ func (o *Oracle) Metadata() *interop.ContractMD {
 
 // Initialize initializes Oracle contract.
 func (o *Oracle) Initialize(ic *interop.Context) error {
-	if err := setIntWithKey(o.ID, ic.DAO, prefixRequestID, 0); err != nil {
-		return err
-	}
-	if err := setIntWithKey(o.ID, ic.DAO, prefixRequestPrice, DefaultOracleRequestPrice); err != nil {
-		return err
-	}
+	setIntWithKey(o.ID, ic.DAO, prefixRequestID, 0)
+	setIntWithKey(o.ID, ic.DAO, prefixRequestPrice, DefaultOracleRequestPrice)
 	o.requestPrice.Store(int64(DefaultOracleRequestPrice))
 	o.requestPriceChanged.Store(false)
 	return nil
@@ -348,9 +342,7 @@ func (o *Oracle) RequestInternal(ic *interop.Context, url string, filter *string
 	id := itemID.Uint64()
 	itemID.Add(itemID, intOne)
 	si = bigint.ToPreallocatedBytes(itemID, si)
-	if err := ic.DAO.PutStorageItem(o.ID, prefixRequestID, si); err != nil {
-		return err
-	}
+	ic.DAO.PutStorageItem(o.ID, prefixRequestID, si)
 
 	// Should be executed from contract.
 	_, err := ic.GetContract(ic.VM.GetCallingScriptHash())
@@ -395,7 +387,7 @@ func (o *Oracle) RequestInternal(ic *interop.Context, url string, filter *string
 }
 
 // PutRequestInternal puts oracle request with the specified id to d.
-func (o *Oracle) PutRequestInternal(id uint64, req *state.OracleRequest, d dao.DAO) error {
+func (o *Oracle) PutRequestInternal(id uint64, req *state.OracleRequest, d *dao.Simple) error {
 	reqKey := makeRequestKey(id)
 	if err := putConvertibleToDAO(o.ID, d, reqKey, req); err != nil {
 		return err
@@ -416,25 +408,25 @@ func (o *Oracle) PutRequestInternal(id uint64, req *state.OracleRequest, d dao.D
 }
 
 // GetScriptHash returns script hash or oracle nodes.
-func (o *Oracle) GetScriptHash(d dao.DAO) (util.Uint160, error) {
+func (o *Oracle) GetScriptHash(d *dao.Simple) (util.Uint160, error) {
 	return o.Desig.GetLastDesignatedHash(d, noderoles.Oracle)
 }
 
 // GetOracleNodes returns public keys of oracle nodes.
-func (o *Oracle) GetOracleNodes(d dao.DAO) (keys.PublicKeys, error) {
+func (o *Oracle) GetOracleNodes(d *dao.Simple) (keys.PublicKeys, error) {
 	nodes, _, err := o.Desig.GetDesignatedByRole(d, noderoles.Oracle, math.MaxUint32)
 	return nodes, err
 }
 
 // GetRequestInternal returns request by ID and key under which it is stored.
-func (o *Oracle) GetRequestInternal(d dao.DAO, id uint64) (*state.OracleRequest, error) {
+func (o *Oracle) GetRequestInternal(d *dao.Simple, id uint64) (*state.OracleRequest, error) {
 	key := makeRequestKey(id)
 	req := new(state.OracleRequest)
 	return req, o.getConvertibleFromDAO(d, key, req)
 }
 
 // GetIDListInternal returns request by ID and key under which it is stored.
-func (o *Oracle) GetIDListInternal(d dao.DAO, url string) (*IDList, error) {
+func (o *Oracle) GetIDListInternal(d *dao.Simple, url string) (*IDList, error) {
 	key := makeIDListKey(url)
 	idList := new(IDList)
 	return idList, o.getConvertibleFromDAO(d, key, idList)
@@ -448,7 +440,7 @@ func (o *Oracle) getPrice(ic *interop.Context, _ []stackitem.Item) stackitem.Ite
 	return stackitem.NewBigInteger(big.NewInt(o.getPriceInternal(ic.DAO)))
 }
 
-func (o *Oracle) getPriceInternal(d dao.DAO) int64 {
+func (o *Oracle) getPriceInternal(d *dao.Simple) int64 {
 	if !o.requestPriceChanged.Load().(bool) {
 		return o.requestPrice.Load().(int64)
 	}
@@ -463,14 +455,12 @@ func (o *Oracle) setPrice(ic *interop.Context, args []stackitem.Item) stackitem.
 	if !o.NEO.checkCommittee(ic) {
 		panic("invalid committee signature")
 	}
-	if err := setIntWithKey(o.ID, ic.DAO, prefixRequestPrice, price.Int64()); err != nil {
-		panic(err)
-	}
+	setIntWithKey(o.ID, ic.DAO, prefixRequestPrice, price.Int64())
 	o.requestPriceChanged.Store(true)
 	return stackitem.Null{}
 }
 
-func (o *Oracle) getOriginalTxID(d dao.DAO, tx *transaction.Transaction) util.Uint256 {
+func (o *Oracle) getOriginalTxID(d *dao.Simple, tx *transaction.Transaction) util.Uint256 {
 	for i := range tx.Attributes {
 		if tx.Attributes[i].Type == transaction.OracleResponseT {
 			id := tx.Attributes[i].Value.(*transaction.OracleResponse).ID
@@ -482,7 +472,7 @@ func (o *Oracle) getOriginalTxID(d dao.DAO, tx *transaction.Transaction) util.Ui
 }
 
 // getRequests returns all requests which have not been finished yet.
-func (o *Oracle) getRequests(d dao.DAO) (map[uint64]*state.OracleRequest, error) {
+func (o *Oracle) getRequests(d *dao.Simple) (map[uint64]*state.OracleRequest, error) {
 	arr, err := d.GetStorageItemsWithPrefix(o.ID, prefixRequest)
 	if err != nil {
 		return nil, err
@@ -514,12 +504,12 @@ func makeIDListKey(url string) []byte {
 	return append(prefixIDList, hash.Hash160([]byte(url)).BytesBE()...)
 }
 
-func (o *Oracle) getConvertibleFromDAO(d dao.DAO, key []byte, item stackitem.Convertible) error {
+func (o *Oracle) getConvertibleFromDAO(d *dao.Simple, key []byte, item stackitem.Convertible) error {
 	return getConvertibleFromDAO(o.ID, d, key, item)
 }
 
 // updateCache updates cached Oracle values if they've been changed.
-func (o *Oracle) updateCache(d dao.DAO) error {
+func (o *Oracle) updateCache(d *dao.Simple) error {
 	orc, _ := o.Module.Load().(services.Oracle)
 	if orc == nil {
 		return nil

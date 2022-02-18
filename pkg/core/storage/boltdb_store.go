@@ -47,15 +47,6 @@ func NewBoltDBStore(cfg BoltDBOptions) (*BoltDBStore, error) {
 	return &BoltDBStore{db: db}, nil
 }
 
-// Put implements the Store interface.
-func (s *BoltDBStore) Put(key, value []byte) error {
-	return s.db.Update(func(tx *bbolt.Tx) error {
-		b := tx.Bucket(Bucket)
-		err := b.Put(key, value)
-		return err
-	})
-}
-
 // Get implements the Store interface.
 func (s *BoltDBStore) Get(key []byte) (val []byte, err error) {
 	err = s.db.View(func(tx *bbolt.Tx) error {
@@ -73,34 +64,22 @@ func (s *BoltDBStore) Get(key []byte) (val []byte, err error) {
 	return
 }
 
-// Delete implements the Store interface.
-func (s *BoltDBStore) Delete(key []byte) error {
-	return s.db.Update(func(tx *bbolt.Tx) error {
-		b := tx.Bucket(Bucket)
-		return b.Delete(key)
-	})
-}
-
-// PutBatch implements the Store interface.
-func (s *BoltDBStore) PutBatch(batch Batch) error {
-	memBatch := batch.(*MemoryBatch)
-	return s.PutChangeSet(memBatch.mem)
-}
-
 // PutChangeSet implements the Store interface.
-func (s *BoltDBStore) PutChangeSet(puts map[string][]byte) error {
+func (s *BoltDBStore) PutChangeSet(puts map[string][]byte, stores map[string][]byte) error {
 	var err error
 
 	return s.db.Update(func(tx *bbolt.Tx) error {
 		b := tx.Bucket(Bucket)
-		for k, v := range puts {
-			if v != nil {
-				err = b.Put([]byte(k), v)
-			} else {
-				err = b.Delete([]byte(k))
-			}
-			if err != nil {
-				return err
+		for _, m := range []map[string][]byte{puts, stores} {
+			for k, v := range m {
+				if v != nil {
+					err = b.Put([]byte(k), v)
+				} else {
+					err = b.Delete([]byte(k))
+				}
+				if err != nil {
+					return err
+				}
 			}
 		}
 		return nil
@@ -164,12 +143,6 @@ func boltSeek(txopener func(func(*bbolt.Tx) error) error, rng SeekRange, f func(
 		}
 		return nil
 	})
-}
-
-// Batch implements the Batch interface and returns a boltdb
-// compatible Batch.
-func (s *BoltDBStore) Batch() Batch {
-	return newMemoryBatch()
 }
 
 // Close releases all db resources.

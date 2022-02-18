@@ -145,7 +145,7 @@ func (m *Management) getContract(ic *interop.Context, args []stackitem.Item) sta
 }
 
 // GetContract returns contract with given hash from given DAO.
-func (m *Management) GetContract(d dao.DAO, hash util.Uint160) (*state.Contract, error) {
+func (m *Management) GetContract(d *dao.Simple, hash util.Uint160) (*state.Contract, error) {
 	m.mtx.RLock()
 	cs, ok := m.contracts[hash]
 	m.mtx.RUnlock()
@@ -157,7 +157,7 @@ func (m *Management) GetContract(d dao.DAO, hash util.Uint160) (*state.Contract,
 	return m.getContractFromDAO(d, hash)
 }
 
-func (m *Management) getContractFromDAO(d dao.DAO, hash util.Uint160) (*state.Contract, error) {
+func (m *Management) getContractFromDAO(d *dao.Simple, hash util.Uint160) (*state.Contract, error) {
 	contract := new(state.Contract)
 	key := MakeContractKey(hash)
 	err := getConvertibleFromDAO(m.ID, d, key, contract)
@@ -269,7 +269,7 @@ func (m *Management) markUpdated(h util.Uint160) {
 
 // Deploy creates contract's hash/ID and saves new contract into the given DAO.
 // It doesn't run _deploy method and doesn't emit notification.
-func (m *Management) Deploy(d dao.DAO, sender util.Uint160, neff *nef.File, manif *manifest.Manifest) (*state.Contract, error) {
+func (m *Management) Deploy(d *dao.Simple, sender util.Uint160, neff *nef.File, manif *manifest.Manifest) (*state.Contract, error) {
 	h := state.CreateContractHash(sender, neff.Checksum, manif.Name)
 	key := MakeContractKey(h)
 	si := d.GetStorageItem(m.ID, key)
@@ -329,7 +329,7 @@ func (m *Management) updateWithData(ic *interop.Context, args []stackitem.Item) 
 
 // Update updates contract's script and/or manifest in the given DAO.
 // It doesn't run _deploy method and doesn't emit notification.
-func (m *Management) Update(d dao.DAO, hash util.Uint160, neff *nef.File, manif *manifest.Manifest) (*state.Contract, error) {
+func (m *Management) Update(d *dao.Simple, hash util.Uint160, neff *nef.File, manif *manifest.Manifest) (*state.Contract, error) {
 	var contract state.Contract
 
 	oldcontract, err := m.GetContract(d, hash)
@@ -380,29 +380,20 @@ func (m *Management) destroy(ic *interop.Context, sis []stackitem.Item) stackite
 }
 
 // Destroy drops given contract from DAO along with its storage. It doesn't emit notification.
-func (m *Management) Destroy(d dao.DAO, hash util.Uint160) error {
+func (m *Management) Destroy(d *dao.Simple, hash util.Uint160) error {
 	contract, err := m.GetContract(d, hash)
 	if err != nil {
 		return err
 	}
 	key := MakeContractKey(hash)
-	err = d.DeleteStorageItem(m.ID, key)
-	if err != nil {
-		return err
-	}
-	err = d.DeleteContractID(contract.ID)
-	if err != nil {
-		return err
-	}
+	d.DeleteStorageItem(m.ID, key)
+	d.DeleteContractID(contract.ID)
 	siArr, err := d.GetStorageItems(contract.ID)
 	if err != nil {
 		return err
 	}
 	for _, kv := range siArr {
-		err := d.DeleteStorageItem(contract.ID, []byte(kv.Key))
-		if err != nil {
-			return err
-		}
+		d.DeleteStorageItem(contract.ID, []byte(kv.Key))
 	}
 	m.markUpdated(hash)
 	return nil
@@ -413,7 +404,7 @@ func (m *Management) getMinimumDeploymentFee(ic *interop.Context, args []stackit
 }
 
 // GetMinimumDeploymentFee returns the minimum required fee for contract deploy.
-func (m *Management) GetMinimumDeploymentFee(dao dao.DAO) int64 {
+func (m *Management) GetMinimumDeploymentFee(dao *dao.Simple) int64 {
 	return getIntWithKey(m.ID, dao, keyMinimumDeploymentFee)
 }
 
@@ -425,10 +416,7 @@ func (m *Management) setMinimumDeploymentFee(ic *interop.Context, args []stackit
 	if !m.NEO.checkCommittee(ic) {
 		panic("invalid committee signature")
 	}
-	err := ic.DAO.PutStorageItem(m.ID, keyMinimumDeploymentFee, bigint.ToBytes(value))
-	if err != nil {
-		panic(err)
-	}
+	ic.DAO.PutStorageItem(m.ID, keyMinimumDeploymentFee, bigint.ToBytes(value))
 	return stackitem.Null{}
 }
 
@@ -498,7 +486,7 @@ func (m *Management) OnPersist(ic *interop.Context) error {
 // InitializeCache initializes contract cache with the proper values from storage.
 // Cache initialisation should be done apart from Initialize because Initialize is
 // called only when deploying native contracts.
-func (m *Management) InitializeCache(d dao.DAO) error {
+func (m *Management) InitializeCache(d *dao.Simple) error {
 	m.mtx.Lock()
 	defer m.mtx.Unlock()
 
@@ -564,14 +552,13 @@ func (m *Management) GetNEP17Contracts() []util.Uint160 {
 
 // Initialize implements Contract interface.
 func (m *Management) Initialize(ic *interop.Context) error {
-	if err := setIntWithKey(m.ID, ic.DAO, keyMinimumDeploymentFee, defaultMinimumDeploymentFee); err != nil {
-		return err
-	}
-	return setIntWithKey(m.ID, ic.DAO, keyNextAvailableID, 1)
+	setIntWithKey(m.ID, ic.DAO, keyMinimumDeploymentFee, defaultMinimumDeploymentFee)
+	setIntWithKey(m.ID, ic.DAO, keyNextAvailableID, 1)
+	return nil
 }
 
 // PutContractState saves given contract state into given DAO.
-func (m *Management) PutContractState(d dao.DAO, cs *state.Contract) error {
+func (m *Management) PutContractState(d *dao.Simple, cs *state.Contract) error {
 	key := MakeContractKey(cs.Hash)
 	if err := putConvertibleToDAO(m.ID, d, key, cs); err != nil {
 		return err
@@ -580,10 +567,11 @@ func (m *Management) PutContractState(d dao.DAO, cs *state.Contract) error {
 	if cs.UpdateCounter != 0 { // Update.
 		return nil
 	}
-	return d.PutContractID(cs.ID, cs.Hash)
+	d.PutContractID(cs.ID, cs.Hash)
+	return nil
 }
 
-func (m *Management) getNextContractID(d dao.DAO) (int32, error) {
+func (m *Management) getNextContractID(d *dao.Simple) (int32, error) {
 	si := d.GetStorageItem(m.ID, keyNextAvailableID)
 	if si == nil {
 		return 0, errors.New("nextAvailableID is not initialized")
@@ -592,7 +580,8 @@ func (m *Management) getNextContractID(d dao.DAO) (int32, error) {
 	ret := int32(id.Int64())
 	id.Add(id, intOne)
 	si = bigint.ToPreallocatedBytes(id, si)
-	return ret, d.PutStorageItem(m.ID, keyNextAvailableID, si)
+	d.PutStorageItem(m.ID, keyNextAvailableID, si)
+	return ret, nil
 }
 
 func (m *Management) emitNotification(ic *interop.Context, name string, hash util.Uint160) {

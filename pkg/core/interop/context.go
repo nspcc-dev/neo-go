@@ -54,24 +54,24 @@ type Context struct {
 	Block         *block.Block
 	NonceData     [16]byte
 	Tx            *transaction.Transaction
-	DAO           dao.DAO
+	DAO           *dao.Simple
 	Notifications []state.NotificationEvent
 	Log           *zap.Logger
 	VM            *vm.VM
 	Functions     []Function
 	Invocations   map[util.Uint160]int
 	cancelFuncs   []context.CancelFunc
-	getContract   func(dao.DAO, util.Uint160) (*state.Contract, error)
+	getContract   func(*dao.Simple, util.Uint160) (*state.Contract, error)
 	baseExecFee   int64
 	signers       []transaction.Signer
 }
 
 // NewContext returns new interop context.
-func NewContext(trigger trigger.Type, bc Ledger, d dao.DAO,
-	getContract func(dao.DAO, util.Uint160) (*state.Contract, error), natives []Contract,
+func NewContext(trigger trigger.Type, bc Ledger, d *dao.Simple,
+	getContract func(*dao.Simple, util.Uint160) (*state.Contract, error), natives []Contract,
 	block *block.Block, tx *transaction.Transaction, log *zap.Logger) *Context {
 	baseExecFee := int64(DefaultBaseExecFee)
-	dao := d.GetWrapped()
+	dao := d.GetPrivate()
 
 	if bc != nil && (block == nil || block.Index != 0) {
 		baseExecFee = bc.GetBaseExecFee()

@@ -43,6 +43,17 @@ func toNibbles(path []byte) []byte {
 	return result
 }
 
+// strToNibbles mangles path by splitting every byte into 2 containing low- and high- 4-byte part,
+// ignoring the first byte (prefix).
+func strToNibbles(path string) []byte {
+	result := make([]byte, (len(path)-1)*2)
+	for i := 0; i < len(path)-1; i++ {
+		result[i*2] = path[i+1] >> 4
+		result[i*2+1] = path[i+1] & 0x0F
+	}
+	return result
+}
+
 // fromNibbles performs operation opposite to toNibbles and does no path validity checks.
 func fromNibbles(path []byte) []byte {
 	result := make([]byte, len(path)/2)
