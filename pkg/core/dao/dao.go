@@ -375,7 +375,10 @@ func (dao *Simple) makeStorageItemKey(id int32, key []byte) []byte {
 
 // GetBlock returns Block by the given hash if it exists in the store.
 func (dao *Simple) GetBlock(hash util.Uint256) (*block.Block, error) {
-	key := dao.makeExecutableKey(hash)
+	return dao.getBlock(dao.makeExecutableKey(hash))
+}
+
+func (dao *Simple) getBlock(key []byte) (*block.Block, error) {
 	b, err := dao.Store.Get(key)
 	if err != nil {
 		return nil, err
@@ -659,16 +662,8 @@ func (dao *Simple) StoreAsBlock(block *block.Block, aer1 *state.AppExecResult, a
 // using private MemCached instance here.
 func (dao *Simple) DeleteBlock(h util.Uint256) error {
 	key := dao.makeExecutableKey(h)
-	bs, err := dao.Store.Get(key)
-	if err != nil {
-		return err
-	}
 
-	r := io.NewBinReaderFromBuf(bs)
-	if r.ReadB() != storage.ExecBlock {
-		return errors.New("internal DB inconsistency")
-	}
-	b, err := block.NewTrimmedFromReader(dao.Version.StateRootInHeader, r)
+	b, err := dao.getBlock(key)
 	if err != nil {
 		return err
 	}
