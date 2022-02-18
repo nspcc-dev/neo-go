@@ -68,17 +68,13 @@ func (dao *Simple) GetWrapped() *Simple {
 // GetPrivate returns new DAO instance with another layer of private
 // MemCachedStore around the current DAO Store.
 func (dao *Simple) GetPrivate() *Simple {
-	st := storage.NewPrivateMemCachedStore(dao.Store)
-	d := newSimple(st, dao.Version.StateRootInHeader, dao.Version.P2PSigExtensions)
-	d.Version = dao.Version
-	if dao.keyBuf != nil { // This one is private.
-		d.keyBuf = dao.keyBuf // Thus we can reuse its buffer.
-	} else {
+	d := &Simple{}
+	*d = *dao                                             // Inherit everything...
+	d.Store = storage.NewPrivateMemCachedStore(dao.Store) // except storage, wrap another layer.
+	if d.keyBuf == nil {
 		d.keyBuf = make([]byte, 0, 1+4+storage.MaxStorageKeyLen) // Prefix, uint32, key.
 	}
-	if dao.dataBuf != nil { // This one is private.
-		d.dataBuf = dao.dataBuf // Thus we can reuse its buffer.
-	} else {
+	if dao.dataBuf == nil {
 		d.dataBuf = io.NewBufBinWriter()
 	}
 	return d
