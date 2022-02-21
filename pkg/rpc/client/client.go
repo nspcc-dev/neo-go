@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"sync"
 	"time"
 
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
@@ -34,6 +35,7 @@ type Client struct {
 	opts     Options
 	requestF func(*request.Raw) (*response.Raw, error)
 
+	cacheLock sync.RWMutex
 	// cache stores RPC node related information client is bound to.
 	// cache is mostly filled in during Init(), but can also be updated
 	// during regular Client lifecycle.
@@ -123,6 +125,10 @@ func (c *Client) Init() error {
 	if err != nil {
 		return fmt.Errorf("failed to get network magic: %w", err)
 	}
+
+	c.cacheLock.Lock()
+	defer c.cacheLock.Unlock()
+
 	c.cache.network = version.Protocol.Network
 	c.cache.stateRootInHeader = version.Protocol.StateRootInHeader
 	if version.Protocol.MillisecondsPerBlock == 0 {

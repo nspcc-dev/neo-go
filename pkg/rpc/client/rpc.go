@@ -924,18 +924,23 @@ func (c *Client) CalculateValidUntilBlock() (uint32, error) {
 		return result, fmt.Errorf("can't get block count: %w", err)
 	}
 
+	c.cacheLock.RLock()
 	if c.cache.calculateValidUntilBlock.expiresAt > blockCount {
 		validatorsCount = c.cache.calculateValidUntilBlock.validatorsCount
+		c.cacheLock.RUnlock()
 	} else {
+		c.cacheLock.RUnlock()
 		validators, err := c.GetNextBlockValidators()
 		if err != nil {
 			return result, fmt.Errorf("can't get validators: %w", err)
 		}
 		validatorsCount = uint32(len(validators))
+		c.cacheLock.Lock()
 		c.cache.calculateValidUntilBlock = calculateValidUntilBlockCache{
 			validatorsCount: validatorsCount,
 			expiresAt:       blockCount + cacheTimeout,
 		}
+		c.cacheLock.Unlock()
 	}
 	return blockCount + validatorsCount + 1, nil
 }
@@ -993,6 +998,9 @@ func (c *Client) AddNetworkFee(tx *transaction.Transaction, extraFee int64, accs
 
 // GetNetwork returns the network magic of the RPC node client connected to.
 func (c *Client) GetNetwork() (netmode.Magic, error) {
+	c.cacheLock.RLock()
+	defer c.cacheLock.RUnlock()
+
 	if !c.cache.initDone {
 		return 0, errNetworkNotInitialized
 	}
@@ -1002,6 +1010,9 @@ func (c *Client) GetNetwork() (netmode.Magic, error) {
 // StateRootInHeader returns true if state root is contained in block header.
 // You should initialize Client cache with Init() before calling StateRootInHeader.
 func (c *Client) StateRootInHeader() (bool, error) {
+	c.cacheLock.RLock()
+	defer c.cacheLock.RUnlock()
+
 	if !c.cache.initDone {
 		return false, errNetworkNotInitialized
 	}
@@ -1010,7 +1021,9 @@ func (c *Client) StateRootInHeader() (bool, error) {
 
 // GetNativeContractHash returns native contract hash by its name.
 func (c *Client) GetNativeContractHash(name string) (util.Uint160, error) {
+	c.cacheLock.RLock()
 	hash, ok := c.cache.nativeHashes[name]
+	c.cacheLock.RUnlock()
 	if ok {
 		return hash, nil
 	}
@@ -1018,6 +1031,8 @@ func (c *Client) GetNativeContractHash(name string) (util.Uint160, error) {
 	if err != nil {
 		return util.Uint160{}, err
 	}
+	c.cacheLock.Lock()
 	c.cache.nativeHashes[name] = cs.Hash
+	c.cacheLock.Unlock()
 	return cs.Hash, nil
 }
