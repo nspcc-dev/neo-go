@@ -94,7 +94,7 @@ func (c *Client) getBlock(params request.RawParams) (*block.Block, error) {
 		err  error
 		b    *block.Block
 	)
-	if !c.initDone {
+	if !c.cache.initDone {
 		return nil, errNetworkNotInitialized
 	}
 	if err = c.performRequest("getblock", params, &resp); err != nil {
@@ -127,7 +127,7 @@ func (c *Client) getBlockVerbose(params request.RawParams) (*result.Block, error
 		resp = &result.Block{}
 		err  error
 	)
-	if !c.initDone {
+	if !c.cache.initDone {
 		return nil, errNetworkNotInitialized
 	}
 	if err = c.performRequest("getblock", params, resp); err != nil {
@@ -157,7 +157,7 @@ func (c *Client) GetBlockHeader(hash util.Uint256) (*block.Header, error) {
 		resp   []byte
 		h      *block.Header
 	)
-	if !c.initDone {
+	if !c.cache.initDone {
 		return nil, errNetworkNotInitialized
 	}
 	if err := c.performRequest("getblockheader", params, &resp); err != nil {
@@ -407,7 +407,7 @@ func (c *Client) GetRawTransaction(hash util.Uint256) (*transaction.Transaction,
 		resp   []byte
 		err    error
 	)
-	if !c.initDone {
+	if !c.cache.initDone {
 		return nil, errNetworkNotInitialized
 	}
 	if err = c.performRequest("getrawtransaction", params, &resp); err != nil {
@@ -430,7 +430,7 @@ func (c *Client) GetRawTransactionVerbose(hash util.Uint256) (*result.Transactio
 		resp   = &result.TransactionOutputRaw{}
 		err    error
 	)
-	if !c.initDone {
+	if !c.cache.initDone {
 		return nil, errNetworkNotInitialized
 	}
 	if err = c.performRequest("getrawtransaction", params, resp); err != nil {
@@ -771,7 +771,7 @@ func getSigners(sender *wallet.Account, cosigners []SignerAccount) ([]transactio
 // Note: client should be initialized before SignAndPushP2PNotaryRequest call.
 func (c *Client) SignAndPushP2PNotaryRequest(mainTx *transaction.Transaction, fallbackScript []byte, fallbackSysFee int64, fallbackNetFee int64, fallbackValidFor uint32, acc *wallet.Account) (*payload.P2PNotaryRequest, error) {
 	var err error
-	if !c.initDone {
+	if !c.cache.initDone {
 		return nil, errNetworkNotInitialized
 	}
 	notaryHash, err := c.GetNativeContractHash(nativenames.Notary)
@@ -991,12 +991,12 @@ func (c *Client) AddNetworkFee(tx *transaction.Transaction, extraFee int64, accs
 
 // GetNetwork returns the network magic of the RPC node client connected to.
 func (c *Client) GetNetwork() netmode.Magic {
-	return c.network
+	return c.cache.network
 }
 
 // StateRootInHeader returns true if state root is contained in block header.
 func (c *Client) StateRootInHeader() bool {
-	return c.stateRootInHeader
+	return c.cache.stateRootInHeader
 }
 
 // GetNativeContractHash returns native contract hash by its name.

@@ -28,15 +28,16 @@ const (
 // Client represents the middleman for executing JSON RPC calls
 // to remote NEO RPC nodes.
 type Client struct {
-	cli               *http.Client
-	endpoint          *url.URL
-	network           netmode.Magic
-	stateRootInHeader bool
-	initDone          bool
-	ctx               context.Context
-	opts              Options
-	requestF          func(*request.Raw) (*response.Raw, error)
-	cache             cache
+	cli      *http.Client
+	endpoint *url.URL
+	ctx      context.Context
+	opts     Options
+	requestF func(*request.Raw) (*response.Raw, error)
+
+	// cache stores RPC node related information client is bound to.
+	// cache is mostly filled in during Init(), but can also be updated
+	// during regular Client lifecycle.
+	cache cache
 }
 
 // Options defines options for the RPC client.
@@ -56,6 +57,9 @@ type Options struct {
 
 // cache stores cache values for the RPC client methods.
 type cache struct {
+	initDone                 bool
+	network                  netmode.Magic
+	stateRootInHeader        bool
 	calculateValidUntilBlock calculateValidUntilBlockCache
 	nativeHashes             map[string]util.Uint160
 }
@@ -119,11 +123,11 @@ func (c *Client) Init() error {
 	if err != nil {
 		return fmt.Errorf("failed to get network magic: %w", err)
 	}
-	c.network = version.Protocol.Network
-	c.stateRootInHeader = version.Protocol.StateRootInHeader
+	c.cache.network = version.Protocol.Network
+	c.cache.stateRootInHeader = version.Protocol.StateRootInHeader
 	if version.Protocol.MillisecondsPerBlock == 0 {
-		c.network = version.Magic
-		c.stateRootInHeader = version.StateRootInHeader
+		c.cache.network = version.Magic
+		c.cache.stateRootInHeader = version.StateRootInHeader
 	}
 	neoContractHash, err := c.GetContractStateByAddressOrName(nativenames.Neo)
 	if err != nil {
@@ -140,7 +144,7 @@ func (c *Client) Init() error {
 		return fmt.Errorf("failed to get Policy contract scripthash: %w", err)
 	}
 	c.cache.nativeHashes[nativenames.Policy] = policyContractHash.Hash
-	c.initDone = true
+	c.cache.initDone = true
 	return nil
 }
 

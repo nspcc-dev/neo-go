@@ -1914,7 +1914,7 @@ func TestGetNetwork(t *testing.T) {
 		}
 		// network was not initialised
 		require.Equal(t, netmode.Magic(0), c.GetNetwork())
-		require.Equal(t, false, c.initDone)
+		require.Equal(t, false, c.cache.initDone)
 	})
 
 	t.Run("good", func(t *testing.T) {

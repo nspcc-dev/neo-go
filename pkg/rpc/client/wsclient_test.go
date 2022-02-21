@@ -143,7 +143,7 @@ func TestWSClientEvents(t *testing.T) {
 
 	wsc, err := NewWS(context.TODO(), httpURLtoWS(srv.URL), Options{})
 	require.NoError(t, err)
-	wsc.network = netmode.UnitTestNet
+	wsc.cache.network = netmode.UnitTestNet
 	for range events {
 		select {
 		case _, ok = <-wsc.Notifications:
@@ -315,7 +315,7 @@ func TestWSFilteredSubscriptions(t *testing.T) {
 			}))
 			wsc, err := NewWS(context.TODO(), httpURLtoWS(srv.URL), Options{})
 			require.NoError(t, err)
-			wsc.network = netmode.UnitTestNet
+			wsc.cache.network = netmode.UnitTestNet
 			c.clientCode(t, wsc)
 			wsc.Close()
 		})

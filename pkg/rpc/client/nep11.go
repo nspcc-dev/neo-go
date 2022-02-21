@@ -46,7 +46,7 @@ func (c *Client) NEP11TokenInfo(tokenHash util.Uint160) (*wallet.Token, error) {
 // given account and sends it to the network returning just a hash of it.
 func (c *Client) TransferNEP11(acc *wallet.Account, to util.Uint160,
 	tokenHash util.Uint160, tokenID string, data interface{}, gas int64, cosigners []SignerAccount) (util.Uint256, error) {
-	if !c.initDone {
+	if !c.cache.initDone {
 		return util.Uint256{}, errNetworkNotInitialized
 	}
 	tx, err := c.CreateNEP11TransferTx(acc, tokenHash, gas, cosigners, to, tokenID, data)
@@ -144,7 +144,7 @@ func (c *Client) NEP11NDOwnerOf(tokenHash util.Uint160, tokenID []byte) (util.Ui
 // sends it to the network returning just a hash of it.
 func (c *Client) TransferNEP11D(acc *wallet.Account, to util.Uint160,
 	tokenHash util.Uint160, amount int64, tokenID []byte, data interface{}, gas int64, cosigners []SignerAccount) (util.Uint256, error) {
-	if !c.initDone {
+	if !c.cache.initDone {
 		return util.Uint256{}, errNetworkNotInitialized
 	}
 	from, err := address.StringToUint160(acc.Address)

@@ -10,7 +10,7 @@ import (
 
 // GetFeePerByte invokes `getFeePerByte` method on a native Policy contract.
 func (c *Client) GetFeePerByte() (int64, error) {
-	if !c.initDone {
+	if !c.cache.initDone {
 		return 0, errNetworkNotInitialized
 	}
 	return c.invokeNativePolicyMethod("getFeePerByte")
@@ -18,7 +18,7 @@ func (c *Client) GetFeePerByte() (int64, error) {
 
 // GetExecFeeFactor invokes `getExecFeeFactor` method on a native Policy contract.
 func (c *Client) GetExecFeeFactor() (int64, error) {
-	if !c.initDone {
+	if !c.cache.initDone {
 		return 0, errNetworkNotInitialized
 	}
 	return c.invokeNativePolicyMethod("getExecFeeFactor")
@@ -26,7 +26,7 @@ func (c *Client) GetExecFeeFactor() (int64, error) {
 
 // GetStoragePrice invokes `getStoragePrice` method on a native Policy contract.
 func (c *Client) GetStoragePrice() (int64, error) {
-	if !c.initDone {
+	if !c.cache.initDone {
 		return 0, errNetworkNotInitialized
 	}
 	return c.invokeNativePolicyMethod("getStoragePrice")
@@ -43,7 +43,7 @@ func (c *Client) GetMaxNotValidBeforeDelta() (int64, error) {
 
 // invokeNativePolicy method invokes Get* method on a native Policy contract.
 func (c *Client) invokeNativePolicyMethod(operation string) (int64, error) {
-	if !c.initDone {
+	if !c.cache.initDone {
 		return 0, errNetworkNotInitialized
 	}
 	return c.invokeNativeGetMethod(c.cache.nativeHashes[nativenames.Policy], operation)
@@ -63,7 +63,7 @@ func (c *Client) invokeNativeGetMethod(hash util.Uint160, operation string) (int
 
 // IsBlocked invokes `isBlocked` method on native Policy contract.
 func (c *Client) IsBlocked(hash util.Uint160) (bool, error) {
-	if !c.initDone {
+	if !c.cache.initDone {
 		return false, errNetworkNotInitialized
 	}
 	result, err := c.InvokeFunction(c.cache.nativeHashes[nativenames.Policy], "isBlocked", []smartcontract.Parameter{{
