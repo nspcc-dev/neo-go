@@ -83,9 +83,18 @@ type calculateValidUntilBlockCache struct {
 // New returns a new Client ready to use. You should call Init method to
 // initialize network magic the client is operating on.
 func New(ctx context.Context, endpoint string, opts Options) (*Client, error) {
-	url, err := url.Parse(endpoint)
+	cl := new(Client)
+	err := initClient(ctx, cl, endpoint, opts)
 	if err != nil {
 		return nil, err
+	}
+	return cl, nil
+}
+
+func initClient(ctx context.Context, cl *Client, endpoint string, opts Options) error {
+	url, err := url.Parse(endpoint)
+	if err != nil {
+		return err
 	}
 
 	if opts.DialTimeout <= 0 {
@@ -110,19 +119,17 @@ func New(ctx context.Context, endpoint string, opts Options) (*Client, error) {
 	//	if opts.Cert != "" && opts.Key != "" {
 	//	}
 
-	cl := &Client{
-		ctx:      ctx,
-		cli:      httpClient,
-		endpoint: url,
-		cache: cache{
-			nativeHashes: make(map[string]util.Uint160),
-		},
-		latestReqID: atomic.NewUint64(0),
+	cl.ctx = ctx
+	cl.cli = httpClient
+	cl.endpoint = url
+	cl.cache = cache{
+		nativeHashes: make(map[string]util.Uint160),
 	}
+	cl.latestReqID = atomic.NewUint64(0)
 	cl.getNextRequestID = (cl).getRequestID
 	cl.opts = opts
 	cl.requestF = cl.makeHTTPRequest
-	return cl, nil
+	return nil
 }
 
 func (c *Client) getRequestID() uint64 {

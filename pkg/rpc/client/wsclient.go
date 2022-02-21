@@ -79,20 +79,13 @@ const (
 // You should call Init method to initialize network magic the client is
 // operating on.
 func NewWS(ctx context.Context, endpoint string, opts Options) (*WSClient, error) {
-	cl, err := New(ctx, endpoint, opts)
-	if err != nil {
-		return nil, err
-	}
-
-	cl.cli = nil
-
 	dialer := websocket.Dialer{HandshakeTimeout: opts.DialTimeout}
 	ws, _, err := dialer.Dial(endpoint, nil)
 	if err != nil {
 		return nil, err
 	}
 	wsc := &WSClient{
-		Client:        *cl,
+		Client:        Client{},
 		Notifications: make(chan Notification),
 
 		ws:            ws,
@@ -102,6 +95,13 @@ func NewWS(ctx context.Context, endpoint string, opts Options) (*WSClient, error
 		requests:      make(chan *request.Raw),
 		subscriptions: make(map[string]bool),
 	}
+
+	err = initClient(ctx, &wsc.Client, endpoint, opts)
+	if err != nil {
+		return nil, err
+	}
+	wsc.Client.cli = nil
+
 	go wsc.wsReader()
 	go wsc.wsWriter()
 	wsc.requestF = wsc.makeWsRequest
