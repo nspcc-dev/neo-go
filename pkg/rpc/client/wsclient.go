@@ -141,7 +141,12 @@ readloop:
 			var val interface{}
 			switch event {
 			case response.BlockEventID:
-				val = block.New(c.StateRootInHeader())
+				sr, err := c.StateRootInHeader()
+				if err != nil {
+					// Client is not initialised.
+					break
+				}
+				val = block.New(sr)
 			case response.TransactionEventID:
 				val = &transaction.Transaction{}
 			case response.NotificationEventID:

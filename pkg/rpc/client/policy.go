@@ -10,25 +10,16 @@ import (
 
 // GetFeePerByte invokes `getFeePerByte` method on a native Policy contract.
 func (c *Client) GetFeePerByte() (int64, error) {
-	if !c.cache.initDone {
-		return 0, errNetworkNotInitialized
-	}
 	return c.invokeNativePolicyMethod("getFeePerByte")
 }
 
 // GetExecFeeFactor invokes `getExecFeeFactor` method on a native Policy contract.
 func (c *Client) GetExecFeeFactor() (int64, error) {
-	if !c.cache.initDone {
-		return 0, errNetworkNotInitialized
-	}
 	return c.invokeNativePolicyMethod("getExecFeeFactor")
 }
 
 // GetStoragePrice invokes `getStoragePrice` method on a native Policy contract.
 func (c *Client) GetStoragePrice() (int64, error) {
-	if !c.cache.initDone {
-		return 0, errNetworkNotInitialized
-	}
 	return c.invokeNativePolicyMethod("getStoragePrice")
 }
 
@@ -43,10 +34,11 @@ func (c *Client) GetMaxNotValidBeforeDelta() (int64, error) {
 
 // invokeNativePolicy method invokes Get* method on a native Policy contract.
 func (c *Client) invokeNativePolicyMethod(operation string) (int64, error) {
-	if !c.cache.initDone {
-		return 0, errNetworkNotInitialized
+	policyHash, err := c.GetNativeContractHash(nativenames.Policy)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get native Policy hash: %w", err)
 	}
-	return c.invokeNativeGetMethod(c.cache.nativeHashes[nativenames.Policy], operation)
+	return c.invokeNativeGetMethod(policyHash, operation)
 }
 
 func (c *Client) invokeNativeGetMethod(hash util.Uint160, operation string) (int64, error) {
@@ -63,10 +55,11 @@ func (c *Client) invokeNativeGetMethod(hash util.Uint160, operation string) (int
 
 // IsBlocked invokes `isBlocked` method on native Policy contract.
 func (c *Client) IsBlocked(hash util.Uint160) (bool, error) {
-	if !c.cache.initDone {
-		return false, errNetworkNotInitialized
+	policyHash, err := c.GetNativeContractHash(nativenames.Policy)
+	if err != nil {
+		return false, fmt.Errorf("failed to get native Policy hash: %w", err)
 	}
-	result, err := c.InvokeFunction(c.cache.nativeHashes[nativenames.Policy], "isBlocked", []smartcontract.Parameter{{
+	result, err := c.InvokeFunction(policyHash, "isBlocked", []smartcontract.Parameter{{
 		Type:  smartcontract.Hash160Type,
 		Value: hash,
 	}}, nil)

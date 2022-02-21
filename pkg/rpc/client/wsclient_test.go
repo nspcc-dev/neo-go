@@ -143,6 +143,7 @@ func TestWSClientEvents(t *testing.T) {
 
 	wsc, err := NewWS(context.TODO(), httpURLtoWS(srv.URL), Options{})
 	require.NoError(t, err)
+	wsc.cache.initDone = true // Our server mock is restricted, so perform initialisation manually.
 	wsc.cache.network = netmode.UnitTestNet
 	for range events {
 		select {

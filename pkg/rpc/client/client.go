@@ -116,8 +116,8 @@ func New(ctx context.Context, endpoint string, opts Options) (*Client, error) {
 
 // Init sets magic of the network client connected to, stateRootInHeader option
 // and native NEO, GAS and Policy contracts scripthashes. This method should be
-// called before any transaction-, header- or block-related requests in order to
-// deserialize responses properly.
+// called before any header- or block-related requests in order to deserialize
+// responses properly.
 func (c *Client) Init() error {
 	version, err := c.GetVersion()
 	if err != nil {

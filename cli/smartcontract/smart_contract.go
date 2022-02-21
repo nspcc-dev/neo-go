@@ -681,7 +681,11 @@ func invokeWithArgs(ctx *cli.Context, acc *wallet.Account, wall *wallet.Wallet, 
 		if err != nil {
 			return sender, cli.NewExitError(fmt.Errorf("failed to create tx: %w", err), 1)
 		}
-		if err := paramcontext.InitAndSave(c.GetNetwork(), tx, acc, out); err != nil {
+		m, err := c.GetNetwork()
+		if err != nil {
+			return sender, cli.NewExitError(fmt.Errorf("failed to save tx: %w", err), 1)
+		}
+		if err := paramcontext.InitAndSave(m, tx, acc, out); err != nil {
 			return sender, cli.NewExitError(err, 1)
 		}
 		fmt.Fprintln(ctx.App.Writer, tx.Hash().StringLE())

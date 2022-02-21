@@ -555,9 +555,11 @@ func TestSignAndPushP2PNotaryRequest(t *testing.T) {
 
 	c, err := client.New(context.Background(), httpSrv.URL, client.Options{})
 	require.NoError(t, err)
+	acc, err := wallet.NewAccount()
+	require.NoError(t, err)
 
 	t.Run("client wasn't initialized", func(t *testing.T) {
-		_, err := c.SignAndPushP2PNotaryRequest(nil, nil, 0, 0, 0, nil)
+		_, err := c.SignAndPushP2PNotaryRequest(transaction.New([]byte{byte(opcode.RET)}, 123), []byte{byte(opcode.RET)}, -1, 0, 100, acc)
 		require.NotNil(t, err)
 	})
 
@@ -567,8 +569,6 @@ func TestSignAndPushP2PNotaryRequest(t *testing.T) {
 		require.NotNil(t, err)
 	})
 
-	acc, err := wallet.NewAccount()
-	require.NoError(t, err)
 	t.Run("bad fallback script", func(t *testing.T) {
 		_, err := c.SignAndPushP2PNotaryRequest(nil, []byte{byte(opcode.ASSERT)}, -1, 0, 0, acc)
 		require.NotNil(t, err)
@@ -649,7 +649,7 @@ func TestCalculateNotaryFee(t *testing.T) {
 
 	t.Run("client not initialized", func(t *testing.T) {
 		_, err := c.CalculateNotaryFee(0)
-		require.NotNil(t, err)
+		require.NoError(t, err) // Do not require client initialisation for this.
 	})
 }
 

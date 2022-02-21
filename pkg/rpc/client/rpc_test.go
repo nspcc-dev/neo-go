@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math/big"
 	"net/http"
@@ -1913,7 +1914,8 @@ func TestGetNetwork(t *testing.T) {
 			t.Fatal(err)
 		}
 		// network was not initialised
-		require.Equal(t, netmode.Magic(0), c.GetNetwork())
+		_, err = c.GetNetwork()
+		require.True(t, errors.Is(err, errNetworkNotInitialized))
 		require.Equal(t, false, c.cache.initDone)
 	})
 
@@ -1923,7 +1925,9 @@ func TestGetNetwork(t *testing.T) {
 			t.Fatal(err)
 		}
 		require.NoError(t, c.Init())
-		require.Equal(t, netmode.UnitTestNet, c.GetNetwork())
+		m, err := c.GetNetwork()
+		require.NoError(t, err)
+		require.Equal(t, netmode.UnitTestNet, m)
 	})
 }
 
