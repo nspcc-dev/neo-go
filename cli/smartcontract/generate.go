@@ -2,7 +2,6 @@ package smartcontract
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"strings"
 
@@ -47,7 +46,7 @@ func contractGenerateWrapper(ctx *cli.Context) error {
 
 	cfg := binding.NewConfig()
 	if cfgPath := ctx.String("config"); cfgPath != "" {
-		bs, err := ioutil.ReadFile(cfgPath)
+		bs, err := os.ReadFile(cfgPath)
 		if err != nil {
 			return cli.NewExitError(fmt.Errorf("can't read config file: %w", err), 1)
 		}

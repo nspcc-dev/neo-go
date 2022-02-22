@@ -2,7 +2,7 @@ package flags
 
 import (
 	"flag"
-	"io/ioutil"
+	"io"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/internal/random"
@@ -119,7 +119,7 @@ func TestAddressFlag_GetName(t *testing.T) {
 
 func TestAddress(t *testing.T) {
 	f := flag.NewFlagSet("", flag.ContinueOnError)
-	f.SetOutput(ioutil.Discard) // don't pollute test output
+	f.SetOutput(io.Discard) // don't pollute test output
 	addr := AddressFlag{Name: "addr, a"}
 	addr.Apply(f)
 	require.NoError(t, f.Parse([]string{"--addr", "NRHkiY2hLy5ypD32CKZtL6pNwhbFMqDEhR"}))

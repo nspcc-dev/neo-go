@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/hex"
 	"encoding/json"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -35,12 +34,12 @@ func TestCalcHash(t *testing.T) {
 	e := newExecutor(t, false)
 
 	nefPath := "./testdata/verify.nef"
-	src, err := ioutil.ReadFile(nefPath)
+	src, err := os.ReadFile(nefPath)
 	require.NoError(t, err)
 	nefF, err := nef.FileFromBytes(src)
 	require.NoError(t, err)
 	manifestPath := "./testdata/verify.manifest.json"
-	manifestBytes, err := ioutil.ReadFile(manifestPath)
+	manifestBytes, err := os.ReadFile(manifestPath)
 	require.NoError(t, err)
 	manif := &manifest.Manifest{}
 	err = json.Unmarshal(manifestBytes, manif)
@@ -67,12 +66,12 @@ func TestCalcHash(t *testing.T) {
 	})
 	t.Run("invalid nef file", func(t *testing.T) {
 		p := filepath.Join(tmpDir, "neogo.calchash.verify.nef")
-		require.NoError(t, ioutil.WriteFile(p, src[:4], os.ModePerm))
+		require.NoError(t, os.WriteFile(p, src[:4], os.ModePerm))
 		e.RunWithError(t, append(cmd, "--sender", sender.StringLE(), "--in", p, "--manifest", manifestPath)...)
 	})
 	t.Run("invalid manifest file", func(t *testing.T) {
 		p := filepath.Join(tmpDir, "neogo.calchash.verify.manifest.json")
-		require.NoError(t, ioutil.WriteFile(p, manifestBytes[:4], os.ModePerm))
+		require.NoError(t, os.WriteFile(p, manifestBytes[:4], os.ModePerm))
 		e.RunWithError(t, append(cmd, "--sender", sender.StringLE(), "--in", nefPath, "--manifest", p)...)
 	})
 
@@ -106,7 +105,7 @@ func TestContractBindings(t *testing.T) {
 	e.Run(t, "neo-go", "contract", "init", "--name", ctrPath)
 
 	srcPath := filepath.Join(ctrPath, "main.go")
-	require.NoError(t, ioutil.WriteFile(srcPath, []byte(`package testcontract
+	require.NoError(t, os.WriteFile(srcPath, []byte(`package testcontract
 import(
 	alias "github.com/nspcc-dev/neo-go/pkg/interop/native/ledger"
 )
@@ -140,7 +139,7 @@ func Blocks() []*alias.Block {
 
 	// Replace `pkg/interop` in go.mod to avoid getting an actual module version.
 	goMod := filepath.Join(ctrPath, "go.mod")
-	data, err := ioutil.ReadFile(goMod)
+	data, err := os.ReadFile(goMod)
 	require.NoError(t, err)
 
 	i := bytes.IndexByte(data, '\n')
@@ -150,7 +149,7 @@ func Blocks() []*alias.Block {
 	require.NoError(t, err)
 	data = append(data, "\nreplace github.com/nspcc-dev/neo-go/pkg/interop => "...)
 	data = append(data, filepath.Join(wd, "../pkg/interop")...)
-	require.NoError(t, ioutil.WriteFile(goMod, data, os.ModePerm))
+	require.NoError(t, os.WriteFile(goMod, data, os.ModePerm))
 
 	cmd = append(cmd, "--config", cfgPath,
 		"--out", filepath.Join(tmpDir, "out.nef"),
@@ -165,7 +164,7 @@ func Blocks() []*alias.Block {
 		"--config", bindingsPath, "--manifest", manifestPath,
 		"--out", outPath, "--hash", "0x0123456789987654321001234567899876543210")
 
-	bs, err := ioutil.ReadFile(outPath)
+	bs, err := os.ReadFile(outPath)
 	require.NoError(t, err)
 	require.Equal(t, `// Package testcontract contains wrappers for testcontract contract.
 package testcontract
@@ -244,23 +243,23 @@ func TestContractInitAndCompile(t *testing.T) {
 		e.RunWithError(t, append(cmd, "--config", cfgName)...)
 	})
 	t.Run("provided corrupted config", func(t *testing.T) {
-		data, err := ioutil.ReadFile(cfgPath)
+		data, err := os.ReadFile(cfgPath)
 		require.NoError(t, err)
 		badCfg := filepath.Join(tmpDir, "bad.yml")
-		require.NoError(t, ioutil.WriteFile(badCfg, data[:len(data)-5], os.ModePerm))
+		require.NoError(t, os.WriteFile(badCfg, data[:len(data)-5], os.ModePerm))
 		e.RunWithError(t, append(cmd, "--config", badCfg)...)
 	})
 
 	// Replace `pkg/interop` in go.mod to avoid getting an actual module version.
 	goMod := filepath.Join(ctrPath, "go.mod")
-	data, err := ioutil.ReadFile(goMod)
+	data, err := os.ReadFile(goMod)
 	require.NoError(t, err)
 
 	wd, err := os.Getwd()
 	require.NoError(t, err)
 	data = append(data, "\nreplace github.com/nspcc-dev/neo-go/pkg/interop => "...)
 	data = append(data, filepath.Join(wd, "../pkg/interop")...)
-	require.NoError(t, ioutil.WriteFile(goMod, data, os.ModePerm))
+	require.NoError(t, os.WriteFile(goMod, data, os.ModePerm))
 
 	cmd = append(cmd, "--config", cfgPath)
 	e.Run(t, cmd...)
@@ -481,7 +480,7 @@ func TestContractManifestGroups(t *testing.T) {
 	})
 	t.Run("corrupted NEF file", func(t *testing.T) {
 		f := filepath.Join(tmpDir, "invalid.nef")
-		require.NoError(t, ioutil.WriteFile(f, []byte{1, 2, 3}, os.ModePerm))
+		require.NoError(t, os.WriteFile(f, []byte{1, 2, 3}, os.ModePerm))
 		e.RunWithError(t, "neo-go", "contract", "manifest", "add-group",
 			"--wallet", testWalletPath, "--account", testWalletAccount,
 			"--sender", testWalletAccount, "--nef", f)
@@ -494,7 +493,7 @@ func TestContractManifestGroups(t *testing.T) {
 	})
 	t.Run("corrupted manifest file", func(t *testing.T) {
 		f := filepath.Join(tmpDir, "invalid.manifest.json")
-		require.NoError(t, ioutil.WriteFile(f, []byte{1, 2, 3}, os.ModePerm))
+		require.NoError(t, os.WriteFile(f, []byte{1, 2, 3}, os.ModePerm))
 		e.RunWithError(t, "neo-go", "contract", "manifest", "add-group",
 			"--wallet", testWalletPath, "--account", testWalletAccount,
 			"--sender", testWalletAccount, "--nef", nefName,
@@ -573,7 +572,7 @@ func TestContract_TestInvokeScript(t *testing.T) {
 			"--in", badNef)
 	})
 	t.Run("invalid nef", func(t *testing.T) {
-		require.NoError(t, ioutil.WriteFile(badNef, []byte("qwer"), os.ModePerm))
+		require.NoError(t, os.WriteFile(badNef, []byte("qwer"), os.ModePerm))
 		e.RunWithError(t, "neo-go", "contract", "testinvokescript",
 			"--rpc-endpoint", "http://"+e.RPC.Addr,
 			"--in", badNef)
@@ -689,10 +688,9 @@ func TestComlileAndInvokeFunction(t *testing.T) {
 			e.RunWithError(t, cmd...)
 		})
 		t.Run("corrupted wallet", func(t *testing.T) {
-			tmp, err := ioutil.TempDir("", "tmp")
-			require.NoError(t, err)
+			tmp := t.TempDir()
 			tmpPath := filepath.Join(tmp, "wallet.json")
-			require.NoError(t, ioutil.WriteFile(tmpPath, []byte("{"), os.ModePerm))
+			require.NoError(t, os.WriteFile(tmpPath, []byte("{"), os.ModePerm))
 
 			cmd := append(cmd, "--wallet", tmpPath,
 				h.StringLE(), "getValue")
@@ -854,9 +852,9 @@ func TestComlileAndInvokeFunction(t *testing.T) {
 			os.Remove(manifestName)
 		})
 
-		rawNef, err := ioutil.ReadFile(nefName)
+		rawNef, err := os.ReadFile(nefName)
 		require.NoError(t, err)
-		rawManifest, err := ioutil.ReadFile(manifestName)
+		rawManifest, err := os.ReadFile(manifestName)
 		require.NoError(t, err)
 
 		e.In.WriteString("one\r")
@@ -918,7 +916,7 @@ func TestContractInspect(t *testing.T) {
 func TestCompileExamples(t *testing.T) {
 	tmpDir := t.TempDir()
 	const examplePath = "../examples"
-	infos, err := ioutil.ReadDir(examplePath)
+	infos, err := os.ReadDir(examplePath)
 	require.NoError(t, err)
 
 	// For proper nef generation.
@@ -933,7 +931,7 @@ func TestCompileExamples(t *testing.T) {
 			continue
 		}
 		t.Run(info.Name(), func(t *testing.T) {
-			infos, err := ioutil.ReadDir(filepath.Join(examplePath, info.Name()))
+			infos, err := os.ReadDir(filepath.Join(examplePath, info.Name()))
 			require.NoError(t, err)
 			require.False(t, len(infos) == 0, "detected smart contract folder with no contract in it")
 
@@ -951,7 +949,7 @@ func TestCompileExamples(t *testing.T) {
 			e.Run(t, opts...)
 
 			if info.Name() == "storage" {
-				rawM, err := ioutil.ReadFile(manifestF)
+				rawM, err := os.ReadFile(manifestF)
 				require.NoError(t, err)
 
 				m := new(manifest.Manifest)
@@ -983,7 +981,7 @@ func TestCompileExamples(t *testing.T) {
 	})
 }
 
-func filterFilename(infos []os.FileInfo, ext string) string {
+func filterFilename(infos []os.DirEntry, ext string) string {
 	for _, info := range infos {
 		if !info.IsDir() {
 			name := info.Name()

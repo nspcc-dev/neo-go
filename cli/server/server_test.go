@@ -3,7 +3,6 @@ package server
 import (
 	"encoding/binary"
 	"flag"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -46,7 +45,7 @@ func TestHandleLoggingParams(t *testing.T) {
 
 	t.Run("logdir is a file", func(t *testing.T) {
 		logfile := filepath.Join(d, "logdir")
-		require.NoError(t, ioutil.WriteFile(logfile, []byte{1, 2, 3}, os.ModePerm))
+		require.NoError(t, os.WriteFile(logfile, []byte{1, 2, 3}, os.ModePerm))
 		set := flag.NewFlagSet("flagSet", flag.ExitOnError)
 		ctx := cli.NewContext(cli.NewApp(), set, nil)
 		cfg := config.ApplicationConfiguration{
@@ -196,7 +195,7 @@ func TestRestoreDB(t *testing.T) {
 	t.Run("invalid logger path", func(t *testing.T) {
 		badCfgDir := t.TempDir()
 		logfile := filepath.Join(badCfgDir, "logdir")
-		require.NoError(t, ioutil.WriteFile(logfile, []byte{1, 2, 3}, os.ModePerm))
+		require.NoError(t, os.WriteFile(logfile, []byte{1, 2, 3}, os.ModePerm))
 		cfg, err := config.LoadFile(filepath.Join(goodCfg, "protocol.privnet.yml"))
 		require.NoError(t, err, "could not load config")
 		cfg.ApplicationConfiguration.LogPath = filepath.Join(logfile, "file.log")
@@ -204,7 +203,7 @@ func TestRestoreDB(t *testing.T) {
 		require.NoError(t, err)
 
 		badCfgPath := filepath.Join(badCfgDir, "protocol.privnet.yml")
-		require.NoError(t, ioutil.WriteFile(badCfgPath, out, os.ModePerm))
+		require.NoError(t, os.WriteFile(badCfgPath, out, os.ModePerm))
 
 		*cfgPath = badCfgDir
 		require.Error(t, restoreDB(ctx))
@@ -220,7 +219,7 @@ func TestRestoreDB(t *testing.T) {
 		require.NoError(t, err)
 
 		badCfgPath := filepath.Join(badCfgDir, "protocol.privnet.yml")
-		require.NoError(t, ioutil.WriteFile(badCfgPath, out, os.ModePerm))
+		require.NoError(t, os.WriteFile(badCfgPath, out, os.ModePerm))
 
 		*cfgPath = badCfgDir
 		require.Error(t, restoreDB(ctx))
@@ -238,7 +237,7 @@ func TestRestoreDB(t *testing.T) {
 	})
 	t.Run("corrupted in: invalid block count", func(t *testing.T) {
 		inPath := filepath.Join(t.TempDir(), "file3.acc")
-		require.NoError(t, ioutil.WriteFile(inPath, []byte{1, 2, 3}, // file is expected to start from uint32
+		require.NoError(t, os.WriteFile(inPath, []byte{1, 2, 3}, // file is expected to start from uint32
 			os.ModePerm))
 		*in = inPath
 		require.Error(t, restoreDB(ctx))
@@ -247,10 +246,10 @@ func TestRestoreDB(t *testing.T) {
 	})
 	t.Run("corrupted in: corrupted block", func(t *testing.T) {
 		inPath := filepath.Join(t.TempDir(), "file3.acc")
-		b, err := ioutil.ReadFile(testDump)
+		b, err := os.ReadFile(testDump)
 		require.NoError(t, err)
 		b[5] = 0xff // file is expected to start from uint32 (4 bytes) followed by the first block, so corrupt the first block bytes
-		require.NoError(t, ioutil.WriteFile(inPath, b, os.ModePerm))
+		require.NoError(t, os.WriteFile(inPath, b, os.ModePerm))
 		*in = inPath
 		require.Error(t, restoreDB(ctx))
 
@@ -258,12 +257,12 @@ func TestRestoreDB(t *testing.T) {
 	})
 	t.Run("incremental dump", func(t *testing.T) {
 		inPath := filepath.Join(t.TempDir(), "file1_incremental.acc")
-		b, err := ioutil.ReadFile(testDump)
+		b, err := os.ReadFile(testDump)
 		require.NoError(t, err)
 		start := make([]byte, 4)
 		t.Run("good", func(t *testing.T) {
 			binary.LittleEndian.PutUint32(start, 1) // start from the first block
-			require.NoError(t, ioutil.WriteFile(inPath, append(start, b...),
+			require.NoError(t, os.WriteFile(inPath, append(start, b...),
 				os.ModePerm))
 			*in = inPath
 			*incremental = true
@@ -272,7 +271,7 @@ func TestRestoreDB(t *testing.T) {
 		})
 		t.Run("dump is too high", func(t *testing.T) {
 			binary.LittleEndian.PutUint32(start, 2) // start from the second block
-			require.NoError(t, ioutil.WriteFile(inPath, append(start, b...),
+			require.NoError(t, os.WriteFile(inPath, append(start, b...),
 				os.ModePerm))
 			*in = inPath
 			*incremental = true

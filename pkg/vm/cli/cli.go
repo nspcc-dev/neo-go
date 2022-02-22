@@ -9,7 +9,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"math/big"
 	"os"
 	"strconv"
@@ -503,7 +502,7 @@ func handleReset(c *cli.Context) error {
 }
 
 func getManifestFromFile(name string) (*manifest.Manifest, error) {
-	bs, err := ioutil.ReadFile(name)
+	bs, err := os.ReadFile(name)
 	if err != nil {
 		return nil, fmt.Errorf("%w: can't read manifest", ErrInvalidParameter)
 	}

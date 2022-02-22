@@ -2,7 +2,6 @@ package main
 
 import (
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -31,7 +30,7 @@ func TestServerStart(t *testing.T) {
 		require.NoError(t, err)
 
 		cfgPath := filepath.Join(tmpDir, "protocol.unit_testnet.yml")
-		require.NoError(t, ioutil.WriteFile(cfgPath, out, os.ModePerm))
+		require.NoError(t, os.WriteFile(cfgPath, out, os.ModePerm))
 		t.Cleanup(func() {
 			require.NoError(t, os.Remove(cfgPath))
 		})
@@ -47,7 +46,7 @@ func TestServerStart(t *testing.T) {
 	t.Run("bad logger config", func(t *testing.T) {
 		badConfigDir := t.TempDir()
 		logfile := filepath.Join(badConfigDir, "logdir")
-		require.NoError(t, ioutil.WriteFile(logfile, []byte{1, 2, 3}, os.ModePerm))
+		require.NoError(t, os.WriteFile(logfile, []byte{1, 2, 3}, os.ModePerm))
 		saveCfg(t, func(cfg *config.Config) {
 			cfg.ApplicationConfiguration.LogPath = filepath.Join(logfile, "file.log")
 		})

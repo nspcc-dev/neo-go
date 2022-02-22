@@ -2,7 +2,6 @@ package smartcontract
 
 import (
 	"encoding/json"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -115,7 +114,7 @@ func TestGenerate(t *testing.T) {
 
 	rawManifest, err := json.Marshal(m)
 	require.NoError(t, err)
-	require.NoError(t, ioutil.WriteFile(manifestFile, rawManifest, os.ModePerm))
+	require.NoError(t, os.WriteFile(manifestFile, rawManifest, os.ModePerm))
 
 	h := util.Uint160{
 		0x04, 0x08, 0x15, 0x16, 0x23, 0x42, 0x43, 0x44, 0x00, 0x01,
@@ -139,7 +138,7 @@ callflags:
     doSomething: ReadStates
 `
 	cfgPath := filepath.Join(t.TempDir(), "binding.yml")
-	require.NoError(t, ioutil.WriteFile(cfgPath, []byte(rawCfg), os.ModePerm))
+	require.NoError(t, os.WriteFile(cfgPath, []byte(rawCfg), os.ModePerm))
 
 	require.NoError(t, app.Run([]string{"", "generate-wrapper",
 		"--manifest", manifestFile,
@@ -225,7 +224,7 @@ func MyFunc(in map[int]mycontract.Input) []mycontract.Output {
 }
 `
 
-	data, err := ioutil.ReadFile(outFile)
+	data, err := os.ReadFile(outFile)
 	require.NoError(t, err)
 	require.Equal(t, expected, string(data))
 }
@@ -245,7 +244,7 @@ func TestGenerateValidPackageName(t *testing.T) {
 
 	rawManifest, err := json.Marshal(m)
 	require.NoError(t, err)
-	require.NoError(t, ioutil.WriteFile(manifestFile, rawManifest, os.ModePerm))
+	require.NoError(t, os.WriteFile(manifestFile, rawManifest, os.ModePerm))
 
 	h := util.Uint160{
 		0x04, 0x08, 0x15, 0x16, 0x23, 0x42, 0x43, 0x44, 0x00, 0x01,
@@ -259,7 +258,7 @@ func TestGenerateValidPackageName(t *testing.T) {
 		"--hash", "0x" + h.StringLE(),
 	}))
 
-	data, err := ioutil.ReadFile(outFile)
+	data, err := os.ReadFile(outFile)
 	require.NoError(t, err)
 	require.Equal(t, `// Package myspacecontract contains wrappers for My space	contract contract.
 package myspacecontract
@@ -297,7 +296,7 @@ func TestGenerate_Errors(t *testing.T) {
 	})
 	t.Run("invalid manifest", func(t *testing.T) {
 		manifestFile := filepath.Join(t.TempDir(), "invalid.json")
-		require.NoError(t, ioutil.WriteFile(manifestFile, []byte("[]"), os.ModePerm))
+		require.NoError(t, os.WriteFile(manifestFile, []byte("[]"), os.ModePerm))
 		checkError(t, "", "--manifest", manifestFile)
 	})
 
@@ -305,7 +304,7 @@ func TestGenerate_Errors(t *testing.T) {
 	m := manifest.NewManifest("MyContract")
 	rawManifest, err := json.Marshal(m)
 	require.NoError(t, err)
-	require.NoError(t, ioutil.WriteFile(manifestFile, rawManifest, os.ModePerm))
+	require.NoError(t, os.WriteFile(manifestFile, rawManifest, os.ModePerm))
 
 	t.Run("invalid hash", func(t *testing.T) {
 		checkError(t, "invalid contract hash", "--manifest", manifestFile, "--hash", "xxx")
@@ -321,7 +320,7 @@ callflags:
     someFunc: ReadSometimes 
 `
 		cfgPath := filepath.Join(t.TempDir(), "binding.yml")
-		require.NoError(t, ioutil.WriteFile(cfgPath, []byte(rawCfg), os.ModePerm))
+		require.NoError(t, os.WriteFile(cfgPath, []byte(rawCfg), os.ModePerm))
 
 		checkError(t, "can't parse config file",
 			"--manifest", manifestFile, "--hash", util.Uint160{}.StringLE(),

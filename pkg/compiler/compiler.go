@@ -9,7 +9,6 @@ import (
 	"go/token"
 	"go/types"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -156,7 +155,7 @@ func getBuildInfo(name string, src interface{}) (*buildInfo, error) {
 		case string:
 			buf = []byte(s)
 		case io.Reader:
-			buf, err = ioutil.ReadAll(s)
+			buf, err = io.ReadAll(s)
 			if err != nil {
 				return nil, err
 			}
@@ -164,10 +163,7 @@ func getBuildInfo(name string, src interface{}) (*buildInfo, error) {
 			panic(fmt.Sprintf("unsupported src type: %T", s))
 		}
 		if strings.HasPrefix(runtime.Version(), "go1.15") {
-			dir, err = ioutil.TempDir("", "*")
-			if err != nil {
-				return nil, err
-			}
+			dir = os.TempDir()
 			name = filepath.Join(dir, filepath.Base(name))
 			absName = name
 			names = append(names, "file="+name)
@@ -259,7 +255,7 @@ func CompileAndSave(src string, o *Options) ([]byte, error) {
 		return nil, fmt.Errorf("error while serializing .nef file: %w", err)
 	}
 	out := fmt.Sprintf("%s.%s", o.Outfile, o.Ext)
-	err = ioutil.WriteFile(out, bytes, os.ModePerm)
+	err = os.WriteFile(out, bytes, os.ModePerm)
 	if err != nil {
 		return f.Script, err
 	}
@@ -289,7 +285,7 @@ func CompileAndSave(src string, o *Options) ([]byte, error) {
 		if err != nil {
 			return f.Script, err
 		}
-		if err := ioutil.WriteFile(o.DebugInfo, data, os.ModePerm); err != nil {
+		if err := os.WriteFile(o.DebugInfo, data, os.ModePerm); err != nil {
 			return f.Script, err
 		}
 	}
@@ -311,7 +307,7 @@ func CompileAndSave(src string, o *Options) ([]byte, error) {
 		if err != nil {
 			return nil, fmt.Errorf("can't marshal bindings configuration: %w", err)
 		}
-		err = ioutil.WriteFile(o.BindingsFile, data, os.ModePerm)
+		err = os.WriteFile(o.BindingsFile, data, os.ModePerm)
 		if err != nil {
 			return nil, fmt.Errorf("can't write bindings configuration: %w", err)
 		}
@@ -326,7 +322,7 @@ func CompileAndSave(src string, o *Options) ([]byte, error) {
 		if err != nil {
 			return f.Script, fmt.Errorf("failed to marshal manifest to JSON: %w", err)
 		}
-		return f.Script, ioutil.WriteFile(o.ManifestFile, mData, os.ModePerm)
+		return f.Script, os.WriteFile(o.ManifestFile, mData, os.ModePerm)
 	}
 
 	return f.Script, nil

@@ -3,7 +3,7 @@ package wallet
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -227,11 +227,11 @@ func TestRegenerateCLIWallet1_solo(t *testing.T) {
 	require.NoError(t, acc3.ConvertMultisig(1, keys.PublicKeys{getKeys(t)[0]}))
 
 	acc4 := getAccountWithScrypt(t, verifyWIF, "pass", scrypt) // deployed verify.go contract
-	f, err := ioutil.ReadFile(verifyNEFPath)
+	f, err := os.ReadFile(verifyNEFPath)
 	require.NoError(t, err)
 	nefFile, err := nef.FileFromBytes(f)
 	require.NoError(t, err)
-	manifestBytes, err := ioutil.ReadFile(verifyManifestPath)
+	manifestBytes, err := os.ReadFile(verifyManifestPath)
 	require.NoError(t, err)
 	m := &manifest.Manifest{}
 	require.NoError(t, json.Unmarshal(manifestBytes, m))
