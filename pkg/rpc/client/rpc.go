@@ -271,6 +271,14 @@ func (c *Client) GetNativeContracts() ([]state.NativeContract, error) {
 	if err := c.performRequest("getnativecontracts", params, &resp); err != nil {
 		return resp, err
 	}
+
+	// Update native contract hashes.
+	c.cacheLock.Lock()
+	for _, cs := range resp {
+		c.cache.nativeHashes[cs.Manifest.Name] = cs.Hash
+	}
+	c.cacheLock.Unlock()
+
 	return resp, nil
 }
 
