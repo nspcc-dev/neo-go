@@ -1,11 +1,6 @@
 version: 2.1
 
 executors:
-  go1_15:
-    docker:
-      - image: cimg/go:1.15
-        environment:
-          GO111MODULE: "on"
   go1_16:
     docker:
       - image: cimg/go:1.16
@@ -14,6 +9,9 @@ executors:
   go1_17:
     docker:
       - image: cimg/go:1.17
+  go1_18:
+    docker:
+      - image: cimg/go:1.18
 
 commands:
   gomod:
@@ -30,7 +28,7 @@ commands:
 jobs:
   lint:
     working_directory: /home/circleci/go/src/github.com/nspcc-dev/neo-go
-    executor: go1_17
+    executor: go1_18
     steps:
       - checkout
       - gomod
@@ -39,16 +37,6 @@ jobs:
           command: |
             curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.42.1
             make lint
-
-  test_1_15:
-    working_directory: /home/circleci/go/src/github.com/nspcc-dev/neo-go
-    executor: go1_15
-    steps:
-      - checkout
-      - run: git submodule sync
-      - run: git submodule update --init
-      - gomod
-      - run: go test -v -race ./...
 
   test_1_16:
     working_directory: /home/circleci/go/src/github.com/nspcc-dev/neo-go
@@ -60,9 +48,29 @@ jobs:
       - gomod
       - run: go test -v -race ./...
 
-  build_cli:
+  test_1_17:
     working_directory: /home/circleci/go/src/github.com/nspcc-dev/neo-go
     executor: go1_17
+    steps:
+      - checkout
+      - run: git submodule sync
+      - run: git submodule update --init
+      - gomod
+      - run: go test -v -race ./...
+
+  test_1_18:
+    working_directory: /home/circleci/go/src/github.com/nspcc-dev/neo-go
+    executor: go1_18
+    steps:
+      - checkout
+      - run: git submodule sync
+      - run: git submodule update --init
+      - gomod
+      - run: go test -v -race ./...
+
+  build_cli:
+    working_directory: /home/circleci/go/src/github.com/nspcc-dev/neo-go
+    executor: go1_18
     steps:
       - checkout
       - gomod
@@ -73,7 +81,7 @@ jobs:
 
   build_image:
     working_directory: /home/circleci/go/src/github.com/nspcc-dev/neo-go
-    executor: go1_17
+    executor: go1_18
     docker:
       - image: golang:1-alpine
     steps:
@@ -101,11 +109,15 @@ workflows:
           filters:
             tags:
               only: v/[0-9]+\.[0-9]+\.[0-9]+/
-      - test_1_15:
+      - test_1_16:
           filters:
             tags:
               only: v/[0-9]+\.[0-9]+\.[0-9]+/
-      - test_1_16:
+      - test_1_17:
+          filters:
+            tags:
+              only: v/[0-9]+\.[0-9]+\.[0-9]+/
+      - test_1_18:
           filters:
             tags:
               only: v/[0-9]+\.[0-9]+\.[0-9]+/

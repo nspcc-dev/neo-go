@@ -1,5 +1,9 @@
 # Builder image
-FROM golang:1-alpine as builder
+# Keep go version in sync with Build GA job.
+FROM golang:1.18-alpine as builder
+
+# Display go version for information purposes.
+RUN go version
 
 RUN set -x \
     && apk add --no-cache git make \

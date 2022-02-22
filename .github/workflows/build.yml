@@ -33,7 +33,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v2
         with:
-          go-version: 1.17
+          go-version: 1.18
 
       - name: Restore Go modules from cache
         uses: actions/cache@v2
@@ -67,7 +67,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v2
         with:
-          go-version: 1.17
+          go-version: 1.18
 
       - name: Restore Go modules from cache
         uses: actions/cache@v2
@@ -99,6 +99,12 @@ jobs:
           ref: ${{ github.event.inputs.ref }}
           fetch-depth: 0
 
+      # For proper `deps` make target execution.
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.18
+
       - name: Build Docker image
         run: make image
 
@@ -112,6 +118,12 @@ jobs:
         with:
           ref: ${{ github.event.inputs.ref }}
           fetch-depth: 0
+
+      # For proper `deps` make target execution.
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.18
 
       - name: Build Docker image
         run: make image-wsc
