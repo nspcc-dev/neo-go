@@ -167,10 +167,34 @@ func TestParameterContext_MarshalJSON(t *testing.T) {
 		}`
 		require.Error(t, json.Unmarshal([]byte(js), new(ParameterContext)))
 	})
+	t.Run("invalid hash", func(t *testing.T) {
+		js := `{
+		   "hash" : "0x0142f965b441b9af40a34b5cb24545b807c3ca24149201151fd93b204ea60e87",
+		   "type" : "Neo.Core.ContractTransaction",
+		   "items" : {
+			  "0x60bd43f6e14dc19789296143b615e75cb73e19cc" : {
+				 "parameters" : [
+					{
+					   "value" : "I4H7NpMj3xWczNNa31uZZDL7VvYNXrLHK6n2ARFCVVz/zW6ojrTtxgYpeFTMXfNwp+LULWjvJLQCxA6sky0yzQ==",
+					   "type" : "Signature"
+					}
+				 ],
+				 "signatures" : {
+					"0268f0425415a67623e1e48ab3c3bd6275319c75e44358e4ec15abc6e50213b033" : "I4H7NpMj3xWczNNa31uZZDL7VvYNXrLHK6n2ARFCVVz/zW6ojrTtxgYpeFTMXfNwp+LULWjvJLQCxA6sky0yzQ=="
+				 },
+				 "script" : "DCECaPBCVBWmdiPh5Iqzw71idTGcdeRDWOTsFavG5QITsDNBVuezJw=="
+			  }
+		   },
+		   "network" : 42,
+		   "data" : "AMYrW54AAAAAAAAAAAAAAAAAAAAAAAAAAAEBAgMAAAAAAAAAAAAAAAAAAAAAAAAAARE="
+}
+`
+		require.Error(t, json.Unmarshal([]byte(js), new(ParameterContext)))
+	})
 }
 
 func TestSharpJSON(t *testing.T) {
-	input := []byte(`{"type":"Neo.Network.P2P.Payloads.Transaction","data":"AKTv6hJY8h4AAAAAAKwiUwEAAAAA0lEAAAFBO\u002BhSRSuucNKVX2lk7k5Wdr\u002BkOQEAMR8RwB8MEHNldEV4ZWNGZWVGYWN0b3IMFHvGgcCh9x1UNFe2i7qNX5/dTl7MQWJ9W1I=","items":{"0x39a4bf76564eee64695f95d270ae2b4552e83b41":{"script":"GwwhAwCbdUDhDyVi5f2PrJ6uwlFmpYsm5BI0j/WoaSe/rCKiDCEDAgXpzvrqWh38WAryDI1aokaLsBSPGl5GBfxiLIDmBLoMIQIUuvDO6jpm8X5\u002BHoOeol/YvtbNgua7bmglAYkGX0T/AQwhAzjSoai75eQ8YzNBYTMIaaXgqqUeYTSWGEp8xylL\u002BVafDCEDPY41\u002BM2aM4UigLbZMJPHKS7VzpDZDxSfotpQumFo384MIQI\u002BmzLqiblNBm5kmxJP1Q45bukTaejipq4bEcFw0CIlbQwhA0CNzUFjlvZHg6xYfqHhWTxX2f6ogMimoZIOkqJZR3gGDCEDScfvC0qvGB8KPhNQxSexNsxbQkmMuDq4iAwF7ZUWfhwMIQJWZM7wq8uneHrV\u002BxLzrzHFzcekeQaKoq2O54gEdov/6QwhA1tPm\u002BK4U\u002BButaCcFn4Di5a0gEI1lhUQQjJS8u49u6WDDCEDZQpoRGGmS/Rr7lYdmYGkxXrcbMvTqVErg3AUgLMCGKsMIQJqEKorTXY5xd6vpP8IFGfbELXQBDJ0mipe4dK/7SPhwAwhAn5FmyZLb34yWrSwuw\u002BmQQgftoUX/WE\u002BvXqUy3nTCB5PDCECiMrUQqh3lgx2tPaI9L4w92glbZo9okkrAYC5EkORi08MIQKkDFUnmPeWNglYF\u002ByIkk/Gy3CU5aPLBZqbO8keo78NPQwhAqeDS\u002BmzLimB0VfLW706y0LP0R6lw7ECJNekTpjFkQ8bDCECuixw9ZlvNXpDGYcFhZ\u002BuLP6hPhFyligAdys9WIqdSr0MIQLVeGqSFKij8XV9dZb9EPUkEgXiwNaDYvR2ZXm6xhiSSQwhA9jVjSJXymyxRSK3ZRPUeD99SBgBaViTeUwhhlFcbedvDCEC23nmnFGK6SVOMUtvX0tj6RTN1LJXTcL5I2wBwfwdiXMMIQLsFD8AuIUkyvNqASHC3gnu8FGd2\u002BHHEKAPDiZjIB7kwAAVQZ7Q3Do=","parameters":[{"type":"Signature"},{"type":"Signature"},{"type":"Signature"},{"type":"Signature"},{"type":"Signature"},{"type":"Signature"},{"type":"Signature"},{"type":"Signature"},{"type":"Signature"},{"type":"Signature"},{"type":"Signature"}],"signatures":{"03650a684461a64bf46bee561d9981a4c57adc6ccbd3a9512b83701480b30218ab":"QtjYFNpGOOnij\u002BLwNZLOO3fHNoVQas\u002B4\u002BAo6SdvEeP3C12ATXzgPjAZrd5mCDc3KYkce0wwveEuuoYA8mhraUA==","0288cad442a877960c76b4f688f4be30f768256d9a3da2492b0180b91243918b4f":"RmuTXfPokXWEL9RIM9DqUUsOH8iRMfrKTp6LdhdJ0KBW6rNSEuxxNOpSUMBEW1EE2CNh1c\u002BmElj2Ny3o89SzGQ==","035b4f9be2b853e06eb5a09c167e038b96b4804235961510423252f2ee3dbba583":"1VYiT\u002BPe/7syYDSOWaJ1jPyZ6JDPrdU9toDu0Cg9pRQAJW1KLSexiosLA73k7lQeVbq4YuNlWnY7U8CYIQ/ilA==","02a40c552798f79636095817ec88924fc6cb7094e5a3cb059a9b3bc91ea3bf0d3d":"/mXUPXp/tI6Y7LhudKzBE8K2soHcPgrr48YLrwgbTI4qypYpOzh\u002BNj03pkAvk8\u002B68kuefevNQb/pjmPRvs80DA=="}}},"network":877933390}`)
+	input := []byte(`{"type":"Neo.Network.P2P.Payloads.Transaction","hash":"0x71b519998f41bbc1d37e383e01e2e6efe84d65abf3c7279820cc7c63daa29448","data":"AKTv6hJY8h4AAAAAAKwiUwEAAAAA0lEAAAFBO\u002BhSRSuucNKVX2lk7k5Wdr\u002BkOQEAMR8RwB8MEHNldEV4ZWNGZWVGYWN0b3IMFHvGgcCh9x1UNFe2i7qNX5/dTl7MQWJ9W1I=","items":{"0x39a4bf76564eee64695f95d270ae2b4552e83b41":{"script":"GwwhAwCbdUDhDyVi5f2PrJ6uwlFmpYsm5BI0j/WoaSe/rCKiDCEDAgXpzvrqWh38WAryDI1aokaLsBSPGl5GBfxiLIDmBLoMIQIUuvDO6jpm8X5\u002BHoOeol/YvtbNgua7bmglAYkGX0T/AQwhAzjSoai75eQ8YzNBYTMIaaXgqqUeYTSWGEp8xylL\u002BVafDCEDPY41\u002BM2aM4UigLbZMJPHKS7VzpDZDxSfotpQumFo384MIQI\u002BmzLqiblNBm5kmxJP1Q45bukTaejipq4bEcFw0CIlbQwhA0CNzUFjlvZHg6xYfqHhWTxX2f6ogMimoZIOkqJZR3gGDCEDScfvC0qvGB8KPhNQxSexNsxbQkmMuDq4iAwF7ZUWfhwMIQJWZM7wq8uneHrV\u002BxLzrzHFzcekeQaKoq2O54gEdov/6QwhA1tPm\u002BK4U\u002BButaCcFn4Di5a0gEI1lhUQQjJS8u49u6WDDCEDZQpoRGGmS/Rr7lYdmYGkxXrcbMvTqVErg3AUgLMCGKsMIQJqEKorTXY5xd6vpP8IFGfbELXQBDJ0mipe4dK/7SPhwAwhAn5FmyZLb34yWrSwuw\u002BmQQgftoUX/WE\u002BvXqUy3nTCB5PDCECiMrUQqh3lgx2tPaI9L4w92glbZo9okkrAYC5EkORi08MIQKkDFUnmPeWNglYF\u002ByIkk/Gy3CU5aPLBZqbO8keo78NPQwhAqeDS\u002BmzLimB0VfLW706y0LP0R6lw7ECJNekTpjFkQ8bDCECuixw9ZlvNXpDGYcFhZ\u002BuLP6hPhFyligAdys9WIqdSr0MIQLVeGqSFKij8XV9dZb9EPUkEgXiwNaDYvR2ZXm6xhiSSQwhA9jVjSJXymyxRSK3ZRPUeD99SBgBaViTeUwhhlFcbedvDCEC23nmnFGK6SVOMUtvX0tj6RTN1LJXTcL5I2wBwfwdiXMMIQLsFD8AuIUkyvNqASHC3gnu8FGd2\u002BHHEKAPDiZjIB7kwAAVQZ7Q3Do=","parameters":[{"type":"Signature"},{"type":"Signature"},{"type":"Signature"},{"type":"Signature"},{"type":"Signature"},{"type":"Signature"},{"type":"Signature"},{"type":"Signature"},{"type":"Signature"},{"type":"Signature"},{"type":"Signature"}],"signatures":{"03650a684461a64bf46bee561d9981a4c57adc6ccbd3a9512b83701480b30218ab":"QtjYFNpGOOnij\u002BLwNZLOO3fHNoVQas\u002B4\u002BAo6SdvEeP3C12ATXzgPjAZrd5mCDc3KYkce0wwveEuuoYA8mhraUA==","0288cad442a877960c76b4f688f4be30f768256d9a3da2492b0180b91243918b4f":"RmuTXfPokXWEL9RIM9DqUUsOH8iRMfrKTp6LdhdJ0KBW6rNSEuxxNOpSUMBEW1EE2CNh1c\u002BmElj2Ny3o89SzGQ==","035b4f9be2b853e06eb5a09c167e038b96b4804235961510423252f2ee3dbba583":"1VYiT\u002BPe/7syYDSOWaJ1jPyZ6JDPrdU9toDu0Cg9pRQAJW1KLSexiosLA73k7lQeVbq4YuNlWnY7U8CYIQ/ilA==","02a40c552798f79636095817ec88924fc6cb7094e5a3cb059a9b3bc91ea3bf0d3d":"/mXUPXp/tI6Y7LhudKzBE8K2soHcPgrr48YLrwgbTI4qypYpOzh\u002BNj03pkAvk8\u002B68kuefevNQb/pjmPRvs80DA=="}}},"network":877933390}`)
 	pc := ParameterContext{}
 	require.NoError(t, json.Unmarshal(input, &pc))
 }
