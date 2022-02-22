@@ -22,6 +22,8 @@ import (
 // servers. It's supposed to be faster than Client because it has persistent
 // connection to the server and at the same time is exposes some functionality
 // that is only provided via websockets (like event subscription mechanism).
+// WSClient is thread-safe and can be used from multiple goroutines to perform
+// RPC requests.
 type WSClient struct {
 	Client
 	// Notifications is a channel that is used to send events received from

@@ -28,7 +28,8 @@ const (
 )
 
 // Client represents the middleman for executing JSON RPC calls
-// to remote NEO RPC nodes.
+// to remote NEO RPC nodes. Client is thread-safe and can be used from
+// multiple goroutines.
 type Client struct {
 	cli      *http.Client
 	endpoint *url.URL
