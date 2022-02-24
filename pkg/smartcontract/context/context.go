@@ -36,6 +36,7 @@ type ParameterContext struct {
 type paramContext struct {
 	Type  string                     `json:"type"`
 	Net   uint32                     `json:"network"`
+	Hash  util.Uint256               `json:"hash,omitempty"`
 	Data  []byte                     `json:"data"`
 	Items map[string]json.RawMessage `json:"items"`
 }
@@ -173,6 +174,7 @@ func (c ParameterContext) MarshalJSON() ([]byte, error) {
 	pc := &paramContext{
 		Type:  c.Type,
 		Net:   uint32(c.Network),
+		Hash:  c.Verifiable.Hash(),
 		Data:  verif,
 		Items: items,
 	}
@@ -209,6 +211,11 @@ func (c *ParameterContext) UnmarshalJSON(data []byte) error {
 			return err
 		}
 		items[u] = item
+	}
+	if !pc.Hash.Equals(util.Uint256{}) {
+		if !verif.Hash().Equals(pc.Hash) {
+			return fmt.Errorf("hash parameter doesn't match calculated verifiable hash: %s vs %s", pc.Hash.StringLE(), verif.Hash().StringLE())
+		}
 	}
 	c.Type = pc.Type
 	c.Network = netmode.Magic(pc.Net)
