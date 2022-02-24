@@ -135,6 +135,25 @@ func (u Uint160) MarshalJSON() ([]byte, error) {
 	return []byte(`"0x` + u.StringLE() + `"`), nil
 }
 
+// UnmarshalYAML implements the YAML Unmarshaler interface.
+func (u *Uint160) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	var s string
+
+	err := unmarshal(&s)
+	if err != nil {
+		return err
+	}
+
+	s = strings.TrimPrefix(s, "0x")
+	*u, err = Uint160DecodeStringLE(s)
+	return err
+}
+
+// MarshalYAML implements the YAML marshaller interface.
+func (u Uint160) MarshalYAML() (interface{}, error) {
+	return "0x" + u.StringLE(), nil
+}
+
 // EncodeBinary implements Serializable interface.
 func (u *Uint160) EncodeBinary(bw *io.BinWriter) {
 	bw.WriteBytes(u[:])
