@@ -647,7 +647,11 @@ func signAndSendNEP17Transfer(ctx *cli.Context, c *client.Client, acc *wallet.Ac
 	tx.SystemFee += int64(sysgas)
 
 	if outFile := ctx.String("out"); outFile != "" {
-		if err := paramcontext.InitAndSave(c.GetNetwork(), tx, acc, outFile); err != nil {
+		m, err := c.GetNetwork()
+		if err != nil {
+			return cli.NewExitError(fmt.Errorf("failed to save tx: %w", err), 1)
+		}
+		if err := paramcontext.InitAndSave(m, tx, acc, outFile); err != nil {
 			return cli.NewExitError(err, 1)
 		}
 	} else {

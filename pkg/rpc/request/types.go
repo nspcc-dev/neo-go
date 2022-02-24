@@ -32,12 +32,12 @@ func NewRawParams(vals ...interface{}) RawParams {
 	return p
 }
 
-// Raw represents JSON-RPC request.
+// Raw represents JSON-RPC request on the Client side.
 type Raw struct {
 	JSONRPC   string        `json:"jsonrpc"`
 	Method    string        `json:"method"`
 	RawParams []interface{} `json:"params"`
-	ID        int           `json:"id"`
+	ID        uint64        `json:"id"`
 }
 
 // Request contains standard JSON-RPC 2.0 request and batch of

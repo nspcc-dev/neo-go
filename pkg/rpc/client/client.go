@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"sync"
 	"time"
 
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
@@ -16,6 +17,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/rpc/request"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"go.uber.org/atomic"
 )
 
 const (
@@ -26,17 +28,26 @@ const (
 )
 
 // Client represents the middleman for executing JSON RPC calls
-// to remote NEO RPC nodes.
+// to remote NEO RPC nodes. Client is thread-safe and can be used from
+// multiple goroutines.
 type Client struct {
-	cli               *http.Client
-	endpoint          *url.URL
-	network           netmode.Magic
-	stateRootInHeader bool
-	initDone          bool
-	ctx               context.Context
-	opts              Options
-	requestF          func(*request.Raw) (*response.Raw, error)
-	cache             cache
+	cli      *http.Client
+	endpoint *url.URL
+	ctx      context.Context
+	opts     Options
+	requestF func(*request.Raw) (*response.Raw, error)
+
+	cacheLock sync.RWMutex
+	// cache stores RPC node related information client is bound to.
+	// cache is mostly filled in during Init(), but can also be updated
+	// during regular Client lifecycle.
+	cache cache
+
+	latestReqID *atomic.Uint64
+	// getNextRequestID returns ID to be used for subsequent request creation.
+	// It is defined on Client so that our testing code can override this method
+	// for the sake of more predictable request IDs generation behaviour.
+	getNextRequestID func() uint64
 }
 
 // Options defines options for the RPC client.
@@ -56,6 +67,9 @@ type Options struct {
 
 // cache stores cache values for the RPC client methods.
 type cache struct {
+	initDone                 bool
+	network                  netmode.Magic
+	stateRootInHeader        bool
 	calculateValidUntilBlock calculateValidUntilBlockCache
 	nativeHashes             map[string]util.Uint160
 }
@@ -70,9 +84,18 @@ type calculateValidUntilBlockCache struct {
 // New returns a new Client ready to use. You should call Init method to
 // initialize network magic the client is operating on.
 func New(ctx context.Context, endpoint string, opts Options) (*Client, error) {
-	url, err := url.Parse(endpoint)
+	cl := new(Client)
+	err := initClient(ctx, cl, endpoint, opts)
 	if err != nil {
 		return nil, err
+	}
+	return cl, nil
+}
+
+func initClient(ctx context.Context, cl *Client, endpoint string, opts Options) error {
+	url, err := url.Parse(endpoint)
+	if err != nil {
+		return err
 	}
 
 	if opts.DialTimeout <= 0 {
@@ -97,33 +120,41 @@ func New(ctx context.Context, endpoint string, opts Options) (*Client, error) {
 	//	if opts.Cert != "" && opts.Key != "" {
 	//	}
 
-	cl := &Client{
-		ctx:      ctx,
-		cli:      httpClient,
-		endpoint: url,
-		cache: cache{
-			nativeHashes: make(map[string]util.Uint160),
-		},
+	cl.ctx = ctx
+	cl.cli = httpClient
+	cl.endpoint = url
+	cl.cache = cache{
+		nativeHashes: make(map[string]util.Uint160),
 	}
+	cl.latestReqID = atomic.NewUint64(0)
+	cl.getNextRequestID = (cl).getRequestID
 	cl.opts = opts
 	cl.requestF = cl.makeHTTPRequest
-	return cl, nil
+	return nil
+}
+
+func (c *Client) getRequestID() uint64 {
+	return c.latestReqID.Inc()
 }
 
 // Init sets magic of the network client connected to, stateRootInHeader option
 // and native NEO, GAS and Policy contracts scripthashes. This method should be
-// called before any transaction-, header- or block-related requests in order to
-// deserialize responses properly.
+// called before any header- or block-related requests in order to deserialize
+// responses properly.
 func (c *Client) Init() error {
 	version, err := c.GetVersion()
 	if err != nil {
 		return fmt.Errorf("failed to get network magic: %w", err)
 	}
-	c.network = version.Protocol.Network
-	c.stateRootInHeader = version.Protocol.StateRootInHeader
+
+	c.cacheLock.Lock()
+	defer c.cacheLock.Unlock()
+
+	c.cache.network = version.Protocol.Network
+	c.cache.stateRootInHeader = version.Protocol.StateRootInHeader
 	if version.Protocol.MillisecondsPerBlock == 0 {
-		c.network = version.Magic
-		c.stateRootInHeader = version.StateRootInHeader
+		c.cache.network = version.Magic
+		c.cache.stateRootInHeader = version.StateRootInHeader
 	}
 	neoContractHash, err := c.GetContractStateByAddressOrName(nativenames.Neo)
 	if err != nil {
@@ -140,7 +171,7 @@ func (c *Client) Init() error {
 		return fmt.Errorf("failed to get Policy contract scripthash: %w", err)
 	}
 	c.cache.nativeHashes[nativenames.Policy] = policyContractHash.Hash
-	c.initDone = true
+	c.cache.initDone = true
 	return nil
 }
 
@@ -149,7 +180,7 @@ func (c *Client) performRequest(method string, p request.RawParams, v interface{
 		JSONRPC:   request.JSONRPCVersion,
 		Method:    method,
 		RawParams: p.Values,
-		ID:        1,
+		ID:        c.getNextRequestID(),
 	}
 
 	raw, err := c.requestF(&r)

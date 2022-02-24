@@ -142,10 +142,6 @@ func (c *Client) CreateTxFromScript(script []byte, acc *wallet.Account, sysFee, 
 // impossible (e.g. due to locked cosigner's account) an error is returned.
 func (c *Client) TransferNEP17(acc *wallet.Account, to util.Uint160, token util.Uint160,
 	amount int64, gas int64, data interface{}, cosigners []SignerAccount) (util.Uint256, error) {
-	if !c.initDone {
-		return util.Uint256{}, errNetworkNotInitialized
-	}
-
 	tx, err := c.CreateNEP17TransferTx(acc, to, token, amount, gas, data, cosigners)
 	if err != nil {
 		return util.Uint256{}, err
@@ -156,10 +152,6 @@ func (c *Client) TransferNEP17(acc *wallet.Account, to util.Uint160, token util.
 
 // MultiTransferNEP17 is similar to TransferNEP17, buf allows to have multiple recipients.
 func (c *Client) MultiTransferNEP17(acc *wallet.Account, gas int64, recipients []TransferTarget, cosigners []SignerAccount) (util.Uint256, error) {
-	if !c.initDone {
-		return util.Uint256{}, errNetworkNotInitialized
-	}
-
 	tx, err := c.CreateNEP17MultiTransferTx(acc, gas, recipients, cosigners)
 	if err != nil {
 		return util.Uint256{}, err

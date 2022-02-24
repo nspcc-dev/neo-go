@@ -94,14 +94,15 @@ func (c *Client) getBlock(params request.RawParams) (*block.Block, error) {
 		err  error
 		b    *block.Block
 	)
-	if !c.initDone {
-		return nil, errNetworkNotInitialized
-	}
 	if err = c.performRequest("getblock", params, &resp); err != nil {
 		return nil, err
 	}
 	r := io.NewBinReaderFromBuf(resp)
-	b = block.New(c.StateRootInHeader())
+	sr, err := c.StateRootInHeader()
+	if err != nil {
+		return nil, err
+	}
+	b = block.New(sr)
 	b.DecodeBinary(r)
 	if r.Err != nil {
 		return nil, r.Err
@@ -127,9 +128,11 @@ func (c *Client) getBlockVerbose(params request.RawParams) (*result.Block, error
 		resp = &result.Block{}
 		err  error
 	)
-	if !c.initDone {
-		return nil, errNetworkNotInitialized
+	sr, err := c.StateRootInHeader()
+	if err != nil {
+		return nil, err
 	}
+	resp.Header.StateRootEnabled = sr
 	if err = c.performRequest("getblock", params, resp); err != nil {
 		return nil, err
 	}
@@ -157,14 +160,16 @@ func (c *Client) GetBlockHeader(hash util.Uint256) (*block.Header, error) {
 		resp   []byte
 		h      *block.Header
 	)
-	if !c.initDone {
-		return nil, errNetworkNotInitialized
-	}
 	if err := c.performRequest("getblockheader", params, &resp); err != nil {
+		return nil, err
+	}
+	sr, err := c.StateRootInHeader()
+	if err != nil {
 		return nil, err
 	}
 	r := io.NewBinReaderFromBuf(resp)
 	h = new(block.Header)
+	h.StateRootEnabled = sr
 	h.DecodeBinary(r)
 	if r.Err != nil {
 		return nil, r.Err
@@ -266,6 +271,14 @@ func (c *Client) GetNativeContracts() ([]state.NativeContract, error) {
 	if err := c.performRequest("getnativecontracts", params, &resp); err != nil {
 		return resp, err
 	}
+
+	// Update native contract hashes.
+	c.cacheLock.Lock()
+	for _, cs := range resp {
+		c.cache.nativeHashes[cs.Manifest.Name] = cs.Hash
+	}
+	c.cacheLock.Unlock()
+
 	return resp, nil
 }
 
@@ -399,17 +412,13 @@ func (c *Client) GetRawMemPool() ([]util.Uint256, error) {
 	return *resp, nil
 }
 
-// GetRawTransaction returns a transaction by hash. You should initialize network magic
-// with Init before calling GetRawTransaction.
+// GetRawTransaction returns a transaction by hash.
 func (c *Client) GetRawTransaction(hash util.Uint256) (*transaction.Transaction, error) {
 	var (
 		params = request.NewRawParams(hash.StringLE())
 		resp   []byte
 		err    error
 	)
-	if !c.initDone {
-		return nil, errNetworkNotInitialized
-	}
 	if err = c.performRequest("getrawtransaction", params, &resp); err != nil {
 		return nil, err
 	}
@@ -421,8 +430,7 @@ func (c *Client) GetRawTransaction(hash util.Uint256) (*transaction.Transaction,
 }
 
 // GetRawTransactionVerbose returns a transaction wrapper with additional
-// metadata by transaction's hash. You should initialize network magic
-// with Init before calling GetRawTransactionVerbose.
+// metadata by transaction's hash.
 // NOTE: to get transaction.ID and transaction.Size, use t.Hash() and io.GetVarSize(t) respectively.
 func (c *Client) GetRawTransactionVerbose(hash util.Uint256) (*result.TransactionOutputRaw, error) {
 	var (
@@ -430,9 +438,6 @@ func (c *Client) GetRawTransactionVerbose(hash util.Uint256) (*result.Transactio
 		resp   = &result.TransactionOutputRaw{}
 		err    error
 	)
-	if !c.initDone {
-		return nil, errNetworkNotInitialized
-	}
 	if err = c.performRequest("getrawtransaction", params, resp); err != nil {
 		return nil, err
 	}
@@ -687,7 +692,11 @@ func (c *Client) SignAndPushTx(tx *transaction.Transaction, acc *wallet.Account,
 		txHash util.Uint256
 		err    error
 	)
-	if err = acc.SignTx(c.GetNetwork(), tx); err != nil {
+	m, err := c.GetNetwork()
+	if err != nil {
+		return txHash, fmt.Errorf("failed to sign tx: %w", err)
+	}
+	if err = acc.SignTx(m, tx); err != nil {
 		return txHash, fmt.Errorf("failed to sign tx: %w", err)
 	}
 	// try to add witnesses for the rest of the signers
@@ -695,7 +704,7 @@ func (c *Client) SignAndPushTx(tx *transaction.Transaction, acc *wallet.Account,
 		var isOk bool
 		for _, cosigner := range cosigners {
 			if signer.Account == cosigner.Signer.Account {
-				err = cosigner.Account.SignTx(c.GetNetwork(), tx)
+				err = cosigner.Account.SignTx(m, tx)
 				if err != nil { // then account is non-contract-based and locked, but let's provide more detailed error
 					if paramNum := len(cosigner.Account.Contract.Parameters); paramNum != 0 && cosigner.Account.Contract.Deployed {
 						return txHash, fmt.Errorf("failed to add contract-based witness for signer #%d (%s): "+
@@ -771,9 +780,6 @@ func getSigners(sender *wallet.Account, cosigners []SignerAccount) ([]transactio
 // Note: client should be initialized before SignAndPushP2PNotaryRequest call.
 func (c *Client) SignAndPushP2PNotaryRequest(mainTx *transaction.Transaction, fallbackScript []byte, fallbackSysFee int64, fallbackNetFee int64, fallbackValidFor uint32, acc *wallet.Account) (*payload.P2PNotaryRequest, error) {
 	var err error
-	if !c.initDone {
-		return nil, errNetworkNotInitialized
-	}
 	notaryHash, err := c.GetNativeContractHash(nativenames.Notary)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get native Notary hash: %w", err)
@@ -835,7 +841,11 @@ func (c *Client) SignAndPushP2PNotaryRequest(mainTx *transaction.Transaction, fa
 			VerificationScript: []byte{},
 		},
 	}
-	if err = acc.SignTx(c.GetNetwork(), fallbackTx); err != nil {
+	m, err := c.GetNetwork()
+	if err != nil {
+		return nil, fmt.Errorf("failed to sign fallback tx: %w", err)
+	}
+	if err = acc.SignTx(m, fallbackTx); err != nil {
 		return nil, fmt.Errorf("failed to sign fallback tx: %w", err)
 	}
 	fallbackHash := fallbackTx.Hash()
@@ -844,7 +854,7 @@ func (c *Client) SignAndPushP2PNotaryRequest(mainTx *transaction.Transaction, fa
 		FallbackTransaction: fallbackTx,
 	}
 	req.Witness = transaction.Witness{
-		InvocationScript:   append([]byte{byte(opcode.PUSHDATA1), 64}, acc.PrivateKey().SignHashable(uint32(c.GetNetwork()), req)...),
+		InvocationScript:   append([]byte{byte(opcode.PUSHDATA1), 64}, acc.PrivateKey().SignHashable(uint32(m), req)...),
 		VerificationScript: acc.GetVerificationScript(),
 	}
 	actualHash, err := c.SubmitP2PNotaryRequest(req)
@@ -922,18 +932,23 @@ func (c *Client) CalculateValidUntilBlock() (uint32, error) {
 		return result, fmt.Errorf("can't get block count: %w", err)
 	}
 
+	c.cacheLock.RLock()
 	if c.cache.calculateValidUntilBlock.expiresAt > blockCount {
 		validatorsCount = c.cache.calculateValidUntilBlock.validatorsCount
+		c.cacheLock.RUnlock()
 	} else {
+		c.cacheLock.RUnlock()
 		validators, err := c.GetNextBlockValidators()
 		if err != nil {
 			return result, fmt.Errorf("can't get validators: %w", err)
 		}
 		validatorsCount = uint32(len(validators))
+		c.cacheLock.Lock()
 		c.cache.calculateValidUntilBlock = calculateValidUntilBlockCache{
 			validatorsCount: validatorsCount,
 			expiresAt:       blockCount + cacheTimeout,
 		}
+		c.cacheLock.Unlock()
 	}
 	return blockCount + validatorsCount + 1, nil
 }
@@ -990,18 +1005,33 @@ func (c *Client) AddNetworkFee(tx *transaction.Transaction, extraFee int64, accs
 }
 
 // GetNetwork returns the network magic of the RPC node client connected to.
-func (c *Client) GetNetwork() netmode.Magic {
-	return c.network
+func (c *Client) GetNetwork() (netmode.Magic, error) {
+	c.cacheLock.RLock()
+	defer c.cacheLock.RUnlock()
+
+	if !c.cache.initDone {
+		return 0, errNetworkNotInitialized
+	}
+	return c.cache.network, nil
 }
 
 // StateRootInHeader returns true if state root is contained in block header.
-func (c *Client) StateRootInHeader() bool {
-	return c.stateRootInHeader
+// You should initialize Client cache with Init() before calling StateRootInHeader.
+func (c *Client) StateRootInHeader() (bool, error) {
+	c.cacheLock.RLock()
+	defer c.cacheLock.RUnlock()
+
+	if !c.cache.initDone {
+		return false, errNetworkNotInitialized
+	}
+	return c.cache.stateRootInHeader, nil
 }
 
 // GetNativeContractHash returns native contract hash by its name.
 func (c *Client) GetNativeContractHash(name string) (util.Uint160, error) {
+	c.cacheLock.RLock()
 	hash, ok := c.cache.nativeHashes[name]
+	c.cacheLock.RUnlock()
 	if ok {
 		return hash, nil
 	}
@@ -1009,6 +1039,8 @@ func (c *Client) GetNativeContractHash(name string) (util.Uint160, error) {
 	if err != nil {
 		return util.Uint160{}, err
 	}
+	c.cacheLock.Lock()
 	c.cache.nativeHashes[name] = cs.Hash
+	c.cacheLock.Unlock()
 	return cs.Hash, nil
 }

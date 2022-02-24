@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"strconv"
+	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -20,6 +22,8 @@ import (
 // servers. It's supposed to be faster than Client because it has persistent
 // connection to the server and at the same time is exposes some functionality
 // that is only provided via websockets (like event subscription mechanism).
+// WSClient is thread-safe and can be used from multiple goroutines to perform
+// RPC requests.
 type WSClient struct {
 	Client
 	// Notifications is a channel that is used to send events received from
@@ -30,12 +34,16 @@ type WSClient struct {
 	// be closed, so make sure to handle this.
 	Notifications chan Notification
 
-	ws            *websocket.Conn
-	done          chan struct{}
-	responses     chan *response.Raw
-	requests      chan *request.Raw
-	shutdown      chan struct{}
-	subscriptions map[string]bool
+	ws       *websocket.Conn
+	done     chan struct{}
+	requests chan *request.Raw
+	shutdown chan struct{}
+
+	subscriptionsLock sync.RWMutex
+	subscriptions     map[string]bool
+
+	respLock     sync.RWMutex
+	respChannels map[uint64]chan *response.Raw
 }
 
 // Notification represents server-generated notification for client subscriptions.
@@ -73,29 +81,29 @@ const (
 // You should call Init method to initialize network magic the client is
 // operating on.
 func NewWS(ctx context.Context, endpoint string, opts Options) (*WSClient, error) {
-	cl, err := New(ctx, endpoint, opts)
-	if err != nil {
-		return nil, err
-	}
-
-	cl.cli = nil
-
 	dialer := websocket.Dialer{HandshakeTimeout: opts.DialTimeout}
 	ws, _, err := dialer.Dial(endpoint, nil)
 	if err != nil {
 		return nil, err
 	}
 	wsc := &WSClient{
-		Client:        *cl,
+		Client:        Client{},
 		Notifications: make(chan Notification),
 
 		ws:            ws,
 		shutdown:      make(chan struct{}),
 		done:          make(chan struct{}),
-		responses:     make(chan *response.Raw),
+		respChannels:  make(map[uint64]chan *response.Raw),
 		requests:      make(chan *request.Raw),
 		subscriptions: make(map[string]bool),
 	}
+
+	err = initClient(ctx, &wsc.Client, endpoint, opts)
+	if err != nil {
+		return nil, err
+	}
+	wsc.Client.cli = nil
+
 	go wsc.wsReader()
 	go wsc.wsWriter()
 	wsc.requestF = wsc.makeWsRequest
@@ -141,7 +149,12 @@ readloop:
 			var val interface{}
 			switch event {
 			case response.BlockEventID:
-				val = block.New(c.StateRootInHeader())
+				sr, err := c.StateRootInHeader()
+				if err != nil {
+					// Client is not initialised.
+					break
+				}
+				val = block.New(sr)
 			case response.TransactionEventID:
 				val = &transaction.Transaction{}
 			case response.NotificationEventID:
@@ -170,14 +183,27 @@ readloop:
 			resp.JSONRPC = rr.JSONRPC
 			resp.Error = rr.Error
 			resp.Result = rr.Result
-			c.responses <- resp
+			id, err := strconv.Atoi(string(resp.ID))
+			if err != nil {
+				break // Malformed response (invalid response ID).
+			}
+			ch := c.getResponseChannel(uint64(id))
+			if ch == nil {
+				break // Unknown response (unexpected response ID).
+			}
+			ch <- resp
 		} else {
 			// Malformed response, neither valid request, nor valid response.
 			break
 		}
 	}
 	close(c.done)
-	close(c.responses)
+	c.respLock.Lock()
+	for _, ch := range c.respChannels {
+		close(ch)
+	}
+	c.respChannels = nil
+	c.respLock.Unlock()
 	close(c.Notifications)
 }
 
@@ -212,16 +238,41 @@ func (c *WSClient) wsWriter() {
 	}
 }
 
+func (c *WSClient) registerRespChannel(id uint64, ch chan *response.Raw) {
+	c.respLock.Lock()
+	defer c.respLock.Unlock()
+	c.respChannels[id] = ch
+}
+
+func (c *WSClient) unregisterRespChannel(id uint64) {
+	c.respLock.Lock()
+	defer c.respLock.Unlock()
+	if ch, ok := c.respChannels[id]; ok {
+		delete(c.respChannels, id)
+		close(ch)
+	}
+}
+
+func (c *WSClient) getResponseChannel(id uint64) chan *response.Raw {
+	c.respLock.RLock()
+	defer c.respLock.RUnlock()
+	return c.respChannels[id]
+}
+
 func (c *WSClient) makeWsRequest(r *request.Raw) (*response.Raw, error) {
+	ch := make(chan *response.Raw)
+	c.registerRespChannel(r.ID, ch)
+
 	select {
 	case <-c.done:
-		return nil, errors.New("connection lost")
+		return nil, errors.New("connection lost before sending the request")
 	case c.requests <- r:
 	}
 	select {
 	case <-c.done:
-		return nil, errors.New("connection lost")
-	case resp := <-c.responses:
+		return nil, errors.New("connection lost while waiting for the response")
+	case resp := <-ch:
+		c.unregisterRespChannel(r.ID)
 		return resp, nil
 	}
 }
@@ -232,12 +283,19 @@ func (c *WSClient) performSubscription(params request.RawParams) (string, error)
 	if err := c.performRequest("subscribe", params, &resp); err != nil {
 		return "", err
 	}
+
+	c.subscriptionsLock.Lock()
+	defer c.subscriptionsLock.Unlock()
+
 	c.subscriptions[resp] = true
 	return resp, nil
 }
 
 func (c *WSClient) performUnsubscription(id string) error {
 	var resp bool
+
+	c.subscriptionsLock.Lock()
+	defer c.subscriptionsLock.Unlock()
 
 	if !c.subscriptions[id] {
 		return errors.New("no subscription with this ID")
@@ -320,11 +378,18 @@ func (c *WSClient) Unsubscribe(id string) error {
 
 // UnsubscribeAll removes all active subscriptions of current client.
 func (c *WSClient) UnsubscribeAll() error {
+	c.subscriptionsLock.Lock()
+	defer c.subscriptionsLock.Unlock()
+
 	for id := range c.subscriptions {
-		err := c.performUnsubscription(id)
-		if err != nil {
+		var resp bool
+		if err := c.performRequest("unsubscribe", request.NewRawParams(id), &resp); err != nil {
 			return err
 		}
+		if !resp {
+			return errors.New("unsubscribe method returned false result")
+		}
+		delete(c.subscriptions, id)
 	}
 	return nil
 }
