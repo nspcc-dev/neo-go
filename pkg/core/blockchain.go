@@ -367,7 +367,7 @@ func (bc *Blockchain) init() error {
 
 	currHeaderHeight, currHeaderHash, err := bc.dao.GetCurrentHeaderHeight()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to retrieve current header info: %w", err)
 	}
 	if bc.storedHeaderCount == 0 && currHeaderHeight == 0 {
 		bc.headerHashes = append(bc.headerHashes, currHeaderHash)
@@ -425,7 +425,7 @@ func (bc *Blockchain) init() error {
 
 	bHeight, err := bc.dao.GetCurrentBlockHeight()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to retrieve current block height: %w", err)
 	}
 	bc.blockHeight = bHeight
 	bc.persistedHeight = bHeight
