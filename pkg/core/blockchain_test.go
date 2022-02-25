@@ -1578,7 +1578,7 @@ func TestDumpAndRestore(t *testing.T) {
 	})
 	t.Run("with state root", func(t *testing.T) {
 		testDumpAndRestore(t, func(c *config.Config) {
-			c.ProtocolConfiguration.StateRootInHeader = false
+			c.ProtocolConfiguration.StateRootInHeader = true
 		}, nil)
 	})
 	t.Run("remove untraceable", func(t *testing.T) {
