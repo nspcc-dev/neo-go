@@ -332,22 +332,22 @@ func (bc *Blockchain) init() error {
 		return bc.storeBlock(genesisBlock, nil)
 	}
 	if ver.Value != version {
-		return fmt.Errorf("storage version mismatch betweeen %s and %s", version, ver.Value)
+		return fmt.Errorf("storage version mismatch (expected=%s, actual=%s)", version, ver.Value)
 	}
 	if ver.StateRootInHeader != bc.config.StateRootInHeader {
 		return fmt.Errorf("StateRootInHeader setting mismatch (config=%t, db=%t)",
 			ver.StateRootInHeader, bc.config.StateRootInHeader)
 	}
 	if ver.P2PSigExtensions != bc.config.P2PSigExtensions {
-		return fmt.Errorf("P2PSigExtensions setting mismatch (old=%t, new=%t",
+		return fmt.Errorf("P2PSigExtensions setting mismatch (old=%t, new=%t)",
 			ver.P2PSigExtensions, bc.config.P2PSigExtensions)
 	}
 	if ver.P2PStateExchangeExtensions != bc.config.P2PStateExchangeExtensions {
-		return fmt.Errorf("P2PStateExchangeExtensions setting mismatch (old=%t, new=%t",
+		return fmt.Errorf("P2PStateExchangeExtensions setting mismatch (old=%t, new=%t)",
 			ver.P2PStateExchangeExtensions, bc.config.P2PStateExchangeExtensions)
 	}
 	if ver.KeepOnlyLatestState != bc.config.KeepOnlyLatestState {
-		return fmt.Errorf("KeepOnlyLatestState setting mismatch: old=%v, new=%v",
+		return fmt.Errorf("KeepOnlyLatestState setting mismatch (old=%v, new=%v)",
 			ver.KeepOnlyLatestState, bc.config.KeepOnlyLatestState)
 	}
 	bc.dao.Version = ver
