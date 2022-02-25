@@ -336,7 +336,7 @@ func (bc *Blockchain) init() error {
 	}
 	if ver.StateRootInHeader != bc.config.StateRootInHeader {
 		return fmt.Errorf("StateRootInHeader setting mismatch (config=%t, db=%t)",
-			ver.StateRootInHeader, bc.config.StateRootInHeader)
+			bc.config.StateRootInHeader, ver.StateRootInHeader)
 	}
 	if ver.P2PSigExtensions != bc.config.P2PSigExtensions {
 		return fmt.Errorf("P2PSigExtensions setting mismatch (old=%t, new=%t)",
