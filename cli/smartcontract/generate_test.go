@@ -256,7 +256,7 @@ func TestGenerateValidPackageName(t *testing.T) {
 	require.NoError(t, app.Run([]string{"", "generate-wrapper",
 		"--manifest", manifestFile,
 		"--out", outFile,
-		"--hash", h.StringLE(),
+		"--hash", "0x" + h.StringLE(),
 	}))
 
 	data, err := ioutil.ReadFile(outFile)

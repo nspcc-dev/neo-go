@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"strings"
 
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/binding"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -58,7 +59,7 @@ func contractGenerateWrapper(ctx *cli.Context) error {
 
 	cfg.Manifest = m
 
-	h, err := util.Uint160DecodeStringLE(ctx.String("hash"))
+	h, err := util.Uint160DecodeStringLE(strings.TrimPrefix(ctx.String("hash"), "0x"))
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("invalid contract hash: %w", err), 1)
 	}
