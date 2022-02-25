@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	iocore "io"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
@@ -513,18 +514,20 @@ func (dao *Simple) GetStateSyncCurrentBlockHeight() (uint32, error) {
 func (dao *Simple) GetHeaderHashes() ([]util.Uint256, error) {
 	var hashes = make([]util.Uint256, 0)
 
+	var seekErr error
 	dao.Store.Seek(storage.SeekRange{
 		Prefix: dao.mkKeyPrefix(storage.IXHeaderHashList),
 	}, func(k, v []byte) bool {
 		newHashes, err := read2000Uint256Hashes(v)
 		if err != nil {
-			panic(err)
+			seekErr = fmt.Errorf("failed to read batch of 2000 header hashes: %w", err)
+			return false
 		}
 		hashes = append(hashes, newHashes...)
 		return true
 	})
 
-	return hashes, nil
+	return hashes, seekErr
 }
 
 // GetTransaction returns Transaction and its height by the given hash
