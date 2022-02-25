@@ -69,13 +69,10 @@ func newTestChainWithCustomCfgAndStore(t testing.TB, st storage.Store, f func(*c
 
 func newLevelDBForTesting(t testing.TB) storage.Store {
 	ldbDir := t.TempDir()
-	dbConfig := storage.DBConfiguration{
-		Type: "leveldb",
-		LevelDBOptions: storage.LevelDBOptions{
-			DataDirectoryPath: ldbDir,
-		},
+	dbOptions := storage.LevelDBOptions{
+		DataDirectoryPath: ldbDir,
 	}
-	newLevelStore, err := storage.NewLevelDBStore(dbConfig.LevelDBOptions)
+	newLevelStore, err := storage.NewLevelDBStore(dbOptions)
 	require.Nil(t, err, "NewLevelDBStore error")
 	return newLevelStore
 }
