@@ -68,24 +68,44 @@ func newTestChainWithCustomCfgAndStore(t testing.TB, st storage.Store, f func(*c
 }
 
 func newLevelDBForTesting(t testing.TB) storage.Store {
-	ldbDir := t.TempDir()
-	dbOptions := storage.LevelDBOptions{
-		DataDirectoryPath: ldbDir,
-	}
-	newLevelStore, err := storage.NewLevelDBStore(dbOptions)
-	require.Nil(t, err, "NewLevelDBStore error")
+	newLevelStore, _ := newLevelDBForTestingWithPath(t, "")
 	return newLevelStore
 }
 
+func newLevelDBForTestingWithPath(t testing.TB, dbPath string) (storage.Store, string) {
+	if dbPath == "" {
+		dbPath = t.TempDir()
+	}
+	dbOptions := storage.LevelDBOptions{
+		DataDirectoryPath: dbPath,
+	}
+	newLevelStore, err := storage.NewLevelDBStore(dbOptions)
+	require.Nil(t, err, "NewLevelDBStore error")
+	return newLevelStore, dbPath
+}
+
 func newBoltStoreForTesting(t testing.TB) storage.Store {
-	d := t.TempDir()
-	testFileName := filepath.Join(d, "test_bolt_db")
-	boltDBStore, err := storage.NewBoltDBStore(storage.BoltDBOptions{FilePath: testFileName})
-	require.NoError(t, err)
+	boltDBStore, _ := newBoltStoreForTestingWithPath(t, "")
 	return boltDBStore
 }
 
+func newBoltStoreForTestingWithPath(t testing.TB, dbPath string) (storage.Store, string) {
+	if dbPath == "" {
+		d := t.TempDir()
+		dbPath = filepath.Join(d, "test_bolt_db")
+	}
+	boltDBStore, err := storage.NewBoltDBStore(storage.BoltDBOptions{FilePath: dbPath})
+	require.NoError(t, err)
+	return boltDBStore, dbPath
+}
+
 func initTestChain(t testing.TB, st storage.Store, f func(*config.Config)) *Blockchain {
+	chain, err := initTestChainNoCheck(t, st, f)
+	require.NoError(t, err)
+	return chain
+}
+
+func initTestChainNoCheck(t testing.TB, st storage.Store, f func(*config.Config)) (*Blockchain, error) {
 	unitTestNetCfg, err := config.Load("../../config", testchain.Network())
 	require.NoError(t, err)
 	if f != nil {
@@ -98,9 +118,7 @@ func initTestChain(t testing.TB, st storage.Store, f func(*config.Config)) *Bloc
 	if _, ok := t.(*testing.B); ok {
 		log = zap.NewNop()
 	}
-	chain, err := NewBlockchain(st, unitTestNetCfg.ProtocolConfiguration, log)
-	require.NoError(t, err)
-	return chain
+	return NewBlockchain(st, unitTestNetCfg.ProtocolConfiguration, log)
 }
 
 func (bc *Blockchain) newBlock(txs ...*transaction.Transaction) *block.Block {
