@@ -7,6 +7,7 @@ import (
 
 	json "github.com/nspcc-dev/go-ordered-json"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
+	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/services/oracle/jsonpath"
 )
 
@@ -24,7 +25,7 @@ func filter(value []byte, path string) ([]byte, error) {
 		return nil, err
 	}
 
-	result, ok := jsonpath.Get(path, v)
+	result, _, ok := jsonpath.Get(path, v, transaction.MaxOracleResultSize)
 	if !ok {
 		return nil, errors.New("invalid filter")
 	}

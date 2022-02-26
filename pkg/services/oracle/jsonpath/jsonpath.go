@@ -1,6 +1,7 @@
 package jsonpath
 
 import (
+	"bytes"
 	"strconv"
 	"strings"
 
@@ -13,10 +14,28 @@ type (
 
 	// pathParser combines JSONPath and a position to start parsing from.
 	pathParser struct {
-		s     string
-		i     int
-		depth int
+		s       string
+		i       int
+		depth   int
+		maxSize int
+		buf     *bytes.Buffer
+		enc     *json.Encoder
 	}
+
+	nodeType byte
+
+	node struct {
+		typ   nodeType
+		value interface{}
+	}
+)
+
+const (
+	nodeAny nodeType = iota
+	nodeIndex
+	nodeIndexRecursive
+	nodeUnion
+	nodeSlice
 )
 
 const (
@@ -37,317 +56,143 @@ const maxNestingDepth = 6
 
 // Get returns substructures of value selected by path.
 // The result is always non-nil unless path is invalid.
-func Get(path string, value interface{}) ([]interface{}, bool) {
+func Get(path string, value interface{}, maxSize int) ([]interface{}, json.RawMessage, bool) {
 	if path == "" {
-		return []interface{}{value}, true
+		val := []interface{}{value}
+		data, err := json.Marshal(val)
+		return val, data, err == nil
 	}
 
+	buf := bytes.NewBuffer(nil)
 	p := pathParser{
-		depth: maxNestingDepth,
-		s:     path,
+		depth:   maxNestingDepth,
+		s:       path,
+		maxSize: maxSize,
+		buf:     buf,
+		enc:     json.NewEncoder(buf),
 	}
 
 	typ, _ := p.nextToken()
 	if typ != pathRoot {
-		return nil, false
+		return nil, nil, false
 	}
 
-	objs := []interface{}{value}
+	var ns []node
 	for p.i < len(p.s) {
 		var ok bool
+		var n node
 
 		switch typ, _ := p.nextToken(); typ {
 		case pathDot:
-			objs, ok = p.processDot(objs)
+			n, ok = p.processDot()
 		case pathLeftBracket:
-			objs, ok = p.processLeftBracket(objs)
+			n, ok = p.processLeftBracket()
 		}
 
 		if !ok {
-			return nil, false
+			return nil, nil, false
 		}
+		ns = append(ns, n)
+	}
+
+	objs, ok := p.apply(ns, value)
+	if !ok {
+		return nil, nil, false
 	}
 
 	if objs == nil {
 		objs = []interface{}{}
 	}
-	return objs, true
-}
-
-func (p *pathParser) nextToken() (pathTokenType, string) {
-	var (
-		typ     pathTokenType
-		value   string
-		ok      = true
-		numRead = 1
-	)
-
-	if p.i >= len(p.s) {
-		return pathInvalid, ""
-	}
-
-	switch c := p.s[p.i]; c {
-	case '$':
-		typ = pathRoot
-	case '.':
-		typ = pathDot
-	case '[':
-		typ = pathLeftBracket
-	case ']':
-		typ = pathRightBracket
-	case '*':
-		typ = pathAsterisk
-	case ',':
-		typ = pathComma
-	case ':':
-		typ = pathColon
-	case '\'':
-		typ = pathString
-		value, numRead, ok = p.parseString()
-	default:
-		switch {
-		case c == '_' || ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z'):
-			typ = pathIdentifier
-			value, numRead, ok = p.parseIdent()
-		case c == '-' || ('0' <= c && c <= '9'):
-			typ = pathNumber
-			value, numRead, ok = p.parseNumber()
-		default:
-			return pathInvalid, ""
-		}
-	}
-
-	if !ok {
-		return pathInvalid, ""
-	}
-
-	p.i += numRead
-	return typ, value
-}
-
-// parseString parses JSON string surrounded by single quotes.
-// It returns number of characters were consumed and true on success.
-func (p *pathParser) parseString() (string, int, bool) {
-	var end int
-	for end = p.i + 1; end < len(p.s); end++ {
-		if p.s[end] == '\'' {
-			return p.s[p.i : end+1], end + 1 - p.i, true
-		}
-	}
-
-	return "", 0, false
-}
-
-// parseIdent parses alphanumeric identifier.
-// It returns number of characters were consumed and true on success.
-func (p *pathParser) parseIdent() (string, int, bool) {
-	var end int
-	for end = p.i + 1; end < len(p.s); end++ {
-		c := p.s[end]
-		if c != '_' && !('a' <= c && c <= 'z') &&
-			!('A' <= c && c <= 'Z') && !('0' <= c && c <= '9') {
-			break
-		}
-	}
-
-	return p.s[p.i:end], end - p.i, true
-}
-
-// parseNumber parses integer number.
-// Only string representation is returned, size-checking is done on the first use.
-// It also returns number of characters were consumed and true on success.
-func (p *pathParser) parseNumber() (string, int, bool) {
-	var end int
-	for end = p.i + 1; end < len(p.s); end++ {
-		c := p.s[end]
-		if c < '0' || '9' < c {
-			break
-		}
-	}
-
-	return p.s[p.i:end], end - p.i, true
+	return objs, p.buf.Bytes(), true
 }
 
 // processDot handles `.` operator.
 // It either descends 1 level down or performs recursive descent.
-func (p *pathParser) processDot(objs []interface{}) ([]interface{}, bool) {
+func (p *pathParser) processDot() (node, bool) {
 	typ, value := p.nextToken()
 	switch typ {
 	case pathAsterisk:
-		return p.descend(objs)
+		return node{nodeAny, nil}, true
 	case pathDot:
-		return p.descendRecursive(objs)
+		return p.processDotRecursive()
 	case pathIdentifier:
-		return p.descendByIdent(objs, value)
+		return node{nodeIndex, value}, true
 	default:
-		return nil, false
+		return node{}, false
 	}
 }
 
-// descend descends 1 level down.
-// It flattens arrays and returns map values for maps.
-func (p *pathParser) descend(objs []interface{}) ([]interface{}, bool) {
-	if p.depth <= 0 {
-		return nil, false
-	}
-	p.depth--
-
-	var values []interface{}
-	for i := range objs {
-		switch obj := objs[i].(type) {
-		case []interface{}:
-			values = append(values, obj...)
-		case json.OrderedObject:
-			for i := range obj {
-				values = append(values, obj[i].Value)
-			}
-		}
-	}
-
-	return values, true
-}
-
-// descendRecursive performs recursive descent.
-func (p *pathParser) descendRecursive(objs []interface{}) ([]interface{}, bool) {
+// processDotRecursive performs recursive descent.
+func (p *pathParser) processDotRecursive() (node, bool) {
 	typ, val := p.nextToken()
 	if typ != pathIdentifier {
-		return nil, false
+		return node{}, false
 	}
-
-	var values []interface{}
-
-	for len(objs) > 0 {
-		newObjs, _ := p.descendByIdentAux(objs, false, val)
-		values = append(values, newObjs...)
-		objs, _ = p.descend(objs)
-	}
-
-	return values, true
-}
-
-// descendByIdent performs map's field access by name.
-func (p *pathParser) descendByIdent(objs []interface{}, names ...string) ([]interface{}, bool) {
-	return p.descendByIdentAux(objs, true, names...)
-}
-
-func (p *pathParser) descendByIdentAux(objs []interface{}, checkDepth bool, names ...string) ([]interface{}, bool) {
-	if checkDepth {
-		if p.depth <= 0 {
-			return nil, false
-		}
-		p.depth--
-	}
-
-	var values []interface{}
-	for i := range objs {
-		obj, ok := objs[i].(json.OrderedObject)
-		if !ok {
-			continue
-		}
-
-		for j := range names {
-			for k := range obj {
-				if obj[k].Key == names[j] {
-					values = append(values, obj[k].Value)
-					break
-				}
-			}
-		}
-	}
-	return values, true
-}
-
-// descendByIndex performs array access by index.
-func (p *pathParser) descendByIndex(objs []interface{}, indices ...int) ([]interface{}, bool) {
-	if p.depth <= 0 {
-		return nil, false
-	}
-	p.depth--
-
-	var values []interface{}
-	for i := range objs {
-		obj, ok := objs[i].([]interface{})
-		if !ok {
-			continue
-		}
-
-		for _, j := range indices {
-			if j < 0 {
-				j += len(obj)
-			}
-			if 0 <= j && j < len(obj) {
-				values = append(values, obj[j])
-			}
-		}
-	}
-
-	return values, true
+	return node{nodeIndexRecursive, val}, true
 }
 
 // processLeftBracket processes index expressions which can be either
 // array/map access, array sub-slice or union of indices.
-func (p *pathParser) processLeftBracket(objs []interface{}) ([]interface{}, bool) {
+func (p *pathParser) processLeftBracket() (node, bool) {
 	typ, value := p.nextToken()
 	switch typ {
 	case pathAsterisk:
 		typ, _ := p.nextToken()
 		if typ != pathRightBracket {
-			return nil, false
+			return node{}, false
 		}
-
-		return p.descend(objs)
+		return node{nodeAny, nil}, true
 	case pathColon:
-		return p.processSlice(objs, 0)
+		return p.processSlice(0)
 	case pathNumber:
 		subTyp, _ := p.nextToken()
 		switch subTyp {
 		case pathColon:
 			index, err := strconv.ParseInt(value, 10, 32)
 			if err != nil {
-				return nil, false
+				return node{}, false
 			}
 
-			return p.processSlice(objs, int(index))
+			return p.processSlice(int(index))
 		case pathComma:
-			return p.processUnion(objs, pathNumber, value)
+			return p.processUnion(pathNumber, value)
 		case pathRightBracket:
 			index, err := strconv.ParseInt(value, 10, 32)
 			if err != nil {
-				return nil, false
+				return node{}, false
 			}
-
-			return p.descendByIndex(objs, int(index))
+			return node{nodeIndex, int(index)}, true
 		default:
-			return nil, false
+			return node{}, false
 		}
 	case pathString:
 		subTyp, _ := p.nextToken()
 		switch subTyp {
 		case pathComma:
-			return p.processUnion(objs, pathString, value)
+			return p.processUnion(pathString, value)
 		case pathRightBracket:
 			s := strings.Trim(value, "'")
 			err := json.Unmarshal([]byte(`"`+s+`"`), &s)
 			if err != nil {
-				return nil, false
+				return node{}, false
 			}
-			return p.descendByIdent(objs, s)
+			return node{nodeIndex, s}, true
 		default:
-			return nil, false
+			return node{}, false
 		}
 	default:
-		return nil, false
+		return node{}, false
 	}
 }
 
 // processUnion processes union of multiple indices.
 // firstTyp is assumed to be either pathNumber or pathString.
-func (p *pathParser) processUnion(objs []interface{}, firstTyp pathTokenType, firstVal string) ([]interface{}, bool) {
+func (p *pathParser) processUnion(firstTyp pathTokenType, firstVal string) (node, bool) {
 	items := []string{firstVal}
 	for {
 		typ, val := p.nextToken()
 		if typ != firstTyp {
-			return nil, false
+			return node{}, false
 		}
 
 		items = append(items, val)
@@ -355,7 +200,7 @@ func (p *pathParser) processUnion(objs []interface{}, firstTyp pathTokenType, fi
 		if typ == pathRightBracket {
 			break
 		} else if typ != pathComma {
-			return nil, false
+			return node{}, false
 		}
 	}
 
@@ -365,81 +210,43 @@ func (p *pathParser) processUnion(objs []interface{}, firstTyp pathTokenType, fi
 		for i := range items {
 			index, err := strconv.ParseInt(items[i], 10, 32)
 			if err != nil {
-				return nil, false
+				return node{}, false
 			}
 			values[i] = int(index)
 		}
-		return p.descendByIndex(objs, values...)
+		return node{nodeUnion, values}, true
 	case pathString:
 		for i := range items {
 			s := strings.Trim(items[i], "'")
 			err := json.Unmarshal([]byte(`"`+s+`"`), &items[i])
 			if err != nil {
-				return nil, false
+				return node{}, false
 			}
 		}
-		return p.descendByIdent(objs, items...)
+		return node{nodeUnion, items}, true
 	default:
 		panic("token in union must be either number or string")
 	}
 }
 
 // processSlice processes slice with the specified start index.
-func (p *pathParser) processSlice(objs []interface{}, start int) ([]interface{}, bool) {
+func (p *pathParser) processSlice(start int) (node, bool) {
 	typ, val := p.nextToken()
 	switch typ {
 	case pathNumber:
 		typ, _ := p.nextToken()
 		if typ != pathRightBracket {
-			return nil, false
+			return node{}, false
 		}
 
 		index, err := strconv.ParseInt(val, 10, 32)
 		if err != nil {
-			return nil, false
+			return node{}, false
 		}
-
-		return p.descendByRange(objs, start, int(index))
+		return node{nodeSlice, [2]int{start, int(index)}}, true
 	case pathRightBracket:
-		return p.descendByRange(objs, start, 0)
+		return node{nodeSlice, [2]int{start, 0}}, true
 	default:
-		return nil, false
+		return node{}, false
 	}
-}
-
-// descendByRange is similar to descend but skips maps and returns sub-slices for arrays.
-func (p *pathParser) descendByRange(objs []interface{}, start, end int) ([]interface{}, bool) {
-	if p.depth <= 0 {
-		return nil, false
-	}
-	p.depth--
-
-	var values []interface{}
-	for i := range objs {
-		arr, ok := objs[i].([]interface{})
-		if !ok {
-			continue
-		}
-
-		subStart := start
-		if subStart < 0 {
-			subStart += len(arr)
-		}
-
-		subEnd := end
-		if subEnd <= 0 {
-			subEnd += len(arr)
-		}
-
-		if subEnd > len(arr) {
-			subEnd = len(arr)
-		}
-
-		if subEnd <= subStart {
-			continue
-		}
-		values = append(values, arr[subStart:subEnd]...)
-	}
-
-	return values, true
 }
