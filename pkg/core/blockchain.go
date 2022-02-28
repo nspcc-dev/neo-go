@@ -448,13 +448,16 @@ func (bc *Blockchain) init() error {
 	// contract state from DAO via high-level bc API.
 	for _, c := range bc.contracts.Contracts {
 		md := c.Metadata()
+		storedCS := bc.GetContractState(md.Hash)
 		history := md.UpdateHistory
 		if len(history) == 0 || history[0] > bHeight {
+			if storedCS != nil {
+				return fmt.Errorf("native contract %s is already stored, but marked as inactive for height %d in config", md.Name, bHeight)
+			}
 			continue
 		}
-		storedCS := bc.GetContractState(md.Hash)
 		if storedCS == nil {
-			return fmt.Errorf("native contract %s is not stored", md.Name)
+			return fmt.Errorf("native contract %s is not stored, but should be active at height %d according to config", md.Name, bHeight)
 		}
 		storedCSBytes, err := stackitem.SerializeConvertible(storedCS)
 		if err != nil {
