@@ -166,6 +166,10 @@ func NewCommands() []cli.Command {
 						Name:  "no-permissions",
 						Usage: "do not check if invoked contracts are allowed in manifest",
 					},
+					cli.StringFlag{
+						Name:  "bindings",
+						Usage: "output file for smart-contract bindings configuration",
+					},
 				},
 			},
 			{
@@ -495,6 +499,7 @@ func contractCompile(ctx *cli.Context) error {
 
 		DebugInfo:    debugFile,
 		ManifestFile: manifestFile,
+		BindingsFile: ctx.String("bindings"),
 
 		NoStandardCheck:    ctx.Bool("no-standards"),
 		NoEventsCheck:      ctx.Bool("no-events"),

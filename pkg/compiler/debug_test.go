@@ -7,6 +7,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/internal/testserdes"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/binding"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/stretchr/testify/assert"
@@ -124,30 +125,45 @@ func _deploy(data interface{}, isUpdate bool) { x := 1; _ = x }
 				},
 			},
 			"MethodInt": {{
-				Name:   "a",
-				Type:   "ByteString",
+				Name: "a",
+				Type: "ByteString",
+				RealType: binding.Override{
+					TypeName: "string",
+				},
 				TypeSC: smartcontract.StringType,
 			}},
 			"MethodConcat": {
 				{
-					Name:   "a",
-					Type:   "ByteString",
+					Name: "a",
+					Type: "ByteString",
+					RealType: binding.Override{
+						TypeName: "string",
+					},
 					TypeSC: smartcontract.StringType,
 				},
 				{
-					Name:   "b",
-					Type:   "ByteString",
+					Name: "b",
+					Type: "ByteString",
+					RealType: binding.Override{
+						TypeName: "string",
+					},
 					TypeSC: smartcontract.StringType,
 				},
 				{
-					Name:   "c",
-					Type:   "ByteString",
+					Name: "c",
+					Type: "ByteString",
+					RealType: binding.Override{
+						TypeName: "string",
+					},
 					TypeSC: smartcontract.StringType,
 				},
 			},
 			"Main": {{
-				Name:   "op",
-				Type:   "ByteString",
+				Name: "op",
+				Type: "ByteString",
+				RealType: binding.Override{
+					TypeName: "string",
+				},
 				TypeSC: smartcontract.StringType,
 			}},
 		}
