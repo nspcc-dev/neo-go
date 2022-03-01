@@ -39,7 +39,7 @@ type NotaryCache struct {
 }
 
 const (
-	notaryContractID = reservedContractID - 1
+	notaryContractID = -10
 	// prefixDeposit is a prefix for storing Notary deposits.
 	prefixDeposit                 = 1
 	defaultDepositDeltaTill       = 5760
