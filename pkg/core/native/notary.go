@@ -43,8 +43,9 @@ const (
 	// prefixDeposit is a prefix for storing Notary deposits.
 	prefixDeposit                 = 1
 	defaultDepositDeltaTill       = 5760
-	defaultMaxNotValidBeforeDelta = 140       // 20 rounds for 7 validators, a little more than half an hour
-	defaultNotaryServiceFeePerKey = 1000_0000 // 0.1 GAS
+	defaultMaxNotValidBeforeDelta = 140         // 20 rounds for 7 validators, a little more than half an hour
+	defaultNotaryServiceFeePerKey = 1000_0000   // 0.1 GAS
+	maxNotaryServiceFeePerKey     = 1_0000_0000 // 1 GAS
 )
 
 var (
@@ -442,8 +443,8 @@ func (n *Notary) GetNotaryServiceFeePerKey(dao *dao.Simple) int64 {
 // setNotaryServiceFeePerKey is a Notary contract method and sets a reward per notary request key for notary nodes.
 func (n *Notary) setNotaryServiceFeePerKey(ic *interop.Context, args []stackitem.Item) stackitem.Item {
 	value := toInt64(args[0])
-	if value < 0 {
-		panic("NotaryServiceFeePerKey can't be negative")
+	if value < 0 || value > maxNotaryServiceFeePerKey {
+		panic("NotaryServiceFeePerKey value is out of range")
 	}
 	if !n.NEO.checkCommittee(ic) {
 		panic("invalid committee signature")
