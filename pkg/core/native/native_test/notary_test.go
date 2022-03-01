@@ -32,6 +32,11 @@ func TestNotary_MaxNotValidBeforeDelta(t *testing.T) {
 	testGetSet(t, c, "MaxNotValidBeforeDelta", 140, int64(c.Chain.GetConfig().ValidatorsCount), int64(c.Chain.GetConfig().MaxValidUntilBlockIncrement/2))
 }
 
+func TestNotary_NotaryServiceFeePerKey(t *testing.T) {
+	c := newNotaryClient(t)
+	testGetSet(t, c, "NotaryServiceFeePerKey", 1000_0000, 0, 0)
+}
+
 func TestNotary_Pipeline(t *testing.T) {
 	notaryCommitteeInvoker := newNotaryClient(t)
 	e := notaryCommitteeInvoker.Executor
@@ -39,11 +44,12 @@ func TestNotary_Pipeline(t *testing.T) {
 	gasCommitteeInvoker := e.CommitteeInvoker(e.NativeHash(t, nativenames.Gas))
 
 	notaryHash := notaryCommitteeInvoker.NativeHash(t, nativenames.Notary)
+	feePerKey := e.Chain.GetNotaryServiceFeePerKey()
 	multisigHash := notaryCommitteeInvoker.Validator.ScriptHash() // matches committee's one for single chain
 	depositLock := 100
 
-	checkBalanceOf := func(t *testing.T, acc util.Uint160, expected int) { // we don't have big numbers in this test, thus may use int
-		notaryCommitteeInvoker.CheckGASBalance(t, acc, big.NewInt(int64(expected)))
+	checkBalanceOf := func(t *testing.T, acc util.Uint160, expected int64) { // we don't have big numbers in this test, thus may use int
+		notaryCommitteeInvoker.CheckGASBalance(t, acc, big.NewInt(expected))
 	}
 
 	// check Notary contract has no GAS on the account
@@ -62,47 +68,47 @@ func TestNotary_Pipeline(t *testing.T) {
 	neoCommitteeInvoker.InvokeFail(t, "only GAS can be accepted for deposit", "transfer", multisigHash, notaryHash, int64(1), []interface{}{nil, int64(depositLock)})
 
 	// `onPayment`: insufficient first deposit
-	gasCommitteeInvoker.InvokeFail(t, "first deposit can not be less then", "transfer", multisigHash, notaryHash, int64(2*transaction.NotaryServiceFeePerKey-1), []interface{}{nil, int64(depositLock)})
+	gasCommitteeInvoker.InvokeFail(t, "first deposit can not be less then", "transfer", multisigHash, notaryHash, int64(2*feePerKey-1), []interface{}{nil, int64(depositLock)})
 
 	// `onPayment`: invalid `data` (missing `till` parameter)
-	gasCommitteeInvoker.InvokeFail(t, "`data` parameter should be an array of 2 elements", "transfer", multisigHash, notaryHash, 2*transaction.NotaryServiceFeePerKey, []interface{}{nil})
+	gasCommitteeInvoker.InvokeFail(t, "`data` parameter should be an array of 2 elements", "transfer", multisigHash, notaryHash, 2*feePerKey, []interface{}{nil})
 
 	// `onPayment`: invalid `data` (outdated `till` parameter)
-	gasCommitteeInvoker.InvokeFail(t, "`till` shouldn't be less then the chain's height", "transfer", multisigHash, notaryHash, 2*transaction.NotaryServiceFeePerKey, []interface{}{nil, int64(0)})
+	gasCommitteeInvoker.InvokeFail(t, "`till` shouldn't be less then the chain's height", "transfer", multisigHash, notaryHash, 2*feePerKey, []interface{}{nil, int64(0)})
 
 	// `onPayment`: good
-	gasCommitteeInvoker.Invoke(t, true, "transfer", multisigHash, notaryHash, 2*transaction.NotaryServiceFeePerKey, []interface{}{nil, int64(depositLock)})
-	checkBalanceOf(t, notaryHash, 2*transaction.NotaryServiceFeePerKey)
+	gasCommitteeInvoker.Invoke(t, true, "transfer", multisigHash, notaryHash, 2*feePerKey, []interface{}{nil, int64(depositLock)})
+	checkBalanceOf(t, notaryHash, 2*feePerKey)
 
 	// `expirationOf`: check `till` was set
 	notaryCommitteeInvoker.Invoke(t, depositLock, "expirationOf", multisigHash)
 
 	// `balanceOf`: check deposited amount for the multisig account
-	notaryCommitteeInvoker.Invoke(t, 2*transaction.NotaryServiceFeePerKey, "balanceOf", multisigHash)
+	notaryCommitteeInvoker.Invoke(t, 2*feePerKey, "balanceOf", multisigHash)
 
 	// `onPayment`: good second deposit and explicit `to` paramenter
-	gasCommitteeInvoker.Invoke(t, true, "transfer", multisigHash, notaryHash, transaction.NotaryServiceFeePerKey, []interface{}{multisigHash, int64(depositLock + 1)})
-	checkBalanceOf(t, notaryHash, 3*transaction.NotaryServiceFeePerKey)
+	gasCommitteeInvoker.Invoke(t, true, "transfer", multisigHash, notaryHash, feePerKey, []interface{}{multisigHash, int64(depositLock + 1)})
+	checkBalanceOf(t, notaryHash, 3*feePerKey)
 
 	// `balanceOf`: check deposited amount for the multisig account
-	notaryCommitteeInvoker.Invoke(t, 3*transaction.NotaryServiceFeePerKey, "balanceOf", multisigHash)
+	notaryCommitteeInvoker.Invoke(t, 3*feePerKey, "balanceOf", multisigHash)
 
 	// `expirationOf`: check `till` is updated.
 	notaryCommitteeInvoker.Invoke(t, depositLock+1, "expirationOf", multisigHash)
 
 	// `onPayment`: empty payment, should fail because `till` less then the previous one
 	gasCommitteeInvoker.InvokeFail(t, "`till` shouldn't be less then the previous value", "transfer", multisigHash, notaryHash, int64(0), []interface{}{multisigHash, int64(depositLock)})
-	checkBalanceOf(t, notaryHash, 3*transaction.NotaryServiceFeePerKey)
+	checkBalanceOf(t, notaryHash, 3*feePerKey)
 	notaryCommitteeInvoker.Invoke(t, depositLock+1, "expirationOf", multisigHash)
 
 	// `onPayment`: empty payment, should fail because `till` less then the chain height
 	gasCommitteeInvoker.InvokeFail(t, "`till` shouldn't be less then the chain's height", "transfer", multisigHash, notaryHash, int64(0), []interface{}{multisigHash, int64(1)})
-	checkBalanceOf(t, notaryHash, 3*transaction.NotaryServiceFeePerKey)
+	checkBalanceOf(t, notaryHash, 3*feePerKey)
 	notaryCommitteeInvoker.Invoke(t, depositLock+1, "expirationOf", multisigHash)
 
 	// `onPayment`: empty payment, should successfully update `till`
 	gasCommitteeInvoker.Invoke(t, true, "transfer", multisigHash, notaryHash, int64(0), []interface{}{multisigHash, int64(depositLock + 2)})
-	checkBalanceOf(t, notaryHash, 3*transaction.NotaryServiceFeePerKey)
+	checkBalanceOf(t, notaryHash, 3*feePerKey)
 	notaryCommitteeInvoker.Invoke(t, depositLock+2, "expirationOf", multisigHash)
 
 	// `lockDepositUntil`: bad witness
@@ -127,11 +133,11 @@ func TestNotary_Pipeline(t *testing.T) {
 
 	// `withdraw`: bad witness
 	notaryAccInvoker.Invoke(t, false, "withdraw", multisigHash, accHash)
-	notaryCommitteeInvoker.Invoke(t, 3*transaction.NotaryServiceFeePerKey, "balanceOf", multisigHash)
+	notaryCommitteeInvoker.Invoke(t, 3*feePerKey, "balanceOf", multisigHash)
 
 	// `withdraw`: locked deposit
 	notaryCommitteeInvoker.Invoke(t, false, "withdraw", multisigHash, multisigHash)
-	notaryCommitteeInvoker.Invoke(t, 3*transaction.NotaryServiceFeePerKey, "balanceOf", multisigHash)
+	notaryCommitteeInvoker.Invoke(t, 3*feePerKey, "balanceOf", multisigHash)
 
 	// `withdraw`: unlock deposit and transfer GAS back to owner
 	e.GenerateNewBlocks(t, depositLock)
@@ -143,13 +149,13 @@ func TestNotary_Pipeline(t *testing.T) {
 	notaryCommitteeInvoker.Invoke(t, false, "withdraw", multisigHash, accHash)
 
 	// `onPayment`: good first deposit to other account, should set default `till` even if other `till` value is provided
-	gasCommitteeInvoker.Invoke(t, true, "transfer", multisigHash, notaryHash, 2*transaction.NotaryServiceFeePerKey, []interface{}{accHash, int64(math.MaxUint32 - 1)})
-	checkBalanceOf(t, notaryHash, 2*transaction.NotaryServiceFeePerKey)
+	gasCommitteeInvoker.Invoke(t, true, "transfer", multisigHash, notaryHash, 2*feePerKey, []interface{}{accHash, int64(math.MaxUint32 - 1)})
+	checkBalanceOf(t, notaryHash, 2*feePerKey)
 	notaryCommitteeInvoker.Invoke(t, 5760+e.Chain.BlockHeight()-1, "expirationOf", accHash)
 
 	// `onPayment`: good second deposit to other account, shouldn't update `till` even if other `till` value is provided
-	gasCommitteeInvoker.Invoke(t, true, "transfer", multisigHash, notaryHash, transaction.NotaryServiceFeePerKey, []interface{}{accHash, int64(math.MaxUint32 - 1)})
-	checkBalanceOf(t, notaryHash, 3*transaction.NotaryServiceFeePerKey)
+	gasCommitteeInvoker.Invoke(t, true, "transfer", multisigHash, notaryHash, feePerKey, []interface{}{accHash, int64(math.MaxUint32 - 1)})
+	checkBalanceOf(t, notaryHash, 3*feePerKey)
 	notaryCommitteeInvoker.Invoke(t, 5760+e.Chain.BlockHeight()-3, "expirationOf", accHash)
 }
 
@@ -161,6 +167,7 @@ func TestNotary_NotaryNodesReward(t *testing.T) {
 		designationCommitteeInvoker := e.CommitteeInvoker(e.NativeHash(t, nativenames.Designation))
 
 		notaryHash := notaryCommitteeInvoker.NativeHash(t, nativenames.Notary)
+		feePerKey := e.Chain.GetNotaryServiceFeePerKey()
 		multisigHash := notaryCommitteeInvoker.Validator.ScriptHash() // matches committee's one for single chain
 
 		var err error
@@ -180,7 +187,7 @@ func TestNotary_NotaryNodesReward(t *testing.T) {
 		}
 
 		// deposit GAS for `signer` with lock until the next block
-		depositAmount := 100_0000 + (2+int64(nKeys))*transaction.NotaryServiceFeePerKey // sysfee + netfee of the next transaction
+		depositAmount := 100_0000 + (2+int64(nKeys))*feePerKey // sysfee + netfee of the next transaction
 		if !spendFullDeposit {
 			depositAmount += 1_0000
 		}
@@ -191,7 +198,7 @@ func TestNotary_NotaryNodesReward(t *testing.T) {
 		tx.Nonce = neotest.Nonce()
 		tx.ValidUntilBlock = e.Chain.BlockHeight() + 1
 		tx.Attributes = append(tx.Attributes, transaction.Attribute{Type: transaction.NotaryAssistedT, Value: &transaction.NotaryAssisted{NKeys: uint8(nKeys)}})
-		tx.NetworkFee = (2 + int64(nKeys)) * transaction.NotaryServiceFeePerKey
+		tx.NetworkFee = (2 + int64(nKeys)) * feePerKey
 		tx.Signers = []transaction.Signer{
 			{
 				Account: notaryHash,
@@ -215,7 +222,7 @@ func TestNotary_NotaryNodesReward(t *testing.T) {
 
 		e.CheckGASBalance(t, notaryHash, big.NewInt(int64(depositAmount-tx.SystemFee-tx.NetworkFee)))
 		for _, notaryNode := range notaryNodes {
-			e.CheckGASBalance(t, notaryNode.GetScriptHash(), big.NewInt(int64(transaction.NotaryServiceFeePerKey*(nKeys+1)/nNotaryNodes)))
+			e.CheckGASBalance(t, notaryNode.GetScriptHash(), big.NewInt(feePerKey*int64((nKeys+1))/int64(nNotaryNodes)))
 		}
 	}
 

@@ -1499,6 +1499,12 @@ func (bc *Blockchain) GetNotaryBalance(acc util.Uint160) *big.Int {
 	return bc.contracts.Notary.BalanceOf(bc.dao, acc)
 }
 
+// GetNotaryServiceFeePerKey returns NotaryServiceFeePerKey which is a reward per
+// notary request key for designated notary nodes.
+func (bc *Blockchain) GetNotaryServiceFeePerKey() int64 {
+	return bc.contracts.Notary.GetNotaryServiceFeePerKey(bc.dao)
+}
+
 // GetNotaryContractScriptHash returns Notary native contract hash.
 func (bc *Blockchain) GetNotaryContractScriptHash() util.Uint160 {
 	if bc.P2PSigExtensionsEnabled() {
@@ -1913,7 +1919,7 @@ func (bc *Blockchain) verifyAndPoolTx(t *transaction.Transaction, pool *mempool.
 		attrs := t.GetAttributes(transaction.NotaryAssistedT)
 		if len(attrs) != 0 {
 			na := attrs[0].Value.(*transaction.NotaryAssisted)
-			needNetworkFee += (int64(na.NKeys) + 1) * transaction.NotaryServiceFeePerKey
+			needNetworkFee += (int64(na.NKeys) + 1) * bc.contracts.Notary.GetNotaryServiceFeePerKey(bc.dao)
 		}
 	}
 	netFee := t.NetworkFee - needNetworkFee
@@ -2257,7 +2263,7 @@ func (bc *Blockchain) verifyTxWitnesses(t *transaction.Transaction, block *block
 		attrs := t.GetAttributes(transaction.NotaryAssistedT)
 		if len(attrs) != 0 {
 			na := attrs[0].Value.(*transaction.NotaryAssisted)
-			gasLimit -= (int64(na.NKeys) + 1) * transaction.NotaryServiceFeePerKey
+			gasLimit -= (int64(na.NKeys) + 1) * bc.contracts.Notary.GetNotaryServiceFeePerKey(bc.dao)
 		}
 	}
 	for i := range t.Signers {

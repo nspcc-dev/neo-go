@@ -109,6 +109,7 @@ func NewContracts(cfg config.ProtocolConfiguration) *Contracts {
 		notary.NEO = neo
 		notary.Desig = desig
 		cs.Notary = notary
+		gas.Notary = notary
 		cs.Contracts = append(cs.Contracts, notary)
 	}
 

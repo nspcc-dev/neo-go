@@ -141,3 +141,13 @@ func (c *Client) NNSGetAllRecords(nnsHash util.Uint160, name string) ([]nns.Reco
 	}
 	return rss, nil
 }
+
+// GetNotaryServiceFeePerKey returns a reward per notary request key for designated
+// notary nodes. It doesn't cache the result.
+func (c *Client) GetNotaryServiceFeePerKey() (int64, error) {
+	notaryHash, err := c.GetNativeContractHash(nativenames.Notary)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get native Notary hash: %w", err)
+	}
+	return c.invokeNativeGetMethod(notaryHash, "getNotaryServiceFeePerKey")
+}

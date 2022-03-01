@@ -39,6 +39,7 @@ type Notary struct {
 	// blockchain DAO persisting. If true, we can safely use cached values.
 	isValid                bool
 	maxNotValidBeforeDelta uint32
+	notaryServiceFeePerKey int64
 }
 
 const (
@@ -46,10 +47,14 @@ const (
 	// prefixDeposit is a prefix for storing Notary deposits.
 	prefixDeposit                 = 1
 	defaultDepositDeltaTill       = 5760
-	defaultMaxNotValidBeforeDelta = 140 // 20 rounds for 7 validators, a little more than half an hour
+	defaultMaxNotValidBeforeDelta = 140       // 20 rounds for 7 validators, a little more than half an hour
+	defaultNotaryServiceFeePerKey = 1000_0000 // 0.1 GAS
 )
 
-var maxNotValidBeforeDeltaKey = []byte{10}
+var (
+	maxNotValidBeforeDeltaKey = []byte{10}
+	notaryServiceFeeKey       = []byte{5}
+)
 
 // newNotary returns Notary native contract.
 func newNotary() *Notary {
@@ -99,6 +104,15 @@ func newNotary() *Notary {
 	md = newMethodAndPrice(n.setMaxNotValidBeforeDelta, 1<<15, callflag.States)
 	n.AddMethod(md, desc)
 
+	desc = newDescriptor("getNotaryServiceFeePerKey", smartcontract.IntegerType)
+	md = newMethodAndPrice(n.getNotaryServiceFeePerKey, 1<<15, callflag.ReadStates)
+	n.AddMethod(md, desc)
+
+	desc = newDescriptor("setNotaryServiceFeePerKey", smartcontract.VoidType,
+		manifest.NewParameter("value", smartcontract.IntegerType))
+	md = newMethodAndPrice(n.setNotaryServiceFeePerKey, 1<<15, callflag.States)
+	n.AddMethod(md, desc)
+
 	return n
 }
 
@@ -110,8 +124,10 @@ func (n *Notary) Metadata() *interop.ContractMD {
 // Initialize initializes Notary native contract and implements Contract interface.
 func (n *Notary) Initialize(ic *interop.Context) error {
 	setIntWithKey(n.ID, ic.DAO, maxNotValidBeforeDeltaKey, defaultMaxNotValidBeforeDelta)
+	setIntWithKey(n.ID, ic.DAO, notaryServiceFeeKey, defaultNotaryServiceFeePerKey)
 	n.isValid = true
 	n.maxNotValidBeforeDelta = defaultMaxNotValidBeforeDelta
+	n.notaryServiceFeePerKey = defaultNotaryServiceFeePerKey
 	return nil
 }
 
@@ -150,7 +166,8 @@ func (n *Notary) OnPersist(ic *interop.Context) error {
 	if nFees == 0 {
 		return nil
 	}
-	singleReward := calculateNotaryReward(nFees, len(notaries))
+	feePerKey := n.GetNotaryServiceFeePerKey(ic.DAO)
+	singleReward := calculateNotaryReward(nFees, feePerKey, len(notaries))
 	for _, notary := range notaries {
 		n.GAS.mint(ic, notary.GetScriptHash(), singleReward, false)
 	}
@@ -166,6 +183,7 @@ func (n *Notary) PostPersist(ic *interop.Context) error {
 	}
 
 	n.maxNotValidBeforeDelta = uint32(getIntWithKey(n.ID, ic.DAO, maxNotValidBeforeDeltaKey))
+	n.notaryServiceFeePerKey = getIntWithKey(n.ID, ic.DAO, notaryServiceFeeKey)
 	n.isValid = true
 	return nil
 }
@@ -198,9 +216,10 @@ func (n *Notary) onPayment(ic *interop.Context, args []stackitem.Item) stackitem
 	if deposit != nil && till < deposit.Till {
 		panic(fmt.Errorf("`till` shouldn't be less then the previous value %d", deposit.Till))
 	}
+	feePerKey := n.GetNotaryServiceFeePerKey(ic.DAO)
 	if deposit == nil {
-		if amount.Cmp(big.NewInt(2*transaction.NotaryServiceFeePerKey)) < 0 {
-			panic(fmt.Errorf("first deposit can not be less then %d, got %d", 2*transaction.NotaryServiceFeePerKey, amount.Int64()))
+		if amount.Cmp(big.NewInt(2*feePerKey)) < 0 {
+			panic(fmt.Errorf("first deposit can not be less then %d, got %d", 2*feePerKey, amount.Int64()))
 		}
 		deposit = &state.Deposit{
 			Amount: new(big.Int),
@@ -398,6 +417,37 @@ func (n *Notary) setMaxNotValidBeforeDelta(ic *interop.Context, args []stackitem
 	return stackitem.Null{}
 }
 
+// getNotaryServiceFeePerKey is Notary contract method and returns a reward per notary request key for notary nodes.
+func (n *Notary) getNotaryServiceFeePerKey(ic *interop.Context, _ []stackitem.Item) stackitem.Item {
+	return stackitem.NewBigInteger(big.NewInt(int64(n.GetNotaryServiceFeePerKey(ic.DAO))))
+}
+
+// GetNotaryServiceFeePerKey is an internal representation of Notary getNotaryServiceFeePerKey method.
+func (n *Notary) GetNotaryServiceFeePerKey(dao *dao.Simple) int64 {
+	n.lock.RLock()
+	defer n.lock.RUnlock()
+	if n.isValid {
+		return n.notaryServiceFeePerKey
+	}
+	return getIntWithKey(n.ID, dao, notaryServiceFeeKey)
+}
+
+// setNotaryServiceFeePerKey is Notary contract method and sets a reward per notary request key for notary nodes.
+func (n *Notary) setNotaryServiceFeePerKey(ic *interop.Context, args []stackitem.Item) stackitem.Item {
+	value := toInt64(args[0])
+	if value < 0 {
+		panic("NotaryServiceFeePerKey can't be negative")
+	}
+	if !n.NEO.checkCommittee(ic) {
+		panic("invalid committee signature")
+	}
+	n.lock.Lock()
+	defer n.lock.Unlock()
+	setIntWithKey(n.ID, ic.DAO, notaryServiceFeeKey, int64(value))
+	n.isValid = false
+	return stackitem.Null{}
+}
+
 // GetDepositFor returns state.Deposit for the account specified. It returns nil in case if
 // deposit is not found in storage and panics in case of any other error.
 func (n *Notary) GetDepositFor(dao *dao.Simple, acc util.Uint160) *state.Deposit {
@@ -426,6 +476,6 @@ func (n *Notary) removeDepositFor(dao *dao.Simple, acc util.Uint160) {
 }
 
 // calculateNotaryReward calculates the reward for a single notary node based on FEE's count and Notary nodes count.
-func calculateNotaryReward(nFees int64, notariesCount int) *big.Int {
-	return big.NewInt(nFees * transaction.NotaryServiceFeePerKey / int64(notariesCount))
+func calculateNotaryReward(nFees int64, feePerKey int64, notariesCount int) *big.Int {
+	return big.NewInt(nFees * feePerKey / int64(notariesCount))
 }

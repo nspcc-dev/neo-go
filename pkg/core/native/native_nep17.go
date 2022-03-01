@@ -342,3 +342,11 @@ func toUint32(s stackitem.Item) uint32 {
 	}
 	return uint32(uint64Value)
 }
+
+func toInt64(s stackitem.Item) int64 {
+	bigInt := toBigInt(s)
+	if !bigInt.IsInt64() {
+		panic("bigint is not an uint64")
+	}
+	return bigInt.Int64()
+}

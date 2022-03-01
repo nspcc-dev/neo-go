@@ -71,6 +71,7 @@ func TestGAS_RewardWithP2PSigExtensionsEnabled(t *testing.T) {
 	e := neotest.NewExecutor(t, bc, validator, committee)
 	gasCommitteeInvoker := e.CommitteeInvoker(e.NativeHash(t, nativenames.Gas))
 	notaryHash := e.NativeHash(t, nativenames.Notary)
+	notaryServiceFeePerKey := e.Chain.GetNotaryServiceFeePerKey()
 
 	// transfer funds to committee
 	e.ValidatorInvoker(e.NativeHash(t, nativenames.Gas)).Invoke(t, true, "transfer", e.Validator.ScriptHash(), e.CommitteeHash, 1000_0000_0000, nil)
@@ -90,7 +91,7 @@ func TestGAS_RewardWithP2PSigExtensionsEnabled(t *testing.T) {
 	}
 
 	// deposit GAS for `signer` with lock until the next block
-	depositAmount := 100_0000 + (2+int64(nKeys))*transaction.NotaryServiceFeePerKey // sysfee + netfee of the next transaction
+	depositAmount := 100_0000 + (2+int64(nKeys))*notaryServiceFeePerKey // sysfee + netfee of the next transaction
 	gasCommitteeInvoker.Invoke(t, true, "transfer", e.CommitteeHash, notaryHash, depositAmount, []interface{}{e.CommitteeHash, e.Chain.BlockHeight() + 1})
 
 	// save initial GAS total supply
@@ -106,7 +107,7 @@ func TestGAS_RewardWithP2PSigExtensionsEnabled(t *testing.T) {
 	tx.Nonce = neotest.Nonce()
 	tx.ValidUntilBlock = e.Chain.BlockHeight() + 1
 	tx.Attributes = append(tx.Attributes, transaction.Attribute{Type: transaction.NotaryAssistedT, Value: &transaction.NotaryAssisted{NKeys: uint8(nKeys)}})
-	tx.NetworkFee = (2 + int64(nKeys)) * transaction.NotaryServiceFeePerKey
+	tx.NetworkFee = (2 + int64(nKeys)) * notaryServiceFeePerKey
 	tx.Signers = []transaction.Signer{
 		{
 			Account: notaryHash,
@@ -131,7 +132,7 @@ func TestGAS_RewardWithP2PSigExtensionsEnabled(t *testing.T) {
 	// check balance of notaries
 	e.CheckGASBalance(t, notaryHash, big.NewInt(int64(depositAmount-tx.SystemFee-tx.NetworkFee)))
 	for _, notaryNode := range notaryNodes {
-		e.CheckGASBalance(t, notaryNode.GetScriptHash(), big.NewInt(int64(transaction.NotaryServiceFeePerKey*(nKeys+1)/nNotaries)))
+		e.CheckGASBalance(t, notaryNode.GetScriptHash(), big.NewInt(notaryServiceFeePerKey*(nKeys+1)/nNotaries))
 	}
 	tsUpdated := getGASTS(t)
 	tsExpected := tsInitial + 5000_0000 - tx.SystemFee
