@@ -332,22 +332,22 @@ func (bc *Blockchain) init() error {
 		return bc.storeBlock(genesisBlock, nil)
 	}
 	if ver.Value != version {
-		return fmt.Errorf("storage version mismatch betweeen %s and %s", version, ver.Value)
+		return fmt.Errorf("storage version mismatch (expected=%s, actual=%s)", version, ver.Value)
 	}
 	if ver.StateRootInHeader != bc.config.StateRootInHeader {
 		return fmt.Errorf("StateRootInHeader setting mismatch (config=%t, db=%t)",
-			ver.StateRootInHeader, bc.config.StateRootInHeader)
+			bc.config.StateRootInHeader, ver.StateRootInHeader)
 	}
 	if ver.P2PSigExtensions != bc.config.P2PSigExtensions {
-		return fmt.Errorf("P2PSigExtensions setting mismatch (old=%t, new=%t",
+		return fmt.Errorf("P2PSigExtensions setting mismatch (old=%t, new=%t)",
 			ver.P2PSigExtensions, bc.config.P2PSigExtensions)
 	}
 	if ver.P2PStateExchangeExtensions != bc.config.P2PStateExchangeExtensions {
-		return fmt.Errorf("P2PStateExchangeExtensions setting mismatch (old=%t, new=%t",
+		return fmt.Errorf("P2PStateExchangeExtensions setting mismatch (old=%t, new=%t)",
 			ver.P2PStateExchangeExtensions, bc.config.P2PStateExchangeExtensions)
 	}
 	if ver.KeepOnlyLatestState != bc.config.KeepOnlyLatestState {
-		return fmt.Errorf("KeepOnlyLatestState setting mismatch: old=%v, new=%v",
+		return fmt.Errorf("KeepOnlyLatestState setting mismatch (old=%v, new=%v)",
 			ver.KeepOnlyLatestState, bc.config.KeepOnlyLatestState)
 	}
 	bc.dao.Version = ver
@@ -367,7 +367,7 @@ func (bc *Blockchain) init() error {
 
 	currHeaderHeight, currHeaderHash, err := bc.dao.GetCurrentHeaderHeight()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to retrieve current header info: %w", err)
 	}
 	if bc.storedHeaderCount == 0 && currHeaderHeight == 0 {
 		bc.headerHashes = append(bc.headerHashes, currHeaderHash)
@@ -425,7 +425,7 @@ func (bc *Blockchain) init() error {
 
 	bHeight, err := bc.dao.GetCurrentBlockHeight()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to retrieve current block height: %w", err)
 	}
 	bc.blockHeight = bHeight
 	bc.persistedHeight = bHeight
@@ -448,13 +448,16 @@ func (bc *Blockchain) init() error {
 	// contract state from DAO via high-level bc API.
 	for _, c := range bc.contracts.Contracts {
 		md := c.Metadata()
+		storedCS := bc.GetContractState(md.Hash)
 		history := md.UpdateHistory
 		if len(history) == 0 || history[0] > bHeight {
+			if storedCS != nil {
+				return fmt.Errorf("native contract %s is already stored, but marked as inactive for height %d in config", md.Name, bHeight)
+			}
 			continue
 		}
-		storedCS := bc.GetContractState(md.Hash)
 		if storedCS == nil {
-			return fmt.Errorf("native contract %s is not stored", md.Name)
+			return fmt.Errorf("native contract %s is not stored, but should be active at height %d according to config", md.Name, bHeight)
 		}
 		storedCSBytes, err := stackitem.SerializeConvertible(storedCS)
 		if err != nil {
