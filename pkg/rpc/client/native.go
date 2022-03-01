@@ -16,7 +16,7 @@ import (
 
 // GetOraclePrice invokes `getPrice` method on a native Oracle contract.
 func (c *Client) GetOraclePrice() (int64, error) {
-	oracleHash, err := c.GetNativeContractHash(nativenames.Notary)
+	oracleHash, err := c.GetNativeContractHash(nativenames.Oracle)
 	if err != nil {
 		return 0, fmt.Errorf("failed to get native Oracle hash: %w", err)
 	}
