@@ -19,6 +19,8 @@ import (
 type GAS struct {
 	nep17TokenNative
 	NEO *NEO
+	// Notary is a native Notary contract. It is set only when P2PSigExtensions are on.
+	Notary *Notary
 
 	initialSupply           int64
 	p2pSigExtensionsEnabled bool
@@ -117,7 +119,7 @@ func (g *GAS) OnPersist(ic *interop.Context) error {
 			attrs := tx.GetAttributes(transaction.NotaryAssistedT)
 			if len(attrs) != 0 {
 				na := attrs[0].Value.(*transaction.NotaryAssisted)
-				netFee -= (int64(na.NKeys) + 1) * transaction.NotaryServiceFeePerKey
+				netFee -= (int64(na.NKeys) + 1) * g.Notary.GetNotaryServiceFeePerKey(ic.DAO)
 			}
 		}
 	}

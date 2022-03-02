@@ -6,9 +6,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/io"
 )
 
-// NotaryServiceFeePerKey is a reward per key for notary nodes.
-const NotaryServiceFeePerKey = 1000_0000 // 0.1 GAS
-
 // NotaryAssisted represents attribute for notary service transactions.
 type NotaryAssisted struct {
 	NKeys uint8 `json:"nkeys"`

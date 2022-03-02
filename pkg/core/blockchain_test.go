@@ -318,6 +318,8 @@ func TestVerifyTx(t *testing.T) {
 		require.NoError(t, err)
 	}
 
+	notaryServiceFeePerKey := bc.contracts.Notary.GetNotaryServiceFeePerKey(bc.dao)
+
 	oracleAcc := accs[2]
 	oraclePubs := keys.PublicKeys{oracleAcc.PrivateKey().PublicKey()}
 	require.NoError(t, oracleAcc.ConvertMultisig(1, oraclePubs))
@@ -893,7 +895,7 @@ func TestVerifyTx(t *testing.T) {
 			t.Run("Test verify", func(t *testing.T) {
 				bc.config.P2PSigExtensions = true
 				t.Run("no NotaryAssisted attribute", func(t *testing.T) {
-					tx := getNotaryAssistedTx(1, (1+1)*transaction.NotaryServiceFeePerKey)
+					tx := getNotaryAssistedTx(1, (1+1)*notaryServiceFeePerKey)
 					tx.Attributes = []transaction.Attribute{}
 					tx.Signers = []transaction.Signer{
 						{
@@ -917,7 +919,7 @@ func TestVerifyTx(t *testing.T) {
 					require.Error(t, bc.VerifyTx(tx))
 				})
 				t.Run("no deposit", func(t *testing.T) {
-					tx := getNotaryAssistedTx(1, (1+1)*transaction.NotaryServiceFeePerKey)
+					tx := getNotaryAssistedTx(1, (1+1)*notaryServiceFeePerKey)
 					tx.Signers = []transaction.Signer{
 						{
 							Account: bc.contracts.Notary.Hash,
@@ -940,7 +942,7 @@ func TestVerifyTx(t *testing.T) {
 					require.Error(t, bc.VerifyTx(tx))
 				})
 				t.Run("bad Notary signer scope", func(t *testing.T) {
-					tx := getNotaryAssistedTx(1, (1+1)*transaction.NotaryServiceFeePerKey)
+					tx := getNotaryAssistedTx(1, (1+1)*notaryServiceFeePerKey)
 					tx.Signers = []transaction.Signer{
 						{
 							Account: testchain.CommitteeScriptHash(),
@@ -963,7 +965,7 @@ func TestVerifyTx(t *testing.T) {
 					require.Error(t, bc.VerifyTx(tx))
 				})
 				t.Run("not signed by Notary", func(t *testing.T) {
-					tx := getNotaryAssistedTx(1, (1+1)*transaction.NotaryServiceFeePerKey)
+					tx := getNotaryAssistedTx(1, (1+1)*notaryServiceFeePerKey)
 					tx.Signers = []transaction.Signer{
 						{
 							Account: testchain.CommitteeScriptHash(),
@@ -979,7 +981,7 @@ func TestVerifyTx(t *testing.T) {
 					require.Error(t, bc.VerifyTx(tx))
 				})
 				t.Run("bad Notary node witness", func(t *testing.T) {
-					tx := getNotaryAssistedTx(1, (1+1)*transaction.NotaryServiceFeePerKey)
+					tx := getNotaryAssistedTx(1, (1+1)*notaryServiceFeePerKey)
 					tx.Signers = []transaction.Signer{
 						{
 							Account: testchain.CommitteeScriptHash(),
@@ -1004,7 +1006,7 @@ func TestVerifyTx(t *testing.T) {
 					require.Error(t, bc.VerifyTx(tx))
 				})
 				t.Run("missing payer", func(t *testing.T) {
-					tx := getNotaryAssistedTx(1, (1+1)*transaction.NotaryServiceFeePerKey)
+					tx := getNotaryAssistedTx(1, (1+1)*notaryServiceFeePerKey)
 					tx.Signers = []transaction.Signer{
 						{
 							Account: bc.contracts.Notary.Hash,
@@ -1019,7 +1021,7 @@ func TestVerifyTx(t *testing.T) {
 					require.Error(t, bc.VerifyTx(tx))
 				})
 				t.Run("positive", func(t *testing.T) {
-					tx := getNotaryAssistedTx(1, (1+1)*transaction.NotaryServiceFeePerKey)
+					tx := getNotaryAssistedTx(1, (1+1)*notaryServiceFeePerKey)
 					require.NoError(t, bc.VerifyTx(tx))
 				})
 			})
@@ -1057,7 +1059,7 @@ func TestVerifyTx(t *testing.T) {
 				int64(sizeDelta)*bc.FeePerByte() + // fee for multisig size
 				66*bc.FeePerByte() + // fee for Notary signature size (66 bytes for Invocation script and 0 bytes for Verification script)
 				2*bc.FeePerByte() + // fee for the length of each script in Notary witness (they are nil, so we did not take them into account during `size` calculation)
-				transaction.NotaryServiceFeePerKey + // fee for Notary attribute
+				notaryServiceFeePerKey + // fee for Notary attribute
 				fee.Opcode(bc.GetBaseExecFee(), // Notary verification script
 					opcode.PUSHDATA1, opcode.RET, // invocation script
 					opcode.PUSH0, opcode.SYSCALL, opcode.RET) + // Neo.Native.Call

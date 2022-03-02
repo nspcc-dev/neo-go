@@ -983,3 +983,33 @@ func TestClient_NNS(t *testing.T) {
 		require.Error(t, err)
 	})
 }
+
+func TestClient_GetNotaryServiceFeePerKey(t *testing.T) {
+	chain, rpcSrv, httpSrv := initServerWithInMemoryChain(t)
+	defer chain.Close()
+	defer func() { _ = rpcSrv.Shutdown() }()
+
+	c, err := client.New(context.Background(), httpSrv.URL, client.Options{})
+	require.NoError(t, err)
+	require.NoError(t, c.Init())
+
+	var defaultNotaryServiceFeePerKey int64 = 1000_0000
+	actual, err := c.GetNotaryServiceFeePerKey()
+	require.NoError(t, err)
+	require.Equal(t, defaultNotaryServiceFeePerKey, actual)
+}
+
+func TestClient_GetOraclePrice(t *testing.T) {
+	chain, rpcSrv, httpSrv := initServerWithInMemoryChain(t)
+	defer chain.Close()
+	defer func() { _ = rpcSrv.Shutdown() }()
+
+	c, err := client.New(context.Background(), httpSrv.URL, client.Options{})
+	require.NoError(t, err)
+	require.NoError(t, c.Init())
+
+	var defaultOracleRequestPrice int64 = 5000_0000
+	actual, err := c.GetOraclePrice()
+	require.NoError(t, err)
+	require.Equal(t, defaultOracleRequestPrice, actual)
+}

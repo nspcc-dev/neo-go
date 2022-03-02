@@ -878,7 +878,11 @@ func (c *Client) CalculateNotaryFee(nKeys uint8) (int64, error) {
 	if err != nil {
 		return 0, fmt.Errorf("failed to get FeePerByte: %w", err)
 	}
-	return int64((nKeys+1))*transaction.NotaryServiceFeePerKey + // fee for NotaryAssisted attribute
+	feePerKey, err := c.GetNotaryServiceFeePerKey()
+	if err != nil {
+		return 0, fmt.Errorf("failed to get NotaryServiceFeePerKey: %w", err)
+	}
+	return int64((nKeys+1))*feePerKey + // fee for NotaryAssisted attribute
 			fee.Opcode(baseExecFee, // Notary node witness
 				opcode.PUSHDATA1, opcode.RET, // invocation script
 				opcode.PUSH0, opcode.SYSCALL, opcode.RET) + // System.Contract.CallNative
