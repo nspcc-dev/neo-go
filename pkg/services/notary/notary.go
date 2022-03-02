@@ -106,7 +106,7 @@ type (
 	}
 )
 
-// isMainCompleted denotes whether all signatures for the main transaction was collected.
+// isMainCompleted denotes whether all signatures for the main transaction were collected.
 func (r request) isMainCompleted() bool {
 	if r.witnessInfo == nil {
 		return false
