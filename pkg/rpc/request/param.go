@@ -429,6 +429,7 @@ func (p *Param) GetSignerWithWitness() (SignerWithWitness, error) {
 			Scopes:           aux.Scopes,
 			AllowedContracts: aux.AllowedContracts,
 			AllowedGroups:    aux.AllowedGroups,
+			Rules:            aux.Rules,
 		},
 		Witness: transaction.Witness{
 			InvocationScript:   aux.InvocationScript,
@@ -481,21 +482,23 @@ func (p *Param) IsNull() bool {
 // signerWithWitnessAux is an auxiluary struct for JSON marshalling. We need it because of
 // DisallowUnknownFields JSON marshaller setting.
 type signerWithWitnessAux struct {
-	Account            string                   `json:"account"`
-	Scopes             transaction.WitnessScope `json:"scopes"`
-	AllowedContracts   []util.Uint160           `json:"allowedcontracts,omitempty"`
-	AllowedGroups      []*keys.PublicKey        `json:"allowedgroups,omitempty"`
-	InvocationScript   []byte                   `json:"invocation,omitempty"`
-	VerificationScript []byte                   `json:"verification,omitempty"`
+	Account            string                    `json:"account"`
+	Scopes             transaction.WitnessScope  `json:"scopes"`
+	AllowedContracts   []util.Uint160            `json:"allowedcontracts,omitempty"`
+	AllowedGroups      []*keys.PublicKey         `json:"allowedgroups,omitempty"`
+	Rules              []transaction.WitnessRule `json:"rules,omitempty"`
+	InvocationScript   []byte                    `json:"invocation,omitempty"`
+	VerificationScript []byte                    `json:"verification,omitempty"`
 }
 
-// MarshalJSON implements json.Unmarshaler interface.
+// MarshalJSON implements json.Marshaler interface.
 func (s *SignerWithWitness) MarshalJSON() ([]byte, error) {
 	signer := &signerWithWitnessAux{
 		Account:            s.Account.StringLE(),
 		Scopes:             s.Scopes,
 		AllowedContracts:   s.AllowedContracts,
 		AllowedGroups:      s.AllowedGroups,
+		Rules:              s.Rules,
 		InvocationScript:   s.InvocationScript,
 		VerificationScript: s.VerificationScript,
 	}
