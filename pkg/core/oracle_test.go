@@ -8,7 +8,6 @@ import (
 	gio "io"
 	"io/ioutil"
 	"net/http"
-	"net/url"
 	"os"
 	"path"
 	"path/filepath"
@@ -178,7 +177,7 @@ func putOracleRequest(t *testing.T, h util.Uint160, bc *Blockchain,
 	return res.Container
 }
 
-func getOracleConfig(t *testing.T, bc *Blockchain, w, pass string) oracle.Config {
+func getOracleConfig(t *testing.T, bc *Blockchain, w, pass string, returnOracleRedirectionErrOn func(address string) bool) oracle.Config {
 	return oracle.Config{
 		Log:     zaptest.NewLogger(t),
 		Network: netmode.UnitTestNet,
@@ -191,7 +190,7 @@ func getOracleConfig(t *testing.T, bc *Blockchain, w, pass string) oracle.Config
 			},
 		},
 		Chain:  bc,
-		Client: newDefaultHTTPClient(),
+		Client: newDefaultHTTPClient(returnOracleRedirectionErrOn),
 	}
 }
 
@@ -202,15 +201,11 @@ func getTestOracle(t *testing.T, bc *Blockchain, walletPath, pass string) (
 	chan *transaction.Transaction) {
 	m := make(map[uint64]*responseWithSig)
 	ch := make(chan *transaction.Transaction, 5)
-	orcCfg := getOracleConfig(t, bc, walletPath, pass)
+	orcCfg := getOracleConfig(t, bc, walletPath, pass, func(address string) bool {
+		return strings.HasPrefix(address, "https://private")
+	})
 	orcCfg.ResponseHandler = &saveToMapBroadcaster{m: m}
 	orcCfg.OnTransaction = saveTxToChan(ch)
-	orcCfg.URIValidator = func(u *url.URL) error {
-		if strings.HasPrefix(u.Host, "private") {
-			return errors.New("private network")
-		}
-		return nil
-	}
 	orc, err := oracle.NewOracle(orcCfg)
 	require.NoError(t, err)
 
@@ -255,10 +250,10 @@ func TestCreateResponseTx(t *testing.T) {
 func TestOracle_InvalidWallet(t *testing.T) {
 	bc := newTestChain(t)
 
-	_, err := oracle.NewOracle(getOracleConfig(t, bc, "./testdata/oracle1.json", "invalid"))
+	_, err := oracle.NewOracle(getOracleConfig(t, bc, "./testdata/oracle1.json", "invalid", nil))
 	require.Error(t, err)
 
-	_, err = oracle.NewOracle(getOracleConfig(t, bc, "./testdata/oracle1.json", "one"))
+	_, err = oracle.NewOracle(getOracleConfig(t, bc, "./testdata/oracle1.json", "one", nil))
 	require.NoError(t, err)
 }
 
@@ -551,7 +546,8 @@ type (
 	// httpClient implements oracle.HTTPClient with
 	// mocked URL or responses.
 	httpClient struct {
-		responses map[string]testResponse
+		returnOracleRedirectionErrOn func(address string) bool
+		responses                    map[string]testResponse
 	}
 
 	testResponse struct {
@@ -563,6 +559,9 @@ type (
 
 // Get implements oracle.HTTPClient interface.
 func (c *httpClient) Do(req *http.Request) (*http.Response, error) {
+	if c.returnOracleRedirectionErrOn != nil && c.returnOracleRedirectionErrOn(req.URL.String()) {
+		return nil, fmt.Errorf("%w: private network", oracle.ErrRestrictedRedirect)
+	}
 	resp, ok := c.responses[req.URL.String()]
 	if ok {
 		return &http.Response{
@@ -576,8 +575,9 @@ func (c *httpClient) Do(req *http.Request) (*http.Response, error) {
 	return nil, errors.New("request failed")
 }
 
-func newDefaultHTTPClient() oracle.HTTPClient {
+func newDefaultHTTPClient(returnOracleRedirectionErrOn func(address string) bool) oracle.HTTPClient {
 	return &httpClient{
+		returnOracleRedirectionErrOn: returnOracleRedirectionErrOn,
 		responses: map[string]testResponse{
 			"https://get.1234": {
 				code: http.StatusOK,

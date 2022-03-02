@@ -3,7 +3,6 @@ package oracle
 import (
 	"errors"
 	"net"
-	"net/url"
 )
 
 // reservedCIDRs is a list of ip addresses for private networks.
@@ -32,15 +31,15 @@ func init() {
 	}
 }
 
-func defaultURIValidator(u *url.URL) error {
-	ip, err := net.ResolveIPAddr("ip", u.Hostname())
+func resolveAndCheck(network string, address string) (*net.IPAddr, error) {
+	ip, err := net.ResolveIPAddr(network, address)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if isReserved(ip.IP) {
-		return errors.New("IP is not global unicast")
+		return nil, errors.New("IP is not global unicast")
 	}
-	return nil
+	return ip, nil
 }
 
 func isReserved(ip net.IP) bool {
