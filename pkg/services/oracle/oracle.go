@@ -3,7 +3,6 @@ package oracle
 import (
 	"errors"
 	"net/http"
-	"net/url"
 	"sync"
 	"time"
 
@@ -80,7 +79,6 @@ type (
 		Chain           Ledger
 		ResponseHandler Broadcaster
 		OnTransaction   TxCallback
-		URIValidator    URIValidator
 	}
 
 	// HTTPClient is an interface capable of doing oracle requests.
@@ -99,8 +97,6 @@ type (
 
 	// TxCallback executes on new transactions when they are ready to be pooled.
 	TxCallback = func(tx *transaction.Transaction) error
-	// URIValidator is used to check if provided URL is valid.
-	URIValidator = func(*url.URL) error
 )
 
 const (
@@ -112,7 +108,14 @@ const (
 
 	// defaultRefreshInterval is default timeout for the failed request to be reprocessed.
 	defaultRefreshInterval = time.Minute * 3
+
+	// maxRedirections is the number of allowed redirections for Oracle HTTPS request.
+	maxRedirections = 5
 )
+
+// ErrRestrictedRedirect is returned when redirection to forbidden address occurs
+// during Oracle response creation.
+var ErrRestrictedRedirect = errors.New("oracle request redirection error")
 
 // NewOracle returns new oracle instance.
 func NewOracle(cfg Config) (*Oracle, error) {
@@ -159,20 +162,14 @@ func NewOracle(cfg Config) (*Oracle, error) {
 		return nil, errors.New("no wallet account could be unlocked")
 	}
 
-	if o.Client == nil {
-		var client http.Client
-		client.Transport = &http.Transport{DisableKeepAlives: true}
-		client.Timeout = o.MainCfg.RequestTimeout
-		o.Client = &client
-	}
 	if o.ResponseHandler == nil {
 		o.ResponseHandler = defaultResponseHandler{}
 	}
 	if o.OnTransaction == nil {
 		o.OnTransaction = func(*transaction.Transaction) error { return nil }
 	}
-	if o.URIValidator == nil {
-		o.URIValidator = defaultURIValidator
+	if o.Client == nil {
+		o.Client = getDefaultClient(o.MainCfg)
 	}
 	return o, nil
 }

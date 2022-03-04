@@ -120,14 +120,6 @@ func (o *Oracle) processRequest(priv *keys.PrivateKey, req request) error {
 	} else {
 		switch u.Scheme {
 		case "https":
-			if !o.MainCfg.AllowPrivateHost {
-				err = o.URIValidator(u)
-				if err != nil {
-					o.Log.Warn("forbidden oracle request", zap.String("url", req.Req.URL))
-					resp.Code = transaction.Forbidden
-					break
-				}
-			}
 			httpReq, err := http.NewRequest("GET", req.Req.URL, nil)
 			if err != nil {
 				o.Log.Warn("failed to create http request", zap.String("url", req.Req.URL), zap.Error(err))
@@ -138,8 +130,12 @@ func (o *Oracle) processRequest(priv *keys.PrivateKey, req request) error {
 			httpReq.Header.Set("Content-Type", "application/json")
 			r, err := o.Client.Do(httpReq)
 			if err != nil {
-				o.Log.Warn("oracle request failed", zap.String("url", req.Req.URL), zap.Error(err))
-				resp.Code = transaction.Error
+				if errors.Is(err, ErrRestrictedRedirect) {
+					resp.Code = transaction.Forbidden
+				} else {
+					resp.Code = transaction.Error
+				}
+				o.Log.Warn("oracle request failed", zap.String("url", req.Req.URL), zap.Error(err), zap.Stringer("code", resp.Code))
 				break
 			}
 			switch r.StatusCode {
