@@ -1,10 +1,7 @@
 package oracle
 
 import (
-	"context"
 	"errors"
-	"fmt"
-	"net"
 	"net/http"
 	"sync"
 	"time"
@@ -172,32 +169,7 @@ func NewOracle(cfg Config) (*Oracle, error) {
 		o.OnTransaction = func(*transaction.Transaction) error { return nil }
 	}
 	if o.Client == nil {
-		var client http.Client
-		client.Transport = &http.Transport{
-			DisableKeepAlives: true,
-			// Do not set DialTLSContext, so that DialContext will be used to establish the
-			// connection. After that TLS connection will be added to a persistent connection
-			// by standard library code and handshaking will be performed.
-			DialContext: func(ctx context.Context, network, address string) (net.Conn, error) {
-				if !o.MainCfg.AllowPrivateHost {
-					ip, err := resolveAndCheck(network, address)
-					if err != nil {
-						return nil, fmt.Errorf("%w: address %s failed validation: %s", ErrRestrictedRedirect, address, err)
-					}
-					network = ip.Network()
-					address = ip.IP.String()
-				}
-				return net.Dial(network, address)
-			},
-		}
-		client.Timeout = o.MainCfg.RequestTimeout
-		client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
-			if len(via) >= maxRedirections { // from https://github.com/neo-project/neo-modules/pull/694
-				return fmt.Errorf("%w: %d redirections are reached", ErrRestrictedRedirect, maxRedirections)
-			}
-			return nil
-		}
-		o.Client = &client
+		o.Client = getDefaultClient(o.MainCfg)
 	}
 	return o, nil
 }

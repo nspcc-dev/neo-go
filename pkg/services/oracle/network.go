@@ -1,8 +1,12 @@
 package oracle
 
 import (
-	"errors"
+	"fmt"
 	"net"
+	"net/http"
+	"syscall"
+
+	"github.com/nspcc-dev/neo-go/pkg/config"
 )
 
 // reservedCIDRs is a list of ip addresses for private networks.
@@ -31,17 +35,6 @@ func init() {
 	}
 }
 
-func resolveAndCheck(network string, address string) (*net.IPAddr, error) {
-	ip, err := net.ResolveIPAddr(network, address)
-	if err != nil {
-		return nil, err
-	}
-	if isReserved(ip.IP) {
-		return nil, errors.New("IP is not global unicast")
-	}
-	return ip, nil
-}
-
 func isReserved(ip net.IP) bool {
 	if !ip.IsGlobalUnicast() {
 		return true
@@ -52,4 +45,52 @@ func isReserved(ip net.IP) bool {
 		}
 	}
 	return false
+}
+
+func getDefaultClient(cfg config.OracleConfiguration) *http.Client {
+	d := &net.Dialer{}
+	if !cfg.AllowPrivateHost {
+		// Control is used after request URI is resolved and network connection (network
+		// file descriptor) is created, but right before the moment listening/dialing
+		// is started.
+		// `address` represents resolved IP address in the format of ip:port. `address`
+		// is presented in its final (resolved) form that was used directly for network
+		// connection establishing.
+		// Control is called for each item in the set of IP addresses got from request
+		// URI resolving. The first network connection with address that passes Control
+		// function will be used for further request processing. Network connection
+		// with address that failed Control will be ignored. If all the connections
+		// fail Control then the most relevant error (the one from the first address)
+		// will be returned after `Client.Do`.
+		d.Control = func(network, address string, c syscall.RawConn) error {
+			host, _, err := net.SplitHostPort(address)
+			if err != nil {
+				return fmt.Errorf("%w: failed to split address %s: %s", ErrRestrictedRedirect, address, err)
+			}
+			ip := net.ParseIP(host)
+			if ip == nil {
+				return fmt.Errorf("%w: failed to parse IP address %s", ErrRestrictedRedirect, address)
+			}
+			if isReserved(ip) {
+				return fmt.Errorf("%w: IP is not global unicast", ErrRestrictedRedirect)
+			}
+			return nil
+		}
+	}
+	var client http.Client
+	client.Transport = &http.Transport{
+		DisableKeepAlives: true,
+		// Do not set DialTLSContext, so that DialContext will be used to establish the
+		// connection. After that TLS connection will be added to a persistent connection
+		// by standard library code and handshaking will be performed.
+		DialContext: d.DialContext,
+	}
+	client.Timeout = cfg.RequestTimeout
+	client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+		if len(via) >= maxRedirections { // from https://github.com/neo-project/neo-modules/pull/694
+			return fmt.Errorf("%w: %d redirections are reached", ErrRestrictedRedirect, maxRedirections)
+		}
+		return nil
+	}
+	return &client
 }
