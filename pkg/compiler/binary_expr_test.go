@@ -15,9 +15,7 @@ import (
 var binaryExprTestCases = []testCase{
 	{
 		"simple add",
-		`
-		package testcase
-		func Main() int {
+		`func F%d() int {
 			x := 2 + 2
 			return x
 		}
@@ -26,9 +24,7 @@ var binaryExprTestCases = []testCase{
 	},
 	{
 		"simple sub",
-		`
-		package testcase
-		func Main() int {
+		`func F%d() int {
 			x := 2 - 2
 			return x
 		}
@@ -37,9 +33,7 @@ var binaryExprTestCases = []testCase{
 	},
 	{
 		"simple div",
-		`
-		package testcase
-		func Main() int {
+		`func F%d() int {
 			x := 2 / 2
 			return x
 		}
@@ -48,10 +42,8 @@ var binaryExprTestCases = []testCase{
 	},
 	{
 		"simple mod",
-		`
-		package testcase
-		func Main() int {
-			x := 3 % 2
+		`func F%d() int {
+			x := 3 %% 2
 			return x
 		}
 		`,
@@ -59,9 +51,7 @@ var binaryExprTestCases = []testCase{
 	},
 	{
 		"simple mul",
-		`
-		package testcase
-		func Main() int {
+		`func F%d() int {
 			x := 4 * 2
 			return x
 		}
@@ -70,9 +60,7 @@ var binaryExprTestCases = []testCase{
 	},
 	{
 		"simple binary expr in return",
-		`
-		package testcase
-		func Main() int {
+		`func F%d() int {
 			x := 2
 			return 2 + x
 		}
@@ -81,9 +69,7 @@ var binaryExprTestCases = []testCase{
 	},
 	{
 		"complex binary expr",
-		`
-		package testcase
-		func Main() int {
+		`func F%d() int {
 			x := 4
 			y := 8
 			z := x + 2 + 2 - 8
@@ -94,9 +80,7 @@ var binaryExprTestCases = []testCase{
 	},
 	{
 		"compare not equal strings with eql",
-		`
-		package testcase
-		func Main() int {
+		`func F%d() int {
 			str := "a string"
 			if str == "another string" {
 				return 1
@@ -108,9 +92,7 @@ var binaryExprTestCases = []testCase{
 	},
 	{
 		"compare equal strings with eql",
-		`
-		package testcase
-		func Main() int {
+		`func F%d() int {
 			str := "a string"
 			if str == "a string" {
 				return 1
@@ -122,9 +104,7 @@ var binaryExprTestCases = []testCase{
 	},
 	{
 		"compare not equal strings with neq",
-		`
-		package testcase
-		func Main() int {
+		`func F%d() int {
 			str := "a string"
 			if str != "another string" {
 				return 1
@@ -136,9 +116,7 @@ var binaryExprTestCases = []testCase{
 	},
 	{
 		"compare equal strings with neq",
-		`
-		package testcase
-		func Main() int {
+		`func F%d() int {
 			str := "a string"
 			if str != "a string" {
 				return 1
@@ -150,9 +128,7 @@ var binaryExprTestCases = []testCase{
 	},
 	{
 		"compare equal ints with eql",
-		`
-		package testcase
-		func Main() int {
+		`func F%d() int {
 			x := 10
 			if x == 10 {
 				return 1
@@ -164,9 +140,7 @@ var binaryExprTestCases = []testCase{
 	},
 	{
 		"compare equal ints with neq",
-		`
-		package testcase
-		func Main() int {
+		`func F%d() int {
 			x := 10
 			if x != 10 {
 				return 1
@@ -178,9 +152,7 @@ var binaryExprTestCases = []testCase{
 	},
 	{
 		"compare not equal ints with eql",
-		`
-		package testcase
-		func Main() int {
+		`func F%d() int {
 			x := 11
 			if x == 10 {
 				return 1
@@ -192,9 +164,7 @@ var binaryExprTestCases = []testCase{
 	},
 	{
 		"compare not equal ints with neq",
-		`
-		package testcase
-		func Main() int {
+		`func F%d() int {
 			x := 11
 			if x != 10 {
 				return 1
@@ -206,9 +176,7 @@ var binaryExprTestCases = []testCase{
 	},
 	{
 		"simple add and assign",
-		`
-		package testcase
-		func Main() int {
+		`func F%d() int {
 			x := 2
 			x += 1
 			return x
@@ -218,9 +186,7 @@ var binaryExprTestCases = []testCase{
 	},
 	{
 		"simple sub and assign",
-		`
-		package testcase
-		func Main() int {
+		`func F%d() int {
 			x := 2
 			x -= 1
 			return x
@@ -230,9 +196,7 @@ var binaryExprTestCases = []testCase{
 	},
 	{
 		"simple mul and assign",
-		`
-		package testcase
-		func Main() int {
+		`func F%d() int {
 			x := 2
 			x *= 2
 			return x
@@ -242,9 +206,7 @@ var binaryExprTestCases = []testCase{
 	},
 	{
 		"simple div and assign",
-		`
-		package testcase
-		func Main() int {
+		`func F%d() int {
 			x := 2
 			x /= 2
 			return x
@@ -254,11 +216,9 @@ var binaryExprTestCases = []testCase{
 	},
 	{
 		"simple mod and assign",
-		`
-		package testcase
-		func Main() int {
+		`func F%d() int {
 			x := 5
-			x %= 2
+			x %%= 2
 			return x
 		}
 		`,
@@ -267,7 +227,23 @@ var binaryExprTestCases = []testCase{
 }
 
 func TestBinaryExprs(t *testing.T) {
-	runTestCases(t, binaryExprTestCases)
+	srcBuilder := bytes.NewBuffer([]byte("package testcase\n"))
+	for i, tc := range binaryExprTestCases {
+		srcBuilder.WriteString(fmt.Sprintf(tc.src, i))
+	}
+
+	ne, di, err := compiler.CompileWithOptions("file.go", strings.NewReader(srcBuilder.String()), nil)
+	require.NoError(t, err)
+
+	for i, tc := range binaryExprTestCases {
+		v := vm.New()
+		t.Run(tc.name, func(t *testing.T) {
+			v.Istack().Clear()
+			v.Estack().Clear()
+			invokeMethod(t, fmt.Sprintf("F%d", i), ne.Script, v, di)
+			runAndCheck(t, v, tc.result)
+		})
+	}
 }
 
 func addBoolExprTestFunc(testCases []testCase, b *bytes.Buffer, val bool, cond string) []testCase {
@@ -381,7 +357,7 @@ func TestBooleanExprs(t *testing.T) {
 	}
 
 	t.Run("Triple", func(t *testing.T) {
-		const step = 256 // empirically found value to make script less than 65536 in size
+		const step = 350 // empirically found value to make script less than 65536 in size
 		for start := 0; start < len(triple); start += step {
 			testCases = testCases[:0]
 			srcBuilder.Reset()

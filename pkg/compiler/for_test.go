@@ -1,11 +1,16 @@
 package compiler_test
 
 import (
+	"bytes"
 	"fmt"
 	"math/big"
+	"strings"
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/pkg/compiler"
+	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
+	"github.com/stretchr/testify/require"
 )
 
 func TestEntryPointWithMethod(t *testing.T) {
@@ -370,405 +375,368 @@ func TestDec(t *testing.T) {
 	eval(t, src, big.NewInt(1))
 }
 
-func TestForLoopEmpty(t *testing.T) {
-	src := `
-	package foo
-	func Main() int {
-		x := 0
-		for {
-			x++
-			if x == 2 {
-				break
+var forLoopTestCases = []testCase{
+	{
+		"empty for loop",
+		`func F%d() int {
+			x := 0
+			for {
+				x++
+				if x == 2 { break }
 			}
+			return x
 		}
-		return x
-	}
-	`
-	eval(t, src, big.NewInt(2))
-}
-
-func TestForLoopBigIter(t *testing.T) {
-	src := `
-	package foo
-		func Main() int {
+		`,
+		big.NewInt(2),
+	}, {
+		"big iteration count",
+		`func F%d() int {
 			x := 0
 			for i := 0; i < 100000; i++ {
 				x = i
 			}
 			return x
 		}
-	`
-	eval(t, src, big.NewInt(99999))
-}
-
-func TestForLoopNoInit(t *testing.T) {
-	src := `
-	package foo
-		func Main() int {
+		`,
+		big.NewInt(99999),
+	},
+	{
+		"no init",
+		`func F%d() int {
 			i := 0
 			for ; i < 10; i++ {
 			}
 			return i
 		}
-	`
-	eval(t, src, big.NewInt(10))
-}
-
-func TestForLoopNoPost(t *testing.T) {
-	src := `
-	package foo
-		func Main() int {
+	`,
+		big.NewInt(10),
+	},
+	{
+		"no post",
+		`func F%d() int {
 			i := 0
 			for i < 10 {
 				i++
 			}
 			return i
 		}
-	`
-	eval(t, src, big.NewInt(10))
-}
-
-func TestForLoopRange(t *testing.T) {
-	src := `
-	package foo
-	func Main() int {
-		sum := 0
-		arr := []int{1, 2, 3}
-		for i := range arr {
-			sum += arr[i] 
-		}
-		return sum
-	}`
-
-	eval(t, src, big.NewInt(6))
-}
-
-func TestForLoopRangeGlobalIndex(t *testing.T) {
-	src := `
-	package foo
-	func Main() int {
-		sum := 0
-		i := 0
-		arr := []int{1, 2, 3}
-		for i = range arr {
-			sum += arr[i] 
-		}
-		return sum + i
-	}`
-
-	eval(t, src, big.NewInt(8))
-}
-
-func TestForLoopRangeChangeVariable(t *testing.T) {
-	src := `
-	package foo
-	func Main() int {
-		sum := 0
-		arr := []int{1, 2, 3}
-		for i := range arr {
-			sum += arr[i]
-			i++
-			sum += i
-		}
-		return sum
-	}`
-
-	eval(t, src, big.NewInt(12))
-}
-
-func TestForLoopBreak(t *testing.T) {
-	src := `
-	package foo
-	func Main() int {
-		var i int
-		for i < 10 {
-			i++
-			if i == 5 {
-				break
+		`,
+		big.NewInt(10),
+	},
+	{
+		"range",
+		`func F%d() int {
+			sum := 0
+			arr := []int{1, 2, 3}
+			for i := range arr {
+				sum += arr[i] 
 			}
+			return sum
 		}
-		return i
-	}`
-
-	eval(t, src, big.NewInt(5))
-}
-
-func TestForLoopBreakLabel(t *testing.T) {
-	src := `
-	package foo
-	func Main() int {
-		var i int
-		loop:
-		for i < 10 {
-			i++
-			if i == 5 {
-				break loop
+		`,
+		big.NewInt(6),
+	},
+	{
+		"range, global index",
+		`func F%d() int {
+			sum := 0
+			i := 0
+			arr := []int{1, 2, 3}
+			for i = range arr {
+				sum += arr[i]
 			}
+			return sum + i
 		}
-		return i
-	}`
-
-	eval(t, src, big.NewInt(5))
-}
-
-func TestForLoopNestedBreak(t *testing.T) {
-	src := `
-	package foo
-	func Main() int {
-		var i int
-		for i < 10 {
-			i++
-			for j := 0; j < 2; j++ {
+		`,
+		big.NewInt(8),
+	},
+	{
+		"range, change variable",
+		`func F%d() int {
+			sum := 0
+			arr := []int{1, 2, 3}
+			for i := range arr {
+				sum += arr[i]
+				i++
+				sum += i
+			}
+			return sum
+		}
+		`,
+		big.NewInt(12),
+	},
+	{
+		"break",
+		`func F%d() int {
+			var i int
+			for i < 10 {
 				i++
 				if i == 5 {
 					break
 				}
 			}
+			return i
 		}
-		return i
-	}`
-
-	eval(t, src, big.NewInt(11))
-}
-
-func TestForLoopNestedBreakLabel(t *testing.T) {
-	src := `
-	package foo
-	func Main() int {
-		var i int
-		loop:
-		for i < 10 {
-			i++
-			for j := 0; j < 2; j++ {
+		`,
+		big.NewInt(5),
+	},
+	{
+		"break label",
+		`func F%d() int {
+			var i int
+			loop:
+			for i < 10 {
+				i++
 				if i == 5 {
 					break loop
 				}
+			}
+			return i
+		}
+		`,
+		big.NewInt(5),
+	},
+	{
+		"nested break",
+		`func F%d() int {
+			var i int
+			for i < 10 {
 				i++
+				for j := 0; j < 2; j++ {
+					i++
+					if i == 5 {
+						break
+					}
+				}
 			}
+			return i
 		}
-		return i
-	}`
-
-	eval(t, src, big.NewInt(5))
-}
-
-func TestForLoopContinue(t *testing.T) {
-	src := `
-	package foo
-	func Main() int {
-		var i, j int
-		for i < 10 {
-			i++
-			if i >= 5 {
-				continue
+		`,
+		big.NewInt(11),
+	},
+	{
+		"nested break label",
+		`func F%d() int {
+			var i int
+			loop:
+			for i < 10 {
+				i++
+				for j := 0; j < 2; j++ {
+					if i == 5 {
+						break loop
+					}
+					i++
+				}
 			}
-			j++
+			return i
 		}
-		return j
-	}`
-
-	eval(t, src, big.NewInt(4))
-}
-
-func TestForLoopContinueLabel(t *testing.T) {
-	src := `
-	package foo
-	func Main() int {
-		var i, j int
-		loop:
-		for i < 10 {
-			i++
-			if i >= 5 {
-				continue loop
-			}
-			j++
-		}
-		return j
-	}`
-
-	eval(t, src, big.NewInt(4))
-}
-
-func TestForLoopNestedContinue(t *testing.T) {
-	src := `
-	package foo
-	func Main() int {
-		var i, k int
-		for i < 10 {
-			i++
-			for j := 0; j < 3; j++ {
-				if j >= 2 {
+		`,
+		big.NewInt(5),
+	},
+	{
+		"continue",
+		`func F%d() int {
+			var i, j int
+			for i < 10 {
+				i++
+				if i >= 5 {
 					continue
 				}
-				k++
+				j++
 			}
+			return j
 		}
-		return k
-	}`
-
-	eval(t, src, big.NewInt(20))
-}
-
-func TestForLoopNestedContinueLabel(t *testing.T) {
-	src := `
-	package foo
-	func Main() int {
-		var i int
-		loop:
-		for ; i < 10; i += 10 {
-			i++
-			for j := 0; j < 4; j++ {
-				if i == 5 {
+		`,
+		big.NewInt(4),
+	},
+	{
+		"continue label",
+		`func F%d() int {
+			var i, j int
+			loop:
+			for i < 10 {
+				i++
+				if i >= 5 {
 					continue loop
+				}
+				j++
+			}
+			return j
+		}
+		`,
+		big.NewInt(4),
+	},
+	{
+		"nested continue",
+		`func F%d() int {
+			var i, k int
+			for i < 10 {
+				i++
+				for j := 0; j < 3; j++ {
+					if j >= 2 {
+						continue
+					}
+					k++
+				}
+			}
+			return k
+		}
+		`,
+		big.NewInt(20),
+	},
+	{
+		"nested continue label",
+		`func F%d() int {
+			var i int
+			loop:
+			for ; i < 10; i += 10 {
+				i++
+				for j := 0; j < 4; j++ {
+					if i == 5 {
+						continue loop
+					}
+					i++
+				}
+			}
+			return i
+		}
+		`,
+		big.NewInt(15),
+	},
+	{
+		"range break",
+		`func F%d() int {
+			var i int
+			arr := []int{1, 2, 3}
+			for i = range arr {
+				if arr[i] == 2 {
+					break
+				}
+			}
+			return i
+		}
+		`,
+		big.NewInt(1),
+	},
+	{
+		"range nested break",
+		`func F%d() int {
+			k := 5
+			arr := []int{1, 2, 3}
+			urr := []int{4, 5, 6, 7}
+			loop:
+			for range arr {
+				k++
+				for j := range urr {
+					k++
+					if j == 3 {
+						break loop
+					}
+				}
+			}
+			return k
+		}
+		`,
+		big.NewInt(10),
+	},
+	{
+		"range continue",
+		`func F%d() int {
+			i := 6
+			arr := []int{1, 2, 3}
+			for j := range arr {
+				if arr[j] < 2 {
+					continue
 				}
 				i++
 			}
+			return i
 		}
-		return i
-	}`
-
-	eval(t, src, big.NewInt(15))
-}
-
-func TestForLoopRangeBreak(t *testing.T) {
-	src := `
-	package foo
-	func Main() int {
-		var i int
-		arr := []int{1, 2, 3}
-		for i = range arr {
-			if arr[i] == 2 {
-				break
+		`,
+		big.NewInt(8),
+	},
+	{
+		"range, no variable",
+		`func F%d() int {
+			sum := 0
+			arr := []int{1, 2, 3}
+			for range arr {
+				sum += 1
 			}
+			return sum
 		}
-		return i
-	}`
-
-	eval(t, src, big.NewInt(1))
-}
-
-func TestForLoopRangeNestedBreak(t *testing.T) {
-	src := `
-	package foo
-	func Main() int {
-		k := 5
-		arr := []int{1, 2, 3}
-		urr := []int{4, 5, 6, 7}
-		loop:
-		for range arr {
-			k++
-			for j := range urr {
-				k++
-				if j == 3 {
-					break loop
-				}
+		`,
+		big.NewInt(3),
+	},
+	{
+		"range value",
+		`func f(a int) int { return a }
+		func F%d() int {
+			var sum int
+			arr := []int{1, 9, 4}
+			for _, v := range arr {
+				sum += f(v)
 			}
+			return sum
 		}
-		return k
-	}`
-
-	eval(t, src, big.NewInt(10))
-}
-
-func TestForLoopRangeContinue(t *testing.T) {
-	src := `
-	package foo
-	func Main() int {
-		i := 6
-		arr := []int{1, 2, 3}
-		for j := range arr {
-			if arr[j] < 2 {
-				continue
+		`,
+		big.NewInt(14),
+	},
+	{
+		"range, map",
+		`func F%d() int {
+			m := map[int]int{
+				1: 13,
+				11: 17,
 			}
-			i++
+			var sum int
+			for i, v := range m {
+				sum += i
+				sum += v
+			}
+			return sum
 		}
-		return i
-	}`
-
-	eval(t, src, big.NewInt(8))
+		`,
+		big.NewInt(42),
+	},
+	{
+		"range, type conversion",
+		`type intArr []int
+		func F%d() int {
+			a := []int{1, 2, 3}
+			s := 0
+			for _, v := range intArr(a) {
+				s += v
+			}
+			return s
+		}
+		`,
+		big.NewInt(6),
+	},
 }
 
-func TestForLoopRangeNoVariable(t *testing.T) {
-	src := `
-	package foo
-	func Main() int {
-		sum := 0
-		arr := []int{1, 2, 3}
-		for range arr {
-			sum += 1
-		}
-		return sum
-	}`
+func TestForLoop(t *testing.T) {
+	srcBuilder := bytes.NewBuffer([]byte("package testcase\n"))
+	for i, tc := range forLoopTestCases {
+		srcBuilder.WriteString(fmt.Sprintf(tc.src, i))
+	}
 
-	eval(t, src, big.NewInt(3))
-}
+	ne, di, err := compiler.CompileWithOptions("file.go", strings.NewReader(srcBuilder.String()), nil)
+	require.NoError(t, err)
 
-func TestForLoopRangeValue(t *testing.T) {
-	src := `
-	package foo
-	func f(a int) int { return a }
-	func Main() int {
-		var sum int
-		arr := []int{1, 9, 4}
-		for _, v := range arr {
-			sum += f(v)
-		}
-		return sum
-	}`
-
-	eval(t, src, big.NewInt(14))
-}
-
-func TestForLoopRangeMap(t *testing.T) {
-	src := `package foo
-	func Main() int {
-		m := map[int]int{
-			1: 13,
-			11: 17,
-		}
-		var sum int
-		for i, v := range m {
-			sum += i
-			sum += v
-		}
-		return sum
-	}`
-
-	eval(t, src, big.NewInt(42))
-}
-
-func TestForLoopRangeTypeConversion(t *testing.T) {
-	src := `package foo
-	type intArr []int
-	func Main() int {
-		a := []int{1, 2, 3}
-		s := 0
-		for _, v := range intArr(a) {
-			s += v
-		}
-		return s
-	}`
-	eval(t, src, big.NewInt(6))
+	for i, tc := range forLoopTestCases {
+		v := vm.New()
+		t.Run(tc.name, func(t *testing.T) {
+			v.Istack().Clear()
+			v.Estack().Clear()
+			invokeMethod(t, fmt.Sprintf("F%d", i), ne.Script, v, di)
+			runAndCheck(t, v, tc.result)
+		})
+	}
 }
 
 func TestForLoopComplexConditions(t *testing.T) {
-	src := `
-	package foo
-	func Main() int {
-		var ok bool
-		_ = ok
-		i := 0
-		j := 0
-		%s
-		for %s {
-			i++
-			j++
-			%s
-		}
-		return i
-	}`
-
-	tests := []struct {
+	forCondTestCases := []struct {
 		Name   string
 		Cond   string
 		Assign string
@@ -788,14 +756,39 @@ func TestForLoopComplexConditions(t *testing.T) {
 		{Cond: "ok", Assign: "ok = (i < 2 && j < 4) || (i < 4 && j < 2)", Result: 2},
 	}
 
-	for _, tc := range tests {
+	tmpl := `func F%d() int {
+		var ok bool
+		_ = ok
+		i := 0
+		j := 0
+		%s
+		for %s {
+			i++
+			j++
+			%s
+		}
+		return i
+	}
+	`
+	srcBuilder := bytes.NewBufferString("package foo\n")
+	for i, tc := range forCondTestCases {
+		srcBuilder.WriteString(fmt.Sprintf(tmpl, i, tc.Assign, tc.Cond, tc.Assign))
+	}
+
+	ne, di, err := compiler.CompileWithOptions("file.go", strings.NewReader(srcBuilder.String()), nil)
+	require.NoError(t, err)
+
+	for i, tc := range forCondTestCases {
+		v := vm.New()
 		name := tc.Cond
 		if tc.Assign != "" {
 			name = tc.Assign
 		}
 		t.Run(name, func(t *testing.T) {
-			s := fmt.Sprintf(src, tc.Assign, tc.Cond, tc.Assign)
-			eval(t, s, big.NewInt(tc.Result))
+			v.Istack().Clear()
+			v.Estack().Clear()
+			invokeMethod(t, fmt.Sprintf("F%d", i), ne.Script, v, di)
+			runAndCheck(t, v, big.NewInt(tc.Result))
 		})
 	}
 }

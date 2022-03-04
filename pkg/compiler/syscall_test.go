@@ -1,6 +1,7 @@
 package compiler_test
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"math/big"
@@ -99,14 +100,41 @@ func TestSyscallExecution(t *testing.T) {
 		// It will be set in test and we want to fail if calling invalid syscall.
 		fs.Func = nil
 	}
+
+	srcBuilder := bytes.NewBuffer(nil)
+	srcBuilder.WriteString(`package foo
+		import "github.com/nspcc-dev/neo-go/pkg/interop/contract"
+		import "github.com/nspcc-dev/neo-go/pkg/interop/runtime"
+		import "github.com/nspcc-dev/neo-go/pkg/interop/storage"
+		import "github.com/nspcc-dev/neo-go/pkg/interop/iterator"
+		import "github.com/nspcc-dev/neo-go/pkg/interop/crypto"
+		import "github.com/nspcc-dev/neo-go/pkg/interop"
+		func unused() { var _ interop.Hash160 }
+	`)
+	for goName, tc := range interops {
+		realName := strings.ToTitle(strings.Replace(goName, ".", "", 1))
+		var tmpl string
+		if tc.isVoid {
+			tmpl = "func %s() { %s(%s) }\n"
+		} else {
+			tmpl = "func %s() interface{} { return %s(%s) }\n"
+		}
+		srcBuilder.WriteString(fmt.Sprintf(tmpl, realName, goName, strings.Join(tc.params, ", ")))
+	}
+
+	nf, di, err := compiler.CompileWithOptions("foo.go", srcBuilder, nil)
+	require.NoError(t, err)
+
 	for goName, tc := range interops {
 		t.Run(goName, func(t *testing.T) {
-			runSyscallTestCase(t, ic, goName, tc)
+			name := strings.ToTitle(strings.Replace(goName, ".", "", 1))
+			runSyscallTestCase(t, ic, name, nf.Script, di, tc)
 		})
 	}
 }
 
-func runSyscallTestCase(t *testing.T, ic *interop.Context, goName string, tc syscallTestCase) {
+func runSyscallTestCase(t *testing.T, ic *interop.Context, realName string,
+	script []byte, debugInfo *compiler.DebugInfo, tc syscallTestCase) {
 	syscallID := interopnames.ToID([]byte(tc.method))
 	f := ic.GetFunction(syscallID)
 	require.NotNil(t, f)
@@ -127,30 +155,14 @@ func runSyscallTestCase(t *testing.T, ic *interop.Context, goName string, tc sys
 	}
 	defer func() { f.Func = nil }()
 
-	srcTmpl := `package foo
-	import "github.com/nspcc-dev/neo-go/pkg/interop/%s"
-	import "github.com/nspcc-dev/neo-go/pkg/interop"
-	func unused() { var _ interop.Hash160 }
-	`
-	if tc.isVoid {
-		srcTmpl += `func Main() { %s(%s) }`
-	} else {
-		srcTmpl += `func Main() interface{} { return %s(%s) }`
-	}
-	ss := strings.Split(goName, ".")
-	src := fmt.Sprintf(srcTmpl, ss[0], goName, strings.Join(tc.params, ", "))
-	b, _, err := compiler.CompileWithOptions("foo.go", strings.NewReader(src), nil)
-	require.NoError(t, err)
-
-	v := ic.SpawnVM()
-	v.LoadScriptWithFlags(b.Script, callflag.All)
-	require.NoError(t, v.Run())
+	invokeMethod(t, realName, script, ic.VM, debugInfo)
+	require.NoError(t, ic.VM.Run())
 	require.True(t, called)
 	if tc.isVoid {
-		require.Equal(t, 0, v.Estack().Len())
+		require.Equal(t, 0, ic.VM.Estack().Len())
 	} else {
-		require.Equal(t, 1, v.Estack().Len())
-		require.Equal(t, big.NewInt(42), v.Estack().Pop().Value())
+		require.Equal(t, 1, ic.VM.Estack().Len())
+		require.Equal(t, big.NewInt(42), ic.VM.Estack().Pop().Value())
 	}
 }
 
