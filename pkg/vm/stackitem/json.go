@@ -9,6 +9,7 @@ import (
 	gio "io"
 	"math"
 	"math/big"
+	"strconv"
 )
 
 // decoder is a wrapper around json.Decoder helping to mimic C# json decoder behaviour.
@@ -260,72 +261,120 @@ func (d *decoder) decodeMap() (*Map, error) {
 
 // ToJSONWithTypes serializes any stackitem to JSON in a lossless way.
 func ToJSONWithTypes(item Item) ([]byte, error) {
-	result, err := toJSONWithTypes(item, make(map[Item]bool, typicalNumOfItems))
-	if err != nil {
-		return nil, err
-	}
-	return json.Marshal(result)
+	return toJSONWithTypes(nil, item, make(map[Item]sliceNoPointer, typicalNumOfItems))
 }
 
-func toJSONWithTypes(item Item, seen map[Item]bool) (interface{}, error) {
-	if len(seen) > MaxJSONDepth {
-		return "", ErrTooDeep
+func toJSONWithTypes(data []byte, item Item, seen map[Item]sliceNoPointer) ([]byte, error) {
+	if item == nil {
+		return nil, fmt.Errorf("%w: nil", ErrUnserializable)
 	}
-	var value interface{}
+	if old, ok := seen[item]; ok {
+		if old.end == 0 {
+			// Compound item marshaling which has not yet finished.
+			return nil, ErrRecursive
+		}
+		if len(data)+old.end-old.start > MaxSize {
+			return nil, errTooBigSize
+		}
+		return append(data, data[old.start:old.end]...), nil
+	}
+
+	var val string
+	var hasValue bool
+	switch item.(type) {
+	case Null:
+		val = `{"type":"Any"}`
+	case *Interop:
+		val = `{"type":"Interop"}`
+	default:
+		val = `{"type":"` + item.Type().String() + `","value":`
+		hasValue = true
+	}
+
+	if len(data)+len(val) > MaxSize {
+		return nil, errTooBigSize
+	}
+
+	start := len(data)
+
+	data = append(data, val...)
+	if !hasValue {
+		return data, nil
+	}
+
+	// Primitive stack items are appended after the switch
+	// to reduce the amount of size checks.
+	var primitive string
+	var isBuffer bool
+	var err error
+
 	switch it := item.(type) {
 	case *Array, *Struct:
-		if seen[item] {
-			return "", ErrRecursive
-		}
-		seen[item] = true
-		arr := []interface{}{}
-		for _, elem := range it.Value().([]Item) {
-			s, err := toJSONWithTypes(elem, seen)
-			if err != nil {
-				return "", err
+		seen[item] = sliceNoPointer{}
+		data = append(data, '[')
+		for i, elem := range it.Value().([]Item) {
+			if i != 0 {
+				data = append(data, ',')
 			}
-			arr = append(arr, s)
+			data, err = toJSONWithTypes(data, elem, seen)
+			if err != nil {
+				return nil, err
+			}
 		}
-		value = arr
-		delete(seen, item)
 	case Bool:
-		value = bool(it)
-	case *Buffer, *ByteArray:
-		value = base64.StdEncoding.EncodeToString(it.Value().([]byte))
+		if it {
+			primitive = "true"
+		} else {
+			primitive = "false"
+		}
+	case *ByteArray:
+		primitive = `"` + base64.StdEncoding.EncodeToString(it.Value().([]byte)) + `"`
+	case *Buffer:
+		isBuffer = true
+		primitive = `"` + base64.StdEncoding.EncodeToString(it.Value().([]byte)) + `"`
 	case *BigInteger:
-		value = it.Big().String()
+		primitive = `"` + it.Big().String() + `"`
 	case *Map:
-		if seen[item] {
-			return "", ErrRecursive
-		}
-		seen[item] = true
-		arr := []interface{}{}
+		seen[item] = sliceNoPointer{}
+		data = append(data, '[')
 		for i := range it.value {
-			// map keys are primitive types and can always be converted to json
-			key, _ := toJSONWithTypes(it.value[i].Key, seen)
-			val, err := toJSONWithTypes(it.value[i].Value, seen)
-			if err != nil {
-				return "", err
+			if i != 0 {
+				data = append(data, ',')
 			}
-			arr = append(arr, map[string]interface{}{
-				"key":   key,
-				"value": val,
-			})
+			data = append(data, `{"key":`...)
+			data, err = toJSONWithTypes(data, it.value[i].Key, seen)
+			if err != nil {
+				return nil, err
+			}
+			data = append(data, `,"value":`...)
+			data, err = toJSONWithTypes(data, it.value[i].Value, seen)
+			if err != nil {
+				return nil, err
+			}
+			data = append(data, '}')
 		}
-		value = arr
-		delete(seen, item)
 	case *Pointer:
-		value = it.pos
-	case nil:
-		return "", fmt.Errorf("%w: nil", ErrUnserializable)
+		primitive = strconv.Itoa(it.pos)
 	}
-	result := map[string]interface{}{
-		"type": item.Type().String(),
+	if len(primitive) != 0 {
+		if len(data)+len(primitive)+1 > MaxSize {
+			return nil, errTooBigSize
+		}
+		data = append(data, primitive...)
+		data = append(data, '}')
+
+		if isBuffer {
+			seen[item] = sliceNoPointer{start, len(data)}
+		}
+	} else {
+		if len(data)+2 > MaxSize { // also take care of '}'
+			return nil, errTooBigSize
+		}
+		data = append(data, ']', '}')
+
+		seen[item] = sliceNoPointer{start, len(data)}
 	}
-	if value != nil {
-		result["value"] = value
-	}
-	return result, nil
+	return data, nil
 }
 
 type (

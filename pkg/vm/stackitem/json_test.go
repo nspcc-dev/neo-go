@@ -234,6 +234,8 @@ func TestToJSONWithTypes(t *testing.T) {
 		{"Map", NewMapWithValue([]MapElement{{Key: NewBigInteger(big.NewInt(42)), Value: NewBool(false)}}),
 			`{"type":"Map","value":[{"key":{"type":"Integer","value":"42"},` +
 				`"value":{"type":"Boolean","value":false}}]}`},
+		{"Interop", NewInterop(nil),
+			`{"type":"Interop"}`},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -246,6 +248,40 @@ func TestToJSONWithTypes(t *testing.T) {
 			require.Equal(t, tc.item, item)
 		})
 	}
+
+	t.Run("shared sub struct", func(t *testing.T) {
+		t.Run("Buffer", func(t *testing.T) {
+			shared := NewBuffer([]byte{1, 2, 3})
+			a := NewArray([]Item{shared, shared})
+			data, err := ToJSONWithTypes(a)
+			require.NoError(t, err)
+			expected := `{"type":"Array","value":[` +
+				`{"type":"Buffer","value":"AQID"},{"type":"Buffer","value":"AQID"}]}`
+			require.Equal(t, expected, string(data))
+		})
+		t.Run("Array", func(t *testing.T) {
+			shared := NewArray([]Item{})
+			a := NewArray([]Item{shared, shared})
+			data, err := ToJSONWithTypes(a)
+			require.NoError(t, err)
+			expected := `{"type":"Array","value":[` +
+				`{"type":"Array","value":[]},{"type":"Array","value":[]}]}`
+			require.Equal(t, expected, string(data))
+		})
+		t.Run("Map", func(t *testing.T) {
+			shared := NewMap()
+			m := NewMapWithValue([]MapElement{
+				{NewBool(true), shared},
+				{NewBool(false), shared},
+			})
+			data, err := ToJSONWithTypes(m)
+			require.NoError(t, err)
+			expected := `{"type":"Map","value":[` +
+				`{"key":{"type":"Boolean","value":true},"value":{"type":"Map","value":[]}},` +
+				`{"key":{"type":"Boolean","value":false},"value":{"type":"Map","value":[]}}]}`
+			require.Equal(t, expected, string(data))
+		})
+	})
 
 	t.Run("Invalid", func(t *testing.T) {
 		t.Run("RecursiveArray", func(t *testing.T) {
@@ -263,6 +299,82 @@ func TestToJSONWithTypes(t *testing.T) {
 			_, err := ToJSONWithTypes(m)
 			require.Error(t, err)
 		})
+	})
+}
+
+func TestToJSONWithTypesBadCases(t *testing.T) {
+	bigBuf := make([]byte, MaxSize)
+
+	t.Run("issue 2385", func(t *testing.T) {
+		const maxStackSize = 2 * 1024
+
+		items := make([]Item, maxStackSize)
+		for i := range items {
+			items[i] = NewBuffer(bigBuf)
+		}
+		_, err := ToJSONWithTypes(NewArray(items))
+		require.True(t, errors.Is(err, errTooBigSize), "got: %v", err)
+	})
+	t.Run("overflow on primitive item", func(t *testing.T) {
+		_, err := ToJSONWithTypes(NewBuffer(bigBuf))
+		require.True(t, errors.Is(err, errTooBigSize), "got: %v", err)
+	})
+	t.Run("overflow on array element", func(t *testing.T) {
+		b := NewBuffer(bigBuf[:MaxSize/2])
+		_, err := ToJSONWithTypes(NewArray([]Item{b, b}))
+		require.True(t, errors.Is(err, errTooBigSize), "got: %v", err)
+	})
+	t.Run("overflow on map key", func(t *testing.T) {
+		m := NewMapWithValue([]MapElement{
+			{NewBool(true), NewBool(true)},
+			{NewByteArray(bigBuf), NewBool(true)},
+		})
+		_, err := ToJSONWithTypes(m)
+		require.True(t, errors.Is(err, errTooBigSize), "got: %v", err)
+	})
+	t.Run("overflow on the last byte of array", func(t *testing.T) {
+		// Construct big enough buffer and pad with integer digits
+		// until the necessary branch is covered #ididthemath.
+		arr := NewArray([]Item{
+			NewByteArray(bigBuf[:MaxSize/4*3-70]),
+			NewBigInteger(big.NewInt(1234)),
+		})
+		_, err := ToJSONWithTypes(arr)
+		require.True(t, errors.Is(err, errTooBigSize), "got: %v", err)
+	})
+	t.Run("overflow on the item prefix", func(t *testing.T) {
+		arr := NewArray([]Item{
+			NewByteArray(bigBuf[:MaxSize/4*3-60]),
+			NewBool(true),
+		})
+		_, err := ToJSONWithTypes(arr)
+		require.True(t, errors.Is(err, errTooBigSize), "got: %v", err)
+	})
+	t.Run("overflow on null", func(t *testing.T) {
+		arr := NewArray([]Item{
+			NewByteArray(bigBuf[:MaxSize/4*3-52]),
+			Null{},
+		})
+		_, err := ToJSONWithTypes(arr)
+		require.True(t, errors.Is(err, errTooBigSize), "got: %v", err)
+	})
+	t.Run("overflow on interop", func(t *testing.T) {
+		arr := NewArray([]Item{
+			NewByteArray(bigBuf[:MaxSize/4*3-52]),
+			NewInterop(42),
+		})
+		_, err := ToJSONWithTypes(arr)
+		require.True(t, errors.Is(err, errTooBigSize), "got: %v", err)
+	})
+	t.Run("overflow on cached item", func(t *testing.T) {
+		b := NewArray([]Item{NewByteArray(bigBuf[:MaxSize/2])})
+		arr := NewArray([]Item{b, b})
+		_, err := ToJSONWithTypes(arr)
+		require.True(t, errors.Is(err, errTooBigSize), "got: %v", err)
+	})
+	t.Run("invalid type", func(t *testing.T) {
+		_, err := ToJSONWithTypes(nil)
+		require.True(t, errors.Is(err, ErrUnserializable), "got: %v", err)
 	})
 }
 
