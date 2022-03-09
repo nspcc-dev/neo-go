@@ -66,6 +66,8 @@ func CompileFile(t *testing.T, sender util.Uint160, srcPath string, configPath s
 		o.Permissions[i] = manifest.Permission(conf.Permissions[i])
 	}
 	o.SafeMethods = conf.SafeMethods
+	o.Overloads = conf.Overloads
+	o.SourceURL = conf.SourceURL
 	m, err := compiler.CreateManifest(di, o)
 	require.NoError(t, err)
 
