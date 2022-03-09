@@ -723,11 +723,11 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		v.estack.PushItem(stackitem.NewBuffer(ab))
 
 	case opcode.SUBSTR:
-		l := int(v.estack.Pop().BigInt().Int64())
+		l := toInt(v.estack.Pop().BigInt())
 		if l < 0 {
 			panic("negative length")
 		}
-		o := int(v.estack.Pop().BigInt().Int64())
+		o := toInt(v.estack.Pop().BigInt())
 		if o < 0 {
 			panic("negative index")
 		}
@@ -741,7 +741,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		v.estack.PushItem(stackitem.NewBuffer(res))
 
 	case opcode.LEFT:
-		l := int(v.estack.Pop().BigInt().Int64())
+		l := toInt(v.estack.Pop().BigInt())
 		if l < 0 {
 			panic("negative length")
 		}
@@ -754,7 +754,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		v.estack.PushItem(stackitem.NewBuffer(res))
 
 	case opcode.RIGHT:
-		l := int(v.estack.Pop().BigInt().Int64())
+		l := toInt(v.estack.Pop().BigInt())
 		if l < 0 {
 			panic("negative length")
 		}
@@ -779,7 +779,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		_ = v.estack.RemoveAt(1)
 
 	case opcode.XDROP:
-		n := int(v.estack.Pop().BigInt().Int64())
+		n := toInt(v.estack.Pop().BigInt())
 		if n < 0 {
 			panic("invalid length")
 		}
@@ -802,7 +802,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		v.estack.Push(a)
 
 	case opcode.PICK:
-		n := int(v.estack.Pop().BigInt().Int64())
+		n := toInt(v.estack.Pop().BigInt())
 		if n < 0 {
 			panic("negative stack item returned")
 		}
@@ -832,7 +832,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		}
 
 	case opcode.ROLL:
-		n := int(v.estack.Pop().BigInt().Int64())
+		n := toInt(v.estack.Pop().BigInt())
 		err := v.estack.Roll(n)
 		if err != nil {
 			panic(err.Error())
@@ -844,7 +844,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		case opcode.REVERSE4:
 			n = 4
 		case opcode.REVERSEN:
-			n = int(v.estack.Pop().BigInt().Int64())
+			n = toInt(v.estack.Pop().BigInt())
 		}
 		if err := v.estack.ReverseTop(n); err != nil {
 			panic(err.Error())
@@ -952,7 +952,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		v.estack.PushItem(stackitem.NewBigInteger(new(big.Int).Sqrt(a)))
 
 	case opcode.SHL, opcode.SHR:
-		b := v.estack.Pop().BigInt().Int64()
+		b := toInt(v.estack.Pop().BigInt())
 		if b == 0 {
 			return
 		} else if b < 0 || b > maxSHLArg {
@@ -1252,7 +1252,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		switch t := elem.value.(type) {
 		case *stackitem.Array:
 			a := t.Value().([]stackitem.Item)
-			k := int(key.BigInt().Int64())
+			k := toInt(key.BigInt())
 			if k < 0 || k >= len(a) {
 				panic("REMOVE: invalid index")
 			}
@@ -1260,7 +1260,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			t.Remove(k)
 		case *stackitem.Struct:
 			a := t.Value().([]stackitem.Item)
-			k := int(key.BigInt().Int64())
+			k := toInt(key.BigInt())
 			if k < 0 || k >= len(a) {
 				panic("REMOVE: invalid index")
 			}
@@ -1454,19 +1454,19 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		var res bool
 		switch t := c.value.(type) {
 		case *stackitem.Array, *stackitem.Struct:
-			index := key.BigInt().Int64()
+			index := toInt(key.BigInt())
 			if index < 0 {
 				panic("negative index")
 			}
-			res = index < int64(len(c.Array()))
+			res = index < len(c.Array())
 		case *stackitem.Map:
 			res = t.Has(key.Item())
 		case *stackitem.Buffer:
-			index := key.BigInt().Int64()
+			index := toInt(key.BigInt())
 			if index < 0 {
 				panic("negative index")
 			}
-			res = index < int64(t.Len())
+			res = index < t.Len()
 		default:
 			panic("wrong collection type")
 		}
