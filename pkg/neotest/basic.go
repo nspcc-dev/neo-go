@@ -63,6 +63,13 @@ func (e *Executor) NativeHash(t *testing.T, name string) util.Uint160 {
 	return h
 }
 
+// ContractHash returns contract hash by ID.
+func (e *Executor) ContractHash(t *testing.T, id int32) util.Uint160 {
+	h, err := e.Chain.GetContractScriptHash(id)
+	require.NoError(t, err)
+	return h
+}
+
 // NativeID returns native contract ID by name.
 func (e *Executor) NativeID(t *testing.T, name string) int32 {
 	h := e.NativeHash(t, name)
@@ -132,7 +139,15 @@ func (e *Executor) NewAccount(t *testing.T, expectedGASBalance ...int64) Signer 
 // data is an optional argument to `_deploy`.
 // Returns hash of the deploy transaction.
 func (e *Executor) DeployContract(t *testing.T, c *Contract, data interface{}) util.Uint256 {
-	tx := e.NewDeployTx(t, e.Chain, c, data)
+	return e.DeployContractBy(t, e.Validator, c, data)
+}
+
+// DeployContractBy compiles and deploys contract to bc using provided signer.
+// It also checks that precalculated contract hash matches the actual one.
+// data is an optional argument to `_deploy`.
+// Returns hash of the deploy transaction.
+func (e *Executor) DeployContractBy(t *testing.T, signer Signer, c *Contract, data interface{}) util.Uint256 {
+	tx := NewDeployTxBy(t, e.Chain, signer, c, data)
 	e.AddNewBlock(t, tx)
 	e.CheckHalt(t, tx.Hash())
 
@@ -148,8 +163,8 @@ func (e *Executor) DeployContract(t *testing.T, c *Contract, data interface{}) u
 	return tx.Hash()
 }
 
-// DeployContractCheckFAULT compiles and deploys contract to bc. It checks that deploy
-// transaction FAULTed with the specified error.
+// DeployContractCheckFAULT compiles and deploys contract to bc using validator
+// account. It checks that deploy transaction FAULTed with the specified error.
 func (e *Executor) DeployContractCheckFAULT(t *testing.T, c *Contract, data interface{}, errMessage string) {
 	tx := e.NewDeployTx(t, e.Chain, c, data)
 	e.AddNewBlock(t, tx)
@@ -221,8 +236,19 @@ func (e *Executor) CheckGASBalance(t *testing.T, acc util.Uint160, expected *big
 	require.Equal(t, expected, actual, fmt.Errorf("invalid GAS balance: expected %s, got %s", expected.String(), actual.String()))
 }
 
+// EnsureGASBalance ensures that provided account owns amount of GAS that satisfies provided condition.
+func (e *Executor) EnsureGASBalance(t *testing.T, acc util.Uint160, isOk func(balance *big.Int) bool) {
+	actual := e.Chain.GetUtilityTokenBalance(acc)
+	require.True(t, isOk(actual), fmt.Errorf("invalid GAS balance: got %s, condition is not satisfied", actual.String()))
+}
+
 // NewDeployTx returns new deployment tx for contract signed by committee.
 func (e *Executor) NewDeployTx(t *testing.T, bc blockchainer.Blockchainer, c *Contract, data interface{}) *transaction.Transaction {
+	return NewDeployTxBy(t, bc, e.Validator, c, data)
+}
+
+// NewDeployTxBy returns new deployment tx for contract signed by the specified signer.
+func NewDeployTxBy(t *testing.T, bc blockchainer.Blockchainer, signer Signer, c *Contract, data interface{}) *transaction.Transaction {
 	rawManifest, err := json.Marshal(c.Manifest)
 	require.NoError(t, err)
 
@@ -237,11 +263,11 @@ func (e *Executor) NewDeployTx(t *testing.T, bc blockchainer.Blockchainer, c *Co
 	tx.Nonce = Nonce()
 	tx.ValidUntilBlock = bc.BlockHeight() + 1
 	tx.Signers = []transaction.Signer{{
-		Account: e.Validator.ScriptHash(),
+		Account: signer.ScriptHash(),
 		Scopes:  transaction.Global,
 	}}
-	addNetworkFee(bc, tx, e.Validator)
-	require.NoError(t, e.Validator.SignTx(netmode.UnitTestNet, tx))
+	addNetworkFee(bc, tx, signer)
+	require.NoError(t, signer.SignTx(netmode.UnitTestNet, tx))
 	return tx
 }
 

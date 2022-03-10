@@ -133,6 +133,12 @@ func TestStateRoot(t *testing.T) {
 	require.Equal(t, h, r.Witness[0].ScriptHash())
 }
 
+type memoryStore struct {
+	*storage.MemoryStore
+}
+
+func (memoryStore) Close() error { return nil }
+
 func TestStateRootInitNonZeroHeight(t *testing.T) {
 	st := memoryStore{storage.NewMemoryStore()}
 	h, pubs, accs := newMajorityMultisigWithGAS(t, 2)

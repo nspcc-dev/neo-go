@@ -10,11 +10,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func transferFundsToCommittee(t *testing.T, chain *Blockchain) {
-	transferTokenFromMultisigAccount(t, chain, testchain.CommitteeScriptHash(),
-		chain.contracts.GAS.Hash, 1000_00000000)
-}
-
 func TestFeePerByte(t *testing.T) {
 	chain := newTestChain(t)
 

@@ -1,13 +1,14 @@
-package core
+package core_test
 
 import (
 	"testing"
-	"time"
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/mpt"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
+	"github.com/nspcc-dev/neo-go/pkg/neotest"
+	"github.com/nspcc-dev/neo-go/pkg/neotest/chain"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/util/slice"
 	"github.com/stretchr/testify/require"
@@ -18,40 +19,41 @@ func TestStateSyncModule_Init(t *testing.T) {
 		stateSyncInterval        = 2
 		maxTraceable      uint32 = 3
 	)
-	spoutCfg := func(c *config.Config) {
-		c.ProtocolConfiguration.StateRootInHeader = true
-		c.ProtocolConfiguration.P2PStateExchangeExtensions = true
-		c.ProtocolConfiguration.StateSyncInterval = stateSyncInterval
-		c.ProtocolConfiguration.MaxTraceableBlocks = maxTraceable
+	spoutCfg := func(c *config.ProtocolConfiguration) {
+		c.StateRootInHeader = true
+		c.P2PStateExchangeExtensions = true
+		c.StateSyncInterval = stateSyncInterval
+		c.MaxTraceableBlocks = maxTraceable
 	}
-	bcSpout := newTestChainWithCustomCfg(t, spoutCfg)
+	bcSpout, validators, committee := chain.NewMultiWithCustomConfig(t, spoutCfg)
+	e := neotest.NewExecutor(t, bcSpout, validators, committee)
 	for i := 0; i <= 2*stateSyncInterval+int(maxTraceable)+1; i++ {
-		require.NoError(t, bcSpout.AddBlock(bcSpout.newBlock()))
+		e.AddNewBlock(t)
 	}
 
-	boltCfg := func(c *config.Config) {
+	boltCfg := func(c *config.ProtocolConfiguration) {
 		spoutCfg(c)
-		c.ProtocolConfiguration.KeepOnlyLatestState = true
-		c.ProtocolConfiguration.RemoveUntraceableBlocks = true
+		c.KeepOnlyLatestState = true
+		c.RemoveUntraceableBlocks = true
 	}
 	t.Run("error: module disabled by config", func(t *testing.T) {
-		bcBolt := newTestChainWithCustomCfg(t, func(c *config.Config) {
+		bcBolt, _, _ := chain.NewMultiWithCustomConfig(t, func(c *config.ProtocolConfiguration) {
 			boltCfg(c)
-			c.ProtocolConfiguration.RemoveUntraceableBlocks = false
+			c.RemoveUntraceableBlocks = false
 		})
 		module := bcBolt.GetStateSyncModule()
 		require.Error(t, module.Init(bcSpout.BlockHeight())) // module inactive (non-archival node)
 	})
 
 	t.Run("inactive: spout chain is too low to start state sync process", func(t *testing.T) {
-		bcBolt := newTestChainWithCustomCfg(t, boltCfg)
+		bcBolt, _, _ := chain.NewMultiWithCustomConfig(t, boltCfg)
 		module := bcBolt.GetStateSyncModule()
 		require.NoError(t, module.Init(uint32(2*stateSyncInterval-1)))
 		require.False(t, module.IsActive())
 	})
 
 	t.Run("inactive: bolt chain height is close enough to spout chain height", func(t *testing.T) {
-		bcBolt := newTestChainWithCustomCfg(t, boltCfg)
+		bcBolt, _, _ := chain.NewMultiWithCustomConfig(t, boltCfg)
 		for i := 1; i < int(bcSpout.BlockHeight())-stateSyncInterval; i++ {
 			b, err := bcSpout.GetBlock(bcSpout.GetHeaderHash(i))
 			require.NoError(t, err)
@@ -63,15 +65,16 @@ func TestStateSyncModule_Init(t *testing.T) {
 	})
 
 	t.Run("error: bolt chain is too low to start state sync process", func(t *testing.T) {
-		bcBolt := newTestChainWithCustomCfg(t, boltCfg)
-		require.NoError(t, bcBolt.AddBlock(bcBolt.newBlock()))
+		bcBolt, validatorsBolt, committeeBolt := chain.NewMultiWithCustomConfig(t, boltCfg)
+		eBolt := neotest.NewExecutor(t, bcBolt, validatorsBolt, committeeBolt)
+		eBolt.AddNewBlock(t)
 
 		module := bcBolt.GetStateSyncModule()
 		require.Error(t, module.Init(uint32(3*stateSyncInterval)))
 	})
 
 	t.Run("initialized: no previous state sync point", func(t *testing.T) {
-		bcBolt := newTestChainWithCustomCfg(t, boltCfg)
+		bcBolt, _, _ := chain.NewMultiWithCustomConfig(t, boltCfg)
 
 		module := bcBolt.GetStateSyncModule()
 		require.NoError(t, module.Init(bcSpout.BlockHeight()))
@@ -82,7 +85,7 @@ func TestStateSyncModule_Init(t *testing.T) {
 	})
 
 	t.Run("error: outdated state sync point in the storage", func(t *testing.T) {
-		bcBolt := newTestChainWithCustomCfg(t, boltCfg)
+		bcBolt, _, _ := chain.NewMultiWithCustomConfig(t, boltCfg)
 		module := bcBolt.GetStateSyncModule()
 		require.NoError(t, module.Init(bcSpout.BlockHeight()))
 
@@ -91,7 +94,7 @@ func TestStateSyncModule_Init(t *testing.T) {
 	})
 
 	t.Run("initialized: valid previous state sync point in the storage", func(t *testing.T) {
-		bcBolt := newTestChainWithCustomCfg(t, boltCfg)
+		bcBolt, _, _ := chain.NewMultiWithCustomConfig(t, boltCfg)
 		module := bcBolt.GetStateSyncModule()
 		require.NoError(t, module.Init(bcSpout.BlockHeight()))
 
@@ -104,7 +107,8 @@ func TestStateSyncModule_Init(t *testing.T) {
 	})
 
 	t.Run("initialization from headers/blocks/mpt synced stages", func(t *testing.T) {
-		bcBolt := newTestChainWithCustomCfg(t, boltCfg)
+		bcBolt, validatorsBolt, committeeBolt := chain.NewMultiWithCustomConfig(t, boltCfg)
+		eBolt := neotest.NewExecutor(t, bcBolt, validatorsBolt, committeeBolt)
 		module := bcBolt.GetStateSyncModule()
 		require.NoError(t, module.Init(bcSpout.BlockHeight()))
 
@@ -263,7 +267,7 @@ func TestStateSyncModule_Init(t *testing.T) {
 
 		// add one more block to the restored chain and start new module: the module should recognise state sync is completed
 		// and regular blocks processing was started
-		require.NoError(t, bcBolt.AddBlock(bcBolt.newBlock()))
+		eBolt.AddNewBlock(t)
 		module = bcBolt.GetStateSyncModule()
 		require.NoError(t, module.Init(bcSpout.BlockHeight()))
 		require.False(t, module.IsActive())
@@ -282,27 +286,31 @@ func TestStateSyncModule_RestoreBasicChain(t *testing.T) {
 		maxTraceable      uint32 = 6
 		stateSyncPoint           = 20
 	)
-	spoutCfg := func(c *config.Config) {
-		c.ProtocolConfiguration.StateRootInHeader = true
-		c.ProtocolConfiguration.P2PStateExchangeExtensions = true
-		c.ProtocolConfiguration.StateSyncInterval = stateSyncInterval
-		c.ProtocolConfiguration.MaxTraceableBlocks = maxTraceable
+	spoutCfg := func(c *config.ProtocolConfiguration) {
+		c.StateRootInHeader = true
+		c.P2PStateExchangeExtensions = true
+		c.StateSyncInterval = stateSyncInterval
+		c.MaxTraceableBlocks = maxTraceable
+		c.P2PSigExtensions = true // `initBasicChain` assumes Notary is enabled.
 	}
-	bcSpout := newTestChainWithCustomCfg(t, spoutCfg)
-	initBasicChain(t, bcSpout)
+	bcSpoutStore := storage.NewMemoryStore()
+	bcSpout, validators, committee := chain.NewMultiWithCustomConfigAndStore(t, spoutCfg, bcSpoutStore, false)
+	go bcSpout.Run() // Will close it manually at the end.
+	e := neotest.NewExecutor(t, bcSpout, validators, committee)
+	initBasicChain(t, e)
 
 	// make spout chain higher that latest state sync point (add several blocks up to stateSyncPoint+2)
-	require.NoError(t, bcSpout.AddBlock(bcSpout.newBlock()))
+	e.AddNewBlock(t)
 	require.Equal(t, stateSyncPoint+2, int(bcSpout.BlockHeight()))
 
-	boltCfg := func(c *config.Config) {
+	boltCfg := func(c *config.ProtocolConfiguration) {
 		spoutCfg(c)
-		c.ProtocolConfiguration.KeepOnlyLatestState = true
-		c.ProtocolConfiguration.RemoveUntraceableBlocks = true
+		c.KeepOnlyLatestState = true
+		c.RemoveUntraceableBlocks = true
 	}
-	bcBoltStore := memoryStore{storage.NewMemoryStore()}
-	bcBolt := initTestChain(t, bcBoltStore, boltCfg)
-	go bcBolt.Run()
+	bcBoltStore := storage.NewMemoryStore()
+	bcBolt, _, _ := chain.NewMultiWithCustomConfigAndStore(t, boltCfg, bcBoltStore, false)
+	go bcBolt.Run() // Will close it manually at the end.
 	module := bcBolt.GetStateSyncModule()
 
 	t.Run("error: add headers before initialisation", func(t *testing.T) {
@@ -421,9 +429,9 @@ func TestStateSyncModule_RestoreBasicChain(t *testing.T) {
 	require.Equal(t, bcSpout.BlockHeight(), bcBolt.BlockHeight())
 
 	// compare storage states
-	fetchStorage := func(bc *Blockchain) []storage.KeyValue {
+	fetchStorage := func(ps storage.Store, storagePrefix byte) []storage.KeyValue {
 		var kv []storage.KeyValue
-		bc.dao.Store.Seek(storage.SeekRange{Prefix: []byte{byte(bc.dao.Version.StoragePrefix)}}, func(k, v []byte) bool {
+		ps.Seek(storage.SeekRange{Prefix: []byte{storagePrefix}}, func(k, v []byte) bool {
 			key := slice.Copy(k)
 			value := slice.Copy(v)
 			if key[0] == byte(storage.STTempStorage) {
@@ -437,25 +445,19 @@ func TestStateSyncModule_RestoreBasicChain(t *testing.T) {
 		})
 		return kv
 	}
-	expected := fetchStorage(bcSpout)
-	actual := fetchStorage(bcBolt)
+	// Both blockchains are running, so we need to wait until recent changes will be persisted
+	// to the underlying backend store. Close blockchains to ensure persist was completed.
+	bcSpout.Close()
+	bcBolt.Close()
+	expected := fetchStorage(bcSpoutStore, byte(storage.STStorage))
+	actual := fetchStorage(bcBoltStore, byte(storage.STTempStorage))
 	require.ElementsMatch(t, expected, actual)
 
 	// no temp items should be left
-	require.Eventually(t, func() bool {
-		var haveItems bool
-		bcBolt.dao.Store.Seek(storage.SeekRange{Prefix: []byte{byte(storage.STStorage)}}, func(_, _ []byte) bool {
-			haveItems = true
-			return false
-		})
-		return !haveItems
-	}, time.Second*5, time.Millisecond*100)
-	bcBolt.Close()
-
-	// Check restoring with new prefix.
-	bcBolt = initTestChain(t, bcBoltStore, boltCfg)
-	go bcBolt.Run()
-	defer bcBolt.Close()
-	require.Equal(t, storage.STTempStorage, bcBolt.dao.Version.StoragePrefix)
-	require.Equal(t, storage.STTempStorage, bcBolt.persistent.Version.StoragePrefix)
+	var haveItems bool
+	bcBoltStore.Seek(storage.SeekRange{Prefix: []byte{byte(storage.STStorage)}}, func(_, _ []byte) bool {
+		haveItems = true
+		return false
+	})
+	require.False(t, haveItems)
 }

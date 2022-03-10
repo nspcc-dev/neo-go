@@ -1,30 +1,33 @@
-package core
+package core_test
 
 import (
 	"testing"
 
-	"github.com/nspcc-dev/neo-go/pkg/core/storage"
+	"github.com/nspcc-dev/neo-go/pkg/config"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
+	"github.com/nspcc-dev/neo-go/pkg/neotest"
+	"github.com/nspcc-dev/neo-go/pkg/neotest/chain"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/stretchr/testify/require"
 )
 
-type memoryStore struct {
-	*storage.MemoryStore
-}
-
-func (memoryStore) Close() error { return nil }
-
 func TestManagement_GetNEP17Contracts(t *testing.T) {
 	t.Run("empty chain", func(t *testing.T) {
-		chain := newTestChain(t)
-		require.ElementsMatch(t, []util.Uint160{chain.contracts.NEO.Hash, chain.contracts.GAS.Hash}, chain.contracts.Management.GetNEP17Contracts())
+		bc, validators, committee := chain.NewMulti(t)
+		e := neotest.NewExecutor(t, bc, validators, committee)
+
+		require.ElementsMatch(t, []util.Uint160{e.NativeHash(t, nativenames.Neo),
+			e.NativeHash(t, nativenames.Gas)}, bc.GetNEP17Contracts())
 	})
 
-	t.Run("test chain", func(t *testing.T) {
-		chain := newTestChain(t)
-		initBasicChain(t, chain)
-		rublesHash, err := chain.GetContractScriptHash(1)
-		require.NoError(t, err)
-		require.ElementsMatch(t, []util.Uint160{chain.contracts.NEO.Hash, chain.contracts.GAS.Hash, rublesHash}, chain.contracts.Management.GetNEP17Contracts())
+	t.Run("basic chain", func(t *testing.T) {
+		bc, validators, committee := chain.NewMultiWithCustomConfig(t, func(c *config.ProtocolConfiguration) {
+			c.P2PSigExtensions = true // `initBasicChain` requires Notary enabled
+		})
+		e := neotest.NewExecutor(t, bc, validators, committee)
+		initBasicChain(t, e)
+
+		require.ElementsMatch(t, []util.Uint160{e.NativeHash(t, nativenames.Neo),
+			e.NativeHash(t, nativenames.Gas), e.ContractHash(t, 1)}, bc.GetNEP17Contracts())
 	})
 }

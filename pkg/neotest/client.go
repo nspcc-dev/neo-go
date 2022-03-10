@@ -19,6 +19,15 @@ type ContractInvoker struct {
 	Signers []Signer
 }
 
+// NewInvoker creates new ContractInvoker for contract with hash h and specified signers.
+func (e *Executor) NewInvoker(h util.Uint160, signers ...Signer) *ContractInvoker {
+	return &ContractInvoker{
+		Executor: e,
+		Hash:     h,
+		Signers:  signers,
+	}
+}
+
 // CommitteeInvoker creates new ContractInvoker for contract with hash h and committee multisignature signer.
 func (e *Executor) CommitteeInvoker(h util.Uint160) *ContractInvoker {
 	return &ContractInvoker{
