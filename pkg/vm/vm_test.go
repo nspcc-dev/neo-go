@@ -1435,6 +1435,13 @@ func TestHASKEY(t *testing.T) {
 		t.Run("False", getTestFuncForVM(prog, false, stackitem.NewBuffer([]byte{5, 5, 5}), 3))
 		t.Run("Negative", getTestFuncForVM(prog, nil, stackitem.NewBuffer([]byte{5, 5, 5}), -1))
 	})
+
+	t.Run("ByteArray", func(t *testing.T) {
+		t.Run("True", getTestFuncForVM(prog, true, stackitem.NewByteArray([]byte{5, 5, 5}), 2))
+		t.Run("too big", getTestFuncForVM(prog, nil, stackitem.NewByteArray([]byte{5, 5, 5}), maxu64Plus(2)))
+		t.Run("False", getTestFuncForVM(prog, false, stackitem.NewByteArray([]byte{5, 5, 5}), 3))
+		t.Run("Negative", getTestFuncForVM(prog, nil, stackitem.NewByteArray([]byte{5, 5, 5}), -1))
+	})
 }
 
 func TestHASKEYMap(t *testing.T) {

@@ -1461,12 +1461,12 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			res = index < len(c.Array())
 		case *stackitem.Map:
 			res = t.Has(key.Item())
-		case *stackitem.Buffer:
+		case *stackitem.Buffer, *stackitem.ByteArray:
 			index := toInt(key.BigInt())
 			if index < 0 {
 				panic("negative index")
 			}
-			res = index < t.Len()
+			res = index < len(t.Value().([]byte))
 		default:
 			panic("wrong collection type")
 		}
