@@ -737,6 +737,7 @@ func TestSHR(t *testing.T) {
 	t.Run("Good", getTestFuncForVM(prog, 1, 4, 2))
 	t.Run("Zero", getTestFuncForVM(prog, []byte{0, 1}, []byte{0, 1}, 0))
 	t.Run("Negative", getTestFuncForVM(prog, nil, 5, -1))
+	t.Run("very big", getTestFuncForVM(prog, nil, 5, maxu64Plus(1)))
 }
 
 func TestSHL(t *testing.T) {
@@ -745,6 +746,7 @@ func TestSHL(t *testing.T) {
 	t.Run("Zero", getTestFuncForVM(prog, []byte{0, 1}, []byte{0, 1}, 0))
 	t.Run("BigShift", getTestFuncForVM(prog, nil, 5, maxSHLArg+1))
 	t.Run("BigResult", getTestFuncForVM(prog, nil, getBigInt(stackitem.MaxBigIntegerSizeBits/2, 0), stackitem.MaxBigIntegerSizeBits/2))
+	t.Run("very big shift", getTestFuncForVM(prog, nil, 5, maxu64Plus(1)))
 }
 
 func TestArithNullArg(t *testing.T) {
@@ -1418,17 +1420,27 @@ func TestHASKEY(t *testing.T) {
 	arr := makeArrayOfType(5, stackitem.BooleanT)
 	t.Run("Array", func(t *testing.T) {
 		t.Run("True", getTestFuncForVM(prog, true, stackitem.NewArray(arr), 4))
+		t.Run("too big", getTestFuncForVM(prog, nil, stackitem.NewArray(arr), maxu64Plus(4)))
 		t.Run("False", getTestFuncForVM(prog, false, stackitem.NewArray(arr), 5))
 	})
 	t.Run("Struct", func(t *testing.T) {
 		t.Run("True", getTestFuncForVM(prog, true, stackitem.NewStruct(arr), 4))
+		t.Run("too big", getTestFuncForVM(prog, nil, stackitem.NewStruct(arr), maxu64Plus(4)))
 		t.Run("False", getTestFuncForVM(prog, false, stackitem.NewStruct(arr), 5))
 	})
 
 	t.Run("Buffer", func(t *testing.T) {
 		t.Run("True", getTestFuncForVM(prog, true, stackitem.NewBuffer([]byte{5, 5, 5}), 2))
+		t.Run("too big", getTestFuncForVM(prog, nil, stackitem.NewBuffer([]byte{5, 5, 5}), maxu64Plus(2)))
 		t.Run("False", getTestFuncForVM(prog, false, stackitem.NewBuffer([]byte{5, 5, 5}), 3))
 		t.Run("Negative", getTestFuncForVM(prog, nil, stackitem.NewBuffer([]byte{5, 5, 5}), -1))
+	})
+
+	t.Run("ByteArray", func(t *testing.T) {
+		t.Run("True", getTestFuncForVM(prog, true, stackitem.NewByteArray([]byte{5, 5, 5}), 2))
+		t.Run("too big", getTestFuncForVM(prog, nil, stackitem.NewByteArray([]byte{5, 5, 5}), maxu64Plus(2)))
+		t.Run("False", getTestFuncForVM(prog, false, stackitem.NewByteArray([]byte{5, 5, 5}), 3))
+		t.Run("Negative", getTestFuncForVM(prog, nil, stackitem.NewByteArray([]byte{5, 5, 5}), -1))
 	})
 }
 
@@ -1497,6 +1509,7 @@ func TestPICK(t *testing.T) {
 	prog := makeProgram(opcode.PICK)
 	t.Run("NoItem", getTestFuncForVM(prog, nil, 1))
 	t.Run("Negative", getTestFuncForVM(prog, nil, -1))
+	t.Run("very big", getTestFuncForVM(prog, nil, 1, 2, 3, maxu64Plus(1)))
 }
 
 func TestPICKgood(t *testing.T) {
@@ -1557,6 +1570,17 @@ func TestROLLBad2(t *testing.T) {
 	runWithArgs(t, prog, nil, 1, 2, 3, 3)
 }
 
+func maxu64Plus(x int64) *big.Int {
+	bi := new(big.Int).SetUint64(math.MaxUint64)
+	bi.Add(bi, big.NewInt(2))
+	return bi
+}
+
+func TestROLLBad3(t *testing.T) {
+	prog := makeProgram(opcode.ROLL)
+	runWithArgs(t, prog, nil, 1, 2, 3, maxu64Plus(2))
+}
+
 func TestROLLGood(t *testing.T) {
 	prog := makeProgram(opcode.ROLL)
 	vm := load(prog)
@@ -1602,6 +1626,7 @@ func TestREVERSEN(t *testing.T) {
 	t.Run("Zero", getCustomTestFuncForVM(prog, getCheckEStackFunc(3, 2, 1), 1, 2, 3, 0))
 	t.Run("OneItem", getCustomTestFuncForVM(prog, getCheckEStackFunc(42), 42, 1))
 	t.Run("Good", getCustomTestFuncForVM(prog, getCheckEStackFunc(1, 2, 3, 4, 5), 1, 2, 3, 4, 5, 5))
+	t.Run("VeryBigNumber", getCustomTestFuncForVM(prog, nil, 1, 2, maxu64Plus(2)))
 }
 
 func TestTUCKbadNoitems(t *testing.T) {
@@ -1695,6 +1720,7 @@ func TestXDROP(t *testing.T) {
 	prog := makeProgram(opcode.XDROP)
 	t.Run("NoArgument", getTestFuncForVM(prog, nil))
 	t.Run("NoN", getTestFuncForVM(prog, nil, 1, 2))
+	t.Run("very big argument", getTestFuncForVM(prog, nil, 1, 2, maxu64Plus(1)))
 	t.Run("Negative", getTestFuncForVM(prog, nil, 1, -1))
 }
 
@@ -1780,7 +1806,9 @@ func TestSUBSTR(t *testing.T) {
 	t.Run("TwoArguments", getTestFuncForVM(prog, nil, 0, 2))
 	t.Run("Good", getTestFuncForVM(prog, stackitem.NewBuffer([]byte("bc")), []byte("abcdef"), 1, 2))
 	t.Run("BadOffset", getTestFuncForVM(prog, nil, []byte("abcdef"), 7, 1))
+	t.Run("very big offset", getTestFuncForVM(prog, nil, []byte("abcdef"), maxu64Plus(1), 1))
 	t.Run("BigLen", getTestFuncForVM(prog, nil, []byte("abcdef"), 1, 6))
+	t.Run("very big len", getTestFuncForVM(prog, nil, []byte("abcdef"), 1, maxu64Plus(1)))
 	t.Run("NegativeOffset", getTestFuncForVM(prog, nil, []byte("abcdef"), -1, 3))
 	t.Run("NegativeLen", getTestFuncForVM(prog, nil, []byte("abcdef"), 3, -1))
 }
@@ -1803,6 +1831,7 @@ func TestLEFT(t *testing.T) {
 	t.Run("NegativeLen", getTestFuncForVM(prog, nil, "abcdef", -1))
 	t.Run("Good", getTestFuncForVM(prog, stackitem.NewBuffer([]byte("ab")), "abcdef", 2))
 	t.Run("BadBigLen", getTestFuncForVM(prog, nil, "abcdef", 8))
+	t.Run("bad, very big len", getTestFuncForVM(prog, nil, "abcdef", maxu64Plus(2)))
 }
 
 func TestRIGHT(t *testing.T) {
@@ -1812,6 +1841,7 @@ func TestRIGHT(t *testing.T) {
 	t.Run("NegativeLen", getTestFuncForVM(prog, nil, "abcdef", -1))
 	t.Run("Good", getTestFuncForVM(prog, stackitem.NewBuffer([]byte("ef")), "abcdef", 2))
 	t.Run("BadLen", getTestFuncForVM(prog, nil, "abcdef", 8))
+	t.Run("bad, very big len", getTestFuncForVM(prog, nil, "abcdef", maxu64Plus(2)))
 }
 
 func TestPACK(t *testing.T) {
@@ -2059,6 +2089,7 @@ func TestREMOVE(t *testing.T) {
 	t.Run("OneArgument", getTestFuncForVM(prog, nil, 1))
 	t.Run("NotArray", getTestFuncForVM(prog, nil, 1, 1))
 	t.Run("BadIndex", getTestFuncForVM(prog, nil, []int{22, 34, 42, 55, 81}, 10))
+	t.Run("very big index", getTestFuncForVM(prog, nil, []int{22, 34, 42, 55, 81}, maxu64Plus(1)))
 }
 
 func TestREMOVEGood(t *testing.T) {
