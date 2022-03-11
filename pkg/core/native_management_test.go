@@ -14,15 +14,6 @@ type memoryStore struct {
 
 func (memoryStore) Close() error { return nil }
 
-func TestMinimumDeploymentFee(t *testing.T) {
-	chain := newTestChain(t)
-
-	t.Run("get, internal method", func(t *testing.T) {
-		n := chain.contracts.Management.GetMinimumDeploymentFee(chain.dao)
-		require.Equal(t, 10_00000000, int(n))
-	})
-}
-
 func TestManagement_GetNEP17Contracts(t *testing.T) {
 	t.Run("empty chain", func(t *testing.T) {
 		chain := newTestChain(t)
