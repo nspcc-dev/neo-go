@@ -214,12 +214,12 @@ func initBasicChain(t *testing.T, e *neotest.Executor) {
 	nsPriv0Invoker.Invoke(t, stackitem.Null{}, "setRecord", "neo.com", int64(nns.A), "1.2.3.4") // block #15
 
 	// Block #16: invoke `test_contract.go`: put new value with the same key to check `getstate` RPC call
-	txPutNewValue := rublPriv0Invoker.PrepareInvoke(t, "putValue", "testkey", "newtestvalue")
+	txPutNewValue := rublPriv0Invoker.PrepareInvoke(t, "putValue", "testkey", "newtestvalue") // tx1
 	// Invoke `test_contract.go`: put values to check `findstates` RPC call.
-	txPut1 := rublPriv0Invoker.PrepareInvoke(t, "putValue", "aa", "v1")
-	txPut2 := rublPriv0Invoker.PrepareInvoke(t, "putValue", "aa10", "v2")
-	txPut3 := rublPriv0Invoker.PrepareInvoke(t, "putValue", "aa50", "v3")
-	e.AddNewBlock(t, txPutNewValue, txPut1, txPut2, txPut3) // block #16
+	txPut1 := rublPriv0Invoker.PrepareInvoke(t, "putValue", "aa", "v1")   // tx2
+	txPut2 := rublPriv0Invoker.PrepareInvoke(t, "putValue", "aa10", "v2") // tx3
+	txPut3 := rublPriv0Invoker.PrepareInvoke(t, "putValue", "aa50", "v3") // tx4
+	e.AddNewBlock(t, txPutNewValue, txPut1, txPut2, txPut3)               // block #16
 	e.CheckHalt(t, txPutNewValue.Hash(), stackitem.NewBool(true))
 	e.CheckHalt(t, txPut1.Hash(), stackitem.NewBool(true))
 	e.CheckHalt(t, txPut2.Hash(), stackitem.NewBool(true))
