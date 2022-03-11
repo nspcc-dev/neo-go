@@ -174,12 +174,22 @@ func (e *Executor) DeployContractCheckFAULT(t testing.TB, c *Contract, data inte
 // InvokeScript adds transaction with the specified script to the chain and
 // returns its hash. It does no faults check.
 func (e *Executor) InvokeScript(t testing.TB, script []byte, signers []Signer) util.Uint256 {
+	tx := e.PrepareInvocation(t, script, signers)
+	e.AddNewBlock(t, tx)
+	return tx.Hash()
+}
+
+// PrepareInvocation creates transaction with the specified script and signs it
+// by the provided signer.
+func (e *Executor) PrepareInvocation(t testing.TB, script []byte, signers []Signer, validUntilBlock ...uint32) *transaction.Transaction {
 	tx := transaction.New(script, 0)
 	tx.Nonce = Nonce()
 	tx.ValidUntilBlock = e.Chain.BlockHeight() + 1
+	if len(validUntilBlock) != 0 {
+		tx.ValidUntilBlock = validUntilBlock[0]
+	}
 	e.SignTx(t, tx, -1, signers...)
-	e.AddNewBlock(t, tx)
-	return tx.Hash()
+	return tx
 }
 
 // InvokeScriptCheckHALT adds transaction with the specified script to the chain
@@ -323,10 +333,12 @@ func (e *Executor) AddNewBlock(t testing.TB, txs ...*transaction.Transaction) *b
 }
 
 // GenerateNewBlocks adds specified number of empty blocks to the chain.
-func (e *Executor) GenerateNewBlocks(t testing.TB, count int) {
+func (e *Executor) GenerateNewBlocks(t testing.TB, count int) []*block.Block {
+	blocks := make([]*block.Block, count)
 	for i := 0; i < count; i++ {
-		e.AddNewBlock(t)
+		blocks[i] = e.AddNewBlock(t)
 	}
+	return blocks
 }
 
 // SignBlock add validators signature to b.

@@ -1,8 +1,9 @@
-package core
+package core_test
 
 import (
 	"errors"
 	"fmt"
+	"math/big"
 	"math/rand"
 	"path"
 	"path/filepath"
@@ -10,29 +11,32 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nspcc-dev/neo-go/internal/testchain"
 	"github.com/nspcc-dev/neo-go/pkg/config"
+	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
+	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/mempool"
-	"github.com/nspcc-dev/neo-go/pkg/core/native/noderoles"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/interop/native/roles"
 	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/neotest"
+	"github.com/nspcc-dev/neo-go/pkg/neotest/chain"
+	"github.com/nspcc-dev/neo-go/pkg/network"
 	"github.com/nspcc-dev/neo-go/pkg/network/payload"
 	"github.com/nspcc-dev/neo-go/pkg/services/notary"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
-	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap/zaptest"
 )
 
-var notaryModulePath = filepath.Join("..", "services", "notary")
-
-func getTestNotary(t *testing.T, bc *Blockchain, walletPath, pass string, onTx func(tx *transaction.Transaction) error) (*wallet.Account, *notary.Notary, *mempool.Pool) {
+func getTestNotary(t *testing.T, bc *core.Blockchain, walletPath, pass string, onTx func(tx *transaction.Transaction) error) (*wallet.Account, *notary.Notary, *mempool.Pool) {
 	mainCfg := config.P2PNotary{
 		Enabled: true,
 		UnlockWallet: config.Wallet{
@@ -46,7 +50,7 @@ func getTestNotary(t *testing.T, bc *Blockchain, walletPath, pass string, onTx f
 		Log:     zaptest.NewLogger(t),
 	}
 	mp := mempool.New(10, 1, true)
-	ntr, err := notary.NewNotary(cfg, testchain.Network(), mp, onTx)
+	ntr, err := notary.NewNotary(cfg, netmode.UnitTestNet, mp, onTx)
 	require.NoError(t, err)
 
 	w, err := wallet.NewWalletFromFile(path.Join(notaryModulePath, walletPath))
@@ -68,7 +72,14 @@ func dupNotaryRequest(t *testing.T, p *payload.P2PNotaryRequest) *payload.P2PNot
 }
 
 func TestNotary(t *testing.T) {
-	bc := newTestChain(t)
+	bc, validators, committee := chain.NewMultiWithCustomConfig(t, func(c *config.ProtocolConfiguration) {
+		c.P2PSigExtensions = true
+	})
+	e := neotest.NewExecutor(t, bc, validators, committee)
+	notaryHash := e.NativeHash(t, nativenames.Notary)
+	designationSuperInvoker := e.NewInvoker(e.NativeHash(t, nativenames.Designation), validators, committee)
+	gasValidatorInvoker := e.ValidatorInvoker(e.NativeHash(t, nativenames.Gas))
+
 	var (
 		nonce           uint32
 		nvbDiffFallback uint32 = 20
@@ -145,8 +156,9 @@ func TestNotary(t *testing.T) {
 		mp1.StopSubscriptions()
 	})
 
-	notaryNodes := keys.PublicKeys{acc1.PrivateKey().PublicKey(), acc2.PrivateKey().PublicKey()}
-	bc.setNodesByRole(t, true, noderoles.P2PNotary, notaryNodes)
+	notaryNodes := []interface{}{acc1.PrivateKey().PublicKey().Bytes(), acc2.PrivateKey().PublicKey().Bytes()}
+	designationSuperInvoker.Invoke(t, stackitem.Null{}, "designateAsRole",
+		int64(roles.P2PNotary), notaryNodes)
 
 	type requester struct {
 		accounts []*wallet.Account
@@ -193,7 +205,7 @@ func TestNotary(t *testing.T) {
 				VerificationScript: []byte{},
 			},
 		}
-		err = requester.SignTx(testchain.Network(), fallback)
+		err = requester.SignTx(netmode.UnitTestNet, fallback)
 		require.NoError(t, err)
 		return fallback
 	}
@@ -251,7 +263,7 @@ func TestNotary(t *testing.T) {
 				for j := range main.Scripts {
 					main.Scripts[j].VerificationScript = verificationScripts[j]
 					if i == j {
-						main.Scripts[j].InvocationScript = append([]byte{byte(opcode.PUSHDATA1), 64}, acc.PrivateKey().SignHashable(uint32(testchain.Network()), main)...)
+						main.Scripts[j].InvocationScript = append([]byte{byte(opcode.PUSHDATA1), 64}, acc.PrivateKey().SignHashable(uint32(netmode.UnitTestNet), main)...)
 					}
 				}
 				main.Scripts = append(main.Scripts, transaction.Witness{}) // empty Notary witness
@@ -296,12 +308,11 @@ func TestNotary(t *testing.T) {
 			require.Equal(t, io.GetVarSize(completedTx), completedTx.Size())
 
 			for i := 0; i < len(completedTx.Scripts)-1; i++ {
-				interopCtx := bc.newInteropContext(trigger.Verification, bc.dao, nil, completedTx)
-				_, err := bc.verifyHashAgainstScript(completedTx.Signers[i].Account, &completedTx.Scripts[i], interopCtx, -1)
+				_, err := bc.VerifyWitness(completedTx.Signers[i].Account, completedTx, &completedTx.Scripts[i], -1)
 				require.NoError(t, err)
 			}
 			require.Equal(t, transaction.Witness{
-				InvocationScript:   append([]byte{byte(opcode.PUSHDATA1), 64}, acc1.PrivateKey().SignHashable(uint32(testchain.Network()), requests[0].MainTransaction)...),
+				InvocationScript:   append([]byte{byte(opcode.PUSHDATA1), 64}, acc1.PrivateKey().SignHashable(uint32(netmode.UnitTestNet), requests[0].MainTransaction)...),
 				VerificationScript: []byte{},
 			}, completedTx.Scripts[len(completedTx.Scripts)-1])
 		} else {
@@ -316,15 +327,14 @@ func TestNotary(t *testing.T) {
 				require.Equal(t, 2, len(completedTx.Signers))
 				require.Equal(t, 2, len(completedTx.Scripts))
 				require.Equal(t, transaction.Witness{
-					InvocationScript:   append([]byte{byte(opcode.PUSHDATA1), 64}, acc1.PrivateKey().SignHashable(uint32(testchain.Network()), req.FallbackTransaction)...),
+					InvocationScript:   append([]byte{byte(opcode.PUSHDATA1), 64}, acc1.PrivateKey().SignHashable(uint32(netmode.UnitTestNet), req.FallbackTransaction)...),
 					VerificationScript: []byte{},
 				}, completedTx.Scripts[0])
 
 				// check that tx size was updated
 				require.Equal(t, io.GetVarSize(completedTx), completedTx.Size())
 
-				interopCtx := bc.newInteropContext(trigger.Verification, bc.dao, nil, completedTx)
-				_, err := bc.verifyHashAgainstScript(completedTx.Signers[1].Account, &completedTx.Scripts[1], interopCtx, -1)
+				_, err := bc.VerifyWitness(completedTx.Signers[1].Account, completedTx, &completedTx.Scripts[1], -1)
 				require.NoError(t, err)
 			} else {
 				completedTx := getCompletedTx(t, false, req.FallbackTransaction.Hash())
@@ -483,7 +493,8 @@ func TestNotary(t *testing.T) {
 	checkFallbackTxs(t, r, false)
 	ntr1.UpdateNotaryNodes(keys.PublicKeys{randomAcc.PublicKey()})
 	setFinalizeWithError(false)
-	require.NoError(t, bc.AddBlock(bc.newBlock()))
+
+	e.AddNewBlock(t)
 	checkMainTx(t, requesters, r, 1, false)
 	checkFallbackTxs(t, r, false)
 	// set account back for the next tests
@@ -494,11 +505,11 @@ func TestNotary(t *testing.T) {
 	requests, requesters := checkCompleteStandardRequest(t, 3, false)
 	// check PostPersist with finalisation error
 	setFinalizeWithError(true)
-	require.NoError(t, bc.AddBlock(bc.newBlock()))
+	e.AddNewBlock(t)
 	checkMainTx(t, requesters, requests, len(requests), false)
 	// check PostPersist without finalisation error
 	setFinalizeWithError(false)
-	require.NoError(t, bc.AddBlock(bc.newBlock()))
+	e.AddNewBlock(t)
 	checkMainTx(t, requesters, requests, len(requests), true)
 
 	// PostPersist: complete main transaction, multisignature account
@@ -507,12 +518,12 @@ func TestNotary(t *testing.T) {
 	checkFallbackTxs(t, requests, false)
 	// check PostPersist with finalisation error
 	setFinalizeWithError(true)
-	require.NoError(t, bc.AddBlock(bc.newBlock()))
+	e.AddNewBlock(t)
 	checkMainTx(t, requesters, requests, len(requests), false)
 	checkFallbackTxs(t, requests, false)
 	// check PostPersist without finalisation error
 	setFinalizeWithError(false)
-	require.NoError(t, bc.AddBlock(bc.newBlock()))
+	e.AddNewBlock(t)
 	checkMainTx(t, requesters, requests, len(requests), true)
 	checkFallbackTxs(t, requests, false)
 
@@ -521,15 +532,15 @@ func TestNotary(t *testing.T) {
 	requests, requesters = checkCompleteStandardRequest(t, 3, false)
 	checkFallbackTxs(t, requests, false)
 	// make fallbacks valid
-	_, err = bc.genBlocks(int(nvbDiffFallback))
+	e.GenerateNewBlocks(t, int(nvbDiffFallback))
 	require.NoError(t, err)
 	// check PostPersist for valid fallbacks with finalisation error
-	require.NoError(t, bc.AddBlock(bc.newBlock()))
+	e.AddNewBlock(t)
 	checkMainTx(t, requesters, requests, len(requests), false)
 	checkFallbackTxs(t, requests, false)
 	// check PostPersist for valid fallbacks without finalisation error
 	setFinalizeWithError(false)
-	require.NoError(t, bc.AddBlock(bc.newBlock()))
+	e.AddNewBlock(t)
 	checkMainTx(t, requesters, requests, len(requests), false)
 	checkFallbackTxs(t, requests, true)
 
@@ -540,15 +551,15 @@ func TestNotary(t *testing.T) {
 	requests, requesters = checkCompleteMultisigRequest(t, nSigs, nKeys, false)
 	checkFallbackTxs(t, requests, false)
 	// make fallbacks valid
-	_, err = bc.genBlocks(int(nvbDiffFallback))
+	e.GenerateNewBlocks(t, int(nvbDiffFallback))
 	require.NoError(t, err)
 	// check PostPersist for valid fallbacks with finalisation error
-	require.NoError(t, bc.AddBlock(bc.newBlock()))
+	e.AddNewBlock(t)
 	checkMainTx(t, requesters, requests, len(requests), false)
 	checkFallbackTxs(t, requests, false)
 	// check PostPersist for valid fallbacks without finalisation error
 	setFinalizeWithError(false)
-	require.NoError(t, bc.AddBlock(bc.newBlock()))
+	e.AddNewBlock(t)
 	checkMainTx(t, requesters, requests, len(requests), false)
 	checkFallbackTxs(t, requests[:nSigs], true)
 	// the rest of fallbacks should also be applied even if the main tx was already constructed by the moment they were sent
@@ -559,14 +570,14 @@ func TestNotary(t *testing.T) {
 	requests, requesters = checkCompleteStandardRequest(t, 5, false)
 	checkFallbackTxs(t, requests, false)
 	// make fallbacks valid
-	_, err = bc.genBlocks(int(nvbDiffFallback))
+	e.GenerateNewBlocks(t, int(nvbDiffFallback))
 	require.NoError(t, err)
 	// some of fallbacks should fail finalisation
 	unluckies = []*payload.P2PNotaryRequest{requests[0], requests[4]}
 	lucky := requests[1:4]
 	setChoosy(true)
 	// check PostPersist for lucky fallbacks
-	require.NoError(t, bc.AddBlock(bc.newBlock()))
+	e.AddNewBlock(t)
 	checkMainTx(t, requesters, requests, len(requests), false)
 	checkFallbackTxs(t, lucky, true)
 	checkFallbackTxs(t, unluckies, false)
@@ -574,7 +585,7 @@ func TestNotary(t *testing.T) {
 	setChoosy(false)
 	setFinalizeWithError(false)
 	// check PostPersist for unlucky fallbacks
-	require.NoError(t, bc.AddBlock(bc.newBlock()))
+	e.AddNewBlock(t)
 	checkMainTx(t, requesters, requests, len(requests), false)
 	checkFallbackTxs(t, lucky, true)
 	checkFallbackTxs(t, unluckies, true)
@@ -585,19 +596,19 @@ func TestNotary(t *testing.T) {
 	requests, requesters = checkCompleteStandardRequest(t, 5, false, 1, 2, 3, 4, 5)
 	checkFallbackTxs(t, requests, false)
 	// generate blocks to reach the most earlier fallback's NVB
-	_, err = bc.genBlocks(int(nvbDiffFallback))
+	e.GenerateNewBlocks(t, int(nvbDiffFallback))
 	require.NoError(t, err)
 	// check PostPersist for valid fallbacks without finalisation error
 	// Add block before allowing tx to finalize to exclude race condition when
 	// main transaction is finalized between `finalizeWithError` restore and adding new block.
-	require.NoError(t, bc.AddBlock(bc.newBlock()))
+	e.AddNewBlock(t)
 	mtx.RLock()
 	start := len(completedTxes)
 	mtx.RUnlock()
 	setFinalizeWithError(false)
 	for i := range requests {
 		if i != 0 {
-			require.NoError(t, bc.AddBlock(bc.newBlock()))
+			e.AddNewBlock(t)
 		}
 		require.Eventually(t, func() bool {
 			mtx.RLock()
@@ -615,13 +626,13 @@ func TestNotary(t *testing.T) {
 	requests, requesters = checkCompleteStandardRequest(t, 4, false)
 	checkFallbackTxs(t, requests, false)
 	// make fallbacks valid and remove one fallback
-	_, err = bc.genBlocks(int(nvbDiffFallback))
+	e.GenerateNewBlocks(t, int(nvbDiffFallback))
 	require.NoError(t, err)
 	ntr1.UpdateNotaryNodes(keys.PublicKeys{randomAcc.PublicKey()})
 	ntr1.OnRequestRemoval(requests[3])
 	// non of the fallbacks should be completed
 	setFinalizeWithError(false)
-	require.NoError(t, bc.AddBlock(bc.newBlock()))
+	e.AddNewBlock(t)
 	checkMainTx(t, requesters, requests, len(requests), false)
 	checkFallbackTxs(t, requests, false)
 	// set account back for the next tests
@@ -633,13 +644,13 @@ func TestNotary(t *testing.T) {
 	requests, requesters = checkCompleteStandardRequest(t, 4, false)
 	checkFallbackTxs(t, requests, false)
 	// make fallbacks valid and remove one fallback
-	_, err = bc.genBlocks(int(nvbDiffFallback))
+	e.GenerateNewBlocks(t, int(nvbDiffFallback))
 	require.NoError(t, err)
 	unlucky := requests[3]
 	ntr1.OnRequestRemoval(unlucky)
 	// rest of the fallbacks should be completed
 	setFinalizeWithError(false)
-	require.NoError(t, bc.AddBlock(bc.newBlock()))
+	e.AddNewBlock(t)
 	checkMainTx(t, requesters, requests, len(requests), false)
 	checkFallbackTxs(t, requests[:3], true)
 	require.Nil(t, completedTxes[unlucky.FallbackTransaction.Hash()])
@@ -648,20 +659,20 @@ func TestNotary(t *testing.T) {
 	setFinalizeWithError(true)
 	requests, requesters = checkCompleteStandardRequest(t, 4, false)
 	// remove all fallbacks
-	_, err = bc.genBlocks(int(nvbDiffFallback))
+	e.GenerateNewBlocks(t, int(nvbDiffFallback))
 	require.NoError(t, err)
 	for i := range requests {
 		ntr1.OnRequestRemoval(requests[i])
 	}
 	// then the whole request should be removed, i.e. there are no completed transactions
 	setFinalizeWithError(false)
-	require.NoError(t, bc.AddBlock(bc.newBlock()))
+	e.AddNewBlock(t)
 	checkMainTx(t, requesters, requests, len(requests), false)
 	checkFallbackTxs(t, requests, false)
 
 	// OnRequestRemoval: signature request, remove unexisting fallback
 	ntr1.OnRequestRemoval(requests[0])
-	require.NoError(t, bc.AddBlock(bc.newBlock()))
+	e.AddNewBlock(t)
 	checkMainTx(t, requesters, requests, len(requests), false)
 	checkFallbackTxs(t, requests, false)
 
@@ -673,13 +684,13 @@ func TestNotary(t *testing.T) {
 	checkMainTx(t, requesters, requests, len(requests), false)
 	checkFallbackTxs(t, requests, false)
 	// make fallbacks valid and remove the last fallback
-	_, err = bc.genBlocks(int(nvbDiffFallback))
+	e.GenerateNewBlocks(t, int(nvbDiffFallback))
 	require.NoError(t, err)
 	unlucky = requests[nSigs-1]
 	ntr1.OnRequestRemoval(unlucky)
 	// then (m-1) out of n fallbacks should be completed
 	setFinalizeWithError(false)
-	require.NoError(t, bc.AddBlock(bc.newBlock()))
+	e.AddNewBlock(t)
 	checkMainTx(t, requesters, requests, len(requests), false)
 	checkFallbackTxs(t, requests[:nSigs-1], true)
 	require.Nil(t, completedTxes[unlucky.FallbackTransaction.Hash()])
@@ -690,20 +701,20 @@ func TestNotary(t *testing.T) {
 	setFinalizeWithError(true)
 	requests, requesters = checkCompleteMultisigRequest(t, nSigs, nKeys, false)
 	// make fallbacks valid and then remove all of them
-	_, err = bc.genBlocks(int(nvbDiffFallback))
+	e.GenerateNewBlocks(t, int(nvbDiffFallback))
 	require.NoError(t, err)
 	for i := range requests {
 		ntr1.OnRequestRemoval(requests[i])
 	}
 	// then the whole request should be removed, i.e. there are no completed transactions
 	setFinalizeWithError(false)
-	require.NoError(t, bc.AddBlock(bc.newBlock()))
+	e.AddNewBlock(t)
 	checkMainTx(t, requesters, requests, len(requests), false)
 	checkFallbackTxs(t, requests, false)
 
 	// // OnRequestRemoval: multisignature request, remove unexisting fallbac, i.e. there still shouldn't be any completed transactions after this
 	ntr1.OnRequestRemoval(requests[0])
-	require.NoError(t, bc.AddBlock(bc.newBlock()))
+	e.AddNewBlock(t)
 	checkMainTx(t, requesters, requests, len(requests), false)
 	checkFallbackTxs(t, requests, false)
 
@@ -712,11 +723,11 @@ func TestNotary(t *testing.T) {
 	requester1, _ := wallet.NewAccount()
 	requester2, _ := wallet.NewAccount()
 	amount := int64(100_0000_0000)
-	feer := NewNotaryFeerStub(bc)
-	transferTokenFromMultisigAccountCheckOK(t, bc, bc.GetNotaryContractScriptHash(), bc.contracts.GAS.Hash, amount, requester1.PrivateKey().PublicKey().GetScriptHash(), int64(bc.BlockHeight()+50))
-	checkBalanceOf(t, bc, bc.contracts.Notary.Hash, int(amount))
-	transferTokenFromMultisigAccountCheckOK(t, bc, bc.GetNotaryContractScriptHash(), bc.contracts.GAS.Hash, amount, requester2.PrivateKey().PublicKey().GetScriptHash(), int64(bc.BlockHeight()+50))
-	checkBalanceOf(t, bc, bc.contracts.Notary.Hash, int(2*amount))
+	gasValidatorInvoker.Invoke(t, true, "transfer", e.Validator.ScriptHash(), bc.GetNotaryContractScriptHash(), amount, []interface{}{requester1.PrivateKey().PublicKey().GetScriptHash(), int64(bc.BlockHeight() + 50)})
+	e.CheckGASBalance(t, notaryHash, big.NewInt(amount))
+	gasValidatorInvoker.Invoke(t, true, "transfer", e.Validator.ScriptHash(), bc.GetNotaryContractScriptHash(), amount, []interface{}{requester2.PrivateKey().PublicKey().GetScriptHash(), int64(bc.BlockHeight() + 50)})
+	e.CheckGASBalance(t, notaryHash, big.NewInt(2*amount))
+
 	// create request for 2 standard signatures => main tx should be completed after the second request is added to the pool
 	requests = createMixedRequest([]requester{
 		{
@@ -728,6 +739,7 @@ func TestNotary(t *testing.T) {
 			typ:      notary.Signature,
 		},
 	})
+	feer := network.NewNotaryFeer(bc)
 	require.NoError(t, mp1.Add(requests[0].FallbackTransaction, feer, requests[0]))
 	require.NoError(t, mp1.Add(requests[1].FallbackTransaction, feer, requests[1]))
 	require.Eventually(t, func() bool {

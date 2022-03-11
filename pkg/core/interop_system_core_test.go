@@ -3,20 +3,18 @@ package core
 import (
 	"errors"
 	"fmt"
-	"math"
 	"math/big"
+	"path/filepath"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/internal/contracts"
 	"github.com/nspcc-dev/neo-go/internal/random"
-	"github.com/nspcc-dev/neo-go/internal/testchain"
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/contract"
-	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/iterator"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/runtime"
 	istorage "github.com/nspcc-dev/neo-go/pkg/core/interop/storage"
@@ -27,7 +25,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/io"
-	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
@@ -39,6 +36,8 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/stretchr/testify/require"
 )
+
+var pathToInternalContracts = filepath.Join("..", "..", "internal", "contracts")
 
 // Tests are taken from
 // https://github.com/neo-project/neo/blob/master/tests/neo.UnitTests/SmartContract/UT_ApplicationEngine.Runtime.cs
@@ -69,29 +68,6 @@ func TestRuntimeGetRandomCompatibility(t *testing.T) {
 	require.Equal(t, "217172703763162599519098299724476526911", ic.VM.Estack().Pop().BigInt().String())
 }
 
-func TestRuntimeGetRandomDifferentTransactions(t *testing.T) {
-	bc := newTestChain(t)
-	b, _ := bc.GetBlock(bc.GetHeaderHash(0))
-
-	tx1 := transaction.New([]byte{byte(opcode.PUSH1)}, 0)
-	ic1 := bc.newInteropContext(trigger.Application, bc.dao.GetWrapped(), b, tx1)
-	ic1.VM = vm.New()
-	ic1.VM.LoadScript(tx1.Script)
-
-	tx2 := transaction.New([]byte{byte(opcode.PUSH2)}, 0)
-	ic2 := bc.newInteropContext(trigger.Application, bc.dao.GetWrapped(), b, tx2)
-	ic2.VM = vm.New()
-	ic2.VM.LoadScript(tx2.Script)
-
-	require.NoError(t, runtime.GetRandom(ic1))
-	require.NoError(t, runtime.GetRandom(ic2))
-	require.NotEqual(t, ic1.VM.Estack().Pop().BigInt(), ic2.VM.Estack().Pop().BigInt())
-
-	require.NoError(t, runtime.GetRandom(ic1))
-	require.NoError(t, runtime.GetRandom(ic2))
-	require.NotEqual(t, ic1.VM.Estack().Pop().BigInt(), ic2.VM.Estack().Pop().BigInt())
-}
-
 func getSharpTestTx(sender util.Uint160) *transaction.Transaction {
 	tx := transaction.New([]byte{byte(opcode.PUSH2)}, 0)
 	tx.Nonce = 0
@@ -111,81 +87,6 @@ func getSharpTestGenesis(t *testing.T) *block.Block {
 	b, err := createGenesisBlock(cfg.ProtocolConfiguration)
 	require.NoError(t, err)
 	return b
-}
-
-func TestContractCreateAccount(t *testing.T) {
-	v, ic, _ := createVM(t)
-	t.Run("Good", func(t *testing.T) {
-		priv, err := keys.NewPrivateKey()
-		require.NoError(t, err)
-		pub := priv.PublicKey()
-		v.Estack().PushVal(pub.Bytes())
-		require.NoError(t, contractCreateStandardAccount(ic))
-
-		value := v.Estack().Pop().Bytes()
-		u, err := util.Uint160DecodeBytesBE(value)
-		require.NoError(t, err)
-		require.Equal(t, pub.GetScriptHash(), u)
-	})
-	t.Run("InvalidKey", func(t *testing.T) {
-		v.Estack().PushVal([]byte{1, 2, 3})
-		require.Error(t, contractCreateStandardAccount(ic))
-	})
-}
-
-func TestContractCreateMultisigAccount(t *testing.T) {
-	v, ic, _ := createVM(t)
-	t.Run("Good", func(t *testing.T) {
-		m, n := 3, 5
-		pubs := make(keys.PublicKeys, n)
-		arr := make([]stackitem.Item, n)
-		for i := range pubs {
-			pk, err := keys.NewPrivateKey()
-			require.NoError(t, err)
-			pubs[i] = pk.PublicKey()
-			arr[i] = stackitem.Make(pubs[i].Bytes())
-		}
-		v.Estack().PushVal(stackitem.Make(arr))
-		v.Estack().PushVal(m)
-		require.NoError(t, contractCreateMultisigAccount(ic))
-
-		expected, err := smartcontract.CreateMultiSigRedeemScript(m, pubs)
-		require.NoError(t, err)
-		value := v.Estack().Pop().Bytes()
-		u, err := util.Uint160DecodeBytesBE(value)
-		require.NoError(t, err)
-		require.Equal(t, hash.Hash160(expected), u)
-	})
-	t.Run("InvalidKey", func(t *testing.T) {
-		v.Estack().PushVal(stackitem.Make([]stackitem.Item{stackitem.Make([]byte{1, 2, 3})}))
-		v.Estack().PushVal(1)
-		require.Error(t, contractCreateMultisigAccount(ic))
-	})
-	t.Run("Invalid m", func(t *testing.T) {
-		pk, err := keys.NewPrivateKey()
-		require.NoError(t, err)
-		v.Estack().PushVal(stackitem.Make([]stackitem.Item{stackitem.Make(pk.PublicKey().Bytes())}))
-		v.Estack().PushVal(2)
-		require.Error(t, contractCreateMultisigAccount(ic))
-	})
-	t.Run("m overflows int64", func(t *testing.T) {
-		pk, err := keys.NewPrivateKey()
-		require.NoError(t, err)
-		v.Estack().PushVal(stackitem.Make([]stackitem.Item{stackitem.Make(pk.PublicKey().Bytes())}))
-		m := big.NewInt(math.MaxInt64)
-		m.Add(m, big.NewInt(1))
-		v.Estack().PushVal(stackitem.NewBigInteger(m))
-		require.Error(t, contractCreateMultisigAccount(ic))
-	})
-}
-
-func TestRuntimeGasLeft(t *testing.T) {
-	v, ic, _ := createVM(t)
-
-	v.GasLimit = 100
-	v.AddGas(58)
-	require.NoError(t, runtime.GasLeft(ic))
-	require.EqualValues(t, 42, v.Estack().Pop().BigInt().Int64())
 }
 
 func TestRuntimeGetNotifications(t *testing.T) {
@@ -1065,82 +966,5 @@ func TestRuntimeCheckWitness(t *testing.T) {
 				check(t, ic, hash.BytesBE(), false, false)
 			})
 		})
-	})
-}
-
-func TestLoadToken(t *testing.T) {
-	bc := newTestChain(t)
-
-	cs, _ := contracts.GetTestContractState(t, pathToInternalContracts, 4, 5, random.Uint160()) // sender and IDs are not important for the test
-	require.NoError(t, bc.contracts.Management.PutContractState(bc.dao, cs))
-
-	t.Run("good", func(t *testing.T) {
-		aer, err := invokeContractMethod(bc, 1_00000000, cs.Hash, "callT0", neoOwner.BytesBE())
-		require.NoError(t, err)
-		realBalance, _ := bc.GetGoverningTokenBalance(neoOwner)
-		checkResult(t, aer, stackitem.Make(realBalance.Int64()+1))
-	})
-	t.Run("invalid param count", func(t *testing.T) {
-		aer, err := invokeContractMethod(bc, 1_00000000, cs.Hash, "callT2")
-		require.NoError(t, err)
-		checkFAULTState(t, aer)
-	})
-	t.Run("invalid contract", func(t *testing.T) {
-		aer, err := invokeContractMethod(bc, 1_00000000, cs.Hash, "callT1")
-		require.NoError(t, err)
-		checkFAULTState(t, aer)
-	})
-}
-
-func TestRuntimeGetNetwork(t *testing.T) {
-	bc := newTestChain(t)
-
-	w := io.NewBufBinWriter()
-	emit.Syscall(w.BinWriter, interopnames.SystemRuntimeGetNetwork)
-	require.NoError(t, w.Err)
-
-	tx := transaction.New(w.Bytes(), 10_000)
-	tx.ValidUntilBlock = bc.BlockHeight() + 1
-	addSigners(neoOwner, tx)
-	require.NoError(t, testchain.SignTx(bc, tx))
-
-	require.NoError(t, bc.AddBlock(bc.newBlock(tx)))
-
-	aer, err := bc.GetAppExecResults(tx.Hash(), trigger.Application)
-	require.NoError(t, err)
-	checkResult(t, &aer[0], stackitem.Make(uint32(bc.config.Magic)))
-}
-
-func TestRuntimeBurnGas(t *testing.T) {
-	bc := newTestChain(t)
-
-	cs, _ := contracts.GetTestContractState(t, pathToInternalContracts, 4, 5, random.Uint160()) // sender and IDs are not important for the test
-	require.NoError(t, bc.contracts.Management.PutContractState(bc.dao, cs))
-
-	const sysFee = 2_000000
-
-	t.Run("good", func(t *testing.T) {
-		aer, err := invokeContractMethod(bc, sysFee, cs.Hash, "burnGas", int64(1))
-		require.NoError(t, err)
-		require.Equal(t, vm.HaltState, aer.VMState)
-
-		t.Run("gas limit exceeded", func(t *testing.T) {
-			aer, err = invokeContractMethod(bc, aer.GasConsumed, cs.Hash, "burnGas", int64(2))
-			require.NoError(t, err)
-			require.Equal(t, vm.FaultState, aer.VMState)
-		})
-	})
-	t.Run("too big integer", func(t *testing.T) {
-		gas := big.NewInt(math.MaxInt64)
-		gas.Add(gas, big.NewInt(1))
-
-		aer, err := invokeContractMethod(bc, sysFee, cs.Hash, "burnGas", gas)
-		require.NoError(t, err)
-		checkFAULTState(t, aer)
-	})
-	t.Run("zero GAS", func(t *testing.T) {
-		aer, err := invokeContractMethod(bc, sysFee, cs.Hash, "burnGas", int64(0))
-		require.NoError(t, err)
-		checkFAULTState(t, aer)
 	})
 }

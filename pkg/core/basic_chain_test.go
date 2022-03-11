@@ -8,6 +8,7 @@ import (
 	"path"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/chaindump"
@@ -32,9 +33,15 @@ const (
 	// It is also used to retrieve smart contracts that should be deployed to
 	// Basic chain.
 	basicChainPrefix = "../rpc/server/testdata/"
+	// bcPersistInterval is the time period Blockchain persists changes to the
+	// underlying storage.
+	bcPersistInterval = time.Second
 )
 
-var notaryModulePath = filepath.Join("..", "services", "notary")
+var (
+	notaryModulePath        = filepath.Join("..", "services", "notary")
+	pathToInternalContracts = filepath.Join("..", "..", "internal", "contracts")
+)
 
 // TestCreateBasicChain generates "../rpc/testdata/testblocks.acc" file which
 // contains data for RPC unit tests. It also is a nice integration test.

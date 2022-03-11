@@ -128,8 +128,7 @@ func NewSingle(t testing.TB) (*core.Blockchain, neotest.Signer) {
 // NewSingleWithCustomConfig is similar to NewSingle, but allows to override the
 // default configuration.
 func NewSingleWithCustomConfig(t testing.TB, f func(*config.ProtocolConfiguration)) (*core.Blockchain, neotest.Signer) {
-	st := storage.NewMemoryStore()
-	return NewSingleWithCustomConfigAndStore(t, f, st, true)
+	return NewSingleWithCustomConfigAndStore(t, f, nil, true)
 }
 
 // NewSingleWithCustomConfigAndStore is similar to NewSingleWithCustomConfig, but
@@ -149,6 +148,9 @@ func NewSingleWithCustomConfigAndStore(t testing.TB, f func(cfg *config.Protocol
 	}
 	if f != nil {
 		f(&protoCfg)
+	}
+	if st == nil {
+		st = storage.NewMemoryStore()
 	}
 	log := zaptest.NewLogger(t)
 	bc, err := core.NewBlockchain(st, protoCfg, log)

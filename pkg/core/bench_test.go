@@ -1,34 +1,33 @@
-package core
+package core_test
 
 import (
 	"fmt"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/internal/random"
-	"github.com/nspcc-dev/neo-go/internal/testchain"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/neotest"
+	"github.com/nspcc-dev/neo-go/pkg/neotest/chain"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
-	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/stretchr/testify/require"
 )
 
-func BenchmarkVerifyWitness(t *testing.B) {
-	bc := newTestChain(t)
-	acc, err := wallet.NewAccount()
-	require.NoError(t, err)
-
-	tx := bc.newTestTx(acc.Contract.ScriptHash(), []byte{byte(opcode.PUSH1)})
-	require.NoError(t, acc.SignTx(netmode.UnitTestNet, tx))
+func BenchmarkBlockchain_VerifyWitness(t *testing.B) {
+	bc, acc := chain.NewSingle(t)
+	e := neotest.NewExecutor(t, bc, acc, acc)
+	tx := e.NewTx(t, []neotest.Signer{acc}, e.NativeHash(t, nativenames.Gas), "transfer", acc.ScriptHash(), acc.Script(), 1, nil)
 
 	t.ResetTimer()
 	for n := 0; n < t.N; n++ {
-		_, _ = bc.VerifyWitness(tx.Signers[0].Account, tx, &tx.Scripts[0], 100000000)
+		_, err := bc.VerifyWitness(tx.Signers[0].Account, tx, &tx.Scripts[0], 100000000)
+		require.NoError(t, err)
 	}
 }
 
@@ -57,38 +56,35 @@ func BenchmarkBlockchain_ForEachNEP17Transfer(t *testing.B) {
 
 func benchmarkForEachNEP17Transfer(t *testing.B, ps storage.Store, startFromBlock, nBlocksToTake int) {
 	var (
-		nonce             uint32 = 1
-		chainHeight              = 2_100                            // constant chain height to be able to compare paging results
-		transfersPerBlock        = state.TokenTransferBatchSize/4 + // 4 blocks per batch
+		chainHeight       = 2_100                            // constant chain height to be able to compare paging results
+		transfersPerBlock = state.TokenTransferBatchSize/4 + // 4 blocks per batch
 			state.TokenTransferBatchSize/32 // shift
 	)
 
-	bc := newTestChainWithCustomCfgAndStore(t, ps, nil)
-	gasHash := bc.contracts.GAS.Hash
+	bc, validators, committee := chain.NewMultiWithCustomConfigAndStore(t, nil, ps, true)
+
+	e := neotest.NewExecutor(t, bc, validators, committee)
+	gasHash := e.NativeHash(t, nativenames.Gas)
+
 	acc := random.Uint160()
+	from := e.Validator.ScriptHash()
 
 	for j := 0; j < chainHeight; j++ {
 		w := io.NewBufBinWriter()
 		for i := 0; i < transfersPerBlock; i++ {
-			emit.AppCall(w.BinWriter, gasHash, "transfer", callflag.All, testchain.MultisigScriptHash(), acc, 1, nil)
+			emit.AppCall(w.BinWriter, gasHash, "transfer", callflag.All, from, acc, 1, nil)
 			emit.Opcodes(w.BinWriter, opcode.ASSERT)
-			require.NoError(t, w.Err)
 		}
+		require.NoError(t, w.Err)
 		script := w.Bytes()
 		tx := transaction.New(script, int64(1100_0000*transfersPerBlock))
+		tx.NetworkFee = 1_0000_000
 		tx.ValidUntilBlock = bc.BlockHeight() + 1
-		tx.Nonce = nonce
-		nonce++
-		tx.Signers = []transaction.Signer{{
-			Account:          testchain.MultisigScriptHash(),
-			Scopes:           transaction.CalledByEntry,
-			AllowedContracts: nil,
-			AllowedGroups:    nil,
-		}}
-		require.NoError(t, testchain.SignTx(bc, tx))
-		b := bc.newBlock(tx)
-		require.NoError(t, bc.AddBlock(b))
-		checkTxHalt(t, bc, tx.Hash())
+		tx.Nonce = neotest.Nonce()
+		tx.Signers = []transaction.Signer{{Account: from, Scopes: transaction.CalledByEntry}}
+		require.NoError(t, validators.SignTx(netmode.UnitTestNet, tx))
+		e.AddNewBlock(t, tx)
+		e.CheckHalt(t, tx.Hash())
 	}
 
 	newestB, err := bc.GetBlock(bc.GetHeaderHash(int(bc.BlockHeight()) - startFromBlock + 1))
