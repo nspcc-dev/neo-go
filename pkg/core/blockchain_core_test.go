@@ -232,19 +232,14 @@ func TestGetHeader(t *testing.T) {
 	err := bc.AddBlock(block)
 	assert.Nil(t, err)
 
-	// Test unpersisted and persisted access
-	for i := 0; i < 2; i++ {
-		hash := block.Hash()
-		header, err := bc.GetHeader(hash)
-		require.NoError(t, err)
-		assert.Equal(t, &block.Header, header)
+	hash := block.Hash()
+	header, err := bc.GetHeader(hash)
+	require.NoError(t, err)
+	assert.Equal(t, &block.Header, header)
 
-		b2 := bc.newBlock()
-		_, err = bc.GetHeader(b2.Hash())
-		assert.Error(t, err)
-		_, err = bc.persist(false)
-		assert.NoError(t, err)
-	}
+	b2 := bc.newBlock()
+	_, err = bc.GetHeader(b2.Hash())
+	assert.Error(t, err)
 }
 
 func TestGetBlock(t *testing.T) {
@@ -252,16 +247,11 @@ func TestGetBlock(t *testing.T) {
 	blocks, err := bc.genBlocks(100)
 	require.NoError(t, err)
 
-	// Test unpersisted and persisted access
-	for j := 0; j < 2; j++ {
-		for i := 0; i < len(blocks); i++ {
-			block, err := bc.GetBlock(blocks[i].Hash())
-			require.NoErrorf(t, err, "can't get block %d: %s, attempt %d", i, err, j)
-			assert.Equal(t, blocks[i].Index, block.Index)
-			assert.Equal(t, blocks[i].Hash(), block.Hash())
-		}
-		_, err = bc.persist(false)
-		assert.NoError(t, err)
+	for i := 0; i < len(blocks); i++ {
+		block, err := bc.GetBlock(blocks[i].Hash())
+		require.NoErrorf(t, err, "can't get block %d: %s", i, err)
+		assert.Equal(t, blocks[i].Index, block.Index)
+		assert.Equal(t, blocks[i].Hash(), block.Hash())
 	}
 
 	t.Run("store only header", func(t *testing.T) {
@@ -1315,16 +1305,11 @@ func TestHasBlock(t *testing.T) {
 	blocks, err := bc.genBlocks(50)
 	require.NoError(t, err)
 
-	// Test unpersisted and persisted access
-	for j := 0; j < 2; j++ {
-		for i := 0; i < len(blocks); i++ {
-			assert.True(t, bc.HasBlock(blocks[i].Hash()))
-		}
-		newBlock := bc.newBlock()
-		assert.False(t, bc.HasBlock(newBlock.Hash()))
-		_, err = bc.persist(true)
-		assert.NoError(t, err)
+	for i := 0; i < len(blocks); i++ {
+		assert.True(t, bc.HasBlock(blocks[i].Hash()))
 	}
+	newBlock := bc.newBlock()
+	assert.False(t, bc.HasBlock(newBlock.Hash()))
 }
 
 func TestGetTransaction(t *testing.T) {
@@ -1349,18 +1334,13 @@ func TestGetTransaction(t *testing.T) {
 	txSize := io.GetVarSize(tx2)
 	assert.Nil(t, bc.AddBlock(block))
 
-	// Test unpersisted and persisted access
-	for j := 0; j < 2; j++ {
-		tx, height, err := bc.GetTransaction(block.Transactions[0].Hash())
-		require.Nil(t, err)
-		assert.Equal(t, block.Index, height)
-		assert.Equal(t, txSize, tx.Size())
-		assert.Equal(t, block.Transactions[0], tx)
-		assert.Equal(t, 1, io.GetVarSize(tx.Attributes))
-		assert.Equal(t, 1, io.GetVarSize(tx.Scripts))
-		_, err = bc.persist(true)
-		assert.NoError(t, err)
-	}
+	tx, height, err := bc.GetTransaction(block.Transactions[0].Hash())
+	require.Nil(t, err)
+	assert.Equal(t, block.Index, height)
+	assert.Equal(t, txSize, tx.Size())
+	assert.Equal(t, block.Transactions[0], tx)
+	assert.Equal(t, 1, io.GetVarSize(tx.Attributes))
+	assert.Equal(t, 1, io.GetVarSize(tx.Scripts))
 }
 
 func TestGetClaimable(t *testing.T) {
