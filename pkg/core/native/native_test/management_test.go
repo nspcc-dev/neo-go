@@ -3,17 +3,14 @@ package native_test
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"os"
-	"path/filepath"
 	"testing"
 
-	"github.com/nspcc-dev/neo-go/pkg/core/storage"
-
+	"github.com/nspcc-dev/neo-go/internal/contracts"
 	"github.com/nspcc-dev/neo-go/pkg/core/chaindump"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
+	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/io"
@@ -23,18 +20,10 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
-	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/stretchr/testify/require"
-)
-
-var (
-	helper1ContractNEFPath      = filepath.Join("..", "..", "test_data", "management_helper", "management_helper1.nef")
-	helper1ContractManifestPath = filepath.Join("..", "..", "test_data", "management_helper", "management_helper1.manifest.json")
-	helper2ContractNEFPath      = filepath.Join("..", "..", "test_data", "management_helper", "management_helper2.nef")
-	helper2ContractManifestPath = filepath.Join("..", "..", "test_data", "management_helper", "management_helper2.manifest.json")
 )
 
 func newManagementClient(t *testing.T) *neotest.ContractInvoker {
@@ -45,62 +34,11 @@ func TestManagement_MinimumDeploymentFee(t *testing.T) {
 	testGetSet(t, newManagementClient(t), "MinimumDeploymentFee", 10_00000000, 0, 0)
 }
 
-// getTestContractState returns 2 contracts second of which is allowed to call the first.
-func getTestContractState(t *testing.T, id1, id2 int32, sender2 util.Uint160) (*state.Contract, *state.Contract) {
-	errNotFound := errors.New("auto-generated oracle contract is not found, use TestGenerateOracleContract to regenerate")
-
-	neBytes, err := os.ReadFile(helper1ContractNEFPath)
-	require.NoError(t, err, fmt.Errorf("nef1: %w", errNotFound))
-	ne, err := nef.FileFromBytes(neBytes)
-	require.NoError(t, err)
-
-	mBytes, err := os.ReadFile(helper1ContractManifestPath)
-	require.NoError(t, err, fmt.Errorf("manifest1: %w", errNotFound))
-	m := &manifest.Manifest{}
-	err = json.Unmarshal(mBytes, m)
-	require.NoError(t, err)
-
-	cs1 := &state.Contract{
-		ContractBase: state.ContractBase{
-			NEF:      ne,
-			Manifest: *m,
-			ID:       id1,
-		},
-	}
-
-	neBytes, err = os.ReadFile(helper2ContractNEFPath)
-	require.NoError(t, err, fmt.Errorf("nef2: %w", errNotFound))
-	ne, err = nef.FileFromBytes(neBytes)
-	require.NoError(t, err)
-
-	mBytes, err = os.ReadFile(helper2ContractManifestPath)
-	require.NoError(t, err, fmt.Errorf("manifest2: %w", errNotFound))
-	m = &manifest.Manifest{}
-	err = json.Unmarshal(mBytes, m)
-	require.NoError(t, err)
-
-	// Retrieve hash of the first contract from the permissions of the second contract.
-	require.Equal(t, 1, len(m.Permissions))
-	require.Equal(t, manifest.PermissionHash, m.Permissions[0].Contract.Type)
-	cs1.Hash = m.Permissions[0].Contract.Hash()
-
-	cs2 := &state.Contract{
-		ContractBase: state.ContractBase{
-			NEF:      ne,
-			Manifest: *m,
-			ID:       id2,
-			Hash:     state.CreateContractHash(sender2, ne.Checksum, m.Name),
-		},
-	}
-
-	return cs1, cs2
-}
-
 func TestManagement_ContractDeploy(t *testing.T) {
 	c := newManagementClient(t)
 	managementInvoker := c.WithSigners(c.Committee)
 
-	cs1, _ := getTestContractState(t, 1, 2, c.Committee.ScriptHash())
+	cs1, _ := contracts.GetTestContractState(t, pathToInternalContracts, 1, 2, c.Committee.ScriptHash())
 	manifestBytes, err := json.Marshal(cs1.Manifest)
 	require.NoError(t, err)
 	nefBytes, err := cs1.NEF.Bytes()
@@ -301,7 +239,7 @@ func TestManagement_StartFromHeight(t *testing.T) {
 	c := e.CommitteeInvoker(e.NativeHash(t, nativenames.Management))
 	managementInvoker := c.WithSigners(c.Committee)
 
-	cs1, _ := getTestContractState(t, 1, 2, c.CommitteeHash)
+	cs1, _ := contracts.GetTestContractState(t, pathToInternalContracts, 1, 2, c.CommitteeHash)
 	manifestBytes, err := json.Marshal(cs1.Manifest)
 	require.NoError(t, err)
 	nefBytes, err := cs1.NEF.Bytes()
@@ -329,7 +267,7 @@ func TestManagement_DeployManifestOverflow(t *testing.T) {
 	c := newManagementClient(t)
 	managementInvoker := c.WithSigners(c.Committee)
 
-	cs1, _ := getTestContractState(t, 1, 2, c.CommitteeHash)
+	cs1, _ := contracts.GetTestContractState(t, pathToInternalContracts, 1, 2, c.CommitteeHash)
 	manif1, err := json.Marshal(cs1.Manifest)
 	require.NoError(t, err)
 	nef1, err := nef.NewFile(cs1.NEF.Script)
@@ -359,7 +297,7 @@ func TestManagement_ContractDeployAndUpdateWithParameter(t *testing.T) {
 	c := newManagementClient(t)
 	managementInvoker := c.WithSigners(c.Committee)
 
-	cs1, _ := getTestContractState(t, 1, 2, c.CommitteeHash)
+	cs1, _ := contracts.GetTestContractState(t, pathToInternalContracts, 1, 2, c.CommitteeHash)
 	cs1.Manifest.Permissions = []manifest.Permission{*manifest.NewPermission(manifest.PermissionWildcard)}
 	cs1.ID = 1
 	cs1.Hash = state.CreateContractHash(c.CommitteeHash, cs1.NEF.Checksum, cs1.Manifest.Name)
@@ -400,7 +338,7 @@ func TestManagement_ContractUpdate(t *testing.T) {
 	c := newManagementClient(t)
 	managementInvoker := c.WithSigners(c.Committee)
 
-	cs1, _ := getTestContractState(t, 1, 2, c.CommitteeHash)
+	cs1, _ := contracts.GetTestContractState(t, pathToInternalContracts, 1, 2, c.CommitteeHash)
 	// Allow calling management contract.
 	cs1.Manifest.Permissions = []manifest.Permission{*manifest.NewPermission(manifest.PermissionWildcard)}
 	manifestBytes, err := json.Marshal(cs1.Manifest)
@@ -535,7 +473,7 @@ func TestManagement_GetContract(t *testing.T) {
 	c := newManagementClient(t)
 	managementInvoker := c.WithSigners(c.Committee)
 
-	cs1, _ := getTestContractState(t, 1, 2, c.CommitteeHash)
+	cs1, _ := contracts.GetTestContractState(t, pathToInternalContracts, 1, 2, c.CommitteeHash)
 	manifestBytes, err := json.Marshal(cs1.Manifest)
 	require.NoError(t, err)
 	nefBytes, err := cs1.NEF.Bytes()
@@ -560,7 +498,7 @@ func TestManagement_ContractDestroy(t *testing.T) {
 	c := newManagementClient(t)
 	managementInvoker := c.WithSigners(c.Committee)
 
-	cs1, _ := getTestContractState(t, 1, 2, c.CommitteeHash)
+	cs1, _ := contracts.GetTestContractState(t, pathToInternalContracts, 1, 2, c.CommitteeHash)
 	// Allow calling management contract.
 	cs1.Manifest.Permissions = []manifest.Permission{*manifest.NewPermission(manifest.PermissionWildcard)}
 	manifestBytes, err := json.Marshal(cs1.Manifest)

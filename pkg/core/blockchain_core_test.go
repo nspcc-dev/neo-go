@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/nspcc-dev/neo-go/internal/contracts"
 	"github.com/nspcc-dev/neo-go/internal/random"
 	"github.com/nspcc-dev/neo-go/internal/testchain"
 	"github.com/nspcc-dev/neo-go/pkg/config"
@@ -1118,7 +1119,7 @@ func TestVerifyTx(t *testing.T) {
 func TestVerifyHashAgainstScript(t *testing.T) {
 	bc := newTestChain(t)
 
-	cs, csInvalid := getTestContractState(t, 4, 5, random.Uint160()) // sender and IDs are not important for the test
+	cs, csInvalid := contracts.GetTestContractState(t, pathToInternalContracts, 4, 5, random.Uint160()) // sender and IDs are not important for the test
 	ic := bc.newInteropContext(trigger.Verification, bc.dao, nil, nil)
 	require.NoError(t, bc.contracts.Management.PutContractState(bc.dao, cs))
 	require.NoError(t, bc.contracts.Management.PutContractState(bc.dao, csInvalid))
@@ -1695,7 +1696,7 @@ func TestRemoveUntraceable(t *testing.T) {
 func TestInvalidNotification(t *testing.T) {
 	bc := newTestChain(t)
 
-	cs, _ := getTestContractState(t, 4, 5, random.Uint160()) // sender and IDs are not important for the test
+	cs, _ := contracts.GetTestContractState(t, pathToInternalContracts, 4, 5, random.Uint160()) // sender and IDs are not important for the test
 	require.NoError(t, bc.contracts.Management.PutContractState(bc.dao, cs))
 
 	aer, err := invokeContractMethod(bc, 1_00000000, cs.Hash, "invalidStack")
@@ -1709,7 +1710,7 @@ func TestInvalidNotification(t *testing.T) {
 func TestMPTDeleteNoKey(t *testing.T) {
 	bc := newTestChain(t)
 
-	cs, _ := getTestContractState(t, 4, 5, random.Uint160()) // sender and IDs are not important for the test
+	cs, _ := contracts.GetTestContractState(t, pathToInternalContracts, 4, 5, random.Uint160()) // sender and IDs are not important for the test
 	require.NoError(t, bc.contracts.Management.PutContractState(bc.dao, cs))
 	aer, err := invokeContractMethod(bc, 1_00000000, cs.Hash, "delValue", "non-existent-key")
 	require.NoError(t, err)

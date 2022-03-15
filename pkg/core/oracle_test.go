@@ -2,12 +2,10 @@ package core
 
 import (
 	"bytes"
-	"encoding/json"
 	"errors"
 	"fmt"
 	gio "io"
 	"net/http"
-	"os"
 	"path"
 	"path/filepath"
 	"strings"
@@ -15,22 +13,16 @@ import (
 	"testing"
 	"time"
 
+	"github.com/nspcc-dev/neo-go/internal/contracts"
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
-	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/noderoles"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
-	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/services/oracle"
-	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
-	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
-	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
-	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -38,131 +30,9 @@ import (
 )
 
 var (
-	oracleModulePath           = filepath.Join("..", "services", "oracle")
-	oracleContractNEFPath      = filepath.Join("test_data", "oracle_contract", "oracle.nef")
-	oracleContractManifestPath = filepath.Join("test_data", "oracle_contract", "oracle.manifest.json")
+	oracleModulePath        = filepath.Join("..", "services", "oracle")
+	pathToInternalContracts = filepath.Join("..", "..", "internal", "contracts")
 )
-
-// TestGenerateOracleContract generates helper contract that is able to call
-// native Oracle contract and has callback method. It uses test chain to define
-// Oracle and StdLib native hashes and saves generated NEF and manifest to ... folder.
-// Set `saveState` flag to true and run the test to rewrite NEF and manifest files.
-func TestGenerateOracleContract(t *testing.T) {
-	const saveState = false
-
-	bc := newTestChain(t)
-	oracleHash := bc.contracts.Oracle.Hash
-	stdHash := bc.contracts.Std.Hash
-
-	w := io.NewBufBinWriter()
-	emit.Int(w.BinWriter, 5)
-	emit.Opcodes(w.BinWriter, opcode.PACK)
-	emit.Int(w.BinWriter, int64(callflag.All))
-	emit.String(w.BinWriter, "request")
-	emit.Bytes(w.BinWriter, oracleHash.BytesBE())
-	emit.Syscall(w.BinWriter, interopnames.SystemContractCall)
-	emit.Opcodes(w.BinWriter, opcode.DROP)
-	emit.Opcodes(w.BinWriter, opcode.RET)
-
-	// `handle` method aborts if len(userData) == 2 and does NOT perform witness checks
-	// for the sake of contract code simplicity (the contract is used in multiple testchains).
-	offset := w.Len()
-
-	emit.Opcodes(w.BinWriter, opcode.OVER)
-	emit.Opcodes(w.BinWriter, opcode.SIZE)
-	emit.Int(w.BinWriter, 2)
-	emit.Instruction(w.BinWriter, opcode.JMPNE, []byte{3})
-	emit.Opcodes(w.BinWriter, opcode.ABORT)
-	emit.Int(w.BinWriter, 4) // url, userData, code, result
-	emit.Opcodes(w.BinWriter, opcode.PACK)
-	emit.Int(w.BinWriter, 1)                                            // 1 byte (args count for `serialize`)
-	emit.Opcodes(w.BinWriter, opcode.PACK)                              // 1 byte (pack args into array for `serialize`)
-	emit.AppCallNoArgs(w.BinWriter, stdHash, "serialize", callflag.All) // 39 bytes
-	emit.String(w.BinWriter, "lastOracleResponse")
-	emit.Syscall(w.BinWriter, interopnames.SystemStorageGetContext)
-	emit.Syscall(w.BinWriter, interopnames.SystemStoragePut)
-	emit.Opcodes(w.BinWriter, opcode.RET)
-
-	m := manifest.NewManifest("TestOracle")
-	m.ABI.Methods = []manifest.Method{
-		{
-			Name:   "requestURL",
-			Offset: 0,
-			Parameters: []manifest.Parameter{
-				manifest.NewParameter("url", smartcontract.StringType),
-				manifest.NewParameter("filter", smartcontract.StringType),
-				manifest.NewParameter("callback", smartcontract.StringType),
-				manifest.NewParameter("userData", smartcontract.AnyType),
-				manifest.NewParameter("gasForResponse", smartcontract.IntegerType),
-			},
-			ReturnType: smartcontract.VoidType,
-		},
-		{
-			Name:   "handle",
-			Offset: offset,
-			Parameters: []manifest.Parameter{
-				manifest.NewParameter("url", smartcontract.StringType),
-				manifest.NewParameter("userData", smartcontract.AnyType),
-				manifest.NewParameter("code", smartcontract.IntegerType),
-				manifest.NewParameter("result", smartcontract.ByteArrayType),
-			},
-			ReturnType: smartcontract.VoidType,
-		},
-	}
-
-	perm := manifest.NewPermission(manifest.PermissionHash, oracleHash)
-	perm.Methods.Add("request")
-	m.Permissions = append(m.Permissions, *perm)
-
-	// Generate NEF file.
-	script := w.Bytes()
-	ne, err := nef.NewFile(script)
-	require.NoError(t, err)
-
-	// Write NEF file.
-	bytes, err := ne.Bytes()
-	require.NoError(t, err)
-	if saveState {
-		err = os.WriteFile(oracleContractNEFPath, bytes, os.ModePerm)
-		require.NoError(t, err)
-	}
-
-	// Write manifest file.
-	mData, err := json.Marshal(m)
-	require.NoError(t, err)
-	if saveState {
-		err = os.WriteFile(oracleContractManifestPath, mData, os.ModePerm)
-		require.NoError(t, err)
-	}
-
-	require.False(t, saveState)
-}
-
-// getOracleContractState reads pre-compiled oracle contract generated by
-// TestGenerateOracleContract and returns its state.
-func getOracleContractState(t *testing.T, sender util.Uint160, id int32) *state.Contract {
-	errNotFound := errors.New("auto-generated oracle contract is not found, use TestGenerateOracleContract to regenerate")
-
-	neBytes, err := os.ReadFile(oracleContractNEFPath)
-	require.NoError(t, err, fmt.Errorf("nef: %w", errNotFound))
-	ne, err := nef.FileFromBytes(neBytes)
-	require.NoError(t, err)
-
-	mBytes, err := os.ReadFile(oracleContractManifestPath)
-	require.NoError(t, err, fmt.Errorf("manifest: %w", errNotFound))
-	m := &manifest.Manifest{}
-	err = json.Unmarshal(mBytes, m)
-	require.NoError(t, err)
-
-	return &state.Contract{
-		ContractBase: state.ContractBase{
-			NEF:      ne,
-			Hash:     state.CreateContractHash(sender, ne.Checksum, m.Name),
-			Manifest: *m,
-			ID:       id,
-		},
-	}
-}
 
 func putOracleRequest(t *testing.T, h util.Uint160, bc *Blockchain,
 	url string, filter *string, cb string, userData []byte, gas int64) util.Uint256 {
@@ -274,7 +144,7 @@ func TestOracle(t *testing.T) {
 	orc1.UpdateNativeContract(orcNative.NEF.Script, orcNative.GetOracleResponseScript(), orcNative.Hash, md.MD.Offset)
 	orc2.UpdateNativeContract(orcNative.NEF.Script, orcNative.GetOracleResponseScript(), orcNative.Hash, md.MD.Offset)
 
-	cs := getOracleContractState(t, util.Uint160{}, 42)
+	cs := contracts.GetOracleContractState(t, pathToInternalContracts, util.Uint160{}, 42)
 	require.NoError(t, bc.contracts.Management.PutContractState(bc.dao, cs))
 
 	putOracleRequest(t, cs.Hash, bc, "https://get.1234", nil, "handle", []byte{}, 10_000_000)
@@ -442,7 +312,7 @@ func TestOracleFull(t *testing.T) {
 	orc.OnTransaction = func(tx *transaction.Transaction) error { return mp.Add(tx, bc) }
 	bc.SetOracle(orc)
 
-	cs := getOracleContractState(t, util.Uint160{}, 42)
+	cs := contracts.GetOracleContractState(t, pathToInternalContracts, util.Uint160{}, 42)
 	require.NoError(t, bc.contracts.Management.PutContractState(bc.dao, cs))
 
 	go bc.Run()
@@ -467,7 +337,7 @@ func TestNotYetRunningOracle(t *testing.T) {
 	orc.OnTransaction = func(tx *transaction.Transaction) error { return mp.Add(tx, bc) }
 	bc.SetOracle(orc)
 
-	cs := getOracleContractState(t, util.Uint160{}, 42)
+	cs := contracts.GetOracleContractState(t, pathToInternalContracts, util.Uint160{}, 42)
 	require.NoError(t, bc.contracts.Management.PutContractState(bc.dao, cs))
 
 	go bc.Run()

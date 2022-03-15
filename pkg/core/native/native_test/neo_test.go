@@ -7,6 +7,7 @@ import (
 	"sort"
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/internal/contracts"
 	"github.com/nspcc-dev/neo-go/internal/random"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
@@ -276,7 +277,7 @@ func TestNEO_TransferOnPayment(t *testing.T) {
 	e := neoValidatorsInvoker.Executor
 	managementValidatorsInvoker := e.ValidatorInvoker(e.NativeHash(t, nativenames.Management))
 
-	cs, _ := getTestContractState(t, 1, 2, e.CommitteeHash)
+	cs, _ := contracts.GetTestContractState(t, pathToInternalContracts, 1, 2, e.CommitteeHash)
 	cs.Hash = state.CreateContractHash(e.Validator.ScriptHash(), cs.NEF.Checksum, cs.Manifest.Name) // set proper hash
 	manifB, err := json.Marshal(cs.Manifest)
 	require.NoError(t, err)

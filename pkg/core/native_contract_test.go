@@ -5,6 +5,7 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/internal/contracts"
 	"github.com/nspcc-dev/neo-go/internal/random"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/fee"
@@ -302,7 +303,7 @@ func TestNativeContract_InvokeOtherContract(t *testing.T) {
 		}
 	}
 
-	cs, _ := getTestContractState(t, 4, 5, random.Uint160()) // sender and IDs are not important for the test
+	cs, _ := contracts.GetTestContractState(t, pathToInternalContracts, 4, 5, random.Uint160()) // sender and IDs are not important for the test
 	require.NoError(t, chain.contracts.Management.PutContractState(chain.dao, cs))
 
 	baseFee := chain.GetBaseExecFee()
