@@ -226,9 +226,11 @@ func generateManagementHelperContracts(t *testing.T, saveState bool) {
 	emit.AppCall(w.BinWriter, mgmtHash, "destroy", callflag.All)
 	emit.Opcodes(w.BinWriter, opcode.DROP)
 	emit.Opcodes(w.BinWriter, opcode.RET)
-	invalidStackOff := w.Len()
+	invalidStack1Off := w.Len()
 	emit.Opcodes(w.BinWriter, opcode.NEWARRAY0, opcode.DUP, opcode.DUP, opcode.APPEND) // recursive array
-	emit.Syscall(w.BinWriter, interopnames.SystemStorageGetReadOnlyContext)            // interop item
+	emit.Opcodes(w.BinWriter, opcode.RET)
+	invalidStack2Off := w.Len()
+	emit.Syscall(w.BinWriter, interopnames.SystemStorageGetReadOnlyContext) // interop item
 	emit.Opcodes(w.BinWriter, opcode.RET)
 	callT0Off := w.Len()
 	emit.Opcodes(w.BinWriter, opcode.CALLT, 0, 0, opcode.PUSH1, opcode.ADD, opcode.RET)
@@ -380,9 +382,14 @@ func generateManagementHelperContracts(t *testing.T, saveState bool) {
 			ReturnType: smartcontract.VoidType,
 		},
 		{
-			Name:       "invalidStack",
-			Offset:     invalidStackOff,
-			ReturnType: smartcontract.VoidType,
+			Name:       "invalidStack1",
+			Offset:     invalidStack1Off,
+			ReturnType: smartcontract.AnyType,
+		},
+		{
+			Name:       "invalidStack2",
+			Offset:     invalidStack2Off,
+			ReturnType: smartcontract.AnyType,
 		},
 		{
 			Name:   "callT0",

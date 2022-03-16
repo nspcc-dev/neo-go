@@ -1699,11 +1699,15 @@ func TestInvalidNotification(t *testing.T) {
 	cs, _ := contracts.GetTestContractState(t, pathToInternalContracts, 4, 5, random.Uint160()) // sender and IDs are not important for the test
 	require.NoError(t, bc.contracts.Management.PutContractState(bc.dao, cs))
 
-	aer, err := invokeContractMethod(bc, 1_00000000, cs.Hash, "invalidStack")
+	aer, err := invokeContractMethod(bc, 1_00000000, cs.Hash, "invalidStack1")
 	require.NoError(t, err)
-	require.Equal(t, 2, len(aer.Stack))
+	require.Equal(t, 1, len(aer.Stack))
 	require.Nil(t, aer.Stack[0])
-	require.Equal(t, stackitem.InteropT, aer.Stack[1].Type())
+
+	aer, err = invokeContractMethod(bc, 1_00000000, cs.Hash, "invalidStack2")
+	require.NoError(t, err)
+	require.Equal(t, 1, len(aer.Stack))
+	require.Equal(t, stackitem.InteropT, aer.Stack[0].Type())
 }
 
 // Test that deletion of non-existent doesn't result in error in tx or block addition.
