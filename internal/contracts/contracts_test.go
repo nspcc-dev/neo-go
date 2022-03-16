@@ -466,6 +466,13 @@ func generateManagementHelperContracts(t *testing.T, saveState bool) {
 
 	currScript := []byte{byte(opcode.RET)}
 	m = manifest.NewManifest("TestAux")
+	m.ABI.Methods = []manifest.Method{
+		{
+			Name:       "simpleMethod",
+			Offset:     0,
+			ReturnType: smartcontract.VoidType,
+		},
+	}
 	perm := manifest.NewPermission(manifest.PermissionHash, h)
 	perm.Methods.Add("add")
 	perm.Methods.Add("drop")
