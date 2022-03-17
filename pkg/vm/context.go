@@ -95,6 +95,9 @@ func (c *Context) Next() (opcode.Opcode, []byte, error) {
 	var err error
 
 	c.ip = c.nextip
+	if c.ip < 0 {
+		return 0, nil, errors.New("invalid instruction offset")
+	}
 	if c.ip >= len(c.prog) {
 		return opcode.RET, nil, nil
 	}
