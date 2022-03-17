@@ -1385,6 +1385,17 @@ func TestKEYS(t *testing.T) {
 	t.Run("WrongType", getTestFuncForVM(prog, nil, []stackitem.Item{}))
 }
 
+func TestTry_ENDFINALLY_before_ENDTRY(t *testing.T) {
+	prog := makeProgram(opcode.TRY, 0, 3, opcode.ENDFINALLY)
+	require.NoError(t, IsScriptCorrect(prog, nil))
+
+	v := load(prog)
+
+	var err error
+	require.NotPanics(t, func() { err = v.Run() })
+	require.Error(t, err)
+}
+
 func TestVALUESMap(t *testing.T) {
 	prog := makeProgram(opcode.VALUES)
 	vm := load(prog)
