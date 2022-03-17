@@ -28,14 +28,15 @@ commands:
 jobs:
   lint:
     working_directory: /home/circleci/go/src/github.com/nspcc-dev/neo-go
-    executor: go1_18
+    # TODO: temp workaround, need to upgrade to go1_18 after https://github.com/golangci/golangci-lint/issues/2649 is resolved.
+    executor: go1_17
     steps:
       - checkout
       - gomod
       - run:
           name: go-lint
           command: |
-            curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.42.1
+            curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.44.2
             make lint
 
   test_1_16:
