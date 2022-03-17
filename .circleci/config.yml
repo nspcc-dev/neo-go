@@ -3,17 +3,17 @@ version: 2.1
 executors:
   go1_15:
     docker:
-      - image: circleci/golang:1.15
+      - image: cimg/go:1.15
         environment:
           GO111MODULE: "on"
   go1_16:
     docker:
-      - image: circleci/golang:1.16
+      - image: cimg/go:1.16
         environment:
           GO111MODULE: "on"
   go1_17:
     docker:
-      - image: circleci/golang:1.17
+      - image: cimg/go:1.17
 
 commands:
   gomod:
@@ -25,11 +25,11 @@ commands:
           command: go mod download
       - save_cache:
           key: deps-{{ checksum "go.sum" }}-{{ checksum "go.sum" }}
-          paths: [/go/pkg/mod]
+          paths: [/home/circleci/go/pkg/mod]
 
 jobs:
   lint:
-    working_directory: /go/src/github.com/nspcc-dev/neo-go
+    working_directory: /home/circleci/go/src/github.com/nspcc-dev/neo-go
     executor: go1_17
     steps:
       - checkout
@@ -41,7 +41,7 @@ jobs:
             make lint
 
   test_1_15:
-    working_directory: /go/src/github.com/nspcc-dev/neo-go
+    working_directory: /home/circleci/go/src/github.com/nspcc-dev/neo-go
     executor: go1_15
     steps:
       - checkout
@@ -51,7 +51,7 @@ jobs:
       - run: go test -v -race ./...
 
   test_1_16:
-    working_directory: /go/src/github.com/nspcc-dev/neo-go
+    working_directory: /home/circleci/go/src/github.com/nspcc-dev/neo-go
     executor: go1_16
     steps:
       - checkout
@@ -61,7 +61,7 @@ jobs:
       - run: go test -v -race ./...
 
   build_cli:
-    working_directory: /go/src/github.com/nspcc-dev/neo-go
+    working_directory: /home/circleci/go/src/github.com/nspcc-dev/neo-go
     executor: go1_17
     steps:
       - checkout
@@ -72,7 +72,7 @@ jobs:
           destination: /
 
   build_image:
-    working_directory: /go/src/github.com/nspcc-dev/neo-go
+    working_directory: /home/circleci/go/src/github.com/nspcc-dev/neo-go
     executor: go1_17
     docker:
       - image: golang:1-alpine
