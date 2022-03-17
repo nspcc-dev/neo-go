@@ -33,7 +33,10 @@ const (
 	pathNumber
 )
 
-const maxNestingDepth = 6
+const (
+	maxNestingDepth = 6
+	maxObjects      = 1024
+)
 
 // Get returns substructures of value selected by path.
 // The result is always non-nil unless path is invalid.
@@ -63,7 +66,7 @@ func Get(path string, value interface{}) ([]interface{}, bool) {
 			objs, ok = p.processLeftBracket(objs)
 		}
 
-		if !ok {
+		if !ok || maxObjects < len(objs) {
 			return nil, false
 		}
 	}
@@ -196,8 +199,14 @@ func (p *pathParser) descend(objs []interface{}) ([]interface{}, bool) {
 	for i := range objs {
 		switch obj := objs[i].(type) {
 		case []interface{}:
+			if maxObjects < len(values)+len(obj) {
+				return nil, false
+			}
 			values = append(values, obj...)
 		case json.OrderedObject:
+			if maxObjects < len(values)+len(obj) {
+				return nil, false
+			}
 			for i := range obj {
 				values = append(values, obj[i].Value)
 			}
@@ -218,6 +227,9 @@ func (p *pathParser) descendRecursive(objs []interface{}) ([]interface{}, bool) 
 
 	for len(objs) > 0 {
 		newObjs, _ := p.descendByIdentAux(objs, false, val)
+		if maxObjects < len(values)+len(newObjs) {
+			return nil, false
+		}
 		values = append(values, newObjs...)
 		objs, _ = p.descend(objs)
 	}
@@ -248,6 +260,9 @@ func (p *pathParser) descendByIdentAux(objs []interface{}, checkDepth bool, name
 		for j := range names {
 			for k := range obj {
 				if obj[k].Key == names[j] {
+					if maxObjects < len(values)+1 {
+						return nil, false
+					}
 					values = append(values, obj[k].Value)
 					break
 				}
@@ -276,6 +291,9 @@ func (p *pathParser) descendByIndex(objs []interface{}, indices ...int) ([]inter
 				j += len(obj)
 			}
 			if 0 <= j && j < len(obj) {
+				if maxObjects < len(values)+1 {
+					return nil, false
+				}
 				values = append(values, obj[j])
 			}
 		}
@@ -437,6 +455,9 @@ func (p *pathParser) descendByRange(objs []interface{}, start, end int) ([]inter
 
 		if subEnd <= subStart {
 			continue
+		}
+		if maxObjects < len(values)+subEnd-subStart {
+			return nil, false
 		}
 		values = append(values, arr[subStart:subEnd]...)
 	}

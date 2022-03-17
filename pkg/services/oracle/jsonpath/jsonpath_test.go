@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"math"
 	"strconv"
+	"strings"
 	"testing"
 
 	json "github.com/nspcc-dev/go-ordered-json"
@@ -210,6 +211,58 @@ func TestUnion(t *testing.T) {
 			tc.testUnmarshalGet(t, js)
 		})
 	}
+
+	t.Run("big amount of intermediate objects", func(t *testing.T) {
+		// We want to fail as early as possible, this test covers all possible
+		// places where an overflow could first occur. The idea is that first steps
+		// construct intermediate array of 1000 < 1024, and the last step multiplies
+		// this amount by 2.
+		construct := func(width int, index string) string {
+			return "[" + strings.Repeat(index+",", width-1) + index + "]"
+		}
+
+		t.Run("index, array", func(t *testing.T) {
+			jp := "$" + strings.Repeat(construct(10, "0"), 4)
+			_, ok := unmarshalGet(t, "[[[[{}]]]]", jp)
+			require.False(t, ok)
+		})
+
+		t.Run("asterisk, array", func(t *testing.T) {
+			jp := "$" + strings.Repeat(construct(10, `0`), 3) + ".*"
+			_, ok := unmarshalGet(t, `[[[[{},{}]]]]`, jp)
+			require.False(t, ok)
+		})
+
+		t.Run("range", func(t *testing.T) {
+			jp := "$" + strings.Repeat(construct(10, `0`), 3) + "[0:2]"
+			_, ok := unmarshalGet(t, `[[[[{},{}]]]]`, jp)
+			require.False(t, ok)
+		})
+
+		t.Run("recursive descent", func(t *testing.T) {
+			jp := "$" + strings.Repeat(construct(10, `0`), 3) + "..a"
+			_, ok := unmarshalGet(t, `[[[{"a":{"a":{}}}]]]`, jp)
+			require.False(t, ok)
+		})
+
+		t.Run("string union", func(t *testing.T) {
+			jp := "$" + strings.Repeat(construct(10, `0`), 3) + "['x','y']"
+			_, ok := unmarshalGet(t, `[[[{"x":{},"y":{}}]]]`, jp)
+			require.False(t, ok)
+		})
+
+		t.Run("index, map", func(t *testing.T) {
+			jp := "$" + strings.Repeat(construct(10, `"a"`), 4)
+			_, ok := unmarshalGet(t, `{"a":{"a":{"a":{"a":{}}}}}`, jp)
+			require.False(t, ok)
+		})
+
+		t.Run("asterisk, map", func(t *testing.T) {
+			jp := "$" + strings.Repeat(construct(10, `'a'`), 3) + ".*"
+			_, ok := unmarshalGet(t, `{"a":{"a":{"a":{"x":{},"y":{}}}}}`, jp)
+			require.False(t, ok)
+		})
+	})
 }
 
 // These tests are taken directly from C# code.

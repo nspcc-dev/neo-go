@@ -1,6 +1,7 @@
 package oracle
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -46,6 +47,37 @@ func TestFilter(t *testing.T) {
 
 	t.Run("not an UTF-8", func(t *testing.T) {
 		_, err := filter([]byte{0xFF}, "Manufacturers[0].Name")
+		require.Error(t, err)
+	})
+}
+
+func TestFilterOOM(t *testing.T) {
+	construct := func(depth, width int) string {
+		data := `$`
+		for i := 0; i < depth; i++ {
+			data = data + `[0`
+			for j := 1; j < width; j++ {
+				data = data + `,0`
+			}
+			data = data + `]`
+		}
+		return data
+	}
+	t.Run("good", func(t *testing.T) {
+		expected := "[" + strings.Repeat("{},", 1023) + "{}]"
+		data := construct(2, 32)
+		actual, err := filter([]byte("[[{}]]"), data)
+		require.NoError(t, err)
+		require.JSONEq(t, expected, string(actual))
+	})
+	t.Run("too big", func(t *testing.T) {
+		data := construct(3, 32)
+		_, err := filter([]byte("[[[[[[{}]]]]]]"), data)
+		require.Error(t, err)
+	})
+	t.Run("no oom", func(t *testing.T) {
+		data := construct(6, 64)
+		_, err := filter([]byte("[[[[[[{}]]]]]]"), data)
 		require.Error(t, err)
 	})
 }
