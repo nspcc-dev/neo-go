@@ -191,11 +191,18 @@ func TestIsScriptCorrect(t *testing.T) {
 
 	t.Run("out of bounds JMPL 1", func(t *testing.T) {
 		bad := getScript()
-		bad[jmplOff+1] = byte(len(bad) - jmplOff)
+		bad[jmplOff+1] = byte(len(bad)-jmplOff) + 1
 		bad[jmplOff+2] = 0
 		bad[jmplOff+3] = 0
 		bad[jmplOff+4] = 0
 		require.Error(t, IsScriptCorrect(bad, nil))
+	})
+
+	t.Run("JMP to a len(script)", func(t *testing.T) {
+		bad := make([]byte, 64) // 64 is the word-size of a bitset.
+		bad[0] = byte(opcode.JMP)
+		bad[1] = 64
+		require.NoError(t, IsScriptCorrect(bad, nil))
 	})
 
 	t.Run("bad JMPL offset", func(t *testing.T) {
@@ -212,8 +219,23 @@ func TestIsScriptCorrect(t *testing.T) {
 
 	t.Run("out of bounds TRY 2", func(t *testing.T) {
 		bad := getScript()
-		bad[tryOff+2] = byte(len(bad) - tryOff)
+		bad[tryOff+1] = byte(len(bad)-tryOff) + 1
 		require.Error(t, IsScriptCorrect(bad, nil))
+	})
+
+	t.Run("out of bounds TRY 2", func(t *testing.T) {
+		bad := getScript()
+		bad[tryOff+2] = byte(len(bad)-tryOff) + 1
+		require.Error(t, IsScriptCorrect(bad, nil))
+	})
+
+	t.Run("TRY with jumps to a len(script)", func(t *testing.T) {
+		bad := make([]byte, 64) // 64 is the word-size of a bitset.
+		bad[0] = byte(opcode.TRY)
+		bad[1] = 64
+		bad[2] = 64
+		bad[3] = byte(opcode.RET) // pad so that remaining script (PUSHINT8 0) is even in length.
+		require.NoError(t, IsScriptCorrect(bad, nil))
 	})
 
 	t.Run("bad TRYL offset 1", func(t *testing.T) {
