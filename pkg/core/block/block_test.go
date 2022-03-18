@@ -55,10 +55,11 @@ func TestDecodeBlock1(t *testing.T) {
 func TestTrimmedBlock(t *testing.T) {
 	block := getDecodedBlock(t, 1)
 
-	b, err := block.Trim()
-	require.NoError(t, err)
+	buf := io.NewBufBinWriter()
+	block.EncodeTrimmed(buf.BinWriter)
+	require.NoError(t, buf.Err)
 
-	r := io.NewBinReaderFromBuf(b)
+	r := io.NewBinReaderFromBuf(buf.Bytes())
 	trimmedBlock, err := NewTrimmedFromReader(false, r)
 	require.NoError(t, err)
 

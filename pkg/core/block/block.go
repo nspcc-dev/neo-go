@@ -100,26 +100,16 @@ func New(stateRootEnabled bool) *Block {
 	}
 }
 
-// Trim returns a subset of the block data to save up space
-// in storage.
-// Notice that only the hashes of the transactions are stored.
-func (b *Block) Trim() ([]byte, error) {
-	buf := io.NewBufBinWriter()
-	numTx := len(b.Transactions)
-	buf.Grow(b.GetExpectedBlockSizeWithoutTransactions(numTx) + util.Uint256Size*numTx)
-	b.Header.EncodeBinary(buf.BinWriter)
+// EncodeTrimmed writes trimmed representation of the block data into w. Trimmed blocks
+// do not store complete transactions, instead they only store their hashes.
+func (b *Block) EncodeTrimmed(w *io.BinWriter) {
+	b.Header.EncodeBinary(w)
 
-	buf.WriteVarUint(uint64(numTx))
+	w.WriteVarUint(uint64(len(b.Transactions)))
 	for _, tx := range b.Transactions {
 		h := tx.Hash()
-		h.EncodeBinary(buf.BinWriter)
+		h.EncodeBinary(w)
 	}
-
-	if buf.Err != nil {
-		return nil, buf.Err
-	}
-
-	return buf.Bytes(), nil
 }
 
 // DecodeBinary decodes the block from the given BinReader, implementing
