@@ -121,13 +121,13 @@ func init() {
 // this package. MemoryStore is used as the backend storage, so all of the chain
 // contents is always in RAM. The Signer returned is validator (and committee at
 // the same time).
-func NewSingle(t *testing.T) (*core.Blockchain, neotest.Signer) {
+func NewSingle(t testing.TB) (*core.Blockchain, neotest.Signer) {
 	return NewSingleWithCustomConfig(t, nil)
 }
 
 // NewSingleWithCustomConfig is similar to NewSingle, but allows to override the
 // default configuration.
-func NewSingleWithCustomConfig(t *testing.T, f func(*config.ProtocolConfiguration)) (*core.Blockchain, neotest.Signer) {
+func NewSingleWithCustomConfig(t testing.TB, f func(*config.ProtocolConfiguration)) (*core.Blockchain, neotest.Signer) {
 	st := storage.NewMemoryStore()
 	return NewSingleWithCustomConfigAndStore(t, f, st, true)
 }
@@ -137,7 +137,7 @@ func NewSingleWithCustomConfig(t *testing.T, f func(*config.ProtocolConfiguratio
 // Run method is called on the Blockchain instance, if not then it's caller's
 // responsibility to do that before using the chain and its caller's responsibility
 // also to properly Close the chain when done.
-func NewSingleWithCustomConfigAndStore(t *testing.T, f func(cfg *config.ProtocolConfiguration), st storage.Store, run bool) (*core.Blockchain, neotest.Signer) {
+func NewSingleWithCustomConfigAndStore(t testing.TB, f func(cfg *config.ProtocolConfiguration), st storage.Store, run bool) (*core.Blockchain, neotest.Signer) {
 	protoCfg := config.ProtocolConfiguration{
 		Magic:              netmode.UnitTestNet,
 		MaxTraceableBlocks: MaxTraceableBlocks,
@@ -163,20 +163,22 @@ func NewSingleWithCustomConfigAndStore(t *testing.T, f func(cfg *config.Protocol
 // NewMulti creates new blockchain instance with four validators and six
 // committee members, otherwise not differring much from NewSingle. The
 // second value returned contains validators Signer, the third -- committee one.
-func NewMulti(t *testing.T) (*core.Blockchain, neotest.Signer, neotest.Signer) {
+func NewMulti(t testing.TB) (*core.Blockchain, neotest.Signer, neotest.Signer) {
 	return NewMultiWithCustomConfig(t, nil)
 }
 
 // NewMultiWithCustomConfig is similar to NewMulti except it allows to override the
 // default configuration.
-func NewMultiWithCustomConfig(t *testing.T, f func(*config.ProtocolConfiguration)) (*core.Blockchain, neotest.Signer, neotest.Signer) {
+func NewMultiWithCustomConfig(t testing.TB, f func(*config.ProtocolConfiguration)) (*core.Blockchain, neotest.Signer, neotest.Signer) {
 	return NewMultiWithCustomConfigAndStore(t, f, nil, true)
 }
 
-// NewMultiWithCustomConfigAndStore creates new blockchain instance with custom
-// protocol configuration, custom storage, 4 validators and 6 committee members.
-// Second return value is for validator signer, third -- for committee.
-func NewMultiWithCustomConfigAndStore(t *testing.T, f func(*config.ProtocolConfiguration), st storage.Store, run bool) (*core.Blockchain, neotest.Signer, neotest.Signer) {
+// NewMultiWithCustomConfigAndStore is similar to NewMultiWithCustomConfig, but
+// also allows to override backend Store being used. The last parameter controls if
+// Run method is called on the Blockchain instance, if not then it's caller's
+// responsibility to do that before using the chain and its caller's responsibility
+// also to properly Close the chain when done.
+func NewMultiWithCustomConfigAndStore(t testing.TB, f func(*config.ProtocolConfiguration), st storage.Store, run bool) (*core.Blockchain, neotest.Signer, neotest.Signer) {
 	bc, validator, committee, err := NewMultiWithCustomConfigAndStoreNoCheck(t, f, st)
 	require.NoError(t, err)
 	if run {
@@ -186,12 +188,9 @@ func NewMultiWithCustomConfigAndStore(t *testing.T, f func(*config.ProtocolConfi
 	return bc, validator, committee
 }
 
-// NewMultiWithCustomConfigAndStoreNoCheck creates new blockchain instance with
-// custom protocol configuration, custom store, 4 validators and 6 committee
-// members. Second return value is for validator signer, third -- for committee.
-// The resulting blockchain instance is not running and constructor error is
-// returned.
-func NewMultiWithCustomConfigAndStoreNoCheck(t *testing.T, f func(*config.ProtocolConfiguration), st storage.Store) (*core.Blockchain, neotest.Signer, neotest.Signer, error) {
+// NewMultiWithCustomConfigAndStoreNoCheck is similar to NewMultiWithCustomConfig,
+// but do not perform Blockchain run and do not check Blockchain constructor error.
+func NewMultiWithCustomConfigAndStoreNoCheck(t testing.TB, f func(*config.ProtocolConfiguration), st storage.Store) (*core.Blockchain, neotest.Signer, neotest.Signer, error) {
 	protoCfg := config.ProtocolConfiguration{
 		Magic:              netmode.UnitTestNet,
 		MaxTraceableBlocks: MaxTraceableBlocks,

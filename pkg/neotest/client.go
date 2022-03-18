@@ -47,7 +47,7 @@ func (e *Executor) ValidatorInvoker(h util.Uint160) *ContractInvoker {
 }
 
 // TestInvoke creates test VM and invokes method with args.
-func (c *ContractInvoker) TestInvoke(t *testing.T, method string, args ...interface{}) (*vm.Stack, error) {
+func (c *ContractInvoker) TestInvoke(t testing.TB, method string, args ...interface{}) (*vm.Stack, error) {
 	tx := c.PrepareInvokeNoSign(t, method, args...)
 	b := c.NewUnsignedBlock(t, tx)
 	ic := c.Chain.GetTestVM(trigger.Application, tx, b)
@@ -66,18 +66,18 @@ func (c *ContractInvoker) WithSigners(signers ...Signer) *ContractInvoker {
 }
 
 // PrepareInvoke creates new invocation transaction.
-func (c *ContractInvoker) PrepareInvoke(t *testing.T, method string, args ...interface{}) *transaction.Transaction {
+func (c *ContractInvoker) PrepareInvoke(t testing.TB, method string, args ...interface{}) *transaction.Transaction {
 	return c.Executor.NewTx(t, c.Signers, c.Hash, method, args...)
 }
 
 // PrepareInvokeNoSign creates new unsigned invocation transaction.
-func (c *ContractInvoker) PrepareInvokeNoSign(t *testing.T, method string, args ...interface{}) *transaction.Transaction {
+func (c *ContractInvoker) PrepareInvokeNoSign(t testing.TB, method string, args ...interface{}) *transaction.Transaction {
 	return c.Executor.NewUnsignedTx(t, c.Hash, method, args...)
 }
 
 // Invoke invokes method with args, persists transaction and checks the result.
 // Returns transaction hash.
-func (c *ContractInvoker) Invoke(t *testing.T, result interface{}, method string, args ...interface{}) util.Uint256 {
+func (c *ContractInvoker) Invoke(t testing.TB, result interface{}, method string, args ...interface{}) util.Uint256 {
 	tx := c.PrepareInvoke(t, method, args...)
 	c.AddNewBlock(t, tx)
 	c.CheckHalt(t, tx.Hash(), stackitem.Make(result))
@@ -86,7 +86,7 @@ func (c *ContractInvoker) Invoke(t *testing.T, result interface{}, method string
 
 // InvokeAndCheck invokes method with args, persists transaction and checks the result
 // using provided function. Returns transaction hash.
-func (c *ContractInvoker) InvokeAndCheck(t *testing.T, checkResult func(t *testing.T, stack []stackitem.Item), method string, args ...interface{}) util.Uint256 {
+func (c *ContractInvoker) InvokeAndCheck(t testing.TB, checkResult func(t testing.TB, stack []stackitem.Item), method string, args ...interface{}) util.Uint256 {
 	tx := c.PrepareInvoke(t, method, args...)
 	c.AddNewBlock(t, tx)
 	aer, err := c.Chain.GetAppExecResults(tx.Hash(), trigger.Application)
@@ -99,7 +99,7 @@ func (c *ContractInvoker) InvokeAndCheck(t *testing.T, checkResult func(t *testi
 }
 
 // InvokeWithFeeFail is like InvokeFail but sets custom system fee for the transaction.
-func (c *ContractInvoker) InvokeWithFeeFail(t *testing.T, message string, sysFee int64, method string, args ...interface{}) util.Uint256 {
+func (c *ContractInvoker) InvokeWithFeeFail(t testing.TB, message string, sysFee int64, method string, args ...interface{}) util.Uint256 {
 	tx := c.PrepareInvokeNoSign(t, method, args...)
 	c.Executor.SignTx(t, tx, sysFee, c.Signers...)
 	c.AddNewBlock(t, tx)
@@ -109,7 +109,7 @@ func (c *ContractInvoker) InvokeWithFeeFail(t *testing.T, message string, sysFee
 
 // InvokeFail invokes method with args, persists transaction and checks the error message.
 // Returns transaction hash.
-func (c *ContractInvoker) InvokeFail(t *testing.T, message string, method string, args ...interface{}) {
+func (c *ContractInvoker) InvokeFail(t testing.TB, message string, method string, args ...interface{}) {
 	tx := c.PrepareInvoke(t, method, args...)
 	c.AddNewBlock(t, tx)
 	c.CheckFault(t, tx.Hash(), message)

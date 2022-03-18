@@ -162,7 +162,7 @@ func (m multiSigner) Single(n int) SingleSigner {
 	return NewSingleSigner(wallet.NewAccountFromPrivateKey(m.accounts[n].PrivateKey()))
 }
 
-func checkMultiSigner(t *testing.T, s Signer) {
+func checkMultiSigner(t testing.TB, s Signer) {
 	ms, ok := s.(multiSigner)
 	require.True(t, ok, "expected to be a multi-signer")
 
