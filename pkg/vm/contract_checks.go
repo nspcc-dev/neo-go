@@ -160,23 +160,31 @@ func IsScriptCorrect(script []byte, methods bitfield.Field) error {
 			opcode.JMPIFNOTL, opcode.JMPEQL, opcode.JMPNEL,
 			opcode.JMPGTL, opcode.JMPGEL, opcode.JMPLTL, opcode.JMPLEL,
 			opcode.ENDTRYL, opcode.CALLL, opcode.PUSHA:
-			off, _, err := calcJumpOffset(ctx, param) // It does bounds checking.
+			off, _, err := calcJumpOffset(ctx, param)
 			if err != nil {
 				return err
 			}
-			jumps.Set(off)
+			// `calcJumpOffset` does bounds checking but can return `len(script)`.
+			// This check avoids panic in bitset when script length is a multiple of 64.
+			if off != len(script) {
+				jumps.Set(off)
+			}
 		case opcode.TRY, opcode.TRYL:
 			catchP, finallyP := getTryParams(op, param)
 			off, _, err := calcJumpOffset(ctx, catchP)
 			if err != nil {
 				return err
 			}
-			jumps.Set(off)
+			if off != len(script) {
+				jumps.Set(off)
+			}
 			off, _, err = calcJumpOffset(ctx, finallyP)
 			if err != nil {
 				return err
 			}
-			jumps.Set(off)
+			if off != len(script) {
+				jumps.Set(off)
+			}
 		case opcode.NEWARRAYT, opcode.ISTYPE, opcode.CONVERT:
 			typ := stackitem.Type(param[0])
 			if !typ.IsValid() {
