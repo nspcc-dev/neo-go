@@ -648,11 +648,7 @@ func (dao *Simple) StoreAsBlock(block *block.Block, aer1 *state.AppExecResult, a
 		buf = dao.getDataBuf()
 	)
 	buf.WriteB(storage.ExecBlock)
-	b, err := block.Trim()
-	if err != nil {
-		return err
-	}
-	buf.WriteBytes(b)
+	block.EncodeTrimmed(buf.BinWriter)
 	if aer1 != nil {
 		aer1.EncodeBinary(buf.BinWriter)
 	}
