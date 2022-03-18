@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"math"
 	"math/big"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -45,12 +45,12 @@ func getOracleContractState(t *testing.T, sender util.Uint160, id int32) *state.
 	)
 	errNotFound := errors.New("auto-generated oracle contract is not found, use TestGenerateOracleContract to regenerate")
 
-	neBytes, err := ioutil.ReadFile(oracleContractNEFPath)
+	neBytes, err := os.ReadFile(oracleContractNEFPath)
 	require.NoError(t, err, fmt.Errorf("nef: %w", errNotFound))
 	ne, err := nef.FileFromBytes(neBytes)
 	require.NoError(t, err)
 
-	mBytes, err := ioutil.ReadFile(oracleContractManifestPath)
+	mBytes, err := os.ReadFile(oracleContractManifestPath)
 	require.NoError(t, err, fmt.Errorf("manifest: %w", errNotFound))
 	m := &manifest.Manifest{}
 	err = json.Unmarshal(mBytes, m)

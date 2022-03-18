@@ -1,8 +1,8 @@
 package network
 
 import (
+	"errors"
 	"net"
-	"regexp"
 	"sync"
 	"time"
 
@@ -18,8 +18,6 @@ type TCPTransport struct {
 	lock     sync.RWMutex
 	quit     bool
 }
-
-var reClosedNetwork = regexp.MustCompile(".* use of closed network connection")
 
 // NewTCPTransport returns a new TCPTransport that will listen for
 // new incoming peer connections.
@@ -65,7 +63,7 @@ func (t *TCPTransport) Accept() {
 			t.lock.Lock()
 			quit := t.quit
 			t.lock.Unlock()
-			if t.isCloseError(err) && quit {
+			if errors.Is(err, net.ErrClosed) && quit {
 				break
 			}
 			t.log.Warn("TCP accept error", zap.Error(err))
@@ -74,16 +72,6 @@ func (t *TCPTransport) Accept() {
 		p := NewTCPPeer(conn, t.server)
 		go p.handleConn()
 	}
-}
-
-func (t *TCPTransport) isCloseError(err error) bool {
-	if opErr, ok := err.(*net.OpError); ok {
-		if reClosedNetwork.Match([]byte(opErr.Error())) {
-			return true
-		}
-	}
-
-	return false
 }
 
 // Close implements the Transporter interface.

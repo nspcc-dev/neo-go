@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"errors"
 	"io"
-	"io/ioutil"
 	"math"
 	"strings"
 	"sync"
@@ -269,7 +268,7 @@ func (e *executor) run(args ...string) error {
 	e.Err.Reset()
 	input.Terminal = term.NewTerminal(input.ReadWriter{
 		Reader: e.In,
-		Writer: ioutil.Discard,
+		Writer: io.Discard,
 	}, "")
 	err := e.CLI.Run(args)
 	input.Terminal = nil

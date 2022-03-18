@@ -5,7 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	gio "io"
 	"math/big"
 	"net/http"
 	"net/http/httptest"
@@ -2029,7 +2029,7 @@ func doRPCCallOverHTTP(rpcCall string, url string, t *testing.T) []byte {
 	cl := http.Client{Timeout: time.Second}
 	resp, err := cl.Post(url, "application/json", strings.NewReader(rpcCall))
 	require.NoErrorf(t, err, "could not make a POST request")
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := gio.ReadAll(resp.Body)
 	assert.NoErrorf(t, err, "could not read response from the request: %s", rpcCall)
 	return bytes.TrimSpace(body)
 }

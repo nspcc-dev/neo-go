@@ -7,7 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"math/big"
 	"os"
 	"path/filepath"
@@ -129,7 +129,7 @@ func testSyscallHandler(v *VM, id uint32) error {
 }
 
 func testFile(t *testing.T, filename string) {
-	data, err := ioutil.ReadFile(filename)
+	data, err := os.ReadFile(filename)
 	require.NoError(t, err)
 
 	// get rid of possible BOM
@@ -472,7 +472,7 @@ func decodeBytes(data []byte) ([]byte, error) {
 	}
 
 	r := base64.NewDecoder(base64.StdEncoding, bytes.NewReader(data))
-	return ioutil.ReadAll(r)
+	return io.ReadAll(r)
 }
 
 func decodeHex(s string) ([]byte, error) {

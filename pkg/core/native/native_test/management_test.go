@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -49,12 +49,12 @@ func TestManagement_MinimumDeploymentFee(t *testing.T) {
 func getTestContractState(t *testing.T, id1, id2 int32, sender2 util.Uint160) (*state.Contract, *state.Contract) {
 	errNotFound := errors.New("auto-generated oracle contract is not found, use TestGenerateOracleContract to regenerate")
 
-	neBytes, err := ioutil.ReadFile(helper1ContractNEFPath)
+	neBytes, err := os.ReadFile(helper1ContractNEFPath)
 	require.NoError(t, err, fmt.Errorf("nef1: %w", errNotFound))
 	ne, err := nef.FileFromBytes(neBytes)
 	require.NoError(t, err)
 
-	mBytes, err := ioutil.ReadFile(helper1ContractManifestPath)
+	mBytes, err := os.ReadFile(helper1ContractManifestPath)
 	require.NoError(t, err, fmt.Errorf("manifest1: %w", errNotFound))
 	m := &manifest.Manifest{}
 	err = json.Unmarshal(mBytes, m)
@@ -68,12 +68,12 @@ func getTestContractState(t *testing.T, id1, id2 int32, sender2 util.Uint160) (*
 		},
 	}
 
-	neBytes, err = ioutil.ReadFile(helper2ContractNEFPath)
+	neBytes, err = os.ReadFile(helper2ContractNEFPath)
 	require.NoError(t, err, fmt.Errorf("nef2: %w", errNotFound))
 	ne, err = nef.FileFromBytes(neBytes)
 	require.NoError(t, err)
 
-	mBytes, err = ioutil.ReadFile(helper2ContractManifestPath)
+	mBytes, err = os.ReadFile(helper2ContractManifestPath)
 	require.NoError(t, err, fmt.Errorf("manifest2: %w", errNotFound))
 	m = &manifest.Manifest{}
 	err = json.Unmarshal(mBytes, m)

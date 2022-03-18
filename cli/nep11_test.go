@@ -7,8 +7,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"math/big"
+	"os"
 	"path/filepath"
 	"strconv"
 	"testing"
@@ -104,10 +104,10 @@ func TestNEP11_ND_OwnerOf_BalanceOf_Transfer(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// copy wallet to temp dir in order not to overwrite the original file
-	bytesRead, err := ioutil.ReadFile(nftOwnerWallet)
+	bytesRead, err := os.ReadFile(nftOwnerWallet)
 	require.NoError(t, err)
 	wall := filepath.Join(tmpDir, "my_wallet.json")
-	err = ioutil.WriteFile(wall, bytesRead, 0755)
+	err = os.WriteFile(wall, bytesRead, 0755)
 	require.NoError(t, err)
 
 	// transfer funds to contract owner
@@ -336,10 +336,10 @@ func TestNEP11_D_OwnerOf_BalanceOf_Transfer(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// copy wallet to temp dir in order not to overwrite the original file
-	bytesRead, err := ioutil.ReadFile(validatorWallet)
+	bytesRead, err := os.ReadFile(validatorWallet)
 	require.NoError(t, err)
 	wall := filepath.Join(tmpDir, "my_wallet.json")
-	err = ioutil.WriteFile(wall, bytesRead, 0755)
+	err = os.WriteFile(wall, bytesRead, 0755)
 	require.NoError(t, err)
 
 	// deploy NeoFS Object contract

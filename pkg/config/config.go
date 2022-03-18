@@ -2,7 +2,6 @@ package config
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
@@ -40,7 +39,7 @@ func LoadFile(configPath string) (Config, error) {
 		return Config{}, fmt.Errorf("config '%s' doesn't exist", configPath)
 	}
 
-	configData, err := ioutil.ReadFile(configPath)
+	configData, err := os.ReadFile(configPath)
 	if err != nil {
 		return Config{}, fmt.Errorf("unable to read config: %w", err)
 	}

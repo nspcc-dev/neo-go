@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 
 	"github.com/nspcc-dev/neo-go/cli/flags"
@@ -78,7 +77,7 @@ func manifestAddGroup(ctx *cli.Context) error {
 		return cli.NewExitError(fmt.Errorf("can't marshal manifest: %w", err), 1)
 	}
 
-	err = ioutil.WriteFile(mPath, rawM, os.ModePerm)
+	err = os.WriteFile(mPath, rawM, os.ModePerm)
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("can't write manifest file: %w", err), 1)
 	}
@@ -90,7 +89,7 @@ func readNEFFile(filename string) (*nef.File, []byte, error) {
 		return nil, nil, errors.New("no nef file was provided")
 	}
 
-	f, err := ioutil.ReadFile(filename)
+	f, err := os.ReadFile(filename)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -108,7 +107,7 @@ func readManifest(filename string) (*manifest.Manifest, []byte, error) {
 		return nil, nil, errNoManifestFile
 	}
 
-	manifestBytes, err := ioutil.ReadFile(filename)
+	manifestBytes, err := os.ReadFile(filename)
 	if err != nil {
 		return nil, nil, err
 	}

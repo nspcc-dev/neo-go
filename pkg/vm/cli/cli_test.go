@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"fmt"
 	gio "io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -209,14 +208,14 @@ func TestLoad(t *testing.T) {
 	checkLoadgo := func(t *testing.T, tName, cName, cErrName string) {
 		t.Run("loadgo "+tName, func(t *testing.T) {
 			filename := filepath.Join(tmpDir, cName)
-			require.NoError(t, ioutil.WriteFile(filename, []byte(src), os.ModePerm))
+			require.NoError(t, os.WriteFile(filename, []byte(src), os.ModePerm))
 			filename = "'" + filename + "'"
 			filenameErr := filepath.Join(tmpDir, cErrName)
-			require.NoError(t, ioutil.WriteFile(filenameErr, []byte(src+"invalid_token"), os.ModePerm))
+			require.NoError(t, os.WriteFile(filenameErr, []byte(src+"invalid_token"), os.ModePerm))
 			filenameErr = "'" + filenameErr + "'"
 			goMod := []byte(`module test.example/vmcli
 go 1.16`)
-			require.NoError(t, ioutil.WriteFile(filepath.Join(tmpDir, "go.mod"), goMod, os.ModePerm))
+			require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "go.mod"), goMod, os.ModePerm))
 
 			e := newTestVMCLI(t)
 			e.runProgWithTimeout(t, 10*time.Second,
@@ -244,7 +243,7 @@ go 1.16`)
 		}
 `
 		filename := filepath.Join(tmpDir, "vmtestcontract.go")
-		require.NoError(t, ioutil.WriteFile(filename, []byte(srcAllowNotify), os.ModePerm))
+		require.NoError(t, os.WriteFile(filename, []byte(srcAllowNotify), os.ModePerm))
 		filename = "'" + filename + "'"
 		wd, err := os.Getwd()
 		require.NoError(t, err)
@@ -254,7 +253,7 @@ require (
 )
 replace github.com/nspcc-dev/neo-go/pkg/interop => ` + filepath.Join(wd, "../../interop") + `
 go 1.16`)
-		require.NoError(t, ioutil.WriteFile(filepath.Join(tmpDir, "go.mod"), goMod, os.ModePerm))
+		require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "go.mod"), goMod, os.ModePerm))
 
 		e := newTestVMCLI(t)
 		e.runProg(t,
@@ -271,15 +270,15 @@ go 1.16`)
 		filename := filepath.Join(tmpDir, "vmtestcontract.nef")
 		rawNef, err := nefFile.Bytes()
 		require.NoError(t, err)
-		require.NoError(t, ioutil.WriteFile(filename, rawNef, os.ModePerm))
+		require.NoError(t, os.WriteFile(filename, rawNef, os.ModePerm))
 		m, err := di.ConvertToManifest(&compiler.Options{})
 		require.NoError(t, err)
 		manifestFile := filepath.Join(tmpDir, "vmtestcontract.manifest.json")
 		rawManifest, err := json.Marshal(m)
 		require.NoError(t, err)
-		require.NoError(t, ioutil.WriteFile(manifestFile, rawManifest, os.ModePerm))
+		require.NoError(t, os.WriteFile(manifestFile, rawManifest, os.ModePerm))
 		filenameErr := filepath.Join(tmpDir, "vmtestcontract_err.nef")
-		require.NoError(t, ioutil.WriteFile(filenameErr, append([]byte{1, 2, 3, 4}, rawNef...), os.ModePerm))
+		require.NoError(t, os.WriteFile(filenameErr, append([]byte{1, 2, 3, 4}, rawNef...), os.ModePerm))
 		notExists := filepath.Join(tmpDir, "notexists.json")
 
 		manifestFile = "'" + manifestFile + "'"
@@ -325,7 +324,7 @@ func TestRunWithDifferentArguments(t *testing.T) {
 
 	tmpDir := t.TempDir()
 	filename := filepath.Join(tmpDir, "run_vmtestcontract.go")
-	require.NoError(t, ioutil.WriteFile(filename, []byte(src), os.ModePerm))
+	require.NoError(t, os.WriteFile(filename, []byte(src), os.ModePerm))
 
 	filename = "'" + filename + "'"
 	e := newTestVMCLI(t)

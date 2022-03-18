@@ -4,7 +4,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/internal/testserdes"
@@ -25,7 +25,7 @@ func getDecodedBlock(t *testing.T, i int) *Block {
 }
 
 func getBlockData(i int) (map[string]interface{}, error) {
-	b, err := ioutil.ReadFile(fmt.Sprintf("../test_data/block_%d.json", i))
+	b, err := os.ReadFile(fmt.Sprintf("../test_data/block_%d.json", i))
 	if err != nil {
 		return nil, err
 	}

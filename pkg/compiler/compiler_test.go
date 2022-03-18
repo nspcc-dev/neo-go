@@ -2,7 +2,6 @@ package compiler_test
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -49,7 +48,7 @@ func TestCompiler(t *testing.T) {
 		{
 			name: "TestCompile",
 			function: func(t *testing.T) {
-				infos, err := ioutil.ReadDir(examplePath)
+				infos, err := os.ReadDir(examplePath)
 				require.NoError(t, err)
 				for _, info := range infos {
 					if !info.IsDir() {
@@ -66,7 +65,7 @@ func TestCompiler(t *testing.T) {
 		{
 			name: "TestCompileAndSave",
 			function: func(t *testing.T) {
-				infos, err := ioutil.ReadDir(exampleCompilePath)
+				infos, err := os.ReadDir(exampleCompilePath)
 				require.NoError(t, err)
 				err = os.MkdirAll(exampleSavePath, os.ModePerm)
 				require.NoError(t, err)

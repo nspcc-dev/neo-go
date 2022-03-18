@@ -2,7 +2,7 @@ package flags
 
 import (
 	"flag"
-	"io/ioutil"
+	"io"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/encoding/fixedn"
@@ -55,7 +55,7 @@ func TestFixed8Flag_GetName(t *testing.T) {
 
 func TestFixed8(t *testing.T) {
 	f := flag.NewFlagSet("", flag.ContinueOnError)
-	f.SetOutput(ioutil.Discard) // don't pollute test output
+	f.SetOutput(io.Discard) // don't pollute test output
 	gas := Fixed8Flag{Name: "gas, g"}
 	gas.Apply(f)
 	require.NoError(t, f.Parse([]string{"--gas", "0.123"}))

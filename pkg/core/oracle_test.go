@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	gio "io"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"path"
@@ -124,7 +123,7 @@ func TestGenerateOracleContract(t *testing.T) {
 	bytes, err := ne.Bytes()
 	require.NoError(t, err)
 	if saveState {
-		err = ioutil.WriteFile(oracleContractNEFPath, bytes, os.ModePerm)
+		err = os.WriteFile(oracleContractNEFPath, bytes, os.ModePerm)
 		require.NoError(t, err)
 	}
 
@@ -132,7 +131,7 @@ func TestGenerateOracleContract(t *testing.T) {
 	mData, err := json.Marshal(m)
 	require.NoError(t, err)
 	if saveState {
-		err = ioutil.WriteFile(oracleContractManifestPath, mData, os.ModePerm)
+		err = os.WriteFile(oracleContractManifestPath, mData, os.ModePerm)
 		require.NoError(t, err)
 	}
 
@@ -144,12 +143,12 @@ func TestGenerateOracleContract(t *testing.T) {
 func getOracleContractState(t *testing.T, sender util.Uint160, id int32) *state.Contract {
 	errNotFound := errors.New("auto-generated oracle contract is not found, use TestGenerateOracleContract to regenerate")
 
-	neBytes, err := ioutil.ReadFile(oracleContractNEFPath)
+	neBytes, err := os.ReadFile(oracleContractNEFPath)
 	require.NoError(t, err, fmt.Errorf("nef: %w", errNotFound))
 	ne, err := nef.FileFromBytes(neBytes)
 	require.NoError(t, err)
 
-	mBytes, err := ioutil.ReadFile(oracleContractManifestPath)
+	mBytes, err := os.ReadFile(oracleContractManifestPath)
 	require.NoError(t, err, fmt.Errorf("manifest: %w", errNotFound))
 	m := &manifest.Manifest{}
 	err = json.Unmarshal(mBytes, m)
@@ -639,5 +638,5 @@ func newDefaultHTTPClient(returnOracleRedirectionErrOn func(address string) bool
 }
 
 func newResponseBody(resp []byte) gio.ReadCloser {
-	return ioutil.NopCloser(bytes.NewReader(resp))
+	return gio.NopCloser(bytes.NewReader(resp))
 }

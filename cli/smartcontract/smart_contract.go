@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -455,7 +454,7 @@ func initSmartContract(ctx *cli.Context) error {
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
-	if err := ioutil.WriteFile(filepath.Join(basePath, "neo-go.yml"), b, 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(basePath, "neo-go.yml"), b, 0644); err != nil {
 		return cli.NewExitError(err, 1)
 	}
 
@@ -468,12 +467,12 @@ func initSmartContract(ctx *cli.Context) error {
 require (
 	github.com/nspcc-dev/neo-go/pkg/interop ` + ver + `
 )`)
-	if err := ioutil.WriteFile(filepath.Join(basePath, "go.mod"), gm, 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(basePath, "go.mod"), gm, 0644); err != nil {
 		return cli.NewExitError(err, 1)
 	}
 
 	data := []byte(fmt.Sprintf(smartContractTmpl, contractName))
-	if err := ioutil.WriteFile(filepath.Join(basePath, fileName), data, 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(basePath, fileName), data, 0644); err != nil {
 		return cli.NewExitError(err, 1)
 	}
 
@@ -548,7 +547,7 @@ func calcHash(ctx *cli.Context) error {
 	if mpath == "" {
 		return cli.NewExitError(errors.New("no manifest file provided"), 1)
 	}
-	f, err := ioutil.ReadFile(p)
+	f, err := os.ReadFile(p)
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("can't read .nef file: %w", err), 1)
 	}
@@ -556,7 +555,7 @@ func calcHash(ctx *cli.Context) error {
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("can't unmarshal .nef file: %w", err), 1)
 	}
-	manifestBytes, err := ioutil.ReadFile(mpath)
+	manifestBytes, err := os.ReadFile(mpath)
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("failed to read manifest file: %w", err), 1)
 	}
@@ -734,7 +733,7 @@ func testInvokeScript(ctx *cli.Context) error {
 		return cli.NewExitError(errNoInput, 1)
 	}
 
-	b, err := ioutil.ReadFile(src)
+	b, err := os.ReadFile(src)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -798,7 +797,7 @@ func inspect(ctx *cli.Context) error {
 			return cli.NewExitError(fmt.Errorf("failed to compile: %w", err), 1)
 		}
 	} else {
-		f, err := ioutil.ReadFile(in)
+		f, err := os.ReadFile(in)
 		if err != nil {
 			return cli.NewExitError(fmt.Errorf("failed to read .nef file: %w", err), 1)
 		}
@@ -935,7 +934,7 @@ func contractDeploy(ctx *cli.Context) error {
 // ParseContractConfig reads contract configuration file (.yaml) and returns unmarshalled ProjectConfig.
 func ParseContractConfig(confFile string) (ProjectConfig, error) {
 	conf := ProjectConfig{}
-	confBytes, err := ioutil.ReadFile(confFile)
+	confBytes, err := os.ReadFile(confFile)
 	if err != nil {
 		return conf, cli.NewExitError(err, 1)
 	}

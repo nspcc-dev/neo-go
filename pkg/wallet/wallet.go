@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
-	"io/ioutil"
 	"os"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
@@ -161,7 +160,7 @@ func (w *Wallet) savePretty() error {
 }
 
 func (w *Wallet) writeRaw(data []byte) error {
-	return ioutil.WriteFile(w.path, data, 0644)
+	return os.WriteFile(w.path, data, 0644)
 }
 
 // JSON outputs a pretty JSON representation of the wallet.

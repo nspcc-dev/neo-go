@@ -8,9 +8,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"math"
 	"math/bits"
+	"os"
 	"strconv"
 	"strings"
 	"unicode/utf8"
@@ -436,7 +436,7 @@ func NewParameterFromString(in string) (*Parameter, error) {
 		res.Type = inferParamType(val)
 	}
 	if res.Type == ByteArrayType && typStr == fileBytesParamType {
-		res.Value, err = ioutil.ReadFile(val)
+		res.Value, err = os.ReadFile(val)
 		if err != nil {
 			return nil, fmt.Errorf("failed to read '%s' parameter from file '%s': %w", fileBytesParamType, val, err)
 		}

@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"math"
 	"math/big"
 	"os"
@@ -234,7 +233,7 @@ func (v *VM) AddBreakPointRel(n int) {
 
 // LoadFileWithFlags loads a program in NEF format from the given path, ready to execute it.
 func (v *VM) LoadFileWithFlags(path string, f callflag.CallFlag) error {
-	b, err := ioutil.ReadFile(path)
+	b, err := os.ReadFile(path)
 	if err != nil {
 		return err
 	}

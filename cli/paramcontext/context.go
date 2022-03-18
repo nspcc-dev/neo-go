@@ -3,7 +3,7 @@ package paramcontext
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"os"
 
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
@@ -36,7 +36,7 @@ func InitAndSave(net netmode.Magic, tx *transaction.Transaction, acc *wallet.Acc
 
 // Read reads parameter context from file.
 func Read(filename string) (*context.ParameterContext, error) {
-	data, err := ioutil.ReadFile(filename)
+	data, err := os.ReadFile(filename)
 	if err != nil {
 		return nil, fmt.Errorf("can't read input file: %w", err)
 	}
@@ -52,7 +52,7 @@ func Read(filename string) (*context.ParameterContext, error) {
 func Save(c *context.ParameterContext, filename string) error {
 	if data, err := json.Marshal(c); err != nil {
 		return fmt.Errorf("can't marshal transaction: %w", err)
-	} else if err := ioutil.WriteFile(filename, data, 0644); err != nil {
+	} else if err := os.WriteFile(filename, data, 0644); err != nil {
 		return fmt.Errorf("can't write transaction to file: %w", err)
 	}
 	return nil
