@@ -22,6 +22,10 @@ on:
         description: 'Push images to DockerHub [default: false; examples: true, false]'
         required: false
         default: 'false'
+      use_latest_tag:
+        description: 'Use `latest` tag while pushing images to DockerHub (applied to Ubuntu image only) [default: false; examples: true, false]'
+        required: false
+        default: 'false'
 
 # Environment variables.
 env:
@@ -77,7 +81,7 @@ jobs:
         run: make image
 
       - name: Build image with 'latest' tag
-        if: ${{ github.event_name == 'release' && github.event.release.target_commitish == 'master' }}
+        if: ${{ (github.event_name == 'release' && github.event.release.target_commitish == 'master') || (github.event_name == 'workflow_dispatch' && github.event.inputs.push_image == 'true' && github.event.inputs.use_latest_tag == 'true') }}
         run: make image-latest
 
       - name: Login to DockerHub
@@ -91,7 +95,7 @@ jobs:
         run: make image-push
 
       - name: Push image with 'latest' tag to registry
-        if: ${{ github.event_name == 'release' && github.event.release.target_commitish == 'master' }}
+        if: ${{ (github.event_name == 'release' && github.event.release.target_commitish == 'master') || (github.event_name == 'workflow_dispatch' && github.event.inputs.push_image == 'true' && github.event.inputs.use_latest_tag == 'true') }}
         run: make image-push-latest
 
   tests_wsc:
