@@ -5,16 +5,17 @@ This document outlines major changes between releases.
 ## 0.98.2 "Karstification" (21 Mar 2022)
 
 We've decided to release one more 3.1.0-compatible version bringing all of the
-new features and bug fixes made before going into full 3.2.0 compatibility.
-It's important for us to give you more stable and flexible environment for the
-ongoing hackathon. Contract bindings generator might be very useful for anyone
-operating with already deployed contracts written in other languages, while
-the node itself can now be configured for lightweight operation, keeping only
-the data relevant for the past MaxTraceableBlocks, no more and no
-less. Current public networks don't benefit from it yet with their large
-MaxTraceableBlocks setting, but they're growing every day and it's just a
-matter of time when this feature will start making a difference. And sorry,
-but this release is again faster than the previous one.
+new features and bug fixes (along with complete support for Windows platform)
+made before going into full 3.2.0 compatibility. It's important for us to give
+you more stable and flexible environment for the ongoing hackathon. Contract
+bindings generator might be very useful for anyone operating with already
+deployed contracts written in other languages, while the node itself can now
+be configured for lightweight operation, keeping only the data relevant for
+the past MaxTraceableBlocks, no more and no less. Current public networks
+don't benefit from it yet with their large MaxTraceableBlocks setting, but
+they're growing every day and it's just a matter of time when this feature
+will start making a difference. And sorry, but this release is again faster
+than the previous one.
 
 We recommend updating, but if your node is not public and you don't
 specifically want to play with new things brought by it you might as well wait
