@@ -2,6 +2,75 @@
 
 This document outlines major changes between releases.
 
+## 0.98.2 "Karstification" (21 Mar 2022)
+
+We've decided to release one more 3.1.0-compatible version bringing all of the
+new features and bug fixes made before going into full 3.2.0 compatibility.
+It's important for us to give you more stable and flexible environment for the
+ongoing hackathon. Contract bindings generator might be very useful for anyone
+operating with already deployed contracts written in other languages, while
+the node itself can now be configured for lightweight operation, keeping only
+the data relevant for the past MaxTraceableBlocks, no more and no
+less. Current public networks don't benefit from it yet with their large
+MaxTraceableBlocks setting, but they're growing every day and it's just a
+matter of time when this feature will start making a difference. And sorry,
+but this release is again faster than the previous one.
+
+We recommend updating, but if your node is not public and you don't
+specifically want to play with new things brought by it you might as well wait
+for the next one. It requires resynchronization and 0.99.0 will do too because
+of planned protocol changes.
+
+New features:
+ * protocol extension allowing to change the number of validators in existing
+   network (#2334)
+ * MPT garbage collection mechanism allowing to store a set of latest MPTs,
+   RemoveUntraceableBlocks setting now activates it by default unless
+   KeepOnlyLatestState is used (#2354, #2360)
+ * NEP-11/NEP-17 transfer data garbage collection (#2363)
+ * Go bindings generator based on contract manifests (#2349, #2359)
+
+Behavior changes:
+ * some RPC client functions for divisible NEP-11 changed signatures using
+   slice of bytes now instead of strings for IDs (#2351)
+ * heavily refactored storage and dao package interfaces (#2364, #2366)
+ * support for Go 1.18 added, 1.15 dropped (#2369)
+
+Improvements:
+ * additional CLI tests (#2341)
+ * `defer` statement is now compiled more effectively (#2345)
+ * `defer` statement can be used in conditional branches now (#2348)
+ * new tests for divisible NEP-11 contract (#2351)
+ * all tests failing on Windows platform are fixed (#2353)
+ * RPC functions now accept integers larger than 2^64 from strings (#2356)
+ * 10-35%% improvement in bulk block processing speed (node synchronization)
+   depending on machine and configuration (#2364)
+ * reworked VM CLI fixing Windows incompatibility and UTF-8 bugs (#2365)
+ * incompletely signed transaction JSONs now also contain hash (#2368)
+ * RPC clients can now safely be used from multiple threads (#2367)
+ * additional tests for node startup sequences (#2370)
+ * customizable notary service fee for Notary extension (#2378)
+ * signers passed into RPC methods can now contain rules (#2384)
+ * compiler tests now take less time (#2382)
+ * some fuzzing tests added (#2399)
+
+Bugs fixed:
+ * test execution result wasn't checked for CLI invocations that saved
+   transaction into file (#2341)
+ * exception stack wasn't properly cleared during CALL processing in VM (#2348)
+ * incorrect contract used in RPC client's GetOraclePrice (#2378)
+ * oracle service could be tricked by redirects into going to local hosts when
+   this was disabled (#2383)
+ * `invoke*` RPC functions could be used to trigger OOM with specially crafted
+   scripts (#2386)
+ * some edge-cased integer conversions were not exactly matching the behavior
+   of C# node in VM (#2391)
+ * HASKEY instruction wasn't working for byte arrays (#2391)
+ * specially-crafterd JSONPath filters for oracle requests could trigger OOM
+   (#2372)
+ * ENDFINALLY opcode before ENDTRY could lead to VM panic (#2396)
+ * IsScriptCorrect function could panic on specially-crafted inputs (#2397)
+
 ## 0.98.1 "Immunization" (31 Jan 2022)
 
 Bug fixes, interesting optimizations, divisible NEP-11 example and a big
