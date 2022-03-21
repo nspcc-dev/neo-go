@@ -73,6 +73,11 @@ jobs:
           # Allows to fetch all history for all branches and tags. Need this for proper versioning.
           fetch-depth: 0
 
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.18
+
       - name: Build image
         run: make image
 
@@ -140,6 +145,11 @@ jobs:
 
       - name: Show docker images
         run: docker images
+
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.18
 
       - name: Build image
         run: make image-wsc
