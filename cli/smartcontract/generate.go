@@ -14,7 +14,7 @@ import (
 var generateWrapperCmd = cli.Command{
 	Name:        "generate-wrapper",
 	Usage:       "generate wrapper to use in other contracts",
-	UsageText:   "neo-go contract generate-wrapper --manifest manifest.json --out file.go",
+	UsageText:   "neo-go contract generate-wrapper --manifest <file.json> --out <file.go> --hash <hash>",
 	Description: ``,
 	Action:      contractGenerateWrapper,
 	Flags: []cli.Flag{
