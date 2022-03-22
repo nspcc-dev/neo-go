@@ -170,6 +170,28 @@ func NewMulti(t *testing.T) (*core.Blockchain, neotest.Signer, neotest.Signer) {
 // NewMultiWithCustomConfig is similar to NewMulti except it allows to override the
 // default configuration.
 func NewMultiWithCustomConfig(t *testing.T, f func(*config.ProtocolConfiguration)) (*core.Blockchain, neotest.Signer, neotest.Signer) {
+	return NewMultiWithCustomConfigAndStore(t, f, nil, true)
+}
+
+// NewMultiWithCustomConfigAndStore creates new blockchain instance with custom
+// protocol configuration, custom storage, 4 validators and 6 committee members.
+// Second return value is for validator signer, third -- for committee.
+func NewMultiWithCustomConfigAndStore(t *testing.T, f func(*config.ProtocolConfiguration), st storage.Store, run bool) (*core.Blockchain, neotest.Signer, neotest.Signer) {
+	bc, validator, committee, err := NewMultiWithCustomConfigAndStoreNoCheck(t, f, st)
+	require.NoError(t, err)
+	if run {
+		go bc.Run()
+		t.Cleanup(bc.Close)
+	}
+	return bc, validator, committee
+}
+
+// NewMultiWithCustomConfigAndStoreNoCheck creates new blockchain instance with
+// custom protocol configuration, custom store, 4 validators and 6 committee
+// members. Second return value is for validator signer, third -- for committee.
+// The resulting blockchain instance is not running and constructor error is
+// returned.
+func NewMultiWithCustomConfigAndStoreNoCheck(t *testing.T, f func(*config.ProtocolConfiguration), st storage.Store) (*core.Blockchain, neotest.Signer, neotest.Signer, error) {
 	protoCfg := config.ProtocolConfiguration{
 		Magic:              netmode.UnitTestNet,
 		MaxTraceableBlocks: MaxTraceableBlocks,
@@ -182,12 +204,11 @@ func NewMultiWithCustomConfig(t *testing.T, f func(*config.ProtocolConfiguration
 	if f != nil {
 		f(&protoCfg)
 	}
+	if st == nil {
+		st = storage.NewMemoryStore()
+	}
 
-	st := storage.NewMemoryStore()
 	log := zaptest.NewLogger(t)
 	bc, err := core.NewBlockchain(st, protoCfg, log)
-	require.NoError(t, err)
-	go bc.Run()
-	t.Cleanup(bc.Close)
-	return bc, neotest.NewMultiSigner(multiValidatorAcc...), neotest.NewMultiSigner(multiCommitteeAcc...)
+	return bc, neotest.NewMultiSigner(multiValidatorAcc...), neotest.NewMultiSigner(multiCommitteeAcc...), err
 }
