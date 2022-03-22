@@ -14,6 +14,7 @@ import (
 	"net"
 	"net/http"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -325,10 +326,12 @@ func (s *Server) handleHTTPRequest(w http.ResponseWriter, httpRequest *http.Requ
 
 func (s *Server) handleRequest(req *request.Request, sub *subscriber) response.AbstractResult {
 	if req.In != nil {
+		req.In.Method = escapeForLog(req.In.Method) // No valid method name will be changed by it.
 		return s.handleIn(req.In, sub)
 	}
 	resp := make(response.AbstractBatch, len(req.Batch))
 	for i, in := range req.Batch {
+		in.Method = escapeForLog(in.Method) // No valid method name will be changed by it.
 		resp[i] = s.handleIn(&in, sub)
 	}
 	return resp
@@ -349,7 +352,7 @@ func (s *Server) handleIn(req *request.In, sub *subscriber) response.Abstract {
 
 	incCounter(req.Method)
 
-	resErr = response.NewMethodNotFoundError(fmt.Sprintf("Method '%s' not supported", req.Method), nil)
+	resErr = response.NewMethodNotFoundError(fmt.Sprintf("Method %q not supported", req.Method), nil)
 	handler, ok := rpcHandlers[req.Method]
 	if ok {
 		res, resErr = handler(s, reqParams)
@@ -2189,4 +2192,13 @@ func validateAddress(addr interface{}) bool {
 		return err == nil
 	}
 	return false
+}
+
+func escapeForLog(in string) string {
+	return strings.Map(func(c rune) rune {
+		if !strconv.IsGraphic(c) {
+			return -1
+		}
+		return c
+	}, in)
 }

@@ -2569,6 +2569,11 @@ func checkNep17TransfersAux(t *testing.T, e *executor, acc interface{}, sent, rc
 	require.Equal(t, arr, res.Received)
 }
 
+func TestEscapeForLog(t *testing.T) {
+	in := "\n\tbad"
+	require.Equal(t, "bad", escapeForLog(in))
+}
+
 func BenchmarkHandleIn(b *testing.B) {
 	chain, orc, cfg, logger := getUnitTestChain(b, false, false)
 
