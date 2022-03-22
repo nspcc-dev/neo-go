@@ -19,16 +19,19 @@ var generatorFlags = []cli.Flag{
 		Usage: "Configuration file to use",
 	},
 	cli.StringFlag{
-		Name:  "manifest, m",
-		Usage: "Read contract manifest (*.manifest.json) file",
+		Name:     "manifest, m",
+		Required: true,
+		Usage:    "Read contract manifest (*.manifest.json) file",
 	},
 	cli.StringFlag{
-		Name:  "out, o",
-		Usage: "Output of the compiled contract",
+		Name:     "out, o",
+		Required: true,
+		Usage:    "Output of the compiled contract",
 	},
 	cli.StringFlag{
-		Name:  "hash",
-		Usage: "Smart-contract hash",
+		Name:     "hash",
+		Required: true,
+		Usage:    "Smart-contract hash",
 	},
 }
 
