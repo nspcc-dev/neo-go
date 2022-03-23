@@ -33,7 +33,6 @@ See the table below for the detailed examples description.
 | [storage](storage)       | The contract implements API for basic operations with a contract storage. It shows hos to use `storage` interop package. See the `storage` [package documentation](../pkg/interop/storage/storage.go). |
 | [timer](timer)           | The idea of the contract is to count `tick` method invocations and destroy itself after the third invocation. It shows how to use `contract.Call` interop function to call, update (migrate) and destroy the contract. Please, refer to the `contract.Call` [function documentation](../pkg/interop/contract/contract.go) |
 | [token](token)           | This contract implements NEP-17 token standard (like NEO and GAS tokens) with all required methods and operations. See the NEP-17 token standard [specification](https://github.com/neo-project/proposals/pull/126) for details. |
-| [token-sale](token-sale) | The contract represents a token with `allowance`. It means that the token owner should approve token withdrawing before the transfer. The contract demonstrates how interop packages can be combined to work together. |
 
 ## Compile
 
