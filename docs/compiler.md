@@ -22,8 +22,7 @@ a dialect of Go rather than a complete port of the language:
  * `defer` and `recover` are supported except for cases where panic occurs in
    `return` statement, because this complicates implementation and imposes runtime
     overhead for all contracts. This can easily be mitigated by first storing values
-    in variables and returning the result. `defer` can't be used in
-    conditional code (#2293).
+    in variables and returning the result.
  * lambdas are supported, but closures are not.
  * maps are supported, but valid map keys are booleans, integers and strings with length <= 64
 
