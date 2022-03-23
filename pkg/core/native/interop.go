@@ -17,14 +17,15 @@ func Call(ic *interop.Context) error {
 		return fmt.Errorf("native contract of version %d is not active", version)
 	}
 	var c interop.Contract
+	curr := ic.VM.GetCurrentScriptHash()
 	for _, ctr := range ic.Natives {
-		if ctr.Metadata().Hash == ic.VM.GetCurrentScriptHash() {
+		if ctr.Metadata().Hash == curr {
 			c = ctr
 			break
 		}
 	}
 	if c == nil {
-		return fmt.Errorf("native contract %d not found", version)
+		return fmt.Errorf("native contract %s (version %d) not found", curr.StringLE(), version)
 	}
 	history := c.Metadata().UpdateHistory
 	if len(history) == 0 {
