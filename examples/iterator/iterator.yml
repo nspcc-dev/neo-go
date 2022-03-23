@@ -6,3 +6,7 @@ events:
     parameters:
       - name: value
         type: Any
+  - name: Value
+    parameters:
+      - name: value
+        type: Any

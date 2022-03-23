@@ -22,3 +22,12 @@ func NotifyKeysAndValues() bool {
 	}
 	return true
 }
+
+// NotifyValues sends notification with `foo` storage values.
+func NotifyValues() bool {
+	iter := storage.Find(storage.GetContext(), []byte("foo"), storage.ValuesOnly)
+	for iterator.Next(iter) {
+		runtime.Notify("Value", iterator.Value(iter))
+	}
+	return true
+}
