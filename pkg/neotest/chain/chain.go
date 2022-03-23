@@ -17,6 +17,16 @@ import (
 	"go.uber.org/zap/zaptest"
 )
 
+const (
+	// MaxTraceableBlocks is the default MaxTraceableBlocks setting used for test chains.
+	// We don't need a lot of traceable blocks for tests.
+	MaxTraceableBlocks = 1000
+
+	// SecondsPerBlock is the default SecondsPerBlock setting used for test chains.
+	// Usually blocks are created by tests bypassing this setting.
+	SecondsPerBlock = 1
+)
+
 const singleValidatorWIF = "KxyjQ8eUa4FHt3Gvioyt1Wz29cTUrE4eTqX3yFSk1YFCsPL8uNsY"
 
 // committeeWIFs is a list of unencrypted WIFs sorted by public key.
@@ -121,8 +131,8 @@ func NewSingleWithCustomConfig(t *testing.T, f func(*config.ProtocolConfiguratio
 func NewSingleWithCustomConfigAndStore(t *testing.T, f func(cfg *config.ProtocolConfiguration), st storage.Store, run bool) (*core.Blockchain, neotest.Signer) {
 	protoCfg := config.ProtocolConfiguration{
 		Magic:              netmode.UnitTestNet,
-		MaxTraceableBlocks: 1000, // We don't need a lot of traceable blocks for tests.
-		SecondsPerBlock:    1,
+		MaxTraceableBlocks: MaxTraceableBlocks,
+		SecondsPerBlock:    SecondsPerBlock,
 		StandbyCommittee:   []string{hex.EncodeToString(committeeAcc.PrivateKey().PublicKey().Bytes())},
 		ValidatorsCount:    1,
 		VerifyBlocks:       true,
@@ -153,7 +163,8 @@ func NewMulti(t *testing.T) (*core.Blockchain, neotest.Signer, neotest.Signer) {
 func NewMultiWithCustomConfig(t *testing.T, f func(*config.ProtocolConfiguration)) (*core.Blockchain, neotest.Signer, neotest.Signer) {
 	protoCfg := config.ProtocolConfiguration{
 		Magic:              netmode.UnitTestNet,
-		SecondsPerBlock:    1,
+		MaxTraceableBlocks: MaxTraceableBlocks,
+		SecondsPerBlock:    SecondsPerBlock,
 		StandbyCommittee:   standByCommittee,
 		ValidatorsCount:    4,
 		VerifyBlocks:       true,
