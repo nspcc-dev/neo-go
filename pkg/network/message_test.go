@@ -18,6 +18,13 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestMessageDecodeFuzzCases(t *testing.T) {
+	raw := []byte("10\x0200")
+	m := new(Message)
+	r := io.NewBinReaderFromBuf(raw)
+	require.NotPanics(t, func() { _ = m.Decode(r) })
+}
+
 func TestEncodeDecodeVersion(t *testing.T) {
 	// message with tiny payload, shouldn't be compressed
 	expected := NewMessage(CMDVersion, &payload.Version{
