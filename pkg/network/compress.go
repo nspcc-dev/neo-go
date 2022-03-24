@@ -21,6 +21,9 @@ func compress(source []byte) ([]byte, error) {
 
 // decompress decompresses bytes using lz4.
 func decompress(source []byte) ([]byte, error) {
+	if len(source) < 4 {
+		return nil, errors.New("invalid compressed payload")
+	}
 	length := binary.LittleEndian.Uint32(source[:4])
 	if length > payload.MaxSize {
 		return nil, errors.New("invalid uncompressed payload length")
