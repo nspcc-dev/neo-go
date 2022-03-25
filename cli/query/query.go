@@ -56,10 +56,11 @@ func NewCommands() []cli.Command {
 				Flags:  options.RPC,
 			},
 			{
-				Name:   "tx",
-				Usage:  "Query transaction status",
-				Action: queryTx,
-				Flags:  queryTxFlags,
+				Name:      "tx",
+				Usage:     "Query transaction status",
+				UsageText: "neo-go query tx <hash> -r endpoint [-v]",
+				Action:    queryTx,
+				Flags:     queryTxFlags,
 			},
 			{
 				Name:   "voter",

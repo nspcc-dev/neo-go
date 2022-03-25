@@ -37,7 +37,8 @@ var RPC = []cli.Flag{
 	},
 	cli.DurationFlag{
 		Name:  "timeout, s",
-		Usage: "Timeout for the operation (10 seconds by default)",
+		Value: DefaultTimeout,
+		Usage: "Timeout for the operation",
 	},
 }
 
