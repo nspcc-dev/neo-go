@@ -143,7 +143,7 @@ Node wallets are located in the `.docker/wallets` directory where
 four-node setup.
 
 #### Prerequisites
-- `docker`
+- `docker` of version >= 20.10.0
 - `docker-compose`
 - `go` compiler
 
