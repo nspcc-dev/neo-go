@@ -131,7 +131,7 @@ func (c *codegen) processStdlibCall(f *funcScope, args []ast.Expr) {
 
 func (c *codegen) processNotify(f *funcScope, args []ast.Expr) {
 	if c.scope != nil && c.isVerifyFunc(c.scope.decl) &&
-		c.scope.pkg == c.mainPkg.Types && !c.buildInfo.options.NoEventsCheck {
+		c.scope.pkg == c.mainPkg.Types && (c.buildInfo.options == nil || !c.buildInfo.options.NoEventsCheck) {
 		c.prog.Err = fmt.Errorf("runtime.%s is not allowed in `Verify`", f.name)
 		return
 	}

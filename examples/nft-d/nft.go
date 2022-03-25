@@ -351,6 +351,12 @@ func removeOwner(ctx storage.Context, token []byte, holder interop.Hash160) {
 // this method directly, instead it's called by GAS contract when you transfer
 // GAS from your address to the address of this NFT contract.
 func OnNEP17Payment(from interop.Hash160, amount int, data interface{}) {
+	defer func() {
+		if r := recover(); r != nil {
+			runtime.Log(r.(string))
+			util.Abort()
+		}
+	}()
 	if string(runtime.GetCallingScriptHash()) != gas.Hash {
 		panic("only GAS is accepted")
 	}

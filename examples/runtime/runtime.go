@@ -1,55 +1,81 @@
 package runtimecontract
 
 import (
+	"github.com/nspcc-dev/neo-go/pkg/interop/native/management"
 	"github.com/nspcc-dev/neo-go/pkg/interop/runtime"
 	"github.com/nspcc-dev/neo-go/pkg/interop/util"
 )
 
 var (
 	// Check if the invoker of the contract is the specified owner
-	owner   = util.FromAddress("NbrUYaZgyhSkNoRo9ugRyEMdUZxrhkNaWB")
-	trigger byte
+	owner = util.FromAddress("NbrUYaZgyhSkNoRo9ugRyEMdUZxrhkNaWB")
 )
 
-// init initializes trigger before any other contract method is called
+// init is transformed into _initialize method that is called whenever contract
+// is being loaded (so you'll see this log entry with every invocation).
 func init() {
-	trigger = runtime.GetTrigger()
+	// No events and logging allowed in verification context.
+	if runtime.GetTrigger() != runtime.Verification {
+		runtime.Log("init called")
+	}
 }
 
+// _deploy is called after contract deployment or update, it'll be called
+// in deployment transaction and if call update method of this contract.
 func _deploy(_ interface{}, isUpdate bool) {
 	if isUpdate {
-		Log("_deploy method called before contract update")
+		Log("_deploy method called after contract update")
 		return
 	}
-	Log("_deploy method called before contract creation")
+	Log("_deploy method called after contract creation")
 }
 
-// CheckWitness checks owner's witness
+// CheckWitness checks owner's witness. It returns true if invoked by the owner
+// and false otherwise.
 func CheckWitness() bool {
-	// Log owner upon Verification trigger
-	if trigger != runtime.Verification {
-		return false
-	}
 	if runtime.CheckWitness(owner) {
 		runtime.Log("Verified Owner")
+		return true
 	}
-	return true
+	return false
 }
 
-// Log logs given message
-func Log(message string) bool {
-	if trigger != runtime.Application {
-		return false
-	}
+// Log logs given message.
+func Log(message string) {
 	runtime.Log(message)
-	return true
 }
 
-// Notify notifies about given message
-func Notify(event interface{}) bool {
-	if trigger != runtime.Application {
+// Notify emits an event with the specified data.
+func Notify(event interface{}) {
+	runtime.Notify("Event", event)
+}
+
+// Verify method is used when contract is being used as a signer of transaction,
+// it can have parameters (that then need to be present in invocation script)
+// and it returns simple pass/fail result. This implementation just checks for
+// owner's signature presence.
+func Verify() bool {
+	// Technically this restriction is not needed, but you can see the difference
+	// between invokefunction and invokecontractverify RPC methods with it.
+	if runtime.GetTrigger() != runtime.Verification {
 		return false
 	}
-	runtime.Notify("Event", event)
-	return true
+	return CheckWitness()
+}
+
+// Destroy destroys the contract, only owner can do that.
+func Destroy() {
+	if !Verify() {
+		panic("only owner can destroy")
+	}
+	management.Destroy()
+}
+
+// Update updates the contract, only owner can do that. _deploy will be called
+// after update.
+func Update(nef, manifest []byte) {
+	if !Verify() {
+		panic("only owner can update")
+	}
+	management.Update(nef, manifest)
 }

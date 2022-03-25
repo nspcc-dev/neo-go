@@ -2,7 +2,11 @@ name: "Iterator example"
 sourceurl: https://github.com/nspcc-dev/neo-go/
 supportedstandards: []
 events:
-  - name: found storage key-value pair
+  - name: Key-Value
+    parameters:
+      - name: value
+        type: Any
+  - name: Value
     parameters:
       - name: value
         type: Any

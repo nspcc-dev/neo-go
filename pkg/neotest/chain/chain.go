@@ -17,6 +17,16 @@ import (
 	"go.uber.org/zap/zaptest"
 )
 
+const (
+	// MaxTraceableBlocks is the default MaxTraceableBlocks setting used for test chains.
+	// We don't need a lot of traceable blocks for tests.
+	MaxTraceableBlocks = 1000
+
+	// SecondsPerBlock is the default SecondsPerBlock setting used for test chains.
+	// Usually blocks are created by tests bypassing this setting.
+	SecondsPerBlock = 1
+)
+
 const singleValidatorWIF = "KxyjQ8eUa4FHt3Gvioyt1Wz29cTUrE4eTqX3yFSk1YFCsPL8uNsY"
 
 // committeeWIFs is a list of unencrypted WIFs sorted by public key.
@@ -106,23 +116,32 @@ func init() {
 }
 
 // NewSingle creates new blockchain instance with a single validator and
-// setups cleanup functions.
+// setups cleanup functions. The configuration used is with netmode.UnitTestNet
+// magic, and SecondsPerBlock/MaxTraceableBlocks options defined by constants in
+// this package. MemoryStore is used as the backend storage, so all of the chain
+// contents is always in RAM. The Signer returned is validator (and committee at
+// the same time).
 func NewSingle(t *testing.T) (*core.Blockchain, neotest.Signer) {
 	return NewSingleWithCustomConfig(t, nil)
 }
 
-// NewSingleWithCustomConfig creates new blockchain instance with custom protocol
-// configuration and a single validator. It also setups cleanup functions.
+// NewSingleWithCustomConfig is similar to NewSingle, but allows to override the
+// default configuration.
 func NewSingleWithCustomConfig(t *testing.T, f func(*config.ProtocolConfiguration)) (*core.Blockchain, neotest.Signer) {
 	st := storage.NewMemoryStore()
 	return NewSingleWithCustomConfigAndStore(t, f, st, true)
 }
 
+// NewSingleWithCustomConfigAndStore is similar to NewSingleWithCustomConfig, but
+// also allows to override backend Store being used. The last parameter controls if
+// Run method is called on the Blockchain instance, if not then it's caller's
+// responsibility to do that before using the chain and its caller's responsibility
+// also to properly Close the chain when done.
 func NewSingleWithCustomConfigAndStore(t *testing.T, f func(cfg *config.ProtocolConfiguration), st storage.Store, run bool) (*core.Blockchain, neotest.Signer) {
 	protoCfg := config.ProtocolConfiguration{
 		Magic:              netmode.UnitTestNet,
-		MaxTraceableBlocks: 1000, // We don't need a lot of traceable blocks for tests.
-		SecondsPerBlock:    1,
+		MaxTraceableBlocks: MaxTraceableBlocks,
+		SecondsPerBlock:    SecondsPerBlock,
 		StandbyCommittee:   []string{hex.EncodeToString(committeeAcc.PrivateKey().PublicKey().Bytes())},
 		ValidatorsCount:    1,
 		VerifyBlocks:       true,
@@ -141,19 +160,20 @@ func NewSingleWithCustomConfigAndStore(t *testing.T, f func(cfg *config.Protocol
 	return bc, neotest.NewMultiSigner(committeeAcc)
 }
 
-// NewMulti creates new blockchain instance with 4 validators and 6 committee members.
-// Second return value is for validator signer, third -- for committee.
+// NewMulti creates new blockchain instance with four validators and six
+// committee members, otherwise not differring much from NewSingle. The
+// second value returned contains validators Signer, the third -- committee one.
 func NewMulti(t *testing.T) (*core.Blockchain, neotest.Signer, neotest.Signer) {
 	return NewMultiWithCustomConfig(t, nil)
 }
 
-// NewMultiWithCustomConfig creates new blockchain instance with custom protocol
-// configuration, 4 validators and 6 committee members. Second return value is
-// for validator signer, third -- for committee.
+// NewMultiWithCustomConfig is similar to NewMulti except it allows to override the
+// default configuration.
 func NewMultiWithCustomConfig(t *testing.T, f func(*config.ProtocolConfiguration)) (*core.Blockchain, neotest.Signer, neotest.Signer) {
 	protoCfg := config.ProtocolConfiguration{
 		Magic:              netmode.UnitTestNet,
-		SecondsPerBlock:    1,
+		MaxTraceableBlocks: MaxTraceableBlocks,
+		SecondsPerBlock:    SecondsPerBlock,
 		StandbyCommittee:   standByCommittee,
 		ValidatorsCount:    4,
 		VerifyBlocks:       true,
