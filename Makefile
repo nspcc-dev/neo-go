@@ -8,7 +8,10 @@ BINDIR = "/usr/bin"
 SYSTEMDUNIT_DIR = "/lib/systemd/system"
 UNITWORKDIR = "/var/lib/neo-go"
 
-DC_FILE=.docker/docker-compose.yml
+IMAGE_SUFFIX="$(shell if [ "$(OS)" = Windows_NT ]; then echo "_WindowsServerCore"; fi)"
+D_FILE ?= "$(shell if [ "$(OS)" = Windows_NT ]; then echo "Dockerfile.wsc"; else echo "Dockerfile"; fi)"
+DC_FILE ?= ".docker/docker-compose.yml" # Single docker-compose for Ubuntu/WSC, should be kept in sync with ENV_IMAGE_TAG.
+ENV_IMAGE_TAG="env_neo_go_image"
 
 REPO ?= "$(shell go list -m)"
 VERSION ?= "$(shell git describe --tags 2>/dev/null | sed 's/^v//')"
@@ -19,7 +22,7 @@ IMAGE_REPO=nspccdev/neo-go
 
 # All of the targets are phony here because we don't really use make dependency
 # tracking for files
-.PHONY: build deps image image-wsc image-latest image-push image-wsc-push image-push-latest check-version clean-cluster push-tag \
+.PHONY: build deps image image-latest image-push image-push-latest check-version clean-cluster push-tag \
 	test vet lint fmt cover
 
 build: deps
@@ -50,24 +53,21 @@ postinst: install
 		&& systemctl enable neo-go.service
 
 image: deps
-	@echo "=> Building image for Ubuntu"
-	@docker build -t $(IMAGE_REPO):$(VERSION) --build-arg REPO=$(REPO) --build-arg VERSION=$(VERSION) .
-
-image-wsc: deps
-	@echo "=> Building image for Windows Server Core"
-	@docker build -f Dockerfile.wsc -t $(IMAGE_REPO):$(VERSION)_WindowsServerCore --build-arg REPO=$(REPO) --build-arg VERSION=$(VERSION) .
+	@echo "=> Building image"
+	@echo "   Dockerfile: $(D_FILE)"
+	@echo "   Tag: $(IMAGE_REPO):$(VERSION)$(IMAGE_SUFFIX)"
+	@docker build -f $(D_FILE) -t $(IMAGE_REPO):$(VERSION)$(IMAGE_SUFFIX) --build-arg REPO=$(REPO) --build-arg VERSION=$(VERSION) .
 
 image-latest: deps
 	@echo "=> Building image with 'latest' tag"
+	@echo "   Dockerfile: Dockerfile" # Always use default Dockerfile for Ubuntu as `latest`.
+	@echo "   Tag: $(IMAGE_REPO):latest"
 	@docker build -t $(IMAGE_REPO):latest --build-arg REPO=$(REPO) --build-arg VERSION=$(VERSION) .
 
 image-push:
-	@echo "=> Publish image for Ubuntu"
-	@docker push $(IMAGE_REPO):$(VERSION)
-
-image-wsc-push:
-	@echo "=> Publish image for Windows Server Core"
-	@docker push $(IMAGE_REPO):$(VERSION)_WindowsServerCore
+	@echo "=> Publish image"
+	@echo "   Tag: $(IMAGE_REPO):$(VERSION)$(IMAGE_SUFFIX)"
+	@docker push $(IMAGE_REPO):$(VERSION)$(IMAGE_SUFFIX)
 
 image-push-latest:
 	@echo "=> Publish image for Ubuntu with 'latest' tag"
@@ -104,16 +104,20 @@ cover:
 	@go test -v -race ./... -coverprofile=coverage.txt -covermode=atomic -coverpkg=./pkg/...,./cli/...
 	@go tool cover -html=coverage.txt -o coverage.html
 
-# --- Environment ---
+# --- Ubuntu/Windows environment ---
 env_image:
 	@echo "=> Building env image"
+	@echo "   Dockerfile: $(D_FILE)"
+	@echo "   Tag: $(ENV_IMAGE_TAG)"
 	@docker build \
-		-t env_neo_go_image \
+		-f $(D_FILE) \
+		-t $(ENV_IMAGE_TAG) \
 		--build-arg REPO=$(REPO) \
 		--build-arg VERSION=$(VERSION) .
 
 env_up:
 	@echo "=> Bootup environment"
+	@echo "   Docker-compose file: $(DC_FILE)"
 	@docker-compose -f $(DC_FILE) up -d node_one node_two node_three node_four
 
 env_single:

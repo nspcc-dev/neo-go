@@ -126,7 +126,7 @@ jobs:
           go-version: 1.18
 
       - name: Build Docker image
-        run: make image-wsc
+        run: make image
 
   build_privnet_image_ubuntu:
     needs: build_cli_ubuntu
