@@ -126,4 +126,52 @@ jobs:
           go-version: 1.18
 
       - name: Build Docker image
-        run: make image-wsc
+        run: make image
+
+  build_privnet_image_ubuntu:
+    needs: build_cli_ubuntu
+    name: Build privnet Docker image (Ubuntu)
+    runs-on: ubuntu-20.04
+
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          ref: ${{ github.event.inputs.ref }}
+          fetch-depth: 0
+
+      # For proper `deps` make target execution.
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.18
+
+      # For information purposes.
+      - name: Print Docker version
+        run: docker --version
+
+      - name: Build privnet Docker image
+        run: make env_image
+
+  build_privnet_image_wsc:
+    needs: build_cli_wsc
+    name: Build privnet Docker image (Windows Server Core)
+    runs-on: windows-2022
+
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          ref: ${{ github.event.inputs.ref }}
+          fetch-depth: 0
+
+      # For proper `deps` make target execution.
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.18
+
+      # For information purposes.
+      - name: Print Docker version
+        run: docker --version
+
+      - name: Build privnet Docker image
+        run: make env_image
