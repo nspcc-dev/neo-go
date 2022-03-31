@@ -1589,11 +1589,6 @@ func (bc *Blockchain) GetStorageItem(id int32, key []byte) state.StorageItem {
 	return bc.dao.GetStorageItem(id, key)
 }
 
-// GetStorageItems returns all storage items for a given contract id.
-func (bc *Blockchain) GetStorageItems(id int32) ([]state.StorageItemWithKey, error) {
-	return bc.dao.GetStorageItems(id)
-}
-
 // GetBlock returns a Block by the given hash.
 func (bc *Blockchain) GetBlock(hash util.Uint256) (*block.Block, error) {
 	topBlock := bc.topBlock.Load()

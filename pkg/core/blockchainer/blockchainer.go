@@ -59,7 +59,6 @@ type Blockchainer interface {
 	GetValidators() ([]*keys.PublicKey, error)
 	GetStateModule() StateRoot
 	GetStorageItem(id int32, key []byte) state.StorageItem
-	GetStorageItems(id int32) ([]state.StorageItemWithKey, error)
 	GetTestVM(t trigger.Type, tx *transaction.Transaction, b *block.Block) *interop.Context
 	GetTransaction(util.Uint256) (*transaction.Transaction, uint32, error)
 	SetOracle(service services.Oracle)
