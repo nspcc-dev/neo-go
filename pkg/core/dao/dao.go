@@ -310,29 +310,6 @@ func (dao *Simple) DeleteStorageItem(id int32, key []byte) {
 	dao.Store.Delete(stKey)
 }
 
-// GetStorageItems returns all storage items for a given id.
-func (dao *Simple) GetStorageItems(id int32) ([]state.StorageItemWithKey, error) {
-	return dao.GetStorageItemsWithPrefix(id, nil)
-}
-
-// GetStorageItemsWithPrefix returns all storage items with given id for a
-// given scripthash.
-func (dao *Simple) GetStorageItemsWithPrefix(id int32, prefix []byte) ([]state.StorageItemWithKey, error) {
-	var siArr []state.StorageItemWithKey
-
-	saveToArr := func(k, v []byte) bool {
-		// Cut prefix and hash.
-		// #1468, but don't need to copy here, because it is done by Store.
-		siArr = append(siArr, state.StorageItemWithKey{
-			Key:  k,
-			Item: state.StorageItem(v),
-		})
-		return true
-	}
-	dao.Seek(id, storage.SeekRange{Prefix: prefix}, saveToArr)
-	return siArr, nil
-}
-
 // Seek executes f for all storage items matching a given `rng` (matching given prefix and
 // starting from the point specified). If key or value is to be used outside of f, they
 // may not be copied. Seek continues iterating until false is returned from f.

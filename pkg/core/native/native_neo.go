@@ -255,11 +255,7 @@ func (n *NEO) InitializeCache(bc interop.Ledger, d *dao.Simple) error {
 		return err
 	}
 
-	gr, err := n.getSortedGASRecordFromDAO(d)
-	if err != nil {
-		return err
-	}
-	n.gasPerBlock.Store(gr)
+	n.gasPerBlock.Store(n.getSortedGASRecordFromDAO(d))
 	n.gasPerBlockChanged.Store(false)
 
 	return nil
@@ -375,11 +371,7 @@ func (n *NEO) PostPersist(ic *interop.Context) error {
 		}
 	}
 	if n.gasPerBlockChanged.Load().(bool) {
-		gr, err := n.getSortedGASRecordFromDAO(ic.DAO)
-		if err != nil {
-			panic(err)
-		}
-		n.gasPerBlock.Store(gr)
+		n.gasPerBlock.Store(n.getSortedGASRecordFromDAO(ic.DAO))
 		n.gasPerBlockChanged.Store(false)
 	}
 
@@ -495,35 +487,23 @@ func (n *NEO) getGASPerBlock(ic *interop.Context, _ []stackitem.Item) stackitem.
 	return stackitem.NewBigInteger(gas)
 }
 
-func (n *NEO) getSortedGASRecordFromDAO(d *dao.Simple) (gasRecord, error) {
-	grArr, err := d.GetStorageItemsWithPrefix(n.ID, []byte{prefixGASPerBlock})
-	if err != nil {
-		return gasRecord{}, fmt.Errorf("failed to get gas records from storage: %w", err)
-	}
-	var gr = make(gasRecord, len(grArr))
-	for i, kv := range grArr {
-		indexBytes, gasValue := kv.Key, kv.Item
-		gr[i] = gasIndexPair{
-			Index:       binary.BigEndian.Uint32([]byte(indexBytes)),
-			GASPerBlock: *bigint.FromBytes(gasValue),
-		}
-	}
-	// GAS records should be sorted by index, but GetStorageItemsWithPrefix returns
-	// values sorted by BE bytes of index, so we're OK with that.
-	return gr, nil
+func (n *NEO) getSortedGASRecordFromDAO(d *dao.Simple) gasRecord {
+	var gr = make(gasRecord, 0)
+	d.Seek(n.ID, storage.SeekRange{Prefix: []byte{prefixGASPerBlock}}, func(k, v []byte) bool {
+		gr = append(gr, gasIndexPair{
+			Index:       binary.BigEndian.Uint32(k),
+			GASPerBlock: *bigint.FromBytes(v),
+		})
+		return true
+	})
+	return gr
 }
 
 // GetGASPerBlock returns gas generated for block with provided index.
 func (n *NEO) GetGASPerBlock(d *dao.Simple, index uint32) *big.Int {
-	var (
-		gr  gasRecord
-		err error
-	)
+	var gr gasRecord
 	if n.gasPerBlockChanged.Load().(bool) {
-		gr, err = n.getSortedGASRecordFromDAO(d)
-		if err != nil {
-			panic(err)
-		}
+		gr = n.getSortedGASRecordFromDAO(d)
 	} else {
 		gr = n.gasPerBlock.Load().(gasRecord)
 	}
@@ -665,17 +645,11 @@ func (n *NEO) CalculateNEOHolderReward(d *dao.Simple, value *big.Int, start, end
 	} else if value.Sign() < 0 {
 		return nil, errors.New("negative value")
 	}
-	var (
-		gr  gasRecord
-		err error
-	)
+	var gr gasRecord
 	if !n.gasPerBlockChanged.Load().(bool) {
 		gr = n.gasPerBlock.Load().(gasRecord)
 	} else {
-		gr, err = n.getSortedGASRecordFromDAO(d)
-		if err != nil {
-			return nil, err
-		}
+		gr = n.getSortedGASRecordFromDAO(d)
 	}
 	var sum, tmp big.Int
 	for i := len(gr) - 1; i >= 0; i-- {
@@ -847,17 +821,15 @@ func (n *NEO) ModifyAccountVotes(acc *state.NEOBalance, d *dao.Simple, value *bi
 }
 
 func (n *NEO) getCandidates(d *dao.Simple, sortByKey bool) ([]keyWithVotes, error) {
-	siArr, err := d.GetStorageItemsWithPrefix(n.ID, []byte{prefixCandidate})
-	if err != nil {
-		return nil, err
-	}
-	arr := make([]keyWithVotes, 0, len(siArr))
-	for _, kv := range siArr {
-		c := new(candidate).FromBytes(kv.Item)
+	arr := make([]keyWithVotes, 0)
+	d.Seek(n.ID, storage.SeekRange{Prefix: []byte{prefixCandidate}}, func(k, v []byte) bool {
+		c := new(candidate).FromBytes(v)
 		if c.Registered {
-			arr = append(arr, keyWithVotes{Key: string(kv.Key), Votes: &c.Votes})
+			arr = append(arr, keyWithVotes{Key: string(k), Votes: &c.Votes})
 		}
-	}
+		return true
+	})
+
 	if !sortByKey {
 		// sortByKey assumes to sort by serialized key bytes (that's the way keys
 		// are stored and retrieved from the storage by default). Otherwise, need

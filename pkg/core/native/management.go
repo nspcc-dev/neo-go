@@ -388,13 +388,11 @@ func (m *Management) Destroy(d *dao.Simple, hash util.Uint160) error {
 	key := MakeContractKey(hash)
 	d.DeleteStorageItem(m.ID, key)
 	d.DeleteContractID(contract.ID)
-	siArr, err := d.GetStorageItems(contract.ID)
-	if err != nil {
-		return err
-	}
-	for _, kv := range siArr {
-		d.DeleteStorageItem(contract.ID, []byte(kv.Key))
-	}
+
+	d.Seek(contract.ID, storage.SeekRange{}, func(k, _ []byte) bool {
+		d.DeleteStorageItem(contract.ID, k)
+		return true
+	})
 	m.markUpdated(hash)
 	return nil
 }
