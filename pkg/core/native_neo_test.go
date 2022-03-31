@@ -1,20 +1,17 @@
-package core
+package core_test
 
 import (
 	"fmt"
 	"math/big"
+	"path/filepath"
 	"testing"
 
-	"github.com/nspcc-dev/neo-go/internal/testchain"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
-	"github.com/nspcc-dev/neo-go/pkg/io"
-	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
-	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
-	"github.com/nspcc-dev/neo-go/pkg/vm"
-	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
-	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
+	"github.com/nspcc-dev/neo-go/pkg/neotest"
+	"github.com/nspcc-dev/neo-go/pkg/neotest/chain"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/stretchr/testify/require"
 )
@@ -40,96 +37,88 @@ func BenchmarkNEO_GetGASPerVote(t *testing.B) {
 	}
 }
 
-func benchmarkGasPerVote(t *testing.B, ps storage.Store, nRewardRecords int, rewardDistance int) {
-	bc := newTestChainWithCustomCfgAndStore(t, ps, nil)
-
-	neo := bc.contracts.NEO
-	tx := transaction.New([]byte{byte(opcode.PUSH1)}, 0)
-	ic := bc.newInteropContext(trigger.Application, bc.dao, nil, tx)
-	ic.SpawnVM()
-	ic.Block = bc.newBlock(tx)
-
-	advanceChain := func(t *testing.B, count int) {
-		for i := 0; i < count; i++ {
-			require.NoError(t, bc.AddBlock(bc.newBlock()))
-			ic.Block.Index++
-		}
+func newLevelDBForTesting(t testing.TB) storage.Store {
+	dbPath := t.TempDir()
+	dbOptions := storage.LevelDBOptions{
+		DataDirectoryPath: dbPath,
 	}
+	newLevelStore, err := storage.NewLevelDBStore(dbOptions)
+	require.Nil(t, err, "NewLevelDBStore error")
+	return newLevelStore
+}
+
+func newBoltStoreForTesting(t testing.TB) storage.Store {
+	d := t.TempDir()
+	dbPath := filepath.Join(d, "test_bolt_db")
+	boltDBStore, err := storage.NewBoltDBStore(storage.BoltDBOptions{FilePath: dbPath})
+	require.NoError(t, err)
+	return boltDBStore
+}
+
+func benchmarkGasPerVote(t *testing.B, ps storage.Store, nRewardRecords int, rewardDistance int) {
+	bc, validators, committee := chain.NewMultiWithCustomConfigAndStore(t, nil, ps, true)
+	cfg := bc.GetConfig()
+
+	e := neotest.NewExecutor(t, bc, validators, committee)
+	neoHash := e.NativeHash(t, nativenames.Neo)
+	gasHash := e.NativeHash(t, nativenames.Gas)
+	neoSuperInvoker := e.NewInvoker(neoHash, validators, committee)
+	neoValidatorsInvoker := e.ValidatorInvoker(neoHash)
+	gasValidatorsInvoker := e.ValidatorInvoker(gasHash)
 
 	// Vote for new committee.
-	sz := testchain.CommitteeSize()
-	accs := make([]*wallet.Account, sz)
+	sz := len(cfg.StandbyCommittee)
+	voters := make([]*wallet.Account, sz)
 	candidates := make(keys.PublicKeys, sz)
-	txs := make([]*transaction.Transaction, 0, len(accs))
+	txs := make([]*transaction.Transaction, 0, len(voters)*3)
 	for i := 0; i < sz; i++ {
 		priv, err := keys.NewPrivateKey()
 		require.NoError(t, err)
 		candidates[i] = priv.PublicKey()
-		accs[i], err = wallet.NewAccount()
+		voters[i], err = wallet.NewAccount()
 		require.NoError(t, err)
-		require.NoError(t, neo.RegisterCandidateInternal(ic, candidates[i]))
+		registerTx := neoSuperInvoker.PrepareInvoke(t, "registerCandidate", candidates[i].Bytes())
+		txs = append(txs, registerTx)
 
-		to := accs[i].Contract.ScriptHash()
-		w := io.NewBufBinWriter()
-		emit.AppCall(w.BinWriter, bc.contracts.NEO.Hash, "transfer", callflag.All,
-			neoOwner.BytesBE(), to.BytesBE(),
-			big.NewInt(int64(sz-i)*1000000).Int64(), nil)
-		emit.Opcodes(w.BinWriter, opcode.ASSERT)
-		emit.AppCall(w.BinWriter, bc.contracts.GAS.Hash, "transfer", callflag.All,
-			neoOwner.BytesBE(), to.BytesBE(),
-			int64(1_000_000_000), nil)
-		emit.Opcodes(w.BinWriter, opcode.ASSERT)
-		require.NoError(t, w.Err)
-		tx := transaction.New(w.Bytes(), 1000_000_000)
-		tx.ValidUntilBlock = bc.BlockHeight() + 1
-		setSigner(tx, testchain.MultisigScriptHash())
-		require.NoError(t, testchain.SignTx(bc, tx))
-		txs = append(txs, tx)
+		to := voters[i].Contract.ScriptHash()
+		transferNeoTx := neoValidatorsInvoker.PrepareInvoke(t, "transfer", e.Validator.ScriptHash(), to, big.NewInt(int64(sz-i)*1000000).Int64(), nil)
+		txs = append(txs, transferNeoTx)
+
+		transferGasTx := gasValidatorsInvoker.PrepareInvoke(t, "transfer", e.Validator.ScriptHash(), to, int64(1_000_000_000), nil)
+		txs = append(txs, transferGasTx)
 	}
-	require.NoError(t, bc.AddBlock(bc.newBlock(txs...)))
+	e.AddNewBlock(t, txs...)
 	for _, tx := range txs {
-		checkTxHalt(t, bc, tx.Hash())
+		e.CheckHalt(t, tx.Hash())
 	}
+	voteTxs := make([]*transaction.Transaction, 0, sz)
 	for i := 0; i < sz; i++ {
-		priv := accs[i].PrivateKey()
+		priv := voters[i].PrivateKey()
 		h := priv.GetScriptHash()
-		setSigner(tx, h)
-		ic.VM.Load(priv.PublicKey().GetVerificationScript())
-		require.NoError(t, neo.VoteInternal(ic, h, candidates[i]))
+		voteTx := e.NewTx(t, []neotest.Signer{neotest.NewSingleSigner(voters[i])}, neoHash, "vote", h, candidates[i].Bytes())
+		voteTxs = append(voteTxs, voteTx)
 	}
-	_, err := ic.DAO.Persist()
-	require.NoError(t, err)
+	e.AddNewBlock(t, voteTxs...)
+	for _, tx := range voteTxs {
+		e.CheckHalt(t, tx.Hash())
+	}
 
 	// Collect set of nRewardRecords reward records for each voter.
-	advanceChain(t, nRewardRecords*testchain.CommitteeSize())
+	e.GenerateNewBlocks(t, len(cfg.StandbyCommittee))
 
 	// Transfer some more NEO to first voter to update his balance height.
-	to := accs[0].Contract.ScriptHash()
-	w := io.NewBufBinWriter()
-	emit.AppCall(w.BinWriter, bc.contracts.NEO.Hash, "transfer", callflag.All,
-		neoOwner.BytesBE(), to.BytesBE(), int64(1), nil)
-	emit.Opcodes(w.BinWriter, opcode.ASSERT)
-	require.NoError(t, w.Err)
-	tx = transaction.New(w.Bytes(), 1000_000_000)
-	tx.ValidUntilBlock = bc.BlockHeight() + 1
-	setSigner(tx, testchain.MultisigScriptHash())
-	require.NoError(t, testchain.SignTx(bc, tx))
-	require.NoError(t, bc.AddBlock(bc.newBlock(tx)))
-
-	aer, err := bc.GetAppExecResults(tx.Hash(), trigger.Application)
-	require.NoError(t, err)
-	require.Equal(t, 1, len(aer))
-	require.Equal(t, vm.HaltState, aer[0].VMState, aer[0].FaultException)
+	to := voters[0].Contract.ScriptHash()
+	neoValidatorsInvoker.Invoke(t, true, "transfer", e.Validator.ScriptHash(), to, int64(1), nil)
 
 	// Advance chain one more time to avoid same start/end rewarding bounds.
-	advanceChain(t, rewardDistance)
+	e.GenerateNewBlocks(t, rewardDistance)
 	end := bc.BlockHeight()
 
 	t.ResetTimer()
 	t.ReportAllocs()
 	t.StartTimer()
 	for i := 0; i < t.N; i++ {
-		_, err := neo.CalculateBonus(ic.DAO, to, end)
+		_, err := bc.CalculateClaimable(to, end)
 		require.NoError(t, err)
 	}
 	t.StopTimer()

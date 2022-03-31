@@ -200,7 +200,7 @@ func (m *Management) getNefAndManifestFromItems(ic *interop.Context, args []stac
 
 	gas := ic.Chain.GetStoragePrice() * int64(len(nefBytes)+len(manifestBytes))
 	if isDeploy {
-		fee := m.GetMinimumDeploymentFee(ic.DAO)
+		fee := m.minimumDeploymentFee(ic.DAO)
 		if fee > gas {
 			gas = fee
 		}
@@ -400,11 +400,11 @@ func (m *Management) Destroy(d *dao.Simple, hash util.Uint160) error {
 }
 
 func (m *Management) getMinimumDeploymentFee(ic *interop.Context, args []stackitem.Item) stackitem.Item {
-	return stackitem.NewBigInteger(big.NewInt(m.GetMinimumDeploymentFee(ic.DAO)))
+	return stackitem.NewBigInteger(big.NewInt(m.minimumDeploymentFee(ic.DAO)))
 }
 
-// GetMinimumDeploymentFee returns the minimum required fee for contract deploy.
-func (m *Management) GetMinimumDeploymentFee(dao *dao.Simple) int64 {
+// minimumDeploymentFee returns the minimum required fee for contract deploy.
+func (m *Management) minimumDeploymentFee(dao *dao.Simple) int64 {
 	return getIntWithKey(m.ID, dao, keyMinimumDeploymentFee)
 }
 

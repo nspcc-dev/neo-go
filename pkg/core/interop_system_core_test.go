@@ -1,24 +1,20 @@
 package core
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
-	"math"
 	"math/big"
-	"os"
 	"path/filepath"
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/internal/contracts"
 	"github.com/nspcc-dev/neo-go/internal/random"
-	"github.com/nspcc-dev/neo-go/internal/testchain"
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/contract"
-	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/iterator"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/runtime"
 	istorage "github.com/nspcc-dev/neo-go/pkg/core/interop/storage"
@@ -29,7 +25,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/io"
-	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
@@ -39,9 +34,10 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
-	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/stretchr/testify/require"
 )
+
+var pathToInternalContracts = filepath.Join("..", "..", "internal", "contracts")
 
 // Tests are taken from
 // https://github.com/neo-project/neo/blob/master/tests/neo.UnitTests/SmartContract/UT_ApplicationEngine.Runtime.cs
@@ -72,29 +68,6 @@ func TestRuntimeGetRandomCompatibility(t *testing.T) {
 	require.Equal(t, "217172703763162599519098299724476526911", ic.VM.Estack().Pop().BigInt().String())
 }
 
-func TestRuntimeGetRandomDifferentTransactions(t *testing.T) {
-	bc := newTestChain(t)
-	b, _ := bc.GetBlock(bc.GetHeaderHash(0))
-
-	tx1 := transaction.New([]byte{byte(opcode.PUSH1)}, 0)
-	ic1 := bc.newInteropContext(trigger.Application, bc.dao.GetWrapped(), b, tx1)
-	ic1.VM = vm.New()
-	ic1.VM.LoadScript(tx1.Script)
-
-	tx2 := transaction.New([]byte{byte(opcode.PUSH2)}, 0)
-	ic2 := bc.newInteropContext(trigger.Application, bc.dao.GetWrapped(), b, tx2)
-	ic2.VM = vm.New()
-	ic2.VM.LoadScript(tx2.Script)
-
-	require.NoError(t, runtime.GetRandom(ic1))
-	require.NoError(t, runtime.GetRandom(ic2))
-	require.NotEqual(t, ic1.VM.Estack().Pop().BigInt(), ic2.VM.Estack().Pop().BigInt())
-
-	require.NoError(t, runtime.GetRandom(ic1))
-	require.NoError(t, runtime.GetRandom(ic2))
-	require.NotEqual(t, ic1.VM.Estack().Pop().BigInt(), ic2.VM.Estack().Pop().BigInt())
-}
-
 func getSharpTestTx(sender util.Uint160) *transaction.Transaction {
 	tx := transaction.New([]byte{byte(opcode.PUSH2)}, 0)
 	tx.Nonce = 0
@@ -114,81 +87,6 @@ func getSharpTestGenesis(t *testing.T) *block.Block {
 	b, err := createGenesisBlock(cfg.ProtocolConfiguration)
 	require.NoError(t, err)
 	return b
-}
-
-func TestContractCreateAccount(t *testing.T) {
-	v, ic, _ := createVM(t)
-	t.Run("Good", func(t *testing.T) {
-		priv, err := keys.NewPrivateKey()
-		require.NoError(t, err)
-		pub := priv.PublicKey()
-		v.Estack().PushVal(pub.Bytes())
-		require.NoError(t, contractCreateStandardAccount(ic))
-
-		value := v.Estack().Pop().Bytes()
-		u, err := util.Uint160DecodeBytesBE(value)
-		require.NoError(t, err)
-		require.Equal(t, pub.GetScriptHash(), u)
-	})
-	t.Run("InvalidKey", func(t *testing.T) {
-		v.Estack().PushVal([]byte{1, 2, 3})
-		require.Error(t, contractCreateStandardAccount(ic))
-	})
-}
-
-func TestContractCreateMultisigAccount(t *testing.T) {
-	v, ic, _ := createVM(t)
-	t.Run("Good", func(t *testing.T) {
-		m, n := 3, 5
-		pubs := make(keys.PublicKeys, n)
-		arr := make([]stackitem.Item, n)
-		for i := range pubs {
-			pk, err := keys.NewPrivateKey()
-			require.NoError(t, err)
-			pubs[i] = pk.PublicKey()
-			arr[i] = stackitem.Make(pubs[i].Bytes())
-		}
-		v.Estack().PushVal(stackitem.Make(arr))
-		v.Estack().PushVal(m)
-		require.NoError(t, contractCreateMultisigAccount(ic))
-
-		expected, err := smartcontract.CreateMultiSigRedeemScript(m, pubs)
-		require.NoError(t, err)
-		value := v.Estack().Pop().Bytes()
-		u, err := util.Uint160DecodeBytesBE(value)
-		require.NoError(t, err)
-		require.Equal(t, hash.Hash160(expected), u)
-	})
-	t.Run("InvalidKey", func(t *testing.T) {
-		v.Estack().PushVal(stackitem.Make([]stackitem.Item{stackitem.Make([]byte{1, 2, 3})}))
-		v.Estack().PushVal(1)
-		require.Error(t, contractCreateMultisigAccount(ic))
-	})
-	t.Run("Invalid m", func(t *testing.T) {
-		pk, err := keys.NewPrivateKey()
-		require.NoError(t, err)
-		v.Estack().PushVal(stackitem.Make([]stackitem.Item{stackitem.Make(pk.PublicKey().Bytes())}))
-		v.Estack().PushVal(2)
-		require.Error(t, contractCreateMultisigAccount(ic))
-	})
-	t.Run("m overflows int64", func(t *testing.T) {
-		pk, err := keys.NewPrivateKey()
-		require.NoError(t, err)
-		v.Estack().PushVal(stackitem.Make([]stackitem.Item{stackitem.Make(pk.PublicKey().Bytes())}))
-		m := big.NewInt(math.MaxInt64)
-		m.Add(m, big.NewInt(1))
-		v.Estack().PushVal(stackitem.NewBigInteger(m))
-		require.Error(t, contractCreateMultisigAccount(ic))
-	})
-}
-
-func TestRuntimeGasLeft(t *testing.T) {
-	v, ic, _ := createVM(t)
-
-	v.GasLimit = 100
-	v.AddGas(58)
-	require.NoError(t, runtime.GasLeft(ic))
-	require.EqualValues(t, 42, v.Estack().Pop().BigInt().Int64())
 }
 
 func TestRuntimeGetNotifications(t *testing.T) {
@@ -235,7 +133,7 @@ func TestRuntimeGetNotifications(t *testing.T) {
 func TestRuntimeGetInvocationCounter(t *testing.T) {
 	v, ic, bc := createVM(t)
 
-	cs, _ := getTestContractState(t, 4, 5, random.Uint160()) // sender and IDs are not important for the test
+	cs, _ := contracts.GetTestContractState(t, pathToInternalContracts, 4, 5, random.Uint160()) // sender and IDs are not important for the test
 	require.NoError(t, bc.contracts.Management.PutContractState(ic.DAO, cs))
 
 	ic.Invocations[hash.Hash160([]byte{2})] = 42
@@ -661,432 +559,6 @@ func createVMAndContractState(t testing.TB) (*vm.VM, *state.Contract, *interop.C
 	return v, contractState, context, chain
 }
 
-var (
-	helper1ContractNEFPath      = filepath.Join("test_data", "management_helper", "management_helper1.nef")
-	helper1ContractManifestPath = filepath.Join("test_data", "management_helper", "management_helper1.manifest.json")
-	helper2ContractNEFPath      = filepath.Join("test_data", "management_helper", "management_helper2.nef")
-	helper2ContractManifestPath = filepath.Join("test_data", "management_helper", "management_helper2.manifest.json")
-)
-
-// TestGenerateManagementHelperContracts generates 2 helper contracts second of which is
-// allowed to call the first. It uses test chain to define Management and StdLib
-// native hashes and saves generated NEF and manifest to ../test_data/management_contract folder.
-// Set `saveState` flag to true and run the test to rewrite NEF and manifest files.
-func TestGenerateManagementHelperContracts(t *testing.T) {
-	const saveState = false
-
-	bc := newTestChain(t)
-	mgmtHash := bc.contracts.Management.Hash
-	stdHash := bc.contracts.Std.Hash
-	neoHash := bc.contracts.NEO.Hash
-	singleChainValidator := testchain.PrivateKey(testchain.IDToOrder(0))
-	acc := wallet.NewAccountFromPrivateKey(singleChainValidator)
-	require.NoError(t, acc.ConvertMultisig(1, keys.PublicKeys{singleChainValidator.PublicKey()}))
-	singleChainValidatorHash := acc.Contract.ScriptHash()
-
-	w := io.NewBufBinWriter()
-	emit.Opcodes(w.BinWriter, opcode.ABORT)
-	addOff := w.Len()
-	emit.Opcodes(w.BinWriter, opcode.ADD, opcode.RET)
-	addMultiOff := w.Len()
-	emit.Opcodes(w.BinWriter, opcode.ADD, opcode.ADD, opcode.RET)
-	ret7Off := w.Len()
-	emit.Opcodes(w.BinWriter, opcode.PUSH7, opcode.RET)
-	dropOff := w.Len()
-	emit.Opcodes(w.BinWriter, opcode.DROP, opcode.RET)
-	initOff := w.Len()
-	emit.Opcodes(w.BinWriter, opcode.INITSSLOT, 1, opcode.PUSH3, opcode.STSFLD0, opcode.RET)
-	add3Off := w.Len()
-	emit.Opcodes(w.BinWriter, opcode.LDSFLD0, opcode.ADD, opcode.RET)
-	invalidRetOff := w.Len()
-	emit.Opcodes(w.BinWriter, opcode.PUSH1, opcode.PUSH2, opcode.RET)
-	justRetOff := w.Len()
-	emit.Opcodes(w.BinWriter, opcode.RET)
-	verifyOff := w.Len()
-	emit.Opcodes(w.BinWriter, opcode.LDSFLD0, opcode.SUB,
-		opcode.CONVERT, opcode.Opcode(stackitem.BooleanT), opcode.RET)
-	deployOff := w.Len()
-	emit.Opcodes(w.BinWriter, opcode.SWAP, opcode.JMPIF, 2+8+1+1+1+1+39+3)
-	emit.String(w.BinWriter, "create")                                  // 8 bytes
-	emit.Int(w.BinWriter, 2)                                            // 1 byte
-	emit.Opcodes(w.BinWriter, opcode.PACK)                              // 1 byte
-	emit.Int(w.BinWriter, 1)                                            // 1 byte (args count for `serialize`)
-	emit.Opcodes(w.BinWriter, opcode.PACK)                              // 1 byte (pack args into array for `serialize`)
-	emit.AppCallNoArgs(w.BinWriter, stdHash, "serialize", callflag.All) // 39 bytes
-	emit.Opcodes(w.BinWriter, opcode.CALL, 3+8+1+1+1+1+39+3, opcode.RET)
-	emit.String(w.BinWriter, "update")                                  // 8 bytes
-	emit.Int(w.BinWriter, 2)                                            // 1 byte
-	emit.Opcodes(w.BinWriter, opcode.PACK)                              // 1 byte
-	emit.Int(w.BinWriter, 1)                                            // 1 byte (args count for `serialize`)
-	emit.Opcodes(w.BinWriter, opcode.PACK)                              // 1 byte (pack args into array for `serialize`)
-	emit.AppCallNoArgs(w.BinWriter, stdHash, "serialize", callflag.All) // 39 bytes
-	emit.Opcodes(w.BinWriter, opcode.CALL, 3, opcode.RET)
-	putValOff := w.Len()
-	emit.String(w.BinWriter, "initial")
-	emit.Syscall(w.BinWriter, interopnames.SystemStorageGetContext)
-	emit.Syscall(w.BinWriter, interopnames.SystemStoragePut)
-	emit.Opcodes(w.BinWriter, opcode.RET)
-	getValOff := w.Len()
-	emit.String(w.BinWriter, "initial")
-	emit.Syscall(w.BinWriter, interopnames.SystemStorageGetContext)
-	emit.Syscall(w.BinWriter, interopnames.SystemStorageGet)
-	emit.Opcodes(w.BinWriter, opcode.RET)
-	delValOff := w.Len()
-	emit.Syscall(w.BinWriter, interopnames.SystemStorageGetContext)
-	emit.Syscall(w.BinWriter, interopnames.SystemStorageDelete)
-	emit.Opcodes(w.BinWriter, opcode.RET)
-	onNEP17PaymentOff := w.Len()
-	emit.Syscall(w.BinWriter, interopnames.SystemRuntimeGetCallingScriptHash)
-	emit.Int(w.BinWriter, 4)
-	emit.Opcodes(w.BinWriter, opcode.PACK)
-	emit.String(w.BinWriter, "LastPayment")
-	emit.Syscall(w.BinWriter, interopnames.SystemRuntimeNotify)
-	emit.Opcodes(w.BinWriter, opcode.RET)
-	onNEP11PaymentOff := w.Len()
-	emit.Syscall(w.BinWriter, interopnames.SystemRuntimeGetCallingScriptHash)
-	emit.Int(w.BinWriter, 5)
-	emit.Opcodes(w.BinWriter, opcode.PACK)
-	emit.String(w.BinWriter, "LostPayment")
-	emit.Syscall(w.BinWriter, interopnames.SystemRuntimeNotify)
-	emit.Opcodes(w.BinWriter, opcode.RET)
-	update3Off := w.Len()
-	emit.Int(w.BinWriter, 3)
-	emit.Opcodes(w.BinWriter, opcode.JMP, 2+1)
-	updateOff := w.Len()
-	emit.Int(w.BinWriter, 2)
-	emit.Opcodes(w.BinWriter, opcode.PACK)
-	emit.AppCallNoArgs(w.BinWriter, mgmtHash, "update", callflag.All)
-	emit.Opcodes(w.BinWriter, opcode.DROP)
-	emit.Opcodes(w.BinWriter, opcode.RET)
-	destroyOff := w.Len()
-	emit.AppCall(w.BinWriter, mgmtHash, "destroy", callflag.All)
-	emit.Opcodes(w.BinWriter, opcode.DROP)
-	emit.Opcodes(w.BinWriter, opcode.RET)
-	invalidStackOff := w.Len()
-	emit.Opcodes(w.BinWriter, opcode.NEWARRAY0, opcode.DUP, opcode.DUP, opcode.APPEND) // recursive array
-	emit.Syscall(w.BinWriter, interopnames.SystemStorageGetReadOnlyContext)            // interop item
-	emit.Opcodes(w.BinWriter, opcode.RET)
-	callT0Off := w.Len()
-	emit.Opcodes(w.BinWriter, opcode.CALLT, 0, 0, opcode.PUSH1, opcode.ADD, opcode.RET)
-	callT1Off := w.Len()
-	emit.Opcodes(w.BinWriter, opcode.CALLT, 1, 0, opcode.RET)
-	callT2Off := w.Len()
-	emit.Opcodes(w.BinWriter, opcode.CALLT, 0, 0, opcode.RET)
-	burnGasOff := w.Len()
-	emit.Syscall(w.BinWriter, interopnames.SystemRuntimeBurnGas)
-	emit.Opcodes(w.BinWriter, opcode.RET)
-	invocCounterOff := w.Len()
-	emit.Syscall(w.BinWriter, interopnames.SystemRuntimeGetInvocationCounter)
-	emit.Opcodes(w.BinWriter, opcode.RET)
-
-	script := w.Bytes()
-	m := manifest.NewManifest("TestMain")
-	m.ABI.Methods = []manifest.Method{
-		{
-			Name:   "add",
-			Offset: addOff,
-			Parameters: []manifest.Parameter{
-				manifest.NewParameter("addend1", smartcontract.IntegerType),
-				manifest.NewParameter("addend2", smartcontract.IntegerType),
-			},
-			ReturnType: smartcontract.IntegerType,
-		},
-		{
-			Name:   "add",
-			Offset: addMultiOff,
-			Parameters: []manifest.Parameter{
-				manifest.NewParameter("addend1", smartcontract.IntegerType),
-				manifest.NewParameter("addend2", smartcontract.IntegerType),
-				manifest.NewParameter("addend3", smartcontract.IntegerType),
-			},
-			ReturnType: smartcontract.IntegerType,
-		},
-		{
-			Name:       "ret7",
-			Offset:     ret7Off,
-			Parameters: []manifest.Parameter{},
-			ReturnType: smartcontract.IntegerType,
-		},
-		{
-			Name:       "drop",
-			Offset:     dropOff,
-			ReturnType: smartcontract.VoidType,
-		},
-		{
-			Name:       manifest.MethodInit,
-			Offset:     initOff,
-			ReturnType: smartcontract.VoidType,
-		},
-		{
-			Name:   "add3",
-			Offset: add3Off,
-			Parameters: []manifest.Parameter{
-				manifest.NewParameter("addend", smartcontract.IntegerType),
-			},
-			ReturnType: smartcontract.IntegerType,
-		},
-		{
-			Name:       "invalidReturn",
-			Offset:     invalidRetOff,
-			ReturnType: smartcontract.IntegerType,
-		},
-		{
-			Name:       "justReturn",
-			Offset:     justRetOff,
-			ReturnType: smartcontract.VoidType,
-		},
-		{
-			Name:       manifest.MethodVerify,
-			Offset:     verifyOff,
-			ReturnType: smartcontract.BoolType,
-		},
-		{
-			Name:   manifest.MethodDeploy,
-			Offset: deployOff,
-			Parameters: []manifest.Parameter{
-				manifest.NewParameter("data", smartcontract.AnyType),
-				manifest.NewParameter("isUpdate", smartcontract.BoolType),
-			},
-			ReturnType: smartcontract.VoidType,
-		},
-		{
-			Name:       "getValue",
-			Offset:     getValOff,
-			ReturnType: smartcontract.StringType,
-		},
-		{
-			Name:   "putValue",
-			Offset: putValOff,
-			Parameters: []manifest.Parameter{
-				manifest.NewParameter("value", smartcontract.StringType),
-			},
-			ReturnType: smartcontract.VoidType,
-		},
-		{
-			Name:   "delValue",
-			Offset: delValOff,
-			Parameters: []manifest.Parameter{
-				manifest.NewParameter("key", smartcontract.StringType),
-			},
-			ReturnType: smartcontract.VoidType,
-		},
-		{
-			Name:   manifest.MethodOnNEP11Payment,
-			Offset: onNEP11PaymentOff,
-			Parameters: []manifest.Parameter{
-				manifest.NewParameter("from", smartcontract.Hash160Type),
-				manifest.NewParameter("amount", smartcontract.IntegerType),
-				manifest.NewParameter("tokenid", smartcontract.ByteArrayType),
-				manifest.NewParameter("data", smartcontract.AnyType),
-			},
-			ReturnType: smartcontract.VoidType,
-		},
-		{
-			Name:   manifest.MethodOnNEP17Payment,
-			Offset: onNEP17PaymentOff,
-			Parameters: []manifest.Parameter{
-				manifest.NewParameter("from", smartcontract.Hash160Type),
-				manifest.NewParameter("amount", smartcontract.IntegerType),
-				manifest.NewParameter("data", smartcontract.AnyType),
-			},
-			ReturnType: smartcontract.VoidType,
-		},
-		{
-			Name:   "update",
-			Offset: updateOff,
-			Parameters: []manifest.Parameter{
-				manifest.NewParameter("nef", smartcontract.ByteArrayType),
-				manifest.NewParameter("manifest", smartcontract.ByteArrayType),
-			},
-			ReturnType: smartcontract.VoidType,
-		},
-		{
-			Name:   "update",
-			Offset: update3Off,
-			Parameters: []manifest.Parameter{
-				manifest.NewParameter("nef", smartcontract.ByteArrayType),
-				manifest.NewParameter("manifest", smartcontract.ByteArrayType),
-				manifest.NewParameter("data", smartcontract.AnyType),
-			},
-			ReturnType: smartcontract.VoidType,
-		},
-		{
-			Name:       "destroy",
-			Offset:     destroyOff,
-			ReturnType: smartcontract.VoidType,
-		},
-		{
-			Name:       "invalidStack",
-			Offset:     invalidStackOff,
-			ReturnType: smartcontract.VoidType,
-		},
-		{
-			Name:   "callT0",
-			Offset: callT0Off,
-			Parameters: []manifest.Parameter{
-				manifest.NewParameter("address", smartcontract.Hash160Type),
-			},
-			ReturnType: smartcontract.IntegerType,
-		},
-		{
-			Name:       "callT1",
-			Offset:     callT1Off,
-			ReturnType: smartcontract.IntegerType,
-		},
-		{
-			Name:       "callT2",
-			Offset:     callT2Off,
-			ReturnType: smartcontract.IntegerType,
-		},
-		{
-			Name:   "burnGas",
-			Offset: burnGasOff,
-			Parameters: []manifest.Parameter{
-				manifest.NewParameter("amount", smartcontract.IntegerType),
-			},
-			ReturnType: smartcontract.VoidType,
-		},
-		{
-			Name:       "invocCounter",
-			Offset:     invocCounterOff,
-			ReturnType: smartcontract.IntegerType,
-		},
-	}
-	m.Permissions = make([]manifest.Permission, 2)
-	m.Permissions[0].Contract.Type = manifest.PermissionHash
-	m.Permissions[0].Contract.Value = bc.contracts.NEO.Hash
-	m.Permissions[0].Methods.Add("balanceOf")
-
-	m.Permissions[1].Contract.Type = manifest.PermissionHash
-	m.Permissions[1].Contract.Value = util.Uint160{}
-	m.Permissions[1].Methods.Add("method")
-
-	// Generate NEF file.
-	ne, err := nef.NewFile(script)
-	if err != nil {
-		panic(err)
-	}
-	ne.Tokens = []nef.MethodToken{
-		{
-			Hash:       neoHash,
-			Method:     "balanceOf",
-			ParamCount: 1,
-			HasReturn:  true,
-			CallFlag:   callflag.ReadStates,
-		},
-		{
-			Hash:      util.Uint160{},
-			Method:    "method",
-			HasReturn: true,
-			CallFlag:  callflag.ReadStates,
-		},
-	}
-	ne.Checksum = ne.CalculateChecksum()
-
-	// Write first NEF file.
-	bytes, err := ne.Bytes()
-	require.NoError(t, err)
-	if saveState {
-		err = os.WriteFile(helper1ContractNEFPath, bytes, os.ModePerm)
-		require.NoError(t, err)
-	}
-
-	// Write first manifest file.
-	mData, err := json.Marshal(m)
-	require.NoError(t, err)
-	if saveState {
-		err = os.WriteFile(helper1ContractManifestPath, mData, os.ModePerm)
-		require.NoError(t, err)
-	}
-
-	// Create hash of the first contract assuming that sender is single-chain validator.
-	h := state.CreateContractHash(singleChainValidatorHash, ne.Checksum, m.Name)
-
-	currScript := []byte{byte(opcode.RET)}
-	m = manifest.NewManifest("TestAux")
-	perm := manifest.NewPermission(manifest.PermissionHash, h)
-	perm.Methods.Add("add")
-	perm.Methods.Add("drop")
-	perm.Methods.Add("add3")
-	perm.Methods.Add("invalidReturn")
-	perm.Methods.Add("justReturn")
-	perm.Methods.Add("getValue")
-	m.Permissions = append(m.Permissions, *perm)
-	ne, err = nef.NewFile(currScript)
-	if err != nil {
-		panic(err)
-	}
-
-	// Write second NEF file.
-	bytes, err = ne.Bytes()
-	require.NoError(t, err)
-	if saveState {
-		err = os.WriteFile(helper2ContractNEFPath, bytes, os.ModePerm)
-		require.NoError(t, err)
-	}
-
-	// Write second manifest file.
-	mData, err = json.Marshal(m)
-	require.NoError(t, err)
-	if saveState {
-		err = os.WriteFile(helper2ContractManifestPath, mData, os.ModePerm)
-		require.NoError(t, err)
-	}
-
-	require.False(t, saveState)
-}
-
-// getTestContractState returns 2 contracts second of which is allowed to call the first.
-func getTestContractState(t *testing.T, id1, id2 int32, sender2 util.Uint160) (*state.Contract, *state.Contract) {
-	errNotFound := errors.New("auto-generated oracle contract is not found, use TestGenerateOracleContract to regenerate")
-
-	neBytes, err := os.ReadFile(helper1ContractNEFPath)
-	require.NoError(t, err, fmt.Errorf("nef1: %w", errNotFound))
-	ne, err := nef.FileFromBytes(neBytes)
-	require.NoError(t, err)
-
-	mBytes, err := os.ReadFile(helper1ContractManifestPath)
-	require.NoError(t, err, fmt.Errorf("manifest1: %w", errNotFound))
-	m := &manifest.Manifest{}
-	err = json.Unmarshal(mBytes, m)
-	require.NoError(t, err)
-
-	cs1 := &state.Contract{
-		ContractBase: state.ContractBase{
-			NEF:      ne,
-			Manifest: *m,
-			ID:       id1,
-		},
-	}
-
-	neBytes, err = os.ReadFile(helper2ContractNEFPath)
-	require.NoError(t, err, fmt.Errorf("nef2: %w", errNotFound))
-	ne, err = nef.FileFromBytes(neBytes)
-	require.NoError(t, err)
-
-	mBytes, err = os.ReadFile(helper2ContractManifestPath)
-	require.NoError(t, err, fmt.Errorf("manifest2: %w", errNotFound))
-	m = &manifest.Manifest{}
-	err = json.Unmarshal(mBytes, m)
-	require.NoError(t, err)
-
-	// Retrieve hash of the first contract from the permissions of the second contract.
-	require.Equal(t, 1, len(m.Permissions))
-	require.Equal(t, manifest.PermissionHash, m.Permissions[0].Contract.Type)
-	cs1.Hash = m.Permissions[0].Contract.Hash()
-
-	cs2 := &state.Contract{
-		ContractBase: state.ContractBase{
-			NEF:      ne,
-			Manifest: *m,
-			ID:       id2,
-			Hash:     state.CreateContractHash(sender2, ne.Checksum, m.Name),
-		},
-	}
-
-	return cs1, cs2
-}
-
 func loadScript(ic *interop.Context, script []byte, args ...interface{}) {
 	ic.SpawnVM()
 	ic.VM.LoadScriptWithFlags(script, callflag.AllowCall)
@@ -1108,7 +580,7 @@ func loadScriptWithHashAndFlags(ic *interop.Context, script []byte, hash util.Ui
 func TestContractCall(t *testing.T) {
 	_, ic, bc := createVM(t)
 
-	cs, currCs := getTestContractState(t, 4, 5, random.Uint160()) // sender and IDs are not important for the test
+	cs, currCs := contracts.GetTestContractState(t, pathToInternalContracts, 4, 5, random.Uint160()) // sender and IDs are not important for the test
 	require.NoError(t, bc.contracts.Management.PutContractState(ic.DAO, cs))
 	require.NoError(t, bc.contracts.Management.PutContractState(ic.DAO, currCs))
 
@@ -1494,82 +966,5 @@ func TestRuntimeCheckWitness(t *testing.T) {
 				check(t, ic, hash.BytesBE(), false, false)
 			})
 		})
-	})
-}
-
-func TestLoadToken(t *testing.T) {
-	bc := newTestChain(t)
-
-	cs, _ := getTestContractState(t, 4, 5, random.Uint160()) // sender and IDs are not important for the test
-	require.NoError(t, bc.contracts.Management.PutContractState(bc.dao, cs))
-
-	t.Run("good", func(t *testing.T) {
-		aer, err := invokeContractMethod(bc, 1_00000000, cs.Hash, "callT0", neoOwner.BytesBE())
-		require.NoError(t, err)
-		realBalance, _ := bc.GetGoverningTokenBalance(neoOwner)
-		checkResult(t, aer, stackitem.Make(realBalance.Int64()+1))
-	})
-	t.Run("invalid param count", func(t *testing.T) {
-		aer, err := invokeContractMethod(bc, 1_00000000, cs.Hash, "callT2")
-		require.NoError(t, err)
-		checkFAULTState(t, aer)
-	})
-	t.Run("invalid contract", func(t *testing.T) {
-		aer, err := invokeContractMethod(bc, 1_00000000, cs.Hash, "callT1")
-		require.NoError(t, err)
-		checkFAULTState(t, aer)
-	})
-}
-
-func TestRuntimeGetNetwork(t *testing.T) {
-	bc := newTestChain(t)
-
-	w := io.NewBufBinWriter()
-	emit.Syscall(w.BinWriter, interopnames.SystemRuntimeGetNetwork)
-	require.NoError(t, w.Err)
-
-	tx := transaction.New(w.Bytes(), 10_000)
-	tx.ValidUntilBlock = bc.BlockHeight() + 1
-	addSigners(neoOwner, tx)
-	require.NoError(t, testchain.SignTx(bc, tx))
-
-	require.NoError(t, bc.AddBlock(bc.newBlock(tx)))
-
-	aer, err := bc.GetAppExecResults(tx.Hash(), trigger.Application)
-	require.NoError(t, err)
-	checkResult(t, &aer[0], stackitem.Make(uint32(bc.config.Magic)))
-}
-
-func TestRuntimeBurnGas(t *testing.T) {
-	bc := newTestChain(t)
-
-	cs, _ := getTestContractState(t, 4, 5, random.Uint160()) // sender and IDs are not important for the test
-	require.NoError(t, bc.contracts.Management.PutContractState(bc.dao, cs))
-
-	const sysFee = 2_000000
-
-	t.Run("good", func(t *testing.T) {
-		aer, err := invokeContractMethod(bc, sysFee, cs.Hash, "burnGas", int64(1))
-		require.NoError(t, err)
-		require.Equal(t, vm.HaltState, aer.VMState)
-
-		t.Run("gas limit exceeded", func(t *testing.T) {
-			aer, err = invokeContractMethod(bc, aer.GasConsumed, cs.Hash, "burnGas", int64(2))
-			require.NoError(t, err)
-			require.Equal(t, vm.FaultState, aer.VMState)
-		})
-	})
-	t.Run("too big integer", func(t *testing.T) {
-		gas := big.NewInt(math.MaxInt64)
-		gas.Add(gas, big.NewInt(1))
-
-		aer, err := invokeContractMethod(bc, sysFee, cs.Hash, "burnGas", gas)
-		require.NoError(t, err)
-		checkFAULTState(t, aer)
-	})
-	t.Run("zero GAS", func(t *testing.T) {
-		aer, err := invokeContractMethod(bc, sysFee, cs.Hash, "burnGas", int64(0))
-		require.NoError(t, err)
-		checkFAULTState(t, aer)
 	})
 }

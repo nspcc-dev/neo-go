@@ -86,9 +86,7 @@ func newOracle() *Oracle {
 	o := &Oracle{ContractMD: *interop.NewContractMD(nativenames.Oracle, oracleContractID)}
 	defer o.UpdateHash()
 
-	w := io.NewBufBinWriter()
-	emit.AppCall(w.BinWriter, o.Hash, "finish", callflag.All)
-	o.oracleScript = w.Bytes()
+	o.oracleScript = CreateOracleResponseScript(o.Hash)
 
 	desc := newDescriptor("request", smartcontract.VoidType,
 		manifest.NewParameter("url", smartcontract.StringType),
@@ -525,4 +523,15 @@ func (o *Oracle) updateCache(d *dao.Simple) error {
 	}
 	orc.AddRequests(reqs)
 	return nil
+}
+
+// CreateOracleResponseScript returns script that is used to create native Oracle
+// response.
+func CreateOracleResponseScript(nativeOracleHash util.Uint160) []byte {
+	w := io.NewBufBinWriter()
+	emit.AppCall(w.BinWriter, nativeOracleHash, "finish", callflag.All)
+	if w.Err != nil {
+		panic(fmt.Errorf("failed to create Oracle response script: %w", w.Err))
+	}
+	return w.Bytes()
 }

@@ -25,7 +25,7 @@ type Contract struct {
 var contracts = make(map[string]*Contract)
 
 // CompileSource compiles contract from reader and returns it's NEF, manifest and hash.
-func CompileSource(t *testing.T, sender util.Uint160, src io.Reader, opts *compiler.Options) *Contract {
+func CompileSource(t testing.TB, sender util.Uint160, src io.Reader, opts *compiler.Options) *Contract {
 	// nef.NewFile() cares about version a lot.
 	config.Version = "neotest"
 
@@ -43,7 +43,7 @@ func CompileSource(t *testing.T, sender util.Uint160, src io.Reader, opts *compi
 }
 
 // CompileFile compiles contract from file and returns it's NEF, manifest and hash.
-func CompileFile(t *testing.T, sender util.Uint160, srcPath string, configPath string) *Contract {
+func CompileFile(t testing.TB, sender util.Uint160, srcPath string, configPath string) *Contract {
 	if c, ok := contracts[srcPath]; ok {
 		return c
 	}
@@ -66,6 +66,8 @@ func CompileFile(t *testing.T, sender util.Uint160, srcPath string, configPath s
 		o.Permissions[i] = manifest.Permission(conf.Permissions[i])
 	}
 	o.SafeMethods = conf.SafeMethods
+	o.Overloads = conf.Overloads
+	o.SourceURL = conf.SourceURL
 	m, err := compiler.CreateManifest(di, o)
 	require.NoError(t, err)
 

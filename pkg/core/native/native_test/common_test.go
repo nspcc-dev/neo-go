@@ -90,7 +90,7 @@ func setNodesByRole(t *testing.T, designateInvoker *neotest.ContractInvoker, ok 
 
 func checkNodeRoles(t *testing.T, designateInvoker *neotest.ContractInvoker, ok bool, r noderoles.Role, index uint32, res keys.PublicKeys) {
 	if ok {
-		designateInvoker.InvokeAndCheck(t, func(t *testing.T, stack []stackitem.Item) {
+		designateInvoker.InvokeAndCheck(t, func(t testing.TB, stack []stackitem.Item) {
 			require.Equal(t, 1, len(stack))
 			arr := stack[0].Value().([]stackitem.Item)
 			require.Equal(t, len(res), len(arr))

@@ -82,7 +82,7 @@ func TestLedger_GetTransactionFromBlock(t *testing.T) {
 	ledgerInvoker.Invoke(t, e.Chain.BlockHeight(), "currentIndex") // Adds a block.
 	b := e.GetBlockByIndex(t, int(e.Chain.BlockHeight()))
 
-	check := func(t *testing.T, stack []stackitem.Item) {
+	check := func(t testing.TB, stack []stackitem.Item) {
 		require.Equal(t, 1, len(stack))
 		actual, ok := stack[0].Value().([]stackitem.Item)
 		require.True(t, ok)

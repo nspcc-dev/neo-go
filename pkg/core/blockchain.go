@@ -2342,6 +2342,14 @@ func (bc *Blockchain) GetMaxVerificationGAS() int64 {
 	return bc.contracts.Policy.GetMaxVerificationGas(bc.dao)
 }
 
+// GetMaxNotValidBeforeDelta returns maximum NotValidBeforeDelta Notary limit.
+func (bc *Blockchain) GetMaxNotValidBeforeDelta() uint32 {
+	if !bc.config.P2PSigExtensions {
+		panic("disallowed call to Notary")
+	}
+	return bc.contracts.Notary.GetMaxNotValidBeforeDelta(bc.dao)
+}
+
 // GetStoragePrice returns current storage price.
 func (bc *Blockchain) GetStoragePrice() int64 {
 	if bc.BlockHeight() == 0 {

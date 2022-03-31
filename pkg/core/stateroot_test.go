@@ -1,6 +1,7 @@
-package core
+package core_test
 
 import (
+	"crypto/elliptic"
 	"errors"
 	"path/filepath"
 	"sort"
@@ -10,18 +11,25 @@ import (
 	"github.com/nspcc-dev/neo-go/internal/testserdes"
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
+	"github.com/nspcc-dev/neo-go/pkg/core"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/noderoles"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
+	corestate "github.com/nspcc-dev/neo-go/pkg/core/stateroot"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/interop/native/roles"
 	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/neotest"
+	"github.com/nspcc-dev/neo-go/pkg/neotest/chain"
 	"github.com/nspcc-dev/neo-go/pkg/network/payload"
 	"github.com/nspcc-dev/neo-go/pkg/services/stateroot"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/atomic"
@@ -70,68 +78,81 @@ func newMajorityMultisigWithGAS(t *testing.T, n int) (util.Uint160, keys.PublicK
 }
 
 func TestStateRoot(t *testing.T) {
-	bc := newTestChain(t)
+	bc, validator, committee := chain.NewMulti(t)
+	e := neotest.NewExecutor(t, bc, validator, committee)
+	designationSuperInvoker := e.NewInvoker(e.NativeHash(t, nativenames.Designation), validator, committee)
+	gasValidatorInvoker := e.ValidatorInvoker(e.NativeHash(t, nativenames.Gas))
 
 	h, pubs, accs := newMajorityMultisigWithGAS(t, 2)
-	bc.setNodesByRole(t, true, noderoles.StateValidator, pubs)
+	validatorNodes := []interface{}{pubs[0].Bytes(), pubs[1].Bytes()}
+	designationSuperInvoker.Invoke(t, stackitem.Null{}, "designateAsRole",
+		int64(roles.StateValidator), validatorNodes)
 	updateIndex := bc.BlockHeight()
-	transferTokenFromMultisigAccount(t, bc, h, bc.contracts.GAS.Hash, 1_0000_0000)
+
+	gasValidatorInvoker.Invoke(t, true, "transfer", validator.ScriptHash(), h, 1_0000_0000, nil)
 
 	tmpDir := t.TempDir()
 	w := createAndWriteWallet(t, accs[0], filepath.Join(tmpDir, "w"), "pass")
 	cfg := createStateRootConfig(w.Path(), "pass")
-	srv, err := stateroot.New(cfg, bc.stateRoot, zaptest.NewLogger(t), bc, nil)
+	srMod := bc.GetStateModule().(*corestate.Module) // Take full responsibility here.
+	srv, err := stateroot.New(cfg, srMod, zaptest.NewLogger(t), bc, nil)
 	require.NoError(t, err)
-	require.EqualValues(t, 0, bc.stateRoot.CurrentValidatedHeight())
-	r, err := bc.stateRoot.GetStateRoot(bc.BlockHeight())
+	require.EqualValues(t, 0, bc.GetStateModule().CurrentValidatedHeight())
+	r, err := bc.GetStateModule().GetStateRoot(bc.BlockHeight())
 	require.NoError(t, err)
-	require.Equal(t, r.Root, bc.stateRoot.CurrentLocalStateRoot())
+	require.Equal(t, r.Root, bc.GetStateModule().CurrentLocalStateRoot())
 
 	t.Run("invalid message", func(t *testing.T) {
 		require.Error(t, srv.OnPayload(&payload.Extensible{Data: []byte{42}}))
-		require.EqualValues(t, 0, bc.stateRoot.CurrentValidatedHeight())
+		require.EqualValues(t, 0, bc.GetStateModule().CurrentValidatedHeight())
 	})
 	t.Run("drop zero index", func(t *testing.T) {
-		r, err := bc.stateRoot.GetStateRoot(0)
+		r, err := bc.GetStateModule().GetStateRoot(0)
 		require.NoError(t, err)
 		data, err := testserdes.EncodeBinary(stateroot.NewMessage(stateroot.RootT, r))
 		require.NoError(t, err)
 		require.NoError(t, srv.OnPayload(&payload.Extensible{Data: data}))
-		require.EqualValues(t, 0, bc.stateRoot.CurrentValidatedHeight())
+		require.EqualValues(t, 0, bc.GetStateModule().CurrentValidatedHeight())
 	})
 	t.Run("invalid height", func(t *testing.T) {
-		r, err := bc.stateRoot.GetStateRoot(1)
+		r, err := bc.GetStateModule().GetStateRoot(1)
 		require.NoError(t, err)
 		r.Index = 10
 		data := testSignStateRoot(t, r, pubs, accs...)
 		require.Error(t, srv.OnPayload(&payload.Extensible{Data: data}))
-		require.EqualValues(t, 0, bc.stateRoot.CurrentValidatedHeight())
+		require.EqualValues(t, 0, bc.GetStateModule().CurrentValidatedHeight())
 	})
 	t.Run("invalid signer", func(t *testing.T) {
 		accInv, err := wallet.NewAccount()
 		require.NoError(t, err)
 		pubs := keys.PublicKeys{accInv.PrivateKey().PublicKey()}
 		require.NoError(t, accInv.ConvertMultisig(1, pubs))
-		transferTokenFromMultisigAccount(t, bc, accInv.Contract.ScriptHash(), bc.contracts.GAS.Hash, 1_0000_0000)
-		r, err := bc.stateRoot.GetStateRoot(1)
+		gasValidatorInvoker.Invoke(t, true, "transfer", validator.ScriptHash(), accInv.Contract.ScriptHash(), 1_0000_0000, nil)
+		r, err := bc.GetStateModule().GetStateRoot(1)
 		require.NoError(t, err)
 		data := testSignStateRoot(t, r, pubs, accInv)
 		err = srv.OnPayload(&payload.Extensible{Data: data})
-		require.True(t, errors.Is(err, ErrWitnessHashMismatch), "got: %v", err)
-		require.EqualValues(t, 0, bc.stateRoot.CurrentValidatedHeight())
+		require.True(t, errors.Is(err, core.ErrWitnessHashMismatch), "got: %v", err)
+		require.EqualValues(t, 0, bc.GetStateModule().CurrentValidatedHeight())
 	})
 
-	r, err = bc.stateRoot.GetStateRoot(updateIndex + 1)
+	r, err = bc.GetStateModule().GetStateRoot(updateIndex + 1)
 	require.NoError(t, err)
 	data := testSignStateRoot(t, r, pubs, accs...)
 	require.NoError(t, srv.OnPayload(&payload.Extensible{Data: data}))
-	require.EqualValues(t, 2, bc.stateRoot.CurrentValidatedHeight())
+	require.EqualValues(t, 2, bc.GetStateModule().CurrentValidatedHeight())
 
-	r, err = bc.stateRoot.GetStateRoot(updateIndex + 1)
+	r, err = bc.GetStateModule().GetStateRoot(updateIndex + 1)
 	require.NoError(t, err)
 	require.NotEqual(t, 0, len(r.Witness))
 	require.Equal(t, h, r.Witness[0].ScriptHash())
 }
+
+type memoryStore struct {
+	*storage.MemoryStore
+}
+
+func (memoryStore) Close() error { return nil }
 
 func TestStateRootInitNonZeroHeight(t *testing.T) {
 	st := memoryStore{storage.NewMemoryStore()}
@@ -139,26 +160,31 @@ func TestStateRootInitNonZeroHeight(t *testing.T) {
 
 	var root util.Uint256
 	t.Run("init", func(t *testing.T) { // this is in a separate test to do proper cleanup
-		bc := newTestChainWithCustomCfgAndStore(t, st, nil)
-		bc.setNodesByRole(t, true, noderoles.StateValidator, pubs)
-		transferTokenFromMultisigAccount(t, bc, h, bc.contracts.GAS.Hash, 1_0000_0000)
+		bc, validator, committee := chain.NewMultiWithCustomConfigAndStore(t, nil, st, true)
+		e := neotest.NewExecutor(t, bc, validator, committee)
+		designationSuperInvoker := e.NewInvoker(e.NativeHash(t, nativenames.Designation), validator, committee)
+		gasValidatorInvoker := e.ValidatorInvoker(e.NativeHash(t, nativenames.Gas))
 
-		_, err := persistBlock(bc)
-		require.NoError(t, err)
+		validatorNodes := []interface{}{pubs[0].Bytes(), pubs[1].Bytes()}
+		designationSuperInvoker.Invoke(t, stackitem.Null{}, "designateAsRole",
+			int64(roles.StateValidator), validatorNodes)
+		gasValidatorInvoker.Invoke(t, true, "transfer", validator.ScriptHash(), h, 1_0000_0000, nil)
+
 		tmpDir := t.TempDir()
 		w := createAndWriteWallet(t, accs[0], filepath.Join(tmpDir, "w"), "pass")
 		cfg := createStateRootConfig(w.Path(), "pass")
-		srv, err := stateroot.New(cfg, bc.stateRoot, zaptest.NewLogger(t), bc, nil)
+		srMod := bc.GetStateModule().(*corestate.Module) // Take full responsibility here.
+		srv, err := stateroot.New(cfg, srMod, zaptest.NewLogger(t), bc, nil)
 		require.NoError(t, err)
-		r, err := bc.stateRoot.GetStateRoot(2)
+		r, err := bc.GetStateModule().GetStateRoot(2)
 		require.NoError(t, err)
 		data := testSignStateRoot(t, r, pubs, accs...)
 		require.NoError(t, srv.OnPayload(&payload.Extensible{Data: data}))
-		require.EqualValues(t, 2, bc.stateRoot.CurrentValidatedHeight())
-		root = bc.stateRoot.CurrentLocalStateRoot()
+		require.EqualValues(t, 2, bc.GetStateModule().CurrentValidatedHeight())
+		root = bc.GetStateModule().CurrentLocalStateRoot()
 	})
 
-	bc2 := newTestChainWithCustomCfgAndStore(t, st, nil)
+	bc2, _, _ := chain.NewMultiWithCustomConfigAndStore(t, nil, st, true)
 	srv := bc2.GetStateModule()
 	require.EqualValues(t, 2, srv.CurrentValidatedHeight())
 	require.Equal(t, root, srv.CurrentLocalStateRoot())
@@ -186,7 +212,22 @@ func createStateRootConfig(walletPath, password string) config.StateRoot {
 
 func TestStateRootFull(t *testing.T) {
 	tmpDir := t.TempDir()
-	bc := newTestChain(t)
+	bc, validator, committee := chain.NewMulti(t)
+	e := neotest.NewExecutor(t, bc, validator, committee)
+	designationSuperInvoker := e.NewInvoker(e.NativeHash(t, nativenames.Designation), validator, committee)
+	gasValidatorInvoker := e.ValidatorInvoker(e.NativeHash(t, nativenames.Gas))
+
+	getDesignatedByRole := func(t *testing.T, h uint32) keys.PublicKeys {
+		res, err := designationSuperInvoker.TestInvoke(t, "getDesignatedByRole", int64(noderoles.StateValidator), h)
+		require.NoError(t, err)
+		nodes := res.Pop().Value().([]stackitem.Item)
+		pubs := make(keys.PublicKeys, len(nodes))
+		for i, node := range nodes {
+			pubs[i], err = keys.NewPublicKeyFromBytes(node.Value().([]byte), elliptic.P256())
+			require.NoError(t, err)
+		}
+		return pubs
+	}
 
 	h, pubs, accs := newMajorityMultisigWithGAS(t, 2)
 	w := createAndWriteWallet(t, accs[1], filepath.Join(tmpDir, "wallet2"), "two")
@@ -194,7 +235,8 @@ func TestStateRootFull(t *testing.T) {
 
 	var lastValidated atomic.Value
 	var lastHeight atomic.Uint32
-	srv, err := stateroot.New(cfg, bc.stateRoot, zaptest.NewLogger(t), bc, func(ep *payload.Extensible) {
+	srMod := bc.GetStateModule().(*corestate.Module) // Take full responsibility here.
+	srv, err := stateroot.New(cfg, srMod, zaptest.NewLogger(t), bc, func(ep *payload.Extensible) {
 		lastHeight.Store(ep.ValidBlockStart)
 		lastValidated.Store(ep)
 	})
@@ -202,16 +244,17 @@ func TestStateRootFull(t *testing.T) {
 	srv.Start()
 	t.Cleanup(srv.Shutdown)
 
-	bc.setNodesByRole(t, true, noderoles.StateValidator, pubs)
-	transferTokenFromMultisigAccount(t, bc, h, bc.contracts.GAS.Hash, 1_0000_0000)
+	validatorNodes := []interface{}{pubs[0].Bytes(), pubs[1].Bytes()}
+	designationSuperInvoker.Invoke(t, stackitem.Null{}, "designateAsRole",
+		int64(roles.StateValidator), validatorNodes)
+	gasValidatorInvoker.Invoke(t, true, "transfer", validator.ScriptHash(), h, 1_0000_0000, nil)
 	require.Eventually(t, func() bool { return lastHeight.Load() == 2 }, time.Second, time.Millisecond)
-	checkVoteBroadcasted(t, bc, lastValidated.Load().(*payload.Extensible), 2, 1)
-	_, err = persistBlock(bc)
-	require.NoError(t, err)
+	checkVoteBroadcasted(t, bc, lastValidated.Load().(*payload.Extensible), 2, 1, getDesignatedByRole)
+	e.AddNewBlock(t)
 	require.Eventually(t, func() bool { return lastHeight.Load() == 3 }, time.Second, time.Millisecond)
-	checkVoteBroadcasted(t, bc, lastValidated.Load().(*payload.Extensible), 3, 1)
+	checkVoteBroadcasted(t, bc, lastValidated.Load().(*payload.Extensible), 3, 1, getDesignatedByRole)
 
-	r, err := bc.stateRoot.GetStateRoot(2)
+	r, err := bc.GetStateModule().GetStateRoot(2)
 	require.NoError(t, err)
 	require.NoError(t, srv.AddSignature(2, 0, accs[0].PrivateKey().SignHashable(uint32(netmode.UnitTestNet), r)))
 	require.NotNil(t, lastValidated.Load().(*payload.Extensible))
@@ -220,7 +263,7 @@ func TestStateRootFull(t *testing.T) {
 	require.NoError(t, testserdes.DecodeBinary(lastValidated.Load().(*payload.Extensible).Data, msg))
 	require.NotEqual(t, stateroot.RootT, msg.Type) // not a sender for this root
 
-	r, err = bc.stateRoot.GetStateRoot(3)
+	r, err = bc.GetStateModule().GetStateRoot(3)
 	require.NoError(t, err)
 	require.Error(t, srv.AddSignature(2, 0, accs[0].PrivateKey().SignHashable(uint32(netmode.UnitTestNet), r)))
 	require.NoError(t, srv.AddSignature(3, 0, accs[0].PrivateKey().SignHashable(uint32(netmode.UnitTestNet), r)))
@@ -235,8 +278,8 @@ func TestStateRootFull(t *testing.T) {
 	require.Equal(t, r.Root, actual.Root)
 }
 
-func checkVoteBroadcasted(t *testing.T, bc *Blockchain, p *payload.Extensible,
-	height uint32, valIndex byte) {
+func checkVoteBroadcasted(t *testing.T, bc *core.Blockchain, p *payload.Extensible,
+	height uint32, valIndex byte, getDesignatedByRole func(t *testing.T, h uint32) keys.PublicKeys) {
 	require.NotNil(t, p)
 	m := new(stateroot.Message)
 	require.NoError(t, testserdes.DecodeBinary(p.Data, m))
@@ -249,8 +292,7 @@ func checkVoteBroadcasted(t *testing.T, bc *Blockchain, p *payload.Extensible,
 	require.Equal(t, height, vote.Height)
 	require.Equal(t, int32(valIndex), vote.ValidatorIndex)
 
-	pubs, _, err := bc.contracts.Designate.GetDesignatedByRole(bc.dao, noderoles.StateValidator, bc.BlockHeight())
-	require.NoError(t, err)
+	pubs := getDesignatedByRole(t, bc.BlockHeight())
 	require.True(t, len(pubs) > int(valIndex))
 	require.True(t, pubs[valIndex].VerifyHashable(vote.Signature, uint32(netmode.UnitTestNet), r))
 }

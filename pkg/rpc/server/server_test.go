@@ -61,17 +61,17 @@ type rpcTestCase struct {
 	check  func(t *testing.T, e *executor, result interface{})
 }
 
-const genesisBlockHash = "a4ae00f6ac7496cac14e709fbf8b8ecb4c9831d8a6ee396056af9350fcf22671"
-const testContractHash = "1ab08f5508edafa6f28e3db3227442a9e70aac52"
-const deploymentTxHash = "017c9edb217477aeb3e0c35462361209fdb7bf104dc8e285e2385af8713926b4"
+const genesisBlockHash = "f42e2ae74bbea6aa1789fdc4efa35ad55b04335442637c091eafb5b0e779dae7"
+const testContractHash = "2db7d679c538ace5f00495c9e9d8ea95f1e0f5a5"
+const deploymentTxHash = "496bccb5cb0a008ef9b7a32c459e508ef24fbb0830f82bac9162afa4ca804839"
 
 const (
-	verifyContractHash         = "7deef31e5c616e157cdf02a5446f36d0a4eead52"
+	verifyContractHash         = "06ed5314c2e4cb103029a60b86d46afa2fb8f67c"
 	verifyContractAVM          = "VwIAQS1RCDBwDBTunqIsJ+NL0BSPxBCOCPdOj1BIskrZMCQE2zBxaBPOStkoJATbKGlK2SgkBNsol0A="
-	verifyWithArgsContractHash = "6df009754ce475a6a5730c9e488f80e8e47bc1f1"
-	nnsContractHash            = "1a7530a4c6cfdd40ffed40775aa5453febab24c0"
+	verifyWithArgsContractHash = "0dce75f52adb1a4c5c6eaa6a34eb26db2e5b3781"
+	nnsContractHash            = "ee92563903e4efd53565784080b2dbdc5c37e21f"
 	nnsToken1ID                = "6e656f2e636f6d"
-	nfsoContractHash           = "aaf8913c501e25c42877e79f04cb7c2c1ab47e57"
+	nfsoContractHash           = "5f9ebd6b001b54c7bc70f96e0412fcf415dfe09f"
 	nfsoToken1ID               = "7e244ffd6aa85fb1579d2ed22e9b761ab62e3486"
 	invokescriptContractAVM    = "VwIADBQBDAMOBQYMDQIODw0DDgcJAAAAAErZMCQE2zBwaEH4J+yMqiYEEUAMFA0PAwIJAAIBAwcDBAUCAQAOBgwJStkwJATbMHFpQfgn7IyqJgQSQBNA"
 )
@@ -279,7 +279,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 			result: func(e *executor) interface{} {
 				return &map[string]interface{}{
 					"name":       "neo.com",
-					"expiration": "HrL+G4YB",
+					"expiration": "lhbLRl0B",
 				}
 			},
 		},
@@ -882,7 +882,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 			name:   "positive, with notifications",
 			params: `["` + nnsContractHash + `", "transfer", [{"type":"Hash160", "value":"0x0bcd2978634d961c24f5aea0802297ff128724d6"},{"type":"String", "value":"neo.com"},{"type":"Any", "value":null}],["0xb248508f4ef7088e10c48f14d04be3272ca29eee"]]`,
 			result: func(e *executor) interface{} {
-				script := []byte{0x0b, 0x0c, 0x07, 0x6e, 0x65, 0x6f, 0x2e, 0x63, 0x6f, 0x6d, 0x0c, 0x14, 0xd6, 0x24, 0x87, 0x12, 0xff, 0x97, 0x22, 0x80, 0xa0, 0xae, 0xf5, 0x24, 0x1c, 0x96, 0x4d, 0x63, 0x78, 0x29, 0xcd, 0x0b, 0x13, 0xc0, 0x1f, 0x0c, 0x08, 0x74, 0x72, 0x61, 0x6e, 0x73, 0x66, 0x65, 0x72, 0x0c, 0x14, 0xc0, 0x24, 0xab, 0xeb, 0x3f, 0x45, 0xa5, 0x5a, 0x77, 0x40, 0xed, 0xff, 0x40, 0xdd, 0xcf, 0xc6, 0xa4, 0x30, 0x75, 0x1a, 0x41, 0x62, 0x7d, 0x5b, 0x52}
+				script := []byte{0x0b, 0x0c, 0x07, 0x6e, 0x65, 0x6f, 0x2e, 0x63, 0x6f, 0x6d, 0x0c, 0x14, 0xd6, 0x24, 0x87, 0x12, 0xff, 0x97, 0x22, 0x80, 0xa0, 0xae, 0xf5, 0x24, 0x1c, 0x96, 0x4d, 0x63, 0x78, 0x29, 0xcd, 0xb, 0x13, 0xc0, 0x1f, 0xc, 0x8, 0x74, 0x72, 0x61, 0x6e, 0x73, 0x66, 0x65, 0x72, 0xc, 0x14, 0x1f, 0xe2, 0x37, 0x5c, 0xdc, 0xdb, 0xb2, 0x80, 0x40, 0x78, 0x65, 0x35, 0xd5, 0xef, 0xe4, 0x3, 0x39, 0x56, 0x92, 0xee, 0x41, 0x62, 0x7d, 0x5b, 0x52}
 				return &result.Invoke{
 					State:       "HALT",
 					GasConsumed: 32167260,
@@ -915,7 +915,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 				chg := []storage.Operation{{
 					State: "Changed",
 					Key:   []byte{0xfa, 0xff, 0xff, 0xff, 0xb},
-					Value: []byte{0xe8, 0x80, 0x64, 0xcb, 0x53, 0x79, 0x12},
+					Value: []byte{0x1e, 0xb, 0xca, 0xeb, 0x53, 0x79, 0x12},
 				}, {
 					State: "Added",
 					Key:   []byte{0xfb, 0xff, 0xff, 0xff, 0x14, 0xd6, 0x24, 0x87, 0x12, 0xff, 0x97, 0x22, 0x80, 0xa0, 0xae, 0xf5, 0x24, 0x1c, 0x96, 0x4d, 0x63, 0x78, 0x29, 0xcd, 0xb},
@@ -927,7 +927,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 				}, {
 					State: "Changed",
 					Key:   []byte{0xfa, 0xff, 0xff, 0xff, 0x14, 0xee, 0x9e, 0xa2, 0x2c, 0x27, 0xe3, 0x4b, 0xd0, 0x14, 0x8f, 0xc4, 0x10, 0x8e, 0x8, 0xf7, 0x4e, 0x8f, 0x50, 0x48, 0xb2},
-					Value: []byte{0x41, 0x01, 0x21, 0x05, 0x9e, 0x0b, 0x0b, 0x18, 0x0b},
+					Value: []byte{0x41, 0x01, 0x21, 0x05, 0xf6, 0x99, 0x28, 0x2d, 0xb},
 				}}
 				// Can be returned in any order.
 				assert.ElementsMatch(t, chg, res.Diagnostics.Changes)
@@ -937,7 +937,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 			name:   "positive, verbose",
 			params: `["` + nnsContractHash + `", "resolve", [{"type":"String", "value":"neo.com"},{"type":"Integer","value":1}], [], true]`,
 			result: func(e *executor) interface{} {
-				script := []byte{0x11, 0xc, 0x7, 0x6e, 0x65, 0x6f, 0x2e, 0x63, 0x6f, 0x6d, 0x12, 0xc0, 0x1f, 0xc, 0x7, 0x72, 0x65, 0x73, 0x6f, 0x6c, 0x76, 0x65, 0xc, 0x14, 0xc0, 0x24, 0xab, 0xeb, 0x3f, 0x45, 0xa5, 0x5a, 0x77, 0x40, 0xed, 0xff, 0x40, 0xdd, 0xcf, 0xc6, 0xa4, 0x30, 0x75, 0x1a, 0x41, 0x62, 0x7d, 0x5b, 0x52}
+				script := []byte{0x11, 0xc, 0x7, 0x6e, 0x65, 0x6f, 0x2e, 0x63, 0x6f, 0x6d, 0x12, 0xc0, 0x1f, 0xc, 0x7, 0x72, 0x65, 0x73, 0x6f, 0x6c, 0x76, 0x65, 0xc, 0x14, 0x1f, 0xe2, 0x37, 0x5c, 0xdc, 0xdb, 0xb2, 0x80, 0x40, 0x78, 0x65, 0x35, 0xd5, 0xef, 0xe4, 0x3, 0x39, 0x56, 0x92, 0xee, 0x41, 0x62, 0x7d, 0x5b, 0x52}
 				stdHash, _ := e.chain.GetNativeContractScriptHash(nativenames.StdLib)
 				cryptoHash, _ := e.chain.GetNativeContractScriptHash(nativenames.CryptoLib)
 				return &result.Invoke{
@@ -1205,12 +1205,12 @@ var rpcTestCases = map[string][]rpcTestCase{
 	"sendrawtransaction": {
 		{
 			name:   "positive",
-			params: `["ADQSAADA2KcAAAAAABDiEgAAAAAAgBYAAAHunqIsJ+NL0BSPxBCOCPdOj1BIsgEAYBDAAwDodkgXAAAADBQRJlu0FyUAQb4E6PokDjj1fB5WmwwU7p6iLCfjS9AUj8QQjgj3To9QSLIUwB8MCHRyYW5zZmVyDBT1Y+pAvCg9TQ4FxI6jBbPyoHNA70FifVtSOQFCDEBRp0p08GFA2rYC/Xrol8DIhXEMfVMbUJEYer1RqZSatmTjUJE9fnZtDGkQEX/zQ7yOhbnIPAZIrllUTuUBskhUKAwhArNiK/QBe9/jF8WK7V9MdT8ga324lgRvp9d0u8S/f43CQVbnsyc="]`,
+			params: `["ABsAAACWP5gAAAAAAEDaEgAAAAAAFgAAAAHunqIsJ+NL0BSPxBCOCPdOj1BIsoAAXgsDAOh2SBcAAAAMFBEmW7QXJQBBvgTo+iQOOPV8HlabDBTunqIsJ+NL0BSPxBCOCPdOj1BIshTAHwwIdHJhbnNmZXIMFPVj6kC8KD1NDgXEjqMFs/Kgc0DvQWJ9W1IBQgxAOv87rSn7OV7Y/wuVE58QaSz0o0wv37hWY08RZFP2kYYgSPvemZiT69wf6QeAUTABJ1JosxgIUory9vXv0kkpXSgMIQKzYiv0AXvf4xfFiu1fTHU/IGt9uJYEb6fXdLvEv3+NwkFW57Mn"]`,
 			result: func(e *executor) interface{} { return &result.RelayResult{} },
 			check: func(t *testing.T, e *executor, inv interface{}) {
 				res, ok := inv.(*result.RelayResult)
 				require.True(t, ok)
-				expectedHash := "8ea251d812fbbdecaebfc164fb6afbd78b7db94f7dacb69421cd5d4e364522d2"
+				expectedHash := "acc3e13102c211068d06ff64034d6f7e2d4db00c1703d0dec8afa73560664fe1"
 				assert.Equal(t, expectedHash, res.Hash.StringLE())
 			},
 		},
@@ -1945,12 +1945,12 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 			require.NoError(t, json.Unmarshal(res, actual))
 			checkNep17TransfersAux(t, e, actual, sent, rcvd)
 		}
-		t.Run("time frame only", func(t *testing.T) { testNEP17T(t, 4, 5, 0, 0, []int{14, 15, 16, 17}, []int{3, 4}) })
+		t.Run("time frame only", func(t *testing.T) { testNEP17T(t, 4, 5, 0, 0, []int{17, 18, 19, 20}, []int{3, 4}) })
 		t.Run("no res", func(t *testing.T) { testNEP17T(t, 100, 100, 0, 0, []int{}, []int{}) })
-		t.Run("limit", func(t *testing.T) { testNEP17T(t, 1, 7, 3, 0, []int{11, 12}, []int{2}) })
-		t.Run("limit 2", func(t *testing.T) { testNEP17T(t, 4, 5, 2, 0, []int{14}, []int{3}) })
-		t.Run("limit with page", func(t *testing.T) { testNEP17T(t, 1, 7, 3, 1, []int{13, 14}, []int{3}) })
-		t.Run("limit with page 2", func(t *testing.T) { testNEP17T(t, 1, 7, 3, 2, []int{15, 16}, []int{4}) })
+		t.Run("limit", func(t *testing.T) { testNEP17T(t, 1, 7, 3, 0, []int{14, 15}, []int{2}) })
+		t.Run("limit 2", func(t *testing.T) { testNEP17T(t, 4, 5, 2, 0, []int{17}, []int{3}) })
+		t.Run("limit with page", func(t *testing.T) { testNEP17T(t, 1, 7, 3, 1, []int{16, 17}, []int{3}) })
+		t.Run("limit with page 2", func(t *testing.T) { testNEP17T(t, 1, 7, 3, 2, []int{18, 19}, []int{4}) })
 	})
 }
 
@@ -2086,7 +2086,7 @@ func checkNep17Balances(t *testing.T, e *executor, acc interface{}) {
 			},
 			{
 				Asset:       e.chain.UtilityTokenHash(),
-				Amount:      "46748035310",
+				Amount:      "47102293830",
 				LastUpdated: 19,
 			}},
 		Address: testchain.PrivateKeyByID(0).GetScriptHash().StringLE(),
@@ -2198,7 +2198,7 @@ func checkNep11TransfersAux(t *testing.T, e *executor, acc interface{}, sent, rc
 }
 
 func checkNep17Transfers(t *testing.T, e *executor, acc interface{}) {
-	checkNep17TransfersAux(t, e, acc, []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19}, []int{0, 1, 2, 3, 4, 5, 6, 7, 8})
+	checkNep17TransfersAux(t, e, acc, []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22}, []int{0, 1, 2, 3, 4, 5, 6, 7, 8})
 }
 
 func checkNep17TransfersAux(t *testing.T, e *executor, acc interface{}, sent, rcvd []int) {
@@ -2224,8 +2224,11 @@ func checkNep17TransfersAux(t *testing.T, e *executor, acc interface{}, sent, rc
 
 	blockPutNewTestValue, err := e.chain.GetBlock(e.chain.GetHeaderHash(16)) // invoke `put` method of `test_contract.go` with `testkey`, `newtestvalue` args
 	require.NoError(t, err)
-	require.Equal(t, 1, len(blockPutNewTestValue.Transactions))
+	require.Equal(t, 4, len(blockPutNewTestValue.Transactions))
 	txPutNewTestValue := blockPutNewTestValue.Transactions[0]
+	txPutValue1 := blockPutNewTestValue.Transactions[1] // invoke `put` method of `test_contract.go` with `aa`, `v1` args
+	txPutValue2 := blockPutNewTestValue.Transactions[2] // invoke `put` method of `test_contract.go` with `aa10`, `v2` args
+	txPutValue3 := blockPutNewTestValue.Transactions[3] // invoke `put` method of `test_contract.go` with `aa50`, `v3` args
 
 	blockSetRecord, err := e.chain.GetBlock(e.chain.GetHeaderHash(15)) // add type A record to `neo.com` domain via NNS
 	require.NoError(t, err)
@@ -2335,6 +2338,30 @@ func checkNep17TransfersAux(t *testing.T, e *executor, acc interface{}, sent, rc
 				Amount:    big.NewInt(txDeploy5.SystemFee + txDeploy5.NetworkFee).String(),
 				Index:     17,
 				TxHash:    blockDeploy5.Hash(),
+			},
+			{
+				Timestamp: blockPutNewTestValue.Timestamp,
+				Asset:     e.chain.UtilityTokenHash(),
+				Address:   "", // burn
+				Amount:    big.NewInt(txPutValue3.SystemFee + txPutValue3.NetworkFee).String(),
+				Index:     16,
+				TxHash:    blockPutNewTestValue.Hash(),
+			},
+			{
+				Timestamp: blockPutNewTestValue.Timestamp,
+				Asset:     e.chain.UtilityTokenHash(),
+				Address:   "", // burn
+				Amount:    big.NewInt(txPutValue2.SystemFee + txPutValue2.NetworkFee).String(),
+				Index:     16,
+				TxHash:    blockPutNewTestValue.Hash(),
+			},
+			{
+				Timestamp: blockPutNewTestValue.Timestamp,
+				Asset:     e.chain.UtilityTokenHash(),
+				Address:   "", // burn
+				Amount:    big.NewInt(txPutValue1.SystemFee + txPutValue1.NetworkFee).String(),
+				Index:     16,
+				TxHash:    blockPutNewTestValue.Hash(),
 			},
 			{
 				Timestamp: blockPutNewTestValue.Timestamp,

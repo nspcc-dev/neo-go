@@ -1,54 +1,67 @@
-package core
+package core_test
 
 import (
+	"fmt"
 	"testing"
 
-	"github.com/nspcc-dev/neo-go/internal/random"
-	"github.com/nspcc-dev/neo-go/internal/testchain"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
+	"github.com/nspcc-dev/neo-go/pkg/neotest"
+	"github.com/nspcc-dev/neo-go/pkg/neotest/chain"
 	"github.com/stretchr/testify/require"
 )
 
-func transferFundsToCommittee(t *testing.T, chain *Blockchain) {
-	transferTokenFromMultisigAccount(t, chain, testchain.CommitteeScriptHash(),
-		chain.contracts.GAS.Hash, 1000_00000000)
-}
-
-func TestFeePerByte(t *testing.T) {
-	chain := newTestChain(t)
+func TestPolicy_FeePerByte(t *testing.T) {
+	bc, _, _ := chain.NewMulti(t)
 
 	t.Run("get, internal method", func(t *testing.T) {
-		n := chain.contracts.Policy.GetFeePerByteInternal(chain.dao)
+		n := bc.FeePerByte()
 		require.Equal(t, 1000, int(n))
 	})
 }
 
-func TestExecFeeFactor(t *testing.T) {
-	chain := newTestChain(t)
+func TestPolicy_ExecFeeFactor(t *testing.T) {
+	bc, _, _ := chain.NewMulti(t)
 
 	t.Run("get, internal method", func(t *testing.T) {
-		n := chain.contracts.Policy.GetExecFeeFactorInternal(chain.dao)
+		n := bc.GetBaseExecFee()
 		require.EqualValues(t, interop.DefaultBaseExecFee, n)
 	})
 }
 
-func TestStoragePrice(t *testing.T) {
-	chain := newTestChain(t)
+func TestPolicy_StoragePrice(t *testing.T) {
+	bc, validators, committee := chain.NewMulti(t)
+	e := neotest.NewExecutor(t, bc, validators, committee)
 
 	t.Run("get, internal method", func(t *testing.T) {
-		n := chain.contracts.Policy.GetStoragePriceInternal(chain.dao)
+		e.AddNewBlock(t) // avoid default value got from Blockchain.
+
+		n := bc.GetStoragePrice()
 		require.Equal(t, int64(native.DefaultStoragePrice), n)
 	})
 }
 
-func TestBlockedAccounts(t *testing.T) {
-	chain := newTestChain(t)
-	transferTokenFromMultisigAccount(t, chain, testchain.CommitteeScriptHash(),
-		chain.contracts.GAS.Hash, 100_00000000)
+func TestPolicy_BlockedAccounts(t *testing.T) {
+	bc, validators, committee := chain.NewMulti(t)
+	e := neotest.NewExecutor(t, bc, validators, committee)
+	policyHash := e.NativeHash(t, nativenames.Policy)
 
+	policySuperInvoker := e.NewInvoker(policyHash, validators, committee)
+	unlucky := e.NewAccount(t, 5_0000_0000)
+	policyUnluckyInvoker := e.NewInvoker(policyHash, unlucky)
+
+	// Block unlucky account.
+	policySuperInvoker.Invoke(t, true, "blockAccount", unlucky.ScriptHash())
+
+	// Transaction from blocked account shouldn't be accepted.
 	t.Run("isBlocked, internal method", func(t *testing.T) {
-		isBlocked := chain.contracts.Policy.IsBlockedInternal(chain.dao, random.Uint160())
-		require.Equal(t, false, isBlocked)
+		tx := policyUnluckyInvoker.PrepareInvoke(t, "getStoragePrice")
+		b := e.NewUnsignedBlock(t, tx)
+		e.SignBlock(b)
+		expectedErr := fmt.Sprintf("transaction %s failed to verify: not allowed by policy: account %s is blocked", tx.Hash().StringLE(), unlucky.ScriptHash().StringLE())
+		err := e.Chain.AddBlock(b)
+		require.Error(t, err)
+		require.Equal(t, expectedErr, err.Error())
 	})
 }

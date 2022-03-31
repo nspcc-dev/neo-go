@@ -17,12 +17,12 @@ commands:
   gomod:
     steps:
       - restore_cache:
-          keys: [deps-]
+          keys: [deps-v2-]
       - run:
           name: Download go module dependencies
           command: go mod download
       - save_cache:
-          key: deps-{{ checksum "go.sum" }}-{{ checksum "go.sum" }}
+          key: deps-v2-{{ checksum "go.sum" }}-{{ checksum "go.sum" }}
           paths: [/home/circleci/go/pkg/mod]
 
 jobs:
