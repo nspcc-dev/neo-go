@@ -10,7 +10,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nspcc-dev/neo-go/internal/testserdes"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -524,20 +523,6 @@ func TestNewParameterFromString(t *testing.T) {
 			assert.Equal(t, inout.out, *out, "bad output for '%s' input", inout.in)
 		}
 	}
-}
-
-func TestEncodeDecodeBinary(t *testing.T) {
-	for _, tc := range marshalJSONTestCases {
-		testserdes.EncodeDecodeBinary(t, &tc.input, new(Parameter))
-	}
-
-	t.Run("unknown", func(t *testing.T) {
-		p := Parameter{Type: UnknownType}
-		_, err := testserdes.EncodeBinary(&p)
-		require.Error(t, err)
-
-		require.Error(t, testserdes.DecodeBinary([]byte{0xAA}, &p))
-	})
 }
 
 func hexToBase64(s string) string {

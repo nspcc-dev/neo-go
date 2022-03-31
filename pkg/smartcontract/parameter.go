@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"math"
 	"math/big"
 	"math/bits"
 	"os"
@@ -17,7 +16,6 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
-	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
@@ -194,92 +192,6 @@ func (p *Parameter) UnmarshalJSON(data []byte) (err error) {
 		return fmt.Errorf("can't unmarshal %s", p.Type)
 	}
 	return
-}
-
-// EncodeBinary implements io.Serializable interface.
-func (p *Parameter) EncodeBinary(w *io.BinWriter) {
-	w.WriteB(byte(p.Type))
-	switch p.Type {
-	case BoolType:
-		w.WriteBool(p.Value.(bool))
-	case ByteArrayType, PublicKeyType, SignatureType:
-		if p.Value == nil {
-			w.WriteVarUint(math.MaxUint64)
-		} else {
-			w.WriteVarBytes(p.Value.([]byte))
-		}
-	case StringType:
-		w.WriteString(p.Value.(string))
-	case IntegerType:
-		val := p.Value.(*big.Int)
-		w.WriteVarBytes(bigint.ToBytes(val))
-	case ArrayType:
-		w.WriteArray(p.Value.([]Parameter))
-	case MapType:
-		w.WriteArray(p.Value.([]ParameterPair))
-	case Hash160Type:
-		w.WriteBytes(p.Value.(util.Uint160).BytesBE())
-	case Hash256Type:
-		w.WriteBytes(p.Value.(util.Uint256).BytesBE())
-	case InteropInterfaceType, AnyType:
-	default:
-		w.Err = fmt.Errorf("unknown type: %x", p.Type)
-	}
-}
-
-// DecodeBinary implements io.Serializable interface.
-func (p *Parameter) DecodeBinary(r *io.BinReader) {
-	p.Type = ParamType(r.ReadB())
-	switch p.Type {
-	case BoolType:
-		p.Value = r.ReadBool()
-	case ByteArrayType, PublicKeyType, SignatureType:
-		ln := r.ReadVarUint()
-		if ln != math.MaxUint64 {
-			b := make([]byte, ln)
-			r.ReadBytes(b)
-			p.Value = b
-		}
-	case StringType:
-		p.Value = r.ReadString()
-	case IntegerType:
-		bs := r.ReadVarBytes(bigint.MaxBytesLen)
-		if r.Err != nil {
-			return
-		}
-		p.Value = bigint.FromBytes(bs)
-	case ArrayType:
-		ps := []Parameter{}
-		r.ReadArray(&ps)
-		p.Value = ps
-	case MapType:
-		ps := []ParameterPair{}
-		r.ReadArray(&ps)
-		p.Value = ps
-	case Hash160Type:
-		var u util.Uint160
-		r.ReadBytes(u[:])
-		p.Value = u
-	case Hash256Type:
-		var u util.Uint256
-		r.ReadBytes(u[:])
-		p.Value = u
-	case InteropInterfaceType, AnyType:
-	default:
-		r.Err = fmt.Errorf("unknown type: %x", p.Type)
-	}
-}
-
-// EncodeBinary implements io.Serializable interface.
-func (p *ParameterPair) EncodeBinary(w *io.BinWriter) {
-	p.Key.EncodeBinary(w)
-	p.Value.EncodeBinary(w)
-}
-
-// DecodeBinary implements io.Serializable interface.
-func (p *ParameterPair) DecodeBinary(r *io.BinReader) {
-	p.Key.DecodeBinary(r)
-	p.Value.DecodeBinary(r)
 }
 
 // Params is an array of Parameter (TODO: drop it?).
