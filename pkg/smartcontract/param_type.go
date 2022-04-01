@@ -5,13 +5,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strconv"
+	"math/big"
 	"strings"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
 // ParamType represents the Type of the smart contract parameter.
@@ -208,7 +209,11 @@ func adjustValToType(typ ParamType, val string) (interface{}, error) {
 			return nil, errors.New("invalid boolean value")
 		}
 	case IntegerType:
-		return strconv.ParseInt(val, 10, 64)
+		bi, ok := new(big.Int).SetString(val, 10)
+		if !ok || stackitem.CheckIntegerSize(bi) != nil {
+			return nil, errors.New("invalid integer value")
+		}
+		return bi, nil
 	case Hash160Type:
 		u, err := address.StringToUint160(val)
 		if err == nil {
@@ -250,8 +255,8 @@ func adjustValToType(typ ParamType, val string) (interface{}, error) {
 func inferParamType(val string) ParamType {
 	var err error
 
-	_, err = strconv.Atoi(val)
-	if err == nil {
+	bi, ok := new(big.Int).SetString(val, 10)
+	if ok && stackitem.CheckIntegerSize(bi) == nil {
 		return IntegerType
 	}
 

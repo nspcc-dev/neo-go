@@ -5,10 +5,11 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"math"
+	"math/big"
 	"reflect"
+	"strings"
 	"testing"
 
-	"github.com/nspcc-dev/neo-go/internal/testserdes"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -22,8 +23,12 @@ var marshalJSONTestCases = []struct {
 	result string
 }{
 	{
-		input:  Parameter{Type: IntegerType, Value: int64(12345)},
+		input:  Parameter{Type: IntegerType, Value: big.NewInt(12345)},
 		result: `{"type":"Integer","value":12345}`,
+	},
+	{
+		input:  Parameter{Type: IntegerType, Value: new(big.Int).Lsh(big.NewInt(1), 254)},
+		result: `{"type":"Integer","value":"` + new(big.Int).Lsh(big.NewInt(1), 254).String() + `"}`,
 	},
 	{
 		input:  Parameter{Type: StringType, Value: "Some string"},
@@ -57,7 +62,7 @@ var marshalJSONTestCases = []struct {
 			Type: ArrayType,
 			Value: []Parameter{
 				{Type: StringType, Value: "str 1"},
-				{Type: IntegerType, Value: int64(2)},
+				{Type: IntegerType, Value: big.NewInt(2)},
 			},
 		},
 		result: `{"type":"Array","value":[{"type":"String","value":"str 1"},{"type":"Integer","value":2}]}`,
@@ -84,7 +89,7 @@ var marshalJSONTestCases = []struct {
 			Value: []ParameterPair{
 				{
 					Key:   Parameter{Type: StringType, Value: "key1"},
-					Value: Parameter{Type: IntegerType, Value: int64(1)},
+					Value: Parameter{Type: IntegerType, Value: big.NewInt(1)},
 				},
 				{
 					Key:   Parameter{Type: StringType, Value: "key2"},
@@ -102,7 +107,7 @@ var marshalJSONTestCases = []struct {
 					Key: Parameter{Type: StringType, Value: "key1"},
 					Value: Parameter{Type: ArrayType, Value: []Parameter{
 						{Type: StringType, Value: "str 1"},
-						{Type: IntegerType, Value: int64(2)},
+						{Type: IntegerType, Value: big.NewInt(2)},
 					}},
 				},
 			},
@@ -185,11 +190,11 @@ var unmarshalJSONTestCases = []struct {
 	},
 	{
 		input:  `{"type":"Integer","value":12345}`,
-		result: Parameter{Type: IntegerType, Value: int64(12345)},
+		result: Parameter{Type: IntegerType, Value: big.NewInt(12345)},
 	},
 	{
 		input:  `{"type":"Integer","value":"12345"}`,
-		result: Parameter{Type: IntegerType, Value: int64(12345)},
+		result: Parameter{Type: IntegerType, Value: big.NewInt(12345)},
 	},
 	{
 		input:  `{"type":"ByteString","value":"` + hexToBase64("010203") + `"}`,
@@ -215,7 +220,7 @@ var unmarshalJSONTestCases = []struct {
 			Type: ArrayType,
 			Value: []Parameter{
 				{Type: StringType, Value: "str 1"},
-				{Type: IntegerType, Value: int64(2)},
+				{Type: IntegerType, Value: big.NewInt(2)},
 			},
 		},
 	},
@@ -248,7 +253,7 @@ var unmarshalJSONTestCases = []struct {
 			Value: []ParameterPair{
 				{
 					Key:   Parameter{Type: StringType, Value: "key1"},
-					Value: Parameter{Type: IntegerType, Value: int64(1)},
+					Value: Parameter{Type: IntegerType, Value: big.NewInt(1)},
 				},
 				{
 					Key:   Parameter{Type: StringType, Value: "key2"},
@@ -266,7 +271,7 @@ var unmarshalJSONTestCases = []struct {
 					Key: Parameter{Type: StringType, Value: "key1"},
 					Value: Parameter{Type: ArrayType, Value: []Parameter{
 						{Type: StringType, Value: "str 1"},
-						{Type: IntegerType, Value: int64(2)},
+						{Type: IntegerType, Value: big.NewInt(2)},
 					}},
 				},
 			},
@@ -310,6 +315,8 @@ var unmarshalJSONErrorCases = []string{
 	`{"type": "String","value":1}`,         // incorrect Value
 	`{"type": "Integer","value": "nn"}`,    // incorrect Integer value
 	`{"type": "Integer","value": []}`,      // incorrect Integer value
+	`{"type": "Integer","value":"` +
+		strings.Repeat("9", 100) + `"}`, // too big Integer
 	`{"type": "Array","value": 123}`,       // incorrect Array value
 	`{"type": "Hash160","value": "0bcd"}`,  // incorrect Uint160 value
 	`{"type": "Hash256","value": "0bcd"}`,  // incorrect Uint256 value
@@ -330,7 +337,7 @@ func TestParam_UnmarshalJSON(t *testing.T) {
 	}
 
 	for _, input := range unmarshalJSONErrorCases {
-		assert.Error(t, json.Unmarshal([]byte(input), &s))
+		assert.Error(t, json.Unmarshal([]byte(input), &s), input)
 	}
 }
 
@@ -369,6 +376,10 @@ var tryParseTestCases = []struct {
 	{
 		input:    []byte{0x63, 0x78, 0x29, 0xcd, 0x0b},
 		expected: int64(50686687331),
+	},
+	{
+		input:    []byte{0x63, 0x78, 0x29, 0xcd, 0x0b},
+		expected: big.NewInt(50686687331),
 	},
 	{
 		input:    []byte("this is a test string"),
@@ -450,13 +461,13 @@ func TestNewParameterFromString(t *testing.T) {
 		out: Parameter{StringType, "qwerty"},
 	}, {
 		in:  "42",
-		out: Parameter{IntegerType, int64(42)},
+		out: Parameter{IntegerType, big.NewInt(42)},
 	}, {
 		in:  "Hello, 世界",
 		out: Parameter{StringType, "Hello, 世界"},
 	}, {
 		in:  `\4\2`,
-		out: Parameter{IntegerType, int64(42)},
+		out: Parameter{IntegerType, big.NewInt(42)},
 	}, {
 		in:  `\\4\2`,
 		out: Parameter{StringType, `\42`},
@@ -465,7 +476,7 @@ func TestNewParameterFromString(t *testing.T) {
 		out: Parameter{StringType, `\42`},
 	}, {
 		in:  "int:42",
-		out: Parameter{IntegerType, int64(42)},
+		out: Parameter{IntegerType, big.NewInt(42)},
 	}, {
 		in:  "true",
 		out: Parameter{BoolType, true},
@@ -514,20 +525,6 @@ func TestNewParameterFromString(t *testing.T) {
 	}
 }
 
-func TestEncodeDecodeBinary(t *testing.T) {
-	for _, tc := range marshalJSONTestCases {
-		testserdes.EncodeDecodeBinary(t, &tc.input, new(Parameter))
-	}
-
-	t.Run("unknown", func(t *testing.T) {
-		p := Parameter{Type: UnknownType}
-		_, err := testserdes.EncodeBinary(&p)
-		require.Error(t, err)
-
-		require.Error(t, testserdes.DecodeBinary([]byte{0xAA}, &p))
-	})
-}
-
 func hexToBase64(s string) string {
 	b, _ := hex.DecodeString(s)
 	return base64.StdEncoding.EncodeToString(b)
@@ -544,8 +541,8 @@ func TestExpandParameterToEmitable(t *testing.T) {
 			Expected: true,
 		},
 		{
-			In:       Parameter{Type: IntegerType, Value: int64(123)},
-			Expected: int64(123),
+			In:       Parameter{Type: IntegerType, Value: big.NewInt(123)},
+			Expected: big.NewInt(123),
 		},
 		{
 			In:       Parameter{Type: ByteArrayType, Value: []byte{1, 2, 3}},
@@ -575,7 +572,7 @@ func TestExpandParameterToEmitable(t *testing.T) {
 			In: Parameter{Type: ArrayType, Value: []Parameter{
 				{
 					Type:  IntegerType,
-					Value: int64(123),
+					Value: big.NewInt(123),
 				},
 				{
 					Type:  ByteArrayType,
@@ -591,7 +588,7 @@ func TestExpandParameterToEmitable(t *testing.T) {
 					},
 				},
 			}},
-			Expected: []interface{}{int64(123), []byte{1, 2, 3}, []interface{}{true}},
+			Expected: []interface{}{big.NewInt(123), []byte{1, 2, 3}, []interface{}{true}},
 		},
 	}
 	bw := io.NewBufBinWriter()

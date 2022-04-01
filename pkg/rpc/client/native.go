@@ -5,6 +5,7 @@ package client
 import (
 	"errors"
 	"fmt"
+	"math/big"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/noderoles"
@@ -55,11 +56,11 @@ func (c *Client) GetDesignatedByRole(role noderoles.Role, index uint32) (keys.Pu
 	result, err := c.InvokeFunction(rmHash, "getDesignatedByRole", []smartcontract.Parameter{
 		{
 			Type:  smartcontract.IntegerType,
-			Value: int64(role),
+			Value: big.NewInt(int64(role)),
 		},
 		{
 			Type:  smartcontract.IntegerType,
-			Value: int64(index),
+			Value: big.NewInt(int64(index)),
 		},
 	}, nil)
 	if err != nil {
@@ -84,7 +85,7 @@ func (c *Client) NNSResolve(nnsHash util.Uint160, name string, typ nns.RecordTyp
 		},
 		{
 			Type:  smartcontract.IntegerType,
-			Value: int64(typ),
+			Value: big.NewInt(int64(typ)),
 		},
 	}, nil)
 	if err != nil {
