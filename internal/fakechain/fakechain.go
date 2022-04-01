@@ -325,11 +325,6 @@ func (chain *FakeChain) GetTestVM(t trigger.Type, tx *transaction.Transaction, b
 	panic("TODO")
 }
 
-// GetStorageItems implements Blockchainer interface.
-func (chain *FakeChain) GetStorageItems(id int32) ([]state.StorageItemWithKey, error) {
-	panic("TODO")
-}
-
 // CurrentHeaderHash implements Blockchainer interface.
 func (chain *FakeChain) CurrentHeaderHash() util.Uint256 {
 	return util.Uint256{}

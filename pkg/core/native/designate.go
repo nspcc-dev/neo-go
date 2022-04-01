@@ -16,6 +16,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/native/noderoles"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/stateroot"
+	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
@@ -253,35 +254,31 @@ func (s *Designate) GetDesignatedByRole(d *dao.Simple, r noderoles.Role, index u
 			return val.nodes.Copy(), val.height, nil
 		}
 	}
-	kvs, err := d.GetStorageItemsWithPrefix(s.ID, []byte{byte(r)})
-	if err != nil {
-		return nil, 0, err
-	}
 	var (
 		ns        NodeList
 		bestIndex uint32
-		resSi     state.StorageItem
+		resVal    []byte
+		start     = make([]byte, 4)
 	)
-	// kvs are sorted by key (BE index bytes) in ascending way, so iterate backwards to get the latest designated.
-	for i := len(kvs) - 1; i >= 0; i-- {
-		kv := kvs[i]
-		if len(kv.Key) < 4 {
-			continue
-		}
-		siInd := binary.BigEndian.Uint32(kv.Key)
-		if siInd <= index {
-			bestIndex = siInd
-			resSi = kv.Item
-			break
-		}
-	}
-	if resSi != nil {
-		err = stackitem.DeserializeConvertible(resSi, &ns)
+
+	binary.BigEndian.PutUint32(start, index)
+	d.Seek(s.ID, storage.SeekRange{
+		Prefix:    []byte{byte(r)},
+		Start:     start,
+		Backwards: true,
+	}, func(k, v []byte) bool {
+		bestIndex = binary.BigEndian.Uint32(k) // If len(k) < 4 the DB is broken and it deserves a panic.
+		resVal = v
+		// Take just the latest item, it's the one we need.
+		return false
+	})
+	if resVal != nil {
+		err := stackitem.DeserializeConvertible(resVal, &ns)
 		if err != nil {
 			return nil, 0, err
 		}
 	}
-	return keys.PublicKeys(ns), bestIndex, err
+	return keys.PublicKeys(ns), bestIndex, nil
 }
 
 func (s *Designate) designateAsRole(ic *interop.Context, args []stackitem.Item) stackitem.Item {

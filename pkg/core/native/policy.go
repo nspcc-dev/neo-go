@@ -10,6 +10,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
+	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
@@ -156,23 +157,20 @@ func (p *Policy) PostPersist(ic *interop.Context) error {
 	p.storagePrice = uint32(getIntWithKey(p.ID, ic.DAO, storagePriceKey))
 
 	p.blockedAccounts = make([]util.Uint160, 0)
-	siArr, err := ic.DAO.GetStorageItemsWithPrefix(p.ID, []byte{blockedAccountPrefix})
-	if err != nil {
-		return fmt.Errorf("failed to get blocked accounts from storage: %w", err)
-	}
-	for _, kv := range siArr {
-		hash, err := util.Uint160DecodeBytesBE([]byte(kv.Key))
+	var fErr error
+	ic.DAO.Seek(p.ID, storage.SeekRange{Prefix: []byte{blockedAccountPrefix}}, func(k, _ []byte) bool {
+		hash, err := util.Uint160DecodeBytesBE(k)
 		if err != nil {
-			return fmt.Errorf("failed to decode blocked account hash: %w", err)
+			fErr = fmt.Errorf("failed to decode blocked account hash: %w", err)
+			return false
 		}
 		p.blockedAccounts = append(p.blockedAccounts, hash)
+		return true
+	})
+	if fErr == nil {
+		p.isValid = true
 	}
-	// blockedAccounts should be sorted by account BE bytes, but GetStorageItemsWithPrefix
-	// returns values sorted by key (which is account's BE bytes), so don't need to sort
-	// one more time.
-
-	p.isValid = true
-	return nil
+	return fErr
 }
 
 // getFeePerByte is Policy contract method and returns required transaction's fee
