@@ -183,6 +183,7 @@ func TestNativeHelpersCompile(t *testing.T) {
 	runNativeTestCases(t, cs.Crypto.ContractMD, "crypto", []nativeTestCase{
 		{"sha256", []string{"[]byte{1, 2, 3}"}},
 		{"ripemd160", []string{"[]byte{1, 2, 3}"}},
+		{"murmur32", []string{"[]byte{1, 2, 3}", "123"}},
 		{"verifyWithECDsa", []string{"[]byte{1, 2, 3}", pub, sig, "crypto.Secp256k1"}},
 	})
 	runNativeTestCases(t, cs.Std.ContractMD, "std", []nativeTestCase{
