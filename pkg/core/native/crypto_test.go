@@ -1,6 +1,7 @@
 package native
 
 import (
+	"encoding/binary"
 	"encoding/hex"
 	"math"
 	"math/big"
@@ -40,6 +41,26 @@ func TestRIPEMD160(t *testing.T) {
 	t.Run("good", func(t *testing.T) {
 		// 0x0100 hashes to 213492c0c6fc5d61497cf17249dd31cd9964b8a3
 		require.Equal(t, "213492c0c6fc5d61497cf17249dd31cd9964b8a3", hex.EncodeToString(c.ripemd160(ic, []stackitem.Item{stackitem.NewByteArray([]byte{1, 0})}).Value().([]byte)))
+	})
+}
+
+func TestMurmur32(t *testing.T) {
+	c := newCrypto()
+	ic := &interop.Context{VM: vm.New()}
+
+	t.Run("bad arg type", func(t *testing.T) {
+		require.Panics(t, func() {
+			c.murmur32(ic, []stackitem.Item{stackitem.NewInterop(nil), stackitem.Make(5)})
+		})
+	})
+	t.Run("good", func(t *testing.T) {
+		// Example from the C# node:
+		// https://github.com/neo-project/neo/blob/2a64c1cc809d1ff4b3a573c7c22bffbbf69a738b/tests/neo.UnitTests/Cryptography/UT_Murmur32.cs#L18
+		data := []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1}
+		seed := 10
+		expected := make([]byte, 4)
+		binary.LittleEndian.PutUint32(expected, 378574820)
+		require.Equal(t, expected, c.murmur32(ic, []stackitem.Item{stackitem.NewByteArray(data), stackitem.Make(seed)}).Value().([]byte))
 	})
 }
 
