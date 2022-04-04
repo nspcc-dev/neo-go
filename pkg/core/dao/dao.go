@@ -25,6 +25,9 @@ var (
 	// ErrHasConflicts is returned when transaction is in the list of conflicting
 	// transactions which are already in dao.
 	ErrHasConflicts = errors.New("transaction has conflicts")
+	// ErrInternalDBInconsistency is returned when the format of retrieved DAO
+	// record is unexpected.
+	ErrInternalDBInconsistency = errors.New("internal DB inconsistency")
 )
 
 // Simple is memCached wrapper around DB, simple DAO implementation.
@@ -252,7 +255,7 @@ func (dao *Simple) GetAppExecResults(hash util.Uint256, trig trigger.Type) ([]st
 		return nil, err
 	}
 	r := io.NewBinReaderFromBuf(bs)
-	switch r.ReadB() {
+	switch pref := r.ReadB(); pref {
 	case storage.ExecBlock:
 		_, err = block.NewTrimmedFromReader(dao.Version.StateRootInHeader, r)
 		if err != nil {
@@ -265,6 +268,8 @@ func (dao *Simple) GetAppExecResults(hash util.Uint256, trig trigger.Type) ([]st
 		_ = r.ReadU32LE()
 		tx := &transaction.Transaction{}
 		tx.DecodeBinary(r)
+	default:
+		return nil, fmt.Errorf("%w: unexpected executable prefix %d", ErrInternalDBInconsistency, pref)
 	}
 	if r.Err != nil {
 		return nil, r.Err
@@ -358,7 +363,8 @@ func (dao *Simple) getBlock(key []byte) (*block.Block, error) {
 
 	r := io.NewBinReaderFromBuf(b)
 	if r.ReadB() != storage.ExecBlock {
-		return nil, errors.New("internal DB inconsistency")
+		// It may be a transaction.
+		return nil, storage.ErrKeyNotFound
 	}
 	block, err := block.NewTrimmedFromReader(dao.Version.StateRootInHeader, r)
 	if err != nil {
@@ -522,7 +528,8 @@ func (dao *Simple) GetTransaction(hash util.Uint256) (*transaction.Transaction, 
 		return nil, 0, errors.New("bad transaction bytes")
 	}
 	if b[0] != storage.ExecTransaction {
-		return nil, 0, errors.New("internal DB inconsistency")
+		// It may be a block.
+		return nil, 0, storage.ErrKeyNotFound
 	}
 	if b[5] == transaction.DummyVersion {
 		return nil, 0, storage.ErrKeyNotFound
