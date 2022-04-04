@@ -166,25 +166,29 @@ func getBlockHashFromItem(bc interop.Ledger, item stackitem.Item) util.Uint256 {
 		}
 		return bc.GetHeaderHash(int(index))
 	}
-	bytes, err := item.TryBytes()
-	if err != nil {
-		panic(err)
-	}
-	hash, err := util.Uint256DecodeBytesBE(bytes)
+	hash, err := getUint256FromItem(item)
 	if err != nil {
 		panic(err)
 	}
 	return hash
 }
 
+func getUint256FromItem(item stackitem.Item) (util.Uint256, error) {
+	hashbytes, err := item.TryBytes()
+	if err != nil {
+		return util.Uint256{}, fmt.Errorf("failed to get hash bytes: %w", err)
+	}
+	hash, err := util.Uint256DecodeBytesBE(hashbytes)
+	if err != nil {
+		return util.Uint256{}, fmt.Errorf("failed to decode hash: %w", err)
+	}
+	return hash, nil
+}
+
 // getTransactionAndHeight returns transaction and its height if it's present
 // on the chain. It panics if anything goes wrong.
 func getTransactionAndHeight(d *dao.Simple, item stackitem.Item) (*transaction.Transaction, uint32, error) {
-	hashbytes, err := item.TryBytes()
-	if err != nil {
-		panic(err)
-	}
-	hash, err := util.Uint256DecodeBytesBE(hashbytes)
+	hash, err := getUint256FromItem(item)
 	if err != nil {
 		panic(err)
 	}
