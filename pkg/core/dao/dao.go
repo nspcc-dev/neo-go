@@ -259,6 +259,9 @@ func (dao *Simple) GetAppExecResults(hash util.Uint256, trig trigger.Type) ([]st
 			return nil, err
 		}
 	case storage.ExecTransaction:
+		if len(bs) >= 6 && bs[5] == transaction.DummyVersion {
+			return nil, storage.ErrKeyNotFound
+		}
 		_ = r.ReadU32LE()
 		tx := &transaction.Transaction{}
 		tx.DecodeBinary(r)
