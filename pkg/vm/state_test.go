@@ -86,3 +86,12 @@ func TestState_UnmarshalJSON(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, NoneState, s)
 }
+
+// TestState_EnumCompat tests that byte value of State matches the C#'s one got from
+// https://github.com/neo-project/neo-vm/blob/0028d862e253bda3c12eb8bb007a2d95822d3922/src/neo-vm/VMState.cs#L16.
+func TestState_EnumCompat(t *testing.T) {
+	assert.Equal(t, byte(0), byte(NoneState))
+	assert.Equal(t, byte(1<<0), byte(HaltState))
+	assert.Equal(t, byte(1<<1), byte(FaultState))
+	assert.Equal(t, byte(1<<2), byte(BreakState))
+}

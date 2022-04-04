@@ -10,14 +10,14 @@ type State uint8
 
 // Available States.
 const (
-	// NoneState represents NONE VM state.
-	NoneState State = 0
 	// HaltState represents HALT VM state.
 	HaltState State = 1 << iota
 	// FaultState represents FAULT VM state.
 	FaultState
 	// BreakState represents BREAK VM state.
 	BreakState
+	// NoneState represents NONE VM state.
+	NoneState State = 0
 )
 
 // HasFlag checks for State flag presence.
