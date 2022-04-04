@@ -89,6 +89,13 @@ func TestOracleContractValues(t *testing.T) {
 	require.EqualValues(t, oracle.MinimumResponseGas, native.MinimumResponseGas)
 }
 
+func TestLedgerVMStates(t *testing.T) {
+	require.EqualValues(t, ledger.NoneState, vm.NoneState)
+	require.EqualValues(t, ledger.HaltState, vm.HaltState)
+	require.EqualValues(t, ledger.FaultState, vm.FaultState)
+	require.EqualValues(t, ledger.BreakState, vm.BreakState)
+}
+
 type nativeTestCase struct {
 	method string
 	params []string
@@ -151,6 +158,7 @@ func TestNativeHelpersCompile(t *testing.T) {
 		{"getTransaction", []string{u256}},
 		{"getTransactionFromBlock", []string{u256, "1"}},
 		{"getTransactionHeight", []string{u256}},
+		{"getTransactionVMState", []string{u256}},
 	})
 	runNativeTestCases(t, cs.Notary.ContractMD, "notary", []nativeTestCase{
 		{"lockDepositUntil", []string{u160, "123"}},
