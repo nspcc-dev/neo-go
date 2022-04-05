@@ -439,7 +439,8 @@ func mkP2PNotary(config network.ServerConfig, chain *core.Blockchain, serv *netw
 		Log:     log,
 	}
 	n, err := notary.NewNotary(cfg, serv.Net, serv.GetNotaryPool(), func(tx *transaction.Transaction) error {
-		if err := serv.RelayTxn(tx); err != nil {
+		err := serv.RelayTxn(tx)
+		if err != nil && !errors.Is(err, core.ErrAlreadyExists) {
 			return fmt.Errorf("can't relay completed notary transaction: hash %s, error: %w", tx.Hash().StringLE(), err)
 		}
 		return nil
