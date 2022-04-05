@@ -441,3 +441,15 @@ func TestWSConcurrentAccess(t *testing.T) {
 		batchCount*3+1) // batchCount*requestsPerBatch+1
 	wsc.Close()
 }
+
+func TestWSDoubleClose(t *testing.T) {
+	srv := initTestServer(t, "")
+
+	c, err := NewWS(context.TODO(), httpURLtoWS(srv.URL), Options{})
+	require.NoError(t, err)
+
+	require.NotPanics(t, func() {
+		c.Close()
+		c.Close()
+	})
+}
