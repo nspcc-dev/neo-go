@@ -25,6 +25,9 @@ var (
 	// ErrHasConflicts is returned when transaction is in the list of conflicting
 	// transactions which are already in dao.
 	ErrHasConflicts = errors.New("transaction has conflicts")
+	// ErrInternalDBInconsistency is returned when the format of retrieved DAO
+	// record is unexpected.
+	ErrInternalDBInconsistency = errors.New("internal DB inconsistency")
 )
 
 // Simple is memCached wrapper around DB, simple DAO implementation.
@@ -251,36 +254,84 @@ func (dao *Simple) GetAppExecResults(hash util.Uint256, trig trigger.Type) ([]st
 	if err != nil {
 		return nil, err
 	}
-	r := io.NewBinReaderFromBuf(bs)
-	switch r.ReadB() {
+	if len(bs) == 0 {
+		return nil, fmt.Errorf("%w: empty execution log", ErrInternalDBInconsistency)
+	}
+	switch bs[0] {
 	case storage.ExecBlock:
+		r := io.NewBinReaderFromBuf(bs)
+		_ = r.ReadB()
 		_, err = block.NewTrimmedFromReader(dao.Version.StateRootInHeader, r)
 		if err != nil {
 			return nil, err
 		}
-	case storage.ExecTransaction:
-		_ = r.ReadU32LE()
-		tx := &transaction.Transaction{}
-		tx.DecodeBinary(r)
-	}
-	if r.Err != nil {
-		return nil, r.Err
-	}
-	result := make([]state.AppExecResult, 0, 2)
-	for {
-		aer := new(state.AppExecResult)
-		aer.DecodeBinary(r)
-		if r.Err != nil {
-			if r.Err == iocore.EOF {
-				break
+		result := make([]state.AppExecResult, 0, 2)
+		for {
+			aer := new(state.AppExecResult)
+			aer.DecodeBinary(r)
+			if r.Err != nil {
+				if r.Err == iocore.EOF {
+					break
+				}
+				return nil, r.Err
 			}
-			return nil, r.Err
+			if aer.Trigger&trig != 0 {
+				result = append(result, *aer)
+			}
+		}
+		return result, nil
+	case storage.ExecTransaction:
+		_, _, aer, err := decodeTxAndExecResult(bs)
+		if err != nil {
+			return nil, err
 		}
 		if aer.Trigger&trig != 0 {
-			result = append(result, *aer)
+			return []state.AppExecResult{*aer}, nil
 		}
+		return nil, nil
+	default:
+		return nil, fmt.Errorf("%w: unexpected executable prefix %d", ErrInternalDBInconsistency, bs[0])
 	}
-	return result, nil
+}
+
+// GetTxExecResult gets application execution result of the specified transaction
+// and returns the transaction itself, its height and its AppExecResult.
+func (dao *Simple) GetTxExecResult(hash util.Uint256) (uint32, *transaction.Transaction, *state.AppExecResult, error) {
+	key := dao.makeExecutableKey(hash)
+	bs, err := dao.Store.Get(key)
+	if err != nil {
+		return 0, nil, nil, err
+	}
+	if len(bs) == 0 {
+		return 0, nil, nil, fmt.Errorf("%w: empty execution log", ErrInternalDBInconsistency)
+	}
+	if bs[0] != storage.ExecTransaction {
+		return 0, nil, nil, storage.ErrKeyNotFound
+	}
+	return decodeTxAndExecResult(bs)
+}
+
+// decodeTxAndExecResult decodes transaction, its height and execution result from
+// the given executable bytes. It performs no executable prefix check.
+func decodeTxAndExecResult(buf []byte) (uint32, *transaction.Transaction, *state.AppExecResult, error) {
+	if len(buf) >= 6 && buf[5] == transaction.DummyVersion {
+		return 0, nil, nil, storage.ErrKeyNotFound
+	}
+	r := io.NewBinReaderFromBuf(buf)
+	_ = r.ReadB()
+	h := r.ReadU32LE()
+	tx := &transaction.Transaction{}
+	tx.DecodeBinary(r)
+	if r.Err != nil {
+		return 0, nil, nil, r.Err
+	}
+	aer := new(state.AppExecResult)
+	aer.DecodeBinary(r)
+	if r.Err != nil {
+		return 0, nil, nil, r.Err
+	}
+
+	return h, tx, aer, nil
 }
 
 // -- end notification event.
@@ -355,7 +406,8 @@ func (dao *Simple) getBlock(key []byte) (*block.Block, error) {
 
 	r := io.NewBinReaderFromBuf(b)
 	if r.ReadB() != storage.ExecBlock {
-		return nil, errors.New("internal DB inconsistency")
+		// It may be a transaction.
+		return nil, storage.ErrKeyNotFound
 	}
 	block, err := block.NewTrimmedFromReader(dao.Version.StateRootInHeader, r)
 	if err != nil {
@@ -519,7 +571,8 @@ func (dao *Simple) GetTransaction(hash util.Uint256) (*transaction.Transaction, 
 		return nil, 0, errors.New("bad transaction bytes")
 	}
 	if b[0] != storage.ExecTransaction {
-		return nil, 0, errors.New("internal DB inconsistency")
+		// It may be a block.
+		return nil, 0, storage.ErrKeyNotFound
 	}
 	if b[5] == transaction.DummyVersion {
 		return nil, 0, storage.ErrKeyNotFound

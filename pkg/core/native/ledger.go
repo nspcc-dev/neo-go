@@ -14,6 +14,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
@@ -60,6 +61,11 @@ func newLedger() *Ledger {
 		manifest.NewParameter("blockIndexOrHash", smartcontract.ByteArrayType),
 		manifest.NewParameter("txIndex", smartcontract.IntegerType))
 	md = newMethodAndPrice(l.getTransactionFromBlock, 1<<16, callflag.ReadStates)
+	l.AddMethod(md, desc)
+
+	desc = newDescriptor("getTransactionVMState", smartcontract.IntegerType,
+		manifest.NewParameter("hash", smartcontract.Hash256Type))
+	md = newMethodAndPrice(l.getTransactionVMState, 1<<15, callflag.ReadStates)
 	l.AddMethod(md, desc)
 
 	return l
@@ -142,6 +148,19 @@ func (l *Ledger) getTransactionFromBlock(ic *interop.Context, params []stackitem
 	return TransactionToStackItem(block.Transactions[index])
 }
 
+// getTransactionVMState returns VM state got after transaction invocation.
+func (l *Ledger) getTransactionVMState(ic *interop.Context, params []stackitem.Item) stackitem.Item {
+	hash, err := getUint256FromItem(params[0])
+	if err != nil {
+		panic(err)
+	}
+	h, _, aer, err := ic.DAO.GetTxExecResult(hash)
+	if err != nil || !isTraceableBlock(ic.Chain, h) {
+		return stackitem.Make(vm.NoneState)
+	}
+	return stackitem.Make(aer.VMState)
+}
+
 // isTraceableBlock defines whether we're able to give information about
 // the block with index specified.
 func isTraceableBlock(bc interop.Ledger, index uint32) bool {
@@ -166,25 +185,29 @@ func getBlockHashFromItem(bc interop.Ledger, item stackitem.Item) util.Uint256 {
 		}
 		return bc.GetHeaderHash(int(index))
 	}
-	bytes, err := item.TryBytes()
-	if err != nil {
-		panic(err)
-	}
-	hash, err := util.Uint256DecodeBytesBE(bytes)
+	hash, err := getUint256FromItem(item)
 	if err != nil {
 		panic(err)
 	}
 	return hash
 }
 
+func getUint256FromItem(item stackitem.Item) (util.Uint256, error) {
+	hashbytes, err := item.TryBytes()
+	if err != nil {
+		return util.Uint256{}, fmt.Errorf("failed to get hash bytes: %w", err)
+	}
+	hash, err := util.Uint256DecodeBytesBE(hashbytes)
+	if err != nil {
+		return util.Uint256{}, fmt.Errorf("failed to decode hash: %w", err)
+	}
+	return hash, nil
+}
+
 // getTransactionAndHeight returns transaction and its height if it's present
 // on the chain. It panics if anything goes wrong.
 func getTransactionAndHeight(d *dao.Simple, item stackitem.Item) (*transaction.Transaction, uint32, error) {
-	hashbytes, err := item.TryBytes()
-	if err != nil {
-		panic(err)
-	}
-	hash, err := util.Uint256DecodeBytesBE(hashbytes)
+	hash, err := getUint256FromItem(item)
 	if err != nil {
 		panic(err)
 	}

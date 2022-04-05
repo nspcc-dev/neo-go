@@ -32,6 +32,12 @@ func Ripemd160(b []byte) interop.Hash160 {
 	return neogointernal.CallWithToken(Hash, "ripemd160", int(contract.NoneFlag), b).(interop.Hash160)
 }
 
+// Murmur32 calls `murmur32` method of native CryptoLib contract and computes Murmur32 hash of b
+// using the given seed.
+func Murmur32(b []byte, seed int) []byte {
+	return neogointernal.CallWithToken(Hash, "murmur32", int(contract.NoneFlag), b, seed).([]byte)
+}
+
 // VerifyWithECDsa calls `verifyWithECDsa` method of native CryptoLib contract and checks that sig is
 // correct msg's signature for a given pub (serialized public key on a given curve).
 func VerifyWithECDsa(msg []byte, pub interop.PublicKey, sig interop.Signature, curve NamedCurve) bool {

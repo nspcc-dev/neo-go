@@ -2,6 +2,7 @@ package native
 
 import (
 	"crypto/elliptic"
+	"encoding/binary"
 	"errors"
 	"fmt"
 
@@ -14,6 +15,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
+	"github.com/twmb/murmur3"
 )
 
 // Crypto represents CryptoLib contract.
@@ -46,6 +48,12 @@ func newCrypto() *Crypto {
 	md = newMethodAndPrice(c.ripemd160, 1<<15, callflag.NoneFlag)
 	c.AddMethod(md, desc)
 
+	desc = newDescriptor("murmur32", smartcontract.ByteArrayType,
+		manifest.NewParameter("data", smartcontract.ByteArrayType),
+		manifest.NewParameter("seed", smartcontract.IntegerType))
+	md = newMethodAndPrice(c.murmur32, 1<<13, callflag.NoneFlag)
+	c.AddMethod(md, desc)
+
 	desc = newDescriptor("verifyWithECDsa", smartcontract.BoolType,
 		manifest.NewParameter("message", smartcontract.ByteArrayType),
 		manifest.NewParameter("pubkey", smartcontract.ByteArrayType),
@@ -70,6 +78,18 @@ func (c *Crypto) ripemd160(_ *interop.Context, args []stackitem.Item) stackitem.
 		panic(err)
 	}
 	return stackitem.NewByteArray(hash.RipeMD160(bs).BytesBE())
+}
+
+func (c *Crypto) murmur32(_ *interop.Context, args []stackitem.Item) stackitem.Item {
+	bs, err := args[0].TryBytes()
+	if err != nil {
+		panic(err)
+	}
+	seed := toUint32(args[1])
+	h := murmur3.SeedSum32(seed, bs)
+	result := make([]byte, 4)
+	binary.LittleEndian.PutUint32(result, h)
+	return stackitem.NewByteArray(result)
 }
 
 func (c *Crypto) verifyWithECDsa(_ *interop.Context, args []stackitem.Item) stackitem.Item {
