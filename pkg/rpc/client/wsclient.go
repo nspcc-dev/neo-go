@@ -16,6 +16,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result/subscriptions"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"go.uber.org/atomic"
 )
 
 // WSClient is a websocket-enabled RPC client that can be used with appropriate
@@ -34,10 +35,11 @@ type WSClient struct {
 	// be closed, so make sure to handle this.
 	Notifications chan Notification
 
-	ws       *websocket.Conn
-	done     chan struct{}
-	requests chan *request.Raw
-	shutdown chan struct{}
+	ws          *websocket.Conn
+	done        chan struct{}
+	requests    chan *request.Raw
+	shutdown    chan struct{}
+	closeCalled atomic.Bool
 
 	subscriptionsLock sync.RWMutex
 	subscriptions     map[string]bool
@@ -93,6 +95,7 @@ func NewWS(ctx context.Context, endpoint string, opts Options) (*WSClient, error
 		ws:            ws,
 		shutdown:      make(chan struct{}),
 		done:          make(chan struct{}),
+		closeCalled:   *atomic.NewBool(false),
 		respChannels:  make(map[uint64]chan *response.Raw),
 		requests:      make(chan *request.Raw),
 		subscriptions: make(map[string]bool),
@@ -113,11 +116,13 @@ func NewWS(ctx context.Context, endpoint string, opts Options) (*WSClient, error
 // Close closes connection to the remote side rendering this client instance
 // unusable.
 func (c *WSClient) Close() {
-	// Closing shutdown channel send signal to wsWriter to break out of the
-	// loop. In doing so it does ws.Close() closing the network connection
-	// which in turn makes wsReader receieve err from ws,ReadJSON() and also
-	// break out of the loop closing c.done channel in its shutdown sequence.
-	close(c.shutdown)
+	if c.closeCalled.CAS(false, true) {
+		// Closing shutdown channel send signal to wsWriter to break out of the
+		// loop. In doing so it does ws.Close() closing the network connection
+		// which in turn makes wsReader receieve err from ws,ReadJSON() and also
+		// break out of the loop closing c.done channel in its shutdown sequence.
+		close(c.shutdown)
+	}
 	<-c.done
 }
 
