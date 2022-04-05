@@ -218,8 +218,15 @@ func (n *Notary) OnNewRequest(payload *payload.P2PNotaryRequest) {
 			r.minNotValidBefore = nvbFallback
 		}
 	} else {
+		// Avoid changes in main transaction witnesses got from notary request pool to
+		// keep the pooled tx valid. We will update its copy => the copy's size will be changed.
+		cp := *payload.MainTransaction
+		cp.Scripts = make([]transaction.Witness, len(payload.MainTransaction.Scripts))
+		for i, w := range payload.MainTransaction.Scripts {
+			cp.Scripts[i] = w
+		}
 		r = &request{
-			main:              payload.MainTransaction,
+			main:              &cp,
 			minNotValidBefore: nvbFallback,
 		}
 		n.requests[payload.MainTransaction.Hash()] = r
@@ -227,6 +234,8 @@ func (n *Notary) OnNewRequest(payload *payload.P2PNotaryRequest) {
 	if r.witnessInfo == nil && validationErr == nil {
 		r.witnessInfo = newInfo
 	}
+	// Allow modification of fallback transaction got from notary request pool.
+	// It has dummy Notary witness attached => its size won't be changed.
 	r.fallbacks = append(r.fallbacks, payload.FallbackTransaction)
 	if exists && r.isMainCompleted() || validationErr != nil {
 		return
