@@ -12,6 +12,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/binding"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
@@ -22,6 +23,7 @@ import (
 // DebugInfo represents smart-contract debug information.
 type DebugInfo struct {
 	MainPkg   string            `json:"-"`
+	Hash      util.Uint160      `json:"hash"`
 	Documents []string          `json:"documents"`
 	Methods   []MethodDebugInfo `json:"methods"`
 	Events    []EventDebugInfo  `json:"events"`
@@ -125,6 +127,7 @@ func (c *codegen) saveSequencePoint(n ast.Node) {
 
 func (c *codegen) emitDebugInfo(contract []byte) *DebugInfo {
 	d := &DebugInfo{
+		Hash:            hash.Hash160(contract),
 		MainPkg:         c.mainPkg.Name,
 		Events:          []EventDebugInfo{},
 		Documents:       c.documents,

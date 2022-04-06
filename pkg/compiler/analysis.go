@@ -5,7 +5,6 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
-	"path/filepath"
 	"strings"
 
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
@@ -235,11 +234,6 @@ func (c *codegen) fillDocumentInfo() {
 	fset := c.buildInfo.config.Fset
 	fset.Iterate(func(f *token.File) bool {
 		filePath := f.Position(f.Pos(0)).Filename
-		rel, err := filepath.Rel(c.buildInfo.config.Dir, filePath)
-		// It's OK if we can't construct relative path, e.g. for interop dependencies.
-		if err == nil {
-			filePath = rel
-		}
 		c.docIndex[filePath] = len(c.documents)
 		c.documents = append(c.documents, filePath)
 		return true
