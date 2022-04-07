@@ -2148,6 +2148,35 @@ func (bc *Blockchain) GetTestVM(t trigger.Type, tx *transaction.Transaction, b *
 	return systemInterop
 }
 
+// GetTestHistoricVM returns an interop context with VM set up for a test run.
+func (bc *Blockchain) GetTestHistoricVM(t trigger.Type, tx *transaction.Transaction, b *block.Block) (*interop.Context, error) {
+	if bc.config.KeepOnlyLatestState {
+		return nil, errors.New("only latest state is supported")
+	}
+	if b == nil {
+		return nil, errors.New("block is mandatory to produce test historic VM")
+	}
+	var mode = mpt.ModeAll
+	if bc.config.RemoveUntraceableBlocks {
+		if b.Index < bc.BlockHeight()-bc.config.MaxTraceableBlocks {
+			return nil, fmt.Errorf("state for height %d is outdated and removed from the storage", b.Index)
+		}
+		mode |= mpt.ModeGCFlag
+	}
+	sr, err := bc.stateRoot.GetStateRoot(b.Index)
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve stateroot for height %d: %w", b.Index, err)
+	}
+	s := mpt.NewTrieStore(sr.Root, mode, storage.NewPrivateMemCachedStore(bc.dao.Store))
+	dTrie := dao.NewSimple(s, bc.config.StateRootInHeader, bc.config.P2PSigExtensions)
+	dTrie.Version = bc.dao.Version
+	systemInterop := bc.newInteropContext(t, dTrie, b, tx)
+	vm := systemInterop.SpawnVM()
+	vm.SetPriceGetter(systemInterop.GetPrice)
+	vm.LoadToken = contract.LoadToken(systemInterop)
+	return systemInterop, nil
+}
+
 // Various witness verification errors.
 var (
 	ErrWitnessHashMismatch         = errors.New("witness hash mismatch")

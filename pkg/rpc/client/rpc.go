@@ -588,6 +588,33 @@ func (c *Client) InvokeScript(script []byte, signers []transaction.Signer) (*res
 	return c.invokeSomething("invokescript", p, signers)
 }
 
+// InvokeScriptAtHeight returns the result of the given script after running it
+// true the VM using the provided chain state retrieved from the specified chain
+// height.
+// NOTE: This is a test invoke and will not affect the blockchain.
+func (c *Client) InvokeScriptAtHeight(height uint32, script []byte, signers []transaction.Signer) (*result.Invoke, error) {
+	var p = request.NewRawParams(height, script)
+	return c.invokeSomething("invokescripthistoric", p, signers)
+}
+
+// InvokeScriptAtBlock returns the result of the given script after running it
+// true the VM using the provided chain state retrieved from the specified block
+// hash.
+// NOTE: This is a test invoke and will not affect the blockchain.
+func (c *Client) InvokeScriptAtBlock(blockHash util.Uint256, script []byte, signers []transaction.Signer) (*result.Invoke, error) {
+	var p = request.NewRawParams(blockHash.StringLE(), script)
+	return c.invokeSomething("invokescripthistoric", p, signers)
+}
+
+// InvokeScriptWithState returns the result of the given script after running it
+// true the VM using the provided chain state retrieved from the specified
+// stateroot hash.
+// NOTE: This is a test invoke and will not affect the blockchain.
+func (c *Client) InvokeScriptWithState(stateroot util.Uint256, script []byte, signers []transaction.Signer) (*result.Invoke, error) {
+	var p = request.NewRawParams(stateroot.StringLE(), script)
+	return c.invokeSomething("invokescripthistoric", p, signers)
+}
+
 // InvokeFunction returns the results after calling the smart contract scripthash
 // with the given operation and parameters.
 // NOTE: this is test invoke and will not affect the blockchain.
@@ -596,12 +623,66 @@ func (c *Client) InvokeFunction(contract util.Uint160, operation string, params 
 	return c.invokeSomething("invokefunction", p, signers)
 }
 
+// InvokeFunctionAtHeight returns the results after calling the smart contract
+// with the given operation and parameters at the given blockchain state
+// specified by the blockchain height.
+// NOTE: this is test invoke and will not affect the blockchain.
+func (c *Client) InvokeFunctionAtHeight(height uint32, contract util.Uint160, operation string, params []smartcontract.Parameter, signers []transaction.Signer) (*result.Invoke, error) {
+	var p = request.NewRawParams(height, contract.StringLE(), operation, params)
+	return c.invokeSomething("invokefunctionhistoric", p, signers)
+}
+
+// InvokeFunctionAtBlock returns the results after calling the smart contract
+// with the given operation and parameters at given the blockchain state
+// specified by the block hash.
+// NOTE: this is test invoke and will not affect the blockchain.
+func (c *Client) InvokeFunctionAtBlock(blockHash util.Uint256, contract util.Uint160, operation string, params []smartcontract.Parameter, signers []transaction.Signer) (*result.Invoke, error) {
+	var p = request.NewRawParams(blockHash.StringLE(), contract.StringLE(), operation, params)
+	return c.invokeSomething("invokefunctionhistoric", p, signers)
+}
+
+// InvokeFunctionWithState returns the results after calling the smart contract
+// with the given operation and parameters at the given blockchain state defined
+// by the specified stateroot hash.
+// NOTE: this is test invoke and will not affect the blockchain.
+func (c *Client) InvokeFunctionWithState(stateroot util.Uint256, contract util.Uint160, operation string, params []smartcontract.Parameter, signers []transaction.Signer) (*result.Invoke, error) {
+	var p = request.NewRawParams(stateroot.StringLE(), contract.StringLE(), operation, params)
+	return c.invokeSomething("invokefunctionhistoric", p, signers)
+}
+
 // InvokeContractVerify returns the results after calling `verify` method of the smart contract
 // with the given parameters under verification trigger type.
 // NOTE: this is test invoke and will not affect the blockchain.
 func (c *Client) InvokeContractVerify(contract util.Uint160, params []smartcontract.Parameter, signers []transaction.Signer, witnesses ...transaction.Witness) (*result.Invoke, error) {
 	var p = request.NewRawParams(contract.StringLE(), params)
 	return c.invokeSomething("invokecontractverify", p, signers, witnesses...)
+}
+
+// InvokeContractVerifyAtHeight returns the results after calling `verify` method
+// of the smart contract with the given parameters under verification trigger type
+// at the blockchain state specified by the blockchain height.
+// NOTE: this is test invoke and will not affect the blockchain.
+func (c *Client) InvokeContractVerifyAtHeight(height uint32, contract util.Uint160, params []smartcontract.Parameter, signers []transaction.Signer, witnesses ...transaction.Witness) (*result.Invoke, error) {
+	var p = request.NewRawParams(height, contract.StringLE(), params)
+	return c.invokeSomething("invokecontractverifyhistoric", p, signers, witnesses...)
+}
+
+// InvokeContractVerifyAtBlock returns the results after calling `verify` method
+// of the smart contract with the given parameters under verification trigger type
+// at the blockchain state specified by the block hash.
+// NOTE: this is test invoke and will not affect the blockchain.
+func (c *Client) InvokeContractVerifyAtBlock(blockHash util.Uint256, contract util.Uint160, params []smartcontract.Parameter, signers []transaction.Signer, witnesses ...transaction.Witness) (*result.Invoke, error) {
+	var p = request.NewRawParams(blockHash.StringLE(), contract.StringLE(), params)
+	return c.invokeSomething("invokecontractverifyhistoric", p, signers, witnesses...)
+}
+
+// InvokeContractVerifyWithState returns the results after calling `verify` method
+// of the smart contract with the given parameters under verification trigger type
+// at the blockchain state specified by the stateroot hash.
+// NOTE: this is test invoke and will not affect the blockchain.
+func (c *Client) InvokeContractVerifyWithState(stateroot util.Uint256, contract util.Uint160, params []smartcontract.Parameter, signers []transaction.Signer, witnesses ...transaction.Witness) (*result.Invoke, error) {
+	var p = request.NewRawParams(stateroot.StringLE(), contract.StringLE(), params)
+	return c.invokeSomething("invokecontractverifyhistoric", p, signers, witnesses...)
 }
 
 // invokeSomething is an inner wrapper for Invoke* functions.

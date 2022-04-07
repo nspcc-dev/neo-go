@@ -60,6 +60,7 @@ type Blockchainer interface {
 	GetStateModule() StateRoot
 	GetStorageItem(id int32, key []byte) state.StorageItem
 	GetTestVM(t trigger.Type, tx *transaction.Transaction, b *block.Block) *interop.Context
+	GetTestHistoricVM(t trigger.Type, tx *transaction.Transaction, b *block.Block) (*interop.Context, error)
 	GetTransaction(util.Uint256) (*transaction.Transaction, uint32, error)
 	SetOracle(service services.Oracle)
 	mempool.Feer // fee interface

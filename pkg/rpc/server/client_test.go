@@ -766,6 +766,56 @@ func TestInvokeVerify(t *testing.T) {
 		require.True(t, res.Stack[0].Value().(bool))
 	})
 
+	t.Run("positive, historic, by height, with signer", func(t *testing.T) {
+		h := chain.BlockHeight() - 1
+		res, err := c.InvokeContractVerifyAtHeight(h, contract, smartcontract.Params{}, []transaction.Signer{{Account: testchain.PrivateKeyByID(0).PublicKey().GetScriptHash()}})
+		require.NoError(t, err)
+		require.Equal(t, "HALT", res.State)
+		require.Equal(t, 1, len(res.Stack))
+		require.True(t, res.Stack[0].Value().(bool))
+	})
+
+	t.Run("positive, historic, by block, with signer", func(t *testing.T) {
+		res, err := c.InvokeContractVerifyAtBlock(chain.GetHeaderHash(int(chain.BlockHeight())-1), contract, smartcontract.Params{}, []transaction.Signer{{Account: testchain.PrivateKeyByID(0).PublicKey().GetScriptHash()}})
+		require.NoError(t, err)
+		require.Equal(t, "HALT", res.State)
+		require.Equal(t, 1, len(res.Stack))
+		require.True(t, res.Stack[0].Value().(bool))
+	})
+
+	t.Run("positive, historic, by stateroot, with signer", func(t *testing.T) {
+		h := chain.BlockHeight() - 1
+		sr, err := chain.GetStateModule().GetStateRoot(h)
+		require.NoError(t, err)
+		res, err := c.InvokeContractVerifyWithState(sr.Root, contract, smartcontract.Params{}, []transaction.Signer{{Account: testchain.PrivateKeyByID(0).PublicKey().GetScriptHash()}})
+		require.NoError(t, err)
+		require.Equal(t, "HALT", res.State)
+		require.Equal(t, 1, len(res.Stack))
+		require.True(t, res.Stack[0].Value().(bool))
+	})
+
+	t.Run("bad, historic, by hash: contract not found", func(t *testing.T) {
+		var h uint32 = 1
+		_, err = c.InvokeContractVerifyAtHeight(h, contract, smartcontract.Params{}, []transaction.Signer{{Account: testchain.PrivateKeyByID(0).PublicKey().GetScriptHash()}})
+		require.Error(t, err)
+		// TODO: check that error is `ErrUnknownVerificationContract`
+	})
+
+	t.Run("bad, historic, by block: contract not found", func(t *testing.T) {
+		_, err = c.InvokeContractVerifyAtBlock(chain.GetHeaderHash(1), contract, smartcontract.Params{}, []transaction.Signer{{Account: testchain.PrivateKeyByID(0).PublicKey().GetScriptHash()}})
+		require.Error(t, err)
+		// TODO: check that error is `ErrUnknownVerificationContract`
+	})
+
+	t.Run("bad, historic, by stateroot: contract not found", func(t *testing.T) {
+		var h uint32 = 1
+		sr, err := chain.GetStateModule().GetStateRoot(h)
+		require.NoError(t, err)
+		_, err = c.InvokeContractVerifyWithState(sr.Root, contract, smartcontract.Params{}, []transaction.Signer{{Account: testchain.PrivateKeyByID(0).PublicKey().GetScriptHash()}})
+		require.Error(t, err)
+		// TODO: check that error is `ErrUnknownVerificationContract`
+	})
+
 	t.Run("positive, with signer and witness", func(t *testing.T) {
 		res, err := c.InvokeContractVerify(contract, smartcontract.Params{}, []transaction.Signer{{Account: testchain.PrivateKeyByID(0).PublicKey().GetScriptHash()}}, transaction.Witness{InvocationScript: []byte{byte(opcode.PUSH1), byte(opcode.RET)}})
 		require.NoError(t, err)

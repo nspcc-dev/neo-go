@@ -15,4 +15,5 @@ type StateRoot interface {
 	GetState(root util.Uint256, key []byte) ([]byte, error)
 	GetStateProof(root util.Uint256, key []byte) ([][]byte, error)
 	GetStateRoot(height uint32) (*state.MPTRoot, error)
+	GetLatestStateHeight(root util.Uint256) (uint32, error)
 }
