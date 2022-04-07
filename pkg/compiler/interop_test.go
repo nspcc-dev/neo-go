@@ -200,7 +200,7 @@ func TestAppCall(t *testing.T) {
 	}
 
 	fc := fakechain.NewFakeChain()
-	ic := interop.NewContext(trigger.Application, fc, dao.NewSimple(storage.NewMemoryStore(), false, false), contractGetter, nil, nil, nil, zaptest.NewLogger(t))
+	ic := interop.NewContext(trigger.Application, fc, dao.NewSimple(storage.NewMemoryStore(), false, false), interop.DefaultBaseExecFee, contractGetter, nil, nil, nil, zaptest.NewLogger(t))
 
 	t.Run("valid script", func(t *testing.T) {
 		src := getAppCallScript(fmt.Sprintf("%#v", ih.BytesBE()))

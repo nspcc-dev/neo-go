@@ -67,15 +67,10 @@ type Context struct {
 }
 
 // NewContext returns new interop context.
-func NewContext(trigger trigger.Type, bc Ledger, d *dao.Simple,
+func NewContext(trigger trigger.Type, bc Ledger, d *dao.Simple, baseExecFee int64,
 	getContract func(*dao.Simple, util.Uint160) (*state.Contract, error), natives []Contract,
 	block *block.Block, tx *transaction.Transaction, log *zap.Logger) *Context {
-	baseExecFee := int64(DefaultBaseExecFee)
 	dao := d.GetPrivate()
-
-	if bc != nil && (block == nil || block.Index != 0) {
-		baseExecFee = bc.GetBaseExecFee()
-	}
 	return &Context{
 		Chain:       bc,
 		Network:     uint32(bc.GetConfig().Magic),

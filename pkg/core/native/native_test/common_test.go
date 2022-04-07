@@ -55,16 +55,25 @@ func testGetSet(t *testing.T, c *neotest.ContractInvoker, name string, defaultVa
 		c.AddNewBlock(t, txSet, txGet)
 		c.CheckHalt(t, txSet.Hash(), stackitem.Null{})
 
-		if name != "GasPerBlock" { // GasPerBlock is set on the next block
-			c.CheckHalt(t, txGet.Hash(), stackitem.Make(defaultValue+1))
-		} else {
+		switch name {
+		case "GasPerBlock":
+			// GasPerBlock is set on the next block
 			c.CheckHalt(t, txGet.Hash(), stackitem.Make(defaultValue))
 			c.AddNewBlock(t)
 			randomInvoker.Invoke(t, defaultValue+1, getName)
+		case "ExecFeeFactor":
+			// ExecFeeFactor was risen, so the second transaction will fail because
+			// of gas limit exceeding (its fees are out-of-date).
+			c.CheckFault(t, txGet.Hash(), "gas limit exceeded")
+			// Set in a separate block.
+			committeeInvoker.Invoke(t, stackitem.Null{}, setName, defaultValue+1)
+			// Get in the next block.
+			randomInvoker.Invoke(t, defaultValue+1, getName)
+		default:
+			c.CheckHalt(t, txGet.Hash(), stackitem.Make(defaultValue+1))
+			// Get in the next block.
+			randomInvoker.Invoke(t, defaultValue+1, getName)
 		}
-
-		// Get in the next block.
-		randomInvoker.Invoke(t, defaultValue+1, getName)
 	})
 }
 

@@ -2304,7 +2304,14 @@ func (bc *Blockchain) ManagementContractHash() util.Uint160 {
 }
 
 func (bc *Blockchain) newInteropContext(trigger trigger.Type, d *dao.Simple, block *block.Block, tx *transaction.Transaction) *interop.Context {
-	ic := interop.NewContext(trigger, bc, d, bc.contracts.Management.GetContract, bc.contracts.Contracts, block, tx, bc.log)
+	baseExecFee := int64(interop.DefaultBaseExecFee)
+
+	if block == nil || block.Index != 0 {
+		// Use provided dao instead of Blockchain's one to fetch possible ExecFeeFactor
+		// changes that were not yet persisted to Blockchain's dao.
+		baseExecFee = bc.contracts.Policy.GetExecFeeFactorInternal(d)
+	}
+	ic := interop.NewContext(trigger, bc, d, baseExecFee, bc.contracts.Management.GetContract, bc.contracts.Contracts, block, tx, bc.log)
 	ic.Functions = systemInterops
 	switch {
 	case tx != nil:
