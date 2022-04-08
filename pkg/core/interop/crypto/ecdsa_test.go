@@ -10,6 +10,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/fee"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
+	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
@@ -72,7 +73,7 @@ func initCheckMultisigVMNoArgs(container *transaction.Transaction) *vm.VM {
 		trigger.Verification,
 		fakechain.NewFakeChain(),
 		dao.NewSimple(storage.NewMemoryStore(), false, false),
-		interop.DefaultBaseExecFee, nil, nil, nil,
+		interop.DefaultBaseExecFee, native.DefaultStoragePrice, nil, nil, nil,
 		container,
 		nil)
 	ic.Container = container
