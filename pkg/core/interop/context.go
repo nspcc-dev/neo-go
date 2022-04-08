@@ -37,7 +37,6 @@ const (
 type Ledger interface {
 	BlockHeight() uint32
 	CurrentBlockHash() util.Uint256
-	GetBaseExecFee() int64
 	GetBlock(hash util.Uint256) (*block.Block, error)
 	GetConfig() config.ProtocolConfiguration
 	GetHeaderHash(int) util.Uint256
