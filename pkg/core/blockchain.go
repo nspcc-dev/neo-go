@@ -2341,6 +2341,9 @@ func (bc *Blockchain) RegisterPostBlock(f func(func(*transaction.Transaction, *m
 
 // GetBaseExecFee return execution price for `NOP`.
 func (bc *Blockchain) GetBaseExecFee() int64 {
+	if bc.BlockHeight() == 0 {
+		return interop.DefaultBaseExecFee
+	}
 	return bc.contracts.Policy.GetExecFeeFactorInternal(bc.dao)
 }
 
