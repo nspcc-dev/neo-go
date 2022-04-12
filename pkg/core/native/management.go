@@ -30,7 +30,9 @@ import (
 type Management struct {
 	interop.ContractMD
 	NEO *NEO
+}
 
+type ManagementCache struct {
 	mtx       sync.RWMutex
 	contracts map[util.Uint160]*state.Contract
 	// nep11 is a map of NEP11-compliant contracts which is updated with every PostPersist.
@@ -66,9 +68,6 @@ func MakeContractKey(h util.Uint160) []byte {
 func newManagement() *Management {
 	var m = &Management{
 		ContractMD: *interop.NewContractMD(nativenames.Management, ManagementContractID),
-		contracts:  make(map[util.Uint160]*state.Contract),
-		nep11:      make(map[util.Uint160]struct{}),
-		nep17:      make(map[util.Uint160]struct{}),
 	}
 	defer m.UpdateHash()
 
@@ -146,9 +145,10 @@ func (m *Management) getContract(ic *interop.Context, args []stackitem.Item) sta
 
 // GetContract returns contract with given hash from given DAO.
 func (m *Management) GetContract(d *dao.Simple, hash util.Uint160) (*state.Contract, error) {
-	m.mtx.RLock()
-	cs, ok := m.contracts[hash]
-	m.mtx.RUnlock()
+	cache := d.Store.GetCache(m.ID).(*ManagementCache)
+	cache.mtx.RLock()
+	cs, ok := cache.contracts[hash]
+	cache.mtx.RUnlock()
 	if !ok {
 		return nil, storage.ErrKeyNotFound
 	} else if cs != nil {
@@ -260,11 +260,12 @@ func (m *Management) deployWithData(ic *interop.Context, args []stackitem.Item) 
 	return contractToStack(newcontract)
 }
 
-func (m *Management) markUpdated(h util.Uint160) {
-	m.mtx.Lock()
+func (m *Management) markUpdated(d *dao.Simple, h util.Uint160) {
+	cache := d.Store.GetCache(m.ID).(*ManagementCache)
+	cache.mtx.Lock()
 	// Just set it to nil, to refresh cache in `PostPersist`.
-	m.contracts[h] = nil
-	m.mtx.Unlock()
+	cache.contracts[h] = nil
+	cache.mtx.Unlock()
 }
 
 // Deploy creates contract's hash/ID and saves new contract into the given DAO.
@@ -300,7 +301,7 @@ func (m *Management) Deploy(d *dao.Simple, sender util.Uint160, neff *nef.File, 
 	if err != nil {
 		return nil, err
 	}
-	m.markUpdated(newcontract.Hash)
+	m.markUpdated(d, newcontract.Hash)
 	return newcontract, nil
 }
 
@@ -340,7 +341,7 @@ func (m *Management) Update(d *dao.Simple, hash util.Uint160, neff *nef.File, ma
 	contract = *oldcontract // Make a copy, don't ruin (potentially) cached contract.
 	// if NEF was provided, update the contract script
 	if neff != nil {
-		m.markUpdated(hash)
+		m.markUpdated(d, hash)
 		contract.NEF = *neff
 	}
 	// if manifest was provided, update the contract manifest
@@ -352,7 +353,7 @@ func (m *Management) Update(d *dao.Simple, hash util.Uint160, neff *nef.File, ma
 		if err != nil {
 			return nil, fmt.Errorf("invalid manifest: %w", err)
 		}
-		m.markUpdated(hash)
+		m.markUpdated(d, hash)
 		contract.Manifest = *manif
 	}
 	err = checkScriptAndMethods(contract.NEF.Script, contract.Manifest.ABI.Methods)
@@ -393,7 +394,7 @@ func (m *Management) Destroy(d *dao.Simple, hash util.Uint160) error {
 		d.DeleteStorageItem(contract.ID, k)
 		return true
 	})
-	m.markUpdated(hash)
+	m.markUpdated(d, hash)
 	return nil
 }
 
@@ -444,18 +445,19 @@ func (m *Management) Metadata() *interop.ContractMD {
 
 // updateContractCache saves contract in the common and NEP-related caches. It's
 // an internal method that must be called with m.mtx lock taken.
-func (m *Management) updateContractCache(cs *state.Contract) {
-	m.contracts[cs.Hash] = cs
+func updateContractCache(cache *ManagementCache, cs *state.Contract) {
+	cache.contracts[cs.Hash] = cs
 	if cs.Manifest.IsStandardSupported(manifest.NEP11StandardName) {
-		m.nep11[cs.Hash] = struct{}{}
+		cache.nep11[cs.Hash] = struct{}{}
 	}
 	if cs.Manifest.IsStandardSupported(manifest.NEP17StandardName) {
-		m.nep17[cs.Hash] = struct{}{}
+		cache.nep17[cs.Hash] = struct{}{}
 	}
 }
 
 // OnPersist implements Contract interface.
 func (m *Management) OnPersist(ic *interop.Context) error {
+	var cache *ManagementCache
 	for _, native := range ic.Natives {
 		md := native.Metadata()
 		history := md.UpdateHistory
@@ -466,16 +468,19 @@ func (m *Management) OnPersist(ic *interop.Context) error {
 		cs := &state.Contract{
 			ContractBase: md.ContractBase,
 		}
+		if err := native.Initialize(ic); err != nil {
+			return fmt.Errorf("initializing %s native contract: %w", md.Name, err)
+		}
 		err := m.PutContractState(ic.DAO, cs)
 		if err != nil {
 			return err
 		}
-		if err := native.Initialize(ic); err != nil {
-			return fmt.Errorf("initializing %s native contract: %w", md.Name, err)
+		if cache == nil {
+			cache = ic.DAO.Store.GetCache(m.ID).(*ManagementCache)
 		}
-		m.mtx.Lock()
-		m.updateContractCache(cs)
-		m.mtx.Unlock()
+		cache.mtx.Lock()
+		updateContractCache(cache, cs)
+		cache.mtx.Unlock()
 	}
 
 	return nil
@@ -485,8 +490,11 @@ func (m *Management) OnPersist(ic *interop.Context) error {
 // Cache initialisation should be done apart from Initialize because Initialize is
 // called only when deploying native contracts.
 func (m *Management) InitializeCache(d *dao.Simple) error {
-	m.mtx.Lock()
-	defer m.mtx.Unlock()
+	cache := &ManagementCache{
+		contracts: make(map[util.Uint160]*state.Contract),
+		nep11:     make(map[util.Uint160]struct{}),
+		nep17:     make(map[util.Uint160]struct{}),
+	}
 
 	var initErr error
 	d.Seek(m.ID, storage.SeekRange{Prefix: []byte{prefixContract}}, func(_, v []byte) bool {
@@ -495,56 +503,63 @@ func (m *Management) InitializeCache(d *dao.Simple) error {
 		if initErr != nil {
 			return false
 		}
-		m.updateContractCache(cs)
+		updateContractCache(cache, cs)
 		return true
 	})
-	return initErr
+	if initErr != nil {
+		return initErr
+	}
+	d.Store.SetCache(m.ID, cache)
+	return nil
 }
 
 // PostPersist implements Contract interface.
 func (m *Management) PostPersist(ic *interop.Context) error {
-	m.mtx.Lock()
-	for h, cs := range m.contracts {
+	cache := ic.DAO.Store.GetCache(m.ID).(*ManagementCache)
+	cache.mtx.Lock()
+	defer cache.mtx.Unlock()
+	for h, cs := range cache.contracts {
 		if cs != nil {
 			continue
 		}
-		delete(m.nep11, h)
-		delete(m.nep17, h)
+		delete(cache.nep11, h)
+		delete(cache.nep17, h)
 		newCs, err := m.getContractFromDAO(ic.DAO, h)
 		if err != nil {
 			// Contract was destroyed.
-			delete(m.contracts, h)
+			delete(cache.contracts, h)
 			continue
 		}
-		m.updateContractCache(newCs)
+		updateContractCache(cache, newCs)
 	}
-	m.mtx.Unlock()
 	return nil
 }
 
 // GetNEP11Contracts returns hashes of all deployed contracts that support NEP-11 standard. The list
 // is updated every PostPersist, so until PostPersist is called, the result for the previous block
 // is returned.
-func (m *Management) GetNEP11Contracts() []util.Uint160 {
-	m.mtx.RLock()
-	result := make([]util.Uint160, 0, len(m.nep11))
-	for h := range m.nep11 {
+func (m *Management) GetNEP11Contracts(d *dao.Simple) []util.Uint160 {
+	cache := d.Store.GetCache(m.ID).(*ManagementCache)
+	cache.mtx.RLock()
+	result := make([]util.Uint160, 0, len(cache.nep11))
+	for h := range cache.nep11 {
 		result = append(result, h)
 	}
-	m.mtx.RUnlock()
+	cache.mtx.RUnlock()
 	return result
 }
 
 // GetNEP17Contracts returns hashes of all deployed contracts that support NEP-17 standard. The list
 // is updated every PostPersist, so until PostPersist is called, the result for the previous block
 // is returned.
-func (m *Management) GetNEP17Contracts() []util.Uint160 {
-	m.mtx.RLock()
-	result := make([]util.Uint160, 0, len(m.nep17))
-	for h := range m.nep17 {
+func (m *Management) GetNEP17Contracts(d *dao.Simple) []util.Uint160 {
+	cache := d.Store.GetCache(m.ID).(*ManagementCache)
+	cache.mtx.RLock()
+	result := make([]util.Uint160, 0, len(cache.nep17))
+	for h := range cache.nep17 {
 		result = append(result, h)
 	}
-	m.mtx.RUnlock()
+	cache.mtx.RUnlock()
 	return result
 }
 
@@ -552,6 +567,13 @@ func (m *Management) GetNEP17Contracts() []util.Uint160 {
 func (m *Management) Initialize(ic *interop.Context) error {
 	setIntWithKey(m.ID, ic.DAO, keyMinimumDeploymentFee, defaultMinimumDeploymentFee)
 	setIntWithKey(m.ID, ic.DAO, keyNextAvailableID, 1)
+
+	cache := &ManagementCache{
+		contracts: make(map[util.Uint160]*state.Contract),
+		nep11:     make(map[util.Uint160]struct{}),
+		nep17:     make(map[util.Uint160]struct{}),
+	}
+	ic.DAO.Store.SetCache(m.ID, cache)
 	return nil
 }
 
@@ -561,7 +583,7 @@ func (m *Management) PutContractState(d *dao.Simple, cs *state.Contract) error {
 	if err := putConvertibleToDAO(m.ID, d, key, cs); err != nil {
 		return err
 	}
-	m.markUpdated(cs.Hash)
+	m.markUpdated(d, cs.Hash)
 	if cs.UpdateCounter != 0 { // Update.
 		return nil
 	}

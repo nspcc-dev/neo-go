@@ -1840,7 +1840,7 @@ func (s *Server) runScriptInVM(t trigger.Type, script []byte, contractScriptHash
 
 		err = s.chain.InitVerificationContext(ic, contractScriptHash, &transaction.Witness{InvocationScript: script, VerificationScript: []byte{}})
 		if err != nil {
-			return nil, response.NewInternalServerError("can't prepare verification VM", err)
+			return nil, response.NewInternalServerError(fmt.Sprintf("can't prepare verification VM: %s", err.Error()), err)
 		}
 	} else {
 		ic.VM.LoadScriptWithFlags(script, callflag.All)

@@ -32,7 +32,9 @@ type Notary struct {
 	GAS   *GAS
 	NEO   *NEO
 	Desig *Designate
+}
 
+type NotaryCache struct {
 	lock sync.RWMutex
 	// isValid defies whether cached values were changed during the current
 	// consensus iteration. If false, these values will be updated after
@@ -125,9 +127,23 @@ func (n *Notary) Metadata() *interop.ContractMD {
 func (n *Notary) Initialize(ic *interop.Context) error {
 	setIntWithKey(n.ID, ic.DAO, maxNotValidBeforeDeltaKey, defaultMaxNotValidBeforeDelta)
 	setIntWithKey(n.ID, ic.DAO, notaryServiceFeeKey, defaultNotaryServiceFeePerKey)
-	n.isValid = true
-	n.maxNotValidBeforeDelta = defaultMaxNotValidBeforeDelta
-	n.notaryServiceFeePerKey = defaultNotaryServiceFeePerKey
+
+	cache := &NotaryCache{
+		isValid:                true,
+		maxNotValidBeforeDelta: defaultMaxNotValidBeforeDelta,
+		notaryServiceFeePerKey: defaultNotaryServiceFeePerKey,
+	}
+	ic.DAO.Store.SetCache(n.ID, cache)
+	return nil
+}
+
+func (n *Notary) InitializeCache(d *dao.Simple) error {
+	cache := &NotaryCache{isValid: true}
+
+	cache.maxNotValidBeforeDelta = uint32(getIntWithKey(n.ID, d, maxNotValidBeforeDeltaKey))
+	cache.notaryServiceFeePerKey = getIntWithKey(n.ID, d, notaryServiceFeeKey)
+
+	d.Store.SetCache(n.ID, cache)
 	return nil
 }
 
@@ -176,15 +192,16 @@ func (n *Notary) OnPersist(ic *interop.Context) error {
 
 // PostPersist implements Contract interface.
 func (n *Notary) PostPersist(ic *interop.Context) error {
-	n.lock.Lock()
-	defer n.lock.Unlock()
-	if n.isValid {
+	cache := ic.DAO.Store.GetCache(n.ID).(*NotaryCache)
+	cache.lock.Lock()
+	defer cache.lock.Unlock()
+	if cache.isValid {
 		return nil
 	}
 
-	n.maxNotValidBeforeDelta = uint32(getIntWithKey(n.ID, ic.DAO, maxNotValidBeforeDeltaKey))
-	n.notaryServiceFeePerKey = getIntWithKey(n.ID, ic.DAO, notaryServiceFeeKey)
-	n.isValid = true
+	cache.maxNotValidBeforeDelta = uint32(getIntWithKey(n.ID, ic.DAO, maxNotValidBeforeDeltaKey))
+	cache.notaryServiceFeePerKey = getIntWithKey(n.ID, ic.DAO, notaryServiceFeeKey)
+	cache.isValid = true
 	return nil
 }
 
@@ -391,10 +408,11 @@ func (n *Notary) getMaxNotValidBeforeDelta(ic *interop.Context, _ []stackitem.It
 
 // GetMaxNotValidBeforeDelta is an internal representation of Notary getMaxNotValidBeforeDelta method.
 func (n *Notary) GetMaxNotValidBeforeDelta(dao *dao.Simple) uint32 {
-	n.lock.RLock()
-	defer n.lock.RUnlock()
-	if n.isValid {
-		return n.maxNotValidBeforeDelta
+	cache := dao.Store.GetCache(n.ID).(*NotaryCache)
+	cache.lock.RLock()
+	defer cache.lock.RUnlock()
+	if cache.isValid {
+		return cache.maxNotValidBeforeDelta
 	}
 	return uint32(getIntWithKey(n.ID, dao, maxNotValidBeforeDeltaKey))
 }
@@ -410,10 +428,11 @@ func (n *Notary) setMaxNotValidBeforeDelta(ic *interop.Context, args []stackitem
 	if !n.NEO.checkCommittee(ic) {
 		panic("invalid committee signature")
 	}
-	n.lock.Lock()
-	defer n.lock.Unlock()
+	cache := ic.DAO.Store.GetCache(n.ID).(*NotaryCache)
+	cache.lock.Lock()
+	defer cache.lock.Unlock()
 	setIntWithKey(n.ID, ic.DAO, maxNotValidBeforeDeltaKey, int64(value))
-	n.isValid = false
+	cache.isValid = false
 	return stackitem.Null{}
 }
 
@@ -424,10 +443,11 @@ func (n *Notary) getNotaryServiceFeePerKey(ic *interop.Context, _ []stackitem.It
 
 // GetNotaryServiceFeePerKey is an internal representation of Notary getNotaryServiceFeePerKey method.
 func (n *Notary) GetNotaryServiceFeePerKey(dao *dao.Simple) int64 {
-	n.lock.RLock()
-	defer n.lock.RUnlock()
-	if n.isValid {
-		return n.notaryServiceFeePerKey
+	cache := dao.Store.GetCache(n.ID).(*NotaryCache)
+	cache.lock.RLock()
+	defer cache.lock.RUnlock()
+	if cache.isValid {
+		return cache.notaryServiceFeePerKey
 	}
 	return getIntWithKey(n.ID, dao, notaryServiceFeeKey)
 }
@@ -441,10 +461,11 @@ func (n *Notary) setNotaryServiceFeePerKey(ic *interop.Context, args []stackitem
 	if !n.NEO.checkCommittee(ic) {
 		panic("invalid committee signature")
 	}
-	n.lock.Lock()
-	defer n.lock.Unlock()
+	cache := ic.DAO.Store.GetCache(n.ID).(*NotaryCache)
+	cache.lock.Lock()
+	defer cache.lock.Unlock()
 	setIntWithKey(n.ID, ic.DAO, notaryServiceFeeKey, int64(value))
-	n.isValid = false
+	cache.isValid = false
 	return stackitem.Null{}
 }
 

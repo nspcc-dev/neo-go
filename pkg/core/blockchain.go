@@ -594,7 +594,18 @@ func (bc *Blockchain) initializeNativeCache(d *dao.Simple) error {
 	if err != nil {
 		return fmt.Errorf("can't init cache for Management native contract: %w", err)
 	}
-	bc.contracts.Designate.InitializeCache()
+	bc.contracts.Designate.InitializeCache(d)
+	bc.contracts.Oracle.InitializeCache(d)
+	if bc.P2PSigExtensionsEnabled() {
+		err = bc.contracts.Notary.InitializeCache(d)
+		if err != nil {
+			return fmt.Errorf("can't init cache for Notary native contract: %w", err)
+		}
+	}
+	err = bc.contracts.Policy.InitializeCache(d)
+	if err != nil {
+		return fmt.Errorf("can't init cache for Policy native contract: %w", err)
+	}
 	return nil
 }
 
@@ -1223,14 +1234,14 @@ func (bc *Blockchain) updateExtensibleWhitelist(height uint32) error {
 		return nil
 	}
 
-	newList := []util.Uint160{bc.contracts.NEO.GetCommitteeAddress()}
-	nextVals := bc.contracts.NEO.GetNextBlockValidatorsInternal()
+	newList := []util.Uint160{bc.contracts.NEO.GetCommitteeAddress(bc.dao)}
+	nextVals := bc.contracts.NEO.GetNextBlockValidatorsInternal(bc.dao)
 	script, err := smartcontract.CreateDefaultMultiSigRedeemScript(nextVals)
 	if err != nil {
 		return err
 	}
 	newList = append(newList, hash.Hash160(script))
-	bc.updateExtensibleList(&newList, bc.contracts.NEO.GetNextBlockValidatorsInternal())
+	bc.updateExtensibleList(&newList, bc.contracts.NEO.GetNextBlockValidatorsInternal(bc.dao))
 
 	if len(stateVals) > 0 {
 		h, err := bc.contracts.Designate.GetLastDesignatedHash(bc.dao, noderoles.StateValidator)
@@ -1454,12 +1465,12 @@ func (bc *Blockchain) ForEachNEP11Transfer(acc util.Uint160, newestTimestamp uin
 
 // GetNEP17Contracts returns the list of deployed NEP-17 contracts.
 func (bc *Blockchain) GetNEP17Contracts() []util.Uint160 {
-	return bc.contracts.Management.GetNEP17Contracts()
+	return bc.contracts.Management.GetNEP17Contracts(bc.dao)
 }
 
 // GetNEP11Contracts returns the list of deployed NEP-11 contracts.
 func (bc *Blockchain) GetNEP11Contracts() []util.Uint160 {
-	return bc.contracts.Management.GetNEP11Contracts()
+	return bc.contracts.Management.GetNEP11Contracts(bc.dao)
 }
 
 // GetTokenLastUpdated returns a set of contract ids with the corresponding last updated
@@ -1826,7 +1837,7 @@ func (bc *Blockchain) ApplyPolicyToTxSet(txes []*transaction.Transaction) []*tra
 	curVC := bc.config.GetNumOfCNs(bc.BlockHeight() + 1)
 	if oldVC == nil || oldVC != curVC {
 		m := smartcontract.GetDefaultHonestNodeCount(curVC)
-		verification, _ := smartcontract.CreateDefaultMultiSigRedeemScript(bc.contracts.NEO.GetNextBlockValidatorsInternal())
+		verification, _ := smartcontract.CreateDefaultMultiSigRedeemScript(bc.contracts.NEO.GetNextBlockValidatorsInternal(bc.dao))
 		defaultWitness = transaction.Witness{
 			InvocationScript:   make([]byte, 66*m),
 			VerificationScript: verification,
@@ -1942,7 +1953,7 @@ func (bc *Blockchain) verifyAndPoolTx(t *transaction.Transaction, pool *mempool.
 	if err != nil {
 		return err
 	}
-	if err := bc.verifyTxAttributes(t, isPartialTx); err != nil {
+	if err := bc.verifyTxAttributes(bc.dao, t, isPartialTx); err != nil {
 		return err
 	}
 	err = pool.Add(t, feer, data...)
@@ -1966,11 +1977,11 @@ func (bc *Blockchain) verifyAndPoolTx(t *transaction.Transaction, pool *mempool.
 	return nil
 }
 
-func (bc *Blockchain) verifyTxAttributes(tx *transaction.Transaction, isPartialTx bool) error {
+func (bc *Blockchain) verifyTxAttributes(d *dao.Simple, tx *transaction.Transaction, isPartialTx bool) error {
 	for i := range tx.Attributes {
 		switch attrType := tx.Attributes[i].Type; attrType {
 		case transaction.HighPriority:
-			h := bc.contracts.NEO.GetCommitteeAddress()
+			h := bc.contracts.NEO.GetCommitteeAddress(d)
 			if !tx.HasSigner(h) {
 				return fmt.Errorf("%w: high priority tx is not signed by committee", ErrInvalidAttribute)
 			}
@@ -2064,7 +2075,7 @@ func (bc *Blockchain) IsTxStillRelevant(t *transaction.Transaction, txpool *memp
 	} else if txpool.HasConflicts(t, bc) {
 		return false
 	}
-	if err := bc.verifyTxAttributes(t, isPartialTx); err != nil {
+	if err := bc.verifyTxAttributes(bc.dao, t, isPartialTx); err != nil {
 		return false
 	}
 	for i := range t.Scripts {
@@ -2122,7 +2133,7 @@ func (bc *Blockchain) PoolTxWithData(t *transaction.Transaction, data interface{
 
 // GetCommittee returns the sorted list of public keys of nodes in committee.
 func (bc *Blockchain) GetCommittee() (keys.PublicKeys, error) {
-	pubs := bc.contracts.NEO.GetCommitteeMembers()
+	pubs := bc.contracts.NEO.GetCommitteeMembers(bc.dao)
 	sort.Sort(pubs)
 	return pubs, nil
 }
@@ -2134,7 +2145,7 @@ func (bc *Blockchain) GetValidators() ([]*keys.PublicKey, error) {
 
 // GetNextBlockValidators returns next block validators.
 func (bc *Blockchain) GetNextBlockValidators() ([]*keys.PublicKey, error) {
-	return bc.contracts.NEO.GetNextBlockValidatorsInternal(), nil
+	return bc.contracts.NEO.GetNextBlockValidatorsInternal(bc.dao), nil
 }
 
 // GetEnrollments returns all registered validators.
@@ -2173,6 +2184,12 @@ func (bc *Blockchain) GetTestHistoricVM(t trigger.Type, tx *transaction.Transact
 	s := mpt.NewTrieStore(sr.Root, mode, storage.NewPrivateMemCachedStore(bc.dao.Store))
 	dTrie := dao.NewSimple(s, bc.config.StateRootInHeader, bc.config.P2PSigExtensions)
 	dTrie.Version = bc.dao.Version
+	// Initialize native cache before passing DAO to interop context constructor, because
+	// the constructor will call BaseExecFee/StoragePrice policy methods on the passed DAO.
+	err = bc.initializeNativeCache(dTrie)
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize native cache backed by historic DAO: %w", err)
+	}
 	systemInterop := bc.newInteropContext(t, dTrie, b, tx)
 	vm := systemInterop.SpawnVM()
 	vm.SetPriceGetter(systemInterop.GetPrice)

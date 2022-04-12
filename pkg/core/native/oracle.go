@@ -40,13 +40,15 @@ type Oracle struct {
 	Desig        *Designate
 	oracleScript []byte
 
-	requestPrice        atomic.Value
-	requestPriceChanged atomic.Value
-
 	// Module is an oracle module capable of talking with the external world.
 	Module atomic.Value
 	// newRequests contains new requests created during current block.
 	newRequests map[uint64]*state.OracleRequest
+}
+
+type OracleCache struct {
+	requestPrice        atomic.Value
+	requestPriceChanged atomic.Value
 }
 
 const (
@@ -121,8 +123,6 @@ func newOracle() *Oracle {
 	md = newMethodAndPrice(o.setPrice, 1<<15, callflag.States)
 	o.AddMethod(md, desc)
 
-	o.requestPriceChanged.Store(true)
-
 	return o
 }
 
@@ -143,9 +143,10 @@ func (o *Oracle) OnPersist(ic *interop.Context) error {
 // PostPersist represents `postPersist` method.
 func (o *Oracle) PostPersist(ic *interop.Context) error {
 	p := o.getPriceInternal(ic.DAO)
-	if o.requestPriceChanged.Load().(bool) {
-		o.requestPrice.Store(p)
-		o.requestPriceChanged.Store(false)
+	cache := ic.DAO.Store.GetCache(o.ID).(*OracleCache)
+	if cache.requestPriceChanged.Load().(bool) {
+		cache.requestPrice.Store(p)
+		cache.requestPriceChanged.Store(false)
 	}
 
 	var nodes keys.PublicKeys
@@ -220,9 +221,19 @@ func (o *Oracle) Metadata() *interop.ContractMD {
 func (o *Oracle) Initialize(ic *interop.Context) error {
 	setIntWithKey(o.ID, ic.DAO, prefixRequestID, 0)
 	setIntWithKey(o.ID, ic.DAO, prefixRequestPrice, DefaultOracleRequestPrice)
-	o.requestPrice.Store(int64(DefaultOracleRequestPrice))
-	o.requestPriceChanged.Store(false)
+
+	cache := &OracleCache{}
+	cache.requestPrice.Store(int64(DefaultOracleRequestPrice))
+	cache.requestPriceChanged.Store(false)
+	ic.DAO.Store.SetCache(o.ID, cache)
 	return nil
+}
+
+func (o *Oracle) InitializeCache(d *dao.Simple) {
+	cache := &OracleCache{}
+	cache.requestPrice.Store(getIntWithKey(o.ID, d, prefixRequestPrice))
+	cache.requestPriceChanged.Store(false)
+	d.Store.SetCache(o.ID, cache)
 }
 
 func getResponse(tx *transaction.Transaction) *transaction.OracleResponse {
@@ -439,8 +450,9 @@ func (o *Oracle) getPrice(ic *interop.Context, _ []stackitem.Item) stackitem.Ite
 }
 
 func (o *Oracle) getPriceInternal(d *dao.Simple) int64 {
-	if !o.requestPriceChanged.Load().(bool) {
-		return o.requestPrice.Load().(int64)
+	cache := d.Store.GetCache(o.ID).(*OracleCache)
+	if !cache.requestPriceChanged.Load().(bool) {
+		return cache.requestPrice.Load().(int64)
 	}
 	return getIntWithKey(o.ID, d, prefixRequestPrice)
 }
@@ -454,7 +466,8 @@ func (o *Oracle) setPrice(ic *interop.Context, args []stackitem.Item) stackitem.
 		panic("invalid committee signature")
 	}
 	setIntWithKey(o.ID, ic.DAO, prefixRequestPrice, price.Int64())
-	o.requestPriceChanged.Store(true)
+	cache := ic.DAO.Store.GetCache(o.ID).(*OracleCache)
+	cache.requestPriceChanged.Store(true)
 	return stackitem.Null{}
 }
 

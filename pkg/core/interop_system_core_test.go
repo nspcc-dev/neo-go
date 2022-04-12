@@ -530,10 +530,10 @@ func TestStorageFind(t *testing.T) {
 
 // Helper functions to create VM, InteropContext, TX, Account, Contract.
 
-func createVM(t *testing.T) (*vm.VM, *interop.Context, *Blockchain) {
+func createVM(t testing.TB) (*vm.VM, *interop.Context, *Blockchain) {
 	chain := newTestChain(t)
 	context := chain.newInteropContext(trigger.Application,
-		dao.NewSimple(storage.NewMemoryStore(), chain.config.StateRootInHeader, chain.config.P2PSigExtensions), nil, nil)
+		dao.NewSimple(chain.dao.Store, chain.config.StateRootInHeader, chain.config.P2PSigExtensions), nil, nil)
 	v := context.SpawnVM()
 	return v, context, chain
 }
@@ -552,10 +552,7 @@ func createVMAndContractState(t testing.TB) (*vm.VM, *state.Contract, *interop.C
 		},
 	}
 
-	chain := newTestChain(t)
-	d := dao.NewSimple(storage.NewMemoryStore(), chain.config.StateRootInHeader, chain.config.P2PSigExtensions)
-	context := chain.newInteropContext(trigger.Application, d, nil, nil)
-	v := context.SpawnVM()
+	v, context, chain := createVM(t)
 	return v, contractState, context, chain
 }
 

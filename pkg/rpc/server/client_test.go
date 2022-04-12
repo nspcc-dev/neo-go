@@ -4,9 +4,11 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/hex"
+	"strings"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/internal/testchain"
+	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/fee"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
@@ -798,13 +800,13 @@ func TestInvokeVerify(t *testing.T) {
 		var h uint32 = 1
 		_, err = c.InvokeContractVerifyAtHeight(h, contract, smartcontract.Params{}, []transaction.Signer{{Account: testchain.PrivateKeyByID(0).PublicKey().GetScriptHash()}})
 		require.Error(t, err)
-		// TODO: check that error is `ErrUnknownVerificationContract`
+		require.True(t, strings.Contains(err.Error(), core.ErrUnknownVerificationContract.Error())) // contract wasn't deployed at block #1 yet
 	})
 
 	t.Run("bad, historic, by block: contract not found", func(t *testing.T) {
 		_, err = c.InvokeContractVerifyAtBlock(chain.GetHeaderHash(1), contract, smartcontract.Params{}, []transaction.Signer{{Account: testchain.PrivateKeyByID(0).PublicKey().GetScriptHash()}})
 		require.Error(t, err)
-		// TODO: check that error is `ErrUnknownVerificationContract`
+		require.True(t, strings.Contains(err.Error(), core.ErrUnknownVerificationContract.Error())) // contract wasn't deployed at block #1 yet
 	})
 
 	t.Run("bad, historic, by stateroot: contract not found", func(t *testing.T) {
@@ -813,7 +815,7 @@ func TestInvokeVerify(t *testing.T) {
 		require.NoError(t, err)
 		_, err = c.InvokeContractVerifyWithState(sr.Root, contract, smartcontract.Params{}, []transaction.Signer{{Account: testchain.PrivateKeyByID(0).PublicKey().GetScriptHash()}})
 		require.Error(t, err)
-		// TODO: check that error is `ErrUnknownVerificationContract`
+		require.True(t, strings.Contains(err.Error(), core.ErrUnknownVerificationContract.Error())) // contract wasn't deployed at block #1 yet
 	})
 
 	t.Run("positive, with signer and witness", func(t *testing.T) {

@@ -15,11 +15,18 @@ import (
 type MemCachedStore struct {
 	MemoryStore
 
+	nativeCacheLock sync.RWMutex
+	nativeCache     map[int32]*NativeCacheItem
+
 	private bool
 	// plock protects Persist from double entrance.
 	plock sync.Mutex
 	// Persistent Store.
 	ps Store
+}
+
+type NativeCacheItem struct {
+	Value interface{}
 }
 
 type (
@@ -46,8 +53,15 @@ type (
 
 // NewMemCachedStore creates a new MemCachedStore object.
 func NewMemCachedStore(lower Store) *MemCachedStore {
+	var cache map[int32]*NativeCacheItem
+	if cached, ok := lower.(*MemCachedStore); ok {
+		cache = cached.nativeCache
+	} else {
+		cache = make(map[int32]*NativeCacheItem)
+	}
 	return &MemCachedStore{
 		MemoryStore: *NewMemoryStore(),
+		nativeCache: cache,
 		ps:          lower,
 	}
 }
@@ -55,8 +69,15 @@ func NewMemCachedStore(lower Store) *MemCachedStore {
 // NewPrivateMemCachedStore creates a new private (unlocked) MemCachedStore object.
 // Private cached stores are closed after Persist.
 func NewPrivateMemCachedStore(lower Store) *MemCachedStore {
+	var cache map[int32]*NativeCacheItem
+	if cached, ok := lower.(*MemCachedStore); ok {
+		cache = cached.nativeCache
+	} else {
+		cache = make(map[int32]*NativeCacheItem)
+	}
 	return &MemCachedStore{
 		MemoryStore: *NewMemoryStore(),
+		nativeCache: cache,
 		private:     true,
 		ps:          lower,
 	}
@@ -391,6 +412,25 @@ func (s *MemCachedStore) persist(isSync bool) (int, error) {
 	}
 	s.mut.Unlock()
 	return keys, err
+}
+
+func (s *MemCachedStore) GetCache(k int32) interface{} {
+	s.nativeCacheLock.RLock()
+	defer s.nativeCacheLock.RUnlock()
+
+	if itm, ok := s.nativeCache[k]; ok {
+		return itm.Value
+	}
+	return nil
+}
+
+func (s *MemCachedStore) SetCache(k int32, v interface{}) {
+	s.nativeCacheLock.Lock()
+	defer s.nativeCacheLock.Unlock()
+
+	s.nativeCache[k] = &NativeCacheItem{
+		Value: v,
+	}
 }
 
 // Close implements Store interface, clears up memory and closes the lower layer

@@ -89,8 +89,10 @@ func TestManagement_GetNEP17Contracts(t *testing.T) {
 	d := dao.NewSimple(storage.NewMemoryStore(), false, false)
 	err := mgmt.Initialize(&interop.Context{DAO: d})
 	require.NoError(t, err)
+	err = mgmt.InitializeCache(d)
+	require.NoError(t, err)
 
-	require.Empty(t, mgmt.GetNEP17Contracts())
+	require.Empty(t, mgmt.GetNEP17Contracts(d))
 
 	// Deploy NEP-17 contract
 	script := []byte{byte(opcode.RET)}
@@ -108,11 +110,11 @@ func TestManagement_GetNEP17Contracts(t *testing.T) {
 	require.NoError(t, err)
 
 	// PostPersist is not yet called, thus no NEP-17 contracts are expected
-	require.Empty(t, mgmt.GetNEP17Contracts())
+	require.Empty(t, mgmt.GetNEP17Contracts(d))
 
 	// Call PostPersist, check c1 contract hash is returned
 	require.NoError(t, mgmt.PostPersist(&interop.Context{DAO: d}))
-	require.Equal(t, []util.Uint160{c1.Hash}, mgmt.GetNEP17Contracts())
+	require.Equal(t, []util.Uint160{c1.Hash}, mgmt.GetNEP17Contracts(d))
 
 	// Update contract
 	manif.ABI.Methods = append(manif.ABI.Methods, manifest.Method{
@@ -124,9 +126,9 @@ func TestManagement_GetNEP17Contracts(t *testing.T) {
 	require.NoError(t, err)
 
 	// No changes expected before PostPersist call.
-	require.Equal(t, []util.Uint160{c1.Hash}, mgmt.GetNEP17Contracts())
+	require.Equal(t, []util.Uint160{c1.Hash}, mgmt.GetNEP17Contracts(d))
 
 	// Call PostPersist, check c2 contract hash is returned
 	require.NoError(t, mgmt.PostPersist(&interop.Context{DAO: d}))
-	require.Equal(t, []util.Uint160{c2.Hash}, mgmt.GetNEP17Contracts())
+	require.Equal(t, []util.Uint160{c2.Hash}, mgmt.GetNEP17Contracts(d))
 }

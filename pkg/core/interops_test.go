@@ -5,9 +5,7 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
-	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/stretchr/testify/require"
@@ -17,8 +15,7 @@ func testNonInterop(t *testing.T, value interface{}, f func(*interop.Context) er
 	v := vm.New()
 	v.Estack().PushVal(value)
 	chain := newTestChain(t)
-	d := dao.NewSimple(storage.NewMemoryStore(), chain.config.StateRootInHeader, chain.config.P2PSigExtensions)
-	context := chain.newInteropContext(trigger.Application, d, nil, nil)
+	context := chain.newInteropContext(trigger.Application, chain.dao, nil, nil)
 	context.VM = v
 	require.Error(t, f(context))
 }
