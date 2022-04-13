@@ -58,7 +58,8 @@ type NEO struct {
 	// It is set in state-modifying methods only and read in `PostPersist` thus is not protected
 	// by any mutex.
 	gasPerVoteCache map[string]big.Int
-	// Configuration and standby keys are set during initialization and then
+
+	// Configuration and standby keys are set in constructor and then
 	// only read from.
 	cfg         config.ProtocolConfiguration
 	standbyKeys keys.PublicKeys
@@ -116,7 +117,7 @@ func makeValidatorKey(key *keys.PublicKey) []byte {
 }
 
 // newNEO returns NEO native contract.
-func newNEO() *NEO {
+func newNEO(cfg config.ProtocolConfiguration) *NEO {
 	n := &NEO{}
 	defer n.UpdateHash()
 
@@ -135,6 +136,11 @@ func newNEO() *NEO {
 	n.committeeHash.Store(util.Uint160{})
 	n.registerPriceChanged.Store(true)
 	n.gasPerVoteCache = make(map[string]big.Int)
+
+	err := n.initConfigCache(cfg)
+	if err != nil {
+		panic(fmt.Errorf("failed to initialize NEO config cache: %w", err))
+	}
 
 	desc := newDescriptor("unclaimedGas", smartcontract.IntegerType,
 		manifest.NewParameter("account", smartcontract.Hash160Type),
@@ -198,10 +204,6 @@ func newNEO() *NEO {
 
 // Initialize initializes NEO contract.
 func (n *NEO) Initialize(ic *interop.Context) error {
-	err := n.initConfigCache(ic.Chain)
-	if err != nil {
-		return nil
-	}
 	if err := n.nep17TokenNative.Initialize(ic); err != nil {
 		return err
 	}
@@ -213,7 +215,7 @@ func (n *NEO) Initialize(ic *interop.Context) error {
 
 	committee0 := n.standbyKeys[:n.cfg.GetCommitteeSize(ic.Block.Index)]
 	cvs := toKeysWithVotes(committee0)
-	err = n.updateCache(cvs, ic.Chain)
+	err := n.updateCache(cvs, ic.Chain)
 	if err != nil {
 		return err
 	}
@@ -245,10 +247,6 @@ func (n *NEO) Initialize(ic *interop.Context) error {
 // Cache initialisation should be done apart from Initialize because Initialize is
 // called only when deploying native contracts.
 func (n *NEO) InitializeCache(bc interop.Ledger, d *dao.Simple) error {
-	err := n.initConfigCache(bc)
-	if err != nil {
-		return nil
-	}
 	var committee = keysWithVotes{}
 	si := d.GetStorageItem(n.ID, prefixCommittee)
 	if err := committee.DecodeBytes(si); err != nil {
@@ -264,10 +262,10 @@ func (n *NEO) InitializeCache(bc interop.Ledger, d *dao.Simple) error {
 	return nil
 }
 
-func (n *NEO) initConfigCache(bc interop.Ledger) error {
+func (n *NEO) initConfigCache(cfg config.ProtocolConfiguration) error {
 	var err error
 
-	n.cfg = bc.GetConfig()
+	n.cfg = cfg
 	n.standbyKeys, err = keys.NewPublicKeysFromStrings(n.cfg.StandbyCommittee)
 	return err
 }
