@@ -2304,7 +2304,19 @@ func (bc *Blockchain) ManagementContractHash() util.Uint160 {
 }
 
 func (bc *Blockchain) newInteropContext(trigger trigger.Type, d *dao.Simple, block *block.Block, tx *transaction.Transaction) *interop.Context {
-	ic := interop.NewContext(trigger, bc, d, bc.contracts.Management.GetContract, bc.contracts.Contracts, block, tx, bc.log)
+	baseExecFee := int64(interop.DefaultBaseExecFee)
+	if block == nil || block.Index != 0 {
+		// Use provided dao instead of Blockchain's one to fetch possible ExecFeeFactor
+		// changes that were not yet persisted to Blockchain's dao.
+		baseExecFee = bc.contracts.Policy.GetExecFeeFactorInternal(d)
+	}
+	baseStorageFee := int64(native.DefaultStoragePrice)
+	if block == nil || block.Index != 0 {
+		// Use provided dao instead of Blockchain's one to fetch possible StoragePrice
+		// changes that were not yet persisted to Blockchain's dao.
+		baseStorageFee = bc.contracts.Policy.GetStoragePriceInternal(d)
+	}
+	ic := interop.NewContext(trigger, bc, d, baseExecFee, baseStorageFee, bc.contracts.Management.GetContract, bc.contracts.Contracts, block, tx, bc.log)
 	ic.Functions = systemInterops
 	switch {
 	case tx != nil:
@@ -2329,6 +2341,9 @@ func (bc *Blockchain) RegisterPostBlock(f func(func(*transaction.Transaction, *m
 
 // GetBaseExecFee return execution price for `NOP`.
 func (bc *Blockchain) GetBaseExecFee() int64 {
+	if bc.BlockHeight() == 0 {
+		return interop.DefaultBaseExecFee
+	}
 	return bc.contracts.Policy.GetExecFeeFactorInternal(bc.dao)
 }
 

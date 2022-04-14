@@ -11,10 +11,12 @@ import (
 	"github.com/nspcc-dev/neo-go/internal/testchain"
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
+	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/util/slice"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
@@ -319,4 +321,23 @@ func setSigner(tx *transaction.Transaction, h util.Uint160) {
 		Account: h,
 		Scopes:  transaction.Global,
 	}}
+}
+
+// This test checks that value of BaseExecFee returned from corresponding Blockchain's method matches
+// the one provided to the constructor of new interop context.
+func TestBlockchain_BaseExecFeeBaseStoragePrice_Compat(t *testing.T) {
+	bc := newTestChain(t)
+
+	check := func(t *testing.T) {
+		ic := bc.newInteropContext(trigger.Application, dao.NewSimple(storage.NewMemoryStore(), bc.config.StateRootInHeader, bc.config.P2PSigExtensions), bc.topBlock.Load().(*block.Block), nil)
+		require.Equal(t, bc.GetBaseExecFee(), ic.BaseExecFee())
+		require.Equal(t, bc.GetStoragePrice(), ic.BaseStorageFee())
+	}
+	t.Run("zero block", func(t *testing.T) {
+		check(t)
+	})
+	t.Run("non-zero block", func(t *testing.T) {
+		require.NoError(t, bc.AddBlock(bc.newBlock()))
+		check(t)
+	})
 }

@@ -56,6 +56,7 @@ type Ledger interface {
 	PoolTx(t *transaction.Transaction, pools ...*mempool.Pool) error
 	SubscribeForBlocks(ch chan<- *coreb.Block)
 	UnsubscribeFromBlocks(ch chan<- *coreb.Block)
+	GetBaseExecFee() int64
 	interop.Ledger
 	mempool.Feer
 }

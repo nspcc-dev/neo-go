@@ -37,57 +37,52 @@ const (
 type Ledger interface {
 	BlockHeight() uint32
 	CurrentBlockHash() util.Uint256
-	GetBaseExecFee() int64
 	GetBlock(hash util.Uint256) (*block.Block, error)
 	GetConfig() config.ProtocolConfiguration
 	GetHeaderHash(int) util.Uint256
-	GetStoragePrice() int64
 }
 
 // Context represents context in which interops are executed.
 type Context struct {
-	Chain         Ledger
-	Container     hash.Hashable
-	Network       uint32
-	Natives       []Contract
-	Trigger       trigger.Type
-	Block         *block.Block
-	NonceData     [16]byte
-	Tx            *transaction.Transaction
-	DAO           *dao.Simple
-	Notifications []state.NotificationEvent
-	Log           *zap.Logger
-	VM            *vm.VM
-	Functions     []Function
-	Invocations   map[util.Uint160]int
-	cancelFuncs   []context.CancelFunc
-	getContract   func(*dao.Simple, util.Uint160) (*state.Contract, error)
-	baseExecFee   int64
-	signers       []transaction.Signer
+	Chain          Ledger
+	Container      hash.Hashable
+	Network        uint32
+	Natives        []Contract
+	Trigger        trigger.Type
+	Block          *block.Block
+	NonceData      [16]byte
+	Tx             *transaction.Transaction
+	DAO            *dao.Simple
+	Notifications  []state.NotificationEvent
+	Log            *zap.Logger
+	VM             *vm.VM
+	Functions      []Function
+	Invocations    map[util.Uint160]int
+	cancelFuncs    []context.CancelFunc
+	getContract    func(*dao.Simple, util.Uint160) (*state.Contract, error)
+	baseExecFee    int64
+	baseStorageFee int64
+	signers        []transaction.Signer
 }
 
 // NewContext returns new interop context.
-func NewContext(trigger trigger.Type, bc Ledger, d *dao.Simple,
+func NewContext(trigger trigger.Type, bc Ledger, d *dao.Simple, baseExecFee, baseStorageFee int64,
 	getContract func(*dao.Simple, util.Uint160) (*state.Contract, error), natives []Contract,
 	block *block.Block, tx *transaction.Transaction, log *zap.Logger) *Context {
-	baseExecFee := int64(DefaultBaseExecFee)
 	dao := d.GetPrivate()
-
-	if bc != nil && (block == nil || block.Index != 0) {
-		baseExecFee = bc.GetBaseExecFee()
-	}
 	return &Context{
-		Chain:       bc,
-		Network:     uint32(bc.GetConfig().Magic),
-		Natives:     natives,
-		Trigger:     trigger,
-		Block:       block,
-		Tx:          tx,
-		DAO:         dao,
-		Log:         log,
-		Invocations: make(map[util.Uint160]int),
-		getContract: getContract,
-		baseExecFee: baseExecFee,
+		Chain:          bc,
+		Network:        uint32(bc.GetConfig().Magic),
+		Natives:        natives,
+		Trigger:        trigger,
+		Block:          block,
+		Tx:             tx,
+		DAO:            dao,
+		Log:            log,
+		Invocations:    make(map[util.Uint160]int),
+		getContract:    getContract,
+		baseExecFee:    baseExecFee,
+		baseStorageFee: baseStorageFee,
 	}
 }
 
@@ -291,6 +286,11 @@ func (ic *Context) GetFunction(id uint32) *Function {
 // BaseExecFee represents factor to multiply syscall prices with.
 func (ic *Context) BaseExecFee() int64 {
 	return ic.baseExecFee
+}
+
+// BaseStorageFee represents price for storing one byte of data in the contract storage.
+func (ic *Context) BaseStorageFee() int64 {
+	return ic.baseStorageFee
 }
 
 // SyscallHandler handles syscall with id.
