@@ -47,7 +47,9 @@ jobs:
       - run: git submodule sync
       - run: git submodule update --init
       - gomod
-      - run: go test -v -race ./...
+      - run:
+          command: go test -v -race ./...
+          no_output_timeout: 15m
 
   test_1_17:
     working_directory: /home/circleci/go/src/github.com/nspcc-dev/neo-go
@@ -57,7 +59,9 @@ jobs:
       - run: git submodule sync
       - run: git submodule update --init
       - gomod
-      - run: go test -v -race ./...
+      - run:
+          command: go test -v -race ./...
+          no_output_timeout: 15m
 
   test_1_18:
     working_directory: /home/circleci/go/src/github.com/nspcc-dev/neo-go
@@ -67,7 +71,9 @@ jobs:
       - run: git submodule sync
       - run: git submodule update --init
       - gomod
-      - run: go test -v -race ./...
+      - run:
+          command: go test -v -race ./...
+          no_output_timeout: 15m
 
   build_cli:
     working_directory: /home/circleci/go/src/github.com/nspcc-dev/neo-go
