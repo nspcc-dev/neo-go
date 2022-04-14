@@ -2,7 +2,6 @@ package result
 
 import (
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
-	"github.com/nspcc-dev/neo-go/pkg/encoding/fixedn"
 )
 
 type (
@@ -32,7 +31,7 @@ type (
 		MaxTransactionsPerBlock     uint16        `json:"maxtransactionsperblock"`
 		MemoryPoolMaxTransactions   int           `json:"memorypoolmaxtransactions"`
 		ValidatorsCount             byte          `json:"validatorscount"`
-		InitialGasDistribution      fixedn.Fixed8 `json:"initialgasdistribution"`
+		InitialGasDistribution      int64         `json:"initialgasdistribution"`
 		// StateRootInHeader is true if state root is contained in block header.
 		StateRootInHeader bool `json:"staterootinheader,omitempty"`
 	}
