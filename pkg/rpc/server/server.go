@@ -537,7 +537,7 @@ func (s *Server) getVersion(_ request.Params) (interface{}, *response.Error) {
 			MaxTransactionsPerBlock:     cfg.MaxTransactionsPerBlock,
 			MemoryPoolMaxTransactions:   cfg.MemPoolSize,
 			ValidatorsCount:             byte(cfg.GetNumOfCNs(s.chain.BlockHeight())),
-			InitialGasDistribution:      cfg.InitialGASSupply,
+			InitialGasDistribution:      int64(cfg.InitialGASSupply),
 			StateRootInHeader:           cfg.StateRootInHeader,
 		},
 	}, nil
