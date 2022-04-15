@@ -59,6 +59,48 @@ var (
 	keyMinimumDeploymentFee = []byte{20}
 )
 
+var (
+	_ interop.Contract            = (*Management)(nil)
+	_ storage.NativeContractCache = (*ManagementCache)(nil)
+)
+
+// Copy implements NativeContractCache interface.
+func (c *ManagementCache) Copy() storage.NativeContractCache {
+	cp := &ManagementCache{
+		contracts: make(map[util.Uint160]*state.Contract),
+		nep11:     make(map[util.Uint160]struct{}),
+		nep17:     make(map[util.Uint160]struct{}),
+	}
+	// Copy the whole set of contracts is too expensive. We will create a separate map
+	// holding the same set of pointers to contracts, and in case if some contract is
+	// supposed to be changed, Management will create the copy in-place.
+	for hash, ctr := range c.contracts {
+		cp.contracts[hash] = ctr
+	}
+	for hash := range c.nep17 {
+		cp.nep17[hash] = struct{}{}
+	}
+	for hash := range c.nep11 {
+		cp.nep11[hash] = struct{}{}
+	}
+	return cp
+}
+
+// Persist implements NativeContractCache interface.
+func (c *ManagementCache) Persist(ps storage.NativeContractCache) (storage.NativeContractCache, error) {
+	if ps == nil {
+		ps = &ManagementCache{}
+	}
+	psCache, ok := ps.(*ManagementCache)
+	if !ok {
+		return nil, errors.New("not a Management native cache")
+	}
+	psCache.contracts = c.contracts
+	psCache.nep17 = c.nep17
+	psCache.nep11 = c.nep11
+	return psCache, nil
+}
+
 // MakeContractKey creates a key from account script hash.
 func MakeContractKey(h util.Uint160) []byte {
 	return makeUint160Key(prefixContract, h)
@@ -145,7 +187,7 @@ func (m *Management) getContract(ic *interop.Context, args []stackitem.Item) sta
 
 // GetContract returns contract with given hash from given DAO.
 func (m *Management) GetContract(d *dao.Simple, hash util.Uint160) (*state.Contract, error) {
-	cache := d.Store.GetCache(m.ID).(*ManagementCache)
+	cache := d.Store.GetROCache(m.ID).(*ManagementCache)
 	cache.mtx.RLock()
 	cs, ok := cache.contracts[hash]
 	cache.mtx.RUnlock()
@@ -261,7 +303,7 @@ func (m *Management) deployWithData(ic *interop.Context, args []stackitem.Item) 
 }
 
 func (m *Management) markUpdated(d *dao.Simple, h util.Uint160) {
-	cache := d.Store.GetCache(m.ID).(*ManagementCache)
+	cache := d.Store.GetRWCache(m.ID).(*ManagementCache)
 	cache.mtx.Lock()
 	// Just set it to nil, to refresh cache in `PostPersist`.
 	cache.contracts[h] = nil
@@ -476,7 +518,7 @@ func (m *Management) OnPersist(ic *interop.Context) error {
 			return err
 		}
 		if cache == nil {
-			cache = ic.DAO.Store.GetCache(m.ID).(*ManagementCache)
+			cache = ic.DAO.Store.GetRWCache(m.ID).(*ManagementCache)
 		}
 		cache.mtx.Lock()
 		updateContractCache(cache, cs)
@@ -515,7 +557,7 @@ func (m *Management) InitializeCache(d *dao.Simple) error {
 
 // PostPersist implements Contract interface.
 func (m *Management) PostPersist(ic *interop.Context) error {
-	cache := ic.DAO.Store.GetCache(m.ID).(*ManagementCache)
+	cache := ic.DAO.Store.GetRWCache(m.ID).(*ManagementCache)
 	cache.mtx.Lock()
 	defer cache.mtx.Unlock()
 	for h, cs := range cache.contracts {
@@ -539,7 +581,7 @@ func (m *Management) PostPersist(ic *interop.Context) error {
 // is updated every PostPersist, so until PostPersist is called, the result for the previous block
 // is returned.
 func (m *Management) GetNEP11Contracts(d *dao.Simple) []util.Uint160 {
-	cache := d.Store.GetCache(m.ID).(*ManagementCache)
+	cache := d.Store.GetROCache(m.ID).(*ManagementCache)
 	cache.mtx.RLock()
 	result := make([]util.Uint160, 0, len(cache.nep11))
 	for h := range cache.nep11 {
@@ -553,7 +595,7 @@ func (m *Management) GetNEP11Contracts(d *dao.Simple) []util.Uint160 {
 // is updated every PostPersist, so until PostPersist is called, the result for the previous block
 // is returned.
 func (m *Management) GetNEP17Contracts(d *dao.Simple) []util.Uint160 {
-	cache := d.Store.GetCache(m.ID).(*ManagementCache)
+	cache := d.Store.GetROCache(m.ID).(*ManagementCache)
 	cache.mtx.RLock()
 	result := make([]util.Uint160, 0, len(cache.nep17))
 	for h := range cache.nep17 {

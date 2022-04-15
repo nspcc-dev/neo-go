@@ -84,6 +84,36 @@ var (
 	ErrResponseNotFound = errors.New("oracle response not found")
 )
 
+var (
+	_ interop.Contract            = (*Oracle)(nil)
+	_ storage.NativeContractCache = (*OracleCache)(nil)
+)
+
+// Copy implements NativeContractCache interface.
+func (c *OracleCache) Copy() storage.NativeContractCache {
+	cp := &OracleCache{}
+	copyOracleCache(c, cp)
+	return cp
+}
+
+// Persist implements NativeContractCache interface.
+func (c *OracleCache) Persist(ps storage.NativeContractCache) (storage.NativeContractCache, error) {
+	if ps == nil {
+		ps = &OracleCache{}
+	}
+	psCache, ok := ps.(*OracleCache)
+	if !ok {
+		return nil, errors.New("not an Oracle native cache")
+	}
+	copyOracleCache(c, psCache)
+	return psCache, nil
+}
+
+func copyOracleCache(src, dst *OracleCache) {
+	dst.requestPrice.Store(src.requestPrice.Load())
+	dst.requestPriceChanged.Store(src.requestPriceChanged.Load())
+}
+
 func newOracle() *Oracle {
 	o := &Oracle{ContractMD: *interop.NewContractMD(nativenames.Oracle, oracleContractID)}
 	defer o.UpdateHash()
@@ -143,7 +173,7 @@ func (o *Oracle) OnPersist(ic *interop.Context) error {
 // PostPersist represents `postPersist` method.
 func (o *Oracle) PostPersist(ic *interop.Context) error {
 	p := o.getPriceInternal(ic.DAO)
-	cache := ic.DAO.Store.GetCache(o.ID).(*OracleCache)
+	cache := ic.DAO.Store.GetRWCache(o.ID).(*OracleCache)
 	if cache.requestPriceChanged.Load().(bool) {
 		cache.requestPrice.Store(p)
 		cache.requestPriceChanged.Store(false)
@@ -450,7 +480,7 @@ func (o *Oracle) getPrice(ic *interop.Context, _ []stackitem.Item) stackitem.Ite
 }
 
 func (o *Oracle) getPriceInternal(d *dao.Simple) int64 {
-	cache := d.Store.GetCache(o.ID).(*OracleCache)
+	cache := d.Store.GetROCache(o.ID).(*OracleCache)
 	if !cache.requestPriceChanged.Load().(bool) {
 		return cache.requestPrice.Load().(int64)
 	}
@@ -466,7 +496,7 @@ func (o *Oracle) setPrice(ic *interop.Context, args []stackitem.Item) stackitem.
 		panic("invalid committee signature")
 	}
 	setIntWithKey(o.ID, ic.DAO, prefixRequestPrice, price.Int64())
-	cache := ic.DAO.Store.GetCache(o.ID).(*OracleCache)
+	cache := ic.DAO.Store.GetRWCache(o.ID).(*OracleCache)
 	cache.requestPriceChanged.Store(true)
 	return stackitem.Null{}
 }

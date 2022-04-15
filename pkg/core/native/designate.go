@@ -75,6 +75,52 @@ var (
 	ErrNoBlock           = errors.New("no persisting block in the context")
 )
 
+var (
+	_ interop.Contract            = (*Designate)(nil)
+	_ storage.NativeContractCache = (*DesignationCache)(nil)
+)
+
+// Copy implements NativeContractCache interface.
+func (c *DesignationCache) Copy() storage.NativeContractCache {
+	cp := &DesignationCache{}
+	copyDesignationCache(c, cp)
+	return cp
+}
+
+// Persist implements NativeContractCache interface.
+func (c *DesignationCache) Persist(ps storage.NativeContractCache) (storage.NativeContractCache, error) {
+	if ps == nil {
+		ps = &DesignationCache{}
+	}
+	psCache, ok := ps.(*DesignationCache)
+	if !ok {
+		return nil, errors.New("not a Designation native cache")
+	}
+	copyDesignationCache(c, psCache)
+	return psCache, nil
+}
+
+func copyDesignationCache(src, dst *DesignationCache) {
+	dst.rolesChangedFlag.Store(src.rolesChangedFlag.Load())
+	for _, r := range []noderoles.Role{noderoles.StateValidator, noderoles.Oracle, noderoles.NeoFSAlphabet, noderoles.P2PNotary} {
+		data := getCachedRoleData(src, r)
+		if data != nil {
+			var v = &roleData{}
+			*v = *data
+			switch r {
+			case noderoles.StateValidator:
+				dst.stateVals.Store(v)
+			case noderoles.Oracle:
+				dst.oracles.Store(v)
+			case noderoles.NeoFSAlphabet:
+				dst.neofsAlphabet.Store(v)
+			case noderoles.P2PNotary:
+				dst.notaries.Store(v)
+			}
+		}
+	}
+}
+
 func (s *Designate) isValidRole(r noderoles.Role) bool {
 	return r == noderoles.Oracle || r == noderoles.StateValidator ||
 		r == noderoles.NeoFSAlphabet || (s.p2pSigExtensionsEnabled && r == noderoles.P2PNotary)
@@ -119,7 +165,7 @@ func (s *Designate) OnPersist(ic *interop.Context) error {
 
 // PostPersist implements Contract interface.
 func (s *Designate) PostPersist(ic *interop.Context) error {
-	cache := ic.DAO.Store.GetCache(s.ID).(*DesignationCache)
+	cache := ic.DAO.Store.GetRWCache(s.ID).(*DesignationCache)
 	if !rolesChanged(cache) {
 		return nil
 	}
@@ -237,7 +283,7 @@ func (s *Designate) GetLastDesignatedHash(d *dao.Simple, r noderoles.Role) (util
 	if !s.isValidRole(r) {
 		return util.Uint160{}, ErrInvalidRole
 	}
-	cache := d.Store.GetCache(s.ID).(*DesignationCache)
+	cache := d.Store.GetROCache(s.ID).(*DesignationCache)
 	if !rolesChanged(cache) {
 		if val := getCachedRoleData(cache, r); val != nil {
 			return val.addr, nil
@@ -256,7 +302,7 @@ func (s *Designate) GetDesignatedByRole(d *dao.Simple, r noderoles.Role, index u
 	if !s.isValidRole(r) {
 		return nil, 0, ErrInvalidRole
 	}
-	cache := d.Store.GetCache(s.ID).(*DesignationCache)
+	cache := d.Store.GetROCache(s.ID).(*DesignationCache)
 	if !rolesChanged(cache) {
 		if val := getCachedRoleData(cache, r); val != nil && val.height <= index {
 			return val.nodes.Copy(), val.height, nil
@@ -335,7 +381,7 @@ func (s *Designate) DesignateAsRole(ic *interop.Context, r noderoles.Role, pubs 
 	}
 	sort.Sort(pubs)
 	nl := NodeList(pubs)
-	ic.DAO.Store.GetCache(s.ID).(*DesignationCache).rolesChangedFlag.Store(true)
+	ic.DAO.Store.GetRWCache(s.ID).(*DesignationCache).rolesChangedFlag.Store(true)
 	err := putConvertibleToDAO(s.ID, ic.DAO, key, &nl)
 	if err != nil {
 		return err
