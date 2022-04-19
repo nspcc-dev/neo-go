@@ -47,8 +47,7 @@ type Oracle struct {
 }
 
 type OracleCache struct {
-	requestPrice        int64
-	requestPriceChanged bool
+	requestPrice int64
 }
 
 const (
@@ -159,11 +158,6 @@ func (o *Oracle) OnPersist(ic *interop.Context) error {
 // PostPersist represents `postPersist` method.
 func (o *Oracle) PostPersist(ic *interop.Context) error {
 	p := o.getPriceInternal(ic.DAO)
-	cache := ic.DAO.Store.GetRWCache(o.ID).(*OracleCache)
-	if cache.requestPriceChanged {
-		cache.requestPrice = p
-		cache.requestPriceChanged = false
-	}
 
 	var nodes keys.PublicKeys
 	var reward []big.Int
@@ -238,9 +232,9 @@ func (o *Oracle) Initialize(ic *interop.Context) error {
 	setIntWithKey(o.ID, ic.DAO, prefixRequestID, 0)
 	setIntWithKey(o.ID, ic.DAO, prefixRequestPrice, DefaultOracleRequestPrice)
 
-	cache := &OracleCache{}
-	cache.requestPrice = int64(DefaultOracleRequestPrice)
-	cache.requestPriceChanged = false
+	cache := &OracleCache{
+		requestPrice: int64(DefaultOracleRequestPrice),
+	}
 	ic.DAO.Store.SetCache(o.ID, cache)
 	return nil
 }
@@ -248,7 +242,6 @@ func (o *Oracle) Initialize(ic *interop.Context) error {
 func (o *Oracle) InitializeCache(d *dao.Simple) {
 	cache := &OracleCache{}
 	cache.requestPrice = getIntWithKey(o.ID, d, prefixRequestPrice)
-	cache.requestPriceChanged = false
 	d.Store.SetCache(o.ID, cache)
 }
 
@@ -467,10 +460,7 @@ func (o *Oracle) getPrice(ic *interop.Context, _ []stackitem.Item) stackitem.Ite
 
 func (o *Oracle) getPriceInternal(d *dao.Simple) int64 {
 	cache := d.Store.GetROCache(o.ID).(*OracleCache)
-	if !cache.requestPriceChanged {
-		return cache.requestPrice
-	}
-	return getIntWithKey(o.ID, d, prefixRequestPrice)
+	return cache.requestPrice
 }
 
 func (o *Oracle) setPrice(ic *interop.Context, args []stackitem.Item) stackitem.Item {
@@ -483,7 +473,7 @@ func (o *Oracle) setPrice(ic *interop.Context, args []stackitem.Item) stackitem.
 	}
 	setIntWithKey(o.ID, ic.DAO, prefixRequestPrice, price.Int64())
 	cache := ic.DAO.Store.GetRWCache(o.ID).(*OracleCache)
-	cache.requestPriceChanged = true
+	cache.requestPrice = price.Int64()
 	return stackitem.Null{}
 }
 

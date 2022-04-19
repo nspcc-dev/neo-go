@@ -28,8 +28,12 @@ func newOracleClient(t *testing.T) *neotest.ContractInvoker {
 	return newNativeClient(t, nativenames.Oracle)
 }
 
-func TestGetSetPrice(t *testing.T) {
+func TestOracle_GetSetPrice(t *testing.T) {
 	testGetSet(t, newOracleClient(t), "Price", native.DefaultOracleRequestPrice, 1, math.MaxInt64)
+}
+
+func TestOracle_GetSetPriceCache(t *testing.T) {
+	testGetSetCache(t, newOracleClient(t), "Price", native.DefaultOracleRequestPrice)
 }
 
 func putOracleRequest(t *testing.T, oracleInvoker *neotest.ContractInvoker,
