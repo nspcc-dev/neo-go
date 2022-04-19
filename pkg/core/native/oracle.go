@@ -96,19 +96,6 @@ func (c *OracleCache) Copy() storage.NativeContractCache {
 	return cp
 }
 
-// Persist implements NativeContractCache interface.
-func (c *OracleCache) Persist(ps storage.NativeContractCache) (storage.NativeContractCache, error) {
-	if ps == nil {
-		ps = &OracleCache{}
-	}
-	psCache, ok := ps.(*OracleCache)
-	if !ok {
-		return nil, errors.New("not an Oracle native cache")
-	}
-	copyOracleCache(c, psCache)
-	return psCache, nil
-}
-
 func copyOracleCache(src, dst *OracleCache) {
 	*dst = *src
 }

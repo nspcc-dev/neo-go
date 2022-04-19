@@ -3,7 +3,6 @@ package storage
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"sort"
 	"strings"
 	"sync"
@@ -33,9 +32,6 @@ type NativeContractCache interface {
 	// Copy returns a copy of native cache item that can safely be changed within
 	// the subsequent DAO operations.
 	Copy() NativeContractCache
-	// Persist persists changes from upper native cache wrapper to the underlying
-	// native cache `ps`. The resulting up-to-date cache and an error are returned.
-	Persist(ps NativeContractCache) (NativeContractCache, error)
 }
 
 type (
@@ -369,11 +365,7 @@ func (s *MemCachedStore) persist(isSync bool) (int, error) {
 		s.stor = nil
 		if cached, ok := s.ps.(*MemCachedStore); ok {
 			for id, nativeCache := range s.nativeCache {
-				updatedCache, err := nativeCache.Persist(cached.nativeCache[id])
-				if err != nil {
-					return 0, fmt.Errorf("failed to persist native cache changes for private MemCachedStore: %w", err)
-				}
-				cached.nativeCache[id] = updatedCache
+				cached.nativeCache[id] = nativeCache
 			}
 			s.nativeCache = nil
 		}
@@ -411,12 +403,7 @@ func (s *MemCachedStore) persist(isSync bool) (int, error) {
 	if isPSCached {
 		cached.nativeCacheLock.Lock()
 		for id, nativeCache := range tempstore.nativeCache {
-			updatedCache, err := nativeCache.Persist(cached.nativeCache[id])
-			if err != nil {
-				cached.nativeCacheLock.Unlock()
-				return 0, fmt.Errorf("failed to persist native cache changes: %w", err)
-			}
-			cached.nativeCache[id] = updatedCache
+			cached.nativeCache[id] = nativeCache
 		}
 		cached.nativeCacheLock.Unlock()
 	}
@@ -442,11 +429,7 @@ func (s *MemCachedStore) persist(isSync bool) (int, error) {
 		}
 		if isPSCached {
 			for id, nativeCache := range s.nativeCache {
-				updatedCache, err := nativeCache.Persist(tempstore.nativeCache[id])
-				if err != nil {
-					return 0, fmt.Errorf("failed to persist native cache changes: %w", err)
-				}
-				tempstore.nativeCache[id] = updatedCache
+				tempstore.nativeCache[id] = nativeCache
 			}
 			s.nativeCache = tempstore.nativeCache
 		}

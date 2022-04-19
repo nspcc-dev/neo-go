@@ -1,7 +1,6 @@
 package native
 
 import (
-	"errors"
 	"fmt"
 	"math/big"
 	"sort"
@@ -77,19 +76,6 @@ func (c *PolicyCache) Copy() storage.NativeContractCache {
 	cp := &PolicyCache{}
 	copyPolicyCache(c, cp)
 	return cp
-}
-
-// Persist implements NativeContractCache interface.
-func (c *PolicyCache) Persist(ps storage.NativeContractCache) (storage.NativeContractCache, error) {
-	if ps == nil {
-		ps = &PolicyCache{}
-	}
-	psCache, ok := ps.(*PolicyCache)
-	if !ok {
-		return nil, errors.New("not a Policy native cache")
-	}
-	copyPolicyCache(c, psCache)
-	return psCache, nil
 }
 
 func copyPolicyCache(src, dst *PolicyCache) {

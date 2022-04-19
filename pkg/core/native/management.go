@@ -84,21 +84,6 @@ func (c *ManagementCache) Copy() storage.NativeContractCache {
 	return cp
 }
 
-// Persist implements NativeContractCache interface.
-func (c *ManagementCache) Persist(ps storage.NativeContractCache) (storage.NativeContractCache, error) {
-	if ps == nil {
-		ps = &ManagementCache{}
-	}
-	psCache, ok := ps.(*ManagementCache)
-	if !ok {
-		return nil, errors.New("not a Management native cache")
-	}
-	psCache.contracts = c.contracts
-	psCache.nep17 = c.nep17
-	psCache.nep11 = c.nep11
-	return psCache, nil
-}
-
 // MakeContractKey creates a key from account script hash.
 func MakeContractKey(h util.Uint160) []byte {
 	return makeUint160Key(prefixContract, h)

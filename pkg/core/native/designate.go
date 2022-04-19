@@ -87,19 +87,6 @@ func (c *DesignationCache) Copy() storage.NativeContractCache {
 	return cp
 }
 
-// Persist implements NativeContractCache interface.
-func (c *DesignationCache) Persist(ps storage.NativeContractCache) (storage.NativeContractCache, error) {
-	if ps == nil {
-		ps = &DesignationCache{}
-	}
-	psCache, ok := ps.(*DesignationCache)
-	if !ok {
-		return nil, errors.New("not a Designation native cache")
-	}
-	copyDesignationCache(c, psCache)
-	return psCache, nil
-}
-
 func copyDesignationCache(src, dst *DesignationCache) {
 	*dst = *src
 }

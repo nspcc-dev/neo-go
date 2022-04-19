@@ -119,19 +119,6 @@ func (c *NeoCache) Copy() storage.NativeContractCache {
 	return cp
 }
 
-// Persist implements NativeContractCache interface.
-func (c *NeoCache) Persist(ps storage.NativeContractCache) (storage.NativeContractCache, error) {
-	if ps == nil {
-		ps = &NeoCache{}
-	}
-	psCache, ok := ps.(*NeoCache)
-	if !ok {
-		return nil, errors.New("not a NEO native cache")
-	}
-	copyNeoCache(c, psCache)
-	return psCache, nil
-}
-
 func copyNeoCache(src, dst *NeoCache) {
 	dst.votesChanged = src.votesChanged
 	dst.nextValidators = src.nextValidators.Copy()

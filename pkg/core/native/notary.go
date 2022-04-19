@@ -68,19 +68,6 @@ func (c *NotaryCache) Copy() storage.NativeContractCache {
 	return cp
 }
 
-// Persist implements NativeContractCache interface.
-func (c *NotaryCache) Persist(ps storage.NativeContractCache) (storage.NativeContractCache, error) {
-	if ps == nil {
-		ps = &NotaryCache{}
-	}
-	psCache, ok := ps.(*NotaryCache)
-	if !ok {
-		return nil, errors.New("not a Notary native cache")
-	}
-	copyNotaryCache(c, psCache)
-	return psCache, nil
-}
-
 func copyNotaryCache(src, dst *NotaryCache) {
 	*dst = *src
 }
