@@ -5,8 +5,15 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/noderoles"
+	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/neotest"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
+	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
+	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/stretchr/testify/require"
 )
 
@@ -44,4 +51,89 @@ func TestDesignate_DesignateAsRole(t *testing.T) {
 		setNodesByRole(t, designateInvoker, true, noderoles.NeoFSAlphabet, pubs)
 		checkNodeRoles(t, designateInvoker, true, noderoles.NeoFSAlphabet, e.Chain.BlockHeight()+1, pubs)
 	})
+}
+
+type dummyOracle struct {
+	updateNodes func(k keys.PublicKeys)
+}
+
+// AddRequests processes new requests.
+func (o *dummyOracle) AddRequests(map[uint64]*state.OracleRequest) {
+}
+
+// RemoveRequests removes already processed requests.
+func (o *dummyOracle) RemoveRequests([]uint64) {
+	panic("TODO")
+}
+
+// UpdateOracleNodes updates oracle nodes.
+func (o *dummyOracle) UpdateOracleNodes(k keys.PublicKeys) {
+	if o.updateNodes != nil {
+		o.updateNodes(k)
+		return
+	}
+	panic("TODO")
+}
+
+// UpdateNativeContract updates oracle contract native script and hash.
+func (o *dummyOracle) UpdateNativeContract([]byte, []byte, util.Uint160, int) {
+}
+
+// Start runs oracle module.
+func (o *dummyOracle) Start() {
+	panic("TODO")
+}
+
+// Shutdown shutdowns oracle module.
+func (o *dummyOracle) Shutdown() {
+	panic("TODO")
+}
+
+func TestDesignate_Cache(t *testing.T) {
+	c := newDesignateClient(t)
+	e := c.Executor
+	designateInvoker := c.WithSigners(c.Committee)
+	r := int64(noderoles.Oracle)
+	var (
+		updatedNodes keys.PublicKeys
+		updateCalled bool
+	)
+	oracleServ := &dummyOracle{
+		updateNodes: func(k keys.PublicKeys) {
+			updatedNodes = k
+			updateCalled = true
+		},
+	}
+	privGood, err := keys.NewPrivateKey()
+	require.NoError(t, err)
+	pubsGood := []interface{}{privGood.PublicKey().Bytes()}
+
+	privBad, err := keys.NewPrivateKey()
+	require.NoError(t, err)
+	pubsBad := []interface{}{privBad.PublicKey().Bytes()}
+
+	// Firstly, designate good Oracle node and check that OracleService callback was called during PostPersist.
+	e.Chain.SetOracle(oracleServ)
+	txDesignateGood := designateInvoker.PrepareInvoke(t, "designateAsRole", r, pubsGood)
+	e.AddNewBlock(t, txDesignateGood)
+	e.CheckHalt(t, txDesignateGood.Hash(), stackitem.Null{})
+	require.True(t, updateCalled)
+	require.Equal(t, keys.PublicKeys{privGood.PublicKey()}, updatedNodes)
+	updatedNodes = nil
+	updateCalled = false
+
+	// Check designated node in a separate block.
+	checkNodeRoles(t, designateInvoker, true, noderoles.Oracle, e.Chain.BlockHeight()+1, keys.PublicKeys{privGood.PublicKey()})
+
+	// Designate privBad as oracle node and abort the transaction. Designation cache changes
+	// shouldn't be persisted to the contract and no notification should be sent.
+	w := io.NewBufBinWriter()
+	emit.AppCall(w.BinWriter, designateInvoker.Hash, "designateAsRole", callflag.All, int64(r), pubsBad)
+	emit.Opcodes(w.BinWriter, opcode.ABORT)
+	require.NoError(t, w.Err)
+	script := w.Bytes()
+
+	designateInvoker.InvokeScriptCheckFAULT(t, script, designateInvoker.Signers, "ABORT")
+	require.Nil(t, updatedNodes)
+	require.False(t, updateCalled)
 }

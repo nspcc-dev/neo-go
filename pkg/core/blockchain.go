@@ -594,7 +594,10 @@ func (bc *Blockchain) initializeNativeCache(d *dao.Simple) error {
 	if err != nil {
 		return fmt.Errorf("can't init cache for Management native contract: %w", err)
 	}
-	bc.contracts.Designate.InitializeCache(d)
+	err = bc.contracts.Designate.InitializeCache(d)
+	if err != nil {
+		return fmt.Errorf("can't init cache for Designation native contract: %w", err)
+	}
 	bc.contracts.Oracle.InitializeCache(d)
 	if bc.P2PSigExtensionsEnabled() {
 		err = bc.contracts.Notary.InitializeCache(d)
