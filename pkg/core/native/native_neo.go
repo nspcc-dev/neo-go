@@ -877,7 +877,7 @@ func (n *NEO) getCandidates(d *dao.Simple, sortByKey bool) ([]keyWithVotes, erro
 	d.Seek(n.ID, storage.SeekRange{Prefix: []byte{prefixCandidate}}, func(k, v []byte) bool {
 		c := new(candidate).FromBytes(v)
 		emit.CheckSig(buf.BinWriter, k)
-		if c.Registered && !n.Policy.IsBlockedInternal(d, hash.Hash160(buf.Bytes())) {
+		if c.Registered && !n.Policy.IsBlocked(d, hash.Hash160(buf.Bytes())) {
 			arr = append(arr, keyWithVotes{Key: string(k), Votes: &c.Votes})
 		}
 		buf.Reset()

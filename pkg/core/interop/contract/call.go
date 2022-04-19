@@ -18,7 +18,7 @@ import (
 )
 
 type policyChecker interface {
-	IsBlockedInternal(*dao.Simple, util.Uint160) bool
+	IsBlocked(*dao.Simple, util.Uint160) bool
 }
 
 // LoadToken calls method specified by token id.
@@ -97,7 +97,7 @@ func callExFromNative(ic *interop.Context, caller util.Uint160, cs *state.Contra
 	for _, nc := range ic.Natives {
 		if nc.Metadata().Name == nativenames.Policy {
 			var pch = nc.(policyChecker)
-			if pch.IsBlockedInternal(ic.DAO, cs.Hash) {
+			if pch.IsBlocked(ic.DAO, cs.Hash) {
 				return fmt.Errorf("contract %s is blocked", cs.Hash.StringLE())
 			}
 			break
