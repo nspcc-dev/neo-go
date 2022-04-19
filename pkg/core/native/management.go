@@ -174,20 +174,8 @@ func (m *Management) GetContract(d *dao.Simple, hash util.Uint160) (*state.Contr
 	cs, ok := cache.contracts[hash]
 	if !ok {
 		return nil, storage.ErrKeyNotFound
-	} else if cs != nil {
-		return cs, nil
 	}
-	return m.getContractFromDAO(d, hash)
-}
-
-func (m *Management) getContractFromDAO(d *dao.Simple, hash util.Uint160) (*state.Contract, error) {
-	contract := new(state.Contract)
-	key := MakeContractKey(hash)
-	err := getConvertibleFromDAO(m.ID, d, key, contract)
-	if err != nil {
-		return nil, err
-	}
-	return contract, nil
+	return cs, nil
 }
 
 func getLimitedSlice(arg stackitem.Item, max int) ([]byte, error) {
@@ -283,10 +271,15 @@ func (m *Management) deployWithData(ic *interop.Context, args []stackitem.Item) 
 	return contractToStack(newcontract)
 }
 
-func (m *Management) markUpdated(d *dao.Simple, h util.Uint160) {
+func (m *Management) markUpdated(d *dao.Simple, hash util.Uint160, cs *state.Contract) {
 	cache := d.Store.GetRWCache(m.ID).(*ManagementCache)
-	// Just set it to nil, to refresh cache in `PostPersist`.
-	cache.contracts[h] = nil
+	delete(cache.nep11, hash)
+	delete(cache.nep17, hash)
+	if cs == nil {
+		delete(cache.contracts, hash)
+		return
+	}
+	updateContractCache(cache, cs)
 }
 
 // Deploy creates contract's hash/ID and saves new contract into the given DAO.
@@ -322,7 +315,6 @@ func (m *Management) Deploy(d *dao.Simple, sender util.Uint160, neff *nef.File, 
 	if err != nil {
 		return nil, err
 	}
-	m.markUpdated(d, newcontract.Hash)
 	return newcontract, nil
 }
 
@@ -362,7 +354,6 @@ func (m *Management) Update(d *dao.Simple, hash util.Uint160, neff *nef.File, ma
 	contract = *oldcontract // Make a copy, don't ruin (potentially) cached contract.
 	// if NEF was provided, update the contract script
 	if neff != nil {
-		m.markUpdated(d, hash)
 		contract.NEF = *neff
 	}
 	// if manifest was provided, update the contract manifest
@@ -374,7 +365,6 @@ func (m *Management) Update(d *dao.Simple, hash util.Uint160, neff *nef.File, ma
 		if err != nil {
 			return nil, fmt.Errorf("invalid manifest: %w", err)
 		}
-		m.markUpdated(d, hash)
 		contract.Manifest = *manif
 	}
 	err = checkScriptAndMethods(contract.NEF.Script, contract.Manifest.ABI.Methods)
@@ -415,7 +405,7 @@ func (m *Management) Destroy(d *dao.Simple, hash util.Uint160) error {
 		d.DeleteStorageItem(contract.ID, k)
 		return true
 	})
-	m.markUpdated(d, hash)
+	m.markUpdated(d, hash, nil)
 	return nil
 }
 
@@ -492,7 +482,7 @@ func (m *Management) OnPersist(ic *interop.Context) error {
 		if err := native.Initialize(ic); err != nil {
 			return fmt.Errorf("initializing %s native contract: %w", md.Name, err)
 		}
-		err := m.PutContractState(ic.DAO, cs)
+		err := m.putContractState(ic.DAO, cs, false) // Perform cache update manually.
 		if err != nil {
 			return err
 		}
@@ -534,21 +524,6 @@ func (m *Management) InitializeCache(d *dao.Simple) error {
 
 // PostPersist implements Contract interface.
 func (m *Management) PostPersist(ic *interop.Context) error {
-	cache := ic.DAO.Store.GetRWCache(m.ID).(*ManagementCache)
-	for h, cs := range cache.contracts {
-		if cs != nil {
-			continue
-		}
-		delete(cache.nep11, h)
-		delete(cache.nep17, h)
-		newCs, err := m.getContractFromDAO(ic.DAO, h)
-		if err != nil {
-			// Contract was destroyed.
-			delete(cache.contracts, h)
-			continue
-		}
-		updateContractCache(cache, newCs)
-	}
 	return nil
 }
 
@@ -592,11 +567,18 @@ func (m *Management) Initialize(ic *interop.Context) error {
 
 // PutContractState saves given contract state into given DAO.
 func (m *Management) PutContractState(d *dao.Simple, cs *state.Contract) error {
+	return m.putContractState(d, cs, true)
+}
+
+// putContractState is an internal PutContractState representation.
+func (m *Management) putContractState(d *dao.Simple, cs *state.Contract, updateCache bool) error {
 	key := MakeContractKey(cs.Hash)
 	if err := putConvertibleToDAO(m.ID, d, key, cs); err != nil {
 		return err
 	}
-	m.markUpdated(d, cs.Hash)
+	if updateCache {
+		m.markUpdated(d, cs.Hash, cs)
+	}
 	if cs.UpdateCounter != 0 { // Update.
 		return nil
 	}
