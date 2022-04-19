@@ -104,7 +104,12 @@ func testGetSetCache(t *testing.T, c *neotest.ContractInvoker, name string, defa
 	tx2 = committeeInvoker.PrepareInvoke(t, getName)
 	committeeInvoker.AddNewBlock(t, tx1, tx2)
 	committeeInvoker.CheckHalt(t, tx1.Hash())
-	committeeInvoker.CheckHalt(t, tx2.Hash(), stackitem.Make(newVal))
+	if name != "GasPerBlock" {
+		committeeInvoker.CheckHalt(t, tx2.Hash(), stackitem.Make(newVal))
+	} else {
+		committeeInvoker.CheckHalt(t, tx2.Hash(), stackitem.Make(defaultValue))
+		committeeInvoker.Invoke(t, newVal, getName)
+	}
 }
 
 func setNodesByRole(t *testing.T, designateInvoker *neotest.ContractInvoker, ok bool, r noderoles.Role, nodes keys.PublicKeys) {

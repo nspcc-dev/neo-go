@@ -41,10 +41,8 @@ type NEO struct {
 }
 
 type NeoCache struct {
-	// gasPerBlock represents current value of generated gas per block.
-	// It is append-only and doesn't need to be copied when used.
-	gasPerBlock        gasRecord
-	gasPerBlockChanged bool
+	// gasPerBlock represents the history of generated gas per block.
+	gasPerBlock gasRecord
 
 	registerPrice        int64
 	registerPriceChanged bool
@@ -131,7 +129,9 @@ func copyNeoCache(src, dst *NeoCache) {
 	dst.registerPriceChanged = src.registerPriceChanged
 	dst.registerPrice = src.registerPrice
 
-	dst.gasPerBlockChanged = src.gasPerBlockChanged
+	// Can't omit copying because gasPerBlock is append-only, thus to be able to
+	// discard cache changes in case of FAULTed transaction we need a separate
+	// container for updated gasPerBlock values.
 	dst.gasPerBlock = make(gasRecord, len(src.gasPerBlock))
 	copy(dst.gasPerBlock, src.gasPerBlock)
 
@@ -271,7 +271,6 @@ func (n *NEO) Initialize(ic *interop.Context) error {
 
 	gr := &gasRecord{{Index: index, GASPerBlock: *value}}
 	cache.gasPerBlock = *gr
-	cache.gasPerBlockChanged = false
 	ic.DAO.PutStorageItem(n.ID, []byte{prefixVotersCount}, state.StorageItem{})
 
 	setIntWithKey(n.ID, ic.DAO, []byte{prefixRegisterPrice}, DefaultRegisterPrice)
@@ -301,7 +300,6 @@ func (n *NEO) InitializeCache(bc interop.Ledger, d *dao.Simple) error {
 	}
 
 	cache.gasPerBlock = n.getSortedGASRecordFromDAO(d)
-	cache.gasPerBlockChanged = false
 
 	d.Store.SetCache(n.ID, cache)
 	return nil
@@ -416,10 +414,6 @@ func (n *NEO) PostPersist(ic *interop.Context) error {
 				ic.DAO.PutStorageItem(n.ID, key, bigint.ToBytes(tmp))
 			}
 		}
-	}
-	if cache.gasPerBlockChanged {
-		cache.gasPerBlock = n.getSortedGASRecordFromDAO(ic.DAO)
-		cache.gasPerBlockChanged = false
 	}
 
 	if cache.registerPriceChanged {
@@ -549,19 +543,14 @@ func (n *NEO) getSortedGASRecordFromDAO(d *dao.Simple) gasRecord {
 // GetGASPerBlock returns gas generated for block with provided index.
 func (n *NEO) GetGASPerBlock(d *dao.Simple, index uint32) *big.Int {
 	cache := d.Store.GetROCache(n.ID).(*NeoCache)
-	var gr gasRecord
-	if cache.gasPerBlockChanged {
-		gr = n.getSortedGASRecordFromDAO(d)
-	} else {
-		gr = cache.gasPerBlock
-	}
+	gr := cache.gasPerBlock
 	for i := len(gr) - 1; i >= 0; i-- {
 		if gr[i].Index <= index {
 			g := gr[i].GASPerBlock
 			return &g
 		}
 	}
-	panic("contract not initialized")
+	panic("NEO cache not initialized")
 }
 
 // GetCommitteeAddress returns address of the committee.
@@ -595,9 +584,12 @@ func (n *NEO) SetGASPerBlock(ic *interop.Context, index uint32, gas *big.Int) er
 	if !n.checkCommittee(ic) {
 		return errors.New("invalid committee signature")
 	}
-	cache := ic.DAO.Store.GetRWCache(n.ID).(*NeoCache)
-	cache.gasPerBlockChanged = true
 	n.putGASRecord(ic.DAO, index, gas)
+	cache := ic.DAO.Store.GetRWCache(n.ID).(*NeoCache)
+	cache.gasPerBlock = append(cache.gasPerBlock, gasIndexPair{
+		Index:       index,
+		GASPerBlock: *gas,
+	})
 	return nil
 }
 
@@ -693,13 +685,8 @@ func (n *NEO) CalculateNEOHolderReward(d *dao.Simple, value *big.Int, start, end
 	} else if value.Sign() < 0 {
 		return nil, errors.New("negative value")
 	}
-	var gr gasRecord
 	cache := d.Store.GetROCache(n.ID).(*NeoCache)
-	if !cache.gasPerBlockChanged {
-		gr = cache.gasPerBlock
-	} else {
-		gr = n.getSortedGASRecordFromDAO(d)
-	}
+	gr := cache.gasPerBlock
 	var sum, tmp big.Int
 	for i := len(gr) - 1; i >= 0; i-- {
 		if gr[i].Index >= end {
