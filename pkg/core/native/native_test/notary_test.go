@@ -32,9 +32,19 @@ func TestNotary_MaxNotValidBeforeDelta(t *testing.T) {
 	testGetSet(t, c, "MaxNotValidBeforeDelta", 140, int64(c.Chain.GetConfig().ValidatorsCount), int64(c.Chain.GetConfig().MaxValidUntilBlockIncrement/2))
 }
 
+func TestNotary_MaxNotValidBeforeDeltaCache(t *testing.T) {
+	c := newNotaryClient(t)
+	testGetSetCache(t, c, "MaxNotValidBeforeDelta", 140)
+}
+
 func TestNotary_NotaryServiceFeePerKey(t *testing.T) {
 	c := newNotaryClient(t)
 	testGetSet(t, c, "NotaryServiceFeePerKey", 1000_0000, 0, 0)
+}
+
+func TestNotary_NotaryServiceFeePerKeyCache(t *testing.T) {
+	c := newNotaryClient(t)
+	testGetSetCache(t, c, "NotaryServiceFeePerKey", 1000_0000)
 }
 
 func TestNotary_Pipeline(t *testing.T) {

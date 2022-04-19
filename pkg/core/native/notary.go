@@ -34,10 +34,6 @@ type Notary struct {
 }
 
 type NotaryCache struct {
-	// isValid defies whether cached values were changed during the current
-	// consensus iteration. If false, these values will be updated after
-	// blockchain DAO persisting. If true, we can safely use cached values.
-	isValid                bool
 	maxNotValidBeforeDelta uint32
 	notaryServiceFeePerKey int64
 }
@@ -143,7 +139,6 @@ func (n *Notary) Initialize(ic *interop.Context) error {
 	setIntWithKey(n.ID, ic.DAO, notaryServiceFeeKey, defaultNotaryServiceFeePerKey)
 
 	cache := &NotaryCache{
-		isValid:                true,
 		maxNotValidBeforeDelta: defaultMaxNotValidBeforeDelta,
 		notaryServiceFeePerKey: defaultNotaryServiceFeePerKey,
 	}
@@ -152,10 +147,10 @@ func (n *Notary) Initialize(ic *interop.Context) error {
 }
 
 func (n *Notary) InitializeCache(d *dao.Simple) error {
-	cache := &NotaryCache{isValid: true}
-
-	cache.maxNotValidBeforeDelta = uint32(getIntWithKey(n.ID, d, maxNotValidBeforeDeltaKey))
-	cache.notaryServiceFeePerKey = getIntWithKey(n.ID, d, notaryServiceFeeKey)
+	cache := &NotaryCache{
+		maxNotValidBeforeDelta: uint32(getIntWithKey(n.ID, d, maxNotValidBeforeDeltaKey)),
+		notaryServiceFeePerKey: getIntWithKey(n.ID, d, notaryServiceFeeKey),
+	}
 
 	d.Store.SetCache(n.ID, cache)
 	return nil
@@ -206,14 +201,6 @@ func (n *Notary) OnPersist(ic *interop.Context) error {
 
 // PostPersist implements Contract interface.
 func (n *Notary) PostPersist(ic *interop.Context) error {
-	cache := ic.DAO.Store.GetRWCache(n.ID).(*NotaryCache)
-	if cache.isValid {
-		return nil
-	}
-
-	cache.maxNotValidBeforeDelta = uint32(getIntWithKey(n.ID, ic.DAO, maxNotValidBeforeDeltaKey))
-	cache.notaryServiceFeePerKey = getIntWithKey(n.ID, ic.DAO, notaryServiceFeeKey)
-	cache.isValid = true
 	return nil
 }
 
@@ -421,10 +408,7 @@ func (n *Notary) getMaxNotValidBeforeDelta(ic *interop.Context, _ []stackitem.It
 // GetMaxNotValidBeforeDelta is an internal representation of Notary getMaxNotValidBeforeDelta method.
 func (n *Notary) GetMaxNotValidBeforeDelta(dao *dao.Simple) uint32 {
 	cache := dao.Store.GetROCache(n.ID).(*NotaryCache)
-	if cache.isValid {
-		return cache.maxNotValidBeforeDelta
-	}
-	return uint32(getIntWithKey(n.ID, dao, maxNotValidBeforeDeltaKey))
+	return cache.maxNotValidBeforeDelta
 }
 
 // setMaxNotValidBeforeDelta is Notary contract method and sets the maximum NotValidBefore delta.
@@ -438,9 +422,9 @@ func (n *Notary) setMaxNotValidBeforeDelta(ic *interop.Context, args []stackitem
 	if !n.NEO.checkCommittee(ic) {
 		panic("invalid committee signature")
 	}
-	cache := ic.DAO.Store.GetRWCache(n.ID).(*NotaryCache)
 	setIntWithKey(n.ID, ic.DAO, maxNotValidBeforeDeltaKey, int64(value))
-	cache.isValid = false
+	cache := ic.DAO.Store.GetRWCache(n.ID).(*NotaryCache)
+	cache.maxNotValidBeforeDelta = value
 	return stackitem.Null{}
 }
 
@@ -452,10 +436,7 @@ func (n *Notary) getNotaryServiceFeePerKey(ic *interop.Context, _ []stackitem.It
 // GetNotaryServiceFeePerKey is an internal representation of Notary getNotaryServiceFeePerKey method.
 func (n *Notary) GetNotaryServiceFeePerKey(dao *dao.Simple) int64 {
 	cache := dao.Store.GetROCache(n.ID).(*NotaryCache)
-	if cache.isValid {
-		return cache.notaryServiceFeePerKey
-	}
-	return getIntWithKey(n.ID, dao, notaryServiceFeeKey)
+	return cache.notaryServiceFeePerKey
 }
 
 // setNotaryServiceFeePerKey is Notary contract method and sets a reward per notary request key for notary nodes.
@@ -467,9 +448,9 @@ func (n *Notary) setNotaryServiceFeePerKey(ic *interop.Context, args []stackitem
 	if !n.NEO.checkCommittee(ic) {
 		panic("invalid committee signature")
 	}
-	cache := ic.DAO.Store.GetRWCache(n.ID).(*NotaryCache)
 	setIntWithKey(n.ID, ic.DAO, notaryServiceFeeKey, int64(value))
-	cache.isValid = false
+	cache := ic.DAO.Store.GetRWCache(n.ID).(*NotaryCache)
+	cache.notaryServiceFeePerKey = value
 	return stackitem.Null{}
 }
 
