@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"math"
 	"math/big"
-	"sync"
 	"unicode/utf8"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
@@ -33,7 +32,6 @@ type Management struct {
 }
 
 type ManagementCache struct {
-	mtx       sync.RWMutex
 	contracts map[util.Uint160]*state.Contract
 	// nep11 is a map of NEP11-compliant contracts which is updated with every PostPersist.
 	nep11 map[util.Uint160]struct{}
@@ -188,9 +186,7 @@ func (m *Management) getContract(ic *interop.Context, args []stackitem.Item) sta
 // GetContract returns contract with given hash from given DAO.
 func (m *Management) GetContract(d *dao.Simple, hash util.Uint160) (*state.Contract, error) {
 	cache := d.Store.GetROCache(m.ID).(*ManagementCache)
-	cache.mtx.RLock()
 	cs, ok := cache.contracts[hash]
-	cache.mtx.RUnlock()
 	if !ok {
 		return nil, storage.ErrKeyNotFound
 	} else if cs != nil {
@@ -304,10 +300,8 @@ func (m *Management) deployWithData(ic *interop.Context, args []stackitem.Item) 
 
 func (m *Management) markUpdated(d *dao.Simple, h util.Uint160) {
 	cache := d.Store.GetRWCache(m.ID).(*ManagementCache)
-	cache.mtx.Lock()
 	// Just set it to nil, to refresh cache in `PostPersist`.
 	cache.contracts[h] = nil
-	cache.mtx.Unlock()
 }
 
 // Deploy creates contract's hash/ID and saves new contract into the given DAO.
@@ -520,9 +514,7 @@ func (m *Management) OnPersist(ic *interop.Context) error {
 		if cache == nil {
 			cache = ic.DAO.Store.GetRWCache(m.ID).(*ManagementCache)
 		}
-		cache.mtx.Lock()
 		updateContractCache(cache, cs)
-		cache.mtx.Unlock()
 	}
 
 	return nil
@@ -558,8 +550,6 @@ func (m *Management) InitializeCache(d *dao.Simple) error {
 // PostPersist implements Contract interface.
 func (m *Management) PostPersist(ic *interop.Context) error {
 	cache := ic.DAO.Store.GetRWCache(m.ID).(*ManagementCache)
-	cache.mtx.Lock()
-	defer cache.mtx.Unlock()
 	for h, cs := range cache.contracts {
 		if cs != nil {
 			continue
@@ -582,12 +572,10 @@ func (m *Management) PostPersist(ic *interop.Context) error {
 // is returned.
 func (m *Management) GetNEP11Contracts(d *dao.Simple) []util.Uint160 {
 	cache := d.Store.GetROCache(m.ID).(*ManagementCache)
-	cache.mtx.RLock()
 	result := make([]util.Uint160, 0, len(cache.nep11))
 	for h := range cache.nep11 {
 		result = append(result, h)
 	}
-	cache.mtx.RUnlock()
 	return result
 }
 
@@ -596,12 +584,10 @@ func (m *Management) GetNEP11Contracts(d *dao.Simple) []util.Uint160 {
 // is returned.
 func (m *Management) GetNEP17Contracts(d *dao.Simple) []util.Uint160 {
 	cache := d.Store.GetROCache(m.ID).(*ManagementCache)
-	cache.mtx.RLock()
 	result := make([]util.Uint160, 0, len(cache.nep17))
 	for h := range cache.nep17 {
 		result = append(result, h)
 	}
-	cache.mtx.RUnlock()
 	return result
 }
 

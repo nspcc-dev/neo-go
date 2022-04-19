@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"math"
 	"math/big"
-	"sync"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
@@ -35,7 +34,6 @@ type Notary struct {
 }
 
 type NotaryCache struct {
-	lock sync.RWMutex
 	// isValid defies whether cached values were changed during the current
 	// consensus iteration. If false, these values will be updated after
 	// blockchain DAO persisting. If true, we can safely use cached values.
@@ -84,9 +82,7 @@ func (c *NotaryCache) Persist(ps storage.NativeContractCache) (storage.NativeCon
 }
 
 func copyNotaryCache(src, dst *NotaryCache) {
-	dst.isValid = src.isValid
-	dst.maxNotValidBeforeDelta = src.maxNotValidBeforeDelta
-	dst.notaryServiceFeePerKey = src.notaryServiceFeePerKey
+	*dst = *src
 }
 
 // newNotary returns Notary native contract.
@@ -224,8 +220,6 @@ func (n *Notary) OnPersist(ic *interop.Context) error {
 // PostPersist implements Contract interface.
 func (n *Notary) PostPersist(ic *interop.Context) error {
 	cache := ic.DAO.Store.GetRWCache(n.ID).(*NotaryCache)
-	cache.lock.Lock()
-	defer cache.lock.Unlock()
 	if cache.isValid {
 		return nil
 	}
@@ -440,8 +434,6 @@ func (n *Notary) getMaxNotValidBeforeDelta(ic *interop.Context, _ []stackitem.It
 // GetMaxNotValidBeforeDelta is an internal representation of Notary getMaxNotValidBeforeDelta method.
 func (n *Notary) GetMaxNotValidBeforeDelta(dao *dao.Simple) uint32 {
 	cache := dao.Store.GetROCache(n.ID).(*NotaryCache)
-	cache.lock.RLock()
-	defer cache.lock.RUnlock()
 	if cache.isValid {
 		return cache.maxNotValidBeforeDelta
 	}
@@ -460,8 +452,6 @@ func (n *Notary) setMaxNotValidBeforeDelta(ic *interop.Context, args []stackitem
 		panic("invalid committee signature")
 	}
 	cache := ic.DAO.Store.GetRWCache(n.ID).(*NotaryCache)
-	cache.lock.Lock()
-	defer cache.lock.Unlock()
 	setIntWithKey(n.ID, ic.DAO, maxNotValidBeforeDeltaKey, int64(value))
 	cache.isValid = false
 	return stackitem.Null{}
@@ -475,8 +465,6 @@ func (n *Notary) getNotaryServiceFeePerKey(ic *interop.Context, _ []stackitem.It
 // GetNotaryServiceFeePerKey is an internal representation of Notary getNotaryServiceFeePerKey method.
 func (n *Notary) GetNotaryServiceFeePerKey(dao *dao.Simple) int64 {
 	cache := dao.Store.GetROCache(n.ID).(*NotaryCache)
-	cache.lock.RLock()
-	defer cache.lock.RUnlock()
 	if cache.isValid {
 		return cache.notaryServiceFeePerKey
 	}
@@ -493,8 +481,6 @@ func (n *Notary) setNotaryServiceFeePerKey(ic *interop.Context, args []stackitem
 		panic("invalid committee signature")
 	}
 	cache := ic.DAO.Store.GetRWCache(n.ID).(*NotaryCache)
-	cache.lock.Lock()
-	defer cache.lock.Unlock()
 	setIntWithKey(n.ID, ic.DAO, notaryServiceFeeKey, int64(value))
 	cache.isValid = false
 	return stackitem.Null{}

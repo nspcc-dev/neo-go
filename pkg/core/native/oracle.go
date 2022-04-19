@@ -47,8 +47,8 @@ type Oracle struct {
 }
 
 type OracleCache struct {
-	requestPrice        atomic.Value
-	requestPriceChanged atomic.Value
+	requestPrice        int64
+	requestPriceChanged bool
 }
 
 const (
@@ -110,8 +110,7 @@ func (c *OracleCache) Persist(ps storage.NativeContractCache) (storage.NativeCon
 }
 
 func copyOracleCache(src, dst *OracleCache) {
-	dst.requestPrice.Store(src.requestPrice.Load())
-	dst.requestPriceChanged.Store(src.requestPriceChanged.Load())
+	*dst = *src
 }
 
 func newOracle() *Oracle {
@@ -174,9 +173,9 @@ func (o *Oracle) OnPersist(ic *interop.Context) error {
 func (o *Oracle) PostPersist(ic *interop.Context) error {
 	p := o.getPriceInternal(ic.DAO)
 	cache := ic.DAO.Store.GetRWCache(o.ID).(*OracleCache)
-	if cache.requestPriceChanged.Load().(bool) {
-		cache.requestPrice.Store(p)
-		cache.requestPriceChanged.Store(false)
+	if cache.requestPriceChanged {
+		cache.requestPrice = p
+		cache.requestPriceChanged = false
 	}
 
 	var nodes keys.PublicKeys
@@ -253,16 +252,16 @@ func (o *Oracle) Initialize(ic *interop.Context) error {
 	setIntWithKey(o.ID, ic.DAO, prefixRequestPrice, DefaultOracleRequestPrice)
 
 	cache := &OracleCache{}
-	cache.requestPrice.Store(int64(DefaultOracleRequestPrice))
-	cache.requestPriceChanged.Store(false)
+	cache.requestPrice = int64(DefaultOracleRequestPrice)
+	cache.requestPriceChanged = false
 	ic.DAO.Store.SetCache(o.ID, cache)
 	return nil
 }
 
 func (o *Oracle) InitializeCache(d *dao.Simple) {
 	cache := &OracleCache{}
-	cache.requestPrice.Store(getIntWithKey(o.ID, d, prefixRequestPrice))
-	cache.requestPriceChanged.Store(false)
+	cache.requestPrice = getIntWithKey(o.ID, d, prefixRequestPrice)
+	cache.requestPriceChanged = false
 	d.Store.SetCache(o.ID, cache)
 }
 
@@ -481,8 +480,8 @@ func (o *Oracle) getPrice(ic *interop.Context, _ []stackitem.Item) stackitem.Ite
 
 func (o *Oracle) getPriceInternal(d *dao.Simple) int64 {
 	cache := d.Store.GetROCache(o.ID).(*OracleCache)
-	if !cache.requestPriceChanged.Load().(bool) {
-		return cache.requestPrice.Load().(int64)
+	if !cache.requestPriceChanged {
+		return cache.requestPrice
 	}
 	return getIntWithKey(o.ID, d, prefixRequestPrice)
 }
@@ -497,7 +496,7 @@ func (o *Oracle) setPrice(ic *interop.Context, args []stackitem.Item) stackitem.
 	}
 	setIntWithKey(o.ID, ic.DAO, prefixRequestPrice, price.Int64())
 	cache := ic.DAO.Store.GetRWCache(o.ID).(*OracleCache)
-	cache.requestPriceChanged.Store(true)
+	cache.requestPriceChanged = true
 	return stackitem.Null{}
 }
 

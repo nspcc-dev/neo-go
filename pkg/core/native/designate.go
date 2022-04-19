@@ -48,11 +48,11 @@ type roleData struct {
 }
 
 type DesignationCache struct {
-	rolesChangedFlag atomic.Value
-	oracles          atomic.Value
-	stateVals        atomic.Value
-	neofsAlphabet    atomic.Value
-	notaries         atomic.Value
+	rolesChangedFlag bool
+	oracles          roleData
+	stateVals        roleData
+	neofsAlphabet    roleData
+	notaries         roleData
 }
 
 const (
@@ -101,24 +101,7 @@ func (c *DesignationCache) Persist(ps storage.NativeContractCache) (storage.Nati
 }
 
 func copyDesignationCache(src, dst *DesignationCache) {
-	dst.rolesChangedFlag.Store(src.rolesChangedFlag.Load())
-	for _, r := range []noderoles.Role{noderoles.StateValidator, noderoles.Oracle, noderoles.NeoFSAlphabet, noderoles.P2PNotary} {
-		data := getCachedRoleData(src, r)
-		if data != nil {
-			var v = &roleData{}
-			*v = *data
-			switch r {
-			case noderoles.StateValidator:
-				dst.stateVals.Store(v)
-			case noderoles.Oracle:
-				dst.oracles.Store(v)
-			case noderoles.NeoFSAlphabet:
-				dst.neofsAlphabet.Store(v)
-			case noderoles.P2PNotary:
-				dst.notaries.Store(v)
-			}
-		}
-	}
+	*dst = *src
 }
 
 func (s *Designate) isValidRole(r noderoles.Role) bool {
@@ -153,7 +136,7 @@ func newDesignate(p2pSigExtensionsEnabled bool) *Designate {
 // Initialize initializes Oracle contract.
 func (s *Designate) Initialize(ic *interop.Context) error {
 	cache := &DesignationCache{}
-	cache.rolesChangedFlag.Store(true)
+	cache.rolesChangedFlag = true
 	ic.DAO.Store.SetCache(s.ID, cache)
 	return nil
 }
@@ -185,7 +168,7 @@ func (s *Designate) PostPersist(ic *interop.Context) error {
 		}
 	}
 
-	cache.rolesChangedFlag.Store(false)
+	cache.rolesChangedFlag = false
 	return nil
 }
 
@@ -215,8 +198,7 @@ func (s *Designate) getDesignatedByRole(ic *interop.Context, args []stackitem.It
 }
 
 func rolesChanged(cache *DesignationCache) bool {
-	rc := cache.rolesChangedFlag.Load()
-	return rc == nil || rc.(bool)
+	return cache.rolesChangedFlag
 }
 
 func (s *Designate) hashFromNodes(r noderoles.Role, nodes keys.PublicKeys) util.Uint160 {
@@ -233,16 +215,14 @@ func (s *Designate) hashFromNodes(r noderoles.Role, nodes keys.PublicKeys) util.
 	return hash.Hash160(script)
 }
 
-func (s *Designate) updateCachedRoleData(v *atomic.Value, d *dao.Simple, r noderoles.Role) error {
+func (s *Designate) updateCachedRoleData(v *roleData, d *dao.Simple, r noderoles.Role) error {
 	nodeKeys, height, err := s.GetDesignatedByRole(d, r, math.MaxUint32)
 	if err != nil {
 		return err
 	}
-	v.Store(&roleData{
-		nodes:  nodeKeys,
-		addr:   s.hashFromNodes(r, nodeKeys),
-		height: height,
-	})
+	v.nodes = nodeKeys
+	v.addr = s.hashFromNodes(r, nodeKeys)
+	v.height = height
 	switch r {
 	case noderoles.Oracle:
 		if orc, _ := s.OracleService.Load().(services.Oracle); orc != nil {
@@ -261,19 +241,15 @@ func (s *Designate) updateCachedRoleData(v *atomic.Value, d *dao.Simple, r noder
 }
 
 func getCachedRoleData(cache *DesignationCache, r noderoles.Role) *roleData {
-	var val interface{}
 	switch r {
 	case noderoles.Oracle:
-		val = cache.oracles.Load()
+		return &cache.oracles
 	case noderoles.StateValidator:
-		val = cache.stateVals.Load()
+		return &cache.stateVals
 	case noderoles.NeoFSAlphabet:
-		val = cache.neofsAlphabet.Load()
+		return &cache.neofsAlphabet
 	case noderoles.P2PNotary:
-		val = cache.notaries.Load()
-	}
-	if val != nil {
-		return val.(*roleData)
+		return &cache.notaries
 	}
 	return nil
 }
@@ -381,7 +357,7 @@ func (s *Designate) DesignateAsRole(ic *interop.Context, r noderoles.Role, pubs 
 	}
 	sort.Sort(pubs)
 	nl := NodeList(pubs)
-	ic.DAO.Store.GetRWCache(s.ID).(*DesignationCache).rolesChangedFlag.Store(true)
+	ic.DAO.Store.GetRWCache(s.ID).(*DesignationCache).rolesChangedFlag = true
 	err := putConvertibleToDAO(s.ID, ic.DAO, key, &nl)
 	if err != nil {
 		return err
@@ -413,6 +389,6 @@ func (s *Designate) getRole(item stackitem.Item) (noderoles.Role, bool) {
 // InitializeCache invalidates native Designate cache.
 func (s *Designate) InitializeCache(d *dao.Simple) {
 	cache := &DesignationCache{}
-	cache.rolesChangedFlag.Store(true)
+	cache.rolesChangedFlag = true
 	d.Store.SetCache(s.ID, cache)
 }

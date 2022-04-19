@@ -8,7 +8,6 @@ import (
 	"math/big"
 	"sort"
 	"strings"
-	"sync/atomic"
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
@@ -44,22 +43,22 @@ type NEO struct {
 type NeoCache struct {
 	// gasPerBlock represents current value of generated gas per block.
 	// It is append-only and doesn't need to be copied when used.
-	gasPerBlock        atomic.Value
-	gasPerBlockChanged atomic.Value
+	gasPerBlock        gasRecord
+	gasPerBlockChanged bool
 
-	registerPrice        atomic.Value
-	registerPriceChanged atomic.Value
+	registerPrice        int64
+	registerPriceChanged bool
 
-	votesChanged   atomic.Value
-	nextValidators atomic.Value
-	validators     atomic.Value
+	votesChanged   bool
+	nextValidators keys.PublicKeys
+	validators     keys.PublicKeys
 	// committee contains cached committee members and their votes.
 	// It is updated once in a while depending on committee size
 	// (every 28 blocks for mainnet). It's value
 	// is always equal to value stored by `prefixCommittee`.
-	committee atomic.Value
+	committee keysWithVotes
 	// committeeHash contains script hash of the committee.
-	committeeHash atomic.Value
+	committeeHash util.Uint160
 
 	// gasPerVoteCache contains last updated value of GAS per vote reward for candidates.
 	// It is set in state-modifying methods only and read in `PostPersist` thus is not protected
@@ -134,27 +133,21 @@ func (c *NeoCache) Persist(ps storage.NativeContractCache) (storage.NativeContra
 }
 
 func copyNeoCache(src, dst *NeoCache) {
-	dst.votesChanged.Store(src.votesChanged.Load())
-	dst.nextValidators.Store(src.nextValidators.Load().(keys.PublicKeys).Copy())
-	dst.validators.Store(src.validators.Load().(keys.PublicKeys).Copy())
-	committeeSrc := src.committee.Load().(keysWithVotes)
-	committeeDst := make(keysWithVotes, len(committeeSrc))
-	copy(committeeDst, committeeSrc)
-	dst.committee.Store(committeeDst)
-	dst.committeeHash.Store(src.committeeHash.Load())
-	regPriceChanged := src.registerPriceChanged.Load().(bool)
-	dst.registerPriceChanged.Store(regPriceChanged)
-	if !regPriceChanged {
-		dst.registerPrice.Store(src.registerPrice.Load())
-	}
-	gasPerBlockChanged := src.gasPerBlockChanged.Load().(bool)
-	dst.gasPerBlockChanged.Store(gasPerBlockChanged)
-	if !gasPerBlockChanged {
-		recordsSrc := src.gasPerBlock.Load().(gasRecord)
-		recordsDst := make(gasRecord, len(recordsSrc))
-		copy(recordsDst, recordsSrc)
-		dst.gasPerBlock.Store(recordsDst)
-	}
+	dst.votesChanged = src.votesChanged
+	dst.nextValidators = src.nextValidators.Copy()
+	dst.validators = src.validators.Copy()
+
+	dst.committee = make(keysWithVotes, len(src.committee))
+	copy(dst.committee, src.committee)
+	dst.committeeHash = src.committeeHash
+
+	dst.registerPriceChanged = src.registerPriceChanged
+	dst.registerPrice = src.registerPrice
+
+	dst.gasPerBlockChanged = src.gasPerBlockChanged
+	dst.gasPerBlock = make(gasRecord, len(src.gasPerBlock))
+	copy(dst.gasPerBlock, src.gasPerBlock)
+
 	dst.gasPerVoteCache = make(map[string]big.Int)
 	for k, v := range src.gasPerVoteCache {
 		dst.gasPerVoteCache[k] = v
@@ -262,14 +255,10 @@ func (n *NEO) Initialize(ic *interop.Context) error {
 	}
 
 	cache := &NeoCache{
-		gasPerVoteCache: make(map[string]big.Int),
+		gasPerVoteCache:      make(map[string]big.Int),
+		votesChanged:         true,
+		registerPriceChanged: true,
 	}
-	cache.votesChanged.Store(true)
-	cache.nextValidators.Store(keys.PublicKeys(nil))
-	cache.validators.Store(keys.PublicKeys(nil))
-	cache.committee.Store(keysWithVotes(nil))
-	cache.committeeHash.Store(util.Uint160{})
-	cache.registerPriceChanged.Store(true)
 
 	// We need cache to be present in DAO before the subsequent call to `mint`.
 	ic.DAO.Store.SetCache(n.ID, cache)
@@ -294,13 +283,13 @@ func (n *NEO) Initialize(ic *interop.Context) error {
 	n.putGASRecord(ic.DAO, index, value)
 
 	gr := &gasRecord{{Index: index, GASPerBlock: *value}}
-	cache.gasPerBlock.Store(*gr)
-	cache.gasPerBlockChanged.Store(false)
+	cache.gasPerBlock = *gr
+	cache.gasPerBlockChanged = false
 	ic.DAO.PutStorageItem(n.ID, []byte{prefixVotersCount}, state.StorageItem{})
 
 	setIntWithKey(n.ID, ic.DAO, []byte{prefixRegisterPrice}, DefaultRegisterPrice)
-	cache.registerPrice.Store(int64(DefaultRegisterPrice))
-	cache.registerPriceChanged.Store(false)
+	cache.registerPrice = int64(DefaultRegisterPrice)
+	cache.registerPriceChanged = false
 
 	return nil
 }
@@ -310,15 +299,10 @@ func (n *NEO) Initialize(ic *interop.Context) error {
 // called only when deploying native contracts.
 func (n *NEO) InitializeCache(bc interop.Ledger, d *dao.Simple) error {
 	cache := &NeoCache{
-		gasPerVoteCache: make(map[string]big.Int),
+		gasPerVoteCache:      make(map[string]big.Int),
+		votesChanged:         true,
+		registerPriceChanged: true,
 	}
-
-	cache.votesChanged.Store(true)
-	cache.nextValidators.Store(keys.PublicKeys(nil))
-	cache.validators.Store(keys.PublicKeys(nil))
-	cache.committee.Store(keysWithVotes(nil))
-	cache.committeeHash.Store(util.Uint160{})
-	cache.registerPriceChanged.Store(true)
 
 	var committee = keysWithVotes{}
 	si := d.GetStorageItem(n.ID, prefixCommittee)
@@ -329,8 +313,8 @@ func (n *NEO) InitializeCache(bc interop.Ledger, d *dao.Simple) error {
 		return fmt.Errorf("failed to update cache: %w", err)
 	}
 
-	cache.gasPerBlock.Store(n.getSortedGASRecordFromDAO(d))
-	cache.gasPerBlockChanged.Store(false)
+	cache.gasPerBlock = n.getSortedGASRecordFromDAO(d)
+	cache.gasPerBlockChanged = false
 
 	d.Store.SetCache(n.ID, cache)
 	return nil
@@ -345,28 +329,26 @@ func (n *NEO) initConfigCache(cfg config.ProtocolConfiguration) error {
 }
 
 func (n *NEO) updateCache(cache *NeoCache, cvs keysWithVotes, bc interop.Ledger) error {
-	cache.committee.Store(cvs)
+	cache.committee = cvs
 
 	var committee = getCommitteeMembers(cache)
 	script, err := smartcontract.CreateMajorityMultiSigRedeemScript(committee.Copy())
 	if err != nil {
 		return err
 	}
-	cache.committeeHash.Store(hash.Hash160(script))
+	cache.committeeHash = hash.Hash160(script)
 
 	// TODO: use block height from interop context for proper historical calls handling.
 	nextVals := committee[:n.cfg.GetNumOfCNs(bc.BlockHeight()+1)].Copy()
 	sort.Sort(nextVals)
-	cache.nextValidators.Store(nextVals)
+	cache.nextValidators = nextVals
 	return nil
 }
 
 func (n *NEO) updateCommittee(cache *NeoCache, ic *interop.Context) error {
-	votesChanged := cache.votesChanged.Load().(bool)
-	if !votesChanged {
+	if !cache.votesChanged {
 		// We need to put in storage anyway, as it affects dumps
-		committee := cache.committee.Load().(keysWithVotes)
-		ic.DAO.PutStorageItem(n.ID, prefixCommittee, committee.Bytes())
+		ic.DAO.PutStorageItem(n.ID, prefixCommittee, cache.committee.Bytes())
 		return nil
 	}
 
@@ -377,7 +359,7 @@ func (n *NEO) updateCommittee(cache *NeoCache, ic *interop.Context) error {
 	if err := n.updateCache(cache, cvs, ic.Chain); err != nil {
 		return err
 	}
-	cache.votesChanged.Store(false)
+	cache.votesChanged = false
 	ic.DAO.PutStorageItem(n.ID, prefixCommittee, cvs.Bytes())
 	return nil
 }
@@ -386,11 +368,11 @@ func (n *NEO) updateCommittee(cache *NeoCache, ic *interop.Context) error {
 func (n *NEO) OnPersist(ic *interop.Context) error {
 	if n.cfg.ShouldUpdateCommitteeAt(ic.Block.Index) {
 		cache := ic.DAO.Store.GetRWCache(n.ID).(*NeoCache)
-		oldKeys := cache.nextValidators.Load().(keys.PublicKeys)
-		oldCom := cache.committee.Load().(keysWithVotes)
+		oldKeys := cache.nextValidators
+		oldCom := cache.committee
 		if n.cfg.GetNumOfCNs(ic.Block.Index) != len(oldKeys) ||
 			n.cfg.GetCommitteeSize(ic.Block.Index) != len(oldCom) {
-			cache.votesChanged.Store(true)
+			cache.votesChanged = true
 		}
 		if err := n.updateCommittee(cache, ic); err != nil {
 			return err
@@ -417,7 +399,7 @@ func (n *NEO) PostPersist(ic *interop.Context) error {
 		voterReward.Div(voterReward, big.NewInt(int64(committeeSize+validatorsCount)))
 		voterReward.Div(voterReward, big100)
 
-		var cs = cache.committee.Load().(keysWithVotes)
+		var cs = cache.committee
 		var key = make([]byte, 38)
 		for i := range cs {
 			if cs[i].Votes.Sign() > 0 {
@@ -448,15 +430,15 @@ func (n *NEO) PostPersist(ic *interop.Context) error {
 			}
 		}
 	}
-	if cache.gasPerBlockChanged.Load().(bool) {
-		cache.gasPerBlock.Store(n.getSortedGASRecordFromDAO(ic.DAO))
-		cache.gasPerBlockChanged.Store(false)
+	if cache.gasPerBlockChanged {
+		cache.gasPerBlock = n.getSortedGASRecordFromDAO(ic.DAO)
+		cache.gasPerBlockChanged = false
 	}
 
-	if cache.registerPriceChanged.Load().(bool) {
+	if cache.registerPriceChanged {
 		p := getIntWithKey(n.ID, ic.DAO, []byte{prefixRegisterPrice})
-		cache.registerPrice.Store(p)
-		cache.registerPriceChanged.Store(false)
+		cache.registerPrice = p
+		cache.registerPriceChanged = false
 	}
 	return nil
 }
@@ -581,10 +563,10 @@ func (n *NEO) getSortedGASRecordFromDAO(d *dao.Simple) gasRecord {
 func (n *NEO) GetGASPerBlock(d *dao.Simple, index uint32) *big.Int {
 	cache := d.Store.GetROCache(n.ID).(*NeoCache)
 	var gr gasRecord
-	if cache.gasPerBlockChanged.Load().(bool) {
+	if cache.gasPerBlockChanged {
 		gr = n.getSortedGASRecordFromDAO(d)
 	} else {
-		gr = cache.gasPerBlock.Load().(gasRecord)
+		gr = cache.gasPerBlock
 	}
 	for i := len(gr) - 1; i >= 0; i-- {
 		if gr[i].Index <= index {
@@ -598,7 +580,7 @@ func (n *NEO) GetGASPerBlock(d *dao.Simple, index uint32) *big.Int {
 // GetCommitteeAddress returns address of the committee.
 func (n *NEO) GetCommitteeAddress(d *dao.Simple) util.Uint160 {
 	cache := d.Store.GetROCache(n.ID).(*NeoCache)
-	return cache.committeeHash.Load().(util.Uint160)
+	return cache.committeeHash
 }
 
 func (n *NEO) checkCommittee(ic *interop.Context) bool {
@@ -627,7 +609,7 @@ func (n *NEO) SetGASPerBlock(ic *interop.Context, index uint32, gas *big.Int) er
 		return errors.New("invalid committee signature")
 	}
 	cache := ic.DAO.Store.GetRWCache(n.ID).(*NeoCache)
-	cache.gasPerBlockChanged.Store(true)
+	cache.gasPerBlockChanged = true
 	n.putGASRecord(ic.DAO, index, gas)
 	return nil
 }
@@ -638,8 +620,8 @@ func (n *NEO) getRegisterPrice(ic *interop.Context, _ []stackitem.Item) stackite
 
 func (n *NEO) getRegisterPriceInternal(d *dao.Simple) int64 {
 	cache := d.Store.GetROCache(n.ID).(*NeoCache)
-	if !cache.registerPriceChanged.Load().(bool) {
-		return cache.registerPrice.Load().(int64)
+	if !cache.registerPriceChanged {
+		return cache.registerPrice
 	}
 	return getIntWithKey(n.ID, d, []byte{prefixRegisterPrice})
 }
@@ -655,7 +637,7 @@ func (n *NEO) setRegisterPrice(ic *interop.Context, args []stackitem.Item) stack
 
 	setIntWithKey(n.ID, ic.DAO, []byte{prefixRegisterPrice}, price.Int64())
 	cache := ic.DAO.Store.GetRWCache(n.ID).(*NeoCache)
-	cache.registerPriceChanged.Store(true)
+	cache.registerPriceChanged = true
 	return stackitem.Null{}
 }
 
@@ -726,8 +708,8 @@ func (n *NEO) CalculateNEOHolderReward(d *dao.Simple, value *big.Int, start, end
 	}
 	var gr gasRecord
 	cache := d.Store.GetROCache(n.ID).(*NeoCache)
-	if !cache.gasPerBlockChanged.Load().(bool) {
-		gr = cache.gasPerBlock.Load().(gasRecord)
+	if !cache.gasPerBlockChanged {
+		gr = cache.gasPerBlock
 	} else {
 		gr = n.getSortedGASRecordFromDAO(d)
 	}
@@ -801,7 +783,7 @@ func (n *NEO) UnregisterCandidateInternal(ic *interop.Context, pub *keys.PublicK
 		return nil
 	}
 	cache := ic.DAO.Store.GetRWCache(n.ID).(*NeoCache)
-	cache.validators.Store(keys.PublicKeys(nil))
+	cache.validators = nil
 	c := new(candidate).FromBytes(si)
 	c.Registered = false
 	ok, err := n.dropCandidateIfZero(ic.DAO, cache, pub, c)
@@ -881,7 +863,7 @@ func (n *NEO) VoteInternal(ic *interop.Context, h util.Uint160, pub *keys.Public
 // typ specifies if this modify is occurring during transfer or vote (with old or new validator).
 func (n *NEO) ModifyAccountVotes(acc *state.NEOBalance, d *dao.Simple, value *big.Int, isNewVote bool) error {
 	cache := d.Store.GetRWCache(n.ID).(*NeoCache)
-	cache.votesChanged.Store(true)
+	cache.votesChanged = true
 	if acc.VoteTo != nil {
 		key := makeValidatorKey(acc.VoteTo)
 		si := d.GetStorageItem(n.ID, key)
@@ -896,7 +878,7 @@ func (n *NEO) ModifyAccountVotes(acc *state.NEOBalance, d *dao.Simple, value *bi
 				return err
 			}
 		}
-		cache.validators.Store(keys.PublicKeys(nil))
+		cache.validators = nil
 		return putConvertibleToDAO(n.ID, d, key, cd)
 	}
 	return nil
@@ -992,7 +974,7 @@ func (n *NEO) getAccountState(ic *interop.Context, args []stackitem.Item) stacki
 func (n *NEO) ComputeNextBlockValidators(bc interop.Ledger, d *dao.Simple) (keys.PublicKeys, error) {
 	numOfCNs := n.cfg.GetNumOfCNs(bc.BlockHeight() + 1)
 	cache := d.Store.GetRWCache(n.ID).(*NeoCache)
-	if vals := cache.validators.Load().(keys.PublicKeys); vals != nil && numOfCNs == len(vals) {
+	if vals := cache.validators; vals != nil && numOfCNs == len(vals) {
 		return vals.Copy(), nil
 	}
 	result, _, err := n.computeCommitteeMembers(bc, d)
@@ -1001,7 +983,7 @@ func (n *NEO) ComputeNextBlockValidators(bc interop.Ledger, d *dao.Simple) (keys
 	}
 	result = result[:numOfCNs]
 	sort.Sort(result)
-	cache.validators.Store(result)
+	cache.validators = result
 	return result, nil
 }
 
@@ -1031,7 +1013,7 @@ func (n *NEO) GetCommitteeMembers(d *dao.Simple) keys.PublicKeys {
 }
 
 func getCommitteeMembers(cache *NeoCache) keys.PublicKeys {
-	var cvs = cache.committee.Load().(keysWithVotes)
+	var cvs = cache.committee
 	var committee = make(keys.PublicKeys, len(cvs))
 	var err error
 	for i := range committee {
@@ -1107,7 +1089,7 @@ func (n *NEO) getNextBlockValidators(ic *interop.Context, _ []stackitem.Item) st
 // GetNextBlockValidatorsInternal returns next block validators.
 func (n *NEO) GetNextBlockValidatorsInternal(d *dao.Simple) keys.PublicKeys {
 	cache := d.Store.GetROCache(n.ID).(*NeoCache)
-	return cache.nextValidators.Load().(keys.PublicKeys).Copy()
+	return cache.nextValidators.Copy()
 }
 
 // BalanceOf returns native NEO token balance for the acc.
