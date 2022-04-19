@@ -44,8 +44,7 @@ type NeoCache struct {
 	// gasPerBlock represents the history of generated gas per block.
 	gasPerBlock gasRecord
 
-	registerPrice        int64
-	registerPriceChanged bool
+	registerPrice int64
 
 	votesChanged   bool
 	nextValidators keys.PublicKeys
@@ -126,7 +125,6 @@ func copyNeoCache(src, dst *NeoCache) {
 	copy(dst.committee, src.committee)
 	dst.committeeHash = src.committeeHash
 
-	dst.registerPriceChanged = src.registerPriceChanged
 	dst.registerPrice = src.registerPrice
 
 	// Can't omit copying because gasPerBlock is append-only, thus to be able to
@@ -242,9 +240,8 @@ func (n *NEO) Initialize(ic *interop.Context) error {
 	}
 
 	cache := &NeoCache{
-		gasPerVoteCache:      make(map[string]big.Int),
-		votesChanged:         true,
-		registerPriceChanged: true,
+		gasPerVoteCache: make(map[string]big.Int),
+		votesChanged:    true,
 	}
 
 	// We need cache to be present in DAO before the subsequent call to `mint`.
@@ -275,7 +272,6 @@ func (n *NEO) Initialize(ic *interop.Context) error {
 
 	setIntWithKey(n.ID, ic.DAO, []byte{prefixRegisterPrice}, DefaultRegisterPrice)
 	cache.registerPrice = int64(DefaultRegisterPrice)
-	cache.registerPriceChanged = false
 
 	return nil
 }
@@ -285,9 +281,8 @@ func (n *NEO) Initialize(ic *interop.Context) error {
 // called only when deploying native contracts.
 func (n *NEO) InitializeCache(bc interop.Ledger, d *dao.Simple) error {
 	cache := &NeoCache{
-		gasPerVoteCache:      make(map[string]big.Int),
-		votesChanged:         true,
-		registerPriceChanged: true,
+		gasPerVoteCache: make(map[string]big.Int),
+		votesChanged:    true,
 	}
 
 	var committee = keysWithVotes{}
@@ -300,6 +295,7 @@ func (n *NEO) InitializeCache(bc interop.Ledger, d *dao.Simple) error {
 	}
 
 	cache.gasPerBlock = n.getSortedGASRecordFromDAO(d)
+	cache.registerPrice = getIntWithKey(n.ID, d, []byte{prefixRegisterPrice})
 
 	d.Store.SetCache(n.ID, cache)
 	return nil
@@ -414,12 +410,6 @@ func (n *NEO) PostPersist(ic *interop.Context) error {
 				ic.DAO.PutStorageItem(n.ID, key, bigint.ToBytes(tmp))
 			}
 		}
-	}
-
-	if cache.registerPriceChanged {
-		p := getIntWithKey(n.ID, ic.DAO, []byte{prefixRegisterPrice})
-		cache.registerPrice = p
-		cache.registerPriceChanged = false
 	}
 	return nil
 }
@@ -599,10 +589,7 @@ func (n *NEO) getRegisterPrice(ic *interop.Context, _ []stackitem.Item) stackite
 
 func (n *NEO) getRegisterPriceInternal(d *dao.Simple) int64 {
 	cache := d.Store.GetROCache(n.ID).(*NeoCache)
-	if !cache.registerPriceChanged {
-		return cache.registerPrice
-	}
-	return getIntWithKey(n.ID, d, []byte{prefixRegisterPrice})
+	return cache.registerPrice
 }
 
 func (n *NEO) setRegisterPrice(ic *interop.Context, args []stackitem.Item) stackitem.Item {
@@ -616,7 +603,7 @@ func (n *NEO) setRegisterPrice(ic *interop.Context, args []stackitem.Item) stack
 
 	setIntWithKey(n.ID, ic.DAO, []byte{prefixRegisterPrice}, price.Int64())
 	cache := ic.DAO.Store.GetRWCache(n.ID).(*NeoCache)
-	cache.registerPriceChanged = true
+	cache.registerPrice = price.Int64()
 	return stackitem.Null{}
 }
 
