@@ -84,12 +84,12 @@ var (
 )
 
 var (
-	_ interop.Contract            = (*Oracle)(nil)
-	_ storage.NativeContractCache = (*OracleCache)(nil)
+	_ interop.Contract        = (*Oracle)(nil)
+	_ dao.NativeContractCache = (*OracleCache)(nil)
 )
 
 // Copy implements NativeContractCache interface.
-func (c *OracleCache) Copy() storage.NativeContractCache {
+func (c *OracleCache) Copy() dao.NativeContractCache {
 	cp := &OracleCache{}
 	copyOracleCache(c, cp)
 	return cp
@@ -235,14 +235,14 @@ func (o *Oracle) Initialize(ic *interop.Context) error {
 	cache := &OracleCache{
 		requestPrice: int64(DefaultOracleRequestPrice),
 	}
-	ic.DAO.Store.SetCache(o.ID, cache)
+	ic.DAO.SetCache(o.ID, cache)
 	return nil
 }
 
 func (o *Oracle) InitializeCache(d *dao.Simple) {
 	cache := &OracleCache{}
 	cache.requestPrice = getIntWithKey(o.ID, d, prefixRequestPrice)
-	d.Store.SetCache(o.ID, cache)
+	d.SetCache(o.ID, cache)
 }
 
 func getResponse(tx *transaction.Transaction) *transaction.OracleResponse {
@@ -459,7 +459,7 @@ func (o *Oracle) getPrice(ic *interop.Context, _ []stackitem.Item) stackitem.Ite
 }
 
 func (o *Oracle) getPriceInternal(d *dao.Simple) int64 {
-	cache := d.Store.GetROCache(o.ID).(*OracleCache)
+	cache := d.GetROCache(o.ID).(*OracleCache)
 	return cache.requestPrice
 }
 
@@ -472,7 +472,7 @@ func (o *Oracle) setPrice(ic *interop.Context, args []stackitem.Item) stackitem.
 		panic("invalid committee signature")
 	}
 	setIntWithKey(o.ID, ic.DAO, prefixRequestPrice, price.Int64())
-	cache := ic.DAO.Store.GetRWCache(o.ID).(*OracleCache)
+	cache := ic.DAO.GetRWCache(o.ID).(*OracleCache)
 	cache.requestPrice = price.Int64()
 	return stackitem.Null{}
 }

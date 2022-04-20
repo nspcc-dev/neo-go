@@ -53,12 +53,12 @@ var (
 )
 
 var (
-	_ interop.Contract            = (*Notary)(nil)
-	_ storage.NativeContractCache = (*NotaryCache)(nil)
+	_ interop.Contract        = (*Notary)(nil)
+	_ dao.NativeContractCache = (*NotaryCache)(nil)
 )
 
 // Copy implements NativeContractCache interface.
-func (c *NotaryCache) Copy() storage.NativeContractCache {
+func (c *NotaryCache) Copy() dao.NativeContractCache {
 	cp := &NotaryCache{}
 	copyNotaryCache(c, cp)
 	return cp
@@ -142,7 +142,7 @@ func (n *Notary) Initialize(ic *interop.Context) error {
 		maxNotValidBeforeDelta: defaultMaxNotValidBeforeDelta,
 		notaryServiceFeePerKey: defaultNotaryServiceFeePerKey,
 	}
-	ic.DAO.Store.SetCache(n.ID, cache)
+	ic.DAO.SetCache(n.ID, cache)
 	return nil
 }
 
@@ -152,7 +152,7 @@ func (n *Notary) InitializeCache(d *dao.Simple) error {
 		notaryServiceFeePerKey: getIntWithKey(n.ID, d, notaryServiceFeeKey),
 	}
 
-	d.Store.SetCache(n.ID, cache)
+	d.SetCache(n.ID, cache)
 	return nil
 }
 
@@ -407,7 +407,7 @@ func (n *Notary) getMaxNotValidBeforeDelta(ic *interop.Context, _ []stackitem.It
 
 // GetMaxNotValidBeforeDelta is an internal representation of Notary getMaxNotValidBeforeDelta method.
 func (n *Notary) GetMaxNotValidBeforeDelta(dao *dao.Simple) uint32 {
-	cache := dao.Store.GetROCache(n.ID).(*NotaryCache)
+	cache := dao.GetROCache(n.ID).(*NotaryCache)
 	return cache.maxNotValidBeforeDelta
 }
 
@@ -423,7 +423,7 @@ func (n *Notary) setMaxNotValidBeforeDelta(ic *interop.Context, args []stackitem
 		panic("invalid committee signature")
 	}
 	setIntWithKey(n.ID, ic.DAO, maxNotValidBeforeDeltaKey, int64(value))
-	cache := ic.DAO.Store.GetRWCache(n.ID).(*NotaryCache)
+	cache := ic.DAO.GetRWCache(n.ID).(*NotaryCache)
 	cache.maxNotValidBeforeDelta = value
 	return stackitem.Null{}
 }
@@ -435,7 +435,7 @@ func (n *Notary) getNotaryServiceFeePerKey(ic *interop.Context, _ []stackitem.It
 
 // GetNotaryServiceFeePerKey is an internal representation of Notary getNotaryServiceFeePerKey method.
 func (n *Notary) GetNotaryServiceFeePerKey(dao *dao.Simple) int64 {
-	cache := dao.Store.GetROCache(n.ID).(*NotaryCache)
+	cache := dao.GetROCache(n.ID).(*NotaryCache)
 	return cache.notaryServiceFeePerKey
 }
 
@@ -449,7 +449,7 @@ func (n *Notary) setNotaryServiceFeePerKey(ic *interop.Context, args []stackitem
 		panic("invalid committee signature")
 	}
 	setIntWithKey(n.ID, ic.DAO, notaryServiceFeeKey, int64(value))
-	cache := ic.DAO.Store.GetRWCache(n.ID).(*NotaryCache)
+	cache := ic.DAO.GetRWCache(n.ID).(*NotaryCache)
 	cache.notaryServiceFeePerKey = value
 	return stackitem.Null{}
 }

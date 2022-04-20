@@ -15,23 +15,11 @@ import (
 type MemCachedStore struct {
 	MemoryStore
 
-	nativeCacheLock sync.RWMutex
-	nativeCache     map[int32]NativeContractCache
-
 	private bool
 	// plock protects Persist from double entrance.
 	plock sync.Mutex
 	// Persistent Store.
 	ps Store
-}
-
-// NativeContractCache is an interface representing cache for a native contract.
-// Cache can be copied to create a wrapper around current DAO layer. Wrapped cache
-// can be persisted to the underlying DAO native cache.
-type NativeContractCache interface {
-	// Copy returns a copy of native cache item that can safely be changed within
-	// the subsequent DAO operations.
-	Copy() NativeContractCache
 }
 
 type (
@@ -58,12 +46,8 @@ type (
 
 // NewMemCachedStore creates a new MemCachedStore object.
 func NewMemCachedStore(lower Store) *MemCachedStore {
-	// Do not copy cache from ps; instead should create clear map: GetRWCache and
-	// GetROCache will retrieve cache from the underlying nativeCache if requested.
-	cache := make(map[int32]NativeContractCache)
 	return &MemCachedStore{
 		MemoryStore: *NewMemoryStore(),
-		nativeCache: cache,
 		ps:          lower,
 	}
 }
@@ -71,14 +55,8 @@ func NewMemCachedStore(lower Store) *MemCachedStore {
 // NewPrivateMemCachedStore creates a new private (unlocked) MemCachedStore object.
 // Private cached stores are closed after Persist.
 func NewPrivateMemCachedStore(lower Store) *MemCachedStore {
-	// Do not copy cache from ps; instead should create clear map: GetRWCache and
-	// GetROCache will retrieve cache from the underlying nativeCache if requested.
-	// The lowest underlying store MUST have its native cache initialized, otherwise
-	// GetROCache and GetRWCache won't work properly.
-	cache := make(map[int32]NativeContractCache)
 	return &MemCachedStore{
 		MemoryStore: *NewMemoryStore(),
-		nativeCache: cache,
 		private:     true,
 		ps:          lower,
 	}
@@ -363,23 +341,15 @@ func (s *MemCachedStore) persist(isSync bool) (int, error) {
 		}
 		s.mem = nil
 		s.stor = nil
-		if cached, ok := s.ps.(*MemCachedStore); ok {
-			for id, nativeCache := range s.nativeCache {
-				cached.nativeCache[id] = nativeCache
-			}
-			s.nativeCache = nil
-		}
 		return keys, nil
 	}
 
 	s.plock.Lock()
 	defer s.plock.Unlock()
 	s.mut.Lock()
-	s.nativeCacheLock.Lock()
 
 	keys = len(s.mem) + len(s.stor)
 	if keys == 0 {
-		s.nativeCacheLock.Unlock()
 		s.mut.Unlock()
 		return 0, nil
 	}
@@ -388,30 +358,17 @@ func (s *MemCachedStore) persist(isSync bool) (int, error) {
 	// starts using fresh new maps. This tempstore is only known here and
 	// nothing ever changes it, therefore accesses to it (reads) can go
 	// unprotected while writes are handled by s proper.
-	var tempstore = &MemCachedStore{MemoryStore: MemoryStore{mem: s.mem, stor: s.stor}, ps: s.ps, nativeCache: s.nativeCache}
+	var tempstore = &MemCachedStore{MemoryStore: MemoryStore{mem: s.mem, stor: s.stor}, ps: s.ps}
 	s.ps = tempstore
 	s.mem = make(map[string][]byte, len(s.mem))
 	s.stor = make(map[string][]byte, len(s.stor))
-	cached, isPSCached := tempstore.ps.(*MemCachedStore)
-	if isPSCached {
-		s.nativeCache = make(map[int32]NativeContractCache)
-	}
 	if !isSync {
-		s.nativeCacheLock.Unlock()
 		s.mut.Unlock()
-	}
-	if isPSCached {
-		cached.nativeCacheLock.Lock()
-		for id, nativeCache := range tempstore.nativeCache {
-			cached.nativeCache[id] = nativeCache
-		}
-		cached.nativeCacheLock.Unlock()
 	}
 	err = tempstore.ps.PutChangeSet(tempstore.mem, tempstore.stor)
 
 	if !isSync {
 		s.mut.Lock()
-		s.nativeCacheLock.Lock()
 	}
 	if err == nil {
 		// tempstore.mem and tempstore.del are completely flushed now
@@ -427,67 +384,12 @@ func (s *MemCachedStore) persist(isSync bool) (int, error) {
 		for k := range s.stor {
 			put(tempstore.stor, k, s.stor[k])
 		}
-		if isPSCached {
-			for id, nativeCache := range s.nativeCache {
-				tempstore.nativeCache[id] = nativeCache
-			}
-			s.nativeCache = tempstore.nativeCache
-		}
 		s.ps = tempstore.ps
 		s.mem = tempstore.mem
 		s.stor = tempstore.stor
 	}
-	s.nativeCacheLock.Unlock()
 	s.mut.Unlock()
 	return keys, err
-}
-
-// GetROCache returns native contact cache. The cache CAN NOT be modified by
-// the caller. It's the caller's duty to keep it unmodified.
-func (s *MemCachedStore) GetROCache(id int32) NativeContractCache {
-	s.nativeCacheLock.RLock()
-	defer s.nativeCacheLock.RUnlock()
-
-	return s.getCache(id, true)
-}
-
-// GetRWCache returns native contact cache. The cache CAN BE safely modified
-// by the caller.
-func (s *MemCachedStore) GetRWCache(k int32) NativeContractCache {
-	s.nativeCacheLock.Lock()
-	defer s.nativeCacheLock.Unlock()
-
-	return s.getCache(k, false)
-}
-
-func (s *MemCachedStore) getCache(k int32, ro bool) NativeContractCache {
-	if itm, ok := s.nativeCache[k]; ok {
-		// Don't need to create itm copy, because its value was already copied
-		// the first time it was retrieved from loser ps.
-		return itm
-	}
-
-	if cached, ok := s.ps.(*MemCachedStore); ok {
-		if ro {
-			return cached.GetROCache(k)
-		}
-		v := cached.GetRWCache(k)
-		if v != nil {
-			// Create a copy here in order not to modify the existing cache.
-			cp := v.Copy()
-			s.nativeCache[k] = cp
-			return cp
-		}
-	}
-
-	return nil
-}
-
-func (s *MemCachedStore) SetCache(k int32, v NativeContractCache) {
-	s.nativeCacheLock.Lock()
-	defer s.nativeCacheLock.Unlock()
-
-	s.nativeCache[k] = v
 }
 
 // Close implements Store interface, clears up memory and closes the lower layer

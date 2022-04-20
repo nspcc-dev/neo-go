@@ -63,12 +63,12 @@ type PolicyCache struct {
 }
 
 var (
-	_ interop.Contract            = (*Policy)(nil)
-	_ storage.NativeContractCache = (*PolicyCache)(nil)
+	_ interop.Contract        = (*Policy)(nil)
+	_ dao.NativeContractCache = (*PolicyCache)(nil)
 )
 
 // Copy implements NativeContractCache interface.
-func (c *PolicyCache) Copy() storage.NativeContractCache {
+func (c *PolicyCache) Copy() dao.NativeContractCache {
 	cp := &PolicyCache{}
 	copyPolicyCache(c, cp)
 	return cp
@@ -148,7 +148,7 @@ func (p *Policy) Initialize(ic *interop.Context) error {
 		storagePrice:       DefaultStoragePrice,
 		blockedAccounts:    make([]util.Uint160, 0),
 	}
-	ic.DAO.Store.SetCache(p.ID, cache)
+	ic.DAO.SetCache(p.ID, cache)
 
 	return nil
 }
@@ -159,7 +159,7 @@ func (p *Policy) InitializeCache(d *dao.Simple) error {
 	if err != nil {
 		return err
 	}
-	d.Store.SetCache(p.ID, cache)
+	d.SetCache(p.ID, cache)
 	return nil
 }
 
@@ -204,13 +204,13 @@ func (p *Policy) getFeePerByte(ic *interop.Context, _ []stackitem.Item) stackite
 
 // GetFeePerByteInternal returns required transaction's fee per byte.
 func (p *Policy) GetFeePerByteInternal(dao *dao.Simple) int64 {
-	cache := dao.Store.GetROCache(p.ID).(*PolicyCache)
+	cache := dao.GetROCache(p.ID).(*PolicyCache)
 	return cache.feePerByte
 }
 
 // GetMaxVerificationGas returns maximum gas allowed to be burned during verificaion.
 func (p *Policy) GetMaxVerificationGas(dao *dao.Simple) int64 {
-	cache := dao.Store.GetROCache(p.ID).(*PolicyCache)
+	cache := dao.GetROCache(p.ID).(*PolicyCache)
 	return cache.maxVerificationGas
 }
 
@@ -220,7 +220,7 @@ func (p *Policy) getExecFeeFactor(ic *interop.Context, _ []stackitem.Item) stack
 
 // GetExecFeeFactorInternal returns current execution fee factor.
 func (p *Policy) GetExecFeeFactorInternal(d *dao.Simple) int64 {
-	cache := d.Store.GetROCache(p.ID).(*PolicyCache)
+	cache := d.GetROCache(p.ID).(*PolicyCache)
 	return int64(cache.execFeeFactor)
 }
 
@@ -233,7 +233,7 @@ func (p *Policy) setExecFeeFactor(ic *interop.Context, args []stackitem.Item) st
 		panic("invalid committee signature")
 	}
 	setIntWithKey(p.ID, ic.DAO, execFeeFactorKey, int64(value))
-	cache := ic.DAO.Store.GetRWCache(p.ID).(*PolicyCache)
+	cache := ic.DAO.GetRWCache(p.ID).(*PolicyCache)
 	cache.execFeeFactor = value
 	return stackitem.Null{}
 }
@@ -255,7 +255,7 @@ func (p *Policy) IsBlocked(dao *dao.Simple, hash util.Uint160) bool {
 // of the blocked account in the blocked accounts list (or the position it should be
 // put at).
 func (p *Policy) isBlockedInternal(dao *dao.Simple, hash util.Uint160) (int, bool) {
-	cache := dao.Store.GetROCache(p.ID).(*PolicyCache)
+	cache := dao.GetROCache(p.ID).(*PolicyCache)
 	length := len(cache.blockedAccounts)
 	i := sort.Search(length, func(i int) bool {
 		return !cache.blockedAccounts[i].Less(hash)
@@ -272,7 +272,7 @@ func (p *Policy) getStoragePrice(ic *interop.Context, _ []stackitem.Item) stacki
 
 // GetStoragePriceInternal returns current execution fee factor.
 func (p *Policy) GetStoragePriceInternal(d *dao.Simple) int64 {
-	cache := d.Store.GetROCache(p.ID).(*PolicyCache)
+	cache := d.GetROCache(p.ID).(*PolicyCache)
 	return int64(cache.storagePrice)
 }
 
@@ -285,7 +285,7 @@ func (p *Policy) setStoragePrice(ic *interop.Context, args []stackitem.Item) sta
 		panic("invalid committee signature")
 	}
 	setIntWithKey(p.ID, ic.DAO, storagePriceKey, int64(value))
-	cache := ic.DAO.Store.GetRWCache(p.ID).(*PolicyCache)
+	cache := ic.DAO.GetRWCache(p.ID).(*PolicyCache)
 	cache.storagePrice = value
 	return stackitem.Null{}
 }
@@ -300,7 +300,7 @@ func (p *Policy) setFeePerByte(ic *interop.Context, args []stackitem.Item) stack
 		panic("invalid committee signature")
 	}
 	setIntWithKey(p.ID, ic.DAO, feePerByteKey, value)
-	cache := ic.DAO.Store.GetRWCache(p.ID).(*PolicyCache)
+	cache := ic.DAO.GetRWCache(p.ID).(*PolicyCache)
 	cache.feePerByte = value
 	return stackitem.Null{}
 }
@@ -323,7 +323,7 @@ func (p *Policy) blockAccount(ic *interop.Context, args []stackitem.Item) stacki
 	}
 	key := append([]byte{blockedAccountPrefix}, hash.BytesBE()...)
 	ic.DAO.PutStorageItem(p.ID, key, state.StorageItem{})
-	cache := ic.DAO.Store.GetRWCache(p.ID).(*PolicyCache)
+	cache := ic.DAO.GetRWCache(p.ID).(*PolicyCache)
 	if len(cache.blockedAccounts) == i {
 		cache.blockedAccounts = append(cache.blockedAccounts, hash)
 	} else {
@@ -346,7 +346,7 @@ func (p *Policy) unblockAccount(ic *interop.Context, args []stackitem.Item) stac
 	}
 	key := append([]byte{blockedAccountPrefix}, hash.BytesBE()...)
 	ic.DAO.DeleteStorageItem(p.ID, key)
-	cache := ic.DAO.Store.GetRWCache(p.ID).(*PolicyCache)
+	cache := ic.DAO.GetRWCache(p.ID).(*PolicyCache)
 	cache.blockedAccounts = append(cache.blockedAccounts[:i], cache.blockedAccounts[i+1:]...)
 	return stackitem.NewBool(true)
 }

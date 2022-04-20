@@ -12,7 +12,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
-	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/contract"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/iterator"
@@ -533,7 +532,7 @@ func TestStorageFind(t *testing.T) {
 func createVM(t testing.TB) (*vm.VM, *interop.Context, *Blockchain) {
 	chain := newTestChain(t)
 	context := chain.newInteropContext(trigger.Application,
-		dao.NewSimple(chain.dao.Store, chain.config.StateRootInHeader, chain.config.P2PSigExtensions), nil, nil)
+		chain.dao.GetWrapped(), nil, nil)
 	v := context.SpawnVM()
 	return v, context, chain
 }

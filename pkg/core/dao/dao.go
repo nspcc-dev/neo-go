@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	iocore "io"
+	"sync"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
@@ -34,9 +35,26 @@ var (
 type Simple struct {
 	Version Version
 	Store   *storage.MemCachedStore
+
+	nativeCacheLock sync.RWMutex
+	nativeCache     map[int32]NativeContractCache
+	// nativeCachePS is the backend store that provides functionality to store
+	// and retrieve multi-tier native contract cache. The lowest Simple has its
+	// nativeCachePS set to nil.
+	nativeCachePS *Simple
+
 	private bool
 	keyBuf  []byte
 	dataBuf *io.BufBinWriter
+}
+
+// NativeContractCache is an interface representing cache for a native contract.
+// Cache can be copied to create a wrapper around current DAO layer. Wrapped cache
+// can be persisted to the underlying DAO native cache.
+type NativeContractCache interface {
+	// Copy returns a copy of native cache item that can safely be changed within
+	// the subsequent DAO operations.
+	Copy() NativeContractCache
 }
 
 // NewSimple creates new simple dao using provided backend store.
@@ -52,7 +70,8 @@ func newSimple(st *storage.MemCachedStore, stateRootInHeader bool, p2pSigExtensi
 			StateRootInHeader: stateRootInHeader,
 			P2PSigExtensions:  p2pSigExtensions,
 		},
-		Store: st,
+		Store:       st,
+		nativeCache: make(map[int32]NativeContractCache),
 	}
 }
 
@@ -66,6 +85,7 @@ func (dao *Simple) GetBatch() *storage.MemBatch {
 func (dao *Simple) GetWrapped() *Simple {
 	d := NewSimple(dao.Store, dao.Version.StateRootInHeader, dao.Version.P2PSigExtensions)
 	d.Version = dao.Version
+	d.nativeCachePS = dao
 	return d
 }
 
@@ -76,6 +96,13 @@ func (dao *Simple) GetPrivate() *Simple {
 	*d = *dao                                             // Inherit everything...
 	d.Store = storage.NewPrivateMemCachedStore(dao.Store) // except storage, wrap another layer.
 	d.private = true
+	d.nativeCachePS = dao
+	// Do not inherit cache from nativeCachePS; instead should create clear map:
+	// GetRWCache and GetROCache will retrieve cache from the underlying
+	// nativeCache if requested. The lowest underlying DAO MUST have its native
+	// cache initialized before access it, otherwise GetROCache and GetRWCache
+	// won't work properly.
+	d.nativeCache = make(map[int32]NativeContractCache)
 	return d
 }
 
@@ -809,6 +836,17 @@ func (dao *Simple) getDataBuf() *io.BufBinWriter {
 // Persist flushes all the changes made into the (supposedly) persistent
 // underlying store. It doesn't block accesses to DAO from other threads.
 func (dao *Simple) Persist() (int, error) {
+	if dao.nativeCachePS != nil {
+		if !dao.private {
+			dao.nativeCacheLock.Lock()
+			defer dao.nativeCacheLock.Unlock()
+		}
+		if !dao.nativeCachePS.private {
+			dao.nativeCachePS.nativeCacheLock.Lock()
+			defer dao.nativeCachePS.nativeCacheLock.Unlock()
+		}
+		dao.persistNativeCache()
+	}
 	return dao.Store.Persist()
 }
 
@@ -816,5 +854,77 @@ func (dao *Simple) Persist() (int, error) {
 // underlying store. It's a synchronous version of Persist that doesn't allow
 // other threads to work with DAO while flushing the Store.
 func (dao *Simple) PersistSync() (int, error) {
+	if dao.nativeCachePS != nil {
+		dao.nativeCacheLock.Lock()
+		dao.nativeCachePS.nativeCacheLock.Lock()
+		defer func() {
+			dao.nativeCachePS.nativeCacheLock.Unlock()
+			dao.nativeCacheLock.Unlock()
+		}()
+		dao.persistNativeCache()
+	}
 	return dao.Store.PersistSync()
+}
+
+// persistNativeCache is internal unprotected method for native cache persisting.
+// It does NO checks for nativeCachePS is not nil.
+func (dao *Simple) persistNativeCache() {
+	lower := dao.nativeCachePS
+	for id, nativeCache := range dao.nativeCache {
+		lower.nativeCache[id] = nativeCache
+	}
+	dao.nativeCache = nil
+}
+
+// GetROCache returns native contact cache. The cache CAN NOT be modified by
+// the caller. It's the caller's duty to keep it unmodified.
+func (dao *Simple) GetROCache(id int32) NativeContractCache {
+	if !dao.private {
+		dao.nativeCacheLock.RLock()
+		defer dao.nativeCacheLock.RUnlock()
+	}
+
+	return dao.getCache(id, true)
+}
+
+// GetRWCache returns native contact cache. The cache CAN BE safely modified
+// by the caller.
+func (dao *Simple) GetRWCache(id int32) NativeContractCache {
+	if !dao.private {
+		dao.nativeCacheLock.Lock()
+		defer dao.nativeCacheLock.Unlock()
+	}
+
+	return dao.getCache(id, false)
+}
+
+// getCache is an internal unlocked representation of GetROCache and GetRWCache.
+func (dao *Simple) getCache(k int32, ro bool) NativeContractCache {
+	if itm, ok := dao.nativeCache[k]; ok {
+		// Don't need to create itm copy, because its value was already copied
+		// the first time it was retrieved from loser ps.
+		return itm
+	}
+
+	if dao.nativeCachePS != nil {
+		if ro {
+			return dao.nativeCachePS.GetROCache(k)
+		}
+		v := dao.nativeCachePS.GetRWCache(k)
+		if v != nil {
+			// Create a copy here in order not to modify the existing cache.
+			cp := v.Copy()
+			dao.nativeCache[k] = cp
+			return cp
+		}
+	}
+	return nil
+}
+
+// SetCache adds native contract cache to the cache map.
+func (dao *Simple) SetCache(id int32, v NativeContractCache) {
+	dao.nativeCacheLock.Lock()
+	defer dao.nativeCacheLock.Unlock()
+
+	dao.nativeCache[id] = v
 }

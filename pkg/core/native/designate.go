@@ -79,12 +79,12 @@ var (
 )
 
 var (
-	_ interop.Contract            = (*Designate)(nil)
-	_ storage.NativeContractCache = (*DesignationCache)(nil)
+	_ interop.Contract        = (*Designate)(nil)
+	_ dao.NativeContractCache = (*DesignationCache)(nil)
 )
 
 // Copy implements NativeContractCache interface.
-func (c *DesignationCache) Copy() storage.NativeContractCache {
+func (c *DesignationCache) Copy() dao.NativeContractCache {
 	cp := &DesignationCache{}
 	copyDesignationCache(c, cp)
 	return cp
@@ -128,7 +128,7 @@ func newDesignate(p2pSigExtensionsEnabled bool) *Designate {
 // data in the storage.
 func (s *Designate) Initialize(ic *interop.Context) error {
 	cache := &DesignationCache{}
-	ic.DAO.Store.SetCache(s.ID, cache)
+	ic.DAO.SetCache(s.ID, cache)
 	return nil
 }
 
@@ -146,7 +146,7 @@ func (s *Designate) InitializeCache(d *dao.Simple) error {
 			return fmt.Errorf("failed to get nodes from storage for %d role: %w", r, err)
 		}
 	}
-	d.Store.SetCache(s.ID, cache)
+	d.SetCache(s.ID, cache)
 	return nil
 }
 
@@ -157,7 +157,7 @@ func (s *Designate) OnPersist(ic *interop.Context) error {
 
 // PostPersist implements Contract interface.
 func (s *Designate) PostPersist(ic *interop.Context) error {
-	cache := ic.DAO.Store.GetRWCache(s.ID).(*DesignationCache)
+	cache := ic.DAO.GetRWCache(s.ID).(*DesignationCache)
 	if !cache.rolesChangedFlag {
 		return nil
 	}
@@ -273,7 +273,7 @@ func (s *Designate) GetLastDesignatedHash(d *dao.Simple, r noderoles.Role) (util
 	if !s.isValidRole(r) {
 		return util.Uint160{}, ErrInvalidRole
 	}
-	cache := d.Store.GetROCache(s.ID).(*DesignationCache)
+	cache := d.GetROCache(s.ID).(*DesignationCache)
 	if val := getCachedRoleData(cache, r); val != nil {
 		return val.addr, nil
 	}
@@ -285,7 +285,7 @@ func (s *Designate) GetDesignatedByRole(d *dao.Simple, r noderoles.Role, index u
 	if !s.isValidRole(r) {
 		return nil, 0, ErrInvalidRole
 	}
-	cache := d.Store.GetROCache(s.ID).(*DesignationCache)
+	cache := d.GetROCache(s.ID).(*DesignationCache)
 	if val := getCachedRoleData(cache, r); val != nil {
 		if val.height <= index {
 			return val.nodes.Copy(), val.height, nil
@@ -380,7 +380,7 @@ func (s *Designate) DesignateAsRole(ic *interop.Context, r noderoles.Role, pubs 
 		return err
 	}
 
-	cache := ic.DAO.Store.GetRWCache(s.ID).(*DesignationCache)
+	cache := ic.DAO.GetRWCache(s.ID).(*DesignationCache)
 	err = s.updateCachedRoleData(cache, ic.DAO, r)
 	if err != nil {
 		return fmt.Errorf("failed to update Designation role data cache: %w", err)

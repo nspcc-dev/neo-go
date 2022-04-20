@@ -105,12 +105,12 @@ var (
 )
 
 var (
-	_ interop.Contract            = (*NEO)(nil)
-	_ storage.NativeContractCache = (*NeoCache)(nil)
+	_ interop.Contract        = (*NEO)(nil)
+	_ dao.NativeContractCache = (*NeoCache)(nil)
 )
 
 // Copy implements NativeContractCache interface.
-func (c *NeoCache) Copy() storage.NativeContractCache {
+func (c *NeoCache) Copy() dao.NativeContractCache {
 	cp := &NeoCache{}
 	copyNeoCache(c, cp)
 	return cp
@@ -245,7 +245,7 @@ func (n *NEO) Initialize(ic *interop.Context) error {
 	}
 
 	// We need cache to be present in DAO before the subsequent call to `mint`.
-	ic.DAO.Store.SetCache(n.ID, cache)
+	ic.DAO.SetCache(n.ID, cache)
 
 	committee0 := n.standbyKeys[:n.cfg.GetCommitteeSize(ic.Block.Index)]
 	cvs := toKeysWithVotes(committee0)
@@ -297,7 +297,7 @@ func (n *NEO) InitializeCache(bc interop.Ledger, d *dao.Simple) error {
 	cache.gasPerBlock = n.getSortedGASRecordFromDAO(d)
 	cache.registerPrice = getIntWithKey(n.ID, d, []byte{prefixRegisterPrice})
 
-	d.Store.SetCache(n.ID, cache)
+	d.SetCache(n.ID, cache)
 	return nil
 }
 
@@ -348,7 +348,7 @@ func (n *NEO) updateCommittee(cache *NeoCache, ic *interop.Context) error {
 // OnPersist implements Contract interface.
 func (n *NEO) OnPersist(ic *interop.Context) error {
 	if n.cfg.ShouldUpdateCommitteeAt(ic.Block.Index) {
-		cache := ic.DAO.Store.GetRWCache(n.ID).(*NeoCache)
+		cache := ic.DAO.GetRWCache(n.ID).(*NeoCache)
 		oldKeys := cache.nextValidators
 		oldCom := cache.committee
 		if n.cfg.GetNumOfCNs(ic.Block.Index) != len(oldKeys) ||
@@ -365,7 +365,7 @@ func (n *NEO) OnPersist(ic *interop.Context) error {
 // PostPersist implements Contract interface.
 func (n *NEO) PostPersist(ic *interop.Context) error {
 	gas := n.GetGASPerBlock(ic.DAO, ic.Block.Index)
-	cache := ic.DAO.Store.GetRWCache(n.ID).(*NeoCache)
+	cache := ic.DAO.GetRWCache(n.ID).(*NeoCache)
 	pubs := getCommitteeMembers(cache)
 	committeeSize := n.cfg.GetCommitteeSize(ic.Block.Index)
 	index := int(ic.Block.Index) % committeeSize
@@ -532,7 +532,7 @@ func (n *NEO) getSortedGASRecordFromDAO(d *dao.Simple) gasRecord {
 
 // GetGASPerBlock returns gas generated for block with provided index.
 func (n *NEO) GetGASPerBlock(d *dao.Simple, index uint32) *big.Int {
-	cache := d.Store.GetROCache(n.ID).(*NeoCache)
+	cache := d.GetROCache(n.ID).(*NeoCache)
 	gr := cache.gasPerBlock
 	for i := len(gr) - 1; i >= 0; i-- {
 		if gr[i].Index <= index {
@@ -545,7 +545,7 @@ func (n *NEO) GetGASPerBlock(d *dao.Simple, index uint32) *big.Int {
 
 // GetCommitteeAddress returns address of the committee.
 func (n *NEO) GetCommitteeAddress(d *dao.Simple) util.Uint160 {
-	cache := d.Store.GetROCache(n.ID).(*NeoCache)
+	cache := d.GetROCache(n.ID).(*NeoCache)
 	return cache.committeeHash
 }
 
@@ -575,7 +575,7 @@ func (n *NEO) SetGASPerBlock(ic *interop.Context, index uint32, gas *big.Int) er
 		return errors.New("invalid committee signature")
 	}
 	n.putGASRecord(ic.DAO, index, gas)
-	cache := ic.DAO.Store.GetRWCache(n.ID).(*NeoCache)
+	cache := ic.DAO.GetRWCache(n.ID).(*NeoCache)
 	cache.gasPerBlock = append(cache.gasPerBlock, gasIndexPair{
 		Index:       index,
 		GASPerBlock: *gas,
@@ -588,7 +588,7 @@ func (n *NEO) getRegisterPrice(ic *interop.Context, _ []stackitem.Item) stackite
 }
 
 func (n *NEO) getRegisterPriceInternal(d *dao.Simple) int64 {
-	cache := d.Store.GetROCache(n.ID).(*NeoCache)
+	cache := d.GetROCache(n.ID).(*NeoCache)
 	return cache.registerPrice
 }
 
@@ -602,7 +602,7 @@ func (n *NEO) setRegisterPrice(ic *interop.Context, args []stackitem.Item) stack
 	}
 
 	setIntWithKey(n.ID, ic.DAO, []byte{prefixRegisterPrice}, price.Int64())
-	cache := ic.DAO.Store.GetRWCache(n.ID).(*NeoCache)
+	cache := ic.DAO.GetRWCache(n.ID).(*NeoCache)
 	cache.registerPrice = price.Int64()
 	return stackitem.Null{}
 }
@@ -672,7 +672,7 @@ func (n *NEO) CalculateNEOHolderReward(d *dao.Simple, value *big.Int, start, end
 	} else if value.Sign() < 0 {
 		return nil, errors.New("negative value")
 	}
-	cache := d.Store.GetROCache(n.ID).(*NeoCache)
+	cache := d.GetROCache(n.ID).(*NeoCache)
 	gr := cache.gasPerBlock
 	var sum, tmp big.Int
 	for i := len(gr) - 1; i >= 0; i-- {
@@ -743,7 +743,7 @@ func (n *NEO) UnregisterCandidateInternal(ic *interop.Context, pub *keys.PublicK
 	if si == nil {
 		return nil
 	}
-	cache := ic.DAO.Store.GetRWCache(n.ID).(*NeoCache)
+	cache := ic.DAO.GetRWCache(n.ID).(*NeoCache)
 	cache.validators = nil
 	c := new(candidate).FromBytes(si)
 	c.Registered = false
@@ -823,7 +823,7 @@ func (n *NEO) VoteInternal(ic *interop.Context, h util.Uint160, pub *keys.Public
 // ModifyAccountVotes modifies votes of the specified account by value (can be negative).
 // typ specifies if this modify is occurring during transfer or vote (with old or new validator).
 func (n *NEO) ModifyAccountVotes(acc *state.NEOBalance, d *dao.Simple, value *big.Int, isNewVote bool) error {
-	cache := d.Store.GetRWCache(n.ID).(*NeoCache)
+	cache := d.GetRWCache(n.ID).(*NeoCache)
 	cache.votesChanged = true
 	if acc.VoteTo != nil {
 		key := makeValidatorKey(acc.VoteTo)
@@ -934,7 +934,7 @@ func (n *NEO) getAccountState(ic *interop.Context, args []stackitem.Item) stacki
 // ComputeNextBlockValidators returns an actual list of current validators.
 func (n *NEO) ComputeNextBlockValidators(bc interop.Ledger, d *dao.Simple) (keys.PublicKeys, error) {
 	numOfCNs := n.cfg.GetNumOfCNs(bc.BlockHeight() + 1)
-	cache := d.Store.GetRWCache(n.ID).(*NeoCache)
+	cache := d.GetRWCache(n.ID).(*NeoCache)
 	if vals := cache.validators; vals != nil && numOfCNs == len(vals) {
 		return vals.Copy(), nil
 	}
@@ -969,7 +969,7 @@ func (n *NEO) modifyVoterTurnout(d *dao.Simple, amount *big.Int) error {
 
 // GetCommitteeMembers returns public keys of nodes in committee using cached value.
 func (n *NEO) GetCommitteeMembers(d *dao.Simple) keys.PublicKeys {
-	cache := d.Store.GetROCache(n.ID).(*NeoCache)
+	cache := d.GetROCache(n.ID).(*NeoCache)
 	return getCommitteeMembers(cache)
 }
 
@@ -1049,7 +1049,7 @@ func (n *NEO) getNextBlockValidators(ic *interop.Context, _ []stackitem.Item) st
 
 // GetNextBlockValidatorsInternal returns next block validators.
 func (n *NEO) GetNextBlockValidatorsInternal(d *dao.Simple) keys.PublicKeys {
-	cache := d.Store.GetROCache(n.ID).(*NeoCache)
+	cache := d.GetROCache(n.ID).(*NeoCache)
 	return cache.nextValidators.Copy()
 }
 

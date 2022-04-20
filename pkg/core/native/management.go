@@ -58,12 +58,12 @@ var (
 )
 
 var (
-	_ interop.Contract            = (*Management)(nil)
-	_ storage.NativeContractCache = (*ManagementCache)(nil)
+	_ interop.Contract        = (*Management)(nil)
+	_ dao.NativeContractCache = (*ManagementCache)(nil)
 )
 
 // Copy implements NativeContractCache interface.
-func (c *ManagementCache) Copy() storage.NativeContractCache {
+func (c *ManagementCache) Copy() dao.NativeContractCache {
 	cp := &ManagementCache{
 		contracts: make(map[util.Uint160]*state.Contract),
 		nep11:     make(map[util.Uint160]struct{}),
@@ -170,7 +170,7 @@ func (m *Management) getContract(ic *interop.Context, args []stackitem.Item) sta
 
 // GetContract returns contract with given hash from given DAO.
 func (m *Management) GetContract(d *dao.Simple, hash util.Uint160) (*state.Contract, error) {
-	cache := d.Store.GetROCache(m.ID).(*ManagementCache)
+	cache := d.GetROCache(m.ID).(*ManagementCache)
 	cs, ok := cache.contracts[hash]
 	if !ok {
 		return nil, storage.ErrKeyNotFound
@@ -272,7 +272,7 @@ func (m *Management) deployWithData(ic *interop.Context, args []stackitem.Item) 
 }
 
 func (m *Management) markUpdated(d *dao.Simple, hash util.Uint160, cs *state.Contract) {
-	cache := d.Store.GetRWCache(m.ID).(*ManagementCache)
+	cache := d.GetRWCache(m.ID).(*ManagementCache)
 	delete(cache.nep11, hash)
 	delete(cache.nep17, hash)
 	if cs == nil {
@@ -486,7 +486,7 @@ func (m *Management) OnPersist(ic *interop.Context) error {
 			return err
 		}
 		if cache == nil {
-			cache = ic.DAO.Store.GetRWCache(m.ID).(*ManagementCache)
+			cache = ic.DAO.GetRWCache(m.ID).(*ManagementCache)
 		}
 		updateContractCache(cache, cs)
 	}
@@ -517,7 +517,7 @@ func (m *Management) InitializeCache(d *dao.Simple) error {
 	if initErr != nil {
 		return initErr
 	}
-	d.Store.SetCache(m.ID, cache)
+	d.SetCache(m.ID, cache)
 	return nil
 }
 
@@ -530,7 +530,7 @@ func (m *Management) PostPersist(ic *interop.Context) error {
 // is updated every PostPersist, so until PostPersist is called, the result for the previous block
 // is returned.
 func (m *Management) GetNEP11Contracts(d *dao.Simple) []util.Uint160 {
-	cache := d.Store.GetROCache(m.ID).(*ManagementCache)
+	cache := d.GetROCache(m.ID).(*ManagementCache)
 	result := make([]util.Uint160, 0, len(cache.nep11))
 	for h := range cache.nep11 {
 		result = append(result, h)
@@ -542,7 +542,7 @@ func (m *Management) GetNEP11Contracts(d *dao.Simple) []util.Uint160 {
 // is updated every PostPersist, so until PostPersist is called, the result for the previous block
 // is returned.
 func (m *Management) GetNEP17Contracts(d *dao.Simple) []util.Uint160 {
-	cache := d.Store.GetROCache(m.ID).(*ManagementCache)
+	cache := d.GetROCache(m.ID).(*ManagementCache)
 	result := make([]util.Uint160, 0, len(cache.nep17))
 	for h := range cache.nep17 {
 		result = append(result, h)
@@ -560,7 +560,7 @@ func (m *Management) Initialize(ic *interop.Context) error {
 		nep11:     make(map[util.Uint160]struct{}),
 		nep17:     make(map[util.Uint160]struct{}),
 	}
-	ic.DAO.Store.SetCache(m.ID, cache)
+	ic.DAO.SetCache(m.ID, cache)
 	return nil
 }
 
