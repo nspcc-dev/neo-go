@@ -607,9 +607,9 @@ func (n *NEO) setRegisterPrice(ic *interop.Context, args []stackitem.Item) stack
 	return stackitem.Null{}
 }
 
-func (n *NEO) dropCandidateIfZero(d *dao.Simple, cache *NeoCache, pub *keys.PublicKey, c *candidate) (bool, error) {
+func (n *NEO) dropCandidateIfZero(d *dao.Simple, cache *NeoCache, pub *keys.PublicKey, c *candidate) bool {
 	if c.Registered || c.Votes.Sign() != 0 {
-		return false, nil
+		return false
 	}
 	d.DeleteStorageItem(n.ID, makeValidatorKey(pub))
 
@@ -620,7 +620,7 @@ func (n *NEO) dropCandidateIfZero(d *dao.Simple, cache *NeoCache, pub *keys.Publ
 	})
 	delete(cache.gasPerVoteCache, string(voterKey))
 
-	return true, nil
+	return true
 }
 
 func makeVoterKey(pub []byte, prealloc ...[]byte) []byte {
@@ -747,9 +747,9 @@ func (n *NEO) UnregisterCandidateInternal(ic *interop.Context, pub *keys.PublicK
 	cache.validators = nil
 	c := new(candidate).FromBytes(si)
 	c.Registered = false
-	ok, err := n.dropCandidateIfZero(ic.DAO, cache, pub, c)
+	ok := n.dropCandidateIfZero(ic.DAO, cache, pub, c)
 	if ok {
-		return err
+		return nil
 	}
 	return putConvertibleToDAO(n.ID, ic.DAO, key, c)
 }
@@ -834,9 +834,9 @@ func (n *NEO) ModifyAccountVotes(acc *state.NEOBalance, d *dao.Simple, value *bi
 		cd := new(candidate).FromBytes(si)
 		cd.Votes.Add(&cd.Votes, value)
 		if !isNewVote {
-			ok, err := n.dropCandidateIfZero(d, cache, acc.VoteTo, cd)
+			ok := n.dropCandidateIfZero(d, cache, acc.VoteTo, cd)
 			if ok {
-				return err
+				return nil
 			}
 		}
 		cache.validators = nil
